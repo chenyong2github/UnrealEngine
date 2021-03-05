@@ -75,10 +75,12 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 					MasterSubmix = CachedMasterSubmix;
 				}
 			}
-			else
-			{
-				bPromptRestartRequired = true;
-			}
+
+			bPromptRestartRequired = true;
+		}
+		else if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, BaseDefaultSubmix))
+		{
+			bPromptRestartRequired = true;
 		}
 		else if(PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, EQSubmix)
 			|| PropertyName == GET_MEMBER_NAME_CHECKED(UAudioSettings, ReverbSubmix))

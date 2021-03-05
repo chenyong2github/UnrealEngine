@@ -834,22 +834,25 @@ public partial class Project : CommandUtils
 
 				StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), null);
 
-				var ToRestoreRestrictedFolder = SC.RestrictedFolderNames;
-
-				// For every platform we depend on also stage their platform config files
-				foreach (var PlatformDepends in Params.ServerDependentPlatformMap)
+				if (SC.DedicatedServer)
 				{
-					// StageConfigFiles will fail to find these config files due to filtering out restricted folder names
-					// Just for this loop we remove the filter for these platorms and stage the config files
-					// After the loop we restore the restricted folder to prevent staging anything unwanted
-					SC.RestrictedFolderNames.ExceptWith(PlatformExports.GetIncludedFolderNames(PlatformDepends.Key.Type));
+					var ToRestoreRestrictedFolder = SC.RestrictedFolderNames;
 
-					StageConfigFiles(SC, DirectoryReference.Combine(SC.EngineRoot, "Config"), PlatformDepends.Key.ToString());
-					StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), PlatformDepends.Key.ToString());
-					StagePlatformExtensionConfigFiles(SC, PlatformDepends.Key.ToString());
+					// For every platform we depend on also stage their platform config files
+					foreach (var PlatformDepends in Params.ServerDependentPlatformMap)
+					{
+						// StageConfigFiles will fail to find these config files due to filtering out restricted folder names
+						// Just for this loop we remove the filter for these platorms and stage the config files
+						// After the loop we restore the restricted folder to prevent staging anything unwanted
+						SC.RestrictedFolderNames.ExceptWith(PlatformExports.GetIncludedFolderNames(PlatformDepends.Key.Type));
+
+						StageConfigFiles(SC, DirectoryReference.Combine(SC.EngineRoot, "Config"), PlatformDepends.Key.ToString());
+						StageConfigFiles(SC, DirectoryReference.Combine(SC.ProjectRoot, "Config"), PlatformDepends.Key.ToString());
+						StagePlatformExtensionConfigFiles(SC, PlatformDepends.Key.ToString());
+					}
+
+					SC.RestrictedFolderNames = ToRestoreRestrictedFolder;
 				}
-
-				SC.RestrictedFolderNames = ToRestoreRestrictedFolder;
 				
 				// Stage platform extension config files
 				foreach (string PlatformExtensionToStage in PlatformExtensionsToStage)
@@ -1091,7 +1094,7 @@ public partial class Project : CommandUtils
 				// if -skippak is on, this indicates that the data is already ready to go, we are staging non-data files to re-use
 				// data from a previous run, but still want to stage executables, etc. SkipPak indicates we _would_ have made a 
 				// pak file, but we aren't this time, so we can assume the binary config is already inside the .pak file (and
-				// the UE4Editor.exe may not even exist if we are making a target-code-only build on top of existing build)
+				// the UnrealEditor.exe may not even exist if we are making a target-code-only build on top of existing build)
 				if (Params.GenerateOptimizationData && !Params.SkipPak)
 				{
 					// get the list of plugins that need to be processed

@@ -475,8 +475,6 @@ public:
 
 	FBox GetFixedBounds() const;
 
-	FORCEINLINE int32* GetCycleCounter(bool bGameThread, bool bConcurrent);
-
 #if WITH_EDITOR
 	void SetEffectType(UNiagaraEffectType* EffectType);
 
@@ -703,16 +701,6 @@ protected:
 	/** Total active instances of this system. */
 	int32 ActiveInstances;
 };
-
-extern int32 GEnableNiagaraRuntimeCycleCounts;
-FORCEINLINE int32* UNiagaraSystem::GetCycleCounter(bool bGameThread, bool bConcurrent)
-{
-	if (GEnableNiagaraRuntimeCycleCounts && EffectType)
-	{
-		return EffectType->GetCycleCounter(bGameThread, bConcurrent);
-	}
-	return nullptr;
-}
 
 FORCEINLINE void UNiagaraSystem::RegisterActiveInstance()
 {

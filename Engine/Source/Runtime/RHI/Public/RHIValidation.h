@@ -618,24 +618,6 @@ public:
 		RHI->RHICopySharedMips(DestTexture2D, SrcTexture2D);
 	}
 
-	/**
-	* Synchronizes the content of a texture resource between two GPUs using a copy operation.
-	* @param Texture - the texture to synchronize.
-	* @param Rect - the rectangle area to update.
-	* @param SrcGPUIndex - the index of the gpu which content will be red from
-	* @param DestGPUIndex - the index of the gpu which content will be updated.
-	* @param PullData - whether the source writes the data to the dest, or the dest reads the data from the source.
-	*/
-	// FlushType: Flush RHI Thread
-	virtual void RHITransferTexture(FRHITexture2D* Texture, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool bPullData) override final
-	{
-		RHI->RHITransferTexture(Texture, Rect, SrcGPUIndex, DestGPUIndex, bPullData);
-	}
-	virtual void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params) override final
-	{
-		RHI->RHITransferTextures(Params);
-	}
-
 	void RHITransferBufferUnderlyingResource(FRHIBuffer* DestBuffer, FRHIBuffer* SrcBuffer) override final
 	{
 		RHI->RHITransferBufferUnderlyingResource(DestBuffer, SrcBuffer);

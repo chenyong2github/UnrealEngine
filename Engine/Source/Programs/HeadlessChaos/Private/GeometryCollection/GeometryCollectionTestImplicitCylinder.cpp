@@ -8,7 +8,7 @@ namespace GeometryCollectionTest
 {
 	using namespace Chaos;
 
-	void RunTestComputeSamplePoints(const TCylinder<FReal> &Cylinder)
+	void RunTestComputeSamplePoints(const FCylinder &Cylinder)
 	{
 		FVec3 Point;
 		FReal Phi;
@@ -86,32 +86,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(0,0,1), (FReal)1.0);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(0,0,1), (FReal)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(0,0,1), (FReal)10.0);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(0,0,1), (FReal)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(0,0,1), (FReal)0.1);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(0,0,1), (FReal)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(10,10,11), (FReal)1.0);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(10,10,11), (FReal)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(10,10,11), (FReal)10.0);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(10,10,11), (FReal)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(10,10,11), (FReal)0.1);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(10,10,11), (FReal)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 
@@ -121,32 +121,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(0,0,10), (FReal)1.0);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(0,0,10), (FReal)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(0,0,10), (FReal)10.0);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(0,0,10), (FReal)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(0,0,10), (FReal)0.1);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(0,0,10), (FReal)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(10,10,21), (FReal)1.0);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(10,10,21), (FReal)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(10,10,21), (FReal)10.0);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(10,10,21), (FReal)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(10,10,21), (FReal)0.1);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(10,10,21), (FReal)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 
@@ -156,32 +156,32 @@ namespace GeometryCollectionTest
 
 		// At the origin with radius 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(1,1,1), (FReal)1.0);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(1,1,1), (FReal)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius > 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(1,1,1), (FReal)10.0);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(1,1,1), (FReal)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// At the origin with radius < 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(0,0,0), FVec3(1,1,1), (FReal)0.1);
+			FCylinder Cylinder(FVec3(0,0,0), FVec3(1,1,1), (FReal)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(11,11,11), (FReal)1.0);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(11,11,11), (FReal)1.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius > 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(11,11,11), (FReal)10.0);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(11,11,11), (FReal)10.0);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 		// Off the origin with radius < 1
 		{
-			TCylinder<FReal> Cylinder(FVec3(10,10,10), FVec3(11,11,11), (FReal)0.1);
+			FCylinder Cylinder(FVec3(10,10,10), FVec3(11,11,11), (FReal)0.1);
 			RunTestComputeSamplePoints(Cylinder);
 		}
 	}

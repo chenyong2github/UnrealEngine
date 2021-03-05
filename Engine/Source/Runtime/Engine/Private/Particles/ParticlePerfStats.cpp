@@ -26,10 +26,13 @@
 #include "Misc/Paths.h"
 #include "CanvasTypes.h"
 #include "Engine/Font.h"
+#include "FXSystem.h"
+#include "Particles/ParticleSystemComponent.h"
 
 
 TAtomic<bool> FParticlePerfStats::bStatsEnabled(true);
-TAtomic<bool> FParticlePerfStats::bGatherStats(false);
+TAtomic<int32> FParticlePerfStats::WorldStatsReaders(0);
+TAtomic<int32> FParticlePerfStats::SystemStatsReaders(0);
 
 FDelegateHandle FParticlePerfStatsManager::BeginFrameHandle;
 #if CSV_PROFILER
@@ -37,8 +40,14 @@ FDelegateHandle FParticlePerfStatsManager::CSVStartHandle;
 FDelegateHandle FParticlePerfStatsManager::CSVEndHandle;
 #endif
 
+FCriticalSection FParticlePerfStatsManager::WorldToPerfStatsGuard;
+TMap<TWeakObjectPtr<UWorld>, TUniquePtr<FParticlePerfStats>> FParticlePerfStatsManager::WorldToPerfStats;
+TArray<TUniquePtr<FParticlePerfStats>> FParticlePerfStatsManager::FreeWorldStatsPool;
+
 FCriticalSection FParticlePerfStatsManager::SystemToPerfStatsGuard;
 TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>> FParticlePerfStatsManager::SystemToPerfStats;
+TArray<TUniquePtr<FParticlePerfStats>> FParticlePerfStatsManager::FreeSystemStatsPool;
+
 TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> FParticlePerfStatsManager::Listeners;
 
 #if ENABLE_PARTICLE_PERF_STATS_RENDER
@@ -94,7 +103,14 @@ void FParticlePerfStatsManager::AddListener(FParticlePerfStatsListenerPtr Listen
 		Listener->Begin();
 
 		//Ensure we're gathering stats.
-		FParticlePerfStats::SetGatherStats(true);
+		if (Listener->NeedsWorldStats())
+		{
+			FParticlePerfStats::AddWorldStatReader();
+		}
+		if (Listener->NeedsSystemStats())
+		{
+			FParticlePerfStats::AddSystemStatReader();
+		}
 	}
 }
 
@@ -117,10 +133,14 @@ void FParticlePerfStatsManager::RemoveListener(FParticlePerfStatsListenerPtr Lis
 	Listener->End();
 	Listeners.Remove(Listener);
 
-	//If we have no listeners then stop gathering.
-	if (Listeners.Num() == 0)
+	//Unregister the listener from the stats so we will stop gathering if there are no listeners.
+	if (Listener->NeedsWorldStats())
 	{
-		FParticlePerfStats::SetGatherStats(false);
+		FParticlePerfStats::RemoveWorldStatReader();
+	}
+	if (Listener->NeedsSystemStats())
+	{
+		FParticlePerfStats::RemoveSystemStatReader();
 	}
 }
 
@@ -128,12 +148,23 @@ void FParticlePerfStatsManager::Reset()
 {
 	FlushRenderingCommands();
 
-	FScopeLock ScopeLock(&FParticlePerfStatsManager::SystemToPerfStatsGuard);
-	for (TObjectIterator<UFXSystemAsset> SystemIt; SystemIt; ++SystemIt)
 	{
-		SystemIt->ParticlePerfStats = nullptr;
+		FScopeLock ScopeLock(&FParticlePerfStatsManager::SystemToPerfStatsGuard);
+		for (TObjectIterator<UFXSystemAsset> SystemIt; SystemIt; ++SystemIt)
+		{
+			SystemIt->ParticlePerfStats = nullptr;
+		}
+		SystemToPerfStats.Empty();
 	}
-	SystemToPerfStats.Empty();
+
+	{
+		FScopeLock ScopeLock(&FParticlePerfStatsManager::WorldToPerfStatsGuard);
+		for (TObjectIterator<UWorld> WorldIt; WorldIt; ++WorldIt)
+		{
+			WorldIt->FXPerfStats = nullptr;
+		}
+		WorldToPerfStats.Empty();
+	}
 }
 
 void FParticlePerfStatsManager::Tick()
@@ -171,16 +202,61 @@ void FParticlePerfStatsManager::Tick()
 					{
 						it.Value()->TickRT();
 					}
+				} 
+				{
+					FScopeLock ScopeLock(&FParticlePerfStatsManager::WorldToPerfStatsGuard);
+					for (auto it = WorldToPerfStats.CreateIterator(); it; ++it)
+					{
+						it.Value()->TickRT();
+					}
 				}
 			}
 		);
 
 		//Reset current frame data
 		{
+			TArray<TWeakObjectPtr<UFXSystemAsset>> DeadSystems;
 			FScopeLock ScopeLock(&FParticlePerfStatsManager::SystemToPerfStatsGuard);
 			for (auto it = SystemToPerfStats.CreateIterator(); it; ++it)
 			{
-				it.Value()->Tick();
+				if(it->Key.Get())
+				{
+					it.Value()->Tick();
+				}
+				else
+				{
+					FreeSystemStatsPool.Add(MoveTemp(it.Value()));//System is dead. Place it's stat back on the pool.
+					DeadSystems.Add(it.Key());
+					for (FParticlePerfStatsListenerPtr& Listener : Listeners)
+					{
+						Listener->OnRemoveSystem(it.Key());
+					}
+				}
+			}
+			for (TWeakObjectPtr<UFXSystemAsset>& DeadSys : DeadSystems)
+			{
+				SystemToPerfStats.Remove(DeadSys);
+			}
+		}
+		{
+			TArray<TWeakObjectPtr<UWorld>> DeadWorlds;
+			FScopeLock ScopeLock(&FParticlePerfStatsManager::WorldToPerfStatsGuard);
+			for (auto it = WorldToPerfStats.CreateIterator(); it; ++it)
+			{
+				if(it->Key.Get())
+				{
+					it.Value()->Tick();
+				}
+				else
+				{
+					FreeWorldStatsPool.Add(MoveTemp(it.Value()));//World is dead. Place it's stat back on the pool.
+					DeadWorlds.Add(it.Key());
+				}				
+			}
+
+			for (TWeakObjectPtr<UWorld>& DeadWorld : DeadWorlds)
+			{
+				WorldToPerfStats.Remove(DeadWorld);
 			}
 		}
 
@@ -200,31 +276,89 @@ void FParticlePerfStatsManager::Tick()
 	}
 }
 
-FParticlePerfStats* FParticlePerfStatsManager::GetPerfStats(class UFXSystemAsset* Asset)
+FParticlePerfStatsContext FParticlePerfStatsManager::GetPerfStats(UWorld* World, UFXSystemAsset* FXAsset)
 {
+	FParticlePerfStatsContext OutContext;
+	OutContext.WorldStats = GetWorldPerfStats(World);
+	OutContext.SystemStats = GetSystemPerfStats(FXAsset);
+
+	//If we need neither stats then we leave them as null to mark the context as invalid.
+	if (OutContext.WorldStats == nullptr && OutContext.SystemStats == nullptr)
+	{
+		return OutContext;
+	}
+
+	//If we need either of the stats we ensure there's a valid write location for both;
 	static FParticlePerfStats Dummy;
-
-	if (Asset == nullptr)
+	if (OutContext.WorldStats == nullptr)
 	{
-		return &Dummy;
+		OutContext.WorldStats = &Dummy;
 	}
 
-	if (Asset->ParticlePerfStats == nullptr)
+	if (OutContext.SystemStats == nullptr)
 	{
-		FScopeLock ScopeLock(&SystemToPerfStatsGuard);
-		TUniquePtr<FParticlePerfStats>& PerfStats = SystemToPerfStats.FindOrAdd(Asset);
-		if (PerfStats == nullptr)
-		{
-			PerfStats.Reset(new FParticlePerfStats());
-		}
-		Asset->ParticlePerfStats = PerfStats.Get();
-		
-		for (auto& Listener : Listeners)
-		{
-			Listener->OnAddSystem(Asset);
-		}
+		OutContext.SystemStats = &Dummy;
 	}
-	return Asset->ParticlePerfStats;
+
+	return OutContext;
+}
+
+FParticlePerfStats* FParticlePerfStatsManager::GetSystemPerfStats(UFXSystemAsset* FXAsset)
+{
+	if (FXAsset && FParticlePerfStats::GetGatherSystemStats() && FParticlePerfStats::GetStatsEnabled())
+	{
+		if (FXAsset->ParticlePerfStats == nullptr)
+		{
+			FScopeLock ScopeLock(&SystemToPerfStatsGuard);
+			TUniquePtr<FParticlePerfStats>& PerfStats = SystemToPerfStats.FindOrAdd(FXAsset);
+			if (PerfStats == nullptr)
+			{
+				if (FreeSystemStatsPool.Num())
+				{
+					PerfStats = FreeSystemStatsPool.Pop();
+				}
+				else
+				{
+					PerfStats.Reset(new FParticlePerfStats());
+				}
+				
+			}
+			FXAsset->ParticlePerfStats = PerfStats.Get();
+
+			for (auto& Listener : Listeners)
+			{
+				Listener->OnAddSystem(FXAsset);
+			}
+		}
+		return FXAsset->ParticlePerfStats;
+	}
+	return nullptr;
+}
+
+FParticlePerfStats* FParticlePerfStatsManager::GetWorldPerfStats(UWorld* World)
+{
+	if (World && FParticlePerfStats::GetGatherWorldStats() && FParticlePerfStats::GetStatsEnabled())
+	{
+		if (World->FXPerfStats == nullptr)
+		{
+			FScopeLock ScopeLock(&WorldToPerfStatsGuard);
+			TUniquePtr<FParticlePerfStats>& PerfStats = WorldToPerfStats.FindOrAdd(World);
+			if (PerfStats == nullptr)
+			{
+				if (FreeWorldStatsPool.Num())
+				{
+					PerfStats = FreeWorldStatsPool.Pop();
+				}
+				else
+				{
+					PerfStats.Reset(new FParticlePerfStats());
+				}
+			}
+			World->FXPerfStats = PerfStats.Get();
+		}
+		return World->FXPerfStats;
+	}
+	return nullptr;
 }
 
 void FParticlePerfStatsManager::TogglePerfStatsRender(UWorld* World)
@@ -284,9 +418,9 @@ void FParticlePerfStatsManager::OnShutdown()
 
 //////////////////////////////////////////////////////////////////////////
 
-FParticlePerfStats* FParticlePerfStats::GetPerfStats(class UFXSystemAsset* Asset)
+FParticlePerfStatsContext FParticlePerfStats::GetPerfStats(class UWorld* World, class UFXSystemAsset* FXAsset)
 {
-	return FParticlePerfStatsManager::GetPerfStats(Asset);
+	return FParticlePerfStatsManager::GetPerfStats(World, FXAsset);
 }
 
 void FParticlePerfStats::ResetGT()
@@ -552,10 +686,16 @@ void FParticlePerfStatsListener_GatherAll::TickRT()
 	}
 }
 
-void FParticlePerfStatsListener_GatherAll::OnAddSystem(UFXSystemAsset* NewSystem)
+void FParticlePerfStatsListener_GatherAll::OnAddSystem(const TWeakObjectPtr<UFXSystemAsset>& NewSystem)
 {
 	FScopeLock Lock(&AccumulatedStatsGuard);
 	AccumulatedStats.Add(NewSystem) = MakeUnique<FAccumulatedParticlePerfStats>();
+}
+
+void FParticlePerfStatsListener_GatherAll::OnRemoveSystem(const TWeakObjectPtr<UFXSystemAsset>& System)
+{
+	FScopeLock Lock(&AccumulatedStatsGuard);
+	AccumulatedStats.Remove(System);
 }
 
 void FParticlePerfStatsListener_GatherAll::DumpStatsToDevice(FOutputDevice& Ar)
@@ -627,6 +767,7 @@ void FParticlePerfStatsListener_GatherAll::DumpStatsToDevice(FOutputDevice& Ar)
 
 void FParticlePerfStatsListener_GatherAll::DumpStatsToFile()
 {
+#if !UE_BUILD_SHIPPING
 	const FString PathName = FPaths::ProfilingDir() + TEXT("ParticlePerf");
 	IFileManager::Get().MakeDirectory(*PathName);
 
@@ -639,6 +780,7 @@ void FParticlePerfStatsListener_GatherAll::DumpStatsToFile()
 		DumpStatsToDevice(*FileArWrapper.Get());
 		delete FileAr;
 	}
+#endif
 }
 
 //////////////////////////////////////////////////////////////////////////

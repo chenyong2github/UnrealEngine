@@ -24,6 +24,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "Misc/CoreDelegates.h"
 #include "NiagaraDebuggerClient.h"
+#include "Particles/FXBudget.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -55,6 +56,24 @@ static FAutoConsoleVariableRef CVarNiaraGlobalSystemCountScale(
 	TEXT("A global scale on system count thresholds for culling in Niagara. \n"),
 	ECVF_Scalability
 );
+
+bool INiagaraModule::bUseGlobalFXBudget = true;
+static FAutoConsoleVariableRef CVarUseGlobalFXBudget(
+	TEXT("fx.Niagara.UseGlobalFXBudget"),
+	INiagaraModule::bUseGlobalFXBudget,
+	TEXT("If true, Niagara will track performace data into the global FX budget and feed the global budget values into scalability. \n"),
+	FConsoleVariableDelegate::CreateStatic(&INiagaraModule::OnUseGlobalFXBudgetChanged),
+	ECVF_Default
+);
+
+void INiagaraModule::OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable)
+{
+	//Enable the global budget tracking if needed.
+	if (UseGlobalFXBudget() && FFXBudget::Enabled() == false)
+	{
+		FFXBudget::SetEnabled(true);
+	}
+}
 
 FNiagaraVariable INiagaraModule::Engine_DeltaTime;
 FNiagaraVariable INiagaraModule::Engine_InvDeltaTime;
@@ -145,7 +164,7 @@ FNiagaraVariable INiagaraModule::Particles_RibbonU0Override;
 FNiagaraVariable INiagaraModule::Particles_RibbonV0RangeOverride;
 FNiagaraVariable INiagaraModule::Particles_RibbonU1Override;
 FNiagaraVariable INiagaraModule::Particles_RibbonV1RangeOverride;
-FNiagaraVariable INiagaraModule::Particles_RibbonDistanceFromStart;
+FNiagaraVariable INiagaraModule::Particles_RibbonUVDistance;
 FNiagaraVariable INiagaraModule::Particles_VisibilityTag;
 FNiagaraVariable INiagaraModule::Particles_MeshIndex;
 FNiagaraVariable INiagaraModule::Particles_ComponentsEnabled;
@@ -261,7 +280,7 @@ void INiagaraModule::StartupModule()
 	Particles_RibbonTwist = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonTwist"));
 	Particles_RibbonFacing = FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Particles.RibbonFacing"));
 	Particles_RibbonLinkOrder = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonLinkOrder"));
-	Particles_RibbonDistanceFromStart = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonDistanceFromStart"));
+	Particles_RibbonUVDistance = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonUVDistance"));
 	Particles_RibbonU0Override = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonU0Override"));
 	Particles_RibbonV0RangeOverride = FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), TEXT("Particles.RibbonV0RangeOverride"));
 	Particles_RibbonU1Override = FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("Particles.RibbonU1Override"));
@@ -505,6 +524,7 @@ UScriptStruct* FNiagaraTypeDefinition::Vec3Struct;
 UScriptStruct* FNiagaraTypeDefinition::Vec2Struct;
 UScriptStruct* FNiagaraTypeDefinition::ColorStruct;
 UScriptStruct* FNiagaraTypeDefinition::QuatStruct;
+UScriptStruct* FNiagaraTypeDefinition::WildcardStruct;
 
 UScriptStruct* FNiagaraTypeDefinition::HalfStruct;
 UScriptStruct* FNiagaraTypeDefinition::HalfVec2Struct;
@@ -547,6 +567,7 @@ FNiagaraTypeDefinition FNiagaraTypeDefinition::UObjectDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UMaterialDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureDef;
 FNiagaraTypeDefinition FNiagaraTypeDefinition::UTextureRenderTargetDef;
+FNiagaraTypeDefinition FNiagaraTypeDefinition::WildcardDef;
 
 TSet<UScriptStruct*> FNiagaraTypeDefinition::NumericStructs;
 TArray<FNiagaraTypeDefinition> FNiagaraTypeDefinition::OrderedNumericTypes;
@@ -576,6 +597,7 @@ void FNiagaraTypeDefinition::Init()
 	FNiagaraTypeDefinition::BoolStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraBool"));
 	FNiagaraTypeDefinition::IntStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraInt32"));
 	FNiagaraTypeDefinition::Matrix4Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraMatrix"));
+	FNiagaraTypeDefinition::WildcardStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraWildcard"));
 
 	FNiagaraTypeDefinition::HalfStruct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalf"));
 	FNiagaraTypeDefinition::HalfVec2Struct = FindObjectChecked<UScriptStruct>(NiagaraPkg, TEXT("NiagaraHalfVector2"));
@@ -605,7 +627,8 @@ void FNiagaraTypeDefinition::Init()
 	ColorDef = FNiagaraTypeDefinition(ColorStruct);
 	QuatDef = FNiagaraTypeDefinition(QuatStruct);
 	Matrix4Def = FNiagaraTypeDefinition(Matrix4Struct);
-
+	WildcardDef = FNiagaraTypeDefinition(WildcardStruct);
+	
 	HalfDef = FNiagaraTypeDefinition(HalfStruct);
 	HalfVec2Def = FNiagaraTypeDefinition(HalfVec2Struct);
 	HalfVec3Def = FNiagaraTypeDefinition(HalfVec3Struct);
@@ -795,6 +818,8 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(ColorDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(QuatDef, ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(Matrix4Def, ParamFlags);
+	// @todo wildcard shouldn't be available for parameters etc., so just don't register here?
+	//FNiagaraTypeRegistry::Register(WildcardDef, VarFlags);
 
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateEnum), ParamFlags | PayloadFlags);
 	FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(ExecutionStateSourceEnum), ParamFlags | PayloadFlags);

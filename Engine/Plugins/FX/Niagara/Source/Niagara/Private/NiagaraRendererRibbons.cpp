@@ -400,7 +400,7 @@ void FNiagaraRendererRibbons::GenerateIndexBuffer(
 void FNiagaraRendererRibbons::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraRenderRibbons);
-	PARTICLE_PERF_STAT_CYCLES_RT(SceneProxy->PerfAsset, GetDynamicMeshElements);
+	PARTICLE_PERF_STAT_CYCLES_RT(SceneProxy->PerfStatsContext, GetDynamicMeshElements);
 
 	FNiagaraDynamicDataRibbon *DynamicDataRibbon = static_cast<FNiagaraDynamicDataRibbon*>(DynamicDataRender);
 	if (!DynamicDataRibbon)
@@ -472,7 +472,7 @@ void CalculateUVScaleAndOffsets(
 	const FNiagaraRibbonUVSettings& UVSettings,
 	const TArray<int32>& RibbonIndices,
 	const TArray<FVector4>& RibbonTangentsAndDistances,
-	const FNiagaraDataSetReaderFloat<float>& SortKeyReader,
+	const FNiagaraDataSetReaderFloat<float>& NormalizedAgeReader,
 	int32 StartIndex, int32 EndIndex,
 	int32 NumSegments, float TotalLength,
 	float& OutUScale, float& OutUOffset, float& OutUDistributionScaler)
@@ -480,13 +480,13 @@ void CalculateUVScaleAndOffsets(
 	float NormalizedLeadingSegmentOffset;
 	if (UVSettings.LeadingEdgeMode == ENiagaraRibbonUVEdgeMode::SmoothTransition)
 	{
-		float FirstAge = SortKeyReader[RibbonIndices[StartIndex]];
-		float SecondAge = SortKeyReader[RibbonIndices[StartIndex + 1]];
+		float FirstAge = NormalizedAgeReader[RibbonIndices[StartIndex]];
+		float SecondAge = NormalizedAgeReader[RibbonIndices[StartIndex + 1]];
 
 		float StartTimeStep = SecondAge - FirstAge;
 		float StartTimeOffset = FirstAge < StartTimeStep ? StartTimeStep - FirstAge : 0;
 
-		NormalizedLeadingSegmentOffset = StartTimeOffset / StartTimeStep;
+		NormalizedLeadingSegmentOffset = StartTimeStep > 0 ? StartTimeOffset / StartTimeStep : 0.0f;
 	}
 	else if (UVSettings.LeadingEdgeMode == ENiagaraRibbonUVEdgeMode::Locked)
 	{
@@ -501,13 +501,13 @@ void CalculateUVScaleAndOffsets(
 	float NormalizedTrailingSegmentOffset;
 	if (UVSettings.TrailingEdgeMode == ENiagaraRibbonUVEdgeMode::SmoothTransition)
 	{
-		float SecondToLastAge = SortKeyReader[RibbonIndices[EndIndex - 1]];
-		float LastAge = SortKeyReader[RibbonIndices[EndIndex]];
+		float SecondToLastAge = NormalizedAgeReader[RibbonIndices[EndIndex - 1]];
+		float LastAge = NormalizedAgeReader[RibbonIndices[EndIndex]];
 
 		float EndTimeStep = LastAge - SecondToLastAge;
 		float EndTimeOffset = 1 - LastAge < EndTimeStep ? EndTimeStep - (1 - LastAge) : 0;
 
-		NormalizedTrailingSegmentOffset = EndTimeOffset / EndTimeStep;
+		NormalizedTrailingSegmentOffset = EndTimeStep > 0 ? EndTimeOffset / EndTimeStep : 0.0f;
 	}
 	else if (UVSettings.TrailingEdgeMode == ENiagaraRibbonUVEdgeMode::Locked)
 	{
@@ -591,6 +591,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	const auto SortKeyReader = Properties->SortKeyDataSetAccessor.GetReader(Data);
 
 	const auto PosData = Properties->PositionDataSetAccessor.GetReader(Data);
+	const auto AgeData = Properties->NormalizedAgeAccessor.GetReader(Data);
 	const auto SizeData = Properties->SizeDataSetAccessor.GetReader(Data);
 	const auto TwistData = Properties->TwistDataSetAccessor.GetReader(Data);
 	const auto FacingData = Properties->FacingDataSetAccessor.GetReader(Data);
@@ -681,6 +682,11 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	check(BaseMaterials_GT[0]->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraRibbons));
 	DynamicData->Material = BaseMaterials_GT[0]->GetRenderProxy();
 	DynamicData->SetMaterialRelevance(BaseMaterialRelevance_GT);
+
+	if (DynamicData && Properties->MaterialParameterBindings.Num() != 0)
+	{
+		ProcessMaterialParameterBindings(MakeArrayView(Properties->MaterialParameterBindings), Emitter, MakeArrayView(BaseMaterials_GT));
+	}
 
 	TArray<int32>& SegmentData = DynamicData->SegmentData;
 	int32& MaxParticleIndex = DynamicData->MaxParticleIndex;
@@ -851,7 +857,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			{
 				CalculateUVScaleAndOffsets(
 					UV0Settings, DynamicData->SortedIndices, DynamicData->TangentAndDistances,
-					SortKeyReader,
+					AgeData,
 					StartIndex, DynamicData->SortedIndices.Num() - 1,
 					NumSegments, TotalDistance,
 					U0Scale, U0Offset, U0DistributionScaler);
@@ -870,7 +876,7 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			{
 				CalculateUVScaleAndOffsets(
 					UV1Settings, DynamicData->SortedIndices, DynamicData->TangentAndDistances,
-					SortKeyReader,
+					AgeData,
 					StartIndex, DynamicData->SortedIndices.Num() - 1,
 					NumSegments, TotalDistance,
 					U1Scale, U1Offset, U1DistributionScaler);

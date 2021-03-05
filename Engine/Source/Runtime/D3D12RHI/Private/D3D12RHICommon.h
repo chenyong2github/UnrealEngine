@@ -143,11 +143,20 @@ public:
 	{
 		if (IsHeadLink())
 		{
-			// Release the references we added in CreateLinkedObjects.
+			// When DoNotDeferDelete is set on these objects releasing it could cause the next iterator
+			// object to be invalid. Therefore we need to accumulate first and then release.
+			TArray<FLinkedObjectIterator, TInlineAllocator<MAX_NUM_GPUS>> ObjectsToBeReleased;
+
+			// Accumulate and release the references we added in CreateLinkedObjects.
 			for (auto It = ++FLinkedObjectIterator(this); It; ++It)
 			{
-				It->Release();
+				ObjectsToBeReleased.Add(It);
 			}
+			for (auto ObjectToRelease : ObjectsToBeReleased)
+			{
+				ObjectToRelease->Release();
+			}
+			ObjectsToBeReleased.Empty();
 		}
 	}
 

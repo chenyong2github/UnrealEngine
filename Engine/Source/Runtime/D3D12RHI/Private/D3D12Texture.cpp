@@ -2203,6 +2203,12 @@ void TD3D12Texture2D<RHIResourceType>::GetReadBackHeapDesc(D3D12_PLACED_SUBRESOU
 {
 	check((RHIResourceType::GetFlags() & TexCreate_CPUReadback) != 0);
 
+	if (InSubresource == 0 && FirstSubresourceFootprint)
+	{
+		OutFootprint = *FirstSubresourceFootprint;
+		return;
+	}
+
 	FIntVector TextureSize = RHIResourceType::GetSizeXYZ();
 
 	D3D12_RESOURCE_DESC Desc = {};
@@ -2215,6 +2221,12 @@ void TD3D12Texture2D<RHIResourceType>::GetReadBackHeapDesc(D3D12_PLACED_SUBRESOU
 	Desc.SampleDesc.Count = RHIResourceType::GetNumSamples();
 
 	GetReadBackHeapDescImpl(OutFootprint, GetParentDevice()->GetDevice(), Desc, InSubresource);
+
+	if (InSubresource == 0)
+	{
+		FirstSubresourceFootprint = MakeUnique<D3D12_PLACED_SUBRESOURCE_FOOTPRINT>();
+		*FirstSubresourceFootprint = OutFootprint;
+	}
 }
 
 void* FD3D12DynamicRHI::LockTexture2D_RenderThread(class FRHICommandListImmediate& RHICmdList, FRHITexture2D* TextureRHI, uint32 MipIndex, EResourceLockMode LockMode, uint32& DestStride, bool bLockWithinMiptail, bool bNeedsDefaultRHIFlush)

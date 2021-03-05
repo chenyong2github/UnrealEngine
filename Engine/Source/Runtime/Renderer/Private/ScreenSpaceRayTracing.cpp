@@ -1307,6 +1307,7 @@ IScreenSpaceDenoiser::FDiffuseIndirectInputs CastStandaloneDiffuseIndirectRays(
 		DenoiserInputs.Color = GraphBuilder.CreateTexture(Desc, TEXT("SSRTDiffuseIndirect"));
 
 		Desc.Format = PF_R16F;
+		Desc.Flags |= TexCreate_RenderTargetable;
 		DenoiserInputs.AmbientOcclusionMask = GraphBuilder.CreateTexture(Desc, TEXT("SSRTAmbientOcclusion"));
 	}
 

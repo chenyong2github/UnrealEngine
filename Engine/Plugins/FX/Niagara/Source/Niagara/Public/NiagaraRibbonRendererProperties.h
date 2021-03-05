@@ -49,9 +49,9 @@ enum class ENiagaraRibbonDrawDirection : uint8
 UENUM()
 enum class ENiagaraRibbonShapeMode : uint8
 {
-	/** Default shape, flat plane facing camera. */
+	/** Default shape, flat plane facing the camera. */
 	Plane,
-	/** Multiple Planes between direct facing camera, and 90 degree offset. */
+	/** Multiple Planes evenly rotated around the axis to 180 degrees. */
 	MultiPlane,
 	/** 3D Tube shape, from triangular to cylindrical depending on vertex count. */
 	Tube,
@@ -104,14 +104,14 @@ enum class ENiagaraRibbonUVEdgeMode
 UENUM()
 enum class ENiagaraRibbonUVDistributionMode
 {
-	/** Ribbon UVs will be scaled to the 0-1 range and distributed evenly across uv segments regardless of segment length. */
-	ScaledUniformly,
-	/** Ribbon UVs will be scaled to the 0-1 range and will be distributed along the ribbon segments based on their length, i.e. short segments get less UV range and large segments get more. */
-	ScaledUsingRibbonSegmentLength,
-	/** Ribbon UVs will be tiled along the length of the ribbon based on segment length and the Tile Over Length Scale value. */
-	TiledOverRibbonLength,
-	/** Ribbon UVs will be tiled along the length of the ribbon based on DistanceFromStart parameter and the Tile Over Length Scale value, but tiles from the first particle in the ribbon. NOTE: Dependent on Particle Attribute RibbonDistanceFromStart */
-	TiledFromStartOverRibbonLength
+	/** Ribbon UVs will stretch the length of the ribbon, without repeating, but distributed by segment, so can be uneven with unequal length segments. */	
+	ScaledUniformly UMETA(DisplayName = "Uniform Scale (By Segment)"),
+	/** Ribbon UVs will stretch the length of the ribbon, without repeating, but account for segment length to make an even distribution the entire length of the ribbon. */
+	ScaledUsingRibbonSegmentLength UMETA(DisplayName = "Non-Uniform Scale (By Total Length)"),
+	/** Ribbon UVs will be tiled along the length of the ribbon evenly, based on TilingLength setting. */
+	TiledOverRibbonLength UMETA(DisplayName = "Tiled (By Segment Length)"),
+	/** Ribbon UVs will be tiled along the length of the ribbon evenly, based on RibbonUVDistance parameter and the TilingLength scale value, to create 'traintrack' style UVs. NOTE: Dependent on Particle Attribute RibbonUVDistance */
+	TiledFromStartOverRibbonLength UMETA(DisplayName = "Tiled By Distance (By Particles.RibbonUVDistance)")
 };
 
 /** Defines settings for UV behavior for a UV channel on ribbons. */
@@ -122,31 +122,32 @@ struct FNiagaraRibbonUVSettings
 
 	FNiagaraRibbonUVSettings();
 
-	/** Specifies how UVs behave at the leading edge of the ribbon where particles are being added. */
-	UPROPERTY(EditAnywhere, Category = UVs)
-	ENiagaraRibbonUVEdgeMode LeadingEdgeMode;
-
-	/** Specifies how UVs behave at the trailing edge of the ribbon where particles are being removed. */
-	UPROPERTY(EditAnywhere, Category = UVs)
-	ENiagaraRibbonUVEdgeMode TrailingEdgeMode;
 
 	/** Specifies how ribbon UVs are distributed along the length of a ribbon. */
-	UPROPERTY(EditAnywhere, Category = UVs)
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="UV Mode", EditCondition = "!bEnablePerParticleUOverride"))
 	ENiagaraRibbonUVDistributionMode DistributionMode;
 
-	/** Specifies the length in world units to use when tiling UVs across the ribbon when using the tiled distribution mode. */
-	UPROPERTY(EditAnywhere, Category = UVs)
+	/** Specifies how UVs transition into life at the leading edge of the ribbon. */
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="Leading Edge Transition", EditCondition = "!bEnablePerParticleUOverride && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
+	ENiagaraRibbonUVEdgeMode LeadingEdgeMode;
+
+	/** Specifies how UVs transition out of life at the trailing edge of the ribbon. */
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (DisplayName="Trailing Edge Transition", EditCondition = "!bEnablePerParticleUOverride && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength && DistributionMode != ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
+	ENiagaraRibbonUVEdgeMode TrailingEdgeMode;
+
+	/** Specifies the length in world units to use when tiling UVs across the ribbon when using one of the tiled distribution modes. */
+	UPROPERTY(EditAnywhere, Category = UVs, meta = (EditCondition="!bEnablePerParticleUOverride && DistributionMode == ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength || DistributionMode == ENiagaraRibbonUVDistributionMode::TiledFromStartOverRibbonLength"))
 	float TilingLength;
 
-	/** Specifies and additional offsets which are applied to the UV range */
+	/** Specifies an additional offset which is applied to the UV range */
 	UPROPERTY(EditAnywhere, Category = UVs)
 	FVector2D Offset;
 
-	/** Specifies and additional scalers which are applied to the UV range. */
+	/** Specifies an additional scaler which is applied to the UV range. */
 	UPROPERTY(EditAnywhere, Category = UVs)
 	FVector2D Scale;
 
-	/** Enables overriding overriding the U componenet with values read from the particles.  When enabled edge behavior and distribution are ignored. */
+	/** Enables overriding the U component with values read from the particles. When enabled, edge behavior and distribution are ignored. */
 	UPROPERTY(EditAnywhere, Category = UVs)
 	bool bEnablePerParticleUOverride;
 
@@ -194,6 +195,8 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
+	virtual void RenameVariable(const FNiagaraVariableBase& OldVariable, const FNiagaraVariableBase& NewVariable, const UNiagaraEmitter* InEmitter) override;
+	virtual void RemoveVariable(const FNiagaraVariableBase& OldVariable, const UNiagaraEmitter* InEmitter) override;
 #endif
 	//UObject Interface END
 
@@ -204,6 +207,8 @@ public:
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
 	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override;
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return (InSimTarget == ENiagaraSimTarget::CPUSim); };
+	bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore);
+
 #if WITH_EDITOR
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
 	virtual void FixMaterial(UMaterial* Material);
@@ -213,6 +218,10 @@ public:
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
 #endif
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
+	
+#if WITH_EDITORONLY_DATA
+	bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const;
+#endif
 	//UNiagaraRendererProperties Interface END
 
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
@@ -225,10 +234,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
 	ENiagaraRibbonFacingMode FacingMode;
 
-	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering", meta=(DisplayName="UV0 Settings"))
 	FNiagaraRibbonUVSettings UV0Settings;
 
-	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering")
+	UPROPERTY(EditAnywhere, Category = "Ribbon Rendering", meta=(DisplayName="UV1 Settings"))
 	FNiagaraRibbonUVSettings UV1Settings;
 
 #if WITH_EDITORONLY_DATA
@@ -376,7 +385,7 @@ public:
 
 	/** Which attribute should we use for ribbon distance traveled for use in UV operations when generating ribbons?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
-	FNiagaraVariableAttributeBinding RibbonDistanceFromStartBinding;
+	FNiagaraVariableAttributeBinding RibbonUVDistance;
 
 	/** Which attribute should we use for UV0 U when generating ribbons?*/
 	UPROPERTY(EditAnywhere, Category = "Bindings")
@@ -394,9 +403,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding V1RangeOverrideBinding;
 
+	/** If this array has entries, we will create a MaterialInstanceDynamic per Emitter instance from Material and set the Material parameters using the Niagara simulation variables listed.*/
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	TArray<FNiagaraMaterialAttributeBinding> MaterialParameterBindings;
+
 	bool								bSortKeyDataSetAccessorIsAge = false;
 	FNiagaraDataSetAccessor<float>		SortKeyDataSetAccessor;
 	FNiagaraDataSetAccessor<FVector>	PositionDataSetAccessor;
+	FNiagaraDataSetAccessor<float>		NormalizedAgeAccessor;
 	FNiagaraDataSetAccessor<float>		SizeDataSetAccessor;
 	FNiagaraDataSetAccessor<float>		TwistDataSetAccessor;
 	FNiagaraDataSetAccessor<FVector>	FacingDataSetAccessor;
@@ -417,6 +431,9 @@ public:
 protected:
 	void InitBindings();
 
+	void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit);
+
+	virtual bool NeedsMIDsForMaterials() const { return MaterialParameterBindings.Num() > 0; }
 private: 
 	static TArray<TWeakObjectPtr<UNiagaraRibbonRendererProperties>> RibbonRendererPropertiesToDeferredInit;
 };

@@ -168,7 +168,7 @@ struct FPlaceableItem
 		}
 	}
 
-	/** @deprecated Use AutoSetNativeAndDisplayName instead */
+	UE_DEPRECATED(4.27, "Use AutoSetNativeAndDisplayName instead")
 	void AutoSetDisplayName() { AutoSetNativeAndDisplayName(); }
 
 	/** Return NativeName as an FName (and cache it) */

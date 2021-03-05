@@ -353,6 +353,7 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 				AsyncDesiredState.LinearVelocity = NewState.LinVel;
 				AsyncDesiredState.AngularVelocity = NewState.AngVel;
 				AsyncDesiredState.Proxy = static_cast<FSingleParticlePhysicsProxy*>(BI->GetPhysicsActorHandle());
+				AsyncDesiredState.ObjectState = AsyncDesiredState.Proxy->GetGameThreadAPI().ObjectState();
 				AsyncDesiredState.bShouldSleep = bShouldSleep;
 
 				CurAsyncData->Buffer.Add(AsyncDesiredState);
@@ -606,7 +607,7 @@ void FPhysicsReplication::ApplyAsyncDesiredState(const float DeltaSeconds, const
 				Handle->SetV(NewLinVel);
 				Handle->SetW(FMath::DegreesToRadians(NewAngVel));
 
-				EObjectStateType ObjectStateType = EObjectStateType::Dynamic;
+				EObjectStateType ObjectStateType = State.ObjectState;
 				if ((CharacterMovementCVars::ApplyAsyncSleepState != 0) && State.bShouldSleep)
 				{
 					ObjectStateType = EObjectStateType::Sleeping;

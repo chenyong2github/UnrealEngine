@@ -131,8 +131,18 @@ namespace Electra
 		/**
 		 * Parses the header boxes (all non-MDAT boxes).
 		 */
-		virtual UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, const FParamDict& Options, IPlayerSessionServices* PlayerSession) = 0;
+		virtual UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, IPlayerSessionServices* PlayerSession) = 0;
 
+
+		/** A brand is a 32 bit value in an mp4 file. */
+		typedef uint32 FBrandType;
+		#define MAKE_MP4_BRAND(a,b,c,d) (IParserISO14496_12::FBrandType)((uint32)a << 24) | ((uint32)b << 16) | ((uint32)c << 8) | ((uint32)d)
+		static const FBrandType BrandType_emsg = MAKE_MP4_BRAND('e', 'm', 's', 'g');
+		static const FBrandType BrandType_lmsg = MAKE_MP4_BRAND('l', 'm', 's', 'g');
+
+		virtual int32 GetNumberOfBrands() const = 0;
+		virtual FBrandType GetBrandByIndex(int32 Index) const = 0;
+		virtual bool HasBrand(const FBrandType InBrand) const = 0;
 
 
 
@@ -145,6 +155,7 @@ namespace Electra
 
 		virtual int32 GetNumberOfTracks() const = 0;
 
+		virtual int32 GetNumberOfSegmentIndices() const = 0;
 
 		class ITrackIterator
 		{
@@ -199,7 +210,6 @@ namespace Electra
 			virtual FTimeFraction GetDuration() const = 0;
 
 			virtual ITrackIterator* CreateIterator() const = 0;
-			virtual ITrackIterator* CreateIterator(const FParamDict& InOptions) const = 0;
 
 			virtual const TArray<uint8>& GetCodecSpecificData() const = 0;
 			virtual const TArray<uint8>& GetCodecSpecificDataRAW() const = 0;
@@ -225,11 +235,35 @@ namespace Electra
 			virtual void GetAllIterators(TArray<const ITrackIterator*>& OutIterators) const = 0;
 		};
 
+
+		class ISegmentIndex
+		{
+		public:
+			struct FEntry
+			{
+				uint32		SubSegmentDuration;
+				uint32		IsReferenceType : 1;
+				uint32		Size : 31;
+				uint32		StartsWithSAP : 1;
+				uint32		SAPType : 3;
+				uint32		SAPDeltaTime : 28;
+			};
+
+			virtual ~ISegmentIndex() = default;
+			virtual uint64 GetEarliestPresentationTime() const = 0;
+			virtual uint64 GetFirstOffset() const = 0;
+			virtual uint32 GetReferenceID() const = 0;
+			virtual uint32 GetTimescale() const = 0;
+			virtual int32 GetNumEntries() const = 0;
+			virtual const FEntry& GetEntry(int32 Index) const = 0;
+		};
+
 		virtual TSharedPtr<IAllTrackIterator, ESPMode::ThreadSafe> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const = 0;
 
 		virtual const ITrack* GetTrackByIndex(int32 Index) const = 0;
 		virtual const ITrack* GetTrackByTrackID(int32 TrackID) const = 0;
 
+		virtual const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const = 0;
 
 	};
 

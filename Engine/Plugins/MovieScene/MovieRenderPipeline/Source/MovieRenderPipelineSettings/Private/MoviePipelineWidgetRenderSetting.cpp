@@ -12,6 +12,7 @@
 #include "ImagePixelData.h"
 #include "Widgets/SViewport.h"
 #include "Slate/SGameLayerManager.h"
+#include "MovieRenderPipelineCoreModule.h"
 
 void UMoviePipelineWidgetRenderer::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
@@ -77,6 +78,14 @@ void UMoviePipelineWidgetRenderer::SetupImpl(const MoviePipeline::FMoviePipeline
 
 	bool bInForceLinearGamma = false;
 	FIntPoint OutputResolution = GetPipeline()->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>()->OutputResolution;
+	int32 MaxResolution = GetMax2DTextureDimension();
+	if (OutputResolution.X > MaxResolution || OutputResolution.Y > MaxResolution)
+	{
+		UE_LOG(LogMovieRenderPipeline, Error, TEXT("Resolution %dx%d exceeds maximum allowed by GPU. Widget Renderer does not support high-resolution tiling and thus can't exceed %dx%d."), OutputResolution.X, OutputResolution.Y, MaxResolution, MaxResolution);
+		GetPipeline()->Shutdown(true);
+		return;
+	}
+
 	RenderTarget->InitCustomFormat(OutputResolution.X, OutputResolution.Y, EPixelFormat::PF_B8G8R8A8, bInForceLinearGamma);
 
 	bool bApplyGammaCorrection = false;

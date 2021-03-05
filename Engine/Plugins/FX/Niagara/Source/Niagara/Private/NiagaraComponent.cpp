@@ -188,7 +188,7 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 		, bRenderingEnabled(true)
 		, RuntimeCycleCount(nullptr)
 #if WITH_PARTICLE_PERF_STATS
-		, PerfAsset(InComponent->GetAsset())
+		, PerfStatsContext(InComponent->GetPerfStatsContext())
 #endif
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
 		, PreviewLODDistance(-1.0f)
@@ -204,8 +204,6 @@ FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
 #if STATS
 		SystemStatID = InComponent->GetAsset()->GetStatID(false, false);
 #endif
-
-		RuntimeCycleCount = InComponent->GetAsset()->GetCycleCounter(false, false);
 	}
 }
 
@@ -462,8 +460,6 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 	FScopeCycleCounter SystemStatCounter(SystemStatID);
 #endif
 
-	FNiagaraScopedRuntimeCycleCounter RuntimeScope(RuntimeCycleCount);
-
 	for (int32 RendererIdx : RendererDrawOrder)
 	{
 		FNiagaraRenderer* Renderer = EmitterRenderers[RendererIdx];
@@ -492,7 +488,6 @@ void FNiagaraSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>&
 #if RHI_RAYTRACING
 void FNiagaraSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances)
 {
-	FNiagaraScopedRuntimeCycleCounter RuntimeScope(RuntimeCycleCount);
 	for (FNiagaraRenderer* Renderer : EmitterRenderers)
 	{
 		if (Renderer)
@@ -505,7 +500,6 @@ void FNiagaraSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGather
 
 void FNiagaraSceneProxy::GatherSimpleLights(const FSceneViewFamily& ViewFamily, FSimpleLightArray& OutParticleLights) const
 {
-	FNiagaraScopedRuntimeCycleCounter RuntimeScope(RuntimeCycleCount);
 	for (int32 Idx = 0; Idx < EmitterRenderers.Num(); Idx++)
 	{
 		FNiagaraRenderer *Renderer = EmitterRenderers[Idx];
@@ -1777,7 +1771,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	LLM_SCOPE(ELLMTag::Niagara);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
-	PARTICLE_PERF_STAT_CYCLES_GT(Asset, EndOfFrame);
+	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), EndOfFrame);
 
 	Super::SendRenderDynamicData_Concurrent();
 
@@ -1792,8 +1786,6 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 			TStatId SystemStatID = GetAsset() ? GetAsset()->GetStatID(true, true) : TStatId();
 			FScopeCycleCounter SystemStatCounter(SystemStatID);
 	#endif
-
-			FNiagaraScopedRuntimeCycleCounter RuntimeScope(GetAsset(), true, false);
 
 			const TArray<FNiagaraRenderer*>& EmitterRenderers = NiagaraProxy->GetEmitterRenderers();
 			const int32 NumEmitterRenderers = EmitterRenderers.Num();
@@ -1864,11 +1856,11 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 #endif
 
 			ENQUEUE_RENDER_COMMAND(NiagaraSetDynamicData)(
-				[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfAsset=Asset, LocalPreviewLODDistance](FRHICommandListImmediate& RHICmdList)
+				[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfStatCtx=GetPerfStatsContext(), LocalPreviewLODDistance](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES_RT(PerfAsset, RenderUpdate);
-				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfAsset, 1);
+				PARTICLE_PERF_STAT_CYCLES_RT(PerfStatCtx, RenderUpdate);
+				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfStatCtx, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)
@@ -1887,11 +1879,11 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 		else
 		{
 			ENQUEUE_RENDER_COMMAND(NiagaraClearDynamicData)(
-				[NiagaraProxy, PerfAsset = Asset](FRHICommandListImmediate& RHICmdList)
+				[NiagaraProxy, PerfStatCtx=GetPerfStatsContext()](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES_RT(PerfAsset, RenderUpdate);
-				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfAsset, 1);
+				PARTICLE_PERF_STAT_CYCLES_RT(PerfStatCtx, RenderUpdate);
+				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfStatCtx, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)

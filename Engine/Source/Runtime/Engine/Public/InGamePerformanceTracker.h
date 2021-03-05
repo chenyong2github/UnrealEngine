@@ -8,60 +8,49 @@
 struct ENGINE_API FInGameCycleHistory
 {
 	FInGameCycleHistory()
-		: FrameIdx(0)
-		, TotalCycles(0)
-		, ValidFrames(0)
-		, CurrFrameCycles(0)
 	{
+		Reset();
 	}
 
 	FInGameCycleHistory(int32 InNumSamples)
-	: FrameIdx(0)
-	, TotalCycles(0)
-	, ValidFrames(0)
-	, CurrFrameCycles(0)
 	{
-		FrameCycles.Empty(InNumSamples);
 		FrameCycles.SetNumZeroed(InNumSamples);
+		Reset();
 	}
 
 	void Reset()
 	{
-		int32 Num = FrameCycles.Num();
-		FrameCycles.Empty(Num);
-		FrameCycles.SetNumZeroed(Num);
-		FrameIdx = 0;
-		TotalCycles = 0;
-		ValidFrames = 0;
 		CurrFrameCycles = 0;
+		int32 NumSamples = FrameCycles.Num();
+		FrameCycles.Reset(NumSamples);
+		FrameCycles.SetNumZeroed(NumSamples);
+		TotalCycles = 0;
+		CachedAverageCycles = 0;
+		FrameIdx = 0;
 	}
 
-	//Cycles for each frame in history.
-	TArray<uint32> FrameCycles;
-	//Index of next frame in history to replace.
-	int32 FrameIdx;
-	//Cached running total for an overall average.
-	uint64 TotalCycles;
-	/** Number of current valid frames. A history is only valid when all it's frames are. */
-	int32 ValidFrames;
 	/** Current number of cycles for this frame. */
-	int32 CurrFrameCycles;
+	TAtomic<uint64> CurrFrameCycles;
+	//Cycles for each frame in history.
+	TArray<uint64> FrameCycles;
+
+	//Cached running total for an overall average.
+	uint64 TotalCycles = 0;
+	/** Current average cycles for access by others, possibly on other threads. */
+	TAtomic<uint64> CachedAverageCycles;
+
+	//Index of next frame in history to replace.
+	int32 FrameIdx = 0;
 
 	/** Adds a number of cycles for the current frame. Thread safe. */
-	FORCEINLINE void AddCycles(int32 NewCycles)
+	FORCEINLINE void AddCycles(uint64 NewCycles)
 	{
-		FPlatformAtomics::InterlockedAdd(&CurrFrameCycles, NewCycles);
+		CurrFrameCycles += NewCycles;
 	}
 	
-	FORCEINLINE uint32 GetAverageCycles()const
+	FORCEINLINE uint64 GetAverageCycles()const
 	{
-		return IsValid() ? TotalCycles / ValidFrames : 0;
-	}
-
-	/** A history only becomes valid when all it's frames are in use. e.g. First N frames of tracking are not valid. */
-	FORCEINLINE bool IsValid()const
-	{
-		return ValidFrames == FrameCycles.Num(); 
+		return CachedAverageCycles.Load();
 	}
 
 	/** Places the current data on the history and advances to the next frame index. Not thread safe.*/

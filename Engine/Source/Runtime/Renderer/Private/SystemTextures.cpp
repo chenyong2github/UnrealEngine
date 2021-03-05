@@ -576,57 +576,8 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			    (const uint8*)DestBuffer.GetData());
 		} // end Create the PerlinNoise3D texture
 
-		// Create the SSAO randomization texture
+		// GTAO Randomization texture	
 		{
-	        {
-		        float g_AngleOff1 = 127;
-		        float g_AngleOff2 = 198;
-		        float g_AngleOff3 = 23;
-        
-		        FColor Bases[16];
-    
-			    for (int32 Pos = 0; Pos < 16; ++Pos)
-		        {
-			        // distribute rotations over 4x4 pattern
-					        //			int32 Reorder[16] = { 0, 8, 2, 10, 12, 6, 14, 4, 3, 11, 1, 9, 15, 5, 13, 7 };
-			        int32 Reorder[16] = { 0, 11, 7, 3, 10, 4, 15, 12, 6, 8, 1, 14, 13, 2, 9, 5 };
-			        int32 w = Reorder[Pos];
-        
-			        // ordered sampling of the rotation basis (*2 is missing as we use mirrored samples)
-			        float ww = w / 16.0f * PI;
-        
-			        // randomize base scale
-			        float lenm = 1.0f - (FMath::Sin(g_AngleOff2 * w * 0.01f) * 0.5f + 0.5f) * g_AngleOff3 * 0.01f;
-			        float s = FMath::Sin(ww) * lenm;
-			        float c = FMath::Cos(ww) * lenm;
-        
-			        Bases[Pos] = FColor(FMath::Quantize8SignedByte(c), FMath::Quantize8SignedByte(s), 0, 0);
-		        }
-    
-		        {
-			        // could be PF_V8U8 to save shader instructions but that doesn't work on all hardware
-			        FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(64, 64), PF_R8G8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_NoFastClear | TexCreate_ShaderResource, false));
-			        Desc.AutoWritable = false;
-			        GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SSAORandomization, TEXT("SSAORandomization"), ERenderTargetTransience::NonTransient);
-			        // Write the contents of the texture.
-			        uint32 DestStride;
-			        uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
-        
-			        for(int32 y = 0; y < Desc.Extent.Y; ++y)
-			        {
-				        for(int32 x = 0; x < Desc.Extent.X; ++x)
-				        {
-					        uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint16) + y * DestStride);
-        
-					        uint32 Index = (x % 4) + (y % 4) * 4; 
-        
-					        Dest[0] = Bases[Index].R;
-					        Dest[1] = Bases[Index].G;
-				        }
-			        }
-		        }
-		        RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
-			}
 
 		    {
 			    FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(LTC_Size, LTC_Size), PF_FloatRGBA, FClearValueBinding::None, TexCreate_FastVRAM, TexCreate_ShaderResource, false));
@@ -671,9 +622,65 @@ void FSystemTextures::InitializeFeatureLevelDependentTextures(FRHICommandListImm
 			    }
 			    RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)LTCAmp->GetRenderTargetItem().ShaderResourceTexture, 0, false);
 		    }
-		} // end Create the SSAO randomization texture
+		} // end Create the GTAO  randomization texture
 	} // end if (FeatureLevelInitializedTo < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5)
 
+	// Create the SSAO randomization texture
+	static const auto MobileAmbientOcclusionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusion"));
+	if ((CurrentFeatureLevel < ERHIFeatureLevel::SM5 && InFeatureLevel >= ERHIFeatureLevel::SM5) ||
+		(CurrentFeatureLevel < ERHIFeatureLevel::ES3_1 && InFeatureLevel >= ERHIFeatureLevel::ES3_1 && MobileAmbientOcclusionCVar != nullptr && MobileAmbientOcclusionCVar->GetValueOnAnyThread()>0))
+	{
+		{
+			float g_AngleOff1 = 127;
+			float g_AngleOff2 = 198;
+			float g_AngleOff3 = 23;
+
+			FColor Bases[16];
+
+			for (int32 Pos = 0; Pos < 16; ++Pos)
+			{
+				// distribute rotations over 4x4 pattern
+						//			int32 Reorder[16] = { 0, 8, 2, 10, 12, 6, 14, 4, 3, 11, 1, 9, 15, 5, 13, 7 };
+				int32 Reorder[16] = { 0, 11, 7, 3, 10, 4, 15, 12, 6, 8, 1, 14, 13, 2, 9, 5 };
+				int32 w = Reorder[Pos];
+
+				// ordered sampling of the rotation basis (*2 is missing as we use mirrored samples)
+				float ww = w / 16.0f * PI;
+
+				// randomize base scale
+				float lenm = 1.0f - (FMath::Sin(g_AngleOff2 * w * 0.01f) * 0.5f + 0.5f) * g_AngleOff3 * 0.01f;
+				float s = FMath::Sin(ww) * lenm;
+				float c = FMath::Cos(ww) * lenm;
+
+				Bases[Pos] = FColor(FMath::Quantize8SignedByte(c), FMath::Quantize8SignedByte(s), 0, 0);
+			}
+
+			{
+				// could be PF_V8U8 to save shader instructions but that doesn't work on all hardware
+				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(64, 64), PF_R8G8, FClearValueBinding::None, TexCreate_HideInVisualizeTexture, TexCreate_NoFastClear | TexCreate_ShaderResource, false));
+				Desc.AutoWritable = false;
+				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SSAORandomization, TEXT("SSAORandomization"), ERenderTargetTransience::NonTransient);
+				// Write the contents of the texture.
+				uint32 DestStride;
+				uint8* DestBuffer = (uint8*)RHICmdList.LockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, RLM_WriteOnly, DestStride, false);
+
+				for (int32 y = 0; y < Desc.Extent.Y; ++y)
+				{
+					for (int32 x = 0; x < Desc.Extent.X; ++x)
+					{
+						uint8* Dest = (uint8*)(DestBuffer + x * sizeof(uint16) + y * DestStride);
+
+						uint32 Index = (x % 4) + (y % 4) * 4;
+
+						Dest[0] = Bases[Index].R;
+						Dest[1] = Bases[Index].G;
+					}
+				}
+			}
+			RHICmdList.UnlockTexture2D((FTexture2DRHIRef&)SSAORandomization->GetRenderTargetItem().ShaderResourceTexture, 0, false);
+		}
+	}
+		
 	static const auto MobileGTAOPreIntegratedTextureTypeCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.GTAOPreIntegratedTextureType"));
 
 	if (CurrentFeatureLevel < ERHIFeatureLevel::ES3_1 && InFeatureLevel >= ERHIFeatureLevel::ES3_1 && MobileGTAOPreIntegratedTextureTypeCVar && MobileGTAOPreIntegratedTextureTypeCVar->GetValueOnAnyThread() > 0)

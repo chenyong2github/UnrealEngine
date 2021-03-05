@@ -167,7 +167,7 @@ void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate
 			const FTransform CurrentRelativeTransform(CurrentOrientation, CurrentPosition);
 
 			LateUpdate.Apply_RenderThread(ViewFamily.Scene, OldRelativeTransform, CurrentRelativeTransform);
-			TrackingSystem->OnLateUpdateApplied_RenderThread(CurrentRelativeTransform);
+			TrackingSystem->OnLateUpdateApplied_RenderThread(RHICmdList, CurrentRelativeTransform);
 
 			{
 				// Backwards compatibility during deprecation phase. Remove once IHeadMountedDisplay::BeginRendering_RenderThread has been removed.

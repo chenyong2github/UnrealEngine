@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Bridge/MessageBridge.h"
-
+#include "IMessagingModule.h"
 #include "IMessageBus.h"
 #include "IMessageSubscription.h"
 #include "IMessageTransport.h"
@@ -133,6 +133,8 @@ bool FMessageBridge::IsLocal() const
 
 void FMessageBridge::ReceiveMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
+	UE_LOG(LogMessaging, Verbose, TEXT("Received %s message from %s"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString());
+
 	if (!Enabled)
 	{
 		return;
@@ -200,6 +202,15 @@ void FMessageBridge::ForgetTransportNode(const FGuid& NodeId)
 
 void FMessageBridge::ReceiveTransportMessage(const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context, const FGuid& NodeId)
 {
+	if (UE_GET_LOG_VERBOSITY(LogMessaging) >= ELogVerbosity::Verbose)
+	{
+		FString RecipientStr = FString::JoinBy(Context->GetRecipients(), TEXT("+"), &FMessageAddress::ToString);
+		UE_LOG(LogMessaging, Verbose, TEXT("FMessageBridge::ReceiveTransportMessage: Received %s from %s for %s"),
+			*Context->GetMessageType().ToString(),
+			*Context->GetSender().ToString(),
+			*RecipientStr);
+	}
+
 	if (!Enabled || !Bus.IsValid())
 	{
 		return;
@@ -208,12 +219,15 @@ void FMessageBridge::ReceiveTransportMessage(const TSharedRef<IMessageContext, E
 	// discard expired messages
 	if (Context->GetExpiration() < FDateTime::UtcNow())
 	{
+		UE_LOG(LogMessaging, Verbose, TEXT("FMessageBridge::ReceiveTransportMessage: Message expired. Discarding"));
 		return;
 	}
 
 	// register newly discovered endpoints
 	if (!AddressBook.Contains(Context->GetSender()))
 	{
+		UE_LOG(LogMessaging, Verbose, TEXT("FMessageBridge::ReceiveTransportMessage: Registering new sender %s"), *Context->GetMessageType().ToString());
+
 		AddressBook.Add(Context->GetSender(), NodeId);
 		Bus->Register(Context->GetSender(), AsShared());
 	}

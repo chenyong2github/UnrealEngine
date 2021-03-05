@@ -11,6 +11,7 @@
 #include "Physics/ImmediatePhysics/ImmediatePhysicsActorHandle.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsSimulation.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsStats.h"
+#include "PhysicsField/PhysicsFieldComponent.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Logging/MessageLog.h"
 #include "Logging/LogMacros.h"
@@ -703,7 +704,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				}
 			}
 			
-			UpdateWorldForces(CompWorldSpaceTM, BaseBoneTM);
+			UpdateWorldForces(CompWorldSpaceTM, BaseBoneTM, DeltaSeconds);
 			const FVector SimSpaceGravity = WorldVectorToSpaceNoScale(SimulationSpace, WorldSpaceGravity, CompWorldSpaceTM, BaseBoneTM);
 
 			// Run simulation at a minimum of 30 FPS to prevent system from exploding.
@@ -1217,7 +1218,7 @@ void FAnimNode_RigidBody::UpdateWorldGeometry(const UWorld& World, const USkelet
 
 DECLARE_CYCLE_STAT(TEXT("FAnimNode_RigidBody::UpdateWorldForces"), STAT_ImmediateUpdateWorldForces, STATGROUP_ImmediatePhysics);
 
-void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
+void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& BaseBoneTM, const float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ImmediateUpdateWorldForces);
 
@@ -1256,6 +1257,71 @@ void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, 
 				if (InvMass > 0.f)
 				{
 					Body->AddForce(ExternalForceInSimSpace);
+				}
+			}
+		}
+		if(DeltaSeconds != 0.0)
+		{
+			if(!PerSolverField.IsEmpty())
+			{
+				TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
+				TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
+
+				SamplePositions.Reset();
+				SamplePositions.AddZeroed(Bodies.Num());
+
+				SampleIndices.Reset();
+				SampleIndices.AddZeroed(Bodies.Num());
+
+				int32 Index = 0;
+				for (ImmediatePhysics::FActorHandle* Body : Bodies)
+				{
+					SamplePositions[Index] = (Body->GetWorldTransform() * SpaceToWorldTransform(SimulationSpace, ComponentToWorld, BaseBoneTM)).GetLocation();
+					SampleIndices[Index] = FFieldContextIndex(Index, Index);
+					++Index;
+				}
+				PerSolverField.ComputeFieldRigidImpulse(WorldTimeSeconds);
+
+				const TArray<FVector>& LinearVelocities = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearVelocity);
+				const TArray<FVector>& LinearForces = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearForce);
+				const TArray<FVector>& AngularVelocities = PerSolverField.GetVectorResults(EFieldVectorType::Vector_AngularVelocity);
+				const TArray<FVector>& AngularTorques = PerSolverField.GetVectorResults(EFieldVectorType::Vector_AngularTorque);
+
+				if (LinearVelocities.Num() == Bodies.Num())
+				{
+					Index = 0;
+					for (ImmediatePhysics::FActorHandle* Body : Bodies)
+					{
+						const FVector ExternalForceInSimSpace = WorldVectorToSpaceNoScale(SimulationSpace, LinearVelocities[Index++], ComponentToWorld, BaseBoneTM) * Body->GetMass() / DeltaSeconds;
+						Body->AddForce(ExternalForceInSimSpace);
+					}
+				}
+				if (LinearForces.Num() == Bodies.Num())
+				{
+					Index = 0;
+					for (ImmediatePhysics::FActorHandle* Body : Bodies)
+					{
+						const FVector ExternalForceInSimSpace = WorldVectorToSpaceNoScale(SimulationSpace, LinearForces[Index++], ComponentToWorld, BaseBoneTM);
+						Body->AddForce(ExternalForceInSimSpace);
+					}
+				}
+				if (AngularVelocities.Num() == Bodies.Num())
+				{
+					Index = 0;
+					for (ImmediatePhysics::FActorHandle* Body : Bodies)
+					{
+						const FVector ExternalTorqueInSimSpace = WorldVectorToSpaceNoScale(SimulationSpace, AngularVelocities[Index++], ComponentToWorld, BaseBoneTM) * Body->GetInertia() / DeltaSeconds;
+						Body->AddTorque(ExternalTorqueInSimSpace);
+					}
+				}
+				if (AngularTorques.Num() == Bodies.Num())
+				{
+					Index = 0;
+					for (ImmediatePhysics::FActorHandle* Body : Bodies)
+					{
+						const FVector ExternalTorqueInSimSpace = WorldVectorToSpaceNoScale(SimulationSpace, AngularTorques[Index++], ComponentToWorld, BaseBoneTM);
+						Body->AddTorque(ExternalTorqueInSimSpace);
+					}
 				}
 			}
 		}
@@ -1317,7 +1383,15 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 
 			PreviousTransform = CurrentTransform;
 			CurrentTransform = SKC->GetComponentToWorld();
-		}	
+
+			if (World->PhysicsField)
+			{
+				const FBox BoundingBox = SKC->CalcBounds(SKC->GetComponentTransform()).GetBox();
+
+				World->PhysicsField->FillTransientCommands(false, BoundingBox, WorldTimeSeconds, PerSolverField.GetTransientCommands());
+				World->PhysicsField->FillPersistentCommands(false, BoundingBox, WorldTimeSeconds, PerSolverField.GetPersistentCommands());
+			}
+		}
 	}
 }
 

@@ -9,6 +9,7 @@
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
 #include "UObject/PhysicsObjectVersion.h"
+#include "UObject/FortniteMainBranchObjectVersion.h"
 
 namespace Chaos
 {
@@ -316,8 +317,13 @@ namespace Chaos
 		void Serialize(FArchive& Ar)
 		{
 			Ar.UsingCustomVersion(FPhysicsObjectVersion::GUID);
+			Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
-			if (Ar.CustomVer(FPhysicsObjectVersion::GUID) < FPhysicsObjectVersion::VariableConvexStructureData)
+			bool bUseVariableSizeStructureDataUE4 = Ar.CustomVer(FPhysicsObjectVersion::GUID) >= FPhysicsObjectVersion::VariableConvexStructureData;
+			bool bUseVariableSizeStructureDataFN = Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::ChaosConvexVariableStructureDataAndVerticesArray;
+			bool bUseVariableSizeStructureData = bUseVariableSizeStructureDataUE4 || bUseVariableSizeStructureDataFN;
+
+			if (!bUseVariableSizeStructureData)
 			{
 				// Orginal structure used 32bit indices regardless of max index, and they were store in ragged TArray<TArray<int32>>
 				TArray<TArray<int32>> OldPlaneVertices;

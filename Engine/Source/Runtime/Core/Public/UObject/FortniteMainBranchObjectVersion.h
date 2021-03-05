@@ -141,6 +141,14 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Moving some UFortGameFeatureData properties and behaviors into the UGameFeatureAction pattern
 		GameFeatureData_MovedComponentListAndCheats,
 
+		// Add centrifugal forces for cloth
+		ChaosClothAddfictitiousforces,
+
+		// Chaos Convex StructureData supports different index sizes based on num verts/planes
+		// Chaos FConvex uses array of FVec3s for vertices instead of particles
+		// (Merged from //UE4/Main)
+		ChaosConvexVariableStructureDataAndVerticesArray,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

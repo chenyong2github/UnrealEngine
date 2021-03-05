@@ -489,8 +489,8 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 
 		if (Params.PropertyInfo->PropertyEntityID)
 		{
-			// Move any migratable components over from the existing fast-path entity
-			Linker->EntityManager.CopyComponents(Params.PropertyInfo->PropertyEntityID, NewEntityID, Linker->EntityManager.GetComponents()->GetMigrationMask());
+			// Move any copiable/migratable components over from the existing fast-path entity
+			Linker->EntityManager.CopyComponents(Params.PropertyInfo->PropertyEntityID, NewEntityID, Linker->EntityManager.GetComponents()->GetCopyAndMigrationMask());
 
 			// Add blend inputs on the first contributor, which was using the fast-path
 			Linker->EntityManager.AddComponent(Params.PropertyInfo->PropertyEntityID, BuiltInComponents->BlendChannelInput, Params.PropertyInfo->BlendChannel);

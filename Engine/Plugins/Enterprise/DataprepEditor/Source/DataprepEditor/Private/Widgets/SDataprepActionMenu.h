@@ -8,6 +8,7 @@
 #include "GraphEditor.h"
 #include "Internationalization/Text.h"
 #include "Misc/Attribute.h"
+#include "SchemaActions/DataprepSchemaAction.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
@@ -26,6 +27,8 @@ struct FGraphActionListBuilderBase;
 class SDataprepActionMenu : public SCompoundWidget
 {
 public:
+	DECLARE_DELEGATE_OneParam( FOnCollectCustomActions, TArray< TSharedPtr<FDataprepSchemaAction> >& )
+
 	SLATE_BEGIN_ARGS(SDataprepActionMenu) 
 		: _TransactionText()
 		, _DataprepActionContext()
@@ -40,6 +43,7 @@ public:
 		SLATE_ARGUMENT( FVector2D, NewNodePosition )
 		SLATE_ARGUMENT( TArray<UEdGraphPin*>, DraggedFromPins )
 		SLATE_ARGUMENT( SGraphEditor::FActionMenuClosed, OnClosedCallback )
+		SLATE_ARGUMENT( FOnCollectCustomActions, OnCollectCustomActions )
 	SLATE_END_ARGS();
 
 	void Construct(const FArguments& InArgs, TUniquePtr<IDataprepMenuActionCollector> InMenuActionCollector);
@@ -76,5 +80,5 @@ private:
 	FVector2D NewNodePosition;
 
 	SGraphEditor::FActionMenuClosed OnClosedCallback;
-
+	FOnCollectCustomActions OnCollectCustomActions;
 };

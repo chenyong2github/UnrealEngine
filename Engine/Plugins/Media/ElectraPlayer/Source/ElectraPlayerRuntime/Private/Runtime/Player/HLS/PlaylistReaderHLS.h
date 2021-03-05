@@ -17,7 +17,7 @@ struct FPlaylistLoadRequestHLS;
 class IPlaylistReaderHLS : public IPlaylistReader
 {
 public:
-	static IPlaylistReader* Create(IPlayerSessionServices* PlayerSessionServices);
+	static TSharedPtrTS<IPlaylistReader> Create(IPlayerSessionServices* PlayerSessionServices);
 
 	virtual ~IPlaylistReaderHLS() = default;
 

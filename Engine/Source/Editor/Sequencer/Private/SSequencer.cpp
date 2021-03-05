@@ -323,7 +323,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	bUserIsSelecting = false;
 	CachedClampRange = TRange<double>::Empty();
 	CachedViewRange = TRange<double>::Empty();
-
+	
 	InitializeTrackFilters();
 
 	ISequencerWidgetsModule& SequencerWidgets = FModuleManager::Get().LoadModuleChecked<ISequencerWidgetsModule>( "SequencerWidgets" );
@@ -440,6 +440,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	OnGetAddMenuContent = InArgs._OnGetAddMenuContent;
 	OnBuildCustomContextMenuForGuid = InArgs._OnBuildCustomContextMenuForGuid;
+	OnGetPlaybackSpeeds = InArgs._OnGetPlaybackSpeeds;
 
 	RootCustomization.AddMenuExtender = InArgs._AddMenuExtender;
 	RootCustomization.ToolbarExtender = InArgs._ToolbarExtender;
@@ -2229,8 +2230,6 @@ TSharedRef<SWidget> SSequencer::MakeViewMenu()
 	{
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleExpandCollapseNodes);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleExpandCollapseNodesAndDescendants);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ExpandAllNodesAndDescendants);
-		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().CollapseAllNodesAndDescendants);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().SortAllNodesAndDescendants);
 	}
 	MenuBuilder.EndSection();
@@ -2341,17 +2340,19 @@ void SSequencer::OpenNodeGroupsManager()
 
 void SSequencer::FillPlaybackSpeedMenu(FMenuBuilder& InMenuBarBuilder)
 {
-	const int32 NumPlaybackSpeeds = 7;
-	float PlaybackSpeeds[NumPlaybackSpeeds] = { 0.1f, 0.25f, 0.5f, 1.0f, 2.0f, 5.0f, 10.0f };
+	TArray<float> PlaybackSpeeds = OnGetPlaybackSpeeds.Execute();
 
 	InMenuBarBuilder.BeginSection("PlaybackSpeed");
-	for( uint32 PlaybackSpeedIndex = 1; PlaybackSpeedIndex < NumPlaybackSpeeds; ++PlaybackSpeedIndex )
+	for( int32 PlaybackSpeedIndex = 0; PlaybackSpeedIndex < PlaybackSpeeds.Num(); ++PlaybackSpeedIndex )
 	{
 		float PlaybackSpeed = PlaybackSpeeds[PlaybackSpeedIndex];
-		const FText MenuStr = FText::Format( LOCTEXT("PlaybackSpeedStr", "x{0}"), FText::AsNumber( PlaybackSpeed ) );
+		const FText MenuStr = FText::Format( LOCTEXT("PlaybackSpeedStr", "{0}"), FText::AsNumber( PlaybackSpeed ) );
 		InMenuBarBuilder.AddMenuEntry(MenuStr, FText(), FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda( [this, PlaybackSpeed]{ SequencerPtr.Pin()->SetPlaybackSpeed(PlaybackSpeed); }),
+				FExecuteAction::CreateLambda( [this, PlaybackSpeed]
+				{
+					SequencerPtr.Pin()->SetPlaybackSpeed(PlaybackSpeed);
+				}),
 				FCanExecuteAction::CreateLambda([] { return true; }),
 				FIsActionChecked::CreateLambda( [this, PlaybackSpeed]{ return SequencerPtr.Pin()->GetPlaybackSpeed() == PlaybackSpeed; })
 				),
@@ -2569,6 +2570,42 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleLinkCurveEditorTimeRange);
 	}
 	MenuBuilder.EndSection();
+
+	// Menu entry for the jump frame increment
+	auto OnJumpFrameIncrementChanged = [=](double NewValue) {
+		FFrameRate TickResolution = SequencerPtr.Pin()->GetFocusedTickResolution();
+		FFrameRate DisplayRate = SequencerPtr.Pin()->GetFocusedDisplayRate();
+		FFrameNumber JumpFrameIncrement = FFrameRate::TransformTime(FFrameTime::FromDecimal(NewValue), TickResolution, DisplayRate).CeilToFrame();						
+		SequencerPtr.Pin()->GetSequencerSettings()->SetJumpFrameIncrement(JumpFrameIncrement);
+	};
+
+	MenuBuilder.AddWidget(
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+			[
+				SNew(SSpacer)
+			]
+		+ SHorizontalBox::Slot()
+			.AutoWidth()
+			[
+				SNew(SSpinBox<double>)
+					.TypeInterface(NumericTypeInterface)
+					.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
+					.OnValueCommitted_Lambda([=](double Value, ETextCommit::Type){ OnJumpFrameIncrementChanged(Value); })
+					.OnValueChanged_Lambda([=](double Value) { OnJumpFrameIncrementChanged(Value); })
+					.MinValue(TOptional<double>())
+					.MaxValue(TOptional<double>())
+					.Value_Lambda([=]() -> double {
+						FFrameNumber JumpFrameIncrement = SequencerPtr.Pin()->GetSequencerSettings()->GetJumpFrameIncrement();
+						FFrameRate TickResolution = SequencerPtr.Pin()->GetFocusedTickResolution();
+						FFrameRate DisplayRate = SequencerPtr.Pin()->GetFocusedDisplayRate();
+						int32 ConvertedValue = FFrameRate::TransformTime(JumpFrameIncrement, DisplayRate, TickResolution).CeilToFrame().Value;						
+					 	return ConvertedValue;
+					})
+					.Delta(this, &SSequencer::GetSpinboxDelta)
+					.LinearDeltaSensitivity(25)
+			],
+		LOCTEXT("JumpFrameIncrement", "Jump Frame Increment"));
 
 	return MenuBuilder.MakeWidget();
 }
@@ -3829,21 +3866,6 @@ bool SSequencer::CanPaste()
 	// Attempts to deserialize the text into object bindings/tracks that Sequencer understands.
 	if (Sequencer->CanPaste(TextToImport))
 	{
-		TArray<UMovieSceneCopyableTrack*> ImportedTracks;
-		TArray<UMovieSceneSection*> ImportedSections;
-		TArray<UMovieSceneCopyableBinding*> ImportedObjects;
-		Sequencer->ImportTracksFromText(TextToImport, ImportedTracks);
-		Sequencer->ImportSectionsFromText(TextToImport, ImportedSections);
-		Sequencer->ImportObjectBindingsFromText(TextToImport, ImportedObjects);
-
-		// If we couldn't deserialize any tracks or objects then the data isn't valid for sequencer,
-		// and we'll block a paste attempt.
-		if (ImportedTracks.Num() == 0 && ImportedSections.Num() == 0 && ImportedObjects.Num() == 0)
-		{
-			return false;
-		}
-
-		// Otherwise, as long as they have one or the other, there is something to paste.
 		return true;
 	}
 

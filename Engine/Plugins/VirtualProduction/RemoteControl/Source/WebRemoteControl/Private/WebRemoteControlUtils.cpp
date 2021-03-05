@@ -90,7 +90,7 @@ namespace RemotePayloadSerializer
 
 	void SerializeWrappedCallResponse(int32 RequestId, TUniquePtr<FHttpServerResponse> Response, FMemoryWriter& Writer)
 	{
-		FJsonStructSerializerBackend Backend(Writer, EStructSerializerBackendFlags::Default);
+		FRCJsonStructSerializerBackend Backend(Writer, EStructSerializerBackendFlags::Default);
 		TSharedPtr<TJsonWriter<ANSICHAR>> JsonWriter = TJsonWriter<ANSICHAR>::Create(&Writer);
 
 		JsonWriter->WriteObjectStart();
@@ -109,11 +109,11 @@ namespace RemotePayloadSerializer
 		JsonWriter->WriteObjectEnd();
 	}
 
-	bool SerializePartial(TFunctionRef<bool(FJsonStructSerializerBackend&)> SerializeFunction, FMemoryWriter& SerializedPayloadWriter)
+	bool SerializePartial(TFunctionRef<bool(FRCJsonStructSerializerBackend&)> SerializeFunction, FMemoryWriter& SerializedPayloadWriter)
 	{
 		TArray<uint8> WorkingBuffer;
 		FMemoryWriter TemporaryBufferWriter(WorkingBuffer);
-		FJsonStructSerializerBackend TemporaryBackend(TemporaryBufferWriter, EStructSerializerBackendFlags::Default);
+		FRCJsonStructSerializerBackend TemporaryBackend(TemporaryBufferWriter, EStructSerializerBackendFlags::Default);
 
 		int32 ColonPosition = -1;
 		int32 LastBracketPosition = -1;
@@ -207,7 +207,7 @@ namespace RemotePayloadSerializer
 		}
 
 		// write the param struct
-		FJsonStructSerializerBackend Backend(Writer, EStructSerializerBackendFlags::Default);
+		FRCJsonStructSerializerBackend Backend(Writer, EStructSerializerBackendFlags::Default);
 		FStructSerializerPolicies Policies;
 
 		if (bOnlyReturn)

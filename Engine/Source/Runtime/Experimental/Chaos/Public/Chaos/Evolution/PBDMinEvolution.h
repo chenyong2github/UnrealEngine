@@ -12,10 +12,7 @@ namespace Chaos
 	class FParticlePairCollisionDetector;
 	class FPBDCollisionConstraints;
 	class FSimpleConstraintRule;
-
-	template <typename T, int d>
-	class TPBDRigidsSOAs;
-
+	class FPBDRigidsSOAs;
 
 	/**
 	 * A minimal optimized evolution with support for
@@ -32,7 +29,7 @@ namespace Chaos
 
 		using FCollisionDetector = FParticlePairCollisionDetector;
 		using FEvolutionCallback = TFunction<void()>;
-		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
+		using FRigidParticleSOAs = FPBDRigidsSOAs;
 
 		FPBDMinEvolution(FRigidParticleSOAs& InParticles, TArrayCollectionArray<FVec3>& InPrevX, TArrayCollectionArray<FRotation3>& InPrevR, FCollisionDetector& InCollisionDetector, const FReal InBoundsExtension);
 

@@ -39,20 +39,21 @@ enum class EObjectStateTypeEnum : uint8
 	Chaos_Max                UMETA(Hidden)
 };
 
-UENUM()
+UENUM(BlueprintType)
 enum class EGeometryCollectionPhysicsTypeEnum : uint8
 {
-	Chaos_AngularVelocity          UMETA(DisplayName = "AngularVelocity"),
-	Chaos_DynamicState             UMETA(DisplayName = "DynamicState"),
-	Chaos_LinearVelocity           UMETA(DisplayName = "LinearVelocity"),
-	Chaos_InitialAngularVelocity   UMETA(DisplayName = "InitialAngularVelocity"),
-	Chaos_InitialLinearVelocity    UMETA(DisplayName = "InitialLinearVelocity"),
-	Chaos_CollisionGroup           UMETA(DisplayName = "CollisionGroup"),
-	Chaos_LinearForce              UMETA(DisplayName = "LinearForce"),
-	Chaos_AngularTorque            UMETA(DisplayName = "AngularTorque"),
+	Chaos_AngularVelocity          UMETA(DisplayName = "Angular Velocity", ToolTip = "Add a vector field to the particles angular velocity."),
+	Chaos_DynamicState             UMETA(DisplayName = "Dynamic State", ToolTip = "Set the dynamic state of a particle (static, dynamic, kinematic...)"),
+	Chaos_LinearVelocity           UMETA(DisplayName = "Linear Velocity", ToolTip = "Add a vector field to the particles linear velocity."),
+	Chaos_InitialAngularVelocity   UMETA(DisplayName = "Initial Angular Velocity", ToolTip = "Initial particles angular velocity."),
+	Chaos_InitialLinearVelocity    UMETA(DisplayName = "Initial Linear Velocity", ToolTip = "Initial particles linear velocity."),
+	Chaos_CollisionGroup           UMETA(DisplayName = "Collision Group", ToolTip = "Set the particles collision group."),
+	Chaos_LinearForce              UMETA(DisplayName = "Linear Force", ToolTip = "Add a vector field to the particles linear force."),
+	Chaos_AngularTorque            UMETA(DisplayName = "Angular Torque", ToolTip = "Add a vector field to the particles angular torque."),
 	//
 	Chaos_Max						UMETA(Hidden)
 };
+
 inline
 FName CHAOS_API 
 GetGeometryCollectionPhysicsTypeName(EGeometryCollectionPhysicsTypeEnum Attribute)

@@ -70,6 +70,7 @@ void FNiagaraVariableMetaData::CopyPerScriptMetaData(const FNiagaraVariableMetaD
 	}
 	SetWasCreatedInSystemEditor(OtherMetaData.GetWasCreatedInSystemEditor());
 	SetIsUsingLegacyNameString(OtherMetaData.GetIsUsingLegacyNameString());
+	VariableGuid = OtherMetaData.VariableGuid;
 }
 
 void FNiagaraVariableMetaData::CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData)

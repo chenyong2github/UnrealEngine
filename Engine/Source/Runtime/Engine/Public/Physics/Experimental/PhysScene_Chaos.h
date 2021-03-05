@@ -49,8 +49,7 @@ namespace Chaos
 	template<typename PayloadType, typename HandlerType>
 	class TRawEventHandler;
 
-	template <typename T, int d>
-	class TAccelerationStructureHandle;
+	class FAccelerationStructureHandle;
 
 	template <typename TPayload, typename T, int d>
 	class ISpatialAcceleration;
@@ -169,7 +168,7 @@ public:
 	void AddPendingOnConstraintBreak(FConstraintInstance* ConstraintInstance, int32 SceneType);
 	void AddPendingSleepingEvent(FBodyInstance* BI, ESleepEvent SleepEventType, int32 SceneType);
 
-	int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<Chaos::FReal, 3>, Chaos::FReal, 3>& Collection);
+	int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::FAccelerationStructureHandle, Chaos::FReal, 3>& Collection);
 
 	TArray<FCollisionNotifyInfo>& GetPendingCollisionNotifies(int32 SceneType);
 

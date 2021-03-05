@@ -559,7 +559,7 @@ void UGameUserSettings::LoadConfigIni(bool bForceReload/*=false*/)
 	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"), nullptr, bForceReload, false, true, true, *FPaths::GeneratedConfigDir());
 }
 
-void UGameUserSettings::PreloadResolutionSettings()
+void UGameUserSettings::PreloadResolutionSettings(bool bAllowCmdLineOverrides /*= true*/)
 {
 	// Note: This preloads resolution settings without loading the user settings object.  
 	// When changing this code care must be taken to ensure the window starts at the same resolution as the in game resolution
@@ -615,7 +615,7 @@ void UGameUserSettings::PreloadResolutionSettings()
 	}
 #endif
 
-	RequestResolutionChange(ResolutionX, ResolutionY, WindowMode);
+	RequestResolutionChange(ResolutionX, ResolutionY, WindowMode, bAllowCmdLineOverrides);
 
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
 }

@@ -65,27 +65,31 @@ public:
 	virtual bool RefreshFromExternalChanges() override;
 	virtual ENiagaraNumericOutputTypeSelectionMode GetNumericOutputTypeSelectionMode() const;
 	virtual void ResolveNumerics(const UEdGraphSchema_Niagara* Schema, bool bSetInline, TMap<TPair<FGuid, UEdGraphNode*>, FNiagaraTypeDefinition>* PinCache);
+	virtual bool AllowExternalPinTypeChanges(const UEdGraphPin* InGraphPin) const override;
+	virtual bool AllowNiagaraTypeForPinTypeChange(const FNiagaraTypeDefinition& InType, UEdGraphPin* Pin) const override;
+	virtual bool OnNewPinTypeRequested(UEdGraphPin* PinToChange, FNiagaraTypeDefinition NewType) override;
 	//~ End UNiagaraNode Interface
 
 protected:
 
 	/** Helper function to create a variable to add to the OutputVars and FGuid to add to PathAssociatedPinGuids. */
 	FGuid AddOutput(FNiagaraTypeDefinition Type, const FName& Name);
-
+	void ChangeOutputType(UEdGraphPin* OutputPin, FNiagaraTypeDefinition TypeDefinition);
+	
 	/** Helper to get a pin in the pins list by GUID */
-	const UEdGraphPin* GetPinByGuid(const FGuid& InGuid);
+	const UEdGraphPin* GetPinByGuid(const FGuid& InGuid) const;
 
 	//~ Begin EdGraphNode Interface
 	virtual void OnPinRemoved(UEdGraphPin* PinToRemove) override;
 	//~ End EdGraphNode Interface
 	
 	//~ Begin UNiagaraNodeWithDynamicPins Interface
-	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin) override;
+	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin) override;
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override;
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override;
-	virtual bool CanMovePin(const UEdGraphPin* Pin) const override { return false; }
-	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) override;
+	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override { return false; }
+	virtual bool AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const override;
 	//~ End UNiagaraNodeWithDynamicPins Interface
 
 private:

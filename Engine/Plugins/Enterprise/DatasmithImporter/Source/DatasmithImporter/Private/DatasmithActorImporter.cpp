@@ -673,7 +673,11 @@ void FDatasmithActorImporter::OverrideStaticMeshActorMaterials( const FDatasmith
 				MeshSubMaterialIdx = OriginalSubMaterial->GetId();
 			}
 
-			OverrideStaticMeshActorMaterial( ImportContext, OriginalSubMaterial, StaticMeshComponentTemplate, MeshSubMaterialIdx );
+			// Override material only if index of partition does exist in static mesh
+			if( ensure( StaticMesh->GetStaticMaterials().IsValidIndex( MeshSubMaterialIdx ) ) )
+			{
+				OverrideStaticMeshActorMaterial( ImportContext, OriginalSubMaterial, StaticMeshComponentTemplate, MeshSubMaterialIdx );
+			}
 		}
 	}
 }

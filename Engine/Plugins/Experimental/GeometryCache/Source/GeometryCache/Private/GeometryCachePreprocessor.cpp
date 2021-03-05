@@ -321,6 +321,10 @@ void FOptimizeGeometryCachePreprocessor::FlushBufferedFrames()
 			if (NewMesh.VertexInfo.bHasMotionVectors)
 			{
 				NewMesh.MotionVectors[i] = OldMesh.MotionVectors[NewVerticesReordered[i]];
+				if (NewMesh.MotionVectors[i].ContainsNaN())
+				{
+					NewMesh.MotionVectors[i] = i > 0 ? NewMesh.MotionVectors[i - 1] : FVector::ZeroVector;
+				}
 			}
 			Bounds += NewMesh.Positions[i];
 		}

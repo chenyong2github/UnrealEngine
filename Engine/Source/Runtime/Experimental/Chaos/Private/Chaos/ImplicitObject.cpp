@@ -12,6 +12,7 @@
 #include "Chaos/Plane.h"
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TaperedCapsule.h"
 #include "Chaos/TrackedGeometryManager.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "HAL/IConsoleManager.h"
@@ -106,7 +107,7 @@ const FAABB3 FImplicitObject::BoundingBox() const
 }
 
 // @todo(mlentine): This is a lot of duplication from the collisions code that should be reduced
-Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const TBVHParticles<FReal, 3>* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
+Pair<FVec3, bool> FImplicitObject::FindDeepestIntersection(const FImplicitObject* Other, const FBVHParticles* Particles, const FMatrix33& OtherToLocalTransform, const FReal Thickness) const
 {
 	// Do analytics
 	// @todo(mlentine): Should we do a convex pass here?
@@ -297,7 +298,7 @@ FArchive& FImplicitObject::SerializeLegacyHelper(FArchive& Ar, TUniquePtr<FImpli
 			case ImplicitObjectType::Sphere: { Value = TUniquePtr<TSphere<FReal,3>>(new TSphere<FReal, 3>()); break; }
 			case ImplicitObjectType::Box: { Value = TUniquePtr<TBox<FReal,3>>(new TBox<FReal, 3>()); break; }
 			case ImplicitObjectType::Plane: { Value = TUniquePtr<TPlane<FReal,3>>(new TPlane<FReal, 3>()); break; }
-			case ImplicitObjectType::LevelSet: { Value = TUniquePtr<TLevelSet<FReal,3>>(new TLevelSet<FReal, 3>()); break; }
+			case ImplicitObjectType::LevelSet: { Value = TUniquePtr<FLevelSet>(new FLevelSet()); break; }
 			default: check(false);
 			}
 		}
@@ -363,6 +364,7 @@ const FName FImplicitObject::GetTypeName(const EImplicitObjectType InType)
 	static const FName CylinderName = TEXT("Cylinder");
 	static const FName TriangleMeshName = TEXT("TriangleMesh");
 	static const FName HeightFieldName = TEXT("HeightField");
+	static const FName TaperedCapsuleName = TEXT("TaperedCapsule");
 
 	switch (GetInnerType(InType))
 	{
@@ -379,6 +381,7 @@ const FName FImplicitObject::GetTypeName(const EImplicitObjectType InType)
 		case ImplicitObjectType::Cylinder: return CylinderName;
 		case ImplicitObjectType::TriangleMesh: return TriangleMeshName;
 		case ImplicitObjectType::HeightField: return HeightFieldName;
+		case ImplicitObjectType::TaperedCapsule: return TaperedCapsuleName;
 	}
 	return NAME_None;
 }
@@ -423,13 +426,14 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 	case ImplicitObjectType::Sphere: if (Ar.IsLoading()) { return new TSphere<FReal, 3>(); } break;
 	case ImplicitObjectType::Box: if (Ar.IsLoading()) { return new TBox<FReal, 3>(); } break;
 	case ImplicitObjectType::Plane: if (Ar.IsLoading()) { return new TPlane<FReal, 3>(); } break;
-	case ImplicitObjectType::Capsule: if (Ar.IsLoading()) { return new TCapsule<FReal>(); } break;
+	case ImplicitObjectType::Capsule: if (Ar.IsLoading()) { return new FCapsule(); } break;
 	case ImplicitObjectType::Transformed: if (Ar.IsLoading()) { return new TImplicitObjectTransformed<FReal, 3>(); } break;
 	case ImplicitObjectType::Union: if (Ar.IsLoading()) { return new FImplicitObjectUnion(); } break;
 	case ImplicitObjectType::UnionClustered: if (Ar.IsLoading()) { return new FImplicitObjectUnionClustered(); } break;
-	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new TLevelSet<FReal, 3>(); } break;
+	case ImplicitObjectType::LevelSet: if (Ar.IsLoading()) { return new FLevelSet(); } break;
 	case ImplicitObjectType::Convex: if (Ar.IsLoading()) { return new FConvex(); } break;
-	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new TTaperedCylinder<FReal>(); } break;
+	case ImplicitObjectType::TaperedCylinder: if (Ar.IsLoading()) { return new FTaperedCylinder(); } break;
+	case ImplicitObjectType::TaperedCapsule: if (Ar.IsLoading()) { return new FTaperedCapsule(); } break;
 	case ImplicitObjectType::TriangleMesh: if (Ar.IsLoading()) { return new FTriangleMeshImplicitObject(); } break;
 	case ImplicitObjectType::DEPRECATED_Scaled:
 	{
@@ -437,7 +441,7 @@ FImplicitObject* FImplicitObject::SerializationFactory(FChaosArchive& Ar, FImpli
 		return new TImplicitObjectScaledGeneric<FReal, 3>();
 	}
 	case ImplicitObjectType::HeightField: if (Ar.IsLoading()) { return new FHeightField(); } break;
-	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new TCylinder<FReal>(); } break;
+	case ImplicitObjectType::Cylinder: if (Ar.IsLoading()) { return new FCylinder(); } break;
 	default:
 		check(false);
 	}

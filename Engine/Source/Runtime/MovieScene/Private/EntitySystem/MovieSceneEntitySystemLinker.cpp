@@ -208,14 +208,15 @@ void UMovieSceneEntitySystemLinker::TagInvalidBoundObjects()
 
 bool UMovieSceneEntitySystemLinker::StartEvaluation(FMovieSceneEntitySystemRunner& InRunner)
 {
-	if (ensureMsgf((ActiveRunners.Num() == 0 || ActiveRunners.Last().bIsReentrancyAllowed),
-			TEXT("Can't start a new evaluation: the active runner is not in a re-entrancy window.")))
+	if (ActiveRunners.Num() == 0 || ActiveRunners.Last().bIsReentrancyAllowed)
 	{
 		// Default to re-entrancy being forbidden. The runner will allow re-entrancy at specific spots
 		// in the evaluation loop, via a "re-entrancy window".
 		ActiveRunners.Emplace(FActiveRunnerInfo{ &InRunner, false });
 		return true;
 	}
+		
+	UE_LOG(LogMovieScene, Warning, TEXT("Can't start a new evaluation: the active runner is not in a re-entrancy window."));
 	return false;
 }
 

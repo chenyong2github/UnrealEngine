@@ -56,6 +56,8 @@ namespace ESteamSession
 	}
 }
 
+using FUniqueNetIdSteamRef = TSharedRef<const class FUniqueNetIdSteam, UNIQUENETID_ESPMODE>;
+
 /**
  * Steam specific implementation of the unique net id
  */
@@ -83,6 +85,12 @@ PACKAGE_SCOPE:
 	}
 
 public:
+	template<typename... TArgs>
+	static FUniqueNetIdSteamRef Create(TArgs&&... Args)
+	{
+		return MakeShareable(new FUniqueNetIdSteam(Forward<TArgs>(Args)...));
+	}
+	
 	/**
 	 * Constructs this object with the specified net id
 	 *
@@ -207,9 +215,9 @@ public:
 	}
 
 	/** global static instance of invalid (zero) id */
-	static const TSharedRef<const FUniqueNetId>& EmptyId()
+	static const FUniqueNetIdRef& EmptyId()
 	{
-		static const TSharedRef<const FUniqueNetId> EmptyId(MakeShared<FUniqueNetIdSteam>());
+		static const FUniqueNetIdRef EmptyId(Create());
 		return EmptyId;
 	}
 

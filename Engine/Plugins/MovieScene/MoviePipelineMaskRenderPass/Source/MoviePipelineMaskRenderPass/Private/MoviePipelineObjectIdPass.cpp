@@ -18,8 +18,9 @@
 #include "EngineModule.h"
 #include "Async/ParallelFor.h"
 
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateMaskSample_TT"), STAT_AccumulateMaskSample_TaskThread, STATGROUP_MoviePipeline);
+#include "Components/InstancedStaticMeshComponent.h"
 
+DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateMaskSample_TT"), STAT_AccumulateMaskSample_TaskThread, STATGROUP_MoviePipeline);
 
 namespace UE
 {
@@ -48,8 +49,10 @@ namespace MoviePipeline
 
 	struct FMoviePipelineHitProxyCacheValue
 	{
-		AActor* Actor;
+		const AActor* Actor;
 		const UPrimitiveComponent* PrimComponent;
+		int32 SectionIndex;
+		int32 MaterialIndex;
 		float Hash;
 		FString HashAsString;
 		FString ProxyName;
@@ -127,7 +130,10 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 	// Re-initialize the render target with the correct bit depth.
 	TileRenderTarget = NewObject<UTextureRenderTarget2D>(GetTransientPackage());
 	TileRenderTarget->ClearColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.0f);
-	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_B8G8R8A8, false);
+
+	// Ensure there's no gamma in the RT otherwise the HitProxy color ids don't round trip properly.
+	TileRenderTarget->TargetGamma = 0.f;
+	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_B8G8R8A8, true);
 	TileRenderTarget->AddToRoot();
 
 	AccumulatorPool = MakeShared<TAccumulatorPool<FMaskOverlappedAccumulator>, ESPMode::ThreadSafe>(6);
@@ -159,7 +165,10 @@ void UMoviePipelineObjectIdRenderPass::SetupImpl(const MoviePipeline::FMoviePipe
 void UMoviePipelineObjectIdRenderPass::TeardownImpl()
 {
 	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
-	SurfaceQueue->Shutdown();
+	if (SurfaceQueue.IsValid())
+	{
+		SurfaceQueue->Shutdown();
+	}
 
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
@@ -201,12 +210,26 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 
 	FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
 
+	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
+	{
+		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
+		SurfaceQueue->BlockUntilAnyAvailable();
+	}
+	
+	TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
+	
+	// Submit to be rendered. Main render pass always uses target 0. We do this before making the Hitproxy cache because
+	// BeginRenderingViewFamily ensures render state for things are created.
+	FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
+	FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
+	GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
+
 	// The Hitproxy array gets invalidated quite often, so the results are no longer valid in the accumulation thread.
 	// To solve this, we will cache the required info on the game thread and pass the required info along with the render so that
 	// it stays in sync with what was actually rendered. Additionally, we cache the hashes between frames as they will be largely 
 	// the same between each frame.
 	const TSparseArray<HHitProxy*>& AllHitProxies = GetAllHitProxies();
-	
+
 	std::atomic<int32> NumCacheHits(0);
 	std::atomic<int32> NumCacheMisses(0);
 	std::atomic<int32> NumCacheUpdates(0);
@@ -218,28 +241,50 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 	for (typename TSparseArray<HHitProxy*>::TConstIterator It(AllHitProxies); It; ++It)
 	{
 		HActor* ActorHitProxy = HitProxyCast<HActor>(*It);
+		HInstancedStaticMeshInstance* FoliageHitProxy = HitProxyCast<HInstancedStaticMeshInstance>(*It);
+
+		const AActor* ProxyActor = nullptr;
+		const UPrimitiveComponent* ProxyComponent = nullptr;
+		int32 ProxySectionIndex = -1;
+		int32 ProxyMaterialIndex = -1;
 
 		if (ActorHitProxy && IsValid(ActorHitProxy->Actor) && IsValid(ActorHitProxy->PrimComponent))
+		{
+			ProxyActor = ActorHitProxy->Actor;
+			ProxyComponent = ActorHitProxy->PrimComponent;
+			ProxySectionIndex = ActorHitProxy->SectionIndex;
+			ProxyMaterialIndex = ActorHitProxy->MaterialIndex;
+		}
+		else if (FoliageHitProxy && IsValid(FoliageHitProxy->Component))
+		{
+			ProxyActor = FoliageHitProxy->Component->GetOwner();
+			ProxyComponent = FoliageHitProxy->Component;
+			ProxySectionIndex = FoliageHitProxy->InstanceIndex;
+		}
+
+		if(ProxyActor && ProxyComponent)
 		{
 			// We assume names to be stable within a shot. This is technically incorrect if you were to 
 			// rename an actor mid-frame but using this assumption allows us to skip calculating the string
 			// name every frame.
 			UE::MoviePipeline::FMoviePipelineHitProxyCacheValue* CacheEntry = nullptr;
-
-			FColor Color = ActorHitProxy->Id.GetColor();
+			FColor Color = (*It)->Id.GetColor();
 			int32 IdToInt = ((int32)Color.R << 16) | ((int32)Color.G << 8) | ((int32)Color.B << 0);
 			{
 				CacheEntry = AccelData.Cache->Find(IdToInt);
 			}
 
+
 			if (CacheEntry)
 			{
 				// The cache could be out of date since it's only an index. We'll double check that the actor and component
 				// are the same and assume if they are, the cache is still valid.
-				const bool bSameActor = CacheEntry->Actor == ActorHitProxy->Actor;
-				const bool bSameComp = CacheEntry->PrimComponent == ActorHitProxy->PrimComponent;
+				const bool bSameActor = CacheEntry->Actor == ProxyActor;
+				const bool bSameComp = CacheEntry->PrimComponent == ProxyComponent;
+				const bool bSameSection = CacheEntry->SectionIndex == ProxySectionIndex;
+				const bool bSameMaterial = CacheEntry->MaterialIndex == ProxyMaterialIndex;
 
-				if (bSameActor && bSameComp)
+				if (bSameActor && bSameComp && bSameSection && bSameMaterial)
 				{
 					NumCacheHits++;
 					continue;
@@ -254,15 +299,17 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 			// Hitproxies only have one material to represent an entire component, but component names are too generic
 			// so instead we build a hash out of the actor name and component. This can still lead to duplicates but
 			// they would be visible in the World Outliner.
-			const FName& FolderPath = ActorHitProxy->Actor->GetFolderPath();
+			const FName& FolderPath = ProxyActor->GetFolderPath();
 			if (FolderPath.IsNone())
 			{
-				ProxyIdName = FString::Printf(TEXT("%s.%s"), *ActorHitProxy->Actor->GetActorLabel(), *GetNameSafe(ActorHitProxy->PrimComponent));
+				ProxyIdName = FString::Printf(TEXT("%s.%s[%d.%d]"), *ProxyActor->GetActorLabel(), *GetNameSafe(ProxyComponent), ProxySectionIndex, ProxyMaterialIndex);
 			}
 			else
 			{
-				ProxyIdName = FString::Printf(TEXT("%s/%s.%s"), *FolderPath.ToString(), *ActorHitProxy->Actor->GetActorLabel(), *GetNameSafe(ActorHitProxy->PrimComponent));
+				ProxyIdName = FString::Printf(TEXT("%s/%s.%s[%d.%d]"), *FolderPath.ToString(), *ProxyActor->GetActorLabel(), *GetNameSafe(ProxyComponent), ProxySectionIndex, ProxyMaterialIndex);
 			}
+
+
 
 			// We hash the string and printf it here to reduce allocations later, even though it makes this loop ~% more expensive.
 			uint32 Hash = MoviePipeline::HashNameToId(TCHAR_TO_UTF8(*ProxyIdName));
@@ -272,8 +319,10 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 				UE::MoviePipeline::FMoviePipelineHitProxyCacheValue& NewCacheEntry = AccelData.Cache->Add(IdToInt);
 				NewCacheEntry.ProxyName = ProxyIdName;
 				NewCacheEntry.Hash = *(float*)(&Hash);
-				NewCacheEntry.Actor = ActorHitProxy->Actor;
-				NewCacheEntry.PrimComponent = ActorHitProxy->PrimComponent;
+				NewCacheEntry.Actor = ProxyActor;
+				NewCacheEntry.PrimComponent = ProxyComponent;
+				NewCacheEntry.SectionIndex = ProxySectionIndex;
+				NewCacheEntry.MaterialIndex = ProxyMaterialIndex;
 
 				// Add the object to the manifest. Done here because this takes ~170ms a frame for 700 objects.
 				// May as well only take that hit once per shot. This will add or update an existing field.
@@ -313,22 +362,8 @@ void UMoviePipelineObjectIdRenderPass::RenderSample_GameThreadImpl(const FMovieP
 	// Update the annotation with new cached data
 	ManifestAnnotation.AddAnnotation(this, AccelData);
 
-
-	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableSurface);
-		SurfaceQueue->BlockUntilAnyAvailable();
-	}
-
 	// Main Render Pass
 	{
-		TSharedPtr<FSceneViewFamilyContext> ViewFamily = CalculateViewFamily(InOutSampleState);
-
-		// Submit to be rendered. Main render pass always uses target 0.
-		FRenderTarget* RenderTarget = GetViewRenderTarget()->GameThread_GetRenderTargetResource();
-		FCanvas Canvas = FCanvas(RenderTarget, nullptr, GetPipeline()->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing, 1.0f);
-		GetRendererModule().BeginRenderingViewFamily(&Canvas, ViewFamily.Get());
-
 
 		// Readback + Accumulate.
 		TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();

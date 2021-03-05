@@ -14,7 +14,6 @@
 
 class UGameplayTagsList;
 struct FStreamableHandle;
-class FNativeGameplayTagSource;
 class FNativeGameplayTag;
 
 /** Simple struct for a table row in the gameplay tag table and element in the ini list */
@@ -331,25 +330,10 @@ class GAMEPLAYTAGS_API UGameplayTagsManager : public UObject
 	 * @return Will return the corresponding FGameplayTag
 	 */
 	FGameplayTag AddNativeGameplayTag(FName TagName, const FString& TagDevComment = TEXT("(Native)"));
-	
-	/**
-	 * 
-	 */
-	void AddNativeGameplayTagSource(const FString& NativeSourceName, TSharedRef<const FNativeGameplayTagSource> NativeSource);
-
-	/**
-	 *
-	 */
-	void RemoveNativeGameplayTagSource(const FString& NativeSourceName);
 
 private:
-	void AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment);
+	void AddNativeGameplayTag(FNativeGameplayTag* TagSource);
 	void RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource);
-
-	/**
-	 * 
-	 */
-	void AddTagsFromNativeSource(FName NativeSourceName, TSharedPtr<const FNativeGameplayTagSource> NativeSource);
 
 public:
 	/** Call to flush the list of native tags, once called it is unsafe to add more */
@@ -482,6 +466,12 @@ public:
 	 * @return the length of the longest matching pair
 	 */
 	int32 GameplayTagsMatchDepth(const FGameplayTag& GameplayTagOne, const FGameplayTag& GameplayTagTwo) const;
+
+	/** Returns the number of parents a particular gameplay tag has.  Useful as a quick way to determine which tags may
+	 * be more "specific" than other tags without comparing whether they are in the same hierarchy or anything else.
+	 * Example: "TagA.SubTagA" has 2 Tag Nodes.  "TagA.SubTagA.LeafTagA" has 3 Tag Nodes.
+	 */ 
+	int32 GetNumberOfTagNodes(const FGameplayTag& GameplayTag) const;
 
 	/** Returns true if we should import tags from UGameplayTagsSettings objects (configured by INI files) */
 	bool ShouldImportTagsFromINI() const;
@@ -760,8 +750,6 @@ private:
 
 	/** List of native tags to add when reconstructing tree */
 	TSet<FName> NativeTagsToAdd;
-
-	TMap<FName, TSharedPtr<const FNativeGameplayTagSource>> NativeSourcesToAdd;
 
 	TSet<FName> RestrictedGameplayTagSourceNames;
 

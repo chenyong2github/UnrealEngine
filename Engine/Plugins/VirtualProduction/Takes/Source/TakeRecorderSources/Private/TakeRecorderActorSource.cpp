@@ -896,11 +896,11 @@ bool UTakeRecorderActorSource::EnsureObjectTemplateHasComponent(UActorComponent*
 	AActor* DestinationActor = GetRecordToPossessable() ? Target->GetClass()->GetDefaultObject<AActor>() : CachedObjectTemplate.Get();
 	check(DestinationActor);
 
-	TInlineComponentArray<USceneComponent*> AllChildren;
+	TInlineComponentArray<UActorComponent*> AllChildren;
 	DestinationActor->GetComponents(AllChildren);
 
 	bool bFoundComponent = false;
-	for (USceneComponent* Child : AllChildren)
+	for (UActorComponent* Child : AllChildren)
 	{
 		if (Child == nullptr)
 		{

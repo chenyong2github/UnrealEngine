@@ -1635,6 +1635,13 @@ private:
 	 * visibility information from the renderer.
 	 */
 	bool ShouldComputeLODFromGameThread();
+
+public:
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(GetWorld(), Template); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
 };
 
 

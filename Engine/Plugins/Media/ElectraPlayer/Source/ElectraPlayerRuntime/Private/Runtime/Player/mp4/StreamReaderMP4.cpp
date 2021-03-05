@@ -124,20 +124,16 @@ FStreamReaderMP4::~FStreamReaderMP4()
 
 UEMediaError FStreamReaderMP4::Create(IPlayerSessionServices* InPlayerSessionService, const CreateParam &InCreateParam)
 {
-	if (!InCreateParam.MemoryProvider ||
-		!InCreateParam.EventListener ||
-		!InCreateParam.PlayerSessionService)
+	if (!InCreateParam.MemoryProvider || !InCreateParam.EventListener)
 	{
 		return UEMEDIA_ERROR_BAD_ARGUMENTS;
 	}
-
+	
+	PlayerSessionServices = InPlayerSessionService;
 	Parameters = InCreateParam;
 	bTerminate = false;
 	bIsStarted = true;
 
-	ThreadSetPriority(InCreateParam.ReaderConfig.ThreadParam.Priority);
-	ThreadSetCoreAffinity(InCreateParam.ReaderConfig.ThreadParam.CoreAffinity);
-	ThreadSetStackSize(InCreateParam.ReaderConfig.ThreadParam.StackSize);
 	ThreadSetName("ElectraPlayer::MP4 streamer");
 	ThreadStart(Electra::MakeDelegate(this, &FStreamReaderMP4::WorkerThread));
 
@@ -167,10 +163,7 @@ void FStreamReaderMP4::Close()
 
 void FStreamReaderMP4::LogMessage(IInfoLog::ELevel Level, const FString& Message)
 {
-	if (Parameters.PlayerSessionService)
-	{
-		Parameters.PlayerSessionService->PostLog(Facility::EFacility::MP4StreamReader, Level, Message);
-	}
+	PlayerSessionServices->PostLog(Facility::EFacility::MP4StreamReader, Level, Message);
 }
 
 IStreamReader::EAddResult FStreamReaderMP4::AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> InRequest)
@@ -198,16 +191,6 @@ void FStreamReaderMP4::CancelRequests()
 {
 	bRequestCanceled = true;
 	ReadBuffer.Abort();
-}
-
-void FStreamReaderMP4::PauseDownload()
-{
-	// Not implemented.
-}
-
-void FStreamReaderMP4::ResumeDownload()
-{
-	// Not implemented.
 }
 
 bool FStreamReaderMP4::HasBeenAborted() const
@@ -296,7 +279,6 @@ void FStreamReaderMP4::WorkerThread()
 			FString			PeriodID;
 			FString			AdaptationSetID;
 			FString			RepresentationID;
-			FString			CDN;
 			int32			Bitrate;
 		};
 		TMap<uint32, FPlaylistTrackMetadata>	SelectedTrackMap;
@@ -324,7 +306,6 @@ void FStreamReaderMP4::WorkerThread()
 					tmd.AdaptationSetID  = AdaptID;
 					tmd.RepresentationID = ReprID;
 					tmd.Bitrate 		 = Representation->GetBitrate();
-					tmd.CDN 			 = Representation->GetCDN();
 					SelectedTrackMap.Emplace(TrackId, tmd);
 				}
 			}
@@ -344,7 +325,6 @@ void FStreamReaderMP4::WorkerThread()
 			ds.AdaptationSetID  = PrimaryTrackMetadata->AdaptationSetID;
 			ds.RepresentationID = PrimaryTrackMetadata->RepresentationID;
 			ds.Bitrate  		= PrimaryTrackMetadata->Bitrate;
-			ds.CDN  			= PrimaryTrackMetadata->CDN;
 		}
 
 		ds.FailureReason.Empty();
@@ -368,6 +348,7 @@ void FStreamReaderMP4::WorkerThread()
 		ds.bIsMissingSegment   = false;
 		ds.bParseFailure	   = false;
 		ds.RetryNumber  	   = Request->NumOverallRetries;
+		ds.ABRState.Reset();
 
 		Parameters.EventListener->OnFragmentOpen(Request);
 
@@ -414,7 +395,7 @@ void FStreamReaderMP4::WorkerThread()
 
 		HTTP->ReceiveBuffer 				= ReadBuffer.ReceiveBuffer;
 		HTTP->ProgressListener  			= ProgressListener;
-		Parameters.PlayerSessionService->GetHTTPManager()->AddRequest(HTTP);
+		PlayerSessionServices->GetHTTPManager()->AddRequest(HTTP);
 
 
 		FTimeValue DurationSuccessfullyDelivered(FTimeValue::GetZero());
@@ -634,7 +615,7 @@ void FStreamReaderMP4::WorkerThread()
 
 		// Remove the download request.
 		ProgressListener.Reset();
-		Parameters.PlayerSessionService->GetHTTPManager()->RemoveRequest(HTTP);
+		PlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTP);
 		Request->ConnectionInfo = HTTP->ConnectionInfo;
 		HTTP.Reset();
 
@@ -680,7 +661,7 @@ void FStreamReaderMP4::WorkerThread()
 
 		// Reset the current request so another one can be added immediately when we call OnFragmentClose()
 		CurrentRequest.Reset();
-		Parameters.PlayerSessionService->GetStreamSelector()->ReportDownloadEnd(ds);
+		PlayerSessionServices->GetStreamSelector()->ReportDownloadEnd(ds);
 		Parameters.EventListener->OnFragmentClose(Request);
 	}
 }

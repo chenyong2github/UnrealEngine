@@ -24,7 +24,7 @@ public:
 protected:
 	const FDatasmithTessellationOptions& GetCommonTessellationOptions()
 	{
-		return GetCommonTessellationOptionsPtr()->Options;
+		return CommonTessellationOptions;
 	}
 
 	/** 
@@ -35,7 +35,6 @@ protected:
 	virtual void InitCommonTessellationOptions(FDatasmithTessellationOptions& TessellationOptions) {}
 
 private:
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions>& GetCommonTessellationOptionsPtr();
-	TStrongObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptionsPtr;
+	FDatasmithTessellationOptions CommonTessellationOptions;
 };
 

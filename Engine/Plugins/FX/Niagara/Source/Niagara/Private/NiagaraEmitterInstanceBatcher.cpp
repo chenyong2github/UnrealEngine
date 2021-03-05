@@ -163,16 +163,16 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 	, NumAllocatedFreeIDListSizes(0)
 	, bFreeIDListSizesBufferCleared(false)
 {
-	// Register the batcher callback in the GPUSortManager. 
-	// The callback is used to generate the initial keys and values for the GPU sort tasks, 
+	// Register the batcher callback in the GPUSortManager.
+	// The callback is used to generate the initial keys and values for the GPU sort tasks,
 	// the values being the sorted particle indices used by the Niagara renderers.
 	// The registration also involves defining the list of flags possibly used in GPUSortManager::AddTask()
 	if (GPUSortManager)
 	{
 		GPUSortManager->Register(FGPUSortKeyGenDelegate::CreateLambda([this](FRHICommandListImmediate& RHICmdList, int32 BatchId, int32 NumElementsInBatch, EGPUSortFlags Flags, FRHIUnorderedAccessView* KeysUAV, FRHIUnorderedAccessView* ValuesUAV)
-		{ 
+		{
 			GenerateSortKeys(RHICmdList, BatchId, NumElementsInBatch, Flags, KeysUAV, ValuesUAV);
-		}), 
+		}),
 		EGPUSortFlags::AnyKeyPrecision | EGPUSortFlags::KeyGenAfterPreRender | EGPUSortFlags::AnySortLocation | EGPUSortFlags::ValuesAsInt32,
 		Name);
 
@@ -182,7 +182,7 @@ NiagaraEmitterInstanceBatcher::NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::T
 			GPUSortManager->PostPreRenderEvent.AddLambda(
 				[this](FRHICommandListImmediate& RHICmdList)
 				{
-					GPUInstanceCounterManager.UpdateDrawIndirectBuffer(RHICmdList, FeatureLevel);
+					GPUInstanceCounterManager.UpdateDrawIndirectBuffers(*this, RHICmdList, FeatureLevel);
 				}
 			);
 		}
@@ -419,6 +419,7 @@ void NiagaraEmitterInstanceBatcher::Tick(float DeltaTime)
 		[RT_NiagaraBatcher=this](FRHICommandListImmediate& RHICmdList)
 		{
 			RT_NiagaraBatcher->ProcessPendingTicksFlush(RHICmdList, false);
+			RT_NiagaraBatcher->GetGPUInstanceCounterManager().FlushIndirectArgsPool();
 		}
 	);
 }
@@ -548,7 +549,7 @@ bool NiagaraEmitterInstanceBatcher::ResetDataInterfaces(const FNiagaraGPUSystemT
 			{
 				const FNiagaraDataInterfaceArgs TmpContext(Interface, Tick.SystemInstanceID, this);
 				Interface->ResetData(RHICmdList, TmpContext);
-			}			
+			}
 			InterfaceIndex++;
 		}
 	}
@@ -849,7 +850,7 @@ void NiagaraEmitterInstanceBatcher::DispatchAllOnCompute(FDispatchInstanceList& 
 		}
 		else
 		{
-			DispatchStage(DispatchInstance, DispatchInstance.StageIndex, RHICmdList, ViewUniformBuffer);	
+			DispatchStage(DispatchInstance, DispatchInstance.StageIndex, RHICmdList, ViewUniformBuffer);
 		}
 #else
 		DispatchStage(DispatchInstance, DispatchInstance.StageIndex, RHICmdList, ViewUniformBuffer);
@@ -884,7 +885,7 @@ void NiagaraEmitterInstanceBatcher::UpdateFreeIDsListSizesBuffer(FRHICommandList
 
 		bFreeIDListSizesBufferCleared = false;
 	}
-	
+
 	if ( !bFreeIDListSizesBufferCleared )
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, NiagaraGPUComputeClearFreeIDListSizes);
@@ -1448,7 +1449,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 		}
 	}
 #endif
-	
+
 	LLM_SCOPE(ELLMTag::Niagara);
 	TotalDispatchesThisFrame = 0;
 
@@ -1686,7 +1687,6 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 			Params.HalfDataStride = SortInfo.HalfDataStride;
 			Params.IntDataStride = SortInfo.IntDataStride;
 			Params.ParticleCount = SortInfo.ParticleCount;
-			Params.GPUParticleCountBuffer = SortInfo.GPUParticleCountSRV;
 			Params.GPUParticleCountOffset = SortInfo.GPUParticleCountOffset;
 			Params.CulledGPUParticleCountOffset = SortInfo.CulledGPUParticleCountOffset;
 			Params.EmitterKey = (uint32)SortInfo.AllocationInfo.ElementIndex << KeyGenInfo.ElementKeyShift;
@@ -1717,7 +1717,7 @@ void NiagaraEmitterInstanceBatcher::GenerateSortKeys(FRHICommandListImmediate& R
 			RHICmdList.SetComputeShader(KeyGenCS.GetComputeShader());
 
 			SetShaderParameters(RHICmdList, KeyGenCS, KeyGenCS.GetComputeShader(), Params);
-			DispatchComputeShader(RHICmdList, KeyGenCS, FMath::DivideAndRoundUp(SortInfo.ParticleCount, NIAGARA_KEY_GEN_THREAD_COUNT), 1, 1);			
+			DispatchComputeShader(RHICmdList, KeyGenCS, FMath::DivideAndRoundUp(SortInfo.ParticleCount, NIAGARA_KEY_GEN_THREAD_COUNT), 1, 1);
 			UnsetShaderUAVs(RHICmdList, KeyGenCS, KeyGenCS.GetComputeShader());
 		}
 	}
@@ -1876,7 +1876,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 
 	SetDataInterfaceParameters(DataInterfaceProxies, Shader, RHICmdList, Instance, Tick, SimulationStageIndex);
 
-	// set the shader and data set params 
+	// set the shader and data set params
 	//
 	const bool bRequiresPersistentIDs = Context->MainDataSet->RequiresPersistentIDs();
 	SetSRVParameter(RHICmdList, Shader.GetComputeShader(), Shader->FreeIDBufferParam, bRequiresPersistentIDs ? Context->MainDataSet->GetGPUFreeIDs().SRV.GetReference() : FNiagaraRenderer::GetDummyIntBuffer());
@@ -1914,7 +1914,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	static_assert((sizeof(SpawnInfo.SpawnInfoStartOffsets) % SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT) == 0, "sizeof SpawnInfoStartOffsets should be a multiple of SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT");
 	static_assert((sizeof(SpawnInfo.SpawnInfoParams) % SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT) == 0, "sizeof SpawnInfoParams should be a multiple of SHADER_PARAMETER_ARRAY_ELEMENT_ALIGNMENT");
 	SetShaderValueArray(RHICmdList, ComputeShader, Shader->EmitterSpawnInfoOffsetsParam, SpawnInfo.SpawnInfoStartOffsets, NIAGARA_MAX_GPU_SPAWN_INFOS);
-	// This parameter is an array of structs with 2 floats and 2 ints on CPU, but a float4 array on GPU. The shader uses asint() to cast the integer values. To set the parameter, 
+	// This parameter is an array of structs with 2 floats and 2 ints on CPU, but a float4 array on GPU. The shader uses asint() to cast the integer values. To set the parameter,
 	// we pass the structure array as a float* to SetShaderValueArray() and specify the number of floats (not float vectors).
 	SetShaderValueArray(RHICmdList, ComputeShader, Shader->EmitterSpawnInfoParamsParam, &SpawnInfo.SpawnInfoParams[0].IntervalDt, 4*NIAGARA_MAX_GPU_SPAWN_INFOS);
 
@@ -1973,7 +1973,7 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	}
 
 	// Unset UAV parameters.
-	// 
+	//
 	UnsetDataInterfaceParameters(DataInterfaceProxies, Shader, RHICmdList, Instance, Tick, SimulationStageIndex);
 	FNiagaraDataBuffer::UnsetShaderParams(RHICmdList, Shader.GetShader());
 	Shader->InstanceCountsParam.UnsetUAV(RHICmdList, ComputeShader);

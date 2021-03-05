@@ -38,7 +38,7 @@ namespace Chaos
 			const int32 SolverTimestamp = Results.Next ? Results.Next->SolverTimestamp : INDEX_NONE;
 			for(const FChaosRigidInterpolationData& RigidInterp : Results.RigidInterpolations)
 			{
-				if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy(SolverTimestamp))
+				if(FSingleParticlePhysicsProxy* Proxy = RigidInterp.Prev.GetProxy())
 				{
 					if (Proxy->PullFromPhysicsState(RigidInterp.Prev, SolverTimestamp, &RigidInterp.Next, &Results.Alpha))
 					{
@@ -61,7 +61,7 @@ namespace Chaos
 				const int32 SyncTimestamp = PullData->SolverTimestamp;
 				for (const FDirtyRigidParticleData& DirtyData : PullData->DirtyRigids)
 				{
-					if (auto Proxy = DirtyData.GetProxy(SyncTimestamp))
+					if (auto Proxy = DirtyData.GetProxy())
 					{
 						if (Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp))
 						{
@@ -78,7 +78,7 @@ namespace Chaos
 			const int32 SyncTimestamp = LatestData->SolverTimestamp;
 			for (const FDirtyGeometryCollectionData& DirtyData : LatestData->DirtyGeometryCollections)
 			{
-				if (auto Proxy = DirtyData.GetProxy(SyncTimestamp))
+				if (auto Proxy = DirtyData.GetProxy())
 				{
 					Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp);
 				}
@@ -97,7 +97,7 @@ namespace Chaos
 			//
 			for (const FDirtyJointConstraintData& DirtyData : LatestData->DirtyJointConstraints)
 			{
-				if (auto Proxy = DirtyData.GetProxy(SyncTimestamp))
+				if (auto Proxy = DirtyData.GetProxy())
 				{
 					Proxy->PullFromPhysicsState(DirtyData, SyncTimestamp);
 				}

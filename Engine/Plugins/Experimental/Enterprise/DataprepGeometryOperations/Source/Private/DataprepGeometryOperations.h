@@ -191,13 +191,14 @@ public:
 		CutPlaneNormalAngles = FVector(0.0f, 0.0f, 0.0f);
 		SpacingBetweenHalves = 1.0f;
 		bFillCutHole = false;
+		bExportSeparatePieces = true;
 	}
 
 	/** Origin of the cutting plane */
 	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Plane's Origin"))
 	FVector CutPlaneOrigin;
 
-	/** Euler angles of the normal to the cutting plane */
+	/** Euler angles of the normal to the cutting plane (default plane is XY plane) */
 	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Plane's Orientation"))
 	FVector CutPlaneNormalAngles;
 
@@ -214,6 +215,10 @@ public:
 	/** If true, the cut surface is filled with simple planar hole fill surface(s) */
 	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Fill Holes"))
 	bool bFillCutHole;
+
+	/** If true, meshes cut into multiple pieces will be saved as separate assets. */
+	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Export Separated Pieces As New Mesh Assets"))
+	bool bExportSeparatePieces;
 
 	//~ Begin UDataprepOperation Interface
 public:
@@ -239,9 +244,20 @@ private:
 		int InNumMaterialSlots,
 		const UStaticMesh* InOriginalMesh);
 
+	TUniquePtr<FDynamicMesh3> CutStaticMesh(
+		const FTransform& InTransform, 
+		const UStaticMesh* InStaticMesh);
+
+	void PerformCutting(
+		bool bKeepOriginalMesh, 
+		TArray<UStaticMesh*>& InStaticMeshes, 
+		const TArray<FTransform>& InCutPlaneTransforms, 
+		TArray<TArray<UStaticMeshComponent*>>& InReferencingComponentsToUpdate,
+		TArray<UObject*>& OutModifiedStaticMeshes);
+
 	// Borrowed from UPlaneCutOperatorFactory::MakeNewOperator
 	TUniquePtr<FDynamicMeshOperator> MakeNewOperator(
-		const UStaticMeshComponent* InStaticMeshComponent, 
+		const FTransform& InMeshLocalToWorld, 
 		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
 		float InMeshUVScaleFactor);
 };

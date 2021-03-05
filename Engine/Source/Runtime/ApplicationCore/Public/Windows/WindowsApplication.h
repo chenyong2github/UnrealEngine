@@ -388,6 +388,7 @@ public:
 	virtual void SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const FHapticFeedbackValues& Values) override;
 	virtual void SetLightColor(int32 ControllerId, FColor Color) override { }
 	virtual void ResetLightColor(int32 ControllerId) override { }
+	virtual void SetDeviceProperty(int32 ControllerId, const FInputDeviceProperty* Property) override;
 
 protected:
 

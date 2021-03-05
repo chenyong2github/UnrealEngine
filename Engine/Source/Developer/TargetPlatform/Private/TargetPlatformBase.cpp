@@ -70,6 +70,12 @@ int32 FTargetPlatformBase::GetHeightFogModeForOpaque() const
 	return 0;
 }
 
+bool FTargetPlatformBase::UsesMobileAmbientOcclusion() const
+{
+	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.AmbientOcclusion"));
+	return CVar ? (CVar->GetInt() != 0) : false;
+}
+
 static bool IsPluginEnabledForTarget(const IPlugin& Plugin, const FProjectDescriptor* Project, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType)
 {
 	if (!Plugin.GetDescriptor().SupportsTargetPlatform(Platform))

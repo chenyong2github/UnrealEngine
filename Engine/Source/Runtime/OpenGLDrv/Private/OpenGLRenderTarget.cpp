@@ -521,8 +521,6 @@ void FOpenGLDynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FR
 				Mask,
 				GL_NEAREST
 				);
-
-			REPORT_GL_FRAMEBUFFER_BLIT_EVENT( Mask );
 		}
 		else
 		{

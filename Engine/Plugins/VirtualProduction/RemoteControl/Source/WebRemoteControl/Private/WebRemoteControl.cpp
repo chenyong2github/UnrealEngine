@@ -21,8 +21,8 @@
 #endif
 
 // Serialization
-#include "Backends/JsonStructDeserializerBackend.h"
-#include "Backends/JsonStructSerializerBackend.h"
+#include "Serialization/RCJsonStructDeserializerBackend.h"
+#include "Serialization/RCJsonStructSerializerBackend.h"
 #include "StructDeserializer.h"
 #include "StructSerializer.h"
 #include "Serialization/MemoryReader.h"
@@ -56,6 +56,7 @@
 #include "Templates/UnrealTemplate.h"
 
 #define LOCTEXT_NAMESPACE "WebRemoteControl"
+
 
 // Boot the server on startup flag
 static TAutoConsoleVariable<int32> CVarWebControlStartOnBoot(TEXT("WebControl.EnableServerOnStartup"), 0, TEXT("Enable the Web Control servers (web and websocket) on startup."));
@@ -302,6 +303,27 @@ void FWebRemoteControlModule::RegisterRoutes()
 		});
 
 	RegisterRoute({
+		TEXT("Get an exposed actor's properties."),
+		FHttpPath(TEXT("/remote/preset/:preset/actor/:actor")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Get an exposed actor's property."),
+		FHttpPath(TEXT("/remote/preset/:preset/actor/:actor/property/:propertyname")),
+		EHttpServerRequestVerbs::VERB_GET,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute)
+		});
+
+	RegisterRoute({
+		TEXT("Set an exposed actor's property."),
+		FHttpPath(TEXT("/remote/preset/:preset/actor/:actor/property/:propertyname")),
+		EHttpServerRequestVerbs::VERB_PUT,
+		FRequestHandlerDelegate::CreateRaw(this, &FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute)
+		});
+
+	RegisterRoute({
 		TEXT("Get a preset"),
 		FHttpPath(TEXT("/remote/preset/:preset")),
 		EHttpServerRequestVerbs::VERB_GET,
@@ -385,7 +407,7 @@ bool FWebRemoteControlModule::HandleInfoRoute(const FHttpServerRequest& Request,
 
 	TArray<uint8> Buffer;
 	FMemoryWriter Writer{ Buffer };
-	FJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+	FRCJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
 
 	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
 	JsonWriter->WriteObjectStart();
@@ -526,7 +548,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	{
 		TArray<uint8> WorkingBuffer;
 		FMemoryWriter Writer(WorkingBuffer);
-		FJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		FRCJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
 		if (IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend))
 		{
 			Response->Code = EHttpServerResponseCodes::Ok;
@@ -538,7 +560,6 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 	case ERCAccess::WRITE_TRANSACTION_ACCESS:
 	{
 		const FBlockDelimiters& PropertyValueDelimiters = DeserializedRequest.GetStructParameters().FindChecked(FRCObjectRequest::PropertyValueLabel());
-
 		if (bResetToDefault)
 		{
 			if (IRemoteControlModule::Get().ResetObjectProperties(ObjectRef))
@@ -551,7 +572,7 @@ bool FWebRemoteControlModule::HandleObjectPropertyRoute(const FHttpServerRequest
 			FMemoryReader Reader(DeserializedRequest.TCHARBody);
 			Reader.Seek(PropertyValueDelimiters.BlockStart);
 			Reader.SetLimitSize(PropertyValueDelimiters.BlockEnd + 1);
-			FJsonStructDeserializerBackend DeserializerBackend(Reader);
+			FRCJsonStructDeserializerBackend DeserializerBackend(Reader);
 			if (IRemoteControlModule::Get().SetObjectProperties(ObjectRef, DeserializerBackend))
 			{
 				Response->Code = EHttpServerResponseCodes::Ok;
@@ -595,12 +616,12 @@ bool FWebRemoteControlModule::HandlePresetCallFunctionRoute(const FHttpServerReq
 	FBlockDelimiters Delimiters = CallRequest.GetParameterDelimiters(FRCPresetCallRequest::ParametersLabel());
 
 	FMemoryReader Reader{ CallRequest.TCHARBody };
-	FJsonStructDeserializerBackend ReaderBackend{ Reader };
+	FRCJsonStructDeserializerBackend ReaderBackend{ Reader };
 
 	TArray<uint8> OutputBuffer;
 	FMemoryWriter Writer{ OutputBuffer };
 	TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
-	FJsonStructSerializerBackend WriterBackend{ Writer, EStructSerializerBackendFlags::Default };
+	FRCJsonStructSerializerBackend WriterBackend{ Writer, EStructSerializerBackendFlags::Default };
 
 	JsonWriter->WriteObjectStart();
 	JsonWriter->WriteIdentifierPrefix("ReturnedValues");
@@ -711,10 +732,9 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
-	TOptional<FExposedProperty> ExposedProperty = Preset->ResolveExposedProperty(*Args.FieldLabel);
-	TOptional<FRemoteControlProperty> RemoteControlProperty = Preset->GetProperty(*Args.FieldLabel);
+	TSharedPtr<FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(Preset->GetExposedEntityId(*Args.FieldLabel)).Pin();
 
-	if (!ExposedProperty.IsSet() || !RemoteControlProperty.IsSet())
+	if (!RemoteControlProperty.IsValid())
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
@@ -726,18 +746,18 @@ bool FWebRemoteControlModule::HandlePresetSetPropertyRoute(const FHttpServerRequ
 
 	// Replace PropertyValue with the underlying property name.
 	TArray<uint8> NewPayload;
-	RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, TEXT("PropertyValue"), ExposedProperty->Property->GetName(), NewPayload);
+	RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, TEXT("PropertyValue"), RemoteControlProperty->FieldName.ToString(), NewPayload);
 
 	// Then deserialize the payload onto all the bound objects.
 	FMemoryReader NewPayloadReader(NewPayload);
-	FJsonStructDeserializerBackend Backend(NewPayloadReader);
+	FRCJsonStructDeserializerBackend Backend(NewPayloadReader);
 
-	ObjectRef.Property = ExposedProperty->Property;
+	ObjectRef.Property = RemoteControlProperty->GetProperty();
 	ObjectRef.Access = SetPropertyRequest.GenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
 
 	bool bSuccess = true;
 
-	for (UObject* Object : ExposedProperty->OwnerObjects)
+	for (UObject* Object : RemoteControlProperty->ResolveFieldOwners())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ObjectRef.Access, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
@@ -782,10 +802,9 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 		return true;
 	}
 
-	TOptional<FExposedProperty> ExposedProperty = Preset->ResolveExposedProperty(*Args.FieldLabel);
-	TOptional<FRemoteControlProperty> RemoteControlProperty = Preset->GetProperty(*Args.FieldLabel);
+	TSharedPtr<FRemoteControlProperty> RemoteControlProperty = Preset->GetExposedEntity<FRemoteControlProperty>(Preset->GetExposedEntityId(*Args.FieldLabel)).Pin();
 
-	if (!ExposedProperty.IsSet() || !RemoteControlProperty.IsSet())
+	if (!RemoteControlProperty)
 	{
 		Response->Code = EHttpServerResponseCodes::NotFound;
 		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset field."), Response->Body);
@@ -805,7 +824,7 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	JsonWriter->WriteIdentifierPrefix("PropertyValues");
 	JsonWriter->WriteArrayStart();
 
-	for (UObject* Object : ExposedProperty->OwnerObjects)
+	for (UObject* Object : RemoteControlProperty->ResolveFieldOwners())
 	{
 		IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Object, RemoteControlProperty->FieldPathInfo.ToString(), ObjectRef);
 
@@ -834,6 +853,205 @@ bool FWebRemoteControlModule::HandlePresetGetPropertyRoute(const FHttpServerRequ
 	else
 	{
 		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to read property %s."), *Args.FieldLabel), Response->Body);
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+
+	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+	FString ActorRCLabel = Request.PathParams.FindChecked(TEXT("actor"));
+	FString PropertyName = Request.PathParams.FindChecked(TEXT("propertyname"));
+	FRCFieldPathInfo FieldPath{PropertyName};
+
+	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*PresetName);
+
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	if (TSharedPtr<FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(Preset->GetExposedEntityId(*ActorRCLabel)).Pin())
+	{
+		if (AActor* Actor = RCActor->GetActor())
+		{
+			TArray<uint8> WorkingBuffer;
+			FMemoryWriter Writer(WorkingBuffer);
+			TSharedPtr<TJsonWriter<UCS2CHAR>> JsonWriter = TJsonWriter<UCS2CHAR>::Create(&Writer);
+
+			FRCObjectReference ObjectRef;
+
+			bool bSuccess = true;
+
+			bSuccess &= IRemoteControlModule::Get().ResolveObjectProperty(ERCAccess::READ_ACCESS, Actor, FieldPath, ObjectRef);
+
+			FRCJsonStructSerializerBackend SerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+
+			JsonWriter->WriteObjectStart();
+			JsonWriter->WriteIdentifierPrefix(TEXT("PropertyValue"));
+
+			bSuccess &= RemotePayloadSerializer::SerializePartial(
+				[&ObjectRef](FJsonStructSerializerBackend& SerializerBackend)
+				{
+					return IRemoteControlModule::Get().GetObjectProperties(ObjectRef, SerializerBackend);
+				}
+			, Writer);
+
+			JsonWriter->WriteObjectEnd();
+			
+			if (bSuccess)
+			{
+				Response->Code = EHttpServerResponseCodes::Ok;
+				WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Response->Body);
+			}
+			else
+			{
+				Response->Code = EHttpServerResponseCodes::NotFound;
+				WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to read property %s on actor %s."), *PropertyName, *ActorRCLabel), Response->Body);
+			}
+		}
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandlePresetGetExposedActorPropertiesRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+
+	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+	FString ActorRCLabel = Request.PathParams.FindChecked(TEXT("actor"));
+
+	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*PresetName);
+
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	if (TSharedPtr<FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(Preset->GetExposedEntityId(*ActorRCLabel)).Pin())
+	{
+		if (AActor* Actor = RCActor->GetActor())
+		{
+			TArray<uint8> WorkingBuffer;
+			FMemoryWriter Writer(WorkingBuffer);
+			FRCJsonStructSerializerBackend Backend{Writer, EStructSerializerBackendFlags::Default};
+
+			FRCObjectReference Ref{ ERCAccess::READ_ACCESS, Actor};
+			if (IRemoteControlModule::Get().GetObjectProperties(Ref, Backend))
+			{
+				WebRemoteControlUtils::ConvertToUTF8(WorkingBuffer, Response->Body);
+				Response->Code = EHttpServerResponseCodes::Ok;
+			}
+			else
+			{
+				Response->Code = EHttpServerResponseCodes::NotFound;
+				WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to serialize exposed actor " + ActorRCLabel), Response->Body);
+			}
+		}
+		else
+		{
+			Response->Code = EHttpServerResponseCodes::NotFound;
+			WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve object path " + RCActor->Path.ToString()), Response->Body);
+		}
+	}
+	else
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed actor " + ActorRCLabel), Response->Body);
+	}
+
+	OnComplete(MoveTemp(Response));
+	return true;
+}
+
+bool FWebRemoteControlModule::HandlePresetSetExposedActorPropertyRoute(const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+{
+	TUniquePtr<FHttpServerResponse> Response = WebRemoteControlUtils::CreateHttpResponse();
+
+	FRCPresetSetPropertyRequest SetPropertyRequest;
+	if (!WebRemoteControlUtils::DeserializeRequest(Request, &OnComplete, SetPropertyRequest))
+	{
+		return true;
+	}
+
+	FString PresetName = Request.PathParams.FindChecked(TEXT("preset"));
+	FString ActorRCLabel = Request.PathParams.FindChecked(TEXT("actor"));
+	FString PropertyName = Request.PathParams.FindChecked(TEXT("propertyname"));
+	FRCFieldPathInfo FieldPath{ PropertyName };
+
+	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(*PresetName);
+	if (Preset == nullptr)
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the preset."), Response->Body);
+		OnComplete(MoveTemp(Response));
+		return true;
+	}
+
+	bool bSuccess = true;
+	if (TSharedPtr<FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(Preset->GetExposedEntityId(*ActorRCLabel)).Pin())
+	{
+		if (AActor* Actor = RCActor->GetActor())
+		{
+			FRCObjectReference ObjectRef;
+			ERCAccess Access = SetPropertyRequest.GenerateTransaction ? ERCAccess::WRITE_TRANSACTION_ACCESS : ERCAccess::WRITE_ACCESS;
+			bSuccess &= IRemoteControlModule::Get().ResolveObjectProperty(Access, Actor, FieldPath, ObjectRef);
+
+			if (bSuccess && ObjectRef.Property.IsValid())
+			{
+				FName ResolvedPropertyName = ObjectRef.Property->GetFName();
+
+				// Replace PropertyValue with the underlying property name.
+				TArray<uint8> NewPayload;
+				RemotePayloadSerializer::ReplaceFirstOccurence(SetPropertyRequest.TCHARBody, TEXT("PropertyValue"), ResolvedPropertyName.ToString(), NewPayload);
+
+				// Then deserialize the payload onto all the bound objects.
+				FMemoryReader NewPayloadReader(NewPayload);
+				FRCJsonStructDeserializerBackend Backend(NewPayloadReader);
+
+
+				if (SetPropertyRequest.ResetToDefault)
+				{
+					bSuccess &= IRemoteControlModule::Get().ResetObjectProperties(ObjectRef);
+				}
+				else
+				{
+					NewPayloadReader.Seek(0);
+					bSuccess &= IRemoteControlModule::Get().SetObjectProperties(ObjectRef, Backend);
+				}
+			}
+		}
+		else
+		{
+			Response->Code = EHttpServerResponseCodes::NotFound;
+			WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve object path " + RCActor->Path.ToString()), Response->Body);
+		}
+	}
+	else
+	{
+		Response->Code = EHttpServerResponseCodes::NotFound;
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(TEXT("Unable to resolve the exposed actor " + ActorRCLabel), Response->Body);
+	}
+
+	if (bSuccess)
+	{
+		Response->Code = EHttpServerResponseCodes::Ok;
+	}
+	else
+	{
+		WebRemoteControlUtils::CreateUTF8ErrorMessage(FString::Printf(TEXT("Error while trying to modify property %s on actor %s."), *PropertyName, *ActorRCLabel), Response->Body);
 	}
 
 	OnComplete(MoveTemp(Response));
@@ -1039,8 +1257,8 @@ bool FWebRemoteControlModule::HandleSearchObjectRoute(const FHttpServerRequest& 
 
 void FWebRemoteControlModule::HandleWebSocketHttpMessage(const FRemoteControlWebSocketMessage& WebSocketMessage)
 {
+	// Sets the acting client id for the duration of the message handling.
 	TGuardValue<FGuid> ScopeGuard(ActingClientId, WebSocketMessage.ClientId);
-
 	TArray<uint8> UTF8Response;
 
 	//Early failure is http server not started

@@ -20,56 +20,62 @@ namespace Chaos
     template<class T, int d>
     class TAABB;
 
-	template<class T, int d>
-	class TBVHParticles final /*Note: removing this final has implications for serialization. See TImplicitObject*/ : public TParticles<T, d>
+	class FBVHParticles final /*Note: removing this final has implications for serialization. See TImplicitObject*/ : public FParticles
 	{
 	public:
 		using TArrayCollection::Size;
-		using TParticles<T, d>::X;
-		using TParticles<T, d>::AddParticles;
+		using FParticles::X;
+		using FParticles::AddParticles;
 
-		CHAOS_API TBVHParticles();
-		TBVHParticles(TBVHParticles<T, d>&& Other);
-		TBVHParticles(TParticles<T, d>&& Other);
-        CHAOS_API ~TBVHParticles();
+		CHAOS_API FBVHParticles();
+		FBVHParticles(FBVHParticles&& Other);
+		FBVHParticles(FParticles&& Other);
+        CHAOS_API ~FBVHParticles();
 
-	    CHAOS_API TBVHParticles& operator=(const TBVHParticles<T, d>& Other);
-	    CHAOS_API TBVHParticles& operator=(TBVHParticles<T, d>&& Other);
+	    CHAOS_API FBVHParticles& operator=(const FBVHParticles& Other);
+	    CHAOS_API FBVHParticles& operator=(FBVHParticles&& Other);
 
-		CHAOS_API TBVHParticles* NewCopy()
+		CHAOS_API FBVHParticles* NewCopy()
 		{
-			return new TBVHParticles(*this);
+			return new FBVHParticles(*this);
 		}
 
 		CHAOS_API void UpdateAccelerationStructures();
-		const TArray<int32> FindAllIntersections(const TAABB<T, d>& Object) const;
+		const TArray<int32> FindAllIntersections(const FAABB3& Object) const;
 
-		static TBVHParticles<T,d>* SerializationFactory(FChaosArchive& Ar, TBVHParticles<T,d>* BVHParticles)
+		static FBVHParticles* SerializationFactory(FChaosArchive& Ar, FBVHParticles* BVHParticles)
 		{
-			return Ar.IsLoading() ? new TBVHParticles<T, d>() : nullptr;
+			return Ar.IsLoading() ? new FBVHParticles() : nullptr;
 		}
 
 		CHAOS_API void Serialize(FChaosArchive& Ar);
 
-	private:
-		CHAOS_API TBVHParticles(const TBVHParticles<T, d>& Other);
+		CHAOS_API void Serialize(FArchive& Ar)
+		{
+			check(false); //Aggregate simplicial require FChaosArchive - check false by default
+		}
 
-		TBoundingVolumeHierarchy<TParticles<T, d>, TArray<int32>, T, d>* MBVH;
+	private:
+		CHAOS_API FBVHParticles(const FBVHParticles& Other);
+
+		TBoundingVolumeHierarchy<FParticles, TArray<int32>, FReal, 3>* MBVH;
 	};
 
-	template<typename T, int d>
-	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, TBVHParticles<T, d>& Value)
+	FORCEINLINE FChaosArchive& operator<<(FChaosArchive& Ar, FBVHParticles& Value)
 	{
 		Value.Serialize(Ar);
 		return Ar;
 	}
 
-	template<typename T, int d>
-	FORCEINLINE FArchive& operator<<(FArchive& Ar, TBVHParticles<T, d>& Value)
+	FORCEINLINE FArchive& operator<<(FArchive& Ar, FBVHParticles& Value)
 	{
 		Value.Serialize(Ar);
 		return Ar;
 	}
+
+
+	template<class T, int d>
+	using TBVHParticles = FBVHParticles;
 
 	typedef TBVHParticles<float, 3> FBVHParticlesFloat3;
 }

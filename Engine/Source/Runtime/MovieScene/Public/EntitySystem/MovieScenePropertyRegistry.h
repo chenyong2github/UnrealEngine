@@ -50,26 +50,41 @@ struct FPropertyStats
 struct FPropertyDefinition
 {
 	FPropertyDefinition() = default;
+
+	FPropertyDefinition(
+			uint16 InVariableSizeCompositeOffset, uint16 InSizeofOperationalType, uint16 InAlignofOperationalType,
+			FComponentTypeID InPropertyType, FComponentTypeID InPreAnimatedValue, FComponentTypeID InInitialValueType)
+		: CustomPropertyRegistration(nullptr)
+		, FloatCompositeMask(0)
+		, VariableSizeCompositeOffset(InVariableSizeCompositeOffset)
+		, CompositeSize(0)
+		, OperationalType{ InSizeofOperationalType, InAlignofOperationalType }
+		, PropertyType(InPropertyType)
+		, PreAnimatedValue(InPreAnimatedValue)
+		, InitialValueType(InInitialValueType)
+	{
+	}
+
 	FPropertyDefinition(FPropertyDefinition&&) = default;
 	FPropertyDefinition(const FPropertyDefinition&) = delete;
 
 	/** Pointer to a custom getter/setter registry for short circuiting the UObject VM. Must outlive this definitions lifetime (usually these are static or singletons) */
-	ICustomPropertyRegistration* CustomPropertyRegistration;
+	ICustomPropertyRegistration* CustomPropertyRegistration = nullptr;
 
 	/** A mask of which composite indices pertain to floats */
-	uint32 FloatCompositeMask;
+	uint32 FloatCompositeMask = 0;
 
 	/** The number of channels that this property comprises */
-	uint16 VariableSizeCompositeOffset;
+	uint16 VariableSizeCompositeOffset = INDEX_NONE;
 
 	/** The number of channels that this property comprises */
-	uint16 CompositeSize;
+	uint16 CompositeSize = 0;
 
 	/** Operational type meta-data */
 	struct
 	{
-		uint16 Sizeof;
-		uint16 Alignof;
+		uint16 Sizeof = 0;
+		uint16 Alignof = 0;
 	} OperationalType;
 
 	/** The component type or tag of the property itself */
@@ -218,21 +233,17 @@ private:
 	template<typename PropertyType, typename OperationalType>
 	void DefinePropertyImpl(TPropertyComponents<PropertyType, OperationalType>& InOutPropertyComponents)
 	{
-		static_assert( TIsBitwiseConstructible<OperationalType, OperationalType>::Value && TIsTriviallyDestructible<OperationalType>::Value, TEXT("OperationalType must be trivially TIsTriviallyCopyConstructible") );
+		static_assert( TIsBitwiseConstructible<OperationalType, OperationalType>::Value && TIsTriviallyDestructible<OperationalType>::Value, "OperationalType must be trivially TIsTriviallyCopyConstructible" );
 
 		const int32 CompositeOffset = CompositeDefinitions.Num();
 		checkf(CompositeOffset <= MAX_uint16, TEXT("Maximum number of composite definitions reached"));
 
-		FPropertyDefinition NewDefinition = {
-			nullptr,
-			0,
-			static_cast<uint16>(CompositeOffset),
-			0,
-			{ sizeof(OperationalType), alignof(OperationalType) },
+		FPropertyDefinition NewDefinition(
+			CompositeOffset, 
+			sizeof(OperationalType), alignof(OperationalType),
 			InOutPropertyComponents.PropertyTag,
 			InOutPropertyComponents.PreAnimatedValue,
-			InOutPropertyComponents.InitialValue,
-		};
+			InOutPropertyComponents.InitialValue);
 
 		const int32 NewPropertyIndex = Properties.Add(MoveTemp(NewDefinition));
 

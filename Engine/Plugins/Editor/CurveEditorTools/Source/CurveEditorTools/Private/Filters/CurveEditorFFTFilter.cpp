@@ -161,7 +161,7 @@ void UCurveEditorFFTFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEdi
 			TOptional<FKeyHandle> Handle = CurveModel->AddKey(OriginalKeyPositions[KeyIndex], OriginalKeyAttributes[KeyIndex]);
 			if (Handle.IsSet())
 			{
-				SelectedHandleSet.Add(Handle.GetValue());
+				SelectedHandleSet.Add(Handle.GetValue(), ECurvePointType::Key);
 			}
 		}
 	}

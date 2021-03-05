@@ -6,7 +6,7 @@ public class WebRemoteControl : ModuleRules
 {
 	public WebRemoteControl(ReadOnlyTargetRules Target) : base(Target)
 	{
-        PublicDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
 				"CoreUObject",
@@ -28,6 +28,7 @@ public class WebRemoteControl : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
+					"Engine",
 					"ImageWrapper",
 					"Settings",
 					"Slate",

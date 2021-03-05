@@ -1807,11 +1807,8 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitGraph"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatUnitGraph)));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_UnitTime"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatUnitTime)));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Raw"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender(), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatRaw)));
-#endif // !UE_BUILD_SHIPPING
-
-#if WITH_PARTICLE_PERF_STATS
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ParticlePerf"), TEXT("STATCAT_Engine"), FText::GetEmpty(), FEngineStatRender::CreateUObject(this, &UEngine::RenderStatParticlePerf), FEngineStatToggle::CreateUObject(this, &UEngine::ToggleStatParticlePerf), bIsRHS));
-#endif
+#endif // !UE_BUILD_SHIPPING
 
 	// Let any listeners know about the new stats
 	for (int32 StatIdx = 0; StatIdx < EngineStats.Num(); StatIdx++)
@@ -15510,26 +15507,39 @@ int32 UEngine::RenderStatUnit(UWorld* World, FViewport* Viewport, FCanvas* Canva
 int32 UEngine::RenderStatDrawCount(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
 {
 #if CSV_PROFILER
-	int32 TotalCount = 0;
+	int32 TotalCount[MAX_NUM_GPUS] = { 0 };
 	// Display all the categories of draw counts. This may always report 0 in some modes if AreGPUStatsEnabled is not enabled.
 	// Most likely because we are not currently capturing a CSV.
 	for (int32 Index = 0; Index < FDrawCallCategoryName::NumCategory; ++Index)
 	{
-		TotalCount += FDrawCallCategoryName::DisplayCounts[Index];
-		FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
-		Canvas->DrawShadowedString(X - 50,
+		for (uint32 GPUIndex : FRHIGPUMask::All())
+		{
+			TotalCount[GPUIndex] += FDrawCallCategoryName::DisplayCounts[Index][GPUIndex];
+			FDrawCallCategoryName* CategoryName = FDrawCallCategoryName::Array[Index];
+			Canvas->DrawShadowedString(X - 100,
+				Y,
+				*FString::Printf(
+					TEXT("%s%s: %i"),
+					*CategoryName->Name.ToString(),
+					GNumExplicitGPUsForRendering > 1 ? *FString::Printf(TEXT(" (GPU%u)"), GPUIndex) : TEXT(""),
+					FDrawCallCategoryName::DisplayCounts[Index][GPUIndex]),
+				GetSmallFont(),
+				FColor::Green);
+			Y += 12;
+		}
+	}
+	for (uint32 GPUIndex : FRHIGPUMask::All())
+	{
+		Canvas->DrawShadowedString(X - 100,
 			Y,
-			*FString::Printf(TEXT("%s: %i"), *CategoryName->Name.ToString(), FDrawCallCategoryName::DisplayCounts[Index]),
+			*FString::Printf(
+				TEXT("Total%s: %i"),
+				GNumExplicitGPUsForRendering > 1 ? *FString::Printf(TEXT(" (GPU%u)"), GPUIndex) : TEXT(""),
+				TotalCount[GPUIndex]),
 			GetSmallFont(),
 			FColor::Green);
 		Y += 12;
 	}
-	Canvas->DrawShadowedString(X - 50,
-		Y,
-		*FString::Printf(TEXT("Total: %i"), TotalCount),
-		GetSmallFont(),
-		FColor::Green);
-	Y += 12;
 #else
 	Canvas->DrawShadowedString(X - 200,
 		Y,

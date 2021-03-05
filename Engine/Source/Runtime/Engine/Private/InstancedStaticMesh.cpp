@@ -1079,6 +1079,10 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 	UserData_DeselectedInstances = UserData_AllInstances;
 	UserData_DeselectedInstances.bRenderSelected = false;
 
+#if RHI_RAYTRACING
+	bSupportRayTracing = InComponent->GetStaticMesh()->bSupportRayTracing;
+#endif
+
 #if GPUCULL_TODO
 	if (UseGPUScene(GetScene().GetShaderPlatform(), GetScene().GetFeatureLevel()))
 	{
@@ -1227,7 +1231,17 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 		return;
 	}
 
+	if (!bSupportRayTracing)
+	{
+		return;
+	}
+
 	uint32 LOD = GetCurrentFirstLODIdx_RenderThread();
+	if (!RenderData->LODResources[LOD].RayTracingGeometry.IsInitialized())
+	{
+		return;
+	}
+
 	const int32 InstanceCount = InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetNumInstances();
 
 	if (InstanceCount == 0)

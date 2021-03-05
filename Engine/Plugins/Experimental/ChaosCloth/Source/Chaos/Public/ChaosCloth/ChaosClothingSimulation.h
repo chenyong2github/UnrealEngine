@@ -80,6 +80,7 @@ namespace Chaos
 		virtual int32 GetNumSubsteps() const override { return NumSubsteps; }
 		virtual FReal GetSimulationTime() const override { return SimulationTime; }
 		virtual bool IsTeleported() const override { return bIsTeleported; }
+		virtual void UpdateWorldForces(const USkeletalMeshComponent* OwnerComponent) override;
 		// End of IClothingSimulation interface
 
 		FClothingSimulationCloth* GetCloth(int32 ClothId);

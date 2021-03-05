@@ -25,9 +25,9 @@ namespace ChaosTest
 		// @todo(ccaulfield): remove template parameters on collisions and other constraints
 		using FCollisionConstraints = FPBDCollisionConstraints;
 		using FCollisionDetector = FParticlePairCollisionDetector;
-		using FRigidParticleSOAs = TPBDRigidsSOAs<FReal, 3>;
-		using FParticleHandle = TPBDRigidParticleHandle<FReal, 3>;
-		using FParticlePair = TVec2<TGeometryParticleHandle<FReal, 3>*>;
+		using FRigidParticleSOAs = FPBDRigidsSOAs;
+		using FParticleHandle = FPBDRigidParticleHandle;
+		using FParticlePair = TVec2<FGeometryParticleHandle*>;
 
 		// Particles
 		FRigidParticleSOAs ParticlesContainer;

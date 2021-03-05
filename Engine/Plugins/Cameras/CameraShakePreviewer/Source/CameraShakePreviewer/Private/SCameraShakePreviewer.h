@@ -3,6 +3,7 @@
 #pragma once 
 
 #include "Camera/CameraModifier_CameraShake.h"
+#include "Camera/PlayerCameraManager.h"
 #include "Containers/Array.h"
 #include "EditorUndoClient.h"
 #include "Engine/Scene.h"
@@ -12,6 +13,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/SListView.h"
+#include "SCameraShakePreviewer.generated.h"
 
 class AActor;
 class ACameraActor;
@@ -29,6 +31,24 @@ class UWorld;
 struct FCameraShakeData;
 struct FEditorViewportViewModifierParams;
 struct FTogglePreviewCameraShakesParams;
+
+UCLASS()
+class APreviewPlayerCameraManager : public APlayerCameraManager
+{
+	GENERATED_BODY()
+
+public:
+	void ResetPostProcessSettings()
+	{
+		ClearCachedPPBlends();
+	}
+
+	void MergePostProcessSettings(TArray<FPostProcessSettings>& InSettings, TArray<float>& InBlendWeights)
+	{
+		InSettings.Append(PostProcessBlendCache);
+		InBlendWeights.Append(PostProcessBlendCacheWeights);
+	}
+};
 
 class FCameraShakePreviewUpdater : public FTickableEditorObject, public FGCObject
 {
@@ -60,6 +80,7 @@ private:
 	void AddPostProcessBlend(const FPostProcessSettings& Settings, float Weight);
 
 private:
+	APreviewPlayerCameraManager* PreviewCamera;
 	UCameraModifier_CameraShake* PreviewCameraShake;
 
 	/** Hidden camera actor and active camera anims for Matinee shakes specifically */

@@ -147,7 +147,7 @@ void FManifestMP4Internal::GetStreamMetadata(TArray<FStreamMetadata>& OutMetadat
 						FStreamMetadata& meta = OutMetadata.AddDefaulted_GetRef();
 						meta.CodecInformation = Repr->GetCodecInformation();
 						LexFromString(meta.StreamUniqueID, *Repr->GetUniqueIdentifier());
-						meta.PlaylistID 	  = Repr->GetCDN();
+						meta.PlaylistID 	  = FString(TEXT("mp4"));
 						meta.Bandwidth  	  = Repr->GetBitrate();
 						meta.LanguageCode     = AdaptSet->GetLanguage();
 					}
@@ -172,13 +172,19 @@ FTimeValue FManifestMP4Internal::GetMinBufferTime() const
 }
 
 
+void FManifestMP4Internal::UpdateDynamicRefetchCounter()
+{
+	// No-op.
+}
+
+
 //-----------------------------------------------------------------------------
 /**
  * Creates an instance of a stream reader to stream from the mp4 file.
  *
  * @return
  */
-IStreamReader *FManifestMP4Internal::CreateStreamReaderHandler()
+IStreamReader* FManifestMP4Internal::CreateStreamReaderHandler()
 {
 	return new FStreamReaderMP4;
 }
@@ -286,11 +292,10 @@ TSharedPtrTS<ITimelineMediaAsset> FManifestMP4Internal::FPlayPeriodMP4::GetMedia
  *
  * @param AdaptationSet
  * @param Representation
- * @param PreferredCDN
  */
-void FManifestMP4Internal::FPlayPeriodMP4::SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation, const FString& PreferredCDN)
+void FManifestMP4Internal::FPlayPeriodMP4::SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation)
 {
-	// Presently this method is only called by the ABR to switch between quality levels or CDNs.
+	// Presently this method is only called by the ABR to switch between quality levels.
 	// Since a single mp4 doesn't have different quality levels (technically it could, but we are concerning ourselves only with different bitrates and that doesn't apply since we are streaming
 	// the single file sequentially and selecting a different stream would not save any bandwidth so we don't bother) we ignore this for now.
 
@@ -342,14 +347,13 @@ IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetLoopingSegment(TShar
  *
  * @param OutSegment
  * @param CurrentSegment
- * @param InOptions
  *
  * @return
  */
-IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& InOptions)
+IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment)
 {
 	TSharedPtrTS<FTimelineAssetMP4> ma = MediaAsset.Pin();
-	return ma.IsValid() ? ma->GetNextSegment(OutSegment, CurrentSegment, InOptions) : IManifest::FResult(IManifest::FResult::EType::NotFound);
+	return ma.IsValid() ? ma->GetNextSegment(OutSegment, CurrentSegment) : IManifest::FResult(IManifest::FResult::EType::NotFound);
 }
 
 
@@ -359,14 +363,14 @@ IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetNextSegment(TSharedP
  *
  * @param OutSegment
  * @param CurrentSegment
- * @param InOptions
+ * @param bReplaceWithFillerData
  *
  * @return
  */
-IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& InOptions)
+IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData)
 {
 	TSharedPtrTS<FTimelineAssetMP4> ma = MediaAsset.Pin();
-	return ma.IsValid() ? ma->GetRetrySegment(OutSegment, CurrentSegment, InOptions) : IManifest::FResult(IManifest::FResult::EType::NotFound);
+	return ma.IsValid() ? ma->GetRetrySegment(OutSegment, CurrentSegment, bReplaceWithFillerData) : IManifest::FResult(IManifest::FResult::EType::NotFound);
 }
 
 
@@ -777,7 +781,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetStartingSegment(T
 					   .SetMessage(FString::Printf(TEXT("Could not find start segment for time %lld, no valid tracks"), (long long int)StartPosition.Time.GetAsHNS())));
 }
 
-IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options)
+IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment)
 {
 	const FStreamSegmentRequestMP4* Request = static_cast<const FStreamSegmentRequestMP4*>(CurrentSegment.Get());
 	if (Request)
@@ -790,6 +794,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetNextSegment(TShar
 			if (res.GetType() == IManifest::FResult::EType::Found)
 			{
 				FStreamSegmentRequestMP4* NextRequest = static_cast<FStreamSegmentRequestMP4*>(OutSegment.Get());
+				NextRequest->PlayerLoopState   	    = Request->PlayerLoopState;
 				NextRequest->bIsContinuationSegment = true;
 				NextRequest->bIsFirstSegment		= false;
 				return res;
@@ -799,7 +804,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetNextSegment(TShar
 	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
 }
 
-IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options)
+IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData)
 {
 	const FStreamSegmentRequestMP4* Request = static_cast<const FStreamSegmentRequestMP4*>(CurrentSegment.Get());
 	if (Request)
@@ -882,10 +887,6 @@ FErrorDetail FManifestMP4Internal::FRepresentationMP4::CreateFrom(const IParserI
 	// Get the CSD
 	CodecSpecificData    = InTrack->GetCodecSpecificData();
 	CodecSpecificDataRAW = InTrack->GetCodecSpecificDataRAW();
-
-	// Since we are dealing with a track inside a multiplexed file there is no choice for CDNs.
-	// We set the URL as the CDN.
-	CDN = URL;
 
 	// The unique identifier will be the track ID inside the mp4.
 	// NOTE: This *MUST* be just a number since it gets parsed back out from a string into a number later! Do *NOT* prepend/append any string literals!!

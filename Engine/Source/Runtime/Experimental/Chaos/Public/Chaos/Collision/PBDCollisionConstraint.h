@@ -14,7 +14,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 	class FPBDCollisionConstraintHandle;
-	template<typename T, int d> class TConstGenericParticleHandle;
+	class FConstGenericParticleHandle;
 
 	class CHAOS_API FManifoldPoint
 	{
@@ -72,7 +72,7 @@ namespace Chaos
 	class CHAOS_API FCollisionContact
 	{
 	public:
-		FCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const TBVHParticles<FReal, 3>* InSimplicial0 = nullptr, const FImplicitObject* InImplicit1 = nullptr, const TBVHParticles<FReal, 3>* InSimplicial1 = nullptr)
+		FCollisionContact(const FImplicitObject* InImplicit0 = nullptr, const FBVHParticles* InSimplicial0 = nullptr, const FImplicitObject* InImplicit1 = nullptr, const FBVHParticles* InSimplicial1 = nullptr)
 			: bDisabled(false)
 			, bUseAccumalatedImpulseInSolve(true)
 			, Normal(0)
@@ -116,7 +116,7 @@ namespace Chaos
 		}
 
 		const FImplicitObject* Implicit[2]; // {Of Particle[0], Of Particle[1]}
-		const TBVHParticles<FReal, 3>* Simplicial[2]; // {Of Particle[0], Of Particle[1]}
+		const FBVHParticles* Simplicial[2]; // {Of Particle[0], Of Particle[1]}
 	};
 
 	/*
@@ -149,11 +149,11 @@ namespace Chaos
 		FCollisionConstraintBase(
 			FGeometryParticleHandle* Particle0,
 			const FImplicitObject* Implicit0,
-			const TBVHParticles<FReal, 3>* Simplicial0,
+			const FBVHParticles* Simplicial0,
 			const FRigidTransform3& Transform0,
 			FGeometryParticleHandle* Particle1,
 			const FImplicitObject* Implicit1,
-			const TBVHParticles<FReal, 3>* Simplicial1,
+			const FBVHParticles* Simplicial1,
 			const FRigidTransform3& Transform1,
 			const FType InType, 
 			const EContactShapesType ShapesType, 
@@ -183,12 +183,12 @@ namespace Chaos
 		template<class AS_T> AS_T* As() { return static_cast<AS_T*>(this); }
 		template<class AS_T> const AS_T* As() const { return static_cast<const AS_T*>(this); }
 
-		bool ContainsManifold(const FImplicitObject* A, const TBVHParticles<FReal, 3>* AS, const FImplicitObject* B, const TBVHParticles<FReal, 3>* BS) const
+		bool ContainsManifold(const FImplicitObject* A, const FBVHParticles* AS, const FImplicitObject* B, const FBVHParticles* BS) const
 		{
 			return A == Manifold.Implicit[0] && B == Manifold.Implicit[1] && AS == Manifold.Simplicial[0] && BS == Manifold.Simplicial[1];
 		}
 
-		void SetManifold(const FImplicitObject* A, const TBVHParticles<FReal, 3>* AS, const FImplicitObject* B, const TBVHParticles<FReal, 3>* BS)
+		void SetManifold(const FImplicitObject* A, const FBVHParticles* AS, const FImplicitObject* B, const FBVHParticles* BS)
 		{
 			Manifold.Implicit[0] = A; Manifold.Implicit[1] = B;
 			Manifold.Simplicial[0] = AS; Manifold.Simplicial[1] = BS;
@@ -257,11 +257,11 @@ namespace Chaos
 		FRigidBodyPointContactConstraint(
 			FGeometryParticleHandle* Particle0, 
 			const FImplicitObject* Implicit0, 
-			const TBVHParticles<FReal, 3>* Simplicial0, 
+			const FBVHParticles* Simplicial0, 
 			const FRigidTransform3& Transform0,
 			FGeometryParticleHandle* Particle1, 
 			const FImplicitObject* Implicit1, 
-			const TBVHParticles<FReal, 3>* Simplicial1, 
+			const FBVHParticles* Simplicial1, 
 			const FRigidTransform3& Transform1,
 			const EContactShapesType ShapesType,
 			const bool bInUseManifold)
@@ -282,8 +282,8 @@ namespace Chaos
 			const FVec3& P1,
 			const FRotation3& Q1);
 		void CalculatePrevCoMContactPoints(
-			const TConstGenericParticleHandle<FReal, 3> Particle0,
-			const TConstGenericParticleHandle<FReal, 3> Particle1,
+			const FConstGenericParticleHandle Particle0,
+			const FConstGenericParticleHandle Particle1,
 			FManifoldPoint& ManifoldPoint,
 			FReal Dt,
 			FVec3& OutPrevCoMContactPoint0,
@@ -301,11 +301,11 @@ namespace Chaos
 		FRigidBodyPointContactConstraint(
 			FGeometryParticleHandle* Particle0, 
 			const FImplicitObject* Implicit0, 
-			const TBVHParticles<FReal, 3>* Simplicial0, 
+			const FBVHParticles* Simplicial0, 
 			const FRigidTransform3& Transform0,
 			FGeometryParticleHandle* Particle1, 
 			const FImplicitObject* Implicit1, 
-			const TBVHParticles<FReal, 3>* Simplicial1,
+			const FBVHParticles* Simplicial1,
 			const FRigidTransform3& Transform1,
 			typename Base::FType InType, 
 			const EContactShapesType ShapesType)
@@ -340,11 +340,11 @@ namespace Chaos
 		FRigidBodySweptPointContactConstraint(
 			FGeometryParticleHandle* Particle0, 
 			const FImplicitObject* Implicit0, 
-			const TBVHParticles<FReal, 3>* Simplicial0, 
+			const FBVHParticles* Simplicial0, 
 			const FRigidTransform3& Transform0,
 			FGeometryParticleHandle* Particle1, 
 			const FImplicitObject* Implicit1, 
-			const TBVHParticles<FReal, 3>* Simplicial1, 
+			const FBVHParticles* Simplicial1, 
 			const FRigidTransform3& Transform1,
 			EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, Base::FType::SinglePointSwept, ShapesType)

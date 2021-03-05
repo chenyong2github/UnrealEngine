@@ -14,6 +14,8 @@ public class CADLibrary : ModuleRules
 			new string[]
 			{
 				"Core",
+				"CADInterfaces",
+				"CADTools",
 				"DatasmithCore",
 				"MeshDescription",
 				"StaticMeshDescription"
@@ -28,14 +30,10 @@ public class CADLibrary : ModuleRules
 
 		if (bIsPlateformSupported && bHasCoretech)
 		{
-			PublicDefinitions.Add("CAD_LIBRARY");
-
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"CoreTech",
-					"CADInterfaces",
-					"CADTools"
 				}
 			);
 		}

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/STakeRecorderPanel.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Widgets/TakeRecorderWidgetConstants.h"
 #include "Widgets/SLevelSequenceTakeEditor.h"
 #include "Recorder/TakeRecorder.h"
@@ -69,6 +70,9 @@
 STakeRecorderPanel::~STakeRecorderPanel()
 {
 	UTakeRecorder::OnRecordingInitialized().Remove(OnRecordingInitializedHandle);
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	TakeRecorderModule.OnForceSaveAsPreset().Unbind();
+	TakeRecorderModule.GetExternalObjectAddRemoveEventDelegate().Remove(OnWidgetExternalObjectChangedHandle);
 }
 
 PRAGMA_DISABLE_OPTIMIZATION
@@ -141,6 +145,20 @@ void STakeRecorderPanel::Construct(const FArguments& InArgs)
 	// Bind onto the necessary delegates we need
 	OnLevelSequenceChangedHandle = TransientPreset->AddOnLevelSequenceChanged(FSimpleDelegate::CreateSP(this, &STakeRecorderPanel::OnLevelSequenceChanged));
 	OnRecordingInitializedHandle = UTakeRecorder::OnRecordingInitialized().AddSP(this, &STakeRecorderPanel::OnRecordingInitialized);
+
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	OnWidgetExternalObjectChangedHandle =
+		TakeRecorderModule.GetExternalObjectAddRemoveEventDelegate().AddSP(this, &STakeRecorderPanel::ReconfigureExternalSettings);
+
+	TakeRecorderModule.OnForceSaveAsPreset().BindRaw(this, &STakeRecorderPanel::OnSaveAsPreset);
+
+	for(TWeakObjectPtr<> Object : TakeRecorderModule.GetExternalObjects())
+	{
+		if (Object.IsValid())
+		{
+			LevelSequenceTakeWidget->AddExternalSettingsObject(Object.Get());
+		}
+	}
 
 	// Setup the preset origin for the meta-data in the cockpit if one was supplied
 	if (InArgs._BasePreset)
@@ -700,7 +718,6 @@ bool STakeRecorderPanel::GetSavePresetPackageName(FString& OutName)
 	return true;
 }
 
-
 void STakeRecorderPanel::OnSaveAsPreset()
 {
 	FString PackageName;
@@ -930,6 +947,21 @@ void STakeRecorderPanel::ToggleTakeBrowserCheckState(ECheckBoxState CheckState)
 		}
 
 		TakesBrowserTab->FlashTab();
+	}
+}
+
+void STakeRecorderPanel::ReconfigureExternalSettings(UObject* InExternalObject, bool bIsAdd)
+{
+	if (LevelSequenceTakeWidget.IsValid())
+	{
+		if (bIsAdd)
+		{
+			LevelSequenceTakeWidget->AddExternalSettingsObject(InExternalObject);
+		}
+		else
+		{
+			LevelSequenceTakeWidget->RemoveExternalSettingsObject(InExternalObject);
+		}
 	}
 }
 

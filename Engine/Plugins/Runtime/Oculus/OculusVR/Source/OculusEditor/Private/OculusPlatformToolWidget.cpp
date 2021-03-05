@@ -15,6 +15,7 @@
 #include "GenericPlatform/GenericPlatformMisc.h"
 
 #define LOCTEXT_NAMESPACE "OculusPlatformToolWidget"
+#define TEXT_INDENT_OFFSET 20.0f
 
 const FString UrlPlatformUtil = "https://www.oculus.com/download_app/?id=1076686279105243";
 const FString ProjectPlatformUtilPath = "Oculus/Tools/ovr-platform-util.exe";
@@ -27,6 +28,7 @@ FText OculusPlatformDialogMessage = LOCTEXT("DownloadOculusPlatformUtilityMessag
 	"\n\nCanceling will prevent the download and the UPLOAD button will be unfunctional. Would you like the tool to download the Oculus Platform Utility to your project?"
 );
 
+static bool bShowUploadDebugSymbols = false;
 
 FString SOculusPlatformToolWidget::LogText;
 
@@ -251,12 +253,48 @@ void SOculusPlatformToolWidget::BuildGeneralSettingsBox(TSharedPtr<SVerticalBox>
 		BuildFileDirectoryField(box, LOCTEXT("APKLaunchPath", "APK File Path"), FText::FromString(PlatformSettings->GetLaunchFilePath()),
 			LOCTEXT("APKLaunchPathTT", " Specifies the path to the APK that launches your app."),
 			&SOculusPlatformToolWidget::OnSelectLaunchFilePath, &SOculusPlatformToolWidget::OnClearLaunchFilePath);
+
+		BuildCheckBoxField(box, LOCTEXT("UploadDebugSymbols", "Upload Debug Symbols"), PlatformSettings->UploadDebugSymbols,
+			LOCTEXT("UploadDebugSymbolsTT", "If checked, debug symbols will be uploaded along with the application."),
+			&SOculusPlatformToolWidget::OnUploadDebugSymbolsChanged);
+
+		if (PlatformSettings->UploadDebugSymbols)
+		{
+			if (bShowUploadDebugSymbols != PlatformSettings->UploadDebugSymbols)
+			{
+				if (PlatformSettings->GetSymbolDirPath().IsEmpty())
+				{
+					FString defaultPath = GenerateSymbolPath();
+					PlatformSettings->SetSymbolDirPath(FPaths::ConvertRelativePathToFull(defaultPath));
+					PlatformSettings->SaveConfig();
+				}
+			}
+
+			// Build field for Debug symbol directory path.
+			BuildFileDirectoryField(box, LOCTEXT("SymbolPath", "Symbol Directory Path"), FText::FromString(PlatformSettings->GetSymbolDirPath()),
+				LOCTEXT("SymbolPathTT", "Specifies the path to the directory containing the app symbols (libUE4.so)."),
+				&SOculusPlatformToolWidget::OnSelectSymbolDirPath, &SOculusPlatformToolWidget::OnClearSymbolDirPath, 1);
+
+			BuildCheckBoxField(box, LOCTEXT("DebugSymbolsOnly", "Upload Debug Symbols Only"), PlatformSettings->DebugSymbolsOnly,
+				LOCTEXT("DebugSymbolsOnlyTT", "If checked, the tool will upload onyl debug symbols to an existing build. Requires Build ID, App ID, App Token, and Debug Symbols Directory."),
+				&SOculusPlatformToolWidget::OnDebugSymbolsOnlyChanged, 1);
+
+			if (PlatformSettings->DebugSymbolsOnly)
+			{
+				BuildTextField(box, LOCTEXT("BuildID", "Build ID"), FText::FromString(PlatformSettings->BuildID),
+					LOCTEXT("BuildIDTT", "Specifies the Build ID to upload debug symbols to."),
+					&SOculusPlatformToolWidget::OnBuildIDChanged, false, 1);
+			}
+		}
+		bShowUploadDebugSymbols = PlatformSettings->UploadDebugSymbols;
 	}
 }
 
 void SOculusPlatformToolWidget::BuildTextField(TSharedPtr<SVerticalBox> box, FText name, FText text, FText tooltip, 
-	PTextComittedDel deleg, bool isPassword)
+	PTextComittedDel deleg, bool isPassword, int32 indentAmount)
 {
+	FMargin textMargin = FMargin(TEXT_INDENT_OFFSET * indentAmount, 1.0f, 1.0f, 1.0f);
+
 	box.Get()->AddSlot()
 	.Padding(1)
 	.AutoHeight()
@@ -266,6 +304,7 @@ void SOculusPlatformToolWidget::BuildTextField(TSharedPtr<SVerticalBox> box, FTe
 		[
 			SNew(SBox)
 			.WidthOverride(250.f)
+			.Padding(textMargin)
 			[
 				SNew(STextBlock)
 				.Text(name)
@@ -283,8 +322,10 @@ void SOculusPlatformToolWidget::BuildTextField(TSharedPtr<SVerticalBox> box, FTe
 }
 
 void SOculusPlatformToolWidget::BuildTextComboBoxField(TSharedPtr<SVerticalBox> box, FText name, 
-	TArray<TSharedPtr<FString>>* options, TSharedPtr<FString> current, PTextComboBoxDel deleg)
+	TArray<TSharedPtr<FString>>* options, TSharedPtr<FString> current, PTextComboBoxDel deleg, int32 indentAmount)
 {
+	FMargin textMargin = FMargin(TEXT_INDENT_OFFSET * indentAmount, 1.0f, 1.0f, 1.0f);
+
 	box.Get()->AddSlot()
 	.Padding(1)
 	.AutoHeight()
@@ -293,7 +334,7 @@ void SOculusPlatformToolWidget::BuildTextComboBoxField(TSharedPtr<SVerticalBox> 
 		+ SHorizontalBox::Slot().Padding(1).AutoWidth()
 		[
 			SNew(SBox)
-			.WidthOverride(250.f)
+			.WidthOverride(250.f).Padding(textMargin)
 			[
 				SNew(SRichTextBlock)
 				.DecoratorStyleSet(&FEditorStyle::Get())
@@ -310,8 +351,11 @@ void SOculusPlatformToolWidget::BuildTextComboBoxField(TSharedPtr<SVerticalBox> 
 	];
 }
 
-void SOculusPlatformToolWidget::BuildCheckBoxField(TSharedPtr<SVerticalBox> box, FText name, bool check, FText tooltip, PCheckBoxChangedDel deleg)
+void SOculusPlatformToolWidget::BuildCheckBoxField(TSharedPtr<SVerticalBox> box, FText name, bool check, 
+	FText tooltip, PCheckBoxChangedDel deleg, int32 indentAmount)
 {
+	FMargin textMargin = FMargin(TEXT_INDENT_OFFSET * indentAmount, 1.0f, 1.0f, 1.0f);
+
 	box.Get()->AddSlot()
 	.Padding(1)
 	.AutoHeight()
@@ -320,7 +364,7 @@ void SOculusPlatformToolWidget::BuildCheckBoxField(TSharedPtr<SVerticalBox> box,
 		+ SHorizontalBox::Slot().Padding(1).AutoWidth()
 		[
 			SNew(SBox)
-			.WidthOverride(250.f)
+			.WidthOverride(250.f).Padding(textMargin)
 			[
 				SNew(SRichTextBlock)
 				.DecoratorStyleSet(&FEditorStyle::Get())
@@ -337,9 +381,10 @@ void SOculusPlatformToolWidget::BuildCheckBoxField(TSharedPtr<SVerticalBox> box,
 }
 
 void SOculusPlatformToolWidget::BuildFileDirectoryField(TSharedPtr<SVerticalBox> box, FText name, FText path, FText tooltip, 
-	PButtonClickedDel deleg, PButtonClickedDel clearDeleg)
+	PButtonClickedDel deleg, PButtonClickedDel clearDeleg, int32 indentAmount)
 {
 	EVisibility cancelButtonVisibility = path.IsEmpty() ? EVisibility::Hidden : EVisibility::Visible;
+	FMargin textMargin = FMargin(TEXT_INDENT_OFFSET * indentAmount, 1.0f, 1.0f, 1.0f);
 
 	box.Get()->AddSlot()
 	.Padding(1)
@@ -349,7 +394,7 @@ void SOculusPlatformToolWidget::BuildFileDirectoryField(TSharedPtr<SVerticalBox>
 		+ SHorizontalBox::Slot().Padding(1).AutoWidth()
 		[
 			SNew(SBox)
-			.WidthOverride(250.f)
+			.WidthOverride(250.f).Padding(textMargin)
 			[
 				SNew(STextBlock)
 				.Text(name)
@@ -649,6 +694,11 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 		return false;
 	}
 
+	if (PlatformSettings->UploadDebugSymbols && PlatformSettings->DebugSymbolsOnly)
+	{
+		return ConstructDebugSymbolArguments(args);
+	}
+
 	// Build the args string that will be passed to the CLI. Print all errors that occur to the log.
 	bool success = true;
 
@@ -667,7 +717,7 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 	}
 
 	// Oculus Application ID check and command.
-	ValidateTextField(&SOculusPlatformToolWidget::ApplicationIDFieldValidator, PlatformSettings->GetApplicationID(),
+	ValidateTextField(&SOculusPlatformToolWidget::IDFieldValidator, PlatformSettings->GetApplicationID(),
 		LOCTEXT("ApplicationID", "Application ID").ToString(), success);
 	args += " --app_id \"" + PlatformSettings->GetApplicationID() + "\"";
 
@@ -771,6 +821,16 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 		ValidateTextField(&SOculusPlatformToolWidget::FileFieldValidator, PlatformSettings->GetLaunchFilePath(),
 			LOCTEXT("APKLaunchFile", "APK File Path").ToString(), success);
 		args += " --apk \"" + PlatformSettings->GetLaunchFilePath() + "\"";
+
+		if (PlatformSettings->UploadDebugSymbols)
+		{
+			ValidateTextField(&SOculusPlatformToolWidget::DirectoryFieldValidator, PlatformSettings->GetSymbolDirPath(),
+				LOCTEXT("SymbolDirPath", "Symbol Directory Path").ToString(), success);
+			if (success)
+			{
+				args += " --debug-symbols-dir \"" + PlatformSettings->GetSymbolDirPath() + "\"";
+			}
+		}
 	}
 
 	if (!PlatformSettings->GetExpansionFilesPath().IsEmpty())
@@ -827,6 +887,33 @@ bool SOculusPlatformToolWidget::ConstructArguments(FString& args)
 		}
 	}
 	UE_LOG(LogTemp, Warning, TEXT("%s"), *args);
+	return success;
+}
+
+bool SOculusPlatformToolWidget::ConstructDebugSymbolArguments(FString& args)
+{
+	bool success = true;
+	args = "upload-debug-symbols";
+
+	ValidateTextField(&SOculusPlatformToolWidget::IDFieldValidator, PlatformSettings->BuildID,
+		LOCTEXT("BuildID", "Build ID").ToString(), success);
+	args += " --parent \"" + PlatformSettings->BuildID + "\"";
+
+	// Oculus Application ID check and command.
+	ValidateTextField(&SOculusPlatformToolWidget::IDFieldValidator, PlatformSettings->GetApplicationID(),
+		LOCTEXT("ApplicationID", "Application ID").ToString(), success);
+	args += " --app_id \"" + PlatformSettings->GetApplicationID() + "\"";
+
+	// Oculus Application Token check and command.
+	ValidateTextField(&SOculusPlatformToolWidget::GenericFieldValidator, PlatformSettings->GetApplicationToken(),
+		LOCTEXT("ApplicationToken", "Application Token").ToString(), success);
+	args += " --app_secret \"" + PlatformSettings->GetApplicationToken() + "\"";
+
+	ValidateTextField(&SOculusPlatformToolWidget::DirectoryFieldValidator, PlatformSettings->GetSymbolDirPath(),
+		LOCTEXT("SymbolDirPath", "Symbol Directory Path").ToString(), success);
+	args += " --debug-symbols-dir \"" + PlatformSettings->GetSymbolDirPath() + "\"";
+	args += " --debug-symbols-pattern \"*.so\"";
+
 	return success;
 }
 
@@ -1035,6 +1122,37 @@ void SOculusPlatformToolWidget::OnAssetConfigSKUChanged(const FText& InText, ETe
 	}
 }
 
+void SOculusPlatformToolWidget::OnUploadDebugSymbolsChanged(ECheckBoxState CheckState)
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->UploadDebugSymbols = CheckState == ECheckBoxState::Checked ? true : false;
+		PlatformSettings->SaveConfig();
+
+		BuildGeneralSettingsBox(GeneralSettingsBox);
+	}
+}
+
+void SOculusPlatformToolWidget::OnDebugSymbolsOnlyChanged(ECheckBoxState CheckState)
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->DebugSymbolsOnly = CheckState == ECheckBoxState::Checked ? true : false;
+		PlatformSettings->SaveConfig();
+
+		BuildGeneralSettingsBox(GeneralSettingsBox);
+	}
+}
+
+void SOculusPlatformToolWidget::OnBuildIDChanged(const FText& InText, ETextCommit::Type InCommitType)
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->BuildID = InText.ToString();
+		PlatformSettings->SaveConfig();
+	}
+}
+
 void SOculusPlatformToolWidget::OnRiftGamepadEmulationChanged(TSharedPtr<FString> ItemSelected, ESelectInfo::Type SelectInfo)
 {
 	if (!ItemSelected.IsValid())
@@ -1114,6 +1232,42 @@ FReply SOculusPlatformToolWidget::OnClearLaunchFilePath()
 	if (PlatformSettings != NULL)
 	{
 		PlatformSettings->SetLaunchFilePath("");
+		PlatformSettings->SaveConfig();
+		BuildGeneralSettingsBox(GeneralSettingsBox);
+	}
+	return FReply::Handled();
+}
+
+FString SOculusPlatformToolWidget::GenerateSymbolPath()
+{
+	return FPaths::ProjectDir() + TEXT("Binaries/Android/") + FApp::GetProjectName() + TEXT("_Symbols_v1/") + FApp::GetProjectName() + TEXT("-arm64");
+}
+
+
+FReply SOculusPlatformToolWidget::OnSelectSymbolDirPath()
+{
+	TSharedPtr<SWindow> parentWindow = FSlateApplication::Get().FindWidgetWindow(AsShared());
+	const void* parentWindowHandle = (parentWindow.IsValid() && parentWindow->GetNativeWindow().IsValid()) ? parentWindow->GetNativeWindow()->GetOSWindowHandle() : nullptr;
+
+	if (PlatformSettings != NULL)
+	{
+		FString dirPath;
+		FString defaultPath = PlatformSettings->GetSymbolDirPath().IsEmpty() ? GenerateSymbolPath() : PlatformSettings->GetSymbolDirPath();
+		if (FDesktopPlatformModule::Get()->OpenDirectoryDialog(parentWindowHandle, "Choose Launch File", defaultPath, dirPath))
+		{
+			PlatformSettings->SetSymbolDirPath(FPaths::ConvertRelativePathToFull(dirPath));
+			PlatformSettings->SaveConfig();
+			BuildGeneralSettingsBox(GeneralSettingsBox);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply SOculusPlatformToolWidget::OnClearSymbolDirPath()
+{
+	if (PlatformSettings != NULL)
+	{
+		PlatformSettings->SetSymbolDirPath("");
 		PlatformSettings->SaveConfig();
 		BuildGeneralSettingsBox(GeneralSettingsBox);
 	}
@@ -1271,7 +1425,7 @@ bool SOculusPlatformToolWidget::GenericFieldValidator(FString text, FString& err
 	return true;
 }
 
-bool SOculusPlatformToolWidget::ApplicationIDFieldValidator(FString text, FString& error)
+bool SOculusPlatformToolWidget::IDFieldValidator(FString text, FString& error)
 {
 	const FRegexPattern RegExPat(TEXT("^[0-9]+$"));
 	FRegexMatcher RegMatcher(RegExPat, text);
@@ -1368,6 +1522,7 @@ void FPlatformDownloadTask::DoWork()
 	httpRequest->OnProcessRequestComplete().BindRaw(this, &FPlatformDownloadTask::OnDownloadRequestComplete);
 	httpRequest->OnRequestProgress().BindRaw(this, &FPlatformDownloadTask::OnRequestDownloadProgress);
 	httpRequest->SetURL(UrlPlatformUtil);
+	httpRequest->SetVerb("GET");
 
 	httpRequest->ProcessRequest();
 

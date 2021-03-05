@@ -1355,8 +1355,8 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 				const float CloudShadowmapResolution = float(GetVolumetricCloudShadowMapResolution(AtmosphericLight));
 				const float CloudShadowmapResolutionInv = 1.0f / CloudShadowmapResolution;
 				CloudGlobalShaderParams.CloudShadowmapSizeInvSize[LightIndex] = FVector4(CloudShadowmapResolution, CloudShadowmapResolution, CloudShadowmapResolutionInv, CloudShadowmapResolutionInv);
-				CloudGlobalShaderParams.CloudShadowmapStrength[LightIndex] = GetVolumetricCloudShadowmapStrength(AtmosphericLight);
-				CloudGlobalShaderParams.CloudShadowmapDepthBias[LightIndex] = GetVolumetricCloudShadowmapDepthBias(AtmosphericLight);
+				CloudGlobalShaderParams.CloudShadowmapStrength[LightIndex] = FVector4(GetVolumetricCloudShadowmapStrength(AtmosphericLight), 0.0f, 0.0f, 0.0f);
+				CloudGlobalShaderParams.CloudShadowmapDepthBias[LightIndex] = FVector4(GetVolumetricCloudShadowmapDepthBias(AtmosphericLight), 0.0f, 0.0f, 0.0f);
 				CloudGlobalShaderParams.AtmosphericLightCloudScatteredLuminanceScale[LightIndex] = GetVolumetricCloudScatteredLuminanceScale(AtmosphericLight);
 
 				if (CloudShadowTemporalEnabled)
@@ -1424,7 +1424,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 					CloudGlobalShaderParams.CloudShadowmapLightDir[LightIndex] = AtmopshericLightDirection;
 					CloudGlobalShaderParams.CloudShadowmapLightPos[LightIndex] = LightPosition;
 					CloudGlobalShaderParams.CloudShadowmapLightAnchorPos[LightIndex] = LookAtPosition;
-					CloudGlobalShaderParams.CloudShadowmapFarDepthKm[LightIndex] = FarPlane * CentimetersToKilometers;
+					CloudGlobalShaderParams.CloudShadowmapFarDepthKm[LightIndex] = FVector4(FarPlane * CentimetersToKilometers, 0.0f, 0.0f, 0.0f);
 
 					// More samples when the sun is at the horizon: a lot more distance to travel and less pixel covered so trying to keep the same cost and quality.
 					const float CloudShadowRaySampleCountScale = GetVolumetricCloudShadowRaySampleCountScale(AtmosphericLight);
@@ -1432,17 +1432,20 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 					const float CloudShadowRayMapSampleCount = FMath::Max(4.0f, FMath::Min(CloudShadowRaySampleBaseCount * CloudShadowRaySampleCountScale, CVarVolumetricCloudShadowMapRaySampleMaxCount.GetValueOnAnyThread()));
 					const float RaySampleHorizonFactor = FMath::Max(0.0f, CVarVolumetricCloudShadowMapRaySampleHorizonMultiplier.GetValueOnAnyThread()-1.0f);
 					const float HorizonFactor = FMath::Clamp(0.2f / FMath::Abs(FVector::DotProduct(PlanetToCameraNormUp, -AtmopshericLightDirection)), 0.0f, 1.0f);
-					CloudGlobalShaderParams.CloudShadowmapSampleCount[LightIndex] = CloudShadowRayMapSampleCount + RaySampleHorizonFactor * CloudShadowRayMapSampleCount * HorizonFactor;
+					CloudGlobalShaderParams.CloudShadowmapSampleCount[LightIndex] = FVector4(CloudShadowRayMapSampleCount + RaySampleHorizonFactor * CloudShadowRayMapSampleCount * HorizonFactor, 0.0f, 0.0f, 0.0f);
 				}
 				else
 				{
+					const FVector4 UpVector = FVector4(0.0f, 0.0f, 1.0f, 0.0f);
+					const FVector4 ZeroVector = FVector4(0.0f, 0.0f, 0.0f, 0.0f);
+					const FVector4 OneVector = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrix[LightIndex] = FMatrix::Identity;
 					CloudGlobalShaderParams.CloudShadowmapWorldToLightClipMatrixInv[LightIndex] = FMatrix::Identity;
-					CloudGlobalShaderParams.CloudShadowmapLightDir[LightIndex] = FVector::UpVector;
-					CloudGlobalShaderParams.CloudShadowmapLightPos[LightIndex] = FVector::ZeroVector;
-					CloudGlobalShaderParams.CloudShadowmapLightAnchorPos[LightIndex] = FVector::ZeroVector;
-					CloudGlobalShaderParams.CloudShadowmapFarDepthKm[LightIndex] = 1.0f;
-					CloudGlobalShaderParams.CloudShadowmapSampleCount[LightIndex] = 0.0f;
+					CloudGlobalShaderParams.CloudShadowmapLightDir[LightIndex] = UpVector;
+					CloudGlobalShaderParams.CloudShadowmapLightPos[LightIndex] = ZeroVector;
+					CloudGlobalShaderParams.CloudShadowmapLightAnchorPos[LightIndex] = ZeroVector;
+					CloudGlobalShaderParams.CloudShadowmapFarDepthKm[LightIndex] = OneVector;
+					CloudGlobalShaderParams.CloudShadowmapSampleCount[LightIndex] = ZeroVector;
 				}
 			};
 			PrepareCloudShadowMapLightData(AtmosphericLight0, 0);
@@ -2271,7 +2274,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 					if (DebugCloudShadowMap)
 					{
 						const int DebugLightIndex = 0;	// only debug atmospheric light 0 for now
-						const int32 CloudShadowmapSampleCount = VolumetricCloudParams.VolumetricCloud.CloudShadowmapSampleCount[DebugLightIndex];
+						const int32 CloudShadowmapSampleCount = VolumetricCloudParams.VolumetricCloud.CloudShadowmapSampleCount[DebugLightIndex].X;
 
 						AddDrawCanvasPass(GraphBuilder, {}, ViewInfo, FScreenPassRenderTarget(SceneTextures.Color.Target, ViewInfo.ViewRect, ERenderTargetLoadAction::ELoad), [CloudShadowmapSampleCount, &ViewInfo](FCanvas& Canvas)
 						{

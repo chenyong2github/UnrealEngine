@@ -259,7 +259,7 @@ TSharedPtr<FCpuTimingTrack> FThreadTimingSharedState::GetCpuTrack(uint32 InThrea
 
 bool FThreadTimingSharedState::IsGpuTrackVisible() const
 {
-	return GpuTrack != nullptr && GpuTrack->IsVisible();
+	return (GpuTrack != nullptr && GpuTrack->IsVisible()) || (Gpu2Track != nullptr && Gpu2Track->IsVisible());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -306,6 +306,7 @@ void FThreadTimingSharedState::OnBeginSession(Insights::ITimingViewSession& InSe
 	}
 
 	GpuTrack = nullptr;
+	Gpu2Track = nullptr;
 	CpuTracks.Reset();
 	ThreadGroups.Reset();
 
@@ -326,6 +327,7 @@ void FThreadTimingSharedState::OnEndSession(Insights::ITimingViewSession& InSess
 	bShowHideAllCpuTracks = false;
 
 	GpuTrack = nullptr;
+	Gpu2Track = nullptr;
 	CpuTracks.Reset();
 	ThreadGroups.Reset();
 
@@ -368,6 +370,17 @@ void FThreadTimingSharedState::Tick(Insights::ITimingViewSession& InSession, con
 					GpuTrack->SetOrder(FTimingTrackOrder::Gpu);
 					GpuTrack->SetVisibilityFlag(bShowHideAllGpuTracks);
 					InSession.AddScrollableTrack(GpuTrack);
+				}
+			}
+			if (!Gpu2Track.IsValid())
+			{
+				uint32 GpuTimelineIndex;
+				if (TimingProfilerProvider->GetGpu2TimelineIndex(GpuTimelineIndex))
+				{
+					Gpu2Track = MakeShared<FGpuTimingTrack>(*this, TEXT("GPU2"), nullptr, GpuTimelineIndex, 0);
+					Gpu2Track->SetOrder(FTimingTrackOrder::Gpu);
+					Gpu2Track->SetVisibilityFlag(bShowHideAllGpuTracks);
+					InSession.AddScrollableTrack(Gpu2Track);
 				}
 			}
 
@@ -564,7 +577,13 @@ void FThreadTimingSharedState::SetAllGpuTracksToggle(bool bOnOff)
 	if (GpuTrack.IsValid())
 	{
 		GpuTrack->SetVisibilityFlag(bShowHideAllGpuTracks);
-
+	}
+	if (Gpu2Track.IsValid())
+	{
+		Gpu2Track->SetVisibilityFlag(bShowHideAllGpuTracks);
+	}
+	if (GpuTrack.IsValid() || Gpu2Track.IsValid())
+	{
 		if (TimingView)
 		{
 			TimingView->OnTrackVisibilityChanged();

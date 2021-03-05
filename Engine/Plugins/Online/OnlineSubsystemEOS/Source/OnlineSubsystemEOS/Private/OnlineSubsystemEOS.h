@@ -31,6 +31,9 @@ typedef TSharedPtr<class FOnlineAchievementsEOS, ESPMode::ThreadSafe> FOnlineAch
 class FOnlineStoreEOS;
 typedef TSharedPtr<class FOnlineStoreEOS, ESPMode::ThreadSafe> FOnlineStoreEOSPtr;
 
+class FOnlineTitleFileEOS;
+typedef TSharedPtr<class FOnlineTitleFileEOS, ESPMode::ThreadSafe> FOnlineTitleFileEOSPtr;
+
 #ifndef EOS_PRODUCTNAME_MAX_BUFFER_LEN
 	#define EOS_PRODUCTNAME_MAX_BUFFER_LEN 64
 #endif
@@ -43,7 +46,7 @@ typedef TSharedPtr<class FOnlineStoreEOS, ESPMode::ThreadSafe> FOnlineStoreEOSPt
  *	OnlineSubsystemEOS - Implementation of the online subsystem for EOS services
  */
 class ONLINESUBSYSTEMEOS_API FOnlineSubsystemEOS : 
-	public FOnlineSubsystemImpl
+	public FOnlineSubsystemImpl, public FSelfRegisteringExec
 {
 public:
 	virtual ~FOnlineSubsystemEOS() = default;
@@ -110,11 +113,13 @@ PACKAGE_SCOPE:
 		, AchievementsHandle(nullptr)
 		, P2PHandle(nullptr)
 		, EcomHandle(nullptr)
+		, TitleStorageHandle(nullptr)
 		, UserManager(nullptr)
 		, SessionInterfacePtr(nullptr)
 		, LeaderboardsInterfacePtr(nullptr)
 		, AchievementsInterfacePtr(nullptr)
 		, StoreInterfacePtr(nullptr)
+		, TitleFileInterfacePtr(nullptr)
 		, bWasLaunchedByEGS(false)
 	{
 		StopTicker();
@@ -137,6 +142,7 @@ PACKAGE_SCOPE:
 	EOS_HAchievements AchievementsHandle;
 	EOS_HP2P P2PHandle;
 	EOS_HEcom EcomHandle;
+	EOS_HTitleStorage TitleStorageHandle;
 
 	/** Manager that handles all user interfaces */
 	FUserManagerEOSPtr UserManager;
@@ -149,6 +155,8 @@ PACKAGE_SCOPE:
 	FOnlineAchievementsEOSPtr AchievementsInterfacePtr;
 	/** EGS store interface pointer */
 	FOnlineStoreEOSPtr StoreInterfacePtr;
+	/** Title File interface pointer */
+	FOnlineTitleFileEOSPtr TitleFileInterfacePtr;
 
 	bool bWasLaunchedByEGS;
 	bool bIsDefaultOSS;

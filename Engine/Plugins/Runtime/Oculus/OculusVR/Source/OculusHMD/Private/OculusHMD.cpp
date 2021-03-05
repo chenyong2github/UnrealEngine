@@ -2194,10 +2194,12 @@ namespace OculusHMD
 		FOculusHMDModule::GetPluginWrapper().SetTiledMultiResLevel((ovrpTiledMultiResLevel)Settings->FFRLevel);
 		FOculusHMDModule::GetPluginWrapper().SetTiledMultiResDynamic(Settings->FFRDynamic);
 		FOculusHMDModule::GetPluginWrapper().SetAppCPUPriority2(ovrpBool_True);
+		FOculusHMDModule::GetPluginWrapper().SetEyeFovPremultipliedAlphaMode(ovrpBool_False);
 
 		OCFlags.NeedSetTrackingOrigin = true;
 		bNeedReAllocateViewportRenderTarget = true;
 		bNeedReAllocateDepthTexture_RenderThread = false;
+		bNeedReAllocateFoveationTexture_RenderThread = false;
 
 		NextFrameNumber = 0;
 		WaitFrameNumber = (uint32)-1;

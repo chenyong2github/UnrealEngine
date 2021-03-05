@@ -14,8 +14,13 @@
  */
 enum class ECurvePointType : uint8
 {
-	Key, ArriveTangent, LeaveTangent
+	None			= 0x000,
+	Key 			= 0x001,
+	ArriveTangent 	= 0x002,
+	LeaveTangent 	= 0x004,
+	Any = Key | ArriveTangent | LeaveTangent
 };
+ENUM_CLASS_FLAGS(ECurvePointType)
 
 enum class ECurveEditorTreeSelectionState : uint8
 {

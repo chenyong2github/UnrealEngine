@@ -14,6 +14,19 @@ enum class ELiveLinkCameraProjectionMode : uint8
 };
 
 /**
+ * Different ways FIZ data can be streamed
+ */
+UENUM()
+enum class ELiveLinkCameraFIZMode : uint8
+{
+	/** Data is already converted in the right unit */
+	PreConvertedData,
+
+	/** Data is coming from encoders and needs to be mapped to actual FIZ */
+	EncoderData,
+};
+
+/**
  * Static data for Camera data. 
  */
 USTRUCT(BlueprintType)
@@ -54,6 +67,10 @@ public:
 	//Whether FocusDistance in frame data can be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
 	bool bIsFocusDistanceSupported = false;
+
+	//Mode FIZ (Focus, Iris[Aperture], Zoom[Focal Length]) is sent 
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	ELiveLinkCameraFIZMode FIZDataMode = ELiveLinkCameraFIZMode::PreConvertedData;
 };
 
 /**

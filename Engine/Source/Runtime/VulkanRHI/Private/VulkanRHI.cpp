@@ -81,6 +81,8 @@ bool GGPUCrashDebuggingEnabled = false;
 
 extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
 
+// All shader stages supported by VK device - VK_PIPELINE_STAGE_VERTEX_SHADER_BIT, FRAGMENT etc
+uint32 GVulkanDeviceShaderStageBits = 0;
 
 #if VULKAN_HAS_VALIDATION_FEATURES
 static inline TArray<VkValidationFeatureEnableEXT> GetValidationFeaturesEnabled()
@@ -206,6 +208,7 @@ FVulkanDynamicRHI::FVulkanDynamicRHI()
 	GPoolSizeVRAMPercentage = 0;
 	GTexturePoolSize = 0;
 	GRHISupportsMultithreading = true;
+	GRHISupportsPipelineFileCache = true;
 	GRHITransitionPrivateData_SizeInBytes = sizeof(FVulkanPipelineBarrier);
 	GRHITransitionPrivateData_AlignInBytes = alignof(FVulkanPipelineBarrier);
 	GConfig->GetInt(TEXT("TextureStreaming"), TEXT("PoolSizeVRAMPercentage"), GPoolSizeVRAMPercentage, GEngineIni);
@@ -753,18 +756,16 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHIMaxDispatchThreadGroupsPerDimension.Z = FMath::Min<uint32>(Limits.maxComputeWorkGroupCount[2], 0x7fffffff);
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP
-		GRHISupportsImageBasedVariableRateShading = (GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap && Device->GetFragmentDensityMapFeatures().fragmentDensityMap);
+		GRHISupportsAttachmentVariableRateShading = (GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap && Device->GetFragmentDensityMapFeatures().fragmentDensityMap);
 #endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP2
 		GRHISupportsLateVariableRateShadingUpdate = GetDevice()->GetOptionalExtensions().HasEXTFragmentDensityMap2 && Device->GetFragmentDensityMap2Features().fragmentDensityMapDeferred;
 #endif
 
-		// NVidia GPUs don't support the Fragment Density Map extension... but they do support this, which can also be used in the same way.
-		// This extension has since been elevated to a KHR extension, but is not available in the current VulkanSDK used in the engine. 
-		// TODO: Update to the KHRShadingRateImage extension when available.
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-		GRHISupportsImageBasedVariableRateShading |= GetDevice()->GetOptionalExtensions().HasNVShadingRateImage && Device->GetShadingRateImageFeaturesNV().shadingRateImage;
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		// TODO: Complete logic when render pass support is complete for the KHR_Fragment_shading_rate extension.
+		// GRHISupportsAttachmentVariableRateShading = GetDevice()->GetOptionalExtensions().HasKHRFragmentShadingRate && Device->GetFragmentShadingRateFeatures().attachmentFragmentShadingRate;
 #endif
 
 		FVulkanPlatform::SetupFeatureLevels();
@@ -772,6 +773,22 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHIRequiresRenderTargetForPixelShaderUAVs = true;
 
 		GUseTexture3DBulkDataRHI = false;
+
+		// these are supported by all devices
+		GVulkanDeviceShaderStageBits = 	VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | 
+										VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT |
+										VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+		// optional shader stages
+		if (Device->GetPhysicalFeatures().geometryShader) 
+		{
+			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+		}
+		
+		if (Device->GetPhysicalFeatures().tessellationShader)
+		{
+			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+			GVulkanDeviceShaderStageBits|= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+		}
 
 		FHardwareInfo::RegisterHardwareInfo(NAME_RHI, TEXT("Vulkan"));
 

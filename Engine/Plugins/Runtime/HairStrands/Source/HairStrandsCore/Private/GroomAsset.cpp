@@ -798,7 +798,7 @@ void UGroomAsset::BeginDestroy()
 static bool IsCardsTextureResources(const FName PropertyName)
 {
 	return
-		PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, DepthTexture)
+		   PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, DepthTexture)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, CoverageTexture)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, TangentTexture)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupCardsTextures, AttributeTexture)
@@ -809,7 +809,7 @@ static void InitCardsTextureResources(UGroomAsset* GroomAsset);
 static bool IsCardsProceduralAttributes(const FName PropertyName)
 {	
 	return
-		PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsClusterSettings, ClusterDecimation)
+		   PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsClusterSettings, ClusterDecimation)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsClusterSettings, Type)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsClusterSettings, bUseGuide)
 
@@ -825,6 +825,20 @@ static bool IsCardsProceduralAttributes(const FName PropertyName)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, AngularThreshold)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, MinCardsLength)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairCardsGeometrySettings, MaxCardsLength);
+}
+
+static bool IsStrandsInterpolationAttributes(const FName PropertyName)
+{
+	return
+		   PropertyName == GET_MEMBER_NAME_CHECKED(FHairDecimationSettings, CurveDecimation)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairDecimationSettings, VertexDecimation)
+
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, bOverrideGuides)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, HairToGuideDensity)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, InterpolationQuality)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, InterpolationDistance)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, bRandomizeGuide)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(FHairInterpolationSettings, bUseUniqueGuide);
 }
 
 void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
@@ -856,6 +870,13 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 		}
 	}
 
+	// Rebuild the groom asset if some decimation attribute has changed
+	const bool bStrandsInterpolationChanged = IsStrandsInterpolationAttributes(PropertyName);
+	if (bStrandsInterpolationChanged)
+	{
+		CacheDerivedDatas();
+	}
+
 	const bool bCardsArrayChanged = PropertyName == GET_MEMBER_NAME_CHECKED(UGroomAsset, HairGroupsCards);
 	if (bCardsArrayChanged && PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 	{
@@ -866,8 +887,9 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 
 	// By pass update for all procedural cards parameters, as we don't want them to invalidate the cards data. 
 	// Cards should be refresh only under user action
+	// By pass update if bStrandsInterpolationChanged has the resources have already been recreated
 	const bool bCardsToolUpdate = IsCardsProceduralAttributes(PropertyName);
-	if (!bCardsToolUpdate)
+	if (!bCardsToolUpdate && !bStrandsInterpolationChanged)
 	{
 		FGroomComponentRecreateRenderStateContext Context(this);
 		UpdateResource();
@@ -885,12 +907,14 @@ void UGroomAsset::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedE
 	const bool bCardMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsCardsSourceDescription, Material);
 	const bool bMeshMaterialChanged = PropertyName == GET_MEMBER_NAME_CHECKED(FHairGroupsMeshesSourceDescription, Material);
 
-	if (bGeometryTypeChanged || bCardMaterialChanged || bMeshMaterialChanged)
+	if (bStrandsInterpolationChanged || bGeometryTypeChanged || bCardMaterialChanged || bMeshMaterialChanged)
 	{
+		// Delegate used for notifying groom data & groom resoures invalidation
 		OnGroomAssetResourcesChanged.Broadcast();
 	}
 	else if (!bCardsToolUpdate)
 	{
+		// Delegate used for notifying groom data invalidation
 		OnGroomAssetChanged.Broadcast();
 	}
 }
@@ -1197,7 +1221,7 @@ namespace GroomDerivedDataCacheUtils
 			return FString();
 		}
 
-		if (Desc.GroupIndex >= GroomAsset->HairGroupsData.Num() || Desc.LODIndex >= GroomAsset[Desc.GroupIndex].HairGroupsData[Desc.GroupIndex].Cards.LODs.Num())
+		if (Desc.GroupIndex >= GroomAsset->HairGroupsData.Num() || Desc.LODIndex >= GroomAsset->HairGroupsData[Desc.GroupIndex].Cards.LODs.Num())
 		{
 			return FString();
 		}
@@ -1475,10 +1499,10 @@ bool UGroomAsset::CacheDerivedDatas()
 {
 	bRetryLoadFromGameThread = false;
 
-	if (IsInGameThread())
-	{
-		FGroomComponentRecreateRenderStateContext RecreateContext(this);
-	}
+	// Delete existing resources from GroomComponent and recreate them when the FGroomComponentRecreateRenderStateContext's destructor is called
+	// These resources are recreated only when running from the game thread (non-async loading path)
+	const bool bIsGameThread = IsInGameThread();
+	FGroomComponentRecreateRenderStateContext RecreateContext(bIsGameThread ? this : nullptr);
 
 	FProcessedHairDescription ProcessedHairDescription;
 	const uint32 GroupCount = HairGroupsInterpolation.Num();
@@ -1490,7 +1514,7 @@ bool UGroomAsset::CacheDerivedDatas()
 	}
 	UpdateHairGroupsInfo();
 
-	if (IsInGameThread())
+	if (bIsGameThread)
 	{
 		InitResources();
 	}

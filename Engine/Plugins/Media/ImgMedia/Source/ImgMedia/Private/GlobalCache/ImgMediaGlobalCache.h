@@ -46,8 +46,9 @@ public:
 	 * @param	Sequence		Indentifying name of this sequence.
 	 * @param	Index			Index of frame to add.
 	 * @param	Frame			Actual frame to add.
+	 * @param	HasMipMaps		Whether this frame contains mipmaps or not.
 	 */
-	void AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame);
+	void AddFrame(const FString& FileName, const FName& Sequence, int32 Index, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& Frame, bool HasMipMaps = true);
 
 	/**
 	 * Find the entry with the specified sequence and index and mark it as the most recently used.
@@ -72,6 +73,8 @@ private:
 	{
 		/** File name of this frame. */
 		FString FileName;
+		/** Size of this frame in bytes. */
+		SIZE_T FrameSize;
 		/** Frame index. */
 		int32 Index;
 		/** Actual frame. */
@@ -87,8 +90,9 @@ private:
 		FImgMediaGlobalCacheEntry* MoreRecentSequence;
 
 		/** Constructor. */
-		FImgMediaGlobalCacheEntry(const FString& InFileName, int32 InIndex, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& InFrame)
+		FImgMediaGlobalCacheEntry(const FString& InFileName, SIZE_T InFrameSize, int32 InIndex, const TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe>& InFrame)
 			: FileName(InFileName)
+			, FrameSize(InFrameSize)
 			, Index(InIndex)
 			, Frame(InFrame)
 			, LessRecent(nullptr)

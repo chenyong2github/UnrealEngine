@@ -290,7 +290,7 @@ namespace ChaosTest {
 		auto StaleProxy = Proxy;
 		FChaosEngineInterface::ReleaseActor(Proxy, &Scene);
 		EXPECT_EQ(Proxy, nullptr);
-		EXPECT_EQ(*StaleProxy->GetSyncTimestamp().Get(), 4); // was removed on external timestamp 4.
+		EXPECT_EQ(StaleProxy->GetSyncTimestamp()->bDeleted, true);
 
 		// Run PT task for internal timestamp 2.
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
@@ -302,7 +302,7 @@ namespace ChaosTest {
 
 		Scene.StartFrame();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 5);
-		EXPECT_EQ(*StaleProxy->GetSyncTimestamp().Get(), 4);
+		EXPECT_EQ(StaleProxy->GetSyncTimestamp()->bDeleted, true);
 
 		// run pt task for internal timestamp 3. Proxy still not removed on PT.
 		Scene.GetSolver()->PopAndExecuteStolenAdvanceTask_ForTesting();
@@ -315,7 +315,7 @@ namespace ChaosTest {
 
 		Scene.StartFrame();
 		EXPECT_EQ(MarshallingManager.GetExternalTimestamp_External(), 6);
-		EXPECT_EQ(*StaleProxy->GetSyncTimestamp().Get(), 4);
+		EXPECT_EQ(StaleProxy->GetSyncTimestamp()->bDeleted, true);
 		EXPECT_EQ(Scene.GetSolver()->GetEvolution()->GetParticles().GetAllParticlesView().Num(), 2); // Proxys not yet removed on pt, still 2.
 
 
@@ -1008,6 +1008,174 @@ namespace ChaosTest {
 		const FReal LastInterpolatedTime = NumGTSteps * GTDt - FixedDT * Chaos::AsyncInterpolationMultiplier;
 		EXPECT_NEAR(Particle.X()[2], ZStart + ZVel * LastInterpolatedTime, 1e-2);
 		EXPECT_NEAR(Particle.V()[2], ZVel, 1e-2);
+	}
+
+	GTEST_TEST(EngineInterface, PerPropertySetOnGT)
+	{
+		//Need to test:
+		//setting transform, velocities, wake state, on external thread means we overwrite results until sim catches up
+		//deleted proxy does not incorrectly update after it's deleted on gt
+		FChaosScene Scene(nullptr);
+		Scene.GetSolver()->SetThreadingMode_External(EThreadingModeTemp::SingleThread);
+		const FReal FixedDT = 1;
+		Scene.GetSolver()->EnableAsyncMode(1);	//tick 1 dt at a time
+
+		FActorCreationParams Params;
+		Params.Scene = &Scene;
+
+		FPhysicsActorHandle Proxy = nullptr;
+
+		FChaosEngineInterface::CreateActor(Params, Proxy);
+		auto& Particle = Proxy->GetGameThreadAPI();
+		{
+			auto Sphere = MakeUnique<TSphere<FReal, 3>>(FVec3(0), 3);
+			Particle.SetGeometry(MoveTemp(Sphere));
+		}
+
+		TArray<FPhysicsActorHandle> Proxys = { Proxy };
+		Scene.AddActorsToScene_AssumesLocked(Proxys);
+		Particle.SetObjectState(EObjectStateType::Dynamic);
+		const FReal ZVel = 10;
+		const FReal ZStart = 100;
+		Particle.SetV(FVec3(0, 0, ZVel));
+		Particle.SetX(FVec3(0, 0, ZStart));
+		const int32 NumGTSteps = 100;
+		const FVec3 TeleportLocation(5, 5, ZStart);
+
+		FReal Time = 0;
+		const FReal GTDt = FixedDT * 0.5f;
+		const int32 ChangeVelStep = 20;
+		const FReal ChangeVelTime = ChangeVelStep * GTDt;
+		const FReal YVelAfterChange = 10;
+		const int32 TeleportStep = 10;
+		const FReal TeleportTime = TeleportStep * GTDt;
+		bool bHasTeleportedOnGT = false;
+		bool bVelHasChanged = false;
+		bool bWasPutToSleep = false;
+		bool bWasWoken = false;
+		const int32 SleepStep = 50;
+		const int32 WakeStep = 70;
+		const FReal PutToSleepTime = SleepStep * GTDt;
+		const FReal WokenTime = WakeStep * GTDt;
+		FReal SleepZPosition(0);
+
+		for (int32 Step = 0; Step < NumGTSteps; Step++)
+		{
+			if (Step == TeleportStep)
+			{
+				Particle.SetX(TeleportLocation);
+				bHasTeleportedOnGT = true;
+			}
+
+			if(Step == ChangeVelStep)
+			{
+				Particle.SetV(FVec3(0, YVelAfterChange, ZVel));
+				bVelHasChanged = true;
+			}
+
+			if(Step == SleepStep)
+			{
+				bWasPutToSleep = true;
+				Particle.SetObjectState(EObjectStateType::Sleeping);
+				SleepZPosition = Particle.X()[2];	//record position when gt wants to sleep
+			}
+
+			if(Step == WakeStep)
+			{
+				bWasWoken = true;
+				Particle.SetV(FVec3(0, YVelAfterChange, ZVel));
+				Particle.SetObjectState(EObjectStateType::Dynamic);
+			}
+
+			FVec3 Grav(0, 0, 0);
+			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
+			Scene.StartFrame();
+			Scene.EndFrame();
+
+			Time += GTDt;
+			const FReal InterpolatedTime = Time - FixedDT * Chaos::AsyncInterpolationMultiplier;
+			if (InterpolatedTime < 0)
+			{
+				//not enough time to interpolate so just take initial value
+				EXPECT_NEAR(Particle.X()[2], ZStart, 1e-2);
+			}
+			else
+			{
+				//interpolated
+				if(bHasTeleportedOnGT)
+				{
+					EXPECT_NEAR(Particle.X()[0], TeleportLocation[0], 1e-2);	//X never changes so as soon as gt teleports we should see it
+
+					//if we haven't caught up to teleport, we just use the value set on GT for z value
+					if(InterpolatedTime < TeleportTime)
+					{
+						EXPECT_NEAR(Particle.X()[2], TeleportLocation[2], 1e-3);
+					}
+					else
+					{
+						if(!bWasPutToSleep)
+						{
+							//caught up so expect normal movement to marshal back
+							EXPECT_NEAR(Particle.X()[2], TeleportLocation[2] + ZVel * (InterpolatedTime - TeleportTime), 1e-2);
+						}
+						else if(InterpolatedTime < WokenTime)
+						{
+							//currently asleep so position is held constant
+							EXPECT_NEAR(Particle.X()[2], SleepZPosition, 1e-2);
+							if(!bWasWoken)
+							{
+								EXPECT_NEAR(Particle.V()[2], 0, 1e-2);
+							}
+							else
+							{
+								EXPECT_NEAR(Particle.V()[2], ZVel, 1e-2);
+							}
+						}
+						else
+						{
+							//woke back up so position is moving again
+							EXPECT_NEAR(Particle.X()[2], SleepZPosition + ZVel * (InterpolatedTime - WokenTime), 1e-2);
+							EXPECT_NEAR(Particle.V()[2], ZVel, 1e-2);
+						}
+						
+					}
+				}
+				else
+				{
+					EXPECT_NEAR(Particle.X()[2], ZStart + ZVel * InterpolatedTime, 1e-2);
+				}
+
+				if(bVelHasChanged)
+				{
+					if(!bWasPutToSleep || bWasWoken)
+					{
+						EXPECT_EQ(Particle.V()[1], YVelAfterChange);
+					}
+					else
+					{
+						//asleep so velocity is 0
+						EXPECT_EQ(Particle.V()[1], 0);
+					}
+				}
+				else
+				{
+					EXPECT_EQ(Particle.V()[1], 0);
+				}
+
+				if(bWasPutToSleep && !bWasWoken)
+				{
+					EXPECT_EQ(Particle.ObjectState(), EObjectStateType::Sleeping);
+				}
+				else
+				{
+					EXPECT_EQ(Particle.ObjectState(), EObjectStateType::Dynamic);
+				}
+			}
+		}
+
+		const FReal LastInterpolatedTime = NumGTSteps * GTDt - FixedDT * Chaos::AsyncInterpolationMultiplier;
+		EXPECT_EQ(Particle.V()[2], ZVel);
+		EXPECT_EQ(Particle.V()[1], YVelAfterChange);
 	}
 
 	GTEST_TEST(EngineInterface, FlushCommand)

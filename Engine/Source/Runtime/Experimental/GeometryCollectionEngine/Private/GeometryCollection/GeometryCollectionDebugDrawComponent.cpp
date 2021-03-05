@@ -776,7 +776,7 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawChaosTick()
 			else if (ParticlesData.RequestSyncedData(EGeometryCollectionParticlesData::Geometry))
 			{
 				// Retrieve level set pointer from sync
-				const Chaos::TLevelSet<float, 3>* LevelSet = static_cast<const Chaos::TLevelSet<float, 3>*>(ParticlesData.GetGeometry(SelectedTransformIndex));
+				const Chaos::FLevelSet* LevelSet = static_cast<const Chaos::FLevelSet*>(ParticlesData.GetGeometry(SelectedTransformIndex));
 
 				// Build the volume texture
 				// @note: we only want to do this once, so we have a state variable on the component to ensure that

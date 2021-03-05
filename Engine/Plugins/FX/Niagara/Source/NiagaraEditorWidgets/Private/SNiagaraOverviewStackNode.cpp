@@ -411,6 +411,7 @@ void SNiagaraOverviewStackNode::FillThumbnailBar()
 				.ToolTipText(this, &SNiagaraOverviewStackNode::GetToggleIsolateToolTip)
 				.OnClicked(this, &SNiagaraOverviewStackNode::OnToggleIsolateButtonClicked)
 				.Visibility(this, &SNiagaraOverviewStackNode::GetToggleIsolateVisibility)
+				.IsFocusable(false)
 				.Content()
 				[
 					SNew(SImage)

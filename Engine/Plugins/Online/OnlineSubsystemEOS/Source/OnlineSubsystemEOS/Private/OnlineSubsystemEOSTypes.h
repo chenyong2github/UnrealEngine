@@ -493,6 +493,85 @@ private:
 	}
 };
 
+/**
+ * Class to handle nested callbacks (callbacks that are tied to an external callback's lifetime,
+ * e.g. file chunkers) generically using a lambda to process callback results
+ */
+template<typename CallbackFuncType, typename CallbackType,
+	typename Nested1CallbackFuncType, typename Nested1CallbackType, typename Nested1ReturnType>
+class TEOSCallbackWithNested1 :
+	public TEOSCallback<CallbackFuncType, CallbackType>
+{
+public:
+	TEOSCallbackWithNested1() = default;
+	virtual ~TEOSCallbackWithNested1() = default;
+
+
+	Nested1CallbackFuncType GetNested1CallbackPtr()
+	{
+		return &Nested1CallbackImpl;
+	}
+
+	void SetNested1CallbackLambda(TFunction<Nested1ReturnType(const Nested1CallbackType*)> InLambda)
+	{
+		Nested1CallbackLambda = InLambda;
+	}
+
+private:
+	TFunction<Nested1ReturnType(const Nested1CallbackType*)> Nested1CallbackLambda;
+
+	static Nested1ReturnType EOS_CALL Nested1CallbackImpl(const Nested1CallbackType* Data)
+	{
+		check(IsInGameThread());
+
+		TEOSCallbackWithNested1* CallbackThis = (TEOSCallbackWithNested1*)Data->ClientData;
+		check(CallbackThis);
+
+		check(CallbackThis->CallbackLambda);
+		return CallbackThis->Nested1CallbackLambda(Data);
+	}
+};
+
+/**
+ * Class to handle 2 nested callbacks (callbacks that are tied to an external callback's lifetime,
+ * e.g. file chunkers) generically using a lambda to process callback results
+ */
+template<typename CallbackFuncType, typename CallbackType,
+	typename Nested1CallbackFuncType, typename Nested1CallbackType, typename Nested1ReturnType,
+	typename Nested2CallbackFuncType, typename Nested2CallbackType>
+class TEOSCallbackWithNested2 :
+	public TEOSCallbackWithNested1<CallbackFuncType, CallbackType, Nested1CallbackFuncType, Nested1CallbackType, Nested1ReturnType>
+{
+public:
+	TEOSCallbackWithNested2() = default;
+	virtual ~TEOSCallbackWithNested2() = default;
+
+
+	Nested2CallbackFuncType GetNested2CallbackPtr()
+	{
+		return &Nested2CallbackImpl;
+	}
+
+	void SetNested2CallbackLambda(TFunction<void(const Nested2CallbackType*)> InLambda)
+	{
+		Nested2CallbackLambda = InLambda;
+	}
+
+private:
+	TFunction<void(const Nested2CallbackType*)> Nested2CallbackLambda;
+
+	static void EOS_CALL Nested2CallbackImpl(const Nested2CallbackType* Data)
+	{
+		check(IsInGameThread());
+
+		TEOSCallbackWithNested2* CallbackThis = (TEOSCallbackWithNested2*)Data->ClientData;
+		check(CallbackThis);
+
+		check(CallbackThis->CallbackLambda);
+		CallbackThis->Nested2CallbackLambda(Data);
+	}
+};
+
 /** Class to handle all callbacks generically using a lambda to process callback results */
 template<typename CallbackFuncType, typename CallbackType>
 class TEOSGlobalCallback :

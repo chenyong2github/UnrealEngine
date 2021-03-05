@@ -4,13 +4,14 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">x64</Platform>
     <AssemblyInfo Condition=" '$(AssemblyInfo)' == ''">..\Properties\DefaultAssemblyInfo.cs</AssemblyInfo>
+    <Platform_OS Condition=" '$(Platform_OS)' == '' ">Win64</Platform_OS>
     <!--If the evironment variable is not define, try to find the Rhino files on build machines-->
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{D1FDC795-B334-4933-B680-088119CDC6BB}</ProjectGuid>
     <OutputType>Library</OutputType>
     <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>DatasmithRhino7</RootNamespace>
+    <RootNamespace>DatasmithRhino</RootNamespace>
     <AssemblyName Condition="'$(Configuration)' == 'Debug'">DatasmithRhino7-Debug</AssemblyName>
     <AssemblyName Condition="'$(Configuration)' == 'Shipping' OR '$(Configuration)' == 'Release'">DatasmithRhino7-Shipping</AssemblyName>
     <AssemblyName Condition="'$(Configuration)' != 'Debug' AND '$(Configuration)' != 'Shipping' AND '$(Configuration)' != 'Release'">DatasmithRhino7</AssemblyName>
@@ -25,7 +26,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\7</OutputPath>
+    <OutputPath>..\..\..\..\..\..\Binaries\$(Platform_OS)\Rhino\7</OutputPath>
     <DefineConstants>DEBUG;TRACE;RHINO_VERSION_7</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <CodeAnalysisIgnoreBuiltInRules>false</CodeAnalysisIgnoreBuiltInRules>
@@ -34,7 +35,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\7</OutputPath>
+    <OutputPath>..\..\..\..\..\..\Binaries\$(Platform_OS)\Rhino\7</OutputPath>
     <DefineConstants>TRACE;RHINO_VERSION_7</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -43,10 +44,16 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <OutputPath>..\..\..\..\..\..\Binaries\Win64\Rhino\7</OutputPath>
+    <OutputPath>..\..\..\..\..\..\Binaries\$(Platform_OS)\Rhino\7</OutputPath>
     <DefineConstants>TRACE;RHINO_VERSION_7</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform_OS)' == 'Win64'">
+    <DefineConstants>$(DefineConstants)WIN64_OS</DefineConstants>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Platform_OS)' == 'Mac'">
+    <DefineConstants>$(DefineConstants)MAC_OS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -78,7 +85,7 @@
       <Link>DatasmithRhinoExporter\%(RecursiveDir)%(Filename)%(Extension)</Link>
     </Compile>
     <!-- DatasmithCSharpFacade API, possibly change that. -->
-    <Compile Include="..\..\..\..\..\..\Binaries\Win64\DatasmithFacadeCSharp\Public\*.cs">
+    <Compile Include="..\..\..\..\..\..\Binaries\$(Platform_OS)\DatasmithFacadeCSharp\Public\*.cs">
       <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
     </Compile>
   </ItemGroup>
@@ -93,16 +100,22 @@
   <Target Name="AfterBuild">
   </Target>
   -->
-  <PropertyGroup>
+  <PropertyGroup Condition="'$(Platform_OS)' == 'Win64'">
     <PostBuildEvent>
 		Copy "$(TargetPath)" "$(TargetDir)$(TargetName).rhp"
 		Copy "$(MSBuildProjectDirectory)\..\SharedResources\DatasmithRhino.rui" "$(TargetDir)$(TargetName).rui"
     </PostBuildEvent>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' And '$(Platform_OS)' == 'Mac'">
+    <PostBuildEvent>
+		cp -f "$(MSBuildProjectDirectory)/$(OutputPath)$(AssemblyName).dll" "$(MSBuildProjectDirectory)/$(OutputPath)$(AssemblyName).rhp"
+		cp -f "$(MSBuildProjectDirectory)/../SharedResources/DatasmithRhino.rui" "$(MSBuildProjectDirectory)/$(OutputPath)$(AssemblyName).rui" 
+    </PostBuildEvent>
+  </PropertyGroup>
   <PropertyGroup>
     <FallbackCulture>en-US</FallbackCulture>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug' And '$(Platform_OS)' == 'Win64'">
     <StartProgram>$(RHINO7_PATH)\Rhino.exe</StartProgram>
     <StartArguments>
     </StartArguments>

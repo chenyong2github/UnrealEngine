@@ -9,6 +9,7 @@
 #include "MoviePipelineRenderPass.h"
 #include "MoviePipelineOutputBuilder.h"
 #include "RenderingThread.h"
+#include "MoviePipelineDebugSettings.h"
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineConfigBase.h"
 #include "MoviePipelineMasterConfig.h"
@@ -67,6 +68,16 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 	// Then increase each sub-region by the overlap amount.
 	BackbufferResolution = HighResSettings->CalculatePaddedBackbufferSize(BackbufferResolution);
+
+	{
+		int32 MaxResolution = GetMax2DTextureDimension();
+		if (BackbufferResolution.X > MaxResolution || BackbufferResolution.Y > MaxResolution)
+		{
+			UE_LOG(LogMovieRenderPipeline, Error, TEXT("Resolution %dx%d exceeds maximum allowed by GPU (%dx%d). Consider using the HighRes setting and increasing the tile count."), BackbufferResolution.X, BackbufferResolution.Y, MaxResolution, MaxResolution);
+			Shutdown(true);
+			return;
+		}
+	}
 
 	// Note how many tiles we wish to render with.
 	BackbufferTileCount = FIntPoint(HighResSettings->TileCount, HighResSettings->TileCount);
@@ -148,6 +159,7 @@ void UMoviePipeline::RenderFrame()
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSettingForShot<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSettingForShot<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	UMoviePipelineDebugSettings* DebugSettings = FindOrAddSettingForShot<UMoviePipelineDebugSettings>(ActiveShotList[CurrentShotIndex]);
 	
 	// Color settings are optional, so we don't need to do any assertion checks.
 	UMoviePipelineColorSetting* ColorSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
@@ -169,6 +181,8 @@ void UMoviePipeline::RenderFrame()
 
 	FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
 	FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
+
+	bool bWriteAllSamples = DebugSettings ? DebugSettings->bWriteAllSamples : false;
 
 	// Update our current view location
 	LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
@@ -366,7 +380,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.BackbufferSize = BackbufferResolution;
 				SampleState.TileSize = TileResolution;
 				SampleState.FrameInfo = FrameInfo;
-				SampleState.bWriteSampleToDisk = HighResSettings->bWriteAllSamples;
+				SampleState.bWriteSampleToDisk = bWriteAllSamples;
 				SampleState.TextureSharpnessBias = HighResSettings->TextureSharpnessBias;
 				SampleState.OCIOConfiguration = ColorSettings ? &ColorSettings->OCIOConfiguration : nullptr;
 				SampleState.GlobalScreenPercentageFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction();

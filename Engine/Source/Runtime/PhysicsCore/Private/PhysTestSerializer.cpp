@@ -248,7 +248,7 @@ void FPhysTestSerializer::CreateChaosData()
 			auto NewParticles = Particles.CreateStaticParticles(NumStatic);	//question: do we want to distinguish query only and sim only actors?
 			for (uint32 Idx = 0; Idx < NumStatic; ++Idx)
 			{
-				GTParticles.Emplace(TGeometryParticle<float, 3>::CreateParticle());
+				GTParticles.Emplace(FGeometryParticle::CreateParticle());
 				NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
 			}
 		}
@@ -260,7 +260,7 @@ void FPhysTestSerializer::CreateChaosData()
 
 			for (uint32 Idx = 0; Idx < NumDynamic; ++Idx)
 			{
-				GTParticles.Emplace(TPBDRigidParticle<float, 3>::CreateParticle());
+				GTParticles.Emplace(FPBDRigidParticle::CreateParticle());
 				NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
 			}
 		}

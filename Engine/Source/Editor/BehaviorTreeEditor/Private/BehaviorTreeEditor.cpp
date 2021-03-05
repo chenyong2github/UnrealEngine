@@ -1666,6 +1666,7 @@ bool FBehaviorTreeEditor::CanCreateNewService() const
 	return !IsDebuggerReady();
 }
 
+namespace FBehaviorTreeEditorUtils {
 template <typename Type>
 class FNewNodeClassFilter : public IClassViewerFilter
 {
@@ -1684,13 +1685,14 @@ public:
 		return InUnloadedClassData->IsChildOf(Type::StaticClass());
 	}
 };
+} // namespace FBehaviorTreeEditorUtils
 
 
 TSharedRef<SWidget> FBehaviorTreeEditor::HandleCreateNewTaskMenu() const
 {
 	FClassViewerInitializationOptions Options;
 	Options.bShowUnloadedBlueprints = true;
-	Options.ClassFilter = MakeShareable( new FNewNodeClassFilter<UBTTask_BlueprintBase> );
+	Options.ClassFilter = MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTTask_BlueprintBase> );
 
 	FOnClassPicked OnPicked( FOnClassPicked::CreateSP( this, &FBehaviorTreeEditor::HandleNewNodeClassPicked ) );
 
@@ -1701,7 +1703,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::HandleCreateNewDecoratorMenu() const
 {
 	FClassViewerInitializationOptions Options;
 	Options.bShowUnloadedBlueprints = true;
-	Options.ClassFilter = MakeShareable( new FNewNodeClassFilter<UBTDecorator_BlueprintBase> );
+	Options.ClassFilter = MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTDecorator_BlueprintBase> );
 
 	FOnClassPicked OnPicked( FOnClassPicked::CreateSP( this, &FBehaviorTreeEditor::HandleNewNodeClassPicked ) );
 
@@ -1712,7 +1714,7 @@ TSharedRef<SWidget> FBehaviorTreeEditor::HandleCreateNewServiceMenu() const
 {
 	FClassViewerInitializationOptions Options;
 	Options.bShowUnloadedBlueprints = true;
-	Options.ClassFilter = MakeShareable( new FNewNodeClassFilter<UBTService_BlueprintBase> );
+	Options.ClassFilter = MakeShareable( new FBehaviorTreeEditorUtils::FNewNodeClassFilter<UBTService_BlueprintBase> );
 
 	FOnClassPicked OnPicked( FOnClassPicked::CreateSP( this, &FBehaviorTreeEditor::HandleNewNodeClassPicked ) );
 

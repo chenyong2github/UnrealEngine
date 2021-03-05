@@ -2,12 +2,16 @@
 
 #pragma once
 
-// todo - get clarity on the interpretation of this value
 #ifndef NUM_VIRTUALTEXTURE_SAMPLES
 	#define NUM_VIRTUALTEXTURE_SAMPLES 1
 #endif
 
 #include "/Engine/Private/VirtualTextureCommon.ush"
+
+// Mirrored from FNiagaraDataInterfaceParametersCS_Landscape
+#define VIRTUAL_TEXTURE_UNPACK_NORMAL_NONE 0
+#define VIRTUAL_TEXTURE_UNPACK_NORMAL_BC3BC3 1
+#define VIRTUAL_TEXTURE_UNPACK_NORMAL_BC5BC1 2
 
 struct FNDILandscapeContext
 {
@@ -20,11 +24,26 @@ struct FNDILandscapeContext
 	uint4 HeightVirtualTextureUniforms;
 	bool HeightVirtualTextureEnabled;
 
+	Texture2D NormalVirtualTexture0;
+	Texture2D NormalVirtualTexture1;
+	Texture2D<uint4> NormalVirtualTexturePageTable;
+	SamplerState NormalVirtualTextureSampler;
+	float4x4 NormalVirtualTextureWorldToUvTransform;
+	uint4 NormalVirtualTexturePackedUniform0;
+	uint4 NormalVirtualTexturePackedUniform1;
+	uint4 NormalVirtualTextureUniforms0;
+	uint4 NormalVirtualTextureUniforms1;
+	int NormalVirtualTextureUnpackMode;
+	bool NormalVirtualTextureEnabled;
+
 	Texture2D CachedHeightTexture;
 	SamplerState CachedHeightTextureSampler;
 	bool CachedHeightTextureEnabled;
 	float4x4 CachedHeightTextureWorldToUvTransform;
+	float4x4 CachedHeightTextureUvToWorldTransform;
 	float4 CachedHeightTextureUvScaleBias;
+	float2 CachedHeightTextureGridSize;
+	SamplerState PointClampedSampler;
 };
 
 void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos, out float OutHeight, out bool OutIsValid)
@@ -70,6 +89,84 @@ void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos
 	}
 }
 
+void NDILandscape_GetWorldNormal(in FNDILandscapeContext DIContext, float3 InWorldPos, out float3 OutNormal, out bool OutIsValid)
+{
+	if (DIContext.NormalVirtualTextureEnabled)
+	{
+		float3 UnpackNormalOrigin = DIContext.NormalVirtualTextureWorldToUvTransform[0].xyz;
+		float3 UnpackNormalU = DIContext.NormalVirtualTextureWorldToUvTransform[1].xyz;
+		float3 UnpackNormalV = DIContext.NormalVirtualTextureWorldToUvTransform[2].xyz;
+
+		float2 SampleUv = VirtualTextureWorldToUV(InWorldPos, UnpackNormalOrigin, UnpackNormalU, UnpackNormalV);
+
+		VTPageTableResult PageTable = TextureLoadVirtualPageTableLevel(
+			DIContext.NormalVirtualTexturePageTable,
+			VTPageTableUniform_Unpack(DIContext.NormalVirtualTexturePackedUniform0, DIContext.NormalVirtualTexturePackedUniform1),
+			SampleUv,
+			VTADDRESSMODE_CLAMP,
+			VTADDRESSMODE_CLAMP,
+			0.0f);
+
+		float4 PackedValue0 = TextureVirtualSample(
+			DIContext.NormalVirtualTexture0,
+			DIContext.NormalVirtualTextureSampler,
+			PageTable,
+			0,
+			VTUniform_Unpack(DIContext.NormalVirtualTextureUniforms0));
+
+		float4 PackedValue1 = TextureVirtualSample(
+			DIContext.NormalVirtualTexture1,
+			DIContext.NormalVirtualTextureSampler,
+			PageTable,
+			0,
+			VTUniform_Unpack(DIContext.NormalVirtualTextureUniforms1));
+
+		if (DIContext.NormalVirtualTextureUnpackMode == VIRTUAL_TEXTURE_UNPACK_NORMAL_BC3BC3)
+		{
+			OutNormal = VirtualTextureUnpackNormalBC3BC3(PackedValue0, PackedValue1);
+		}
+		else if (DIContext.NormalVirtualTextureUnpackMode == VIRTUAL_TEXTURE_UNPACK_NORMAL_BC5BC1)
+		{
+			OutNormal = VirtualTextureUnpackNormalBC5BC1(PackedValue0, PackedValue1);
+		}
+		else
+		{
+			OutNormal = float3(0.0f, 0.0f, 1.0f);
+			OutIsValid = false;
+			return;
+		}
+
+		OutIsValid = true;
+	}
+	else if (DIContext.CachedHeightTextureEnabled)
+	{
+		float2 Uv = mul(float4(InWorldPos, 1.0f), DIContext.CachedHeightTextureWorldToUvTransform).xy;
+		Uv = Uv * DIContext.CachedHeightTextureUvScaleBias.xy + DIContext.CachedHeightTextureUvScaleBias.zw;
+
+		float Left = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(-1,0)).x;
+		float Right = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(1,0)).x;
+		float Top = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(0,1)).x;
+		float Bottom = DIContext.CachedHeightTexture.SampleLevel(DIContext.PointClampedSampler, Uv, 0, int2(0,-1)).x;
+
+		// cross product of our two gradient vectors
+		OutNormal = float3(
+			DIContext.CachedHeightTextureGridSize.y * (Left - Right),
+			DIContext.CachedHeightTextureGridSize.x * (Bottom - Top),
+			2.0f * DIContext.CachedHeightTextureGridSize.x * DIContext.CachedHeightTextureGridSize.y);
+
+		// next rotate the normal to make it world space
+		OutNormal = mul(float4(OutNormal, 0.0f), DIContext.CachedHeightTextureUvToWorldTransform).xyz;
+		OutNormal = normalize(OutNormal);
+
+		OutIsValid = true;
+	}
+	else
+	{
+		OutNormal = float3(0.0f, 0.0f, 1.0f);
+		OutIsValid = false;
+	}
+}
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 #define NDILANDSCAPE_DECLARE_CONSTANTS(NAME) \
@@ -81,12 +178,26 @@ void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos
 	uint4				HeightVirtualTexturePackedUniform0_ ## NAME; \
 	uint4				HeightVirtualTexturePackedUniform1_ ## NAME; \
 	uint4				HeightVirtualTextureUniforms_ ## NAME; \
+	Texture2D			NormalVirtualTexture0_ ## NAME; \
+	Texture2D			NormalVirtualTexture1_ ## NAME; \
+	Texture2D<uint4>	NormalVirtualTexturePageTable_ ## NAME; \
+	SamplerState		NormalVirtualTextureSampler_ ## NAME; \
+	float4x4			NormalVirtualTextureWorldToUvTransform_ ## NAME; \
+	uint4				NormalVirtualTexturePackedUniform0_ ## NAME; \
+	uint4				NormalVirtualTexturePackedUniform1_ ## NAME; \
+	uint4				NormalVirtualTextureUniforms0_ ## NAME; \
+	uint4				NormalVirtualTextureUniforms1_ ## NAME; \
+	int					NormalVirtualTextureUnpackMode_ ## NAME; \
+	bool				NormalVirtualTextureEnabled_ ## NAME; \
 	Texture2D			CachedHeightTexture_ ## NAME; \
 	SamplerState		CachedHeightTextureSampler_ ## NAME; \
 	bool				CachedHeightTextureEnabled_ ## NAME; \
 	float4x4			CachedHeightTextureWorldToUvTransform_ ## NAME; \
-	float4				CachedHeightTextureUvScaleBias_ ## NAME;
-
+	float4x4			CachedHeightTextureUvToWorldTransform_ ## NAME; \
+	float4				CachedHeightTextureUvScaleBias_ ## NAME; \
+	float2				CachedHeightTextureGridSize_ ## NAME; \
+	SamplerState		PointClampedSampler_ ## NAME;
+	
 #define NDILANDSCAPE_MAKE_CONTEXT(NAME) \
 	FNDILandscapeContext DIContext; \
 	DIContext.HeightVirtualTexture = HeightVirtualTexture_ ## NAME; \
@@ -97,8 +208,22 @@ void NDILandscape_GetHeight(in FNDILandscapeContext DIContext, float3 InWorldPos
 	DIContext.HeightVirtualTexturePackedUniform0 = HeightVirtualTexturePackedUniform0_ ## NAME; \
 	DIContext.HeightVirtualTexturePackedUniform1 = HeightVirtualTexturePackedUniform1_ ## NAME; \
 	DIContext.HeightVirtualTextureUniforms = HeightVirtualTextureUniforms_ ## NAME; \
+	DIContext.NormalVirtualTexture0 = NormalVirtualTexture0_ ## NAME; \
+	DIContext.NormalVirtualTexture1 = NormalVirtualTexture1_ ## NAME; \
+	DIContext.NormalVirtualTexturePageTable = NormalVirtualTexturePageTable_ ## NAME; \
+	DIContext.NormalVirtualTextureSampler = NormalVirtualTextureSampler_ ## NAME; \
+	DIContext.NormalVirtualTextureWorldToUvTransform = NormalVirtualTextureWorldToUvTransform_ ## NAME; \
+	DIContext.NormalVirtualTexturePackedUniform0 = NormalVirtualTexturePackedUniform0_ ## NAME; \
+	DIContext.NormalVirtualTexturePackedUniform1 = NormalVirtualTexturePackedUniform1_ ## NAME; \
+	DIContext.NormalVirtualTextureUniforms0 = NormalVirtualTextureUniforms0_ ## NAME; \
+	DIContext.NormalVirtualTextureUniforms1 = NormalVirtualTextureUniforms1_ ## NAME; \
+	DIContext.NormalVirtualTextureUnpackMode = NormalVirtualTextureUnpackMode_ ## NAME; \
+	DIContext.NormalVirtualTextureEnabled = NormalVirtualTextureEnabled_ ## NAME; \
 	DIContext.CachedHeightTexture = CachedHeightTexture_ ## NAME; \
 	DIContext.CachedHeightTextureSampler = CachedHeightTextureSampler_ ## NAME; \
 	DIContext.CachedHeightTextureEnabled = CachedHeightTextureEnabled_ ## NAME; \
 	DIContext.CachedHeightTextureWorldToUvTransform = CachedHeightTextureWorldToUvTransform_ ## NAME; \
-	DIContext.CachedHeightTextureUvScaleBias = CachedHeightTextureUvScaleBias_ ## NAME;
+	DIContext.CachedHeightTextureUvToWorldTransform = CachedHeightTextureUvToWorldTransform_ ## NAME; \
+	DIContext.CachedHeightTextureUvScaleBias = CachedHeightTextureUvScaleBias_ ## NAME; \
+	DIContext.CachedHeightTextureGridSize = CachedHeightTextureGridSize_ ## NAME; \
+	DIContext.PointClampedSampler = PointClampedSampler_ ## NAME;

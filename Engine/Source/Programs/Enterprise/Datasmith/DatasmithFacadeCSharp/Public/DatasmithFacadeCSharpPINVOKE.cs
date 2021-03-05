@@ -443,6 +443,9 @@ class DatasmithFacadeCSharpPINVOKE {
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeMaterialExpression")]
   public static extern void delete_FDatasmithFacadeMaterialExpression(global::System.Runtime.InteropServices.HandleRef jarg1);
 
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeMaterialExpression_ResetExpression")]
+  public static extern void FDatasmithFacadeMaterialExpression_ResetExpression(global::System.Runtime.InteropServices.HandleRef jarg1);
+
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_delete_FDatasmithFacadeExpressionParameterSwigImpl")]
   public static extern void delete_FDatasmithFacadeExpressionParameterSwigImpl(global::System.Runtime.InteropServices.HandleRef jarg1);
 
@@ -655,6 +658,9 @@ class DatasmithFacadeCSharpPINVOKE {
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_GetExpressionIndex")]
   public static extern int FDatasmithFacadeUEPbrMaterial_GetExpressionIndex(global::System.Runtime.InteropServices.HandleRef jarg1, global::System.Runtime.InteropServices.HandleRef jarg2);
+
+  [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_ResetExpressionGraph")]
+  public static extern void FDatasmithFacadeUEPbrMaterial_ResetExpressionGraph(global::System.Runtime.InteropServices.HandleRef jarg1);
 
   [global::System.Runtime.InteropServices.DllImport("DatasmithFacadeCSharp", EntryPoint="CSharp_FDatasmithFacadeUEPbrMaterial_SetParentLabel")]
   public static extern void FDatasmithFacadeUEPbrMaterial_SetParentLabel(global::System.Runtime.InteropServices.HandleRef jarg1, [global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.LPWStr)]string jarg2);

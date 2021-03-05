@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "Particles/ParticlePerfStats.h"
 #include "Particles/ParticlePerfStatsManager.h"
 #include "GameFramework/Actor.h"
 
@@ -179,6 +178,9 @@ public:
 	virtual bool Tick()override;
 	virtual void TickRT()override;
 
+	virtual bool NeedsWorldStats()const { return false; }
+	virtual bool NeedsSystemStats()const { return true; }
+
 private:
 	/** The baseline actor controlling the test conditions and which we'll send the completed stats to. */
 	TWeakObjectPtr<UNiagaraBaselineController> Baseline;
@@ -194,6 +196,9 @@ class NIAGARA_API FParticlePerfStatsListener_NiagaraBaselineComparisonRender : p
 public:
 	virtual bool Tick()override;
 	virtual void TickRT()override;
+	virtual bool NeedsWorldStats()const { return false; }
+	virtual bool NeedsSystemStats()const { return true; }
+
 	int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
 
 	int32 NumFrames = 0;
@@ -214,6 +219,8 @@ public:
 
 	virtual bool Tick()override;
 	virtual void TickRT()override;
+	virtual bool NeedsWorldStats()const { return false; }
+	virtual bool NeedsSystemStats()const { return true; }
 
 	void HandleTestResults();
 	void ReportToScreen();
@@ -255,6 +262,8 @@ public:
 	/** We use an RT Command Fence to know when the RT data is valid and we can report the current stats to the screen. */
 	FRenderCommandFence ResultsFence;
 	bool bResultsTrigger = false;
+
+	static const int32 TestDebugMessageID;
 };
 
 // Helper class for managing the generation and tracking of Niagara Performance Baselines.

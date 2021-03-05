@@ -126,12 +126,12 @@ FORCEINLINE ECollisionShapeType GetType(const Chaos::FImplicitObject& Geom)
 ECollisionShapeType GetGeometryType(const Chaos::FPerShapeData& Shape);
 
 /*
-FORCEINLINE float GetRadius(const Chaos::TCapsule<float>& Capsule)
+FORCEINLINE float GetRadius(const Chaos::FCapsule& Capsule)
 {
 	return Capsule.GetRadius();
 }
 
-FORCEINLINE float GetHalfHeight(const Chaos::TCapsule<float>& Capsule)
+FORCEINLINE float GetHalfHeight(const Chaos::FCapsule& Capsule)
 {
 	return Capsule.GetHeight() / 2.f;
 }

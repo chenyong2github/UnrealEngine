@@ -13,7 +13,7 @@ namespace Electra
 class IPlaylistReaderMP4 : public IPlaylistReader
 {
 public:
-	static IPlaylistReader* Create(IPlayerSessionServices* PlayerSessionServices);
+	static TSharedPtrTS<IPlaylistReader> Create(IPlayerSessionServices* PlayerSessionServices);
 
 	virtual ~IPlaylistReaderMP4() = default;
 };

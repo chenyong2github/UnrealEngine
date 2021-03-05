@@ -506,7 +506,7 @@ namespace ChaosTest
 	void GJKSphereCapsuleTest()
 	{
 		TSphere<FReal, 3> A(FVec3(10, 0, 0), 5);
-		TCapsule<FReal> B(FVec3(0, 0, -3), FVec3(0, 0, 3), 3);
+		FCapsule B(FVec3(0, 0, -3), FVec3(0, 0, 3), 3);
 
 		FVec3 InitialDirs[] = { FVec3(1,0,0), FVec3(-1,0,0), FVec3(0,1,0), FVec3(0,-1,0), FVec3(0,0,1), FVec3(0,0,-1) };
 
@@ -530,7 +530,7 @@ namespace ChaosTest
 			EXPECT_FALSE(GJKIntersection<FReal>(A, B, FRigidTransform3(FVec3(-1-1e-2, 0, 0), FRotation3::FromVector(FVec3(0, PI*0.5, 0))), 0, InitialDir));
 
 			//degenerate
-			TCapsule<FReal> Line(FVec3(0, 0, -3), FVec3(0, 0, 3), 0);
+			FCapsule Line(FVec3(0, 0, -3), FVec3(0, 0, 3), 0);
 			EXPECT_TRUE(GJKIntersection<FReal>(A, Line, FRigidTransform3(FVec3(5+1e-2, 0, 0), FRotation3::Identity), 0, InitialDir));
 
 			//miss
@@ -840,7 +840,7 @@ namespace ChaosTest
 	void GJKSphereCapsuleSweep()
 	{
 		TSphere<FReal, 3> A(FVec3(10, 0, 0), 5);
-		TCapsule<FReal> B(FVec3(1, 0, 0), FVec3(-3, 0, 0), 2);
+		FCapsule B(FVec3(1, 0, 0), FVec3(-3, 0, 0), 2);
 
 		FVec3 InitialDirs[] = { FVec3(1,0,0), FVec3(-1,0,0), FVec3(0,1,0), FVec3(0,-1,0), FVec3(0,0,1), FVec3(0,0,-1) };
 
@@ -1190,7 +1190,7 @@ namespace ChaosTest
 	void GJKBoxCapsuleSweep()
 	{
 		FAABB3 A(FVec3(3, -1, 0), FVec3(4, 1, 4));
-		TCapsule<FReal> B(FVec3(0, 0, -1), FVec3(0, 0, 1), 2);
+		FCapsule B(FVec3(0, 0, -1), FVec3(0, 0, 1), 2);
 
 		FVec3 InitialDirs[] = { FVec3(1,0,0), FVec3(-1,0,0), FVec3(0,1,0), FVec3(0,-1,0), FVec3(0,0,1), FVec3(0,0,-1) };
 
@@ -1315,7 +1315,7 @@ namespace ChaosTest
 			EXPECT_FALSE(GJKRaycast<FReal>(A, B, FRigidTransform3(FVec3(0, 0, 6 + 1e-2), Rotated), FVec3(1, 0, 0), 10, Time, Position, Normal, 0, InitialDir));
 
 			//degenerate capsule
-			TCapsule<FReal> Needle(FVec3(0, 0, -1), FVec3(0, 0, 1), 1e-8);
+			FCapsule Needle(FVec3(0, 0, -1), FVec3(0, 0, 1), 1e-8);
 			EXPECT_TRUE(GJKRaycast<FReal>(A, Needle, FRigidTransform3::Identity, FVec3(1, 0, 0), 6, Time, Position, Normal, 0, InitialDir));
 			EXPECT_NEAR(Time, 3, Eps);
 			EXPECT_NEAR(Normal.X, -1, Eps);
@@ -1404,7 +1404,7 @@ namespace ChaosTest
 			FVec3 Pt1 = Pt0;
 			Pt1 += (FVec3(0.0,0.0,1.0) * 66.0);
 
-			const TCapsule<FReal> B(Pt0,Pt1,42.0);
+			const FCapsule B(Pt0,Pt1,42.0);
 
 			const FRigidTransform3 BToATM(FVec3(157.314758,-54.0000839,76.1436157), FRotation3::FromElements(0.0,0.0,0.704960823,0.709246278));
 			const FVec3 LocalDir(-0.00641351938,-0.999979556,0.0);
@@ -1418,6 +1418,7 @@ namespace ChaosTest
 		}
 	}
 
+	template <typename T>
 	void GJKCapsuleConvexInitialOverlapSweep()
 	{
 		{
@@ -1449,7 +1450,7 @@ namespace ChaosTest
 			FVec3 Pt1 = Pt0;
 			Pt1 += (FVec3(0.0,0.0,1.0) * 90);
 
-			const TCapsule<FReal> B(Pt0,Pt1,33.8499985);
+			const FCapsule B(Pt0,Pt1,33.8499985);
 
 			const FRigidTransform3 ATM(FVec3(2624.00024, -383.998962, 4.00000000), FRotation3::FromElements(-5.07916162e-08, -3.39378659e-08, 0.555569768, 0.831469893));
 			const FRigidTransform3 BTM(FVec3(2461.92749, -205.484283, 106.071632), FRotation3::FromElements(0,0,0,1));
@@ -1473,8 +1474,8 @@ namespace ChaosTest
 			FVec3 Pt1 = Pt0;
 			Pt1 += (FVec3(0.0,0.0,1.0) * 90.0);
 
-			const TCapsule<FReal> A(Pt0,Pt1,34.f);
-			const TCapsule<FReal> B(Pt0,Pt1,33.8499985f);
+			const FCapsule A(Pt0,Pt1,34.f);
+			const FCapsule B(Pt0,Pt1,33.8499985f);
 
 			const FRigidTransform3 BToATM(FVec3(0.0f,0.0f,-23.4092140f), FRotation3::FromElements(0.0,0.0,0.0,1.0));
 
@@ -1507,7 +1508,7 @@ namespace ChaosTest
 			FVec3 Pt1 = Pt0;
 			Pt1 += (FVec3(0.0,0.0,1.0) * 59.3999939);
 
-			const TCapsule<FReal> B(Pt0,Pt1,42.0);
+			const FCapsule B(Pt0,Pt1,42.0);
 
 			const FRigidTransform3 BToATM(FVec3(7475.74512, 12603.9082, 277.767120), FRotation3::FromElements(0,0,0,1));
 			const FVec3 LocalDir(0,0,-0.999999940);
@@ -1540,7 +1541,7 @@ namespace ChaosTest
 			FVec3 Pt2(0, 1000000.0, 0);
 			
 
-			const TCapsule<FReal> A(Pt1, Pt2, 1.0);
+			const FCapsule A(Pt1, Pt2, 1.0);
 			const TSphere<FReal, 3> B(Pt0, 1.0);
 
 			const FRigidTransform3 BToATM(FVec3(0, 0, 0), FRotation3::FromElements(0.0, 0.0, 0, 1)); // Unit transform

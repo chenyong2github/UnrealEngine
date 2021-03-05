@@ -132,12 +132,9 @@ class FPlaybackAssetRepresentation : public IPlaybackAssetRepresentation
 {
 public:
 	FPlaybackAssetRepresentation()
-		: Bitrate(0)
-	{
-	}
+	{ }
 	virtual ~FPlaybackAssetRepresentation()
-	{
-	}
+	{ }
 	virtual FString GetUniqueIdentifier() const override
 	{
 		return UniqueIdentifier;
@@ -150,14 +147,18 @@ public:
 	{
 		return Bitrate;
 	}
-	virtual FString GetCDN() const override
+	virtual int32 GetQualityIndex() const override
+	{ 
+		return QualityIndex;
+	}
+	virtual bool CanBePlayed() const override
 	{
-		return CDN;
+		return true;
 	}
 	FStreamCodecInformation	CodecInformation;
 	FString					UniqueIdentifier;
-	FString					CDN;
-	int32					Bitrate;
+	int32					Bitrate = 0;
+	int32					QualityIndex = 0;
 };
 
 class FPlaybackAssetAdaptationSet : public IPlaybackAssetAdaptationSet
@@ -629,7 +630,6 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 	// FIXME: need to setup CDNs first from all URIs and then assign the correct one here.
 	// NOTE: URI is optional and may not even exist.
 		Rendition->Internal.CDN = Rendition->URI;
-		Repr->CDN = Rendition->Internal.CDN;
 		Adapt->Representations.Push(TSharedPtrTS<IPlaybackAssetRepresentation>(Repr));
 	}
 
@@ -947,7 +947,6 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				HLSTimeline::FPlaybackAssetRepresentation* Repr = new HLSTimeline::FPlaybackAssetRepresentation;
 				Repr->UniqueIdentifier = LexToString(StreamMetaData.StreamUniqueID);
 				Repr->CodecInformation = StreamMetaData.CodecInformation;
-				Repr->CDN   		   = StreamMetaData.PlaylistID;
 				Repr->Bitrate   	   = StreamMetaData.Bandwidth;
 				Adapt->Representations.Push(TSharedPtrTS<IPlaybackAssetRepresentation>(Repr));
 
@@ -1043,7 +1042,6 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					HLSTimeline::FPlaybackAssetRepresentation* Repr = new HLSTimeline::FPlaybackAssetRepresentation;
 					Repr->UniqueIdentifier = LexToString(StreamMetaData.StreamUniqueID);
 					Repr->CodecInformation = StreamMetaData.CodecInformation;
-					Repr->CDN   		   = StreamMetaData.PlaylistID;
 					Repr->Bitrate   	   = StreamMetaData.Bandwidth;
 					Adapt->Representations.Push(TSharedPtrTS<IPlaybackAssetRepresentation>(Repr));
 
@@ -1073,7 +1071,6 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 								{
 									// When the rendition has no dedicated URL then it is merely informational and this audio-only variant is the stream itself to use.
 									Rendition->URI = vs->GetURL();
-									Repr->CDN = StreamMetaData.PlaylistID;
 									Repr->Bitrate = StreamMetaData.Bandwidth;
 									vs->Internal.AdaptationSetUniqueID  = Adapt->UniqueIdentifier;
 									vs->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
@@ -1159,6 +1156,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 
 	// Index the stream quality level map. Lower quality = lower index
 	int32 QualityIndex = 0;
+	Manifest->BandwidthToQualityIndex.KeySort([](int32 A, int32 B){return A<B;});
 	for(TMap<int32, int32>::TIterator It = Manifest->BandwidthToQualityIndex.CreateIterator(); It; ++It)
 	{
 		It.Value() = QualityIndex++;

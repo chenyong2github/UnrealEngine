@@ -158,146 +158,161 @@ bool FConcertSessionFilter::ActivityIdPassesFilter(const int64 InActivityId) con
 		return false;
 	}
 
-	return ActivityIdLowerBound <= InActivityId 
+	return ActivityIdLowerBound <= InActivityId
 		&& ActivityIdUpperBound >= InActivityId;
 }
 
 namespace PayloadDetail
 {
 
-bool SerializePayloadImpl(const UScriptStruct* InEventType, const void* InEventData, int32& OutUncompressedDataSizeBytes, TArray<uint8>& OutCompressedData, TFunctionRef<bool(const UScriptStruct*, const void*, TArray<uint8>&)> InSerializeFunc)
+bool ShouldCompress(const FConcertSessionSerializedPayload& InPayload, EConcertPayloadCompressionType CompressionType)
 {
-	bool bSuccess = false;
+	// We need to have at least 512 bytes to invoke the compressor.
+	constexpr int32 MinBytes = 512;
+	// Set the heuristic limit to 3 MB
+	constexpr int32 MaxBytes = 3 * 1024 * 1024;
 
-	OutUncompressedDataSizeBytes = 0;
-	OutCompressedData.Reset();
-
-	if (InEventType && InEventData)
+	if (CompressionType == EConcertPayloadCompressionType::None)
 	{
-		// Serialize the uncompressed data
-		TArray<uint8> UncompressedData;
-		bSuccess = InSerializeFunc(InEventType, InEventData, UncompressedData);
-
-		if (bSuccess)
-		{
-			// if we serialized something, compress it
-			if (UncompressedData.Num() > 0)
-			{
-				// Compress the result to send on the wire
-				int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedData.Num());
-				OutCompressedData.SetNumUninitialized(CompressedSize);
-				if (FCompression::CompressMemory(NAME_Zlib, OutCompressedData.GetData(), CompressedSize, UncompressedData.GetData(), UncompressedData.Num()))
-				{
-					OutUncompressedDataSizeBytes = UncompressedData.Num();
-					OutCompressedData.SetNum(CompressedSize, false);
-				}
-				else
-				{
-					bSuccess = false;
-					OutUncompressedDataSizeBytes = 0;
-					OutCompressedData.Reset();
-				}
-			}
-			// didn't have anything to compress or serialize
-			else
-			{
-				bSuccess = true;
-				OutUncompressedDataSizeBytes = 0;
-			}
-		}
+		return false;
 	}
-
-	return bSuccess;
+	if (CompressionType == EConcertPayloadCompressionType::Heuristic)
+	{
+		return InPayload.PayloadSize > MinBytes && InPayload.PayloadSize < MaxBytes;
+	}
+	check(CompressionType == EConcertPayloadCompressionType::Always);
+	// Otherwise we are always compressing
+	return InPayload.PayloadSize > 0;
 }
 
-bool DeserializePayloadImpl(const UScriptStruct* InEventType, void* InOutEventData, const int32 InUncompressedDataSizeBytes, const TArray<uint8>& InCompressedData, TFunctionRef<bool(const UScriptStruct*, void*, const TArray<uint8>&)> InDeserializeFunc)
+bool TryCompressImpl(const UScriptStruct* InEventType, const void* InEventData, FConcertSessionSerializedPayload& InOutPayload, EConcertPayloadCompressionType CompressionType)
 {
-	bool bSuccess = false;
+	InOutPayload.PayloadSize = InOutPayload.PayloadBytes.Bytes.Num();
 
-	if (InEventType && InOutEventData)
+	// if we serialized something, compress it
+	if (ShouldCompress(InOutPayload, CompressionType))
 	{
-		// Don't bother if we do not actually have anything to deserialize
-		if (InUncompressedDataSizeBytes > 0)
+		TArray<uint8> &InBytes = InOutPayload.PayloadBytes.Bytes;
+		TArray<uint8> OutCompressedData;
+		// Compress the result to send on the wire
+		int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, InOutPayload.PayloadSize);
+		OutCompressedData.SetNumUninitialized(CompressedSize);
+		SCOPED_CONCERT_TRACE(SerializePayload_CompressMemory);
+		if (FCompression::CompressMemory(NAME_Zlib, OutCompressedData.GetData(), CompressedSize, InBytes.GetData(), InBytes.Num()))
 		{
-			// Uncompress the data
-			TArray<uint8> UncompressedData;
-			UncompressedData.SetNumUninitialized(InUncompressedDataSizeBytes);
-			if (FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedData.Num(), InCompressedData.GetData(), InCompressedData.Num()))
-			{
-				// Deserialize the uncompressed data
-				bSuccess = InDeserializeFunc(InEventType, InOutEventData, UncompressedData);
-			}
+			OutCompressedData.SetNum(CompressedSize, false);
+			InOutPayload.PayloadBytes.Bytes = MoveTemp(OutCompressedData);
+			InOutPayload.bPayloadIsCompressed = true;
 		}
 		else
 		{
-			bSuccess = true;
+			UE_LOG(LogConcert, Warning, TEXT("Unable to compress data for %s!"), *InEventType->GetName());
+			InOutPayload.bPayloadIsCompressed = false;
+		}
+	}
+	else
+	{
+		InOutPayload.bPayloadIsCompressed = false;
+	}
+
+	// Since we can support uncompressed or compressed data this is always successful.
+	return true;
+}
+
+using OptionalDecompressBytes = TOptional<TArray<uint8>>;
+
+OptionalDecompressBytes DecompressImpl(const FConcertSessionSerializedPayload& InPayload)
+{
+	if (InPayload.bPayloadIsCompressed)
+	{
+		const TArray<uint8> &InBytes = InPayload.PayloadBytes.Bytes;
+		TArray<uint8> UncompressedData;
+		UncompressedData.SetNumUninitialized(InPayload.PayloadSize);
+		SCOPED_CONCERT_TRACE(DeserializePayload_UncompressMemory);
+		if (FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedData.Num(), InBytes.GetData(), InBytes.Num()))
+		{
+			return OptionalDecompressBytes(MoveTemp(UncompressedData));
 		}
 	}
 
-	return bSuccess;
+	return OptionalDecompressBytes{};
 }
 
-bool SerializeBinaryPayload(const UScriptStruct* InEventType, const void* InEventData, int32& OutUncompressedDataSizeBytes, TArray<uint8>& OutCompressedData)
+bool SerializeImpl(const UScriptStruct* InSourceEventType, const void* InSourceEventData, FConcertSessionSerializedPayload& OutSerializedData)
 {
-	SCOPED_CONCERT_TRACE(ConcertPayload_SerializeBinaryPayload);
-	return SerializePayloadImpl(InEventType, InEventData, OutUncompressedDataSizeBytes, OutCompressedData, [](const UScriptStruct* InSourceEventType, const void* InSourceEventData, TArray<uint8>& OutSerializedData)
+	if (OutSerializedData.SerializationMethod == EConcertPayloadSerializationMethod::Cbor)
 	{
-		FConcertIdentifierWriter Archive(nullptr, OutSerializedData);
-		Archive.SetWantBinaryPropertySerialization(true);
-		const_cast<UScriptStruct*>(InSourceEventType)->SerializeItem(Archive, (uint8*)InSourceEventData, nullptr);
-		return !Archive.GetError();
-	});
-}
-
-bool DeserializeBinaryPayload(const UScriptStruct* InEventType, void* InOutEventData, const int32 InUncompressedDataSizeBytes, const TArray<uint8>& InCompressedData)
-{
-	SCOPED_CONCERT_TRACE(ConcertPayload_DeserializeBinaryPayload);
-	return DeserializePayloadImpl(InEventType, InOutEventData, InUncompressedDataSizeBytes, InCompressedData, [](const UScriptStruct* InTargetEventType, void* InOutTargetEventData, const TArray<uint8>& InSerializedData)
-	{
-		FConcertIdentifierReader Archive(nullptr, InSerializedData);
-		Archive.SetWantBinaryPropertySerialization(true);
-		const_cast<UScriptStruct*>(InTargetEventType)->SerializeItem(Archive, (uint8*)InOutTargetEventData, nullptr);
-		return !Archive.GetError();
-	});
-}
-
-bool SerializeCborPayload(const UScriptStruct* InEventType, const void* InEventData, int32& OutUncompressedDataSizeBytes, TArray<uint8>& OutCompressedData)
-{
-	SCOPED_CONCERT_TRACE(ConcertPayload_SerializeCborPayload);
-	return SerializePayloadImpl(InEventType, InEventData, OutUncompressedDataSizeBytes, OutCompressedData, [](const UScriptStruct* InSourceEventType, const void* InSourceEventData, TArray<uint8>& OutSerializedData)
-	{
-		FMemoryWriter Writer(OutSerializedData);
+		SCOPED_CONCERT_TRACE(ConcertPayload_SerializeBinaryCbor);
+		FMemoryWriter Writer(OutSerializedData.PayloadBytes.Bytes);
 		FCborStructSerializerBackend Serializer(Writer, EStructSerializerBackendFlags::Default);
 		FStructSerializer::Serialize(InSourceEventData, *const_cast<UScriptStruct*>(InSourceEventType), Serializer);
 		return !Writer.GetError();
-	});
+	}
+
+	SCOPED_CONCERT_TRACE(ConcertPayload_SerializeBinary);
+	FConcertIdentifierWriter Archive(nullptr, OutSerializedData.PayloadBytes.Bytes);
+	Archive.SetWantBinaryPropertySerialization(true);
+	const_cast<UScriptStruct*>(InSourceEventType)->SerializeItem(Archive, (uint8*)InSourceEventData, nullptr);
+	return !Archive.GetError();
 }
 
-bool DeserializeCborPayload(const UScriptStruct* InEventType, void* InOutEventData, const int32 InUncompressedDataSizeBytes, const TArray<uint8>& InCompressedData)
+bool DeserializeImpl(const UScriptStruct* InTargetEventType, void* InOutTargetEventData, EConcertPayloadSerializationMethod SerializeMethod, const TArray<uint8>& InBytes)
 {
-	SCOPED_CONCERT_TRACE(ConcertPayload_DeserializeCborPayload);
-	return DeserializePayloadImpl(InEventType, InOutEventData, InUncompressedDataSizeBytes, InCompressedData, [](const UScriptStruct* InTargetEventType, void* InOutTargetEventData, const TArray<uint8>& InSerializedData)
+	if (SerializeMethod == EConcertPayloadSerializationMethod::Cbor)
 	{
-		FMemoryReader Reader(InSerializedData);
+		SCOPED_CONCERT_TRACE(ConcertPayload_DeserializeBinaryCbor);
+		FMemoryReader Reader(InBytes);
 		FCborStructDeserializerBackend Deserializer(Reader);
 		return FStructDeserializer::Deserialize(InOutTargetEventData, *const_cast<UScriptStruct*>(InTargetEventType), Deserializer) && !Reader.GetError();
-	});
+	}
+
+	SCOPED_CONCERT_TRACE(ConcertPayload_DeserializeBinary);
+	FConcertIdentifierReader Archive(nullptr, InBytes);
+	Archive.SetWantBinaryPropertySerialization(true);
+	const_cast<UScriptStruct*>(InTargetEventType)->SerializeItem(Archive, (uint8*)InOutTargetEventData, nullptr);
+	return !Archive.GetError();
+}
+
+bool DeserializeAndDecompress(const UScriptStruct* InTargetEventType, void* InOutTargetEventData, const FConcertSessionSerializedPayload& InPayload)
+{
+	OptionalDecompressBytes DecompressedBytes = DecompressImpl(InPayload);
+	if ( InPayload.bPayloadIsCompressed && !DecompressedBytes.IsSet() )
+	{
+		return false;
+	}
+	const TArray<uint8>& ByteStream = DecompressedBytes.IsSet() ? DecompressedBytes.GetValue() : InPayload.PayloadBytes.Bytes;
+	return DeserializeImpl(InTargetEventType, InOutTargetEventData, InPayload.SerializationMethod, ByteStream);
+}
+
+bool SerializePreChecks(const UScriptStruct* InSourceEventType, const void* InSourceEventData, FConcertSessionSerializedPayload& OutSerializedData)
+{
+	OutSerializedData.PayloadSize = 0;
+	OutSerializedData.PayloadBytes.Bytes.Reset();
+
+	return InSourceEventType && InSourceEventData;
+}
+
+bool DeserializePreChecks(const UScriptStruct* InEventType, void* InOutEventData,  const FConcertSessionSerializedPayload& Payload)
+{
+	return InEventType && InOutEventData;
 }
 
 } // namespace PayloadDetail
 
-bool FConcertSessionSerializedPayload::SetPayload(const FStructOnScope& InPayload)
+bool FConcertSessionSerializedPayload::SetPayload(const FStructOnScope& InPayload, EConcertPayloadCompressionType CompressionType)
 {
 	const UStruct* PayloadStruct = InPayload.GetStruct();
 	check(PayloadStruct->IsA<UScriptStruct>());
-	return SetPayload((UScriptStruct*)PayloadStruct, InPayload.GetStructMemory());
+	return SetPayload((UScriptStruct*)PayloadStruct, InPayload.GetStructMemory(), CompressionType);
 }
 
-bool FConcertSessionSerializedPayload::SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData)
+bool FConcertSessionSerializedPayload::SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData, EConcertPayloadCompressionType CompressionType)
 {
 	check(InPayloadType && InPayloadData);
 	PayloadTypeName = *InPayloadType->GetPathName();
-	return PayloadDetail::SerializeBinaryPayload(InPayloadType, InPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
+	return PayloadDetail::SerializePreChecks(InPayloadType, InPayloadData, *this)
+		&& PayloadDetail::SerializeImpl(InPayloadType, InPayloadData, *this)
+		&& PayloadDetail::TryCompressImpl(InPayloadType, InPayloadData, *this, CompressionType);
 }
 
 bool FConcertSessionSerializedPayload::GetPayload(FStructOnScope& OutPayload) const
@@ -308,7 +323,8 @@ bool FConcertSessionSerializedPayload::GetPayload(FStructOnScope& OutPayload) co
 		OutPayload.Initialize(PayloadType);
 		const UStruct* PayloadStruct = OutPayload.GetStruct();
 		check(PayloadStruct->IsA<UScriptStruct>());
-		return PayloadDetail::DeserializeBinaryPayload((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), UncompressedPayloadSize, CompressedPayload.Bytes);
+		return PayloadDetail::DeserializePreChecks((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), *this)
+			&& PayloadDetail::DeserializeAndDecompress((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), *this);
 	}
 	return false;
 }
@@ -320,46 +336,8 @@ bool FConcertSessionSerializedPayload::GetPayload(const UScriptStruct* InPayload
 	if (PayloadType)
 	{
 		check(InPayloadType->IsChildOf(PayloadType));
-		return PayloadDetail::DeserializeBinaryPayload((UScriptStruct*)InPayloadType, InOutPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
-	}
-	return false;
-}
-
-bool FConcertSessionSerializedCborPayload::SetPayload(const FStructOnScope& InPayload)
-{
-	const UStruct* PayloadStruct = InPayload.GetStruct();
-	check(PayloadStruct->IsA<UScriptStruct>());
-	return SetPayload((UScriptStruct*)PayloadStruct, InPayload.GetStructMemory());
-}
-
-bool FConcertSessionSerializedCborPayload::SetPayload(const UScriptStruct* InPayloadType, const void* InPayloadData)
-{
-	check(InPayloadType && InPayloadData);
-	PayloadTypeName = *InPayloadType->GetPathName();
-	return PayloadDetail::SerializeCborPayload(InPayloadType, InPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
-}
-
-bool FConcertSessionSerializedCborPayload::GetPayload(FStructOnScope& OutPayload) const
-{
-	const UStruct* PayloadType = FindObject<UStruct>(nullptr, *PayloadTypeName.ToString());
-	if (PayloadType)
-	{
-		OutPayload.Initialize(PayloadType);
-		const UStruct* PayloadStruct = OutPayload.GetStruct();
-		check(PayloadStruct->IsA<UScriptStruct>());
-		return PayloadDetail::DeserializeCborPayload((UScriptStruct*)PayloadStruct, OutPayload.GetStructMemory(), UncompressedPayloadSize, CompressedPayload.Bytes);
-	}
-	return false;
-}
-
-bool FConcertSessionSerializedCborPayload::GetPayload(const UScriptStruct* InPayloadType, void* InOutPayloadData) const
-{
-	check(InPayloadType && InOutPayloadData);
-	const UStruct* PayloadType = FindObject<UStruct>(nullptr, *PayloadTypeName.ToString());
-	if (PayloadType)
-	{
-		check(InPayloadType->IsChildOf(PayloadType));
-		return PayloadDetail::DeserializeCborPayload((UScriptStruct*)InPayloadType, InOutPayloadData, UncompressedPayloadSize, CompressedPayload.Bytes);
+		return PayloadDetail::DeserializePreChecks((UScriptStruct*)InPayloadType, InOutPayloadData, *this)
+			&& PayloadDetail::DeserializeAndDecompress((UScriptStruct*)InPayloadType, InOutPayloadData, *this);
 	}
 	return false;
 }

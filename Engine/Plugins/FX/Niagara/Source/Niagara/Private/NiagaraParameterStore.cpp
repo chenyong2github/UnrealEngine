@@ -778,7 +778,7 @@ void FNiagaraParameterStore::SanityCheckData(bool bInitInterfaces)
 
 	if (Owner && OwnerDirtied)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("%s needs to be resaved to prevent above warnings due to the parameter state being stale."), *Owner->GetFullName());
+		UE_LOG(LogNiagara, Verbose, TEXT("%s needs to be resaved to prevent above warnings due to the parameter state being stale."), *Owner->GetFullName());
 	}
 }
 

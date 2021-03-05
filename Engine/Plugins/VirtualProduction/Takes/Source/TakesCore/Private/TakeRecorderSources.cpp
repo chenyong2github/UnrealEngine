@@ -463,7 +463,7 @@ void UTakeRecorderSources::SetSectionStartTimecode(UMovieSceneSubSection* SubSec
 }
 
 
-void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer)
+void UTakeRecorderSources::SetCachedAssets(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer)
 {
 	// We want to cache the Serializer and Level Sequence in case more objects start recording mid-recording.
 	// We want them to use the same logic flow as if initialized from scratch so that they properly sort into
@@ -471,7 +471,11 @@ void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, FManif
 	CachedManifestSerializer = InManifestSerializer;
 	CachedLevelSequence = InSequence;
 	RecordedTimes.Empty();
+}
 
+void UTakeRecorderSources::PreRecording(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer)
+{
+	SetCachedAssets(InSequence, InManifestSerializer);
 	PreRecordSources(Sources);
 }
 
@@ -487,6 +491,14 @@ void UTakeRecorderSources::StartRecording(class ULevelSequence* InSequence, cons
 	InSequence->GetMovieScene()->TimecodeSource = InTimecodeSource;
 	StartRecordingTimecodeSource = InTimecodeSource;
 	StartRecordingPreRecordedSources(InTimecodeSource);
+}
+
+FFrameTime UTakeRecorderSources::AdvanceTime(float DeltaTime)
+{
+	FQualifiedFrameTime FrameTime = GetCurrentRecordingFrameTime();
+	//Time in seconds since recording started. Used when there is no Timecode Sync (e.g. in case it get's lost or dropped).
+	TimeSinceRecordingStarted += DeltaTime;
+	return FrameTime.ConvertTo(TargetLevelSequenceTickResolution);
 }
 
 FFrameTime UTakeRecorderSources::TickRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, float DeltaTime)

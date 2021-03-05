@@ -19,6 +19,7 @@
 #endif
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "DeviceProfiles/DeviceProfileFragment.h"
+#include "GenericPlatform/GenericPlatformCrashContext.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDeviceProfileManager, Log, All);
 
@@ -772,7 +773,7 @@ void UDeviceProfileManager::LoadProfiles()
 				ITargetPlatform* Platform = TargetPlatforms[PlatformIndex];
 
 				// Set TextureLODSettings
-				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(Platform->IniPlatformName(), false);
+				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(Platform->PlatformName(), false);
 				Platform->RegisterTextureLODSettings(TextureLODSettingsObj);
 			}
 		}
@@ -1009,6 +1010,9 @@ void UDeviceProfileManager::SetActiveDeviceProfile( UDeviceProfile* DeviceProfil
 #if CSV_PROFILER
 	CSV_METADATA(TEXT("DeviceProfile"), *GetActiveDeviceProfileName());
 #endif
+
+	// Update the crash context 
+	FGenericCrashContext::SetEngineData(TEXT("DeviceProfile.Name"), GetActiveDeviceProfileName());
 }
 
 

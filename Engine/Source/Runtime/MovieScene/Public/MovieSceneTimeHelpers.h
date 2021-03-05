@@ -77,6 +77,28 @@ inline FFrameNumber DiscreteExclusiveUpper(const TRange<FFrameNumber>& InRange)
 
 
 /**
+ * Make a new range that includes the given minimum and excludes the given maximum.
+ *
+ * @param MinInclusive The minimum value for the inclusive lower bound
+ * @param MaxExclusive The maximum value for the exclusive upper bound
+ * @return A new range.
+ */
+inline TRange<FFrameNumber> MakeDiscreteRange(FFrameNumber MinInclusive, FFrameNumber MaxExclusive)
+{
+	return TRange<FFrameNumber>(TRangeBound<FFrameNumber>::Inclusive(MinInclusive), TRangeBound<FFrameNumber>::Exclusive(MaxExclusive));
+}
+
+
+/**
+ * Return whether the given range is empty or zero frames wide
+ */
+inline bool IsEmptyOrZeroSize(const TRange<FFrameNumber>& InRange)
+{
+	return InRange.IsEmpty() || InRange.Size<FFrameNumber>() == 0;
+}
+
+
+/**
  * Make a new range using the specified lower bound, and a given size.
  */
 inline TRange<FFrameNumber> MakeDiscreteRangeFromLower(const TRangeBound<FFrameNumber>& InLowerBound, int32 DiscreteSize)

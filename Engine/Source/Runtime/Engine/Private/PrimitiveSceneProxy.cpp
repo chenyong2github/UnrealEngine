@@ -174,6 +174,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	bIsBeingMovedByEditor(InComponent->bIsBeingMovedByEditor)
 ,	bReceiveMobileCSMShadows(InComponent->bReceiveMobileCSMShadows)
 ,	bRenderCustomDepth(InComponent->bRenderCustomDepth)
+,	bVisibleInSceneCaptureOnly(InComponent->bVisibleInSceneCaptureOnly)
+,	bHiddenInSceneCapture(InComponent->bHiddenInSceneCapture)
 ,	CustomDepthStencilValue(InComponent->CustomDepthStencilValue)
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
@@ -830,6 +832,17 @@ bool FPrimitiveSceneProxy::IsShown(const FSceneView* View) const
 		}
 	}
 
+	if (View->bIsSceneCapture)
+	{
+		if (IsHiddenInSceneCapture())
+			return false;
+	}
+	else
+	{
+		if (IsVisibleInSceneCaptureOnly())
+			return false;
+	}
+
 	return true;
 }
 
@@ -895,6 +908,16 @@ bool FPrimitiveSceneProxy::IsShadowCast(const FSceneView* View) const
 		{
 			return false;
 		}
+	}
+
+	if (View->bIsSceneCapture && IsHiddenInSceneCapture())
+	{
+		return false;
+	}
+
+	if (!View->bIsSceneCapture && IsVisibleInSceneCaptureOnly())
+	{
+		return false;
 	}
 
 	return true;

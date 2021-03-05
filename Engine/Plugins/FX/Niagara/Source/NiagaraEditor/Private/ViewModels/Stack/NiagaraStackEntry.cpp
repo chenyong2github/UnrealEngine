@@ -21,7 +21,7 @@ const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Event = TEXT("Event"
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::SimulationStage = TEXT("Simulation Stage");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Render = TEXT("Render");
 
-UNiagaraStackEntry::FStackIssueFix::FStackIssueFix()
+UNiagaraStackEntry::FStackIssueFix::FStackIssueFix() : Style(EStackIssueFixStyle::Fix)
 {
 }
 
@@ -65,7 +65,7 @@ UNiagaraStackEntry::EStackIssueFixStyle UNiagaraStackEntry::FStackIssueFix::GetS
 	return Style;
 }
 
-UNiagaraStackEntry::FStackIssue::FStackIssue()
+UNiagaraStackEntry::FStackIssue::FStackIssue() : Severity(EStackIssueSeverity::None)
 {
 }
 
@@ -131,9 +131,19 @@ const TArray<UNiagaraStackEntry::FStackIssueFix>& UNiagaraStackEntry::FStackIssu
 	return Fixes;
 }
 
+bool UNiagaraStackEntry::FStackIssue::GetIsExpandedByDefault() const
+{
+	return bIsExpandedByDefault;
+}
+
 void UNiagaraStackEntry::FStackIssue::InsertFix(int32 InsertionIdx, const UNiagaraStackEntry::FStackIssueFix& Fix)
 {
 	Fixes.Insert(Fix, InsertionIdx);
+}
+
+void UNiagaraStackEntry::FStackIssue::SetIsExpandedByDefault(bool InExpanded)
+{
+	bIsExpandedByDefault = InExpanded;
 }
 
 

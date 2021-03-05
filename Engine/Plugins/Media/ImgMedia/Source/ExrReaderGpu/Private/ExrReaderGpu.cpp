@@ -216,7 +216,7 @@ bool FExrReader::ReadLineOffsets(FILE* FileHandle, ELineOrder LineOrder, TArray<
 	return true;
 }
 
-bool FExrReader::GenerateTextureData(uint16* Buffer, FString FilePath, int32 TextureWidth, int32 TextureHeight, int32& PixelSize, int32 NumChannels)
+bool FExrReader::GenerateTextureData(uint16* Buffer, FString FilePath, int32 TextureWidth, int32 TextureHeight, int32 PixelSize, int32 NumChannels)
 {
 	check(Buffer != nullptr);
 

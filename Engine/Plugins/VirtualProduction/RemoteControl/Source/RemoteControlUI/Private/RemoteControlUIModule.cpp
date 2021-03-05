@@ -4,6 +4,7 @@
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
 #include "UI/RemoteControlPanelStyle.h"
+#include "UI/SRCPanelInputBindings.h"
 #include "Widgets/SWidget.h"
 #include "PropertyHandle.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -60,6 +61,11 @@ TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel
 			});
 
 	return PanelRef;
+}
+
+TSharedRef<SRCPanelInputBindings> FRemoteControlUIModule::CreateInputBindingsPanel(URemoteControlPreset* Preset)
+{
+	return SNew(SRCPanelInputBindings, Preset);
 }
 
 void FRemoteControlUIModule::RegisterContextMenuExtender()

@@ -4814,20 +4814,20 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	{
 		InvalidateLightingCache();
 	}
-	else if(
-		PropertyName == FName(TEXT("CastShadow")) ||
-		PropertyName == FName(TEXT("bCastDynamicShadow")) ||
-		PropertyName == FName(TEXT("bCastStaticShadow")) ||
-		PropertyName == FName(TEXT("bCastContactShadow")) ||
-		PropertyName == FName(TEXT("bCastFarShadow")) ||
-		PropertyName == FName(TEXT("bCastHiddenShadow")) ||
-		PropertyName == FName(TEXT("bCastShadowAsTwoSided")) ||
-		PropertyName == FName(TEXT("bAffectDistanceFieldLighting")) ||
-		PropertyName == FName(TEXT("bRenderCustomDepth")) ||
-		PropertyName == FName(TEXT("CustomDepthStencilWriteMask")) ||
-		PropertyName == FName(TEXT("CustomDepthStencilValue")) ||
-		PropertyName == FName(TEXT("LightingChannels")) ||
-		PropertyName == FName(TEXT("LDMaxDrawDistance")))
+	else if ((PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, CastShadow))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastDynamicShadow))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastStaticShadow))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastFarShadow))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastHiddenShadow))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bCastShadowAsTwoSided))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bAffectDistanceFieldLighting))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bRenderCustomDepth))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, CustomDepthStencilWriteMask))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, CustomDepthStencilValue))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LightingChannels))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, LDMaxDrawDistance))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bUsedForNavigation))
+		|| (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bFillCollisionUnderLandscapeForNavmesh)))
 	{
 		// Replicate shared properties to all components.
 		for (int32 ComponentIndex = 0; ComponentIndex < LandscapeComponents.Num(); ComponentIndex++)
@@ -5047,8 +5047,6 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	bool ChangedMaterial = false;
 	bool bNeedsRecalcBoundingBox = false;
 	bool bChangedLighting = false;
-	bool bChangedNavRelevance = false;
-	bool bChangeRejectNavmeshUnder = false;
 	bool bPropagateToProxies = false;
 
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -5183,14 +5181,6 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	{
 		ExportLOD = FMath::Clamp<int32>(ExportLOD, 0, FMath::CeilLogTwo(SubsectionSizeQuads + 1) - 1);
 	}
-	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bUsedForNavigation))
-	{
-		bChangedNavRelevance = true;
-	}
-	else if (GIsEditor && PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, bFillCollisionUnderLandscapeForNavmesh))
-	{
-		bChangeRejectNavmeshUnder = true;
-	}
 
 	// Must do this *after* clamping values
 	Super::PostEditChangeProperty(PropertyChangedEvent);
@@ -5216,7 +5206,7 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 			LandscapeEdit.RecalculateNormals();
 		}
 
-		if (bNeedsRecalcBoundingBox || ChangedMaterial || bChangedLighting || bChangedNavRelevance || bChangeRejectNavmeshUnder)
+		if (bNeedsRecalcBoundingBox || ChangedMaterial || bChangedLighting)
 		{
 			// We cannot iterate the XYtoComponentMap directly because reregistering components modifies the array.
 			TArray<ULandscapeComponent*> AllComponents;
@@ -5236,16 +5226,6 @@ void ALandscape::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 					if (bChangedLighting)
 					{
 						Comp->InvalidateLightingCache();
-					}
-
-					if (bChangedNavRelevance)
-					{
-						Comp->UpdateNavigationRelevance();
-					}
-
-					if (bChangeRejectNavmeshUnder)
-					{
-						Comp->UpdateRejectNavmeshUnderneath();
 					}
 				}
 			}

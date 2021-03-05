@@ -274,12 +274,11 @@
 	#endif
 #endif
 
-// TODO: Update to VK_KHR_shading_rate_image when we update Vulkan SDK (same functionality but core extension instead of NV-specific).
-#ifndef VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	#ifdef VK_NV_shading_rate_image
-		#define VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE			1
+#ifndef VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	#ifdef VK_KHR_fragment_shading_rate
+		#define VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE 1
 	#else
-		#define VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE			0
+		#define VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE 0
 	#endif
 #endif
 

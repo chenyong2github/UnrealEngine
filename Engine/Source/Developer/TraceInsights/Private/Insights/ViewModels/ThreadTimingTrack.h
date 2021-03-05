@@ -43,6 +43,7 @@ public:
 	virtual ~FThreadTimingSharedState() = default;
 
 	TSharedPtr<FGpuTimingTrack> GetGpuTrack() { return GpuTrack; }
+	TSharedPtr<FGpuTimingTrack> GetGpu2Track() { return Gpu2Track; }
 	TSharedPtr<FCpuTimingTrack> GetCpuTrack(uint32 InThreadId);
 
 	bool IsGpuTrackVisible() const;
@@ -85,6 +86,7 @@ private:
 	bool bShowHideAllCpuTracks;
 
 	TSharedPtr<FGpuTimingTrack> GpuTrack;
+	TSharedPtr<FGpuTimingTrack> Gpu2Track;
 
 	/** Maps thread id to track pointer. */
 	TMap<uint32, TSharedPtr<FCpuTimingTrack>> CpuTracks;

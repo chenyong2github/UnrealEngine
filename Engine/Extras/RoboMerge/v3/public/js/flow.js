@@ -9,43 +9,107 @@ const EDGE_STYLES = {
 	blockAssets: [['color', 'darkgray'], ['style', 'dashed'], ['arrowhead', 'odiamond']]
 };
 
+function setDefault(map, key, def) {
+	const val = map.get(key)
+	if (val) {
+		return val
+	}
+	map.set(key, def)
+	return def
+}
+
+
 function renderGraph(src) {
 	var hpccWasm = window["@hpcc-js/wasm"];
 	return hpccWasm.graphviz.layout(src, "svg", "dot");
 }
 
-function showFlowGraph(data, botName) {
+function decoratedAlias(bot, alias) {
+	return bot + ':' + alias
+}
+
+function showFlowGraph(data, botNameParam) {
+
+	let whitelist = null
+	let botName
+	if (Array.isArray(botNameParam)) {
+		botName = null
+		if (botNameParam.length > 0) {
+			whitelist = botNameParam.map(s => s.toUpperCase())
+		}
+	}
+	else {
+		botName = botNameParam
+	}
 
 	const addLinesForBranchGraph = (outLines, bot, branchList) => {
-		const aliases = new Map;
-		const nodeLabels = [];
-		const getId = alias => {
-			const info = aliases.get(alias);
-			return info ? info.id : alias;
-		};
+		const aliases = new Map
+		const nodeLabels = new Map
+		function getIdForBot(bot) {
+			return alias => {
+				const info = aliases.get(decoratedAlias(bot, alias))
+				return info ? info.id : alias
+			}
+		}
+
+		// if showing all bots, build up map from stream to nodes
+		const streamMap = new Map
+		if (!botName) {
+			for (let branchStatus of branchList) {
+				setDefault(streamMap, branchStatus.def.rootPath, []).push(branchStatus)
+			}
+
+			// create a shared info for each set of nodes monitoring the same stream
+			for (const [k, v] of streamMap) {
+				if (v.length > 1) {
+					const info = {
+						id: k.replace(/[^\w]+/g, '_'), tooltip: 'tooltip todo', name: k
+					}
+					for (const branchStatus of v) {
+
+						for (const alias of branchStatus.def.aliases) {
+							aliases.set(decoratedAlias(branchStatus.bot, alias), info)
+						}
+					}
+
+					setDefault(nodeLabels, 'nogroup', []).push(info)
+				}
+			}
+		}
+
 
 		// build map of all aliases and list of node information
-		for (let branch of branchList) {
-			let id = `_${bot}_${branch.upperName.replace(/[^\w]+/g, '_')}`;
+		for (let branchStatus of branchList) {
+			const branch = branchStatus.def
+			if (aliases.has(decoratedAlias(branchStatus.bot, branch.upperName)))
+				continue
+
 			let tooltip = branch.rootPath;
 			if (branch.aliases && branch.aliases.length !== 0) {
 				tooltip += ` (${branch.aliases.join(', ')})`;
 			}
-			const info = { id: id, tooltip: tooltip, name: branch.name };
+			const info = {
+				id: `_${branchStatus.bot}_${branch.upperName.replace(/[^\w]+/g, '_')}`,
+				tooltip, name: branch.name
+			}
 			if (branch.config.graphNodeColor) {
-				info.graphNodeColor = branch.config.graphNodeColor;
+				info.graphNodeColor = branch.config.graphNodeColor
 			}
 			// note: branch.upperName is always in branch.aliases
 			for (const alias of branch.aliases) {
-				aliases.set(alias, info);
+				aliases.set(decoratedAlias(branchStatus.bot, alias), info)
 			}
 
-			nodeLabels.push(info);
+			console.log(botName)
+			setDefault(nodeLabels, botName ? 'nogroup' : branchStatus.bot, []).push(info);
 		}
 
 		const branchesById = new Map;
-		for (const branch of branchList) {
-			const branchId = getId(branch.upperName);
+		for (let branchStatus of branchList) {
+			const branch = branchStatus.def
+			const getId = getIdForBot(branchStatus.bot)
+			const branchId = getId(branch.upperName)
+
 			branchesById.set(branchId, {
 				id: branchId,
 				forcedDests: new Set(branch.forceFlowTo.map(getId)),
@@ -58,13 +122,14 @@ function showFlowGraph(data, botName) {
 		const nodeImportance = new Map;
 
 		// special case branches named Main
-		nodeImportance.set(getId("MAIN"), 10);
+		nodeImportance.set(getIdForBot(bot)("MAIN"), 10);
 
 		const links = [];
-		for (const roboBranch of branchList) {
-			const branch = branchesById.get(getId(roboBranch.upperName));
+		for (let branchStatus of branchList) {
+			const getId = getIdForBot(branchStatus.bot)
+			const branch = branchesById.get(getId(branchStatus.def.upperName));
 
-			for (let flow of roboBranch.flowsTo) {
+			for (let flow of branchStatus.def.flowsTo) {
 				let src = branch.id;
 				let dst = getId(flow);
 				nodeImportance.set(src, (nodeImportance.get(src) || 0) + 1);
@@ -72,10 +137,10 @@ function showFlowGraph(data, botName) {
 
 				const isForced = branch.forcedDests.has(dst);
 				const edgeStyle =
-					roboBranch.convertIntegratesToEdits ?	'roboshelf' :
-					isForced ?								'forced' :
-					branch.defaultDests.has(dst) ?			'defaultFlow' :
-					branch.blockAssetDests.has(dst) ?		'blockAssets' : 'onRequest';
+					branchStatus.def.convertIntegratesToEdits ?	'roboshelf' :
+					isForced ?									'forced' :
+					branch.defaultDests.has(dst) ?				'defaultFlow' :
+					branch.blockAssetDests.has(dst) ?			'blockAssets' : 'onRequest';
 
 
 				const styles = [...EDGE_STYLES[edgeStyle]];
@@ -90,62 +155,89 @@ function showFlowGraph(data, botName) {
 			}
 		}
 
-		let nodeInfo = [];
-		for (const info of nodeLabels) {
-			const {id, tooltip, name} = info;
-			let factor = (Math.min(nodeImportance.get(id) || 0, 10) - 1) / 9;
-			nodeInfo.push({
-				importance: factor,
-				marginX: (.2 * (1 - factor) + .4 * factor).toPrecision(1),
-				marginY: (.1 * (1 - factor) + .25 * factor).toPrecision(1),
-				fontSize: (14 * (1 - factor) + 20 * factor).toPrecision(2),
-				info: info
-			});
+		const nodeGroups = []
+		for (let [k, v] of nodeLabels) {
+			const nodeInfo = []
+			nodeGroups.push([k, nodeInfo])
+
+			for (const info of v) {
+				const {id, tooltip, name} = info;
+				let factor = (Math.min(nodeImportance.get(id) || 0, 10) - 1) / 9;
+				nodeInfo.push({
+					importance: factor,
+					marginX: (.2 * (1 - factor) + .4 * factor).toPrecision(1),
+					marginY: (.1 * (1 - factor) + .25 * factor).toPrecision(1),
+					fontSize: (14 * (1 - factor) + 20 * factor).toPrecision(2),
+					info: info
+				});
+			}
 		}
 
-		for (const info of nodeInfo) {
-			const attrs = [
-				['label', `"${info.info.name}"`],
-				['tooltip', `"${info.info.tooltip}"`],
-				['margin', `"${info.marginX},${info.marginY}"`],
-				['fontsize', info.fontSize],
-			];
-
-			if (info.importance > .5) {
-				attrs.push(['style', '"filled,bold"']);
+		for (let [groupName, nodeInfo] of nodeGroups) {
+			if (groupName !== 'nogroup') {
+				outLines.push(`subgraph cluster_${groupName} {
+	label="${groupName}";
+`)
 			}
-			if (info.info.graphNodeColor) {
-				attrs.push(['fillcolor', `"${info.info.graphNodeColor}"`]);
+			for (const info of nodeInfo) {
+				const attrs = [
+					['label', `"${info.info.name}"`],
+					['tooltip', `"${info.info.tooltip}"`],
+					['margin', `"${info.marginX},${info.marginY}"`],
+					['fontsize', info.fontSize],
+				];
+
+				if (info.importance > .5) {
+					attrs.push(['style', '"filled,bold"']);
+				}
+				if (info.info.graphNodeColor) {
+					attrs.push(['fillcolor', `"${info.info.graphNodeColor}"`]);
+				}
+
+				const attrStrs = attrs.map(([key, value]) => `${key}=${value}`);
+				outLines.push(`${info.info.id} [${attrStrs.join(', ')}];`);
 			}
 
-			const attrStrs = attrs.map(([key, value]) => `${key}=${value}`);
-			outLines.push(`${info.info.id} [${attrStrs.join(', ')}];`);
+			if (groupName !== 'nogroup') {
+				outLines.push('}')
+			}
 		}
 
 		links.reverse();
 		for (const link of links) {
+			// when there's forced/unforced pair, only the former is a constrait
+			// (this makes flow )
 			const combo = link.dst + link.src;
 
 			if (combo && linkOutward.has(combo) && linkInward.has(combo)) {
 				link.styles.push(['constraint', 'false']);
 			}
+
 			const styleStrs = link.styles.map(([key, value]) => `${key}=${value}`);
 			const suffix = styleStrs.length === 0 ? '' : ` [${styleStrs.join(', ')}]`;
 			outLines.push(`${link.src} -> ${link.dst}${suffix};`);
 		}
 	};
 
-
 	let bots = new Map;
 	for (let branch of data) {
-		if (botName && branch.bot !== botName)
-			continue;
-		let branchList = bots.get(branch.bot);
-		if (!branchList) {
-			branchList = [];
-			bots.set(branch.bot, branchList);
+		let bot
+		if (botName) {
+		 	if (branch.bot !== botName)
+				continue
+			bot = branch.bot
 		}
-		branchList.push(branch.def);
+		else {
+			if (whitelist && whitelist.indexOf(branch.bot) < 0)
+				continue
+			bot = 'all'
+		}
+		let branchList = bots.get(bot)
+		if (!branchList) {
+			branchList = []
+			bots.set(bot, branchList)
+		}
+		branchList.push(branch)
 	}
 
 	let graphSrcIter = (function*() {

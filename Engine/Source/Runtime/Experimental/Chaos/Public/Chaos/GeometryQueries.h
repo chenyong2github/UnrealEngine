@@ -93,7 +93,7 @@ namespace Chaos
 				}
 				case ImplicitObjectType::LevelSet:
 				{
-					const TLevelSet<FReal, 3>& ALevelSet = static_cast<const TLevelSet<FReal, 3>&>(A);
+					const FLevelSet& ALevelSet = static_cast<const FLevelSet&>(A);
 					return ALevelSet.OverlapGeom(B, BToATM, Thickness, OutMTD);
 				}
 				default:
@@ -140,6 +140,7 @@ namespace Chaos
 		FVec3 LocalNormal(0);
 
 		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);
+		ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER)); // Added to help determine cause of this ensure firing in GJKRaycast2.
 		const FVec3 LocalDir = ATM.InverseTransformVectorNoScale(Dir);
 
 		bool bSweepAsRaycast = BType == ImplicitObjectType::Sphere && !bComputeMTD;
@@ -214,7 +215,7 @@ namespace Chaos
 				}
 				case ImplicitObjectType::LevelSet:
 				{
-					const TLevelSet<FReal, 3>& ALevelSet = static_cast<const TLevelSet<FReal, 3>&>(A);
+					const FLevelSet& ALevelSet = static_cast<const FLevelSet&>(A);
 					bResult = ALevelSet.SweepGeom(B, BToATM, LocalDir, Length, OutTime, LocalPosition, LocalNormal, OutFaceIndex, Thickness, bComputeMTD);
 					break;
 				}

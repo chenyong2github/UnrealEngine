@@ -37,8 +37,8 @@ public:
 	using FConstraintData = typename CONSTRAINT_TYPE::FData;
 	using FSuspensionConstraints = Chaos::FPBDSuspensionConstraints;
 	using FSuspensionConstraintDirtyFlags = Chaos::FSuspensionConstraintDirtyFlags;
-	using FParticlePair = Chaos::TVector<Chaos::TGeometryParticle<FReal, 3>*, 2>;
-	using FParticleHandlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<FReal, 3>*, 2>;
+	using FParticlePair = Chaos::TVector<Chaos::FGeometryParticle*, 2>;
+	using FParticleHandlePair = Chaos::TVector<Chaos::FGeometryParticleHandle*, 2>;
 
 	TSuspensionConstraintProxy() = delete;
 	TSuspensionConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr); // @todo(brice) : make FPBDSuspensionSetting a type defined on the CONSTRAINT_TYPE
@@ -51,7 +51,7 @@ public:
 	bool IsInitialized() const { return bInitialized; }
 	void SetInitialized() { bInitialized = true; }
 
-	static Chaos::TGeometryParticleHandle<Chaos::FReal, 3>* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
+	static Chaos::FGeometryParticleHandle* GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase);
 
 	//
 	//  Lifespan Management

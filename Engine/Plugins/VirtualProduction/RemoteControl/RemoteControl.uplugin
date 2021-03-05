@@ -10,7 +10,7 @@
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Installed": false,
 	"Plugins": [
@@ -37,6 +37,11 @@
 		},
 		{
 			"Name": "RemoteControlUI",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RemoteControlEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
 		}

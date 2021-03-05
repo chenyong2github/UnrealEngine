@@ -12,7 +12,11 @@ void FCoreTechTranslator::GetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmi
 		return;
 	}
 
-	Options.Add(GetCommonTessellationOptionsPtr());
+	TStrongObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
+	check(CommonTessellationOptionsPtr.IsValid());
+	InitCommonTessellationOptions(CommonTessellationOptionsPtr->Options);
+
+	Options.Add(CommonTessellationOptionsPtr);
 }
 
 void FCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmithOptionsBase>>& Options)
@@ -21,21 +25,9 @@ void FCoreTechTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDatasmi
 	{
 		if (UDatasmithCommonTessellationOptions* TessellationOptionsObject = Cast<UDatasmithCommonTessellationOptions>(OptionPtr.Get()))
 		{
-			CommonTessellationOptionsPtr.Reset(TessellationOptionsObject);
+			CommonTessellationOptions = TessellationOptionsObject->Options;
 		}
 	}
-}
-
-TStrongObjectPtr<UDatasmithCommonTessellationOptions>& FCoreTechTranslator::GetCommonTessellationOptionsPtr()
-{
-	if (!CommonTessellationOptionsPtr.IsValid())
-	{
-		CommonTessellationOptionsPtr = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
-		check(CommonTessellationOptionsPtr.IsValid());
-		InitCommonTessellationOptions(CommonTessellationOptionsPtr->Options);
-	}
-
-	return CommonTessellationOptionsPtr;
 }
 
 

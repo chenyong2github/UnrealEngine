@@ -4,7 +4,6 @@
 
 #include "DatasmithExporterManager.h"
 #include "DirectLinkEndpoint.h"
-#include "DirectLinkMessages.h"
 
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
@@ -365,7 +364,7 @@ void SDirectLinkStreamManager::UpdateData(const DirectLink::FRawInfo& RawInfo)
 
 		// Grab all the sources
 		SourcesMap.Reserve( EndpointInfo.Sources.Num() );
-		for ( const FNamedId& NamedId : EndpointInfo.Sources )
+		for ( const FRawInfo::FDataPointId& NamedId : EndpointInfo.Sources )
 		{
 			TSharedRef<FSourceData> Source = MakeShared<FSourceData>( NamedId.Name,
 				NamedId.Id,
@@ -387,7 +386,7 @@ void SDirectLinkStreamManager::UpdateData(const DirectLink::FRawInfo& RawInfo)
 			);
 
 		DestinationsMap.Reserve( EndpointInfo.Destinations.Num() );
-		for (const FNamedId& NamedId : EndpointInfo.Destinations)
+		for (const FRawInfo::FDataPointId& NamedId : EndpointInfo.Destinations)
 		{
 			TSharedRef<FDestinationData> Destination = MakeShared<FDestinationData>( NamedId.Name,
 				NamedId.Id,

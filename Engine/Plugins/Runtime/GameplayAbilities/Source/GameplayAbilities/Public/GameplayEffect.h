@@ -1002,7 +1002,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectSpec
 	float GetChanceToApplyToTarget() const;
 
 	/** Set the context info: who and where this spec came from. */
-	void SetContext(FGameplayEffectContextHandle NewEffectContext);
+	void SetContext(FGameplayEffectContextHandle NewEffectContext, bool bSkipRecaptureSourceActorTags = false);
 
 	FGameplayEffectContextHandle GetContext() const
 	{
@@ -1074,7 +1074,7 @@ struct GAMEPLAYABILITIES_API FGameplayEffectSpec
 
 private:
 
-	void CaptureDataFromSource();
+	void CaptureDataFromSource(bool bSkipRecaptureSourceActorTags = false);
 
 public:
 

@@ -59,6 +59,20 @@ public:
 			}
 		}
 
+		if (!Action.IsEmpty())
+		{
+			if (LauncherUriRequest.Contains("?"))
+			{
+				LauncherUriRequest += TEXT("&");			
+			}
+			else
+			{
+				LauncherUriRequest += TEXT("?");
+			}
+
+			LauncherUriRequest += FString::Printf(TEXT("action=%s"), *Action);
+		}
+
 		return LauncherUriRequest;
 	}
 
@@ -66,6 +80,7 @@ public:
 
 	bool bInstall;
 	bool bSilent;
+	FString Action;
 	FString LauncherRelativeUrl;
 };
 

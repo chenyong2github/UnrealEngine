@@ -64,6 +64,8 @@ namespace ImmediatePhysics_Chaos
 
 		void AddForce(const FVector& Force);
 
+		void AddTorque(const FVector& Torque);
+
 		void AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
 
 		void AddImpulseAtLocation(FVector Impulse, FVector Location);
@@ -121,8 +123,8 @@ namespace ImmediatePhysics_Chaos
 		/** Get the actor-space centre of mass offset */
 		FTransform GetLocalCoMTransform() const;
 
-		Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle();
-		const Chaos::TGeometryParticleHandle<FReal, Dimensions>* GetParticle() const;
+		Chaos::FGeometryParticleHandle* GetParticle();
+		const Chaos::FGeometryParticleHandle* GetParticle() const;
 
 		int32 GetLevel() const;
 		void SetLevel(int32 InLevel);
@@ -134,7 +136,7 @@ namespace ImmediatePhysics_Chaos
 		friend struct FJointHandle;
 
 		FActorHandle(
-			Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles,
+			Chaos::FPBDRigidsSOAs& InParticles,
 			Chaos::TArrayCollectionArray<Chaos::FVec3>& InParticlePrevXs,
 			Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs,
 			EActorType ActorType,
@@ -142,11 +144,11 @@ namespace ImmediatePhysics_Chaos
 			const FTransform& Transform);
 
 
-		Chaos::TGenericParticleHandle<FReal, Dimensions> Handle() const;
+		Chaos::FGenericParticleHandle Handle() const;
 
 		FName Name;
-		Chaos::TPBDRigidsSOAs<FReal, 3>& Particles;
-		Chaos::TGeometryParticleHandle<FReal, Dimensions>* ParticleHandle;
+		Chaos::FPBDRigidsSOAs& Particles;
+		Chaos::FGeometryParticleHandle* ParticleHandle;
 		Chaos::TArrayCollectionArray<Chaos::FVec3>& ParticlePrevXs;
 		Chaos::TArrayCollectionArray<Chaos::FRotation3>& ParticlePrevRs;
 		TUniquePtr<Chaos::FImplicitObject> Geometry;

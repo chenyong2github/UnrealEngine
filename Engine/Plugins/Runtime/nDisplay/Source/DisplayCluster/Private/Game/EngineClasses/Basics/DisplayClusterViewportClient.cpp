@@ -191,6 +191,11 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		return Super::Draw(InViewport, SceneCanvas);
 	}
 
+	// Whether any view was actually rendered. Used to prevent transfering texture unless needed.
+	bool bAnyViewRendered = false;
+	// The parameters for each view transfer, used to postpone the transfer after everything is rendered.
+	TArray<FTransferTextureParams,  TInlineAllocator<4>> RefTransferParams;
+
 	for (int32 ViewFamilyIdx = 0; ViewFamilyIdx < NumFamilies; ++ViewFamilyIdx)
 	{
 		// Create the view family for rendering the world scene to the viewport's render target
@@ -292,17 +297,22 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			if (View)
 			{
 				Views.Add(View);
-				if (RenderViewport)
+				if (RenderViewport && GNumExplicitGPUsForRendering > 1 && RenderViewport->GetGPUIndex() >= 0)
 				{
-					// Support MGPU viewport mapping
-					if (RenderViewport->GetGPUIndex() >= 0)
-					{
-						View->bOverrideGPUMask = true;
-						View->GPUMask = FRHIGPUMask::FromIndex(RenderViewport->GetGPUIndex());
-					}
+					// The GPU used to render this view.
+					const uint32 ViewGPUIndex = RenderViewport->GetGPUIndex();
 
-					// Control CrossGPU transfer for this viewport
-					View->bAllowCrossGPUTransfer = RenderViewport->IsCrossGPUTransferAllowed();
+					// Control CrossGPU transfer for this viewport. 
+					// Disabled because the default implementation will locksteps GPUs between rendering view families.
+					View->bAllowCrossGPUTransfer = false;
+					View->bOverrideGPUMask = true;
+					View->GPUMask = FRHIGPUMask::FromIndex(ViewGPUIndex);
+
+					if (RenderViewport->IsCrossGPUTransferAllowed())
+					{
+						// The DestGPUIndex is not set yet because its unkown at this point.
+						RefTransferParams.Emplace(nullptr, View->UnscaledViewRect, ViewGPUIndex, ViewGPUIndex, true, false);
+					}
 				}
 
 				// We don't allow instanced stereo currently
@@ -538,18 +548,47 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		if (!bDisableWorldRendering && PlayerViewMap.Num() > 0 && FSlateApplication::Get().GetPlatformApplication()->IsAllowedToRender()) //-V560
 		{
 			GetRendererModule().BeginRenderingViewFamily(SceneCanvas, &ViewFamily);
+			bAnyViewRendered = true;
 		}
 		else
 		{
 			GetRendererModule().PerFrameCleanupIfSkipRenderer();
 
 			// Make sure RHI resources get flushed if we're not using a renderer
-			ENQUEUE_RENDER_COMMAND(UGameViewportClient_FlushRHIResources)(
+			ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_FlushRHIResources)(
 				[](FRHICommandListImmediate& RHICmdList)
 			{
 				RHICmdList.ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 			});
 		}
+	}
+
+	// Transfer view results accross GPUs. This is done only once all views have been rendered
+	// so that all GPU has work to do before waiting for the transfer result.
+	if (bAnyViewRendered && RefTransferParams.Num())
+	{
+		ENQUEUE_RENDER_COMMAND(UDisplayClusterViewportClient_TransferTextures)(
+			[RefParams = std::move(RefTransferParams), InViewport](FRHICommandListImmediate& RHICmdList)
+		{
+			// The GPUs on which all views must be resolved to.
+			const FRHIGPUMask ViewportGPUMask = InViewport->GetGPUMask(RHICmdList);
+
+			// Copy the view render results to all GPUs that are native to the viewport.
+			TArray<FTransferTextureParams, TInlineAllocator<4>> Params;
+			for (const FTransferTextureParams& RefParam : RefParams)
+			{
+				for (uint32 ViewportGPUIndex : ViewportGPUMask)
+				{
+					if (ViewportGPUIndex != RefParam.SrcGPUIndex)
+					{
+						FTransferTextureParams& Param = Params.Add_GetRef(RefParam);
+						Param.Texture = InViewport->GetRenderTargetTexture();
+						Param.DestGPUIndex = ViewportGPUIndex;
+					}
+				}
+			}
+			RHICmdList.TransferTextures(Params);
+		});
 	}
 
 	// Beyond this point, only UI rendering independent from dynamic resolution.

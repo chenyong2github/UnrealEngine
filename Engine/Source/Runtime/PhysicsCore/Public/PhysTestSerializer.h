@@ -118,7 +118,7 @@ public:
 
 	physx::PxBase* FindObject(uint64 Id);
 
-	Chaos::TGeometryParticle<float,3>* PhysXActorToChaosHandle(physx::PxActor* Actor) const { return PxActorToChaosHandle.FindChecked(Actor)->GTGeometryParticle(); }
+	Chaos::FGeometryParticle* PhysXActorToChaosHandle(physx::PxActor* Actor) const { return PxActorToChaosHandle.FindChecked(Actor)->GTGeometryParticle(); }
 	Chaos::FPerShapeData* PhysXShapeToChaosImplicit(physx::PxShape* Shape) const { return PxShapeToChaosShapes.FindRef(Shape); }
 #endif
 
@@ -140,9 +140,9 @@ private:
 	TUniquePtr<FSQCapture> SQCapture;
 
 	TUniquePtr<Chaos::FPBDRigidsEvolution> ChaosEvolution;
-	Chaos::TPBDRigidsSOAs<float, 3> Particles;
+	Chaos::FPBDRigidsSOAs Particles;
 	Chaos::THandleArray<Chaos::FChaosPhysicsMaterial> PhysicalMaterials;
-	TArray <TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTParticles;
+	TArray <TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 
 	TUniquePtr<Chaos::FChaosArchiveContext> ChaosContext;
 

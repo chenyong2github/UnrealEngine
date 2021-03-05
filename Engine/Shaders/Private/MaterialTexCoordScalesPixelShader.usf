@@ -26,7 +26,7 @@ float PrimitiveAlpha;
 #define TextureAnalysisIndex AnalysisParams.x
 #define bOutputScales AnalysisParams.y
 
-
+// Updated MAX_NUM_TEXTURE_REGISTER to 256 
 float4 OneOverCPUTexCoordScales[MAX_NUM_TEXTURE_REGISTER / 4];
 int4 TexCoordIndices[MAX_NUM_TEXTURE_REGISTER / 4];
 

@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "IConcertSessionHandler.h"
 #include "ConcertWorkspaceMessages.h"
-
+#include "Misc/Optional.h"
 class IConcertServerSession;
 class IConcertFileSharingService;
 class FConcertSyncServerLiveSession;
@@ -30,6 +30,8 @@ public:
 	~FConcertServerWorkspace();
 
 private:
+	TOptional<FConcertWorkspaceSyncActivityEvent> MakeSyncActivityEvent(const int64 InSyncActivityId, const bool bInHeadOnly = true) const;
+
 	/** Bind the workspace to this session. */
 	void BindSession(const TSharedRef<FConcertSyncServerLiveSession>& InLiveSession);
 
@@ -208,13 +210,10 @@ private:
 	/**
 	 * Send a sync event for a package activity in the session database.
 	 *
-	 * @param InTargetEndpointId		The ID of the endpoint to send the sync event to.
-	 * @param InSyncActivityId			The ID of the activity to send the sync event for.
-	 * @param InNumRemainingSyncEvents	The number of items left in the sync queue.
-	 * @param InHeadOnly				True if the bulk of the package data should only be sent if this package is the head revision.
+	 * @param SyncEvent				The ID of the endpoint to send the sync event to.
+	 * @param InSyncActivityId		The ID of the activity to send the sync event for.
 	 */
-	void SendSyncPackageActivityEvent(const FGuid& InTargetEndpointId, const int64 InSyncActivityId, const int32 InNumRemainingSyncEvents, const bool InHeadOnly = true) const;
-
+	void SendSyncPackageActivityEvent(const FConcertWorkspaceSyncActivityEvent& SyncEvent, const FGuid& InTargetEndpointId) const;
 	/**
 	 * Called after any activity is added to the session database.
 	 *

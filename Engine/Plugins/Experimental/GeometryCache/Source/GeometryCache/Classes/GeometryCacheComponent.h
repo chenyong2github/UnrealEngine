@@ -122,6 +122,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
 	void SetLooping( const bool bNewLooping);
 
+	/** Get whether this GeometryCache is extrapolating frames. */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	bool IsExtrapolatingFrames() const;
+
+	/** Set whether this GeometryCache is extrapolating frames. */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	void SetExtrapolateFrames(const bool bNewExtrapolating);
+
 	/** Get current playback speed for GeometryCache. */
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
 	float GetPlaybackSpeed() const;
@@ -129,6 +137,14 @@ public:
 	/** Set new playback speed for GeometryCache. */
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
 	void SetPlaybackSpeed(const float NewPlaybackSpeed);
+
+	/** Get the motion vector scale. */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	float GetMotionVectorScale() const;
+
+	/** Set new motion vector scale. */
+	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
+	void SetMotionVectorScale(const float NewMotionVectorScale);
 
 	/** Change the Geometry Cache used by this instance. */
 	UFUNCTION(BlueprintCallable, Category = "Components|GeometryCache")
@@ -227,11 +243,19 @@ protected:
 	UPROPERTY(EditAnywhere, Interp, Category = GeometryCache)
 	bool bLooping;
 
+	/** Enable frame extrapolation for sub-frame sampling of non-constant topologies with imported motion vectors */
+	UPROPERTY(EditAnywhere, Category = GeometryCache, AdvancedDisplay)
+	bool bExtrapolateFrames;
+
 	UPROPERTY(EditAnywhere, Interp, Category = GeometryCache, meta = (UIMin = "-14400.0", UIMax = "14400.0", ClampMin = "-14400.0", ClampMax = "14400.0"))
 	float StartTimeOffset;
 
 	UPROPERTY(EditAnywhere, Interp, Category = GeometryCache, meta = (UIMin = "0.0", UIMax = "4.0", ClampMin = "0.0", ClampMax = "512.0"))
 	float PlaybackSpeed;
+
+	/** Scale factor to apply to the imported motion vectors */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = GeometryCache, meta = (ClampMin = "0.0", ClampMax = "100", UIMin = "0.0", UIMax = "100"))
+	float MotionVectorScale;
 
 	UPROPERTY(VisibleAnywhere, Category = GeometryCache)
 	int32 NumTracks;

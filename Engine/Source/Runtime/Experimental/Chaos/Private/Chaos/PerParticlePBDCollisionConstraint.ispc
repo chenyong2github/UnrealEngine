@@ -24,6 +24,7 @@ enum ImplicitObjectType
 	DEPRECATED_Scaled,	//needed for serialization of existing data
 	Triangle,
 	UnionClustered,
+	TaperedCapsule,
 
 	//Add entries above this line for serialization
 	IsInstanced = 1 << 6,
@@ -89,13 +90,29 @@ static inline void PhiWithNormalCapsule(const uniform uint8 *uniform TypedObject
 {
 	const uniform Segment MSegment = *((const uniform Segment *uniform)&TypedObjectPtr[0]);
 
-	float Dot = clamp(VectorDot(PhiWithNormalInput - MSegment.Point, MSegment.Axis), 0.0f, MSegment.Length);
-	FVector ProjectedPoint = SetVector(Dot) * MSegment.Axis + MSegment.Point;
+	const float Dot = clamp(VectorDot(PhiWithNormalInput - MSegment.Point, MSegment.Axis), 0.0f, MSegment.Length);
+	const FVector ProjectedPoint = SetVector(Dot) * MSegment.Axis + MSegment.Point;
 	Normal = PhiWithNormalInput - ProjectedPoint;
 	Phi = SafeNormalize(Normal) - Radius;
 }
 
-static inline void PhiWithNormalTaperedCapsule(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform int SizeofFImplicitObject)
+static inline void PhiWithNormalTaperedCapsule(const uniform uint8* uniform TypedObjectPtr, const FVector& PhiWithNormalInput, FVector& Normal, float& Phi)
+{
+	const uniform FVector Origin = *((const uniform FVector *uniform)& TypedObjectPtr[0]);
+	const uniform FVector Axis   = *((const uniform FVector *uniform)& TypedObjectPtr[sizeof(uniform FVector)]);
+	const uniform float Height   = *((const uniform float *uniform)& TypedObjectPtr[2*sizeof(uniform FVector)]);
+	const uniform float Radius1  = *((const uniform float *uniform)& TypedObjectPtr[2*sizeof(uniform FVector)+ sizeof(uniform float)]);
+	const uniform float Radius2  = *((const uniform float *uniform)& TypedObjectPtr[2*sizeof(uniform FVector)+ 2*sizeof(uniform float)]);
+
+	const float DistanceAlongAxis = clamp(VectorDot(PhiWithNormalInput - Origin, Axis), 0.0f, Height);
+	const FVector ProjectedPoint = SetVector(DistanceAlongAxis) * Axis + Origin;
+	const float Alpha = DistanceAlongAxis / Height;
+	const float Radius = Radius1 * (1.0f - Alpha) + Radius2 * Alpha;
+	Normal = PhiWithNormalInput - ProjectedPoint;
+	Phi = SafeNormalize(Normal) - Radius;
+}
+
+static inline void PhiWithNormalTaperedCylinder(const uniform uint8 *uniform TypedObjectPtr, const FVector &PhiWithNormalInput, FVector &Normal, float &Phi, const uniform int SizeofFImplicitObject)
 {
 	const uniform Plane MPlane1 = *((const uniform Plane *uniform)&TypedObjectPtr[SizeofFImplicitObject]);
 	const uniform Plane MPlane2 = *((const uniform Plane *uniform)&TypedObjectPtr[2*SizeofFImplicitObject+sizeof(uniform Plane)]);
@@ -168,7 +185,7 @@ static inline void PhiWithNormalUnion(const uniform uint8 *uniform TypedPtr, con
 	FVector NextNormal;
 	float NextPhi;
 
-	PhiWithNormalTaperedCapsule(TypedObjectPtr, PhiWithNormalInput, NextNormal, NextPhi, SizeofFImplicitObject);
+	PhiWithNormalTaperedCylinder(TypedObjectPtr, PhiWithNormalInput, NextNormal, NextPhi, SizeofFImplicitObject);
 
 	if (NextPhi < Phi)
 	{
@@ -297,7 +314,7 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
 			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
 			const uniform uint8 *uniform TypedPtr = Ptr + SizeofFImplicitObject;
-			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0xF;
+			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0x3F;
 
 			switch(Type)
 			{
@@ -316,6 +333,11 @@ export void ApplyPerParticleCollision(uniform FVector ParticlesP[],
 			case Union:
 				{
 					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					break;
+				}
+			case TaperedCapsule:
+				{
+					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
 					break;
 				}
 			default:
@@ -439,7 +461,7 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
 			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
 			const uniform uint8 *uniform TypedPtr = Ptr + SizeofFImplicitObject;
-			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0xF;
+			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0x3F;
 
 			switch(Type)
 			{
@@ -458,6 +480,11 @@ export void ApplyPerParticleCollisionFastFriction(uniform FVector ParticlesP[],
 			case Union:
 				{
 					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					break;
+				}
+			case TaperedCapsule:
+				{
+					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
 					break;
 				}
 			default:
@@ -564,7 +591,7 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
 			const uniform SerializedPtr *uniform GeometryPtr = (const uniform SerializedPtr *uniform)Geometry;
 			const uniform uint8 *uniform Ptr = GeometryPtr[i].Ptr;
 			const uniform uint8 *uniform TypedPtr = Ptr + SizeofFImplicitObject;
-			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0xF;
+			const uniform uint8 Type = Ptr[OffsetofGeometryType] & 0x3F;
 
 			switch(Type)
 			{
@@ -583,6 +610,11 @@ export void ApplyPerParticleCollisionNoFriction(uniform FVector ParticlesP[],
 			case Union:
 				{
 					PhiWithNormalUnion(TypedPtr, PhiWithNormalInput, Normal, Phi, SizeofFImplicitObject, OffsetOfMargin);
+					break;
+				}
+			case TaperedCapsule:
+				{
+					PhiWithNormalTaperedCapsule(TypedPtr, PhiWithNormalInput, Normal, Phi);
 					break;
 				}
 			default:

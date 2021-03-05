@@ -528,7 +528,7 @@ Done:
 	if (bDoAcquireTransientTexture)
 	{
 		// Only referenced by the pool, map the physical pages
-		if (OriginalNumRefs == 1 && Found->GetRenderTargetItem().TargetableTexture != nullptr)
+		if (Found->IsTransient() && OriginalNumRefs == 1 && Found->GetRenderTargetItem().TargetableTexture != nullptr)
 		{
 			RHIAcquireTransientResource(Found->GetRenderTargetItem().TargetableTexture);
 		}
@@ -573,7 +573,7 @@ bool FRenderTargetPool::FindFreeElement(
 
 	// If we're doing aliasing, we may need to override Transient flags, depending on the input format and mode
 	FPooledRenderTargetDesc ModifiedDesc;
-	bool bMakeTransient = DoesTargetNeedTransienceOverride(InputDesc.Flags, TransienceHint);
+	bool bMakeTransient = DoesTargetNeedTransienceOverride(InputDesc.Flags | InputDesc.TargetableFlags, TransienceHint);
 	if (bMakeTransient)
 	{
 		ModifiedDesc = InputDesc;

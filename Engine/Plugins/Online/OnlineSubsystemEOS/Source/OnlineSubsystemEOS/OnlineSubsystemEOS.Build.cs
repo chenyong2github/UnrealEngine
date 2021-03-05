@@ -69,10 +69,17 @@ public class OnlineSubsystemEOS : ModuleRules
 
 				RuntimeDependencies.Add(SoName);
 			}
+			else
+			{
+				// platform extension
+				ConfigureTargetPlatform( EOSSDKVersion, EOSPath, EOSIncludePath );
+			}
 		}
 		else
 		{
 			PrivateDefinitions.Add("WITH_EOS_SDK=0");
 		}
 	}
+
+	protected virtual void ConfigureTargetPlatform( string EOSSDKVersion, string EOSPath, string EOSIncludePath ) { }
 }

@@ -405,11 +405,14 @@ bool FSkeletonSelectionEditMode::IsSelectedBoneRequired() const
 	{
 		//Get current LOD
 		FSkeletalMeshRenderData* SkelMeshRenderData = PreviewMeshComponent->GetSkeletalMeshRenderData();
-		const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshRenderData->LODRenderData.Num() - 1);
-		FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
+		if(SkelMeshRenderData->LODRenderData.Num() > 0)
+		{
+			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshRenderData->LODRenderData.Num() - 1);
+			FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
 
-		//Check whether the bone is vertex weighted
-		return LODData.RequiredBones.Find(SelectedBoneIndex) != INDEX_NONE;
+			//Check whether the bone is vertex weighted
+			return LODData.RequiredBones.Find(SelectedBoneIndex) != INDEX_NONE;
+		}
 	}
 
 	return false;

@@ -1836,7 +1836,12 @@ bool FTabManager::IsAllowedTab(const FTabId& TabId) const
 
 bool FTabManager::IsAllowedTabType(const FName TabType) const
 {
-	return TabType == NAME_None || TabBlacklist->PassesFilter(TabType);
+	const bool bIsAllowed = TabType == NAME_None || TabBlacklist->PassesFilter(TabType);
+	if (!bIsAllowed)
+	{
+		UE_LOG(LogSlate, Verbose, TEXT("Disallowed Tab: %s"), *TabType.ToString());
+	}
+	return bIsAllowed;
 }
 
 bool FTabManager::IsTabAllowedInSidebar(const FTabId TabId) const

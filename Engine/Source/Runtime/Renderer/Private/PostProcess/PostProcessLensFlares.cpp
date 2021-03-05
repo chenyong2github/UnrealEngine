@@ -2,6 +2,7 @@
 
 #include "PostProcessLensFlares.h"
 #include "PostProcessDownsample.h"
+#include "PixelShaderUtils.h"
 
 DECLARE_GPU_STAT(LensFlare);
 
@@ -98,6 +99,18 @@ public:
 };
 
 IMPLEMENT_GLOBAL_SHADER(FLensFlareCompositePS, "/Engine/Private/PostProcessLensFlares.usf", "LensFlareCompositePS", SF_Pixel);
+
+class FLensFlareCopyBloomPS : public FLensFlareShader
+{
+	DECLARE_GLOBAL_SHADER(FLensFlareCopyBloomPS);
+	SHADER_USE_PARAMETER_STRUCT(FLensFlareCopyBloomPS, FLensFlareShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLensFlarePassParameters, Pass)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+IMPLEMENT_GLOBAL_SHADER(FLensFlareCopyBloomPS, "/Engine/Private/PostProcessLensFlares.usf", "LensFlareCopyBloomPS", SF_Pixel);
 } //!namespace
 
 ELensFlareQuality GetLensFlareQuality()
@@ -238,13 +251,17 @@ FScreenPassTexture AddLensFlaresPass(
 
 	if (Inputs.bCompositeWithBloom)
 	{
-		AddCopyTexturePass(
+		FLensFlareCopyBloomPS::FParameters* CopyPassParameters = GraphBuilder.AllocParameters<FLensFlareCopyBloomPS::FParameters>();
+		CopyPassParameters->Pass.InputTexture = Inputs.Bloom.Texture;
+		CopyPassParameters->Pass.RenderTargets[0] = FRenderTargetBinding(LensFlareTexture, ERenderTargetLoadAction::ENoAction);
+
+		FPixelShaderUtils::AddFullscreenPass(
 			GraphBuilder,
-			Inputs.Bloom.Texture,
-			LensFlareTexture,
-			Inputs.Bloom.ViewRect.Min,
-			Inputs.Bloom.ViewRect.Min,
-			Inputs.Bloom.ViewRect.Size());
+			View.ShaderMap,
+			RDG_EVENT_NAME("LensFlareCopyBloom %dx%d", Inputs.Bloom.ViewRect.Size().X, Inputs.Bloom.ViewRect.Size().Y),
+			View.ShaderMap->GetShader<FLensFlareCopyBloomPS>(),
+			CopyPassParameters,
+			Inputs.Bloom.ViewRect);
 	}
 	else
 	{

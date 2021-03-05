@@ -131,7 +131,9 @@ ENGINE_API uint32 GetDefaultMSAACount(const FStaticFeatureLevel InFeatureLevel, 
 				bool bMobilePixelProjectedReflection = IsUsingMobilePixelProjectedReflection(ShaderPlatform);
 
 				// Disable MSAA if we are using mobile ambient occlusion, since we have to resolve the SceneColor and SceneDepth after opaque base pass
-				bool bMobileAmbientOcclusion = IsUsingMobileAmbientOcclusion(ShaderPlatform);
+				static const auto MobileAmbientOcclusionQualityCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionQuality"));
+
+				bool bMobileAmbientOcclusion = UseMobileAmbientOcclusion(ShaderPlatform) && IsMobileHDR() && MobileAmbientOcclusionQualityCVar->GetValueOnAnyThread() > 0;
 
 				bRendererSupportMSAA = bRHISupportsMSAA && !bMobilePixelProjectedReflection && !bMobileAmbientOcclusion;
 

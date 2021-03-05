@@ -1213,6 +1213,14 @@ SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeMaterialExpression(voi
 }
 
 
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeMaterialExpression_ResetExpression(void * jarg1) {
+  FDatasmithFacadeMaterialExpression *arg1 = (FDatasmithFacadeMaterialExpression *) 0 ;
+  
+  arg1 = (FDatasmithFacadeMaterialExpression *)jarg1; 
+  (arg1)->ResetExpression();
+}
+
+
 SWIGEXPORT void SWIGSTDCALL CSharp_delete_FDatasmithFacadeExpressionParameterSwigImpl(void * jarg1) {
   FDatasmithFacadeExpressionParameter *arg1 = (FDatasmithFacadeExpressionParameter *) 0 ;
   
@@ -2010,6 +2018,14 @@ SWIGEXPORT int SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_GetExpressionInd
   result = (int32)((FDatasmithFacadeUEPbrMaterial const *)arg1)->GetExpressionIndex((FDatasmithFacadeMaterialExpression const &)*arg2);
   jresult = result; 
   return jresult;
+}
+
+
+SWIGEXPORT void SWIGSTDCALL CSharp_FDatasmithFacadeUEPbrMaterial_ResetExpressionGraph(void * jarg1) {
+  FDatasmithFacadeUEPbrMaterial *arg1 = (FDatasmithFacadeUEPbrMaterial *) 0 ;
+  
+  arg1 = (FDatasmithFacadeUEPbrMaterial *)jarg1; 
+  (arg1)->ResetExpressionGraph();
 }
 
 

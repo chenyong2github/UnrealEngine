@@ -89,11 +89,11 @@ void UChaosClothingInteractor::SetAnimDrive(FVector2D AnimDriveStiffness, FVecto
 	}));
 }
 
-void UChaosClothingInteractor::SetVelocityScale(FVector LinearVelocityScale, float AngularVelocityScale)
+void UChaosClothingInteractor::SetVelocityScale(FVector LinearVelocityScale, float AngularVelocityScale, float FictitiousAngularScale)
 {
-	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([LinearVelocityScale, AngularVelocityScale](FClothingSimulationCloth* Cloth)
+	Commands.Add(FChaosClothingInteractorCommand::CreateLambda([LinearVelocityScale, AngularVelocityScale, FictitiousAngularScale](FClothingSimulationCloth* Cloth)
 	{
-		Cloth->SetVelocityScaleProperties(LinearVelocityScale, AngularVelocityScale);
+		Cloth->SetVelocityScaleProperties(LinearVelocityScale, AngularVelocityScale, FictitiousAngularScale);
 	}));
 }
 

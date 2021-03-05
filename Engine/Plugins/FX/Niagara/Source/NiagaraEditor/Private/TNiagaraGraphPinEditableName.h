@@ -7,6 +7,7 @@
 #include "NiagaraNodeParameterMapBase.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "Widgets/SNiagaraPinTypeSelector.h"
 #include "NiagaraNodeCustomHlsl.h"
 
 /** A graph pin widget for allowing a pin to have an editable name for a pin. */
@@ -98,6 +99,7 @@ protected:
 	virtual TSharedRef<SWidget> GetLabelWidget(const FName& InLabelStyle) override
 	{
 		UNiagaraNode* ParentNode = Cast<UNiagaraNode>(this->GraphPinObj->GetOwningNode());
+		const bool bAllowPinTypeChanges = ParentNode->AllowExternalPinTypeChanges(this->GraphPinObj) && this->GraphPinObj->bOrphanedPin == false;
 
 		auto CreateLabelTextBlock = [&]()->TSharedRef<SWidget> {
 			CreatedTextBlock = SNew(SInlineEditableTextBlock)
@@ -154,9 +156,44 @@ protected:
 			return CreateRenamableLabelTextBlock();
 		}
 		else
-		{	
+		{
+			// we want the pin type selector in the label widget only for output pins, otherwise we put it in the value widget
+			if (bAllowPinTypeChanges && this->GraphPinObj->Direction == EGPD_Output)
+			{
+				TSharedRef<SHorizontalBox> LabelWidgetContainer = SNew(SHorizontalBox);
+				LabelWidgetContainer->AddSlot().AutoWidth().Padding(3.f, 0.f)
+				[
+					SNew(SNiagaraPinTypeSelector, this->GraphPinObj)
+				];
+				LabelWidgetContainer->AddSlot()
+				[
+					BaseClass::GetLabelWidget(InLabelStyle)
+				];
+				return LabelWidgetContainer;
+			}
+			
 			return BaseClass::GetLabelWidget(InLabelStyle);
 		}
+	}
+
+	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override
+	{
+		UNiagaraNode* ParentNode = Cast<UNiagaraNode>(this->GraphPinObj->GetOwningNode());
+		const bool bAllowPinTypeChanges = ParentNode->AllowExternalPinTypeChanges(this->GraphPinObj) && this->GraphPinObj->bOrphanedPin == false;
+
+		TSharedRef<SHorizontalBox> ValueWidgetContainer = SNew(SHorizontalBox);
+
+		ValueWidgetContainer->AddSlot()[BaseClass::GetDefaultValueWidget()];
+
+		// value widget should only exist for input pins anyways, but we'll make sure here
+		if (bAllowPinTypeChanges && this->GraphPinObj->Direction == EEdGraphPinDirection::EGPD_Input)
+		{
+			ValueWidgetContainer->AddSlot().AutoWidth().Padding(3.f, 0.f)
+			[SNew(SNiagaraPinTypeSelector, this->GraphPinObj)];
+		}
+
+		return ValueWidgetContainer;
+
 	}
 
 	bool bPendingRename;

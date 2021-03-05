@@ -736,6 +736,8 @@ void ULandscapeComponent::UpdatedSharedPropertiesFromActor()
 	CustomDepthStencilValue = LandscapeProxy->CustomDepthStencilValue;
 	SetCullDistance(LandscapeProxy->LDMaxDrawDistance);
 	LightingChannels = LandscapeProxy->LightingChannels;
+	UpdateNavigationRelevance();
+	UpdateRejectNavmeshUnderneath();
 }
 
 void ULandscapeComponent::PostLoad()
@@ -2443,8 +2445,6 @@ void ALandscapeProxy::PostLoad()
 	{
 		if (Comp)
 		{
-			Comp->UpdateRejectNavmeshUnderneath();
-
 			// Store the layer combination in the MaterialInstanceConstantMap
 			if (UMaterialInstance* MaterialInstance = Comp->GetMaterialInstance(0, false))
 			{

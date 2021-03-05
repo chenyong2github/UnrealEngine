@@ -8,44 +8,41 @@
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TPBDPositionConstraints;
+	class FPBDPositionConstraints;
 
-	template<class T, int d>
-	class TPBDPositionConstraintHandle : public TContainerConstraintHandle<TPBDPositionConstraints<T, d>>
+	class FPBDPositionConstraintHandle : public TContainerConstraintHandle<FPBDPositionConstraints>
 	{
 	public:
-		using Base = TContainerConstraintHandle<TPBDPositionConstraints<T, d>>;
-		using FConstraintContainer = TPBDPositionConstraints<T, d>;
-		using FGeometryParticleHandle = TGeometryParticleHandle<T, d>;
+		using Base = TContainerConstraintHandle<FPBDPositionConstraints>;
+		using FConstraintContainer = FPBDPositionConstraints;
+		using FGeometryParticleHandle = FGeometryParticleHandle;
 
-		TPBDPositionConstraintHandle() {}
-		TPBDPositionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
-			: TContainerConstraintHandle<TPBDPositionConstraints<T, d>>(StaticType(), InConstraintContainer, InConstraintIndex) {}
+		FPBDPositionConstraintHandle() {}
+		FPBDPositionConstraintHandle(FConstraintContainer* InConstraintContainer, int32 InConstraintIndex) 
+			: TContainerConstraintHandle<FPBDPositionConstraints>(StaticType(), InConstraintContainer, InConstraintIndex) {}
 		static FConstraintHandle::EType StaticType() { return FConstraintHandle::EType::Position; }
-		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const { return ConstraintContainer->GetConstrainedParticles(ConstraintIndex); }
+		TVector<FGeometryParticleHandle*, 2> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;
 		using Base::ConstraintContainer;
 	};
 
-	template<class T, int d>
-	class TPBDPositionConstraints : public FPBDConstraintContainer
+	class FPBDPositionConstraints : public FPBDConstraintContainer
 	{
 	public:
 		using Base = FPBDConstraintContainer;
-		using FReal = T;
-		static const int Dimensions = d;
-		using FConstraintContainerHandle = TPBDPositionConstraintHandle<FReal, Dimensions>;
-		using FConstraintHandleAllocator = TConstraintHandleAllocator<TPBDPositionConstraints<FReal, Dimensions>>;
+		//using FReal = T;
+		//static const int Dimensions = 3;
+		using FConstraintContainerHandle = FPBDPositionConstraintHandle;
+		using FConstraintHandleAllocator = TConstraintHandleAllocator<FPBDPositionConstraints>;
 		using FHandles = TArray<FConstraintContainerHandle*>;
 
-		TPBDPositionConstraints(const T InStiffness = (T)1)
+		FPBDPositionConstraints(const FReal InStiffness = (FReal)1.)
 			: Stiffness(InStiffness)
 		{}
 
-		TPBDPositionConstraints(TArray<TVector<T, d>>&& Locations, TArray<TPBDRigidParticleHandle<T,d>*>&& InConstrainedParticles, const T InStiffness = (T)1)
+		FPBDPositionConstraints(TArray<FVec3>&& Locations, TArray<FPBDRigidParticleHandle*>&& InConstrainedParticles, const FReal InStiffness = (FReal)1.)
 			: Targets(MoveTemp(Locations)), ConstrainedParticles(MoveTemp(InConstrainedParticles)), Stiffness(InStiffness)
 		{
 			if (ConstrainedParticles.Num() > 0)
@@ -58,7 +55,7 @@ namespace Chaos
 			}
 		}
 
-		virtual ~TPBDPositionConstraints() {}
+		virtual ~FPBDPositionConstraints() {}
 
 
 		//
@@ -76,7 +73,7 @@ namespace Chaos
 		/**
 		 * Add a constraint.
 		 */
-		FConstraintContainerHandle* AddConstraint(TPBDRigidParticleHandle<T, d>* Particle, const TVector<T, d>& Position)
+		FConstraintContainerHandle* AddConstraint(FPBDRigidParticleHandle* Particle, const FVec3& Position)
 		{
 			int32 NewIndex = Targets.Num();
 			Targets.Add(Position);
@@ -114,7 +111,7 @@ namespace Chaos
 		/**
 		 * Disabled the specified constraint.
 		 */
-		void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles)
+		void DisableConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 		{
 			// @todo(chaos)
 		}
@@ -145,7 +142,7 @@ namespace Chaos
 		/**
 		 * Get the particles that are affected by the specified constraint.
 		 */
-		TVector<TGeometryParticleHandle<T, d>*, 2> GetConstrainedParticles(int32 ConstraintIndex) const
+		TVec2<FGeometryParticleHandle*> GetConstrainedParticles(int32 ConstraintIndex) const
 		{
 			return { ConstrainedParticles[ConstraintIndex], nullptr };
 		}
@@ -153,13 +150,13 @@ namespace Chaos
 		/**
 		 * Get the world-space constraint positions for each body.
 		 */
-		const TVector<T, d>& GetConstraintPosition(int ConstraintIndex) const
+		const FVec3& GetConstraintPosition(int ConstraintIndex) const
 		{
 			return Targets[ConstraintIndex];
 		}
 
 		// @todo(ccaulfield): remove/rename
-		void Replace(const int32 ConstraintIndex, const TVector<T, d>& Position)
+		void Replace(const int32 ConstraintIndex, const FVec3& Position)
 		{
 			Targets[ConstraintIndex] = Position;
 		}
@@ -177,11 +174,11 @@ namespace Chaos
 
 		void UnprepareIteration(FReal Dt) {}
 
-		void UpdatePositionBasedState(const T Dt) {}
+		void UpdatePositionBasedState(const FReal Dt) {}
 
-		bool Apply(const T Dt, const TArray<FConstraintContainerHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const;
+		bool Apply(const FReal Dt, const TArray<FConstraintContainerHandle*>& ConstraintHandles, const int32 It, const int32 NumIts) const;
 
-		bool ApplyPushOut(const T Dt, const TArray<FConstraintContainerHandle*>& InConstraintIndices, const int32 It, const int32 NumIts) const
+		bool ApplyPushOut(const FReal Dt, const TArray<FConstraintContainerHandle*>& InConstraintIndices, const int32 It, const int32 NumIts) const
 		{
 			return false;
 		}
@@ -191,22 +188,29 @@ namespace Chaos
 		using Base::SetConstraintIndex;
 
 	private:
-		void ApplySingle(const T Dt, int32 ConstraintIndex) const
+		void ApplySingle(const FReal Dt, int32 ConstraintIndex) const
 		{
-			if (TPBDRigidParticleHandle<T, d>* PBDRigid = ConstrainedParticles[ConstraintIndex])
+			if (FPBDRigidParticleHandle* PBDRigid = ConstrainedParticles[ConstraintIndex])
 			{
-				const TVector<T, d>& P1 = PBDRigid->P();
-				const TVector<T, d>& P2 = Targets[ConstraintIndex];
-				TVector<T, d> Difference = P1 - P2;
+				const FVec3& P1 = PBDRigid->P();
+				const FVec3& P2 = Targets[ConstraintIndex];
+				FVec3 Difference = P1 - P2;
 				PBDRigid->P() -= Stiffness * Difference;
 			}
 		}
 
-		TArray<TVector<T, d>> Targets;
-		TArray<TPBDRigidParticleHandle<T,d>*> ConstrainedParticles;
-		T Stiffness;
+		TArray<FVec3> Targets;
+		TArray<FPBDRigidParticleHandle*> ConstrainedParticles;
+		FReal Stiffness;
 
 		FHandles Handles;
 		FConstraintHandleAllocator HandleAllocator;
 	};
+
+	template <typename T, int d>
+	using TPBDPositionConstraintHandle UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDPositionConstraintHandle instead") = FPBDPositionConstraintHandle;
+
+	template <typename T, int d>
+	using TPBDPositionConstraints UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FPBDPositionConstraints instead") = FPBDPositionConstraints;
+
 }

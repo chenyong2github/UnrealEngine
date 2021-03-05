@@ -418,6 +418,10 @@ void FVulkanAndroidPlatform::GetDeviceExtensions(EGpuVendorId VendorId, TArray<c
 	OutExtensions.Add(VK_KHR_MULTIVIEW_EXTENSION_NAME);
 #endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	OutExtensions.Add(VK_KHR_FRAGMENT_SHADING_RATE_EXTENSION_NAME);
+#endif
+
 #if !UE_BUILD_SHIPPING
 	OutExtensions.Add(VULKAN_MALI_LAYER_NAME);
 #endif

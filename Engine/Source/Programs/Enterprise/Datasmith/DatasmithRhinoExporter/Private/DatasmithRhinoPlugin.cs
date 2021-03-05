@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using DatasmithRhino.DirectLink;
+using DatasmithRhino.Utils;
 using Rhino;
 using Rhino.PlugIns;
 using System;
@@ -19,6 +20,7 @@ namespace DatasmithRhino
 	{
 		public override PlugInLoadTime LoadTime { get { return PlugInLoadTime.AtStartup; } }
 		public DatasmithRhinoDirectLinkManager DirectLinkManager { get; private set; }
+		public DatasmithRhinoLogManager LogManager { get; private set; } = new DatasmithRhinoLogManager();
 
 		public DatasmithRhinoPlugin()
 		{

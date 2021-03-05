@@ -1277,6 +1277,15 @@ void FDataprepEditor::RefreshStatsTab()
 
 	if (PreExecuteStatsPtr.IsValid())
 	{
+		{
+			FDataprepStatPtr StatPtr = StatsWidget->GetStat(StatNameDrawCalls);
+			StatPtr->PreExecuteCount = TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateLambda([this]()
+				{
+					return SceneViewportView->GetDrawCallsAverage();
+				}));
+			StatsWidget->SetStats(PreExecuteStatsPtr, true);
+		}
+
 		if (PostExecuteStatsPtr.IsValid())
 		{
 			// Freeze live updates of draw calls stat, we want to compare this value to the new one
@@ -1290,12 +1299,6 @@ void FDataprepEditor::RefreshStatsTab()
 		}
 		else
 		{
-			FDataprepStatPtr StatPtr = StatsWidget->GetStat(StatNameDrawCalls);
-			StatPtr->PreExecuteCount = TAttribute<int32>::Create(TAttribute<int32>::FGetter::CreateLambda([this]()
-			{
-				return SceneViewportView->GetDrawCallsAverage();
-			}));
-			StatsWidget->SetStats(PreExecuteStatsPtr, true);
 			StatsWidget->ClearStats(false, true);
 		}
 	}

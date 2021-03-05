@@ -187,7 +187,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				const float HalfHeight = Elem.GetScaledHalfLength(Scale3D) - Radius;
 				AnalyticShapeGroup->Add(
 					Xf,
-					new Chaos::TCapsule<float>(
+					new Chaos::FCapsule(
 						Chaos::FVec3(0.f, 0.f, -HalfHeight), // Min
 						Chaos::FVec3(0.f, 0.f, HalfHeight), // Max
 						Radius));
@@ -235,7 +235,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				const Chaos::FVec3 Pt(0, 0, HalfHeight);
 				AnalyticShapeGroup->Add(
 					Xf,
-					new Chaos::TTaperedCylinder<float>(-Pt, Pt, Radius0, Radius1));
+					new Chaos::FTaperedCylinder(-Pt, Pt, Radius0, Radius1));
 
 				if (Radius0 > KINDA_SMALL_NUMBER)
 				{
@@ -326,8 +326,8 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 					const int32 NormalizedMinRes = FMath::CeilToInt(ActorMaxExtent > SMALL_NUMBER ? LocalMaxExtent / ActorMaxExtent * Params.MinRes : Params.MinRes);
 					const int32 NormalizedMaxRes = FMath::CeilToInt(ActorMaxExtent > SMALL_NUMBER ? LocalMaxExtent / ActorMaxExtent * Params.MaxRes : Params.MaxRes);
 
-					Chaos::TLevelSet<float, 3>* LevelSet =
-						static_cast<Chaos::TLevelSet<float, 3>*>(
+					Chaos::FLevelSet* LevelSet =
+						static_cast<Chaos::FLevelSet*>(
 							FCollisionStructureManager::NewImplicit(
 								ErrorReporter,
 								Particles,							// mesh particles

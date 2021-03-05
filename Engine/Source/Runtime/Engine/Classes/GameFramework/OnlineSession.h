@@ -37,7 +37,7 @@ public:
 	virtual void EndOnlineSession(FName SessionName) {};
 
 	/** Called when a user accepts an invite */
-	virtual void OnSessionUserInviteAccepted(const bool bWasSuccess, const int32 ControllerId, TSharedPtr< const FUniqueNetId > UserId, const FOnlineSessionSearchResult & InviteResult) {};
+	virtual void OnSessionUserInviteAccepted(const bool bWasSuccess, const int32 ControllerId, FUniqueNetIdPtr UserId, const FOnlineSessionSearchResult & InviteResult) {};
 };
 
 

@@ -20,7 +20,6 @@ public:
 		, OverlapRatio(0.f)
 		, bOverrideSubSurfaceScattering(false)
 		, BurleySampleCount(64)
-		, bWriteAllSamples(false)
 	{
 	}
 	
@@ -80,6 +79,33 @@ public:
 			{
 				UMoviePipelineOutputSetting* OutputSettings = OwningConfig->FindSetting<UMoviePipelineOutputSetting>();
 				UMoviePipelineAntiAliasingSetting* AASettings = OwningConfig->FindSetting<UMoviePipelineAntiAliasingSetting>();
+
+				// If we don't have an output setting we know this is a shot override. If this is a shot override we'll fall back
+				// to the cached master configuration values. We don't do this for non-shot overrides as it would pull the cached
+				// values, not the transient ones in the UI.
+				if (!OutputSettings)
+				{
+					if (!InJob || !InJob->GetConfiguration())
+					{
+						return FText();
+					}
+
+					UMoviePipelineMasterConfig* MasterConfig = InJob->GetConfiguration();
+					if (!OutputSettings)
+					{
+						OutputSettings = MasterConfig->FindSetting<UMoviePipelineOutputSetting>();
+					}
+					if (!AASettings)
+					{
+						AASettings = MasterConfig->FindSetting<UMoviePipelineAntiAliasingSetting>();
+					}
+				}
+
+				// Shouldn't happen but better to have no footer text than crash.
+				if (!OutputSettings)
+				{
+					return FText();
+				}
 
 				int32 NumTiles = TileCount * TileCount;
 				int32 NumSamplesPerTick = 1;
@@ -166,12 +192,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "64", ClampMin = "0", UIMax = "1024", EditCondition="bOverrideSubSurfaceScattering"), Category = "Render Settings")
 	int32 BurleySampleCount;
 	
-	/**
-	* If true, we will write all samples that get generated to disk individually. This can be useful for debugging or if you need to accumulate
-	* render passes differently than provided.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Render Settings")
-	bool bWriteAllSamples;
+
 
 
 private:

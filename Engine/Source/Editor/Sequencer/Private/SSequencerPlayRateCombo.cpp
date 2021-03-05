@@ -71,6 +71,19 @@ void SSequencerPlayRateCombo::Construct(const FArguments& InArgs, TWeakPtr<FSequ
 			]
 
 			+ SHorizontalBox::Slot()
+			.Padding(3.f, 0.f)
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SBox)
+				.Visibility(this, &SSequencerPlayRateCombo::GetClockSourceVisibility)
+				[
+					SNew(SImage)
+					.Image(this, &SSequencerPlayRateCombo::GetClockSourceImage)
+				]
+			]
+
+			+ SHorizontalBox::Slot()
 			.Padding(0.f, 0.f, 3.f, 0.f)
 			.AutoWidth()
 			.VAlign(VAlign_Center)
@@ -516,6 +529,55 @@ void SSequencerPlayRateCombo::SetCustomClockSource(UObject* InClockSource)
 		Sequencer->ResetTimeController();
 	}
 }
+
+EVisibility SSequencerPlayRateCombo::GetClockSourceVisibility() const
+{
+	TSharedPtr<FSequencer> Sequencer    = WeakSequencer.Pin();
+	UMovieSceneSequence*   RootSequence = Sequencer.IsValid() ? Sequencer->GetRootMovieSceneSequence() : nullptr;
+	if (RootSequence)
+	{
+		UMovieScene* MovieScene = RootSequence->GetMovieScene();
+
+		if (MovieScene && MovieScene->GetClockSource() != EUpdateClockSource::Tick)
+		{
+			return EVisibility::Visible;
+		}
+	}
+	return EVisibility::Hidden;
+}
+
+const FSlateBrush* SSequencerPlayRateCombo::GetClockSourceImage() const
+{
+	TSharedPtr<FSequencer> Sequencer    = WeakSequencer.Pin();
+	UMovieSceneSequence*   RootSequence = Sequencer.IsValid() ? Sequencer->GetRootMovieSceneSequence() : nullptr;
+	if (RootSequence)
+	{
+		UMovieScene* MovieScene = RootSequence->GetMovieScene();
+
+		if (MovieScene)
+		{
+			switch (MovieScene->GetClockSource())
+			{
+				case EUpdateClockSource::Tick:
+					return nullptr;
+				case EUpdateClockSource::Platform:
+					return FEditorStyle::GetBrush("Sequencer.ClockSource.Platform");
+				case EUpdateClockSource::Audio:
+					return FEditorStyle::GetBrush("Sequencer.ClockSource.Audio");
+				case EUpdateClockSource::RelativeTimecode:
+					return FEditorStyle::GetBrush("Sequencer.ClockSource.RelativeTimecode");
+				case EUpdateClockSource::Timecode:
+					return FEditorStyle::GetBrush("Sequencer.ClockSource.Timecode");
+				case EUpdateClockSource::Custom:
+					return FEditorStyle::GetBrush("Sequencer.ClockSource.Custom");
+				default:
+					return nullptr;
+			}
+		}
+	}
+	return nullptr;
+}
+
 
 void SSequencerPlayRateCombo::SetDisplayRate(FFrameRate InFrameRate)
 {

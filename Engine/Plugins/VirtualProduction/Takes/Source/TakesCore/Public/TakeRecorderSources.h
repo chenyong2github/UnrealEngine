@@ -123,6 +123,11 @@ public:
 public:
 
 	/*
+	 * Cache assets needed for sequencer.
+	 */
+	void SetCachedAssets(class ULevelSequence* InSequence, FManifestSerializer* InManifestSerializer);
+
+	/*
 	 * Pre recording pass
 	*
 	*/
@@ -133,6 +138,13 @@ public:
 	 *
 	 */
 	void StartRecording(class ULevelSequence* InSequence, const FTimecode& InTimecodeSource, FManifestSerializer* InManifestSerializer);
+
+	/*
+	 * Moves time forward by given DeltaTime
+	 *
+	 * @return Current Frame Number
+	 */
+	FFrameTime AdvanceTime(float DeltaTime);
 
 	/*
 	* Tick recording pass

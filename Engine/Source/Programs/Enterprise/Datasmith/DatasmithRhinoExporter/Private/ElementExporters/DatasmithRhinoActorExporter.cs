@@ -15,13 +15,14 @@ namespace DatasmithRhino.ElementExporters
 
 		protected override int GetElementsToSynchronizeCount()
 		{
-			const bool bImmediateChildrenOnly = false;
-			return ExportContext.SceneRoot.GetChildrenCount(bImmediateChildrenOnly) + 1;
+			return ExportContext.SceneRoot.GetDescendantsCount();
 		}
 
 		protected override IEnumerable<DatasmithActorInfo> GetElementsToSynchronize()
 		{
-			return ExportContext.SceneRoot.GetEnumerator(/*bIncludeHidden=*/false);
+			// We don't export the root, only its descendants.
+			const bool bIncludeHidden = true;
+			return ExportContext.SceneRoot.GetDescendantEnumerator(bIncludeHidden);
 		}
 
 		protected override FDatasmithFacadeElement CreateElement(DatasmithActorInfo ElementInfo)
@@ -74,10 +75,10 @@ namespace DatasmithRhino.ElementExporters
 		private FDatasmithFacadeActor CreateActor(DatasmithActorInfo Node)
 		{
 			FDatasmithFacadeActor ExportedActor = null;
-			bool bExportEmptyActor = !Node.bHasRhinoObject;
 
 			if (Node.bHasRhinoObject)
 			{
+				bool bExportEmptyActor = false;
 				RhinoObject CurrentObject = Node.RhinoModelComponent as RhinoObject;
 
 				if (CurrentObject.ObjectType == ObjectType.InstanceReference
@@ -101,9 +102,17 @@ namespace DatasmithRhino.ElementExporters
 					// If the node's object has a mesh associated to it, export it as a MeshActor.
 					ExportedActor = CreateMeshActor(Node);
 				}
-				else if (!bExportEmptyActor)
+				
+				if (ExportedActor == null)
 				{
-					//#ueent_todo Log non-exported object in DatasmithExport UI (Writing to Rhino Console is extremely slow).
+					if(bExportEmptyActor)
+					{
+						ExportedActor = CreateEmptyActor(Node);
+					}
+					else
+					{
+						DatasmithRhinoPlugin.Instance.LogManager.AddLog(DatasmithRhinoLogType.Info, string.Format("RhinoObject {0} of type \"{1}\" is not supported and was not exported.", CurrentObject.Id, CurrentObject.ObjectType));
+					}
 				}
 			}
 			else if(!Node.bIsRoot)
@@ -147,7 +156,7 @@ namespace DatasmithRhino.ElementExporters
 
 		private void SyncMeshActor(FDatasmithFacadeActorMesh DatasmithMeshActor, DatasmithActorInfo InNode, DatasmithMeshInfo InMeshInfo)
 		{
-			DatasmithMeshActor.SetLabel(InNode.Label);
+			DatasmithMeshActor.SetLabel(InNode.UniqueLabel);
 
 			Transform OffsetTransform = InMeshInfo.OffsetTransform;
 			Transform WorldTransform = Transform.Multiply(InNode.WorldTransform, OffsetTransform);
@@ -192,7 +201,7 @@ namespace DatasmithRhino.ElementExporters
 
 		private static void SyncEmptyActor(DatasmithActorInfo InNode, FDatasmithFacadeActor DatasmithActor)
 		{
-			DatasmithActor.SetLabel(InNode.Label);
+			DatasmithActor.SetLabel(InNode.UniqueLabel);
 
 			float[] MatrixArray = InNode.WorldTransform.ToFloatArray(false);
 			DatasmithActor.SetWorldTransform(MatrixArray);
@@ -267,7 +276,7 @@ namespace DatasmithRhino.ElementExporters
 			LightActor.SetColor(DiffuseColor.R, DiffuseColor.G, DiffuseColor.B, DiffuseColor.A);
 			LightActor.SetIntensity(RhinoLight.Intensity * 100f);
 			LightActor.SetEnabled(RhinoLight.IsEnabled);
-			LightActor.SetLabel(InNode.Label);
+			LightActor.SetLabel(InNode.UniqueLabel);
 
 			FDatasmithFacadePointLight PointLightElement = LightActor as FDatasmithFacadePointLight;
 			if (PointLightElement != null)

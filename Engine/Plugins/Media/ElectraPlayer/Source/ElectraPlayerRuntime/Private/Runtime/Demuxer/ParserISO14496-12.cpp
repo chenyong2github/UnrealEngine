@@ -2,6 +2,7 @@
 
 #include "Misc/Build.h"
 #include "PlayerCore.h"
+#include "Containers/ChunkedArray.h"
 
 #include "Demuxer/ParserISO14496-12.h"
 
@@ -179,22 +180,11 @@ namespace Electra
 	{
 	public:
 		FMP4ParseInfo()
-			: RootBox(nullptr)
-			, BoxReader(nullptr)
-			, BoxNestingLevel(0)
-			, CurrentMoovBox(nullptr)
-			, CurrentMoofBox(nullptr)
-			, CurrentTrackBox(nullptr)
-			, CurrentHandlerBox(nullptr)
-			, CurrentMediaHandlerBox(nullptr)
-			, PlayerSession(nullptr)
-			, NumTotalBoxesParsed(0)
-		{
-		}
+		{ }
 
 		virtual ~FMP4ParseInfo();
 
-		UEMediaError Parse(FMP4BoxReader* Reader, const FParamDict& Options, IPlayerSessionServices* PlayerSession);
+		UEMediaError Parse(FMP4BoxReader* Reader, IPlayerSessionServices* PlayerSession);
 
 		/**
 		 * Reads the type and size of the next box. If the box is an uuid box the 16 byte uuid is stored in the provided buffer.
@@ -210,6 +200,17 @@ namespace Electra
 			return BoxReader;
 		}
 
+
+		FMP4Box* GetCurrentFtypBox() const
+		{
+			return CurrentFtypBox;
+		}
+
+		FMP4Box* GetCurrentStypBox() const
+		{
+			return CurrentStypBox;
+		}
+
 		FMP4Box* GetCurrentMoovBox() const
 		{
 			return CurrentMoovBox;
@@ -218,6 +219,11 @@ namespace Electra
 		FMP4Box* GetCurrentMoofBox() const
 		{
 			return CurrentMoofBox;
+		}
+
+		FMP4Box* GetCurrentSidxBox() const
+		{
+			return CurrentSidxBox;
 		}
 
 		FMP4Box* GetCurrentTrackBox() const
@@ -252,14 +258,29 @@ namespace Electra
 	private:
 		FMP4ParseInfo(const FMP4ParseInfo&) = delete;
 
-		void SetCurrentMoovBox(FMP4Box* TrackBox)
+		void SetCurrentFtypBox(FMP4Box* FtypBox)
 		{
-			CurrentMoovBox = TrackBox;
+			CurrentFtypBox = FtypBox;
 		}
 
-		void SetCurrentMoofBox(FMP4Box* TrackBox)
+		void SetCurrentStypBox(FMP4Box* StypBox)
 		{
-			CurrentMoofBox = TrackBox;
+			CurrentStypBox = StypBox;
+		}
+
+		void SetCurrentMoovBox(FMP4Box* MoovBox)
+		{
+			CurrentMoovBox = MoovBox;
+		}
+
+		void SetCurrentMoofBox(FMP4Box* MoofBox)
+		{
+			CurrentMoofBox = MoofBox;
+		}
+
+		void SetCurrentSidxBox(FMP4Box* SidxBox)
+		{
+			CurrentSidxBox = SidxBox;
 		}
 
 		void SetCurrentTrackBox(FMP4Box* TrackBox)
@@ -290,20 +311,22 @@ namespace Electra
 			return BoxNestingLevel;
 		}
 
-		FMP4Box* RootBox;					//!< A root box that is not an actual file box but a container representing the file itself.
-		FMP4BoxReader* BoxReader;			//!< Instance of the box reader we were given. This is not ours so we must not delete it!
-		int32 BoxNestingLevel;				//!< Box tree depth
+		FMP4Box* RootBox = nullptr;					//!< A root box that is not an actual file box but a container representing the file itself.
+		FMP4BoxReader* BoxReader = nullptr;			//!< Instance of the box reader we were given. This is not ours so we must not delete it!
+		int32 BoxNestingLevel = 0;					//!< Box tree depth
 
-		FMP4Box* CurrentMoovBox;			//!< moov being parsed at the moment.
-		FMP4Box* CurrentMoofBox;			//!< moof being parsed at the moment.
-		FMP4Box* CurrentTrackBox;			//!< trak/traf being parsed at the moment.
-		FMP4Box* CurrentHandlerBox;			//!< hdlr being parsed at the moment.
-		FMP4Box* CurrentMediaHandlerBox;	//!< media handler being parsed at the moment ('vmhd', 'smhd', 'sthd', nmhd')
+		FMP4Box* CurrentFtypBox = nullptr;
+		FMP4Box* CurrentStypBox = nullptr;
+		FMP4Box* CurrentMoovBox = nullptr;			//!< moov being parsed at the moment.
+		FMP4Box* CurrentMoofBox = nullptr;			//!< moof being parsed at the moment.
+		FMP4Box* CurrentSidxBox = nullptr;			//!< sidx being parsed at the moment.
+		FMP4Box* CurrentTrackBox = nullptr;			//!< trak/traf being parsed at the moment.
+		FMP4Box* CurrentHandlerBox = nullptr;		//!< hdlr being parsed at the moment.
+		FMP4Box* CurrentMediaHandlerBox = nullptr;	//!< media handler being parsed at the moment ('vmhd', 'smhd', 'sthd', nmhd')
 
 
-		FParamDict Options;
-		IPlayerSessionServices* PlayerSession;
-		int32 NumTotalBoxesParsed;
+		IPlayerSessionServices* PlayerSession = nullptr;
+		int32 NumTotalBoxesParsed = 0;
 	};
 
 
@@ -704,6 +727,19 @@ namespace Electra
 		{
 		}
 
+		int32 GetNumberOfBrands() const
+		{
+			return 1 + CompatibleBrands.Num();
+		}
+
+		IParserISO14496_12::FBrandType GetBrand(int32 Index) const
+		{
+			if (Index > 0 && Index <= CompatibleBrands.Num())
+			{
+				return CompatibleBrands[Index - 1];
+			}
+			return MajorBrand;
+		}
 	private:
 		FMP4BoxFTYP() = delete;
 		FMP4BoxFTYP(const FMP4BoxFTYP&) = delete;
@@ -712,8 +748,10 @@ namespace Electra
 		virtual UEMediaError ReadAndParseAttributes(FMP4ParseInfo* ParseInfo) override
 		{
 			UEMediaError Error = UEMEDIA_ERROR_OK;
-			RETURN_IF_ERROR(ParseInfo->Reader()->Read(MajorBrand));
+			uint32 Major;
+			RETURN_IF_ERROR(ParseInfo->Reader()->Read(Major));
 			RETURN_IF_ERROR(ParseInfo->Reader()->Read(MinorVersion));
+			MajorBrand = (IParserISO14496_12::FBrandType) Major;
 			uint32 BytesRemaining = BoxSize - (ParseInfo->Reader()->GetCurrentReadOffset() - StartOffset);
 			if (BytesRemaining)
 			{
@@ -725,7 +763,7 @@ namespace Electra
 					{
 						uint32 CompatibleBrand = 0;
 						RETURN_IF_ERROR(ParseInfo->Reader()->Read(CompatibleBrand));
-						CompatibleBrands.Push(CompatibleBrand);
+						CompatibleBrands.Push((IParserISO14496_12::FBrandType) CompatibleBrand);
 					}
 				}
 			}
@@ -733,9 +771,9 @@ namespace Electra
 		}
 
 	private:
-		uint32								MajorBrand;
-		uint32								MinorVersion;
-		TArray<uint32>						CompatibleBrands;
+		IParserISO14496_12::FBrandType			MajorBrand;
+		uint32									MinorVersion;
+		TArray<IParserISO14496_12::FBrandType>	CompatibleBrands;
 	};
 
 
@@ -2593,7 +2631,7 @@ namespace Electra
 	 * 'sidx' box.
 	 * ISO/IEC 14496-12:2014 - 8.16.3 - Segment Index Box
 	 */
-	class FMP4BoxSIDX : public FMP4BoxFull
+	class FMP4BoxSIDX : public FMP4BoxFull, public IParserISO14496_12::ISegmentIndex
 	{
 	public:
 		FMP4BoxSIDX(IParserISO14496_12::FBoxType InBoxType, int64 InBoxSize, int64 InStartOffset, int64 InDataOffset, bool bInIsLeafBox)
@@ -2606,12 +2644,24 @@ namespace Electra
 		{
 		}
 
-		struct FEntry
+		// ----------------------------------------------------------------
+		// Methods from IParserISO14496_12::ISegmentIndex
+		//
+		virtual uint64 GetEarliestPresentationTime() const override
+		{ return EarliestPresentationTime; }
+		virtual uint64 GetFirstOffset() const override
+		{ return FirstOffset; }
+		virtual uint32 GetReferenceID() const override
+		{ return ReferenceID; }
+		virtual uint32 GetTimescale() const override
+		{ return Timescale; }
+		virtual int32 GetNumEntries() const override
+		{ return Entries.Num(); }
+		virtual const FEntry& GetEntry(int32 Index) const
 		{
-			uint32		ReferenceTypeAndSize;				// 31: reference_type, 30-0: referenced size
-			uint32		SubSegmentDuration;					// subsegment_duration
-			uint32		SAPStartAndTypeAndDeltaTime;		// 31: starts_with_SAP, 30-28: SAP_type; 27-0: SAP_delta_time
-		};
+			static FEntry EmptyEntry = {0};
+			return Index < Entries.Num() ? Entries[Index] : EmptyEntry;
+		}
 
 	private:
 		FMP4BoxSIDX() = delete;
@@ -2648,24 +2698,33 @@ namespace Electra
 				Entries.Reserve(ReferenceCount);
 				for(uint32 i = 0; i < ReferenceCount; ++i)
 				{
-					FEntry& e = Entries.AddDefaulted_GetRef();
-					e.ReferenceTypeAndSize = 0;
-					e.SubSegmentDuration = 0;
-					e.SAPStartAndTypeAndDeltaTime = 0;
-					RETURN_IF_ERROR(ParseInfo->Reader()->Read(e.ReferenceTypeAndSize));			// 31: reference_type, 30-0: referenced size
-					RETURN_IF_ERROR(ParseInfo->Reader()->Read(e.SubSegmentDuration));			// subsegment_duration
-					RETURN_IF_ERROR(ParseInfo->Reader()->Read(e.SAPStartAndTypeAndDeltaTime));	// 31: starts_with_SAP, 30-28: SAP_type; 27-0: SAP_delta_time
+					uint32 ReferenceTypeAndSize;
+					uint32 SubSegmentDuration;
+					uint32 SAPStartAndTypeAndDeltaTime;
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(ReferenceTypeAndSize));			// 31: reference_type, 30-0: referenced size
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(SubSegmentDuration));				// subsegment_duration
+					RETURN_IF_ERROR(ParseInfo->Reader()->Read(SAPStartAndTypeAndDeltaTime));	// 31: starts_with_SAP, 30-28: SAP_type; 27-0: SAP_delta_time
+
+					IParserISO14496_12::ISegmentIndex::FEntry e;
+					e.SubSegmentDuration = SubSegmentDuration;
+					e.IsReferenceType = ReferenceTypeAndSize >> 31;
+					e.Size = ReferenceTypeAndSize & 0x7fffffff;
+					e.StartsWithSAP  = SAPStartAndTypeAndDeltaTime >> 31;
+					e.SAPType = (SAPStartAndTypeAndDeltaTime >> 28) & 7;
+					e.SAPDeltaTime = SAPStartAndTypeAndDeltaTime & 0x0fffffffU;
+					Entries.AddElement(MoveTemp(e));
 				}
 			}
 			return Error;
 		}
 
 	private:
-		TArray<FEntry>						Entries;
-		uint64								EarliestPresentationTime;
-		uint64								FirstOffset;
-		uint32								ReferenceID;
-		uint32								Timescale;
+		// At 12 bytes per entry we get 250 per chunk.
+		TChunkedArray<IParserISO14496_12::ISegmentIndex::FEntry, 3000>	Entries;
+		uint64															EarliestPresentationTime;
+		uint64															FirstOffset;
+		uint32															ReferenceID;
+		uint32															Timescale;
 	};
 
 
@@ -3082,9 +3141,8 @@ namespace Electra
 	}
 
 
-	UEMediaError FMP4ParseInfo::Parse(FMP4BoxReader* Reader, const FParamDict& InOptions, IPlayerSessionServices* InPlayerSession)
+	UEMediaError FMP4ParseInfo::Parse(FMP4BoxReader* Reader, IPlayerSessionServices* InPlayerSession)
 	{
-		Options = InOptions;
 		PlayerSession = InPlayerSession;
 
 		// New parse or continuing a previous?
@@ -3207,13 +3265,17 @@ namespace Electra
 							SetCurrentTrackBox(NextBox);
 							break;
 						case FMP4Box::kBox_ftyp:
+							check(GetCurrentFtypBox() == nullptr);
 							NextBox = new FMP4BoxFTYP(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							SetCurrentFtypBox(NextBox);
 							break;
 						case FMP4Box::kBox_styp:
 							NextBox = new FMP4BoxSTYP(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							SetCurrentStypBox(NextBox);
 							break;
 						case FMP4Box::kBox_sidx:
 							NextBox = new FMP4BoxSIDX(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
+							SetCurrentSidxBox(NextBox);
 							break;
 						case FMP4Box::kBox_mvhd:
 							NextBox = new FMP4BoxMVHD(BoxType, BoxSize, BoxStartOffset, BoxDataOffset, true);
@@ -3444,14 +3506,19 @@ namespace Electra
 	public:
 		FParserISO14496_12();
 		virtual ~FParserISO14496_12();
-		virtual UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, const FParamDict& Options, IPlayerSessionServices* PlayerSession) override;
+		virtual UEMediaError ParseHeader(IReader* DataReader, IBoxCallback* BoxParseCallback, IPlayerSessionServices* PlayerSession) override;
 
 		virtual UEMediaError PrepareTracks(TSharedPtrTS<const IParserISO14496_12>	OptionalMP4InitSegment) override;
 
 		virtual TMediaOptionalValue<FTimeFraction> GetMovieDuration() const override;
 		virtual int32 GetNumberOfTracks() const override;
+		virtual int32 GetNumberOfSegmentIndices() const override;
+		virtual int32 GetNumberOfBrands() const override;
+		virtual FBrandType GetBrandByIndex(int32 Index) const override;
+		virtual bool HasBrand(const FBrandType InBrand) const override;
 		virtual const ITrack* GetTrackByIndex(int32 Index) const override;
 		virtual const ITrack* GetTrackByTrackID(int32 TrackID) const override;
+		virtual const ISegmentIndex* GetSegmentIndexByIndex(int32 Index) const override;
 
 		virtual TSharedPtr<IAllTrackIterator, ESPMode::ThreadSafe> CreateAllTrackIteratorByFilePos(int64 InFromFilePos) const override;
 
@@ -3487,7 +3554,6 @@ namespace Electra
 
 			UEMediaError StartAtFirstInteral();
 			void SetTrack(const FTrack* InTrack);
-			void SetOptions(const FParamDict& InOptions);
 			bool IsValid() const
 			{
 				return Track != nullptr;
@@ -3497,7 +3563,6 @@ namespace Electra
 			{
 				if (this != &Other)
 				{
-					Options = Other.Options;
 					Track = Other.Track;
 					bIsFragmented = Other.bIsFragmented;
 					CurrentSampleNumber = Other.CurrentSampleNumber;
@@ -3533,46 +3598,45 @@ namespace Electra
 				return *this;
 			}
 
-			FParamDict			Options;
-			const FTrack*		Track;
+			const FTrack*		Track = nullptr;
 
-			bool				bIsFragmented;
+			bool				bIsFragmented = false;
 
-			uint32				CurrentSampleNumber;
-			uint32				Timescale;
+			uint32				CurrentSampleNumber = 0;
+			uint32				Timescale = 0;
 
 			// Used in fragmented files only
-			uint32				InTRUNIndex;
-			uint32				SampleNumberInTRUN;
-			uint32				RemainingSamplesInTRUN;
+			uint32				InTRUNIndex = 0;
+			uint32				SampleNumberInTRUN = 0;
+			uint32				RemainingSamplesInTRUN = 0;
 
 			// Used in standard files only
-			uint32				NumSamplesTotal;
-			uint32				NumSamplesInChunk;
-			uint32				ChunkNumOfNextSampleChange;
-			uint32				CurrentSampleInChunk;
-			uint32				CurrentChunkIndex;
-			int32				STSCIndex;
-			uint32				STTSCount;
-			uint32				STTSDelta;
-			int32				STTSIndex;
-			uint32				CTTSCount;
-			int64				CTTSOffset;
-			int32				CTTSIndex;
-			uint32				STSSNextSyncSampleNum;
-			int32				STSSIndex;
+			uint32				NumSamplesTotal = 0;
+			uint32				NumSamplesInChunk = 0;
+			uint32				ChunkNumOfNextSampleChange = 0;
+			uint32				CurrentSampleInChunk = 0;
+			uint32				CurrentChunkIndex = 0;
+			int32				STSCIndex = 0;
+			uint32				STTSCount = 0;
+			uint32				STTSDelta = 0;
+			int32				STTSIndex = 0;
+			uint32				CTTSCount = 0;
+			int64				CTTSOffset = 0;
+			int32				CTTSIndex = 0;
+			uint32				STSSNextSyncSampleNum = 0;
+			int32				STSSIndex = 0;
 
 			// Used in all cases
-			int64				EmptyEditDurationInMediaTimeUnits;
-			int64				CompositionTimeEditOffset;
-			int64				DataOffset;
-			int64				SampleDTS;
-			int64				SamplePTS;
-			uint32				SampleFlag;
-			uint32				SampleSize;
-			uint32				SampleDuration;
-			uint32				SampleDescriptionIndex;
-			bool				bEOS;
+			int64				EmptyEditDurationInMediaTimeUnits = 0;
+			int64				CompositionTimeEditOffset = 0;
+			int64				DataOffset = 0;
+			int64				SampleDTS = 0;
+			int64				SamplePTS = 0;
+			uint32				SampleFlag = 0;
+			uint32				SampleSize = 0;
+			uint32				SampleDuration = 0;
+			uint32				SampleDescriptionIndex = 0;
+			bool				bEOS = true;
 		};
 
 
@@ -3586,7 +3650,6 @@ namespace Electra
 			virtual uint32 GetID() const override;
 			virtual FTimeFraction GetDuration() const override;
 			virtual ITrackIterator* CreateIterator() const override;
-			virtual ITrackIterator* CreateIterator(const FParamDict& InOptions) const override;
 			virtual const TArray<uint8>& GetCodecSpecificData() const override;
 			virtual const TArray<uint8>& GetCodecSpecificDataRAW() const override;
 			virtual const FStreamCodecInformation& GetCodecInformation() const override;
@@ -3594,32 +3657,32 @@ namespace Electra
 			virtual const FString GetLanguage() const override;
 
 			//private:
-			const FMP4BoxMVHD* MVHDBox;
-			const FMP4BoxELST* ELSTBox;
-			const FMP4BoxTKHD* TKHDBox;
-			const FMP4Box*	   MDIABox;
-			const FMP4BoxMDHD* MDHDBox;
-			const FMP4BoxHDLR* HDLRBox;
-			const FMP4Box*	   STBLBox;
-			const FMP4BoxSTSD* STSDBox;
-			const FMP4BoxSTTS* STTSBox;
-			const FMP4BoxCTTS* CTTSBox;
-			const FMP4BoxSTSC* STSCBox;
-			const FMP4BoxSTSZ* STSZBox;
-			const FMP4BoxSTCO* STCOBox;
-			const FMP4BoxSTSS* STSSBox;
+			const FMP4BoxMVHD* MVHDBox = nullptr;
+			const FMP4BoxELST* ELSTBox = nullptr;
+			const FMP4BoxTKHD* TKHDBox = nullptr;
+			const FMP4Box*	   MDIABox = nullptr;
+			const FMP4BoxMDHD* MDHDBox = nullptr;
+			const FMP4BoxHDLR* HDLRBox = nullptr;
+			const FMP4Box*	   STBLBox = nullptr;
+			const FMP4BoxSTSD* STSDBox = nullptr;
+			const FMP4BoxSTTS* STTSBox = nullptr;
+			const FMP4BoxCTTS* CTTSBox = nullptr;
+			const FMP4BoxSTSC* STSCBox = nullptr;
+			const FMP4BoxSTSZ* STSZBox = nullptr;
+			const FMP4BoxSTCO* STCOBox = nullptr;
+			const FMP4BoxSTSS* STSSBox = nullptr;
 			// Fragmented track
-			const FMP4Box*	   MOOFBox;
-			const FMP4BoxTREX* TREXBox;
-			const FMP4BoxTFHD* TFHDBox;
-			const FMP4BoxTFDT* TFDTBox;
+			const FMP4Box*	   MOOFBox = nullptr;
+			const FMP4BoxTREX* TREXBox = nullptr;
+			const FMP4BoxTFHD* TFHDBox = nullptr;
+			const FMP4BoxTFDT* TFDTBox = nullptr;
 			TArray<const FMP4BoxTRUN*>	TRUNBoxes;
 			// Future boxes: sbgp, sgpd, subs, saiz, saio
 
 			FStreamCodecInformation					CodecInformation;
 
-			int64									EmptyEditDurationInMediaTimeUnits;
-			int64									CompositionTimeEditOffset;
+			int64									EmptyEditDurationInMediaTimeUnits = 0;
+			int64									CompositionTimeEditOffset = 0;
 
 			MPEG::FAVCDecoderConfigurationRecord	CodecSpecificDataAVC;
 			MPEG::FESDescriptor						CodecSpecificDataMP4A;
@@ -3731,26 +3794,6 @@ namespace Electra
 
 
 	FParserISO14496_12::FTrack::FTrack()
-		: MVHDBox(nullptr)
-		, ELSTBox(nullptr)
-		, TKHDBox(nullptr)
-		, MDIABox(nullptr)
-		, MDHDBox(nullptr)
-		, HDLRBox(nullptr)
-		, STBLBox(nullptr)
-		, STSDBox(nullptr)
-		, STTSBox(nullptr)
-		, CTTSBox(nullptr)
-		, STSCBox(nullptr)
-		, STSZBox(nullptr)
-		, STCOBox(nullptr)
-		, STSSBox(nullptr)
-		, MOOFBox(nullptr)
-		, TREXBox(nullptr)
-		, TFHDBox(nullptr)
-		, TFDTBox(nullptr)
-		, EmptyEditDurationInMediaTimeUnits(0)
-		, CompositionTimeEditOffset(0)
 	{
 	}
 
@@ -3782,17 +3825,6 @@ namespace Electra
 		FTrackIterator* TrackIterator = new FTrackIterator;
 		if (TrackIterator)
 		{
-			TrackIterator->SetTrack(this);
-		}
-		return TrackIterator;
-	}
-
-	IParserISO14496_12::ITrackIterator* FParserISO14496_12::FTrack::CreateIterator(const FParamDict& InOptions) const
-	{
-		FTrackIterator* TrackIterator = new FTrackIterator;
-		if (TrackIterator)
-		{
-			TrackIterator->SetOptions(InOptions);
 			TrackIterator->SetTrack(this);
 		}
 		return TrackIterator;
@@ -3865,37 +3897,6 @@ namespace Electra
 
 	FParserISO14496_12::FTrackIterator::FTrackIterator()
 	{
-		Track = nullptr;
-		bIsFragmented = false;
-		CurrentSampleNumber = 0;
-		Timescale = 0;
-		InTRUNIndex = 0;
-		SampleNumberInTRUN = 0;
-		RemainingSamplesInTRUN = 0;
-		NumSamplesTotal = 0;
-		NumSamplesInChunk = 0;
-		ChunkNumOfNextSampleChange = 0;
-		CurrentSampleInChunk = 0;
-		CurrentChunkIndex = 0;
-		STSCIndex = 0;
-		STTSCount = 0;
-		STTSDelta = 0;
-		STTSIndex = 0;
-		CTTSCount = 0;
-		CTTSOffset = 0;
-		CTTSIndex = 0;
-		STSSNextSyncSampleNum = 0;
-		STSSIndex = 0;
-		EmptyEditDurationInMediaTimeUnits = 0;
-		CompositionTimeEditOffset = 0;
-		DataOffset = 0;
-		SampleDTS = 0;
-		SamplePTS = 0;
-		SampleFlag = 0;
-		SampleSize = 0;
-		SampleDuration = 0;
-		SampleDescriptionIndex = 0;
-		bEOS = true;
 	}
 
 	FParserISO14496_12::FTrackIterator::~FTrackIterator()
@@ -3910,11 +3911,6 @@ namespace Electra
 	const FParserISO14496_12::ITrack* FParserISO14496_12::FTrackIterator::GetTrack() const
 	{
 		return Track;
-	}
-
-	void FParserISO14496_12::FTrackIterator::SetOptions(const FParamDict& InOptions)
-	{
-		Options = InOptions;
 	}
 
 	int64 FParserISO14496_12::FTrackIterator::GetBaseMediaDecodeTime() const
@@ -3972,13 +3968,20 @@ namespace Electra
 
 			// Establish the base data offset for the first sample.
 			DataOffset = 0;
-			if (Track->TFHDBox->IsMoofDefaultBase())
+			// Base data offset comes first.
+			if (Track->TFHDBox->HasBaseDataOffset())
+			{
+				DataOffset = (int64)Track->TFHDBox->GetBaseDataOffset();
+			}
+			// Then, if base data offset is not set the 'default-base-is-moof' flag is considered.
+			else if (Track->TFHDBox->IsMoofDefaultBase())
 			{
 				DataOffset = Track->MOOFBox->GetStartOffset();
 			}
-			else if (Track->TFHDBox->HasBaseDataOffset())
+			// Lastly the offset is the first byte in the moof box. Which happens to be the same thing as if 'default-base-is-moof' were set.
+			else
 			{
-				DataOffset = (int64)Track->TFHDBox->GetBaseDataOffset();
+				DataOffset = Track->MOOFBox->GetStartOffset();
 			}
 			if (TRUNBox->HasSampleOffset())
 			{
@@ -4463,7 +4466,7 @@ namespace Electra
 
 	int64 FParserISO14496_12::FTrackIterator::GetDTS() const
 	{
-		return SampleDTS + EmptyEditDurationInMediaTimeUnits;
+		return SampleDTS + EmptyEditDurationInMediaTimeUnits - CompositionTimeEditOffset;
 	}
 
 	int64 FParserISO14496_12::FTrackIterator::GetPTS() const
@@ -4537,7 +4540,7 @@ namespace Electra
 		delete ParsedData;
 	}
 
-	UEMediaError FParserISO14496_12::ParseHeader(IReader* InDataReader, IBoxCallback* InBoxParseCallback, const FParamDict& Options, IPlayerSessionServices* PlayerSession)
+	UEMediaError FParserISO14496_12::ParseHeader(IReader* InDataReader, IBoxCallback* InBoxParseCallback, IPlayerSessionServices* PlayerSession)
 	{
 		if (!InDataReader || !InBoxParseCallback)
 		{
@@ -4555,7 +4558,7 @@ namespace Electra
 		}
 
 		FMP4BoxReader Reader(InDataReader, InBoxParseCallback);
-		UEMediaError ParseError = ParsedData->Parse(&Reader, Options, PlayerSession);
+		UEMediaError ParseError = ParsedData->Parse(&Reader, PlayerSession);
 
 		return ParseError;
 	}
@@ -4966,11 +4969,6 @@ namespace Electra
 				}
 			}
 		}
-		else
-		{
-			// We need to have a moov box to continue.
-			return UEMEDIA_ERROR_FORMAT_ERROR;
-		}
 
 
 		// Fragmented?
@@ -5038,7 +5036,8 @@ namespace Electra
 		// Set the new track information.
 		ParsedTrackInfo = NewParsedTrackInfo.Release();
 
-		return UEMEDIA_ERROR_OK;
+		// Need to have moov, moof or sidx.
+		return MOOVBox || MOOFBox || ParsedData->GetCurrentSidxBox() ? UEMEDIA_ERROR_OK : UEMEDIA_ERROR_FORMAT_ERROR;
 	}
 
 
@@ -5053,6 +5052,13 @@ namespace Electra
 		return ParsedTrackInfo ? ParsedTrackInfo->GetNumberOfTracks() : 0;
 	}
 
+	int32 FParserISO14496_12::GetNumberOfSegmentIndices() const
+	{
+		// For now there is only one or none.
+		// See GetSegmentIndexByIndex()
+		return ParsedData ? (ParsedData->GetCurrentSidxBox() ? 1 : 0) : 0;
+	}
+
 	const FParserISO14496_12::ITrack* FParserISO14496_12::GetTrackByIndex(int32 Index) const
 	{
 		return ParsedTrackInfo ? ParsedTrackInfo->GetTrackByIndex(Index) : nullptr;
@@ -5063,7 +5069,44 @@ namespace Electra
 		return ParsedTrackInfo ? ParsedTrackInfo->GetTrackByID(TrackID) : nullptr;
 	}
 
+	const FParserISO14496_12::ISegmentIndex* FParserISO14496_12::GetSegmentIndexByIndex(int32 Index) const
+	{
+		// There is either none or one right now.
+		// See GetNumberOfSegmentIndices()
+		return Index < GetNumberOfSegmentIndices() ? static_cast<FMP4BoxSIDX*>(ParsedData->GetCurrentSidxBox()) : nullptr;
+	}
 
+	int32 FParserISO14496_12::GetNumberOfBrands() const
+	{
+		const FMP4BoxFTYP* Box = static_cast<const FMP4BoxFTYP*>(ParsedData->GetCurrentStypBox() ? ParsedData->GetCurrentStypBox() : ParsedData->GetCurrentFtypBox());
+		if (Box)
+		{
+			return Box->GetNumberOfBrands();
+		}
+		return 0;
+	}
+	
+	IParserISO14496_12::FBrandType FParserISO14496_12::GetBrandByIndex(int32 Index) const
+	{
+		const FMP4BoxFTYP* Box = static_cast<const FMP4BoxFTYP*>(ParsedData->GetCurrentStypBox() ? ParsedData->GetCurrentStypBox() : ParsedData->GetCurrentFtypBox());
+		if (Box)
+		{
+			return Box->GetBrand(Index);
+		}
+		return MAKE_MP4_BRAND(0,0,0,0);
+	}
+
+	bool FParserISO14496_12::HasBrand(const IParserISO14496_12::FBrandType InBrand) const
+	{
+		for(int32 i=0,iMax=GetNumberOfBrands(); i<iMax; ++i)
+		{
+			if (GetBrandByIndex(i) == InBrand)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
 
 
 

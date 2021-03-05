@@ -28,6 +28,9 @@ namespace ChaosTest {
 	void ImplicitTaperedCylinder();
 
 	/**/
+	void ImplicitTaperedCapsule();
+
+	/**/
 	void ImplicitCapsule();
 
 	/**/

@@ -5,6 +5,7 @@
 
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
+#include "ImgMediaLoader.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 
@@ -72,8 +73,9 @@ TSharedPtr<IImageWrapper> LoadImage(const FString& ImagePath, IImageWrapperModul
 /* FGenericImgMediaReader structors
  *****************************************************************************/
 
-FGenericImgMediaReader::FGenericImgMediaReader(IImageWrapperModule& InImageWrapperModule)
+FGenericImgMediaReader::FGenericImgMediaReader(IImageWrapperModule& InImageWrapperModule, const TSharedRef<FImgMediaLoader, ESPMode::ThreadSafe>& InLoader)
 	: ImageWrapperModule(InImageWrapperModule)
+	, LoaderPtr(InLoader)
 { }
 
 
@@ -89,8 +91,16 @@ bool FGenericImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFra
 }
 
 
-bool FGenericImgMediaReader::ReadFrame(const FString& ImagePath, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame, int32 FrameId)
+bool FGenericImgMediaReader::ReadFrame(int32 FrameId, int32 MipLevel, const FImgMediaTileSelection& InTileSelectio, TSharedPtr<FImgMediaFrame, ESPMode::ThreadSafe> OutFrame)
 {
+	TSharedPtr<FImgMediaLoader, ESPMode::ThreadSafe> Loader = LoaderPtr.Pin();
+	if (Loader.IsValid() == false)
+	{
+		return false;
+	}
+
+	const FString& ImagePath = Loader->GetImagePath(FrameId, MipLevel);
+
 	TArray64<uint8> InputBuffer;
 	TSharedPtr<IImageWrapper> ImageWrapper = LoadImage(ImagePath, ImageWrapperModule, InputBuffer, OutFrame->Info);
 
@@ -114,6 +124,7 @@ bool FGenericImgMediaReader::ReadFrame(const FString& ImagePath, TSharedPtr<FImg
 	OutFrame->Data = MakeShareable(Buffer, [](void* ObjectToDelete) { FMemory::Free(ObjectToDelete); });
 	OutFrame->Format = EMediaTextureSampleFormat::CharBGRA;
 	OutFrame->Stride = OutFrame->Info.Dim.X * 4;
+	OutFrame->MipMapsPresent = 1 << MipLevel;
 
 	return true;
 }

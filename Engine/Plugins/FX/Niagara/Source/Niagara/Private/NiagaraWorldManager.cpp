@@ -21,6 +21,7 @@
 #include "NiagaraEffectType.h"
 #include "NiagaraDebugHud.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Particles/FXBudget.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Update Scalability Managers [GT]"), STAT_UpdateScalabilityManagers, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
@@ -111,6 +112,14 @@ static FAutoConsoleVariableRef CVarEnableNiagaraInstanceCountCulling(
 	TEXT("fx.Niagara.Scalability.InstanceCountCulling"),
 	GEnableNiagaraInstanceCountCulling,
 	TEXT("When non-zero, high level scalability culling based on instance count is enabled."),
+	ECVF_Default
+);
+
+static int GEnableNiagaraGlobalBudgetCulling = 1;
+static FAutoConsoleVariableRef CVarEnableNiagaraGlobalBudgetCulling(
+	TEXT("fx.Niagara.Scalability.GlobalBudgetCulling"),
+	GEnableNiagaraGlobalBudgetCulling,
+	TEXT("When non-zero, high level scalability culling based on global time budget is enabled."),
 	ECVF_Default
 );
 
@@ -1008,11 +1017,6 @@ void FNiagaraWorldManager::UpdateScalabilityManagers(float DeltaSeconds, bool bN
 		}
 		else
 		{
-			EffectType->ProcessLastFrameCycleCounts();
-
-			//TODO: Work out how best to budget each effect type.
-			//EffectType->ApplyDynamicBudget(DynamicBudget_GT, DynamicBudget_GT_CNC, DynamicBudget_RT);
-
 			ScalabilityMan.Update(this, DeltaSeconds, false);
 		}
 	}
@@ -1063,7 +1067,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, UNiagaraCompone
 			{
 				FNiagaraScalabilityState State;
 				const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
-				CalculateScalabilityState(System, ScalabilitySettings, EffectType, Component, true, State);
+				CalculateScalabilityState(System, ScalabilitySettings, EffectType, Component, true, FFXBudget::GetWorstAdjustedUsage(), State);
 				return State.bCulled;
 			}
 		}
@@ -1081,7 +1085,8 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 			{
 				FNiagaraScalabilityState State;
 				const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
-				CalculateScalabilityState(System, ScalabilitySettings, EffectType, Location, true, State);
+				CalculateScalabilityState(System, ScalabilitySettings, EffectType, Location, true, FFXBudget::GetWorstAdjustedUsage(), State);
+				//TODO: Tell the debugger about recently PreCulled systems.
 				return State.bCulled;
 			}
 		}
@@ -1089,7 +1094,7 @@ bool FNiagaraWorldManager::ShouldPreCull(UNiagaraSystem* System, FVector Locatio
 	return false;
 }
 
-void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, FVector Location, bool bIsPreCull, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState)
 {
 	OutState.bCulled = false;
 
@@ -1101,11 +1106,16 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
 
+	//Cull if any of our budgets are exceeded.
+ 	if (FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.bCullByGlobalBudget)
+ 	{
+ 		GlobalBudgetCull(ScalabilitySettings, WorstGlobalBudgetUse, OutState);
+ 	}
 
 	//TODO: More progressive scalability options?
 }
 
-void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, FNiagaraScalabilityState& OutState)
+void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, UNiagaraEffectType* EffectType, UNiagaraComponent* Component, bool bIsPreCull, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState)
 {
 	OutState.bCulled = false;
 
@@ -1122,7 +1132,19 @@ void FNiagaraWorldManager::CalculateScalabilityState(UNiagaraSystem* System, con
 		InstanceCountCull(EffectType, System, ScalabilitySettings, OutState);
 	}
 
+ 	if (FFXBudget::Enabled() && INiagaraModule::UseGlobalFXBudget() && GEnableNiagaraGlobalBudgetCulling && ScalabilitySettings.bCullByGlobalBudget)
+	{
+ 		GlobalBudgetCull(ScalabilitySettings, WorstGlobalBudgetUse, OutState);
+ 	}
+
 	//TODO: More progressive scalability options?
+
+#if WITH_NIAGARA_DEBUGGER
+	//Tell the debugger about our scalability state.
+	//Unfortunately cannot have the debugger just read the manager state data as components are removed.
+	//To avoid extra copy in future we can have the manager keep another list of recently removed component states which is cleaned up on component destruction.
+	Component->DebugCachedScalabilityState = OutState;
+#endif
 }
 
 bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
@@ -1234,6 +1256,15 @@ void FNiagaraWorldManager::DistanceCull(UNiagaraEffectType* EffectType, const FN
 #endif
 		}
 	}
+}
+
+void FNiagaraWorldManager::GlobalBudgetCull(const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float WorstGlobalBudgetUse, FNiagaraScalabilityState& OutState)
+{
+ 	bool bCull = WorstGlobalBudgetUse >= ScalabilitySettings.MaxGlobalBudgetUsage;
+ 	OutState.bCulled |= bCull;
+#if DEBUG_SCALABILITY_STATE
+	OutState.bCulledByGlobalBudget = bCull;
+#endif
 }
 
 bool FNiagaraWorldManager::GetScalabilityState(UNiagaraComponent* Component, FNiagaraScalabilityState& OutState) const

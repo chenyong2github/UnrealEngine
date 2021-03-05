@@ -55,6 +55,8 @@
 #include "MobileDeferredShadingPass.h"
 #include "PlanarReflectionSceneProxy.h"
 #include "InstanceCulling/InstanceCullingManager.h"
+#include "SceneOcclusion.h"
+#include "SceneTextureReductions.h"
 
 uint32 GetShadowQuality();
 
@@ -202,7 +204,7 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bModulatedShadowsInUse = false;
 	bShouldRenderCustomDepth = false;
 	bRequiresPixelProjectedPlanarRelfectionPass = false;
-	bRequriesAmbientOcclusionPass = false;
+	bRequiresAmbientOcclusionPass = false;
 	bRequiresDistanceFieldShadowingPass = false;
 
 	// Don't do occlusion queries when doing scene captures
@@ -368,9 +370,9 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		&& !bDeferredShading;
 
 
-	bRequriesAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
+	bRequiresAmbientOcclusionPass = IsUsingMobileAmbientOcclusion(ShaderPlatform)
 		&& Views[0].FinalPostProcessSettings.AmbientOcclusionIntensity > 0
-		&& Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f
+		&& (Views[0].FinalPostProcessSettings.AmbientOcclusionStaticFraction >= 1 / 100.0f || (Scene && Scene->SkyLight && Scene->SkyLight->ProcessedTexture && Views[0].Family->EngineShowFlags.SkyLighting))
 		&& ViewFamily.EngineShowFlags.Lighting
 		&& !Views[0].bIsReflectionCapture
 		&& !Views[0].bIsPlanarReflection
@@ -391,6 +393,8 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		&& !bDeferredShading;
 
 	bRequiresDistanceFieldShadowingPass = bRequiresDistanceField && IsMobileDistanceFieldShadowingEnabled(ShaderPlatform);
+
+	bShouldRenderHZB = ShouldRenderHZB();
 		
 
 	// Whether we need to store depth for post-processing
@@ -403,7 +407,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	bKeepDepthContent =
 		bRequiresMultiPass ||
 		bForceDepthResolve ||
-		bRequriesAmbientOcclusionPass ||
+		bRequiresAmbientOcclusionPass ||
 		bRequiresDistanceFieldShadowingPass ||
 		bRequiresPixelProjectedPlanarRelfectionPass ||
 		bSeparateTranslucencyActive ||
@@ -677,7 +681,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// bShouldRenderCustomDepth has been initialized in InitViews on mobile platform
 	if (bShouldRenderCustomDepth)
 	{
-		RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth);
+		RenderCustomDepthPass(GraphBuilder, SceneTextures.CustomDepth, SceneTextures.GetSceneTextureShaderParameters(FeatureLevel));
 	}
 
 	SceneTextures.MobileSetupMode = EMobileSceneTextureSetupMode::CustomDepth;
@@ -757,7 +761,12 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RenderMobileSDFShadowing(GraphBuilder, SceneTextures.Depth.Resolve, Scene, Views, VisibleLightInfos);
 	}
 
-	if (bRequriesAmbientOcclusionPass)
+	if (bShouldRenderHZB)
+	{
+		RenderHZB(GraphBuilder, SceneTextures.Depth.Resolve);
+	}
+
+	if (bRequiresAmbientOcclusionPass)
 	{
 		RenderAmbientOcclusion(GraphBuilder, SceneTextures.Depth.Resolve, SceneTextures.ScreenSpaceAO);
 	}
@@ -1710,6 +1719,59 @@ void FMobileSceneRenderer::UpdateMovablePointLightUniformBufferAndShadowInfo()
 					}
 				}
 			}
+		}
+	}
+}
+
+bool FMobileSceneRenderer::ShouldRenderHZB()
+{
+	static const auto MobileAmbientOcclusionTechniqueCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AmbientOcclusionTechnique"));
+
+	// Mobile SSAO requests HZB
+	bool bIsFeatureRequested = bRequiresAmbientOcclusionPass && MobileAmbientOcclusionTechniqueCVar->GetValueOnRenderThread() == 1;
+
+	bool bNeedsHZB = bIsFeatureRequested;
+
+	return bNeedsHZB;
+}
+
+void FMobileSceneRenderer::RenderHZB(FRHICommandListImmediate& RHICmdList, const TRefCountPtr<IPooledRenderTarget>& SceneDepthZ)
+{
+	checkSlow(bShouldRenderHZB);
+
+	FRDGBuilder GraphBuilder(RHICmdList);
+	{
+		FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneDepthZ, TEXT("SceneDepthTexture"));
+
+		RenderHZB(GraphBuilder, SceneDepthTexture);
+	}
+	GraphBuilder.Execute();
+}
+
+void FMobileSceneRenderer::RenderHZB(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture)
+{
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "BuildHZB(ViewId=%d)", ViewIndex);
+			
+			FRDGTextureRef FurthestHZBTexture = nullptr;
+
+			BuildHZB(
+				GraphBuilder,
+				SceneDepthTexture,
+				/* VisBufferTexture = */ nullptr,
+				View,
+				nullptr,
+				&FurthestHZBTexture);
+
+			View.HZBMipmap0Size = FurthestHZBTexture->Desc.Extent;
+			View.HZB = FurthestHZBTexture;
 		}
 	}
 }

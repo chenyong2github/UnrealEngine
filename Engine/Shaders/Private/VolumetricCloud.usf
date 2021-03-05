@@ -835,7 +835,7 @@ bool TraceClouds(
 			const float ShadowJitterNorm = 0.5f; // InterleavedGradientNoise(SvPosition.xy, ShadowJitteringSeed); // Disabled jittering for now as this one cannot be hidden well by TAA in some cases.
 		#if MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW==0 // Use cloud shadowmap instead of ray marching.
 			float OutOpticalDepth = 0.0f;
-			float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[0], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[0],
+			float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[0], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[0].x,
 				RenderVolumetricCloudParameters.CloudShadowTexture0, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
 			[unroll]
 			for (ms = 0; ms < MSCOUNT; ++ms)
@@ -909,7 +909,7 @@ bool TraceClouds(
 		{ // CLOUD_SAMPLE_SECOND_LIGHT
 		#if MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW==0 // Use cloud shadowmap instead of ray marching.
 			float OutOpticalDepth = 0.0f;
-			float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[1], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[1],
+			float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[1], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[1].x,
 				RenderVolumetricCloudParameters.CloudShadowTexture1, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
 			[unroll]
 			for (ms = 0; ms < MSCOUNT; ++ms)
@@ -1344,16 +1344,16 @@ void MainPS(
 	if (RenderVolumetricCloudParameters.TraceShadowmap>=1)
 	{
 		const uint LightIndex = RenderVolumetricCloudParameters.TraceShadowmap - 1;
-		TraceContext.FarDepthKm					= RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[LightIndex];
-		TraceContext.Strength					= RenderVolumetricCloudParameters.CloudShadowmapStrength[LightIndex];
-		TraceContext.DepthBias					= RenderVolumetricCloudParameters.CloudShadowmapDepthBias[LightIndex];
-		TraceContext.SampleCount				= RenderVolumetricCloudParameters.CloudShadowmapSampleCount[LightIndex];
+		TraceContext.FarDepthKm					= RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[LightIndex].x;
+		TraceContext.Strength					= RenderVolumetricCloudParameters.CloudShadowmapStrength[LightIndex].x;
+		TraceContext.DepthBias					= RenderVolumetricCloudParameters.CloudShadowmapDepthBias[LightIndex].x;
+		TraceContext.SampleCount				= RenderVolumetricCloudParameters.CloudShadowmapSampleCount[LightIndex].x;
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudShadowmapSizeInvSize[LightIndex];
 		TraceContext.TracingSizeInvSize			= RenderVolumetricCloudParameters.CloudShadowmapTracingSizeInvSize[LightIndex];
 		TraceContext.TracingPixelScaleOffset	= RenderVolumetricCloudParameters.CloudShadowmapTracingPixelScaleOffset[LightIndex];
 		TraceContext.WorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[LightIndex];
 		TraceContext.WorldToLightClipMatrixInv	= RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrixInv[LightIndex];
-		TraceContext.TraceDir					= RenderVolumetricCloudParameters.CloudShadowmapLightDir[LightIndex];
+		TraceContext.TraceDir					= RenderVolumetricCloudParameters.CloudShadowmapLightDir[LightIndex].xyz;
 	}
 	else
 	{

@@ -10,7 +10,7 @@ FGpuProfilerAnalyzer::FGpuProfilerAnalyzer(FAnalysisSession& InSession, FTimingP
 	: Session(InSession)
 	, TimingProfilerProvider(InTimingProfilerProvider)
 	, Timeline(TimingProfilerProvider.EditGpuTimeline())
-	, Calibrated(false)
+	, Timeline2(TimingProfilerProvider.EditGpu2Timeline())
 {
 
 }
@@ -21,6 +21,7 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	Builder.RouteEvent(RouteId_EventSpec, "GpuProfiler", "EventSpec");
 	Builder.RouteEvent(RouteId_Frame, "GpuProfiler", "Frame");
+	Builder.RouteEvent(RouteId_Frame2, "GpuProfiler2", "Frame2");
 }
 
 bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -41,7 +42,10 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		break;
 	}
 	case RouteId_Frame:
+	case RouteId_Frame2:
 	{
+		TraceServices::FTimingProfilerProvider::TimelineInternal& ThisTimeline = (RouteId == RouteId_Frame) ? Timeline : Timeline2;
+		double& ThisMinTime = (RouteId == RouteId_Frame) ? MinTime : MinTime2;
 		const auto& Data = EventData.GetArray<uint8>("Data");
 		const uint8* BufferPtr = Data.GetData();
 		const uint8* BufferEnd = BufferPtr + Data.Num();
@@ -62,11 +66,11 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			// The monolithic timeline assumes that timestamps are ever increasing, but
 			// with gpu/cpu calibration and drift there can be a tiny bit of overlap between
 			// frames. So we just clamp.
-			if (MinTime > LastTime)
+			if (ThisMinTime > LastTime)
 			{
-				LastTime = MinTime;
+				LastTime = ThisMinTime;
 			}
-			MinTime = LastTime;
+			ThisMinTime = LastTime;
 
 			if (DecodedTimestamp & 1ull)
 			{
@@ -76,14 +80,14 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				{
 					FTimingProfilerEvent Event;
 					Event.TimerIndex = EventTypeMap[EventType];
-					Timeline.AppendBeginEvent(LastTime, Event);
+					ThisTimeline.AppendBeginEvent(LastTime, Event);
 				}
 				else
 				{
 					FTimingProfilerEvent Event;
 					Event.TimerIndex = TimingProfilerProvider.AddGpuTimer(TEXT("<unknown>"));
 					EventTypeMap.Add(EventType, Event.TimerIndex);
-					Timeline.AppendBeginEvent(LastTime, Event);
+					ThisTimeline.AppendBeginEvent(LastTime, Event);
 				}
 				++CurrentDepth;
 			}
@@ -93,7 +97,7 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				{
 					--CurrentDepth;
 				}
-				Timeline.AppendEndEvent(LastTime);
+				ThisTimeline.AppendEndEvent(LastTime);
 			}
 		}
 		Session.UpdateDurationSeconds(LastTime);
@@ -105,17 +109,6 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 	}
 
 	return true;
-}
-
-double FGpuProfilerAnalyzer::GpuTimestampToSessionTime(uint64 GpuMicroseconds)
-{
-	if (!Calibrated)
-	{
-		uint64 SessionTimeMicroseconds = uint64(Session.GetDurationSeconds() * 1000000.0);
-		GpuTimeOffset = GpuMicroseconds - SessionTimeMicroseconds;
-		Calibrated = true;
-	}
-	return (GpuMicroseconds - GpuTimeOffset) / 1000000.0;
 }
 
 } // namespace TraceServices

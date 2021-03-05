@@ -1,10 +1,10 @@
 {
   "name": "conductor",
-  "version": "0.1.6",
+  "version": "0.2.0",
   "scripts": {
-    "postinstall": "concurrently \"pushd Client && npm install && popd\" \"pushd Server && npm install && popd\"",
+    "postinstall": "concurrently \"cd ./Client && npm install && cd ..\" \"cd ./Server && npm install && cd ..\"",
     "build": "node ./Scripts/build.js",
-    "dev": "concurrently \"pushd Client && npm start && popd\" \"pushd Server && npm start && popd\"",
+    "dev": "concurrently \"cd ./Client && npm start && cd ..\" \"cd Server && npm start && cd ..\"",
     "start": "pushd Server && npm run serve && popd"
   },
   "dependencies": {},

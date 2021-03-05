@@ -13,9 +13,11 @@
 #include "Sequencer/ControlRigSequence.h"
 #include "Sections/MovieSceneSpawnSection.h"
 #include "MovieScene.h"
+#include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorModeManager.h"
 #include "Engine/Selection.h"
+#include "LevelEditorViewport.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ControlRigEditModeCommands.h"
 #include "Framework/Application/SlateApplication.h"
@@ -44,7 +46,6 @@
 //#include "IPersonaPreviewScene.h"
 //#include "Animation/DebugSkelMeshComponent.h"
 //#include "Persona/Private/AnimationEditorViewportClient.h"
-
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
 	if (EditMode)
@@ -393,8 +394,10 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 		HandleSelectionChanged();
 		bSelectionChanged = false;
 	}
-	ViewportClient->Invalidate();
-
+	if (IsInLevelEditor() == false)
+	{
+		ViewportClient->Invalidate();
+	}
 	RecalcPivotTransform();
 
 	if (bRecreateGizmosRequired)
@@ -991,16 +994,97 @@ static FConvexVolume GetVolumeFromBox(const FBox& InBox)
 	return ConvexVolume;
 }
 
+bool IntersectsBox( AActor& InActor, const FBox& InBox, FLevelEditorViewportClient* LevelViewportClient, bool bUseStrictSelection )
+{
+	bool bActorHitByBox = false;
+	if (InActor.IsHiddenEd())
+	{
+		return false;
+	}
+
+	const TArray<FName>& HiddenLayers = LevelViewportClient->ViewHiddenLayers;
+	bool bActorIsVisible = true;
+	for ( auto Layer : InActor.Layers )
+	{
+		// Check the actor isn't in one of the layers hidden from this viewport.
+		if( HiddenLayers.Contains( Layer ) )
+		{
+			return false;
+		}
+	}
+
+	// Iterate over all actor components, selecting out primitive components
+	for (UActorComponent* Component : InActor.GetComponents())
+	{
+		UPrimitiveComponent* PrimitiveComponent = Cast<UPrimitiveComponent>(Component);
+		if (PrimitiveComponent && PrimitiveComponent->IsRegistered() && PrimitiveComponent->IsVisibleInEditor())
+		{
+			if (PrimitiveComponent->ComponentIsTouchingSelectionBox(InBox, LevelViewportClient->EngineShowFlags, false, bUseStrictSelection))
+			{
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
 bool FControlRigEditMode::BoxSelect(FBox& InBox, bool InSelect)
 {
-	FConvexVolume BoxVolume(GetVolumeFromBox(InBox));
-	return FrustumSelect(BoxVolume, nullptr, InSelect);
+	FLevelEditorViewportClient* LevelViewportClient = GCurrentLevelEditingViewportClient;
+	const bool bStrictDragSelection = GetDefault<ULevelEditorViewportSettings>()->bStrictBoxSelection;
+
+	FScopedTransaction ScopedTransaction(LOCTEXT("SelectControlTransaction", "Select Control"), IsInLevelEditor() && !GIsTransacting);
+	const bool bShiftDown = LevelViewportClient->Viewport->KeyState(EKeys::LeftShift) || LevelViewportClient->Viewport->KeyState(EKeys::RightShift);
+	if (!bShiftDown)
+	{
+		ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+	}
+
+	// Select all actors that are within the selection box area.  Be aware that certain modes do special processing below.	
+	bool bSomethingSelected = false;
+	UWorld* IteratorWorld = GWorld;
+	for( FActorIterator It(IteratorWorld); It; ++It )
+	{
+		AActor* Actor = *It;
+
+		if (!Actor->IsA<AControlRigGizmoActor>())
+		{
+			continue;
+		}
+
+		AControlRigGizmoActor* GizmoActor = CastChecked<AControlRigGizmoActor>(Actor);
+		if (!GizmoActor->IsSelectable())
+		{
+			continue;
+		}
+
+		if (IntersectsBox(*Actor, InBox, LevelViewportClient, bStrictDragSelection))
+		{
+			bSomethingSelected = true;
+			const FName& ControlName = GizmoActor->ControlName;
+			SetRigElementSelection(ERigElementType::Control, ControlName, true);
+
+			if (bShiftDown)
+			{
+			}
+			else
+			{
+				SetRigElementSelection(ERigElementType::Control, ControlName, true);
+			}
+		}
+	}
+	if (bSomethingSelected == true)
+	{
+		return true;
+	}
+	
+	ScopedTransaction.Cancel();
+	return FEdMode::BoxSelect(InBox, InSelect);
 }
 
 bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, bool InSelect)
 {
-	
-
 	float StartX = TNumericLimits<float>::Max();
 	float StartY = TNumericLimits<float>::Max();
 	float EndX = TNumericLimits<float>::Lowest();
@@ -1077,7 +1161,6 @@ bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 	ScopedTransaction.Cancel();
 	return FEdMode::FrustumSelect(InFrustum, InViewportClient, InSelect);
 }
-
 void FControlRigEditMode::SelectNone()
 {
 	ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::All));

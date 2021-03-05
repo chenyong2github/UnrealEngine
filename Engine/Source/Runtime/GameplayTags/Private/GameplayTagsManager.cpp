@@ -335,7 +335,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 
 			for (const class FNativeGameplayTag* NativeTag : FNativeGameplayTag::RegisteredNativeTags)
 			{
-				AddTagTableRow(FGameplayTagTableRow(NativeTag->InternalTag.GetTagName()), FGameplayTagSource::GetNativeName());
+				AddTagTableRow(NativeTag->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
 			}
 		}
 
@@ -1942,14 +1942,14 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 	return FGameplayTag();
 }
 
-void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource, FName TagName, const FString& TagDevComment)
+void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource)
 {
 	// TODO This is awful, need to invalidate the tag tree, not rebuild it.
 	{
 #if WITH_EDITOR
 		EditorRefreshGameplayTagTree();
 #else
-		AddTagTableRow(FGameplayTagTableRow(TagName, TagDevComment), FGameplayTagSource::GetNativeName());
+		AddTagTableRow(TagSource->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
 		InvalidateNetworkIndex();
 		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 #endif
@@ -2135,6 +2135,20 @@ int32 UGameplayTagsManager::GameplayTagsMatchDepth(const FGameplayTag& GameplayT
 	}
 
 	return Tags1.Intersect(Tags2).Num();
+}
+
+int32 UGameplayTagsManager::GetNumberOfTagNodes(const FGameplayTag& GameplayTag) const
+{
+	int32 Count = 0;
+
+	TSharedPtr<FGameplayTagNode> TagNode = FindTagNode(GameplayTag);
+	while (TagNode.IsValid())
+	{
+		++Count;								// Increment the count of valid tag nodes.
+		TagNode = TagNode->GetParentTagNode();	// Continue up the chain of parents.
+	}
+
+	return Count;
 }
 
 DECLARE_CYCLE_STAT(TEXT("UGameplayTagsManager::GetAllParentNodeNames"), STAT_UGameplayTagsManager_GetAllParentNodeNames, STATGROUP_GameplayTags);

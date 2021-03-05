@@ -410,7 +410,7 @@ public:
 	void UpdateActorIcon();
 #endif // WITH_EDITOR
 
-	ALandscapeProxy* FindLandscape() const;
+	virtual ALandscapeProxy* FindLandscape() const;
 
 protected:
 

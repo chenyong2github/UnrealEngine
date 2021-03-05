@@ -793,6 +793,13 @@ namespace AutomationTool
 				this.Deploy = true;
 			}
 
+			// If the user specified archive without a param, set to the default. That way logging will be correct and other code doesn't
+			// need to do this check and fallback
+			if (this.Archive && string.IsNullOrEmpty(this.ArchiveDirectoryParam))
+			{
+				this.ArchiveDirectoryParam = BaseArchiveDirectory;
+			}
+
 			this.GetFile = ParseParamValueIfNotSpecified(Command, GetFile, "getfile", null);
 
 			this.IterativeDeploy = GetParamValueIfNotSpecified(Command, IterativeDeploy, this.IterativeDeploy, new string[] {"iterativedeploy", "iterate" } );

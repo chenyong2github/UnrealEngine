@@ -35,6 +35,7 @@ struct ENGINE_API FTextureLODGroup
 		, MinMagFilter(NAME_Aniso)
 		, MipFilter(NAME_Point)
 		, MipLoadOptions(ETextureMipLoadOptions::AllMips)
+		, HighPriorityLoad(false)
 		, DuplicateNonOptionalMips(false)
 		, Downscale(1.0)
 		, DownscaleOptions(ETextureDownscaleOptions::SimpleAverage)
@@ -105,6 +106,10 @@ struct ENGINE_API FTextureLODGroup
 
 	UPROPERTY()
 	ETextureMipLoadOptions MipLoadOptions;
+
+	/** Wether those assets should be loaded with higher load order and higher IO priority. Allows ProjectXX texture groups to behave as character textures. */
+	UPROPERTY()
+	bool HighPriorityLoad;
 
 	UPROPERTY()
 	bool DuplicateNonOptionalMips;

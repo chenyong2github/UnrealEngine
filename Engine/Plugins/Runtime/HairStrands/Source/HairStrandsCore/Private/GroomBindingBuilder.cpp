@@ -585,11 +585,11 @@ namespace GroomBinding_RootProjection
 			return FVector::DotProduct(AB, AB) > 0 && FVector::DotProduct(AC, AC) > 0 && FVector::DotProduct(BC, BC) > 0;
 		}
 
-		void Insert(const FTriangle& T)
+		bool Insert(const FTriangle& T)
 		{
 			if (!IsTriangleValid(T))
 			{
-				return;
+				return false;
 			}
 
 			FVector TriMinBound;
@@ -603,12 +603,15 @@ namespace GroomBinding_RootProjection
 			TriMaxBound.Z = FMath::Max(T.P0.Z, FMath::Max(T.P1.Z, T.P2.Z));
 
 			if (IsOutside(TriMinBound, TriMaxBound))
-				return;
+			{
+				return false;
+			}
 
 			const FIntVector MinCoord = ToCellCoord(TriMinBound);
 			const FIntVector MaxCoord = ToCellCoord(TriMaxBound);
 
 			// Insert triangle in all cell covered by the AABB of the triangle
+			bool bInserted = false;
 			for (int32 Z = MinCoord.Z; Z <= MaxCoord.Z; ++Z)
 			{
 				for (int32 Y = MinCoord.Y; Y <= MaxCoord.Y; ++Y)
@@ -620,10 +623,12 @@ namespace GroomBinding_RootProjection
 						{
 							const uint32 CellLinearIndex = ToIndex(CellIndex);
 							Cells[CellLinearIndex].Triangles.Add(T);
+							bInserted = true;
 						}
 					}
 				}
 			}
+			return bInserted;
 		}
 
 		FVector MinBound;
@@ -825,6 +830,7 @@ namespace GroomBinding_RootProjection
 			}
 
 			FTriangleGrid Grid(GridMin, GridMax, VoxelWorldSize);
+			bool bIsGridPopulated = false;
 			for (uint32 SectionIt = 0; SectionIt < SectionCount; ++SectionIt)
 			{
 				// 2.2.2 Insert all triangle within the grid
@@ -863,8 +869,14 @@ namespace GroomBinding_RootProjection
 					T.UV1 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I1, ChannelIndex);
 					T.UV2 = InMeshRenderData->LODRenderData[LODIt].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I2, ChannelIndex);
 
-					Grid.Insert(T);
+					bIsGridPopulated = Grid.Insert(T) || bIsGridPopulated;
 				}
+			}
+
+			if (!bIsGridPopulated)
+			{
+				UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. The target skeletal mesh could be missing UVs."));
+				return false;
 			}
 
 			OutRootData.MeshProjectionLODs[LODIt].RootTriangleIndexBuffer.SetNum(CurveCount);
@@ -1000,6 +1012,12 @@ namespace GroomBinding_Transfer
 			Cells.SetNum(GridResolution.X * GridResolution.Y);
 		}
 
+		void Reset()
+		{
+			Cells.Empty();
+			Cells.SetNum(GridResolution.X * GridResolution.Y);
+		}
+
 		FORCEINLINE bool IsValid(const FIntPoint& P) const
 		{
 			return
@@ -1081,7 +1099,7 @@ namespace GroomBinding_Transfer
 			return Out;
 		}
 
-		void Insert(const FTriangle& T)
+		bool Insert(const FTriangle& T)
 		{
 			FVector2D TriMinBound;
 			TriMinBound.X = FMath::Min(T.UV0.X, FMath::Min(T.UV1.X, T.UV2.X));
@@ -1092,12 +1110,15 @@ namespace GroomBinding_Transfer
 			TriMaxBound.Y = FMath::Max(T.UV0.Y, FMath::Max(T.UV1.Y, T.UV2.Y));
 
 			if (IsOutside(TriMinBound, TriMaxBound))
-				return;
+			{
+				return false;
+			}
 
 			const FIntPoint MinCoord = ToCellCoord(TriMinBound);
 			const FIntPoint MaxCoord = ToCellCoord(TriMaxBound);
 
 			// Insert triangle in all cell covered by the AABB of the triangle
+			bool bInserted = false;
 			for (int32 Y = MinCoord.Y; Y <= MaxCoord.Y; ++Y)
 			{
 				for (int32 X = MinCoord.X; X <= MaxCoord.X; ++X)
@@ -1107,9 +1128,11 @@ namespace GroomBinding_Transfer
 					{
 						const uint32 CellLinearIndex = ToIndex(CellIndex);
 						Cells[CellLinearIndex].Triangles.Add(T);
+						bInserted = true;
 					}
 				}
 			}
+			return bInserted;
 		}
 
 		FVector2D MinBound;
@@ -1217,48 +1240,75 @@ namespace GroomBinding_Transfer
 		return Out;
 	}
 
-	void Transfer(
+	bool Transfer(
 		const FSkeletalMeshRenderData* InSourceMeshRenderData,
 		const FSkeletalMeshRenderData* InTargetMeshRenderData,
 		TArray<TArray<FVector>>& OutTransferredPositions, const int32 MatchingSection)
 	{
-		const uint32 ChannelIndex = 0;
-		const uint32 SourceLODIndex = 0;
-		const int32 SourceSectionId = FMath::Min(MatchingSection, InSourceMeshRenderData->LODRenderData[SourceLODIndex].RenderSections.Num()-1);
-		const int32 TargetSectionId = SourceSectionId;
-
-		// Notes:
-		// LODs are transfered using the LOD0 of the source mesh, as the LOD count can mismatch between source and target meshes.
-		// Assume that the section 0 contains the head section, which is where the hair/facial hair should be projected on
-
-		const uint32 SourceTriangleCount = InSourceMeshRenderData->LODRenderData[SourceLODIndex].RenderSections[SourceSectionId].NumTriangles;
-		const uint32 SourceSectionBaseIndex = InSourceMeshRenderData->LODRenderData[SourceLODIndex].RenderSections[SourceSectionId].BaseIndex;
-
-		TArray<uint32> SourceIndexBuffer;
-		InSourceMeshRenderData->LODRenderData[SourceLODIndex].MultiSizeIndexContainer.GetIndexBuffer(SourceIndexBuffer);
 
 		// 1. Insert triangles into a 2D UV grid
-		FTriangleGrid2D Grid(256);
-		for (uint32 SourceTriangleIt = 0; SourceTriangleIt < SourceTriangleCount; ++SourceTriangleIt)
+		auto BuildGrid = [InSourceMeshRenderData](
+			int32 InSourceLODIndex,
+			int32 InSourceSectionId,
+			int32 InTargetSectionId,
+			int32 InChannelIndex,
+			FTriangleGrid2D& OutGrid)
 		{
-			FTriangleGrid2D::FTriangle T;
-			T.SectionIndex		= SourceSectionId;
-			T.SectionBaseIndex	= SourceSectionBaseIndex;
-			T.TriangleIndex		= SourceTriangleIt;
+			// Notes:
+			// LODs are transfered using the LOD0 of the source mesh, as the LOD count can mismatch between source and target meshes.
+			// Assume that the section 0 contains the head section, which is where the hair/facial hair should be projected on
+			const uint32 SourceTriangleCount = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].RenderSections[InSourceSectionId].NumTriangles;
+			const uint32 SourceSectionBaseIndex = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].RenderSections[InSourceSectionId].BaseIndex;
 
-			T.I0 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 0];
-			T.I1 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 1];
-			T.I2 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 2];
+			TArray<uint32> SourceIndexBuffer;
+			InSourceMeshRenderData->LODRenderData[InSourceLODIndex].MultiSizeIndexContainer.GetIndexBuffer(SourceIndexBuffer);
 
-			T.P0 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I0);
-			T.P1 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I1);
-			T.P2 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I2);
+			OutGrid.Reset();
 
-			T.UV0 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I0, ChannelIndex);
-			T.UV1 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I1, ChannelIndex);
-			T.UV2 = InSourceMeshRenderData->LODRenderData[SourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I2, ChannelIndex);
+			bool bIsGridPopulated = false;
+			for (uint32 SourceTriangleIt = 0; SourceTriangleIt < SourceTriangleCount; ++SourceTriangleIt)
+			{
+				FTriangleGrid2D::FTriangle T;
+				T.SectionIndex = InSourceSectionId;
+				T.SectionBaseIndex = SourceSectionBaseIndex;
+				T.TriangleIndex = SourceTriangleIt;
 
-			Grid.Insert(T);
+				T.I0 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 0];
+				T.I1 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 1];
+				T.I2 = SourceIndexBuffer[T.SectionBaseIndex + SourceTriangleIt * 3 + 2];
+
+				T.P0 = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I0);
+				T.P1 = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I1);
+				T.P2 = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].StaticVertexBuffers.PositionVertexBuffer.VertexPosition(T.I2);
+
+				T.UV0 = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I0, InChannelIndex);
+				T.UV1 = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I1, InChannelIndex);
+				T.UV2 = InSourceMeshRenderData->LODRenderData[InSourceLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(T.I2, InChannelIndex);
+
+				bIsGridPopulated = OutGrid.Insert(T) || bIsGridPopulated;
+			}
+
+			return bIsGridPopulated;
+		};
+
+		// 1. Insert triangles into a 2D UV grid
+		const uint32 ChannelIndex = 0;
+		const uint32 SourceLODIndex = 0;
+		const bool bIsMatchingSectionValid = MatchingSection < InSourceMeshRenderData->LODRenderData[SourceLODIndex].RenderSections.Num();
+		const int32 SourceSectionId = bIsMatchingSectionValid ? MatchingSection : 0;
+		if (!bIsMatchingSectionValid)
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Binding asset will not respect the requested 'Matching section' %d. The source skeletal mesh does not have such a section. Instead 'Matching Section' 0 will be used."), MatchingSection);
+		}
+		const int32 TargetSectionId = SourceSectionId;
+		FTriangleGrid2D Grid(256);
+		{
+			const bool bIsGridPopulated = BuildGrid(SourceLODIndex, SourceSectionId, TargetSectionId, ChannelIndex, Grid);
+			if (!bIsGridPopulated)
+			{
+				UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. The source skeletal mesh is missing or has invalid UVs."));
+				return false;
+			}
 		}
 
 		// 2. Look for closest triangle point in UV space
@@ -1267,14 +1317,48 @@ namespace GroomBinding_Transfer
 		OutTransferredPositions.SetNum(TargetLODCount);
 		for (uint32 TargetLODIndex = 0; TargetLODIndex < TargetLODCount; ++TargetLODIndex)
 		{
-			const uint32 TargetTriangleCount = InTargetMeshRenderData->LODRenderData[TargetLODIndex].RenderSections[TargetSectionId].NumTriangles;
+			// Check that the target SectionId is valid for the current LOD. 
+			// If this is not the case, then fall back to section 0 and rebuild the source triangle grid to match the same section ID (1.)
+			int32 LocalSourceSectionId = SourceSectionId;
+			int32 LocalTargetSectionId = TargetSectionId;
+			if (LocalTargetSectionId >= InTargetMeshRenderData->LODRenderData[TargetLODIndex].RenderSections.Num())
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Binding asset will not respect the requested 'Matching section' %d for LOD %d. The target skeletal mesh does not have such a section for this LOD. Instead section 0 will be used for this given LOD."), TargetSectionId, TargetLODIndex);
+
+				LocalTargetSectionId = 0;
+				LocalSourceSectionId = 0;
+				const bool bIsGridPopulated = BuildGrid(SourceLODIndex, LocalSourceSectionId, LocalTargetSectionId, ChannelIndex, Grid);
+				if (!bIsGridPopulated)
+				{
+					UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built for LOD %d. The source skeletal mesh is missing or has invalid UVs."));
+					return false;
+				}
+			}
+
+			const uint32 TargetTriangleCount = InTargetMeshRenderData->LODRenderData[TargetLODIndex].RenderSections[LocalTargetSectionId].NumTriangles;
 			const uint32 TargetVertexCount = InTargetMeshRenderData->LODRenderData[TargetLODIndex].StaticVertexBuffers.PositionVertexBuffer.GetNumVertices();
+
+			TSet<FVector2D> UVs;
+			for (uint32 TargetVertexIt = 0; TargetVertexIt < TargetVertexCount; ++TargetVertexIt)
+			{
+				const FVector2D Target_UV = InTargetMeshRenderData->LODRenderData[TargetLODIndex].StaticVertexBuffers.StaticMeshVertexBuffer.GetVertexUV(TargetVertexIt, ChannelIndex);
+				UVs.Add(Target_UV);
+			}
+
+			// Simple check to see if the target UVs are meaningful before doing the heavy work
+			const int32 NumUVLowerLimit = FMath::Max(1, int32(TargetVertexCount * 0.01f));
+			if (UVs.Num() < NumUVLowerLimit)
+			{
+				UE_LOG(LogHairStrands, Error, TEXT("[Groom] Binding asset could not be built. The target skeletal mesh is missing or has invalid UVs."));
+				return false;
+			}
+
 			OutTransferredPositions[TargetLODIndex].SetNum(TargetVertexCount);
 
 			#if BINDING_PARALLEL_BUILDING
 			ParallelFor(TargetVertexCount,
 			[
-				TargetSectionId,
+				LocalTargetSectionId,
 				ChannelIndex,
 				InTargetMeshRenderData,
 				TargetLODIndex,
@@ -1288,7 +1372,7 @@ namespace GroomBinding_Transfer
 				int32 SectionIt = 0;
 				int32 TargetVertexIt2 = 0;
 				InTargetMeshRenderData->LODRenderData[TargetLODIndex].GetSectionFromVertexIndex(TargetVertexIt, SectionIt, TargetVertexIt2);
-				if (SectionIt != TargetSectionId)
+				if (SectionIt != LocalTargetSectionId)
 				{
 					OutTransferredPositions[TargetLODIndex][TargetVertexIt] = FVector(0,0,0);
 					#if BINDING_PARALLEL_BUILDING
@@ -1330,6 +1414,7 @@ namespace GroomBinding_Transfer
 			);
 			#endif
 		}
+		return true;
 	}
 }
 // namespace GroomBinding_Transfer
@@ -1424,10 +1509,15 @@ static bool InternalBuildBinding_CPU(UGroomBindingAsset* BindingAsset, bool bIni
 	TArray<TArray<FVector>> TransferredPositions;
 	if (bNeedTransfertPosition)
 	{
-		GroomBinding_Transfer::Transfer( 
+		bool bSucceed = GroomBinding_Transfer::Transfer( 
 			SourceSkeletalMesh->GetResourceForRendering(),
 			TargetSkeletalMesh->GetResourceForRendering(),
 			TransferredPositions, BindingAsset->MatchingSection);
+
+		if (!bSucceed)
+		{
+			return false;
+		}
 
 		SlowTask.EnterProgressFrame();
 	}

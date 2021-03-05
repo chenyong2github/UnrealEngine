@@ -177,9 +177,9 @@ namespace ChaosTest
 		TArray<int32> Instances;
 	};
 
-	struct FStressTestVisitor : ISpatialVisitor<TAccelerationStructureHandle<FReal, 3>>
+	struct FStressTestVisitor : ISpatialVisitor<FAccelerationStructureHandle>
 	{
-		using FPayload = TAccelerationStructureHandle<FReal, 3>;
+		using FPayload = FAccelerationStructureHandle;
 
 		FStressTestVisitor() {}
 
@@ -673,7 +673,7 @@ namespace ChaosTest
 
 	void SpatialAccelerationDirtyAndGlobalQueryStrestTest()
 	{
-		using AABBTreeType = TAABBTree<TAccelerationStructureHandle<FReal, 3>, TAABBTreeLeafArray<TAccelerationStructureHandle<FReal, 3>>>;
+		using AABBTreeType = TAABBTree<FAccelerationStructureHandle, TAABBTreeLeafArray<FAccelerationStructureHandle>>;
 
 		// Construct 100000 Particles
 		const int32 NumRows = 100;
@@ -737,7 +737,7 @@ namespace ChaosTest
 		// Update DirtyNum elements, so they are pulled out of leaves.
 		for (int32 i = 0; i < DirtyNum; ++i)
 		{
-			TAccelerationStructureHandle<FReal, 3> Payload(ParticleHandles[i]->GTGeometryParticle());
+			FAccelerationStructureHandle Payload(ParticleHandles[i]->GTGeometryParticle());
 			FAABB3 Bounds = ParticleHandles[i]->WorldSpaceInflatedBounds();
 			Spatial.UpdateElement(Payload, Bounds, true);
 		}

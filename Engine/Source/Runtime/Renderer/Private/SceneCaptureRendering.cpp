@@ -756,9 +756,31 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 
 		const bool bDisableFlipCopyGLES = CaptureComponent->bDisableFlipCopyGLES;
 
-		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-			[SceneRenderer, TextureRenderTargetResource, EventName, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES](FRHICommandListImmediate& RHICmdList)
+		// If capturing every frame, only render to the GPUs that are actually being used
+		// this frame. Otherwise we will get poor performance in AFR. We can only determine
+		// this by querying the viewport back buffer on the render thread, so pass that
+		// along if it exists.
+		FRenderTarget* GameViewportRT = nullptr;
+		if (CaptureComponent->bCaptureEveryFrame)
+		{
+			if (GEngine->GameViewport != nullptr)
 			{
+				GameViewportRT = GEngine->GameViewport->Viewport;
+			}
+		}
+
+		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
+			[SceneRenderer, TextureRenderTargetResource, EventName, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, GameViewportRT](FRHICommandListImmediate& RHICmdList)
+			{
+				if (GameViewportRT != nullptr)
+				{
+					const FRHIGPUMask GPUMask = AFRUtils::GetGPUMaskForGroup(GameViewportRT->GetGPUMask(RHICmdList));
+					TextureRenderTargetResource->SetActiveGPUMask(GPUMask);
+				}
+				else
+				{
+					TextureRenderTargetResource->SetActiveGPUMask(FRHIGPUMask::All());
+				}
 				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, FResolveParams(), bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES);
 			}
 		);

@@ -161,7 +161,7 @@ namespace Chaos
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateParams);
-				Chaos::TPBDPositionConstraints<float, 3> PositionTarget; // Dummy for now
+				Chaos::FPBDPositionConstraints PositionTarget; // Dummy for now
 				TMap<int32, int32> TargetedParticles;
 				{
 					MSolver->FieldParameterUpdateCallback(PositionTarget, TargetedParticles);
@@ -332,7 +332,7 @@ namespace Chaos
 		MEvolution->AddConstraintRule(&SuspensionConstraintRule);
 
 		MEvolution->SetInternalParticleInitilizationFunction(
-			[this](const Chaos::TGeometryParticleHandle<float, 3>* OldParticle, const Chaos::TGeometryParticleHandle<float, 3>* NewParticle) {
+			[this](const Chaos::FGeometryParticleHandle* OldParticle, const Chaos::FGeometryParticleHandle* NewParticle) {
 				if (const TSet<IPhysicsProxyBase*>* Proxies = GetProxies(OldParticle))
 				{
 					for (IPhysicsProxyBase* Proxy : *Proxies)
@@ -341,6 +341,8 @@ namespace Chaos
 					}
 				}
 			});
+		
+		JointConstraints.SetUpdateVelocityInApplyConstraints(true);
 	}
 
 	float MaxBoundsForTree = 10000;
@@ -401,7 +403,7 @@ namespace Chaos
 		RemoveDirtyProxy(Proxy);
 
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
-		Proxy->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
+		Proxy->MarkDeleted();
 
 		// Null out the particle's proxy pointer
 		Proxy->GetParticle_LowLevel()->SetProxy(nullptr);	//todo: use TUniquePtr for better ownership
@@ -455,7 +457,7 @@ namespace Chaos
 			// base destructor is protected. This makes everything just a bit uglier,
 			// maybe that extra safety is not needed if we continue to contain all
 			// references to proxy instances entirely in Chaos?
-			TGeometryParticleHandle<float, 3>* Handle = Proxy->GetHandle_LowLevel();
+			FGeometryParticleHandle* Handle = Proxy->GetHandle_LowLevel();
 			Proxy->SetHandle(nullptr);
 			PendingDestroyPhysicsProxy.Add(Proxy);
 			
@@ -508,7 +510,7 @@ namespace Chaos
 	{
 		check(InProxy);
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
-		InProxy->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
+		InProxy->MarkDeleted();
 
 		RemoveDirtyProxy(InProxy);
 
@@ -517,8 +519,8 @@ namespace Chaos
 
 		EnqueueCommandImmediate([InProxy, this]()
 			{
-				const TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = InProxy->GetSolverParticleHandles();
-				for (const Chaos::TPBDRigidClusteredParticleHandle<float, 3> * ParticleHandle : ParticleHandles)
+				const TArray<Chaos::FPBDRigidClusteredParticleHandle*>& ParticleHandles = InProxy->GetSolverParticleHandles();
+				for (const Chaos::FPBDRigidClusteredParticleHandle* ParticleHandle : ParticleHandles)
 				{
 					RemoveParticleToProxy(ParticleHandle);
 				}
@@ -547,7 +549,7 @@ namespace Chaos
 		RemoveDirtyProxy(JointProxy);
 
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
-		GTConstraint->GetProxy()->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
+		GTConstraint->GetProxy()->MarkDeleted();
 
 
 		GTConstraint->SetProxy(static_cast<FJointConstraintPhysicsProxy*>(nullptr));
@@ -581,7 +583,7 @@ namespace Chaos
 		check(SuspensionProxy);
 
 		// mark proxy timestamp so we avoid trying to pull from sim after deletion
-		SuspensionProxy->SetSyncTimestamp(MarshallingManager.GetExternalTimestamp_External());
+		SuspensionProxy->MarkDeleted();
 
 		RemoveDirtyProxy(SuspensionProxy);
 
@@ -1000,7 +1002,7 @@ namespace Chaos
 
 		if(MRewindCallback && !IsShuttingDown())
 		{
-			MRewindCallback->RecordInputs(MRewindData->CurrentFrame(), PushData.SimCallbackInputs);
+			MRewindCallback->ProcessInputs_Internal(MRewindData->CurrentFrame(), PushData.SimCallbackInputs);
 		}
 	}
 
@@ -1010,7 +1012,7 @@ namespace Chaos
 		if(!IsShuttingDown() && MRewindCallback && !MRewindData->IsResim())
 		{
 			const int32 LastStep = MRewindData->CurrentFrame() - 1;
-			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded(LastStep);
+			const int32 ResimStep = MRewindCallback->TriggerRewindIfNeeded_Internal(LastStep);
 			if(ResimStep != INDEX_NONE)
 			{
 				if(ensure(MRewindData->RewindToFrame(ResimStep)))
@@ -1028,10 +1030,10 @@ namespace Chaos
 							MTime = PushData->StartTime;	//not sure if sub-steps have proper StartTime so just do this once and let solver evolve remaining time
 						}
 
-						MRewindCallback->PreResimStep(Step, bFirst);
+						MRewindCallback->PreResimStep_Internal(Step, bFirst);
 						FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
 						ImmediateTask.AdvanceSolver();
-						MRewindCallback->PostResimStep(Step);
+						MRewindCallback->PostResimStep_Internal(Step);
 
 						bFirst = false;
 					}
@@ -1060,7 +1062,7 @@ namespace Chaos
 
 		FPullPhysicsData* PullData = MarshallingManager.GetCurrentPullData_Internal();
 
-		TParticleView<TPBDRigidParticles<float, 3>>& DirtyParticles = GetParticles().GetDirtyParticlesView();
+		TParticleView<FPBDRigidParticles>& DirtyParticles = GetParticles().GetDirtyParticlesView();
 
 		//todo: should be able to go wide just add defaulted etc...
 		{
@@ -1130,6 +1132,9 @@ namespace Chaos
 		// Now that results have been buffered we have completed a solve step so we can broadcast that event
 		EventPostSolve.Broadcast(MLastDt);
 
+
+		Particles.ClearTransientDirty();
+
 	}
 
 	template <typename Traits>
@@ -1188,7 +1193,7 @@ namespace Chaos
 			const TGeometryParticleHandles<FReal, 3>&  AllParticleHandles = GetEvolution()->GetParticleHandles();
 			for (uint32 ParticelIndex = 0; ParticelIndex < AllParticleHandles.Size(); ParticelIndex++)
 			{
-				const TUniquePtr<TGeometryParticleHandle<float, 3>>& ParticleHandle = AllParticleHandles.Handle(ParticelIndex);
+				const TUniquePtr<FGeometryParticleHandle>& ParticleHandle = AllParticleHandles.Handle(ParticelIndex);
 				ChaosVisualDebugger::ParticlePositionLog(ParticleHandle->X());				
 			}
 		}
@@ -1288,14 +1293,14 @@ namespace Chaos
 	}
 
 	template <typename Traits>
-	void TPBDRigidsSolver<Traits>::UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>*& ExternalStructure)
+	void TPBDRigidsSolver<Traits>::UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>*& ExternalStructure)
 	{
 		GetEvolution()->UpdateExternalAccelerationStructure_External(ExternalStructure,*PendingSpatialOperations_External);
 	}
 
-	Chaos::FClusterCreationParameters<Chaos::FReal>::EConnectionMethod ToInternalConnectionMethod(EClusterUnionMethod InMethod)
+	Chaos::FClusterCreationParameters::EConnectionMethod ToInternalConnectionMethod(EClusterUnionMethod InMethod)
 	{
-		using ETargetEnum = Chaos::FClusterCreationParameters<Chaos::FReal>::EConnectionMethod;
+		using ETargetEnum = Chaos::FClusterCreationParameters::EConnectionMethod;
 		switch(InMethod)
 		{
 		case EClusterUnionMethod::PointImplicit:
@@ -1334,7 +1339,7 @@ namespace Chaos
 
 	template <typename Traits>
 	void Chaos::TPBDRigidsSolver<Traits>::FieldParameterUpdateCallback(
-		Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles)
 	{
 		GetPerSolverField().FieldParameterUpdateCallback(this, PositionTarget, TargetedParticles);

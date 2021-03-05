@@ -761,6 +761,11 @@ void AddHairStrandUpdateMeshTrianglesPass(
 			const int32 SectionIt = SectionStartIt - Parameters->Pass_SectionStart;
 			const int32 SectionIndex = ValidSectionIndices[SectionStartIt];
 
+			if (SectionIndex < 0 || SectionIndex >= MeshData.Sections.Num())
+			{
+				continue;
+			}
+
 			const FHairStrandsProjectionMeshData::Section& MeshSectionData = MeshData.Sections[SectionIndex];
 
 			const FMeshSectionBuffers* Buffers = nullptr;

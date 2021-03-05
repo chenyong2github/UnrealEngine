@@ -7,24 +7,68 @@
 #include "LogCategory.h"
 #include "SceneImporter.h"
 
+#include "DirectLink/DatasmithDirectLinkTools.h"
+#include "DirectLinkSceneSnapshot.h"
+
 #include "DatasmithTranslatorModule.h"
 #include "IDatasmithSceneElements.h"
+#include "DatasmithSceneFactory.h"
+#include "DatasmithTranslator.h"
 #include "MasterMaterials/DatasmithMasterMaterialManager.h"
 #include "MaterialSelectors/DatasmithRuntimeRevitMaterialSelector.h"
 
+#include "Async/Async.h"
 #include "Math/BoxSphereBounds.h"
 #include "Misc/Paths.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "UObject/Package.h"
 
+#include "Misc/Paths.h"
+
+#if WITH_EDITOR
+#include "HAL/IConsoleManager.h"
+#endif
+
 const FBoxSphereBounds DefaultBounds(FVector::ZeroVector, FVector(2000), 1000);
 const TCHAR* EmptyScene = TEXT("Nothing Loaded");
 
 // Use to force sequential update of game content
-bool ADatasmithRuntimeActor::bImportingScene = false;
+std::atomic_bool ADatasmithRuntimeActor::bImportingScene(false);
 
 TSharedPtr<FDatasmithMasterMaterialSelector> ADatasmithRuntimeActor::ExistingRevitSelector;
 TSharedPtr<FDatasmithMasterMaterialSelector> ADatasmithRuntimeActor::RuntimeRevitSelector;
+TUniquePtr<DatasmithRuntime::FTranslationThread> ADatasmithRuntimeActor::TranslationThread;
+TArray<TStrongObjectPtr<UDatasmithOptionsBase>> DatasmithRuntime::FTranslationThread::AllOptions;
+FDatasmithTessellationOptions* DatasmithRuntime::FTranslationThread::TessellationOptions = nullptr;
+
+void ADatasmithRuntimeActor::OnStartupModule(bool bCADRuntimeSupported)
+{
+	RuntimeRevitSelector = MakeShared< FDatasmithRuntimeRevitMaterialSelector >();
+
+	using namespace DatasmithRuntime;
+
+#if PLATFORM_WINDOWS && PLATFORM_64BITS
+	if (bCADRuntimeSupported)
+	{
+		FTranslationThread::AllOptions.Add(Datasmith::MakeOptions<UDatasmithImportOptions>());
+
+		TStrongObjectPtr<UDatasmithCommonTessellationOptions> CommonTessellationOptions = Datasmith::MakeOptions<UDatasmithCommonTessellationOptions>();
+		FTranslationThread::AllOptions.Add(CommonTessellationOptions);
+		FTranslationThread::TessellationOptions = &CommonTessellationOptions->Options;
+	}
+#endif
+
+	TranslationThread = MakeUnique<FTranslationThread>();
+}
+
+void ADatasmithRuntimeActor::OnShutdownModule()
+{
+	ExistingRevitSelector.Reset();
+	RuntimeRevitSelector.Reset();
+	DatasmithRuntime::FTranslationThread::AllOptions.Empty();
+	DatasmithRuntime::FTranslationThread::TessellationOptions = nullptr;
+	TranslationThread.Reset();
+}
 
 ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	: LoadedScene(EmptyScene)
@@ -34,7 +78,6 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 {
 	if (!RuntimeRevitSelector.IsValid())
 	{
-
 	}
 
 	RootComponent = CreateDefaultSubobject<USceneComponent>(TEXT("DatasmithRuntimeComponent"));
@@ -44,6 +87,8 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.bStartWithTickEnabled = true;
 	PrimaryActorTick.TickInterval = 0.1f;
+
+	TessellationOptions = FDatasmithTessellationOptions(0.3f, 0.0f, 30.0f, EDatasmithCADStitchingTechnique::StitchingSew);
 }
 
 void ADatasmithRuntimeActor::Tick(float DeltaTime)
@@ -56,7 +101,29 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 			// Prevent any other DatasmithRuntime actors to import concurrently
 			bImportingScene = true;
 
-			if (bNewScene == true)
+			if (TranslationResult.SceneElement.IsValid() && TranslationResult.Translator.IsValid())
+			{
+
+#if WITH_EDITOR
+				if (EnableThreadedImport != MAX_int32)
+				{
+					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableThreadedImport"));
+					CVar->Set(EnableThreadedImport);
+				}
+
+				if (EnableCADCache != MAX_int32)
+				{
+					IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableCADCache"));
+					CVar->Set(EnableCADCache);
+				}
+#endif
+				SceneImporter->SetTranslator(TranslationResult.Translator);
+				SetScene(TranslationResult.SceneElement);
+
+				TranslationResult.SceneElement.Reset();
+				TranslationResult.Translator.Reset();
+			}
+			else if (bNewScene == true)
 			{
 				SetScene(DirectLinkHelper->GetScene());
 			}
@@ -64,6 +131,8 @@ void ADatasmithRuntimeActor::Tick(float DeltaTime)
 			{
 				EnableSelector(true);
 				bBuilding = true;
+
+				DumpDatasmithScene(DirectLinkHelper->GetScene().ToSharedRef(), TEXT("IncrementalUpdate"));
 
 				SceneImporter->IncrementalUpdate(DirectLinkHelper->GetScene().ToSharedRef(), UpdateContext);
 				UpdateContext.Additions.Empty();
@@ -159,9 +228,47 @@ FString ADatasmithRuntimeActor::GetSourceName()
 	return DirectLinkHelper->GetSourceName();
 }
 
-bool ADatasmithRuntimeActor::OpenConnection(uint32 SourceHash)
+bool ADatasmithRuntimeActor::OpenConnectionWIndex(int32 SourceIndex)
 {
-	return DirectLinkHelper->CanConnect() ? DirectLinkHelper->OpenConnection(SourceHash) : false;
+	using namespace DatasmithRuntime;
+
+	if (DirectLinkHelper->CanConnect())
+	{
+		const TArray<FDatasmithRuntimeSourceInfo>& SourcesList = FDestinationProxy::GetListOfSources();
+
+		if (SourcesList.IsValidIndex(SourceIndex))
+		{
+			return DirectLinkHelper->OpenConnection(SourcesList[SourceIndex].SourceHandle);
+		}
+		else if (SourceIndex == INDEX_NONE)
+		{
+			CloseConnection();
+			Reset();
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int32 ADatasmithRuntimeActor::GetSourceIndex()
+{
+	using namespace DatasmithRuntime;
+
+	if (DirectLinkHelper->IsConnected())
+	{
+		const TArray<FDatasmithRuntimeSourceInfo>& SourcesList = FDestinationProxy::GetListOfSources();
+
+		const int32 SourceIndex = SourcesList.IndexOfByPredicate(
+			[SourceHandle = DirectLinkHelper->GetConnectedSourceHandle()](const FDatasmithRuntimeSourceInfo& SourceInfo) -> bool
+			{
+				return SourceInfo.SourceHandle == SourceHandle;
+			});
+
+		return SourceIndex;
+	}
+
+	return INDEX_NONE;
 }
 
 void ADatasmithRuntimeActor::CloseConnection()
@@ -169,6 +276,7 @@ void ADatasmithRuntimeActor::CloseConnection()
 	if (DirectLinkHelper->IsConnected())
 	{
 		DirectLinkHelper->CloseConnection();
+		Reset();
 	}
 }
 
@@ -227,6 +335,9 @@ void ADatasmithRuntimeActor::Reset()
 
 void ADatasmithRuntimeActor::OnImportEnd()
 {
+	TranslationResult.SceneElement.Reset();
+	TranslationResult.Translator.Reset();
+
 	EnableSelector(false);
 
 	bBuilding = false;
@@ -254,13 +365,147 @@ void ADatasmithRuntimeActor::EnableSelector(bool bEnable)
 	}
 }
 
-void ADatasmithRuntimeActor::OnStartupModule()
+bool ADatasmithRuntimeActor::LoadFile(const FString& FilePath)
 {
-	RuntimeRevitSelector = MakeShared< FDatasmithRuntimeRevitMaterialSelector >();
+	if( !FPaths::FileExists( FilePath ) )
+	{
+		return false;
+	}
+
+#if WITH_EDITOR
+	EnableThreadedImport = MAX_int32;
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableThreadedImport")))
+	{
+		EnableThreadedImport = CVar->GetInt();
+		CVar->Set(0);
+	}
+
+	EnableCADCache = MAX_int32;
+	if (IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.CADTranslator.EnableCADCache")))
+	{
+		EnableCADCache = CVar->GetInt();
+		CVar->Set(0);
+	}
+#endif
+
+	CloseConnection();
+
+	Progress = 0.f;
+
+	if (!TranslationThread->ThreadResult.IsValid())
+	{
+		TranslationThread->ThreadResult = Async(EAsyncExecution::Thread,
+			[&]() -> void
+			{
+				FPlatformProcess::SetThreadName(TEXT("RuntimeTranslation"));
+				TranslationThread->bKeepRunning = true;
+				TranslationThread->ThreadEvent = FPlatformProcess::GetSynchEventFromPool();
+				TranslationThread->Run();
+			}
+		);
+	}
+
+	TranslationThread->AddJob({ this, FilePath });
+
+	// Set all import options to defaults for DatasmithRuntime
+	return true;
 }
 
-void ADatasmithRuntimeActor::OnShutdownModule()
+namespace DatasmithRuntime
 {
-	ExistingRevitSelector.Reset();
-	RuntimeRevitSelector.Reset();
+	bool FTranslationJob::Execute()
+	{
+		if (!RuntimeActor.IsValid()|| ThreadEvent == nullptr)
+		{
+			return false;
+		}
+
+		FDatasmithSceneSource Source;
+		Source.SetSourceFile(FilePath);
+
+		FDatasmithTranslatableSceneSource TranslatableSceneSource(Source);
+		if (!TranslatableSceneSource.IsTranslatable())
+		{
+			RuntimeActor->LoadedScene = TEXT("Loading failed");
+			return false;
+		}
+
+		TSharedPtr<IDatasmithTranslator> Translator = TranslatableSceneSource.GetTranslator();
+		if (!Translator.IsValid())
+		{
+			RuntimeActor->LoadedScene = TEXT("Loading failed");
+			return false;
+		}
+
+		while(RuntimeActor->IsReceiving())
+		{
+			ThreadEvent->Wait(FTimespan::FromMilliseconds(50));
+		}
+
+		RuntimeActor->OnOpenDelta();
+
+		FDatasmithTessellationOptions DefaultTessellation;
+		if (FTranslationThread::AllOptions.Num() > 0)
+		{
+			DefaultTessellation = *FTranslationThread::TessellationOptions;
+			*FTranslationThread::TessellationOptions = RuntimeActor->TessellationOptions;
+
+			Translator->SetSceneImportOptions(FTranslationThread::AllOptions);
+		}
+
+		RuntimeActor->LoadedScene = Source.GetSceneName();
+
+		TSharedRef<IDatasmithScene> SceneElement = FDatasmithSceneFactory::CreateScene(*RuntimeActor->LoadedScene);
+
+		if (!Translator->LoadScene( SceneElement ))
+		{
+			if (FTranslationThread::AllOptions.Num() > 0)
+			{
+				*FTranslationThread::TessellationOptions = DefaultTessellation;
+			}
+
+			RuntimeActor->LoadedScene = TEXT("Loading failed");
+			return false;
+		}
+
+		if (FTranslationThread::AllOptions.Num() > 0)
+		{
+			*FTranslationThread::TessellationOptions = DefaultTessellation;
+		}
+
+		DirectLink::BuildIndexForScene(&SceneElement.Get());
+
+		RuntimeActor->TranslationResult.SceneElement = SceneElement;
+		RuntimeActor->TranslationResult.Translator = Translator;
+
+		RuntimeActor->OnCloseDelta();
+
+		return true;
+	}
+
+	void FTranslationThread::Run()
+	{
+		while (bKeepRunning)
+		{
+			FTranslationJob TranslationJob;
+			if (JobQueue.Dequeue(TranslationJob))
+			{
+				TranslationJob.Execute();
+				continue;
+			}
+
+			ThreadEvent->Wait(FTimespan::FromMilliseconds(50));
+		}
+	}
+
+	FTranslationThread::~FTranslationThread()
+	{
+		if (bKeepRunning)
+		{
+			bKeepRunning = false;
+			ThreadEvent->Trigger();
+			ThreadResult.Get();
+			FPlatformProcess::ReturnSynchEventToPool(ThreadEvent);
+		}
+	}
 }

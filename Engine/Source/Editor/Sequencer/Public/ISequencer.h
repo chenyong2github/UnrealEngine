@@ -160,6 +160,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnStopEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnBeginScrubbingEvent);
 	DECLARE_MULTICAST_DELEGATE(FOnEndScrubbingEvent);
+	DECLARE_DELEGATE_RetVal(TArray<float>, FOnGetPlaybackSpeeds);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMovieSceneDataChanged, EMovieSceneDataChangeType);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnChannelChanged, const FMovieSceneChannelMetaData* MetaData, UMovieSceneSection*)
 	DECLARE_MULTICAST_DELEGATE(FOnMovieSceneBindingsChanged);
@@ -493,6 +494,12 @@ public:
 	virtual void SetPlaybackSpeed(float InPlaybackSpeed) = 0;
 	virtual float GetPlaybackSpeed() const = 0;
 
+	/** Restores the speed to 1. */
+	virtual void RestorePlaybackSpeed() = 0;
+	/** Snaps to the closest available speed to the current one.
+	 * Useful when external systems update the available speeds so the current speed is no longer valid. */
+	virtual void SnapToClosestPlaybackSpeed() = 0;
+
 	/** Get all the keys for the current sequencer selection */
 	virtual void GetKeysFromSelection(TUniquePtr<FSequencerKeyCollection>& KeyCollection, float DuplicateThresoldTime) = 0;
 
@@ -713,4 +720,5 @@ protected:
 	FOnInitializeDetailsPanel InitializeDetailsPanelEvent;
 	FOnGetIsBindingVisible GetIsBindingVisible;
 	FOnGetIsTrackVisible GetIsTrackVisible;
+	FOnGetPlaybackSpeeds GetPlaybackSpeeds;
 };

@@ -199,4 +199,13 @@ int32 UDataprepGraphActionGroupNode::GetGroupId() const
 	return Actions[0]->Appearance->GroupId;
 }
 
+bool UDataprepGraphActionGroupNode::IsGroupEnabled() const 
+{
+	if (Actions.Num() == 0)
+	{
+		return true;
+	}
+	return Actions[0]->Appearance->bGroupIsEnabled;
+}
+
 #undef LOCTEXT_NAMESPACE

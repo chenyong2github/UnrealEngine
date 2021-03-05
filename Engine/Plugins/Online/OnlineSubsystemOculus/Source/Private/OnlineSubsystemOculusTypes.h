@@ -7,6 +7,9 @@
 #include "OnlineSubsystemOculusPackage.h"
 #include "OVR_Platform.h"
 
+using FUniqueNetIdOculusPtr = TSharedPtr<const class FUniqueNetIdOculus, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdOculusRef = TSharedRef<const class FUniqueNetIdOculus, UNIQUENETID_ESPMODE>;
+
 class FUniqueNetIdOculus : public FUniqueNetId {
 private:
 	ovrID ID;
@@ -28,6 +31,12 @@ protected:
 	}
 
 public:
+	template<typename... TArgs>
+	static FUniqueNetIdOculusRef Create(TArgs&&... Args)
+	{
+		return MakeShareable(new FUniqueNetIdOculus(Forward<TArgs>(Args)...));
+	}
+	
 	/** Default constructor */
 	FUniqueNetIdOculus()
 	{
@@ -103,9 +112,9 @@ public:
 	}
 
 	/** global static instance of invalid (zero) id */
-	static const TSharedRef<const FUniqueNetId>& EmptyId()
+	static const FUniqueNetIdRef& EmptyId()
 	{
-		static const TSharedRef<const FUniqueNetId> EmptyId(MakeShared<FUniqueNetIdOculus>());
+		static const FUniqueNetIdRef EmptyId(Create());
 		return EmptyId;
 	}
 };

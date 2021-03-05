@@ -217,6 +217,10 @@ public:
 
 		const TArray<FStackIssueFix>& GetFixes() const;
 
+		bool GetIsExpandedByDefault() const;
+
+		void SetIsExpandedByDefault(bool InExpanded);
+		
 		void InsertFix(int32 InsertionIdx, const FStackIssueFix& Fix);
 
 	private:
@@ -224,7 +228,8 @@ public:
 		FText ShortDescription;
 		FText LongDescription;
 		FString UniqueIdentifier;
-		bool bCanBeDismissed;
+		bool bCanBeDismissed = false;
+		bool bIsExpandedByDefault = true;
 		TArray<FStackIssueFix> Fixes;
 	};
 
@@ -283,7 +288,7 @@ public:
 	void GetUnfilteredChildren(TArray<UNiagaraStackEntry*>& OutUnfilteredChildren) const;
 
 	template<typename T>
-	void GetUnfilteredChildrenOfType(TArray<T*>& OutUnfilteredChldrenOfType) const
+	void GetUnfilteredChildrenOfType(TArray<T*>& OutUnfilteredChildrenOfType) const
 	{
 		TArray<UNiagaraStackEntry*> UnfilteredChildren;
 		GetUnfilteredChildren(UnfilteredChildren);
@@ -292,7 +297,7 @@ public:
 			T* UnfilteredChildOfType = Cast<T>(UnfilteredChild);
 			if (UnfilteredChildOfType != nullptr)
 			{
-				OutUnfilteredChldrenOfType.Add(UnfilteredChildOfType);
+				OutUnfilteredChildrenOfType.Add(UnfilteredChildOfType);
 			}
 		}
 	}
@@ -310,8 +315,6 @@ public:
 	FOnAlternateDisplayNameChanged& OnAlternateDisplayNameChanged();
 
 	void RefreshChildren();
-
-	void RefreshChildrenDeferred();
 
 	FDelegateHandle AddChildFilter(FOnFilterChild ChildFilter);
 	void RemoveChildFilter(FDelegateHandle FilterHandle);
@@ -453,6 +456,7 @@ private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
 	TWeakPtr<FNiagaraEmitterViewModel> EmitterViewModel;
 
+	UPROPERTY()
 	UNiagaraStackEditorData* StackEditorData;
 
 	FString StackEditorDataKey;

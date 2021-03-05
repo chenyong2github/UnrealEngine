@@ -1071,7 +1071,8 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 	}
 
 	// Some tracks could want to do some custom pre-compilation things.
-	Track->PreCompile();
+	FMovieSceneTrackPreCompileResult PreCompileResult;
+	Track->PreCompile(PreCompileResult);
 
 	const FMovieSceneTrackEvaluationField& EvaluationField = Track->GetEvaluationField();
 
@@ -1098,7 +1099,7 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, Entry.Range);
 			if (!EffectiveRange.IsEmpty())
 			{
-				FMovieSceneEvaluationFieldEntityMetaData MetaData;
+				FMovieSceneEvaluationFieldEntityMetaData MetaData(PreCompileResult.DefaultMetaData);
 
 				MetaData.ForcedTime = Entry.ForcedTime;
 				MetaData.Flags      = Entry.Flags;

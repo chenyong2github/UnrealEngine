@@ -1055,6 +1055,31 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	SafeCreateDXGIFactory(DXGIFactory1.GetInitReference(), D3D11RHI_ShouldCreateWithD3DDebug());
 	check(DXGIFactory1);
 
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
+
+	ERHIFeatureLevel::Type PreviewFeatureLevel;
+	if (RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
+	{
+		// ES3.1 feature level emulation in D3D11
+		GMaxRHIFeatureLevel = PreviewFeatureLevel;
+	}
+	else
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+		if (RequestedFeatureLevel < ERHIFeatureLevel::SM6)
+		{
+			GMaxRHIFeatureLevel = RequestedFeatureLevel;
+		}
+	}
+
+	if (!ensure(GMaxRHIFeatureLevel < ERHIFeatureLevel::SM6))
+	{
+		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
+	}
+	GMaxRHIShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
+	check(GMaxRHIShaderPlatform != SP_NumPlatforms);
+
 	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
 	FDynamicRHI* FinalRHI = GD3D11RHI;
 
@@ -1918,11 +1943,6 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		VERIFYD3D11RESULT_EX(Direct3DDevice->CheckFeatureSupport(D3D11_FEATURE_THREADING, &ThreadingSupport, sizeof(ThreadingSupport)), Direct3DDevice);
 		GRHISupportsAsyncTextureCreation = !!ThreadingSupport.DriverConcurrentCreates
 			&& (DeviceFlags & D3D11_CREATE_DEVICE_SINGLETHREADED) == 0;
-
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2_REMOVED] = SP_NumPlatforms;
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 
 		if (IsRHIDeviceAMD() && CVarAMDDisableAsyncTextureCreation.GetValueOnAnyThread())
 		{

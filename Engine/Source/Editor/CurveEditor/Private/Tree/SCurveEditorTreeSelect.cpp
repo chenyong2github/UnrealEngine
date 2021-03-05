@@ -44,8 +44,6 @@ FReply SCurveEditorTreeSelect::SelectAll()
 	{
 		return FReply::Handled();
 	}			
-
-	CurveEditor->GetSelection().ChangeSelectionPointType(ECurvePointType::Key);
 	
 	const bool bIsShiftDown = FSlateApplication::Get().GetModifierKeys().IsShiftDown();
 	const bool bIsControlDown = FSlateApplication::Get().GetModifierKeys().IsControlDown();

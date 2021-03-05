@@ -531,6 +531,12 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta=(DisplayName = "Render CustomDepth Pass"))
 	uint8 bRenderCustomDepth:1;
 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (DisplayName = "Visible In Scene Capture Only", ToolTip = "When true, will only be visible in Scene Capture"))
+	uint8 bVisibleInSceneCaptureOnly : 1;
+
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Rendering, meta = (DisplayName = "Hidden In Scene Capture", ToolTip = "When true, will not be captured by Scene Capture"))
+	uint8 bHiddenInSceneCapture : 1;
+
 protected:
 	/** Result of last call to AreAllCollideableDescendantsRelative(). */
 	uint8 bCachedAllCollideableDescendantsRelative : 1;
@@ -1562,6 +1568,14 @@ public:
 	/** Sets bRenderInMainPass property and marks the render state dirty. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering")
 	void SetRenderInMainPass(bool bValue);
+
+	/** Sets bVisibleInSceneCaptureOnly property and marks the render state dirty. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetVisibleInSceneCaptureOnly(bool bValue);
+
+	/** Sets bHideInSceneCapture property and marks the render state dirty. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void SetHiddenInSceneCapture(bool bValue);
 
 	/**
 	 * Count of all component overlap events (begin or end) ever generated for any components.

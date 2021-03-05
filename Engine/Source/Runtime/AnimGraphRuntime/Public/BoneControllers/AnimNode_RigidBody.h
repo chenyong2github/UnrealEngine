@@ -5,6 +5,7 @@
 #include "BoneControllers/AnimNode_SkeletalControlBase.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsDeclares.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
 #include "AnimNode_RigidBody.generated.h"
 
 struct FBodyInstance;
@@ -285,7 +286,7 @@ private:
 
 	void InitPhysics(const UAnimInstance* InAnimInstance);
 	void UpdateWorldGeometry(const UWorld& World, const USkeletalMeshComponent& SKC);
-	void UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& RootBoneTM);
+	void UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& RootBoneTM, const float DeltaSeconds);
 
 	void InitializeNewBodyTransformsDuringSimulation(FComponentSpacePoseContext& Output, const FTransform& ComponentTransform, const FTransform& BaseBoneTM);
 
@@ -396,6 +397,8 @@ private:
 
 	TArray<FPhysicsConstraintHandle*> Constraints;
 	TArray<USkeletalMeshComponent::FPendingRadialForces> PendingRadialForces;
+
+	FPerSolverFieldSystem PerSolverField;
 
 	TMap<const UPrimitiveComponent*, FWorldObject> ComponentsInSim;
 	int32 ComponentsInSimTick;

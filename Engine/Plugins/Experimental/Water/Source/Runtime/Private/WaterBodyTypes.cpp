@@ -4,6 +4,8 @@
 #include "WaterBodyActor.h"
 #include "WaterSubsystem.h"
 #include "WaterSplineComponent.h"
+#include "Landscape/Classes/LandscapeHeightfieldCollisionComponent.h"
+#include "Landscape/Classes/LandscapeInfo.h"
 #include "Landscape/Classes/LandscapeProxy.h"
 
 float FWaterBodyQueryResult::LazilyComputeSplineKey(const AWaterBody& InWaterBody, const FVector& InWorldLocation)
@@ -116,7 +118,16 @@ FSolverSafeWaterBodyData::FSolverSafeWaterBodyData(AWaterBody* WaterBody)
 	{
 		World = WaterBody->GetWorld();
 		check(World); // ?
-		LandscapeProxyActor = Cast<AActor>(WaterBody->FindLandscape());
+		if (ALandscapeProxy* LandscapeProxyActor = WaterBody->FindLandscape())
+		{
+			if (ULandscapeInfo* Info = LandscapeProxyActor->GetLandscapeInfo())
+			{
+				for (auto CollisionComponent : Info->XYtoCollisionComponentMap)
+				{
+					LandscapeCollisionComponents.Add(Cast<UPrimitiveComponent>(CollisionComponent.Value));
+				}
+			}
+		}
 		WaterSpline = WaterBody->GetWaterSpline();
 		WaterSplineMetadata = WaterBody->GetWaterSplineMetadata();
 		Location = WaterBody->GetActorLocation();
@@ -223,7 +234,7 @@ FWaterBodyQueryResult FSolverSafeWaterBodyData::QueryWaterInfoClosestToWorldLoca
 				{
 					for (FHitResult& Hit : HitResults)
 					{
-						if (LandscapeProxyActor != nullptr && Hit.GetActor() == LandscapeProxyActor)
+						if (LandscapeCollisionComponents.Contains(Hit.GetComponent()))
 						{
 							LandscapeHeightOptional = Hit.ImpactPoint.Z;
 							break;

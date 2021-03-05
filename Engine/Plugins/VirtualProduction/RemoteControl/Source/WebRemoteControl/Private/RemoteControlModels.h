@@ -6,6 +6,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
 #include "GameFramework/Actor.h"
+#include "RemoteControlActor.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
 
@@ -13,16 +14,23 @@
 
 namespace RemoteControlModels
 {
-	static FName Name_UIMin = TEXT("UIMin");
-	static FName Name_UIMax = TEXT("UIMax");
-	static FName Name_ClampMin = TEXT("ClampMin");
-	static FName Name_ClampMax = TEXT("ClampMax");
-	static FName Name_ToolTip = TEXT("ToolTip");
-	static FName Name_EnumValues = TEXT("EnumValues");
+	// Names used to sanitize property/function metadata
+	static FName Name_UIMin("UIMin");
+	static FName Name_UIMax("UIMax");
+	static FName Name_ClampMin("ClampMin");
+	static FName Name_ClampMax("ClampMax");
+	static FName Name_ToolTip("ToolTip");
+	static FName Name_EnumValues("EnumValues");
+
+	// Names used to sanitize asset metadata
+	static FName NAME_FiBData("FiBData");
+	static FName NAME_ClassFlags("ClassFlags");
+	static FName NAME_AssetImportData("AssetImportData");
 
 	static TMap<FName, FString> SanitizeMetadata(const TMap<FName, FString>& InMetadata)
 	{
 		TMap<FName, FString> OutMetadata;
+		OutMetadata.Reserve(InMetadata.Num());
 		auto IsValid = [] (const TTuple<FName, FString>& InTuple)
 			{
 				return InTuple.Key == Name_UIMin
@@ -33,6 +41,21 @@ namespace RemoteControlModels
 			};
 
 		Algo::TransformIf(InMetadata, OutMetadata, IsValid, [](const TTuple<FName, FString>& InTuple) { return InTuple; });
+		return OutMetadata;
+	}
+
+	static TMap<FName, FString> SanitizeAssetMetadata(const FAssetDataTagMap& InAssetMetadata)
+	{
+		TMap<FName, FString> OutMetadata;
+		OutMetadata.Reserve(InAssetMetadata.Num());
+		auto IsValid = [] (const TTuple<FName, FString>& InTuple)
+		{
+			return InTuple.Key != NAME_FiBData
+				&& InTuple.Key != NAME_ClassFlags
+				&& InTuple.Key != NAME_AssetImportData;
+		};
+
+		Algo::TransformIf(InAssetMetadata, OutMetadata, IsValid, [](const TTuple<FName, FString>& InTuple) { return InTuple; });
 		return OutMetadata;
 	}
 }
@@ -82,28 +105,40 @@ struct FRCPropertyDescription
 #endif
 
 		//Fill Enum choices metadata
+		UEnum* Enum = nullptr;
+
 		if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(ValueProperty))
 		{
-			if (const UEnum* Enum = EnumProperty->GetEnum())
+			Enum = EnumProperty->GetEnum();
+		}
+
+		if (const FByteProperty* ByteProperty = CastField<FByteProperty>(ValueProperty))
+		{
+			Enum = ByteProperty->Enum;
+		}
+
+		if (Enum)
+		{
+			const int32 EnumCount = Enum->NumEnums() - 1; //Don't list the _MAX entry
+			TStringBuilder<256> Builder;
+			for (int32 Index = 0; Index < EnumCount; ++Index)
 			{
-				const int32 EnumCount = Enum->NumEnums() - 1; //Don't list the _MAX entry
-				FString EnumValues;
-				for (int32 Index = 0; Index < EnumCount; ++Index)
+				FString Text = Enum->GetDisplayNameTextByIndex(Index).ToString();
+				if (Text.IsEmpty())
 				{
-					if (Index > 0)
-					{
-						EnumValues = FString::Printf(TEXT("%s,%s"), *EnumValues, *Enum->GetNameStringByIndex(Index));
-					}
-					else
-					{
-						EnumValues = FString::Printf(TEXT("%s"), *Enum->GetNameStringByIndex(Index));
-					}
+					Text = Enum->GetNameStringByIndex(Index);
 				}
 
-				if (EnumValues.Len() > 0)
+				if (Index > 0)
 				{
-					Metadata.FindOrAdd(RemoteControlModels::Name_EnumValues) = MoveTemp(EnumValues);
+					Builder.Append(TEXT(", "));
 				}
+				Builder.Append(Text);
+			}
+
+			if (Builder.Len() > 0)
+			{
+				Metadata.FindOrAdd(RemoteControlModels::Name_EnumValues) = Builder.ToString();
 			}
 		}
 	}
@@ -174,7 +209,7 @@ struct FRCExposedPropertyDescription
 	FRCExposedPropertyDescription() = default;
 	
 	FRCExposedPropertyDescription(const FRemoteControlProperty& RCProperty, const FProperty* InUnderlyingProperty)
-		: DisplayName(RCProperty.Label)
+		: DisplayName(RCProperty.GetLabel())
 	{
 		checkSlow(InUnderlyingProperty);
 		UnderlyingProperty = InUnderlyingProperty;
@@ -196,7 +231,7 @@ struct FRCExposedFunctionDescription
 	FRCExposedFunctionDescription() = default;
 
 	FRCExposedFunctionDescription(const FRemoteControlFunction& Function)
-		: DisplayName(Function.Label)
+		: DisplayName(Function.GetLabel())
 		, UnderlyingFunction(Function.Function)
 	{
 	}
@@ -206,6 +241,59 @@ struct FRCExposedFunctionDescription
 	
 	UPROPERTY()
 	FRCFunctionDescription UnderlyingFunction;
+};
+
+USTRUCT()
+struct FRCActorDescription
+{
+	GENERATED_BODY()
+
+	FRCActorDescription() = default;
+
+	FRCActorDescription(const AActor* InActor)
+	{
+		checkSlow(InActor);
+#if WITH_EDITOR
+		Name = InActor->GetActorLabel();
+#else
+		Name = InActor->GetName();
+#endif
+		Path = InActor->GetPathName();
+
+		Class = InActor->GetClass()->GetName();
+	}
+
+	UPROPERTY()
+	FString Name;
+
+	UPROPERTY()
+	FString Path;
+
+	UPROPERTY()
+	FString Class;
+};
+
+USTRUCT()
+struct FRCExposedActorDescription
+{
+	GENERATED_BODY()
+
+	FRCExposedActorDescription() = default;
+
+	FRCExposedActorDescription(const FRemoteControlActor& InExposedActor)
+		: DisplayName(InExposedActor.GetLabel())
+	{
+		if (AActor* Actor = Cast<AActor>(InExposedActor.Path.ResolveObject()))
+		{
+			UnderlyingActor = FRCActorDescription{ Actor };
+		}
+	}
+
+	UPROPERTY()
+	FName DisplayName;
+
+	UPROPERTY()
+	FRCActorDescription UnderlyingActor;
 };
 
 USTRUCT()
@@ -231,7 +319,7 @@ struct FRCPresetLayoutGroupDescription
 		checkSlow(Preset);
 		for (FName FieldLabel : FieldLabels)
 		{
-			AddExposedField(Preset, Preset->GetFieldId(FieldLabel));
+			AddExposedField(Preset, Preset->GetExposedEntityId(FieldLabel));
 		}
 	}
 
@@ -245,28 +333,32 @@ public:
 	UPROPERTY()
 	TArray<FRCExposedFunctionDescription> ExposedFunctions;
 
+	UPROPERTY()
+	TArray<FRCExposedActorDescription> ExposedActors;
+
 private:
 	/** Add an exposed field to this group description. */
 	void AddExposedField(const URemoteControlPreset* Preset, const FGuid& FieldId)
 	{
-		if (TOptional<FRemoteControlField> Field = Preset->GetField(FieldId))
+		if (TSharedPtr<const FRemoteControlProperty> RCProperty = Preset->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
 		{
-			if (Field->FieldType == EExposedFieldType::Property)
+			if (FProperty* Property = RCProperty->GetProperty())
 			{
-				TOptional<FRemoteControlProperty> RCProperty = Preset->GetProperty(Field->Label);
-				TOptional<FExposedProperty> UnderlyingProperty = Preset->ResolveExposedProperty(Field->Label);
-				if (RCProperty && UnderlyingProperty && UnderlyingProperty->Property)
-				{
-					ExposedProperties.Add(FRCExposedPropertyDescription{ MoveTemp(*RCProperty), UnderlyingProperty->Property });
-				}
+				ExposedProperties.Emplace(*RCProperty, Property);	
 			}
-			else if (Field->FieldType == EExposedFieldType::Function)
+		}
+		else if (TSharedPtr<const FRemoteControlFunction> RCFunction = Preset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
+		{
+			if (RCFunction->Function)
 			{
-				TOptional<FRemoteControlFunction> RCFunction = Preset->GetFunction(Field->Label);
-				if (RCFunction && RCFunction->Function)
-				{
-					ExposedFunctions.Add(FRCExposedFunctionDescription{ MoveTemp(*RCFunction) });
-				}
+				ExposedFunctions.Emplace(*RCFunction);
+			}
+		}
+		else if (TSharedPtr<const FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(FieldId).Pin())
+		{
+			if (RCActor->GetActor())
+			{
+				ExposedActors.Emplace(*RCActor);
 			}
 		}
 	}
@@ -330,6 +422,7 @@ struct FRCAssetDescription
 		, Class(InAsset.AssetClass)
 		, Path(InAsset.ObjectPath)
 	{
+		Metadata = RemoteControlModels::SanitizeAssetMetadata(InAsset.TagsAndValues.CopyMap());
 	}
 
 	UPROPERTY()
@@ -340,31 +433,9 @@ struct FRCAssetDescription
 
 	UPROPERTY()
 	FName Path;
-};
-
-USTRUCT()
-struct FRCActorDescription
-{
-	GENERATED_BODY()
-
-	FRCActorDescription() = default;
-
-	FRCActorDescription(const AActor* InActor)
-	{
-		checkSlow(InActor);
-#if WITH_EDITOR
-		Name = InActor->GetActorLabel();
-#else
-		Name = InActor->GetName();
-#endif
-		Path = InActor->GetPathName();
-	}
 
 	UPROPERTY()
-	FString Name;
-
-	UPROPERTY()
-	FString Path;
+	TMap<FName, FString> Metadata;
 };
 
 USTRUCT()

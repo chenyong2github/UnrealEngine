@@ -51,13 +51,17 @@ FConcertClientPackageBridge::FConcertClientPackageBridge()
 	, bIgnoreLocalDiscard(false)
 {
 #if WITH_EDITOR
+	// Previously these event handlers were wrapped in the GIsEditor below.  We moved them out to support take recording
+	// on nodes running in -game mode. This is a very focused use case and it is not safe to rely on these working
+	// correctly outside of take recorder.  There is a lot of code in MultiUser that assumes that in -game mode is
+	// "receive" only.
+	//
+	UPackage::PreSavePackageEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackagePreSave);
+	UPackage::PackageSavedEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackageSaved);
+	FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientPackageBridge::HandleAssetReload);
+
 	if (GIsEditor)
 	{
-		// Register Package Events
-		UPackage::PreSavePackageEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackagePreSave);
-		UPackage::PackageSavedEvent.AddRaw(this, &FConcertClientPackageBridge::HandlePackageSaved);
-		FCoreUObjectDelegates::OnPackageReloaded.AddRaw(this, &FConcertClientPackageBridge::HandleAssetReload);
-
 		// Register Asset Registry Events
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
 		AssetRegistryModule.Get().OnInMemoryAssetCreated().AddRaw(this, &FConcertClientPackageBridge::HandleAssetAdded);
@@ -74,13 +78,13 @@ FConcertClientPackageBridge::FConcertClientPackageBridge()
 FConcertClientPackageBridge::~FConcertClientPackageBridge()
 {
 #if WITH_EDITOR
+	// Unregister Package Events
+	UPackage::PreSavePackageEvent.RemoveAll(this);
+	UPackage::PackageSavedEvent.RemoveAll(this);
+	FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
+
 	if (GIsEditor)
 	{
-		// Unregister Package Events
-		UPackage::PreSavePackageEvent.RemoveAll(this);
-		UPackage::PackageSavedEvent.RemoveAll(this);
-		FCoreUObjectDelegates::OnPackageReloaded.RemoveAll(this);
-
 		// Unregister Asset Registry Events
 		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
 		{
@@ -217,6 +221,7 @@ void FConcertClientPackageBridge::HandleAssetAdded(UObject *Object)
 
 	// Save this package to disk so that we can send its contents immediately
 	{
+		SCOPED_CONCERT_TRACE(FConcertClientPackageBridge_SavePackage);
 		FScopedIgnoreLocalSave IgnorePackageSaveScope(*this);
 		UObject* Asset = Package->FindAssetInPackage();
 		// @todo FH: Pass the Asset instead of the World to save package when the incidental IsFullyLoaded is fixed
@@ -224,8 +229,9 @@ void FConcertClientPackageBridge::HandleAssetAdded(UObject *Object)
 
 		const FString PackageFilename = FPaths::ProjectIntermediateDir() / TEXT("Concert") / TEXT("Temp") / FGuid::NewGuid().ToString() + (Asset && Asset->IsA<UWorld>() ? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension());
 		uint32 PackageFlags = Package->GetPackageFlags();
-		if (UPackage::SavePackage(Package, World, RF_Standalone, *PackageFilename, GWarn, nullptr, false, false, SAVE_NoError | SAVE_KeepDirty))
+		if (UPackage::SavePackage(Package, World, RF_Standalone, *PackageFilename, GWarn, nullptr, false, false, SAVE_Async | SAVE_NoError | SAVE_KeepDirty))
 		{
+			UPackage::WaitForAsyncFileWrites();
 			// Saving the newly added asset here shouldn't modify any of its package flags since it's a 'dummy' save i.e. PKG_NewlyCreated
 			Package->SetPackageFlagsTo(PackageFlags);
 

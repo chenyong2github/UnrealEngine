@@ -92,9 +92,10 @@ void SaveAsset(UObject* InObject)
 	UPackage* const Package = InObject->GetOutermost();
 	FString const PackageName = Package->GetName();
 	FString const PackageFileName = FPackageName::LongPackageNameToFilename(PackageName, FPackageName::GetAssetPackageExtension());
-	
+
 	double StartTime = FPlatformTime::Seconds();
 
+	UMetaData *MetaData = Package->GetMetaData();
 	UPackage::SavePackage(Package, NULL, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_NoError);
 
 	double ElapsedTime = FPlatformTime::Seconds() - StartTime;

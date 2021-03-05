@@ -496,6 +496,13 @@ void UMoviePipeline::TransitionToState(const EMovieRenderPipelineState InNewStat
 
 			// This is called once notifying our export step that they can begin the export.
 			PipelineState = EMovieRenderPipelineState::Export;
+
+			// Restore the sequence so that the export processes can operate on the original sequence. 
+			// This is also done in the finished state because it's not guaranteed that the Export state 
+			// will be set when the render is canceled early
+			LevelSequenceActor->GetSequencePlayer()->Stop();
+			RestoreTargetSequenceToOriginalState();
+	
 			BeginExport();
 		}
 		break;

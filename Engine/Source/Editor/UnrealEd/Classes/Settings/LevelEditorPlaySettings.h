@@ -135,6 +135,20 @@ enum EPlayOnLaunchConfiguration
 	LaunchConfig_Shipping UMETA(DisplayName = "Shipping"),
 };
 
+/* Whether to content should be stored in pak files when launching on device. */
+UENUM()
+enum class EPlayOnPakFileMode : uint8
+{
+	/** Do not pack files. */
+	NoPak UMETA(DisplayName="Use loose files"),
+	
+	/** Pack files with UnrealPak. */
+	PakNoCompress UMETA(DisplayName="Use pak files without compression"),
+	
+	/** Compress and pack files with UnrealPak. */
+	PakCompress UMETA(DisplayName="Use compressed pak files"),
+};
+
 /**
  * Holds information about a screen resolution to be used for playing.
  */
@@ -302,6 +316,10 @@ public:
 	/* Which build configuration to use when launching on device. */
 	UPROPERTY(config, EditAnywhere, Category = PlayOnDevice)
 	TEnumAsByte<EPlayOnLaunchConfiguration> LaunchConfiguration;
+
+	// Whether to content should be stored in pak files when launching on device. */
+	UPROPERTY(config, EditAnywhere, Category = PlayOnDevice)
+	EPlayOnPakFileMode PackFilesForLaunch;
 
 	/** Whether to automatically recompile dirty Blueprints before launching */
 	UPROPERTY(config, EditAnywhere, Category=PlayOnDevice)

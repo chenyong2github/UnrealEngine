@@ -464,6 +464,10 @@ static void AssignPackagesDiskOrder(
 	SortedPackages.Reserve(Packages.Num());
 	for (FLegacyCookedPackage* Package : Packages)
 	{
+		if (!Package->OptimizedPackage->GetExportBundleCount())
+		{
+			continue;
+		}
 		FPackageAndOrder& Entry = SortedPackages.AddDefaulted_GetRef();
 		Entry.Package = Package;
 		const uint64* FindGameOpenOrder = GameOrderMap.Find(Package->PackageName);

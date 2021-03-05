@@ -55,6 +55,7 @@ void FDatasmithExpressionInputImpl::SetExpression( IDatasmithMaterialExpression*
 	else
 	{
 		Expression.Edit() = nullptr;
+		OutputIndex = 0;
 	}
 }
 
@@ -204,8 +205,6 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	RegisterReferenceProxy( AmbientOcclusion, "AmbientOcclusion" );
 	RegisterReferenceProxy( MaterialAttributes, "MaterialAttributes" );
 
-	RegisterReferenceProxy( Expressions, "Expressions" );
-
 	Store.RegisterParameter( BlendMode, "BlendMode" );
 	Store.RegisterParameter( bTwoSided, "bTwoSided" );
 	Store.RegisterParameter( bUseMaterialAttributes, "bUseMaterialAttributes" );
@@ -324,6 +323,34 @@ IDatasmithMaterialExpression* FDatasmithUEPbrMaterialElementImpl::AddMaterialExp
 	return Expression.Get();
 }
 
+void FDatasmithUEPbrMaterialElementImpl::ResetExpressionGraph( bool bRemoveAllExpressions )
+{
+	if (bRemoveAllExpressions)
+	{
+		Expressions.Reset();
+	}
+	else
+	{
+		for ( const TSharedPtr<IDatasmithMaterialExpression>& MaterialExpression : Expressions )
+		{
+			MaterialExpression->ResetExpression();
+		}
+	}
+
+	//Reset material inputs.
+	BaseColor.Edit()->SetExpression(nullptr);
+	Metallic.Edit()->SetExpression(nullptr);
+	Specular.Edit()->SetExpression(nullptr);
+	Roughness.Edit()->SetExpression(nullptr);
+	EmissiveColor.Edit()->SetExpression(nullptr);
+	Opacity.Edit()->SetExpression(nullptr);
+	Normal.Edit()->SetExpression(nullptr);
+	WorldDisplacement.Edit()->SetExpression(nullptr);
+	Refraction.Edit()->SetExpression(nullptr);
+	AmbientOcclusion.Edit()->SetExpression(nullptr);
+	MaterialAttributes.Edit()->SetExpression(nullptr);
+}
+
 const TCHAR* FDatasmithUEPbrMaterialElementImpl::GetParentLabel() const
 {
 	if ( ParentLabel.Get( Store ).IsEmpty() )
@@ -347,7 +374,7 @@ void FDatasmithUEPbrMaterialElementImpl::CustomSerialize(class DirectLink::FSnap
 		// This field was required. In order to be readable by 4.26, that array is recreated here.
 		// Without it, a 4.26 DirectLink receiver could crash on 4.27 data usage.
 		TArray<int32> ExpressionTypes;
-		for (const TSharedPtr<IDatasmithMaterialExpression>& Expression : Expressions.View())
+		for (const TSharedPtr<IDatasmithMaterialExpression>& Expression : Expressions)
 		{
 			EDatasmithMaterialExpressionType ExpressionType = Expression.IsValid() ? Expression->GetExpressionType() : EDatasmithMaterialExpressionType::None;
 			ExpressionTypes.Add(int32(ExpressionType));

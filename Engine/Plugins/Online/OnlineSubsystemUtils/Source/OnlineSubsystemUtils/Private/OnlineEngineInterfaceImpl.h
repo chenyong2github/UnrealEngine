@@ -28,6 +28,7 @@ public:
 	virtual void ShutdownOnlineSubsystem(FName OnlineIdentifier) override;
 	virtual void DestroyOnlineSubsystem(FName OnlineIdentifier) override;
 	virtual FName GetDefaultOnlineSubsystemName() const override;
+	virtual bool IsCompatibleUniqueNetId(const FUniqueNetId& InUniqueNetId) const override;
 
 	/**
 	 * Utils
@@ -36,7 +37,14 @@ public:
 	virtual FName GetSubsystemFromReplicationHash(uint8 InHash) const override;
 
 private:
+	/** Mapping of unique net ids that should not be treated as foreign ids to the local subsystem. */
+	UPROPERTY(config)
+	TMap<FName, FName> MappedUniqueNetIdTypes;
 
+	/** Array of unique net ids that are deemed valid when tested against gameplay login checks. */
+	UPROPERTY(config)
+	TArray<FName> CompatibleUniqueNetIdTypes;
+	
 	/** Allow the subsystem used for voice functions to be overridden, in case it needs to be different than the default subsystem. May be useful on console platforms. */
 	UPROPERTY(config)
 	FName VoiceSubsystemNameOverride;

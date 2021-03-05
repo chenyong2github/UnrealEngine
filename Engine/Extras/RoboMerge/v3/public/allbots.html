@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<html>
+<head>
+	<title>ROBOMERGE all bots</title>
+	<link rel="icon" href="/img/robo-r.png" type="image/png">
+
+	<script src="/js/jquery-3.4.1.min.js"></script>
+	<script src="/js/bootstrap.bundle.min.js"></script>
+	<script src="/js/hpcc-wasm-index.min.js"></script>
+	<script src="/js/flow.js"></script>
+
+	<link rel="stylesheet" href="/css/bootstrap.min.css">
+	<link rel="stylesheet" href="/css/main.css">
+
+	<script>
+		$.ajax({
+			url: '/api/branches',
+			type: 'get',
+			dataType: 'json',
+			success: data => {
+				const bots = location.search.match(/bots=(.*)/)
+				$(() => $('#graph').append(showFlowGraph(data.branches, bots ? bots[1].split(',') : [])))
+			},
+		// error: function(xhr, error, status) {
+		// 	robomergeUser = undefined;
+		// 	setError(xhr, error);
+		// 	callback(null);
+		// }
+		})
+	</script>
+</head>
+<body>
+	<header><img src="/img/logo.png"></header>
+	<div id="graph">
+	</div>
+</body>

@@ -453,9 +453,17 @@ namespace Audio
 			// We'll only be using non-default submix sends (e.g. reverb).
 			if (!(InitParams.bUseHRTFSpatialization && MixerDevice->bSpatializationIsExternalSend))
 			{
-				FMixerSubmixWeakPtr SubmixPtr = WaveInstance->SoundSubmix
-					? MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix)
-					: MixerDevice->GetMasterSubmix();
+				FMixerSubmixWeakPtr SubmixPtr;
+				// If a sound specifies a base submix manually, always use that
+				if (WaveInstance->SoundSubmix)
+				{
+					SubmixPtr = MixerDevice->GetSubmixInstance(WaveInstance->SoundSubmix);
+				}
+				else
+				{
+					// Retrieve the base default submix if one is not explicitly set
+					SubmixPtr = MixerDevice->GetBaseDefaultSubmix();
+				}
 
 				FMixerSourceSubmixSend SubmixSend;
 				SubmixSend.Submix = SubmixPtr;

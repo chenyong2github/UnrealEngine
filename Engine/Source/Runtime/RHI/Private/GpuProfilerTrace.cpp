@@ -38,7 +38,16 @@ UE_TRACE_EVENT_BEGIN(GpuProfiler, EventSpec, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(uint16[], Name)
 UE_TRACE_EVENT_END()
 
+// GPU Index 0
 UE_TRACE_EVENT_BEGIN(GpuProfiler, Frame)
+	UE_TRACE_EVENT_FIELD(uint64, CalibrationBias)
+	UE_TRACE_EVENT_FIELD(uint64, TimestampBase)
+	UE_TRACE_EVENT_FIELD(uint32, RenderingFrameNumber)
+	UE_TRACE_EVENT_FIELD(uint8[], Data)
+UE_TRACE_EVENT_END()
+
+// GPU Index 1
+UE_TRACE_EVENT_BEGIN(GpuProfiler2, Frame2)
 	UE_TRACE_EVENT_FIELD(uint64, CalibrationBias)
 	UE_TRACE_EVENT_FIELD(uint64, TimestampBase)
 	UE_TRACE_EVENT_FIELD(uint32, RenderingFrameNumber)
@@ -137,7 +146,7 @@ void FGpuProfilerTrace::EndEvent(uint64 TimestampMicroseconds)
 	GCurrentFrame.EventBufferSize = BufferPtr - GCurrentFrame.EventBuffer;
 }
 
-void FGpuProfilerTrace::EndFrame()
+void FGpuProfilerTrace::EndFrame(uint32 GPUIndex)
 {
 	using namespace GpuProfilerTrace;
 
@@ -145,11 +154,23 @@ void FGpuProfilerTrace::EndFrame()
 	{
 		// This subtraction is intended to be performed on uint64 to leverage the wrap around behavior defined by the standard
 		uint64 Bias = GCurrentFrame.Calibration.CPUMicroseconds - GCurrentFrame.Calibration.GPUMicroseconds;
-		UE_TRACE_LOG(GpuProfiler, Frame, GpuChannel)
-			<< Frame.CalibrationBias(Bias)
-			<< Frame.TimestampBase(GCurrentFrame.TimestampBase)
-			<< Frame.RenderingFrameNumber(GCurrentFrame.RenderingFrameNumber)
-			<< Frame.Data(GCurrentFrame.EventBuffer, GCurrentFrame.EventBufferSize);
+
+		if (GPUIndex == 0)
+		{
+			UE_TRACE_LOG(GpuProfiler, Frame, GpuChannel)
+				<< Frame.CalibrationBias(Bias)
+				<< Frame.TimestampBase(GCurrentFrame.TimestampBase)
+				<< Frame.RenderingFrameNumber(GCurrentFrame.RenderingFrameNumber)
+				<< Frame.Data(GCurrentFrame.EventBuffer, GCurrentFrame.EventBufferSize);
+		}
+		else if (GPUIndex == 1)
+		{
+			UE_TRACE_LOG(GpuProfiler2, Frame2, GpuChannel)
+				<< Frame2.CalibrationBias(Bias)
+				<< Frame2.TimestampBase(GCurrentFrame.TimestampBase)
+				<< Frame2.RenderingFrameNumber(GCurrentFrame.RenderingFrameNumber)
+				<< Frame2.Data(GCurrentFrame.EventBuffer, GCurrentFrame.EventBufferSize);
+		}
 
 		GCurrentFrame.EventBufferSize = 0;
 	}

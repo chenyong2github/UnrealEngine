@@ -289,7 +289,7 @@ FTimecode UTimecodeSynchronizer::GetTimecodeInternal() const
 	}
 	else
 	{
-		Timecode = UTimeSynchronizationSource::ConvertFrameTimeToTimecode(GetProviderFrameTime(), GetFrameRate());
+		Timecode = UTimeSynchronizationSource::ConvertFrameTimeToTimecode(GetProviderFrameTime(), GetFrameRateInternal());
 	}
 
 	return Timecode;
@@ -307,7 +307,7 @@ FFrameTime UTimecodeSynchronizer::GetProviderFrameTime() const
 
 			if (GFrameCounter != LastUpdatedSources)
 			{
-				const_cast<FTimecodeSynchronizerActiveTimecodedInputSource&>(TimecodedInputSource).UpdateSourceState(GetFrameRate());
+				const_cast<FTimecodeSynchronizerActiveTimecodedInputSource&>(TimecodedInputSource).UpdateSourceState(GetFrameRateInternal());
 			}
 
 			if (TimecodedInputSource.IsReady())
@@ -326,7 +326,7 @@ FFrameTime UTimecodeSynchronizer::GetProviderFrameTime() const
 	}
 	else if (CachedProxiedTimecodeProvider)
 	{
-		ProviderFrameTime = FFrameTime(CachedProxiedTimecodeProvider->GetTimecode().ToFrameNumber(GetFrameRate()));
+		ProviderFrameTime = FFrameTime(CachedProxiedTimecodeProvider->GetTimecode().ToFrameNumber(GetFrameRateInternal()));
 	}
 
 	return ProviderFrameTime;

@@ -50,6 +50,7 @@ public:
 	{
 		DelayTimer = DefaultDelayTimer;
 		FindWorkersTimeout = DefaultFindWorkersTimeout;
+		FindWorkerAttempts = 0;
 	}
 
 	void Init()
@@ -233,44 +234,44 @@ public:
 					FilterString.LeftChopInline(1);
 				}
 
-				bool bNeedStartMatch = Filter.MatchFromStart;
-				bool bNeedEndMatch = bMatchFromEnd;
-				bool bMeetsMatch = true;	// assume true
+bool bNeedStartMatch = Filter.MatchFromStart;
+bool bNeedEndMatch = bMatchFromEnd;
+bool bMeetsMatch = true;	// assume true
 
-				// If we need to match at the start or end, 
-				if (bNeedStartMatch || bNeedEndMatch)
-				{
-					if (bNeedStartMatch)
-					{
-						bMeetsMatch = TestNamesNoWhiteSpaces.StartsWith(FilterString);
-					}
+// If we need to match at the start or end, 
+if (bNeedStartMatch || bNeedEndMatch)
+{
+	if (bNeedStartMatch)
+	{
+		bMeetsMatch = TestNamesNoWhiteSpaces.StartsWith(FilterString);
+	}
 
-					if (bNeedEndMatch && bMeetsMatch)
-					{
-						bMeetsMatch = TestNamesNoWhiteSpaces.EndsWith(FilterString);
-					}
-				}
-				else
-				{
-					// match anywhere
-					bMeetsMatch = TestNamesNoWhiteSpaces.Contains(FilterString);
-				}
+	if (bNeedEndMatch && bMeetsMatch)
+	{
+		bMeetsMatch = TestNamesNoWhiteSpaces.EndsWith(FilterString);
+	}
+}
+else
+{
+	// match anywhere
+	bMeetsMatch = TestNamesNoWhiteSpaces.Contains(FilterString);
+}
 
-				if (bMeetsMatch)
-				{
-					OutTestNames.Add(AllTestNames[TestIndex]);
-					TestCount++;
-					break;
-				}
+if (bMeetsMatch)
+{
+	OutTestNames.Add(AllTestNames[TestIndex]);
+	TestCount++;
+	break;
+}
 			}
 		}
-		
+
 		// If we have the TestsRun array set up and are using the same command as before, clear out already run tests. 
 		if (TestsRun.Num() > 0)
 		{
 			if (TestsRun[0] == StringCommand)
 			{
-				for (int i = 1; i < TestsRun.Num(); i++)	
+				for (int i = 1; i < TestsRun.Num(); i++)
 				{
 					if (OutTestNames.Remove(TestsRun[i]))
 					{
@@ -295,6 +296,7 @@ public:
 			AutomationController->RequestAvailableWorkers(SessionID);
 			AutomationTestState = EAutomationTestState::RequestTests;
 			FindWorkersTimeout = DefaultFindWorkersTimeout;
+			FindWorkerAttempts++;
 		}
 	}
 
@@ -305,32 +307,35 @@ public:
 		if (FindWorkersTimeout <= 0)
 		{
 			// Call the refresh callback manually
-			HandleRefreshTestCallback();
+			HandleRefreshTimeout();
+		}
+	}
+
+	void HandleRefreshTimeout()
+	{
+		const float TimeOut = GetDefault<UAutomationControllerSettings>()->GameInstanceLostTimerSeconds;
+		if (FindWorkerAttempts * DefaultFindWorkersTimeout >= TimeOut)
+		{
+			LogCommandLineError(FString::Printf(TEXT("Failed to find workers after %.02f seconds. Giving up"), TimeOut));
+			AutomationTestState = EAutomationTestState::Complete;
+		}
+		else
+		{
+			// Go back to looking for workers
+			UE_LOG(LogAutomationCommandLine, Log, TEXT("Can't find any workers! Searching again"));
+			AutomationTestState = EAutomationTestState::FindWorkers;
 		}
 	}
 
 	void HandleRefreshTestCallback()
 	{
 		TArray<FString> AllTestNames;
-		
-		if (AutomationController->GetNumDeviceClusters() == 0)
+
+		// This is called by the controller manager when it receives responses. We want to make sure it has a device, and we
+		// want to make sure it's called while we're waiting for a response
+		if (AutomationController->GetNumDeviceClusters() == 0 || AutomationTestState != EAutomationTestState::RequestTests)
 		{
-			static double FirstWarningTime = FPlatformTime::Seconds();
-			static int WarningCount = 0;
-
-			double TimeWaiting = FPlatformTime::Seconds() - FirstWarningTime;
-
-			// This can get called a number of times before a worker is ready, so be conservative in how often we warn
-			if ((++WarningCount % 5) == 0 && TimeWaiting > 10.0)
-			{
-				UE_LOG(LogAutomationCommandLine, Warning, TEXT("Can't find any workers! Searching again"));
-			}
-			else
-			{
-				UE_LOG(LogAutomationCommandLine, Log, TEXT("Can't find any workers! Searching again"));
-			}
-
-			AutomationTestState = EAutomationTestState::FindWorkers;
+			UE_LOG(LogAutomationCommandLine, Log, TEXT("Ignoring refresh from ControllerManager. NumDeviceClusters=%d, CurrentState=%d"), AutomationController->GetNumDeviceClusters(), AutomationTestState);
 			return;
 		}
 
@@ -348,7 +353,7 @@ public:
 			UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d Automation Tests"), AllTestNames.Num());
 			for ( const FString& TestName : AllTestNames )
 			{
-				UE_LOG(LogAutomationCommandLine, Display, TEXT("\t%s"), *TestName);
+				UE_LOG(LogAutomationCommandLine, Display, TEXT("\t'%s'"), *TestName);
 			}
 
 			// Set state to complete
@@ -359,8 +364,15 @@ public:
 			TArray<FString> FilteredTestNames;
 			GenerateTestNamesFromCommandLine(AllTestNames, FilteredTestNames);
 			
-			UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d Automation Tests, based on '%s'."), FilteredTestNames.Num(), *StringCommand);
-
+			if (FilteredTestNames.Num() == 0)
+			{
+				LogCommandLineError(FString::Printf(TEXT("No automation tests matched '%s'"), *StringCommand));	
+			}
+			else
+			{
+				UE_LOG(LogAutomationCommandLine, Display, TEXT("Found %d automation tests based on '%s'"), FilteredTestNames.Num(), *StringCommand);
+			}
+							
 			for ( const FString& TestName : FilteredTestNames )
 			{
 				UE_LOG(LogAutomationCommandLine, Display, TEXT("\t%s"), *TestName);
@@ -376,7 +388,6 @@ public:
 			{
 				AutomationTestState = EAutomationTestState::Complete;
 			}
-
 
 			// Clear delegate to avoid re-running tests due to multiple delegates being added or when refreshing session frontend
 			// The delegate will be readded in Init whenever a new command is executed
@@ -467,13 +478,11 @@ public:
 				{
 					AutomationTestState = EAutomationTestState::Idle;
 				}
-
+				FindWorkerAttempts = 0;
 				break;
 			}
 			case EAutomationTestState::FindWorkers:
 			{
-				//UE_LOG(LogAutomationCommandLine, Log, TEXT("Finding Workers..."));
-
 				FindWorkers(DeltaTime);
 				break;
 			}
@@ -513,18 +522,15 @@ public:
 				{
 					if (!GIsCriticalError)
 					{
-						if (AutomationController->ReportsHaveErrors())
+						if (AutomationController->ReportsHaveErrors() || Errors.Num())
 						{
 							UE_LOG(LogAutomationCommandLine, Display, TEXT("Setting GIsCriticalError due to test failures (will cause non-zero exit code)."));
-							GIsCriticalError = AutomationController->ReportsHaveErrors();
+							GIsCriticalError = true;
 						}
 					}
-
-					UE_LOG(LogAutomationCommandLine, Log, TEXT("Forcing shutdown."));
-					// some tools parse this.
+					UE_LOG(LogAutomationCommandLine, Log, TEXT("Shutting down. GIsCriticalError=%d"), GIsCriticalError);
 					UE_LOG(LogAutomationCommandLine, Display, TEXT("**** TEST COMPLETE. EXIT CODE: %d ****"), GIsCriticalError ? -1 : 0);
 					FPlatformMisc::RequestExit(true);
-					// We have finished the testing, and results are available
 					AutomationTestState = EAutomationTestState::Complete;
 				}
 				break;
@@ -532,6 +538,13 @@ public:
 		}
 
 		return !IsTestingComplete();
+
+
+
+
+		
+		// some tools parse this.
+		// We have finished the testing, and results are available
 	}
 	
 	/** Console commands, see embeded usage statement **/
@@ -701,6 +714,14 @@ public:
 	}
 
 private:
+
+	// Logs and tracks an error
+	void LogCommandLineError(const FString& InErrorMsg)
+	{
+		UE_LOG(LogAutomationCommandLine, Error, TEXT("%s"), *InErrorMsg);
+		Errors.Add(InErrorMsg);
+	}
+
 	/** The automation controller running the tests */
 	IAutomationControllerManagerPtr AutomationController;
 
@@ -722,6 +743,9 @@ private:
 	/** Timer Handle for giving up on workers */
 	float FindWorkersTimeout;
 
+	/** How many times we attempted to find a worker... */
+	int	 FindWorkerAttempts;
+
 	/** Holds the session ID */
 	FGuid SessionID;
 
@@ -740,6 +764,9 @@ private:
 	FString CheckpointCommand;
 
 	TArray<FString> TestsRun;
+
+	// Any that we encountered during processing. Used in 'Quit' to determine error code
+	TArray<FString> Errors;
 };
 
 const float FAutomationExecCmd::DefaultDelayTimer = 5.0f;

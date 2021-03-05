@@ -10,6 +10,9 @@
 #define PICTURE_DATA_SILHOUETTE "is_silhouette"
 #define PICTURE_DATA_URL "url"
 
+using FUniqueNetIdFacebookPtr = TSharedPtr<const class FUniqueNetIdFacebook, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdFacebookRef = TSharedRef<const class FUniqueNetIdFacebook, UNIQUENETID_ESPMODE>;
+
 /**
  * Facebook specific implementation of the unique net id
  */
@@ -37,6 +40,12 @@ PACKAGE_SCOPE:
 	}
 
 public:
+	template<typename... TArgs>
+	static FUniqueNetIdFacebookRef Create(TArgs&&... Args)
+	{
+		return MakeShareable(new FUniqueNetIdFacebook(Forward<TArgs>(Args)...));
+	}
+	
 	/**
 	 * Constructs this object with the specified net id
 	 *
@@ -52,12 +61,12 @@ public:
 	{
 	}
 
+	//~ Begin FUniqueNetId Interface
 	virtual FName GetType() const override
 	{
 		return FACEBOOK_SUBSYSTEM;
 	}
 
-	//~ Begin FUniqueNetId Interface
 	virtual const uint8* GetBytes() const override
 	{
 		return (uint8*)&UniqueNetId;
@@ -68,11 +77,11 @@ public:
 	{
 		return sizeof(uint64);
 	}
-
+	
 	/** global static instance of invalid (zero) id */
-	static const TSharedRef<const FUniqueNetId>& EmptyId()
+	static const FUniqueNetIdRef& EmptyId()
 	{
-		static const TSharedRef<const FUniqueNetId> EmptyId(MakeShared<FUniqueNetIdFacebook>());
+		static const FUniqueNetIdRef EmptyId(Create());
 		return EmptyId;
 	}
 
@@ -97,7 +106,6 @@ public:
 	//~ End FUniqueNetId Interface
 
 
-public:
 	/** Needed for TMap::GetTypeHash() */
 	friend uint32 GetTypeHash(const FUniqueNetIdFacebook& A)
 	{

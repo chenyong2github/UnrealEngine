@@ -21,6 +21,12 @@ namespace Electra
 		virtual ~IPlaylistReader() = default;
 
 		/**
+		 * Must call Close() before dropping any TShared..<> of this to allow for any internally
+		 * used TWeak..<> to still be valid if used by AsShared().
+		 */
+		virtual void Close() = 0;
+
+		/**
 		 * Returns the type of the playlist (eg. "hls", "dash", etc.)
 		 */
 		virtual const FString& GetPlaylistType() const = 0;

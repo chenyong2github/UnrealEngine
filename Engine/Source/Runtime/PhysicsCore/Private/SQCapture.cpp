@@ -450,7 +450,7 @@ void FSQCapture::EndCaptureChaosOverlap(const ChaosInterface::FSQHitBuffer<Chaos
 void FSQCapture::CaptureChaosFilterResults(const Chaos::FPBDRigidsEvolution& TransientEvolution, const FCollisionFilterData& FilterData, ICollisionQueryFilterCallbackBase& Callback)
 {
 	using namespace Chaos;
-	const TPBDRigidsSOAs<float, 3>& Particles = TransientEvolution.GetParticles();
+	const FPBDRigidsSOAs& Particles = TransientEvolution.GetParticles();
 	const int32 NumTransientActors = Particles.GetParticleHandles().Size();
 
 	for (int32 Idx = 0; Idx < NumTransientActors; ++Idx)

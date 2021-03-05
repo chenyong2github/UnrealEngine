@@ -21,21 +21,37 @@ struct FNiagaraDataSetDebugAccessor
 			FVector4 Value = ReadFloats(DataBuffer, Instance);
 			switch (NumComponents)
 			{
-			case 1: StringType.Appendf(TEXT("%.2f"), Value[0]); break;
-			case 2: StringType.Appendf(TEXT("%.2f, %.2f"), Value[0], Value[1]); break;
-			case 3: StringType.Appendf(TEXT("%.2f, %.2f, %.2f"), Value[0], Value[1], Value[2]); break;
-			case 4: StringType.Appendf(TEXT("%.2f, %.2f, %.2f, %.2f"), Value[0], Value[1], Value[2], Value[3]); break;
+				case 1: StringType.Appendf(TEXT("%.2f"), Value[0]); break;
+				case 2: StringType.Appendf(TEXT("%.2f, %.2f"), Value[0], Value[1]); break;
+				case 3: StringType.Appendf(TEXT("%.2f, %.2f, %.2f"), Value[0], Value[1], Value[2]); break;
+				case 4: StringType.Appendf(TEXT("%.2f, %.2f, %.2f, %.2f"), Value[0], Value[1], Value[2], Value[3]); break;
 			}
 		}
 		else if (IsInt())
 		{
 			FIntVector4 Value = ReadInts(DataBuffer, Instance);
-			switch (NumComponents)
+			if (NiagaraType == FNiagaraTypeDefinition::GetBoolDef())
 			{
-			case 1: StringType.Appendf(TEXT("%d"), Value[0]); break;
-			case 2: StringType.Appendf(TEXT("%d, %d"), Value[0], Value[1]); break;
-			case 3: StringType.Appendf(TEXT("%d, %d, %d"), Value[0], Value[1], Value[2]); break;
-			case 4: StringType.Appendf(TEXT("%d, %d, %d, %d, %d"), Value[0], Value[1], Value[2], Value[3]); break;
+				const TCHAR* TrueText = TEXT("true");
+				const TCHAR* FalseText = TEXT("false");
+				for ( uint32 iComponent=0; iComponent < NumComponents; ++iComponent)
+				{
+					if (iComponent != 0 )
+					{
+						StringType.Append(TEXT(", "));
+					}
+					StringType.Append(Value[iComponent] == FNiagaraBool::True ? TrueText : FalseText);
+				}
+			}
+			else
+			{
+				switch (NumComponents)
+				{
+					case 1: StringType.Appendf(TEXT("%d"), Value[0]); break;
+					case 2: StringType.Appendf(TEXT("%d, %d"), Value[0], Value[1]); break;
+					case 3: StringType.Appendf(TEXT("%d, %d, %d"), Value[0], Value[1], Value[2]); break;
+					case 4: StringType.Appendf(TEXT("%d, %d, %d, %d, %d"), Value[0], Value[1], Value[2], Value[3]); break;
+				}
 			}
 		}
 	}
@@ -50,10 +66,11 @@ struct FNiagaraDataSetDebugAccessor
 	static bool ValidateDataBuffer(const FNiagaraDataSetCompiledData& CompiledData, const FNiagaraDataBuffer* DataBuffer, TFunction<void(const FNiagaraVariable&, uint32, int32)> ErrorCallback);
 
 private:
-	FName	VariableName;
-	bool	bIsFloat = false;
-	bool	bIsHalf = false;
-	bool	bIsInt = false;
-	uint32	NumComponents = 0;
-	uint32	ComponentIndex = INDEX_NONE;
+	FName					VariableName;
+	FNiagaraTypeDefinition	NiagaraType;
+	bool					bIsFloat = false;
+	bool					bIsHalf = false;
+	bool					bIsInt = false;
+	uint32					NumComponents = 0;
+	uint32					ComponentIndex = INDEX_NONE;
 };

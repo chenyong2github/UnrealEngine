@@ -26,6 +26,11 @@ public:
 		Code	  = 0;
 	}
 
+	bool IsTryAgain() const
+	{
+		return Error == UEMEDIA_ERROR_TRY_AGAIN;
+	}
+
 	bool IsSet() const
 	{
 		return Error != UEMEDIA_ERROR_OK || Code != 0 || Component != Facility::EFacility::Unknown || DetailMessage.Len() || PlatformMessage.Len();
@@ -45,6 +50,12 @@ public:
 	bool IsError() const
 	{
 		return IsSet() && !WasAborted();
+	}
+
+	FErrorDetail& SetTryAgain()
+	{
+		Error = UEMEDIA_ERROR_TRY_AGAIN;
+		return *this;
 	}
 
 	FErrorDetail& SetError(UEMediaError InError)
@@ -122,6 +133,37 @@ private:
 	uint16				Code;
 };
 
+#define ELECTRA_IMPL_DEFAULT_ERROR_METHODS(ErrorFacility)																			\
+static inline FErrorDetail CreateError(const FString& InMessage, uint16 InCode, UEMediaError InError=UEMEDIA_ERROR_FORMAT_ERROR)	\
+{																																	\
+	FErrorDetail Error;																												\
+	Error.SetError(InError != UEMEDIA_ERROR_OK ? InError : UEMEDIA_ERROR_DETAIL);													\
+	Error.SetFacility(Facility::EFacility::ErrorFacility);																			\
+	Error.SetCode(InCode);																											\
+	Error.SetMessage(InMessage);																									\
+	return Error;																													\
+}																																	\
+static inline FErrorDetail CreateErrorAndLog(IPlayerSessionServices* InPlayerSessionServices, const FString& InMessage, uint16 InCode, UEMediaError InError=UEMEDIA_ERROR_FORMAT_ERROR)	\
+{																																	\
+	FErrorDetail Error = CreateError(InMessage, InCode, InError);																	\
+	InPlayerSessionServices->PostLog(Facility::EFacility::ErrorFacility, IInfoLog::ELevel::Error, Error.GetPrintable());			\
+	return Error;																													\
+}																																	\
+static inline void LogMessage(IPlayerSessionServices* InPlayerSessionServices, IInfoLog::ELevel Level, const FString& Message)		\
+{																																	\
+	InPlayerSessionServices->PostLog(Facility::EFacility::ErrorFacility, Level, Message);											\
+}																																	\
+																																	\
+static inline FErrorDetail PostError(IPlayerSessionServices* InPlayerSessionServices, const FErrorDetail& Error)					\
+{																																	\
+	InPlayerSessionServices->PostLog(Facility::EFacility::ErrorFacility, IInfoLog::ELevel::Error, Error.GetPrintable());			\
+	InPlayerSessionServices->PostError(Error);																						\
+	return Error;																													\
+}																																	\
+static inline FErrorDetail PostError(IPlayerSessionServices* InPlayerSessionServices, const FString& Message, uint16 InCode)		\
+{																																	\
+	return PostError(InPlayerSessionServices, CreateError(Message, InCode));														\
+}
 
 
 

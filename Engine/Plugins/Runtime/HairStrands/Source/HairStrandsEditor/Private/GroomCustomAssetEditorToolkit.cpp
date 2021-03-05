@@ -242,10 +242,10 @@ void FGroomCustomAssetEditorToolkit::InitPreviewComponents()
 	PreviewGroomComponent->SetGroomAsset(GroomAsset.Get());
 	PreviewGroomComponent->Activate(true);
 	
-	if (PropertyListenDelegate.IsValid() == false)
-	{		
-		PropertyListenDelegate = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FGroomCustomAssetEditorToolkit::DocPropChanged);
-	}
+	//if (PropertyListenDelegate.IsValid() == false)
+	//{		
+	//	PropertyListenDelegate = FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FGroomCustomAssetEditorToolkit::DocPropChanged);
+	//}
 
 #if 0 //TODO
 	PreviewStaticMeshComponent = NewObject<UStaticMeshComponent>(GetTransientPackage(), NAME_None, RF_Transient);
@@ -272,8 +272,11 @@ void FGroomCustomAssetEditorToolkit::InitPreviewComponents()
 
 bool FGroomCustomAssetEditorToolkit::OnRequestClose() 
 {
-	bool Removed = FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(PropertyListenDelegate);
-	//check(Removed);
+	//FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(PropertyListenDelegate);
+	if (GroomAsset.IsValid() && PropertyListenDelegate.IsValid())
+	{
+		GroomAsset->GetOnGroomAssetResourcesChanged().Remove(PropertyListenDelegate);
+	}
 
 	PropertiesTab.Reset();
 	ViewportTab.Reset();
@@ -469,6 +472,23 @@ void FGroomCustomAssetEditorToolkit::InitCustomAssetEditor(const EToolkitMode::T
 	CommandList->MapAction(FGroomEditorCommands::Get().PlaySimulation,
 			FExecuteAction::CreateSP(this, &FGroomCustomAssetEditorToolkit::OnPlaySimulation),
 			FCanExecuteAction::CreateSP(this, &FGroomCustomAssetEditorToolkit::CanPlaySimulation));
+
+	// Delegate to refresh the panels (and the stats) when the groom asset change
+	if (GroomAsset.IsValid())
+	{
+		FGroomCustomAssetEditorToolkit* LocalToolKit = this;
+		auto InvalidateDetailViews = [LocalToolKit]()
+		{
+			LocalToolKit->DetailView_LODProperties->ForceRefresh();
+			LocalToolKit->DetailView_InterpolationProperties->ForceRefresh();
+			LocalToolKit->DetailView_RenderingProperties->ForceRefresh();
+			LocalToolKit->DetailView_PhysicsProperties->ForceRefresh();
+			LocalToolKit->DetailView_CardsProperties->ForceRefresh();
+			LocalToolKit->DetailView_MeshesProperties->ForceRefresh();
+			LocalToolKit->DetailView_MaterialProperties->ForceRefresh();
+		};
+		PropertyListenDelegate = GroomAsset->GetOnGroomAssetResourcesChanged().AddLambda(InvalidateDetailViews);
+	}
 }
 
 void FGroomCustomAssetEditorToolkit::OnPlaySimulation()

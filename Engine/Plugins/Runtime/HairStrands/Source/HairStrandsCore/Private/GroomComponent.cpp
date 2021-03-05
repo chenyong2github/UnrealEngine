@@ -36,6 +36,9 @@ static int32 GHairEnableAdaptiveSubsteps = 0;
 static FAutoConsoleVariableRef CVarHairEnableAdaptiveSubsteps(TEXT("r.HairStrands.EnableAdaptiveSubsteps"), GHairEnableAdaptiveSubsteps, TEXT("Enable adaptive solver substeps"));
 bool IsHairAdaptiveSubstepsEnabled() { return (GHairEnableAdaptiveSubsteps == 1); }
 
+static int32 GHairBindingValidationEnable = 0;
+static FAutoConsoleVariableRef CVarHairBindingValidationEnable(TEXT("r.HairStrands.BindingValidation"), GHairBindingValidationEnable, TEXT("Enable groom binding validation, which report error/warnings with details about the cause."));
+
 #define LOCTEXT_NAMESPACE "GroomComponent"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1038,6 +1041,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	NiagaraComponents.Empty();
 	PhysicsAsset = nullptr;
 	bCanEverAffectNavigation = false;
+	bValidationEnable = GHairBindingValidationEnable > 0;
 
 	// Overlap events are expensive and not needed (at least at the moment) as we don't need to collide against other component.
 	SetGenerateOverlapEvents(false);
@@ -2402,8 +2406,12 @@ void UGroomComponent::PostLoad()
 #if WITH_EDITOR
 	if (GroomAsset && !bIsGroomAssetCallbackRegistered)
 	{
+		// Delegate used for notifying groom data invalidation
 		GroomAsset->GetOnGroomAssetChanged().AddUObject(this, &UGroomComponent::Invalidate);
+
+		// Delegate used for notifying groom data & groom resoures invalidation
 		GroomAsset->GetOnGroomAssetResourcesChanged().AddUObject(this, &UGroomComponent::InvalidateAndRecreate);
+
 		bIsGroomAssetCallbackRegistered = true;
 	}
 

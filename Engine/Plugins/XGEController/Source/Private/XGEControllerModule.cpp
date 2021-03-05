@@ -64,7 +64,8 @@ namespace XGEControllerVariables
 
 FXGEControllerModule::FXGEControllerModule()
 	: bSupported(false)
-	, bInitialized(false)
+	, bModuleInitialized(false)
+	, bControllerInitialized(false)
 	, ControlWorkerDirectory(FPaths::ConvertRelativePathToFull(GetControlWorkerBinariesPath()))
 	, RootWorkingDirectory(FString::Printf(TEXT("%sUnrealXGEWorkingDir/"), FPlatformProcess::UserTempDir()))
 	, WorkingDirectory(RootWorkingDirectory + FGuid::NewGuid().ToString(EGuidFormats::Digits))
@@ -93,8 +94,10 @@ FXGEControllerModule::~FXGEControllerModule()
 
 bool FXGEControllerModule::IsSupported()
 {
-	if (bInitialized)
+	if (bControllerInitialized)
+	{
 		return bSupported;
+	}
 
 #if PLATFORM_WINDOWS
 
@@ -244,37 +247,33 @@ void FXGEControllerModule::CleanWorkingDirectory()
 
 void FXGEControllerModule::StartupModule()
 {
-	check(!bInitialized);
+	check(!bModuleInitialized);
 
 	IModularFeatures::Get().RegisterModularFeature(GetModularFeatureType(), this);
 	
-	CleanWorkingDirectory();
-
-	bShutdown = false;
-	if (IsSupported())
-	{
-		WriteOutThreadFuture = Async(EAsyncExecution::Thread, [this]() { WriteOutThreadProc(); });
-	}
-
-	bInitialized = true;
+	bModuleInitialized = true;
 }
 
 void FXGEControllerModule::ShutdownModule()
 {
-	check(bInitialized);
+	check(bModuleInitialized);
 
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureType(), this);
 
-	if (bSupported)
+	if (IsSupported())
 	{
 		bShutdown = true;
-		WriteOutThreadEvent->Trigger();
-
-		// Wait for worker threads to exit
-		if (WriteOutThreadFuture.IsValid())
+		
+		if (bControllerInitialized)
 		{
-			WriteOutThreadFuture.Wait();
-			WriteOutThreadFuture = TFuture<void>();
+			WriteOutThreadEvent->Trigger();
+
+			// Wait for worker threads to exit
+			if (WriteOutThreadFuture.IsValid())
+			{
+				WriteOutThreadFuture.Wait();
+				WriteOutThreadFuture = TFuture<void>();
+			}
 		}
 
 		// Cancel any remaining tasks
@@ -304,7 +303,23 @@ void FXGEControllerModule::ShutdownModule()
 	}
 
 	CleanWorkingDirectory();
-	bInitialized = false;
+	bModuleInitialized = false;
+	bControllerInitialized = false;
+}
+
+void FXGEControllerModule::InitializeController()
+{
+	if (ensureAlwaysMsgf(!bControllerInitialized, TEXT("Multiple initialization of the XGE controller!")))
+	{
+		CleanWorkingDirectory();
+		bShutdown = false;
+		// The actual initialization happens in IsSupported() when it is called with bControllerInitialized being false
+		if (IsSupported())
+		{
+			WriteOutThreadFuture = Async(EAsyncExecution::Thread, [this]() { WriteOutThreadProc(); });
+			bControllerInitialized = true;
+		}
+	}
 }
 
 void FXGEControllerModule::WriteOutThreadProc()

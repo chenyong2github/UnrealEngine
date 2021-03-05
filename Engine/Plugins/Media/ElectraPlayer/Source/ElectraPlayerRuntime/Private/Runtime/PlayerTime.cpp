@@ -81,7 +81,25 @@ namespace Electra
 		}
 		else
 		{
-			bIsValid = false;
+			static const FString kInf0(TEXT("INF"));
+			static const FString kInf1(TEXT("+INF"));
+			static const FString kInf2(TEXT("-INF"));
+			if (InString.Equals(kInf0) || InString.Equals(kInf1))
+			{
+				Numerator = 1;
+				Denominator = 0;
+				bIsValid = true;
+			}
+			else if (InString.Equals(kInf2))
+			{
+				Numerator = -1;
+				Denominator = 0;
+				bIsValid = true;
+			}
+			else
+			{
+				bIsValid = false;
+			}
 		}
 		return *this;
 	}
@@ -93,6 +111,10 @@ namespace Electra
 		if (!bIsValid)
 		{
 			return 0;
+		}
+		else if (CustomTimebase == Denominator)
+		{
+			return Numerator;
 		}
 		else if (Numerator == 0)
 		{

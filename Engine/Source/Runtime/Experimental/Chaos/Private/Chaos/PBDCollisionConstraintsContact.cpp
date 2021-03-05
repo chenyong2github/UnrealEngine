@@ -70,8 +70,8 @@ namespace Chaos
 		// A PBD collision penetration correction.
 		// Currently only used by RBAN
 		FVec3 ApplyContact2(FCollisionContact& Contact,
-			TGenericParticleHandle<FReal, 3> Particle0,
-			TGenericParticleHandle<FReal, 3> Particle1,
+			FGenericParticleHandle Particle0,
+			FGenericParticleHandle Particle1,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters)
 		{
@@ -200,8 +200,8 @@ namespace Chaos
 		template<typename T_CONSTRAINT>
 		void ApplyImpl(T_CONSTRAINT& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
-			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
-			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
+			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
+			FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{
@@ -258,8 +258,8 @@ namespace Chaos
 		void ApplySweptImpl(FRigidBodySweptPointContactConstraint& Constraint, const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters)
 		{
 			const FReal TimeOfImpactErrorMargin = 20.0f;  // Large error margin in cm, this is to ensure that 1) velocity is solved for at the time of impact, and  2) the contact is not disabled
-			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
-			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
+			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
+			FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
 
 			if (Constraint.bShouldTreatAsSinglePoint || IterationParameters.Iteration > 0 || Constraint.TimeOfImpact == 1)
 			{
@@ -305,8 +305,8 @@ namespace Chaos
 		void ApplyPushOutImpl(T_CONSTRAINT& Constraint, const TSet<const TGeometryParticleHandle<FReal, 3>*>& IsTemporarilyStatic,
 			const FContactIterationParameters & IterationParameters, const FContactParticleParameters & ParticleParameters, const FVec3& GravityDir)
 		{
-			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
-			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
+			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
+			FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
 
 			for (int32 PairIt = 0; PairIt < IterationParameters.NumPairIterations; ++PairIt)
 			{

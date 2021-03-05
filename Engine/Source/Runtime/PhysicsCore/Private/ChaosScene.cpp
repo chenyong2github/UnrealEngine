@@ -429,7 +429,7 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 // Find the number of dirty elements in all substructures that has dirty elements that we know of
 // This is non recursive for now
 // Todo: consider making DirtyElementsCount a method on ISpatialAcceleration instead
-int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::TAccelerationStructureHandle<Chaos::FReal,3>,Chaos::FReal,3>& Collection)
+int32 DirtyElementCount(Chaos::ISpatialAccelerationCollection<Chaos::FAccelerationStructureHandle,Chaos::FReal,3>& Collection)
 {
 	using namespace Chaos;
 	int32 DirtyElements = 0;

@@ -147,9 +147,13 @@ bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
 		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s with invalid HLODProxy. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
 		bShouldDestroyActor = true;
 	}
-	else if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages && !InLODActor->HasAnyFlags(RF_Transient))
+	else if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 	{
-		UE_LOG(LogEngine, Warning, TEXT("Deleting non-transient LODActor %s. Rebuild HLOD & resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
+		if (!InLODActor->HasAnyFlags(RF_Transient))
+		{
+			UE_LOG(LogEngine, Warning, TEXT("Deleting non-transient LODActor %s. Rebuild HLOD & resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
+		}
+
 		bShouldDestroyActor = true;
 	}
 

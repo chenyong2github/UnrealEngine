@@ -781,14 +781,16 @@ void FPerformanceTrackingChart::ProcessFrame(const FFrameData& FrameData)
 		TotalSyncLoadCount += FrameData.SyncLoadCount;
 
 		// Track draw calls
-		MaxDrawCalls = FMath::Max(MaxDrawCalls, GNumDrawCallsRHI);
-		MinDrawCalls = FMath::Min(MinDrawCalls, GNumDrawCallsRHI);
-		TotalDrawCalls += GNumDrawCallsRHI;
+		// Multi-GPU support : ChartCreation doesn't support MGPU yet
+		MaxDrawCalls = FMath::Max(MaxDrawCalls, GNumDrawCallsRHI[0]);
+		MinDrawCalls = FMath::Min(MinDrawCalls, GNumDrawCallsRHI[0]);
+		TotalDrawCalls += GNumDrawCallsRHI[0];
 
 		// Track primitives
-		MaxDrawnPrimitives = FMath::Max(MaxDrawnPrimitives, GNumPrimitivesDrawnRHI);
-		MinDrawnPrimitives = FMath::Min(MinDrawnPrimitives, GNumPrimitivesDrawnRHI);
-		TotalDrawnPrimitives += GNumPrimitivesDrawnRHI;
+		// Multi-GPU support : ChartCreation doesn't support MGPU yet
+		MaxDrawnPrimitives = FMath::Max(MaxDrawnPrimitives, GNumPrimitivesDrawnRHI[0]);
+		MinDrawnPrimitives = FMath::Min(MinDrawnPrimitives, GNumPrimitivesDrawnRHI[0]);
+		TotalDrawnPrimitives += GNumPrimitivesDrawnRHI[0];
 
 		// track memory
 		FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
@@ -1388,8 +1390,9 @@ void UEngine::TickPerformanceMonitoring(float DeltaSeconds)
 	LLM_SCOPE(ELLMTag::Stats);
 
 #if !UE_BUILD_SHIPPING
-	FPlatformMisc::CustomNamedStat("NumDrawCallsRHI", (float)GNumDrawCallsRHI, "Rendering", "Count");
-	FPlatformMisc::CustomNamedStat("NumPrimitivesDrawnRHI", (float)GNumPrimitivesDrawnRHI, "Rendering", "Count");
+	// Multi-GPU support : ChartCreation doesn't support MGPU yet
+	FPlatformMisc::CustomNamedStat("NumDrawCallsRHI", (float)GNumDrawCallsRHI[0], "Rendering", "Count");
+	FPlatformMisc::CustomNamedStat("NumPrimitivesDrawnRHI", (float)GNumPrimitivesDrawnRHI[0], "Rendering", "Count");
 
 	FPlatformMisc::CustomNamedStat("MemoryUsed", (float)FPlatformMemory::GetMemoryUsedFast(), "Memory", "Bytes");
 #endif // !UE_BUILD_SHIPPING

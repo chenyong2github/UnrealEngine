@@ -60,8 +60,11 @@ enum class EComponentTypeFlags : uint8
 	/** Automatically copy this component to child components when being constructed through the component factory */
 	CopyToChildren = 0x2,
 
+	/** Indicates that this component type represents a cached value that should be copied to blend outputs */
+	CopyToOutput = 0x4,
+
 	/** Indicates that this component type represents a cached value that should be migrated to blend outputs (and removed from blend inputs) */
-	MigrateToOutput = 0x4,
+	MigrateToOutput = 0x8,
 };
 ENUM_CLASS_FLAGS(EComponentTypeFlags);
 

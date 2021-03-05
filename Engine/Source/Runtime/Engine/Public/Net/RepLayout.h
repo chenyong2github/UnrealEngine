@@ -203,6 +203,47 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 class FRepLayout;
 class FRepLayoutCmd;
 
+struct FRepSharedPropertyKey
+{
+private:
+	uint32 CmdIndex = 0;
+	uint32 ArrayIndex = 0;
+	uint32 ArrayDepth = 0;
+	void* DataPtr = nullptr;
+
+public:
+	FRepSharedPropertyKey()
+		: CmdIndex(0)
+		, ArrayIndex(0)
+		, ArrayDepth(0)
+		, DataPtr(nullptr)
+	{
+	}
+
+	explicit FRepSharedPropertyKey(uint32 InCmdIndex, uint32 InArrayIndex, uint32 InArrayDepth, void* InDataPtr)
+		: CmdIndex(InCmdIndex)
+		, ArrayIndex(InArrayIndex)
+		, ArrayDepth(InArrayDepth)
+		, DataPtr(InDataPtr)
+	{
+	}
+
+	FString ToDebugString() const
+	{
+		return FString::Printf(TEXT("{Cmd: %u, Index: %u, Depth: %u, Ptr: %x}"), CmdIndex, ArrayIndex, ArrayDepth, DataPtr);
+	}
+
+	friend bool operator==(const FRepSharedPropertyKey& A, const FRepSharedPropertyKey& B)
+	{
+		return (A.CmdIndex == B.CmdIndex) && (A.ArrayIndex == B.ArrayIndex) && (A.ArrayDepth == B.ArrayDepth) && (A.DataPtr == B.DataPtr);
+	}
+
+	friend uint32 GetTypeHash(const FRepSharedPropertyKey& Key)
+	{
+		return uint32(CityHash64((char*)&Key, sizeof(FRepSharedPropertyKey)));
+	}
+};
+
 /** Holds the unique identifier and offsets/lengths of a net serialized property used for Shared Serialization */
 struct FRepSerializedPropertyInfo
 {
@@ -214,7 +255,11 @@ struct FRepSerializedPropertyInfo
 	{}
 
 	/** Unique identifier for this property, may include array index and depth. */
+	UE_DEPRECATED(4.27, "No longer used, please use PropertyKey instead.")
 	FGuid Guid;
+
+	/** Unique identifier for this property */
+	FRepSharedPropertyKey PropertyKey;
 
 	/** Bit offset into shared buffer of the shared data */
 	int32 BitOffset;
@@ -269,9 +314,30 @@ struct FRepSerializationSharedInfo
 	 * @param bWriteHandle		Whether or not we should write Command handles into the serialized data.
 	 * @param bDoChecksum		Whether or not we should do checksums. Only used if ENABLE_PROPERTY_CHECKSUMS is enabled.
 	 */
+	UE_DEPRECATED(4.27, "Now passing a FRepSharedPropertyKey instead of FGuid")
 	const FRepSerializedPropertyInfo* WriteSharedProperty(
 		const FRepLayoutCmd& Cmd,
 		const FGuid& PropertyGuid,
+		const int32 CmdIndex,
+		const uint16 Handle,
+		const FConstRepObjectDataBuffer Data,
+		const bool bWriteHandle,
+		const bool bDoChecksum);
+
+	/**
+	 * Creates a new SharedPropertyInfo and adds it to the SharedPropertyInfo list.
+	 *
+	 * @param Cmd				The command that represents the property we want to share.
+	 * @param PropertyKey		A unique key used to identify the property.
+	 * @param CmdIndex			Index of the property command. Only used if bDoChecksum is true.
+	 * @param Handle			Relative Handle of the property command. Only used if bWriteHandle is true.
+	 * @param Data				Pointer to the raw property memory that will be serialized.
+	 * @param bWriteHandle		Whether or not we should write Command handles into the serialized data.
+	 * @param bDoChecksum		Whether or not we should do checksums. Only used if ENABLE_PROPERTY_CHECKSUMS is enabled.
+	 */
+	const FRepSerializedPropertyInfo* WriteSharedProperty(
+		const FRepLayoutCmd& Cmd,
+		const FRepSharedPropertyKey& PropertyKey,
 		const int32 CmdIndex,
 		const uint16 Handle,
 		const FConstRepObjectDataBuffer Data,
@@ -1375,7 +1441,8 @@ public:
 		FBitArchive& Ar,
 		UPackageMap* Map,
 		FRepObjectDataBuffer Data,
-		bool& bHasUnmapped) const;
+		bool& bHasUnmapped,
+		const UObject* OwningObject = nullptr) const;
 
 	/** Serializes all replicated properties of a UObject in or out of an archive (depending on what type of archive it is). */
 	ENGINE_API void SerializeObjectReplicatedProperties(UObject* Object, FBitArchive & Ar) const;
@@ -1399,7 +1466,8 @@ public:
 		FNetBitReader& InBunch,
 		bool& bOutHasUnmapped,
 		const bool bEnableRepNotifies,
-		bool& bOutGuidsChanged) const;
+		bool& bOutGuidsChanged,
+		UObject* OwningObject = nullptr) const;
 
 	//~ Begin FGCObject Interface
 	ENGINE_API virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -1608,7 +1676,8 @@ private:
 		FRepObjectDataBuffer Data,
 		FGuidReferencesMap* GuidReferencesMap,
 		bool& bOutHasUnmapped,
-		bool& bOutGuidsChanged) const;
+		bool& bOutGuidsChanged,
+		UObject* OwningObject) const;
 
 	void GatherGuidReferences_r(
 		const FGuidReferencesMap* GuidReferencesMap,
@@ -1656,7 +1725,8 @@ private:
 		bool& bHasUnmapped,
 		const int32 ArrayDepth,
 		const FRepSerializationSharedInfo& SharedInfo,
-		FNetTraceCollector* Collector = nullptr) const;
+		FNetTraceCollector* Collector,
+		const UObject* OwningObject) const;
 
 	void SerializeProperties_r(
 		FBitArchive& Ar, 
@@ -1668,7 +1738,8 @@ private:
 		const int32 ArrayIndex,
 		const int32 ArrayDepth,
 		const FRepSerializationSharedInfo& SharedInfo,
-		FNetTraceCollector* Collector = nullptr) const;
+		FNetTraceCollector* Collector,
+		const UObject* OwningObject) const;
 
 	void MergeChangeList_r(
 		FRepHandleIterator& RepHandleIterator1,

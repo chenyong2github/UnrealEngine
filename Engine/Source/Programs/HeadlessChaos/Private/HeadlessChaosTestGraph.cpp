@@ -122,7 +122,7 @@ namespace ChaosTest {
 		// Create some dynamic particles - doesn't matter what position or other state they have
 		TArray<TGeometryParticleHandle<FReal, 3>*> AllParticles;
 
-		TPBDRigidsSOAs<FReal, 3> SOAs;
+		FPBDRigidsSOAs SOAs;
 		TArray<TPBDRigidParticleHandle<FReal,3>*> Dynamics = SOAs.CreateDynamicParticles(17);
 		for (auto Dyn : Dynamics) { AllParticles.Add(Dyn);}
 
@@ -282,7 +282,7 @@ namespace ChaosTest {
 		// Create some dynamic particles - doesn't matter what position or other state they have
 		TArray<TGeometryParticleHandle<FReal, 3>*> AllParticles;
 
-		TPBDRigidsSOAs<FReal, 3> SOAs;
+		FPBDRigidsSOAs SOAs;
 		TArray<TPBDRigidParticleHandle<FReal, 3>*> Dynamics = SOAs.CreateDynamicParticles(2);
 		for (auto Dyn : Dynamics) { AllParticles.Add(Dyn); }
 
@@ -561,7 +561,7 @@ namespace ChaosTest {
 		}
 	}
 
-	void HelpTickConstraints(TPBDRigidsSOAs<FReal, 3>& SOAs, const TArray<TPBDRigidParticleHandle<FReal, 3>*>& Particles,
+	void HelpTickConstraints(FPBDRigidsSOAs& SOAs, const TArray<TPBDRigidParticleHandle<FReal, 3>*>& Particles,
 		FPBDConstraintGraph& Graph, const TArray<TVec2<int32>>& ConstrainedParticles,
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& PhysicsMaterials,
 		const THandleArray<FChaosPhysicsMaterial>& PhysicalMaterials)
@@ -630,7 +630,7 @@ namespace ChaosTest {
 
 			// Create some dynamic particles
 			int32 NumParticles = 6;
-			TPBDRigidsSOAs<FReal, 3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			TArray<TPBDRigidParticleHandle<FReal, 3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
 			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
@@ -708,7 +708,7 @@ namespace ChaosTest {
 
 			// Create some dynamic particles
 			int32 NumParticles = 6;
-			TPBDRigidsSOAs<FReal, 3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			TArray<TPBDRigidParticleHandle<FReal, 3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
 			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
@@ -801,7 +801,7 @@ namespace ChaosTest {
 
 			// Create some dynamic particles
 			int32 NumParticles = 6;
-			TPBDRigidsSOAs<FReal,3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			TArray<TPBDRigidParticleHandle<FReal,3>*> Particles = SOAs.CreateDynamicParticles(NumParticles);
 			TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>> PhysicsMaterials;
 			THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
@@ -920,7 +920,7 @@ namespace ChaosTest {
 	void GraphColorGrid(const int32 NumParticlesX, const int32 NumParticlesY, const int32 Multiplicity, const bool bRandomize)
 	{
 		// Create a grid of particles
-		TPBDRigidsSOAs<FReal, 3> SOAs;
+		FPBDRigidsSOAs SOAs;
 		int32 NumParticles = NumParticlesX * NumParticlesY;
 		TArray<TGeometryParticleHandle<FReal,3>*> AllParticles;
 

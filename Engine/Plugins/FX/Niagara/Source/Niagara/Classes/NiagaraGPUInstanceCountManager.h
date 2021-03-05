@@ -12,6 +12,7 @@ NiagaraGPUInstanceCountManager.h: GPU particle count handling
 #include "RHIGPUReadback.h"
 
 class FRHIGPUMemoryReadback;
+class NiagaraEmitterInstanceBatcher;
 
 // The number of GPU renderers registered in the instance count manager.
 // Shared between the manager and the renderers.
@@ -26,13 +27,23 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraDrawIndirectArgGenTaskInfo& Info)
 	return HashCombine(Info.InstanceCountBufferOffset, HashCombine(Info.NumIndicesPerInstance, HashCombine(Info.StartIndexLocation, Info.Flags)));
 }
 
-/** 
- * A manager that handles the buffer containing the GPU particle count. 
+/**
+ * A manager that handles the buffer containing the GPU particle count.
  * Also provides related functionalities like the generation of the draw indirect buffer.
  */
 class FNiagaraGPUInstanceCountManager
 {
 public:
+	struct FIndirectArgSlot
+	{
+		FBufferRHIRef Buffer;
+		FShaderResourceViewRHIRef SRV;
+		uint32 Offset = INDEX_NONE;
+
+		FIndirectArgSlot() {}
+		FIndirectArgSlot(FBufferRHIRef InBuffer, FShaderResourceViewRHIRef InSRV, uint32 InOffset) : Buffer(InBuffer), SRV(InSRV), Offset(InOffset) {}
+		FORCEINLINE bool IsValid() const { return Offset != INDEX_NONE; }
+	};
 
 	FNiagaraGPUInstanceCountManager();
 	~FNiagaraGPUInstanceCountManager();
@@ -42,10 +53,10 @@ public:
 	// Free resources.
 	void ReleaseRHI();
 
-	FRWBuffer& GetInstanceCountBuffer() 
-	{ 
+	FRWBuffer& GetInstanceCountBuffer()
+	{
 		check(UsedInstanceCounts <= AllocatedInstanceCounts); // Can't resize after after the buffer gets bound.
-		return CountBuffer; 
+		return CountBuffer;
 	}
 
 	/** Free the entry and reset it to INDEX_NONE if valid. */
@@ -70,26 +81,30 @@ public:
 	bool HasPendingGPUReadback() const;
 
 	/** Add a draw indirect task to generate the draw indirect args. Returns the draw indirect arg buffer offset. */
-	uint32 AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation,
+	FIndirectArgSlot AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation,
 		bool bIsInstancedStereoEnabled, bool bCulled);
-	FRWBuffer& GetDrawIndirectBuffer() { return DrawIndirectBuffer; }
-
-	/** 
-	 * Update the max possible required draw indirect args (one per renderer).
-	 * Called on the renderthread from FNiagaraRenderer::CreateRenderThreadResources()
-	 * or FNiagaraRenderer::ReleaseRenderThreadResources()
-	 */
-	FORCEINLINE const TRefCountPtr<FNiagaraGPURendererCount>& GetGPURendererCount() { checkSlow(IsInRenderingThread()); return NumRegisteredGPURenderers; }
 
 	// Resize instance count and draw indirect buffers to ensure it is big enough to hold all draw indirect args.
 	void ResizeBuffers(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 ReservedInstanceCounts);
 
+	void FlushIndirectArgsPool();
+
 	// Generate the draw indirect buffers, and reset all release counts.
-	void UpdateDrawIndirectBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
+	void UpdateDrawIndirectBuffers(NiagaraEmitterInstanceBatcher& Batcher, FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel);
 
 	static const ERHIAccess kCountBufferDefaultState;
 
 protected:
+	struct FIndirectArgsPoolEntry
+	{
+		FRWBuffer Buffer;
+		uint32 NumAllocated = 0;
+		uint32 NumUsed = 0;
+	};
+
+	using FIndirectArgsPoolEntryPtr = TUniquePtr<FIndirectArgsPoolEntry>;
+
+	void ReleaseCounts();
 
 	/** The current used instance counts allocated from FNiagaraDataBuffer::AllocateGPU() */
 	int32 UsedInstanceCounts = 0;
@@ -110,19 +125,16 @@ protected:
 	FRHIGPUMemoryReadback* CountReadback = nullptr;
 	int32 CountReadbackSize = 0;
 
-	/** The number of GPU renderer. It defines the max possible required draw indirect args count */
-	TRefCountPtr<FNiagaraGPURendererCount> NumRegisteredGPURenderers;
-	/** The allocated indirect args in DrawIndirectBuffer (each being 5 uint32) */
-	int32 AllocatedDrawIndirectArgs = 0;
-
-	/** The list of all draw indirected tasks that are to be run in UpdateDrawIndirectBuffer() */
-	typedef FNiagaraDrawIndirectArgGenTaskInfo FArgGenTaskInfo;
+	/** The list of all draw indirected tasks that are to be run in UpdateDrawIndirectBuffers() */
+	using FArgGenTaskInfo = FNiagaraDrawIndirectArgGenTaskInfo;
+	using FArgGenSlotInfo = TTuple<uint32, uint32>;
 
 	TArray<FArgGenTaskInfo> DrawIndirectArgGenTasks;
 	/** The map between each task FArgGenTaskInfo and entry offset from DrawIndirectArgGenTasks. Used to reuse entries. */
-	TMap<FArgGenTaskInfo, uint32> DrawIndirectArgMap;
-	/** The list of all instance count clear tasks that are to be run in UpdateDrawIndirectBuffer() */
+	TMap<FArgGenTaskInfo, FArgGenSlotInfo> DrawIndirectArgMap;
+	/** The list of all instance count clear tasks that are to be run in UpdateDrawIndirectBuffers() */
 	TArray<uint32> InstanceCountClearTasks;
-	/** A buffer holding drawindirect data to render GPU emitter renderers. */
-	FRWBuffer DrawIndirectBuffer;
+	/** Buffers holding drawindirect data to render GPU emitter renderers. */
+	TArray<FIndirectArgsPoolEntryPtr> DrawIndirectPool;
+	uint32 DrawIndirectLowWaterFrames = 0;
 };

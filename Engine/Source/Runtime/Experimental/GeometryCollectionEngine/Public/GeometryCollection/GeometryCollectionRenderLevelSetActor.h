@@ -64,7 +64,7 @@ public:
 	static AGeometryCollectionRenderLevelSetActor* FindOrCreate(UWorld* World);
 
 	// Load a new level set to render
-	bool SetLevelSetToRender(const Chaos::TLevelSet<float, 3> &LevelSet, const FTransform &LocalToWorld);
+	bool SetLevelSetToRender(const Chaos::FLevelSet &LevelSet, const FTransform &LocalToWorld);
 
 	// Sync level set transform to the render material
 	void SyncLevelSetTransform(const FTransform &LocalToWorld);

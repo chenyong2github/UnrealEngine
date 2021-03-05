@@ -31,6 +31,15 @@ namespace UnrealBuildTool.Rules
 					"ImgMediaEditor/Private/Customizations",
 					"ImgMediaEditor/Private/Factories",
 				});
+
+			// Are we using the engine?
+			if (Target.bCompileAgainstEngine)
+			{
+				PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"Engine",
+				});
+			}
 		}
 	}
 }

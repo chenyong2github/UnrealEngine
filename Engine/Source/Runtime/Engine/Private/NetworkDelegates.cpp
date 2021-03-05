@@ -6,3 +6,4 @@ FNetDelegates::FReceivedNetworkEncryptionToken FNetDelegates::OnReceivedNetworkE
 FNetDelegates::FReceivedNetworkEncryptionAck FNetDelegates::OnReceivedNetworkEncryptionAck;
 FNetDelegates::FOnPendingNetGameConnectionCreated FNetDelegates::OnPendingNetGameConnectionCreated;
 FNetDelegates::FNetworkCheatDetected FNetDelegates::OnNetworkCheatDetected;
+FNetDelegates::FOnSyncLoadDetected FNetDelegates::OnSyncLoadDetected;

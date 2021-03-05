@@ -1472,34 +1472,159 @@ namespace UnrealBuildTool
 			}
 		}
 
+		private enum FilterAction
+		{
+			Skip,
+			Replace,
+			Error
+		}
+
+		private class FilterOperation
+		{
+			public FilterAction Action;
+			public string Condition;
+			public string Match;
+			public string ReplaceWith;
+
+			public FilterOperation(FilterAction InAction, string InCondition, string InMatch, string InReplaceWith)
+			{
+				Action = InAction;
+				Condition = InCondition;
+				Match = InMatch;
+				ReplaceWith = InReplaceWith;
+			}
+		}
+
+		static private List<FilterOperation> ActiveStdOutFilter = null;
+
+		static List<string> ParseCSVString(string Input)
+		{
+			List<string> Results = new List<string>();
+			StringBuilder WorkString = new StringBuilder();
+
+			int FinalIndex = Input.Length;
+			int CurrentIndex = 0;
+			bool InQuote = false;
+
+			while (CurrentIndex < FinalIndex)
+			{
+				char CurChar = Input[CurrentIndex++];
+
+				if (InQuote)
+				{
+					if (CurChar == '\\')
+					{
+						if (CurrentIndex < FinalIndex)
+						{
+							CurChar = Input[CurrentIndex++];
+							WorkString.Append(CurChar);
+						}
+					}
+					else if (CurChar == '"')
+					{
+						InQuote = false;
+					}
+					else
+					{
+						WorkString.Append(CurChar);
+					}
+				}
+				else
+				{
+					if (CurChar == '"')
+					{
+						InQuote = true;
+					}
+					else if (CurChar == ',')
+					{
+						Results.Add(WorkString.ToString());
+						WorkString.Clear();
+					}
+					else if (!char.IsWhiteSpace(CurChar))
+					{
+						WorkString.Append(CurChar);
+					}
+				}
+			}
+			if (CurrentIndex > 0)
+			{
+				Results.Add(WorkString.ToString());
+			}
+
+			return Results;
+		}
+
+		static void ParseFilterFile(string Filename)
+		{
+
+			if (File.Exists(Filename))
+			{
+				ActiveStdOutFilter = new List<FilterOperation>();
+
+				string[] FilterContents = File.ReadAllLines(Filename);
+				foreach (string FileLine in FilterContents)
+				{
+					List<string> Parts = ParseCSVString(FileLine);
+
+					if (Parts.Count > 1)
+					{
+						if (Parts[0].Equals("S"))
+						{
+							ActiveStdOutFilter.Add(new FilterOperation(FilterAction.Skip, Parts[1], "", ""));
+						}
+						else if (Parts[0].Equals("R"))
+						{
+							if (Parts.Count == 4)
+							{
+								ActiveStdOutFilter.Add(new FilterOperation(FilterAction.Replace, Parts[1], Parts[2], Parts[3]));
+							}
+						}
+						else if (Parts[0].Equals("E"))
+						{
+							if (Parts.Count == 4)
+							{
+								ActiveStdOutFilter.Add(new FilterOperation(FilterAction.Error, Parts[1], Parts[2], Parts[3]));
+							}
+						}
+					}
+				}
+
+				if (ActiveStdOutFilter.Count == 0)
+				{
+					ActiveStdOutFilter = null;
+				}
+			}
+		}
+
 		static void FilterStdOutErr(object sender, DataReceivedEventArgs e)
 		{
 			if (e.Data != null)
 			{
-				// apply filtering of the warnings we want to ignore
-				if (e.Data.Contains("WARNING: The option 'android.enableD8' is deprecated and should not be used anymore."))
+				if (ActiveStdOutFilter != null)
 				{
-					Log.TraceInformation("{0}", e.Data.Replace("WARNING: ", ">> "));
-					return;
-				}
-				if (e.Data.Contains("WARNING: The specified Android SDK Build Tools version"))
-				{
-					Log.TraceInformation("{0}", e.Data.Replace("WARNING: ", ">> "));
-					return;
-				}
-				if (e.Data.Contains("Warning: Resigning with jarsigner."))
-				{
-					Log.TraceInformation("{0}", e.Data.Replace("Warning: ", ">> "));
-					return;
-				}
-				if (e.Data.Contains("Unable to strip library"))
-				{
-					Log.TraceInformation("{0}", e.Data.Replace("due to error", ""));
-					return;
-				}
-				if (e.Data.Contains("To suppress this warning,"))
-				{
-					Log.TraceInformation("{0}", e.Data.Replace(" warning,", ","));
+					foreach (FilterOperation FilterOp in ActiveStdOutFilter)
+					{
+						if (e.Data.Contains(FilterOp.Condition))
+						{
+							switch (FilterOp.Action)
+							{
+								case FilterAction.Skip:
+									break;
+
+								case FilterAction.Replace:
+									Log.TraceInformation("{0}", e.Data.Replace(FilterOp.Match, FilterOp.ReplaceWith));
+									break;
+
+								case FilterAction.Error:
+									Log.TraceError("{0}", e.Data.Replace(FilterOp.Match, FilterOp.ReplaceWith));
+									break;
+
+								default:
+									break;
+							}
+							return;
+						}
+					}
 				}
 				Log.TraceInformation("{0}", e.Data);
 			}
@@ -3770,6 +3895,9 @@ namespace UnrealBuildTool
 				CopyFileDirectory(GameBuildFilesPath, UnrealBuildPath, Replacements);
 				CopyFileDirectory(GameBuildFilesPath_NFL, UnrealBuildPath, Replacements);
 				CopyFileDirectory(GameBuildFilesPath_NR, UnrealBuildPath, Replacements);
+
+				// Parse Gradle filters (may have been replaced by above copies)
+				ParseFilterFile(Path.Combine(UnrealBuildPath, "GradleFilter.txt"));
 
 				//Generate Gradle AAR dependencies
 				GenerateGradleAARImports(EngineDirectory, UnrealBuildPath, NDKArches);

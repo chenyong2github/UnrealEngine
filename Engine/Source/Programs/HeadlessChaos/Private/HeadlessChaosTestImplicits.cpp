@@ -12,6 +12,7 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Cylinder.h"
 #include "Chaos/TaperedCylinder.h"
+#include "Chaos/TaperedCapsule.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/ImplicitObjectTransformed.h"
@@ -447,19 +448,19 @@ namespace ChaosTest {
 		FString Caller("ImplicitCylinder()");
 
 		// unit cylinder tests
-		TCylinder<FReal> Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
+		FCylinder Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
 		UnitImplicitObjectNormalsInternal(Subject, Caller);
 		UnitImplicitObjectNormalsExternal(Subject, Caller);
 		UnitImplicitObjectIntersections(Subject, Caller);
 		CheckCylinderEdgeBehavior(Subject, Caller);
 
 		// tilted tests
-		TCylinder<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1);
+		FCylinder SubjectTilted(FVec3(1), FVec3(-1), 1);
 		TiltedUnitImplicitCylinder(SubjectTilted, Caller);
 
 #if RUN_KNOWN_BROKEN_TESTS
 		{// nearly flat cylinder tests (BROKEN)
-			TCylinder<FReal> SubjectFlat(FVec3(0, 0, KINDA_SMALL_NUMBER), FVec3(0, 0, -KINDA_SMALL_NUMBER), 1);
+			FCylinder SubjectFlat(FVec3(0, 0, KINDA_SMALL_NUMBER), FVec3(0, 0, -KINDA_SMALL_NUMBER), 1);
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject.Normal(FVec3(0, 0, 1 / 2.)), FVec3(0, 0, 1));
 			EXPECT_VECTOR_NEAR_DEFAULT(Subject.Normal(FVec3(0, 0, -1 / 2.)), FVec3(0, 0, -1));
 			EXPECT_EQ(Subject.SignedDistance(FVec3(0, 0, 1 / 2.)), 1 / 2.);
@@ -470,42 +471,41 @@ namespace ChaosTest {
 #endif
 
 		{// closest point off origin (+)
-			TCylinder<FReal> Subject2(FVec3(2,2,4), FVec3(2,2,0), 2);
+			FCylinder Subject2(FVec3(2,2,4), FVec3(2,2,0), 2);
 			FVec3 InputPoint(2, 2, 5);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 2, 4), Caller);
 		}
 
 		{// closest point off origin (-)
-			TCylinder<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2);
+			FCylinder Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2);
 			FVec3 InputPoint(2, 3, 2);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
 		}
 
 		{// near edge intersection
-			TCylinder<FReal> Cylinder(FVec3(1, 1, -14), FVec3(1, 1, 16), 15);
+			FCylinder Cylinder(FVec3(1, 1, -14), FVec3(1, 1, 16), 15);
 			Pair<FVec3, bool> Result = Cylinder.FindClosestIntersection(FVec3(16, 16, 1), FVec3(16, -16, 1), 0);
 			EXPECT_TRUE(Result.Second);
 			EXPECT_VECTOR_NEAR(Result.First, FVec3(16, 1, 1), KINDA_SMALL_NUMBER);
 		}
 	}
 
-
 	void ImplicitTaperedCylinder()
 	{
 		FString Caller("ImplicitTaperedCylinder()");
 
 		// unit tapered cylinder tests
-		TTaperedCylinder<FReal> Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1);
+		FTaperedCylinder Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1);
 		UnitImplicitObjectNormalsInternal(Subject, Caller);
 		UnitImplicitObjectNormalsExternal(Subject, Caller);
 		UnitImplicitObjectIntersections(Subject, Caller);
 		CheckCylinderEdgeBehavior(Subject, Caller);
 
 		// tilted tapered cylinder tests
-		TTaperedCylinder<FReal> SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
+		FTaperedCylinder SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
 		TiltedUnitImplicitCylinder(SubjectTilted, Caller);
 
-		TTaperedCylinder<FReal> SubjectCone(FVec3(0, 0, 1), FVec3(0, 0, 0), 0, 1);
+		FTaperedCylinder SubjectCone(FVec3(0, 0, 1), FVec3(0, 0, 0), 0, 1);
 
 		// inside normals 
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(0, 0, 0)), FVec3(0, 0, -1));
@@ -528,18 +528,148 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR_DEFAULT(SubjectCone.Normal(FVec3(-1,  0, 1 / 2.)), FVec3(-1, 0, 0));
 
 		{// closest point off origin (+)
-			TTaperedCylinder<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FTaperedCylinder Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
 			FVec3 InputPoint(2, 2, 5);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 2, 4), Caller);
 		}
 
 		{// closest point off origin (-)
-			TTaperedCylinder<FReal> Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FTaperedCylinder Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
 			FVec3 InputPoint(2, 3, 2);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
 		}
 	}
 	
+	// Expects a cylinder with endcap points (1,1,1) and (-1,-1,-1), radius 1.
+	void TiltedUnitImplicitCapsule(FImplicitObject& Subject, FString Caller)
+	{
+		FString Error = FString("Called by ") + Caller + FString(".");
+
+		// inside normals - within the cylinder
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0.,   0.,  0.5)), FVec3(-0.5, -0.5,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0.,   0., -0.5)), FVec3( 0.5,  0.5, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0.,  0.5, -0.5)), FVec3( 0,  1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., -0.5,  0.5)), FVec3( 0, -1,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 0.5, 0., -0.5)), FVec3( 1,  0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-0.5, 0.,  0.5)), FVec3(-1,  0,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		// inside normals - within the spherical ends
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 1.1,  1.1,  1.1)), FVec3( 1,  1,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-1.1, -1.1, -1.1)), FVec3(-1, -1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 1.,  1.,  1.1)), FVec3(0, 0,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-1., -1., -1.1)), FVec3(0, 0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		// outside normals - close to the cylinder
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., 0., 2.)), FVec3(-0.5, -0.5, 1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., 0., -2.)), FVec3(0.5, 0.5, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., 2., -2.)), FVec3(0, 1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(0., -2., 2.)), FVec3(0, -1, 1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(2., 0., -2.)), FVec3(1, 0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-2., 0., 2.)), FVec3(-1, 0, 1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		//outside normals - close to spherical ends
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 2.,  2.,  2.)), FVec3( 1,  1,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-2., -2., -2.)), FVec3(-1, -1, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3( 1.,  1.,  3.)), FVec3( 0,  0,  1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+		EXPECT_VECTOR_NEAR_ERR(Subject.Normal(FVec3(-1., -1., -3.)), FVec3( 0,  0, -1).GetSafeNormal(), KINDA_SMALL_NUMBER, Error);
+
+		// inside phi - within the cylinder
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-0.5, -0.5,  1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 0.5,  0.5, -1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, 1, -1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, -1, 1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(1, 0, -1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1, 0, 1).GetSafeNormal() * 0.5), -0.5, KINDA_SMALL_NUMBER) << *Error;
+
+		//// inside phi - within the spherical ends
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 1.1,  1.1,  1.1)), -(1. - FVec3(0.1).Size()), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1.1, -1.1, -1.1)), -(1. - FVec3(0.1).Size()), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 1.,  1.,  1.1)), -0.9, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1., -1., -1.1)), -0.9, KINDA_SMALL_NUMBER) << *Error;
+
+		//// outside phi - close to the cylinder
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-0.5, -0.5, 1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0.5, 0.5, -1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, 1, -1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(0, -1, 1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(1, 0, -1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1, 0, 1).GetSafeNormal() * 2.0), 1.0, KINDA_SMALL_NUMBER) << *Error;
+
+		//outside phi - close to spherical ends
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 2.,  2.,  2.)), (FVec3(1).Size() - 1), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-2., -2., -2.)), (FVec3(1).Size() - 1), KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3( 1.,  1.,  3.)), 1., KINDA_SMALL_NUMBER) << *Error;
+		EXPECT_NEAR(Subject.SignedDistance(FVec3(-1., -1., -3.)), 1., KINDA_SMALL_NUMBER) << *Error;
+	}
+
+	FReal LerpRadius(FReal Height0, FReal Height1, FReal Radius0, FReal Radius1, FReal ZPos)
+	{
+		FReal Alpha = (ZPos - Height0) / (Height1 - Height0);
+		return Radius0 * (1. - Alpha) + Radius1 * Alpha;
+	}
+
+	void ImplicitTaperedCapsule()
+	{
+		FString Caller("ImplicitTaperedCapsule()");
+
+		// unit tapered cylinder tests
+		FTaperedCapsule SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1, 1);
+		UnitImplicitObjectNormalsInternal(SubjectUnit, Caller);
+		UnitImplicitObjectNormalsExternal(SubjectUnit, Caller);
+		UnitImplicitObjectIntersections(SubjectUnit, Caller);
+
+		// tilted tapered cylinder tests
+		FTaperedCapsule SubjectTilted(FVec3(1), FVec3(-1), 1, 1);
+		TiltedUnitImplicitCapsule(SubjectTilted, Caller);
+
+		const FReal Height0 = 0.5;
+		const FReal Height1 = 2.0;
+		const FReal Radius0 = 0.5;
+		const FReal Radius1 = 1.0;
+		FTaperedCapsule SubjectTapered(FVec3(0, 0, Height0), FVec3(0, 0, Height1), Radius0, Radius1);
+
+		// inside normals 
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(0, 0, 0.25)), FVec3(0, 0, -1));
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(0, 0, 2.5)), FVec3(0, 0, 1));
+
+		// tapered section part inside normals - normals are currently perpendicular axis regardless of the slant
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 0.25,  0.25, 0.5)), FVec3( 1,  1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 0.25, -0.25, 1.0)), FVec3( 1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-0.25, -0.25, 1.5)), FVec3(-1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-0.25,  0.25, 2.0)), FVec3(-1,  1, 0).GetSafeNormal());
+
+		// tapered section part ouside normals - normals are currently perpendicular axis regardless of the slant
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 1,  1, 0.5)), FVec3( 1,  1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3( 1, -1, 1.0)), FVec3( 1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-1, -1, 1.5)), FVec3(-1, -1, 0).GetSafeNormal());
+		EXPECT_VECTOR_NEAR_DEFAULT(SubjectTapered.Normal(FVec3(-1,  1, 2.0)), FVec3(-1,  1, 0).GetSafeNormal());
+
+		// tapered section part inside phi - slant is accounted for 
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 0.25,  0.25, 0.5)), FVec3( 0.25,  0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 0.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 0.25, -0.25, 1.0)), FVec3( 0.25, -0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.0), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-0.25, -0.25, 1.5)), FVec3(-0.25, -0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-0.25,  0.25, 2.0)), FVec3(-0.25,  0.25, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 2.0), KINDA_SMALL_NUMBER) << *Caller;
+
+		// tapered section part outside phi - slant is accounted for 
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 1,  1, 0.5)), FVec3( 1,  1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 0.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3( 1, -1, 1.0)), FVec3( 1, -1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.0), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-1, -1, 1.5)), FVec3(-1, -1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 1.5), KINDA_SMALL_NUMBER) << *Caller;
+		EXPECT_NEAR(SubjectTapered.SignedDistance(FVec3(-1,  1, 2.0)), FVec3(-1,  1, 0).Size() - LerpRadius(Height0, Height1, Radius0, Radius1, 2.0), KINDA_SMALL_NUMBER) << *Caller;
+
+
+		{// closest point off origin (+)
+			FTaperedCapsule Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FVec3 InputPoint(2, 2, 5);
+			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 2, 6), Caller);
+		}
+
+		{// closest point off origin (-)
+			FTaperedCapsule Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
+			FVec3 InputPoint(2, 3, 2);
+			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
+		}
+	}
+
 
 	void ImplicitCapsule()
 	{
@@ -547,18 +677,21 @@ namespace ChaosTest {
 		FString Caller("ImplicitCapsule()");
 
 		// Effectively a sphere - flat cylinder with two radius 1 spheres overlapping at origin.
-		TCapsule<FReal> SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1);
+		FCapsule SubjectUnit(FVec3(0, 0, 0), FVec3(0, 0, 0), 1);
 
 		UnitImplicitObjectNormalsInternal(SubjectUnit, Caller);
 		UnitImplicitObjectNormalsExternal(SubjectUnit, Caller);
-		UnitImplicitObjectSupportPhis<TCapsule<FReal>>(SubjectUnit, Caller);
+		UnitImplicitObjectSupportPhis<FCapsule>(SubjectUnit, Caller);
+
+		FCapsule SubjectTilted(FVec3(1), FVec3(-1), 1);
+		TiltedUnitImplicitCapsule(SubjectTilted, Caller);
 
 #if RUN_KNOWN_BROKEN_TESTS
 		// FindClosestIntersection broken with cylinder size 0
 		UnitImplicitObjectIntersections(SubjectUnit, Caller); 
 #endif
 
-		TCapsule<FReal> Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
+		FCapsule Subject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
 
 		{// closest point near origin (+)
 			FVec3 InputPoint(0, 0, 3);
@@ -572,13 +705,13 @@ namespace ChaosTest {
 		}
 
 		{// closest point off origin (+)
-			TCapsule<FReal> Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
+			FCapsule Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
 			FVec3 InputPoint(4, 4, 6);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(4, 4, 5), Caller);
 		}
 
 		{// closest point off origin (-)
-			TCapsule<FReal> Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
+			FCapsule Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
 			FVec3 InputPoint(4, 4, 4 + 1 / 2.);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(4, 4, 5), Caller);
 		}
@@ -945,8 +1078,8 @@ namespace ChaosTest {
 
 		// Two cylinders intersected to make a unit cylinder.
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 2), FVec3(0, 0, -1), 1));
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -2), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 2), FVec3(0, 0, -1), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -2), 1));
 
 		TImplicitObjectIntersection<FReal, 3> MIntersectedObjects(std::move(Objects));
 
@@ -977,8 +1110,8 @@ namespace ChaosTest {
 		}
 
 		TArray<TUniquePtr<FImplicitObject>> Objects2;
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 4, 6), FVec3(4, 4, 3), 1));
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 4, 5), FVec3(4, 4, 2), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 4, 6), FVec3(4, 4, 3), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 4, 5), FVec3(4, 4, 2), 1));
 
 		TImplicitObjectIntersection<FReal, 3> MIntersectedObjects2(std::move(Objects2));
 		
@@ -1012,8 +1145,8 @@ namespace ChaosTest {
 
 		{// unit cylinder - sanity check
 			TArray<TUniquePtr<FImplicitObject>> Objects;
-			Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0), 1));
-			Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, -1), FVec3(0), 1));
+			Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0), 1));
+			Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, -1), FVec3(0), 1));
 			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 			// Can't use the default internal unit tests because they expect different behavior internally where the two cylinders are joined together. 
@@ -1037,8 +1170,8 @@ namespace ChaosTest {
 		}
 
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, -2), FVec3(0, 0, 2), 1));
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, -2, 0), FVec3(0, 2, 0), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, -2), FVec3(0, 0, 2), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, -2, 0), FVec3(0, 2, 0), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 		{// closest point near origin (+)
@@ -1062,8 +1195,8 @@ namespace ChaosTest {
 		}
 		
 		TArray<TUniquePtr<FImplicitObject>> Objects2;
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 4, 2), FVec3(4, 4, 6), 1));
-		Objects2.Add(MakeUnique<TCylinder<FReal>>(FVec3(4, 2, 4), FVec3(4, 6, 4), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 4, 2), FVec3(4, 4, 6), 1));
+		Objects2.Add(MakeUnique<FCylinder>(FVec3(4, 2, 4), FVec3(4, 6, 4), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects2)));
 
 		{// closest point off origin (+)
@@ -1090,8 +1223,8 @@ namespace ChaosTest {
 		
 		{// Union of unions (capsule)
 			TArray<TUniquePtr<FImplicitObject>> Unions;
-			Unions.Add(MakeUnique<TCapsule<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, -2), 1));
-			Unions.Add(MakeUnique<TCapsule<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, 2), 1));
+			Unions.Add(MakeUnique<FCapsule>(FVec3(0, 0, 0), FVec3(0, 0, -2), 1));
+			Unions.Add(MakeUnique<FCapsule>(FVec3(0, 0, 0), FVec3(0, 0, 2), 1));
 			MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Unions)));
 
 			EXPECT_VECTOR_NEAR(MUnionedObjects->Normal(FVec3(0, 0, 7 / 3.)), (FVec3(0, 0, 1)), KINDA_SMALL_NUMBER);
@@ -1108,10 +1241,10 @@ namespace ChaosTest {
 
 		{// Union of a union containing all the unit geometries overlapping - should still pass all the normal unit tests. 
 			TArray<TUniquePtr<FImplicitObject>> Objects1;
-			Objects1.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
+			Objects1.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
 			Objects1.Add(MakeUnique<TSphere<FReal, 3>>(FVec3(0, 0, 0), 1));
 			Objects1.Add(MakeUnique<TBox<FReal, 3>>(FVec3(-1, -1, -1), FVec3(1, 1, 1)));
-			Objects1.Add(MakeUnique<TTaperedCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
+			Objects1.Add(MakeUnique<FTaperedCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
 
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(Objects1)));
@@ -1126,10 +1259,10 @@ namespace ChaosTest {
 		{// Union of two unions, each with two unit objects
 			TArray<TUniquePtr<FImplicitObject>> ObjectsA;
 			TArray<TUniquePtr<FImplicitObject>> ObjectsB;
-			ObjectsA.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
+			ObjectsA.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1));
 			ObjectsA.Add(MakeUnique<TSphere<FReal, 3>>(FVec3(0, 0, 0), 1));
 			ObjectsB.Add(MakeUnique<TBox<FReal, 3>>(FVec3(-1, -1, -1), FVec3(1, 1, 1)));
-			ObjectsB.Add(MakeUnique<TTaperedCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
+			ObjectsB.Add(MakeUnique<FTaperedCylinder>(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 1));
 
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsA)));
@@ -1145,8 +1278,8 @@ namespace ChaosTest {
 		{// Mimic a unit cylinder, but made up of multiple unions. 
 			TArray<TUniquePtr<FImplicitObject>> ObjectsA;
 			TArray<TUniquePtr<FImplicitObject>> ObjectsB;
-			ObjectsA.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, -1), 1));
-			ObjectsB.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 0), FVec3(0, 0, 1), 1));
+			ObjectsA.Add(MakeUnique<FCylinder>(FVec3(0, 0, 0), FVec3(0, 0, -1), 1));
+			ObjectsB.Add(MakeUnique<FCylinder>(FVec3(0, 0, 0), FVec3(0, 0, 1), 1));
 			TArray<TUniquePtr<FImplicitObject>> Unions;
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsA)));
 			Unions.Emplace(new FImplicitObjectUnion(MoveTemp(ObjectsB)));
@@ -1177,7 +1310,7 @@ namespace ChaosTest {
 		Chaos::FPBDRigidParticles Particles;
 		TArray<TVec3<int32>> CollisionMeshElements;
 		int32 BoxId = AppendParticleBox(Particles, FVec3(1), &CollisionMeshElements);
-		TLevelSet<FReal, 3> Levelset = ConstructLevelset(*Particles.CollisionParticles(BoxId), CollisionMeshElements);
+		FLevelSet Levelset = ConstructLevelset(*Particles.CollisionParticles(BoxId), CollisionMeshElements);
 
 		FVec3 Normal;
 		FReal Phi = Levelset.PhiWithNormal(FVec3(0, 0, 2), Normal);
@@ -1252,7 +1385,7 @@ namespace ChaosTest {
 		// This one should be exactly right as we don't actually do an fast marching interior to the region
 		{
 			TUniformGrid<FReal, 3> Grid(FVec3(-2.0, -1.5, -1.5), FVec3(2.0, 1.5, 1.5), TVec3<int32>(4, 3, 3));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.5), KINDA_SMALL_NUMBER);
 		}
@@ -1260,39 +1393,39 @@ namespace ChaosTest {
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.5, -1.0, -1.0), FVec3(1.5, 1.0, 1.0), TVec3<int32>(6, 4, 4));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.25), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.25, -0.75, -0.75), FVec3(1.25, 0.75, 0.75), TVec3<int32>(10, 6, 6));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.3), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.1, -0.6, -0.6), FVec3(1.1, 0.6, 0.6), TVec3<int32>(22, 12, 12));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.4), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.05, -0.55, -0.55), FVec3(1.05, 0.55, 0.55), TVec3<int32>(42, 22, 22));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_TRUE(LevelSet.IsConvex());
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(0)) + FReal(0.45), KINDA_SMALL_NUMBER);
 		}
 		{
 			ErrorReporter.HandleLatestError();
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.5, -1.0, -1.0), FVec3(1.5, 1.0, 1.0), TVec3<int32>(20, 20, 20));
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 
 			FReal Volume;
 			FVec3 COM;
-			PMatrix<FReal, 3, 3> Inertia;
+			FMatrix33 Inertia;
 			FRotation3 RotationOfMass;
 
 			LevelSet.ComputeMassProperties(Volume, COM, Inertia, RotationOfMass);
@@ -1321,7 +1454,7 @@ namespace ChaosTest {
 		{
 			TUniformGrid<FReal, 3> Grid(FVec3(-1.6, -1.6, -0.6), FVec3(1.6, 1.6, 0.6), TVec3<int32>(32, 32, 12));
 			FErrorReporter ErrorReporter;
-			TLevelSet<FReal, 3> LevelSet(ErrorReporter, Grid, Union);
+			FLevelSet LevelSet(ErrorReporter, Grid, Union);
 			EXPECT_FALSE(LevelSet.IsConvex());
 			EXPECT_GT(LevelSet.SignedDistance(FVec3(0)), -KINDA_SMALL_NUMBER);
 			EXPECT_LT(LevelSet.SignedDistance(FVec3(1, 1, 0)), KINDA_SMALL_NUMBER);
@@ -1572,7 +1705,7 @@ namespace ChaosTest {
 		FAABB3 OriginalBoundingBox = Convex.BoundingBox();
 
 		const TArray<FVec3>& CulledParticles = Convex.GetVertices();
-		const TArray<TPlaneConcrete<FReal, 3>> Planes = Convex.GetFaces();
+		const TArray<TPlaneConcrete<Chaos::FReal, 3>> Planes = Convex.GetFaces();
 
 		// set target number of particles in simplified convex
 		FConvexBuilder::PerformGeometryReduction = 1;
@@ -1743,8 +1876,8 @@ namespace ChaosTest {
 		TUniquePtr<FImplicitObjectUnion> MUnionedObjects;
 
 		TArray<TUniquePtr<FImplicitObject>> Objects;
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, 1), FVec3(0), 1));
-		Objects.Add(MakeUnique<TCylinder<FReal>>(FVec3(0, 0, -1), FVec3(0), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, 1), FVec3(0), 1));
+		Objects.Add(MakeUnique<FCylinder>(FVec3(0, 0, -1), FVec3(0), 1));
 		MUnionedObjects.Reset(new Chaos::FImplicitObjectUnion(std::move(Objects)));
 
 		TArray<TUniquePtr<FImplicitObject>> Objects2;

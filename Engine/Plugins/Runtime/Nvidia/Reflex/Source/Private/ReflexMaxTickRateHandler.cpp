@@ -47,7 +47,7 @@ bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 			if (MinimumInterval != DesiredMinimumInterval || LastCustomFlags != CustomFlags)
 			{
 				NvAPI_Status status = NVAPI_OK;
-				NV_SET_SLEEP_MODE_PARAMS_V1 params;
+				NV_SET_SLEEP_MODE_PARAMS_V1 params = { 0 };
 				params.version = NV_SET_SLEEP_MODE_PARAMS_VER1;
 				params.bLowLatencyMode = bUltraLowLatency;
 				params.bLowLatencyBoost = bGPUBoost;
@@ -58,7 +58,7 @@ bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 				UE_LOG(LogMaxTickRateHandler, Log, TEXT("SetSleepMode MI:%f L:%s B:%s"), MinimumInterval, bUltraLowLatency ? TEXT("On") : TEXT("Off"), bGPUBoost ? TEXT("On") : TEXT("Off"));
 
 				// Need to verify that Low Latency flag actually applied, NVIDIA says the return code can still be good, but it might be incompatible
-				NV_GET_SLEEP_STATUS_PARAMS_V1 SleepStatusParams;
+				NV_GET_SLEEP_STATUS_PARAMS_V1 SleepStatusParams = { 0 };
 				SleepStatusParams.version = NV_GET_SLEEP_STATUS_PARAMS_VER1;
 				status = NvAPI_D3D_GetSleepStatus(static_cast<IUnknown*>(GDynamicRHI->RHIGetNativeDevice()), &SleepStatusParams);
 				if (bUltraLowLatency && SleepStatusParams.bLowLatencyMode == false)
@@ -70,6 +70,7 @@ bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 				}
 
 				LastCustomFlags = CustomFlags;
+				bWasEnabled = true;
 			}
 
 			NvAPI_Status StatusSleep = NVAPI_OK;
@@ -79,13 +80,14 @@ bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 		}
 		else
 		{
-			// When disabled, if we set any custom flags, we need to clean up after ourselves
-			if (LastCustomFlags != 0)
+			// When disabled, if we ever called SetSleepMode, we need to clean up after ourselves
+			if (bWasEnabled)
 			{
 				LastCustomFlags = 0;
+				bWasEnabled = false;
 
 				NvAPI_Status status = NVAPI_OK;
-				NV_SET_SLEEP_MODE_PARAMS_V1 params;
+				NV_SET_SLEEP_MODE_PARAMS_V1 params = { 0 };
 				params.version = NV_SET_SLEEP_MODE_PARAMS_VER1;
 				params.bLowLatencyMode = false;
 				params.bLowLatencyBoost = false;

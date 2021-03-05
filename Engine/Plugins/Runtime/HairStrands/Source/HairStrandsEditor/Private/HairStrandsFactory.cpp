@@ -73,7 +73,6 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 		return nullptr;
 	}
 
-	if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 	{
 		// Load the alembic file upfront to preview & report any potential issue
 		FProcessedHairDescription OutDescription;
@@ -119,12 +118,15 @@ UObject* UHairStrandsFactory::FactoryCreateFile(UClass* InClass, UObject* InPare
 			}
 		}
 
-		// Display import options and handle user cancellation
-		TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, GroupsPreview, Filename);
-		if (!GroomOptionWindow->ShouldImport())
+		if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 		{
-			bOutOperationCanceled = true;
-			return nullptr;
+			// Display import options and handle user cancellation
+			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(ImportOptions, GroupsPreview, Filename);
+			if (!GroomOptionWindow->ShouldImport())
+			{
+				bOutOperationCanceled = true;
+				return nullptr;
+			}
 		}
 
 		// Save the options as the new default

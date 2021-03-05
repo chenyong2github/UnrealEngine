@@ -11,6 +11,8 @@
 #include "Windows/WindowsApplication.h"
 #include "HAL/ThreadHeartBeat.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/ConfigCacheIni.h"
+#include "HAL/PlatformProcess.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
 #if WINVER > 0x502	// Windows Vista or better required for DWM
@@ -204,6 +206,13 @@ void FWindowsWindow::Initialize( FWindowsApplication* const Application, const T
 	}
 #endif
 
+	bool bDisableTouchFeedback;
+	GConfig->GetBool(TEXT("WindowsApplication.Accessibility"), TEXT("DisableTouchFeedback"), bDisableTouchFeedback, GEngineIni);
+	if (bDisableTouchFeedback)
+	{
+		DisableTouchFeedback();
+	}
+
 	VirtualWidth = ClientWidth;
 	VirtualHeight = ClientHeight;
 
@@ -394,6 +403,44 @@ HRGN FWindowsWindow::MakeWindowRegionObject(bool bIncludeBorderWhenMaximized) co
 	}
 
 	return Region;
+}
+
+void FWindowsWindow::DisableTouchFeedback()
+{
+	if (void* User32Dll = FPlatformProcess::GetDllHandle(TEXT("User32.dll")))
+	{
+		typedef enum tagWINVER602FEEDBACK_TYPE
+		{
+			FEEDBACK_TOUCH_CONTACTVISUALIZATION = 1,
+			FEEDBACK_PEN_BARRELVISUALIZATION = 2,
+			FEEDBACK_PEN_TAP = 3,
+			FEEDBACK_PEN_DOUBLETAP = 4,
+			FEEDBACK_PEN_PRESSANDHOLD = 5,
+			FEEDBACK_PEN_RIGHTTAP = 6,
+			FEEDBACK_TOUCH_TAP = 7,
+			FEEDBACK_TOUCH_DOUBLETAP = 8,
+			FEEDBACK_TOUCH_PRESSANDHOLD = 9,
+			FEEDBACK_TOUCH_RIGHTTAP = 10,
+			FEEDBACK_GESTURE_PRESSANDTAP = 11,
+			FEEDBACK_MAX = 0xFFFFFFFF
+		} WINVER602FEEDBACK_TYPE;
+
+		typedef BOOL(*SetWindowFeedbackSettingProc)(_In_ HWND hwnd,
+												_In_ WINVER602FEEDBACK_TYPE feedback,
+												_In_ DWORD dwFlags,
+												_In_ UINT32 size,
+												_In_reads_bytes_opt_(size) CONST VOID* configuration);
+
+		//Manually fetching SetWindowFeedbackSetting since it is only available in WINVER 0x0602 (Windows 8) and we are currently using WINVER 0x0601 (Windows 7)
+		SetWindowFeedbackSettingProc SetWindowFeedbackSetting = (SetWindowFeedbackSettingProc)FPlatformProcess::GetDllExport(User32Dll, TEXT("SetWindowFeedbackSetting"));
+		if (SetWindowFeedbackSetting)
+		{
+			BOOL enabled = 0;
+			SetWindowFeedbackSetting(HWnd, FEEDBACK_TOUCH_CONTACTVISUALIZATION, 0, sizeof(enabled), &enabled);
+			SetWindowFeedbackSetting(HWnd, FEEDBACK_TOUCH_TAP, 0, sizeof(enabled), &enabled);
+			SetWindowFeedbackSetting(HWnd, FEEDBACK_TOUCH_PRESSANDHOLD, 0, sizeof(enabled), &enabled);
+		}
+	}
 }
 
 void FWindowsWindow::AdjustWindowRegion( int32 Width, int32 Height )

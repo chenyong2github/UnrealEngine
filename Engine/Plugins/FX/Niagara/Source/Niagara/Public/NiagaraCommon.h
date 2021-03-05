@@ -338,6 +338,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY()
 	uint32 bSoftDeprecatedFunction : 1;
 
+	/** Hidden functions can not be placed but may be bound and used.  This is useful to hide functionality while developing. */
+	UPROPERTY(transient)
+	uint32 bHidden : 1;
+
 	/** Bitmask for which scripts are supported for this function. Use UNiagaraScript::MakeSupportedUsageContextBitmask to make the bitmask. */
 	UPROPERTY(meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
 	int32 ModuleUsageBitmask;
@@ -368,6 +372,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, bSoftDeprecatedFunction(false)
+		, bHidden(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
 		, ContextStageMaxIndex(INDEX_NONE)
@@ -386,6 +391,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, bSoftDeprecatedFunction(false)
+		, bHidden(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
 		, ContextStageMaxIndex(INDEX_NONE)
@@ -405,6 +411,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, bSoftDeprecatedFunction(false)
+		, bHidden(false)
 		, ModuleUsageBitmask(0)
 		, ContextStageMinIndex(INDEX_NONE)
 		, ContextStageMaxIndex(INDEX_NONE)
@@ -1228,4 +1235,57 @@ public:
 	{
 		return !(*this == Other);
 	}
+};
+
+
+USTRUCT()
+struct FNiagaraScalabilityState
+{
+	GENERATED_BODY()
+
+	FNiagaraScalabilityState()
+		: Significance(1.0f)
+		, bCulled(0)
+		, bPreviousCulled(0)
+		, bCulledByDistance(0)
+		, bCulledByInstanceCount(0)
+		, bCulledByVisibility(0)
+		, bCulledByGlobalBudget(0)
+	{
+	}
+
+	FNiagaraScalabilityState(float InSignificance, bool InCulled, bool InPreviousCulled)
+		: Significance(InSignificance)
+		, bCulled(InCulled)
+		, bPreviousCulled(InPreviousCulled)
+		, bCulledByDistance(0)
+		, bCulledByInstanceCount(0)
+		, bCulledByVisibility(0)
+		, bCulledByGlobalBudget(0)
+	{
+	}
+
+	bool IsDirty() const { return bCulled != bPreviousCulled; }
+	void Apply() { bPreviousCulled = bCulled; }
+
+	UPROPERTY(VisibleAnywhere, Category="Scalability")
+	float Significance;
+
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulled : 1;
+
+	UPROPERTY(VisibleAnywhere, Category="Scalability")
+	uint8 bPreviousCulled : 1;
+
+	UPROPERTY(VisibleAnywhere, Category="Scalability")
+	uint8 bCulledByDistance : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulledByInstanceCount : 1;
+
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulledByVisibility : 1;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Scalability")
+	uint8 bCulledByGlobalBudget : 1;
 };

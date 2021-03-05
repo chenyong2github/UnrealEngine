@@ -60,7 +60,7 @@ namespace DatasmithRhino.ElementExporters
 				return false;
 			}
 
-			TextureElement.SetLabel(TextureInfo.Label);
+			TextureElement.SetLabel(TextureInfo.UniqueLabel);
 			TextureElement.SetFile(TextureInfo.FilePath);
 			TextureElement.SetTextureFilter(FDatasmithFacadeTexture.ETextureFilter.Default);
 			TextureElement.SetRGBCurve(1);

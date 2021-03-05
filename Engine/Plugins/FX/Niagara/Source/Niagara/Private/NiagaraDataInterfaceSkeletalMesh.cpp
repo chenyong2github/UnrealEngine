@@ -2539,6 +2539,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::CopyToInternal(UNiagaraDataInterface* De
 	OtherTyped->bExcludeBone = bExcludeBone;
 	OtherTyped->ExcludeBoneName = ExcludeBoneName;
 	OtherTyped->bRequireCurrentFrameData = bRequireCurrentFrameData;
+	OtherTyped->UvSetIndex = UvSetIndex;
 #if WITH_EDITORONLY_DATA
 	OtherTyped->PreviewMesh = PreviewMesh;
 #endif
@@ -2566,6 +2567,7 @@ bool UNiagaraDataInterfaceSkeletalMesh::Equals(const UNiagaraDataInterface* Othe
 		OtherTyped->FilteredSockets == FilteredSockets &&
 		OtherTyped->bExcludeBone == bExcludeBone &&
 		OtherTyped->ExcludeBoneName == ExcludeBoneName &&
+		OtherTyped->UvSetIndex == UvSetIndex &&
 		OtherTyped->bRequireCurrentFrameData == bRequireCurrentFrameData;
 }
 

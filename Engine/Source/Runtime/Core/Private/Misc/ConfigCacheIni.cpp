@@ -1849,7 +1849,7 @@ bool FConfigFile::GetText( const TCHAR* Section, const TCHAR* Key, FText& Value 
 	return FTextStringHelper::ReadFromBuffer( *PairString->GetValue(), Value, Section ) != nullptr;
 }
 
-bool FConfigFile::GetInt(const TCHAR* Section, const TCHAR* Key, int& Value) const
+bool FConfigFile::GetInt(const TCHAR* Section, const TCHAR* Key, int32& Value) const
 {
 	FString Text;
 	if (GetString(Section, Key, Text))

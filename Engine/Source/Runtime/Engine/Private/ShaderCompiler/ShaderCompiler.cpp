@@ -56,6 +56,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "ObjectCacheContext.h"
 #include "ProfilingDebugging/StallDetector.h"
+#include "RenderUtils.h"
 
 #if WITH_EDITOR
 #include "TextureCompiler.h"
@@ -2677,6 +2678,7 @@ IDistributedBuildController* FShaderCompilingManager::FindRemoteCompilerControll
 	{
 		if (Controller != nullptr && Controller->IsSupported())
 		{
+			Controller->InitializeController();
 			return Controller;
 		}
 	}
@@ -2698,9 +2700,6 @@ FShaderCompilingManager::FShaderCompilingManager() :
 	bNoShaderCompilation(false)
 {
 	bool bForceUseSCWMemoryPressureLimits = false;
-
-	bIsEngineLoopInitialized = false;
-	FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([&](){ bIsEngineLoopInitialized = true; });
 	
 	BuildDistributionController = nullptr;
 	
@@ -3218,10 +3217,10 @@ void FShaderCompilingManager::BlockOnShaderMapCompletion(const TArray<int32>& Sh
 			{
 				const float SleepTime =.01f;
 				
-				// if the engine loop is not initialized, we need to manually tick the Distributed build controller
+				// We need to manually tick the Distributed build controller while the game thread is blocked
 				// otherwise we can get stuck in a infinite loop waiting for jobs that never will be done
 				// because for example, some controllers depend on the HTTP module which needs to be ticked in the main thread
-				if (!bIsEngineLoopInitialized && BuildDistributionController)
+				if (BuildDistributionController && IsInGameThread())
 				{
 					BuildDistributionController->Tick(SleepTime);
 				}
@@ -3313,10 +3312,10 @@ void FShaderCompilingManager::BlockOnAllShaderMapCompletion(TMap<int32, FShaderM
 			{
 				const float SleepTime =.01f;
 				
-				// if the engine loop is not initialized, we need to manually tick the Distributed build controller
+				// We need to manually tick the Distributed build controller while the game thread is blocked
 				// otherwise we can get stuck in a infinite loop waiting for jobs that never will be done
 				// because for example, some controllers depend on the HTTP module which needs to be ticked in the main thread
-				if (!bIsEngineLoopInitialized && BuildDistributionController)
+				if (BuildDistributionController && IsInGameThread())
 				{
 					BuildDistributionController->Tick(SleepTime);
 				}
@@ -4082,11 +4081,11 @@ void FShaderCompilingManager::ProcessAsyncResults(bool bLimitExecutionTime, bool
 		{
 			const double StartTime = FPlatformTime::Seconds();
 
-			// Some controllers need to be manually ticked if the engine loop it is not initialized
+			// Some controllers need to be manually ticked if the engine loop is not initialized or blocked
 			// to do things like tick the HTTPModule.
 			// Otherwise the results from the controller will never be processed.
 			// We check for bBlockOnGlobalShaderCompletion because the BlockOnShaderMapCompletion methods already do this.
-			if (!bBlockOnGlobalShaderCompletion && !bIsEngineLoopInitialized && BuildDistributionController)
+			if (!bBlockOnGlobalShaderCompletion && BuildDistributionController)
 			{
 				BuildDistributionController->Tick(0.0f);
 			}
@@ -4811,8 +4810,12 @@ void GlobalBeginCompileShader(
 		}
 		else if(IsVulkanPlatform((EShaderPlatform)Target.Platform))
 		{
-			// Always use Emulated UB's for Vulkan Mobile
-			Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
+			static const auto CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Vulkan.UseRealUBs"));
+			if ((CVar && CVar->GetInt() == 0) || 
+				Target.Platform == SP_VULKAN_ES3_1_ANDROID) // we force eUB on mobile Android
+			{
+				Input.Environment.CompilerFlags.Add(CFLAG_UseEmulatedUB);
+			}
 		}
 	}
 	else
@@ -5000,12 +5003,13 @@ void GlobalBeginCompileShader(
 
 	if (IsMobilePlatform((EShaderPlatform)Target.Platform))
 	{
-		static IConsoleVariable* CVarMobileEnableMovableSpotlights = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlights"));
-		bool bMobileEnableMovableSpotlights = CVarMobileEnableMovableSpotlights ? (CVarMobileEnableMovableSpotlights->GetInt() != 0) : false;
+		static FShaderPlatformCachedIniValue<int32> MobileEnableMovableSpotlightsIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.EnableMovableSpotlights"));
+		static FShaderPlatformCachedIniValue<int32> MobileEnableMovableSpotlightsShadowIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.Mobile.EnableMovableSpotlightsShadow"));
+
+		bool bMobileEnableMovableSpotlights = (MobileEnableMovableSpotlightsIniValue.Get((EShaderPlatform)Target.Platform) != 0);
 		Input.Environment.SetDefine(TEXT("PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS"), bMobileEnableMovableSpotlights ? 1 : 0);
 
-		static IConsoleVariable* CVarMobileEnableMovableSpotlightsShadow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.EnableMovableSpotlightsShadow"));
-		bool bMobileEnableMovableSpotlightsShadow = CVarMobileEnableMovableSpotlightsShadow ? (CVarMobileEnableMovableSpotlightsShadow->GetInt() != 0) : false;
+		bool bMobileEnableMovableSpotlightsShadow = (MobileEnableMovableSpotlightsShadowIniValue.Get((EShaderPlatform)Target.Platform) != 0);
 		Input.Environment.SetDefine(TEXT("PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW"), bMobileEnableMovableSpotlights && bMobileEnableMovableSpotlightsShadow ? 1 : 0);
 	}
 

@@ -2,8 +2,6 @@
 
 #pragma once
 
-#ifdef CAD_INTERFACE
-
 #include "CoreMinimal.h"
 #include "CoreTechTypes.h"
 #include "CADOptions.h"
@@ -15,7 +13,7 @@ struct FMeshDescription;
 
 namespace CADLibrary
 {
-class CADINTERFACES_API CTSession : public CoreTechSessionBase
+class CADINTERFACES_API FCTSession : public FCoreTechSessionBase
 {
 public:
 	/**
@@ -25,8 +23,8 @@ public:
 	 * @param FileMetricUnit: number of meters per file unit.
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
-	CTSession(const TCHAR* InOwner, double InFileMetricUnit, double InScaleFactor)
-		: CoreTechSessionBase(InOwner, InFileMetricUnit)
+	FCTSession(const TCHAR* InOwner, double InFileMetricUnit, double InScaleFactor)
+		: FCoreTechSessionBase(InOwner, InFileMetricUnit)
 	{
 		ImportParams.ScaleFactor = InScaleFactor;
 		ImportParams.MetricUnit = InFileMetricUnit;
@@ -34,7 +32,7 @@ public:
 
 	void ClearData();
 
-	CheckedCTError SaveBrep(const FString& FilePath);
+	bool SaveBrep(const FString& FilePath);
 
 
 	/**
@@ -42,7 +40,7 @@ public:
 	 * With the case of UE-83379, Alias file, this value is too big (biggest than the geometric features. So Kernel_io hangs during the sew process... In the wait of more test, 100x is still the value used for CAD import except for Alias where the value of the SewingToleranceFactor is set to 1x
 	 * @param SewingToleranceFactor Factor apply to the tolerance 3D to define the sewing tolerance. 
 	 */
-	CheckedCTError TopoFixes(double SewingToleranceFactor = 100);
+	bool TopoFixes(double SewingToleranceFactor = 100);
 
 	/**
 	 * @param InScaleFactor : use to scale meshing from Kernel-IO
@@ -69,10 +67,8 @@ public:
 
 protected:
 	CADLibrary::FImportParameters ImportParams;
-	static TWeakPtr<CTSession> SharedSession;
+	static TWeakPtr<FCTSession> SharedSession;
 };
 
 }
-
-#endif // CAD_INTERFACE
 

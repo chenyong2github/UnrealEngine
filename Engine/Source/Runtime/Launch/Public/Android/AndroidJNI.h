@@ -71,6 +71,7 @@ public:
 	static jmethodID AndroidThunkJava_GetIntentExtrasString;
 	static jmethodID AndroidThunkJava_SetSustainedPerformanceMode;
 	static jmethodID AndroidThunkJava_PushSensorEvents;
+	static jmethodID AndroidThunkJava_SetOrientation;
 
 	// Screen capture/recording permission
 	static jmethodID AndroidThunkJava_IsScreenCaptureDisabled;

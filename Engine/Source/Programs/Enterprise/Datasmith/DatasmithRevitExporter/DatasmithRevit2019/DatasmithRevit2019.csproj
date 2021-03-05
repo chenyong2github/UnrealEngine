@@ -58,7 +58,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
-	<Compile Include="..\Private\DatasmithRevitDocumentData.cs">
+    <Compile Include="..\Private\DatasmithRevitDocumentData.cs">
       <Link>DatasmithRevitExporter\DatasmithRevitDocumentData.cs</Link>
     </Compile>
     <Compile Include="..\Private\DatasmithRevitDirectLink.cs">
@@ -91,6 +91,12 @@
       <Link>DatasmithSwigFacade\%(Filename)%(Extension)</Link>
     </Compile>
     <Content Include="DatasmithRevit2019.addin" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Resources\DatasmithRevitResources.csproj">
+      <Project>{bc17d734-8f8f-44c1-a84e-af0e616fbe9e}</Project>
+      <Name>DatasmithRevitResources</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>

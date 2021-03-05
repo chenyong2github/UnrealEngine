@@ -383,6 +383,11 @@ void FD3D12Device::Cleanup()
 	ValidateCommandQueue(ED3D12CommandQueueType::Copy, TEXT("Copy"));
 	ValidateCommandQueue(ED3D12CommandQueueType::Async, TEXT("Async"));
 
+	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	// We want to make sure that all operations like FlushPendingDeletes happen only for the current device.
+	SCOPED_GPU_MASK(RHICmdList, GPUMask);
+
 	// Wait for the command queues to flush
 	CommandListManager->WaitForCommandQueueFlush();
 	CopyCommandListManager->WaitForCommandQueueFlush();

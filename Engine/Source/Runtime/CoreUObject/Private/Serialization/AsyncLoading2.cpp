@@ -1949,6 +1949,8 @@ private:
 	TAtomic<uint32> QueuedPackagesCounter { 0 };
 	/** [ASYNC/GAME THREAD] Number of packages being loaded on the async thread and post loaded on the game thread */
 	FThreadSafeCounter ExistingAsyncPackagesCounter;
+	/** [ASYNC/GAME THREAD] Number of packages being loaded on the async thread and post loaded on the game thread. Excludes packages in the deferred delete queue*/
+	FThreadSafeCounter ActiveAsyncPackagesCounter;
 
 	FThreadSafeCounter AsyncThreadReady;
 
@@ -2188,7 +2190,7 @@ public:
 
 	virtual int32 GetNumAsyncPackages() override
 	{
-		return ExistingAsyncPackagesCounter.GetValue();
+		return ActiveAsyncPackagesCounter.GetValue();
 	}
 
 	/**
@@ -2481,6 +2483,7 @@ FAsyncPackage2* FAsyncLoadingThread2::FindOrInsertPackage(FAsyncPackageDesc2* De
 			Package = CreateAsyncPackage(*Desc);
 			checkf(Package, TEXT("Failed to create async package %s"), *Desc->DiskPackageName.ToString());
 			Package->AddRef();
+			ActiveAsyncPackagesCounter.Increment();
 			AsyncPackageLookup.Add(Desc->GetAsyncPackageId(), Package);
 			bInserted = true;
 		}
@@ -2618,8 +2621,8 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 					TEXT("Failed reading chunk for package: %s"), *Result.Status().ToString());
 				Package->bLoadHasFailed = true;
 			}
-			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
 			Package->AsyncLoadingThread.WaitingForIoBundleCounter.Decrement();
+			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
 		});
 		TRACE_COUNTER_DECREMENT(PendingBundleIoRequests);
 	}
@@ -4282,6 +4285,9 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			// Remove the package from the list before we trigger the callbacks, 
 			// this is to ensure we can re-enter FlushAsyncLoading from any of the callbacks
 			LoadedPackagesToProcess.RemoveAt(PackageIndex--);
+
+			// Incremented on the Async Thread, now decrement as we're done with this package				
+			ActiveAsyncPackagesCounter.Decrement();
 
 			TRACE_LOADTIME_END_LOAD_ASYNC_PACKAGE(Package);
 

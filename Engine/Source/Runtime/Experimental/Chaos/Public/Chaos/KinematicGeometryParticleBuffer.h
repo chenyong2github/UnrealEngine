@@ -11,7 +11,7 @@ class FKinematicGeometryParticleBuffer : public FGeometryParticleBuffer
 	using FGeometryParticleBuffer::Proxy;
 
 public:
-	FKinematicGeometryParticleBuffer(const TKinematicGeometryParticleParameters<FReal, 3>& KinematicParams = TKinematicGeometryParticleParameters<FReal, 3>())
+	FKinematicGeometryParticleBuffer(const FKinematicGeometryParticleParameters& KinematicParams = FKinematicGeometryParticleParameters())
 	: FGeometryParticleBuffer(KinematicParams)
 	{
 		this->Type = EParticleType::Kinematic;

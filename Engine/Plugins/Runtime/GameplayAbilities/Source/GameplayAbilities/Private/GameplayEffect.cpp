@@ -945,10 +945,13 @@ void FGameplayEffectSpec::CaptureAttributeDataFromTarget(UAbilitySystemComponent
 	bCompletedTargetAttributeCapture = true;
 }
 
-void FGameplayEffectSpec::CaptureDataFromSource()
+void FGameplayEffectSpec::CaptureDataFromSource(bool bSkipRecaptureSourceActorTags /*= false*/)
 {
 	// Capture source actor tags
-	RecaptureSourceActorTags();
+	if (!bSkipRecaptureSourceActorTags)
+	{
+		RecaptureSourceActorTags();
+	}
 
 	// Capture source Attributes
 	// Is this the right place to do it? Do we ever need to create spec and capture attributes at a later time? If so, this will need to move.
@@ -1173,13 +1176,13 @@ FGameplayEffectModifiedAttribute* FGameplayEffectSpec::AddModifiedAttribute(cons
 	return &ModifiedAttributes[ModifiedAttributes.Add(NewAttribute)];
 }
 
-void FGameplayEffectSpec::SetContext(FGameplayEffectContextHandle NewEffectContext)
+void FGameplayEffectSpec::SetContext(FGameplayEffectContextHandle NewEffectContext, bool bSkipRecaptureSourceActorTags /*= false*/)
 {
 	bool bWasAlreadyInit = EffectContext.IsValid();
 	EffectContext = NewEffectContext;	
 	if (bWasAlreadyInit)
 	{
-		CaptureDataFromSource();
+		CaptureDataFromSource(bSkipRecaptureSourceActorTags);
 	}
 }
 

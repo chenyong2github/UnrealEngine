@@ -31,6 +31,11 @@ void UNiagaraScriptVariable::PostLoad()
 	{
 		SetFlags(RF_Transactional);
 	}
+
+	if (!Metadata.GetVariableGuid().IsValid())
+	{
+		Metadata.CreateNewGuid();
+	}
 }
 
 bool UNiagaraScriptVariable::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const

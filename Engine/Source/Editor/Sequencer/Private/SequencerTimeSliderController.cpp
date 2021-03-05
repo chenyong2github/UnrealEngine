@@ -920,7 +920,26 @@ FReply FSequencerTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const 
 				bPanning = true;
 			}
 		}
-		else
+		else if (MouseEvent.IsShiftDown() && MouseEvent.IsAltDown())
+		{
+			float MouseFractionX = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()).X / MyGeometry.GetLocalSize().X;
+
+			// If zooming on the current time, adjust mouse fractionX
+			if (Sequencer->GetSequencerSettings()->GetZoomPosition() == ESequencerZoomPosition::SZP_CurrentTime)
+			{
+				const double ScrubPosition = TimeSliderArgs.ScrubPosition.Get() / GetTickResolution();
+				if (GetViewRange().Contains(ScrubPosition))
+				{
+					FScrubRangeToScreen RangeToScreen(GetViewRange(), MyGeometry.Size);
+					float TimePosition = RangeToScreen.InputToLocalX(ScrubPosition);
+					MouseFractionX = TimePosition / MyGeometry.GetLocalSize().X;
+				}
+			}
+
+			const float ZoomDelta = -0.01f * MouseEvent.GetCursorDelta().X;
+			ZoomByDelta(ZoomDelta, MouseFractionX);
+		}
+		else 
 		{
 			TRange<double> LocalViewRange = GetViewRange();
 			double LocalViewRangeMin = LocalViewRange.GetLowerBoundValue();

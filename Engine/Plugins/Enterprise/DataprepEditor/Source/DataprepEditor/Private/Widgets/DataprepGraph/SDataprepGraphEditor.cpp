@@ -13,12 +13,13 @@
 #include "SchemaActions/DataprepAllMenuActionCollector.h"
 #include "SchemaActions/DataprepDragDropOp.h"
 #include "SchemaActions/IDataprepMenuActionCollector.h"
-#include "SelectionSystem/DataprepFilter.h"
+#include "SelectionSystem/DataprepStringFilter.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphActionStepNode.h"
 #include "Widgets/DataprepGraph/SDataprepGraphTrackNode.h"
 #include "Widgets/DataprepWidgets.h"
 #include "Widgets/SDataprepActionMenu.h"
+#include "Widgets/SAssetsPreviewWidget.h"
 
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphNode_Comment.h"
@@ -770,6 +771,79 @@ void SDataprepGraphEditor::OnNodeTitleCommitted(const FText& NewText, ETextCommi
 	}
 }
 
+TSet<UObject*> SDataprepGraphEditor::GetSelectedActorsAndAssets()
+{
+	TSet< UObject* > ActorAndAssetsSelection;
+
+	if ( TSharedPtr<FDataprepEditor> DataprepEditorPtr = DataprepEditor.Pin() )
+	{
+		const TSet< TWeakObjectPtr<UObject> >& WorldSelection = DataprepEditorPtr->GetWorldItemsSelection();
+
+		for ( const TWeakObjectPtr<UObject>& WeakObject : WorldSelection )
+		{
+			if ( UObject* Object = WeakObject.Get() )
+			{
+				ActorAndAssetsSelection.Add( Object );
+			}
+		}
+
+		if ( TSharedPtr<AssetPreviewWidget::SAssetsPreviewWidget> AssetsPreviewPtr = DataprepEditorPtr->GetAssetPreviewView().Pin() )
+		{
+			ActorAndAssetsSelection.Append( AssetsPreviewPtr->GetSelectedAssets() );
+		}
+	}
+
+	return MoveTemp( ActorAndAssetsSelection );
+}
+
+void SDataprepGraphEditor::OnCollectCustomActions(TArray<TSharedPtr<FDataprepSchemaAction>>& OutActions)
+{
+	TSet< UObject* > AssetAndActorSelection = GetSelectedActorsAndAssets();
+
+	if ( AssetAndActorSelection.Num() == 0 )
+	{
+		return;
+	}
+
+	UClass* NameFetcherClass = FindObject<UClass>( ANY_PACKAGE, TEXT( "DataprepStringObjectNameFetcher" ) );
+	check( NameFetcherClass );
+
+	FDataprepSchemaAction::FOnExecuteAction OnExcuteMenuAction;
+	OnExcuteMenuAction.BindLambda( [this, AssetAndActorSelection, NameFetcherClass] (const FDataprepSchemaActionContext& InContext)
+	{
+		UDataprepActionAsset* Action = InContext.DataprepActionPtr.Get();
+		if ( Action )
+		{
+			int32 NewFilterIndex = Action->AddStep( NameFetcherClass );
+
+			UDataprepActionStep* Step = Action->GetStep(NewFilterIndex).Get();
+			check( Step );
+
+			UDataprepStringFilter* StringFilter = Cast< UDataprepStringFilter >( Step->GetStepObject() );
+			check( StringFilter );
+
+			StringFilter->SetMatchInArray( true );
+			UDataprepStringFilterMatchingArray* ArrayField = StringFilter->GetStringArray();
+
+			for ( UObject* Obj : AssetAndActorSelection )
+			{
+				ArrayField->Strings.Add( Obj->GetName() );
+			}
+
+			if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
+			{
+				TrackGraphNode->UpdateGraphNode();
+			}
+		}
+	});
+
+	TSharedPtr<FDataprepSchemaAction> Action = MakeShared< FDataprepSchemaAction >( FText::FromString( TEXT("") )
+		, FText::FromString( TEXT("Create filter from selection") ), FText::FromString( TEXT("Create filter from selection") )
+		, MAX_int32, FText::FromString( TEXT("") ), OnExcuteMenuAction);
+
+	OutActions.Add( Action );
+}
+
 FActionMenuContent SDataprepGraphEditor::OnCreateActionMenu(UEdGraph* InGraph, const FVector2D& InNodePosition, const TArray<UEdGraphPin*>& InDraggedPins, bool bAutoExpand, SGraphEditor::FActionMenuClosed InOnMenuClosed)
 {
 	// bAutoExpand is voluntary ignored for now
@@ -781,7 +855,8 @@ FActionMenuContent SDataprepGraphEditor::OnCreateActionMenu(UEdGraph* InGraph, c
 		.GraphObj(InGraph)
 		.NewNodePosition(InNodePosition)
 		.DraggedFromPins(InDraggedPins)
-		.OnClosedCallback(InOnMenuClosed);
+		.OnClosedCallback(InOnMenuClosed)
+		.OnCollectCustomActions(SDataprepActionMenu::FOnCollectCustomActions::CreateSP(this, &SDataprepGraphEditor::OnCollectCustomActions));
 
 	return FActionMenuContent( ActionMenu, ActionMenu->GetFilterTextBox() );
 }
@@ -801,25 +876,59 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 	
 	if (bIsActionGroupNode)
 	{
+		const UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(InGraphNode);
+
 		FUIAction BreakGroupAction;
-		BreakGroupAction.ExecuteAction.BindLambda([this, InGraphNode]() 
+		BreakGroupAction.ExecuteAction.BindLambda([this, ActionGroupNode]() 
 		{
-			const UDataprepGraphActionGroupNode* ActionGroupNode = Cast<UDataprepGraphActionGroupNode>(InGraphNode);
+			const FScopedTransaction Transaction(NSLOCTEXT("BreakActions", "BreakActions", "Ungroup Actions"));
+
+			DataprepAssetPtr->Modify();
 
 			for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
 			{
 				UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
+				Action->Modify();
+				Action->Appearance->Modify();
 				Action->Appearance->GroupId = INDEX_NONE;
 			}
 			NotifyGraphChanged();
 		});
 
+		const bool bShouldDisable = ActionGroupNode->IsGroupEnabled();
+		const FText EnableOrDisableText = bShouldDisable ? FText::FromString("Disable") : FText::FromString("Enable");
+		FUIAction EnableOrDisableGroupAction;
+		EnableOrDisableGroupAction.ExecuteAction.BindLambda([this, ActionGroupNode, bShouldDisable, EnableOrDisableText]() 
+		{
+			if (ActionGroupNode->GetActionsCount() > 0)
+			{
+				const FScopedTransaction Transaction(FText::Format(NSLOCTEXT("EnableOrDisableGroup", "EnableOrDisableGroup", "{0} Action Group"), EnableOrDisableText));
+
+				DataprepAssetPtr->Modify();
+
+				for (int32 Index = 0; Index < ActionGroupNode->GetActionsCount(); ++Index)
+				{
+					UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
+					Action->Modify();
+					Action->Appearance->Modify();
+					Action->Appearance->bGroupIsEnabled = !bShouldDisable;
+				}
+
+				NotifyGraphChanged();
+			}
+		});
+
 		MenuBuilder->BeginSection( FName( TEXT("CommonSection") ), LOCTEXT("CommonSection", "Common") );
 		{
-			MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Break" ),
+			MenuBuilder->AddMenuEntry(LOCTEXT( "BreakGroup", "Ungroup Actions" ),
 									  LOCTEXT( "BreakGroupTooltip", "Break group to single actions" ),
 									  FSlateIcon(),
 									  BreakGroupAction);
+
+			MenuBuilder->AddMenuEntry( FText::Format( LOCTEXT( "EnableOrDisableEnableGroupLabel", "{0} Action Group" ), EnableOrDisableText ),
+									   FText::Format( LOCTEXT( "EnableOrDisableEnableGroupTooltip", "{0} Action Group" ), EnableOrDisableText ),
+									   FSlateIcon(),
+									   EnableOrDisableGroupAction);
 		}
 		MenuBuilder->EndSection();
 
@@ -971,13 +1080,14 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 								Action->Modify();
 								Action->Appearance->Modify();
 								Action->Appearance->GroupId = NewGroupId;
+								Action->Appearance->bGroupIsEnabled = true;
 							}
 						}
 
 						NotifyGraphChanged();
 					});
 
-					FText Label = FText::FromString("Collapse");
+					FText Label = FText::FromString("Group Actions");
 					MenuBuilder->AddMenuEntry(FText::Format( LOCTEXT( "CollapsActionsAction", "{0}" ), Label ),
 											  FText::Format( LOCTEXT( "CollapsActionsActionTooltip", "{0} steps/actions" ), Label ),
 											  FSlateIcon(),
@@ -986,6 +1096,53 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			}
 		}
 		MenuBuilder->EndSection();
+
+		// Add "create filter from selection" menu
+		if ( bIsActionNode && Actions.Num() == 1 )
+		{
+			TSet< UObject* > AssetAndActorSelection = GetSelectedActorsAndAssets();
+
+			if ( AssetAndActorSelection.Num() > 0 )
+			{
+				MenuBuilder->BeginSection( FName( TEXT("FilterSection") ), LOCTEXT("FilterSection", "Filter") );
+				{
+					FUIAction CreateFilterAction;
+					CreateFilterAction.ExecuteAction.BindLambda( [this, Actions, AssetAndActorSelection]()
+					{
+						if ( UDataprepActionAsset* Action = Actions[0] )
+						{
+							UClass* NameFetcherClass = FindObject<UClass>( ANY_PACKAGE, TEXT( "DataprepStringObjectNameFetcher" ) );
+							check( NameFetcherClass );
+							const int32 StepIndex = Action->AddStep( NameFetcherClass );
+
+							UDataprepActionStep* Step = Action->GetStep(StepIndex).Get();
+							check( Step );
+
+							UDataprepStringFilter* StringFilter = Cast< UDataprepStringFilter >( Step->GetStepObject() );
+							check( StringFilter );
+
+							StringFilter->SetMatchInArray( true );
+							UDataprepStringFilterMatchingArray* ArrayField = StringFilter->GetStringArray();
+
+							for ( UObject* Obj : AssetAndActorSelection )
+							{
+								ArrayField->Strings.Add( Obj->GetName() );
+							}
+
+							if(SDataprepGraphTrackNode* TrackGraphNode = TrackGraphNodePtr.Pin().Get())
+							{
+								TrackGraphNode->UpdateGraphNode();
+							}
+						}
+					});
+					
+					MenuBuilder->AddMenuEntry(LOCTEXT("CreateFilter", "Create Filter From Selection"),
+						LOCTEXT("CreateFilterTooltip", "Create filter from selected assets and actors"),
+						FSlateIcon(),
+						CreateFilterAction);
+				}
+			}
+		}
 
 		if ( FirstStepNode )
 		{
@@ -1073,7 +1230,6 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 								bAreAllFilterPreviewed = false;
 							}
 						}
-
 
 						if ( bAreAllFilterPreviewed )
 						{

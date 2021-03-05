@@ -269,7 +269,9 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 
 	// Icons
 	Style->Set("NiagaraEditor.Isolate", new IMAGE_PLUGIN_BRUSH("Icons/Isolate", Icon16x16));
-
+	Style->Set("NiagaraEditor.Module.Pin.TypeSelector", new IMAGE_PLUGIN_BRUSH("Icons/Scratch", Icon16x16, FLinearColor::Gray));
+	Style->Set("NiagaraEditor.Module.AddPin", new IMAGE_PLUGIN_BRUSH("Icons/PlusSymbol_12x", Icon12x12, FLinearColor::Gray));
+	Style->Set("NiagaraEditor.Module.RemovePin", new IMAGE_PLUGIN_BRUSH("Icons/MinusSymbol_12x", Icon12x12, FLinearColor::Gray));
 	Style->Set("NiagaraEditor.Scratch", new IMAGE_PLUGIN_BRUSH("Icons/Scratch", Icon16x16, FLinearColor::Yellow));
 	
 	// Emitter details customization
@@ -317,6 +319,12 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	const FSlateColor SelectionColor = FEditorStyle::GetSlateColor("SelectionColor");
 	const FSlateColor SelectionColor_Pressed = FEditorStyle::GetSlateColor("SelectionColor_Pressed");
 
+	Style->Set("NiagaraEditor.Module.Pin.TypeSelector.Button", FButtonStyle()
+		.SetNormal(FSlateNoResource())
+		.SetPressed(BOX_BRUSH("Common/Button_Pressed", 8.0f / 32.0f, SelectionColor_Pressed))
+		.SetHovered(BOX_BRUSH("Common/Button_Hovered", 8.0f / 32.0f, SelectionColor))
+		.SetNormalPadding(FMargin(0, 0, 0, 0))
+		.SetPressedPadding(FMargin(0, 0, 0, 0)));
 	{
 		const FLinearColor NormalColor(0.15, 0.15, 0.15, 1);
 
@@ -387,6 +395,67 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	// Flipbook
 	Style->Set("NiagaraEditor.Flipbook", new IMAGE_PLUGIN_BRUSH("Icons/Flipbook/FlipbookIcon", Icon40x40));
 
+	Style->Set("NiagaraEditor.CommonColors.System", FLinearColor(FColor(1, 202, 252)));
+	Style->Set("NiagaraEditor.CommonColors.Emitter", FLinearColor(FColor(241, 99, 6)));
+	Style->Set("NiagaraEditor.CommonColors.Particle", FLinearColor(FColor(131, 218, 9)));
+
+	//Outliner Style
+	{
+		Style->Set("NiagaraEditor.Outliner.WorldItem", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(FSlateNoResource())
+			.SetEvenRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+			.SetOddRowBackgroundBrush(FSlateNoResource())
+			.SetOddRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetActiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetInactiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+			.SetInactiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
+		
+
+		const FLinearColor SystemColor = Style->GetColor("NiagaraEditor.AssetColors.System") * 0.6f;
+		const FLinearColor SystemColorEven = SystemColor * 0.85f;
+		const FLinearColor SystemColorOdd = SystemColor * 0.7f;
+		Style->Set("NiagaraEditor.Outliner.SystemItem", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemColorEven))
+			.SetEvenRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemColor))
+			.SetOddRowBackgroundBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemColorOdd))
+			.SetOddRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemColor))
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetActiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetInactiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+			.SetInactiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
+
+
+		const FLinearColor SystemInstanceColor = Style->GetColor("NiagaraEditor.CommonColors.System") * 0.6f;
+		const FLinearColor SystemInstanceColorEven = SystemInstanceColor * 0.85f;
+		const FLinearColor SystemInstanceColorOdd = SystemInstanceColor * 0.7f;
+		Style->Set("NiagaraEditor.Outliner.ComponentItem", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemInstanceColorEven))
+			.SetEvenRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemInstanceColor))
+			.SetOddRowBackgroundBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemInstanceColorOdd))
+			.SetOddRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SystemInstanceColor))
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetActiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetInactiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+			.SetInactiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
+
+		const FLinearColor EmitterInstanceColor = Style->GetColor("NiagaraEditor.CommonColors.Emitter") * 0.6f;
+		const FLinearColor EmitterInstanceColorEven = EmitterInstanceColor * 0.85f;
+		const FLinearColor EmitterInstanceColorOdd = EmitterInstanceColor * 0.7f;
+		Style->Set("NiagaraEditor.Outliner.EmitterItem", FTableRowStyle()
+			.SetEvenRowBackgroundBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, EmitterInstanceColorEven))
+			.SetEvenRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, EmitterInstanceColor))
+			.SetOddRowBackgroundBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, EmitterInstanceColorOdd))
+			.SetOddRowBackgroundHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, EmitterInstanceColor))
+			.SetSelectorFocusedBrush(FSlateNoResource())
+			.SetActiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetActiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor))
+			.SetInactiveBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive))
+			.SetInactiveHoveredBrush(IMAGE_CORE_BRUSH("Common/Selection", Icon8x8, SelectionColor_Inactive)));
+	}
 	return Style;
 }
 

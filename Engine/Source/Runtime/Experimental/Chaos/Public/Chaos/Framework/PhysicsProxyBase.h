@@ -4,6 +4,7 @@
 
 #include "Chaos/Declares.h"
 #include "UObject/GCObject.h"
+#include "Chaos/Core.h"
 
 enum class EPhysicsProxyType
 {
@@ -22,6 +23,20 @@ namespace Chaos
 	class FPhysicsSolverBase;
 }
 
+struct CHAOS_API FProxyTimestamp
+{
+	int32 XTimestamp = INDEX_NONE;
+	int32 RTimestamp = INDEX_NONE;
+	int32 VTimestamp = INDEX_NONE;
+	int32 WTimestamp = INDEX_NONE;
+	int32 ObjectStateTimestamp = INDEX_NONE;
+	Chaos::FVec3 OverWriteX;
+	Chaos::FRotation3 OverWriteR;
+	Chaos::FVec3 OverWriteV;
+	Chaos::FVec3 OverWriteW;
+	bool bDeleted = false;
+};
+
 class CHAOS_API IPhysicsProxyBase
 {
 public:
@@ -29,7 +44,7 @@ public:
 		: Solver(nullptr)
 		, DirtyIdx(INDEX_NONE)
 		, Type(InType)
-		, SyncTimestamp(new int32(-1))
+		, SyncTimestamp(new FProxyTimestamp)
 	{}
 
 	virtual UObject* GetOwner() const = 0;
@@ -52,8 +67,9 @@ public:
 	void SetDirtyIdx(const int32 Idx) { DirtyIdx = Idx; }
 	void ResetDirtyIdx() { DirtyIdx = INDEX_NONE; }
 
-	void SetSyncTimestamp(int32 Timestamp){ *SyncTimestamp = Timestamp; }
-	TSharedPtr<int32,ESPMode::ThreadSafe> GetSyncTimestamp() const { return SyncTimestamp; }
+	void MarkDeleted() { SyncTimestamp->bDeleted = true; }
+
+	TSharedPtr<FProxyTimestamp,ESPMode::ThreadSafe> GetSyncTimestamp() const { return SyncTimestamp; }
 
 
 protected:
@@ -69,7 +85,7 @@ private:
 protected:
 	/** Proxy type */
 	EPhysicsProxyType Type;
-	TSharedPtr<int32,ESPMode::ThreadSafe> SyncTimestamp;
+	TSharedPtr<FProxyTimestamp,ESPMode::ThreadSafe> SyncTimestamp;
 };
 
 struct PhysicsProxyWrapper

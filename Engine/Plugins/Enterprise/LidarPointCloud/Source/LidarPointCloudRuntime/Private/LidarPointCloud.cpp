@@ -37,6 +37,52 @@ FCustomVersionRegistration PCPFileVersion(ULidarPointCloud::PointCloudFileGUID, 
 
 #define LOCTEXT_NAMESPACE "LidarPointCloud"
 
+#if WITH_EDITOR
+#include "PackageTools.h"
+
+/* Registers for the package modified callback to catch point clouds that have been saved and automatically reloads the asset to release the bulk data */
+class FLidarPackageReloader : public FTickableGameObject
+{
+	TArray<TWeakObjectPtr<UPackage>> PackagesToReload;
+
+public:
+	FLidarPackageReloader() { UPackage::PackageSavedEvent.AddRaw(this, &FLidarPackageReloader::OnPackageSaved); }
+	virtual ~FLidarPackageReloader() { UPackage::PackageSavedEvent.RemoveAll(this); }
+	virtual TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(LidarPackageReloader, STATGROUP_Tickables); }
+	virtual ETickableTickType GetTickableTickType() const override { return ETickableTickType::Always; }
+	virtual bool IsTickableInEditor() const override { return true; }
+
+	virtual void Tick(float DeltaTime) override
+	{
+		for (TWeakObjectPtr<UPackage> Package : PackagesToReload)
+		{
+			if (UPackage* PackageRaw = Package.Get())
+			{
+				UPackageTools::ReloadPackages({ PackageRaw });
+			}
+		}
+
+		PackagesToReload.Reset();
+	}
+
+private:
+	void OnPackageSaved(const FString& Filename, UObject* Obj)
+	{
+		if (GetDefault<ULidarPointCloudSettings>()->bReleaseAssetAfterSaving)
+		{
+			UPackage* Package = Cast<UPackage>(Obj);
+			if (Cast<ULidarPointCloud>(Package->FindAssetInPackage()))
+			{
+				PackagesToReload.Add(Package);
+			}
+		}
+	}
+};
+#endif
+
+/////////////////////////////////////////////////
+// FPointCloudLatentAction
+
 class FPointCloudLatentAction : public FPendingLatentAction
 {
 public:
@@ -228,6 +274,10 @@ ULidarPointCloud::ULidarPointCloud()
 {
 	// Make sure we are transactional to allow undo redo
 	this->SetFlags(RF_Transactional);
+
+#if WITH_EDITOR
+	static FLidarPackageReloader LidarPackageReloader;
+#endif
 }
 
 void ULidarPointCloud::Serialize(FArchive& Ar)
@@ -315,6 +365,14 @@ void ULidarPointCloud::PreSave(const class ITargetPlatform* TargetPlatform)
 }
 
 #if WITH_EDITOR
+void ULidarPointCloud::ClearAllCachedCookedPlatformData()
+{
+	if (GetDefault<ULidarPointCloudSettings>()->bReleaseAssetAfterCooking)
+	{
+		UPackageTools::ReloadPackages({ GetOutermost() });
+	}
+}
+
 void ULidarPointCloud::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	if (PropertyChangedEvent.MemberProperty)
@@ -634,6 +692,9 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 
 				// Show the cloud at its original location, if selected
 				LocationOffset = bCenter ? FDoubleVector::ZeroVector : OriginalCoordinates;
+
+				// Adjust default max collision error
+				MaxCollisionError = FMath::CeilToInt(Octree.GetEstimatedPointSpacing() * 300) * 0.01f;
 			}
 			else
 			{
@@ -653,6 +714,22 @@ void ULidarPointCloud::Reimport(const FLidarPointCloudAsyncParameters& AsyncPara
 					MarkPackageDirty();
 					Notification->Close(bSuccess);
 					OnPointCloudRebuiltEvent.Broadcast();
+
+					if (bSuccess)
+					{
+						FScopeLock Lock(&ProcessingLock);
+
+						if (GetDefault<ULidarPointCloudSettings>()->bAutoCalculateNormalsOnImport)
+						{
+							CalculateNormals(nullptr, nullptr);
+						}
+						
+						if (GetDefault<ULidarPointCloudSettings>()->bAutoBuildCollisionOnImport)
+						{
+							BuildCollision();
+						}
+
+					}
 				};
 
 				// Make sure the call is executed on the correct thread if using async

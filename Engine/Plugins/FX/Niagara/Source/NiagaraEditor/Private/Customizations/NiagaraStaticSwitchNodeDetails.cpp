@@ -70,7 +70,6 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 		IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(SwitchCategoryName);		
 		FDetailWidgetRow& NameWidget = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeNameFilterText", "Input parameter name"));
 		FDetailWidgetRow& DropdownWidget = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeTypeFilterText", "Input parameter type"));
-		FDetailWidgetRow& IntValueOption = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeIntFilterText", "Max integer value"));
 		FDetailWidgetRow& DefaultValueOption = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeDefaultFilterText", "Default value"));
 		FDetailWidgetRow& ConstantSelection = CategoryBuilder.AddCustomRow(LOCTEXT("NiagaraSwitchNodeConstantFilterText", "Compiler constant"));
 
@@ -131,34 +130,7 @@ void FNiagaraStaticSwitchNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Det
 				]
 			]
 		];
-
-		IntValueOption
-		.NameContent()
-		[
-			SNew(SBox)
-			.Padding(FMargin(0.0f, 2.0f))
-			[
-				SNew(STextBlock)
-				.IsEnabled(this, &FNiagaraStaticSwitchNodeDetails::GetIntOptionEnabled)
-				.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ParameterText")
-				.Text(LOCTEXT("NiagaraSwitchNodeIntOptionText", "Max integer value"))
-			]
-		]
-		.ValueContent()
-		[
-			SNew(SBox)
-			.Padding(FMargin(0.0f, 2.0f))
-			[
-				SNew(SNumericEntryBox<int32>)
-				.IsEnabled(this, &FNiagaraStaticSwitchNodeDetails::GetIntOptionEnabled)
-				.AllowSpin(false)
-				.MinValue(0)
-				.MaxValue(99)
-				.Value(this, &FNiagaraStaticSwitchNodeDetails::GetIntOptionValue)
-				.OnValueCommitted(this, &FNiagaraStaticSwitchNodeDetails::IntOptionValueCommitted)
-			]
-		];
-
+		
 		DefaultValueOption
 		.NameContent()
 		[
@@ -547,14 +519,14 @@ bool FNiagaraStaticSwitchNodeDetails::GetIntOptionEnabled() const
 
 TOptional<int32> FNiagaraStaticSwitchNodeDetails::GetIntOptionValue() const
 {
-	return Node.IsValid() ? TOptional<int32>(Node->SwitchTypeData.MaxIntCount) : TOptional<int32>();
+	return Node.IsValid() ? TOptional<int32>(Node->NumOptionsPerVariable) : TOptional<int32>();
 }
 
 void FNiagaraStaticSwitchNodeDetails::IntOptionValueCommitted(int32 Value, ETextCommit::Type CommitInfo)
 {
 	if (Node.IsValid() && Value > 0)
 	{
-		Node->SwitchTypeData.MaxIntCount = Value;
+		Node->NumOptionsPerVariable = Value;
 		Node->RefreshFromExternalChanges();
 	}
 }

@@ -110,6 +110,7 @@
 #include "Customizations/NiagaraComponentRendererPropertiesDetails.h"
 #include "Customizations/NiagaraDebugHUDCustomization.h"
 #include "Customizations/NiagaraFlipbookSettingsDetails.h"
+#include "Customizations/NiagaraOutlinerCustomization.h"
 
 #include "NiagaraComponent.h"
 #include "NiagaraNodeStaticSwitch.h"
@@ -755,6 +756,11 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 // This will be called before UObjects are destroyed, so clean up anything we need to related to UObjects here
 void FNiagaraEditorModule::OnPreExit()
 {
+#if WITH_NIAGARA_DEBUGGER
+	Debugger.Reset();
+	SNiagaraDebugger::UnregisterTabSpawner();
+#endif
+
 	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
 	if (GEditor)
 	{
@@ -896,6 +902,18 @@ void FNiagaraEditorModule::StartupModule()
 	PropertyModule.RegisterCustomPropertyTypeLayout(
 		FNiagaraFlipbookTextureSource::StaticStruct()->GetFName(),
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraFlipbookTextureSourceDetails::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraDebugHUDSettingsData::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraDebugHUDSettingsDetailsCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomClassLayout(UNiagaraOutliner::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraOutlinerCustomization::MakeInstance));
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FNiagaraOutlinerWorldData::StaticStruct()->GetFName(),
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FNiagaraOutlinerWorldDetailsCustomization::MakeInstance));
+
+	// Outliner Customizations end.
 
 	//Register Stack Object Issue Generators.
 	RegisterStackIssueGenerator(FNiagaraPlatformSet::StaticStruct()->GetFName(), new FNiagaraPlatformSetIssueGenerator());
@@ -1104,14 +1122,10 @@ void FNiagaraEditorModule::StartupModule()
 #if NIAGARA_PERF_BASELINES
 	UNiagaraEffectType::OnGeneratePerfBaselines().BindRaw(this, &FNiagaraEditorModule::GeneratePerfBaselines);
 #endif
-
-	SNiagaraDebugger::RegisterTabSpawner();
 }
 
 void FNiagaraEditorModule::ShutdownModule()
 {
-	SNiagaraDebugger::UnregisterTabSpawner();
-
 	MenuExtensibilityManager.Reset();
 	ToolBarExtensibilityManager.Reset();
 	
@@ -1244,6 +1258,12 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
+
+#if WITH_NIAGARA_DEBUGGER
+	Debugger = MakeShared<FNiagaraDebugger>();
+	Debugger->Init();
+	SNiagaraDebugger::RegisterTabSpawner();
+#endif
 }
 
 void FNiagaraEditorModule::OnDeviceProfileManagerUpdated()

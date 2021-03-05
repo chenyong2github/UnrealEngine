@@ -509,9 +509,33 @@ RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform);
 
+RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platform);
+
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform);
 
 RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPlatform Platform);
+
+
+/* Simple cache for RendererSettings ini lookup per shader platform. */
+template<typename Type>
+struct RENDERCORE_API FShaderPlatformCachedIniValue
+{
+	FShaderPlatformCachedIniValue(const TCHAR* InSection, const TCHAR* InKey)
+		: Section(InSection)
+		, Key(InKey)
+		, bTestedIni(false)
+		, CVar(nullptr)
+	{}
+
+	Type Get(EShaderPlatform ShaderPlatform);
+
+private:
+	const TCHAR* Section;
+	const TCHAR* Key;
+	bool bTestedIni;
+	IConsoleVariable* CVar;
+	TMap<EShaderPlatform, Type> CachedValues;
+};
 
 /** Returns if ForwardShading is enabled. Only valid for the current platform (otherwise call ITargetPlatform::UsesForwardShading()). */
 inline bool IsForwardShadingEnabled(const FStaticShaderPlatform Platform)
@@ -658,5 +682,5 @@ inline bool UseVirtualShadowMaps(EShaderPlatform ShaderPlatform, const FStaticFe
 	// bool bNaniteSupported = DoesPlatformSupportNanite(ShaderPlatform);
 	bool bForwardShadingEnabled = IsForwardShadingEnabled(ShaderPlatform);
 
-	return UseGPUScene(ShaderPlatform, FeatureLevel) && !bForwardShadingEnabled && EnableVirtualSMCVar->GetInt() != 0 && DoesPlatformSupportNanite(ShaderPlatform);
+	return UseGPUScene(ShaderPlatform, FeatureLevel) && !bForwardShadingEnabled && (EnableVirtualSMCVar && EnableVirtualSMCVar->GetInt() != 0) && DoesPlatformSupportNanite(ShaderPlatform);
 }

@@ -70,6 +70,8 @@ public:
 
 	TARGETPLATFORM_API virtual int32 GetHeightFogModeForOpaque() const override;
 
+	TARGETPLATFORM_API virtual bool UsesMobileAmbientOcclusion() const override;
+
 #if WITH_ENGINE
 	virtual void GetReflectionCaptureFormats( TArray<FName>& OutFormats ) const override
 	{

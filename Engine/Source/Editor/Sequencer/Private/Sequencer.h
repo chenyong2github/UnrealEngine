@@ -474,8 +474,8 @@ public:
 	FReply OnRecord();
 	FReply OnPlayForward(bool bTogglePlay);
 	FReply OnPlayBackward(bool bTogglePlay);
-	FReply OnStepForward();
-	FReply OnStepBackward();
+	FReply OnStepForward(FFrameNumber Increment = FFrameNumber(1));
+	FReply OnStepBackward(FFrameNumber Increment = FFrameNumber(1));
 	FReply OnJumpToStart();
 	FReply OnJumpToEnd();
 	FReply OnCycleLoopMode();
@@ -766,6 +766,8 @@ public:
 	virtual void SetLocalTimeDirectly(FFrameTime NewTime) override;
 	virtual void SetGlobalTime(FFrameTime Time) override;
 	virtual void PlayTo(FMovieSceneSequencePlaybackParams PlaybackParams) override;
+	virtual void RestorePlaybackSpeed() override;
+	virtual void SnapToClosestPlaybackSpeed() override;
 	virtual void RequestInvalidateCachedData() override { bNeedsInvalidateCachedData = true; }
 	virtual void RequestEvaluate() override { bNeedsEvaluate = true; }
 	virtual void ForceEvaluate() override;
@@ -1001,19 +1003,20 @@ protected:
 	void TogglePlay();
 	void JumpToStart();
 	void JumpToEnd();
+	/** Increases positive speed or decreases negative speed until positive speed is reached */
 	void ShuttleForward();
+	/** Increases negative speed or decreases positive speed until negative speed is reached */
 	void ShuttleBackward();
 	void StepForward();
 	void StepBackward();
+	void JumpForward();
+	void JumpBackward();
 	void StepToNextKey();
 	void StepToPreviousKey();
 	void StepToNextCameraKey();
 	void StepToPreviousCameraKey();
 	void StepToNextShot();
 	void StepToPreviousShot();
-
-	void ExpandAllNodesAndDescendants();
-	void CollapseAllNodesAndDescendants();
 
 	/** Expand or collapse selected nodes */
 	void ToggleExpandCollapseNodes();
@@ -1242,6 +1245,8 @@ private:
 	/** The last time range that was viewed */
 	TRange<double> LastViewRange;
 
+	int32 CurrentSpeedIndex;
+	
 	/** The view range before zooming */
 	TRange<double> ViewRangeBeforeZoom;
 

@@ -856,6 +856,8 @@ void UNiagaraScript::PreSave(const class ITargetPlatform* TargetPlatform)
 			FNiagaraParameterStoreBinding::GetBindingData(&ScriptExecutionParamStore, &RapidIterationParameters, ScriptExecutionBoundParameters);
 		}
 	}
+
+	ResolveParameterCollectionReferences();
 #endif
 }
 
@@ -1647,18 +1649,7 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 		}
 	}
 
-	// The compilation process only references via soft references any parameter collections. This resolves those 
-	// soft references to real references.
-	for (FString& Path : CachedScriptVM.ParameterCollectionPaths)
-	{
-		FSoftObjectPath SoftPath(Path);
-		UObject* Obj = SoftPath.TryLoad();
-		UNiagaraParameterCollection* ParamCollection = Cast<UNiagaraParameterCollection>(Obj);
-		if (ParamCollection != nullptr)
-		{
-			CachedParameterCollectionReferences.Add(ParamCollection);
-		}
-	}
+	ResolveParameterCollectionReferences();
 
 	CachedDefaultDataInterfaces.Empty(CachedScriptVM.DataInterfaceInfo.Num());
 	for (const FNiagaraScriptDataInterfaceCompileInfo& Info : CachedScriptVM.DataInterfaceInfo)
@@ -2325,8 +2316,46 @@ UNiagaraScript::FOnPropertyChanged& UNiagaraScript::OnPropertyChanged()
 	return OnPropertyChangedDelegate;
 }
 
+void UNiagaraScript::ResolveParameterCollectionReferences()
+{
+	const int32 CollectionCount = CachedScriptVM.ParameterCollectionPaths.Num();
+
+	if (CollectionCount)
+	{
+		const bool RoutingPostLoad = FUObjectThreadContext::Get().IsRoutingPostLoad;
+
+		for (int32 CollectionIt = CollectionCount - 1; CollectionIt >= 0; --CollectionIt)
+		{
+			FSoftObjectPath SoftPath(CachedScriptVM.ParameterCollectionPaths[CollectionIt]);
+
+			// try to find the object if it's already loaded
+			UNiagaraParameterCollection* ParamCollection = Cast<UNiagaraParameterCollection>(SoftPath.ResolveObject());
+
+			if (!ParamCollection && !RoutingPostLoad)
+			{
+				// if we're not in a PostLoad then we should be able to try to directly load the object
+				ParamCollection = Cast<UNiagaraParameterCollection>(SoftPath.TryLoad());
+			}
+
+			if (ParamCollection)
+			{
+				CachedParameterCollectionReferences.AddUnique(ParamCollection);
+				CachedScriptVM.ParameterCollectionPaths.RemoveAtSwap(CollectionIt);
+			}
+		}
+	}
+}
+
 #endif
 
+TArray<UNiagaraParameterCollection*>& UNiagaraScript::GetCachedParameterCollectionReferences()
+{
+#if WITH_EDITORONLY_DATA
+	ResolveParameterCollectionReferences();
+#endif
+
+	return CachedParameterCollectionReferences;
+}
 
 NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) const
 {
@@ -2664,10 +2693,18 @@ bool UNiagaraScript::UsesCollection(const UNiagaraParameterCollection* Collectio
 {
 	if (CachedScriptVM.IsValid())
 	{
-		return CachedParameterCollectionReferences.FindByPredicate([&](const UNiagaraParameterCollection* CheckCollection)
+		if (CachedParameterCollectionReferences.Contains(Collection))
 		{
-			return CheckCollection == Collection;
-		}) != NULL;
+			return true;
+		}
+#if WITH_EDITORONLY_DATA
+		FSoftObjectPath SoftPath(Collection);
+
+		if (CachedScriptVM.ParameterCollectionPaths.ContainsByPredicate([&](const FString& CollectionPath) { return SoftPath == FSoftObjectPath(CollectionPath); }))
+		{
+			return true;
+		}
+#endif
 	}
 	return false;
 }

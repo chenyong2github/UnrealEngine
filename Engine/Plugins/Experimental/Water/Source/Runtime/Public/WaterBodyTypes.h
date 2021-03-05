@@ -169,7 +169,7 @@ struct FWaterSplineDataPhysics
 struct FSolverSafeWaterBodyData
 {
 	UWorld* World;
-	AActor* LandscapeProxyActor;
+	TArray<UPrimitiveComponent*> LandscapeCollisionComponents;
 	FWaterSplineDataPhysics WaterSpline;
 	FWaterSplineMetadataPhysics WaterSplineMetadata;
 	FVector Location;

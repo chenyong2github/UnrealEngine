@@ -54,7 +54,8 @@ public:
 			.TreeItemsSource(&FilteredItems)
 			.OnGenerateRow(this, &SSearchableTreeView::OnGenerateRow)
 			.OnGetChildren(this, &SSearchableTreeView::OnGetChildren)
-			.OnSelectionChanged(this, &SSearchableTreeView::OnSelectionChanged);
+			.OnSelectionChanged(this, &SSearchableTreeView::OnSelectionChanged)
+			.OnMouseButtonClick(this, &SSearchableTreeView::OnMouseClick);
 			
 		SearchBoxFilter = MakeShared<TTextFilter<ItemType>>(TTextFilter<ItemType>::FItemToStringArray::CreateSP(this, &SSearchableTreeView::TransformElementToString));
 
@@ -206,6 +207,21 @@ private:
 			else
 			{
 				TreeView->SetItemExpansion(SelectedObject, !TreeView->IsItemExpanded(SelectedObject));
+			}
+		}
+	}
+
+	/** Handle an item being clicked */
+	void OnMouseClick(ItemType SelectedObject)
+	{
+		// Handle the case where the user clicks an item that's already selected.
+		if (TreeView->GetNumItemsSelected() == 1 && SelectedObject)
+		{
+			TArray<ItemType> SelectedObjects;
+			TreeView->GetSelectedItems(SelectedObjects);
+			if (SelectedObject == SelectedObjects[0])
+			{
+				TreeView->SetItemExpansion(SelectedObject, false);
 			}
 		}
 	}

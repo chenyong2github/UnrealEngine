@@ -164,7 +164,7 @@ namespace ChaosTest
 		int32 FaceIndex;
 
 		//straight down
-		TCapsule<FReal> Capsule(FVec3(1, 1, 1), FVec3(1, 1, 9), 1);
+		FCapsule Capsule(FVec3(1, 1, 1), FVec3(1, 1, 9), 1);
 		bool bHit = Capsule.Raycast(FVec3(1, 1, 11), FVec3(0, 0, -1), 2, 0, Time, Position, Normal, FaceIndex);
 		
 		EXPECT_TRUE(bHit);

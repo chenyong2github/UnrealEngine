@@ -15,10 +15,10 @@ namespace DatasmithRhino.Utils
 	{
 		private const int ProgressGranularity = 1000;
 		private const string ExportMainMessage = "Datasmith Export";
-		private const float EscapeKeyCheckDelaySeconds = 0.2f;
+		private const float UpdateDelaySeconds = 0.2f;
 
 		private bool bEscapedKeyPressed = false;
-		private Stopwatch EscapeKeyStopwatch = new Stopwatch();
+		private Stopwatch UpdateStopwatch = new Stopwatch();
 
 		private static DatasmithRhinoProgressManager SingeletonInstance;
 		/**
@@ -68,7 +68,7 @@ namespace DatasmithRhino.Utils
 			ProgressFrameStart = ProgressFrameEnd;
 			ProgressFrameEnd = ProgressValue;
 
-			if (EscapeKeyStopwatch.IsRunning)
+			if (UpdateStopwatch.IsRunning)
 			{
 				CancelIfEscapePressed();
 			}
@@ -86,8 +86,15 @@ namespace DatasmithRhino.Utils
 		public void UpdateCurrentTaskProgress(float PercentProgressFrame)
 		{
 			int ProgressDelta = (int)((ProgressFrameEnd - ProgressFrameStart) * PercentProgressFrame);
-			Rhino.UI.StatusBar.UpdateProgressMeter(ProgressFrameStart + ProgressDelta, true);
-			CancelIfEscapePressed();
+
+			// No need to update the toolbar for every object exported. 
+			if (UpdateDelaySeconds <= UpdateStopwatch.Elapsed.TotalSeconds)
+			{
+				UpdateStopwatch.Restart();
+
+				Rhino.UI.StatusBar.UpdateProgressMeter(ProgressFrameStart + ProgressDelta, true);
+				CancelIfEscapePressed();
+			}
 		}
 
 		public void StopProgress()
@@ -102,13 +109,13 @@ namespace DatasmithRhino.Utils
 		{
 			RhinoApp.EscapeKeyPressed += OnEscapePressed;
 			bEscapedKeyPressed = false;
-			EscapeKeyStopwatch.Restart();
+			UpdateStopwatch.Restart();
 		}
 
 		private void StopListeningEscapeKey()
 		{
 			RhinoApp.EscapeKeyPressed -= OnEscapePressed;
-			EscapeKeyStopwatch.Stop();
+			UpdateStopwatch.Stop();
 		}
 
 		private void OnEscapePressed(object sender, EventArgs e)
@@ -118,16 +125,11 @@ namespace DatasmithRhino.Utils
 
 		private void CancelIfEscapePressed()
 		{
-			if (EscapeKeyCheckDelaySeconds <= EscapeKeyStopwatch.Elapsed.TotalSeconds)
+			// We need to call Wait() in order to allow the OnEscapePressed event to fire.
+			RhinoApp.Wait();
+			if (bEscapedKeyPressed)
 			{
-				EscapeKeyStopwatch.Restart();
-
-				// We need to call Wait() in order to allow the OnEscapePressed event to fire.
-				RhinoApp.Wait();
-				if (bEscapedKeyPressed)
-				{
-					throw new DatasmithExportCancelledException();
-				}
+				throw new DatasmithExportCancelledException();
 			}
 		}
 

@@ -54,6 +54,7 @@ FBoneContainer::FBoneContainer()
 , AssetSkeletalMesh(nullptr)
 , AssetSkeleton(nullptr)
 , RefSkeleton(nullptr)
+, UIDToArrayIndexLUTValidCount(0)
 , bDisableRetargeting(false)
 , bUseRAWData(false)
 , bUseSourceData(false)
@@ -70,6 +71,7 @@ FBoneContainer::FBoneContainer(const TArray<FBoneIndexType>& InRequiredBoneIndex
 , AssetSkeletalMesh(nullptr)
 , AssetSkeleton(nullptr)
 , RefSkeleton(nullptr)
+, UIDToArrayIndexLUTValidCount(0)
 , bDisableRetargeting(false)
 , bUseRAWData(false)
 , bUseSourceData(false)
@@ -236,6 +238,7 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 		if (Mapping != nullptr)
 		{
 			UIDToArrayIndexLUT.Reset();
+			UIDToArrayIndexLUTValidCount = 0;
 			
 			const SmartName::UID_Type MaxUID = Mapping->GetMaxUID();
 
@@ -321,12 +324,14 @@ void FBoneContainer::CacheRequiredAnimCurveUids(const FCurveEvaluationOption& Cu
 						UIDToArrayIndexLUT[CurveNameIndex] = NumAvailableUIDs++;
 					}
 				}
+				UIDToArrayIndexLUTValidCount = NumAvailableUIDs;
 			}
 		}
 	}
 	else
 	{
 		UIDToArrayIndexLUT.Reset();
+		UIDToArrayIndexLUTValidCount = 0;
 	}
 
 	// Make a backup, used for skeleton remapping of curves.

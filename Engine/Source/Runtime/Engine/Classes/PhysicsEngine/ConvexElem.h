@@ -90,7 +90,7 @@ public:
 	ENGINE_API void GetPlanes(TArray<FPlane>& Planes) const;
 
 	/** Utility for creating a convex hull from a set of planes. Will reset current state of this elem. */
-	ENGINE_API bool HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<FVector>& SnapVerts);
+	ENGINE_API bool HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<FVector>& SnapVerts, float InSnapDistance = SMALL_NUMBER);
 
 	/** Utility for setting this convex element to match a supplied box element. Also copies transform. */
 	ENGINE_API void ConvexFromBoxElem(const FKBoxElem& InBox);

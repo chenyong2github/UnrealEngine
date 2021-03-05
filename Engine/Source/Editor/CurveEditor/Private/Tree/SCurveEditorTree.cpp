@@ -76,6 +76,8 @@ struct SCurveEditorTableRow : SMultiColumnTableRow<FCurveEditorTreeItemID>
 void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEditor> InCurveEditor)
 {
 	bFilterWasActive = false;
+	bUpdatingTreeWidgetSelection = false;
+	bUpdatingCurveEditorTreeSelection = false;
 	HeaderRow = SNew(SHeaderRow)
 		.Visibility(EVisibility::Collapsed)
 
@@ -108,6 +110,9 @@ void SCurveEditorTree::Construct(const FArguments& InArgs, TSharedPtr<FCurveEdit
 	);
 
 	CurveEditor->GetTree()->Events.OnItemsChanged.AddSP(this, &SCurveEditorTree::RefreshTree);
+	CurveEditor->GetTree()->Events.OnSelectionChanged.AddSP(this, &SCurveEditorTree::RefreshTreeWidgetSelection);
+
+	CurveEditor->GetTree()->GetToggleExpansionState().AddSP(this, &SCurveEditorTree::ToggleExpansionState);
 }
 
 void SCurveEditorTree::RefreshTree()
@@ -184,6 +189,67 @@ void SCurveEditorTree::RefreshTree()
 	bFilterWasActive = FilterStates.IsActive();
 }
 
+void SCurveEditorTree::RefreshTreeWidgetSelection()
+{	
+	if(bUpdatingCurveEditorTreeSelection == false)
+	{
+		TGuardValue<bool> SelectionGuard(bUpdatingTreeWidgetSelection, true);
+
+		TArray<FCurveEditorTreeItemID> CurrentTreeWidgetSelection;
+		GetSelectedItems(CurrentTreeWidgetSelection);
+		const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& CurrentCurveEditorTreeSelection = CurveEditor->GetTreeSelection();
+
+		TArray<FCurveEditorTreeItemID> NewTreeWidgetSelection;
+		for (const TPair<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& CurveEditorTreeSelectionEntry : CurrentCurveEditorTreeSelection)
+		{
+			if (CurveEditorTreeSelectionEntry.Value != ECurveEditorTreeSelectionState::None)
+			{
+				NewTreeWidgetSelection.Add(CurveEditorTreeSelectionEntry.Key);
+				CurrentTreeWidgetSelection.RemoveSwap(CurveEditorTreeSelectionEntry.Key);
+			}
+		}
+
+		SetItemSelection(CurrentTreeWidgetSelection, false, ESelectInfo::Direct);
+		SetItemSelection(NewTreeWidgetSelection, true, ESelectInfo::Direct);
+	}
+}
+
+void SCurveEditorTree::ToggleExpansionState(bool bRecursive)
+{
+	if (GetSelectedItems().Num() > 0)
+	{
+		const bool bExpand = !IsItemExpanded(GetSelectedItems()[0]);
+
+		for (const FCurveEditorTreeItemID& SelectedItemID : GetSelectedItems())
+		{
+			if (bRecursive)
+			{
+				SetItemExpansionRecursive(SelectedItemID, bExpand);
+			}
+			else
+			{
+				SetItemExpansion(SelectedItemID, bExpand);
+			}
+		}
+	}
+	else if (CurveEditor->GetRootTreeItems().Num() > 0)
+	{
+		const bool bExpand = !IsItemExpanded(CurveEditor->GetRootTreeItems()[0]);
+
+		for (const FCurveEditorTreeItemID& RootItemID : CurveEditor->GetRootTreeItems())
+		{
+			if (bRecursive)
+			{
+				SetItemExpansionRecursive(RootItemID, bExpand);
+			}
+			else
+			{
+				SetItemExpansion(RootItemID, bExpand);
+			}
+		}	
+	}
+}
+
 FReply SCurveEditorTree::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::Escape)
@@ -215,7 +281,11 @@ void SCurveEditorTree::GetTreeItemChildren(FCurveEditorTreeItemID Parent, TArray
 
 void SCurveEditorTree::OnTreeSelectionChanged(FCurveEditorTreeItemID, ESelectInfo::Type)
 {
-	CurveEditor->GetTree()->SetDirectSelection(GetSelectedItems(), CurveEditor.Get());
+	if (bUpdatingTreeWidgetSelection == false)
+	{
+		TGuardValue<bool> SelecitonGuard(bUpdatingCurveEditorTreeSelection, true);
+		CurveEditor->GetTree()->SetDirectSelection(GetSelectedItems(), CurveEditor.Get());
+	}
 }
 
 void SCurveEditorTree::SetItemExpansionRecursive(FCurveEditorTreeItemID Model, bool bInExpansionState)

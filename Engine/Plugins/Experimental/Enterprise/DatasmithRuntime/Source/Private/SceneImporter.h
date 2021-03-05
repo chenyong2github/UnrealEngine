@@ -487,6 +487,8 @@ namespace DatasmithRuntime
 		/** Start the incremental update of the elements contained in the given context */
 		bool IncrementalUpdate(TSharedRef< IDatasmithScene > InSceneElement, FUpdateContext& UpdateContext);
 
+		void SetTranslator(const TSharedPtr<IDatasmithTranslator>& InTranslator) { Translator = InTranslator; }
+
 	protected:
 		//~ Begin FTickableEditorObject interface
 		virtual void Tick(float DeltaSeconds) override;
@@ -624,6 +626,8 @@ namespace DatasmithRuntime
 
 		/** IDatasmithScene associated with DatasmithRuntime actor */
 		TSharedPtr<IDatasmithScene> SceneElement;
+
+		TSharedPtr<IDatasmithTranslator> Translator;
 
 		/** Map of all elements in the IDatasmithScene */
 		TMap< FSceneGraphId, TSharedPtr< IDatasmithElement > > Elements;

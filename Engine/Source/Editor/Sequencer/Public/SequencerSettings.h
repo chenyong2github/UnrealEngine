@@ -264,6 +264,11 @@ public:
 	/** Set the number of digits we should zero-pad to when showing frame numbers in sequencer */
 	void SetZeroPadFrames(uint8 InZeroPadFrames);
 
+	/** Get the number of frames to increment when jumping forwards/backwards */
+	FFrameNumber GetJumpFrameIncrement() const;
+	/** Set the number of frames to increment when jumping forwards/backwards */
+	void SetJumpFrameIncrement(FFrameNumber InJumpFrameIncrement);
+
 	/** @return true if showing combined keyframes at the top node */
 	bool GetShowCombinedKeyframes() const;
 	/** Set whether to show combined keyframes at the top node */ 
@@ -487,6 +492,10 @@ protected:
 	/** The number of zeros to pad the frame numbers by. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )
 	uint8 ZeroPadFrames;
+
+	/** The number of frames to jump by when jumping forward or backwards. */
+	UPROPERTY( config, EditAnywhere, Category=Timeline )
+	FFrameNumber JumpFrameIncrement;
 
 	/** Enable or disable the combined keyframes at the top node level. Disabling can improve editor performance. */
 	UPROPERTY( config, EditAnywhere, Category=Timeline )

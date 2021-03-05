@@ -53,7 +53,7 @@ public:
 	virtual uint16 GetBufferSize() = 0;
 
 	/** @return the sender of this voice packet */
-	virtual TSharedPtr<const FUniqueNetId> GetSender() = 0;
+	virtual FUniqueNetIdPtr GetSender() = 0;
 
 	/** @return true if this packet should be sent reliably */
 	virtual bool IsReliable() = 0;

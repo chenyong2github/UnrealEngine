@@ -135,6 +135,7 @@ protected:
 			return;
 		}
 
+		TRACE_CPUPROFILER_EVENT_SCOPE(FUdpSocketReceiver_Update);
 		TSharedRef<FInternetAddr> Sender = SocketSubsystem->CreateInternetAddr();
 		uint32 Size;
 

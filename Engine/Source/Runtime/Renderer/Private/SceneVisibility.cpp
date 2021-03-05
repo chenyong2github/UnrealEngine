@@ -1727,6 +1727,11 @@ static int32 OcclusionCull(FRHICommandListImmediate& RHICmdList, const FScene* S
 								  (!FrameParity && IStereoRendering::IsASecondaryView(View));
 			}
 
+			View.ViewState->PrimitiveOcclusionQueryPool.AdvanceFrame(
+				ViewState->OcclusionFrameCounter,
+				FOcclusionQueryHelpers::GetNumBufferedFrames(Scene->GetFeatureLevel()),
+				View.ViewState->IsRoundRobinEnabled() && !View.bIsSceneCapture && IStereoRendering::IsStereoEyeView(View));
+
 			NumOccludedPrimitives += FetchVisibilityForPrimitives(Scene, View, bSubmitQueries, bHZBOcclusion, DynamicVertexBuffer);
 
 			if( bHZBOcclusion )
@@ -2305,27 +2310,41 @@ struct FRelevancePacket
 							// Mark static mesh as visible for rendering
 							if (StaticMeshRelevance.bUseForMaterial && (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth))
 							{
-								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
-								MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
+								// Specific logic for mobile packets
+								if (ShadingPath == EShadingPath::Mobile)
+								{
+									// Skydome must not be added to base pass bucket
+									if (!StaticMeshRelevance.bUseSkyMaterial)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::MobileBasePassCSM);
+									}
+									else
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
+									}
+									// bUseSingleLayerWaterMaterial is added to BasePass on Mobile. No need to add it to SingleLayerWaterPass
+
+									MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
+								}
+								else // Regular shading path
+								{
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::BasePass);
+									MarkMask |= EMarkMaskBits::StaticMeshVisibilityMapMask;
+
+									if (StaticMeshRelevance.bUseSkyMaterial)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
+									}
+									if (StaticMeshRelevance.bUseSingleLayerWaterMaterial)
+									{
+										DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
+									}
+								}
 
 								if (StaticMeshRelevance.bUseAnisotropy)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::AnisotropyPass);
-								}
-
-								if (ShadingPath == EShadingPath::Mobile)
-								{
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::MobileBasePassCSM);
-								}
-								else if(StaticMeshRelevance.bUseSkyMaterial)
-								{
-									// Not needed on Mobile path as in this case everything goes into the regular base pass
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
-								}
-								else if(StaticMeshRelevance.bUseSingleLayerWaterMaterial)
-								{
-									// Not needed on Mobile path as in this case everything goes into the regular base pass
-									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SingleLayerWaterPass);
 								}
 
 								if (ViewRelevance.bRenderCustomDepth)
@@ -3259,12 +3278,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 			// Compute number of TAA samples.
 			int32 TemporalAASamples = CVarTemporalAASamplesValue;
 			{
-				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
-				{
-					// Only support 2 samples for mobile temporal AA.
-					TemporalAASamples = 2;
-				}
-				else if (bTemporalUpsampling)
+				if (bTemporalUpsampling)
 				{
 					// When doing TAA upsample with screen percentage < 100%, we need extra temporal samples to have a
 					// constant temporal sample density for final output pixels to avoid output pixel aligned converging issues.
@@ -3301,15 +3315,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 			// Choose sub pixel sample coordinate in the temporal sequence.
 			float SampleX, SampleY;
-			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
-			{
-				float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
-				float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };
-				check(TemporalAASamples == UE_ARRAY_COUNT(SamplesX));
-				SampleX = SamplesX[ TemporalSampleIndex ];
-				SampleY = SamplesY[ TemporalSampleIndex ];
-			}
-			else if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+			if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
 			{
 				// Uniformly distribute temporal jittering in [-.5; .5], because there is no longer any alignement of input and output pixels.
 				SampleX = Halton(TemporalSampleIndex + 1, 2) - 0.5f;

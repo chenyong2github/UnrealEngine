@@ -106,7 +106,7 @@ PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 //
 // Optimized virtual memory allocator.
 //
-class CORE_API FMallocBinned3 final : public FMalloc
+class CORE_API FMallocBinned3 : public FMalloc
 {
 	struct Private;
 

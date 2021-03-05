@@ -663,6 +663,12 @@ struct TCompositePropertyDefinitionBuilder
 		FPropertyCompositeDefinition NewChannel = { InComponent, static_cast<uint16>(CompositeOffset) };
 		Registry->CompositeDefinitions.Add(NewChannel);
 
+		if (TIsSame<T, float>::Value)
+		{
+			Definition->FloatCompositeMask |= 1 << Definition->CompositeSize;
+		}
+
+		++Definition->CompositeSize;
 		return TCompositePropertyDefinitionBuilder<PropertyType, OperationalType, Composites..., T>(Definition, Registry);
 	}
 
@@ -693,7 +699,7 @@ struct TCompositePropertyDefinitionBuilder
 	{
 		Definition->Handler = TPropertyComponentHandler<PropertyType, OperationalType, Composites...>();
 	}
-
+	
 	template<typename HandlerType>
 	void Commit(HandlerType&& InHandler)
 	{

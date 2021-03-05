@@ -6,11 +6,8 @@
 #include "Misc/SecureHash.h"
 #include "Templates/Function.h"
 
-#include "UnrealUSDWrapper.h"
-#include "USDAssetCache.h"
 #include "USDLevelSequenceHelper.h"
 #include "USDListener.h"
-#include "USDMemory.h"
 #include "USDPrimTwin.h"
 #include "USDSkeletalDataConversion.h"
 
@@ -25,6 +22,7 @@ class IMeshBuilderModule;
 class ULevelSequence;
 class UMaterial;
 class UUsdAsset;
+class UUsdAssetCache;
 class UUsdTransactor;
 enum class EMapChangeType : uint8;
 enum class EUsdPurpose : int32;

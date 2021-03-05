@@ -132,8 +132,11 @@ FRenderAssetStreamingManager::FRenderAssetStreamingManager()
 
 	for ( int32 LODGroup=0; LODGroup < TEXTUREGROUP_MAX; ++LODGroup )
 	{
-		const FTextureLODGroup& TexGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(TextureGroup(LODGroup));
+		const TextureGroup TextureLODGroup = (TextureGroup)LODGroup;
+		const FTextureLODGroup& TexGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(TextureLODGroup);
 		NumStreamedMips_Texture[LODGroup] = TexGroup.NumStreamedMips;
+		// For compatibility reason, Character groups are always loaded with higher priority
+		Settings.HighPriorityLoad_Texture[LODGroup] = TexGroup.HighPriorityLoad || TextureLODGroup == TEXTUREGROUP_Character || TextureLODGroup == TEXTUREGROUP_CharacterSpecular || TextureLODGroup == TEXTUREGROUP_CharacterNormalMap;
 	}
 
 	// TODO: NumStreamedMips_StaticMesh, NumStreamedMips_SkeletalMesh, NumStreamedMips_LandscapeMeshMobile
@@ -1749,8 +1752,8 @@ int32 FRenderAssetStreamingManager::BlockTillAllRequestsFinished( float TimeLimi
 
 		for (FStreamingRenderAsset& StreamingRenderAsset : StreamingRenderAssets)
 		{
-			StreamingRenderAsset.UpdateStreamingStatus(false);
-			if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+			const bool bValid = StreamingRenderAsset.UpdateStreamingStatus(false).IsValid();
+			if (bValid && StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
 			{
 				++NumOfInFlights;
 			}

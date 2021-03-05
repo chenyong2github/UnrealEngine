@@ -2859,6 +2859,7 @@ UObject* FBlueprintCompilationManagerImpl::GetOuterForRename(UClass* ForClass)
 	// just leave them directly parented to the transient package:
 	if(ForClass->ClassWithin && ForClass->ClassWithin != ForClass && ForClass->ClassWithin != UObject::StaticClass())
 	{
+		FScopedAllowAbstractClassAllocation AllowAbstract;
 		return NewObject<UObject>( GetOuterForRename(ForClass->ClassWithin), ForClass->ClassWithin, NAME_None, RF_Transient );
 	}
 	return GetTransientPackage();

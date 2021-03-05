@@ -52,7 +52,7 @@ void UReplaySubsystem::OnCopyWorldData(UWorld* CurrentWorld, UWorld* LoadedWorld
 		}
 		else
 		{
-			StopExistingReplays();
+			StopExistingReplays(CurrentWorld);
 
 			if (CurrentCollection)
 			{
@@ -87,12 +87,12 @@ void UReplaySubsystem::OnSeamlessLevelTransition(UWorld* CurrentWorld)
 		{
 			if (!DemoNetDriver->IsPlaying() && !DemoNetDriver->IsRecordingMapChanges())
 			{
-				StopExistingReplays();
+				StopExistingReplays(CurrentWorld);
 			}
 		}
 		else
 		{
-			StopExistingReplays();
+			StopExistingReplays(CurrentWorld);
 		}
 	}
 }
@@ -140,7 +140,7 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 	// must be server and using a replication graph to use a replay connection
 	if (NetDriver && NetDriver->IsServer() && NetDriver->GetReplicationDriver() && ReplaySubsystem::CVarUseReplayConnection.GetValueOnAnyThread())
 	{
-		StopExistingReplays();
+		StopExistingReplays(CurrentWorld);
 
 		UReplayNetConnection* Connection = NewObject<UReplayNetConnection>();
 
@@ -161,7 +161,7 @@ void UReplaySubsystem::RecordReplay(const FString& Name, const FString& Friendly
 
 	if (!DemoNetDriver || !DemoNetDriver->IsRecordingMapChanges() || !DemoNetDriver->IsRecordingPaused())
 	{
-		StopExistingReplays();
+		StopExistingReplays(CurrentWorld);
 
 		bDestroyedDemoNetDriver = true;
 
@@ -221,7 +221,7 @@ bool UReplaySubsystem::PlayReplay(const FString& Name, UWorld* WorldOverride, co
 		return false;
 	}
 
-	StopExistingReplays();
+	StopExistingReplays(CurrentWorld);
 
 	FURL DemoURL;
 	UE_LOG(LogDemo, Log, TEXT("PlayReplay: Attempting to play demo %s"), *Name);
@@ -269,7 +269,7 @@ void UReplaySubsystem::StopReplay()
 	{
 		const bool bLoadDefaultMap = CurrentWorld->IsPlayingReplay();
 
-		StopExistingReplays();
+		StopExistingReplays(CurrentWorld);
 
 		if (UGameInstance* GameInstance = GetGameInstance())
 		{
@@ -285,9 +285,11 @@ void UReplaySubsystem::StopReplay()
 	}
 }
 
-void UReplaySubsystem::StopExistingReplays()
+void UReplaySubsystem::StopExistingReplays(UWorld* InWorld)
 {
-	if (UWorld* CurrentWorld = GetWorld())
+	UWorld* CurrentWorld = InWorld ? InWorld : GetWorld();
+
+	if (CurrentWorld)
 	{
 		CurrentWorld->DestroyDemoNetDriver();
 	}

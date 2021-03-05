@@ -109,6 +109,7 @@ private:
 	void ToggleTakeBrowserCheckState(ECheckBoxState CheckState);
 
 private:
+	void ReconfigureExternalSettings(UObject* InExternalObject, bool bIsAdd);
 
 	void OnRecordingInitialized(UTakeRecorder* Recorder);
 
@@ -136,6 +137,7 @@ private:
 	/** Scoped panel that handles opening and closing the sequencer pane for this preset */
 	TSharedPtr<FScopedSequencerPanel> SequencerPanel;
 
+	FDelegateHandle OnWidgetExternalObjectChangedHandle;
 	FDelegateHandle OnLevelSequenceChangedHandle;
 
 	FDelegateHandle OnRecordingInitializedHandle, OnRecordingFinishedHandle, OnRecordingCancelledHandle;

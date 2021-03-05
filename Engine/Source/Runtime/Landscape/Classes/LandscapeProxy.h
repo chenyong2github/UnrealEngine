@@ -761,7 +761,7 @@ public:
 	 * @param EditLayerName - Name of the landscape edition layer to affect (in Edit Layers mode)
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Editor")
-	void EditorApplySpline(USplineComponent* InSplineComponent, float StartWidth = 200, float EndWidth = 200, float StartSideFalloff = 200, float EndSideFalloff = 200, float StartRoll = 0, float EndRoll = 0, int32 NumSubdivisions = 20, bool bRaiseHeights = true, bool bLowerHeights = true, ULandscapeLayerInfoObject* PaintLayer = nullptr, FName EditLayerName = TEXT(""));
+	LANDSCAPE_API void EditorApplySpline(USplineComponent* InSplineComponent, float StartWidth = 200, float EndWidth = 200, float StartSideFalloff = 200, float EndSideFalloff = 200, float StartRoll = 0, float EndRoll = 0, int32 NumSubdivisions = 20, bool bRaiseHeights = true, bool bLowerHeights = true, ULandscapeLayerInfoObject* PaintLayer = nullptr, FName EditLayerName = TEXT(""));
 
 	/** Set an MID texture parameter value for all landscape components. */
 	UFUNCTION(BlueprintCallable, Category = "Landscape|Runtime|Material")

@@ -6,7 +6,8 @@
 #include "Delegates/IDelegateInstance.h"
 #include "UObject/GCObject.h"
 #include "ITakeRecorderModule.h"
-
+#include "UObject/WeakObjectPtrTemplates.h"
+#include "Widgets/Input/SCheckBox.h"
 
 class FExtender;
 class FTakePresetActions;
@@ -24,20 +25,31 @@ public:
 	virtual UTakePreset* GetPendingTake() const override;
 
 	//~ ITakeRecorderModule API
-	virtual FOnGenerateToolbarExtensions& GetToolbarExtensionGenerators() override { return ToolbarExtensionGenerators; }
+	FOnGenerateWidgetExtensions& GetToolbarExtensionGenerators() override { return ToolbarExtensionGenerators; }
+	FOnGenerateWidgetExtensions& GetRecordButtonExtensionGenerators() override { return ButtonExtensionGenerators; }
+	FOnExternalObjectAddRemoveEvent& GetExternalObjectAddRemoveEventDelegate() override { return ExternalObjectAddRemoveEvent; }
+	FOnRecordErrorCheck&  GetRecordErrorCheckGenerator() override { return RecordErrorCheck; }
+	TArray<TWeakObjectPtr<>>& GetExternalObjects() override { return ExternalObjects; }
 
+	void RegisterExternalObject(UObject* InExternalObject) override;
+	void UnregisterExternalObject(UObject* InExternalObject) override;
+
+	FOnForceSaveAsPreset& OnForceSaveAsPreset() override
+	{
+		return ForceSaveAsPresetEvent;
+	}
 private:
 
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	void StartupModule() override;
+	void ShutdownModule() override;
 
-	virtual FDelegateHandle RegisterSourcesMenuExtension(const FOnExtendSourcesMenu& InExtension) override;
-	virtual void UnregisterSourcesMenuExtension(FDelegateHandle Handle) override;
-	virtual void RegisterSettingsObject(UObject* InSettingsObject) override;
+	FDelegateHandle RegisterSourcesMenuExtension(const FOnExtendSourcesMenu& InExtension) override;
+	void UnregisterSourcesMenuExtension(FDelegateHandle Handle) override;
+	void RegisterSettingsObject(UObject* InSettingsObject) override;
 
 	/** FGCObject interface */
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
-	virtual FString GetReferencerName() const override
+	void AddReferencedObjects(FReferenceCollector& Collector) override;
+	FString GetReferencerName() const override
 	{
 		return "FTakeRecorderModule";
 	}
@@ -71,7 +83,12 @@ private:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnExtendSourcesMenuEvent, TSharedRef<FExtender>, UTakeRecorderSources*);
 
 	FOnExtendSourcesMenuEvent SourcesMenuExtenderEvent;
-	FOnGenerateToolbarExtensions ToolbarExtensionGenerators;
+	FOnGenerateWidgetExtensions ToolbarExtensionGenerators;
+	FOnGenerateWidgetExtensions ButtonExtensionGenerators;
+
+	FOnExternalObjectAddRemoveEvent ExternalObjectAddRemoveEvent;
+	FOnForceSaveAsPreset ForceSaveAsPresetEvent;
+	FOnRecordErrorCheck RecordErrorCheck;
 
 	FDelegateHandle LevelEditorLayoutExtensionHandle;
 	FDelegateHandle LevelEditorTabManagerChangedHandle;
@@ -82,6 +99,8 @@ private:
 
 	TSharedPtr<FTakePresetActions> TakePresetActions;
 	TSharedPtr<FSerializedRecorder> SerializedRecorder;
+
+	TArray<TWeakObjectPtr<>> ExternalObjects;
 
 	USequencerSettings* SequencerSettings;
 };

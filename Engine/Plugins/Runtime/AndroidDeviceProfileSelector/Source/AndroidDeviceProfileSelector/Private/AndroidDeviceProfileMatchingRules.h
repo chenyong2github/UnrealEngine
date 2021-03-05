@@ -22,6 +22,7 @@ enum ESourceType
 	SRC_CommandLine,
 	SRC_Hardware,
 	SRC_Chipset,
+	SRC_ConfigRuleVar,
 	SRC_MAX,
 };
 

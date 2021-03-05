@@ -482,24 +482,31 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 			bool bStageEnabled = true;
 			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages)
 			{
-				const FGuid& UsageId = FoundOutputNode->GetUsageId();
-
-				// Find the matching simstage to the output node
-				for (UNiagaraSimulationStageBase* SimStage : *SimStages)
+				if ( bSimulationStagesEnabled )
 				{
-					if (SimStage && SimStage->Script)
+					const FGuid& UsageId = FoundOutputNode->GetUsageId();
+
+					// Find the matching simstage to the output node
+					for (UNiagaraSimulationStageBase* SimStage : *SimStages)
 					{
-						if (SimStage->Script->GetUsageId() == UsageId)
+						if (SimStage && SimStage->Script)
 						{
-							bStageEnabled = SimStage->bEnabled;
-							UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
-							if (GenericStage && SimStage->bEnabled)
+							if (SimStage->Script->GetUsageId() == UsageId)
 							{
-								SimStageName = (GenericStage->IterationSource == ENiagaraIterationSource::DataInterface) ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
-								break;
+								bStageEnabled = SimStage->bEnabled;
+								UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage);
+								if (GenericStage && SimStage->bEnabled)
+								{
+									SimStageName = (GenericStage->IterationSource == ENiagaraIterationSource::DataInterface) ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+									break;
+								}
 							}
 						}
 					}
+				}
+				else
+				{
+					bStageEnabled = false;
 				}
 			}
 
@@ -716,6 +723,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			}
 			EmitterPtr->SourceName = BasePtr->SourceName;
 			EmitterPtr->bUseRapidIterationParams = BasePtr->bUseRapidIterationParams || (!Handle.GetInstance()->bBakeOutRapidIteration);
+			EmitterPtr->bSimulationStagesEnabled = Handle.GetInstance()->bSimulationStagesEnabled;
 			BasePtr->EmitterData.Add(EmitterPtr);
 		}
 

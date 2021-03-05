@@ -23,18 +23,21 @@ bool FNiagaraDataSetDebugAccessor::Init(const FNiagaraDataSetCompiledData& Compi
 			bIsFloat = true;
 			ComponentIndex = CompiledData.VariableLayouts[i].FloatComponentStart;
 			NumComponents = CompiledData.VariableLayouts[i].GetNumFloatComponents();
+			NiagaraType = CompiledData.Variables[i].GetType();
 		}
 		else if (CompiledData.VariableLayouts[i].GetNumHalfComponents() > 0)
 		{
 			bIsHalf = true;
 			ComponentIndex = CompiledData.VariableLayouts[i].HalfComponentStart;
 			NumComponents = CompiledData.VariableLayouts[i].GetNumHalfComponents();
+			NiagaraType = CompiledData.Variables[i].GetType();
 		}
 		else if (CompiledData.VariableLayouts[i].GetNumInt32Components() > 0)
 		{
 			bIsInt = true;
 			ComponentIndex = CompiledData.VariableLayouts[i].Int32ComponentStart;
 			NumComponents = CompiledData.VariableLayouts[i].GetNumInt32Components();
+			NiagaraType = CompiledData.Variables[i].GetType();
 		}
 		return NumComponents > 0;
 	}

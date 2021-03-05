@@ -144,6 +144,7 @@ struct FInertializationPose
 	{
 	}
 	
+
 	FInertializationPose(const FInertializationPose&) = default;
 	FInertializationPose(FInertializationPose&&) = default;
 	FInertializationPose& operator=(const FInertializationPose&) = default;
@@ -157,6 +158,7 @@ struct TUseBitwiseSwap<FInertializationPose>
 {
 	enum { Value = false };
 };
+
 
 USTRUCT()
 struct FInertializationBoneDiff

@@ -93,6 +93,8 @@ void FBackChannelOSCConnection::ReceiveAndDispatchMessages(const float MaxTime /
 
 void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
 {
+	const int kMaxPacketSize = 64 * 1024 * 1024;
+
 	const double StartTime = FPlatformTime::Seconds();
     
     //UE_LOG(LogBackChannel, Log, TEXT("Starting Packet Check at %.02f"), StartTime);
@@ -123,9 +125,18 @@ void FBackChannelOSCConnection::ReceiveMessages(const float MaxTime /*= 0*/)
 					int32 Size(0);
 					FMemory::Memcpy(&Size, ReceiveBuffer.GetData(), sizeof(int32));
 
-					if (Size > ReceiveBuffer.Num())
+					if (Size >= 0 && Size <= kMaxPacketSize)
 					{
-						ReceiveBuffer.AddUninitialized(Size - ReceiveBuffer.Num());
+						if (Size > ReceiveBuffer.Num())
+						{
+							ReceiveBuffer.AddUninitialized(Size - ReceiveBuffer.Num());
+						}
+					}
+					else
+					{
+						// if this is abnormally large it's likely a malformed packet so just reject it.
+						UE_LOG(LogBackChannel, Warning, TEXT("Ignoring packet of %d bytes that was out of the range [0,%d] "), Size, kMaxPacketSize);
+						Size = 4;
 					}
 
 					ExpectedSizeOfNextPacket = Size;

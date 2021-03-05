@@ -39,7 +39,7 @@ namespace ChaosTest {
 
 		Evolution.AdvanceOneTimeStep(0);	//hack to initialize islands
 		//Evolution.InitializeAccelerationStructures();	//make sure islands are created
-		FClusterCreationParameters<FReal> ClusterParams;
+		FClusterCreationParameters ClusterParams;
 		
 		TArray<Chaos::FPBDRigidParticleHandle*> ClusterChildren;
 		ClusterChildren.Add(Box1);
@@ -93,7 +93,7 @@ namespace ChaosTest {
 
 		for (int i = 0; i < NumBoxes / 4; ++i)
 		{
-			FClusterCreationParameters<FReal> ClusterParams;
+			FClusterCreationParameters ClusterParams;
 
 			TArray<Chaos::FPBDRigidParticleHandle*> ClusterChildren;
 			ClusterChildren.Add(Boxes[i * 4]);
@@ -103,7 +103,7 @@ namespace ChaosTest {
 			ClusterHandles.Add(Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterChildren), ClusterParams));
 		}
 
-		FClusterCreationParameters<FReal> ClusterParams;
+		FClusterCreationParameters ClusterParams;
 		Chaos::FPBDRigidParticleHandle* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
 		FVec3 InitialVelocity((FReal)50, (FReal)20, (FReal)100);
 
@@ -217,7 +217,7 @@ namespace ChaosTest {
 
 		for (int i = 0; i < NumBoxes / 4; ++i)
 		{
-			FClusterCreationParameters<FReal> ClusterParams;
+			FClusterCreationParameters ClusterParams;
 
 			TArray<Chaos::FPBDRigidParticleHandle*> ClusterChildren;
 			ClusterChildren.Add(Boxes[i * 4]);
@@ -229,7 +229,7 @@ namespace ChaosTest {
 
 		TArray<Chaos::FPBDRigidParticleHandle* > ClusterHandlesDup = ClusterHandles;
 
-		FClusterCreationParameters<FReal> ClusterParams;
+		FClusterCreationParameters ClusterParams;
 		Chaos::FPBDRigidParticleHandle* RootClusterHandle = Evolution.GetRigidClustering().CreateClusterParticle(0, MoveTemp(ClusterHandles), ClusterParams);
 		FVec3 InitialVelocity((FReal)50, (FReal)20, (FReal)100);
 

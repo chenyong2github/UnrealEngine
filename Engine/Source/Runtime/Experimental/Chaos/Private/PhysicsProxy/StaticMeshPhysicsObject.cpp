@@ -210,7 +210,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		{
 			Chaos::FVec3 x1(0, -Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
 			Chaos::FVec3 x2(0, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.X, 0);
-			Chaos::TCapsule<float>* Capsule = new Chaos::TCapsule<float>(x1, x2, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.Y);
+			Chaos::FCapsule* Capsule = new Chaos::FCapsule(x1, x2, Parameters.ShapeParams.CapsuleHalfHeightAndRadius.Y);
 			const Chaos::FAABB3 BBox = Capsule->BoundingBox();
 			Bounds.Min = BBox.Min();
 			Bounds.Max = BBox.Max();

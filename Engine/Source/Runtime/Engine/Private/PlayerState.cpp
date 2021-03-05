@@ -375,7 +375,7 @@ void APlayerState::OnRep_UniqueId()
 }
 
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-void APlayerState::SetUniqueId(const TSharedPtr<const FUniqueNetId>& InUniqueId)
+void APlayerState::SetUniqueId(const FUniqueNetIdPtr& InUniqueId)
 {
 	MARK_PROPERTY_DIRTY_FROM_NAME(APlayerState, UniqueId, this);
 	UniqueId.SetUniqueNetId(InUniqueId);

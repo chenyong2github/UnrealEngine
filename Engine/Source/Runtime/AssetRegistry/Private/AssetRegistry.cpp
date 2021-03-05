@@ -332,7 +332,11 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 				if (IFileManager::Get().FileExists(*PluginAssetRegistry) && FFileHelper::LoadFileToArray(SerializedAssetData, *PluginAssetRegistry))
 				{
 					SerializedAssetData.Seek(0);
-					Serialize(SerializedAssetData);
+					FAssetRegistryState PluginState;
+					PluginState.Load(SerializedAssetData);
+
+					State.InitializeFromExisting(PluginState, SerializationOptions, FAssetRegistryState::EInitializationMode::Append);
+					CachePathsFromState(PluginState);
 				}
 			}
 		}
@@ -1813,7 +1817,6 @@ void UAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
 
 void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 {
-	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
 	if (ensure(NewAsset) && NewAsset->IsAsset())
 	{
 		// Add the newly created object to the package file cache because its filename can already be

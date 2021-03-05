@@ -707,7 +707,8 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 
 		// Draw calls
 		{
-			int32 NumDrawCalls = GNumDrawCallsRHI;
+				// Assume we don't have more than 1 GPU in mobile.
+				int32 NumDrawCalls = GNumDrawCallsRHI[0];
 			InCanvas->DrawShadowedString(X1, InY, TEXT("Draws:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
 			InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%d"), NumDrawCalls), Font, StatGreen);
 			InY += RowHeight;
@@ -715,7 +716,8 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 			
 		// Primitives
 		{
-			int32 NumPrimitives = GNumPrimitivesDrawnRHI;
+				// Assume we don't have more than 1 GPU in mobile.
+				int32 NumPrimitives = GNumPrimitivesDrawnRHI[0];
 			InCanvas->DrawShadowedString(X1, InY, TEXT("Prims:"), Font, bShowUnitTimeGraph ? FColor(100, 100, 255) : FColor::White);
 			if (NumPrimitives < 10000)
 			{
@@ -726,7 +728,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 				float NumPrimitivesK = NumPrimitives/1000.f;
 				InCanvas->DrawShadowedString(X2, InY, *FString::Printf(TEXT("%.1fK"), NumPrimitivesK), Font, StatGreen);
 			}
-			
+				
 			InY += RowHeight;
 		}
 	}
@@ -1828,27 +1830,27 @@ void FViewport::GetActorsAndModelsInHitProxy(FIntRect InRect, TSet<AActor*>& Out
 	OutModels.Empty();
 
 	EnumerateHitProxiesInRect(InRect, [&OutActors, &OutModels](HHitProxy* HitProxy)
-	{
-		if (HitProxy->IsA(HActor::StaticGetType()))
-		{
-			AActor* Actor = ((HActor*)HitProxy)->Actor;
-			if (Actor)
 			{
-				OutActors.Add(Actor);
-			}
-		}
-		else if (HitProxy->IsA(HModel::StaticGetType()))
-		{
-			OutModels.Add(((HModel*)HitProxy)->GetModel());
-		}
-		else if (HitProxy->IsA(HBSPBrushVert::StaticGetType()))
-		{
-			HBSPBrushVert* HitBSPBrushVert = ((HBSPBrushVert*)HitProxy);
-			if (HitBSPBrushVert->Brush.IsValid())
-			{
-				OutActors.Add(HitBSPBrushVert->Brush.Get());
-			}
-		}
+				if( HitProxy->IsA(HActor::StaticGetType()) )
+				{
+					AActor* Actor = ((HActor*)HitProxy)->Actor;
+					if (Actor)
+					{
+						OutActors.Add(Actor);
+					}
+				}
+				else if( HitProxy->IsA(HModel::StaticGetType()) )
+				{
+					OutModels.Add( ((HModel*)HitProxy)->GetModel() );
+				}
+				else if( HitProxy->IsA(HBSPBrushVert::StaticGetType()) )
+				{
+					HBSPBrushVert* HitBSPBrushVert = ((HBSPBrushVert*)HitProxy);
+					if( HitBSPBrushVert->Brush.IsValid() )
+					{
+						OutActors.Add( HitBSPBrushVert->Brush.Get() );
+					}
+				}
 		return true;
 	});
 }

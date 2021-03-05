@@ -85,7 +85,6 @@ typedef GfnRuntimeError(*gfnGetAuthDataFn)(const char** authData);
 typedef bool (*gfnIsTitleAvailableFn)(const char* platformAppId);
 typedef GfnRuntimeError(*gfnGetTitlesAvailableFn)(const char** platformAppIds);
 
-typedef GfnRuntimeError(*gfnGetGameModStorageQuotaFn)(unsigned int* pSizeMB);
 typedef GfnRuntimeError(*gfnFreeFn)(const char** data);
 
 typedef GfnRuntimeError(*gfnRegisterStreamStatusCallbackFn)(StreamStatusCallbackSig streamStatusCallback, void* pUserContext);
@@ -113,7 +112,6 @@ typedef struct GfnSdkCloudLibrary_t
     gfnRegisterCallbackFn RegisterSessionInitCallback;
     gfnRegisterCallbackFn RegisterPauseCallback;
     gfnRegisterCallbackFn RegisterInstallCallback;
-    gfnRegisterCallbackFn RegisterGameModNotificationCallback;
     gfnIsTitleAvailableFn IsTitleAvailable;
     gfnGetTitlesAvailableFn GetTitlesAvailable;
     gfnSetupTitleFn SetupTitle;
@@ -124,7 +122,6 @@ typedef struct GfnSdkCloudLibrary_t
     gfnGetCustomDataFn GetCustomData;
     gfnGetAuthDataFn GetAuthData;
     gfnFreeFn Free;
-    gfnGetGameModStorageQuotaFn GetGameModStorageQuota;
     gfnAppReadyFn AppReady;
 } GfnSdkCloudLibrary;
 GfnSdkCloudLibrary* g_pCloudLibrary = NULL;
@@ -226,7 +223,6 @@ GfnRuntimeError gfnLoadCloudLibrary(GfnSdkCloudLibrary** ppCloudLibrary)
     pCloudLibrary->GetCustomData = (gfnGetCustomDataFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnGetCustomData");
     pCloudLibrary->GetAuthData = (gfnGetAuthDataFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnGetAuthData");
     pCloudLibrary->Free = (gfnFreeFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnFree");
-    pCloudLibrary->GetGameModStorageQuota = (gfnGetGameModStorageQuotaFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnGetGameModStorageQuota");
     pCloudLibrary->AppReady = (gfnAppReadyFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnAppReady");
 
     pCloudLibrary->RegisterExitCallback = (gfnRegisterCallbackFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnRegisterExitCallback");
@@ -234,7 +230,6 @@ GfnRuntimeError gfnLoadCloudLibrary(GfnSdkCloudLibrary** ppCloudLibrary)
     pCloudLibrary->RegisterInstallCallback = (gfnRegisterCallbackFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnRegisterInstallCallback");
     pCloudLibrary->RegisterSaveCallback = (gfnRegisterCallbackFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnRegisterSaveCallback");
     pCloudLibrary->RegisterSessionInitCallback = (gfnRegisterCallbackFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnRegisterSessionInitCallback");
-    pCloudLibrary->RegisterGameModNotificationCallback = (gfnRegisterCallbackFn)GetProcAddress((HMODULE)pCloudLibrary->handle, "gfnRegisterGameModNotificationCallback");
 
     GFN_SDK_LOG("Successfully loaded cloud libary");
 
@@ -488,14 +483,6 @@ GfnRuntimeError GfnGetTitlesAvailable(const char** platformAppIds)
     DELEGATE_TO_CLOUD_LIBRARY(GetTitlesAvailable, platformAppIds);
 }
 
-GfnRuntimeError NVGFNSDKApi GfnGetGameModStorageQuota(unsigned int* pSizeMB)
-{
-    CHECK_NULL_PARAM(pSizeMB);
-    *pSizeMB = 0;
-
-    CHECK_CLOUD_ENVIRONMENT();
-    DELEGATE_TO_CLOUD_LIBRARY(GetGameModStorageQuota, pSizeMB);
-}
 
 GfnRuntimeError GfnRegisterStreamStatusCallback(StreamStatusCallbackSig streamStatusCallback, void* userContext)
 {
@@ -738,29 +725,6 @@ GfnRuntimeError GfnRegisterSessionInitCallback(SessionInitCallbackSig sessionIni
 	DELEGATE_TO_CLOUD_LIBRARY(RegisterSessionInitCallback, &_gfnSessionInitCallbackWrapper, pWrappedContext)
 }
 
-static void GFN_CALLBACK _gfnGameModNotificationCallbackWrapper(int status, void* pGameModNotification, void* pContext)
-{
-    (void)status;
-    _gfnUserContextCallbackWrapper* pWrappedContext = (_gfnUserContextCallbackWrapper*)(pContext);
-    if (pWrappedContext == NULL || pWrappedContext->fnCallback == NULL)
-    {
-        return;
-    }
-    GameModNotificationCallbackSig cb = (GameModNotificationCallbackSig)(pWrappedContext->fnCallback);
-    cb((GameModNotification*)pGameModNotification, pWrappedContext->pOrigUserContext);
-}
-
-GfnRuntimeError GfnRegisterGameModNotificationCallback(GameModNotificationCallbackSig notificationCallback, void* pUserContext)
-{
-    CHECK_NULL_PARAM(notificationCallback);
-    CHECK_CLOUD_ENVIRONMENT();
-
-    _gfnUserContextCallbackWrapper* pWrappedContext = (_gfnUserContextCallbackWrapper*)malloc(sizeof(_gfnUserContextCallbackWrapper));
-    pWrappedContext->fnCallback = (void*)notificationCallback;
-    pWrappedContext->pOrigUserContext = pUserContext;
-
-    DELEGATE_TO_CLOUD_LIBRARY(RegisterGameModNotificationCallback, &_gfnGameModNotificationCallbackWrapper, pWrappedContext);
-}
 
 #ifdef GFN_SDK_WRAPPER_LOG
 void gfnInitLogging()

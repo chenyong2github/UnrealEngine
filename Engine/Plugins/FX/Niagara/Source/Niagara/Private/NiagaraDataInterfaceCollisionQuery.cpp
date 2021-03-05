@@ -18,6 +18,7 @@ struct FNiagaraCollisionDIFunctionVersion
 		InitialVersion = 0,
 		AddedTraceSkip = 1,
 		AddedCustomDepthCollision = 2,
+		ReturnCollisionMaterialIdx = 3,
 
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
@@ -221,6 +222,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigCpuSync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")));
 	SigCpuSync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialFriction")));
 	SigCpuSync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialRestitution")));
+	SigCpuSync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")));
 	OutFunctions.Add(SigCpuSync);
 
 	FNiagaraFunctionSignature SigCpuAsync;
@@ -244,6 +246,7 @@ void UNiagaraDataInterfaceCollisionQuery::GetFunctions(TArray<FNiagaraFunctionSi
 	SigCpuAsync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("CollisionNormal")));
 	SigCpuAsync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialFriction")));
 	SigCpuAsync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("CollisionMaterialRestitution")));
+	SigCpuAsync.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")));
 	OutFunctions.Add(SigCpuAsync);
 }
 
@@ -302,7 +305,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 	{
 		OutHLSL += TEXT("void ") + FunctionInfo.InstanceName + TEXT("(in float3 In_SamplePos, out float Out_DistanceToNearestSurface, out float3 Out_FieldGradient, out bool Out_IsDistanceFieldValid) \n{\n");
 		OutHLSL += TEXT("\
-			#if PLATFORM_SUPPORTS_DISTANCE_FIELDS\n\
+			#if PLATFORM_SUPPORTS_DISTANCE_FIELDS && (FEATURE_LEVEL >= FEATURE_LEVEL_SM5)\n\
 			Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);\n\
 			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\n\
 			Out_IsDistanceFieldValid = MaxGlobalDFAOConeDistance > 0 && !(Out_DistanceToNearestSurface > 0 && Out_FieldGradient == float3(0,0,0));\n\
@@ -342,6 +345,16 @@ bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSi
 		if (FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::SyncTraceName || FunctionSignature.Name == UNiagaraDataInterfaceCollisionQuery::AsyncTraceName)
 		{
 			FunctionSignature.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("SkipTrace")));
+			bWasChanged = true;
+		}
+	}
+
+	// Added the physical material ID as a result for line traces
+	if (FunctionSignature.FunctionVersion < FNiagaraCollisionDIFunctionVersion::ReturnCollisionMaterialIdx)
+	{
+		if (FunctionSignature.Name == SyncTraceName || FunctionSignature.Name == AsyncTraceName)
+		{
+			FunctionSignature.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("CollisionMaterialIndex")));
 			bWasChanged = true;
 		}
 	}
@@ -445,6 +458,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormZ(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutFriction(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutRestitution(Context);
+	VectorVM::FExternalFuncRegisterHandler<int32> OutPhysicalMaterialIdx(Context);
 
 	FScopeLock ScopeLock(&CriticalSection);
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -468,6 +482,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 			*OutCollisionNormZ.GetDestAndAdvance() = Res.CollisionNormal.Z;
 			*OutFriction.GetDestAndAdvance() = Res.Friction;
 			*OutRestitution.GetDestAndAdvance() = Res.Restitution;
+			*OutPhysicalMaterialIdx.GetDestAndAdvance() = Res.PhysicalMaterialIdx;
 		}
 		else
 		{
@@ -481,6 +496,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext &
 			*OutCollisionNormZ.GetDestAndAdvance() = 0.0f;
 			*OutFriction.GetDestAndAdvance() = 0.0f;
 			*OutRestitution.GetDestAndAdvance() = 0.0f;
+			*OutPhysicalMaterialIdx.GetDestAndAdvance() = 0;
 		}
 	}
 }
@@ -514,6 +530,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 	VectorVM::FExternalFuncRegisterHandler<float> OutCollisionNormZ(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutFriction(Context);
 	VectorVM::FExternalFuncRegisterHandler<float> OutRestitution(Context);
+	VectorVM::FExternalFuncRegisterHandler<int32> OutPhysicalMaterialIdx(Context);
 
 	FScopeLock ScopeLock(&CriticalSection);
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -541,6 +558,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 			*OutCollisionNormZ.GetDestAndAdvance() = Res.CollisionNormal.Z;
 			*OutFriction.GetDestAndAdvance() = Res.Friction;
 			*OutRestitution.GetDestAndAdvance() = Res.Restitution;
+			*OutPhysicalMaterialIdx.GetDestAndAdvance() = Res.PhysicalMaterialIdx;
 		}
 		else
 		{
@@ -554,6 +572,7 @@ void UNiagaraDataInterfaceCollisionQuery::PerformQueryAsyncCPU(FVectorVMContext 
 			*OutCollisionNormZ.GetDestAndAdvance() = 0.0f;
 			*OutFriction.GetDestAndAdvance() = 0.0f;
 			*OutRestitution.GetDestAndAdvance() = 0.0f;
+			*OutPhysicalMaterialIdx.GetDestAndAdvance() = 0;
 		}
 	}
 }

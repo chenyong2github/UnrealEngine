@@ -381,23 +381,23 @@ class UMaterialInstance : public UMaterialInterface
 	}
 
 	/** Scalar parameters. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, meta = (EditFixedOrder))
 	TArray<struct FScalarParameterValue> ScalarParameterValues;
 
 	/** Vector parameters. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, meta = (EditFixedOrder))
 	TArray<struct FVectorParameterValue> VectorParameterValues;
 
 	/** Texture parameters. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, meta = (EditFixedOrder))
 	TArray<struct FTextureParameterValue> TextureParameterValues;
 
 	/** RuntimeVirtualTexture parameters. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MaterialInstance)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MaterialInstance, meta = (EditFixedOrder))
 	TArray<struct FRuntimeVirtualTextureParameterValue> RuntimeVirtualTextureParameterValues;
 
 	/** Font parameters. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance)
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=MaterialInstance, meta = (EditFixedOrder))
 	TArray<struct FFontParameterValue> FontParameterValues;
 
 #if WITH_EDITORONLY_DATA

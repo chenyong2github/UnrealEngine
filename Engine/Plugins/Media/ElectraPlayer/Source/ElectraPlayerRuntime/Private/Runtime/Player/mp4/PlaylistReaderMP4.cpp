@@ -33,6 +33,8 @@ public:
 
 	virtual ~FPlaylistReaderMP4();
 
+	virtual void Close() override;
+
 	/**
 	 * Returns the type of playlist format.
 	 * For this implementation it will be "mp4".
@@ -104,7 +106,6 @@ private:
 	// Methods from IParserISO14496_12::IBoxCallback
 	virtual IParserISO14496_12::IBoxCallback::EParseContinuation OnFoundBox(IParserISO14496_12::FBoxType Box, int64 BoxSizeInBytes, int64 FileDataOffset, int64 BoxDataOffset) override;
 
-	void Close();
 	void StartWorkerThread();
 	void StopWorkerThread();
 	void WorkerThread(void);
@@ -150,9 +151,9 @@ private:
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-IPlaylistReader* IPlaylistReaderMP4::Create(IPlayerSessionServices* PlayerSessionServices)
+TSharedPtrTS<IPlaylistReader> IPlaylistReaderMP4::Create(IPlayerSessionServices* PlayerSessionServices)
 {
-	FPlaylistReaderMP4* PlaylistReader = new FPlaylistReaderMP4;
+	TSharedPtrTS<FPlaylistReaderMP4> PlaylistReader = MakeSharedTS<FPlaylistReaderMP4>();
 	if (PlaylistReader)
 	{
 		PlaylistReader->Initialize(PlayerSessionServices);
@@ -306,7 +307,7 @@ void FPlaylistReaderMP4::WorkerThread(void)
 	// Create the parser we need for parsing the "moov" box containing all the track information.
 	MP4Parser = IParserISO14496_12::CreateParser();
 
-	UEMediaError parseError = MP4Parser->ParseHeader(this, this, Options, PlayerSessionServices);
+	UEMediaError parseError = MP4Parser->ParseHeader(this, this, PlayerSessionServices);
 
 	ProgressListener.Reset();
 	PlayerSessionServices->GetHTTPManager()->RemoveRequest(HTTP);

@@ -556,7 +556,7 @@ void FKConvexElem::UpdateElemBox()
 	}
 }
 
-bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<FVector>& SnapVerts)
+bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<FVector>& SnapVerts, float InSnapDistance)
 {
 	// Start by clearing this convex.
 	Reset();
@@ -617,7 +617,7 @@ bool FKConvexElem::HullFromPlanes(const TArray<FPlane>& InPlanes, const TArray<F
 				}
 
 				// If we have found a suitably close vertex, use that
-				if( NearestVert != INDEX_NONE && NearestDistSqr < LOCAL_EPS )
+				if( NearestVert != INDEX_NONE && NearestDistSqr < InSnapDistance)
 				{
 					const FVector localVert = SnapVerts[NearestVert];
 					Remap[j] = AddVertexIfNotPresent(VertexData, localVert);

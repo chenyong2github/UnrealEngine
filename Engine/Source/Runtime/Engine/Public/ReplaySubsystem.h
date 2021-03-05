@@ -94,7 +94,7 @@ public:
 	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame);
 
 private:
-	void StopExistingReplays();
+	void StopExistingReplays(UWorld* InWorld);
 
 	void OnSeamlessTravelStart(UWorld* CurrentWorld, const FString& LevelName);
 	void OnSeamlessLevelTransition(UWorld* CurrentWorld);

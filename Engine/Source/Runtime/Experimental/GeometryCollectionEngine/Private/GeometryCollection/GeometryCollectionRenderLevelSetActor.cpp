@@ -123,7 +123,7 @@ void AGeometryCollectionRenderLevelSetActor::SyncLevelSetTransform(const FTransf
 	DynRayMarchMaterial->SetVectorParameterValue("WorldToLocalTranslation", FLinearColor(WorldToLocal.GetOrigin()));
 }
 
-bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::TLevelSet<float, 3> &LevelSet, const FTransform &LocalToWorld)
+bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::FLevelSet &LevelSet, const FTransform &LocalToWorld)
 {
 	// error case when the target volume texture isn't set
 	if (TargetVolumeTexture == NULL)
@@ -173,7 +173,7 @@ bool AGeometryCollectionRenderLevelSetActor::SetLevelSetToRender(const Chaos::TL
 
 	if (!success)
 	{
-		UE_LOG(LSR_LOG, Warning, TEXT("Couldn't create target volume texture from TLevelSet with %s"), *GetFullName());
+		UE_LOG(LSR_LOG, Warning, TEXT("Couldn't create target volume texture from FLevelSet with %s"), *GetFullName());
 		return false;
 	}
 

@@ -2583,7 +2583,7 @@ bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 					// If we are loading the same world again (reloading) then we must not specify that we want to keep this world in memory.
 					// Otherwise, try to keep the existing world in memory since there is not reason to reload it.
 					UWorld* NewWorld = nullptr;
-					if (ExistingWorld != nullptr && Context.World() != ExistingWorld)
+					if (!bIsLoadingMapTemplate && ExistingWorld != nullptr && Context.World() != ExistingWorld)
 					{
 						NewWorld = ExistingWorld;
 					}

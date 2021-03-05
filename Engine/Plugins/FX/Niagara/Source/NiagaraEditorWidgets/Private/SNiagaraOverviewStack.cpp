@@ -263,6 +263,7 @@ public:
 			.OnClicked(this, &SNiagaraSystemOverviewEnabledCheckBox::OnButtonClicked)
 			.ToolTipText(LOCTEXT("EnableCheckBoxToolTip", "Enable or disable this item."))
 			.ContentPadding(FMargin(3, 2, 2, 2))
+			.IsFocusable(false)
 			[
 				SNew(STextBlock)
 				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))

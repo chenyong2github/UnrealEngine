@@ -7,9 +7,6 @@
 #pragma once
 #include "RHICommandList.h"
 
-/** Set to 1 to enable the ability to dump OpenGL frame debug functionality */
-#define ENABLE_OPENGL_FRAMEDUMP 0
-
 /** Set to 1 to enable the VERIFY_GL macros which call glGetError */
 #define ENABLE_VERIFY_GL (0 & DO_CHECK)
 #define ENABLE_VERIFY_GL_TRACE 0
@@ -32,7 +29,7 @@
 
 #define ENABLE_OPENGL_DEBUG_GROUPS 1
 
-#define OPENGL_PERFORMANCE_DATA_INVALID (ENABLE_OPENGL_FRAMEDUMP | ENABLE_VERIFY_GL | ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION | DEBUG_GL_SHADERS)
+#define OPENGL_PERFORMANCE_DATA_INVALID (ENABLE_VERIFY_GL | ENABLE_UNIFORM_BUFFER_LAYOUT_VERIFICATION | DEBUG_GL_SHADERS)
 
 /**
 * Convert from ECubeFace to GLenum type
@@ -130,46 +127,11 @@ extern bool PlatformOpenGLContextValid();
 	#define VERIFY_GL_SCOPE(...) CHECK_EXPECTED_GL_THREAD()
 #endif
 
-/** OpenGL frame dump debug functionality */
-#if ENABLE_OPENGL_FRAMEDUMP
-	extern "C"
-	{
-		extern void SignalOpenGLDrawArraysEvent( GLenum Mode, GLint First, GLsizei Count );
-		extern void SignalOpenGLDrawArraysInstancedEvent( GLenum Mode, GLint First, GLsizei Count, GLsizei PrimCount );
-		extern void SignalOpenGLDrawRangeElementsEvent( GLenum Mode, GLuint Start, GLuint End, GLsizei Count, GLenum Type, const GLvoid* Indices );
-		extern void SignalOpenGLDrawRangeElementsInstancedEvent( GLenum Mode, GLsizei Count, GLenum Type, const GLvoid* Indices, GLsizei PrimCount );
-		extern void SignalOpenGLClearEvent( int8 ClearType, int8 NumColors, const float* Colors, float Depth, uint32 Stencil );
-		extern void SignalOpenGLFramebufferBlitEvent( GLbitfield Mask );
-		extern void SignalOpenGLEndFrameEvent( void );
-		extern void TriggerOpenGLFrameDump( void );
-		extern void TriggerOpenGLFrameDumpEveryXCalls( int32 X );
-	}
-
-	#define REPORT_GL_DRAW_ARRAYS_EVENT_FOR_FRAME_DUMP( a, b, c ) { SignalOpenGLDrawArraysEvent( a, b, c ); }
-	#define REPORT_GL_DRAW_ARRAYS_INSTANCED_EVENT_FOR_FRAME_DUMP( a, b, c, d ) { SignalOpenGLDrawArraysInstancedEvent( a, b, c, d ); }
-	#define REPORT_GL_DRAW_RANGE_ELEMENTS_EVENT_FOR_FRAME_DUMP( a, b, c, d, e, f ) { SignalOpenGLDrawRangeElementsEvent( a, b, c, d, e, f ); }
-	#define REPORT_GL_DRAW_ELEMENTS_INSTANCED_EVENT_FOR_FRAME_DUMP( a, b, c, d, e ) { SignalOpenGLDrawRangeElementsInstancedEvent( a, b, c, d, e ); }
-	#define REPORT_GL_CLEAR_EVENT_FOR_FRAME_DUMP( a, b, c, d, e ) { SignalOpenGLClearEvent( a, b, c, d, e ); }
-	#define REPORT_GL_FRAMEBUFFER_BLIT_EVENT( a ) { SignalOpenGLFramebufferBlitEvent( a ); }
-	#define REPORT_GL_END_BUFFER_EVENT_FOR_FRAME_DUMP() { SignalOpenGLEndFrameEvent(); }
-	#define INITIATE_GL_FRAME_DUMP() { TriggerOpenGLFrameDump(); }
-	#define INITIATE_GL_FRAME_DUMP_EVERY_X_CALLS( a ) { TriggerOpenGLFrameDumpEveryXCalls( a ); }
-#else
-	#define REPORT_GL_DRAW_ARRAYS_EVENT_FOR_FRAME_DUMP( a, b, c )
-	#define REPORT_GL_DRAW_ARRAYS_INSTANCED_EVENT_FOR_FRAME_DUMP( a, b, c, d )
-	#define REPORT_GL_DRAW_RANGE_ELEMENTS_EVENT_FOR_FRAME_DUMP( a, b, c, d, e, f )
-	#define REPORT_GL_DRAW_ELEMENTS_INSTANCED_EVENT_FOR_FRAME_DUMP( a, b, c, d, e )
-	#define REPORT_GL_CLEAR_EVENT_FOR_FRAME_DUMP( a, b, c, d, e )
-	#define REPORT_GL_FRAMEBUFFER_BLIT_EVENT( a )
-	#define REPORT_GL_END_BUFFER_EVENT_FOR_FRAME_DUMP()
-	#define INITIATE_GL_FRAME_DUMP()
-	#define INITIATE_GL_FRAME_DUMP_EVERY_X_CALLS( a )
-#endif
-
 struct FRHICommandGLCommandString
 {
 	static const TCHAR* TStr() { return TEXT("FRHICommandGLCommand"); }
 };
+
 struct FRHICommandGLCommand final : public FRHICommand<FRHICommandGLCommand, FRHICommandGLCommandString>
 {
 	TUniqueFunction<void()> GLFunction;

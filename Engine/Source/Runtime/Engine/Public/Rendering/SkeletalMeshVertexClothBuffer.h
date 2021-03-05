@@ -46,7 +46,7 @@ public:
 	* @param InVertices - The vertices to initialize the buffer with.
 	* @param InClothIndexMapping - Packed Map: u32 Key, u32 Value.
 	*/
-	void Init(const TArray<FMeshToMeshVertData>& InMappingData, const TArray<uint64>& InClothIndexMapping);
+	ENGINE_API void Init(const TArray<FMeshToMeshVertData>& InMappingData, const TArray<uint64>& InClothIndexMapping);
 
 
 	/**

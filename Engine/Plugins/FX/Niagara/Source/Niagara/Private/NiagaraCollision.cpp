@@ -78,13 +78,13 @@ void FNiagaraDICollisionQueryBatch::CollectResults()
 					Result.CollisionNormal = Hit->ImpactNormal;
 					if (Hit->PhysMaterial.IsValid())
 					{
-						Result.PhysicalMaterialIdx = Hit->PhysMaterial->GetUniqueID();
+						Result.PhysicalMaterialIdx = Hit->PhysMaterial->SurfaceType.GetValue();
 						Result.Friction = Hit->PhysMaterial->Friction;
 						Result.Restitution = Hit->PhysMaterial->Restitution;
 					}
 					else
 					{
-						Result.PhysicalMaterialIdx = -1;
+						Result.PhysicalMaterialIdx = 0;
 						Result.Friction = 0.0f;
 						Result.Restitution = 0.0f;
 					}
@@ -179,13 +179,13 @@ bool FNiagaraDICollisionQueryBatch::PerformQuery(FVector StartPos, FVector EndPo
 		Result.CollisionNormal = TraceResult.ImpactNormal;
 		if (TraceResult.PhysMaterial.IsValid())
 		{
-			Result.PhysicalMaterialIdx = TraceResult.PhysMaterial->GetUniqueID();
+			Result.PhysicalMaterialIdx = TraceResult.PhysMaterial->SurfaceType.GetValue();
 			Result.Friction = TraceResult.PhysMaterial->Friction;
 			Result.Restitution = TraceResult.PhysMaterial->Restitution;
 		}
 		else
 		{
-			Result.PhysicalMaterialIdx = -1;
+			Result.PhysicalMaterialIdx = 0;
 			Result.Friction = 0.0f;
 			Result.Restitution = 0.0f;
 		}

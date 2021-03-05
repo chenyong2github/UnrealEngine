@@ -2022,7 +2022,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 						break;
 					}
 
-					const TCapsule<FReal> * CapsuleGeometry = static_cast<const TCapsule<FReal>*>(&ImplicitObject);
+					const FCapsule * CapsuleGeometry = static_cast<const FCapsule*>(&ImplicitObject);
 
 
 					const FReal InitialHeight = SphylElem->Radius * 2.0f + SphylElem->Length;
@@ -2042,7 +2042,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					const FVec3 X2 = Center + HalfLength * Axis;
 
 
-					TUniquePtr<TCapsule<FReal>> NewCapsule =  MakeUnique<TCapsule<FReal>>(X1, X2, Radius);
+					TUniquePtr<FCapsule> NewCapsule =  MakeUnique<FCapsule>(X1, X2, Radius);
 					NewGeometry.Emplace(MoveTemp(NewCapsule));
 
 					bSuccess = true;

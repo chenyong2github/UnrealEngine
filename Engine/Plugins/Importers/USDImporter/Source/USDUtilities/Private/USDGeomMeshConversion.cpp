@@ -430,6 +430,9 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 		}
 	}
 
+	uint32 NumSkippedPolygons = 0;
+	uint32 NumPolygons = 0;
+
 	// Polygons
 	{
 		TMap<int32, FPolygonGroupID> PolygonGroupMapping;
@@ -451,6 +454,7 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 		if ( FaceCountsAttribute )
 		{
 			FaceCountsAttribute.Get( &FaceCounts, TimeCodeValue );
+			NumPolygons = FaceCounts.size();
 		}
 
 		// Face indices
@@ -668,6 +672,14 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 				}
 			}
 
+			// This polygon was using the same vertex instance more than once and we removed too many
+			// vertex indices, so now we're forced to skip the whole polygon. We'll show a warning about it though
+			if ( CornerVerticesIDs.Num() < 3 )
+			{
+				++NumSkippedPolygons;
+				continue;
+			}
+
 			// Polygon groups
 			int32 LocalMaterialIndex = 0;
 			if ( FaceMaterialIndices.IsValidIndex( PolygonIndex ) )
@@ -701,6 +713,15 @@ bool UsdToUnreal::ConvertGeomMesh( const pxr::UsdTyped& UsdSchema, FMeshDescript
 			FPolygonGroupID PolygonGroupID = PolygonGroupMapping[ CombinedMaterialIndex ];
 			const FPolygonID NewPolygonID = MeshDescription.CreatePolygon( PolygonGroupID, CornerInstanceIDs );
 		}
+	}
+
+	if ( NumPolygons > 0 && NumSkippedPolygons > 0 )
+	{
+		UE_LOG( LogUsd, Warning, TEXT( "Skipped %d out of %d faces when parsing the mesh for prim '%s', as those faces contained too many repeated vertex indices" ),
+			NumSkippedPolygons,
+			NumPolygons,
+			*UsdToUnreal::ConvertPath( UsdPrim.GetPath() )
+		);
 	}
 
 	return true;

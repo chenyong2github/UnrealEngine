@@ -2,6 +2,7 @@
 
 #include "ImgMediaPlayer.h"
 #include "ImgMediaPrivate.h"
+#include "ImgMediaSource.h"
 
 #include "Async/Async.h"
 #include "IMediaEventSink.h"
@@ -12,6 +13,8 @@
 #include "UObject/WeakObjectPtr.h"
 
 #include "ImgMediaLoader.h"
+#include "ImgMediaMipMapInfo.h"
+#include "ImgMediaMipMapInfoManager.h"
 #include "ImgMediaScheduler.h"
 #include "ImgMediaSettings.h"
 #include "ImgMediaTextureSample.h"
@@ -177,15 +180,33 @@ bool FImgMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 
 	// get frame rate override, if any
 	FFrameRate FrameRateOverride(0, 0);
-
+	TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe> MipMapInfo;
 	if (Options != nullptr)
 	{
 		FrameRateOverride.Denominator = Options->GetMediaOption(ImgMedia::FrameRateOverrideDenonimatorOption, 0LL);
 		FrameRateOverride.Numerator = Options->GetMediaOption(ImgMedia::FrameRateOverrideNumeratorOption, 0LL);
+		TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> DefaultValue;
+		TSharedPtr<IMediaOptions::FDataContainer, ESPMode::ThreadSafe> DataContainer = Options->GetMediaOption(ImgMedia::MipMapInfoOption, DefaultValue);
+		if (DataContainer.IsValid())
+		{
+			MipMapInfo = StaticCastSharedPtr<FImgMediaMipMapInfo, IMediaOptions::FDataContainer, ESPMode::ThreadSafe>(DataContainer);
+			if (MipMapInfo.IsValid())
+			{
+				// Tell mipmipinfo about our media textures.
+				MipMapInfo->ClearAllObjects();
+				FImgMediaMipMapInfoManager& MipMapInfoManager = FImgMediaMipMapInfoManager::Get();
+				TArray<UMediaTexture*> MediaTextures;
+				MipMapInfoManager.GetMediaTexturesFromPlayer(MediaTextures, this);
+				for (UMediaTexture* MediaTexture : MediaTextures)
+				{
+					MipMapInfo->AddObjectsUsingThisMediaTexture(MediaTexture);
+				}
+			}
+		}
 	}
 
 	// initialize image loader on a separate thread
-	Loader = MakeShared<FImgMediaLoader, ESPMode::ThreadSafe>(Scheduler.ToSharedRef(), GlobalCache.ToSharedRef());
+	Loader = MakeShared<FImgMediaLoader, ESPMode::ThreadSafe>(Scheduler.ToSharedRef(), GlobalCache.ToSharedRef(), MipMapInfo);
 	Scheduler->RegisterLoader(Loader.ToSharedRef());
 
 	const FString SequencePath = Url.RightChop(6);

@@ -30,7 +30,7 @@ public:
 
 	/** Jump to end of playback */
 	TSharedPtr< FUICommandInfo > JumpToEnd;
-
+	
 	/** Shuttle forward */
 	TSharedPtr< FUICommandInfo > ShuttleForward;
 
@@ -39,6 +39,9 @@ public:
 
 	/** Pause */
 	TSharedPtr< FUICommandInfo > Pause;
+	
+	/** Restores real time speed */
+	TSharedPtr< FUICommandInfo > RestorePlaybackSpeed;
 
 	/** Step forward */
 	TSharedPtr< FUICommandInfo > StepForward;
@@ -51,6 +54,12 @@ public:
 
 	/** Step backward */
 	TSharedPtr< FUICommandInfo > StepBackward2;
+
+	/** Jump forward */
+	TSharedPtr< FUICommandInfo > JumpForward;
+
+	/** Jump backward */
+	TSharedPtr< FUICommandInfo > JumpBackward;
 
 	/** Step to next key */
 	TSharedPtr< FUICommandInfo > StepToNextKey;
@@ -123,12 +132,6 @@ public:
 
 	/** Toggle constraining the playback range to the section bounds */
 	TSharedPtr< FUICommandInfo > ToggleKeepPlaybackRangeInSectionBounds;
-
-	/** Expand all nodes and descendants */
-	TSharedPtr< FUICommandInfo > ExpandAllNodesAndDescendants;
-
-	/** Collapse all nodes and descendants */
-	TSharedPtr< FUICommandInfo > CollapseAllNodesAndDescendants;
 
 	/** Expand/collapse nodes */
 	TSharedPtr< FUICommandInfo > ToggleExpandCollapseNodes;

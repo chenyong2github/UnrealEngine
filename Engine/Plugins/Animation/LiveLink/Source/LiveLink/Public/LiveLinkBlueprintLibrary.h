@@ -56,6 +56,14 @@ class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, Category = "LiveLink|Animation")
 	static void GetBasicData(UPARAM(ref) FSubjectFrameHandle& SubjectFrameHandle, FLiveLinkBasicBlueprintData& BasicBlueprintData);
 
+	// Returns the Subject's static data stored in the Subject Frame. Returns false if no valid data found.
+	UFUNCTION(BlueprintPure, Category = "LiveLink|Animation")
+	static bool GetAnimationStaticData(UPARAM(ref) FSubjectFrameHandle& SubjectFrameHandle, FLiveLinkSkeletonStaticData& AnimationStaticData);
+
+	// Returns the Subject's frame data stored in the Subject Frame. Returns false if no valid data found.
+	UFUNCTION(BlueprintPure, Category = "LiveLink|Animation")
+	static bool GetAnimationFrameData(UPARAM(ref) FSubjectFrameHandle& SubjectFrameHandle, FLiveLinkAnimationFrameData& AnimationFrameData);
+
 // FLiveLinkTransform
 
 	// Returns the Name of a given LiveLink Transform

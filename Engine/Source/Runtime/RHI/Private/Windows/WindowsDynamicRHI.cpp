@@ -133,7 +133,7 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
 	bool bForceSM6 = FParse::Param(FCommandLine::Get(), TEXT("sm6"));
-	bool bPreferES31 = ShouldPreferFeatureLevelES31();
+	bool bPreferES31 = ShouldPreferFeatureLevelES31() && !(bForceSM5 || bForceSM6);
 	bool bAllowD3D12FeatureLevelES31 = ShouldAllowD3D12FeatureLevelES31();
 	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
 	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || ((bForceSM5 || (bPreferES31 && !bAllowD3D12FeatureLevelES31)) && !bForceVulkan && !bForceOpenGL);
@@ -190,7 +190,14 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 			bForceVulkan = IsVulkanPlatform(TargetedPlatform);
 			bForceD3D11 = !bPreferD3D12 && IsD3DPlatform(TargetedPlatform);
 			bForceOpenGL = IsOpenGLPlatform(TargetedPlatform);
-			DesiredFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
+			if (bPreferES31)
+			{
+				DesiredFeatureLevel = ERHIFeatureLevel::ES3_1;
+			}
+			else
+			{
+				DesiredFeatureLevel = GetMaxSupportedFeatureLevel(TargetedPlatform);
+			}
 		}
 	}
 	else
@@ -202,6 +209,10 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		else if (bForceSM5)
 		{
 			DesiredFeatureLevel = ERHIFeatureLevel::SM5;
+		}
+		else if (bPreferES31)
+		{
+			DesiredFeatureLevel = ERHIFeatureLevel::ES3_1;
 		}
 	}
 

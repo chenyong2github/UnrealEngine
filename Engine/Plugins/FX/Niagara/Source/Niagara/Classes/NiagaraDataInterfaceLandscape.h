@@ -74,26 +74,11 @@ public:
 	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual bool HasPreSimulateTick() const override { return true; }
 
-	ALandscape* GetLandscape(const FNiagaraSystemInstance& SystemInstance) const;
-	
-	static const FString HeightVirtualTextureEnabledName;
-	static const FString HeightVirtualTextureName;
-	static const FString HeightVirtualTexturePageTableName;
-	static const FString HeightVirtualTexturePageTableUniform0Name;
-	static const FString HeightVirtualTexturePageTableUniform1Name;
-	static const FString HeightVirtualTextureSamplerName;
-	static const FString HeightVirtualTextureUniformsName;
-	static const FString HeightVirtualTextureWorldToUvTransformName;
-
-	static const FString CachedHeightTextureEnabledName;
-	static const FString CachedHeightTextureName;
-	static const FString CachedHeightTextureSamplerName;
-	static const FString CachedHeightTextureUvScaleBiasName;
-	static const FString CachedHeightTextureWorldToUvTransformName;
-
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	void ApplyLandscape(const FNiagaraSystemInstance& SystemInstance, FNDILandscapeData_GameThread& InstanceData) const;
-		
+	ALandscape* GetLandscape(const FNiagaraSystemInstance& SystemInstance, ALandscape* Hint) const;
+
 	static const FName GetHeightName;
+	static const FName GetWorldNormalName;
 };

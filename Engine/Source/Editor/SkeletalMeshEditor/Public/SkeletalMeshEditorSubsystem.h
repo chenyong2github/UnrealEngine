@@ -104,6 +104,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh")
 	static void SetLodBuildSettings(USkeletalMesh* SkeletalMesh, const int32 LodIndex, const FSkeletalMeshBuildSettings& BuildOptions);
 
-private:
-
+	/**
+	 * This function creates a PhysicsAsset for the given SkeletalMesh with the same settings as if it were created through FBX import
+	 *
+	 * @Param SkeletalMesh: The SkeletalMesh we want to create the PhysicsAsset for
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | SkeletalMesh")
+	static UPhysicsAsset* CreatePhysicsAsset(USkeletalMesh* SkeletalMesh);
 };

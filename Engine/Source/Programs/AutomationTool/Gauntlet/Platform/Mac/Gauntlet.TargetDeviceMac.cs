@@ -6,6 +6,7 @@ using System.IO;
 using AutomationTool;
 using UnrealBuildTool;
 using System.Text.RegularExpressions;
+using EpicGames.Core;
 
 namespace Gauntlet
 {
@@ -187,39 +188,88 @@ namespace Gauntlet
 			LocalDirectoryMappings.Add(EIntendedBaseCopyDirectory.Saved, Path.Combine(ProjectDir, "Saved"));
 		}
 
-		protected IAppInstall InstallStagedBuild(UnrealAppConfig AppConfig, StagedBuild InBuild)
+		/// <summary>
+		/// If the path is to Foo.app this returns the actual executable to use (e.g. Foo.app/Contents/MacOS/Foo).
+		/// </summary>
+		/// <param name="InBundlePath"></param>
+		/// <returns></returns>
+		protected string GetExecutableIfBundle(string InBundlePath)
+		{
+			if (Path.GetExtension(InBundlePath).Equals(".app", StringComparison.OrdinalIgnoreCase))
+			{
+				// Technically we should look at the plist, but for now...
+				string BaseName = Path.GetFileNameWithoutExtension(InBundlePath);
+				return Path.Combine(InBundlePath, "Contents", "MacOS", BaseName);
+			}
+
+			return InBundlePath;
+		}
+
+
+		/// <summary>
+		/// Copies a build folder (either a package.app or a folder with a staged built) to a local path if necessary.
+		/// Necessary is defined as not being on locally attached storage
+		/// </summary>
+		/// <param name="AppConfig"></param>
+		/// <param name="InBuildPath"></param>
+		/// <returns></returns>
+		protected string CopyBuildIfNecessary(UnrealAppConfig AppConfig, string InBuildPath)
 		{
 			bool SkipDeploy = Globals.Params.ParseParam("SkipDeploy");
 
-			string BuildPath = InBuild.BuildPath;
+			string OutBuildPath = InBuildPath;
 
 			// Must be on our volume to run
-			string BuildVolume = GetVolumeName(BuildPath);
-			string LocalRoot = GetVolumeName(Environment.CurrentDirectory);
-
-			if (BuildVolume.Equals(LocalRoot, StringComparison.OrdinalIgnoreCase) == false)
+			if (Utils.SystemHelpers.IsNetworkPath(InBuildPath))
 			{
 				string SubDir = string.IsNullOrEmpty(AppConfig.Sandbox) ? AppConfig.ProjectName : AppConfig.Sandbox;
 				string DestPath = Path.Combine(this.LocalCachePath, SubDir, AppConfig.ProcessType.ToString());
 
 				if (!SkipDeploy)
 				{
-					StagedBuild.InstallBuildParallel(AppConfig, InBuild, BuildPath, DestPath, ToString());
+					Utils.SystemHelpers.CopyDirectory(InBuildPath, DestPath, Utils.SystemHelpers.CopyOptions.Mirror);
 				}
+
 				else
 				{
-					Log.Info("Skipping install of {0} (-skipdeploy)", BuildPath);
+					Log.Info("Skipping install of {0} (-skipdeploy)", InBuildPath);
 				}
 
 				Utils.SystemHelpers.MarkDirectoryForCleanup(DestPath);
 
-				BuildPath = DestPath;
+				OutBuildPath = DestPath;
+			}
+
+			return OutBuildPath;
+		}
+
+		protected IAppInstall InstallBuild(UnrealAppConfig AppConfig, IBuild InBuild)
+		{
+			// Full path to the build
+			string BuildPath;
+
+			//  Full path to the build.app to use. This will be under BuildPath for staged builds, and the build path itself for packaged builds
+			string BundlePath;
+
+			if (InBuild is StagedBuild)
+			{
+				StagedBuild InStagedBuild = InBuild as StagedBuild;
+				BuildPath = CopyBuildIfNecessary(AppConfig, InStagedBuild.BuildPath);
+				BundlePath = Path.Combine(BuildPath, InStagedBuild.ExecutablePath);
+			}
+			else
+			{
+				MacPackagedBuild InPackagedBuild = InBuild as MacPackagedBuild;
+				BuildPath = CopyBuildIfNecessary(AppConfig, InPackagedBuild.BuildPath);
+				BundlePath = BuildPath;
 			}
 
 			MacAppInstall MacApp = new MacAppInstall(AppConfig.Name, this);
 			MacApp.LocalPath = BuildPath;
 			MacApp.WorkingDirectory = MacApp.LocalPath;
 			MacApp.RunOptions = RunOptions;
+
+			MacApp.ExecutablePath = GetExecutableIfBundle(BundlePath);
 
 			// Set commandline replace any InstallPath arguments with the path we use
 			MacApp.CommandArguments = Regex.Replace(AppConfig.CommandLine, @"\$\(InstallPath\)", BuildPath, RegexOptions.IgnoreCase);
@@ -228,50 +278,46 @@ namespace Gauntlet
 			// Mac always forces this to stop logs and other artifacts going to different places
 			MacApp.CommandArguments += string.Format(" -userdir=\"{0}\"", UserDir);
 			MacApp.ArtifactPath = Path.Combine(UserDir, @"Saved");
+
 			if (LocalDirectoryMappings.Count == 0)
 			{
 				PopulateDirectoryMappings(BuildPath);
 			}
 
-			// temp - Mac doesn't support -userdir?
-			//MacApp.ArtifactPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Personal), "Library/Logs", AppConfig.ProjectName);
-
 			// clear artifact path
 			MacApp.CleanDeviceArtifacts();
-
-			// For Mac turn Foo.app into Foo/Content/MacOS/Foo
-			string AppPath = Path.GetDirectoryName(InBuild.ExecutablePath);
-			string FileName = Path.GetFileNameWithoutExtension(InBuild.ExecutablePath);
-			MacApp.ExecutablePath = Path.Combine(InBuild.ExecutablePath, "Contents", "MacOS", FileName);
-
-			if (!Path.IsPathRooted(MacApp.ExecutablePath))
+			
+			// check for a local newer executable
+			if (Globals.Params.ParseParam("dev") 
+				&& AppConfig.ProcessType.UsesEditor() == false
+				&& AppConfig.ProjectFile != null)
 			{
-				// TODO - this check should be at a higher level....
-				string BinaryPath = Path.Combine(BuildPath, MacApp.ExecutablePath);
+				// Get project properties
+				ProjectProperties Props = ProjectUtils.GetProjectProperties(AppConfig.ProjectFile, 
+					new List<UnrealTargetPlatform>(new[] { AppConfig.Platform.Value }),
+					new List<UnrealTargetConfiguration>(new[] { AppConfig.Configuration }));
 
-				// check for a local newer executable
-				if (Globals.Params.ParseParam("dev") && AppConfig.ProcessType.UsesEditor() == false)
-				{
-					string LocalBinary = Path.Combine(Environment.CurrentDirectory, MacApp.ExecutablePath);
+				// Would this executable be built under Engine or a Project?
+				DirectoryReference  WorkingDir = Props.bIsCodeBasedProject ? AppConfig.ProjectFile.Directory : CommandUtils.EngineDirectory;
 
-					bool LocalFileExists = File.Exists(LocalBinary);
-					bool LocalFileNewer = LocalFileExists && File.GetLastWriteTime(LocalBinary) > File.GetLastWriteTime(BinaryPath);
+				// The bundlepath may be under Binaries/Mac for a staged build, or it could be in any folder for a packaged build so just use the name and
+				// build the path ourselves
+				string LocalProjectBundle = FileReference.Combine(WorkingDir, "Binaries", "Mac", Path.GetFileName(BundlePath)).FullName;
 
-					Log.Verbose("Checking for newer binary at {0}", LocalBinary);
-					Log.Verbose("LocalFile exists: {0}. Newer: {1}", LocalFileExists, LocalFileNewer);
+				string LocalProjectBinary = GetExecutableIfBundle(LocalProjectBundle);
 
-					if (LocalFileExists && LocalFileNewer)
-					{
-						string LocalAppPath = Path.Combine(Environment.CurrentDirectory, InBuild.ExecutablePath);
-						
-						// need to -basedir to have our exe load content from the path
-						MacApp.CommandArguments += string.Format(" -basedir={0}", Path.GetDirectoryName(LocalAppPath));
+				bool LocalFileExists = File.Exists(LocalProjectBinary);
+				bool LocalFileNewer = LocalFileExists && File.GetLastWriteTime(LocalProjectBinary) > File.GetLastWriteTime(MacApp.ExecutablePath);
 
-						BinaryPath = LocalBinary;
-					}
+				Log.Verbose("Checking for newer binary at {0}", LocalProjectBinary);
+				Log.Verbose("LocalFile exists: {0}. Newer: {1}", LocalFileExists, LocalFileNewer);
+
+				if (LocalFileExists && LocalFileNewer)
+				{					
+					// need to -basedir to have our exe load content from the path that the bundle sits in
+					MacApp.CommandArguments += string.Format(" -basedir={0}", Path.GetDirectoryName(BundlePath));
+					MacApp.ExecutablePath = LocalProjectBinary;
 				}
-
-				MacApp.ExecutablePath = BinaryPath;
 			}
 
 			return MacApp;
@@ -280,9 +326,9 @@ namespace Gauntlet
 
 		public IAppInstall InstallApplication(UnrealAppConfig AppConfig)
 		{
-			if (AppConfig.Build is StagedBuild)
+			if (AppConfig.Build is StagedBuild || AppConfig.Build is MacPackagedBuild)
 			{
-				return InstallStagedBuild(AppConfig, AppConfig.Build as StagedBuild);
+				return InstallBuild(AppConfig, AppConfig.Build);
 			}
 
 			EditorBuild EditorBuild = AppConfig.Build as EditorBuild;
@@ -304,8 +350,8 @@ namespace Gauntlet
 
 			// now turn the Foo.app into Foo/Content/MacOS/Foo
 			string AppPath = Path.GetDirectoryName(EditorBuild.ExecutablePath);
-			string FileName = Path.GetFileNameWithoutExtension(EditorBuild.ExecutablePath);
-			MacApp.ExecutablePath = Path.Combine(EditorBuild.ExecutablePath, "Contents", "MacOS", FileName);
+
+			MacApp.ExecutablePath = GetExecutableIfBundle(EditorBuild.ExecutablePath);
 
 			if (LocalDirectoryMappings.Count == 0)
 			{

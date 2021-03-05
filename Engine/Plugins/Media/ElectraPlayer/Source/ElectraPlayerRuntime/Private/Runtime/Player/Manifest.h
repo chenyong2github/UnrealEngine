@@ -29,7 +29,7 @@ namespace Electra
 	};
 
 
-	class IStreamSegment : private TMediaNoncopyable<IStreamSegment>, public TSharedFromThis<IStreamSegment, ESPMode::ThreadSafe>
+	class IStreamSegment : public TSharedFromThis<IStreamSegment, ESPMode::ThreadSafe>
 	{
 	public:
 		virtual ~IStreamSegment() = default;
@@ -190,6 +190,11 @@ namespace Electra
 		virtual FTimeValue GetMinBufferTime() const = 0;
 
 
+		//! Needs to be called when the user has explicitly triggered a seek, including a programmatic loop back to the beginning.
+		//! For presentations with dynamic content changes (eg. DASH xlink:onRequest Periods) the content may need to be updated
+		//! again. This is different to internal seeking for retry purposes where content will not be re-resolved.
+		virtual void UpdateDynamicRefetchCounter() = 0;
+
 
 		//-------------------------------------------------------------------------
 		// Stream fragment reader
@@ -231,10 +236,8 @@ namespace Electra
 			 *
 			 * @param AdaptationSet
 			 * @param Representation
-			 * @param PreferredCDN
-			 *               Preferred CDN to get the segment from (retrieve through GetMediaAsset() for now)
 			 */
-			virtual void SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation, const FString& PreferredCDN) = 0;
+			virtual void SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) = 0;
 
 			/**
 			 * Sets up a starting segment request to begin playback at the specified time.
@@ -272,23 +275,23 @@ namespace Electra
 			 *
 			 * @return
 			 */
-			virtual FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options) = 0;
+			virtual FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) = 0;
 
 			/**
 			 * Gets the segment request for the same segment on a different quality level or CDN.
 			 *
 			 * @param OutSegment
 			 * @param CurrentSegment
-			 * @param Options
+			 * @param bReplaceWithFillerData
 			 *
 			 * @return
 			 */
-			virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FParamDict& Options) = 0;
+			virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) = 0;
 
 			struct FSegmentInformation
 			{
 				FTimeValue	Duration;
-				int64		ByteSize;
+				int64		ByteSize = 0;
 			};
 
 			/**

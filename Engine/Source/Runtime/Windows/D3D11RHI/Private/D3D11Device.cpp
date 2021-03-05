@@ -52,21 +52,6 @@ TAutoConsoleVariable<int32> CVarD3D11ZeroBufferSizeInMB(
 	);
 
 
-static bool ShouldPreferFeatureLevelES31(ERHIFeatureLevel::Type& PreviewFeatureLevelOUT)
-{
-	if (!GIsEditor)
-	{
-		bool bPreferFeatureLevelES31 = false;
-		GConfig->GetBool(TEXT("D3DRHIPreference"), TEXT("bPreferFeatureLevelES31"), bPreferFeatureLevelES31, GGameUserSettingsIni);
-		if (bPreferFeatureLevelES31 || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES31")) || FParse::Param(FCommandLine::Get(), TEXT("FeatureLevelES3_1")))
-		{
-			PreviewFeatureLevelOUT = ERHIFeatureLevel::ES3_1;
-			return true;
-		}
-	}
-	return false;
-}
-
 FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel, int32 InChosenAdapter, const DXGI_ADAPTER_DESC& InChosenDescription) :
 	DXGIFactory1(InDXGIFactory1),
 #if NV_AFTERMATH
@@ -124,22 +109,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	else
 	{
 		bDXGISupportsHDR = false;
-	}
-
-	ERHIFeatureLevel::Type PreviewFeatureLevel;
-	if (RHIGetPreviewFeatureLevel(PreviewFeatureLevel) || ShouldPreferFeatureLevelES31(PreviewFeatureLevel))
-	{
-		// ES3.1 feature level emulation in D3D11
-		GMaxRHIFeatureLevel = PreviewFeatureLevel;
-		if (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1)
-		{
-			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
-		}
-	}
-	else
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
-		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
 	}
 
 	// Initialize the platform pixel format map.

@@ -447,92 +447,100 @@ template<>
 FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomTriIndex<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOff>
 	(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex)
 {
-	int32 SecIdx = RandHelper.RandRange(InstanceIndex, 0, Accessor.LODData->RenderSections.Num() - 1);
-	const FSkelMeshRenderSection& Sec = Accessor.LODData->RenderSections[SecIdx];
-	int32 Tri = RandHelper.RandRange(InstanceIndex, 0, Sec.NumTriangles - 1);
-	return (Sec.BaseIndex / 3) + Tri;
+	int32 Tri = -1;
+	const int NumSections = Accessor.LODData->RenderSections.Num();
+	if ( NumSections > 0 )
+	{
+		const int32 SectionIndex = RandHelper.RandRange(InstanceIndex, 0, NumSections - 1);
+		const FSkelMeshRenderSection& Section = Accessor.LODData->RenderSections[SectionIndex];
+		Tri = (Section.BaseIndex / 3) + RandHelper.RandRange(InstanceIndex, 0, Section.NumTriangles - 1);
+	}
+	return Tri;
 }
 
 template<>
 FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomTriIndex<TNDISkelMesh_FilterModeNone, TNDISkelMesh_AreaWeightingOn>
 	(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex)
 {
-	int32 TriangleIdx = 0;
 	check(Accessor.Mesh);
+	int32 Tri = -1;
 	const FSkeletalMeshSamplingInfo& SamplingInfo = Accessor.Mesh->GetSamplingInfo();
 	const FSkeletalMeshSamplingLODBuiltData& WholeMeshBuiltData = SamplingInfo.GetWholeMeshLODBuiltData(InstData->GetLODIndex());
-	if ( WholeMeshBuiltData.AreaWeightedTriangleSampler.GetNumEntries() > 0 )
+	if (WholeMeshBuiltData.AreaWeightedTriangleSampler.GetNumEntries() > 0 )
 	{
-		TriangleIdx = WholeMeshBuiltData.AreaWeightedTriangleSampler.GetEntryIndex(RandHelper.Rand(InstanceIndex), RandHelper.Rand(InstanceIndex));
+		Tri = WholeMeshBuiltData.AreaWeightedTriangleSampler.GetEntryIndex(RandHelper.Rand(InstanceIndex), RandHelper.Rand(InstanceIndex));
 	}
-	return TriangleIdx;
+	return Tri;
 }
 
 template<>
 FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomTriIndex<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOff>
 	(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex)
 {
-	int32 TriangleIdx = 0;
-	if ( (Accessor.SamplingRegionBuiltData != nullptr) && (Accessor.SamplingRegionBuiltData->TriangleIndices.Num() > 0) )
+	int32 Tri = -1;
+	const int32 SectionNumTriangles = Accessor.SamplingRegionBuiltData->TriangleIndices.Num();
+	if (SectionNumTriangles > 0)
 	{
-		const int32 Idx = RandHelper.RandRange(InstanceIndex, 0, Accessor.SamplingRegionBuiltData->TriangleIndices.Num() - 1);
-			TriangleIdx =  Accessor.SamplingRegionBuiltData->TriangleIndices[Idx] / 3;
+		const int32 Idx = RandHelper.RandRange(InstanceIndex, 0, SectionNumTriangles - 1);
+		Tri = Accessor.SamplingRegionBuiltData->TriangleIndices[Idx] / 3;
 	}
-	return TriangleIdx;
+	return Tri;
 }
 
 template<>
 FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomTriIndex<TNDISkelMesh_FilterModeSingle, TNDISkelMesh_AreaWeightingOn>
 	(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex)
 {
-	int32 TriangleIdx = 0;
-	if ((Accessor.SamplingRegionBuiltData != nullptr) && (Accessor.SamplingRegionBuiltData->AreaWeightedSampler.GetNumEntries() > 0))
+	int32 Tri = -1;
+	if (Accessor.SamplingRegionBuiltData->AreaWeightedSampler.GetNumEntries() > 0)
 	{
 		const int32 Idx = Accessor.SamplingRegionBuiltData->AreaWeightedSampler.GetEntryIndex(RandHelper.Rand(InstanceIndex), RandHelper.Rand(InstanceIndex));
-		TriangleIdx = Accessor.SamplingRegionBuiltData->TriangleIndices[Idx] / 3;
+		Tri = Accessor.SamplingRegionBuiltData->TriangleIndices[Idx] / 3;
 	}
-	return TriangleIdx;
+	return Tri;
 }
 
 template<>
 FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomTriIndex<TNDISkelMesh_FilterModeMulti, TNDISkelMesh_AreaWeightingOff>
 	(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex)
 {
-	int32 TriangleIdx = 0;
-	if (InstData->SamplingRegionIndices.Num() > 0)
+	check(Accessor.Mesh);
+	int32 Tri = -1;
+	const int32 NumRegions = InstData->SamplingRegionIndices.Num();
+	if (NumRegions > 0)
 	{
-		check(Accessor.Mesh);
-		const int32 RegionIdx = RandHelper.RandRange(InstanceIndex, 0, InstData->SamplingRegionIndices.Num() - 1);
+		const int32 RegionIdx = RandHelper.RandRange(InstanceIndex, 0, NumRegions - 1);
 		const FSkeletalMeshSamplingInfo& SamplingInfo = Accessor.Mesh->GetSamplingInfo();
 		const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(InstData->SamplingRegionIndices[RegionIdx]);
 		const FSkeletalMeshSamplingRegionBuiltData& RegionBuiltData = SamplingInfo.GetRegionBuiltData(InstData->SamplingRegionIndices[RegionIdx]);
-		int32 Idx = RandHelper.RandRange(InstanceIndex, 0, RegionBuiltData.TriangleIndices.Num() - 1);
-		if (RegionBuiltData.TriangleIndices.IsValidIndex(Idx))
+		if (RegionBuiltData.TriangleIndices.Num() > 0)
 		{
-			TriangleIdx = RegionBuiltData.TriangleIndices[Idx] / 3;
+			const int32 Idx = RandHelper.RandRange(InstanceIndex, 0, RegionBuiltData.TriangleIndices.Num() - 1);
+			Tri = RegionBuiltData.TriangleIndices[Idx] / 3;
 		}
 	}
-	return TriangleIdx;
+	return Tri;
 }
 
 template<>
 FORCEINLINE int32 UNiagaraDataInterfaceSkeletalMesh::RandomTriIndex<TNDISkelMesh_FilterModeMulti, TNDISkelMesh_AreaWeightingOn>
 	(FNDIRandomHelper& RandHelper, FSkeletalMeshAccessorHelper& Accessor, FNDISkeletalMesh_InstanceData* InstData, int32 InstanceIndex)
 {
-	int32 TriangleIdx = 0;
+	check(Accessor.Mesh);
+	int32 Tri = -1;
 	if ( InstData->SamplingRegionAreaWeightedSampler.GetNumEntries() > 0 )
 	{
-		check(Accessor.Mesh);
 		const int32 RegionIdx = InstData->SamplingRegionAreaWeightedSampler.GetEntryIndex(RandHelper.Rand(InstanceIndex), RandHelper.Rand(InstanceIndex));
 		const FSkeletalMeshSamplingInfo& SamplingInfo = Accessor.Mesh->GetSamplingInfo();
 		const FSkeletalMeshSamplingRegion& Region = SamplingInfo.GetRegion(InstData->SamplingRegionIndices[RegionIdx]);
 		const FSkeletalMeshSamplingRegionBuiltData& RegionBuiltData = SamplingInfo.GetRegionBuiltData(InstData->SamplingRegionIndices[RegionIdx]);
-		if ( RegionBuiltData.AreaWeightedSampler.GetNumEntries() > 0 )
+		if (RegionBuiltData.AreaWeightedSampler.GetNumEntries() > 0)
 		{
-			TriangleIdx = RegionBuiltData.AreaWeightedSampler.GetEntryIndex(RandHelper.Rand(InstanceIndex), RandHelper.Rand(InstanceIndex)) / 3;
+			const int32 Idx = RegionBuiltData.AreaWeightedSampler.GetEntryIndex(RandHelper.Rand(InstanceIndex), RandHelper.Rand(InstanceIndex));
+			Tri = RegionBuiltData.TriangleIndices[Idx] / 3;
 		}
 	}
-	return TriangleIdx;
+	return Tri;
 }
 
 template<typename FilterMode, typename AreaWeightingMode>
@@ -942,16 +950,26 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordColor(FVectorVMContext& Conte
 
 	const FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
 	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
-	const int32 TriMax = (IndexBuffer->Num() / 3) - 1;
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	if (IndexBuffer->Num() > 0)
 	{
-		const int32 Tri = FMath::Clamp(TriParam.GetAndAdvance(), 0, TriMax) * 3;
-		const int32 Idx0 = IndexBuffer->Get(Tri);
-		const int32 Idx1 = IndexBuffer->Get(Tri + 1);
-		const int32 Idx2 = IndexBuffer->Get(Tri + 2);
+		const int32 TriMax = (IndexBuffer->Num() / 3) - 1;
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			const int32 Tri = FMath::Clamp(TriParam.GetAndAdvance(), 0, TriMax) * 3;
+			const int32 Idx0 = IndexBuffer->Get(Tri);
+			const int32 Idx1 = IndexBuffer->Get(Tri + 1);
+			const int32 Idx2 = IndexBuffer->Get(Tri + 2);
 
-		FLinearColor Color = BarycentricInterpolate(BaryParam.GetAndAdvance(), Colors.VertexColor(Idx0).ReinterpretAsLinear(), Colors.VertexColor(Idx1).ReinterpretAsLinear(), Colors.VertexColor(Idx2).ReinterpretAsLinear());
-		OutColor.SetAndAdvance(Color);
+			FLinearColor Color = BarycentricInterpolate(BaryParam.GetAndAdvance(), Colors.VertexColor(Idx0).ReinterpretAsLinear(), Colors.VertexColor(Idx1).ReinterpretAsLinear(), Colors.VertexColor(Idx2).ReinterpretAsLinear());
+			OutColor.SetAndAdvance(Color);
+		}
+	}
+	else
+	{
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			OutColor.SetAndAdvance(FLinearColor::White);
+		}
 	}
 }
 
@@ -991,22 +1009,32 @@ void UNiagaraDataInterfaceSkeletalMesh::GetTriCoordUV(FVectorVMContext& Context)
 
 	const FMultiSizeIndexContainer& Indices = LODData->MultiSizeIndexContainer;
 	const FRawStaticIndexBuffer16or32Interface* IndexBuffer = Indices.GetIndexBuffer();
-	const int32 TriMax = (IndexBuffer->Num() / 3) - 1;
-	const int32 UVSetMax = LODData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() - 1;
-	const float InvDt = 1.0f / InstData->DeltaSeconds;
-	for (int32 i = 0; i < Context.NumInstances; ++i)
+	if (IndexBuffer->Num() > 0)
 	{
-		const int32 Tri = FMath::Clamp(TriParam.GetAndAdvance(), 0, TriMax) * 3;
-		const int32 Idx0 = IndexBuffer->Get(Tri);
-		const int32 Idx1 = IndexBuffer->Get(Tri + 1);
-		const int32 Idx2 = IndexBuffer->Get(Tri + 2);
-		const int32 UVSet = FMath::Clamp(UVSetParam.GetAndAdvance(), 0, UVSetMax);
-		const FVector2D UV0 = VertAccessor.GetVertexUV(LODData, Idx0, UVSet);
-		const FVector2D UV1 = VertAccessor.GetVertexUV(LODData, Idx1, UVSet);
-		const FVector2D UV2 = VertAccessor.GetVertexUV(LODData, Idx2, UVSet);
+		const int32 TriMax = (IndexBuffer->Num() / 3) - 1;
+		const int32 UVSetMax = LODData->StaticVertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() - 1;
+		const float InvDt = 1.0f / InstData->DeltaSeconds;
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			const int32 Tri = FMath::Clamp(TriParam.GetAndAdvance(), 0, TriMax) * 3;
+			const int32 Idx0 = IndexBuffer->Get(Tri);
+			const int32 Idx1 = IndexBuffer->Get(Tri + 1);
+			const int32 Idx2 = IndexBuffer->Get(Tri + 2);
+			const int32 UVSet = FMath::Clamp(UVSetParam.GetAndAdvance(), 0, UVSetMax);
+			const FVector2D UV0 = VertAccessor.GetVertexUV(LODData, Idx0, UVSet);
+			const FVector2D UV1 = VertAccessor.GetVertexUV(LODData, Idx1, UVSet);
+			const FVector2D UV2 = VertAccessor.GetVertexUV(LODData, Idx2, UVSet);
 
-		FVector2D UV = BarycentricInterpolate(BaryParam.GetAndAdvance(), UV0, UV1, UV2);
-		OutUV.SetAndAdvance(UV);
+			FVector2D UV = BarycentricInterpolate(BaryParam.GetAndAdvance(), UV0, UV1, UV2);
+			OutUV.SetAndAdvance(UV);
+		}
+	}
+	else
+	{
+		for (int32 i=0; i < Context.NumInstances; ++i)
+		{
+			OutUV.SetAndAdvance(FVector2D::ZeroVector);
+		}
 	}
 }
 

@@ -83,38 +83,26 @@ struct CADTOOLS_API FFileDescription
 };
 
 /**
- * Helper struct to store tessellation data from CoreTech or CADKernel
- *
- * FBodyMesh and FTessellationData are design to manage mesh from CoreTech and CADKernel.
- * FTessellationData is the mesh of a face
- * FBodyMesh is the mesh of a body composed by an array of FTessellationData (one FTessellationData by body face)
- *
- * CoreTech mesh are defined surface by surface. The mesh is not connected
- * CADKernel mesh is connected.
+ * Helper struct to store tessellation data from CoreTech
  */
 struct CADTOOLS_API FTessellationData
 {
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FTessellationData& Tessellation);
 
-	/** Empty with CADKernel as set in FBodyMesh, Set by CoreTech (this is only the vertices of the face) */
-	TArray<FVector> PositionArray; 
+	int32    PatchId = 0;
 
-	/** Index of each vertex in FBody::VertexArray. Empty with CoreTech and filled by FillKioVertexPosition */
-	TArray<int32> PositionIndices; 
-	
-	/** Index of Vertices of each face in the local Vertices set (i.e. VerticesBodyIndex for CADKernel, VertexArray for Coretech) */
-	TArray<int32> VertexIndices; 
+	TArray<FVector> VertexArray;
+	TArray<FVector> NormalArray;
+	TArray<int32> IndexArray;
+	TArray<FVector2D> TexCoordArray;
 
-	/** Normal of each vertex */
-	TArray<FVector> NormalArray; 
-
-	/** UV coordinates of each vertex */
-	TArray<FVector2D> TexCoordArray; 
+	uint32    StartVertexIndex = 0;
 
 	CADUUID ColorName = 0;
 	CADUUID MaterialName = 0;
 
-	int32 PatchId;
+	TArray<int32> VertexIdSet;  // StaticMesh FVertexID NO Serialize
+	TArray<int32> SymVertexIdSet; // StaticMesh FVertexID for sym part NO Serialize
 };
 
 class CADTOOLS_API FBodyMesh
@@ -128,16 +116,12 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh);
 
 public:
-	TArray<FVector> VertexArray; // set by CADKernel, filled by FillKioVertexPosition that merges coincident vertices (CoreTechHelper)
 	TArray<FTessellationData> Faces;
 	FBox BBox;
 
 	uint32 TriangleCount = 0;
 	CadId BodyID = 0;
 	CADUUID MeshActorName = 0;
-
-	TArray<int32> VertexIds;  // StaticMesh FVertexID NO Serialize, filled by FillKioVertexPosition or FillVertexPosition
-	TArray<int32> SymmetricVertexIds; // StaticMesh FVertexID for sym part NO Serialize, filled by FillKioVertexPosition or FillVertexPosition
 
 	TSet<uint32> MaterialSet;
 	TSet<uint32> ColorSet;

@@ -8,6 +8,7 @@
 #include "Camera/CameraShakeBase.h"
 #include "Camera/CameraShakeSourceActor.h"
 #include "Camera/CameraShakeSourceComponent.h"
+#include "Camera/PlayerCameraManager.h"
 #include "CameraShakePreviewerModule.h"
 #include "EditorDirectories.h"
 #include "EditorStyleSet.h"
@@ -65,11 +66,14 @@ struct FCameraShakeData
 };
 
 FCameraShakePreviewUpdater::FCameraShakePreviewUpdater()
-	: PreviewCameraShake(NewObject<UCameraModifier_CameraShake>())
+	: PreviewCamera(NewObject<APreviewPlayerCameraManager>())
 	, LastLocationModifier(FVector::ZeroVector)
 	, LastRotationModifier(FRotator::ZeroRotator)
 	, LastFOVModifier(0.f)
-{}
+{
+	PreviewCameraShake = CastChecked<UCameraModifier_CameraShake>(
+			PreviewCamera->AddNewCameraModifier(UCameraModifier_CameraShake::StaticClass()));
+}
 
 void FCameraShakePreviewUpdater::Tick(float DeltaTime)
 {
@@ -85,10 +89,13 @@ void FCameraShakePreviewUpdater::ModifyCamera(FEditorViewportViewModifierParams&
 	{
 		LastPostProcessSettings.Reset();
 		LastPostProcessBlendWeights.Reset();
+		PreviewCamera->ResetPostProcessSettings();
 
 		FMinimalViewInfo OriginalPOV(Params.ViewInfo);
 
 		PreviewCameraShake->ModifyCamera(DeltaTime, Params.ViewInfo);
+
+		PreviewCamera->MergePostProcessSettings(LastPostProcessSettings, LastPostProcessBlendWeights);
 
 		for (UCameraAnimInst* ActiveAnim : ActiveAnims)
 		{
@@ -128,7 +135,7 @@ void FCameraShakePreviewUpdater::ModifyCamera(FEditorViewportViewModifierParams&
 
 void FCameraShakePreviewUpdater::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	Collector.AddReferencedObject(PreviewCameraShake);
+	Collector.AddReferencedObject(PreviewCamera);
 	Collector.AddReferencedObjects(ActiveAnims);
 }
 

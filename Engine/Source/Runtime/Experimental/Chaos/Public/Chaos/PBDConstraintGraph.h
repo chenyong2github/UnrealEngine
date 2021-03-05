@@ -22,8 +22,7 @@ namespace Chaos
 	template<typename T>
 	class TArrayCollectionArray;
 
-	template <typename T, int d>
-	class TPBDRigidsSOAs;
+	class FPBDRigidsSOAs;
 
 	/**
 	 * Build a graph of connected particles, and then a set of independent islands.
@@ -54,7 +53,7 @@ namespace Chaos
 		};
 
 		FPBDConstraintGraph();
-		FPBDConstraintGraph(const TParticleView<TGeometryParticles<FReal,3>>& Particles);
+		FPBDConstraintGraph(const TParticleView<FGeometryParticles>& Particles);
 		virtual ~FPBDConstraintGraph() {}
 
 		/**
@@ -71,23 +70,23 @@ namespace Chaos
 		/**
 		 * Add a constraint to the graph for each constraint in the container.
 		 */
-		void AddConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& InConstrainedParticles);
+		void AddConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<FGeometryParticleHandle*, 2>& InConstrainedParticles);
 
 		/**
 		 * Remove a constraint from the graph
 		 */
-		void RemoveConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<TGeometryParticleHandle<FReal, 3>*, 2>& InConstrainedParticles);
+		void RemoveConstraint(const uint32 InContainerId, FConstraintHandle* InConstraintHandle, const TVector<FGeometryParticleHandle*, 2>& InConstrainedParticles);
 
 		/**
 		 * Add particles/constraints to their particle's already-assigned islands (if applicable).
 		 */
 		 // @todo(ccaulfield): InitializeIslands and ResetIslands are a bit confusing. Try to come up with better names.
-		void ResetIslands(const TParticleView<TPBDRigidParticles<FReal, 3>>& PBDRigids);
+		void ResetIslands(const TParticleView<FPBDRigidParticles>& PBDRigids);
 
 		/**
 		 * Generate the simulation islands of connected particles (AddConstraints must have already been called). There are no constraints connecting particles in different islands.
 		 */
-		void UpdateIslands(const TParticleView<TPBDRigidParticles<FReal, 3>>& confusing, TPBDRigidsSOAs<FReal, 3>& Particles);
+		void UpdateIslands(const TParticleView<FPBDRigidParticles>& confusing, FPBDRigidsSOAs& Particles);
 
 		/**
 		 * Put particles in inactive islands to sleep.
@@ -97,7 +96,7 @@ namespace Chaos
 		/**
 		 * Wake all particles in an Island.
 		 */
-		void WakeIsland(TPBDRigidsSOAs<FReal, 3>& Particles, const int32 Island);
+		void WakeIsland(FPBDRigidsSOAs& Particles, const int32 Island);
 
 		/**
 		 * Ensure that the particles in each island have consistent sleep states - if any are awake, wake all.
@@ -118,7 +117,7 @@ namespace Chaos
 		/**
 		 * Get the list of Particle indices associated with the specified island.
 		 */
-		const TArray<TGeometryParticleHandle<FReal, 3>*>& GetIslandParticles(int32 Island) const
+		const TArray<FGeometryParticleHandle*>& GetIslandParticles(int32 Island) const
 		{
 			return IslandToParticles[Island];
 		}
@@ -157,13 +156,13 @@ namespace Chaos
 		 * state and island of \p ParentParticle to \p ChildParticle.  Does nothing
 		 * if \p ParentParticle is not supplied.
 		 */
-		void EnableParticle(TGeometryParticleHandle<FReal, 3>* ChildParticle, const TGeometryParticleHandle<FReal, 3>* ParentParticle);
+		void EnableParticle(FGeometryParticleHandle* ChildParticle, const FGeometryParticleHandle* ParentParticle);
 
 		/**
 		 * Disable a particle and remove it from its island.
 		 * @note: this does not remove any attached constraints - constraints need to be re-added and islands will need to be rebuilt.
 		 */
-		void DisableParticle(TGeometryParticleHandle<FReal, 3>* Particle);
+		void DisableParticle(FGeometryParticleHandle* Particle);
 
 		/**
 		 * Preallocate buffers for \p Num particles.
@@ -172,13 +171,13 @@ namespace Chaos
 		 */
 		int32 ReserveParticles(const int32 Num);
 
-		void AddParticle(TGeometryParticleHandle<FReal, 3>* AddedParticle)
+		void AddParticle(FGeometryParticleHandle* AddedParticle)
 		{
 			ParticleAdd(AddedParticle);
 		}
 
 		//Remove particle from constraint, maybe rethink some of these names
-		void RemoveParticle(TGeometryParticleHandle<FReal, 3>* Particle)
+		void RemoveParticle(FGeometryParticleHandle* Particle)
 		{
 			//we know it just removes, probably rename later
 			DisableParticle(Particle);
@@ -188,7 +187,7 @@ namespace Chaos
 		 * Disable a set of particles and remove them from their island.
 		 * @note: this does not remove any attached constraints - constraints need to be re-added and islands will need to be rebuilt.
 		 */
-		void DisableParticles(const TSet<TGeometryParticleHandle<FReal, 3>*>& Particles);
+		void DisableParticles(const TSet<FGeometryParticleHandle*>& Particles);
 
 	private:
 		struct FGraphNode
@@ -200,7 +199,7 @@ namespace Chaos
 			}
 
 			TArray<int32> Edges;
-			TGeometryParticleHandle<FReal, 3>* Particle;
+			FGeometryParticleHandle* Particle;
 			int32 Island;
 		};
 
@@ -229,21 +228,21 @@ namespace Chaos
 			bool bNeedsResim;
 		};
 
-		void ComputeIslands(const TParticleView<TPBDRigidParticles<FReal, 3>>& PBDRigids, TPBDRigidsSOAs<FReal, 3>& Particles);
-		bool ComputeIsland(const int32 Node, const int32 Island, TSet<TGeometryParticleHandle<FReal, 3>*>& ParticlesInIsland);
-		bool CheckIslands(const TArray<TGeometryParticleHandle<FReal, 3>*>& Particles);
+		void ComputeIslands(const TParticleView<FPBDRigidParticles>& PBDRigids, FPBDRigidsSOAs& Particles);
+		bool ComputeIsland(const int32 Node, const int32 Island, TSet<FGeometryParticleHandle*>& ParticlesInIsland);
+		bool CheckIslands(const TArray<FGeometryParticleHandle*>& Particles);
 		
-		void ParticleAdd(TGeometryParticleHandle<FReal, 3>* AddedParticle);
-		void ParticleRemove(TGeometryParticleHandle<FReal, 3>* RemovedParticle);
+		void ParticleAdd(FGeometryParticleHandle* AddedParticle);
+		void ParticleRemove(FGeometryParticleHandle* RemovedParticle);
 		int32 GetNextNodeIndex();
 		const TArray<int32>& GetUpdatedNodes() const { return UpdatedNodes; }
 
 		TArray<FGraphNode> Nodes;
 		TArray<FGraphEdge> Edges;
 		TArray<FIslandData> IslandToData;
-		TMap<TGeometryParticleHandle<FReal, 3>*, int32> ParticleToNodeIndex;
+		TMap<FGeometryParticleHandle*, int32> ParticleToNodeIndex;
 
-		TArray<TArray<TGeometryParticleHandle<FReal, 3>*>> IslandToParticles;
+		TArray<TArray<FGeometryParticleHandle*>> IslandToParticles;
 		TArray<TArray<int32>> IslandToConstraints;
 		TArray<int32> IslandToSleepCount;
 

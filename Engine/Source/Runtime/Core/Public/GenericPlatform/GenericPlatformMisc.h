@@ -220,7 +220,13 @@ enum class EDeviceScreenOrientation : uint8
 	FaceUp,
 
 	/** The orientation is as if place on a desk with the screen downward */
-	FaceDown
+	FaceDown,
+
+	/** The orientation is portrait, oriented upright with the sensor */
+	PortraitSensor,
+
+	/** The orientation is landscape, oriented upright with the sensor */
+	LandscapeSensor,
 };
 
 
@@ -1281,6 +1287,11 @@ public:
 	 * @see EScreenOrientation
 	 */
 	static EDeviceScreenOrientation GetDeviceOrientation();
+	/**
+	 * Change the orientation of the device: e.g. Portrait, LandscapeRight.
+	 * @see EScreenOrientation
+	 */
+	static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrientation);
 
 	/**
 	 * Returns the device volume if the device is capable of returning that information.

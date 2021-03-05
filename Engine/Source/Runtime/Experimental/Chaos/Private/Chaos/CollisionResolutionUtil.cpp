@@ -25,7 +25,7 @@ namespace Chaos
 
 		FRigidTransform3 GetTransform(const TGeometryParticleHandle<FReal, 3>* Particle)
 		{
-			TGenericParticleHandle<FReal, 3> Generic = const_cast<TGeometryParticleHandle<FReal, 3>*>(Particle);
+			FGenericParticleHandle Generic = const_cast<FGeometryParticleHandle*>(Particle);
 			return FRigidTransform3(Generic->P(), Generic->Q());
 		}
 
@@ -193,7 +193,7 @@ namespace Chaos
 
 #if INTEL_ISPC
 		template<ECollisionUpdateType UpdateType>
-		FContactPoint SampleObject(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float CullingDistance)
+		FContactPoint SampleObject(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const FBVHParticles& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float CullingDistance)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 
@@ -228,7 +228,7 @@ namespace Chaos
 					if (Object.GetType() == ImplicitObjectType::LevelSet && PotentialParticles.Num() > 0)
 					{
 						//QUICK_SCOPE_CYCLE_COUNTER(STAT_LevelSet);
-						const TLevelSet<float, 3>* LevelSet = Object.GetObject<TLevelSet<float, 3>>();
+						const FLevelSet* LevelSet = Object.GetObject<FLevelSet>();
 						const TUniformGrid<float, 3>& Grid = LevelSet->GetGrid();
 
 						if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
@@ -338,7 +338,7 @@ namespace Chaos
 				SCOPE_CYCLE_COUNTER(STAT_UpdateLevelsetAll);
 				if (Object.GetType() == ImplicitObjectType::LevelSet && NumParticles > 0)
 				{
-					const TLevelSet<float, 3>* LevelSet = Object.GetObject<Chaos::TLevelSet<float, 3>>();
+					const FLevelSet* LevelSet = Object.GetObject<Chaos::FLevelSet>();
 					const TUniformGrid<float, 3>& Grid = LevelSet->GetGrid();
 
 					if (NormalAveraging && UpdateType != ECollisionUpdateType::Any)
@@ -539,7 +539,7 @@ namespace Chaos
 		}
 #else		
 		template <ECollisionUpdateType UpdateType>
-		FContactPoint SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const TBVHParticles<FReal, 3>& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal CullingDistance)
+		FContactPoint SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FBVHParticles& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal CullingDistance)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_SampleObject);
 
@@ -680,8 +680,8 @@ namespace Chaos
 			return RelevantShapes;
 		}
 
-		template FContactPoint SampleObject<ECollisionUpdateType::Any>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float CullingDistance);
-		template FContactPoint SampleObject<ECollisionUpdateType::Deepest>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const TBVHParticles<float, 3>& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float CullingDistance);
+		template FContactPoint SampleObject<ECollisionUpdateType::Any>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const FBVHParticles& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float CullingDistance);
+		template FContactPoint SampleObject<ECollisionUpdateType::Deepest>(const FImplicitObject& Object, const TRigidTransform<float, 3>& ObjectTransform, const FBVHParticles& SampleParticles, const TRigidTransform<float, 3>& SampleParticlesTransform, float CullingDistance);
 
 	} // Collisions
 

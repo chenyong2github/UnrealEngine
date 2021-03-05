@@ -193,7 +193,7 @@ struct FConcertSyncActivity
 
 	/** The minimal summary of the event associated with this activity (@see FConcertSyncActivitySummary) */
 	UPROPERTY()
-	FConcertSessionSerializedCborPayload EventSummary;
+	FConcertSessionSerializedPayload EventSummary{EConcertPayloadSerializationMethod::Cbor};
 };
 
 /** Data for a connection activity entry in a Concert Sync Session */

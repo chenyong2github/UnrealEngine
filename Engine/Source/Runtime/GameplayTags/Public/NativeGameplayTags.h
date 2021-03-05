@@ -38,8 +38,29 @@ public:
 	operator const FGameplayTag& () const { return InternalTag; }
 	operator FGameplayTag() const { return InternalTag; }
 
+	FGameplayTagTableRow GetGameplayTagTableRow() const
+	{
+#if !UE_BUILD_SHIPPING
+		ValidateTagRegistration();
+#endif
+
+#if WITH_EDITORONLY_DATA
+		return FGameplayTagTableRow(InternalTag.GetTagName(), DeveloperComment);
+#else
+		return FGameplayTagTableRow(InternalTag.GetTagName());
+#endif
+	}
+
 private:
 	FGameplayTag InternalTag;
+
+#if !UE_BUILD_SHIPPING
+	FName PluginName;
+	FName ModuleName;
+	mutable bool bValidated = false;
+
+	void ValidateTagRegistration() const;
+#endif
 
 #if WITH_EDITORONLY_DATA
 	FString DeveloperComment;

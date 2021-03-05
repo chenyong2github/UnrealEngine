@@ -2,7 +2,6 @@
 
 #include "ViewModels/Stack/NiagaraStackErrorItem.h"
 #include "NiagaraStackEditorData.h"
-#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraStackErrorItem"
 //UNiagaraStackErrorItem
@@ -28,6 +27,11 @@ FText UNiagaraStackErrorItem::GetDisplayName() const
 EStackIssueSeverity UNiagaraStackErrorItem::GetIssueSeverity() const
 {
 	return StackIssue.GetSeverity();
+}
+
+bool UNiagaraStackErrorItem::IsExpandedByDefault() const
+{
+	return StackIssue.GetIsExpandedByDefault();
 }
 
 UNiagaraStackEntry::EStackRowStyle UNiagaraStackErrorItem::GetStackRowStyle() const

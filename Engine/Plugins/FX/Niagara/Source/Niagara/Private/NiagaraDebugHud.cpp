@@ -12,6 +12,7 @@
 #include "Engine/Canvas.h"
 #include "Components/LineBatchComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Particles/FXBudget.h"
 
 namespace NiagaraDebugLocal
 {
@@ -143,6 +144,10 @@ namespace NiagaraDebugLocal
 						{
 							Settings.bShowParticlesVariablesWithSystem = FCString::Atoi(*Arg) != 0;
 						}
+						if (Arg.RemoveFromStart(TEXT("ShowGlobalBudgetInfo=")))
+						{
+							Settings.bShowGlobalBudgetInfo = FCString::Atoi(*Arg) != 0;
+						}
 					}
 				}
 			}
@@ -198,11 +203,11 @@ namespace NiagaraDebugLocal
 					[&](const FNiagaraVariableWithOffset& Variable) { CachedVariables->UserVariables.Add(Variable); }
 				);
 
-				for (int32 iVariable=0; iVariable < (int32)EEngineVariables::Num; ++iVariable)
+				for (int32 iVariable = 0; iVariable < (int32)EEngineVariables::Num; ++iVariable)
 				{
-					for ( const FNiagaraDebugHUDVariable& DebugVariable : Settings.SystemVariables )
+					for (const FNiagaraDebugHUDVariable& DebugVariable : Settings.SystemVariables)
 					{
-						if (DebugVariable.bEnabled && GEngineVariableStrings[iVariable].MatchesWildcard(DebugVariable.Name) )
+						if (DebugVariable.bEnabled && GEngineVariableStrings[iVariable].MatchesWildcard(DebugVariable.Name))
 						{
 							CachedVariables->bShowEngineVariable[iVariable] = true;
 							break;
@@ -217,15 +222,15 @@ namespace NiagaraDebugLocal
 
 				CachedVariables->ParticleVariables.AddDefaulted(AllEmittersCompiledData.Num());
 				CachedVariables->ParticlePositionAccessors.AddDefaulted(AllEmittersCompiledData.Num());
-				for (int32 iEmitter =0; iEmitter < AllEmittersCompiledData.Num(); ++iEmitter)
+				for (int32 iEmitter = 0; iEmitter < AllEmittersCompiledData.Num(); ++iEmitter)
 				{
 					const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(iEmitter);
-					if ( !EmitterHandle.IsValid() || !EmitterHandle.GetIsEnabled() )
+					if (!EmitterHandle.IsValid() || !EmitterHandle.GetIsEnabled())
 					{
 						continue;
 					}
 
-					if ( Settings.bEmitterFilterEnabled && !EmitterHandle.GetUniqueInstanceName().MatchesWildcard(Settings.EmitterFilter) )
+					if (Settings.bEmitterFilterEnabled && !EmitterHandle.GetUniqueInstanceName().MatchesWildcard(Settings.EmitterFilter))
 					{
 						continue;
 					}
@@ -238,7 +243,7 @@ namespace NiagaraDebugLocal
 						[&](const FNiagaraVariable& Variable) { CachedVariables->ParticleVariables[iEmitter].AddDefaulted_GetRef().Init(EmitterCompiledData, Variable.GetName()); }
 					);
 
-					if ( CachedVariables->ParticleVariables[iEmitter].Num() > 0)
+					if (CachedVariables->ParticleVariables[iEmitter].Num() > 0)
 					{
 						static const FName PositionName(TEXT("Position"));
 						CachedVariables->ParticlePositionAccessors[iEmitter].Init(EmitterCompiledData, PositionName);
@@ -256,7 +261,7 @@ namespace NiagaraDebugLocal
 			default:
 			case ENiagaraDebugHudFont::Small:	return GEngine->GetTinyFont();
 			case ENiagaraDebugHudFont::Normal:	return GEngine->GetSmallFont();
-		}
+	}
 	};
 
 	FVector2D GetStringSize(UFont* Font, const TCHAR* Text)
@@ -658,7 +663,7 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 
 	if (Settings.HudVerbosity > ENiagaraDebugHudSystemVerbosity::None)
 	{
-		// Draw in world components
+	// Draw in world components
 		DrawComponents(WorldManager, Canvas);
 	}
 
@@ -699,7 +704,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	const bool bShowSystemInformation = Settings.HudVerbosity > ENiagaraDebugHudSystemVerbosity::Minimal;
 	{
 		TStringBuilder<1024> OverviewString;
-		{
+	{
 			static const auto CVarGlobalLoopTime = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.Niagara.Debug.GlobalLoopTime"));
 
 			const TCHAR* Separator = TEXT("    ");
@@ -737,7 +742,7 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			{
 				bRequiresNewline = false;
 				OverviewString.Append(TEXT("\n"));
-			}
+				}
 
 			// Display any filters we may have
 			if (Settings.bSystemFilterEnabled || Settings.bEmitterFilterEnabled || Settings.bActorFilterEnabled || Settings.bComponentFilterEnabled)
@@ -746,23 +751,23 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 				{
 					OverviewString.Appendf(TEXT("SystemFilter: %s"), *Settings.SystemFilter);
 					OverviewString.Append(Separator);
-				}
+			}
 				if (Settings.bEmitterFilterEnabled)
-				{
+			{
 					OverviewString.Appendf(TEXT("EmitterFilter: %s"), *Settings.EmitterFilter);
 					OverviewString.Append(Separator);
-				}
+			}
 				if (Settings.bActorFilterEnabled)
-				{
+			{
 					OverviewString.Appendf(TEXT("ActorFilter: %s"), *Settings.ActorFilter);
 					OverviewString.Append(Separator);
-				}
+			}
 				if (Settings.bComponentFilterEnabled)
-				{
+			{
 					OverviewString.Appendf(TEXT("ComponentFilter: %s"), *Settings.ComponentFilter);
 					OverviewString.Append(Separator);
-				}
 			}
+		}
 		}
 
 		if (bShowSystemInformation || OverviewString.Len() > 0)
@@ -779,48 +784,48 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, ActualSize.X + 2.0f, ActualSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
 
 			// Draw string
-			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Niagara DebugHud"), Font, HeadingColor);
-			TextLocation.Y += fAdvanceHeight;
+		DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Niagara DebugHud"), Font, HeadingColor);
+		TextLocation.Y += fAdvanceHeight;
 			if (OverviewString.Len() > 0)
-			{
+		{
 				DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, OverviewString.ToString(), Font, HeadingColor);
 				TextLocation.Y += OverviewStringSize.Y;
-			}
+		}
 
 			// Display global system information
 			if (bShowGlobalInformation)
 			{
 				static const TCHAR* HeadingText[] = { TEXT("TotalSystems:"), TEXT("TotalScalability:"), TEXT("TotalEmitters:") , TEXT("TotalParticles:"), TEXT("TotalMemory:") };
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[0], TextLocation.Y, HeadingText[0], Font, HeadingColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[1], TextLocation.Y, HeadingText[1], Font, HeadingColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, HeadingText[2], Font, HeadingColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, HeadingText[3], Font, HeadingColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[0], TextLocation.Y, HeadingText[0], Font, HeadingColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[1], TextLocation.Y, HeadingText[1], Font, HeadingColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[2], TextLocation.Y, HeadingText[2], Font, HeadingColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, HeadingText[3], Font, HeadingColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, HeadingText[4], Font, HeadingColor);
 
-				static const float DetailOffset[] =
-				{
-					ColumnOffset[0] + Font->GetStringSize(HeadingText[0]) + 5.0f,
-					ColumnOffset[1] + Font->GetStringSize(HeadingText[1]) + 5.0f,
-					ColumnOffset[2] + Font->GetStringSize(HeadingText[2]) + 5.0f,
-					ColumnOffset[3] + Font->GetStringSize(HeadingText[3]) + 5.0f,
+		static const float DetailOffset[] =
+		{
+			ColumnOffset[0] + Font->GetStringSize(HeadingText[0]) + 5.0f,
+			ColumnOffset[1] + Font->GetStringSize(HeadingText[1]) + 5.0f,
+			ColumnOffset[2] + Font->GetStringSize(HeadingText[2]) + 5.0f,
+			ColumnOffset[3] + Font->GetStringSize(HeadingText[3]) + 5.0f,
 					ColumnOffset[4] + Font->GetStringSize(HeadingText[4]) + 5.0f,
-				};
+		};
 
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[0], TextLocation.Y, *FString::FromInt(GlobalTotalSystems), Font, DetailColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[1], TextLocation.Y, *FString::FromInt(GlobalTotalScalability), Font, DetailColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[2], TextLocation.Y, *FString::FromInt(GlobalTotalEmitters), Font, DetailColor);
-				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[3], TextLocation.Y, *FString::FromInt(GlobalTotalParticles), Font, DetailColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[0], TextLocation.Y, *FString::FromInt(GlobalTotalSystems), Font, DetailColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[1], TextLocation.Y, *FString::FromInt(GlobalTotalScalability), Font, DetailColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[2], TextLocation.Y, *FString::FromInt(GlobalTotalEmitters), Font, DetailColor);
+		DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[3], TextLocation.Y, *FString::FromInt(GlobalTotalParticles), Font, DetailColor);
 				DrawCanvas->DrawShadowedString(TextLocation.X + DetailOffset[4], TextLocation.Y, *FString::Printf(TEXT("%6.2fmb"), float(double(GlobalTotalBytes) / (1024.0*1024.0))), Font, DetailColor);
 
-				TextLocation.Y += fAdvanceHeight;
-			}
+		TextLocation.Y += fAdvanceHeight;
+	}
 		}
 	}
 
 	// Display active systems information
 	if (bShowSystemInformation)
 	{
-		TextLocation.Y += fAdvanceHeight;
+	TextLocation.Y += fAdvanceHeight;
 
 		static float ColumnOffset[] = { 0, 300, 400, 500, 600, 700 };
 		static float GuessWidth = 800.0f;
@@ -846,6 +851,88 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[3], TextLocation.Y, *FString::FromInt(SystemInfo.TotalEmitters), Font, RowColor);
 			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[4], TextLocation.Y, *FString::FromInt(SystemInfo.TotalParticles), Font, RowColor);
 			DrawCanvas->DrawShadowedString(TextLocation.X + ColumnOffset[5], TextLocation.Y, *FString::Printf(TEXT("%6.2f"), double(SystemInfo.TotalBytes) / (1024.0*1024.0)), Font, RowColor);
+			TextLocation.Y += fAdvanceHeight;
+		}
+	}
+
+	TextLocation.Y += fAdvanceHeight;
+
+	//Display global budget usage information
+	if(Settings.bShowGlobalBudgetInfo)
+	{
+		static const float GuessWidth = 400.0f;
+		if (FFXBudget::Enabled())
+		{
+			FFXTimeData Time = FFXBudget::GetTime();
+			FFXTimeData Budget = FFXBudget::GetBudget();
+			FFXTimeData Usage = FFXBudget::GetUsage();
+			FFXTimeData AdjustedUsage = FFXBudget::GetAdjustedUsage();
+
+			const int32 NumLines = 5;//Header, time, budget, usage and adjusted usage.
+			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+
+			FString Temp;
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global Budget Info"), Font, HeadingColor);
+
+			TextLocation.Y += fAdvanceHeight;
+			FString TimeLabels[] =
+			{
+				TEXT("Time: "),
+				TEXT("Budget: "),
+				TEXT("Usage: "),
+				TEXT("Adjusted: ")
+			};
+
+			int32 LabelSizes[] =
+			{
+				Font->GetStringSize(*TimeLabels[0]),
+				Font->GetStringSize(*TimeLabels[1]),
+				Font->GetStringSize(*TimeLabels[2]),
+				Font->GetStringSize(*TimeLabels[3])
+			};
+			int32 MaxLabelSize = FMath::Max(FMath::Max(LabelSizes[0], LabelSizes[1]), FMath::Max(LabelSizes[2], LabelSizes[3]));
+
+			auto DrawTimeData = [&](FString Heading, FFXTimeData Time, float HighlightThreshold = FLT_MAX)
+			{
+				//Draw Time
+				int32 XOff = 0;
+				int32 AlignSize = 50;
+				FString Text[] = {
+					Heading,
+					FString::Printf(TEXT("GT = %2.3f"), Time.GT),
+					FString::Printf(TEXT("CNC = %2.3f"), Time.GTConcurrent),
+					FString::Printf(TEXT("RT = %2.3f"), Time.RT)
+				};
+				int32 Sizes[] =
+				{
+					MaxLabelSize,
+					Font->GetStringSize(*Text[1]),
+					Font->GetStringSize(*Text[2]),
+					Font->GetStringSize(*Text[3])
+				};
+				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[0], Font, HeadingColor);
+				XOff = AlignArbitrary(XOff + Sizes[0], AlignSize);
+				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[1], Font, Time.GT > HighlightThreshold ? DetailHighlightColor : DetailColor);
+				XOff = AlignArbitrary(XOff + Sizes[1], AlignSize);
+				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[2], Font, Time.GTConcurrent > HighlightThreshold ? DetailHighlightColor : DetailColor);
+				XOff = AlignArbitrary(XOff + Sizes[2], AlignSize);
+				DrawCanvas->DrawShadowedString(TextLocation.X + XOff, TextLocation.Y, *Text[3], Font, Time.RT > HighlightThreshold ? DetailHighlightColor : DetailColor);
+				XOff = AlignArbitrary(XOff + Sizes[3], AlignSize);
+
+				TextLocation.Y += fAdvanceHeight;
+			};
+			DrawTimeData(TimeLabels[0], Time);
+			DrawTimeData(TimeLabels[1], Budget);
+			DrawTimeData(TimeLabels[2], Usage, 1.0f);
+			DrawTimeData(TimeLabels[3], AdjustedUsage, 1.0f);
+		}
+		else
+		{
+			int32 NumLines = 2;
+			DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, GuessWidth + 1.0f, 2.0f + (float(NumLines) * fAdvanceHeight), 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global Budget Info"), Font, HeadingColor);
+			TextLocation.Y += fAdvanceHeight;
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, TEXT("Global budget tracking is disabled."), Font, DetailHighlightColor);
 			TextLocation.Y += fAdvanceHeight;
 		}
 	}
@@ -1172,8 +1259,8 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 						if (SystemInstance->SignificanceIndex != INDEX_NONE )
 						{
 							StringBuilder.Appendf(TEXT("SignificanceIndex - %d\n"), SystemInstance->SignificanceIndex);
-						}
 					}
+				}
 
 					int64 TotalBytes = 0;
 					for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
@@ -1355,6 +1442,10 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 								if (ScalabilityState.bCulledByVisibility)
 								{
 									StringBuilder.Append(TEXT(" VisibilityCulled"));
+								}
+								if (ScalabilityState.bCulledByGlobalBudget)
+								{
+									StringBuilder.Append(TEXT(" GlobalBudgetCulled"));
 								}
 #endif
 								StringBuilder.Append(TEXT("\n"));

@@ -82,9 +82,9 @@ namespace Chaos
 		{
 			return const_cast<TBox<FReal, 3>*>(Implicit0->template GetObject<TImplicitObjectInstanced<TBox<FReal, 3>>>()->GetInstancedObject());
 		}
-		else if (Implicit0OuterType == TImplicitObjectInstanced<TCapsule<FReal>>::StaticType())
+		else if (Implicit0OuterType == TImplicitObjectInstanced<FCapsule>::StaticType())
 		{
-			return const_cast<TCapsule<FReal>*>(Implicit0->template GetObject<TImplicitObjectInstanced<TCapsule<FReal>>>()->GetInstancedObject());
+			return const_cast<FCapsule*>(Implicit0->template GetObject<TImplicitObjectInstanced<FCapsule>>()->GetInstancedObject());
 		}
 		else if (Implicit0OuterType == TImplicitObjectInstanced<TSphere<FReal, 3>>::StaticType())
 		{
@@ -225,6 +225,11 @@ namespace Chaos
 			}
 		}
 	}
+
+	const FVec3 FGenericParticleHandleHandleImp::ZeroVector = FVec3(0);
+	const FRotation3 FGenericParticleHandleHandleImp::IdentityRotation = FRotation3(FQuat::Identity);
+	const FMatrix33 FGenericParticleHandleHandleImp::ZeroMatrix = FMatrix33(0);
+	const TUniquePtr<FBVHParticles> FGenericParticleHandleHandleImp::NullBVHParticles = TUniquePtr<FBVHParticles>();
 
 	template <>
 	template <>

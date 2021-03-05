@@ -215,7 +215,7 @@ namespace ImmediatePhysics_Chaos
 	//
 
 	FActorHandle::FActorHandle(
-		Chaos::TPBDRigidsSOAs<FReal, 3>& InParticles, 
+		Chaos::FPBDRigidsSOAs& InParticles, 
 		Chaos::TArrayCollectionArray<Chaos::FVec3>& InParticlePrevXs, 
 		Chaos::TArrayCollectionArray<Chaos::FRotation3>& InParticlePrevRs, 
 		EActorType ActorType, 
@@ -239,13 +239,13 @@ namespace ImmediatePhysics_Chaos
 			switch (ActorType)
 			{
 			case EActorType::StaticActor:
-				ParticleHandle = Particles.CreateStaticParticles(1, nullptr, TGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateStaticParticles(1, nullptr, FGeometryParticleParameters())[0];
 				break;
 			case EActorType::KinematicActor:
-				ParticleHandle = Particles.CreateKinematicParticles(1, nullptr, TKinematicGeometryParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateKinematicParticles(1, nullptr, FKinematicGeometryParticleParameters())[0];
 				break;
 			case EActorType::DynamicActor:
-				ParticleHandle = Particles.CreateDynamicParticles(1, nullptr, TPBDRigidParticleParameters<FReal, Dimensions>())[0];
+				ParticleHandle = Particles.CreateDynamicParticles(1, nullptr, FPBDRigidParticleParameters())[0];
 				break;
 			}
 
@@ -301,17 +301,17 @@ namespace ImmediatePhysics_Chaos
 		}
 	}
 
-	Chaos::TGenericParticleHandle<FReal, Dimensions> FActorHandle::Handle() const
+	Chaos::FGenericParticleHandle FActorHandle::Handle() const
 	{
 		return { ParticleHandle };
 	}
 
-	Chaos::TGeometryParticleHandle<FReal, Dimensions>* FActorHandle::GetParticle()
+	Chaos::FGeometryParticleHandle* FActorHandle::GetParticle()
 	{
 		return ParticleHandle;
 	}
 
-	const Chaos::TGeometryParticleHandle<FReal, Dimensions>* FActorHandle::GetParticle() const
+	const Chaos::FGeometryParticleHandle* FActorHandle::GetParticle() const
 	{
 		return ParticleHandle;
 	}
@@ -344,7 +344,7 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		FParticleUtilitiesXR::SetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle), WorldTM);
+		FParticleUtilitiesXR::SetActorWorldTransform(FGenericParticleHandle(ParticleHandle), WorldTM);
 
 		auto* Dynamic = ParticleHandle->CastToRigidParticle();
 		if(Dynamic && Dynamic->ObjectState() == Chaos::EObjectStateType::Dynamic)
@@ -386,7 +386,7 @@ namespace ImmediatePhysics_Chaos
 
 		if (ensure(GetIsKinematic()))
 		{
-			TGenericParticleHandle<FReal, 3> GenericHandle(ParticleHandle);
+			FGenericParticleHandle GenericHandle(ParticleHandle);
 			FTransform PreviousTransform(GenericHandle->R(), GenericHandle->X());
 			FTransform ParticleTransform = FParticleUtilities::ActorWorldToParticleWorld(GenericHandle, WorldTM);
 
@@ -413,7 +413,7 @@ namespace ImmediatePhysics_Chaos
 	{
 		using namespace Chaos;
 
-		return FParticleUtilities::GetActorWorldTransform(TGenericParticleHandle<FReal, 3>(ParticleHandle));
+		return FParticleUtilities::GetActorWorldTransform(FGenericParticleHandle(ParticleHandle));
 	}
 
 	void FActorHandle::SetLinearVelocity(const FVector& NewLinearVelocity)
@@ -453,6 +453,16 @@ namespace ImmediatePhysics_Chaos
 		if (TPBDRigidParticleHandle<FReal, 3>* Rigid = Handle()->CastToRigidParticle())
 		{
 			Rigid->F() += Force;
+		}
+	}
+
+	void FActorHandle::AddTorque(const FVector& Torque)
+	{
+		using namespace Chaos;
+
+		if (TPBDRigidParticleHandle<FReal, 3> * Rigid = Handle()->CastToRigidParticle())
+		{
+			Rigid->Torque() += Torque;
 		}
 	}
 

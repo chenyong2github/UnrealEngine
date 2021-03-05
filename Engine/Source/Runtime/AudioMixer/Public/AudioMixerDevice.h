@@ -55,11 +55,30 @@ namespace Audio
 		enum Type
 		{
 			Master,
+			BaseDefault,
 			Reverb,
 			EQ,
 			Count,
 		};
 	}
+
+	struct FSubmixMap
+	{
+	private:
+		TMap<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr> SubmixMap;
+
+		FCriticalSection MapMutationLock;
+
+	public:
+		using FPair = TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>;
+		using FIterFunc = TUniqueFunction<void(const FPair&)>;
+
+		void Add(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase, FMixerSubmixPtr InMixerSubmix);
+		void Iterate(FIterFunc InFunction);
+		FMixerSubmixPtr FindRef(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase);
+		int32 Remove(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase);
+		void Reset();
+	};
 
 	class AUDIOMIXER_API FMixerDevice :	public FAudioDevice,
 										public IAudioMixer,
@@ -205,6 +224,7 @@ namespace Audio
 		FMixerSourceManager* GetSourceManager();
 
 		FMixerSubmixWeakPtr GetMasterSubmix(); 
+		FMixerSubmixWeakPtr GetBaseDefaultSubmix();
 		FMixerSubmixWeakPtr GetMasterReverbSubmix();
 		FMixerSubmixWeakPtr GetMasterEQSubmix();
 
@@ -358,7 +378,7 @@ namespace Audio
 		FAudioPlatformDeviceInfo PlatformInfo;
 
 		/** Map of USoundSubmix static data objects to the dynamic audio mixer submix. */
-		TMap<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr> Submixes;
+		FSubmixMap Submixes;
 
 		// Submixes that will sum their audio and send it directly to AudioMixerPlatform.
 		// Submixes are added to this list in RegisterSoundSubmix, and removed in UnregisterSoundSubmix.

@@ -650,7 +650,7 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 		StateCache.SetDepthBounds(0.0f, 1.0f);
 	}
 
-	if (GRHISupportsPerDrawVariableRateShading)
+	if (GRHISupportsPipelineVariableRateShading)
 	{
 		StateCache.SetShadingRate(GraphicsPipelineState->PipelineStateInitializer.ShadingRate, VRSRB_Passthrough);
 	}
@@ -1318,7 +1318,7 @@ void FD3D12CommandContext::SetRenderTargetsAndClear(const FRHISetRenderTargetsIn
 	}
 
 #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
-	if (GRHISupportsImageBasedVariableRateShading && CommandListHandle.GraphicsCommandList5() && RenderTargetsInfo.ShadingRateTexture != nullptr)
+	if (GRHISupportsAttachmentVariableRateShading && CommandListHandle.GraphicsCommandList5() && RenderTargetsInfo.ShadingRateTexture != nullptr)
 	{
 		VRSCombiners[1] = ConvertShadingRateCombiner(RenderTargetsInfo.ShadingRateTextureCombiner); // Combiner 1 is used to mix rates from a texture and the previous combiner
 		if (RenderTargetsInfo.ShadingRateTexture != nullptr)
@@ -1385,8 +1385,8 @@ void FD3D12CommandContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 void FD3D12CommandContext::RHICalibrateTimers(FRHITimestampCalibrationQuery* CalibrationQuery)
 {
 	FGPUTimingCalibrationTimestamp Timestamp = GetParentDevice()->GetCommandListManager().GetCalibrationTimestamp();
-	CalibrationQuery->CPUMicroseconds = Timestamp.CPUMicroseconds;
-	CalibrationQuery->GPUMicroseconds = Timestamp.GPUMicroseconds;
+	CalibrationQuery->CPUMicroseconds[GetGPUIndex()] = Timestamp.CPUMicroseconds;
+	CalibrationQuery->GPUMicroseconds[GetGPUIndex()] = Timestamp.GPUMicroseconds;
 }
 
 // Primitive drawing.
@@ -1725,7 +1725,7 @@ void FD3D12CommandContext::CommitComputeResourceTables(FD3D12ComputeShader* InCo
 
 void FD3D12CommandContext::RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances)
 {
-	RHI_DRAW_CALL_STATS(StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
+	RHI_DRAW_CALL_STATS_MGPU(GetGPUIndex(), StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
 
 	CommitGraphicsResourceTables();
 	CommitNonComputeShaderConstants();
@@ -1752,7 +1752,7 @@ void FD3D12CommandContext::RHIDrawPrimitiveIndirect(FRHIBuffer* ArgumentBufferRH
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
 	numDraws++;
-	RHI_DRAW_CALL_INC();
+	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(0);
@@ -1796,7 +1796,7 @@ void FD3D12CommandContext::RHIDrawIndexedIndirect(FRHIBuffer* IndexBufferRHI, FR
 	FD3D12Buffer* ArgumentsBuffer = RetrieveObject<FD3D12Buffer>(ArgumentsBufferRHI);
 
 	numDraws++;
-	RHI_DRAW_CALL_INC();
+	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(1);
@@ -1840,7 +1840,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitive(FRHIBuffer* IndexBufferRHI, i
 {
 	// called should make sure the input is valid, this avoid hidden bugs
 	ensure(NumPrimitives > 0);
-	RHI_DRAW_CALL_STATS(StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
+	RHI_DRAW_CALL_STATS_MGPU(GetGPUIndex(), StateCache.GetGraphicsPipelinePrimitiveType(), FMath::Max(NumInstances, 1U) * NumPrimitives);
 
 	NumInstances = FMath::Max<uint32>(1, NumInstances);
 	numDraws++;
@@ -1881,7 +1881,7 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
 
 	numDraws++;
-	RHI_DRAW_CALL_INC();
+	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
 	if (bTrackingEvents)
 	{
 		GetParentDevice()->RegisterGPUWork(0);
@@ -2104,7 +2104,7 @@ void FD3D12CommandContext::RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRa
  void FD3D12CommandContext::SetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner)
  {
  #if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
- 	if (GRHISupportsPerDrawVariableRateShading && CommandListHandle.GraphicsCommandList5())
+ 	if (GRHISupportsPipelineVariableRateShading && CommandListHandle.GraphicsCommandList5())
  	{
  		VRSCombiners[0] = ConvertShadingRateCombiner(Combiner);	// Combiner 0 is used to mix per draw and per VS/GS rates
  		VRSShadingRate = static_cast<D3D12_SHADING_RATE>(ShadingRate);

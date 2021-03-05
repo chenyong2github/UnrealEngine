@@ -382,9 +382,13 @@ void SDataprepDetailsView::CreateDefaultWidget( int32 Index, TSharedPtr< SWidget
 
 void SDataprepDetailsView::OnPropertyChanged(const FPropertyChangedEvent& InEvent)
 {
-	if( TrackedProperties.Contains( InEvent.Property ) )
+	for (const TSharedPtr< IPropertyHandle >& PropertyHandle : TrackedProperties)
 	{
-		ForceRefresh();
+		if (PropertyHandle->GetProperty() == InEvent.Property)
+		{
+			ForceRefresh();
+			break;
+		}
 	}
 }
 
@@ -530,7 +534,7 @@ void SDataprepDetailsView::AddWidgets( const TArray< TSharedRef< IDetailTreeNode
 					AddWidgets( Children, Index, LeftPadding + 10.f, CurrentParameterizationContext );
 				}
 
-				TrackedProperties.Add( PropertyHandle->GetProperty() );
+				TrackedProperties.Add( PropertyHandle );
 			}
 		}
 		else if( IsDetailNodeDisplayable( PropertyHandle ) )
@@ -626,6 +630,7 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 
 void SDataprepDetailsView::Construct()
 {
+	TrackedProperties.Reset();
 	DataprepAssetForParameterization.Reset();
 	bHasCustomPrepass = true;
 
@@ -720,9 +725,9 @@ void SDataprepDetailsView::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	Collector.AddReferencedObject( DetailedObject );
 	Collector.AddReferencedObject( DetailedObjectAsParameterizable );
-	for (FProperty* Property : TrackedProperties)
+	for (const TSharedPtr< IPropertyHandle >& PropertyHandle : TrackedProperties)
 	{
-		if (Property)
+		if (FProperty* Property = PropertyHandle->GetProperty())
 		{
 			Property->AddReferencedObjects(Collector);
 		}

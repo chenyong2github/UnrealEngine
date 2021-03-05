@@ -9,3 +9,6 @@
 #include "RendererInterface.h"
 
 FRDGTextureRef CreateMobileScreenSpaceAOTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent);
+
+bool IsMobileAmbientOcclusionEnabled(EShaderPlatform ShaderPlatform);
+bool IsUsingMobileAmbientOcclusion(EShaderPlatform ShaderPlatform);

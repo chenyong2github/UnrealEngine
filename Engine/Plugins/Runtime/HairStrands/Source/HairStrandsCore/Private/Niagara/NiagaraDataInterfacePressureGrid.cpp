@@ -311,7 +311,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 					void {InstanceFunctionName} (in float3 GridOrigin, in float GridLength, 
 					in float3 ParticlePosition, out bool OutFunctionStatus )
 					{
-						{PressureGridContextName} DIVelocityGrid_BuildDistanceField(DIContext,GridOrigin,GridLength,ParticlePosition,OutFunctionStatus);
+						{PressureGridContextName} DIVelocityGrid_BuildDistanceField(DIContext,DIContext_GridDestinationBuffer,GridOrigin,GridLength,ParticlePosition,OutFunctionStatus);
 					}
 					)");
 			OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -323,7 +323,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 					void {InstanceFunctionName} (in float3 GridOrigin, in float GridLength, 
 					in float3 ParticlePosition, in float ParticleMass, in float ParticleDensity, out bool OutFunctionStatus )
 					{
-						{PressureGridContextName} DIVelocityGrid_BuildDensityField(DIContext,GridOrigin,GridLength,ParticlePosition,ParticleMass,ParticleDensity,OutFunctionStatus);
+						{PressureGridContextName} DIVelocityGrid_BuildDensityField(DIContext,DIContext_GridDestinationBuffer,GridOrigin,GridLength,ParticlePosition,ParticleMass,ParticleDensity,OutFunctionStatus);
 					}
 					)");
 			OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -346,7 +346,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 			static const TCHAR* FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in int GridCell, in int InitStage, out bool OutProjectStatus)
 					{
-						{PressureGridContextName} DIVelocityGrid_SolveGridPressure(DIContext,GridCell,InitStage,OutProjectStatus);
+						{PressureGridContextName} DIVelocityGrid_SolveGridPressure(DIContext,DIContext_GridDestinationBuffer,GridCell,InitStage,OutProjectStatus);
 					}
 					)");
 			OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -379,7 +379,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 			static const TCHAR* FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in int GridCell, in float SolidDistance, in float3 SolidVelocity, out bool OutBoundaryStatus)
 					{
-						{PressureGridContextName} DIVelocityGrid_SetSolidBoundary(DIContext,GridCell,SolidDistance,SolidVelocity,OutBoundaryStatus);
+						{PressureGridContextName} DIVelocityGrid_SetSolidBoundary(DIContext,DIContext_GridDestinationBuffer,GridCell,SolidDistance,SolidVelocity,OutBoundaryStatus);
 					}
 					)");
 			OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -390,7 +390,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 			static const TCHAR* FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in int GridCell, out bool OutWeightsStatus)
 					{
-						{PressureGridContextName} DIVelocityGrid_ComputeBoundaryWeights(DIContext,GridCell,OutWeightsStatus);
+						{PressureGridContextName} DIVelocityGrid_ComputeBoundaryWeights(DIContext,DIContext_GridDestinationBuffer,GridCell,OutWeightsStatus);
 					}
 					)");
 			OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -401,7 +401,7 @@ bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterf
 			static const TCHAR* FormatSample = TEXT(R"(
 					void {InstanceFunctionName} (in int GridCell, in float GridLength, in float DeltaTime, out bool OutTransferStatus)
 					{
-						{PressureGridContextName} DIVelocityGrid_ScaleCellFields(DIContext,GridCell,GridLength,DeltaTime,OutTransferStatus);
+						{PressureGridContextName} DIVelocityGrid_ScaleCellFields(DIContext,DIContext_GridDestinationBuffer,GridCell,GridLength,DeltaTime,OutTransferStatus);
 					}
 					)");
 			OutHLSL += FString::Format(FormatSample, ArgsSample);
@@ -417,6 +417,16 @@ void UNiagaraDataInterfacePressureGrid::GetCommonHLSL(FString& OutHLSL)
 {
 	Super::GetCommonHLSL(OutHLSL);
 	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush\"\n");
+}
+
+bool UNiagaraDataInterfacePressureGrid::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (!Super::AppendCompileHash(InVisitor))
+		return false;
+
+	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush")), EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfacePressureGridHLSLSource"), Hash.ToString());
+	return true;
 }
 
 void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)

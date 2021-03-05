@@ -2,7 +2,12 @@
 
 #include "ConcertTakeRecorderManager.h"
 
+#include "ConcertMessages.h"
+#include "ConcertTransportMessages.h"
 #include "HAL/IConsoleManager.h"
+#include "Layout/Visibility.h"
+#include "Logging/LogVerbosity.h"
+#include "Misc/CoreMiscDefines.h"
 #include "Modules/ModuleManager.h"
 #include "Logging/LogMacros.h"
 
@@ -16,8 +21,10 @@
 #include "ConcertTakeRecorderStyle.h"
 
 #include "ITakeRecorderModule.h"
+#include "PropertyEditorDelegates.h"
 #include "Recorder/TakeRecorder.h"
 #include "TakeRecorderSources.h"
+#include "Styling/SlateTypes.h"
 #include "TakeRecorderSettings.h"
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSource.h"
@@ -27,14 +34,18 @@
 #include "TakeMetaData.h"
 #include "LevelSequence.h"
 
+#include "Templates/SharedPointer.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/UObjectGlobals.h"
 
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/SOverlay.h"
+#include "Components/SlateWrapperTypes.h"
 
 #include "EditorFontGlyphs.h"
 #include "EditorStyleSet.h"
@@ -43,13 +54,23 @@
 #include "UObject/ObjectMacros.h"
 #include "Misc/MessageDialog.h"
 
+#include "ConcertTakeRecorderMessages.h"
+#include "ConcertTakeRecorderSynchronizationCustomization.h"
+#include "ConcertTakeRecorderClientSessionCustomization.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogConcertTakeRecorder, Warning, Log)
+DEFINE_LOG_CATEGORY(LogConcertTakeRecorder);
 
 // Enable Take Syncing
-static TAutoConsoleVariable<int32> CVarEnableTakeSync(TEXT("Concert.EnableTakeRecorderSync"), 0, TEXT("Enable Concert Take Recorder Syncing."));
+static int32 bConcertEnableTakeRecorderSync = 0;
+static FAutoConsoleVariableRef  CVarEnableTakeSync(TEXT("Concert.EnableTakeRecorderSync"), bConcertEnableTakeRecorderSync, TEXT("Enable Concert Take Recorder Syncing."));
 
 #define LOCTEXT_NAMESPACE "ConcertTakeRecorder"
+
+ITakeRecorderModule& FTakeRecorderRecorderManagerGetModule()
+{
+	static const FName ModuleName = "TakeRecorder";
+	return FModuleManager::LoadModuleChecked<ITakeRecorderModule>(ModuleName);
+}
 
 FConcertTakeRecorderManager::FConcertTakeRecorderManager()
 {
@@ -58,14 +79,15 @@ FConcertTakeRecorderManager::FConcertTakeRecorderManager()
 		IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
 		ConcertClient->OnSessionStartup().AddRaw(this, &FConcertTakeRecorderManager::Register);
 		ConcertClient->OnSessionShutdown().AddRaw(this, &FConcertTakeRecorderManager::Unregister);
-	
+
 		if (TSharedPtr<IConcertClientSession> ConcertClientSession = ConcertClient->GetCurrentSession())
 		{
 			Register(ConcertClientSession.ToSharedRef());
 		}
 
+		ConcertClient->OnSessionConnectionChanged().AddRaw(this, &FConcertTakeRecorderManager::OnSessionConnectionChanged);
 		CacheTakeSyncFolderFiltered();
-		RegisterToolbarExtension();
+		RegisterExtensions();
 
 		FCoreUObjectDelegates::OnObjectPropertyChanged.AddRaw(this, &FConcertTakeRecorderManager::OnObjectModified);
 		UTakeRecorder::OnRecordingInitialized().AddRaw(this, &FConcertTakeRecorderManager::OnTakeRecorderInitialized);
@@ -79,6 +101,7 @@ FConcertTakeRecorderManager::FConcertTakeRecorderManager()
 FConcertTakeRecorderManager::~FConcertTakeRecorderManager()
 {
 	UTakeRecorder::OnRecordingInitialized().RemoveAll(this);
+
 	if (TSharedPtr<IConcertSyncClient> ConcertSyncClient = IConcertSyncClientModule::Get().GetClient(TEXT("MultiUser")))
 	{
 		IConcertClientRef ConcertClient = ConcertSyncClient->GetConcertClient();
@@ -86,11 +109,37 @@ FConcertTakeRecorderManager::~FConcertTakeRecorderManager()
 		ConcertClient->OnSessionShutdown().RemoveAll(this);
 	}
 
-	UnregisterToolbarExtension();
+	UnregisterExtensions();
+}
+
+namespace {
+
+void RegisterObjectCustomizations()
+{
+	ITakeRecorderModule& Module = FTakeRecorderRecorderManagerGetModule();
+
+	UConcertTakeSynchronization* TakeSync = GetMutableDefault<UConcertTakeSynchronization>();
+	Module.RegisterExternalObject(TakeSync);
+
+	UConcertSessionRecordSettings* RecordSettings = GetMutableDefault<UConcertSessionRecordSettings>();
+	Module.RegisterExternalObject(RecordSettings);
+}
+
+void UnregisterObjectCustomizations()
+{
+	ITakeRecorderModule& Module = FTakeRecorderRecorderManagerGetModule();
+
+	UConcertSessionRecordSettings* Settings = GetMutableDefault<UConcertSessionRecordSettings>();
+	Module.UnregisterExternalObject(Settings);
+
+	UConcertTakeSynchronization * TakeSync = GetMutableDefault<UConcertTakeSynchronization>();
+	Module.UnregisterExternalObject(TakeSync);
+}
 }
 
 void FConcertTakeRecorderManager::Register(TSharedRef<IConcertClientSession> InSession)
 {
+	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Session Startup: %s"), *InSession->GetSessionInfo().SessionName);
 	// Hold onto the session so we can trigger events
 	WeakSession = InSession;
 
@@ -98,29 +147,123 @@ void FConcertTakeRecorderManager::Register(TSharedRef<IConcertClientSession> InS
 	InSession->RegisterCustomEventHandler<FConcertTakeInitializedEvent>(this, &FConcertTakeRecorderManager::OnTakeInitializedEvent);
 	InSession->RegisterCustomEventHandler<FConcertRecordingFinishedEvent>(this, &FConcertTakeRecorderManager::OnRecordingFinishedEvent);
 	InSession->RegisterCustomEventHandler<FConcertRecordingCancelledEvent>(this, &FConcertTakeRecorderManager::OnRecordingCancelledEvent);
+
+	InSession->RegisterCustomEventHandler<FConcertRecordSettingsChangeEvent>(this, &FConcertTakeRecorderManager::OnRecordSettingsChangeEvent);
+	InSession->RegisterCustomEventHandler<FConcertMultiUserSyncChangeEvent>(this, &FConcertTakeRecorderManager::OnMultiUserSyncChangeEvent);
+
+	if (InSession->GetConnectionStatus() == EConcertConnectionStatus::Connected)
+	{
+		OnSessionConnectionChanged(*InSession, EConcertConnectionStatus::Connected);
+	}
+
+	if(bConcertEnableTakeRecorderSync > 0)
+	{
+		RegisterObjectCustomizations();
+	}
 }
 
 void FConcertTakeRecorderManager::Unregister(TSharedRef<IConcertClientSession> InSession)
 {
+	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Session Shutdown: %s"), *InSession->GetSessionInfo().SessionName);
+
 	if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
 	{
 		check(Session == InSession);
+
+		UnregisterObjectCustomizations();
+		Session->UnregisterCustomEventHandler<FConcertRecordingCancelledEvent>(this);
+		Session->UnregisterCustomEventHandler<FConcertRecordingFinishedEvent>(this);
+		Session->UnregisterCustomEventHandler<FConcertTakeInitializedEvent>(this);
+
+		Session->UnregisterCustomEventHandler<FConcertMultiUserSyncChangeEvent>(this);
+		Session->UnregisterCustomEventHandler<FConcertRecordSettingsChangeEvent>(this);
 	}
 	WeakSession.Reset();
 }
 
-void FConcertTakeRecorderManager::RegisterToolbarExtension()
+void FConcertTakeRecorderManager::RegisterExtensions()
 {
-	static const FName ModuleName = "TakeRecorder";
-	ITakeRecorderModule& Module = FModuleManager::LoadModuleChecked<ITakeRecorderModule>(ModuleName);
+	ITakeRecorderModule& Module = FTakeRecorderRecorderManagerGetModule();
+
 	Module.GetToolbarExtensionGenerators().AddRaw(this, &FConcertTakeRecorderManager::CreateExtensionWidget);
+	Module.GetRecordButtonExtensionGenerators().AddRaw(this, &FConcertTakeRecorderManager::CreateRecordButtonOverlay);
+	Module.GetRecordErrorCheckGenerator().AddRaw(this, &FConcertTakeRecorderManager::ReportRecordingError);
+
+	if (GIsEditor)
+	{
+		FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+		TakeSyncDelegate = FConcertTakeRecorderSynchronizationCustomization::OnSyncPropertyValueChanged().AddRaw(
+			this,&FConcertTakeRecorderManager::OnTakeSyncPropertyChange);
+
+		PropertyEditorModule.RegisterCustomClassLayout(
+			UConcertTakeSynchronization::StaticClass()->GetFName(),
+			FOnGetDetailCustomizationInstance::CreateLambda(&MakeShared<FConcertTakeRecorderSynchronizationCustomization>));
+
+		PropertyEditorModule.RegisterCustomClassLayout(
+			UConcertSessionRecordSettings::StaticClass()->GetFName(),
+			FOnGetDetailCustomizationInstance::CreateLambda([this]()
+			{
+				Customization = MakeShared<FConcertTakeRecorderClientSessionCustomization>();
+				Customization->OnRecordSettingChanged().AddRaw(this,&FConcertTakeRecorderManager::RecordSettingChange);
+				return Customization->AsShared();
+			}));
+	}
 }
 
-void FConcertTakeRecorderManager::UnregisterToolbarExtension()
+void FConcertTakeRecorderManager::UnregisterExtensions()
 {
-	static const FName ModuleName = "TakeRecorder";
-	ITakeRecorderModule& Module = FModuleManager::LoadModuleChecked<ITakeRecorderModule>(ModuleName);
+	ITakeRecorderModule& Module = FTakeRecorderRecorderManagerGetModule();
+
 	Module.GetToolbarExtensionGenerators().RemoveAll(this);
+	Module.GetRecordButtonExtensionGenerators().RemoveAll(this);
+	Module.GetRecordErrorCheckGenerator().RemoveAll(this);
+
+	FPropertyEditorModule* PropertyEditorModule = FModuleManager::Get().GetModulePtr<FPropertyEditorModule>("PropertyEditor");
+	if (PropertyEditorModule)
+	{
+		PropertyEditorModule->UnregisterCustomClassLayout(UConcertTakeSynchronization::StaticClass()->GetFName());
+		PropertyEditorModule->UnregisterCustomClassLayout(UConcertSessionRecordSettings::StaticClass()->GetFName());
+
+		FConcertTakeRecorderSynchronizationCustomization::OnSyncPropertyValueChanged().Remove(TakeSyncDelegate);
+	}
+}
+
+EVisibility FConcertTakeRecorderManager::GetMultiUserIconVisibility() const
+{
+	ITakeRecorderModule& TakeRecorderModule = FModuleManager::LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
+	UTakePreset* TakePreset = TakeRecorderModule.GetPendingTake();
+	UConcertTakeSynchronization const* TakeSync = GetDefault<UConcertTakeSynchronization>();
+
+	auto ComputeVisState = [](bool Value)
+	{
+		return Value ? EVisibility::HitTestInvisible : EVisibility::Collapsed;
+	};
+
+	if (TakePreset && !bIsRecording && TakeSync->bSyncTakeRecordingTransactions
+		&& IsTakeSyncEnabled() && CanAnyRecord())
+	{
+		ULevelSequence* LevelSequence = TakePreset->GetLevelSequence();
+		if (LevelSequence)
+		{
+			UTakeRecorderSources* Sources = LevelSequence->FindMetaData<UTakeRecorderSources>();
+			return ComputeVisState(Sources && Sources->GetSources().Num() > 0);
+		}
+	}
+
+	return ComputeVisState(false);
+}
+
+void FConcertTakeRecorderManager::CreateRecordButtonOverlay(TArray<TSharedRef<SWidget>>& OutExtensions)
+{
+	OutExtensions.Add(
+		SNew(SBox)
+		.Visibility_Raw(this, &FConcertTakeRecorderManager::GetMultiUserIconVisibility)
+		[
+			SNew(SImage)
+			.Image(FConcertTakeRecorderStyle::Get()->GetBrush("Concert.TakeRecorder.SyncTakes.Tiny"))
+		]
+	);
 }
 
 void FConcertTakeRecorderManager::CreateExtensionWidget(TArray<TSharedRef<SWidget>>& OutExtensions)
@@ -157,6 +300,11 @@ void FConcertTakeRecorderManager::CreateExtensionWidget(TArray<TSharedRef<SWidge
 			]
 		]
 	);
+
+	if (IsTakeSyncEnabled())
+	{
+		RegisterObjectCustomizations();
+	}
 }
 
 void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeRecorder)
@@ -164,7 +312,7 @@ void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeR
 	TakeRecorder->OnRecordingFinished().AddRaw(this, &FConcertTakeRecorderManager::OnRecordingFinished);
 	TakeRecorder->OnRecordingCancelled().AddRaw(this, &FConcertTakeRecorderManager::OnRecordingCancelled);
 
-	if (IsTakeSyncEnabled() && TakeRecorderState.LastStartedTake != TakeRecorder->GetName())
+	if (IsTakeSyncEnabled() && !bIsRecording && TakeRecorderState.LastStartedTake != TakeRecorder->GetName())
 	{
 		if (TSharedPtr<IConcertClientSession> Session = WeakSession.Pin())
 		{
@@ -179,12 +327,19 @@ void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeR
 			{
 				if (TakePreset->GetOutermost()->IsDirty())
 				{
-					FText WarningMessage(LOCTEXT("Warning_RevertChanges", "Cannot start a synchronized take since there are changes to the take preset. Either revert your changes or save the preset to start a synchronized take."));
-					FMessageDialog::Open(EAppMsgType::Ok, WarningMessage);
-					TakeRecorder->Stop();
-					return;
+					TakeRecorderModule.OnForceSaveAsPreset().Execute();
+					if (TakePreset->GetOutermost()->IsDirty())
+					{
+						FText WarningMessage(LOCTEXT("Warning_RevertChanges", "Cannot start a synchronized take since there are changes to the take preset. Either revert your changes or save the preset to start a synchronized take."));
+						FMessageDialog::Open(EAppMsgType::Ok, WarningMessage);
+						return;
+					}
 				}
 
+				if (!CanRecord())
+				{
+					TakeRecorder->SetDisableSaveTick(true);
+				}
 				FConcertTakeInitializedEvent TakeInitializedEvent;
 				TakeInitializedEvent.TakeName = TakeRecorder->GetName();
 				TakeInitializedEvent.TakePresetPath = TakeMetaData->GetPresetOrigin()->GetPathName();
@@ -195,6 +350,7 @@ void FConcertTakeRecorderManager::OnTakeRecorderInitialized(UTakeRecorder* TakeR
 
 				InLocalIdentifierTable.GetState(TakeInitializedEvent.IdentifierState);
 				Session->SendCustomEvent(TakeInitializedEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+				bIsRecording = true;
 			}
 		}
 	}
@@ -214,6 +370,7 @@ void FConcertTakeRecorderManager::OnRecordingFinished(UTakeRecorder* TakeRecorde
 
 	TakeRecorder->OnRecordingFinished().RemoveAll(this);
 	TakeRecorder->OnRecordingCancelled().RemoveAll(this);
+	bIsRecording = false;
 }
 
 void FConcertTakeRecorderManager::OnRecordingCancelled(UTakeRecorder* TakeRecorder)
@@ -230,11 +387,12 @@ void FConcertTakeRecorderManager::OnRecordingCancelled(UTakeRecorder* TakeRecord
 
 	TakeRecorder->OnRecordingFinished().RemoveAll(this);
 	TakeRecorder->OnRecordingCancelled().RemoveAll(this);
+	bIsRecording = false;
 }
 
 void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionContext&, const FConcertTakeInitializedEvent& InEvent)
 {
-	if (IsTakeSyncEnabled())
+	if (IsTakeSyncEnabled() && CanRecord())
 	{
 		TakeRecorderState.LastStartedTake = InEvent.TakeName;
 
@@ -267,6 +425,7 @@ void FConcertTakeRecorderManager::OnTakeInitializedEvent(const FConcertSessionCo
 			DefaultParams.Project = GetDefault<UTakeRecorderProjectSettings>()->Settings;
 
 			UTakeRecorder* NewRecorder = NewObject<UTakeRecorder>(GetTransientPackage(), NAME_None, RF_Transient);
+			bIsRecording = true;
 			NewRecorder->Initialize(
 				LevelSequence,
 				Sources,
@@ -285,6 +444,7 @@ void FConcertTakeRecorderManager::OnRecordingFinishedEvent(const FConcertSession
 		if (UTakeRecorder* ActiveTakeRecorder = UTakeRecorder::GetActiveRecorder())
 		{
 			ActiveTakeRecorder->Stop();
+			bIsRecording = false;
 		}
 	}
 }
@@ -297,13 +457,200 @@ void FConcertTakeRecorderManager::OnRecordingCancelledEvent(const FConcertSessio
 		if (UTakeRecorder* ActiveTakeRecorder = UTakeRecorder::GetActiveRecorder())
 		{
 			ActiveTakeRecorder->Stop();
+			bIsRecording = false;
 		}
 	}
 }
 
+void FConcertTakeRecorderManager::OnRecordSettingsChangeEvent(const FConcertSessionContext&, const FConcertRecordSettingsChangeEvent& InEvent)
+{
+	TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+	if (Session.IsValid())
+	{
+		UConcertSessionRecordSettings* RecordSettings = GetMutableDefault<UConcertSessionRecordSettings>();
+
+		if (InEvent.EndpointId == Session->GetSessionClientEndpointId())
+		{
+			RecordSettings->LocalSettings = InEvent.Settings;
+			if (Customization.IsValid())
+			{
+				FConcertClientRecordSetting Item;
+				Item.Details.ClientEndpointId = InEvent.EndpointId;
+				Item.Settings = InEvent.Settings;
+				Item.bTakeSyncEnabled = GetDefault<UConcertTakeSynchronization>()->bSyncTakeRecordingTransactions;
+				Customization->UpdateClientSettings(EConcertClientStatus::Updated, Item);
+			}
+		}
+		else
+		{
+			for(FConcertClientRecordSetting& Item : RecordSettings->RemoteSettings)
+			{
+				if (Item.Details.ClientEndpointId == InEvent.EndpointId)
+				{
+					Item.Settings = InEvent.Settings;
+					if (Customization.IsValid())
+					{
+						Customization->UpdateClientSettings(EConcertClientStatus::Updated, Item);
+					}
+				}
+			}
+		}
+	}
+}
+
+void FConcertTakeRecorderManager::OnTakeSyncPropertyChange(bool Value)
+{
+	TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+	if (Session.IsValid())
+	{
+		FConcertMultiUserSyncChangeEvent OutEvent;
+		OutEvent.EndpointId = Session->GetSessionClientEndpointId();
+		OutEvent.bSyncTakeRecordingTransactions = Value;
+
+		Session->SendCustomEvent(OutEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+
+		UConcertTakeSynchronization *Sync = GetMutableDefault<UConcertTakeSynchronization>();
+		Sync->SaveConfig();
+
+		if (Customization.IsValid())
+		{
+			UConcertSessionRecordSettings const* RecordSettings = GetDefault<UConcertSessionRecordSettings>();
+			FConcertClientRecordSetting Item;
+			Item.Details.ClientEndpointId = Session->GetSessionClientEndpointId();
+			Item.Settings = RecordSettings->LocalSettings;
+			Item.bTakeSyncEnabled = Value;
+			Customization->UpdateClientSettings(EConcertClientStatus::Updated, Item);
+		}
+	}
+}
+
+void FConcertTakeRecorderManager::OnMultiUserSyncChangeEvent(const FConcertSessionContext&, const FConcertMultiUserSyncChangeEvent& InEvent)
+{
+	TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+	if (Session.IsValid())
+	{
+		UConcertSessionRecordSettings* RecordSettings = GetMutableDefault<UConcertSessionRecordSettings>();
+		for(FConcertClientRecordSetting& Item : RecordSettings->RemoteSettings)
+		{
+			if (Item.Details.ClientEndpointId == InEvent.EndpointId
+				&& Item.bTakeSyncEnabled != InEvent.bSyncTakeRecordingTransactions)
+			{
+				Item.bTakeSyncEnabled = InEvent.bSyncTakeRecordingTransactions;
+				if (Customization.IsValid())
+				{
+					Customization->UpdateClientSettings(EConcertClientStatus::Updated, Item);
+				}
+			}
+		}
+	}
+}
+
+void FConcertTakeRecorderManager::OnSessionClientChanged(IConcertClientSession& Session, EConcertClientStatus ClientStatus, const FConcertSessionClientInfo& InClientInfo)
+{
+	check(WeakSession.IsValid());
+
+	UConcertSessionRecordSettings* RecordSettings = GetMutableDefault<UConcertSessionRecordSettings>();
+	TArray<FConcertClientRecordSetting>& Clients = RecordSettings->RemoteSettings;
+
+	int32 Index = Clients.IndexOfByPredicate([&InClientInfo](const FConcertClientRecordSetting& Setting) {
+		return Setting.Details.ClientEndpointId == InClientInfo.ClientEndpointId;
+	});
+
+	switch(ClientStatus)
+	{
+	case EConcertClientStatus::Connected:
+	{
+		check(Index == INDEX_NONE);
+		UE_LOG(LogConcertTakeRecorder, Display, TEXT("Session Client Change: %s Connected."), *InClientInfo.ClientInfo.DisplayName);
+		FConcertClientRecordSetting RecordSetting;
+		RecordSetting.Details = InClientInfo;
+		Clients.Emplace(MoveTemp(RecordSetting));
+
+		SendInitialState(Session);
+	}
+	break;
+	case EConcertClientStatus::Disconnected:
+		UE_LOG(LogConcertTakeRecorder, Display, TEXT("Session Client Change: %s Disconnected."), *InClientInfo.ClientInfo.DisplayName);
+		break;
+	case EConcertClientStatus::Updated:
+		break;
+	};
+
+	if (Customization.IsValid())
+	{
+		Customization->UpdateClientSettings(ClientStatus, Index == INDEX_NONE ? Clients.Last() : Clients[Index] );
+	}
+
+	if (ClientStatus == EConcertClientStatus::Disconnected && Index != INDEX_NONE)
+	{
+		Clients.RemoveAt(Index);
+	}
+	RecordSettings->SaveConfig();
+}
+
+void FConcertTakeRecorderManager::DisconnectFromSession()
+{
+	check(WeakSession.IsValid());
+	{
+		TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+		Session->OnSessionClientChanged().Remove(ClientChangeDelegate);
+	}
+}
+
+void FConcertTakeRecorderManager::ConnectToSession(IConcertClientSession& InSession)
+{
+	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Connected to Session: %s"), *InSession.GetSessionInfo().SessionName);
+
+	ClientChangeDelegate = InSession.OnSessionClientChanged().AddRaw(this, &FConcertTakeRecorderManager::OnSessionClientChanged);
+
+	SendInitialState(InSession);
+	UpdateSessionClientList();
+}
+
+void FConcertTakeRecorderManager::OnSessionConnectionChanged(IConcertClientSession& InSession, EConcertConnectionStatus ConnectionStatus)
+{
+	if (ConnectionStatus == EConcertConnectionStatus::Connected)
+	{
+		DisconnectFromSession();
+		ConnectToSession(InSession);
+	}
+	else if (ConnectionStatus == EConcertConnectionStatus::Disconnecting)
+	{
+		UE_LOG(LogConcertTakeRecorder, Display, TEXT("Multiuser Take Recorder Disconnecting from Session: %s"), *InSession.GetSessionInfo().SessionName);
+		DisconnectFromSession();
+	}
+}
+
+void FConcertTakeRecorderManager::ReportRecordingError(FText &OutputError)
+{
+	if(IsTakeSyncEnabled() && !CanAnyRecord())
+	{
+		OutputError = LOCTEXT("ErrorWidget_NoRecorder", "No clients are available to record.");
+	}
+}
+
+bool FConcertTakeRecorderManager::CanAnyRecord() const
+{
+	UConcertSessionRecordSettings const* RecordSettings = GetDefault<UConcertSessionRecordSettings>();
+
+	bool bCanRecord = CanRecord();
+	for( const FConcertClientRecordSetting&  Remote : RecordSettings->RemoteSettings )
+	{
+		bCanRecord = bCanRecord || Remote.Settings.bRecordOnClient;
+	}
+	return bCanRecord;
+}
+
+bool FConcertTakeRecorderManager::CanRecord() const
+{
+	UConcertSessionRecordSettings const* RecordSettings = GetDefault<UConcertSessionRecordSettings>();
+	UConcertTakeSynchronization const *TakeSync = GetDefault<UConcertTakeSynchronization>();
+	return TakeSync->bSyncTakeRecordingTransactions && RecordSettings->LocalSettings.bRecordOnClient;
+}
+
 bool FConcertTakeRecorderManager::IsTakeSyncEnabled() const
 {
-	return CVarEnableTakeSync.GetValueOnAnyThread() > 0 && bTakeSyncFolderFiltered;
+	return bConcertEnableTakeRecorderSync > 0 && bTakeSyncFolderFiltered;
 }
 
 ECheckBoxState FConcertTakeRecorderManager::IsTakeSyncChecked() const
@@ -318,12 +665,21 @@ void FConcertTakeRecorderManager::HandleTakeSyncCheckBox(ECheckBoxState State) c
 		return;
 	}
 
-	CVarEnableTakeSync->AsVariable()->Set(State == ECheckBoxState::Checked ? 1 : 0);
+	if (State == ECheckBoxState::Checked)
+	{
+		bConcertEnableTakeRecorderSync = 1;
+		RegisterObjectCustomizations();
+	}
+	else
+	{
+		UnregisterObjectCustomizations();
+		bConcertEnableTakeRecorderSync = 0;
+	}
 }
 
 EVisibility FConcertTakeRecorderManager::HandleTakeSyncButtonVisibility() const
 {
-	return WeakSession.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
+	return  WeakSession.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FText FConcertTakeRecorderManager::GetWarningText() const
@@ -364,6 +720,87 @@ void FConcertTakeRecorderManager::CacheTakeSyncFolderFiltered()
 			}
 		}
 	}
+}
+
+void FConcertTakeRecorderManager::SendInitialState(IConcertClientSession& Session)
+{
+	UConcertSessionRecordSettings const * Record = GetDefault<UConcertSessionRecordSettings>();
+	FConcertRecordSettingsChangeEvent OutEvent;
+	OutEvent.Settings   = Record->LocalSettings;
+	OutEvent.EndpointId = Session.GetSessionClientEndpointId();
+	Session.SendCustomEvent(OutEvent, Session.GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+
+	UConcertTakeSynchronization const * TakeSync = GetDefault<UConcertTakeSynchronization>();
+	FConcertMultiUserSyncChangeEvent TakeSyncEvent;
+	TakeSyncEvent.EndpointId = OutEvent.EndpointId;
+	TakeSyncEvent.bSyncTakeRecordingTransactions = TakeSync->bSyncTakeRecordingTransactions;
+	Session.SendCustomEvent(TakeSyncEvent, Session.GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+}
+
+void FConcertTakeRecorderManager::RecordSettingChange(const FConcertClientRecordSetting& RecordSetting)
+{
+	UE_LOG(LogConcertTakeRecorder, Display, TEXT("Record Setting Changed"));
+
+	TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+	if (Session.IsValid())
+	{
+		UConcertSessionRecordSettings* RecordSettings = GetMutableDefault<UConcertSessionRecordSettings>();
+		if (RecordSetting.Details.ClientEndpointId == Session->GetSessionClientEndpointId())
+		{
+			RecordSettings->LocalSettings = RecordSetting.Settings;
+		}
+		else
+		{
+			for(FConcertClientRecordSetting& Item : RecordSettings->RemoteSettings)
+			{
+				if (Item.Details.ClientEndpointId == RecordSetting.Details.ClientEndpointId)
+				{
+					Item.Settings = RecordSetting.Settings;
+				}
+			}
+		}
+
+		RecordSettings->SaveConfig();
+
+		FConcertRecordSettingsChangeEvent OutEvent;
+		OutEvent.Settings   = RecordSetting.Settings;
+		OutEvent.EndpointId = RecordSetting.Details.ClientEndpointId;
+		Session->SendCustomEvent(OutEvent, Session->GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+	}
+}
+
+void FConcertTakeRecorderManager::AddRemoteClient(const FConcertSessionClientInfo& ClientInfo)
+{
+	UConcertSessionRecordSettings* RecordSettings = GetMutableDefault<UConcertSessionRecordSettings>();
+	FConcertClientRecordSetting Setting;
+	Setting.Details = ClientInfo;
+
+	RecordSettings->RemoteSettings.Emplace(MoveTemp(Setting));
+}
+
+void FConcertTakeRecorderManager::UpdateSessionClientList()
+{
+	TSharedPtr<IConcertClientSession> Session = WeakSession.Pin();
+
+	check(Session.IsValid());
+
+	TArray<FConcertSessionClientInfo> ConnectedClients = Session->GetSessionClients();
+
+	UConcertSessionRecordSettings* RecordSettings = GetMutableDefault<UConcertSessionRecordSettings>();
+	RecordSettings->RemoteSettings.Reset();
+	RecordSettings->RemoteSettings.Reserve(ConnectedClients.Num());
+
+	for (FConcertSessionClientInfo& Client : ConnectedClients)
+	{
+		UE_LOG(LogConcertTakeRecorder, Display, TEXT("Session Client Add->%s"), *Client.ToDisplayString().ToString());
+		AddRemoteClient(Client);
+	}
+
+	if (Customization)
+	{
+		Customization->PopulateClientList();
+	}
+	RecordSettings->SaveConfig();
 }
 
 #undef LOCTEXT_NAMESPACE /*ConcertTakeRecorder*/

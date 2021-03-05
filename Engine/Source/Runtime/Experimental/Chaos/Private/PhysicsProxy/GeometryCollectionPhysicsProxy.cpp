@@ -220,7 +220,7 @@ void PopulateSimulatedParticle(
 	{
 		Handle->CollisionParticlesInitIfNeeded();
 
-		TUniquePtr<Chaos::TBVHParticles<float, 3>>& CollisionParticles = Handle->CollisionParticles();
+		TUniquePtr<Chaos::FBVHParticles>& CollisionParticles = Handle->CollisionParticles();
 		if (Simplicial->Size())
 		{
 			const Chaos::FAABB3 ImplicitShapeDomain = 
@@ -712,7 +712,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 					Handle->SetStrain(StrainDefault);
 				}
 
-				TUniquePtr<Chaos::TBVHParticles<float, 3>>& CollisionParticles = Handle->CollisionParticles();
+				TUniquePtr<Chaos::FBVHParticles>& CollisionParticles = Handle->CollisionParticles();
 				CollisionParticles.Reset(Simplicials[TransformGroupIndex]?Simplicials[TransformGroupIndex]->NewCopy():nullptr); // @chaos(optimize) : maybe just move this memory instead. 
 				if (CollisionParticles)
 				{
@@ -851,7 +851,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 							RigidChildren.Num(), *Parameters.Name);
 					}
 
-					Chaos::FClusterCreationParameters<float> CreationParameters;
+					Chaos::FClusterCreationParameters CreationParameters;
 					CreationParameters.ClusterParticleHandle = ClusterHandles.Num() ? ClusterHandles[ClusterHandlesIndex++] : nullptr;
 
 					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Handle = BuildClusters(RigidsSolver, TransformGroupIndex, RigidChildren, RigidChildrenTransformGroupIndex, CreationParameters);
@@ -894,7 +894,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 				{
 					if (SolverClusterHandles[TransformGroupIndex])
 					{
-						Chaos::FClusterCreationParameters<Chaos::FReal> ClusterParams;
+						Chaos::FClusterCreationParameters ClusterParams;
 						// #todo: should other parameters be set here?  Previously, there was no parameters being sent, and it is unclear
 						// where some of these parameters are defined (ie: CoillisionThicknessPercent)
 						ClusterParams.ConnectionMethod = Parameters.ClusterConnectionMethod;
@@ -977,7 +977,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	const uint32 CollectionClusterIndex, // TransformGroupIndex
 	TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,
 	const TArray<int32>& ChildTransformGroupIndices,
-	const Chaos::FClusterCreationParameters<float> & ClusterParameters)
+	const Chaos::FClusterCreationParameters & ClusterParameters)
 {
 	SCOPE_CYCLE_COUNTER(STAT_BuildClusters);
 
@@ -1003,7 +1003,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 	//Now if we instantiate the pillar and rotate it so that it is along the X-axis, we would still like to use the same pillar proxy.
 	//Since the mass orientation is computed in world space in both cases we'd end up with a diagonal inertia matrix and identity rotation that looks like this: [big, small, big] or [small, big, big].
 	//Because of this we need to know how to rotate collision particles and geometry to match with original computation. If it was just geometry we could transform it before passing, but we need collision particles as well
-	Chaos::FClusterCreationParameters<float> ClusterCreationParameters = ClusterParameters;
+	Chaos::FClusterCreationParameters ClusterCreationParameters = ClusterParameters;
 	ClusterCreationParameters.bGenerateConnectionGraph = false;
 	// fix... ClusterCreationParameters.CollisionParticles = Simplicials[CollectionClusterIndex];
 	ClusterCreationParameters.ConnectionMethod = Parameters.ClusterConnectionMethod;
@@ -2085,7 +2085,7 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 			//
 			if (ensureMsgf(TriMesh, TEXT("No Triangle representation")))
 			{
-				Chaos::TBVHParticles<float, 3>* Simplicial =
+				Chaos::FBVHParticles* Simplicial =
 					FCollisionStructureManager::NewSimplicial(
 						MassSpaceParticles,
 						BoneMap,
@@ -2519,7 +2519,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
 
 	FGeometryDynamicCollection& Collection = GameThreadCollection;
-	Chaos::TPBDPositionConstraints<float, 3> PositionTarget;
+	Chaos::FPBDPositionConstraints PositionTarget;
 	TMap<int32, int32> TargetedParticles;
 
 	// Process Particle-Collection commands
@@ -2531,7 +2531,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*> ParticleHandles;
 		TArray<FVector> SamplePoints;
-		TArray<ContextIndex> SampleIndices;
+		TArray<FFieldContextIndex> SampleIndices;
 
 		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
 		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
@@ -2544,7 +2544,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+				TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 				FFieldContext FieldContext(
 					SampleIndicesView,
@@ -2566,7 +2566,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 							InitDynamicStateResults(ParticleHandles, FieldContext, LocalResults);
 
 							static_cast<const FFieldNode<int32>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-							for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+							for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 							{
 								Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 								if (RigidHandle)
@@ -2596,7 +2596,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 							SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_LinearVelocity);
 							{
 								static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-								for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+								for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 								{
 									Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 									if (RigidHandle)
@@ -2623,7 +2623,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 							SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_AngularVelocity);
 							{
 								static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
-								for (const ContextIndex& Index : FieldContext.GetEvaluatedSamples())
+								for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 								{
 									Chaos::TPBDRigidParticleHandle<float, 3>* RigidHandle = ParticleHandles[Index.Sample]->CastToRigidParticle();
 									if (RigidHandle)
@@ -2667,7 +2667,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*> ParticleHandles;
 		TArray<FVector> SamplePoints;
-		TArray<ContextIndex> SampleIndices;
+		TArray<FFieldContextIndex> SampleIndices;
 
 		EFieldResolutionType PrevResolutionType = EFieldResolutionType::Field_Resolution_Max;
 		EFieldFilterType PrevFilterType = EFieldFilterType::Field_Filter_Max;
@@ -2681,7 +2681,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 				const float TimeSeconds = RigidSolver->GetSolverTime() - FieldCommand.TimeCreation;
 
 				TArrayView<FVector> SamplePointsView(&(SamplePoints[0]), SamplePoints.Num());
-				TArrayView<ContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
+				TArrayView<FFieldContextIndex> SampleIndicesView(&(SampleIndices[0]), SampleIndices.Num());
 
 				FFieldContext FieldContext(
 					SampleIndicesView,
@@ -2722,7 +2722,7 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 		const uint32 CollectionClusterIndex,\
 		TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,\
 		const TArray<int32>& ChildTransformGroupIndices,\
-		const Chaos::FClusterCreationParameters<float> & Parameters);\
+		const Chaos::FClusterCreationParameters & Parameters);\
 	template void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Chaos::Traits>* Evolution);\
 
 #include "Chaos/EvolutionTraits.inl"

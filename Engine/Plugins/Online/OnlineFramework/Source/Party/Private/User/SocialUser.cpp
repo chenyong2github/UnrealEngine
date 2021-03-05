@@ -532,21 +532,18 @@ const FOnlineUserPresence* USocialUser::GetFriendPresenceInfo(ESocialSubsystem S
 
 FDateTime USocialUser::GetFriendshipCreationDate() const
 {
-	if (ensure(IsFriend(ESocialSubsystem::Primary)))
+	if (const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(ESocialSubsystem::Primary))
 	{
-		if (const FSubsystemUserInfo* SubsystemInfo = SubsystemInfoByType.Find(ESocialSubsystem::Primary))
+		if (SubsystemInfo->FriendInfo.IsValid())
 		{
-			if (SubsystemInfo->FriendInfo.IsValid())
+			TSharedPtr<FOnlineFriend> OnlineFriend = SubsystemInfo->FriendInfo.Pin();
+			FString FriendshipCreationDateString;
+			if (OnlineFriend->GetUserAttribute(TEXT("created"), FriendshipCreationDateString))
 			{
-				TSharedPtr<FOnlineFriend> OnlineFriend = SubsystemInfo->FriendInfo.Pin();
-				FString FriendshipCreationDateString;
-				if (OnlineFriend->GetUserAttribute(TEXT("created"), FriendshipCreationDateString))
+				FDateTime CreatedDate;
+				if (ensure(FDateTime::ParseIso8601(*FriendshipCreationDateString, CreatedDate)))
 				{
-					FDateTime CreatedDate;
-					if (ensure(FDateTime::ParseIso8601(*FriendshipCreationDateString, CreatedDate)))
-					{
-						return CreatedDate;
-					}
+					return CreatedDate;
 				}
 			}
 		}

@@ -535,14 +535,13 @@ extern RHI_API int32 GPoolSizeVRAMPercentage;
 
 /** Some simple runtime stats, reset on every call to RHIBeginFrame */
 /** Num draw calls & primitives on previous frame (accurate on any thread)*/
-extern RHI_API int32 GNumDrawCallsRHI;
-extern RHI_API int32 GNumPrimitivesDrawnRHI;
+extern RHI_API int32 GNumDrawCallsRHI[MAX_NUM_GPUS];
+extern RHI_API int32 GNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 
 /** Num draw calls and primitives this frame (only accurate on RenderThread) */
-extern RHI_API int32 GCurrentNumDrawCallsRHI;
-extern RHI_API int32* GCurrentNumDrawCallsRHIPtr;
-extern RHI_API int32 GCurrentNumPrimitivesDrawnRHI;
-
+extern RHI_API int32 GCurrentNumDrawCallsRHI[MAX_NUM_GPUS];
+extern RHI_API int32(*GCurrentNumDrawCallsRHIPtr)[MAX_NUM_GPUS];
+extern RHI_API int32 GCurrentNumPrimitivesDrawnRHI[MAX_NUM_GPUS];
 
 /** Whether or not the RHI can handle a non-zero BaseVertexIndex - extra SetStreamSource calls will be needed if this is false */
 extern RHI_API bool GRHISupportsBaseVertexIndex;
@@ -613,13 +612,28 @@ extern RHI_API bool GRHISupportsHDROutput;
 extern RHI_API FIntVector GRHIMaxDispatchThreadGroupsPerDimension;
 
 /** Whether or not the RHI can support per-draw Variable Rate Shading. */
-extern RHI_API bool GRHISupportsPerDrawVariableRateShading;
+extern RHI_API bool GRHISupportsPipelineVariableRateShading;
 
 /** Whether or not the RHI can support image-based Variable Rate Shading. */
-extern RHI_API bool GRHISupportsImageBasedVariableRateShading;
+extern RHI_API bool GRHISupportsAttachmentVariableRateShading;
 
-/** Size of the tiles in a screen space texture that can be used to drive Variable Rate Shading. */
-extern RHI_API int32 GRHIVariableRateShadingImageTileSize;
+/** Whether or not the RHI can support complex combiner operatations between per-draw (pipeline) VRS and image VRS. */
+extern RHI_API bool GRHISupportsComplexVariableRateShadingCombinerOps;
+
+/** Whether or not the RHI can support shading rate attachments as array textures. */
+extern RHI_API bool GRHISupportsVariableRateShadingAttachmentArrayTextures;
+
+/** Maximum tile width in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMaxWidth;
+
+/** Maximum tile height in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMaxHeight;
+
+/** Minimum tile width in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMinWidth;
+
+/** Minimum tile height in a screen space texture that can be used to drive Variable Rate Shading. */
+extern RHI_API int32 GRHIVariableRateShadingImageTileMinHeight;
 
 /** Data type contained in a shading-rate image for image-based Variable Rate Shading. */
 extern RHI_API EVRSImageDataType GRHIVariableRateShadingImageDataType;
@@ -638,6 +652,9 @@ extern RHI_API uint64 GRHIPresentCounter;
 
 /** True if the RHI supports setting the render target array index from any shader stage */
 extern RHI_API bool GRHISupportsArrayIndexFromAnyShader;
+
+/** True if the pipeline file cache can be used with this RHI */
+extern RHI_API bool GRHISupportsPipelineFileCache;
 
 /** True if the RHI supports setting the stencil ref at pixel granularity from the pixel shader */
 extern RHI_API bool GRHISupportsStencilRefFromPixelShader;
@@ -2226,13 +2243,21 @@ struct FTextureMemoryStats
 struct RHI_API FDrawCallCategoryName
 {
 	FDrawCallCategoryName() 
-	{ 
+	{
+		for (int32& Counter : Counters)
+		{
+			Counter = -1;
+		}
 	}
 
 	FDrawCallCategoryName(FName InName)
 		: Name(InName)
-		, Counter(0)
 	{
+		for (int32& Counter : Counters)
+		{
+			Counter = 0;
+		}
+
 		check(NumCategory < MAX_DRAWCALL_CATEGORY);
 		if (NumCategory < MAX_DRAWCALL_CATEGORY)
 		{
@@ -2242,11 +2267,11 @@ struct RHI_API FDrawCallCategoryName
 	}
 
 	FName Name;
-	int32 Counter = -1;
+	int32 Counters[MAX_NUM_GPUS];
 
 	static constexpr int32 MAX_DRAWCALL_CATEGORY = 256;
 	static FDrawCallCategoryName* Array[MAX_DRAWCALL_CATEGORY];
-	static int32 DisplayCounts[MAX_DRAWCALL_CATEGORY]; // A backup of the counts that can be used to display on screen to avoid flickering.
+	static int32 DisplayCounts[MAX_DRAWCALL_CATEGORY][MAX_NUM_GPUS]; // A backup of the counts that can be used to display on screen to avoid flickering.
 	static int32 NumCategory;
 };
 
@@ -2256,23 +2281,27 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Triangles drawn"),STAT_RHITriangles,STAT
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Lines drawn"),STAT_RHILines,STATGROUP_RHI,RHI_API);
 
 #if STATS
-	#define RHI_DRAW_CALL_INC() \
+#define RHI_DRAW_CALL_INC_MGPU(GPUIndex) \
 		INC_DWORD_STAT(STAT_RHIDrawPrimitiveCalls); \
-		FPlatformAtomics::InterlockedIncrement(GCurrentNumDrawCallsRHIPtr);
+		FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
 
-	#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives) \
-		RHI_DRAW_CALL_INC(); \
+#define RHI_DRAW_CALL_STATS_MGPU(GPUIndex,PrimitiveType,NumPrimitives) \
+		RHI_DRAW_CALL_INC_MGPU(GPUIndex); \
 		INC_DWORD_STAT_BY(STAT_RHITriangles,(uint32)(PrimitiveType != PT_LineList ? (NumPrimitives) : 0)); \
 		INC_DWORD_STAT_BY(STAT_RHILines,(uint32)(PrimitiveType == PT_LineList ? (NumPrimitives) : 0)); \
-		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI, NumPrimitives);
+		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI[GPUIndex], NumPrimitives);
 #else
-	#define RHI_DRAW_CALL_INC() \
-		FPlatformAtomics::InterlockedIncrement(GCurrentNumDrawCallsRHIPtr);
+#define RHI_DRAW_CALL_INC_MGPU(GPUIndex) \
+		FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
 
-	#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives) \
-		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI, NumPrimitives); \
-		FPlatformAtomics::InterlockedIncrement(GCurrentNumDrawCallsRHIPtr);
+#define RHI_DRAW_CALL_STATS_MGPU(GPUIndex,PrimitiveType,NumPrimitives) \
+		FPlatformAtomics::InterlockedAdd(&GCurrentNumPrimitivesDrawnRHI[GPUIndex], NumPrimitives); \
+		FPlatformAtomics::InterlockedIncrement(&(*GCurrentNumDrawCallsRHIPtr)[GPUIndex]);
 #endif
+
+#define RHI_DRAW_CALL_INC() RHI_DRAW_CALL_INC_MGPU(0)
+#define RHI_DRAW_CALL_STATS(PrimitiveType,NumPrimitives) RHI_DRAW_CALL_STATS_MGPU(0, PrimitiveType,NumPrimitives)
+
 
 // RHI memory stats.
 DECLARE_MEMORY_STAT_POOL_EXTERN(TEXT("Render target memory 2D"),STAT_RenderTargetMemory2D,STATGROUP_RHI,FPlatformMemory::MCR_GPU,RHI_API);

@@ -121,6 +121,14 @@ public:
 		return MigrationMask;
 	}
 
+	/**
+	 * Retrive a mask of all components to be copied or migrated to outputs
+	 */
+	const FComponentMask& GetCopyAndMigrationMask() const
+	{
+		return CopyAndMigrationMask;
+	}
+
 private:
 
 	FComponentTypeID NewComponentTypeInternal(FComponentTypeInfo&& TypeInfo);
@@ -138,6 +146,9 @@ private:
 
 	/** Mask containing all components that have the flag EComponentTypeFlags::MigrateToOutput */
 	FComponentMask MigrationMask;
+
+	/** Mask containing all components that have the EComponentTypeFlags::CopyToOutput and EComponentTypeFlags::MigrateToOutput */
+	FComponentMask CopyAndMigrationMask;
 };
 
 

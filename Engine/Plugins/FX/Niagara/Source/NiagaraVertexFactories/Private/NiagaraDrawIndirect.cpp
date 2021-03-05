@@ -53,14 +53,14 @@ void FNiagaraDrawIndirectArgsGenCS::SetOutput(FRHICommandList& RHICmdList, FRHIU
 	}
 }
 
-void FNiagaraDrawIndirectArgsGenCS::SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks)
+void FNiagaraDrawIndirectArgsGenCS::SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 ArgGenTaskOffset, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks)
 {
 	FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, TaskInfosParam, TaskInfosBuffer);
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, CulledInstanceCountsParam, CulledInstanceCountsBuffer);
 
-	const FUintVector4 TaskCountValue((int32)NumArgGenTasks, (int32)NumInstanceCountClearTasks, (int32)(NumArgGenTasks + NumInstanceCountClearTasks), 0);
+	const FUintVector4 TaskCountValue(ArgGenTaskOffset, NumArgGenTasks, NumInstanceCountClearTasks, NumArgGenTasks + NumInstanceCountClearTasks);
 	SetShaderValue(RHICmdList, ComputeShaderRHI, TaskCountParam, TaskCountValue);
 }
 
@@ -110,7 +110,7 @@ void FNiagaraDrawIndirectResetCountsCS::SetParameters(FRHICommandList& RHICmdLis
 
 	SetSRVParameter(RHICmdList, ComputeShaderRHI, TaskInfosParam, TaskInfosBuffer);
 
-	const FUintVector4 TaskCountValue((int32)NumArgGenTasks, (int32)NumInstanceCountClearTasks, (int32)(NumArgGenTasks + NumInstanceCountClearTasks), 0);
+	const FUintVector4 TaskCountValue(0, NumArgGenTasks, NumInstanceCountClearTasks, NumArgGenTasks + NumInstanceCountClearTasks);
 	SetShaderValue(RHICmdList, ComputeShaderRHI, TaskCountParam, TaskCountValue);
 }
 

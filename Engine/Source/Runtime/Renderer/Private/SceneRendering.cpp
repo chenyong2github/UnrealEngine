@@ -2488,7 +2488,7 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 
 		// Fallback to no anti aliasing.
 		{
-			const bool bWillApplyTemporalAA = (IsPostProcessingEnabled(View) || (View.bIsPlanarReflection && FeatureLevel >= ERHIFeatureLevel::SM5))
+			const bool bWillApplyTemporalAA = (IsPostProcessingEnabled(View) || View.bIsPlanarReflection)
 #if RHI_RAYTRACING
 				// path tracer does its own anti-aliasing
 				&& (View.RayTracingRenderMode != ERayTracingRenderMode::PathTracing)
@@ -2561,10 +2561,9 @@ void FSceneRenderer::PrepareViewRectsForRendering()
 
 		// Automatic screen percentage fallback.
 		{
-			// Tenmporal upsample is supported on SM5 only if TAA is turned on.
+			// Tenmporal upsample is supported only if TAA is turned on.
 			if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale &&
 				(View.AntiAliasingMethod != AAM_TemporalAA ||
-				 FeatureLevel < ERHIFeatureLevel::SM5 ||
 				 ViewFamily.EngineShowFlags.VisualizeBuffer))
 			{
 				View.PrimaryScreenPercentageMethod = EPrimaryScreenPercentageMethod::SpatialUpscale;
@@ -2736,11 +2735,19 @@ void FSceneRenderer::InitFXSystem()
 	}
 }
 
+#if WITH_MGPU
+DECLARE_GPU_STAT_NAMED(CrossGPUTransfers, TEXT("Cross GPU Tranfer"));
+#endif // WITH_MGPU
+
 void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask RenderTargetGPUMask, FRDGTextureRef ViewFamilyTexture)
 {
 #if WITH_MGPU
 	if (ViewFamily.bMultiGPUForkAndJoin)
 	{
+		// Must be all GPUs because context redirector only supports single or all GPUs
+		RDG_GPU_MASK_SCOPE(GraphBuilder, FRHIGPUMask::All());
+		RDG_GPU_STAT_SCOPE(GraphBuilder, CrossGPUTransfers);
+
 		// A readback pass is the closest analog to what this is doing. There isn't a way to express cross-GPU transfers via the RHI barrier API.
 		AddReadbackTexturePass(GraphBuilder, RDG_EVENT_NAME("CrossGPUTransfers"), ViewFamilyTexture, 
 			[this, RenderTargetGPUMask, ViewFamilyTexture] (FRHICommandListImmediate& RHICmdList)
@@ -2760,7 +2767,8 @@ void FSceneRenderer::DoCrossGPUTransfers(FRDGBuilder& GraphBuilder, FRHIGPUMask 
 						{
 							if (!ViewInfo.GPUMask.Contains(RenderTargetGPUIndex))
 							{
-								RHICmdList.TransferTexture(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, true);
+								FTransferTextureParams Param(static_cast<FRHITexture2D*>(ViewFamilyTexture->GetRHI()), TransferRect, ViewInfo.GPUMask.GetFirstIndex(), RenderTargetGPUIndex, true, true);
+								RHICmdList.TransferTextures(TArrayView<const FTransferTextureParams>(&Param, 1));
 							}
 						}
 					}
@@ -3604,7 +3612,7 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
 			
-			if (SceneRenderer->Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
+			if (IsHairStrandsEnabled(EHairStrandsShaderType::All, SceneRenderer->Scene->GetShaderPlatform()) && SceneRenderer->Views.Num() > 0 && !ViewFamily.EngineShowFlags.HitProxies)
 			{
 				FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderer->Views);
 				if (Parameters.bHasElements)
@@ -3755,13 +3763,6 @@ void FRendererModule::CreateAndInitSingleView(FRHICommandListImmediate& RHICmdLi
 
 extern CORE_API bool GRenderThreadPollingOn;
 
-static bool GForceSceneRenderTaskWakeup = false;
-static FAutoConsoleVariableRef CVarRenderThreadPollPeriodMs(
-	TEXT("TaskGraph.ForceSceneRenderTaskWakeup"),
-	GForceSceneRenderTaskWakeup,
-	TEXT("If true and RT polling is on, wakes up the RT explicitly after FDrawSceneCommand is submitted. This avoids delays and improves perf.")
-);
-
 void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily* ViewFamily)
 {
 	check(Canvas);
@@ -3878,7 +3879,7 @@ void FRendererModule::BeginRenderingViewFamily(FCanvas* Canvas, FSceneViewFamily
 
 		// Force kick the RT if we've got RT polling on.
 		// This saves us having to wait until the polling period before the scene draw starts executing.
-		if (GForceSceneRenderTaskWakeup && GRenderThreadPollingOn)
+		if (GRenderThreadPollingOn)
 		{
 			FTaskGraphInterface::Get().WakeNamedThread(ENamedThreads::GetRenderThread());
 		}

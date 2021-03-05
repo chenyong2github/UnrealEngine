@@ -4559,6 +4559,19 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		// finish();
 	}
 
+	public void AndroidThunkJava_SetOrientation(int value)
+	{
+		final int orientation = value;
+		_activity.runOnUiThread(new Runnable()
+		{
+			@Override
+			public void run()
+			{
+				_activity.setRequestedOrientation( orientation );
+			}
+		});
+	}
+
 	// call back into native code from the Java UI thread, initializing any available VR HMD modules
 	public void AndroidThunkJava_InitHMDs()
 	{

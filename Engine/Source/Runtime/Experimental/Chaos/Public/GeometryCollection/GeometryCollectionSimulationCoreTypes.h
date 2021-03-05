@@ -236,7 +236,7 @@ struct FSimulationParameters
 		, MaxClusterLevel(100)
 		, bUseSizeSpecificDamageThresholds(false)
 		, DamageThreshold({250.f})
-		, ClusterConnectionMethod(Chaos::FClusterCreationParameters<float>::EConnectionMethod::PointImplicit)
+		, ClusterConnectionMethod(Chaos::FClusterCreationParameters::EConnectionMethod::PointImplicit)
 		, CollisionGroup(0)
 		, CollisionSampleFraction(1.0)
 		, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_None)
@@ -313,7 +313,7 @@ struct FSimulationParameters
 	int32 MaxClusterLevel;
 	bool bUseSizeSpecificDamageThresholds;
 	TArray<float> DamageThreshold;
-	Chaos::FClusterCreationParameters<float>::EConnectionMethod ClusterConnectionMethod;
+	Chaos::FClusterCreationParameters::EConnectionMethod ClusterConnectionMethod;
 
 	int32 CollisionGroup;
 	float CollisionSampleFraction;

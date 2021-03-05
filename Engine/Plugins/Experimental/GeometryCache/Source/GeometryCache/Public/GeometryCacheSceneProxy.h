@@ -194,6 +194,14 @@ public:
 	 */
 	virtual void FindSampleIndexesFromTime(float Time, bool bLooping, bool bIsPlayingBackwards, int32& OutFrameIndex, int32& OutNextFrameIndex, float& InInterpolationFactor);
 
+	/**
+	 * Initialize the render resources. Must be called before the render resources are used.
+	 *
+	 * @param NumVertices - The initial number of vertices to initialize the buffers with. Must be greater than 0
+	 * @param NumIndices - The initial number of indices to initialize the buffers with. Must be greater than 0
+	 */
+	virtual void InitRenderResources(int32 NumVertices, int32 NumIndices);
+
 	/** MeshData storing information used for rendering this Track */
 	FGeometryCacheMeshData* MeshData;
 	FGeometryCacheMeshData* NextFrameMeshData;
@@ -201,7 +209,10 @@ public:
 	/** Frame numbers corresponding to MeshData, NextFrameMeshData */
 	int32 FrameIndex;
 	int32 NextFrameIndex;
+	int32 PreviousFrameIndex;
 	float InterpolationFactor;
+	float PreviousInterpolationFactor;
+	float SubframeInterpolationFactor;
 
 	/** Material applied to this Track */
 	TArray<UMaterialInterface*> Materials;
@@ -234,6 +245,8 @@ public:
 	/** Flag to indicate which frame mesh data was selected during the update */
 	bool bNextFrameMeshDataSelected;
 
+	bool bResourcesInitialized;
+
 #if RHI_RAYTRACING
 	FRayTracingGeometry RayTracingGeometry;
 #endif
@@ -260,7 +273,7 @@ public:
 	uint32 GetAllocatedSize(void) const;
 	// End FPrimitiveSceneProxy interface.
 
-	void UpdateAnimation(float NewTime, bool bLooping, bool bIsPlayingBackwards, float PlaybackSpeed);
+	void UpdateAnimation(float NewTime, bool bLooping, bool bIsPlayingBackwards, float PlaybackSpeed, float MotionVectorScale);
 
 	/** Update world matrix for specific section */
 	void UpdateSectionWorldMatrix(const int32 SectionIndex, const FMatrix& WorldMatrix);
@@ -347,10 +360,12 @@ private:
 	uint32 UpdatedFrameNum;
 	float Time;
 	float PlaybackSpeed;
+	float MotionVectorScale;
 
 	FMaterialRelevance MaterialRelevance;
 	uint32 bLooping : 1;
 	uint32 bIsPlayingBackwards : 1;
+	uint32 bExtrapolateFrames : 1;
 
 	/** Function used to create a new track proxy at construction */
 	TFunction<FGeomCacheTrackProxy*()> CreateTrackProxy;

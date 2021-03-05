@@ -39,7 +39,7 @@ public:
 	virtual IStereoLayers* GetStereoLayers() override;
 
 	virtual bool GetHMDDistortionEnabled(EShadingPath ShadingPath) const override;
-	virtual void OnLateUpdateApplied_RenderThread(const FTransform& NewRelativeTransform) override;
+	virtual void OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHICmdList, const FTransform& NewRelativeTransform) override;
 
 	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override;
 	virtual void InitCanvasFromView(FSceneView* InView, UCanvas* Canvas) override;

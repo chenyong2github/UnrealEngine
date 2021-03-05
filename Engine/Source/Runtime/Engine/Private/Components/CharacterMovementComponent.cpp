@@ -8308,7 +8308,7 @@ void UCharacterMovementComponent::CallServerMove
 	// Determine if we send absolute or relative location
 	UPrimitiveComponent* ClientMovementBase = NewMove->EndBase.Get();
 	const FName ClientBaseBone = NewMove->EndBoneName;
-	const FVector SendLocation = MovementBaseUtility::UseRelativeLocation(ClientMovementBase) ? NewMove->SavedRelativeLocation : NewMove->SavedLocation;
+	const FVector SendLocation = MovementBaseUtility::UseRelativeLocation(ClientMovementBase) ? NewMove->SavedRelativeLocation : FRepMovement::RebaseOntoZeroOrigin(NewMove->SavedLocation, this);
 
 	// send old move if it exists
 	if (OldMove)
@@ -8776,7 +8776,7 @@ bool FCharacterNetworkSerializationPackedBits::NetSerialize(FArchive& Ar, class 
 	uint32 NumBits = DataBits.Num();
 	Ar.SerializeIntPacked(NumBits);
 
-	if (!ensure(NumBits <= (uint32)CharacterMovementCVars::NetPackedMovementMaxBits))
+	if (!ensureMsgf(NumBits <= (uint32)CharacterMovementCVars::NetPackedMovementMaxBits, TEXT("FCharacterNetworkSerializationPackedBits::NetSerialize: NumBits (%d) exceeds CharacterMovementCVars::NetPackedMovementMaxBits (%d)"), NumBits, (uint32)CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause server to allocate way too much memory.
 		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("FCharacterNetworkSerializationPackedBits::NetSerialize: NumBits (%d) exceeds allowable limit!"), NumBits));
@@ -8879,7 +8879,7 @@ void FCharacterNetworkMoveData::ClientFillNetworkMoveData(const FSavedMove_Chara
 		// Determine if we send absolute or relative location
 		UPrimitiveComponent* ClientMovementBase = ClientMove.EndBase.Get();
 		const bool bDynamicBase = MovementBaseUtility::UseRelativeLocation(ClientMovementBase);
-		const FVector SendLocation = bDynamicBase ? ClientMove.SavedRelativeLocation : ClientMove.SavedLocation;
+		const FVector SendLocation = bDynamicBase ? ClientMove.SavedRelativeLocation : FRepMovement::RebaseOntoZeroOrigin(ClientMove.SavedLocation, ClientMove.CharacterOwner->GetCharacterMovement());
 
 		Location = SendLocation;
 		MovementBase = bDynamicBase ? ClientMovementBase : nullptr;
@@ -8939,7 +8939,7 @@ void UCharacterMovementComponent::ServerMovePacked_ServerReceive(const FCharacte
 	}
 
 	const int32 NumBits = PackedBits.DataBits.Num();
-	if (!ensure(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits))
+	if (!ensureMsgf(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits, TEXT("ServerMovePacked_ServerReceive: NumBits (%d) exceeds CharacterMovementCVars::NetPackedMovementMaxBits (%d)"), NumBits, CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause server to allocate way too much memory.
 		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerMovePacked_ServerReceive: NumBits (%d) exceeds allowable limit!"), NumBits));
@@ -9231,6 +9231,10 @@ void UCharacterMovementComponent::ServerMoveHandleClientError(float ClientTimeSt
 		FQuat BaseRotation;
 		MovementBaseUtility::GetMovementBaseTransform(ClientMovementBase, ClientBaseBoneName, BaseLocation, BaseRotation);
 		ClientLoc += BaseLocation;
+	}
+	else
+	{
+		ClientLoc = FRepMovement::RebaseOntoLocalOrigin(ClientLoc, this);
 	}
 
 	// Client may send a null movement base when walking on bases with no relative location (to save bandwidth).
@@ -9547,7 +9551,7 @@ void UCharacterMovementComponent::MoveResponsePacked_ClientReceive(const FCharac
 	}
 
 	const int32 NumBits = PackedBits.DataBits.Num();
-	if (!ensure(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits))
+	if (!ensureMsgf(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits, TEXT("MoveResponsePacked_ClientReceive: NumBits (%d) exceeds CharacterMovementCVars::NetPackedMovementMaxBits (%d)"), NumBits, CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause client to allocate way too much memory.
 		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("MoveResponsePacked_ClientReceive: NumBits (%d) exceeds allowable limit!"), NumBits));

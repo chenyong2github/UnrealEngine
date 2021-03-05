@@ -68,6 +68,11 @@ FName UOnlineEngineInterfaceImpl::GetDefaultOnlineSubsystemName() const
 	return OnlineSub ? OnlineSub->GetSubsystemName() : NAME_None;
 }
 
+bool UOnlineEngineInterfaceImpl::IsCompatibleUniqueNetId(const FUniqueNetId& InUniqueNetId) const
+{
+	return InUniqueNetId.GetType() == GetDefaultOnlineSubsystemName() || CompatibleUniqueNetIdTypes.Contains(InUniqueNetId.GetType());
+}
+
 uint8 UOnlineEngineInterfaceImpl::GetReplicationHashForSubsystem(FName InSubsystemName) const
 {
 	return Online::GetUtils()->GetReplicationHashForSubsystem(InSubsystemName);
@@ -106,11 +111,17 @@ TSharedPtr<const FUniqueNetId> UOnlineEngineInterfaceImpl::CreateUniquePlayerId(
 {
 	// Foreign types may be passed into this function, do not load OSS modules explicitly here
 	TSharedPtr<const FUniqueNetId> UniqueId = nullptr;
-	if (IsLoaded(Type))
+	//Configuration driven mapping for UniqueNetIds so we don't treat the mapped ids as foreign
+	const FName* MappedUniqueNetIdType = MappedUniqueNetIdTypes.Find(Type);
+
+	bool bIsPrimaryLoaded = IsLoaded(Type);
+	bool bIsMappedUniqueNetIdTypeLoaded = (MappedUniqueNetIdType != nullptr ? IsLoaded(*MappedUniqueNetIdType) : false);
+	
+	if (bIsPrimaryLoaded || bIsMappedUniqueNetIdTypeLoaded)
 	{
 		// No UWorld here, but ok since this is just a factory
 		UWorld* World = nullptr;
-		IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World, Type);
+		IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World, bIsPrimaryLoaded ? Type : *MappedUniqueNetIdType);
 		if (IdentityInt.IsValid())
 		{
 			UniqueId = IdentityInt->CreateUniquePlayerId(Str);

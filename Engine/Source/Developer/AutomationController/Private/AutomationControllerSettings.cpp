@@ -10,5 +10,6 @@ UAutomationControllerSettings::UAutomationControllerSettings(const FObjectInitia
 	, bSuppressLogWarnings(false)
 	, bTreatLogErrorsAsTestErrors(true)
 	, bTreatLogWarningsAsTestErrors(true)
+	, GameInstanceLostTimerSeconds(300.0f)
 {
 }

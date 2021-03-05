@@ -24,7 +24,7 @@ namespace DatasmithRevitExporter
 
 			Label WriteLogFileLabel = new Label();
 			WriteLogFileLabel.Name = "WriteLogFileLabel";
-			WriteLogFileLabel.Text = "Write Log File";
+			WriteLogFileLabel.Text = DatasmithRevitResources.Strings.ExportOptionsDialog_WriteLogFile;
 			WriteLogFileLabel.Anchor = AnchorStyles.Left;
 			WriteLogFileLabel.AutoSize = true;
 			WriteLogFileLabel.Location = new Point(3, 3);
@@ -41,14 +41,11 @@ namespace DatasmithRevitExporter
 			WriteLogFile.TabIndex = 1;
 			WriteLogFile.UseVisualStyleBackColor = true;
 
-			OptionToolTip.SetToolTip(WriteLogFile,
-									 "Write a '.log' file aside the '.udatasmith' file.\n" +
-									 "This log file records some details about the exported Revit elements.\n" +
-									 "The log file can become quite big for complex 3D views.");
+			OptionToolTip.SetToolTip(WriteLogFile, DatasmithRevitResources.Strings.ExportOptionsDialog_WriteLogFileTooltip);
 
 			Label LevelOfTessellationLabel = new Label();
 			LevelOfTessellationLabel.Name = "LevelOfTessellationLabel";
-			LevelOfTessellationLabel.Text = "Level of Tessellation";
+			LevelOfTessellationLabel.Text = DatasmithRevitResources.Strings.ExportOptionsDialog_LevelOfTesselation;
 			LevelOfTessellationLabel.Anchor = AnchorStyles.Left;
 			LevelOfTessellationLabel.AutoSize = true;
 			LevelOfTessellationLabel.Location = new Point(3, 26);
@@ -68,15 +65,11 @@ namespace DatasmithRevitExporter
 			LevelOfTessellation.TabIndex = 3;
 			LevelOfTessellation.TextAlign = HorizontalAlignment.Right;
 
-			OptionToolTip.SetToolTip(LevelOfTessellation,
-									 "-1 :\tRevit will use its default algorithm, which is based on output resolution.\n" +
-									 "0 to 15 :\tRevit will use the suggested level of detail when tessellating faces.\n" +
-									 "\tUsing a value close to the middle of the range yields a very reasonable tessellation.\n" +
-									 "\tRevit uses level 8 as its 'normal' level of detail.");
+			OptionToolTip.SetToolTip(LevelOfTessellation, DatasmithRevitResources.Strings.ExportOptionsDialog_LevelOfTesselationTooltip);
 
 			Button OKButton = new Button();
 			OKButton.Name = "OKButton";
-			OKButton.Text = "OK";
+			OKButton.Text = DatasmithRevitResources.Strings.ExportOptionsDialog_ButtonOK;
 			OKButton.Anchor = ((AnchorStyles)((AnchorStyles.Bottom | AnchorStyles.Right)));
 			OKButton.DialogResult = DialogResult.OK;
 			OKButton.Location = new Point(211, 68);
@@ -95,7 +88,7 @@ namespace DatasmithRevitExporter
 				}
 				if (Selected3DViews.Count == 0)
 				{
-					string message = "No views selected for export! Please select at least one 3D view.";
+					string message = DatasmithRevitResources.Strings.ExportOptionsDialog_MessageNoViewsSelected;
 					MessageBox.Show(message, "View selection", MessageBoxButtons.OK, MessageBoxIcon.Warning);
 					DialogResult = DialogResult.None;
 				}
@@ -106,7 +99,7 @@ namespace DatasmithRevitExporter
 
 			Label ViewsLabel = new Label();
 			ViewsLabel.Name = "ViewsLabel";
-			ViewsLabel.Text = "Select 3D Views";
+			ViewsLabel.Text = DatasmithRevitResources.Strings.ExportOptionsDialog_Select3DViews;
 			ViewsLabel.Anchor = AnchorStyles.Left;
 			ViewsLabel.AutoSize = true;
 
@@ -139,7 +132,7 @@ namespace DatasmithRevitExporter
 			DialogLayout.SetColumnSpan(ViewsList, 2);
 
 			Name = "UnrealDatasmithExportOptions";
-			Text = "Unreal Datasmith Export - Debug Options";
+			Text = DatasmithRevitResources.Strings.ExportOptionsDialog_Title;
 			AcceptButton = OKButton;
 			AutoScaleDimensions = new SizeF(6F, 13F);
 			AutoScaleMode = AutoScaleMode.Font;

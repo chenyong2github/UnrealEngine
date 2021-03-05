@@ -114,22 +114,69 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 {
 	check(Inner);
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
+	const bool bIsTextFormat = UnderlyingArchive.IsTextFormat();
 	const bool bUPS = Slot.GetArchiveState().UseUnversionedPropertySerialization();
 	TOptional<FPropertyTag> MaybeInnerTag;
 
-	if (UnderlyingArchive.IsTextFormat() && !bUPS && Inner->IsA<FStructProperty>())
-	{
-		MaybeInnerTag.Emplace(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);	
-		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), MaybeInnerTag.GetValue().StructName);
-		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("InnerStructGuid"), MaybeInnerTag.GetValue().StructGuid, FGuid());
-	}
-	
 	// Ensure that the Inner itself has been loaded before calling SerializeItem() on it
 	//UnderlyingArchive.Preload(Inner);
 
 	FScriptArrayHelper ArrayHelper(this, Value);
 	int32		n		= ArrayHelper.Num();
-	
+
+	// Custom branch for UPS to try and take advantage of bulk serialization
+	if (bUPS)
+	{
+		checkf(!UnderlyingArchive.ArUseCustomPropertyList, TEXT("Custom property lists are not supported with UPS"));
+		checkf(!bIsTextFormat, TEXT("Text-based archives are not supported with UPS"));
+
+		if (CanBulkSerialize(Inner))
+		{
+			// We need to enter the slot as *something* to keep the structured archive system happy,
+			// but which maps down to straight writes to the underlying archive.
+			FStructuredArchiveStream Stream = Slot.EnterStream();
+
+			Stream.EnterElement() << n;
+
+			if (UnderlyingArchive.IsLoading())
+			{
+				ArrayHelper.EmptyAndAddUninitializedValues(n);
+			}
+
+			Stream.EnterElement().Serialize(ArrayHelper.GetRawPtr(), n * Inner->ElementSize);
+		}
+		else
+		{
+			FStructuredArchiveArray Array = Slot.EnterArray(n);
+
+			if (UnderlyingArchive.IsLoading())
+			{
+				ArrayHelper.EmptyAndAddValues(n);
+			}
+
+			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, Inner, this);
+			for (int32 i = 0; i < n; ++i)
+			{
+#if WITH_EDITOR
+				static const FName NAME_UArraySerialize = FName(TEXT("FArrayProperty::Serialize"));
+				FName NAME_UArraySerializeCount = FName(NAME_UArraySerialize);
+				NAME_UArraySerializeCount.SetNumber(i);
+				FArchive::FScopeAddDebugData P(UnderlyingArchive, NAME_UArraySerializeCount);
+#endif
+				Inner->SerializeItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i));
+			}
+		}
+
+		return;
+	}
+
+	if (bIsTextFormat && Inner->IsA<FStructProperty>())
+	{
+		MaybeInnerTag.Emplace(UnderlyingArchive, Inner, 0, (uint8*)Value, (uint8*)Defaults);	
+		Slot << SA_ATTRIBUTE(TEXT("InnerStructName"), MaybeInnerTag.GetValue().StructName);
+		Slot << SA_OPTIONAL_ATTRIBUTE(TEXT("InnerStructGuid"), MaybeInnerTag.GetValue().StructGuid, FGuid());
+	}
+
 	FStructuredArchiveArray Array = Slot.EnterArray(n);
 
 	if( UnderlyingArchive.IsLoading() )
@@ -147,26 +194,6 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 				ArrayHelper.RemoveValues(n, OldNum - n);
 			}
 		}
-		else if (bUPS)
-		{
-			if (CanBulkSerialize(Inner))
-			{
-				ArrayHelper.EmptyAndAddUninitializedValues(n);
-
-				UnderlyingArchive.Serialize(ArrayHelper.GetRawPtr(), n * Inner->ElementSize);
-			}
-			else
-			{
-				ArrayHelper.EmptyAndAddValues(n);
-
-				for (int32 i = 0; i < n; ++i)
-				{
-					Inner->SerializeItem(Array.EnterElement(), ArrayHelper.GetRawPtr(i));
-				}
-			}
-			
-			return;
-		}
 		else
 		{
 			ArrayHelper.EmptyAndAddValues(n);
@@ -175,7 +202,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 	ArrayHelper.CountBytes( UnderlyingArchive );
 
 	// Serialize a PropertyTag for the inner property of this array, allows us to validate the inner struct to see if it has changed
-	if (!bUPS && UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO && Inner->IsA<FStructProperty>())
+	if (UnderlyingArchive.UE4Ver() >= VER_UE4_INNER_ARRAY_TAG_INFO && Inner->IsA<FStructProperty>())
 	{
 		if (!MaybeInnerTag)
 		{
@@ -184,7 +211,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 		}
 
 		FPropertyTag& InnerTag = MaybeInnerTag.GetValue();
-		
+
 		if (UnderlyingArchive.IsLoading())
 		{
 			auto CanSerializeFromStructWithDifferentName = [](const FPropertyTag& PropertyTag, const FStructProperty* StructProperty)
@@ -219,7 +246,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 				}
 #endif // WITH_EDITOR
 
-				if (!UnderlyingArchive.IsTextFormat())
+				if (!bIsTextFormat)
 				{
 					// Skip the property
 					const int64 StartOfProperty = UnderlyingArchive.Tell();
@@ -303,7 +330,7 @@ void FArrayProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, 
 		UnderlyingArchive.ArUseCustomPropertyList = bUsingCustomPropertyList;
 	}
 
-	if (MaybeInnerTag.IsSet() && UnderlyingArchive.IsSaving() && !UnderlyingArchive.IsTextFormat())
+	if (MaybeInnerTag.IsSet() && UnderlyingArchive.IsSaving() && !bIsTextFormat)
 	{
 		FPropertyTag& InnerTag = MaybeInnerTag.GetValue();
 

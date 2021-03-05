@@ -525,6 +525,7 @@ class FDeferredLightPS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("USE_HAIR_COMPLEX_TRANSMITTANCE"), IsHairStrandsSupported(EHairStrandsShaderType::All, Parameters.Platform) ? 1u : 0u);
 		OutEnvironment.SetDefine(TEXT("STRATA_ENABLED"), Strata::IsStrataEnabled() ? 1u : 0u);
 	}
 
@@ -1218,6 +1219,8 @@ void GetRenderLightParameters(
 	}
 }
 
+FHairStrandsTransmittanceMaskData CreateDummyHairStrandsTransmittanceMaskData(FRDGBuilder& GraphBuilder, FGlobalShaderMap* ShaderMap);
+
 void GetRenderLightParameters(
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ShadowMaskTexture,
@@ -1253,6 +1256,12 @@ void FDeferredShadingSceneRenderer::RenderLights(
 	const TArray<FSortedLightSceneInfo, SceneRenderingAllocator> &SortedLights = SortedLightSet.SortedLights;
 	const int32 AttenuationLightStart = SortedLightSet.AttenuationLightStart;
 	const int32 SimpleLightsEnd = SortedLightSet.SimpleLightsEnd;
+
+	FHairStrandsTransmittanceMaskData DummyTransmittanceMaskData;
+	if (bUseHairLighting && Views.Num() > 0)
+	{
+		DummyTransmittanceMaskData = CreateDummyHairStrandsTransmittanceMaskData(GraphBuilder, Views[0].ShaderMap);
+	}
 
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "DirectLighting");
@@ -1343,7 +1352,6 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				RenderSimpleLightsStandardDeferred(GraphBuilder, SceneTextures, SortedLightSet.SimpleLights);
 			}
 
-			if (!bUseHairLighting)
 			{
 				FRenderLightParameters* PassParameters = GraphBuilder.AllocParameters<FRenderLightParameters>();
 				GetRenderLightParameters(SceneTextures, nullptr, LightingChannelsTexture, {}, HairDatas ? &HairDatas->HairVisibilityViews : nullptr, *PassParameters);
@@ -1371,22 +1379,17 @@ void FDeferredShadingSceneRenderer::RenderLights(
 					}
 				});
 			}
-			else
-				// Add a special version when hair rendering is enabled for getting lighting on hair. 
-				// This is a temporary solution as normally we should render a pre-shadow when a hair cluster is visible on screen
+
+			// Add a special version when hair rendering is enabled for getting lighting on hair. 
+			if (bUseHairLighting)
 			{
+				FRDGTextureRef NullScreenShadowMaskSubPixelTexture = nullptr;
 				// Draw non-shadowed non-light function lights without changing render targets between them
 				for (int32 LightIndex = StandardDeferredStart; LightIndex < AttenuationLightStart; LightIndex++)
 				{
 					const FSortedLightSceneInfo& SortedLightInfo = SortedLights[LightIndex];
 					const FLightSceneInfo* const LightSceneInfo = SortedLightInfo.LightSceneInfo;
-
-					FHairStrandsTransmittanceMaskData TransmittanceMaskData;
-					FRDGTextureRef NullScreenShadowMaskSubPixelTexture = nullptr;
-					TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, Views, LightSceneInfo, HairDatas, NullScreenShadowMaskSubPixelTexture);
-
-					// Render the light to the scene color buffer, using a 1x1 white texture as input
-					RenderLight(GraphBuilder, SceneTextures, LightSceneInfo, nullptr, LightingChannelsTexture, InHairVisibilityViews, false);
+					RenderLightForHair(GraphBuilder, SceneTextures.UniformBuffer, LightSceneInfo, NullScreenShadowMaskSubPixelTexture, LightingChannelsTexture, DummyTransmittanceMaskData, InHairVisibilityViews);
 				}
 			}
 
@@ -2015,13 +2018,15 @@ void FDeferredShadingSceneRenderer::RenderLights(
 
 				if (bUseHairLighting)
 				{
-					FHairStrandsTransmittanceMaskData TransmittanceMaskData;
+					FHairStrandsTransmittanceMaskData TransmittanceMaskData = DummyTransmittanceMaskData;
 					if (bDrawHairShadow)
 					{
 						TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, Views, &LightSceneInfo, HairDatas, ScreenShadowMaskSubPixelTexture);
-					}
 
-					RenderLightForHair(GraphBuilder, SceneTextures.UniformBuffer, &LightSceneInfo, ScreenShadowMaskSubPixelTexture, LightingChannelsTexture, TransmittanceMaskData, InHairVisibilityViews);
+						// Note: ideally the light should still be evaluated for hair when not casting shadow, but for preserving the old behavior, and not adding 
+						// any perf. regression, we disable this light for hair rendering 
+						RenderLightForHair(GraphBuilder, SceneTextures.UniformBuffer, &LightSceneInfo, ScreenShadowMaskSubPixelTexture, LightingChannelsTexture, TransmittanceMaskData, InHairVisibilityViews);
+					}
 				}
 			}
 		}
@@ -2297,14 +2302,14 @@ void FDeferredShadingSceneRenderer::RenderLight(
 			if (bLight0CloudPerPixelTransmittance)
 			{
 				RenderLightParams.Cloud_ShadowmapTexture = TryGetRHI(View.VolumetricCloudShadowRenderTarget[0]);
-				RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[0];
+				RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[0].X;
 				RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[0];
 				RenderLightParams.Cloud_ShadowmapStrength = AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength();
 			}
 			else if(bLight1CloudPerPixelTransmittance)
 			{
 				RenderLightParams.Cloud_ShadowmapTexture = TryGetRHI(View.VolumetricCloudShadowRenderTarget[1]);
-				RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[1];
+				RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[1].X;
 				RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[1];
 				RenderLightParams.Cloud_ShadowmapStrength = AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength();
 			}
@@ -2503,12 +2508,12 @@ void FDeferredShadingSceneRenderer::RenderLightForHair(
 	const FHairStrandsTransmittanceMaskData& InTransmittanceMaskData,
 	const FHairStrandsVisibilityViews* InHairVisibilityViews)
 {
-	const bool bHairRenderingEnabled = InTransmittanceMaskData.TransmittanceMask && InHairVisibilityViews && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
+	const bool bHairRenderingEnabled = InHairVisibilityViews && (LightSceneInfo->Proxy->CastsHairStrandsDeepShadow() || IsHairStrandsVoxelizationEnable());
 	if (!bHairRenderingEnabled)
 	{
 		return;
 	}
-
+	
 	SCOPE_CYCLE_COUNTER(STAT_DirectLightRenderingTime);
 	INC_DWORD_STAT(STAT_NumLightsUsingStandardDeferred);
 	RDG_EVENT_SCOPE(GraphBuilder, "StandardDeferredLighting_Hair");

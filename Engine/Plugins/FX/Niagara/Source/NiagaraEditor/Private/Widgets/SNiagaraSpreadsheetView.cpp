@@ -160,11 +160,11 @@ TSharedRef< SWidget > SNiagaraSpreadsheetRow::GenerateWidgetForColumn(const FNam
 			FText ValueText;
 			if (Src && Src[0] == 0)
 			{
-				ValueText = LOCTEXT("NiagaraFalse", "False(0)");
+				ValueText = LOCTEXT("NiagaraFalse", "False");
 			}
 			else if (Src && Src[0] == -1)
 			{
-				ValueText = LOCTEXT("NiagaraTrue", "True(-1)");
+				ValueText = LOCTEXT("NiagaraTrue", "True");
 			}
 			else
 			{
@@ -1206,7 +1206,7 @@ void SNiagaraSpreadsheetView::GenerateLayoutInfo(FNiagaraTypeLayoutInfo& Layout,
 			SNiagaraSpreadsheetView::FieldInfo Info;
 			Info.bFloat = false;
 			Info.bHalf = false;
-			Info.bBoolean = Property->IsA(FBoolProperty::StaticClass());
+			Info.bBoolean = Property->IsA(FBoolProperty::StaticClass()) || (Struct == FNiagaraTypeDefinition::GetBoolStruct());
 			Info.FloatStartOffset = UINT_MAX;
 			Info.IntStartOffset = Layout.Int32ComponentRegisterOffsets.Num();
 			Info.GlobalStartOffset = sizeof(float) * Layout.FloatComponentRegisterOffsets.Num() + sizeof(int32) * Layout.Int32ComponentByteOffsets.Num();

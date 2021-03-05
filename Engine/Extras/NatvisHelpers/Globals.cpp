@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-struct FNameEntry;
+typedef unsigned char uint8;
 class FChunkedFixedUObjectArray;
 
 uint8** GNameBlocksDebug = nullptr;

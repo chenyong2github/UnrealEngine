@@ -6,14 +6,16 @@ class Program {
   readonly dev: boolean;
   readonly monitor: boolean;
   readonly port: number;
-  readonly ue: number;
+  readonly ueHttpPort: number;
+  readonly ueWebSocketPort: number;
   readonly rootFolder: string;
 
   constructor() {
     this.dev = false;
     this.monitor = false;
     this.port = 7000;
-    this.ue = 30020;
+    this.ueHttpPort = 30010;
+    this.ueWebSocketPort = 30020;
 
     for (let i = 2; i < process.argv.length; i++) {
       switch (process.argv[i]) {
@@ -31,8 +33,13 @@ class Program {
           i++;
           break;
 
-        case '--ue':
-          this.ue = parseInt(process.argv[i + 1]) || 30020;
+        case '--uehttp':
+          this.ueHttpPort = parseInt(process.argv[i + 1]) || 30010;
+          i++;
+          break;
+
+        case '--uews':
+          this.ueWebSocketPort = parseInt(process.argv[i + 1]) || 30020;
           i++;
           break;
       }

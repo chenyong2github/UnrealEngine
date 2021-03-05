@@ -4,8 +4,10 @@
 
 #include "Trace/Analyzer.h"
 #include "TraceServices/Model/AnalysisSession.h"
+#include "Containers/Map.h"
 
 class FNetworkPredictionProvider;
+
 namespace TraceServices { class IAnalysisSession; }
 
 // Analyzes events that are contained in a trace,
@@ -30,9 +32,11 @@ private:
 	enum : uint16
 	{
 		RouteId_SimulationScope,
+		RouteId_SimulationState,
 		RouteId_SimulationCreated,
 		RouteId_SimulationConfig,
 		RouteId_WorldFrameStart,
+		RouteId_Version,
 		RouteId_WorldPreInit,
 		RouteId_PieBegin,
 		RouteId_SystemFault,
@@ -57,16 +61,13 @@ private:
 	TraceServices::IAnalysisSession& Session;
 	FNetworkPredictionProvider& NetworkPredictionProvider;
 
-	// Current values
+	// WorldFrame, always from main thread
 	uint64 EngineFrameNumber=0;
 	float DeltaTimeSeconds;
-	int32 TraceID=INDEX_NONE;
 
-	int32 TickStartMS;
-	int32 TickDeltaMS;
-	int32 TickOutputFrame;
-	int32 TickLocalOffsetFrame = 0;
-	bool bLocalOffsetFrameChanged = false;
+	// As we are tracing from multiple threads and we have trace events that are stringed together we need to track some state per thread
+	struct FThreadState;
 
-	int32 PendingWriteFrame;
+	TMap<uint32, FThreadState*> ThreadStatesMap;
+	FThreadState& GetThreadState(uint32 ThreadId);
 };

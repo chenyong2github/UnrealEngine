@@ -51,9 +51,13 @@ bool GeForceNOWWrapper::IsRunningMockGFN() const
 {
 #if !UE_BUILD_SHIPPING
 	static bool bIsMockGFN = FParse::Param(FCommandLine::Get(), TEXT("MockGFN"));
+	static bool IsFileMock = IFileManager::Get().FileExists(TEXT("mockgfn.txt"));
+
+	bIsMockGFN = bIsMockGFN || IsFileMock;
 #else
 	static bool bIsMockGFN = false;
 #endif
+
 	return bIsMockGFN;
 }
 
@@ -181,11 +185,6 @@ GfnRuntimeError GeForceNOWWrapper::RegisterSessionInitCallback(SessionInitCallba
 	return GfnRegisterSessionInitCallback(SessionInitCallback, Context);
 }
 
-GfnRuntimeError GeForceNOWWrapper::RegisterGameModNotificationCallback(GameModNotificationCallbackSig NotificationCallback, void* Context) const
-{
-	return GfnRegisterGameModNotificationCallback(NotificationCallback, Context);
-}
-
 GfnRuntimeError GeForceNOWWrapper::GetClientIpV4(FString& OutIpv4) const
 {
 	const char* Ip = nullptr;
@@ -234,14 +233,6 @@ GfnRuntimeError GeForceNOWWrapper::GetTitlesAvailable(FString& OutAvailableTitle
 	GfnRuntimeError ErrorCode = GfnGetTitlesAvailable(&AvailableTitles);
 	OutAvailableTitles = FString(AvailableTitles);
 	Free(&AvailableTitles);
-	return ErrorCode;
-}
-
-GfnRuntimeError GeForceNOWWrapper::GetGameModStorageQuota(uint32& OutSizeMB) const
-{
-	unsigned int SizeMB = 0;
-	GfnRuntimeError ErrorCode = GfnGetGameModStorageQuota(&SizeMB);
-	OutSizeMB = SizeMB;	
 	return ErrorCode;
 }
 

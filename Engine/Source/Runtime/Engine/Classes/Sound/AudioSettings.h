@@ -124,9 +124,13 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category="Audio", meta=(AllowedClasses="SoundClass", DisplayName = "VOIP Sound Class"))
 	FSoftObjectPath VoiPSoundClass;
 
-	/** The Master submix through which all sounds are routed */
+	/** The default submix through which all sounds are routed to. The root submix that outputs to audio hardware. */
 	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))
 	FSoftObjectPath MasterSubmix;
+
+	/** The default submix to use for implicit submix sends (i.e. if the base submix send is null or if a submix parent is null) */
+	UPROPERTY(config, EditAnywhere, Category = "Mix", meta = (AllowedClasses = "SoundSubmix"), AdvancedDisplay)
+	FSoftObjectPath BaseDefaultSubmix;
 
 	/** The submix through which all sounds set to use reverb are routed */
 	UPROPERTY(config, EditAnywhere, Category="Mix", meta=(AllowedClasses="SoundSubmix"))

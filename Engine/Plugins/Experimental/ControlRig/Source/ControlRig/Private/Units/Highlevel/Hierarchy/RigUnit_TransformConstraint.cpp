@@ -97,6 +97,12 @@ FRigUnit_TransformConstraintPerItem_Execute()
 	{
 		ConstraintData.Reset();
 		ConstraintDataToTargets.Reset();
+		URigHierarchy* Hierarchy = ExecuteContext.Hierarchy;
+		
+		if (Hierarchy)
+		{
+			SetupConstraintData();
+		}
 	}
 	else if (Context.State == EControlRigState::Update)
 	{

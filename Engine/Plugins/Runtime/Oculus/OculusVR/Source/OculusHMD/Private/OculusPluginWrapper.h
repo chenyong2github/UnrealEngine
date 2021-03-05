@@ -80,6 +80,7 @@ struct OculusPluginWrapper
 	OCULUS_DECLARE_ENTRY_POINT(SetColorScaleAndOffset);
 	OCULUS_DECLARE_ENTRY_POINT(SetupLayer);
 	OCULUS_DECLARE_ENTRY_POINT(SetupLayerDepth);
+	OCULUS_DECLARE_ENTRY_POINT(SetEyeFovPremultipliedAlphaMode);
 	OCULUS_DECLARE_ENTRY_POINT(GetEyeFovLayerId);
 	OCULUS_DECLARE_ENTRY_POINT(GetLayerTextureStageCount);
 	OCULUS_DECLARE_ENTRY_POINT(GetLayerTexture2);

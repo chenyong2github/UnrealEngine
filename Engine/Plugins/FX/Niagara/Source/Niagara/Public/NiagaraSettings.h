@@ -104,6 +104,7 @@ class NIAGARA_API UNiagaraSettings : public UDeveloperSettings
 	// Begin UDeveloperSettings Interface
 	virtual FName GetCategoryName() const override;
 #if WITH_EDITOR
+	void AddEnumParameterType(UEnum* Enum);
 	virtual FText GetSectionText() const override;
 #endif
 	// END UDeveloperSettings Interface

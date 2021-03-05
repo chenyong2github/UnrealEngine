@@ -165,6 +165,7 @@ bool FTcpMessageTransport::TransportMessage(const TSharedRef<IMessageContext, ES
 
 	if (RecipientConnections.Num() == 0)
 	{
+		UE_LOG(LogTcpMessaging, Verbose, TEXT("No recipients for message %s from %s"), *Context->GetMessageType().ToString(), *Context->GetSender().ToString());
 		return false;
 	}
 

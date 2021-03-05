@@ -47,6 +47,13 @@ namespace DatasmithRhino.DirectLink
 				RhinoDoc.EndOpenDocument += OnEndOpenDocument;
 				RhinoDoc.BeginOpenDocument += OnBeginOpenDocument;
 				RhinoDoc.NewDocument += OnNewDocument;
+
+				if (RhinoDoc.ActiveDoc is RhinoDoc ActiveDocument && ActiveDocument.IsAvailable)
+				{
+					// If the document is not null that means the plugin was loaded after startup, most likely on first launch.
+					// Since the doc is already available the Document update have already been fired and we need to directly setup the DirectLink source.
+					SetupDirectLinkScene(ActiveDocument);
+				}
 			}
 
 			System.Diagnostics.Debug.Assert(bInitialized);

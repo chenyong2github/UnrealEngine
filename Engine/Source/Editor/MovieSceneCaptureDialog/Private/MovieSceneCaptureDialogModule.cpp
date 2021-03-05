@@ -494,6 +494,7 @@ void FInEditorCapture::OverridePlaySettings(ULevelEditorPlaySettings* PlayInEdit
 	PlayInEditorSettings->AdditionalLaunchParameters = TEXT("");
 	PlayInEditorSettings->BuildGameBeforeLaunch = EPlayOnBuildMode::PlayOnBuild_Never;
 	PlayInEditorSettings->LaunchConfiguration = EPlayOnLaunchConfiguration::LaunchConfig_Default;
+	PlayInEditorSettings->PackFilesForLaunch = EPlayOnPakFileMode::NoPak;
 	PlayInEditorSettings->SetPlayNetMode(EPlayNetMode::PIE_Standalone);
 	PlayInEditorSettings->SetRunUnderOneProcess(true);
 	PlayInEditorSettings->bLaunchSeparateServer = false;

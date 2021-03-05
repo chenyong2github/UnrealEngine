@@ -383,6 +383,9 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	bEnableAutoLODGeneration = true;
 	HitProxyPriority = HPP_World;
 #endif // WITH_EDITORONLY_DATA
+
+	bVisibleInSceneCaptureOnly = false;
+	bHiddenInSceneCapture = false;
 }
 
 bool UPrimitiveComponent::UsesOnlyUnlitMaterials() const
@@ -3795,6 +3798,24 @@ void UPrimitiveComponent::SetRenderInMainPass(bool bValue)
 	if (bRenderInMainPass != bValue)
 	{
 		bRenderInMainPass = bValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetVisibleInSceneCaptureOnly(bool bValue)
+{
+	if (bVisibleInSceneCaptureOnly != bValue)
+	{
+		bVisibleInSceneCaptureOnly = bValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void UPrimitiveComponent::SetHiddenInSceneCapture(bool bValue)
+{
+	if (bHiddenInSceneCapture != bValue)
+	{
+		bHiddenInSceneCapture = bValue;
 		MarkRenderStateDirty();
 	}
 }

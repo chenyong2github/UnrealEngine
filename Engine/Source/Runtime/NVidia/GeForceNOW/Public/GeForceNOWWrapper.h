@@ -64,8 +64,6 @@ public:
 	GfnRuntimeError RegisterSaveCallback(SaveCallbackSig SaveCallback, void* Context) const;
 	/** Registers an application callback to be called when a GeforceNOW user has connected to the game seat. */
 	GfnRuntimeError RegisterSessionInitCallback(SessionInitCallbackSig SessionInitCallback, void* Context) const;
-	/** Register an application callback with GeforceNOW to be called when GeforceNOW needs to notify Game Mod events. */
-	GfnRuntimeError RegisterGameModNotificationCallback(GameModNotificationCallbackSig NotificationCallback, void* Context) const;
 
 	/** Gets user client's IP address. */
 	GfnRuntimeError GetClientIpV4(FString& OutIpv4) const;
@@ -79,8 +77,6 @@ public:
 	GfnRuntimeError GetAuthData(FString& OutAuthData) const;
 	/** Retrieves all titles that can be launched in the current game streaming session. */
 	GfnRuntimeError GetTitlesAvailable(FString& OutAvailableTitles) const;
-	/** Gets storage quota allocated for Game Mods. */
-	GfnRuntimeError GetGameModStorageQuota(uint32& OutSizeMB) const;
 
 	/** Determines if calling application is running in GeforceNOW environment, and what level of security assurance that the result is valid. */
 	GfnRuntimeError IsRunningInCloudSecure(GfnIsRunningInCloudAssurance& OutAssurance) const;

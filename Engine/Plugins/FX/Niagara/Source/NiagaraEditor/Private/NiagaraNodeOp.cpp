@@ -228,7 +228,7 @@ ENiagaraNumericOutputTypeSelectionMode UNiagaraNodeOp::GetNumericOutputTypeSelec
 	}
 }
 
-bool UNiagaraNodeOp::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType)
+bool UNiagaraNodeOp::AllowNiagaraTypeForAddPin(const FNiagaraTypeDefinition& InType) const
 {
 	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(OpName);
 	if (!OpInfo)
@@ -258,7 +258,7 @@ bool UNiagaraNodeOp::AllowDynamicPins() const
 	return OpInfo && OpInfo->bSupportsAddedInputs;
 }
 
-void UNiagaraNodeOp::OnNewTypedPinAdded(UEdGraphPin* NewPin)
+void UNiagaraNodeOp::OnNewTypedPinAdded(UEdGraphPin*& NewPin)
 {
 	FName UniqueName = GetUniqueAdditionalPinName();
 

@@ -1157,13 +1157,8 @@ UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreensho
 #if WITH_EDITOR
 	if (FModuleManager::Get().IsModuleLoaded("LevelEditor"))
 	{
-		FHighResScreenshotConfig& HighResScreenshotConfig = GetHighResScreenshotConfig();
-		if (HighResScreenshotConfig.SetResolution(ResX, ResY))
+		if (uint32(ResX) <= GetMax2DTextureDimension() && uint32(ResY) <= GetMax2DTextureDimension())
 		{
-			HighResScreenshotConfig.SetFilename(Filename);
-			HighResScreenshotConfig.SetMaskEnabled(bMaskEnabled);
-			HighResScreenshotConfig.SetHDRCapture(bCaptureHDR);
-
 			FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
 			SLevelViewport* LevelViewport = LevelEditor.GetFirstActiveLevelViewport().Get();
 			if (!LevelViewport->IsInGameView() && LevelViewport->CanToggleGameView())
@@ -1188,7 +1183,13 @@ UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreensho
 			Task->BindTask(MakeUnique<FScreenshotTakenState>());
 
 			// Delay taking the screenshot by a few frames			
-			FTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotDelay"), Delay, [LevelViewport, ComparisonTolerance, ComparisonNotes, Filename](float) {
+			FTicker::GetCoreTicker().AddTicker(TEXT("ScreenshotDelay"), Delay, [LevelViewport, ComparisonTolerance, ComparisonNotes, Filename, ResX, ResY, bMaskEnabled, bCaptureHDR](float) {
+					FHighResScreenshotConfig& HighResScreenshotConfig = GetHighResScreenshotConfig();
+					HighResScreenshotConfig.SetResolution(ResX, ResY);
+					HighResScreenshotConfig.SetFilename(Filename);
+					HighResScreenshotConfig.SetMaskEnabled(bMaskEnabled);
+					HighResScreenshotConfig.SetHDRCapture(bCaptureHDR);
+
 					LevelViewport->GetActiveViewport()->TakeHighResScreenShot();
 #if WITH_AUTOMATION_TESTS
 					if (GIsAutomationTesting)

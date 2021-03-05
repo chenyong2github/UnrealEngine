@@ -55,9 +55,9 @@ class CHAOS_API FSingleParticlePhysicsProxy : public IPhysicsProxyBase
 {
 public:
 	using PARTICLE_TYPE = Chaos::FGeometryParticle;
-	using FParticleHandle = Chaos::TGeometryParticleHandle<Chaos::FReal,3>;
+	using FParticleHandle = Chaos::FGeometryParticleHandle;
 
-	static FSingleParticlePhysicsProxy* Create(TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>&& Particle);
+	static FSingleParticlePhysicsProxy* Create(TUniquePtr<Chaos::FGeometryParticle>&& Particle);
 
 	FSingleParticlePhysicsProxy() = delete;
 	FSingleParticlePhysicsProxy(const FSingleParticlePhysicsProxy&) = delete;
@@ -159,14 +159,14 @@ public:
 		return Particle.Get();
 	}
 
-	Chaos::TPBDRigidParticle<Chaos::FReal, 3>* GetRigidParticleUnsafe()
+	Chaos::FPBDRigidParticle* GetRigidParticleUnsafe()
 	{
-		return static_cast<Chaos::TPBDRigidParticle<Chaos::FReal, 3>*>(GetParticle_LowLevel());
+		return static_cast<Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
 
-	const Chaos::TPBDRigidParticle<Chaos::FReal, 3>* GetRigidParticleUnsafe() const
+	const Chaos::FPBDRigidParticle* GetRigidParticleUnsafe() const
 	{
-		return static_cast<const Chaos::TPBDRigidParticle<Chaos::FReal, 3>*>(GetParticle_LowLevel());
+		return static_cast<const Chaos::FPBDRigidParticle*>(GetParticle_LowLevel());
 	}
 
 	/** Gets the owning external object for this solver object, never used internally */
@@ -218,13 +218,29 @@ public:
 
 	//API for static particle
 	const FVec3& X() const { return ReadRef([](auto* Particle) -> const auto& { return Particle->X(); }); }
-	void SetX(const FVec3& InX, bool bInvalidate = true) { Write([&InX, bInvalidate](auto* Particle) { Particle->SetX(InX, bInvalidate); });}
+	void SetX(const FVec3& InX, bool bInvalidate = true) { Write([&InX, bInvalidate, this](auto* Particle)
+	{
+		Particle->SetX(InX, bInvalidate);
+		if(bExternal)
+		{
+			SyncTimestamp->XTimestamp = GetSolverSyncTimestamp_External();
+			SyncTimestamp->OverWriteX = InX;
+		}
+	});}
 
 	FUniqueIdx UniqueIdx() const { return Read([](auto* Particle) { return Particle->UniqueIdx(); }); }
 	void SetUniqueIdx(const FUniqueIdx UniqueIdx, bool bInvalidate = true) { Write([UniqueIdx, bInvalidate](auto* Particle) { Particle->SetUniqueIdx(UniqueIdx, bInvalidate); }); }
 
 	const FRotation3& R() const { return ReadRef([](auto* Particle) -> const auto& { return Particle->R(); }); }
-	void SetR(const FRotation3& InR, bool bInvalidate = true) { Write([&InR, bInvalidate](auto* Particle) { Particle->SetR(InR, bInvalidate); }); }
+	void SetR(const FRotation3& InR, bool bInvalidate = true){ Write([&InR, bInvalidate, this](auto* Particle)
+	{
+			Particle->SetR(InR, bInvalidate);
+			if(bExternal)
+			{
+				SyncTimestamp->RTimestamp = GetSolverSyncTimestamp_External();
+				SyncTimestamp->OverWriteR = InR;
+			}
+	});}
 
 	const TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>& SharedGeometryLowLevel() const { return ReadRef([](auto* Ptr) -> const auto& { return Ptr->SharedGeometryLowLevel(); });}
 
@@ -260,11 +276,24 @@ public:
 
 	void SetV(const FVec3& InV, bool bInvalidate = true)
 	{
-		Write([&InV, bInvalidate](auto* Particle)
+		Write([&InV, bInvalidate, this](auto* Particle)
 		{
 			if (auto Kinematic = Particle->CastToKinematicParticle())
 			{
-				return Kinematic->SetV(InV, bInvalidate);
+				if (bExternal)
+				{
+					if (InV == FVec3(0))	//should we use an explicit API instead?
+					{
+						//external thread is setting velocity to 0 so we want to freeze object until sim catches up
+						//but we also want position to snap to where it currently is on external thread
+						SetX(X(), bInvalidate);
+					}
+
+					SyncTimestamp->VTimestamp = GetSolverSyncTimestamp_External();
+					SyncTimestamp->OverWriteV = InV;
+				}
+
+				Kinematic->SetV(InV, bInvalidate);
 			}
 		});
 	}
@@ -284,11 +313,23 @@ public:
 
 	void SetW(const FVec3& InW, bool bInvalidate = true)
 	{
-		Write([&InW, bInvalidate](auto* Particle)
+		Write([&InW, bInvalidate, this](auto* Particle)
 		{
 			if (auto Kinematic = Particle->CastToKinematicParticle())
 			{
-				return Kinematic->SetW(InW, bInvalidate);
+				if (bExternal)
+				{
+					if (InW == FVec3(0))	//should we use an explicit API instead?
+					{
+						//external thread is setting velocity to 0 so we want to freeze object until sim catches up
+						//but we also want position to snap to where it currently is on external thread
+						SetR(R(), bInvalidate);
+					}
+
+					SyncTimestamp->WTimestamp = GetSolverSyncTimestamp_External();
+					SyncTimestamp->OverWriteW = InW;
+				}
+				Kinematic->SetW(InW, bInvalidate);
 			}
 		});
 	}
@@ -495,7 +536,7 @@ public:
 		});
 	}
 
-	const PMatrix<FReal,3,3> I() const
+	const FMatrix33 I() const
 	{
 		return Read([](auto* Particle)
 		{
@@ -504,11 +545,11 @@ public:
 				return Rigid->I();
 			}
 
-			return PMatrix<FReal,3,3>(0, 0, 0);
+			return FMatrix33(0, 0, 0);
 		});
 	}
 
-	void SetI(const PMatrix<FReal,3,3>& InI)
+	void SetI(const FMatrix33& InI)
 	{
 		Write([&InI](auto* Particle)
 		{
@@ -519,7 +560,7 @@ public:
 		});
 	}
 
-	const PMatrix<FReal, 3, 3> InvI() const
+	const FMatrix33 InvI() const
 	{
 		return Read([](auto* Particle)
 		{
@@ -528,11 +569,11 @@ public:
 				return Rigid->InvI();
 			}
 
-			return PMatrix<FReal, 3, 3>(0, 0, 0);
+			return FMatrix33(0, 0, 0);
 		});
 	}
 
-	void SetInvI(const PMatrix<FReal, 3, 3>& InInvI)
+	void SetInvI(const FMatrix33& InInvI)
 	{
 		Write([&InInvI](auto* Particle)
 		{
@@ -689,10 +730,22 @@ public:
 
 	void SetObjectState(const EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
 	{
-		Write([InState, bAllowEvents, bInvalidate](auto* Ptr)
+		Write([InState, bAllowEvents, bInvalidate, this](auto* Ptr)
 		{
 			if (auto Rigid = Ptr->CastToRigidParticle())
 			{
+				if (bExternal)
+				{
+					SyncTimestamp->ObjectStateTimestamp = GetSolverSyncTimestamp_External();
+					if (InState != EObjectStateType::Dynamic && Rigid->ObjectState() == EObjectStateType::Dynamic)
+					{
+						//we want to snap the particle to its current state on the external thread. This is because the user wants the object to fully stop right now
+						//the internal thread will continue if async is on, but eventually it will see this snap
+						SetV(FVec3(0), bInvalidate);
+						SetW(FVec3(0), bInvalidate);
+					}
+				}
+
 				Rigid->SetObjectState(InState, bAllowEvents, bInvalidate);
 			}
 		});
@@ -744,6 +797,19 @@ private:
 			Lambda(GetHandle_LowLevel());
 			//todo: write to extra buffer
 		}
+	}
+
+	int32 GetSolverSyncTimestamp_External() const
+	{
+		if (bExternal)
+		{
+			if (FPhysicsSolverBase* SolverBase = GetSolverBase())
+			{
+				return SolverBase->GetMarshallingManager().GetExternalTimestamp_External();
+			}
+		}
+
+		return INDEX_NONE;
 	}
 };
 
@@ -953,7 +1019,7 @@ static_assert(sizeof(FRigidBodyHandle_Internal) == sizeof(FSingleParticlePhysics
 
 }
 
-inline FSingleParticlePhysicsProxy* FSingleParticlePhysicsProxy::Create(TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>&& Particle)
+inline FSingleParticlePhysicsProxy* FSingleParticlePhysicsProxy::Create(TUniquePtr<Chaos::FGeometryParticle>&& Particle)
 {
 	ensure(Particle->GetProxy() == nullptr);	//not already owned by another proxy. TODO: use TUniquePtr
 	auto Proxy = new FSingleParticlePhysicsProxy(MoveTemp(Particle), nullptr);

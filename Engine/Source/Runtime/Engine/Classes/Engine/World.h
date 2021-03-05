@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "UObject/CoreOnlineFwd.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
@@ -42,7 +43,6 @@ class AWorldSettings;
 class UWorldPartition;
 class Error;
 class FTimerManager;
-class FUniqueNetId;
 class FWorldInGamePerformanceTrackers;
 class IInterface_PostProcessVolume;
 class UAISystemBase;
@@ -1692,6 +1692,9 @@ public:
 	//Experimental: In game performance tracking.
 	FWorldInGamePerformanceTrackers* PerfTrackers;
 
+	//Tracking for VFX cost for this world.
+	struct FParticlePerfStats* FXPerfStats = nullptr;
+
 	/**
 	 * UWorld default constructor
 	 */
@@ -3334,7 +3337,7 @@ public:
 	 * @param InNetPlayerIndex (optional) - the NetPlayerIndex to set on the PlayerController
 	 * @return the PlayerController that was spawned (may fail and return NULL)
 	 */
-	APlayerController* SpawnPlayActor(class UPlayer* Player, ENetRole RemoteRole, const FURL& InURL, const TSharedPtr<const FUniqueNetId>& UniqueId, FString& Error, uint8 InNetPlayerIndex = 0);
+	APlayerController* SpawnPlayActor(class UPlayer* Player, ENetRole RemoteRole, const FURL& InURL, const FUniqueNetIdPtr& UniqueId, FString& Error, uint8 InNetPlayerIndex = 0);
 	APlayerController* SpawnPlayActor(class UPlayer* Player, ENetRole RemoteRole, const FURL& InURL, const FUniqueNetIdRepl& UniqueId, FString& Error, uint8 InNetPlayerIndex = 0);
 	
 	/**
@@ -4062,3 +4065,5 @@ FORCEINLINE_DEBUGGABLE bool UWorld::IsNetMode(ENetMode Mode) const
 #endif
 }
 
+FString ENGINE_API ToString(EWorldType::Type Type);
+FString ENGINE_API ToString(ENetMode NetMode);

@@ -443,7 +443,7 @@ namespace ChaosTest
 
 		{
 			//capsule with origin in middle
-			TCapsule<FReal> Capsule(FVec3(0, 0, 10), FVec3(0, 0, -10), 3);
+			FCapsule Capsule(FVec3(0, 0, 10), FVec3(0, 0, -10), 3);
 			auto Support = [&Capsule](const auto& V)
 			{
 				return Capsule.Support(V, 0);
@@ -464,7 +464,7 @@ namespace ChaosTest
 		}
 		{
 			//capsule with origin near top
-			TCapsule<FReal> Capsule(FVec3(0, 0, -2), FVec3(0, 0, -12), 3);
+			FCapsule Capsule(FVec3(0, 0, -2), FVec3(0, 0, -12), 3);
 			auto Support = [&Capsule](const auto& V)
 			{
 				return Capsule.Support(V, 0);
@@ -1260,8 +1260,8 @@ namespace ChaosTest
 			TRigidTransform<FReal, 3> StartTM(FVec3(-344.031799, 1210.37158, 134.252747), FQuat(-0.255716801, -0.714108050, 0.0788889676, -0.646866322), FVec3(1));
 
 			// Wrapping in 1,1,1 scale is unnecessary, but this is technically what is happening when sweeping against scaled trimesh.
-			TUniquePtr<TCapsule<FReal>> Capsule = MakeUnique<TCapsule<FReal>>(FVec3(0, 0, -33), FVec3(0, 0, 33), 42);
-			TImplicitObjectScaled<TCapsule<FReal>> ScaledCapsule = TImplicitObjectScaled<TCapsule<FReal>>(MakeSerializable(Capsule), FVec3(1));
+			TUniquePtr<FCapsule> Capsule = MakeUnique<FCapsule>(FVec3(0, 0, -33), FVec3(0, 0, 33), 42);
+			TImplicitObjectScaled<FCapsule> ScaledCapsule = TImplicitObjectScaled<FCapsule>(MakeSerializable(Capsule), FVec3(1));
 
 
 			const FVec3 Dir(-0.102473199, 0.130887285, -0.986087084);

@@ -250,6 +250,7 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 				TexCreate_RenderTargetable|TexCreateFlags,
 				CreateInfo
 				);
+			SetGPUMask(CreateInfo.GPUMask);
 		}
 
 		// Set render target to 2D surface.

@@ -476,7 +476,6 @@ bool PlatformBlitToViewport( FPlatformOpenGLDevice* Device, const FOpenGLViewpor
 		}
 
 		::SwapBuffers(Context->DeviceContext);
-		REPORT_GL_END_BUFFER_EVENT_FOR_FRAME_DUMP();
 		return true;
 	}
 
@@ -540,8 +539,6 @@ bool PlatformBlitToViewport( FPlatformOpenGLDevice* Device, const FOpenGLViewpor
 			}
 
 			::SwapBuffers(Context->DeviceContext);
-			REPORT_GL_END_BUFFER_EVENT_FOR_FRAME_DUMP();
-//			INITIATE_GL_FRAME_DUMP_EVERY_X_CALLS( 1000 );
 		}
 	}
 	return true;

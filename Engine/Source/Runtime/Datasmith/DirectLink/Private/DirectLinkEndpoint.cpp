@@ -35,6 +35,21 @@ struct
 } gConfig;
 
 
+double gUdpMessagingInitializationTime = -1.;
+ECommunicationStatus ValidateCommunicationStatus()
+{
+	if (!FModuleManager::Get().IsModuleLoaded("UdpMessaging"))
+	{
+		gUdpMessagingInitializationTime = FPlatformTime::Seconds();
+	}
+
+	return ECommunicationStatus(
+		   (FModuleManager::Get().LoadModule("Messaging")         ? ECS_NoIssue : ECS_ModuleNotLoaded_Messaging)
+		 | (FModuleManager::Get().LoadModule("UdpMessaging")      ? ECS_NoIssue : ECS_ModuleNotLoaded_UdpMessaging)
+		 | (FModuleManager::Get().LoadModule("Networking")        ? ECS_NoIssue : ECS_ModuleNotLoaded_Networking)
+	);
+}
+
 
 class FSharedState
 {
@@ -146,6 +161,13 @@ FEndpoint::FEndpoint(const FString& InName)
 	, InternalPtr(MakeUnique<FInternalThreadState>(*this, SharedState))
 	, Internal(*InternalPtr)
 {
+	ECommunicationStatus ComStatus = ValidateCommunicationStatus();
+	if (ComStatus != ECS_NoIssue)
+	{
+		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication (error code:%d):"), *SharedState.NiceName, ComStatus);
+		return;
+	}
+
 	if (Internal.Init())
 	{
 		UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s' Start internal thread"), *SharedState.NiceName);
@@ -334,8 +356,10 @@ void FEndpoint::RemoveEndpointObserver(IEndpointObserver* Observer)
 
 FEndpoint::EOpenStreamResult FEndpoint::OpenStream(const FSourceHandle& SourceId, const FDestinationHandle& DestinationId)
 {
+	// #ue_directlink: should be an async api
 	// #ue_directlink_cleanup Merge with Handle_OpenStreamRequest
 	// #ue_directlink_syncprotocol tempo before next allowed request ?
+
 	// check if the stream is already opened
 	{
 		FRWScopeLock _(SharedState.StreamsLock, SLT_ReadOnly);
@@ -748,9 +772,10 @@ void FInternalThreadState::Handle_OpenStreamRequest(const FDirectLinkMsg_OpenStr
 		NewStream.Sender = MoveTemp(NewSender);
 		NewStream.Receiver = MoveTemp(NewReceiver);
 		NewStream.Status = FStreamDescription::EConnectionState::Active;
+
+		UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s': Accepted connection"), *SharedState.NiceName);
+		MessageEndpoint->Send(Answer, RemoteEndpointAddress);
 	}
-	UE_LOG(LogDirectLinkNet, Log, TEXT("Endpoint '%s': Accepted connection"), *SharedState.NiceName);
-	MessageEndpoint->Send(Answer, RemoteEndpointAddress);
 
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Handle_OpenStreamRequest"), *SharedState.NiceName);
 	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("%s"), *ToString_dbg());
@@ -940,7 +965,7 @@ void FInternalThreadState::RemoveEndpoint(const FMessageAddress& RemoteEndpointA
 {
 	if (FDirectLinkMsg_EndpointState* RemoteState = RemoteEndpointDescriptions.Find(RemoteEndpointAddress))
 	{
-		UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Display, TEXT("Endpoint '%s' removes '%s'"), *SharedState.NiceName, *RemoteState->NiceName);
+		UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Display, TEXT("Endpoint '%s' removes remote Endpoint '%s'"), *SharedState.NiceName, *RemoteState->NiceName);
 	}
 
 	RemoteEndpointDescriptions.Remove(RemoteEndpointAddress);
@@ -990,17 +1015,25 @@ void FInternalThreadState::CleanupTimedOutEndpoint()
 	}
 }
 
-
-FRawInfo::FEndpointInfo::FEndpointInfo(const FDirectLinkMsg_EndpointState& Msg)
-	: Name(Msg.NiceName)
-	, Destinations(Msg.Destinations)
-	, Sources(Msg.Sources)
-	, UserName(Msg.UserName)
-	, ExecutableName(Msg.ExecutableName)
-	, ComputerName(Msg.ComputerName)
-	, bIsLocal(Msg.ComputerName == FPlatformProcess::ComputerName())
-	, ProcessId(Msg.ProcessId)
+FRawInfo::FEndpointInfo FromMsg(const FDirectLinkMsg_EndpointState& Msg)
 {
+	FRawInfo::FEndpointInfo Info;
+	Info.Name = Msg.NiceName;
+
+	for (const auto& S : Msg.Sources)
+	{
+		Info.Sources.Add({S.Name, S.Id, S.bIsPublic});
+	}
+	for (const auto& S : Msg.Destinations)
+	{
+		Info.Destinations.Add({S.Name, S.Id, S.bIsPublic});
+	}
+	Info.UserName = Msg.UserName;
+	Info.ExecutableName = Msg.ExecutableName;
+	Info.ComputerName = Msg.ComputerName;
+	Info.bIsLocal = Msg.ComputerName == FPlatformProcess::ComputerName();
+	Info.ProcessId = Msg.ProcessId;
+	return Info;
 }
 
 
@@ -1017,26 +1050,17 @@ bool FInternalThreadState::Init()
 		.Handling<FDirectLinkMsg_CloseStreamRequest>(this, &FInternalThreadState::Handle_CloseStreamRequest)
 		.WithInbox();
 
-	if (ensure(MessageEndpoint.IsValid()))
+	if (!ensure(MessageEndpoint.IsValid()))
 	{
-		MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointLifecycle>();
-		MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointState>();
-		SharedState.MessageEndpoint = MessageEndpoint;
-		SharedState.bInnerThreadShouldRun = true;
-		Now_s = FPlatformTime::Seconds();
-		return true;
-	}
-	else
-	{
-		UE_LOG(LogDirectLinkNet, Error, TEXT("Endpoint '%s': Unable to start communication:"), *SharedState.NiceName);
-		auto ValidateModule = [&](const TCHAR* MName) {
-			UE_CLOG(FModuleManager::Get().LoadModule(MName) == nullptr, LogDirectLinkNet, Error, TEXT("\tModule '%s' not loaded."), MName);
-		};
-		ValidateModule(TEXT("Messaging"));
-		ValidateModule(TEXT("UdpMessaging"));
-		ValidateModule(TEXT("Networking"));
 		return false;
 	}
+
+	MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointLifecycle>();
+	MessageEndpoint->Subscribe<FDirectLinkMsg_EndpointState>();
+	SharedState.MessageEndpoint = MessageEndpoint;
+	SharedState.bInnerThreadShouldRun = true;
+	Now_s = FPlatformTime::Seconds();
+	return true;
 }
 
 
@@ -1050,8 +1074,17 @@ void FInternalThreadState::Run()
 	ThisDescription.ExecutableName = FPlatformProcess::ExecutableName();
 	ThisDescription.NiceName = SharedState.NiceName;
 
-	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Publishing FDirectLinkMsg_EndpointLifecycle Start"), *SharedState.NiceName);
+	if (gUdpMessagingInitializationTime > 0.)
+	{
+		double WaitTime = FMath::Min(FPlatformTime::Seconds() - gUdpMessagingInitializationTime, 0.5);
+		if (WaitTime > 0.)
+		{
+			UE_LOG(LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': wait after UDP init. (In order to avoid that temporisation, Load 'UdpMessaging' module sooner in the game thread)."), *SharedState.NiceName);
+			FPlatformProcess::Sleep(WaitTime);
+		}
+	}
 
+	UE_CLOG(SharedState.bDebugLog, LogDirectLinkNet, Verbose, TEXT("Endpoint '%s': Publishing FDirectLinkMsg_EndpointLifecycle Start"), *SharedState.NiceName);
 	MessageEndpoint->Publish(NewMessage<FDirectLinkMsg_EndpointLifecycle>(FDirectLinkMsg_EndpointLifecycle::ELifecycle::Start));
 
 	while (SharedState.bInnerThreadShouldRun)
@@ -1112,10 +1145,10 @@ void FInternalThreadState::Run()
 			EndpointsInfo.Reserve(RemoteEndpointDescriptions.Num());
 			for (const auto& KV : RemoteEndpointDescriptions)
 			{
-				EndpointsInfo.Emplace(KV.Key, FRawInfo::FEndpointInfo{KV.Value});
+				EndpointsInfo.Add(KV.Key, FromMsg(KV.Value));
 			}
 			FMessageAddress ThisEndpointAddress = MessageEndpoint->GetAddress();
-			EndpointsInfo.Emplace(ThisEndpointAddress, FRawInfo::FEndpointInfo{ThisDescription});
+			EndpointsInfo.Add(ThisEndpointAddress, FromMsg(ThisDescription));
 
 			// prepare data - sources and destinations
 			TMap<FGuid, FRawInfo::FDataPointInfo> DataPointsInfo;

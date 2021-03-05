@@ -42,7 +42,7 @@ FString SerializedPayloadToString(const FConcertSessionSerializedPayload& InPayl
 void PopulateLogMessagePayload(const FConcertSessionSerializedPayload& InPayload, FConcertLog& InOutLogMessage)
 {
 	InOutLogMessage.CustomPayloadTypename = InPayload.PayloadTypeName;
-	InOutLogMessage.CustomPayloadUncompressedByteSize = InPayload.UncompressedPayloadSize;
+	InOutLogMessage.CustomPayloadUncompressedByteSize = InPayload.PayloadSize;
 	InOutLogMessage.StringPayload = SerializedPayloadToString(InPayload);
 }
 
@@ -590,6 +590,7 @@ void FConcertLogger::LogHeader()
 
 void FConcertLogger::LogEntry(FConcertLog& Log)
 {
+	SCOPED_CONCERT_TRACE(FConcertLogger_LogEntry);
 	static const FName MessageOrderIndexPropertyName = TEXT("MessageOrderIndex");
 	const bool bIsReliable = Log.ChannelId != FConcertMessageData::UnreliableChannelId;
 

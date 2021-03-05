@@ -86,11 +86,11 @@ public:
 
 	//bool Serialize(FArchive& Ar);
 	void SetOutput(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* DrawIndirectArgsUAV, FRHIUnorderedAccessView* InstanceCountsUAV);
-	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks);
+	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* TaskInfosBuffer, FRHIShaderResourceView* CulledInstanceCountsBuffer, int32 NumArgGenTaskOffset, int32 NumArgGenTasks, int32 NumInstanceCountClearTasks);
 	void UnbindBuffers(FRHICommandList& RHICmdList);
 
 protected:
-	
+
 	LAYOUT_FIELD(FShaderResourceParameter, TaskInfosParam)
 	LAYOUT_FIELD(FShaderResourceParameter, CulledInstanceCountsParam);
 	LAYOUT_FIELD(FRWShaderParameter, InstanceCountsParam)

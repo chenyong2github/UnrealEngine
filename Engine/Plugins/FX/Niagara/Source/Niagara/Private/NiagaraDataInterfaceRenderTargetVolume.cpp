@@ -18,14 +18,31 @@
 const FString UNiagaraDataInterfaceRenderTargetVolume::SizeName(TEXT("Size_"));
 const FString UNiagaraDataInterfaceRenderTargetVolume::RWOutputName(TEXT("RWOutput_"));
 const FString UNiagaraDataInterfaceRenderTargetVolume::OutputName(TEXT("Output_"));
+const FString UNiagaraDataInterfaceRenderTargetVolume::InputName(TEXT("Input_"));
 
 // Global VM function names, also used by the shaders code generation methods.
 const FName UNiagaraDataInterfaceRenderTargetVolume::SetValueFunctionName("SetRenderTargetValue");
+const FName UNiagaraDataInterfaceRenderTargetVolume::GetValueFunctionName("GetRenderTargetValue");
+const FName UNiagaraDataInterfaceRenderTargetVolume::SampleValueFunctionName("SampleRenderTargetValue");
 const FName UNiagaraDataInterfaceRenderTargetVolume::SetSizeFunctionName("SetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTargetVolume::GetSizeFunctionName("GetRenderTargetSize");
 const FName UNiagaraDataInterfaceRenderTargetVolume::LinearToIndexName("LinearToIndex");
 
 FNiagaraVariableBase UNiagaraDataInterfaceRenderTargetVolume::ExposedRTVar;
+
+/*--------------------------------------------------------------------------------------------------------------------------*/
+
+struct FNDIRenderTargetVolumeFunctionVersion
+{
+	enum Type
+	{
+		InitialVersion = 0,
+		AddedOptionalExecute = 1,
+
+		VersionPlusOne,
+		LatestVersion = VersionPlusOne - 1
+	};
+};
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_RenderTargetVolume : public FNiagaraDataInterfaceParametersCS
@@ -36,6 +53,9 @@ public:
 	{			
 		SizeParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTargetVolume::SizeName + ParameterInfo.DataInterfaceHLSLSymbol));
 		OutputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTargetVolume::OutputName + ParameterInfo.DataInterfaceHLSLSymbol));
+
+		InputParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTargetVolume::InputName + ParameterInfo.DataInterfaceHLSLSymbol));
+		InputSamplerStateParam.Bind(ParameterMap, *(UNiagaraDataInterfaceRenderTargetVolume::InputName + TEXT("SamplerState") + ParameterInfo.DataInterfaceHLSLSymbol));
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -75,6 +95,29 @@ public:
 			}
 			RHICmdList.SetUAVParameter(ComputeShaderRHI, OutputParam.GetUAVIndex(), OutputUAV);
 		}
+
+		if (InputParam.IsBound())
+		{
+			FRHITexture* TextureRHI = ProxyData->TextureReferenceRHI->GetReferencedTexture();
+			if (TextureRHI == nullptr)
+			{
+				TextureRHI = GBlackTexture->TextureRHI;
+			}
+			FRHISamplerState* SamplerStateRHI = ProxyData->SamplerStateRHI;
+			if (SamplerStateRHI == nullptr)
+			{
+				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			}
+
+			SetTextureParameter(
+				RHICmdList,
+				ComputeShaderRHI,
+				InputParam,
+				InputSamplerStateParam,
+				SamplerStateRHI,
+				TextureRHI
+			);
+		}
 	}
 
 	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const 
@@ -97,6 +140,9 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, SizeParam);
 	LAYOUT_FIELD(FRWShaderParameter, OutputParam);
+
+	LAYOUT_FIELD(FShaderResourceParameter, InputParam);
+	LAYOUT_FIELD(FShaderResourceParameter, InputSamplerStateParam);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_RenderTargetVolume);
@@ -144,6 +190,9 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetFunctions(TArray<FNiagaraFuncti
 		Sig.bExperimental = true;
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTargetVolumeFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
@@ -162,12 +211,16 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetFunctions(TArray<FNiagaraFuncti
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = true;
 		Sig.bSupportsGPU = false;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTargetVolumeFunctionVersion::LatestVersion;
+	#endif
 	}
 
 	{
 		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
 		Sig.Name = SetValueFunctionName;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled"))).SetValue(true);
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
@@ -180,6 +233,50 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetFunctions(TArray<FNiagaraFuncti
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTargetVolumeFunctionVersion::LatestVersion;
+	#endif
+	}
+
+	extern int GNiagaraRenderTargetAllowReads;
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = GetValueFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexX")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexY")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("IndexZ")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
+
+		Sig.bHidden = GNiagaraRenderTargetAllowReads != 1;
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTargetVolumeFunctionVersion::LatestVersion;
+#endif
+	}
+
+	{
+		FNiagaraFunctionSignature& Sig = OutFunctions.AddDefaulted_GetRef();
+		Sig.Name = SampleValueFunctionName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("RenderTarget")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW")));
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), TEXT("Value")));
+
+		Sig.bHidden = GNiagaraRenderTargetAllowReads != 1;
+		Sig.bExperimental = true;
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		Sig.bWriteFunction = true;
+		Sig.bSupportsCPU = false;
+		Sig.bSupportsGPU = true;
+#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTargetVolumeFunctionVersion::LatestVersion;
+#endif
 	}
 
 	{
@@ -197,8 +294,33 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetFunctions(TArray<FNiagaraFuncti
 		Sig.bWriteFunction = true;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+	#if WITH_EDITORONLY_DATA
+		Sig.FunctionVersion = FNDIRenderTargetVolumeFunctionVersion::LatestVersion;
+	#endif
 	}
 }
+
+#if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceRenderTargetVolume::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
+{
+	bool bWasChanged = false;
+
+	if (FunctionSignature.FunctionVersion < FNDIRenderTargetVolumeFunctionVersion::AddedOptionalExecute)
+	{
+		if (FunctionSignature.Name == SetValueFunctionName)
+		{
+			check(FunctionSignature.Inputs.Num() == 5);
+			FunctionSignature.Inputs.Insert_GetRef(FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("Enabled")), 1).SetValue(true);
+			bWasChanged = true;
+		}
+	}
+
+	// Set latest version
+	FunctionSignature.FunctionVersion = FNDIRenderTargetVolumeFunctionVersion::LatestVersion;
+
+	return bWasChanged;
+}
+#endif
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, GetSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceRenderTargetVolume, SetSize);
@@ -265,11 +387,14 @@ void UNiagaraDataInterfaceRenderTargetVolume::GetParameterDefinitionHLSL(const F
 
 	static const TCHAR *FormatDeclarations = TEXT(R"(				
 		RWTexture3D<float4> {OutputName};
+		Texture3D<float4> {InputName};
+		SamplerState {InputName}SamplerState;
 		int3 {SizeName};
 	)");
 	TMap<FString, FStringFormatArg> ArgsDeclarations =
 	{
 		{TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol},
+		{TEXT("InputName"),		InputName + ParamInfo.DataInterfaceHLSLSymbol },
 		{TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol},
 	};
 	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
@@ -287,15 +412,41 @@ bool UNiagaraDataInterfaceRenderTargetVolume::GetFunctionHLSL(const FNiagaraData
 	{
 		{TEXT("FunctionName"),	FunctionInfo.InstanceName},
 		{TEXT("OutputName"),	RWOutputName + ParamInfo.DataInterfaceHLSLSymbol},
+		{TEXT("InputName"),		InputName + ParamInfo.DataInterfaceHLSLSymbol },
 		{TEXT("SizeName"),		SizeName + ParamInfo.DataInterfaceHLSLSymbol},
 	};
 
 	if (FunctionInfo.DefinitionName == SetValueFunctionName)
 	{
 		static const TCHAR* FormatBounds = TEXT(R"(
-			void {FunctionName}(int IndexX, int IndexY, int IndexZ, float4 Value)
+			void {FunctionName}(bool bEnabled, int IndexX, int IndexY, int IndexZ, float4 Value)
+			{
+				if ( bEnabled )
+				{
+					{OutputName}[int3(IndexX, IndexY, IndexZ)] = Value;
+				}
+			}
+		)");
+		OutHLSL += FString::Format(FormatBounds, ArgsDeclarations);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == GetValueFunctionName)
+	{
+		static const TCHAR* FormatBounds = TEXT(R"(
+			void {FunctionName}(int In_IndexX, int In_IndexY, int In_IndexZ, out float4 Out_Value)
 			{			
-				{OutputName}[int3(IndexX, IndexY, IndexZ)] = Value;
+				Out_Value = {InputName}.Load(int4(In_IndexX, In_IndexY, In_IndexZ, 0));
+			}
+		)");
+		OutHLSL += FString::Format(FormatBounds, ArgsDeclarations);
+		return true;
+	}
+	else if (FunctionInfo.DefinitionName == SampleValueFunctionName)
+	{
+		static const TCHAR* FormatBounds = TEXT(R"(
+			void {FunctionName}(float3 UVW, out float4 Out_Value)
+			{			
+				Out_Value = {InputName}.SampleLevel({InputName}SamplerState, UVW, 0.0f);
 			}
 		)");
 		OutHLSL += FString::Format(FormatBounds, ArgsDeclarations);
@@ -382,6 +533,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::InitPerInstanceData(void* PerInsta
 #if WITH_EDITORONLY_DATA
 			TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 #endif
+			TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
 			TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 			TargetData->UAV.SafeRelease();
 		}
@@ -560,6 +712,7 @@ bool UNiagaraDataInterfaceRenderTargetVolume::PerInstanceTickPostSimulate(void* 
 #if WITH_EDITORONLY_DATA
 					TargetData->bPreviewTexture = RT_InstanceData.bPreviewTexture;
 #endif
+					TargetData->SamplerStateRHI = RT_TargetTexture->Resource && RT_TargetTexture->Resource->SamplerStateRHI ? RT_TargetTexture->Resource->SamplerStateRHI : nullptr;
 					TargetData->TextureReferenceRHI = RT_TargetTexture->TextureReference.TextureReferenceRHI;
 					TargetData->UAV.SafeRelease();
 				}

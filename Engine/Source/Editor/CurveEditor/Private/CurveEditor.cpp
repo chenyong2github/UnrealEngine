@@ -300,6 +300,11 @@ void FCurveEditor::SetTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems)
 	Tree.SetDirectSelection(MoveTemp(TreeItems), this);
 }
 
+void FCurveEditor::RemoveFromTreeSelection(TArrayView<const FCurveEditorTreeItemID> TreeItems)
+{
+	Tree.RemoveFromSelection(TreeItems, this);
+}
+
 ECurveEditorTreeSelectionState FCurveEditor::GetTreeSelectionState(FCurveEditorTreeItemID InTreeItemID) const
 {
 	return Tree.GetSelectionState(InTreeItemID);
@@ -334,6 +339,9 @@ void FCurveEditor::BindCommands()
 	CommandList->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFit, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::All));
+
+	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodes, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, false));
+	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodesAndDescendants, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, true));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().StepToNextKey, FExecuteAction::CreateSP(this, &FCurveEditor::StepToNextKey));
 	CommandList->MapAction(FCurveEditorCommands::Get().StepToPreviousKey, FExecuteAction::CreateSP(this, &FCurveEditor::StepToPreviousKey));
@@ -811,6 +819,12 @@ void FCurveEditor::ToggleOutputSnapping()
 	{
 		OnOutputSnapEnabledChanged.ExecuteIfBound(NewValue);
 	}
+}
+
+void
+FCurveEditor::ToggleExpandCollapseNodes(bool bRecursive)
+{
+	Tree.ToggleExpansionState(bRecursive);
 }
 
 FCurveEditorScreenSpaceH FCurveEditor::GetPanelInputSpace() const

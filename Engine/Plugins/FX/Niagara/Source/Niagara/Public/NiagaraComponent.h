@@ -642,6 +642,11 @@ public:
 	FORCEINLINE void BeginUpdateContextReset(){ bDuringUpdateContextReset = true; }
 	FORCEINLINE void EndUpdateContextReset(){ bDuringUpdateContextReset = false; }
 
+#if WITH_NIAGARA_DEBUGGER	
+	//Cache our scalability state in the component so we have access to it easily and also after it has been removed from the scalability manager.
+	FNiagaraScalabilityState DebugCachedScalabilityState;
+#endif
+
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
 	uint32 bAwaitingActivationDueToNotReady : 1;
@@ -687,6 +692,14 @@ private:
 
 	float ForceUpdateTransformTime;
 	FBox CurrLocalBounds;
+
+
+public:
+#if WITH_PARTICLE_PERF_STATS
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(GetWorld(), Asset); }
+#else	
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
+#endif
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
@@ -785,7 +798,7 @@ private:
 #endif
 #if WITH_PARTICLE_PERF_STATS
 public:
-	class UNiagaraSystem* PerfAsset;
+	FParticlePerfStatsContext PerfStatsContext;
 #endif
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA

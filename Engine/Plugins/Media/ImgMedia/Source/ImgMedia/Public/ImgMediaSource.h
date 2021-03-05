@@ -12,6 +12,9 @@
 
 #include "ImgMediaSource.generated.h"
 
+class AActor;
+class FImgMediaMipMapInfo;
+
 
 /**
  * Media source for EXR image sequences.
@@ -40,6 +43,10 @@ public:
 	UImgMediaSource();
 
 public:
+
+	/** If true, then relative Sequence Paths are relative to the project root directory. If false, then relative to the Content directory. */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Sequence)
+	bool IsPathRelativeToProjectRoot;
 
 	/** Overrides the default frame rate stored in the image files (0/0 = do not override). */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category=Sequence, AdvancedDisplay)
@@ -81,12 +88,61 @@ public:
 	UFUNCTION(BlueprintCallable, Category="ImgMedia|ImgMediaSource")
 	void SetSequencePath(const FString& Path);
 
+	/**
+	 * This camera could be looking at any img sequence.
+	 *
+	 * @param InActor Camera object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
+	void AddGlobalCamera(AActor* InActor);
+
+	/**
+	 * This camera is no longer looking at any img seqeunces.
+	 *
+	 * @param InActor Camera Object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
+	void RemoveGlobalCamera(AActor* InActor);
+
+	/**
+	 * This object is using our img sequence.
+	 *
+	 * @param InActor Object using our img sequence.
+	 * @param Width Width of the object. If < 0, then get the width automatically.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
+	void AddTargetObject(AActor* InActor, float Width = -1.0f);
+
+	/**
+	 * This object is no longer using our img sequence.
+	 *
+	 * @param InActor Object no longer using our img sequence.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
+	void RemoveTargetObject(AActor* InActor);
+
+	/**
+	 * Manually set when mip level 0 should appear.
+	 *
+	 * @param Distance Furthest distance from the camera when mip level 0 should be at 100%.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ImgMedia|ImgMediaSource")
+	void SetMipLevelDistance(float Distance);
+
+	/**
+	 * Get our mipmap info object.
+	 *
+	 * @return	Mipmap info object.
+	 */
+	const FImgMediaMipMapInfo* GetMipMapInfo() const { return MipMapInfo.Get(); }
+
 public:
 
 	//~ IMediaOptions interface
 
 	virtual int64 GetMediaOption(const FName& Key, int64 DefaultValue) const override;
 	virtual FString GetMediaOption(const FName& Key, const FString& DefaultValue) const override;
+	virtual TSharedPtr<FDataContainer, ESPMode::ThreadSafe> GetMediaOption(const FName& Key, const TSharedPtr<FDataContainer, ESPMode::ThreadSafe>& DefaultValue) const override;
 	virtual bool HasMediaOption(const FName& Key) const override;
 
 public:
@@ -106,4 +162,7 @@ protected:
 	/** The directory that contains the image sequence files. */
 	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category=Sequence)
 	FDirectoryPath SequencePath;
+
+	/** MipMapInfo object to handle mip maps. */
+	TSharedPtr<FImgMediaMipMapInfo, ESPMode::ThreadSafe> MipMapInfo;
 };

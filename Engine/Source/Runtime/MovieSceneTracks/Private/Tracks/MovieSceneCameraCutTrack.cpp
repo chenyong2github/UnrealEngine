@@ -269,7 +269,7 @@ FFrameNumber UMovieSceneCameraCutTrack::FindEndTimeForCameraCut( FFrameNumber St
 	return ExclusiveEndTime;
 }
 
-void UMovieSceneCameraCutTrack::PreCompileImpl()
+void UMovieSceneCameraCutTrack::PreCompileImpl(FMovieSceneTrackPreCompileResult& OutPreCompileResult)
 {
 	for (UMovieSceneSection* Section : Sections)
 	{

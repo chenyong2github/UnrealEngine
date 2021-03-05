@@ -338,11 +338,11 @@ namespace GeometryCollectionTest
 			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(
 				Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
-		const TManagedArray<TUniquePtr<Chaos::TBVHParticles<FReal,3>>>& Simplicials =
-			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::TBVHParticles<FReal,3>>>(
+		const TManagedArray<TUniquePtr<Chaos::FBVHParticles>>& Simplicials =
+			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::FBVHParticles>>(
 				FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
 		EXPECT_EQ(Simplicials.Num(), 1);
-		const Chaos::TBVHParticles<FReal, 3>& Simplicial = *Simplicials[0];
+		const Chaos::FBVHParticles& Simplicial = *Simplicials[0];
 
 		const TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& Implicits = 
 			Collection->RestCollection->template GetAttribute<FGeometryDynamicCollection::FSharedImplicit>(
@@ -353,7 +353,7 @@ namespace GeometryCollectionTest
 
 		// Ensure all simplicial particles are on the surface of the implicit shape.
 		check(Implicit.GetType() == Chaos::ImplicitObjectType::LevelSet);
-		const Chaos::TLevelSet<FReal, 3>* LevelSet = static_cast<const Chaos::TLevelSet<FReal, 3>*>(&Implicit);
+		const Chaos::FLevelSet* LevelSet = static_cast<const Chaos::FLevelSet*>(&Implicit);
 		const FReal DxSize = LevelSet->GetGrid().Dx().Size();
 
 		FReal MinX = TNumericLimits<FReal>::Max();

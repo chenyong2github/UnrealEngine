@@ -40,12 +40,12 @@ namespace ChaosInterface
 		return ImplicitTypeToCollisionType(ImplicitObjectType);
 	}
 
-	float GetRadius(const Chaos::TCapsule<float>& InCapsule)
+	float GetRadius(const Chaos::FCapsule& InCapsule)
 	{
 		return InCapsule.GetRadius();
 	}
 
-	float GetHalfHeight(const Chaos::TCapsule<float>& InCapsule)
+	float GetHalfHeight(const Chaos::FCapsule& InCapsule)
 	{
 		return InCapsule.GetHeight() / 2.;
 	}

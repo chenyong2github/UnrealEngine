@@ -104,6 +104,8 @@ public:
 
 	virtual ~FDatasmithFacadeMaterialExpression() = default;
 
+	void ResetExpression() { GetMaterialExpression()->ResetExpression(); }
+
 #ifdef SWIG_FACADE
 protected:
 #endif
@@ -357,6 +359,13 @@ public:
 	template< typename T >
 	T AddMaterialExpression()
 	{
+	}
+
+	/** Reset all expression to their default values and remove all connections */
+	void ResetExpressionGraph()
+	{ 
+		constexpr bool bRemoveAllExpressions = false;
+		GetDatasmithUEPbrMaterialElement()->ResetExpressionGraph( bRemoveAllExpressions );
 	}
 
 	/** If a parent material is generated from this material, this will be its label. If none, the instance and the parent will have the same label. */

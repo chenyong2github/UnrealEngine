@@ -101,9 +101,9 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	uint FrontHemisphereCount = 0;
 	uint BackHemisphereCount  = 0;
 	
-	const uint LocalThetaSampleCount	= SampleCountScale * lerp(128, 64, Roughness);
-	const uint LocalPhiSampleCount		= SampleCountScale * lerp(128, 32, Roughness);
-	const uint LocalViewSampleCount		= SampleCountScale * 16;
+	const uint LocalThetaSampleCount	= max(1u, SampleCountScale * lerp(128, 64, Roughness));
+	const uint LocalPhiSampleCount		= max(1u, SampleCountScale * lerp(128, 32, Roughness));
+	const uint LocalViewSampleCount		= max(1u, SampleCountScale * 16);
 
 	const float Area = 0;			// This is used for faking area light sources by increasing the roughness of the surface. Disabled = 0.
 	const float Backlit = 1; 		// This is used for suppressing the R & TT terms when when the lighting direction comes from behind. Disabled = 1.
@@ -280,7 +280,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 #if SHADER_HAIRCOVERAGE
 
 int2 OutputResolution;
-StructuredBuffer<float> InputBuffer;
+Buffer<float> InputBuffer;
 RWTexture2D<float> OutputTexture;
 
 #define TILE_PIXEL_SIZE 8

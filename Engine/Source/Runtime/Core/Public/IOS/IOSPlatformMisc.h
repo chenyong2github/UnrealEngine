@@ -57,6 +57,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static bool IsRunningOnBattery();
 	static float GetDeviceTemperatureLevel();
 	static EDeviceScreenOrientation GetDeviceOrientation();
+	static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrientation);
 	static int32 GetDeviceVolume();
 	static void SetBrightness(float Brightness);
 	static float GetBrightness();

@@ -1,0 +1,495 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "SRCPanelExposedField.h"
+#include "SRCPanelExposedField.h"
+
+#include "Algo/Transform.h"
+#include "EditorStyleSet.h"
+#include "Framework/SlateDelegates.h"
+#include "IDetailTreeNode.h"
+#include "IPropertyRowGenerator.h"
+#include "Layout/Visibility.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyHandle.h"
+#include "RemoteControlField.h"
+#include "RemoteControlPanelStyle.h"
+#include "RemoteControlPreset.h"
+#include "SRCPanelDragHandle.h"
+#include "SRCPanelTreeNode.h"
+#include "SRemoteControlPanel.h"
+#include "Styling/SlateBrush.h"
+#include "ScopedTransaction.h"
+#include "UObject/Object.h"
+#include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Text/STextBlock.h"
+
+#define LOCTEXT_NAMESPACE "RemoteControlPanel"
+
+namespace ExposedFieldUtils
+{
+	bool FindPropertyHandleRecursive(const TSharedPtr<IPropertyHandle>& PropertyHandle, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
+	{
+		if (PropertyHandle && PropertyHandle->IsValidHandle())
+		{
+			uint32 ChildrenCount = 0;
+			PropertyHandle->GetNumChildren(ChildrenCount);
+			for (uint32 Index = 0; Index < ChildrenCount; ++Index)
+			{
+				TSharedPtr<IPropertyHandle> ChildHandle = PropertyHandle->GetChildHandle(Index);
+				if (FindPropertyHandleRecursive(ChildHandle, QualifiedPropertyName, bRequiresMatchingPath))
+				{
+					return true;
+				}
+			}
+
+			if (PropertyHandle->GetProperty())
+			{
+				if (bRequiresMatchingPath)
+				{
+					if (PropertyHandle->GeneratePathToProperty() == QualifiedPropertyName)
+					{
+						return true;
+					}
+				}
+				else if (PropertyHandle->GetProperty()->GetName() == QualifiedPropertyName)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	TSharedPtr<IDetailTreeNode> FindTreeNodeRecursive(const TSharedRef<IDetailTreeNode>& RootNode, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
+	{
+		TArray<TSharedRef<IDetailTreeNode>> Children;
+		RootNode->GetChildren(Children);
+		for (TSharedRef<IDetailTreeNode>& Child : Children)
+		{
+			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(Child, QualifiedPropertyName, bRequiresMatchingPath);
+			if (FoundNode.IsValid())
+			{
+				return FoundNode;
+			}
+		}
+
+		TSharedPtr<IPropertyHandle> Handle = RootNode->CreatePropertyHandle();
+		if (FindPropertyHandleRecursive(Handle, QualifiedPropertyName, bRequiresMatchingPath))
+		{
+			return RootNode;
+		}
+
+		return nullptr;
+	}
+
+	/** Find a node by its name in a detail tree node hierarchy. */
+	TSharedPtr<IDetailTreeNode> FindNode(const TArray<TSharedRef<IDetailTreeNode>>& RootNodes, const FString& QualifiedPropertyName, bool bRequiresMatchingPath)
+	{
+		for (const TSharedRef<IDetailTreeNode>& CategoryNode : RootNodes)
+		{
+			TSharedPtr<IDetailTreeNode> FoundNode = FindTreeNodeRecursive(CategoryNode, QualifiedPropertyName, bRequiresMatchingPath);
+			if (FoundNode.IsValid())
+			{
+				return FoundNode;
+			}
+		}
+
+		return nullptr;
+	}
+
+	TSharedRef<SWidget> CreateNodeValueWidget(const TSharedPtr<IDetailTreeNode>& Node)
+	{
+		FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
+
+		TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
+
+		if (NodeWidgets.ValueWidget)
+		{
+			FieldWidget->AddSlot()
+				.Padding(FMargin(3.0f, 2.0f))
+				.HAlign(HAlign_Right)
+				.AutoWidth()
+				[
+					NodeWidgets.ValueWidget.ToSharedRef()
+				];
+		}
+		else if (NodeWidgets.WholeRowWidget)
+		{
+			FieldWidget->AddSlot()
+				.Padding(FMargin(3.0f, 2.0f))
+				.AutoWidth()
+				[
+					NodeWidgets.WholeRowWidget.ToSharedRef()
+				];
+		}
+
+		return FieldWidget;
+	}
+}
+
+void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlField> InField)
+{
+	WeakField = MoveTemp(InField);
+	
+	bEditMode = InArgs._EditMode;
+	Preset = InArgs._Preset;
+	bDisplayValues = InArgs._DisplayValues;
+	
+	if (TSharedPtr<FRemoteControlField> FieldPtr = WeakField.Pin())
+	{
+		CachedLabel = FieldPtr->GetLabel();
+		FieldId = FieldPtr->GetId();
+		
+		if (FieldPtr->FieldType == EExposedFieldType::Property)
+		{
+			ConstructPropertyWidget();
+		}
+		else
+		{
+			ConstructFunctionWidget();
+		}
+	}
+}
+
+void SRCPanelExposedField::Tick(const FGeometry&, const double, const float)
+{
+	if (bNeedsRename)
+	{
+		if (NameTextBox)
+		{
+			NameTextBox->EnterEditingMode();
+		}
+		bNeedsRename = false;
+	}
+}
+
+void SRCPanelExposedField::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const
+{
+	OutChildren.Append(ChildWidgets);
+}
+
+TSharedPtr<SRCPanelExposedField> SRCPanelExposedField::AsField()
+{
+	return SharedThis(this);
+}
+
+FGuid SRCPanelExposedField::GetId() const
+{
+	return GetFieldId();
+}
+
+SRCPanelTreeNode::ENodeType SRCPanelExposedField::GetType() const
+{
+	return SRCPanelTreeNode::Field;
+}
+
+FName SRCPanelExposedField::GetFieldLabel() const
+{
+	return CachedLabel;
+}
+
+FGuid SRCPanelExposedField::GetFieldId() const
+{
+	return FieldId;
+}
+
+EExposedFieldType SRCPanelExposedField::GetFieldType() const
+{
+	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
+	{
+		return Field->FieldType;
+	}
+	
+	return EExposedFieldType::Invalid;
+}
+
+void SRCPanelExposedField::SetIsHovered(bool bInIsHovered)
+{
+	bIsHovered = bInIsHovered;
+}
+
+void SRCPanelExposedField::Refresh()
+{
+	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
+	{
+		CachedLabel = Field->GetLabel();
+		RowGenerator->SetObjects(Field->ResolveFieldOwners());
+		ChildSlot.AttachWidget(ConstructWidget());
+	}
+}
+
+void SRCPanelExposedField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) const
+{
+	if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
+	{
+		OutBoundObjects.Append(Field->ResolveFieldOwners());
+	}
+}
+
+TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
+{
+	if (bDisplayValues)
+	{
+		if (TSharedPtr<FRemoteControlField> Field = WeakField.Pin())
+		{
+			if (GetFieldType() == EExposedFieldType::Property && RowGenerator->GetSelectedObjects().Num())
+			{
+				if (TSharedPtr<IDetailTreeNode> Node = ExposedFieldUtils::FindNode(RowGenerator->GetRootTreeNodes(), Field->FieldPathInfo.ToPathPropertyString(), true))
+				{
+					TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+					Node->GetChildren(ChildNodes);
+					ChildWidgets.Reset(ChildNodes.Num());
+
+					for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+					{
+						ChildWidgets.Add(SNew(SRCPanelFieldChildNode, ChildNode));
+					}
+
+					return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node)));
+				}
+			}
+	
+			return MakeFieldWidget(PanelTreeNode::CreateInvalidWidget());
+		}
+	}
+
+	return MakeFieldWidget(SNullWidget::NullWidget);
+}
+
+TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidget>& InWidget)
+{
+	PanelTreeNode::FMakeNodeWidgetArgs Args;
+	Args.DragHandle = SNew(SBox)
+		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Hidden)
+		[
+			SNew(SRCPanelDragHandle<FExposedEntityDragDrop>, FieldId)
+			.Widget(AsShared())
+		];
+
+	Args.NameWidget = SAssignNew(NameTextBox, SInlineEditableTextBlock)
+		.Text(FText::FromName(CachedLabel))
+		.OnTextCommitted(this, &SRCPanelExposedField::OnLabelCommitted)
+		.OnVerifyTextChanged(this, &SRCPanelExposedField::OnVerifyItemLabelChanged)
+		.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); });
+
+	Args.RenameButton = SNew(SButton)
+		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+		.ButtonStyle(FEditorStyle::Get(), "FlatButton")
+		.OnClicked_Lambda([this]() {
+			bNeedsRename = true;
+			return FReply::Handled();
+		})
+		[
+			SNew(STextBlock)
+				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+				.Text(FText::FromString(FString(TEXT("\xf044"))) /*fa-edit*/)
+		];
+
+	Args.ValueWidget = InWidget;
+
+	Args.UnexposeButton = SNew(SButton)
+		.Visibility(this, &SRCPanelExposedField::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+		.OnPressed(this, &SRCPanelExposedField::HandleUnexposeField)
+		.ButtonStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.UnexposeButton")
+		[
+			SNew(STextBlock)
+			.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+			.Text(FText::FromString(FString(TEXT("\xf00d"))) /*fa-times*/)
+		];
+
+	return SNew(SBorder)
+		.Padding(0.0f)
+		.BorderImage(this, &SRCPanelExposedField::GetBorderImage)
+		[
+			PanelTreeNode::MakeNodeWidget(Args)
+		];
+}
+
+EVisibility SRCPanelExposedField::GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const
+{
+	return bEditMode.Get() ? EVisibility::Visible : NonEditModeVisibility;
+}
+
+const FSlateBrush* SRCPanelExposedField::GetBorderImage() const
+{
+	return FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.ExposedFieldBorder");
+}
+
+void SRCPanelExposedField::HandleUnexposeField()
+{
+	if (URemoteControlPreset* RCPreset = Preset.Get())
+	{
+		FText TransactionText;
+		if (GetFieldType() == EExposedFieldType::Function)
+		{
+			TransactionText = LOCTEXT("UnexposeFunction", "Unexpose Function");
+		}
+		else
+		{
+			TransactionText = LOCTEXT("UnexposeProperty", "Unexpose Property");
+		}
+
+		FScopedTransaction Transaction(MoveTemp(TransactionText));
+		RCPreset->Modify();
+		RCPreset->Unexpose(FieldId);
+	}
+}
+
+bool SRCPanelExposedField::OnVerifyItemLabelChanged(const FText& InLabel, FText& OutErrorMessage)
+{
+	if (URemoteControlPreset* RCPreset = Preset.Get())
+	{
+		if (InLabel.ToString() != CachedLabel.ToString() && RCPreset->GetExposedEntityId(*InLabel.ToString()).IsValid())
+		{
+			OutErrorMessage = LOCTEXT("NameAlreadyExists", "This name already exists.");
+			return false;
+		}
+	}
+
+	return true;
+}
+
+void SRCPanelExposedField::OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo)
+{
+	if (URemoteControlPreset* RCPreset = Preset.Get())
+	{
+		FScopedTransaction Transaction(LOCTEXT("ModifyFieldLabel", "Modify exposed field's label."));
+		RCPreset->Modify();
+		CachedLabel = RCPreset->RenameExposedEntity(FieldId, *InLabel.ToString());
+		NameTextBox->SetText(FText::FromName(CachedLabel));
+	}
+}
+
+void SRCPanelExposedField::ConstructPropertyWidget()
+{
+	RowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(FPropertyRowGeneratorArgs());
+
+	if (URemoteControlPreset* RCPreset = Preset.Get())
+	{
+		if (TSharedPtr<FRemoteControlProperty> Property = RCPreset->GetExposedEntity<FRemoteControlProperty>(FieldId).Pin())
+		{
+			RowGenerator->SetObjects(Property->ResolveFieldOwners());
+		}
+	}
+
+	ChildSlot.AttachWidget(ConstructWidget());
+}
+
+void SRCPanelExposedField::ConstructFunctionWidget()
+{
+	TSharedPtr<SRCPanelExposedField> ExposedFieldWidget;
+	FPropertyRowGeneratorArgs GeneratorArgs;
+	GeneratorArgs.bShouldShowHiddenProperties = true;
+	RowGenerator = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreatePropertyRowGenerator(GeneratorArgs);
+
+	URemoteControlPreset* RCPreset = Preset.Get();
+	if (!RCPreset)
+	{
+		return;
+	}
+
+	if (TSharedPtr<FRemoteControlFunction> RCFunction = RCPreset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
+	{
+		if (RCFunction->Function && RCFunction->ResolveFieldOwners().Num())
+		{
+			RowGenerator->SetStructure(RCFunction->FunctionArguments);
+			
+			if (bDisplayValues)
+			{
+				TArray<TSharedPtr<SRCPanelFieldChildNode>> ChildNodes;
+				for (TFieldIterator<FProperty> It(RCFunction->Function); It; ++It)
+				{
+					if (!It->HasAnyPropertyFlags(CPF_Parm) || It->HasAnyPropertyFlags(CPF_OutParm | CPF_ReturnParm))
+					{
+						continue;
+					}
+
+					if (TSharedPtr<IDetailTreeNode> PropertyNode = ExposedFieldUtils::FindNode(RowGenerator->GetRootTreeNodes(), It->GetFName().ToString(), false))
+					{
+						ChildNodes.Add(SNew(SRCPanelFieldChildNode, PropertyNode.ToSharedRef()));
+					}
+				}
+
+				ChildSlot.AttachWidget(MakeFieldWidget(ConstructCallFunctionButton()));
+				ChildWidgets = ChildNodes;
+			}
+			else
+			{
+				ChildSlot.AttachWidget(MakeFieldWidget(SNullWidget::NullWidget));
+			}	
+
+			return;
+		}
+	}
+
+	ChildSlot.AttachWidget(ConstructWidget());
+}
+
+TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton(bool bIsEnabled)
+{
+	return SNew(SVerticalBox)
+		+ SVerticalBox::Slot()
+		.HAlign(HAlign_Left)
+		.Padding(2.0f)
+		.AutoHeight()
+		[
+			SNew(SButton)
+			.IsEnabled(bIsEnabled)
+			.VAlign(VAlign_Center)
+			.OnClicked_Raw(this, &SRCPanelExposedField::OnClickFunctionButton)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("CallFunctionLabel", "Call Function"))
+			]
+		];
+}
+
+FReply SRCPanelExposedField::OnClickFunctionButton()
+{
+	FScopedTransaction FunctionTransaction(LOCTEXT("CallExposedFunction", "Called a function through preset."));
+	FEditorScriptExecutionGuard ScriptGuard;
+
+	if (URemoteControlPreset* RCPreset = Preset.Get())
+	{
+		if (TSharedPtr<FRemoteControlFunction> Function = RCPreset->GetExposedEntity<FRemoteControlFunction>(FieldId).Pin())
+		{
+			for (UObject* Object : Function->ResolveFieldOwners())
+			{
+				if (Function->FunctionArguments && Function->FunctionArguments->IsValid())
+				{
+					Object->ProcessEvent(Function->Function, Function->FunctionArguments->GetStructMemory());
+				}
+				else
+				{
+					ensureAlwaysMsgf(false, TEXT("Function default arguments could not be resolved."));
+				}
+			}
+		}
+	}
+
+	return FReply::Handled();
+}
+
+void SRCPanelFieldChildNode::Construct(const FArguments& InArgs, const TSharedRef<IDetailTreeNode>& InNode)
+{
+	TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+	InNode->GetChildren(ChildNodes);
+
+	Algo::Transform(ChildNodes, ChildrenNodes, [](const TSharedRef<IDetailTreeNode>& ChildNode) { return SNew(SRCPanelFieldChildNode, ChildNode); });
+
+	FNodeWidgets Widgets = InNode->CreateNodeWidgets();
+	PanelTreeNode::FMakeNodeWidgetArgs Args;
+	Args.NameWidget = Widgets.NameWidget;
+	Args.ValueWidget = ExposedFieldUtils::CreateNodeValueWidget(InNode);
+
+	ChildSlot
+		[
+			PanelTreeNode::MakeNodeWidget(Args)
+		];
+}
+
+#undef LOCTEXT_NAMESPACE /*RemoteControlPanel*/

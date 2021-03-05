@@ -85,7 +85,7 @@ inline void GetPassAccess(ERDGPassFlags PassFlags, ERHIAccess& SRVAccess, ERHIAc
 
 	if (EnumHasAnyFlags(PassFlags, ERDGPassFlags::Raster))
 	{
-		SRVAccess |= ERHIAccess::SRVCompute | ERHIAccess::SRVGraphics;
+		SRVAccess |= ERHIAccess::SRVGraphics;
 		UAVAccess |= ERHIAccess::UAVGraphics;
 	}
 

@@ -6,6 +6,12 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Framework/Docking/TabManager.h"
 
+
+class SDockTab;
+class SRemoteControlPanel;
+class SRCPanelInputBindings;
+struct SRCPanelTreeNode;
+
 /** Viewer/editor for a Remote Control Preset */
 class FRemoteControlPresetEditorToolkit : public FAssetEditorToolkit
 {
@@ -31,14 +37,26 @@ public:
 	//~ End IToolkit interface
 
 private:
-	/** Handle spawning the tabs that holds the remote control panel. */
-	TSharedRef<class SDockTab> HandleTabManagerSpawnTab(const FSpawnTabArgs& Args);
+	/** Handle spawning the tab that holds the remote control panel tab. */
+	TSharedRef<SDockTab> HandleTabManagerSpawnPanelTab(const FSpawnTabArgs& Args);
+
+	/** Handle spawning the tab the holds the input bindings tab. */
+	TSharedRef<SDockTab> HandleTabManagerSpawnInputBindingsTab(const FSpawnTabArgs& Args);
+
+	//~ Handle assigning group selection in either tab.
+	void OnPanelSelectionChange(const TSharedPtr<SRCPanelTreeNode>& Node);
+	void OnInputBindingsSelectionChange(const TSharedPtr<SRCPanelTreeNode>& Node);
 private:
 	/** Holds the remote control panel tab id. */
-	static const FName RemoteControlPanelTabId;
-
+	static const FName PanelTabId;
+	/** Holds the input bindings tab id. */
+	static const FName InputBindingsTabId;
 	/** Holds the remote control panel app identifier. */
 	static const FName RemoteControlPanelAppIdentifier;
-
-	TSharedPtr<class SRemoteControlPanel> PanelWidget;
+	/** Holds the preset being edited. */
+	URemoteControlPreset* Preset = nullptr;
+	/** Holds the panel widget */
+	TSharedPtr<SRemoteControlPanel> PanelTab;
+	/** Holds the input bindings widget */
+	TSharedPtr<SRCPanelInputBindings> InputBindingsTab;
 };

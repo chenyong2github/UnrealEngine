@@ -3340,7 +3340,7 @@ public:
 
 		char* default_precision_buffer = ralloc_asprintf(mem_ctx, "");
 
-		if (bEmitPrecision && !(ShaderTarget == vertex_shader))
+		if (bEmitPrecision && ShaderTarget == fragment_shader)
 		{
 			const char* DefaultPrecision = bDefaultPrecisionIsHalf ? "mediump" : "highp";
 			ralloc_asprintf_append(&default_precision_buffer, "precision %s float;\n", DefaultPrecision);
@@ -3698,7 +3698,7 @@ char* FGlslCodeBackend::GenerateCode(exec_list* ir, _mesa_glsl_parse_state* stat
 	FixRedundantCasts(ir);
 	//IRDump(ir);
 
-	const bool bDefaultPrecisionIsHalf = ((HlslCompileFlags & HLSLCC_UseFullPrecisionInPS) == 0 && Frequency != HSF_ComputeShader);
+	const bool bDefaultPrecisionIsHalf = (Frequency == HSF_PixelShader) && (HlslCompileFlags & HLSLCC_UseFullPrecisionInPS) == 0;
 	const bool bUsesExternalTexture = ((HlslCompileFlags & HLSLCC_UsesExternalTexture) == HLSLCC_UsesExternalTexture);
 	
 	FBreakPrecisionChangesVisitor BreakPrecisionChangesVisitor(state, bDefaultPrecisionIsHalf);

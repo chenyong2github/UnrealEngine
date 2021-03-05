@@ -16,8 +16,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <class T>
-	class TCapsule;
+	class FCapsule;
 }
 
 namespace ChaosInterface
@@ -107,9 +106,9 @@ FORCEINLINE ECollisionShapeType GetType(const Chaos::FImplicitObject& InGeometry
 	return GetImplicitType(InGeometry);
 }
 
-PHYSICSCORE_API float GetRadius(const Chaos::TCapsule<float>& InCapsule);
+PHYSICSCORE_API float GetRadius(const Chaos::FCapsule& InCapsule);
 
-PHYSICSCORE_API float GetHalfHeight(const Chaos::TCapsule<float>& InCapsule);
+PHYSICSCORE_API float GetHalfHeight(const Chaos::FCapsule& InCapsule);
 
 
 inline bool HadInitialOverlap(const FLocationHit& Hit)
@@ -122,7 +121,7 @@ inline const Chaos::FPerShapeData* GetShape(const FActorShape& Hit)
 	return Hit.Shape;
 }
 
-inline Chaos::TGeometryParticle<float,3>* GetActor(const FActorShape& Hit)
+inline Chaos::FGeometryParticle* GetActor(const FActorShape& Hit)
 {
 	return Hit.Actor;
 }

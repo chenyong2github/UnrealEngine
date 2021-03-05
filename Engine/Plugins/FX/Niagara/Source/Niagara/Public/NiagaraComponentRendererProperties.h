@@ -34,6 +34,10 @@ struct FNiagaraComponentPropertyBinding
 	UPROPERTY()
 	FName MetadataSetterName;
 
+	/** (Optional) If we have a setter with more than one parameter, this holds the default values of any optional function parameters */
+	UPROPERTY()
+	TMap<FString, FString> PropertySetterParameterDefaults;
+
 	UPROPERTY(Transient)
 	FNiagaraVariable WritableValue;
 };
@@ -42,6 +46,7 @@ struct FNiagaraPropertySetter
 {
 	UFunction* Function;
 	bool bIgnoreConversion = false;
+	
 };
 
 UCLASS(editinlinenew, MinimalAPI, meta = (DisplayName = "Component Renderer"))

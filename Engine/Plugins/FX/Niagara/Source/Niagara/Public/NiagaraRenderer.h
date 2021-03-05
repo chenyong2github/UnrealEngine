@@ -77,8 +77,8 @@ public:
 	FNiagaraRenderer& operator=(const FNiagaraRenderer& Other) = delete;
 
 	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent);
-	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
-	virtual void ReleaseRenderThreadResources();
+	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher) {}
+	virtual void ReleaseRenderThreadResources() {}
 	virtual void DestroyRenderState_Concurrent() {}
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View, const FNiagaraSceneProxy *SceneProxy)const;
@@ -124,7 +124,7 @@ protected:
 
 
 	struct FNiagaraDynamicDataBase *DynamicDataRender;
-	
+
 #if RHI_RAYTRACING
 	FRWBuffer RayTracingDynamicVertexBuffer;
 	FRayTracingGeometry RayTracingGeometry;
@@ -141,13 +141,9 @@ protected:
 	TStatId EmitterStatID;
 #endif
 
-	virtual int32 GetMaxIndirectArgs() const { return SimTarget == ENiagaraSimTarget::GPUComputeSim ? 1 : 0; }
-
 	static FParticleRenderData TransferDataToGPU(FGlobalDynamicReadBuffer& DynamicReadBuffer, const FNiagaraRendererLayout* RendererLayout, FNiagaraDataBuffer* SrcData);
-	
+
 	/** Cached array of materials used from the properties data. Validated with usage flags etc. */
 	TArray<UMaterialInterface*> BaseMaterials_GT;
 	FMaterialRelevance BaseMaterialRelevance_GT;
-
-	TRefCountPtr<FNiagaraGPURendererCount> NumRegisteredGPURenderers;
 };

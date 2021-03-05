@@ -44,6 +44,8 @@ class IDistributedBuildController : public IModuleInterface, public IModularFeat
 public:
 	virtual bool SupportsDynamicReloading() override { return false; }
 
+	virtual void InitializeController() = 0;
+	
 	// Returns true if the controller may be used.
 	virtual bool IsSupported() = 0;
 

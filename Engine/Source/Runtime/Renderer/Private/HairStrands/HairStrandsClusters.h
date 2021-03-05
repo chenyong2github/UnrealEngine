@@ -13,7 +13,6 @@
 
 struct FHairCullingParams
 {
-	bool bShadowViewMode		= false;		// Set to true for shadow views, all strand will be kept but those outside view will
 	bool bCullingProcessSkipped	= false;
 };
 

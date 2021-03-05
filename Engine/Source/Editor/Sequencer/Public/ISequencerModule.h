@@ -72,6 +72,9 @@ struct FSequencerViewParams
 	/** Called when this sequencer has received user focus */
 	FSimpleDelegate OnReceivedFocus;
 
+	/** The playback speed options available */
+	ISequencer::FOnGetPlaybackSpeeds OnGetPlaybackSpeeds;
+	
 	/** A menu extender for the add menu */
 	TSharedPtr<FExtender> AddMenuExtender;
 
@@ -88,7 +91,8 @@ struct FSequencerViewParams
 	ESequencerScrubberStyle ScrubberStyle;
 
 	FSequencerViewParams(FString InName = FString())
-		: UniqueName(MoveTemp(InName))
+		: OnGetPlaybackSpeeds(ISequencer::FOnGetPlaybackSpeeds::CreateLambda([]() { return TArray<float>{ 0.1f, 0.25f, 0.5f, 1.f, 2.f, 5.f, 10.f }; }))
+		, UniqueName(MoveTemp(InName))
 		, bReadOnly(false)
 		, ScrubberStyle(ESequencerScrubberStyle::Vanilla)
 	{ }

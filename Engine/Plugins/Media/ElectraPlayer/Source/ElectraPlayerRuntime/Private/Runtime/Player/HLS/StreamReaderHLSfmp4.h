@@ -36,8 +36,6 @@ public:
 
 	virtual void GetDownloadStats(Metrics::FSegmentDownloadStats& OutStats) const override;
 
-	void CopyFrom(const FStreamSegmentRequestHLSfmp4& rhs);
-
 	FString																		URL;
 	IElectraHttpManager::FParams::FRange										Range;
 
@@ -104,10 +102,6 @@ public:
 	//! Adds a request to read from a stream
 	virtual EAddResult AddRequest(uint32 CurrentPlaybackSequenceID, TSharedPtrTS<IStreamSegment> Request) override;
 
-	//! Pauses all pending requests.
-	virtual void PauseDownload() override;
-	//! Resumes all pending requests.
-	virtual void ResumeDownload() override;
 	//! Cancels all pending requests.
 	virtual void CancelRequests() override;
 
@@ -211,6 +205,7 @@ private:
 		int32													NumMOOFBoxesFound;
 
 		TMediaQueueDynamicNoLock<FAccessUnit *>					AccessUnitFIFO;
+		FTimeValue 												DurationSuccessfullyRead;
 		FTimeValue 												DurationSuccessfullyDelivered;
 
 		FMediaCriticalSection									MetricUpdateLock;

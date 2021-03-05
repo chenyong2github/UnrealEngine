@@ -115,10 +115,13 @@ FString UDataprepAsset::HashActionsAppearance() const
 	Algo::Sort(TempArrayActions);
 
 	TArray<int32> TempArrayGroups;
+	TArray<bool> TempArrayGroupsEnabled;
 	TempArrayGroups.Reserve(TempArrayActions.Num());
+	TempArrayGroupsEnabled.Reserve(TempArrayActions.Num());
 	for (UDataprepActionAsset* Action : TempArrayActions)
 	{
 		TempArrayGroups.Add(Action->Appearance->GroupId);
+		TempArrayGroupsEnabled.Add(Action->Appearance->bGroupIsEnabled);
 	}
 	TArray<FVector2D> TempArrayNodeSizes;
 	TempArrayNodeSizes.Reserve(TempArrayActions.Num());
@@ -131,6 +134,7 @@ FString UDataprepAsset::HashActionsAppearance() const
 
 	FMD5 AppearanceHash;
 	AppearanceHash.Update((uint8*)TempArrayGroups.GetData(), TempArrayGroups.Num() * sizeof(int32));
+	AppearanceHash.Update((uint8*)TempArrayGroupsEnabled.GetData(), TempArrayGroupsEnabled.Num() * sizeof(bool));
 	AppearanceHash.Update((uint8*)TempArrayNodeSizes.GetData(), TempArrayNodeSizes.Num() * sizeof(FVector2D));
 	AppearanceHash.Final(Digest);
 

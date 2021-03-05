@@ -76,7 +76,7 @@ FSlateFontInfo FSequencerSectionCategoryNode::GetDisplayNameFont() const
 	{
 		if (ChildNode->GetType() == ESequencerNode::KeyArea)
 		{
-			const FSequencerSectionKeyAreaNode KeyAreaNode = static_cast<const FSequencerSectionKeyAreaNode&>(ChildNode.Get());
+			const FSequencerSectionKeyAreaNode& KeyAreaNode = static_cast<const FSequencerSectionKeyAreaNode&>(ChildNode.Get());
 			for (const TSharedRef<IKeyArea>& KeyArea : KeyAreaNode.GetAllKeyAreas())
 			{
 				FMovieSceneChannel* Channel = KeyArea->ResolveChannel();

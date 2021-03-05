@@ -1626,7 +1626,7 @@ FUniqueNetIdRepl ULocalPlayer::GetCachedUniqueNetId() const
 	return CachedUniqueNetId;
 }
 
-void ULocalPlayer::SetCachedUniqueNetId(TSharedPtr<const FUniqueNetId> NewUniqueNetId)
+void ULocalPlayer::SetCachedUniqueNetId(FUniqueNetIdPtr NewUniqueNetId)
 {
 	CachedUniqueNetId = NewUniqueNetId;
 }

@@ -24,11 +24,9 @@
 #include "Modules/ModuleManager.h"
 #endif
 
-#ifdef CAD_LIBRARY
 #include "AliasCoretechWrapper.h" // requires CoreTech as public dependency
 #include "CADInterfacesModule.h"
 #include "CoreTechSurfaceExtension.h"
-#endif
 
 #ifdef USE_OPENMODEL
 #include <AlChannel.h>
@@ -165,17 +163,13 @@ public:
 		DatasmithScene->SetProductName(TEXT("Alias Tools"));
 		DatasmithScene->SetProductVersion(TEXT("Alias 2019"));
 
-#ifdef CAD_LIBRARY
 		LocalSession = FAliasCoretechWrapper::GetSharedSession();
-#endif
 	}
 
 	~FWireTranslatorImpl()
 	{
 		AlUniverse::deleteAll();
-#ifdef CAD_LIBRARY
 		LocalSession.Reset();
-#endif
 	}
 
 	bool Read();
@@ -220,10 +214,8 @@ private:
 
 	void AddNodeInBodySet(AlDagNode& DagNode, const char* ShaderName, TMap<uint32, TSharedPtr<BodyData>>& ShellToProcess, bool bIsAPatch, uint32 MaxSize);
 
-#ifdef CAD_LIBRARY
 	TOptional<FMeshDescription> MeshDagNodeWithExternalMesher(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters);
 	TOptional<FMeshDescription> MeshDagNodeWithExternalMesher(TSharedRef<BodyData> DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters);
-#endif
 
  	TOptional< FMeshDescription > ImportMesh(AlMesh& Mesh, CADLibrary::FMeshParameters& MeshParameters);
 
@@ -312,9 +304,7 @@ private:
 	// If > 0, then the archive is corrupt.
 	int32 NumCRCErrors;
 
-#ifdef CAD_LIBRARY
 	TSharedPtr<FAliasCoretechWrapper> LocalSession;
-#endif
 };
 
 void FWireTranslatorImpl::SetTessellationOptions(const FDatasmithTessellationOptions& Options)
@@ -322,11 +312,6 @@ void FWireTranslatorImpl::SetTessellationOptions(const FDatasmithTessellationOpt
 	TessellationOptions = Options;
 	SceneFileHash = HashCombine(Options.GetHash(), GetSceneFileHash(SceneFullPath, SceneName));
 }
-#endif
-
-
-
-#ifdef USE_OPENMODEL
 
 bool FWireTranslatorImpl::Read()
 {
@@ -1180,9 +1165,6 @@ void FWireTranslatorImpl::AddAlPhongParameters(AlShader *Shader, TSharedRef<IDat
 		MaterialElement->SetParentLabel(TEXT("M_DatasmithAliasPhong"));
 	}
 }
-//#endif
-
-
 
 // Make material
 bool FWireTranslatorImpl::GetShader()
@@ -1787,12 +1769,8 @@ bool FWireTranslatorImpl::RecurseDagForLeavesNoMerge(AlDagNode* FirstDagNode, co
 	return true;
 }
 
-#ifdef CAD_LIBRARY
-
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
-	CADLibrary::CheckedCTError Result;
-
 	LocalSession->ClearData();
 
 	FString Filename = DagNode.name();
@@ -1807,13 +1785,12 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 
 	TArray<AlDagNode*> DagNodeSet;
 	DagNodeSet.Add(&DagNode);
-	Result = LocalSession->AddBRep(DagNodeSet, ObjectReference);
+	LocalSession->AddBRep(DagNodeSet, ObjectReference);
 
 	Filename += TEXT(".ct");
 
 	FString FilePath = FPaths::Combine(OutputPath, Filename);
-	Result = LocalSession->SaveBrep(FilePath);
-	if (Result)
+	if (LocalSession->SaveBrep(FilePath))
 	{
 		MeshElement->SetFile(*FilePath);
 	}
@@ -1821,15 +1798,13 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	Result = LocalSession->Tessellate(MeshDescription, MeshParameters);
+	LocalSession->Tessellate(MeshDescription, MeshParameters);
 
 	return MoveTemp(MeshDescription);
 }
 
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(TSharedRef<BodyData> Body, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
-	CADLibrary::CheckedCTError Result;
-
 	LocalSession->ClearData();
 
 	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
@@ -1844,13 +1819,12 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 		ObjectReference = EAliasObjectReference::ParentReference;
 	}
 
-	Result = LocalSession->AddBRep(Body->ShellSet, ObjectReference);
+	LocalSession->AddBRep(Body->ShellSet, ObjectReference);
 
 	FString Filename = Body->Label + TEXT(".ct");
 
 	FString FilePath = FPaths::Combine(OutputPath, Filename);
-	Result = LocalSession->SaveBrep(FilePath);
-	if (Result)
+	if (LocalSession->SaveBrep(FilePath))
 	{
 		MeshElement->SetFile(*FilePath);
 	}
@@ -1858,24 +1832,19 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(T
 	FMeshDescription MeshDescription;
 	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
 
-	Result = LocalSession->Tessellate(MeshDescription, MeshParameters);
+	LocalSession->Tessellate(MeshDescription, MeshParameters);
 
 	return MoveTemp(MeshDescription);
 }
 
-#endif
-
 TOptional<FMeshDescription> FWireTranslatorImpl::GetMeshOfShellNode(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
-	static bool bUseExternalMesher = true;
-#ifdef CAD_LIBRARY
-	if (bUseExternalMesher)
+	if (LocalSession->IsSessionValid())
 	{
 		TOptional< FMeshDescription > UEMesh = MeshDagNodeWithExternalMesher(DagNode, MeshElement, MeshParameters);
 		return UEMesh;
 	}
 	else
-#endif
 	{
 		AlMatrix4x4 AlMatrix;
 		DagNode.inverseGlobalTransformationMatrix(AlMatrix);
@@ -2055,12 +2024,10 @@ FDatasmithWireTranslator::FDatasmithWireTranslator()
 void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
 
-#ifdef CAD_LIBRARY
-	if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
+	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
 	{
 		UE_LOG(LogDatasmithWireTranslator, Warning, TEXT(CAD_INTERFACE_UNAVAILABLE));
 	}
-#endif // CAD_INTERFACE
 
 #ifdef USE_OPENMODEL
 	if (FPlatformProcess::GetDllHandle(TEXT("libalias_api.dll")))
@@ -2069,6 +2036,7 @@ void FDatasmithWireTranslator::Initialize(FDatasmithTranslatorCapabilities& OutC
 		return;
 	}
 #endif
+
 	OutCapabilities.bIsEnabled = false;
 }
 
@@ -2150,9 +2118,8 @@ bool FDatasmithWireTranslator::LoadStaticMesh(const TSharedRef<IDatasmithMeshEle
 	if (TOptional< FMeshDescription > Mesh = Translator->GetMeshDescription(MeshElement, MeshParameters))
 	{
 		OutMeshPayload.LodMeshes.Add(MoveTemp(Mesh.GetValue()));
-#ifdef CAD_LIBRARY
+
 		CoreTechSurface::AddCoreTechSurfaceDataForMesh(MeshElement, ImportParameters, MeshParameters, GetCommonTessellationOptions(), OutMeshPayload);
-#endif //CAD_LIBRARY
 	}
 	return OutMeshPayload.LodMeshes.Num() > 0;
 #else

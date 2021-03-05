@@ -34,37 +34,10 @@ namespace Electra
 			virtual void OnFragmentClose(TSharedPtrTS<IStreamSegment> pRequest) = 0;
 		};
 
-		struct ReaderConfiguration
-		{
-			ReaderConfiguration()
-			{
-				ThreadParam.Priority = TPri_Normal;
-				ThreadParam.StackSize = 65536;
-				ThreadParam.CoreAffinity = -1;
-
-				// No limit on download duration
-				MaxDLDurationScale = 0.0;
-			}
-
-			FMediaRunnable::Param							ThreadParam;
-			double											MaxDLDurationScale;
-		};
-
 		struct CreateParam
 		{
-			CreateParam()
-			{
-				MemoryProvider = nullptr;
-				EventListener = nullptr;
-				PlayerSessionService = nullptr;
-			}
-
-			ReaderConfiguration		   ReaderConfig;
-			IAccessUnitMemoryProvider* MemoryProvider;
-			StreamReaderEventListener* EventListener;
-
-			FParamDict					Options;
-			IPlayerSessionServices*		PlayerSessionService;
+			IAccessUnitMemoryProvider* MemoryProvider = nullptr;
+			StreamReaderEventListener* EventListener = nullptr;
 		};
 
 		//! Creates the instance internally based on the creation parameters.
@@ -84,11 +57,6 @@ namespace Electra
 
 		//! Cancels all pending requests.
 		virtual void CancelRequests() = 0;
-
-		//! Pauses all pending requests.
-		virtual void PauseDownload() = 0;
-		//! Resumes all pending requests.
-		virtual void ResumeDownload() = 0;
 	};
 
 } // namespace Electra

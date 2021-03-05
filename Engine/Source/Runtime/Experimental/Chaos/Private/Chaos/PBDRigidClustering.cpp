@@ -411,7 +411,7 @@ namespace Chaos
 		, MCollisionImpulseArrayDirty(true)
 		, DoGenerateBreakingData(false)
 		, MClusterConnectionFactor(1.0)
-		, MClusterUnionConnectionType(FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation)
+		, MClusterUnionConnectionType(FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation)
 	{}
 
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
@@ -420,7 +420,7 @@ namespace Chaos
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::CreateClusterParticle"), STAT_CreateClusterParticle, STATGROUP_Chaos);
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	Chaos::FPBDRigidClusteredParticleHandle* TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::CreateClusterParticle(const int32 ClusterGroupIndex, TArray<Chaos::FPBDRigidParticleHandle*>&& Children, const FClusterCreationParameters<FReal>& Parameters, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry, const FRigidTransform3* ForceMassOrientation)
+	Chaos::FPBDRigidClusteredParticleHandle* TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::CreateClusterParticle(const int32 ClusterGroupIndex, TArray<Chaos::FPBDRigidParticleHandle*>&& Children, const FClusterCreationParameters& Parameters, TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry, const FRigidTransform3* ForceMassOrientation)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateClusterParticle);
 
@@ -515,7 +515,7 @@ namespace Chaos
 		TArray<FPBDRigidParticleHandle*>&& Children, 
 		FPBDRigidClusteredParticleHandle* Parent, 
 		const FRigidTransform3& ClusterWorldTM, 
-		const FClusterCreationParameters<FReal>& Parameters)
+		const FClusterCreationParameters& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_CreateClusterParticleFromClusterChildren);
 
@@ -574,7 +574,7 @@ namespace Chaos
 			}
 		}
 
-		FClusterCreationParameters<FReal> NoCleanParams = Parameters;
+		FClusterCreationParameters NoCleanParams = Parameters;
 		NoCleanParams.bCleanCollisionParticles = false;
 		NoCleanParams.bCopyCollisionParticles = !!UnionsHaveCollisionParticles;
 
@@ -648,7 +648,7 @@ namespace Chaos
 
 				TArray<FPBDRigidParticleHandle*> ActiveCluster = Group.Value;
 
-				FClusterCreationParameters<FReal> Parameters(0.3, 100, false, !!UnionsHaveCollisionParticles);
+				FClusterCreationParameters Parameters(0.3, 100, false, !!UnionsHaveCollisionParticles);
 				Parameters.ConnectionMethod = MClusterUnionConnectionType;
 				TPBDRigidClusteredParticleHandleImp<FReal, 3, true>* Handle = CreateClusterParticle(-ClusterGroupID, MoveTemp(Group.Value), Parameters, TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>());
 				Handle->SetInternalCluster(true);
@@ -883,7 +883,7 @@ namespace Chaos
 					{
 						if (ConnectedPieces.Num() > 1) //now build the remaining pieces
 						{
-							Chaos::FClusterCreationParameters<FReal> CreationParameters;
+							Chaos::FClusterCreationParameters CreationParameters;
 							CreationParameters.ClusterParticleHandle = NewClusterHandles[ClusterHandlesIdx++];
 							Chaos::FPBDRigidClusteredParticleHandle* NewCluster = 
 								CreateClusterParticleFromClusterChildren(
@@ -1522,7 +1522,7 @@ namespace Chaos
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::GenerateConnectionGraph(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
-		const FClusterCreationParameters<FReal>& Parameters)
+		const FClusterCreationParameters& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_GenerateConnectionGraph);
 		if (!MChildren.Contains(Parent)) 
@@ -1535,28 +1535,28 @@ namespace Chaos
 		//
 		if (Parameters.bGenerateConnectionGraph)
 		{
-			typename FClusterCreationParameters<FReal>::EConnectionMethod LocalConnectionMethod = Parameters.ConnectionMethod;
+			FClusterCreationParameters::EConnectionMethod LocalConnectionMethod = Parameters.ConnectionMethod;
 
-			if (LocalConnectionMethod == FClusterCreationParameters<FReal>::EConnectionMethod::None ||
-				(LocalConnectionMethod == FClusterCreationParameters<FReal>::EConnectionMethod::PointImplicit && 
+			if (LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::None ||
+				(LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::PointImplicit && 
 				 !Parent->CollisionParticles()))
 			{
-				LocalConnectionMethod = FClusterCreationParameters<FReal>::EConnectionMethod::MinimalSpanningSubsetDelaunayTriangulation; // default method
+				LocalConnectionMethod = FClusterCreationParameters::EConnectionMethod::MinimalSpanningSubsetDelaunayTriangulation; // default method
 			}
 
-			if (LocalConnectionMethod == FClusterCreationParameters<FReal>::EConnectionMethod::PointImplicit ||
-				LocalConnectionMethod == FClusterCreationParameters<FReal>::EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay)
+			if (LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::PointImplicit ||
+				LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay)
 			{
 				UpdateConnectivityGraphUsingPointImplicit(Parent, Parameters);
 			}
 
-			if (LocalConnectionMethod == FClusterCreationParameters<FReal>::EConnectionMethod::DelaunayTriangulation)
+			if (LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation)
 			{
 				UpdateConnectivityGraphUsingDelaunayTriangulation(Parent, Parameters); // not thread safe
 			}
 
-			if (LocalConnectionMethod == FClusterCreationParameters<FReal>::EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay ||
-				LocalConnectionMethod == FClusterCreationParameters<FReal>::EConnectionMethod::MinimalSpanningSubsetDelaunayTriangulation)
+			if (LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::PointImplicitAugmentedWithMinimalDelaunay ||
+				LocalConnectionMethod == FClusterCreationParameters::EConnectionMethod::MinimalSpanningSubsetDelaunayTriangulation)
 			{
 				FixConnectivityGraphUsingDelaunayTriangulation(Parent, Parameters);
 			}
@@ -1589,7 +1589,7 @@ namespace Chaos
 		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
 		const TSet<FPBDRigidParticleHandle*>& Children, 
 		TSharedPtr<Chaos::FImplicitObject, ESPMode::ThreadSafe> ProxyGeometry,
-		const FClusterCreationParameters<FReal>& Parameters)
+		const FClusterCreationParameters& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry);
 
@@ -1691,7 +1691,7 @@ namespace Chaos
 				if (bUseCollisionPoints)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_GatherPoints);
-					if (const TUniquePtr<TBVHParticles<FReal,3>>& CollisionParticles = Child->CollisionParticles())
+					if (const TUniquePtr<FBVHParticles>& CollisionParticles = Child->CollisionParticles())
 					{
 						for (uint32 i = 0; i < CollisionParticles->Size(); ++i)
 						{
@@ -1755,7 +1755,7 @@ namespace Chaos
 
 					FErrorReporter ErrorReporter;
 					TUniformGrid<FReal, 3> Grid(Bounds.Min(), Bounds.Max(), NumCells, LevelsetGhostCells);
-					TUniquePtr<TLevelSet<FReal, 3>> LevelSet(new TLevelSet<FReal, 3>(ErrorReporter, Grid, UnionObject));
+					TUniquePtr<FLevelSet> LevelSet(new FLevelSet(ErrorReporter, Grid, UnionObject));
 
 					if (!Parameters.CollisionParticles)
 					{
@@ -1816,7 +1816,7 @@ namespace Chaos
 			{
 				SCOPE_CYCLE_COUNTER(STAT_UpdateGeometry_GatherPoints);
 				Parent->CollisionParticlesInitIfNeeded();
-				TUniquePtr<TBVHParticles<FReal, 3>>& CollisionParticles = Parent->CollisionParticles();
+				TUniquePtr<FBVHParticles>& CollisionParticles = Parent->CollisionParticles();
 				CollisionParticles->AddParticles(CleanedPoints.Num());
 				for (int32 i = 0; i < CleanedPoints.Num(); ++i)
 				{
@@ -2012,7 +2012,7 @@ namespace Chaos
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateConnectivityGraphUsingPointImplicit(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
-		const FClusterCreationParameters<FReal>& Parameters)
+		const FClusterCreationParameters& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingPointImplicit);
 
@@ -2086,7 +2086,7 @@ namespace Chaos
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::FixConnectivityGraphUsingDelaunayTriangulation(
 		Chaos::FPBDRigidClusteredParticleHandle* Parent,
-		const FClusterCreationParameters<FReal>& Parameters)
+		const FClusterCreationParameters& Parameters)
 	{
 		// @todo(investigate) : This is trying to set multiple connections and throwing a warning in ConnectNodes
 		SCOPE_CYCLE_COUNTER(STAT_FixConnectivityGraphUsingDelaunayTriangulation);
@@ -2240,9 +2240,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::UpdateConnectivityGraphUsingDelaunayTriangulation"), STAT_UpdateConnectivityGraphUsingDelaunayTriangulation, STATGROUP_Chaos);
 
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint>
-	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateConnectivityGraphUsingDelaunayTriangulation(
-		Chaos::FPBDRigidClusteredParticleHandle* Parent, 
-		const FClusterCreationParameters<FReal>& Parameters)
+	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint>::UpdateConnectivityGraphUsingDelaunayTriangulation(Chaos::FPBDRigidClusteredParticleHandle* Parent, const FClusterCreationParameters& Parameters)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_UpdateConnectivityGraphUsingDelaunayTriangulation);
 

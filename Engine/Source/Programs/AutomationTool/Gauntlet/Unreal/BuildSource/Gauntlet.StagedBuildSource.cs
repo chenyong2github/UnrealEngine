@@ -31,6 +31,30 @@ namespace Gauntlet
 		}
 	}
 
+	public class PackagedBuild : IBuild
+	{
+		public UnrealTargetPlatform Platform { get; protected set; }
+
+		public UnrealTargetConfiguration Configuration { get; protected set; }
+
+		public UnrealTargetRole Role { get; protected set; }
+
+		public BuildFlags Flags { get; protected set; }
+
+		public string BuildPath { get; protected set; }
+
+		public virtual bool CanSupportRole(UnrealTargetRole InRoleType) { return InRoleType == Role; }
+
+		public PackagedBuild(UnrealTargetPlatform InPlatform, UnrealTargetConfiguration InConfig, UnrealTargetRole InRole, string InBuildPath, BuildFlags InFlags)
+		{
+			Platform = InPlatform;
+			Configuration = InConfig;
+			Role = InRole;
+			BuildPath = InBuildPath;
+			Flags = InFlags | BuildFlags.Packaged;	// always add this.
+		}
+	}
+
 
 	public class StagedBuild : IBuild
 	{
@@ -163,7 +187,7 @@ namespace Gauntlet
 			// Turn FooGame into just Foo as we need to check for client/server builds too
 			string ShortName = Regex.Replace(InProjectName, "Game", "", RegexOptions.IgnoreCase);
 
-			string ContentPath = Path.Combine(InPath, InProjectName, "Content", "Paks");
+			string ContentPath = Path.Combine(InPath, InProjectName, "Content");
 
 			if (Directory.Exists(ContentPath))
 			{

@@ -10,6 +10,9 @@
 #include "Engine/EngineTypes.h"
 #include "Physics/PhysicsInterfaceDeclares.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
+#if WITH_CHAOS
+#include "Chaos/Particles.h"
+#endif
 
 namespace Chaos
 {
@@ -54,6 +57,7 @@ struct FAsyncPhysicsDesiredState
 	FVector LinearVelocity;
 	FVector AngularVelocity;
 	FSingleParticlePhysicsProxy* Proxy;
+	Chaos::EObjectStateType ObjectState;
 	bool bShouldSleep;
 };
 #endif

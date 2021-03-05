@@ -51,14 +51,17 @@ namespace Electra
 			H265,
 			// --- Audio ---
 			AAC = 100,
-			//
-			LastEntryDummy
+			EAC3,
+			// --- Subtitle / Caption ---
+			WebVTT = 200,
 		};
 
 		EStreamType GetStreamType() const
 		{
 			return StreamType;
 		}
+
+		bool ParseFromRFC6381(const FString& CodecOTI);
 
 		void SetStreamType(EStreamType InStreamType)
 		{
@@ -80,7 +83,6 @@ namespace Electra
 			switch (GetCodec())
 			{
 				case ECodec::H264:
-					return true;
 				case ECodec::H265:
 					return true;
 				default:
@@ -93,6 +95,18 @@ namespace Electra
 			switch (GetCodec())
 			{
 				case ECodec::AAC:
+				case ECodec::EAC3:
+					return true;
+				default:
+					return false;
+			}
+		}
+
+		bool IsSubtitleCodec() const
+		{
+			switch (GetCodec())
+			{
+				case ECodec::WebVTT:
 					return true;
 				default:
 					return false;

@@ -97,7 +97,7 @@ namespace Chaos
 	//
 
 	FPBDCollisionConstraints::FPBDCollisionConstraints(
-		const TPBDRigidsSOAs<FReal, 3>& InParticles,
+		const FPBDRigidsSOAs& InParticles,
 		TArrayCollectionArray<bool>& Collided,
 		const TArrayCollectionArray<TSerializablePtr<FChaosPhysicsMaterial>>& InPhysicsMaterials,
 		const TArrayCollectionArray<TUniquePtr<FChaosPhysicsMaterial>>& InPerParticlePhysicsMaterials,
@@ -714,9 +714,6 @@ namespace Chaos
 
 		return Constraints.SinglePointSweptConstraints[Index];
 	}
-
-
-	template class TAccelerationStructureHandle<float, 3>;
 
 	FPBDCollisionConstraints::FConstraintAppendScope::FConstraintAppendScope(FPBDCollisionConstraints* InOwner)
 		: Owner(InOwner)

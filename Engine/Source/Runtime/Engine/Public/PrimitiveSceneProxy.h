@@ -503,6 +503,8 @@ public:
 	inline bool IsSelected() const { return IsParentSelected() || IsIndividuallySelected(); }
 	inline bool WantsSelectionOutline() const { return bWantsSelectionOutline; }
 	inline bool ShouldRenderCustomDepth() const { return bRenderCustomDepth; }
+	inline bool IsVisibleInSceneCaptureOnly() const { return bVisibleInSceneCaptureOnly; }
+	inline bool IsHiddenInSceneCapture() const { return bHiddenInSceneCapture; }
 	inline uint8 GetCustomDepthStencilValue() const { return CustomDepthStencilValue; }
 	inline EStencilMask GetStencilWriteMask() const { return CustomDepthStencilWriteMask; }
 	inline uint8 GetLightingChannelMask() const { return LightingChannelMask; }
@@ -1010,6 +1012,12 @@ private:
 
 	/** This primitive has bRenderCustomDepth enabled */
 	uint8 bRenderCustomDepth : 1;
+
+	/** This primitive is only visible in Scene Capture */
+	uint8 bVisibleInSceneCaptureOnly : 1;
+
+	/** This primitive should be hidden in Scene Capture */
+	uint8 bHiddenInSceneCapture : 1;
 
 	/** Optionally write this stencil value during the CustomDepth pass */
 	uint8 CustomDepthStencilValue;

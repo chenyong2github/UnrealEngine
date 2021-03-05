@@ -65,7 +65,7 @@ bool FDataTableExporterCSV::WriteTable(const UDataTable& InDataTable)
 		ExportedText += RowName.ToString();
 
 		uint8* RowData = RowIt.Value();
-		WriteRow(InDataTable.RowStruct, RowData);
+		WriteRow(InDataTable.RowStruct, RowData, SkipProperty);
 
 		ExportedText += TEXT("\n");
 	}

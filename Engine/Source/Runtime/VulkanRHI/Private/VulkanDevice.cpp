@@ -537,6 +537,11 @@ void FVulkanDevice::SetupFormats()
 		ComponentMapping.a = VK_COMPONENT_SWIZZLE_A;
 	}
 
+	// Required feature flags for color render targets
+	uint32 ColorRenderTargetRequiredFeatures =	VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
+												VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT;
+
+
 	// Default formats
 	MapFormatSupport(PF_B8G8R8A8, VK_FORMAT_B8G8R8A8_UNORM);
 	SetComponentMapping(PF_B8G8R8A8, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A);
@@ -547,7 +552,7 @@ void FVulkanDevice::SetupFormats()
 	MapFormatSupportWithFallback(PF_G16, VK_FORMAT_R16_UNORM, {VK_FORMAT_R16_SFLOAT});
 	SetComponentMapping(PF_G16, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ONE);
 
-	MapFormatSupport(PF_FloatRGB, VK_FORMAT_B10G11R11_UFLOAT_PACK32);
+	MapFormatSupportWithFallback(PF_FloatRGB, ColorRenderTargetRequiredFeatures, VK_FORMAT_B10G11R11_UFLOAT_PACK32, {VK_FORMAT_R16G16B16_SFLOAT, VK_FORMAT_R16G16B16A16_SFLOAT});
 	SetComponentMapping(PF_FloatRGB, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE);
 
 	MapFormatSupport(PF_FloatRGBA, VK_FORMAT_R16G16B16A16_SFLOAT, 8);
@@ -608,7 +613,7 @@ void FVulkanDevice::SetupFormats()
 	MapFormatSupport(PF_R16F_FILTER, VK_FORMAT_R16_SFLOAT);
 	SetComponentMapping(PF_R16F_FILTER, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ZERO, VK_COMPONENT_SWIZZLE_ONE);
 
-	MapFormatSupport(PF_FloatR11G11B10, VK_FORMAT_B10G11R11_UFLOAT_PACK32, 4);
+	MapFormatSupportWithFallback(PF_FloatR11G11B10, ColorRenderTargetRequiredFeatures, VK_FORMAT_B10G11R11_UFLOAT_PACK32, {VK_FORMAT_R16G16B16_SFLOAT, VK_FORMAT_R16G16B16A16_SFLOAT});
 	SetComponentMapping(PF_FloatR11G11B10, VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_ONE);
 
 	MapFormatSupport(PF_A2B10G10R10, VK_FORMAT_A2B10G10R10_UNORM_PACK32, 4);
@@ -781,17 +786,17 @@ VkSamplerYcbcrConversion FVulkanDevice::CreateSamplerColorConversion(const VkSam
 
 void FVulkanDevice::MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat)
 {
-	MapFormatSupportWithFallback(UEFormat, VulkanFormat, TArrayView<VkFormat>());
+	MapFormatSupportWithFallback(UEFormat, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT, VulkanFormat, TArrayView<VkFormat>());
 }
 
-void FVulkanDevice::MapFormatSupportWithFallback(EPixelFormat UEFormat, VkFormat VulkanFormat, TArrayView<const VkFormat> FallbackTextureFormats)
+void FVulkanDevice::MapFormatSupportWithFallback(EPixelFormat UEFormat, uint32 RequiredTextureFeatures, VkFormat VulkanFormat, TArrayView<const VkFormat> FallbackTextureFormats)
 {
-	VkFormat SupportedTextureFormat = IsTextureFormatSupported(VulkanFormat) ? VulkanFormat : VK_FORMAT_UNDEFINED;
+	VkFormat SupportedTextureFormat = IsTextureFormatSupported(VulkanFormat, RequiredTextureFeatures) ? VulkanFormat : VK_FORMAT_UNDEFINED;
 	VkFormat SupportedBufferFormat = IsBufferFormatSupported(VulkanFormat) ? VulkanFormat : VK_FORMAT_UNDEFINED;
 	
 	FPixelFormatInfo& FormatInfo = GPixelFormats[UEFormat];
 	// at this point we don't know if high level code will use this pixel format for buffers or textures
-	FormatInfo.Supported = (SupportedTextureFormat!= VK_FORMAT_UNDEFINED || SupportedBufferFormat!= VK_FORMAT_UNDEFINED);
+	FormatInfo.Supported = (SupportedTextureFormat != VK_FORMAT_UNDEFINED || SupportedBufferFormat!= VK_FORMAT_UNDEFINED);
 	FormatInfo.PlatformFormat = SupportedTextureFormat;
 	
 	GVulkanBufferFormat[UEFormat] = SupportedBufferFormat;
@@ -801,20 +806,20 @@ void FVulkanDevice::MapFormatSupportWithFallback(EPixelFormat UEFormat, VkFormat
 		for (int32 Idx = 0; Idx < FallbackTextureFormats.Num(); ++Idx)
 		{
 			VkFormat FallbackTextureFormat = FallbackTextureFormats[Idx];
-			if (IsTextureFormatSupported(FallbackTextureFormat))
+			if (IsTextureFormatSupported(FallbackTextureFormat, RequiredTextureFeatures))
 			{
 				SupportedTextureFormat = FallbackTextureFormat;
 				FormatInfo.PlatformFormat = FallbackTextureFormat;
 				FormatInfo.Supported = true;
 								
-				UE_LOG(LogVulkanRHI, Display, TEXT("EPixelFormat(%d) (images) is not supported with Vk format %d, falling back to Vk format %d"), (int32)UEFormat, (int32)VulkanFormat, (int32)FallbackTextureFormat);
+				UE_LOG(LogVulkanRHI, Display, TEXT("MapFormatSupport: %s (images) is not supported with Vk format %d, falling back to Vk format %d"), FormatInfo.Name, (int32)VulkanFormat, (int32)FallbackTextureFormat);
 			}
 		}
 	}
 			
 	if (!FormatInfo.Supported)
 	{
-		UE_LOG(LogVulkanRHI, Error, TEXT("EPixelFormat(%d) is not supported with Vk format %d"), (int32)UEFormat, (int32)VulkanFormat);
+		UE_LOG(LogVulkanRHI, Error, TEXT("MapFormatSupport: %s is not supported with Vk format %d"), FormatInfo.Name, (int32)VulkanFormat);
 	}
 }
 
@@ -854,9 +859,8 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 	ZeroVulkanStruct(FragmentDensityMapProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_PROPERTIES_EXT);
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	VkPhysicalDeviceShadingRateImagePropertiesNV ShadingRateImagePropertiesNV;
-	ZeroVulkanStruct(ShadingRateImagePropertiesNV, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_PROPERTIES_NV);
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	ZeroVulkanStruct(FragmentShadingRateProperties, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_PROPERTIES_KHR); 
 #endif
 
 #if VULKAN_SUPPORTS_PHYSICAL_DEVICE_PROPERTIES2
@@ -886,11 +890,11 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 		}
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-		if (GetOptionalExtensions().HasNVShadingRateImage)
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		if (GetOptionalExtensions().HasKHRFragmentShadingRate)
 		{
-			*NextPropsAddr = &ShadingRateImagePropertiesNV;
-			NextPropsAddr = &ShadingRateImagePropertiesNV.pNext;
+			*NextPropsAddr = &FragmentShadingRateProperties;
+			NextPropsAddr = &FragmentShadingRateProperties.pNext;
 		}
 #endif
 
@@ -965,38 +969,45 @@ bool FVulkanDevice::QueryGPU(int32 DeviceIndex)
 #endif
 
 #if VULKAN_SUPPORTS_FRAGMENT_DENSITY_MAP 
-	// Prefer the Fragment Density Map extension (primarily used on mobile devices).
-	if (!GRHISupportsImageBasedVariableRateShading && GetOptionalExtensions().HasEXTFragmentDensityMap)
+	// Use the Fragment Density Map extension if and only if the Fragment Shading Rate extension is not available.
+	if (GetOptionalExtensions().HasEXTFragmentDensityMap && !GetOptionalExtensions().HasKHRFragmentShadingRate)
 	{
-		GRHISupportsImageBasedVariableRateShading = true;
+		GRHISupportsAttachmentVariableRateShading = true;
+		GRHISupportsPipelineVariableRateShading = false;
 
 		// Go with the smallest tile size for now, and also force to square, since this seems to be standard.
 		// TODO: Eventually we may want to surface the range of possible tile sizes depending on end use cases, but for now this is being used for foveated rendering and smallest tile size
 		// is preferred.
 		
-		GRHIVariableRateShadingImageTileSize = FragmentDensityMapProperties.minFragmentDensityTexelSize.width;
-		GRHIVariableRateShadingImageTileSize = FMath::Min((uint32)GRHIVariableRateShadingImageTileSize, FragmentDensityMapProperties.minFragmentDensityTexelSize.height);
-
-		check(GRHIVariableRateShadingImageTileSize <= (int32)FragmentDensityMapProperties.maxFragmentDensityTexelSize.width);
+		GRHIVariableRateShadingImageTileMinWidth = FragmentDensityMapProperties.minFragmentDensityTexelSize.width;
+		GRHIVariableRateShadingImageTileMinHeight = FragmentDensityMapProperties.minFragmentDensityTexelSize.height;
+		GRHIVariableRateShadingImageTileMaxWidth = FragmentDensityMapProperties.maxFragmentDensityTexelSize.width;
+		GRHIVariableRateShadingImageTileMaxHeight = FragmentDensityMapProperties.maxFragmentDensityTexelSize.height;
 
 		GRHIVariableRateShadingImageDataType = VRSImage_Fractional;
 		GRHIVariableRateShadingImageFormat = PF_R8G8;
-		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via EXTFragmentDensityMap extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
+
+		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via EXTFragmentDensityMap extension. Selected VRS tile size %u by %u pixels per VRS image texel."), GRHIVariableRateShadingImageTileMinWidth, GRHIVariableRateShadingImageTileMinHeight);
 	}
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	if (!GRHISupportsImageBasedVariableRateShading && GetOptionalExtensions().HasNVShadingRateImage)
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	// TODO: the VK_KHR_fragment_shading_rate extension is dependent on vkCreateRenderPass2, VkRenderPassCreateInfo2, VkAttachmentDescription2 and VkSubpassDescription2.
+	// Disabling this path for now; adding this support in a later checkin.
+	if (GetOptionalExtensions().HasKHRFragmentShadingRate)
 	{
-		GRHISupportsImageBasedVariableRateShading = true;
+		GRHISupportsAttachmentVariableRateShading = FragmentShadingRateFeatures.attachmentFragmentShadingRate ? true : false;
+		GRHISupportsPipelineVariableRateShading = FragmentShadingRateFeatures.pipelineFragmentShadingRate ? true : false;
 
-		// If no FDM, and we have the NV extension version, we'll be using that. We have a fixed tile size in this case.
-		GRHIVariableRateShadingImageTileSize = ShadingRateImagePropertiesNV.shadingRateTexelSize.width;
-		check(ShadingRateImagePropertiesNV.shadingRateTexelSize.width == ShadingRateImagePropertiesNV.shadingRateTexelSize.height);
+		GRHIVariableRateShadingImageTileMinWidth = FragmentShadingRateProperties.minFragmentShadingRateAttachmentTexelSize.width;
+		GRHIVariableRateShadingImageTileMinHeight = FragmentShadingRateProperties.minFragmentShadingRateAttachmentTexelSize.height;
+		GRHIVariableRateShadingImageTileMaxWidth = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.width;
+		GRHIVariableRateShadingImageTileMaxHeight = FragmentShadingRateProperties.maxFragmentShadingRateAttachmentTexelSize.height;
 
 		GRHIVariableRateShadingImageDataType = VRSImage_Palette;
-		GRHIVariableRateShadingImageFormat = PF_R8;
-		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via NVShadingRateImage extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
+		GRHIVariableRateShadingImageFormat = PF_R8_UINT;
+
+		// UE_LOG(LogVulkanRHI, Display, TEXT("Image-based Variable Rate Shading supported via KHRFragmentShadingRate extension. Selected VRS tile size %u by %u pixels per VRS image texel."));
 	}
 #endif
 
@@ -1061,6 +1072,28 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		}
 #endif
 
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+		if (GetOptionalExtensions().HasKHRFragmentShadingRate)
+		{
+			*NextPropsAddr = &FragmentShadingRateFeatures;
+			NextPropsAddr = &FragmentShadingRateFeatures.pNext;
+			ZeroVulkanStruct(FragmentShadingRateFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR);
+
+			// While we're here, enumerate the available shading rates.
+			uint32 FragmentShadingRateCount = 0;
+			VulkanRHI::vkGetPhysicalDeviceFragmentShadingRatesKHR(Gpu, &FragmentShadingRateCount, nullptr);
+			if (FragmentShadingRateCount != 0)
+			{
+				FragmentShadingRates.SetNum(FragmentShadingRateCount);
+				for (uint32 i = 0; i < FragmentShadingRateCount; ++i)
+				{
+					ZeroVulkanStruct(FragmentShadingRates[i], VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_KHR);
+				}
+				VulkanRHI::vkGetPhysicalDeviceFragmentShadingRatesKHR(Gpu, &FragmentShadingRateCount, FragmentShadingRates.GetData());
+			}
+		}
+#endif
+		
 #if VULKAN_SUPPORTS_MULTIVIEW
 		if (GetOptionalExtensions().HasKHRMultiview)
 		{
@@ -1305,24 +1338,27 @@ void FVulkanDevice::WaitUntilIdle()
 	GetImmediateContext().GetCommandBufferManager()->RefreshFenceStatus();
 }
 
-bool FVulkanDevice::IsTextureFormatSupported(VkFormat Format) const
+bool FVulkanDevice::IsTextureFormatSupported(VkFormat Format, uint32 RequiredFeatures) const
 {
-	auto ArePropertiesSupported = [](const VkFormatProperties& Prop) -> bool
+	check(RequiredFeatures != 0u);
+		
+	auto ArePropertiesSupported = [](const VkFormatProperties& Prop, uint32 RequiredFeatures) -> bool
 	{
-		return (Prop.linearTilingFeatures != 0) || (Prop.optimalTilingFeatures != 0);
+		return	(Prop.linearTilingFeatures & RequiredFeatures) == RequiredFeatures || 
+				(Prop.optimalTilingFeatures & RequiredFeatures) == RequiredFeatures;
 	};
 
 	if (Format >= 0 && Format < VK_FORMAT_RANGE_SIZE)
 	{
 		const VkFormatProperties& Prop = FormatProperties[Format];
-		return ArePropertiesSupported(Prop);
+		return ArePropertiesSupported(Prop, RequiredFeatures);
 	}
 
 	// Check for extension formats
 	const VkFormatProperties* FoundProperties = ExtensionFormatProperties.Find(Format);
 	if (FoundProperties)
 	{
-		return ArePropertiesSupported(*FoundProperties);
+		return ArePropertiesSupported(*FoundProperties, RequiredFeatures);
 	}
 
 	// Add it for faster caching next time
@@ -1330,7 +1366,7 @@ bool FVulkanDevice::IsTextureFormatSupported(VkFormat Format) const
 	FMemory::Memzero(NewProperties);
 	VulkanRHI::vkGetPhysicalDeviceFormatProperties(Gpu, Format, &NewProperties);
 
-	return ArePropertiesSupported(NewProperties);
+	return ArePropertiesSupported(NewProperties, RequiredFeatures);
 }
 
 bool FVulkanDevice::IsBufferFormatSupported(VkFormat Format) const

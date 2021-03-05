@@ -23,8 +23,7 @@ namespace Chaos
 {
 	class FImplicitObject;
 
-	template <typename T, int d>
-	class TAccelerationStructureHandle;
+	class FAccelerationStructureHandle;
 
 	template <typename TPayload, typename T, int d>
 	class ISpatialAcceleration;
@@ -40,7 +39,7 @@ class PHYSICSCORE_API FChaosSQAccelerator
 {
 public:
 
-	FChaosSQAccelerator(const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>,float, 3>& InSpatialAcceleration);
+	FChaosSQAccelerator(const Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle,float, 3>& InSpatialAcceleration);
 	virtual ~FChaosSQAccelerator() {};
 
 	void Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams = FQueryDebugParams()) const;
@@ -48,7 +47,7 @@ public:
 	void Overlap(const Chaos::FImplicitObject& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback, const FQueryDebugParams& DebugParams = FQueryDebugParams()) const;
 
 private:
-	const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& SpatialAcceleration;
+	const Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, float, 3>& SpatialAcceleration;
 
 };
 
@@ -88,7 +87,7 @@ class PHYSICSCORE_API FChaosSQAcceleratorAdapter : public ISQAccelerator
 {
 public:
 
-	FChaosSQAcceleratorAdapter(const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float, 3>, float, 3>& InSpatialAcceleration);
+	FChaosSQAcceleratorAdapter(const Chaos::ISpatialAcceleration<Chaos::FAccelerationStructureHandle, float, 3>& InSpatialAcceleration);
 	virtual ~FChaosSQAcceleratorAdapter() {};
 
 	virtual void Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const override;

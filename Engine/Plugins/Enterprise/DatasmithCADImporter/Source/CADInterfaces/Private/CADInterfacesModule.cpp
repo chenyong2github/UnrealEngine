@@ -28,50 +28,26 @@ ICADInterfacesModule& ICADInterfacesModule::Get()
 
 ECADInterfaceAvailability CADInterfaceAvailability = ECADInterfaceAvailability::Unknown;
 
-ECADInterfaceAvailability ICADInterfacesModule::IsAvailable()
+ECADInterfaceAvailability ICADInterfacesModule::GetAvailability()
 {
-	if (CADInterfaceAvailability != ECADInterfaceAvailability::Unknown)
+	if (FModuleManager::Get().IsModuleLoaded(CADINTERFACES_MODULE_NAME))
 	{
-		return CADInterfaceAvailability;
-	}
-
-	CADInterfaceAvailability = ECADInterfaceAvailability::Unavailable;
-
-	if (!FModuleManager::Get().IsModuleLoaded(CADINTERFACES_MODULE_NAME))
-	{
-		UE_LOG(CADInterfaces, Error, TEXT("Failed to load CADInterfaces module. Plug-in will not be functional."));
-		return CADInterfaceAvailability;
-	}
-
-#ifdef CAD_INTERFACE
-	double MetricUnit = 0.001;
-	CT_IO_ERROR InitalizationStatus = CADLibrary::CTKIO_InitializeKernel(MetricUnit);
-	if (InitalizationStatus == IO_OK || InitalizationStatus == IO_ERROR_ALREADY_INITIALIZED)
-	{
-		CADInterfaceAvailability = ECADInterfaceAvailability::Available;
-	}
-	else
-	{
-		switch (InitalizationStatus)
+		double MetricUnit = 0.001;
+		if(CADLibrary::CTKIO_InitializeKernel(MetricUnit))
 		{
-		case IO_ERROR_LICENSE:
-			UE_LOG(CADInterfaces, Error, TEXT("CoreTech dll license is missing. Plug - in will not be functional."));
-			break;
-		case IO_ERROR_NOT_INITIALIZED:
-		default:
-			UE_LOG(CADInterfaces, Error, TEXT("CoreTech dll is not initialize. Plug - in will not be functional."));
-			break;
+			return ECADInterfaceAvailability::Available;
 		}
 	}
-#endif
-	return CADInterfaceAvailability;
+
+	UE_LOG(CADInterfaces, Warning, TEXT("Failed to load CADInterfaces module. Plug-in may not be functional."));
+	return ECADInterfaceAvailability::Unavailable;
 }
 
 void FCADInterfacesModule::StartupModule()
 {
+#if WITH_EDITOR & defined(USE_KERNEL_IO_SDK)
 	check(KernelIOLibHandle == nullptr);
 
-#ifdef CAD_INTERFACE
 	FString KernelIODll = TEXT("kernel_io.dll");
 
 	// determine directory paths
@@ -81,19 +57,19 @@ void FCADInterfacesModule::StartupModule()
 
 	if (!FPaths::FileExists(KernelIODll))
 	{
-		UE_LOG(CADInterfaces, Error, TEXT("Failed to find the binary folder for the CoreTech dll. Plug-in will not be functional."));
+		UE_LOG(CADInterfaces, Warning, TEXT("CoreTech module is missing. Plug-in will not be functional."));
 		return;
 	}
 
 	KernelIOLibHandle = FPlatformProcess::GetDllHandle(*KernelIODll);
 	if (KernelIOLibHandle == nullptr)
 	{
-		UE_LOG(CADInterfaces, Error, TEXT("Failed to load required library %s. Plug-in will not be functional."), *KernelIODll);
+		UE_LOG(CADInterfaces, Warning, TEXT("Failed to load required library %s. Plug-in will not be functional."), *KernelIODll);
 	}
 
 	FPlatformProcess::PopDllDirectory(*CADImporterDllPath);
-#else
-	UE_LOG(CADInterfaces, Display, TEXT("Missing CoreTech module. Plug-in will not be functional."));
+
+	CADLibrary::InitializeCoreTechInterface();
 #endif
 }
 
@@ -101,6 +77,10 @@ void FCADInterfacesModule::ShutdownModule()
 {
 	if (KernelIOLibHandle != nullptr)
 	{
+#if WITH_EDITOR && defined(USE_KERNEL_IO_SDK)
+		// Reset the CoreTechInterface object if compiling for the editor and CoreTech sdk is available
+		CADLibrary::SetCoreTechInterface(TSharedPtr<CADLibrary::ICoreTechInterface>());
+#endif
 		FPlatformProcess::FreeDllHandle(KernelIOLibHandle);
 		KernelIOLibHandle = nullptr;
 	}

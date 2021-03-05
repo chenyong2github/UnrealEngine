@@ -19,7 +19,9 @@ namespace Electra
 
 		virtual int32 GetBitrate() const = 0;
 
-		virtual FString GetCDN() const = 0;
+		virtual int32 GetQualityIndex() const = 0;
+
+		virtual bool CanBePlayed() const = 0;
 	};
 
 	class IPlaybackAssetAdaptationSet

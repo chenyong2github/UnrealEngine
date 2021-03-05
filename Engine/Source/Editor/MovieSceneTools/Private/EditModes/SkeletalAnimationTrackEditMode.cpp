@@ -119,10 +119,10 @@ void FSkeletalAnimationTrackEditMode::Exit()
 	FEdMode::Exit();
 }
 
+//todo remove me in UE5
 void FSkeletalAnimationTrackEditMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	FEdMode::Tick(ViewportClient, DeltaTime);
-	ViewportClient->Invalidate();
 }
 
 static void DrawBones(const TArray<FBoneIndexType>& RequiredBones, const FReferenceSkeleton& RefSkeleton, const TArray<FTransform>& WorldTransforms,
@@ -355,6 +355,7 @@ void FSkeletalAnimationTrackEditMode::Render(const FSceneView* View, FViewport* 
 										if (AnimSequence)
 										{
 											int32 Index = AnimSection->SetBoneIndexForRootMotionCalculations(SkelAnimTrack->bBlendFirstChildOfRoot);
+											FMemMark Mark(FMemStack::Get());	
 											FCompactPose OutPose;
 											OutPose.ResetToRefPose(SkelMeshComp->GetAnimInstance()->GetRequiredBones());
 

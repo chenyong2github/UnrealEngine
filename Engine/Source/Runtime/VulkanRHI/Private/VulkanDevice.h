@@ -46,7 +46,7 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasDriverProperties : 1;
 			uint32 HasEXTFragmentDensityMap : 1;
 			uint32 HasEXTFragmentDensityMap2 : 1;
-			uint32 HasNVShadingRateImage : 1;
+			uint32 HasKHRFragmentShadingRate : 1;
 			uint32 HasEXTFullscreenExclusive : 1;
 			uint32 HasKHRImageFormatList : 1;
 			uint32 HasEXTASTCDecodeMode : 1;
@@ -275,10 +275,15 @@ public:
 	}
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	inline const VkPhysicalDeviceShadingRateImageFeaturesNV& GetShadingRateImageFeaturesNV() const
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	inline const VkPhysicalDeviceFragmentShadingRateFeaturesKHR& GetFragmentShadingRateFeatures() const
 	{
-		return ShadingRateImageFeaturesNV;
+		return FragmentShadingRateFeatures;
+	}
+
+	inline const VkPhysicalDeviceFragmentShadingRatePropertiesKHR& GetFragmentShadingRateProperties() const
+	{
+		return FragmentShadingRateProperties;
 	}
 #endif
 
@@ -337,7 +342,7 @@ public:
 		return TimestampValidBitsMask;
 	}
 
-	bool IsTextureFormatSupported(VkFormat Format) const;
+	bool IsTextureFormatSupported(VkFormat Format, uint32 RequiredFeatures) const;
 	bool IsBufferFormatSupported(VkFormat Format) const;
 
 	const VkComponentMapping& GetFormatComponentMapping(EPixelFormat UEFormat) const;
@@ -506,13 +511,18 @@ public:
 
 private:
 	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat);
-	void MapFormatSupportWithFallback(EPixelFormat UEFormat, VkFormat VulkanFormat, TArrayView<const VkFormat> FallbackTextureFormats);
+	void MapFormatSupportWithFallback(EPixelFormat UEFormat, uint32 TextureRequiredFeatures, VkFormat VulkanFormat, TArrayView<const VkFormat> FallbackTextureFormats);
 	void MapFormatSupport(EPixelFormat UEFormat, VkFormat VulkanFormat, int32 BlockBytes);
 	void SetComponentMapping(EPixelFormat UEFormat, VkComponentSwizzle r, VkComponentSwizzle g, VkComponentSwizzle b, VkComponentSwizzle a);
 
 	FORCEINLINE void MapFormatSupportWithFallback(EPixelFormat UEFormat, VkFormat VulkanFormat, std::initializer_list<VkFormat> FallbackTextureFormats)
 	{
-		MapFormatSupportWithFallback(UEFormat, VulkanFormat, MakeArrayView(FallbackTextureFormats));
+		MapFormatSupportWithFallback(UEFormat, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT, VulkanFormat, MakeArrayView(FallbackTextureFormats));
+	}
+	
+	FORCEINLINE void MapFormatSupportWithFallback(EPixelFormat UEFormat, uint32 TextureRequiredFeatures, VkFormat VulkanFormat, std::initializer_list<VkFormat> FallbackTextureFormats)
+	{
+		MapFormatSupportWithFallback(UEFormat, TextureRequiredFeatures, VulkanFormat, MakeArrayView(FallbackTextureFormats));
 	}
 
 	void SubmitCommands(FVulkanCommandListContext* Context);
@@ -551,8 +561,10 @@ private:
 	VkPhysicalDeviceFragmentDensityMap2FeaturesEXT FragmentDensityMap2Features;
 #endif
 
-#if VULKAN_SUPPORTS_NV_SHADING_RATE_IMAGE
-	VkPhysicalDeviceShadingRateImageFeaturesNV ShadingRateImageFeaturesNV;
+#if VULKAN_SUPPORTS_FRAGMENT_SHADING_RATE
+	VkPhysicalDeviceFragmentShadingRatePropertiesKHR FragmentShadingRateProperties;
+	VkPhysicalDeviceFragmentShadingRateFeaturesKHR FragmentShadingRateFeatures;
+	TArray<VkPhysicalDeviceFragmentShadingRateKHR> FragmentShadingRates;
 #endif
 
 #if VULKAN_SUPPORTS_MULTIVIEW

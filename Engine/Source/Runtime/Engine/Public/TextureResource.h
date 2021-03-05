@@ -332,6 +332,30 @@ public:
 	 * @return display gamma expected for rendering to this render target 
 	 */
 	virtual float GetDisplayGamma() const;
+
+	virtual FRHIGPUMask GetGPUMask(FRHICommandListImmediate& RHICmdList) const final override
+	{
+		return GPUMask & ActiveGPUMask;
+	}
+
+	// Changes the GPUMask used when updating the texture in AFR.
+	void SetActiveGPUMask(FRHIGPUMask InGPUMask)
+	{
+		check(IsInRenderingThread());
+		check(GPUMask.ContainsAll(InGPUMask));
+		ActiveGPUMask = InGPUMask;
+	}
+
+protected:
+	void SetGPUMask(FRHIGPUMask InGPUMask)
+	{
+		check(IsInRenderingThread());
+		ActiveGPUMask = GPUMask = InGPUMask;
+	}
+
+private:
+	FRHIGPUMask GPUMask;
+	FRHIGPUMask ActiveGPUMask; // In AFR we need to change which GPUs are rendered to every frame.
 };
 
 /**

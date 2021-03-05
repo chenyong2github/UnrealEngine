@@ -397,7 +397,7 @@ protected:
 
 	uint32 GetCellForObject(int32 ObjectID) const
 	{
-		if (ObjectID >= 0 && ObjectID < ObjectIDToCellMap.Num())
+		if (ObjectID >= 0 && static_cast<size_t>(ObjectID) < ObjectIDToCellMap.Num())
 		{
 			return ObjectIDToCellMap[ObjectID];
 		}

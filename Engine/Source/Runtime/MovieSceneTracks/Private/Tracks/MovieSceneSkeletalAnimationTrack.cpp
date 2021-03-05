@@ -478,26 +478,45 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 	{
 		return;
 	}
-
+	
 	if (bForce || RootMotionParams.bRootMotionsDirty)
 	{
 		RootMotionParams.bRootMotionsDirty = false;
+
+		const FFrameRate MinDisplayRate(60, 1);
+
+		FFrameRate DisplayRate =  MovieScene->GetDisplayRate().AsDecimal() < MinDisplayRate.AsDecimal() ? MinDisplayRate : MovieScene->GetDisplayRate();
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameTime FrameTick = FFrameTime(FMath::Max(1, TickResolution.AsFrameNumber(1.0).Value / DisplayRate.AsFrameNumber(1.0).Value));
+		if (FrameTick.FrameNumber.Value == 0)
+		{
+			RootMotionParams.RootTransforms.SetNum(0);
+			return;
+		}
+
 		if (AnimationSections.Num() == 0)
 		{
 			RootMotionParams.RootTransforms.SetNum(0);
 			return;
 		}
+		
 		SortSections();
 		//Set the TempOffset.
 		FTransform InitialTransform = FTransform::Identity;
 		UMovieSceneSkeletalAnimationSection* PrevAnimSection = nullptr;
 		//valid anim sequence to use to calculate bones.
 		UAnimSequenceBase* ValidAnimSequence = nullptr;
+		//if no transforms have offsets then don't do root motion caching.
+		bool bAnySectionsHaveOffset = false;
 		for (UMovieSceneSection* Section : AnimationSections)
 		{
 			UMovieSceneSkeletalAnimationSection* AnimSection = Cast<UMovieSceneSkeletalAnimationSection>(Section);
 			if (AnimSection)
 			{
+				if (AnimSection->GetOffsetTransform().Equals(FTransform::Identity, KINDA_SMALL_NUMBER) == false)
+				{
+					bAnySectionsHaveOffset = true;
+				}
 				if (ValidAnimSequence == nullptr)
 				{
 					ValidAnimSequence = AnimSection->Params.Animation;
@@ -515,8 +534,17 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 				AnimSection->SetBoneIndexForRootMotionCalculations(bBlendFirstChildOfRoot);
 			}
 		}
+
+		if (bAnySectionsHaveOffset == false)
+		{
+			//no root transforms so bail
+			RootMotionParams.RootTransforms.SetNum(0);
+			return;
+		}
 		//set up pose from valid anim sequences.
+		FMemMark Mark(FMemStack::Get());
 		FCompactPose OutPose;
+
 		if (ValidAnimSequence)
 		{
 			TArray<FBoneIndexType> RequiredBoneIndexArray;
@@ -534,10 +562,7 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
 			RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
 			RootMotionParams.EndFrame = AnimationSections[AnimationSections.Num() - 1]->GetExclusiveEndFrame() - 1;
-
-			FFrameRate DisplayRate = MovieScene->GetDisplayRate();
-			FFrameRate TickResolution = MovieScene->GetTickResolution();
-			RootMotionParams.FrameTick = FFrameTime(TickResolution.AsFrameNumber(1.0).Value / DisplayRate.AsFrameNumber(1.0).Value);
+			RootMotionParams.FrameTick = FrameTick;
 
 			int32 NumTotal = (RootMotionParams.EndFrame.FrameNumber.Value - RootMotionParams.StartFrame.FrameNumber.Value) / (RootMotionParams.FrameTick.FrameNumber.Value) + 1;
 			RootMotionParams.RootTransforms.SetNum(NumTotal);
@@ -604,7 +629,6 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 
 	}
 }
-
 static FTransform GetWorldTransformForBone(UAnimSequence* AnimSequence, USkeletalMeshComponent* MeshComponent,const FName& InBoneName, float Seconds)
 {
 	FName BoneName = InBoneName;

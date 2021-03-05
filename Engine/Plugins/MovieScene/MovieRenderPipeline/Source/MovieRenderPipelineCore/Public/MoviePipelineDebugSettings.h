@@ -22,6 +22,13 @@ public:
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }
 
+	/**
+	* If true, we will write all samples that get generated to disk individually. This can be useful for debugging or if you need to accumulate
+	* render passes differently than provided.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Render Settings")
+	bool bWriteAllSamples;
+
 	/** Returns true if both the RenderCapture modular feature is available and the user has enabled capturing with RenderDoc */
 	bool IsRenderDocEnabled() const { return bIsRenderDebugCaptureAvailable && bCaptureFramesWithRenderDoc; }
 

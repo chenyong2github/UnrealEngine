@@ -22,7 +22,7 @@ namespace Chaos
 {
 	template <typename T> class TSerializablePtr;
 	class FErrorReporter;
-	template <typename T> struct FClusterCreationParameters;
+	struct FClusterCreationParameters;
 
 	struct FDirtyGeometryCollectionData;
 
@@ -216,8 +216,6 @@ public:
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
 		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		EFieldResolutionType ResolutionType);
-	/* Implemented so we can construct TAccelerationStructureHandle. */
-	virtual void* GetHandleUnsafe() const override { return nullptr; }
 
 	/**
 	 * Get all the geometry collection particle handles filtered by object state
@@ -227,6 +225,9 @@ public:
 		TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
 		const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
 		const EFieldFilterType FilterType);
+		
+	/* Implemented so we can construct TAccelerationStructureHandle. */
+	virtual void* GetHandleUnsafe() const override { return nullptr; }
 
 protected:
 	/**
@@ -243,7 +244,7 @@ protected:
 		const uint32 CollectionClusterIndex, 
 		TArray<Chaos::TPBDRigidParticleHandle<float, 3>*>& ChildHandles,
 		const TArray<int32>& ChildTransformGroupIndices,
-		const Chaos::FClusterCreationParameters<float> & Parameters);
+		const Chaos::FClusterCreationParameters & Parameters);
 
 	void PushKinematicStateToSolver();
 
@@ -353,7 +354,7 @@ private:
 		const uint32 CollectionClusterIndex,\
 		TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,\
 		const TArray<int32>& ChildTransformGroupIndices,\
-		const Chaos::FClusterCreationParameters<float> & Parameters);\
+		const Chaos::FClusterCreationParameters & Parameters);\
 	extern template void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Chaos::Traits>* Evolution);\
 
 #include "Chaos/EvolutionTraits.inl"

@@ -193,11 +193,14 @@ namespace DatasmithRevitExporter
 		)
 		{
 			// Forget the active Revit document being exported.
-			PopDocument();
+			FDocumentData DocumentData = PopDocument();
 
 			// Check if this is regular file export.
 			if (DirectLink == null)
 			{
+				DatasmithScene.CleanUp();
+				DocumentData.OptimizeActorHierarchy(DatasmithScene);
+
 				// Build and export the Datasmith scene instance and its scene element assets.
 				DatasmithScene.ExportScene();
 
@@ -606,7 +609,7 @@ namespace DatasmithRevitExporter
 			ExportedDocuments.Add(DocumentData);
 		}
 
-		private void PopDocument()
+		private FDocumentData PopDocument()
 		{
 			FDocumentData DocumentData = DocumentDataStack.Pop();
 
@@ -619,6 +622,8 @@ namespace DatasmithRevitExporter
 				DocumentData.WrapupLink(DatasmithScene, DocumentDataStack.Peek().GetCurrentActor(), UniqueTextureNameSet);
 				DirectLink?.OnEndLinkedDocument();
 			}
+
+			return DocumentData;
 		}
 
 		private bool PushElement(

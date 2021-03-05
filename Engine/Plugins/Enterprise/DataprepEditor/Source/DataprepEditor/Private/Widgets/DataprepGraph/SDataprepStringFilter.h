@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Types/SlateEnums.h"
+#include "Styling/SlateTypes.h"
 #include "UObject/GCObject.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -16,6 +17,7 @@ template<class t>
 class SComboBox;
 
 struct FDataprepParametrizationActionData;
+class UDataprepParameterizableObject;
 
 template <class FilterType>
 class SDataprepStringFilter : public SCompoundWidget,  public FGCObject
@@ -39,13 +41,17 @@ private:
 	FText GetSelectedCriteriaText() const;
 	FText GetSelectedCriteriaTooltipText() const;
 	void OnSelectedCriteriaChanged(TSharedPtr<FListEntry> ListEntry, ESelectInfo::Type SelectionType);
+	void OnCheckStateMatchInArrayChanged(ECheckBoxState CheckState);
 	void OnCriteriaComboBoxOpenning();
 	TSharedPtr<SWidget> OnGetContextMenuForMatchingCriteria();
+	TSharedPtr<SWidget> OnGetContextMenuForMatchInArray();
 
 	// This function is for the string that will be compare against the fetched string
 	FText GetUserString() const;
 	void OnUserStringChanged(const FText& NewText);
 	void OnUserStringComitted(const FText& NewText, ETextCommit::Type CommitType);
+	void OnUserStringArrayPropertyChanged(UDataprepParameterizableObject& Object, FPropertyChangedChainEvent& PropertyChangedChainEvent);
+
 	void ExtendContextMenuForUserStringBox(FMenuBuilder& MenuBuilder);
 	TSharedPtr<SWidget> OnGetContextMenuForUserString();
 
@@ -65,6 +71,9 @@ private:
 
 	TSharedPtr<FDataprepParametrizationActionData> MatchingCriteriaParameterizationActionData;
 	TSharedPtr<FDataprepParametrizationActionData> UserStringParameterizationActionData;
+	TSharedPtr<FDataprepParametrizationActionData> MatchInArrayParameterizationActionData;
 
 	FDelegateHandle OnParameterizationStatusForObjectsChangedHandle;
+
+	FDelegateHandle OnUserStringArrayPostEditHandle;
 };

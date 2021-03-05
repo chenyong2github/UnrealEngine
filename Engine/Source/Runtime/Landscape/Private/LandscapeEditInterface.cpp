@@ -1942,7 +1942,13 @@ void ULandscapeComponent::FillLayer(ULandscapeLayerInfoObject* LayerInfo, FLands
 					}
 				}
 
-				ComponentWeightmapTextures.RemoveAt(TextureIdx--);
+				ComponentWeightmapTextures.RemoveAt(TextureIdx);
+				if (ComponentWeightmapTexturesUsage.IsValidIndex(TextureIdx))
+				{
+					ComponentWeightmapTexturesUsage.RemoveAt(TextureIdx);
+				}
+
+				TextureIdx--;
 			}
 		}
 	}
@@ -2224,6 +2230,7 @@ void ULandscapeComponent::ReplaceLayer(ULandscapeLayerInfoObject* FromLayerInfo,
 			ComponentWeightmapTextures[FromLayerAllocation.WeightmapTextureIndex]->ClearFlags(RF_Standalone);
 
 			ComponentWeightmapTextures.RemoveAt(FromLayerAllocation.WeightmapTextureIndex);
+			ComponentWeightmapTexturesUsage.RemoveAt(FromLayerAllocation.WeightmapTextureIndex);
 
 			// Adjust WeightmapTextureIndex index for other layers
 			for (int32 LayerIdx = 0; LayerIdx < ComponentWeightmapLayerAllocations.Num(); LayerIdx++)
@@ -2507,6 +2514,7 @@ bool DeleteLayerIfAllZero(ULandscapeComponent* const Component, const uint8* con
 	{
 		ComponentWeightmapTextures[DeleteLayerWeightmapTextureIndex]->ClearFlags(RF_Standalone);
 		ComponentWeightmapTextures.RemoveAt(DeleteLayerWeightmapTextureIndex);
+		ComponentWeightmapTexturesUsage.RemoveAt(DeleteLayerWeightmapTextureIndex);
 
 		// Adjust WeightmapTextureChannel index for other layers
 		for (auto It = ComponentWeightmapLayerAllocations.CreateIterator(); It; ++It)

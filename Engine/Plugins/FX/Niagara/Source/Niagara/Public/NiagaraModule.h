@@ -55,6 +55,10 @@ public:
 	void ResetOnProcessShaderCompilationQueue(FDelegateHandle DelegateHandle);
 	void ProcessShaderCompilationQueue();
 
+#if WITH_NIAGARA_DEBUGGER
+	FNiagaraDebuggerClient* GetDebuggerClient() { return DebuggerClient.Get(); }
+#endif
+
 #if WITH_EDITOR
 	const INiagaraMergeManager& GetMergeManager() const;
 
@@ -89,6 +93,9 @@ public:
 	bool ToggleStatPerfBaselines(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream = nullptr);
 	int32 RenderStatPerfBaselines(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation = nullptr, const FRotator* ViewRotation = nullptr);
 #endif
+
+	FORCEINLINE static bool UseGlobalFXBudget() { return bUseGlobalFXBudget; }
+	static void OnUseGlobalFXBudgetChanged(IConsoleVariable* Variable);
 
 	FORCEINLINE static float GetGlobalSpawnCountScale() { return EngineGlobalSpawnCountScale; }
 	FORCEINLINE static float GetGlobalSystemCountScale() { return EngineGlobalSystemCountScale; }
@@ -182,7 +189,7 @@ public:
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonTwist() { return Particles_RibbonTwist; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonFacing() { return Particles_RibbonFacing; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonLinkOrder() { return Particles_RibbonLinkOrder; }
-	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonDistanceFromStart() { return Particles_RibbonDistanceFromStart; }
+	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonUVDistance() { return Particles_RibbonUVDistance; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonU0Override() { return Particles_RibbonU0Override; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonV0RangeOverride() { return Particles_RibbonV0RangeOverride; }
 	FORCEINLINE static const FNiagaraVariable&  GetVar_Particles_RibbonU1Override() { return Particles_RibbonU1Override; }
@@ -207,6 +214,8 @@ public:
 #endif
 
 	static int32 EngineEffectsQuality;
+
+	static bool bUseGlobalFXBudget;
 
 
 private:
@@ -297,7 +306,7 @@ private:
 	static FNiagaraVariable Particles_RibbonFacing;
 	static FNiagaraVariable Particles_RibbonLinkOrder;
 	static FNiagaraVariable Particles_ComponentsEnabled;
-	static FNiagaraVariable Particles_RibbonDistanceFromStart;
+	static FNiagaraVariable Particles_RibbonUVDistance;
 	static FNiagaraVariable Particles_RibbonU0Override;
 	static FNiagaraVariable Particles_RibbonV0RangeOverride;
 	static FNiagaraVariable Particles_RibbonU1Override;

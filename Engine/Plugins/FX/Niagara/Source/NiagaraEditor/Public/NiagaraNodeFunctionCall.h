@@ -107,6 +107,12 @@ public:
 	virtual bool IsDeprecated() const override;
 	//~ End EdGraphNode Interface
 
+	/** Checks if the existing pin names match the function script parameter names and try to fix them via guid matching if there is a difference */
+	bool FixupPinNames();
+
+	/** When overriding an input value, this updates which variable guid was bound to which input name, so it can be reassigned when the input is renamed.*/
+	void UpdateInputNameBinding(const FGuid& BoundVariableGuid, const FName& BoundName);
+
 	bool FindAutoBoundInput(UNiagaraNodeInput* InputNode, UEdGraphPin* PinToAutoBind, FNiagaraVariable& OutFoundVar, ENiagaraInputNodeUsage& OutNodeUsage);
 
 	void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
@@ -147,7 +153,7 @@ protected:
 	virtual bool AllowDynamicPins() const override { return false; }
 	virtual bool CanRenamePin(const UEdGraphPin* Pin) const override { return false; }
 	virtual bool CanRemovePin(const UEdGraphPin* Pin) const override { return false; }
-	virtual bool CanMovePin(const UEdGraphPin* Pin) const override { return false; }
+	virtual bool CanMovePin(const UEdGraphPin* Pin, int32 DirectionToMove) const override { return false; }
 
 	/** Resets the node name based on the referenced script or signature. Guaranteed unique within a given graph instance.*/
 	void ComputeNodeName(FString SuggestedName = FString(), bool bForceSuggestion = false);
@@ -158,6 +164,10 @@ protected:
 
 	void UpdateNodeErrorMessage();
 
+	TArray<FGuid> GetBoundPinGuidsByName(FName InputName) const;
+
+	void UpdateBoundModuleOutputs();
+
 	/** Adjusted every time that we compile this script. Lets us know that we might differ from any cached versions.*/
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	FGuid CachedChangeId;
@@ -167,6 +177,9 @@ protected:
 
 	UPROPERTY(meta = (SkipForCompileHash="true"))
 	TMap<FGuid, TObjectPtr<UNiagaraMessageData>> MessageKeyToMessageMap;
+
+	UPROPERTY(meta = (SkipForCompileHash="true"))
+	TMap<FGuid, FName> BoundPinNames;
 
 	FOnInputsChanged OnInputsChangedDelegate;
 };

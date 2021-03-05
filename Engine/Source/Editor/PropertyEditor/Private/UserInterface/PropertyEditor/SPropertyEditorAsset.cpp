@@ -378,43 +378,32 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 		const FProperty* PropToConsider = GetActualMetadataProperty(Property);
 		if (PropToConsider->HasAnyPropertyFlags(CPF_EditConst | CPF_DisableEditOnTemplate))
 		{
-			// There are some cases where editing an Actor Property is not allowed, such as when it is contained within a struct or a CDO
 			TArray<UObject*> ObjectList;
 			if (PropertyEditor.IsValid())
 			{
 				PropertyEditor->GetPropertyHandle()->GetOuterObjects(ObjectList);
-
-				if (ObjectList.Num() == 0)
-				{
-					TArray<UPackage*> ParentPackages;
-					PropertyEditor->GetPropertyHandle()->GetOuterPackages(ParentPackages);
-
-					// This might be a standalone struct inside an asset, check if the package's asset is a template type like a user struct
-					for (UPackage* Package : ParentPackages)
-					{
-						if (Package != nullptr)
-						{
-							UObject* ParentAsset = Package->FindAssetInPackage();
-							if (ParentAsset && (ParentAsset->IsTemplate() || ParentAsset->IsA(UStruct::StaticClass())))
-							{
-								IsEnabledAttribute.Set(false);
-								TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplate", "Editing this value in structure's defaults is not allowed"));
-								break;
-							}
-						}
-					}
-				}
 			}
 
-			// Go through all the found objects and see if any are a CDO, we can't set an actor in a CDO
-			// If we're not inside a template asset and have no parent objects, assume this is an instance like a data table
-			for (UObject* Obj : ObjectList)
+			// NOTE: This code decides that 99% of structs are "defaults" which is not technically correct, 
+			// but we want to stop hard actor references from being set in places like data tables without banning soft references.
+			// The actor check should get refactored to be independent of EditOnTemplate and do more explicit checks for world-owned object references
+			if (ObjectList.Num() == 0)
 			{
-				if (Obj->IsTemplate() && !Obj->IsA<ALevelScriptActor>())
+				IsEnabledAttribute.Set(false);
+				TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplate", "Editing this value in structure's defaults is not allowed"));
+			}
+			else
+			{
+				// Go through all the found objects and see if any are a CDO, we can't set an actor in a CDO default.
+				for (UObject* Obj : ObjectList)
 				{
-					IsEnabledAttribute.Set(false);
-					TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplateTooltip", "Editing this value in a Class Default Object is not allowed"));
-					break;
+					if (Obj->IsTemplate() && !Obj->IsA<ALevelScriptActor>())
+					{
+						IsEnabledAttribute.Set(false);
+						TooltipAttribute.Set(LOCTEXT("VariableHasDisableEditOnTemplateTooltip", "Editing this value in a Class Default Object is not allowed"));
+						break;
+					}
+
 				}
 			}
 		}

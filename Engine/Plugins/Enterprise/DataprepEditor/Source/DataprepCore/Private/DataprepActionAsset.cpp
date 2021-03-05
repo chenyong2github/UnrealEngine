@@ -53,7 +53,7 @@ UDataprepActionAsset::UDataprepActionAsset()
 	: ContextPtr( nullptr )
 	, Label(TEXT("New Action"))
 {
-	Appearance = CreateDefaultSubobject<UActionAppearance>( TEXT("Appearance") );
+	Appearance = CreateDefaultSubobject<UDataprepActionAppearance>( TEXT("Appearance") );
 
 	bExecutionInterrupted = false;
 	bIsEnabled = true;

@@ -557,10 +557,10 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsVectorField(FVectorVMContex
 	}
 	TArrayView<FVector> PositionsView(&(SamplePositions.operator[](0)), Context.NumInstances);
 
-	TArray<ContextIndex> IndicesArray;
-	ContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
+	TArray<FFieldContextIndex> IndicesArray;
+	FFieldContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
 
-	TArrayView<ContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
+	TArrayView<FFieldContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
 
 	if (InstData)
 	{
@@ -617,10 +617,10 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsIntegerField(FVectorVMConte
 	}
 	TArrayView<FVector> PositionsView(&(SamplePositions.operator[](0)), Context.NumInstances);
 
-	TArray<ContextIndex> IndicesArray;
-	ContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
+	TArray<FFieldContextIndex> IndicesArray;
+	FFieldContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
 
-	TArrayView<ContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
+	TArrayView<FFieldContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
 
 	if (InstData)
 	{
@@ -678,10 +678,10 @@ void UNiagaraDataInterfacePhysicsField::SamplePhysicsScalarField(FVectorVMContex
 	}
 	TArrayView<FVector> PositionsView(&(SamplePositions.operator[](0)), Context.NumInstances);
 
-	TArray<ContextIndex> IndicesArray;
-	ContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
+	TArray<FFieldContextIndex> IndicesArray;
+	FFieldContextIndex::ContiguousIndices(IndicesArray, Context.NumInstances);
 
-	TArrayView<ContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
+	TArrayView<FFieldContextIndex> IndicesView(&(IndicesArray[0]), IndicesArray.Num());
 
 	if (InstData)
 	{

@@ -2,11 +2,8 @@
 
 #include "DataprepTessellationOperation.h"
 
-#ifdef CAD_LIBRARY
 #include "CoreTechHelper.h"
-#include "CoreTechMeshLoader.h"
 #include "CoreTechBlueprintLibrary.h"
-#endif
 #include "DatasmithAdditionalData.h"
 #include "DatasmithAssetImportData.h"
 #include "DatasmithUtils.h"
@@ -42,7 +39,6 @@ void UDataprepTessellationOperation::PostLoad()
 
 void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
-#ifdef CAD_LIBRARY
 	// Collect start time to log amount of time spent to import incoming file
 	uint64 StartTime = FPlatformTime::Cycles64();
 
@@ -122,10 +118,6 @@ void UDataprepTessellationOperation::OnExecution_Implementation(const FDataprepC
 			AssetsModified( MoveTemp( ModifiedStaticMeshes ) );
 		}
 	}
-
-#else
-	UE_LOG( LogCADLibrary, Warning, TEXT("Tessellation not performed") );
-#endif
 }
 
 #undef LOCTEXT_NAMESPACE

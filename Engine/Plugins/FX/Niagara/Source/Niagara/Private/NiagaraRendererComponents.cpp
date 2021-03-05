@@ -91,7 +91,7 @@ void ConvertVariableToType(const FNiagaraVariable& SourceVariable, FNiagaraVaria
 	}
 }
 
-void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uint8* InData, int32 DataSize)
+void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uint8* InData, int32 DataSize, const TMap<FString, FString>& SetterDefaultValues)
 {
 	int32 ParmsSize = Setter->ParmsSize;
 	check(InRuntimeObject && Setter && ParmsSize > 0);
@@ -109,7 +109,16 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 			// Initialize the parameter pack with any param properties that reside in the container
 			if (Property->IsInContainer(ParmsSize))
 			{
-				Property->InitializeValue_InContainer(Params);
+				// Check for a default value
+				const FString* DefaultValue = SetterDefaultValues.Find(Property->GetName());
+				if (DefaultValue)
+				{
+					Property->ImportText(**DefaultValue, Property->ContainerPtrToValuePtr<uint8>(Params), PPF_None, InRuntimeObject);
+				}
+				else
+				{
+					Property->InitializeValue_InContainer(Params);
+				}
 
 				// The first encountered property is assumed to be the input value so initialize this with the user-specified value from InPropertyValue
 				if (Property->HasAnyPropertyFlags(CPF_Parm) && !Property->HasAnyPropertyFlags(CPF_ReturnParm) && bFirstProperty)
@@ -517,7 +526,7 @@ void FNiagaraRendererComponents::TickPropertyBindings(
 		if (PropertySetter->Function && PropertySetter->Function->NumParms >= 1)
 		{
 			// if we have a setter function we invoke it instead of setting the property directly, because then the object gets a chance to react to the new value
-			InvokeSetterFunction(Component, PropertySetter->Function, DataVariable.GetData(), DataVariable.GetSizeInBytes());
+			InvokeSetterFunction(Component, PropertySetter->Function, DataVariable.GetData(), DataVariable.GetSizeInBytes(), PropertyBinding.PropertySetterParameterDefaults);
 		}
 		else
 		{

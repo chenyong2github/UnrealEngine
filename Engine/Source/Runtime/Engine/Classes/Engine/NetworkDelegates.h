@@ -10,6 +10,7 @@
 #include "UObject/CoreNet.h"
 
 class UPendingNetGame;
+class UNetDriver;
 
 /**
 * Accepting connection response codes
@@ -190,6 +191,42 @@ inline const TCHAR* const LexToString(const ECheatPunishType Response)
  */
 DECLARE_DELEGATE_OneParam(FOnEncryptionKeyResponse, const FEncryptionKeyResponse& /** Response */);
 
+/** The different ways net sync loads can be triggered */
+enum class ENetSyncLoadType : int32
+{
+	Unknown,
+	PropertyReference,
+	ActorSpawn
+};
+
+/**
+ * Struct used as the parameter to FOnSyncLoadDetected to report sync loads.
+ */
+struct FNetSyncLoadReport
+{
+	FNetSyncLoadReport()
+		: Type(ENetSyncLoadType::Unknown)
+		, NetDriver(nullptr)
+		, OwningObject(nullptr)
+		, Property(nullptr)
+		, LoadedObject(nullptr) {}
+
+	/** How the sync load was triggered, if known */
+	ENetSyncLoadType Type;
+
+	/** The driver that reported this load */
+	const UNetDriver* NetDriver;
+
+	/** The replicated object, usually an actor, whose replication caused the sync load, if known. May be null. */
+	const UObject* OwningObject;
+
+	/** The replicated property that refers to the object that was sync loaded, if known. May be null. */
+	const FProperty* Property;
+
+	/** The object that was sync loaded */
+	const UObject* LoadedObject;
+};
+
 class ENGINE_API FNetDelegates
 {
 
@@ -236,4 +273,13 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPendingNetGameConnectionCreated, UPendingNetGame* /*PendingNetGame*/);
 	static FOnPendingNetGameConnectionCreated OnPendingNetGameConnectionCreated;
 
+	/**
+	 * Delegate fired when net.ReportSyncLoads is enabled and the replication system has determined which property or object caused the load.
+	 * This is likely reported after the load itself, since the load can occur while parsing export bunches, but we don't know what property
+	 * or object refers to the loaded object until the property itself is read.
+	 *
+	 * @param SyncLoadReport struct containing information about a sync load that occurred.
+	 */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnSyncLoadDetected, const FNetSyncLoadReport& /* SyncLoadReport */);
+	static FOnSyncLoadDetected OnSyncLoadDetected;
 };

@@ -2,6 +2,7 @@
 
 #include "WaterQuadTree.h"
 #include "Engine/Public/SceneManagement.h"
+#include "Materials/MaterialInterface.h"
 
 #if WITH_WATER_SELECTION_SUPPORT
 #include "HitProxies.h"
@@ -531,7 +532,7 @@ void FWaterQuadTree::AddLake(const TArray<FVector2D>& InPoly, const FBox& InLake
 int32 FWaterQuadTree::BuildMaterialIndices(UMaterialInterface* FarDistanceMaterial)
 {
 	int32 NextIdx = 0;
-	TMap<UMaterialInterface*, int32> MatToIdxMap;
+	TMap<FMaterialRenderProxy*, int32> MatToIdxMap;
 
 	auto GetMatIdx = [&NextIdx, &MatToIdxMap](UMaterialInterface* Material)
 	{
@@ -539,10 +540,12 @@ int32 FWaterQuadTree::BuildMaterialIndices(UMaterialInterface* FarDistanceMateri
 		{
 			return (int32)INDEX_NONE;
 		}
-		const int32* Found = MatToIdxMap.Find(Material);
+		FMaterialRenderProxy* MaterialRenderProxy = Material->GetRenderProxy();
+		check(MaterialRenderProxy != nullptr);
+		const int32* Found = MatToIdxMap.Find(MaterialRenderProxy);
 		if (!Found)
 		{
-			Found = &MatToIdxMap.Add(Material, NextIdx++);
+			Found = &MatToIdxMap.Add(MaterialRenderProxy, NextIdx++);
 		}
 		return *Found;
 	};
@@ -560,7 +563,7 @@ int32 FWaterQuadTree::BuildMaterialIndices(UMaterialInterface* FarDistanceMateri
 	WaterMaterials.Empty(MatToIdxMap.Num());
 	WaterMaterials.AddUninitialized(MatToIdxMap.Num());
 
-	for (TMap<UMaterialInterface*, int32>::TConstIterator It(MatToIdxMap); It; ++It)
+	for (TMap<FMaterialRenderProxy*, int32>::TConstIterator It(MatToIdxMap); It; ++It)
 	{
 		WaterMaterials[It->Value] = It->Key;
 	}

@@ -5,8 +5,65 @@
 #include "OnlineSubsystemEOSPlus.h"
 #include "EOSSettings.h"
 
-// temp
-#define EOS_ID_BYTE_SIZE 32
+enum class EOSSValue : uint8
+{
+	Null,
+	Steam,
+	PS4,
+	XboxLive,
+	Switch,
+	Apple
+};
+
+static inline EOSSValue ToEOSSValue(FName OSSName)
+{
+	if (OSSName == STEAM_SUBSYSTEM)
+	{
+		return EOSSValue::Steam;
+	}
+	else if (OSSName == PS4_SUBSYSTEM)
+	{
+		return EOSSValue::PS4;
+	}
+	else if (OSSName == LIVE_SUBSYSTEM)
+	{
+		return EOSSValue::XboxLive;
+	}
+	else if (OSSName == SWITCH_SUBSYSTEM)
+	{
+		return EOSSValue::Switch;
+	}
+	else if (OSSName == APPLE_SUBSYSTEM)
+	{
+		return EOSSValue::Apple;
+	}
+	return EOSSValue::Null;
+}
+
+static inline FName ToOSSName(EOSSValue OSSValue)
+{
+	if (OSSValue == EOSSValue::Steam)
+	{
+		return STEAM_SUBSYSTEM;
+	}
+	else if (OSSValue == EOSSValue::PS4)
+	{
+		return PS4_SUBSYSTEM;
+	}
+	else if (OSSValue == EOSSValue::XboxLive)
+	{
+		return LIVE_SUBSYSTEM;
+	}
+	else if (OSSValue == EOSSValue::Switch)
+	{
+		return SWITCH_SUBSYSTEM;
+	}
+	else if (OSSValue == EOSSValue::Apple)
+	{
+		return APPLE_SUBSYSTEM;
+	}
+	return NULL_SUBSYSTEM;
+}
 
 inline FString BuildEOSPlusStringId(TSharedPtr<const FUniqueNetId> InBaseUniqueNetId, TSharedPtr<const FUniqueNetId> InEOSUniqueNetId)
 {
@@ -31,11 +88,19 @@ FUniqueNetIdEOSPlus::FUniqueNetIdEOSPlus(TSharedPtr<const FUniqueNetId> InBaseUn
 		FMemory::Memcpy(RawBytes.GetData(), EOSUniqueNetId->GetBytes(), EOSSize);
 	}
 
+	int32 Offset = EOS_NETID_BYTE_SIZE;
+	// Default to the NULL OSS
+	*(RawBytes.GetData() + Offset) = (uint8)EOSSValue::Null;
+
 	if (BaseUniqueNetId.IsValid())
 	{
+		// For crossplatform support, identify the source
+		*(RawBytes.GetData() + EOS_NETID_BYTE_SIZE) = (uint8)ToEOSSValue(BaseUniqueNetId->GetType());
+		Offset += BASE_NETID_TYPE_SIZE;
+
 		int32 BaseSize = BaseUniqueNetId->GetSize();
 		// Always copy above the EOS ID
-		FMemory::Memcpy(RawBytes.GetData() + EOS_ID_BYTE_SIZE, BaseUniqueNetId->GetBytes(), BaseSize);
+		FMemory::Memcpy(RawBytes.GetData() + Offset, BaseUniqueNetId->GetBytes(), BaseSize);
 	}
 }
 
@@ -47,7 +112,7 @@ const uint8* FUniqueNetIdEOSPlus::GetBytes() const
 int32 FUniqueNetIdEOSPlus::GetSize() const
 {
 	// Always account for EOS ID
-	int32 Size = EOS_ID_BYTE_SIZE;
+	int32 Size = EOS_NETID_BYTE_SIZE + BASE_NETID_TYPE_SIZE;
 	if (BaseUniqueNetId.IsValid())
 	{
 		Size += BaseUniqueNetId->GetSize();
@@ -368,23 +433,34 @@ TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::GetUniquePlayerId(int32 Local
 
 TSharedPtr<const FUniqueNetId> FOnlineUserEOSPlus::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
-	if (Size < 32)
+	if (Size < EOS_NETID_BYTE_SIZE)
 	{
 		UE_LOG_ONLINE(Error, TEXT("Invalid size (%d) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), Size);
 		return nullptr;
 	}
-	// We know that the last 32 bytes are the EOS ids, so the rest is the platform id
-	int32 PlatformIdSize = Size - 32;
+	// We know that the first EOS_NETID_BYTE_SIZE bytes are the EOS ids, so the rest is the platform id
+	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Bytes, EOS_NETID_BYTE_SIZE);
+	int32 BaseByteOffset = EOS_NETID_BYTE_SIZE;
+	int32 PlatformIdSize = Size - BaseByteOffset - BASE_NETID_TYPE_SIZE;
 	if (PlatformIdSize < 0)
 	{
 		UE_LOG_ONLINE(Error, TEXT("Invalid size (%d) passed to FOnlineUserEOSPlus::CreateUniquePlayerId()"), Size);
 		return nullptr;
 	}
-
-	// First 32 bytes are always the EOS/EAS ids so we can have the pure EOS OSS handle them too
-	TSharedPtr<const FUniqueNetId> EOSNetId = EOSIdentityInterface->CreateUniquePlayerId(Bytes, 32);
-//@todo joeg handle the case of differing platforms
-	TSharedPtr<const FUniqueNetId> BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Bytes + 32, PlatformIdSize);
+	uint8 OSSType = *(Bytes + BaseByteOffset);
+	BaseByteOffset += BASE_NETID_TYPE_SIZE;
+	FName OSSName = ToOSSName((EOSSValue)OSSType);
+	FName BaseOSSName = EOSPlus->BaseOSS->GetSubsystemName();
+	TSharedPtr<const FUniqueNetId> BaseNetId = nullptr;
+	if (BaseOSSName == OSSName)
+	{
+		BaseNetId = BaseIdentityInterface->CreateUniquePlayerId(Bytes + BaseByteOffset, PlatformIdSize);
+	}
+	else
+	{
+		// Just create the pass through version that holds the other platform data but doesn't interpret it
+		BaseNetId = MakeShared<FUniqueNetIdBinary>(Bytes + BaseByteOffset, PlatformIdSize, OSSName);
+	}
 	
 	return AddRemotePlayer(BaseNetId, EOSNetId);
 }

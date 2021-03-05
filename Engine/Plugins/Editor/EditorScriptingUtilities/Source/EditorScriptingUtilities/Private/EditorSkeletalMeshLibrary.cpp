@@ -10,7 +10,8 @@
 #include "Animation/Skeleton.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "LODUtilities.h"
-#include "ScopedTransaction.h"
+#include "Rendering/SkeletalMeshRenderData.h"
+#include "Rendering/SkeletalMeshLODRenderData.h"
 #include "SkeletalMeshEditorSubsystem.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 
@@ -110,4 +111,11 @@ bool UDEPRECATED_EditorSkeletalMeshLibrary::RemoveLODs(USkeletalMesh* SkeletalMe
 bool UDEPRECATED_EditorSkeletalMeshLibrary::StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LODIndex, UTexture2D* TextureMask, const float Threshold)
 {
 	return FLODUtilities::StripLODGeometry(SkeletalMesh, LODIndex, TextureMask, Threshold);
+}
+
+UPhysicsAsset* UDEPRECATED_EditorSkeletalMeshLibrary::CreatePhysicsAsset(USkeletalMesh* SkeletalMesh)
+{
+	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
+
+	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->CreatePhysicsAsset(SkeletalMesh) : nullptr;
 }

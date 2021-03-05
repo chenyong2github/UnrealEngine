@@ -49,8 +49,8 @@ namespace DatasmithRuntime
 		TEXT("SpecularMap"),
 	};
 
-	constexpr const TCHAR* OpaqueMaterialPath = TEXT("Material'/DatasmithRuntime/Materials/M_PbrOpaque.M_PbrOpaque'");
-	constexpr const TCHAR* TranslucentMaterialPath = TEXT("Material'/DatasmithRuntime/Materials/M_PbrTranslucent.M_PbrTranslucent'");
+	constexpr const TCHAR* OpaqueMaterialPath = TEXT("/DatasmithRuntime/Materials/M_PbrOpaque.M_PbrOpaque");
+	constexpr const TCHAR* TranslucentMaterialPath = TEXT("/DatasmithRuntime/Materials/M_PbrTranslucent.M_PbrTranslucent");
 
 	struct FMaterialParameters
 	{

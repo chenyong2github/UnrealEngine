@@ -26,5 +26,6 @@ public class UnrealMultiUserServerTarget : TargetRules
 		bIsBuildingConsoleApplication = Target.Platform != UnrealTargetPlatform.Mac;
 
 		GlobalDefinitions.Add("UE_LOG_CONCERT_DEBUG_VERBOSITY_LEVEL=Log");
+		GlobalDefinitions.Add("UE_TRACE_ENABLED=1");
 	}
 }

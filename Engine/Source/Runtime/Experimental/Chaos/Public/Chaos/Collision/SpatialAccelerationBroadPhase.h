@@ -174,7 +174,7 @@ namespace Chaos
 					[&](auto& Particle1,int32 ActiveIdxIdx)
 				{
 					//TODO: use transient handle
-					TGenericParticleHandleHandleImp<FReal,3> GenericHandle(Particle1.Handle());
+					FGenericParticleHandleHandleImp GenericHandle(Particle1.Handle());
 					ProduceParticleOverlaps</*bResimming=*/true>(Dt,GenericHandle,InSpatialAcceleration,NarrowPhase,Receiver,StatData, ActiveIdxIdx);
 				},bDisableParallelFor);
 			}
@@ -235,7 +235,7 @@ namespace Chaos
 				for (int32 i = 0; i < NumPotentials; ++i)
 				{
 					auto& Particle2 = *PotentialIntersections[i].GetGeometryParticleHandle_PhysicsThread();
-					const TGenericParticleHandle<FReal, 3> Particle2Generic(&Particle2);
+					const FGenericParticleHandle Particle2Generic(&Particle2);
 
 					// Broad Phase Culling
 					// CollisionGroup == 0 : Collide_With_Everything
@@ -289,7 +289,7 @@ namespace Chaos
 					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
 						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
 							(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
-								Particle2.Geometry()->GetType() == TCapsule<FReal>::StaticType()));
+								Particle2.Geometry()->GetType() == FCapsule::StaticType()));
 					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic && bSecondParticleWillHaveAnswer)
 					{
 						//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
@@ -316,7 +316,11 @@ namespace Chaos
 						// @todo(chaos): this expansion can be very large for some objects - we may want to consider extending only along
 						// the velocity direction if CCD is not enabled for either object.
 						const FReal CullDistance1 = ComputeBoundsThickness(Particle1, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
-						const FReal CullDistance2 = ComputeBoundsThickness(Particle2, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+						FReal CullDistance2 = 0.0f;
+						if (FKinematicGeometryParticleHandle* KinematicParticle2 = Particle2.CastToKinematicParticle())
+						{
+							CullDistance2 = ComputeBoundsThickness(*KinematicParticle2, Dt, BoundsThickness, BoundsThicknessVelocityInflation).Size();
+						}
 						const FReal NetCullDistance = CullDistance + CullDistance1 + CullDistance2;
 
 						// Generate constraints for the potentially overlapping shape pairs. Also run collision detection to generate

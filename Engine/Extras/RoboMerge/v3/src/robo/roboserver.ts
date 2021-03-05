@@ -103,6 +103,7 @@ export class RoboServer {
 
 		//this.server.addFileMapping('/', 'index.html')
 		this.server.addFileMapping('/login', 'login.html', {secureOnly: true})
+		this.server.addFileMapping('/allbots', 'allbots.html')
 		this.server.addFileMapping('/js/*.wasm', 'bin/$1.wasm.gz', {
 			filetype: "application/wasm", 
 			headers: [

@@ -266,6 +266,15 @@ public:
 	void CollectReferences(class FReferenceCollector& ReferenceCollector);
 	TSharedRef<FQueuedBunchObjectReference> TrackQueuedBunchObjectReference(const FNetworkGUID InNetGUID, UObject* InObject);
 
+	bool WasGUIDSyncLoaded(FNetworkGUID NetGUID) const { return SyncLoadedGUIDs.Contains(NetGUID); }
+	void ClearSyncLoadedGUID(FNetworkGUID NetGUID) { SyncLoadedGUIDs.Remove(NetGUID); }
+
+	/**
+	 * If LogNetSyncLoads is enabled, log all objects that caused a sync load that haven't been otherwise reported
+	 * by the package map yet, and clear that list.
+	 */
+	void ReportSyncLoadedGUIDs();
+
 	TMap< FNetworkGUID, FNetGuidCacheObject >		ObjectLookup;
 	TMap< TWeakObjectPtr< UObject >, FNetworkGUID >	NetGUIDLookup;
 	int32											UniqueNetIDs[2];
@@ -297,6 +306,9 @@ private:
 
 	/** Current index used when filling in NetFieldExportGroupPathToIndex/NetFieldExportGroupIndexToPath */
 	int32													UniqueNetFieldExportGroupPathIndex;
+
+	/** Store all GUIDs that caused the sync loading of a package, for debugging & logging with LogNetSyncLoads */
+	TArray<FNetworkGUID> SyncLoadedGUIDs;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 public:
@@ -464,6 +476,9 @@ public:
 
 	virtual bool PrintExportBatch() override;
 
+	virtual void ResetTrackedSyncLoadedGuids() override { TrackedSyncLoadedGUIDs.Reset(); }
+	virtual void ReportSyncLoadsForProperty(const FProperty* Property, const UObject* Object) override;
+
 	virtual void			LogDebugInfo( FOutputDevice & Ar) override;
 	virtual UObject *		GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const bool bIgnoreMustBeMapped ) override;
 	virtual FNetworkGUID	GetNetGUIDFromObject( const UObject* InObject) const override;
@@ -567,6 +582,9 @@ protected:
 private:
 	void ReceiveNetFieldExportsCompat(FInBunch& InBunch);
 
+	/** Used by SerializeNewActor to report sync loads with LogNetSyncLoads */
+	void ReportSyncLoadsForActorSpawn(const AActor* Actor);
+
 	bool bIgnoreReceivedExportGUIDs;
 
 public:
@@ -579,4 +597,10 @@ public:
 private:
 
 	FNetQueuedActorDelinquencyAnalytics DelinquentQueuedActors;
+
+	/**
+	 * Tracks GUIDs contained in FNetGUIDCache::SyncLoadedGUIDs that are referenced during deserialization
+	 * of a particular property or actor spawn, to help correlate those sync loads with that property or actor.
+	 */
+	TArray<FNetworkGUID> TrackedSyncLoadedGUIDs;
 };

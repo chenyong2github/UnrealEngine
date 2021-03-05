@@ -51,7 +51,7 @@ private:
 public:
 
 	/** Discards the header and fills the buffer with plain pixel data. */
-	static bool GenerateTextureData(uint16* Buffer, FString FilePath, int32 TextureWidth, int32 TextureHeight, int32& PixelSize, int32 NumChannels);
+	static bool GenerateTextureData(uint16* Buffer, FString FilePath, int32 TextureWidth, int32 TextureHeight, int32 PixelSize, int32 NumChannels);
 
 	/** 
 	* This function is used to open file and keep a handle to it so the file can be read in chunks.

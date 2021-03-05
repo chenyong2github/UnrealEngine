@@ -2780,7 +2780,8 @@ namespace AutomationTool
 		static readonly string[] TimestampServersSHA1 =
 		{
 			"http://timestamp.globalsign.com/scripts/timstamp.dll",
-			"http://timestamp.comodoca.com/authenticode"
+			"http://timestamp.comodoca.com/authenticode",
+			"http://timestamp.digicert.com"
 		};
 
 		static readonly string[] TimestampServersSHA256 =
@@ -2847,7 +2848,7 @@ namespace AutomationTool
 						break;
 					}
 
-					if (Timer.Elapsed.TotalMinutes > 3.0)
+					if (Timer.Elapsed.TotalMinutes > 3.0 && NumAttempts >= 6)
 					{
 						throw new AutomationException("Failed to sign files {0} times over a period of {1}", NumAttempts, Timer.Elapsed);
 					}

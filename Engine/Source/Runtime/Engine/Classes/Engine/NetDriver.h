@@ -315,6 +315,7 @@
 
 class Error;
 class FNetGUIDCache;
+struct FNetSyncLoadReport;
 class FNetworkNotify;
 class FNetworkObjectList;
 class FObjectReplicator;
@@ -1723,6 +1724,12 @@ private:
 	void FlushActorDormancyInternal(AActor *Actor);
 
 	void LoadChannelDefinitions();
+
+	/** Used with FNetDelegates::OnSyncLoadDetected to log sync loads */
+	void ReportSyncLoad(const FNetSyncLoadReport& Report);
+
+	/** Handle to FNetDelegates::OnSyncLoadDetected delegate */
+	FDelegateHandle ReportSyncLoadDelegateHandle;
 
 	UPROPERTY(transient)
 	TObjectPtr<UReplicationDriver> ReplicationDriver;

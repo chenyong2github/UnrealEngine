@@ -3,6 +3,12 @@
 #pragma once
 
 #include "ConcertTakeRecorderMessages.h"
+#include "ConcertMessages.h"
+#include "Delegates/IDelegateInstance.h"
+
+#include "ConcertTakeRecorderClientSessionCustomization.h"
+
+DECLARE_LOG_CATEGORY_EXTERN(LogConcertTakeRecorder, Log, All);
 
 class IConcertSyncClient;
 class IConcertClientSession;
@@ -53,10 +59,21 @@ private:
 	void OnRecordingFinishedEvent(const FConcertSessionContext&, const FConcertRecordingFinishedEvent&);
 	void OnRecordingCancelledEvent(const FConcertSessionContext&, const FConcertRecordingCancelledEvent&);
 
+	void OnRecordSettingsChangeEvent(const FConcertSessionContext&, const FConcertRecordSettingsChangeEvent&);
+	void OnMultiUserSyncChangeEvent(const FConcertSessionContext&, const FConcertMultiUserSyncChangeEvent&);
+
+	void OnSessionClientChanged(IConcertClientSession&, EConcertClientStatus ClientStatus, const FConcertSessionClientInfo& InClientInfo);
+	void OnSessionConnectionChanged(IConcertClientSession&, EConcertConnectionStatus ConnectionStatus);
+
 	//~ Widget extension handlers
-	void RegisterToolbarExtension();
-	void UnregisterToolbarExtension();
+	void RegisterExtensions();
+	void UnregisterExtensions();
+
 	void CreateExtensionWidget(TArray<TSharedRef<class SWidget>>& OutExtensions);
+	void CreateRecordButtonOverlay(TArray<TSharedRef<SWidget>>& OutExtensions);
+
+	EVisibility GetMultiUserIconVisibility() const;
+
 	bool IsTakeSyncEnabled() const;
 	ECheckBoxState IsTakeSyncChecked() const;
 	void HandleTakeSyncCheckBox(ECheckBoxState State) const;
@@ -66,13 +83,28 @@ private:
 
 	void OnObjectModified(UObject* ObjectBeingModified, FPropertyChangedEvent& PropertyChangedEvent);
 	void CacheTakeSyncFolderFiltered();
+
+	void UpdateSessionClientList();
+	void DisconnectFromSession();
+	void ConnectToSession(IConcertClientSession&);
+
 private:
+	void ReportRecordingError(FText &);
+	bool CanRecord() const;
+	bool CanAnyRecord() const;
+
+	void SendInitialState(IConcertClientSession&);
+	void OnTakeSyncPropertyChange(bool Value);
+
+	void RecordSettingChange(const FConcertClientRecordSetting& RecordSetting);
+	void AddRemoteClient(const FConcertSessionClientInfo& ClientInfo);
+
 	/** Weak pointer to the client session with which to send events. May be null or stale. */
 	TWeakPtr<IConcertClientSession> WeakSession;
 
 	/**
 	 * Whether the take sync folder is filtered from multi user transactions.
-	 * If not filtered, take sync cannot be activated since multi-user would try to synchronize 
+	 * If not filtered, take sync cannot be activated since multi-user would try to synchronize
 	 * the takes generated from every clients' Take Recorder.
 	 */
 	bool bTakeSyncFolderFiltered = false;
@@ -85,4 +117,17 @@ private:
 		FString LastStartedTake;
 		FString LastStoppedTake;
 	} TakeRecorderState;
+
+	TSharedPtr<FConcertTakeRecorderClientSessionCustomization> Customization;
+
+	/** Delegate for any changes in client state. */
+	FDelegateHandle				 ClientChangeDelegate;
+
+	/** Delegate for any changes take sync status. */
+	FDelegateHandle				 TakeSyncDelegate;
+
+	/**
+	 * Denotes if we are currently in recording mode.
+	 */
+	bool bIsRecording = false;
 };

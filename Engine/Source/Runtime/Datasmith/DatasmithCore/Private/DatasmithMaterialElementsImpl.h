@@ -55,7 +55,7 @@ public:
 	virtual ~FDatasmithExpressionInputImpl() = default;
 
 	virtual IDatasmithMaterialExpression* GetExpression() override { return Expression.Edit().Get(); }
-	virtual const IDatasmithMaterialExpression* GetExpression() const { return Expression.View().Get(); }
+	virtual const IDatasmithMaterialExpression* GetExpression() const override { return Expression.View().Get(); }
 	virtual void SetExpression( IDatasmithMaterialExpression* InExpression ) override;
 
 	virtual int32 GetOutputIndex() const override { return OutputIndex; }
@@ -136,6 +136,10 @@ public:
 	virtual int32 GetDefaultOutputIndex() const override { return DefaultOutputIndex; }
 	virtual void SetDefaultOutputIndex( int32 InDefaultOutputIndex ) override { DefaultOutputIndex = InDefaultOutputIndex; }
 
+	virtual void ResetExpression() override;
+
+	virtual void ResetExpressionImpl() = 0;
+
 protected:
 	FMD5Hash ComputeHash()
 	{
@@ -199,6 +203,12 @@ public:
 	virtual bool& GetBool() override { return bValue.Edit( Store ); }
 	virtual const bool& GetBool() const override { return bValue.Get( Store ); }
 
+	virtual void ResetExpressionImpl() override
+	{
+		GroupName.Edit(Store).Reset();
+		bValue.Edit(Store) = false;
+	}
+
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
 		if (ElementHash.IsValid() && !bForce)
@@ -229,6 +239,12 @@ public:
 	virtual FLinearColor& GetColor() override { return LinearColor.Edit( Store ); }
 	virtual const FLinearColor& GetColor() const override { return LinearColor.Get( Store ); }
 
+	virtual void ResetExpressionImpl() override
+	{
+		GroupName.Edit(Store).Reset();
+		LinearColor.Edit(Store) = FLinearColor();
+	}
+
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
 		if (ElementHash.IsValid() && !bForce)
@@ -258,6 +274,12 @@ public:
 
 	virtual float& GetScalar() override { return Scalar.Edit( Store ); }
 	virtual const float& GetScalar() const override { return Scalar.Get( Store ); }
+
+	virtual void ResetExpressionImpl() override
+	{
+		GroupName.Edit(Store).Reset();
+		Scalar.Edit(Store) = 0;
+	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -298,6 +320,12 @@ public:
 	virtual int32 GetInputCount() const override { return 1; }
 	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return TextureCoordinate.Edit().Get(); }
 	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return TextureCoordinate.View().Get(); }
+
+	virtual void ResetExpressionImpl() override
+	{
+		GroupName.Edit(Store).Reset();
+		TexturePathName.Edit(Store).Reset();
+	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -348,6 +376,13 @@ public:
 	virtual float GetVTiling() const override { return VTiling;}
 	virtual void SetVTiling( float InVTiling ) override { VTiling = InVTiling; }
 
+	virtual void ResetExpressionImpl() override
+	{
+		CoordinateIndex.Edit(Store) = 0;
+		UTiling.Edit(Store) = 1;
+		VTiling.Edit(Store) = 1;
+	}
+
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
 		if (ElementHash.IsValid() && !bForce)
@@ -388,6 +423,8 @@ public:
 	virtual int32 GetInputCount() const override { return 2; }
 	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return Index == 0 ? Normal.Edit().Get() : Flatness.Edit().Get(); }
 	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Index == 0 ? Normal.View().Get() : Flatness.View().Get(); }
+
+	virtual void ResetExpressionImpl() override { /*Nothing to reset.*/ }
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -453,6 +490,13 @@ public:
 
 	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
 
+	virtual void ResetExpressionImpl() override
+	{
+		Inputs.Edit().Reset();
+		ExpressionName.Edit( Store ).Reset();
+		Properties.Edit().Reset();
+	}
+
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
 		if (ElementHash.IsValid() && !bForce)
@@ -505,6 +549,12 @@ public:
 	}
 
 	virtual const IDatasmithExpressionInput* GetInput( int32 Index ) const override { return Inputs.IsValidIndex( Index ) ? Inputs[Index].Get() : nullptr; }
+
+	virtual void ResetExpressionImpl() override
+	{
+		Inputs.Edit().Reset();
+		FunctionPathName.Edit(Store).Reset();
+	}
 
 	FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -559,6 +609,17 @@ public:
 	virtual int32 GetArgumentNameCount() const override { return ArgNames.Get(Store).Num(); }
 	virtual void SetArgumentName(int32 ArgIndex, const TCHAR* ArgName) override;
 	virtual const TCHAR* GetArgumentName(int32 Index) const override { return ArgNames.Get(Store).IsValidIndex(Index) ? *ArgNames.Get(Store)[Index] : TEXT("");}
+
+	virtual void ResetExpressionImpl() override
+	{
+		Code.Edit( Store ).Reset();
+		Description.Edit( Store ).Reset();
+		OutputType.Edit( Store ) = EDatasmithShaderDataType::Float1;
+		IncludeFilePaths.Edit( Store ).Reset();
+		Defines.Edit( Store ).Reset();
+		ArgNames.Edit( Store ).Reset();
+		Inputs.Edit().Reset();
+	}
 
 	virtual FMD5Hash CalculateElementHash(bool bForce) override
 	{
@@ -629,11 +690,13 @@ public:
 	virtual float GetOpacityMaskClipValue() const override { return OpacityMaskClipValue; }
 	virtual void SetOpacityMaskClipValue(float InClipValue) override { OpacityMaskClipValue = InClipValue; }
 
-	virtual int32 GetExpressionsCount() const override { return Expressions.View().Num(); }
+	virtual int32 GetExpressionsCount() const override { return Expressions.Num(); }
 	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) override;
 	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const override;
 
 	virtual IDatasmithMaterialExpression* AddMaterialExpression( const EDatasmithMaterialExpressionType ExpressionType ) override;
+
+	virtual void ResetExpressionGraph( bool bRemoveAllExpressions ) override;
 
 	virtual void SetParentLabel( const TCHAR* InParentLabel ) override { ParentLabel = InParentLabel; }
 	virtual const TCHAR* GetParentLabel() const override;
@@ -656,7 +719,7 @@ protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > AmbientOcclusion;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > MaterialAttributes;
 
-	TDatasmithReferenceArrayProxy< IDatasmithMaterialExpression > Expressions;
+	TArray<TSharedPtr< IDatasmithMaterialExpression >> Expressions;
 
 	TReflected<int32> BlendMode;
 	TReflected<bool> bTwoSided;
@@ -691,5 +754,21 @@ void FDatasmithMaterialExpressionImpl< InterfaceType >::ConnectExpression( IData
 	{
 		ExpressionInput.SetExpression( this );
 		ExpressionInput.SetOutputIndex( OutputIndex );
+	}
+}
+
+template< typename InterfaceType >
+void FDatasmithMaterialExpressionImpl< InterfaceType >::ResetExpression()
+{
+	// Call the derived implementation first, it may remove unneeded inputs.
+	ResetExpressionImpl();
+
+	this->Label.Edit( this->Store ).Reset();
+	this->ElementHash = FMD5Hash();
+
+	for ( int InputIndex = 0; InputIndex < GetInputCount(); ++InputIndex )
+	{
+		IDatasmithExpressionInput* Input = GetInput( InputIndex );
+		Input->SetExpression( nullptr );
 	}
 }

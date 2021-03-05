@@ -245,6 +245,11 @@ void FCurveEditorTree::Compact()
 	ChildItemIDs.Compact();
 }
 
+void FCurveEditorTree::ToggleExpansionState(bool bRecursive)
+{
+	ToggleExpansionStateDelegate.Broadcast(bRecursive);
+}
+
 bool FCurveEditorTree::PerformFilterPass(TArrayView<const FCurveEditorTreeFilter* const> FilterPtrs, TArrayView<const FCurveEditorTreeItemID> ItemsToFilter, ECurveEditorTreeFilterState InheritedState)
 {
 	bool bAnyMatched = false;
@@ -493,6 +498,32 @@ void FCurveEditorTree::SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeI
 
 
 	if (!PreviousSelection.OrderIndependentCompareEqual(Selection))
+	{
+		++Events.OnSelectionChanged.SerialNumber;
+	}
+}
+
+void FCurveEditorTree::RemoveFromSelection(TArrayView<const FCurveEditorTreeItemID> TreeItems, FCurveEditor* InCurveEditor)
+{
+	FScopedCurveEditorTreeEventGuard EventGuard(this);
+
+	bool bAnyRemoved = false;
+	for (const FCurveEditorTreeItemID& ItemID : TreeItems)
+	{
+		FCurveEditorTreeItem* TreeItem = Items.Find(ItemID);
+		if (!ensureAlwaysMsgf(TreeItem, TEXT("Selected tree item does not exist. This must have bee applied externally.")))
+		{
+			continue;
+		}
+
+		if (Selection.Remove(ItemID) > 0)
+		{
+			bAnyRemoved = true;
+			TreeItem->DestroyUnpinnedCurves(InCurveEditor);
+		}
+	}
+
+	if (bAnyRemoved)
 	{
 		++Events.OnSelectionChanged.SerialNumber;
 	}

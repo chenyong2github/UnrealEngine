@@ -108,7 +108,7 @@ FReply SCheckBox::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyE
 		return FReply::Handled();
 	}
 
-	return FReply::Unhandled();
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 
 }
 

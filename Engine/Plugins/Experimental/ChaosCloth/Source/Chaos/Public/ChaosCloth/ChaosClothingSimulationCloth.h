@@ -52,6 +52,7 @@ namespace Chaos
 			const FVec3& InGravityOverride,
 			const FVec3& InLinearVelocityScale,
 			float InAngularVelocityScale,
+			float InFictitiousAngularScale,
 			float InDragCoefficient,
 			float InLiftCoefficient,
 			bool bInUseLegacyWind,
@@ -82,7 +83,7 @@ namespace Chaos
 		void SetAerodynamicsProperties(float InDragCoefficient, float InLiftCoefficient) { DragCoefficient = InDragCoefficient; LiftCoefficient = InLiftCoefficient; }
 		void SetGravityProperties(float InGravityScale, bool bInIsGravityOverridden, const FVec3& InGravityOverride) { GravityScale = InGravityScale; bIsGravityOverridden = bInIsGravityOverridden; GravityOverride = InGravityOverride; }
 		void SetAnimDriveProperties(const FVec2& InAnimDriveStiffness, const FVec2& InAnimDriveDamping) { AnimDriveStiffness = InAnimDriveStiffness; AnimDriveDamping = InAnimDriveDamping; }
-		void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, float InAngularVelocityScale) { LinearVelocityScale = InLinearVelocityScale; AngularVelocityScale = InAngularVelocityScale; }
+		void SetVelocityScaleProperties(const FVec3& InLinearVelocityScale, float InAngularVelocityScale, float InFictitiousAngularScale) { LinearVelocityScale = InLinearVelocityScale; AngularVelocityScale = InAngularVelocityScale; FictitiousAngularScale = InFictitiousAngularScale;  }
 
 		void GetAnimDriveProperties(FVec2& OutAnimDriveStiffness, FVec2& OutAnimDriveDamping) { OutAnimDriveStiffness = AnimDriveStiffness; OutAnimDriveDamping = AnimDriveDamping; }
 
@@ -203,6 +204,7 @@ namespace Chaos
 		FVec3 GravityOverride;
 		FVec3 LinearVelocityScale;  // Linear ratio applied to the reference bone transforms
 		float AngularVelocityScale;  // Angular ratio factor applied to the reference bone transforms
+		float FictitiousAngularScale;
 		float DragCoefficient;
 		float LiftCoefficient;
 		bool bUseLegacyWind;

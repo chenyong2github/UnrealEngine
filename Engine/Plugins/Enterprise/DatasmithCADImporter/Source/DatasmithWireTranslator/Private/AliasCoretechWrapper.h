@@ -2,7 +2,6 @@
 
 #pragma once
 
-#ifdef CAD_LIBRARY
 #include "CoreMinimal.h"
 
 #include "CTSession.h"
@@ -28,7 +27,7 @@ enum class EAliasObjectReference
 };
 
 
-class FAliasCoretechWrapper : public CADLibrary::CTSession
+class FAliasCoretechWrapper : public CADLibrary::FCTSession
 {
 public:
 	/**
@@ -39,33 +38,32 @@ public:
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FAliasCoretechWrapper(const TCHAR* InOwner)
-		: CADLibrary::CTSession(InOwner, 0.01, 1)
+		: CADLibrary::FCTSession(InOwner, 0.01, 1)
 		// Unit for CoreTech session is set to cm, 0.01, because Wire's unit is cm. Consequently, Scale factor is set to 1.
 	{
 	}
 
-	CT_IO_ERROR AddBRep(TArray<AlDagNode*>& DagNodeSet, EAliasObjectReference ObjectReference);
+	bool AddBRep(TArray<AlDagNode*>& DagNodeSet, EAliasObjectReference ObjectReference);
 
 	static TSharedPtr<FAliasCoretechWrapper> GetSharedSession();
 
-	CT_IO_ERROR Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
+	bool Tessellate(FMeshDescription& Mesh, CADLibrary::FMeshParameters& MeshParameters);
 
 protected:
 	/**
 	* Create a CT coedge (represent the use of an edge by a face).
 	* @param TrimCurve: A curve in parametric surface space, part of a trim boundary.
 	*/
-	CT_OBJECT_ID AddTrimCurve(AlTrimCurve& TrimCurve);
-	CT_OBJECT_ID AddTrimBoundary(AlTrimBoundary& TrimBoundary);
-	CT_OBJECT_ID Add3DCurve(AlCurve& Curve);
+	uint64 AddTrimCurve(AlTrimCurve& TrimCurve);
+	uint64 AddTrimBoundary(AlTrimBoundary& TrimBoundary);
+	uint64 Add3DCurve(AlCurve& Curve);
 
-	CT_OBJECT_ID AddTrimRegion(AlTrimRegion& InTrimRegion, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation);
-	void AddFace(AlSurface& InSurface, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, CT_LIST_IO& OutFaceLis);
-	void AddShell(AlShell& InShell, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, CT_LIST_IO& OutFaceLis);
+	uint64 AddTrimRegion(AlTrimRegion& InTrimRegion, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation);
+	void AddFace(AlSurface& InSurface, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceLis);
+	void AddShell(AlShell& InShell, EAliasObjectReference InObjectReference, AlMatrix4x4& InAlMatrix, bool bInOrientation, TArray<uint64>& OutFaceLis);
 
 protected:
 	static TWeakPtr<FAliasCoretechWrapper> SharedSession;
-	TMap<AlTrimCurve*, CT_OBJECT_ID>  AlEdge2CTEdge;
+	TMap<AlTrimCurve*, uint64>  AlEdge2CTEdge;
 };
 
-#endif

@@ -37,6 +37,14 @@ FAutoConsoleVariableRef CVarDisableSubmixEQ(
 	TEXT("0: Not Disabled, 1: Disabled"),
 	ECVF_Default);
 
+static int32 DisableSubmixMutationLockCVar = 0;
+FAutoConsoleVariableRef CVarDisableSubmixMutationLock(
+	TEXT("au.DisableSubmixMutationLock"),
+	DisableSubmixMutationLockCVar,
+	TEXT("Disables the submix mutation lock.\n")
+	TEXT("0: Not Disabled (Default), 1: Disabled"),
+	ECVF_Default);
+
 static int32 DebugGeneratorEnableCVar = 0;
 FAutoConsoleVariableRef CVarDebugGeneratorEnable(
 	TEXT("au.Debug.Generator"),
@@ -74,6 +82,88 @@ CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
 
 namespace Audio
 {
+	void FSubmixMap::Add(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase, FMixerSubmixPtr InMixerSubmix)
+	{
+		if (DisableSubmixMutationLockCVar)
+		{
+			SubmixMap.Add(InSubmixBase, InMixerSubmix);
+		}
+		else
+		{
+			FScopeLock ScopeLock(&MapMutationLock);
+			SubmixMap.Add(InSubmixBase, InMixerSubmix);
+		}
+	}
+
+	void FSubmixMap::Iterate(FIterFunc InFunction)
+	{
+		if (DisableSubmixMutationLockCVar)
+		{
+			for (const FPair& Pair : SubmixMap)
+			{
+				InFunction(Pair);
+			}
+		}
+		else
+		{
+			FScopeLock ScopeLock(&MapMutationLock);
+			for (const FPair& Pair : SubmixMap)
+			{
+				InFunction(Pair);
+			}
+		}
+	}
+
+	FMixerSubmixPtr FSubmixMap::FindRef(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase)
+	{
+		if (!InSubmixBase.IsValid())
+		{
+			return FMixerSubmixPtr();
+		}
+
+		if (DisableSubmixMutationLockCVar)
+		{
+			return SubmixMap.FindRef(InSubmixBase);
+		}
+		else
+		{
+			FScopeLock ScopeLock(&MapMutationLock);
+			return SubmixMap.FindRef(InSubmixBase);
+		}
+	}
+
+	int32 FSubmixMap::Remove(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase)
+	{
+		if (!InSubmixBase.IsValid())
+		{
+			return 0;
+		}
+
+		if (DisableSubmixMutationLockCVar)
+		{
+			return SubmixMap.Remove(InSubmixBase);
+		}
+		else
+		{
+			FScopeLock ScopeLock(&MapMutationLock);
+			return SubmixMap.Remove(InSubmixBase);
+		}
+	}
+
+	void FSubmixMap::Reset()
+	{
+		if (DisableSubmixMutationLockCVar)
+		{
+			SubmixMap.Reset();
+		}
+		else
+		{
+			FScopeLock ScopeLock(&MapMutationLock);
+			SubmixMap.Reset();
+		}
+	}
+
+
 	FMixerDevice::FMixerDevice(IAudioMixerPlatformInterface* InAudioMixerPlatform)
 		: QuantizedEventClockManager(this)
 		, AudioMixerPlatform(InAudioMixerPlatform)
@@ -102,14 +192,14 @@ namespace Audio
 
 	void FMixerDevice::AddReferencedObjects(FReferenceCollector& Collector)
 	{
-		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
+		Submixes.Iterate([InCollector = &Collector](const FSubmixMap::FPair& Pair)
 		{
 			if (Pair.Key.IsValid())
 			{
 				const USoundSubmixBase* Submix = Pair.Key.Get();
-				Collector.AddReferencedObject(Submix);
+				InCollector->AddReferencedObject(Submix);
 			}
-		}
+		});
 	}
 
 	void FMixerDevice::CheckAudioThread() const
@@ -889,6 +979,13 @@ namespace Audio
 
 			// 1. Load or reload all sound submixes/instances
 			LoadMasterSoundSubmix(EMasterSubmixType::Master, TEXT("MasterSubmixDefault"), false /* DefaultMuteWhenBackgrounded */, AudioSettings->MasterSubmix);
+
+			// BaseDefaultSubmix is an optional master submix type set by project settings
+			if (AudioSettings->BaseDefaultSubmix.IsValid())
+			{
+				LoadMasterSoundSubmix(EMasterSubmixType::BaseDefault, TEXT("BaseDefault"), false /* DefaultMuteWhenBackgrounded */, AudioSettings->BaseDefaultSubmix);
+			}
+
 			LoadMasterSoundSubmix(EMasterSubmixType::Reverb, TEXT("MasterReverbSubmixDefault"), true /* DefaultMuteWhenBackgrounded */, AudioSettings->ReverbSubmix);
 
 			if (!DisableSubmixEffectEQCvar)
@@ -923,6 +1020,7 @@ namespace Audio
 			}, GET_STATID(STAT_InitSoundSubmixes));
 			return;
 		}
+
 		for (int32 i = 0; i < static_cast<int32>(EMasterSubmixType::Count); ++i)
 		{
 			if (DisableSubmixEffectEQCvar && i == static_cast<int32>(EMasterSubmixType::EQ))
@@ -931,23 +1029,22 @@ namespace Audio
 			}
 
 			USoundSubmixBase* SoundSubmix = MasterSubmixes[i];
-			check(SoundSubmix);
-			FMixerSubmixPtr& MasterSubmixInstance = MasterSubmixInstances[i];
-
-			if (SoundSubmix != MasterSubmixes[static_cast<int32>(EMasterSubmixType::Master)])
+			if (SoundSubmix && SoundSubmix != MasterSubmixes[static_cast<int32>(EMasterSubmixType::Master)])
 			{
+				FMixerSubmixPtr& MasterSubmixInstance = MasterSubmixInstances[i];
+
 				RebuildSubmixLinks(*SoundSubmix, MasterSubmixInstance);
 			}
 		}
 
-		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
+		Submixes.Iterate([=](const FSubmixMap::FPair& Pair)
 		{
 			if (Pair.Key.IsValid())
 			{
-				FMixerSubmixPtr& SubmixInstance = Pair.Value;
-				RebuildSubmixLinks(*Pair.Key, SubmixInstance);
+				FMixerSubmixPtr SubmixPtr = Pair.Value;
+				RebuildSubmixLinks(*Pair.Key, SubmixPtr);
 			}
-		}
+		});
 	}
 
 	void FMixerDevice::RebuildSubmixLinks(const USoundSubmixBase& SoundSubmix, FMixerSubmixPtr& SubmixInstance)
@@ -956,9 +1053,22 @@ namespace Audio
 		FMixerSubmixPtr ParentSubmixInstance;
 		if (const USoundSubmixWithParentBase* SubmixWithParent = Cast<const USoundSubmixWithParentBase>(&SoundSubmix))
 		{
-			ParentSubmixInstance = SubmixWithParent->ParentSubmix
-				? GetSubmixInstance(SubmixWithParent->ParentSubmix).Pin()
-				: GetMasterSubmix().Pin();
+			if (SubmixWithParent->ParentSubmix)
+			{
+				ParentSubmixInstance = GetSubmixInstance(SubmixWithParent->ParentSubmix).Pin();
+			}
+			else
+			{
+				// If this submix is itself the broadcast submix, set its parent to the master submix
+				if (SubmixInstance == MasterSubmixInstances[static_cast<int32>(EMasterSubmixType::BaseDefault)])
+				{
+					ParentSubmixInstance = GetMasterSubmix().Pin();
+				}
+				else
+				{
+					ParentSubmixInstance = GetBaseDefaultSubmix().Pin();
+				}
+			}
 		}
 
 		if (ParentSubmixInstance.IsValid())
@@ -986,6 +1096,15 @@ namespace Audio
 	FMixerSubmixWeakPtr FMixerDevice::GetMasterSubmix()
 	{
 		return MasterSubmixInstances[EMasterSubmixType::Master];
+	}
+
+	FMixerSubmixWeakPtr FMixerDevice::GetBaseDefaultSubmix()
+	{
+		if (MasterSubmixInstances[EMasterSubmixType::BaseDefault].IsValid())
+		{
+			return MasterSubmixInstances[EMasterSubmixType::BaseDefault];
+		}
+		return GetMasterSubmix();
 	}
 
 	FMixerSubmixWeakPtr FMixerDevice::GetMasterReverbSubmix()
@@ -1539,18 +1658,19 @@ namespace Audio
 			}
 		}
 
-		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
+		FMixerSubmixPtr SubmixPtr;
+		Submixes.Iterate([SubmixPtrPtr = &SubmixPtr, InObjectId](const FSubmixMap::FPair& Pair)
 		{
 			if (Pair.Key.IsValid())
 			{
 				if (Pair.Key->GetUniqueID() == InObjectId)
 				{
-					return Pair.Value;
+					*SubmixPtrPtr = Pair.Value;
 				}
 			}
-		}
+		});
 
-		return nullptr;
+		return SubmixPtr;
 	}
 
 	FMixerSubmixPtr FMixerDevice::GetSubmixInstance(uint32 InSubmixId)
@@ -1565,19 +1685,20 @@ namespace Audio
 			return MixerSubmix;
 		}
 
-		for (TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>& Pair : Submixes)
+		FMixerSubmixPtr SubmixPtr;
+		Submixes.Iterate([SubmixPtrPtr = &SubmixPtr, InSubmixId](const FSubmixMap::FPair& Pair)
 		{
 			if (Pair.Key.IsValid())
 			{
 				FMixerSubmixPtr SubmixPtr = Pair.Value;
 				if (SubmixPtr->GetId() == InSubmixId)
 				{
-					return SubmixPtr;
+					*SubmixPtrPtr = SubmixPtr;
 				}
 			}
-		}
+		});
 
-		return nullptr;
+		return SubmixPtr;
 	}
 
 	void FMixerDevice::InitDefaultAudioBuses()

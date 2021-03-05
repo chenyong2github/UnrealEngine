@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "Engine/UserDefinedStruct.h"
 #include "Misc/SecureHash.h"
-#include "Templates/SharedPointer.h"
 #include "UObject/GCObject.h"
 #include "UObject/UnrealType.h"
 
@@ -16,6 +15,13 @@ class UNiagaraDataInterfaceBase;
 DECLARE_LOG_CATEGORY_EXTERN(LogNiagara, Log, Verbose);
 
 // basic type struct definitions
+
+USTRUCT(meta = (DisplayName = "Wildcard"))
+struct FNiagaraWildcard
+{
+	GENERATED_BODY()
+	
+};
 
 USTRUCT(meta = (DisplayName = "float"))
 struct FNiagaraFloat
@@ -726,6 +732,9 @@ struct NIAGARA_API FNiagaraVariableMetaData
 	/** Copies all the properties that are marked as editable for the user (e.g. EditAnywhere). */
 	void CopyUserEditableMetaData(const FNiagaraVariableMetaData& OtherMetaData);
 
+	FGuid GetVariableGuid() const { return VariableGuid; };
+	void CreateNewGuid() { VariableGuid = FGuid::NewGuid(); };
+
 private:
 	/** Defines the scope of a variable that is an input to a script. Used to lookup registered scope infos and resolve the actual ENiagaraParameterScope and Namespace string to use. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
@@ -734,6 +743,10 @@ private:
 	/** Defines the usage of a variable as an argument or output relative to the script. */
 	UPROPERTY(meta = (SkipForCompileHash = "true"))
 	ENiagaraScriptParameterUsage Usage;
+
+	/** A unique identifier for the variable that can be used by function call nodes to find renamed variables. */
+	UPROPERTY(meta = (SkipForCompileHash = "true"))
+	FGuid VariableGuid;
 
 	/** This is a read-only variable that designates if the metadata is tied to a static switch or not. */
 	UPROPERTY()
@@ -899,6 +912,8 @@ public:
 	}
 
 	bool IsEnum() const { return UnderlyingType == UT_Enum; }
+
+	bool IsIndexWildcard() const { return ClassStructOrEnum == FNiagaraTypeDefinition::GetWildcardStruct(); }
 	
 	int32 GetSize() const
 	{
@@ -940,6 +955,10 @@ public:
 			ClassStructOrEnum == FNiagaraTypeDefinition::GetMatrix4Struct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetColorStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetQuatStruct();
  	}
 
+	bool IsIndexType() const
+	{
+		return ClassStructOrEnum == FNiagaraTypeDefinition::GetIntStruct() || ClassStructOrEnum == FNiagaraTypeDefinition::GetBoolStruct() || IsEnum();
+	}
 	bool IsValid() const 
 	{ 
 		return ClassStructOrEnum != nullptr;
@@ -999,7 +1018,7 @@ public:
 	static const FNiagaraTypeDefinition& GetUMaterialDef() { return UMaterialDef; }
 	static const FNiagaraTypeDefinition& GetUTextureDef() { return UTextureDef; }
 	static const FNiagaraTypeDefinition& GetUTextureRenderTargetDef() { return UTextureRenderTargetDef; }
-
+	static const FNiagaraTypeDefinition& GetWildcardDef() { return WildcardDef; }
 	static const FNiagaraTypeDefinition& GetHalfDef() { return HalfDef; }
 	static const FNiagaraTypeDefinition& GetHalfVec2Def() { return HalfVec2Def; }
 	static const FNiagaraTypeDefinition& GetHalfVec3Def() { return HalfVec3Def; }
@@ -1018,6 +1037,7 @@ public:
 	static UScriptStruct* GetQuatStruct() { return QuatStruct; }
 	static UScriptStruct* GetMatrix4Struct() { return Matrix4Struct; }
 	static UScriptStruct* GetGenericNumericStruct() { return NumericStruct; }
+	static UScriptStruct* GetWildcardStruct() { return WildcardStruct; }
 	static UScriptStruct* GetParameterMapStruct() { return ParameterMapStruct; }
 	static UScriptStruct* GetIDStruct() { return IDStruct; }
 
@@ -1073,6 +1093,7 @@ private:
 	static FNiagaraTypeDefinition UMaterialDef;
 	static FNiagaraTypeDefinition UTextureDef;
 	static FNiagaraTypeDefinition UTextureRenderTargetDef;
+	static FNiagaraTypeDefinition WildcardDef;
 
 	static FNiagaraTypeDefinition HalfDef;
 	static FNiagaraTypeDefinition HalfVec2Def;
@@ -1089,6 +1110,7 @@ private:
 	static UScriptStruct* ColorStruct;
 	static UScriptStruct* Matrix4Struct;
 	static UScriptStruct* NumericStruct;
+	static UScriptStruct* WildcardStruct;
 
 	static UScriptStruct* HalfStruct;
 	static UScriptStruct* HalfVec2Struct;
@@ -1236,6 +1258,11 @@ public:
 		return Get().RegisteredNumericTypes;
 	}
 
+	static const TArray<FNiagaraTypeDefinition>& GetIndexTypes()
+	{
+		return Get().RegisteredIndexTypes;
+	}
+
 	static UNiagaraDataInterfaceBase* GetDefaultDataInterfaceByName(const FString& DIClassName);
 
 	static void ClearUserDefinedRegistry()
@@ -1249,6 +1276,7 @@ public:
 			Registry.RegisteredPayloadTypes.Remove(Def);
 			Registry.RegisteredParamTypes.Remove(Def);
 			Registry.RegisteredNumericTypes.Remove(Def);
+			Registry.RegisteredIndexTypes.Remove(Def);
 		}
 
 		Registry.RegisteredUserDefinedTypes.Empty();
@@ -1329,6 +1357,11 @@ public:
 		{
 			Registry.RegisteredNumericTypes.AddUnique(NewType);
 		}
+
+		if(NewType.IsIndexType())
+		{
+			Registry.RegisteredIndexTypes.AddUnique(NewType);
+		}
 	}
 
 	static int32 RegisterIndexed(const FNiagaraTypeDefinition& NewType)
@@ -1369,6 +1402,8 @@ private:
 	TArray<FNiagaraTypeDefinition> RegisteredPayloadTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredUserDefinedTypes;
 	TArray<FNiagaraTypeDefinition> RegisteredNumericTypes;
+	TArray<FNiagaraTypeDefinition> RegisteredIndexTypes;
+
 
 	TMap<uint32, int32> RegisteredTypeIndexMap;
 	FRWLock RegisteredTypesLock;

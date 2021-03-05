@@ -268,7 +268,7 @@ inline void FRDGGPUScopeStacksByPipeline::EndEventScope()
 	AsyncCompute.Event.EndScope();
 }
 
-inline void FRDGGPUScopeStacksByPipeline::BeginStatScope(const FName& Name, const FName& StatName, int32* DrawCallCounter)
+inline void FRDGGPUScopeStacksByPipeline::BeginStatScope(const FName& Name, const FName& StatName, int32 (*DrawCallCounter)[MAX_NUM_GPUS])
 {
 	Graphics.Stat.BeginScope(Name, StatName, DrawCallCounter);
 	AsyncCompute.Stat.BeginScope(Name, StatName, DrawCallCounter);

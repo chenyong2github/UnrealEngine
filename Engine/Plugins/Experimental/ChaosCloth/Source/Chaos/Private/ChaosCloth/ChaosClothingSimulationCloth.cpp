@@ -350,6 +350,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	const FVec3& InGravityOverride,
 	const FVec3& InLinearVelocityScale,
 	float InAngularVelocityScale,
+	float InFictitiousAngularScale,
 	float InDragCoefficient,
 	float InLiftCoefficient,
 	bool bInUseLegacyWind,
@@ -387,6 +388,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, GravityOverride(InGravityOverride)
 	, LinearVelocityScale(InLinearVelocityScale)
 	, AngularVelocityScale(InAngularVelocityScale)
+	, FictitiousAngularScale(InFictitiousAngularScale)
 	, DragCoefficient(InDragCoefficient)
 	, LiftCoefficient(InLiftCoefficient)
 	, bUseLegacyWind(bInUseLegacyWind)
@@ -725,8 +727,8 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		// In all cases apart from when the cloth override is used, the gravity scale must be combined to the solver gravity value.
 		Solver->SetGravity(GroupId, GetGravity(Solver));
 
-		// Update wind
-		Solver->SetLegacyWind(GroupId, bUseLegacyWind);
+		// External forces (legacy wind+field)
+		Solver->AddExternalForces(GroupId, bUseLegacyWind);
 
 		if (bUseLegacyWind && ChaosClothingSimulationClothConsoleVariables::CVarLegacyDisablesAccurateWind.GetValueOnAnyThread())
 		{
@@ -778,7 +780,8 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 			OldReferenceSpaceTransform,
 			ReferenceSpaceTransform,
 			OutLinearVelocityScale,
-			OutAngularVelocityScale);
+			OutAngularVelocityScale,
+			FictitiousAngularScale);
 	}
 
 	// Reset trigger flags

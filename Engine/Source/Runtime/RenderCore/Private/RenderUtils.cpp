@@ -1142,6 +1142,14 @@ RENDERCORE_API bool AllowPixelDepthOffset(const FStaticShaderPlatform Platform)
 	return true;
 }
 
+RENDERCORE_API uint64 GMobileAmbientOcclusionPlatformMask = 0;
+static_assert(SP_NumPlatforms <= sizeof(GMobileAmbientOcclusionPlatformMask) * 8, "GMobileAmbientOcclusionPlatformMask must be large enough to support all shader platforms");
+
+RENDERCORE_API bool UseMobileAmbientOcclusion(const FStaticShaderPlatform Platform)
+{
+	return (IsMobilePlatform(Platform) && !!(GMobileAmbientOcclusionPlatformMask & (1ull << Platform)));
+}
+
 RENDERCORE_API bool IsMobileDistanceFieldEnabled(const FStaticShaderPlatform Platform)
 {
 	return IsMobilePlatform(Platform) && IsSwitchPlatform(Platform) && IsUsingDistanceFields(Platform);
@@ -1154,6 +1162,46 @@ RENDERCORE_API bool IsMobileDistanceFieldShadowingEnabled(const FStaticShaderPla
 
 	return GRHISupportsPixelShaderUAVs && bDistanceFieldShadowingEnabled && IsMobileDistanceFieldEnabled(Platform);
 }
+
+template<typename Type>
+Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
+{
+	Type Value = {};
+
+#if WITH_EDITOR
+	Type* ExistingEntry = CachedValues.Find(ShaderPlatform);
+	if (ExistingEntry != nullptr)
+	{
+		return *ExistingEntry;
+	}
+
+	if (!bTestedIni)
+	{
+		bTestedIni = true;
+		FConfigFile PlatformEngineIni;
+		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *ShaderPlatformToPlatformName(ShaderPlatform).ToString());
+		if (PlatformEngineIni.GetValue(Section, Key, Value))
+		{
+			CachedValues.Add(ShaderPlatform, Value);
+			return Value;
+		}
+	}
+#endif
+	// If it's not in the ini file, don't cache, always return the CVar's current value
+	if (CVar==nullptr)
+	{
+		CVar = IConsoleManager::Get().FindConsoleVariable(Key);
+	}
+
+	if (CVar!=nullptr)
+	{
+		CVar->GetValue(Value);
+	}
+	return Value;
+}
+template struct FShaderPlatformCachedIniValue<FString>;
+template struct FShaderPlatformCachedIniValue<int32>;
+template struct FShaderPlatformCachedIniValue<float>;
 
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
@@ -1253,6 +1301,12 @@ RENDERCORE_API void RenderUtilsInit()
 		GRayTracingPlaformMask = ~0ull;
 	}
 
+	static IConsoleVariable* MobileAmbientOcclusionCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.AmbientOcclusion"));
+	if (MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt())
+	{
+		GMobileAmbientOcclusionPlatformMask = ~0ull;
+	}
+
 #if WITH_EDITOR
 	ITargetPlatformManagerModule* TargetPlatformManager = GetTargetPlatformManager();
 	if (TargetPlatformManager)
@@ -1336,6 +1390,15 @@ RENDERCORE_API void RenderUtilsInit()
 				else
 				{
 					GVelocityEncodeDepthPlatformMask &= ~Mask;
+				}
+
+				if (TargetPlatform->UsesMobileAmbientOcclusion())
+				{
+					GMobileAmbientOcclusionPlatformMask |= Mask;
+				}
+				else
+				{
+					GMobileAmbientOcclusionPlatformMask &= ~Mask;
 				}
 			}
 		}

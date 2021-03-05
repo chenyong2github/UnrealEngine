@@ -339,7 +339,7 @@ namespace ChaosTest {
 	{
 		FWeakParticleHandle WeakHandle;
 		{
-			TPBDRigidsSOAs<FReal,3> SOAs;
+			FPBDRigidsSOAs SOAs;
 			SOAs.CreateStaticParticles(1);
 			for(auto& Particle : SOAs.GetAllParticlesView())
 			{
@@ -535,21 +535,21 @@ namespace ChaosTest {
 		// because of this, we must be able to compare (external, null) == (external, null) 
 		// and also (external, null) == (external, internal)
 
-		TPBDRigidsSOAs<FReal,3> SOAs;
+		FPBDRigidsSOAs SOAs;
 
 		auto GTParticle = FGeometryParticle::CreateParticle();
 		//fake unique assignment like we would for solver
 		GTParticle->SetUniqueIdx(SOAs.GetUniqueIndices().GenerateUniqueIdx());
 
-		TAccelerationStructureHandle<FReal, 3> ExternalOnlyHandle(GTParticle.Get());
+		FAccelerationStructureHandle ExternalOnlyHandle(GTParticle.Get());
 
 		FUniqueIdx Idx = GTParticle->UniqueIdx();
 		auto Particles = SOAs.CreateStaticParticles(1, &Idx);
-		TAccelerationStructureHandle<FReal, 3> ExternalInternalHandle(Particles[0], GTParticle.Get());
+		FAccelerationStructureHandle ExternalInternalHandle(Particles[0], GTParticle.Get());
 
-		TAccelerationStructureHandle<FReal, 3> InternalOnlyHandle(Particles[0], nullptr);
+		FAccelerationStructureHandle InternalOnlyHandle(Particles[0], nullptr);
 
-		TAccelerationStructureHandle<FReal, 3> NullHandle;
+		FAccelerationStructureHandle NullHandle;
 
 		EXPECT_EQ(ExternalOnlyHandle, ExternalInternalHandle);
 		EXPECT_EQ(ExternalOnlyHandle, ExternalOnlyHandle);
@@ -567,7 +567,7 @@ namespace ChaosTest {
 
 	void HandleObjectStateChangeTest()
 	{
-		TPBDRigidsSOAs<FReal, 3> SOAs;
+		FPBDRigidsSOAs SOAs;
 
 		// Lambda for adding a particle to the dynamic-backed kinematic SOA
 		const auto CreateDynamicKinematic = [&]()

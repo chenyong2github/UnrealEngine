@@ -223,12 +223,6 @@
 ///
 /// Language | API
 /// -------- | -------------------------------------
-/// C        | @ref gfnGetGameModStorageQuota
-///
-/// @copydoc gfnGetGameModStorageQuota
-///
-/// Language | API
-/// -------- | -------------------------------------
 /// C        | @ref gfnAppReady
 ///
 /// @copydoc gfnAppReady
@@ -366,20 +360,6 @@
             return "Unknown GfnStreamStatus";
         }
 
-        /// @brief Types of Game Mod notifications
-        typedef enum GameModNotificationType
-        {
-            GameModStorageExceeded = 1,                     ///< Mod storage exceeded threshold limits
-            GameModUnsupported_ExecutableCodeDetected = 2   ///< Mods not supported
-        } GameModNotificationType;
-
-        ///@brief Input to the notification callback
-        typedef struct GameModNotification
-        {
-            const char* gameModId;                          ///< UTF-8 encoded unique Game Mod Identifier
-            const char* gameModPath;                        ///< absolute folder path to Game Mod
-            GameModNotificationType notificationType;       ///< Game mod notification type
-        } GameModNotification;
 
         // ============================================================================================
         // Callback signatures
@@ -400,8 +380,6 @@
         /// @brief Callback function for notifications when a game should continue late-stage initialization. Register via gfnRegisterSessionInitCallback API.
         /// Function should consume or copy the passed-in partnerInfoMutable string
         typedef GfnApplicationCallbackResult(GFN_CALLBACK* SessionInitCallbackSig)(const char* partnerInfoMutable, void* pUserContext);
-        /// @brief Callback function for notifications on MOD updates. Register via gfnRegisterGameModNotificationCallback API.
-        typedef GfnApplicationCallbackResult(GFN_CALLBACK* GameModNotificationCallbackSig)(GameModNotification* pNotification, void* pUserContext);
         // ============================================================================================
         // C API
         // ============================================================================================
@@ -583,22 +561,6 @@
         NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnRegisterSessionInitCallback(SessionInitCallbackSig sessionInitCallback, void* pUserContext);
         /// @}
 
-        ///
-        /// @par Description
-        /// Register an application callback with GFN to be called when GFN needs to notify GameMod updates.
-        ///
-        /// @par Usage
-        /// Register an application function to call when GFN needs the application to save
-        ///
-        /// @param gameModCallback              - Function pointer to application code to call when GFN needs
-        ///                                       the application to save
-        /// @param pUserContext                 - Pointer to user context, which will be passed unmodified to the
-        ///                                       callback specified. Can be NULL.
-        ///
-        /// @retval gfnSuccess                  - On success when running in a GFN environment
-        /// @retval gfnDLLNotPresent            - If callback was not registered
-        NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnRegisterGameModNotificationCallback(GameModNotificationCallbackSig gameModCallback, void* pUserContext);
-        /// @}
 
         // ============================================================================================
         // Application -> Geforce NOW SDK communication
@@ -955,24 +917,6 @@
         /// @retval gfnInvalidParameter      - NULL pointer passed in
         NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnFree(const char** ppchData);
 
-        ///
-        /// @par Description
-        /// Retrieves storage quota allocated for Game Mod.
-        /// @ref gfnGetGameModStorageQuota
-        ///
-        /// @par Environment
-        /// Cloud
-        ///
-        /// @par Usage
-        /// Use during cloud session to retrieve Game Mod storage quota
-        ///
-        /// @param pSizeMB                   - Populated with storage size (in MegaBytes)
-        ///
-        /// @retval gfnSuccess               - On success
-        /// @retval gfnInvalidParameter      - NULL pointer passed in
-        /// @retval gfnCallWrongEnvironment  - If called in a client environment
-        /// @return Otherwise, appropriate error code
-        NVGFNSDK_EXPORT GfnRuntimeError NVGFNSDKApi gfnGetGameModStorageQuota(unsigned int* pSizeMB);
 
         ///
         /// @par Description

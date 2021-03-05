@@ -32,7 +32,7 @@ namespace Chaos
 			}
 			case ImplicitObjectType::Capsule:
 			{
-				return Func(Geom.template GetObjectChecked<TCapsule<FReal>>());
+				return Func(Geom.template GetObjectChecked<FCapsule>());
 			}
 			case ImplicitObjectType::Convex:
 			{
@@ -48,7 +48,7 @@ namespace Chaos
 			}
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule:
 			{
-				return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>());
+				return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FCapsule>>());
 			}
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex:
 			{
@@ -64,7 +64,7 @@ namespace Chaos
 			}
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Capsule:
 			{
-				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TCapsule<FReal>>>().GetInstancedObject()->template GetObjectChecked<TCapsule<FReal>>());
+				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<FCapsule>>().GetInstancedObject()->template GetObjectChecked<FCapsule>());
 			}
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Convex:
 			{
@@ -90,11 +90,11 @@ namespace Chaos
 			{
 			case ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>(), TM);
 			case ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked<TBox<FReal, 3>>(), TM);
-			case ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked<TCapsule<FReal>>(), TM);
+			case ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked<FCapsule>(), TM);
 			case ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked<FConvex>(), TM);
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TImplicitObjectScaled<TSphere<FReal, 3>>>(), TM);
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>(), TM);
-			case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>(), TM);
+			case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FCapsule>>(), TM);
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FConvex>>(), TM);
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Sphere:
 			{
@@ -106,7 +106,7 @@ namespace Chaos
 			}
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Capsule:
 			{
-				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TCapsule<FReal>>>().GetInstancedObject()->template GetObjectChecked<TCapsule<FReal>>(), TM);
+				return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<FCapsule>>().GetInstancedObject()->template GetObjectChecked<FCapsule>(), TM);
 			}
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Convex:
 			{
@@ -132,15 +132,15 @@ namespace Chaos
 			{
 			case ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TSphere<FReal, 3>>(), TM);
 			case ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked<TBox<FReal, 3>>(), TM);
-			case ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked<TCapsule<FReal>>(), TM);
+			case ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked<FCapsule>(), TM);
 			case ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked<FConvex>(), TM);
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked<TImplicitObjectScaled<TSphere<FReal, 3>>>(), TM);
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TBox<FReal, 3>>>(), TM);
-			case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<TCapsule<FReal>>>(), TM);
+			case ImplicitObjectType::IsScaled | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FCapsule>>(), TM);
 			case ImplicitObjectType::IsScaled | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectScaled<FConvex>>(), TM);
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Sphere: return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TSphere<FReal, 3>>>(), TM);
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Box: return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TBox<FReal, 3>>>(), TM);
-			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<TCapsule<FReal>>>(), TM);
+			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Capsule: return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<FCapsule>>(), TM);
 			case ImplicitObjectType::IsInstanced | ImplicitObjectType::Convex: return Func(Geom.template GetObjectChecked< TImplicitObjectInstanced<FConvex>>(), TM);
 			case ImplicitObjectType::Transformed:
 			{
@@ -170,9 +170,9 @@ namespace Chaos
 			{
 				return ImplicitObject->template GetObject<const TImplicitObjectScaled<TBox<FReal, 3>>>()->GetUnscaledObject();
 			}
-			else if (ImplicitType == TImplicitObjectScaled<TCapsule<FReal>>::StaticType())
+			else if (ImplicitType == TImplicitObjectScaled<FCapsule>::StaticType())
 			{
-				return ImplicitObject->template GetObject<const TImplicitObjectScaled<TCapsule<FReal>>>()->GetUnscaledObject();
+				return ImplicitObject->template GetObject<const TImplicitObjectScaled<FCapsule>>()->GetUnscaledObject();
 			}
 			else if (ImplicitType == TImplicitObjectScaled<TSphere<FReal, 3>>::StaticType())
 			{
@@ -191,9 +191,9 @@ namespace Chaos
 			{
 				return ImplicitObject->template GetObject<const TImplicitObjectInstanced<TBox<FReal, 3>>>()->GetInstancedObject();
 			}
-			else if (ImplicitType == TImplicitObjectInstanced<TCapsule<FReal>>::StaticType())
+			else if (ImplicitType == TImplicitObjectInstanced<FCapsule>::StaticType())
 			{
-				return ImplicitObject->template GetObject<const TImplicitObjectInstanced<TCapsule<FReal>>>()->GetInstancedObject();
+				return ImplicitObject->template GetObject<const TImplicitObjectInstanced<FCapsule>>()->GetInstancedObject();
 			}
 			else if (ImplicitType == TImplicitObjectInstanced<TSphere<FReal, 3>>::StaticType())
 			{

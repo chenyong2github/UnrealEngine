@@ -7,9 +7,7 @@
 
 namespace Chaos
 {
-	template<class T, int d>
-	class TBVHParticles;
-
+	class FBVHParticles;
 	class FContactPoint;
 	class FImplicitObject;
 	class FRigidBodyPointContactConstraint;
@@ -57,7 +55,7 @@ namespace Chaos
 
 		template <ECollisionUpdateType UpdateType>
 		FContactPoint
-		SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const TBVHParticles<FReal, 3>& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal Thickness);
+		SampleObject(const FImplicitObject& Object, const FRigidTransform3& ObjectTransform, const FBVHParticles& SampleParticles, const FRigidTransform3& SampleParticlesTransform, FReal Thickness);
 
 		TArray<Pair<const FImplicitObject*, FRigidTransform3>> 
 		FindRelevantShapes(const FImplicitObject* ParticleObj, const FRigidTransform3& ParticlesTM, const FImplicitObject& LevelsetObj, const FRigidTransform3& LevelsetTM, const FReal Thickness);

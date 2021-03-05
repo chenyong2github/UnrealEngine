@@ -10,6 +10,7 @@ NiagaraRenderer.h: Base class for Niagara render modules
 #include "NiagaraMeshRendererProperties.h"
 
 class FNiagaraDataSet;
+struct FNiagaraDynamicDataMesh;
 
 /**
 * NiagaraRendererSprites renders an FNiagaraEmitterInstance as sprite particles
@@ -19,7 +20,7 @@ class NIAGARA_API FNiagaraRendererMeshes : public FNiagaraRenderer
 public:
 	FNiagaraRendererMeshes(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
 	~FNiagaraRendererMeshes();
-	
+
 	//FNiagaraRenderer Interface
 	virtual void Initialize(const UNiagaraRendererProperties* InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent) override;
 	virtual void ReleaseRenderThreadResources() override;
@@ -58,7 +59,6 @@ protected:
 		TArray<uint32, TInlineAllocator<4>> MaterialRemapTable;
 	};
 
-	virtual int32 GetMaxIndirectArgs() const override;
 	int32 GetLODIndex(int32 MeshIndex) const;
 
 	void PrepareParticleBuffers(
@@ -74,11 +74,12 @@ protected:
 		const FMeshData& MeshData,
 		const FNiagaraSceneProxy& SceneProxy,
 		const FNiagaraRendererLayout& RendererLayout,
-		const FSceneView& View,		
-		const FParticleGPUBufferData& BufferData,
+		const FSceneView& View,
+		const FParticleGPUBufferData& BufferData, 
+		const FNiagaraDynamicDataMesh* DynamicDataMesh,
 		FVector& OutWorldSpacePivotOffset,
 		FSphere& OutCullingSphere) const;
-		
+
 	void InitializeSortInfo(
 		const FNiagaraDataBuffer& SourceParticleData,
 		const FNiagaraSceneProxy& SceneProxy,
@@ -109,10 +110,11 @@ protected:
 		bool bIsInstancedStereo,
 		bool bDoGPUCulling) const;
 
-private:	
+private:
 
 	TArray<FMeshData, TInlineAllocator<1>> Meshes;
 
+	ENiagaraRendererSourceDataMode SourceMode;
 	ENiagaraSortMode SortMode;
 	ENiagaraMeshFacingMode FacingMode;
 	uint32 bOverrideMaterials : 1;
@@ -122,7 +124,7 @@ private:
 	uint32 bEnableFrustumCulling : 1;
 
 	uint32 bSubImageBlend : 1;
-	FVector2D SubImageSize;	
+	FVector2D SubImageSize;
 
 	FVector LockedAxis;
 	ENiagaraMeshLockedAxisSpace LockedAxisSpace;
@@ -133,6 +135,9 @@ private:
 	int32 MeshIndexOffset;
 	uint32 MaterialParamValidMask;
 	uint32 MaxSectionCount;
+
+	int32 VFBoundOffsetsInParamStore[ENiagaraMeshVFLayout::Type::Num];
+	uint32 bSetAnyBoundVars : 1;
 
 	const FNiagaraRendererLayout* RendererLayoutWithCustomSorting;
 	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSorting;

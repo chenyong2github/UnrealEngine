@@ -9,6 +9,8 @@
 #include "SessionServiceMessages.h"
 #include "SessionInfo.h"
 
+/** Defines the interval in seconds in which devices are being pinged by the proxy manager. */
+#define SESSION_MANAGER_PING_INTERVAL 5.0f
 
 /* FSessionManager structors
  *****************************************************************************/
@@ -41,7 +43,7 @@ FSessionManager::FSessionManager(const TSharedRef<IMessageBus, ESPMode::ThreadSa
 		.Handling<FSessionServicePong>(this, &FSessionManager::HandleSessionPongMessage);
 
 	// initialize ticker
-	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSessionManager::HandleTicker), 1.f);
+	TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FSessionManager::HandleTicker), SESSION_MANAGER_PING_INTERVAL);
 
 	SendPing();
 }
@@ -329,7 +331,7 @@ bool FSessionManager::HandleTicker(float DeltaTime)
 	// @todo gmp: don't expire sessions for now
 //	FindExpiredSessions(Now);
 
-	if (Now >= LastPingTime + FTimespan::FromSeconds(2.5))
+	if (Now >= LastPingTime + FTimespan::FromSeconds(SESSION_MANAGER_PING_INTERVAL))
 	{
 		SendPing();
 	}

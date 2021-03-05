@@ -11,6 +11,109 @@ namespace DatasmithRhino.ElementExporters
 {
 	public class DatasmithRhinoMaterialExporter : IDatasmithRhinoElementExporter<DatasmithRhinoMaterialExporter, DatasmithMaterialInfo>
 	{
+		/// <summary>
+		/// Expression Cache used to reduce the number of material new expression created when we modify the material.
+		/// </summary>
+		private class DatasmithMaterialExpressionCache
+		{
+			private Dictionary<EDatasmithFacadeMaterialExpressionType, Queue<FDatasmithFacadeMaterialExpression>> CachedExpressions = new Dictionary<EDatasmithFacadeMaterialExpressionType, Queue<FDatasmithFacadeMaterialExpression>>();
+			FDatasmithFacadeUEPbrMaterial Material;
+
+			public DatasmithMaterialExpressionCache(FDatasmithFacadeUEPbrMaterial InMaterial)
+			{
+				Material = InMaterial;
+			}
+
+			public void ResetMaterial()
+			{
+				Material.ResetExpressionGraph();
+
+				for (int ExpressionIndex = 0, ExpressionCount = Material.GetExpressionsCount(); ExpressionIndex < ExpressionCount; ++ExpressionIndex)
+				{
+					FDatasmithFacadeMaterialExpression Expression = Material.GetExpression(ExpressionIndex);
+					EDatasmithFacadeMaterialExpressionType ExpressionType = Expression.GetExpressionType();
+					Queue<FDatasmithFacadeMaterialExpression> CachedExpressionsQueue;
+
+					if (CachedExpressions.TryGetValue(ExpressionType, out CachedExpressionsQueue))
+					{
+						CachedExpressionsQueue.Enqueue(Expression);
+					}
+					else
+					{
+						CachedExpressionsQueue = new Queue<FDatasmithFacadeMaterialExpression>();
+						CachedExpressionsQueue.Enqueue(Expression);
+
+						CachedExpressions.Add(ExpressionType, CachedExpressionsQueue);
+					}
+				}
+			}
+
+			private T TryGetCachedExpression<T>(EDatasmithFacadeMaterialExpressionType ExpressionType) where T : FDatasmithFacadeMaterialExpression
+			{
+				if (CachedExpressions.TryGetValue(ExpressionType, out Queue<FDatasmithFacadeMaterialExpression> OutExpressions))
+				{
+					T CachedExpression = OutExpressions.Dequeue() as T;
+
+					if (OutExpressions.Count == 0)
+					{
+						CachedExpressions.Remove(ExpressionType);
+					}
+
+					return CachedExpression;
+				}
+
+				return null;
+			}
+
+			public FDatasmithFacadeMaterialExpressionBool GetOrCreateExpressionBool()
+			{
+				FDatasmithFacadeMaterialExpressionBool CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionBool>(EDatasmithFacadeMaterialExpressionType.ConstantBool);
+				return CachedExpression == null ? Material.AddMaterialExpressionBool() : CachedExpression;
+			}
+
+			public FDatasmithFacadeMaterialExpressionColor GetOrCreateExpressionColor()
+			{
+				FDatasmithFacadeMaterialExpressionColor CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionColor>(EDatasmithFacadeMaterialExpressionType.ConstantColor);
+				return CachedExpression == null ? Material.AddMaterialExpressionColor() : CachedExpression;
+			}
+
+			public FDatasmithFacadeMaterialExpressionFlattenNormal GetOrCreateExpressionFlattenNormal()
+			{
+				FDatasmithFacadeMaterialExpressionFlattenNormal CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionFlattenNormal>(EDatasmithFacadeMaterialExpressionType.FlattenNormal);
+				return CachedExpression == null ? Material.AddMaterialExpressionFlattenNormal() : CachedExpression;
+			}
+
+			public FDatasmithFacadeMaterialExpressionFunctionCall GetOrCreateExpressionFunctionCall()
+			{
+				FDatasmithFacadeMaterialExpressionFunctionCall CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionFunctionCall>(EDatasmithFacadeMaterialExpressionType.FunctionCall);
+				return CachedExpression == null ? Material.AddMaterialExpressionFunctionCall() : CachedExpression;
+			}
+
+			public FDatasmithFacadeMaterialExpressionGeneric GetOrCreateExpressionGeneric()
+			{
+				FDatasmithFacadeMaterialExpressionGeneric CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionGeneric>(EDatasmithFacadeMaterialExpressionType.Generic);
+				return CachedExpression == null ? Material.AddMaterialExpressionGeneric() : CachedExpression;
+			}
+
+			public FDatasmithFacadeMaterialExpressionScalar GetOrCreateExpressionScalar()
+			{
+				FDatasmithFacadeMaterialExpressionScalar CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionScalar>(EDatasmithFacadeMaterialExpressionType.ConstantScalar);
+				return CachedExpression == null ? Material.AddMaterialExpressionScalar() : CachedExpression;
+			}
+
+			public FDatasmithFacadeMaterialExpressionTexture GetOrCreateExpressionTexture()
+			{
+				FDatasmithFacadeMaterialExpressionTexture CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionTexture>(EDatasmithFacadeMaterialExpressionType.Texture);
+				return CachedExpression == null ? Material.AddMaterialExpressionTexture() : CachedExpression;
+			}
+
+			public FDatasmithFacadeMaterialExpressionTextureCoordinate GetOrCreateExpressionTextureCoordinate()
+			{
+				FDatasmithFacadeMaterialExpressionTextureCoordinate CachedExpression = TryGetCachedExpression<FDatasmithFacadeMaterialExpressionTextureCoordinate>(EDatasmithFacadeMaterialExpressionType.TextureCoordinate);
+				return CachedExpression == null ? Material.AddMaterialExpressionTextureCoordinate() : CachedExpression;
+			}
+		}
+
 		///// BEGIN IDatasmithRhinoElementExporter Interface /////
 
 		protected override int GetElementsToSynchronizeCount()
@@ -26,8 +129,10 @@ namespace DatasmithRhino.ElementExporters
 		protected override FDatasmithFacadeElement CreateElement(DatasmithMaterialInfo ElementInfo)
 		{
 			FDatasmithFacadeUEPbrMaterial DatasmithMaterial = new FDatasmithFacadeUEPbrMaterial(ElementInfo.Name);
-			DatasmithMaterial.SetLabel(ElementInfo.Label);
-			ParseMaterial(DatasmithMaterial, ElementInfo.RhinoMaterial);
+			DatasmithMaterial.SetLabel(ElementInfo.UniqueLabel);
+
+			DatasmithMaterialExpressionCache ExpressionCache = new DatasmithMaterialExpressionCache(DatasmithMaterial);
+			ParseMaterial(DatasmithMaterial, ElementInfo.RhinoMaterial, ExpressionCache);
 
 			return DatasmithMaterial;
 		}
@@ -40,7 +145,14 @@ namespace DatasmithRhino.ElementExporters
 		protected override void ModifyElement(DatasmithMaterialInfo ElementInfo)
 		{
 			//We need some way to reset the material. Right now there is no interface to remove material expressions.
-			throw new NotImplementedException();
+			FDatasmithFacadeUEPbrMaterial DatasmithMaterial = ElementInfo.ExportedMaterial;
+			DatasmithMaterial.SetLabel(ElementInfo.UniqueLabel);
+
+			//Reset the expression graph and cache its epxression for reuse
+			DatasmithMaterialExpressionCache ExpressionCache = new DatasmithMaterialExpressionCache(DatasmithMaterial);
+			ExpressionCache.ResetMaterial();
+
+			ParseMaterial(DatasmithMaterial, ElementInfo.RhinoMaterial, ExpressionCache);
 		}
 
 		protected override void DeleteElement(DatasmithMaterialInfo ElementInfo)
@@ -50,7 +162,7 @@ namespace DatasmithRhino.ElementExporters
 
 		///// END IDatasmithRhinoElementExporter Interface /////
 
-		private void ParseMaterial(FDatasmithFacadeUEPbrMaterial DSMaterial, Material RhinoMaterial)
+		private void ParseMaterial(FDatasmithFacadeUEPbrMaterial DSMaterial, Material RhinoMaterial, DatasmithMaterialExpressionCache ExpressionCache)
 		{
 			Color MaterialDiffuseColor = RhinoMaterial.DiffuseColor;
 			MaterialDiffuseColor = Color.FromArgb(255 - (byte)(255 * RhinoMaterial.Transparency), MaterialDiffuseColor);
@@ -72,7 +184,7 @@ namespace DatasmithRhino.ElementExporters
 			// Set a diffuse color if there's nothing in the BaseColor
 			if (DSMaterial.GetBaseColor().GetExpression() == null)
 			{
-				FDatasmithFacadeMaterialExpressionColor ColorExpression = DSMaterial.AddMaterialExpressionColor();
+				FDatasmithFacadeMaterialExpressionColor ColorExpression = ExpressionCache.GetOrCreateExpressionColor();
 				ColorExpression.SetName("Diffuse Color");
 				ColorExpression.SetsRGBColor(MaterialDiffuseColor.R, MaterialDiffuseColor.G, MaterialDiffuseColor.B, MaterialDiffuseColor.A);
 
@@ -85,7 +197,7 @@ namespace DatasmithRhino.ElementExporters
 				if (DSMaterial.GetOpacity().GetExpression() == null)
 				{
 					// Transparent color
-					FDatasmithFacadeMaterialExpressionScalar Scalar = DSMaterial.AddMaterialExpressionScalar();
+					FDatasmithFacadeMaterialExpressionScalar Scalar = ExpressionCache.GetOrCreateExpressionScalar();
 					Scalar.SetName("Opacity");
 					Scalar.SetScalar(1 - (float)RhinoMaterial.Transparency);
 					Scalar.ConnectExpression(DSMaterial.GetOpacity());
@@ -93,10 +205,10 @@ namespace DatasmithRhino.ElementExporters
 				else
 				{
 					// Modulate the opacity map with the color transparency setting
-					FDatasmithFacadeMaterialExpressionGeneric Multiply = DSMaterial.AddMaterialExpressionGeneric();
+					FDatasmithFacadeMaterialExpressionGeneric Multiply = ExpressionCache.GetOrCreateExpressionGeneric();
 					Multiply.SetExpressionName("Multiply");
 
-					FDatasmithFacadeMaterialExpressionScalar Scalar = DSMaterial.AddMaterialExpressionScalar();
+					FDatasmithFacadeMaterialExpressionScalar Scalar = ExpressionCache.GetOrCreateExpressionScalar();
 					Scalar.SetName("Opacity Output Level");
 					Scalar.SetScalar(1 - (float)RhinoMaterial.Transparency);
 					Scalar.ConnectExpression(Multiply.GetInput(0));
@@ -111,7 +223,7 @@ namespace DatasmithRhino.ElementExporters
 			float Shininess = (float) (RhinoMaterial.Shine / Material.MaxShine);
 			if (Math.Abs(Shininess) > float.Epsilon)
 			{
-				FDatasmithFacadeMaterialExpressionScalar ShininessExpression = DSMaterial.AddMaterialExpressionScalar();
+				FDatasmithFacadeMaterialExpressionScalar ShininessExpression = ExpressionCache.GetOrCreateExpressionScalar();
 				ShininessExpression.SetName("Roughness");
 				ShininessExpression.SetScalar(1f - Shininess);
 				ShininessExpression.ConnectExpression(DSMaterial.GetRoughness());
@@ -120,7 +232,7 @@ namespace DatasmithRhino.ElementExporters
 			float Reflectivity = (float) RhinoMaterial.Reflectivity;
 			if (Math.Abs(Reflectivity) > float.Epsilon)
 			{
-				FDatasmithFacadeMaterialExpressionScalar ReflectivityExpression = DSMaterial.AddMaterialExpressionScalar();
+				FDatasmithFacadeMaterialExpressionScalar ReflectivityExpression = ExpressionCache.GetOrCreateExpressionScalar();
 				ReflectivityExpression.SetName("Metallic");
 				ReflectivityExpression.SetScalar(Reflectivity);
 				ReflectivityExpression.ConnectExpression(DSMaterial.GetMetallic());

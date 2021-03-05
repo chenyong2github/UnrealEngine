@@ -19,7 +19,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.15";
+        private static string VersionString = "4.16";
 
         public static string Get() { return VersionString; }
     };
@@ -827,7 +827,7 @@ namespace PerfReportTool
 					// Save the response file
 					responseFilename = GetTempFilename(csvFile.filename) + "_response.txt";
 					System.IO.File.WriteAllLines(responseFilename, csvToSvgCommandlines);
-					Process csvToSvgProcess = LaunchCsvToSvgAsync("-batchCommands "+responseFilename +" -mt " + GetIntArg("graphThreads", Environment.ProcessorCount/2).ToString() );
+					Process csvToSvgProcess = LaunchCsvToSvgAsync("-batchCommands \""+responseFilename +"\" -mt " + GetIntArg("graphThreads", Environment.ProcessorCount/2).ToString() );
 					csvToSvgProcesses.Add(csvToSvgProcess);
 				}
 			}
@@ -1345,7 +1345,7 @@ namespace PerfReportTool
 			string args =
 				" -csvs \"" + csvFilename + "\"" +
 				" -title \"" + title + "\"" +
-				" -o " + svgFilename +
+				" -o \"" + svgFilename +"\"" +
 				" -stats " + statString +
 				" -width " + (width * scaleby).ToString() +
 				" -height " + (height * scaleby).ToString() +
@@ -1470,7 +1470,7 @@ namespace PerfReportTool
     class ReportTypeInfo
     {
         public ReportTypeInfo(XElement element, Dictionary<string,XElement> sharedSummaries, string baseXmlDirectory)
-        {
+        {	
             graphs = new List<ReportGraph>();
             summaries = new List<Summary>();
             title = element.Attribute("title").Value;

@@ -22,7 +22,22 @@
 #define PreIntegratedGFSampler	MobileBasePass.PreIntegratedGFSampler
 #endif
 
-#if (MATERIALBLENDING_MASKED || MATERIALBLENDING_SOLID) && ENABLE_AMBIENT_OCCLUSION
+#define APPLY_AO 0
+#define APPLY_DISTANCE_FIELD 0
+
+#if (MATERIALBLENDING_MASKED || MATERIALBLENDING_SOLID) 
+	#if ENABLE_AMBIENT_OCCLUSION && !MATERIAL_SHADINGMODEL_UNLIT
+		#undef APPLY_AO
+		#define APPLY_AO 1
+	#endif
+
+	#if ENABLE_DISTANCE_FIELD
+		#undef APPLY_DISTANCE_FIELD
+		#define APPLY_DISTANCE_FIELD 1
+	#endif
+#endif
+
+#if APPLY_AO
 #define AmbientOcclusionTexture			MobileBasePass.AmbientOcclusionTexture
 #define AmbientOcclusionSampler			MobileBasePass.AmbientOcclusionSampler
 #define AmbientOcclusionStaticFraction	MobileBasePass.AmbientOcclusionStaticFraction
@@ -615,12 +630,28 @@ void Main(
 	GBuffer.ShadingModelID = GetMaterialShadingModel(PixelMaterialInputs);
 	half MaterialAO = GetMaterialAmbientOcclusion(PixelMaterialInputs);
 
-#if (MATERIALBLENDING_MASKED || MATERIALBLENDING_SOLID) && ENABLE_AMBIENT_OCCLUSION && !MATERIAL_SHADINGMODEL_UNLIT
+#if (APPLY_AO || APPLY_DISTANCE_FIELD) && !DEFERRED_SHADING_PATH
+	// Compute velocity screen UV used to sample AO or DF buffer generated from previous frame
+	float4 ScreenPosition = SvPositionToResolvedScreenPosition(float4(SvPosition.xyz, 1));
+	float4 CurrClip = float4(ScreenPosition.xy, SvPosition.z, 1); // Inverted Far Depth = 0.0f
+	float4 PrevClip = mul(CurrClip, View.ClipToPrevClip);
+	float2 PrevScreen = PrevClip.xy / PrevClip.w;
+	float2 ScreenVelocity = ScreenPosition.xy - PrevScreen;
+	// TODO Sample screen velocity when available
 
+	float2 PrevScreenPosition = (ScreenPosition - ScreenVelocity);// NDC in [-1,1]
+	float2 PrevScreenUV = ScreenPositionToBufferUV(float4(PrevScreen.x, PrevScreen.y, 1, 1));
+#endif
+
+#if APPLY_AO
+	#if DEFERRED_SHADING_PATH
 	half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
-	half DynamicAmbientOcclusion = lerp(1.0f, GatheredAmbientOcclusion.r, AmbientOcclusionStaticFraction);
+	#else
+		half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, PrevScreenUV);
+	#endif
 
-	MaterialAO *= DynamicAmbientOcclusion;
+
+	MaterialAO *= GatheredAmbientOcclusion.r;
 #endif
 
 	GBuffer.GBufferAO = MaterialAO;
@@ -746,10 +777,14 @@ void Main(
 	}
 #endif /* DIRECTIONAL_LIGHT_CSM */
 
-#if (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && ENABLE_DISTANCE_FIELD
+#if APPLY_DISTANCE_FIELD
 	if (ShadowPositionZ == 0)
 	{
-		Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition));
+		#if DEFERRED_SHADING_PATH
+			Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition)).x;
+		#else
+			Shadow = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, PrevScreenUV).x;
+		#endif
 	}
 #endif
 

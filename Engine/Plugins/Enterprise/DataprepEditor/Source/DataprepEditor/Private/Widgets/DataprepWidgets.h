@@ -170,7 +170,7 @@ private:
 	UDataprepParameterizableObject* DetailedObjectAsParameterizable;
 
 	/** Array properties tracked for changes */
-	TSet< FProperty* > TrackedProperties;
+	TSet< TSharedPtr< IPropertyHandle > > TrackedProperties;
 	
 	/** Delegate handle to track property changes on array properties */
 	FDelegateHandle OnPropertyChangedHandle;

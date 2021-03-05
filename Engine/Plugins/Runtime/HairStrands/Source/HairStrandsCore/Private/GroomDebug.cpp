@@ -50,24 +50,6 @@ static FAutoConsoleVariableRef CVarHairCardsGuidesDebug_Sim(TEXT("r.HairStrands.
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
-const TCHAR* ToString(EWorldType::Type Type)
-{
-	switch (Type)
-	{
-		case EWorldType::None			: return TEXT("None");
-		case EWorldType::Game			: return TEXT("Game");
-		case EWorldType::Editor			: return TEXT("Editor");
-		case EWorldType::PIE			: return TEXT("PIE");
-		case EWorldType::EditorPreview	: return TEXT("EditorPreview");
-		case EWorldType::GamePreview	: return TEXT("GamePreview");
-		case EWorldType::GameRPC		: return TEXT("GameRPC");
-		case EWorldType::Inactive		: return TEXT("Inactive");
-		default							: return TEXT("Unknown");
-	}
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////
-
 bool IsHairStrandsSkinCacheEnable();
 
 static void GetGroomInterpolationData(

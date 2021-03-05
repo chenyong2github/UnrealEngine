@@ -65,8 +65,7 @@ namespace Chaos
 	template <typename T,typename R,int d>
 	class ISpatialAccelerationCollection;
 
-	template <typename T,int d>
-	class TAccelerationStructureHandle;
+	class FAccelerationStructureHandle;
 
 	enum class ELockType : uint8
 	{
@@ -108,15 +107,15 @@ namespace Chaos
 
 		void* PhysSceneHack;	//This is a total hack for now to get at the owning scene
 
-		typedef TPBDRigidsSOAs<float, 3> FParticlesType;
+		typedef FPBDRigidsSOAs FParticlesType;
 		typedef FPBDRigidDirtyParticlesBuffer FDirtyParticlesBuffer;
 
 		typedef Chaos::FGeometryParticle FParticle;
-		typedef Chaos::TGeometryParticleHandle<float, 3> FHandle;
+		typedef Chaos::FGeometryParticleHandle FHandle;
 		typedef Chaos::TPBDRigidsEvolutionGBF<Traits> FPBDRigidsEvolution;
 
-		typedef TPBDRigidDynamicSpringConstraints<float, 3> FRigidDynamicSpringConstraints;
-		typedef TPBDPositionConstraints<float, 3> FPositionConstraints;
+		typedef FPBDRigidDynamicSpringConstraints FRigidDynamicSpringConstraints;
+		typedef FPBDPositionConstraints FPositionConstraints;
 
 		typedef TPBDConstraintIslandRule<FPBDJointConstraints> FJointConstraintsRule;
 		typedef TPBDConstraintIslandRule<FRigidDynamicSpringConstraints> FRigidDynamicSpringConstraintsRule;
@@ -255,7 +254,7 @@ namespace Chaos
 		FParticlesType& GetParticles() { return Particles; }
 		const FParticlesType& GetParticles() const { return Particles; }
 
-		void AddParticleToProxy(const Chaos::TGeometryParticleHandle<float, 3>* Particle, IPhysicsProxyBase* Proxy)
+		void AddParticleToProxy(const Chaos::FGeometryParticleHandle* Particle, IPhysicsProxyBase* Proxy)
 		{
 			if (!MParticleToProxy.Find(Particle))
 			{
@@ -264,12 +263,12 @@ namespace Chaos
 			MParticleToProxy[Particle].Add(Proxy); 
 		}
 		
-		void RemoveParticleToProxy(const Chaos::TGeometryParticleHandle<float, 3>* Particle)
+		void RemoveParticleToProxy(const Chaos::FGeometryParticleHandle* Particle)
 		{
 			MParticleToProxy.Remove(Particle);
 		}
 		
-		const TSet<IPhysicsProxyBase*> * GetProxies(const Chaos::TGeometryParticleHandle<float, 3>* Handle) const
+		const TSet<IPhysicsProxyBase*> * GetProxies(const Chaos::FGeometryParticleHandle* Handle) const
 		{
 			const TSet<IPhysicsProxyBase*>* PhysicsProxyPtr = MParticleToProxy.Find(Handle);
 			return PhysicsProxyPtr ? PhysicsProxyPtr : nullptr;
@@ -313,13 +312,13 @@ namespace Chaos
 		/** Copy the simulation material list to the query material list, to be done when the SQ commits an update */
 		void SyncQueryMaterials_External();
 
-		void FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles);
+		void FinalizeRewindData(const TParticleView<FPBDRigidParticles>& DirtyParticles);
 		bool RewindUsesCollisionResimCache() const { return bUseCollisionResimCache; }
 
 		FPerSolverFieldSystem& GetPerSolverField() { return *PerSolverField; }
 		const FPerSolverFieldSystem& GetPerSolverField() const { return *PerSolverField; }
 
-		void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<TAccelerationStructureHandle<FReal,3>,FReal,3>*& ExternalStructure);
+		void UpdateExternalAccelerationStructure_External(ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>*& ExternalStructure);
 
 		/** Apply a solver configuration to this solver, set externally by the owner of a solver (see UPhysicsSettings for world solver settings) */
 		void ApplyConfig(const FChaosSolverConfiguration& InConfig);
@@ -338,7 +337,7 @@ namespace Chaos
 
 		/** Update the particles parameters based on field evaluation */
 		void FieldParameterUpdateCallback(
-			Chaos::TPBDPositionConstraints<float, 3>& PositionTarget,
+			Chaos::FPBDPositionConstraints& PositionTarget,
 			TMap<int32, int32>& TargetedParticles);
 
 		/** Update the particles forces based on field evaluation */
@@ -372,7 +371,7 @@ namespace Chaos
 		TUniquePtr<TEventManager<Traits>> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FDirtyParticlesBuffer> MDirtyParticlesBuffer;
-		TMap<const Chaos::TGeometryParticleHandle<float, 3>*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
+		TMap<const Chaos::FGeometryParticleHandle*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
 		TUniquePtr<FRewindData> MRewindData;
 		TUniquePtr<IRewindCallback> MRewindCallback;
 

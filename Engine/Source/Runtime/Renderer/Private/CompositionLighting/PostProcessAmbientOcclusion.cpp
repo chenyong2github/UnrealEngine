@@ -320,12 +320,6 @@ FRDGTextureRef GetScreenSpaceAOFallback(const FRDGSystemTextures& SystemTextures
 
 //----------------------------------------------------------------------------------------------------------------------
 
-enum class EAOTechnique
-{
-	SSAO,
-	GTAO,
-};
-
 static const uint32 kSSAOParametersArraySize = 5;
 
 BEGIN_SHADER_PARAMETER_STRUCT(FSSAOShaderParameters, )
@@ -473,13 +467,7 @@ static FGTAOShaderParameters GetGTAOShaderParameters(const FViewInfo& View, FInt
 
 //----------------------------------------------------------------------------------------------------------------------
 
-BEGIN_SHADER_PARAMETER_STRUCT(FHZBParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HZBTexture)
-	SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportTransform, HZBRemapping)
-END_SHADER_PARAMETER_STRUCT();
-
-static FHZBParameters GetHZBParameters(const FViewInfo& View, FScreenPassTexture HZBInput, FIntPoint InputTextureSize, EAOTechnique AOTechnique)
+FHZBParameters GetHZBParameters(const FViewInfo& View, FScreenPassTexture HZBInput, FIntPoint InputTextureSize, EAOTechnique AOTechnique)
 {
 	FHZBParameters Parameters;
 	Parameters.HZBTexture = HZBInput.Texture;
@@ -673,13 +661,6 @@ FScreenPassTexture AddAmbientOcclusionSmoothPass(
  * @param bDoUpsample true:we have lower resolution pass data we need to upsample, false otherwise
  * @param ShaderQuality 0..4, 0:low 4:high
  */
-
-BEGIN_SHADER_PARAMETER_STRUCT(FTextureBinding, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, Texture)
-	SHADER_PARAMETER(FIntPoint, TextureSize)
-	SHADER_PARAMETER(FVector2D, InverseTextureSize)
-END_SHADER_PARAMETER_STRUCT();
-
 
 BEGIN_SHADER_PARAMETER_STRUCT(FAmbientOcclusionParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)

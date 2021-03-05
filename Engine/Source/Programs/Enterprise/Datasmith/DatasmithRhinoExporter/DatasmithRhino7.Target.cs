@@ -13,7 +13,7 @@ public class DatasmithRhino7Target : DatasmithRhinoBaseTarget
 
 	public override string GetVersion() { return "7"; }
 
-	public override string GetRhinoInstallFolder()
+	public override string GetRhinoInstallFolderWindows()
 	{
 		try
 		{
@@ -23,5 +23,10 @@ public class DatasmithRhino7Target : DatasmithRhinoBaseTarget
 		{
 			return "";
 		}
+	}
+
+	public override string GetRhinoInstallFolderMac()
+	{
+		return "/Applications/Rhino 7.app/Contents/Frameworks/RhCore.framework/Versions/Current/Resources/";
 	}
 }

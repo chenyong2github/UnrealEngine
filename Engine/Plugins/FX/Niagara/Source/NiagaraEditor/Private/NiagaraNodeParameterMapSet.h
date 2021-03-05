@@ -40,7 +40,7 @@ public:
 	virtual FName GetNewPinDefaultNamespace() const { return PARAM_MAP_LOCAL_MODULE_STR; }
 
 protected:
-	virtual void OnNewTypedPinAdded(UEdGraphPin* NewPin); 
+	virtual void OnNewTypedPinAdded(UEdGraphPin*& NewPin); 
 	virtual void OnPinRenamed(UEdGraphPin* RenamedPin, const FString& OldName) override;
 
 	/** Convenience method to determine whether this Node is a Map Get or Map Set when adding a parameter through the parameter panel. */

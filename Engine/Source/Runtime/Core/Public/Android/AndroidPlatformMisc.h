@@ -42,6 +42,7 @@ struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 	static void PlatformTearDown();
 	static void PlatformHandleSplashScreen(bool ShowSplashScreen);
     static EDeviceScreenOrientation GetDeviceOrientation() { return DeviceOrientation; }
+	static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation);
     
 	FORCEINLINE static int32 GetMaxPathLength()
 	{
@@ -289,8 +290,8 @@ public:
 	// Returns CPU temperature read from one of the configurable CPU sensors via android.CPUThermalSensorFilePath CVar or AndroidEngine.ini, [ThermalSensors] section.
 	// Doesn't guarantee to work on all devices. Some devices require root access rights to read sensors information, in that case 0.0 will be returned
 	static float GetCPUTemperature();
-    
-    static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation) { DeviceOrientation = NewDeviceOrentation; }
+
+	static void SaveDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation) { DeviceOrientation = NewDeviceOrentation; }
 
 	// Window access is locked by the game thread before preinit and unlocked here after RHIInit (PlatformCreateDynamicRHI). 
 	static void UnlockAndroidWindow();
@@ -317,6 +318,28 @@ public:
 private:
 	static const ANSICHAR* CodeToString(int Signal, int si_code);
 	static EDeviceScreenOrientation DeviceOrientation;
+
+#if USE_ANDROID_JNI
+	enum class EAndroidScreenOrientation
+	{
+		SCREEN_ORIENTATION_UNSPECIFIED = -1,
+		SCREEN_ORIENTATION_LANDSCAPE = 0,
+		SCREEN_ORIENTATION_PORTRAIT = 1,
+		SCREEN_ORIENTATION_USER = 2,
+		SCREEN_ORIENTATION_BEHIND = 3,
+		SCREEN_ORIENTATION_SENSOR = 4,
+		SCREEN_ORIENTATION_NOSENSOR = 5,
+		SCREEN_ORIENTATION_SENSOR_LANDSCAPE = 6,
+		SCREEN_ORIENTATION_SENSOR_PORTRAIT = 7,
+		SCREEN_ORIENTATION_REVERSE_LANDSCAPE = 8,
+		SCREEN_ORIENTATION_REVERSE_PORTRAIT = 9,
+		SCREEN_ORIENTATION_FULL_SENSOR = 10,
+		SCREEN_ORIENTATION_USER_LANDSCAPE = 11,
+		SCREEN_ORIENTATION_USER_PORTRAIT = 12,
+	};
+	
+	static int32 GetAndroidScreenOrientation(EDeviceScreenOrientation ScreenOrientation);
+#endif // USE_ANDROID_JNI
 };
 
 #if !PLATFORM_LUMIN

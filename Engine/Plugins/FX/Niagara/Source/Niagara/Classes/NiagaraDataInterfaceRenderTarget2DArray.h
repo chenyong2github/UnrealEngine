@@ -41,6 +41,7 @@ struct FRenderTarget2DArrayRWInstanceData_RenderThread
 
 	FIntVector Size = FIntVector(EForceInit::ForceInitToZero);
 	
+	FSamplerStateRHIRef SamplerStateRHI;
 	FTextureReferenceRHIRef TextureReferenceRHI;
 	FUnorderedAccessViewRHIRef UAV;
 #if WITH_EDITORONLY_DATA
@@ -81,6 +82,9 @@ public:
 	// VM functionality
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target)const override { return true; }
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
+#if WITH_EDITORONLY_DATA
+	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+#endif
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
 
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;
@@ -108,6 +112,8 @@ public:
 	void SetSize(FVectorVMContext& Context);
 
 	static const FName SetValueFunctionName;
+	static const FName GetValueFunctionName;
+	static const FName SampleValueFunctionName;
 	static const FName SetSizeFunctionName;
 	static const FName GetSizeFunctionName;
 	static const FName LinearToIndexName;
@@ -115,6 +121,7 @@ public:
 	static const FString SizeName;
 	static const FString RWOutputName;
 	static const FString OutputName;
+	static const FString InputName;
 
 	UPROPERTY(EditAnywhere, Category = "Render Target")
 	FIntVector Size;

@@ -2,9 +2,8 @@
 
 #include "DatasmithCADTranslator.h"
 
-#ifdef CAD_LIBRARY
-
 #include "CADInterfacesModule.h"
+#include "CoreTechFileParser.h"
 #include "CoreTechSurfaceExtension.h"
 #include "DatasmithCADTranslatorModule.h"
 #include "DatasmithDispatcher.h"
@@ -12,6 +11,8 @@
 #include "DatasmithSceneGraphBuilder.h"
 #include "DatasmithUtils.h"
 #include "IDatasmithSceneElements.h"
+
+#include "HAL/IConsoleManager.h"
 #include "Misc/FileHelper.h"
 
 static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
@@ -20,17 +21,9 @@ static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableThreadedImport(
 	TEXT("Activate to parallelise CAD file processing.\n"),
 	ECVF_Default);
 
-#ifdef CADKERNELLIB
-static TAutoConsoleVariable<int32> CVarStaticCADTranslatorEnableKernelIOTessellation(
-	TEXT("r.CADTranslator.EnableKernelIOTessellation"),
-	1,
-	TEXT("Activate to use KernelIO Tessellation.\n"),
-	ECVF_Default);
-#endif
-
 void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCapabilities)
 {
-	if (ICADInterfacesModule::IsAvailable() == ECADInterfaceAvailability::Unavailable)
+	if (ICADInterfacesModule::GetAvailability() == ECADInterfaceAvailability::Unavailable)
 	{
 		OutCapabilities.bIsEnabled = false;
 		return;
@@ -84,13 +77,6 @@ void FDatasmithCADTranslator::Initialize(FDatasmithTranslatorCapabilities& OutCa
 
 bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithScene)
 {
-#ifdef CADKERNELLIB
-	ImportParameters.bEnableKernelIOTessellation = (CVarStaticCADTranslatorEnableKernelIOTessellation.GetValueOnAnyThread() != 0);;
-#ifdef CADKERNEL_DEBUG
-	ImportParameters.bEnableKernelIOTessellation = false;
-#endif
-#endif
-
 	ImportParameters.MetricUnit = 0.001;
 	ImportParameters.ScaleFactor = 0.1;
 	const FDatasmithTessellationOptions& TesselationOptions = GetCommonTessellationOptions();
@@ -131,27 +117,52 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		ImportParameters.Propagation = CADLibrary::EDisplayDataPropagationMode::BodyOnly;
 	}
 
-	FString CachePath = FPaths::ConvertRelativePathToFull(FDatasmithCADTranslatorModule::Get().GetCacheDir());
-
-	TMap<uint32, FString> CADFileToUE4FileMap;
-	int32 NumCores = FPlatformMisc::NumberOfCores();
+	ImportParameters.bEnableCacheUsage = false;
+	FString CachePath = FDatasmithCADTranslatorModule::Get().GetCacheDir();
+	if (!CachePath.IsEmpty())
 	{
-		DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUE4FileMap, CADFileToUE4GeomMap);
-		Dispatcher.AddTask(FileDescription);
-
-		bool bWithProcessor = (CVarStaticCADTranslatorEnableThreadedImport.GetValueOnAnyThread() != 0);
-
-#ifdef CAD_TRANSLATOR_DEBUG
-		bWithProcessor = false;
-#endif //CAD_TRANSLATOR_DEBUG
-
-		Dispatcher.Process(bWithProcessor);
+		CachePath = FPaths::ConvertRelativePathToFull(CachePath);
+		ImportParameters.bEnableCacheUsage = true;
 	}
 
-	FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUE4FileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
+	bool bWithProcessor = (CVarStaticCADTranslatorEnableThreadedImport.GetValueOnAnyThread() != 0);
+
+#ifdef CAD_TRANSLATOR_DEBUG
+	bWithProcessor = false;
+#endif //CAD_TRANSLATOR_DEBUG
+
+	// Only use multi-processed translation if it is required and cache's usage is enabled
+	if (bWithProcessor && ImportParameters.bEnableCacheUsage)
+	{
+		TMap<uint32, FString> CADFileToUE4FileMap;
+		int32 NumCores = FPlatformMisc::NumberOfCores();
+		{
+			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUE4FileMap, CADFileToUE4GeomMap);
+			Dispatcher.AddTask(FileDescription);
+
+			Dispatcher.Process(bWithProcessor);
+		}
+
+		FDatasmithSceneGraphBuilder SceneGraphBuilder(CADFileToUE4FileMap, CachePath, DatasmithScene, GetSource(), ImportParameters);
+		SceneGraphBuilder.Build();
+
+		MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUE4GeomMap, CachePath, ImportParameters);
+
+		return true;
+	}
+
+	ImportParameters.bEnableCacheUsage = false;
+
+	CADLibrary::FCoreTechFileParser FileParser(ImportParameters, *FPaths::EnginePluginsDir());
+	if (FileParser.ProcessFile(FileDescription) != CADLibrary::ECoreTechParsingResult::ProcessOk)
+	{
+		return false;
+	}
+
+	FDatasmithSceneBaseGraphBuilder SceneGraphBuilder(&FileParser.GetSceneGraphArchive(), DatasmithScene, GetSource(), ImportParameters);
 	SceneGraphBuilder.Build();
 
-	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(CADFileToUE4GeomMap, CachePath, ImportParameters);
+	MeshBuilderPtr = MakeUnique<FDatasmithMeshBuilder>(FileParser.GetBodyMeshes(), ImportParameters);
 
 	return true;
 }
@@ -185,7 +196,6 @@ void FDatasmithCADTranslator::SetSceneImportOptions(TArray<TStrongObjectPtr<UDat
 {
 	FCoreTechTranslator::SetSceneImportOptions(Options);
 }
-#endif
 
 
 

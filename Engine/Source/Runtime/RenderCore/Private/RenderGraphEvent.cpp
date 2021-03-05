@@ -169,10 +169,10 @@ void FRDGEventScopeStack::EndExecute()
 	}
 }
 
-FRDGGPUStatScopeGuard::FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, int32* DrawCallCounter)
+FRDGGPUStatScopeGuard::FRDGGPUStatScopeGuard(FRDGBuilder& InGraphBuilder, const FName& Name, const FName& StatName, int32(*NumDrawCallsPtr)[MAX_NUM_GPUS])
 	: GraphBuilder(InGraphBuilder)
 {
-	GraphBuilder.GPUScopeStacks.BeginStatScope(Name, StatName, DrawCallCounter);
+	GraphBuilder.GPUScopeStacks.BeginStatScope(Name, StatName, NumDrawCallsPtr);
 }
 
 FRDGGPUStatScopeGuard::~FRDGGPUStatScopeGuard()
@@ -187,6 +187,16 @@ static void OnPushGPUStat(FRHIComputeCommandList& RHICmdList, const FRDGGPUStatS
 	if (RHICmdList.IsImmediate())
 	{
 		FRealtimeGPUProfiler::Get()->PushStat(static_cast<FRHICommandListImmediate&>(RHICmdList), Scope->Name, Scope->StatName, Scope->DrawCallCounter);
+
+		if (Scope->DrawCallCounter != nullptr)
+		{
+			static_cast<FRHICommandListImmediate&>(RHICmdList).EnqueueLambda(
+				[DrawCallCounter = Scope->DrawCallCounter](FRHICommandListImmediate&)
+			{
+				GCurrentNumDrawCallsRHIPtr = DrawCallCounter;
+			});
+		}
+
 	}
 #endif
 }
@@ -198,6 +208,15 @@ static void OnPopGPUStat(FRHIComputeCommandList& RHICmdList, const FRDGGPUStatSc
 	if (RHICmdList.IsImmediate())
 	{
 		FRealtimeGPUProfiler::Get()->PopStat(static_cast<FRHICommandListImmediate&>(RHICmdList), Scope->DrawCallCounter);
+
+		if (Scope->DrawCallCounter != nullptr)
+		{
+			static_cast<FRHICommandListImmediate&>(RHICmdList).EnqueueLambda(
+				[](FRHICommandListImmediate&)
+			{
+				GCurrentNumDrawCallsRHIPtr = &GCurrentNumDrawCallsRHI;
+			});
+		}
 	}
 #endif
 }
@@ -215,10 +234,11 @@ FRDGGPUStatScopeStack::FRDGGPUStatScopeStack(FRHIComputeCommandList& InRHICmdLis
 	: ScopeStack(InRHICmdList, &OnPushGPUStat, &OnPopGPUStat)
 {}
 
-void FRDGGPUStatScopeStack::BeginScope(const FName& Name, const FName& StatName, int32* DrawCallCounter)
+void FRDGGPUStatScopeStack::BeginScope(const FName& Name, const FName& StatName, int32 (*DrawCallCounter)[MAX_NUM_GPUS])
 {
 	if (IsEnabled())
 	{
+		check(DrawCallCounter != nullptr);
 		ScopeStack.BeginScope(Name, StatName, DrawCallCounter);
 	}
 }

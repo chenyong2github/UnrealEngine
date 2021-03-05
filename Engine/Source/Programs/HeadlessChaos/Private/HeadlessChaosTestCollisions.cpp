@@ -597,14 +597,14 @@ namespace ChaosTest {
 
 		TArray<int32> Indices = ActiveIndices.Array();
 
-		TPBDCollisionConstraintPGS<FReal, 3> CollisionConstraints(Particles, Indices, Collided, PhysicsMaterials);
-		TRigidBodyContactConstraintPGS<FReal, 3> Constraint1;
+		FPBDCollisionConstraintPGS CollisionConstraints(Particles, Indices, Collided, PhysicsMaterials);
+		FRigidBodyContactConstraintPGS Constraint1;
 		Constraint1.ParticleIndex = BoxId1;
 		Constraint1.LevelsetIndex = BoxId2;
-		TRigidBodyContactConstraintPGS<FReal, 3> Constraint2;
+		FRigidBodyContactConstraintPGS Constraint2;
 		Constraint2.ParticleIndex = BoxId1;
 		Constraint2.LevelsetIndex = FloorId;
-		TRigidBodyContactConstraintPGS<FReal, 3> Constraint3;
+		FRigidBodyContactConstraintPGS Constraint3;
 		Constraint3.ParticleIndex = BoxId2;
 		Constraint3.LevelsetIndex = FloorId;
 		CollisionConstraints.Constraints.Add(Constraint1);
@@ -652,14 +652,14 @@ namespace ChaosTest {
 
 		TArray<int32> Indices = ActiveIndices.Array();
 
-		TPBDCollisionConstraintPGS<FReal, 3> CollisionConstraints(Particles, Indices, Collided, PhysicsMaterials);
-		TRigidBodyContactConstraintPGS<FReal, 3> Constraint1;
+		FPBDCollisionConstraintPGS CollisionConstraints(Particles, Indices, Collided, PhysicsMaterials);
+		FRigidBodyContactConstraintPGS Constraint1;
 		Constraint1.ParticleIndex = BoxId1;
 		Constraint1.LevelsetIndex = BoxId2;
-		TRigidBodyContactConstraintPGS<FReal, 3> Constraint2;
+		FRigidBodyContactConstraintPGS Constraint2;
 		Constraint2.ParticleIndex = BoxId1;
 		Constraint2.LevelsetIndex = FloorId;
-		TRigidBodyContactConstraintPGS<FReal, 3> Constraint3;
+		FRigidBodyContactConstraintPGS Constraint3;
 		Constraint3.ParticleIndex = BoxId2;
 		Constraint3.LevelsetIndex = FloorId;
 		CollisionConstraints.Constraints.Add(Constraint2);

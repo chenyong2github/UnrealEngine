@@ -6,12 +6,10 @@
 
 #include "CoreTechTranslator.h"
 
-#ifdef CAD_LIBRARY
 #include "CADOptions.h"
 #include "DatasmithDispatcher.h"
 #include "DatasmithMeshBuilder.h"
 #include "DatasmithSceneGraphBuilder.h"
-#endif // CAD_LIBRARY
 
 #include "UObject/ObjectMacros.h"
 
@@ -22,9 +20,6 @@ class FDatasmithCADTranslator : public FCoreTechTranslator
 public:
 	virtual FName GetFName() const override { return "DatasmithCADTranslator"; };
 
-#ifndef CAD_LIBRARY
-	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override { OutCapabilities.bIsEnabled = false; }
-#else
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override;
 
 	virtual bool LoadScene(TSharedRef<IDatasmithScene> OutScene) override;
@@ -41,6 +36,5 @@ private:
 	CADLibrary::FImportParameters ImportParameters;
 
 	TUniquePtr<FDatasmithMeshBuilder> MeshBuilderPtr;
-#endif
 };
 

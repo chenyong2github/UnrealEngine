@@ -13,9 +13,8 @@ class AChaosSolverActor;
 class AGeometryCollectionActor;
 class UGeometryCollectionComponent;
 template<class InElementType> class TManagedArray;
-template<class T, int d> class TGeometryCollectionParticlesData;
+class FGeometryCollectionParticlesData;
 template<class T> class TAutoConsoleVariable;
-typedef TGeometryCollectionParticlesData<float, 3> FGeometryCollectionParticlesData;
 
 /**
 * EGeometryCollectionDebugDrawActorHideGeometry

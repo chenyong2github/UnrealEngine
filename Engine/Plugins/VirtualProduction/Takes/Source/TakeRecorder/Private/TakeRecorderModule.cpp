@@ -8,6 +8,7 @@
 #include "TakeRecorderCommands.h"
 #include "TakeRecorderStyle.h"
 #include "TakePresetActions.h"
+
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
 #include "Widgets/Input/SButton.h"
@@ -24,6 +25,8 @@
 #include "TakeRecorderSettings.h"
 
 #include "Widgets/STakeRecorderTabContent.h"
+#include "Widgets/STakeRecorderCockpit.h"
+#include "Widgets/STakeRecorderPanel.h"
 
 #include "ISequencer.h"
 #include "LevelSequence.h"
@@ -274,6 +277,18 @@ void FTakeRecorderModule::ShutdownModule()
 	UnregisterAssetTools();
 	UnregisterSettings();
 	UnregisterSerializedRecorder();
+}
+
+void FTakeRecorderModule::RegisterExternalObject(UObject* InExternalObject)
+{
+	ExternalObjects.Add(InExternalObject);
+	ExternalObjectAddRemoveEvent.Broadcast(InExternalObject, true);
+}
+
+void FTakeRecorderModule::UnregisterExternalObject(UObject* InExternalObject)
+{
+	ExternalObjectAddRemoveEvent.Broadcast(InExternalObject, false);
+	ExternalObjects.Remove(InExternalObject);
 }
 
 void FTakeRecorderModule::RegisterDetailCustomizations()

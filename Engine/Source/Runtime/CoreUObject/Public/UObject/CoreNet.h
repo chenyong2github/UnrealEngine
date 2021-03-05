@@ -176,6 +176,10 @@ class COREUOBJECT_API UPackageMap : public UObject
 	const TSet< FNetworkGUID > &	GetTrackedUnmappedGuids() const { return TrackedUnmappedNetGuids; }
 	const TSet< FNetworkGUID > &	GetTrackedDynamicMappedGuids() const { return TrackedMappedDynamicNetGuids; }
 
+	// For sync load debugging with LogNetSyncLoads
+	virtual void			ResetTrackedSyncLoadedGuids() {}
+	virtual void			ReportSyncLoadsForProperty(const FProperty* Property, const UObject* Object) {}
+
 	virtual void			LogDebugInfo( FOutputDevice & Ar) { }
 	virtual UObject*		GetObjectFromNetGUID( const FNetworkGUID& NetGUID, const bool bIgnoreMustBeMapped ) { return NULL; }
 	virtual FNetworkGUID	GetNetGUIDFromObject( const UObject* InObject) const { return FNetworkGUID(); }

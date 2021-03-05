@@ -12,6 +12,9 @@
 #include "ChaosCloth/ChaosClothingSimulationCloth.h"
 #include "ChaosCloth/ChaosClothingSimulationCollider.h"
 
+#include "PhysicsField/PhysicsFieldComponent.h"
+#include "PhysicsProxy/PerSolverFieldSystem.h"
+
 #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
@@ -370,6 +373,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->Gravity,
 		ClothConfig->LinearVelocityScale,
 		ClothConfig->AngularVelocityScale,
+		ClothConfig->FictitiousAngularScale,
 		ClothConfig->DragCoefficient,
 		ClothConfig->LiftCoefficient,
 		ClothConfig->bUsePointBasedWindModel,
@@ -390,6 +394,21 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 	UpdateStats(Cloths[ClothIndex].Get());
 
 	UE_LOG(LogChaosCloth, Verbose, TEXT("Added Cloth asset to %s in sim slot %d"), InOwnerComponent->GetOwner() ? *InOwnerComponent->GetOwner()->GetName() : TEXT("None"), InSimDataIndex);
+}
+
+void FClothingSimulation::UpdateWorldForces(const USkeletalMeshComponent* OwnerComponent)
+{
+	if (OwnerComponent)
+	{
+		UWorld* OwnerWorld = OwnerComponent->GetWorld();
+		if (OwnerWorld && OwnerWorld->PhysicsField && Solver)
+		{
+			const FBox BoundingBox = OwnerComponent->CalcBounds(OwnerComponent->GetComponentTransform()).GetBox();
+
+			OwnerWorld->PhysicsField->FillTransientCommands(false, BoundingBox, Solver->GetTime(), Solver->GetPerSolverField().GetTransientCommands());
+			OwnerWorld->PhysicsField->FillPersistentCommands(false, BoundingBox, Solver->GetTime(), Solver->GetPerSolverField().GetPersistentCommands());
+		}
+	}
 }
 
 void FClothingSimulation::ResetStats()
@@ -562,7 +581,7 @@ void FClothingSimulation::GetSimulationData(
 		}
 
 		// Get the reference bone index for this cloth
-		const int32 ReferenceBoneIndex = Cloth->GetReferenceBoneIndex();
+		const int32 ReferenceBoneIndex = InOverrideComponent ? InOwnerComponent->GetMasterBoneMap()[Cloth->GetReferenceBoneIndex()] : Cloth->GetReferenceBoneIndex();
 		if (!ComponentSpaceTransforms.IsValidIndex(ReferenceBoneIndex))
 		{
 			UE_LOG(LogSkeletalMesh, Warning, TEXT("Failed to write back clothing simulation data for component % as bone transforms are invalid."), *InOwnerComponent->GetName());
@@ -710,6 +729,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->Gravity,
 			ClothConfig->LinearVelocityScale,
 			ClothConfig->AngularVelocityScale,
+			ClothConfig->FictitiousAngularScale,
 			ClothConfig->DragCoefficient,
 			ClothConfig->LiftCoefficient,
 			ClothConfig->bUsePointBasedWindModel,
@@ -1019,7 +1039,7 @@ static void DrawBox(FPrimitiveDrawInterface* PDI, const FAABB3& Box, const FQuat
 #endif
 }
 
-static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<FReal>& Capsule, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawCapsule(FPrimitiveDrawInterface* PDI, const FCapsule& Capsule, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
 	const FReal Radius = Capsule.GetRadius();
 	const FReal HalfHeight = Capsule.GetHeight() * 0.5f + Radius;
@@ -1043,7 +1063,7 @@ static void DrawCapsule(FPrimitiveDrawInterface* PDI, const TCapsule<FReal>& Cap
 #endif
 }
 
-static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const TTaperedCylinder<FReal>& TaperedCylinder, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
+static void DrawTaperedCylinder(FPrimitiveDrawInterface* PDI, const FTaperedCylinder& TaperedCylinder, const FQuat& Rotation, const FVector& Position, const FLinearColor& Color)
 {
 	const FReal HalfHeight = TaperedCylinder.GetHeight() * 0.5f;
 	const FReal Radius1 = TaperedCylinder.GetRadius1();
@@ -1344,7 +1364,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 						break;
 
 					case ImplicitObjectType::Capsule:
-						DrawCapsule(PDI, Object->GetObjectChecked<TCapsule<FReal>>(), Rotation, Position, Color);
+						DrawCapsule(PDI, Object->GetObjectChecked<FCapsule>(), Rotation, Position, Color);
 						break;
 
 					case ImplicitObjectType::Union:  // Union only used as collision tapered capsules
@@ -1359,7 +1379,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 									break;
 
 								case ImplicitObjectType::TaperedCylinder:
-									DrawTaperedCylinder(PDI, SubObject->GetObjectChecked<TTaperedCylinder<FReal>>(), Rotation, Position, Color);
+									DrawTaperedCylinder(PDI, SubObject->GetObjectChecked<FTaperedCylinder>(), Rotation, Position, Color);
 									break;
 
 								default:

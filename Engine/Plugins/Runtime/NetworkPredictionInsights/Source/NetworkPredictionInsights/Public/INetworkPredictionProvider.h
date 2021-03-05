@@ -620,7 +620,6 @@ struct FSimulationData
 		int32 NumBufferedInputCmds = 0;
 		bool bInputFault = false;
 
-		ENP_UserStateSource PendingUserStateSource = ENP_UserStateSource::Unknown;
 		TArray<FUserState*> PendingCommitUserStates; // NetRecv'd state that hasn't been commited
 		TArray<FSystemFault> PendingSystemFaults;
 		const TCHAR* PendingOOBStr = nullptr;

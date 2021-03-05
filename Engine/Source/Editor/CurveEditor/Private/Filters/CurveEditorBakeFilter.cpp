@@ -92,8 +92,8 @@ void UCurveEditorBakeFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEd
 			FKeyHandleSet& OutHandleSet = OutKeysToSelect.Add(Pair.Key);
 
 			// Manually add the first and last keys to the out set before we remove them below.
-			OutHandleSet.Add(KeyHandles[0]);
-			OutHandleSet.Add(KeyHandles.Last(0));
+			OutHandleSet.Add(KeyHandles[0], ECurvePointType::Key);
+			OutHandleSet.Add(KeyHandles.Last(0), ECurvePointType::Key);
 
 			// We need to leave the first and the last key of the selection alone for two reasons;
 			// 1. Undo/Redo works better as selections aren't transacted so they don't handle keys being removed/re-added.
@@ -112,7 +112,7 @@ void UCurveEditorBakeFilter::ApplyFilter_Impl(TSharedRef<FCurveEditor> InCurveEd
 			{
 				if (Handle.IsSet())
 				{
-					OutHandleSet.Add(Handle.GetValue());
+					OutHandleSet.Add(Handle.GetValue(), ECurvePointType::Key);
 				}
 			}
 		}

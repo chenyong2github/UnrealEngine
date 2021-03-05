@@ -170,7 +170,7 @@ struct FDataprepActionContext
 
 // Persists graphical state of the node associated with this action asset
 UCLASS()
-class UActionAppearance : public UObject
+class UDataprepActionAppearance : public UObject
 {
 	GENERATED_BODY()
 
@@ -183,6 +183,9 @@ public:
 
 	UPROPERTY()
 	int32 GroupId;
+
+	UPROPERTY()
+	bool bGroupIsEnabled;
 };
 
 class UDataprepActionAsset;
@@ -354,7 +357,7 @@ public:
 	bool bIsEnabled;
 
 	UPROPERTY()
-	UActionAppearance* Appearance;
+	UDataprepActionAppearance* Appearance;
 
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }

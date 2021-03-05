@@ -128,7 +128,7 @@ struct FCsvLocalPlayer
 
 	uint32 CategoryIndex;
 	uint32 LastFrame;
-	double PrevTime;
+	float PrevTime;
 	FVector PrevViewOrigin;
 };
 static TMap<uint32, FCsvLocalPlayer> GCsvLocalPlayers;
@@ -161,6 +161,11 @@ void UGameViewportClient::EnableCsvPlayerStats(int32 LocalPlayerCount)
 void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneView*>& PlayerViewMap)
 {
 #if CSV_PROFILER
+	UWorld* MyWorld = GetWorld();
+	if (!ensure(World))
+	{
+		return;
+	}
 
 	for (TMap<ULocalPlayer*, FSceneView*>::TConstIterator It(PlayerViewMap); It; ++It)
 	{
@@ -180,11 +185,8 @@ void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneV
 
 			FVector ViewOrigin = SceneView->ViewMatrices.GetViewOrigin();
 			FVector Diff = ViewOrigin - CsvData.PrevViewOrigin;
-			double CurrentTime = FPlatformTime::Seconds();
-			double DeltaT = CurrentTime - CsvData.PrevTime;
-			FVector Velocity = Diff / float(DeltaT);
-			float CameraSpeed = Velocity.Size();
-			float CameraSpeed2D = Velocity.Size2D();
+			float CurrentTime = MyWorld->GetRealTimeSeconds();
+			float DeltaT = CurrentTime - CsvData.PrevTime;
 			CsvData.PrevViewOrigin = ViewOrigin;
 			CsvData.LastFrame = GFrameNumber;
 			CsvData.PrevTime = CurrentTime;
@@ -192,8 +194,16 @@ void UGameViewportClient::UpdateCsvCameraStats(const TMap<ULocalPlayer*, FSceneV
 			FCsvProfiler::RecordCustomStat("PosX", CsvData.CategoryIndex, ViewOrigin.X, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("PosY", CsvData.CategoryIndex, ViewOrigin.Y, ECsvCustomStatOp::Set);
 			FCsvProfiler::RecordCustomStat("PosZ", CsvData.CategoryIndex, ViewOrigin.Z, ECsvCustomStatOp::Set);
-			FCsvProfiler::RecordCustomStat("Speed", CsvData.CategoryIndex, CameraSpeed, ECsvCustomStatOp::Set);
-			FCsvProfiler::RecordCustomStat("Speed2D", CsvData.CategoryIndex, CameraSpeed2D, ECsvCustomStatOp::Set);
+
+			if (!FMath::IsNearlyZero(DeltaT))
+			{
+				FVector Velocity = Diff / float(DeltaT);
+				float CameraSpeed = Velocity.Size();
+				float CameraSpeed2D = Velocity.Size2D();
+
+				FCsvProfiler::RecordCustomStat("Speed", CsvData.CategoryIndex, CameraSpeed, ECsvCustomStatOp::Set);
+				FCsvProfiler::RecordCustomStat("Speed2D", CsvData.CategoryIndex, CameraSpeed2D, ECsvCustomStatOp::Set);
+			}
 
 #if !UE_BUILD_SHIPPING
 			FVector ForwardVec = SceneView->ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2);

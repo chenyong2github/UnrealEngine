@@ -63,9 +63,9 @@ const Chaos::TSphere<float,3>&  FPhysicsGeometryCollection_Chaos::GetSphereGeome
 {
 	return Geom.GetObjectChecked<Chaos::TSphere<float,3>>();
 }
-const Chaos::TCapsule<float>&  FPhysicsGeometryCollection_Chaos::GetCapsuleGeometry() const
+const Chaos::FCapsule&  FPhysicsGeometryCollection_Chaos::GetCapsuleGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TCapsule<float>>();
+	return Geom.GetObjectChecked<Chaos::FCapsule>();
 }
 
 const Chaos::FConvex& FPhysicsGeometryCollection_Chaos::GetConvexGeometry() const
@@ -98,7 +98,7 @@ FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FC
 			const FVector Bot = FVector(0.f,0.f,-UseHalfHeight);
 			const FVector Top = FVector(0.f,0.f,UseHalfHeight);
 			const float UseRadius = FMath::Max(CapsuleRadius,FCollisionShape::MinCapsuleRadius());
-			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TCapsule<float>(Bot,Top,UseRadius));
+			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::FCapsule(Bot,Top,UseRadius));
 		} else
 		{
 			// Use a sphere instead.
@@ -305,12 +305,12 @@ void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FP
 			TArray< Chaos::FUniqueIdx > DisabledCollisions;
 			DisabledCollisions.Reserve(Elem.Value.Num());
 
-			if (Chaos::TPBDRigidParticle<float, 3>* Rigid0 = ActorReference->GetParticle_LowLevel()->CastToRigidParticle())
+			if (Chaos::FPBDRigidParticle* Rigid0 = ActorReference->GetParticle_LowLevel()->CastToRigidParticle())
 			{
 				Rigid0->SetCollisionConstraintFlag((uint32)Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 				for (auto Handle1 : Elem.Value)
 				{
-					if (Chaos::TPBDRigidParticle<float, 3>* Rigid1 = Handle1->GetParticle_LowLevel()->CastToRigidParticle())
+					if (Chaos::FPBDRigidParticle* Rigid1 = Handle1->GetParticle_LowLevel()->CastToRigidParticle())
 					{
 						Rigid1->SetCollisionConstraintFlag((uint32)Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 						DisabledCollisions.Add(Handle1->GetGameThreadAPI().UniqueIdx());
@@ -438,37 +438,38 @@ void FChaosEngineInterface::WakeUp_AssumesLocked(const FPhysicsActorHandle& InAc
 
 void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference,bool bIsKinematic)
 {
+	using namespace Chaos;
 	{
-		const Chaos::EObjectStateType NewState
+		const EObjectStateType NewState
 			= bIsKinematic
-			? Chaos::EObjectStateType::Kinematic
-			: Chaos::EObjectStateType::Dynamic;
+			? EObjectStateType::Kinematic
+			: EObjectStateType::Dynamic;
 
 		bool AllowedToChangeToNewState = false;
 
 		switch(InActorReference->GetGameThreadAPI().ObjectState())
 		{
-		case Chaos::EObjectStateType::Kinematic:
+		case EObjectStateType::Kinematic:
 		// from kinematic we can only go dynamic
-		if(NewState == Chaos::EObjectStateType::Dynamic)
+		if(NewState == EObjectStateType::Dynamic)
 		{
 			AllowedToChangeToNewState = true;
 		}
 		break;
 
-		case Chaos::EObjectStateType::Dynamic:
+		case EObjectStateType::Dynamic:
 		// from dynamic we can go to sleeping or to kinematic
-		if(NewState == Chaos::EObjectStateType::Kinematic)
+		if(NewState == EObjectStateType::Kinematic)
 		{
 			AllowedToChangeToNewState = true;
 		}
 		break;
 
-		case Chaos::EObjectStateType::Sleeping:
+		case EObjectStateType::Sleeping:
 		// this case was not allowed from CL 10506092, but it needs to in order for
 		// FBodyInstance::SetInstanceSimulatePhysics to work on dynamic bodies which
 		// have fallen asleep.
-		if (NewState == Chaos::EObjectStateType::Kinematic)
+		if (NewState == EObjectStateType::Kinematic)
 		{
 			AllowedToChangeToNewState = true;
 		}
@@ -478,6 +479,12 @@ void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHand
 		if(AllowedToChangeToNewState)
 		{
 			InActorReference->GetGameThreadAPI().SetObjectState(NewState);
+			//we mark as full resim only if going from kinematic to simulated
+			//going from simulated to kinematic we assume user is doing some optimization so we leave it up to them
+			if(NewState == EObjectStateType::Dynamic)
+			{
+				InActorReference->GetGameThreadAPI().SetResimType(EResimType::FullResim);
+			}
 		}
 	}
 }
@@ -494,7 +501,7 @@ void FChaosEngineInterface::SetIgnoreAnalyticCollisions_AssumesLocked(const FPhy
 
 FTransform FChaosEngineInterface::GetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	return Chaos::TRigidTransform<float,3>(InActorReference->GetGameThreadAPI().X(),InActorReference->GetGameThreadAPI().R());
+	return Chaos::FRigidTransform3(InActorReference->GetGameThreadAPI().X(),InActorReference->GetGameThreadAPI().R());
 }
 
 FTransform FChaosEngineInterface::GetTransform_AssumesLocked(const FPhysicsActorHandle& InRef,bool bForceGlobalPose /*= false*/)
@@ -638,7 +645,7 @@ FTransform FChaosEngineInterface::GetComTransformLocal_AssumesLocked(const FPhys
 
 FVector FChaosEngineInterface::GetLocalInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InActorReference)
 {
-	const Chaos::PMatrix<float,3,3> Tensor = InActorReference->GetGameThreadAPI().I();
+	const Chaos::FMatrix33 Tensor = InActorReference->GetGameThreadAPI().I();
 	return FVector(Tensor.M[0][0],Tensor.M[1][1],Tensor.M[2][2]);
 }
 
@@ -813,8 +820,8 @@ void FChaosEngineInterface::SetMassSpaceInertiaTensor_AssumesLocked(FPhysicsActo
 		if(CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.X)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Y)) && CHAOS_ENSURE(!FMath::IsNearlyZero(InTensor.Z)))
 		{
 		Chaos::FRigidBodyHandle_External& Body_External = InActorReference->GetGameThreadAPI();
-		Body_External.SetI(Chaos::PMatrix<float,3,3>(InTensor.X,InTensor.Y,InTensor.Z));
-		Body_External.SetInvI(Chaos::PMatrix<float,3,3>(1./InTensor.X,1./InTensor.Y,1./InTensor.Z));
+		Body_External.SetI(Chaos::FMatrix33(InTensor.X,InTensor.Y,InTensor.Z));
+		Body_External.SetInvI(Chaos::FMatrix33(1./InTensor.X,1./InTensor.Y,1./InTensor.Z));
 	}
 }
 
@@ -883,7 +890,7 @@ void FChaosEngineInterface::SetWakeCounter_AssumesLocked(const FPhysicsActorHand
 void FChaosEngineInterface::SetInitialized_AssumesLocked(const FPhysicsActorHandle& InHandle,bool InInitialized)
 {
 	//why is this needed?
-	Chaos::TPBDRigidParticle<float,3>* Rigid = InHandle->GetParticle_LowLevel()->CastToRigidParticle();
+	Chaos::FPBDRigidParticle* Rigid = InHandle->GetParticle_LowLevel()->CastToRigidParticle();
 	if(Rigid)
 	{
 		Rigid->SetInitialized(InInitialized);
@@ -1519,30 +1526,33 @@ int32 FChaosEngineInterface::GetAllShapes_AssumedLocked(const FPhysicsActorHandl
 void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPhysicsActorHandle& Handle)
 {
 	LLM_SCOPE(ELLMTag::Chaos);
+	using namespace Chaos;
 
-	TUniquePtr<Chaos::FGeometryParticle> Particle;
+	TUniquePtr<FGeometryParticle> Particle;
 	// Set object state based on the requested particle type
 	if(InParams.bStatic)
 	{
-		Particle = Chaos::FGeometryParticle::CreateParticle();
+		Particle = FGeometryParticle::CreateParticle();
 	}
 	else
 	{
 		// Create an underlying dynamic particle
-		TUniquePtr<Chaos::TPBDRigidParticle<float,3>> Rigid = Chaos::TPBDRigidParticle<float,3>::CreateParticle();
+		TUniquePtr<FPBDRigidParticle> Rigid = FPBDRigidParticle::CreateParticle();
 		Rigid->SetGravityEnabled(InParams.bEnableGravity);
 		if(InParams.bSimulatePhysics)
 		{
 			if(InParams.bStartAwake)
 			{
-				Rigid->SetObjectState(Chaos::EObjectStateType::Dynamic);
+				Rigid->SetObjectState(EObjectStateType::Dynamic);
 			} else
 			{
-				Rigid->SetObjectState(Chaos::EObjectStateType::Sleeping);
+				Rigid->SetObjectState(EObjectStateType::Sleeping);
 			}
+			Rigid->SetResimType(EResimType::FullResim);
 		} else
 		{
-			Rigid->SetObjectState(Chaos::EObjectStateType::Kinematic);
+			Rigid->SetObjectState(EObjectStateType::Kinematic);
+			Rigid->SetResimType(EResimType::ResimAsSlave);	//for now kinematics are never changed during resim
 		}
 		//Particle.Reset(Rigid.Release());
 		Particle = MoveTemp(Rigid);
@@ -1612,7 +1622,7 @@ void FChaosEngineInterface::SetKinematicTarget_AssumesLocked(const FPhysicsActor
 {
 	{
 		Chaos::TKinematicTarget<float, 3> newKinematicTarget;
-		Chaos::TRigidTransform<Chaos::FReal, 3> PreviousTM(InActorReference->GetGameThreadAPI().X(), InActorReference->GetGameThreadAPI().R());
+		Chaos::FRigidTransform3 PreviousTM(InActorReference->GetGameThreadAPI().X(), InActorReference->GetGameThreadAPI().R());
 		newKinematicTarget.SetTargetMode(InNewTarget, PreviousTM);
 		InActorReference->GetGameThreadAPI().SetKinematicTarget(newKinematicTarget);
 

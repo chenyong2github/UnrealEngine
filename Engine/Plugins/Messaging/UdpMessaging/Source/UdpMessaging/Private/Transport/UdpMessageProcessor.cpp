@@ -13,6 +13,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "UObject/Class.h"
 
+#include "UdpMessagingTracing.h"
 #include "Shared/UdpMessagingSettings.h"
 #include "Transport/UdpMessageBeacon.h"
 #include "Transport/UdpMessageSegmenter.h"
@@ -314,6 +315,7 @@ FTimespan FUdpMessageProcessor::CalculateWaitTime() const
 
 void FUdpMessageProcessor::ConsumeInboundSegments()
 {
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeInboundSegments);
 	FInboundSegment Segment;
 
 	while (InboundSegments.Dequeue(Segment))
@@ -394,6 +396,7 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 
 void FUdpMessageProcessor::ConsumeOutboundMessages()
 {
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_ConsumeOutputMessages);
 	FOutboundMessage OutboundMessage;
 
 	while (OutboundMessages.Dequeue(OutboundMessage))
@@ -729,11 +732,16 @@ void FUdpMessageProcessor::RemoveKnownNode(const FGuid& NodeId)
 	KnownNodes.Remove(NodeId);
 }
 
+int32 GetMaxSendRate()
+{
+	const uint32 OneGbitPerSecondInBytes = 125000000;
+	return static_cast< uint32 > ( GetDefault<UUdpMessagingSettings>()->MaxSendRate * OneGbitPerSecondInBytes );
+}
 
 void FUdpMessageProcessor::UpdateKnownNodes()
 {
-	// Estimated max send bytes per seconds
-	const uint32 MaxSendRate = 125000000;
+	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_UpdateKnownNodes);
+	const uint32 MaxSendRate = GetMaxSendRate();
 
 	// Remove dead nodes
 	FTimespan DeadHelloTimespan = DeadHelloIntervals * Beacon->GetBeaconInterval();

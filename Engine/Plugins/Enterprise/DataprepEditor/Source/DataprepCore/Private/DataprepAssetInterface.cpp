@@ -161,15 +161,20 @@ void UDataprepAssetInterface::ExecuteRecipe_Internal(const TSharedPtr<FDataprepA
 
 	for (UDataprepActionAsset* ActionAsset : ActionAssets)
 	{
-		if (ActionAsset != nullptr && ActionAsset->bIsEnabled)
+		if (ActionAsset != nullptr)
 		{
-			Task.ReportNextStep(FText::Format(LOCTEXT("ExecutingAction", "Executing \"{0}\" ..."), FText::FromString(ActionAsset->GetLabel())));
-
-			ActionAsset->ExecuteAction(InActionsContext);
-			if (Task.IsWorkCancelled())
+			const bool bGroupEnabled = ActionAsset->Appearance->GroupId != INDEX_NONE ? ActionAsset->Appearance->bGroupIsEnabled : true;
+		
+			if (ActionAsset->bIsEnabled && bGroupEnabled)
 			{
-				Task.ReportNextStep(LOCTEXT("InterruptedExecution", "Execution interrupted ..."));
-				break;
+				Task.ReportNextStep(FText::Format(LOCTEXT("ExecutingAction", "Executing \"{0}\" ..."), FText::FromString(ActionAsset->GetLabel())));
+
+				ActionAsset->ExecuteAction(InActionsContext);
+				if (Task.IsWorkCancelled())
+				{
+					Task.ReportNextStep(LOCTEXT("InterruptedExecution", "Execution interrupted ..."));
+					break;
+				}
 			}
 		}
 		else

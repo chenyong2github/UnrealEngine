@@ -1345,6 +1345,11 @@ EDeviceScreenOrientation FGenericPlatformMisc::GetDeviceOrientation()
 	return EDeviceScreenOrientation::Unknown;
 }
 
+void FGenericPlatformMisc::SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrientation)
+{
+	// not implemented by default
+}
+
 int32 FGenericPlatformMisc::GetDeviceVolume()
 {
 	return -1;

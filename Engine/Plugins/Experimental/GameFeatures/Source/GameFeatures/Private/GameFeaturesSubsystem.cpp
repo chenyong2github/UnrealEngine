@@ -776,7 +776,8 @@ void UGameFeaturesSubsystem::ListGameFeaturePlugins(const TArray<FString>& Args,
 	const bool bActiveOnly = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Compare(TEXT("-ACTIVEONLY"), ESearchCase::IgnoreCase) == 0; });
 	const bool bCsv = Args.ContainsByPredicate([](const FString& Arg) { return Arg.Compare(TEXT("-CSV"), ESearchCase::IgnoreCase) == 0; });
 
-	Ar.Logf(TEXT("Listing Game Feature Plugins..."));
+	FString PlatformName = FPlatformMisc::GetCPUBrand().TrimStartAndEnd();
+	Ar.Logf(TEXT("Listing Game Feature Plugins...(%s)"), *PlatformName);
 	if (bCsv)
 	{
 		Ar.Logf(TEXT(",Plugin,State"));

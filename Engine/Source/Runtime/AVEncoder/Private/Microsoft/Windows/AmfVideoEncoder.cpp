@@ -540,7 +540,7 @@ bool FAmfVideoEncoder::ProcessOutput()
 		// If for some reason this frame failed to be submitted to AMF (e.g: call to AmfEncoder->SubmitInput failed due to AMF_INPUT_FULL), then we need to tell webrtc to drop it
 		while(!EncodingQueue.IsEmpty() && (*EncodingQueue.Peek())->State == EFrameState::EncoderFailed)
 		{
-			FFrame* Frame;
+			FFrame* Frame = nullptr;
 			EncodingQueue.Dequeue(Frame);
 			HandleDroppedFrame(*Frame);
 		}

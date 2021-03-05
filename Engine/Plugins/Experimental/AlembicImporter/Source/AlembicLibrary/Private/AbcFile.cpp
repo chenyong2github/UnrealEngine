@@ -24,6 +24,7 @@
 
 THIRD_PARTY_INCLUDES_START
 #include <Alembic/AbcGeom/All.h>
+#include <Alembic/Abc/ArchiveInfo.h>
 #include "Materials/MaterialInstance.h"
 THIRD_PARTY_INCLUDES_END
 
@@ -103,6 +104,18 @@ EAbcImportError FAbcFile::Open()
 	const Alembic::Abc::MetaData ObjectMetaData = TopObject.getMetaData();
 	Alembic::Abc::ICompoundProperty Properties = TopObject.getProperties();
 
+	std::string TmpAppName;
+	std::string TmpLibVersionString;
+	std::string TmpDateWritten;
+	std::string TmpUserDescription;
+
+	GetArchiveInfo(Archive, TmpAppName, TmpLibVersionString, LibVersion, TmpDateWritten, TmpUserDescription);
+
+	AppName = ANSI_TO_TCHAR(TmpAppName.c_str());
+	LibVersionString = ANSI_TO_TCHAR(TmpLibVersionString.c_str());
+	DateWritten = ANSI_TO_TCHAR(TmpDateWritten.c_str());
+	UserDescription = ANSI_TO_TCHAR(TmpUserDescription.c_str());
+
 	Alembic::Abc::IBox3dProperty ArchiveBoundsProperty = Alembic::AbcGeom::GetIArchiveBounds(Archive, Alembic::Abc::ErrorHandler::kQuietNoopPolicy);
 
 	if (ArchiveBoundsProperty.valid())
@@ -121,6 +134,26 @@ EAbcImportError FAbcFile::Open()
 	MeshUtilities = FModuleManager::Get().LoadModulePtr<IMeshUtilities>("MeshUtilities");
 	
 	return EAbcImportError::AbcImportError_NoError;
+}
+
+TArray<FAbcFile::FMetaData> FAbcFile::GetArchiveMetaData() const
+{
+	using FMetaDataEntry = TPairInitializer<FString, FString>;
+
+	TArray<FMetaData> MetaData
+	({
+		FMetaDataEntry(TEXT("Abc.AppName"), AppName),
+		FMetaDataEntry(TEXT("Abc.LibraryVersion"), LibVersionString),
+		FMetaDataEntry(TEXT("Abc.WrittenOn"), DateWritten),
+		FMetaDataEntry(TEXT("Abc.UserDescription"), UserDescription)
+	});
+
+	for (const FMetaData& CustomAttribute : CustomAttributes)
+	{
+		MetaData.Add(CustomAttribute);
+	}
+
+	return MetaData;
 }
 
 EAbcImportError FAbcFile::Import(UAbcImportSettings* InImportSettings)
@@ -355,6 +388,8 @@ void FAbcFile::TraverseAbcHierarchy(const Alembic::Abc::IObject& InObject, IAbcO
 		CreatedObject = PolyMesh;
 		Objects.Add(CreatedObject);
 
+		ExtractCustomAttributes(Mesh);
+
 		// Ignore constant nodes for the computation of the animation time/index range
 		// Note that a constant mesh could be animated through its parent transform
 		// in which case, the animation range will reflect that of the IXform
@@ -400,6 +435,35 @@ void FAbcFile::TraverseAbcHierarchy(const Alembic::Abc::IObject& InObject, IAbcO
 		{
 			const Alembic::Abc::IObject& AbcChildObject = InObject.getChild(ChildIndex);
 			TraverseAbcHierarchy(AbcChildObject, CreatedObject);
+		}
+	}
+}
+
+void FAbcFile::ExtractCustomAttributes(const Alembic::AbcGeom::IPolyMesh& InMesh)
+{
+	// Extract the custom attributes from the mesh's arbitrary GeomParams
+	Alembic::AbcGeom::ICompoundProperty ArbParams = InMesh.getSchema().getArbGeomParams();
+	if (ArbParams)
+	{
+		FString ObjectName(ANSI_TO_TCHAR(InMesh.getName().c_str()));
+
+		for (int Index = 0; Index < ArbParams.getNumProperties(); ++Index)
+		{
+			Alembic::Abc::PropertyHeader PropertyHeader = ArbParams.getPropertyHeader(Index);
+			Alembic::Abc::PropertyType PropType = PropertyHeader.getPropertyType();
+			Alembic::Abc::DataType DataType = PropertyHeader.getDataType();
+
+			// Extract only scalar string attributes
+			if (PropType == Alembic::Abc::kScalarProperty && DataType.getPod() == Alembic::Util::kStringPOD)
+			{
+				std::string PropName = PropertyHeader.getName();
+				Alembic::Abc::IStringProperty Param(ArbParams, PropName);
+				FString AttributeName(ANSI_TO_TCHAR(PropName.c_str()));
+				FString AttributeValue(ANSI_TO_TCHAR(Param.getValue().c_str()));
+
+				AttributeName = FString::Printf(TEXT("Abc.%s.%s"), *ObjectName, *AttributeName);
+				CustomAttributes.Add(AttributeName, AttributeValue);
+			}
 		}
 	}
 }

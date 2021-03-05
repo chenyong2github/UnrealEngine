@@ -19,11 +19,11 @@ namespace Chaos
 	struct CHAOS_API FMassProperties
 	{
 		FMassProperties()
-		    : Mass(0)
+			: Mass(0)
 			, Volume(0)
-		    , CenterOfMass(0)
-		    , RotationOfMass(FRotation3::FromElements(FVec3(0), 1))
-		    , InertiaTensor(0)
+			, CenterOfMass(0)
+			, RotationOfMass(FRotation3::FromElements(FVec3(0), 1))
+			, InertiaTensor(0)
 		{}
 		FReal Mass;
 		FReal Volume;
@@ -42,11 +42,14 @@ namespace Chaos
 
 	template<typename TSurfaces>
 	void CHAOS_API CalculateInertiaAndRotationOfMass(const FParticles& Vertices, const TSurfaces& Surfaces, const FReal Density, const FVec3& CenterOfMass,
-	    FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
+		FMatrix33& OutInertiaTensor, FRotation3& OutRotationOfMass);
 
 	FMassProperties CHAOS_API Combine(const TArray<FMassProperties>& MPArray);
 
 	FMassProperties CHAOS_API CombineWorldSpace(const TArray<FMassProperties>& MPArray, FReal InDensityKGPerCM);
 
+	template <typename T, int d>
+	using TMassProperties UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FMassProperties instead") = FMassProperties;
 }
+
 #endif

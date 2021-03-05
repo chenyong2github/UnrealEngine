@@ -42,33 +42,34 @@ void FNetworkPredictionInsightsModule::StartupModule()
 	// Only do this in Standalone UnrealInsights.exe. In Editor the user will select the NPI window manually.
 	// (There is currently not way to extend the high level layout of unreal insights, e.g, the layout created in FTraceInsightsModule::CreateSessionBrowser)
 	// (only SetUnrealInsightsLayoutIni which is extending the layouts of pre made individual tabs, not the the overall session layout)
-#if !(WITH_EDITOR)
-	TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("NetworkPredictionInsights"), 0.0f, [&UnrealInsightsModule](float DeltaTime)
+	if (!GIsEditor)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FNetworkPredictionInsightsModule_Tick);
-		auto SessionPtr = UnrealInsightsModule.GetAnalysisSession();
-		if (SessionPtr.IsValid())
+		TickerHandle = FTicker::GetCoreTicker().AddTicker(TEXT("NetworkPredictionInsights"), 0.0f, [&UnrealInsightsModule](float DeltaTime)
 		{
-			TraceServices::FAnalysisSessionReadScope SessionReadScope(*SessionPtr.Get());
-			if (const INetworkPredictionProvider* NetworkPredictionProvider = ReadNetworkPredictionProvider(*SessionPtr.Get()))
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FNetworkPredictionInsightsModule_Tick);
+			auto SessionPtr = UnrealInsightsModule.GetAnalysisSession();
+			if (SessionPtr.IsValid())
 			{
-				auto NetworkPredictionTraceVersion = NetworkPredictionProvider->GetNetworkPredictionTraceVersion();
-
-				if (NetworkPredictionTraceVersion > 0)
+				TraceServices::FAnalysisSessionReadScope SessionReadScope(*SessionPtr.Get());
+				if (const INetworkPredictionProvider* NetworkPredictionProvider = ReadNetworkPredictionProvider(*SessionPtr.Get()))
 				{
-					static bool HasSpawnedTab = false;
-					if (!HasSpawnedTab && FGlobalTabmanager::Get()->HasTabSpawner(FNetworkPredictionInsightsModule::InsightsTabName))
+					auto NetworkPredictionTraceVersion = NetworkPredictionProvider->GetNetworkPredictionTraceVersion();
+
+					if (NetworkPredictionTraceVersion > 0)
 					{
-						HasSpawnedTab = true;
-						FGlobalTabmanager::Get()->TryInvokeTab(FNetworkPredictionInsightsModule::InsightsTabName);
+						static bool HasSpawnedTab = false;
+						if (!HasSpawnedTab && FGlobalTabmanager::Get()->HasTabSpawner(FNetworkPredictionInsightsModule::InsightsTabName))
+						{
+							HasSpawnedTab = true;
+							FGlobalTabmanager::Get()->TryInvokeTab(FNetworkPredictionInsightsModule::InsightsTabName);
+						}
 					}
 				}
 			}
-		}
 
-		return true;
-	});
-#endif
+			return true;
+		});
+	}
 
 	// Actually register our tab spawner
 	FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FNetworkPredictionInsightsModule::InsightsTabName,

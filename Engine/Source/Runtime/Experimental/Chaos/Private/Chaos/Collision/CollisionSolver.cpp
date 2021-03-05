@@ -262,8 +262,8 @@ namespace Chaos
 		void ApplyManifoldPushOutCorrection(
 			const FReal Stiffness,
 			const FRigidBodyPointContactConstraint& Constraint,
-			const TGenericParticleHandle<FReal, 3> Particle0,
-			const TGenericParticleHandle<FReal, 3> Particle1,
+			const FGenericParticleHandle Particle0,
+			const FGenericParticleHandle Particle1,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters,
 			const bool bIsRigidDynamic0,
@@ -515,8 +515,8 @@ namespace Chaos
 		// Velocity solver loop for a single contact manifold.
 		void ApplyContactManifold(
 			FRigidBodyPointContactConstraint& Constraint,
-			TGenericParticleHandle<FReal, 3> Particle0,
-			TGenericParticleHandle<FReal, 3> Particle1,
+			FGenericParticleHandle Particle0,
+			FGenericParticleHandle Particle1,
 			const FContactIterationParameters& IterationParameters,
 			const FContactParticleParameters& ParticleParameters)
 		{
@@ -626,8 +626,8 @@ namespace Chaos
 			const FContactParticleParameters& ParticleParameters,
 			const FVec3& GravityDir)
 		{
-			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
-			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
+			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
+			FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
 			TArrayView<FManifoldPoint> ManifoldPoints = Constraint.GetManifoldPoints();
 
 			// Lock bodies for shock propagation?

@@ -26,6 +26,7 @@
 #include "VirtualCameraSubsystem.h"
 #include "VPFullScreenUserWidget.h"
 #include "Widgets/SVirtualWindow.h"
+#include "VCamComponent.h"
 
 #if WITH_EDITOR
 #include "AssetData.h"
@@ -349,6 +350,12 @@ void AVirtualCameraActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 
 bool AVirtualCameraActor::StartStreaming()
 {
+	UVCamComponent* VCamComponent = Cast<UVCamComponent>(GetComponentByClass(UVCamComponent::StaticClass()));
+	if (!VCamComponent || !VCamComponent->IsEnabled())
+	{
+		return false;
+	}
+
 	ActorWorld = GetWorld();
 	if (!ActorWorld)
 	{
@@ -358,12 +365,6 @@ bool AVirtualCameraActor::StartStreaming()
 	if (bSaveSettingsOnStopStreaming)
 	{
 		LoadSettings();
-	}
-
-	if (!CameraUMGClass)
-	{
-		FSoftClassPath DefaultUMG(DefaultCameraUMG);
-		CameraUMGClass = DefaultUMG.TryLoadClass<UUserWidget>();
 	}
 
 #if WITH_EDITOR
@@ -451,6 +452,11 @@ bool AVirtualCameraActor::StartStreaming()
 
 bool AVirtualCameraActor::StopStreaming()
 {
+	if (!RemoteSessionHost)
+	{
+		return false;
+	}
+
 	TSharedPtr<FRemoteSessionInputChannel> InputChannel = RemoteSessionHost->GetChannel<FRemoteSessionInputChannel>();
 	if (InputChannel)
 	{

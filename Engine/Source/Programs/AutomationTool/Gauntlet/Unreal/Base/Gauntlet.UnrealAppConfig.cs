@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using AutomationTool;
+using EpicGames.Core;
 using UnrealBuildTool;
 
 namespace Gauntlet
@@ -21,6 +22,11 @@ namespace Gauntlet
 		/// Name of this unreal project
 		/// </summary>
 		public string ProjectName { get; set; }
+
+		// <summary>
+		/// Path to the file. Can be null if the project isn't on disk
+		/// </summary>
+		public FileReference ProjectFile { get; set; }
 
 		/// <summary>
 		/// Type of role this instance performs

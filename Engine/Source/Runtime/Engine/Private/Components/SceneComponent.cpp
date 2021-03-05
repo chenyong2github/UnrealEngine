@@ -1751,7 +1751,7 @@ void USceneComponent::SetRelativeRotationCache(const FRotationConversionCache& I
 
 void USceneComponent::SetupAttachment(class USceneComponent* InParent, FName InSocketName)
 {
-	if (ensureMsgf(!bRegistered, TEXT("SetupAttachment should only be used to initialize AttachParent and AttachSocketName for a future AttachToComponent. Once a component is registered you must use AttachToComponent.")))
+	if (ensureMsgf(!bRegistered, TEXT("SetupAttachment should only be used to initialize AttachParent and AttachSocketName for a future AttachToComponent. Once a component is registered you must use AttachToComponent. Owner [%s], InParent [%s], InSocketName [%s]"), *GetPathNameSafe(GetOwner()), *GetNameSafe(InParent), *InSocketName.ToString()))
 	{
 		if (ensureMsgf(InParent != this, TEXT("Cannot attach a component to itself.")))
 		{

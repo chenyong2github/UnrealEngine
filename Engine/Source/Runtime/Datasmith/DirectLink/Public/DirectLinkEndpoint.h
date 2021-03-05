@@ -2,10 +2,11 @@
 
 #pragma once
 
-#include "DirectLinkMessages.h"
+#include "DirectLinkCommon.h"
 
 #include "Async/Future.h"
 #include "IMessageContext.h"
+
 #include <atomic>
 
 class FMessageEndpoint;
@@ -14,15 +15,31 @@ namespace DirectLink
 {
 class ISceneGraphNode;
 
+
+enum ECommunicationStatus{
+	ECS_NoIssue                      = 0,
+	ECS_ModuleNotLoaded_Messaging    = 1<<0,
+	ECS_ModuleNotLoaded_UdpMessaging = 1<<1,
+	ECS_ModuleNotLoaded_Networking   = 1<<2,
+};
+
+DIRECTLINK_API ECommunicationStatus ValidateCommunicationStatus();
+
 struct FRawInfo
 {
+	struct FDataPointId
+	{
+		FString Name;
+		FGuid Id;
+		bool bIsPublic = false;
+	};
+
 	struct DIRECTLINK_API FEndpointInfo
 	{
 		FEndpointInfo() = default;
-		FEndpointInfo(const FDirectLinkMsg_EndpointState& Msg);
 		FString Name;
-		TArray<FNamedId> Destinations;
-		TArray<FNamedId> Sources;
+		TArray<FDataPointId> Destinations;
+		TArray<FDataPointId> Sources;
 		FString UserName;
 		FString ExecutableName;
 		FString ComputerName;
@@ -63,8 +80,6 @@ public:
 };
 
 
-// niy, placeholder.
-// could be a class with accessors and a ref on the endpoint to delegate
 using FSourceHandle = FGuid;
 using FDestinationHandle = FGuid;
 

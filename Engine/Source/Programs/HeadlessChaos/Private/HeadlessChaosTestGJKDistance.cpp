@@ -243,7 +243,7 @@ namespace ChaosTest
 		// Fail - overlapping
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
-			TCapsule<FReal> B(FVec3(2, -2, 0), FVec3(2, 2, 0), 2);
+			FCapsule B(FVec3(2, -2, 0), FVec3(2, 2, 0), 2);
 			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3(FVec3(2, 0, 0), FRotation3::FromIdentity()), Distance, NearestA, NearestB, Normal);
 			EXPECT_NE(Result, EGJKDistanceResult::Separated);
 		}
@@ -251,7 +251,7 @@ namespace ChaosTest
 		// Success - not overlapping, capsule axis parallel to nearest face (near points on cylinder and box face)
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
-			TCapsule<FReal> B(FVec3(2, 0, -1), FVec3(2, 0, 2), 2);
+			FCapsule B(FVec3(2, 0, -1), FVec3(2, 0, 2), 2);
 			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
 
 			const FReal Tolerance = (FReal)2e-3;
@@ -270,7 +270,7 @@ namespace ChaosTest
 		// Success - not overlapping, capsule axis at angle to nearest face (near points on end-cap and box edge)
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
-			TCapsule<FReal> B(FVec3(-2, 0, 3), FVec3(2, 0, -3), 2);
+			FCapsule B(FVec3(-2, 0, 3), FVec3(2, 0, -3), 2);
 			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
 			FVec3 ExpectedNearestA = FVec3(5, 0, -2);
 			FVec3 ExpectedDir = (ExpectedNearestA - B.GetX2()).GetSafeNormal();
@@ -289,7 +289,7 @@ namespace ChaosTest
 
 		// Success - not overlapping, near point partway down wall of capsule
 		{
-			TCapsule<FReal> A(FVec3(4, 0, -1), FVec3(4, 0, -7), 1);
+			FCapsule A(FVec3(4, 0, -1), FVec3(4, 0, -7), 1);
 			FAABB3 B(FVec3(-2, -2, -2), FVec3(2, 2, 2));
 			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal);
 			FVec3 ExpectedNearestA = FVec3(3, 0, (FReal)-1.5);
@@ -310,7 +310,7 @@ namespace ChaosTest
 		// Success - not overlapping, near point partway down wall of capsule.
 		// Same result as above, but using transform rather than the shape's built-in offsets.
 		{
-			TCapsule<FReal> A(FVec3(0, 0, -3), FVec3(0, 0, 3), 1);
+			FCapsule A(FVec3(0, 0, -3), FVec3(0, 0, 3), 1);
 			FAABB3 B(FVec3(-2, -2, -2), FVec3(2, 2, 2));
 			FRigidTransform3 BToA = FRigidTransform3(FVec3(-4, 0, 4), FRotation3::FromIdentity());
 			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, BToA, Distance, NearestA, NearestB, Normal);
@@ -348,7 +348,7 @@ namespace ChaosTest
 		// so test that we still get an approximate answer with less iterations
 		{
 			FAABB3 A(FVec3(5, -2, -2), FVec3(8, 2, 2));
-			TCapsule<FReal> B(FVec3(-2, 0, 3), FVec3(2, 0, -3), 2);
+			FCapsule B(FVec3(-2, 0, 3), FVec3(2, 0, -3), 2);
 			FReal Epsilon = (FReal)1e-6;
 			int32 MaxIts = 5;
 			EGJKDistanceResult Result = GJKDistance<FReal>(A, B, FRigidTransform3::Identity, Distance, NearestA, NearestB, Normal, Epsilon, MaxIts);

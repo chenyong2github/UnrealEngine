@@ -185,6 +185,9 @@ public:
 	void JumpToStart();
 	void JumpToEnd();
 
+	/** Toggle the expansion state of the selected nodes or all nodes if none selected */
+	void ToggleExpandCollapseNodes(bool bRecursive);
+
 	/**
 	 * Find a curve by its ID
 	 *
@@ -323,6 +326,11 @@ public:
 	 * Set the tree selection directly
 	 */
 	void SetTreeSelection(TArray<FCurveEditorTreeItemID>&& TreeItems);
+
+	/**
+	 * Removes items from the current tree selection.
+	 */
+	void RemoveFromTreeSelection(TArrayView<const FCurveEditorTreeItemID> TreeItems);
 
 	/**
 	 * Check whether this tree item is selected

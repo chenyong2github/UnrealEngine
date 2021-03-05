@@ -21,8 +21,7 @@
 
 namespace Chaos
 {
-	template <typename T, int d> class TPBDRigidsSOAs;
-	using FPBDRigidsSOAs = TPBDRigidsSOAs<FReal, 3>;
+	class FPBDRigidsSOAs;
 }
 
 namespace ChaosTest {
@@ -112,7 +111,7 @@ namespace ChaosTest {
 	FKinematicGeometryParticleHandle* AppendStaticConvexFloor(FPBDRigidsSOAs& SOAs);
 		
 	/**/
-	TLevelSet<FReal, 3> ConstructLevelset(FParticles& SurfaceParticles, TArray<TVec3<int32>> & Elements);
+	FLevelSet ConstructLevelset(FParticles& SurfaceParticles, TArray<TVec3<int32>> & Elements);
 
 	/**/
 	void AppendDynamicParticleConvexBox(FPBDRigidParticleHandle& InParticles, const FVec3& Scale, FReal Margin);

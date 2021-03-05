@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TemplateSequence.h"
+#include "Engine/World.h"
 #include "Components/ActorComponent.h"
 #include "GameFramework/Actor.h"
 #include "Modules/ModuleInterface.h"
@@ -9,7 +10,16 @@
 #include "MovieSceneTrack.h"
 #include "Tracks/MovieSceneSpawnTrack.h"
 
+#include "TemplateSequenceActor.h"
+#include "TemplateSequencePlayer.h"
+
+#include "Compilation/MovieSceneCompiledDataManager.h"
+#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
+#include "Evaluation/MovieScenePlayback.h"
+
 IMPLEMENT_MODULE(FDefaultModuleImpl, TemplateSequence);
+
+DEFINE_LOG_CATEGORY(LogTemplateSequence);
 
 UTemplateSequence::UTemplateSequence(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -104,6 +114,94 @@ void UTemplateSequence::UnbindObjects(const FGuid& ObjectId, const TArray<UObjec
 void UTemplateSequence::UnbindInvalidObjects(const FGuid& ObjectId, UObject* Context)
 {
 	BoundActorComponents.Remove(ObjectId);
+}
+
+FGuid UTemplateSequence::FindOrAddBinding(UObject* InObject)
+{
+	UObject* ParentObject = GetParentObject(InObject);
+	FGuid    ParentGuid   = ParentObject ? FindOrAddBinding(ParentObject) : FGuid();
+
+	if (ParentObject && !ParentGuid.IsValid())
+	{
+		UE_LOG(LogTemplateSequence, Error, TEXT("Unable to possess object '%s' because it's parent could not be bound."), *InObject->GetName());
+		return FGuid();
+	}
+
+	// Perform a potentially slow lookup of every possessable binding in the sequence to see if we already have this
+	UWorld* World = GetWorld();
+	ensure(World);
+	{
+		ATemplateSequenceActor* OutActor = nullptr;
+		UTemplateSequencePlayer* Player = UTemplateSequencePlayer::CreateTemplateSequencePlayer(World, this, FMovieSceneSequencePlaybackSettings(), OutActor);
+		ensure(Player);
+
+		Player->Initialize(this, World, FMovieSceneSequencePlaybackSettings());
+		Player->State.AssignSequence(MovieSceneSequenceID::Root, *this, *Player);
+		Player->PlayTo(FMovieSceneSequencePlaybackParams(MovieScene->GetPlaybackRange().GetLowerBoundValue(), EUpdatePositionMethod::Play));
+
+		FGuid FoundBinding;
+		for (int32 BindingIndex = 0; !FoundBinding.IsValid() && BindingIndex < GetMovieScene()->GetBindings().Num(); ++BindingIndex)
+		{
+			for (TWeakObjectPtr<UObject> BoundObject : Player->FindBoundObjects(GetMovieScene()->GetBindings()[BindingIndex].GetObjectGuid(), MovieSceneSequenceID::Root))
+			{
+				if (BoundObject.IsValid() && BoundObject.Get()->GetClass() == InObject->GetClass())
+				{
+					if (!ParentObject || BoundObject.Get()->GetName() == InObject->GetName())
+					{
+						FoundBinding = GetMovieScene()->GetBindings()[BindingIndex].GetObjectGuid();
+						break;
+					}
+				}
+			}
+		}
+		
+		if (!FoundBinding.IsValid())
+		{
+			FGuid ExistingID = Player->FindObjectId(*InObject, MovieSceneSequenceID::Root);
+			if (ExistingID.IsValid())
+			{
+				FoundBinding = ExistingID;
+			}
+		}
+
+		Player->Stop();
+		if (OutActor)
+		{
+			World->DestroyActor(OutActor);
+		}
+
+		if (FoundBinding.IsValid())
+		{
+			return FoundBinding;
+		}
+	}
+
+	const FGuid NewGuid = MovieScene->AddPossessable(InObject->GetName(), InObject->GetClass());
+	
+	// Set up parent/child guids for possessables within spawnables
+	if (ParentGuid.IsValid())
+	{
+		FMovieScenePossessable* ChildPossessable = MovieScene->FindPossessable(NewGuid);
+		if (ensure(ChildPossessable))
+		{
+			ChildPossessable->SetParent(ParentGuid);
+		}
+
+		FMovieSceneSpawnable* ParentSpawnable = MovieScene->FindSpawnable(ParentGuid);
+		if (ParentSpawnable)
+		{
+			ParentSpawnable->AddChildPossessable(NewGuid);
+		}
+	}
+
+	BindPossessableObject(NewGuid, *InObject, ParentObject);
+
+	return NewGuid;
+}
+
+FGuid UTemplateSequence::CreatePossessable(UObject* ObjectToPossess)
+{
+	return FindOrAddBinding(ObjectToPossess);
 }
 
 bool UTemplateSequence::AllowsSpawnableObjects() const

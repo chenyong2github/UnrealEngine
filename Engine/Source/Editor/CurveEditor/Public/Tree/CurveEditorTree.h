@@ -326,6 +326,8 @@ private:
 	TMap<FCurveEditorTreeItemID, ECurveEditorTreeFilterState> FilterStates;
 };
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnCurveEditorToggleExpansionState, bool);
+
 /** 
  * Complete implementation of a curve editor tree. Only really defines the hierarchy and selection states for tree items.
  */
@@ -439,6 +441,11 @@ public:
 	void SetDirectSelection(TArray<FCurveEditorTreeItemID>&& TreeItems, FCurveEditor* InCurveEditor);
 
 	/**
+	 * Removes tree items from the current selection.
+	 */
+	void RemoveFromSelection(TArrayView<const FCurveEditorTreeItemID> TreeItems, FCurveEditor* InCurveEditor);
+
+	/**
 	 * Access the selection state for this tree. Items that are neither implicitly or explicitly selected are not present in the map.
 	 */
 	const TMap<FCurveEditorTreeItemID, ECurveEditorTreeSelectionState>& GetSelection() const;
@@ -471,6 +478,13 @@ public:
 	 * Compact the memory used by this tree (does not modify any meaningful state)
 	 */
 	void Compact();
+
+	/*
+	 * Toggle the expansion state of the selected nodes or all nodes if none selected
+	 */
+	void ToggleExpansionState(bool bRecursive);
+
+	FOnCurveEditorToggleExpansionState& GetToggleExpansionState() { return ToggleExpansionStateDelegate; }
 
 private:
 
@@ -513,4 +527,7 @@ private:
 
 	/** A predicate which will be used to sort tree items after they're been marked as needing sort. */
 	FTreeItemSortPredicate SortPredicate;
+
+	/** Delegate for when toggle expansion state is invoked */
+	FOnCurveEditorToggleExpansionState ToggleExpansionStateDelegate;
 };

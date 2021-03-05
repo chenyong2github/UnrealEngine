@@ -2,6 +2,7 @@
 #include "NiagaraScalabilityManager.h"
 #include "NiagaraWorldManager.h"
 #include "NiagaraComponent.h"
+#include "Particles/FXBudget.h"
 
 static float GScalabilityUpdateTime_Low = 1.0f;
 static float GScalabilityUpdateTime_Medium = 0.5f;
@@ -214,7 +215,7 @@ bool FNiagaraScalabilityManager::EvaluateCullState(FNiagaraWorldManager* WorldMa
 		CompState.bCulledByDistance = false;
 		CompState.bCulledByVisibility = false;
 #endif
-		WorldMan->CalculateScalabilityState(System, Scalability, EffectType, Component, false, CompState);
+		WorldMan->CalculateScalabilityState(System, Scalability, EffectType, Component, false, Context.WorstGlobalBudgetUse, CompState);
 
 		// components that are not dirty and are culled can be safely skipped because we don't care about their
 		// significance.  We also don't care about the significance of those components that are dirty and culled
@@ -409,6 +410,8 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 		return;
 	}
 
+	float WorstGlobalBudgetUse = FFXBudget::GetWorstAdjustedUsage();
+
 	if (bNewOnly)
 	{
 		// if we're focused on new instances, but there aren't any, then just exit early
@@ -421,6 +424,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 		NewComponentContext.bNewOnly = true;
 		NewComponentContext.bProcessAllComponents = true;
 		EffectType->bNewSystemsSinceLastScalabilityUpdate = false;
+		NewComponentContext.WorstGlobalBudgetUse = WorstGlobalBudgetUse;
 
 		UpdateInternal(WorldMan, NewComponentContext);
 		return;
@@ -480,6 +484,8 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan, float De
 	{
 		return;
 	}
+
+	DefaultContext.WorstGlobalBudgetUse = WorstGlobalBudgetUse;
 
 	UpdateInternal(WorldMan, DefaultContext);
 }
@@ -545,9 +551,6 @@ void FNiagaraScalabilityManager::Dump()
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Distance: %d |"), Summary.NumCulledByDistance);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Instance Count: %d |"), Summary.NumCulledByInstanceCount);
 	UE_LOG(LogNiagara, Display, TEXT("| Num Culled By Visibility: %d |"), Summary.NumCulledByVisibility);
-	UE_LOG(LogNiagara, Display, TEXT("| Avg Frame GT: %d |"), EffectType->GetAverageFrameTime_GT());
-	UE_LOG(LogNiagara, Display, TEXT("| Avg Frame GT + CNC: %d |"), EffectType->GetAverageFrameTime_GT_CNC());
-	UE_LOG(LogNiagara, Display, TEXT("| Avg Frame RT: %d |"), EffectType->GetAverageFrameTime_RT());
 	UE_LOG(LogNiagara, Display, TEXT("-------------------------------------------------------------------------------"));
 	UE_LOG(LogNiagara, Display, TEXT("| Details |"));
 	UE_LOG(LogNiagara, Display, TEXT("-------------------------------------------------------------------------------\n%s"), *DetailString);

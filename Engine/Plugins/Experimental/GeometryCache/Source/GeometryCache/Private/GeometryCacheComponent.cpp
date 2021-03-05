@@ -23,11 +23,13 @@ UGeometryCacheComponent::UGeometryCacheComponent(const FObjectInitializer& Objec
 	ElapsedTime = 0.0f;
 	bRunning = true;
 	bLooping = true;
+	bExtrapolateFrames = true;
 	PlayDirection = 1.0f;
 	StartTimeOffset = 0.0f;
 	PlaybackSpeed = 1.0f;
 	Duration = 0.0f;
 	bManualTick = false;
+	MotionVectorScale = 1.f;
 }
 
 void UGeometryCacheComponent::BeginDestroy()
@@ -130,10 +132,11 @@ void UGeometryCacheComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 			bool bInLooping = IsLooping();
 			bool bIsPlayingBackwards = IsPlayingReversed();
 			float InPlaybackSpeed = ActualPlaybackSpeed;
+			float InMotionVectorScale = GetMotionVectorScale();
 			ENQUEUE_RENDER_COMMAND(FGeometryCacheUpdateAnimation)(
-				[InSceneProxy, AnimationTime, bInLooping, bIsPlayingBackwards, InPlaybackSpeed, ActualPlaybackSpeed](FRHICommandList& RHICmdList)
+				[InSceneProxy, AnimationTime, bInLooping, bIsPlayingBackwards, InPlaybackSpeed, ActualPlaybackSpeed, InMotionVectorScale](FRHICommandList& RHICmdList)
 				{
-					InSceneProxy->UpdateAnimation(AnimationTime, bInLooping, bIsPlayingBackwards, InPlaybackSpeed);
+					InSceneProxy->UpdateAnimation(AnimationTime, bInLooping, bIsPlayingBackwards, InPlaybackSpeed, InMotionVectorScale);
 				});
 		}
 	}
@@ -186,10 +189,11 @@ void UGeometryCacheComponent::TickAtThisTime(const float Time, bool bInIsRunning
 			FGeometryCacheSceneProxy* InSceneProxy = CastedProxy;
 			float AnimationTime = Time;
 			float InPlaybackSpeed = ActualPlaybackSpeed;
+			float InMotionVectorScale = GetMotionVectorScale();
 			ENQUEUE_RENDER_COMMAND(FGeometryCacheUpdateAnimation)(
-				[InSceneProxy, AnimationTime, bInIsLooping, bInBackwards, InPlaybackSpeed](FRHICommandList& RHICmdList)
+				[InSceneProxy, AnimationTime, bInIsLooping, bInBackwards, InPlaybackSpeed, InMotionVectorScale](FRHICommandList& RHICmdList)
 				{
-					InSceneProxy->UpdateAnimation(AnimationTime, bInIsLooping, bInBackwards, InPlaybackSpeed);
+					InSceneProxy->UpdateAnimation(AnimationTime, bInIsLooping, bInBackwards, InPlaybackSpeed, InMotionVectorScale);
 				});
 		}
 	}
@@ -349,6 +353,16 @@ void UGeometryCacheComponent::SetLooping(const bool bNewLooping)
 	bLooping = bNewLooping;
 }
 
+bool UGeometryCacheComponent::IsExtrapolatingFrames() const
+{
+	return bExtrapolateFrames;
+}
+
+void UGeometryCacheComponent::SetExtrapolateFrames(const bool bNewExtrapolating)
+{
+	bExtrapolateFrames = bNewExtrapolating;
+}
+
 bool UGeometryCacheComponent::IsPlayingReversed() const
 {
 	return FMath::IsNearlyEqual( PlayDirection, -1.0f );
@@ -363,6 +377,16 @@ void UGeometryCacheComponent::SetPlaybackSpeed(const float NewPlaybackSpeed)
 {
 	// Currently only positive play back speeds are supported
 	PlaybackSpeed = FMath::Clamp( NewPlaybackSpeed, 0.0f, 512.0f );
+}
+
+float UGeometryCacheComponent::GetMotionVectorScale() const
+{
+	return FMath::Clamp(MotionVectorScale, 0.0f, 100.0f);
+}
+
+void UGeometryCacheComponent::SetMotionVectorScale(const float NewMotionVectorScale)
+{
+	MotionVectorScale = FMath::Clamp(NewMotionVectorScale, 0.0f, 100.0f);
 }
 
 bool UGeometryCacheComponent::SetGeometryCache(UGeometryCache* NewGeomCache)

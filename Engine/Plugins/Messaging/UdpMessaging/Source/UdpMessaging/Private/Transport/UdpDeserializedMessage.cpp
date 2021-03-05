@@ -12,7 +12,7 @@
 #include "UObject/Package.h"
 #include "UdpMessagingPrivate.h"
 #include "UdpMessagingSettings.h"
-
+#include "UdpMessagingTracing.h"
 
 /* FUdpDeserializedMessage structors
 *****************************************************************************/
@@ -52,6 +52,7 @@ public:
 
 bool FUdpDeserializedMessage::Deserialize(const FUdpReassembledMessage& ReassembledMessage)
 {
+	SCOPED_MESSAGING_TRACE(FUdpDeserializedMessage_Deserialize);
 	return FUdpDeserializedMessageDetails::Deserialize(*this, ReassembledMessage);
 }
 
@@ -244,6 +245,7 @@ bool FUdpDeserializedMessageDetails::DeserializeV11_14(FUdpDeserializedMessage& 
 
 		if (!DeserializedMessage.TypeInfo.IsValid(false, true))
 		{
+			UE_LOG(LogUdpMessaging, Verbose, TEXT("No valid type info found for message type %s"), *MessageType.ToString());
 			return false;
 		}
 	}

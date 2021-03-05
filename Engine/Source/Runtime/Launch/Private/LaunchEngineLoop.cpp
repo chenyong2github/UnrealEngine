@@ -2761,13 +2761,11 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		SlowTask.EnterProgressFrame(25, LOCTEXT("CompileGlobalShaderMap", "Compiling Global Shaders..."));
 
-		// Load the global shaders.
-		// if (!IsRunningCommandlet())
-		// hack: don't load global shaders if we are cooking we will load the shaders for the correct platform later
+		// Load the global shaders
+		// Commandlets and dedicated servers don't load global shaders (the cook commandlet will load for the necessary target platform(s) later).
 		if (bEnableShaderCompile &&
 			!IsRunningDedicatedServer() &&
-			!bIsCook)
-			// if (FParse::Param(FCommandLine::Get(), TEXT("Multiprocess")) == false)
+			(!IsRunningCommandlet() || IsAllowCommandletRendering()))
 		{
 			LLM_SCOPE(ELLMTag::Shaders);
 			SCOPED_BOOT_TIMING("CompileGlobalShaderMap");

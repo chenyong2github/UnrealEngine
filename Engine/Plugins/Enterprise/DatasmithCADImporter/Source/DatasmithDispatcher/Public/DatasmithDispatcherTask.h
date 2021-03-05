@@ -8,7 +8,7 @@
 
 namespace DatasmithDispatcher
 {
-using ETaskState = CADLibrary::ECoretechParsingResult;
+using ETaskState = CADLibrary::ECoreTechParsingResult;
 
 struct FTask
 {

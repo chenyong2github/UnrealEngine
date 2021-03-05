@@ -265,7 +265,7 @@ void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::FImplicitObject& Geom,
 	{
 		DrawSphereOverlap(InWorld, Pos, Sphere->GetRadius(), Overlaps, Lifetime);
 	}
-	else if (const auto Capsule = Geom.template GetObject<TCapsule<float>>())
+	else if (const auto Capsule = Geom.template GetObject<FCapsule>())
 	{
 		// Convert here from Chaos to unreal definition of capsule height
 		DrawCapsuleOverlap(InWorld, Pos, Capsule->GetHeight() * 0.5f + Capsule->GetRadius(), Capsule->GetRadius(), Rot, Overlaps, Lifetime);
@@ -283,7 +283,7 @@ void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& 
 	{
 		DrawSphereSweeps(InWorld, Start, End, Sphere->GetRadius(), Hits, Lifetime);
 	}
-	else if (const auto Capsule = Geom.template GetObject<TCapsule<float>>())
+	else if (const auto Capsule = Geom.template GetObject<FCapsule>())
 	{
 		// Convert here from Chaos to unreal definition of capsule height
 		DrawCapsuleSweeps(InWorld, Start, End, Capsule->GetHeight() * 0.5f + Capsule->GetRadius(), Capsule->GetRadius(), Rotation, Hits, Lifetime);

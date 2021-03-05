@@ -42,6 +42,7 @@ USequencerSettings::USequencerSettings( const FObjectInitializer& ObjectInitiali
 	bKeepPlayRangeInSectionBounds = true;
 	bCompileDirectorOnEvaluate = true;
 	ZeroPadFrames = 0;
+	JumpFrameIncrement = FFrameNumber(5);
 	bShowCombinedKeyframes = true;
 	bInfiniteKeyAreas = false;
 	bShowChannelColors = false;
@@ -517,6 +518,20 @@ void USequencerSettings::SetZeroPadFrames(uint8 InZeroPadFrames)
 	if (ZeroPadFrames != InZeroPadFrames)
 	{
 		ZeroPadFrames = InZeroPadFrames;
+		SaveConfig();
+	}
+}
+
+FFrameNumber USequencerSettings::GetJumpFrameIncrement() const
+{
+	return JumpFrameIncrement;
+}
+
+void USequencerSettings::SetJumpFrameIncrement(FFrameNumber InJumpFrameIncrement)
+{
+	if (JumpFrameIncrement != InJumpFrameIncrement)
+	{
+		JumpFrameIncrement = InJumpFrameIncrement;
 		SaveConfig();
 	}
 }

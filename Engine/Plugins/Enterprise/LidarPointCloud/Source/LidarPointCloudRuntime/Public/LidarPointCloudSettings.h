@@ -68,6 +68,20 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Performance, meta = (ClampMin = "0"))
 	float CachedNodeLifetime;
 
+	/**
+     * Enabling this will automatically release memory used by the asset once it's saved
+     * Helpful when dealing with very large data sets to avoid memory blocking
+     */
+    UPROPERTY(config, EditAnywhere, Category= Performance)
+    bool bReleaseAssetAfterSaving;
+
+    /**
+     * Enabling this will automatically release memory used by the asset once it's cooked
+     * Helpful when dealing with very large data sets to avoid memory blocking
+     */
+    UPROPERTY(config, EditAnywhere, Category= Performance)
+    bool bReleaseAssetAfterCooking;
+
 	/** If enabled, the render data generation will be spread across multiple frames to avoid freezes */
 	UPROPERTY(config, EditAnywhere, Category=Performance)
 	bool bUseRenderDataSmoothing;
@@ -85,8 +99,16 @@ public:
 	 * Caution: Preserving original coordinates may cause noticeable precision loss, if the values are too large.
 	 * Should you experience point 'banding' effect, please re-import your cloud with centering enabled.
 	 */
-	UPROPERTY(config, EditAnywhere, Category="Import / Export")
+	UPROPERTY(config, EditAnywhere, Category="Automation")
 	bool bAutoCenterOnImport;
+
+	/** If enabled, the assets will automatically calculate normals upon their successful import. */
+	UPROPERTY(config, EditAnywhere, Category="Automation")
+	bool bAutoCalculateNormalsOnImport;
+
+	/** If enabled, the assets will automatically build collision upon their successful import. */
+	UPROPERTY(config, EditAnywhere, Category="Automation")
+	bool bAutoBuildCollisionOnImport;
 
 	/** Scale to apply during import */
 	UPROPERTY(config, EditAnywhere, Category= "Import / Export", meta = (ClampMin = "0.0001"))

@@ -28,8 +28,10 @@ public:
 	uint32 AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata);
 	TimelineInternal& EditCpuThreadTimeline(uint32 ThreadId);
 	TimelineInternal& EditGpuTimeline();
+	TimelineInternal& EditGpu2Timeline();
 	virtual bool GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const override;
 	virtual bool GetGpuTimelineIndex(uint32& OutTimelineIndex) const override;
+	virtual bool GetGpu2TimelineIndex(uint32& OutTimelineIndex) const override;
 	virtual bool ReadTimeline(uint32 Index, TFunctionRef<void(const Timeline&)> Callback) const override;
 	virtual uint32 GetTimelineCount() const override { return Timelines.Num(); }
 	virtual void EnumerateTimelines(TFunctionRef<void(const Timeline&)> Callback) const override;
@@ -55,6 +57,7 @@ private:
 	TArray<TSharedRef<TimelineInternal>> Timelines;
 	TMap<uint32, uint32> CpuThreadTimelineIndexMap;
 	uint32 GpuTimelineIndex = 0;
+	uint32 Gpu2TimelineIndex = 1;
 	TTableLayout<FTimingProfilerAggregatedStats> AggregatedStatsTableLayout;
 };
 

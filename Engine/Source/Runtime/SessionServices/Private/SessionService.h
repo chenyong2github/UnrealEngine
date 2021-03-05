@@ -107,4 +107,7 @@ private:
 
 	/** Holds the message endpoint. */
 	TSharedPtr<FMessageEndpoint, ESPMode::ThreadSafe> MessageEndpoint;
+
+	/** Set to true while in SendLog, used to avoid recursion */
+	bool IsInSendLog;
 };
