@@ -690,7 +690,7 @@ public:
 	virtual float GetOpacityMaskClipValue() const override { return OpacityMaskClipValue; }
 	virtual void SetOpacityMaskClipValue(float InClipValue) override { OpacityMaskClipValue = InClipValue; }
 
-	virtual int32 GetExpressionsCount() const override { return Expressions.Num(); }
+	virtual int32 GetExpressionsCount() const override { return Expressions.View().Num(); }
 	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) override;
 	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const override;
 
@@ -719,7 +719,7 @@ protected:
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > AmbientOcclusion;
 	TDatasmithReferenceProxy< FDatasmithExpressionInputImpl > MaterialAttributes;
 
-	TDatasmithReferenceArrayProxy< TSharedPtr< IDatasmithMaterialExpression > > Expressions;
+	TDatasmithReferenceArrayProxy< IDatasmithMaterialExpression > Expressions;
 
 	TReflected<int32> BlendMode;
 	TReflected<bool> bTwoSided;
