@@ -90,6 +90,8 @@ namespace Metasound
 		static constexpr const TCHAR* SeedPinName = TEXT("Seed");
 	};
 
+	constexpr int32 FNoiseOperator::DefaultSeed;
+
 	struct FNoiseOperator_White final : public FNoiseOperator
 	{
 		Audio::FWhiteNoise Generator;
