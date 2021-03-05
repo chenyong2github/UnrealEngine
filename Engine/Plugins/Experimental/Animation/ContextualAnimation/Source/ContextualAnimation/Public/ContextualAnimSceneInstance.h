@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
+#include "GameFramework/Actor.h"
 #include "ContextualAnimSceneInstance.generated.h"
 
 struct FContextualAnimData;

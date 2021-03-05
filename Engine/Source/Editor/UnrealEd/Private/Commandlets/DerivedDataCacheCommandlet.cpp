@@ -23,6 +23,7 @@ DerivedDataCacheCommandlet.cpp: Commandlet for DDC maintenence
 #include "Algo/RemoveIf.h"
 #include "Algo/Transform.h"
 #include "Settings/ProjectPackagingSettings.h"
+#include "Editor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogDerivedDataCacheCommandlet, Log, All);
 
