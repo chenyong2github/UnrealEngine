@@ -25,7 +25,10 @@ struct CORE_API FUE5ReleaseStreamObjectVersion
 		LevelInstanceSerializeRuntimeBehavior,
 
 		// Refactoring Pose Asset runtime data structures
-        PoseAssetRuntimeRefactor,
+		PoseAssetRuntimeRefactor,
+
+		// Serialize the folder path of actor descs
+		WorldPartitionActorDescSerializeActorFolderPath,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

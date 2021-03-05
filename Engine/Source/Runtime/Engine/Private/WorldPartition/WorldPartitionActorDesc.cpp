@@ -68,6 +68,7 @@ void FWorldPartitionActorDesc::Init(const AActor* InActor)
 	DataLayers = InActor->GetDataLayerNames();
 	ActorPackage = InActor->GetPackage()->GetFName();
 	ActorPath = *InActor->GetPathName();
+	FolderPath = InActor->GetFolderPath();
 	
 	TArray<AActor*> ActorReferences = ActorsReferencesUtils::GetExternalActorReferences((AActor*)InActor);
 
@@ -197,6 +198,11 @@ void FWorldPartitionActorDesc::Serialize(FArchive& Ar)
 	{
 		bActorIsHLODRelevant = true;
 		HLODLayer = FName();
+	}
+
+	if (Ar.CustomVer(FUE5ReleaseStreamObjectVersion::GUID) >= FUE5ReleaseStreamObjectVersion::WorldPartitionActorDescSerializeActorFolderPath)
+	{
+		Ar << FolderPath;
 	}
 }
 

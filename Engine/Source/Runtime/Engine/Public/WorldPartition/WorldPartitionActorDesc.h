@@ -70,6 +70,7 @@ public:
 	inline FName GetActorPackage() const { return ActorPackage; }
 	inline FName GetActorPath() const { return ActorPath; }
 	inline FName GetActorLabel() const { return ActorLabel; }
+	inline FName GetFolderPath() const { return FolderPath; }
 	FBox GetBounds() const;
 
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
@@ -160,6 +161,7 @@ protected:
 	FName							HLODLayer;
 	TArray<FName>					DataLayers;
 	TArray<FGuid>					References;
+	FName							FolderPath;
 	
 	// Transient
 	mutable uint32					SoftRefCount;
