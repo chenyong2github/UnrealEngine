@@ -101,10 +101,15 @@ uint GetPrimitiveId(FVertexFactoryInput Input)
 #endif
 }
 
+uint GetHairVertexFetchId(FVertexFactoryInput Input)
+{
+	return min(Input.VertexId, HairCardsVF.MaxVertexCount - 1u);
+}
+
 uint GetHairPrimitiveId(FVertexFactoryInput Input)
 {
 #if MANUAL_VERTEX_FETCH
-	return Input.VertexId;
+	return GetHairVertexFetchId(Input);
 #else
 	return 0;
 #endif
@@ -120,8 +125,9 @@ struct FHairCardsPoint
 FHairCardsPoint GetVertexPosition(FVertexFactoryInput Input)
 {
 #if MANUAL_VERTEX_FETCH
-	const float4 Data = HairCardsVF.PositionBuffer[Input.VertexId];
-	const float4 UVs  = HairCardsVF.UVsBuffer[Input.VertexId];
+	const uint VertexFetchId = GetHairVertexFetchId(Input);
+	const float4 Data = HairCardsVF.PositionBuffer[VertexFetchId];
+	const float4 UVs  = HairCardsVF.UVsBuffer[VertexFetchId];
 #else
 	const float4 Data = Input.Position;
 	const float4 UVs  = Input.UVs;
@@ -137,7 +143,8 @@ FHairCardsPoint GetVertexPosition(FVertexFactoryInput Input)
 float3 GetVertexPreviousPosition(FVertexFactoryInput Input)
 {
 #if MANUAL_VERTEX_FETCH
-	const float4 Data = HairCardsVF.PreviousPositionBuffer[Input.VertexId];
+	const uint VertexFetchId = GetHairVertexFetchId(Input);
+	const float4 Data = HairCardsVF.PreviousPositionBuffer[VertexFetchId];
 #else
 	const float4 Data = Input.Position;
 #endif
@@ -221,8 +228,9 @@ float4 CalcWorldPosition(float3 Position, uint PrimitiveId)
 half3x3 CalcTangentToLocal(FVertexFactoryInput Input, inout float TangentSign)
 {
 #if MANUAL_VERTEX_FETCH
-	const half3 TangentInputX = HairCardsVF.NormalsBuffer[Input.VertexId * 2 + 0].xyz;
-	const half4 TangentInputZ = HairCardsVF.NormalsBuffer[Input.VertexId * 2 + 1];
+	const uint VertexFetchId = GetHairVertexFetchId(Input);
+	const half3 TangentInputX = HairCardsVF.NormalsBuffer[VertexFetchId * 2 + 0].xyz;
+	const half4 TangentInputZ = HairCardsVF.NormalsBuffer[VertexFetchId * 2 + 1];
 #else
 	const half3 TangentInputX = Input.TangentX.xyz;
 	const half4 TangentInputZ = Input.TangentZ;
@@ -331,7 +339,8 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 #endif
 
 #if MANUAL_VERTEX_FETCH
-	Interpolants.HairPrimitiveId = Input.VertexId;
+	const uint VertexFetchId = GetHairVertexFetchId(Input);
+	Interpolants.HairPrimitiveId = VertexFetchId;
 	Interpolants.HairPrimitiveUV = GetVertexPosition(Input).CardsUVs;
 #else
 	Interpolants.HairPrimitiveId = 0;
