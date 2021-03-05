@@ -799,7 +799,7 @@ void FStandardChartPacker::RasterizeChart(const FUVIsland& Chart, uint32 RectW, 
 }} // namespace UE::InternalUVPacking
 
 
-bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<const TArrayView<const int>(int)> GetIsland)
+bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland)
 {
 	using namespace UE::InternalUVPacking;
 	FStandardChartPacker Packer;
@@ -818,7 +818,7 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<con
 
 		Chart.Id = ci + 1;
 
-		Chart.Triangles = GetIsland(ci);
+		CopyIsland(ci, Chart.Triangles);
 
 		Chart.MinUV = FVector2d(FLT_MAX, FLT_MAX);
 		Chart.MaxUV = FVector2d(-FLT_MAX, -FLT_MAX);
@@ -904,7 +904,7 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<con
 
 
 
-bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<const TArrayView<const int>(int)> GetIsland)
+bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland)
 {
 	double GutterWidth = (double)GutterSize / (double)TextureResolution;
 
@@ -917,7 +917,8 @@ bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<const 
 	for (int32 ci = 0; ci < NumCharts; ++ci)
 	{
 		FAxisAlignedBox2d IslandBounds = FAxisAlignedBox2d::Empty();
-		const TArrayView<const int> Island = GetIsland(ci);
+		TArray<int32> Island;
+		CopyIsland(ci, Island);
 		for (int32 tid : Island)
 		{
 			FVector2f UVTri[3];
@@ -949,7 +950,8 @@ bool FUVPacker::StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<const 
 	{
 		IslandElements.Reset();
 		FAxisAlignedBox2d IslandBounds = AllIslandBounds[ci];
-		const TArrayView<const int> Island = GetIsland(ci);
+		TArray<int32> Island;
+		CopyIsland(ci, Island);
 		for (int32 tid : Island)
 		{
 			FIndex3i UVTri = Mesh->GetUVTriangle(tid);

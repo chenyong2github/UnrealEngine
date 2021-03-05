@@ -47,14 +47,14 @@ public:
 	 * All UV islands are packed into standard positive-unit-square.
 	 * Only supports single-pixel border size.
 	 */
-	bool StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<const TArrayView<const int>(int)> GetIsland);
+	bool StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland);
 
 	/// Version of StandardPack that takes an array of arrays instead of a TFunctionRef, for convenience
 	bool StandardPack(IUVMeshView* Mesh, const TArray<TArray<int>>& UVIslands)
 	{
-		return StandardPack(Mesh, UVIslands.Num(), [UVIslands](int Idx)
+		return StandardPack(Mesh, UVIslands.Num(), [&UVIslands](int Idx, TArray<int32>& IslandOut)
 			{
-				return UVIslands[Idx];
+				IslandOut = UVIslands[Idx];
 			});
 	}
 
@@ -63,14 +63,14 @@ public:
 	 * and translate each islands separately so that it's bbox-min is at the origin.
 	 * So the islands are "stacked" and all fit in the unit box.
 	 */
-	bool StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<const TArrayView<const int>(int)> GetIsland);
+	bool StackPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<void(int, TArray<int32>&)> CopyIsland);
 
 	/// Version of StackPack that takes an array of arrays instead of a TFunctionRef, for convenience
 	bool StackPack(IUVMeshView* Mesh, const TArray<TArray<int>>& UVIslands)
 	{
-		return StackPack(Mesh, UVIslands.Num(), [UVIslands](int Idx)
+		return StackPack(Mesh, UVIslands.Num(), [&UVIslands](int Idx, TArray<int32>& IslandOut)
 			{
-				return UVIslands[Idx];
+				IslandOut = UVIslands[Idx];
 			});
 	}
 
@@ -127,10 +127,15 @@ inline void CreateUVIslandsFromMeshTopology(TriangleMeshType& Mesh,
 		FIndex3i Tri = Mesh.GetTriangle(TID);
 		uint32 IslandID = VertComponents.Find(Tri.A);
 		int32 Idx = -1;
-		if (!IslandIDToIdx.Contains(IslandID))
+		int32* FoundIdx = IslandIDToIdx.Find(IslandID);
+		if (!FoundIdx)
 		{
 			Idx = IslandsOut.Emplace();
 			IslandIDToIdx.Add(IslandID, Idx);
+		}
+		else
+		{
+			Idx = *FoundIdx;
 		}
 		IslandsOut[Idx].Add(TID);
 	}

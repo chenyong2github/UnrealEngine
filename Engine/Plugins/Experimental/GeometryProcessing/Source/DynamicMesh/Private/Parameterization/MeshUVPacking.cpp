@@ -65,9 +65,9 @@ bool FDynamicMeshUVPacker::StandardPack()
 		return MeshView.UVOverlay->AreTrianglesConnected(Triangle0, Triangle1);
 		});
 
-	return Packer.StandardPack(&MeshView, UVComponents.Num(), [&UVComponents](int Idx)
+	return Packer.StandardPack(&MeshView, UVComponents.Num(), [&UVComponents](int Idx, TArray<int32>& Island)
 		{
-			return TArrayView<const int>(UVComponents.GetComponent(Idx).Indices);
+			Island = UVComponents.GetComponent(Idx).Indices;
 		});
 }
 
@@ -87,8 +87,8 @@ bool FDynamicMeshUVPacker::StackPack()
 		return MeshView.UVOverlay->AreTrianglesConnected(Triangle0, Triangle1);
 		});
 
-	return Packer.StackPack(&MeshView, UVComponents.Num(), [&UVComponents](int Idx)
+	return Packer.StackPack(&MeshView, UVComponents.Num(), [&UVComponents](int Idx, TArray<int32>& Island)
 		{
-			return TArrayView<const int>(UVComponents.GetComponent(Idx).Indices);
+			Island = UVComponents.GetComponent(Idx).Indices;
 		});
 }
