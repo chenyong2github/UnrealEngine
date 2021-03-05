@@ -68,7 +68,7 @@ void UDisplayClusterScreenComponent::SetScreenSize(const FVector2D& InSize)
 #if WITH_EDITOR
 	if (VisScreenComponent)
 	{
-		VisScreenComponent->SetRelativeScale3D(FVector(1.f, Size.X, Size.Y));
+		VisScreenComponent->SetRelativeScale3D(FVector(1.f, Size.X * 100.f, Size.Y * 100.f));
 	}
 #endif
 }
