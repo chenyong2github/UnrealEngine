@@ -8,7 +8,7 @@
 
 
 
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, DefaultToInstanced)
 class MESHDESCRIPTION_API UMeshDescriptionBase : public UObject
 {
 	GENERATED_BODY()
