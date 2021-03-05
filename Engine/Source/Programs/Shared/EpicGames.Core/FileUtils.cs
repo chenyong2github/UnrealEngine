@@ -318,6 +318,28 @@ namespace EpicGames.Core
 			}
 		}
 
+		/// <summary>
+		/// Gets the file mode on Mac
+		/// </summary>
+		/// <param name="FileName"></param>
+		/// <returns></returns>
+		public static int GetFileMode_Mac(string FileName)
+		{
+			stat64_t stat = new stat64_t();
+			int Result = stat64(FileName, stat);
+			return (Result >= 0)? stat.st_mode : -1;
+		}
+
+		/// <summary>
+		/// Sets the file mode on Mac
+		/// </summary>
+		/// <param name="FileName"></param>
+		/// <param name="Mode"></param>
+		public static void SetFileMode_Mac(string FileName, ushort Mode)
+		{
+			chmod(FileName, Mode);
+		}
+
 		#region Win32 Native File Methods
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
@@ -691,6 +713,47 @@ namespace EpicGames.Core
 			return (long)(uint)FileTime.dwLowDateTime | ((long)(uint)FileTime.dwHighDateTime << 32);
 		}
 
+		#endregion
+
+		#region Mac Native File Methods
+#pragma warning disable CS0649
+		struct timespec_t
+		{
+			public ulong tv_sec;
+			public ulong tv_nsec;
+		}
+
+		[StructLayout(LayoutKind.Sequential)]
+		class stat64_t
+		{
+			public uint st_dev;
+			public ushort st_mode;
+			public ushort st_nlink;
+			public ulong st_ino;
+			public uint st_uid;
+			public uint st_gid;
+			public uint st_rdev;
+			public timespec_t st_atimespec;
+			public timespec_t st_mtimespec;
+			public timespec_t st_ctimespec;
+			public timespec_t st_birthtimespec;
+			public ulong st_size;
+			public ulong st_blocks;
+			public uint st_blksize;
+			public uint st_flags;
+			public uint st_gen;
+			public uint st_lspare;
+			public ulong st_qspare1;
+			public ulong st_qspare2;
+		}
+
+		[DllImport("libSystem.dylib")]
+		static extern int stat64(string pathname, stat64_t stat);
+
+		[DllImport("libSystem.dylib")]
+		static extern int chmod(string path, ushort mode);
+
+#pragma warning restore CS0649
 		#endregion
 	}
 }

@@ -18,6 +18,7 @@ using System.Threading.Tasks;
 using EpicGames.Core;
 using System.Xml;
 using System.Xml.Serialization;
+using System.IO.Compression;
 
 namespace AutomationTool
 {
@@ -2169,19 +2170,21 @@ namespace AutomationTool
 		/// <param name="ZipFile">Filename for the zip</param>
 		/// <param name="BaseDirectory">Base directory to store relative paths in the zip file to</param>
 		/// <param name="Files">Files to include in the archive</param>
-		public static void ZipFiles(FileReference ZipFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files)
+		public static void ZipFiles(FileReference OutputFile, DirectoryReference BaseDirectory, IEnumerable<FileReference> Files)
 		{
-			using(Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(Encoding.UTF8))
+			using (ZipArchive ZipArchive = ZipFile.Open(OutputFile.FullName, ZipArchiveMode.Create))
 			{
-				Zip.UseZip64WhenSaving = Ionic.Zip.Zip64Option.AsNecessary;
-					foreach(FileReference File in Files)
+				foreach (FileReference File in Files)
+				{
+					string Name = File.MakeRelativeTo(BaseDirectory);
+					if (Path.DirectorySeparatorChar != '/')
 					{
-						Zip.AddFile(File.FullName, Path.GetDirectoryName(File.MakeRelativeTo(BaseDirectory)));
+						Name = Name.Replace(Path.DirectorySeparatorChar, '/');
 					}
-					CommandUtils.CreateDirectory(ZipFile.Directory);
-					Zip.Save(ZipFile.FullName);
+					ZipArchive.CreateEntryFromFile_CrossPlatform(File.FullName, Name, CompressionLevel.Fastest);
 				}
 			}
+		}
 
 		/// <summary>
 		/// Extracts the contents of a zip file
@@ -2191,63 +2194,29 @@ namespace AutomationTool
 		/// <returns>List of files written</returns>
 		public static IEnumerable<string> UnzipFiles(string ZipFileName, string BaseDirectory)
 		{
-			List<string> OutputFileNames = new List<string>();
-			if (Utils.IsRunningOnMono)
+			return UnzipFiles(new FileReference(ZipFileName), new DirectoryReference(BaseDirectory)).Select(x => x.FullName);
+		}
+
+		/// <summary>
+		/// Extracts the contents of a zip file
+		/// </summary>
+		/// <param name="ZipFileName">Name of the zip file</param>
+		/// <param name="BaseDirectory">Output directory</param>
+		/// <returns>List of files written</returns>
+		public static IEnumerable<FileReference> UnzipFiles(FileReference ZipFileName, DirectoryReference BaseDirectory)
+		{
+			List<FileReference> OutputFiles = new List<FileReference>();
+			using (ZipArchive ZipArchive = ZipFile.Open(ZipFileName.FullName, ZipArchiveMode.Read))
 			{
-				CommandUtils.CreateDirectory(BaseDirectory);
-
-				// Use system unzip tool as there have been instances of Ionic not being able to open zips created with Mac zip tool
-				string Output = CommandUtils.RunAndLog("unzip", "\"" + ZipFileName + "\" -d \"" + BaseDirectory + "\"", Options: ERunOptions.Default | ERunOptions.SpewIsVerbose);
-
-				// Split log output into lines
-				string[] Lines = Output.Split(new char[] { '\n', '\r' });
-
-				foreach (string LogLine in Lines)
+				foreach (ZipArchiveEntry Entry in ZipArchive.Entries)
 				{
-					CommandUtils.LogInformation(LogLine);
-
-					// Split each line into two by whitespace
-					string[] SplitLine = LogLine.Split(new char[] { ' ', '\t' }, 2, StringSplitOptions.RemoveEmptyEntries);
-					if (SplitLine.Length == 2)
-					{
-						// Second part of line should be a path
-						string FilePath = SplitLine[1].Trim();
-						CommandUtils.LogInformation(FilePath);
-						if (File.Exists(FilePath) && !OutputFileNames.Contains(FilePath) && FilePath != ZipFileName)
-						{
-							if (CommandUtils.IsProbablyAMacOrIOSExe(FilePath))
-							{
-								FixUnixFilePermissions(FilePath);
-							}
-							OutputFileNames.Add(FilePath);
-						}
-					}
-				}
-				if (OutputFileNames.Count == 0)
-				{
-					CommandUtils.LogWarning("Unable to parse unzipped files from {0}", ZipFileName);
+					FileReference OutputFile = FileReference.Combine(BaseDirectory, Entry.FullName);
+					DirectoryReference.CreateDirectory(OutputFile.Directory);
+					Entry.ExtractToFile_CrossPlatform(OutputFile.FullName, true);
+					OutputFiles.Add(OutputFile);
 				}
 			}
-			else
-			{
-				// manually extract the files. There was a problem with the Ionic.Zip library that required this on non-PC at one point,
-				// but that problem is now fixed. Leaving this code as is as we need to return the list of created files anyway.
-				using (Ionic.Zip.ZipFile Zip = new Ionic.Zip.ZipFile(ZipFileName))
-				{
-					
-					foreach (Ionic.Zip.ZipEntry Entry in Zip.Entries.Where(x => !x.IsDirectory))
-					{
-						string OutputFileName = Path.Combine(BaseDirectory, Entry.FileName);
-						Directory.CreateDirectory(Path.GetDirectoryName(OutputFileName));
-						using (FileStream OutputStream = new FileStream(OutputFileName, FileMode.Create, FileAccess.Write))
-						{
-							Entry.Extract(OutputStream);
-						}
-						OutputFileNames.Add(OutputFileName);
-					}
-				}
-			}
-			return OutputFileNames;
+			return OutputFiles;
 		}
 
 		/// <summary>

@@ -73,7 +73,7 @@ namespace BuildGraph.Tasks
 			HashSet<FileReference> OutputFiles = new HashSet<FileReference>();
 			foreach(FileReference ZipFile in ZipFiles)
 			{
-				OutputFiles.UnionWith(CommandUtils.UnzipFiles(ZipFile.FullName, ToDir.FullName).Select(x => new FileReference(x)));
+				OutputFiles.UnionWith(CommandUtils.UnzipFiles(ZipFile, ToDir));
 			}
 
 			// Apply the optional tag to the produced archive
