@@ -39,81 +39,51 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(const F
 {
 	FShaderResourceViewInitializer::FBufferShaderResourceViewInitializer Desc = Initializer.AsBufferSRV();
 	FRHIBuffer* BufferRHI = Desc.Buffer;
-
-	switch (Initializer.GetType())
+	if (BufferRHI == nullptr)
 	{
-		case FShaderResourceViewInitializer::EType::VertexBufferSRV:
+		return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 		{
-			const uint8 Format = Desc.Format;
+			return new FOpenGLShaderResourceView(this, 0, GL_TEXTURE_BUFFER);
+		});
+	}
 
-			FShaderResourceViewRHIRef Result = new FOpenGLShaderResourceViewProxy([=, OGLRHI = this](FRHIShaderResourceView* OwnerRHI)
-			{
-				VERIFY_GL_SCOPE();
-				GLuint TextureID = 0;
-				if (FOpenGL::SupportsResourceView())
-				{
-					FOpenGL::GenTextures(1, &TextureID);
-					UE_CLOG(!GPixelFormats[Format].Supported, LogRHI, Error, TEXT("Unsupported EPixelFormat %d"), Format);
-					if (BufferRHI)
-					{
-						FOpenGLBuffer* VertexBuffer = FOpenGLDynamicRHI::ResourceCast(BufferRHI);
+	EPixelFormat Format = Desc.Format;
+	
+	if (Initializer.GetType() == FShaderResourceViewInitializer::EType::IndexBufferSRV && Format == PF_Unknown)
+	{		
+		uint32 Stride = BufferRHI->GetStride();
+		Format = (Stride == 2) ? PF_R16_UINT : PF_R32_UINT;
+	}
 
-						const uint32 FormatBPP = GPixelFormats[Format].BlockBytes;
-
-						const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
-
-						// Use a texture stage that's not likely to be used for draws, to avoid waiting
-						OGLRHI->CachedSetupTextureStage(OGLRHI->GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
-						BindGLTexBufferRange(GL_TEXTURE_BUFFER, GLFormat.InternalFormat[0], VertexBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, FormatBPP);
-					}
-				}
-				// No need to restore texture stage; leave it like this,
-				// and the next draw will take care of cleaning it up; or
-				// next operation that needs the stage will switch something else in on it.
-
-				return new FOpenGLShaderResourceView(OGLRHI, TextureID, GL_TEXTURE_BUFFER, BufferRHI, Format);
-			});
-
-			return Result;
-		}
-
-		case FShaderResourceViewInitializer::EType::StructuredBufferSRV:
+	if (Format != PF_Unknown)
+	{
+		UE_CLOG(!GPixelFormats[Format].Supported, LogRHI, Error, TEXT("Unsupported EPixelFormat %d"), Format);
+		
+		return new FOpenGLShaderResourceViewProxy([=, OGLRHI = this](FRHIShaderResourceView* OwnerRHI)
 		{
-			return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
-			{
-				VERIFY_GL_SCOPE();
-				FOpenGLBuffer* BufferGL = ResourceCast(BufferRHI);
-				return new FOpenGLShaderResourceView(this, BufferGL->Resource, GL_SHADER_STORAGE_BUFFER, BufferRHI);
-			});
-		}
+			VERIFY_GL_SCOPE();
+			GLuint TextureID = 0;
+			FOpenGL::GenTextures(1, &TextureID);
+			FOpenGLBuffer* GLBuffer = FOpenGLDynamicRHI::ResourceCast(BufferRHI);
+			const uint32 FormatBPP = GPixelFormats[Format].BlockBytes;
+			const FOpenGLTextureFormat& GLFormat = GOpenGLTextureFormats[Format];
+			// Use a texture stage that's not likely to be used for draws, to avoid waiting
+			OGLRHI->CachedSetupTextureStage(OGLRHI->GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
+			BindGLTexBufferRange(GL_TEXTURE_BUFFER, GLFormat.InternalFormat[0], GLBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, FormatBPP);
+			return new FOpenGLShaderResourceView(OGLRHI, TextureID, GL_TEXTURE_BUFFER, BufferRHI, Format);
+		});
+	}
+	else
+	{
+		//TODO: add range views for SSBO
+		ensure(Desc.IsWholeResource());
 
-		case FShaderResourceViewInitializer::EType::IndexBufferSRV:
+		return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
 		{
-			return new FOpenGLShaderResourceViewProxy([=](FRHIShaderResourceView* OwnerRHI)
-			{
-				VERIFY_GL_SCOPE();
-				GLuint TextureID = 0;
-				if (FOpenGL::SupportsResourceView())
-				{
-					FOpenGL::GenTextures(1, &TextureID);
-					if (BufferRHI)
-					{
-						FOpenGLBuffer* IndexBuffer = ResourceCast(BufferRHI);
-						CachedSetupTextureStage(GetContextStateForCurrentContext(), FOpenGL::GetMaxCombinedTextureImageUnits() - 1, GL_TEXTURE_BUFFER, TextureID, -1, 1);
-						uint32 Stride = BufferRHI->GetStride();
-						GLenum Format = (Stride == 2) ? GL_R16UI : GL_R32UI;
-						BindGLTexBufferRange(GL_TEXTURE_BUFFER, Format, IndexBuffer->Resource, Desc.StartOffsetBytes, Desc.NumElements, Stride);
-					}
-				}
-				return new FOpenGLShaderResourceView(this, TextureID, GL_TEXTURE_BUFFER, BufferRHI);
-			});
-		}
-
-		default:
-		{
-			checkNoEntry();
-			return nullptr;
-		}
+			VERIFY_GL_SCOPE();
+			FOpenGLBuffer* BufferGL = ResourceCast(BufferRHI);
+			return new FOpenGLShaderResourceView(this, BufferGL->Resource, GL_SHADER_STORAGE_BUFFER, BufferRHI);
+		});
 	}
 }
 

@@ -799,9 +799,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	PhysicsFieldClipmapBuffer = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
-	// [todo] Default to some other buffer
-	WaterIndirection = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
-	WaterData = GIdentityPrimitiveBuffer.PrimitiveSceneDataBufferSRV;
+	WaterIndirection = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
+	WaterData = GWhiteVertexBufferWithSRV->ShaderResourceViewRHI;
 
 	HairScatteringLUTTexture = BlackVolume;
 	HairScatteringLUTSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();

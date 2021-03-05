@@ -870,8 +870,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_TEXTURE(Texture3D, HairScatteringLUTTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HairScatteringLUTSampler)
 
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, WaterIndirection)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, WaterData)
+	SHADER_PARAMETER_SRV(Buffer<float4>, WaterIndirection)
+	SHADER_PARAMETER_SRV(Buffer<float4>, WaterData)
 
 	SHADER_PARAMETER_UAV(RWBuffer<uint>, VTFeedbackBuffer)
 	SHADER_PARAMETER_SRV(Buffer<uint>, EditorVisualizeLevelInstanceIds)
