@@ -298,10 +298,10 @@ void CopyMSPresets()
 			
 		}
 
-		if (AssetMetaData.assetType == TEXT("3dplant") && MegascansSettings->bCreateFoliage)
+		/*if (AssetMetaData.assetType == TEXT("3dplant") && MegascansSettings->bCreateFoliage)
 		{
 			AssetUtils::AddFoliageTypesToLevel(AssetMetaData.foliageAssetPaths);
-		}
+		}*/
 
 	}
 

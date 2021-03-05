@@ -29,6 +29,8 @@
 #include "Components/StaticMeshComponent.h"
 #include "Misc/Paths.h"
 
+#include "StaticMeshCompiler.h"
+
 
 
 TSharedPtr<FImportProgressive3D> FImportProgressive3D::ImportProgressive3DInst;
@@ -44,7 +46,7 @@ TSharedPtr<FImportProgressive3D> FImportProgressive3D::Get()
 }
 
 
-void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAssetData> ImportData)
+void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAssetData> ImportData, float LocationOffset)
 {
 	FViewport* ActiveViewport = GEditor->GetActiveViewport();
 	FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
@@ -54,7 +56,7 @@ void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAsse
 	FRotator InitialRotation(0.0f, 0.0f, 0.0f);
 
 	FVector SpawnLocation = ViewPosition + (ViewDirection * 300.0f) ;
-	SpawnLocation.Y += LocationOffset;
+	SpawnLocation.X += LocationOffset;
 
 
 	FVector Location(0.0f, 0.0f, 0.0f);
@@ -79,12 +81,12 @@ void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAsse
 		ProgressiveData.Add(ImportData->AssetId, SMActor);
 	}
 
-	SetLocationOffset(0.0f);
+	//SetLocationOffset(0.0f);
 
 
 }
 
-void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
+void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset)
 {
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -115,27 +117,20 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
 
 	if (ImportData->ProgressiveStage == 1)
-	{
-		
+	{		
 
 		FString MeshPath = AssetMetaData.meshList[0].path;
-		
-
-		PreviewDetails[ImportData->AssetId]->PreviewMeshPath = MeshPath;	
-
-
+		PreviewDetails[ImportData->AssetId]->PreviewMeshPath = MeshPath;
 		FAssetData PreviewMeshData = AssetRegistry.GetAssetByObjectPath(FName(*MeshPath));
-		
-
 		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath ;
 		
 		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
-
 		FSoftObjectPath ItemToStream = PreviewMeshData.ToSoftObjectPath();
-		//UE_LOG(LogTemp, Error, TEXT("Instance path : %s"), *MInstancePath);
+		
+		if (!MInstanceData.IsValid()) return;
 		
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId));
-		SpawnAtCenter(PreviewMeshData, ImportData);
+		SpawnAtCenter(PreviewMeshData, ImportData, LocationOffset);
 
 	}
 	else if (ImportData->ProgressiveStage == 2)
@@ -151,11 +146,12 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 			}
 		}
 
-		//UE_LOG(LogTemp, Error, TEXT("Albedo path : %s"), *AlbedoPath);
 		
-
 		FAssetData AlbedoData = AssetRegistry.GetAssetByObjectPath(FName(*AlbedoPath));
 		FSoftObjectPath ItemToStream = AlbedoData.ToSoftObjectPath();
+
+		if (!AlbedoData.IsValid()) return;
+
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewTextureLoad, AlbedoData, ImportData->AssetId, TextureType));
 
 
@@ -178,6 +174,9 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		
 		FAssetData NormalData = AssetRegistry.GetAssetByObjectPath(FName(*NormalPath));
 		FSoftObjectPath ItemToStream = NormalData.ToSoftObjectPath();
+
+		if (!NormalData.IsValid()) return;
+
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewTextureLoad, NormalData, ImportData->AssetId, TextureType));
 
 	}
@@ -194,6 +193,9 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		}
 		
 		FSoftObjectPath ItemToStream = HighMeshData.ToSoftObjectPath();
+
+		if (!HighMeshData.IsValid()) return;
+
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandleHighAssetLoad, HighMeshData, ImportData->AssetId, AssetMetaData, bWaitNaniteConversion));
 
 	}
@@ -203,7 +205,13 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 
 void FImportProgressive3D::HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID,  FString Type)
 {
-	UTexture* PreviewTexture = Cast<UTexture>(TextureData.GetAsset());
+	if (PreviewDetails[AssetID]->PreviewInstance == nullptr || !IsValid(PreviewDetails[AssetID]->PreviewInstance))
+	{
+		return;
+	}
+
+	UTexture* PreviewTexture = Cast<UTexture>(TextureData.GetAsset());	
+
 	UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(PreviewDetails[AssetID]->PreviewInstance, FName(*Type), PreviewTexture);
 	AssetUtils::SavePackage(PreviewDetails[AssetID]->PreviewInstance);
 }
@@ -247,14 +255,14 @@ void FImportProgressive3D::AsyncCacheData(FAssetData HighAssetData, FString Asse
 {
 
 	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
-	
 
-	if (bWaitNaniteConversion)
+	if (FStaticMeshCompilingManager::Get().IsAsyncCompilationAllowed(SourceMesh) && FStaticMeshCompilingManager::Get().IsAsyncStaticMeshCompilationEnabled())
 	{
-		FPlatformProcess::Sleep(45.0f);
+		while (SourceMesh->IsCompiling())
+		{
+			FPlatformProcess::Sleep(1.0f);
+		}
 	}
-
-	
 
 
 	AsyncTask(ENamedThreads::GameThread, [this, HighAssetData, AssetID]() {
@@ -269,6 +277,9 @@ void FImportProgressive3D::SwitchHigh(FAssetData HighAssetData, FString AssetID)
 	UGameplayStatics::GetAllActorsOfClass(GEngine->GetWorldContexts()[0].World(), AStaticMeshActor::StaticClass(), FoundActors);
 	
 	UStaticMesh* SourceMesh = Cast<UStaticMesh>(HighAssetData.GetAsset());
+
+	if (!IsValid(SourceMesh)) return;
+
 	/*AStaticMeshActor* PreviewActor = ProgressiveData[AssetID];
 	if (PreviewActor != nullptr) {
 		PreviewActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
@@ -286,8 +297,8 @@ void FImportProgressive3D::SwitchHigh(FAssetData HighAssetData, FString AssetID)
 		}
 	}
 
-	FString AssetPathHigh = FPaths::GetPath(SourceMesh->GetPathName());
-	FString PreviwPath = FPaths::Combine(AssetPathHigh, TEXT("Preview"));
+	/*FString AssetPathHigh = FPaths::GetPath(SourceMesh->GetPathName());
+	FString PreviwPath = FPaths::Combine(AssetPathHigh, TEXT("Preview"));*/
 	//AssetUtils::DeleteDirectory(PreviwPath);
 
 	
@@ -295,10 +306,6 @@ void FImportProgressive3D::SwitchHigh(FAssetData HighAssetData, FString AssetID)
 	PreviewDetails.Remove(AssetID);
 }
 
-void FImportProgressive3D::SetLocationOffset(float ActorLocationOffset)
-{
-	LocationOffset = ActorLocationOffset;
-}
 
 
 

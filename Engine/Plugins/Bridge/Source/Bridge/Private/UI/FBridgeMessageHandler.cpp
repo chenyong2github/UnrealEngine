@@ -108,8 +108,16 @@ bool FBridgeMessageHandler::OnMouseUp(const EMouseButtons::Type Button, const FV
 {
 	if (TargetHandler.IsValid())
 	{
-		// Destroy the drag popup
-		FBridgeUIManager::Instance->DragDropWindow.Get()->RequestDestroyWindow();
+		// Destroy the drag popups
+		for (auto& Window : FBridgeUIManager::Instance->DragDropWindows)
+		{
+			Window->RequestDestroyWindow();
+		}
+
+		FBridgeUIManager::Instance->DragDropWindows.RemoveAll([](TSharedPtr<SWindow> Val)
+		{
+			 return true;
+		});
 
 		// Get browser dimensions
 		FGeometry BrowserGeometry = FBridgeUIManager::Instance->WebBrowserWidget.Get()->GetTickSpaceGeometry();
@@ -199,12 +207,18 @@ bool FBridgeMessageHandler::OnMouseWheel(const float Delta, const FVector2D Curs
 
 bool FBridgeMessageHandler::OnMouseMove()
 {
-	
-	SWindow* DragDropWindow = FBridgeUIManager::Instance->DragDropWindow.Get();
+	for (int32 Index = 0; Index !=  FBridgeUIManager::Instance->DragDropWindows.Num(); ++Index)
+	{
+		TSharedPtr<SWindow> DragDropWindow = FBridgeUIManager::Instance->DragDropWindows[Index];
+		FVector2D DragDropWindowSize = DragDropWindow->GetTickSpaceGeometry().GetAbsoluteSize();
+		FVector2D CursorPosition = FSlateApplication::Get().GetCursorPos();
+		DragDropWindow.Get()->MoveWindowTo(FVector2D(CursorPosition.X + (10 * Index) - (DragDropWindowSize.X / 2), CursorPosition.Y + (10 * Index) - (DragDropWindowSize.Y / 2)));
+		if (!DragDropWindow->IsVisible())
+		{
+			DragDropWindow->ShowWindow();
+		}
+	}
 
-	FVector2D DragDropWindowSize = DragDropWindow->GetTickSpaceGeometry().GetAbsoluteSize();
-	FVector2D CursorPosition = FSlateApplication::Get().GetCursorPos();
-	FBridgeUIManager::Instance->DragDropWindow.Get()->MoveWindowTo(FVector2D(CursorPosition.X - (DragDropWindowSize.X / 2), CursorPosition.Y - (DragDropWindowSize.Y / 2)));
 	return TargetHandler->OnMouseMove();
 }
 

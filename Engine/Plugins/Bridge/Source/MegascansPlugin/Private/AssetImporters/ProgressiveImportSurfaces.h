@@ -24,14 +24,14 @@ private:
 	static TSharedPtr<FImportProgressiveSurfaces> ImportProgressiveSurfacesInst;
 
 	TMap<FString, TSharedPtr<FProgressiveSurfaces>> PreviewDetails;
-	void SpawnMaterialPreviewActor(FString AssetID);	
+	void SpawnMaterialPreviewActor(FString AssetID, float LocationOffset);
 
 
 public:
 	static TSharedPtr<FImportProgressiveSurfaces> Get();
-	void ImportAsset(TSharedPtr<FJsonObject> AssetImportJson);
+	void ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset);
 
-	void HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID);
+	void HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID, float LocationOffset);
 	void HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID, FString Type);
 
 	void HandleHighInstanceLoad(FAssetData HighInstanceData, FString AssetID, FUAssetMeta AssetMetaData);

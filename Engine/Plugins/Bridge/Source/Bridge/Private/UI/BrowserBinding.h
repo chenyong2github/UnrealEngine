@@ -57,7 +57,7 @@ public:
 	void ShowDialog(FString Type, FString Url);
 
 	UFUNCTION()
-	void DragStarted(FString ImageUrl);
+	void DragStarted(TArray<FString> ImageUrl);
 
 	void ShowLoginDialog(FString Url);
 

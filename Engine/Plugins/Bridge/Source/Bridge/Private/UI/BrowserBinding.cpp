@@ -155,27 +155,34 @@ void UBrowserBinding::OpenExternalUrl(FString Url)
 	FPlatformProcess::LaunchURL(*Url, nullptr, nullptr);
 }
 
-void UBrowserBinding::DragStarted(FString ImageUrl)
+void UBrowserBinding::DragStarted(TArray<FString> ImageUrls)
 {
-	TSharedPtr<SWebBrowser> PopupWebBrowser = SNew(SWebBrowser)
-								.ShowControls(false);
-				
-	FBridgeUIManager::Instance->DragDropWindow = SNew(SWindow)
-		.ClientSize(FVector2D(120, 120))
-		.SupportsTransparency(EWindowTransparency::PerWindow)
-		.RenderOpacity(0.3)
-		.CreateTitleBar(false)
-		.IsTopmostWindow(true)
-		.FocusWhenFirstShown(false)
-		.SupportsMaximize(false)
-		.SupportsMinimize(false)
-		[
-			PopupWebBrowser.ToSharedRef()
-		];
+	for (int32 index = ImageUrls.Num() - 1; index >= 0; index--)
+	{
+		FString ImageUrl = ImageUrls[index];
 
-	PopupWebBrowser->LoadString(FString::Printf(TEXT("<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <style> * { padding: 0px; } body { padding: 0px; margin: 0px; } #container { display: flex; width: 120px; height: 120px; background: #202020; justify-content: center; align-items: center;} #full-image { max-width: 120px; height: auto; display: block; font-size: 0; } </style> </head> <body> <div id=\"container\"> <img id=\"full-image\" src=\"%s\" /> </div> </body></html>"), *ImageUrl), TEXT(""));
+	 	// UE_LOG(LogTemp, Error, TEXT("Image: %s"), *ImageUrl);
+		TSharedPtr<SWebBrowser> PopupWebBrowser = SNew(SWebBrowser)
+									.ShowControls(false);
+		TSharedPtr<SWindow> DragDropWindow = SNew(SWindow)
+			.ClientSize(FVector2D(120, 120))
+			.SupportsTransparency(EWindowTransparency::PerWindow)
+			.RenderOpacity(0.3)
+			.CreateTitleBar(false)
+			.IsTopmostWindow(true)
+			.FocusWhenFirstShown(false)
+			.SupportsMaximize(false)
+			.SupportsMinimize(false)
+			[
+				PopupWebBrowser.ToSharedRef()
+			];
+					
+		FBridgeUIManager::Instance->DragDropWindows.Add(DragDropWindow);
 
-	FSlateApplication::Get().AddWindow(FBridgeUIManager::Instance->DragDropWindow.ToSharedRef());
+		PopupWebBrowser->LoadString(FString::Printf(TEXT("<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <style> * { padding: 0px; } body { padding: 0px; margin: 0px; } #container { display: flex; width: 120px; height: 120px; background: #202020; justify-content: center; align-items: center;} #full-image { max-width: 110px; max-height: 110px; display: block; font-size: 0; } </style> </head> <body> <div id=\"container\"> <img id=\"full-image\" src=\"%s\" /> </div> </body></html>"), *ImageUrl), TEXT(""));
+
+		FSlateApplication::Get().AddWindow(DragDropWindow.ToSharedRef(), false);
+	}
 
 	TSharedRef<FGenericApplicationMessageHandler> TargetHandler = FSlateApplication::Get().GetPlatformApplication().Get()->GetMessageHandler();
 	UBrowserBinding::BridgeMessageHandler->SetTargetHandler(TargetHandler);
@@ -187,8 +194,6 @@ void UBrowserBinding::DragStarted(FString ImageUrl)
 	FSlateApplication::Get().SpawnToolTip(MyToolTip.ToSharedRef(), FVector2D(200, 300));*/
 
 	//	FBridgeUIManager::Instance->DragDropWindow.Get()->Resize(FVector2D(100, 100));
-
-
 }
 
 void UBrowserBinding::Logout()
@@ -203,8 +208,6 @@ void UBrowserBinding::Logout()
 			CookieManager->DeleteCookies();
 		}
 	}
-
-	
 }
 
 void UBrowserBinding::OpenMegascansPluginSettings()

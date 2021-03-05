@@ -20,7 +20,7 @@ public:
 	void Shutdown();
 	void HandleBrowserUrlChanged(const FText& Url);
 	TSharedPtr<SWebBrowser> WebBrowserWidget;
-	TSharedPtr<SWindow> DragDropWindow;
+	TArray<TSharedPtr<SWindow>> DragDropWindows;
 
 private:
 	void SetupMenuItem();

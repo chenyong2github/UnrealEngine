@@ -45,7 +45,7 @@ TSharedPtr<FImportProgressiveSurfaces> FImportProgressiveSurfaces::Get()
 }
 
 
-void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
+void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset)
 {
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -86,7 +86,7 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
 
 		FSoftObjectPath ItemToStream = MInstanceData.ToSoftObjectPath();
-		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId));
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId, LocationOffset));
 		
 
 	}
@@ -153,6 +153,11 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 void FImportProgressiveSurfaces::HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID, FString Type)
 {
+	if (PreviewDetails[AssetID]->PreviewInstance == nullptr || !IsValid(PreviewDetails[AssetID]->PreviewInstance))
+	{
+		return;
+	}
+
 	UTexture* PreviewTexture = Cast<UTexture>(TextureData.GetAsset());
 	UMaterialEditingLibrary::SetMaterialInstanceTextureParameterValue(PreviewDetails[AssetID]->PreviewInstance, FName(*Type), PreviewTexture);
 	AssetUtils::SavePackage(PreviewDetails[AssetID]->PreviewInstance);
@@ -160,16 +165,16 @@ void FImportProgressiveSurfaces::HandlePreviewTextureLoad(FAssetData TextureData
 
 
 
-void FImportProgressiveSurfaces::HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID)
+void FImportProgressiveSurfaces::HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID, float LocationOffset)
 {
 
 	PreviewDetails[AssetID]->PreviewInstance = Cast<UMaterialInstanceConstant>(PreviewInstanceData.GetAsset());
-	SpawnMaterialPreviewActor(AssetID);
+	SpawnMaterialPreviewActor(AssetID, LocationOffset);
 
 
 }
 
-void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID)
+void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, float LocationOffset)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	FString SphereMeshPath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
@@ -184,6 +189,7 @@ void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID)
 	FRotator InitialRotation(0.0f, 0.0f, 0.0f);
 
 	FVector SpawnLocation = ViewPosition + (ViewDirection * 300.0f);
+	SpawnLocation.X += LocationOffset;
 
 	FVector Location(0.0f, 0.0f, 0.0f);
 	FRotator Rotation(0.0f, 0.0f, 0.0f);
@@ -211,6 +217,7 @@ void FImportProgressiveSurfaces::HandleHighInstanceLoad(FAssetData HighInstanceD
 {
 	if (!PreviewDetails.Contains(AssetID)) return;
 	if (PreviewDetails[AssetID]->ActorInLevel == nullptr) return;
+	if (!IsValid(PreviewDetails[AssetID]->ActorInLevel)) return;
 
 	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
 	{
