@@ -111,14 +111,14 @@ public:
 	void ComputeOcclusionForScreenGrid(
 		const FViewInfo& View, 
 		FRHICommandListImmediate& RHICmdList, 
-		FSceneRenderTargetItem& DistanceFieldNormal,
+		FRHITexture* DistanceFieldNormal,
 		const class FAOScreenGridResources& ScreenGridResources,
 		const class FDistanceFieldAOParameters& Parameters) const;
 
 	void ComputeIrradianceForScreenGrid(
 		const FViewInfo& View, 
-		FRHICommandListImmediate& RHICmdList, 
-		FSceneRenderTargetItem& DistanceFieldNormal, 
+		FRHICommandListImmediate& RHICmdList,
+		FRHITexture* DistanceFieldNormal,
 		const FAOScreenGridResources& ScreenGridResources,
 		const FDistanceFieldAOParameters& Parameters) const;
 

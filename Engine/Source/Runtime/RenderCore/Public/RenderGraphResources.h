@@ -604,10 +604,10 @@ public:
 	//! The following methods may only be called during pass execution.
 
 	/** Returns the allocated pooled render target. */
+	UE_DEPRECATED(5.0, "Accessing the underlying pooled render target has been deprecated. Use GetRHI() instead.")
 	IPooledRenderTarget* GetPooledRenderTarget() const
 	{
 		IF_RDG_ENABLE_DEBUG(ValidateRHIAccess());
-		check(PooledRenderTarget);
 		return PooledRenderTarget;
 	}
 
@@ -689,7 +689,7 @@ private:
 	IPooledRenderTarget* PooledRenderTarget = nullptr;
 
 	/** The assigned pooled texture to use during execution. Never reset. */
-	FRDGPooledTexture* PooledTexture = nullptr;
+	TRefCountPtr<FRDGPooledTexture> PooledTexture;
 
 	/** Cached state pointer from the pooled texture. */
 	FRDGTextureSubresourceState* State = nullptr;

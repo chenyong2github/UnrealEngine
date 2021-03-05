@@ -253,7 +253,7 @@ bool FTextureShareModule::SendSceneContext_RenderThread(FRDGBuilder& GraphBuilde
 					ERDGPassFlags::Copy | ERDGPassFlags::NeverCull,
 					[this, Texture, ShareItem, ShareName](FRHICommandListImmediate& RHICmdList)
 				{
-					SendTexture_RenderThread(RHICmdList, ShareItem, ShareName, Texture->GetPooledRenderTarget());
+					SendTexture_RenderThread(RHICmdList, ShareItem, ShareName, Texture->GetRHI());
 				});
 			};
 
@@ -301,16 +301,6 @@ bool FTextureShareModule::SendPostRender_RenderThread(FRHICommandListImmediate& 
 		return true;
 	}
 
-	return false;
-}
-
-bool FTextureShareModule::SendTexture_RenderThread(FRHICommandListImmediate& RHICmdList, const TSharedPtr<ITextureShareItem>& ShareItem, const FString& TextureName, const TRefCountPtr<IPooledRenderTarget>& PooledRenderTargetRef)
-{
-	if (PooledRenderTargetRef.IsValid())
-	{
-		const FTexture2DRHIRef& RHITexture = (const FTexture2DRHIRef&)PooledRenderTargetRef->GetRenderTargetItem().ShaderResourceTexture;
-		return SendTexture_RenderThread(RHICmdList, ShareItem, TextureName, RHITexture.GetReference());
-	}
 	return false;
 }
 

@@ -458,15 +458,15 @@ bool TransformKernelFFT(
 
 struct FFFTBloomIntermediates
 {
-	const FSceneRenderTargetItem* FullResolutionTarget = nullptr;
+	FRHITexture* FullResolutionTarget = nullptr;
 	FIntRect FullResolutionViewRect;
 	FIntPoint FullResolutionSize;
 
-	const FSceneRenderTargetItem* HalfResolutionTarget = nullptr;
+	FRHITexture* HalfResolutionTarget = nullptr;
 	FIntRect HalfResolutionViewRect;
 	FIntPoint HalfResolutionSize;
 
-	const FSceneRenderTargetItem* InputTarget = nullptr;
+	FRHITexture* InputTarget = nullptr;
 	FRHIUnorderedAccessView* OutputUAV = nullptr;
 
 	// The size of the input buffer.
@@ -530,14 +530,14 @@ FFFTBloomIntermediates GetFFTBloomIntermediates(
 	const bool bHalfResolutionFFT = IsFFTBloomHalfResolutionEnabled();
 
 	FFFTBloomIntermediates Intermediates;
-	Intermediates.FullResolutionTarget = &Inputs.FullResolutionTexture->GetPooledRenderTarget()->GetRenderTargetItem();
+	Intermediates.FullResolutionTarget = Inputs.FullResolutionTexture->GetRHI();
 	Intermediates.FullResolutionViewRect = Inputs.FullResolutionViewRect;
 	Intermediates.FullResolutionSize = Intermediates.FullResolutionViewRect.Size();
 	Intermediates.bHalfResolutionFFT = bHalfResolutionFFT;
 
 	if (bHalfResolutionFFT)
 	{
-		Intermediates.HalfResolutionTarget = &Inputs.HalfResolutionTexture->GetPooledRenderTarget()->GetRenderTargetItem();
+		Intermediates.HalfResolutionTarget = Inputs.HalfResolutionTexture->GetRHI();
 		Intermediates.HalfResolutionViewRect = Inputs.HalfResolutionViewRect;
 		Intermediates.HalfResolutionSize = Inputs.HalfResolutionViewRect.Size();
 
@@ -613,7 +613,7 @@ void ConvolveWithKernel(
 	GRenderTargetPool.FindFreeElement(RHICmdList, Desc, TmpTargets[1], TEXT("Tmp FFT Buffer B"));
 
 	// Get the source
-	const FTextureRHIRef& InputTexture = Intermediates.InputTarget->ShaderResourceTexture;
+	FRHITexture* InputTexture = Intermediates.InputTarget;
 
 	GPUFFT::ConvolutionWithTextureImage2D(FFTContext, Intermediates.FrequencySize, Intermediates.bDoHorizontalFirst,
 		SpectralKernelTexture,
@@ -811,7 +811,7 @@ FRDGTextureRef AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View,
 			const FTextureRHIRef& CenterWeightTexture = FFTKernel.CenterWeight->GetRenderTargetItem().ShaderResourceTexture;
 
 			// Get full resolution source
-			const FTextureRHIRef& FullResResourceTexture = Intermediates.FullResolutionTarget->ShaderResourceTexture;
+			FRHITexture* FullResResourceTexture = Intermediates.FullResolutionTarget;
 
 			// Blend with  alpha * SrcBuffer + betta * BloomedBuffer  where alpha = Weights[0], beta = Weights[1]
 			const FIntPoint HalfResBufferSize = Intermediates.InputBufferSize;

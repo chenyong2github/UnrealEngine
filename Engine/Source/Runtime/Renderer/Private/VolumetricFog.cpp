@@ -326,7 +326,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, InverseSquaredLightDistanceBiasScale, GInverseSquaredLightDistanceBiasScale);
 
 		SetShaderValue(RHICmdList, ShaderRHI, UseConservativeDepthTexture, GVolumetricFogConservativeDepth > 0 ? 1 : 0);
-		SetTextureParameter(RHICmdList, ShaderRHI, ConservativeDepthTextureParam, ConservativeDepthTexture->GetPooledRenderTarget()->GetRenderTargetItem().TargetableTexture);
+		SetTextureParameter(RHICmdList, ShaderRHI, ConservativeDepthTextureParam, ConservativeDepthTexture->GetRHI());
 
 		VolumeShadowingParameters.Set(RHICmdList, ShaderRHI, View, LightSceneInfo, ShadowMap, INDEX_NONE, bDynamicallyShadowed);
 	}

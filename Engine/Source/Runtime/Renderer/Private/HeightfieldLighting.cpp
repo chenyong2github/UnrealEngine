@@ -1151,7 +1151,7 @@ public:
 		const FViewInfo& View,
 		UTexture2D* HeightfieldTextureValue,
 		int32 NumHeightfieldsValue,
-		FSceneRenderTargetItem& DistanceFieldNormal,
+		FRHITexture* DistanceFieldNormal,
 		const FAOScreenGridResources& ScreenGridResources,
 		const FDistanceFieldAOParameters& Parameters)
 	{
@@ -1204,7 +1204,7 @@ IMPLEMENT_SHADER_TYPE(, FCalculateHeightfieldOcclusionScreenGridCS, TEXT("/Engin
 void FHeightfieldLightingViewInfo::ComputeOcclusionForScreenGrid(
 	const FViewInfo& View,
 	FRHICommandListImmediate& RHICmdList,
-	FSceneRenderTargetItem& DistanceFieldNormal,
+	FRHITexture* DistanceFieldNormal,
 	const FAOScreenGridResources& ScreenGridResources,
 	const FDistanceFieldAOParameters& Parameters) const
 {

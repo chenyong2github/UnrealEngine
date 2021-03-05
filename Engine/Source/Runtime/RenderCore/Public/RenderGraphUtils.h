@@ -48,9 +48,12 @@ inline FRHITexture* TryGetRHI(FRDGTextureRef Texture)
 }
 
 /** Returns the pooled render target from an RDG texture if it exists, or null otherwise. */
+UE_DEPRECATED(5.0, "Accessing the underlying pooled render target has been deprecated. Use TryGetRHI() instead.")
 inline IPooledRenderTarget* TryGetPooledRenderTarget(FRDGTextureRef Texture)
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return Texture ? Texture->GetPooledRenderTarget() : nullptr;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 inline FRenderTargetBindingSlots GetRenderTargetBindings(ERenderTargetLoadAction ColorLoadAction, TArrayView<FRDGTextureRef> ColorTextures)

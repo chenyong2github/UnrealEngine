@@ -1063,7 +1063,7 @@ public:
 
 		if (HairVisibilityData && HairVisibilityData->CategorizationTexture)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetRHI());
 
 			float DeviceZNear = 1;
 			float DeviceZFar = 0;
@@ -1511,7 +1511,7 @@ public:
 
 		if (bUseSubPixel && HairVisibilityData && HairVisibilityData->CategorizationTexture)
 		{
-			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture);
+			SetTextureParameter(RHICmdList, ShaderRHI, HairCategorizationTexture, HairVisibilityData->CategorizationTexture->GetRHI());
 		}
 
 		if (StrataGlobalParameters.IsBound())

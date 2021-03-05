@@ -129,14 +129,14 @@ public:
 		const FSimpleLightArray& SimpleLights,
 		int32 StartIndex,
 		int32 NumThisPass,
-		const IPooledRenderTarget& InTextureValue,
-		const IPooledRenderTarget& OutTextureValue)
+		FRHITexture* InTextureValue,
+		FRHIUnorderedAccessView* OutTextureValue)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureValue.GetRenderTargetItem().ShaderResourceTexture);
-		OutTexture.SetTexture(RHICmdList, ShaderRHI, 0, OutTextureValue.GetRenderTargetItem().UAV);
+		SetTextureParameter(RHICmdList, ShaderRHI, InTexture, InTextureValue);
+		OutTexture.SetTexture(RHICmdList, ShaderRHI, 0, OutTextureValue);
 
 		SetShaderValue(RHICmdList, ShaderRHI, ViewDimensions, View.ViewRect);
 
@@ -146,7 +146,7 @@ public:
 			LTCMatTexture,
 			LTCMatSampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSystemTextures.LTCMat->GetRenderTargetItem().ShaderResourceTexture
+			GSystemTextures.LTCMat->GetShaderResourceRHI()
 			);
 
 		SetTextureParameter(
@@ -155,7 +155,7 @@ public:
 			LTCAmpTexture,
 			LTCAmpSampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSystemTextures.LTCAmp->GetRenderTargetItem().ShaderResourceTexture
+			GSystemTextures.LTCAmp->GetShaderResourceRHI()
 			);
 
 		const int32 NumLightsToRenderInSortedLights = TiledDeferredLightsEnd - TiledDeferredLightsStart;
@@ -254,7 +254,7 @@ public:
 		SetShaderValue(RHICmdList, ShaderRHI, NumLights, NumThisPass);
 	}
 
-	void UnsetParameters(FRHIComputeCommandList& RHICmdList, const IPooledRenderTarget& OutTextureValue)
+	void UnsetParameters(FRHIComputeCommandList& RHICmdList)
 	{
 		OutTexture.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 	}
@@ -313,8 +313,8 @@ static void SetShaderTemplTiledLighting(
 	const FSimpleLightArray& SimpleLights,
 	int32 StartIndex,
 	int32 NumThisPass,
-	const IPooledRenderTarget& InTexture,
-	const IPooledRenderTarget& OutTexture)
+	FRHITexture* InTexture,
+	FRHIUnorderedAccessView* OutTexture)
 {
 	TShaderMapRef<FTiledDeferredLightingCS<bVisualizeLightCulling> > ComputeShader(View.ShaderMap);
 	RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
@@ -325,12 +325,13 @@ static void SetShaderTemplTiledLighting(
 	uint32 GroupSizeY = (View.ViewRect.Size().Y + GDeferredLightTileSizeY - 1) / GDeferredLightTileSizeY;
 	DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), GroupSizeX, GroupSizeY, 1);
 
-	ComputeShader->UnsetParameters(RHICmdList, OutTexture);
+	ComputeShader->UnsetParameters(RHICmdList);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTiledDeferredLightingParameters, )
 	RDG_TEXTURE_ACCESS(SceneColorInput, ERHIAccess::SRVCompute)
 	RDG_TEXTURE_ACCESS(SceneColorOutput, ERHIAccess::UAVCompute)
+	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SceneColorOutputUAV)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -373,6 +374,8 @@ void FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 				SceneColorOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("SceneColorTiled"));
 			}
 
+			FRDGTextureUAVRef SceneColorOutputUAV = GraphBuilder.CreateUAV(SceneColorOutputTexture);
+
 			const int32 ViewCount = Views.Num();
 
 			for (int32 ViewIndex = 0; ViewIndex < ViewCount; ViewIndex++)
@@ -382,21 +385,22 @@ void FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 				FTiledDeferredLightingParameters* PassParameters = GraphBuilder.AllocParameters<FTiledDeferredLightingParameters>();
 				PassParameters->SceneColorInput = SceneTextures.Color.Target;
 				PassParameters->SceneColorOutput = SceneColorOutputTexture;
+				PassParameters->SceneColorOutputUAV = SceneColorOutputUAV;
 				PassParameters->SceneTextures = SceneTextures.UniformBuffer;
 
 				GraphBuilder.AddPass(
 					RDG_EVENT_NAME("TiledDeferredLighting"),
 					PassParameters,
 					ERDGPassFlags::Compute,
-					[&View, ViewIndex, ViewCount, &SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, &SimpleLights, StartIndex, NumThisPass, SceneColorTexture = SceneTextures.Color.Target, SceneColorOutputTexture](FRHIComputeCommandList& RHICmdList)
+					[&View, ViewIndex, ViewCount, &SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, &SimpleLights, StartIndex, NumThisPass, SceneColorOutputTexture, SceneColorTexture = SceneTextures.Color.Target, SceneColorOutputUAV](FRHIComputeCommandList& RHICmdList)
 				{
 					if (View.Family->EngineShowFlags.VisualizeLightCulling)
 					{
-						SetShaderTemplTiledLighting<1>(RHICmdList, View, ViewIndex, ViewCount, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, *SceneColorTexture->GetPooledRenderTarget(), *SceneColorOutputTexture->GetPooledRenderTarget());
+						SetShaderTemplTiledLighting<1>(RHICmdList, View, ViewIndex, ViewCount, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, SceneColorTexture->GetRHI(), SceneColorOutputUAV->GetRHI());
 					}
 					else
 					{
-						SetShaderTemplTiledLighting<0>(RHICmdList, View, ViewIndex, ViewCount, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, *SceneColorTexture->GetPooledRenderTarget(), *SceneColorOutputTexture->GetPooledRenderTarget());
+						SetShaderTemplTiledLighting<0>(RHICmdList, View, ViewIndex, ViewCount, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, SceneColorTexture->GetRHI(), SceneColorOutputUAV->GetRHI());
 					}
 
 #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND

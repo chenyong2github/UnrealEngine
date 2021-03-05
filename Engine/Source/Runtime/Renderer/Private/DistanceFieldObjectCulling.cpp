@@ -261,7 +261,7 @@ public:
 	FBuildTileConesCS()
 	{
 	}
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FSceneRenderTargetItem& DistanceFieldNormal, FScene* Scene, FVector2D NumGroupsValue, const FDistanceFieldAOParameters& Parameters)
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FRHITexture* DistanceFieldNormal, FScene* Scene, FVector2D NumGroupsValue, const FDistanceFieldAOParameters& Parameters)
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
@@ -288,7 +288,7 @@ public:
 			DistanceFieldNormalTexture,
 			DistanceFieldNormalSampler,
 			TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			DistanceFieldNormal.ShaderResourceTexture
+			DistanceFieldNormal
 			);
 	}
 
@@ -666,7 +666,7 @@ void BuildTileObjectLists(FRDGBuilder& GraphBuilder, FScene* Scene, TArray<FView
 					TShaderMapRef<FBuildTileConesCS> ComputeShader(View.ShaderMap);
 
 					RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
-					ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(), Scene, FVector2D(TileListGroupSize.X, TileListGroupSize.Y), Parameters);
+					ComputeShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), Scene, FVector2D(TileListGroupSize.X, TileListGroupSize.Y), Parameters);
 					DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), TileListGroupSize.X, TileListGroupSize.Y, 1);
 
 					ComputeShader->UnsetParameters(RHICmdList, View);

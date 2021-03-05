@@ -88,7 +88,7 @@ public:
 		JitterOffset.Bind(ParameterMap, TEXT("JitterOffset"));
 	}
 
-	void Set(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FViewInfo& View, FSceneRenderTargetItem& DistanceFieldNormal, FSceneRenderTargetItem& DistanceFieldAOBentNormal)
+	void Set(FRHICommandList& RHICmdList, FRHIPixelShader* ShaderRHI, const FViewInfo& View, FRHITexture* DistanceFieldNormal, FRHITexture* DistanceFieldAOBentNormal)
 	{
 		SetTextureParameter(
 			RHICmdList,
@@ -96,7 +96,7 @@ public:
 			DistanceFieldNormalTexture,
 			DistanceFieldNormalSampler,
 			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-			DistanceFieldNormal.ShaderResourceTexture
+			DistanceFieldNormal
 		);
 
 		SetTextureParameter(
@@ -105,7 +105,7 @@ public:
 			BentNormalAOTexture,
 			BentNormalAOSampler,
 			TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
-			DistanceFieldAOBentNormal.ShaderResourceTexture
+			DistanceFieldAOBentNormal
 		);
 
 		extern FVector2D GetJitterOffset(int32 SampleIndex);
@@ -214,10 +214,10 @@ public:
 		FRHICommandList& RHICmdList, 
 		const FViewInfo& View,
 		const FIntRect& HistoryViewRect,
-		FSceneRenderTargetItem& DistanceFieldNormal, 
-		FSceneRenderTargetItem& DistanceFieldAOBentNormal,
-		FSceneRenderTargetItem& BentNormalHistoryTextureValue, 
-		IPooledRenderTarget* VelocityTextureValue,
+		FRHITexture* DistanceFieldNormal, 
+		FRHITexture* DistanceFieldAOBentNormal,
+		FRHITexture* BentNormalHistoryTextureValue, 
+		FRHITexture* VelocityTextureValue,
 		const FDistanceFieldAOParameters& Parameters)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
@@ -232,7 +232,7 @@ public:
 			BentNormalHistoryTexture,
 			BentNormalHistorySampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			BentNormalHistoryTextureValue.ShaderResourceTexture
+			BentNormalHistoryTextureValue
 			);
 
 		SetShaderValue(RHICmdList, ShaderRHI, HistoryWeight, GAOHistoryWeight);
@@ -245,7 +245,7 @@ public:
 			VelocityTexture,
 			VelocityTextureSampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			VelocityTextureValue ? VelocityTextureValue->GetRenderTargetItem().ShaderResourceTexture : GBlackTexture->TextureRHI
+			VelocityTextureValue ? (FRHITexture2D*)VelocityTextureValue : GBlackTexture->TextureRHI
 			);
 
 		{
@@ -333,8 +333,8 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList, 
 		const FViewInfo& View, 
-		FSceneRenderTargetItem& DistanceFieldNormal, 
-		FSceneRenderTargetItem& BentNormalHistoryTextureValue)
+		FRHITexture* DistanceFieldNormal, 
+		FRHITexture* BentNormalHistoryTextureValue)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -346,7 +346,7 @@ public:
 			BentNormalAOTexture,
 			BentNormalAOSampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			BentNormalHistoryTextureValue.ShaderResourceTexture
+			BentNormalHistoryTextureValue
 			);
 
 		SetTextureParameter(
@@ -355,7 +355,7 @@ public:
 			DistanceFieldNormalTexture,
 			DistanceFieldNormalSampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			DistanceFieldNormal.ShaderResourceTexture
+			DistanceFieldNormal
 			);
 
 		SetShaderValue(RHICmdList, ShaderRHI, HistoryWeight, GAOHistoryWeight);
@@ -429,8 +429,8 @@ public:
 	void SetParameters(
 		FRHICommandList& RHICmdList,
 		const FViewInfo& View,
-		FSceneRenderTargetItem& DistanceFieldNormal,
-		FSceneRenderTargetItem& DistanceFieldAOBentNormal,
+		FRHITexture* DistanceFieldNormal,
+		FRHITexture* DistanceFieldAOBentNormal,
 		const FDistanceFieldAOParameters& Parameters)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
@@ -488,7 +488,7 @@ void GeometryAwareUpsample(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRD
 		TShaderMapRef<FGeometryAwareUpsamplePS> PixelShader(View.ShaderMap);
 		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-		PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(), BentNormalInterpolation->GetPooledRenderTarget()->GetRenderTargetItem(), Parameters);
+		PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), BentNormalInterpolation->GetRHI(), Parameters);
 
 		DrawRectangle(
 			RHICmdList,
@@ -580,10 +580,10 @@ void UpdateHistory(
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 					PixelShader->SetParameters(RHICmdList, View, *DistanceFieldAOHistoryViewRect,
-						DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(),
-						BentNormalInterpolation->GetPooledRenderTarget()->GetRenderTargetItem(),
-						BentNormalHistoryTexture->GetPooledRenderTarget()->GetRenderTargetItem(),
-						VelocityTexture ? VelocityTexture->GetPooledRenderTarget() : nullptr,
+						DistanceFieldNormal->GetRHI(),
+						BentNormalInterpolation->GetRHI(),
+						BentNormalHistoryTexture->GetRHI(),
+						VelocityTexture ? VelocityTexture->GetRHI() : nullptr,
 						Parameters);
 
 					DrawRectangle(
@@ -642,7 +642,7 @@ void UpdateHistory(
 
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-						PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(), NewBentNormalHistory->GetPooledRenderTarget()->GetRenderTargetItem());
+						PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), NewBentNormalHistory->GetRHI());
 					}
 					else
 					{
@@ -650,7 +650,7 @@ void UpdateHistory(
 
 						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 						SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-						PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetPooledRenderTarget()->GetRenderTargetItem(), NewBentNormalHistory->GetPooledRenderTarget()->GetRenderTargetItem());
+						PixelShader->SetParameters(RHICmdList, View, DistanceFieldNormal->GetRHI(), NewBentNormalHistory->GetRHI());
 					}
 
 					DrawRectangle(
@@ -736,7 +736,7 @@ public:
 		MinIndirectDiffuseOcclusion.Bind(Initializer.ParameterMap,TEXT("MinIndirectDiffuseOcclusion"));
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const TRefCountPtr<IPooledRenderTarget>& DistanceFieldAOBentNormal)
+	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, FRHITexture* DistanceFieldAOBentNormal)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
@@ -806,7 +806,7 @@ void UpsampleBentNormalAO(
 			GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
 			GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
 			SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-			PixelShader->SetParameters(RHICmdList, View, DistanceFieldAOBentNormal->GetPooledRenderTarget());
+			PixelShader->SetParameters(RHICmdList, View, DistanceFieldAOBentNormal->GetRHI());
 			SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
 
 			DrawRectangle(
