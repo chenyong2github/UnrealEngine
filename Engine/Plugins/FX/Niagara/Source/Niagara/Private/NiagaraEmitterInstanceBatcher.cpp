@@ -475,6 +475,10 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 			View.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(FRHICommandListExecutor::GetImmediateCommandList());
+
+			// This function might run before the scene context is set up, in which case we just want a dummy uniform buffer to allow us to run the ticks without crashing.
+			ESceneTextureSetupMode SceneUniformBufSetupMode = SceneContext.IsShadingPathValid() ? ESceneTextureSetupMode::All : ESceneTextureSetupMode::None;
+
 			FBox UnusedVolumeBounds[TVC_MAX];
 			View.SetupUniformBufferParameters(SceneContext, UnusedVolumeBounds, TVC_MAX, *View.CachedViewUniformShaderParameters);
 
@@ -483,7 +487,7 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 			// Execute all ticks that we can support without invalid simulations
 			PreInitViews(RHICmdList, true);
 			PostInitViews(RHICmdList, View.ViewUniformBuffer, true);
-			PostRenderOpaque(RHICmdList, View.ViewUniformBuffer, &FSceneTextureUniformParameters::StaticStructMetadata, CreateSceneTextureUniformBuffer(RHICmdList, FeatureLevel), true);
+			PostRenderOpaque(RHICmdList, View.ViewUniformBuffer, &FSceneTextureUniformParameters::StaticStructMetadata, CreateSceneTextureUniformBuffer(RHICmdList, FeatureLevel, SceneUniformBufSetupMode), true);
 			break;
 		}
 
