@@ -122,7 +122,7 @@ bool FDisplayClusterRenderManager::StartSession(const UDisplayClusterConfigurati
 void FDisplayClusterRenderManager::EndSession()
 {
 #if WITH_EDITOR
-	if (GIsEditor)
+	if (GIsEditor && RenderDevicePtr)
 	{
 		// Since we can run multiple PIE sessions we have to clean device before the next one.
 		GEngine->StereoRenderingDevice.Reset();
