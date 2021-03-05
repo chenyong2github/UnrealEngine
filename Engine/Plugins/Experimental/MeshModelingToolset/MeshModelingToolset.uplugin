@@ -18,14 +18,12 @@
 		{
 			"Name": "ModelingComponents",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "ModelingOperators",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "ModelingOperatorsEditorOnly",
@@ -36,8 +34,7 @@
 		{
 			"Name": "MeshModelingTools",
 			"Type": "Runtime",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [ "Win64" ]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "MeshModelingToolsEditorOnly",

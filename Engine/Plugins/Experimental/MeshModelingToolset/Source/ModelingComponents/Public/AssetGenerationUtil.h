@@ -14,7 +14,7 @@ class AActor;
 class UPrimitiveComponent;
 class UTexture2D;
 
-MODELINGCOMPONENTS_API class IAssetGenerationAPI
+class MODELINGCOMPONENTS_API IAssetGenerationAPI
 {
 public:
 	virtual ~IAssetGenerationAPI(){}

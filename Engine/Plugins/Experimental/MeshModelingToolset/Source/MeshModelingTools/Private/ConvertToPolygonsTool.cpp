@@ -53,7 +53,7 @@ public:
 
 	virtual void CalculateResult(FProgressCancel* Progress) override
 	{
-		if (Progress && Progress->Cancelled() || !OriginalMesh)
+		if ((Progress && Progress->Cancelled()) || !OriginalMesh)
 		{
 			return;
 		}

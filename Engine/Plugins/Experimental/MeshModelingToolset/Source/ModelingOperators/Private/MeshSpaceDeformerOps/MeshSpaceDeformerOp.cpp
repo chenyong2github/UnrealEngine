@@ -10,7 +10,7 @@ void FMeshSpaceDeformerOp::SetTransform(const FTransform& Transform)
 
 void FMeshSpaceDeformerOp::CalculateResult(FProgressCancel* Progress)
 {
-	if (Progress && Progress->Cancelled() || !OriginalMesh)
+	if ((Progress && Progress->Cancelled()) || !OriginalMesh)
 	{
 		return;
 	}

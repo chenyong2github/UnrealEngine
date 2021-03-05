@@ -19,7 +19,7 @@ namespace Geometry
 /**
  * Component/BodySetup collision settings (eg StaticMeshComponent) we might need to pass through the functions below
  */
-MODELINGCOMPONENTS_API struct FComponentCollisionSettings
+struct FComponentCollisionSettings
 {
 	int32 CollisionTypeFlag = 0;		// this is ECollisionTraceFlag
 	bool bIsGeneratedCollision = true;
