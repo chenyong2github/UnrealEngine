@@ -11,6 +11,12 @@
 #include "Containers/Array.h"
 #include "Misc/CString.h"
 #include "Templates/AndOrNot.h"
+#include "Templates/EnableIf.h"
+#include "Templates/IsArray.h"
+#include "Templates/RemoveCV.h"
+#include "Templates/RemoveReference.h"
+#include "Templates/UnrealTemplate.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "Traits/ElementType.h"
 #include "Traits/IsContiguousContainer.h"
 
