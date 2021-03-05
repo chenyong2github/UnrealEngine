@@ -454,10 +454,11 @@ void AddMotionBlurVelocityPass(
 
 	const FIntPoint VelocityTileCount = Viewports.VelocityTile.Extent;
 
+	// NOTE: Use scene depth's dimensions because velocity can actually be a 1x1 black texture when there are no moving objects in sight.
 	FRDGTextureRef VelocityFlatTexture =
 		GraphBuilder.CreateTexture(
 			FRDGTextureDesc::Create2D(
-				Viewports.Velocity.Extent,
+				DepthTexture->Desc.Extent,
 				PF_FloatR11G11B10,
 				FClearValueBinding::None,
 				GFastVRamConfig.VelocityFlat | TexCreate_ShaderResource | TexCreate_UAV),
@@ -810,7 +811,8 @@ FScreenPassTexture AddMotionBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 	checkf(Inputs.SceneDepth.ViewRect == Inputs.SceneVelocity.ViewRect, TEXT("The motion blur depth and velocity must have the same viewport."));
 	checkf(!Inputs.OverrideOutput.IsValid(), TEXT("The motion blur override output support is unimplemented."));
 
-	const FMotionBlurViewports Viewports(FScreenPassTextureViewport(Inputs.SceneColor), FScreenPassTextureViewport(Inputs.SceneVelocity));
+	// NOTE: Use SceneDepth as the velocity viewport because SceneVelocity can actually be a 1x1 black texture when there are no moving objects in sight.
+	const FMotionBlurViewports Viewports(FScreenPassTextureViewport(Inputs.SceneColor), FScreenPassTextureViewport(Inputs.SceneDepth));
 
 	RDG_EVENT_SCOPE(GraphBuilder, "MotionBlur");
 
