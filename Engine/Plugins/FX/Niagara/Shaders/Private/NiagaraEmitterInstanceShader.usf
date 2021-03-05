@@ -355,6 +355,34 @@ int rand(int x, int Seed1, int Seed2, int Seed3)
 	int rand(int x); // Invokes EVectorVMOp::randomi and is semi-open. This is inconsistent with the rest of the functions above. As a result this function and the ones above should be deprecated in favor of the functions below
 #endif
 
+// Small changes in the input bits should propagate to a lot of output bits, so the resulting hash is not periodic.
+// This is important because the hash inputs are often things like particle ID, but the output should be pseudo-random. 
+int hash_single(int a)
+{
+    int x = (a ^ 61) ^ (a >> 16);
+	x += x << 3;
+	x ^= x >> 4;
+	x *= 0x27d4eb2d;
+	x ^= x >> 15;
+	return x;
+}
+
+int hash(int a, int b)
+{
+	return (hash_single(a) ^ hash_single(b) * 1664525 + 1013904223) >> 8;
+}
+
+float hash_float(int a, int b)
+{
+	return (hash(a, b) & 0x00ffffff) / 16777216.0;
+}
+
+// this is used when chaining calls from variable number of inputs, e.g. hash_float(hash_float(a, b), c)
+float hash_float(float a, int b)
+{
+	return (hash(a * 16777216.0, b) & 0x00ffffff) / 16777216.0;
+}
+
 // Explicit non-deterministic random overrides used by Random Float/Integer and Seeded Random Float/Integer op nodes
 float rand_float(float x)
 {

@@ -865,6 +865,36 @@ void FNiagaraOpInfo::Init()
 		Op->bNumericsCanBeFloats = true;
 		OpInfoMap.Add(Op->Name) = Idx;
 
+ 		//Hash ops
+ 		FNiagaraTypeDefinition IntHashType = FNiagaraTypeDefinition::GetIntDef();
+ 		Idx = OpInfos.AddDefaulted();
+ 		Op = &OpInfos[Idx];
+ 		Op->Category = CategoryText;
+ 		Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "HashInt Name", "Hash Integer");
+ 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "HashInt Desc", "Returns a hashed value for the given inputs.");
+ 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, IntHashType, AText, AText, DefaultStr_Zero));
+ 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, IntHashType, BText, BText, DefaultStr_Zero));
+ 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, IntHashType, ResultText, ResultText, DefaultStr_One, TEXT("hash({0}, {1})")));
+ 		Op->BuildName(TEXT("Hash Integer"), CategoryName);
+ 		Op->bSupportsAddedInputs = true;
+ 		Op->AddedInputTypeRestrictions.Add(IntHashType);
+ 		Op->AddedInputFormatting = TEXT("hash({A}, {B})");
+ 		OpInfoMap.Add(Op->Name) = Idx;
+
+ 		Idx = OpInfos.AddDefaulted();
+ 		Op = &OpInfos[Idx];
+ 		Op->Category = CategoryText;
+ 		Op->FriendlyName = NSLOCTEXT("NiagaraOpInfo", "HashFloat Name", "Hash Float");
+ 		Op->Description = NSLOCTEXT("NiagaraOpInfo", "HashFloat Desc", "Returns a hashed value for the given inputs. The result is normalized to the range 0..1");
+ 		Op->Inputs.Add(FNiagaraOpInOutInfo(A, IntHashType, AText, AText, DefaultStr_Zero));
+ 		Op->Inputs.Add(FNiagaraOpInOutInfo(B, IntHashType, BText, BText, DefaultStr_Zero));
+ 		Op->Outputs.Add(FNiagaraOpInOutInfo(Result, FNiagaraTypeDefinition::GetFloatDef(), ResultText, ResultText, DefaultStr_One, TEXT("hash_float({0}, {1})")));
+ 		Op->BuildName(TEXT("Hash Float"), CategoryName);
+ 		Op->bSupportsAddedInputs = true;
+ 		Op->AddedInputTypeRestrictions.Add(IntHashType);
+ 		Op->AddedInputFormatting = TEXT("hash_float({A}, {B})");
+ 		OpInfoMap.Add(Op->Name) = Idx;
+
 		//Comparison ops
 		Idx = OpInfos.AddDefaulted();
 		Op = &OpInfos[Idx];
