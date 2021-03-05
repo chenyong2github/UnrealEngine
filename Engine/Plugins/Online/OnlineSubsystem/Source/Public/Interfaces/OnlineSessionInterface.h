@@ -189,7 +189,9 @@ typedef FOnQosDataRequested::FDelegate FOnQosDataRequestedDelegate;
  */
 UE_DEPRECATED(4.27, "FOnSessionCustomDataChanged is deprecated, please use FOnSessionSettingsUpdated and FOnSessionParticipantSettingsUpdated instead.")
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnSessionCustomDataChanged, FName, const FOnlineSessionSettings&);
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 typedef FOnSessionCustomDataChanged::FDelegate FOnSessionCustomDataChangedDelegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 /**
  * Delegate fired when a session's settings have changed
