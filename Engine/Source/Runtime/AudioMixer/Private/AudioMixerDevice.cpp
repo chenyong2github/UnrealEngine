@@ -2405,17 +2405,14 @@ namespace Audio
 		const int32 NumFrames = OpenStreamParams.NumFrames;
 		const int32 NumChannels = PlatformInfo.NumChannels;
 
-		static FWhiteNoise WhiteNoise(DebugGeneratorAmpCVar);
-
-		WhiteNoise.SetScaleAdd(DebugGeneratorAmpCVar, 0.0f);
-
+		static FWhiteNoise WhiteNoise;
 
 		for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 		{
 			for (int32 ChannelIndex = 0; ChannelIndex < NumChannels; ++ChannelIndex)
 			{
 				int32 Index = FrameIndex * NumChannels + ChannelIndex;
-				Output[Index] += WhiteNoise.Generate();
+				Output[Index] += WhiteNoise.Generate(DebugGeneratorAmpCVar, 0.f);
 			}
 		}
 	}
