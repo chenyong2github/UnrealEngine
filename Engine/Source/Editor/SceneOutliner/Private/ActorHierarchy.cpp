@@ -6,6 +6,7 @@
 #include "EngineUtils.h"
 #include "WorldTreeItem.h"
 #include "ActorTreeItem.h"
+#include "ActorDescTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "ActorFolderTreeItem.h"
 #include "ISceneOutlinerMode.h"
@@ -16,6 +17,8 @@
 #include "EditorFolderUtils.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
+#include "WorldPartition/WorldPartitionSubsystem.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 
 TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 {
@@ -162,6 +165,27 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 			}
 		}
 	}
+	else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
+	{
+		const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDesc;
+		check(ActorDesc != nullptr);
+		const FName FolderPath = ActorDesc->GetFolderPath();
+		if (!FolderPath.IsNone())
+		{
+			if (const FSceneOutlinerTreeItemPtr* UnloadedActorItem = Items.Find(FolderPath))
+			{
+				return *UnloadedActorItem;
+			}
+		}
+		else
+		{
+			// Default to the world
+			if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(RepresentingWorld.Get()))
+			{
+				return *ParentItem;
+			}
+		}
+	}
 	return nullptr;
 }
 
@@ -236,8 +260,26 @@ void FActorHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) c
 		OutItems.Add(WorldItem);
 	}
 
+	UWorld* RepresentingWorldPtr = RepresentingWorld.Get();
+	check(RepresentingWorldPtr);
+
 	// Create world children regardless of if a world item was created
-	CreateWorldChildren(RepresentingWorld.Get(), OutItems);
+	CreateWorldChildren(RepresentingWorldPtr, OutItems);
+
+	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = RepresentingWorldPtr->GetSubsystem<UWorldPartitionSubsystem>())
+	{
+		WorldPartitionSubsystem->ForEachActorDesc(AActor::StaticClass(), [this, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
+		{
+			if (ActorDesc != nullptr && !ActorDesc->IsLoaded())
+			{
+				if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FActorDescTreeItem>(ActorDesc))
+				{
+					OutItems.Add(ActorDescItem);
+				}
+			}
+			return true;
+		});
+	}
 }
 
 void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const
@@ -378,6 +420,15 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 			return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ParentPath, FolderTreeItem->World), true);
 		}
 	}
+	else if (const FActorDescTreeItem* ActorDescItem = Item->CastTo<FActorDescTreeItem>())
+	{
+		const FName ActorDescPath = ActorDescItem->ActorDesc->GetFolderPath();
+		if (Mode->ShouldShowFolders() && !ActorDescPath.IsNone())
+		{
+			return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorDescPath, RepresentingWorld.Get()), true);
+		}
+	}
+	
 	return nullptr;
 }
 

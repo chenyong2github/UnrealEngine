@@ -14,11 +14,13 @@
 #include "SortHelper.h"
 #include "ISceneOutliner.h"
 #include "ActorTreeItem.h"
+#include "ActorDescTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "FolderTreeItem.h"
 #include "WorldTreeItem.h"
 #include "WorldPartition/DataLayer/DataLayer.h"
 #include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/WorldPartitionActorDesc.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerActorInfoColumn"
 
@@ -152,6 +154,24 @@ struct FGetInfo
 				return FString();
 			}
 		}
+		else if (const FActorDescTreeItem* ActorDescItem = Item.CastTo<FActorDescTreeItem>())
+		{
+			const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDesc;
+
+			if (!ActorDesc)
+			{
+				return FString();
+			}
+			
+			switch (CurrentMode)
+			{
+			case SceneOutliner::ECustomColumnMode::Class:
+				return ActorDesc->GetActorClass()->GetName();
+			default:
+				return FString();
+			}
+		}
+
 
 		return FString();
 	}

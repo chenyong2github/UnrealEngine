@@ -36,4 +36,8 @@ class UActorBrowsingModeSettings
 	/** True when the Scene Outliner is not displaying LevelInstances */
 	UPROPERTY(config)
 	uint32 bHideLevelInstanceHierarchy : 1;
+
+	/** True when the Scene Outliner is not displaying unloaded actors */
+	UPROPERTY(config)
+	uint32 bHideUnloadedActors : 1;
 };
