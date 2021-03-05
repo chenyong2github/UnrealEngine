@@ -189,6 +189,11 @@ void EnumerateTextureAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pa
 					AccessFunction(nullptr, Texture, NewAccess, Range);
 				});
 			}
+
+			if (FRDGTextureRef Texture = RenderTargets.FoveationTexture)
+			{
+				AccessFunction(nullptr, Texture, ERHIAccess::SRVGraphics, Texture->GetSubresourceRangeSRV());
+			}
 		}
 		break;
 		}

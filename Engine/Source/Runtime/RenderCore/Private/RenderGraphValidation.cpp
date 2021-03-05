@@ -707,8 +707,12 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAcc
 	if (RenderTargetBindingSlots)
 	{
 		const auto& RenderTargets = RenderTargetBindingSlots->Output;
-
 		{
+			if (FRDGTextureRef Texture = RenderTargetBindingSlots->FoveationTexture)
+			{
+				MarkAsConsumed(Texture);
+			}
+
 			const auto& DepthStencil = RenderTargetBindingSlots->DepthStencil;
 
 			const auto CheckDepthStencil = [&](FRDGTextureRef Texture)
@@ -928,6 +932,11 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 					Texture->GetTextureDebugData().bHasBeenBoundAsRenderTarget = true;
 					Texture->MarkResourceAsUsed();
 				}
+
+				if (FRDGTextureRef Texture = RenderTargets.FoveationTexture)
+				{
+					Texture->MarkResourceAsUsed();
+				}			
 			}
 			break;
 			}
@@ -1020,6 +1029,11 @@ void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAcce
 			});
 
 			if (FRDGTextureRef Texture = RenderTargets.DepthStencil.GetTexture())
+			{
+				Texture->GetDebugData().bAllowRHIAccess = bAllowAccess;
+			}
+
+			if (FRDGTexture* Texture = RenderTargets.FoveationTexture)
 			{
 				Texture->GetDebugData().bAllowRHIAccess = bAllowAccess;
 			}
