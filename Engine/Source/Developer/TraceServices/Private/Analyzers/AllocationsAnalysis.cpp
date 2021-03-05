@@ -40,7 +40,6 @@ void FAllocationsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_ReallocFree,  "Memory", "ReallocFree");
 	Builder.RouteEvent(RouteId_Marker,       "Memory", "Marker");
 	Builder.RouteEvent(RouteId_TagSpec,      "Memory", "TagSpec");
-	Builder.RouteEvent(RouteId_MarkerNewBase,"Memory", "MarkerNewBase");
 
 	Builder.RouteLoggerEvents(RouteId_MemScope, "Memory", true);
 }
@@ -78,7 +77,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 			const uint8 SizeShift = EventData.GetValue<uint8>("SizeShift");
 			const uint8 SummarySizeShift = EventData.GetValue<uint8>("SummarySizeShift");
 
-			BaseCycle = EventData.GetValue<uint64>("BaseCycle");
+			BaseCycle = EventData.GetValue<uint64>("BaseCycle", 0);
 			MarkerPeriod = EventData.GetValue<uint32>("MarkerPeriod");
 
 			FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
@@ -137,7 +136,9 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 		}
 		case RouteId_Marker:
 		{
-			const uint64 Cycle = BaseCycle + EventData.GetValue<uint32>("Cycle");
+			// If BaseCycle is set Cycle is a relative 32-bit value, otherwise a 64-bit absolute value.
+			const uint64 Cycle = BaseCycle + (BaseCycle > 0 ? EventData.GetValue<uint32>("Cycle") : EventData.GetValue<uint64>("Cycle"));
+
 			if (ensure(Cycle >= LastMarkerCycle))
 			{
 				const double Seconds = Context.EventTime.AsSeconds(Cycle);
@@ -156,13 +157,6 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 					}
 				}
 			}
-			break;
-		}
-		case RouteId_MarkerNewBase:
-		{
-			const uint64 NewBaseCycle = EventData.GetValue<uint64>("BaseCycle");
-			check(NewBaseCycle > BaseCycle);
-			BaseCycle = NewBaseCycle;
 			break;
 		}
 		case RouteId_TagSpec:

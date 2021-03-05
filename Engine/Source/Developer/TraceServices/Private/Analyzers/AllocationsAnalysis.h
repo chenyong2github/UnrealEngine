@@ -24,7 +24,6 @@ private:
 		RouteId_ReallocAlloc,
 		RouteId_ReallocFree,
 		RouteId_Marker,
-		RouteId_MarkerNewBase,
 		RouteId_TagSpec,
 		RouteId_MemScope,
 	};

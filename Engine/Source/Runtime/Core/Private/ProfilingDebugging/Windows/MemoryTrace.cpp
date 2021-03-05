@@ -83,7 +83,6 @@ UE_TRACE_CHANNEL(MemSummaryChannel)
 UE_TRACE_CHANNEL_DEFINE(MemAllocChannel)
 
 UE_TRACE_EVENT_BEGIN(Memory, Init, NoSync|Important)
-	UE_TRACE_EVENT_FIELD(uint64, BaseCycle)
 	UE_TRACE_EVENT_FIELD(uint32, MarkerPeriod)
 	UE_TRACE_EVENT_FIELD(uint8, MinAlignment)
 	UE_TRACE_EVENT_FIELD(uint8, SizeShift)
@@ -104,11 +103,7 @@ UE_TRACE_EVENT_END()
 #endif
 
 UE_TRACE_EVENT_BEGIN(Memory, Marker)
-	UE_TRACE_EVENT_FIELD(uint32, Cycle)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(Memory, MarkerNewBase)
-	UE_TRACE_EVENT_FIELD(uint64, BaseCycle)
+	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(Memory, CoreAdd)
@@ -308,10 +303,7 @@ static FUndestructed<FAllocationTrace> GAllocationTrace;
 ////////////////////////////////////////////////////////////////////////////////
 void FAllocationTrace::Initialize()
 {
-	BaseCycle = FPlatformTime::Cycles64();
-
 	UE_TRACE_LOG(Memory, Init, MemAllocChannel)
-		<< Init.BaseCycle(BaseCycle)
 		<< Init.MarkerPeriod(MarkerSamplePeriod + 1)
 		<< Init.MinAlignment(uint8(MIN_ALIGNMENT))
 #if USE_OVERVIEW_TRACE
@@ -334,19 +326,8 @@ void FAllocationTrace::Update()
 	uint32 TheCount = MarkerCounter.fetch_add(1, std::memory_order_relaxed);
 	if ((TheCount & MarkerSamplePeriod) == 0)
 	{
-		uint64 Cycle = FPlatformTime::Cycles64();
-
-		// We assume here that that the marker sample period is large
-		// enough that we don't have to syncronize across threads.
-		if ((Cycle - BaseCycle) > uint32(~0))
-		{
-			BaseCycle = Cycle;
-			UE_TRACE_LOG(Memory, MarkerNewBase, MemAllocChannel)
-				<< MarkerNewBase.BaseCycle(Cycle);
-		}
-		
 		UE_TRACE_LOG(Memory, Marker, MemAllocChannel)
-			<< Marker.Cycle(uint32(Cycle - BaseCycle));
+			<< Marker.Cycle(FPlatformTime::Cycles64());
 	}
 
 	if (bPumpTrace)
