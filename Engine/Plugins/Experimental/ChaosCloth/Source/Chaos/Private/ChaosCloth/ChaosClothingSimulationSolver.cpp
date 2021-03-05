@@ -629,48 +629,42 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 {
 	if (Evolution)
 	{
-		const TPBDActiveView<FPBDParticles>& ParticlesActiveView = Evolution->ParticlesActiveView();
+		if (!PerSolverField.IsEmpty())
+		{
+			TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
+			TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
 
-		TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
-		TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
+			const uint32 NumParticles = Evolution->Particles().Size();
 
-		SamplePositions.Reset();
-		SamplePositions.AddZeroed(Evolution->Particles().Size());
+			SamplePositions.SetNum(NumParticles,false);
+			SampleIndices.SetNum(NumParticles,false);
 
-		SampleIndices.Reset();
-		SampleIndices.AddZeroed(Evolution->Particles().Size());
-
-		ParticlesActiveView.RangeFor(
-			[this, &SamplePositions, &SampleIndices](FPBDParticles& Particles, int32 Offset, int32 Range)
+			for (uint32 Index = 0; Index < NumParticles; ++Index)
 			{
-				const int32 RangeSize = Range - Offset;
-
-				PhysicsParallelFor(RangeSize,
-					[this, &SamplePositions, &SampleIndices, &Particles, Offset](int32 i)
-					{
-						const int32 Index = Offset + i;
-						SamplePositions[Index] = Particles.X(Index) + LocalSpaceLocation;
-						SampleIndices[Index] = FFieldContextIndex(Index, Index);
-					}, RangeSize < ChaosClothSolverMinParallelBatchSize);
-			}, ChaosClothSolverParallelClothPreUpdate);
-
-		PerSolverField.ComputeFieldLinearImpulse(GetTime());
+				SamplePositions[Index] = Evolution->Particles().X(Index) + LocalSpaceLocation;
+				SampleIndices[Index] = FFieldContextIndex(Index, Index);
+			}
+			PerSolverField.ComputeFieldLinearImpulse(GetTime());
+		}
 
 		const FVec3& AngularDisplacement = FictitiousAngularDisplacement[GroupId];
 
 		Evolution->GetForceFunction(GroupId) =
 			[this, bUseLegacyWind, AngularDisplacement](FPBDParticles& Particles, const float Dt, const int32 Index)
 		{
-			const TArray<FVector>& LinearVelocities = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearVelocity);
-			const TArray<FVector>& LinearForces = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearForce);
+			if (!PerSolverField.IsEmpty())
+			{
+				const TArray<FVector>& LinearVelocities = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearVelocity);
+				const TArray<FVector>& LinearForces = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearForce);
 
-			if (LinearVelocities.Num() != 0)
-			{
-				Particles.F(Index) += LinearVelocities[Index] * Particles.M(Index) / DeltaTime;
-			}
-			if (LinearForces.Num() != 0)
-			{
-				Particles.F(Index) += LinearForces[Index];
+				if ((LinearVelocities.Num() != 0) && (Dt != 0.0))
+				{
+					Particles.F(Index) += LinearVelocities[Index] * Particles.M(Index) / Dt;
+				}
+				if (LinearForces.Num() != 0)
+				{
+					Particles.F(Index) += LinearForces[Index];
+				}
 			}
 
 			// Apply Fictitious forces

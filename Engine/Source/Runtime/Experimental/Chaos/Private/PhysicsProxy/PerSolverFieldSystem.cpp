@@ -162,14 +162,17 @@ void FPerSolverFieldSystem::FieldForcesUpdateCallback(
 }
 
 template<typename FieldType, int32 ArraySize>
-FORCEINLINE void ResetInternalArrays(const int32 FieldSize, const TArray<int32>& FieldTargets, TArray<FieldType> FieldArray[ArraySize])
+FORCEINLINE void ResetInternalArrays(const int32 FieldSize, const TArray<int32>& FieldTargets, TArray<FieldType> FieldArray[ArraySize], const FieldType DefaultValue)
 {
 	for (const int32& FieldTarget : FieldTargets)
 	{
 		if (FieldTarget < ArraySize)
 		{
-			FieldArray[FieldTarget].Reset();
-			FieldArray[FieldTarget].AddZeroed(FieldSize);
+			FieldArray[FieldTarget].SetNum(FieldSize,false);
+			for (int32 i = 0; i < FieldSize; ++i)
+			{
+				FieldArray[FieldTarget][i] = DefaultValue;
+			}
 		}
 	}
 }
@@ -180,7 +183,7 @@ FORCEINLINE void EmptyInternalArrays(const TArray<int32>& FieldTargets, TArray<F
 	{
 		if (FieldTarget < ArraySize)
 		{
-			FieldArray[FieldTarget].Reset();
+			FieldArray[FieldTarget].SetNum(0, false);
 		}
 	}
 }
@@ -194,8 +197,7 @@ FORCEINLINE void EvaluateImpulseField(
 	static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 	if (OutputImpulse.Num() == 0)
 	{
-		OutputImpulse.Reset();
-		OutputImpulse.AddZeroed(ResultsView.Num());
+		OutputImpulse.SetNum(ResultsView.Num(), false);
 		for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 		{
 			if (Index.Sample < OutputImpulse.Num() && Index.Result < ResultsView.Num())
@@ -298,7 +300,7 @@ void FPerSolverFieldSystem::ComputeFieldRigidImpulse(
 	static const TArray<int32> ResetTargets = { EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult };
 
 	EmptyInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (EmptyTargets, VectorResults);
-	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults);
+	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults, FVector::ZeroVector);
 
 	ComputeFieldRigidImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult],
 		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce], 
@@ -373,7 +375,7 @@ void FPerSolverFieldSystem::ComputeFieldLinearImpulse(const float SolverTime)
 	static const TArray<int32> ResetTargets = { EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult };
 
 	EmptyInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (EmptyTargets, VectorResults);
-	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults);
+	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults, FVector::ZeroVector);
 
 	ComputeFieldLinearImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult], 
 		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce], TransientCommands, true);
