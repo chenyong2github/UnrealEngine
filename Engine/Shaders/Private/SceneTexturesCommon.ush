@@ -142,13 +142,7 @@ float LookupDeviceZ( float2 ScreenUV )
 		return Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, ScreenUV).a;
 	#endif
 #elif COMPILER_GLSL_ES3_1 && PIXELSHADER
-	#if !OUTPUT_MOBILE_HDR
-		// Try framebuffer_fetch_depth_stencil to get the depth directly if the extension is available.
-		// We cannot fall back to fetching the alpha channel when MobileHDR=false because the alpha channel is only 8-bit.
-		return DepthbufferFetchES2();
-	#else
-		return FramebufferFetchES2().w;
-	#endif
+	return DepthbufferFetchES2();
 #elif VULKAN_SUBPASS_DEPTHFETCH && PIXELSHADER
 	// Special intrinsic to read from the current depth buffer
 	return VulkanSubpassDepthFetch();
