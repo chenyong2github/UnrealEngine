@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STreeView.h"
+#include "Input/DragAndDrop.h"
 
 #include "Misc/Attribute.h"
 
@@ -57,13 +58,20 @@ public:
 	virtual UGeometryCollectionComponent* GetComponent() const = 0;
 
 	virtual int32 GetBoneIndex() const { return INDEX_NONE; }
+
+	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) { return FReply::Unhandled(); }
+	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent) { return FReply::Unhandled(); }
+	
+	virtual void OnDragEnter(FDragDropEvent const& InDragDropEvent) {};
+	virtual void OnDragLeave(FDragDropEvent const& InDragDropEvent);
 };
 
 class FGeometryCollectionTreeItemComponent : public FGeometryCollectionTreeItem
 {
 public:
-	FGeometryCollectionTreeItemComponent(UGeometryCollectionComponent* InComponent)
+	FGeometryCollectionTreeItemComponent(UGeometryCollectionComponent* InComponent, TSharedPtr<STreeView<FGeometryCollectionTreeItemPtr>> InTreeView)
 		: Component(InComponent)
+		, TreeView(InTreeView)
 	{
 		RegenerateChildren();
 	}
@@ -79,8 +87,9 @@ public:
 	void GetChildrenForBone(FGeometryCollectionTreeItemBone& BoneItem, FGeometryCollectionTreeItemList& OutChildren) const;
 	FText GetDisplayNameForBone(const FGuid& Guid) const;
 
-	void ExpandAll(TSharedPtr<STreeView<FGeometryCollectionTreeItemPtr>> TreeView);
+	void ExpandAll();
 	void RegenerateChildren();
+	void RequestTreeRefresh();
 
 	void SetHistogramSelection(TArray<int32>& SelectedBones);
 
@@ -89,6 +98,8 @@ private:
 
 private:
 	TWeakObjectPtr<UGeometryCollectionComponent> Component;
+
+	TSharedPtr<STreeView<FGeometryCollectionTreeItemPtr>> TreeView;
 
 	/** The direct children under this component */
 	TArray<FGeometryCollectionTreeItemPtr> MyChildren;
@@ -105,10 +116,10 @@ class FGeometryCollectionTreeItemBone : public FGeometryCollectionTreeItem
 {
 
 public:
-	FGeometryCollectionTreeItemBone(const FGuid NewGuid, const int32 InBoneIndex, const FGeometryCollectionTreeItemComponent& InParentComponentItem)
+	FGeometryCollectionTreeItemBone(const FGuid NewGuid, const int32 InBoneIndex, FGeometryCollectionTreeItemComponent* InParentComponentItem)
 		: Guid(NewGuid)
 		, BoneIndex(InBoneIndex)
-		, ParentComponentItem(&InParentComponentItem)
+		, ParentComponentItem(InParentComponentItem)
 	{}
 
 	/** FGeometryCollectionTreeItem interface */
@@ -118,14 +129,15 @@ public:
 	virtual UGeometryCollectionComponent* GetComponent() const { return ParentComponentItem->GetComponent(); }
 	const FGuid& GetGuid() const { return Guid; }
 
-	// TArray<TSharedPtr<FGeometryCollectionTreeItem>>& GetChildren();
-	// TArray<TSharedPtr<FGeometryCollectionTreeItem>> Children;
-	// TWeakPtr<SGeometryCollectionOutliner> GeomOutliner;
-	
+protected:
+	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnDrop(const FDragDropEvent& DragDropEvent) override;
+	virtual void OnDragEnter(FDragDropEvent const& InDragDropEvent) override;
+
 private:
 	const FGuid Guid;
 	const int32 BoneIndex;
-	const FGeometryCollectionTreeItemComponent* ParentComponentItem;
+	FGeometryCollectionTreeItemComponent* ParentComponentItem;
 };
 
 class SGeometryCollectionOutliner: public SCompoundWidget
@@ -158,8 +170,6 @@ public:
 	void SetHistogramSelection(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);
 
 private:
-	// void GetItemParentsForGuid(int32 Guid);
-	//void GetItemChildrenForGuid(int32 Guid);
 	void OnSelectionChanged(FGeometryCollectionTreeItemPtr Item, ESelectInfo::Type SelectInfo);
 private:
 	TSharedPtr<STreeView<FGeometryCollectionTreeItemPtr>> TreeView;

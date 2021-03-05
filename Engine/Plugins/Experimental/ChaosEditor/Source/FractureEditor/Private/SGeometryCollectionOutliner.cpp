@@ -13,14 +13,102 @@
 #include "FractureEditorMode.h"
 #include "ScopedTransaction.h"
 #include "FractureSettings.h"
+#include "GeometryCollectionOutlinerDragDrop.h"
 
 #define LOCTEXT_NAMESPACE "ChaosEditor"
+
+void FGeometryCollectionTreeItem::OnDragLeave(const FDragDropEvent& InDragDropEvent)
+{
+	TSharedPtr<FDragDropOperation> Operation = InDragDropEvent.GetOperation();
+	if (Operation.IsValid())
+	{
+		if (Operation->IsOfType<FGeometryCollectionBoneDragDrop>())
+		{
+			TSharedPtr<FGeometryCollectionBoneDragDrop> GeometryCollectionBoneOp = InDragDropEvent.GetOperationAs<FGeometryCollectionBoneDragDrop>();
+			const FSlateBrush* Icon = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+			GeometryCollectionBoneOp->SetToolTip(FText(), Icon);
+		}
+	}
+}
+
+void FGeometryCollectionTreeItemBone::OnDragEnter(FDragDropEvent const& InDragDropEvent)
+{
+	TSharedPtr<FDragDropOperation> Operation = InDragDropEvent.GetOperation();
+	if (Operation.IsValid())
+	{
+		if (Operation->IsOfType<FGeometryCollectionBoneDragDrop>())
+		{
+			TSharedPtr<FGeometryCollectionBoneDragDrop> GeometryCollectionBoneOp = InDragDropEvent.GetOperationAs<FGeometryCollectionBoneDragDrop>();
+			
+			UGeometryCollectionComponent* SourceComponent = GetComponent();
+			FGeometryCollectionEdit GeometryCollectionEdit = SourceComponent->EditRestCollection();
+			if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
+			{
+				FGeometryCollection* GeometryCollection = GeometryCollectionObject->GetGeometryCollection().Get();
+				FText HoverText;
+				bool bValid = GeometryCollectionBoneOp->ValidateDrop(GeometryCollection, BoneIndex, HoverText);
+				const FSlateBrush* Icon = bValid ? FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")) : FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
+				GeometryCollectionBoneOp->SetToolTip(HoverText, Icon);
+			}
+		}
+	}
+}
+
+FReply FGeometryCollectionTreeItemBone::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	{
+		UGeometryCollectionComponent* SourceComponent = GetComponent();
+
+		FGeometryCollectionEdit GeometryCollectionEdit = SourceComponent->EditRestCollection();
+		if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
+		{
+			TSharedPtr<FGeometryCollection,ESPMode::ThreadSafe> GeometryCollection = GeometryCollectionObject->GetGeometryCollection();
+			TArray<int32> SelectedBones = SourceComponent->GetSelectedBones();
+
+			return FReply::Handled().BeginDragDrop(FGeometryCollectionBoneDragDrop::New(GeometryCollection, SelectedBones));
+		}		
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply FGeometryCollectionTreeItemBone::OnDrop(const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
+	if (!Operation.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+	
+	if (Operation->IsOfType<FGeometryCollectionBoneDragDrop>())
+	{
+		TSharedPtr<FGeometryCollectionBoneDragDrop> GeometryCollectionBoneDragDrop = StaticCastSharedPtr<FGeometryCollectionBoneDragDrop>(Operation);
+
+		UGeometryCollectionComponent* SourceComponent = GetComponent();
+
+		FGeometryCollectionEdit GeometryCollectionEdit = SourceComponent->EditRestCollection();
+		if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
+		{
+			FGeometryCollection* GeometryCollection = GeometryCollectionObject->GetGeometryCollection().Get();
+			if (GeometryCollectionBoneDragDrop->ReparentBones(GeometryCollection, BoneIndex))
+			{
+				ParentComponentItem->RegenerateChildren();
+				ParentComponentItem->RequestTreeRefresh();
+				ParentComponentItem->ExpandAll();
+			}
+		}		
+	}
+	
+	return FReply::Unhandled();
+}
 
 
 UOutlinerSettings::UOutlinerSettings(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 	, ItemText(EOutlinerItemNameEnum::BoneIndex)
 {}
+
 
 void SGeometryCollectionOutliner::Construct(const FArguments& InArgs)
 {
@@ -56,60 +144,6 @@ void SGeometryCollectionOutliner::OnGetChildren(FGeometryCollectionTreeItemPtr I
 
 void SGeometryCollectionOutliner::UpdateGeometryCollection()
 {
-	/*if (TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> CollectionPtr = GeometryCollection.Pin())
-	{
-		RootNodes.Empty();
-		GuidIndexMap.Empty();
-
-		int NumElements = CollectionPtr->NumElements(FGeometryCollection::TransformGroup);
-
-		const TManagedArray<FGuid>& Guids = CollectionPtr->GetAttribute<FGuid>("GUID", "Transform");
-		const TManagedArray<int32>& Parents = CollectionPtr->Parent;
-
-		// Make a copy of the old guids list ... probably a faster way to do this...
-		TArray<FGuid> OldGuids;
-		NodesMap.GenerateKeyArray(OldGuids);
-
-		// Add a sub item to the outliner tree for each of the bones/chunks in this GeometryCollection
-		for (int Index = 0; Index < NumElements; Index++)
-		{
-
-			ItemPtr Item;
-			int32 FoundOldGuidIndex;
-			if (OldGuids.Find(Guids[Index], FoundOldGuidIndex))
-			{
-				// Mark that this item is reused
-				OldGuids.RemoveAt(FoundOldGuidIndex);
-				Item = NodesMap[Guids[Index]];
-			}
-			else
-			{
-				// this is a new bone item, make a new tree item
-				Item = MakeShared<FGeometryCollectionTreeItem>(Guids[Index]);
-				NodesMap.Add(Guids[Index], Item);
-			}
-
-			if (Parents[Index] == FGeometryCollection::Invalid)
-			{
-				RootNodes.Push(Item);
-			}
-
-			GuidIndexMap.Add(Guids[Index], Index);
-		}
-
-		// Remove unused Guids
-		for (auto UnusedGuid : OldGuids)
-		{
-			NodesMap.Remove(UnusedGuid);
-		}
-
-	}
-	else
-	{
-		RootNodes.Empty();
-		GuidIndexMap.Empty();
-		NodesMap.Empty();	
-	}*/
 	TreeView->RequestTreeRefresh();
 	ExpandAll();
 }
@@ -125,9 +159,12 @@ void SGeometryCollectionOutliner::SetComponents(const TArray<UGeometryCollection
 
 	for (UGeometryCollectionComponent* Component : InNewComponents)
 	{
-		RootNodes.Add(MakeShared<FGeometryCollectionTreeItemComponent>(Component));
-		TArray<int32> SelectedBones = Component->GetSelectedBones();
-		SetBoneSelection(Component, SelectedBones, false);
+		if (Component->GetRestCollection() && !Component->GetRestCollection()->IsPendingKill())
+		{
+			RootNodes.Add(MakeShared<FGeometryCollectionTreeItemComponent>(Component, TreeView));
+			TArray<int32> SelectedBones = Component->GetSelectedBones();
+			SetBoneSelection(Component, SelectedBones, false);
+		}
 	}
 
 	TreeView->RequestTreeRefresh();
@@ -138,7 +175,7 @@ void SGeometryCollectionOutliner::ExpandAll()
 {
 	for (TSharedPtr<FGeometryCollectionTreeItemComponent> ItemPtr : RootNodes)
 	{
-		ItemPtr->ExpandAll(TreeView);
+		ItemPtr->ExpandAll();
 	}
 }
 
@@ -276,6 +313,10 @@ FGeometryCollectionTreeItemPtr FGeometryCollectionTreeItemComponent::GetItemFrom
 
 void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectionTreeItemBone& BoneItem, FGeometryCollectionTreeItemList& OutChildren) const
 {
+	if (!Component.IsValid())
+	{
+		return;
+	}
 	if(const UGeometryCollection* RestCollection = Component->GetRestCollection())
 	{
 		if (FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get())
@@ -300,6 +341,10 @@ void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectio
 
 FText FGeometryCollectionTreeItemComponent::GetDisplayNameForBone(const FGuid& Guid) const
 {
+	if (!Component.IsValid())
+	{
+		return LOCTEXT("BoneNotFound", "Bone Not Found, Invalid Geometry Collection");
+	}
 	if (const UGeometryCollection* RestCollection = Component->GetRestCollection())
 	{
 		if (FGeometryCollection* Collection = RestCollection->GetGeometryCollection().Get())
@@ -322,7 +367,7 @@ FText FGeometryCollectionTreeItemComponent::GetDisplayNameForBone(const FGuid& G
 	return LOCTEXT("BoneNotFound", "Bone Not Found, Invalid Geometry Collection");
 }
 
-void FGeometryCollectionTreeItemComponent::ExpandAll(TSharedPtr<STreeView<FGeometryCollectionTreeItemPtr>> TreeView)
+void FGeometryCollectionTreeItemComponent::ExpandAll()
 {
 	TreeView->SetItemExpansion(AsShared(), true);
 
@@ -334,7 +379,7 @@ void FGeometryCollectionTreeItemComponent::ExpandAll(TSharedPtr<STreeView<FGeome
 
 void FGeometryCollectionTreeItemComponent::RegenerateChildren()
 {
-	if(Component->GetRestCollection())
+	if(Component.IsValid() && Component->GetRestCollection())
 	{
 		//@todo Fracture:  This is potentially very expensive to refresh with giant trees
 		FGeometryCollection* Collection = Component->GetRestCollection()->GetGeometryCollection().Get();
@@ -358,7 +403,7 @@ void FGeometryCollectionTreeItemComponent::RegenerateChildren()
 			{
 				if (FilterBoneIndex(Index))
 				{
-					TSharedRef<FGeometryCollectionTreeItemBone> NewItem = MakeShared<FGeometryCollectionTreeItemBone>(Guids[Index], Index, *this);
+					TSharedRef<FGeometryCollectionTreeItemBone> NewItem = MakeShared<FGeometryCollectionTreeItemBone>(Guids[Index], Index, this);
 					if (Parents[Index] == RootIndex)
 					{
 						// The actual children directly beneath this node are the ones without a parent.  The rest are children of children
@@ -371,6 +416,14 @@ void FGeometryCollectionTreeItemComponent::RegenerateChildren()
 			}
 
 		}
+	}
+}
+
+void FGeometryCollectionTreeItemComponent::RequestTreeRefresh()
+{
+	if (TreeView.IsValid())
+	{
+		TreeView->RequestTreeRefresh();
 	}
 }
 
@@ -424,26 +477,34 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 
 	FSlateColor TextColor(FLinearColor::Red); // default color indicates something wrong
 
-	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = ParentComponentItem->GetComponent()->GetRestCollection()->GetGeometryCollection();
-	const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
-	switch (SimulationType[GetBoneIndex()])
+	const UGeometryCollection* RestCollection = ParentComponentItem->GetComponent()->GetRestCollection();
+	if (RestCollection && !RestCollection->IsPendingKill())
 	{
-		// This is a dubious case. We shouldn't expect to see nodes with this type.
-		case FGeometryCollection::ESimulationTypes::FST_None:
-			TextColor = FLinearColor::Green;
-			break;
+		TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = RestCollection->GetGeometryCollection();
+		const TManagedArray<int32>& SimulationType = GeometryCollectionPtr->SimulationType;
+		switch (SimulationType[GetBoneIndex()])
+		{
+			case FGeometryCollection::ESimulationTypes::FST_None:
+				TextColor = FLinearColor::Green;
+				break;
 
-		case FGeometryCollection::ESimulationTypes::FST_Rigid:
-			TextColor = FLinearColor::Gray;
-			break;
+			case FGeometryCollection::ESimulationTypes::FST_Rigid:
+				TextColor = FLinearColor::Gray;
+				break;
 
-		case FGeometryCollection::ESimulationTypes::FST_Clustered:
-			TextColor = FSlateColor(FColor::Cyan);
-			break;
+			case FGeometryCollection::ESimulationTypes::FST_Clustered:
+				TextColor = FSlateColor(FColor::Cyan);
+				break;
 
-		default:
-			ensureMsgf(false, TEXT("Invalid Geometry Collection simulation type encountered."));
-			break;
+			default:
+				ensureMsgf(false, TEXT("Invalid Geometry Collection simulation type encountered."));
+				break;
+		}
+	}
+	else
+	{
+		// Deleted rest collection
+		TextColor = FLinearColor(0.1f, 0.1f, 0.1f);
 	}
 	
 	return SNew(STableRow<FGeometryCollectionTreeItemPtr>, InOwnerTable)
@@ -452,12 +513,17 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 			SNew(STextBlock)
 			.Text(ItemText)
 			.ColorAndOpacity(TextColor)
-		];
+		]
+		.OnDragDetected(this, &FGeometryCollectionTreeItem::OnDragDetected)
+		.OnDrop(this, &FGeometryCollectionTreeItem::OnDrop)
+		.OnDragEnter(this, &FGeometryCollectionTreeItem::OnDragEnter)
+		.OnDragLeave(this, &FGeometryCollectionTreeItem::OnDragLeave);
 }
 
 void FGeometryCollectionTreeItemBone::GetChildren(FGeometryCollectionTreeItemList& OutChildren)
 {
 	ParentComponentItem->GetChildrenForBone(*this, OutChildren);
 }
+
 
 #undef LOCTEXT_NAMESPACE // "ChaosEditor"
