@@ -28,8 +28,8 @@ public:
 	virtual void ExportSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) const = 0;
 	virtual void ImportSyncData(const TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) = 0;
 
-	virtual void ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) = 0;
-	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) = 0;
+	virtual void ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
+	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
 
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) = 0;
 	virtual void SyncInput()  = 0;

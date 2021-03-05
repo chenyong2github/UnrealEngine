@@ -77,8 +77,8 @@ public:
 	virtual void ExportSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) const override;
 	virtual void ImportSyncData(const TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
 
-	virtual void ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
-	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
+	virtual void ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
+	virtual void ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
 
 	virtual void SyncObjects(EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void SyncInput()   override;
@@ -112,18 +112,18 @@ private:
 	mutable FCriticalSection ObjectsToSyncCritSec;
 
 	// Sync json events - data
-	TMap<bool, TMap<FString, TSharedPtr<FDisplayClusterClusterEventJson>>> ClusterEventsJsonPoolMain;
-	TMap<bool, TMap<FString, TSharedPtr<FDisplayClusterClusterEventJson>>> ClusterEventsJsonPoolOut;
-	TArray<TSharedPtr<FDisplayClusterClusterEventJson>> ClusterEventsJsonNonDiscardedPoolMain;
-	TArray<TSharedPtr<FDisplayClusterClusterEventJson>> ClusterEventsJsonNonDiscardedPoolOut;
+	TMap<bool, TMap<FString, TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>> ClusterEventsJsonPoolMain;
+	TMap<bool, TMap<FString, TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>> ClusterEventsJsonPoolOut;
+	TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>> ClusterEventsJsonNonDiscardedPoolMain;
+	TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>> ClusterEventsJsonNonDiscardedPoolOut;
 	mutable FCriticalSection     ClusterEventsJsonCritSec;
 	FOnClusterEventJson          OnClusterEventJson;
 	
 	// Sync binary events
-	TMap<bool, TMap<int32, TSharedPtr<FDisplayClusterClusterEventBinary>>> ClusterEventsBinaryPoolMain;
-	TMap<bool, TMap<int32, TSharedPtr<FDisplayClusterClusterEventBinary>>> ClusterEventsBinaryPoolOut;
-	TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> ClusterEventsBinaryNonDiscardedPoolMain;
-	TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> ClusterEventsBinaryNonDiscardedPoolOut;
+	TMap<bool, TMap<int32, TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>> ClusterEventsBinaryPoolMain;
+	TMap<bool, TMap<int32, TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>> ClusterEventsBinaryPoolOut;
+	TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> ClusterEventsBinaryNonDiscardedPoolMain;
+	TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> ClusterEventsBinaryNonDiscardedPoolOut;
 	mutable FCriticalSection   ClusterEventsBinaryCritSec;
 	FOnClusterEventBinary      OnClusterEventBinary;
 

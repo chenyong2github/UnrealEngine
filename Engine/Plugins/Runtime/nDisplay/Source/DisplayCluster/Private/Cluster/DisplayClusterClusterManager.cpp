@@ -331,7 +331,7 @@ void FDisplayClusterClusterManager::EmitClusterEventJson(const FDisplayClusterCl
 			// Generate event ID
 			const FString EventId = FString::Printf(TEXT("%s-%s-%s"), *Event.Category, *Event.Type, *Event.Name);
 			// Make it shared ptr
-			TSharedPtr<FDisplayClusterClusterEventJson> EventPtr = MakeShared<FDisplayClusterClusterEventJson>(Event);
+			TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe> EventPtr = MakeShared<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>(Event);
 			// Store event object
 			if (EventPtr->bShouldDiscardOnRepeat)
 			{
@@ -364,7 +364,7 @@ void FDisplayClusterClusterManager::EmitClusterEventBinary(const FDisplayCluster
 		if (IsMaster())
 		{
 			// Make it shared ptr
-			TSharedPtr<FDisplayClusterClusterEventBinary> EventPtr = MakeShared<FDisplayClusterClusterEventBinary>(Event);
+			TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe> EventPtr = MakeShared<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>(Event);
 
 			if (EventPtr->bShouldDiscardOnRepeat)
 			{
@@ -445,38 +445,46 @@ void FDisplayClusterClusterManager::ImportSyncData(const TMap<FString, FString>&
 	}
 }
 
-void FDisplayClusterClusterManager::ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents)
+void FDisplayClusterClusterManager::ExportEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
 {
-	FScopeLock Lock(&ClusterEventsJsonCritSec);
-
 	// Clear output containers
 	JsonEvents.Reset();
 	BinaryEvents.Reset();
 
+	// Export JSON events
+	{
+		FScopeLock Lock(&ClusterEventsJsonCritSec);
+
 	// Export all system and non-system json events that have 'discard on repeat' flag
 	for (const auto& it : ClusterEventsJsonPoolOut)
 	{
-		TArray<TSharedPtr<FDisplayClusterClusterEventJson>> JsonEventsToExport;
+			TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>> JsonEventsToExport;
 		it.Value.GenerateValueArray(JsonEventsToExport);
 		JsonEvents.Append(JsonEventsToExport);
 	}
 
 	// Export all json events that don't have 'discard on repeat' flag
 	JsonEvents.Append(ClusterEventsJsonNonDiscardedPoolOut);
+	}
+
+	// Export binary events
+	{
+		FScopeLock Lock(&ClusterEventsBinaryCritSec);
 
 	// Export all binary events that have 'discard on repeat' flag
 	for (const auto& it : ClusterEventsBinaryPoolOut)
 	{
-		TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> BinaryEventsToExport;
+			TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEventsToExport;
 		it.Value.GenerateValueArray(BinaryEventsToExport);
 		BinaryEvents.Append(BinaryEventsToExport);
 	}
 
 	// Export all binary events that don't have 'discard on repeat' flag
 	BinaryEvents.Append(ClusterEventsBinaryNonDiscardedPoolOut);
+	}
 }
 
-void FDisplayClusterClusterManager::ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents)
+void FDisplayClusterClusterManager::ImportEventsData(const TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, const TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
 {
 	// Process and fire all JSON events
 	if (JsonEvents.Num() > 0)
@@ -550,8 +558,8 @@ void FDisplayClusterClusterManager::SyncEvents()
 {
 	if (Controller)
 	{
-		TArray<TSharedPtr<FDisplayClusterClusterEventJson>>   JsonEvents;
-		TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> BinaryEvents;
+		TArray<TSharedPtr<FDisplayClusterClusterEventJson,   ESPMode::ThreadSafe>> JsonEvents;
+		TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEvents;
 
 		// Get events data from a provider
 		UE_LOG(LogDisplayClusterCluster, Verbose, TEXT("Downloading synchronization data (events)..."));
