@@ -335,7 +335,7 @@ void FRigUnitDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 				}
 				else if (CustomWidgetName == TEXT("SpaceName"))
 				{
-					NameList = &GraphBeingCustomized->GetSpaceNameList();
+					NameList = &GraphBeingCustomized->GetNullNameList();
 				}
 				else if (CustomWidgetName == TEXT("CurveName"))
 				{
@@ -1584,7 +1584,7 @@ const TArray<TSharedPtr<FString>>& FRigControlElementDetails::GetControlTypeList
 	return ControlTypeList;
 }
 
-void FRigSpaceElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+void FRigNullElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
 }

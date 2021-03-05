@@ -201,8 +201,8 @@ void FControlRigEditorModule::StartupModule()
 	ClassesToUnregisterOnShutdown.Add(FRigControlElement::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigControlElementDetails::MakeInstance));
 
-	ClassesToUnregisterOnShutdown.Add(FRigSpaceElement::StaticStruct()->GetFName());
-	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigSpaceElementDetails::MakeInstance));
+	ClassesToUnregisterOnShutdown.Add(FRigNullElement::StaticStruct()->GetFName());
+	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigNullElementDetails::MakeInstance));
 
 	ClassesToUnregisterOnShutdown.Add(FRigInfluenceMapPerEvent::StaticStruct()->GetFName());
 	PropertyEditorModule.RegisterCustomClassLayout(ClassesToUnregisterOnShutdown.Last(), FOnGetDetailCustomizationInstance::CreateStatic(&FRigInfluenceMapPerEventDetails::MakeInstance));
@@ -1659,7 +1659,7 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 								}
 								else if (Pin->GetCustomWidgetName() == TEXT("SpaceName"))
 								{
-									Key = FRigElementKey(*Pin->GetDefaultValue(), ERigElementType::Space);
+									Key = FRigElementKey(*Pin->GetDefaultValue(), ERigElementType::Null);
 								}
 								else if (Pin->GetCustomWidgetName() == TEXT("CurveName"))
 								{

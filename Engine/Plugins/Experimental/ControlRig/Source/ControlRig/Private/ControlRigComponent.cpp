@@ -959,15 +959,15 @@ FTransform UControlRigComponent::GetSpaceTransform(FName SpaceName, EControlRigC
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if(FRigSpaceElement* SpaceElement = CR->GetHierarchy()->Find<FRigSpaceElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
+		if(FRigNullElement* NullElement = CR->GetHierarchy()->Find<FRigNullElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
 		{
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::CurrentLocal);
+				return CR->GetHierarchy()->GetTransform(NullElement, ERigTransformType::CurrentLocal);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::CurrentGlobal);
+				FTransform RootTransform = CR->GetHierarchy()->GetTransform(NullElement, ERigTransformType::CurrentGlobal);
 				ConvertTransformFromRigSpace(RootTransform, Space);
 				return RootTransform;
 			}
@@ -981,15 +981,15 @@ FTransform UControlRigComponent::GetInitialSpaceTransform(FName SpaceName, ECont
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if(FRigSpaceElement* SpaceElement = CR->GetHierarchy()->Find<FRigSpaceElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
+		if(FRigNullElement* NullElement = CR->GetHierarchy()->Find<FRigNullElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
 		{
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				return CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::InitialLocal);
+				return CR->GetHierarchy()->GetTransform(NullElement, ERigTransformType::InitialLocal);
 			}
 			else
 			{
-				FTransform RootTransform = CR->GetHierarchy()->GetTransform(SpaceElement, ERigTransformType::InitialGlobal);
+				FTransform RootTransform = CR->GetHierarchy()->GetTransform(NullElement, ERigTransformType::InitialGlobal);
 				ConvertTransformFromRigSpace(RootTransform, Space);
 				return RootTransform;
 			}
@@ -1003,16 +1003,16 @@ void UControlRigComponent::SetInitialSpaceTransform(FName SpaceName, FTransform 
 {
 	if (UControlRig* CR = SetupControlRigIfRequired())
 	{
-		if(FRigSpaceElement* SpaceElement = CR->GetHierarchy()->Find<FRigSpaceElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
+		if(FRigNullElement* NullElement = CR->GetHierarchy()->Find<FRigNullElement>(FRigElementKey(SpaceName, ERigElementType::Control)))
 		{
 			if (Space == EControlRigComponentSpace::LocalSpace)
 			{
-				CR->GetHierarchy()->SetTransform(SpaceElement, InitialTransform, ERigTransformType::InitialLocal, true, false);
+				CR->GetHierarchy()->SetTransform(NullElement, InitialTransform, ERigTransformType::InitialLocal, true, false);
 			}
 			else
 			{
 				ConvertTransformToRigSpace(InitialTransform, Space);
-				CR->GetHierarchy()->SetTransform(SpaceElement, InitialTransform, ERigTransformType::InitialGlobal, true, false);
+				CR->GetHierarchy()->SetTransform(NullElement, InitialTransform, ERigTransformType::InitialGlobal, true, false);
 			}
 		}
 	}
@@ -1254,7 +1254,7 @@ void UControlRigComponent::TransferOutputs()
 
 			if (MappedElement.ElementType == ERigElementType::Bone ||
 				MappedElement.ElementType == ERigElementType::Control ||
-				MappedElement.ElementType == ERigElementType::Space)
+				MappedElement.ElementType == ERigElementType::Null)
 			{
 				FTransform Transform = ControlRig->GetHierarchy()->GetGlobalTransform(MappedElement.ElementIndex);
 				ConvertTransformFromRigSpace(Transform, MappedElement.Space);

@@ -55,7 +55,7 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 				{
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
-						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetSpaceNameList);
+						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetNullNameList);
 				}
 				else if (CustomWidgetName == TEXT("CurveName"))
 				{

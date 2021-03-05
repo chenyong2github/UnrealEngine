@@ -18,12 +18,12 @@ enum class ERigElementType : uint8
 {
 	None,
 	Bone = 0x001,
-	Space = 0x002,
+	Null = 0x002,
 	Control = 0x004,
 	Curve = 0x008,
 	RigidBody = 0x010,
 	Socket = 0x020,
-	All = Bone | Space | Control | Curve | RigidBody | Socket UMETA(Hidden),
+	All = Bone | Null | Control | Curve | RigidBody | Socket UMETA(Hidden),
 };
 
 UENUM(BlueprintType)
@@ -873,7 +873,7 @@ public:
 			{
 				return FString::Printf(TEXT("Bone(%s)"), *Name.ToString());
 			}
-			case ERigElementType::Space:
+			case ERigElementType::Null:
 			{
 				return FString::Printf(TEXT("Space(%s)"), *Name.ToString());
 			}

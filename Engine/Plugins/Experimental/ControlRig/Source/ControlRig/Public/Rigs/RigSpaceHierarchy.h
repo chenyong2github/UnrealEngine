@@ -59,7 +59,7 @@ struct CONTROLRIG_API FRigSpace : public FRigElement
 
 	FORCEINLINE virtual ERigElementType GetElementType() const override
 	{
-		return ERigElementType::Space;
+		return ERigElementType::Null;
 	}
 
 	FORCEINLINE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
@@ -78,7 +78,7 @@ struct CONTROLRIG_API FRigSpace : public FRigElement
 				}
 				case ERigSpaceType::Space:
 				{
-					return FRigElementKey(ParentName, ERigElementType::Space);
+					return FRigElementKey(ParentName, ERigElementType::Null);
 				}
 				default:
 				{

@@ -247,9 +247,9 @@ private:
 	/** Handle preview scene setup */
 	void HandlePreviewSceneCreated(const TSharedRef<IPersonaPreviewScene>& InPersonaPreviewScene);
 	void HandleViewportCreated(const TSharedRef<class IPersonaViewport>& InViewport);
-	bool IsToolbarDrawSpacesEnabled() const;
-	ECheckBoxState GetToolbarDrawSpaces() const;
-	void OnToolbarDrawSpacesChanged(ECheckBoxState InNewValue);
+	bool IsToolbarDrawNullsEnabled() const;
+	ECheckBoxState GetToolbarDrawNulls() const;
+	void OnToolbarDrawNullsChanged(ECheckBoxState InNewValue);
 	ECheckBoxState GetToolbarDrawAxesOnSelection() const;
 	void OnToolbarDrawAxesOnSelectionChanged(ECheckBoxState InNewValue);
 	TOptional<float> GetToolbarAxesScale() const;

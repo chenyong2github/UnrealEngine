@@ -173,7 +173,7 @@ FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InP
 	return NewElement->Key;
 }
 
-FRigElementKey URigHierarchyController::AddSpace(FName InName, FRigElementKey InParent, FTransform InTransform,
+FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InParent, FTransform InTransform,
 	bool bTransformInGlobal, bool bSetupUndo)
 {
 	if(!IsValid())
@@ -185,13 +185,13 @@ FRigElementKey URigHierarchyController::AddSpace(FName InName, FRigElementKey In
 	TSharedPtr<FScopedTransaction> TransactionPtr;
 	if(bSetupUndo)
 	{
-		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Add Space", "Add Space"));
+		TransactionPtr = MakeShared<FScopedTransaction>(NSLOCTEXT("RigHierarchyController", "Add Null", "Add Null"));
 		Hierarchy->Modify();
 	}
 #endif
 
-	FRigSpaceElement* NewElement = new FRigSpaceElement();
-	NewElement->Key.Type = ERigElementType::Space;
+	FRigNullElement* NewElement = new FRigNullElement();
+	NewElement->Key.Type = ERigElementType::Null;
 	NewElement->Key.Name = Hierarchy->GetSafeNewName(InName.ToString(), NewElement->Key.Type);
 	AddElement(NewElement, Hierarchy->Get(Hierarchy->GetIndex(InParent)), false);
 
@@ -740,10 +740,10 @@ FString URigHierarchyController::ExportToText(TArray<FRigElementKey> InKeys) con
 				FRigControlElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
 				break;
 			}
-			case ERigElementType::Space:
+			case ERigElementType::Null:
 			{
-				FRigSpaceElement DefaultElement;
-				FRigSpaceElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
+				FRigNullElement DefaultElement;
+				FRigNullElement::StaticStruct()->ExportText(PerElementData.Content, Element, &DefaultElement, nullptr, PPF_None, nullptr);
 				break;
 			}
 			case ERigElementType::Curve:
@@ -849,10 +849,10 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 				FRigBoneElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigBoneElement::StaticStruct()->GetName(), true);
 				break;
 			}
-			case ERigElementType::Space:
+			case ERigElementType::Null:
 			{
-				NewElement = new FRigSpaceElement();
-				FRigSpaceElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigSpaceElement::StaticStruct()->GetName(), true);
+				NewElement = new FRigNullElement();
+				FRigNullElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigNullElement::StaticStruct()->GetName(), true);
 				break;
 			}
 			case ERigElementType::Control:

@@ -81,16 +81,16 @@ public:
 	FRigElementKey AddBone(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, ERigBoneType InBoneType = ERigBoneType::User, bool bSetupUndo = false);
 
 	/**
-	 * Adds a space to the hierarchy
-	 * @param InName The suggested name of the new space - will eventually be corrected by the namespace
-	 * @param InParent The (optional) parent of the new space. If you don't need a parent, pass FRigElementKey()
-	 * @param InTransform The transform for the new space - either in local or global space, based on bTransformInGlobal
-	 * @param bTransformInGlobal Set this to true if the Transform passed is expressed in global space, false for local space.
+	 * Adds a null to the hierarchy
+	 * @param InName The suggested name of the new null - will eventually be corrected by the namespace
+	 * @param InParent The (optional) parent of the new null. If you don't need a parent, pass FRigElementKey()
+	 * @param InTransform The transform for the new null - either in local or global null, based on bTransformInGlobal
+	 * @param bTransformInGlobal Set this to true if the Transform passed is expressed in global null, false for local null.
 	 * @param bSetupUndo If set to true the stack will record the change for undo / redo
-	 * @return The key for the newly created space.
+	 * @return The key for the newly created null.
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
-    FRigElementKey AddSpace(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, bool bSetupUndo = false);
+    FRigElementKey AddNull(FName InName, FRigElementKey InParent, FTransform InTransform, bool bTransformInGlobal = true, bool bSetupUndo = false);
 
 	/**
 	 * Adds a control to the hierarchy

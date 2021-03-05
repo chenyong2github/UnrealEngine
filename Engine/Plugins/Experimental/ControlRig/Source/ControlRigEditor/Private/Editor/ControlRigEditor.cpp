@@ -1186,9 +1186,9 @@ void FControlRigEditor::SetDetailStruct(const FRigElementKey& InElement)
 			StructToDisplay = MakeShareable(new FStructOnScope(FRigControlElement::StaticStruct(), (uint8*)Element));
 			break;
 		}
-		case ERigElementType::Space:
+		case ERigElementType::Null:
 		{
-			StructToDisplay = MakeShareable(new FStructOnScope(FRigSpaceElement::StaticStruct(), (uint8*)Element));
+			StructToDisplay = MakeShareable(new FStructOnScope(FRigNullElement::StaticStruct(), (uint8*)Element));
 			break;
 		}
 		case ERigElementType::Curve:
@@ -2339,12 +2339,12 @@ void FControlRigEditor::HandleViewportCreated(const TSharedRef<class IPersonaVie
 						SNew(SBox)
 						.Padding(FMargin(4.0f, 0.0f, 0.0f, 0.0f))
 						.WidthOverride(100.0f)
-						.IsEnabled(this, &FControlRigEditor::IsToolbarDrawSpacesEnabled)
+						.IsEnabled(this, &FControlRigEditor::IsToolbarDrawNullsEnabled)
 						[
 							SNew(SCheckBox)
-							.IsChecked(this, &FControlRigEditor::GetToolbarDrawSpaces)
-							.OnCheckStateChanged(this, &FControlRigEditor::OnToolbarDrawSpacesChanged)
-							.ToolTipText(LOCTEXT("ControlRigDrawSpacesToolTip", "If checked all spaces are drawn as axes."))
+							.IsChecked(this, &FControlRigEditor::GetToolbarDrawNulls)
+							.OnCheckStateChanged(this, &FControlRigEditor::OnToolbarDrawNullsChanged)
+							.ToolTipText(LOCTEXT("ControlRigDrawNullsToolTip", "If checked all spaces are drawn as axes."))
 						]
 					],
 					LOCTEXT("ControlRigDisplaySpaces", "Display Spaces")
@@ -2472,7 +2472,7 @@ void FControlRigEditor::OnToolbarDrawAxesOnSelectionChanged(ECheckBoxState InNew
 	}
 }
 
-bool FControlRigEditor::IsToolbarDrawSpacesEnabled() const
+bool FControlRigEditor::IsToolbarDrawNullsEnabled() const
 {
 	if (ControlRig)
 	{
@@ -2484,7 +2484,7 @@ bool FControlRigEditor::IsToolbarDrawSpacesEnabled() const
 	return false;
 }
 
-ECheckBoxState FControlRigEditor::GetToolbarDrawSpaces() const
+ECheckBoxState FControlRigEditor::GetToolbarDrawNulls() const
 {
 	if (FControlRigEditMode* EditMode = GetEditMode())
 	{
@@ -2493,7 +2493,7 @@ ECheckBoxState FControlRigEditor::GetToolbarDrawSpaces() const
 	return ECheckBoxState::Unchecked;
 }
 
-void FControlRigEditor::OnToolbarDrawSpacesChanged(ECheckBoxState InNewValue)
+void FControlRigEditor::OnToolbarDrawNullsChanged(ECheckBoxState InNewValue)
 {
 	if (FControlRigEditMode* EditMode = GetEditMode())
 	{
@@ -2973,7 +2973,7 @@ void FControlRigEditor::SetRigElementTransform(const FRigElementKey& InElement, 
 			OnHierarchyChanged();
 			break;
 		}
-		case ERigElementType::Space:
+		case ERigElementType::Null:
 		{
 			FTransform LocalTransform = InTransform;
 			FTransform GlobalTransform = InTransform;
@@ -3341,7 +3341,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 							{
 								if ((ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("BoneName") && RemovedElementType == ERigElementType::Bone) ||
 									(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("ControlName") && RemovedElementType == ERigElementType::Control) ||
-									(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("SpaceName") && RemovedElementType == ERigElementType::Space) ||
+									(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("SpaceName") && RemovedElementType == ERigElementType::Null) ||
 									(ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("CurveName") && RemovedElementType == ERigElementType::Curve))
 								{
 									if (ModelPin->GetDefaultValue() == RemovedElementName)
@@ -3413,7 +3413,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 							{
 								if ((ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("BoneName") && ElementType == ERigElementType::Bone) ||
                                     (ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("ControlName") && ElementType == ERigElementType::Control) ||
-                                    (ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("SpaceName") && ElementType == ERigElementType::Space) ||
+                                    (ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("SpaceName") && ElementType == ERigElementType::Null) ||
                                     (ModelPin->GetCPPType() == TEXT("FName") && ModelPin->GetCustomWidgetName() == TEXT("CurveName") && ElementType == ERigElementType::Curve))
 								{
 									if (ModelPin->GetDefaultValue() == OldNameStr)
@@ -3632,7 +3632,7 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 			}
 
 			if (((DraggedTypes & (uint8)ERigElementType::Bone) != 0) ||
-				((DraggedTypes & (uint8)ERigElementType::Space) != 0))
+				((DraggedTypes & (uint8)ERigElementType::Null) != 0))
 			{
 				MenuBuilder.AddMenuEntry(
 					LOCTEXT("CreateGetTransform", "Get Transform"),
@@ -3656,7 +3656,7 @@ void FControlRigEditor::OnGraphNodeDropToPerform(TSharedPtr<FGraphNodeDragDropOp
 
 			if (((DraggedTypes & (uint8)ERigElementType::Bone) != 0) ||
 				((DraggedTypes & (uint8)ERigElementType::Control) != 0) ||
-				((DraggedTypes & (uint8)ERigElementType::Space) != 0))
+				((DraggedTypes & (uint8)ERigElementType::Null) != 0))
 			{
 				MenuBuilder.AddMenuSeparator();
 
@@ -4202,7 +4202,7 @@ void FControlRigEditor::HandleOnControlModified(UControlRig* Subject, FRigContro
 					}
 				}
 			}
-			else if (ElementKey.Type == ERigElementType::Space)
+			else if (ElementKey.Type == ERigElementType::Null)
 			{
 				const FTransform GlobalTransform = ControlRig->GetControlGlobalTransform(ControlElement->GetName());
 				Blueprint->Hierarchy->SetGlobalTransform(ElementKey, GlobalTransform);

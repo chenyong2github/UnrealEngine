@@ -17,7 +17,7 @@ FRigUnit_GetSpaceTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedSpaceIndex.UpdateCache(FRigElementKey(Space, ERigElementType::Space), Hierarchy))
+				if (CachedSpaceIndex.UpdateCache(FRigElementKey(Space, ERigElementType::Null), Hierarchy))
 				{
 					switch (SpaceType)
 					{

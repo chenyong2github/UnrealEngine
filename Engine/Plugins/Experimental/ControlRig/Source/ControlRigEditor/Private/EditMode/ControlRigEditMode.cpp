@@ -535,9 +535,9 @@ void FControlRigEditMode::Render(const FSceneView* View, FViewport* Viewport, FP
 		if (Settings->bDisplaySpaces || ControlRig->IsSetupModeEnabled())
 		{
 			TArray<FTransform> SpaceTransforms;
-			Hierarchy->ForEach<FRigSpaceElement>([&SpaceTransforms, Hierarchy](FRigSpaceElement* SpaceElement) -> bool
+			Hierarchy->ForEach<FRigNullElement>([&SpaceTransforms, Hierarchy](FRigNullElement* NullElement) -> bool
             {
-				SpaceTransforms.Add(Hierarchy->GetTransform(SpaceElement, ERigTransformType::CurrentGlobal));
+				SpaceTransforms.Add(Hierarchy->GetTransform(NullElement, ERigTransformType::CurrentGlobal));
 				return true;
 			});
 			GetControlRig(true)->DrawInterface.DrawAxes(FTransform::Identity, SpaceTransforms, Settings->AxisScale);
@@ -1832,7 +1832,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 			switch (InElement->GetType())
 			{
 				case ERigElementType::Bone:
-            	case ERigElementType::Space:
+            	case ERigElementType::Null:
             	case ERigElementType::Curve:
             	case ERigElementType::Control:
             	case ERigElementType::RigidBody:

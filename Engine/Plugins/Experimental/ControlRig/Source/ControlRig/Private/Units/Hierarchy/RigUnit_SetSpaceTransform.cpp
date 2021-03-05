@@ -19,7 +19,7 @@ FRigUnit_SetSpaceTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				const FRigElementKey SpaceKey(Space, ERigElementType::Space);
+				const FRigElementKey SpaceKey(Space, ERigElementType::Null);
 
 				if (CachedSpaceIndex.UpdateCache(SpaceKey, Hierarchy))
 				{

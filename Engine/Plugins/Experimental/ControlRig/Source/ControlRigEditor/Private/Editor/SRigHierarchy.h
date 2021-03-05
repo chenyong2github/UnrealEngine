@@ -263,7 +263,7 @@ private:
 	bool bShowControls;
 
 	/** Whether or not to show spaces in the hierarchy */
-	bool bShowSpaces;
+	bool bShowNulls;
 
 	/** Whether or not to show rigidbodies in the hierarchy */
 	bool bShowRigidBodies;
@@ -304,9 +304,9 @@ private:
 	bool IsMultiSelected() const;
 	bool IsSingleSelected() const;
 	bool IsSingleBoneSelected() const;
-	bool IsSingleSpaceSelected() const;
+	bool IsSingleNullSelected() const;
 	bool IsControlSelected() const;
-	bool IsControlOrSpaceSelected() const;
+	bool IsControlOrNullSelected() const;
 
 	URigHierarchy* GetHierarchy() const;
 	URigHierarchy* GetDebuggedHierarchy() const;

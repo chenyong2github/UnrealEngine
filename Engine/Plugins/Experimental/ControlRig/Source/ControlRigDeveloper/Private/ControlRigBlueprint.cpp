@@ -366,7 +366,7 @@ void UControlRigBlueprint::PostLoad()
 		}
 		for(const FRigSpace& Space : HierarchyContainer_DEPRECATED.SpaceHierarchy)
 		{
-			HierarchyController->AddSpace(Space.Name, FRigElementKey(), Space.InitialTransform, false, false);
+			HierarchyController->AddNull(Space.Name, FRigElementKey(), Space.InitialTransform, false, false);
 		}
 		for(const FRigControl& Control : HierarchyContainer_DEPRECATED.ControlHierarchy)
 		{
@@ -475,6 +475,44 @@ void UControlRigBlueprint::PostLoad()
 	{
 		GetOrCreateController(GraphToDetach)->ReattachLinksToPinObjects(true /* follow redirectors */);
 	}
+
+	// perform backwards compat value upgrades
+	TArray<URigVMGraph*> GraphsToValidate;
+	GraphsToValidate.Add(GetModel());
+	GraphsToValidate.Add(GetLocalFunctionLibrary());
+	for (int32 GraphIndex = 0; GraphIndex < GraphsToValidate.Num(); GraphIndex++)
+	{
+		URigVMGraph* GraphToValidate = GraphsToValidate[GraphIndex];
+		if(GraphToValidate == nullptr)
+		{
+			continue;
+		}
+			
+		for(URigVMNode* Node : GraphToValidate->GetNodes())
+		{
+			if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
+			{
+				GraphsToValidate.AddUnique(CollapseNode->GetContainedGraph());
+			}
+
+			TArray<URigVMPin*> Pins = Node->GetAllPinsRecursively();
+			for(URigVMPin* Pin : Pins)
+			{
+				if(Pin->GetCPPTypeObject() == StaticEnum<ERigElementType>())
+				{
+					if(Pin->GetDefaultValue() == TEXT("Space"))
+					{
+						if(URigVMController* Controller = GetController(GraphToValidate))
+						{
+							Controller->SuspendNotifications(true);
+							Controller->SetPinDefaultValue(Pin->GetPinPath(), TEXT("Null"), false, false, false);
+							Controller->SuspendNotifications(false);
+						}
+					}
+				}
+			}
+		}
+	}	
 
 	RecompileVM();
 	RequestControlRigInit();

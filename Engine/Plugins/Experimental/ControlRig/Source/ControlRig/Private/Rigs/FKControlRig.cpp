@@ -29,11 +29,11 @@ FName UFKControlRig::GetControlName(const FName& InBoneName)
 	return NAME_None;
 }
 
-FName UFKControlRig::GetSpaceName(const FName& InBoneName)
+FName UFKControlRig::GetNullName(const FName& InBoneName)
 {
 	if (InBoneName != NAME_None)
 	{
-		return FName(*(InBoneName.ToString() + TEXT("_SPACE")));
+		return FName(*(InBoneName.ToString() + TEXT("_NULL")));
 	}
 
 	// if bone name is coming as none, we don't append
@@ -226,10 +226,10 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 	{
 		const FName BoneName = BoneElement->GetName();
 		const int32 ParentIndex = GetHierarchy()->GetFirstParent(BoneElement->GetIndex());
-		const FName SpaceName = GetSpaceName(BoneName);// name conflict?
+		const FName NullName = GetNullName(BoneName);// name conflict?
 		const FName ControlName = GetControlName(BoneName); // name conflict?
 
-		FRigElementKey SpaceKey;
+		FRigElementKey NullKey;
 
 		FTransform LocalTransform;
 		if (ParentIndex != INDEX_NONE)
@@ -237,18 +237,18 @@ void UFKControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkele
 			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
 			FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentIndex);
 			LocalTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
-			SpaceKey = Controller->AddSpace(SpaceName, GetHierarchy()->GetKey(ParentIndex), FTransform::Identity, false, false);
+			NullKey = Controller->AddNull(NullName, GetHierarchy()->GetKey(ParentIndex), FTransform::Identity, false, false);
 		}
 		else
 		{
 			LocalTransform = GetHierarchy()->GetLocalTransform(BoneElement->GetIndex());
-			SpaceKey = Controller->AddSpace(SpaceName, FRigElementKey(), FTransform::Identity, true, false);
+			NullKey = Controller->AddNull(NullName, FRigElementKey(), FTransform::Identity, true, false);
 		}
 
 		FRigControlSettings Settings;
 		Settings.ControlType = ERigControlType::EulerTransform;
 		Settings.DisplayName = BoneName;
-		const FRigElementKey ControlKey = Controller->AddControl(ControlName, SpaceKey, Settings, FRigControlValue::Make(FEulerTransform::Identity), FTransform::Identity, FTransform::Identity, false);
+		const FRigElementKey ControlKey = Controller->AddControl(ControlName, NullKey, Settings, FRigControlValue::Make(FEulerTransform::Identity), FTransform::Identity, FTransform::Identity, false);
 		GetHierarchy()->SetLocalTransform(ControlKey, LocalTransform, true, true, false);
 
 		return true;

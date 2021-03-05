@@ -607,11 +607,11 @@ void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(URigHierarchy* R
 	FRigElementKey ChildItr = InElementKey;
 	while (ParentKey.IsValid() && ParentKey.Type != ERigElementType::Bone)
 	{
-		if (ParentKey.Type == ERigElementType::Space) // TODO: add empty space trail with initial transform
+		if (ParentKey.Type == ERigElementType::Null) // TODO: add empty space trail with initial transform
 		{
 			ChildItr = ParentKey;
 			ElementIndex = RigHierarchy->GetIndex(FRigElementKey(ChildItr.Name, ERigElementType::Control));
-			ParentKey = RigHierarchy->GetFirstParent(FRigElementKey(ChildItr.Name, ERigElementType::Space));
+			ParentKey = RigHierarchy->GetFirstParent(FRigElementKey(ChildItr.Name, ERigElementType::Null));
 			continue;
 		}
 

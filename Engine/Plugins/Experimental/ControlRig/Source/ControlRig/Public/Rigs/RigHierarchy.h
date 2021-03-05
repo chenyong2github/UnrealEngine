@@ -517,9 +517,9 @@ public:
 	 * Returns all Space elements
 	 * @param bTraverse Returns the elements in order of a depth first traversal
 	 */
-	FORCEINLINE TArray<FRigSpaceElement*> GetSpaces(bool bTraverse = false) const
+	FORCEINLINE TArray<FRigNullElement*> GetSpaces(bool bTraverse = false) const
 	{
-		return GetElementsOfType<FRigSpaceElement>(bTraverse);
+		return GetElementsOfType<FRigNullElement>(bTraverse);
 	}
 
 	/**
@@ -529,7 +529,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy, meta = (DisplayName = "Get Spaces", ScriptName = "GetSpaces"))
 	FORCEINLINE TArray<FRigElementKey> GetSpaceKeys(bool bTraverse = true) const
 	{
-		return GetKeysOfType<FRigSpaceElement>(bTraverse);
+		return GetKeysOfType<FRigNullElement>(bTraverse);
 	}
 
 	/**

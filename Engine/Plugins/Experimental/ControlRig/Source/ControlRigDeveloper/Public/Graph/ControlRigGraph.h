@@ -48,9 +48,9 @@ public:
 	{
 		return GetElementNameList(ERigElementType::Control);
 	}
-	FORCEINLINE const TArray<TSharedPtr<FString>>& GetSpaceNameList(URigVMPin* InPin = nullptr) const
+	FORCEINLINE const TArray<TSharedPtr<FString>>& GetNullNameList(URigVMPin* InPin = nullptr) const
 	{
-		return GetElementNameList(ERigElementType::Space);
+		return GetElementNameList(ERigElementType::Null);
 	}
 	FORCEINLINE const TArray<TSharedPtr<FString>>& GetCurveNameList(URigVMPin* InPin = nullptr) const
 	{

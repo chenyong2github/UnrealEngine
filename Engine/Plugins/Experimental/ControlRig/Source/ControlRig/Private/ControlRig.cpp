@@ -1500,7 +1500,7 @@ FName UControlRig::AddTransientControl(const FRigElementKey& InElement)
 			Parent = DynamicHierarchy->GetFirstParent(InElement);
 			break;
 		}
-		case ERigElementType::Space:
+		case ERigElementType::Null:
 		{
 			Parent = InElement;
 			break;
@@ -1578,7 +1578,7 @@ bool UControlRig::SetTransientControlValue(const FRigElementKey& InElement)
 				}
 			}
 		}
-		else if (InElement.Type == ERigElementType::Space)
+		else if (InElement.Type == ERigElementType::Null)
 		{
 			const FTransform GlobalTransform = DynamicHierarchy->GetGlobalTransform(InElement);
 			DynamicHierarchy->SetTransform(ControlElement, GlobalTransform, ERigTransformType::InitialGlobal, true, false);
@@ -1659,14 +1659,14 @@ FRigElementKey UControlRig::GetElementKeyFromTransientControl(const FRigElementK
 	}
 	
 	static FString ControlRigForElementBoneName;
-	static FString ControlRigForElementSpaceName;
+	static FString ControlRigForElementNullName;
 
 	if (ControlRigForElementBoneName.IsEmpty())
 	{
 		ControlRigForElementBoneName = FString::Printf(TEXT("ControlForRigElement_%s_"),
             *StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)ERigElementType::Bone).ToString());
-		ControlRigForElementSpaceName = FString::Printf(TEXT("ControlForRigElement_%s_"),
-            *StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)ERigElementType::Space).ToString());
+		ControlRigForElementNullName = FString::Printf(TEXT("ControlForRigElement_%s_"),
+            *StaticEnum<ERigElementType>()->GetDisplayNameTextByValue((int64)ERigElementType::Null).ToString());
 	}
 	
 	FString Name = InKey.Name.ToString();
@@ -1675,10 +1675,10 @@ FRigElementKey UControlRig::GetElementKeyFromTransientControl(const FRigElementK
 		Name.RightChopInline(ControlRigForElementBoneName.Len());
 		return FRigElementKey(*Name, ERigElementType::Bone);
 	}
-	if(Name.StartsWith(ControlRigForElementSpaceName))
+	if(Name.StartsWith(ControlRigForElementNullName))
 	{
-		Name.RightChopInline(ControlRigForElementSpaceName.Len());
-		return FRigElementKey(*Name, ERigElementType::Space);
+		Name.RightChopInline(ControlRigForElementNullName.Len());
+		return FRigElementKey(*Name, ERigElementType::Null);
 	}
 	
 	return FRigElementKey();;

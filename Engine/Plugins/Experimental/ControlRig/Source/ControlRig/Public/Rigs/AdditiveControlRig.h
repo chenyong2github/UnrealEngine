@@ -23,7 +23,7 @@ public:
 
 	// utility function to 
 	static FName GetControlName(const FName& InBoneName);
-	static FName GetSpaceName(const FName& InBoneName);
+	static FName GetNullName(const FName& InBoneName);
 
 private:
 	// custom units that are used to execute this rig

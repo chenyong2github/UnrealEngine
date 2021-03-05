@@ -90,7 +90,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 
 	TArray<TSharedPtr<FString>>& AllNameList = ElementNameLists.FindOrAdd(ERigElementType::All);
 	TArray<TSharedPtr<FString>>& BoneNameList = ElementNameLists.FindOrAdd(ERigElementType::Bone);
-	TArray<TSharedPtr<FString>>& SpaceNameList = ElementNameLists.FindOrAdd(ERigElementType::Space);
+	TArray<TSharedPtr<FString>>& NullNameList = ElementNameLists.FindOrAdd(ERigElementType::Null);
 	TArray<TSharedPtr<FString>>& ControlNameList = ElementNameLists.FindOrAdd(ERigElementType::Control);
 	TArray<TSharedPtr<FString>>& CurveNameList = ElementNameLists.FindOrAdd(ERigElementType::Curve);
 	TArray<TSharedPtr<FString>>& RigidBodyNameList = ElementNameLists.FindOrAdd(ERigElementType::RigidBody);
@@ -98,7 +98,7 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 	
 	CacheNameListForHierarchy<FRigBaseElement>(InHierarchy, AllNameList);
 	CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList);
-	CacheNameListForHierarchy<FRigSpaceElement>(InHierarchy, SpaceNameList);
+	CacheNameListForHierarchy<FRigNullElement>(InHierarchy, NullNameList);
 	CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
 	CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList);
 	CacheNameListForHierarchy<FRigRigidBodyElement>(InHierarchy, RigidBodyNameList);

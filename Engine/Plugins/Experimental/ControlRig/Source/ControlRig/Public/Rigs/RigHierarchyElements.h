@@ -577,7 +577,7 @@ protected:
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return InElement->GetType() == ERigElementType::Bone ||
-			InElement->GetType() == ERigElementType::Space ||
+			InElement->GetType() == ERigElementType::Null ||
 			InElement->GetType() == ERigElementType::Control ||
 			InElement->GetType() == ERigElementType::RigidBody ||
 			InElement->GetType() == ERigElementType::Socket;
@@ -657,7 +657,7 @@ protected:
 
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
-		return InElement->GetType() == ERigElementType::Space ||
+		return InElement->GetType() == ERigElementType::Null ||
 			InElement->GetType() == ERigElementType::Control;
 	}
 
@@ -705,26 +705,26 @@ protected:
 };
 
 USTRUCT(BlueprintType)
-struct CONTROLRIG_API FRigSpaceElement : public FRigMultiParentElement
+struct CONTROLRIG_API FRigNullElement : public FRigMultiParentElement
 {
 public:
 	
 	GENERATED_BODY()
-	DECLARE_RIG_ELEMENT_METHODS(FRigSpaceElement)
+	DECLARE_RIG_ELEMENT_METHODS(FRigNullElement)
 
-	FRigSpaceElement()
+	FRigNullElement()
     : FRigMultiParentElement()
 	{
-		Key.Type = ERigElementType::Space; 
+		Key.Type = ERigElementType::Null; 
 	}
 
-	virtual ~FRigSpaceElement(){}
+	virtual ~FRigNullElement(){}
 
 protected:
 	
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
-		return InElement->GetType() == ERigElementType::Space;
+		return InElement->GetType() == ERigElementType::Null;
 	}
 
 	friend struct FRigBaseElement;

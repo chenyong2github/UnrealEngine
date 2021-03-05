@@ -20,7 +20,7 @@ FRigUnit_SetSpaceInitialTransform_Execute()
 			}
 			case EControlRigState::Update:
 			{
-				const FRigElementKey SpaceKey(SpaceName, ERigElementType::Space);
+				const FRigElementKey SpaceKey(SpaceName, ERigElementType::Null);
 				if (!CachedSpaceIndex.UpdateCache(SpaceKey, Hierarchy))
 				{
 					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Space '%s' is not valid."), *SpaceName.ToString());

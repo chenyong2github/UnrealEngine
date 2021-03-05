@@ -16,7 +16,7 @@ struct CONTROLRIG_API FRigUnit_ParentSwitchConstraint : public FRigUnitMutable
 	GENERATED_BODY()
 
 	FRigUnit_ParentSwitchConstraint()
-		: Subject(NAME_None, ERigElementType::Space)
+		: Subject(NAME_None, ERigElementType::Null)
 		, ParentIndex(0)
 		, Weight(1.0f)
 		, Switched(false)

@@ -113,7 +113,7 @@ bool FControlRigEditorEditMode::GetCameraTarget(FSphere& OutTarget) const
 	for (int32 Index = 0; Index < SelectedRigElements.Num(); ++Index)
 	{
 		static const float Radius = 20.f;
-		if (SelectedRigElements[Index].Type == ERigElementType::Bone || SelectedRigElements[Index].Type == ERigElementType::Space)
+		if (SelectedRigElements[Index].Type == ERigElementType::Bone || SelectedRigElements[Index].Type == ERigElementType::Null)
 		{
 			FTransform Transform = OnGetRigElementTransformDelegate.Execute(SelectedRigElements[Index], false, true);
 			Box += Transform.TransformPosition(FVector::OneVector * Radius);

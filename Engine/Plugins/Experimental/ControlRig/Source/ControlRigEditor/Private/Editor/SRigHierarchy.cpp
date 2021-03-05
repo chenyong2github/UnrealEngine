@@ -151,9 +151,9 @@ void SRigHierarchyItem::Construct(const FArguments& InArgs, TSharedPtr<FControlR
 			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Control");
 			break;
 		}
-		case ERigElementType::Space:
+		case ERigElementType::Null:
 		{
-			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Space");
+			Brush = FControlRigEditorStyle::Get().GetBrush("ControlRig.Tree.Null");
 			break;
 		}
 		case ERigElementType::Bone:
@@ -446,7 +446,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	bShowImportedBones = true;
 	bShowBones = true;
 	bShowControls = true;
-	bShowSpaces = true;
+	bShowNulls = true;
 	bShowRigidBodies = true;
 	bShowSockets = true;
 	bIsChangingRigHierarchy = false;
@@ -474,8 +474,8 @@ void SRigHierarchy::BindCommands()
 	CommandList->MapAction(Commands.AddControlItem,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Control));
 
-	CommandList->MapAction(Commands.AddSpaceItem,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Space));
+	CommandList->MapAction(Commands.AddNullItem,
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Null));
 
 	CommandList->MapAction(Commands.DuplicateItem,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleDuplicateItem),
@@ -522,7 +522,7 @@ void SRigHierarchy::BindCommands()
 	CommandList->MapAction(
 		Commands.SetInitialTransformFromClosestBone,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleSetInitialTransformFromClosestBone),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlOrSpaceSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlOrNullSelected));
 
 	CommandList->MapAction(
 		Commands.SetInitialTransformFromCurrentTransform,
@@ -580,10 +580,10 @@ void SRigHierarchy::BindCommands()
 		FIsActionChecked::CreateLambda([this]() { return bShowControls; }));
 	
 	CommandList->MapAction(
-		Commands.ShowSpaces,
-		FExecuteAction::CreateLambda([this]() { bShowSpaces = !bShowSpaces; RefreshTreeView(); }),
+		Commands.ShowNulls,
+		FExecuteAction::CreateLambda([this]() { bShowNulls = !bShowNulls; RefreshTreeView(); }),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return bShowSpaces; }));
+		FIsActionChecked::CreateLambda([this]() { return bShowNulls; }));
 
 	CommandList->MapAction(
 		Commands.ShowRigidBodies,
@@ -635,7 +635,7 @@ EVisibility SRigHierarchy::IsSearchbarVisible() const
 	if (URigHierarchy* Hierarchy = GetDebuggedHierarchy())
 	{
 		if ((Hierarchy->Num(ERigElementType::Bone) +
-			Hierarchy->Num(ERigElementType::Space) +
+			Hierarchy->Num(ERigElementType::Null) +
 			Hierarchy->Num(ERigElementType::Control)) > 0)
 		{
 			return EVisibility::Visible;
@@ -915,9 +915,9 @@ bool SRigHierarchy::AddElement(const FRigBaseElement* InElement, const bool bIgn
 			}
 			break;
 		}
-		case ERigElementType::Space:
+		case ERigElementType::Null:
 		{
-			if(!bShowSpaces)
+			if(!bShowNulls)
 			{
 				return false;
 			}
@@ -1276,7 +1276,7 @@ TSharedRef< SWidget > SRigHierarchy::CreateFilterMenu()
 	MenuBuilder.BeginSection("FilterControls", LOCTEXT("ControlsMenuHeading", "Controls"));
 	{
 		MenuBuilder.AddMenuEntry(Actions.ShowControls);
-		MenuBuilder.AddMenuEntry(Actions.ShowSpaces);
+		MenuBuilder.AddMenuEntry(Actions.ShowNulls);
 	}
 	MenuBuilder.EndSection();
 
@@ -1367,7 +1367,7 @@ void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
 					InSubMenuBuilder.AddMenuEntry(Actions.AddBoneItem);
 				}
 				InSubMenuBuilder.AddMenuEntry(Actions.AddControlItem);
-				InSubMenuBuilder.AddMenuEntry(Actions.AddSpaceItem);
+				InSubMenuBuilder.AddMenuEntry(Actions.AddNullItem);
 			}
 		};
 
@@ -1389,7 +1389,7 @@ void SRigHierarchy::FillContextMenu(class FMenuBuilder& MenuBuilder)
 		}
 
 		/*
-		if (IsSingleSpaceSelected())
+		if (IsSingleNullSelected())
 		{
 			MenuBuilder.BeginSection("Interaction", LOCTEXT("InteractionHeader", "Interaction"));
 			MenuBuilder.AddMenuEntry(Actions.ControlSpaceTransform);
@@ -1602,13 +1602,13 @@ bool SRigHierarchy::IsSingleBoneSelected() const
 	return GetSelectedKeys()[0].Type == ERigElementType::Bone;
 }
 
-bool SRigHierarchy::IsSingleSpaceSelected() const
+bool SRigHierarchy::IsSingleNullSelected() const
 {
 	if(!IsSingleSelected())
 	{
 		return false;
 	}
-	return GetSelectedKeys()[0].Type == ERigElementType::Space;
+	return GetSelectedKeys()[0].Type == ERigElementType::Null;
 }
 
 bool SRigHierarchy::IsControlSelected() const
@@ -1624,7 +1624,7 @@ bool SRigHierarchy::IsControlSelected() const
 	return false;
 }
 
-bool SRigHierarchy::IsControlOrSpaceSelected() const
+bool SRigHierarchy::IsControlOrNullSelected() const
 {
 	TArray<FRigElementKey> SelectedKeys = GetSelectedKeys();
 	for (const FRigElementKey& SelectedKey : SelectedKeys)
@@ -1633,7 +1633,7 @@ bool SRigHierarchy::IsControlOrSpaceSelected() const
 		{
 			return true;
 		}
-		if (SelectedKey.Type == ERigElementType::Space)
+		if (SelectedKey.Type == ERigElementType::Null)
 		{
 			return true;
 		}
@@ -1753,9 +1753,9 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType)
 					NewItemKey = Controller->AddControl(NewElementName, ParentKey, Settings, Settings.GetIdentityValue(), FTransform::Identity, FTransform::Identity, true);
 					break;
 				}
-				case ERigElementType::Space:
+				case ERigElementType::Null:
 				{
-					NewItemKey = Controller->AddSpace(NewElementName, ParentKey, ParentTransform, true, true);
+					NewItemKey = Controller->AddNull(NewElementName, ParentKey, ParentTransform, true, true);
 					break;
 				}
 				default:
@@ -2131,7 +2131,7 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 				break;
 			}
 			case ERigElementType::Control:
-			case ERigElementType::Space:
+			case ERigElementType::Null:
 			case ERigElementType::RigidBody:
 			case ERigElementType::Socket:
 			{
@@ -2140,7 +2140,7 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 					switch (DraggedKey.Type)
 					{
 						case ERigElementType::Control:
-						case ERigElementType::Space:
+						case ERigElementType::Null:
 						case ERigElementType::RigidBody:
 						case ERigElementType::Socket:
 						{
@@ -2426,7 +2426,7 @@ void SRigHierarchy::HandleSetInitialTransformFromCurrentTransform()
 							DebuggedHierarchy->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::CurrentLocal, true, true);
 						}
 					}
-					else if (SelectedKey.Type == ERigElementType::Space ||
+					else if (SelectedKey.Type == ERigElementType::Null ||
 						SelectedKey.Type == ERigElementType::Bone)
 					{
 						FTransform InitialTransform = LocalTransform;
@@ -2494,7 +2494,7 @@ void SRigHierarchy::HandleControlBoneOrSpaceTransform()
 	for (const FRigElementKey& SelectedKey : SelectedKeys)
 	{
 		if (SelectedKey.Type == ERigElementType::Bone ||
-			SelectedKey.Type == ERigElementType::Space)
+			SelectedKey.Type == ERigElementType::Null)
 		{
 			Blueprint->AddTransientControl(SelectedKey);
 			return;
@@ -2570,7 +2570,7 @@ void SRigHierarchy::HandleUnparent()
 				}
 				break;
 			}
-			case ERigElementType::Space:
+			case ERigElementType::Null:
 			case ERigElementType::Control:
 			{
 				Controller->RemoveAllParents(SelectedKey, true, true);
@@ -2618,7 +2618,7 @@ bool SRigHierarchy::FindClosestBone(const FVector& Point, FName& OutRigElementNa
 
 void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 {
-	if (IsControlOrSpaceSelected())
+	if (IsControlOrNullSelected())
 	{
 		if (UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
 		{
@@ -2632,7 +2632,7 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 
 				for (const FRigElementKey& SelectedKey : SelectedKeys)
 				{
-					if (SelectedKey.Type == ERigElementType::Control || SelectedKey.Type == ERigElementType::Space)
+					if (SelectedKey.Type == ERigElementType::Control || SelectedKey.Type == ERigElementType::Null)
 					{
 						const FTransform GlobalTransform = DebuggedHierarchy->GetGlobalTransform(SelectedKey);
 						FTransform ClosestTransform;
@@ -2674,7 +2674,7 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 							DebuggedHierarchy->SetTransform(ControlElement, FTransform::Identity, ERigTransformType::CurrentLocal, true, true);
 						}
 					}
-					else if (SelectedKey.Type == ERigElementType::Space ||
+					else if (SelectedKey.Type == ERigElementType::Null ||
                         SelectedKey.Type == ERigElementType::Bone)
 					{
 						FTransform InitialTransform = LocalTransform;

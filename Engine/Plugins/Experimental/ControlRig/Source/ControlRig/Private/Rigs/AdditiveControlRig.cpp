@@ -28,11 +28,11 @@ FName UAdditiveControlRig::GetControlName(const FName& InBoneName)
 	return NAME_None;
 }
 
-FName UAdditiveControlRig::GetSpaceName(const FName& InBoneName)
+FName UAdditiveControlRig::GetNullName(const FName& InBoneName)
 {
 	if (InBoneName != NAME_None)
 	{
-		return FName(*(InBoneName.ToString() + TEXT("_SPACE")));
+		return FName(*(InBoneName.ToString() + TEXT("_NULL")));
 	}
 
 	// if bone name is coming as none, we don't append
@@ -115,27 +115,27 @@ void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenc
     {
 		const FName BoneName = BoneElement->GetName();
 		const int32 ParentIndex = GetHierarchy()->GetFirstParent(BoneElement->GetIndex());
-		const FName SpaceName = GetSpaceName(BoneName);// name conflict?
+		const FName NullName = GetNullName(BoneName);// name conflict?
 		const FName ControlName = GetControlName(BoneName); // name conflict?
 
-		FRigElementKey SpaceKey;
+		FRigElementKey NullKey;
 		
 		if (ParentIndex != INDEX_NONE)
 		{
 			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
 			FTransform ParentTransform = GetHierarchy()->GetGlobalTransform(ParentIndex);
 			FTransform LocalTransform = GlobalTransform.GetRelativeTransform(ParentTransform);
-			SpaceKey = Controller->AddSpace(SpaceName, GetHierarchy()->GetKey(ParentIndex), LocalTransform, false, false);
+			NullKey = Controller->AddNull(NullName, GetHierarchy()->GetKey(ParentIndex), LocalTransform, false, false);
 		}
 		else
 		{
 			FTransform GlobalTransform = GetHierarchy()->GetGlobalTransform(BoneElement->GetIndex());
-			SpaceKey = Controller->AddSpace(SpaceName, FRigElementKey(), GlobalTransform, true, false);
+			NullKey = Controller->AddNull(NullName, FRigElementKey(), GlobalTransform, true, false);
 		}
 
 		FRigControlSettings Settings;
 		Settings.DisplayName = BoneName;
-		Controller->AddControl(ControlName, SpaceKey, Settings, FRigControlValue::Make(FTransform::Identity), FTransform::Identity, FTransform::Identity, false);
+		Controller->AddControl(ControlName, NullKey, Settings, FRigControlValue::Make(FTransform::Identity), FTransform::Identity, FTransform::Identity, false);
 
 		return true;
 	});

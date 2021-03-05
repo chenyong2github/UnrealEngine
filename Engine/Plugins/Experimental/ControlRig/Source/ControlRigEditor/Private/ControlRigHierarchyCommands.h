@@ -25,7 +25,7 @@ public:
 	TSharedPtr< FUICommandInfo > AddControlItem;
 
 	/** Add Item at origin */
-	TSharedPtr< FUICommandInfo > AddSpaceItem;
+	TSharedPtr< FUICommandInfo > AddNullItem;
 
 	/** Duplicate currently selected items */
 	TSharedPtr< FUICommandInfo > DuplicateItem;
@@ -58,7 +58,7 @@ public:
 	TSharedPtr<FUICommandInfo> ResetAllTransforms;
 
 	/* Reset space */
-	TSharedPtr<FUICommandInfo> ResetSpace;
+	TSharedPtr<FUICommandInfo> ResetNull;
 
 	/* Set initial transform from current */
 	TSharedPtr<FUICommandInfo> SetInitialTransformFromCurrentTransform;
@@ -97,7 +97,7 @@ public:
 	TSharedPtr< FUICommandInfo > ShowControls;
 
 	/* Show spaces */
-	TSharedPtr< FUICommandInfo > ShowSpaces;
+	TSharedPtr< FUICommandInfo > ShowNulls;
 
 	/* Show rigidbodies */
 	TSharedPtr< FUICommandInfo > ShowRigidBodies;

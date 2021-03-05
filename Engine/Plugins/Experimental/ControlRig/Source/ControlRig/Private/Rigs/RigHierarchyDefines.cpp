@@ -76,7 +76,7 @@ FRigElementKeyCollection FRigElementKeyCollection::MakeFromChildren(
 
 	bool bAddBones = (InElementTypes & (uint8)ERigElementType::Bone) == (uint8)ERigElementType::Bone;
 	bool bAddControls = (InElementTypes & (uint8)ERigElementType::Control) == (uint8)ERigElementType::Control;
-	bool bAddSpaces = (InElementTypes & (uint8)ERigElementType::Space) == (uint8)ERigElementType::Space;
+	bool bAddNulls = (InElementTypes & (uint8)ERigElementType::Null) == (uint8)ERigElementType::Null;
 	bool bAddCurves = (InElementTypes & (uint8)ERigElementType::Curve) == (uint8)ERigElementType::Curve;
 
 	for (int32 ParentIndex = 0; ParentIndex < ParentKeys.Num(); ParentIndex++)

@@ -185,14 +185,14 @@ private:
 	FEditPropertyChain GizmoPropertyChain;
 };
 
-class FRigSpaceElementDetails : public FRigTransformElementDetails
+class FRigNullElementDetails : public FRigTransformElementDetails
 {
 public:
 
 	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
 	static TSharedRef<IDetailCustomization> MakeInstance()
 	{
-		return MakeShareable(new FRigSpaceElementDetails);
+		return MakeShareable(new FRigNullElementDetails);
 	}
 
 	/** IDetailCustomization interface */

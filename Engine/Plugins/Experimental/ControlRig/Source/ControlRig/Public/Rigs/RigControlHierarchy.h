@@ -177,7 +177,7 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 	{
 		if (SpaceIndex != INDEX_NONE || bForce)
 		{
-			return FRigElementKey(SpaceName, ERigElementType::Space);
+			return FRigElementKey(SpaceName, ERigElementType::Null);
 		}
 		return FRigElementKey();
 	}

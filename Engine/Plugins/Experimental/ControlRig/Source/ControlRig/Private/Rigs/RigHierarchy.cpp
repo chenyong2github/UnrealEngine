@@ -109,9 +109,9 @@ void URigHierarchy::Load(FArchive& Ar)
 				Element = new FRigBoneElement();
 				break;
 			}
-			case ERigElementType::Space:
+			case ERigElementType::Null:
 			{
-				Element = new FRigSpaceElement();
+				Element = new FRigNullElement();
 				break;
 			}
 			case ERigElementType::Control:
