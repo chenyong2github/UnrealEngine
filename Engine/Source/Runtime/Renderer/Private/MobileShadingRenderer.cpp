@@ -812,11 +812,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.AdjustGBufferRefCount(RHICmdList, -1);
 	}
 
-	if (!bShouldRenderVelocities)
-	{
-		SceneContext.SceneVelocity.SafeRelease();
-	}
-
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Post));
 
 	if (bUseVirtualTexturing)
@@ -896,6 +891,11 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	GEngine->GetPostRenderDelegate().Broadcast();
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_SceneEnd));
+
+	if (bShouldRenderVelocities)
+	{
+		SceneContext.SceneVelocity.SafeRelease();
+	}
 	
 	RenderFinish(GraphBuilder, ViewFamilyTexture);
 	GraphBuilder.Execute();
