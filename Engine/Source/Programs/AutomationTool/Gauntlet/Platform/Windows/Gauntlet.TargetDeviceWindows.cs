@@ -221,7 +221,7 @@ namespace Gauntlet
 			TempDir = InTempDir;
 			RunOptions = CommandUtils.ERunOptions.NoWaitForExit | CommandUtils.ERunOptions.NoLoggingOfRunCommand;
 
-			UserDir = Path.Combine(TempDir, string.Format("{0}_UserDir", Name));
+			UserDir = Path.Combine(TempDir, "UserDir");
             LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
 
 			IsWin64 = InIsWin64;

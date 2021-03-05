@@ -110,7 +110,7 @@ namespace Gauntlet
 		{
 			Name = InName;
 			TempDir = InTempDir;
-			UserDir = Path.Combine(TempDir, string.Format("{0}_UserDir", Name));
+			UserDir = Path.Combine(TempDir, "UserDir");
 			this.RunOptions = CommandUtils.ERunOptions.NoWaitForExit;
 			LocalDirectoryMappings = new Dictionary<EIntendedBaseCopyDirectory, string>();
 		}
