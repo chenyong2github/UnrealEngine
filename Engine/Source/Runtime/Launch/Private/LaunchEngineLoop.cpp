@@ -5715,6 +5715,14 @@ void FEngineLoop::AppPreExit( )
 
 	FCoreDelegates::OnExit.Broadcast();
 
+	// FRHIGPUFence uses GFrameNumberRenderThread to tell when a frame is finished. If such an object is added in the last frame before we
+	// exit, it will never be "signaled", since nothing ever increments GFrameNumberRenderThread again. This can lead to deadlocks in code
+	// which uses async tasks to wait until resources are safe to be deleted (for example, FMediaTextureResource).
+	// To avoid this, we increment the frame number explicitly here, before waiting for the thread pool to die. It's safe to do so because
+	// FlushRenderingCommands() is called multiple times on exit before reaching this point, so there's no way the render thread has any
+	// more frames in flight.
+	++GFrameNumberRenderThread;
+
 #if WITH_EDITOR
 	if (GLargeThreadPool != nullptr)
 	{
