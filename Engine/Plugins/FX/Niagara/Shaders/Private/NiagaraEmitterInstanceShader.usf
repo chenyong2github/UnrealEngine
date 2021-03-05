@@ -369,7 +369,7 @@ int hash_single(int a)
 
 int hash(int a, int b)
 {
-	return (hash_single(a) ^ hash_single(b) * 1664525 + 1013904223) >> 8;
+	return hash_single(a) ^ hash_single(b * 31);
 }
 
 float hash_float(int a, int b)
