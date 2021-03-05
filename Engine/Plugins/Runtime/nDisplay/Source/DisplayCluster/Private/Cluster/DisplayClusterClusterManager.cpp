@@ -146,22 +146,6 @@ void FDisplayClusterClusterManager::EndScene()
 	}
 
 	{
-		FScopeLock Lock(&ClusterEventsJsonCritSec);
-		ClusterEventsJsonPoolMain.Reset();
-		ClusterEventsJsonPoolOut.Reset();
-		ClusterEventsJsonNonDiscardedPoolMain.Reset();
-		ClusterEventsJsonNonDiscardedPoolOut.Reset();
-	}
-
-	{
-		FScopeLock Lock(&ClusterEventsBinaryCritSec);
-		ClusterEventsBinaryPoolMain.Reset();
-		ClusterEventsBinaryPoolOut.Reset();
-		ClusterEventsBinaryNonDiscardedPoolMain.Reset();
-		ClusterEventsBinaryNonDiscardedPoolOut.Reset();
-	}
-
-	{
 		FScopeLock Lock(&ClusterEventListenersCritSec);
 		ClusterEventListeners.Reset();
 	}
