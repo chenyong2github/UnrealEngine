@@ -74,7 +74,7 @@ FValidationRHI::FValidationRHI(FDynamicRHI* InRHI)
 	: RHI(InRHI)
 {
 	check(RHI);
-	UE_LOG(LogRHI, Warning, TEXT("FValidationRHI on, intercepting %s RHI!"), InRHI && InRHI->GetName() ? InRHI->GetName() : TEXT("<NULL>"));
+	UE_LOG(LogRHI, Log, TEXT("FValidationRHI on, intercepting %s RHI!"), InRHI && InRHI->GetName() ? InRHI->GetName() : TEXT("<NULL>"));
 	GRHIValidationEnabled = true;
 	SeenFailureHashes.Reserve(256);
 }
