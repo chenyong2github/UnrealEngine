@@ -31,7 +31,7 @@ public:
 	static bool LoadVulkanInstanceFunctions(VkInstance inInstance);
 };
 
-struct FAccelerationStructureAllocation
+struct FVkRtAllocation
 {
 	VkDevice Device = VK_NULL_HANDLE;
 	VkDeviceMemory Memory = VK_NULL_HANDLE;
@@ -46,6 +46,11 @@ public:
 	~FVulkanRayTracingGeometry();
 
 	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext, EAccelerationStructureBuildMode BuildMode);
+	
+	VkDeviceAddress GetAccelerationStructureAddress() const
+	{
+		return Allocation.Address;
+	}
 
 private:
 	uint32 IndexStrideInBytes  = 0;
@@ -58,25 +63,29 @@ private:
 	bool bAllowUpdate = false;
 
 	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
-	FAccelerationStructureAllocation Allocation;
-	FAccelerationStructureAllocation Scratch;
+	FVkRtAllocation Allocation;
+	FVkRtAllocation Scratch;
 
 	TArray<FRayTracingGeometrySegment> Segments;
 
 	FName DebugName;
 };
 
-// Todo
 class FVulkanRayTracingScene : public FRHIRayTracingScene
 {
 public:
-	FVulkanRayTracingScene(/*FD3D12Adapter* Adapter,*/ const FRayTracingSceneInitializer& Initializer);
+	FVulkanRayTracingScene(const FRayTracingSceneInitializer& Initializer);
 	~FVulkanRayTracingScene();
 
-	void BuildAccelerationStructure();
+	void BuildAccelerationStructure(FVulkanCommandListContext& CommandContext);
 
-	TArray<FRayTracingGeometryInstance> Instances;
-	TArray<TRefCountPtr<FVulkanRayTracingGeometry>> Geometries;
+	VkAccelerationStructureKHR Handle = VK_NULL_HANDLE;
+	FVkRtAllocation Allocation;
+	FVkRtAllocation Scratch;
+
+	TArray<VkAccelerationStructureInstanceKHR> InstanceDescs;
+	TArray<const FVulkanRayTracingGeometry*> InstanceGeometry;
+	TArray<TRefCountPtr<const FVulkanRayTracingGeometry>> ReferencedGeometry;
 	FName DebugName;
 };
 
