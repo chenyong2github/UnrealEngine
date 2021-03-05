@@ -170,9 +170,9 @@ void FLiveLinkFreeDSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, 
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 1.0f, false, 0x0555, 0x0fff, 0x0000ffff });
 															break;
 
-					case EFreeDDefaultConfigs::Sony:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, 0x1000, 0xf000, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 240.0f, false, 0, 0x7ac0, 0x0000ffff });
-															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 0.01f, false, 0, 0x0fff, 0x00000fff });
+					case EFreeDDefaultConfigs::Sony:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, 0x1000, 0xf000, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 111.6f, false, 0, 0x7ac0, 0x0000ffff });
+															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 11.0f, false, 0, 0x0fff, 0x00000fff });
 															break;
 
 					case EFreeDDefaultConfigs::Mosys:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, 0, 0xffff, 0x0000ffff });
