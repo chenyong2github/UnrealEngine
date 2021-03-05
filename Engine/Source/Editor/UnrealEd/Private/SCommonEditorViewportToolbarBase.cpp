@@ -132,7 +132,7 @@ void SCommonEditorViewportToolbarBase::Construct(const FArguments& InArgs, TShar
 			SNew(SEditorViewportToolbarMenu)
 			.ParentToolBar(SharedThis(this))
 			.Label(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningLabel)
-			.MenuStyle(FEditorStyle::Get(), "EditorViewportToolBar.MenuButtonWarning")
+			.MenuStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.WarningButton"))
 			.OnGetMenuContent(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningMenuContent)
 			.Visibility(this, &SCommonEditorViewportToolbarBase::GetScalabilityWarningVisibility)
 			.ToolTipText(LOCTEXT("ScalabilityWarning_ToolTip", "Non-default scalability settings could be affecting what is shown in this viewport.\nFor example you may experience lower visual quality, reduced particle counts, and other artifacts that don't match what the scene would look like when running outside of the editor. Click to make changes."))

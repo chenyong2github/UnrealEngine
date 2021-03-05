@@ -89,7 +89,7 @@ int32 SScrubWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 
 	const int32 TextLayer = BackgroundLayer + 1;
 
-	const FSlateBrush* StyleInfo = FEditorStyle::GetBrush( TEXT( "ProgressBar.Background" ) );
+	const FSlateBrush* StyleInfo = FAppStyle::Get().GetBrush("Brushes.Recessed");
 	const float GeomHeight = AllottedGeometry.GetLocalSize().Y;
 
 	const FTrackScaleInfo TimeScaleInfo(ViewInputMin.Get(), ViewInputMax.Get(), 0.f, 0.f, AllottedGeometry.GetLocalSize());

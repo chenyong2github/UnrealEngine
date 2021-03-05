@@ -871,7 +871,6 @@ private:
 
 	TSharedPtr<FSlateMaterialBrush> PreviewBrush;
 	TSharedPtr<FSlateImageBrush> CheckerboardBrush;
-	const FSlateBrush* BorderBrush;
 	UTexture2D* CheckerboardTexture;
 	TSharedPtr<SImage> ImageWidget;
 	FPreviewBackgroundSettings BackgroundSettings;
@@ -890,7 +889,6 @@ void SMaterialEditorUIPreviewZoomer::Construct( const FArguments& InArgs, UMater
 	ModifyCheckerboardTextureColors(BackgroundSettings.Checkerboard);
 
 	PreviewBrush = MakeShared<FSlateMaterialBrush>(*InPreviewMaterial, InArgs._InitialPreviewSize);
-	BorderBrush = FEditorStyle::GetBrush("MaterialEditor.ViewportBorder");	
 
 	ChildSlot
 	[
