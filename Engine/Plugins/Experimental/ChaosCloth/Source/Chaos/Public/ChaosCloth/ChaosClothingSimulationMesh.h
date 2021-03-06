@@ -37,9 +37,9 @@ namespace Chaos
 		int32 GetNumLODs() const;
 		int32 GetNumPoints(int32 LODIndex) const;
 		TConstArrayView<const uint32> GetIndices(int32 LODIndex) const;
-		TArray<TConstArrayView<const float>> GetWeightMaps(int32 LODIndex) const;
+		TArray<TConstArrayView<const FRealSingle>> GetWeightMaps(int32 LODIndex) const;
 		int32 GetReferenceBoneIndex() const;
-		TRigidTransform<float, 3> GetReferenceBoneTransform() const;
+		FRigidTransform3 GetReferenceBoneTransform() const;
 
 		bool WrapDeformLOD(
 			int32 PrevLODIndex,

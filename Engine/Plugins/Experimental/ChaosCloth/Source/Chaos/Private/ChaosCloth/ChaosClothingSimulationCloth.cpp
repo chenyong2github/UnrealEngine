@@ -16,7 +16,7 @@ namespace ChaosClothingSimulationClothConsoleVariables
 	TAutoConsoleVariable<bool> CVarLegacyDisablesAccurateWind(TEXT("p.ChaosCloth.LegacyDisablesAccurateWind"), true, TEXT("Whether using the Legacy wind model switches off the accurate wind model, or adds up to it"));
 }
 
-FClothingSimulationCloth::FLODData::FLODData(int32 InNumParticles, const TConstArrayView<uint32>& InIndices, const TArray<TConstArrayView<float>>& InWeightMaps)
+FClothingSimulationCloth::FLODData::FLODData(int32 InNumParticles, const TConstArrayView<uint32>& InIndices, const TArray<TConstArrayView<FRealSingle>>& InWeightMaps)
 	: NumParticles(InNumParticles)
 	, Indices(InIndices)
 	, WeightMaps(InWeightMaps)
@@ -69,8 +69,8 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	UpdateNormals(Solver);
 
 	// Set the particle masses
-	const TConstArrayView<float>& MaxDistances = WeightMaps[(int32)EChaosWeightMapTarget::MaxDistance];
-	static const float KinematicDistanceThreshold = 0.1f;  // TODO: This is not the same value as set in the painting UI but we might want to expose this value as parameter
+	const TConstArrayView<FRealSingle>& MaxDistances = WeightMaps[(int32)EChaosWeightMapTarget::MaxDistance];
+	static const FRealSingle KinematicDistanceThreshold = 0.1f;  // TODO: This is not the same value as set in the painting UI but we might want to expose this value as parameter
 	auto KinematicPredicate =
 		[MaxDistances](int32 Index)
 		{
@@ -91,7 +91,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 		Solver->SetParticleMassFromDensity(Offset, Cloth->MassValue, Cloth->MinPerParticleMass, TriangleMesh, KinematicPredicate);
 		break;
 	}
-	const TConstArrayView<float> InvMasses(Solver->GetParticleInvMasses(Offset), NumParticles);
+	const TConstArrayView<FReal> InvMasses(Solver->GetParticleInvMasses(Offset), NumParticles);
 
 	// Setup solver constraints
 	FClothConstraints& ClothConstraints = Solver->GetClothConstraints(Offset);
@@ -210,18 +210,18 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	}
 
 	// Backstop Constraints
-	const TConstArrayView<float>& BackstopDistances = WeightMaps[(int32)EChaosWeightMapTarget::BackstopDistance];
-	const TConstArrayView<float>& BackstopRadiuses = WeightMaps[(int32)EChaosWeightMapTarget::BackstopRadius];
+	const TConstArrayView<FRealSingle>& BackstopDistances = WeightMaps[(int32)EChaosWeightMapTarget::BackstopDistance];
+	const TConstArrayView<FRealSingle>& BackstopRadiuses = WeightMaps[(int32)EChaosWeightMapTarget::BackstopRadius];
 	if (BackstopRadiuses.Num() && BackstopDistances.Num())
 	{
 		ClothConstraints.SetBackstopConstraints(BackstopDistances, BackstopRadiuses, Cloth->bUseLegacyBackstop);
 	}
 
 	// Animation Drive Constraints
-	const TConstArrayView<float>& AnimDriveStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
+	const TConstArrayView<FRealSingle>& AnimDriveStiffnessMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveStiffness];
 	if (Cloth->AnimDriveStiffness[0] > 0.f || (AnimDriveStiffnessMultipliers.Num() == NumParticles && Cloth->AnimDriveStiffness[1] > 0.f))
 	{
-		const TConstArrayView<float>& AnimDriveDampingMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveDamping];
+		const TConstArrayView<FRealSingle>& AnimDriveDampingMultipliers = WeightMaps[(int32)EChaosWeightMapTarget::AnimDriveDamping];
 		ClothConstraints.SetAnimDriveConstraints(AnimDriveStiffnessMultipliers, AnimDriveDampingMultipliers);
 	}
 
@@ -329,37 +329,37 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	TArray<FClothingSimulationCollider*>&& InColliders,
 	uint32 InGroupId,
 	EMassMode InMassMode,
-	float InMassValue,
-	float InMinPerParticleMass,
-	float InEdgeStiffness,
-	float InBendingStiffness,
+	FReal InMassValue,
+	FReal InMinPerParticleMass,
+	FRealSingle InEdgeStiffness,
+	FRealSingle InBendingStiffness,
 	bool bInUseBendingElements,
-	float InAreaStiffness,
-	float InVolumeStiffness,
+	FRealSingle InAreaStiffness,
+	FRealSingle InVolumeStiffness,
 	bool bInUseThinShellVolumeConstraints,
-	float InTetherStiffness,
-	float InLimitScale,
+	FRealSingle InTetherStiffness,
+	FRealSingle InLimitScale,
 	ETetherMode InTetherMode,
-	float InMaxDistancesMultiplier,
-	const TVector<float, 2>& InAnimDriveStiffness,
-	const TVector<float, 2>& InAnimDriveDamping,
-	float InShapeTargetStiffness,
+	FRealSingle InMaxDistancesMultiplier,
+	const FVec2& InAnimDriveStiffness,
+	const FVec2& InAnimDriveDamping,
+	FRealSingle InShapeTargetStiffness,
 	bool bInUseXPBDConstraints,
-	float InGravityScale,
+	FRealSingle InGravityScale,
 	bool bInIsGravityOverridden,
 	const FVec3& InGravityOverride,
 	const FVec3& InLinearVelocityScale,
-	float InAngularVelocityScale,
-	float InFictitiousAngularScale,
-	float InDragCoefficient,
-	float InLiftCoefficient,
+	FRealSingle InAngularVelocityScale,
+	FRealSingle InFictitiousAngularScale,
+	FRealSingle InDragCoefficient,
+	FRealSingle InLiftCoefficient,
 	bool bInUseLegacyWind,
-	float InDampingCoefficient,
-	float InCollisionThickness,
-	float InFrictionCoefficient,
+	FRealSingle InDampingCoefficient,
+	FRealSingle InCollisionThickness,
+	FRealSingle InFrictionCoefficient,
 	bool bInUseCCD,
 	bool bInUseSelfCollisions,
-	float InSelfCollisionThickness,
+	FRealSingle InSelfCollisionThickness,
 	bool bInUseLegacyBackstop,
 	bool bInUseLODIndexOverride, 
 	int32 InLODIndexOverride)
@@ -596,7 +596,7 @@ FAABB3 FClothingSimulationCloth::CalculateBoundingBox(const FClothingSimulationS
 	}
 
 	// Return world space bounding box
-	return BoundingBox.TransformedAABB(TRigidTransform<float, 3>(Solver->GetLocalSpaceLocation(), TRotation<float, 3>::Identity));
+	return BoundingBox.TransformedAABB(FRigidTransform3(Solver->GetLocalSpaceLocation(), FRotation3::Identity));
 }
 
 int32 FClothingSimulationCloth::GetOffset(const FClothingSimulationSolver* Solver) const
@@ -612,10 +612,10 @@ const FTriangleMesh& FClothingSimulationCloth::GetTriangleMesh(const FClothingSi
 	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].SolverData.FindChecked(Solver).TriangleMesh : EmptyTriangleMesh;
 }
 
-const TArray<TConstArrayView<float>>& FClothingSimulationCloth::GetWeightMaps(const FClothingSimulationSolver* Solver) const
+const TArray<TConstArrayView<FRealSingle>>& FClothingSimulationCloth::GetWeightMaps(const FClothingSimulationSolver* Solver) const
 {
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
-	static const TArray<TConstArrayView<float>> EmptyWeightMaps;
+	static const TArray<TConstArrayView<FRealSingle>> EmptyWeightMaps;
 	return LODData.IsValidIndex(LODIndex) ? LODData[LODIndex].WeightMaps : EmptyWeightMaps;
 }
 
@@ -662,7 +662,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 	LODIndex = bUseLODIndexOverride && LODData.IsValidIndex(LODIndexOverride) ? LODIndexOverride : Mesh->GetLODIndex();
 
 	// Update reference space transform from the mesh's reference bone transform  TODO: Add override in the style of LODIndexOverride
-	const TRigidTransform<float, 3> OldReferenceSpaceTransform = ReferenceSpaceTransform;
+	const FRigidTransform3 OldReferenceSpaceTransform = ReferenceSpaceTransform;
 	ReferenceSpaceTransform = Mesh->GetReferenceBoneTransform();
 	ReferenceSpaceTransform.SetScale3D(FVec3(1.f));
 
@@ -749,7 +749,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 
 		// Set the reference input velocity and deal with teleport & reset
 		FVec3 OutLinearVelocityScale;
-		float OutAngularVelocityScale;
+		FReal OutAngularVelocityScale;
 
 		if (bNeedsReset)
 		{
@@ -841,10 +841,10 @@ TConstArrayView<FVec3> FClothingSimulationCloth::GetParticleNormals(const FCloth
 	return TConstArrayView<FVec3>(Solver->GetNormals(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }
 
-TConstArrayView<float> FClothingSimulationCloth::GetParticleInvMasses(const FClothingSimulationSolver* Solver) const
+TConstArrayView<FReal> FClothingSimulationCloth::GetParticleInvMasses(const FClothingSimulationSolver* Solver) const
 {
 	check(Solver);
 	const int32 LODIndex = LODIndices.FindChecked(Solver);
 	check(GetOffset(Solver, LODIndex) != INDEX_NONE);
-	return TConstArrayView<float>(Solver->GetParticleInvMasses(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
+	return TConstArrayView<FReal>(Solver->GetParticleInvMasses(GetOffset(Solver, LODIndex)), GetNumParticles(LODIndex));
 }

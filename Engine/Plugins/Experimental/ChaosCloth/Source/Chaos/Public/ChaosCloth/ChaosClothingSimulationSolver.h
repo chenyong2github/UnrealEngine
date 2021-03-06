@@ -37,8 +37,8 @@ namespace Chaos
 		void SetGravity(const FVec3& InGravity) { Gravity = InGravity; }
 		const FVec3& GetGravity() const { return Gravity; }
 
-		void SetWindVelocity(const FVec3& InWindVelocity, float InLegacyWindAdaption = 0.f);
-		void SetWindFluidDensity(float InWindFluidDensity) { WindFluidDensity = InWindFluidDensity; }
+		void SetWindVelocity(const FVec3& InWindVelocity, FRealSingle InLegacyWindAdaption = 0.f);
+		void SetWindFluidDensity(FRealSingle InWindFluidDensity) { WindFluidDensity = InWindFluidDensity; }
 
 		void SetNumIterations(int32 InNumIterations) { NumIterations = InNumIterations; }
 		int32 GetNumIterations() const { return NumIterations; }
@@ -58,7 +58,7 @@ namespace Chaos
 		TConstArrayView<const FClothingSimulationCloth*> GetCloths() const { return Cloths; }
 
 		// Update solver properties before simulation.
-		void Update(float InDeltaTime);
+		void Update(FReal InDeltaTime);
 
 		FBoxSphereBounds CalculateBounds() const;
 		// ---- End of the object management functions ----
@@ -68,10 +68,10 @@ namespace Chaos
 		void EnableParticles(int32 Offset, bool bEnable);
 
 		// Get the currrent solver time
-		float GetTime() const { return Time; }
-		void SetParticleMassUniform(int32 Offset, float UniformMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
-		void SetParticleMassFromTotalMass(int32 Offset, float TotalMass, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
-		void SetParticleMassFromDensity(int32 Offset, float Density, float MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		FReal GetTime() const { return Time; }
+		void SetParticleMassUniform(int32 Offset, FReal UniformMass, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassFromTotalMass(int32 Offset, FReal TotalMass, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		void SetParticleMassFromDensity(int32 Offset, FReal Density, FReal MinPerParticleMass, const FTriangleMesh& Mesh, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
 
 		// Set the amount of velocity allowed to filter from the given change in reference space transform, including local simulation space.
@@ -79,11 +79,11 @@ namespace Chaos
 			const FRigidTransform3& OldReferenceSpaceTransform,
 			const FRigidTransform3& ReferenceSpaceTransform,
 			const FVec3& LinearVelocityScale,
-			float AngularVelocityScale,
-			float FictitiousAngularScale);
+			FReal AngularVelocityScale,
+			FReal FictitiousAngularScale);
 
 		// Set general cloth simulation properties.
-		void SetProperties(uint32 GroupId, float DampingCoefficient, float CollisionThickness, float FrictionCoefficient);
+		void SetProperties(uint32 GroupId, FRealSingle DampingCoefficient, FRealSingle CollisionThickness, FRealSingle FrictionCoefficient);
 
 		// Set whether to use continuous collision detection.
 		void SetUseCCD(uint32 GroupId, bool bUseCCD);
@@ -92,7 +92,7 @@ namespace Chaos
 		void SetGravity(uint32 GroupId, const FVec3& Gravity);
 
 		// Set the geometry affected by wind, or disable if TriangleMesh is null.
-		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr);
+		void SetWindVelocityField(uint32 GroupId, FRealSingle DragCoefficient, FRealSingle LiftCoefficient, const FTriangleMesh* TriangleMesh = nullptr);
 		const FVelocityField&  GetWindVelocityField(uint32 GroupId);
 
 		// Add external forces to the particles
@@ -112,7 +112,7 @@ namespace Chaos
 		FVec3* GetParticleXs(int32 Offset);
 		const FVec3* GetParticleVs(int32 Offset) const;
 		FVec3* GetParticleVs(int32 Offset);
-		const float* GetParticleInvMasses(int32 Offset) const;
+		const FReal* GetParticleInvMasses(int32 Offset) const;
 		const FClothConstraints& GetClothConstraints(int32 Offset) const { return *ClothsConstraints.FindChecked(Offset); }
 		FClothConstraints& GetClothConstraints(int32 Offset) { return *ClothsConstraints.FindChecked(Offset); }
 		// ---- End of the Cloth interface ----
@@ -131,8 +131,8 @@ namespace Chaos
 		FRigidTransform3* GetCollisionTransforms(int32 Offset) { return CollisionTransforms.GetData() + Offset; }
 		const FVec3* GetCollisionParticleXs(int32 Offset) const;
 		FVec3* GetCollisionParticleXs(int32 Offset);
-		const TRotation<float, 3>* GetCollisionParticleRs(int32 Offset) const;
-		TRotation<float, 3>* GetCollisionParticleRs(int32 Offset);
+		const FRotation3* GetCollisionParticleRs(int32 Offset) const;
+		FRotation3* GetCollisionParticleRs(int32 Offset);
 		void SetCollisionGeometry(int32 Offset, int32 Index, TUniquePtr<FImplicitObject>&& Geometry);
 		const TUniquePtr<FImplicitObject>* GetCollisionGeometries(int32 Offset) const;
 		const bool* GetCollisionStatus(int32 Offset) const;
@@ -149,9 +149,9 @@ namespace Chaos
 		void ResetParticles();
 		void ResetCollisionParticles(int32 InCollisionParticlesOffset = 0);
 		void ApplyPreSimulationTransforms();
-		float SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh);
-		void ParticleMassUpdateDensity(const FTriangleMesh& Mesh, float Density);
-		void ParticleMassClampAndEnslave(int32 Offset, int32 Size, float MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate);
+		FReal SetParticleMassPerArea(int32 Offset, int32 Size, const FTriangleMesh& Mesh);
+		void ParticleMassUpdateDensity(const FTriangleMesh& Mesh, FReal Density);
+		void ParticleMassClampAndEnslave(int32 Offset, int32 Size, FReal MinPerParticleMass, const TFunctionRef<bool(int32)>& KinematicPredicate);
 
 	private:
 		TUniquePtr<FPBDEvolution> Evolution;
@@ -183,8 +183,8 @@ namespace Chaos
 		FVec3 LocalSpaceLocation;  // This is used to translate between world space and simulation space. Add this to simulation space coordinates to get world space coordinates
 
 		// Time stepping
-		float Time;
-		float DeltaTime;
+		FReal Time;
+		FReal DeltaTime;
 		int32 NumIterations;
 		int32 NumSubsteps;
 
@@ -195,8 +195,8 @@ namespace Chaos
 		// Solver parameters
 		FVec3 Gravity;
 		FVec3 WindVelocity;
-		float LegacyWindAdaption;
-		float WindFluidDensity;
+		FRealSingle LegacyWindAdaption;
+		FRealSingle WindFluidDensity;
 		bool bIsClothGravityOverrideEnabled;
 
 		// Field system unique to the cloth solver

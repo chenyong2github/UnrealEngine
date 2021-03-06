@@ -39,7 +39,7 @@ void FClothingSimulationCollider::FLODData::Add(
 	FClothingSimulationSolver* Solver,
 	FClothingSimulationCloth* Cloth,
 	const FClothCollisionData& InClothCollisionData,
-	const float InScale,
+	const FReal InScale,
 	const TArray<int32>& UsedBoneIndices)
 {
 	check(Solver);
@@ -86,7 +86,7 @@ void FClothingSimulationCollider::FLODData::Add(
 	if (NumCapsules)
 	{
 		int32* const BoneIndices = Solver->GetCollisionBoneIndices(CapsuleOffset);
-		TRigidTransform<float, 3>* const BaseTransforms = Solver->GetCollisionBaseTransforms(CapsuleOffset);
+		FRigidTransform3* const BaseTransforms = Solver->GetCollisionBaseTransforms(CapsuleOffset);
 
 		for (int32 Index = 0; Index < NumCapsules; ++Index)
 		{
@@ -111,19 +111,19 @@ void FClothingSimulationCollider::FLODData::Add(
 			const FVec3 P0 = Center - Axis;
 			const FVec3 P1 = Center + Axis;
 
-			const float Radius0 = Sphere0.Radius * InScale;
-			const float Radius1 = Sphere1.Radius * InScale;
-			float MinRadius, MaxRadius;
+			const FReal Radius0 = Sphere0.Radius * InScale;
+			const FReal Radius1 = Sphere1.Radius * InScale;
+			FReal MinRadius, MaxRadius;
 			if (Radius0 <= Radius1) { MinRadius = Radius0; MaxRadius = Radius1; }
 			else { MinRadius = Radius1; MaxRadius = Radius0; }
 
-			BaseTransforms[Index] = TRigidTransform<float, 3>::Identity;
+			BaseTransforms[Index] = FRigidTransform3::Identity;
 
 			if (Axis.SizeSquared() < SMALL_NUMBER)
 			{
 				// Sphere
 				Solver->SetCollisionGeometry(CapsuleOffset, Index,
-					MakeUnique<TSphere<float, 3>>(Center, MaxRadius));
+					MakeUnique<TSphere<FReal, 3>>(Center, MaxRadius));
 			}
 			else if (MaxRadius - MinRadius < KINDA_SMALL_NUMBER)
 			{
@@ -146,9 +146,9 @@ void FClothingSimulationCollider::FLODData::Add(
 					Objects.Add(TUniquePtr<FImplicitObject>(
 						new FTaperedCylinder(P0, P1, Radius0, Radius1)));
 					Objects.Add(TUniquePtr<FImplicitObject>(
-						new TSphere<float, 3>(P0, Radius0)));
+						new TSphere<FReal, 3>(P0, Radius0)));
 					Objects.Add(TUniquePtr<FImplicitObject>(
-						new TSphere<float, 3>(P1, Radius1)));
+						new TSphere<FReal, 3>(P1, Radius1)));
 					Solver->SetCollisionGeometry(CapsuleOffset, Index,
 						MakeUnique<FImplicitObjectUnion>(MoveTemp(Objects)));
 				}
@@ -161,7 +161,7 @@ void FClothingSimulationCollider::FLODData::Add(
 	if (NumSpheres != 0)
 	{
 		int32* const BoneIndices = Solver->GetCollisionBoneIndices(SphereOffset);
-		TRigidTransform<float, 3>* const BaseTransforms = Solver->GetCollisionBaseTransforms(SphereOffset);
+		FRigidTransform3* const BaseTransforms = Solver->GetCollisionBaseTransforms(SphereOffset);
 
 		for (int32 Index = 0, SphereIndex = 0; SphereIndex < ClothCollisionData.Spheres.Num(); ++SphereIndex)
 		{
@@ -177,10 +177,10 @@ void FClothingSimulationCollider::FLODData::Add(
 			BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, Sphere.BoneIndex);
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision sphere on bone index %d."), BoneIndices[Index]);
 
-			BaseTransforms[Index] = TRigidTransform<float, 3>::Identity;
+			BaseTransforms[Index] = FRigidTransform3::Identity;
 
 			Solver->SetCollisionGeometry(SphereOffset, Index,
-				MakeUnique<TSphere<float, 3>>(
+				MakeUnique<TSphere<FReal, 3>>(
 					Sphere.LocalPosition * InScale,
 					Sphere.Radius * InScale));
 
@@ -193,19 +193,19 @@ void FClothingSimulationCollider::FLODData::Add(
 	if (NumConvexes != 0)
 	{
 		int32* const BoneIndices = Solver->GetCollisionBoneIndices(ConvexOffset);
-		TRigidTransform<float, 3>* const BaseTransforms = Solver->GetCollisionBaseTransforms(ConvexOffset);
+		FRigidTransform3* const BaseTransforms = Solver->GetCollisionBaseTransforms(ConvexOffset);
 
 		for (uint32 Index = 0; Index < NumConvexes; ++Index)
 		{
 			const FClothCollisionPrim_Convex& Convex = ClothCollisionData.Convexes[Index];
 
 			// Always initialize the collision particle transforms before setting any geometry as otherwise NaNs gets detected during the bounding box updates
-			BaseTransforms[Index] = TRigidTransform<float, 3>::Identity;
+			BaseTransforms[Index] = FRigidTransform3::Identity;
 
 			BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, Convex.BoneIndex);
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision convex on bone index %d."), BoneIndices[Index]);
 
-			TArray<TPlaneConcrete<float, 3>> Planes;
+			TArray<TPlaneConcrete<FReal, 3>> Planes;
 
 			const int32 NumSurfacePoints = Convex.SurfacePoints.Num();
 			const int32 NumPlanes = Convex.Planes.Num();
@@ -230,7 +230,7 @@ void FClothingSimulationCollider::FLODData::Add(
 						const FVec3 Normal(static_cast<FVector>(NormalizedPlane));
 						const FVec3 Base = Normal * NormalizedPlane.W * InScale;
 
-						Planes.Add(TPlaneConcrete<float, 3>(Base, Normal));
+						Planes.Add(TPlaneConcrete<FReal, 3>(Base, Normal));
 					}
 					else
 					{
@@ -256,7 +256,7 @@ void FClothingSimulationCollider::FLODData::Add(
 			else
 			{
 				UE_LOG(LogChaosCloth, Warning, TEXT("Replacing invalid convex collision by a default unit sphere."));
-				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<TSphere<float, 3>>(FVec3(0.0f), 1.0f));  // Default to a unit sphere to replace the faulty convex
+				Solver->SetCollisionGeometry(ConvexOffset, Index, MakeUnique<TSphere<FReal, 3>>(FVec3(0.0f), 1.0f));  // Default to a unit sphere to replace the faulty convex
 			}
 		}
 	}
@@ -266,19 +266,19 @@ void FClothingSimulationCollider::FLODData::Add(
 	if (NumBoxes != 0)
 	{
 		int32* const BoneIndices = Solver->GetCollisionBoneIndices(BoxOffset);
-		TRigidTransform<float, 3>* const BaseTransforms = Solver->GetCollisionBaseTransforms(BoxOffset);
+		FRigidTransform3* const BaseTransforms = Solver->GetCollisionBaseTransforms(BoxOffset);
 		
 		for (int32 Index = 0; Index < NumBoxes; ++Index)
 		{
 			const FClothCollisionPrim_Box& Box = ClothCollisionData.Boxes[Index];
 			
-			BaseTransforms[Index] = TRigidTransform<float, 3>(Box.LocalPosition, Box.LocalRotation);
+			BaseTransforms[Index] = FRigidTransform3(Box.LocalPosition, Box.LocalRotation);
 			
 			BoneIndices[Index] = GetMappedBoneIndex(UsedBoneIndices, Box.BoneIndex);
 			UE_LOG(LogChaosCloth, VeryVerbose, TEXT("Found collision box on bone index %d."), BoneIndices[Index]);
 
 			const FVec3 HalfExtents = Box.HalfExtents * InScale;
-			Solver->SetCollisionGeometry(BoxOffset, Index, MakeUnique<TBox<float, 3>>(-HalfExtents, HalfExtents));
+			Solver->SetCollisionGeometry(BoxOffset, Index, MakeUnique<TBox<FReal, 3>>(-HalfExtents, HalfExtents));
 		}
 	}
 
@@ -298,8 +298,8 @@ void FClothingSimulationCollider::FLODData::Update(FClothingSimulationSolver* So
 	{
 		const int32 Offset = Offsets.FindChecked(FSolverClothPair(Solver, Cloth));
 		const int32* const BoneIndices = Solver->GetCollisionBoneIndices(Offset);
-		const TRigidTransform<float, 3>* BaseTransforms = Solver->GetCollisionBaseTransforms(Offset);
-		TRigidTransform<float, 3>* const CollisionTransforms = Solver->GetCollisionTransforms(Offset);
+		const FRigidTransform3* BaseTransforms = Solver->GetCollisionBaseTransforms(Offset);
+		FRigidTransform3* const CollisionTransforms = Solver->GetCollisionTransforms(Offset);
 
 		const TArrayView<const FTransform> BoneTransforms = Context ? Context->BoneTransforms : TArrayView<const FTransform>();
 
@@ -335,9 +335,9 @@ void FClothingSimulationCollider::FLODData::ResetStartPose(FClothingSimulationSo
 	if (NumGeometries)
 	{
 		const int32 Offset = Offsets.FindChecked(FSolverClothPair(Solver, Cloth));
-		const TRigidTransform<float, 3>* const CollisionTransforms = Solver->GetCollisionTransforms(Offset);
-		TRigidTransform<float, 3>* const OldCollisionTransforms = Solver->GetOldCollisionTransforms(Offset);
-		TRotation<float, 3>* const Rs = Solver->GetCollisionParticleRs(Offset);
+		const FRigidTransform3* const CollisionTransforms = Solver->GetCollisionTransforms(Offset);
+		FRigidTransform3* const OldCollisionTransforms = Solver->GetOldCollisionTransforms(Offset);
+		FRotation3* const Rs = Solver->GetCollisionParticleRs(Offset);
 		FVec3* const Xs = Solver->GetCollisionParticleXs(Offset);
 
 		for (int32 Index = 0; Index < NumGeometries; ++Index)
@@ -536,9 +536,9 @@ void FClothingSimulationCollider::ExtractPhysicsAssetCollision(FClothCollisionDa
 				const FConvex& ChaosConvex = ChaosConvexMesh.GetObjectChecked<FConvex>();
 
 				// Copy planes
-				const TArray<TPlaneConcrete<float, 3>>& Planes = ChaosConvex.GetFaces();
+				const TArray<TPlaneConcrete<FReal, 3>>& Planes = ChaosConvex.GetFaces();
 				Convex.Planes.Reserve(Planes.Num());
-				for (const TPlaneConcrete<float, 3>& Plane : Planes)
+				for (const TPlaneConcrete<FReal, 3>& Plane : Planes)
 				{
 					Convex.Planes.Add(FPlane(Plane.X(), Plane.Normal()));
 				}
@@ -756,26 +756,26 @@ TConstArrayView<FVec3> FClothingSimulationCollider::GetCollisionTranslations(con
 		TConstArrayView<FVec3>();
 }
 
-TConstArrayView<TRotation<float, 3>> FClothingSimulationCollider::GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
+TConstArrayView<FRotation3> FClothingSimulationCollider::GetCollisionRotations(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
 {
 	check(Solver);
 	check(Cloth);
 
 	int32 Offset, NumGeometries;
 	return GetOffsetAndNumGeometries(Solver, Cloth, CollisionDataType, Offset, NumGeometries) ?
-		TConstArrayView<TRotation<float, 3>>(Solver->GetCollisionParticleRs(Offset), NumGeometries) :
-		TConstArrayView<TRotation<float, 3>>();
+		TConstArrayView<FRotation3>(Solver->GetCollisionParticleRs(Offset), NumGeometries) :
+		TConstArrayView<FRotation3>();
 }
 
-TConstArrayView<TRigidTransform<float, 3>> FClothingSimulationCollider::GetOldCollisionTransforms(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
+TConstArrayView<FRigidTransform3> FClothingSimulationCollider::GetOldCollisionTransforms(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
 {
 	check(Solver);
 	check(Cloth);
 
 	int32 Offset, NumGeometries;
 	return GetOffsetAndNumGeometries(Solver, Cloth, CollisionDataType, Offset, NumGeometries) ?
-		TConstArrayView<TRigidTransform<float, 3>>(Solver->GetOldCollisionTransforms(Offset), NumGeometries) :
-		TConstArrayView<TRigidTransform<float, 3>>();
+		TConstArrayView<FRigidTransform3>(Solver->GetOldCollisionTransforms(Offset), NumGeometries) :
+		TConstArrayView<FRigidTransform3>();
 }
 
 TConstArrayView<TUniquePtr<FImplicitObject>> FClothingSimulationCollider::GetCollisionGeometries(const FClothingSimulationSolver* Solver, const FClothingSimulationCloth* Cloth, ECollisionDataType CollisionDataType) const
