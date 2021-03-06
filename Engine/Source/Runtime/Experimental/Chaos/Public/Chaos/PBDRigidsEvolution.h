@@ -626,6 +626,7 @@ public:
 				Particle.V() = FVec3(0, 0, 0);
 				Particle.W() = FVec3(0, 0, 0);
 				KinematicTarget.SetMode(EKinematicTargetMode::None);
+				Particles.MarkTransientDirtyParticle(Particle.Handle());
 				break;
 			}
 
@@ -656,6 +657,7 @@ public:
 				}
 				Particle.X() = TargetPos;
 				Particle.R() = TargetRot;
+				Particles.MarkTransientDirtyParticle(Particle.Handle());
 				break;
 			}
 
@@ -664,6 +666,7 @@ public:
 				// Move based on velocity
 				Particle.X() = Particle.X() + Particle.V() * Dt;
 				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
+				Particles.MarkTransientDirtyParticle(Particle.Handle());
 				break;
 			}
 			}
