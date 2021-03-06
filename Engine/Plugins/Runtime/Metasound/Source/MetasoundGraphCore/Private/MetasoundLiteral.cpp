@@ -10,73 +10,9 @@
 namespace Metasound
 {
 #if METASOUND_DEBUG_LITERALS
-	void FLiteral::InitDebugString()
+	void FLiteral::InitDebugString() const
 	{
-		switch (GetType())
-		{
-			case ELiteralType::None:
-				DebugString = TEXT("NONE");
-			break;
-
-			case ELiteralType::Boolean:
-				DebugString = FString::Printf(TEXT("Boolean: %s"), Value.Get<bool>() ? TEXT("true") : TEXT("false"));
-			break;
-
-			case ELiteralType::Integer:
-				DebugString = FString::Printf(TEXT("Int32: %d"), Value.Get<int32>());
-			break;
-
-			case ELiteralType::Float:
-				DebugString = FString::Printf(TEXT("Float: %f"), Value.Get<float>());
-			break;
-
-			case ELiteralType::String:
-				DebugString = FString::Printf(TEXT("String: %s"), *Value.Get<FString>());
-			break;
-
-			case ELiteralType::UObjectProxy:
-			{
-				FString ProxyType = TEXT("nullptr");
-				if (Value.Get<Audio::IProxyDataPtr>().IsValid())
-				{
-					ProxyType = Value.Get<Audio::IProxyDataPtr>()->GetProxyTypeName().ToString();
-				}
-				DebugString = FString::Printf(TEXT("Audio::IProxyDataPtr: %s"), *ProxyType);
-			}
-			break;
-
-			case ELiteralType::NoneArray:
-				DebugString = TEXT("TArray<NONE>");
-			break;
-
-			case ELiteralType::BooleanArray:
-				DebugString = FString::Printf(TEXT("TArray<Boolean>"));
-			break;
-
-			case ELiteralType::IntegerArray:
-				DebugString = FString::Printf(TEXT("TArray<int32>"));
-			break;
-
-			case ELiteralType::FloatArray:
-				DebugString = FString::Printf(TEXT("TArray<float>"));
-			break;
-
-			case ELiteralType::StringArray:
-				DebugString = FString::Printf(TEXT("TArray<FString>"));
-			break;
-
-			case ELiteralType::UObjectProxyArray:
-				DebugString = FString::Printf(TEXT("TArray<Audio::IProxyDataPtr>"));
-			break;
-
-			case ELiteralType::Invalid:
-				DebugString = TEXT("INVALID");
-			break;
-
-			default:
-				static_assert(static_cast<int32>(ELiteralType::Invalid) == 12, "Possible missing ELiteralType case coverage");
-				checkNoEntry();
-		}
+		DebugString = LexToString(*this);
 	}
 #endif // METASOUND_DEBUG_LITERALS
 
@@ -257,4 +193,63 @@ namespace Metasound
 
 }
 
+FString LexToString(const Metasound::FLiteral& InLiteral)
+{
+	using namespace Metasound;
+
+	switch (InLiteral.GetType())
+	{
+		case ELiteralType::None:
+			return TEXT("NONE");
+
+		case ELiteralType::Boolean:
+			return FString::Printf(TEXT("Boolean: %s"), InLiteral.Value.Get<bool>() ? TEXT("true") : TEXT("false"));
+
+		case ELiteralType::Integer:
+			return FString::Printf(TEXT("Int32: %d"), InLiteral.Value.Get<int32>());
+
+		case ELiteralType::Float:
+			return FString::Printf(TEXT("Float: %f"), InLiteral.Value.Get<float>());
+
+		case ELiteralType::String:
+			return FString::Printf(TEXT("String: %s"), *InLiteral.Value.Get<FString>());
+
+		case ELiteralType::UObjectProxy:
+		{
+			FString ProxyType = TEXT("nullptr");
+			if (InLiteral.Value.Get<Audio::IProxyDataPtr>().IsValid())
+			{
+				ProxyType = InLiteral.Value.Get<Audio::IProxyDataPtr>()->GetProxyTypeName().ToString();
+			}
+			return FString::Printf(TEXT("Audio::IProxyDataPtr: %s"), *ProxyType);
+		}
+		break;
+
+		case ELiteralType::NoneArray:
+			return TEXT("TArray<NONE>");
+
+		case ELiteralType::BooleanArray:
+			return TEXT("TArray<Boolean>");
+
+		case ELiteralType::IntegerArray:
+			return TEXT("TArray<int32>");
+
+		case ELiteralType::FloatArray:
+			return TEXT("TArray<float>");
+
+		case ELiteralType::StringArray:
+			return TEXT("TArray<FString>");
+
+		case ELiteralType::UObjectProxyArray:
+			return TEXT("TArray<Audio::IProxyDataPtr>");
+
+		case ELiteralType::Invalid:
+			return TEXT("INVALID");
+
+		default:
+			static_assert(static_cast<int32>(ELiteralType::Invalid) == 12, "Possible missing ELiteralType case coverage");
+			checkNoEntry();
+			return TEXT("INVALID");
+	}
+}
 

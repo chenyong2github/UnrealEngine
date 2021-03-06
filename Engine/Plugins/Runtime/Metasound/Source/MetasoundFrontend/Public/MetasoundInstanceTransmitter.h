@@ -11,22 +11,44 @@
 
 namespace Metasound
 {
+	/** FMetasoundInstanceTransmitter provides a communication interface for 
+	 * sending values to a MetaSound instance. It relies on the send/receive transmission
+	 * system to ferry data from the transmitter to the MetaSound instance. Data will
+	 * be safely ushered across thread boundaries in scenarios where the instance
+	 * transmitter and metasound instance live on different threads. 
+	 */
 	class METASOUNDFRONTEND_API FMetasoundInstanceTransmitter : public IAudioInstanceTransmitter
 	{
 		FMetasoundInstanceTransmitter(const FMetasoundInstanceTransmitter&) = delete;
 		FMetasoundInstanceTransmitter& operator=(const FMetasoundInstanceTransmitter&) = delete;
 	public:
+		
+		/** FSendInfo describes the MetaSounds input parameters as well as the 
+		 * necessary information to route data to the instances inputs. 
+		 */
 		struct FSendInfo
 		{
+			/** Global address of instance input. */
 			FSendAddress Address;
+
+			/** Name of parameter on MetaSound instance. */
 			FName ParameterName;
+
+			/** Type name of parameter on MetaSound instance. */
 			FName TypeName;
 		};
 
+		/** Initialization parameters for a FMetasoundInstanceTransmitter. */
 		struct FInitParams
 		{
+			/** FOperatorSettings must match the operator settings of the MetaSound 
+			 * instance to ensure proper operation. */
 			FOperatorSettings OperatorSettings;
+
+			/** ID of the MetaSound instance.  */
 			uint64 InstanceID;
+
+			/** Available input parameters on MetaSound instance. */
 			TArray<FSendInfo> Infos;
 
 			FInitParams(const FOperatorSettings& InSettings, uint64 InInstanceID, const TArray<FSendInfo>& InInfos=TArray<FSendInfo>())
@@ -41,80 +63,61 @@ namespace Metasound
 		FMetasoundInstanceTransmitter(const FMetasoundInstanceTransmitter::FInitParams& InInitParams);
 		virtual ~FMetasoundInstanceTransmitter() = default;
 
+		/** Returns ID of the MetaSound instance associated with this transmitter. */
 		uint64 GetInstanceID() const override;
 
+		/** Set a float parameter on the MetaSound instance by name. 
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - Value to set. 
+		 *
+		 * @return true on success, false on failure.
+		 */
 		bool SetFloatParameter(const FName& InParameterName, float InValue) override;
-		bool SetIntParameter(const FName& InParameterName, int32 InValue) override;
-		bool SetBoolParameter(const FName& InParameterName, bool InValue) override;
 
+		/** Set a int parameter on the MetaSound instance by name. 
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - Value to set. 
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetIntParameter(const FName& InParameterName, int32 InValue) override;
+
+		/** Set a bool parameter on the MetaSound instance by name. 
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - Value to set. 
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetBoolParameter(const FName& InParameterName, bool InValue) override;
+		
+		/** Set a parameter using a literal.
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - Literal value used to construct paramter value. 
+		 *
+		 * @return true on success, false on failure. 
+		 */
+		bool SetParameterWithLiteral(const FName& InParameterName, const FLiteral& InValue);
+
+		/** Duplicate this transmitter interface. The transmitters association with
+		 * the MetaSound instance will be maintained. */
 		TUniquePtr<IAudioInstanceTransmitter> Clone() const override;
 
-		template<typename DataType>
-		bool SendValue(const FName& InParameterName, const DataType& InValue)
-		{
-			if (TSender<DataType>* Sender = FindSenderOfDataType<DataType>(InParameterName))
-			{
-				return Sender->Push(InValue);
-			}
-			return false;
-		}
-
 	private:
-
+		// Find FSendInfo by parameter name. 
 		const FSendInfo* FindSendInfo(const FName& InParameterName) const;
+
+		// Find ISender by parameter name. 
 		ISender* FindSender(const FName& InParameterName);
 
-		template<typename DataType> 
-		TSender<DataType>* FindSenderOfDataType(const FName& InParameterName)
-		{
-			using FSenderType = TSender<DataType>;
+		// Create and store a new ISender for the given FSendInfo.
+		ISender* AddSender(const FSendInfo& InInfo);
 
-			if (ISender* ExistingSender = FindSender(InParameterName))
-			{
-				if (ExistingSender->CheckType<FSenderType>())
-				{
-					FSenderType& DerivedSender = ExistingSender->GetAs<FSenderType>();
-					return &DerivedSender;
-				}
-				else
-				{
-					UE_LOG(LogMetasound, Warning, TEXT("Could not send to Metasound input. Mismatched data type [Recieved:%s, Expected: %s]"), *GetMetasoundDataTypeString<DataType>(), *ExistingSender->GetDataType().ToString());
-				}
-			}
-			else if (const FSendInfo* SendInfo = FindSendInfo(InParameterName))
-			{
-				TUniquePtr<TSender<DataType>> NewSender = CreateSender<DataType>(*SendInfo);
-				if (NewSender.IsValid())
-				{
-					FSenderType* DerivedSender = NewSender.Get();
-
-					InputSends.Add(InParameterName, MoveTemp(NewSender));
-
-					return DerivedSender;
-				}
-			}
-
-			return nullptr;
-		}
-
-		template<typename DataType>
-		TUniquePtr<TSender<DataType>> CreateSender(const FSendInfo& InInfo)
-		{
-			const float DelayTimeInSeconds = 10.0f; // TODO: likely want to remove this and opt for different protocols having different behaviors.
-			FSenderInitParams InitParams = {OperatorSettings, DelayTimeInSeconds};
-
-			if (InInfo.TypeName == GetMetasoundDataTypeName<DataType>())
-			{
-				return FDataTransmissionCenter::Get().RegisterNewSend<DataType>(InInfo.Address, InitParams);
-			}
-			else
-			{
-				UE_LOG(LogMetasound, Error, TEXT("Cannot create sender. Requested data type [TypeName:%s] does not match receive data type [TypeName:%s]"), *GetMetasoundDataTypeName<DataType>().ToString(), *InInfo.TypeName.ToString())
-			}
-
-			return TUniquePtr<TSender<DataType>>(nullptr);
-		}
-
+		// Create a new ISender from FSendInfo.
+		TUniquePtr<ISender> CreateSender(const FSendInfo& InInfo) const;
 
 		TArray<FSendInfo> SendInfos;
 		FOperatorSettings OperatorSettings;

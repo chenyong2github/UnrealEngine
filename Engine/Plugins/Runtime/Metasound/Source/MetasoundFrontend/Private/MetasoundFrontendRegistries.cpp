@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "MetasoundLog.h"
+#include "MetasoundRouter.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/PlatformTime.h"
 
@@ -591,6 +592,19 @@ FMetasoundFrontendRegistryContainer::GetEnumInterfaceForDataType(FName InDataTyp
 	if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
 	{
 		return Element->EnumInterface;
+	}
+	return nullptr;
+}
+
+
+TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> FMetasoundFrontendRegistryContainer::CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InSettings) const
+{
+	if (const FDataTypeRegistryElement* Element = DataTypeRegistry.Find(InDataType))
+	{
+		if (Element->Callbacks.CreateDataChannel)
+		{
+			return Element->Callbacks.CreateDataChannel(InSettings);
+		}
 	}
 	return nullptr;
 }

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundRouter.h"
+
+#include "MetasoundFrontendRegistries.h"
 #include "MetasoundOperatorInterface.h"
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
@@ -128,14 +130,104 @@ namespace Metasound
 		FDataTransmissionCenter::Get().UnregisterSubsystem(SubsystemName);
 	}
 
-	Metasound::FDataTransmissionCenter& FDataTransmissionCenter::Get()
+	FDataTransmissionCenter& FDataTransmissionCenter::Get()
 	{
 		static FDataTransmissionCenter Singleton;
 		return Singleton;
 	}
 
-	FDataTransmissionCenter::FDataTransmissionCenter()
+	TUniquePtr<ISender> FDataTransmissionCenter::RegisterNewSender(const FName& InDataTypeName, const FSendAddress& InAddress, const FSenderInitParams& InitParams)
 	{
+		TUniquePtr<ISender> Sender;
+
+		if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::ThisInstanceOnly))
+		{
+			Sender = InstanceRouter.RegisterNewSender(InAddress.MetasoundInstanceID, InDataTypeName, InAddress.ChannelName, InitParams);
+		}
+		else if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global))
+		{
+			Sender = GlobalRouter.RegisterNewSender(InDataTypeName, InAddress.ChannelName, InitParams);
+		}
+		else if (FSubsystemData* FoundSubsystem = SubsystemRouters.Find(InAddress.Subsystem))
+		{
+			ITransmissionSubsystem* SubsystemInterface = FoundSubsystem->SubsystemPtr;
+
+			// Ensure that this subsystem can support this send type.
+			if (ensureAlways(SubsystemInterface && SubsystemInterface->CanSupportDataType(InDataTypeName)))
+			{
+
+				FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
+				Sender = FoundSubsystem->AddressRouter.RegisterNewSender(InDataTypeName, InAddress.ChannelName, InitParams);
+
+				FoundSubsystem->SubsystemPtr->OnNewSendRegistered(InAddress, InDataTypeName);
+			}
+		}
+		else
+		{
+			// Otherwise, the subsystem FName was invalid.
+			UE_LOG(LogMetasound, Error, TEXT("Cannot create Sender. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
+		}
+
+		return MoveTemp(Sender);
+	}
+
+	TUniquePtr<IReceiver> FDataTransmissionCenter::RegisterNewReceiver(const FName& InDataTypeName, const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
+	{
+		TUniquePtr<IReceiver> Receiver;
+
+		if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::ThisInstanceOnly))
+		{
+			Receiver = InstanceRouter.RegisterNewReceiver(InAddress.MetasoundInstanceID, InDataTypeName, InAddress.ChannelName, InitParams);
+		}
+		else if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global))
+		{
+			Receiver = GlobalRouter.RegisterNewReceiver(InDataTypeName, InAddress.ChannelName, InitParams);
+		}
+		else if (FSubsystemData* FoundSubsystem = SubsystemRouters.Find(InAddress.Subsystem))
+		{
+			ITransmissionSubsystem* SubsystemInterface = FoundSubsystem->SubsystemPtr;
+
+			// Ensure that this subsystem can support this send type.
+			if (ensureAlways(SubsystemInterface && SubsystemInterface->CanSupportDataType(InDataTypeName)))
+			{
+				FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
+
+				Receiver = FoundSubsystem->AddressRouter.RegisterNewReceiver(InDataTypeName, InAddress.ChannelName, InitParams);
+				FoundSubsystem->SubsystemPtr->OnNewReceiverRegistered(InAddress, InDataTypeName);
+			}
+		}
+		else
+		{
+			// Otherwise, the subsystem FName was invalid.
+			UE_LOG(LogMetasound, Error, TEXT("Cannot create Receiver. Did not find transmission subsystem [Name:%s]"), *InAddress.Subsystem.ToString());
+		}
+
+		return MoveTemp(Receiver);
+	}
+
+	bool FDataTransmissionCenter::PushLiteral(FName GlobalChannelName, const FLiteral& InParam)
+	{
+		return GlobalRouter.PushLiteral(GlobalChannelName, InParam);
+	}
+
+	void FDataTransmissionCenter::RegisterSubsystem(ITransmissionSubsystem* InSystem, FName InSubsytemName)
+	{
+		FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
+
+		//check to make sure we're not adding a subsystem twice.
+		check(!SubsystemRouters.Contains(InSubsytemName));
+
+		SubsystemRouters.Emplace(InSubsytemName, InSystem);
+	}
+
+	void FDataTransmissionCenter::UnregisterSubsystem(FName InSubsystemName)
+	{
+		FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
+
+		//check to make sure we're not adding a subsystem twice.
+		check(SubsystemRouters.Contains(InSubsystemName));
+
+		SubsystemRouters.Remove(InSubsystemName);
 	}
 
 	TArray<FName> FAddressRouter::GetAvailableChannels()
@@ -156,13 +248,73 @@ namespace Metasound
 	{
 		FScopeLock ScopeLock(&DataChannelMapMutationLock);
 
-		if (TSharedRef<IDataChannel>* FoundChannel = DataChannelMap.Find(InChannelName))
+		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* FoundChannel = DataChannelMap.Find(InChannelName))
 		{
 			return (*FoundChannel)->GetDataType();
 		}
 		else
 		{
 			return FName();
+		}
+	}
+
+	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FName& InDataTypeName, const FName& InChannelName, const FOperatorSettings& InOperatorSettings)
+	{
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel; 
+
+		{
+			FScopeLock ScopeLock(&DataChannelMapMutationLock);
+
+			if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
+			{
+				DataChannel = *ExistingChannelPtr;
+			}
+			else
+			{
+				// This is the first time we're seeing this, add it to the map.
+				FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+				if (ensure(nullptr != Registry))
+				{
+					DataChannel = Registry->CreateDataChannelForDataType(InDataTypeName, InOperatorSettings);
+					if (DataChannel.IsValid())
+					{
+						DataChannelMap.Add(InChannelName, DataChannel.ToSharedRef());
+					}
+				}
+			}
+		}
+
+		return DataChannel;
+	}
+
+	TUniquePtr<ISender> FAddressRouter::RegisterNewSender(const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams)
+	{
+
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InDataTypeName, InChannelName, InitParams.OperatorSettings);
+
+		if (DataChannel.IsValid())
+		{
+			return DataChannel->NewSender(InitParams);
+		}
+		else
+		{
+			return TUniquePtr<ISender>(nullptr);
+		}
+	}
+
+	TUniquePtr<IReceiver> FAddressRouter::RegisterNewReceiver(const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams)
+	{
+
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = GetDataChannel(InDataTypeName, InChannelName, InitParams.OperatorSettings);
+
+		if (DataChannel.IsValid())
+		{
+			return DataChannel->NewReceiver(InitParams);
+		}
+		else
+		{
+			return TUniquePtr<IReceiver>(nullptr);
 		}
 	}
 
@@ -191,6 +343,38 @@ namespace Metasound
 		else
 		{
 			return FName();
+		}
+	}
+
+	TUniquePtr<IReceiver> FInstanceLocalRouter::RegisterNewReceiver(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams)
+	{
+		FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
+
+		if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
+		{
+			return AddressRouter->RegisterNewReceiver(InDataTypeName, InChannelName, InitParams);
+		}
+		else
+		{
+			// This is the first time we're seeing this, add it to the map.
+			FAddressRouter& NewRouter = InstanceRouterMap.Add(InInstanceID, FAddressRouter());
+			return NewRouter.RegisterNewReceiver(InDataTypeName, InChannelName, InitParams);
+		}
+	}
+
+	TUniquePtr<ISender> FInstanceLocalRouter::RegisterNewSender(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams)
+	{
+		FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
+
+		if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
+		{
+			return AddressRouter->RegisterNewSender(InDataTypeName, InChannelName, InitParams);
+		}
+		else
+		{
+			// This is the first time we're seeing this, add it to the map.
+			FAddressRouter& NewRouter = InstanceRouterMap.Add(InInstanceID, FAddressRouter());
+			return NewRouter.RegisterNewSender(InDataTypeName, InChannelName, InitParams);
 		}
 	}
 

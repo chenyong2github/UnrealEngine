@@ -139,7 +139,7 @@ namespace Metasound
 
 		FString DebugString;
 
-		void InitDebugString();
+		void InitDebugString() const;
 
 #endif // METAOUND_DEBUG_LITERALS
 	};
@@ -331,6 +331,6 @@ namespace Metasound
 			return FLiteral::FNone{};
 		}
 	};
-
-
 }
+
+METASOUNDGRAPHCORE_API FString LexToString(const Metasound::FLiteral& InLiteral);

@@ -5,11 +5,12 @@
 #include "CoreMinimal.h"
 #include "IAudioProxyInitializer.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundEnum.h"
 #include "MetasoundFrontendDocument.h"
 #include "MetasoundLiteral.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
-#include "MetasoundEnum.h"
+#include "MetasoundRouter.h"
 
 namespace Metasound
 {
@@ -61,6 +62,9 @@ namespace Metasound
 
 	// This function is used to create a proxy from a datatype's base uclass.
 	typedef TFunction<Audio::IProxyDataPtr(UObject*)> FCreateAudioProxyFunction;
+
+	// Creates a data channel for senders and receivers of this data type.
+	typedef TFunction<TSharedPtr<IDataChannel, ESPMode::ThreadSafe>(const FOperatorSettings&)> FCreateDataChannelFunction;
 
 	typedef TFunction<TUniquePtr<Metasound::INode>(const Metasound::FNodeInitData&)> FCreateMetasoundNodeFunction;
 	typedef TFunction<FMetasoundFrontendClass()> FCreateMetasoundFrontendClassFunction;
@@ -239,6 +243,8 @@ namespace Metasound
 
 		// For datatypes that use a UObject literal or a UObject literal array, this lambda generates a literal from the corresponding UObject.
 		FCreateAudioProxyFunction CreateAudioProxy;
+
+		FCreateDataChannelFunction CreateDataChannel;
 	};
 }
 
@@ -335,6 +341,8 @@ public:
 	bool GetInfoForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
 	TSharedPtr<const Metasound::Frontend::IEnumDataTypeInterface> GetEnumInterfaceForDataType(FName InDataType) const;
+
+	TSharedPtr<Metasound::IDataChannel, ESPMode::ThreadSafe> CreateDataChannelForDataType(const FName& InDataType, const Metasound::FOperatorSettings& InOperatorSettings) const;
 
 private:
 	FMetasoundFrontendRegistryContainer();

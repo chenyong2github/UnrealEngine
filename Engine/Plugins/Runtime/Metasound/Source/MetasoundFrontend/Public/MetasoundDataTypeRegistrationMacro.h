@@ -21,6 +21,7 @@
 #include "MetasoundReceiveNode.h"
 #include "MetasoundRouter.h"
 #include "MetasoundSendNode.h"
+#include "MetasoundTransmissionRegistration.h"
 
 #include <type_traits>
 
@@ -319,7 +320,7 @@ namespace Metasound
 				};
 			}
 
-			static const FName DataTypeName = GetMetasoundDataTypeName<TDataType>();
+			FCreateDataChannelFunction CreateDataChannelFunc(&FTransmissionDataChannelFactory::CreateDataChannel<TDataType>);
 
 			// Pack all of our various constructor lambdas to a single struct.
 			FDataTypeConstructorCallbacks Callbacks = 
@@ -328,13 +329,14 @@ namespace Metasound
 				MoveTemp(CreateFrontendInputClass),
 				MoveTemp(OutputNodeConstructor), 
 				MoveTemp(CreateFrontendOutputClass),
-				MoveTemp(ProxyGenerator) 
+				MoveTemp(ProxyGenerator),
+				MoveTemp(CreateDataChannelFunc)
 			};
 
 
 			FDataTypeRegistryInfo RegistryInfo;
 
-			RegistryInfo.DataTypeName = DataTypeName;
+			RegistryInfo.DataTypeName = GetMetasoundDataTypeName<TDataType>();
 			RegistryInfo.PreferredLiteralType = PreferredArgType;
 
 			RegistryInfo.bIsDefaultParsable = TIsParsable<TDataType, FLiteral::FNone>::Value;		

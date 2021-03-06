@@ -82,7 +82,7 @@ namespace Metasound
 					, SendAddress(InSendAddress)
 					, CachedSendAddress(*InSendAddress)
 					, CachedSenderParams({InOperatorSettings, 0.0f})
-					, Sender(FDataTransmissionCenter::Get().RegisterNewSend<TDataType>(CachedSendAddress, CachedSenderParams))
+					, Sender(FDataTransmissionCenter::Get().RegisterNewSender<TDataType>(CachedSendAddress, CachedSenderParams))
 				{
 				}
 
@@ -106,7 +106,7 @@ namespace Metasound
 					if (SendAddress->ChannelName != CachedSendAddress.ChannelName)
 					{
 						CachedSendAddress = *SendAddress;
-						Sender = FDataTransmissionCenter::Get().RegisterNewSend<TDataType>(CachedSendAddress, CachedSenderParams);
+						Sender = FDataTransmissionCenter::Get().RegisterNewSender<TDataType>(CachedSendAddress, CachedSenderParams);
 						check(Sender.IsValid());
 					}
 

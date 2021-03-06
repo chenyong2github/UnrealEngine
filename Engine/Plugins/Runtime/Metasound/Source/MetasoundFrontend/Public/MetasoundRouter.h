@@ -22,7 +22,7 @@
  * This system is used by Send and Receive nodes in the Metasound graph, but can also be used in C++ for arbitrary message passing.
  *
  * Typical use case:
- * TSenderPtr<float> FloatSender FDataTransmissionCenter::Get().RegisterNewSend<float>(ExampleAddress, InitSettings);
+ * TSenderPtr<float> FloatSender FDataTransmissionCenter::Get().RegisterNewSender<float>(ExampleAddress, InitSettings);
  * TReceiverPtr<float> FloatReceiver FDataTransmissionCenter::Get().RegisterNewReceiver<float>(ExampleAddress, InitSettings);
  *
  * //...
@@ -164,7 +164,7 @@ namespace Metasound
 	class METASOUNDFRONTEND_API IReceiver : public IDataTransmissionBase
 	{
 	public:
-		IReceiver(TSharedPtr<IDataChannel> InDataChannel, FName DataType)
+		IReceiver(TSharedPtr<IDataChannel, ESPMode::ThreadSafe> InDataChannel, FName DataType)
 			: IDataTransmissionBase(DataType)
 			, DataChannel(InDataChannel)
 		{}
@@ -173,7 +173,7 @@ namespace Metasound
 		virtual ~IReceiver();
 
 	protected:
-		TSharedPtr<IDataChannel> DataChannel;
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel;
 	};
 
 	// This is a handle to something that will retrieve a datatype.
@@ -181,15 +181,18 @@ namespace Metasound
 	class METASOUNDFRONTEND_API ISender : public IDataTransmissionBase
 	{
 	public:
-		ISender(TSharedPtr<IDataChannel> InDataChannel, FName DataType)
+		ISender(TSharedPtr<IDataChannel, ESPMode::ThreadSafe> InDataChannel, FName DataType)
 			: IDataTransmissionBase(DataType)
 			, DataChannel(InDataChannel)
 		{}
 
 		virtual ~ISender();
 
+		// Constructs the value with a literal and pushes to data channel. 
+		virtual bool PushLiteral(const FLiteral& InLiteral) = 0;
+
 	protected:
-		TSharedPtr<IDataChannel> DataChannel;
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel;
 	};
 
 	struct FSenderInitParams
@@ -205,7 +208,7 @@ namespace Metasound
 
 	// This contains an intermediary buffer for use between the send and receive nodes.
 	// Typically only used by ISender and IReceiver implementations.
-	class METASOUNDFRONTEND_API IDataChannel : public IDataTransmissionBase, public TSharedFromThis<IDataChannel>
+	class METASOUNDFRONTEND_API IDataChannel : public IDataTransmissionBase, public TSharedFromThis<IDataChannel, ESPMode::ThreadSafe>
 	{
 	public:
 		virtual ~IDataChannel() = default;
@@ -315,8 +318,7 @@ namespace Metasound
 
 		static FName GetDataTypeName()
 		{
-			static FName TypeName = TDataReferenceTypeInfo<TDataType>::TypeName;
-			return TypeName;
+			return GetMetasoundDataTypeName<TDataType>();
 		}
 
 	protected:
@@ -356,26 +358,46 @@ namespace Metasound
 			}
 		}
 
+		bool PushLiteral(const FLiteral& InLiteral) override
+		{
+			if (!TLiteralTraits<TDataType>::IsParsable(InLiteral))
+			{
+				// The literal sent in is not compatible with the data type.
+				ensureMsgf(false, TEXT("Failed to send data. Data type [TypeName:%s] cannot be parsed from literal [Literal:%s]."), *GetMetasoundDataTypeString<TDataType>(), *LexToString(InLiteral));
+
+				return false;
+			}
+			else
+			{
+				return Push(TDataTypeLiteralFactory<TDataType>::CreateExplicitArgs(Params.OperatorSettings, InLiteral));
+			}
+		}
+
 		// Resets the delay for this specific sender. if this goes beyond the threshold set by BufferResizeThreshold, we reallocate.
 		bool SetDelay(float InSeconds)
 		{
 			Params.DelayTimeInSeconds = InSeconds;
-			NumElementsToDelayBy = FMath::Min(InSeconds * Params.OperatorSettings.GetActualBlockRate(), 1.f);
+			// TODO: LOL. I was wondering why the having a delay didn't change the behavior.
+			// Probably for the best since it does not make much sense to delay
+			// sent values. The FMath::Min() results in it being either 1 or 0. 
+			//NumElementsToDelayBy = FMath::Min(InSeconds * Params.OperatorSettings.GetActualBlockRate(), 1.f);
 
+			/*
 			if (NumElementsToDelayBy >= SenderBuffer.GetCapacity())
 			{
 				SenderBuffer.SetCapacity(NumElementsToDelayBy * BufferResizeThreshold);
 			}
+			*/
+			SenderBuffer.SetCapacity(2);
 			return true;
 		}
 
 		static FName GetDataTypeName()
 		{
-			static FName TypeName = TDataReferenceTypeInfo<TDataType>::TypeName;
-			return TypeName;
+			return GetMetasoundDataTypeName<TDataType>();
 		}
 
-		TSender(const FSenderInitParams& InitParams, TSharedPtr<IDataChannel> InDataChannel)
+		TSender(const FSenderInitParams& InitParams, TSharedPtr<IDataChannel, ESPMode::ThreadSafe> InDataChannel)
 			: ISender(InDataChannel, GetDataTypeName())
 			, Params(InitParams)
 		{
@@ -440,11 +462,10 @@ namespace Metasound
 
 		static FName GetDataTypeName()
 		{
-			static FName TypeName = TDataReferenceTypeInfo<TDataType>::TypeName;
-			return TypeName;
+			return GetMetasoundDataTypeName<TDataType>();
 		}
 
-		TReceiver(const FReceiverInitParams& InitParams, TSharedPtr<IDataChannel> InDataChannel)
+		TReceiver(const FReceiverInitParams& InitParams, TSharedPtr<IDataChannel, ESPMode::ThreadSafe> InDataChannel)
 			: IReceiver(InDataChannel, GetDataTypeName())
 			, OperatorSettings(InitParams.OperatorSettings)
 		{
@@ -515,8 +536,7 @@ namespace Metasound
 
 		static FName GetDataTypeName()
 		{
-			static FName TypeName = TDataReferenceTypeInfo<TDataType>::TypeName;
-			return TypeName;
+			return GetMetasoundDataTypeName<TDataType>();
 		}
 
 		virtual FName GetDataType() override
@@ -602,6 +622,12 @@ namespace Metasound
 			return true;
 		}
 
+		bool PushLiteral(const FLiteral& InLiteral) override
+		{
+			ensureMsgf(false, TEXT("Cannot push literal to audio format"));
+			return false;
+		}
+
 		// Resets the delay for this sender.
 		bool SetDelay(float InSeconds)
 		{
@@ -629,11 +655,10 @@ namespace Metasound
 
 		static FName GetDataTypeName()
 		{
-			static FName TypeName = TDataReferenceTypeInfo<TDataType>::TypeName;
-			return TypeName;
+			return GetMetasoundDataTypeName<TDataType>();
 		}
 
-		TAudioSender(const FSenderInitParams& InitParams, TSharedPtr<IDataChannel> InDataChannel, TArray<Audio::FPatchInput>&& Inputs)
+		TAudioSender(const FSenderInitParams& InitParams, TSharedPtr<IDataChannel, ESPMode::ThreadSafe> InDataChannel, TArray<Audio::FPatchInput>&& Inputs)
 			: ISender(InDataChannel, GetDataTypeName())
 			, DataChannelInputs(MoveTemp(Inputs))
 			, Params(InitParams)
@@ -688,11 +713,10 @@ namespace Metasound
 
 		static FName GetDataTypeName()
 		{
-			static FName TypeName = TDataReferenceTypeInfo<TDataType>::TypeName;
-			return TypeName;
+			return GetMetasoundDataTypeName<TDataType>();
 		}
 
-		TAudioReceiver(const FReceiverInitParams& InitParams, TSharedPtr<IDataChannel> InDataChannel, TArray<Audio::FPatchOutputStrongPtr>&& Outputs)
+		TAudioReceiver(const FReceiverInitParams& InitParams, TSharedPtr<IDataChannel, ESPMode::ThreadSafe> InDataChannel, TArray<Audio::FPatchOutputStrongPtr>&& Outputs)
 			: IReceiver(InDataChannel, GetDataTypeName())
 			, DataChannelOutputs(MoveTemp(Outputs))
 			, Params(InitParams)
@@ -738,8 +762,7 @@ namespace Metasound
 
 		static FName GetDataTypeName()
 		{
-			static FName TypeName = TDataReferenceTypeInfo<TDataType>::TypeName;
-			return TypeName;
+			return GetMetasoundDataTypeName<TDataType>();
 		}
 
 		virtual FName GetDataType() override
@@ -786,19 +809,19 @@ namespace Metasound
 	// SFINAE for creating the correct data channel type for the given datatype:
 
 	template<typename TDataType, typename TEnableIf<std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
-	TSharedRef<IDataChannel> MakeDataChannel(const FOperatorSettings& InSettings)
+	TSharedRef<IDataChannel, ESPMode::ThreadSafe> MakeDataChannel(const FOperatorSettings& InSettings)
 	{
 		return MakeShareable(new TCopyableDataChannel<TDataType>(InSettings));
 	}
 
 	template<typename TDataType, typename TEnableIf<TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
-	TSharedRef<IDataChannel> MakeDataChannel(const FOperatorSettings& InSettings)
+	TSharedRef<IDataChannel, ESPMode::ThreadSafe> MakeDataChannel(const FOperatorSettings& InSettings)
 	{
 		return MakeShareable(new TAudioDataChannel<TDataType>(InSettings));
 	}
 
 	template<typename TDataType, typename TEnableIf<!std::is_copy_constructible<TDataType>::value && !TIsDerivedFrom<TDataType, IAudioDataType>::Value, bool>::Type = true>
-	TSharedRef<IDataChannel> MakeDataChannel(const FOperatorSettings& InSettings)
+	TSharedRef<IDataChannel, ESPMode::ThreadSafe> MakeDataChannel(const FOperatorSettings& InSettings)
 	{
 		return MakeShareable(new TNonOperationalDataChannel<TDataType>(InSettings));
 	}
@@ -859,53 +882,47 @@ namespace Metasound
 
 		FName GetDatatypeForChannel(FName InChannelName);
 
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> GetDataChannel(const FName& InDataTypeName, const FName& InChannelName, const FOperatorSettings& InOperatorSettings);
+
+		TUniquePtr<ISender> RegisterNewSender(const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams);
+		TUniquePtr<IReceiver> RegisterNewReceiver(const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams);
+
 		template<typename TDataType>
-		TSenderPtr<TDataType> RegisterNewSend(FName InChannelName, const FSenderInitParams& InitParams)
+		TReceiverPtr<TDataType> RegisterNewReceiver(const FName& InChannelName, const FReceiverInitParams& InitParams)
 		{
-			FScopeLock ScopeLock(&DataChannelMapMutationLock);
+			TReceiverPtr<TDataType> Receiver;
 
-			if (TSharedRef<IDataChannel>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
-			{
-				TSharedRef<IDataChannel>& ExistingChannel = *ExistingChannelPtr;
+			TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
 
-				// ensure that the existing data channel is of the same datatype as the send we're trying to register.
-				return Downcast<TDataType>(ExistingChannel->NewSender(InitParams));
-			}
-			else
+			if (ReceiverBase.IsValid())
 			{
-				// This is the first time we're seeing this, add it to the map.
-				TSharedRef<IDataChannel>& ExistingChannel = DataChannelMap.Add(InChannelName, MakeDataChannel<TDataType>(InitParams.OperatorSettings));
-				return Downcast<TDataType>(ExistingChannel->NewSender(InitParams));
+				Receiver = Downcast<TDataType>(MoveTemp(ReceiverBase));
 			}
+
+			return MoveTemp(Receiver);
 		}
 
 		template<typename TDataType>
-		TReceiverPtr<TDataType> RegisterNewReceiver(FName InChannelName, const FReceiverInitParams& InitParams)
+		TSenderPtr<TDataType> RegisterNewSender(const FName& InChannelName, const FSenderInitParams& InitParams)
 		{
-			FScopeLock ScopeLock(&DataChannelMapMutationLock);
+			TSenderPtr<TDataType> Sender;
 
-			if (TSharedRef<IDataChannel>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
+			TUniquePtr<ISender> SenderBase = RegisterNewSender(GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
+
+			if (SenderBase.IsValid())
 			{
-				TSharedRef<IDataChannel>& ExistingChannel = *ExistingChannelPtr;
-
-				TUniquePtr<IReceiver> BaseReceiver = ExistingChannel->NewReceiver(InitParams);
-				return Downcast<TDataType>(MoveTemp(BaseReceiver));
+				Sender = Downcast<TDataType>(MoveTemp(SenderBase));
 			}
-			else
-			{
-				// This is the first time we're seeing this, add it to the map.
-				TSharedRef<IDataChannel>& ExistingChannel = DataChannelMap.Add(InChannelName, MakeDataChannel<TDataType>(InitParams.OperatorSettings));
 
-				return Downcast<TDataType>(ExistingChannel->NewReceiver(InitParams));
-			}
+			return MoveTemp(Sender);
 		}
 
-		bool PushLiteral(FName InChannelName, const FLiteral& InParam)
+		bool PushLiteral(const FName& InChannelName, const FLiteral& InParam)
 		{
 			FScopeLock ScopeLock(&DataChannelMapMutationLock);
-			if (TSharedRef<IDataChannel>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
+			if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
 			{
-				TSharedRef<IDataChannel>& ExistingChannel = *ExistingChannelPtr;
+				TSharedRef<IDataChannel, ESPMode::ThreadSafe>& ExistingChannel = *ExistingChannelPtr;
 				return ExistingChannel->PushLiteral(InParam);
 			}
 			else
@@ -923,7 +940,7 @@ namespace Metasound
 		{}
 
 	private:
-		TMap<FName, TSharedRef<IDataChannel>> DataChannelMap;
+		TMap<FName, TSharedRef<IDataChannel, ESPMode::ThreadSafe>> DataChannelMap;
 		FCriticalSection DataChannelMapMutationLock;
 	};
 
@@ -936,38 +953,38 @@ namespace Metasound
 
 		FName GetDatatypeForChannel(uint64 InInstanceID, FName InChannelName);
 
-		template<typename TDataType>
-		TSenderPtr<TDataType> RegisterNewSend(uint64 InInstanceID, FName InChannelName, const FSenderInitParams& InitParams)
-		{
-			FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
+		TUniquePtr<ISender> RegisterNewSender(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams);
 
-			if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
+		template<typename TDataType>
+		TSenderPtr<TDataType> RegisterNewSender(uint64 InInstanceID, FName InChannelName, const FSenderInitParams& InitParams)
+		{
+			TSenderPtr<TDataType> Sender;
+
+			TUniquePtr<ISender> SenderBase = RegisterNewSender(InInstanceID, GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
+
+			if (SenderBase.IsValid())
 			{
-				return AddressRouter->RegisterNewSend<TDataType>(InChannelName, InitParams);
+				Sender = Downcast<TDataType>(SenderBase);
 			}
-			else
-			{
-				// This is the first time we're seeing this, add it to the map.
-				FAddressRouter& NewRouter = InstanceRouterMap.Add(InInstanceID, FAddressRouter());
-				return NewRouter.RegisterNewSend<TDataType>(InChannelName, InitParams);
-			}
+
+			return MoveTemp(Sender);
 		}
+
+		TUniquePtr<IReceiver> RegisterNewReceiver(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FReceiverInitParams& InitParams);
 
 		template<typename TDataType>
 		TReceiverPtr<TDataType> RegisterNewReceiver(uint64 InInstanceID, FName InChannelName, const FReceiverInitParams& InitParams)
 		{
-			FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
+			TReceiverPtr<TDataType> Receiver;
 
-			if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
+			TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(InInstanceID, GetMetasoundDataTypeName<TDataType>(), InChannelName, InitParams);
+
+			if (ReceiverBase.IsValid())
 			{
-				return AddressRouter->RegisterNewReceiver<TDataType>(InChannelName, InitParams);
+				Receiver = Downcast<TDataType>(ReceiverBase);
 			}
-			else
-			{
-				// This is the first time we're seeing this, add it to the map.
-				FAddressRouter& NewRouter = InstanceRouterMap.Add(InInstanceID, FAddressRouter());
-				return NewRouter.RegisterNewReceiver<TDataType>(InChannelName, InitParams);
-			}
+
+			return MoveTemp(ReceiverBase);
 		}
 
 	private:
@@ -1031,7 +1048,7 @@ namespace Metasound
 				check(SubsystemInterface);
 
 				// Ensure that this subsystem can support this send type.
-				return SubsystemInterface->CanSupportDataType(FName(TDataReferenceTypeInfo<TDataType>::TypeName));
+				return SubsystemInterface->CanSupportDataType(GetMetasoundDataTypeName<TDataType>());
 			}
 			else
 			{
@@ -1043,82 +1060,49 @@ namespace Metasound
 
 		// Creates a new object to push data to an address.
 		// Returns a new sender, or nullptr if registration failed.
+		TUniquePtr<ISender> RegisterNewSender(const FName& InDataTypeName, const FSendAddress& InAddress, const FSenderInitParams& InitParams);
+
+		// Creates a new object to push data to an address.
+		// Returns a new sender, or nullptr if registration failed.
 		template<typename TDataType>
-		TSenderPtr<TDataType> RegisterNewSend(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
+		TSenderPtr<TDataType> RegisterNewSender(const FSendAddress& InAddress, const FSenderInitParams& InitParams)
 		{
-			if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::ThisInstanceOnly))
-			{
-				return InstanceRouter.RegisterNewSend<TDataType>(InAddress.MetasoundInstanceID, InAddress.ChannelName, InitParams);
-			}
-			else if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global))
-			{
-				return GlobalRouter.RegisterNewSend<TDataType>(InAddress.ChannelName, InitParams);
-			}
-			else if (FSubsystemData* FoundSubsystem = SubsystemRouters.Find(InAddress.Subsystem))
-			{
-				ITransmissionSubsystem* SubsystemInterface = FoundSubsystem->SubsystemPtr;
+			TSenderPtr<TDataType> Sender;
+			
+			TUniquePtr<ISender> SenderBase = RegisterNewSender(GetMetasoundDataTypeName<TDataType>(), InAddress, InitParams);
 
-				// Ensure that this subsystem can support this send type.
-				if (!ensureAlways(SubsystemInterface && SubsystemInterface->CanSupportDataType(FName(TDataReferenceTypeInfo<TDataType>::TypeName))))
-				{
-					return TSenderPtr<TDataType>();
-				}
-
-				FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
-				TSenderPtr<TDataType> Sender = FoundSubsystem->AddressRouter.RegisterNewSend<TDataType>(InAddress.ChannelName, InitParams);
-				FoundSubsystem->SubsystemPtr->OnNewSendRegistered(InAddress, FName(TDataReferenceTypeInfo<TDataType>::TypeName));
-				return MoveTemp(Sender);
-			}
-			else
+			if (SenderBase.IsValid())
 			{
-				// Otherwise, the subsystem FName was invalid.
-				ensureAlways(false);
-				return TSenderPtr<TDataType>();
+				Sender = Downcast<TDataType>(MoveTemp(SenderBase));
 			}
+
+			return Sender;
 		}
+
+		// Registers a new object to poll data from an address.
+		// Returns a new receiver, or nullptr if registration failed.
+		TUniquePtr<IReceiver> RegisterNewReceiver(const FName& InDataTypeName, const FSendAddress& InAddress, const FReceiverInitParams& InitParams);
 
 		// Registers a new object to poll data from an address.
 		// Returns a new receiver, or nullptr if registration failed.
 		template<typename TDataType>
 		TReceiverPtr<TDataType> RegisterNewReceiver(const FSendAddress& InAddress, const FReceiverInitParams& InitParams)
 		{
-			if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::ThisInstanceOnly))
-			{
-				return InstanceRouter.RegisterNewReceiver<TDataType>(InAddress.MetasoundInstanceID, InAddress.ChannelName, InitParams);
-			}
-			else if (InAddress.Subsystem == GetSubsystemNameForSendScope(ETransmissionScope::Global))
-			{
-				return GlobalRouter.RegisterNewReceiver<TDataType>(InAddress.ChannelName, InitParams);
-			}
-			else if (FSubsystemData* FoundSubsystem = SubsystemRouters.Find(InAddress.Subsystem))
-			{
-				ITransmissionSubsystem* SubsystemInterface = FoundSubsystem->SubsystemPtr;
+			TReceiverPtr<TDataType> Receiver;
 
-				// Ensure that this subsystem can support this send type.
-				if (!ensureAlways(SubsystemInterface && SubsystemInterface->CanSupportDataType(FName(TDataReferenceTypeInfo<TDataType>::TypeName))))
-				{
-					return TReceiverPtr<TDataType>();
-				}
+			TUniquePtr<IReceiver> ReceiverBase = RegisterNewReceiver(GetMetasoundDataTypeName<TDataType>(), InAddress, InitParams);
 
-				FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
-				TReceiverPtr<TDataType> Receiver = FoundSubsystem->AddressRouter.RegisterNewReceiver<TDataType>(InAddress.ChannelName, InitParams);
-				FoundSubsystem->SubsystemPtr->OnNewReceiverRegistered(InAddress, FName(TDataReferenceTypeInfo<TDataType>::TypeName));
-				return MoveTemp(Receiver);
-			}
-			else
+			if (ReceiverBase.IsValid())
 			{
-				// Otherwise, the subsystem FName was invalid.
-				ensureAlways(false);
-				return TReceiverPtr<TDataType>();
+				Receiver = Downcast<TDataType>(MoveTemp(ReceiverBase));
 			}
+
+			return Receiver;
 		}
 
 		// Pushes a literal parameter to a specific data channel in the global router.
 		// returns false if the literal type isn't supported.
-		bool PushLiteral(FName GlobalChannelName, const FLiteral& InParam)
-		{
-			return GlobalRouter.PushLiteral(GlobalChannelName, InParam);
-		}
+		bool PushLiteral(FName GlobalChannelName, const FLiteral& InParam);
 
 	private:
 		// Single map of FNames to IDataChannels
@@ -1132,27 +1116,10 @@ namespace Metasound
 		FCriticalSection SubsystemRoutersMutationLock;
 
 		// These are used by the constructor and destructor of implementations of ITransmissionSubsystem.
-		void RegisterSubsystem(ITransmissionSubsystem* InSystem, FName InSubsytemName)
-		{
-			FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
+		void RegisterSubsystem(ITransmissionSubsystem* InSystem, FName InSubsytemName);
+		void UnregisterSubsystem(FName InSubsystemName);
 
-			//check to make sure we're not adding a subsystem twice.
-			check(!SubsystemRouters.Contains(InSubsytemName));
-
-			SubsystemRouters.Emplace(InSubsytemName, InSystem);
-		}
-
-		void UnregisterSubsystem(FName InSubsystemName)
-		{
-			FScopeLock ScopeLock(&SubsystemRoutersMutationLock);
-
-			//check to make sure we're not adding a subsystem twice.
-			check(SubsystemRouters.Contains(InSubsystemName));
-
-			SubsystemRouters.Remove(InSubsystemName);
-		}
-
-		FDataTransmissionCenter();
+		FDataTransmissionCenter() = default;
 
 		friend class ITransmissionSubsystem;
 	};
