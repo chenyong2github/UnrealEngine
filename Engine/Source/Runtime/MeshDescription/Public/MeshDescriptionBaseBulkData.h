@@ -47,7 +47,7 @@ public:
 protected:
 	TPimplPtr<FMeshDescriptionBulkData> BulkData;
 
-	UPROPERTY(Transient)
+	UPROPERTY(Transient, Instanced)
 	UMeshDescriptionBase* PreallocatedMeshDescription;
 
 	UPROPERTY(Transient)
