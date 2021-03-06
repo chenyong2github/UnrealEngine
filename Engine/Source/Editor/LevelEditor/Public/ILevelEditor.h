@@ -7,6 +7,8 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Editor/UnrealEdTypes.h"
+#include "Elements/Framework/TypedElementHandle.h"
+#include "Elements/Framework/EngineElementsLibrary.h"
 #include "Framework/Docking/TabManager.h"
 #include "Framework/Commands/UICommandList.h"
 #include "AssetThumbnail.h"
@@ -32,7 +34,18 @@ public:
 	virtual UTypedElementSelectionSet* GetMutableElementSelectionSet() = 0;
 
 	/** Summons a context menu for this level editor at the mouse cursor's location */
-	virtual void SummonLevelViewportContextMenu(AActor* HitProxyActor = nullptr) = 0;
+	virtual void SummonLevelViewportContextMenu(const FTypedElementHandle& HitProxyElement = FTypedElementHandle()) = 0;
+
+	UE_DEPRECATED(5.0, "Use the SummonLevelViewportContextMenu overload which takes a FTypedElementHandle.")
+	void SummonLevelViewportContextMenu(AActor* HitProxyActor)
+	{
+		FTypedElementHandle HitProxyElement;
+		if (HitProxyActor)
+		{
+			HitProxyElement = UEngineElementsLibrary::AcquireEditorActorElementHandle(HitProxyActor);
+		}
+		SummonLevelViewportContextMenu(HitProxyElement);
+	}
 
 	/** Summons a context menu for view options */
 	virtual void SummonLevelViewportViewOptionMenu(ELevelViewportType ViewOption) = 0;

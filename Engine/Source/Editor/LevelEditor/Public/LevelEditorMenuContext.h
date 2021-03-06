@@ -3,8 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
+#include "Elements/Framework/TypedElementHandle.h"
 
 #include "LevelEditorMenuContext.generated.h"
 
@@ -40,7 +40,15 @@ class LEVELEDITOR_API ULevelEditorContextMenuContext : public UObject
 public:
 
 	TWeakPtr<SLevelEditor> LevelEditor;
+
 	ELevelEditorMenuContext ContextType;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
+	TObjectPtr<const UTypedElementSelectionSet> CurrentSelection;
+	
+	/** If the ContextType is Viewport this property can be set to the HitProxy element that triggered the ContextMenu. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
+	FTypedElementHandle HitProxyElement;
 
 	UPROPERTY()
 	TArray<TObjectPtr<UActorComponent>> SelectedComponents;

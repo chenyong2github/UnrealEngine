@@ -67,7 +67,7 @@ public:
 	/** ILevelEditor interface */
 	virtual const UTypedElementSelectionSet* GetElementSelectionSet() const override;
 	virtual UTypedElementSelectionSet* GetMutableElementSelectionSet() override;
-	virtual void SummonLevelViewportContextMenu(AActor* HitProxyActor = nullptr) override;
+	virtual void SummonLevelViewportContextMenu(const FTypedElementHandle& HitProxyElement = FTypedElementHandle()) override;
 	virtual void SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption) override;
 	virtual const TArray< TSharedPtr< class IToolkit > >& GetHostedToolkits() const override;
 	virtual TArray< TSharedPtr< SLevelViewport > > GetViewports() const override;

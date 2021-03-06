@@ -31,7 +31,6 @@
 #include "LightMap.h"
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Elements/Framework/TypedElementSelectionSet.h"
-#include "Elements/Interfaces/TypedElementObjectInterface.h"
 
 #define LOCTEXT_NAMESPACE "ClickHandlers"
 
@@ -55,11 +54,11 @@ namespace LevelViewportClickHandlers
 		return nullptr;
 	}
 
-	static void PrivateSummonContextMenu( FLevelEditorViewportClient* ViewportClient, AActor* HitProxyActor = nullptr)
+	static void PrivateSummonContextMenu( FLevelEditorViewportClient* ViewportClient, const FTypedElementHandle& HitProxyElement = FTypedElementHandle())
 	{
 		if( ViewportClient->ParentLevelEditor.IsValid() )
 		{
-			ViewportClient->ParentLevelEditor.Pin()->SummonLevelViewportContextMenu(HitProxyActor);
+			ViewportClient->ParentLevelEditor.Pin()->SummonLevelViewportContextMenu(HitProxyElement);
 		}
 	}	
 
@@ -215,9 +214,7 @@ namespace LevelViewportClickHandlers
 
 				if (bIsRightClickSelection)
 				{
-					TTypedElement<UTypedElementObjectInterface> ObjectElement = LevelEditorElementSelectionSet->GetElementList()->GetElement<UTypedElementObjectInterface>(ResolvedElement);
-					AActor* HitActor = ObjectElement ? Cast<AActor>(ObjectElement.GetObject()) : nullptr;
-					PrivateSummonContextMenu(ViewportClient, HitActor);
+					PrivateSummonContextMenu(ViewportClient, ResolvedElement);
 				}
 			}
 		}
@@ -267,7 +264,7 @@ namespace LevelViewportClickHandlers
 				FlushRenderingCommands();
 			}
 
-			PrivateSummonContextMenu(ViewportClient, Actor);
+			PrivateSummonContextMenu(ViewportClient, UEngineElementsLibrary::AcquireEditorActorElementHandle(Actor));
 			return true;
 		}
 		else if( Click.GetEvent() == IE_DoubleClick && Click.GetKey() == EKeys::LeftMouseButton && !Click.IsControlDown() && !Click.IsShiftDown() )

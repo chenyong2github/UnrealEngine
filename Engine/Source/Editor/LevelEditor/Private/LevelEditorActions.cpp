@@ -3363,10 +3363,10 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND( AlignPivotToActor, "Align Pivot to Actor", "Aligns the actor with another actor at its pivot point", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( SnapBottomCenterBoundsToActor, "Snap Bottom Center Bounds to Actor", "Snaps the actor to another actor at its bottom center bounds", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( AlignBottomCenterBoundsToActor, "Align Bottom Center Bounds to Actor", "Aligns the actor with another actor at its bottom center bounds", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( DeltaTransformToActors, "Delta Transform", "Apply Delta Transform to selected actors", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( MirrorActorX, "Mirror X", "Mirrors the actor along the X axis", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( MirrorActorY, "Mirror Y", "Mirrors the actor along the Y axis", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( MirrorActorZ, "Mirror Z", "Mirrors the actor along the Z axis", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( DeltaTransformToActors, "Delta Transform", "Apply Delta Transform to selected elements", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( MirrorActorX, "Mirror X", "Mirrors the element along the X axis", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( MirrorActorY, "Mirror Y", "Mirrors the element along the Y axis", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( MirrorActorZ, "Mirror Z", "Mirrors the element along the Z axis", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( LockActorMovement, "Lock Actor Movement", "Locks the actor so it cannot be moved", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( DetachFromParent, "Detach", "Detach the actor from its parent", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( AttachSelectedActors, "Attach Selected Actors", "Attach the selected actors to the last selected actor", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Alt, EKeys::B) );

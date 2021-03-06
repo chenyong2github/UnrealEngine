@@ -44,6 +44,7 @@
 #include "EditorViewportCommands.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "LevelEditorCreateActorMenu.h"
+#include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "SourceCodeNavigation.h"
 #include "EditorClassUtils.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -125,7 +126,8 @@ public:
 	 * @param MenuBuilder	The menu to add items to
 	 * @param ContextType	The context for this editor menu
 	 */
-	static void FillEditMenu(UToolMenu* Menu);
+	static void FillEditMenu(UToolMenu* Menu) { FillEditMenu(Menu, nullptr); }
+	static void FillEditMenu(UToolMenu* Menu, FToolMenuSection* InSection);
 
 	/**
 	 * Fills in menu options for the merge actors menu
@@ -449,6 +451,33 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 	}));
 }
 
+void FLevelEditorContextMenu::RegisterElementContextMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (ToolMenus->IsMenuRegistered("LevelEditor.ElementContextMenu"))
+	{
+		return;
+	}
+
+	UToolMenu* Menu = ToolMenus->RegisterMenu("LevelEditor.ElementContextMenu");
+	Menu->AddDynamicSection("ElementContextMenuDynamic", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+	{
+		{
+			FToolMenuSection& Section = InMenu->AddSection("ElementEditActions", LOCTEXT("ElementEditActions", "Edit"));
+			FLevelEditorContextMenuImpl::FillEditMenu(InMenu, &Section);
+		}
+
+		{
+			FToolMenuSection& Section = InMenu->AddSection("ElementLevelActions", LOCTEXT("ElementLevelActions", "Level"));
+			Section.AddSubMenu(
+				"TransformSubMenu",
+				LOCTEXT("TransformSubMenu", "Transform"),
+				LOCTEXT("TransformSubMenu_ToolTip_Element", "Element transform utils"),
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillTransformMenu));
+		}
+	}));
+}
+
 void FLevelEditorContextMenu::RegisterSceneOutlinerContextMenu()
 {
 	UToolMenus* ToolMenus = UToolMenus::Get();
@@ -503,17 +532,27 @@ void FLevelEditorContextMenu::RegisterEmptySelectionContextMenu()
 	}));
 }
 
-FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext ContextType)
+FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext ContextType, const UTypedElementSelectionSet* InSelectionSet)
 {
-	if (GEditor->GetSelectedComponentCount() > 0)
+	if (InSelectionSet)
 	{
-		return "LevelEditor.ComponentContextMenu";
+		if (InSelectionSet->HasSelectedObjects<UActorComponent>())
+		{
+			return "LevelEditor.ComponentContextMenu";
+		}
+
+		if (InSelectionSet->HasSelectedObjects<AActor>())
+		{
+			return "LevelEditor.ActorContextMenu";
+		}
+
+		if (InSelectionSet->GetNumSelectedElements())
+		{
+			return "LevelEditor.ElementContextMenu";
+		}
 	}
-	else if (GEditor->GetSelectedActorCount() > 0)
-	{
-		return "LevelEditor.ActorContextMenu";
-	}
-	else if (ContextType == ELevelEditorMenuContext::SceneOutliner)
+
+	if (ContextType == ELevelEditorMenuContext::SceneOutliner)
 	{
 		return "LevelEditor.SceneOutlinerContextMenu";
 	}
@@ -521,25 +560,39 @@ FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext Contex
 	return "LevelEditor.EmptySelectionContextMenu";
 }
 
-FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, AActor* HitProxyActor)
+FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, const FTypedElementHandle& HitProxyElement)
 {
 	RegisterComponentContextMenu();
 	RegisterActorContextMenu();
+	RegisterElementContextMenu();
 	RegisterSceneOutlinerContextMenu();
 	RegisterEmptySelectionContextMenu();
 
-	TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditor.Pin()->GetLevelEditorActions();
+	TSharedPtr<SLevelEditor> LevelEditorPtr = LevelEditor.Pin();
+	check(LevelEditorPtr);
+
+	TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditorPtr->GetLevelEditorActions();
 	Context.AppendCommandList(LevelEditorActionsList);
 
 	ULevelEditorContextMenuContext* ContextObject = NewObject<ULevelEditorContextMenuContext>();
 	ContextObject->LevelEditor = LevelEditor;
 	ContextObject->ContextType = ContextType;
-	ContextObject->HitProxyActor = HitProxyActor;
+	ContextObject->CurrentSelection = LevelEditorPtr->GetElementSelectionSet();
+	ContextObject->HitProxyElement = HitProxyElement;
+	{
+		TTypedElement<UTypedElementObjectInterface> HitProxyObjectElement = ContextObject->CurrentSelection->GetElementList()->GetElement<UTypedElementObjectInterface>(ContextObject->HitProxyElement);
+		ContextObject->HitProxyActor = HitProxyObjectElement ? Cast<AActor>(HitProxyObjectElement.GetObject()) : nullptr;
+	}
 	for (FSelectedEditableComponentIterator It(GEditor->GetSelectedEditableComponentIterator()); It; ++It)
 	{
 		ContextObject->SelectedComponents.Add(CastChecked<UActorComponent>(*It));
 	}
-	Context.AddObject(ContextObject);
+	Context.AddObject(ContextObject, [](UObject* InContext)
+	{
+		ULevelEditorContextMenuContext* CastContext = CastChecked<ULevelEditorContextMenuContext>(InContext);
+		CastContext->CurrentSelection = nullptr;
+		CastContext->HitProxyElement.Release();
+	});
 
 	if (GEditor->GetSelectedComponentCount() == 0 && GEditor->GetSelectedActorCount() > 0)
 	{
@@ -564,10 +617,10 @@ FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakP
 		}
 	}
 
-	return GetContextMenuName(ContextType);
+	return GetContextMenuName(ContextType, ContextObject->CurrentSelection);
 }
 
-UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, AActor* HitProxyActor)
+UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, const FTypedElementHandle& HitProxyElement)
 {
 	FToolMenuContext Context;
 	if (Extender.IsValid())
@@ -575,15 +628,15 @@ UToolMenu* FLevelEditorContextMenu::GenerateMenu(TWeakPtr<SLevelEditor> LevelEdi
 		Context.AddExtender(Extender);
 	}
 
-	FName ContextMenuName = InitMenuContext(Context, LevelEditor, ContextType, HitProxyActor);
+	FName ContextMenuName = InitMenuContext(Context, LevelEditor, ContextType, HitProxyElement);
 	return UToolMenus::Get()->GenerateMenu(ContextMenuName, Context);
 }
 
 // NOTE: We intentionally receive a WEAK pointer here because we want to be callable by a delegate whose
 //       payload contains a weak reference to a level editor instance
-TSharedPtr< SWidget > FLevelEditorContextMenu::BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, AActor* HitProxyActor)
+TSharedPtr< SWidget > FLevelEditorContextMenu::BuildMenuWidget(TWeakPtr< SLevelEditor > LevelEditor, ELevelEditorMenuContext ContextType, TSharedPtr<FExtender> Extender, const FTypedElementHandle& HitProxyElement)
 {
-	UToolMenu* Menu = GenerateMenu(LevelEditor, ContextType, Extender, HitProxyActor);
+	UToolMenu* Menu = GenerateMenu(LevelEditor, ContextType, Extender, HitProxyElement);
 	return UToolMenus::Get()->GenerateWidget(Menu);
 }
 
@@ -688,7 +741,7 @@ void FLevelEditorContextMenu::SummonViewOptionMenu( const TSharedRef< SLevelEdit
 	BuildViewOptionMenu(LevelEditor, MakeViewOptionWidget(LevelEditor, bShouldCloseWindowAfterMenuSelection, ViewOptionType), MouseCursorLocation);
 }
 
-void FLevelEditorContextMenu::SummonMenu(const TSharedRef< SLevelEditor >& LevelEditor, ELevelEditorMenuContext ContextType, AActor* HitProxyActor)
+void FLevelEditorContextMenu::SummonMenu(const TSharedRef< SLevelEditor >& LevelEditor, ELevelEditorMenuContext ContextType, const FTypedElementHandle& HitProxyElement)
 {
 	struct Local
 	{
@@ -712,7 +765,7 @@ void FLevelEditorContextMenu::SummonMenu(const TSharedRef< SLevelEditor >& Level
 	Extender->AddMenuExtension("LevelViewportAttach", EExtensionHook::After, TSharedPtr< FUICommandList >(), FMenuExtensionDelegate::CreateStatic(&Local::ExtendMenu));
 
 	// Create the context menu!
-	TSharedPtr<SWidget> MenuWidget = BuildMenuWidget( LevelEditor, ContextType, Extender, HitProxyActor );
+	TSharedPtr<SWidget> MenuWidget = BuildMenuWidget( LevelEditor, ContextType, Extender, HitProxyElement );
 	if ( MenuWidget.IsValid() )
 	{
 		// @todo: Should actually use the location from a click event instead!
@@ -1037,8 +1090,9 @@ void FLevelEditorContextMenuImpl::FillActorLevelMenu(UToolMenu* Menu)
 
 void FLevelEditorContextMenuImpl::FillTransformMenu(UToolMenu* Menu)
 {
-	if ( FLevelEditorActionCallbacks::ActorSelected_CanExecute() )
+	if ( FLevelEditorActionCallbacks::ElementSelected_CanExecute() )
 	{
+		if ( FLevelEditorActionCallbacks::ActorSelected_CanExecute() )
 		{
 			FToolMenuSection& Section = Menu->AddSection("TransformSnapAlign");
 			Section.AddSubMenu(
@@ -1056,10 +1110,19 @@ void FLevelEditorContextMenuImpl::FillTransformMenu(UToolMenu* Menu)
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("MirrorLock");
-		Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorX);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorY);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorZ);
-		Section.AddMenuEntry(FLevelEditorCommands::Get().LockActorMovement);
+
+		// TODO: Need an element API to allow the mirror actions
+		if ( FLevelEditorActionCallbacks::ActorSelected_CanExecute() )
+		{
+			Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorX);
+			Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorY);
+			Section.AddMenuEntry(FLevelEditorCommands::Get().MirrorActorZ);
+		}
+
+		if ( FLevelEditorActionCallbacks::ActorSelected_CanExecute() )
+		{
+			Section.AddMenuEntry(FLevelEditorCommands::Get().LockActorMovement);
+		}
 	}
 }
 
@@ -1287,9 +1350,9 @@ void FLevelEditorContextMenuImpl::FillGroupMenu( UToolMenu* Menu )
 	}
 }
 
-void FLevelEditorContextMenuImpl::FillEditMenu( UToolMenu* Menu )
+void FLevelEditorContextMenuImpl::FillEditMenu( UToolMenu* Menu, FToolMenuSection* InSection )
 {
-	FToolMenuSection& Section = Menu->AddSection("Section");
+	FToolMenuSection& Section = InSection ? *InSection : Menu->AddSection("Section");
 
 	Section.AddMenuEntry( FGenericCommands::Get().Cut );
 	Section.AddMenuEntry( FGenericCommands::Get().Copy );

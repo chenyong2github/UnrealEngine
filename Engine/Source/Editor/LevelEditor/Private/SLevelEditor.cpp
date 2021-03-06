@@ -800,9 +800,9 @@ TSharedRef<SDockTab> SLevelEditor::SpawnLevelEditorTab( const FSpawnTabArgs& Arg
 			if (!ToolMenus->IsMenuRegistered(MenuName))
 			{
 				UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName, "SceneOutliner.DefaultContextMenuBase");
-				FToolMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+				FToolMenuSection& Section = Menu->AddDynamicSection("LevelEditorContextMenu", FNewToolMenuDelegate::CreateLambda([SelectionSet = TWeakObjectPtr<const UTypedElementSelectionSet>(GetElementSelectionSet())](UToolMenu* InMenu)
 				{
-					FName LevelContextMenuName = FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext::SceneOutliner);
+					FName LevelContextMenuName = FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext::SceneOutliner, SelectionSet.Get());
 					if (LevelContextMenuName != NAME_None)
 					{
 						// Extend the menu even if no actors selected, as Edit menu should always exist for scene outliner
@@ -1754,9 +1754,9 @@ UTypedElementSelectionSet* SLevelEditor::GetMutableElementSelectionSet()
 	return SelectedElements;
 }
 
-void SLevelEditor::SummonLevelViewportContextMenu(AActor* HitProxyActor)
+void SLevelEditor::SummonLevelViewportContextMenu(const FTypedElementHandle& HitProxyElement)
 {
-	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), ELevelEditorMenuContext::Viewport, HitProxyActor);
+	FLevelEditorContextMenu::SummonMenu( SharedThis( this ), ELevelEditorMenuContext::Viewport, HitProxyElement);
 }
 
 void SLevelEditor::SummonLevelViewportViewOptionMenu(const ELevelViewportType ViewOption)
