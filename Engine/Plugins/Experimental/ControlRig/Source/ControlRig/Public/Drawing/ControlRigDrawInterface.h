@@ -46,6 +46,8 @@ public:
 
 private:
 
+	bool IsEnabled() const;
+
 	friend class FControlRigEditMode;
 	friend class UControlRig;
 };
