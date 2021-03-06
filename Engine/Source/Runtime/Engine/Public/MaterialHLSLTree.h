@@ -1,4 +1,7 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
+#if WITH_EDITOR
 
 #include "Misc/MemStack.h"
 
@@ -41,3 +44,5 @@ private:
 	int32 NumFunctionInputs = 0;
 	int32 NumFunctionOutputs = 0;
 };
+
+#endif // WITH_EDITOR

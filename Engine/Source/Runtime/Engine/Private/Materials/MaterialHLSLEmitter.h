@@ -1,4 +1,7 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
+
+#if WITH_EDITOR
 
 #include "CoreMinimal.h"
 #include "Templates/RefCounting.h"
@@ -21,3 +24,5 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	const UE::HLSLTree::FTree& InTree,
 	FMaterialCompilationOutput& OutCompilationOutput,
 	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
+
+#endif // WITH_EDITOR

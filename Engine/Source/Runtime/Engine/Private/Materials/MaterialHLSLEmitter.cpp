@@ -1,4 +1,8 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "Materials/MaterialHLSLEmitter.h"
+
+#if WITH_EDITOR
+
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionTextureBase.h"
 #include "Materials/MaterialExpressionExecBegin.h"
@@ -689,3 +693,5 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 
 	return true;
 }
+
+#endif // WITH_EDITOR

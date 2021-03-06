@@ -1,4 +1,8 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
 #include "MaterialHLSLTree.h"
+
+#if WITH_EDITOR
+
 #include "MaterialHLSLGenerator.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialFunction.h"
@@ -75,3 +79,5 @@ UE::HLSLTree::FFunctionCall* FMaterialHLSLTree::GenerateFunctionCall(FMaterialHL
 		NumFunctionInputs,
 		NumFunctionOutputs);
 }
+
+#endif // WITH_EDITOR
