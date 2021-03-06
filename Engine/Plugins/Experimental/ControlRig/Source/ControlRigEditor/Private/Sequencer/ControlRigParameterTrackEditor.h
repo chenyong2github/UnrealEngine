@@ -112,9 +112,12 @@ private:
 	/** Post Edit Delegates */
 	void OnPropagateObjectChanges(UObject* InChangedObject);
 
-	/** Handle Creattion for SkelMeshComp or Actor Owner, either may have a binding*/
+	/** Handle Creation for SkelMeshComp or Actor Owner, either may have a binding*/
 	FMovieSceneTrackEditor::FFindOrCreateHandleResult FindOrCreateHandleToSceneCompOrOwner(USceneComponent* InComp);
-	
+
+	/** Handle Creation for control rig track given the object binding and the control rig */	
+	FMovieSceneTrackEditor::FFindOrCreateTrackResult FindOrCreateControlRigTrackForObject(FGuid ObjectBinding, UControlRig* ControlRig, FName PropertyName = NAME_None, bool bCreateTrackIfMissing = true);
+
 	/** Import FBX*/
 	void ImportFBX(UMovieSceneControlRigParameterTrack* InTrack, UMovieSceneControlRigParameterSection* InSection, 
 		TArray<FFBXNodeAndChannels>* NodeAndChannels);
