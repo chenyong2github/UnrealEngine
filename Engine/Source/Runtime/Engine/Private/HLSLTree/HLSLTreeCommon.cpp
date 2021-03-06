@@ -360,6 +360,28 @@ void UE::HLSLTree::FExpressionCast::EmitHLSL(FEmitContext& Context, FCodeWriter&
 	}
 }
 
+void UE::HLSLTree::FExpressionFunctionInput::EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const
+{
+	const FEmitContext::FFunctionStackEntry& StackEntry = Context.FunctionStack.Last();
+	FExpression* InputExpression = StackEntry.FunctionCall->Inputs[InputIndex];
+	const TCHAR* Ref = Context.AcquireHLSLReference(InputExpression);
+	Writer.Writef(TEXT("%s"), Ref);
+}
+
+void UE::HLSLTree::FExpressionFunctionOutput::EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const
+{
+	const TCHAR* Ref = Context.AcquireHLSLReference(FunctionCall, OutputIndex);
+	Writer.Writef(TEXT("%s"), Ref);
+}
+
+void UE::HLSLTree::FStatementSetFunctionOutput::EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const
+{
+	const FEmitContext::FFunctionStackEntry& StackEntry = Context.FunctionStack.Last();
+	const TCHAR* OutputRef = Context.AcquireHLSLReference(StackEntry.FunctionCall, OutputIndex);
+	const TCHAR* ExpressionRef = Context.AcquireHLSLReference(Expression);
+	Writer.WriteLinef(TEXT("%s = %s;"), OutputRef, ExpressionRef);
+}
+
 void UE::HLSLTree::FStatementReturn::EmitHLSL(UE::HLSLTree::FEmitContext& Context, UE::HLSLTree::FCodeWriter& Writer) const
 {
 	const TCHAR* Ref = Context.AcquireHLSLReference(Expression);

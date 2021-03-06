@@ -14,7 +14,12 @@
 class FMaterial;
 class FMaterialCompilationOutput;
 struct FSharedShaderCompilerEnvironment;
+struct FMaterialCompileTargetParameters;
+class UMaterialFunctionInterface;
 class UMaterialExpression;
+class UMaterialExpressionFunctionInput;
+class UMaterialExpressionFunctionOutput;
+struct FFunctionExpressionInput;
 class ITargetPlatform;
 enum class EMaterialGenerateHLSLStatus : uint8;
 
@@ -27,6 +32,7 @@ class FExpressionConstant;
 class FExpressionExternalInput;
 class FExpressionSwizzle;
 class FExpressionCast;
+class FFunctionCall;
 }
 }
 
@@ -36,13 +42,17 @@ class FExpressionCast;
 class FMaterialHLSLGenerator
 {
 public:
-	FMaterialHLSLGenerator(EShaderPlatform InShaderPlatform,
-		ERHIFeatureLevel::Type InFeatureLevel,
-		const ITargetPlatform* InTargetPlatform);
+	FMaterialHLSLGenerator(const FMaterialCompileTargetParameters& InCompilerTarget,
+		UE::HLSLTree::FTree& InOutTree);
 
-	bool GenerateHLSL(FMaterial& InMaterial,
-		FMaterialCompilationOutput& OutCompilationOutput,
-		TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
+	const FMaterialCompileTargetParameters& GetCompileTarget() const { return CompileTarget; }
+
+	//bool GenerateHLSL(FMaterial& InMaterial,
+	//	FMaterialCompilationOutput& OutCompilationOutput,
+	//	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment);
+
+	/** Retrieve the compile errors from the generator */
+	void AcquireErrors(TArray<FString>& OutCompileErrors, TArray<UMaterialExpression*>& OutErrorExpressions);
 
 	EMaterialGenerateHLSLStatus Error(const FString& Message);
 
@@ -59,6 +69,8 @@ public:
 	UE::HLSLTree::FExpressionSwizzle* NewSwizzle(UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input);
 	UE::HLSLTree::FExpression* NewCast(UE::HLSLTree::FScope& Scope, UE::HLSLTree::EExpressionType Type, UE::HLSLTree::FExpression* Input, UE::HLSLTree::ECastFlags Flags = UE::HLSLTree::ECastFlags::None);
 
+	UE::HLSLTree::FExpression* NewFunctionInput(UE::HLSLTree::FScope& Scope, int32 InputIndex, UMaterialExpressionFunctionInput* MaterialFunctionInput);
+
 	UE::HLSLTree::FLocalDeclaration* AcquireLocalDeclaration(UE::HLSLTree::FScope& Scope, UE::HLSLTree::EExpressionType Type, const FName& Name);
 	UE::HLSLTree::FParameterDeclaration* AcquireParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::HLSLTree::FConstant& DefaultValue);
 
@@ -67,6 +79,8 @@ public:
 
 	/** Returns a declaration to access the given texture parameter */
 	UE::HLSLTree::FTextureParameterDeclaration* AcquireTextureParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::HLSLTree::FTextureDescription& DefaultValue);
+
+	UE::HLSLTree::FFunctionCall* AcquireFunctionCall(UE::HLSLTree::FScope& Scope, UMaterialFunctionInterface* Function, TArrayView<UE::HLSLTree::FExpression*> Inputs);
 
 	/**
 	 * Returns the appropriate HLSLNode representing the given UMaterialExpression.
@@ -96,10 +110,23 @@ private:
 		}
 	};
 
-	FMemStackBase Allocator;
-	EShaderPlatform ShaderPlatform;
-	ERHIFeatureLevel::Type FeatureLevel;
-	const ITargetPlatform* TargetPlatform;
+	struct FFunctionCallKey
+	{
+		UMaterialFunctionInterface* Function;
+		FSHAHash InputHash;
+
+		friend inline uint32 GetTypeHash(const FFunctionCallKey& Value)
+		{
+			return HashCombine(GetTypeHash(Value.Function), GetTypeHash(Value.InputHash));
+		}
+
+		friend inline bool operator==(const FFunctionCallKey& Lhs, const FFunctionCallKey& Rhs)
+		{
+			return Lhs.Function == Rhs.Function && Lhs.InputHash == Rhs.InputHash;
+		}
+	};
+
+	const FMaterialCompileTargetParameters& CompileTarget;
 	UE::HLSLTree::FTree* HLSLTree;
 	TArray<FExpressionKey> ExpressionStack;
 	TArray<FString> CompileErrors;
@@ -108,6 +135,7 @@ private:
 	TMap<FName, UE::HLSLTree::FParameterDeclaration*> ParameterDeclarationMap;
 	TMap<UE::HLSLTree::FTextureDescription, UE::HLSLTree::FTextureParameterDeclaration*> TextureDeclarationMap;
 	TMap<FName, UE::HLSLTree::FTextureParameterDeclaration*> TextureParameterDeclarationMap;
+	TMap<FFunctionCallKey, UE::HLSLTree::FFunctionCall*> FunctionCallMap;
 	TMap<FExpressionKey, UE::HLSLTree::FExpression*> ExpressionMap;
 	TMap<UMaterialExpression*, UE::HLSLTree::FStatement*> StatementMap;
 };

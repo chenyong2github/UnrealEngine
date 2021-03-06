@@ -17,6 +17,7 @@ class FParameterDeclaration;
 class FTextureParameterDeclaration;
 class FStatement;
 class FScope;
+class FFunctionCall;
 class FTree;
 class FCodeWriter;
 

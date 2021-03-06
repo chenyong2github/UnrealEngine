@@ -81,10 +81,17 @@ public:
 	/** Returns a snippet of HLSL source code that references the given local variablew */
 	const TCHAR* AcquireHLSLReference(FLocalDeclaration* Declaration);
 
+	const TCHAR* AcquireHLSLReference(FFunctionCall* FunctionCall, int32 OutputIndex);
+
 	struct FScopeEntry
 	{
 		const FScope* Scope;
 		FCodeWriter* ExpressionCodeWriter;
+	};
+
+	struct FFunctionStackEntry
+	{
+		FFunctionCall* FunctionCall;
 	};
 
 	struct FDeclarationEntry
@@ -92,12 +99,20 @@ public:
 		const TCHAR* Definition;
 	};
 
+	struct FFunctionCallEntry
+	{
+		TCHAR const* const* OutputDefinition;
+		int32 NumOutputs;
+	};
+
 	FScopeEntry* FindScope(FScope* Scope);
 
 	TArray<FScopeEntry> ScopeStack;
+	TArray<FFunctionStackEntry> FunctionStack;
 	TMap<FNode*, FDeclarationEntry> DeclarationMap;
+	TMap<FFunctionCall*, FFunctionCallEntry> FunctionCallMap;
 	FMemStackBase* Allocator = nullptr;
-	FMaterial* Material = nullptr; // TODO - remove preshader material dependency
+	const FMaterial* Material = nullptr; // TODO - remove preshader material dependency
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	int32 NumExpressionLocals = 0;
 	int32 NumTexCoords = 0;
@@ -123,6 +138,7 @@ public:
 	virtual ENodeVisitResult OnLocalDeclaration(FLocalDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnParameterDeclaration(FParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
 	virtual ENodeVisitResult OnTextureParameterDeclaration(FTextureParameterDeclaration& Declaration) { return ENodeVisitResult::VisitDependentNodes; }
+	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& FunctionCall) { return ENodeVisitResult::VisitDependentNodes; }
 };
 
 /** Root class of the HLSL AST */
@@ -221,7 +237,7 @@ public:
 /**
  * Represents an HLSL texture parameter.
  */
-class FTextureParameterDeclaration : public FNode
+class FTextureParameterDeclaration final : public FNode
 {
 public:
 	FTextureParameterDeclaration(const FName& InName, const FTextureDescription& InDescription) : Name(InName), Description(InDescription) {}
@@ -230,6 +246,23 @@ public:
 
 	FName Name;
 	FTextureDescription Description;
+};
+
+/**
+ * Represents a call to an HLSL function from a separate tree
+ */
+class FFunctionCall final : public FNode
+{
+public:
+	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
+
+	/** Root scope of the function to call. Note that this scope will be from a separate (external) tree */
+	const FScope* FunctionScope;
+
+	FExpression* const* Inputs;
+	EExpressionType const* OutputTypes;
+	int32 NumInputs;
+	int32 NumOutputs;
 };
 
 /**
@@ -247,6 +280,7 @@ public:
 	void AddStatement(FStatement* Statement);
 
 	void UseDeclaration(FLocalDeclaration* Declaration);
+	void UseFunctionCall(FFunctionCall* FunctionCall);
 	void UseExpression(FExpression* Expression);
 	bool TryMoveStatement(FStatement* Statement);
 
@@ -307,6 +341,14 @@ public:
 	FLocalDeclaration* NewLocalDeclaration(FScope& Scope, EExpressionType Type, const FName& Name);
 	FParameterDeclaration* NewParameterDeclaration(FScope& Scope, const FName& Name, const FConstant& DefaultValue);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue);
+
+	FFunctionCall* NewFunctionCall(FScope& Scope,
+		const FScope& FunctionScope,
+		FExpression* const* Inputs,
+		EExpressionType const* OutputTypes,
+		int32 NumInputs,
+		int32 NumOutputs);
+
 private:
 	template<typename T, typename... ArgTypes>
 	inline T* NewNode(ArgTypes&&... Args)

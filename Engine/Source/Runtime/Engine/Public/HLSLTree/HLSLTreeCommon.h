@@ -255,6 +255,66 @@ public:
 	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
 };
 
+class FExpressionFunctionInput : public FExpression
+{
+public:
+	FExpressionFunctionInput(const FName& InName, EExpressionType InType, int32 InIndex)
+		: FExpression(InType), Name(InName), InputIndex(InIndex)
+	{}
+
+	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+
+	FName Name;
+	int32 InputIndex;
+};
+
+class FExpressionFunctionOutput : public FExpression
+{
+public:
+	FExpressionFunctionOutput(FFunctionCall* InFunctionCall, int32 InIndex)
+		: FExpression(InFunctionCall->OutputTypes[InIndex])
+		, FunctionCall(InFunctionCall)
+		, OutputIndex(InIndex)
+	{
+		check(InIndex >= 0 && InIndex < InFunctionCall->NumOutputs);
+	}
+
+	FFunctionCall* FunctionCall;
+	int32 OutputIndex;
+
+	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
+	{
+		const ENodeVisitResult Result = FExpression::Visit(Visitor);
+		if (ShouldVisitDependentNodes(Result))
+		{
+			Visitor.VisitNode(FunctionCall);
+		}
+		return Result;
+	}
+
+	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+};
+
+class FStatementSetFunctionOutput : public FStatement
+{
+public:
+	FExpression* Expression;
+	FName Name;
+	int32 OutputIndex;
+
+	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
+	{
+		const ENodeVisitResult Result = FStatement::Visit(Visitor);
+		if (ShouldVisitDependentNodes(Result))
+		{
+			Visitor.VisitNode(Expression);
+		}
+		return Result;
+	}
+
+	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+};
+
 class FStatementReturn : public FStatement
 {
 public:

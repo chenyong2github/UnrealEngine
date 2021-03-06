@@ -309,6 +309,46 @@ const TCHAR* UE::HLSLTree::FEmitContext::AcquireHLSLReference(UE::HLSLTree::FExp
 	return Entry.Definition;
 }
 
+const TCHAR* UE::HLSLTree::FEmitContext::AcquireHLSLReference(FFunctionCall* FunctionCall, int32 OutputIndex)
+{
+	check(FunctionCall);
+
+	FFunctionCallEntry& Entry = FunctionCallMap.FindOrAdd(FunctionCall);
+	if (!Entry.OutputDefinition)
+	{
+		FScopeEntry* ScopeEntry = FindScope(FunctionCall->ParentScope);
+		check(ScopeEntry);
+
+		TCHAR const** OutputDefinition = New<const TCHAR*>(*Allocator, FunctionCall->NumOutputs);
+		for (int32 i = 0; i < FunctionCall->NumOutputs; ++i)
+		{
+			OutputDefinition[i] = AllocateStringf(*Allocator, TEXT("Local%d"), NumExpressionLocals++);
+			const FExpressionTypeDescription& TypeDesc = GetExpressionTypeDescription(FunctionCall->OutputTypes[i]);
+			ScopeEntry->ExpressionCodeWriter->WriteLinef(TEXT("%s %s = (%s)0.0f;"),
+				TypeDesc.Name,
+				OutputDefinition[i],
+				TypeDesc.Name);
+		}
+
+		Entry.OutputDefinition = OutputDefinition;
+		Entry.NumOutputs = FunctionCall->NumOutputs;
+
+		FFunctionStackEntry& StackEntry = FunctionStack.AddDefaulted_GetRef();
+		StackEntry.FunctionCall = FunctionCall;
+
+		FunctionCall->FunctionScope->EmitHLSL(*this, *ScopeEntry->ExpressionCodeWriter);
+
+		{
+			const FFunctionStackEntry PoppedStackEntry = FunctionStack.Pop();
+			check(PoppedStackEntry.FunctionCall == FunctionCall);
+		}
+	}
+
+	check(Entry.NumOutputs == FunctionCall->NumOutputs);
+	check(OutputIndex >= 0 && OutputIndex < Entry.NumOutputs);
+	return Entry.OutputDefinition[OutputIndex];
+}
+
 void UE::HLSLTree::FNodeVisitor::VisitNode(UE::HLSLTree::FNode* Node)
 {
 	if (Node)
@@ -350,6 +390,20 @@ UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FParameterDeclaration::Visit(UE::HL
 UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FTextureParameterDeclaration::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
 {
 	return Visitor.OnTextureParameterDeclaration(*this);
+}
+
+UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FFunctionCall::Visit(FNodeVisitor& Visitor)
+{
+	const ENodeVisitResult Result = Visitor.OnFunctionCall(*this);
+	if (ShouldVisitDependentNodes(Result))
+	{
+		// Don't visit the function scope, as that is from a different tree
+		for (int32 i = 0; i < NumInputs; ++i)
+		{
+			Visitor.VisitNode(Inputs[i]);
+		}
+	}
+	return Result;
 }
 
 UE::HLSLTree::ENodeVisitResult UE::HLSLTree::FScope::Visit(UE::HLSLTree::FNodeVisitor& Visitor)
@@ -473,6 +527,12 @@ public:
 		return ENodeVisitResult::VisitDependentNodes;
 	}
 
+	virtual ENodeVisitResult OnFunctionCall(FFunctionCall& InFunctionCall) override
+	{
+		Scope->UseNode(&InFunctionCall);
+		return ENodeVisitResult::VisitDependentNodes;
+	}
+
 	FScope* Scope;
 };
 } // namespace HLSLTree
@@ -483,6 +543,12 @@ void UE::HLSLTree::FScope::UseExpression(UE::HLSLTree::FExpression* Expression)
 	// Need to move all dependent expressions/declarations into this scope
 	FNodeVisitor_MoveToScope Visitor(this);
 	Visitor.VisitNode(Expression);
+}
+
+void UE::HLSLTree::FScope::UseFunctionCall(FFunctionCall* FunctionCall)
+{
+	FNodeVisitor_MoveToScope Visitor(this);
+	Visitor.VisitNode(FunctionCall);
 }
 
 void UE::HLSLTree::FScope::AddStatement(UE::HLSLTree::FStatement* Statement)
@@ -601,9 +667,32 @@ UE::HLSLTree::FParameterDeclaration* UE::HLSLTree::FTree::NewParameterDeclaratio
 	Declaration->ParentScope = &Scope;
 	return Declaration;
 }
+
 UE::HLSLTree::FTextureParameterDeclaration* UE::HLSLTree::FTree::NewTextureParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::HLSLTree::FTextureDescription& DefaultValue)
 {
 	FTextureParameterDeclaration* Declaration = NewNode<FTextureParameterDeclaration>(Name, DefaultValue);
 	Declaration->ParentScope = &Scope;
 	return Declaration;
+}
+
+UE::HLSLTree::FFunctionCall* UE::HLSLTree::FTree::NewFunctionCall(FScope& Scope,
+	const FScope& InFunctionScope,
+	FExpression* const* InInputs,
+	EExpressionType const* InOutputTypes,
+	int32 InNumInputs,
+	int32 InNumOutputs)
+{
+	FExpression** Inputs = New<FExpression*>(*Allocator, InNumInputs);
+	EExpressionType* OutputTypes = New<EExpressionType>(*Allocator, InNumOutputs);
+	FMemory::Memcpy(Inputs, InInputs, InNumInputs * sizeof(FExpression*));
+	FMemory::Memcpy(OutputTypes, InOutputTypes, InNumOutputs * sizeof(FExpression*));
+
+	FFunctionCall* FunctionCall = NewNode<FFunctionCall>();
+	FunctionCall->ParentScope = &Scope;
+	FunctionCall->FunctionScope = &InFunctionScope;
+	FunctionCall->Inputs = Inputs;
+	FunctionCall->OutputTypes = OutputTypes;
+	FunctionCall->NumInputs = InNumInputs;
+	FunctionCall->NumOutputs = InNumOutputs;
+	return FunctionCall;
 }

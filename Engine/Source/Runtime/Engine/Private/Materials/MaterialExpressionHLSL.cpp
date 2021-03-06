@@ -3,11 +3,12 @@
 
 #if WITH_EDITOR
 
-#include "Materials/MaterialExpression.h"
 #include "MaterialHLSLGenerator.h"
+#include "MaterialHLSLTree.h"
 #include "HLSLTree/HLSLTree.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 
+#include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionExecBegin.h"
 #include "Materials/MaterialExpressionReturnMaterialAttributes.h"
 #include "Materials/MaterialExpressionConstant.h"
@@ -20,12 +21,15 @@
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
+#include "Materials/MaterialExpressionFunctionInput.h"
+#include "Materials/MaterialExpressionMaterialFunctionCall.h"
 #include "Materials/MaterialExpressionGetLocal.h"
 #include "Materials/MaterialExpressionAdd.h"
 #include "Materials/MaterialExpressionSetMaterialAttributes.h"
 #include "Materials/MaterialExpressionSetLocal.h"
 #include "Materials/MaterialExpressionIfThenElse.h"
 #include "Materials/MaterialExpressionForLoop.h"
+#include "Materials/MaterialFunctionInterface.h"
 
 EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
 {
@@ -40,6 +44,16 @@ EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLStatement(FMaterial
 EMaterialGenerateHLSLStatus UMaterialExpression::GenerateHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FTextureParameterDeclaration*& OutTexture)
 {
 	return Generator.Error(TEXT("Node does not support textures"));
+}
+
+FMaterialHLSLTree& UMaterialFunctionInterface::AcquireHLSLTree(FMaterialHLSLGenerator& Generator)
+{
+	if (!CachedHLSLTree)
+	{
+		CachedHLSLTree = new FMaterialHLSLTree();
+		CachedHLSLTree->InitializeForFunction(Generator.GetCompileTarget(), this);
+	}
+	return *CachedHLSLTree;
 }
 
 EMaterialGenerateHLSLStatus UMaterialExpressionConstant::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
@@ -204,6 +218,56 @@ EMaterialGenerateHLSLStatus UMaterialExpressionSetMaterialAttributes::GenerateHL
 	}
 
 	OutExpression = AttributesExpression;
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
+EMaterialGenerateHLSLStatus UMaterialExpressionFunctionInput::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	UE::HLSLTree::EExpressionType ExpressionType = UE::HLSLTree::EExpressionType::Void;
+	switch (InputType)
+	{
+	case FunctionInput_Scalar: ExpressionType = UE::HLSLTree::EExpressionType::Float1; break;
+	case FunctionInput_Vector2: ExpressionType = UE::HLSLTree::EExpressionType::Float2; break;
+	case FunctionInput_Vector3: ExpressionType = UE::HLSLTree::EExpressionType::Float3; break;
+	case FunctionInput_Vector4: ExpressionType = UE::HLSLTree::EExpressionType::Float4; break;
+	case FunctionInput_Texture2D:
+	case FunctionInput_TextureCube:
+	case FunctionInput_Texture2DArray:
+	case FunctionInput_VolumeTexture:
+	case FunctionInput_StaticBool:
+	case FunctionInput_MaterialAttributes:
+	case FunctionInput_TextureExternal:
+		break;
+	}
+	if (ExpressionType == UE::HLSLTree::EExpressionType::Void)
+	{
+		return Generator.Error(TEXT("Invalid input connection"));
+	}
+
+	UE::HLSLTree::FLocalDeclaration* Declaration = Generator.AcquireLocalDeclaration(Scope, ExpressionType, InputName);
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionLocalVariable>(Scope, Declaration);
+	return EMaterialGenerateHLSLStatus::Success;
+}
+
+EMaterialGenerateHLSLStatus UMaterialExpressionMaterialFunctionCall::GenerateHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, int32 OutputIndex, UE::HLSLTree::FExpression*& OutExpression)
+{
+	if (!MaterialFunction)
+	{
+		return Generator.Error(TEXT("Missing function"));
+	}
+
+	TArray<UE::HLSLTree::FExpression*> InputExpressions;
+	InputExpressions.Empty(FunctionInputs.Num());
+
+	for (int32 InputIndex = 0; InputIndex < FunctionInputs.Num(); ++InputIndex)
+	{
+		const FFunctionExpressionInput& Input = FunctionInputs[InputIndex];
+		UE::HLSLTree::FExpression* InputExpression = Input.Input.AcquireHLSLExpression(Generator, Scope);
+		InputExpressions.Add(InputExpression);
+	}
+
+	UE::HLSLTree::FFunctionCall* FunctionCall = Generator.AcquireFunctionCall(Scope, MaterialFunction, InputExpressions);
+	OutExpression = Generator.GetTree().NewExpression<UE::HLSLTree::FExpressionFunctionOutput>(Scope, FunctionCall, OutputIndex);
 	return EMaterialGenerateHLSLStatus::Success;
 }
 

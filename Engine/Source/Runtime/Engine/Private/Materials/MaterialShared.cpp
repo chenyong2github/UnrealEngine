@@ -49,6 +49,8 @@
 #if WITH_EDITOR
 #include "Rendering/StaticLightingSystemInterface.h"
 #include "MaterialHLSLGenerator.h"
+#include "MaterialHLSLTree.h"
+#include "MaterialHLSLEmitter.h"
 #include "HLSLTree/HLSLTreeCommon.h"
 #endif
 #if WITH_ODSC
@@ -2308,10 +2310,12 @@ bool FMaterial::Translate_New(const FMaterialShaderMapId& ShaderMapId,
 	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment)
 {
 #if WITH_EDITOR
-	FMaterialHLSLGenerator Generator(InPlatform, ShaderMapId.FeatureLevel, InTargetPlatform);
-	return Generator.GenerateHLSL(*this,
-		OutCompilationOutput,
-		OutMaterialEnvironment);
+	const FMaterialCompileTargetParameters TargetParams(InPlatform, ShaderMapId.FeatureLevel, InTargetPlatform);
+
+	FMaterialHLSLTree Tree;
+	Tree.InitializeForMaterial(TargetParams, *this);
+
+	return MaterialEmitHLSL(TargetParams, *this, Tree.GetTree(), OutCompilationOutput, OutMaterialEnvironment);
 #else
 	checkNoEntry();
 	return false;

@@ -209,6 +209,18 @@ enum EMaterialDomain
 
 ENGINE_API FString MaterialDomainString(EMaterialDomain MaterialDomain);
 
+/** Fully describes a material compilation target */
+struct FMaterialCompileTargetParameters
+{
+	FMaterialCompileTargetParameters(EShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, const ITargetPlatform* InTargetPlatform)
+		: ShaderPlatform(InShaderPlatform), FeatureLevel(InFeatureLevel), TargetPlatform(InTargetPlatform)
+	{}
+
+	EShaderPlatform ShaderPlatform;
+	ERHIFeatureLevel::Type FeatureLevel;
+	const ITargetPlatform* TargetPlatform;
+};
+
 /**
  * The context of a material being rendered.
  */
@@ -2231,7 +2243,7 @@ private:
 	friend class FMaterialShaderMap;
 	friend class FShaderCompilingManager;
 	friend class FHLSLMaterialTranslator;
-	friend class FMaterialHLSLGenerator;
+	friend class FMaterialHLSLTree;
 };
 
 /**
