@@ -288,4 +288,7 @@ private:
 	// Holds a delegate that is executed when the process fails to launch (delayed, in a thread). Used in place of the return value
 	// of Launch in the parent class, since it's async
 	FSimpleDelegate LaunchFailedDelegate;
+
+	static FCriticalSection Serializer;
+	static bool bHasSucceededOnce;
 };
