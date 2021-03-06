@@ -14,6 +14,7 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundSampleCounter.h"
 #include "MetasoundStandardNodesNames.h"
+#include "MetasoundStandardNodesCategories.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -168,6 +169,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = GetVertexInterface();
+			Info.CategoryHierarchy.Emplace(StandardNodes::TriggerUtils);
 
 			return Info;
 		};

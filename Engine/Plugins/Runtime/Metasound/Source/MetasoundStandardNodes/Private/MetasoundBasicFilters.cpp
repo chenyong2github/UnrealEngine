@@ -9,6 +9,7 @@
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundOperatorSettings.h"
 #include "MetasoundStandardNodesNames.h"
+#include "MetasoundStandardNodesCategories.h"
 
 #include "DSP/Filter.h"
 #include "DSP/InterpolatedOnePole.h"
@@ -121,6 +122,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
+			Info.CategoryHierarchy.Emplace(StandardNodes::Filters);
 
 			return Info;
 		};
@@ -312,6 +314,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
+			Info.CategoryHierarchy.Emplace(StandardNodes::Filters);
 
 			return Info;
 		};
@@ -488,6 +491,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
+			Info.CategoryHierarchy.Emplace(StandardNodes::Filters);
 
 			return Info;
 		};
@@ -632,6 +636,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
+			Info.CategoryHierarchy.Emplace(StandardNodes::Filters);
 
 			return Info;
 		};
@@ -805,6 +810,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
+			Info.CategoryHierarchy.Emplace(StandardNodes::Filters);
 
 			return Info;
 		};

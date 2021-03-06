@@ -11,14 +11,13 @@
 #include "MetasoundStandardNodesNames.h"
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
+#include "MetasoundStandardNodesCategories.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {			
 #pragma region Common
-
-	static const FText GeneratorCategory = { LOCTEXT("Metasound_GeneratorCategory", "Generators") };
 
 	// Contained here are a small selection of block generators and sample generators.
 	// They are templatized to allow quick construction of new oscillators, but aren't considered
@@ -499,7 +498,7 @@ namespace Metasound
 	};
 
 	DECLARE_METASOUND_ENUM(ESineGenerationType, ESineGenerationType::Sinf, METASOUNDSTANDARDNODES_API,
-	FEnumSineGenerationType, FEnumSineGenerationTypeInfo, FEnumSineGenerationTypeReadRef, FEnumSineGenerationTypeWriteRef);
+		FEnumSineGenerationType, FEnumSineGenerationTypeInfo, FEnumSineGenerationTypeReadRef, FEnumSineGenerationTypeWriteRef);
 
 	DEFINE_METASOUND_ENUM_BEGIN(ESineGenerationType, FEnumSineGenerationType, "SineGenerationType")
 		DEFINE_METASOUND_ENUM_ENTRY(ESineGenerationType::Sinf, LOCTEXT("SinfDescription", "Pure Math"), LOCTEXT("SinfDescriptionTT", "Uses Pure Math (Sinf) to generate the Sine Wave (most expensive)")),
@@ -529,7 +528,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(GeneratorCategory);
+				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -649,7 +648,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(GeneratorCategory);
+				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -874,7 +873,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(GeneratorCategory);
+				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();
@@ -985,7 +984,7 @@ namespace Metasound
 				Info.Author = PluginAuthor;
 				Info.PromptIfMissing = PluginNodeMissingPrompt;
 				Info.DefaultInterface = GetVertexInterface();
-				Info.CategoryHierarchy.Emplace(GeneratorCategory);
+				Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
 				return Info;
 			};
 			static const FNodeClassMetadata Info = InitNodeInfo();

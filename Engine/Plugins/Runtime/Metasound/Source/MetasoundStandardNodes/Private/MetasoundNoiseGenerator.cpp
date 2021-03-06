@@ -12,6 +12,7 @@
 #include "MetasoundTrigger.h"
 #include "MetasoundVertex.h"
 #include "DSP/Noise.h"
+#include "MetasoundStandardNodesCategories.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
@@ -183,8 +184,7 @@ namespace Metasound
 			Info.Author = PluginAuthor;
 			Info.PromptIfMissing = PluginNodeMissingPrompt;
 			Info.DefaultInterface = DeclareVertexInterface();
-			Info.CategoryHierarchy = { LOCTEXT("Metasound_GeneratorCategory", "Generators") };
-
+			Info.CategoryHierarchy.Emplace(StandardNodes::Generators);
 			return Info;
 		};
 		static const FNodeClassMetadata Info = InitNodeInfo();
