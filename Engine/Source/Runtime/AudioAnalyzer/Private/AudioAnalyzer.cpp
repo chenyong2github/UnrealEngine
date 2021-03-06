@@ -52,7 +52,7 @@ void UAudioAnalyzer::StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyz
 	// Retrieve the audio analyzer subsystem if it's not already retrieved
 	if (!AudioAnalyzerSubsystem)
 	{
-		AudioAnalyzerSubsystem = UAudioAnalyzerSubsystem::Get(InWorld);
+		AudioAnalyzerSubsystem = UAudioAnalyzerSubsystem::Get();
 	}
 
 	// Store the audio bus we're analyzing
@@ -80,8 +80,11 @@ void UAudioAnalyzer::StartAnalyzing(UWorld* InWorld, UAudioBus* AudioBusToAnalyz
 
 	// Register this audio analyzer with the audio analyzer subsystem
 	// The subsystem will query this analyzer to see if it has enough audio to perform analysis.
-	// If it does, it'll report the results (of any previous analysis) and ask us to start analyzing the audio.		
-	AudioAnalyzerSubsystem->RegisterAudioAnalyzer(this);
+	// If it does, it'll report the results (of any previous analysis) and ask us to start analyzing the audio.	
+	if (AudioAnalyzerSubsystem)
+	{
+		AudioAnalyzerSubsystem->RegisterAudioAnalyzer(this);
+	}
 
 	// Setup the analyzer facade here once
 	AnalyzerFacade = MakeUnique<Audio::FAnalyzerFacade>(GetSettings(AudioMixerSampleRate, NumBusChannels), AnalyzerFactory);

@@ -12,11 +12,11 @@ UAudioAnalyzerSubsystem::~UAudioAnalyzerSubsystem()
 	AudioAnalyzers.Reset();
 }
 
-UAudioAnalyzerSubsystem* UAudioAnalyzerSubsystem::Get(UWorld* World)
+UAudioAnalyzerSubsystem* UAudioAnalyzerSubsystem::Get()
 {
-	if (World)
+	if (GEngine)
 	{
-		return World->GetSubsystem<UAudioAnalyzerSubsystem>();
+		return GEngine->GetEngineSubsystem<UAudioAnalyzerSubsystem>();
 	}
 	return nullptr;
 }
@@ -55,6 +55,17 @@ bool UAudioAnalyzerSubsystem::IsTickable() const
 	}
 
 	return false;
+}
+
+void UAudioAnalyzerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
+{
+	Super::Initialize(Collection);
+}
+
+void UAudioAnalyzerSubsystem::Deinitialize()
+{
+	// Release our audio analyzers
+	AudioAnalyzers.Reset();
 }
 
 void UAudioAnalyzerSubsystem::RegisterAudioAnalyzer(UAudioAnalyzer* InAnalyzer)

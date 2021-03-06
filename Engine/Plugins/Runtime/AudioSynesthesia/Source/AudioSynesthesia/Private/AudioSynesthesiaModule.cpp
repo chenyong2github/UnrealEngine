@@ -5,6 +5,7 @@
 #include "Modules/ModuleInterface.h"
 #include "Features/IModularFeatures.h"
 #include "LoudnessNRTFactory.h"
+#include "AudioAnalyzerModule.h"
 #include "AudioSynesthesiaLog.h"
 
 DEFINE_LOG_CATEGORY(LogAudioSynesthesia);
@@ -16,6 +17,7 @@ namespace Audio
 	void FAudioSynesthesiaModule::StartupModule()
 	{
 		FModuleManager::Get().LoadModuleChecked<IModuleInterface>("AudioSynesthesiaCore");
+		FModuleManager::Get().LoadModuleChecked<FAudioAnalyzerModule>("AudioAnalyzer");
 	}
 
 	void FAudioSynesthesiaModule::ShutdownModule()
