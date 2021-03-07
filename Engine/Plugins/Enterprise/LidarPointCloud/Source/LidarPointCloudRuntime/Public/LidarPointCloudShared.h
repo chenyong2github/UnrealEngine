@@ -284,14 +284,20 @@ public:
 
 #pragma pack(push)
 #pragma pack(1)
+/** 3D vector represented using only a single byte per component */
 USTRUCT(BlueprintType)
 struct LIDARPOINTCLOUDRUNTIME_API FLidarPointCloudNormal
 {
 	GENERATED_BODY()
 
 public:
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Normal")
 	uint8 X;
+	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Normal")
 	uint8 Y;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Lidar Point Normal")
 	uint8 Z;
 
 public:

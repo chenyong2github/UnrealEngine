@@ -785,6 +785,18 @@ public:
 	/** Removes all points hit by the given ray */
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud", meta = (WorldContext = "WorldContextObject"))
 	static void RemovePointsByRay(UObject* WorldContextObject, FVector Origin, FVector Direction, float Radius, bool bVisibleOnly);
+
+	/** Sets the given normal using provided vector */
+	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
+	static void NormalFromVector(UPARAM(ref) FLidarPointCloudNormal& Normal, FVector Vector) { Normal.SetFromVector(Vector); }
+
+	/** Converts a Lidar Point Cloud Normal to a Vector */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Normal to Vector", CompactNodeTitle = "->", BlueprintAutocast), Category = "Lidar Point Cloud")
+	static FVector Conv_LidarPointCloudNormalToVector(const FLidarPointCloudNormal& Normal) { return Normal.ToVector(); }
+
+	/** Converts a Vector to a Lidar Point Cloud Normal */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Vector to Normal", CompactNodeTitle = "->", BlueprintAutocast), Category = "Lidar Point Cloud")
+	static FLidarPointCloudNormal Conv_VectorToLidarPointCloudNormal(const FVector& Vector) { return FLidarPointCloudNormal(Vector); }
 };
 
 UENUM(BlueprintType)
