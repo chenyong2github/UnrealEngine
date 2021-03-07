@@ -2303,14 +2303,14 @@ namespace PerfSummaries
 			return newTable;
 		}
 
-		public SummaryMetadataTable SortAndFilter(string customFilter, string customRowSort = "buildversion,deviceprofile")
+		public SummaryMetadataTable SortAndFilter(string customFilter, string customRowSort = "buildversion,deviceprofile", bool bReverseSort=false)
 		{
-			return SortAndFilter(customFilter.Split(',').ToList(), customRowSort.Split(',').ToList());
+			return SortAndFilter(customFilter.Split(',').ToList(), customRowSort.Split(',').ToList(), bReverseSort);
 		}
 
-		public SummaryMetadataTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList)
+		public SummaryMetadataTable SortAndFilter(List<string> columnFilterList, List<string> rowSortList, bool bReverseSort)
 		{
-			SummaryMetadataTable newTable = SortRows(rowSortList);
+			SummaryMetadataTable newTable = SortRows(rowSortList, bReverseSort);
 
 			// Make a list of all unique keys
 			List<string> allMetadataKeys = new List<string>();
@@ -2534,7 +2534,7 @@ namespace PerfSummaries
 			htmlFile.Close();
         }
 
-		SummaryMetadataTable SortRows(List<string> rowSortList)
+		SummaryMetadataTable SortRows(List<string> rowSortList, bool reverseSort)
 		{
 			List<KeyValuePair<string, int>> columnRemapping = new List<KeyValuePair<string, int>>();
 			for (int i = 0; i < rowCount; i++)
@@ -2568,16 +2568,17 @@ namespace PerfSummaries
 				for (int i = 0; i < rowCount; i++)
 				{
 					int srcIndex = columnRemapping[i].Value;
+					int destIndex = reverseSort ? rowCount-1-i : i;
 					if (srcCol.isNumeric)
 					{
-						destCol.SetValue(i, srcCol.GetValue(srcIndex));
+						destCol.SetValue(destIndex, srcCol.GetValue(srcIndex));
 					}
 					else
 					{
-						destCol.SetStringValue(i, srcCol.GetStringValue(srcIndex));
+						destCol.SetStringValue(destIndex, srcCol.GetStringValue(srcIndex));
 					}
-					destCol.SetColourThresholds(i, srcCol.GetColourThresholds(srcIndex));
-					destCol.SetToolTipValue(i, srcCol.GetToolTipValue(srcIndex));
+					destCol.SetColourThresholds(destIndex, srcCol.GetColourThresholds(srcIndex));
+					destCol.SetToolTipValue(destIndex, srcCol.GetToolTipValue(srcIndex));
 				}
 				newColumns.Add(destCol);
 			}

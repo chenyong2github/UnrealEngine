@@ -20,7 +20,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.17";
+        private static string VersionString = "4.18";
 
         public static string Get() { return VersionString; }
     };
@@ -386,6 +386,7 @@ namespace PerfReportTool
 			"       -noCacheFiles: disables usage of .csv.cache files. Cache files are much faster if filtering on metadata\n" +
 			"       -spreadsheetfriendly: outputs a single quote before non-numeric entries in summary tables\n" +
 			"       -noSummaryMinMax: don't make min/max columns for each stat in a condensed summary\n" +
+			"       -reverseTable: Reverses the order of summary tables\n"+
 			"";
 			/*
 			"Note on custom tables:\n" +
@@ -621,14 +622,14 @@ namespace PerfReportTool
 
 		void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
 		{
+			bool reverseSort = GetBoolArg("reverseTable");
 			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax");
 			if (!string.IsNullOrEmpty(outputDir))
             {
                 filenameWithoutExtension = Path.Combine(outputDir, filenameWithoutExtension);
             }
 
-
-            SummaryMetadataTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList);
+            SummaryMetadataTable filteredTable = table.SortAndFilter(columnFilterList, rowSortList, reverseSort);
 			if (bCollated)
 			{
 				filteredTable = filteredTable.CollateSortedTable(rowSortList, addMinMaxColumns);
