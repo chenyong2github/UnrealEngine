@@ -11,6 +11,7 @@ using System.Xml.Linq;
 using System.IO;
 using System.Diagnostics;
 using CSVStats;
+using System.Collections;
 using System.Threading;
 
 using PerfSummaries;
@@ -19,7 +20,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.16";
+        private static string VersionString = "4.17";
 
         public static string Get() { return VersionString; }
     };
@@ -1010,17 +1011,23 @@ namespace PerfReportTool
 		{
 			numFramesStripped = 0;
             List<CsvEventStripInfo> eventsToStrip = reportXML.GetCsvEventsToStrip();
+			// We want to run the mask apply in parallel if -nodetailedreports is specified. Otherwise leave cores free for graph generation
+			bool doParallelMaskApply = GetBoolArg("noDetailedReports");
 			CsvStats strippedStats = csvStats;
-            if (eventsToStrip != null)
+
+			if (eventsToStrip != null)
             {
-				// This can have issues if we strip events and then subsequently strip overlapping events. We'd get better results if we did it in a single pass
+				BitArray sampleMask = null;
 				foreach (CsvEventStripInfo eventStripInfo in eventsToStrip)
-                {
-					int numFramesStrippedThisStage = 0;
-					strippedStats = strippedStats.StripByEvents(eventStripInfo.beginName, eventStripInfo.endName, false, out numFramesStrippedThisStage);
-					numFramesStripped += numFramesStrippedThisStage;
+				{
+					csvStats.ComputeEventStripSampleMask(eventStripInfo.beginName, eventStripInfo.endName, ref sampleMask);
 				}
-            }
+				if (sampleMask != null)
+				{
+					numFramesStripped = sampleMask.Cast<bool>().Count(l => !l);
+					strippedStats = csvStats.ApplySampleMask(sampleMask, doParallelMaskApply);
+				}
+			}
 
             if (numFramesStripped > 0 )
             {
@@ -1105,7 +1112,7 @@ namespace PerfReportTool
                 {
                     summaryMetadata.Add("framecountExcluded", numFramesStripped.ToString());
                 }
-            }
+			}
 
 			bool bIncludeSummaryCsv = GetBoolArg("writeSummaryCsv") && !bBulkMode;
 
