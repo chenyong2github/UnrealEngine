@@ -562,6 +562,8 @@ public:
 					just_replaced_comp = search_comp;
 
 					curr_assign->insert_before(new_var);
+					// we want to reset the write_mask since we're now assigning the rhs to a scalar on the lhs
+					curr_assign->write_mask = 1;
 					curr_assign->set_lhs(new(parse_state) ir_dereference_variable(new_var));
 					progress = true;
 				}
