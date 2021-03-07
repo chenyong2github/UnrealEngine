@@ -197,7 +197,7 @@ bool UNiagaraScriptSource::AddModuleIfMissing(FString ModulePath, ENiagaraScript
 	return false;
 }
 
-void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraParameterStore& RapidIterationParameters, TArray<FNiagaraVariable> OldRapidIterationVariables, TSet<FName> ValidRapidIterationParameterNames, const UNiagaraEmitter* Emitter, ENiagaraScriptUsage ScriptUsage) const
+void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraParameterStore& RapidIterationParameters, const TArray<FNiagaraVariable>& OldRapidIterationVariables, const TSet<FName>& ValidRapidIterationParameterNames, const UNiagaraEmitter* Emitter, ENiagaraScriptUsage ScriptUsage) const
 {
 	UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(Node);
 	if (FunctionCallNode == nullptr || FunctionCallNode->FunctionScript == nullptr)
@@ -220,24 +220,46 @@ void UNiagaraScriptSource::FixupRenamedParameters(UNiagaraNode* Node, FNiagaraPa
 	// go through the existing rapid iteration params to see if they are either still valid or were renamed
 	for (FNiagaraVariable OldRapidIterationVar : OldRapidIterationVariables)
 	{
-		if (ValidRapidIterationParameterNames.Contains(OldRapidIterationVar.GetName()) || !RapidIterationParameters.ParameterGuidMapping.Contains(OldRapidIterationVar))
+		if (ValidRapidIterationParameterNames.Contains(OldRapidIterationVar.GetName()))
 		{
 			continue;
 		}
 
-		FGuid BoundGuid = RapidIterationParameters.ParameterGuidMapping[OldRapidIterationVar];
-		for (const UEdGraphPin* ModulePin : ModuleInputPins)
+		const FGuid* BoundGuid = RapidIterationParameters.ParameterGuidMapping.Find(OldRapidIterationVar);
+		if (BoundGuid)
 		{
-			FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(ModulePin->PinName), FunctionCallNode);
-			FNiagaraVariable InputVar = NiagaraSchema->PinToNiagaraVariable(ModulePin);
-			TOptional<FNiagaraVariableMetaData> VariableMetaData = Graph->GetMetaData(InputVar);
-
-			// if the guid matches but the names differ then the parameter was renamed, so lets update the rapid iteration parameter
-			if (VariableMetaData.IsSet() && VariableMetaData->GetVariableGuid() == BoundGuid && AliasedFunctionInputHandle.GetParameterHandleString() != OldRapidIterationVar.GetName())
+			for (const UEdGraphPin* ModulePin : ModuleInputPins)
 			{
-				FNiagaraTypeDefinition InputType = NiagaraSchema->PinToTypeDefinition(ModulePin);
-				FNiagaraVariable NewRapidIterationVar = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, ScriptUsage, AliasedFunctionInputHandle.GetParameterHandleString(), InputType);
-				RapidIterationParameters.RenameParameter(OldRapidIterationVar, NewRapidIterationVar.GetName());
+				FNiagaraVariable InputVar = NiagaraSchema->PinToNiagaraVariable(ModulePin);
+				TOptional<FNiagaraVariableMetaData> VariableMetaData = Graph->GetMetaData(InputVar);
+
+				if (VariableMetaData.IsSet() && VariableMetaData->GetVariableGuid() == *BoundGuid)
+				{
+					FNiagaraParameterHandle AliasedFunctionInputHandle = FNiagaraParameterHandle::CreateAliasedModuleParameterHandle(FNiagaraParameterHandle(ModulePin->PinName), FunctionCallNode);
+
+					const FString ConstantName = FNiagaraUtilities::CreateRapidIterationConstantName(AliasedFunctionInputHandle.GetParameterHandleString(), *UniqueEmitterName, ScriptUsage);
+
+					// if the names match move on
+					if (OldRapidIterationVar.GetName() == *ConstantName)
+					{
+						continue;
+					}
+
+					// before we try to rename make sure we check the namespace so that we're dealing with the right variable
+					int32 NameSpaceEnd;
+					if (ConstantName.FindLastChar(TEXT('.'), NameSpaceEnd))
+					{
+						if (!OldRapidIterationVar.IsInNameSpace(ConstantName.Left(NameSpaceEnd)))
+						{
+							continue;
+						}
+					}
+
+					// if the guid matches but the names differ then the parameter was renamed, so lets update the rapid iteration parameter
+					FNiagaraTypeDefinition InputType = NiagaraSchema->PinToTypeDefinition(ModulePin);
+					FNiagaraVariable NewRapidIterationVar = FNiagaraStackGraphUtilities::CreateRapidIterationParameter(UniqueEmitterName, ScriptUsage, AliasedFunctionInputHandle.GetParameterHandleString(), InputType);
+					RapidIterationParameters.RenameParameter(OldRapidIterationVar, NewRapidIterationVar.GetName());
+				}
 			}
 		}
 	}

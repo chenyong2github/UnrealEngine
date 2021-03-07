@@ -1020,6 +1020,7 @@ namespace FNiagaraUtilities
 	if necessary by adding a 3 digit index to the end. */
 	FName NIAGARA_API GetUniqueName(FName CandidateName, const TSet<FName>& ExistingNames);
 
+	NIAGARA_API FString CreateRapidIterationConstantName(FName InVariableName, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage);
 	FNiagaraVariable NIAGARA_API ConvertVariableToRapidIterationConstantName(FNiagaraVariable InVar, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage);
 
 	void CollectScriptDataInterfaceParameters(const UObject& Owner, const TArrayView<UNiagaraScript*>& Scripts, FNiagaraParameterStore& OutDataInterfaceParameters);
