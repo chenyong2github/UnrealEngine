@@ -15,9 +15,10 @@ public class RemoteControl : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(
             new string[] {
+            	"Cbor",
 				"Engine",
 				"Serialization",
-            }
+			}
         );
 
 		if (Target.bBuildEditor)

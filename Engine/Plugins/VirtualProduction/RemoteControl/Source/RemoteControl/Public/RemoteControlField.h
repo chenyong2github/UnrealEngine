@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "RemoteControlEntity.h"
 #include "RemoteControlFieldPath.h"
+#include "RemoteControlProtocolBinding.h"
 #include "RemoteControlField.generated.h"
 
 /**
@@ -65,6 +66,15 @@ public:
 	TArray<FString> ComponentHierarchy_DEPRECATED;
 
 #endif
+
+	/**
+	 * Stores the bound protocols for this exposed field
+	 * It could store any types of the implemented protocols such as DMX, OSC, MIDI, etc
+	 * The map holds protocol bindings stores the protocol mapping and protocol-specific mapping
+	 */
+	UPROPERTY()
+	TSet<FRemoteControlProtocolBinding> ProtocolBinding;
+
 
 protected:
 	FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo FieldPathInfo);
