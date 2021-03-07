@@ -33,9 +33,7 @@ public:
 	}
 	~FLidarPointCloudCollisionRendering()
 	{
-		VertexFactory.ReleaseResource();
-		VertexBuffer.ReleaseResource();
-		IndexBuffer.ReleaseResource();
+		Release();
 	}
 
 	void Initialize(FLidarPointCloudOctree* Octree)
@@ -54,11 +52,22 @@ public:
 			MaxVertexIndex = CollisionData->Vertices.Num() - 1;
 		}
 	}
+	void Release()
+	{
+		VertexFactory.ReleaseResource();
+		VertexBuffer.ReleaseResource();
+		IndexBuffer.ReleaseResource();
+	}
 
 	const FVertexFactory* GetVertexFactory() const { return &VertexFactory; }
 	const FIndexBuffer* GetIndexBuffer() const { return &IndexBuffer; }
 	const int32 GetNumPrimitives() const { return NumPrimitives; }
 	const int32 GetMaxVertexIndex() const { return MaxVertexIndex; }
+
+	bool ShouldRenderCollision() const
+	{
+		return NumPrimitives > 0 && VertexFactory.IsInitialized();
+	}
 
 private:
 	class FLidarPointCloudCollisionVertexFactory : public FLocalVertexFactory
@@ -88,8 +97,7 @@ private:
 	} VertexFactory;
 	class FLidarPointCloudCollisionVertexBuffer : public FVertexBuffer
 	{
-	private:
-		const void* Data;
+		const FVector* Data;
 		int32 DataLength;
 
 	public:
@@ -113,7 +121,6 @@ private:
 	} VertexBuffer;
 	class FLidarPointCloudCollisionIndexBuffer : public FIndexBuffer
 	{
-	private:
 		const int32* Data;
 		int32 DataLength;
 
@@ -240,7 +247,7 @@ public:
 				}
 
 				// Render collision wireframe
-				if (ViewFamily.EngineShowFlags.Collision && IsCollisionEnabled() && CollisionRendering && CollisionRendering->GetNumPrimitives() > 0)
+				if (ViewFamily.EngineShowFlags.Collision && IsCollisionEnabled() && CollisionRendering && CollisionRendering->ShouldRenderCollision())
 				{
 					// Create colored proxy
 					FColoredMaterialRenderProxy* CollisionMaterialInstance;
@@ -248,10 +255,22 @@ public:
 					Collector.RegisterOneFrameMaterialProxy(CollisionMaterialInstance);
 
 					FMeshBatch& MeshBatch = Collector.AllocateMesh();
-					if (PrepareCollisionWireframe(MeshBatch, CollisionMaterialInstance))
-					{
-						Collector.AddMesh(ViewIndex, MeshBatch);
-					}
+					MeshBatch.Type = PT_TriangleList;
+					MeshBatch.VertexFactory = CollisionRendering->GetVertexFactory();
+					MeshBatch.bWireframe = true;
+					MeshBatch.MaterialRenderProxy = CollisionMaterialInstance;
+					MeshBatch.ReverseCulling = !IsLocalToWorldDeterminantNegative();
+					MeshBatch.DepthPriorityGroup = SDPG_World;
+					MeshBatch.CastShadow = false;
+
+					FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
+					BatchElement.IndexBuffer = CollisionRendering->GetIndexBuffer();
+					BatchElement.FirstIndex = 0;
+					BatchElement.NumPrimitives = CollisionRendering->GetNumPrimitives();
+					BatchElement.MinVertexIndex = 0;
+					BatchElement.MaxVertexIndex = CollisionRendering->GetMaxVertexIndex();
+
+					Collector.AddMesh(ViewIndex, MeshBatch);
 				}
 #endif // !(UE_BUILD_SHIPPING)
 			}
@@ -272,26 +291,6 @@ public:
 		MaterialRelevance.SetPrimitiveViewRelevance(Result);
 
 		return Result;
-	}
-
-	bool PrepareCollisionWireframe(FMeshBatch& MeshBatch, FColoredMaterialRenderProxy* CollisionMaterialInstance) const
-	{
-		MeshBatch.Type = PT_TriangleList;
-		MeshBatch.VertexFactory = CollisionRendering->GetVertexFactory();
-		MeshBatch.bWireframe = true;
-		MeshBatch.MaterialRenderProxy = CollisionMaterialInstance;
-		MeshBatch.ReverseCulling = !IsLocalToWorldDeterminantNegative();
-		MeshBatch.DepthPriorityGroup = SDPG_World;
-		MeshBatch.CastShadow = false;
-
-		FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
-		BatchElement.IndexBuffer = CollisionRendering->GetIndexBuffer();
-		BatchElement.FirstIndex = 0;
-		BatchElement.NumPrimitives = CollisionRendering->GetNumPrimitives();
-		BatchElement.MinVertexIndex = 0;
-		BatchElement.MaxVertexIndex = CollisionRendering->GetMaxVertexIndex();
-
-		return true;
 	}
 
 	/** UserData is used to pass rendering information to the VertexFactory */
@@ -420,7 +419,7 @@ void ULidarPointCloud::InitializeCollisionRendering()
 	}
 }
 
-void ULidarPointCloud::ReleaseCollisionRendering()
+void ULidarPointCloud::ReleaseCollisionRendering(bool bDestroyAfterRelease)
 {
 	// Do not process, if the app in incapable of rendering
 	if (!FApp::CanEverRender())
@@ -432,16 +431,23 @@ void ULidarPointCloud::ReleaseCollisionRendering()
 	{
 		if (CollisionRendering)
 		{
-			delete CollisionRendering;
-			CollisionRendering = nullptr;
+			if (bDestroyAfterRelease)
+			{
+				delete CollisionRendering;
+				CollisionRendering = nullptr;
+			}
+			else
+			{
+				CollisionRendering->Release();
+			}
 		}
 	}
 	else
 	{
 		ENQUEUE_RENDER_COMMAND(ReleaseCollisionRendering)(
-			[this](FRHICommandListImmediate& RHICmdList)
+			[this, bDestroyAfterRelease](FRHICommandListImmediate& RHICmdList)
 			{
-				ReleaseCollisionRendering();
+				ReleaseCollisionRendering(bDestroyAfterRelease);
 			});
 	}
 }

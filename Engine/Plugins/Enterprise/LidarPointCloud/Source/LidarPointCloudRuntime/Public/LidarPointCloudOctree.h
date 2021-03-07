@@ -208,6 +208,9 @@ public:
 	/** Used for thread safety between rendering and asset operations. */
 	mutable FCriticalSection DataLock;
 
+	/** Used to prevent auto-release of nodes if they are in use by other threads */
+	FCriticalSection DataReleaseLock;
+
 private:
 	FLidarPointCloudOctreeNode Root;
 	

@@ -620,7 +620,7 @@ private:
 	void FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBodySetup, TSharedRef<FLidarPointCloudNotification, ESPMode::ThreadSafe> Notification);
 
 	void InitializeCollisionRendering();
-	void ReleaseCollisionRendering();
+	void ReleaseCollisionRendering(bool bDestroyAfterRelease);
 
 	template <typename T>
 	void GetPoints_Internal(TArray<FLidarPointCloudPoint*, T>& Points, int64 StartIndex = 0, int64 Count = -1);
