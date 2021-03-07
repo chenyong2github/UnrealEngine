@@ -1,3 +1,5 @@
+import { NodeOptions } from './branchdefs';
+
 export type FailureKind =
 	'Integration error' |
 	'Exclusive check-out' |
@@ -69,6 +71,8 @@ export type BotStatusFields = Partial<PauseStatusFields> & {
 	display_name: string
 	last_cl: number
 
+	headCL?: number
+
 	is_active: boolean
 	is_available: boolean
 	is_blocked: boolean
@@ -79,7 +83,6 @@ export type BotStatusFields = Partial<PauseStatusFields> & {
 
 	lastBlockage?: number
 
-	// don't commit - added by preprocess
 	retry_cl?: number
 }
 
@@ -94,15 +97,13 @@ export type EdgeStatusFields = BotStatusFields & {
 	incognitoMode: boolean
 	excludeAuthors: string[]
 
-	headCL?: number
 	lastGoodCL?: number
 	lastGoodCLJobLink?: string
 	lastGoodCLDate?: Date
 }
 
-type NodeStatusFields = BotStatusFields & {
+export type NodeStatusFields = BotStatusFields & {
 	queue: QueuedChange[]
-	headCL?: number
 
 	conflicts: ConflictStatusFields[]
 	edges: { [key: string]: EdgeStatusFields }
@@ -112,10 +113,23 @@ type NodeStatusFields = BotStatusFields & {
 export type BranchDefForStatus = {
 	// BranchBase
 	name: string
+	rootPath: string
 
 	// Branch
 	upperName: string
 	visibility: string
+
+	isMonitored: boolean
+
+
+	aliases: any
+	blockAssetTargets: string[]
+	bot: string
+	config: NodeOptions
+	convertIntegratesToEdits: boolean
+	defaultFlow: string[]
+	flowsTo: string[]
+	forceFlowTo: string[]
 }
 
 export type BranchStatus = Partial<NodeStatusFields> & {
@@ -135,16 +149,22 @@ export type ConflictStatusFields = {
 	owner: string
 }
 
+type GraphBotError = {
+	nodeBot: string
+	error: string
+}
+
 export interface GraphBotState {
 	isRunningBots: boolean
 	lastBranchspecCl?: number
-	lastError?: Object
+	lastError?: GraphBotError
 }
 
+export type User = {userName: string, displayName: string, privileges?: string[]}
 export type UserStatusData = {
 	started: Date
 	version: string
-	user: {userName: string, displayName: string, privileges?: string[]}
+	user: User
 	branches: BranchStatus[]
 	botStates: [string, GraphBotState][]
 	insufficientPrivelege?: boolean

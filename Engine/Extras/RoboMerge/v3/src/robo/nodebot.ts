@@ -194,13 +194,14 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 	private async getChanges(startingCl: number) {
 		const path = this.branch.rootPath
-		this._log_action(`checking for changes in ${path}`, 'silly');
+		this._log_action(`checking for changes in ${path}`, 'silly')
 
 		try {
 			if (startingCl <= 0) {
-				const change = await this.p4.latestChange(path);
+				// new bot with no initial CL set: start with latest change
+				const change = await this.p4.latestChange(path)
 				if (change) {
-					return [change];
+					return [change]
 				}
 			}
 			else if (this.lastCl === startingCl) {
@@ -214,14 +215,14 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				return result
 			}
 			else {
-				return await this.p4.changes(path, startingCl);
+				return await this.p4.changes(path, startingCl)
 			}
 		}
 		catch (err) {
 			this.nodeBotLogger.printException(err, `${this.fullName} Error while querying P4 for changes`)
 		}
 
-		return [];
+		return []
 	}
 
 	public initTickJournal() {

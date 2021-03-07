@@ -84,6 +84,8 @@ type NodeOptionFields = BranchBase & CommonOptionFields & {
 	streamSubpath: string
 	workspace: (string | null)
 
+	graphNodeColor: string
+
 	// if set, still generate workspace but use this name
 	workspaceNameOverride: string
 	additionalSlackChannelForBlockages: string
