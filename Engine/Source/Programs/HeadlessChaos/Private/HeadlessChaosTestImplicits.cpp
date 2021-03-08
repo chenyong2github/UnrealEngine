@@ -139,6 +139,32 @@ namespace ChaosTest {
 		EXPECT_VECTOR_NEAR_ERR(Subject.Support(FVec3(-1, 0, 0), FReal(1)), (FVec3(-2, 0, 0)), KINDA_SMALL_NUMBER, Error);
 	}
 
+	/* Takes 3 ImplictObject of unit size (circumscribed inside a 2x2 cube)
+	*  - One aligned on axis centered on origin
+	*  - One aligned on axis offset from origin
+	*  - One not axis-aligned 
+	*   Test the InertiaTensor and the RotationOfMass. 
+	*/
+	template<typename GeometryType>
+	void UnitImplicitObjectInertiaTensorAndRotationOfMass(const GeometryType& AlignedSubject, const GeometryType& OffsetedAlignedSubject, const GeometryType& NonAlignedSubject,FString Caller)
+	{
+		const FReal Mass = (FReal)100.;
+		FVec3 AlignedInertiaTensor = AlignedSubject.GetInertiaTensor(Mass).GetDiagonal();
+		FVec3 OffsetedAlignedInertiaTensor = OffsetedAlignedSubject.GetInertiaTensor(Mass).GetDiagonal();
+		FVec3 NonAlignedInteriaTensor = NonAlignedSubject.GetInertiaTensor(Mass).GetDiagonal();
+		EXPECT_NEAR(AlignedInertiaTensor.X, OffsetedAlignedInertiaTensor.X, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(AlignedInertiaTensor.Y, OffsetedAlignedInertiaTensor.Y, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(AlignedInertiaTensor.Z, OffsetedAlignedInertiaTensor.Z, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(AlignedInertiaTensor.X, NonAlignedInteriaTensor.X, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(AlignedInertiaTensor.Y, NonAlignedInteriaTensor.Y, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(AlignedInertiaTensor.Z, NonAlignedInteriaTensor.Z, KINDA_SMALL_NUMBER);
+
+		FRotation3 AlignedRotationOfMass = AlignedSubject.GetRotationOfMass();
+		FRotation3 OffsetedAlignedRotationOfMass = OffsetedAlignedSubject.GetRotationOfMass();
+		FRotation3 NonAlignedRotationOfMass = NonAlignedSubject.GetRotationOfMass();
+		EXPECT_TRUE(FRotation3::IsNearlyEqual(AlignedRotationOfMass, OffsetedAlignedRotationOfMass, KINDA_SMALL_NUMBER));
+		EXPECT_FALSE(FRotation3::IsNearlyEqual(AlignedRotationOfMass, NonAlignedRotationOfMass, KINDA_SMALL_NUMBER));
+	}
 
 	/* IMPLICIT OBJECT TESTS */
 
@@ -488,6 +514,14 @@ namespace ChaosTest {
 			EXPECT_TRUE(Result.Second);
 			EXPECT_VECTOR_NEAR(Result.First, FVec3(16, 1, 1), KINDA_SMALL_NUMBER);
 		}
+
+		{	// Inertia tensor and rotation of mass
+			FCylinder AlignedSubject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
+			FCylinder OffsetedAlignedSubject(FVec3(5, 10, 1), FVec3(5, 10, -1), 1);
+			FCylinder NonAlignedSubject(FVec3(-1, -1, -1).GetSafeNormal(), FVec3(1, 1, 1).GetSafeNormal(), 1);
+
+			UnitImplicitObjectInertiaTensorAndRotationOfMass(AlignedSubject, OffsetedAlignedSubject, NonAlignedSubject, Caller);
+		}
 	}
 
 	void ImplicitTaperedCylinder()
@@ -537,6 +571,14 @@ namespace ChaosTest {
 			FTaperedCylinder Subject2(FVec3(2, 2, 4), FVec3(2, 2, 0), 2, 2);
 			FVec3 InputPoint(2, 3, 2);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
+		}
+
+		{	// Inertia tensor and rotation of mass
+			FTaperedCylinder AlignedSubject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 2);
+			FTaperedCylinder OffsetedAlignedSubject(FVec3(5, 10, 1), FVec3(5, 10, -1), 1, 2);
+			FTaperedCylinder NonAlignedSubject(FVec3(-1, -1, -1).GetSafeNormal(), FVec3(1, 1, 1).GetSafeNormal(), 1, 2);
+
+			UnitImplicitObjectInertiaTensorAndRotationOfMass(AlignedSubject, OffsetedAlignedSubject, NonAlignedSubject, Caller);
 		}
 	}
 	
@@ -668,6 +710,14 @@ namespace ChaosTest {
 			FVec3 InputPoint(2, 3, 2);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(2, 4, 2), Caller);
 		}
+
+		{	// Inertia tensor and rotation of mass
+			FTaperedCapsule AlignedSubject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1, 2);
+			FTaperedCapsule OffsetedAlignedSubject(FVec3(5, 10, 1), FVec3(5, 10, -1), 1, 2);
+			FTaperedCapsule NonAlignedSubject(FVec3(-1, -1, -1).GetSafeNormal(), FVec3(1, 1, 1).GetSafeNormal(), 1, 2);
+
+			UnitImplicitObjectInertiaTensorAndRotationOfMass(AlignedSubject, OffsetedAlignedSubject, NonAlignedSubject, Caller);
+		}
 	}
 
 
@@ -714,6 +764,14 @@ namespace ChaosTest {
 			FCapsule Subject2(FVec3(5, 4, 4), FVec3(3, 4, 4), 1);
 			FVec3 InputPoint(4, 4, 4 + 1 / 2.);
 			TestFindClosestIntersection(Subject2, InputPoint, FVec3(4, 4, 5), Caller);
+		}
+
+		{	// Inertia tensor and rotation of mass
+			FCapsule AlignedSubject(FVec3(0, 0, 1), FVec3(0, 0, -1), 1);
+			FCapsule OffsetedAlignedSubject(FVec3(5, 10, 1), FVec3(5, 10, -1), 1);
+			FCapsule NonAlignedSubject(FVec3(-1, -1, -1).GetSafeNormal(), FVec3(1, 1, 1).GetSafeNormal(), 1);
+
+			UnitImplicitObjectInertiaTensorAndRotationOfMass(AlignedSubject, OffsetedAlignedSubject, NonAlignedSubject, Caller);
 		}
 	}
 
