@@ -303,6 +303,22 @@ bool FEditorDomain::TryMatchCaseOnDisk(const FPackagePath& PackagePath, FPackage
 	return Workspace->TryMatchCaseOnDisk(PackagePath, OutNormalizedPath);
 }
 
+TUniquePtr<FArchive> FEditorDomain::OpenReadExternalResource(EPackageExternalResource ResourceType, FStringView Identifier)
+{
+	return Workspace->OpenReadExternalResource(ResourceType, Identifier);
+}
+
+bool FEditorDomain::DoesExternalResourceExist(EPackageExternalResource ResourceType, FStringView Identifier)
+{
+	return Workspace->DoesExternalResourceExist(ResourceType, Identifier);
+}
+
+IAsyncReadFileHandle* FEditorDomain::OpenAsyncReadExternalResource(
+	EPackageExternalResource ResourceType, FStringView Identifier)
+{
+	return Workspace->OpenAsyncReadExternalResource(ResourceType, Identifier);
+}
+
 void FEditorDomain::FindPackagesRecursive(TArray<TPair<FPackagePath, EPackageSegment>>& OutPackages,
 	FStringView PackageMount, FStringView FileMount, FStringView RootRelPath, FStringView BasenameWildcard)
 {

@@ -97,6 +97,7 @@ enum ESaveFlags
 	SAVE_DiffCallstack  = 0x00000400,	///< Serializes the package to a special memory archive that compares all differences against a file on disk and dumps relevant callstacks
 	SAVE_ComputeHash    = 0x00000800,	///< Compute the MD5 hash of the cooked data
 	SAVE_CompareLinker	= 0x00001000,	///< Return the linker save to compare against another
+	SAVE_BulkDataByReference = 0x00002000, ///< When saving to a different file than the package's LoadedPath, point bulkdata in the new file to be loaded from the original file.
 };
 
 /** Package flags, passed into UPackage::SetPackageFlags and related functions */

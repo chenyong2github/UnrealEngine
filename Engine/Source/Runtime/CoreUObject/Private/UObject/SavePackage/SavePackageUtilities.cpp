@@ -691,6 +691,17 @@ void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects)
 	}
 }
 
+bool IsSavingNewLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags)
+{
+#if WITH_EDITOR
+	return !bIsCooking &&							// Do not update the loadedpath if we're cooking
+		TargetPackagePath.IsMountedPath() &&		// Do not update the loadedpath if the new path is not a viable mounted path
+		!(SaveFlags & SAVE_BulkDataByReference);	// Do not update the loadedpath if we're storing references to the old loadedpath
+#else
+	return false; // Saving when not in editor never updates the LoadedPath
+#endif
+}
+
 } // end namespace SavePackageUtilities
 
 bool IsEditorOnlyObject(const UObject* InObject, bool bCheckRecursive, bool bCheckMarks)
@@ -1793,115 +1804,188 @@ void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::
 #endif
 }
 
-void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-				  FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed)
+ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
+				  FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bDiffing,
+				  const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed)
 {
 	// Now we write all the bulkdata that is supposed to be at the end of the package
 	// and fix up the offset
 	const int64 StartOfBulkDataArea = Linker->Tell();
 	Linker->Summary.BulkDataStartOffset = StartOfBulkDataArea;
 
-	check(!bTextFormat || Linker->BulkDataToAppend.Num() == 0);
-
-	if (!bTextFormat && Linker->BulkDataToAppend.Num() > 0)
+	if (Linker->BulkDataToAppend.Num() == 0)
 	{
-		COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SerializeBulkDataTimeSec));
+		return ESavePackageResult::Success;;
+	}
+	check(!bTextFormat);
 
-		FScopedSlowTask BulkDataFeedback(Linker->BulkDataToAppend.Num());
+	COOK_STAT(FScopedDurationTimer SaveTimer(FSavePackageStats::SerializeBulkDataTimeSec));
 
-		class FLargeMemoryWriterWithRegions : public FLargeMemoryWriter
+	FScopedSlowTask BulkDataFeedback(Linker->BulkDataToAppend.Num());
+
+	class FLargeMemoryWriterWithRegions : public FLargeMemoryWriter
+	{
+	public:
+		FLargeMemoryWriterWithRegions()
+			: FLargeMemoryWriter(0, /* IsPersistent */ true)
+		{}
+
+		TArray<FFileRegion> FileRegions;
+	};
+
+	TUniquePtr<FLargeMemoryWriterWithRegions> BulkArchive;
+	TUniquePtr<FLargeMemoryWriterWithRegions> OptionalBulkArchive;
+	TUniquePtr<FLargeMemoryWriterWithRegions> MappedBulkArchive;
+
+	static const struct FCookerUseSeparateSegments
+	{
+		bool bEnable = false;
+
+		FCookerUseSeparateSegments()
 		{
-		public:
-			FLargeMemoryWriterWithRegions()
-				: FLargeMemoryWriter(0, /* IsPersistent */ true)
-			{}
+			GConfig->GetBool(TEXT("Core.System"), TEXT("UseSeperateBulkDataFiles"), /* out */ bEnable, GEngineIni);
 
-			TArray<FFileRegion> FileRegions;
+			if (IsEventDrivenLoaderEnabledInCookedBuilds())
+			{
+				// Always split bulk data when splitting cooked files
+				bEnable = true;
+			}
+		}
+	} CookerUseSeparateSegments;
+	const bool bSeparateSegmentsEnabled = CookerUseSeparateSegments.bEnable && Linker->IsCooking();
+
+	if (bSeparateSegmentsEnabled)
+	{
+		BulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+		OptionalBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+		MappedBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+	}
+	bool bRequestSaveByReference = SaveFlags & SAVE_BulkDataByReference;
+
+	bool bAlignBulkData = false;
+	bool bUseFileRegions = false;
+	int64 BulkDataAlignment = 0;
+
+	if (TargetPlatform)
+	{
+		bAlignBulkData = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles);
+		bUseFileRegions = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata);
+		BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
+	}
+	if (bRequestSaveByReference)
+	{
+		const TCHAR* FailureReason = nullptr;
+		if (SavePackageContext != nullptr && (SavePackageContext->BulkDataManifest != nullptr))
+		{
+			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with BulkDataManifest");
+		}
+		else if (Linker->bSavingNewLoadedPath)
+		{
+			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with bSavingNewLoadedPath");
+		}
+		else if (SavePackageContext != nullptr && SavePackageContext->bForceLegacyOffsets)
+		{
+			FailureReason = TEXT("SAVE_BulkDataByReference is incompatible with bForceLegacyOffsets");
+		}
+		if (FailureReason)
+		{
+			UE_LOG(LogSavePackage, Error, TEXT("SaveBulkData failed for %s: %s."), Filename, FailureReason);
+			return ESavePackageResult::Error;
+		}
+	}
+
+	for (FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo : Linker->BulkDataToAppend)
+	{
+		BulkDataFeedback.EnterProgressFrame();
+
+		// Set bulk data flags to what they were during initial serialization (they might have changed after that)
+		uint32 BulkDataFlags = BulkDataStorageInfo.BulkDataFlags;
+		FUntypedBulkData* BulkData = BulkDataStorageInfo.BulkData;
+		checkf(BulkDataFlags& BULKDATA_PayloadAtEndOfFile, TEXT("Inlined BulkData data should not have been added to BulkDataToAppend"));
+
+		const bool bBulkItemIsOptional = (BulkDataFlags & BULKDATA_OptionalPayload) != 0;
+		bool bBulkItemIsMapped = bAlignBulkData && ((BulkDataFlags & BULKDATA_MemoryMappedPayload) != 0);
+
+		if (bBulkItemIsMapped && bBulkItemIsOptional)
+		{
+			UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is both mapped and optional. This is not currently supported. Will not be mapped."), Filename);
+			BulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
+			bBulkItemIsMapped = false;
+		}
+		if (bBulkItemIsMapped && bRequestSaveByReference)
+		{
+			UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is mapped, but the save method is SAVE_BulkDataByReference.")
+				TEXT("This is not currently supported. Will not be mapped."), Filename);
+			BulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
+			bBulkItemIsMapped = false;
+		}
+
+		enum ESaveLocation
+		{
+			Invalid,
+			EndOfPackage,
+			SeparateSegment,
+			Reference,
 		};
-
-		TUniquePtr<FLargeMemoryWriterWithRegions> BulkArchive;
-		TUniquePtr<FLargeMemoryWriterWithRegions> OptionalBulkArchive;
-		TUniquePtr<FLargeMemoryWriterWithRegions> MappedBulkArchive;
-
-		uint32 ExtraBulkDataFlags = 0;
-
-		static const struct FUseSeparateBulkDataFiles
+		ESaveLocation SaveLocation = ESaveLocation::Invalid;
+		if (SaveLocation == ESaveLocation::Invalid && bRequestSaveByReference)
 		{
-			bool bEnable = false;
-
-			FUseSeparateBulkDataFiles()
+			if (BulkData->GetBulkDataOffsetInFile() != INDEX_NONE &&
+				// We don't support yet loading from a separate file
+				!BulkData->IsInSeparateFile() &&
+				// It is possible to have a BulkData marked as optional without putting it into a separate file, and we
+				// assume that if BulkData is optional and in a separate file, then it is in the BulkDataOptional
+				// segment. Rather than changing that assumption to support optional ExternalResource bulkdata, we
+				// instead require that optional inlined/endofpackagedata BulkDatas can not be read from an
+				// ExternalResource and must remain inline.
+				!BulkData->IsOptional() &&
+				// Inline or end-of-package-file data can only be loaded from the workspace domain package file if the
+				// archive used by the bulk data was actually from the package file; BULKDATA_LazyLoadable is set by
+				// Serialize iff that is the case										
+				(BulkData->GetBulkDataFlags() & BULKDATA_LazyLoadable) 
+				)
 			{
-				GConfig->GetBool(TEXT("Core.System"), TEXT("UseSeperateBulkDataFiles"), /* out */ bEnable, GEngineIni);
-
-				if (IsEventDrivenLoaderEnabledInCookedBuilds())
-				{
-					// Always split bulk data when splitting cooked files
-					bEnable = true;
-				}
+				SaveLocation = ESaveLocation::Reference;
 			}
-		} ShouldUseSeparateBulkDataFiles;
-
-		const bool bShouldUseSeparateBulkFile = ShouldUseSeparateBulkDataFiles.bEnable && Linker->IsCooking();
-
-		if (bShouldUseSeparateBulkFile)
+		}
+		if (SaveLocation == ESaveLocation::Invalid && bSeparateSegmentsEnabled)
 		{
-			ExtraBulkDataFlags = BULKDATA_PayloadInSeperateFile;
-
-			BulkArchive.Reset(new FLargeMemoryWriterWithRegions);
-			OptionalBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
-			MappedBulkArchive.Reset(new FLargeMemoryWriterWithRegions);
+			SaveLocation = ESaveLocation::SeparateSegment;
+		}
+		if (SaveLocation == ESaveLocation::Invalid)
+		{
+			SaveLocation = ESaveLocation::EndOfPackage;
 		}
 
-		// If we are using IoStore (implemented in AsyncLoader2), then we will have no linkers and can not manipulate the
-		// offset as we will not have the Linker's Summary.BulkDataStartOffset information at runtime.
-		// This means that manipulated offsets are incompatible with IoStore.
-		// We now by default do not manipulate the offset for separate files, but we need to optionally leave it on
-		// to prevent larger patching sizes. In the future we may want to remove it even for end-of-file BulkData.
-		// Note that bForceLegacyOffsets is incompatible with using IoStore.
-		if (SavePackageContext != nullptr && SavePackageContext->bForceLegacyOffsets == false && bShouldUseSeparateBulkFile)
+		int64 BulkDataOffsetInFile;
+		int64 BulkDataSizeOnDisk;
+		if (SaveLocation == ESaveLocation::Reference)
 		{
-			ExtraBulkDataFlags |= BULKDATA_NoOffsetFixUp;
+			BulkDataFlags |= BULKDATA_PayloadInSeperateFile | BULKDATA_WorkspaceDomainPayload;
+			BulkDataFlags |= BULKDATA_NoOffsetFixUp; // We don't use legacy offset fixups when referencing
+			BulkDataFlags &= ~BULKDATA_MemoryMappedPayload; // We don't support memory mapping from referenced
+
+			BulkDataOffsetInFile = BulkData->GetBulkDataOffsetInFile();
+			BulkDataSizeOnDisk = BulkData->GetBulkDataSizeOnDisk();
 		}
-
-		bool bAlignBulkData = false;
-		bool bUseFileRegions = false;
-		int64 BulkDataAlignment = 0;
-
-		if (TargetPlatform)
+		else
 		{
-			bAlignBulkData = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::MemoryMappedFiles);
-			bUseFileRegions = TargetPlatform->SupportsFeature(ETargetPlatformFeatures::CookFileRegionMetadata);
-			BulkDataAlignment = TargetPlatform->GetMemoryMappingAlignment();
-		}
-
-		uint16 BulkDataIndex = 1;
-		for (FLinkerSave::FBulkDataStorageInfo& BulkDataStorageInfo : Linker->BulkDataToAppend)
-		{
-			BulkDataFeedback.EnterProgressFrame();
-
-			// Set bulk data flags to what they were during initial serialization (they might have changed after that)
-			const uint32 OldBulkDataFlags = BulkDataStorageInfo.BulkData->GetBulkDataFlags();
-			uint32 ModifiedBulkDataFlags = BulkDataStorageInfo.BulkDataFlags | ExtraBulkDataFlags;
-			const bool bBulkItemIsOptional = (ModifiedBulkDataFlags & BULKDATA_OptionalPayload) != 0;
-			bool bBulkItemIsMapped = bAlignBulkData && ((ModifiedBulkDataFlags & BULKDATA_MemoryMappedPayload) != 0);
-
-			if (bBulkItemIsMapped && bBulkItemIsOptional)
-			{
-				UE_LOG(LogSavePackage, Warning, TEXT("%s has bulk data that is both mapped and optional. This is not currently supported. Will not be mapped."), Filename);
-				ModifiedBulkDataFlags &= ~BULKDATA_MemoryMappedPayload;
-				bBulkItemIsMapped = false;
-			}
-
-			// TODO: BulkData Serialize no longer requires BulkData flags to be set; it takes the BulkDataFlags for the save as arguments.
-			//       Remove this unnecessary set of the BulkData's BulkDataFlags.
-			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
-			BulkDataStorageInfo.BulkData->SetBulkDataFlags(ModifiedBulkDataFlags);
-
 			TArray<FFileRegion>* TargetRegions = &Linker->FileRegions;
 			FArchive* TargetArchive = Linker;
-
-			if (bShouldUseSeparateBulkFile)
+			if (SaveLocation == ESaveLocation::SeparateSegment)
 			{
+				BulkDataFlags |= BULKDATA_PayloadInSeperateFile;
+				// If we are using IoStore (implemented in AsyncLoader2), then we will have no linkers and can not manipulate the
+				// offset as we will not have the Linker's Summary.BulkDataStartOffset information at runtime.
+				// This means that manipulated offsets are incompatible with IoStore.
+				// We now by default do not manipulate the offset for separate files, but we need to optionally leave it on
+				// to prevent larger patching sizes. In the future we may want to remove it even for end-of-file BulkData.
+				// Note that bForceLegacyOffsets is incompatible with using IoStore.
+				if (SavePackageContext != nullptr && SavePackageContext->bForceLegacyOffsets == false)
+				{
+					BulkDataFlags |= BULKDATA_NoOffsetFixUp;
+				}
+
 				if (bBulkItemIsOptional)
 				{
 					TargetArchive = OptionalBulkArchive.Get();
@@ -1951,25 +2035,12 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 			}
 
 			const int64 BulkStartOffset = TargetArchive->Tell();
+			BulkData->SerializeBulkData(*TargetArchive, BulkData->Lock(LOCK_READ_ONLY), static_cast<EBulkDataFlags>(BulkDataFlags));
+			BulkData->Unlock();
+			const int64 BulkEndOffset = TargetArchive->Tell();
 
-			int64 StoredBulkStartOffset = (ModifiedBulkDataFlags & BULKDATA_NoOffsetFixUp) == 0 ? BulkStartOffset - StartOfBulkDataArea : BulkStartOffset;
-
-			BulkDataStorageInfo.BulkData->SerializeBulkData(*TargetArchive, BulkDataStorageInfo.BulkData->Lock(LOCK_READ_ONLY),
-				static_cast<EBulkDataFlags>(ModifiedBulkDataFlags));
-
-			int64 BulkEndOffset = TargetArchive->Tell();
-			const int64 LinkerEndOffset = Linker->Tell();
-
-			int64 SizeOnDisk = BulkEndOffset - BulkStartOffset;
-
-			Linker->Seek(BulkDataStorageInfo.BulkDataFlagsPos);
-			*Linker << ModifiedBulkDataFlags;
-
-			Linker->Seek(BulkDataStorageInfo.BulkDataOffsetInFilePos);
-			*Linker << StoredBulkStartOffset;
-
-			Linker->Seek(BulkDataStorageInfo.BulkDataSizeOnDiskPos);
-			SerializeBulkDataSizeInt(*Linker, SizeOnDisk, static_cast<EBulkDataFlags>(ModifiedBulkDataFlags));
+			BulkDataOffsetInFile = (BulkDataFlags & BULKDATA_NoOffsetFixUp) == 0 ? BulkStartOffset - StartOfBulkDataArea : BulkStartOffset;
+			BulkDataSizeOnDisk = BulkEndOffset - BulkStartOffset;
 
 			if (SavePackageContext != nullptr && SavePackageContext->BulkDataManifest != nullptr)
 			{
@@ -1979,114 +2050,122 @@ void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Fil
 					{
 						return FPackageStoreBulkDataManifest::EBulkdataType::MemoryMapped;
 					}
-
-					if (BulkDataFlags & BULKDATA_OptionalPayload)
+					else if (BulkDataFlags & BULKDATA_OptionalPayload)
 					{
 						return FPackageStoreBulkDataManifest::EBulkdataType::Optional;
 					}
-
-					return FPackageStoreBulkDataManifest::EBulkdataType::Normal;
-				};
-
-				const FPackageStoreBulkDataManifest::EBulkdataType Type = BulkDataTypeFromFlags(BulkDataStorageInfo.BulkDataFlags);
-
-				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, Type, StoredBulkStartOffset, BulkStartOffset, SizeOnDisk);
-			}
-
-			if (bUseFileRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None && SizeOnDisk > 0)
-			{
-				TargetRegions->Add(FFileRegion(BulkStartOffset, SizeOnDisk, BulkDataStorageInfo.BulkDataFileRegionType));
-			}
-
-			Linker->Seek(LinkerEndOffset);
-
-			// Restore BulkData flags to before serialization started
-			BulkDataStorageInfo.BulkData->Unlock();
-			BulkDataStorageInfo.BulkData->ClearBulkDataFlags(0xFFFFFFFF);
-			BulkDataStorageInfo.BulkData->SetBulkDataFlags(OldBulkDataFlags);
-
-			// If we are overwriting the LoadedPath for the current package, the bulk data flags need to be updated to match
-			// the values set in the package on disk. This function is responsible for setting some of those flags, so set them now
-			if (!TargetPlatform)
-			{
-				BulkDataStorageInfo.BulkData->SetBulkDataFlags(ExtraBulkDataFlags);
-			}
-		}
-
-		if (BulkArchive)
-		{
-			check(OptionalBulkArchive);
-			check(MappedBulkArchive);
-
-			const bool bWriteBulkToDisk = !bDiffing;
-
-			if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && bWriteBulkToDisk)
-			{
-				auto AddSizeAndConvertToIoBuffer = [&TotalPackageSizeUncompressed](FLargeMemoryWriter* Writer)
-				{
-					const int64 TotalSize = Writer->TotalSize();
-					TotalPackageSizeUncompressed += TotalSize;
-					return FIoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), TotalSize);
-				};
-
-				IPackageStoreWriter::FBulkDataInfo BulkInfo;
-				BulkInfo.PackageName = InOuter->GetFName();
-				
-				if (BulkArchive->TotalSize())
-				{
-					BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Standard;
-					BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, TEXT(".ubulk"));
-					SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
-				}
-				if (OptionalBulkArchive->TotalSize())
-				{
-					BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Optional;
-					BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, TEXT(".uptnl"));
-					SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
-				}
-				if (MappedBulkArchive->TotalSize())
-				{
-					BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Mmap;
-					BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, TEXT(".m.ubulk"));
-					SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
-				}
-			}
-			else
-			{
-				auto WriteBulkData = [&](FLargeMemoryWriterWithRegions* Archive, const TCHAR* BulkFileExtension)
-				{
-					if (const int64 DataSize = Archive->TotalSize())
+					else
 					{
-						TotalPackageSizeUncompressed += DataSize;
-
-						if (bComputeHash || bWriteBulkToDisk)
-						{
-							FLargeMemoryPtr DataPtr(Archive->ReleaseOwnership());
-
-							const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
-
-							EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
-							if (bComputeHash)
-							{
-								WriteOptions |= EAsyncWriteOptions::ComputeHash;
-							}
-							if (bWriteBulkToDisk)
-							{
-								WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
-							}
-							SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), DataSize, *ArchiveFilename, WriteOptions, Archive->FileRegions);
-						}
+						check(!(BulkDataFlags & BULKDATA_WorkspaceDomainPayload));
+						return FPackageStoreBulkDataManifest::EBulkdataType::Normal;
 					}
 				};
 
-				WriteBulkData(BulkArchive.Get(), TEXT(".ubulk"));			// Regular separate bulk data file
-				WriteBulkData(OptionalBulkArchive.Get(), TEXT(".uptnl"));	// Optional bulk data
-				WriteBulkData(MappedBulkArchive.Get(), TEXT(".m.ubulk"));	// Memory-mapped bulk data
+				const FPackageStoreBulkDataManifest::EBulkdataType Type = BulkDataTypeFromFlags(BulkDataStorageInfo.BulkDataFlags);
+				SavePackageContext->BulkDataManifest->AddFileAccess(Filename, Type,
+					BulkDataOffsetInFile /* Use the serialized offset as the ChunkId */, BulkStartOffset, BulkDataSizeOnDisk);
 			}
+
+			if (bUseFileRegions && BulkDataStorageInfo.BulkDataFileRegionType != EFileRegionType::None && BulkDataSizeOnDisk > 0)
+			{
+				TargetRegions->Add(FFileRegion(BulkStartOffset, BulkDataSizeOnDisk, BulkDataStorageInfo.BulkDataFileRegionType));
+			}
+		}
+
+		const int64 SavedLinkerOffset = Linker->Tell();
+		Linker->Seek(BulkDataStorageInfo.BulkDataFlagsPos);
+		*Linker << BulkDataFlags;
+		Linker->Seek(BulkDataStorageInfo.BulkDataSizeOnDiskPos);
+		SerializeBulkDataSizeInt(*Linker, BulkDataSizeOnDisk, static_cast<EBulkDataFlags>(BulkDataFlags));
+		Linker->Seek(BulkDataStorageInfo.BulkDataOffsetInFilePos);
+		*Linker << BulkDataOffsetInFile;
+		Linker->Seek(SavedLinkerOffset);
+
+#if WITH_EDITOR
+		// If we are overwriting the LoadedPath for the current package, the bulk data flags and location need to be updated to match
+		// the values set in the package on disk.
+		if (Linker->bSavingNewLoadedPath)
+		{
+			BulkData->SetFlagsFromDiskWrittenValues(static_cast<EBulkDataFlags>(BulkDataFlags), BulkDataOffsetInFile,
+				BulkDataSizeOnDisk, StartOfBulkDataArea);
+		}
+#endif
+	}
+
+	if (BulkArchive)
+	{
+		check(OptionalBulkArchive);
+		check(MappedBulkArchive);
+
+		const bool bWriteBulkToDisk = !bDiffing;
+
+		if (SavePackageContext != nullptr && SavePackageContext->PackageStoreWriter != nullptr && bWriteBulkToDisk)
+		{
+			auto AddSizeAndConvertToIoBuffer = [&TotalPackageSizeUncompressed](FLargeMemoryWriter* Writer)
+			{
+				const int64 TotalSize = Writer->TotalSize();
+				TotalPackageSizeUncompressed += TotalSize;
+				return FIoBuffer(FIoBuffer::AssumeOwnership, Writer->ReleaseOwnership(), TotalSize);
+			};
+
+			IPackageStoreWriter::FBulkDataInfo BulkInfo;
+			BulkInfo.PackageName = InOuter->GetFName();
+				
+			if (BulkArchive->TotalSize())
+			{
+				BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Standard;
+				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataDefault));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(BulkArchive.Get()), BulkArchive->FileRegions);
+			}
+			if (OptionalBulkArchive->TotalSize())
+			{
+				BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Optional;
+				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataOptional));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
+			}
+			if (MappedBulkArchive->TotalSize())
+			{
+				BulkInfo.BulkdataType = IPackageStoreWriter::FBulkDataInfo::Mmap;
+				BulkInfo.LooseFilePath = FPaths::ChangeExtension(Filename, LexToString(EPackageExtension::BulkDataMemoryMapped));
+				SavePackageContext->PackageStoreWriter->WriteBulkdata(BulkInfo, AddSizeAndConvertToIoBuffer(MappedBulkArchive.Get()), MappedBulkArchive->FileRegions);
+			}
+		}
+		else
+		{
+			auto WriteBulkData = [&](FLargeMemoryWriterWithRegions* Archive, const TCHAR* BulkFileExtension)
+			{
+				if (const int64 DataSize = Archive->TotalSize())
+				{
+					TotalPackageSizeUncompressed += DataSize;
+
+					if (bComputeHash || bWriteBulkToDisk)
+					{
+						FLargeMemoryPtr DataPtr(Archive->ReleaseOwnership());
+
+						const FString ArchiveFilename = FPaths::ChangeExtension(Filename, BulkFileExtension);
+
+						EAsyncWriteOptions WriteOptions(EAsyncWriteOptions::None);
+						if (bComputeHash)
+						{
+							WriteOptions |= EAsyncWriteOptions::ComputeHash;
+						}
+						if (bWriteBulkToDisk)
+						{
+							WriteOptions |= EAsyncWriteOptions::WriteFileToDisk;
+						}
+						SavePackageUtilities::AsyncWriteFile(AsyncWriteAndHashSequence, MoveTemp(DataPtr), DataSize, *ArchiveFilename, WriteOptions, Archive->FileRegions);
+					}
+				}
+			};
+
+			WriteBulkData(BulkArchive.Get(), LexToString(EPackageExtension::BulkDataDefault));
+			WriteBulkData(OptionalBulkArchive.Get(), LexToString(EPackageExtension::BulkDataOptional));
+			WriteBulkData(MappedBulkArchive.Get(), LexToString(EPackageExtension::BulkDataMemoryMapped));
 		}
 	}
 
 	Linker->BulkDataToAppend.Empty();
+	return ESavePackageResult::Success;
 }
 
 void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record)

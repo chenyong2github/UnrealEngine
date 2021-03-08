@@ -48,6 +48,14 @@ struct FOpenPackageResult
 	EPackageFormat Format;
 };
 
+enum class EPackageExternalResource
+{
+	/**
+	 * Open a Package file from the Workspace Domain, even if the Manager is providing packages from a different domain.
+	 * The identifier is the PackageName to open.
+	 */
+	WorkspaceDomainFile,
+};
 
 /**
  * Provides directory queries and Archive payloads for PackagePaths and their PackageSegments from a repository that
@@ -152,6 +160,41 @@ public:
 	 * @return true if the package exists, else false
 	 */
 	virtual bool TryMatchCaseOnDisk(const FPackagePath& PackagePath, FPackagePath* OutNormalizedPath = nullptr) = 0;
+
+	/**
+	 * Open a seekable binary FArchive to read the bytes of the given External Resource.
+	 * An ExternalResource is in a separate domain from the one out of which this ResourceManager serves PackagePaths.
+	 *
+	 * @param ResourceType Id for the method used to map the identifier to an archive.
+	 * @param Identifier Id for which resource to return within the ResourceType's domain.
+	 * @return The opened FArchive, or nullptr if it wasn't found.
+	 */
+	virtual TUniquePtr<FArchive> OpenReadExternalResource(EPackageExternalResource ResourceType, FStringView Identifier) = 0;
+
+	/**
+	 * Open an IAsyncReadFileHandle to asynchronously read the bytes of the given ExternalResource.
+	 * An ExternalResource is in a separate domain from the one out of which this ResourceManager serves PackagePaths.
+	 *
+	 * TODO: This call should not hit the disk/network or block, but it currently does, to find the extension.
+	 * This call will always return a non-null handle, even if the package does not exist
+	 *
+	 * @param ResourceType Id for the method used to map the identifier to an archive.
+	 * @param Identifier Id for which resource to return within the ResourceType's domain.
+	 * @return An IAsyncReadFileHandle that will read from the package if it exists, or will be in the
+	 *         canceled state if the package does not exist
+	 */
+	virtual IAsyncReadFileHandle* OpenAsyncReadExternalResource(
+		EPackageExternalResource ResourceType, FStringView Identifier) = 0;
+
+	/**
+	 * Report whether a given ExternalResource exists. The same behavior as OpenReadExternalResource != nullptr,
+	 * but more performant.
+	 * 
+	 * @param ResourceType Id for the method used to map the identifier to an archive.
+	 * @param Identifier Id for which resource to return within the ResourceType's domain.
+	 * @return true if the ExternalResource exists, else false
+	 */
+	virtual bool DoesExternalResourceExist(EPackageExternalResource ResourceType, FStringView Identifier) = 0;
 
 	/**
 	 * Search the given subdirectory of a package mount for all packages with the given package basename in the

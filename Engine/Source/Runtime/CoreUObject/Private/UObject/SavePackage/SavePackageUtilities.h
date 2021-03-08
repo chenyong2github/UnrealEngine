@@ -12,6 +12,7 @@
 #include "Serialization/ArchiveStackTrace.h"
 #include "Serialization/FileRegions.h"
 #include "UObject/NameTypes.h"
+#include "UObject/Package.h"
 #include "UObject/UObjectMarks.h"
 
 // This file contains private utilities shared by UPackage::Save and UPackage::Save2 
@@ -341,8 +342,9 @@ namespace SavePackageUtilities
 	void DecrementOutstandingAsyncWrites();
 
 	void SaveThumbnails(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FSlot Slot);
-	void SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
-		FSavePackageContext* SavePackageContext, const bool bTextFormat, const bool bDiffing, const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed);
+	ESavePackageResult SaveBulkData(FLinkerSave* Linker, const UPackage* InOuter, const TCHAR* Filename, const ITargetPlatform* TargetPlatform,
+		FSavePackageContext* SavePackageContext, uint32 SaveFlags, const bool bTextFormat, const bool bDiffing,
+		const bool bComputeHash, TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, int64& TotalPackageSizeUncompressed);
 	void SaveWorldLevelInfo(UPackage* InOuter, FLinkerSave* Linker, FStructuredArchive::FRecord Record);
 	EObjectMark GetExcludedObjectMarksForTargetPlatform(const class ITargetPlatform* TargetPlatform);
 	bool HasUnsaveableOuter(UObject* InObj, UPackage* InSavingPackage);
@@ -356,6 +358,12 @@ namespace SavePackageUtilities
 	void AsyncWriteFileWithSplitExports(TAsyncWorkSequence<FMD5>& AsyncWriteAndHashSequence, FLargeMemoryPtr Data, const int64 DataSize, const int64 HeaderSize, const TCHAR* Filename, EAsyncWriteOptions Options, TArrayView<const FFileRegion> InFileRegions);
 
 	void GetCDOSubobjects(UObject* CDO, TArray<UObject*>& Subobjects);
+
+	/**
+	 * Return whether the given save parameters indicate the LoadedPath of the package being saved should be updated.
+	 * This allows us to update the in-memory package when it is saved in editor to match its new save file.
+	 */
+	bool IsSavingNewLoadedPath(bool bIsCooking, const FPackagePath& TargetPackagePath, uint32 SaveFlags);
 }
 
 #if ENABLE_COOK_STATS

@@ -1970,7 +1970,7 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 		return;
 	}
 
-	if( Ar.IsTransacting() )
+	if ( Ar.IsTransacting() )
 	{
 		// If transacting, keep these members alive the other side of an undo, otherwise their values will get lost
 		CustomVersions.Serialize( Ar );
@@ -1978,13 +1978,7 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	}
 	else
 	{
-		if( Ar.IsLoading() )
-		{
-			// If loading, take a copy of the package custom version container, so it can be applied when unpacking
-			// MeshDescription from the bulk data.
-			CustomVersions = Ar.GetCustomVersions();
-		}
-		else if( Ar.IsSaving() )
+		if ( Ar.IsSaving() )
 		{
 			// If the bulk data hasn't been updated since this was loaded, there's a possibility that it has old versioning.
 			// Explicitly load and resave the FMeshDescription so that its version is in sync with the FMeshDescriptionBulkData.
@@ -2029,6 +2023,13 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 	else
 	{
 		Ar << bGuidIsHash;
+	}
+
+	if (!Ar.IsTransacting() && Ar.IsLoading())
+	{
+		// If loading, take a copy of the package custom version container, so it can be applied when unpacking
+		// MeshDescription from the bulk data.
+		CustomVersions = BulkData.GetCustomVersions(Ar);
 	}
 
 #if UE_USE_VIRTUALBULKDATA

@@ -62,6 +62,10 @@ public:
 	virtual IMappedFileHandle* OpenMappedHandleToPackage(const FPackagePath& PackagePath,
 		EPackageSegment PackageSegment, FPackagePath* OutUpdatedPath = nullptr) override;
 	virtual bool TryMatchCaseOnDisk(const FPackagePath& PackagePath, FPackagePath* OutNormalizedPath = nullptr) override;
+	virtual TUniquePtr<FArchive> OpenReadExternalResource(EPackageExternalResource ResourceType, FStringView Identifier) override;
+	virtual bool DoesExternalResourceExist(EPackageExternalResource ResourceType, FStringView Identifier) override;
+	virtual IAsyncReadFileHandle* OpenAsyncReadExternalResource(
+		EPackageExternalResource ResourceType, FStringView Identifier) override;
 	virtual void FindPackagesRecursive(TArray<TPair<FPackagePath, EPackageSegment>>& OutPackages, FStringView PackageMount,
 		FStringView FileMount, FStringView RootRelPath, FStringView BasenameWildcard) override;
 	virtual void IteratePackagesInPath(FStringView PackageMount, FStringView FileMount, FStringView RootRelPath,

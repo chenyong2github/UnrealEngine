@@ -2052,7 +2052,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 	check(InOuter);
 	check(Filename);
 	const bool bIsCooking = TargetPlatform != nullptr;
-
+	FPackagePath TargetPackagePath = FPackagePath::FromLocalPath(Filename);
 
 #if WITH_EDITOR
 	TMap<UObject*, UObject*> ReplacedImportOuters;
@@ -2065,13 +2065,12 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 	// if the in memory package filename is different the filename we are saving it to,
 	// regenerate a new persistent id for it.
-	FPackagePath TargetPackagePath = FPackagePath::FromLocalPath(Filename);
 	if (!bIsCooking && !InOuter->GetLoadedPath().IsEmpty() && InOuter->GetLoadedPath() != TargetPackagePath && !(SaveFlags & SAVE_FromAutosave))
 	{
 		InOuter->SetPersistentGuid(FGuid::NewGuid());
 	}
 #endif //WITH_EDITOR
-
+	const bool bSavingNewLoadedPath = SavePackageUtilities::IsSavingNewLoadedPath(bIsCooking, TargetPackagePath, SaveFlags);
 	const bool bSavingConcurrent = !!(SaveFlags & ESaveFlags::SAVE_Concurrent);
 
 	if (FPlatformProperties::HasEditorOnlyData())
@@ -2439,6 +2438,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 					else
 #endif
+					{
 						if (bSaveAsync)
 						{
 							// Allocate the linker with a memory writer, forcing byte swapping if wanted.
@@ -2450,6 +2450,8 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 							TempFilename = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseFilename.Left(32));
 							Linker = TUniquePtr<FLinkerSave>(new FLinkerSave(InOuter, *TempFilename.GetValue(), bForceByteSwapping, bSaveUnversioned));
 						}
+					}
+					Linker->bSavingNewLoadedPath = bSavingNewLoadedPath;
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 					if (bTextFormat)
@@ -4148,8 +4150,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 
 				SlowTask.EnterProgressFrame(1, NSLOCTEXT("Core", "SerializingBulkData", "Serializing bulk data"));
 
-				SavePackageUtilities::SaveBulkData(Linker.Get(), InOuter, Filename, TargetPlatform, SavePackageContext, bTextFormat, bDiffing,
+				ESavePackageResult SaveResult = 
+					SavePackageUtilities::SaveBulkData(Linker.Get(), InOuter, Filename, TargetPlatform, SavePackageContext, SaveFlags, bTextFormat, bDiffing,
 							 bComputeHash, AsyncWriteAndHashSequence, TotalPackageSizeUncompressed );
+				if (SaveResult != ESavePackageResult::Success)
+				{
+					return SaveResult;
+				}
 
 				AppendAdditionalData(*Linker);
 
@@ -4639,7 +4646,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		{
 			// if the save was successful, update the internal package filename path if we aren't currently cooking
 #if WITH_EDITOR
-			if (TargetPlatform == nullptr && TargetPackagePath.IsMountedPath())
+			if (bSavingNewLoadedPath)
 			{
 				InOuter->SetLoadedPath(TargetPackagePath);
 			}

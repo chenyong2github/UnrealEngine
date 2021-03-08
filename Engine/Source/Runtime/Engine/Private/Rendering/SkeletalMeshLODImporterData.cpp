@@ -478,13 +478,6 @@ void FReductionBaseSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	}
 	else
 	{
-		if (Ar.IsLoading())
-		{
-			//Save the custom version so we can load FReductionSkeletalMeshData later
-			SerializeLoadingCustomVersionContainer = Ar.GetCustomVersions();
-			bUseSerializeLoadingCustomVersion = true;
-		}
-
 		if (Ar.IsSaving() && bUseSerializeLoadingCustomVersion == true)
 		{
 			//We need to update the FReductionSkeletalMeshData serialize version to the latest in case we save the Parent bulkdata
@@ -496,6 +489,12 @@ void FReductionBaseSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	}
 
 	BulkData.Serialize(Ar, Owner);
+	if (!Ar.IsTransacting() && Ar.IsLoading())
+	{
+		//Save the custom version so we can load FReductionSkeletalMeshData later
+		SerializeLoadingCustomVersionContainer = BulkData.GetCustomVersions(Ar);
+		bUseSerializeLoadingCustomVersion = true;
+	}
 }
 
 void FReductionBaseSkeletalMeshBulkData::SaveReductionData(FSkeletalMeshLODModel& BaseLODModel, TMap<FString, TArray<FMorphTargetDelta>>& BaseLODMorphTargetData, UObject* Owner)
@@ -737,13 +736,6 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	}
 	else
 	{
-		if (Ar.IsLoading())
-		{
-			//Save the custom version so we can load FReductionSkeletalMeshData later
-			SerializeLoadingCustomVersionContainer = Ar.GetCustomVersions();
-			bUseSerializeLoadingCustomVersion = true;
-		}
-
 		if (Ar.IsSaving() && bUseSerializeLoadingCustomVersion == true)
 		{
 			//We need to update the FReductionSkeletalMeshData serialize version to the latest in case we save the Parent bulkdata
@@ -768,6 +760,13 @@ void FRawSkeletalMeshBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	BulkData.Serialize(Ar, Owner);
 	Ar << Guid;
 	Ar << bGuidIsHash;
+
+	if (!Ar.IsTransacting() && Ar.IsLoading())
+	{
+		//Save the custom version so we can load FReductionSkeletalMeshData later
+		SerializeLoadingCustomVersionContainer = BulkData.GetCustomVersions(Ar);
+		bUseSerializeLoadingCustomVersion = true;
+	}
 }
 
 void FRawSkeletalMeshBulkData::SaveRawMesh(FSkeletalMeshImportData& InMesh)

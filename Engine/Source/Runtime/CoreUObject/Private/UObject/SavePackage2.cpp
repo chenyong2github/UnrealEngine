@@ -700,6 +700,7 @@ ESavePackageResult CreateLinker(FSaveContext& SaveContext)
 				SaveContext.Linker = MakeUnique<FLinkerSave>(SaveContext.GetPackage(), *SaveContext.TempFilename.GetValue(), SaveContext.IsForceByteSwapping(), SaveContext.IsSaveUnversioned());
 			}
 		}
+		SaveContext.Linker->bSavingNewLoadedPath = SaveContext.IsSavingNewLoadedPath();
 
 #if WITH_TEXT_ARCHIVE_SUPPORT
 		if (SaveContext.IsTextFormat())
@@ -1923,7 +1924,7 @@ void PostSavePackage(FSaveContext& SaveContext)
 	// update the internal package filename path if we're saving to a valid mounted path and we aren't currently cooking
 #if WITH_EDITOR
 	const FPackagePath& PackagePath = SaveContext.GetTargetPackagePath();
-	if (!SaveContext.IsCooking() && PackagePath.IsMountedPath())
+	if (SaveContext.IsSavingNewLoadedPath())
 	{
 		Package->SetLoadedPath(PackagePath);
 	}
@@ -2035,8 +2036,13 @@ ESavePackageResult InnerSave(FSaveContext& SaveContext)
 
 	// Save Bulk Data
 	SlowTask.EnterProgressFrame();
-	SavePackageUtilities::SaveBulkData(SaveContext.Linker.Get(), SaveContext.GetPackage(), SaveContext.GetFilename(), SaveContext.GetTargetPlatform(), SaveContext.GetSavePackageContext(), SaveContext.IsTextFormat(), SaveContext.IsDiffing(),
+	SaveContext.Result = SavePackageUtilities::SaveBulkData(SaveContext.Linker.Get(), SaveContext.GetPackage(), SaveContext.GetFilename(), SaveContext.GetTargetPlatform(),
+		SaveContext.GetSavePackageContext(), SaveContext.GetSaveArgs().SaveFlags, SaveContext.IsTextFormat(), SaveContext.IsDiffing(),
 		SaveContext.IsComputeHash(), SaveContext.AsyncWriteAndHashSequence, SaveContext.TotalPackageSizeUncompressed);
+	if (SaveContext.Result != ESavePackageResult::Success)
+	{
+		return SaveContext.Result;
+	}
 
 	// Write Additional files from export
 	SlowTask.EnterProgressFrame();

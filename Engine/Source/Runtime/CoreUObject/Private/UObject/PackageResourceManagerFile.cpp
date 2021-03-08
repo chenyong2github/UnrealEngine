@@ -45,6 +45,11 @@ public:
 		FPackagePath* OutUpdatedPath = nullptr) override;
 	virtual bool TryMatchCaseOnDisk(const FPackagePath& PackagePath, FPackagePath* OutPackagePath = nullptr) override;
 
+	virtual TUniquePtr<FArchive> OpenReadExternalResource(EPackageExternalResource ResourceType, FStringView Identifier) override;
+	virtual bool DoesExternalResourceExist(EPackageExternalResource ResourceType, FStringView Identifier) override;
+	virtual IAsyncReadFileHandle* OpenAsyncReadExternalResource(
+		EPackageExternalResource ResourceType, FStringView Identifier) override;
+
 	virtual void FindPackagesRecursive(TArray<TPair<FPackagePath, EPackageSegment>>& OutPackages,
 		FStringView PackageMount, FStringView FileMount, FStringView RootRelPath, FStringView BasenameWildcard) override;
 	virtual void IteratePackagesInPath(FStringView PackageMount, FStringView FileMount, FStringView RootRelPath,
@@ -314,6 +319,65 @@ bool FPackageResourceManagerFile::TryMatchCaseOnDisk(const FPackagePath& Package
 		return false;
 	}
 }
+
+TUniquePtr<FArchive> FPackageResourceManagerFile::OpenReadExternalResource(EPackageExternalResource ResourceType, FStringView Identifier)
+{
+	switch (ResourceType)
+	{
+	case EPackageExternalResource::WorkspaceDomainFile:
+	{
+		FPackagePath PackagePath;
+		if (!FPackagePath::TryFromPackageName(Identifier, PackagePath))
+		{
+			return TUniquePtr<FArchive>();
+		}
+		return OpenReadPackage(PackagePath, EPackageSegment::Header).Archive;
+	}
+	default:
+		checkNoEntry();
+		return TUniquePtr<FArchive>();
+	}
+}
+
+bool FPackageResourceManagerFile::DoesExternalResourceExist(EPackageExternalResource ResourceType, FStringView Identifier)
+{
+	switch (ResourceType)
+	{
+	case EPackageExternalResource::WorkspaceDomainFile:
+	{
+		FPackagePath PackagePath;
+		if (!FPackagePath::TryFromPackageName(Identifier, PackagePath))
+		{
+			return false;
+		}
+		return DoesPackageExist(PackagePath, EPackageSegment::Header);
+	}
+	default:
+		checkNoEntry();
+		return false;
+	}
+}
+
+IAsyncReadFileHandle* FPackageResourceManagerFile::OpenAsyncReadExternalResource(EPackageExternalResource ResourceType,
+	FStringView Identifier)
+{
+	switch (ResourceType)
+	{
+	case EPackageExternalResource::WorkspaceDomainFile:
+	{
+		FPackagePath PackagePath;
+		if (!FPackagePath::TryFromPackageName(Identifier, PackagePath))
+		{
+			return new FAsyncReadFileHandleNull();
+		}
+		return OpenAsyncReadPackage(PackagePath, EPackageSegment::Header);
+	}
+	default:
+		checkNoEntry();
+		return new FAsyncReadFileHandleNull();
+	}
+}
+
 
 void FPackageResourceManagerFile::FindPackagesRecursive(TArray<TPair<FPackagePath, EPackageSegment>>& OutPackages,
 	FStringView PackageMount, FStringView FileMount, FStringView RootRelPath, FStringView BasenameWildcard)

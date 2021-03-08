@@ -92,13 +92,7 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	}
 	else
 	{
-		if (Ar.IsLoading())
-		{
-			// If loading, take the package custom version so it can be applied to the bulk data archive
-			// when unpacking HairDescription from it
-			CustomVersions = Ar.GetCustomVersions();
-		}
-		else if (Ar.IsSaving())
+		if (Ar.IsSaving())
 		{
 			// If the bulk data hasn't been updated since this was loaded, there's a possibility that it has old versioning.
 			// Explicitly load and resave the FHairDescription so that its version is in sync with the FHairDescriptionBulkData.
@@ -114,6 +108,13 @@ void FHairDescriptionBulkData::Serialize(FArchive& Ar, UObject* Owner)
 	BulkData.Serialize(Ar, Owner);
 
 	Ar << Guid;
+
+	if (!Ar.IsTransacting() && Ar.IsLoading())
+	{
+		// If loading, take the package custom version so it can be applied to the bulk data archive
+		// when unpacking HairDescription from it
+		CustomVersions = BulkData.GetCustomVersions(Ar);
+	}
 }
 
 void FHairDescriptionBulkData::SaveHairDescription(FHairDescription& HairDescription)

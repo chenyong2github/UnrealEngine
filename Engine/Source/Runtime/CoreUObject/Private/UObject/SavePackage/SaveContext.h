@@ -101,6 +101,8 @@ public:
 		{
 			bIsProcessingPrestreamPackages = ProcessPrestreamingRequests->GetInt() > 0;
 		}
+
+		bSavingNewLoadedPath = SavePackageUtilities::IsSavingNewLoadedPath(IsCooking(), TargetPackagePath, SaveArgs.SaveFlags);
 	}
 
 	~FSaveContext()
@@ -185,6 +187,11 @@ public:
 	bool IsCooking() const
 	{
 		return SaveArgs.TargetPlatform != nullptr;
+	}
+
+	bool IsSavingNewLoadedPath() const
+	{
+		return bSavingNewLoadedPath;
 	}
 
 	bool IsFilterEditorOnly() const
@@ -566,6 +573,7 @@ private:
 	bool bIsProcessingPrestreamPackages = false;
 	bool bNeedPreSaveCleanup = false;
 	bool bGenerateFileStub = false;
+	bool bSavingNewLoadedPath = false;
 
 	// Config classes shared with the old Save
 	FSavePackageDiffSettings DiffSettings;

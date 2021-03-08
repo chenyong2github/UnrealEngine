@@ -808,6 +808,8 @@ void FBulkDataBase::Serialize(FArchive& Ar, UObject* Owner, int32 /*Index*/, boo
 		{
 			SerializeDuplicateData(Ar, DuplicateFlags, DuplicateSizeOnDisk, DuplicateOffset);
 		}
+		checkf(!(BulkDataFlags & BULKDATA_WorkspaceDomainPayload), TEXT("FBulkDataBase error on %s:")
+			TEXT("FBulkDataBase does not support BULKDATA_WorkspaceDomainPayload"), *Ar.GetArchiveName());
 
 		// We assume that Owner/Package/Linker are all valid. The old BulkData system would
 		// generally fail if any of these were nullptr but had plenty of inconsistent checks

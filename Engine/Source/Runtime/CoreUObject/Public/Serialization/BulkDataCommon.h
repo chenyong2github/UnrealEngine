@@ -57,6 +57,16 @@ enum EBulkDataFlags : uint32
 	BULKDATA_BadDataVersion = 1 << 15,
 	/** BulkData did not have it's offset changed during the cook and does not need the fix up at load time */
 	BULKDATA_NoOffsetFixUp = 1 << 16,
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * If set, payload is stored in the workspace domain version of the file.
+	 */
+	BULKDATA_WorkspaceDomainPayload = 1 << 17,
+	/**
+	 * INTERNAL SET ONLY - callers of bulkdata should not set this flag on the bulk data
+	 * If true, the BulkData can be loaded from its file at any time
+	 */
+	BULKDATA_LazyLoadable = 1 << 18,
 
 	/* Runtime only flags below this point! Note that they take the high bits in reverse order! */
 

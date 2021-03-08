@@ -77,6 +77,12 @@ public:
 	 */
 	TArray<AdditionalDataCallback> AdditionalDataToAppend;
 
+	/**
+	 * Stores whether the target of the save is the path PackagePath that already is/will be stored in the Package's LoadedPath
+	 * This is used e.g. to decide whether to update the in-memory file offsets for BulkData.
+	 */
+	bool bSavingNewLoadedPath = false;
+
 	/** A mapping of package name to generated script SHA keys */
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;
 

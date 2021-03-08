@@ -33,6 +33,7 @@
 
 class IMappedFileHandle;
 class IMappedFileRegion;
+class UPackage;
 
 /*-----------------------------------------------------------------------------
 	Base version of untyped bulk data.
@@ -445,6 +446,15 @@ public:
 	}
 
 	/**
+	 * Returns whether this bulk data is stored in a PackageExternalResource rather than in
+	 * a neighboring segment of its owner's PackagePath. 
+	 */
+	bool IsInExternalResource() const
+	{
+		return IsInSeparateFile() && (GetBulkDataFlags() & BULKDATA_WorkspaceDomainPayload);
+	}
+
+	/**
 	* Returns whether this bulk data is accessed via the IoDispatcher or not.
 	* @return false as the old BulkData API does not support it
 	*/
@@ -648,6 +658,27 @@ public:
 
 	UE_DEPRECATED(5.0, "Use the version that takes InBulkDataFlags")
 	void SerializeBulkData( FArchive& Ar, void* Data );
+
+	/**
+	 * Get the CustomVersions used in the file containing the BulkData payload. If !IsInSeparateFile, this will be
+	 * the custom versions from the archive used to serialize the FBulkDataInterface, which the caller must provide.
+	 * Otherwise, the CustomVersions come from the separate file and this function will look them up.
+	 * 
+	 * @param InlineArchive The archive that was used to load this BulkData object
+	 * 
+	 * @return The CustomVersions that apply to the interpretation of the BulkData's payload.
+	 */
+	FCustomVersionContainer GetCustomVersions(FArchive& InlineArchive);
+
+#if WITH_EDITOR
+	/**
+	 * When saving BulkData, if we are overwriting the file we need to update the BulkData's (flags,offset,size) to be
+	 * able to load from the new file. But SerializeBulkData modifies those values when loading, so the in-memory values after
+	 * loading from disk are not the same as the values on disk.
+	 * This function handles running the same steps that SerializeBulkData does, but skips the deserialization of the BulkData.
+	 * */
+	void SetFlagsFromDiskWrittenValues(EBulkDataFlags InBulkDataFlags, int64 InBulkDataOffsetInFile, int64 InBulkDataSizeOnDisk, int64 LinkerSummaryBulkDataStartOffset);
+#endif
 
 	/*-----------------------------------------------------------------------------
 		Async Streaming Interface.
