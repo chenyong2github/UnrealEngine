@@ -205,6 +205,8 @@ UObject* ULevelVariantSets::GetDirectorInstance(UObject* WorldContext)
 		return nullptr;
 	}
 
+	// This will always pick the persistent world, even if WorldContext is in a streamed-in level.
+	// This is important as the UWorld that is actually outer to streamed-in levels shouldn't be used generally.
 	UWorld* TargetWorld = WorldContext->GetWorld();
 
 	// Check if we already created a director for this world
@@ -226,6 +228,17 @@ UObject* ULevelVariantSets::GetDirectorInstance(UObject* WorldContext)
 	UGameplayStatics::GetAllActorsOfClass(TargetWorld, ALevelVariantSetsActor::StaticClass(), FoundActors);
 	for (AActor* Actor : FoundActors)
 	{
+		// We can never use ALevelVariantSetsActors on streamed-in levels for this, because some functions will fetch the UObject's
+		// UWorld by going through ULevel::OwningWorld, and others will just travel up the outer chain, which can leads to different results for streamed levels.
+		// Here we ignore those actors by making sure that we only consider the ones directly outer'ed to the persistent world,
+		// where this duality won't exist. It may be slightly weird that we will ignore ALevelVariantSetsActors on streamed-in levels that
+		// the user may have manually placed, but it should work more consistently this way. These actors don't really have any state anyway,
+		// so there is no harm in having an additional actor. Also, see the comment on ULevel::OwningWorld.
+		if ( Actor->GetTypedOuter<UWorld>() != TargetWorld )
+		{
+			continue;
+		}
+
 		ALevelVariantSetsActor* ActorAsLVSActor = Cast<ALevelVariantSetsActor>(Actor);
 		if (ActorAsLVSActor && ActorAsLVSActor->GetLevelVariantSets() == this)
 		{
@@ -240,6 +253,7 @@ UObject* ULevelVariantSets::GetDirectorInstance(UObject* WorldContext)
 		FVector Location(0.0f, 0.0f, 0.0f);
 		FRotator Rotation(0.0f, 0.0f, 0.0f);
 		FActorSpawnParameters SpawnInfo;
+		SpawnInfo.OverrideLevel = TargetWorld->PersistentLevel; // If we leave it null it will pick the persistent level *of the streamed in world* instead, which is not actually *the* persistent level
 		ALevelVariantSetsActor* NewActor = TargetWorld->SpawnActor<ALevelVariantSetsActor>(Location, Rotation, SpawnInfo);
 		NewActor->SetLevelVariantSets(this);
 		DirectorOuter = NewActor;
