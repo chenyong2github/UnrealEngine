@@ -443,9 +443,18 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		}
 	}
 
-	// plugins might have used the VulkanRHIBridge to enable additional extensions
-	OutInstanceExtensions.Append(VulkanRHIBridge::InstanceExtensions);
-	OutInstanceLayers.Append(VulkanRHIBridge::InstanceLayers);
+	// Check for layers added outside the RHI (eg plugins)
+	for (const ANSICHAR* VulkanBridgeLayer : VulkanRHIBridge::InstanceLayers)
+	{
+		if (FindLayerInList(GlobalLayerExtensions, VulkanBridgeLayer))
+		{
+			OutInstanceLayers.Add(VulkanBridgeLayer);
+		}
+		else
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge instance layer '%s'"), ANSI_TO_TCHAR(VulkanBridgeLayer));
+		}
+	}
 
 	TArray<const ANSICHAR*> PlatformExtensions;
 	FVulkanPlatform::GetInstanceExtensions(PlatformExtensions);
@@ -463,6 +472,19 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		if (FindLayerExtensionInList(GlobalLayerExtensions, GInstanceExtensions[j]))
 		{
 			OutInstanceExtensions.Add(GInstanceExtensions[j]);
+		}
+	}
+
+	// Check for extensions added outside the RHI (eg plugins)
+	for (const ANSICHAR* VulkanBridgeExtension : VulkanRHIBridge::InstanceExtensions)
+	{
+		if (FindLayerExtensionInList(GlobalLayerExtensions, VulkanBridgeExtension))
+		{
+			OutInstanceExtensions.Add(VulkanBridgeExtension);
+		}
+		else
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge instance extension '%s'"), ANSI_TO_TCHAR(VulkanBridgeExtension));
 		}
 	}
 
@@ -625,6 +647,19 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 	}
 #endif	// VULKAN_HAS_DEBUGGING_ENABLED
 
+	// Check for layers added outside the RHI (eg plugins)
+	for (const ANSICHAR* VulkanBridgeLayer : VulkanRHIBridge::DeviceLayers)
+	{
+		if (FindLayerInList(DeviceLayerExtensions, VulkanBridgeLayer))
+		{
+			OutDeviceLayers.Add(VulkanBridgeLayer);
+		}
+		else
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge device layer '%s'"), ANSI_TO_TCHAR(VulkanBridgeLayer));
+		}
+	}
+
 	if (FVulkanDynamicRHI::HMDVulkanExtensions.IsValid())
 	{
 		if (!FVulkanDynamicRHI::HMDVulkanExtensions->GetVulkanDeviceExtensionsRequired( Gpu, OutDeviceExtensions))
@@ -632,10 +667,6 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 			UE_LOG(LogVulkanRHI, Warning, TEXT( "Trying to use Vulkan with an HMD, but required extensions aren't supported on the selected device!"));
 		}
 	}
-
-	// plugins might have used the VulkanRHIBridge to enable additional extensions
-	OutDeviceExtensions.Append(VulkanRHIBridge::DeviceExtensions);
-	OutDeviceLayers.Append(VulkanRHIBridge::DeviceLayers);
 
 	// Now gather the actually used extensions based on the enabled layers
 	TArray<const ANSICHAR*> AvailableExtensions;
@@ -698,6 +729,20 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 			OutDeviceExtensions.Add(GDeviceExtensions[Index]);
 		}
 	}
+	
+	// Check for extensions added outside the RHI (eg plugins)
+	for (const ANSICHAR* VulkanBridgeExtension : VulkanRHIBridge::DeviceExtensions)
+	{
+		if (ListContains(AvailableExtensions, VulkanBridgeExtension))
+		{
+			OutDeviceExtensions.Add(VulkanBridgeExtension);
+		}
+		else
+		{
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find VulkanRHIBridge device extension '%s'"), ANSI_TO_TCHAR(VulkanBridgeExtension));
+		}
+	}
+
 
 #if VULKAN_ENABLE_DRAW_MARKERS && VULKAN_HAS_DEBUGGING_ENABLED
 	if (!bOutDebugMarkers &&
