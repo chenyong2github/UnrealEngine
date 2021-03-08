@@ -7,7 +7,7 @@
 #include "HAL/IConsoleManager.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 
-#if !UE_BUILD_SHIPPING && !PLATFORM_LUMIN
+#if !UE_BUILD_SHIPPING && !PLATFORM_LUMIN && (PLATFORM_ARM || PLATFORM_ARM64)
 #	define HWCPIPE_SUPPORTED 1
 #else
 #	define HWCPIPE_SUPPORTED 0
