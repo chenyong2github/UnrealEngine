@@ -154,11 +154,14 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	// execute init
 	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 }
+
 TArray<FName> UFKControlRig::GetControlNames()
 {
-	FRigHierarchyContainer* Container = GetHierarchy();
+	TArray<FRigControl> Controls;
+	GetControlsInOrder(Controls);
+
 	TArray<FName> Names;
-	for (FRigControl& Control : Container->ControlHierarchy)
+	for (FRigControl& Control: Controls)
 	{
 		Names.Add(Control.Name);
 	}

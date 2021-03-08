@@ -119,7 +119,7 @@ private:
 		TArray<FFBXNodeAndChannels>* NodeAndChannels);
 
 	/** Select Bones to Animate on FK Rig*/
-	void SelectFKBonesToAnimate(UFKControlRig* FKControlRig);
+	void SelectFKBonesToAnimate(UFKControlRig* FKControlRig, UMovieSceneControlRigParameterTrack* Track);
 
 	/** Toggle FK Control Rig*/
 	void ToggleFKControlRig(UMovieSceneControlRigParameterTrack* Track, UFKControlRig* FKControlRig);

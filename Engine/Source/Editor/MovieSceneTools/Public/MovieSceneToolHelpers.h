@@ -421,6 +421,7 @@ public:
 	 * @param SkelMesh The Player to evaluate
 	 * @param Template ID of the sequence template.
 	 * @param RootToLocalTransform Transform Offset to apply to exported anim sequence.
+	* @param ExportOptions The options to use when baking the mesh.
 	 * @param InitCallback Callback before it starts running, maybe performance heavy.
 	 * @param StartCallback Callback right before starting if needed, should be lightweight.
 	 * @param TickCallback Callback per tick where you can bake the skelmesh.
@@ -430,7 +431,7 @@ public:
 	*/
 
 	static bool BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, IMovieScenePlayer* Player,
-		USkeletalMeshComponent* SkelMesh, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform,
+		USkeletalMeshComponent* SkelMesh, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform, UAnimSeqExportOption* ExportOptions,
 		FInitAnimationCB InitCallback, FStartAnimationCB StartCallback, FTickAnimationCB TickCallback, FEndAnimationCB EndCallback);
 
 
