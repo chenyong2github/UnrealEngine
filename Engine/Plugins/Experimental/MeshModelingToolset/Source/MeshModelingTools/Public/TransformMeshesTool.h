@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "MultiSelectionTool.h"
 #include "InteractiveToolBuilder.h"
-#include "BaseBehaviors//BehaviorTargetInterfaces.h"
+#include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Changes/TransformChange.h"
 #include "FrameTypes.h"
 #include "TransformMeshesTool.generated.h"

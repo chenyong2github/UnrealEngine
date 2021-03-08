@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 #include "CoreMinimal.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "Engine/World.h"
 #include "ToolSceneQueriesUtil.h"
-
-#pragma once
 
 /**
  * BehaviorTarget to do world raycast selection from a click

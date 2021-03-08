@@ -2704,10 +2704,6 @@ public:
 
 	Vector3 computeFaceNormal(uint32_t face) const
 	{
-		int a = m_indices[face * 3 + 0];
-		int b = m_indices[face * 3 + 1];
-		int c = m_indices[face * 3 + 2];
-
 		const Vector3 &p0 = m_positions[m_indices[face * 3 + 0]];
 		const Vector3 &p1 = m_positions[m_indices[face * 3 + 1]];
 		const Vector3 &p2 = m_positions[m_indices[face * 3 + 2]];
