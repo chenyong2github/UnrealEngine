@@ -930,18 +930,6 @@ public:
 
 	virtual int32 GetLightMapCoordinateIndex() const override;
 
-#if GPUCULL_TODO
-	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
-	{
-		return &Instances;
-	}
-
-	virtual TArray<FPrimitiveInstance>* GetPrimitiveInstances()
-	{
-		return &Instances;
-	}
-#endif
-
 protected:
 	/** Configures mesh batch vertex / index state. Returns the number of primitives used in the element. */
 	uint32 SetMeshElementGeometrySource(
@@ -1151,11 +1139,6 @@ private:
 protected:
 	/** Hierarchical LOD Index used for rendering */
 	uint8 HierarchicalLODIndex;
-#endif
-
-#if GPUCULL_TODO
-protected:
-	TArray<FPrimitiveInstance> Instances;
 #endif
 
 public:

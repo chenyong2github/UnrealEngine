@@ -351,20 +351,6 @@ FStaticMeshSceneProxy::FStaticMeshSceneProxy(UStaticMeshComponent* InComponent, 
 #endif
 
 	AddSpeedTreeWind();
-#if GPUCULL_TODO
-	if (UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel))
-	{
-		Instances.SetNum(1);
-		FPrimitiveInstance& Instance = Instances[0];
-		Instance.PrimitiveId = ~uint32(0);
-		Instance.InstanceToLocal.SetIdentity();
-		Instance.LocalToInstance.SetIdentity();
-		Instance.LocalToWorld.SetIdentity();
-		Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
-		Instance.LocalBounds = Instance.RenderBounds;
-		bSupportsInstanceDataBuffer = true;
-	}
-#endif // GPUCULL_TODO
 }
 
 void FStaticMeshSceneProxy::SetEvaluateWorldPositionOffsetInRayTracing(bool NewValue)
