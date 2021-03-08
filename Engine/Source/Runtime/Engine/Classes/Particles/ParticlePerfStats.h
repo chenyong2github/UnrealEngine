@@ -6,6 +6,7 @@
 #include "CoreMinimal.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/CoreMiscDefines.h"
+#include "Containers/Array.h"
 
 
 #define WITH_GLOBAL_RUNTIME_FX_BUDGET (!UE_SERVER)
@@ -28,9 +29,6 @@ class UFXSystemAsset;
 class UFXSystemComponent;
 
 #if WITH_PARTICLE_PERF_STATS
-
-#include "Containers/Array.h"
-#include "Templates/Atomic.h"
 
 /** Stats gathered on the game thread or game thread spawned tasks. */
 struct ENGINE_API FParticlePerfStats_GT
