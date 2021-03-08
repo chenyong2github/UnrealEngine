@@ -4,6 +4,7 @@
 #include "GroomAsset.h"
 
 #include "EditorFramework/AssetImportData.h"
+#include "GeometryCache.h"
 #include "HairStrandsRendering.h"
 #include "Toolkits/SimpleAssetEditor.h"
 #include "ToolMenuSection.h"
@@ -84,13 +85,24 @@ void FGroomBindingActions::ExecuteRebuildBindingAsset(TArray<TWeakObjectPtr<UGro
 {
 	for (TWeakObjectPtr<UGroomBindingAsset> BindingAsset : Objects)
 	{
-		if (BindingAsset.IsValid() && BindingAsset->Groom && BindingAsset->TargetSkeletalMesh)
+		if (BindingAsset.IsValid() && BindingAsset->Groom && BindingAsset->HasValidTarget())
 		{
 			BindingAsset->Groom->ConditionalPostLoad();
-			BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
-			if (BindingAsset->SourceSkeletalMesh)
+			if (BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh)
 			{
-				BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
+				BindingAsset->TargetSkeletalMesh->ConditionalPostLoad();
+				if (BindingAsset->SourceSkeletalMesh)
+				{
+					BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
+				}
+			}
+			else
+			{
+				BindingAsset->TargetGeometryCache->ConditionalPostLoad();
+				if (BindingAsset->SourceGeometryCache)
+				{
+					BindingAsset->SourceGeometryCache->ConditionalPostLoad();
+				}
 			}
 			FGroomBindingBuilder::BuildBinding(BindingAsset.Get(), false, true);
 			BindingAsset->GetOutermost()->MarkPackageDirty();

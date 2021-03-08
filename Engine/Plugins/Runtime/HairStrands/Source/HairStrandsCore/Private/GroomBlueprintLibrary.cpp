@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GroomBlueprintLibrary.h"
+#include "GeometryCache.h"
 #include "HairStrandsCore.h"
 #include "GroomBindingAsset.h"
 
@@ -18,7 +19,7 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAssetWithPath(
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(InDesiredPackagePath, nullptr, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::SkeletalMesh, InDesiredPackagePath, nullptr, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();
@@ -43,7 +44,58 @@ UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGroomBindingAsset(
 		return nullptr;
 	}
 
-	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::SkeletalMesh, InGroomAsset, InSourceSkeletalMeshForTransfer, InSkeletalMesh, InNumInterpolationPoints, InMatchingSection);
+	if (BindingAsset)
+	{
+		BindingAsset->Build();
+	}
+	FHairStrandsCore::SaveAsset(BindingAsset);
+	return BindingAsset;
+#else
+	return nullptr;
+#endif
+}
+
+UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGeometryCacheGroomBindingAssetWithPath(
+	const FString& InDesiredPackagePath,
+	UGroomAsset* InGroomAsset,
+	UGeometryCache* InGeometryCache,
+	int32 InNumInterpolationPoints,
+	UGeometryCache* InSourceGeometryCacheForTransfer,
+	int32 InMatchingSection)
+{
+#if WITH_EDITOR
+	if (!InGroomAsset || !InGeometryCache)
+	{
+		return nullptr;
+	}
+
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::GeometryCache, InDesiredPackagePath, nullptr, InGroomAsset, InSourceGeometryCacheForTransfer, InGeometryCache, InNumInterpolationPoints, InMatchingSection);
+	if (BindingAsset)
+	{
+		BindingAsset->Build();
+	}
+	FHairStrandsCore::SaveAsset(BindingAsset);
+	return BindingAsset;
+#else
+	return nullptr;
+#endif
+}
+
+UGroomBindingAsset* UGroomBlueprintLibrary::CreateNewGeometryCacheGroomBindingAsset(
+	UGroomAsset* InGroomAsset,
+	UGeometryCache* InGeometryCache,
+	int32 InNumInterpolationPoints,
+	UGeometryCache* InSourceGeometryCacheForTransfer,
+	int32 InMatchingSection)
+{
+#if WITH_EDITOR
+	if (!InGroomAsset || !InGeometryCache)
+	{
+		return nullptr;
+	}
+
+	UGroomBindingAsset* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(EGroomBindingType::GeometryCache, InGroomAsset, InSourceGeometryCacheForTransfer, InGeometryCache, InNumInterpolationPoints, InMatchingSection);
 	if (BindingAsset)
 	{
 		BindingAsset->Build();

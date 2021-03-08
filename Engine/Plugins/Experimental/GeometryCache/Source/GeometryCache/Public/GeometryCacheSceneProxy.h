@@ -33,6 +33,8 @@ public:
 	/* Create on rhi thread. Uninitialized with NumVertices space.*/
 	virtual void InitRHI() override;
 
+	virtual void ReleaseRHI() override;
+
 	/**
 	 * Sugar function to update from a typed array.
 	 */
@@ -85,8 +87,23 @@ public:
 
 	virtual FString GetFriendlyName() const override { return TEXT("FGeomCacheVertexBuffer"); }
 
-private:
+	FRHIShaderResourceView* GetBufferSRV() const { return BufferSRV; }
+
+protected:
 	int32 SizeInBytes;
+	FShaderResourceViewRHIRef BufferSRV;
+};
+
+class GEOMETRYCACHE_API FGeomCacheTangentBuffer : public FGeomCacheVertexBuffer
+{
+public:
+	virtual void InitRHI() override;
+};
+
+class GEOMETRYCACHE_API FGeomCacheColorBuffer : public FGeomCacheVertexBuffer
+{
+public:
+	virtual void InitRHI() override;
 };
 
 /** Index Buffer */
@@ -98,6 +115,8 @@ public:
 	/* Create on rhi thread. Uninitialized with NumIndices space.*/
 	virtual void InitRHI() override;
 
+	virtual void ReleaseRHI() override;
+
 	/**
 		Update the data and possibly reallocate if needed.
 	*/
@@ -106,6 +125,11 @@ public:
 	void UpdateSizeOnly(int32 NewNumIndices);
 
 	unsigned SizeInBytes() { return NumIndices * sizeof(uint32); }
+
+	FRHIShaderResourceView* GetBufferSRV() const { return BufferSRV; }
+
+protected:
+	FShaderResourceViewRHIRef BufferSRV;
 };
 
 /** Vertex Factory */
@@ -223,10 +247,10 @@ public:
 	float PositionBufferFrameTimes[2]; // Exact time after interpolation of the positions in the position buffer.
 	uint32 CurrentPositionBufferIndex; // CurrentPositionBufferIndex%2  is the last updated position buffer
 
-	FGeomCacheVertexBuffer TangentXBuffer;
-	FGeomCacheVertexBuffer TangentZBuffer;
+	FGeomCacheTangentBuffer TangentXBuffer;
+	FGeomCacheTangentBuffer TangentZBuffer;
 	FGeomCacheVertexBuffer TextureCoordinatesBuffer;
-	FGeomCacheVertexBuffer ColorBuffer;
+	FGeomCacheColorBuffer ColorBuffer;
 
 	/** Index buffer for this Track */
 	FGeomCacheIndexBuffer IndexBuffer;
@@ -289,6 +313,8 @@ public:
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) override final;
 	virtual bool IsRayTracingRelevant() const override { return true; }
 #endif
+
+	const TArray<FGeomCacheTrackProxy*>& GetTracks() { return Tracks; }
 
 private:
 	void FrameUpdate() const;

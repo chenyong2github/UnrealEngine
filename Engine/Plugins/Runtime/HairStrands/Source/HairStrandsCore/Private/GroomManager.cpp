@@ -3,6 +3,7 @@
 #include "GroomManager.h"
 #include "HairStrandsMeshProjection.h"
 
+#include "GeometryCacheComponent.h"
 #include "GPUSkinCache.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Rendering/SkinWeightVertexBuffer.h"
@@ -157,19 +158,26 @@ static void RunInternalHairStrandsInterpolation(
 		check(Instance->HairGroupPublicData);
 
 		FCachedGeometry CachedGeometry;
-		if (Instance->Debug.SkeletalComponent)
+		if (Instance->Debug.GroomBindingType == EGroomBindingType::SkeletalMesh)
 		{
-			if (SkinCache)
+			if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Instance->Debug.MeshComponent))
 			{
-				CachedGeometry = SkinCache->GetCachedGeometry(Instance->Debug.SkeletalComponent->ComponentId.PrimIDValue);
-			}
+				if (SkinCache)
+				{
+					CachedGeometry = SkinCache->GetCachedGeometry(SkeletalMeshComponent->ComponentId.PrimIDValue);
+				}
 
-			if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
-			{
-				//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
-				// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...
-				BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
+				if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
+				{
+					//#hair_todo: Need to have a (frame) cache to insure that we don't recompute the same projection several time
+					// Actual populate the cache with only the needed part basd on the groom projection data. At the moment it recompute everything ...
+					BuildCacheGeometry(GraphBuilder, ShaderMap, SkeletalMeshComponent, CachedGeometry);
+				}
 			}
+		}
+		else if (UGeometryCacheComponent* GeometryCacheComponent = Cast<UGeometryCacheComponent>(Instance->Debug.MeshComponent))
+		{
+			BuildCacheGeometry(GraphBuilder, ShaderMap, GeometryCacheComponent, CachedGeometry);
 		}
 		if (CachedGeometry.Sections.Num() == 0)
 			continue;

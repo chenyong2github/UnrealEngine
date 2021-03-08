@@ -5,8 +5,11 @@
 UGroomCreateBindingOptions::UGroomCreateBindingOptions(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 {
+	GroomBindingType = EGroomBindingType::SkeletalMesh;
 	SourceSkeletalMesh = nullptr;
 	TargetSkeletalMesh = nullptr;
+	SourceGeometryCache = nullptr;
+	TargetGeometryCache = nullptr;
 	NumInterpolationPoints = 100;
 	MatchingSection = 0;
 }

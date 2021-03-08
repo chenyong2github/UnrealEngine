@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved. 
 
 #include "GroomComponent.h"
+#include "GeometryCacheComponent.h"
 #include "Materials/Material.h"
 #include "MaterialShared.h"
 #include "Engine/CollisionProfile.h"
@@ -413,7 +414,7 @@ public:
 		Strands_DebugMaterial = Component->Strands_DebugMaterial;
 		PredictedLODIndex = &Component->PredictedLODIndex;
 		bAlwaysHasVelocity = false;
-		if (IsHairStrandsBindingEnable() && Component->RegisteredSkeletalMeshComponent)
+		if (IsHairStrandsBindingEnable() && Component->RegisteredMeshComponent)
 		{
 			bAlwaysHasVelocity = true;
 		}
@@ -441,7 +442,7 @@ public:
 			HairInstance->ProxyLocalBounds = &GetLocalBounds();
 			HairInstance->bUseCPULODSelection = Component->GroomAsset->LODSelectionType == EHairLODSelectionType::Cpu;
 			HairInstance->bForceCards = Component->bUseCards;
-			HairInstance->bUpdatePositionOffset = Component->RegisteredSkeletalMeshComponent != nullptr;
+			HairInstance->bUpdatePositionOffset = Component->RegisteredMeshComponent != nullptr;
 			HairInstance->bCastShadow = Component->CastShadow;
 			{
 				FHairGroup& OutGroupData = HairGroups.AddDefaulted_GetRef();
@@ -945,7 +946,7 @@ UGroomComponent::UGroomComponent(const FObjectInitializer& ObjectInitializer)
 	bTickInEditor = true;
 	bAutoActivate = true;
 	bSelectable = true;
-	RegisteredSkeletalMeshComponent = nullptr;
+	RegisteredMeshComponent = nullptr;
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
 	InitializedResources = nullptr;
 	Mobility = EComponentMobility::Movable;
@@ -1379,9 +1380,9 @@ FBoxSphereBounds UGroomComponent::CalcBounds(const FTransform& InLocalToWorld) c
 {
 	if (GroomAsset && GroomAsset->GetNumHairGroups() > 0)
 	{
-		if (RegisteredSkeletalMeshComponent)
+		if (RegisteredMeshComponent)
 		{
-			const FBox WorldSkeletalBound = RegisteredSkeletalMeshComponent->CalcBounds(InLocalToWorld).GetBox();
+			const FBox WorldSkeletalBound = RegisteredMeshComponent->CalcBounds(InLocalToWorld).GetBox();
 			return FBoxSphereBounds(WorldSkeletalBound);
 		}
 		else
@@ -1707,6 +1708,42 @@ void UGroomComponent::OnChildAttached(USceneComponent* ChildComponent)
 
 }
 
+static UGeometryCacheComponent* ValidateBindingAsset(
+	UGroomAsset* GroomAsset, 
+	UGroomBindingAsset* BindingAsset, 
+	UGeometryCacheComponent* GeometryCacheComponent, 
+	bool bIsBindingReloading, 
+	bool bValidationEnable, 
+	const USceneComponent* Component)
+{
+	if (!GroomAsset || !BindingAsset || !GeometryCacheComponent)
+	{
+		return nullptr;
+	}
+
+	bool bHasValidSectionCount = GeometryCacheComponent && GeometryCacheComponent->GetNumMaterials() < int32(GetHairStrandsMaxSectionCount());
+
+	// Report warning if the section count is larger than the supported count
+	if (GeometryCacheComponent && !bHasValidSectionCount)
+	{
+		FString Name = "";
+		if (Component->GetOwner())
+		{
+			Name += Component->GetOwner()->GetName() + "/";
+		}
+		Name += Component->GetName() + "/" + GroomAsset->GetName();
+
+		UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s - Groom is bound to a GeometryCache which has too many sections (%d), which is higher than the maximum supported for hair binding (%d). The groom binding will be disbled on this component."), *Name, GeometryCacheComponent->GetNumMaterials(), GetHairStrandsMaxSectionCount());
+	}
+
+	const bool bIsBindingCompatible =
+		UGroomBindingAsset::IsCompatible(GeometryCacheComponent ? GeometryCacheComponent->GeometryCache : nullptr, BindingAsset, bValidationEnable) &&
+		UGroomBindingAsset::IsCompatible(GroomAsset, BindingAsset, bValidationEnable) &&
+		UGroomBindingAsset::IsBindingAssetValid(BindingAsset, bIsBindingReloading, bValidationEnable);
+
+	return bIsBindingCompatible ? GeometryCacheComponent : nullptr;
+}
+
 // Return a non-null skeletal mesh Component if the binding asset is compatible with the current component
 static USkeletalMeshComponent* ValidateBindingAsset(
 	UGroomAsset* GroomAsset, 
@@ -1739,7 +1776,6 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 	}
 
 	// Report warning if the skeletal section count is larger than the supported count
-	const bool bHasValidSketalMesh = SkeletalMeshComponent && SkeletalMeshComponent->GetSkeletalMeshRenderData() && bHasValidSectionCount;
 	if (SkeletalMeshComponent && !bHasValidSectionCount)
 	{
 		FString Name = "";
@@ -1791,6 +1827,26 @@ static USkeletalMeshComponent* ValidateBindingAsset(
 	return SkeletalMeshComponent;
 }
 
+static UMeshComponent* ValidateBindingAsset(
+	UGroomAsset* GroomAsset,
+	UGroomBindingAsset* BindingAsset,
+	UMeshComponent* MeshComponent,
+	bool bIsBindingReloading,
+	bool bValidationEnable,
+	const USceneComponent* Component)
+{
+	if (!GroomAsset || !BindingAsset || !MeshComponent)
+	{
+		return nullptr;
+	}
+
+	if (BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh)
+	{
+		return ValidateBindingAsset(GroomAsset, BindingAsset, Cast<USkeletalMeshComponent>(MeshComponent), bIsBindingReloading, bValidationEnable, Component);
+	}
+	return ValidateBindingAsset(GroomAsset, BindingAsset, Cast<UGeometryCacheComponent>(MeshComponent), bIsBindingReloading, bValidationEnable, Component);
+}
+
 void CreateHairStrandsDebugAttributeBuffer(FRDGExternalBuffer* DebugAttributeBuffer, uint32 VertexCount);
 
 void UGroomComponent::InitResources(bool bIsBindingReloading)
@@ -1815,21 +1871,30 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	const bool bIsStrandsEnabled = IsHairStrandsEnabled(EHairStrandsShaderType::Strands);
 
 	// Insure that the binding asset is compatible, otherwise no binding will be used
-	USkeletalMeshComponent* SkeletalMeshComponent = ValidateBindingAsset(GroomAsset, BindingAsset, GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr, bIsBindingReloading, bValidationEnable, this);
-	if (SkeletalMeshComponent && SkeletalMeshComponent->SkeletalMesh == nullptr)
+	UMeshComponent* ParentMeshComponent = GetAttachParent() ? Cast<UMeshComponent>(GetAttachParent()) : nullptr;
+	UMeshComponent* ValidatedMeshComponent = nullptr;
+	if (ParentMeshComponent)
 	{
-		SkeletalMeshComponent = nullptr;
+		ValidatedMeshComponent = ValidateBindingAsset(GroomAsset, BindingAsset, ParentMeshComponent, bIsBindingReloading, bValidationEnable, this);
+	}
+	if (ValidatedMeshComponent)
+	{
+		if ((BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh && Cast<USkeletalMeshComponent>(ValidatedMeshComponent)->SkeletalMesh == nullptr) ||
+			(BindingAsset->GroomBindingType == EGroomBindingType::GeometryCache && Cast<UGeometryCacheComponent>(ValidatedMeshComponent)->GeometryCache == nullptr))
+		{
+			ValidatedMeshComponent = nullptr;
+		}
 	}
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
-	if (SkeletalMeshComponent)
+	if (ValidatedMeshComponent)
 	{
-		RegisteredSkeletalMeshComponent = SkeletalMeshComponent;
-		AddTickPrerequisiteComponent(SkeletalMeshComponent);
+		RegisteredMeshComponent = ValidatedMeshComponent;
+		AddTickPrerequisiteComponent(ValidatedMeshComponent);
 	}
 
 	FTransform HairLocalToWorld = GetComponentTransform();
-	FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform::Identity;
+	FTransform SkinLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform::Identity;
 	
 	for (int32 GroupIt = 0, GroupCount = GroomAsset->HairGroupsData.Num(); GroupIt < GroupCount; ++GroupIt)
 	{
@@ -1840,15 +1905,15 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		HairGroupInstance->Debug.GroupIndex = GroupIt;
 		HairGroupInstance->Debug.GroupCount = GroupCount;
 		HairGroupInstance->Debug.GroomAssetName = GroomAsset->GetName();
-		HairGroupInstance->Debug.SkeletalComponent = IsHairStrandsBindingEnable() ? SkeletalMeshComponent : nullptr;
-		if (SkeletalMeshComponent)
+		HairGroupInstance->Debug.MeshComponent = IsHairStrandsBindingEnable() ? RegisteredMeshComponent : nullptr;
+		HairGroupInstance->Debug.GroomBindingType = BindingAsset ? BindingAsset->GroomBindingType : EGroomBindingType::SkeletalMesh;
+		if (RegisteredMeshComponent)
 		{
-			HairGroupInstance->Debug.SkeletalComponentName = SkeletalMeshComponent->GetPathName();
+			HairGroupInstance->Debug.MeshComponentName = RegisteredMeshComponent->GetPathName();
 		}
 		HairGroupInstance->GeometryType = EHairGeometryType::NoneGeometry;
 
 		FHairGroupData& GroupData = GroomAsset->HairGroupsData[GroupIt];
-		const uint32 SkeletalLODCount = SkeletalMeshComponent ? SkeletalMeshComponent->GetNumLODs() : 0;
 
 		const uint32 HairInterpolationType =
 			GroomAsset->HairInterpolationType == EGroomInterpolationType::RigidTransform ? 0 :
@@ -1866,10 +1931,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 		{
 			HairGroupInstance->Guides.Data = &GroupData.Guides.Data;
 
-			if (SkeletalMeshComponent && BindingAsset)
+			if (RegisteredMeshComponent && BindingAsset)
 			{
 				check(GroupIt < BindingAsset->HairGroupResources.Num());
-				check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].SimRootResources->RootData.MeshProjectionLODs.Num() : false);
+				if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent))
+				{
+					check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].SimRootResources->RootData.MeshProjectionLODs.Num() : false);
+				}
 
 				HairGroupInstance->Guides.bOwnRootResourceAllocation = false;
 				HairGroupInstance->Guides.RestRootResource = BindingAsset->HairGroupResources[GroupIt].SimRootResources;
@@ -1934,10 +2002,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 			}
 			#endif
 
-			if (SkeletalMeshComponent && BindingAsset && IsHairStrandsBindingEnable())
+			if (RegisteredMeshComponent && BindingAsset && IsHairStrandsBindingEnable())
 			{
 				check(GroupIt < BindingAsset->HairGroupResources.Num());
-				check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].RenRootResources->RootData.MeshProjectionLODs.Num() : false);
+				if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent))
+				{
+					check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].RenRootResources->RootData.MeshProjectionLODs.Num() : false);
+				}
 
 				HairGroupInstance->Strands.bOwnRootResourceAllocation = false;
 				HairGroupInstance->Strands.RestRootResource = BindingAsset->HairGroupResources[GroupIt].RenRootResources;
@@ -2020,10 +2091,13 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 					InstanceLOD.Guides.InterpolationData = &LOD.Guides.InterpolationData;
 					InstanceLOD.Guides.InterpolationResource = LOD.Guides.InterpolationResource;
 
-					if (SkeletalMeshComponent && BindingAsset)
+					if (RegisteredMeshComponent && BindingAsset)
 					{
 						check(GroupIt < BindingAsset->HairGroupResources.Num());
-						check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex]->RootData.MeshProjectionLODs.Num() : false);
+						if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent))
+						{
+							check(SkeletalMeshComponent->SkeletalMesh ? SkeletalMeshComponent->SkeletalMesh->GetLODInfoArray().Num() == BindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex]->RootData.MeshProjectionLODs.Num() : false);
+						}
 
 						InstanceLOD.Guides.bOwnRootResourceAllocation = false;
 						InstanceLOD.Guides.RestRootResource = BindingAsset->HairGroupResources[GroupIt].CardsRootResources[CardsLODIndex];
@@ -2195,12 +2269,12 @@ void UGroomComponent::ReleaseResources()
 	HairGroupInstances.Empty();
 
 	// Insure the ticking of the Groom component always happens after the skeletalMeshComponent.
-	if (RegisteredSkeletalMeshComponent)
+	if (RegisteredMeshComponent)
 	{
-		RemoveTickPrerequisiteComponent(RegisteredSkeletalMeshComponent);
+		RemoveTickPrerequisiteComponent(RegisteredMeshComponent);
 	}
 	SkeletalPreviousPositionOffset = FVector::ZeroVector;
-	RegisteredSkeletalMeshComponent = nullptr;
+	RegisteredMeshComponent = nullptr;
 
 	MarkRenderStateDirty();
 }
@@ -2271,9 +2345,9 @@ void UGroomComponent::OnRegister()
 
 	// Insure the parent skeletal mesh is the same than the registered skeletal mesh, and if not reinitialized resources
 	// This can happens when the OnAttachment callback is not called, but the skeletal mesh change (e.g., the skeletal mesh get recompiled within a blueprint)
-	USkeletalMeshComponent* SkeletalMeshComponent = GetAttachParent() ? Cast<USkeletalMeshComponent>(GetAttachParent()) : nullptr;
+	UMeshComponent* MeshComponent = GetAttachParent() ? Cast<UMeshComponent>(GetAttachParent()) : nullptr;
 
-	const bool bNeedInitialization = !InitializedResources || InitializedResources != GroomAsset || SkeletalMeshComponent != RegisteredSkeletalMeshComponent;
+	const bool bNeedInitialization = !InitializedResources || InitializedResources != GroomAsset || MeshComponent != RegisteredMeshComponent;
 	if (bNeedInitialization)
 	{
 		InitResources();
@@ -2329,8 +2403,8 @@ void UGroomComponent::OnAttachmentChanged()
 	Super::OnAttachmentChanged();
 	if (GroomAsset && !IsBeingDestroyed() && HasBeenCreated())
 	{
-		USkeletalMeshComponent* NewSkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetAttachParent());
-		const bool bHasAttachmentChanged = RegisteredSkeletalMeshComponent != NewSkeletalMeshComponent;
+		UMeshComponent* NewMeshComponent = Cast<UMeshComponent>(GetAttachParent());
+		const bool bHasAttachmentChanged = RegisteredMeshComponent != NewMeshComponent;
 		if (bHasAttachmentChanged)
 		{
 			InitResources();
@@ -2354,17 +2428,18 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 	const uint32 Id = ComponentId.PrimIDValue;
 	const ERHIFeatureLevel::Type FeatureLevel = GetWorld() ? ERHIFeatureLevel::Type(GetWorld()->FeatureLevel) : ERHIFeatureLevel::Num;
 
-	// When a groom binding and similation are disabled, and the groom component is parented with a skeletal mesh, we can optionnaly 
+	// When a groom binding and simulation are disabled, and the groom component is parented with a skeletal mesh, we can optionally 
 	// attach the groom to a particular socket/bone
 	const bool bStaticAttachement = !IsHairStrandsBindingEnable() && !IsHairStrandsSimulationEnable();
-	if (RegisteredSkeletalMeshComponent && bStaticAttachement && !AttachmentName.IsEmpty())
+	USkeletalMeshComponent* SkeletelMeshComponent = Cast<USkeletalMeshComponent>(RegisteredMeshComponent);
+	if (SkeletelMeshComponent && bStaticAttachement && !AttachmentName.IsEmpty())
 	{
 		const FName BoneName(AttachmentName);
 		if (GetAttachSocketName() != BoneName)
 		{
-			AttachToComponent(RegisteredSkeletalMeshComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), BoneName);
-			const uint32 BoneIndex = RegisteredSkeletalMeshComponent->GetBoneIndex(BoneName);
-			const FMatrix BoneTransformRaw = RegisteredSkeletalMeshComponent->SkeletalMesh->GetComposedRefPoseMatrix(BoneIndex);
+			AttachToComponent(SkeletelMeshComponent, FAttachmentTransformRules(EAttachmentRule::KeepRelative, false), BoneName);
+			const uint32 BoneIndex = SkeletelMeshComponent->GetBoneIndex(BoneName);
+			const FMatrix BoneTransformRaw = SkeletelMeshComponent->SkeletalMesh->GetComposedRefPoseMatrix(BoneIndex);
 			const FVector BoneLocation = BoneTransformRaw.GetOrigin();
 			const FQuat BoneRotation = BoneTransformRaw.ToQuat();
 
@@ -2405,17 +2480,14 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 		return;
 	}
 
-	USkeletalMeshComponent* SkeletalMeshComponent = RegisteredSkeletalMeshComponent;
+	if (RegisteredMeshComponent)
 	{
-		if (SkeletalMeshComponent)
-		{
-			// When a skeletal object with projection is enabled, activate the refresh of the bounding box to 
-			// insure the component/proxy bounding box always lies onto the actual skinned mesh
-			MarkRenderTransformDirty();
-		}
+		// When a skeletal object with projection is enabled, activate the refresh of the bounding box to 
+		// insure the component/proxy bounding box always lies onto the actual skinned mesh
+		MarkRenderTransformDirty();
 	}
 
-	const FTransform SkinLocalToWorld = SkeletalMeshComponent ? SkeletalMeshComponent->GetComponentTransform() : FTransform();
+	const FTransform SkinLocalToWorld = RegisteredMeshComponent ? RegisteredMeshComponent->GetComponentTransform() : FTransform();
 	TArray<FHairGroupInstance*> LocalHairGroupInstances = HairGroupInstances;
 	ENQUEUE_RENDER_COMMAND(FHairStrandsTick_TransformUpdate)(
 		[Id, WorldType, SkinLocalToWorld, FeatureLevel, LocalHairGroupInstances](FRHICommandListImmediate& RHICmdList)
@@ -2433,7 +2505,7 @@ void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, F
 
 void UGroomComponent::SendRenderTransform_Concurrent()
 {
-	if (RegisteredSkeletalMeshComponent)
+	if (RegisteredMeshComponent)
 	{
 		if (ShouldComponentAddToScene() && ShouldRender())
 		{

@@ -3,10 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GroomSettings.h"
-#include "UObject/Object.h"
-#include "Engine/SkeletalMesh.h"
-#include "GroomAsset.h"
+#include "GroomBindingAsset.h"
 #include "GroomCreateBindingOptions.generated.h"
 
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings, autoCollapseCategories = (Conversion), hideCategories = (Hidden))
@@ -15,15 +12,27 @@ class HAIRSTRANDSCORE_API UGroomCreateBindingOptions : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
+	/** Type of mesh to create groom binding for */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
+	EGroomBindingType GroomBindingType;
+
 	/** Skeletal mesh on which the groom has been authored. This is optional, and used only if the hair
 		binding is done a different mesh than the one which it has been authored, i.e., only if the curves 
 		roots and the surface geometry don't aligned and need to be wrapped/transformed. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, meta = (ShowOnlyInnerProperties), Category = Conversion)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Conversion)
 	USkeletalMesh* SourceSkeletalMesh;
 
 	/** Skeletal mesh on which the groom is attached to. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = BuildSettings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
 	USkeletalMesh* TargetSkeletalMesh;
+
+	/** GeometryCache on which the groom has been authored */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = Conversion)
+	UGeometryCache* SourceGeometryCache;
+
+	/** GeometryCache on which the groom is attached to. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = BuildSettings)
+	UGeometryCache* TargetGeometryCache;
 
 	/** Number of points used for the rbf interpolation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties, ClampMin = "0", ClampMax = "100"), Category = HairInterpolation)

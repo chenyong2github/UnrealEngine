@@ -19,7 +19,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Editor.h"
 #include "GroomBindingAsset.h"
-#include "HairStrandsCore.h"
 
 #define LOCTEXT_NAMESPACE "GroomCreateBindingOptionsWindow"
 
@@ -102,7 +101,8 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 
 bool SGroomCreateBindingOptionsWindow::CanCreateBinding()  const
 {
-	return BindingOptions->TargetSkeletalMesh != nullptr;
+	return (BindingOptions->GroomBindingType == EGroomBindingType::SkeletalMesh && BindingOptions->TargetSkeletalMesh != nullptr) ||
+		   (BindingOptions->GroomBindingType == EGroomBindingType::GeometryCache && BindingOptions->TargetGeometryCache != nullptr);
 }
 
 enum class EGroomBindingOptionsVisibility : uint8
@@ -148,18 +148,6 @@ TSharedPtr<SGroomCreateBindingOptionsWindow> DisplayOptions(UGroomCreateBindingO
 TSharedPtr<SGroomCreateBindingOptionsWindow> SGroomCreateBindingOptionsWindow::DisplayCreateBindingOptions(UGroomCreateBindingOptions* BindingOptions)
 {
 	return DisplayOptions(BindingOptions, EGroomBindingOptionsVisibility::BuildOptions, LOCTEXT("GroomBindingRebuildWindowTitle", "Groom Binding Options"), LOCTEXT("Build", "Create"));
-}
-
-UGroomBindingAsset* CreateGroomBindinAsset(UGroomAsset* GroomAsset, USkeletalMesh* SourceSkelMesh, USkeletalMesh* TargetSkelMesh, const int32 NumInterpolationPoints, const int32 MatchingSection)
-{
-	if (!GroomAsset || !TargetSkelMesh)
-	{
-		return nullptr;
-	}
-
-	UObject* BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(GroomAsset, SourceSkelMesh, TargetSkelMesh, NumInterpolationPoints, MatchingSection);
-
-	return (UGroomBindingAsset*) BindingAsset;
 }
 
 #undef LOCTEXT_NAMESPACE

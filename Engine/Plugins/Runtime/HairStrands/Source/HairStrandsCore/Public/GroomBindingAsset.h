@@ -15,6 +15,7 @@
 
 
 class UAssetUserData;
+class UGeometryCache;
 class UMaterialInterface;
 class UNiagaraSystem;
 class UGroomAsset;
@@ -38,6 +39,14 @@ struct HAIRSTRANDSCORE_API FGoomBindingGroupInfo
 	int32 SimLODCount = 0;
 };
 
+/** Enum that describes the type of mesh to bind to */
+UENUM(BlueprintType)
+enum class EGroomBindingType : uint8
+{
+	SkeletalMesh,
+	GeometryCache
+};
+
 /**
  * Implements an asset that can be used to store binding information between a groom and a skeletal mesh
  */
@@ -52,22 +61,31 @@ class HAIRSTRANDSCORE_API UGroomBindingAsset : public UObject
 #endif
 
 public:
+	/** Type of mesh to create groom binding for */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	EGroomBindingType GroomBindingType = EGroomBindingType::SkeletalMesh;
 
 	/** Groom to bind. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	UGroomAsset* Groom;
 
 	/** Skeletal mesh on which the groom has been authored. This is optional, and used only if the hair
 		binding is done a different mesh than the one which it has been authored */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	USkeletalMesh* SourceSkeletalMesh;
 
 	/** Skeletal mesh on which the groom is attached to. */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	USkeletalMesh* TargetSkeletalMesh;
 
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	UGeometryCache* SourceGeometryCache;
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
+	UGeometryCache* TargetGeometryCache;
+
 	/** Number of points used for the rbf interpolation */
-	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings", meta = (ClampMin = "0.01", UIMin = "0.01", UIMax = "1.0"))
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = "BuildSettings")
 	int32 NumInterpolationPoints = 100;
 
 	/** Number of points used for the rbf interpolation */
@@ -109,8 +127,12 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 
 	static bool IsCompatible(const USkeletalMesh* InSkeletalMesh, const UGroomBindingAsset* InBinding, bool bIssueWarning);
+	static bool IsCompatible(const UGeometryCache* InGeometryCache, const UGroomBindingAsset* InBinding, bool bIssueWarning);
 	static bool IsCompatible(const UGroomAsset* InGroom, const UGroomBindingAsset* InBinding, bool bIssueWarning);
 	static bool IsBindingAssetValid(const UGroomBindingAsset* InBinding, bool bIsBindingReloading, bool bIssueWarning);
+
+	/** Returns true if the target is not null and matches the binding type */ 
+	bool HasValidTarget() const;
 
 #if WITH_EDITOR
 	FOnGroomBindingAssetChanged& GetOnGroomBindingAssetChanged() { return OnGroomBindingAssetChanged; }
@@ -151,7 +173,6 @@ public:
 	/** Build/rebuild a binding asset */
 	void Build();
 
-	FString BuildDerivedDataKeySuffix(USkeletalMesh* Source, USkeletalMesh* Target, UGroomAsset* Groom, uint32 NumInterpolationPoints, const int32 MatchingSection);
 	void CacheDerivedDatas();
 	void InvalidateBinding();
 	void InvalidateBinding(class USkeletalMesh*);

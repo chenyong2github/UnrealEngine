@@ -9,6 +9,8 @@
 #include "GroomBindingAsset.h"
 #include "HairStrandsInterface.h"
 
+class UMeshComponent;
+
 // @hair_todo: pack card ID + card UV in 32Bits alpha channel's of the position buffer:
 //  * 10/10 bits for UV -> max 1024/1024 rect resolution
 //  * 12 bits for cards count -> 4000 cards for a hair group
@@ -168,8 +170,9 @@ struct HAIRSTRANDSCORE_API FHairGroupInstance
 		uint32					LastFrameIndex = ~0;
 
 		int32					MeshLODIndex = ~0;
-		USkeletalMeshComponent*	SkeletalComponent = nullptr;
-		FString					SkeletalComponentName;
+		EGroomBindingType		GroomBindingType;
+		UMeshComponent*			MeshComponent = nullptr;
+		FString					MeshComponentName;
 		FTransform				SkeletalLocalToWorld = FTransform::Identity;
 		bool					bDrawCardsGuides = false;
 

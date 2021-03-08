@@ -1353,6 +1353,17 @@ void FGeomCacheIndexBuffer::InitRHI()
 	void* Buffer = nullptr;
 	IndexBufferRHI = RHICreateAndLockIndexBuffer(sizeof(uint32), NumIndices * sizeof(uint32), BUF_Dynamic | BUF_ShaderResource, CreateInfo, Buffer);
 	RHIUnlockIndexBuffer(IndexBufferRHI);
+
+	if (IndexBufferRHI && NumIndices)
+	{
+		BufferSRV = RHICreateShaderResourceView(NumIndices ? IndexBufferRHI : nullptr);
+	}
+}
+
+void FGeomCacheIndexBuffer::ReleaseRHI()
+{
+	BufferSRV.SafeRelease();
+	FIndexBuffer::ReleaseRHI();
 }
 
 void FGeomCacheIndexBuffer::Update(const TArray<uint32>& Indices)
@@ -1405,6 +1416,43 @@ void FGeomCacheVertexBuffer::InitRHI()
 	void* BufferData = nullptr;
 	VertexBufferRHI = RHICreateAndLockVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
 	RHIUnlockVertexBuffer(VertexBufferRHI);
+
+	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	{
+		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(float), PF_R32_FLOAT);
+	}
+}
+
+void FGeomCacheVertexBuffer::ReleaseRHI()
+{
+	BufferSRV.SafeRelease();
+	FVertexBuffer::ReleaseRHI();
+}
+
+void FGeomCacheTangentBuffer::InitRHI()
+{
+	FRHIResourceCreateInfo CreateInfo;
+	void* BufferData = nullptr;
+	VertexBufferRHI = RHICreateAndLockVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
+	RHIUnlockVertexBuffer(VertexBufferRHI);
+
+	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	{
+		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FPackedNormal), PF_R8G8B8A8_SNORM);
+	}
+}
+
+void FGeomCacheColorBuffer::InitRHI()
+{
+	FRHIResourceCreateInfo CreateInfo;
+	void* BufferData = nullptr;
+	VertexBufferRHI = RHICreateAndLockVertexBuffer(SizeInBytes, BUF_Static | BUF_ShaderResource, CreateInfo, BufferData);
+	RHIUnlockVertexBuffer(VertexBufferRHI);
+
+	if (VertexBufferRHI && RHISupportsManualVertexFetch(GMaxRHIShaderPlatform))
+	{
+		BufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(FColor), PF_B8G8R8A8);
+	}
 }
 
 void FGeomCacheVertexBuffer::UpdateRaw(const void* Data, int32 NumItems, int32 ItemSizeBytes, int32 ItemStrideBytes)

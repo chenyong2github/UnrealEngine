@@ -4,7 +4,9 @@
 #include "GroomAsset.h"
 
 #include "EditorFramework/AssetImportData.h"
+#include "HairStrandsCore.h"
 #include "HairStrandsRendering.h"
+#include "GeometryCache.h"
 #include "GroomAssetImportData.h"
 #include "GroomBuilder.h"
 #include "GroomImportOptions.h"
@@ -243,16 +245,32 @@ void FGroomActions::ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>
 			{
 				continue;
 			}
-			else if (GroomAsset.Get() && CurrentOptions && CurrentOptions->TargetSkeletalMesh)
+			else if (GroomAsset.Get() && CurrentOptions && 
+				    ((CurrentOptions->GroomBindingType == EGroomBindingType::SkeletalMesh && CurrentOptions->TargetSkeletalMesh) ||
+					(CurrentOptions->GroomBindingType == EGroomBindingType::GeometryCache && CurrentOptions->TargetGeometryCache)))
 			{
 				GroomAsset->ConditionalPostLoad();
-				if (CurrentOptions->SourceSkeletalMesh)
-				{
-					CurrentOptions->SourceSkeletalMesh->ConditionalPostLoad();
-				}
-				CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
 
-				UGroomBindingAsset* BindingAsset = CreateGroomBindinAsset(GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
+				UGroomBindingAsset* BindingAsset = nullptr;
+				if (CurrentOptions->GroomBindingType == EGroomBindingType::SkeletalMesh)
+				{
+					CurrentOptions->TargetSkeletalMesh->ConditionalPostLoad();
+					if (CurrentOptions->SourceSkeletalMesh)
+					{
+						CurrentOptions->SourceSkeletalMesh->ConditionalPostLoad();
+					}
+					BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(CurrentOptions->GroomBindingType, GroomAsset.Get(), CurrentOptions->SourceSkeletalMesh, CurrentOptions->TargetSkeletalMesh, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
+				}
+				else
+				{
+					CurrentOptions->TargetGeometryCache->ConditionalPostLoad();
+					if (CurrentOptions->SourceGeometryCache)
+					{
+						CurrentOptions->SourceGeometryCache->ConditionalPostLoad();
+					}
+					BindingAsset = FHairStrandsCore::CreateGroomBindingAsset(CurrentOptions->GroomBindingType, GroomAsset.Get(), CurrentOptions->SourceGeometryCache, CurrentOptions->TargetGeometryCache, CurrentOptions->NumInterpolationPoints, CurrentOptions->MatchingSection);
+				}
+
 				if (BindingAsset)
 				{
 					BindingAsset->Build();
