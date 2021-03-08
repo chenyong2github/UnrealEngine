@@ -921,6 +921,12 @@ namespace UnrealBuildTool
 		public bool bAdaptiveUnityEnablesEditAndContinue = false;
 
 		/// <summary>
+		/// Creates a dedicated source file for each header file in the working set to detect missing includes in headers.
+		/// </summary>
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bAdaptiveUnityCompilesHeaderFiles = false;
+
+		/// <summary>
 		/// The number of source files in a game module before unity build will be activated for that module.  This
 		/// allows small game modules to have faster iterative compile times for single files, at the expense of slower full
 		/// rebuild times.  This setting can be overridden by the bFasterWithoutUnity option in a module's Build.cs file.
@@ -2339,6 +2345,11 @@ namespace UnrealBuildTool
 		public bool bAdaptiveUnityEnablesEditAndContinue
 		{
 			get { return Inner.bAdaptiveUnityEnablesEditAndContinue; }
+		}
+
+		public bool bAdaptiveUnityCompilesHeaderFiles
+		{
+			get { return Inner.bAdaptiveUnityCompilesHeaderFiles; }
 		}
 
 		public int MinGameModuleSourceFilesForUnityBuild
