@@ -61,7 +61,7 @@ namespace Chaos
 
 		void UpdateSwept(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance, const FReal Dt)
 		{
-			FGenericParticleHandle Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
+			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
 			// Note: This is unusual but we are using a mix of the previous and current transform
 			// This is due to how CCD only rewinds the position
 			const FRigidTransform3 TransformXQ0(Particle0->X(), Particle0->Q());
