@@ -711,7 +711,7 @@ struct FStatMessage
 		// these branches are FORCEINLINE_STATS of constants in almost all cases, so they disappear
 		if (InStatOperation == EStatOperation::CycleScopeStart || InStatOperation == EStatOperation::CycleScopeEnd)
 		{
-			GetValue_int64()= int64(FPlatformTime::Cycles64());
+			GetValue_int64()= int64(FPlatformTime::Cycles());
 		}
 		else
 		{
