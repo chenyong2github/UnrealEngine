@@ -148,6 +148,8 @@ void FTimingEventsTrack::PreUpdate(const ITimingTrackUpdateContext& Context)
 		SetNumLanes(MaxDepth + 1);
 	}
 
+	SolveEventRelations(Context.GetCurrentRelations());
+
 	UpdateTrackHeight(Context);
 }
 

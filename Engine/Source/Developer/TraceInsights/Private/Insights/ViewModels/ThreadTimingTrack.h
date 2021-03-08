@@ -160,8 +160,12 @@ public:
 	virtual void OnClipboardCopyEvent(const ITimingEvent& InSelectedEvent) const override;
 	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
 
+	virtual void GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<ITimingEventRelation*>& Relations) const override;
+	virtual void SolveEventRelations(const TArray<ITimingEventRelation*>& Relations) const override;
+
 protected:
 	virtual bool HasCustomFilter() const override;
+	int32 GetDepthAt(double Time) const;
 
 private:
 	void DrawSelectedEventInfo(const FThreadTrackEvent& SelectedEvent, const FTimingTrackViewport& Viewport, const FDrawContext& DrawContext, const FSlateBrush* WhiteBrush, const FSlateFontInfo& Font) const;

@@ -10,6 +10,8 @@
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/Commands/Commands.h"
+#include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformTime.h"
 #include "Layout/WidgetPath.h"
@@ -112,6 +114,9 @@ STimingView::~STimingView()
 	BottomDockedTracks.Reset();
 	ScrollableTracks.Reset();
 	ForegroundTracks.Reset();
+
+	SelectedEvent.Reset();
+	UpdateEventRelations();
 
 	for (Insights::ITimingViewExtender* Extender : GetExtenders())
 	{
@@ -629,6 +634,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		virtual const TSharedPtr<const ITimingEvent> GetHoveredEvent() const override { return TimingView->GetHoveredEvent(); }
 		virtual const TSharedPtr<const ITimingEvent> GetSelectedEvent() const override { return TimingView->GetSelectedEvent(); }
 		virtual const TSharedPtr<ITimingEventFilter> GetEventFilter() const override { return TimingView->GetEventFilter(); }
+		virtual const TArray<ITimingEventRelation*>& GetCurrentRelations() const override { return TimingView->GetCurrentRelations(); }
 		virtual double GetCurrentTime() const override { return CurrentTime; }
 		virtual float GetDeltaTime() const override { return DeltaTime; }
 
@@ -1264,6 +1270,9 @@ int32 STimingView::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 	// Draw the time range selection.
 	FDrawHelpers::DrawTimeRangeSelection(DrawContext, Viewport, SelectionStartTime, SelectionEndTime, WhiteBrush, MainFont);
+
+	const FTimingViewDrawHelper& TimingHelper = *static_cast<const FTimingViewDrawHelper*>(&TimingDrawContext.GetHelper());
+	TimingHelper.DrawRelations(CurrentRelations);
 
 	//////////////////////////////////////////////////
 	// Post-Draw
@@ -2643,7 +2652,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
 	//FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ProfilerCommandList);
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, NULL);
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
 
 	if (HoveredTrack.IsValid())
 	{
@@ -2666,6 +2675,21 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 				EUserInterfaceActionType::Button
 			);
 		}
+		MenuBuilder.EndSection();
+	}
+
+	{
+		MenuBuilder.BeginSection(TEXT("Event"), LOCTEXT("Event", "Event"));
+
+		MenuBuilder.AddMenuEntry
+		(
+			FTimingViewCommands::Get().ShowTaskDependencies,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "Profiler.Type.Calls")
+		);
+
 		MenuBuilder.EndSection();
 	}
 
@@ -2857,8 +2881,15 @@ bool STimingView::CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETi
 
 void STimingView::BindCommands()
 {
-	//FTimingViewCommands::Register();
-	//const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+	FTimingViewCommands::Register();
+	CommandList = MakeShared<FUICommandList>();
+
+	CommandList->MapAction(
+		FTimingViewCommands::Get().ShowTaskDependencies, 
+		FExecuteAction::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_Execute), 
+		FCanExecuteAction::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_CanExecute),
+		FIsActionChecked::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_IsChecked));
+
 	//
 	//TSharedPtr<FUICommandList> CommandList = FTimingProfilerManager::Get()->GetCommandList();
 
@@ -3410,6 +3441,7 @@ void STimingView::OnSelectedTimingEventChanged()
 		}
 	}
 
+	UpdateEventRelations();
 	OnSelectedEventChangedDelegate.Broadcast(SelectedEvent);
 }
 
@@ -4053,6 +4085,45 @@ TSharedPtr<FBaseTimingTrack> STimingView::FindTrack(uint64 InTrackId)
 TArray<Insights::ITimingViewExtender*> STimingView::GetExtenders() const
 {
 	return IModularFeatures::Get().GetModularFeatureImplementations<Insights::ITimingViewExtender>(Insights::TimingViewExtenderFeatureName);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ContextMenu_ShowTaskDependecies_Execute()
+{
+	bShowEventRelations = !bShowEventRelations;
+	UpdateEventRelations();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::ContextMenu_ShowTaskDependecies_CanExecute()
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool STimingView::ContextMenu_ShowTaskDependecies_IsChecked()
+{
+	return bShowEventRelations;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::UpdateEventRelations()
+{
+	for (ITimingEventRelation* Relation : CurrentRelations)
+	{
+		delete Relation;
+	}
+
+	CurrentRelations.Empty();
+
+	if (bShowEventRelations && SelectedEvent.IsValid())
+	{
+		SelectedEvent->GetTrack()->GetEventRelations(*SelectedEvent, CurrentRelations);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

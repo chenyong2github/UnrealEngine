@@ -145,6 +145,7 @@ private:
 		EventFill,
 		EventText,
 		EventHighlight,
+		Relation,
 		HeaderBackground,
 		HeaderText,
 
@@ -169,6 +170,7 @@ public:
 	virtual FLinearColor GetTrackNameTextColor(const FBaseTimingTrack& Track) const override;
 	virtual int32 GetHeaderBackgroundLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderBackground); }
 	virtual int32 GetHeaderTextLayerId() const override { return ReservedLayerId + ToInt32(EDrawLayer::HeaderText); }
+	virtual int32 GetRelationLayerId() const override {return ReservedLayerId + ToInt32(EDrawLayer::Relation); };
 	virtual int32 GetFirstLayerId() const override { return ReservedLayerId; }
 	virtual int32 GetNumLayerIds() const override { return ToInt32(EDrawLayer::Count); }
 
@@ -192,6 +194,8 @@ public:
 	void DrawTrackHeader(const FBaseTimingTrack& Track, const int32 HeaderLayerId, const int32 HeaderTextLayerId) const;
 
 	void EndDrawTracks() const;
+
+	void DrawRelations(const TArray<ITimingEventRelation*> Relations) const;
 
 	//////////////////////////////////////////////////
 

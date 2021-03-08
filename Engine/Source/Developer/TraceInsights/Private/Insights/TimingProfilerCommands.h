@@ -71,6 +71,9 @@ public:
 
 	/** Toggles visibility for all CPU thread tracks at once. */
 	TSharedPtr<FUICommandInfo> ShowAllCpuTracks;
+
+	/** Toggles visibility for task graph dependency relations */
+	TSharedPtr<FUICommandInfo> ShowTaskDependencies;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

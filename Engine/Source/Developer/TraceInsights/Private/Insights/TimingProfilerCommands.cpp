@@ -86,6 +86,7 @@ void FTimingViewCommands::RegisterCommands()
 {
 	UI_COMMAND(ShowAllGpuTracks, "GPU Track", "Show/hide the GPU track", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::Y));
 	UI_COMMAND(ShowAllCpuTracks, "CPU Thread Tracks", "Show/hide all CPU tracks (and all CPU thread groups)", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::U));
+	UI_COMMAND(ShowTaskDependencies, "Task Dependencies", "Show/hide all dependencies of the current task", EUserInterfaceActionType::ToggleButton, FInputChord(EKeys::T));
 }
 PRAGMA_ENABLE_OPTIMIZATION
 

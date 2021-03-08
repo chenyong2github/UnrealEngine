@@ -6,7 +6,10 @@
 
 #include "Insights/Common/SimpleRtti.h"
 
+class ITimingViewDrawHelper;
 class FBaseTimingTrack;
+struct FDrawContext;
+class FTimingTrackViewport;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -60,6 +63,17 @@ public:
 	 * Returns a number that changes each time an attribute of this filter changes.
 	 */
 	virtual uint32 GetChangeNumber() const = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class ITimingEventRelation
+{
+public:
+	ITimingEventRelation() {}
+	virtual ~ITimingEventRelation() {}
+	virtual bool IsSolved() = 0;
+	virtual void Draw(const FDrawContext& DrawContext, const FTimingTrackViewport& Viewport, const ITimingViewDrawHelper& Helper) = 0;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

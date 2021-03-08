@@ -653,3 +653,16 @@ FLinearColor FTimingViewDrawHelper::GetTrackNameTextColor(const FBaseTimingTrack
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingViewDrawHelper::DrawRelations(const TArray<ITimingEventRelation*> Relations) const
+{
+	for (ITimingEventRelation* Relation : Relations)
+	{
+		if (Relation->IsSolved())
+		{
+			Relation->Draw(DrawContext, Viewport, *this);
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

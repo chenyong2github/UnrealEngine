@@ -742,6 +742,49 @@ public:
 		return true;
 	}
 
+	virtual int32 GetDepthAt(double Time) const override
+	{
+		const FDetailLevel& DetailLevel = DetailLevels[0];
+		if (DetailLevel.ScopeEntries.Num() == 0)
+		{
+			return 0;
+		}
+
+		uint64 FirstScopePageIndex = Algo::UpperBoundBy(DetailLevel.ScopeEntries, Time, [](const FEventScopeEntryPage& Page)
+			{
+				return Page.BeginTime;
+			});
+		if (FirstScopePageIndex > 0)
+		{
+			--FirstScopePageIndex;
+		}
+		auto ScopeEntryIterator = DetailLevel.ScopeEntries.GetIteratorFromPage(FirstScopePageIndex);
+		const FEventScopeEntryPage* ScopePage = ScopeEntryIterator.GetCurrentPage();
+		if (ScopePage->BeginTime > Time)
+		{
+			return 0;
+		}
+
+		int32 CurrentStackDepth = ScopePage->InitialStackCount;
+
+		const FEventScopeEntry* ScopeEntry = ScopeEntryIterator.GetCurrentItem();
+		while (ScopeEntry && FMath::Abs(ScopeEntry->Time) < Time)
+		{
+			if (ScopeEntry->Time < 0.0)
+			{
+				CurrentStackDepth++;
+			}
+			else
+			{
+				check(CurrentStackDepth > 0);
+				--CurrentStackDepth;
+			}
+			ScopeEntry = ScopeEntryIterator.NextItem();
+		}
+
+		return CurrentStackDepth;
+	}
+
 private:
 
 	struct FIterationState

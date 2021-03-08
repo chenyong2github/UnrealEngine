@@ -33,6 +33,7 @@ class FThreadTimingSharedState;
 class FTimeRulerTrack;
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
+class FUICommandList;
 class SOverlay;
 class SScrollBar;
 
@@ -339,6 +340,8 @@ public:
 
 	const TSharedPtr<FBaseTimingTrack> GetTrackAt(float InPosX, float InPosY) const;
 
+	const TArray<ITimingEventRelation*>& GetCurrentRelations() const { return CurrentRelations; }
+
 protected:
 	virtual FVector2D ComputeDesiredSize(float) const override
 	{
@@ -426,6 +429,12 @@ protected:
 	FReply AllowTracksToProcessOnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	FReply AllowTracksToProcessOnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
 	FReply AllowTracksToProcessOnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent);
+
+	void ContextMenu_ShowTaskDependecies_Execute();
+	bool ContextMenu_ShowTaskDependecies_CanExecute();
+	bool ContextMenu_ShowTaskDependecies_IsChecked();
+
+	void UpdateEventRelations();
 
 protected:
 	/** The track's viewport. Encapsulates info about position and scale. */
@@ -616,4 +625,9 @@ protected:
 	Insights::FHoveredEventChangedDelegate OnHoveredEventChangedDelegate;
 	Insights::FSelectedTrackChangedDelegate OnSelectedTrackChangedDelegate;
 	Insights::FSelectedEventChangedDelegate OnSelectedEventChangedDelegate;
+
+	TSharedPtr<FUICommandList> CommandList;
+
+	TArray<ITimingEventRelation*> CurrentRelations;
+	bool bShowEventRelations = false;
 };

@@ -19,6 +19,7 @@
 #include "Insights/TimingProfilerManager.h"
 #include "Insights/ViewModels/Filters.h"
 #include "Insights/ViewModels/FilterConfigurator.h"
+#include "Insights/ViewModels/TaskGraphRelation.h"
 #include "Insights/ViewModels/TimerNode.h"
 #include "Insights/ViewModels/ThreadTrackEvent.h"
 #include "Insights/ViewModels/TimingEventSearch.h"
@@ -1059,8 +1060,17 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 				InOutTooltip.AddTextLine(FString::Printf(TEXT("%s (%s queue)"), NamedThreadsStr[ThreadIndex], QueueStr), FLinearColor::Green);
 			}
 
-			InOutTooltip.AddNameValueTextLine(TEXT("Created:"), FString::Printf(TEXT("%f on %s"), Task.CreatedTimestamp, *SharedState.GetCpuTrack(Task.CreatedThreadId)->GetName()));
-			InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp), *SharedState.GetCpuTrack(Task.LaunchedThreadId)->GetName()));
+			{
+				TSharedPtr<FCpuTimingTrack> Track = SharedState.GetCpuTrack(Task.CreatedThreadId);
+				FString TrackName = Track.IsValid() ? Track->GetName() : TEXT("Unknown");
+				InOutTooltip.AddNameValueTextLine(TEXT("Created:"), FString::Printf(TEXT("%f on %s"), Task.CreatedTimestamp, *TrackName));
+			}
+			
+			{
+				TSharedPtr<FCpuTimingTrack> Track = SharedState.GetCpuTrack(Task.LaunchedThreadId);
+				FString TrackName = Track.IsValid() ? Track->GetName() : TEXT("Unknown");
+				InOutTooltip.AddNameValueTextLine(TEXT("Launched:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.LaunchedTimestamp, *TimeUtils::FormatTimeAuto(Task.LaunchedTimestamp - Task.CreatedTimestamp), *TrackName));
+			}
 			InOutTooltip.AddNameValueTextLine(TEXT("Scheduled:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.ScheduledTimestamp, *TimeUtils::FormatTimeAuto(Task.ScheduledTimestamp - Task.LaunchedTimestamp), *SharedState.GetCpuTrack(Task.ScheduledThreadId)->GetName()));
 			InOutTooltip.AddNameValueTextLine(TEXT("Started:"), FString::Printf(TEXT("%f (+%s)"), Task.StartedTimestamp, *TimeUtils::FormatTimeAuto(Task.StartedTimestamp - Task.ScheduledTimestamp)));
 			if (Task.FinishedTimestamp != TraceServices::FTaskInfo::InvalidTimestamp)
@@ -1069,9 +1079,13 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 
 				if (Task.CompletedTimestamp != TraceServices::FTaskInfo::InvalidTimestamp)
 				{
-					InOutTooltip.AddNameValueTextLine(TEXT("Completed:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.FinishedTimestamp, *TimeUtils::FormatTimeAuto(Task.CompletedTimestamp - Task.FinishedTimestamp), *SharedState.GetCpuTrack(Task.CompletedThreadId)->GetName()));
+					TSharedPtr<FCpuTimingTrack> Track = SharedState.GetCpuTrack(Task.CompletedThreadId);
+					FString TrackName = Track.IsValid() ? Track->GetName() : TEXT("Unknown");
+					InOutTooltip.AddNameValueTextLine(TEXT("Completed:"), FString::Printf(TEXT("%f (+%s) on %s"), Task.FinishedTimestamp, *TimeUtils::FormatTimeAuto(Task.CompletedTimestamp - Task.FinishedTimestamp), *TrackName));
 				}
 			}
+			InOutTooltip.AddNameValueTextLine(TEXT("Subsequent Tasks"), FString::Printf(TEXT("%d"), Task.Subsequents.Num()));
+			InOutTooltip.AddNameValueTextLine(TEXT("Nested Tasks:"), FString::Printf(TEXT("%d"), Task.NestedTasks.Num()));
 		};
 
 		do // info about a task
@@ -1471,6 +1485,89 @@ bool FThreadTimingTrack::HasCustomFilter() const
 	}
 
 	return false;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FThreadTimingTrack::GetEventRelations(const ITimingEvent& InSelectedEvent, TArray<ITimingEventRelation*>& Relations) const
+{
+	double StartTime = InSelectedEvent.GetStartTime();
+
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
+	if (TasksProvider)
+	{
+		const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(ThreadId, StartTime);
+		if (Task)
+		{
+			for (const TraceServices::FTaskInfo::FRelationInfo& RelationInfo : Task->Subsequents)
+			{
+				const TraceServices::FTaskInfo* RelatedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
+
+				if (RelatedTask)
+				{
+					FTaskGraphRelation* NewRelation = new FTaskGraphRelation(StartTime, ThreadId, RelatedTask->StartedTimestamp, RelatedTask->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Subsequent);
+					NewRelation->SetSourceTrack(SharedThis(this));
+					NewRelation->SetSourceDepth(InSelectedEvent.GetDepth());
+					Relations.Add(NewRelation);
+				}
+			}
+
+			for (const TraceServices::FTaskInfo::FRelationInfo& RelationInfo : Task->NestedTasks)
+			{
+				const TraceServices::FTaskInfo* RelatedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
+
+				if (RelatedTask)
+				{
+					FTaskGraphRelation* NewRelation = new FTaskGraphRelation(StartTime, ThreadId, RelatedTask->StartedTimestamp, RelatedTask->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Nested);
+					NewRelation->SetSourceTrack(SharedThis(this));
+					NewRelation->SetSourceDepth(InSelectedEvent.GetDepth());
+					Relations.Add(NewRelation);
+				}
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FThreadTimingTrack::SolveEventRelations(const TArray<ITimingEventRelation*>& Relations) const
+{
+	for (ITimingEventRelation* Relation : Relations)
+	{
+		if (!Relation->IsSolved())
+		{
+			// A check that we have the correct type will need to be added
+			FTaskGraphRelation* TaskRelation = static_cast<FTaskGraphRelation*>(Relation);
+			if (TaskRelation->GetTargetThreadId() == ThreadId)
+			{
+				TaskRelation->SetTargetTrack(StaticCastSharedRef<const FBaseTimingTrack>(SharedThis(this)));
+				TaskRelation->SetTargetDepth(GetDepthAt(TaskRelation->GetTargetTime()) - 1);
+				TaskRelation->SetIsSolved(true);
+			}
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FThreadTimingTrack::GetDepthAt(double Time) const
+{
+	int32 Depth = 0;
+	TSharedPtr<const TraceServices::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
+	if (Session.IsValid() && TraceServices::ReadTimingProfilerProvider(*Session.Get()))
+	{
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+
+		TimingProfilerProvider.ReadTimeline(TimelineIndex,
+			[Time, &Depth](const TraceServices::ITimingProfilerProvider::Timeline& Timeline)
+			{
+				Depth = Timeline.GetDepthAt(Time);
+			});
+	}
+	return Depth;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
