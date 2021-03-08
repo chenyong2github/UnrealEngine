@@ -92,3 +92,10 @@ void LensFlareBlurPS(
 
 	OutColor = float4(InColor.rgb * Kernel.rgb, 1);
 }
+
+void LensFlareCopyBloomPS(
+	float4 SvPosition : SV_Position,
+	out float4 OutColor : SV_Target0)
+{
+	OutColor = InputTexture.Load(int3(SvPosition.xy, 0));
+}
