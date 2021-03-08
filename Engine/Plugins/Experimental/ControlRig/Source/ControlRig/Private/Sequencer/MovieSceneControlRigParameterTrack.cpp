@@ -329,8 +329,7 @@ void UMovieSceneControlRigParameterTrack::ReconstructControlRig()
 				UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section);
 				if (CRSection)
 				{
-					CRSection->ControlRig = ControlRig;
-					CRSection->ReconstructChannelProxy(true);
+					CRSection->RecreateWithThisControlRig(ControlRig, false);
 				}
 			}
 		}
