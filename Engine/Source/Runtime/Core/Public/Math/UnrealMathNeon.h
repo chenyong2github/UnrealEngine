@@ -872,7 +872,12 @@ FORCEINLINE VectorRegister VectorNormalize( const VectorRegister& Vector )
 * @param ComponentIndex	Which component to get, X=0, Y=1, Z=2, W=3
 * @return					The component as a float
 */
-#define VectorGetComponent(Vec, ElementIndex) vgetq_lane_f32(Vec, ElementIndex)
+FORCEINLINE float VectorGetComponent(VectorRegister Vec, int ElementIndex)
+{
+	MS_ALIGN(16) float Tmp[4] GCC_ALIGN(16);
+	VectorStore(Vec, Tmp);
+	return Tmp[ElementIndex];
+}
 
 /**
  * Multiplies two 4x4 matrices.
