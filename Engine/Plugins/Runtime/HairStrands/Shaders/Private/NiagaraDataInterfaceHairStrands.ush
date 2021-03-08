@@ -35,7 +35,7 @@ struct FDIHairStrandsContext
 	float3				RestRootOffset;
 	float3				DeformedRootOffset;
 	float3				RestPositionOffset;
-	float3				DeformedPositionOffset;
+	Buffer<float4>		DeformedPositionOffset;
 	bool				ResetSimulation;
 	int					SampleCount;
 	int4				BoundingBoxOffsets;
@@ -64,7 +64,7 @@ int					InterpolationMode_##NAME;\
 float3				RestRootOffset_##NAME;\
 float3				DeformedRootOffset_##NAME;\
 float3				RestPositionOffset_##NAME;\
-float3				DeformedPositionOffset_##NAME;\
+Buffer<float4>		DeformedPositionOffset_##NAME;\
 bool				ResetSimulation_##NAME;\
 RWBuffer<uint>	    BoundingBoxBuffer_##NAME;\
 int					SampleCount_##NAME;\
@@ -594,7 +594,7 @@ void DIHairStrands_ResetPointPosition(in FDIHairStrandsContext DIContext, out bo
 		const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex+1]; 
 		const int PointCount = PointEnd - PointBegin;
 
-		const uint4 PositionOffset = uint4( f32tof16(DIContext.RestPositionOffset - DIContext.DeformedPositionOffset), 0 );
+		const uint4 PositionOffset = uint4( f32tof16(DIContext.RestPositionOffset - DIContext.DeformedPositionOffset[0].xyz), 0 );
 
 		ReportStatus = true;
 		for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
@@ -698,7 +698,7 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in fl
 	const int PointEnd = DIContext.CurvesOffsetsBuffer[StrandIndex + 1];
 	const int PointCount = PointEnd - PointBegin;
 
-	const float3 PositionOffset = DIContext.RestPositionOffset - DIContext.DeformedPositionOffset;
+	const float3 PositionOffset = DIContext.RestPositionOffset - DIContext.DeformedPositionOffset[0].xyz;
 
 	for (int PointIndex = 0; PointIndex < PointCount; ++PointIndex)
 	{
@@ -717,7 +717,7 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in fl
 			const float3 LocalPosition = DIHairStrands_TriangleLocalPosition(RestTrianglePosition, RestTriangleOrientation, 
 				f16tof32(DIContext.RestPositionBuffer[PointBegin + PointIndex].xyz) + DIContext.RestPositionOffset) + LocalDisplace;
 			
-			const float3 WorldPosition = DIHairStrands_TriangleWorldPosition(DeformedTrianglePosition, DeformedTriangleOrientation, LocalPosition) - DIContext.DeformedPositionOffset;
+			const float3 WorldPosition = DIHairStrands_TriangleWorldPosition(DeformedTrianglePosition, DeformedTriangleOrientation, LocalPosition) - DIContext.DeformedPositionOffset[0].xyz;
 			DIContext.DeformedPositionBuffer[PointBegin + PointIndex] = uint4(f32tof16(WorldPosition), DIContext.RestPositionBuffer[PointBegin + PointIndex].w);
 		}
 	}
@@ -726,7 +726,7 @@ void DIHairStrands_UpdatePointPosition(in FDIHairStrandsContext DIContext, in fl
 // Get the point position
 void DIHairStrands_GetPointPosition(in FDIHairStrandsContext DIContext, in int PointIndex, out float3 OutPointPosition)
 {
-	OutPointPosition = mul(float4( f16tof32(DIContext.DeformedPositionBuffer[PointIndex].xyz)+DIContext.DeformedPositionOffset, 1.0), DIContext.WorldTransform).xyz;
+	OutPointPosition = mul(float4(f16tof32(DIContext.DeformedPositionBuffer[PointIndex].xyz) + DIContext.DeformedPositionOffset[0].xyz, 1.0), DIContext.WorldTransform).xyz;
 }
 
 /* -----------------------------------------------------------------
