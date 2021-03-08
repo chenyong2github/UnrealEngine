@@ -2515,7 +2515,7 @@ public partial class Project : CommandUtils
 					AdditionalArgs += " -platform=" + ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
 
 					Dictionary<string, string> UnrealPakResponseFile = PakParams.UnrealPakResponseFile;
-					if (ShouldCreateIoStoreContainerFiles(Params, SC))
+					if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform))
 					{
 						bool bAllowBulkDataInIoStore = true;
 						if(!PlatformEngineConfig.GetBool("Core.System", "AllowBulkDataInIoStore", out bAllowBulkDataInIoStore))
@@ -2676,7 +2676,7 @@ public partial class Project : CommandUtils
 
 				InternalUtils.SafeCreateDirectory(Path.GetDirectoryName(ReleaseVersionPath));
 				InternalUtils.SafeCopyFile(OutputLocation.FullName, ReleaseVersionPath);
-				if (ShouldCreateIoStoreContainerFiles(Params, SC))
+				if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform))
 				{
 					InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".utoc"), Path.ChangeExtension(ReleaseVersionPath, ".utoc"));
 					InternalUtils.SafeCopyFile(Path.ChangeExtension(OutputLocation.FullName, ".ucas"), Path.ChangeExtension(ReleaseVersionPath, ".ucas"));
@@ -2786,7 +2786,7 @@ public partial class Project : CommandUtils
 					{
 						HashSet<string> IncludedExtensions = new HashSet<string>();
 						IncludedExtensions.Add(OutputFilenameExtension);
-						if (ShouldCreateIoStoreContainerFiles(Params, SC))
+						if (ShouldCreateIoStoreContainerFiles(Params, SC.StageTargetPlatform))
 						{
 							IncludedExtensions.Add(".ucas");
 							IncludedExtensions.Add(".utoc");
@@ -3413,14 +3413,32 @@ public partial class Project : CommandUtils
 		return TmpPackagingPath;
 	}
 
-	private static bool ShouldCreateIoStoreContainerFiles(ProjectParams Params, DeploymentContext SC)
+	private static bool ShouldCreateIoStoreContainerFiles(ProjectParams Params, Platform StageTargetPlatform)
 	{
 		if (Params.CookOnTheFly)
 		{
 			return false;
 		}
 
-		return Params.IoStore && !Params.SkipIoStore;
+		if (Params.SkipIoStore)
+		{
+			return false;
+		}
+
+		if (Params.IoStore)
+		{
+			return true;
+		}
+
+		if (Params.Stage && !Params.SkipStage)
+		{
+			ConfigHierarchy PlatformGameConfig = ConfigCache.ReadHierarchy(ConfigHierarchyType.Game, DirectoryReference.FromFile(Params.RawProjectPath), StageTargetPlatform.IniPlatformType);
+			bool bUseIoStore = false;
+			PlatformGameConfig.GetBool("/Script/UnrealEd.ProjectPackagingSettings", "bUseIoStore", out bUseIoStore);
+			return bUseIoStore;
+		}
+
+		return false;
 	}
 
 	private static bool ShouldCreatePak(ProjectParams Params, DeploymentContext SC)
