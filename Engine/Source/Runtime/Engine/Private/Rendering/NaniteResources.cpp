@@ -507,30 +507,25 @@ FSceneProxy::FSceneProxy(UInstancedStaticMeshComponent* Component)
 	ENQUEUE_RENDER_COMMAND(SetNanitePerInstanceData)(
 		[this, Component](FRHICommandList& RHICmdList)
 	{
-		if (Component->PerInstanceRenderData != nullptr)
+		if (Component->PerInstanceRenderData != nullptr &&
+			Component->PerInstanceRenderData->InstanceBuffer.GetNumInstances() == Instances.Num())
 		{
 			FVector4 InstanceTransformVec[3];
 			FVector4 InstanceLightMapAndShadowMapUVBias = FVector4(ForceInitToZero);
 			FVector4 InstanceOrigin = FVector::ZeroVector;
 
-			const bool bValidRange = Instances.Num() == Component->PerInstanceRenderData->InstanceBuffer.GetNumInstances();
-			ensure(bValidRange);
-
 			for (int32 InstanceIndex = 0; InstanceIndex < Instances.Num(); ++InstanceIndex)
 			{
-				if (bValidRange)
-				{
-					Component->PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(
-						InstanceIndex,
-						InstanceTransformVec,
-						InstanceLightMapAndShadowMapUVBias,
-						InstanceOrigin
-					);
+				Component->PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(
+					InstanceIndex,
+					InstanceTransformVec,
+					InstanceLightMapAndShadowMapUVBias,
+					InstanceOrigin
+				);
 
-					FPrimitiveInstance& Instance = Instances[InstanceIndex];
-					Instance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
-					Instance.PerInstanceRandom = InstanceOrigin.W; // Per-instance random packed into W component
-				}
+				FPrimitiveInstance& Instance = Instances[InstanceIndex];
+				Instance.LightMapAndShadowMapUVBias = InstanceLightMapAndShadowMapUVBias;
+				Instance.PerInstanceRandom = InstanceOrigin.W; // Per-instance random packed into W component
 			}
 		}
 	});
