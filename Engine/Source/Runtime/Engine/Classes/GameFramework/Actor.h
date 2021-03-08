@@ -840,6 +840,7 @@ public:
 	void SetLockLocation(bool bInLockLocation) { bLockLocation = bInLockLocation; }
 
 private:
+	friend class FActorDescList;
 	friend class UActorDescContainer;
 
 	/**

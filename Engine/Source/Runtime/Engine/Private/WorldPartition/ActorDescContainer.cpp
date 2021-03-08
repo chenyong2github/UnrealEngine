@@ -16,8 +16,7 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 	, bContainerInitialized(false)
 	, bIgnoreAssetRegistryEvents(false)
 #endif
-{
-}
+{}
 
 void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, bool bRegisterDelegates)
 {
@@ -237,44 +236,6 @@ void UActorDescContainer::OnAssetUpdated(const FAssetData& InAssetData)
 
 		OnActorDescUpdated(*ExistingActorDesc);
 	}
-}
-
-const FWorldPartitionActorDesc* UActorDescContainer::GetActorDesc(const FGuid& Guid) const
-{
-	const TUniquePtr<FWorldPartitionActorDesc>* const * ActorDesc = Actors.Find(Guid);
-	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
-}
-
-FWorldPartitionActorDesc* UActorDescContainer::GetActorDesc(const FGuid& Guid)
-{
-	TUniquePtr<FWorldPartitionActorDesc>** ActorDesc = Actors.Find(Guid);
-	return ActorDesc ? (*ActorDesc)->Get() : nullptr;
-}
-
-const FWorldPartitionActorDesc& UActorDescContainer::GetActorDescChecked(const FGuid& Guid) const
-{
-	const TUniquePtr<FWorldPartitionActorDesc>* const ActorDesc = Actors.FindChecked(Guid);
-	return *ActorDesc->Get();
-}
-
-FWorldPartitionActorDesc& UActorDescContainer::GetActorDescChecked(const FGuid& Guid)
-{
-	TUniquePtr<FWorldPartitionActorDesc>* ActorDesc = Actors.FindChecked(Guid);
-	return *ActorDesc->Get();
-}
-
-const FWorldPartitionActorDesc* UActorDescContainer::GetActorDesc(const FString& PackageName) const
-{
-	const FName PackageFName(*PackageName);
-	for (const TUniquePtr<FWorldPartitionActorDesc>& ActorDescPtr : ActorDescList)
-	{
-		if (ActorDescPtr->ActorPackage == PackageFName)
-		{
-			return ActorDescPtr.Get();
-		}
-	}
-
-	return nullptr;
 }
 
 void UActorDescContainer::RegisterDelegates()

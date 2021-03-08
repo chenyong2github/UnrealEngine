@@ -50,11 +50,10 @@ void UWorldPartitionRuntimeLevelStreamingCell::SetIsAlwaysLoaded(bool bInIsAlway
 
 #if WITH_EDITOR
 
-void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FGuid& InActorGuid, uint32 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer)
+void UWorldPartitionRuntimeLevelStreamingCell::AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint32 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer)
 {
-	const FWorldPartitionActorDesc* ActorDesc = InContainer->GetActorDesc(InActorGuid);
-	check(!ActorDesc->GetActorIsEditorOnly());
-	Packages.Emplace(ActorDesc->GetActorPackage(), ActorDesc->GetActorPath(), InContainerID, InContainerTransform, InContainer->GetContainerPackage());
+	check(!ActorDescView.GetActorIsEditorOnly());
+	Packages.Emplace(ActorDescView.GetActorPackage(), ActorDescView.GetActorPath(), InContainerID, InContainerTransform, InContainer->GetContainerPackage());
 }
 
 ULevelStreaming* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(const FString& InPackageName) const
@@ -98,9 +97,7 @@ ULevelStreaming* UWorldPartitionRuntimeLevelStreamingCell::CreateLevelStreaming(
 void UWorldPartitionRuntimeLevelStreamingCell::LoadActorsForCook()
 {
 	FWorldPartitionPackageCache PackageCache;
-	FWorldPartitionLevelHelper::FOnLoadActorsCompleted CompletionCallback = FWorldPartitionLevelHelper::FOnLoadActorsCompleted::CreateLambda([](bool) {});
-	bool bResult = FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, CompletionCallback, /*bLoadForPIE=*/false, /*bLoadAsync=*/false);
-	check(bResult);
+	verify(FWorldPartitionLevelHelper::LoadActors(nullptr, Packages, PackageCache, [](bool){}, /*bLoadForPIE=*/false, /*bLoadAsync=*/false));
 }
 
 void UWorldPartitionRuntimeLevelStreamingCell::MoveAlwaysLoadedContentToPersistentLevel()

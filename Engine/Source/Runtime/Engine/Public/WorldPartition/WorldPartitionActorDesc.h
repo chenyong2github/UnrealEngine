@@ -75,6 +75,16 @@ public:
 
 	virtual bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const { return false; }
 
+	bool operator==(const FWorldPartitionActorDesc& Other) const
+	{
+		return Guid == Other.Guid;
+	}
+
+	friend uint32 GetTypeHash(const FWorldPartitionActorDesc& Key)
+	{
+		return GetTypeHash(Key.Guid);
+	}
+
 protected:
 	inline uint32 IncSoftRefCount() const
 	{

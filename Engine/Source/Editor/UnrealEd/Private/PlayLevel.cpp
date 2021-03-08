@@ -115,7 +115,6 @@
 #include "IAssetViewport.h"
 #include "IPIEAuthorizer.h"
 #include "Features/IModularFeatures.h"
-#include "WorldPartition/WorldPartitionSubsystem.h"
 
 DEFINE_LOG_CATEGORY(LogPlayLevel);
 
@@ -1083,10 +1082,7 @@ void UEditorEngine::StartQueuedPlaySessionRequestImpl()
 		bIsSeparateProcess |= NetMode == EPlayNetMode::PIE_Client;
 	}
 
-	// For now, WorldPartition also requires the user to save their content for PIE to match what we have in-editor.
-	bool bSaveMapsForPlaySession = bIsSeparateProcess || GWorld->HasSubsystem<UWorldPartitionSubsystem>();
-
-	if (bSaveMapsForPlaySession && !SaveMapsForPlaySession())
+	if (bIsSeparateProcess && !SaveMapsForPlaySession())
 	{
 		// Maps did not save, print a warning
 		FText ErrorMsg = LOCTEXT("PIEWorldSaveFail", "PIE failed because map save was canceled");

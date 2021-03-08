@@ -174,7 +174,7 @@ bool FActorInstance::ShouldStripFromStreaming() const
 		return true;
 	}
 
-	const FWorldPartitionActorDescView ActorDescView = GetActorDescView();
+	const FWorldPartitionActorDescView& ActorDescView = GetActorDescView();
 	return ActorDescView.GetActorIsEditorOnly();
 }
 

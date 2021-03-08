@@ -222,28 +222,94 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	check(RuntimeLevel);
 	check(!bLoadRequestInProgress);
 
-	TArray<FString> ActorPackageInstanceNames;
-	ActorPackageInstanceNames.Reserve(ChildPackages.Num());
-	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
-
 	bLoadRequestInProgress = true;
 	FLinkerInstancingContext InstancingContext;
+	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 	InstancingContext.AddMapping(OriginalLevelPackageName, RuntimePackage->GetFName());
-	FWorldPartitionLevelHelper::FOnLoadActorsCompleted CompletionCallback = FWorldPartitionLevelHelper::FOnLoadActorsCompleted::CreateLambda([this](bool bSucceeded)
-		{
-			if (bSucceeded)
-			{
-				check(bLoadRequestInProgress);
-				bLoadRequestInProgress = false;
-				FinalizeRuntimeLevel();
-			}
-			else
-			{
-				UE_LOG(LogLevelStreaming, Fatal, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
-			}
-		});
 
-	FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackages, PackageCache, CompletionCallback, /*bLoadForPie=*/true, /*bLoadAsync=*/true, &InstancingContext);
+	TArray<AActor*> ActorsToDuplicate;
+	ActorsToDuplicate.Reserve(ChildPackages.Num());
+
+	TArray<FWorldPartitionRuntimeCellObjectMapping> ChildPackagesToLoad;
+	ChildPackagesToLoad.Reserve(ChildPackages.Num());
+
+	UWorld* World = GetWorld();
+	for (FWorldPartitionRuntimeCellObjectMapping& ChildPackage : ChildPackages)
+	{
+		if (ChildPackage.ContainerID == 0)
+		{
+			bool bNeedDup = false;
+
+			FString SubObjectName;
+			FString SubObjectContext;	
+			if (ChildPackage.LoadedPath.ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+			{
+				if (AActor* ActorModifiedForPIE = World->PersistentLevel->ActorsModifiedForPIE.FindRef(*SubObjectName))
+				{
+					ActorsToDuplicate.Add(ActorModifiedForPIE);
+					bNeedDup = true;
+				}
+			}
+
+			if (!bNeedDup)
+			{
+				ChildPackagesToLoad.Add(ChildPackage);
+			}
+		}
+	}
+
+	// Duplicate unsaved actors
+	if (ActorsToDuplicate.Num())
+	{
+		// Create an actor container to make sure duplicated actors will share an outer to properly remap inter-actors references
+		UActorContainer* ActorContainer = NewObject<UActorContainer>(World->PersistentLevel);
+
+		for (AActor* ActorToDuplicate : ActorsToDuplicate)
+		{
+			ActorToDuplicate->UObject::Rename(nullptr, ActorContainer);
+			ActorContainer->Actors.Add(ActorToDuplicate);
+		}
+
+		FObjectDuplicationParameters Parameters(ActorContainer, RuntimeLevel);
+		Parameters.DestClass = ActorContainer->GetClass();
+		Parameters.FlagMask = RF_AllFlags & ~(RF_MarkAsRootSet | RF_MarkAsNative | RF_HasExternalPackage);
+		Parameters.InternalFlagMask = EInternalObjectFlags::AllFlags;
+		Parameters.DuplicateMode = EDuplicateMode::PIE;
+		Parameters.PortFlags = PPF_DuplicateForPIE;
+		Parameters.DuplicationSeed.Add(World->PersistentLevel, RuntimeLevel);
+
+		UActorContainer* ActorContainerDup = (UActorContainer*)StaticDuplicateObjectEx(Parameters);
+
+		// Add the duplicated actors to the corresponding cell level
+		for (AActor* Actor : ActorContainerDup->Actors)
+		{
+			Actor->Rename(nullptr, RuntimeLevel);
+		}
+
+		// Bring back actors to the persistent level
+		for (AActor* ActorToDuplicate : ActorsToDuplicate)
+		{
+			ActorToDuplicate->UObject::Rename(nullptr, World->PersistentLevel);
+		}
+
+		ActorContainer->MarkPendingKill();
+		ActorContainerDup->MarkPendingKill();
+	}
+
+	// Load saved actors
+	FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackagesToLoad, PackageCache, [this](bool bSucceeded)
+	{
+		if (bSucceeded)
+		{
+			check(bLoadRequestInProgress);
+			bLoadRequestInProgress = false;
+			FinalizeRuntimeLevel();
+		}
+		else
+		{
+			UE_LOG(LogLevelStreaming, Fatal, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
+		}
+	}, /*bLoadForPie=*/true, /*bLoadAsync=*/true, &InstancingContext);
 
 	return bLoadRequestInProgress;
 }

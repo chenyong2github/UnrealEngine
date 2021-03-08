@@ -8,7 +8,7 @@
 #include "ActorReferencesUtils.h"
 
 UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer& ObjectInitializer)
-: Super(ObjectInitializer)
+	: Super(ObjectInitializer)
 {}
 
 #if WITH_EDITOR
@@ -26,6 +26,8 @@ void UWorldPartitionRuntimeHash::OnEndPIE()
 
 	// Release references (will unload actors that were not already loaded in the Editor)
 	AlwaysLoadedActorsForPIE.Empty();
+
+	ModifiedActorDescListForPIE.Empty();
 }
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)
@@ -45,7 +47,38 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 	OutActorDescViewMap.Empty();
 	for (UActorDescContainer::TConstIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
 	{
+		if (AActor* Actor = ActorDescIt->GetActor())
+		{
+			// Don't include deleted, unsaved actors
+			if (Actor->IsPendingKill())
+			{
+				continue;
+			}
+
+			// Handle dirty, unsaved actors
+			if (Actor->GetPackage()->IsDirty())
+			{
+				FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(Actor);
+				OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
+				continue;
+			}
+		}
+
+		// Normal, non-dirty actors
 		OutActorDescViewMap.Emplace(ActorDescIt->GetGuid(), *ActorDescIt);
+	}
+
+	// Append new unsaved actors for the persistent level
+	if (Container->GetContainerPackage() == GetWorld()->PersistentLevel->GetPackage()->GetLoadedPath().GetPackageFName())
+	{
+		for (auto& ActorPair : GetWorld()->PersistentLevel->ActorsModifiedForPIE)
+		{
+			if (ActorPair.Value->GetPackage()->HasAnyPackageFlags(PKG_NewlyCreated))
+			{
+				FWorldPartitionActorDesc* ActorDesc = ModifiedActorDescListForPIE.AddActor(ActorPair.Value);
+				OutActorDescViewMap.Emplace(ActorDesc->GetGuid(), ActorDesc);
+			}
+		}
 	}
 
 	// Set HLOD parents into actor desc views

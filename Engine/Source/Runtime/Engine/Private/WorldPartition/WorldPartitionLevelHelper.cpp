@@ -112,7 +112,7 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	return NewLevel;
 }
 
-bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionPackageCache& InPackageCache, FWorldPartitionLevelHelper::FOnLoadActorsCompleted InCompletionCallback, bool bLoadForPIE, bool bLoadAsync /*=true*/, FLinkerInstancingContext* InOutInstancingContext /*=nullptr*/)
+bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWorldPartitionRuntimeCellObjectMapping> InActorPackages, FWorldPartitionPackageCache& InPackageCache, TFunction<void(bool)> InCompletionCallback, bool bLoadForPIE, bool bLoadAsync /*=true*/, FLinkerInstancingContext* InOutInstancingContext /*=nullptr*/)
 {
 	UPackage* DestPackage = InDestLevel ? InDestLevel->GetPackage() : nullptr;
 	FString ShortLevelPackageName = DestPackage? FPackageName::GetShortName(DestPackage->GetFName()) : FString();
@@ -191,7 +191,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 
 				if (!LoadProgress->NumPendingLoadRequests)
 				{
-					InCompletionCallback.Execute(!LoadProgress->NumFailedLoadedRequests);
+					InCompletionCallback(!LoadProgress->NumFailedLoadedRequests);
 				}
 			});
 
@@ -274,7 +274,7 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 
 			if (!LoadProgress->NumPendingLoadRequests)
 			{
-				InCompletionCallback.Execute(!LoadProgress->NumFailedLoadedRequests);
+				InCompletionCallback(!LoadProgress->NumFailedLoadedRequests);
 			}
 		});
 

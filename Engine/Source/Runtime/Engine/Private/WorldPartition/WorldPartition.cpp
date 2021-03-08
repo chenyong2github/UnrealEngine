@@ -142,6 +142,15 @@ UWorldPartition::UWorldPartition(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 {
+	// Gather all modified/newly created actors for PIE so they can be duplicated when streaming their cell
+	for (AActor* Actor : World->PersistentLevel->Actors)
+	{
+		if (Actor && !Actor->IsPendingKill() && Actor->GetPackage()->IsDirty())
+		{
+			World->PersistentLevel->ActorsModifiedForPIE.Add(Actor->GetFName(), Actor);
+		}
+	}
+
 	check(IsMainWorldPartition());
 	GenerateStreaming(EWorldPartitionStreamingMode::PIE);
 	RuntimeHash->OnPreBeginPIE();
@@ -152,6 +161,8 @@ void UWorldPartition::OnEndPIE(bool bStartSimulate)
 	check(IsMainWorldPartition());
 	FlushStreaming();
 	RuntimeHash->OnEndPIE();
+
+	World->PersistentLevel->ActorsModifiedForPIE.Empty();
 }
 
 FName UWorldPartition::GetWorldPartitionEditorName()

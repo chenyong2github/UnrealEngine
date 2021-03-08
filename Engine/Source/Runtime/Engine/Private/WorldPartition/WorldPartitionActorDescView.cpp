@@ -95,6 +95,11 @@ const TArray<FGuid>& FWorldPartitionActorDescView::GetReferences() const
 	return ActorDesc->GetReferences();
 }
 
+uint32 FWorldPartitionActorDescView::GetTag() const
+{
+	return ActorDesc->Tag;
+}
+
 bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const
 {
 	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);

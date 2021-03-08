@@ -38,11 +38,22 @@ public:
 	FName GetActorLabel() const;
 	FBox GetBounds() const;
 	const TArray<FGuid>& GetReferences() const;
+	uint32 GetTag() const;
 
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 
 	FGuid GetHLODParent() const;
 	void SetHLODParent(const FGuid& InHLODParent);
+
+	bool operator==(const FWorldPartitionActorDescView& Other) const
+	{
+		return GetGuid() == Other.GetGuid();
+	}
+
+	friend uint32 GetTypeHash(const FWorldPartitionActorDescView& Key)
+	{
+		return GetTypeHash(Key.GetGuid());
+	}
 
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;

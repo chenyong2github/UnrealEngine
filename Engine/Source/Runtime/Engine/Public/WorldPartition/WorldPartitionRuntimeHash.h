@@ -7,6 +7,7 @@
 #include "WorldPartition.h"
 #include "WorldPartitionStreamingPolicy.h"
 #include "WorldPartitionActorDescView.h"
+#include "WorldPartition/ActorDescList.h"
 #include "WorldPartition/WorldPartitionHandle.h"
 #include "WorldPartitionRuntimeHash.generated.h"
 
@@ -65,5 +66,7 @@ private:
 protected:
 #if WITH_EDITORONLY_DATA
 	TArray<FWorldPartitionReference> AlwaysLoadedActorsForPIE;
+
+	mutable FActorDescList ModifiedActorDescListForPIE;
 #endif
 };
