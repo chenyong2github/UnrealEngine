@@ -189,6 +189,8 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	TArray<FNiagaraSpawnShortcut> GraphCreationShortcuts;
 
+	TArray<float> GetPlaybackSpeeds() const;
+
 	/** Gets whether or not auto-compile is enabled in the editors. */
 	bool GetAutoCompile() const;
 
@@ -255,10 +257,9 @@ public:
 
 private:
 	void SetupNamespaceMetadata();
-
+	void BuildCachedPlaybackSpeeds() const;
 protected:
 	FOnNiagaraEditorSettingsChanged SettingsChangedDelegate;
-
 private:
 	/** Whether or not auto-compile is enabled in the editors. */
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
@@ -284,6 +285,13 @@ private:
 	UPROPERTY(config, EditAnywhere, Category = Niagara)
 	bool bDisplayAdvancedParameterPanelCategories;
 
+	/** Speeds used for slowing down and speeding up the playback speeds */
+	UPROPERTY(config, EditAnywhere, Category = Niagara)
+	TArray<float> PlaybackSpeeds;
+
+	/** This is built using PlaybackSpeeds, populated whenever it is accessed using GetPlaybackSpeeds() */
+	mutable TOptional<TArray<float>> CachedPlaybackSpeeds;
+	
 	UPROPERTY(config)
 	TMap<FName, FNiagaraNewAssetDialogConfig> NewAssetDialogConfigMap;
 

@@ -5,6 +5,8 @@
 #include "EditorStyleSet.h"
 #include "NiagaraEditorCommands.h"
 #include "EditorViewportCommands.h"
+#include "NiagaraEditorSettings.h"
+#include "SEditorViewportToolBarButton.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSystemViewportToolBar"
 
@@ -14,7 +16,9 @@
 
 void SNiagaraSystemViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class SNiagaraSystemViewport> InViewport)
 {
+	// we don't want a realtime button here as we create a custom one by extending the left menu
 	SCommonEditorViewportToolbarBase::Construct(SCommonEditorViewportToolbarBase::FArguments().AddRealtimeButton(true), InViewport);
+	Sequencer = InArgs._Sequencer;
 }
 
 TSharedRef<SWidget> SNiagaraSystemViewportToolBar::GenerateShowMenu() const
@@ -57,11 +61,59 @@ bool SNiagaraSystemViewportToolBar::IsViewModeSupported(EViewModeIndex ViewModeI
 	return true; 
 }
 
+EVisibility SNiagaraSystemViewportToolBar::GetSimulationRealtimeWarningVisibility() const
+{
+	if(Sequencer.IsValid())
+	{
+		return Sequencer.Pin()->GetPlaybackSpeed() == 1.f ? EVisibility::Collapsed : EVisibility::Visible;
+	}
+	
+	return EVisibility::Collapsed;
+}
+
+FReply SNiagaraSystemViewportToolBar::OnSimulationRealtimeWarningClicked() const
+{
+	Sequencer.Pin()->RestorePlaybackSpeed();
+	return FReply::Handled();
+}
+
+FText SNiagaraSystemViewportToolBar::GetSimulationSpeedText() const
+{
+	if(Sequencer.IsValid())
+	{
+		return FText::Format(LOCTEXT("SimulationSpeed", "Speed: {0}"), FText::AsNumber(Sequencer.Pin()->GetPlaybackSpeed()));
+	}
+
+	return FText::GetEmpty();
+}
+
 void SNiagaraSystemViewportToolBar::ExtendOptionsMenu(FMenuBuilder& OptionsMenuBuilder) const
 {
 	OptionsMenuBuilder.BeginSection("LevelViewportNavigationOptions", LOCTEXT("NavOptionsMenuHeader", "Navigation Options"));
 	OptionsMenuBuilder.AddMenuEntry(FNiagaraEditorCommands::Get().ToggleOrbit);
 	OptionsMenuBuilder.EndSection();
+}
+
+void SNiagaraSystemViewportToolBar::ExtendLeftAlignedToolbarSlots(TSharedPtr<SHorizontalBox> MainBoxPtr, TSharedPtr<SViewportToolBar> ParentToolBarPtr) const
+{
+	MainBoxPtr->AddSlot()
+	.AutoWidth()
+	[
+		SNew(SEditorViewportToolBarButton)
+		.Cursor(EMouseCursor::Default)
+		.ButtonType(EUserInterfaceActionType::Button)
+		.ButtonStyle(&FEditorStyle::Get().GetWidgetStyle<FButtonStyle>("EditorViewportToolBar.MenuButtonWarning"))
+		.OnClicked(this, &SNiagaraSystemViewportToolBar::OnSimulationRealtimeWarningClicked)
+		.Visibility(this, &SNiagaraSystemViewportToolBar::GetSimulationRealtimeWarningVisibility)
+		.ToolTipText(LOCTEXT("SimulationRealtimeOff_ToolTip", "This simulation is not updating in real time.  Click to turn on real time."))
+		.Content()
+		[
+			SNew(STextBlock)
+			.Font(FEditorStyle::GetFontStyle("EditorViewportToolBar.Font"))
+			.Text(this, &SNiagaraSystemViewportToolBar::GetSimulationSpeedText)
+			.ColorAndOpacity(FLinearColor::Black)
+		]
+	];
 }
 
 #undef LOCTEXT_NAMESPACE

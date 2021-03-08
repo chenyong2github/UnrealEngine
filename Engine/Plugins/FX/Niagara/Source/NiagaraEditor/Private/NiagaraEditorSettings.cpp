@@ -2,6 +2,7 @@
 
 #include "NiagaraEditorSettings.h"
 #include "NiagaraConstants.h"
+#include "NiagaraEditorModule.h"
 
 FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata()
 	: BackgroundColor(FLinearColor::Black)
@@ -211,7 +212,27 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 	};
 }
 
-#undef LOCTEXT_NAMESPACE
+void UNiagaraEditorSettings::BuildCachedPlaybackSpeeds() const
+{
+	CachedPlaybackSpeeds = PlaybackSpeeds;
+	if (!CachedPlaybackSpeeds.GetValue().Contains(1.f))
+	{
+		CachedPlaybackSpeeds.GetValue().Add(1.f);
+	}
+	
+	CachedPlaybackSpeeds.GetValue().Sort();
+}
+
+TArray<float> UNiagaraEditorSettings::GetPlaybackSpeeds() const
+{
+	if(!CachedPlaybackSpeeds.IsSet())
+	{
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("BUILD"));
+		BuildCachedPlaybackSpeeds();
+	}
+
+	return CachedPlaybackSpeeds.GetValue();	
+}
 
 bool UNiagaraEditorSettings::GetAutoCompile() const
 {
@@ -406,6 +427,8 @@ FText UNiagaraEditorSettings::GetSectionText() const
 
 void UNiagaraEditorSettings::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	CachedPlaybackSpeeds.Reset();
+	
 	if (PropertyChangedEvent.Property != nullptr)
 	{
 		SettingsChangedDelegate.Broadcast(PropertyChangedEvent.Property->GetName(), this);
@@ -416,3 +439,5 @@ UNiagaraEditorSettings::FOnNiagaraEditorSettingsChanged& UNiagaraEditorSettings:
 {
 	return GetMutableDefault<UNiagaraEditorSettings>()->SettingsChangedDelegate;
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -10,6 +10,7 @@
 #include "PreviewScene.h"
 #include "Framework/Commands/UICommandList.h"
 #include "EditorViewportClient.h"
+#include "ISequencerModule.h"
 #include "SEditorViewport.h"
 #include "SCommonEditorViewportToolbarBase.h"
 #include "Particles/ParticlePerfStatsManager.h"
@@ -31,6 +32,8 @@ public:
 public:
 	SLATE_BEGIN_ARGS( SNiagaraSystemViewport ){}
 		SLATE_EVENT(FOnThumbnailCaptured, OnThumbnailCaptured)
+		/** So we can retrieve different data from sequencer to display in the viewport */
+		SLATE_ARGUMENT(TWeakPtr<ISequencer>, Sequencer)
 	SLATE_END_ARGS()
 	
 	void Construct(const FArguments& InArgs);
@@ -105,6 +108,8 @@ private:
 private:
 	/** The parent tab where this viewport resides */
 	TWeakPtr<SDockTab> ParentTab;
+
+	TWeakPtr<ISequencer> Sequencer = nullptr;
 	
 	/** Preview Scene - uses advanced preview settings */
 	TSharedPtr<class FAdvancedPreviewScene> AdvancedPreviewScene;

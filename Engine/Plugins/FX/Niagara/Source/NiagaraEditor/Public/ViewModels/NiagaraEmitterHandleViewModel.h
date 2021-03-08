@@ -77,8 +77,9 @@ public:
 	/** Gets whether or not this emitter handle is enabled. */
 	NIAGARAEDITOR_API bool GetIsEnabled() const;
 
-	/** Sets whether or not this emitter handle is enabled. */
-	NIAGARAEDITOR_API void SetIsEnabled(bool bInIsEnabled);
+	/** Sets whether or not this emitter handle is enabled. Returns true if state was changed.
+	 * Requests a recompile by default. Useful to turn off for batch operations. */
+	NIAGARAEDITOR_API bool SetIsEnabled(bool bInIsEnabled, bool bRequestRecompile = true);
 
 	/** Gets whether or not the emitter for this handle has been isolated in the UI. */
 	NIAGARAEDITOR_API bool GetIsIsolated() const;

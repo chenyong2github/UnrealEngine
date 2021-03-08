@@ -820,6 +820,11 @@ UNiagaraCurveSelectionViewModel* FNiagaraSystemViewModel::GetCurveSelectionViewM
 	return CurveSelectionViewModel;
 }
 
+TArray<float> FNiagaraSystemViewModel::OnGetPlaybackSpeeds() const
+{
+	return GetDefault<UNiagaraEditorSettings>()->GetPlaybackSpeeds();
+}
+
 TStatId FNiagaraSystemViewModel::GetStatId() const
 {
 	RETURN_QUICK_DECLARE_CYCLE_STAT(FNiagaraSystemViewModel, STATGROUP_Tickables);
@@ -1122,6 +1127,32 @@ void FNiagaraSystemViewModel::IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToI
 	GetSystem().SetIsolateEnabled(bAnyEmitterIsolated);
 }
 
+void FNiagaraSystemViewModel::DisableEmitters(TArray<FGuid> EmitterHandlesIdsToDisable)
+{
+	FScopedTransaction Transaction(LOCTEXT("DisableSelectedEmitters", "Disabled selected emitters"));
+	GetSystem().Modify();
+	
+	bool bAnyEmittersDisabled = false;
+	
+	for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandle : EmitterHandleViewModels)
+	{
+		if(EmitterHandlesIdsToDisable.Contains(EmitterHandle->GetId()))
+		{
+			const bool bDisabled = EmitterHandle->GetEmitterHandle()->SetIsEnabled(false, GetSystem(), false);
+			bAnyEmittersDisabled = bAnyEmittersDisabled || bDisabled;
+		}
+	}
+
+	if(bAnyEmittersDisabled)
+	{
+		GetSystem().RequestCompile(false);
+	}
+	else
+	{
+		Transaction.Cancel();		
+	}
+}
+
 void FNiagaraSystemViewModel::ToggleEmitterIsolation(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandle)
 {
 	InEmitterHandle->GetEmitterHandle()->SetIsolated(!InEmitterHandle->GetEmitterHandle()->IsIsolated());
@@ -1345,6 +1376,7 @@ void FNiagaraSystemViewModel::SetupSequencer()
 	{
 		ViewParams.UniqueName = "NiagaraSequenceEditor";
 		ViewParams.OnGetAddMenuContent = OnGetSequencerAddMenuContent;
+		ViewParams.OnGetPlaybackSpeeds = ISequencer::FOnGetPlaybackSpeeds::CreateRaw(this, &FNiagaraSystemViewModel::OnGetPlaybackSpeeds);
 	}
 
 	FSequencerInitParams SequencerInitParams;
@@ -1355,9 +1387,10 @@ void FNiagaraSystemViewModel::SetupSequencer()
 		SequencerInitParams.ToolkitHost = nullptr;
 	}
 
+	UNiagaraEditorSettings::OnSettingsChanged().AddRaw(this, &FNiagaraSystemViewModel::SnapToNextSpeed);
+	
 	ISequencerModule &SequencerModule = FModuleManager::LoadModuleChecked< ISequencerModule >("Sequencer");
 	Sequencer = SequencerModule.CreateSequencer(SequencerInitParams);
-
 	Sequencer->OnMovieSceneDataChanged().AddRaw(this, &FNiagaraSystemViewModel::SequencerDataChanged);
 	Sequencer->OnGlobalTimeChanged().AddRaw(this, &FNiagaraSystemViewModel::SequencerTimeChanged);
 	Sequencer->GetSelectionChangedTracks().AddRaw(this, &FNiagaraSystemViewModel::SequencerTrackSelectionChanged);
@@ -1367,6 +1400,24 @@ void FNiagaraSystemViewModel::SetupSequencer()
 		: EMovieScenePlayerStatus::Stopped);
 }
 
+void FNiagaraSystemViewModel::SnapToNextSpeed(const FString& PropertyName, const UNiagaraEditorSettings* Settings)
+{
+	// we update the speed in any case
+	Sequencer->SnapToClosestPlaybackSpeed();
+}
+
+void FNiagaraSystemViewModel::IsolateSelectedEmitters()
+{
+	const TArray<FGuid> EmitterHandles = GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	IsolateEmitters(EmitterHandles);
+}
+
+void FNiagaraSystemViewModel::DisableSelectedEmitters()
+{
+	const TArray<FGuid> EmitterHandles = GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+	DisableEmitters(EmitterHandles);
+}
+
 void FNiagaraSystemViewModel::ResetSystem()
 {
 	ResetSystem(ETimeResetMode::AllowResetTime, EMultiResetMode::ResetThisInstance, EReinitMode::ResetSystem);
@@ -1374,7 +1425,7 @@ void FNiagaraSystemViewModel::ResetSystem()
 
 void FNiagaraSystemViewModel::ResetSystem(ETimeResetMode TimeResetMode, EMultiResetMode MultiResetMode, EReinitMode ReinitMode)
 {
-	bool bResetAge = TimeResetMode == ETimeResetMode::AllowResetTime && (Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing || EditorSettings->GetResimulateOnChangeWhilePaused() == false);
+	bool bResetAge = TimeResetMode == ETimeResetMode::AllowResetTime && (Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Playing || Sequencer->GetPlaybackStatus() == EMovieScenePlayerStatus::Stopped || EditorSettings->GetResimulateOnChangeWhilePaused() == false);
 	if (bResetAge)
 	{
 		TGuardValue<bool> Guard(bSettingSequencerTimeDirectly, true);

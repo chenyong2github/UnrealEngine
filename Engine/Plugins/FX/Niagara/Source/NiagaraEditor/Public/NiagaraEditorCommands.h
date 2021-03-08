@@ -17,9 +17,8 @@ public:
 			NSLOCTEXT("Contexts", "NiagaraEditor", "Niagara Editor"),
 			NAME_None,
 			FEditorStyle::GetStyleSetName()
-			)
-	{
-	}
+		)
+	{ }
 
 	virtual void RegisterCommands() override;
 
@@ -55,11 +54,14 @@ public:
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceTypeMax;
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceModePercent;
 	TSharedPtr<FUICommandInfo> ToggleStatPerformanceModeAbsolute;
-	
+
 	TSharedPtr<FUICommandInfo> ToggleAutoPlay;
 	TSharedPtr<FUICommandInfo> ToggleResetSimulationOnChange;
 	TSharedPtr<FUICommandInfo> ToggleResimulateOnChangeWhilePaused;
 	TSharedPtr<FUICommandInfo> ToggleResetDependentSystems;
+
+	TSharedPtr<FUICommandInfo> IsolateSelectedEmitters;
+	TSharedPtr<FUICommandInfo> DisableSelectedEmitters;
 
 	TSharedPtr<FUICommandInfo> CollapseStackToHeaders;
 

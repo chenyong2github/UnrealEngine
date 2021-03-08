@@ -403,7 +403,8 @@ void SNiagaraSystemViewport::Construct(const FArguments& InArgs)
 	AdvancedPreviewScene = MakeShareable(new FAdvancedPreviewScene(FPreviewScene::ConstructionValues()));
 	AdvancedPreviewScene->SetFloorVisibility(false);
 	OnThumbnailCaptured = InArgs._OnThumbnailCaptured;
-
+	Sequencer = InArgs._Sequencer;
+	
 	SEditorViewport::Construct( SEditorViewport::FArguments() );
 }
 
@@ -663,17 +664,17 @@ EVisibility SNiagaraSystemViewport::OnGetViewportCompileTextVisibility() const
 void SNiagaraSystemViewport::PopulateViewportOverlays(TSharedRef<class SOverlay> Overlay)
 {
 	Overlay->AddSlot()
-		.VAlign(VAlign_Top)
-		[
-			SNew(SNiagaraSystemViewportToolBar, SharedThis(this))
-		];
+	.VAlign(VAlign_Top)
+	[
+		SNew(SNiagaraSystemViewportToolBar, SharedThis(this)).Sequencer(Sequencer)
+	];
 	Overlay->AddSlot()
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Center)
-		[
-			SAssignNew(CompileText, STextBlock)
-			.Visibility_Raw(this, &SNiagaraSystemViewport::OnGetViewportCompileTextVisibility)
-		];
+	.VAlign(VAlign_Center)
+	.HAlign(HAlign_Center)
+	[
+		SAssignNew(CompileText, STextBlock)
+		.Visibility_Raw(this, &SNiagaraSystemViewport::OnGetViewportCompileTextVisibility)
+	];
 
 	CompileText->SetText(LOCTEXT("Compiling","Compiling"));
 

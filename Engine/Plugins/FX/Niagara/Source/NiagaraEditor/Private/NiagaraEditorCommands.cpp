@@ -39,6 +39,16 @@ void FNiagaraEditorCommands::RegisterCommands()
 	UI_COMMAND(ToggleResetDependentSystems, "Reset Dependent Systems", "Toggles whether or not to reset all systems that include this emitter when it is reset by the user.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	UI_COMMAND(CollapseStackToHeaders, "Collapse to Headers", "Expands all headsers and collapse all items.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::O));
 
+	UI_COMMAND(IsolateSelectedEmitters, "Isolate selected emitters", "Isolate all currently selected emitters.", EUserInterfaceActionType::Button, FInputChord(EKeys::S));
+	UI_COMMAND(DisableSelectedEmitters, "Disable selected emitters", "Disables all currently selected emitters and recompiles the system.", EUserInterfaceActionType::Button, FInputChord(EKeys::D));
+
+	// todo
+	/*UI_COMMAND(SelectNextEmitter, "Select Next Emitter", "Toggles whether or not simulations auto-play when their asset editor is opened, and when the asset is modified.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::D));
+	UI_COMMAND(SelectPreviousEmitter, "Select Previous Emitter", "Toggles whether or not simulations auto-play when their asset editor is opened, and when the asset is modified.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Shift, EKeys::A));
+	UI_COMMAND(ShowLowLevelOfDetail, "Show Low Level of Detail", "Toggles whether or not simulations auto-play when their asset editor is opened, and when the asset is modified.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::One));
+	UI_COMMAND(ShowMediumLevelOfDetail, "Show Medium Level of Detail", "Toggles whether or not simulations auto-play when their asset editor is opened, and when the asset is modified.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::Two));
+	UI_COMMAND(ShowHighLevelOfDetail, "Show High Level of Detail", "Toggles whether or not simulations auto-play when their asset editor is opened, and when the asset is modified.", EUserInterfaceActionType::ToggleButton, FInputChord(EModifierKey::Control, EKeys::Three));*/
+
 	UI_COMMAND(FindInCurrentView, "Find", "Contextually finds items in current view.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::F));
 
 	UI_COMMAND(ZoomToFit, "Zoom to Fit", "Zooms and pans to fit the current selection.", EUserInterfaceActionType::Button, FInputChord(EKeys::F));

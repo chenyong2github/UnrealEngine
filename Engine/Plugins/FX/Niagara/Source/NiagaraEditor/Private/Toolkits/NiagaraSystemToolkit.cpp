@@ -48,6 +48,8 @@
 #include "BusyCursor.h"
 #include "Misc/FeedbackContext.h"
 #include "Editor.h"
+#include "LevelEditor.h"
+#include "LevelEditorActions.h"
 #include "Engine/Selection.h"
 #include "Misc/MessageDialog.h"
 #include "Modules/ModuleManager.h"
@@ -332,7 +334,7 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	SystemViewModel->GetSelectionViewModel()->OnEmitterHandleIdSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
 	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->OnRequestFocusTab().AddSP(this, &FNiagaraSystemToolkit::OnViewModelRequestFocusTab);
-
+	
 	const float InTime = -0.02f;
 	const float OutTime = 3.2f;
 
@@ -412,13 +414,14 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
 	UObject* ToolkitObject = SystemToolkitMode == ESystemToolkitMode::System ? (UObject*)System : (UObject*)Emitter;
+	// order of registering commands matters. SetupCommands before InitAssetEditor will make the toolkit prioritize niagara commands
+	SetupCommands();
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, FNiagaraEditorModule::NiagaraEditorAppIdentifier,
 		StandaloneDefaultLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ToolkitObject);
 	
 	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	AddMenuExtender(NiagaraEditorModule.GetMenuExtensibilityManager()->GetAllExtenders(GetToolkitCommands(), GetEditingObjects()));
 
-	SetupCommands();
 	ExtendToolbar();
 	RegenerateMenusAndToolbars();
 
@@ -453,7 +456,8 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_Viewport(const FSpawnTabArg
 	check(Args.GetTabId().TabType == ViewportTabID);
 
 	Viewport = SNew(SNiagaraSystemViewport)
-		.OnThumbnailCaptured(this, &FNiagaraSystemToolkit::OnThumbnailCaptured);
+		.OnThumbnailCaptured(this, &FNiagaraSystemToolkit::OnThumbnailCaptured)
+		.Sequencer(SystemViewModel->GetSequencer());
 
 	TSharedRef<SDockTab> SpawnedTab =
 		SNew(SDockTab)
@@ -811,12 +815,16 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_Flipbook(const FSpawnTabArg
 
 void FNiagaraSystemToolkit::SetupCommands()
 {
+	FLevelEditorModule& Module = FModuleManager::Get().LoadModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
+	const FLevelEditorCommands& LevelEditorCommands = Module.GetLevelEditorCommands();
+	
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().Compile,
 		FExecuteAction::CreateRaw(this, &FNiagaraSystemToolkit::CompileSystem, false));
+
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ResetSimulation,
-		FExecuteAction::CreateRaw(this, &FNiagaraSystemToolkit::ResetSimulation));
+		FExecuteAction::CreateRaw(this, &FNiagaraSystemToolkit::ResetSimulation)); 
 
 	GetToolkitCommands()->MapAction(
         FNiagaraEditorCommands::Get().ToggleStatPerformance,
@@ -904,13 +912,33 @@ void FNiagaraSystemToolkit::SetupCommands()
 	GetToolkitCommands()->MapAction(
 		FNiagaraEditorCommands::Get().ToggleResetDependentSystems,
 		FExecuteAction::CreateLambda([]()
-	{
-		UNiagaraEditorSettings* Settings = GetMutableDefault<UNiagaraEditorSettings>();
-		Settings->SetResetDependentSystemsWhenEditingEmitters(!Settings->GetResetDependentSystemsWhenEditingEmitters());
-	}),
+		{
+			UNiagaraEditorSettings* Settings = GetMutableDefault<UNiagaraEditorSettings>();
+			Settings->SetResetDependentSystemsWhenEditingEmitters(!Settings->GetResetDependentSystemsWhenEditingEmitters());
+		}),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([]() { return GetDefault<UNiagaraEditorSettings>()->GetResetDependentSystemsWhenEditingEmitters(); }),
 		FIsActionButtonVisible::CreateLambda([this]() { return SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::EmitterAsset; }));
+
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().IsolateSelectedEmitters,
+		FExecuteAction::CreateLambda([=]()
+		{
+			SystemViewModel->IsolateSelectedEmitters();
+		}),
+		FCanExecuteAction());
+
+	GetToolkitCommands()->MapAction(
+		FNiagaraEditorCommands::Get().DisableSelectedEmitters,
+		FExecuteAction::CreateLambda([=]()
+		{
+			SystemViewModel->DisableSelectedEmitters();
+		}),
+		FCanExecuteAction());
+	
+	// appending the sequencer commands will make the toolkit also check for sequencer commands (last)
+	GetToolkitCommands()->Append(SystemViewModel->GetSequencer()->GetCommandBindings(ESequencerCommandBindings::Sequencer).ToSharedRef());
+	SystemViewModel->GetSequencer()->GetCommandBindings(ESequencerCommandBindings::Sequencer)->Append(GetToolkitCommands());
 }
 
 void FNiagaraSystemToolkit::OnSaveThumbnailImage()
