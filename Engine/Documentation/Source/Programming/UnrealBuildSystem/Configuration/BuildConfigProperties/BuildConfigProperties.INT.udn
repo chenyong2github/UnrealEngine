@@ -64,6 +64,8 @@ $ bAdaptiveUnityCreatesDedicatedPCH : Creates a dedicated PCH for each source fi
 
 $ bAdaptiveUnityEnablesEditAndContinue : Creates a dedicated PCH for each source file in the working set, allowing faster iteration on cpp-only changes.
 
+$ bAdaptiveUnityCompilesHeaderFiles : Creates a dedicated source file for each header file in the working set to detect missing includes in headers.
+
 $ MinGameModuleSourceFilesForUnityBuild : The number of source files in a game module before unity build will be activated for that module.  This allows small game modules to have faster iterative compile times for single files, at the expense of slower full rebuild times.  This setting can be overridden by the bFasterWithoutUnity option in a module's Build.cs file.
 
 $ bWarningsAsErrors : Whether to enable all warnings as errors. UE enables most warnings as errors already, but disables a few (such as deprecation warnings).
