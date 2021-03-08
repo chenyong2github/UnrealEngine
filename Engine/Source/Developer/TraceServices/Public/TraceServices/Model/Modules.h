@@ -55,6 +55,12 @@ struct FResolvedSymbol
 	{
 		return Result.load(std::memory_order_acquire);
 	}
+
+	FResolvedSymbol(ESymbolQueryResult InResult, const TCHAR* InName, const TCHAR* InFileAndLine) 
+		: Result(InResult)
+		, Name(InName)
+		, FileAndLine(InFileAndLine)
+	{}
 };
 
 ////////////////////////////////////////////////////////////////////////////////

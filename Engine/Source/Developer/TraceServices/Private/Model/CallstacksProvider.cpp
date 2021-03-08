@@ -12,7 +12,7 @@ namespace TraceServices
 {
 
 /////////////////////////////////////////////////////////////////////
-static FResolvedSymbol GNeverResolveSymbol;
+static const FResolvedSymbol GNeverResolveSymbol(ESymbolQueryResult::NotLoaded, nullptr, nullptr);
 
 /////////////////////////////////////////////////////////////////////
 #ifdef TRACE_CALLSTACK_STATS
@@ -31,9 +31,6 @@ FCallstacksProvider::FCallstacksProvider(IAnalysisSession& InSession)
 	, Callstacks(InSession.GetLinearAllocator(), CallstacksPerPage)
 	, Frames(InSession.GetLinearAllocator(), FramesPerPage)
 {
-	GNeverResolveSymbol.Result.store(ESymbolQueryResult::NotLoaded);
-	GNeverResolveSymbol.Name = nullptr;
-	GNeverResolveSymbol.FileAndLine = nullptr;
 }
 
 /////////////////////////////////////////////////////////////////////
