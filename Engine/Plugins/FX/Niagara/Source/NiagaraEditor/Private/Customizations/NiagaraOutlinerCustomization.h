@@ -8,6 +8,9 @@
 #include "NiagaraCommon.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "Layout/Visibility.h"
+#include "NiagaraDebuggerCommon.h"
+
+#include "NiagaraOutlinerCustomization.generated.h"
 
 class FDetailWidgetRow;
 enum class ECheckBoxState : uint8;
@@ -66,10 +69,13 @@ struct FNiagaraOutlinerTreeItem
 
 	virtual TArray<TSharedRef<FNiagaraOutlinerTreeItem>>& GetChildren(){ return Children; }
 
+
 	virtual ENiagaraOutlinerTreeItemType GetType() const { return ENiagaraOutlinerTreeItemType::Num; }
 	virtual const void* GetData() const { return nullptr; }
 
 	virtual TSharedRef<SWidget> GetHeaderWidget();
+
+	virtual void SortChildren(){};
 
 	TSharedPtr<FStructOnScope>& GetDetailsViewContent();
 
@@ -87,6 +93,8 @@ struct FNiagaraOutlinerTreeItem
 	TWeakPtr<SNiagaraOutlinerTreeItem> Widget;
 	TSharedPtr<FStructOnScope> DetailsViewData;
 
+	TWeakPtr<SNiagaraOutlinerTree> OwnerTree;
+
 	static const float HeaderPadding;
 };
 
@@ -95,6 +103,7 @@ struct FNiagaraOutlinerTreeWorldItem : public FNiagaraOutlinerTreeItem
 	virtual ENiagaraOutlinerTreeItemType GetType() const override { return ENiagaraOutlinerTreeItemType::World; }
 	virtual const void* GetData() const override;
 	virtual TSharedRef<SWidget> GetHeaderWidget() override;
+	virtual void SortChildren() override;
 };
 
 struct FNiagaraOutlinerTreeSystemItem : public FNiagaraOutlinerTreeItem
@@ -102,6 +111,7 @@ struct FNiagaraOutlinerTreeSystemItem : public FNiagaraOutlinerTreeItem
 	virtual ENiagaraOutlinerTreeItemType GetType() const override { return ENiagaraOutlinerTreeItemType::System; }
 	virtual const void* GetData() const override;
 	virtual TSharedRef<SWidget> GetHeaderWidget() override;
+	virtual void SortChildren() override;
 };
 
 struct FNiagaraOutlinerTreeComponentItem : public FNiagaraOutlinerTreeItem
@@ -109,6 +119,7 @@ struct FNiagaraOutlinerTreeComponentItem : public FNiagaraOutlinerTreeItem
 	virtual ENiagaraOutlinerTreeItemType GetType() const override { return ENiagaraOutlinerTreeItemType::Component; }
 	virtual const void* GetData() const override;
 	virtual TSharedRef<SWidget> GetHeaderWidget() override;
+	virtual void SortChildren() override;
 	virtual FString GetShortName() const
 	{
 		//Remove everything but the component and actor name.
@@ -136,6 +147,7 @@ struct FNiagaraOutlinerTreeEmitterItem : public FNiagaraOutlinerTreeItem
 	virtual ENiagaraOutlinerTreeItemType GetType() const override { return ENiagaraOutlinerTreeItemType::Emitter; }
 	virtual const void* GetData() const override;
 	virtual TSharedRef<SWidget> GetHeaderWidget() override;
+	virtual void SortChildren() override;
 
 	virtual FString GetFullName() const override
 	{
@@ -180,6 +192,9 @@ public:
 	void ToggleItemExpansion(TSharedPtr<FNiagaraOutlinerTreeItem>& Item);
 
 	const FText& GetSearchText()const {return SearchText;}
+
+	TSharedPtr<FNiagaraDebugger>& GetDebugger(){return Debugger;}
+
 private:
 	// Generate a row for the tree
 	TSharedRef<ITableRow> OnGenerateRow(TSharedRef<FNiagaraOutlinerTreeItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
@@ -237,4 +252,75 @@ public:
 	/** IPropertyTypeCustomization interface end */
 };
 
+class FNiagaraOutlinerSystemDetailsCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraOutlinerSystemDetailsCustomization>();
+	}
+
+	/** IPropertyTypeCustomization interface begin */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IPropertyTypeCustomization interface end */
+};
+
+class FNiagaraOutlinerSystemInstanceDetailsCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraOutlinerSystemInstanceDetailsCustomization>();
+	}
+
+	/** IPropertyTypeCustomization interface begin */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IPropertyTypeCustomization interface end */
+};
+
+class FNiagaraOutlinerEmitterInstanceDetailsCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
+	{
+		return MakeShared<FNiagaraOutlinerEmitterInstanceDetailsCustomization>();
+	}
+
+	/** IPropertyTypeCustomization interface begin */
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
+	/** IPropertyTypeCustomization interface end */
+};
+
+/** Due to limitations of the structure details view, we need to wrap up structs we wish to customize. */
+USTRUCT()
+struct FNiagaraOutlinerWorldDataCustomizationWrapper
+{
+	GENERATED_BODY()
+	UPROPERTY(VisibleAnywhere, Category="World")
+	FNiagaraOutlinerWorldData Data;
+};
+USTRUCT()
+struct FNiagaraOutlinerSystemDataCustomizationWrapper
+{
+	GENERATED_BODY()
+	UPROPERTY(VisibleAnywhere, Category = "System")
+	FNiagaraOutlinerSystemData Data;
+};
+USTRUCT()
+struct FNiagaraOutlinerSystemInstanceDataCustomizationWrapper
+{
+	GENERATED_BODY()
+	UPROPERTY(VisibleAnywhere, Category = "Instance")
+	FNiagaraOutlinerSystemInstanceData Data;
+};
+USTRUCT()
+struct FNiagaraOutlinerEmitterInstanceDataCustomizationWrapper
+{
+	GENERATED_BODY()
+	UPROPERTY(VisibleAnywhere, Category="Emitter")
+	FNiagaraOutlinerEmitterInstanceData Data;
+};
 //////////////////////////////////////////////////////////////////////////

@@ -96,7 +96,8 @@ public:
 	}
 
 	virtual bool NeedsWorldStats()const override{ return true; }
-	virtual bool NeedsSystemStats()const override{ return false; }
+	virtual bool NeedsSystemStats()const override { return false; }
+	virtual bool NeedsComponentStats()const override { return false; }
 
 	virtual void Begin() override {}
 	virtual void End() override {}

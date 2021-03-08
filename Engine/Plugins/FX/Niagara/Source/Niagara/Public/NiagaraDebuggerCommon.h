@@ -17,6 +17,20 @@ All common code shared between the editor side debugger and debugger clients run
 // Niagara Outliner.
 
 USTRUCT()
+struct FNiagaraOutlinerTimingData
+{
+	GENERATED_BODY()
+
+	/** Game thread time, including concurrent tasks*/
+	UPROPERTY(VisibleAnywhere, Category="Time")
+	float GameThread = 0.0f;
+
+	/** Render thread time. */
+	UPROPERTY(VisibleAnywhere, Category="Time")
+	float RenderThread = 0.0f;
+};
+
+USTRUCT()
 struct FNiagaraOutlinerEmitterInstanceData
 {
 	GENERATED_BODY()
@@ -47,26 +61,33 @@ struct FNiagaraOutlinerSystemInstanceData
 	/** Name of the component object for this instance, if there is one. */
 	UPROPERTY(VisibleAnywhere, Category = "System")
 	FString ComponentName;
-	
-	UPROPERTY(VisibleAnywhere, Category = "System")
-	ENiagaraExecutionState ActualExecutionState = ENiagaraExecutionState::Num;
 
-	UPROPERTY(VisibleAnywhere, Category = "System")
-	ENiagaraExecutionState RequestedExecutionState = ENiagaraExecutionState::Num;
-	
 	UPROPERTY(VisibleAnywhere, Category = "System")
 	TArray<FNiagaraOutlinerEmitterInstanceData> Emitters;
 	
-	UPROPERTY(VisibleAnywhere, Category = "System")
+	UPROPERTY(VisibleAnywhere, Category = "State")
+	ENiagaraExecutionState ActualExecutionState = ENiagaraExecutionState::Num;
+
+	UPROPERTY(VisibleAnywhere, Category = "State")
+	ENiagaraExecutionState RequestedExecutionState = ENiagaraExecutionState::Num;
+	
+	UPROPERTY(VisibleAnywhere, Category = "State")
 	FNiagaraScalabilityState ScalabilityState;
 	
-	UPROPERTY(VisibleAnywhere, Category = "System")
+	UPROPERTY(VisibleAnywhere, Category = "State")
 	uint32 bPendingKill : 1;
+	
+	UPROPERTY(VisibleAnywhere, Category = "State")
+	ENCPoolMethod PoolMethod;
+
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData AverageTime;
+
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData MaxTime;
 
 	//TODO:
 	//Tick info, solo, tick group etc.
-	//Scalability Info
-	//Perf data?
 	//Mem usage?
 };
 
@@ -79,8 +100,22 @@ struct FNiagaraOutlinerSystemData
 	//TODO: Cache off any shared representation of the system and emitters here for the instances to reference. 
 
 	/** Map of System Instance data indexed by the UNiagaraSystem name. */
-	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	UPROPERTY(VisibleAnywhere, Category = "System")
 	TArray<FNiagaraOutlinerSystemInstanceData> SystemInstances;
+
+	
+	
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData AveragePerFrameTime;
+
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData MaxPerFrameTime;
+	
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData AveragePerInstanceTime;
+
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData MaxPerInstanceTime;
 };
 
 /** All information about a specific world for the Niagara Outliner. */
@@ -90,19 +125,25 @@ struct FNiagaraOutlinerWorldData
 	GENERATED_BODY()
 
 	/** Map of System Instance data indexed by the UNiagaraSystem name. */
-	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	UPROPERTY(VisibleAnywhere, Category = "World")
 	TMap<FString, FNiagaraOutlinerSystemData> Systems;
 
-	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	UPROPERTY(VisibleAnywhere, Category = "State")
 	bool bHasBegunPlay = false;
-	
-	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+
+	UPROPERTY(VisibleAnywhere, Category = "State")
 	uint8 WorldType = INDEX_NONE;
 
-	UPROPERTY(VisibleAnywhere, Category = "Outliner")
+	UPROPERTY(VisibleAnywhere, Category = "State")
 	uint8 NetMode = INDEX_NONE;
+	
 
-	//Perf info?
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData AveragePerFrameTime;
+
+	UPROPERTY(VisibleAnywhere, Category = "Performance")
+	FNiagaraOutlinerTimingData MaxPerFrameTime;
+
 	//Mem Usage?
 };
 
@@ -455,7 +496,7 @@ public:
 
 
 USTRUCT()
-struct NIAGARA_API FNiagaraOutlinerSettings
+struct NIAGARA_API FNiagaraOutlinerCaptureSettings
 {
 	GENERATED_BODY()
 
@@ -463,12 +504,12 @@ struct NIAGARA_API FNiagaraOutlinerSettings
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	bool bTriggerCapture = false;
 
-	/** Delay between pressing the capture button and the capture being taken. Allows time to influence the scene before a capture is taken. */
+	/** How many frames to delay capture. If gathering performance data, this is how many frames will be collected. */
+	UPROPERTY(EditAnywhere, Config, Category="Settings")
+	uint32 CaptureDelayFrames = 60;
+	
 	UPROPERTY(EditAnywhere, Config, Category = "Settings")
-	float CaptureDelay = 1.0f;
-
-	//TODO:
-	//Properties to control the capture? Optionally grab perf info etc.
+	bool bGatherPerfData = true;
 };
 
 /** Simple information on the connected client for use in continuous or immediate response UI elements. */
@@ -492,4 +533,27 @@ struct NIAGARA_API FNiagaraSimpleClientInfo
 	/** List of all Niagara emitters. */
 	UPROPERTY(EditAnywhere, Category = "Info")
 	TArray<FString> Emitters;
+};
+
+
+enum class ENiagaraDebugMessageType : uint8
+{
+	Info,
+	Warning,
+	Error
+};
+struct FNiagaraDebugMessage
+{
+	ENiagaraDebugMessageType Type;
+	FString Message;
+	float Lifetime;
+	FNiagaraDebugMessage()
+		: Type(ENiagaraDebugMessageType::Error)
+		, Lifetime(0.0f)
+	{}
+	FNiagaraDebugMessage(ENiagaraDebugMessageType InType, const FString& InMessage, float InLifetime)
+		: Type(InType)
+		, Message(InMessage)
+		, Lifetime(InLifetime)
+	{}
 };

@@ -180,6 +180,7 @@ public:
 
 	virtual bool NeedsWorldStats()const { return false; }
 	virtual bool NeedsSystemStats()const { return true; }
+	virtual bool NeedsComponentStats()const { return false; }
 
 private:
 	/** The baseline actor controlling the test conditions and which we'll send the completed stats to. */
@@ -194,6 +195,7 @@ This listener gathers perf stats for all systems and will render them to the edi
 class NIAGARA_API FParticlePerfStatsListener_NiagaraBaselineComparisonRender : public FParticlePerfStatsListener_GatherAll
 {
 public:
+	FParticlePerfStatsListener_NiagaraBaselineComparisonRender();
 	virtual bool Tick()override;
 	virtual void TickRT()override;
 	virtual bool NeedsWorldStats()const { return false; }

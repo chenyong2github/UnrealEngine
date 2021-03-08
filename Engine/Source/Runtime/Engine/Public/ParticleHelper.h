@@ -2477,7 +2477,7 @@ public:
 	SIZE_T GetTypeHash() const override;
 
 	/** Initialization constructor. */
-	FParticleSystemSceneProxy(const UParticleSystemComponent* Component, FParticleDynamicData* InDynamicData, bool bCanBeOccluded);
+	FParticleSystemSceneProxy(UParticleSystemComponent* Component, FParticleDynamicData* InDynamicData, bool bCanBeOccluded);
 	virtual ~FParticleSystemSceneProxy();
 
 	// FPrimitiveSceneProxy interface.

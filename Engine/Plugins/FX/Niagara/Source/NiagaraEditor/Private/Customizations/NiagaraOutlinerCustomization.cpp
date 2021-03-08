@@ -19,6 +19,8 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Images/SImage.h"
 ///Niagara
 #include "NiagaraEditorModule.h"
@@ -188,31 +190,49 @@ void SNiagaraOutlinerTree::Construct(const FArguments& InArgs, TSharedPtr<FNiaga
 
 		ChildSlot
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.65f)
+			SNew(SSplitter)
+			+ SSplitter::Slot()
+			.SizeRule(SSplitter::ESizeRule::FractionOfParent)
+			.Value(0.65)
 			[
-				SNew(SVerticalBox)
-				+ SVerticalBox::Slot()
-				.AutoHeight()
+				SNew(SBox)
+				.Padding(2.0f)
 				[
-					// Search box allows for filtering
-					SAssignNew(SearchBox, SSearchBox)
-					.OnTextChanged_Lambda([this](const FText& InText) { SearchText = InText; RefreshTree(); })
-				]
-				+ SVerticalBox::Slot()
-				.FillHeight(1.0f)
-				[
-					SNew(SScrollBorder, TreeView.ToSharedRef())
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
-						TreeView.ToSharedRef()
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							// Search box allows for filtering
+							SAssignNew(SearchBox, SSearchBox)
+							.OnTextChanged_Lambda([this](const FText& InText) { SearchText = InText; RefreshTree(); })
+						]
+						+ SVerticalBox::Slot()
+						.FillHeight(1.0f)
+						[
+							SNew(SScrollBorder, TreeView.ToSharedRef())
+							[
+								TreeView.ToSharedRef()
+							]
+						]
 					]
 				]
 			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.35f)
+			+ SSplitter::Slot()
+			.SizeRule(SSplitter::ESizeRule::FractionOfParent)
+			.Value(0.35)
 			[
-				SelectedItemDetails->GetWidget().ToSharedRef()//TODO: Maybe shunt this out intot he main outliner details somehow?
+				SNew(SBox)
+				.Padding(2.0f)
+				[				
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					[
+						SelectedItemDetails->GetWidget().ToSharedRef()//TODO: Maybe shunt this out intot he main outliner details somehow?
+					]	
+				]			
 			]
 		];
 
@@ -309,6 +329,7 @@ TSharedPtr<FNiagaraOutlinerTreeItem> SNiagaraOutlinerTree::AddChildItemToEntry(T
 		NewTreeEntry->bVisible = DefaultVisibility;
 	}
 
+	NewTreeEntry->OwnerTree = SharedThis(this);
 	NewTreeEntry->Parent = InItem;
 
 	NewTreeEntry->bMatchesSearch = InItem.IsValid() && InItem->bMatchesSearch;
@@ -345,6 +366,48 @@ void SNiagaraOutlinerTree::RefreshTree_Helper(const TSharedPtr<FNiagaraOutlinerT
 				FString WorldName = WorldData.Key;
 				TSharedPtr<FNiagaraOutlinerTreeItem> NewRootEntry = AddChildItemToEntry<FNiagaraOutlinerTreeWorldItem>(ExistingItems, InTreeEntry, WorldName, true, ENiagaraOutlinerSystemExpansionState::Collapsed);
 				RootEntries.Add(NewRootEntry.ToSharedRef());
+
+				bool bSortDecending = Outliner->ViewSettings.bSortDescending;
+				auto SortWorldsByAverageTime = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+				{
+					check(A->GetType() == ENiagaraOutlinerTreeItemType::World);
+					check(B->GetType() == ENiagaraOutlinerTreeItemType::World);
+					const FNiagaraOutlinerWorldData* AData = (const FNiagaraOutlinerWorldData*)A->GetData();
+					const FNiagaraOutlinerWorldData* BData = (const FNiagaraOutlinerWorldData*)B->GetData();
+					if (AData && BData)
+					{
+						return (AData->AveragePerFrameTime.GameThread < BData->AveragePerFrameTime.GameThread) != bSortDecending;
+					}
+					return false;
+				};
+				auto SortWorldsByMaxTime = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+				{
+					check(A->GetType() == ENiagaraOutlinerTreeItemType::World);
+					check(B->GetType() == ENiagaraOutlinerTreeItemType::World);
+					const FNiagaraOutlinerWorldData* AData = (const FNiagaraOutlinerWorldData*)A->GetData();
+					const FNiagaraOutlinerWorldData* BData = (const FNiagaraOutlinerWorldData*)B->GetData();
+					if (AData && BData)
+					{
+						return (AData->MaxPerFrameTime.GameThread < BData->MaxPerFrameTime.GameThread) != bSortDecending;
+					}
+					return false;
+				};
+				auto SortWorldsByMatchingFilteredChildren = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+				{
+					check(A->GetType() == ENiagaraOutlinerTreeItemType::World);
+					check(B->GetType() == ENiagaraOutlinerTreeItemType::World);
+					return (A->Children.Num() < B->Children.Num()) != bSortDecending;
+				};
+
+				TFunction<bool(const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)> SortFunc;
+				switch (Outliner->ViewSettings.GetSortMode())
+				{
+				case ENiagaraOutlinerSortMode::AverageTime: SortFunc = SortWorldsByAverageTime; break;
+				case ENiagaraOutlinerSortMode::MaxTime: SortFunc = SortWorldsByMaxTime; break;
+				default: SortFunc = SortWorldsByMatchingFilteredChildren; break;
+				}
+
+				RootEntries.Sort(SortFunc);
 			}
 		}
 		else
@@ -367,6 +430,7 @@ void SNiagaraOutlinerTree::RefreshTree_Helper(const TSharedPtr<FNiagaraOutlinerT
 						FString SystemName = SystemData.Key;
 						AddChildItemToEntry<FNiagaraOutlinerTreeSystemItem>(ExistingItems, InTreeEntry, SystemName, true, ENiagaraOutlinerSystemExpansionState::Collapsed);
 					}
+					InTreeEntry->SortChildren();
 				}
 
 				//Worlds are filtered if they have no visible contents.
@@ -382,6 +446,7 @@ void SNiagaraOutlinerTree::RefreshTree_Helper(const TSharedPtr<FNiagaraOutlinerT
 						FString ComponentName = InstData.ComponentName;
 						AddChildItemToEntry<FNiagaraOutlinerTreeComponentItem>(ExistingItems, InTreeEntry, ComponentName, true, ENiagaraOutlinerSystemExpansionState::Collapsed);
 					}
+					InTreeEntry->SortChildren();
 				}
 
 				//Systems are filtered if they have no visible contents.
@@ -397,9 +462,11 @@ void SNiagaraOutlinerTree::RefreshTree_Helper(const TSharedPtr<FNiagaraOutlinerT
 						FString EmitterName = EmtitterData.EmitterName;
 						AddChildItemToEntry<FNiagaraOutlinerTreeEmitterItem>(ExistingItems, InTreeEntry, EmitterName, true, ENiagaraOutlinerSystemExpansionState::Collapsed);
 					}
+					InTreeEntry->SortChildren();
 
 					//Apply any system instance filters. No need to generate and check children with these filters.
-					if (Outliner->Filters.bFilterBySystemExecutionState && Outliner->Filters.SystemExecutionState != InstData->ActualExecutionState)
+					if ((Outliner->ViewSettings.bFilterBySystemExecutionState && Outliner->ViewSettings.SystemExecutionState != InstData->ActualExecutionState) ||
+						(Outliner->ViewSettings.bFilterBySystemCullState && Outliner->ViewSettings.bSystemCullState != InstData->ScalabilityState.bCulled) )
 					{
 						bFiltered = true;
 					}
@@ -410,13 +477,13 @@ void SNiagaraOutlinerTree::RefreshTree_Helper(const TSharedPtr<FNiagaraOutlinerT
 				//Should this emitter be filtered out.
 				if (FNiagaraOutlinerEmitterInstanceData* EmitterData = (FNiagaraOutlinerEmitterInstanceData*)InTreeEntry->GetData())
 				{
-					bFiltered = (Outliner->Filters.bFilterByEmitterExecutionState && Outliner->Filters.EmitterExecutionState != EmitterData->ExecState) ||
-						(Outliner->Filters.bFilterByEmitterSimTarget && Outliner->Filters.EmitterSimTarget != EmitterData->SimTarget);			
+					bFiltered = (Outliner->ViewSettings.bFilterByEmitterExecutionState && Outliner->ViewSettings.EmitterExecutionState != EmitterData->ExecState) ||
+						(Outliner->ViewSettings.bFilterByEmitterSimTarget && Outliner->ViewSettings.EmitterSimTarget != EmitterData->SimTarget);
 				}
 			}
 
 			bool bIsLeaf = (Type == ENiagaraOutlinerTreeItemType::Emitter);
-			bool bAnyFiltersActive = SearchText.IsEmpty() == false || Outliner->Filters.bFilterByEmitterExecutionState || Outliner->Filters.bFilterByEmitterSimTarget || Outliner->Filters.bFilterBySystemExecutionState;
+			bool bAnyFiltersActive = SearchText.IsEmpty() == false || Outliner->ViewSettings.bFilterByEmitterExecutionState || Outliner->ViewSettings.bFilterByEmitterSimTarget || Outliner->ViewSettings.bFilterBySystemExecutionState;
 
 			bool bVisible = false;
 			if (bFiltered)
@@ -456,15 +523,40 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget : public SCompoundWidget
 	{
 	}
 
+	SLATE_ARGUMENT(FText, LabelText)
 	SLATE_ARGUMENT(FText, ToolTipText)
 	SLATE_ARGUMENT(T, Data)
 	SLATE_ATTRIBUTE(FOptionalSize, MinDesiredWidth)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, FNiagaraOutlinerViewSettings& ViewSettings)
 	{
 		T Data = InArgs._Data;
 		FText ValueText = FText::AsNumber(Data);
+		FText Label = InArgs._LabelText;
+		
+		TSharedRef<SSplitter> HeaderWidget = SNew(SSplitter).PhysicalSplitterHandleSize(1);
+		
+		if (Label.IsEmpty() == false)
+		{
+			HeaderWidget->AddSlot()
+			.SizeRule(SSplitter::ESizeRule::SizeToContent)
+			[
+				SNew(STextBlock)
+				.Text(Label)
+				.ToolTipText(InArgs._ToolTipText)
+				.Justification(ETextJustify::Center)
+			];
+		}
+
+		HeaderWidget->AddSlot()
+		.SizeRule(SSplitter::ESizeRule::SizeToContent)
+		[
+			SNew(STextBlock)
+			.Text(ValueText)
+			.ToolTipText(InArgs._ToolTipText)
+			.Justification(ETextJustify::Center)
+		];
 
 		ChildSlot
 		[
@@ -472,12 +564,10 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget : public SCompoundWidget
 			.MinDesiredWidth(InArgs._MinDesiredWidth)
 			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.HAlign(HAlign_Center)
 				[
-					SNew(STextBlock)
-					.Text(ValueText)
-					.ToolTipText(InArgs._ToolTipText)
-					.Justification(ETextJustify::Center)
+					HeaderWidget
 				]
 			]
 		];
@@ -492,31 +582,149 @@ class SNiagaraOutlinerTreeItemHeaderDataWidget<FText> : public SCompoundWidget
 	{
 	}
 
+	SLATE_ARGUMENT(FText, LabelText)
 	SLATE_ARGUMENT(FText, ToolTipText)
 	SLATE_ARGUMENT(FText, Data)
 	SLATE_ATTRIBUTE(FOptionalSize, MinDesiredWidth)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs)
+	void Construct(const FArguments& InArgs, FNiagaraOutlinerViewSettings& ViewSettings)
 	{
+		FText Label = InArgs._LabelText;
+		TSharedRef<SSplitter> HeaderWidget = SNew(SSplitter).PhysicalSplitterHandleSize(1);
+		
+		if (Label.IsEmpty() == false)
+		{
+			HeaderWidget->AddSlot()
+			.SizeRule(SSplitter::ESizeRule::SizeToContent)
+			[
+				SNew(STextBlock)
+				.Text(Label)
+				.ToolTipText(InArgs._ToolTipText)
+				.Justification(ETextJustify::Center)
+			];
+		}
+
+		HeaderWidget->AddSlot()
+		.SizeRule(SSplitter::ESizeRule::SizeToContent)
+		[
+			SNew(STextBlock)
+			.Text(InArgs._Data)
+			.ToolTipText(InArgs._ToolTipText)
+			.Justification(ETextJustify::Center)
+		];
+
 		ChildSlot
 		[
 			SNew(SBox)
 			.MinDesiredWidth(InArgs._MinDesiredWidth)
-			[			
+			[
 				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.HAlign(HAlign_Center)
 				[
-					SNew(STextBlock)
-					.Text(InArgs._Data)
-					.ToolTipText(InArgs._ToolTipText)
-					.Justification(ETextJustify::Center)
+					HeaderWidget
 				]
 			]
 		];
 	}
 };
 
+template<>
+class SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData> : public SCompoundWidget
+{
+	SLATE_BEGIN_ARGS(SNiagaraOutlinerTreeItemHeaderDataWidget)
+		: _MinDesiredWidth(FOptionalSize())
+	{
+	}
+
+	SLATE_ARGUMENT(FText, LabelText)
+	SLATE_ARGUMENT(FText, ToolTipText)
+	SLATE_ARGUMENT(FNiagaraOutlinerTimingData, Data)
+	SLATE_ATTRIBUTE(FOptionalSize, MinDesiredWidth)
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, FNiagaraOutlinerViewSettings& ViewSettings)
+	{
+		FText Label = InArgs._LabelText;
+		FNiagaraOutlinerTimingData Data = InArgs._Data;
+
+		float GTVal = Data.GameThread;
+		float RTVal = Data.RenderThread;
+
+		if (ViewSettings.TimeUnits == ENiagaraOutlinerTimeUnits::Milliseconds)
+		{
+			GTVal /= 1000.0f;
+			RTVal /= 1000.0f;
+		}
+		else if (ViewSettings.TimeUnits == ENiagaraOutlinerTimeUnits::Seconds)
+		{
+			GTVal /= 1000000.0f;
+			RTVal /= 1000000.0f;
+		}
+
+		FText GameThread = FText::AsNumber(GTVal);
+		FText RenderThread = FText::AsNumber(RTVal);
+
+		FText TooltipFmt = LOCTEXT("TimingDataTooltipFmt", "{0} ({1})");
+		FText GTTooltip = FText::Format(TooltipFmt, InArgs._ToolTipText, LOCTEXT("TimingDataGameThread","Game Thread"));
+		FText RTTooltip = FText::Format(TooltipFmt, InArgs._ToolTipText, LOCTEXT("TimingDataRenderThread", "Render Thread"));
+
+		TSharedRef<SSplitter> HeaderWidget = SNew(SSplitter)
+			.PhysicalSplitterHandleSize(2)
+			.Style(FEditorStyle::Get(), "SplitterDark");
+		
+		if (Label.IsEmpty() == false)
+		{
+			HeaderWidget->AddSlot()
+			.SizeRule(SSplitter::ESizeRule::SizeToContent)
+			[
+				SNew(STextBlock)
+				.Text(Label)
+				.ToolTipText(InArgs._ToolTipText)
+				.Justification(ETextJustify::Center)
+			];
+		}
+
+		HeaderWidget->AddSlot()
+		.SizeRule(SSplitter::ESizeRule::SizeToContent)
+		[
+			SNew(SBox)
+			.Padding(FMargin(4, 0, 4, 0))
+			.MinDesiredWidth(InArgs._MinDesiredWidth)
+			[
+				SNew(STextBlock)
+				.Text(GameThread)
+				.ToolTipText(GTTooltip)
+				.Justification(ETextJustify::Center)
+			]
+		];
+
+		HeaderWidget->AddSlot()
+		.SizeRule(SSplitter::ESizeRule::SizeToContent)
+		[
+			SNew(SBox)
+			.Padding(FMargin(4, 0, 4, 0))
+			.MinDesiredWidth(InArgs._MinDesiredWidth)
+			[
+				SNew(STextBlock)
+				.Text(RenderThread)
+				.ToolTipText(RTTooltip)
+				.Justification(ETextJustify::Center)
+			]
+		];
+
+		ChildSlot
+		[
+				SNew(SBorder)
+				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				.HAlign(HAlign_Center)
+				[
+					HeaderWidget
+				]
+		];
+	}
+};
 const float FNiagaraOutlinerTreeItem::HeaderPadding = 6.0f;
 
 void FNiagaraOutlinerTreeItem::RefreshWidget()
@@ -538,33 +746,101 @@ TSharedPtr<FStructOnScope>& FNiagaraOutlinerTreeItem::GetDetailsViewContent()
 	{
 		DetailsViewData = MakeShared<FStructOnScope>();
 
-		UScriptStruct* Struct = nullptr;
+		const void* Data = GetData();
+		check(Data);
+
 		ENiagaraOutlinerTreeItemType Type = GetType();
 		switch (Type)
 		{
-		case ENiagaraOutlinerTreeItemType::World: Struct = FNiagaraOutlinerWorldData::StaticStruct(); break;
-		case ENiagaraOutlinerTreeItemType::System: Struct = FNiagaraOutlinerSystemData::StaticStruct(); break;
-		case ENiagaraOutlinerTreeItemType::Component: Struct = FNiagaraOutlinerSystemInstanceData::StaticStruct(); break;
-		case ENiagaraOutlinerTreeItemType::Emitter: Struct = FNiagaraOutlinerEmitterInstanceData::StaticStruct(); break;
+		case ENiagaraOutlinerTreeItemType::World:
+		{
+			DetailsViewData->Initialize(FNiagaraOutlinerWorldDataCustomizationWrapper::StaticStruct());
+			FNiagaraOutlinerWorldData::StaticStruct()->CopyScriptStruct(DetailsViewData->GetStructMemory(), Data);
 		}
-
-		const void* Data = GetData();
-		check(Struct && Data);
-
-		DetailsViewData->Initialize(Struct);
-		Struct->CopyScriptStruct(DetailsViewData->GetStructMemory(), Data);
+		break;
+		case ENiagaraOutlinerTreeItemType::System: 
+		{
+			DetailsViewData->Initialize(FNiagaraOutlinerSystemDataCustomizationWrapper::StaticStruct());
+			FNiagaraOutlinerSystemData::StaticStruct()->CopyScriptStruct(DetailsViewData->GetStructMemory(), Data);
+		}
+		break;
+		case ENiagaraOutlinerTreeItemType::Component: 
+		{
+			DetailsViewData->Initialize(FNiagaraOutlinerSystemInstanceDataCustomizationWrapper::StaticStruct());
+			FNiagaraOutlinerSystemInstanceData::StaticStruct()->CopyScriptStruct(DetailsViewData->GetStructMemory(), Data);
+		}
+		break;
+		case ENiagaraOutlinerTreeItemType::Emitter:
+		{
+			DetailsViewData->Initialize(FNiagaraOutlinerEmitterInstanceDataCustomizationWrapper::StaticStruct());
+			FNiagaraOutlinerEmitterInstanceData::StaticStruct()->CopyScriptStruct(DetailsViewData->GetStructMemory(), Data);
+		}
+		break;
+		}
 	}
 	return DetailsViewData;
 }
 
+void FNiagaraOutlinerTreeWorldItem::SortChildren() 
+{
+	if (TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin())
+	{
+		if (UNiagaraOutliner* Outliner = Tree->GetDebugger()->GetOutliner())
+		{
+			bool bSortDecending = Outliner->ViewSettings.bSortDescending;
+			auto SortSystemsByAverageTime = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+			{
+				check(A->GetType() == ENiagaraOutlinerTreeItemType::System);
+				check(B->GetType() == ENiagaraOutlinerTreeItemType::System);
+				const FNiagaraOutlinerSystemData* AData = (const FNiagaraOutlinerSystemData*)A->GetData();
+				const FNiagaraOutlinerSystemData* BData = (const FNiagaraOutlinerSystemData*)B->GetData();
+				if (AData && BData)
+				{
+					return (AData->AveragePerFrameTime.GameThread < BData->AveragePerFrameTime.GameThread) != bSortDecending;
+				}
+				return false;
+			};
+			auto SortSystemsByMaxTime = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+			{
+				check(A->GetType() == ENiagaraOutlinerTreeItemType::System);
+				check(B->GetType() == ENiagaraOutlinerTreeItemType::System);
+				const FNiagaraOutlinerSystemData* AData = (const FNiagaraOutlinerSystemData*)A->GetData();
+				const FNiagaraOutlinerSystemData* BData = (const FNiagaraOutlinerSystemData*)B->GetData();
+				if (AData && BData)
+				{
+					return (AData->MaxPerFrameTime.GameThread < BData->MaxPerFrameTime.GameThread) != bSortDecending;
+				}
+				return false;
+			};
+			auto SortSystemsByMatchingFilteredChildren = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+			{
+				check(A->GetType() == ENiagaraOutlinerTreeItemType::System);
+				check(B->GetType() == ENiagaraOutlinerTreeItemType::System);
+				return (A->Children.Num() < B->Children.Num()) != bSortDecending;
+			};
+
+			TFunction<bool(const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)> SortFunc;
+			switch (Outliner->ViewSettings.GetSortMode())
+			{
+			case ENiagaraOutlinerSortMode::AverageTime: SortFunc = SortSystemsByAverageTime; break;
+			case ENiagaraOutlinerSortMode::MaxTime: SortFunc = SortSystemsByMaxTime; break;
+			default: SortFunc = SortSystemsByMatchingFilteredChildren; break;
+			}
+
+			Children.Sort(SortFunc);
+		}
+	}
+}
+
 const void* FNiagaraOutlinerTreeWorldItem::GetData()const
 {
-	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-
-	if (UNiagaraOutliner* Outliner = NiagaraEditorModule.GetDebugger()->GetOutliner())
+	if (TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin())
 	{
-		const FString& WorldName = GetFullName();
-		return Outliner->FindWorldData(WorldName);
+		if (UNiagaraOutliner* Outliner = Tree->GetDebugger()->GetOutliner())
+		{
+			const FString& WorldName = GetFullName();
+			return Outliner->FindWorldData(WorldName);
+		}
 	}
 	return nullptr;
 }
@@ -573,76 +849,163 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeWorldItem::GetHeaderWidget()
 {
 	if (FNiagaraOutlinerWorldData* Data = (FNiagaraOutlinerWorldData*)GetData())
 	{
+		TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin();
+		check(Tree.IsValid());//If we managed to get valid data then the tree should be valid.
+		TSharedPtr<FNiagaraDebugger>& Debugger = Tree->GetDebugger();
+		check(Debugger.IsValid());
+		UNiagaraOutliner* Outliner = Debugger->GetOutliner();
+		check(Outliner);
+
 		TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox);
 
-		//Count system instances matching filters.
-		int32 NumMatchingInstances = 0;
-		for (const TSharedRef<FNiagaraOutlinerTreeItem>& SystemItem : Children)
+		if (Outliner->ViewSettings.ViewMode == ENiagaraOutlinerViewModes::State)
 		{
-			if (SystemItem->GetType() == ENiagaraOutlinerTreeItemType::System && SystemItem->bVisible)
+			//Count system instances matching filters.
+			int32 NumMatchingInstances = 0;
+			for (const TSharedRef<FNiagaraOutlinerTreeItem>& SystemItem : Children)
 			{
-				for (const TSharedRef<FNiagaraOutlinerTreeItem>& InstItem : SystemItem->Children)
+				if (SystemItem->GetType() == ENiagaraOutlinerTreeItemType::System && SystemItem->bVisible)
 				{
-					if (InstItem->GetType() == ENiagaraOutlinerTreeItemType::Component && InstItem->bVisible)
+					for (const TSharedRef<FNiagaraOutlinerTreeItem>& InstItem : SystemItem->Children)
 					{
-						++NumMatchingInstances;
+						if (InstItem->GetType() == ENiagaraOutlinerTreeItemType::Component && InstItem->bVisible)
+						{
+							++NumMatchingInstances;
+						}
 					}
 				}
 			}
+
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+					.ToolTipText(LOCTEXT("WorldHeaderTooltip_WorldType", "World Type"))
+					.Data(FText::FromString(ToString((EWorldType::Type)Data->WorldType)))
+				];
+
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+					.ToolTipText(LOCTEXT("WorldHeaderTooltip_NetMode", "Net Mode"))
+					.Data(FText::FromString(ToString((ENetMode)Data->NetMode)))
+				];
+
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+					.ToolTipText(LOCTEXT("WorldHeaderTooltip_BegunPlay", "Has Begun Play"))
+					.Data(Data->bHasBegunPlay ? FText(LOCTEXT("True", "True")) : FText(LOCTEXT("False", "False")))
+					.MinDesiredWidth(50.0f)
+				];
+
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>, Outliner->ViewSettings)
+					.ToolTipText(LOCTEXT("VisibleSystemsHeaderName", "Num instances matching current search and filters."))
+					.Data(NumMatchingInstances)
+				];
 		}
-		
-		Box->AddSlot()
-			.AutoWidth()
-			.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
-			[
-				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>)
-				.ToolTipText(LOCTEXT("WorldHeaderTooltip_WorldType", "World Type"))
-				.Data(FText::FromString(ToString((EWorldType::Type)Data->WorldType)))
-			];
+		else if (Outliner->ViewSettings.ViewMode == ENiagaraOutlinerViewModes::Performance)
+		{
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					//.LabelText(LOCTEXT("WorldAvgPerFrameTime","Frame Avg"))
+					.ToolTipText(LOCTEXT("WorldAvgPerFrameTimeToolTip", "Average frame time for all FX work in this World."))
+					.Data(Data->AveragePerFrameTime)
+					.MinDesiredWidth(50)
+				];
 
-		Box->AddSlot()
-			.AutoWidth()
-			.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
-			[
-				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>)
-				.ToolTipText(LOCTEXT("WorldHeaderTooltip_NetMode", "Net Mode"))
-				.Data(FText::FromString(ToString((ENetMode)Data->NetMode)))
-			];
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					//.LabelText(LOCTEXT("WorldMaxPerFrameTime", "Frame Max"))
+					.ToolTipText(LOCTEXT("WorldMaxPerFrameTimeToolTip", "Max frame time for all FX work in this World."))
+					.Data(Data->MaxPerFrameTime)
+					.MinDesiredWidth(50)
+				];
+		}
 
-		Box->AddSlot()
-			.AutoWidth()
-			.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
-			[
-				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>)
-				.ToolTipText(LOCTEXT("WorldHeaderTooltip_BegunPlay", "Has Begun Play"))
-				.Data(Data->bHasBegunPlay ? FText(LOCTEXT("True", "True")) : FText(LOCTEXT("False", "False")))
-				.MinDesiredWidth(50.0f)
-			];
-
-		Box->AddSlot()
-			.AutoWidth()
-			.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
-			[
-				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>)
-				.ToolTipText(LOCTEXT("VisibleSystemsHeaderName", "Num instances matching current search and filters."))
-				.Data(NumMatchingInstances)
-			];
 		return Box;
 	}
 	return SNullWidget::NullWidget;
 }
 
+void FNiagaraOutlinerTreeSystemItem::SortChildren() 
+{
+	if (TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin())
+	{
+		if (UNiagaraOutliner* Outliner = Tree->GetDebugger()->GetOutliner())
+		{
+			bool bSortDecending = Outliner->ViewSettings.bSortDescending;
+			auto SortByAvgTime = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+			{
+				check(A->GetType() == ENiagaraOutlinerTreeItemType::Component);
+				check(B->GetType() == ENiagaraOutlinerTreeItemType::Component);
+				const FNiagaraOutlinerSystemInstanceData* AData = (const FNiagaraOutlinerSystemInstanceData*)A->GetData();
+				const FNiagaraOutlinerSystemInstanceData* BData = (const FNiagaraOutlinerSystemInstanceData*)B->GetData();
+				if (AData && BData)
+				{
+					return (AData->AverageTime.GameThread < BData->AverageTime.GameThread) != bSortDecending;
+				}
+				return false;
+			};
+			auto SortByMaxTime = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+			{
+				check(A->GetType() == ENiagaraOutlinerTreeItemType::Component);
+				check(B->GetType() == ENiagaraOutlinerTreeItemType::Component);
+				const FNiagaraOutlinerSystemInstanceData* AData = (const FNiagaraOutlinerSystemInstanceData*)A->GetData();
+				const FNiagaraOutlinerSystemInstanceData* BData = (const FNiagaraOutlinerSystemInstanceData*)B->GetData();
+				if (AData && BData)
+				{
+					return (AData->MaxTime.GameThread < BData->MaxTime.GameThread) != bSortDecending;
+				}
+				return false;
+			};
+			auto SortByMatching = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+			{
+				check(A->GetType() == ENiagaraOutlinerTreeItemType::Component);
+				check(B->GetType() == ENiagaraOutlinerTreeItemType::Component);
+				return (A->Children.Num() < B->Children.Num()) != bSortDecending;
+			};
+
+			TFunction<bool(const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)> SortFunc;
+			switch (Outliner->ViewSettings.GetSortMode())
+			{
+			case ENiagaraOutlinerSortMode::AverageTime: SortFunc = SortByAvgTime; break;
+			case ENiagaraOutlinerSortMode::MaxTime: SortFunc = SortByMaxTime; break;
+			default: SortFunc = SortByMatching; break;
+			}
+
+			Children.Sort(SortFunc);
+		}
+	}
+}
+
 const void* FNiagaraOutlinerTreeSystemItem::GetData()const
 {
-	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-
-	if (UNiagaraOutliner* Outliner = NiagaraEditorModule.GetDebugger()->GetOutliner())
+	if (TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin())
 	{
-		TSharedPtr<FNiagaraOutlinerTreeItem> WorldItem = GetParent();
+		if (UNiagaraOutliner* Outliner = Tree->GetDebugger()->GetOutliner())
+		{
+			TSharedPtr<FNiagaraOutlinerTreeItem> WorldItem = GetParent();
 
-		const FString& SystemName = GetFullName();
-		const FString& WorldName = WorldItem->GetFullName();
-		return Outliner->FindSystemData(WorldName, SystemName);
+			const FString& SystemName = GetFullName();
+			const FString& WorldName = WorldItem->GetFullName();
+			return Outliner->FindSystemData(WorldName, SystemName);
+		}
 	}
 	return nullptr;
 }
@@ -651,44 +1014,125 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeSystemItem::GetHeaderWidget()
 {
 	if (FNiagaraOutlinerSystemData* Data = (FNiagaraOutlinerSystemData*)GetData())
 	{
+		TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin();
+		check(Tree.IsValid());//If we managed to get valid data then the tree should be valid.
+		TSharedPtr<FNiagaraDebugger>& Debugger = Tree->GetDebugger();
+		check(Debugger.IsValid());
+		UNiagaraOutliner* Outliner = Debugger->GetOutliner();
+		check(Outliner);
+
 		TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox);
 
-		int32 NumMatchingSystems = 0;
-		for (const TSharedRef<FNiagaraOutlinerTreeItem>& Item : Children)
+		if (Outliner->ViewSettings.ViewMode == ENiagaraOutlinerViewModes::State)
 		{
-			if (Item->GetType() == ENiagaraOutlinerTreeItemType::Component && Item->bVisible)
+			int32 NumMatchingSystems = 0;
+			for (const TSharedRef<FNiagaraOutlinerTreeItem>& Item : Children)
 			{
-				++NumMatchingSystems;
+				if (Item->GetType() == ENiagaraOutlinerTreeItemType::Component && Item->bVisible)
+				{
+					++NumMatchingSystems;
+				}
 			}
-		}
 
-		Box->AddSlot()
-			.AutoWidth()
-			.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
-			[
-				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>)
-				.ToolTipText(LOCTEXT("VisibleInstancesHeaderName", "Num system instances matching current search and filters."))
-				.Data(NumMatchingSystems)
-			];
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>, Outliner->ViewSettings)
+					.ToolTipText(LOCTEXT("VisibleInstancesHeaderName", "Num system instances matching current search and filters."))
+					.Data(NumMatchingSystems)
+				];
+		}
+		else if (Outliner->ViewSettings.ViewMode == ENiagaraOutlinerViewModes::Performance)
+		{
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					//.LabelText(LOCTEXT("SystemAvgPerInstanceTime", "Avg"))
+					.ToolTipText(LOCTEXT("SystemAvgPerInstanceTimeToolTip", "Average instance time for this System."))
+				.Data(Data->AveragePerInstanceTime)
+				.MinDesiredWidth(50)
+				];
+
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					//.LabelText(LOCTEXT("SystemMaxPerFrameTime", "Max"))
+					.ToolTipText(LOCTEXT("SystemMaxPerFrameTimeToolTip", "Max instance time for this System."))
+					.Data(Data->MaxPerInstanceTime)
+					.MinDesiredWidth(50)
+				];
+
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					//.LabelText(LOCTEXT("SystemAvgPerFrameTime", "Frame Avg"))
+					.ToolTipText(LOCTEXT("SystemAvgPerFrameTimeToolTip", "Average frame time for all instances of this System."))
+					.Data(Data->AveragePerFrameTime)
+					.MinDesiredWidth(50)
+				];
+
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					//.LabelText(LOCTEXT("SystemMaxPerFrameTime", "Frame Max"))
+					.ToolTipText(LOCTEXT("SystemMaxPerFrameTimeToolTip", "Max frame time for all instances of this System."))
+					.Data(Data->MaxPerFrameTime)
+					.MinDesiredWidth(50)
+				];
+
+			//TODO: Add baseline comparison traffic light icon with tooltip containing details.
+		}
 
 		return Box;
 	}
 	return SNullWidget::NullWidget;
 }
 
+void FNiagaraOutlinerTreeComponentItem::SortChildren() 
+{
+	if (TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin())
+	{
+		if (UNiagaraOutliner* Outliner = Tree->GetDebugger()->GetOutliner())
+		{
+			bool bSortDecending = Outliner->ViewSettings.bSortDescending;
+
+			auto SortByMatching = [bSortDecending](const TSharedRef<FNiagaraOutlinerTreeItem>& A, const TSharedRef<FNiagaraOutlinerTreeItem>& B)
+			{
+				check(A->GetType() == ENiagaraOutlinerTreeItemType::Emitter);
+				check(B->GetType() == ENiagaraOutlinerTreeItemType::Emitter);
+				return (A->Children.Num() < B->Children.Num()) != bSortDecending;
+			};
+
+			//For now, always sort emitters by matching but we should gather per emitter perf stats in future too.
+			Children.Sort(SortByMatching);
+		}
+	}
+}
+
 const void* FNiagaraOutlinerTreeComponentItem::GetData()const
 {
-	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 
-	if (UNiagaraOutliner* Outliner = NiagaraEditorModule.GetDebugger()->GetOutliner())
+	if (TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin())
 	{
-		TSharedPtr<FNiagaraOutlinerTreeItem> SystemItem = GetParent();
-		TSharedPtr<FNiagaraOutlinerTreeItem> WorldItem = SystemItem->GetParent();
+		if (UNiagaraOutliner* Outliner = Tree->GetDebugger()->GetOutliner())
+		{
+			TSharedPtr<FNiagaraOutlinerTreeItem> SystemItem = GetParent();
+			TSharedPtr<FNiagaraOutlinerTreeItem> WorldItem = SystemItem->GetParent();
 
-		const FString& ComponentName = GetFullName();
-		const FString& SystemName = SystemItem->GetFullName();
-		const FString& WorldName = WorldItem->GetFullName();
-		return Outliner->FindComponentData(WorldName, SystemName, ComponentName);
+			const FString& ComponentName = GetFullName();
+			const FString& SystemName = SystemItem->GetFullName();
+			const FString& WorldName = WorldItem->GetFullName();
+			return Outliner->FindComponentData(WorldName, SystemName, ComponentName);
+		}
 	}
 	return nullptr;
 }
@@ -697,66 +1141,112 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeComponentItem::GetHeaderWidget()
 {
 	if (FNiagaraOutlinerSystemInstanceData* Data = (FNiagaraOutlinerSystemInstanceData*)GetData())
 	{
+		TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin();
+		check(Tree.IsValid());//If we managed to get valid data then the tree should be valid.
+		TSharedPtr<FNiagaraDebugger>& Debugger = Tree->GetDebugger();
+		check(Debugger.IsValid());
+		UNiagaraOutliner* Outliner = Debugger->GetOutliner();
+		check(Outliner);
+
 		TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox);
 
-		UEnum* ExecStateEnum = StaticEnum<ENiagaraExecutionState>();
-
-		if (Data->ActualExecutionState == ENiagaraExecutionState::Num)
+		if (Outliner->ViewSettings.ViewMode == ENiagaraOutlinerViewModes::State)
 		{
-			//System instance is not initialized	
-			Box->AddSlot()
-				.AutoWidth()
-				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
-				[
-					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>)
-					.ToolTipText(LOCTEXT("UninitializedSystemInstanceTooltip", "Internal data for component is uninitialized. Likely as it has yet to be activated."))
-					.Data(LOCTEXT("UninitializedSystemInstanceValue", "Uninitialized"))
-				];
-		}
-		else
-		{
-			int32 NumMatchingEmitters = 0;
-			for (const TSharedRef<FNiagaraOutlinerTreeItem>& Item : Children)
-			{
-				if (Item->GetType() == ENiagaraOutlinerTreeItemType::Emitter && Item->bVisible)
-				{
-					++NumMatchingEmitters;
-				}
-			}
+			UEnum* ExecStateEnum = StaticEnum<ENiagaraExecutionState>();
 
-			if (Data->ScalabilityState.bCulled)
+			if (Data->ActualExecutionState == ENiagaraExecutionState::Num)
 			{
+				//System instance is not initialized	
 				Box->AddSlot()
 					.AutoWidth()
 					.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
 					[
-						SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>)
-						.ToolTipText(LOCTEXT("CulledEmittersHeaderTooltip", "State"))
-						.Data(LOCTEXT("CulledEmittersHeaderValue", "Culled"))
+						SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+						.ToolTipText(LOCTEXT("UninitializedSystemInstanceTooltip", "Internal data for component is uninitialized. Likely as it has yet to be activated."))
+						.Data(LOCTEXT("UninitializedSystemInstanceValue", "Uninitialized"))
 					];
 			}
 			else
 			{
+				int32 NumMatchingEmitters = 0;
+				for (const TSharedRef<FNiagaraOutlinerTreeItem>& Item : Children)
+				{
+					if (Item->GetType() == ENiagaraOutlinerTreeItemType::Emitter && Item->bVisible)
+					{
+						++NumMatchingEmitters;
+					}
+				}
+
+				UEnum* PoolMethodEnum = StaticEnum<ENCPoolMethod>();
+
 				Box->AddSlot()
 					.AutoWidth()
 					.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
 					[
-						SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>)
-						.ToolTipText(LOCTEXT("ComponentHeaderTooltip_ExecutionState", "Execution State"))
-						.Data(ExecStateEnum->GetDisplayNameTextByValue((int32)Data->ActualExecutionState))
+						SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+						.ToolTipText(LOCTEXT("ComponentHeaderTooltip_PoolMethod", "Pooling Method"))
+						.Data(PoolMethodEnum->GetDisplayNameTextByValue((int32)Data->PoolMethod))
 						.MinDesiredWidth(50.0f)
 					];
+
+				if (Data->ScalabilityState.bCulled)
+				{
+					Box->AddSlot()
+						.AutoWidth()
+						.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+						[
+							SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+							.ToolTipText(LOCTEXT("CulledEmittersHeaderTooltip", "State"))
+							.Data(LOCTEXT("CulledEmittersHeaderValue", "Culled"))
+						];
+				}
+				else
+				{
+					Box->AddSlot()
+						.AutoWidth()
+						.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+						[
+							SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
+							.ToolTipText(LOCTEXT("ComponentHeaderTooltip_ExecutionState", "Execution State"))
+							.Data(ExecStateEnum->GetDisplayNameTextByValue((int32)Data->ActualExecutionState))
+							.MinDesiredWidth(50.0f)
+						];
+				}
+
+				Box->AddSlot()
+					.AutoWidth()
+					.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+					[
+						SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>, Outliner->ViewSettings)
+						.ToolTipText(LOCTEXT("VisibleEmittersHeaderTooltip", "Num emitters matching current search and filters."))
+						.Data(NumMatchingEmitters)
+					];
+
 			}
+		}
+		else if (Outliner->ViewSettings.ViewMode == ENiagaraOutlinerViewModes::Performance)
+		{
+			Box->AddSlot()
+				.AutoWidth()
+				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
+				[
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					.ToolTipText(LOCTEXT("InstanceAvgPerFrameTime", "Average frame time for this System Instance."))
+					.Data(Data->AverageTime)
+					.MinDesiredWidth(50)
+				];
 
 			Box->AddSlot()
 				.AutoWidth()
 				.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
 				[
-					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>)
-					.ToolTipText(LOCTEXT("VisibleEmittersHeaderTooltip", "Num emitters matching current search and filters."))
-					.Data(NumMatchingEmitters)
+					SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FNiagaraOutlinerTimingData>, Outliner->ViewSettings)
+					.ToolTipText(LOCTEXT("InstanceMaxPerFrameTime", "Max frame time for this System Instance."))
+					.Data(Data->MaxTime)
+					.MinDesiredWidth(50)
 				];
 
+			//TODO: Add baseline comparison traffic light icon with tooltip containing details.
 		}
 
 		return Box;
@@ -764,21 +1254,27 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeComponentItem::GetHeaderWidget()
 	return SNullWidget::NullWidget;
 }
 
+void FNiagaraOutlinerTreeEmitterItem::SortChildren() 
+{
+
+}
+
 const void* FNiagaraOutlinerTreeEmitterItem::GetData()const
 {
-	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
-
-	if (UNiagaraOutliner* Outliner = NiagaraEditorModule.GetDebugger()->GetOutliner())
+	if (TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin())
 	{
-		TSharedPtr<FNiagaraOutlinerTreeItem> CompItem = GetParent();
-		TSharedPtr<FNiagaraOutlinerTreeItem> SystemItem = CompItem->GetParent();
-		TSharedPtr<FNiagaraOutlinerTreeItem> WorldItem = SystemItem->GetParent();
+		if (UNiagaraOutliner* Outliner = Tree->GetDebugger()->GetOutliner())
+		{
+			TSharedPtr<FNiagaraOutlinerTreeItem> CompItem = GetParent();
+			TSharedPtr<FNiagaraOutlinerTreeItem> SystemItem = CompItem->GetParent();
+			TSharedPtr<FNiagaraOutlinerTreeItem> WorldItem = SystemItem->GetParent();
 
-		const FString& EmitterName = GetFullName();
-		const FString& ComponentName = CompItem->GetFullName();
-		const FString& SystemName = SystemItem->GetFullName();
-		const FString& WorldName = WorldItem->GetFullName();
-		return Outliner->FindEmitterData(WorldName, SystemName, ComponentName, EmitterName);
+			const FString& EmitterName = GetFullName();
+			const FString& ComponentName = CompItem->GetFullName();
+			const FString& SystemName = SystemItem->GetFullName();
+			const FString& WorldName = WorldItem->GetFullName();
+			return Outliner->FindEmitterData(WorldName, SystemName, ComponentName, EmitterName);
+		}
 	}
 	return nullptr;
 }
@@ -787,6 +1283,13 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeEmitterItem::GetHeaderWidget()
 {
 	if(FNiagaraOutlinerEmitterInstanceData* Data = (FNiagaraOutlinerEmitterInstanceData*) GetData())	
 	{
+		TSharedPtr<SNiagaraOutlinerTree> Tree = OwnerTree.Pin();
+		check(Tree.IsValid());//If we managed to get valid data then the tree should be valid.
+		TSharedPtr<FNiagaraDebugger>& Debugger = Tree->GetDebugger();
+		check(Debugger.IsValid());
+		UNiagaraOutliner* Outliner = Debugger->GetOutliner();
+		check(Outliner);
+
 		TSharedRef<SHorizontalBox> Box = SNew(SHorizontalBox);
 
 		const FSlateBrush* SimTargetBrush = Data->SimTarget == ENiagaraSimTarget::CPUSim ? FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.CPUIcon") : FNiagaraEditorStyle::Get().GetBrush("NiagaraEditor.Stack.GPUIcon");
@@ -797,7 +1300,7 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeEmitterItem::GetHeaderWidget()
 			.AutoWidth()
 			.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
 			[
-				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>)
+				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<FText>, Outliner->ViewSettings)
 				.ToolTipText(LOCTEXT("EmitterHeaderTooltip_ExecState", "Execution State"))
 				.Data(ExecStateEnum->GetDisplayNameTextByValue((int32)Data->ExecState))
 				.MinDesiredWidth(50.0f)
@@ -816,7 +1319,7 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeEmitterItem::GetHeaderWidget()
 			.AutoWidth()
 			.Padding(FMargin(HeaderPadding, 0.0f, HeaderPadding, 0.0f))
 			[
-				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>)
+				SNew(SNiagaraOutlinerTreeItemHeaderDataWidget<int32>, Outliner->ViewSettings)
 				.ToolTipText(LOCTEXT("EmitterHeaderTooltip_NumParticles", "Num Particles"))
 				.Data(Data->NumParticles)
 				.MinDesiredWidth(50.0f)
@@ -825,7 +1328,6 @@ TSharedRef<SWidget> FNiagaraOutlinerTreeEmitterItem::GetHeaderWidget()
 	}
 	return SNullWidget::NullWidget;
 }
-
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -837,17 +1339,18 @@ void FNiagaraOutlinerCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	{
 		//Hide this property as it this data is displayed in the outliner tree.
 		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Data)));
-		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Settings)));
-		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Filters)));
+		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, CaptureSettings)));
+		DetailBuilder.HideProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, ViewSettings)));
 
 		//DetailBuilder.HideCategory(TEXT("Outliner"));
 		DetailBuilder.HideCategory(TEXT("Settings"));
 		DetailBuilder.HideCategory(TEXT("Filters"));
 
 		TSharedRef<IPropertyHandle> OutlinerDataProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Data));
+		OutlinerDataProperty->SetIgnoreValidation(true);
 		IDetailCategoryBuilder& OutlinerCategory = DetailBuilder.EditCategory("Outliner", FText::GetEmpty(), ECategoryPriority::Important);
-		OutlinerCategory.AddProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Settings)));
-		OutlinerCategory.AddProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Filters)));
+		OutlinerCategory.AddProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, CaptureSettings)));
+		OutlinerCategory.AddProperty(DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, ViewSettings)));
 	}
 }
 
@@ -855,15 +1358,6 @@ void FNiagaraOutlinerCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 void FNiagaraOutlinerWorldDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
-// 	HeaderRow
-// 		.NameContent()
-// 		[
-// 			StructPropertyHandle->CreatePropertyNameWidget()
-// 		]
-// 	.ValueContent()
-// 		[
-// 			StructPropertyHandle->CreatePropertyValueWidget()
-// 		];
 }
 
 void FNiagaraOutlinerWorldDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
@@ -877,9 +1371,61 @@ void FNiagaraOutlinerWorldDetailsCustomization::CustomizeChildren(TSharedRef<IPr
 	{
 		TSharedPtr<IPropertyHandle> ChildProperty = StructPropertyHandle->GetChildHandle(ChildNum);
 
-		if (ChildProperty->GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(FNiagaraOutlinerWorldData, Systems))
+		if (ChildProperty->GetProperty()->GetFName() != GET_MEMBER_NAME_CHECKED(FNiagaraOutlinerWorldData, Systems))
 		{
 			ChildBuilder.AddProperty(ChildProperty.ToSharedRef());
 		}
 	}
+}
+//////////////////////////////////////////////////////////////////////////
+void FNiagaraOutlinerSystemDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+}
+
+void FNiagaraOutlinerSystemDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+
+	uint32 NumChildren = 0;
+	StructPropertyHandle->GetNumChildren(NumChildren);
+
+	for (uint32 ChildNum = 0; ChildNum < NumChildren; ++ChildNum)
+	{
+		TSharedPtr<IPropertyHandle> ChildProperty = StructPropertyHandle->GetChildHandle(ChildNum);
+
+		if (ChildProperty->GetProperty()->GetFName() != GET_MEMBER_NAME_CHECKED(FNiagaraOutlinerSystemData, SystemInstances))
+		{
+			ChildBuilder.AddProperty(ChildProperty.ToSharedRef());
+		}
+	}
+}
+//////////////////////////////////////////////////////////////////////////
+void FNiagaraOutlinerSystemInstanceDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+}
+
+void FNiagaraOutlinerSystemInstanceDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+
+	uint32 NumChildren = 0;
+	StructPropertyHandle->GetNumChildren(NumChildren);
+
+	for (uint32 ChildNum = 0; ChildNum < NumChildren; ++ChildNum)
+	{
+		TSharedPtr<IPropertyHandle> ChildProperty = StructPropertyHandle->GetChildHandle(ChildNum);
+
+		if (ChildProperty->GetProperty()->GetFName() != GET_MEMBER_NAME_CHECKED(FNiagaraOutlinerSystemInstanceData, Emitters))
+		{
+			ChildBuilder.AddProperty(ChildProperty.ToSharedRef());
+		}
+	}
+}
+//////////////////////////////////////////////////////////////////////////
+void FNiagaraOutlinerEmitterInstanceDetailsCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, class FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
+}
+
+void FNiagaraOutlinerEmitterInstanceDetailsCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, class IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+{
 }

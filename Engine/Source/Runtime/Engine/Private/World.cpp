@@ -8027,7 +8027,7 @@ FString ENGINE_API ToString(ENetMode NetMode)
 	case NM_DedicatedServer:  return TEXT("Dedicated Server");
 	case NM_ListenServer: return TEXT("Listen Server");
 	case NM_Client: return TEXT("Client");
-	default: return TEXT("Invlaid");
+	default: return TEXT("Invalid");
 	}
 }
 

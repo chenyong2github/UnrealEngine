@@ -97,19 +97,32 @@ void FNiagaraDebugger::TriggerOutlinerCapture()
 	//Send the current settings as a message to all connected clients.
 	if (const UNiagaraOutliner* Outliner = GetDefault<UNiagaraOutliner>())
 	{
-		if (Outliner->Settings.bTriggerCapture)
+		if (Outliner->CaptureSettings.bTriggerCapture)
 		{
 			auto SendSettingsUpdate = [&](FNiagaraDebugger::FClientInfo& Client)
 			{
 				//Create the message and copy the current state of the settings into it.
-				FNiagaraOutlinerSettings* Message = new FNiagaraOutlinerSettings();
-				FNiagaraOutlinerSettings::StaticStruct()->CopyScriptStruct(Message, &Outliner->Settings);
+				FNiagaraOutlinerCaptureSettings* Message = new FNiagaraOutlinerCaptureSettings();
+				FNiagaraOutlinerCaptureSettings::StaticStruct()->CopyScriptStruct(Message, &Outliner->CaptureSettings);
 
 				UE_LOG(LogNiagaraDebugger, Log, TEXT("Sending updated outliner settings. | Session: %s | Instance: %s |"), *Client.SessionId.ToString(), *Client.InstanceId.ToString());
 				MessageEndpoint->Send(Message, EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Client.Address), FTimespan::Zero(), FDateTime::MaxValue());
 			};
 
 			ForAllConnectedClients(SendSettingsUpdate);
+
+			//We also need at least minimal debug hud verbosity so we see the countdown timer.
+			if (Outliner->CaptureSettings.CaptureDelayFrames > 0)
+			{
+				if (UNiagaraDebugHUDSettings* Settings = GetMutableDefault<UNiagaraDebugHUDSettings>())
+				{
+					if (Settings->Data.HudVerbosity < ENiagaraDebugHudSystemVerbosity::Minimal)
+					{
+						Settings->Data.HudVerbosity = ENiagaraDebugHudSystemVerbosity::Minimal;
+						Settings->PostEditChange();
+					}
+				}
+			}
 		}
 	}
 }

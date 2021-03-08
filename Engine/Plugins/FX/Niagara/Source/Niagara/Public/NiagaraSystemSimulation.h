@@ -428,10 +428,4 @@ protected:
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
 
 	static bool bUseLegacyExecContexts;
-
-#if WITH_PARTICLE_PERF_STATS
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(GetWorld(), GetSystem()); }
-#else	
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
-#endif
 };

@@ -184,7 +184,7 @@ static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundCreateNew(
 );
 //////////////////////////////////////////////////////////////////////////
 
-FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
+FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
 		, bRenderingEnabled(true)
 		, RuntimeCycleCount(nullptr)
@@ -1743,7 +1743,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	LLM_SCOPE(ELLMTag::Niagara);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
-	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), EndOfFrame);
+	PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), GetAsset(), this), EndOfFrame);
 
 	Super::SendRenderDynamicData_Concurrent();
 
@@ -1831,8 +1831,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfStatCtx=GetPerfStatsContext(), LocalPreviewLODDistance](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES_RT(PerfStatCtx, RenderUpdate);
-				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfStatCtx, 1);
+				PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_RT(PerfStatCtx, RenderUpdate, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)
@@ -1854,8 +1853,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				[NiagaraProxy, PerfStatCtx=GetPerfStatsContext()](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES_RT(PerfStatCtx, RenderUpdate);
-				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfStatCtx, 1);
+				PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_RT(PerfStatCtx, RenderUpdate, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)

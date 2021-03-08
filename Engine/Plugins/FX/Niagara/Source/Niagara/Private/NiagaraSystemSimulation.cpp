@@ -162,9 +162,9 @@ static FAutoConsoleVariableRef CVarNiagaraSystemSimulationWaitAllTaskPri(
 ENamedThreads::Type GetNiagaraTaskPriority(int32 Priority)
 {
 #if WITH_PARTICLE_PERF_STATS
-	// If we are profiling particle performance make sure we don't get context switched due to lower priorty as that will confuse the results
-	static const IConsoleVariable* EffectsQualityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.ParticlePerfStats.Enabled"));
-	if (EffectsQualityCVar && (EffectsQualityCVar->GetInt() != 0))
+	// If we are profiling particle performance make sure we don't get context switched due to lower priority as that will confuse the results
+	// Leave low pri if we're just gathering world stats but for per system or per component stats we should use high pri.
+	if (FParticlePerfStats::GetGatherSystemStats() || FParticlePerfStats::GetGatherComponentStats())
 	{
 		return GNiagaraTaskPriorities[1].Get();
 	}
@@ -194,6 +194,15 @@ static FAutoConsoleCommand CCmdNiagaraDumpPriorities(
 		}
 	)
 );
+
+//////////////////////////////////////////////////////////////////////////
+
+#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
+FORCEINLINE FParticlePerfStats* GetInstancePerfStats(FNiagaraSystemInstance* Inst) { return CastChecked<UNiagaraComponent>(Inst->GetAttachComponent())->ParticlePerfStats; }
+#else
+FORCEINLINE FParticlePerfStats* GetInstancePerfStats(FNiagaraSystemInstance* Inst) { return nullptr; }
+#endif
+
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -277,16 +286,10 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemSimulationTaskPri); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
-#if WITH_PARTICLE_PERF_STATS
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(Context.World, Context.System); }
-#else	
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
-#endif
-
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		{
-			PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickConcurrent);
+			PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(Context.World, Context.System), TickConcurrent);
 			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 			Context.Owner->Tick_Concurrent(Context);
 			Context.FinalizeEvents = nullptr;
@@ -311,16 +314,10 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemSimulationSpawnPendingTaskPri); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
-#if WITH_PARTICLE_PERF_STATS
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(Context.World, Context.System); }
-#else	
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
-#endif
-
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		{
-			PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickConcurrent);
+			PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(Context.World, Context.System), TickConcurrent);
 			Context.MyCompletionGraphEvent = MyCompletionGraphEvent;
 			Context.Owner->Spawn_Concurrent(Context);
 			Context.FinalizeEvents = nullptr;
@@ -351,17 +348,11 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::GameThread; }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
-#if WITH_PARTICLE_PERF_STATS
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(SystemSim->GetWorld(), SystemSim->GetSystem()); }
-#else	
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
-#endif
-
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		check(CurrentThread == ENamedThreads::GameThread);
 
-		PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), Finalize);
+		PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(SystemSim->GetWorld(), SystemSim->GetSystem()), Finalize);
 
 		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
 		if(Mode == ENiagaraGPUTickHandlingMode::GameThreadBatched)
@@ -370,6 +361,7 @@ public:
 			GPUTicks.Reserve(Batch.Num());
 			for (FNiagaraSystemInstance* Inst : Batch)
 			{
+				PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetInstancePerfStats(Inst)), Finalize);
 				//Don't submit if the finalize was already done in a wait() as then we'd be double ticking GPU emitters.
 				if(Inst->FinalizeTick_GameThread(false))
 				{
@@ -398,6 +390,7 @@ public:
 		{
 			for (FNiagaraSystemInstance* Inst : Batch)
 			{
+				PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetInstancePerfStats(Inst)), Finalize);
 				Inst->FinalizeTick_GameThread();
 			}
 		}
@@ -424,16 +417,9 @@ public:
 	ENamedThreads::Type GetDesiredThread() { return GetNiagaraTaskPriority(GNiagaraSystemInstanceTaskPri); }
 	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::TrackSubsequents; }
 
-#if WITH_PARTICLE_PERF_STATS
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(Batch[0]->GetWorld(), Batch[0]->GetSystem()); }
-#else	
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
-#endif
-
-
 	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickConcurrent);
+		PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(Batch[0]->GetWorld(), Batch[0]->GetSystem()), TickConcurrent);
 
 		ENiagaraGPUTickHandlingMode Mode = SystemSim->GetGPUTickHandlingMode();
 		if (Mode == ENiagaraGPUTickHandlingMode::ConcurrentBatched)
@@ -442,6 +428,7 @@ public:
 			GPUTicks.Reserve(Batch.Num());
 			for (FNiagaraSystemInstance* Inst : Batch)
 			{
+				PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetInstancePerfStats(Inst)), TickConcurrent);
 				Inst->Tick_Concurrent(false);
 				if(Inst->NeedsGPUTick())
 				{
@@ -467,6 +454,7 @@ public:
 		{
 			for (FNiagaraSystemInstance* Inst : Batch)
 			{
+				PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetInstancePerfStats(Inst)), TickConcurrent);
 				Inst->Tick_Concurrent();
 			}
 		}
@@ -870,8 +858,9 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 
 	UNiagaraSystem* System = WeakSystem.Get();
 	FScopeCycleCounter SystemStatCounter(System->GetStatID(true, false));
-	PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(GetPerfStatsContext(), SystemInstances.Num());
-	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickGameThread);
+
+	int32 NumInstances = SystemInstances.Num();
+	PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_GT(FParticlePerfStatsContext(GetWorld(), GetSystem()), TickGameThread, NumInstances);
 
 	SystemTickGraphEvent = nullptr;
 
@@ -938,6 +927,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 			}
 		}
 
+		PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_GT(FParticlePerfStatsContext(GetInstancePerfStats(Inst)), TickGameThread, 1);
 		// Perform instance tick
 		Inst->Tick_GameThread(DeltaSeconds);
 
@@ -999,6 +989,7 @@ void FNiagaraSystemSimulation::Tick_GameThread(float DeltaSeconds, const FGraphE
 			}
 
 			// Execute instance tick
+			PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_GT(FParticlePerfStatsContext(GetInstancePerfStats(Inst)), TickGameThread, 1);
 			Inst->Tick_GameThread(DeltaSeconds);
 
 			if (Inst->SystemInstanceIndex != INDEX_NONE)

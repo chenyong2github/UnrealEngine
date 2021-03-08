@@ -14,6 +14,7 @@
 
 DEFINE_LOG_CATEGORY(LogNiagaraDebuggerClient);
 
+
 FNiagaraDebuggerClient* FNiagaraDebuggerClient::Get()
 {
 	INiagaraModule& NiagaraModule = FModuleManager::LoadModuleChecked<INiagaraModule>("Niagara");
@@ -28,7 +29,7 @@ FNiagaraDebuggerClient::FNiagaraDebuggerClient()
 		.Handling<FNiagaraDebuggerExecuteConsoleCommand>(this, &FNiagaraDebuggerClient::HandleExecConsoleCommandMessage)
  		.Handling<FNiagaraDebugHUDSettingsData>(this, &FNiagaraDebuggerClient::HandleDebugHUDSettingsMessage)
 		.Handling<FNiagaraRequestSimpleClientInfoMessage>(this, &FNiagaraDebuggerClient::HandleRequestSimpleClientInfoMessage)
-		.Handling<FNiagaraOutlinerSettings>(this, &FNiagaraDebuggerClient::HandleOutlinerSettingsMessage);
+		.Handling<FNiagaraOutlinerCaptureSettings>(this, &FNiagaraDebuggerClient::HandleOutlinerSettingsMessage);
 
  	if (MessageEndpoint.IsValid())
  	{
@@ -181,23 +182,42 @@ void FNiagaraDebuggerClient::HandleRequestSimpleClientInfoMessage(const FNiagara
 	}
 }
 
-void FNiagaraDebuggerClient::HandleOutlinerSettingsMessage(const FNiagaraOutlinerSettings& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+void FNiagaraDebuggerClient::HandleOutlinerSettingsMessage(const FNiagaraOutlinerCaptureSettings& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
 {
 	if (ensure(Context->GetSender() == Connection))
 	{
-		FNiagaraOutlinerSettings::StaticStruct()->CopyScriptStruct(&OutlinerSettings, &Message);
+		FNiagaraOutlinerCaptureSettings::StaticStruct()->CopyScriptStruct(&OutlinerSettings, &Message);
 		if(ensure(OutlinerSettings.bTriggerCapture))
 		{
-			if (Message.CaptureDelay <= 0.0f)
+			if (OutlinerCountdown == 0)
 			{
-				UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Capturing now. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
-				UpdateOutliner(0.001f);
+#if WITH_PARTICLE_PERF_STATS
+				if (Message.bGatherPerfData)
+				{
+					if (StatsListener)
+					{
+						FParticlePerfStatsManager::RemoveListener(StatsListener);
+					}
+
+					StatsListener = MakeShared<FNiagaraOutlinerPerfListener, ESPMode::ThreadSafe>();
+					FParticlePerfStatsManager::AddListener(StatsListener);
+				}
+#endif
+				if (Message.CaptureDelayFrames <= 0)
+				{
+					UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Capturing now. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+					UpdateOutliner(0.001f);
+				}
+				else
+				{
+					OutlinerCountdown = Message.CaptureDelayFrames;
+					UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Capturing in %u frames. | Session: %s | Instance: %s (%s)."), Message.CaptureDelayFrames, *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
+					FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FNiagaraDebuggerClient::UpdateOutliner));
+				}
 			}
 			else
 			{
-				OutlinerCountdown = Message.CaptureDelay;
-				UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Capturing in %gs. | Session: %s | Instance: %s (%s)."), Message.CaptureDelay, *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
-				FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FNiagaraDebuggerClient::UpdateOutliner));
+				UE_LOG(LogNiagaraDebuggerClient, Log, TEXT("Recieved request to capture outliner data. Ignoring as we already have a pending outliner capture. | Session: %s | Instance: %s (%s)."), *SessionId.ToString(), *InstanceId.ToString(), *InstanceName);
 			}
 		}
 		else
@@ -244,16 +264,24 @@ void FNiagaraDebuggerClient::ExecuteConsoleCommand(const TCHAR* Cmd, bool bRequi
 	}
 }
 
+static const FName NiagaraDebuggerClientOutlienrUpdateMessage("NiagaraDebuggerClientOutlienrUpdateMessage");
 bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 {
-	OutlinerCountdown -= DeltaSeconds;
-	if (OutlinerCountdown > 0.0f)
+	if (OutlinerCountdown > 0)
 	{
-		GEngine->AddOnScreenDebugMessage(INDEX_NONE, 0.0f, FColor::White, FString::Printf(TEXT("Capturing Niagara Outliner in %3.2fs..."), OutlinerCountdown));
+		--OutlinerCountdown;
+		FString HudMessage = FString::Printf(TEXT("Capturing Niagara Outliner in %u frames..."), OutlinerCountdown);
+		FNiagaraWorldManager::ForAllWorldManagers([&HudMessage](FNiagaraWorldManager& WorldMan){ WorldMan.GetNiagaraDebugHud()->AddMessage(NiagaraDebuggerClientOutlienrUpdateMessage, FNiagaraDebugMessage(ENiagaraDebugMessageType::Info, HudMessage, 1.0f)); });
 		return true;
 	}
+	
+	FString HudMessage = FString::Printf(TEXT("Captured Niagara Outliner Info."));
+	FNiagaraWorldManager::ForAllWorldManagers([&HudMessage](FNiagaraWorldManager& WorldMan) { WorldMan.GetNiagaraDebugHud()->AddMessage(NiagaraDebuggerClientOutlienrUpdateMessage, FNiagaraDebugMessage(ENiagaraDebugMessageType::Info, HudMessage, 3.0f)); });
 
-	OutlinerCountdown = 0.0f;
+	//Ensure any RT writes to perf or state info are complete.
+	FlushRenderingCommands();
+
+	OutlinerCountdown = 0;
 	if(ensure(Connection.IsValid()))
 	{
 		FNiagaraDebuggerOutlinerUpdate* Message = new FNiagaraDebuggerOutlinerUpdate();
@@ -272,6 +300,20 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 					WorldData.bHasBegunPlay = World->HasBegunPlay();
 					WorldData.WorldType = World->WorldType;
 					WorldData.NetMode = World->GetNetMode();
+
+					#if WITH_PARTICLE_PERF_STATS
+					if(StatsListener)
+					{
+						if (FAccumulatedParticlePerfStats* WorldStats = StatsListener->GetStats(World))
+						{
+							WorldData.AveragePerFrameTime.GameThread = WorldStats->GetGameThreadStats().GetPerFrameAvg();
+							WorldData.AveragePerFrameTime.RenderThread = WorldStats->GetRenderThreadStats().GetPerFrameAvg();
+
+							WorldData.MaxPerFrameTime.GameThread = WorldStats->GetGameThreadStats().GetPerFrameMax();
+							WorldData.MaxPerFrameTime.RenderThread = WorldStats->GetRenderThreadStats().GetPerFrameMax();
+						}
+					}
+					#endif
 				}
 
 				UNiagaraSystem* System = Comp->GetAsset();
@@ -279,6 +321,26 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 				if (System)
 				{
 					//Add System specific data.
+					#if WITH_PARTICLE_PERF_STATS
+					if(StatsListener)
+					{
+						if (FAccumulatedParticlePerfStats* SystemStats = StatsListener->GetStats(System))
+						{
+							Instances.AveragePerFrameTime.GameThread = SystemStats->GetGameThreadStats().GetPerFrameAvg();
+							Instances.AveragePerFrameTime.RenderThread = SystemStats->GetRenderThreadStats().GetPerFrameAvg();
+
+							Instances.MaxPerFrameTime.GameThread = SystemStats->GetGameThreadStats().GetPerFrameMax();
+							Instances.MaxPerFrameTime.RenderThread = SystemStats->GetRenderThreadStats().GetPerFrameMax();
+
+
+							Instances.AveragePerInstanceTime.GameThread = SystemStats->GetGameThreadStats().GetPerInstanceAvg();
+							Instances.AveragePerInstanceTime.RenderThread = SystemStats->GetRenderThreadStats().GetPerInstanceAvg();
+
+							Instances.MaxPerInstanceTime.GameThread = SystemStats->GetGameThreadStats().GetPerInstanceMax();
+							Instances.MaxPerInstanceTime.RenderThread = SystemStats->GetRenderThreadStats().GetPerInstanceMax();
+						}
+					}
+					#endif
 				}
 
 				FNiagaraOutlinerSystemInstanceData& InstData = Instances.SystemInstances.AddDefaulted_GetRef();
@@ -291,6 +353,8 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 
 					InstData.ScalabilityState = Comp->DebugCachedScalabilityState;
 					InstData.bPendingKill = Comp->IsPendingKillOrUnreachable();
+
+					InstData.PoolMethod = Comp->PoolingMethod;
 
 					InstData.Emitters.Reserve(Inst->GetEmitters().Num());
 					for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInst : Inst->GetEmitters())
@@ -314,6 +378,20 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 					InstData.ActualExecutionState = ENiagaraExecutionState::Num;
 					InstData.RequestedExecutionState = ENiagaraExecutionState::Num;
 				}
+
+#if WITH_PARTICLE_PERF_STATS
+				if(StatsListener)
+				{
+					if (FAccumulatedParticlePerfStats* ComponentStats = StatsListener->GetStats(Comp))
+					{
+						InstData.AverageTime.GameThread = ComponentStats->GetGameThreadStats().GetPerFrameAvg();
+						InstData.AverageTime.RenderThread = ComponentStats->GetRenderThreadStats().GetPerFrameAvg();
+
+						InstData.MaxTime.GameThread = ComponentStats->GetGameThreadStats().GetPerFrameMax();
+						InstData.MaxTime.RenderThread = ComponentStats->GetRenderThreadStats().GetPerFrameMax();
+					}
+				}
+#endif
 			}
 		}
 
@@ -325,7 +403,16 @@ bool FNiagaraDebuggerClient::UpdateOutliner(float DeltaSeconds)
 		MessageEndpoint->Send(Message, EMessageFlags::Reliable, nullptr, TArrayBuilder<FMessageAddress>().Add(Connection), FTimespan::Zero(), FDateTime::MaxValue());
 	}
 
-	//Always just tick once.
+#if WITH_PARTICLE_PERF_STATS
+	if (StatsListener)
+	{
+		FParticlePerfStatsManager::RemoveListener(StatsListener);
+		StatsListener = nullptr;
+	}
+#endif
+
+	//Clear up the timer now that we've sent the capture.
+	//TODO: continuous/repeated capture mode?
 	return false;
 }
 

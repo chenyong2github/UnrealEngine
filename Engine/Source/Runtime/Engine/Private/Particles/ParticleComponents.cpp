@@ -3983,7 +3983,7 @@ void UParticleSystemComponent::SendRenderDynamicData_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleSystemComponent_SendRenderDynamicData_Concurrent);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
-	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), EndOfFrame);
+	PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), Template, this), EndOfFrame);
 
 	ForceAsyncWorkCompletion(ENSURE_AND_STALL, false, true);
 	Super::SendRenderDynamicData_Concurrent();
@@ -5044,8 +5044,8 @@ void UParticleSystemComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 		SetComponentTickEnabled(false);
 		return;
 	}
-	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickGameThread);
-	PARTICLE_PERF_STAT_INSTANCE_COUNT_GT(GetPerfStatsContext(), 1);
+
+	PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_GT(FParticlePerfStatsContext(GetWorld(), Template, this), TickGameThread, 1);
 
 	checkf(!IsTickManaged() || !PrimaryComponentTick.IsTickFunctionEnabled(), TEXT("PSC has enabled tick funciton and is also ticking via the tick manager.\nTemplate:%s\nPSC: %s\nParent:%s")
 	, *Template->GetFullName(), *GetFullName(), GetAttachParent() ? *GetAttachParent()->GetFullName() : TEXT("nullptr"));
@@ -5301,7 +5301,7 @@ void UParticleSystemComponent::ComputeTickComponent_Concurrent()
 	SCOPE_CYCLE_COUNTER(STAT_ParticleComputeTickTime);
 	FScopeCycleCounterUObject AdditionalScope(AdditionalStatObject(), GET_STATID(STAT_ParticleComputeTickTime));
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT_CNC);
-	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), TickConcurrent);
+	PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), Template, this), TickConcurrent);
 
 	// Tick Subemitters.
 	int32 EmitterIndex;
@@ -5377,7 +5377,7 @@ void UParticleSystemComponent::FinalizeTickComponent()
 
 	SCOPE_CYCLE_COUNTER(STAT_ParticleFinalizeTickTime);
 	SCOPE_CYCLE_COUNTER(STAT_ParticlesOverview_GT);
-	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), Finalize);
+	PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), Template, this), Finalize);
 
 	if(bAsyncDataCopyIsValid)
 	{

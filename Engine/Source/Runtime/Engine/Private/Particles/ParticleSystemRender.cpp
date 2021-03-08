@@ -6790,7 +6790,7 @@ int32 FDynamicAnimTrailEmitterData::FillVertexData(struct FAsyncBufferFillData& 
 //	ParticleSystemSceneProxy
 ///////////////////////////////////////////////////////////////////////////////
 /** Initialization constructor. */
-FParticleSystemSceneProxy::FParticleSystemSceneProxy(const UParticleSystemComponent* Component, FParticleDynamicData* InDynamicData, bool InbCanBeOccluded)
+FParticleSystemSceneProxy::FParticleSystemSceneProxy(UParticleSystemComponent* Component, FParticleDynamicData* InDynamicData, bool InbCanBeOccluded)
 	: FPrimitiveSceneProxy(Component, Component->Template ? Component->Template->GetFName() : NAME_None)
 	, Owner(Component->GetOwner())
 	, bCastShadow(Component->CastShadow)
@@ -7010,8 +7010,8 @@ void FParticleSystemSceneProxy::UpdateData(FParticleDynamicData* NewDynamicData)
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(ParticleUpdate);
 			SCOPE_CYCLE_COUNTER(STAT_ParticleUpdateRTTime);
 			STAT(FScopeCycleCounter Context(Proxy->GetStatId());)
-			PARTICLE_PERF_STAT_CYCLES_RT(Proxy->PerfStatContext, RenderUpdate);
-			PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(Proxy->PerfStatContext, 1);
+			PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_RT(Proxy->PerfStatContext, RenderUpdate, 1);
+
 			if (NewDynamicData)
 			{
 				for (int32 Index = 0; Index < NewDynamicData->DynamicEmitterDataArray.Num(); Index++)
