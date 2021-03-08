@@ -46,6 +46,8 @@ public:
 
 	void OnChangeImportSettings();
 
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> GetTranslatorImportOptions();
+
 	// Begin UDataprepContentProducer overrides
 	virtual const FText& GetLabel() const override;
 	virtual const FText& GetDescription() const override;
@@ -78,8 +80,6 @@ private:
 	void UpdateName();
 
 	bool InitTranslator();
-
-	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> GetTranslatorImportOptions();
 
 private:
 	TUniquePtr< FDatasmithImportContext > ImportContextPtr;

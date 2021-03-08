@@ -46,6 +46,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "ObjectTools.h"
+#include "ObjectEditorUtils.h"
 #include "PropertyHandle.h"
 #include "PropertyEditorModule.h"
 #include "ScopedTransaction.h"
@@ -266,6 +267,11 @@ TArray<TStrongObjectPtr<UDatasmithOptionsBase>> UDatasmithFileProducer::GetTrans
 {
 	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Result;
 
+	if (!TranslatableSourcePtr.IsValid() && !InitTranslator())
+	{
+		return Result;
+	}
+
 	if (!bTranslatorImportOptionsInitialized)
 	{
 		// Set all import options to defaults for Dataprep
@@ -283,10 +289,26 @@ TArray<TStrongObjectPtr<UDatasmithOptionsBase>> UDatasmithFileProducer::GetTrans
 				if (UDatasmithCommonTessellationOptions* TesselationOption = Cast<UDatasmithCommonTessellationOptions>(MyOption))
 				{
 					TesselationOption->Options = DefaultTessellationOptions;
+					TranslatorImportOptions.Add(MyOption);
+					continue;
 				}
-				TranslatorImportOptions.Add(MyOption);
+				else if (UDatasmithImportOptions* DatasmithOptions = Cast<UDatasmithImportOptions>(Option.Get()))
+				{
+					continue;
+				}
+
+				// Only add option if it has visible properties
+				for (TFieldIterator<FProperty> It(MyOption->GetClass()); It; ++It)
+				{
+					if (!FObjectEditorUtils::IsVariableCategoryHiddenFromClass(*It, MyOption->GetClass()))
+					{
+						TranslatorImportOptions.Add(MyOption);
+						break;
+					}
+				}
 			}
 		}
+
 		bTranslatorImportOptionsInitialized = true;
 	}
 
@@ -1501,30 +1523,34 @@ void FDatasmithFileProducerDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 
 	TSharedPtr<STextBlock> IconText;
 
+	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options = FileProducer->GetTranslatorImportOptions();
+
 	CustomAssetImportRow.NameContent()
 	[
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
-		.Padding(3, 0, 3, 0)
+		.Padding(0, 0, 3, 0)
 		[
 			SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.IsFocusable(false)
-				.OnClicked_Lambda( [FileProducer]() -> FReply 
-				{ 
-					FileProducer->OnChangeImportSettings(); 
-					return FReply::Handled(); 
-				})
-				.ToolTipText(LOCTEXT("ChangeImportSettings_Tooltip", "Import Settings"))
-				[
-					SNew(STextBlock)
-					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-					.ColorAndOpacity(FLinearColor::White)
-					.Text(FEditorFontGlyphs::Cog)
-				]
+			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+			.IsFocusable(false)
+			.IsEnabled(Options.Num() > 0)
+			.OnClicked_Lambda( [FileProducer]() -> FReply 
+			{ 
+				FileProducer->OnChangeImportSettings(); 
+				return FReply::Handled(); 
+			})
+			.ToolTipText(LOCTEXT("ChangeImportSettings_Tooltip", "Import Settings"))
+			[
+				SNew(STextBlock)
+				.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+				.ColorAndOpacity(FLinearColor::White)
+				.Text(FEditorFontGlyphs::Cog)
+			]
 		]
+
 		+ SHorizontalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoWidth()
@@ -1732,6 +1758,7 @@ void FDatasmithDirProducerDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 		[
 			SAssignNew(IconText, STextBlock)
 			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+			.Margin(FMargin(24, 0, 0, 0))
 			.Text(MakeAttributeLambda([=]
 			{
 				return IsProducerSuperseded() ? FEditorFontGlyphs::Exclamation_Triangle : FEditorFontGlyphs::Folder;
