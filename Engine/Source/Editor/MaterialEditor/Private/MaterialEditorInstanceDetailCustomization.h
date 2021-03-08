@@ -74,6 +74,29 @@ private:
 	/** Returns true if the refraction options should be displayed */
 	EVisibility ShouldShowSubsurfaceProfile() const;
 
+	//Functions supporting copy/paste of entire parameter groups.
+
+	/**
+	 * Copy all parameter values in a parameter group to the clipboard
+	 * in the format "Param1=\"Value1\"\nParams2=\"Value2\"..."
+	 */
+	void OnCopyParameterValues(int32 ParameterGroupIndex);
+
+	/** Whether it is possible to copy parameter values for the given parent group index */
+	bool CanCopyParameterValues(int32 ParameterGroupIndex);
+
+	/**
+	 * Paste parameter values from the clipboard, assumed to be
+	 * in the format copied by CopyParameterValues.
+	 */
+	void OnPasteParameterValues(int32 ParameterGroupIndex);
+
+	/**
+	 * Whether it is possible to paste parameter values onto the given group index,
+	 * and if there is anything on the clipboard to paste from.
+	 */
+	bool CanPasteParameterValues(int32 ParameterGroupIndex);
+
 	/** Creates all the lightmass property override widgets. */
 	void CreateLightmassOverrideWidgets(IDetailLayoutBuilder& DetailLayout);
 
