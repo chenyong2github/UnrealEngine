@@ -1913,6 +1913,12 @@ bool UNiagaraSystem::RequestCompile(bool bForce, FNiagaraSystemUpdateContext* Op
 		return false;
 	}
 
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+	if (bNoShaderCompile)
+	{
+		return false;
+	}
+
 	bool bCompileGuardInProgress = InternalCompileGuardCheck(this);
 
 	if (bForce)

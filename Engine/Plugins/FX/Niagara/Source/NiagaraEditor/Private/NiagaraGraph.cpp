@@ -2113,6 +2113,12 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		return;
 	}
 
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+	if (bNoShaderCompile)
+	{
+		return;
+	}
+
 	// First find all the output nodes
 	TArray<UNiagaraNodeOutput*> NiagaraOutputNodes;
 	GetNodesOfClass<UNiagaraNodeOutput>(NiagaraOutputNodes);
