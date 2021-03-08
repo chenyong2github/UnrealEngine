@@ -1301,6 +1301,12 @@ void UNiagaraScript::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 #if WITH_EDITORONLY_DATA
 bool UNiagaraScript::AreScriptAndSourceSynchronized() const
 {
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+	if (bNoShaderCompile)
+	{
+		return false;
+	}
+
 	if (Source)
 	{
 		FNiagaraVMExecutableDataId NewId;
