@@ -524,7 +524,14 @@ struct FShaderCodePackedResourceCounts
 	uint8 NumSRVs;
 	uint8 NumCBs;
 	uint8 NumUAVs;
-	uint16 OutputMask; //Mask of rendertargets bound
+};
+
+struct FShaderCodeResourceMasks
+{
+	// for FindOptionalData() and AddOptionalData()
+	static const uint8 Key = 'm';
+
+	uint32 UAVMask; // Mask of UAVs bound
 };
 
 // if this changes you need to make sure all shaders get invalidated

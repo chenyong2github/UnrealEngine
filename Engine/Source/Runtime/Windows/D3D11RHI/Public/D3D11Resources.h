@@ -46,7 +46,6 @@ struct FD3D11ShaderData
 	TArray<FShaderCodeVendorExtension>	VendorExtensions;
 	bool								bShaderNeedsGlobalConstantBuffer;
 	bool								bIsSm6Shader;
-	uint16								OutputMask;
 	uint16								UAVMask;
 };
 

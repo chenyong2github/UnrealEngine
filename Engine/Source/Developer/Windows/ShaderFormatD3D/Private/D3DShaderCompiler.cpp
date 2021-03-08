@@ -665,7 +665,6 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 		uint32 NumSRVs = 0;
 		uint32 NumCBs = 0;
 		uint32 NumUAVs = 0;
-		uint32 OutputMask = 0;
 
 		TArray<FString> UniformBufferNames;
 		TArray<FString> ShaderOutputs;
@@ -722,7 +721,6 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 					D3D11_SIGNATURE_PARAMETER_DESC ParamDescs[3];
 					D3D11_SIGNATURE_PARAMETER_DESC& ParamDesc = ParamDescs[1];
 					Reflector->GetOutputParameterDesc(Index, &ParamDesc);
-					OutputMask |= (1 << ParamDesc.Register);
 				}
 
 				bool bFoundUnused = false;
@@ -851,7 +849,23 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				CompressedData = Shader;
 			}
 
-			FShaderCodePackedResourceCounts PackedResourceCounts = { bGlobalUniformBufferUsed, static_cast<uint8>(NumSamplers), static_cast<uint8>(NumSRVs), static_cast<uint8>(NumCBs), static_cast<uint8>(NumUAVs), static_cast<uint16>(OutputMask)};
+			// Add resource masks before the parameters are pulled for the uniform buffers
+			FShaderCodeResourceMasks ResourceMasks{};
+			for (const auto& Param : Output.ParameterMap.GetParameterMap())
+			{
+				const FParameterAllocation& ParamAlloc = Param.Value;
+				if (ParamAlloc.Type == EShaderParameterType::UAV)
+				{
+					ResourceMasks.UAVMask |= 1u << ParamAlloc.BaseIndex;
+				}
+			}
+
+			auto AddOptionalDataCallback = [&](FShaderCode& ShaderCode)
+			{
+				Output.ShaderCode.AddOptionalData(ResourceMasks);
+			};
+
+			FShaderCodePackedResourceCounts PackedResourceCounts = { bGlobalUniformBufferUsed, static_cast<uint8>(NumSamplers), static_cast<uint8>(NumSRVs), static_cast<uint8>(NumCBs), static_cast<uint8>(NumUAVs) };
 			GenerateFinalOutput(CompressedData,
 				Input, VendorExtensions,
 				UsedUniformBufferSlots, UniformBufferNames,
@@ -859,7 +873,7 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				PackedResourceCounts, NumInstructions,
 				Output,
 				[](FMemoryWriter&){},
-				[](FShaderCode&){});
+				AddOptionalDataCallback);
 		}
 	}
 
