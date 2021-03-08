@@ -1250,7 +1250,7 @@ namespace BlueprintSearchMetaDataHelpers
 				FObjectPropertyBase* Obj = CastField<FObjectPropertyBase>(Property);
 				const bool bComponentProperty = Obj && Obj->PropertyClass ? Obj->PropertyClass->IsChildOf<UActorComponent>() : false;
 				FName PropName = Property->GetFName();
-				if (bComponentProperty && FBlueprintEditorUtils::FindSCS_Node(Blueprint, PropName) != INDEX_NONE)
+				if (bComponentProperty && FBlueprintEditorUtils::FindSCS_Node(Blueprint, PropName))
 				{
 					FEdGraphPinType PropertyPinType;
 					if (UEdGraphSchema_K2::StaticClass()->GetDefaultObject<UEdGraphSchema_K2>()->ConvertPropertyToPinType(Property, PropertyPinType))

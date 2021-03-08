@@ -812,11 +812,6 @@ const TArray<USCS_Node*>& USimpleConstructionScript::GetAllNodes() const
 }
 #endif
 
-TArray<const USCS_Node*> USimpleConstructionScript::GetAllNodesConst() const
-{
-	return TArray<const USCS_Node*>(GetAllNodes());
-}
-
 void FSCSAllNodesHelper::Remove(USimpleConstructionScript* SCS, USCS_Node* SCSNode)
 {
 	SCS->Modify();
@@ -1237,7 +1232,6 @@ EDataValidationResult USimpleConstructionScript::IsDataValid(TArray<FText>& Vali
 
 void USimpleConstructionScript::GenerateListOfExistingNames(TSet<FName>& CurrentNames) const
 {
-	TArray<const USCS_Node*> ChildrenNodes = GetAllNodesConst();
 	const UBlueprintGeneratedClass* OwnerClass = Cast<const UBlueprintGeneratedClass>(GetOuter());
 	const UBlueprint* Blueprint = Cast<const UBlueprint>(OwnerClass ? OwnerClass->ClassGeneratedBy : NULL);
 	// >>> Backwards Compatibility:  VER_UE4_EDITORONLY_BLUEPRINTS
@@ -1269,9 +1263,8 @@ void USimpleConstructionScript::GenerateListOfExistingNames(TSet<FName>& Current
 	}
 
 	// And add their names
-	for (int32 NodeIndex = 0; NodeIndex < ChildrenNodes.Num(); ++NodeIndex)
+	for (const USCS_Node* ChildNode : GetAllNodes())
 	{
-		const USCS_Node* ChildNode = ChildrenNodes[NodeIndex];
 		if (ChildNode)
 		{
 			const FName VariableName = ChildNode->GetVariableName();

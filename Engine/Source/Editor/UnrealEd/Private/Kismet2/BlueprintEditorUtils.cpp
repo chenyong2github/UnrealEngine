@@ -3734,22 +3734,22 @@ void FBlueprintEditorUtils::GetImplementingBlueprintsFunctionNameList(const UBlu
 	}
 }
 
-int32 FBlueprintEditorUtils::FindSCS_Node(const UBlueprint* Blueprint, const FName& InName) 
+USCS_Node* FBlueprintEditorUtils::FindSCS_Node(const UBlueprint* Blueprint, const FName InName) 
 {
 	if (Blueprint->SimpleConstructionScript)
 	{
 		const TArray<USCS_Node*>& AllSCS_Nodes = Blueprint->SimpleConstructionScript->GetAllNodes();
 	
-		for(int32 i=0; i<AllSCS_Nodes.Num(); i++)
+		for (USCS_Node* SCSNode : AllSCS_Nodes)
 		{
-			if(AllSCS_Nodes[i]->GetVariableName() == InName)
+			if (SCSNode->GetVariableName() == InName)
 			{
-				return i;
+				return SCSNode;
 			}
 		}
 	}
 
-	return INDEX_NONE;
+	return nullptr;
 }
 
 void FBlueprintEditorUtils::SetBlueprintOnlyEditableFlag(UBlueprint* Blueprint, const FName& VarName, const bool bNewBlueprintOnly)
@@ -3944,13 +3944,10 @@ void FBlueprintEditorUtils::SetBlueprintVariableMetaData(UBlueprint* Blueprint, 
 			if (TimelineIndex == INDEX_NONE)
 			{
 				//Not a Timeline is this a SCS Node?
-				const int32 SCS_NodeIndex = FBlueprintEditorUtils::FindSCS_Node(Blueprint,VarName);
-
-				if (SCS_NodeIndex != INDEX_NONE)
+				if (USCS_Node* SCSNode = FBlueprintEditorUtils::FindSCS_Node(Blueprint,VarName))
 				{
-					Blueprint->SimpleConstructionScript->GetAllNodes()[SCS_NodeIndex]->SetMetaData(MetaDataKey, MetaDataValue);
+					SCSNode->SetMetaData(MetaDataKey, MetaDataValue);
 				}
-
 			}
 			else
 			{
@@ -4004,16 +4001,12 @@ bool FBlueprintEditorUtils::GetBlueprintVariableMetaData(const UBlueprint* Bluep
 			if (TimelineIndex == INDEX_NONE)
 			{
 				//Not a Timeline is this a SCS Node?
-				const int32 SCS_NodeIndex = FBlueprintEditorUtils::FindSCS_Node(Blueprint,VarName);
-
-				if (SCS_NodeIndex != INDEX_NONE)
+				if (USCS_Node* Desc = FBlueprintEditorUtils::FindSCS_Node(Blueprint,VarName))
 				{
-					USCS_Node& Desc = *Blueprint->SimpleConstructionScript->GetAllNodes()[SCS_NodeIndex];
-
-					int32 EntryIndex = Desc.FindMetaDataEntryIndexForKey(MetaDataKey);
+					const int32 EntryIndex = Desc->FindMetaDataEntryIndexForKey(MetaDataKey);
 					if (EntryIndex != INDEX_NONE)
 					{
-						OutMetaDataValue = Desc.GetMetaData(MetaDataKey);
+						OutMetaDataValue = Desc->GetMetaData(MetaDataKey);
 						return true;
 					}
 				}
@@ -4068,11 +4061,9 @@ void FBlueprintEditorUtils::RemoveBlueprintVariableMetaData(UBlueprint* Blueprin
 			if (TimelineIndex == INDEX_NONE)
 			{
 				//Not a Timeline is this a SCS Node?
-				const int32 SCS_NodeIndex = FBlueprintEditorUtils::FindSCS_Node(Blueprint,VarName);
-
-				if (SCS_NodeIndex != INDEX_NONE)
+				if (USCS_Node* SCSNode = FBlueprintEditorUtils::FindSCS_Node(Blueprint, VarName))
 				{
-					Blueprint->SimpleConstructionScript->GetAllNodes()[SCS_NodeIndex]->RemoveMetaData(MetaDataKey);
+					SCSNode->RemoveMetaData(MetaDataKey);
 				}
 
 			}
@@ -4153,15 +4144,15 @@ void FBlueprintEditorUtils::SetBlueprintVariableCategory(UBlueprint* Blueprint, 
 			const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarName);
 			if (VarIndex != INDEX_NONE)
 			{
-				Blueprint->NewVariables[VarIndex].Category = SetCategory;
+				Blueprint->NewVariables[VarIndex].Category = MoveTemp(SetCategory);
 			}
 			else
 			{
-				const int32 SCS_NodeIndex = FBlueprintEditorUtils::FindSCS_Node(Blueprint, VarName);
-				if (SCS_NodeIndex != INDEX_NONE)
+				
+				if (USCS_Node* SCSNode = FBlueprintEditorUtils::FindSCS_Node(Blueprint, VarName))
 				{
-					Blueprint->SimpleConstructionScript->GetAllNodes()[SCS_NodeIndex]->Modify();
-					Blueprint->SimpleConstructionScript->GetAllNodes()[SCS_NodeIndex]->CategoryName = SetCategory;
+					SCSNode->Modify();
+					SCSNode->CategoryName = MoveTemp(SetCategory);
 				}
 			}
 		}
@@ -4173,7 +4164,7 @@ void FBlueprintEditorUtils::SetBlueprintVariableCategory(UBlueprint* Blueprint, 
 		{
 			OutFunctionEntryNode->Modify();
 			LocalVariable->SetMetaData(TEXT("Category"), *SetCategory.ToString());
-			LocalVariable->Category = SetCategory;
+			LocalVariable->Category = MoveTemp(SetCategory);
 		}
 	}
 
@@ -4359,10 +4350,9 @@ FText FBlueprintEditorUtils::GetBlueprintVariableCategory(UBlueprint* Blueprint,
 	if(CategoryName.IsEmpty() && Blueprint->SimpleConstructionScript != nullptr)
 	{
 		// Look for the variable in the SCS (in case the Blueprint has not been compiled yet)
-		const int32 SCS_NodeIndex = FBlueprintEditorUtils::FindSCS_Node(Blueprint, VarName);
-		if (SCS_NodeIndex != INDEX_NONE)
+		if (USCS_Node* SCSNode = FBlueprintEditorUtils::FindSCS_Node(Blueprint, VarName))
 		{
-			CategoryName = Blueprint->SimpleConstructionScript->GetAllNodes()[SCS_NodeIndex]->CategoryName;
+			CategoryName = SCSNode->CategoryName;
 		}
 	}
 
@@ -8752,11 +8742,6 @@ FBlueprintEditorUtils::EPropertyReadableState FBlueprintEditorUtils::IsPropertyR
 		}
 	}
 	return EPropertyReadableState::Readable;
-}
-
-bool FBlueprintEditorUtils::IsPropertyReadOnlyInCurrentBlueprint(const UBlueprint* Blueprint, const FProperty* Property)
-{
-	return (IsPropertyWritableInBlueprint(Blueprint, Property) != EPropertyWritableState::Writable);
 }
 
 void FBlueprintEditorUtils::FindAndSetDebuggableBlueprintInstances()

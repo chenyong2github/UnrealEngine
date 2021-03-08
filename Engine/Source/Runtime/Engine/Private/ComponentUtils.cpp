@@ -36,21 +36,18 @@ namespace ComponentUtils
 
 	USCS_Node* FindCorrespondingSCSNode(USceneComponent const* ComponentObj)
 	{
-		USimpleConstructionScript const* BlueprintSCS = GetSimpleConstructionScript(ComponentObj);
-		if(BlueprintSCS == NULL)
+		if (USimpleConstructionScript const* BlueprintSCS = GetSimpleConstructionScript(ComponentObj))
 		{
-			return NULL;
-		}
-
-		for(USCS_Node* SCSNode : BlueprintSCS->GetAllNodes())
-		{
-			if (SCSNode && SCSNode->ComponentTemplate == ComponentObj)
+			for (USCS_Node* SCSNode : BlueprintSCS->GetAllNodes())
 			{
-				return SCSNode;
+				if (SCSNode && SCSNode->ComponentTemplate == ComponentObj)
+				{
+					return SCSNode;
+				}
 			}
 		}
 
-		return NULL;
+		return nullptr;
 	}
 
 	/**

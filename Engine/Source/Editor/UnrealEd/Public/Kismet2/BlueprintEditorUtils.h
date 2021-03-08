@@ -1288,14 +1288,13 @@ public:
 	static void GetImplementingBlueprintsFunctionNameList(const UBlueprint* Blueprint, TSet<FName>& FunctionNames);
 
 	/**
-	 * Find the index of a SCS_Node first declared in this blueprint. Returns INDEX_NONE if not found.
+	 * Finds an SCSNode by variable name
 	 *
 	 * @param	InName	Name of the variable to find.
-	 *
-	 * @return	The index of the variable, or INDEX_NONE if it wasn't introduced in this blueprint.
+	 * @return	The SCS Node that corresponds to the variable name or null if one is not found
 	 */
-	static int32 FindSCS_Node(const UBlueprint* Blueprint, const FName& InName);
-	
+	static USCS_Node* FindSCS_Node(const UBlueprint* Blueprint, const FName InName);
+
 	/** Returns whether or not the specified member var is a component */
 	static bool IsVariableComponent(const FBPVariableDescription& Variable);
 
@@ -1328,10 +1327,6 @@ public:
 
 	/** Call PostEditChange() on all Actors based on the given Blueprint */
 	static void PostEditChangeBlueprintActors(UBlueprint* Blueprint, bool bComponentEditChange = false);
-
-	/** Checks if the property can be modified in given blueprint */
-	UE_DEPRECATED(4.17, "Use IsPropertyWritableInBlueprint instead.")
-	static bool IsPropertyReadOnlyInCurrentBlueprint(const UBlueprint* Blueprint, const FProperty* Property);
 
 	/** Enumeration of whether a property is writable or if not, why. */
 	enum class EPropertyWritableState : uint8
@@ -1829,9 +1824,6 @@ public:
 	 * Returns true if this BP is currently based on a type that returns true for the UObject::ImplementsGetWorld() call:
 	 */
 	static bool ImplementsGetWorld(const UBlueprint* BP);
-
-	UE_DEPRECATED(4.20, "Use ImplementsGetWorld")
-	static bool ImplentsGetWorld(const UBlueprint* BP) { return ImplementsGetWorld(BP); }
 };
 
 struct UNREALED_API FBlueprintDuplicationScopeFlags
