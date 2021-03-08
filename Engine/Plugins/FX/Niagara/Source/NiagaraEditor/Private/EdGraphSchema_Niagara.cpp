@@ -1555,26 +1555,6 @@ bool UEdGraphSchema_Niagara::IsSystemConstant(const FNiagaraVariable& Variable)c
 	return FNiagaraConstants::GetEngineConstants().Find(Variable) != INDEX_NONE;
 }
 
-static UNiagaraParameterCollection* EnsureCollectionLoaded(FAssetData& CollectionAsset)
-{
-	if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
-	{
-		// asset may not have been fully loaded so give it a chance to do it's PostLoad
-		if (Collection->HasAnyFlags(RF_NeedLoad))
-		{
-			if (FLinkerLoad* CollectionLinker = Collection->GetLinker())
-			{
-				CollectionLinker->Preload(Collection);
-			}
-		}
-		Collection->ConditionalPostLoad();
-
-		return Collection;
-	}
-
-	return nullptr;
-}
-
 UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterCollection(const FNiagaraVariable& Var)const
 {
 	FString VarName = Var.GetName().ToString();
@@ -1586,9 +1566,10 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 		TArray<FName> ExistingNames;
 		for (FAssetData& CollectionAsset : CollectionAssets)
 		{
-			// asset may not have been fully loaded so give it a chance to do it's PostLoad
-			if (UNiagaraParameterCollection* Collection = EnsureCollectionLoaded(CollectionAsset))
+			if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
 			{
+				// asset may not have been fully loaded so give it a chance to do it's PostLoad
+				Collection->ConditionalPostLoad();
 				if (VarName.StartsWith(Collection->GetFullNamespace()))
 				{
 					return Collection;
@@ -1611,9 +1592,10 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 		TArray<FName> ExistingNames;
 		for (FAssetData& CollectionAsset : CollectionAssets)
 		{
-			// asset may not have been fully loaded so give it a chance to do it's PostLoad
-			if (UNiagaraParameterCollection* Collection = EnsureCollectionLoaded(CollectionAsset))
+			if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
 			{
+				// asset may not have been fully loaded so give it a chance to do it's PostLoad
+				Collection->ConditionalPostLoad();
 				if (VarName.StartsWith(Collection->GetFullNamespace()))
 				{
 					const TArray<FNiagaraVariable>& CollectionVariables = Collection->GetParameters();
