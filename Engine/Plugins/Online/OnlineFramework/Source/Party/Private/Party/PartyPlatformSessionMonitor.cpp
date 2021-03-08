@@ -206,7 +206,7 @@ bool FPartyPlatformSessionManager::FindSessionInternal(const FSessionId& Session
 		if (ensure(LocalUserPlatformId.IsValid()))
 		{
 			const IOnlineSessionPtr& SessionInterface = GetSessionInterface();
-			TSharedPtr<const FUniqueNetId> SessionId = SessionInterface->CreateSessionIdFromString(SessionIdString);
+			FUniqueNetIdPtr SessionId = SessionInterface->CreateSessionIdFromString(SessionIdString);
 			if (SessionId.IsValid())
 			{
 #if !UE_BUILD_SHIPPING
@@ -963,7 +963,7 @@ void FPartyPlatformSessionMonitor::HandleJoinSessionComplete(FName SessionName, 
 		// For all players only for Tencent
 		if (IsTencentPlatform())
 		{
-			TArray<TSharedRef<const FUniqueNetId>> MemberIdsOnPlatform;
+			TArray<FUniqueNetIdRef> MemberIdsOnPlatform;
 			for (UPartyMember* PartyMember : MonitoredParty->GetPartyMembers())
 			{
 				if (PartyMember->GetPlatformOssName() == TENCENT_SUBSYSTEM)

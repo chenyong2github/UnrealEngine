@@ -132,7 +132,7 @@ public:
 			{
 				for (const FString& ExternalId : ExternalIds)
 				{
-					TSharedPtr<const FUniqueNetId> PrimaryId = PrimaryUserInterface->GetExternalIdMapping(QueryOptions, ExternalId);
+					FUniqueNetIdPtr PrimaryId = PrimaryUserInterface->GetExternalIdMapping(QueryOptions, ExternalId);
 					if (!PrimaryId.IsValid())
 					{
 #if !UE_BUILD_SHIPPING
@@ -477,7 +477,7 @@ void USocialToolkit::HandleControllerIdChanged(int32 NewId, int32 OldId)
 		{
 			UE_CLOG(OldId != INVALID_CONTROLLERID, LogParty, Error, TEXT("SocialToolkit updating controller IDs for local player while logged in. That makes no sense! OldId = [%d], NewId = [%d]"), OldId, NewId);
 
-			TSharedPtr<const FUniqueNetId> LocalUserId = IdentityInterface->GetUniquePlayerId(NewId);
+			FUniqueNetIdPtr LocalUserId = IdentityInterface->GetUniquePlayerId(NewId);
 			if (ensure(LocalUserId))
 			{
 				HandlePlayerLoginStatusChanged(NewId, ELoginStatus::NotLoggedIn, ELoginStatus::LoggedIn, *LocalUserId);

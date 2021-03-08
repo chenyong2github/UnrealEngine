@@ -246,10 +246,10 @@ bool USocialParty::HasUserBeenInvited(const USocialUser& User) const
 	if (ensure(UserId.IsValid()))
 	{
 		// No advertised party info, check to see if this user has sent an invite
-		TArray<TSharedRef<const FUniqueNetId>> InvitedUserIds;
+		TArray<FUniqueNetIdRef> InvitedUserIds;
 		if (PartyInterface->GetPendingInvitedUsers(*OwningLocalUserId, GetPartyId(), InvitedUserIds))
 		{
-			for (const TSharedRef<const FUniqueNetId>& InvitedUserId : InvitedUserIds)
+			for (const FUniqueNetIdRef& InvitedUserId : InvitedUserIds)
 			{
 				if (*InvitedUserId == *UserId)
 				{

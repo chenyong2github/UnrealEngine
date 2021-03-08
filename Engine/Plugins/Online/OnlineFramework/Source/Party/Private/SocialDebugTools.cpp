@@ -213,7 +213,7 @@ void USocialDebugTools::JoinParty(const FString& Instance, const FString& Friend
 		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
 		if (OnlineIdentity.IsValid())
 		{
-			TSharedPtr<const FUniqueNetId> LocalUserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+			FUniqueNetIdPtr LocalUserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
 			if (LocalUserId.IsValid())
 			{
 				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
@@ -297,7 +297,7 @@ void USocialDebugTools::LeaveParty(const FString& Instance, const FLeavePartyCom
 		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
 		if (OnlineIdentity.IsValid())
 		{
-			TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+			FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
 			if (UserId.IsValid())
 			{
 				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
@@ -327,7 +327,7 @@ void USocialDebugTools::CleanupParties(const FString& Instance, const FCleanupPa
 		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
 		if (OnlineIdentity.IsValid())
 		{
-			TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+			FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
 			if (UserId.IsValid())
 			{
 				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
@@ -369,7 +369,7 @@ void USocialDebugTools::SetPartyMemberData(const FString& Instance, const UStruc
 			IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
 			if (OnlineIdentity.IsValid())
 			{
-				TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
 				if (UserId.IsValid())
 				{
 					IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
@@ -415,7 +415,7 @@ void USocialDebugTools::SetPartyMemberDataJson(const FString& Instance, const FS
 			IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
 			if (OnlineIdentity.IsValid())
 			{
-				TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
 				if (UserId.IsValid())
 				{
 					IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
@@ -469,7 +469,7 @@ IOnlinePartyJoinInfoConstPtr USocialDebugTools::GetDefaultPartyJoinInfo() const
 		IOnlineIdentityPtr OnlineIdentity = OnlineSub->GetIdentityInterface();
 		if (OnlineIdentity.IsValid())
 		{
-			TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+			FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
 			if (UserId.IsValid())
 			{
 				IOnlinePartyPtr OnlineParty = OnlineSub->GetPartyInterface();
@@ -515,7 +515,7 @@ USocialDebugTools::FInstanceContext* USocialDebugTools::GetContextForUser(const 
 			IOnlineIdentityPtr OnlineIdentity = Context.GetOSS()->GetIdentityInterface();
 			if (OnlineIdentity.IsValid())
 			{
-				TSharedPtr<const FUniqueNetId> LocalUser = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr LocalUser = OnlineIdentity->GetUniquePlayerId(LocalUserNum);
 				if (LocalUser.IsValid() &&
 					*LocalUser == UserId)
 				{
