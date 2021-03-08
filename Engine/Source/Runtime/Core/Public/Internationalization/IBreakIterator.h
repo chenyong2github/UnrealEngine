@@ -2,8 +2,8 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "CoreFwd.h"
 #include "Containers/StringView.h"
+#include "Internationalization/Text.h"
 
 class IBreakIterator
 {
