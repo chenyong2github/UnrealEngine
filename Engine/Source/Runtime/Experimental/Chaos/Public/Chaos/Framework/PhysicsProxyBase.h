@@ -58,7 +58,7 @@ public:
 	template< class SOLVER_TYPE = Chaos::FPhysicsSolver>
 	void SetSolver(SOLVER_TYPE* InSolver) { Solver = InSolver; }
 
-	EPhysicsProxyType GetType() { return Type; }
+	EPhysicsProxyType GetType() const { return Type; }
 
 	//todo: remove this
 	virtual void* GetHandleUnsafe() const { check(false); return nullptr; }

@@ -635,24 +635,23 @@ void FPhysScene_Chaos::AddReferencedObjects(FReferenceCollector& Collector)
 #endif
 }
 
-static void SetCollisionInfoFromComp(FRigidBodyCollisionInfo& Info, UPrimitiveComponent* Comp)
+FBodyInstance* FPhysScene_Chaos::GetBodyInstanceFromProxy(const IPhysicsProxyBase* PhysicsProxy) const
 {
-	if (Comp)
+	FBodyInstance* BodyInstance = nullptr;
+	if (PhysicsProxy && PhysicsProxy->GetType() == EPhysicsProxyType::SingleParticleProxy)
 	{
-		Info.Component = Comp;
-		Info.Actor = Comp->GetOwner();
-
-		const FBodyInstance* const BodyInst = Comp->GetBodyInstance();
-		Info.BodyIndex = BodyInst ? BodyInst->InstanceBodyIndex : INDEX_NONE;
-		Info.BoneName = BodyInst && BodyInst->BodySetup.IsValid() ? BodyInst->BodySetup->BoneName : NAME_None;
+		const Chaos::FRigidBodyHandle_External& RigidBodyHandle = static_cast<const FSingleParticlePhysicsProxy*>(PhysicsProxy)->GetGameThreadAPI();
+		BodyInstance = FPhysicsUserData::Get<FBodyInstance>(RigidBodyHandle.UserData());
 	}
-	else
+	// found none, let's see if there's an owning component in the scene
+	if (BodyInstance == nullptr)
 	{
-		Info.Component = nullptr;
-		Info.Actor = nullptr;
-		Info.BodyIndex = INDEX_NONE;
-		Info.BoneName = NAME_None;
+		if (UPrimitiveComponent* const OwningComponent = GetOwningComponent<UPrimitiveComponent>(PhysicsProxy))
+		{
+			BodyInstance = OwningComponent->GetBodyInstance();
+		}
 	}
+	return BodyInstance;
 }
 
 FCollisionNotifyInfo& FPhysScene_Chaos::GetPendingCollisionForContactPair(const void* P0, const void* P1, bool& bNewEntry)
@@ -717,14 +716,12 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 
 							if (bNewEntry)
 							{
-								UPrimitiveComponent* const Comp1 = GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
-
 								// fill in legacy contact data
 								NotifyInfo.bCallEvent0 = true;
 								// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
 
-								SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
-								SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
+								NotifyInfo.Info0.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy0));
+								NotifyInfo.Info1.SetFrom(GetBodyInstanceFromProxy(PhysicsProxy1));
 
 								FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
 								NewContact.ContactNormal = CollisionDataItem.Normal;

@@ -123,7 +123,7 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	/** Given a solver object, returns its associated component. */
 	template<class OwnerType>
-	OwnerType* GetOwningComponent(IPhysicsProxyBase* PhysicsProxy) const
+	OwnerType* GetOwningComponent(const IPhysicsProxyBase* PhysicsProxy) const
 	{ 
 		UPrimitiveComponent* const* CompPtr = PhysicsProxyToComponentMap.Find(PhysicsProxy);
 		return CompPtr ? Cast<OwnerType>(*CompPtr) : nullptr;
@@ -134,6 +134,9 @@ public:
 	{
 		return ComponentToPhysicsProxyMap.Find(Comp);
 	}
+
+	/** Given a physics proxy, returns its associated body instance if any */
+	FBodyInstance* GetBodyInstanceFromProxy(const IPhysicsProxyBase* PhysicsProxy) const;
 
 	/**
 	 * Callback when a world ends, to mark updated packages dirty. This can't be done in final

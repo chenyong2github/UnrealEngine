@@ -2,8 +2,10 @@
 
 #include "Chaos/ChaosGameplayEventDispatcher.h"
 #include "Components/PrimitiveComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "PhysicsEngine/BodyInstance.h"
 #include "Chaos/Framework/PhysicsProxy.h"
+#include "Chaos/Public/PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "PhysicsSolver.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
 #include "Engine/World.h"
@@ -52,27 +54,6 @@ static void DispatchPendingBreakEvents(TArray<FChaosBreakEvent> const& Events, T
 		}
 	}
 }
-
-static void SetCollisionInfoFromComp(FRigidBodyCollisionInfo& Info, UPrimitiveComponent* Comp)
-{
-	if (Comp)
-	{
-		Info.Component = Comp;
-		Info.Actor = Comp->GetOwner();
-		
-		const FBodyInstance* const BodyInst = Comp->GetBodyInstance();
-		Info.BodyIndex = BodyInst ? BodyInst->InstanceBodyIndex : INDEX_NONE;
-		Info.BoneName = BodyInst && BodyInst->BodySetup.IsValid() ? BodyInst->BodySetup->BoneName : NAME_None;
-	}
-	else
-	{
-		Info.Component = nullptr;
-		Info.Actor = nullptr;
-		Info.BodyIndex = INDEX_NONE;
-		Info.BoneName = NAME_None;
-	}
-}
-
 
 FCollisionNotifyInfo& UChaosGameplayEventDispatcher::GetPendingCollisionForContactPair(const void* P0, const void* P1, bool& bNewEntry)
 {
@@ -308,14 +289,12 @@ void UChaosGameplayEventDispatcher::HandleCollisionEvents(const Chaos::FCollisio
 
 									if (bNewEntry)
 									{
-										UPrimitiveComponent* const Comp1 = Scene.GetOwningComponent<UPrimitiveComponent>(PhysicsProxy1);
-
 										// fill in legacy contact data
 										NotifyInfo.bCallEvent0 = true;
 										// if Comp1 wants this event too, it will get its own pending collision entry, so we leave it false
 
-										SetCollisionInfoFromComp(NotifyInfo.Info0, Comp0);
-										SetCollisionInfoFromComp(NotifyInfo.Info1, Comp1);
+										NotifyInfo.Info0.SetFrom(Scene.GetBodyInstanceFromProxy(PhysicsProxy0));
+										NotifyInfo.Info1.SetFrom(Scene.GetBodyInstanceFromProxy(PhysicsProxy1));
 
 										FRigidBodyContactInfo& NewContact = NotifyInfo.RigidCollisionData.ContactInfos.AddZeroed_GetRef();
 										NewContact.ContactNormal = CollisionDataItem.Normal;
