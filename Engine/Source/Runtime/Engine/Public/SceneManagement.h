@@ -1820,7 +1820,7 @@ public:
 
 	/** Used with mobile renderer */
 	TUniformBufferRef<FMobileReflectionCaptureShaderParameters> MobileUniformBuffer;
-	FTexture* EncodedHDRCubemap;
+	UTextureCube* EncodedHDRCubemap;
 	float EncodedHDRAverageBrightness;
 	float MaxValueRGBM;
 

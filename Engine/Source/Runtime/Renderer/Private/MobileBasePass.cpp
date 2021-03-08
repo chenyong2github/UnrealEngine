@@ -12,6 +12,7 @@
 #include "MaterialShaderQualitySettings.h"
 #include "PrimitiveSceneInfo.h"
 #include "MeshPassProcessor.inl"
+#include "Engine/TextureCube.h"
 
 template <ELightMapPolicyType Policy, int32 NumMovablePointLights>
 bool GetUniformMobileBasePassShaders(
@@ -496,9 +497,9 @@ void TMobileBasePassPSPolicyParamType<FUniformLightMapPolicy>::GetShaderBindings
 					{
 						CapturePositions[i] = ReflectionProxy->Position;
 						CapturePositions[i].W = ReflectionProxy->InfluenceRadius;
-						if (ReflectionProxy->EncodedHDRCubemap && ReflectionProxy->EncodedHDRCubemap->IsInitialized())
+						if (ReflectionProxy->EncodedHDRCubemap)
 						{
-							ReflectionCubemapTextures[i] = PrimitiveSceneInfo->CachedReflectionCaptureProxies[i]->EncodedHDRCubemap;
+							ReflectionCubemapTextures[i] = ReflectionProxy->EncodedHDRCubemap->GetResource();
 						}
 						//To keep ImageBasedReflectionLighting coherence with PC, use AverageBrightness instead of InvAverageBrightness to calculate the IBL contribution
 						ReflectionParams[i] = ReflectionProxy->EncodedHDRAverageBrightness;

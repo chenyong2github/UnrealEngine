@@ -1242,10 +1242,7 @@ FReflectionCaptureProxy::FReflectionCaptureProxy(const UReflectionCaptureCompone
 	Component = InComponent;
 	const FReflectionCaptureMapBuildData* MapBuildData = InComponent->GetMapBuildData();
 
-	EncodedHDRCubemap = Component->CachedEncodedHDRCubemap != nullptr ? Component->CachedEncodedHDRCubemap->Resource: nullptr;
-
-
-	
+	EncodedHDRCubemap = Component->CachedEncodedHDRCubemap;
 	EncodedHDRAverageBrightness = Component->CachedAverageBrightness;
 	MaxValueRGBM = Component->MaxValueRGBM;
 	SetTransform(InComponent->GetComponentTransform().ToMatrixWithScale());
@@ -1280,8 +1277,7 @@ void FReflectionCaptureProxy::UpdateMobileUniformBuffer()
 	FTexture* CaptureTexture = GBlackTextureCube;
 	if (EncodedHDRCubemap)
 	{
-		check(EncodedHDRCubemap->IsInitialized());
-		CaptureTexture = EncodedHDRCubemap;
+		CaptureTexture = EncodedHDRCubemap->GetResource();
 	}
 		
 	FMobileReflectionCaptureShaderParameters Parameters;
