@@ -65,14 +65,17 @@ bool CacheRenderTarget(FRHITexture* Texture, const TCHAR* Name, TRefCountPtr<IPo
 
 static uint64 GetTypeHash(FClearValueBinding Binding)
 {
+	uint64 Hash = 0;
 	switch (Binding.ColorBinding)
 	{
 	case EClearBinding::EColorBound:
-		return CityHash64((const char*)Binding.Value.Color, sizeof(Binding.Value.Color));
+		Hash = CityHash64((const char*)Binding.Value.Color, sizeof(Binding.Value.Color));
+		break;
 	case EClearBinding::EDepthStencilBound:
-		return uint64(GetTypeHash(Binding.Value.DSValue.Depth)) << 32 | uint64(Binding.Value.DSValue.Stencil);
+		Hash = uint64(GetTypeHash(Binding.Value.DSValue.Depth)) << 32 | uint64(Binding.Value.DSValue.Stencil);
+		break;
 	}
-	return 0;
+	return Hash ^ uint64(Binding.ColorBinding);
 }
 
 static uint64 GetTypeHash(FPooledRenderTargetDesc Desc)
