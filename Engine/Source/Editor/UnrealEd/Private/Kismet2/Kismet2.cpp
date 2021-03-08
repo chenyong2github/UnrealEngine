@@ -881,26 +881,29 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 	};
 
 	// 
-	for (TFieldIterator<FObjectProperty> ObjPropIt(NativeSuperClass); ObjPropIt; ++ObjPropIt)
+	if (DestroyedComponents.Num() > 0)
 	{
-		FObjectProperty* ObjectProp = *ObjPropIt;
-		UObject* PropObjValue = ObjectProp->GetObjectPropertyValue_InContainer(ActorCDO);
-
-		if (DestroyedComponents.Contains(PropObjValue))
+		for (TFieldIterator<FObjectProperty> ObjPropIt(NativeSuperClass); ObjPropIt; ++ObjPropIt)
 		{
-			// Get the "new" value that's currently set on the native parent CDO. We need the Blueprint CDO to reflect this update in property value.
-			UObject* SuperObjValue = ObjectProp->GetObjectPropertyValue_InContainer(NativeCDO);
-			if (SuperObjValue && SuperObjValue->IsA<UActorComponent>())
+			FObjectProperty* ObjectProp = *ObjPropIt;
+			UObject* PropObjValue = ObjectProp->GetObjectPropertyValue_InContainer(ActorCDO);
+
+			if (DestroyedComponents.Contains(PropObjValue))
 			{
-				// For components, make sure we use the instance that's owned by the Blueprint CDO and not the native parent CDO's instance.
-				if (UActorComponent** ComponentTemplatePtr = FindComponentTemplateByNameInActorCDO(SuperObjValue->GetFName()))
+				// Get the "new" value that's currently set on the native parent CDO. We need the Blueprint CDO to reflect this update in property value.
+				UObject* SuperObjValue = ObjectProp->GetObjectPropertyValue_InContainer(NativeCDO);
+				if (SuperObjValue && SuperObjValue->IsA<UActorComponent>())
 				{
-					SuperObjValue = *ComponentTemplatePtr;
+					// For components, make sure we use the instance that's owned by the Blueprint CDO and not the native parent CDO's instance.
+					if (UActorComponent** ComponentTemplatePtr = FindComponentTemplateByNameInActorCDO(SuperObjValue->GetFName()))
+					{
+						SuperObjValue = *ComponentTemplatePtr;
+					}
 				}
-			}
 			
-			// Update the Blueprint CDO to match the native parent CDO.
-			ObjectProp->SetObjectPropertyValue_InContainer(ActorCDO, SuperObjValue);
+				// Update the Blueprint CDO to match the native parent CDO.
+				ObjectProp->SetObjectPropertyValue_InContainer(ActorCDO, SuperObjValue);
+			}
 		}
 	}
 

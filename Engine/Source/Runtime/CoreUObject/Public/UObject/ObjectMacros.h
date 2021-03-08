@@ -1083,6 +1083,9 @@ namespace UM
 		/// [ClassMetadata] Comma delimited list of blueprint events that are not be allowed to be overridden in classes of this type
 		KismetHideOverrides,
 
+		/// [ClassMetadata] [PropertyMetadata] Used by TObjectPtr properties.  Specifies that references to objects of this class should be eager/lazy/background loaded in editor by default.  Can be overridden by LoadBehavior specified on the referencing property field.
+		LoadBehavior,
+
 		/// [ClassMetadata] Specifies interfaces that are not compatible with the class.
 		ProhibitedInterfaces,
 
@@ -1236,6 +1239,9 @@ namespace UM
 
 		/// [PropertyMetadata] Signifies that the bool property is only displayed inline as an edit condition toggle in other properties, and should not be shown on its own row.
 		InlineEditConditionToggle,
+
+		/// [ClassMetadata] [PropertyMetadata] Used by TObjectPtr properties.  Allows the referenced object to be eager/lazy/background loaded in editor.
+		// LoadBehavior, (Commented out so as to avoid duplicate name with version in the Class section, but still show in the property section)
 
 		/// [PropertyMetadata] Used by FDirectoryPath properties.  Converts the path to a long package name
 		LongPackageName,

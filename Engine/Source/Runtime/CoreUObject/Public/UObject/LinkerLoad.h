@@ -1041,6 +1041,16 @@ private:
 	/** For the given object and class info, find or create an associated import record. Used when loading text assets which only store object paths */
 	FPackageIndex FindOrCreateImport(const FName InObjectName, const FName InClassName, const FName InClassPackageName);
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+	enum class EImportLoadBehavior
+	{
+		Eager = 0,
+		// @TODO: OBJPTR: we want to permit lazy background loading in the future
+		//LazyBackground,
+		LazyOnDemand,
+	};
+	EImportLoadBehavior GetCurrentPropertyImportLoadBehavior(FPackageIndex ImportIndex);
+#endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
 public:
 	/**
 	 * Serializes the gatherable text data container.

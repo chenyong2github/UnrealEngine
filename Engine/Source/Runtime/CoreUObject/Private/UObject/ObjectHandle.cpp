@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/ObjectHandle.h"
+#include "Async/TaskGraphInterfaces.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/PlatformAtomics.h"
 #include "Misc/PackageName.h"
@@ -362,6 +363,26 @@ UClass* ResolveObjectRefClass(const FObjectRef& ObjectRef, uint32 LoadFlags /*= 
 	return ClassObject;
 }
 
+class FFullyLoadPackageOnHandleResolveTask
+{
+public:
+	FFullyLoadPackageOnHandleResolveTask(UPackage* InPackage): Package(InPackage)
+	{
+	}
+
+	FORCEINLINE TStatId GetStatId() const { RETURN_QUICK_DECLARE_CYCLE_STAT(FFullyLoadPackageOnHandleResolveTask, STATGROUP_TaskGraphTasks); }
+	ENamedThreads::Type GetDesiredThread() { return ENamedThreads::Type::GameThread; }
+	static ESubsequentsMode::Type GetSubsequentsMode() { return ESubsequentsMode::FireAndForget; }
+
+	void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	{
+		Package->LinkerLoad->LoadAllObjects(true);
+	}
+
+private:
+	UPackage* Package = nullptr;
+};
+
 UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD_None*/)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ResolveObjectRef);
@@ -404,9 +425,17 @@ UObject* ResolveObjectRef(const FObjectRef& ObjectRef, uint32 LoadFlags /*= LOAD
 			CurrentObject = Redirector->DestinationObject;
 		}
 
-		if (!CurrentObject && IsInGameThread() && !TargetPackage->IsFullyLoaded() && TargetPackage->LinkerLoad && TargetPackage->LinkerLoad->IsLoading())
+		if (!CurrentObject && !TargetPackage->IsFullyLoaded() && TargetPackage->LinkerLoad && TargetPackage->LinkerLoad->IsLoading())
 		{
-			TargetPackage->LinkerLoad->LoadAllObjects(true);
+			if (IsInAsyncLoadingThread() || IsInGameThread())
+			{
+				TargetPackage->LinkerLoad->LoadAllObjects(true);
+			}
+			else
+			{
+				// Shunt the load request to happen on the game thread and block on its completion.  This is a deadlock risk!  The game thread may be blocked waiting on this thread.
+				TGraphTask<FFullyLoadPackageOnHandleResolveTask>::CreateTask().ConstructAndDispatchWhenReady(TargetPackage)->Wait();
+			}
 
 			CurrentObject = StaticFindObjectFastInternal(nullptr, PreviousOuter, ResolvedNames[ObjectPathIndex]);
 			if (UObjectRedirector* Redirector = dynamic_cast<UObjectRedirector*>(CurrentObject))

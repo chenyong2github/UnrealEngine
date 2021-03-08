@@ -1964,6 +1964,90 @@ FPackageIndex FLinkerLoad::FindOrCreateImport(const FName InObjectName, const FN
 	return FPackageIndex::FromImport(ImportMap.Num() - 1);
 }
 
+#if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+FLinkerLoad::EImportLoadBehavior FLinkerLoad::GetCurrentPropertyImportLoadBehavior(FPackageIndex ImportIndex)
+{
+	const FObjectImport& Import = Imp(ImportIndex);
+	if (Import.bImportSearchedFor)
+	{
+		// If it was something that's been searched for, we've already attempted a resolve, might as well use it
+		return EImportLoadBehavior::Eager;
+	}
+
+	const FArchiveSerializedPropertyChain* PropChain = GetSerializedPropertyChain();
+	if (!PropChain)
+	{
+		// In the absence of property information, the safe choice is to not lazy load
+		return EImportLoadBehavior::Eager;
+	}
+
+	const int32 NumPropsInChain = PropChain->GetNumProperties();
+	const FProperty* CurrentProperty = NumPropsInChain > 0 ? PropChain->GetPropertyFromStack(0) : nullptr;
+	if (!CurrentProperty)
+	{
+		// In the absence of property information, the safe choice is to not lazy load
+		return EImportLoadBehavior::Eager;
+	}
+
+	const FProperty* ParentProperty = NumPropsInChain > 1 ? PropChain->GetPropertyFromStack(1) : nullptr;
+	// Exclude properties that are in hash sensitive containers as they will require the object to be loaded to compute a hash
+	// @TODO: OBJPTR: Forcing resolve for ObjectPtr hashing.  See GetTypeHash in ObjectHandle.h.
+	if (ParentProperty && 
+		(
+			ParentProperty->IsA<FSetProperty>() ||
+			(ParentProperty->IsA<FMapProperty>() && (CurrentProperty == static_cast<const FMapProperty*>(ParentProperty)->GetKeyProperty()))
+		))
+	{
+		return EImportLoadBehavior::Eager;
+	}
+
+	static bool bAllowLazyResolve = FParse::Param(FCommandLine::Get(), TEXT("AllowLazyResolve"));
+	if (!bAllowLazyResolve || !IsAllowingLazyLoading() || GIsPlayInEditorWorld)
+	{
+		return EImportLoadBehavior::Eager;
+	}
+
+	static const bool bLazyResolveAllImports = FParse::Param(FCommandLine::Get(), TEXT("LazyResolveAllImports"));
+	if (bLazyResolveAllImports)
+	{
+		return EImportLoadBehavior::LazyOnDemand;
+	}
+
+	// If we're not blanket lazy resolving all imports, decide if this one has the metadata on the property or the referenced class to allow lazy resolve
+	EImportLoadBehavior LoadBehavior = EImportLoadBehavior::Eager;
+	static const FName Name_LoadBehavior("LoadBehavior");
+	const FString* LoadBehaviorMeta = CurrentProperty->FindMetaData(Name_LoadBehavior);
+	if (!LoadBehaviorMeta)
+	{
+		// Attempt to get the meta from the referenced class.  This only looks in already loaded classes.  May need to resolve the class in the future.
+		UObject* ClassPackage = FindObject<UPackage>(nullptr, *Import.ClassPackage.ToString());
+		if (UClass* FindClass = ClassPackage ? FindObject<UClass>(ClassPackage, *Import.ClassName.ToString()) : nullptr)
+		{
+			LoadBehaviorMeta = FindClass->FindMetaData(Name_LoadBehavior);
+		}
+
+	}
+	if (LoadBehaviorMeta)
+	{
+		if (*LoadBehaviorMeta == "Eager")
+		{
+			LoadBehavior = EImportLoadBehavior::Eager;
+		}
+		// @TODO: OBJPTR: we want to permit lazy background loading in the future
+		// else if (*LoadBehaviorMeta == "LazyBackground")
+		// {
+		// 	LoadBehavior = EImportLoadBehavior::LazyBackground;
+		// }
+		else if (*LoadBehaviorMeta == "LazyOnDemand")
+		{
+			LoadBehavior = EImportLoadBehavior::LazyOnDemand;
+		}
+	}
+
+	return LoadBehavior;
+}
+#endif // UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
+
 FString ExtractObjectName(const FString& InFullPath)
 {
 	FString ObjectName = InFullPath;
@@ -5519,34 +5603,19 @@ FArchive& FLinkerLoad::operator<<( FObjectPtr& ObjectPtr )
 	Ar << Index;
 
 #if UE_WITH_OBJECT_HANDLE_LATE_RESOLVE
-	static bool bLazyResolveAllImports = FParse::Param(FCommandLine::Get(), TEXT("LazyResolveAllImports"));
-	if (bLazyResolveAllImports && Index.IsImport())
+	if (Index.IsImport())
 	{
-		const FObjectImport& Import = Imp(Index);
-		if (!Import.bImportSearchedFor)
+		EImportLoadBehavior LoadBehavior = GetCurrentPropertyImportLoadBehavior(Index);
+		if (LoadBehavior == EImportLoadBehavior::LazyOnDemand)
 		{
-			bool bIsInHashSensitiveContainer = false;
-			if (const FArchiveSerializedPropertyChain* PropChain = GetSerializedPropertyChain())
-			{
-				const int32 NumPropsInChain = PropChain->GetNumProperties();
-				const FProperty* CurrentProperty = NumPropsInChain > 0 ? PropChain->GetPropertyFromStack(0) : nullptr;
-				if (const FProperty* ParentProperty = NumPropsInChain > 1 ? PropChain->GetPropertyFromStack(1) : nullptr)
-				{
-					// @TODO: OBJPTR: Forcing resolve for ObjectPtr hashing.  See GetTypeHash in ObjectHandle.h.
-					bIsInHashSensitiveContainer = ParentProperty->IsA<FSetProperty>() || (ParentProperty->IsA<FMapProperty>() && (CurrentProperty == static_cast<const FMapProperty*>(ParentProperty)->GetKeyProperty()));
-				}
-			}
+			const FObjectImport& Import = Imp(Index);
+			FObjectPathId ObjectPath;
+			FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, *this, ObjectPath);
+			FObjectRef ImportRef{PackageName, Import.ClassPackage, Import.ClassName, ObjectPath};
 
-			if (!bIsInHashSensitiveContainer)
-			{
-				FObjectPathId ObjectPath;
-				FName PackageName = FObjectPathId::MakeImportPathIdAndPackageName(Import, *this, ObjectPath);
-				FObjectRef ImportRef{PackageName, Import.ClassPackage, Import.ClassName, ObjectPath};
+			ObjectPtr = FObjectPtr(ImportRef);
 
-				ObjectPtr = FObjectPtr(ImportRef);
-
-				return *this;
-			}
+			return *this;
 		}
 	}
 #endif

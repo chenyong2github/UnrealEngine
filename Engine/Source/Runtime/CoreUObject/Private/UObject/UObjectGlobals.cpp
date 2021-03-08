@@ -3560,7 +3560,7 @@ protected:
 
 	virtual FArchive& operator<<(FObjectPtr& Object) override
 	{
-		if (Object && IsObjectHandleResolved(Object.GetHandle()))
+		if (IsObjectHandleResolved(Object.GetHandle()) && Object)
 		{
 			FReferenceCollector& CurrentCollector = GetCollector();
 			FProperty* OldCollectorSerializedProperty = CurrentCollector.GetSerializedProperty();

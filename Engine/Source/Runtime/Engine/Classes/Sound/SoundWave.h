@@ -370,7 +370,7 @@ private:
 };
 
 
-UCLASS(hidecategories=Object, editinlinenew, BlueprintType)
+UCLASS(hidecategories=Object, editinlinenew, BlueprintType, meta= (LoadBehavior = "LazyOnDemand"))
 class ENGINE_API USoundWave : public USoundBase, public IAudioProxyDataFactory
 {
 	GENERATED_UCLASS_BODY()
