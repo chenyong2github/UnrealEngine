@@ -1197,7 +1197,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 					else
 					{
 						FDiagnosticLogger::Get().LogEvent(TEXT("MTBF/NoSessionFound"));
-						if (bMonitoredAppCrashed)
+						if (bMonitoredAppCrashed || (MonitoredProcessExitCode.IsSet() && *MonitoredProcessExitCode != 0))
 						{
 							// No session found. Record this crash to piggyback off a valid session later. (Purpose: Account for early Editor crash happening before Analytics was initialized)
 							FEditorAnalyticsSession::CreateMinimalCrashSession(MonitoredProcessExitCode);
