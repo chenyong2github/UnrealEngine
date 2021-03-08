@@ -307,6 +307,12 @@ public:
 		return FString(TPlatformProperties::IniPlatformName());
 	}
 
+	virtual FString CookingDeviceProfileName() const override
+	{
+		// default to using TargetPlatform name, like WindowsClient, when looking up the DeviceProfile to cook with
+		return PlatformName();
+	}
+
 	virtual bool RequiresCookedData() const override
 	{
 		return TPlatformProperties::RequiresCookedData();
@@ -463,6 +469,12 @@ public:
 	{
 		// we use the Info's IniPlatformName as it may have been overridden in the constructor IN RARE CASES
 		return this->PlatformInfo->IniPlatformName.ToString();
+	}
+
+	virtual FString CookingDeviceProfileName() const override
+	{
+		// when cooking for non-desktop platforms, always use the base platform name as the DP to cook with (there aren't IOSClient DPs, there are IOS (base), IPhone7, iPad4, etc DPs)
+		return IniPlatformName();
 	}
 
 	virtual bool HasEditorOnlyData() const override

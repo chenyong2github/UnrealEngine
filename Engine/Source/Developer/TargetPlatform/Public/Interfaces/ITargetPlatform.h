@@ -241,6 +241,11 @@ public:
 	virtual FString IniPlatformName() const = 0;
 
 	/**
+	 * Gets the name of the device profile to use when cooking this TargetPlatform
+	 */
+	virtual FString CookingDeviceProfileName() const = 0;
+
+	/**
 	 * Enables/Disable the device check
 	 */
 	virtual void EnableDeviceCheck(bool OnOff) = 0;
