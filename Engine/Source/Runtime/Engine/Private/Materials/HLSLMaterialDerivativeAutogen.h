@@ -29,7 +29,13 @@ inline bool IsDerivativeValid(EDerivativeStatus Status)
 	return Status == EDerivativeStatus::Valid || Status == EDerivativeStatus::Zero;
 }
 
-int32 GetDerivTypeIndex(EMaterialValueType ValueType);
+inline bool IsDerivTypeIndexValid(int32 DerivTypeIndex)
+{
+	return (uint32)DerivTypeIndex < 4u;
+}
+
+int32 GetDerivTypeIndex(EMaterialValueType ValueType, bool bAllowNonFloat = false);
+
 
 struct FDerivInfo
 {

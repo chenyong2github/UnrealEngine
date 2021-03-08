@@ -2187,10 +2187,10 @@ EDerivativeStatus FHLSLMaterialTranslator::GetDerivativeStatus(int32 Index) cons
 	return AtParameterCodeChunk(Index).DerivativeStatus;
 }
 
-FDerivInfo FHLSLMaterialTranslator::GetDerivInfo(int32 Index) const
+FDerivInfo FHLSLMaterialTranslator::GetDerivInfo(int32 Index, bool bAllowNonFloat) const
 {
 	const FShaderCodeChunk& CodeChunk = AtParameterCodeChunk(Index);
-	return FDerivInfo { CodeChunk.Type, GetDerivTypeIndex(CodeChunk.Type), CodeChunk.DerivativeStatus };
+	return FDerivInfo { CodeChunk.Type, GetDerivTypeIndex(CodeChunk.Type, bAllowNonFloat), CodeChunk.DerivativeStatus };
 }
 
 // Similar to GetParameterCode, but has no default, and is derivative aware. Making it a separate function in case it needs to diverge,

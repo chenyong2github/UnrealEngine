@@ -453,7 +453,7 @@ public:
 
 	const FShaderCodeChunk& AtParameterCodeChunk(int32 Index) const;
 	EDerivativeStatus GetDerivativeStatus(int32 Index) const;
-	FDerivInfo GetDerivInfo(int32 Index) const;
+	FDerivInfo GetDerivInfo(int32 Index, bool bAllowNonFloat = false) const;
 
 protected:
 
