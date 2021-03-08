@@ -52,6 +52,24 @@ class UDataprepHierarchySelectionTransform : public UDataprepSelectionTransform
 protected:
 	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "HierarchySelectionOptions", meta = (DisplayName = "Select", ToolTip = "Specify policy of hierarchical parsing of selected objects"))
+	UPROPERTY(EditAnywhere, Category = "HierarchySelectionOptions", meta = (DisplayName = "Select", ToolTip = "Specify policy of hierarchical parsing of selected objects"))
 	EDataprepHierarchySelectionPolicy SelectionPolicy;
+};
+
+UCLASS(Category = SelectionTransform, Meta = (DisplayName="Select Actor Components", ToolTip = "Return components of the selected actors") )
+class UDataprepActorComponentsSelectionTransform : public UDataprepSelectionTransform
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
+};
+
+UCLASS(Category = SelectionTransform, Meta = (DisplayName="Select Owning Actor", ToolTip = "Return the owning actors of selected components") )
+class UDataprepOwningActorSelectionTransform : public UDataprepSelectionTransform
+{
+	GENERATED_BODY()
+
+protected:
+	virtual void OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects) override;
 };

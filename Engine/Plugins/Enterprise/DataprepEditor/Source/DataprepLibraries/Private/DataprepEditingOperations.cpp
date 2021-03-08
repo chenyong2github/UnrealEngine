@@ -1067,6 +1067,17 @@ namespace DatasmithEditingOperationsUtils
 					}
 				}
 			}
+			else if(UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(Object))
+			{
+				// Skip components which are either editor only or for visualization
+				if(!MeshComponent->IsEditorOnly() && !MeshComponent->IsVisualizationComponent())
+				{
+					if(MeshComponent->GetStaticMesh() && MeshComponent->GetStaticMesh()->GetSourceModels().Num() > 0)
+					{
+						ComponentsToMerge.Add(MeshComponent);
+					}
+				}
+			}
 		}
 	}
 

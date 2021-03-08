@@ -95,6 +95,18 @@ namespace DataprepOperationsLibraryUtil
 					MaterialSet.Add(StaticMesh->GetMaterial(Index));
 				}
 			}
+			else if (UMeshComponent* MeshComponent = Cast< UMeshComponent >(Object))
+			{
+				int32 MaterialCount = FMath::Max( MeshComponent->GetNumOverrideMaterials(), MeshComponent->GetNumMaterials() );
+
+				for (int32 Index = 0; Index < MaterialCount; ++Index)
+				{
+					if (UMaterialInterface* Material = MeshComponent->GetMaterial(Index))
+					{
+						MaterialSet.Add(Material);
+					}
+				}
+			}
 		}
 
 		return MaterialSet.Array();

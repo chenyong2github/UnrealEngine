@@ -60,8 +60,26 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 
 					for (UMaterialInterface* MaterialInterface : MeshComponent->OverrideMaterials)
 					{
-						Assets.Add(MaterialInterface);
+						if (MaterialInterface != nullptr)
+						{
+							Assets.Add(MaterialInterface);
+						}
 					}
+				}
+			}
+		}
+		if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(Object))
+		{
+			if (UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh())
+			{
+				Assets.Add(StaticMesh);
+			}
+
+			for (UMaterialInterface* MaterialInterface : MeshComponent->OverrideMaterials)
+			{
+				if (MaterialInterface != nullptr)
+				{
+					Assets.Add(MaterialInterface);
 				}
 			}
 		}
@@ -286,6 +304,57 @@ void UDataprepHierarchySelectionTransform::OnExecution_Implementation(const TArr
 			}
 		}
 	}
+}
+
+void UDataprepActorComponentsSelectionTransform::OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects)
+{
+	TSet<UActorComponent*> NewSelection;
+
+	for (UObject* Object : InObjects)
+	{
+		if (!ensure(Object) || Object->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (AActor* Actor = Cast< AActor >(Object))
+		{
+			const TSet< UActorComponent* >& Components = Actor->GetComponents();
+			for (UActorComponent* Comp : Components)
+			{
+				NewSelection.Add( Comp );
+			}
+		}
+		else if (UActorComponent* Component = Cast< UActorComponent >(Object))
+		{
+			if (bOutputCanIncludeInput)
+			{
+				NewSelection.Add( Component );
+			}
+		}
+	}
+
+	OutObjects.Append( NewSelection.Array() );
+}
+
+void UDataprepOwningActorSelectionTransform::OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects)
+{
+	TSet<AActor*> NewSelection;
+
+	for (UObject* Object : InObjects)
+	{
+		if (!ensure(Object) || Object->IsPendingKill())
+		{
+			continue;
+		}
+
+		if (UActorComponent* Component = Cast< UActorComponent >(Object))
+		{
+			NewSelection.Add( Component->GetOwner() );
+		}
+	}
+
+	OutObjects.Append( NewSelection.Array() );
 }
 
 #undef LOCTEXT_NAMESPACE

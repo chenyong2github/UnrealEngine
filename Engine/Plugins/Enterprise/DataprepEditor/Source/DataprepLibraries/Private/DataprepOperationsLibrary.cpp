@@ -218,6 +218,10 @@ void UDataprepOperationsLibrary::SetMobility( const TArray< UObject* >& Selected
 				DatasmithAreaLightActor->Mobility = MobilityType;
 			}
 		}
+		else if (USceneComponent* SceneComponent = Cast< USceneComponent >(Object))
+		{
+			SceneComponent->SetMobility(MobilityType);
+		}
 	}
 }
 
@@ -246,6 +250,15 @@ void UDataprepOperationsLibrary::SetMaterial( const TArray< UObject* >& Selected
 			for (int32 Index = 0; Index < StaticMesh->GetStaticMaterials().Num(); ++Index)
 			{
 				DataprepOperationsLibraryUtil::SetMaterial( StaticMesh, Index, MaterialSubstitute );
+			}
+		}
+		else if (UMeshComponent* MeshComponent = Cast< UMeshComponent >(Object))
+		{
+			int32 MaterialCount = FMath::Max( MeshComponent->GetNumOverrideMaterials(), MeshComponent->GetNumMaterials() );
+
+			for (int32 Index = 0; Index < MaterialCount; ++Index)
+			{
+				MeshComponent->SetMaterial(Index, MaterialSubstitute);
 			}
 		}
 	}
@@ -287,6 +300,10 @@ void UDataprepOperationsLibrary::SetMesh(const TArray<UObject*>& SelectedObjects
 					MeshComponent->SetStaticMesh( MeshSubstitute );
 				}
 			}
+		}
+		else if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >( Object ))
+		{
+			MeshComponent->SetStaticMesh( MeshSubstitute );
 		}
 	}
 }
@@ -334,17 +351,26 @@ void UDataprepOperationsLibrary::SubstituteMesh(const TArray<UObject*>& Selected
 
 void UDataprepOperationsLibrary::AddTags(const TArray< UObject* >& SelectedObjects, const TArray<FName>& InTags)
 {
+	TFunction<void(TArray<FName>&)> AddNewTags = [&InTags](TArray<FName>& InExistingTags)
+	{
+		for (int TagIndex = 0; TagIndex < InTags.Num(); ++TagIndex)
+		{
+			if (!InTags[TagIndex].IsNone() && (INDEX_NONE == InExistingTags.Find(InTags[TagIndex])))
+			{
+				InExistingTags.Add(InTags[TagIndex]);
+			}
+		}
+	};
+
 	for (UObject* Object : SelectedObjects)
 	{
 		if (AActor* Actor = Cast< AActor >(Object))
 		{
-			for (int TagIndex = 0; TagIndex < InTags.Num(); ++TagIndex)
-			{
-				if (!InTags[TagIndex].IsNone() && (INDEX_NONE == Actor->Tags.Find(InTags[TagIndex])))
-				{
-					Actor->Tags.Add(InTags[TagIndex]);
-				}
-			}
+			AddNewTags(Actor->Tags);
+		}
+		else if (UActorComponent* Comp = Cast< UActorComponent >(Object))
+		{
+			AddNewTags(Comp->ComponentTags);
 		}
 	}
 }
