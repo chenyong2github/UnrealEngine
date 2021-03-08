@@ -24,6 +24,7 @@
 #include "SceneTextureReductions.h"
 #include "BasePassRendering.h"
 #include "Lumen/LumenSceneRendering.h"
+#include "ScreenPass.h"
 
 #define CULLING_PASS_NO_OCCLUSION		0
 #define CULLING_PASS_OCCLUSION_MAIN		1
@@ -4799,7 +4800,12 @@ void GetEditorSelectionPassParameters(
 	OutPassParameters->ClusterPageHeaders		= Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64				= VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable	= Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
-	OutPassParameters->OutputToInputScale		= FVector2D(View.ViewRect.Size()) / FVector2D(ViewportRect.Size());
+	OutPassParameters->OutputToInputScale		= GetScreenPassTextureViewportTransform(
+		ViewportRect.Min, ViewportRect.Size(),
+		View.ViewRect.Min, View.ViewRect.Size()).Scale;
+	OutPassParameters->OutputToInputBias		= GetScreenPassTextureViewportTransform(
+		ViewportRect.Min, ViewportRect.Size(),
+		View.ViewRect.Min, View.ViewRect.Size()).Bias;
 }
 
 void DrawEditorSelection(
@@ -4868,7 +4874,12 @@ void GetEditorVisualizeLevelInstancePassParameters(
 	OutPassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
 	OutPassParameters->VisBuffer64 = VisBuffer64;
 	OutPassParameters->MaterialHitProxyTable = Scene.MaterialTables[ENaniteMeshPass::BasePass].GetHitProxyTableSRV();
-	OutPassParameters->OutputToInputScale = FVector2D(View.ViewRect.Size()) / FVector2D(ViewportRect.Size());
+	OutPassParameters->OutputToInputScale = GetScreenPassTextureViewportTransform(
+		ViewportRect.Min, ViewportRect.Size(),
+		View.ViewRect.Min, View.ViewRect.Size()).Scale;
+	OutPassParameters->OutputToInputBias = GetScreenPassTextureViewportTransform(
+		ViewportRect.Min, ViewportRect.Size(),
+		View.ViewRect.Min, View.ViewRect.Size()).Bias;
 }
 
 void DrawEditorVisualizeLevelInstance(

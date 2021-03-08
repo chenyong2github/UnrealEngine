@@ -87,7 +87,7 @@ FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FVie
 
 		if (bNaniteEnabled)
 		{
-			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, *EditorView, SceneColorViewport.Rect, NaniteRasterResults, &PassParameters->NaniteSelectionOutlineParameters);
+			Nanite::GetEditorSelectionPassParameters(GraphBuilder, *Scene, View, SceneColorViewport.Rect, NaniteRasterResults, &PassParameters->NaniteSelectionOutlineParameters);
 		}
 
 		PassParameters->NaniteSelectionOutlineParameters.View = EditorView->ViewUniformBuffer;
