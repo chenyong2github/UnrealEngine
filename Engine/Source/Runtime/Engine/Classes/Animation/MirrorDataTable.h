@@ -109,6 +109,8 @@ public:
 
 	ENGINE_API virtual void RestoreAfterStructChange() override;
 
+	ENGINE_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
+
 	ENGINE_API virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
 	ENGINE_API virtual void PostEditUndo() override;
@@ -194,7 +196,7 @@ public:
 protected: 
 
 	// Fill BoneToMirrorBoneIndex, CurveMirrorSourceUIDArray, CurveMirrorTargetUIDArray and NotifyToMirrorNotifyIndex based on the Skeleton and Table Contents
-	void FillMirrorArrays(); 
+	ENGINE_API void FillMirrorArrays();
 
 	void HandleDataTableChanged();
 };

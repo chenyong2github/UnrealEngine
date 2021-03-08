@@ -117,6 +117,7 @@ void FAnimNode_Mirror::Evaluate_AnyThread(FPoseContext& Output)
 	if (bMirrorState && MirrorDataTable)
 	{
 		FAnimationRuntime::MirrorPose(Output.Pose, MirrorDataTable->MirrorAxis, CompactPoseMirrorBones, ComponentSpaceRefRotations);
+		FAnimationRuntime::MirrorCurves(Output.Curve, *MirrorDataTable);
 	}
 }
 

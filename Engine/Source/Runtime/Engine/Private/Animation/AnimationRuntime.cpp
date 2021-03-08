@@ -1113,6 +1113,58 @@ void FAnimationRuntime::AccumulateMeshSpaceRotationAdditiveToLocalPoseInternal(F
 	}
 }
 
+void  FAnimationRuntime::MirrorCurves(FBlendedCurve& Curves, const UMirrorDataTable& MirrorDataTable)
+{
+	if (Curves.UIDToArrayIndexLUT == nullptr)
+	{
+		return;
+	}
+
+	int32 NumMirrorUIDs = MirrorDataTable.CurveMirrorSourceUIDArray.Num();
+
+	for (int32 MirrorIndex = 0; MirrorIndex < NumMirrorUIDs; ++MirrorIndex)
+	{
+		SmartName::UID_Type SourceMirrorUID = MirrorDataTable.CurveMirrorSourceUIDArray[MirrorIndex];
+		SmartName::UID_Type TargetMirrorUID = MirrorDataTable.CurveMirrorTargetUIDArray[MirrorIndex];
+		int32 SourceMirrorIndex = Curves.GetArrayIndexByUID(SourceMirrorUID);
+		int32 TargetMirrorIndex = Curves.GetArrayIndexByUID(TargetMirrorUID);
+		if (SourceMirrorIndex != INDEX_NONE && TargetMirrorIndex != INDEX_NONE)
+		{
+			if (Curves.ValidCurveWeights[SourceMirrorIndex])
+			{
+				if (Curves.ValidCurveWeights[TargetMirrorIndex])
+				{
+					// Determine if we should swap or overwrite values. If the map has a paired entries (left->right and right->left) 
+					// these entries will appear beside each other in the arrays
+					SmartName::UID_Type NextSourceMirrorUID = INDEX_NONE; 
+					if (MirrorIndex + 1 < NumMirrorUIDs)
+					{
+						NextSourceMirrorUID = MirrorDataTable.CurveMirrorSourceUIDArray[MirrorIndex + 1];
+					}
+					if (NextSourceMirrorUID == TargetMirrorUID)
+					{
+						float SwapWeight = Curves.CurveWeights[TargetMirrorIndex];
+						Curves.CurveWeights[TargetMirrorIndex] = Curves.CurveWeights[SourceMirrorIndex];
+						Curves.CurveWeights[SourceMirrorIndex] = SwapWeight;
+						// skip over the next entry since it is swapped 
+						MirrorIndex++;
+					}
+					else
+					{
+						Curves.CurveWeights[TargetMirrorIndex] = Curves.CurveWeights[SourceMirrorIndex];
+					}
+				}
+				else
+				{
+					Curves.CurveWeights[TargetMirrorIndex] = Curves.CurveWeights[SourceMirrorIndex];
+					Curves.ValidCurveWeights[TargetMirrorIndex] = true;
+					Curves.ValidCurveWeights[SourceMirrorIndex] = false;
+				}
+			}
+		}
+	}
+}
+
 FVector FAnimationRuntime::MirrorVector(const FVector& V, EAxis::Type MirrorAxis)
 {
 	FVector MirrorV(V);

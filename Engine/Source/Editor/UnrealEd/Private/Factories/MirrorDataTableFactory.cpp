@@ -342,6 +342,7 @@ UObject* UMirrorDataTableFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 			{
 				DataTable->FindReplaceMirroredNames(); 
 			}
+			Skeleton->OnSmartNamesChangedEvent.AddUObject(DataTable, &UMirrorDataTable::FillMirrorArrays);
 		}
 	}
 	return DataTable;

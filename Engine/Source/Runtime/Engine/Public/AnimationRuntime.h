@@ -445,6 +445,16 @@ public:
 	static void BlendTransformsByWeight(FTransform& OutTransform, const TArray<FTransform>& Transforms, const TArray<float>& Weights);
 
 	/**
+	 * Mirror (swap) curves with the specified MirrorDataTable.
+	 * Partial mirroring is supported,  and curves with two entries (Right->Left and Left->Right) will be swapped while 
+	 * curves with a single entry will be overwritten
+	 *
+	 * @param	Curves			The Curves which are swapped
+	 * @param	MirrorDataTable	A UMirrorDataTable specifying which curves to swap
+	 */
+	static void MirrorCurves(FBlendedCurve& Curves, const UMirrorDataTable& MirrorDataTable);
+
+	/**
 	 * Mirror a vector across the specified mirror axis 
 	 * @param	V			The vector to mirror
 	 * @param	MirrorAxis	The axis to mirror across
