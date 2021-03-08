@@ -7,6 +7,7 @@
 #include "Math/Vector4.h"
 #endif
 
+#include "Chaos/Real.h"
 #include "Chaos/Array.h"
 #include "Chaos/Pair.h"
 
@@ -325,13 +326,13 @@ namespace Chaos
 //		}
 //
 //#if COMPILE_WITHOUT_UNREAL_SUPPORT
-//		static inline float DotProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
+//		static inline FReal DotProduct(const Vector<FReal, 3>& V1, const Vector<FReal, 3>& V2)
 //		{
 //			return V1[0] * V2[0] + V1[1] * V2[1] + V1[2] * V2[2];
 //		}
-//		static inline Vector<float, 3> CrossProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
+//		static inline Vector<FReal, 3> CrossProduct(const Vector<FReal, 3>& V1, const Vector<FReal, 3>& V2)
 //		{
-//			Vector<float, 3> Result;
+//			Vector<FReal, 3> Result;
 //			Result[0] = V1[1] * V2[2] - V1[2] * V2[1];
 //			Result[1] = V1[2] * V2[0] - V1[0] * V2[2];
 //			Result[2] = V1[0] * V2[1] - V1[1] * V2[0];
@@ -346,7 +347,7 @@ namespace Chaos
 
 #if !COMPILE_WITHOUT_UNREAL_SUPPORT
 	template<>
-	class TVector<float, 4> : public FVector4
+	class TVector<FReal, 4> : public FVector4
 	{
 	public:
 		using FVector4::W;
@@ -356,16 +357,16 @@ namespace Chaos
 
 		TVector()
 		    : FVector4() {}
-		explicit TVector(const float x)
+		explicit TVector(const FReal x)
 		    : FVector4(x, x, x, x) {}
-		TVector(const float x, const float y, const float z, const float w)
+		TVector(const FReal x, const FReal y, const FReal z, const FReal w)
 		    : FVector4(x, y, z, w) {}
 		TVector(const FVector4& vec)
 		    : FVector4(vec) {}
 	};
 
 	template<>
-	class TVector<float, 3> : public FVector
+	class TVector<FReal, 3> : public FVector
 	{
 	public:
 		using FVector::X;
@@ -374,9 +375,9 @@ namespace Chaos
 
 		TVector()
 		    : FVector() {}
-		explicit TVector(const float x)
+		explicit TVector(const FReal x)
 		    : FVector(x, x, x) {}
-		TVector(const float x, const float y, const float z)
+		TVector(const FReal x, const FReal y, const FReal z)
 		    : FVector(x, y, z) {}
 		TVector(const FVector& vec)
 		    : FVector(vec) {}
@@ -395,86 +396,86 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 			Stream.write(reinterpret_cast<const char*>(&Z), sizeof(Z));
 		}
-		static inline TVector<float, 3> Lerp(const TVector<float, 3>& V1, const TVector<float, 3>& V2, const float F) { return FMath::Lerp<FVector, float>(V1, V2, F); }
-		static inline TVector<float, 3> CrossProduct(const TVector<float, 3>& V1, const TVector<float, 3>& V2) { return FVector::CrossProduct(V1, V2); }
-		static inline float DotProduct(const TVector<float, 3>& V1, const TVector<float, 3>& V2) { return FVector::DotProduct(V1, V2); }
-		bool operator<=(const TVector<float, 3>& V) const
+		static inline TVector<FReal, 3> Lerp(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2, const FReal F) { return FMath::Lerp<FVector, FReal>(V1, V2, F); }
+		static inline TVector<FReal, 3> CrossProduct(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2) { return FVector::CrossProduct(V1, V2); }
+		static inline FReal DotProduct(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2) { return FVector::DotProduct(V1, V2); }
+		bool operator<=(const TVector<FReal, 3>& V) const
 		{
 			return X <= V.X && Y <= V.Y && Z <= V.Z;
 		}
-		bool operator>=(const TVector<float, 3>& V) const
+		bool operator>=(const TVector<FReal, 3>& V) const
 		{
 			return X >= V.X && Y >= V.Y && Z >= V.Z;
 		}
-		TVector<float, 3> operator-() const
+		TVector<FReal, 3> operator-() const
 		{
-			return TVector<float, 3>(-X, -Y, -Z);
+			return TVector<FReal, 3>(-X, -Y, -Z);
 		}
-		TVector<float, 3> operator+(const float Other) const
+		TVector<FReal, 3> operator+(const FReal Other) const
 		{
-			return TVector<float, 3>(X + Other, Y + Other, Z + Other);
+			return TVector<FReal, 3>(X + Other, Y + Other, Z + Other);
 		}
-		TVector<float, 3> operator-(const float Other) const
+		TVector<FReal, 3> operator-(const FReal Other) const
 		{
-			return TVector<float, 3>(X - Other, Y - Other, Z - Other);
+			return TVector<FReal, 3>(X - Other, Y - Other, Z - Other);
 		}
-		TVector<float, 3> operator*(const float Other) const
+		TVector<FReal, 3> operator*(const FReal Other) const
 		{
-			return TVector<float, 3>(X * Other, Y * Other, Z * Other);
+			return TVector<FReal, 3>(X * Other, Y * Other, Z * Other);
 		}
-		TVector<float, 3> operator/(const float Other) const
+		TVector<FReal, 3> operator/(const FReal Other) const
 		{
-			return TVector<float, 3>(X / Other, Y / Other, Z / Other);
+			return TVector<FReal, 3>(X / Other, Y / Other, Z / Other);
 		}
-		friend TVector<float, 3> operator/(const float S, const TVector<float, 3>& V)
+		friend TVector<FReal, 3> operator/(const FReal S, const TVector<FReal, 3>& V)
 		{
-			return TVector<float, 3>(S / V.X, S / V.Y, S / V.Z);
+			return TVector<FReal, 3>(S / V.X, S / V.Y, S / V.Z);
 		}
-		TVector<float, 3> operator+(const TVector<float, 3>& Other) const
+		TVector<FReal, 3> operator+(const TVector<FReal, 3>& Other) const
 		{
-			return TVector<float, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
+			return TVector<FReal, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
 		}
-		TVector<float, 3> operator-(const TVector<float, 3>& Other) const
+		TVector<FReal, 3> operator-(const TVector<FReal, 3>& Other) const
 		{
-			return TVector<float, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
+			return TVector<FReal, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
 		}
-		TVector<float, 3> operator*(const TVector<float, 3>& Other) const
+		TVector<FReal, 3> operator*(const TVector<FReal, 3>& Other) const
 		{
-			return TVector<float, 3>(X * Other[0], Y * Other[1], Z * Other[2]);
+			return TVector<FReal, 3>(X * Other[0], Y * Other[1], Z * Other[2]);
 		}
-		TVector<float, 3> operator/(const TVector<float, 3>& Other) const
+		TVector<FReal, 3> operator/(const TVector<FReal, 3>& Other) const
 		{
-			return TVector<float, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
-		}
-		template<class T2>
-		TVector<float, 3> operator+(const TVector<T2, 3>& Other) const
-		{
-			return TVector<float, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
+			return TVector<FReal, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
 		}
 		template<class T2>
-		TVector<float, 3> operator-(const TVector<T2, 3>& Other) const
+		TVector<FReal, 3> operator+(const TVector<T2, 3>& Other) const
 		{
-			return TVector<float, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
+			return TVector<FReal, 3>(X + Other[0], Y + Other[1], Z + Other[2]);
 		}
 		template<class T2>
-		TVector<float, 3> operator*(const TVector<T2, 3>& Other) const
+		TVector<FReal, 3> operator-(const TVector<T2, 3>& Other) const
 		{
-			return TVector<float, 3>(X * Other[0], Y * Other[1], Z * Other[2]);
+			return TVector<FReal, 3>(X - Other[0], Y - Other[1], Z - Other[2]);
 		}
 		template<class T2>
-		TVector<float, 3> operator/(const TVector<T2, 3>& Other) const
+		TVector<FReal, 3> operator*(const TVector<T2, 3>& Other) const
 		{
-			return TVector<float, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
+			return TVector<FReal, 3>(X * Other[0], Y * Other[1], Z * Other[2]);
 		}
-		float Product() const
+		template<class T2>
+		TVector<FReal, 3> operator/(const TVector<T2, 3>& Other) const
+		{
+			return TVector<FReal, 3>(X / Other[0], Y / Other[1], Z / Other[2]);
+		}
+		FReal Product() const
 		{
 			return X * Y * Z;
 		}
-		float Max() const
+		FReal Max() const
 		{
 			return (X > Y && X > Z) ? X : (Y > Z ? Y : Z);
 		}
-		float Min() const
+		FReal Min() const
 		{
 			return (X < Y && X < Z) ? X : (Y < Z ? Y : Z);
 		}
@@ -482,17 +483,17 @@ namespace Chaos
 		{
 			return (X > Y && X > Z) ? 0 : (Y > Z ? 1 : 2);
 		}
-		TVector<float, 3> ComponentwiseMin(const TVector<float, 3>& Other) const { return {FMath::Min(X,Other.X), FMath::Min(Y,Other.Y), FMath::Min(Z,Other.Z)}; }
-		TVector<float, 3> ComponentwiseMax(const TVector<float, 3>& Other) const { return {FMath::Max(X,Other.X), FMath::Max(Y,Other.Y), FMath::Max(Z,Other.Z)}; }
-		static TVector<float, 3> Max(const TVector<float, 3>& V1, const TVector<float, 3>& V2)
+		TVector<FReal, 3> ComponentwiseMin(const TVector<FReal, 3>& Other) const { return {FMath::Min(X,Other.X), FMath::Min(Y,Other.Y), FMath::Min(Z,Other.Z)}; }
+		TVector<FReal, 3> ComponentwiseMax(const TVector<FReal, 3>& Other) const { return {FMath::Max(X,Other.X), FMath::Max(Y,Other.Y), FMath::Max(Z,Other.Z)}; }
+		static TVector<FReal, 3> Max(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2)
 		{
-			return TVector<float, 3>(V1.X > V2.X ? V1.X : V2.X, V1.Y > V2.Y ? V1.Y : V2.Y, V1.Z > V2.Z ? V1.Z : V2.Z);
+			return TVector<FReal, 3>(V1.X > V2.X ? V1.X : V2.X, V1.Y > V2.Y ? V1.Y : V2.Y, V1.Z > V2.Z ? V1.Z : V2.Z);
 		}
-		static TVector<float, 3> AxisVector(const int32 Axis)
-		{ return Axis == 0 ? TVector<float, 3>(1.f, 0.f, 0.f) : (Axis == 1 ? TVector<float, 3>(0.f, 1.f, 0.f) : TVector<float, 3>(0.f, 0.f, 1.f)); }
-		static Pair<float, int32> MaxAndAxis(const TVector<float, 3>& V1, const TVector<float, 3>& V2)
+		static TVector<FReal, 3> AxisVector(const int32 Axis)
+		{ return Axis == 0 ? TVector<FReal, 3>(1.f, 0.f, 0.f) : (Axis == 1 ? TVector<FReal, 3>(0.f, 1.f, 0.f) : TVector<FReal, 3>(0.f, 0.f, 1.f)); }
+		static Pair<FReal, int32> MaxAndAxis(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2)
 		{
-			const TVector<float, 3> max = Max(V1, V2);
+			const TVector<FReal, 3> max = Max(V1, V2);
 			if (max.X > max.Y)
 			{
 				if (max.X > max.Z)
@@ -508,9 +509,9 @@ namespace Chaos
 					return MakePair(max.Z, 2);
 			}
 		}
-		float SafeNormalize(float Epsilon = 1e-4)
+		FReal SafeNormalize(FReal Epsilon = 1e-4)
 		{
-			float Size = SizeSquared();
+			FReal Size = SizeSquared();
 			if (Size < Epsilon)
 			{
 				*this = AxisVector(0);
@@ -520,42 +521,42 @@ namespace Chaos
 			*this = (*this) / Size;
 			return Size;
 		}
-		TVector<float, 3> GetOrthogonalVector() const
+		TVector<FReal, 3> GetOrthogonalVector() const
 		{
-			TVector<float, 3> AbsVector(FMath::Abs(X), FMath::Abs(Y), FMath::Abs(Z));
+			TVector<FReal, 3> AbsVector(FMath::Abs(X), FMath::Abs(Y), FMath::Abs(Z));
 			if ((AbsVector.X <= AbsVector.Y) && (AbsVector.X <= AbsVector.Z))
 			{
 				// X is the smallest component
-				return TVector<float, 3>(0, Z, -Y);
+				return TVector<FReal, 3>(0, Z, -Y);
 			}
 			if ((AbsVector.Z <= AbsVector.X) && (AbsVector.Z <= AbsVector.Y))
 			{
 				// Z is the smallest component
-				return TVector<float, 3>(Y, -X, 0);
+				return TVector<FReal, 3>(Y, -X, 0);
 			}
 			// Y is the smallest component
-			return TVector<float, 3>(-Z, 0, X);
+			return TVector<FReal, 3>(-Z, 0, X);
 		}
-		static float AngleBetween(const TVector<float, 3>& V1, const TVector<float, 3>& V2)
+		static FReal AngleBetween(const TVector<FReal, 3>& V1, const TVector<FReal, 3>& V2)
 		{
-			float s = CrossProduct(V1, V2).Size();
-			float c = DotProduct(V1, V2);
+			FReal s = CrossProduct(V1, V2).Size();
+			FReal c = DotProduct(V1, V2);
 			return atan2(s, c);
 		}
 		/** Calculate the velocity to move from P0 to P1 in time Dt. Exists just for symmetry with TRotation::CalculateAngularVelocity! */
-		static TVector<float, 3> CalculateVelocity(const TVector<float, 3>& P0, const TVector<float, 3>& P1, const float Dt)
+		static TVector<FReal, 3> CalculateVelocity(const TVector<FReal, 3>& P0, const TVector<FReal, 3>& P1, const FReal Dt)
 		{
 			return (P1 - P0) / Dt;
 		}
 
-		static bool IsNearlyEqual(const TVector<float, 3>& A, const TVector<float, 3>& B, const float Epsilon)
+		static bool IsNearlyEqual(const TVector<FReal, 3>& A, const TVector<FReal, 3>& B, const FReal Epsilon)
 		{
 			return (B - A).IsNearlyZero(Epsilon);
 		}
 	};
 
 	template<>
-	class TVector<float, 2> : public FVector2D
+	class TVector<FReal, 2> : public FVector2D
 	{
 	public:
 
@@ -564,9 +565,9 @@ namespace Chaos
 
 		TVector()
 		    : FVector2D() {}
-		TVector(const float x)
+		TVector(const FReal x)
 		    : FVector2D(x, x) {}
-		TVector(const float x, const float y)
+		TVector(const FReal x, const FReal y)
 		    : FVector2D(x, y) {}
 		TVector(const FVector2D& vec)
 		    : FVector2D(vec) {}
@@ -578,8 +579,8 @@ namespace Chaos
 		template <typename OtherT>
 		TVector(const TVector<OtherT, 2>& InVector)
 		{
-			X = ((float)InVector[0]);
-			Y = ((float)InVector[1]);
+			X = ((FReal)InVector[0]);
+			Y = ((FReal)InVector[1]);
 		}
 		~TVector() {}
 		void Write(std::ostream& Stream) const
@@ -588,30 +589,30 @@ namespace Chaos
 			Stream.write(reinterpret_cast<const char*>(&Y), sizeof(Y));
 		}
 
-		static TVector<float, 2> AxisVector(const int32 Axis)
+		static TVector<FReal, 2> AxisVector(const int32 Axis)
 		{
 			check(Axis >= 0 && Axis <= 1);
-			return Axis == 0 ? TVector<float, 2>(1.f, 0.f) : TVector<float, 2>(0.f, 1.f);
+			return Axis == 0 ? TVector<FReal, 2>(1.f, 0.f) : TVector<FReal, 2>(0.f, 1.f);
 		}
-		float Product() const
+		FReal Product() const
 		{
 			return X * Y;
 		}
-		float Max() const
+		FReal Max() const
 		{
 			return X > Y ? X : Y;
 		}
-		float Min() const
+		FReal Min() const
 		{
 			return X < Y ? X : Y;
 		}
-		static TVector<float, 2> Max(const TVector<float, 2>& V1, const TVector<float, 2>& V2)
+		static TVector<FReal, 2> Max(const TVector<FReal, 2>& V1, const TVector<FReal, 2>& V2)
 		{
-			return TVector<float, 2>(V1.X > V2.X ? V1.X : V2.X, V1.Y > V2.Y ? V1.Y : V2.Y);
+			return TVector<FReal, 2>(V1.X > V2.X ? V1.X : V2.X, V1.Y > V2.Y ? V1.Y : V2.Y);
 		}
-		static Pair<float, int32> MaxAndAxis(const TVector<float, 2>& V1, const TVector<float, 2>& V2)
+		static Pair<FReal, int32> MaxAndAxis(const TVector<FReal, 2>& V1, const TVector<FReal, 2>& V2)
 		{
-			const TVector<float, 2> max = Max(V1, V2);
+			const TVector<FReal, 2> max = Max(V1, V2);
 			if (max.X > max.Y)
 			{
 				return MakePair(max.X, 0);
@@ -622,21 +623,21 @@ namespace Chaos
 			}
 		}
 		template<class T2>
-		TVector<float, 2> operator/(const TVector<T2, 2>& Other) const
+		TVector<FReal, 2> operator/(const TVector<T2, 2>& Other) const
 		{
-			return TVector<float, 2>(X / Other[0], Y / Other[1]);
+			return TVector<FReal, 2>(X / Other[0], Y / Other[1]);
 		}
-		TVector<float, 2> operator/(const float Other) const
+		TVector<FReal, 2> operator/(const FReal Other) const
 		{
-			return TVector<float, 2>(X / Other, Y / Other);
+			return TVector<FReal, 2>(X / Other, Y / Other);
 		}
-		TVector<float, 2> operator*(const float Other) const
+		TVector<FReal, 2> operator*(const FReal Other) const
 		{
-			return TVector<float, 2>(X * Other, Y * Other);
+			return TVector<FReal, 2>(X * Other, Y * Other);
 		}
-		TVector<float, 2> operator*(const TVector<float, 2>& Other) const
+		TVector<FReal, 2> operator*(const TVector<FReal, 2>& Other) const
 		{
-			return TVector<float, 2>(X * Other[0], Y * Other[1]);
+			return TVector<FReal, 2>(X * Other[0], Y * Other[1]);
 		}
 	};
 #endif // !COMPILE_WITHOUT_UNREAL_SUPPORT
@@ -772,13 +773,13 @@ namespace Chaos
 			return *this;
 		}
 #if COMPILE_WITHOUT_UNREAL_SUPPORT
-		FORCEINLINE static inline float DotProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
+		FORCEINLINE static inline FReal DotProduct(const Vector<FReal, 3>& V1, const Vector<FReal, 3>& V2)
 		{
 			return V1[0] * V2[0] + V1[1] * V2[1] + V1[2] * V2[2];
 		}
-		FORCEINLINE static inline Vector<float, 3> CrossProduct(const Vector<float, 3>& V1, const Vector<float, 3>& V2)
+		FORCEINLINE static inline Vector<FReal, 3> CrossProduct(const Vector<FReal, 3>& V1, const Vector<FReal, 3>& V2)
 		{
-			Vector<float, 3> Result;
+			Vector<FReal, 3> Result;
 			Result[0] = V1[1] * V2[2] - V1[2] * V2[1];
 			Result[1] = V1[2] * V2[0] - V1[0] * V2[2];
 			Result[2] = V1[0] * V2[1] - V1[1] * V2[0];
