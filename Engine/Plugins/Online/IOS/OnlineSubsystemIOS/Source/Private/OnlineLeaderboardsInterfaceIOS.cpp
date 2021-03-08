@@ -82,7 +82,7 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players,
                         UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("Value: %d"), score.value);
                         UE_LOG_ONLINE_LEADERBOARD(Display, TEXT("----------------------------------------------------------------"));
                             
-                        TSharedRef<const FUniqueNetId> UserId = MakeShareable(new FUniqueNetIdIOS(PlayerIDString));
+                        FUniqueNetIdRef UserId = FUniqueNetIdIOS::Create(PlayerIDString);
                             
                         FOnlineStatsRow* UserRow = ReadObject.Get().FindPlayerRecord(UserId.Get());
                         if (UserRow == NULL)
@@ -143,7 +143,7 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players,
     return bTriggeredReadRequest;
 }
 
-bool FOnlineLeaderboardsIOS::ReadLeaderboards(const TArray< TSharedRef<const FUniqueNetId> >& Players, FOnlineLeaderboardReadRef& InReadObject)
+bool FOnlineLeaderboardsIOS::ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& InReadObject)
 {
 	__block FOnlineLeaderboardReadRef ReadObject = InReadObject;
 
@@ -160,7 +160,7 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboards(const TArray< TSharedRef<const FUn
 		NSMutableArray* FriendIds = [NSMutableArray arrayWithCapacity: (Players.Num() + 1)];
 		
 		// Add the local player to the list of ids to look up.
-		TSharedPtr<const FUniqueNetId> LocalPlayerUID = IdentityInterface->GetUniquePlayerId(0);
+		FUniqueNetIdPtr LocalPlayerUID = IdentityInterface->GetUniquePlayerId(0);
 		check(LocalPlayerUID.IsValid());
 
 		FriendIds[0] = [NSString stringWithFString:LocalPlayerUID->ToString()];
@@ -204,7 +204,7 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardsForFriends(int32 LocalUserNum, FOnl
 		TArray< TSharedRef<FOnlineFriend> > Friends;
 		FriendsInterface->GetFriendsList( 0, EFriendsLists::ToString(EFriendsLists::Default), Friends );
 
-		TArray< TSharedRef<const FUniqueNetId> > FriendIds;
+		TArray< FUniqueNetIdRef > FriendIds;
 		for( int32 Idx = 0; Idx < Friends.Num(); Idx++ )
 		{
 			FriendIds.Add( Friends[ Idx ]->GetUserId() );
@@ -220,7 +220,7 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardsAroundRank(int32 Rank, uint32 Range
 	UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("FOnlineLeaderboardsIOS::ReadLeaderboardsAroundRank is currently not supported."));
 	return false;
 }
-bool FOnlineLeaderboardsIOS::ReadLeaderboardsAroundUser(TSharedRef<const FUniqueNetId> Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)
+bool FOnlineLeaderboardsIOS::ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)
 {
 	UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("FOnlineLeaderboardsIOS::ReadLeaderboardsAroundUser is currently not supported."));
 	return false;

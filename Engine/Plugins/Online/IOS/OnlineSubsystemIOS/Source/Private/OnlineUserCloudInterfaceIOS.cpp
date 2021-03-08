@@ -484,7 +484,7 @@ void FOnlineUserCloudInterfaceIOS::InitCloudSave(bool InIOSAlwaysSyncCloudFiles)
 	SaveSystem->OnReadUserCloudFileBeginDelegate = FIOSSaveGameSystem::FOnReadUserCloudFileBegin::CreateRaw(this, &FOnlineUserCloudInterfaceIOS::OnReadUserCloudFileBegin);
 	SaveSystem->OnDeleteUserCloudFileBeginDelegate = FIOSSaveGameSystem::FOnDeleteUserCloudFileBegin::CreateRaw(this, &FOnlineUserCloudInterfaceIOS::OnDeleteUserCloudFileBegin);
 
-	UniqueNetId = MakeShareable(new FUniqueNetIdIOS(""));
+	UniqueNetId = FUniqueNetIdIOS::Create();
 
 	UpdateDictionary = [NSMutableDictionary new];
 	
