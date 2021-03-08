@@ -343,7 +343,6 @@ class FVulkanShaderSerializedBindings : public CrossCompiler::FShaderBindings
 public:
 	FVulkanShaderSerializedBindings()
 	{
-		InOutMask = 0;
 		NumSamplers = 0;
 		NumUniformBuffers = 0;
 		NumUAVs = 0;
@@ -1048,7 +1047,7 @@ static void ConvertToNEWHeader(FOLDVulkanCodeHeader& OLDHeader,
 #if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 	OutHeader.DebugName = OLDHeader.ShaderName;
 #endif
-	OutHeader.InOutMask = OLDHeader.SerializedBindings.InOutMask;
+	OutHeader.InOutMask = OLDHeader.SerializedBindings.InOutMask.Bitmask;
 	OutHeader.bHasRealUBs = bHasRealUBs;
 }
 
@@ -1099,7 +1098,7 @@ static void BuildShaderOutput(
 			int32 Count = FMath::Max(1, Input.ArrayCount);
 			for(int32 Index = 0; Index < Count; ++Index)
 			{
-				OLDHeader.SerializedBindings.InOutMask |= (1 << (Index + AttributeIndex));
+				OLDHeader.SerializedBindings.InOutMask.EnableField(Index + AttributeIndex);
 			}
 		}
 #if 0
@@ -1123,12 +1122,12 @@ static void BuildShaderOutput(
 		if (Frequency == SF_Pixel && Output.Name.StartsWith(TargetPrefix))
 		{
 			uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix.Len(), /*bEmptyIsZero:*/ true);
-			OLDHeader.SerializedBindings.InOutMask |= (1 << TargetIndex);
+			OLDHeader.SerializedBindings.InOutMask.EnableField(TargetIndex);
 		}
 		// Only depth writes for pixel shaders must be tracked.
 		else if (Frequency == SF_Pixel && Output.Name.Equals(GL_FragDepth))
 		{
-			OLDHeader.SerializedBindings.InOutMask |= 0x8000;
+			OLDHeader.SerializedBindings.InOutMask.EnableField(CrossCompiler::FShaderBindingInOutMask::DepthStencilMaskIndex);
 		}
 #if 0
 		// Record user-defined output varyings

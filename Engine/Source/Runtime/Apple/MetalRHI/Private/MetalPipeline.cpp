@@ -389,7 +389,7 @@ struct FMetalGraphicsPipelineKey
 		// If the pixel shader writes depth then we must compile with depth access, so we may bind the dummy depth.
 		// If the pixel shader writes to UAVs but not target is bound we must also bind the dummy depth.
 		FMetalPixelShader* PixelShader = (FMetalPixelShader*)Init.BoundShaderState.PixelShaderRHI;
-		if (PixelShader && (((PixelShader->Bindings.InOutMask & 0x8000) && (DepthFormatKey == 0)) || (bHasActiveTargets == false && PixelShader->Bindings.NumUAVs > 0)))
+		if ( PixelShader && ( ( PixelShader->Bindings.InOutMask.IsFieldEnabled(CrossCompiler::FShaderBindingInOutMask::DepthStencilMaskIndex) && DepthFormatKey == 0 ) || (bHasActiveTargets == false && PixelShader->Bindings.NumUAVs > 0) ) )
 		{
 			mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat;
 			DepthFormatKey = GetMetalPixelFormatKey(MetalFormat);
@@ -721,30 +721,30 @@ APPLE_PLATFORM_OBJECT_ALLOC_OVERRIDES(FMetalShaderPipeline)
 }
 @end
 
-static MTLVertexDescriptor* GetMaskedVertexDescriptor(MTLVertexDescriptor* InputDesc, uint32 InOutMask)
+static MTLVertexDescriptor* GetMaskedVertexDescriptor(MTLVertexDescriptor* InputDesc, const CrossCompiler::FShaderBindingInOutMask& InOutMask)
 {
 	for (uint32 Attr = 0; Attr < MaxMetalStreams; Attr++)
 	{
-		if (!(InOutMask & (1 << Attr)) && [InputDesc.attributes objectAtIndexedSubscript:Attr] != nil)
+		if (!InOutMask.IsFieldEnabled((int32)Attr) && [InputDesc.attributes objectAtIndexedSubscript:Attr] != nil)
 		{
 			MTLVertexDescriptor* Desc = [[InputDesc copy] autorelease];
-			uint32 BuffersUsed = 0;
-			for (uint32 i = 0; i < MaxMetalStreams; i++)
+			CrossCompiler::FShaderBindingInOutMask BuffersUsed;
+			for (int32 MetalStreamIndex = 0; MetalStreamIndex < MaxMetalStreams; ++MetalStreamIndex)
 			{
-				if (!(InOutMask & (1 << i)))
+				if (!InOutMask.IsFieldEnabled(MetalStreamIndex))
 				{
-					[Desc.attributes setObject:nil atIndexedSubscript:i];
+					[Desc.attributes setObject:nil atIndexedSubscript:MetalStreamIndex];
 				}
 				else
 				{
-					BuffersUsed |= (1 << [Desc.attributes objectAtIndexedSubscript:i].bufferIndex);
+					BuffersUsed.EnableField([Desc.attributes objectAtIndexedSubscript : MetalStreamIndex].bufferIndex);
 				}
 			}
-			for (uint32 i = 0; i < ML_MaxBuffers; i++)
+			for (int32 BufferIndex = 0; BufferIndex < ML_MaxBuffers; ++BufferIndex)
 			{
-				if (!(BuffersUsed & (1 << i)))
+				if (!BuffersUsed.IsFieldEnabled(BufferIndex))
 				{
-					[Desc.layouts setObject:nil atIndexedSubscript:i];
+					[Desc.layouts setObject:nil atIndexedSubscript:BufferIndex];
 				}
 			}
 			return Desc;
@@ -769,13 +769,14 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 	check(NumActiveTargets <= MaxSimultaneousRenderTargets);
 	if (PixelShader)
 	{
-		if ((PixelShader->Bindings.InOutMask & 0x8000) == 0 && (PixelShader->Bindings.InOutMask & 0x7fff) == 0 && PixelShader->Bindings.NumUAVs == 0 && PixelShader->Bindings.bDiscards == false)
+		if (PixelShader->Bindings.InOutMask.Bitmask == 0 && PixelShader->Bindings.NumUAVs == 0 && PixelShader->Bindings.bDiscards == false)
 		{
-			UE_LOG(LogMetal, Error, TEXT("Pixel shader has no outputs which is not permitted. No Discards, In-Out Mask: %x\nNumber UAVs: %d\nSource Code:\n%s"), PixelShader->Bindings.InOutMask, PixelShader->Bindings.NumUAVs, *FString(PixelShader->GetSourceCode()));
+			UE_LOG(LogMetal, Error, TEXT("Pixel shader has no outputs which is not permitted. No Discards, In-Out Mask: %x\nNumber UAVs: %d\nSource Code:\n%s"), PixelShader->Bindings.InOutMask.Bitmask, PixelShader->Bindings.NumUAVs, *FString(PixelShader->GetSourceCode()));
 			return false;
 		}
 		
-		UE_CLOG((NumActiveTargets < __builtin_popcount(PixelShader->Bindings.InOutMask & 0x7fff)), LogMetal, Verbose, TEXT("NumActiveTargets doesn't match pipeline's pixel shader output mask: %u, %hx"), NumActiveTargets, PixelShader->Bindings.InOutMask);
+		const uint32 MaxNumActiveTargets = __builtin_popcount(PixelShader->Bindings.InOutMask.Bitmask & ((1u << CrossCompiler::FShaderBindingInOutMask::MaxIndex) - 1));
+		UE_CLOG((NumActiveTargets < MaxNumActiveTargets), LogMetal, Verbose, TEXT("NumActiveTargets doesn't match pipeline's pixel shader output mask: %u, %hx"), NumActiveTargets, PixelShader->Bindings.InOutMask.Bitmask);
 	}
 	
 	FMetalBlendState* BlendState = (FMetalBlendState*)Init.BlendState;
@@ -786,16 +787,17 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 #endif
 	
 	uint32 TargetWidth = 0;
-	for (uint32 i = 0; i < NumActiveTargets; i++)
+	for (uint32 ActiveTargetIndex = 0; ActiveTargetIndex < NumActiveTargets; ActiveTargetIndex++)
 	{
-		EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[i];
+		EPixelFormat TargetFormat = (EPixelFormat)Init.RenderTargetFormats[ActiveTargetIndex];
 		
-		METAL_FATAL_ASSERT(!(TargetFormat == PF_Unknown && PixelShader && (((PixelShader->Bindings.InOutMask & 0x7fff) & (1 << i)))), TEXT("Pipeline pixel shader expects target %u to be bound but it isn't: %s."), i, *FString(PixelShader->GetSourceCode()));
+		const bool bIsActiveTargetBound = (PixelShader && PixelShader->Bindings.InOutMask.IsFieldEnabled(ActiveTargetIndex));
+		METAL_FATAL_ASSERT(!(TargetFormat == PF_Unknown && bIsActiveTargetBound), TEXT("Pipeline pixel shader expects target %u to be bound but it isn't: %s."), ActiveTargetIndex, *FString(PixelShader->GetSourceCode()));
 		
 		TargetWidth += GPixelFormats[TargetFormat].BlockBytes;
 		
 		mtlpp::PixelFormat MetalFormat = (mtlpp::PixelFormat)GPixelFormats[TargetFormat].PlatformFormat;
-		ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[i];
+		ETextureCreateFlags Flags = (ETextureCreateFlags)Init.RenderTargetFlags[ActiveTargetIndex];
 		if (Flags & TexCreate_SRGB)
 		{
 #if PLATFORM_MAC // Expand as R8_sRGB is iOS only.
@@ -807,15 +809,15 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 			MetalFormat = ToSRGBFormat(MetalFormat);
 		}
 		
-		mtlpp::RenderPipelineColorAttachmentDescriptor Attachment = ColorAttachments[i];
+		mtlpp::RenderPipelineColorAttachmentDescriptor Attachment = ColorAttachments[ActiveTargetIndex];
 		Attachment.SetPixelFormat(MetalFormat);
 		
 #if !PLATFORM_TVOS
-		auto DebugAttachment = DebugColorAttachements[i];;
+		auto DebugAttachment = DebugColorAttachements[ActiveTargetIndex];
 		DebugAttachment.SetPixelFormat(MetalFormat);
 #endif
 		
-		mtlpp::RenderPipelineColorAttachmentDescriptor Blend = BlendState->RenderTargetStates[i].BlendState;
+		mtlpp::RenderPipelineColorAttachmentDescriptor Blend = BlendState->RenderTargetStates[ActiveTargetIndex].BlendState;
 		if(TargetFormat != PF_Unknown)
 		{
 			// assign each property manually, would be nice if this was faster
@@ -908,7 +910,8 @@ static bool ConfigureRenderPipelineDescriptor(mtlpp::RenderPipelineDescriptor& R
 	check(Init.BoundShaderState.GeometryShaderRHI == nullptr);
 #endif
 	
-	if(RenderPipelineDesc.GetDepthAttachmentPixelFormat() == mtlpp::PixelFormat::Invalid && PixelShader && ((PixelShader->Bindings.InOutMask & 0x8000) || (NumActiveTargets == 0 && (PixelShader->Bindings.NumUAVs > 0))))
+	if( RenderPipelineDesc.GetDepthAttachmentPixelFormat() == mtlpp::PixelFormat::Invalid &&
+		PixelShader && ( PixelShader->Bindings.InOutMask.IsFieldEnabled(CrossCompiler::FShaderBindingInOutMask::DepthStencilMaskIndex) || ( NumActiveTargets == 0 && PixelShader->Bindings.NumUAVs > 0) ) )
 	{
 		RenderPipelineDesc.SetDepthAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat);
 		RenderPipelineDesc.SetStencilAttachmentPixelFormat((mtlpp::PixelFormat)GPixelFormats[PF_DepthStencil].PlatformFormat);

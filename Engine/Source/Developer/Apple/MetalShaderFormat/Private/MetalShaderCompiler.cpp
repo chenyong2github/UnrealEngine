@@ -549,7 +549,7 @@ void BuildMetalShaderOutput(
 			if (Input.Name.StartsWith(AttributePrefix))
 			{
 				uint8 AttributeIndex = ParseNumber(*Input.Name + AttributePrefix.Len());
-				Header.Bindings.InOutMask |= (1 << AttributeIndex);
+				Header.Bindings.InOutMask.EnableField(AttributeIndex);
 			}
 		}
 	}
@@ -566,19 +566,19 @@ void BuildMetalShaderOutput(
 			if (Output.Name.StartsWith(TargetPrefix))
 			{
 				uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix.Len());
-				Header.Bindings.InOutMask |= (1 << TargetIndex);
+				Header.Bindings.InOutMask.EnableField(TargetIndex);
 			}
 			else if (Output.Name.StartsWith(TargetPrefix2))
 			{
 				uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix2.Len());
-				Header.Bindings.InOutMask |= (1 << TargetIndex);
+				Header.Bindings.InOutMask.EnableField(TargetIndex);
 			}
         }
 		
 		// For fragment shaders that discard but don't output anything we need at least a depth-stencil surface, so we need a way to validate this at runtime.
 		if (FCStringAnsi::Strstr(USFSource, "[[ depth(") != nullptr || FCStringAnsi::Strstr(USFSource, "[[depth(") != nullptr)
 		{
-			Header.Bindings.InOutMask |= 0x8000;
+			Header.Bindings.InOutMask.EnableField(CrossCompiler::FShaderBindingInOutMask::DepthStencilMaskIndex);
 		}
         
         // For fragment shaders that discard but don't output anything we need at least a depth-stencil surface, so we need a way to validate this at runtime.

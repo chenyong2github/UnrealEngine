@@ -512,13 +512,13 @@ void FMetalRenderPass::DrawIndexedPrimitive(FMetalBuffer const& IndexBuffer, uin
 		
 		// Set our local copy and try to disprove the passed in value
 		uint32 ClampedNumInstances = NumInstances;
-		uint32 InOutMask = PipelineState->VertexShader->Bindings.InOutMask;
+		const CrossCompiler::FShaderBindingInOutMask& InOutMask = PipelineState->VertexShader->Bindings.InOutMask;
 
 		// I think it is valid to have no elements in this list
 		for(int VertexElemIdx = 0;VertexElemIdx < VertexDecl->Elements.Num();++VertexElemIdx)
 		{
 			FVertexElement const & VertexElem = VertexDecl->Elements[VertexElemIdx];
-			if(VertexElem.Stride > 0 && VertexElem.bUseInstanceIndex && ((InOutMask & (1 << VertexElem.AttributeIndex))))
+			if(VertexElem.Stride > 0 && VertexElem.bUseInstanceIndex && InOutMask.IsFieldEnabled(VertexElem.AttributeIndex))
 			{
 				uint32 AvailElementCount = 0;
 				

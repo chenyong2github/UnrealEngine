@@ -653,12 +653,12 @@ void FOpenGLFrontend::BuildShaderOutput(
 		if (Frequency == SF_Vertex && Input.Name.StartsWith(AttributePrefix))
 		{
 			int32 AttributeIndex = ParseNumber(*Input.Name + AttributePrefix.Len());
-			Header.Bindings.InOutMask |= (1 << AttributeIndex);
+			Header.Bindings.InOutMask.EnableField(AttributeIndex);
 		}
 		else if (Frequency == SF_Vertex && Input.Name.StartsWith(AttributeVarPrefix))
 		{
 			int32 AttributeIndex = ParseNumber(*Input.Name + AttributeVarPrefix.Len());
-			Header.Bindings.InOutMask |= (1 << AttributeIndex);
+			Header.Bindings.InOutMask.EnableField(AttributeIndex);
 		}
 		// Record user-defined input varyings
 		else if (!Input.Name.StartsWith(GL_Prefix))
@@ -678,12 +678,12 @@ void FOpenGLFrontend::BuildShaderOutput(
 		if (Frequency == SF_Pixel && Output.Name.StartsWith(TargetPrefix))
 		{
 			uint8 TargetIndex = ParseNumber(*Output.Name + TargetPrefix.Len());
-			Header.Bindings.InOutMask |= (1 << TargetIndex);
+			Header.Bindings.InOutMask.EnableField(TargetIndex);
 		}
 		// Only depth writes for pixel shaders must be tracked.
 		else if (Frequency == SF_Pixel && Output.Name.Equals(GL_FragDepth))
 		{
-			Header.Bindings.InOutMask |= 0x8000;
+			Header.Bindings.InOutMask.EnableField(CrossCompiler::FShaderBindingInOutMask::DepthStencilMaskIndex);
 		}
 		// Record user-defined output varyings
 		else if (!Output.Name.StartsWith(GL_Prefix))

@@ -101,15 +101,14 @@ struct FOpenGLShaderBindings
 	TArray<FOpenGLShaderVarying>					InputVaryings;
 	TArray<FOpenGLShaderVarying>					OutputVaryings;
 	FOpenGLShaderResourceTable						ShaderResourceTable;
+	CrossCompiler::FShaderBindingInOutMask			InOutMask;
 
-	uint16	InOutMask;
 	uint8	NumSamplers;
 	uint8	NumUniformBuffers;
 	uint8	NumUAVs;
 	bool	bFlattenUB;
 
 	FOpenGLShaderBindings() :
-		InOutMask(0),
 		NumSamplers(0),
 		NumUniformBuffers(0),
 		NumUAVs(0),
@@ -163,9 +162,9 @@ struct FOpenGLShaderBindings
 	friend uint32 GetTypeHash(const FOpenGLShaderBindings &Binding)
 	{
 		uint32 Hash = 0;
-		Hash = Binding.InOutMask;
-		Hash |= Binding.NumSamplers << 16;
-		Hash |= Binding.NumUniformBuffers << 24;
+		Hash = Binding.InOutMask.Bitmask;
+		Hash ^= Binding.NumSamplers << 16;
+		Hash ^= Binding.NumUniformBuffers << 24;
 		Hash ^= Binding.NumUAVs;
 		Hash ^= Binding.bFlattenUB << 8;
 		Hash ^= FCrc::MemCrc_DEPRECATED( Binding.PackedGlobalArrays.GetData(), Binding.PackedGlobalArrays.GetTypeSize()*Binding.PackedGlobalArrays.Num());
