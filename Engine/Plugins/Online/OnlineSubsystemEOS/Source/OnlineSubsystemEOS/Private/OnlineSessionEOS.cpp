@@ -887,10 +887,13 @@ bool FOnlineSessionEOS::CreateSession(int32 HostingPlayerNum, FName SessionName,
 
 	if (Result != ONLINE_IO_PENDING)
 	{
-		TriggerOnCreateSessionCompleteDelegates(SessionName, (Result == ONLINE_SUCCESS) ? true : false);
+		EOSSubsystem->ExecuteNextTick([this, SessionName, Result]()
+			{
+				TriggerOnCreateSessionCompleteDelegates(SessionName, Result == ONLINE_SUCCESS);
+			});
 	}
 
-	return Result == ONLINE_IO_PENDING || Result == ONLINE_SUCCESS;
+	return true;
 }
 
 bool FOnlineSessionEOS::CreateSession(const FUniqueNetId& HostingPlayerId, FName SessionName, const FOnlineSessionSettings& NewSessionSettings)
@@ -1241,11 +1244,13 @@ bool FOnlineSessionEOS::StartSession(FName SessionName)
 
 	if (Result != ONLINE_IO_PENDING)
 	{
-		// Just trigger the delegate
-		TriggerOnStartSessionCompleteDelegates(SessionName, (Result == ONLINE_SUCCESS) ? true : false);
+		EOSSubsystem->ExecuteNextTick([this, SessionName, Result]()
+			{
+				TriggerOnStartSessionCompleteDelegates(SessionName, Result == ONLINE_SUCCESS);
+			});
 	}
 
-	return Result == ONLINE_SUCCESS || Result == ONLINE_IO_PENDING;
+	return true;
 }
 
 struct FSessionStartOptions :
@@ -1316,10 +1321,13 @@ bool FOnlineSessionEOS::UpdateSession(FName SessionName, FOnlineSessionSettings&
 
 	if (Result != ONLINE_IO_PENDING)
 	{
-		TriggerOnUpdateSessionCompleteDelegates(SessionName, Result == ONLINE_SUCCESS);
+		EOSSubsystem->ExecuteNextTick([this, SessionName, Result]()
+			{
+				TriggerOnUpdateSessionCompleteDelegates(SessionName, Result == ONLINE_SUCCESS);
+			});
 	}
 
-	return Result == ONLINE_SUCCESS || Result == ONLINE_IO_PENDING;
+	return true;
 }
 
 struct FSessionUpdateOptions :
@@ -1418,15 +1426,18 @@ bool FOnlineSessionEOS::EndSession(FName SessionName)
 
 	if (Result != ONLINE_IO_PENDING)
 	{
-		if (Session)
-		{
-			Session->SessionState = EOnlineSessionState::Ended;
-		}
+		EOSSubsystem->ExecuteNextTick([this, Session, SessionName, Result]()
+			{
+				if (Session)
+				{
+					Session->SessionState = EOnlineSessionState::Ended;
+				}
 
-		TriggerOnEndSessionCompleteDelegates(SessionName, (Result == ONLINE_SUCCESS) ? true : false);
+				TriggerOnEndSessionCompleteDelegates(SessionName, Result == ONLINE_SUCCESS);
+			});
 	}
 
-	return Result == ONLINE_SUCCESS || Result == ONLINE_IO_PENDING;
+	return true;
 }
 
 struct FSessionEndOptions :
@@ -1514,10 +1525,13 @@ bool FOnlineSessionEOS::DestroySession(FName SessionName, const FOnDestroySessio
 
 			if (Result != ONLINE_IO_PENDING)
 			{
-				// The session info is no longer needed
-				RemoveNamedSession(Session->SessionName);
-				CompletionDelegate.ExecuteIfBound(SessionName, (Result == ONLINE_SUCCESS) ? true : false);
-				TriggerOnDestroySessionCompleteDelegates(SessionName, (Result == ONLINE_SUCCESS) ? true : false);
+				EOSSubsystem->ExecuteNextTick([this, CompletionDelegate, SessionName, Result]()
+					{
+						// The session info is no longer needed
+						RemoveNamedSession(SessionName);
+						CompletionDelegate.ExecuteIfBound(SessionName, Result == ONLINE_SUCCESS);
+						TriggerOnDestroySessionCompleteDelegates(SessionName, Result == ONLINE_SUCCESS);
+					});
 			}
 		}
 		else
@@ -1528,12 +1542,15 @@ bool FOnlineSessionEOS::DestroySession(FName SessionName, const FOnDestroySessio
 	}
 	else
 	{
-		UE_LOG_ONLINE_SESSION(Warning, TEXT("Can't destroy a null online session (%s)"), *SessionName.ToString());
-		CompletionDelegate.ExecuteIfBound(SessionName, false);
-		TriggerOnDestroySessionCompleteDelegates(SessionName, false);
+		EOSSubsystem->ExecuteNextTick([this, CompletionDelegate, SessionName, Result]()
+			{
+				UE_LOG_ONLINE_SESSION(Warning, TEXT("Can't destroy a null online session (%s)"), *SessionName.ToString());
+				CompletionDelegate.ExecuteIfBound(SessionName, false);
+				TriggerOnDestroySessionCompleteDelegates(SessionName, false);
+			});
 	}
 
-	return Result == ONLINE_SUCCESS || Result == ONLINE_IO_PENDING;
+	return true;
 }
 
 struct FEndMetricsOptions :
@@ -1613,23 +1630,35 @@ bool FOnlineSessionEOS::IsPlayerInSession(FName SessionName, const FUniqueNetId&
 
 bool FOnlineSessionEOS::StartMatchmaking(const TArray< TSharedRef<const FUniqueNetId> >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
 {
-	UE_LOG_ONLINE_SESSION(Warning, TEXT("StartMatchmaking is not supported on this platform. Use FindSessions or FindSessionById."));
-	TriggerOnMatchmakingCompleteDelegates(SessionName, false);
-	return false;
+	EOSSubsystem->ExecuteNextTick([this, SessionName]()
+		{
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("StartMatchmaking is not supported on this platform. Use FindSessions or FindSessionById."));
+			TriggerOnMatchmakingCompleteDelegates(SessionName, false);
+		});
+
+	return true;
 }
 
 bool FOnlineSessionEOS::CancelMatchmaking(int32 SearchingPlayerNum, FName SessionName)
 {
-	UE_LOG_ONLINE_SESSION(Warning, TEXT("CancelMatchmaking is not supported on this platform. Use CancelFindSessions."));
-	TriggerOnCancelMatchmakingCompleteDelegates(SessionName, false);
-	return false;
+	EOSSubsystem->ExecuteNextTick([this, SessionName]()
+		{
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("CancelMatchmaking is not supported on this platform. Use CancelFindSessions."));
+			TriggerOnCancelMatchmakingCompleteDelegates(SessionName, false);
+		});
+
+	return true;
 }
 
 bool FOnlineSessionEOS::CancelMatchmaking(const FUniqueNetId& SearchingPlayerId, FName SessionName)
 {
-	UE_LOG_ONLINE_SESSION(Warning, TEXT("CancelMatchmaking is not supported on this platform. Use CancelFindSessions."));
-	TriggerOnCancelMatchmakingCompleteDelegates(SessionName, false);
-	return false;
+	EOSSubsystem->ExecuteNextTick([this, SessionName]()
+		{
+			UE_LOG_ONLINE_SESSION(Warning, TEXT("CancelMatchmaking is not supported on this platform. Use CancelFindSessions."));
+			TriggerOnCancelMatchmakingCompleteDelegates(SessionName, false);
+		});
+
+	return true;
 }
 
 bool FOnlineSessionEOS::FindSessions(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings)
@@ -1968,10 +1997,13 @@ uint32 FOnlineSessionEOS::FindLANSession()
 
 	if (Return == ONLINE_FAIL)
 	{
-		CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
+		EOSSubsystem->ExecuteNextTick([this]()
+			{
+				CurrentSessionSearch->SearchState = EOnlineAsyncTaskState::Failed;
 
-		// Just trigger the delegate as having failed
-		TriggerOnFindSessionsCompleteDelegates(false);
+				// Just trigger the delegate as having failed
+				TriggerOnFindSessionsCompleteDelegates(false);
+			});
 	}
 
 	return Return;
@@ -2006,10 +2038,13 @@ bool FOnlineSessionEOS::CancelFindSessions()
 
 	if (Return != ONLINE_IO_PENDING)
 	{
-		TriggerOnCancelFindSessionsCompleteDelegates(true);
+		EOSSubsystem->ExecuteNextTick([this]()
+			{
+				TriggerOnCancelFindSessionsCompleteDelegates(true);
+			});
 	}
 
-	return Return == ONLINE_SUCCESS || Return == ONLINE_IO_PENDING;
+	return true;
 }
 
 bool FOnlineSessionEOS::JoinSession(int32 PlayerNum, FName SessionName, const FOnlineSessionSearchResult& DesiredSession)
@@ -2075,11 +2110,14 @@ bool FOnlineSessionEOS::JoinSession(int32 PlayerNum, FName SessionName, const FO
 
 	if (Return != ONLINE_IO_PENDING)
 	{
-		// Just trigger the delegate as having failed
-		TriggerOnJoinSessionCompleteDelegates(SessionName, Return == ONLINE_SUCCESS ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+		EOSSubsystem->ExecuteNextTick([this, SessionName, Return]()
+			{
+				// Just trigger the delegate as having failed
+				TriggerOnJoinSessionCompleteDelegates(SessionName, Return == ONLINE_SUCCESS ? EOnJoinSessionCompleteResult::Success : EOnJoinSessionCompleteResult::UnknownError);
+			});
 	}
 
-	return Return == ONLINE_SUCCESS || Return == ONLINE_IO_PENDING;
+	return true;
 }
 
 bool FOnlineSessionEOS::JoinSession(const FUniqueNetId& SearchingUserId, FName SessionName, const FOnlineSessionSearchResult& DesiredSession)
@@ -2206,10 +2244,14 @@ bool FOnlineSessionEOS::FindFriendSession(const FUniqueNetId& LocalUserId, const
 
 bool FOnlineSessionEOS::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList)
 {
-	// this function has to exist due to interface definition, but it does not have a meaningful implementation in EOS subsystem yet
-	TArray<FOnlineSessionSearchResult> EmptySearchResult;
-	TriggerOnFindFriendSessionCompleteDelegates(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(LocalUserId), false, EmptySearchResult);
-	return false;
+	EOSSubsystem->ExecuteNextTick([this, LocalUserIdRef = LocalUserId.AsShared()]()
+		{
+			// this function has to exist due to interface definition, but it does not have a meaningful implementation in EOS subsystem yet
+			TArray<FOnlineSessionSearchResult> EmptySearchResult;
+			TriggerOnFindFriendSessionCompleteDelegates(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(*LocalUserIdRef), false, EmptySearchResult);
+		});
+
+	return true;
 }
 
 struct FSendSessionInviteOptions :
@@ -2511,8 +2553,12 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< TShared
 		UE_LOG_ONLINE_SESSION(Warning, TEXT("No game present to join for session (%s)"), *SessionName.ToString());
 	}
 
-	TriggerOnRegisterPlayersCompleteDelegates(SessionName, Players, bSuccess);
-	return bSuccess;
+	EOSSubsystem->ExecuteNextTick([this, SessionName, Players, bSuccess]()
+		{
+			TriggerOnRegisterPlayersCompleteDelegates(SessionName, Players, bSuccess);
+		});
+
+	return true;
 }
 
 bool FOnlineSessionEOS::UnregisterPlayer(FName SessionName, const FUniqueNetId& PlayerId)
@@ -2566,8 +2612,12 @@ bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< TShar
 		bSuccess = false;
 	}
 
-	TriggerOnUnregisterPlayersCompleteDelegates(SessionName, Players, bSuccess);
-	return bSuccess;
+	EOSSubsystem->ExecuteNextTick([this, SessionName, Players, bSuccess]()
+		{
+			TriggerOnUnregisterPlayersCompleteDelegates(SessionName, Players, bSuccess);
+		});
+
+	return true;
 }
 
 void FOnlineSessionEOS::Tick(float DeltaTime)
@@ -2855,7 +2905,10 @@ void FOnlineSessionEOS::OnLANSearchTimeout()
 	}
 
 	// Trigger the delegate as complete
-	TriggerOnFindSessionsCompleteDelegates(true);
+	EOSSubsystem->ExecuteNextTick([this]()
+		{
+			TriggerOnFindSessionsCompleteDelegates(true);
+		});
 }
 
 int32 FOnlineSessionEOS::GetNumSessions()
@@ -3312,9 +3365,12 @@ uint32 FOnlineSessionEOS::EndLobbySession(FNamedOnlineSession* Session)
 	// Only called from EndSession/DestroySession and presumes only in InProgress state
 	check(Session && Session->SessionState == EOnlineSessionState::InProgress);
 
-	Session->SessionState = EOnlineSessionState::Ended;
+	EOSSubsystem->ExecuteNextTick([this, Session]()
+		{
+			Session->SessionState = EOnlineSessionState::Ended;
 
-	TriggerOnEndSessionCompleteDelegates(Session->SessionName, true);
+			TriggerOnEndSessionCompleteDelegates(Session->SessionName, true);
+		});
 
 	return ONLINE_IO_PENDING;
 }
