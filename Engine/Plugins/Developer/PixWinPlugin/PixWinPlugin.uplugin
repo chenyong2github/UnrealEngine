@@ -8,7 +8,7 @@
 	"CreatedBy": "Epic Games Inc.",
 	"CreatedByURL": "http://epicgames.com",
 	"DocsURL": "",
-	"EnabledByDefault": false,
+	"EnabledByDefault": true,
 	"Modules": [
 		{
 			"Name": "PixWinPlugin",
