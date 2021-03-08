@@ -7,6 +7,8 @@
 #include "Templates/Casts.h"
 #include "Fonts/FontBulkData.h"
 
+#include <limits>
+
 // The total true type memory we are using for resident font faces
 DECLARE_MEMORY_STAT(TEXT("Resident Font Memory (TTF/OTF)"), STAT_SlateRawFontDataMemory, STATGROUP_SlateMemory);
 
@@ -160,7 +162,7 @@ void FFontData::ConditionalUpgradeBulkDataToFontFace(UObject* InOuter, UClass* I
 {
 	if (BulkDataPtr_DEPRECATED)
 	{
-		int32 RawBulkDataSizeBytes = 0;
+		int64 RawBulkDataSizeBytes = 0;
 		const void* RawBulkData = BulkDataPtr_DEPRECATED->Lock(RawBulkDataSizeBytes);
 		if (RawBulkDataSizeBytes > 0)
 		{
@@ -168,7 +170,8 @@ void FFontData::ConditionalUpgradeBulkDataToFontFace(UObject* InOuter, UClass* I
 			FontFaceAsset = NewFontFaceAsset;
 
 			IFontFaceInterface* NewFontFace = CastChecked<IFontFaceInterface>(NewFontFaceAsset);
-			NewFontFace->InitializeFromBulkData(FontFilename, Hinting, RawBulkData, RawBulkDataSizeBytes);
+			ensure(RawBulkDataSizeBytes >= 0 && RawBulkDataSizeBytes <= std::numeric_limits<int32>::max());
+			NewFontFace->InitializeFromBulkData(FontFilename, Hinting, RawBulkData, (int32)RawBulkDataSizeBytes);
 		}
 		BulkDataPtr_DEPRECATED->Unlock();
 		BulkDataPtr_DEPRECATED = nullptr;

@@ -531,9 +531,9 @@ void FCompositeFontCache::Update()
 	}
 }
 
-uint32 FCompositeFontCache::GetFontDataAssetResidentMemory(const UObject* FontDataAsset) const
+SIZE_T FCompositeFontCache::GetFontDataAssetResidentMemory(const UObject* FontDataAsset) const
 {
-	int32 TotalAllocatedSize = 0;
+	SIZE_T TotalAllocatedSize = 0;
 	for (const TPair<FFontData, TSharedPtr<FFreeTypeFace>>& FaceAndMemoryData : FontFaceMap)
 	{
 		const FFontData& ExistingFontData = FaceAndMemoryData.Key;

@@ -7,6 +7,8 @@
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "UObject/FortniteMainBranchObjectVersion.h"
 
+#include <limits>
+
 /* FSlateFontInfo structors
  *****************************************************************************/
 
@@ -52,12 +54,13 @@ FSlateFontInfo::FSlateFontInfo( TSharedPtr<const FCompositeFont> InCompositeFont
 	, OutlineSettings(InOutlineSettings)
 	, CompositeFont(InCompositeFont)
 	, TypefaceFontName(InTypefaceFontName)
-	, Size(InSize)
+	, Size(FMath::Clamp<int32>(InSize, 0, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, Hinting_DEPRECATED(EFontHinting::Default)
 #endif
 {
+	ensureMsgf(InSize >= 0 && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
 	if (!InCompositeFont.IsValid())
 	{
 		UE_LOG(LogSlate, Warning, TEXT("FSlateFontInfo was constructed with a null FCompositeFont. Slate will be forced to use the fallback font path which may be slower."));
@@ -71,12 +74,13 @@ FSlateFontInfo::FSlateFontInfo( const UObject* InFontObject, const int32 InSize,
 	, OutlineSettings(InOutlineSettings)
 	, CompositeFont()
 	, TypefaceFontName(InTypefaceFontName)
-	, Size(InSize)
+	, Size(FMath::Clamp<int32>(InSize, 0, std::numeric_limits<uint16>::max()))
 	, FontFallback(EFontFallback::FF_Max)
 #if WITH_EDITORONLY_DATA
 	, Hinting_DEPRECATED(EFontHinting::Default)
 #endif
 {
+	ensureMsgf(InSize >= 0 && InSize <= std::numeric_limits<uint16>::max(), TEXT("The size provided is not supported by the renderer."));
 	if (InFontObject)
 	{
 		const IFontProviderInterface* FontProvider = Cast<const IFontProviderInterface>(InFontObject);

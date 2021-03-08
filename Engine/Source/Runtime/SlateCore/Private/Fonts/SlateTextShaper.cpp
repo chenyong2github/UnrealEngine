@@ -12,13 +12,20 @@ DECLARE_CYCLE_STAT(TEXT("Shape Unidirectional Text"), STAT_SlateShapeUnidirectio
 namespace
 {
 
-bool RenderCodepointAsWhitespace(const UTF32CHAR InCodepoint)
+bool RenderCodepointAsWhitespace(const TCHAR InCodepoint)
 {
 	return FText::IsWhitespace(InCodepoint)
 		|| InCodepoint == TEXT('\u200B')	// Zero Width Space
 		|| InCodepoint == TEXT('\u2009')	// Thin Space
 		|| InCodepoint == TEXT('\u202F');	// Narrow No-Break Space
 }
+
+#if !PLATFORM_TCHAR_IS_4_BYTES
+bool RenderCodepointAsWhitespace(const UTF32CHAR InCodepoint)
+{
+	return RenderCodepointAsWhitespace((TCHAR)InCodepoint);
+}
+#endif
 
 struct FKerningOnlyTextSequenceEntry
 {
@@ -356,14 +363,14 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 
 			const bool bHasKerning = FT_HAS_KERNING(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace()) != 0 || InFontInfo.LetterSpacing != 0;
 
-			
-
 			uint32 GlyphFlags = 0;
 			SlateFontRendererUtils::AppendGlyphFlags(*KerningOnlyTextSequenceEntry.FaceAndMemory, *KerningOnlyTextSequenceEntry.FontDataPtr, GlyphFlags);
 			const float FinalFontScale = InFontScale * KerningOnlyTextSequenceEntry.SubFontScalingFactor;
 
 			// Letter spacing should scale proportional to font size / 1000 (to roughly mimic Photoshop tracking)
-			const float LetterSpacingScaled = InFontInfo.LetterSpacing != 0 ? InFontInfo.LetterSpacing * FinalFontScale * InFontInfo.Size / 1000 : 0;
+			const float LetterSpacingScaledAsFloat = InFontInfo.LetterSpacing != 0 ? InFontInfo.LetterSpacing * FinalFontScale * InFontInfo.Size / 1000.f : 0.f;
+			ensure(LetterSpacingScaledAsFloat <= std::numeric_limits<int16>::max());
+			const int16 LetterSpacingScaled = (int16)LetterSpacingScaledAsFloat;
 
 			FreeTypeUtils::ApplySizeAndScale(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), InFontInfo.Size, FinalFontScale);
 			TSharedRef<FShapedGlyphFaceData> ShapedGlyphFaceData = MakeShared<FShapedGlyphFaceData>(KerningOnlyTextSequenceEntry.FaceAndMemory, GlyphFlags, InFontInfo.Size, FinalFontScale);
@@ -628,7 +635,9 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 #endif // WITH_FREETYPE
 
 			// Letter spacing should scale proportional to font size / 1000 (to roughly mimic Photoshop tracking)
-			const float LetterSpacingScaled = (!bBypassLetterSpacing && InFontInfo.LetterSpacing != 0) ? InFontInfo.LetterSpacing * InFontInfo.Size / 1000 : 0;
+			const int32 LetterSpacingScaledAsInt = (!bBypassLetterSpacing && InFontInfo.LetterSpacing != 0) ? InFontInfo.LetterSpacing * InFontInfo.Size / 1000 : 0;
+			ensure(LetterSpacingScaledAsInt <= std::numeric_limits<int16>::max());
+			const int16 LetterSpacingScaled = (!bBypassLetterSpacing && InFontInfo.LetterSpacing != 0) ? (int16)(LetterSpacingScaledAsInt) : 0;
 
 			const hb_feature_t HarfBuzzFeatures[] = {
 				{ HB_TAG('k','e','r','n'), bHasKerning, 0, uint32(-1) },
@@ -719,7 +728,8 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 							if (ShapedGlyphEntry.NumCharactersInGlyph == 0 && ShapedGlyphEntry.NumGraphemeClustersInGlyph == 0)
 							{
-								ShapedGlyphEntry.NumCharactersInGlyph = TextEndIndex - TextStartIndex;
+								ensure(TextEndIndex - TextStartIndex <= std::numeric_limits<uint8>::max());
+								ShapedGlyphEntry.NumCharactersInGlyph = (uint8)(TextEndIndex - TextStartIndex);
 
 								if (ShapedGlyphEntry.NumCharactersInGlyph > 0)
 								{
@@ -824,7 +834,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 #endif // WITH_HARFBUZZ
 
-bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const float InLetterSpacingScaled) const
+bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const int16 InLetterSpacingScaled) const
 {
 	auto GetSpaceGlyphIndexAndAdvance = [this, &InShapedGlyphFaceData](uint32& OutSpaceGlyphIndex, int16& OutSpaceXAdvance)
 	{
@@ -875,14 +885,16 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 		GetSpaceGlyphIndexAndAdvance(SpaceGlyphIndex, SpaceXAdvance);
 
 		// We insert a spacer glyph with (up-to) the width of 4 space glyphs in-place of a tab character
-		const int32 NumSpacesToInsert = 4 - (OutGlyphsToRender.Num() % 4);
+		const int16 NumSpacesToInsert = 4 - (OutGlyphsToRender.Num() % 4);
 		if (NumSpacesToInsert > 0)
 		{
 			FShapedGlyphEntry& ShapedGlyphEntry = OutGlyphsToRender.AddDefaulted_GetRef();
 			ShapedGlyphEntry.FontFaceData = InShapedGlyphFaceData;
 			ShapedGlyphEntry.GlyphIndex = SpaceGlyphIndex;
 			ShapedGlyphEntry.SourceIndex = InCharIndex;
-			ShapedGlyphEntry.XAdvance = (SpaceXAdvance + InLetterSpacingScaled) * NumSpacesToInsert;
+			int32 XAdvance = (SpaceXAdvance + InLetterSpacingScaled) * NumSpacesToInsert;
+			ensure(XAdvance <= std::numeric_limits<int16>::max());
+			ShapedGlyphEntry.XAdvance = (int16)XAdvance;
 			ShapedGlyphEntry.YAdvance = 0;
 			ShapedGlyphEntry.XOffset = 0;
 			ShapedGlyphEntry.YOffset = 0;

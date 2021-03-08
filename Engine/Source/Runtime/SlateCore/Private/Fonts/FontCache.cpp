@@ -12,6 +12,8 @@
 #include "Fonts/LegacySlateFontInfoCache.h"
 #include "Fonts/FontCacheUtils.h"
 
+#include <limits>
+
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Font Atlases"), STAT_SlateNumFontAtlases, STATGROUP_SlateMemory);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Num Font Non-Atlased Textures"), STAT_SlateNumFontNonAtlasedTextures, STATGROUP_SlateMemory);
 DECLARE_MEMORY_STAT(TEXT("Shaped Glyph Sequence Memory"), STAT_SlateShapedGlyphSequenceMemory, STATGROUP_SlateMemory);
@@ -73,7 +75,7 @@ float FShapedGlyphEntry::GetBitmapRenderScale() const
 FShapedGlyphEntryKey::FShapedGlyphEntryKey(const FShapedGlyphFaceData& InFontFaceData, uint32 InGlyphIndex, const FFontOutlineSettings& InOutlineSettings)
 	: FontFace(InFontFaceData.FontFace)
 	, FontSize(InFontFaceData.FontSize)
-	, OutlineSize(InOutlineSettings.OutlineSize)
+	, OutlineSize((float)InOutlineSettings.OutlineSize)
 	, OutlineSeparateFillAlpha(InOutlineSettings.bSeparateFillAlpha)
 	, FontScale(InFontFaceData.FontScale)
 	, GlyphIndex(InGlyphIndex)
@@ -135,7 +137,7 @@ FShapedGlyphSequence::~FShapedGlyphSequence()
 	DEC_MEMORY_STAT_BY(STAT_SlateShapedGlyphSequenceMemory, GetAllocatedSize());
 }
 
-uint32 FShapedGlyphSequence::GetAllocatedSize() const
+SIZE_T FShapedGlyphSequence::GetAllocatedSize() const
 {
 	return GlyphsToRender.GetAllocatedSize() + GlyphFontFaces.GetAllocatedSize() + SourceIndicesToGlyphData.GetAllocatedSize();
 }
@@ -835,7 +837,12 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 				InRenderData.SizeX, InRenderData.SizeY
 				);
 
-			OutTextureIndex = AllFontTextures.Add(NonAtlasedTexture.ToSharedRef());
+			if (AllFontTextures.Num() >= std::numeric_limits<uint8>::max())
+			{
+				UE_LOG(LogSlate, Warning, TEXT("SlateFontCache - Glyph texture has more than 256 textures."));
+				return false;
+			}
+			OutTextureIndex = (uint8)AllFontTextures.Add(NonAtlasedTexture.ToSharedRef());
 			NonAtlasedTextureIndices.Add(OutTextureIndex);
 
 			OutGlyphX = 0;
@@ -860,15 +867,23 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 
 	auto FillOutputParamsFromAtlasedTextureSlot = [&](const FAtlasedTextureSlot& AtlasedTextureSlot)
 	{
-		OutGlyphX = AtlasedTextureSlot.X + AtlasedTextureSlot.Padding;
-		OutGlyphY = AtlasedTextureSlot.Y + AtlasedTextureSlot.Padding;
-		OutGlyphWidth = AtlasedTextureSlot.Width - (2 * AtlasedTextureSlot.Padding);
-		OutGlyphHeight = AtlasedTextureSlot.Height - (2 * AtlasedTextureSlot.Padding);
+		int32 GlyphX = AtlasedTextureSlot.X + (int32)AtlasedTextureSlot.Padding;
+		int32 GlyphY = AtlasedTextureSlot.Y + (int32)AtlasedTextureSlot.Padding;
+		int32 GlyphWidth = AtlasedTextureSlot.Width - (int32)(2.f * AtlasedTextureSlot.Padding);
+		int32 GlyphHeight = AtlasedTextureSlot.Height - (int32)(2.f * AtlasedTextureSlot.Padding);
+		ensureMsgf(GlyphX >= 0 && GlyphX <= std::numeric_limits<uint16>::max(), TEXT("The Glyph size is too big"));
+		ensureMsgf(GlyphY >= 0 && GlyphY <= std::numeric_limits<uint16>::max(), TEXT("The Glyph size is too big"));
+		ensureMsgf(GlyphWidth >= 0 && GlyphWidth <= std::numeric_limits<uint16>::max(), TEXT("The Glyph size is too big"));
+		ensureMsgf(GlyphHeight >= 0 && GlyphHeight <= std::numeric_limits<uint16>::max(), TEXT("The Glyph size is too big"));
+		OutGlyphX = (uint16)GlyphX;
+		OutGlyphY = (uint16)GlyphY;
+		OutGlyphWidth = (uint16)GlyphWidth;
+		OutGlyphHeight = (uint16)GlyphHeight;
 	};
 
-	TArray<int32>& FontAtlasIndices = InRenderData.bIsGrayscale ? GrayscaleFontAtlasIndices : ColorFontAtlasIndices;
+	TArray<uint8>& FontAtlasIndices = InRenderData.bIsGrayscale ? GrayscaleFontAtlasIndices : ColorFontAtlasIndices;
 
-	for (const int32 FontAtlasIndex : FontAtlasIndices)
+	for (const uint8 FontAtlasIndex : FontAtlasIndices)
 	{
 		FSlateFontAtlas& FontAtlas = static_cast<FSlateFontAtlas&>(AllFontTextures[FontAtlasIndex].Get());
 		checkSlow(FontAtlas.IsGrayscale() == InRenderData.bIsGrayscale);
@@ -883,8 +898,14 @@ bool FSlateFontCache::AddNewEntry( const FCharacterRenderData InRenderData, uint
 		}
 	}
 
+	if (AllFontTextures.Num() >= std::numeric_limits<uint8>::max())
+	{
+		UE_LOG(LogSlate, Warning, TEXT("SlateFontCache - Atlas has more than 256 textures."));
+		return false;
+	}
+
 	TSharedRef<FSlateFontAtlas> FontAtlas = FontAtlasFactory->CreateFontAtlas(InRenderData.bIsGrayscale);
-	OutTextureIndex = AllFontTextures.Add(FontAtlas);
+	OutTextureIndex = (uint8)AllFontTextures.Add(FontAtlas);
 	FontAtlasIndices.Add(OutTextureIndex);
 
 	INC_DWORD_STAT_BY(STAT_SlateNumFontAtlases, 1);
@@ -1108,9 +1129,9 @@ bool FSlateFontCache::ConditionalFlushCache()
 
 void FSlateFontCache::UpdateCache()
 {
-	auto UpdateFontAtlasTextures = [this](const TArray<int32>& FontAtlasIndices)
+	auto UpdateFontAtlasTextures = [this](const TArray<uint8>& FontAtlasIndices)
 	{
-		for (const int32 FontAtlasIndex : FontAtlasIndices)
+		for (const uint8 FontAtlasIndex : FontAtlasIndices)
 		{
 			FSlateFontAtlas& FontAtlas = static_cast<FSlateFontAtlas&>(AllFontTextures[FontAtlasIndex].Get());
 			FontAtlas.ConditionalUpdateTexture();
@@ -1182,7 +1203,7 @@ void FSlateFontCache::FlushData()
 	ShapedGlyphToAtlasData.Empty();
 }
 
-uint32 FSlateFontCache::GetFontDataAssetResidentMemory(const UObject* FontDataAsset) const
+SIZE_T FSlateFontCache::GetFontDataAssetResidentMemory(const UObject* FontDataAsset) const
 {
 	return CompositeFontCache->GetFontDataAssetResidentMemory(FontDataAsset);
 }

@@ -21,20 +21,20 @@ public:
 	void Initialize(const FString& InFontFilename);
 
 	/** Construct the bulk font data from the given data */
-	void Initialize(const void* const InFontData, const int32 InFontDataSizeBytes);
+	void Initialize(const void* const InFontData, const int64 InFontDataSizeBytes);
 
 	/** Locks the bulk font data and returns a read-only pointer to it */
+	const void* Lock(int64& OutFontDataSizeBytes) const;
+
+	/** Locks the bulk font data and returns a read-only pointer to it */
+	UE_DEPRECATED(5.0, "Lock with 32 bits is deprecated, use the 64 bits version.")
 	const void* Lock(int32& OutFontDataSizeBytes) const;
 
 	/** Unlock the bulk font data, after which point the pointer returned by Lock no longer is valid */
 	void Unlock();
 
 	/** Returns the size of the bulk data in bytes */
-	int32 GetBulkDataSize() const;
-
-	/** Returns the size of the bulk data on disk. This can differ from GetBulkDataSize if BULKDATA_SerializeCompressed is set */
-	UE_DEPRECATED(4.24, "This method should no longer be used")
-	int32 GetBulkDataSizeOnDisk() const;
+	int64 GetBulkDataSize() const;
 
 	// UObject interface
 	virtual void Serialize(FArchive& Ar) override;

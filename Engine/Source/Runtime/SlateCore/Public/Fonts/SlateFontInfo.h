@@ -6,6 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "Fonts/CompositeFont.h"
+#include <limits>
 #include "SlateFontInfo.generated.h"
 
 /**
@@ -153,7 +154,7 @@ struct SLATECORE_API FSlateFontInfo
 	FName TypefaceFontName;
 
 	/**
-	 * The font size is a measure in point values.  The conversion of points to Slate Units is done at 96 dpi.  So if 
+	 * The font size is a measure in point values. The conversion of points to Slate Units is done at 96 dpi.  So if 
 	 * you're using a tool like Photoshop to prototype layouts and UI mock ups, be sure to change the default dpi 
 	 * measurements from 72 dpi to 96 dpi.
 	 */
@@ -275,6 +276,9 @@ public:
 	 * @note This function will return the fallback font if this font info itself does not contain a valid font. If you want to test whether this font info is empty, use HasValidFont
 	 */
 	const FCompositeFont* GetCompositeFont() const;
+
+	/** Get the font size clamp for the font renderer (on 16bits) */
+	uint16 GetClampSize() const { return (uint16)FMath::Clamp<int32>(Size, 0, std::numeric_limits<uint16>::max()); }
 
 	/**
 	 * Calculates a type hash value for a font info.

@@ -257,8 +257,8 @@ FVector2D FSlateFontMeasure::MeasureStringInternal( const FString& Text, int32 S
 	// We just finished a line, so need to update the longest line encountered.
 	MaxLineWidth = FMath::Max(CurrentX, MaxLineWidth);
 
-	Size.X = MaxLineWidth;
-	Size.Y = StringSizeY;
+	Size.X = (float)MaxLineWidth;
+	Size.Y = (float)StringSizeY;
 
 	if (CharIndexFormat == ELastCharacterIndexFormat::LastWholeCharacterBeforeOffset)
 	{

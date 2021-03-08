@@ -103,10 +103,10 @@ void ResizeFontBitmap_StoreAverageOutputPixel<4>(TArray<uint8>& DstData, const i
 {
 	ensure(PixelCount > 0);
 	const int32 DstDataIndex = PixelIndex * 4;
-	DstData[DstDataIndex + 0] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.X / (float)PixelCount), 0, 255);
-	DstData[DstDataIndex + 1] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.Y / (float)PixelCount), 0, 255);
-	DstData[DstDataIndex + 2] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.Z / (float)PixelCount), 0, 255);
-	DstData[DstDataIndex + 3] = FMath::Clamp<uint8>(FMath::TruncToInt(StepColor.W / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 0] = FMath::Clamp<uint8>((uint8)(StepColor.X / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 1] = FMath::Clamp<uint8>((uint8)(StepColor.Y / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 2] = FMath::Clamp<uint8>((uint8)(StepColor.Z / (float)PixelCount), 0, 255);
+	DstData[DstDataIndex + 3] = FMath::Clamp<uint8>((uint8)(StepColor.W / (float)PixelCount), 0, 255);
 }
 
 // Note: Copied from FImageUtils and updated to work efficiently with 1 or 4-bytes per-pixel, and include the alpha channel (which the FImageUtils version just clobbers)
@@ -716,7 +716,7 @@ bool FSlateFontRenderer::GetRenderDataInternal(const FFreeTypeFaceGlyphData& InF
 	}
 
 	const int32 HorizontalOffset = FMath::RoundToInt(Slot->bitmap_left * BitmapAtlasScale);
-	const int32 VerticalOffset = FMath::RoundToInt(Slot->bitmap_top + ScaledOutlineSize) * BitmapAtlasScale;
+	const int32 VerticalOffset = FMath::TruncToInt(FMath::RoundToFloat(Slot->bitmap_top + ScaledOutlineSize) * BitmapAtlasScale);
 	ensure(HorizontalOffset <= std::numeric_limits<int16>::max());
 	ensure(VerticalOffset <= std::numeric_limits<int16>::max());
 	OutRenderData.HorizontalOffset = (int16)HorizontalOffset;

@@ -223,7 +223,7 @@ public:
 	~FShapedGlyphSequence();
 
 	/** Get the amount of memory allocated to this sequence */
-	uint32 GetAllocatedSize() const;
+	SIZE_T GetAllocatedSize() const;
 
 	/** Get the array of glyphs in this sequence. This data will be ordered so that you can iterate and draw left-to-right, which means it will be backwards for right-to-left languages */
 	const TArray<FShapedGlyphEntry>& GetGlyphsToRender() const
@@ -843,7 +843,8 @@ public:
 	/**
 	 * Gets the allocated font face data for a font data asset
 	 */
-	uint32 GetFontDataAssetResidentMemory(const UObject* FontDataAsset) const;
+	SIZE_T GetFontDataAssetResidentMemory(const UObject* FontDataAsset) const;
+
 private:
 	// Non-copyable
 	FSlateFontCache(const FSlateFontCache&);
@@ -892,13 +893,13 @@ private:
 	TMap<FShapedGlyphEntryKey, TSharedRef<FShapedGlyphFontAtlasData>> ShapedGlyphToAtlasData;
 
 	/** Array of grayscale font atlas indices for use with AllFontTextures (cast the element to FSlateFontAtlas) */
-	TArray<int32> GrayscaleFontAtlasIndices;
+	TArray<uint8> GrayscaleFontAtlasIndices;
 
 	/** Array of color font atlas indices for use with AllFontTextures (cast the element to FSlateFontAtlas) */
-	TArray<int32> ColorFontAtlasIndices;
+	TArray<uint8> ColorFontAtlasIndices;
 
 	/** Array of any non-atlased font texture indices for use with AllFontTextures */
-	TArray<int32> NonAtlasedTextureIndices;
+	TArray<uint8> NonAtlasedTextureIndices;
 
 	/** Array of all font textures - both atlased and non-atlased */
 	TArray<TSharedRef<ISlateFontTexture>> AllFontTextures;
