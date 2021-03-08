@@ -785,7 +785,7 @@ void AddNewEdgeRingEdges(const FGroupTopology& Topology, int32 StartEdgeID, int3
 	int32 CurrentForwardGroupID = ForwardGroupID;
 	while (true)
 	{
-		if (ForwardGroupID == IndexConstants::InvalidID)
+		if (CurrentForwardGroupID == IndexConstants::InvalidID)
 		{
 			break; // Reached a boundary
 		}
