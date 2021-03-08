@@ -198,6 +198,7 @@ public:
 	void OpenSettings();
 
 	void UpdateSessionDuration();
+	void CheckMemoryUsage();
 
 	bool IsAnalysisComplete() const { return bIsAnalysisComplete; }
 	double GetSessionDuration() const { return SessionDuration; }
@@ -205,6 +206,8 @@ public:
 	double GetAnalysisSpeedFactor() const { return AnalysisSpeedFactor; }
 
 	TSharedPtr<FInsightsMenuBuilder> GetInsightsMenuBuilder() { return InsightsMenuBuilder; }
+
+	const FName& GetLogListingName() const { return LogListingName; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// SessionChangedEvent
@@ -260,6 +263,15 @@ private:
 
 private:
 	bool bIsInitialized;
+
+	/** If true, the "high system memory usage warning" will be disabled until the system memory usage first drops below a certain threshold. */
+	bool bMemUsageLimitHysteresis;
+
+	/** The timestamp when has occurred the last check for system memory usage. */
+	uint64 MemUsageLimitLastTimestamp;
+
+	/** The name of the Unreal Insights log listing. */
+	FName LogListingName;
 
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
