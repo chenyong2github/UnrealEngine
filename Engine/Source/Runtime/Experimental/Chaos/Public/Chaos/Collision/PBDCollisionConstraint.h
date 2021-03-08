@@ -349,12 +349,10 @@ namespace Chaos
 			EContactShapesType ShapesType)
 			: Base(Particle0, Implicit0, Simplicial0, Transform0, Particle1, Implicit1, Simplicial1, Transform1, Base::FType::SinglePointSwept, ShapesType)
 			, TimeOfImpact(0)
-		    , bShouldTreatAsSinglePoint(false)
 		{}
 
 		// Value in range [0,1] used to interpolate P between [X,P] that we will rollback to when solving at time of impact.
 		FReal TimeOfImpact;
-		bool bShouldTreatAsSinglePoint;
 		static typename Base::FType StaticType() { return Base::FType::SinglePointSwept; };
 	};
 
