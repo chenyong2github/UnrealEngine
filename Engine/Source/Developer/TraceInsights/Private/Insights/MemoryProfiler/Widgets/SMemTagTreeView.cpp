@@ -310,7 +310,7 @@ TSharedRef<SWidget> SMemTagTreeView::ConstructTracksMiniToolbar()
 	.AutoWidth()
 	[
 		SNew(SButton)
-		.ToolTipText(LOCTEXT("HideAll_ToolTip", "Remove all memory graph tracks."))
+		.ToolTipText(LOCTEXT("HideAll_ToolTip", "Remove memory graph tracks for all LLM tags."))
 		.ContentPadding(FMargin(-14.0f, 0.0f, -17.0f, -1.0f))
 		.OnClicked(this, &SMemTagTreeView::HideAllTracks_OnClicked)
 		.Content()
@@ -643,7 +643,7 @@ void SMemTagTreeView::TreeView_BuildCreateGraphTracksMenu(FMenuBuilder& MenuBuil
 			FSlateIcon(), Action_CreateGraphTracksForFilteredMemTags, NAME_None, EUserInterfaceActionType::Button
 		);
 
-		// Create all graph series
+		// Create memory graph tracks for all LLM tags
 		FUIAction Action_CreateAllGraphTracks
 		(
 			FExecuteAction::CreateSP(this, &SMemTagTreeView::CreateAllGraphTracks),
@@ -652,7 +652,7 @@ void SMemTagTreeView::TreeView_BuildCreateGraphTracksMenu(FMenuBuilder& MenuBuil
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_Misc_CreateAllGraphTracks", "All"),
-			LOCTEXT("ContextMenu_Misc_CreateAllGraphTracks_Desc", "Create memory graph tracks for all LLM tags"),
+			LOCTEXT("ContextMenu_Misc_CreateAllGraphTracks_Desc", "Create memory graph tracks for all LLM tags."),
 			FSlateIcon(), Action_CreateAllGraphTracks, NAME_None, EUserInterfaceActionType::Button
 		);
 	}
@@ -674,7 +674,7 @@ void SMemTagTreeView::TreeView_BuildRemoveGraphTracksMenu(FMenuBuilder& MenuBuil
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForSelectedMemTags", "Selected"),
-			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForSelectedMemTags_Desc", "Remove memory graph tracks for selected LLM tag(s)"),
+			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForSelectedMemTags_Desc", "Remove memory graph tracks for selected LLM tag(s)."),
 			FSlateIcon(), Action_RemoveGraphTracksForSelectedMemTags, NAME_None, EUserInterfaceActionType::Button
 		);
 
@@ -687,11 +687,11 @@ void SMemTagTreeView::TreeView_BuildRemoveGraphTracksMenu(FMenuBuilder& MenuBuil
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForUnusedMemTags", "Unused"),
-			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForUnusedMemTags_Desc", "Remove memory graph tracks for LLM tags not used by the current tracker"),
+			LOCTEXT("ContextMenu_Misc_RemoveGraphTracksForUnusedMemTags_Desc", "Remove memory graph tracks for LLM tags not used by the current tracker."),
 			FSlateIcon(), Action_RemoveGraphTracksForUnusedMemTags, NAME_None, EUserInterfaceActionType::Button
 		);
 
-		// Remove all graph series
+		// Remove memory graph tracks for all LLM tags
 		FUIAction Action_RemoveAllGraphTracks
 		(
 			FExecuteAction::CreateSP(this, &SMemTagTreeView::RemoveAllGraphTracks),
@@ -700,7 +700,7 @@ void SMemTagTreeView::TreeView_BuildRemoveGraphTracksMenu(FMenuBuilder& MenuBuil
 		MenuBuilder.AddMenuEntry
 		(
 			LOCTEXT("ContextMenu_Misc_RemoveAllGraphTracks", "All"),
-			LOCTEXT("ContextMenu_Misc_RemoveAllGraphTracks_Desc", "Remove all memory graph tracks."),
+			LOCTEXT("ContextMenu_Misc_RemoveAllGraphTracks_Desc", "Remove memory graph tracks for all LLM tags."),
 			FSlateIcon(), Action_RemoveAllGraphTracks, NAME_None, EUserInterfaceActionType::Button
 		);
 	}
@@ -2234,7 +2234,7 @@ FReply SMemTagTreeView::LoadReportXML_OnClicked()
 		if (bOpened == true && OutFiles.Num() == 1)
 		{
 			FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
-			SharedState.RemoveAllMemoryGraphTracks();
+			SharedState.RemoveAllMemTagGraphTracks();
 			SharedState.CreateTracksFromReport(OutFiles[0]);
 		}
 	}
@@ -2503,7 +2503,7 @@ void SMemTagTreeView::RemoveAllGraphTracks()
 	if (ProfilerWindow.IsValid())
 	{
 		FMemorySharedState& SharedState = ProfilerWindow->GetSharedState();
-		SharedState.RemoveAllMemoryGraphTracks();
+		SharedState.RemoveAllMemTagGraphTracks();
 	}
 }
 

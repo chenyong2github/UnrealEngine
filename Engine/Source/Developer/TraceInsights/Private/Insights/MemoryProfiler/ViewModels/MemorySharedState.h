@@ -111,13 +111,13 @@ public:
 
 	TSharedPtr<FMemoryGraphTrack> CreateMemoryGraphTrack();
 	int32 RemoveMemoryGraphTrack(TSharedPtr<FMemoryGraphTrack> GraphTrack);
-	int32 RemoveAllMemoryGraphTracks();
 
 	TSharedPtr<FMemoryGraphTrack> GetMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
 	TSharedPtr<FMemoryGraphTrack> CreateMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
 	void RemoveTrackFromMemTags(TSharedPtr<FMemoryGraphTrack>& GraphTrack);
 	int32 RemoveMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
 	int32 RemoveUnusedMemTagGraphTracks();
+	int32 RemoveAllMemTagGraphTracks();
 
 	TSharedPtr<FMemoryGraphSeries> ToggleMemTagGraphSeries(TSharedPtr<FMemoryGraphTrack> GraphTrack, Insights::FMemoryTagId MemTagId);
 

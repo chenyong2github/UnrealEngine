@@ -238,7 +238,8 @@ TSharedPtr<FMemoryGraphSeries> FMemoryGraphTrack::GetMemTagSeries(Insights::FMem
 	{
 		//TODO: if (Series->Is<FMemoryGraphSeries>())
 		const TSharedPtr<FMemoryGraphSeries> MemorySeries = StaticCastSharedPtr<FMemoryGraphSeries>(Series);
-		return MemorySeries->GetTagId() == MemTagId;
+		return MemorySeries->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag &&
+			   MemorySeries->GetTagId() == MemTagId;
 	});
 	return (Ptr != nullptr) ? StaticCastSharedPtr<FMemoryGraphSeries>(*Ptr) : nullptr;
 }
@@ -277,9 +278,10 @@ int32 FMemoryGraphTrack::RemoveMemTagSeries(Insights::FMemoryTagId MemTagId)
 	SetDirtyFlag();
 	return AllSeries.RemoveAll([MemTagId](const TSharedPtr<FGraphSeries>& GraphSeries)
 	{
-		//TODO: if (Series->Is<FMemoryGraphSeries>())
+		//TODO: if (GraphSeries->Is<FMemoryGraphSeries>())
 		const TSharedPtr<FMemoryGraphSeries> Series = StaticCastSharedPtr<FMemoryGraphSeries>(GraphSeries);
-		return Series->GetTagId() == MemTagId;
+		return Series->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag &&
+			   Series->GetTagId() == MemTagId;
 	});
 }
 
@@ -288,8 +290,12 @@ int32 FMemoryGraphTrack::RemoveMemTagSeries(Insights::FMemoryTagId MemTagId)
 int32 FMemoryGraphTrack::RemoveAllMemTagSeries()
 {
 	SetDirtyFlag();
-	int32 Count = AllSeries.Num();
-	AllSeries.Reset();
+	return AllSeries.RemoveAll([](const TSharedPtr<FGraphSeries>& GraphSeries)
+	{
+		//TODO: if (GraphSeries->Is<FMemoryGraphSeries>())
+		const TSharedPtr<FMemoryGraphSeries> Series = StaticCastSharedPtr<FMemoryGraphSeries>(GraphSeries);
+		return Series->GetTimelineType() == FMemoryGraphSeries::ETimelineType::MemTag;
+	});
 	return Count;
 }
 

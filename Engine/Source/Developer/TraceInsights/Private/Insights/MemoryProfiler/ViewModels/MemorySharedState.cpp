@@ -455,8 +455,11 @@ int32 FMemorySharedState::RemoveMemoryGraphTrack(TSharedPtr<FMemoryGraphTrack> G
 	{
 		RemoveTrackFromMemTags(GraphTrack);
 		GraphTrack->RemoveAllMemTagSeries();
-		GraphTrack->Hide();
-		TimingView->OnTrackVisibilityChanged();
+		if (GraphTrack->GetSeries().Num() == 0)
+		{
+			GraphTrack->Hide();
+			TimingView->OnTrackVisibilityChanged();
+		}
 		return -1;
 	}
 
@@ -485,45 +488,6 @@ void FMemorySharedState::RemoveTrackFromMemTags(TSharedPtr<FMemoryGraphTrack>& G
 			TagPtr->RemoveTrack(GraphTrack);
 		}
 	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-int32 FMemorySharedState::RemoveAllMemoryGraphTracks()
-{
-	if (!TimingView.IsValid() || !CurrentTracker)
-	{
-		return -1;
-	}
-
-	int32 TrackCount = 0;
-
-	for (TSharedPtr<FMemoryGraphTrack>& GraphTrack : AllTracks)
-	{
-		GraphTrack->RemoveAllMemTagSeries();
-		if (GraphTrack != MainGraphTrack)
-		{
-			++TrackCount;
-			TimingView->RemoveTrack(GraphTrack);
-		}
-	}
-
-	AllTracks.Reset();
-
-	// Hide the MainGraphTrack instead of removing it.
-	if (MainGraphTrack.IsValid())
-	{
-		AllTracks.Add(MainGraphTrack);
-		MainGraphTrack->Hide();
-		TimingView->OnTrackVisibilityChanged();
-	}
-
-	for (Insights::FMemoryTag* TagPtr : TagList.GetTags())
-	{
-		TagPtr->RemoveAllTracks();
-	}
-
-	return TrackCount;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -723,6 +687,49 @@ int32 FMemorySharedState::RemoveUnusedMemTagGraphTracks()
 	}
 
 	return TracksToRemove.Num();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+int32 FMemorySharedState::RemoveAllMemTagGraphTracks()
+{
+	if (!TimingView.IsValid() || !CurrentTracker)
+	{
+		return -1;
+	}
+
+	int32 TrackCount = 0;
+
+	TArray<TSharedPtr<FMemoryGraphTrack>> TracksToRemove;
+	for (TSharedPtr<FMemoryGraphTrack>& GraphTrack : AllTracks)
+	{
+		GraphTrack->RemoveAllMemTagSeries();
+		if (GraphTrack->GetSeries().Num() == 0)
+		{
+			if (GraphTrack == MainGraphTrack)
+			{
+				GraphTrack->Hide();
+				TimingView->OnTrackVisibilityChanged();
+			}
+			else
+			{
+				++TrackCount;
+				TimingView->RemoveTrack(GraphTrack);
+				TracksToRemove.Add(GraphTrack);
+			}
+		}
+	}
+	for (TSharedPtr<FMemoryGraphTrack>& GraphTrack : TracksToRemove)
+	{
+		AllTracks.Remove(GraphTrack);
+	}
+
+	for (Insights::FMemoryTag* TagPtr : TagList.GetTags())
+	{
+		TagPtr->RemoveAllTracks();
+	}
+
+	return TrackCount;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
