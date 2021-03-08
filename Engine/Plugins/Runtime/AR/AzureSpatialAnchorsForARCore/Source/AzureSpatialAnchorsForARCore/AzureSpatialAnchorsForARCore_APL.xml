@@ -1,13 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- ASA Android plugin additions-->
 <root xmlns:android="http://schemas.android.com/apk/res/android">
-
-  <resourceCopies>
-    <isArch arch="armeabi-v7a">
-      <copyFile src="$S(PluginDir)/ThirdParty/armeabi-v7a/libazurespatialanchorsndk.so"
-                dst="$S(BuildDir)/libs/armeabi-v7a/libazurespatialanchorsndk.so" />
-    </isArch>
-  </resourceCopies>
   <gameActivityImportAdditions>
     <insert>
       import com.microsoft.CloudServices;
@@ -30,7 +23,7 @@
         }
       }
 	  
-      def azureSpatialAnchorsSdkVersion = '2.2.1'
+      def azureSpatialAnchorsSdkVersion = '2.7.2'
 
 	  // Create a configuration to mark which aars to extract .so files from
       configurations { natives }
