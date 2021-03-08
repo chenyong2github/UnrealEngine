@@ -848,7 +848,7 @@ public:
 	virtual void InitSoundSubmixes() {}
 
 	/** Registers the sound submix */
-	virtual void RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix, bool bInit) {}
+	virtual void RegisterSoundSubmix(USoundSubmixBase* SoundSubmix, bool bInit) {}
 
 	/** Unregisters the sound submix */
 	virtual void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix) {}

@@ -315,7 +315,7 @@ public:
 	void InitSoundClasses();
 
 	/** Registers the Sound Mix for all active devices. */
-	void RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix);
+	void RegisterSoundSubmix(USoundSubmixBase* SoundSubmix);
 
 	/** Registers the Sound Mix for all active devices. */
 	void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix);

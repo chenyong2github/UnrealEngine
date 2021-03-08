@@ -64,20 +64,21 @@ namespace Audio
 
 	struct FSubmixMap
 	{
-	private:
-		TMap<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr> SubmixMap;
-
-		FCriticalSection MapMutationLock;
-
 	public:
-		using FPair = TPair<TWeakObjectPtr<const USoundSubmixBase>, FMixerSubmixPtr>;
+		using FObjectId = uint32;
+		using FPair = TPair<FObjectId, FMixerSubmixPtr>;
 		using FIterFunc = TUniqueFunction<void(const FPair&)>;
 
-		void Add(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase, FMixerSubmixPtr InMixerSubmix);
+		void Add(const FObjectId InObjectId, FMixerSubmixPtr InMixerSubmix);
 		void Iterate(FIterFunc InFunction);
-		FMixerSubmixPtr FindRef(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase);
-		int32 Remove(TWeakObjectPtr<const USoundSubmixBase> InSubmixBase);
+		FMixerSubmixPtr FindRef(FObjectId InObjectId);
+		int32 Remove(const FObjectId InObjectId);
 		void Reset();
+
+	private:
+		TMap<FObjectId, FMixerSubmixPtr> SubmixMap;
+
+		FCriticalSection MutationLock;
 	};
 
 	class AUDIOMIXER_API FMixerDevice :	public FAudioDevice,
@@ -114,7 +115,7 @@ namespace Audio
 		virtual void SuspendContext() override;
 		virtual void EnableDebugAudioOutput() override;
 		virtual FAudioPlatformSettings GetPlatformSettings() const override;
-		virtual void RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix, bool bInit = true) override;
+		virtual void RegisterSoundSubmix(USoundSubmixBase* SoundSubmix, bool bInit = true) override;
 		virtual void UnregisterSoundSubmix(const USoundSubmixBase* SoundSubmix) override;
 
 		virtual void InitSoundEffectPresets() override;
@@ -176,12 +177,11 @@ namespace Audio
 		virtual void OnAudioStreamShutdown() override;
 		//~ End IAudioMixer
 
-		FMixerSubmixPtr FindSubmixInstanceByObjectId(uint32 InObjectId);
-		FMixerSubmixPtr GetSubmixInstance(uint32 InSubmixId);
-
 		//~ Begin FGCObject
 		virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 		//~End FGCObject
+
+		FMixerSubmixPtr FindSubmixInstanceByObjectId(uint32 InObjectId);
 
 		FMixerSubmixWeakPtr GetSubmixInstance(const USoundSubmixBase* SoundSubmix);
 
@@ -311,7 +311,7 @@ namespace Audio
 
 		void LoadMasterSoundSubmix(EMasterSubmixType::Type InType, const FString& InDefaultName, bool bInDefaultMuteWhenBackgrounded, FSoftObjectPath& InOutObjectPath);
 		void LoadPluginSoundSubmixes();
-		void LoadSoundSubmix(const USoundSubmixBase& SoundSubmix);
+		void LoadSoundSubmix(USoundSubmixBase& SoundSubmix);
 
 		void InitSoundfieldAndEndpointDataForSubmix(const USoundSubmixBase& InSoundSubmix, FMixerSubmixPtr MixerSubmix, bool bAllowReInit);
 
