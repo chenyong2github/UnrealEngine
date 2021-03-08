@@ -7,7 +7,7 @@
 #include "SEditorViewport.h"
 
 class FEditorViewportClient;
-class FAssetEditorViewportLayout;
+class FViewportTabContent;
 class FMenuBuilder;
 struct FAssetEditorViewportConstructionArgs;
 
@@ -34,6 +34,5 @@ protected:
 
 	virtual TSharedRef<FEditorViewportClient> MakeEditorViewportClient() override;
 	FName ConfigKey;
-	TSharedPtr<FAssetEditorViewportLayout> ParentLayout;
-
+	TWeakPtr<FViewportTabContent> ParentTabContent;
 };

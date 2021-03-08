@@ -98,7 +98,7 @@ void SAssetEditorViewport::Construct(const FArguments& InArgs, const FAssetEdito
 {
 	ConfigKey = InViewportConstructionArgs.ConfigKey;
 	Client = InArgs._EditorViewportClient;
-	ParentLayout = InViewportConstructionArgs.ParentLayout;
+	ParentTabContent = InViewportConstructionArgs.ParentLayout->GetParentTabContent();
 
 	SEditorViewport::FArguments ViewportArgs;
 	if (InArgs._ViewportSize.IsSet())
@@ -118,26 +118,18 @@ void SAssetEditorViewport::Construct(const FArguments& InArgs, const FAssetEdito
 
 void SAssetEditorViewport::OnSetViewportConfiguration(FName ConfigurationName)
 {
-	if (ParentLayout.IsValid())
+	if (TSharedPtr<FViewportTabContent> ViewportTabPinned = ParentTabContent.Pin())
 	{
-		TSharedPtr<FViewportTabContent> ViewportTabPinned = ParentLayout->GetParentTabContent().Pin();
-		if (ViewportTabPinned.IsValid())
-		{
-			ViewportTabPinned->SetViewportConfiguration(ConfigurationName);
- 			FSlateApplication::Get().DismissAllMenus();
-		}
+		ViewportTabPinned->SetViewportConfiguration(ConfigurationName);
+		FSlateApplication::Get().DismissAllMenus();
 	}
 }
 
 bool SAssetEditorViewport::IsViewportConfigurationSet(FName ConfigurationName) const
 {
-	if (ParentLayout.IsValid())
+	if (TSharedPtr<FViewportTabContent> ViewportTabPinned = ParentTabContent.Pin())
 	{
-		TSharedPtr<FViewportTabContent> ViewportTabPinned = ParentLayout->GetParentTabContent().Pin();
-		if (ViewportTabPinned.IsValid())
-		{
-			return ViewportTabPinned->IsViewportConfigurationSet(ConfigurationName);
-		}
+		return ViewportTabPinned->IsViewportConfigurationSet(ConfigurationName);
 	}
 	return false;
 }
