@@ -984,23 +984,23 @@ namespace PyGenUtil
 	/** Should the given function be exported to Python? */
 	bool ShouldExportFunction(const UFunction* InFunc);
 
-	/** Check that the given name will be valid for Python () */
-	bool IsValidName(const FString& InName, FText* OutError = nullptr);
+	/** Check that the given name will be valid for Python */
+	bool IsValidName(FStringView InName, FText* OutError = nullptr);
 
 	/** Given a CamelCase name, convert it to snake_case */
-	FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase);
+	FString PythonizeName(FStringView InName, const EPythonizeNameCase InNameCase);
 
 	/** Given a CamelCase property name, convert it to snake_case (may remove some superfluous parts of the property name) */
-	FString PythonizePropertyName(const FString& InName, const EPythonizeNameCase InNameCase);
+	FString PythonizePropertyName(FStringView InName, const EPythonizeNameCase InNameCase);
 
 	/** Given a property tooltip, convert it to a doc string */
-	FString PythonizePropertyTooltip(const FString& InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
+	FString PythonizePropertyTooltip(FStringView InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 	/** Given a function tooltip, convert it to a doc string */
-	FString PythonizeFunctionTooltip(const FString& InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore = TSet<FName>());
+	FString PythonizeFunctionTooltip(FStringView InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore = TSet<FName>());
 
 	/** Given a tooltip, convert it to a doc string */
-	FString PythonizeTooltip(const FString& InTooltip, const FPythonizeTooltipContext& InContext = FPythonizeTooltipContext());
+	FString PythonizeTooltip(FStringView InTooltip, const FPythonizeTooltipContext& InContext = FPythonizeTooltipContext());
 
 	/** Given a property and its value, convert it into something that could be used in a Python script */
 	FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const uint32 InFlags = EPythonizeValueFlags::None);
@@ -1109,7 +1109,7 @@ namespace PyGenUtil
 	void AppendSourceInformationDocString(const UField* InOwnerType, FString& OutStr);
 
 	/** Save a generated text file to disk as UTF-8 (only writes the file if the contents differs, unless forced) */
-	bool SaveGeneratedTextFile(const TCHAR* InFilename, const FString& InFileContents, const bool InForceWrite = false);
+	bool SaveGeneratedTextFile(const TCHAR* InFilename, FStringView InFileContents, const bool InForceWrite = false);
 }
 
 #endif	// WITH_PYTHON

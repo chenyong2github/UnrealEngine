@@ -1595,7 +1595,7 @@ bool ShouldExportFunction(const UFunction* InFunc)
 	return IsScriptExposedFunction(InFunc);
 }
 
-bool IsValidName(const FString& InName, FText* OutError)
+bool IsValidName(FStringView InName, FText* OutError)
 {
 	if (InName.Len() == 0)
 	{
@@ -1608,21 +1608,6 @@ bool IsValidName(const FString& InName, FText* OutError)
 
 	// Names must be a valid symbol (alnum or _ and doesn't start with a digit)
 
-	const TCHAR* InvalidChar = InName.GetCharArray().FindByPredicate(
-		[](const TCHAR InChar)
-		{
-			return !FChar::IsAlnum(InChar) && InChar != TEXT('_') && InChar != 0;
-		});
-
-	if (InvalidChar)
-	{
-		if (OutError)
-		{
-			*OutError = FText::Format(NSLOCTEXT("PyGenUtil", "InvalidName_RestrictedCharacter", "Name contains '{0}' which is invalid for Python"), FText::AsCultureInvariant(FString(1, InvalidChar)));
-		}
-		return false;
-	}
-
 	if (FChar::IsDigit(InName[0]))
 	{
 		if (OutError)
@@ -1632,10 +1617,22 @@ bool IsValidName(const FString& InName, FText* OutError)
 		return false;
 	}
 
+	for (const TCHAR Char : InName)
+	{
+		if (!FChar::IsAlnum(Char) && Char != TEXT('_'))
+		{
+			if (OutError)
+			{
+				*OutError = FText::Format(NSLOCTEXT("PyGenUtil", "InvalidName_RestrictedCharacter", "Name contains '{0}' which is invalid for Python"), FText::AsCultureInvariant(FString(1, &Char)));
+			}
+			return false;
+		}
+	}
+
 	return true;
 }
 
-FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase)
+FString PythonizeName(FStringView InName, const EPythonizeNameCase InNameCase)
 {
 	static const TSet<FString, FCaseSensitiveStringSetFuncs> ReservedKeywords = {
 		TEXT("and"),
@@ -1680,7 +1677,7 @@ FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase
 		NameBreakIterator = FBreakIterator::CreateCamelCaseBreakIterator();
 	}
 
-	NameBreakIterator->SetString(InName);
+	NameBreakIterator->SetStringRef(InName);
 	for (int32 PrevBreak = 0, NameBreak = NameBreakIterator->MoveToNext(); NameBreak != INDEX_NONE; NameBreak = NameBreakIterator->MoveToNext())
 	{
 		const int32 OrigPythonizedNameLen = PythonizedName.Len();
@@ -1727,7 +1724,7 @@ FString PythonizeName(const FString& InName, const EPythonizeNameCase InNameCase
 	return PythonizedName;
 }
 
-FString PythonizePropertyName(const FString& InName, const EPythonizeNameCase InNameCase)
+FString PythonizePropertyName(FStringView InName, const EPythonizeNameCase InNameCase)
 {
 	int32 NameOffset = 0;
 
@@ -1761,17 +1758,17 @@ FString PythonizePropertyName(const FString& InName, const EPythonizeNameCase In
 	return PythonizeName(NameOffset ? InName.RightChop(NameOffset) : InName, InNameCase);
 }
 
-FString PythonizePropertyTooltip(const FString& InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags)
+FString PythonizePropertyTooltip(FStringView InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags)
 {
 	return PythonizeTooltip(InTooltip, FPythonizeTooltipContext(InProp, InReadOnlyFlags));
 }
 
-FString PythonizeFunctionTooltip(const FString& InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore)
+FString PythonizeFunctionTooltip(FStringView InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore)
 {
 	return PythonizeTooltip(InTooltip, FPythonizeTooltipContext(InFunc, ParamsToIgnore));
 }
 
-FString PythonizeTooltip(const FString& InTooltip, const FPythonizeTooltipContext& InContext)
+FString PythonizeTooltip(FStringView InTooltip, const FPythonizeTooltipContext& InContext)
 {
 	// Use Google style docstrings - http://google.github.io/styleguide/pyguide.html?showone=Comments#Comments
 
@@ -3091,7 +3088,7 @@ void AppendSourceInformationDocString(const UField* InOwnerType, FString& OutStr
 	}
 }
 
-bool SaveGeneratedTextFile(const TCHAR* InFilename, const FString& InFileContents, const bool InForceWrite)
+bool SaveGeneratedTextFile(const TCHAR* InFilename, FStringView InFileContents, const bool InForceWrite)
 {
 	bool bWriteFile = InForceWrite;
 
