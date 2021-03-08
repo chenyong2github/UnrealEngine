@@ -8,6 +8,10 @@
 #ifndef __SSC_HEADER__
 #define __SSC_HEADER__
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 // Handle types for per-platform objects.
 #if __APPLE__
 struct objc_object;
@@ -29,6 +33,7 @@ struct ssc_object;
 struct ssc_anchor_locate_criteria;
 struct ssc_anchor_located_event_args;
 struct ssc_cloud_spatial_anchor;
+struct ssc_cloud_spatial_anchor_map;
 struct ssc_cloud_spatial_anchor_session_deferral;
 struct ssc_cloud_spatial_anchor_session_diagnostics;
 struct ssc_cloud_spatial_anchor_session;
@@ -52,6 +57,7 @@ typedef struct ssc_object *ssc_object_handle;
 typedef struct ssc_anchor_locate_criteria *ssc_anchor_locate_criteria_handle;
 typedef struct ssc_anchor_located_event_args *ssc_anchor_located_event_args_handle;
 typedef struct ssc_cloud_spatial_anchor *ssc_cloud_spatial_anchor_handle;
+typedef struct ssc_cloud_spatial_anchor_map *ssc_cloud_spatial_anchor_map_handle;
 typedef struct ssc_cloud_spatial_anchor_session_deferral *ssc_cloud_spatial_anchor_session_deferral_handle;
 typedef struct ssc_cloud_spatial_anchor_session_diagnostics *ssc_cloud_spatial_anchor_session_diagnostics_handle;
 typedef struct ssc_cloud_spatial_anchor_session *ssc_cloud_spatial_anchor_session_handle;
@@ -88,40 +94,40 @@ typedef enum ssc_anchor_data_category_
      */
     ssc_anchor_data_category_none = 0,
     /**
-     * Returns Anchor properties including AppProperties. 
+     * Returns Anchor properties including AppProperties.
      */
     ssc_anchor_data_category_properties = 1,
     /**
-     * Returns spatial information about an Anchor. 
+     * Returns spatial information about an Anchor.
      */
     ssc_anchor_data_category_spatial = 2
 } ssc_anchor_data_category;
 
 /**
- * Possible values returned when querying PlatformLocationProvider for Bluetooth capabilities 
+ * Possible values returned when querying PlatformLocationProvider for Bluetooth capabilities
  */
 typedef enum ssc_bluetooth_status_result_
 {
     /**
-     * Bluetooth beacons data is available. 
+     * Bluetooth beacons data is available.
      */
     ssc_bluetooth_status_result_available = 0,
     /**
-     * Bluetooth was disabled in the SensorCapabilities. 
+     * Bluetooth was disabled in the SensorCapabilities.
      */
     ssc_bluetooth_status_result_disabled_capability = 1,
     /**
-     * No sensor fingerprint provider has been created. 
+     * No sensor fingerprint provider has been created.
      */
     ssc_bluetooth_status_result_missing_sensor_fingerprint_provider = 2,
     /**
-     * No bluetooth beacons have been found. 
+     * No bluetooth beacons have been found.
      */
     ssc_bluetooth_status_result_no_beacons_found = 3
 } ssc_bluetooth_status_result;
 
 /**
- * Identifies the source of an error in a cloud spatial session. 
+ * Identifies the source of an error in a cloud spatial session.
  */
 typedef enum ssc_cloud_spatial_error_code_
 {
@@ -208,30 +214,30 @@ typedef enum ssc_cloud_spatial_error_code_
 } ssc_cloud_spatial_error_code;
 
 /**
- * Possible values returned when querying PlatformLocationProvider for GeoLocation capabilities 
+ * Possible values returned when querying PlatformLocationProvider for GeoLocation capabilities
  */
 typedef enum ssc_geo_location_status_result_
 {
     /**
-     * GeoLocation data is available. 
+     * GeoLocation data is available.
      */
     ssc_geo_location_status_result_available = 0,
     /**
-     * GeoLocation was disabled in the SensorCapabilities. 
+     * GeoLocation was disabled in the SensorCapabilities.
      */
     ssc_geo_location_status_result_disabled_capability = 1,
     /**
-     * No sensor fingerprint provider has been created. 
+     * No sensor fingerprint provider has been created.
      */
     ssc_geo_location_status_result_missing_sensor_fingerprint_provider = 2,
     /**
-     * No GPS data has been received. 
+     * No GPS data has been received.
      */
     ssc_geo_location_status_result_no_gpsdata = 3
 } ssc_geo_location_status_result;
 
 /**
- * Use this enumeration to determine whether an anchor was located, and the reason why it may have failed. 
+ * Use this enumeration to determine whether an anchor was located, and the reason why it may have failed.
  */
 typedef enum ssc_locate_anchor_status_
 {
@@ -253,7 +259,7 @@ typedef enum ssc_locate_anchor_status_
     ssc_locate_anchor_status_not_located_anchor_does_not_exist = 3
 } ssc_locate_anchor_status;
 
-static const char* ssc_locate_anchor_status_Array[] = 
+static const char* ssc_locate_anchor_status_Array[] =
 {
     "ssc_locate_anchor_status_already_tracked",
     "ssc_locate_anchor_status_located",
@@ -262,7 +268,7 @@ static const char* ssc_locate_anchor_status_Array[] =
 };
 
 /**
- * Use this enumeration to indicate the method by which anchors can be located. 
+ * Use this enumeration to indicate the method by which anchors can be located.
  */
 typedef enum ssc_locate_strategy_
 {
@@ -281,7 +287,7 @@ typedef enum ssc_locate_strategy_
 } ssc_locate_strategy;
 
 /**
- * Defines logging severity levels. 
+ * Defines logging severity levels.
  */
 typedef enum ssc_session_log_level_
 {
@@ -312,7 +318,7 @@ typedef enum ssc_session_log_level_
 } ssc_session_log_level;
 
 /**
- * Use this enumeration to describe the kind of feedback that can be provided to the user about data 
+ * Use this enumeration to describe the kind of feedback that can be provided to the user about data
  */
 typedef enum ssc_session_user_feedback_
 {
@@ -337,35 +343,35 @@ typedef enum ssc_session_user_feedback_
 typedef enum ssc_status_
 {
     /**
-     * Success 
+     * Success
      */
     ssc_status_ok = 0,
     /**
-     * Failed 
+     * Failed
      */
     ssc_status_failed = 1,
     /**
-     * Cannot access a disposed object. 
+     * Cannot access a disposed object.
      */
     ssc_status_object_disposed = 2,
     /**
-     * Out of memory. 
+     * Out of memory.
      */
     ssc_status_out_of_memory = 12,
     /**
-     * Invalid argument. 
+     * Invalid argument.
      */
     ssc_status_invalid_argument = 22,
     /**
-     * The value is out of range. 
+     * The value is out of range.
      */
     ssc_status_out_of_range = 34,
     /**
-     * Not implemented. 
+     * Not implemented.
      */
     ssc_status_not_implemented = 38,
     /**
-     * The key does not exist in the collection. 
+     * The key does not exist in the collection.
      */
     ssc_status_key_not_found = 77,
     /**
@@ -451,24 +457,24 @@ typedef enum ssc_status_
 } ssc_status;
 
 /**
- * Possible values returned when querying PlatformLocationProvider for Wifi capabilities 
+ * Possible values returned when querying PlatformLocationProvider for Wifi capabilities
  */
 typedef enum ssc_wifi_status_result_
 {
     /**
-     * Wifi data is available. 
+     * Wifi data is available.
      */
     ssc_wifi_status_result_available = 0,
     /**
-     * Wifi was disabled in the SensorCapabilities. 
+     * Wifi was disabled in the SensorCapabilities.
      */
     ssc_wifi_status_result_disabled_capability = 1,
     /**
-     * No sensor fingerprint provider has been created. 
+     * No sensor fingerprint provider has been created.
      */
     ssc_wifi_status_result_missing_sensor_fingerprint_provider = 2,
     /**
-     * No Wifi access points have been found. 
+     * No Wifi access points have been found.
      */
     ssc_wifi_status_result_no_access_points_found = 3
 } ssc_wifi_status_result;
@@ -482,18 +488,17 @@ typedef void (*ssc_session_updated_delegate)(ssc_callback_cookie cookie, ssc_ses
 typedef void (*ssc_token_required_delegate)(ssc_callback_cookie cookie, ssc_token_required_event_args_handle args);
 typedef void (*ssc_updated_sensor_fingerprint_required_delegate)(ssc_callback_cookie cookie, ssc_sensor_fingerprint_event_args_handle args);
 
-// Structures.
 // Exported functions.
 extern ssc_status ssc_anchor_locate_criteria_addref(ssc_anchor_locate_criteria_handle handle);
 extern ssc_status ssc_anchor_locate_criteria_create(ssc_anchor_locate_criteria_handle* instance);
-extern ssc_status ssc_anchor_locate_criteria_get_bypass_cache(ssc_anchor_locate_criteria_handle handle, char* result);
+extern ssc_status ssc_anchor_locate_criteria_get_bypass_cache(ssc_anchor_locate_criteria_handle handle, ssc_bool* result);
 extern ssc_status ssc_anchor_locate_criteria_get_identifiers(ssc_anchor_locate_criteria_handle handle, const char * ** result, int* result_count);
 extern ssc_status ssc_anchor_locate_criteria_get_near_anchor(ssc_anchor_locate_criteria_handle handle, ssc_near_anchor_criteria_handle* result);
 extern ssc_status ssc_anchor_locate_criteria_get_near_device(ssc_anchor_locate_criteria_handle handle, ssc_near_device_criteria_handle* result);
 extern ssc_status ssc_anchor_locate_criteria_get_requested_categories(ssc_anchor_locate_criteria_handle handle, ssc_anchor_data_category* result);
 extern ssc_status ssc_anchor_locate_criteria_get_strategy(ssc_anchor_locate_criteria_handle handle, ssc_locate_strategy* result);
 extern ssc_status ssc_anchor_locate_criteria_release(ssc_anchor_locate_criteria_handle handle);
-extern ssc_status ssc_anchor_locate_criteria_set_bypass_cache(ssc_anchor_locate_criteria_handle handle, char value);
+extern ssc_status ssc_anchor_locate_criteria_set_bypass_cache(ssc_anchor_locate_criteria_handle handle, ssc_bool value);
 extern ssc_status ssc_anchor_locate_criteria_set_identifiers(ssc_anchor_locate_criteria_handle handle, const char * * value, int value_count);
 extern ssc_status ssc_anchor_locate_criteria_set_near_anchor(ssc_anchor_locate_criteria_handle handle, ssc_near_anchor_criteria_handle value);
 extern ssc_status ssc_anchor_locate_criteria_set_near_device(ssc_anchor_locate_criteria_handle handle, ssc_near_device_criteria_handle value);
@@ -513,6 +518,10 @@ extern ssc_status ssc_cloud_spatial_anchor_get_expiration(ssc_cloud_spatial_anch
 extern ssc_status ssc_cloud_spatial_anchor_get_identifier(ssc_cloud_spatial_anchor_handle handle, const char ** result);
 extern ssc_status ssc_cloud_spatial_anchor_get_local_anchor(ssc_cloud_spatial_anchor_handle handle, ssc_platform_anchor_handle* result);
 extern ssc_status ssc_cloud_spatial_anchor_get_version_tag(ssc_cloud_spatial_anchor_handle handle, const char ** result);
+extern ssc_status ssc_cloud_spatial_anchor_map_addref(ssc_cloud_spatial_anchor_map_handle handle);
+extern ssc_status ssc_cloud_spatial_anchor_map_get_identifier(ssc_cloud_spatial_anchor_map_handle handle, const char ** result);
+extern ssc_status ssc_cloud_spatial_anchor_map_get_name(ssc_cloud_spatial_anchor_map_handle handle, const char ** result);
+extern ssc_status ssc_cloud_spatial_anchor_map_release(ssc_cloud_spatial_anchor_map_handle handle);
 extern ssc_status ssc_cloud_spatial_anchor_release(ssc_cloud_spatial_anchor_handle handle);
 extern ssc_status ssc_cloud_spatial_anchor_session_addref(ssc_cloud_spatial_anchor_session_handle handle);
 extern ssc_status ssc_cloud_spatial_anchor_session_create(ssc_cloud_spatial_anchor_session_handle* instance);
@@ -524,12 +533,12 @@ extern ssc_status ssc_cloud_spatial_anchor_session_deferral_release(ssc_cloud_sp
 extern ssc_status ssc_cloud_spatial_anchor_session_delete_anchor_async(ssc_cloud_spatial_anchor_session_handle handle, ssc_cloud_spatial_anchor_handle anchor);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_addref(ssc_cloud_spatial_anchor_session_diagnostics_handle handle);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_create_manifest_async(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, const char * description, const char ** result);
-extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_get_images_enabled(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, char* result);
+extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_get_images_enabled(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, ssc_bool* result);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_get_log_directory(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, const char ** result);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_get_log_level(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, ssc_session_log_level* result);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_get_max_disk_size_in_mb(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, int* result);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_release(ssc_cloud_spatial_anchor_session_diagnostics_handle handle);
-extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_set_images_enabled(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, char value);
+extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_set_images_enabled(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, ssc_bool value);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_set_log_directory(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, const char * value);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_set_log_level(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, ssc_session_log_level value);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_set_max_disk_size_in_mb(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, int value);
@@ -605,7 +614,7 @@ extern ssc_status ssc_ilist_string_release(ssc_ilist_string_handle handle);
 extern ssc_status ssc_ilist_string_remove_item(ssc_ilist_string_handle handle, int index);
 extern ssc_status ssc_ilist_string_set_item(ssc_ilist_string_handle handle, int index, const char * value);
 extern ssc_status ssc_locate_anchors_completed_event_args_addref(ssc_locate_anchors_completed_event_args_handle handle);
-extern ssc_status ssc_locate_anchors_completed_event_args_get_cancelled(ssc_locate_anchors_completed_event_args_handle handle, char* result);
+extern ssc_status ssc_locate_anchors_completed_event_args_get_cancelled(ssc_locate_anchors_completed_event_args_handle handle, ssc_bool* result);
 extern ssc_status ssc_locate_anchors_completed_event_args_get_watcher(ssc_locate_anchors_completed_event_args_handle handle, ssc_cloud_spatial_anchor_watcher_handle* result);
 extern ssc_status ssc_locate_anchors_completed_event_args_release(ssc_locate_anchors_completed_event_args_handle handle);
 extern ssc_status ssc_near_anchor_criteria_addref(ssc_near_anchor_criteria_handle handle);
@@ -638,15 +647,15 @@ extern ssc_status ssc_platform_location_provider_release(ssc_platform_location_p
 extern ssc_status ssc_platform_location_provider_start(ssc_platform_location_provider_handle handle);
 extern ssc_status ssc_platform_location_provider_stop(ssc_platform_location_provider_handle handle);
 extern ssc_status ssc_sensor_capabilities_addref(ssc_sensor_capabilities_handle handle);
-extern ssc_status ssc_sensor_capabilities_get_bluetooth_enabled(ssc_sensor_capabilities_handle handle, char* result);
-extern ssc_status ssc_sensor_capabilities_get_geo_location_enabled(ssc_sensor_capabilities_handle handle, char* result);
+extern ssc_status ssc_sensor_capabilities_get_bluetooth_enabled(ssc_sensor_capabilities_handle handle, ssc_bool* result);
+extern ssc_status ssc_sensor_capabilities_get_geo_location_enabled(ssc_sensor_capabilities_handle handle, ssc_bool* result);
 extern ssc_status ssc_sensor_capabilities_get_known_beacon_proximity_uuids(ssc_sensor_capabilities_handle handle, const char * ** result, int* result_count);
-extern ssc_status ssc_sensor_capabilities_get_wifi_enabled(ssc_sensor_capabilities_handle handle, char* result);
+extern ssc_status ssc_sensor_capabilities_get_wifi_enabled(ssc_sensor_capabilities_handle handle, ssc_bool* result);
 extern ssc_status ssc_sensor_capabilities_release(ssc_sensor_capabilities_handle handle);
-extern ssc_status ssc_sensor_capabilities_set_bluetooth_enabled(ssc_sensor_capabilities_handle handle, char value);
-extern ssc_status ssc_sensor_capabilities_set_geo_location_enabled(ssc_sensor_capabilities_handle handle, char value);
+extern ssc_status ssc_sensor_capabilities_set_bluetooth_enabled(ssc_sensor_capabilities_handle handle, ssc_bool value);
+extern ssc_status ssc_sensor_capabilities_set_geo_location_enabled(ssc_sensor_capabilities_handle handle, ssc_bool value);
 extern ssc_status ssc_sensor_capabilities_set_known_beacon_proximity_uuids(ssc_sensor_capabilities_handle handle, const char * * value, int value_count);
-extern ssc_status ssc_sensor_capabilities_set_wifi_enabled(ssc_sensor_capabilities_handle handle, char value);
+extern ssc_status ssc_sensor_capabilities_set_wifi_enabled(ssc_sensor_capabilities_handle handle, ssc_bool value);
 extern ssc_status ssc_sensor_fingerprint_event_args_addref(ssc_sensor_fingerprint_event_args_handle handle);
 extern ssc_status ssc_sensor_fingerprint_event_args_get_geo_position(ssc_sensor_fingerprint_event_args_handle handle, ssc_geo_location_handle* result);
 extern ssc_status ssc_sensor_fingerprint_event_args_release(ssc_sensor_fingerprint_event_args_handle handle);
@@ -700,6 +709,8 @@ extern ssc_status ssc_anchor_locate_criteria_set_identifiers_wide_flat(ssc_ancho
 extern ssc_status ssc_anchor_located_event_args_get_identifier_wide(ssc_anchor_located_event_args_handle handle, const wchar_t ** result);
 extern ssc_status ssc_cloud_spatial_anchor_get_identifier_wide(ssc_cloud_spatial_anchor_handle handle, const wchar_t ** result);
 extern ssc_status ssc_cloud_spatial_anchor_get_version_tag_wide(ssc_cloud_spatial_anchor_handle handle, const wchar_t ** result);
+extern ssc_status ssc_cloud_spatial_anchor_map_get_identifier_wide(ssc_cloud_spatial_anchor_map_handle handle, const wchar_t ** result);
+extern ssc_status ssc_cloud_spatial_anchor_map_get_name_wide(ssc_cloud_spatial_anchor_map_handle handle, const wchar_t ** result);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_create_manifest_async_wide(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, const wchar_t * description, const wchar_t ** result);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_get_log_directory_wide(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, const wchar_t ** result);
 extern ssc_status ssc_cloud_spatial_anchor_session_diagnostics_set_log_directory_wide(ssc_cloud_spatial_anchor_session_diagnostics_handle handle, const wchar_t * value);
@@ -740,5 +751,9 @@ extern ssc_status ssc_token_required_event_args_get_authentication_token_wide(ss
 extern ssc_status ssc_token_required_event_args_set_access_token_wide(ssc_token_required_event_args_handle handle, const wchar_t * value);
 extern ssc_status ssc_token_required_event_args_set_authentication_token_wide(ssc_token_required_event_args_handle handle, const wchar_t * value);
 #endif // _UNICODE
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif // __SSC_HEADER__

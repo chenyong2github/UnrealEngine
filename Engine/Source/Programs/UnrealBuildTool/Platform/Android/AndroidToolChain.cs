@@ -876,12 +876,24 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCompileArguments_CPP(bool bDisableOptimizations)
+		static string GetCppStandardCompileArgument(CppCompileEnvironment CompileEnvironment)
+		{
+			var Mapping = new Dictionary<CppStandardVersion, string>
+			{
+				{ CppStandardVersion.Cpp14, " -std=c++14" },
+				{ CppStandardVersion.Cpp17, " -std=c++17" },
+				{ CppStandardVersion.Latest, " -std=c++17" },
+				{ CppStandardVersion.Default, " -std=c++14" }
+			};
+			return Mapping[CompileEnvironment.CppStandard];
+		}
+
+		static string GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, bool bDisableOptimizations)
 		{
 			string Result = "";
 
 			Result += " -x c++";
-			Result += " -std=c++14";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 
 			// optimization level
 			if (bDisableOptimizations)
@@ -915,12 +927,12 @@ namespace UnrealBuildTool
 			return Result;
 		}
 
-		static string GetCompileArguments_PCH(bool bDisableOptimizations)
+		static string GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment, bool bDisableOptimizations)
 		{
 			string Result = "";
 
 			Result += " -x c++-header";
-			Result += " -std=c++14";
+			Result += GetCppStandardCompileArgument(CompileEnvironment);
 
 			// optimization level
 			if (bDisableOptimizations)
@@ -1516,11 +1528,11 @@ namespace UnrealBuildTool
 						}
 						else if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
 						{
-							FileArguments += GetCompileArguments_PCH(bDisableOptimizations);
+							FileArguments += GetCompileArguments_PCH(CompileEnvironment, bDisableOptimizations);
 						}
 						else
 						{
-							FileArguments += GetCompileArguments_CPP(bDisableOptimizations);
+							FileArguments += GetCompileArguments_CPP(CompileEnvironment, bDisableOptimizations);
 
 							// only use PCH for .cpp files
 							FileArguments += PCHArguments;
