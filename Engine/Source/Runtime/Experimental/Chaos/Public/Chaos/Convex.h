@@ -26,7 +26,7 @@ namespace Chaos
 	{
 	public:
 		using FImplicitObject::GetTypeName;
-		using TType = float;
+		using TType = FReal;
 		static constexpr unsigned D = 3;
 
 		FConvex()
@@ -367,7 +367,7 @@ namespace Chaos
 		virtual int32 FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist = 0.01) const override;
 
 		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
-		float GetWindingOrder() const
+		FReal GetWindingOrder() const
 		{
 			return 1.0f;
 		}
@@ -395,7 +395,7 @@ namespace Chaos
 			return MaxVIdx;
 		}
 
-		FVec3 GetMarginAdjustedVertex(int32 VertexIndex, float InMargin) const
+		FVec3 GetMarginAdjustedVertex(int32 VertexIndex, FReal InMargin) const
 		{
 			// @chaos(todo): moving the vertices this way based on margin is only valid for small margins. If the margin
 			// is large enough to cause a face to reduce to zero size, vertices should be merged and the path is non-linear.
@@ -427,7 +427,7 @@ namespace Chaos
 			return FVec3(0);
 		}
 
-		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, float InMargin, const FVec3& Scale) const
+		FVec3 GetMarginAdjustedVertexScaled(int32 VertexIndex, FReal InMargin, const FVec3& Scale) const
 		{
 			// Get any 3 planes that contribute to this vertex
 			if (NumVertexPlanes(VertexIndex) >= 3)
@@ -470,7 +470,7 @@ namespace Chaos
 
 	public:
 		// Return support point on the core shape (the convex shape with all planes moved inwards by margin).
-		FVec3 SupportCore(const FVec3& Direction, float InMargin) const
+		FVec3 SupportCore(const FVec3& Direction, FReal InMargin) const
 		{
 			const int32 SupportVertexIndex = GetSupportVertex(Direction);
 			if (SupportVertexIndex != INDEX_NONE)
@@ -486,7 +486,7 @@ namespace Chaos
 
 		// SupportCore with non-uniform scale support. This is required for the margin in scaled
 		// space to by uniform. Note in this version all the inputs are in outer container's (scaled shape) space
-		FVec3 SupportCoreScaled(const FVec3& Direction, float InMargin, const FVec3& Scale) const
+		FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale) const
 		{
 			// Find the supporting vertex index
 			const FVec3 DirectionScaled = Scale * Direction;	// does not need to be normalized
@@ -732,7 +732,7 @@ namespace Chaos
 		TArray<FVec3> Vertices; //copy of the vertices that are just on the convex hull boundary
 		FAABB3 LocalBoundingBox;
 		FConvexStructureData StructureData;
-		float Volume;
+		FReal Volume;
 		FVec3 CenterOfMass;
 	};
 }

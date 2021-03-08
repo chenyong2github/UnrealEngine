@@ -279,13 +279,13 @@ namespace Chaos
 			return MSegment.Support(Direction, GetRadius() + Thickness);
 		}
 
-		FORCEINLINE FVec3 SupportCore(const FVec3& Direction, float InMargin) const
+		FORCEINLINE FVec3 SupportCore(const FVec3& Direction, FReal InMargin) const
 		{
 			// NOTE: Ignores InMargin, assumes Radius
 			return MSegment.SupportCore(Direction);
 		}
 
-		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, float InMargin, const FVec3& Scale) const
+		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale) const
 		{
 			// NOTE: Ignores InMargin, assumes Radius
 			return SupportCore(Scale * Direction, GetMargin()) * Scale;

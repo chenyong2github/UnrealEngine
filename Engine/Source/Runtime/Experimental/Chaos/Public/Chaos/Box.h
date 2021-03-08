@@ -144,9 +144,9 @@ namespace Chaos
 		}
 
 		// Apply a limit to the specified margin that prevents the box inverting
-		FORCEINLINE float ClampedMargin(float InMargin) const
+		FORCEINLINE FReal ClampedMargin(FReal InMargin) const
 		{
-			float MaxMargin = 0.5f * AABB.Extents().Min();
+			FReal MaxMargin = 0.5f * AABB.Extents().Min();
 			return FMath::Min(InMargin, MaxMargin);
 		}
 
@@ -290,12 +290,12 @@ namespace Chaos
 		}
 
 		// Returns a position on the core shape excluding the margin
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
 		{
 			return AABB.SupportCore(Direction, InMargin);
 		}
 
-		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, float InMargin, const TVector<T, d>& Scale) const
+		FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, FReal InMargin, const TVector<T, d>& Scale) const
 		{
 			// @todo(chaos): Needs to operate in scaled space as margin is not non-uniform scalable
 			const FReal InvScale = 1.0f / Scale[0];
@@ -304,7 +304,7 @@ namespace Chaos
 		}
 
 		// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales (See ImplicitObjectScaled)
-		FORCEINLINE float GetWindingOrder() const
+		FORCEINLINE FReal GetWindingOrder() const
 		{
 			return 1.0f;
 		}

@@ -128,13 +128,13 @@ public:
 	}
 
 	// The support position from the specified direction, if the shape is reduced by the margin
-	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
+	FORCEINLINE TVector<T, d> SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
 	{
 		return MObject->SupportCore(Direction, InMargin);
 	}
 
 	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales
-	FORCEINLINE float GetWindingOrder() const
+	FORCEINLINE FReal GetWindingOrder() const
 	{
 		return 1.0f;
 	}
@@ -454,7 +454,7 @@ public:
 			
 			TVector<T, d> UnscaledPosition;
 			TVector<T, d> UnscaledNormal;
-			float UnscaledTime;
+			T UnscaledTime;
 
 			if (MObject->Raycast(UnscaledStart, UnscaledDir, UnscaledLength, Thickness * MInvScale[0], UnscaledTime, UnscaledPosition, UnscaledNormal, OutFaceIndex))
 			{
@@ -491,7 +491,7 @@ public:
 
 			TVector<T, d> UnscaledPosition;
 			TVector<T, d> UnscaledNormal;
-			float UnscaledTime;
+			T UnscaledTime;
 
 			auto ScaledB = MakeScaledHelper(B, MInvScale);
 
@@ -608,7 +608,7 @@ public:
 
 		const TVector<T, d> UnscaledPosition = MInvScale * Position;
 		const TVector<T, d> UnscaledDirDenorm = MInvScale * UnitDir;
-		const float LengthScale = UnscaledDirDenorm.Size();
+		const T LengthScale = UnscaledDirDenorm.Size();
 		const TVector<T, d> UnscaledDir
 			= ensure(LengthScale > TNumericLimits<T>::Min())
 			? UnscaledDirDenorm / LengthScale
@@ -625,7 +625,7 @@ public:
 		// Get unscaled dir and normal
 		const TVector<T, 3> LocalDenormDir = DenormDir * MInvScale;
 		const TVector<T, 3> LocalOriginalNormalDenorm = OriginalNormal * MInvScale;
-		const float NormalLengthScale = LocalOriginalNormalDenorm.Size();
+		const T NormalLengthScale = LocalOriginalNormalDenorm.Size();
 		const TVector<T, 3> LocalOriginalNormal
 			= ensure(NormalLengthScale > SMALL_NUMBER)
 			? LocalOriginalNormalDenorm / NormalLengthScale
@@ -693,13 +693,13 @@ public:
 		return Thickness > 0 ? TVector<T, d>(UnthickenedPt + Direction.GetSafeNormal() * Thickness) : UnthickenedPt;
 	}
 
-	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, float InMargin) const
+	FORCEINLINE_DEBUGGABLE TVector<T, d> SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
 	{
 		return MObject->SupportCoreScaled(Direction, InMargin, MScale);
 	}
 
 	// Returns a winding order multiplier used in the manifold clipping and required when we have negative scales
-	FORCEINLINE float GetWindingOrder() const
+	FORCEINLINE FReal GetWindingOrder() const
 	{
 		const FVec3 SignVector = MScale.GetSignVector();
 		return SignVector.X * SignVector.Y * SignVector.Z;
@@ -820,7 +820,7 @@ private:
 	FVec3 GetInverseScaledNormal(const TVector<T, d>& OuterNormal) const
 	{
 		const TVector<T, d> UnscaledDirDenorm = MInvScale * OuterNormal;
-		const float LengthScale = UnscaledDirDenorm.Size();
+		const T LengthScale = UnscaledDirDenorm.Size();
 		const TVector<T, d> UnscaledDir
 			= ensure(LengthScale > TNumericLimits<T>::Min())
 			? UnscaledDirDenorm / LengthScale
@@ -832,7 +832,7 @@ private:
 	FVec3 GetScaledNormal(const TVector<T, d>& InnerNormal) const
 	{
 		const TVector<T, d> ScaledDirDenorm = MScale * InnerNormal;
-		const float LengthScale = ScaledDirDenorm.Size();
+		const T LengthScale = ScaledDirDenorm.Size();
 		const TVector<T, d> ScaledDir
 			= ensure(LengthScale > TNumericLimits<T>::Min())
 			? ScaledDirDenorm / LengthScale

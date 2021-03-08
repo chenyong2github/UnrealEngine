@@ -95,7 +95,7 @@ class CHAOS_API FLevelSet final : public FImplicitObject
 	FReal ApproximateNegativeMaterial() const
 	{
 		const FVec3& CellDim = MGrid.Dx();
-		const float AvgRadius = (CellDim[0] + CellDim[1] + CellDim[2]) / (FReal)3;
+		const FReal AvgRadius = (CellDim[0] + CellDim[1] + CellDim[2]) / (FReal)3;
 		const FReal CellVolume = CellDim.Product();
 		FReal Volume = 0.0;
 		for (int32 Idx = 0; Idx < MPhi.Num(); ++Idx)

@@ -177,7 +177,7 @@ namespace Chaos
 		{
 			// StepFraction: how much of the remaining time this step represents, used to interpolate kinematic targets
 			// E.g., for 4 steps this will be: 1/4, 1/2, 3/4, 1
-			const float StepFraction = (FReal)(Step + 1) / (NumSteps);
+			const FReal StepFraction = (FReal)(Step + 1) / (NumSteps);
 
 			UE_LOG(LogChaosMinEvolution, Verbose, TEXT("Advance dt = %f [%d/%d]"), StepDt, Step + 1, NumSteps);
 

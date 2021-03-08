@@ -97,14 +97,14 @@ template <typename TPayloadType>
 struct CHAOS_API TSpatialVisitorData
 {
 	TPayloadType Payload;
-	TSpatialVisitorData(const TPayloadType& InPayload, const bool bInHasBounds = false, const TAABB<float, 3>& InBounds = TAABB<float, 3>::ZeroAABB())
+	TSpatialVisitorData(const TPayloadType& InPayload, const bool bInHasBounds = false, const FAABB3& InBounds = FAABB3::ZeroAABB())
 		: Payload(InPayload)
 #if !(UE_BUILD_TEST || UE_BUILD_SHIPPING)
 		, bHasBounds(bInHasBounds)
 		, Bounds(InBounds)
 	{ }
 	bool bHasBounds;
-	TAABB<float, 3> Bounds;
+	FAABB3 Bounds;
 #else
 	{ }
 #endif
@@ -157,8 +157,8 @@ public:
 	
 	virtual ~ISpacialDebugDrawInterface() = default;
 
-	virtual void Box(const TAABB<T, 3>& InBox, const TVector<T, 3>& InLinearColor, float InThickness) = 0;
-	virtual void Line(const TVector<T, 3>& InBegin, const TVector<T, 3>& InEnd, const TVector<T, 3>& InLinearColor, float InThickness)  = 0;
+	virtual void Box(const TAABB<T, 3>& InBox, const TVector<T, 3>& InLinearColor, Chaos::FReal InThickness) = 0;
+	virtual void Line(const TVector<T, 3>& InBegin, const TVector<T, 3>& InEnd, const TVector<T, 3>& InLinearColor, Chaos::FReal InThickness)  = 0;
 
 };
 

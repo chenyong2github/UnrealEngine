@@ -95,7 +95,7 @@ public:
 		return MObject.Get();
 	}
 
-	float GetMargin() const
+	FReal GetMargin() const
 	{
 		// If the inner shape is quadratic, we have no margin
 		return (MObject->GetRadius() > 0.0f) ? 0.0f : Margin;

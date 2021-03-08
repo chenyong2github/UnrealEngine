@@ -7,8 +7,8 @@
 
 namespace Chaos
 {
-	float Chaos_Manifold_MatchPositionTolerance = 0.3f;		// Fraction of object size position tolerance
-	float Chaos_Manifold_MatchNormalTolerance = 0.02f;		// Dot product tolerance
+	FRealSingle Chaos_Manifold_MatchPositionTolerance = 0.3f;		// Fraction of object size position tolerance
+	FRealSingle Chaos_Manifold_MatchNormalTolerance = 0.02f;		// Dot product tolerance
 	FAutoConsoleVariableRef CVarChaos_Manifold_MatchPositionTolerance(TEXT("p.Chaos.Collision.Manifold.MatchPositionTolerance"), Chaos_Manifold_MatchPositionTolerance, TEXT("A tolerance as a fraction of object size used to determine if two contact points are the same"));
 	FAutoConsoleVariableRef CVarChaos_Manifold_MatchNormalTolerance(TEXT("p.Chaos.Collision.Manifold.MatchNormalTolerance"), Chaos_Manifold_MatchNormalTolerance, TEXT("A tolerance on the normal dot product used to determine if two contact points are the same"));
 
@@ -91,7 +91,7 @@ namespace Chaos
 		// If either point in local space is the same, it is the same contact
 		if (DistanceTolerance > 0.0f)
 		{
-			const float DistanceTolerance2 = DistanceTolerance * DistanceTolerance;
+			const FReal DistanceTolerance2 = DistanceTolerance * DistanceTolerance;
 			for (int32 BodyIndex = 0; BodyIndex < 2; ++BodyIndex)
 			{
 				FVec3 DR = A.ShapeContactPoints[BodyIndex] - B.ShapeContactPoints[BodyIndex];

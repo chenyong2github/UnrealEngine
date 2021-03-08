@@ -142,15 +142,15 @@ private:
 
 
 public:
-	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
+	void AddForceCallback(FParticlesType& InParticles, const FReal InDt, const int32 InIndex) {}
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) {}
 	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper>& PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32>& ParticleIDReverseMap) {}
-	void EndFrameCallback(const float InDt) {}
-	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime) {}
+	void EndFrameCallback(const FReal InDt) {}
+	void ParameterUpdateCallback(FParticlesType& InParticles, const FReal InTime) {}
 	void CreateRigidBodyCallback(FParticlesType& InOutParticles) {}
 	bool IsSimulating() const { return true; }
-	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy) {}
-	void StartFrameCallback(const float InDt, const float InTime) {}
+	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const FReal InDt, const FReal InTime, FKinematicProxy& InKinematicProxy) {}
+	void StartFrameCallback(const FReal InDt, const FReal InTime) {}
 
 };
 
