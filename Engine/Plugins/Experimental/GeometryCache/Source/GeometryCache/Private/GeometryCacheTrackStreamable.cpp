@@ -5,6 +5,7 @@
 #include "GeometryCacheModule.h"
 #include "GeometryCacheHelpers.h"
 #include "GeometryCachePreprocessor.h"
+#include "StreamingGeometryCacheData.h"
 #include "Misc/PackageName.h"
 #include "UObject/Package.h"
 
@@ -69,6 +70,7 @@ UCompressedGeometryCacheTrack
 GEOMETRYCACHE_API UGeometryCacheTrackStreamable::UGeometryCacheTrackStreamable(const FObjectInitializer& ObjectInitializer /*= FObjectInitializer::Get()*/) : UGeometryCacheTrack(ObjectInitializer)
 {
 	Codec = nullptr;
+	Hash = 0;
 }
 
 UGeometryCacheTrackStreamable::~UGeometryCacheTrackStreamable()
@@ -240,6 +242,12 @@ void UGeometryCacheTrackStreamable::EndCoding()
 void UGeometryCacheTrackStreamable::AddMeshSample(const FGeometryCacheMeshData& MeshData, const float SampleTime, bool bSameTopologyAsPrevious)
 {
 	check(Codec != 0);
+
+	uint64 TmpHash = MeshData.GetHash();
+	if (TmpHash)
+	{
+		Hash = CityHash64WithSeed((char*) &TmpHash, sizeof(uint64), Hash);
+	}
 
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AddMeshSample);
@@ -509,6 +517,35 @@ const FVisibilitySample& UGeometryCacheTrackStreamable::GetVisibilitySample(floa
 	return VisibilitySamples.Last();
 }
 
+bool UGeometryCacheTrackStreamable::GetMeshDataAtTime(float Time, FGeometryCacheMeshData& OutMeshData)
+{
+	if (!Codec)
+	{
+		return false;
+	}
+
+	// Fetch the mesh data directly bypassing the GeometryCacheStreamingManager
+	FStreamingGeometryCacheData Data(this);
+
+	const int32 SampleIndex = FindSampleIndexFromTime(Time, false);
+	Data.AddNeededChunk(SampleIndex);
+	Data.UpdateStreamingStatus();
+	Data.BlockTillAllRequestsFinished();
+
+	uint32 BufferSize = 0;
+	const uint8 *Buffer = Data.MapChunk(SampleIndex, &BufferSize);
+	bool bResult = Codec->DecodeBuffer(Buffer, BufferSize, OutMeshData);
+
+	Data.UnmapChunk(SampleIndex);
+
+	return bResult;
+}
+
+uint64 UGeometryCacheTrackStreamable::GetHash() const
+{
+	return Hash;
+}
+
 /**
 	This should be called on the game thread whenever anything has changed to the object state
 	that needs to be synced with the rendering thread.
@@ -571,6 +608,10 @@ bool FGeometryCacheTrackStreamableRenderResource::UpdateMeshData(float Time, boo
 bool FGeometryCacheTrackStreamableRenderResource::DecodeMeshData(int32 SampleIndex, FGeometryCacheMeshData& OutMeshData)
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateMeshData);
+	if (!Codec)
+	{
+		return false;
+	}
 	FGeometryCacheCodecDecodeArguments Args(*this, Track->Chunks, SampleIndex, OutMeshData);
 	return Codec->DecodeSingleFrame(Args);
 }

@@ -114,6 +114,8 @@ class GEOMETRYCACHE_API UGeometryCacheTrackStreamable : public UGeometryCacheTra
 	virtual const float GetMaxSampleTime() const override;
 	virtual void SetDuration(float NewDuration) override;
 	virtual const FGeometryCacheTrackSampleInfo& GetSampleInfo(float Time, const bool bLooping) override;
+	virtual bool GetMeshDataAtTime(float Time, FGeometryCacheMeshData& OutMeshData) override;
+	virtual uint64 GetHash() const override;
 	//~ End UGeometryCacheTrack Interface.
 
 #if WITH_EDITORONLY_DATA
@@ -221,5 +223,7 @@ private:
 
 	UPROPERTY()
 	float StartSampleTime;
+
+	uint64 Hash;
 };
 

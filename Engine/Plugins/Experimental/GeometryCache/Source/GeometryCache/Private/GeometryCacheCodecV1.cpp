@@ -54,19 +54,27 @@ bool UGeometryCacheCodecV1::DecodeSingleFrame(FGeometryCacheCodecDecodeArguments
 
 	uint32 DataSize = 0;
 	const uint8 *data = IGeometryCacheStreamingManager::Get().MapChunk(Args.Track.GetTrack(), Args.FrameIdentifier, &DataSize);
-	if (!data)
+
+	bool bResult = DecodeBuffer(data, DataSize, Args.OutMeshData);
+	IGeometryCacheStreamingManager::Get().UnmapChunk(Args.Track.GetTrack(), Args.FrameIdentifier);
+	return bResult;
+}
+
+bool UGeometryCacheCodecV1::DecodeBuffer(const uint8* Buffer, uint32 BufferSize, FGeometryCacheMeshData& OutMeshData)
+{
+	if (!Buffer)
 	{
 		return false;
 	}
 
-	FBufferReader Ar((void *)data,
-		DataSize,
+	check(Decoder != nullptr);
+
+	FBufferReader Ar((void *) Buffer, 
+		BufferSize,
 		/*bInFreeOnClose=*/ false, /*bIsPersistent=*/ true
 	);
 
-	check(Decoder != nullptr);
-	Decoder->DecodeFrameData(Ar, Args.OutMeshData);
-	IGeometryCacheStreamingManager::Get().UnmapChunk(Args.Track.GetTrack(), Args.FrameIdentifier);
+	Decoder->DecodeFrameData(Ar, OutMeshData);
 	return true;
 }
 

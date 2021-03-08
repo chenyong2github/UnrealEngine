@@ -2,7 +2,7 @@
 
 #include "GeometryCacheMeshData.h"
 #include "GeometryCacheModule.h"
-
+#include "Hash/CityHash.h"
 
 DECLARE_CYCLE_STAT(TEXT("Deserialize Vertices"), STAT_DeserializeVertices, STATGROUP_GeometryCache);
 DECLARE_CYCLE_STAT(TEXT("Deserialize Indices"), STAT_DeserializeIndices, STATGROUP_GeometryCache);
@@ -87,4 +87,34 @@ FArchive& operator<<(FArchive& Ar, FGeometryCacheMeshData& Mesh)
 	}
 
 	return Ar;
+}
+
+uint64 FGeometryCacheMeshData::GetHash() const
+{
+	if (Hash != 0)
+	{
+		return Hash;
+	}
+
+	if (Positions.Num() > 0)
+	{
+		Hash = CityHash64((char*) Positions.GetData(), Positions.Num() * sizeof(FVector));
+	}
+
+	if (TextureCoordinates.Num() > 0)
+	{
+		Hash = CityHash64WithSeed((char*) TextureCoordinates.GetData(), TextureCoordinates.Num() * sizeof(FVector2D), Hash);
+	}
+
+	if (TangentsZ.Num() > 0)
+	{
+		Hash = CityHash64WithSeed((char*) TangentsZ.GetData(), TangentsZ.Num() * sizeof(FPackedNormal), Hash);
+	}
+
+	if (BatchesInfo.Num() > 0)
+	{
+		Hash = CityHash64WithSeed((char*) BatchesInfo.GetData(), BatchesInfo.Num() * sizeof(FGeometryCacheMeshBatchInfo), Hash);
+	}
+
+	return Hash;
 }

@@ -30,6 +30,7 @@ class GEOMETRYCACHE_API UGeometryCacheCodecV1 : public UGeometryCacheCodecBase
 	virtual ~UGeometryCacheCodecV1();
 
 	virtual bool DecodeSingleFrame(FGeometryCacheCodecDecodeArguments &Args) override;
+	virtual bool DecodeBuffer(const uint8* Buffer, uint32 BufferSize, FGeometryCacheMeshData& OutMeshData) override;
 	virtual FGeometryCacheCodecRenderStateBase *CreateRenderState() override;
 
 #if WITH_EDITORONLY_DATA

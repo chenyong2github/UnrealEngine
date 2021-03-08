@@ -96,7 +96,7 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 {
 	GENERATED_USTRUCT_BODY()
 
-	FGeometryCacheMeshData() {}
+	FGeometryCacheMeshData() : Hash(0) {}
 	~FGeometryCacheMeshData()
 	{
 		Positions.Empty();
@@ -163,4 +163,10 @@ struct GEOMETRYCACHE_API FGeometryCacheMeshData
 		CumulativeResourceSize.AddUnknownMemoryBytes(sizeof(Indices));
 		CumulativeResourceSize.AddUnknownMemoryBytes(sizeof(VertexInfo));
 	}
+
+	/** Return a hash of the content of the GeometryCacheMeshData */
+	uint64 GetHash() const;
+
+private:
+	mutable uint64 Hash;
 };
