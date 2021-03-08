@@ -108,6 +108,7 @@ public:
 	virtual bool AddToPluginsList( const FString& PluginFilename ) override;
 	virtual bool LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase ) override;
 	virtual FLoadingModulesForPhaseEvent& OnLoadingPhaseComplete() override;
+	virtual ELoadingPhase::Type GetLastCompletedLoadingPhase() const override;
 	virtual void GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths ) override;
 	virtual void SetRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;
 	virtual void SetUnRegisterMountPointDelegate( const FRegisterMountPointDelegate& Delegate ) override;
@@ -233,6 +234,9 @@ private:
 
 	/** Callback for notifications that a loading phase was completed */
 	FLoadingModulesForPhaseEvent LoadingPhaseCompleteEvent;
+
+	/** The highest LoadingPhase that has so far completed */
+	ELoadingPhase::Type LastCompletedLoadingPhase = ELoadingPhase::None;
 };
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 

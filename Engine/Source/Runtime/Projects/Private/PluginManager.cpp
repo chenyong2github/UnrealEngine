@@ -1500,37 +1500,48 @@ bool FPluginManager::TryLoadModulesForPlugin( const FPlugin& Plugin, const ELoad
 bool FPluginManager::LoadModulesForEnabledPlugins( const ELoadingPhase::Type LoadingPhase )
 {
 	// Figure out which plugins are enabled
-	if(!ConfigureEnabledPlugins())
+	bool bSuccess = true;
+	if (!ConfigureEnabledPlugins())
 	{
-		LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/false);
-		return false;
+		bSuccess = false;
 	}
-
-	FScopedSlowTask SlowTask(AllPlugins.Num());
-
-	// Load plugins!
-	for( const TPair<FString, TSharedRef< FPlugin >>& PluginPair : AllPlugins )
+	else
 	{
-		const TSharedRef<FPlugin> &Plugin = PluginPair.Value;
+		FScopedSlowTask SlowTask(AllPlugins.Num());
 
-		SlowTask.EnterProgressFrame(1);
-
-		if ( Plugin->bEnabled && !Plugin->Descriptor.bExplicitlyLoaded )
+		// Load plugins!
+		for (const TPair<FString, TSharedRef< FPlugin >>& PluginPair : AllPlugins)
 		{
-			if (!TryLoadModulesForPlugin(Plugin.Get(), LoadingPhase))
+			const TSharedRef<FPlugin>& Plugin = PluginPair.Value;
+
+			SlowTask.EnterProgressFrame(1);
+
+			if (Plugin->bEnabled && !Plugin->Descriptor.bExplicitlyLoaded)
 			{
-				LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/false);
-				return false;
+				if (!TryLoadModulesForPlugin(Plugin.Get(), LoadingPhase))
+				{
+					bSuccess = false;
+					break;
+				}
 			}
 		}
 	}
-	LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, /*bSuccess =*/true);
-	return true;
+	UE_CLOG(LastCompletedLoadingPhase != ELoadingPhase::None && LastCompletedLoadingPhase >= LoadingPhase,
+		LogPluginManager, Error, TEXT("LoadModulesForEnabledPlugins called on phase %d after already being called on later or equal phase %d."),
+		static_cast<int32>(LoadingPhase), static_cast<int32>(LastCompletedLoadingPhase));
+	LastCompletedLoadingPhase = LoadingPhase;
+	LoadingPhaseCompleteEvent.Broadcast(LoadingPhase, bSuccess);
+	return bSuccess;
 }
 
 IPluginManager::FLoadingModulesForPhaseEvent& FPluginManager::OnLoadingPhaseComplete()
 {
 	return LoadingPhaseCompleteEvent;
+}
+
+ELoadingPhase::Type FPluginManager::GetLastCompletedLoadingPhase() const
+{
+	return LastCompletedLoadingPhase;
 }
 
 void FPluginManager::GetLocalizationPathsForEnabledPlugins( TArray<FString>& OutLocResPaths )
