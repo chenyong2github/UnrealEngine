@@ -674,8 +674,9 @@ static void DumpHitch(int64 Frame)
 	FStatsThreadState& Stats = FStatsThreadState::GetLocalState();
 	SCOPE_CYCLE_COUNTER(STAT_HitchScan);
 
-	const double GameThreadTime = FPlatformTime::ToSeconds64(Stats.GetFastThreadFrameTime(Frame, EThreadType::Game));
-	const double RenderThreadTime = FPlatformTime::ToSeconds64(Stats.GetFastThreadFrameTime(Frame, EThreadType::Renderer));
+	// #todo_cycles64 - remove narrowing to 32-bit
+	const double GameThreadTime = FPlatformTime::ToSeconds((uint32)Stats.GetFastThreadFrameTime(Frame, EThreadType::Game));
+	const double RenderThreadTime = FPlatformTime::ToSeconds((uint32)Stats.GetFastThreadFrameTime(Frame, EThreadType::Renderer));
 	const float HitchThresholdSecs = GHitchThresholdMS * 0.001f;
 
 	if ((GameThreadTime > HitchThresholdSecs) || (RenderThreadTime > HitchThresholdSecs))
