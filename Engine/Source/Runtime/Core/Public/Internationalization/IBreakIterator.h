@@ -3,17 +3,50 @@
 
 #include "CoreTypes.h"
 #include "CoreFwd.h"
+#include "Containers/StringView.h"
 
 class IBreakIterator
 {
 public:
-	virtual ~IBreakIterator() {}
+	virtual ~IBreakIterator() = default;
 
-	virtual void SetString(const FText& InText) = 0;
-	virtual void SetString(const FString& InString) = 0;
-	virtual void SetString(const TCHAR* const InString, const int32 InStringLength) = 0;
-	virtual void SetStringRef(const FString* InString) = 0;
-	virtual void ClearString() = 0;
+	virtual void SetString(const FText& InText)
+	{
+		SetString(CopyTemp(InText.ToString()));
+	}
+	virtual void SetString(const FString& InString)
+	{
+		SetString(CopyTemp(InString));
+	}
+	virtual void SetString(const TCHAR* const InString, const int32 InStringLength)
+	{
+		SetString(FString(InStringLength, InString));
+	}
+	virtual void SetString(FString&& InString) = 0;
+	
+	virtual void SetStringRef(const FText& InText)
+	{
+		SetStringRef(FStringView(InText.ToString()));
+	}
+	virtual void SetStringRef(const FString& InString)
+	{
+		SetStringRef(FStringView(InString));
+	}
+	virtual void SetStringRef(const TCHAR* const InString, const int32 InStringLength)
+	{
+		SetStringRef(FStringView(InString, InStringLength));
+	}
+	virtual void SetStringRef(const FString* InString)
+	{
+		check(InString);
+		SetStringRef(FStringView(*InString));
+	}
+	virtual void SetStringRef(FStringView InString) = 0;
+
+	virtual void ClearString()
+	{
+		SetStringRef(FStringView());
+	}
 
 	virtual int32 GetCurrentPosition() const = 0;
 

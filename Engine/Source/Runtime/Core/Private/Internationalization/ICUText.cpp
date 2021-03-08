@@ -90,12 +90,12 @@ int32 FText::CompareTo( const FText& Other, const ETextComparisonLevel::Type Com
 
 	// Create an iterator for 'this' so that we can interface with ICU
 	UCharIterator DisplayStringICUIterator;
-	FICUTextCharacterIterator DisplayStringIterator(&TextData->GetDisplayString());
+	FICUTextCharacterIterator DisplayStringIterator(FStringView(TextData->GetDisplayString()));
 	uiter_setCharacterIterator(&DisplayStringICUIterator, &DisplayStringIterator);
 
 	// Create an iterator for 'Other' so that we can interface with ICU
 	UCharIterator OtherDisplayStringICUIterator;
-	FICUTextCharacterIterator OtherDisplayStringIterator(&Other.TextData->GetDisplayString());
+	FICUTextCharacterIterator OtherDisplayStringIterator(FStringView(Other.TextData->GetDisplayString()));
 	uiter_setCharacterIterator(&OtherDisplayStringICUIterator, &OtherDisplayStringIterator);
 
 	UErrorCode ICUStatus = U_ZERO_ERROR;
@@ -132,12 +132,12 @@ public:
 	{
 		// Create an iterator for 'A' so that we can interface with ICU
 		UCharIterator ADisplayStringICUIterator;
-		FICUTextCharacterIterator ADisplayStringIterator(&A.TextData->GetDisplayString());
+		FICUTextCharacterIterator ADisplayStringIterator(FStringView(A.TextData->GetDisplayString()));
 		uiter_setCharacterIterator(&ADisplayStringICUIterator, &ADisplayStringIterator);
 
 		// Create an iterator for 'B' so that we can interface with ICU
 		UCharIterator BDisplayStringICUIterator;
-		FICUTextCharacterIterator BDisplayStringIterator(&B.TextData->GetDisplayString());
+		FICUTextCharacterIterator BDisplayStringIterator(FStringView(B.TextData->GetDisplayString()));
 		uiter_setCharacterIterator(&BDisplayStringICUIterator, &BDisplayStringIterator);
 
 		UErrorCode ICUStatus = U_ZERO_ERROR;

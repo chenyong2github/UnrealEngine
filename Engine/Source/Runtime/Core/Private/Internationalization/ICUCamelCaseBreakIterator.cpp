@@ -16,34 +16,37 @@ THIRD_PARTY_INCLUDES_END
 class FICUCamelCaseBreakIterator : public FCamelCaseBreakIterator
 {
 protected:
-	virtual void TokenizeString(TArray<FToken>& OutTokens) override;
+	virtual void TokenizeString(FTokensArray& OutTokens) override;
 };
 
-void FICUCamelCaseBreakIterator::TokenizeString(TArray<FToken>& OutTokens)
+void FICUCamelCaseBreakIterator::TokenizeString(FTokensArray& OutTokens)
 {
 	OutTokens.Empty(String.Len());
 
-	FICUTextCharacterIterator CharIter(String);
-	for(CharIter.setToStart(); CharIter.current32() != FICUTextCharacterIterator::DONE; CharIter.next32PostInc())
+	if (String.Len() > 0)
 	{
-		const UChar32 CurrentChar = CharIter.current32();
+		FICUTextCharacterIterator CharIter(String);
+		for (CharIter.setToStart(); CharIter.current32() != FICUTextCharacterIterator::DONE; CharIter.next32PostInc())
+		{
+			const UChar32 CurrentChar = CharIter.current32();
 
-		ETokenType TokenType = ETokenType::Other;
-		if(u_isULowercase(CurrentChar))
-		{
-			TokenType = ETokenType::Lowercase;
-		}
-		else if(u_isUUppercase(CurrentChar))
-		{
-			TokenType = ETokenType::Uppercase;
-		}
-		else if(u_isdigit(CurrentChar))
-		{
-			TokenType = ETokenType::Digit;
-		}
+			ETokenType TokenType = ETokenType::Other;
+			if (u_isULowercase(CurrentChar))
+			{
+				TokenType = ETokenType::Lowercase;
+			}
+			else if (u_isUUppercase(CurrentChar))
+			{
+				TokenType = ETokenType::Uppercase;
+			}
+			else if (u_isdigit(CurrentChar))
+			{
+				TokenType = ETokenType::Digit;
+			}
 
-		const int32 CharIndex = CharIter.InternalIndexToSourceIndex(CharIter.getIndex());
-		OutTokens.Emplace(FToken(TokenType, CharIndex));
+			const int32 CharIndex = CharIter.InternalIndexToSourceIndex(CharIter.getIndex());
+			OutTokens.Emplace(FToken(TokenType, CharIndex));
+		}
 	}
 
 	OutTokens.Emplace(FToken(ETokenType::Null, String.Len()));

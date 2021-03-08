@@ -9,63 +9,29 @@
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(FICUTextCharacterIterator_NativeUTF16)
 
-FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(const FText& InText)
-	: InternalString(InText.ToString())
-	, StringPtr(&InternalString)
-{
-	setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
-}
-
-FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(const FString& InString)
-	: InternalString(InString)
-	, StringPtr(&InternalString)
-{
-	setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
-}
-
-FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(const TCHAR* const InString, const int32 InStringLength)
-	: InternalString(InStringLength, InString)
-	, StringPtr(&InternalString)
-{
-	setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
-}
-
 FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(FString&& InString)
 	: InternalString(InString)
-	, StringPtr(&InternalString)
+	, StringRef(InternalString)
 {
-	setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
+	SetTextFromStringRef();
 }
 
-FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(const FString* const InString)
-	: StringPtr(InString)
+FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(FStringView InString)
+	: StringRef(InString)
 {
-	check(StringPtr);
-	setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
+	SetTextFromStringRef();
 }
 
 FICUTextCharacterIterator_NativeUTF16::FICUTextCharacterIterator_NativeUTF16(const FICUTextCharacterIterator_NativeUTF16& Other)
 	: icu::UCharCharacterIterator(Other)
-	, InternalString(*Other.StringPtr)
-	, StringPtr(&InternalString)
+	, InternalString(FString(Other.StringRef.Len(), Other.StringRef.GetData()))
+	, StringRef(InternalString)
 {
-	setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
+	SetTextFromStringRef();
 }
 
 FICUTextCharacterIterator_NativeUTF16::~FICUTextCharacterIterator_NativeUTF16()
 {
-}
-
-FICUTextCharacterIterator_NativeUTF16& FICUTextCharacterIterator_NativeUTF16::operator=(const FICUTextCharacterIterator_NativeUTF16& Other)
-{
-	if(this != &Other)
-	{
-		icu::UCharCharacterIterator::operator=(Other);
-		InternalString = *Other.StringPtr;
-		StringPtr = &InternalString;
-		setText(reinterpret_cast<const UChar*>(**StringPtr), StringPtr->Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
-	}
-	return *this;
 }
 
 int32 FICUTextCharacterIterator_NativeUTF16::InternalIndexToSourceIndex(const int32 InInternalIndex) const
@@ -85,14 +51,13 @@ icu::CharacterIterator* FICUTextCharacterIterator_NativeUTF16::clone() const
 	return new FICUTextCharacterIterator_NativeUTF16(*this);
 }
 
+void FICUTextCharacterIterator_NativeUTF16::SetTextFromStringRef()
+{
+	setText(reinterpret_cast<const UChar*>(StringRef.GetData()), StringRef.Len()); // scary cast from TCHAR* to UChar* so that this builds on platforms where TCHAR isn't UTF-16 (but we won't use it!)
+}
+
 
 UOBJECT_DEFINE_RTTI_IMPLEMENTATION(FICUTextCharacterIterator_ConvertToUnicodeString)
-
-FICUTextCharacterIterator_ConvertToUnicodeStringPrivate::FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(const FString& InString)
-	: SourceString(InString)
-	, InternalString(ICUUtilities::ConvertString(SourceString))
-{
-}
 
 FICUTextCharacterIterator_ConvertToUnicodeStringPrivate::FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(FString&& InString)
 	: SourceString(MoveTemp(InString))
@@ -106,42 +71,14 @@ FICUTextCharacterIterator_ConvertToUnicodeStringPrivate::FICUTextCharacterIterat
 {
 }
 
-FICUTextCharacterIterator_ConvertToUnicodeStringPrivate& FICUTextCharacterIterator_ConvertToUnicodeStringPrivate::operator=(const FICUTextCharacterIterator_ConvertToUnicodeStringPrivate& Other)
-{
-	if (this != &Other)
-	{
-		SourceString = Other.SourceString;
-		InternalString = Other.InternalString;
-	}
-	return *this;
-}
-
-FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_ConvertToUnicodeString(const FText& InText)
-	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(InText.ToString())
-	, icu::StringCharacterIterator(InternalString)
-{
-}
-
-FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_ConvertToUnicodeString(const FString& InString)
-	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(InString)
-	, icu::StringCharacterIterator(InternalString)
-{
-}
-
-FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_ConvertToUnicodeString(const TCHAR* const InString, const int32 InStringLength)
-	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(FString(InStringLength, InString))
-	, icu::StringCharacterIterator(InternalString)
-{
-}
-
 FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_ConvertToUnicodeString(FString&& InString)
 	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(MoveTemp(InString))
 	, icu::StringCharacterIterator(InternalString)
 {
 }
 
-FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_ConvertToUnicodeString(const FString* const InString)
-	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(*InString)
+FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_ConvertToUnicodeString(FStringView InString)
+	: FICUTextCharacterIterator_ConvertToUnicodeStringPrivate(FString(InString.Len(), InString.GetData()))
 	, icu::StringCharacterIterator(InternalString)
 {
 }
@@ -154,16 +91,6 @@ FICUTextCharacterIterator_ConvertToUnicodeString::FICUTextCharacterIterator_Conv
 
 FICUTextCharacterIterator_ConvertToUnicodeString::~FICUTextCharacterIterator_ConvertToUnicodeString()
 {
-}
-
-FICUTextCharacterIterator_ConvertToUnicodeString& FICUTextCharacterIterator_ConvertToUnicodeString::operator=(const FICUTextCharacterIterator_ConvertToUnicodeString& Other)
-{
-	if(this != &Other)
-	{
-		FICUTextCharacterIterator_ConvertToUnicodeStringPrivate::operator=(Other);
-		icu::StringCharacterIterator::operator=(Other);
-	}
-	return *this;
 }
 
 int32 FICUTextCharacterIterator_ConvertToUnicodeString::InternalIndexToSourceIndex(const int32 InInternalIndex) const

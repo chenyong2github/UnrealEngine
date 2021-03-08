@@ -44,11 +44,8 @@ public:
 	FICUBreakIterator(TWeakPtr<icu::BreakIterator>&& InICUBreakIteratorHandle);
 	virtual ~FICUBreakIterator();
 
-	virtual void SetString(const FText& InText) override;
-	virtual void SetString(const FString& InString) override;
-	virtual void SetString(const TCHAR* const InString, const int32 InStringLength) override;
-	virtual void SetStringRef(const FString* InString) override;
-	virtual void ClearString() override;
+	virtual void SetString(FString&& InString) override;
+	virtual void SetStringRef(FStringView InString) override;
 
 	virtual int32 GetCurrentPosition() const override;
 
