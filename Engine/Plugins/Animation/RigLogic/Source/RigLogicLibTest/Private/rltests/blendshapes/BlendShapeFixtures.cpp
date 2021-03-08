@@ -5,7 +5,7 @@
 #include "riglogic/TypeDefs.h"
 #include "riglogic/blendshapes/BlendShapes.h"
 
-rl4::BlendShapes createTestBlendShapes(rl4::MemoryResource* memRes) {
+rl4::BlendShapes BlendShapeFixturesTest::createTestBlendShapes(rl4::MemoryResource* memRes) {
     return rl4::BlendShapes{
         rl4::Vector<std::uint16_t>{std::begin(LODs), std::end(LODs), memRes},
         rl4::Vector<std::uint16_t>{std::begin(blendShapeInputIndices), std::end(blendShapeInputIndices), memRes},

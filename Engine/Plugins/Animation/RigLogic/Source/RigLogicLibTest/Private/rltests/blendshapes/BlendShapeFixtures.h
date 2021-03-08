@@ -17,6 +17,8 @@
     #pragma warning(pop)
 #endif
 
+namespace BlendShapeFixturesTest {
+
 static const std::size_t LODCount = 4ul;
 static const std::uint16_t LOD0 = 10u;
 static const std::uint16_t LOD1 = 7u;
@@ -33,3 +35,5 @@ static const std::uint16_t blendShapeOutputIndices[] = {0, 2, 1, 3, 4, 5, 6, 7, 
 static const std::array<float, 10ul> blendShapeOutputs = {1.0f, 4.0f, 2.0f, 5.0f, 7.0f, 8.0f, 9.0f, 11.0f, 13.0f, 15.0f};
 
 rl4::BlendShapes createTestBlendShapes(rl4::MemoryResource* memRes);
+
+}
