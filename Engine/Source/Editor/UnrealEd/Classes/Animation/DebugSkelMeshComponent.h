@@ -406,6 +406,21 @@ public:
 
 #endif
 
+	/**
+	 * Force all body instance to not simulate physics regardless of their physic type
+	 * To get back in a default state call : ResetAllBodiesSimulatePhysics
+	 */
+	void DisableAllBodiesSimulatePhysics()
+	{
+		for (int32 BodyIdx = 0; BodyIdx < Bodies.Num(); ++BodyIdx)
+		{
+			if (FBodyInstance* BodyInst = Bodies[BodyIdx])
+			{
+				BodyInst->SetInstanceSimulatePhysics(false);
+			}
+		}
+	}
+
 	/** 
 	 * toggle visibility between cloth sections and non-cloth sections for all LODs
 	 * if bShowOnlyClothSections is true, shows only cloth sections. On the other hand, 

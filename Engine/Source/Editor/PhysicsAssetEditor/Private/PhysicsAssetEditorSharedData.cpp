@@ -48,7 +48,7 @@ FScopedBulkSelection::FScopedBulkSelection(TSharedPtr<FPhysicsAssetEditorSharedD
 FScopedBulkSelection::~FScopedBulkSelection()
 {
 	SharedData->bSuspendSelectionBroadcast = false;
-	SharedData->SelectionChangedEvent.Broadcast(SharedData->SelectedBodies, SharedData->SelectedConstraints);
+	SharedData->BroadcastSelectionChanged();
 }
 
 FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
@@ -180,6 +180,24 @@ void FPhysicsAssetEditorSharedData::Initialize(const TSharedRef<IPersonaPreviewS
 
 	ClearSelectedBody();
 	ClearSelectedConstraints();
+}
+
+void FPhysicsAssetEditorSharedData::BroadcastSelectionChanged()
+{
+	if (!bSuspendSelectionBroadcast)
+	{
+		SelectionChangedEvent.Broadcast(SelectedBodies, SelectedConstraints);
+	}
+}
+
+void FPhysicsAssetEditorSharedData::BroadcastHierarchyChanged()
+{
+	HierarchyChangedEvent.Broadcast();
+}
+
+void FPhysicsAssetEditorSharedData::BroadcastPreviewChanged()
+{
+	PreviewChangedEvent.Broadcast();
 }
 
 void FPhysicsAssetEditorSharedData::CachePreviewMesh()
@@ -482,11 +500,7 @@ void FPhysicsAssetEditorSharedData::ClearSelectedBody()
 {
 	SelectedBodies.Empty();
 	SelectedConstraints.Empty();
-
-	if(!bSuspendSelectionBroadcast)
-	{
-		SelectionChangedEvent.Broadcast(SelectedBodies, SelectedConstraints);
-	}
+	BroadcastSelectionChanged();
 }
 
 void FPhysicsAssetEditorSharedData::SetSelectedBody(const FSelection& Body, bool bSelected)
@@ -505,10 +519,7 @@ void FPhysicsAssetEditorSharedData::SetSelectedBody(const FSelection& Body, bool
 		SelectedBodies.Remove(Body);
 	}
 
-	if(!bSuspendSelectionBroadcast)
-	{
-		SelectionChangedEvent.Broadcast(SelectedBodies, SelectedConstraints);
-	}
+	BroadcastSelectionChanged();
 
 	if(!GetSelectedBody())
 	{
@@ -517,7 +528,7 @@ void FPhysicsAssetEditorSharedData::SetSelectedBody(const FSelection& Body, bool
 
 	UpdateNoCollisionBodies();
 	++InsideSelChange;
-	PreviewChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
 	--InsideSelChange;
 }
 
@@ -777,13 +788,10 @@ void FPhysicsAssetEditorSharedData::ClearSelectedConstraints()
 	SelectedBodies.Empty();
 	SelectedConstraints.Empty();
 
-	if(!bSuspendSelectionBroadcast)
-	{
-		SelectionChangedEvent.Broadcast(SelectedBodies, SelectedConstraints);
-	}
+	BroadcastSelectionChanged();
 
 	++InsideSelChange;
-	PreviewChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
 	--InsideSelChange;
 }
 
@@ -806,13 +814,10 @@ void FPhysicsAssetEditorSharedData::SetSelectedConstraint(int32 ConstraintIndex,
 			SelectedConstraints.Remove(Constraint);
 		}
 
-		if(!bSuspendSelectionBroadcast)
-		{
-			SelectionChangedEvent.Broadcast(SelectedBodies, SelectedConstraints);
-		}
+		BroadcastSelectionChanged();
 
 		++InsideSelChange;
-		PreviewChangedEvent.Broadcast();
+		BroadcastPreviewChanged();
 		--InsideSelChange;
 	}
 }
@@ -850,7 +855,7 @@ void FPhysicsAssetEditorSharedData::SetCollisionBetweenSelected(bool bEnableColl
 
 	UpdateNoCollisionBodies();
 
-	PreviewChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
 }
 
 bool FPhysicsAssetEditorSharedData::CanSetCollisionBetweenSelected(bool bEnableCollision) const
@@ -901,7 +906,7 @@ void FPhysicsAssetEditorSharedData::SetCollisionBetweenSelectedAndAll(bool bEnab
 
 	UpdateNoCollisionBodies();
 
-	PreviewChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
 }
 
 bool FPhysicsAssetEditorSharedData::CanSetCollisionBetweenSelectedAndAll(bool bEnableCollision) const
@@ -948,7 +953,7 @@ void FPhysicsAssetEditorSharedData::SetCollisionBetween(int32 Body1Index, int32 
 		UpdateNoCollisionBodies();
 	}
 
-	PreviewChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
 }
 
 void FPhysicsAssetEditorSharedData::SetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled)
@@ -965,7 +970,7 @@ void FPhysicsAssetEditorSharedData::SetPrimitiveCollision(ECollisionEnabled::Typ
 		PhysicsAsset->SetPrimitiveCollision(SelectedBody.Index, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex, CollisionEnabled);
 	}
 
-	PreviewChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
 }
 
 bool FPhysicsAssetEditorSharedData::CanSetPrimitiveCollision(ECollisionEnabled::Type CollisionEnabled) const
@@ -1053,7 +1058,7 @@ void FPhysicsAssetEditorSharedData::PasteBodyProperties()
 		}
 	
 		ClearSelectedBody();	//paste can change the primitives on our selected bodies. There's probably a way to properly update this, but for now just deselect
-		PreviewChangedEvent.Broadcast();
+		BroadcastPreviewChanged();
 	}
 }
 
@@ -1187,7 +1192,7 @@ bool FPhysicsAssetEditorSharedData::WeldSelectedBodies(bool bWeld /* = true */)
 	}
 
 	// update the tree
-	HierarchyChangedEvent.Broadcast();
+	BroadcastHierarchyChanged();
 
 	// Just to be safe - deselect any selected constraints
 	ClearSelectedConstraints();
@@ -1350,7 +1355,7 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 	}
 
 	// update the tree
-	HierarchyChangedEvent.Broadcast();
+	BroadcastHierarchyChanged();
 
 	if (bAutoSelect)
 	{
@@ -1384,13 +1389,10 @@ void FPhysicsAssetEditorSharedData::MakeNewConstraint(int32 BodyIndex0, int32 Bo
 	InitConstraintSetup(ConstraintSetup, BodyIndex1, BodyIndex0);
 
 	// update the tree
-	HierarchyChangedEvent.Broadcast();
+	BroadcastHierarchyChanged();
 	RefreshPhysicsAssetChange(PhysicsAsset);
 
-	if(!bSuspendSelectionBroadcast)
-	{
-		SelectionChangedEvent.Broadcast(SelectedBodies, SelectedConstraints);
-	}
+	BroadcastSelectionChanged();
 }
 
 void FPhysicsAssetEditorSharedData::SetConstraintRelTM(const FPhysicsAssetEditorSharedData::FSelection* Constraint, const FTransform& RelTM)
@@ -1653,7 +1655,7 @@ void FPhysicsAssetEditorSharedData::DeleteBody(int32 DelBodyIndex, bool bRefresh
 	// Select nothing.
 	ClearSelectedBody();
 	ClearSelectedConstraints();
-	HierarchyChangedEvent.Broadcast();
+	BroadcastHierarchyChanged();
 
 	if (bRefreshComponent)
 	{
@@ -1749,7 +1751,7 @@ void FPhysicsAssetEditorSharedData::DeleteCurrentPrim()
 	ClearSelectedBody(); // Will call UpdateViewport
 	RefreshPhysicsAssetChange(PhysicsAsset);
 
-	HierarchyChangedEvent.Broadcast();
+	BroadcastHierarchyChanged();
 }
 
 FTransform FPhysicsAssetEditorSharedData::GetConstraintBodyTM(const UPhysicsConstraintTemplate* ConstraintSetup, EConstraintFrame::Type Frame) const
@@ -1885,9 +1887,8 @@ void FPhysicsAssetEditorSharedData::DeleteCurrentConstraint()
 	
 	ClearSelectedConstraints();
 
-	EditorSkelComp->RecreatePhysicsState();
-	HierarchyChangedEvent.Broadcast();
-	PreviewChangedEvent.Broadcast();
+	BroadcastHierarchyChanged();
+	BroadcastPreviewChanged();
 }
 
 void FPhysicsAssetEditorSharedData::ToggleSimulation()
@@ -1959,24 +1960,20 @@ void FPhysicsAssetEditorSharedData::EnableSimulation(bool bEnableSimulation)
 		// Stop any animation and clear node when stopping simulation.
 		PhysicalAnimationComponent->SetSkeletalMeshComponent(nullptr);
 
-		// IMPORTANT : we must check the solver type used to start the simulation, not the one in the options as this can be changed while the simulation is running
-		if (RunningSimulationSolverType == EPhysicsAssetEditorSolverType::RBAN)
-		{
-			// Undo ends up recreating the anim script instance, so we need to remove it here (otherwise the AnimNode_RigidBody similation starts when we undo)
-			EditorSkelComp->ClearAnimScriptInstance();
-		}
+		// Undo ends up recreating the anim script instance, so we need to remove it here (otherwise the AnimNode_RigidBody similation starts when we undo)
+		EditorSkelComp->ClearAnimScriptInstance();
 
 		EditorSkelComp->SetPhysicsBlendWeight(0.f);
 		EditorSkelComp->ResetAllBodiesSimulatePhysics();
 		EditorSkelComp->SetSimulatePhysics(false);
-		ForceDisableSimulation();
+		EditorSkelComp->DisableAllBodiesSimulatePhysics();
 
 		// Since simulation, actor location changes. Reset to identity 
 		EditorSkelComp->SetWorldTransform(ResetTM);
 		// Force an update of the skeletal mesh to get it back to ref pose
 		EditorSkelComp->RefreshBoneTransforms();
 		
-		PreviewChangedEvent.Broadcast();
+		BroadcastPreviewChanged();
 	}
 
 	bRunningSimulation = bEnableSimulation;
@@ -2138,8 +2135,8 @@ void FPhysicsAssetEditorSharedData::PostUndo()
 		ClearSelectedConstraints();
 	}
 
-	PreviewChangedEvent.Broadcast();
-	HierarchyChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
+	BroadcastHierarchyChanged();
 }
 
 void FPhysicsAssetEditorSharedData::Redo()
@@ -2155,8 +2152,8 @@ void FPhysicsAssetEditorSharedData::Redo()
 	GEditor->RedoTransaction();
 	PhysicsAsset->UpdateBodySetupIndexMap();
 
-	PreviewChangedEvent.Broadcast();
-	HierarchyChangedEvent.Broadcast();
+	BroadcastPreviewChanged();
+	BroadcastHierarchyChanged();
 }
 
 void FPhysicsAssetEditorSharedData::AddReferencedObjects(FReferenceCollector& Collector)
@@ -2172,21 +2169,6 @@ void FPhysicsAssetEditorSharedData::AddReferencedObjects(FReferenceCollector& Co
 	if (PreviewScene != nullptr)
 	{
 		PreviewScene.Pin()->AddReferencedObjects(Collector);
-	}
-}
-
-void FPhysicsAssetEditorSharedData::ForceDisableSimulation()
-{
-	// Reset simulation state of body instances so we dont actually simulate outside of 'simulation mode'
-	for (int32 BodyIdx = 0; BodyIdx < EditorSkelComp->Bodies.Num(); ++BodyIdx)
-	{
-		if (FBodyInstance* BodyInst = EditorSkelComp->Bodies[BodyIdx])
-		{
-			if (UBodySetup * PhysAssetBodySetup = PhysicsAsset->SkeletalBodySetups[BodyIdx])
-			{
-				BodyInst->SetInstanceSimulatePhysics(false);
-			}
-		}
 	}
 }
 

@@ -380,6 +380,19 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 	if(PhysAsset)
 	{
 		PhysAsset->InvalidateAllPhysicsMeshes();
+
+		// we need to make sure we monitor any change to the PhysicsState being recreated, as this can happen from path that is external to this class
+		// (example: setting a property on a body that is type "simulated" will recreate the state from USkeletalBodySetup::PostEditChangeProperty and let the body simulating (UE-107308)
+		PreviewMeshComponent->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateLambda([this]()
+			{
+				UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
+				// let's make sure nothing is simulating and that all necessary state are in proper order
+				PreviewMeshComponent->ClearAnimScriptInstance();
+				PreviewMeshComponent->SetPhysicsBlendWeight(0.f);
+				PreviewMeshComponent->SetSimulatePhysics(false);
+				PreviewMeshComponent->DisableAllBodiesSimulatePhysics();
+			}));
+
 		PreviewMeshComponent->TermArticulated();
 		PreviewMeshComponent->InitArticulated(GetWorld()->GetPhysicsScene());
 		if (PreviewMeshComponent->CanOverrideCollisionProfile())
