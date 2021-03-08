@@ -105,6 +105,7 @@ private:
 	UPROPERTY()
 	TArray<UVariantSet*> VariantSets;
 
-	// We keep one director instance per world to execute our functions
-	TMap<UWorld*, UObject*> WorldToDirectorInstance;
+	// We keep one director instance per world to serve as world context for our function caller functions.
+	// Their lifetimes are guaranteed by spawned ALevelVariantSetsActors
+	TMap<UWorld*, TWeakObjectPtr<UObject>> WorldToDirectorInstance;
 };

@@ -195,6 +195,11 @@ void UPropertyValueMaterial::ApplyDataToResolvedObject()
 
 	// Go through GetRecordedData to resolve our path if we need to
 	UMaterialInterface* Mat = *((UMaterialInterface**)GetRecordedData().GetData());
+	if ( !Mat )
+	{
+		UE_LOG( LogVariantContent, Error, TEXT( "Failed to apply recorded data from UPropertyValueMaterial '%s'!" ), *GetFullDisplayString() );
+		return;
+	}
 
 	int32 NumSegs = CapturedPropSegments.Num();
 	if (NumSegs > 0)
