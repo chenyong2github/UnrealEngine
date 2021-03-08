@@ -32,7 +32,7 @@ namespace OpenColorIOShader
 	static const TCHAR* OpenColorIOShaderFunctionName = TEXT("OCIOConvert");
 	static const TCHAR* OCIOLut3dName = TEXT("Ociolut3d");
 	static const uint32 MaximumTextureNumber = 10;
-	static const uint32 Lut3dEdgeLength = 32;
+	static const uint32 Lut3dEdgeLength = 65;
 }
 
 class FOpenColorIOShader : public FShader
