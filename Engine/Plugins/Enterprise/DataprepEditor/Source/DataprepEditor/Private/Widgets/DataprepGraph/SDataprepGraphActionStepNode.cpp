@@ -272,7 +272,7 @@ FReply SDataprepGraphActionStepNode::OnMouseButtonDown(const FGeometry& MyGeomet
 
 		if (ParentNodePtr.IsValid())
 		{
-			UDataprepActionAppearance* ParentAppearance = ParentNodePtr.Pin()->GetDataprepAction()->Appearance;
+			UDataprepActionAppearance* ParentAppearance = ParentNodePtr.Pin()->GetDataprepAction()->GetAppearance();
 
 			if (ParentAppearance->GroupId != INDEX_NONE)
 			{

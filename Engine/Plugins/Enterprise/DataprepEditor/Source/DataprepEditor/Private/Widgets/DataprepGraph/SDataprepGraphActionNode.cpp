@@ -549,11 +549,11 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 								SNew(STextBlock)
 								.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
 								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-								.Text_Lambda([this](){ return DataprepActionPtr->Appearance->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
+								.Text_Lambda([this](){ return DataprepActionPtr->GetAppearance()->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
 							]
 							.OnClicked_Lambda([this]()
 							{
-								DataprepActionPtr->Appearance->bIsExpanded = !DataprepActionPtr->Appearance->bIsExpanded;
+								DataprepActionPtr->GetAppearance()->bIsExpanded = !DataprepActionPtr->GetAppearance()->bIsExpanded;
 								return FReply::Handled();
 							})
 						]
@@ -568,7 +568,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
 						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
-						.Visibility_Lambda([this]() { return DataprepActionPtr->Appearance->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
+						.Visibility_Lambda([this]() { return DataprepActionPtr->GetAppearance()->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
 					]
 
 					//The content of the action
@@ -578,7 +578,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						SNew( SHorizontalBox )
 						.Visibility_Lambda([this]()
 						{
-							return DataprepActionPtr->Appearance->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
+							return DataprepActionPtr->GetAppearance()->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
 						})
 						+ SHorizontalBox::Slot()
 						[
@@ -666,7 +666,7 @@ FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, 
 		{
 			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
 
-			UDataprepActionAppearance* Appearance = GetDataprepAction()->Appearance;
+			UDataprepActionAppearance* Appearance = GetDataprepAction()->GetAppearance();
 
 			if (Appearance->GroupId != INDEX_NONE)
 			{

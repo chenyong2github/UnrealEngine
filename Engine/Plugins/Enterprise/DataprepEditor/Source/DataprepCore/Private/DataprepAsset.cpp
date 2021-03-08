@@ -120,14 +120,15 @@ FString UDataprepAsset::HashActionsAppearance() const
 	TempArrayGroupsEnabled.Reserve(TempArrayActions.Num());
 	for (UDataprepActionAsset* Action : TempArrayActions)
 	{
-		TempArrayGroups.Add(Action->Appearance->GroupId);
-		TempArrayGroupsEnabled.Add(Action->Appearance->bGroupIsEnabled);
+		UDataprepActionAppearance* Appearance = Action->GetAppearance();
+		TempArrayGroups.Add(Appearance->GroupId);
+		TempArrayGroupsEnabled.Add(Appearance->bGroupIsEnabled);
 	}
 	TArray<FVector2D> TempArrayNodeSizes;
 	TempArrayNodeSizes.Reserve(TempArrayActions.Num());
 	for (UDataprepActionAsset* Action : TempArrayActions)
 	{
-		TempArrayNodeSizes.Add(Action->Appearance->NodeSize);
+		TempArrayNodeSizes.Add(Action->GetAppearance()->NodeSize);
 	}
 
 	uint8 Digest[16];

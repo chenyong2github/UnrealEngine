@@ -53,12 +53,8 @@ UDataprepActionAsset::UDataprepActionAsset()
 	: ContextPtr( nullptr )
 	, Label(TEXT("New Action"))
 {
-	Appearance = CreateDefaultSubobject<UDataprepActionAppearance>( TEXT("Appearance") );
-
 	bExecutionInterrupted = false;
 	bIsEnabled = true;
-	Appearance->bIsExpanded = true;
-	Appearance->GroupId = INDEX_NONE;
 
 	if(!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -524,6 +520,19 @@ FOnStepAboutToBeRemoved& UDataprepActionAsset::GetOnStepAboutToBeRemoved()
 FOnStepWasEdited& UDataprepActionAsset::GetOnStepWasEdited()
 {
 	return OnStepWasEdited;
+}
+
+UDataprepActionAppearance* UDataprepActionAsset::GetAppearance()
+{
+	if (nullptr == Appearance)
+	{
+		Appearance = NewObject<UDataprepActionAppearance>(this, UDataprepActionAppearance::StaticClass(), NAME_None, RF_Transactional);
+		Appearance->bIsExpanded = true;
+		Appearance->GroupId = INDEX_NONE;
+		GetOutermost()->SetDirtyFlag(true);
+	}
+
+	return Appearance;
 }
 
 void UDataprepActionAsset::NotifyDataprepSystemsOfRemoval()
