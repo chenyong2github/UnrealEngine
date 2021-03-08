@@ -37,14 +37,18 @@ FRayTracingMaskAndFlags BuildRayTracingInstanceMaskAndFlags(TArrayView<const FMe
 	{
 		const FMeshBatch& MeshBatch = MeshBatches[SegmentIndex];
 
-		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(ERHIFeatureLevel::SM5, FallbackMaterialRenderProxyPtr);
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		Result.Mask |= ComputeBlendModeMask(BlendMode);
-		bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
-		bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
-		bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
-		bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
+		// Mesh Batches can "null" when they have zero triangles.  Check the MaterialRenderProxy before accessing.
+		if (MeshBatch.bUseForMaterial && MeshBatch.MaterialRenderProxy)
+		{
+			const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+			const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(ERHIFeatureLevel::SM5, FallbackMaterialRenderProxyPtr);
+			const EBlendMode BlendMode = Material.GetBlendMode();
+			Result.Mask |= ComputeBlendModeMask(BlendMode);
+			bAllSegmentsOpaque &= BlendMode == BLEND_Opaque;
+			bAnySegmentsCastShadow |= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
+			bAllSegmentsCastShadow &= MeshBatch.CastRayTracedShadow && Material.CastsRayTracedShadows();
+			bDoubleSided |= MeshBatch.bDisableBackfaceCulling;
+		}
 	}
 
 	Result.bForceOpaque = bAllSegmentsOpaque && bAllSegmentsCastShadow;

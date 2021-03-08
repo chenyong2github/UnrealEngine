@@ -317,7 +317,8 @@ void FRayTracingMeshProcessor::Process(
 void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy)
 {
 	// Caveat: there are also branches not emitting any MDC
-	if (MeshBatch.bUseForMaterial && IsSupportedVertexFactoryType(MeshBatch.VertexFactory->GetType()))
+	// Mesh Batches can "null" when they have zero triangles.  Check the MaterialRenderProxy before accessing.
+	if (MeshBatch.bUseForMaterial && MeshBatch.MaterialRenderProxy && IsSupportedVertexFactoryType(MeshBatch.VertexFactory->GetType()))
 	{
 		// Determine the mesh's material and blend mode.
 		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
