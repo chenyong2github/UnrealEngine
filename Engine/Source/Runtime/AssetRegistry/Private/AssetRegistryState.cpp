@@ -1414,7 +1414,7 @@ void FAssetRegistryState::SetAssetDatas(TArrayView<FAssetData> AssetDatas, const
 	UE_CLOG(NumAssets != 0, LogAssetRegistry, Fatal, TEXT("Can only load into empty asset registry states. Load into temporary and append using InitializeFromExisting() instead."));
 
 	NumAssets = AssetDatas.Num();
-	
+
 	auto SetPathCache = [&]() 
 	{
 		CachedAssetsByObjectPath.Empty(AssetDatas.Num());
@@ -1422,6 +1422,7 @@ void FAssetRegistryState::SetAssetDatas(TArrayView<FAssetData> AssetDatas, const
 		{
 			CachedAssetsByObjectPath.Add(AssetData.ObjectPath, &AssetData);
 		}
+		ensure(NumAssets == CachedAssetsByObjectPath.Num());
 	};
 
 	// FAssetDatas sharing package name are very rare.
@@ -1493,13 +1494,15 @@ void FAssetRegistryState::SetAssetDatas(TArrayView<FAssetData> AssetDatas, const
 
 void FAssetRegistryState::AddAssetData(FAssetData* AssetData)
 {
-	NumAssets++;
-
 	FAssetData*& ExistingByObjectPath = CachedAssetsByObjectPath.FindOrAdd(AssetData->ObjectPath);
 	if (ExistingByObjectPath)
 	{
 		UE_LOG(LogAssetRegistry, Error, TEXT("AddAssetData called with ObjectPath %s which already exists. ")
 			TEXT("This will overwrite and leak the existing AssetData."), *AssetData->ObjectPath.ToString());
+	}
+	else
+	{
+		++NumAssets;
 	}
 	ExistingByObjectPath = AssetData;
 
@@ -1549,8 +1552,26 @@ void FAssetRegistryState::UpdateAssetData(FAssetData* AssetData, const FAssetDat
 	// Update ObjectPath
 	if (AssetData->PackageName != NewAssetData.PackageName || AssetData->AssetName != NewAssetData.AssetName)
 	{
-		CachedAssetsByObjectPath.Remove(AssetData->ObjectPath);
-		CachedAssetsByObjectPath.Add(NewAssetData.ObjectPath, AssetData);
+		int32 NumRemoved = CachedAssetsByObjectPath.Remove(AssetData->ObjectPath);
+		check(NumRemoved <= 1);
+		if (NumRemoved == 0)
+		{
+			UE_LOG(LogAssetRegistry, Error, TEXT("UpdateAssetData called on AssetData %s that is not present in the AssetRegistry."),
+				*AssetData->ObjectPath.ToString());
+		}
+		NumAssets -= NumRemoved;
+		FAssetData*& Existing = CachedAssetsByObjectPath.FindOrAdd(NewAssetData.ObjectPath, AssetData);
+		if (Existing)
+		{
+			UE_LOG(LogAssetRegistry, Error, TEXT("UpdateAssetData called with a change in ObjectPath from Old=\"%s\" to New=\"%s\", ")
+				TEXT("but the new ObjectPath is already present with another AssetData. This will overwrite and leak the existing AssetData."),
+				*AssetData->ObjectPath.ToString(), *NewAssetData.ObjectPath.ToString());
+		}
+		else
+		{
+			++NumAssets;
+		}
+		Existing = AssetData;
 	}
 
 	// Update PackageName
@@ -1618,48 +1639,57 @@ void FAssetRegistryState::RemoveAssetData(FAssetData* AssetData, bool bRemoveDep
 	bOutRemovedAssetData = false;
 	bOutRemovedPackageData = false;
 
-	if (ensure(AssetData))
+	if (!ensure(AssetData))
 	{
-		TArray<FAssetData*, TInlineAllocator<1>>* OldPackageAssets = CachedAssetsByPackageName.Find(AssetData->PackageName);
-		TArray<FAssetData*>* OldPathAssets = CachedAssetsByPath.Find(AssetData->PackagePath);
-		TArray<FAssetData*>* OldClassAssets = CachedAssetsByClass.Find(AssetData->AssetClass);
-
-		CachedAssetsByObjectPath.Remove(AssetData->ObjectPath);
-		OldPackageAssets->RemoveSingleSwap(AssetData);
-		OldPathAssets->RemoveSingleSwap(AssetData);
-		OldClassAssets->RemoveSingleSwap(AssetData);
-
-		for (auto TagIt = AssetData->TagsAndValues.CreateConstIterator(); TagIt; ++TagIt)
-		{
-			TArray<FAssetData*>* OldTagAssets = CachedAssetsByTag.Find(TagIt.Key());
-			OldTagAssets->RemoveSingleSwap(AssetData);
-		}
-
-		// Only remove dependencies and package data if there are no other known assets in the package
-		if (OldPackageAssets->Num() == 0)
-		{
-			CachedAssetsByPackageName.Remove(AssetData->PackageName);
-
-			// We need to update the cached dependencies references cache so that they know we no
-			// longer exist and so don't reference them.
-			if (bRemoveDependencyData)
-			{
-				RemoveDependsNode(AssetData->PackageName);
-			}
-
-			// Remove the package data as well
-			RemovePackageData(AssetData->PackageName);
-			bOutRemovedPackageData = true;
-		}
-
-		// if the assets were preallocated in a block, we can't delete them one at a time, only the whole chunk in the destructor
-		if (PreallocatedAssetDataBuffers.Num() == 0)
-		{
-			delete AssetData;
-		}
-		NumAssets--;
-		bOutRemovedAssetData = true;
+		return;
 	}
+
+	int32 NumRemoved = CachedAssetsByObjectPath.Remove(AssetData->ObjectPath);
+	check(NumRemoved <= 1);
+	if (NumRemoved == 0)
+	{
+		UE_LOG(LogAssetRegistry, Error, TEXT("RemoveAssetData called on AssetData %s that is not present in the AssetRegistry."),
+			*AssetData->ObjectPath.ToString());
+		return;
+	}
+
+	TArray<FAssetData*, TInlineAllocator<1>>* OldPackageAssets = CachedAssetsByPackageName.Find(AssetData->PackageName);
+	TArray<FAssetData*>* OldPathAssets = CachedAssetsByPath.Find(AssetData->PackagePath);
+	TArray<FAssetData*>* OldClassAssets = CachedAssetsByClass.Find(AssetData->AssetClass);
+	OldPackageAssets->RemoveSingleSwap(AssetData);
+	OldPathAssets->RemoveSingleSwap(AssetData);
+	OldClassAssets->RemoveSingleSwap(AssetData);
+
+	for (auto TagIt = AssetData->TagsAndValues.CreateConstIterator(); TagIt; ++TagIt)
+	{
+		TArray<FAssetData*>* OldTagAssets = CachedAssetsByTag.Find(TagIt.Key());
+		OldTagAssets->RemoveSingleSwap(AssetData);
+	}
+
+	// Only remove dependencies and package data if there are no other known assets in the package
+	if (OldPackageAssets->Num() == 0)
+	{
+		CachedAssetsByPackageName.Remove(AssetData->PackageName);
+
+		// We need to update the cached dependencies references cache so that they know we no
+		// longer exist and so don't reference them.
+		if (bRemoveDependencyData)
+		{
+			RemoveDependsNode(AssetData->PackageName);
+		}
+
+		// Remove the package data as well
+		RemovePackageData(AssetData->PackageName);
+		bOutRemovedPackageData = true;
+	}
+
+	// if the assets were preallocated in a block, we can't delete them one at a time, only the whole chunk in the destructor
+	if (PreallocatedAssetDataBuffers.Num() == 0)
+	{
+		delete AssetData;
+	}
+	NumAssets--;
+	bOutRemovedAssetData = true;
 }
 
 FDependsNode* FAssetRegistryState::FindDependsNode(const FAssetIdentifier& Identifier) const
