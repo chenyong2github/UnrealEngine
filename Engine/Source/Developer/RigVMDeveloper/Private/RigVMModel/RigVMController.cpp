@@ -1755,6 +1755,11 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 	FRigVMUnitNodeCreatedContext::FScope UnitNodeCreatedScope(UnitNodeCreatedContext, ERigVMNodeCreatedReason::Paste);
 	for (URigVMNode* CreatedNode : Factory.CreatedNodes)
 	{
+		if(!CanAddNode(CreatedNode, true))
+		{
+			continue;
+		}
+
 		Graph->Nodes.Add(CreatedNode);
 
 		if (bSetupUndoRedo)
@@ -5902,15 +5907,9 @@ URigVMFunctionReferenceNode* URigVMController::AddFunctionReferenceNode(URigVMLi
 		return nullptr;
 	}
 
-	URigVMLibraryNode* ParentLibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
-	while (ParentLibraryNode)
+	if(!CanAddFunctionRefForDefinition(InFunctionDefinition, true))
 	{
-		if (ParentLibraryNode == InFunctionDefinition)
-		{
-			ReportAndNotifyError(TEXT("You cannot place functions inside of itself or an indirect recursion."));
-			return nullptr;
-		}
-		ParentLibraryNode = Cast<URigVMLibraryNode>(ParentLibraryNode->GetGraph()->GetOuter());
+		return nullptr;
 	}
 
 	FString NodeName = GetValidNodeName(InNodeName.IsEmpty() ? InFunctionDefinition->GetName() : InNodeName);
@@ -6736,6 +6735,75 @@ bool URigVMController::IsValidLinkForGraph(URigVMLink* InLink)
 	if(!IsValidPinForGraph(InLink->GetTargetPin()))
 	{
 		return false;
+	}
+
+	return true;
+}
+
+bool URigVMController::CanAddNode(URigVMNode* InNode, bool bReportErrors)
+{
+	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	check(InNode);
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(InNode))
+	{
+		if (URigVMFunctionLibrary* FunctionLibrary = FunctionRefNode->GetLibrary())
+		{
+			if(Graph->GetDefaultFunctionLibrary() != FunctionLibrary)
+			{
+				// this node references a function that is not part of our function library
+				if(bReportErrors)
+				{
+					ReportError(TEXT("Cannot import function reference node."));
+				}
+				DestroyObject(InNode);
+				return false;
+			}
+			else if (URigVMLibraryNode* FunctionDefinition = FunctionRefNode->GetReferencedNode())
+			{
+				if(!CanAddFunctionRefForDefinition(FunctionDefinition, bReportErrors))
+				{
+					DestroyObject(InNode);
+					return false;
+				}
+			}
+		}			
+	}
+
+	return true;
+}
+
+bool URigVMController::CanAddFunctionRefForDefinition(URigVMLibraryNode* InFunctionDefinition, bool bReportErrors)
+{
+	if(!IsValidGraph())
+	{
+		return false;
+	}
+
+	check(InFunctionDefinition);
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMLibraryNode* ParentLibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
+	while (ParentLibraryNode)
+	{
+		if (ParentLibraryNode == InFunctionDefinition)
+		{
+			if(bReportErrors)
+			{
+				ReportAndNotifyError(TEXT("You cannot place functions inside of itself or an indirect recursion."));
+			}
+			return false;
+		}
+		ParentLibraryNode = Cast<URigVMLibraryNode>(ParentLibraryNode->GetGraph()->GetOuter());
 	}
 
 	return true;

@@ -80,6 +80,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	FunctionLibraryEdGraph->Initialize(this);
 
 	Model->SetDefaultFunctionLibrary(FunctionLibrary);
+	FunctionLibrary->SetDefaultFunctionLibrary(FunctionLibrary);
 
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
 
