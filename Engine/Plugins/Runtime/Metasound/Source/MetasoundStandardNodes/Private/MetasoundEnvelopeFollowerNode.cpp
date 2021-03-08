@@ -90,7 +90,7 @@ namespace Metasound
 		, EnvelopeOutput(FFloatWriteRef::CreateNew(0.0f))
 	{
 		PrevAttackTime = FMath::Max(FTime::ToMilliseconds(*AttackTime), 0.0);
-		PrevReleaseTime = FMath::Max(FTime::ToMilliseconds(*ReleaseTime), 0.0f);
+		PrevReleaseTime = FMath::Max(FTime::ToMilliseconds(*ReleaseTime), 0.0);
 		PrevPeakModeType = *PeakModeType;
 
 		EnvelopeFollower.Init(InSettings.GetSampleRate(), PrevAttackTime, PrevReleaseTime, PrevPeakModeType);
