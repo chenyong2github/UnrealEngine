@@ -34,6 +34,9 @@ typedef TSharedPtr<class FOnlineStoreEOS, ESPMode::ThreadSafe> FOnlineStoreEOSPt
 class FOnlineTitleFileEOS;
 typedef TSharedPtr<class FOnlineTitleFileEOS, ESPMode::ThreadSafe> FOnlineTitleFileEOSPtr;
 
+class FOnlineUserCloudEOS;
+typedef TSharedPtr<class FOnlineUserCloudEOS, ESPMode::ThreadSafe> FOnlineUserCloudEOSPtr;
+
 #ifndef EOS_PRODUCTNAME_MAX_BUFFER_LEN
 	#define EOS_PRODUCTNAME_MAX_BUFFER_LEN 64
 #endif
@@ -115,12 +118,14 @@ PACKAGE_SCOPE:
 		, P2PHandle(nullptr)
 		, EcomHandle(nullptr)
 		, TitleStorageHandle(nullptr)
+		, PlayerDataStorageHandle(nullptr)
 		, UserManager(nullptr)
 		, SessionInterfacePtr(nullptr)
 		, LeaderboardsInterfacePtr(nullptr)
 		, AchievementsInterfacePtr(nullptr)
 		, StoreInterfacePtr(nullptr)
 		, TitleFileInterfacePtr(nullptr)
+		, UserCloudInterfacePtr(nullptr)
 		, bWasLaunchedByEGS(false)
 	{
 		StopTicker();
@@ -145,6 +150,7 @@ PACKAGE_SCOPE:
 	EOS_HP2P P2PHandle;
 	EOS_HEcom EcomHandle;
 	EOS_HTitleStorage TitleStorageHandle;
+	EOS_HPlayerDataStorage PlayerDataStorageHandle;
 
 	/** Manager that handles all user interfaces */
 	FUserManagerEOSPtr UserManager;
@@ -159,6 +165,8 @@ PACKAGE_SCOPE:
 	FOnlineStoreEOSPtr StoreInterfacePtr;
 	/** Title File interface pointer */
 	FOnlineTitleFileEOSPtr TitleFileInterfacePtr;
+	/** User Cloud interface pointer */
+	FOnlineUserCloudEOSPtr UserCloudInterfacePtr;
 
 	bool bWasLaunchedByEGS;
 	bool bIsDefaultOSS;

@@ -7,6 +7,7 @@
 #include "OnlineLeaderboardsEOS.h"
 #include "OnlineAchievementsEOS.h"
 #include "OnlineTitleFileEOS.h"
+#include "OnlineUserCloudEOS.h"
 #include "OnlineStoreEOS.h"
 #include "EOSSettings.h"
 
@@ -335,6 +336,12 @@ bool FOnlineSubsystemEOS::Init()
 		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get title storage handle"));
 		return false;
 	}
+	PlayerDataStorageHandle = EOS_Platform_GetPlayerDataStorageInterface(EOSPlatformHandle);
+	if (PlayerDataStorageHandle == nullptr)
+	{
+		UE_LOG_ONLINE(Error, TEXT("FOnlineSubsystemEOS: failed to init EOS platform, couldn't get player data storage handle"));
+		return false;
+	}
 
 	SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(this));
 	FString ErrorMessage;
@@ -351,6 +358,7 @@ bool FOnlineSubsystemEOS::Init()
 	LeaderboardsInterfacePtr = MakeShareable(new FOnlineLeaderboardsEOS(this));
 	AchievementsInterfacePtr = MakeShareable(new FOnlineAchievementsEOS(this));
 	TitleFileInterfacePtr = MakeShareable(new FOnlineTitleFileEOS(this));
+	UserCloudInterfacePtr = MakeShareable(new FOnlineUserCloudEOS(this));
 
 	// We initialized ok so we can tick
 	StartTicker();
@@ -388,6 +396,7 @@ bool FOnlineSubsystemEOS::Shutdown()
 	DESTRUCT_INTERFACE(AchievementsInterfacePtr);
 	DESTRUCT_INTERFACE(StoreInterfacePtr);
 	DESTRUCT_INTERFACE(TitleFileInterfacePtr);
+	DESTRUCT_INTERFACE(UserCloudInterfacePtr);
 
 #undef DESTRUCT_INTERFACE
 
@@ -429,6 +438,10 @@ bool FOnlineSubsystemEOS::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice&
 		{
 			bWasHandled = TitleFileInterfacePtr->HandleTitleFileExec(InWorld, Cmd, Ar);
 		}
+		else if (UserCloudInterfacePtr != nullptr && FParse::Command(&Cmd, TEXT("USERCLOUD")))
+		{
+			bWasHandled = UserCloudInterfacePtr->HandleUserCloudExec(InWorld, Cmd, Ar);
+		}
 	}
 	return bWasHandled;
 }
@@ -461,8 +474,7 @@ IOnlineSharedCloudPtr FOnlineSubsystemEOS::GetSharedCloudInterface() const
 
 IOnlineUserCloudPtr FOnlineSubsystemEOS::GetUserCloudInterface() const
 {
-	UE_LOG_ONLINE(Error, TEXT("User Cloud Interface Requested"));
-	return nullptr;
+	return UserCloudInterfacePtr;
 }
 
 IOnlineEntitlementsPtr FOnlineSubsystemEOS::GetEntitlementsInterface() const
