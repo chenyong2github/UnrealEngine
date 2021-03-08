@@ -8,7 +8,7 @@
 
 // FUserOnlineAccountAmazon
 
-TSharedRef<const FUniqueNetId> FUserOnlineAccountAmazon::GetUserId() const
+FUniqueNetIdRef FUserOnlineAccountAmazon::GetUserId() const
 {
 	return UserIdPtr;
 }
@@ -212,9 +212,9 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityAmazon::GetAllUserAccount
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityAmazon::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineIdentityAmazon::GetUniquePlayerId(int32 LocalUserNum) const
 {
-	const TSharedPtr<const FUniqueNetId>* FoundId = UserIds.Find(LocalUserNum);
+	const FUniqueNetIdPtr* FoundId = UserIds.Find(LocalUserNum);
 	if (FoundId != NULL)
 	{
 		return *FoundId;
@@ -252,26 +252,26 @@ bool FOnlineIdentityAmazon::Login(int32 LocalUserNum, const FOnlineAccountCreden
 	return bWasSuccessful;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityAmazon::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineIdentityAmazon::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Bytes != NULL && Size > 0)
 	{
 		FString StrId(Size, (TCHAR*)Bytes);
-		return MakeShareable(new FUniqueNetIdAmazon(StrId));
+		return FUniqueNetIdAmazon::Create(StrId);
 	}
 	return NULL;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityAmazon::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineIdentityAmazon::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShareable(new FUniqueNetIdAmazon(Str));
+	return FUniqueNetIdAmazon::Create(Str);
 }
 
 // All of the methods below here fail because they aren't supported
 
 bool FOnlineIdentityAmazon::Logout(int32 LocalUserNum)
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		// remove cached user account
@@ -299,7 +299,7 @@ bool FOnlineIdentityAmazon::AutoLogin(int32 LocalUserNum)
 
 ELoginStatus::Type FOnlineIdentityAmazon::GetLoginStatus(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetLoginStatus(*UserId);
@@ -333,7 +333,7 @@ FString FOnlineIdentityAmazon::GetPlayerNickname(const FUniqueNetId& UserId) con
 
 FString FOnlineIdentityAmazon::GetAuthToken(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		TSharedPtr<FUserOnlineAccount> UserAccount = GetUserAccount(*UserId);
@@ -348,7 +348,7 @@ FString FOnlineIdentityAmazon::GetAuthToken(int32 LocalUserNum) const
 void FOnlineIdentityAmazon::RevokeAuthToken(const FUniqueNetId& UserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate)
 {
 	UE_LOG_ONLINE_IDENTITY(Display, TEXT("FOnlineIdentityAmazon::RevokeAuthToken not implemented"));
-	TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	AmazonSubsystem->ExecuteNextTick([UserIdRef, Delegate]()
 	{
 		Delegate.ExecuteIfBound(*UserIdRef, FOnlineError(FString(TEXT("RevokeAuthToken not implemented"))));
