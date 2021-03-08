@@ -61,15 +61,26 @@ struct FAutoReimportTestPayload
 		: Config(GenerateFileCacheConfig(InWorkingDir))
 		, WorkingDir(InWorkingDir)
 	{	
-		IFileManager::Get().MakeDirectory(*Config.Directory, true);
+		if (!IFileManager::Get().MakeDirectory(*Config.Directory, true))
+		{
+			uint32 ErrorCode = FPlatformMisc::GetLastError();
+			UE_LOG(LogAutoReimportTests, Error, TEXT("Failed to create the test cache folder %s. LastError code: %d"), *Config.Directory, ErrorCode);
+		}
 		// Just to be sure...
-		IFileManager::Get().MakeDirectory(*InWorkingDir, true);
+		if (!IFileManager::Get().MakeDirectory(*InWorkingDir, true))
+		{
+			uint32 ErrorCode = FPlatformMisc::GetLastError();
+			UE_LOG(LogAutoReimportTests, Error, TEXT("Failed to create the test cache folder %s (retry operation). LastError code: %d"), *InWorkingDir, ErrorCode);
+		}
 	}
 	~FAutoReimportTestPayload()
 	{
 		// Avoid writing out the file after we've nuked the directory
 		FileCache = nullptr;
-		IFileManager::Get().DeleteDirectory(*WorkingDir, false, true);
+		if (!IFileManager::Get().DeleteDirectory(*WorkingDir, false, true))
+		{
+			UE_LOG(LogAutoReimportTests, Error, TEXT("Failed to delete the test cache folder %s."), *WorkingDir);
+		}
 	}
 
 	void StartWatching()
@@ -154,7 +165,12 @@ bool FAutoReimportSimpleCreateTest::RunTest(const FString& Parameters)
 	TSharedPtr<FAutoReimportTestPayload> Test = MakeShareable(new FAutoReimportTestPayload(WorkingDir));
 	Test->StartWatching();
 	Test->WaitForStartup([=]{
-		
+		if (!Test->FileCache->HasStartedUp())
+		{
+			//WaitForStartup should ensure this state
+			UE_LOG(LogAutoReimportTests, Error, TEXT("FileCache not ready to listen folder change!"));
+		}
+
 		TArray<FSrcDstFilenames> Files;
 		Files.Emplace(Filename, Filename);
 
@@ -164,6 +180,8 @@ bool FAutoReimportSimpleCreateTest::RunTest(const FString& Parameters)
 		}
 
 		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
+			
+			Test->FileCache->Tick();
 
 			auto Changes = Test->FileCache->GetOutstandingChanges();
 
@@ -233,7 +251,8 @@ bool FAutoReimportSimpleModifyTest::RunTest(const FString& Parameters)
 		}
 
 		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-
+			
+			Test->FileCache->Tick();
 			auto Changes = Test->FileCache->GetOutstandingChanges();
 
 			if (Changes.Num() != 1)
@@ -302,6 +321,8 @@ bool FAutoReimportSimpleDeleteTest::RunTest(const FString& Parameters)
 
 		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
 
+			Test->FileCache->Tick();
+
 			auto Changes = Test->FileCache->GetOutstandingChanges();
 
 			if (Changes.Num() != 1)
@@ -364,6 +385,7 @@ bool FAutoReimportSimpleRenameTest::RunTest(const FString& Parameters)
 
 		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
 
+			Test->FileCache->Tick();
 			auto Changes = Test->FileCache->GetOutstandingChanges();
 
 			if (Changes.Num() != 1)
@@ -433,6 +455,8 @@ bool FAutoReimportSimpleMoveExternallyTest::RunTest(const FString& Parameters)
 		IFileManager::Get().Move(*(Test->Config.Directory / DstFilename), *(Test->Config.Directory / SrcFilename));
 
 		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
+
+			Test->FileCache->Tick();
 
 			auto Changes = Test->FileCache->GetOutstandingChanges();
 
@@ -601,6 +625,7 @@ bool FAutoReimportMultipleChangesTest::RunTest(const FString& Parameters)
 
 		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
 
+			Test->FileCache->Tick();
 			// The net change should just be a single added file
 			auto Changes = Test->FileCache->GetOutstandingChanges();
 
@@ -651,6 +676,7 @@ bool FAutoReimportChangeExtensionsTest::RunTest(const FString& Parameters)
 
 		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
 
+			Test->FileCache->Tick();
 			auto Changes = Test->FileCache->GetOutstandingChanges();
 
 			if (Changes.Num() != 1)
@@ -774,6 +800,7 @@ bool FAutoReimportWildcardFiltersTest::RunTest(const FString& Parameters)
 			}
 
 			ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
+				Test->FileCache->Tick();
 				auto Changes = Test->FileCache->GetOutstandingChanges();
 
 				if (Changes.Num() != 1)
