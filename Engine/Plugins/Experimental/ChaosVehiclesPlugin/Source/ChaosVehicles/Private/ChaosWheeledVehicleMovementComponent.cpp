@@ -68,12 +68,13 @@ FAutoConsoleCommand CVarCommandVehiclesPrevDebugPage(
 
 FString FWheelStatus::ToString() const
 {
-	return FString::Printf(TEXT("bInContact:%s ContactPoint:%s PhysMaterial:%s NormSuspensionLength:%f SpringForce:%f bIsSlipping:%s SlipMagnitude:%f bIsSkidding:%s SkidMagnitude:%f SkidNormal:%s"),
+	return FString::Printf(TEXT("bInContact:%s ContactPoint:%s PhysMaterial:%s NormSuspensionLength:%f SpringForce:%f SlipAngle:%f bIsSlipping:%s SlipMagnitude:%f bIsSkidding:%s SkidMagnitude:%f SkidNormal:%s"),
 		bInContact == true ? TEXT("True") : TEXT("False"),
 		*ContactPoint.ToString(),
 		PhysMaterial.IsValid() ? *PhysMaterial->GetName() : TEXT("None"),
 		NormalizedSuspensionLength,
 		SpringForce,
+		SlipAngle,
 		bIsSlipping == true ? TEXT("True") : TEXT("False"),
 		SlipMagnitude,
 		bIsSkidding == true ? TEXT("True") : TEXT("False"),
@@ -466,15 +467,24 @@ void UChaosWheeledVehicleSimulation::ApplyWheelFrictionForces(float DeltaTime)
 			if (GWheeledVehicleDebugParams.ShowWheelForces)
 			{
 				// show longitudinal drive force
-				FDebugDrawQueue::GetInstance().DrawDebugLine(
-						  WheelState.WheelWorldLocation[WheelIdx]
-						, WheelState.WheelWorldLocation[WheelIdx] + FrictionForceVector * 0.001f
-						, FColor::Yellow, false, -1.0f, 0, 2);
+				if (PWheel.AvailableGrip > 0.0f)
+				{
+					float Radius = 50.0f;
+					float Scaling = 50.0f / PWheel.AvailableGrip;
 
-				FDebugDrawQueue::GetInstance().DrawDebugLine(
-						  WheelState.WheelWorldLocation[WheelIdx]
-						, WheelState.WheelWorldLocation[WheelIdx] + GroundZVector * 100.f
-						, FColor::Orange, false, -1.0f, 0, 2);
+					FVector Center = WheelState.WheelWorldLocation[WheelIdx];			
+					FVector Offset(0.0f, WheelState.WheelLocalLocation[WheelIdx].Y, 10.f);
+					Offset = Mat.TransformVector(Offset);
+
+					FDebugDrawQueue::GetInstance().DrawDebugLine(Center, Center + GroundZVector * 100.f, FColor::Orange, false, -1.0f, 0, 2);
+
+					Center += Offset;
+					FVector InputForceVectorWorld = Mat.TransformVector(PWheel.InputForces);
+					FDebugDrawQueue::GetInstance().DrawDebugCircle(Center, Radius, 60, FColor::White, false, -1.0f, 0, 3, FVector(1,0,0), FVector(0,1,0), false);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(Center, Center + InputForceVectorWorld * Scaling, (PWheel.bClipping?FColor::Red:FColor::Green), false, -1.0f, 0, PWheel.bClipping?2:4);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(Center, Center + FrictionForceVector * Scaling, FColor::Yellow, false, -1.0f, 1, PWheel.bClipping?4:2);
+
+				}
 
 			}
 #endif
@@ -904,6 +914,7 @@ void UChaosWheeledVehicleSimulation::FillOutputState(FChaosVehicleAsyncOutput& O
 		WheelsOut.bIsSkidding = VehicleWheels[WheelIdx].IsSkidding();
 		WheelsOut.SkidMagnitude = VehicleWheels[WheelIdx].GetSkidMagnitude();
 		WheelsOut.SkidNormal = WheelState.WorldWheelVelocity[WheelIdx].GetSafeNormal();
+		WheelsOut.SlipAngle = VehicleWheels[WheelIdx].GetSlipAngle();
 
 		WheelsOut.SuspensionOffset = VehicleSuspension[WheelIdx].GetSuspensionOffset();
 		WheelsOut.SpringForce = VehicleSuspension[WheelIdx].GetSuspensionForce();
@@ -1942,6 +1953,7 @@ void UChaosWheeledVehicleMovementComponent::FillWheelOutputState()
 		State.PhysMaterial = HitResult.PhysMaterial;
 		State.NormalizedSuspensionLength = PWheel.NormalizedSuspensionLength;
 		State.SpringForce = PWheel.SpringForce;
+		State.SlipAngle = PWheel.SlipAngle;
 		State.bIsSlipping = PWheel.bIsSlipping;
 		State.SlipMagnitude = PWheel.SlipMagnitude;
 		State.bIsSkidding = PWheel.bIsSkidding;
@@ -1963,13 +1975,14 @@ void UChaosWheeledVehicleMovementComponent::FillWheelOutputState()
 
 
 void UChaosWheeledVehicleMovementComponent::BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
-	, float& NormalizedSuspensionLength, float& SpringForce, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal)
+	, float& NormalizedSuspensionLength, float& SpringForce, float& SlipAngle, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal)
 {
 	bInContact = Status.bInContact;
 	ContactPoint = Status.ContactPoint;
 	PhysMaterial = Status.PhysMaterial.Get();
 	NormalizedSuspensionLength = Status.NormalizedSuspensionLength;
 	SpringForce = Status.SpringForce;
+	SlipAngle = Status.SlipAngle;
 	bIsSlipping = Status.bIsSlipping;
 	SlipMagnitude = Status.SlipMagnitude;
 	bIsSkidding = Status.bIsSkidding;
@@ -1978,7 +1991,7 @@ void UChaosWheeledVehicleMovementComponent::BreakWheelStatus(const struct FWheel
 }
 
 FWheelStatus UChaosWheeledVehicleMovementComponent::MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
-	, float NormalizedSuspensionLength, float SpringForce, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal)
+	, float NormalizedSuspensionLength, float SpringForce, float SlipAngle, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal)
 {
 	FWheelStatus Status;
 	Status.bInContact = bInContact;
@@ -1986,6 +1999,7 @@ FWheelStatus UChaosWheeledVehicleMovementComponent::MakeWheelStatus(bool bInCont
 	Status.PhysMaterial = PhysMaterial;
 	Status.NormalizedSuspensionLength = NormalizedSuspensionLength;
 	Status.SpringForce = SpringForce;
+	Status.SlipAngle = SlipAngle;
 	Status.bIsSlipping = bIsSlipping;
 	Status.SlipMagnitude = SlipMagnitude;
 	Status.bIsSkidding = bIsSkidding;

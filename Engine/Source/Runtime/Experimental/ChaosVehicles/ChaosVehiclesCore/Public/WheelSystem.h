@@ -93,6 +93,7 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 		, SlipThreshold(20.0f)
 		, SkidThreshold(20.0f)
 		, NewSimulationPath(false)
+		, MaxSpinRotation(30.0f)
 	{
 
 	}
@@ -134,6 +135,9 @@ struct CHAOSVEHICLESCORE_API FSimpleWheelConfig
 	float SkidThreshold;
 
 	bool NewSimulationPath;
+
+	FGraph LateralSlipGraph;
+	float MaxSpinRotation;
 
 	// #todo: simulated Damage
 	//EWheelDamageStatus DamageStatus;
@@ -432,6 +436,9 @@ public:
 	float LateralAdhesiveLimit;
 	float SideSlipModifier;
 	float Spin;
+	float AvailableGrip;
+	FVector InputForces;
+	bool bClipping;
 };
 
 

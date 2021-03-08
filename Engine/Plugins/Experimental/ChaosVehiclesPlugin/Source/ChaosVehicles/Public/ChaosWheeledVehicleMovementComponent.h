@@ -92,6 +92,10 @@ struct CHAOSVEHICLES_API FWheelStatus
 	UPROPERTY()
 	float SpringForce;
 
+	/** Slip angle at the wheel - difference between wheel local direction and velocity at wheel */
+	UPROPERTY()
+	float SlipAngle;
+
 	/** Is the wheel slipping */
 	UPROPERTY()
 	bool bIsSlipping;
@@ -99,6 +103,7 @@ struct CHAOSVEHICLES_API FWheelStatus
 	/** Magnitude of slippage of wheel, difference between wheel speed and ground speed */
 	UPROPERTY()
 	float SlipMagnitude;
+
 
 	/** Is the wheel skidding */
 	UPROPERTY()
@@ -128,6 +133,7 @@ struct CHAOSVEHICLES_API FWheelStatus
 
 	void Init()
 	{
+		SlipAngle = 0.0f;
 		bInContact = false;
 		bIsSlipping = false;
 		bIsSkidding = false;
@@ -636,11 +642,11 @@ class CHAOSVEHICLES_API UChaosWheeledVehicleMovementComponent : public UChaosVeh
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static void BreakWheelStatus(const struct FWheelStatus& Status, bool& bInContact, FVector& ContactPoint, UPhysicalMaterial*& PhysMaterial
-			, float& NormalizedSuspensionLength, float& SpringForce, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal);
+			, float& NormalizedSuspensionLength, float& SpringForce, float& SlipAngle, bool& bIsSlipping, float& SlipMagnitude, bool& bIsSkidding, float& SkidMagnitude, FVector& SkidNormal);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static FWheelStatus MakeWheelStatus(bool bInContact, FVector& ContactPoint, UPhysicalMaterial* PhysMaterial
-			, float NormalizedSuspensionLength, float SpringForce, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal);
+			, float NormalizedSuspensionLength, float SpringForce, float SlipAngle, bool bIsSlipping, float SlipMagnitude, bool bIsSkidding, float SkidMagnitude, FVector& SkidNormal);
 
 	UFUNCTION(BlueprintPure, Category = "Vehicles")
 	static void BreakWheeledSnapshot(const struct FWheeledSnaphotData& Snapshot, FTransform& Transform, FVector& LinearVelocity

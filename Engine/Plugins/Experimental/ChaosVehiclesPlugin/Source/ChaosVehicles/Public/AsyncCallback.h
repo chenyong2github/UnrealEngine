@@ -27,6 +27,7 @@ struct FWheelsOutput
 		, WheelRadius(0.f)
 		, LateralAdhesiveLimit(0.f)
 		, LongitudinalAdhesiveLimit(0.f)
+		, SlipAngle(0.f)
 		, bIsSlipping(false)
 		, SlipMagnitude(0.f)
 		, bIsSkidding(false)
@@ -48,6 +49,7 @@ struct FWheelsOutput
 	float LateralAdhesiveLimit;
 	float LongitudinalAdhesiveLimit;
 
+	float SlipAngle;
 	bool bIsSlipping;
 	float SlipMagnitude;
 	bool bIsSkidding;

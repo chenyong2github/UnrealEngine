@@ -90,6 +90,8 @@ namespace Chaos
 		void Add(const FVec2& Value);
 
 		float EvaluateY(float InX) const;
+
+		bool IsEmpty() const { return Graph.IsEmpty(); }
 	private:
 		TArray<FVec2> Graph;
 		FVector2D BoundsX;

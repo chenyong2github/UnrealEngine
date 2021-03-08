@@ -975,13 +975,16 @@ void UChaosVehicleMovementComponent::CalcThrottleBrakeInput(float& ThrottleOut, 
 	{
 		if (RawThrottleInput > 0.f)
 		{
-			// car moving backwards but player wants to move forwards...
-			// if vehicle is moving backwards, then press brake
-			if (VehicleState.ForwardSpeed < -WrongDirectionThreshold)
-			{
-				BrakeOut = 1.0f;
-				ThrottleOut = 0.0f;
-			}
+		// Note: Removed this condition to support wheel spinning when rolling backareds with accelerator pressed, rather than braking
+		// Should this case be another checkbox option??
+		//	
+		//	// car moving backwards but player wants to move forwards...
+		//	// if vehicle is moving backwards, then press brake
+		//	if (VehicleState.ForwardSpeed < -WrongDirectionThreshold)
+		//	{
+		//		BrakeOut = 1.0f;
+		//		ThrottleOut = 0.0f;
+		//	}
 
 		}
 		else if (RawBrakeInput > 0.f)
@@ -1111,7 +1114,8 @@ void UChaosVehicleMovementComponent::UpdateState(float DeltaTime)
 		if (bReverseAsBrake)
 		{
 			//for reverse as state we want to automatically shift between reverse and first gear
-			if (FMath::Abs(GetForwardSpeed()) < WrongDirectionThreshold)	//we only shift between reverse and first if the car is slow enough.
+			// Note: Removed this condition to support wheel spinning when rolling backareds with accelerator pressed, rather than braking
+			//if (FMath::Abs(GetForwardSpeed()) < WrongDirectionThreshold)	//we only shift between reverse and first if the car is slow enough.
 			{
 				if (RawBrakeInput > KINDA_SMALL_NUMBER && GetCurrentGear() >= 0 && GetTargetGear() >= 0)
 				{
@@ -1757,6 +1761,7 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].bIsSkidding = Current.bIsSkidding;
 					PVehicleOutput->Wheels[WheelIdx].SkidMagnitude = FMath::Lerp(Current.SkidMagnitude, Next.SkidMagnitude, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].SkidNormal = FMath::Lerp(Current.SkidNormal, Next.SkidNormal, OutputInterpAlpha);
+					PVehicleOutput->Wheels[WheelIdx].SlipAngle = FMath::Lerp(Current.SlipAngle, Next.SlipAngle, OutputInterpAlpha);
 
 					PVehicleOutput->Wheels[WheelIdx].SuspensionOffset = FMath::Lerp(Current.SuspensionOffset, Next.SuspensionOffset, OutputInterpAlpha);
 					PVehicleOutput->Wheels[WheelIdx].SpringForce = FMath::Lerp(Current.SpringForce, Next.SpringForce, OutputInterpAlpha);
@@ -1787,6 +1792,7 @@ void UChaosVehicleMovementComponent::ParallelUpdate(float DeltaSeconds)
 					PVehicleOutput->Wheels[WheelIdx].bIsSkidding = Current.bIsSkidding;
 					PVehicleOutput->Wheels[WheelIdx].SkidMagnitude = Current.SkidMagnitude;
 					PVehicleOutput->Wheels[WheelIdx].SkidNormal = Current.SkidNormal;
+					PVehicleOutput->Wheels[WheelIdx].SlipAngle = Current.SlipAngle;
 
 					PVehicleOutput->Wheels[WheelIdx].SuspensionOffset = Current.SuspensionOffset;
 					PVehicleOutput->Wheels[WheelIdx].SpringForce = Current.SpringForce;

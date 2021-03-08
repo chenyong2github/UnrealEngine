@@ -190,22 +190,32 @@ namespace Chaos
 
 	float FGraph::EvaluateY(float InX) const
 	{
-		float RangeX = BoundsX.Y - BoundsX.X;
-		float Step = (RangeX) / (Graph.Num() - 1);
-		int StartIndex = (InX - BoundsX.X) / Step;
+		float Result = 0.0f;
 
-		if (StartIndex <= 0)
+		if (!Graph.IsEmpty())
 		{
-			return Graph[0].Y;
-		}
-		else if (StartIndex >= Graph.Num() - 1)
-		{
-			return Graph[Graph.Num() - 1].Y;
+			float RangeX = BoundsX.Y - BoundsX.X;
+			float Step = (RangeX) / (Graph.Num() - 1);
+			float Start = (InX - BoundsX.X) / Step;
+
+			if (Start < 0.f)
+			{
+				return Graph[0].Y;
+			}
+			
+			int StartIndex = (int)Start;
+
+			if (StartIndex >= Graph.Num() - 1)
+			{
+				return Graph[Graph.Num() - 1].Y;
+			}
+
+			float NormalisedRamp = (InX - Graph[StartIndex].X) / Step;
+
+			Result = Graph[StartIndex].Y * (1.f - NormalisedRamp) + Graph[StartIndex + 1].Y * NormalisedRamp;
 		}
 
-		float NormalisedRamp = (InX - Graph[StartIndex].X) / Step;
-
-		return  Graph[StartIndex].Y * (1.f - NormalisedRamp) + Graph[StartIndex + 1].Y * NormalisedRamp;
+		return Result;
 	}
 
 } // namespace Chaos

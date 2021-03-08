@@ -37,6 +37,9 @@ namespace Chaos
 		, bInContact(false)
 		, WheelIndex(0)
 		, Spin(0.f)
+		, AvailableGrip(0.f)
+		, InputForces(FVector::ZeroVector)
+		, bClipping(false)
 	{
 
 	}
@@ -46,6 +49,7 @@ namespace Chaos
 		if (Setup().NewSimulationPath)
 		{
 			SimulateNew(DeltaTime);
+
 			return;
 		}
 
@@ -214,7 +218,7 @@ namespace Chaos
 		AppliedLinearBrakeForce = BrakeTorque / Re;
 
 		// Longitudinal multiplier now affecting both brake and steering equally
-		float AvailableGrip = ForceIntoSurface * SurfaceFriction * FrictionMultiplier;
+		AvailableGrip = ForceIntoSurface * SurfaceFriction * FrictionMultiplier;
 
 		float FinalLongitudinalForce = 0.f;
 		float FinalLateralForce = 0.f;
@@ -222,6 +226,7 @@ namespace Chaos
 		// currently just letting the brake override the throttle
 		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
 		bool WheelLocked = false;
+		float SlipOmega = 0.0f;
 
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
@@ -269,18 +274,24 @@ namespace Chaos
 			float ForceRequiredToBringToStop = -(MassPerWheel * K * GroundVelocityVector.Y) / DeltaTime;
 
 			// use slip angle to generate a sideways force
+			if (Setup().LateralSlipGraph.IsEmpty())
+			{
+				float AngleLimit = FMath::DegreesToRadians(8.0f);
+				if (SlipAngle > AngleLimit)
+				{
+					SlipAngle = AngleLimit;
+				}
+				else if (SlipAngle < AngleLimit)
+				{
+					SlipAngle = AngleLimit;
+				}
+				FinalLateralForce = SlipAngle * CorneringStiffness;
+			}
+			else
+			{ 
+				FinalLateralForce = Setup().LateralSlipGraph.EvaluateY(FMath::RadiansToDegrees(SlipAngle));
+			}
 
-			// Leveling off of the graph
-			float AngleLimit = FMath::DegreesToRadians(8.0f);
-			if (SlipAngle > AngleLimit)
-			{
-				SlipAngle = AngleLimit;
-			}
-			else if (SlipAngle < AngleLimit)
-			{
-				SlipAngle = AngleLimit;
-			}
-			FinalLateralForce = SlipAngle * CorneringStiffness;
 			if (FinalLateralForce > FMath::Abs(ForceRequiredToBringToStop))
 			{
 				FinalLateralForce = FMath::Abs(ForceRequiredToBringToStop);
@@ -291,25 +302,34 @@ namespace Chaos
 			}
 
 			// Friction circle
+			InputForces.X = FinalLongitudinalForce;
+			InputForces.Y = FinalLateralForce;
+
 			float LengthSquared = FinalLongitudinalForce * FinalLongitudinalForce + FinalLateralForce * FinalLateralForce;
+			bClipping = false;
 			if (LengthSquared > 0.05f)
 			{
 				float Length = FMath::Sqrt(LengthSquared);
 
-				float Clip = AvailableGrip / Length;
+				float Clip = (AvailableGrip) / Length;
 				if (Clip < 1.0f)
 				{
+					if (Braking)
+					{
+						WheelLocked = true;
+					}
+					else if (FMath::Abs(FinalLongitudinalForce) > AvailableGrip)
+					{
+						SlipOmega = (FinalLongitudinalForce < 0.0f) ? -Setup().MaxSpinRotation : Setup().MaxSpinRotation;
+
+					}
+
+					bClipping = true;
 					FinalLongitudinalForce *= Clip;
 					FinalLateralForce *= Clip;
 
 					FinalLongitudinalForce *= Setup().SideSlipModifier;
 					FinalLateralForce *= Setup().SideSlipModifier;
-
-					if (Braking)
-					{
-						WheelLocked = true;
-					}
-
 				}
 			}
 		}
@@ -321,7 +341,7 @@ namespace Chaos
 		else
 		{ 
 			float GroundOmega = GroundVelocityVector.X / Re;
-			Omega += (GroundOmega - Omega);
+			Omega += ((GroundOmega - Omega + SlipOmega));
 		}
 
 		// Wheel angular position

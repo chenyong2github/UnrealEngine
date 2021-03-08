@@ -160,6 +160,9 @@ class UChaosWheeledVehicleMovementComponent;
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		bool bTractionControlEnabled;
 
+		UPROPERTY(EditAnywhere, Category = Setup)
+		FRuntimeFloatCurve LateralSlipGraph;
+
 		///** Max normalized tire load at which the tire can deliver no more lateral stiffness no matter how much extra load is applied to the tire. */
 		//UPROPERTY(EditAnywhere, Category = Tire, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		//float LatStiffMaxLoad;
@@ -379,6 +382,22 @@ class UChaosWheeledVehicleMovementComponent;
 			PWheelConfig.SideSlipModifier = this->SideSlipModifier;
 			PWheelConfig.SlipThreshold = this->SlipThreshold;
 			PWheelConfig.SkidThreshold = this->SkidThreshold;
+
+			PWheelConfig.LateralSlipGraph.Empty();
+			float NumSamples = 20;
+			float MinTime = 0.f, MaxTime = 0.f;
+			this->LateralSlipGraph.GetRichCurveConst()->GetTimeRange(MinTime, MaxTime);
+			if (MaxTime > 0.0f)
+			{
+				for (float X = 0; X <= MaxTime; X += (MaxTime / NumSamples))
+				{
+					float MinVal = 0.f, MaxVal = 0.f;
+					this->LateralSlipGraph.GetRichCurveConst()->GetValueRange(MinVal, MaxVal);
+					float Y = this->LateralSlipGraph.GetRichCurveConst()->Eval(X) * 10000.0f;
+					PWheelConfig.LateralSlipGraph.Add(Chaos::FVec2(X, Y));
+				}
+			}
+
 		}
 
 		void FillSuspensionSetup()
