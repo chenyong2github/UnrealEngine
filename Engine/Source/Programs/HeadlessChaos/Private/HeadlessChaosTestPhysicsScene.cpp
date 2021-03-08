@@ -1088,7 +1088,7 @@ namespace ChaosTest {
 			}
 
 			FVec3 Grav(0, 0, 0);
-			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false);
+			Scene.SetUpForFrame(&Grav, GTDt, 99999, 99999, 10, false, FixedDT);
 			Scene.StartFrame();
 			Scene.EndFrame();
 
