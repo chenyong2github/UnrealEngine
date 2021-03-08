@@ -10,6 +10,11 @@ class FViewport;
 class IRenderCaptureProvider : public IModularFeature
 {
 public:
+	/**
+	 * Get the feature name used for module resolution.
+	 *
+	 * @return	The feature name.
+	 */
 	static FName GetModularFeatureName()
 	{
 		static FName FeatureName = FName(TEXT("RenderCaptureProvider"));
@@ -17,9 +22,9 @@ public:
 	}
 
 	/**
-	 * Checks to see if the specified feature is available
+	 * Checks to see if the specified feature is available.
 	 * 
-	 * @return	True if the feature is available right now and it is safe to call Get()
+	 * @return	True if the feature is available right now and it is safe to call Get().
 	 */
 	static inline bool IsAvailable()
 	{
@@ -27,8 +32,8 @@ public:
 	}
 
 	/**
-	 * Gets the first registered implementation of this feature. Will assert or crash 
-	 * if the specified feature is not available!  You should call IsAvailable() first!
+	 * Gets the first registered implementation of this feature. Will assert or crash.
+	 * If the specified feature is not available!  You should call IsAvailable() first!
 	 *
 	 * @return	The feature.
 	 */
@@ -38,27 +43,40 @@ public:
 	}
 
 	/**
-	 * Capture the next full frame of rendering information.
-	 * Currently the capture details (number of frames etc.) can only be set up by CVars exposed by the underlying capture tool.
-	 * Call from main thread only.
+	 * Flags to pass to capture API.
 	 */
-	virtual void CaptureFrame(FViewport* Viewport = nullptr, FString const& DestPath = FString(), bool bLaunch = true) = 0;
+	enum ECaptureFlags
+	{
+		// Set to launch the capture viewing application. Whether this is supported depends on the underlying capture tool.
+		ECaptureFlags_Launch = 1, 
+	};
+
+	/**
+	 * Capture the next full frame of rendering information.
+	 * Currently any capture details (number of frames etc.) must be set up by CVars exposed in the underlying capture tool.
+	 * Call from main thread only.
+	 * 
+	 * @param	Viewport		The specific viewport to capture. (Optional).
+	 * @param	bLaunch			
+	 * @param	DestFileName	The destination file name for saving the capture. (Optional).
+	 *
+	 */
+	virtual void CaptureFrame(FViewport* InViewport = nullptr, uint32 InFlags = 0, FString const& InDestFileName = FString()) = 0;
 
 	/**
 	 * Start capturing rendering information.
 	 * Call from render thread only.
 	 * 
 	 * @param	RHICommandList	The command list to capture on.
-	 * @param	ScopeName		Name for capture scope. (Optional).
+	 * @param	DestFileName	The destination file name for saving the capture. (Optional).
 	 */
-	virtual void BeginCapture(FRHICommandListImmediate* RHICommandList, FString const& ScopeName = FString()) = 0;
+	virtual void BeginCapture(FRHICommandListImmediate* InRHICommandList, uint32 InFlags = 0, FString const& InDestFileName = FString()) = 0;
 	
 	/**
 	 * Stop capturing rendering information and save the captured data.
 	 * Call from render thread only.
 	 *
 	 * @param	RHICommandList	The command list to capture on.
-	 * @param	DestPath		The destination path for saving the capture. (Optional).
 	 */
-	virtual void EndCapture(FRHICommandListImmediate* RHICommandList, FString const& DestPath = FString(), bool bLaunch = true) = 0;
+	virtual void EndCapture(FRHICommandListImmediate* InRHICommandList) = 0;
 };

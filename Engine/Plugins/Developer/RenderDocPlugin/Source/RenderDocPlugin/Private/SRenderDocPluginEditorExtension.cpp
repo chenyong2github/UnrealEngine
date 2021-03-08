@@ -4,23 +4,26 @@
 
 #include "SRenderDocPluginEditorExtension.h"
 #include "SRenderDocPluginHelpWindow.h"
-#include "RenderDocPluginStyle.h"
+
 #include "RenderDocPluginCommands.h"
 #include "RenderDocPluginModule.h"
+#include "RenderDocPluginSettings.h"
+#include "RenderDocPluginStyle.h"
 
-#include "Interfaces/IMainFrameModule.h"
-#include "EditorStyleSet.h"
+#include "Editor/EditorEngine.h"
 #include "Editor/UnrealEd/Public/SEditorViewportToolBarMenu.h"
 #include "Editor/UnrealEd/Public/SViewportToolBarComboMenu.h"
 #include "Editor/UnrealEd/Public/Kismet2/DebuggerCommands.h"
-#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "EditorStyleSet.h"
+#include "Framework/Application/SlateApplication.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Editor/EditorEngine.h"
-extern UNREALED_API UEditorEngine* GEditor;
+#include "Framework/MultiBox/MultiBoxDefs.h"
+#include "Interfaces/IMainFrameModule.h"
+#include "LevelEditor.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Images/SImage.h"
-#include "Framework/Application/SlateApplication.h"
-#include "RHI.h"
+
+extern UNREALED_API UEditorEngine* GEditor;
 
 class SRenderDocCaptureButton : public SViewportToolBar
 {
@@ -152,7 +155,7 @@ void FRenderDocPluginEditorExtension::OnEditorLoaded(SWindow& SlateWindow, void*
 			FExecuteAction::CreateLambda([]() 
 			{	
 				FRenderDocPluginModule& PluginModule = FModuleManager::GetModuleChecked<FRenderDocPluginModule>("RenderDocPlugin");
-				PluginModule.CaptureFrame(); 
+				PluginModule.CaptureFrame(nullptr, IRenderCaptureProvider::ECaptureFlags_Launch, FString()); 
 			}),
 			FCanExecuteAction());
  	}

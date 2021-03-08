@@ -17,14 +17,15 @@ namespace RenderCaptureInterface
 	{
 	public:
 		/** Use this constructor if not on rendering thread. Use bEnable to allow control over the capture frequency. */
-		RENDERCORE_API FScopedCapture(bool bEnable, TCHAR const* InScopeName = TEXT(""));
+		RENDERCORE_API FScopedCapture(bool bEnable, TCHAR const* InEventName = nullptr, TCHAR const* InFileName = nullptr);
 		/** Use this constructor if on rendering thread. Use bEnable to allow control over the capture frequency. */
-		RENDERCORE_API FScopedCapture(bool bEnable, FRHICommandListImmediate* InRHICommandList, TCHAR const* InScopeName = TEXT(""));
+		RENDERCORE_API FScopedCapture(bool bEnable, FRHICommandListImmediate* InRHICommandList, TCHAR const* InEventName = nullptr, TCHAR const* InFileName = nullptr);
 		
 		RENDERCORE_API ~FScopedCapture();
 	
 	private:
 		bool bCapture;
+		bool bEvent;
 		FRHICommandListImmediate* RHICommandList;
 	};
 }

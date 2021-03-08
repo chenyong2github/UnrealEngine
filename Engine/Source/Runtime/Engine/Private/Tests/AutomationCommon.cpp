@@ -165,7 +165,7 @@ namespace AutomationCommon
 
 			UE_LOG(LogEngineAutomationTests, Log, TEXT("Taking Frame Trace: %s"), *TempCaptureFilePath);
 
-			IRenderCaptureProvider::Get().CaptureFrame(GEngine->GameViewport->Viewport, TempCaptureFilePath, false);
+			IRenderCaptureProvider::Get().CaptureFrame(GEngine->GameViewport->Viewport, 0, TempCaptureFilePath);
 			FlushRenderingCommands();
 
 			IPlatformFile& PlatformFileSystem = IPlatformFile::GetPlatformPhysical();
