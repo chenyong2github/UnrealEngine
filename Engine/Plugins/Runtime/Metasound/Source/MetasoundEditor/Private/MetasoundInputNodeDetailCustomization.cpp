@@ -489,6 +489,7 @@ namespace Metasound
 					});
 
 					Handle->SetOnPropertyValueChanged(OnLiteralChanged);
+					Handle->SetOnChildPropertyValueChanged(OnLiteralChanged);
 
 					TSharedPtr<IPropertyHandleArray> PropertyArray = Handle->AsArray();
 					if (PropertyArray.IsValid())
