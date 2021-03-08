@@ -545,8 +545,6 @@ public:
 	void TakeHighResScreenShot();
 
 	/** Called when an editor mode has been (de)activated */
-	UE_DEPRECATED(4.24, "Use OnEditorModeIDChanged() instead.")
-	void OnEditorModeChanged(FEdMode* EditorMode, bool bIsEntering);
 	void OnEditorModeIDChanged(const FEditorModeID& EditorModeID, bool bIsEntering);
 
 	/** FViewElementDrawer interface */

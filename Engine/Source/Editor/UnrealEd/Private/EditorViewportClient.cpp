@@ -661,14 +661,6 @@ void FEditorViewportClient::RequestInvalidateHitProxy(FViewport* InViewport)
 	bNeedsInvalidateHitProxy = true;
 }
 
-void FEditorViewportClient::OnEditorModeChanged(FEdMode* EditorMode, bool bIsEntering)
-{
-	if (Viewport)
-	{
-		RequestInvalidateHitProxy(Viewport);
-	}
-}
-
 void FEditorViewportClient::OnEditorModeIDChanged(const FEditorModeID& EditorModeID, bool bIsEntering)
 {
 	if (Viewport)
