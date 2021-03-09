@@ -227,15 +227,26 @@ USceneComponent* FUsdGeomXformableTranslator::CreateComponentsEx( TOptional< TSu
 		// We don't want to start a component hierarchy if one of our child will break it by being an actor
 		if ( !bNeedsActor.GetValue() )
 		{
-			const bool bTraverseInstanceProxies= true;
-			for ( const pxr::UsdPrim& Child : Prim.GetFilteredChildren( bTraverseInstanceProxies ) )
+			TFunction< bool( const UE::FUsdPrim& ) > RecursiveChildPrimsNeedsActor;
+			RecursiveChildPrimsNeedsActor = [ PrimNeedsActor, &RecursiveChildPrimsNeedsActor ]( const UE::FUsdPrim& UsdPrim ) -> bool
 			{
-				if ( PrimNeedsActor( UE::FUsdPrim( Child ) ) )
+				const bool bTraverseInstanceProxies = true;
+				for ( const pxr::UsdPrim& Child : UsdPrim.GetFilteredChildren( bTraverseInstanceProxies ) )
 				{
-					bNeedsActor = true;
-					break;
+					if ( PrimNeedsActor( UE::FUsdPrim( Child ) ) )
+					{
+						return true;
+					}
+					else if ( RecursiveChildPrimsNeedsActor( UE::FUsdPrim( Child ) ) )
+					{
+						return true;
+					}
 				}
-			}
+
+				return false;
+			};
+
+			bNeedsActor = RecursiveChildPrimsNeedsActor( UE::FUsdPrim( Prim ) );
 		}
 	}
 
