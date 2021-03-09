@@ -3975,17 +3975,16 @@ void FShaderMapCompileResults::CheckIfHung()
 		if (DurationSoFar >= static_cast<double>(GShaderMapCompilationTimeout))
 		{
 			bIsHung = true;
+			// always produce an error message first, even if going to crash, as the automation controller does not seem to be picking up Fatal messages
+			UE_LOG(LogShaderCompilers, Error, TEXT("Hung shadermap detected, time spent compiling: %f seconds, NumPendingJobs: %d, FinishedJobs: %d"),
+				DurationSoFar,
+				NumPendingJobs.GetValue(),
+				FinishedJobs.Num()
+			);
+
 			if (GCrashOnHungShaderMaps)
 			{
 				UE_LOG(LogShaderCompilers, Fatal, TEXT("Crashing on a hung shadermap, time spent compiling: %f seconds, NumPendingJobs: %d, FinishedJobs: %d"),
-					DurationSoFar,
-					NumPendingJobs.GetValue(),
-					FinishedJobs.Num()
-				);
-			}
-			else
-			{
-				UE_LOG(LogShaderCompilers, Error, TEXT("Hung shadermap detected, time spent compiling: %f seconds, NumPendingJobs: %d, FinishedJobs: %d"),
 					DurationSoFar,
 					NumPendingJobs.GetValue(),
 					FinishedJobs.Num()
