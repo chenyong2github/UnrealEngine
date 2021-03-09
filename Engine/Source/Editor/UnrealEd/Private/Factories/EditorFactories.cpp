@@ -5436,9 +5436,10 @@ bool UTextureExporterTGA::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 			{
 				if (bIsRGBA16)
 				{
-					Ar << Color[1];
-					Ar << Color[3];
+					// From RGB to BGR
 					Ar << Color[5];
+					Ar << Color[3];
+					Ar << Color[1];
 					if (bExportWithAlpha)
 					{
 						Ar << Color[7];
