@@ -407,8 +407,7 @@ FGeometryCollectionPhysicsProxy::~FGeometryCollectionPhysicsProxy()
 float ReportHighParticleFraction = -1.f;
 FAutoConsoleVariableRef CVarReportHighParticleFraction(TEXT("p.gc.ReportHighParticleFraction"), ReportHighParticleFraction, TEXT("Report any objects with particle fraction above this threshold"));
 
-template <typename Traits>
-void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Traits> *Evolution)
+void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase *Evolution)
 {
 	check(IsInGameThread());
 
@@ -1414,7 +1413,7 @@ void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver
 {
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
-	Chaos::TPBDRigidsEvolutionGBF<Traits>* Evolution = RBDSolver->GetEvolution();
+	Chaos::FPBDRigidsEvolutionGBF* Evolution = RBDSolver->GetEvolution();
 
 	for (const FClusterHandle* Handle : SolverClusterHandles)
 	{

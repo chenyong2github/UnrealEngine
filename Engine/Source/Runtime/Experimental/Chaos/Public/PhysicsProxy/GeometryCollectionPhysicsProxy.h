@@ -24,8 +24,7 @@ namespace Chaos
 	struct FClusterCreationParameters;
 	struct FDirtyGeometryCollectionData;
 	
-	template <typename Traits>
-	class TPBDRigidsEvolutionBase;
+	class FPBDRigidsEvolutionBase;
 }
 
 class FStubGeometryCollectionData : public Chaos::FParticleData 
@@ -91,8 +90,7 @@ public:
 	 * Construct \c PTDynamicCollection, copying attributes from the game thread, 
 	 * and prepare for simulation.
 	 */
-	template <typename Traits>
-	void Initialize(Chaos::TPBDRigidsEvolutionBase<Traits>* Evolution);
+	void Initialize(Chaos::FPBDRigidsEvolutionBase* Evolution);
 	void Reset() { }
 
 	/** 
