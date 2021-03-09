@@ -108,7 +108,6 @@ ULevel* FWorldPartitionLevelHelper::CreateEmptyLevelForRuntimeCell(const UWorld*
 	check(NewLevel->OwningWorld == NewWorld);
 	check(NewLevel->Model);
 	check(!NewLevel->bIsVisible);
-	NewLevel->bRequireFullVisibilityToRender = true;
 	return NewLevel;
 }
 

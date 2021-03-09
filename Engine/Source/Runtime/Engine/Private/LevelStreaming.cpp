@@ -1215,11 +1215,14 @@ void ULevelStreaming::AsyncLevelLoadComplete(const FName& InPackageName, UPackag
 				IStreamingManager::Get().AddLevel(Level);
 
 				// Make sure this level will start to render only when it will be fully added to the world
-				if (LODPackageNames.Num() > 0)
+				if (ShouldRequireFullVisibilityToRender())
 				{
 					Level->bRequireFullVisibilityToRender = true;
 					// LOD levels should not be visible on server
-					Level->bClientOnlyVisible = LODPackageNames.Contains(InLoadedPackage->GetFName());
+					if (LODPackageNames.Num() > 0)
+					{
+						Level->bClientOnlyVisible = LODPackageNames.Contains(InLoadedPackage->GetFName());
+					}
 				}
 			
 				// In the editor levels must be in the levels array regardless of whether they are visible or not

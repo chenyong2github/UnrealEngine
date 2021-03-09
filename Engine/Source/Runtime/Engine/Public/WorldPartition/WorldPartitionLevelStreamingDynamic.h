@@ -28,6 +28,7 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 	void Activate();
 	void Deactivate();
 	virtual bool ShouldBeAlwaysLoaded() const { return bShouldBeAlwaysLoaded; }
+	virtual bool ShouldRequireFullVisibilityToRender() const override { return true; }
 	void SetShouldBeAlwaysLoaded(bool bInShouldBeAlwaysLoaded) { bShouldBeAlwaysLoaded = bInShouldBeAlwaysLoaded; }
 	UWorld* GetOuterWorld() const;
 

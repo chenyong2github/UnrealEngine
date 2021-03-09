@@ -387,6 +387,10 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 
 	// Notify the streamer to start building incrementally the level streaming data.
 	IStreamingManager::Get().AddLevel(RuntimeLevel);
+
+	// Make sure this level will start to render only when it will be fully added to the world
+	check(ShouldRequireFullVisibilityToRender());
+	RuntimeLevel->bRequireFullVisibilityToRender = true;
 }
 
 /**
