@@ -28,6 +28,7 @@
 #include "UnrealEngine.h"
 #include "ReflectionEnvironment.h"
 #include "Strata/Strata.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
 
 class FScene;
 
@@ -427,6 +428,15 @@ public:
 		OutEnvironment.SetDefine(TEXT("COMPILE_BASEPASS_PIXEL_VOLUMETRIC_FOGGING"), DoesPlatformSupportVolumetricFog(Parameters.Platform));
 		OutEnvironment.SetDefine(TEXT("ENABLE_SKY_LIGHT"), bEnableSkyLight);
 		OutEnvironment.SetDefine(TEXT("PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE"), ForceSimpleSkyDiffuse(Parameters.Platform));
+
+		const bool bTranslucent = IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode);
+		const bool bIsSingleLayerWater = Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater);
+		const bool bSupportVirtualShadowMap = IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		if (bSupportVirtualShadowMap && (bTranslucent || bIsSingleLayerWater))
+		{
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+		}
 
 		// This define simply lets the compilation environment know that we are using BasePassPixelShader.usf, so that we can check for more
 		// complicated defines later in the compilation pipe.

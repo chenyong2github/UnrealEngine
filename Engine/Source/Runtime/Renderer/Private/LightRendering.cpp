@@ -1398,7 +1398,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				if (AttenuationLightStart)
 				{
 					// Inject non-shadowed, non-simple, non-light function lights in to the volume.
-					InjectTranslucencyLightingVolumeArray(GraphBuilder, Views, Scene, TranslucencyLightingVolumeTextures, VisibleLightInfos, SortedLights, TInterval<int32>(SimpleLightsEnd, AttenuationLightStart));
+					InjectTranslucencyLightingVolumeArray(GraphBuilder, Views, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, SortedLights, TInterval<int32>(SimpleLightsEnd, AttenuationLightStart));
 				}
 
 				if (SimpleLights.InstanceData.Num() > 0)
@@ -1998,7 +1998,7 @@ void FDeferredShadingSceneRenderer::RenderLights(
 						RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
 
 						// Accumulate this light's unshadowed contribution to the translucency lighting volume
-						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, TranslucencyLightingVolumeTextures, VisibleLightInfos, LightSceneInfo, nullptr);
+						InjectTranslucencyLightingVolume(GraphBuilder, View, ViewIndex, Scene, *this, TranslucencyLightingVolumeTextures, VisibleLightInfos, LightSceneInfo, nullptr);
 					}
 				}
 

@@ -129,6 +129,8 @@ struct FCloudRenderContext
 	FVolumeShadowingShaderParametersGlobal0 LightShadowShaderParams0;
 	FRDGTextureRef VolumetricCloudShadowTexture[2];
 
+	int VirtualShadowMapId0 = INDEX_NONE;
+
 	FCloudRenderContext();
 
 private:

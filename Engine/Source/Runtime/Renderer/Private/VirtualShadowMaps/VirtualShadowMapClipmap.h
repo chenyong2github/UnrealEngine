@@ -57,9 +57,15 @@ public:
 		return WorldOrigin;
 	}
 
-	float GetMaxRadius() const { return MaxRadius; }
+	// Returns the max radius the clipmap is guaranteed to cover (i.e. the radius of the last clipmap level)
+	// Note that this is not a conservative radius of the level projection, which is snapped
+	float GetMaxRadius() const;
 
 	const FViewInfo* GetDependentView() const { return DependentView; }
+
+	// Returns a mask with one bit per level of which coarse pages to mark (based on cvars)
+	// Bits relative to FirstLevel (i.e. in terms of ClipmapIndex, not ClipmapLevel)
+	static uint32 GetCoarsePageClipmapIndexMask();
 
 private:
 	const FLightSceneInfo& LightSceneInfo;

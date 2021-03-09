@@ -63,6 +63,10 @@
 #define SAMPLE_ATMOSPHERE_ON_CLOUDS 0
 #endif
 
+#ifndef VIRTUAL_SHADOW_MAP
+#define VIRTUAL_SHADOW_MAP 0
+#endif
+
 #if SAMPLE_OPAQUE_SHADOW
 
 #define DYNAMICALLY_SHADOWED 1
@@ -84,7 +88,11 @@
 #undef VOLUME_SHADOW_SAMPLING_INPUT
 #endif
 
+#if VIRTUAL_SHADOW_MAP
+#include "VirtualShadowMaps/ProjectionCommon.ush"
 #endif
+
+#endif // SAMPLE_OPAQUE_SHADOW
 
 
 #if (SAMPLE_CLOUD_SHADOW || SAMPLE_CLOUD_SKYAO)
@@ -381,6 +389,9 @@ Texture2D<float3> VolumetricCloudShadowMapTexture1;
 Texture2D<float3> VolumetricCloudSkyAOTexture;
 float VolumetricCloudShadowStrength0;
 float VolumetricCloudShadowStrength1;
+
+int VirtualShadowMapId0;
+int VirtualShadowMapId1;
 
 
 #if SOURCE_DISK_ENABLED
@@ -687,7 +698,18 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 		ShadowP0 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 #endif
 #if SAMPLE_OPAQUE_SHADOW
-		PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false, bUnused);
+		{
+			float3 ShadowSampleWorldPosition0 = ShadowP0 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz;
+			PlanetShadow0 *= ComputeLight0VolumeShadowing(ShadowSampleWorldPosition0, false, false, bUnused);
+
+		#if VIRTUAL_SHADOW_MAP
+			if (VirtualShadowMapId0 != INDEX_NONE)
+			{
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId0, ShadowSampleWorldPosition0);
+				PlanetShadow0 *= VirtualShadowMapSample.ShadowFactor;
+			}
+		#endif // VIRTUALSHADOW_MAP
+		}
 #endif
 #if SAMPLE_CLOUD_SKYAO
 		float OutOpticalDepth = 0.0f;
@@ -711,8 +733,18 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 	#if SKYVIEWLUT_PASS
 		ShadowP1 = GetCameraPlanetPos() + t * mul(LocalReferencial, WorldDir); // Inverse of the local SkyViewLUT referencial transform
 	#endif
-		PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, false, false, bUnused);
-#endif
+		{
+			float3 ShadowSampleWorldPosition1 = ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz;
+			PlanetShadow1 *= ComputeLight1VolumeShadowing(ShadowSampleWorldPosition1, false, false, bUnused);
+		#if VIRTUAL_SHADOW_MAP
+			if (VirtualShadowMapId1 != INDEX_NONE)
+			{
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId1, ShadowSampleWorldPosition1);
+				PlanetShadow1 *= VirtualShadowMapSample.ShadowFactor;
+			}
+		#endif // VIRTUALSHADOW_MAP
+		}
+#endif // SAMPLE_OPAQUE_SHADOW
 #if SAMPLE_CLOUD_SHADOW
 		float OutOpticalDepth3 = 0.0f;
 		PlanetShadow1 *= saturate(lerp(1.0f, GetCloudVolumetricShadow(ShadowP1 * SKY_UNIT_TO_CM + View.SkyPlanetCenterAndViewHeight.xyz, VolumetricCloudCommonParameters.CloudShadowmapWorldToLightClipMatrix[1],

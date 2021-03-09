@@ -108,7 +108,7 @@ static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
 );
 
 BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
 	SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
@@ -216,7 +216,7 @@ static bool AddPass_RenderVirtualShadowMapProjection(
 	FGlobalShaderMap* ShaderMap = View.ShaderMap;
 
 	FProjectionParameters* PassParameters = GraphBuilder.AllocParameters<FProjectionParameters>();
-	VirtualShadowMapArray.SetProjectionParameters(GraphBuilder, PassParameters->ProjectionParameters);
+	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth);
 	PassParameters->View = View.ViewUniformBuffer;
 		
@@ -484,7 +484,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		FTwoPhysicalTexturesDim >;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
@@ -533,7 +533,7 @@ void RenderVirtualShadowMapProjection(
 	FRDGTextureRef ShadowMaskBits )
 {
 	FVirtualShadowMapProjectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FVirtualShadowMapProjectionCS::FParameters >();
-	VirtualShadowMapArray.SetProjectionParameters( GraphBuilder, PassParameters->ProjectionParameters );
+	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 
 	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 	PassParameters->View = View.ViewUniformBuffer;

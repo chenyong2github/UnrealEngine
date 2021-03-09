@@ -10,7 +10,7 @@
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
 #if VIRTUAL_TEXTURE_TARGET
-#include "../VirtualShadowMaps/PageAccessCommon.ush"
+#include "../VirtualShadowMaps/PageOverlap.ush"
 
 RWStructuredBuffer<uint> OutDynamicCasterFlags;
 #endif

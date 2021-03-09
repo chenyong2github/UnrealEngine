@@ -8,44 +8,9 @@ ProjectionCommon.ush:
 #include "../Common.ush"
 #include "../ScreenSpaceDenoise/SSDDefinitions.ush"		// For LIGHT_TYPE's
 #include "PageAccessCommon.ush"
+#include "ProjectionStructs.ush"
 
 #define VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE 1e-6f
-
-// Must match C++ structure in VirtualShadowMapArray.h
-struct FVirtualShadowMapProjectionShaderData
-{
-	float4x4 TranslatedWorldToShadowViewMatrix;
-	float4x4 ShadowViewToClipMatrix;
-	float4x4 TranslatedWorldToShadowUVMatrix;
-	float4x4 TranslatedWorldToShadowUVNormalMatrix;
-
-	float3 ShadowPreViewTranslation;
-	uint LightType;		// Matches ELightComponentType via defines in SSDDefinitions.ush
-
-	float3 ClipmapWorldOrigin;
-	int VirtualShadowMapId;
-	
-	int2 ClipmapCornerOffset;
-	int ClipmapIndex;		// 0..ClipmapLevelCount-1
-	int ClipmapLevel;
-	int ClipmapLevelCount;	
-	float ClipmapResolutionLodBias;	
-
-	// Seems the FMatrix forces 16-byte alignment, so we need to pad
-	float Padding[2];
-};
-
-// FVirtualShadowMapProjectionParameters
-StructuredBuffer< FVirtualShadowMapProjectionShaderData > VirtualShadowMapProjectionData;
-Texture2D< uint > PhysicalPagePool;
-#if ENABLE_NON_NANITE_VSM
-Texture2D< float > PhysicalPagePoolHw;
-#endif // ENABLE_NON_NANITE_VSM
-
-FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionData(int VirtualShadowMapId)
-{
-	return VirtualShadowMapProjectionData[VirtualShadowMapId];
-}
 
 uint CalcMipLevelFromFootprint(float Footprint, uint MipLevelCount = VSM_MAX_MIP_LEVELS)
 {
@@ -61,6 +26,7 @@ float CalcClipmapLevelFloat(FVirtualShadowMapProjectionShaderData BaseProjection
 	float AbsoluteLevel = Log2Distance + BaseProjectionData.ClipmapResolutionLodBias;
 	return AbsoluteLevel;
 }
+
 int CalcClipmapLevel(FVirtualShadowMapProjectionShaderData BaseProjectionData, float3 WorldPosition)
 {
 	return int(floor(CalcClipmapLevelFloat(BaseProjectionData, WorldPosition)));
@@ -97,11 +63,11 @@ float SampleVirtualShadowMapPhysicalDepth(uint2 PhysicalTexelAddress)
 {
 #if ENABLE_NON_NANITE_VSM && TWO_PHYSICAL_TEXTURES
 	return max(
-		asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0))),
-		PhysicalPagePoolHw.Load(int3(PhysicalTexelAddress, 0))
+		asfloat(VirtualShadowMap.PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0))),
+		VirtualShadowMap.PhysicalPagePoolHw.Load(int3(PhysicalTexelAddress, 0))
 	);
 #else
-	return asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0)));
+	return asfloat(VirtualShadowMap.PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0)));
 #endif
 }
 
@@ -123,6 +89,26 @@ FVirtualShadowMapSample SampleVirtualShadowMapLevel(int VirtualShadowMapId, floa
 	
 	return Result;
 }
+
+FVirtualShadowMapSample SampleVirtualShadowMap(int VirtualShadowMapId, float2 ShadowMapUV)
+{
+	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(VirtualShadowMapId, ShadowMapUV);
+	if (Page.bValid)
+	{
+		FVirtualShadowMapSample Result;
+		Result.bValid = true;
+		Result.MipLevel = Page.LODOffset;
+		Result.VirtualShadowMapId = VirtualShadowMapId;
+		Result.VirtualTexelAddress = Page.VirtualTexelAddress;
+		Result.VirtualTexelAddressFloat = Page.VirtualTexelAddressFloat;
+		Result.PhysicalTexelAddress = Page.PhysicalTexelAddress;
+		Result.Depth = SampleVirtualShadowMapPhysicalDepth(Result.PhysicalTexelAddress);
+		return Result;
+	}
+
+	return InitVirtualShadowMapSample();
+}
+
 
 // Data to convert UV's and depths from one clipmap level basis to another
 struct FVirtualShadowMapClipmapRelativeTransform
@@ -149,9 +135,6 @@ FVirtualShadowMapClipmapRelativeTransform CalcClipmapRelativeTransform(int Clipm
 	Result.Bias.z = 0.5f - Result.Scale * 0.5f;
 	return Result;
 }
-
-
-
 
 // Will sample from the given clipmap level Id, onwards to coarser levels if no valid data is present
 // ShadowMapUVs are in terms of the given clipmap level/virtual shadow map
@@ -193,26 +176,6 @@ FVirtualShadowMapSample SampleVirtualShadowMapClipmap(int VirtualShadowMapId, fl
 	return Result;
 }
 
-
-FVirtualShadowMapSample SampleVirtualShadowMap(int VirtualShadowMapId, float2 ShadowMapUV)
-{
-	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(VirtualShadowMapId, ShadowMapUV);
-	if (Page.bValid)
-	{
-		FVirtualShadowMapSample Result;
-		Result.bValid = true;
-		Result.MipLevel = Page.LODOffset;
-		Result.VirtualShadowMapId = VirtualShadowMapId;
-		Result.VirtualTexelAddress = Page.VirtualTexelAddress;
-		Result.VirtualTexelAddressFloat = Page.VirtualTexelAddressFloat;
-		Result.PhysicalTexelAddress = Page.PhysicalTexelAddress;
-		Result.Depth = SampleVirtualShadowMapPhysicalDepth(Result.PhysicalTexelAddress);
-		return Result;
-	}
-
-	return InitVirtualShadowMapSample();
-}
-
 float ComputeVirtualShadowMapOptimalSlopeBias(
 	// Used to compare to the sampled SmSample.VirtualShadowMapId to adjust depth scale for clipmaps
 	int RequestedVirtualShadowMapId,
@@ -235,25 +198,15 @@ float ComputeVirtualShadowMapOptimalSlopeBias(
 	float OptimalSlopeBias = 2.0f * max(0.0f, dot(DepthSlopeUV, TexelCenterOffsetUV));
 	
 	// Clamp to avoid excessive degenerate slope biases causing flickering lit pixels
-	OptimalSlopeBias = min(OptimalSlopeBias, abs(10.0f * ProjectionData.ShadowViewToClipMatrix._33));
+	OptimalSlopeBias = min(OptimalSlopeBias, abs(100.0f * ProjectionData.ShadowViewToClipMatrix._33));
 
 	// Adjust depth scale if we sampled a different clipmap level
-	// NOTE: Sampled clipmap should always be > the requested one (coarser)
+	// NOTE: Sampled clipmap should always be >= the requested one (coarser)
 	// Do this after clamping to be consistent in world space
 	OptimalSlopeBias *= float(1u << (SmSample.VirtualShadowMapId - RequestedVirtualShadowMapId));
 
 	return OptimalSlopeBias;
 }
-
-struct FVirtualShadowMapSampleResult
-{
-	bool bValid;
-	bool bOccluded;
-	float OccluderDistance;
-
-	// Debug data	
-	int ClipmapIndexOrMipLevel;
-};
 
 // Used for orthographic projections (i.e. directional lights)
 // Receiver depth is post-projection-divide.
@@ -280,7 +233,7 @@ float ComputeOccluderDistancePerspective(float4x4 ShadowViewToClip, float Occlud
 	return max(VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE, Result);
 }
 
-uint GetCubeFace( float3 Dir )
+uint VirtualShadowMapGetCubeFace( float3 Dir )
 {
 	// TODO use v_cubeid_f32( Dir )
 	if( abs(Dir.x) >= abs(Dir.y) && abs(Dir.x) >= abs(Dir.z) )
@@ -291,18 +244,33 @@ uint GetCubeFace( float3 Dir )
 		return Dir.z > 0 ? 4 : 5;
 }
 
+struct FVirtualShadowMapSampleResult
+{
+	bool bValid;
+	float ShadowFactor;	// 0 = fully occluded, 1 = no occlusion
+	bool bOccluded;
+	float OccluderDistance;
+
+	// Offset from expected clipmap level that this sample represents. If >0 data is courser than calculated LOD.
+	// Only valid for directional lights.
+	int ClipmapLevelOffset;
+
+	// Debug data	
+	int ClipmapIndexOrMipLevel;
+};
+
 /**
 * VirtualShadowMapId is the ID of the virtual shadow map to sample
 * WorldPosition is the sample position in world space to project into the shadow map
-* EstimatedGeoWorldNormal is ideally the geometric (flat) normal of the sample point in world space
-*   - This is used to compute a receiver-plane-based bias for the sample point
-*   - The shading normal can be used if the geometric normal is not available, but divergence from the geometric normal can cause biasing issues.
 * RayStartDistance is an optional offset to move the lookup along the shadow ray towards the light
 *   - Should be zero or positive
 *   - This offset is useful in that it does *not* affect the selection of clipmap level, unlike offsetting the WorldPosition itself
 *   - OccluderDistance will still be relative to the original sample position
+* * EstimatedGeoWorldNormal is ideally the geometric (flat) normal of the sample point in world space
+*   - If bUseOptimalBias is true, this is used to compute a receiver-plane-based bias for the sample point
+*   - The shading normal can be used if the geometric normal is not available, but divergence from the geometric normal can cause biasing issues.
 */
-FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, float3 WorldPosition, float3 EstimatedGeoWorldNormal, float RayStartDistance = 0.0f)
+FVirtualShadowMapSampleResult SampleVirtualShadowMapInner(int VirtualShadowMapId, float3 WorldPosition, float RayStartDistance, bool bUseOptimalBias, float3 EstimatedGeoWorldNormal)
 {
 	RayStartDistance = max(RayStartDistance, 0.0f);
 
@@ -331,13 +299,17 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 			{
 				int SampledClipmapIndex = SmSample.VirtualShadowMapId - VirtualShadowMapId;
 
-				FVirtualShadowMapSampleResult Result = (FVirtualShadowMapSampleResult)0;
+				FVirtualShadowMapSampleResult Result;
 				Result.bValid = true;
 				Result.bOccluded = false;
 				Result.OccluderDistance = -1.0f;
+				Result.ClipmapLevelOffset = SmSample.VirtualShadowMapId - ClipmapLevelVirtualShadowMapId;
 				Result.ClipmapIndexOrMipLevel = SampledClipmapIndex;
 
-				float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(ClipmapLevelVirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal);
+				float OptimalSlopeBias = bUseOptimalBias 
+					? ComputeVirtualShadowMapOptimalSlopeBias(ClipmapLevelVirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal)
+					: 0.0f;
+				
 				float RayStartBias = -RayStartDistance * ProjectionData.ShadowViewToClipMatrix._33;
 				float BiasedDepth = SmSample.Depth - OptimalSlopeBias - RayStartBias;
 
@@ -350,6 +322,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 						ShadowUVz.z);
 				}
 
+				Result.ShadowFactor = Result.bOccluded ? 0.0f : 1.0f;
 				return Result;
 			}
 		}
@@ -360,7 +333,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 
 		if( BaseProjectionData.LightType != LIGHT_TYPE_SPOT )
 		{
-			VirtualShadowMapId += GetCubeFace( TranslatedWorldPosition );
+			VirtualShadowMapId += VirtualShadowMapGetCubeFace( TranslatedWorldPosition );
 			BaseProjectionData = GetVirtualShadowMapProjectionData( VirtualShadowMapId );
 		}
 
@@ -371,13 +344,17 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 		FVirtualShadowMapSample SmSample = SampleVirtualShadowMap(VirtualShadowMapId, ShadowUVz.xy);
 		if (SmSample.bValid)
 		{
-			FVirtualShadowMapSampleResult Result = (FVirtualShadowMapSampleResult)0;
+			FVirtualShadowMapSampleResult Result;
 			Result.bValid = true;
 			Result.bOccluded = false;
 			Result.OccluderDistance = -1.0f;
+			Result.ClipmapLevelOffset = 0;
 			Result.ClipmapIndexOrMipLevel = SmSample.MipLevel;
 
-			float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(VirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal);
+			float OptimalSlopeBias = bUseOptimalBias 
+				? ComputeVirtualShadowMapOptimalSlopeBias(VirtualShadowMapId, SmSample, WorldPosition, EstimatedGeoWorldNormal)
+				: 0.0f;
+
 			float RayStartBias = -RayStartDistance * BaseProjectionData.ShadowViewToClipMatrix._33 / ShadowUVz.w;
 			float BiasedDepth = SmSample.Depth - OptimalSlopeBias - RayStartBias;
 
@@ -393,6 +370,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 					ReceiverDistance);
 			}
 
+			Result.ShadowFactor = Result.bOccluded ? 0.0f : 1.0f;
 			return Result;
 		}
 	}
@@ -401,9 +379,21 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 	FVirtualShadowMapSampleResult Result = (FVirtualShadowMapSampleResult)0;
 	Result.bValid = false;
 	Result.bOccluded = false;
+	Result.ShadowFactor = 1.0f;
 	Result.OccluderDistance = -1.0f;
+	Result.ClipmapLevelOffset = 0;
 	Result.ClipmapIndexOrMipLevel = -1;
 	return Result;
+}
+
+FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, float3 WorldPosition, float RayStartDistance = 0.0f)
+{
+	return SampleVirtualShadowMapInner(VirtualShadowMapId, WorldPosition, RayStartDistance, false, float3(0, 0, 0));
+}
+
+FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, float3 WorldPosition, float RayStartDistance, float3 EstimatedGeoWorldNormal)
+{
+	return SampleVirtualShadowMapInner(VirtualShadowMapId, WorldPosition, RayStartDistance, true, EstimatedGeoWorldNormal);
 }
 
 // Helper for debug mostly

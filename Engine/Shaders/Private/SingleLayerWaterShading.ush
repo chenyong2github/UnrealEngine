@@ -171,6 +171,13 @@ WaterVolumeLightingOutput EvaluateWaterVolumeLighting(
 			// Only jitter shadow map sampling to not lose energy on first sample
 			float Shadow = ComputeDirectionalLightDynamicShadowing(MaterialParameters.AbsoluteWorldPosition - (s + ShadowDither)*MaterialParameters.CameraVector, GBuffer.Depth);
 
+			// TODO: Sample virtual shadow map when present; something like the following:
+			//if (ForwardLightData.DirectionalLightVSM != INDEX_NONE)
+			//{
+			//	FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(ForwardLightData.DirectionalLightVSM, WorldPosition);
+			//	Shadow *= VirtualShadowMapSample.ShadowFactor;
+			//}
+
 			float3 WP = MaterialParameters.AbsoluteWorldPosition - s * MaterialParameters.CameraVector;
 			float WaterHeightAboveSample = max(0.0, MaterialParameters.AbsoluteWorldPosition.z - WP.z);
 			float3 TransmittanceToLightThroughWater = 1.0;												// no self shadow, same energy as above analytical solution

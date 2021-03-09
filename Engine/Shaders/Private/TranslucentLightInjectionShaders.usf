@@ -31,6 +31,10 @@ float VolumetricCloudShadowmapStrength;
 uint AtmospherePerPixelTransmittanceEnabled;
 #endif
 
+#if VIRTUAL_SHADOW_MAP
+#include "VirtualShadowMaps/ProjectionCommon.ush"
+#endif
+
 float CalcSimpleLightAttenuation(float3 WorldPosition)
 {
 	float3 WorldLightVector = SimpleLightPositionAndRadius.xyz - WorldPosition;
@@ -118,6 +122,8 @@ float GetLightFunctionShadowFactor(float3 AbsoluteWorldPositionForLighting)
 	return ShadowFactor;
 }
 
+int VirtualShadowMapId;
+
 /** Pixel shader that calculates direct lighting for all the affected voxels of a volume texture. */
 void InjectMainPS(
 	FWriteToSliceGeometryOutput Input,
@@ -190,6 +196,11 @@ void InjectMainPS(
 
 		bool bUnused = false;
 		float ShadowFactor = ComputeVolumeShadowing(WorldPositionForLighting, bPointLight, bSpotLight, bUnused);
+
+#if VIRTUAL_SHADOW_MAP
+		FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPositionForLighting);
+		ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+#endif
 
 		// Apply light function (it will also fade out at the edge of the volume so overall dimming of light using light function is not a recommended workflow)
 		ShadowFactor *= GetLightFunctionShadowFactor(WorldPositionForLighting);

@@ -487,9 +487,8 @@ END_SHADER_PARAMETER_STRUCT()
 // TODO: is it better to declare the buffers in 'FVirtualShadowMapCommonParameters' and not always have them set? I.e., before they are built.
 BEGIN_SHADER_PARAMETER_STRUCT( FVirtualTargetParameters, )
 
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 
-	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint2 >,	ShadowPageTable )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, PageFlags )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >, HPageFlags )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint4 >, PageRectBounds )
@@ -1293,13 +1292,10 @@ class FEmitShadowMapPS : public FNaniteShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
 		SHADER_PARAMETER( FIntPoint, SourceOffset )
 		SHADER_PARAMETER( float, ViewToClip22 )
 		SHADER_PARAMETER( float, DepthBias )
 		SHADER_PARAMETER( uint32, ShadowMapID )
-
 		SHADER_PARAMETER_RDG_TEXTURE( Texture2D<uint>,	DepthBuffer )
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -3121,10 +3117,9 @@ void CullRasterize(
 	FVirtualTargetParameters VirtualTargetParameters;
 	if (VirtualShadowMapArray)
 	{
-		VirtualTargetParameters.VirtualSmCommon = VirtualShadowMapArray->GetCommonUniformBuffer(GraphBuilder);
+		VirtualTargetParameters.VirtualShadowMap = VirtualShadowMapArray->GetUniformBuffer(GraphBuilder);
 		VirtualTargetParameters.PageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageFlagsRDG, PF_R32_UINT);
 		VirtualTargetParameters.HPageFlags = GraphBuilder.CreateSRV(VirtualShadowMapArray->HPageFlagsRDG, PF_R32_UINT);
-		VirtualTargetParameters.ShadowPageTable = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageTableRDG);
 		VirtualTargetParameters.PageRectBounds = GraphBuilder.CreateSRV(VirtualShadowMapArray->PageRectBoundsRDG);
 	}
 	FGPUSceneParameters GPUSceneParameters;
@@ -3583,7 +3578,7 @@ void EmitShadowMap(
 	FPixelShaderUtils::AddFullscreenPass(
 		GraphBuilder,
 		ShaderMap,
-		RDG_EVENT_NAME("Emit Shadow Map"),
+		RDG_EVENT_NAME("EmitShadowMap"),
 		PixelShader,
 		PassParameters,
 		DestRect,

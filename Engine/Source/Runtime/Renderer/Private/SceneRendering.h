@@ -190,15 +190,15 @@ public:
 
 	/** Virtual shadow map clipmap shadows */
 	TArray<TSharedPtr<FVirtualShadowMapClipmap>,SceneRenderingAllocator> VirtualShadowMapClipmaps;
-
-	/** FProjectedShadowInfo set up to receive a dense copy of all types of geometry (nanite+trad) to be able to sample from e.g., volumetric effects */
-	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> CompleteProjectedShadows;
-
+	
 	/**
 	 * Search VirtualShadowMapClipmaps for the one that was set up with the given view. 
 	 * TODO: should VirtualShadowMapClipmap move to FVisibleLightViewInfo?
 	 */
 	TSharedPtr<FVirtualShadowMapClipmap> FindShadowClipmapForView(const FViewInfo* View) const;
+
+	int32 VirtualShadowMapId = INDEX_NONE;
+	int32 GetVirtualShadowMapId( const FViewInfo* View ) const;
 };
 
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)
@@ -702,24 +702,18 @@ const int32 GMaxForwardShadowCascades = 4;
 	SHADER_PARAMETER(uint32, DirectionalLightShadowMapChannelMask) \
 	SHADER_PARAMETER(FVector2D, DirectionalLightDistanceFadeMAD) \
 	SHADER_PARAMETER(uint32, NumDirectionalLightCascades) \
+	SHADER_PARAMETER(int32, DirectionalLightVSM) \
 	SHADER_PARAMETER(FVector4, CascadeEndDepths) \
 	SHADER_PARAMETER_ARRAY(FMatrix, DirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades]) \
 	SHADER_PARAMETER_ARRAY(FVector4, DirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
 	SHADER_PARAMETER(FVector4, DirectionalLightShadowmapAtlasBufferSize) \
 	SHADER_PARAMETER(float, DirectionalLightDepthBias) \
-	SHADER_PARAMETER(uint32, NonNaniteNumDirectionalLightCascades) \
-	SHADER_PARAMETER(FVector4, NonNaniteCascadeEndDepths) \
-	SHADER_PARAMETER_ARRAY(FMatrix, NonNaniteDirectionalLightWorldToShadowMatrix, [GMaxForwardShadowCascades]) \
-	SHADER_PARAMETER_ARRAY(FVector4, NonNaniteDirectionalLightShadowmapMinMax, [GMaxForwardShadowCascades]) \
-	SHADER_PARAMETER(FVector4, NonNaniteDirectionalLightShadowmapAtlasBufferSize) \
-	SHADER_PARAMETER(float, NonNaniteDirectionalLightDepthBias) \
 	SHADER_PARAMETER(uint32, DirectionalLightUseStaticShadowing) \
 	SHADER_PARAMETER(uint32, SimpleLightsEndIndex) \
 	SHADER_PARAMETER(uint32, ClusteredDeferredSupportedEndIndex) \
 	SHADER_PARAMETER(FVector4, DirectionalLightStaticShadowBufferSize) \
 	SHADER_PARAMETER(FMatrix, DirectionalLightWorldToStaticShadow) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightShadowmapAtlas) \
-	SHADER_PARAMETER_TEXTURE(Texture2D, NonNaniteDirectionalLightShadowmapAtlas) \
 	SHADER_PARAMETER_SAMPLER(SamplerState, ShadowmapSampler) \
 	SHADER_PARAMETER_TEXTURE(Texture2D, DirectionalLightStaticShadowmap) \
 	SHADER_PARAMETER_SAMPLER(SamplerState, StaticShadowmapSampler) \

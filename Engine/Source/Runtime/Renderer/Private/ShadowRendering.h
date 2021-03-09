@@ -388,12 +388,6 @@ public:
 	 * for direct lighting visibility. */
 	uint32 bIncludeInScreenSpaceShadowMask : 1;
 
-	/** Defaults to false, used to flag a fallback map. */
-	uint32 bCompleteShadowMap : 1;
-
-	/** Regular shadow map to resample for use as a complete shadow map */
-	FProjectedShadowInfo *CompleteShadowMapCopySource;
-
 	/** Used to fetch the correct cached static mesh draw commands */
 	EMeshPass::Type MeshPassTargetType = EMeshPass::CSMShadowDepth;
 

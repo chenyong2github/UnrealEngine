@@ -7,7 +7,7 @@
 #include "../Common.ush"
 #include "../SceneTexturesCommon.ush"
 //#include "../Nanite/DebugVisualize.ush"
-#include "PageAccessCommon.ush"
+#include "PageOverlap.ush"
 #include "PageCacheCommon.ush"
 
 uint DebugTargetWidth;
@@ -16,7 +16,6 @@ uint BorderWidth;
 uint ZoomScaleFactor;
 uint DebugMethod;
 
-Texture2D< uint >			PhysicalPagePool;
 Texture2D< float >			HZBPhysical;
 
 float3 IntToColor(uint Index)
@@ -69,7 +68,7 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 			if( pPage.bThisLODValid )
 			{
 				uint2 pAddress = pPage.PageIndex * VSM_PAGE_SIZE + ( vAddress & VSM_PAGE_SIZE_MASK );
-				Depth = asfloat( PhysicalPagePool[ pAddress ] );
+				Depth = asfloat( VirtualShadowMap.PhysicalPagePool[ pAddress ] );
 				break;
 			}
 		}

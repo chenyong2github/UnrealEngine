@@ -122,6 +122,8 @@ public:
 	 */
 	void ProcessPrimitivesToUpdate(FRDGBuilder& GraphBuilder, const FScene& Scene);
 
+	TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> GetPreviousUniformBuffer(FRDGBuilder& GraphBuilder) const;
+
 	// Index the Cache entries by the light ID and cascade index
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > CacheEntries;
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > PrevCacheEntries;
@@ -135,7 +137,7 @@ public:
 	TRefCountPtr<IPooledRenderTarget>	PrevPhysicalPagePool;
 	TRefCountPtr<FRDGPooledBuffer>		PrevPhysicalPageMetaData;
 
-	TRefCountPtr<IPooledRenderTarget>		PrevPhysicalPagePoolHw;
+	TRefCountPtr<IPooledRenderTarget>	PrevPhysicalPagePoolHw;
 
 	TRefCountPtr<FRDGPooledBuffer>		PrevShadowMapProjectionDataBuffer;
 	TRefCountPtr<FRDGPooledBuffer>		PrevPageRectBounds;
@@ -154,7 +156,7 @@ public:
 	uint32										HZBFrameNumber = 0;
 	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
 	
-	FVirtualShadowMapCommonParameters			PrevCommonParameters;
+	FVirtualShadowMapUniformParameters			PrevUniformParameters;
 
 protected:
 

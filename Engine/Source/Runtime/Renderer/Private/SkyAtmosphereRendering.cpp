@@ -16,6 +16,7 @@
 #include "SceneRenderTargetParameters.h"
 #include "VolumeLighting.h"
 #include "VolumetricCloudRendering.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
 #include "RendererUtils.h"
 
 
@@ -292,11 +293,11 @@ bool ShouldSkySampleAtmosphereLightsOpaqueShadow(const FScene& Scene, const TArr
 	
 	if (LightShadowData.LightVolumetricShadowSceneinfo0 && LightShadowData.LightVolumetricShadowSceneinfo0->Proxy && LightShadowData.LightVolumetricShadowSceneinfo0->Proxy->GetCastShadowsOnAtmosphere())
 	{
-		LightShadowData.ProjectedShadowInfo0 = GetCompleteShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id]);
+		LightShadowData.ProjectedShadowInfo0 = GetFirstWholeSceneShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id]);
 	}
 	if (LightShadowData.LightVolumetricShadowSceneinfo1 && LightShadowData.LightVolumetricShadowSceneinfo1->Proxy && LightShadowData.LightVolumetricShadowSceneinfo1->Proxy->GetCastShadowsOnAtmosphere())
 	{
-		LightShadowData.ProjectedShadowInfo1 = GetCompleteShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id]);
+		LightShadowData.ProjectedShadowInfo1 = GetFirstWholeSceneShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id]);
 	}
 
 	return CVarSkyAtmosphereSampleLightShadowmap.GetValueOnRenderThread() > 0 &&
@@ -622,6 +623,9 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength0)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength1)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
+		SHADER_PARAMETER(int32, VirtualShadowMapId0)
+		SHADER_PARAMETER(int32, VirtualShadowMapId1)
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -668,10 +672,18 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("PER_PIXEL_NOISE"), 1);
 		OutEnvironment.SetDefine(TEXT("MULTISCATTERING_APPROX_SAMPLING_ENABLED"), 1);
 		OutEnvironment.SetDefine(TEXT("SOURCE_DISK_ENABLED"), 1);
+
+		if (PermutationVector.Get<FSampleOpaqueShadow>())
+		{
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		}
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRenderSkyAtmospherePS, "/Engine/Private/SkyAtmosphere.usf", "RenderSkyAtmosphereRayMarchingPS", SF_Pixel);
@@ -817,6 +829,9 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudSkyAOTextureSampler)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
+		SHADER_PARAMETER(int32, VirtualShadowMapId0)
+		SHADER_PARAMETER(int32, VirtualShadowMapId1)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength0)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength1)
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
@@ -830,11 +845,19 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GroupSize);
 		OutEnvironment.SetDefine(TEXT("SKYVIEWLUT_PASS"), 1);
 		OutEnvironment.SetDefine(TEXT("MULTISCATTERING_APPROX_SAMPLING_ENABLED"), 1);
 		OutEnvironment.SetDefine(TEXT("SOURCE_DISK_ENABLED"), 1);
+
+		if (PermutationVector.Get<FSampleOpaqueShadow>())
+		{
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		}
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRenderSkyViewLutCS, "/Engine/Private/SkyAtmosphere.usf", "RenderSkyViewLutCS", SF_Compute);
@@ -870,6 +893,9 @@ public:
 		SHADER_PARAMETER(float, RealTimeReflection360Mode)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMap)
+		SHADER_PARAMETER(int32, VirtualShadowMapId0)
+		SHADER_PARAMETER(int32, VirtualShadowMapId1)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength0)
 		SHADER_PARAMETER(float, VolumetricCloudShadowStrength1)
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
@@ -882,9 +908,17 @@ public:
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GroupSize);
 		OutEnvironment.SetDefine(TEXT("MULTISCATTERING_APPROX_SAMPLING_ENABLED"), 1);
+
+		if (PermutationVector.Get<FSampleOpaqueShadow>())
+		{
+			OutEnvironment.SetDefine(TEXT("VIRTUAL_SHADOW_MAP"), 1);
+			FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		}
 	}
 };
 IMPLEMENT_GLOBAL_SHADER(FRenderCameraAerialPerspectiveVolumeCS, "/Engine/Private/SkyAtmosphere.usf", "RenderCameraAerialPerspectiveVolumeCS", SF_Compute);
@@ -1502,6 +1536,20 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 		GetSkyAtmosphereLightsUniformBuffers(LightShadowShaderParams0UniformBuffer, LightShadowShaderParams1UniformBuffer,
 			LightShadowData, View, bShouldSampleOpaqueShadow, UniformBuffer_SingleFrame);
 
+		// Find virtual shadow maps associated with our chosen lights and view, if any
+		int VirtualShadowMapId0 = INDEX_NONE;
+		int VirtualShadowMapId1 = INDEX_NONE;
+		if (LightShadowData.LightVolumetricShadowSceneinfo0)
+		{
+			const FVisibleLightInfo& Light0 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id];
+			VirtualShadowMapId0 = Light0.GetVirtualShadowMapId(&View);
+		}
+		if (LightShadowData.LightVolumetricShadowSceneinfo1)
+		{
+			const FVisibleLightInfo& Light1 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id];
+			VirtualShadowMapId1 = Light1.GetVirtualShadowMapId(&View);
+		}
+
 		FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 		FCloudShadowAOData CloudShadowAOData;
 		GetCloudShadowAOData(CloudInfo, View, GraphBuilder, CloudShadowAOData);
@@ -1535,6 +1583,9 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			PassParameters->SkyViewLutUAV = SkyAtmosphereViewLutTextureUAV;
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
+			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+			PassParameters->VirtualShadowMapId0 = VirtualShadowMapId0;
+			PassParameters->VirtualShadowMapId1 = VirtualShadowMapId1;
 			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
@@ -1577,6 +1628,9 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRDGBuilder& GraphBuilder)
 			PassParameters->RealTimeReflection360Mode = 0.0f;
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
+			PassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+			PassParameters->VirtualShadowMapId0 = VirtualShadowMapId0;
+			PassParameters->VirtualShadowMapId1 = VirtualShadowMapId1;
 			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
@@ -1683,6 +1737,10 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(
 
 		PsPassParameters->Light0Shadow = SkyRC.LightShadowShaderParams0UniformBuffer;
 		PsPassParameters->Light1Shadow = SkyRC.LightShadowShaderParams1UniformBuffer;
+
+		PsPassParameters->VirtualShadowMap = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
+		PsPassParameters->VirtualShadowMapId0 = SkyRC.VirtualShadowMapId0;
+		PsPassParameters->VirtualShadowMapId1 = SkyRC.VirtualShadowMapId1;
 
 		ClearUnusedGraphResources(PixelShader, PsPassParameters);
 
@@ -1818,6 +1876,17 @@ void FSceneRenderer::RenderSkyAtmosphere(FRDGBuilder& GraphBuilder, const FMinim
 
 		GetSkyAtmosphereLightsUniformBuffers(SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
 			LightShadowData, View, SkyRC.bShouldSampleOpaqueShadow, UniformBuffer_SingleDraw);
+
+		if (LightShadowData.LightVolumetricShadowSceneinfo0)
+		{
+			const FVisibleLightInfo& Light0 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id];
+			SkyRC.VirtualShadowMapId0 = Light0.GetVirtualShadowMapId(&View);
+		}
+		if (LightShadowData.LightVolumetricShadowSceneinfo1)
+		{
+			const FVisibleLightInfo& Light1 = VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id];
+			SkyRC.VirtualShadowMapId1 = Light1.GetVirtualShadowMapId(&View);
+		}
 
 		FCloudShadowAOData CloudShadowAOData;
 		GetCloudShadowAOData(CloudInfo, View, GraphBuilder, CloudShadowAOData);

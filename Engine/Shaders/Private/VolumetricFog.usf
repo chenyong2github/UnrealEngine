@@ -17,6 +17,10 @@
 #include "ParticipatingMediaCommon.ush"
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 
+#if VIRTUAL_SHADOW_MAP
+#include "VirtualShadowMaps/ProjectionCommon.ush"
+#endif
+
 #ifndef USE_EMISSIVE
 #define USE_EMISSIVE 0
 #endif
@@ -185,6 +189,7 @@ float4 FrameJitterOffsets[16];
 uint HistoryMissSuperSampleCount;
 float PhaseG;
 float InverseSquaredLightDistanceBiasScale;
+int VirtualShadowMapId;
 
 #ifndef HISTORY_MISS_SUPER_SAMPLE_COUNT
 #define HISTORY_MISS_SUPER_SAMPLE_COUNT 1
@@ -311,6 +316,11 @@ void InjectShadowedLocalLightPS(
 			{
 				bool bUnused = false;
 				ShadowFactor = ComputeVolumeShadowing(WorldPosition, LightData.bRadialLight && !LightData.bSpotLight, LightData.bSpotLight, bUnused);
+
+#if VIRTUAL_SHADOW_MAP
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition);
+				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+#endif
 			}
 
 			OutScattering.rgb += LightColor * (PhaseFunction(PhaseG, dot(L, -CameraVector)) * CombinedAttenuation * ShadowFactor * VolumetricScatteringIntensity);
@@ -528,6 +538,11 @@ void LightScatteringCS(
 				ShadowFactor *= ComputeDirectionalLightStaticShadowing(WorldPosition);
 				bool bUnused = false;
 				ShadowFactor *= ComputeDirectionalLightDynamicShadowing(WorldPosition, SceneDepth, bUnused);
+
+#if VIRTUAL_SHADOW_MAP
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap( ForwardLightData.DirectionalLightVSM, WorldPosition );
+				ShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+#endif
 			}
 
 			ShadowFactor *= GetLightFunction(WorldPosition);

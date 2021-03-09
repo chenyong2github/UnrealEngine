@@ -12,6 +12,7 @@
 #include "Rendering/SkyAtmosphereCommonData.h"
 #include "RenderGraphResources.h"
 #include "SceneView.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
 
 
 class FScene;
@@ -103,6 +104,9 @@ struct FSkyAtmosphereRenderContext
 	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal0> LightShadowShaderParams0UniformBuffer;
 	TUniformBufferRef<FVolumeShadowingShaderParametersGlobal1> LightShadowShaderParams1UniformBuffer;
 
+	int VirtualShadowMapId0 = INDEX_NONE;
+	int VirtualShadowMapId1 = INDEX_NONE;
+
 	bool bShouldSampleCloudShadow;
 	FRDGTextureRef VolumetricCloudShadowMap[2];
 
@@ -176,6 +180,8 @@ struct SkyAtmosphereLightShadowData
 	const FLightSceneInfo* LightVolumetricShadowSceneinfo1 = nullptr;
 	const FProjectedShadowInfo* ProjectedShadowInfo0 = nullptr;
 	const FProjectedShadowInfo* ProjectedShadowInfo1 = nullptr;
+	int VirtualShadowMapId0 = INDEX_NONE;
+	int VirtualShadowMapId1 = INDEX_NONE;
 };
 bool ShouldSkySampleAtmosphereLightsOpaqueShadow(const FScene& Scene, const TArray<FVisibleLightInfo, SceneRenderingAllocator>& VisibleLightInfos, SkyAtmosphereLightShadowData& LightShadowData);
 void GetSkyAtmosphereLightsUniformBuffers(

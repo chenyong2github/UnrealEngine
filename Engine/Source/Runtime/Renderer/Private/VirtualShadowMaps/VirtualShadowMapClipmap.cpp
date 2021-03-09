@@ -23,10 +23,24 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstLevel(
 	TEXT( "First level of the virtual clipmap. Lower values allow higher resolution shadows closer to the camera." ),
 	ECVF_RenderThreadSafe
 );
-static TAutoConsoleVariable<float> CVarVirtualShadowMapClipmapMaxRadius(
-	TEXT( "r.Shadow.Virtual.Clipmap.MaxRadius" ),
-	1000000.0f,
-	TEXT( "Maximum distance the clipmap is guaranteed to cover. Determines the number of clipmap levels." ),
+static TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapLastLevel(
+	TEXT( "r.Shadow.Virtual.Clipmap.LastLevel" ),
+	28,
+	TEXT( "Last level of the virtual climap. Indirectly determines radius the clipmap can cover." ),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapFirstCoarseLevel(
+	TEXT("r.Shadow.Virtual.Clipmap.FirstCoarseLevel"),
+	15,
+	TEXT("First level of the clipmap to mark coarse pages for. Lower values allow higher resolution coarse pages near the camera but increase total page counts."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarVirtualShadowMapClipmapLastCoarseLevel(
+	TEXT("r.Shadow.Virtual.Clipmap.LastCoarseLevel"),
+	18,
+	TEXT("Last level of the clipmap to mark coarse pages for. Higher values provide dense clipmap data for a longer radius but increase total page counts."),
 	ECVF_RenderThreadSafe
 );
 
@@ -67,17 +81,16 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	// NOTE: 0.5 because we double the size of the clipmap region below to handle snapping
 	float LodScale = 0.5f / CameraViewMatrices.GetProjectionScale().X;
 	LodScale *= float(FVirtualShadowMap::VirtualMaxResolutionXY) / float(CameraViewRectSize.X);
-		
+	
+	// For now we adjust resolution by just biasing the page we look up in. This is wasteful in terms of page table vs.
+	// just resizing the virtual shadow maps for each clipmap, but convenient for now. This means we need to additionally bias
+	// which levels are present.
 	ResolutionLodBias = CVarVirtualShadowMapClipmapResolutionLodBias.GetValueOnRenderThread() + FMath::Log2(LodScale);
 	// Clamp negative absolute resolution biases as they would exceed the maximum resolution/ranges allocated
 	ResolutionLodBias = FMath::Max(0.0f, ResolutionLodBias);
 
-	// For now we adjust resolution by just biasing the page we look up in. This is wasteful in terms of page table vs.
-	// just resizing the virtual shadow maps for each clipmap, but convenient for now. This means we need to additionally bias
-	// which levels are present.
 	FirstLevel = CVarVirtualShadowMapClipmapFirstLevel.GetValueOnRenderThread();
-	MaxRadius  = CVarVirtualShadowMapClipmapMaxRadius.GetValueOnRenderThread();
-	int32 LastLevel = FMath::FloorToInt(FMath::Log2(MaxRadius) + ResolutionLodBias);
+	int32 LastLevel = CVarVirtualShadowMapClipmapLastLevel.GetValueOnRenderThread();
 	LastLevel = FMath::Max(FirstLevel, LastLevel);
 	int32 LevelCount = LastLevel - FirstLevel + 1;
 
@@ -141,6 +154,11 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	}
 }
 
+float FVirtualShadowMapClipmap::GetMaxRadius() const
+{
+	return GetLevelRadius(GetClipmapLevel(GetLevelCount() - 1));
+}
+
 FViewMatrices FVirtualShadowMapClipmap::GetViewMatrices(int32 ClipmapIndex) const
 {
 	check(ClipmapIndex >= 0 && ClipmapIndex < LevelData.Num());
@@ -182,4 +200,29 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ClipmapCornerOffset = Level.CornerOffset;
 
 	return Data;
+}
+
+uint32 FVirtualShadowMapClipmap::GetCoarsePageClipmapIndexMask()
+{
+	uint32 BitMask = 0;
+
+	const int FirstLevel = CVarVirtualShadowMapClipmapFirstLevel.GetValueOnRenderThread();
+	const int LastLevel  = FMath::Max(FirstLevel, CVarVirtualShadowMapClipmapLastLevel.GetValueOnRenderThread());	
+	int FirstCoarseIndex = CVarVirtualShadowMapClipmapFirstCoarseLevel.GetValueOnRenderThread() - FirstLevel;
+	int LastCoarseIndex  = CVarVirtualShadowMapClipmapLastCoarseLevel.GetValueOnRenderThread() - FirstLevel;	
+
+	ensureMsgf((LastLevel - FirstLevel) < 32, TEXT("Too many clipmap levels for coarse page bitmask."));
+
+	FirstCoarseIndex = FMath::Max(0, FirstCoarseIndex);
+	if (LastCoarseIndex >= FirstCoarseIndex)
+	{
+		uint32 BitCount = static_cast<uint32>(LastCoarseIndex - FirstCoarseIndex + 1);
+		uint32 BitRange = (1 << BitCount) - 1;
+		BitMask = BitMask | (BitRange << FirstCoarseIndex);
+	}
+
+	// Always mark coarse pages in the last level for clouds/skyatmosphere
+	BitMask = BitMask | (1 << (LastLevel - FirstLevel));
+
+	return BitMask;
 }

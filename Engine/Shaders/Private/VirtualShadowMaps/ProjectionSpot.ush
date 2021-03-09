@@ -159,8 +159,8 @@ FSMRTResult ShadowRayCastPointLight(
 {
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
-	uint RayStartFace = GetCubeFace( RayStart + BaseProjectionData.ShadowPreViewTranslation );
-	uint RayEndFace   = GetCubeFace( RayEnd   + BaseProjectionData.ShadowPreViewTranslation );
+	uint RayStartFace = VirtualShadowMapGetCubeFace( RayStart + BaseProjectionData.ShadowPreViewTranslation );
+	uint RayEndFace   = VirtualShadowMapGetCubeFace( RayEnd   + BaseProjectionData.ShadowPreViewTranslation );
 		
 	FSMRTResult Result;	
 	if (RayStartFace != RayEndFace)

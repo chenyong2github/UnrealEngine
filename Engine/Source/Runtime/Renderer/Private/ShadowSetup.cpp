@@ -252,21 +252,6 @@ FAutoConsoleVariableRef CVarUseOctreeForShadowCulling(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
-static TAutoConsoleVariable<int32> CVarCompleteShadowMapResolution(
-	TEXT("r.Shadow.CompleteShadowMapResolution"),
-	256,
-	TEXT("(Max)Resolution in texels of the complete shadows maps. These are generated for each whole scene shadows as well as CSMs when there is a Virtual Shadow Map that captures the Nanite geometry.")
-	TEXT("0 = disabled, in which case Nanite geometry may not show up in various indirect lighting."),
-	ECVF_RenderThreadSafe
-);
-
-static TAutoConsoleVariable<int32> CVarCopyToCompleteShadowMaps(
-	TEXT("r.Shadow.CopyToCompleteShadowMaps"),
-	1,
-	TEXT("Copy non-Nanite geometry from high resolution shadow map instead of re-rendering it into the complete shadow map."),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarAlwaysAllocateMaxResolutionAtlases(
 	TEXT("r.Shadow.AlwaysAllocateMaxResolutionAtlases"),
 	0,
@@ -648,8 +633,6 @@ FProjectedShadowInfo::FProjectedShadowInfo()
 	, bHairStrandsDeepShadow(false)
 	, bNaniteGeometry(true)
 	, bIncludeInScreenSpaceShadowMask(true)
-	, bCompleteShadowMap(false)
-	, CompleteShadowMapCopySource(nullptr)
 	, PerObjectShadowFadeStart(WORLD_MAX)
 	, InvPerObjectShadowFadeLength(0.0f)
 	, LightSceneInfo(0)
@@ -3498,6 +3481,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
 					AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false), ProjectedShadowInfo, bContainsNaniteSubjects);
 
+					VisibleLightInfo.VirtualShadowMapId = ProjectedShadowInfo->VirtualShadowMaps[0]->ID;
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 				}
 				
@@ -3526,48 +3510,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					if (bNeedsVirtualShadowMap)
 					{
 						ProjectedShadowInfo->bNaniteGeometry = false;
-
-						// If this is not a static shadow cache, also set up "complete" shadow map (one with lower resolution and containing both nanite and non-nanite)
-						const int32 CompleteShadowMapSize = CVarCompleteShadowMapResolution.GetValueOnRenderThread() - ShadowBorder * 2;
-						if (CacheMode[CacheModeIndex] != SDCM_StaticPrimitivesOnly && CompleteShadowMapSize > 0 && !ProjectedShadowInitializer.bOnePassPointLightShadow)
-						{
-							// Create the projected shadow info.
-							FProjectedShadowInfo* CompleteProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-							// Add to remember-to-call-dtor list
-							VisibleLightInfo.MemStackProjectedShadows.Add(CompleteProjectedShadowInfo);
-
-							// Rescale size to fit whole virtual SM but keeping aspect ratio
-							int32 CompleteShadowMapSizeX = SizeX >= SizeY ? CompleteShadowMapSize : (CompleteShadowMapSize * SizeX) / SizeY;
-							int32 CompleteShadowMapSizeY = SizeY >= SizeX ? CompleteShadowMapSize : (CompleteShadowMapSize * SizeY) / SizeX;
-
-							// Never make it larger than the original shadow map
-							CompleteShadowMapSizeX = FMath::Min(CompleteShadowMapSizeX, SizeX);
-							CompleteShadowMapSizeY = FMath::Min(CompleteShadowMapSizeY, SizeY);
-
-							// Set up projection as per normal
-							CompleteProjectedShadowInfo->SetupWholeSceneProjection(
-								LightSceneInfo,
-								NULL,
-								ProjectedShadowInitializer,
-								CompleteShadowMapSizeX,
-								CompleteShadowMapSizeY,
-								// Snap to original shadow map resolution
-								ProjectedShadowInfo->ResolutionX,
-								ProjectedShadowInfo->ResolutionY,
-								ShadowBorder
-							);
-
-							CompleteProjectedShadowInfo->bCompleteShadowMap = true;
-							CompleteProjectedShadowInfo->bIncludeInScreenSpaceShadowMask = false;
-							CompleteProjectedShadowInfo->CompleteShadowMapCopySource = ProjectedShadowInfo;
-
-							bool bContainsNaniteSubjects = false;
-							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionOftenMovingPrimitiveList(false), CompleteProjectedShadowInfo, bContainsNaniteSubjects);
-							AddInteractingPrimitives(LightSceneInfo->GetDynamicInteractionStaticPrimitiveList(false), CompleteProjectedShadowInfo, bContainsNaniteSubjects);
-
-							VisibleLightInfo.AllProjectedShadows.Add(CompleteProjectedShadowInfo);
-							VisibleLightInfo.CompleteProjectedShadows.Add(CompleteProjectedShadowInfo);
-						}
 					}
 
 					bool bContainsNaniteSubjects = false;
@@ -4043,6 +3985,10 @@ struct FGatherShadowPrimitivesPacket
 
 			// Note: Culling based on the primitive's bounds BEFORE dereferencing PrimitiveSceneInfo / PrimitiveProxy
 
+			bool A = PrimitiveDistanceFromCylinderAxisSq < CombinedRadiusSq;
+			bool B = !(ProjectedDistanceFromShadowOriginAlongLightDir < 0 && PrimitiveToShadowCenter.SizeSquared() > CombinedRadiusSq);
+			bool C = ProjectedShadowInfo->CascadeSettings.ShadowBoundsAccurate.IntersectBox(PrimitiveBounds.Origin, PrimitiveBounds.BoxExtent);
+
 			// Check if this primitive is in the shadow's cylinder
 			if (PrimitiveDistanceFromCylinderAxisSq < CombinedRadiusSq
 				// If the primitive is further along the cone axis than the shadow bounds origin, 
@@ -4286,7 +4232,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 	// Unmodified UE does not use this, so the virtual SM ignores this path for the time being (more likely to be removed).
 	const bool bDirectionalLight = LightSceneInfo.Proxy->GetLightType() == LightType_Directional;
 	const bool bNeedsVirtualShadowMap = VirtualShadowMapArray.IsEnabled() && bDirectionalLight;
-	const bool bNeedsCompleteShadowMap = bNeedsVirtualShadowMap && CVarCompleteShadowMapResolution.GetValueOnRenderThread() > 0;
 
 	// Allow each view to create a whole scene view dependent shadow
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -4351,21 +4296,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					const int32 MinCSMResolution = 32;
 					FIntPoint ShadowBufferResolution = FIntPoint( FMath::Clamp( MaxCSMResolution, MinCSMResolution, (int32)GMaxShadowDepthBufferSizeX ) - ShadowBorder * 2,
 														          FMath::Clamp( MaxCSMResolution, MinCSMResolution, (int32)GMaxShadowDepthBufferSizeY ) - ShadowBorder * 2 );
-					
-					// "Complete" shadow map (one with lower resolution and containing both nanite and non-nanite)					
-					int32 CompleteShadowMapResolution = CVarCompleteShadowMapResolution.GetValueOnRenderThread() - ShadowBorder * 2;
-					// NOTE: RHI requires GMaxShadowDepthBufferSizeX >= GMaxShadowDepthBufferSizeY (in practice, they are equal)
-					CompleteShadowMapResolution = FMath::Clamp(CompleteShadowMapResolution, MinCSMResolution, ShadowBufferResolution.X);
-
-					int32 CompleteResolutionFactor = 1;
-					if (bNeedsCompleteShadowMap)
-					{
-						// Note that while the static borders guarantee we're not going to have a perfect pow2 reduction,
-						// sticking to integer factors keeps things pretty stable in practice.
-						CompleteResolutionFactor = FMath::CeilToInt(static_cast<float>(ShadowBufferResolution.X) / CompleteShadowMapResolution);
-					}
-					FIntPoint CompleteShadowBufferResolution(ShadowBufferResolution.X / CompleteResolutionFactor,
-														     ShadowBufferResolution.Y / CompleteResolutionFactor);
 
 					// Create the projected shadow info.
 					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
@@ -4375,9 +4305,8 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						ProjectedShadowInitializer,
 						ShadowBufferResolution.X,
 						ShadowBufferResolution.Y,
-						// If we are using complete shadow maps, We want both the complete and regular shadow maps to stay snapped in world space
-						CompleteShadowBufferResolution.X,
-						CompleteShadowBufferResolution.Y,
+						ShadowBufferResolution.X,
+						ShadowBufferResolution.Y,
 						ShadowBorder
 					);
 					ProjectedShadowInfo->FadeAlphas = FadeAlphas;
@@ -4391,32 +4320,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 					{
 						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
 						ProjectedShadowInfo->bNaniteGeometry = false;
-						
-						if (bNeedsCompleteShadowMap)
-						{
-							// Create the projected shadow info.
-							FProjectedShadowInfo* CompleteProjectedShadowInfo = new(FMemStack::Get(), 1, 16) FProjectedShadowInfo;
-							// Add to remember-to-call-dtor list
-							VisibleLightInfo.MemStackProjectedShadows.Add(CompleteProjectedShadowInfo);
-							// Set up projection as per normal
-							CompleteProjectedShadowInfo->SetupWholeSceneProjection(
-								&LightSceneInfo,
-								&View,
-								ProjectedShadowInitializer,
-								CompleteShadowBufferResolution.X,
-								CompleteShadowBufferResolution.Y,
-								CompleteShadowBufferResolution.X,
-								CompleteShadowBufferResolution.Y,
-								ShadowBorder);
-
-							CompleteProjectedShadowInfo->bCompleteShadowMap = true;
-							CompleteProjectedShadowInfo->bIncludeInScreenSpaceShadowMask = false;
-							CompleteProjectedShadowInfo->CompleteShadowMapCopySource = ProjectedShadowInfo;
-
-							VisibleLightInfo.AllProjectedShadows.Add(CompleteProjectedShadowInfo);
-							VisibleLightInfo.CompleteProjectedShadows.Add(CompleteProjectedShadowInfo);
-							ShadowInfosThatNeedCulling.Add(CompleteProjectedShadowInfo);
-						}
 					}
 
 					// Ray traced shadows use the GPU managed distance field object buffers, no CPU culling needed
@@ -4465,7 +4368,6 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	// Sort visible shadows based on their allocation needs
 	// 2d shadowmaps for this frame only that can be atlased across lights
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> Shadows;
-	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> CompleteShadows;
 	// 2d shadowmaps that will persist across frames, can't be atlased
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> CachedSpotlightShadows;
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> TranslucentShadows;
@@ -4478,7 +4380,6 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MobileDynamicSpotlightShadows;
 
 	const bool bMobile = FeatureLevel < ERHIFeatureLevel::SM5;
-	bool bCopyToCompleteShadowMaps = CVarCopyToCompleteShadowMaps.GetValueOnRenderThread() != 0;
 
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
 	{
@@ -4582,14 +4483,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 					}
 					else if (ProjectedShadowInfo->bDirectionalLight && ProjectedShadowInfo->bWholeSceneShadow)
 					{
-						if (ProjectedShadowInfo->bCompleteShadowMap)
-						{
-							WholeSceneCompleteDirectionalShadows.Add(ProjectedShadowInfo);
-						}
-						else
-						{
-							WholeSceneDirectionalShadows.Add(ProjectedShadowInfo);
-						}
+						WholeSceneDirectionalShadows.Add(ProjectedShadowInfo);
 					}
 					else if (ProjectedShadowInfo->bOnePassPointLightShadow)
 					{
@@ -4610,14 +4504,7 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 					}
 					else
 					{
-						if (ProjectedShadowInfo->bCompleteShadowMap)
-						{
-							CompleteShadows.Add(ProjectedShadowInfo);
-						}
-						else
-						{
-							Shadows.Add(ProjectedShadowInfo);
-						}
+						Shadows.Add(ProjectedShadowInfo);
 					}
 				}
 			}
@@ -4625,13 +4512,10 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 
 		// Sort cascades, this is needed for blending between cascades to work, and also to enable fetching the farthest cascade as index [0]
 		VisibleLightInfo.ShadowsToProject.Sort(FCompareFProjectedShadowInfoBySplitIndex());
-		VisibleLightInfo.CompleteProjectedShadows.Sort(FCompareFProjectedShadowInfoBySplitIndex());
 
 		if (!bMobile)
 		{
 			AllocateCSMDepthTargets(RHICmdList, WholeSceneDirectionalShadows, SortedShadowsForShadowDepthPass.ShadowMapAtlases);
-			AllocateCSMDepthTargets(RHICmdList, WholeSceneCompleteDirectionalShadows,
-				bCopyToCompleteShadowMaps ? SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases : SortedShadowsForShadowDepthPass.ShadowMapAtlases);
 		}
 		else
 		{
@@ -4687,8 +4571,6 @@ void FSceneRenderer::AllocateShadowDepthTargets(FRHICommandListImmediate& RHICmd
 	AllocateOnePassPointLightDepthTargets(RHICmdList, WholeScenePointShadows);
 	AllocateCachedSpotlightShadowDepthTargets(RHICmdList, CachedSpotlightShadows);
 	AllocateAtlasedShadowDepthTargets(RHICmdList, Shadows, SortedShadowsForShadowDepthPass.ShadowMapAtlases);
-	AllocateAtlasedShadowDepthTargets(RHICmdList, CompleteShadows,
-		bCopyToCompleteShadowMaps ? SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases : SortedShadowsForShadowDepthPass.ShadowMapAtlases);
 	AllocateTranslucentShadowDepthTargets(RHICmdList, TranslucentShadows);
 	AllocateMobileCSMAndSpotLightShadowDepthTargets(RHICmdList, MobileWholeSceneDirectionalShadows);
 

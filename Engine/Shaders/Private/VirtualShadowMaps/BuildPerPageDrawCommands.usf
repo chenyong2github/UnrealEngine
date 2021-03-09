@@ -5,7 +5,7 @@
 =============================================================================*/
 
 #include "../Common.ush"
-#include "PageAccessCommon.ush"
+#include "PageOverlap.ush"
 #include "ProjectionCommon.ush"
 #include "../Nanite/NaniteDataDecode.ush"
 #include "../InstanceCulling/InstanceCullingCommon.ush"

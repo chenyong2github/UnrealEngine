@@ -398,6 +398,8 @@ FLumenShadowSetup GetShadowForLumenDirectLighting(FVisibleLightInfo& VisibleLigh
 	return ShadowSetup;
 }
 
+const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FVisibleLightInfo & VisibleLightInfo);
+
 void RenderDirectLightIntoLumenCards(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
@@ -469,8 +471,6 @@ void RenderDirectLightIntoLumenCards(
 	const bool bUseVirtualShadowMap = VirtualShadowMapId >= 0;
 	if (!bUseVirtualShadowMap)
 	{
-		extern const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(FVisibleLightInfo & VisibleLightInfo);
-
 		// Fallback to a complete shadow map
 		ShadowSetup.VirtualShadowMap = nullptr;
 		ShadowSetup.DenseShadowMap = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo);
@@ -523,7 +523,7 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->PS.VirtualShadowMapId = VirtualShadowMapId;
 		if (bUseVirtualShadowMap)
 		{
-			VirtualShadowMapArray.SetProjectionParameters(GraphBuilder, PassParameters->PS.VirtualShadowMapSamplingParameters);
+			PassParameters->PS.VirtualShadowMapSamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 		}
 		
 		PassParameters->PS.ObjectBufferParameters = ObjectBufferParameters;

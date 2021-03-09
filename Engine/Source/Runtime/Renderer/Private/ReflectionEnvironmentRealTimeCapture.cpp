@@ -427,7 +427,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						const FProjectedShadowInfo* ProjectedShadowInfo0 = nullptr;
 						if (AtmosphericLight0Info)
 						{
-							ProjectedShadowInfo0 = GetCompleteShadowMap(SceneRenderer.VisibleLightInfos[AtmosphericLight0Info->Id]);
+							ProjectedShadowInfo0 = GetFirstWholeSceneShadowMap(SceneRenderer.VisibleLightInfos[AtmosphericLight0Info->Id]);
 						}
 
 						// Get the main view shadow info for the cloud shadows in reflection.

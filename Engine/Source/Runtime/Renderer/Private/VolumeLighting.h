@@ -76,9 +76,11 @@ void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersG
 void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersGlobal1& ShaderParams);
 
 /**
- * Fetch a dense shadow map representing shadow from all shadow casting geometry types complete shadow info.
+ * Fetch the first allocated whole scene shadow map for a given light.
+ * Since shadows maps for directional lights are sorted far cascades -> near cascades, this will
+ * grab the furthest cascade, which is the typical use case.
  */
-const FProjectedShadowInfo* GetCompleteShadowMap(const FVisibleLightInfo& VisibleLightInfo);
+const FProjectedShadowInfo* GetFirstWholeSceneShadowMap(const FVisibleLightInfo& VisibleLightInfo);
 
 
 
@@ -253,5 +255,4 @@ private:
 		LAYOUT_FIELD(FShaderResourceParameter, StaticShadowDepthTextureSampler)
 		LAYOUT_FIELD(FShaderParameter, WorldToStaticShadowMatrix)
 		LAYOUT_FIELD(FShaderParameter, StaticShadowBufferSize)
-	
 };

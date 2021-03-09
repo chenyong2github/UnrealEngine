@@ -13,6 +13,7 @@
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "PageAccessCommon.ush"
 #include "PageCacheCommon.ush"
+#include "PageOverlap.ush"
 #include "ProjectionCommon.ush"
 
 #ifndef VSM_GENERATE_STATS
@@ -258,7 +259,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 				bool bSpotLight = LightData.SpotAnglesAndSourceRadiusPacked.x > -2.0f;
 				if( !bSpotLight )
 				{
-					VirtualShadowMapId += GetCubeFace( -ToLight );
+					VirtualShadowMapId += VirtualShadowMapGetCubeFace( -ToLight );
 				}
 
 				uint MipLevel = GetMipLevel(VirtualShadowMapId, WorldPosition, SceneDepth);
@@ -268,7 +269,8 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 	}
 }
 
-int ClipmapFirstCoarseLevel;
+uint bMarkCoarsePagesLocal;
+uint ClipmapIndexMask;
 
 [numthreads(VSM_DEFAULT_CS_GROUP_X, 1, 1)]
 void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
@@ -289,8 +291,7 @@ void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
 		// We could of course mark a broader set of pages in the coarses clipmap level, but the effective radius
 		// even from just marking a single one is usually already large enough for the systems that need this
 		// data (volumetric fog, translucent light volume).
-		
-		if (ProjectionData.ClipmapLevel > ClipmapFirstCoarseLevel)
+		if (((ClipmapIndexMask >> ProjectionData.ClipmapIndex) & 1) != 0)
 		{
 			// TODO: Optimize this... can be boiled down to be just in terms of the snap offsets
 			float4 ShadowUVz = mul(float4(ProjectionData.ClipmapWorldOrigin + ProjectionData.ShadowPreViewTranslation, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
@@ -305,7 +306,7 @@ void MarkCoarsePages(uint3 Index : SV_DispatchThreadID)
 			OutPageRequestFlags[CalcPageOffset(VirtualShadowMapId, 0, PageAddressLowHigh.zw)] = 1;
 		}
 	}
-	else
+	else if (bMarkCoarsePagesLocal != 0)
 	{
 		// Mark last mip
 		uint PageOffset = CalcPageOffset(VirtualShadowMapId, VSM_MAX_MIP_LEVELS - 1, uint2(0, 0));

@@ -1029,7 +1029,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FShadowDepthPassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FMobileShadowDepthPassUniformParameters, MobilePassUniformBuffer)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FShadowDepthPassUniformParameters, DeferredPassUniformBuffer)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -1075,8 +1075,8 @@ void FProjectedShadowInfo::RenderDepth(
 		SetStateForShadowDepth(bOnePassPointLightShadow, bDirectionalLight, DrawRenderState, MeshPassTargetType);
 		CopyCachedShadowMap(GraphBuilder, *ShadowDepthView, SceneRenderer, PassParameters->RenderTargets, DrawRenderState);
 	}
-	FVirtualShadowMapCommonParameters DummyVsmParameters = FVirtualShadowMapCommonParameters();
-	PassParameters->VirtualSmCommon = GraphBuilder.CreateUniformBuffer(&DummyVsmParameters);
+
+	PassParameters->VirtualShadowMap = SceneRenderer->VirtualShadowMapArray.GetUniformBuffer(GraphBuilder);
 
 	switch (FSceneInterface::GetShadingPath(FeatureLevel))
 	{
@@ -1447,64 +1447,6 @@ static void RenderShadowDepthAtlasNanite(
 	}
 }
 
-class FCopyToCompleteShadowMapPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FCopyToCompleteShadowMapPS);
-	SHADER_USE_PARAMETER_STRUCT(FCopyToCompleteShadowMapPS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, SourceScaleOffset)
-		SHADER_PARAMETER(FIntVector4, SourceMinMax)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, SourceBuffer)
-		RENDER_TARGET_BINDING_SLOTS()
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FCopyToCompleteShadowMapPS, "/Engine/Private/VirtualShadowMaps/CopyCompleteShadows.usf", "CopyToCompleteShadowMapPS", SF_Pixel);
-
-static void CopyToCompleteShadowMap(
-	FRDGBuilder& GraphBuilder,
-	const FRDGTextureRef SourceBuffer,
-	const FRDGTextureRef DestBuffer,
-	const FIntRect& SourceInnerRect,
-	const FIntRect& SourceOuterRect,
-	const FIntRect& DestInnerRect,
-	const FIntRect& DestOuterRect,
-	ERenderTargetLoadAction LoadAction
-	)
-{
-	FVector4 SourceScaleOffset;
-	SourceScaleOffset.X = static_cast<float>(SourceInnerRect.Width() ) / DestInnerRect.Width();
-	SourceScaleOffset.Y = static_cast<float>(SourceInnerRect.Height()) / DestInnerRect.Height();
-	SourceScaleOffset.Z = SourceInnerRect.Min.X - (SourceScaleOffset.X * DestInnerRect.Min.X);
-	SourceScaleOffset.W = SourceInnerRect.Min.Y - (SourceScaleOffset.Y * DestInnerRect.Min.Y);
-
-	auto* PassParameters = GraphBuilder.AllocParameters<FCopyToCompleteShadowMapPS::FParameters>();
-	PassParameters->SourceBuffer = SourceBuffer;
-	PassParameters->SourceScaleOffset = SourceScaleOffset;
-	PassParameters->SourceMinMax = FIntVector4(SourceOuterRect.Min.X, SourceOuterRect.Min.Y, SourceOuterRect.Max.X, SourceOuterRect.Max.Y);
-	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(DestBuffer, LoadAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
-
-	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
-	auto PixelShader = ShaderMap->GetShader<FCopyToCompleteShadowMapPS>();
-
-	FPixelShaderUtils::AddFullscreenPass(
-		GraphBuilder,
-		ShaderMap,
-		RDG_EVENT_NAME("CopyToCompleteShadowMap"),
-		PixelShader,
-		PassParameters,
-		DestOuterRect,
-		nullptr,
-		nullptr,
-		TStaticDepthStencilState<true, CF_Always>::GetRHI()
-	);
-}
-
 bool IsParallelDispatchEnabled(const FProjectedShadowInfo* ProjectedShadowInfo)
 {
 	return GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread()
@@ -1523,7 +1465,6 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 		CVarNaniteShadows.GetValueOnRenderThread() != 0;
 
 	Scene->PrevAtlasHZBs.SetNum(SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num());
-	Scene->PrevAtlasCompleteHZBs.SetNum(SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num());
 
 	for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.ShadowMapAtlases.Num(); AtlasIndex++)
 	{
@@ -1620,55 +1561,6 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRDGBuilder& GraphBuilder)
 
 		// Make readable because AtlasDepthTexture is not tracked via RDG yet
 		ConvertToUntrackedExternalTexture(GraphBuilder, AtlasDepthTexture, ShadowMapAtlas.RenderTargets.DepthTarget, ERHIAccess::SRVMask);
-	}
-
-	// Copy/resample shadow maps into "complete" shadow maps and add Nanite geometry
-	if (SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num() > 0)
-	{
-		for (int32 AtlasIndex = 0; AtlasIndex < SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases.Num(); AtlasIndex++)
-		{
-			const FSortedShadowMapAtlas& ShadowMapAtlas = SortedShadowsForShadowDepthPass.CompleteShadowMapAtlases[AtlasIndex];
-
-			FSceneRenderTargetItem& RenderTarget = ShadowMapAtlas.RenderTargets.DepthTarget->GetRenderTargetItem();
-			FIntPoint AtlasSize = ShadowMapAtlas.RenderTargets.DepthTarget->GetDesc().Extent;
-		
-			FRDGTextureRef DestShadowMap = GraphBuilder.RegisterExternalTexture(ShadowMapAtlas.RenderTargets.DepthTarget, TEXT("DepthBuffer"));
-
-			RDG_EVENT_SCOPE(GraphBuilder, "Complete Atlas %ux%u", AtlasSize.X, AtlasSize.Y);
-
-			bool bCleared = false;
-			for (FProjectedShadowInfo* ProjectedShadowInfo : ShadowMapAtlas.Shadows)
-			{
-				FProjectedShadowInfo* SourceShadowInfo = ProjectedShadowInfo->CompleteShadowMapCopySource;
-
-				check(SourceShadowInfo);
-				if (SourceShadowInfo && SourceShadowInfo->RenderTargets.DepthTarget != nullptr)
-				{
-					FRDGTextureRef SourceShadowMap = GraphBuilder.RegisterExternalTexture(SourceShadowInfo->RenderTargets.DepthTarget, TEXT("SourceDepthBuffer"));
-					CopyToCompleteShadowMap(GraphBuilder,
-						SourceShadowMap,
-						DestShadowMap,
-						SourceShadowInfo->GetInnerViewRect(),
-						SourceShadowInfo->GetOuterViewRect(),
-						ProjectedShadowInfo->GetInnerViewRect(),
-						ProjectedShadowInfo->GetOuterViewRect(),
-						bCleared ? ERenderTargetLoadAction::ELoad : ERenderTargetLoadAction::EClear);
-					bCleared = true;
-				}
-			}
-
-			if (!bCleared)
-			{
-				// If nothing cleared it, ensure it's done before nanite rendering at least
-				AddClearDepthStencilPass(GraphBuilder, DestShadowMap, true, 1.0f, false, 0);
-				bCleared = true;
-			}
-
-			if (bNaniteEnabled)
-			{
-				RenderShadowDepthAtlasNanite(GraphBuilder, *Scene, ShadowMapAtlas, AtlasIndex, true);
-			}
-		}
 	}
 }
 
@@ -1935,6 +1827,8 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 	{
 		VirtualShadowMapArray.RenderVirtualShadowMapsHw(GraphBuilder, SortedShadowsForShadowDepthPass.VirtualShadowMapShadows, *Scene);
 	}
+
+	VirtualShadowMapArray.SetupProjectionParameters(GraphBuilder);
 
 	// Render non-VSM shadows
 	FSceneRenderer::RenderShadowDepthMapAtlases(GraphBuilder);

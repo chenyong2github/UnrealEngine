@@ -6,7 +6,6 @@
 #pragma once
 
 #include "../Common.ush"
-#include "../Nanite/HZBCull.ush"
 
 #ifndef HAS_CACHE_DATA
 #define HAS_CACHE_DATA 0
@@ -50,14 +49,6 @@ struct FPageInfo
 	uint ViewId;
 	uint SuperPageLevel;
 };
-
-//Buffer containing VSM_ALLOCATED_FLAG for each page that is allocated and optionally | VSM_INVALID_FLAG if it needs to be rendered (not cached)
-StructuredBuffer<uint> PageFlags;
-StructuredBuffer<uint> HPageFlags;
-StructuredBuffer<uint> ShadowPageTable;
-StructuredBuffer<uint> ShadowHZBPageTable;
-// Rectangles bounding allocated pages for each mip level
-StructuredBuffer<uint4> PageRectBounds;
 
 uint CalcLog2LevelDimsPages(uint Level)
 {
@@ -175,7 +166,7 @@ FShadowPhysicalPage ShadowDecodePageTable(uint Value)
 
 FShadowPhysicalPage ShadowGetPhysicalPage(uint PageOffset)
 {
-	return ShadowDecodePageTable(ShadowPageTable[PageOffset]);	
+	return ShadowDecodePageTable(VirtualShadowMap.PageTable[PageOffset]);
 }
 
 bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
@@ -215,136 +206,4 @@ FShadowPageTranslationResult ShadowVirtualToPhysicalUV(uint VirtualShadowMapID, 
 	Result.PhysicalTexelAddress = PhysicalPageEntry.PageIndex * VSM_PAGE_SIZE + (Result.VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 
 	return Result;
-}
-
-// TODO: this surely needs some special handling of cases that contain the near plane etc.
-void TransformBoundingBox2D(float3 BoundsIn[2], float4x4 Transform, inout float2 BoundsOut[2])
-{
-	// Screen rect from bounds
-	UNROLL 
-	for (int i = 0; i < 8; ++i)
-	{
-		float3 PointSrc = float3(
-			BoundsIn[(i >> 0) & 1].x,
-			BoundsIn[(i >> 1) & 1].y,
-			BoundsIn[(i >> 2) & 1].z);
-
-		float4 TransformedPoint = mul(float4(PointSrc, 1.0f), Transform);
-		float3 PointScreen = TransformedPoint.xyz / TransformedPoint.w;
-
-		BoundsOut[0] = min(BoundsOut[0], PointScreen.xy);
-		BoundsOut[1] = max(BoundsOut[1], PointScreen.xy);
-	}
-}
-
-// Note: the pixel 'screen' rect in FScreenRect is calculated using only the viewport _size_ as HZB uses a zero-offset buffer.
-// However, the page table is with respect to the entire virtual SM so we need to offset here.
-bool OverlapsAnyValidPage( uint ShadowMapID, uint MipLevel, int2 ViewPortRectMin, FScreenRect Rect, bool bHasMoved )
-{
-	// Clusters that has moved must be rendered to any allocated page, whereas static ones only need to be rendered into invalid pages.
-	uint FlagMask = bHasMoved ? VSM_ALLOCATED_FLAG : VSM_INVALID_FLAG;
-	uint4 RectPages = uint4( Rect.Pixels + ViewPortRectMin.xyxy ) >> VSM_LOG2_PAGE_SIZE;
-
-	uint HMipLevel = MipLevelForRect( RectPages, 2 );
-	
-	uint PageTableLevelOffset = CalcPageTableLevelOffset( ShadowMapID, MipLevel );
-
-	// Check the page flags directly as not needing h-page flag mip
-	if (HMipLevel == 0)
-	{
-		for( uint y = RectPages.y; y <= RectPages.w; y++ )
-		{
-			for( uint x = RectPages.x; x <= RectPages.z; x++ )
-			{
-				if ((PageFlags[PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y))] & FlagMask) != 0)
-				{
-					return true;
-				}
-			}
-		}
-	}
-	else
-	{
-		RectPages >>= HMipLevel;
-
-		// Root level size in pages
-		uint HLevelSizePages = uint(VSM_LEVEL0_DIM_PAGES_XY) >> (MipLevel + HMipLevel);
-		
-		int HPageLevelOffset = ShadowMapID * VirtualShadowMap.HPageTableSize + CalcHPageFlagLevelOffsets(MipLevel)
-			+ CalcLevelOffsets( HMipLevel + MipLevel)
-			- CalcLevelOffsets( MipLevel + 1U );
-
-		for( uint y = RectPages.y; y <= RectPages.w; y++ )
-		{
-			for( uint x = RectPages.x; x <= RectPages.z; x++ )
-			{
-				int HPageFlagOffset = HPageLevelOffset + y * HLevelSizePages + x;
-				if( (HPageFlags[ HPageFlagOffset ] & FlagMask) != 0 )
-				{
-					return true;
-				}
-			}
-		}
-	}
-	return false;
-}
-
-static const uint HZB_PAGE_SIZE = VSM_PAGE_SIZE / 2;
-
-
-
-bool IsVisibleHZB( uint ShadowMapID, uint MipLevel, FScreenRect Rect )
-{
-	// Don't have an HZB to test.
-	if( ShadowMapID == ~0u )
-		return true;
-
-	// Can't go past mip level of 4x4 for a 4x4 test without possibly covering more than 4 pages.
-	if( Rect.HZBLevel > VSM_LOG2_PAGE_SIZE - 3 )
-	{
-	#if 1
-		return true;
-	#else
-		Rect.HZBLevel = VSM_LOG2_PAGE_SIZE - 3;
-		Rect.HZBTexels = int4( Rect.Pixels.xy, max( Rect.Pixels.xy, Rect.Pixels.zw ) );	
-		Rect.HZBTexels >>= Rect.HZBLevel + 1;
-	#endif
-	}
-
-	uint PageTableLevelOffset = CalcPageTableLevelOffset( ShadowMapID, MipLevel );
-
-	uint4 RectPages = uint4( Rect.Pixels ) >> VSM_LOG2_PAGE_SIZE;
-
-	for( uint y = RectPages.y; y <= RectPages.w; y++ )
-	{
-		for( uint x = RectPages.x; x <= RectPages.z; x++ )
-		{
-			uint2 vPage = uint2(x,y);
-			uint PageOffset = PageTableLevelOffset + CalcPageOffsetInLevel( MipLevel, vPage );
-			FShadowPhysicalPage pPage = ShadowDecodePageTable( ShadowHZBPageTable[ PageOffset ] );
-
-			if( !pPage.bThisLODValid )
-			{
-				// If this is a new page we can't consider everything occluded the first time.
-				//if( PageFlags[ PageOffset ] != 0 )
-					return true;
-
-				// If the receiver points were projected into prev HZB space we could accurately ignore parts of the HZB that weren't relevent.
-			}
-			else
-			{
-				uint Shift = VSM_LOG2_PAGE_SIZE - 1 - Rect.HZBLevel;
-
-				FScreenRect ClippedRect = Rect;
-				ClippedRect.HZBTexels -= ( vPage << Shift ).xyxy;
-				ClippedRect.HZBTexels = clamp( ClippedRect.HZBTexels, 0, (int)HZB_PAGE_SIZE - 1 );
-				ClippedRect.HZBTexels += ( pPage.PageIndex << Shift ).xyxy;
-
-				if( IsVisibleHZB( ClippedRect, true ) )
-					return true;
-			}
-		}
-	}
-
-	return false;
 }

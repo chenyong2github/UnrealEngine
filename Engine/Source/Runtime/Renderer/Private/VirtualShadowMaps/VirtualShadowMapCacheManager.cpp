@@ -155,7 +155,7 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 		GraphBuilder.QueueBufferExtraction(VirtualShadowMapArray.PageRectBoundsRDG, &PrevPageRectBounds);
 		// Move cache entries to previous frame, this implicitly removes any that were not used
 		PrevCacheEntries = CacheEntries;
-		PrevCommonParameters = VirtualShadowMapArray.CommonParameters;
+		PrevUniformParameters = VirtualShadowMapArray.UniformParameters;
 	}
 	else
 	{
@@ -171,11 +171,18 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 		PrevShadowMapProjectionDataBuffer = TRefCountPtr<FRDGPooledBuffer>();
 		PrevPageRectBounds = TRefCountPtr<FRDGPooledBuffer>();
 
-		PrevCommonParameters.NumShadowMaps = 0;
+		PrevUniformParameters.NumShadowMaps = 0;
 
 		PrevCacheEntries.Empty();
 	}
 	CacheEntries.Reset();
+
+	// Drop any references embedded in the uniform parameters this frame.
+	// We'll reestablish them when we reimport the extracted resources next frame
+	PrevUniformParameters.ProjectionData = nullptr;
+	PrevUniformParameters.PageTable = nullptr;
+	PrevUniformParameters.PhysicalPagePool = nullptr;
+	PrevUniformParameters.PhysicalPagePoolHw = nullptr;
 
 	FRDGBufferRef AccumulatedStatsBufferRDG = nullptr;
 
@@ -383,10 +390,9 @@ class FVirtualSmInvalidateInstancePagesCS : public FGlobalShader
 
 public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapCommonParameters, VirtualSmCommon)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceDataRange >, InstanceRanges)
 		SHADER_PARAMETER(uint32, NumRemovedItems)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, ShadowMapProjectionData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HPageFlags)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)
@@ -396,7 +402,6 @@ public:
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
 		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
 		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
-		
 	END_SHADER_PARAMETER_STRUCT()
 
 	static constexpr int Cs1dGroupSizeX = 64;
@@ -420,24 +425,37 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FVirtualSmInvalidateInstancePagesCS, "/Engine/Private/VirtualShadowMaps/CacheManagement.usf", "VirtualSmInvalidateInstancePagesCS", SF_Compute);
 
 
+TRDGUniformBufferRef<FVirtualShadowMapUniformParameters> FVirtualShadowMapArrayCacheManager::GetPreviousUniformBuffer(FRDGBuilder& GraphBuilder) const
+{
+	FVirtualShadowMapUniformParameters* VersionedParameters = GraphBuilder.AllocParameters<FVirtualShadowMapUniformParameters>();
+	*VersionedParameters = PrevUniformParameters;
+	return GraphBuilder.CreateUniformBuffer(VersionedParameters);
+}
+
 void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBuilder& GraphBuilder, const TArray<FInstanceDataRange>& InstanceRangesLarge, const TArray<FInstanceDataRange>& InstanceRangesSmall, const FGPUScene& GPUScene)
 {
+	auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
+	{
+		return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
+	};
+
+	// Update references in our last frame uniform buffer with reimported resources for this frame
+	PrevUniformParameters.ProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("Shadow.Virtual.PrevProjectionData"));
+	PrevUniformParameters.PageTable = RegExtCreateSrv(PrevPageTable, TEXT("Shadow.Virtual.PrevPageTable"));
+	// Unused in this path
+	PrevUniformParameters.PhysicalPagePool = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+	PrevUniformParameters.PhysicalPagePoolHw = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+
 	if (InstanceRangesSmall.Num())
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d small-ranges]", InstanceRangesSmall.Num());
 
-		auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
-		{
-			return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
-		};
-
 		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
 
-		PassParameters->VirtualSmCommon = GraphBuilder.CreateUniformBuffer(&PrevCommonParameters);
+		PassParameters->VirtualShadowMap = GetPreviousUniformBuffer(GraphBuilder);
 		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesSmall);
 		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
 		PassParameters->NumRemovedItems = InstanceRangesSmall.Num();
-		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("Shadow.Virtual.PrevShadowMapProjectionData"));
 
 		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
 		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("Shadow.Virtual.PrevHPageFlags"));
@@ -468,18 +486,12 @@ void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRDGBu
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d large-ranges]", InstanceRangesLarge.Num());
 
-		auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FRDGPooledBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
-		{
-			return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
-		};
-
 		FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
 
-		PassParameters->VirtualSmCommon = GraphBuilder.CreateUniformBuffer(&PrevCommonParameters);
+		PassParameters->VirtualShadowMap = GetPreviousUniformBuffer(GraphBuilder);
 		FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("Shadow.Virtual.InstanceRangesSmall"), InstanceRangesLarge);
 		PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
 		PassParameters->NumRemovedItems = InstanceRangesLarge.Num();
-		PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("Shadow.Virtual.PrevShadowMapProjectionData"));
 
 		PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("Shadow.Virtual.PrevPageFlags"));
 		PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("Shadow.Virtual.PrevHPageFlags"));

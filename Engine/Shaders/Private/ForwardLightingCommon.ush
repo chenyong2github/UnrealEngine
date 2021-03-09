@@ -23,6 +23,14 @@
 #include "HairStrands/HairStrandsDeepTransmittanceDualScattering.ush"
 #endif
 
+#ifndef VIRTUAL_SHADOW_MAP
+#define VIRTUAL_SHADOW_MAP 0
+#endif
+
+#if VIRTUAL_SHADOW_MAP
+#include "VirtualShadowMaps/ProjectionCommon.ush"
+#endif
+
 float PrevSceneColorPreExposureInv;
 
 void UpdateNearestSample(float Z, float2 UV, float FullResZ, inout float MinDist, inout float2 NearestUV)
@@ -174,6 +182,16 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(uint GridIndex, float3 Worl
 			#endif
 			bool bUnused = false;
 			float DynamicShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPosition, GBufferData.Depth, bUnused);
+			
+#if VIRTUAL_SHADOW_MAP
+			BRANCH
+			if ( ForwardLightData.DirectionalLightVSM != INDEX_NONE )
+			{
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap( ForwardLightData.DirectionalLightVSM, WorldPosition );
+				DynamicShadowFactor *= VirtualShadowMapSample.ShadowFactor;
+			}
+#endif
+
 			float4 LightAttenuation = float4(DynamicShadowFactor.x, DynamicShadowFactor.x, 1, 1);
 		#endif
 

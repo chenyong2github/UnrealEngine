@@ -12,6 +12,7 @@
 #include "MeshPassProcessor.inl"
 #include "VolumetricRenderTarget.h"
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
+#include "VirtualShadowMaps/VirtualShadowMapArray.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);
@@ -800,6 +801,7 @@ static void RenderViewTranslucencyInner(
 {
 	FMeshPassProcessorRenderState DrawRenderState;
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
+	
 	SceneRenderer.SetStereoViewport(RHICmdList, View, ViewportScale);
 
 	if (!View.Family->UseDebugViewPS())
@@ -886,6 +888,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTranslucentBasePassParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FReflectionCaptureShaderData, ReflectionCapture)
 	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FTranslucentBasePassUniformParameters, BasePass)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, VirtualShadowMapSamplingParameters)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -915,6 +918,7 @@ static void RenderTranslucencyViewInner(
 	PassParameters->View = GetSeparateTranslucencyViewParameters(View, Viewport.Extent, ViewportScale);
 	PassParameters->ReflectionCapture = View.ReflectionCaptureUniformBuffer;
 	PassParameters->BasePass = BasePassParameters;
+	PassParameters->VirtualShadowMapSamplingParameters = SceneRenderer.VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture.Target, ERenderTargetLoadAction::ELoad);
 	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	PassParameters->RenderTargets.ResolveRect = FResolveRect(Viewport.Rect);

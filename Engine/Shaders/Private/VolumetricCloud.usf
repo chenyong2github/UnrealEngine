@@ -23,6 +23,10 @@
 #define SHADER_RENDERVIEW_PS 0
 #endif
 
+#ifndef VIRTUAL_SHADOW_MAP
+#define VIRTUAL_SHADOW_MAP 0
+#endif
+
 #if defined(SHADER_MAINVS) || defined(SHADER_SHADOW_PS) || SHADER_RENDERVIEW_PS || SHADER_RENDERVIEW_CS
 
 #include "/Engine/Generated/Material.ush"
@@ -329,6 +333,10 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 #include "VolumeLightingCommonSampling.ush"
 #undef VOLUME_SHADOW_SAMPLING_INPUT
 #undef Light0Shadow
+
+#if VIRTUAL_SHADOW_MAP
+#include "VirtualShadowMaps/ProjectionCommon.ush"
+#endif
 
 #endif
 
@@ -816,7 +824,16 @@ bool TraceClouds(
 			// B- sample shadow from opaque if enabled. Only light0 supported.
 			//
 			bool bUnused;
-			const float OpaqueShadow = ComputeLight0VolumeShadowing(SampleWorldPosition, false, false, bUnused);
+			float OpaqueShadow = ComputeLight0VolumeShadowing(SampleWorldPosition, false, false, bUnused);
+
+		#if VIRTUAL_SHADOW_MAP 
+			if (RenderVolumetricCloudParameters.VirtualShadowMapId0 != INDEX_NONE)
+			{
+				FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(RenderVolumetricCloudParameters.VirtualShadowMapId0, SampleWorldPosition);
+				OpaqueShadow *= VirtualShadowMapSample.ShadowFactor;
+			}
+		#endif // VIRTUALSHADOW_MAP
+
 			[unroll]
 			for (ms = 0; ms < MSCOUNT; ++ms)
 			{

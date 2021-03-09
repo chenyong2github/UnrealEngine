@@ -232,11 +232,11 @@ void LumenCardDirectLightingPS(
 						#if VIRTUAL_SHADOW_MAP
 						{
 							// Bias only ray start to maximize chances of hitting an allocated page
-							FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, WorldNormal, VirtualShadowMapSurfaceBias);
+							FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, VirtualShadowMapSurfaceBias, WorldNormal);
 
 							bVSMValid = VirtualShadowMapSample.bValid;
 							bShadowFactorComplete = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded;
-							ShadowFactor = VirtualShadowMapSample.bValid && VirtualShadowMapSample.bOccluded ? 0.0f : 1.0f;
+							ShadowFactor = VirtualShadowMapSample.ShadowFactor;
 						}
 						#endif
 
@@ -250,12 +250,7 @@ void LumenCardDirectLightingPS(
 									float SceneDepth = dot(WorldPositionForShadowing - View.WorldCameraOrigin, View.ViewForward);
 
 									bool bShadowingFromValidUVArea = false;
-									float NewShadowFactor = 1.0f;
-									#if VIRTUAL_SHADOW_MAP
-										NewShadowFactor = ComputeDirectionalLightDynamicShadowingNonNanite(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
-									#else
-										NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
-									#endif
+									float NewShadowFactor = ComputeDirectionalLightDynamicShadowing(WorldPositionForShadowing, SceneDepth, bShadowingFromValidUVArea);
 
 									float4 PostProjectionPosition = mul(float4(WorldPosition, 1.0), View.WorldToClip);
 									// CSM's are culled so only query points inside the view are valid

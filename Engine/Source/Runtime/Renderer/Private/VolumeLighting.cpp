@@ -15,32 +15,17 @@
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal0, "Light0Shadow");
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVolumeShadowingShaderParametersGlobal1, "Light1Shadow");
 
-const FProjectedShadowInfo* GetCompleteShadowMap(const FVisibleLightInfo& VisibleLightInfo)
+const FProjectedShadowInfo* GetFirstWholeSceneShadowMap(const FVisibleLightInfo& VisibleLightInfo)
 {
-	if (VisibleLightInfo.CompleteProjectedShadows.Num() > 0)
+	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
 	{
-		const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.CompleteProjectedShadows[0];
-		check(ProjectedShadowInfo->bWholeSceneShadow);
-		check(!ProjectedShadowInfo->bRayTracedDistanceField);
+		const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
 
-		// This can happen e.g., if the shadow is occluded in all views.
-		if (ProjectedShadowInfo->bAllocated)
+		if (ProjectedShadowInfo->bAllocated
+			&& ProjectedShadowInfo->bWholeSceneShadow
+			&& !ProjectedShadowInfo->bRayTracedDistanceField)
 		{
 			return ProjectedShadowInfo;
-		}
-	}
-	else
-	{
-		for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
-		{
-			const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
-
-			if (ProjectedShadowInfo->bAllocated
-				&& ProjectedShadowInfo->bWholeSceneShadow
-				&& !ProjectedShadowInfo->bRayTracedDistanceField)
-			{
-				return ProjectedShadowInfo;
-			}
 		}
 	}
 	return nullptr;

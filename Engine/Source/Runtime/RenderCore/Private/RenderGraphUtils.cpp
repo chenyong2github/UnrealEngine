@@ -757,6 +757,26 @@ const void* GetInitialData(FRDGBuilder& GraphBuilder, const void* InitialData, u
 	return InitialData;
 }
 
+void AddBufferUploadPass(FRDGBuilder& GraphBuilder, FRDGBufferRef Buffer, const void* InitialData, uint64 InitialDataSize, ERDGInitialDataFlags InitialDataFlags)
+{
+	const void* SourcePtr = GetInitialData(GraphBuilder, InitialData, InitialDataSize, InitialDataFlags);
+
+	FCopyBufferParameters* PassParameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
+	PassParameters->Buffer = Buffer;
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("BufferUpload(%s)", Buffer->Name),
+		PassParameters,
+		ERDGPassFlags::Copy,
+		[Buffer, SourcePtr, InitialDataSize](FRHICommandListImmediate& RHICmdList)
+		{
+			FRHIBuffer* RHIBuffer = Buffer->GetRHI();
+			void* DestPtr = RHICmdList.LockBuffer(RHIBuffer, 0, InitialDataSize, RLM_WriteOnly);
+			FMemory::Memcpy(DestPtr, SourcePtr, InitialDataSize);
+			RHICmdList.UnlockBuffer(RHIBuffer);
+		});
+}
+
 FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,
 	const TCHAR* Name,
@@ -770,22 +790,7 @@ FRDGBufferRef CreateStructuredBuffer(
 
 	if (InitialData && InitialDataSize)
 	{
-		const void* SourcePtr = GetInitialData(GraphBuilder, InitialData, InitialDataSize, InitialDataFlags);
-
-		FCopyBufferParameters* PassParameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
-		PassParameters->Buffer = Buffer;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("StructuredBufferUpload(%s)", Buffer->Name),
-			PassParameters,
-			ERDGPassFlags::Copy,
-			[Buffer, SourcePtr, InitialDataSize](FRHICommandListImmediate& RHICmdList)
-		{
-			FRHIBuffer* StructuredBuffer = Buffer->GetRHI();
-			void* DestPtr = RHICmdList.LockBuffer(StructuredBuffer, 0, InitialDataSize, RLM_WriteOnly);
-			FMemory::Memcpy(DestPtr, SourcePtr, InitialDataSize);
-			RHICmdList.UnlockBuffer(StructuredBuffer);
-		});
+		AddBufferUploadPass(GraphBuilder, Buffer, InitialData, InitialDataSize, InitialDataFlags);
 	}
 
 	return Buffer;
@@ -806,22 +811,7 @@ FRDGBufferRef CreateVertexBuffer(
 
 	if (InitialData && InitialDataSize)
 	{
-		const void* SourcePtr = GetInitialData(GraphBuilder, InitialData, InitialDataSize, InitialDataFlags);
-
-		FCopyBufferParameters* PassParameters = GraphBuilder.AllocParameters<FCopyBufferParameters>();
-		PassParameters->Buffer = Buffer;
-
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("VertexBufferUpload(%s)", Buffer->Name),
-			PassParameters,
-			ERDGPassFlags::Copy,
-			[Buffer, SourcePtr, InitialDataSize](FRHICommandListImmediate& RHICmdList)
-		{
-			FRHIBuffer* VertexBuffer = Buffer->GetRHI();
-			void* DestPtr = RHICmdList.LockBuffer(VertexBuffer, 0, InitialDataSize, RLM_WriteOnly);
-			FMemory::Memcpy(DestPtr, SourcePtr, InitialDataSize);
-			RHICmdList.UnlockBuffer(VertexBuffer);
-		});
+		AddBufferUploadPass(GraphBuilder, Buffer, InitialData, InitialDataSize, InitialDataFlags);
 	}
 
 	return Buffer;

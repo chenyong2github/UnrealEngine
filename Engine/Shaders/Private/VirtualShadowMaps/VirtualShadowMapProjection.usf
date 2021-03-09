@@ -55,7 +55,6 @@ float VirtualShadowMapScreenRayCast(
 	return (bHitCastContactShadow) ? HitDistance : -1.0f;
 }
 
-
 float ProjectSingleSample(
 	int VirtualShadowMapId,
 	float3 L,
@@ -65,35 +64,30 @@ float ProjectSingleSample(
 	inout float3 DebugOutput,
 	inout float InOutHitDistance)
 {
-	// NOTE: Could skip most of the rest of the shader if contact shadows say we're shadowed, but likely to be small, incoherent branching
-
 	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 
-	// Offset ray to start at the end of the contact shadow trace
-	FVirtualShadowMapSampleResult VirtualShadowMapSample =
-		SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, EstimatedGeoWorldNormal, ContactShadowLengthWorld);
+	FVirtualShadowMapSampleResult Sample =
+		SampleVirtualShadowMap(VirtualShadowMapId, WorldPosition, ContactShadowLengthWorld, EstimatedGeoWorldNormal);
 
-	float RayMissFactor = 1.0f;
-	if (VirtualShadowMapSample.bOccluded)
+	if (Sample.bOccluded)
 	{
-		RayMissFactor = 0.0f;
-		InOutHitDistance = VirtualShadowMapSample.OccluderDistance;
+		InOutHitDistance = Sample.OccluderDistance;
 	}
 
 	if (DebugOutputType == 1)	// Invalid page
 	{
-		DebugOutput = VirtualShadowMapSample.bValid ? (0.25f * RayMissFactor) : float3(1, 0, 1);
+		DebugOutput = Sample.bValid ? (0.25f * Sample.ShadowFactor) : float3(1, 0, 1);
 	}
 	else if (DebugOutputType == 2)	// ClipmapIndex/Mip
 	{
-		DebugOutput = lerp(RayMissFactor, VirtualShadowMapDebugIntToColor(VirtualShadowMapSample.ClipmapIndexOrMipLevel), 0.75f);
+		DebugOutput = lerp(Sample.ShadowFactor, VirtualShadowMapDebugIntToColor(Sample.ClipmapIndexOrMipLevel), 0.75f);
 	}
 	else if (DebugOutputType == 3) // Occluder distance
 	{
-		DebugOutput = lerp(RayMissFactor, InOutHitDistance.xxx / 1000.0f, 0.75f);
+		DebugOutput = lerp(Sample.ShadowFactor, InOutHitDistance.xxx / 1000.0f, 0.75f);
 	}
 
-	return RayMissFactor;
+	return Sample.ShadowFactor;
 }
 
 

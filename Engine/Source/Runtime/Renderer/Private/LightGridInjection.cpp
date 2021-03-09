@@ -135,7 +135,6 @@ FForwardLightData::FForwardLightData()
 {
 	FMemory::Memzero(*this);
 	DirectionalLightShadowmapAtlas = GBlackTexture->TextureRHI;
-	NonNaniteDirectionalLightShadowmapAtlas = GBlackTexture->TextureRHI;
 	ShadowmapSampler = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 	DirectionalLightStaticShadowmap = GBlackTexture->TextureRHI;
 	StaticShadowmapSampler = TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
@@ -480,6 +479,7 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 						ForwardLightData.DirectionalLightVolumetricScatteringIntensity = LightProxy->GetVolumetricScatteringIntensity();
 						ForwardLightData.DirectionalLightDirection = LightParameters.Direction;
 						ForwardLightData.DirectionalLightShadowMapChannelMask = LightTypeAndShadowMapChannelMaskPacked;
+						ForwardLightData.DirectionalLightVSM = INDEX_NONE;
 
 						const FVector2D FadeParams = LightProxy->GetDirectionalLightDistanceFadeParameters(View.GetFeatureLevel(), LightSceneInfo->IsPrecomputedLightingValid(), View.MaxShadowCascades);
 
@@ -487,15 +487,13 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 						if (ViewFamily.EngineShowFlags.DynamicShadows && VisibleLightInfos.IsValidIndex(LightSceneInfo->Id) && VisibleLightInfos[LightSceneInfo->Id].AllProjectedShadows.Num() > 0)
 						{
-							// If complete/fallback shadow maps are available, prefer those as they include all geometry types
-							bool bUseCompleteShadowMaps = VisibleLightInfos[LightSceneInfo->Id].CompleteProjectedShadows.Num() > 0;
 							const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& DirectionalLightShadowInfos = VisibleLightInfos[LightSceneInfo->Id].AllProjectedShadows;
 
+							ForwardLightData.DirectionalLightVSM = VisibleLightInfos[LightSceneInfo->Id].GetVirtualShadowMapId( &View );
+
 							ForwardLightData.NumDirectionalLightCascades = 0;
-							ForwardLightData.NonNaniteNumDirectionalLightCascades = 0;
 							// Unused cascades should compare > all scene depths
 							ForwardLightData.CascadeEndDepths = FVector4(MAX_FLT, MAX_FLT, MAX_FLT, MAX_FLT);
-							ForwardLightData.NonNaniteCascadeEndDepths = ForwardLightData.CascadeEndDepths;
 
 							for (const FProjectedShadowInfo* ShadowInfo : DirectionalLightShadowInfos)
 							{
@@ -503,38 +501,18 @@ void FSceneRenderer::ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLight
 
 								if (ShadowInfo->IsWholeSceneDirectionalShadow() && ShadowInfo->bAllocated && CascadeIndex < GMaxForwardShadowCascades)
 								{
-									// Always put the conventional shadow maps in the "non-nanite" slots
-									if (!ShadowInfo->bCompleteShadowMap)
-									{
-										ForwardLightData.NonNaniteNumDirectionalLightCascades++;
-										ForwardLightData.NonNaniteDirectionalLightWorldToShadowMatrix[CascadeIndex] = ShadowInfo->GetWorldToShadowMatrix(ForwardLightData.NonNaniteDirectionalLightShadowmapMinMax[CascadeIndex]);
-										ForwardLightData.NonNaniteCascadeEndDepths[CascadeIndex] = ShadowInfo->CascadeSettings.SplitFar;
+									ForwardLightData.NumDirectionalLightCascades++;
+									ForwardLightData.DirectionalLightWorldToShadowMatrix[CascadeIndex] = ShadowInfo->GetWorldToShadowMatrix(ForwardLightData.DirectionalLightShadowmapMinMax[CascadeIndex]);
+									ForwardLightData.CascadeEndDepths[CascadeIndex] = ShadowInfo->CascadeSettings.SplitFar;
 
-										if (CascadeIndex == 0)
-										{
-											ForwardLightData.NonNaniteDirectionalLightShadowmapAtlas = ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
-											ForwardLightData.NonNaniteDirectionalLightDepthBias = ShadowInfo->GetShaderDepthBias();
-											FVector2D AtlasSize = ShadowInfo->RenderTargets.DepthTarget->GetDesc().Extent;
-											ForwardLightData.NonNaniteDirectionalLightShadowmapAtlasBufferSize = FVector4(AtlasSize.X, AtlasSize.Y, 1.0f / AtlasSize.X, 1.0f / AtlasSize.Y);
-										}
-									}
-									
-									// Put either the complete or the conventional shadow map in the regular sampling slot as configured
-									if (bUseCompleteShadowMaps == ShadowInfo->bCompleteShadowMap)
+									if (CascadeIndex == 0)
 									{
-										ForwardLightData.NumDirectionalLightCascades++;
-										ForwardLightData.DirectionalLightWorldToShadowMatrix[CascadeIndex] = ShadowInfo->GetWorldToShadowMatrix(ForwardLightData.DirectionalLightShadowmapMinMax[CascadeIndex]);
-										ForwardLightData.CascadeEndDepths[CascadeIndex] = ShadowInfo->CascadeSettings.SplitFar;
-
-										if (CascadeIndex == 0)
-										{
-											ForwardLightData.DirectionalLightShadowmapAtlas = ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
-											ForwardLightData.DirectionalLightDepthBias = ShadowInfo->GetShaderDepthBias();
-											FVector2D AtlasSize = ShadowInfo->RenderTargets.DepthTarget->GetDesc().Extent;
-											ForwardLightData.DirectionalLightShadowmapAtlasBufferSize = FVector4(AtlasSize.X, AtlasSize.Y, 1.0f / AtlasSize.X, 1.0f / AtlasSize.Y);
-										}
+										ForwardLightData.DirectionalLightShadowmapAtlas = ShadowInfo->RenderTargets.DepthTarget->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+										ForwardLightData.DirectionalLightDepthBias = ShadowInfo->GetShaderDepthBias();
+										FVector2D AtlasSize = ShadowInfo->RenderTargets.DepthTarget->GetDesc().Extent;
+										ForwardLightData.DirectionalLightShadowmapAtlasBufferSize = FVector4(AtlasSize.X, AtlasSize.Y, 1.0f / AtlasSize.X, 1.0f / AtlasSize.Y);
 									}
-								}
+							}
 							}
 						}
 

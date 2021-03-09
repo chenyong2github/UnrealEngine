@@ -3,7 +3,7 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "ProjectionCommon.ush"
-#include "PageAccessCommon.ush"
+#include "PageOverlap.ush"
 #include "../ScreenSpaceDenoise/SSDDefinitions.ush"		// For LIGHT_TYPE's
 
 //#include "NaniteDataDecode.ush"
@@ -16,8 +16,6 @@ struct FInstanceDataRange
 };
 StructuredBuffer< FInstanceDataRange > InstanceRanges;
 uint NumRemovedItems;
-
-StructuredBuffer< FVirtualShadowMapProjectionShaderData > ShadowMapProjectionData;
 
 RWStructuredBuffer<uint> OutDynamicCasterFlags;
 uint InstanceDataSOAStride;
@@ -52,7 +50,7 @@ void VirtualSmInvalidateInstancePagesCS(
 		for (uint ShadowMapDataIndex = 0; ShadowMapDataIndex < VirtualShadowMap.NumShadowMaps; ++ShadowMapDataIndex)
 		{
 			// 1. Load cached projection data
-			FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[ShadowMapDataIndex];
+			FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ShadowMapDataIndex);
 			const bool bDirectionalLight = (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL);
 
 			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;

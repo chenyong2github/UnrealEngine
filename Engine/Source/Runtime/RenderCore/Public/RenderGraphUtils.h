@@ -599,6 +599,15 @@ enum class ERDGInitialDataFlags : uint8
 };
 ENUM_CLASS_FLAGS(ERDGInitialDataFlags)
 
+/** Adds a buffer initial data upload pass. */
+RENDERCORE_API void AddBufferUploadPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGBufferRef Buffer,
+	const void* InitialData,
+	uint64 InitialDataSize,
+	ERDGInitialDataFlags InitialDataFlags = ERDGInitialDataFlags::None);
+
+
 /** Creates a structured buffer with initial data by creating an upload pass. */
 RENDERCORE_API FRDGBufferRef CreateStructuredBuffer(
 	FRDGBuilder& GraphBuilder,

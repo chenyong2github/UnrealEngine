@@ -3,7 +3,7 @@
 #include "../Common.ush"
 #include "../SceneData.ush"
 #include "../WaveOpUtil.ush"
-#include "../VirtualShadowMaps/PageAccessCommon.ush"
+#include "../VirtualShadowMaps/PageOverlap.ush"
 
 #include "Culling.ush"
 #include "NaniteDataDecode.ush"

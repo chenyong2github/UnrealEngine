@@ -1180,10 +1180,9 @@ static FViewOcclusionQueriesPerView AllocateOcclusionTests(const FScene* Scene, 
 							continue;
 						}
 
-						if (ProjectedShadowInfo.HasVirtualShadowMap() || ProjectedShadowInfo.bCompleteShadowMap)
+						if (ProjectedShadowInfo.HasVirtualShadowMap())
 						{
-							// Skip virtual SMs (and their fallback maps), as they overlay the same light as physical SM and have their own culling
-							// methods anyway.
+							// Skip virtual SMs, as they overlay the same light as physical SM and have their own culling methods anyway.
 							continue;
 						}
 						if (ProjectedShadowInfo.bOnePassPointLightShadow)
