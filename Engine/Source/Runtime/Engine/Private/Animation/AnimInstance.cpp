@@ -153,6 +153,24 @@ void UAnimInstance::SavePoseSnapshot(FName SnapshotName)
 	}
 }
 
+FPoseSnapshot& UAnimInstance::AddPoseSnapshot(FName SnapshotName)
+{
+	FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	return Proxy.AddPoseSnapshot(SnapshotName);
+}
+
+void UAnimInstance::RemovePoseSnapshot(FName SnapshotName)
+{
+	FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	Proxy.RemovePoseSnapshot(SnapshotName);
+}
+
+const FPoseSnapshot* UAnimInstance::GetPoseSnapshot(FName SnapshotName) const
+{
+	const FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
+	return Proxy.GetPoseSnapshot(SnapshotName);
+}
+
 void UAnimInstance::SnapshotPose(FPoseSnapshot& Snapshot)
 {
 	if (USkeletalMeshComponent* SkeletalMeshComponent = GetSkelMeshComponent())

@@ -16,6 +16,15 @@ public:
 		: bIsValid(false)
 	{}
 
+	void Reset()
+	{
+		LocalTransforms.Reset();
+		BoneNames.Reset();
+		SkeletalMeshName = NAME_None;
+		SnapshotName = NAME_None;
+		bIsValid = false;
+	}
+
 	/** Array of transforms per-bone */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Snapshot")
 	TArray<FTransform> LocalTransforms;

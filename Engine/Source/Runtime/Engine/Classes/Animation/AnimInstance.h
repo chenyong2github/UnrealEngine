@@ -500,6 +500,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Pose")
 	virtual void SavePoseSnapshot(FName SnapshotName);
 
+	/** Add an empty pose snapshot to the internal snapshot cache (or recycle an existing pose snapshot if the name is already in use) */
+	FPoseSnapshot& AddPoseSnapshot(FName SnapshotName);
+
+	/** Remove a previously saved pose snapshot from the internal snapshot cache */
+	UFUNCTION(BlueprintCallable, Category = "Pose")
+	void RemovePoseSnapshot(FName SnapshotName);
+
+	/** Get a cached pose snapshot by name */
+	const FPoseSnapshot* GetPoseSnapshot(FName SnapshotName) const;
+
 	/**
 	 * Takes a snapshot of the current skeletal mesh component pose and saves it to the specified snapshot.
 	 * The snapshot is taken at the current LOD, so if for example you took the snapshot at LOD1 

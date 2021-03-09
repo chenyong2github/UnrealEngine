@@ -286,6 +286,12 @@ public:
 	/** Save a pose snapshot to the internal snapshot cache */
 	void SavePoseSnapshot(USkeletalMeshComponent* InSkeletalMeshComponent, FName SnapshotName);
 
+	/** Add an empty pose snapshot to the internal snapshot cache (or recycle an existing pose snapshot if the name is already in use) */
+	FPoseSnapshot& AddPoseSnapshot(FName SnapshotName);
+
+	/** Remove a previously saved pose snapshot from the internal snapshot cache */
+	void RemovePoseSnapshot(FName SnapshotName);
+
 	/** Get a cached pose snapshot by name */
 	const FPoseSnapshot* GetPoseSnapshot(FName SnapshotName) const;
 

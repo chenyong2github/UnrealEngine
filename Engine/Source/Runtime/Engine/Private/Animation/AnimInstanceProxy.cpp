@@ -475,14 +475,8 @@ void FAnimInstanceProxy::SavePoseSnapshot(USkeletalMeshComponent* InSkeletalMesh
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	FPoseSnapshot* PoseSnapshot = PoseSnapshots.FindByPredicate([SnapshotName](const FPoseSnapshot& PoseData) { return PoseData.SnapshotName == SnapshotName; });
-	if (PoseSnapshot == nullptr)
-	{
-		PoseSnapshot = &PoseSnapshots[PoseSnapshots.AddDefaulted()];
-		PoseSnapshot->SnapshotName = SnapshotName;
-	}
-
-	InSkeletalMeshComponent->SnapshotPose(*PoseSnapshot);
+	FPoseSnapshot& PoseSnapshot = AddPoseSnapshot(SnapshotName);
+	InSkeletalMeshComponent->SnapshotPose(PoseSnapshot);
 }
 
 void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
@@ -2744,6 +2738,32 @@ void FAnimInstanceProxy::RegisterWatchedPose(const FCSPose<FCompactPose>& Pose, 
 	}
 }
 #endif
+
+FPoseSnapshot& FAnimInstanceProxy::AddPoseSnapshot(FName SnapshotName)
+{
+	FPoseSnapshot* PoseSnapshot = PoseSnapshots.FindByPredicate([SnapshotName](const FPoseSnapshot& PoseData) { return PoseData.SnapshotName == SnapshotName; });
+	if (PoseSnapshot)
+	{
+		// Recycle an existing snapshot
+		PoseSnapshot->Reset();
+	}
+	else
+	{
+		// Add a new empty snapshot
+		PoseSnapshot = &PoseSnapshots[PoseSnapshots.AddDefaulted()];
+	}
+	PoseSnapshot->SnapshotName = SnapshotName;
+	return *PoseSnapshot;
+}
+
+void FAnimInstanceProxy::RemovePoseSnapshot(FName SnapshotName)
+{
+	int32 Index = PoseSnapshots.IndexOfByPredicate([SnapshotName](const FPoseSnapshot& PoseData) { return PoseData.SnapshotName == SnapshotName; });
+	if (Index != INDEX_NONE)
+	{
+		PoseSnapshots.RemoveAtSwap(Index);
+	}
+}
 
 const FPoseSnapshot* FAnimInstanceProxy::GetPoseSnapshot(FName SnapshotName) const
 {
