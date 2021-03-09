@@ -3354,8 +3354,10 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			
 			if (View.bIsOfflineRender)
 			{
-				// for offline renders, we want to allow motion blur so don't let geometry changes or camera moves invalidate the path tracer accumulation
-				bInvalidatePathTracer = View.bCameraCut || View.bForceCameraVisibilityReset;
+				// In the offline context, we want precise control over when to restart the path tracer's accumulation to allow for motion blur
+				// So we use the camera cut signal only. In particular - we should not use bForceCameraVisibilityReset since this has
+				// interactions with the motion blur post process effect in tiled rendering (see comment below).
+				bInvalidatePathTracer = View.bCameraCut || View.bForcePathTracerReset;
 			}
 			else
 			{
@@ -3363,7 +3365,8 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 				bInvalidatePathTracer = bResetCamera ||
 					Scene->bPathTracingNeedsInvalidation ||
 					bIsProjMatrixDifferent ||
-					bIsCameraMove;
+					bIsCameraMove ||
+					View.bForcePathTracerReset;
 			}
 
 			if (bInvalidatePathTracer)

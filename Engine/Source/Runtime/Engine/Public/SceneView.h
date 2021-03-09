@@ -1100,6 +1100,9 @@ public:
 	 */
 	bool bForceCameraVisibilityReset;
 
+	/** True if we should force the path tracer to reset its internal accumulation state */
+	bool bForcePathTracerReset;
+
 	/** Global clipping plane being applied to the scene, or all 0's if disabled.  This is used when rendering the planar reflection pass. */
 	FPlane GlobalClippingPlane;
 
