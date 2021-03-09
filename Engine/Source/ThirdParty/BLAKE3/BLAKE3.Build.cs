@@ -30,7 +30,7 @@ public class BLAKE3 : ModuleRules
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
-			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Android", "arm64", "Release", "libBLAKE3.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Android", "ARM64", "Release", "libBLAKE3.a"));
 			PublicAdditionalLibraries.Add(Path.Combine(LibraryPath, "Android", "x64", "Release", "libBLAKE3.a"));
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
