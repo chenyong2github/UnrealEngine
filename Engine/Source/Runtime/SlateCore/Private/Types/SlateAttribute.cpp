@@ -79,6 +79,14 @@ namespace SlateAttributePrivate
 	}
 
 
+	ISlateAttributeGetter* FSlateAttributeImpl::ProtectedFindGetter(const SWidget& OwningWidget, ESlateAttributeType AttributeType) const
+	{
+		TestAttributeAddress(OwningWidget, *this, AttributeType);
+
+		return FSlateAttributeMetaData::GetAttributeGetter(OwningWidget, *this);
+	}
+	
+	
 	FDelegateHandle FSlateAttributeImpl::ProtectedFindGetterHandle(const SWidget& OwningWidget, ESlateAttributeType AttributeType) const
 	{
 		TestAttributeAddress(OwningWidget, *this, AttributeType);

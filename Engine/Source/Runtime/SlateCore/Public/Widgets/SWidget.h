@@ -162,40 +162,97 @@ class SLATECORE_API SWidget
 	friend struct TSlateDecl;
 
 protected:
+	/**
+	 * A SlateAttribute that is member variable of a SWidget.
+	 * @usage: TSlateAttribute<int32> MyAttribute1; TSlateAttribute<int32, EInvalidateWidgetReason::Paint> MyAttribute2; TSlateAttribute<int32, EInvalidateWidgetReason::Paint, TEqualTo<>> MyAttribute3;
+	 */
 	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue = EInvalidateWidgetReason::None, typename InComparePredicate = TEqualTo<>>
 	struct TSlateAttribute : public ::SlateAttributePrivate::TSlateMemberAttribute<
 		InObjectType,
 		typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
-		typename std::conditional<std::is_same<InObjectType, FText>::value, TSlateAttributeFTextComparePredicate, InComparePredicate>::type>
+		InComparePredicate>
 	{
 		using ::SlateAttributePrivate::TSlateMemberAttribute<
 			InObjectType,
 			typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
-			typename std::conditional<std::is_same<InObjectType, FText>::value, TSlateAttributeFTextComparePredicate, InComparePredicate>::type>::TSlateMemberAttribute;
+			InComparePredicate>::TSlateMemberAttribute;
 	};
 
-	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicate = TEqualTo<>>
-	struct TSlateAttributeWithPredicate : public ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>
+	//~ Override for FText that use the TSlateAttributeFTextComparePredicate to compare FText
+	template<>
+	struct TSlateAttribute<FText, EInvalidateWidgetReason::None> : public ::SlateAttributePrivate::TSlateMemberAttribute<FText, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeFTextComparePredicate>
 	{
-		using ::SlateAttributePrivate::TSlateMemberAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>::TSlateMemberAttribute;
+		using ::SlateAttributePrivate::TSlateMemberAttribute<FText, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeFTextComparePredicate>::TSlateMemberAttribute;
 	};
 
-	template<typename InInvalidationReasonPredicate>
-	struct TSlateAttributeWithPredicate<FText, InInvalidationReasonPredicate> : public ::SlateAttributePrivate::TSlateMemberAttribute<FText, InInvalidationReasonPredicate, TSlateAttributeFTextComparePredicate>
+	//~ Override for FText that use the TSlateAttributeFTextComparePredicate to compare FText
+	template<EInvalidateWidgetReason InInvalidationReasonValue>
+	struct TSlateAttribute<FText, InInvalidationReasonValue> : public ::SlateAttributePrivate::TSlateMemberAttribute<
+		FText,
+		typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+		TSlateAttributeFTextComparePredicate>
 	{
-		using ::SlateAttributePrivate::TSlateMemberAttribute<FText, InInvalidationReasonPredicate, TSlateAttributeFTextComparePredicate>::TSlateMemberAttribute;
+		using ::SlateAttributePrivate::TSlateMemberAttribute<
+			FText,
+			typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+			TSlateAttributeFTextComparePredicate>::TSlateMemberAttribute;
 	};
 
-	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue, typename InComparePredicate = TEqualTo<>>
-	struct TSlateManagedAttribute : public ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>
+	/**
+	 * A SlateAttribute that is NOT a member variable of a SWidget.
+	 * @usage: TSlateManagedAttribute<int32> MyAttribute1; TSlateManagedAttribute<int32, EInvalidateWidgetReason::Paint> MyAttribute2; TSlateManagedAttribute<int32, EInvalidateWidgetReason::Paint, TEqualTo<>> MyAttribute3;
+	 */
+	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue = EInvalidateWidgetReason::None, typename InComparePredicate = TEqualTo<>>
+	struct TSlateManagedAttribute : public ::SlateAttributePrivate::TSlateManagedAttribute<
+		InObjectType,
+		typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+		InComparePredicate>
 	{
-		using ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, TSlateAttributeInvalidationReason<InInvalidationReasonValue>, InComparePredicate>::TSlateManagedAttribute;
+		using ::SlateAttributePrivate::TSlateManagedAttribute<
+			InObjectType,
+			typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+			InComparePredicate>::TSlateManagedAttribute;
 	};
 
-	template<typename InObjectType, typename InInvalidationReasonPredicate, typename InComparePredicate = TEqualTo<>>
-	struct TSlateManagedAttributeWithPredicate : public ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>
+	//~ Override for FText that use the TSlateAttributeFTextComparePredicate to compare FText
+	template<>
+	struct TSlateManagedAttribute<FText, EInvalidateWidgetReason::None> : public ::SlateAttributePrivate::TSlateManagedAttribute<FText, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeFTextComparePredicate>
 	{
-		using ::SlateAttributePrivate::TSlateManagedAttribute<InObjectType, InInvalidationReasonPredicate, InComparePredicate>::TSlateManagedAttribute;
+		using ::SlateAttributePrivate::TSlateManagedAttribute<FText, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeFTextComparePredicate>::TSlateManagedAttribute;
+	};
+
+	//~ Override for FText that use the TSlateAttributeFTextComparePredicate to compare FText
+	template<EInvalidateWidgetReason InInvalidationReasonValue>
+	struct TSlateManagedAttribute<FText, InInvalidationReasonValue> : public ::SlateAttributePrivate::TSlateManagedAttribute<
+		FText,
+		typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+		TSlateAttributeFTextComparePredicate>
+	{
+		using ::SlateAttributePrivate::TSlateManagedAttribute<
+			FText,
+			typename std::conditional<InInvalidationReasonValue == EInvalidateWidgetReason::None, ::SlateAttributePrivate::FSlateAttributeNoInvalidationReason, TSlateAttributeInvalidationReason<InInvalidationReasonValue>>::type,
+			TSlateAttributeFTextComparePredicate>::TSlateManagedAttribute;
+	};
+
+	/** A Reference to a TSlateAttribute. */
+	template<typename InObjectType, EInvalidateWidgetReason InInvalidationReasonValue = EInvalidateWidgetReason::None, typename InComparePredicate = TEqualTo<>>
+	struct TSlateAttributeRef : public ::SlateAttributePrivate::TSlateMemberAttributeRef<TSlateAttribute<InObjectType, InInvalidationReasonValue, InComparePredicate>>
+	{
+		using ::SlateAttributePrivate::TSlateMemberAttributeRef<TSlateAttribute<InObjectType, InInvalidationReasonValue, InComparePredicate>>::TSlateMemberAttributeRef;
+	};
+
+	//~ Override for FText that use the TSlateAttributeFTextComparePredicate to compare FText
+	template<>
+	struct TSlateAttributeRef<FText, EInvalidateWidgetReason::None> : public ::SlateAttributePrivate::TSlateMemberAttributeRef<TSlateAttribute<FText>>
+	{
+		using ::SlateAttributePrivate::TSlateMemberAttributeRef<TSlateAttribute<FText>>::TSlateMemberAttributeRef;
+	};
+
+	//~ Override for FText that use the TSlateAttributeFTextComparePredicate to compare FText
+	template<EInvalidateWidgetReason InInvalidationReasonValue>
+	struct TSlateAttributeRef<FText, InInvalidationReasonValue> : public ::SlateAttributePrivate::TSlateMemberAttributeRef<TSlateAttribute<FText, InInvalidationReasonValue>>
+	{
+		using ::SlateAttributePrivate::TSlateMemberAttributeRef<TSlateAttribute<FText, InInvalidationReasonValue>>::TSlateMemberAttributeRef;
 	};
 
 public:

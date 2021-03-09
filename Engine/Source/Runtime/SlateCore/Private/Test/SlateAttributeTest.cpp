@@ -7,6 +7,8 @@
 #include "Widgets/SLeafWidget.h"
 #include "Widgets/SNullWidget.h"
 
+#include <type_traits>
+
 #if WITH_AUTOMATION_WORKER
 
 #define LOCTEXT_NAMESPACE "Slate.Attribute"
@@ -19,6 +21,39 @@ namespace Slate
 {
 namespace Private
 {
+
+struct FConstructionCounter
+{
+	FConstructionCounter() : Value(0) { ++DefaultConstructionCounter; }
+	FConstructionCounter(int32 InValue) : Value(InValue) { ++DefaultConstructionCounter; }
+	FConstructionCounter(const FConstructionCounter& Other) : Value(Other.Value) { ++CopyConstructionCounter; }
+	FConstructionCounter(FConstructionCounter&& Other) :Value(Other.Value) { ++MoveConstructionCounter; }
+	FConstructionCounter& operator=(const FConstructionCounter& Other) { Value = Other.Value; ++CopyOperatorCounter; return *this; }
+	FConstructionCounter& operator=(FConstructionCounter&& Other) { Value = Other.Value; ++MoveOperatorCounter;  return *this; }
+
+	int32 Value;
+	bool operator== (const FConstructionCounter& Other) { return Other.Value == Value; }
+
+	static int32 DefaultConstructionCounter;
+	static int32 CopyConstructionCounter;
+	static int32 MoveConstructionCounter;
+	static int32 CopyOperatorCounter;
+	static int32 MoveOperatorCounter;
+	static void ResetCounter()
+	{
+		DefaultConstructionCounter = 0;
+		CopyConstructionCounter = 0;
+		MoveConstructionCounter = 0;
+		CopyOperatorCounter = 0;
+		MoveOperatorCounter = 0;
+	}
+};
+int32 FConstructionCounter::DefaultConstructionCounter = 0;
+int32 FConstructionCounter::CopyConstructionCounter = 0;
+int32 FConstructionCounter::MoveConstructionCounter = 0;
+int32 FConstructionCounter::CopyOperatorCounter = 0;
+int32 FConstructionCounter::MoveOperatorCounter = 0;
+
 
 int32 CallbackForIntAttribute(int32 Value)
 {
@@ -38,14 +73,17 @@ public:
 
 
 	SAttributeLeftWidget_Parent()
-		: IntAttributeA(*this, 1)
-		, IntAttributeB(*this, 1)
-		, IntAttributeC(*this, 1)
-		, IntAttributeD(*this, 1)
-		, IntAttributeWithPredicate(*this, 1)
-		//, IntManagedAttributes{*this, 4}
+		: IntAttributeA(*this, 99)
+		, IntAttributeB(*this, 99)
+		, IntAttributeC(*this, 99)
+		, IntAttributeD(*this, 99)
 	{
+		static_assert(std::is_same<TSlateAttribute<bool>, typename TSlateAttributeRef<bool>::SlateAttributeType>::value, "TSlateAttributeRef doesn't have the same type as TSlateAttribute for bool");
+		static_assert(std::is_same<TSlateAttribute<int32>, typename TSlateAttributeRef<int32>::SlateAttributeType>::value, "TSlateAttributeRef doesn't have the same type as TSlateAttribute for int32");
+		static_assert(std::is_same<TSlateAttribute<FText>, typename TSlateAttributeRef<FText>::SlateAttributeType>::value, "TSlateAttributeRef doesn't have the same type as TSlateAttribute for FText");
+		static_assert(std::is_same<TSlateAttribute<FVector>, typename TSlateAttributeRef<FVector>::SlateAttributeType>::value, "TSlateAttributeRef doesn't have the same type as TSlateAttribute for FVector");
 	}
+
 	void Construct(const FArguments& InArgs){}
 	virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D{ 100, 100 }; }
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
@@ -53,80 +91,11 @@ public:
 		return LayerId;
 	}
 
-	int32 TestMember()
-	{
-		// this should not compile
-		{
-			//TSlateAttribute<int32> Other = IntAttribute;
-			//Other.Set(*this, 4);
-			//return Other.Get();
-		}
-		// this should compile but failed with check at runtime
-		{
-			//TSlateAttribute<int32> Other{ *this, 0 };
-			//Other.Set(*this, 4);
-			//return Other.Get();
-		}
-		{
-			int32 DefaultValue = 0;
-			TSlateAttribute<int32> Attribute = { *this, DefaultValue };
-		}
-		{
-			int32 DefaultValue = 0;
-			auto Getter1 = TAttribute<int32>::FGetter::CreateStatic(UE::Slate::Private::CallbackForIntAttribute, 1);
-			TSlateAttribute<int32> Attribute = { *this, DefaultValue, Getter1 };
-		}
-		{
-			int32 DefaultValue = 0;
-			auto Getter1 = TAttribute<int32>::FGetter::CreateStatic(UE::Slate::Private::CallbackForIntAttribute, 1);
-			TSlateAttribute<int32> Attribute = { *this, DefaultValue, MoveTemp(Getter1) };
-		} 
-		{
-			int32 DefaultValue = 0;
-			TSlateAttribute<int32> Attribute = { *this, DefaultValue, MakeAttributeLambda([](){return 5;}) };
-		}
-		{
-			FVector2D DefaultValue = FVector2D(0.f, 0.f);
-			TSlateAttribute<FVector2D> Attribute = { *this, MoveTemp(DefaultValue) };
-		}
-		{
-			FVector2D DefaultValue = FVector2D(0.f, 0.f);
-			auto Getter1 = TAttribute<FVector2D>::FGetter::CreateStatic(UE::Slate::Private::CallbackForFVectorAttribute);
-			TSlateAttribute<FVector2D> Attribute = { *this, MoveTemp(DefaultValue), Getter1 };
-		}
-		{
-			FVector2D DefaultValue = FVector2D(0.f, 0.f);
-			auto Getter1 = TAttribute<FVector2D>::FGetter::CreateStatic(UE::Slate::Private::CallbackForFVectorAttribute);
-			TSlateAttribute<FVector2D> Attribute = { *this, MoveTemp(DefaultValue), MoveTemp(Getter1) };
-		}
-		{
-			FVector2D DefaultValue = FVector2D(0.f, 0.f);
-			TSlateAttribute<FVector2D> Attribute = { *this, MoveTemp(DefaultValue), MakeAttributeLambda([]() {return FVector2D(1.f, 1.f);}) };
-		}
-
-		return 0; 
-	}
-
-	void TestExternalBind()
-	{
-		// Copy should not compile
-		{
-			//TSlateManagedAttribute<int32, EInvalidateWidgetReason::ChildOrder> ExtAtt1 {AsShared(), 10};
-			//IntManagedAttributes.Add(ExtAtt1);
-		}
-
-		// Move should compile
-		{
-			TSlateManagedAttribute<int32, EInvalidateWidgetReason::ChildOrder> ExtAtt1 {AsShared(), 10};
-			IntManagedAttributes.Add(MoveTemp(ExtAtt1));
-		}
-	}
 
 	TSlateAttribute<int32> IntAttributeA;
 	TSlateAttribute<int32> IntAttributeB;
 	TSlateAttribute<int32> IntAttributeC;
 	TSlateAttribute<int32> IntAttributeD;
-	TSlateAttributeWithPredicate<int32, TSlateAttributeInvalidationReason<EInvalidateWidgetReason::ChildOrder>> IntAttributeWithPredicate;
 	TArray<TSlateManagedAttribute<int32, EInvalidateWidgetReason::ChildOrder>> IntManagedAttributes;
 };
 
@@ -156,11 +125,11 @@ public:
 
 
 	SAttributeLeftWidget_Child()
-		: IntAttributeH(*this, 1)
-		, IntAttributeI(*this, 1)
-		, IntAttributeJ(*this, 1)
-		, IntAttributeK(*this, 1)
-		, IntAttributeL(*this, 1)
+		: IntAttributeH(*this, 99)
+		, IntAttributeI(*this, 99)
+		, IntAttributeJ(*this, 99)
+		, IntAttributeK(*this, 99)
+		, IntAttributeL(*this, 99)
 	{
 	}
 
@@ -249,13 +218,13 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 		{
 			OrderCounter = 0;
 			WidgetParent->IntAttributeA.Assign(WidgetParent.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetParent->IntAttributeA.Get() == 1, TEXT("A It is not the expected value."));
+			AddErrorIfFalse(WidgetParent->IntAttributeA.Get() == 99, TEXT("A It is not the expected value."));
 			WidgetParent->IntAttributeB.Assign(WidgetParent.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetParent->IntAttributeB.Get() == 2, TEXT("B It is not the expected value."));
+			AddErrorIfFalse(WidgetParent->IntAttributeB.Get() == 99, TEXT("B It is not the expected value."));
 			WidgetParent->IntAttributeC.Assign(WidgetParent.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 3, TEXT("C It is not the expected value."));
+			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 99, TEXT("C It is not the expected value."));
 			WidgetParent->IntAttributeD.Assign(WidgetParent.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetParent->IntAttributeD.Get() == 4, TEXT("D It is not the expected value."));
+			AddErrorIfFalse(WidgetParent->IntAttributeD.Get() == 99, TEXT("D It is not the expected value."));
 
 			OrderCounter = 0;
 			bWasUpdate = false;
@@ -273,6 +242,10 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			bWasUpdate = false;
 			ReturnValue = 5;
 			WidgetParent->IntAttributeC.Assign(WidgetParent.Get(), MakeAttributeLambda(UpdateLambda));
+			AddErrorIfFalse(!bWasUpdate, TEXT("C should not have be updated."));
+			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 4, TEXT("C It is not the expected value."));
+			WidgetParent->InvalidatePrepass();
+			WidgetParent->SlatePrepass(1.f);
 			AddErrorIfFalse(bWasUpdate, TEXT("C should be updated."));
 			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 5, TEXT("C It is not the expected value."));
 		}
@@ -305,7 +278,9 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			AddErrorIfFalse(bWasUpdate, TEXT("C should be updated becaude D was."));
 			AddErrorIfFalse(WidgetParent->IntAttributeC.Get() == 10, TEXT("C It is not the expected value."));
 			AddErrorIfFalse(WidgetParent->IntAttributeD.Get() == 8, TEXT("D It is not the expected value."));
+#ifndef PVS_STUDIO // Build machine refuses to disable this warning
 			AddErrorIfFalse(OrderCounter == 2, TEXT("There is no D attribute anymore.")); //-V547
+#endif
 		}
 
 		{
@@ -367,23 +342,23 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 		{
 			OrderCounter = 49;
 			WidgetChild->IntAttributeA.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 50, TEXT("A It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeA.Get() == 99, TEXT("A It is not the expected value."));
 			WidgetChild->IntAttributeB.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 51, TEXT("B It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeB.Get() == 99, TEXT("B It is not the expected value."));
 			WidgetChild->IntAttributeC.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeC.Get() == 52, TEXT("C It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeC.Get() == 99, TEXT("C It is not the expected value."));
 			WidgetChild->IntAttributeD.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeD.Get() == 53, TEXT("D It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeD.Get() == 99, TEXT("D It is not the expected value."));
 			WidgetChild->IntAttributeH.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeH.Get() == 54, TEXT("I It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeH.Get() == 99, TEXT("I It is not the expected value."));
 			WidgetChild->IntAttributeI.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeI.Get() == 55, TEXT("I It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeI.Get() == 99, TEXT("I It is not the expected value."));
 			WidgetChild->IntAttributeJ.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeJ.Get() == 56, TEXT("J It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeJ.Get() == 99, TEXT("J It is not the expected value."));
 			WidgetChild->IntAttributeK.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 57, TEXT("K It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 99, TEXT("K It is not the expected value."));
 			WidgetChild->IntAttributeL.Assign(WidgetChild.Get(), MakeAttributeLambda(OrderLambda));
-			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 58, TEXT("L It is not the expected value."));
+			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 99, TEXT("L It is not the expected value."));
 
 
 			OrderCounter = 0;
@@ -417,6 +392,312 @@ bool FSlateAttributeTest::RunTest(const FString& Parameters)
 			AddErrorIfFalse(WidgetChild->IntAttributeJ.Get() == 4, TEXT("J It is not the expected value.")); // should not get updated
 			AddErrorIfFalse(WidgetChild->IntAttributeK.Get() == 8, TEXT("K It is not the expected value."));
 			AddErrorIfFalse(WidgetChild->IntAttributeL.Get() == 6, TEXT("L It is not the expected value."));
+		}
+	}
+
+
+	// Make sure we call all the functions
+	{
+		{
+			// This should just compile to TSlateAttribute
+			struct SAttributeAttribute : public SLeafWidget
+			{
+				SAttributeAttribute()
+					: Toto(6)
+					, AttributeA(*this)
+					, AttributeB(*this, 5)
+					, AttributeC(*this, MoveTemp(Toto))
+				{ }
+				SLATE_BEGIN_ARGS(SAttributeAttribute) {}  SLATE_END_ARGS()
+				virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override { return LayerId; }
+				virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(0.f, 0.f); }
+				void Construct(const FArguments&) {	}
+
+				int32 Callback() const { return 0; }
+
+				int32 Toto;
+				TSlateAttribute<int32, EInvalidateWidgetReason::Paint> AttributeA;
+				TSlateAttribute<int32, EInvalidateWidgetReason::Paint> AttributeB;
+				TSlateAttribute<int32, EInvalidateWidgetReason::Paint> AttributeC;
+			};
+			TSharedPtr<SAttributeAttribute> Widget = SNew(SAttributeAttribute);
+
+			{
+				int32 Hello = 7;
+				int32 Return1 = Widget->AttributeA.Get();
+				Widget->AttributeA.UpdateNow(*Widget);
+				Widget->AttributeA.Set(*Widget, 6);
+				Widget->AttributeA.Set(*Widget, MoveTemp(Hello));
+			}
+			{
+				auto Getter1 = TAttribute<int32>::FGetter::CreateStatic(UE::Slate::Private::CallbackForIntAttribute, 1);
+				Widget->AttributeA.Bind(*Widget, Getter1);
+				Widget->AttributeA.Bind(*Widget, MoveTemp(Getter1));
+				Widget->AttributeA.Bind(*Widget, &SAttributeAttribute::Callback);
+			}
+			{
+				int32 TmpInt1 = 7;
+				int32 TmpInt2 = 7;
+				auto Getter1 = TAttribute<int32>::FGetter::CreateStatic(UE::Slate::Private::CallbackForIntAttribute, 1);
+				TAttribute<int32> Attribute1 = TAttribute<int32>::Create(Getter1);
+				TAttribute<int32> Attribute2 = TAttribute<int32>::Create(Getter1);
+				TAttribute<int32> Attribute3 = TAttribute<int32>::Create(Getter1);
+				Widget->AttributeA.Assign(*Widget, Attribute1);
+				Widget->AttributeA.Assign(*Widget, MoveTemp(Attribute1));
+				Widget->AttributeA.Assign(*Widget, Attribute2, 7);
+				Widget->AttributeA.Assign(*Widget, MoveTemp(Attribute2), 7);
+				Widget->AttributeA.Assign(*Widget, Attribute3, MoveTemp(TmpInt1));
+				Widget->AttributeA.Assign(*Widget, MoveTemp(Attribute3), MoveTemp(TmpInt2));
+			}
+			{
+				bool bIsBound1 = Widget->AttributeA.IsBound(*Widget);
+				bool bIsIdentical1 = Widget->AttributeA.IsIdenticalTo(*Widget, Widget->AttributeA);
+				auto Getter1 = TAttribute<int32>::FGetter::CreateStatic(UE::Slate::Private::CallbackForIntAttribute, 1);
+				TAttribute<int32> Attribute1 = TAttribute<int32>::Create(Getter1);
+				bool bIsIdentical2 = Widget->AttributeA.IsIdenticalTo(*Widget, Attribute1);
+			}
+		}
+		{
+			typedef UE::Slate::Private::FConstructionCounter FLocalConstructionCounter;
+
+			// This should just compile to TSlateManagedAttribute
+			struct SAttributeAttribute : public SLeafWidget
+			{
+				SLATE_BEGIN_ARGS(SAttributeAttribute) {} SLATE_END_ARGS()
+				virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override { return LayerId; }
+				virtual FVector2D ComputeDesiredSize(float) const override { return FVector2D(0.f, 0.f); }
+				void Construct(const FArguments&) {}
+
+				FLocalConstructionCounter ReturnDefaultCounter() const { return FLocalConstructionCounter(0); }
+
+				using ManagedSlateAttributeType = TSlateManagedAttribute<FLocalConstructionCounter, EInvalidateWidgetReason::Layout>;
+			};
+			TSharedPtr<SAttributeAttribute>	Widget = SNew(SAttributeAttribute);
+
+
+			auto AddErrorIfCounterDoNotMatches = [this](int32 Construct, int32 Copy, int32 Move, int32 CopyAssign, int32 MoveAssign, const TCHAR* Message)
+			{
+				bool bSuccess = FLocalConstructionCounter::DefaultConstructionCounter == Construct
+					&& FLocalConstructionCounter::CopyConstructionCounter == Copy
+					&& FLocalConstructionCounter::MoveConstructionCounter == Move
+					&& FLocalConstructionCounter::CopyOperatorCounter == CopyAssign
+					&& FLocalConstructionCounter::MoveOperatorCounter == MoveAssign;
+				AddErrorIfFalse(bSuccess, Message);
+			};
+
+			{
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef() );
+				AddErrorIfCounterDoNotMatches(1, 0, 0, 0, 0, TEXT("Default & Copy constructor was not used."));
+			}
+			{
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef(), Counter);
+				AddErrorIfCounterDoNotMatches(0, 1, 0, 0, 0, TEXT("Default & Copy constructor was not used."));
+			}
+			{
+				FLocalConstructionCounter::ResetCounter();
+				FLocalConstructionCounter Counter = 1;
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef(), MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(1, 0, 1, 0, 0, TEXT("Default & Move constructor was not used."));
+			}
+			{
+				TAttribute<FLocalConstructionCounter>::FGetter Getter1 = TAttribute<FLocalConstructionCounter>::FGetter::CreateLambda([](){return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType{Widget.ToSharedRef(), Getter1, Counter};
+				AddErrorIfCounterDoNotMatches(0, 1, 0, 0, 0, TEXT("Getter & Copy constructor was not used."));
+			}
+			{
+				TAttribute<FLocalConstructionCounter>::FGetter Getter1 = TAttribute<FLocalConstructionCounter>::FGetter::CreateLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType{Widget.ToSharedRef(), Getter1, MoveTemp(Counter)};
+				AddErrorIfCounterDoNotMatches(0, 0, 1, 0, 0, TEXT("Getter & Move constructor was not used."));
+			}
+			{
+				TAttribute<FLocalConstructionCounter>::FGetter Getter1 = TAttribute<FLocalConstructionCounter>::FGetter::CreateLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef(), MoveTemp(Getter1), Counter);
+				AddErrorIfCounterDoNotMatches(0, 1, 0, 0, 0, TEXT("Move Getter & Copy constructor was not used."));
+			}
+			{
+				TAttribute<FLocalConstructionCounter>::FGetter Getter1 = TAttribute<FLocalConstructionCounter>::FGetter::CreateLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef(), MoveTemp(Getter1), MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 1, 0, 0, TEXT("Move Getter & Move constructor was not used."));
+			}
+			{
+				TAttribute<FLocalConstructionCounter> Attribute1 = MakeAttributeLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter;
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef(), Attribute1, Counter);
+				AddErrorIfCounterDoNotMatches(0, 1, 0, 0, 0, TEXT("Attribute & Copy constructor was not used."));
+			}
+			{
+				TAttribute<FLocalConstructionCounter> Attribute1 = MakeAttributeLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef(), MoveTemp(Attribute1), MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 1, 0, 0, TEXT("Move Attribute & Move constructor was not used."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				FLocalConstructionCounter::ResetCounter();
+				FLocalConstructionCounter Result = Attribute.Get();
+				Attribute.UpdateNow();
+				AddErrorIfCounterDoNotMatches(0, 1, 0, 0, 0, TEXT("Get and UpdateNow failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Set(Counter);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 1, 0, TEXT("Set Copy failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Set(MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Set Move failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				auto Getter1 = TAttribute<FLocalConstructionCounter>::FGetter::CreateLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Bind(Getter1);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Bind Copy failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				auto Getter1 = TAttribute<FLocalConstructionCounter>::FGetter::CreateLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Bind(MoveTemp(Getter1));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Bind Copy failed."));
+			}
+			// Test Assign
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Assign Copy failed."));
+				Attribute1.Set({1});
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 1, 0, TEXT("Assign Copy failed."));
+				Attribute1.Set({ 1 });
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Assign Move failed."));
+				Attribute1.Set({ 2 });
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(MoveTemp(Attribute1));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Move failed."));
+			}
+			// Test unbinded Attribute
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1;
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1, Counter);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 1, 0, TEXT("Assign Copy/Copy failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1;
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1, MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Copy/Move failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1;
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(MoveTemp(Attribute1), Counter);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 1, 0, TEXT("Assign Move/CCopy failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1;
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(MoveTemp(Attribute1), MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Move/Move failed."));
+			}
+			// Test binded Attribute
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1 = MakeAttributeLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1, Counter);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Bind Copy with binded attribute failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1 = MakeAttributeLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1, MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Bind Move with binded attribute failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1 = MakeAttributeLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(MoveTemp(Attribute1), Counter);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Assign Copy with binded attribute failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				TAttribute<FLocalConstructionCounter> Attribute1 = MakeAttributeLambda([]() {return FLocalConstructionCounter(1);});
+				FLocalConstructionCounter Counter = 1;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(MoveTemp(Attribute1), MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 0, TEXT("Assign Move with binded attribute failed."));
+			}
+			// Test set Attribute
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				FLocalConstructionCounter Counter = 1;
+				TAttribute<FLocalConstructionCounter> Attribute1 = Counter;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1, Counter);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 1, 0, TEXT("Assign Set Copy failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				FLocalConstructionCounter Counter = 1;
+				TAttribute<FLocalConstructionCounter> Attribute1 = Counter;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(Attribute1, MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 1, 0, TEXT("Assign Set Copy failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				FLocalConstructionCounter Counter = 1;
+				TAttribute<FLocalConstructionCounter> Attribute1 = Counter;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(MoveTemp(Attribute1), Counter);
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Set Move failed."));
+			}
+			{
+				SAttributeAttribute::ManagedSlateAttributeType Attribute = SAttributeAttribute::ManagedSlateAttributeType(Widget.ToSharedRef());
+				FLocalConstructionCounter Counter = 1;
+				TAttribute<FLocalConstructionCounter> Attribute1 = Counter;
+				FLocalConstructionCounter::ResetCounter();
+				Attribute.Assign(MoveTemp(Attribute1), MoveTemp(Counter));
+				AddErrorIfCounterDoNotMatches(0, 0, 0, 0, 1, TEXT("Assign Set Move failed."));
+			}
 		}
 	}
 

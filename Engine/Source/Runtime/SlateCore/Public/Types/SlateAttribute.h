@@ -179,6 +179,41 @@ struct TSlateAttributeInvalidationReason
 };
 
 
+/** A structure used to help the user identify deprecated TAttribute that are now TSlateAttribute. */
+template<typename ObjectType>
+struct FSlateDeprecatedTAttribute
+{
+	FSlateDeprecatedTAttribute() = default;
+
+	using FGetter = typename TAttribute<ObjectType>::FGetter;
+
+	template<typename OtherType>
+	FSlateDeprecatedTAttribute(const OtherType& InInitialValue)	{ }
+
+	FSlateDeprecatedTAttribute(ObjectType&& InInitialValue)	{ }
+
+	template<class SourceType>
+	FSlateDeprecatedTAttribute(TSharedRef<SourceType> InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr) {}
+
+	template< class SourceType >
+	FSlateDeprecatedTAttribute(SourceType* InUserObject, typename FGetter::template TSPMethodDelegate_Const< SourceType >::FMethodPtr InMethodPtr) { }
+
+	bool IsSet() const { return false; }
+
+	template<typename OtherType>
+	void Set(const OtherType& InNewValue) {}
+
+	const ObjectType& Get(const ObjectType& DefaultValue) const { return DefaultValue; }
+	const ObjectType& Get() const { static ObjectType Temp; return Temp; }
+	FGetter GetBinding() const { return false; }
+
+	void Bind(const FGetter& InGetter) {}
+	bool IsBound() const { return false; }
+
+	bool IdenticalTo(const TAttribute<ObjectType>& InOther) const { return false; }
+};
+
+
 /** Base struct of all SlateAttribute type. */
 struct FSlateAttributeBase
 {
@@ -206,6 +241,8 @@ namespace SlateAttributePrivate
 	class ISlateAttributeGetter;
 	template<typename ObjectType, typename InvalidationReasonPredicate, typename FComparePredicate, ESlateAttributeType AttributeType>
 	struct TSlateAttributeBase;
+	template<typename AttributeMemberType>
+	struct TSlateMemberAttributeRef;
 
 
 	/** */
@@ -245,6 +282,7 @@ namespace SlateAttributePrivate
 		void ProtectedRegisterAttribute(SWidget& Widget, ESlateAttributeType AttributeType, TUniquePtr<ISlateAttributeGetter>&& Wrapper);
 		void ProtectedInvalidateWidget(SWidget& Widget, ESlateAttributeType AttributeType, EInvalidateWidgetReason InvalidationReason) const;
 		bool ProtectedIsBound(const SWidget& Widget, ESlateAttributeType AttributeType) const;
+		ISlateAttributeGetter* ProtectedFindGetter(const SWidget& Widget, ESlateAttributeType AttributeType) const;
 		FDelegateHandle ProtectedFindGetterHandle(const SWidget& Widget, ESlateAttributeType AttributeType) const;
 		bool ProtectedIsIdenticalTo(const SWidget& Widget, ESlateAttributeType AttributeType, const FSlateAttributeBase& Other, const bool bHasSameValue) const;
 		bool ProtectedIsIdenticalToAttribute(const SWidget& Widget, ESlateAttributeType AttributeType, const void* Other, const bool bHasSameValue) const;
@@ -265,6 +303,9 @@ namespace SlateAttributePrivate
 	struct TSlateAttributeBase : public FSlateAttributeImpl
 	{
 	public:
+		template<typename AttributeMemberType>
+		friend struct TSlateMemberAttributeRef;
+
 		using ObjectType = InObjectType;
 		using FInvalidationReasonPredicate = InInvalidationReasonPredicate;
 		using FGetter = typename TAttribute<ObjectType>::FGetter;
@@ -315,7 +356,7 @@ namespace SlateAttributePrivate
 		{
 		}
 
-		TSlateAttributeBase(SWidget& Widget, const ObjectType& InitialValue, const FGetter& Getter)
+		TSlateAttributeBase(SWidget& Widget, const FGetter& Getter, const ObjectType& InitialValue)
 			: Value(InitialValue)
 #if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
 			, Debug_OwningWidget(&Widget)
@@ -323,12 +364,23 @@ namespace SlateAttributePrivate
 		{
 			if (Getter.IsBound())
 			{
-				TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Getter);
-				ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+				ConstructWrapper(Widget, Getter);
 			}
 		}
 
-		TSlateAttributeBase(SWidget& Widget, const ObjectType& InitialValue, FGetter&& Getter)
+		TSlateAttributeBase(SWidget& Widget, const FGetter& Getter, ObjectType&& InitialValue)
+			: Value(MoveTemp(InitialValue))
+#if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
+			, Debug_OwningWidget(&Widget)
+#endif
+		{
+			if (Getter.IsBound())
+			{
+				ConstructWrapper(Widget, Getter);
+			}
+		}
+
+		TSlateAttributeBase(SWidget& Widget, FGetter&& Getter, const ObjectType& InitialValue)
 			: Value(InitialValue)
 #if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
 			, Debug_OwningWidget(&Widget)
@@ -336,12 +388,23 @@ namespace SlateAttributePrivate
 		{
 			if (Getter.IsBound())
 			{
-				TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, MoveTemp(Getter));
-				ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+				ConstructWrapper(Widget, MoveTemp(Getter));
 			}
 		}
 
-		TSlateAttributeBase(SWidget& Widget, const ObjectType& InitialValue, const TAttribute<ObjectType>& Attribute)
+		TSlateAttributeBase(SWidget& Widget, FGetter&& Getter, ObjectType&& InitialValue)
+			: Value(MoveTemp(InitialValue))
+#if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
+			, Debug_OwningWidget(&Widget)
+#endif
+		{
+			if (Getter.IsBound())
+			{
+				ConstructWrapper(Widget, MoveTemp(Getter));
+			}
+		}
+
+		TSlateAttributeBase(SWidget& Widget, const TAttribute<ObjectType>& Attribute, const ObjectType& InitialValue)
 			: Value((Attribute.IsSet() && !Attribute.IsBound()) ? Attribute.Get() : InitialValue)
 #if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
 			, Debug_OwningWidget(&Widget)
@@ -349,53 +412,25 @@ namespace SlateAttributePrivate
 		{
 			if (Attribute.IsBound())
 			{
-				TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Attribute.GetBinding());
-				ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+				ConstructWrapper(Widget, Attribute.GetBinding());
 			}
 		}
 
-		TSlateAttributeBase(SWidget& Widget, ObjectType&& InitialValue, const FGetter& Getter)
-			: Value(MoveTemp(InitialValue))
-#if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
-			, Debug_OwningWidget(&Widget)
-#endif
-		{
-			if (Getter.IsBound())
-			{
-				TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Getter);
-				ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
-			}
-		}
-
-		TSlateAttributeBase(SWidget& Widget, ObjectType&& InitialValue, FGetter&& Getter)
-			: Value(MoveTemp(InitialValue))
-#if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
-			, Debug_OwningWidget(&Widget)
-#endif
-		{
-			if (Getter.IsBound())
-			{
-				TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, MoveTemp(Getter));
-				ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
-			}
-		}
-
-		TSlateAttributeBase(SWidget& Widget, ObjectType&& InitialValue, const TAttribute<ObjectType>& Attribute)
-			: Value((Attribute.IsSet() && !Attribute.IsBound()) ? Attribute.Get() : MoveTemp(InitialValue))
+		TSlateAttributeBase(SWidget& Widget, TAttribute<ObjectType>&& Attribute, ObjectType&& InitialValue)
+			: Value((Attribute.IsSet() && !Attribute.IsBound()) ? MoveTemp(Attribute.Steal().template Get<ObjectType>()) : MoveTemp(InitialValue))
 #if UE_SLATE_WITH_MEMBER_ATTRIBUTE_DEBUGGING
 			, Debug_OwningWidget(&Widget)
 #endif
 		{
 			if (Attribute.IsBound())
 			{
-				TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Attribute.GetBinding());
-				ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+				ConstructWrapper(Widget, MoveTemp(Attribute.Steal().template Get<FGetter>()));
 			}
 		}
 
 	public:
-		/** @return the SlateAttribute value. If the SlateAttribute is bound, value is cached only at the end of the frame. */ 
-		const ObjectType& Get() const
+		/** @return the SlateAttribute cached value. If the SlateAttribute is bound, the value will be cached at the end of the every frame. */ 
+		UE_NODISCARD const ObjectType& Get() const
 		{
 			return Value;
 		}
@@ -436,6 +471,7 @@ namespace SlateAttributePrivate
 			}
 		}
 
+	public:
 		/**
 		 * Bind the SlateAttribute to the Getter function.
 		 * (If enabled) Update the value from the Getter. If the value is different, then invalidate the widget.
@@ -446,13 +482,7 @@ namespace SlateAttributePrivate
 			VerifyOwningWidget(Widget);
 			if (Getter.IsBound())
 			{
-				const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
-				if (PreviousGetterHandle != Getter.GetHandle())
-				{
-					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Getter);
-					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
-					UpdateNowOnBind(Widget);
-				}
+				AssignBinding(Widget, Getter);
 			}
 			else
 			{
@@ -470,13 +500,7 @@ namespace SlateAttributePrivate
 			VerifyOwningWidget(Widget);
 			if (Getter.IsBound())
 			{
-				const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
-				if (PreviousGetterHandle != Getter.GetHandle())
-				{
-					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, MoveTemp(Getter));
-					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
-					UpdateNowOnBind(Widget);
-				}
+				AssignBinding(Widget, MoveTemp(Getter));
 			}
 			else
 			{
@@ -512,13 +536,7 @@ namespace SlateAttributePrivate
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
-				if (PreviousGetterHandle != OtherAttribute.GetBinding().GetHandle())
-				{
-					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, OtherAttribute.GetBinding());
-					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
-					UpdateNowOnBind(Widget);
-				}
+				AssignBinding(Widget, OtherAttribute.GetBinding());
 			}
 			else if (OtherAttribute.IsSet())
 			{
@@ -530,30 +548,29 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		/**
-		 * Bind the SlateAttribute to the Attribute Getter function (if it exist).
-		 * (If enabled) Update the value from the getter. If the value is different, then invalidate the widget.
-		 * The SlateAttribute will now be updated every frame from the Getter.
-		 * Or
-		 * Set the SlateAttribute's value if the Attribute is not bound but is set.
-		 * This will Unbind any previously bound getter.
-		 * If the value is different, then invalidate the widget.
-		 * Or
-		 * Unbind the SlateAttribute to DefaultValue if the Attribute is not bound and not set.
-		 * @see Set
-		 */
+		void Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute)
+		{
+			VerifyOwningWidget(Widget);
+			if (OtherAttribute.IsBound())
+			{
+				AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
+			}
+			else if (OtherAttribute.IsSet())
+			{
+				Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
+			}
+			else
+			{
+				ProtectedUnregisterAttribute(Widget, InAttributeType);
+			}
+		}
+
 		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, const ObjectType& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
-				if (PreviousGetterHandle != OtherAttribute.GetBinding().GetHandle())
-				{
-					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, OtherAttribute.GetBinding());
-					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
-					UpdateNowOnBind(Widget);
-				}
+				AssignBinding(Widget, OtherAttribute.GetBinding());
 			}
 			else if (OtherAttribute.IsSet())
 			{
@@ -565,34 +582,50 @@ namespace SlateAttributePrivate
 			}
 		}
 
-		/**
-		 * Bind the SlateAttribute to the Attribute Getter function (if it exist).
-		 * (If enabled) Update the value from the getter. If the value is different, then invalidate the widget.
-		 * The SlateAttribute will now be updated every frame from the Getter.
-		 * Or
-		 * Set the SlateAttribute's value if the Attribute is not bound but is set.
-		 * This will Unbind any previously bound getter.
-		 * If the value is different, then invalidate the widget.
-		 * Or
-		 * Unbind the SlateAttribute to DefaultValue if the Attribute is not bound and not set.
-		 * @see Set
-		 */
+		void Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, const ObjectType& DefaultValue)
+		{
+			VerifyOwningWidget(Widget);
+			if (OtherAttribute.IsBound())
+			{
+				AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
+			}
+			else if (OtherAttribute.IsSet())
+			{
+				Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
+			}
+			else
+			{
+				Set(Widget, DefaultValue);
+			}
+		}
+
 		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, ObjectType&& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
-				if (PreviousGetterHandle != OtherAttribute.GetBinding().GetHandle())
-				{
-					TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, OtherAttribute.GetBinding());
-					ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
-					UpdateNowOnBind(Widget);
-				}
+				AssignBinding(Widget, OtherAttribute.GetBinding());
 			}
 			else if (OtherAttribute.IsSet())
 			{
 				Set(Widget, OtherAttribute.Get());
+			}
+			else
+			{
+				Set(Widget, MoveTemp(DefaultValue));
+			}
+		}
+
+		void Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, ObjectType&& DefaultValue)
+		{
+			VerifyOwningWidget(Widget);
+			if (OtherAttribute.IsBound())
+			{
+				AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
+			}
+			else if (OtherAttribute.IsSet())
+			{
+				Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
 			}
 			else
 			{
@@ -610,16 +643,26 @@ namespace SlateAttributePrivate
 			ProtectedUnregisterAttribute(Widget, InAttributeType);
 		}
 
-public:
+	public:
+		/** Build a Attribute from this SlateAttribute. */
+		UE_NODISCARD TAttribute<ObjectType> ToAttribute(const SWidget& Widget) const
+		{
+			if (ISlateAttributeGetter* Delegate = ProtectedFindGetter(Widget, InAttributeType))
+			{
+				return TAttribute<ObjectType>::Create(static_cast<FSlateAttributeGetterWrapper<TSlateAttributeBase>*>(Delegate)->GetDelegate());
+			}
+			return TAttribute<ObjectType>(Get());
+		}
+
 		/** @return True if the SlateAttribute is bound to a getter function. */
-		bool IsBound(const SWidget& Widget) const
+		UE_NODISCARD bool IsBound(const SWidget& Widget) const
 		{
 			VerifyOwningWidget(Widget);
 			return ProtectedIsBound(Widget, InAttributeType);
 		}
 
 		/** @return True if they have the same Getter or the same value. */
-		bool IsIdenticalTo(const SWidget& Widget, const TSlateAttributeBase& Other) const
+		UE_NODISCARD bool IsIdenticalTo(const SWidget& Widget, const TSlateAttributeBase& Other) const
 		{
 			VerifyOwningWidget(Widget);
 			FDelegateHandle ThisDelegateHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
@@ -630,13 +673,13 @@ public:
 				{
 					return true;
 				}
-				return Get() == Other.Get();
+				return FComparePredicate{}.operator()(Get(), Other.Get());
 			}
 			return false;
 		}
 
-		/**  if they have the same Getter or, if the Attribute is set, the same value. */
-		bool IsIdenticalTo(const SWidget& Widget, const TAttribute<ObjectType>& Other) const
+		/** @return True if they have the same Getter or, if the Attribute is set, the same value. */
+		UE_NODISCARD bool IsIdenticalTo(const SWidget& Widget, const TAttribute<ObjectType>& Other) const
 		{
 			VerifyOwningWidget(Widget);
 			FDelegateHandle ThisDelegateHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
@@ -644,7 +687,40 @@ public:
 			{
 				return Other.GetBinding().GetHandle() == ThisDelegateHandle;
 			}
-			return !ThisDelegateHandle.IsValid() && Other.IsSet() && Get() == Other.Get();
+			return !ThisDelegateHandle.IsValid() && Other.IsSet() && FComparePredicate{}.operator()(Get(), Other.Get());
+		}
+
+	private:
+		void ConstructWrapper(SWidget& Widget, const FGetter& Getter)
+		{
+			TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, Getter);
+			ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+			UpdateNowOnBind(Widget);
+		}
+
+		void ConstructWrapper(SWidget& Widget, FGetter&& Getter)
+		{
+			TUniquePtr<ISlateAttributeGetter> Wrapper = MakeUniqueGetter(*this, MoveTemp(Getter));
+			ProtectedRegisterAttribute(Widget, InAttributeType, MoveTemp(Wrapper));
+			UpdateNowOnBind(Widget);
+		}
+
+		void AssignBinding(SWidget& Widget, const FGetter& Getter)
+		{
+			const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
+			if (PreviousGetterHandle != Getter.GetHandle())
+			{
+				ConstructWrapper(Widget, Getter);
+			}
+		}
+
+		void AssignBinding(SWidget& Widget, FGetter&& Getter)
+		{
+			const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
+			if (PreviousGetterHandle != Getter.GetHandle())
+			{
+				ConstructWrapper(Widget, MoveTemp(Getter));
+			}
 		}
 
 	private:
@@ -699,6 +775,11 @@ public:
 			virtual FDelegateHandle GetDelegateHandle() const override
 			{
 				return Getter.GetHandle();
+			}
+
+			const FGetter& GetDelegate() const
+			{
+				return Getter;
 			}
 
 		private:
@@ -778,64 +859,22 @@ public:
 #endif
 
 		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget)
+		explicit TSlateMemberAttribute(WidgetType& Widget)
 			: Super(Widget)
 		{
 			VerifyAttributeAddress(Widget, this);
 		}
 
 		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, const ObjectType& InValue)
+		explicit TSlateMemberAttribute(WidgetType& Widget, const ObjectType& InValue)
 			: Super(Widget, InValue)
 		{
 			VerifyAttributeAddress(Widget, this);
 		}
 
 		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, ObjectType&& InValue)
+		explicit TSlateMemberAttribute(WidgetType& Widget, ObjectType&& InValue)
 			: Super(Widget, MoveTemp(InValue))
-		{
-			VerifyAttributeAddress(Widget, this);
-		}
-
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, const ObjectType& InitialValue, const FGetter& Getter)
-			: Super(Widget, InitialValue, Getter)
-		{
-			VerifyAttributeAddress(Widget, this);
-		}
-
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, const ObjectType& InitialValue, FGetter&& Getter)
-			: Super(Widget, InitialValue, MoveTemp(Getter))
-		{
-			VerifyAttributeAddress(Widget, this);
-		}
-
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, const ObjectType& InitialValue, const TAttribute<ObjectType>& Attribute)
-			: Super(Widget, InitialValue, Attribute)
-		{
-			VerifyAttributeAddress(Widget, this);
-		}
-
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, ObjectType&& InitialValue, const FGetter& Getter)
-			: Super(Widget, MoveTemp(InitialValue), Getter)
-		{
-			VerifyAttributeAddress(Widget, this);
-		}
-
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, ObjectType&& InitialValue, FGetter&& Getter)
-			: Super(Widget, MoveTemp(InitialValue), MoveTemp(Getter))
-		{
-			VerifyAttributeAddress(Widget, this);
-		}
-
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		TSlateMemberAttribute(WidgetType& Widget, ObjectType&& InitialValue, const TAttribute<ObjectType>& Attribute)
-			: Super(Widget, MoveTemp(InitialValue), Attribute)
 		{
 			VerifyAttributeAddress(Widget, this);
 		}
@@ -892,55 +931,55 @@ public:
 			return *this;
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget)
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget)
 			: Super(Widget.Get())
 			, ManagedWidget(Widget)
 		{ }
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, const ObjectType& InValue)
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, const ObjectType& InValue)
 			: Super(Widget.Get(), InValue)
 			, ManagedWidget(Widget)
 		{
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, ObjectType&& InValue)
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, ObjectType&& InValue)
 			: Super(Widget.Get(), MoveTemp(InValue))
 			, ManagedWidget(Widget)
 		{
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, const ObjectType& InitialValue, const FGetter& Getter)
-			: Super(Widget.Get(), InitialValue, Getter)
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, const FGetter& Getter, const ObjectType& InitialValue)
+			: Super(Widget.Get(), Getter, InitialValue)
 			, ManagedWidget(Widget)
 		{
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, const ObjectType& InitialValue, FGetter&& Getter)
-			: Super(Widget.Get(), InitialValue, MoveTemp(Getter))
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, const FGetter& Getter, ObjectType&& InitialValue)
+			: Super(Widget.Get(), Getter, MoveTemp(InitialValue))
 			, ManagedWidget(Widget)
 		{
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, const ObjectType& InitialValue, const TAttribute<ObjectType>& Attribute)
-			: Super(Widget.Get(), InitialValue, Attribute)
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, FGetter&& Getter, const ObjectType& InitialValue)
+			: Super(Widget.Get(), MoveTemp(Getter), InitialValue)
 			, ManagedWidget(Widget)
 		{
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, ObjectType&& InitialValue, const FGetter& Getter)
-			: Super(Widget.Get(), MoveTemp(InitialValue), Getter)
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, FGetter&& Getter, ObjectType&& InitialValue)
+			: Super(Widget.Get(), MoveTemp(Getter), MoveTemp(InitialValue))
 			, ManagedWidget(Widget)
 		{
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, ObjectType&& InitialValue, FGetter&& Getter)
-			: Super(Widget.Get(), MoveTemp(InitialValue), MoveTemp(Getter))
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, const TAttribute<ObjectType>& Attribute, const ObjectType& InitialValue)
+			: Super(Widget.Get(), Attribute, InitialValue)
 			, ManagedWidget(Widget)
 		{
 		}
 
-		TSlateManagedAttribute(TSharedRef<SWidget> Widget, ObjectType&& InitialValue, const TAttribute<ObjectType>& Attribute)
-			: Super(Widget.Get(), MoveTemp(InitialValue), Attribute)
+		explicit TSlateManagedAttribute(TSharedRef<SWidget> Widget, TAttribute<ObjectType>&& Attribute, ObjectType&& InitialValue)
+			: Super(Widget.Get(), MoveTemp(Attribute), MoveTemp(InitialValue))
 			, ManagedWidget(Widget)
 		{
 		}
@@ -992,20 +1031,19 @@ public:
 			}
 		}
 
-		template<typename WidgetType, typename U = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		void Bind(typename FGetter::template TSPMethodDelegate_Const<WidgetType>::FMethodPtr MethodPtr)
-		{
-			if (TSharedPtr<SWidget> Pin = ManagedWidget.Pin())
-			{
-				Super::Bind(*Pin.Get(), FGetter::CreateSP(Pin, MethodPtr));
-			}
-		}
-
 		void Assign(const TAttribute<ObjectType>& OtherAttribute)
 		{
 			if (TSharedPtr<SWidget> Pin = ManagedWidget.Pin())
 			{
 				Super::Assign(*Pin.Get(), OtherAttribute);
+			}
+		}
+
+		void Assign(TAttribute<ObjectType>&& OtherAttribute)
+		{
+			if (TSharedPtr<SWidget> Pin = ManagedWidget.Pin())
+			{
+				Super::Assign(*Pin.Get(), MoveTemp(OtherAttribute));
 			}
 		}
 
@@ -1022,6 +1060,22 @@ public:
 			if (TSharedPtr<SWidget> Pin = ManagedWidget.Pin())
 			{
 				Super::Assign(*Pin.Get(), OtherAttribute, MoveTemp(DefaultValue));
+			}
+		}
+
+		void Assign(TAttribute<ObjectType>&& OtherAttribute, const ObjectType& DefaultValue)
+		{
+			if (TSharedPtr<SWidget> Pin = ManagedWidget.Pin())
+			{
+				Super::Assign(*Pin.Get(), MoveTemp(OtherAttribute), DefaultValue);
+			}
+		}
+
+		void Assign(TAttribute<ObjectType>&& OtherAttribute, ObjectType&& DefaultValue)
+		{
+			if (TSharedPtr<SWidget> Pin = ManagedWidget.Pin())
+			{
+				Super::Assign(*Pin.Get(), MoveTemp(OtherAttribute), MoveTemp(DefaultValue));
 			}
 		}
 
@@ -1064,5 +1118,152 @@ public:
 	private:
 		TWeakPtr<SWidget> ManagedWidget;
 	};
+
+
+	/*
+	 * A reference to a SlateAttribute that can be returned and saved for later.
+	 */
+	template<typename AttributeMemberType>
+	struct TSlateMemberAttributeRef
+	{
+	public:
+		using SlateAttributeType = AttributeMemberType;
+		using ObjectType = typename AttributeMemberType::ObjectType;
+		using AttributeType = TAttribute<ObjectType>;
+
+	private:
+		template<typename WidgetType>
+		static void VerifyAttributeAddress(WidgetType const& InWidget, AttributeMemberType const& InAttribute)
+		{
+			checkf((UPTRINT)&InAttribute >= (UPTRINT)&InWidget && (UPTRINT)&InAttribute < (UPTRINT)&InWidget + sizeof(WidgetType),
+				TEXT("The attribute is not a member of the widget."));
+			InAttribute.VerifyOwningWidget(InWidget);
+		}
+
+	public:
+		/** Constructor */
+		TSlateMemberAttributeRef() = default;
+
+		template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
+		explicit TSlateMemberAttributeRef(WidgetType const& InOwner, AttributeMemberType const& InAttribute)
+			: Owner(InOwner.AsShared())
+			, Attribute(&InAttribute)
+		{
+			VerifyAttributeAddress(InOwner, InAttribute);
+		}
+
+	public:
+		/** @return if the reference is valid. A reference can be invalid if the SWidget is destroyed. */
+		UE_NODISCARD bool IsValid() const
+		{
+			return Owner.IsValid();
+		}
+
+		/** @return the SlateAttribute cached value; undefined when IsValid() returns false. */
+		UE_NODISCARD const ObjectType& Get() const
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				return Attribute->Get();
+			}
+			checkf(false, TEXT("It is an error to call GetValue() on an unset TSlateMemberAttributeRef. Please either check IsValid() or use Get(DefaultValue) instead."));
+			static ObjectType Tmp;
+			return Tmp;
+		}
+
+		/** @return the SlateAttribute cached value or the DefaultValue if the reference is invalid. */
+		UE_NODISCARD const ObjectType& Get(const ObjectType& DefaultValue) const
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				return Attribute->Get();
+			}
+			return DefaultValue;
+		}
+
+		/** Update the cached value and invalidate the widget if needed. */
+		void UpdateValue()
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				const_cast<AttributeMemberType*>(Attribute)->UpdateNow(*Pin.Get());
+			}
+		}
+
+		/**
+		 * Assumes the reference is valid.
+		 * Shorthand for the boilerplace code: MyAttribute.UpdateValueNow(); MyAttribute.Get();
+		 */
+		UE_NODISCARD const ObjectType& UpdateAndGet()
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				const_cast<AttributeMemberType*>(Attribute)->UpdateNow(*Pin.Get());
+				return Attribute->Get();
+			}
+			checkf(false, TEXT("It is an error to call GetValue() on an unset TSlateMemberAttributeRef. Please either check IsValid() or use Get(DefaultValue) instead."));
+		}
+
+		/**
+		 * Shorthand for the boilerplace code: MyAttribute.UpdateValueNow(); MyAttribute.Get(DefaultValue);
+		 * @return the SlateAttribute cached value or the DefaultValue if the reference is invalid.
+		 */
+		UE_NODISCARD const ObjectType& UpdateAndGet(const ObjectType& DefaultValue)
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				const_cast<AttributeMemberType*>(Attribute)->UpdateNow(*Pin.Get());
+				return Attribute->Get();
+			}
+			return DefaultValue;
+		}
+
+		/** Build a Attribute from this SlateAttribute. */
+		UE_NODISCARD TAttribute<ObjectType> ToAttribute() const
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				return Attribute->ToAttribute(*Pin.Get());
+			}
+			return TAttribute<ObjectType>();
+		}
+
+		/** @return True if the SlateAttribute is bound to a getter function. */
+		UE_NODISCARD bool IsBound() const
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				return Attribute->IsBound(*Pin.Get());
+			}
+			return false;
+		}
+
+		/** @return True if they have the same Getter or the same value. */
+		UE_NODISCARD bool IsIdenticalTo(const TSlateMemberAttributeRef& Other) const
+		{
+			TSharedPtr<const SWidget> SelfPin = Owner.Pin();
+			TSharedPtr<const SWidget> OtherPin = Other.Owner.Pin();
+			if (SelfPin == OtherPin && SelfPin)
+			{
+				return Attribute->IsIdenticalTo(*SelfPin.Get(), *Other.Attribute);
+			}
+			return SelfPin == OtherPin;
+		}
+
+		/** @return True if they have the same Getter or, if the Attribute is set, the same value. */
+		UE_NODISCARD bool IsIdenticalTo(const TAttribute<ObjectType>& Other) const
+		{
+			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
+			{
+				return Attribute->IsIdenticalTo(*Pin.Get(), Other);
+			}
+			return !Other.IsSet(); // if the other is not set, then both are invalid.
+		}
+
+	private:
+		TWeakPtr<const SWidget> Owner;
+		AttributeMemberType const* Attribute = nullptr;
+	 };
+
 
 } // SlateAttributePrivate

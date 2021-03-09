@@ -362,6 +362,20 @@ bool FSlateAttributeMetaData::IsAttributeBound(const SWidget& OwningWidget, cons
 }
 
 
+SlateAttributePrivate::ISlateAttributeGetter* FSlateAttributeMetaData::GetAttributeGetter(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute)
+{
+	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
+	{
+		const int32 FoundIndex = AttributeMetaData->IndexOfAttribute(Attribute);
+		if (FoundIndex != INDEX_NONE)
+		{
+			return AttributeMetaData->Attributes[FoundIndex].Getter.Get();
+		}
+	}
+	return nullptr;
+}
+
+
 FDelegateHandle FSlateAttributeMetaData::GetAttributeGetterHandle(const SWidget& OwningWidget, const FSlateAttributeBase& Attribute)
 {
 	if (FSlateAttributeMetaData* AttributeMetaData = FSlateAttributeMetaData::FindMetaData(OwningWidget))
