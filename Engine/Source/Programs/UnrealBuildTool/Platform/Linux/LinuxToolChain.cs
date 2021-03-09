@@ -1069,7 +1069,7 @@ namespace UnrealBuildTool
 
 			if (LinkEnvironment.Configuration == CppConfiguration.Shipping)
 			{
-				Result += " -Wl,--icf=all"; // Enables ICF (Identical Code Folding). [all, safe] safe == fold functions that can be proven not to have their address taken.
+				Result += " -Wl,--icf=safe"; // Enables ICF (Identical Code Folding). [all, safe] safe == fold functions that can be proven not to have their address taken.
 				if (!UsingLld(LinkEnvironment.Architecture))
 				{
 					Result += " -Wl,--icf-iterations=3";
