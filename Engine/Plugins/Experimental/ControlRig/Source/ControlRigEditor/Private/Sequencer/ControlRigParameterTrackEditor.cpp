@@ -1027,6 +1027,7 @@ void FControlRigParameterTrackEditor::AddControlRig(UClass* InClass, UObject* Bo
 	AddControlRig(InClass, BoundActor, ObjectBinding, nullptr);
 }
 
+//This now adds all of the control rig components, not just the first one
 void FControlRigParameterTrackEditor::AddControlRigFromComponent(FGuid InGuid)
 {
 	const TSharedPtr<ISequencer> ParentSequencer = GetSequencer();
@@ -1034,12 +1035,15 @@ void FControlRigParameterTrackEditor::AddControlRigFromComponent(FGuid InGuid)
 
 	if (AActor* BoundActor = Cast<AActor>(BoundObject))
 	{
-		if (UControlRigComponent* ControlRigComponent = BoundActor->FindComponentByClass<UControlRigComponent>())
+		TArray<UControlRigComponent*> ControlRigComponents;
+		BoundActor->GetComponents<UControlRigComponent>(ControlRigComponents);
+		for (UControlRigComponent* ControlRigComponent : ControlRigComponents)
 		{
 			if (UControlRig* CR = ControlRigComponent->GetControlRig())
 			{
 				AddControlRig(CR->GetClass(), BoundActor, InGuid, CR);
 			}
+			
 		}
 	}
 }
@@ -1702,21 +1706,11 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 		return;
 	}
 	UMovieScene* MovieScene = GetSequencer()->GetFocusedMovieSceneSequence()->GetMovieScene();
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-
-	if (ControlRigEditMode && ControlRigEditMode->GetControlRig(false) != nullptr && MovieScene)
+	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+	for (const FMovieSceneBinding& Binding : Bindings)
 	{
-		bool bTrackIsValid = false;
-		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-		for (const FMovieSceneBinding& Binding : Bindings)
-		{
-			UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
-			if (Track && Track->GetControlRig() == ControlRig)
-			{
-				bTrackIsValid = true;
-			}
-		}
-		if (bTrackIsValid)
+		UMovieSceneControlRigParameterTrack* Track = Cast<UMovieSceneControlRigParameterTrack>(MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid(), NAME_None));
+		if (Track && Track->GetControlRig() == ControlRig)
 		{
 			FName Name(*ControlRig->GetName());
 			if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
@@ -1735,14 +1729,6 @@ void FControlRigParameterTrackEditor::HandleControlModified(UControlRig* Control
 					}
 					AddControlKeys(Component, ControlRig, Name, Control.Name, EMovieSceneTransformChannel::All, KeyMode, Context.LocalTime);
 				}
-			}
-		}
-		else
-		{
-			//okay no good track so deactive it and delete it's Control Rig and bingings.
-			if (GLevelEditorModeTools().HasToolkitHost())
-			{
-				GLevelEditorModeTools().DeactivateMode(FControlRigEditMode::ModeName);
 			}
 		}
 	}
