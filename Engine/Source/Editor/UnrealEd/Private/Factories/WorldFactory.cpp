@@ -16,6 +16,7 @@ UWorldFactory::UWorldFactory(const FObjectInitializer& ObjectInitializer)
 	SupportedClass = UWorld::StaticClass();
 	WorldType = EWorldType::Inactive;
 	bInformEngineOfWorld = false;
+	bCreateWorldPartition = true;
 	FeatureLevel = ERHIFeatureLevel::Num;
 }
 
@@ -30,7 +31,7 @@ UObject* UWorldFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName
 	const bool bAddToRoot = false;
 
 	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-	const bool bCreateWorldPartition = WorldPartitionEditorModule.IsWorldPartitionEnabled();
+	const bool bCreateWorldPartitionSetting = WorldPartitionEditorModule.IsWorldPartitionEnabled();
 		
 	// Those are the init values taken from the default in UWorld::CreateWorld + CreateWorldPartition.
 	UWorld::InitializationValues InitValues = UWorld::InitializationValues()
@@ -38,7 +39,7 @@ UObject* UWorldFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName
 		.EnableTraceCollision(true)
 		.CreateNavigation(WorldType == EWorldType::Editor)
 		.CreateAISystem(WorldType == EWorldType::Editor)
-		.CreateWorldPartition(bCreateWorldPartition);
+		.CreateWorldPartition(bCreateWorldPartitionSetting && bCreateWorldPartition);
 
 	UWorld* NewWorld = UWorld::CreateWorld(WorldType, bInformEngineOfWorld, Name, Cast<UPackage>(InParent), bAddToRoot, FeatureLevel, &InitValues);
 	GEditor->InitBuilderBrush(NewWorld);

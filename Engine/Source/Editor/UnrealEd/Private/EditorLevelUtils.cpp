@@ -674,6 +674,8 @@ ULevelStreaming* UEditorLevelUtils::CreateNewStreamingLevelForWorld(UWorld& InWo
 	{
 		// Create a new world
 		UWorldFactory* Factory = NewObject<UWorldFactory>();
+		// streaming levels shouldn't be WP
+		Factory->bCreateWorldPartition = false;
 		Factory->WorldType = EWorldType::Inactive;
 		UPackage* Pkg = CreatePackage( NULL);
 		FName WorldName(TEXT("Untitled"));
