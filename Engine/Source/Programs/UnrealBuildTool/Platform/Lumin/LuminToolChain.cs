@@ -276,6 +276,9 @@ namespace UnrealBuildTool
 			}
 
 			ProcessStartInfo StartInfo = new ProcessStartInfo();
+			StartInfo.RedirectStandardInput = true;
+			StartInfo.RedirectStandardError = true;
+			StartInfo.RedirectStandardOutput = true;
 			StartInfo.WorkingDirectory = WorkingDirectory;
 			StartInfo.FileName = Command;
 			StartInfo.Arguments = Params;
