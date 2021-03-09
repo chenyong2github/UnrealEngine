@@ -8,6 +8,7 @@
 #include "Math/Rotator.h"
 #include "Math/Color.h"
 #include "Styling/SlateColor.h"
+#include "EntitySystem/MovieSceneComponentDebug.h"
 
 class USceneComponent;
 
