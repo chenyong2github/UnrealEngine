@@ -856,7 +856,7 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 
 				ByteSent += Writer->Num();
 
-				UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Sending msg %d as segment %d/%d of %d bytes to %s"),
+				UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Sending msg %d as segment %d/%d of %d bytes to %s"),
 					DataChunk.MessageId, 
 					DataChunk.SegmentNumber + 1, 
 					DataChunk.TotalSegments, 
@@ -865,8 +865,6 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 
 				if (!SocketSender->Send(Writer, NodeInfo.Endpoint))
 				{
-					UE_LOG(LogUdpMessaging, Error, TEXT("FUdpMessageProcessor::UpdateSegmenters: Error sending message segment %d/%d of %d bytes to %s"),
-						DataChunk.SegmentNumber + 1, DataChunk.TotalSegments, Segmenter->GetMessageSize(), *NodeInfo.NodeId.ToString());
 					return -1;
  				}
 
@@ -876,7 +874,7 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 				// if we reached the max send rate, break
 				if (ByteSent >= MaxSendBytes)
 				{
-					UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Reached max BytesSent (%d of %d) on message segment %d/%d to %s"),
+					UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Reached max BytesSent (%d of %d) on message segment %d/%d to %s"),
 						ByteSent, MaxSendBytes,
 						DataChunk.SegmentNumber + 1,
 						DataChunk.TotalSegments,
@@ -899,14 +897,14 @@ int32 FUdpMessageProcessor::UpdateSegmenters(FNodeInfo& NodeInfo, uint32 MaxSend
 				}
 				else
 				{
-					UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Finished with message segmenter for %s"), *NodeInfo.NodeId.ToString());
+					UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Finished with message segmenter for %s"), *NodeInfo.NodeId.ToString());
 					It.RemoveCurrent();
 				}
 			}
 			else
 			{
 				// Still work to do that will be picked up next tick
-				UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Will continue processing segments for msg %d from %s on next tick"), DataChunk.MessageId , *NodeInfo.NodeId.ToString());
+				UE_LOG(LogUdpMessaging, VeryVerbose, TEXT("FUdpMessageProcessor::UpdateSegmenters: Will continue processing segments for msg %d from %s on next tick"), DataChunk.MessageId , *NodeInfo.NodeId.ToString());
 			}
 		}
 		else if (Segmenter->IsInvalid())
