@@ -1,0 +1,52 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+/*================================================================================================
+	RayTracingTypes.h: used in ray tracing shaders and C++ code to define common types
+	!!! Changing this file requires recompilation of the engine !!!
+=================================================================================================*/
+
+#ifdef __cplusplus
+
+// C++ representation of a light for the path tracer
+// #dxr_todo: Unify this with FRTLightingData ?
+struct FPathTracingLight {
+	FVector Position;
+	FVector Normal;
+	FVector dPdu;
+	FVector dPdv;
+	FVector Color;
+	FVector Dimensions; // Radius,SoftRadius,Length or RectWidth,RectHeight or Sin(Angle/2),Sin(SoftAngle/2) depending on light type
+	float   Attenuation;
+	float   FalloffExponent; // for non-inverse square decay lights only
+	float   RectLightBarnCosAngle;
+	float   RectLightBarnLength;
+	int32   IESTextureSlice;
+	uint32  Flags; // see defines above
+
+	float Padding[8]; // keep structure aligned - take new fields from here as needed
+};
+
+static_assert(sizeof(FPathTracingLight) == 128, "Path tracing light structure should be aligned to 128 bytes for optimal access on the GPU");
+
+#else
+
+// HLSL side of the struct above
+
+struct FPathTracingLight {
+	float3  Position;
+	float3  Normal;
+	float3  dPdu;
+	float3  dPdv;
+	float3  Color;
+	float3  Dimensions;
+	float   Attenuation;
+	float   FalloffExponent;
+	float   RectLightBarnCosAngle;
+	float   RectLightBarnLength;
+	int     IESTextureSlice;
+	uint    Flags;
+
+	float Padding[8];
+};
+
+#endif

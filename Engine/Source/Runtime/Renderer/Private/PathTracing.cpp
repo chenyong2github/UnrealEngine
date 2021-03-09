@@ -14,6 +14,7 @@
 #include "RayTracing/RayTracingSkyLight.h"
 #include "RayTracing/RaytracingOptions.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "RayTracingTypes.h"
 
 TAutoConsoleVariable<int32> CVarPathTracingMaxBounces(
 	TEXT("r.PathTracing.MaxBounces"),
@@ -96,7 +97,6 @@ TAutoConsoleVariable<int32> CVarPathTracingProgressDisplay(
 );
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingLightData, "SceneLightsData");
 
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
 static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData) {
@@ -174,8 +174,9 @@ class FPathTracingRG : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
-		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, SceneLightsData)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingData, PathTracingData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
+		SHADER_PARAMETER(uint32, SceneLightCount)
 		// IES Profiles
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
@@ -211,40 +212,42 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
 
-void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FPathTracingLightData& LightData, FSkyLightData& SkyLightData, FScene* Scene, const FViewInfo& View, bool UseLightProfiles)
+void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FSkyLightData& SkyLightData, FScene* Scene, const FViewInfo& View, bool UseLightProfiles)
 {
 	// Sky light
 	bool IsSkyLightValid = SetupSkyLightParameters(*Scene, &SkyLightData);
 
 	// Lights
-	LightData.Count = 0;
+	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM]; // Keep this on the stack for now -- eventually will need to make this dynamic to lift size limit (and also avoid uploading per frame ...)
+	unsigned LightCount = 0;
 
 	// Prepend SkyLight to light buffer since it is not part of the regular light list
 	if (IsSkyLightValid)
 	{
-		uint32 SkyLightIndex = 0;
-		uint8 SkyLightLightingChannelMask = 0xFF;
-		LightData.Color[SkyLightIndex] = FVector(SkyLightData.Color);
-		LightData.Flags[SkyLightIndex] = SkyLightData.bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
-		LightData.Flags[SkyLightIndex] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-		LightData.Flags[SkyLightIndex] |= PATHTRACING_LIGHT_SKY;
-		LightData.IESTextureSlice[SkyLightIndex] = -1;
-		LightData.FalloffExponent[LightData.Count] = 0;
-		LightData.Count++;
+		FPathTracingLight& DestLight = Lights[LightCount];
+		DestLight.Color = FVector(SkyLightData.Color);
+		DestLight.Flags = SkyLightData.bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
+		DestLight.IESTextureSlice = -1;
+		LightCount++;
 	}
 
 	TMap<FTexture*, int> IESLightProfilesMap;
 	for (auto Light : Scene->Lights)
 	{
-		if (LightData.Count >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
+		if (LightCount >= RAY_TRACING_LIGHT_COUNT_MAXIMUM) break;
+
+		FPathTracingLight& DestLight = Lights[LightCount];
 
 		FLightShaderParameters LightParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightParameters);
 		uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
 		uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
-		LightData.Flags[LightData.Count] = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
-		LightData.Flags[LightData.Count] |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-		LightData.IESTextureSlice[LightData.Count] = -1;
+
+		DestLight.Flags = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+		DestLight.IESTextureSlice = -1;
 
 		if (UseLightProfiles)
 		{
@@ -252,53 +255,53 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			if (IESTexture != nullptr)
 			{
 				// Only add a given texture once
-				LightData.IESTextureSlice[LightData.Count] = IESLightProfilesMap.FindOrAdd(IESTexture, IESLightProfilesMap.Num());
+				DestLight.IESTextureSlice = IESLightProfilesMap.FindOrAdd(IESTexture, IESLightProfilesMap.Num());
 			}
 		}
 
 		// these mean roughly the same thing across all light types
-		LightData.Color[LightData.Count] = LightParameters.Color;
-		LightData.Position[LightData.Count] = LightParameters.Position;
-		LightData.Normal[LightData.Count] = -LightParameters.Direction;
-		LightData.dPdu[LightData.Count] = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
-		LightData.dPdv[LightData.Count] = LightParameters.Tangent;
-		LightData.Attenuation[LightData.Count] = LightParameters.InvRadius;
-		LightData.FalloffExponent[LightData.Count] = 0;
+		DestLight.Color = LightParameters.Color;
+		DestLight.Position = LightParameters.Position;
+		DestLight.Normal = -LightParameters.Direction;
+		DestLight.dPdu = FVector::CrossProduct(LightParameters.Tangent, LightParameters.Direction);
+		DestLight.dPdv = LightParameters.Tangent;
+		DestLight.Attenuation = LightParameters.InvRadius;
+		DestLight.FalloffExponent = 0;
 
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)
 		{
 			case LightType_Directional:
 			{
-                LightData.Normal[LightData.Count] = LightParameters.Direction;
-				LightData.Dimensions[LightData.Count] = FVector(0.0f, 0.0f, LightParameters.SourceRadius);
-				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_DIRECTIONAL;
+				DestLight.Normal = LightParameters.Direction;
+				DestLight.Dimensions = FVector(0.0f, 0.0f, LightParameters.SourceRadius);
+				DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
 				break;
 			}
 			case LightType_Rect:
 			{
-				LightData.Dimensions[LightData.Count] = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
-				LightData.RectLightBarnCosAngle[LightData.Count] = LightParameters.RectLightBarnCosAngle;
-				LightData.RectLightBarnLength[LightData.Count] = LightParameters.RectLightBarnLength;
-				LightData.FalloffExponent[LightData.Count] = LightParameters.FalloffExponent;
-				LightData.Flags[LightData.Count] |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
-				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_RECT;
+				DestLight.Dimensions = FVector(2.0f * LightParameters.SourceRadius, 2.0f * LightParameters.SourceLength, 0.0f);
+				DestLight.RectLightBarnCosAngle = LightParameters.RectLightBarnCosAngle;
+				DestLight.RectLightBarnLength = LightParameters.RectLightBarnLength;
+				DestLight.FalloffExponent = LightParameters.FalloffExponent;
+				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+				DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 				break;
 			}
 			case LightType_Spot:
 			{
-				LightData.Dimensions[LightData.Count] = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
-				LightData.FalloffExponent[LightData.Count] = LightParameters.FalloffExponent;
-				LightData.Flags[LightData.Count] |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
-				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_SPOT;
+				DestLight.Dimensions = FVector(LightParameters.SpotAngles, LightParameters.SourceRadius);
+				DestLight.FalloffExponent = LightParameters.FalloffExponent;
+				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+				DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
 				break;
 			}
 			case LightType_Point:
 			{
-				LightData.Dimensions[LightData.Count] = FVector(0.0, 0.0, LightParameters.SourceRadius);
-				LightData.FalloffExponent[LightData.Count] = LightParameters.FalloffExponent;
-				LightData.Flags[LightData.Count] |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
-				LightData.Flags[LightData.Count] |= PATHTRACING_LIGHT_POINT;
+				DestLight.Dimensions = FVector(0.0, 0.0, LightParameters.SourceRadius);
+				DestLight.FalloffExponent = LightParameters.FalloffExponent;
+				DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+				DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 				break;
 			}
 			default:
@@ -307,9 +310,16 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 				checkNoEntry();
 				break;
 			}
-		};
+		}
 
-		LightData.Count++;
+		LightCount++;
+	}
+
+	{
+		// Upload the buffer of lights to the GPU
+		size_t DataSize = sizeof(FPathTracingLight) * FMath::Max(LightCount, 1u);
+		PassParameters->SceneLights = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracingLightsBuffer"), sizeof(FPathTracingLight), FMath::Max(LightCount, 1u), Lights, DataSize)));
+		PassParameters->SceneLightCount = LightCount;
 	}
 
 	if (IESLightProfilesMap.Num() > 0)
@@ -375,8 +385,8 @@ class FPathTracingCompositorPS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, RadianceTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER(unsigned, Iteration)
-		SHADER_PARAMETER(unsigned, MaxSamples)
+		SHADER_PARAMETER(uint32, Iteration)
+		SHADER_PARAMETER(uint32, MaxSamples)
 		SHADER_PARAMETER(int, ProgressDisplayEnabled)
 
 		RENDER_TARGET_BINDING_SLOTS()
@@ -496,10 +506,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		{
 			// upload sky/lights data
 			FSkyLightData SkyLightData;
-			FPathTracingLightData LightData;
-			SetLightParameters(GraphBuilder, PassParameters, LightData, SkyLightData, Scene, View, UseLightProfiles);
+			SetLightParameters(GraphBuilder, PassParameters, SkyLightData, Scene, View, UseLightProfiles);
 			PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleFrame);
-			PassParameters->SceneLightsData = CreateUniformBufferImmediate(LightData, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		}
 		PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);

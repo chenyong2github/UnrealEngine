@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*================================================================================================
-	RayTracingDefinitions.ush: used in ray tracing shaders and C++ code to define common constants
+	RayTracingDefinitions.h: used in ray tracing shaders and C++ code to define common constants
 	!!! Changing this file requires recompilation of the engine !!!
 =================================================================================================*/
 
@@ -35,7 +35,7 @@
 #define RAY_TRACING_MAX_ALLOWED_ATTRIBUTE_SIZE  8   // Sizeof 2 floats (barycentrics)
 #define RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE    64  // Our maximum allowed payload size (sizeof FPackedMaterialClosestHitPayload)
 
-// Constants for the 'Flags' field of FPathTracingLightData
+// Constants for the 'Flags' field of FPathTracingLight
 #define PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK				(7 << 0)	// Which lighting channel is this light assigned to?
 #define PATHTRACER_FLAG_TRANSMISSION_MASK					(1 << 3)	// Does the light affect the transmission side?
 #define PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK		(1 << 4)	// Does the light have a non-inverse square decay?

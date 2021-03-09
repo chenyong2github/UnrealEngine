@@ -6,6 +6,12 @@ LightCommon.usf: Common utility functions for light sampling
 
 #pragma once
 
+#include "/Engine/Shared/RayTracingTypes.h"
+
+uint SceneLightCount;
+StructuredBuffer<FPathTracingLight> SceneLights;
+
+
 int GetLightId(FMaterialClosestHitPayload RayHitInfo)
 {
 	return -1;
@@ -13,27 +19,27 @@ int GetLightId(FMaterialClosestHitPayload RayHitInfo)
 
 bool IsEnvironmentLight(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_SKY;
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_SKY;
 }
 
 bool IsPointLight(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_POINT;
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_POINT;
 }
 
 bool IsDirectionalLight(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_DIRECTIONAL;
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_DIRECTIONAL;
 }
 
 bool IsRectLight(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_RECT;
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_RECT;
 }
 
 bool IsSpotLight(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_SPOT;
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_TYPE_MASK) == PATHTRACING_LIGHT_SPOT;
 }
 
 // A light is a physical light if it can be intersected by a ray.
@@ -54,72 +60,72 @@ float3 GetLightUV(int LightId, RayDesc Ray, FMaterialClosestHitPayload RayHitInf
 
 float3 GetPosition(int LightId)
 {
-	return SceneLightsData.Position[LightId];
+	return SceneLights[LightId].Position;
 }
 
 float3 GetNormal(int LightId)
 {
-	return SceneLightsData.Normal[LightId];
+	return SceneLights[LightId].Normal;
 }
 
 float3 GetdPdu(int LightId)
 {
-	return SceneLightsData.dPdu[LightId];
+	return SceneLights[LightId].dPdu;
 }
 
 float3 GetdPdv(int LightId)
 {
-	return SceneLightsData.dPdv[LightId];
+	return SceneLights[LightId].dPdv;
 }
 
 float GetWidth(int LightId)
 {
-	return SceneLightsData.Dimensions[LightId].x;
+	return SceneLights[LightId].Dimensions.x;
 }
 
 float GetHeight(int LightId)
 {
-	return SceneLightsData.Dimensions[LightId].y;
+	return SceneLights[LightId].Dimensions.y;
 }
 
 float2 GetRectSize(int LightId)
 {
-	return SceneLightsData.Dimensions[LightId].xy;
+	return SceneLights[LightId].Dimensions.xy;
 }
 
 float GetDepth(int LightId)
 {
-	return SceneLightsData.Dimensions[LightId].z;
+	return SceneLights[LightId].Dimensions.z;
 }
 
 float2 GetCosConeAngles(int LightId)
 {
-	return SceneLightsData.Dimensions[LightId].xy;
+	return SceneLights[LightId].Dimensions.xy;
 }
 
 float3 GetColor(int LightId)
 {
-	return SceneLightsData.Color[LightId];
+	return SceneLights[LightId].Color;
 }
 
 float GetRadius(int LightId)
 {
-	return SceneLightsData.Dimensions[LightId].z;
+	return SceneLights[LightId].Dimensions.z;
 }
 
 float GetAttenuation(int LightId)
 {
-	return SceneLightsData.Attenuation[LightId];
+	return SceneLights[LightId].Attenuation;
 }
 
 float GetRectLightBarnCosAngle(int LightId)
 {
-	return SceneLightsData.RectLightBarnCosAngle[LightId];
+	return SceneLights[LightId].RectLightBarnCosAngle;
 }
 
 float GetRectLightBarnLength(int LightId)
 {
-	return SceneLightsData.RectLightBarnLength[LightId];
+	return SceneLights[LightId].RectLightBarnLength;
 }
 
 #ifndef USE_ATTENUATION_TERM
@@ -133,7 +139,7 @@ float ComputeAttenuationFalloff(float DistanceSquared, int LightId)
 	// #dxr_todo: UE-72508: encapsulate this function in a shared space
 	float InvAttenuationRadius = GetAttenuation(LightId);
 	float NormalizeDistanceSquared = DistanceSquared * Square(InvAttenuationRadius);
-	if ((SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK) == 0)
+	if ((SceneLights[LightId].Flags & PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK) == 0)
 	{
 		return Square(saturate(1.0 - Square(NormalizeDistanceSquared)));
 	}
@@ -141,7 +147,7 @@ float ComputeAttenuationFalloff(float DistanceSquared, int LightId)
 	{
 		// roughly cancel out "native" square distance falloff before applying exponent based falloff function
         // this appears to match the behavior of the deferred lighting passes
-		float FalloffExponent = SceneLightsData.FalloffExponent[LightId];
+		float FalloffExponent = SceneLights[LightId].FalloffExponent;
 		return DistanceSquared * pow(1.0 - saturate(NormalizeDistanceSquared), FalloffExponent);
 	}
 #else
@@ -163,7 +169,7 @@ float ComputeIESAttenuation(int LightId, float3 WorldPosition)
 {
 	float Result = 1.f;
 #if USE_IES_TERM
-	if (SceneLightsData.IESTextureSlice[LightId] >= 0)
+	if (SceneLights[LightId].IESTextureSlice >= 0)
 	{
 		float3 LightDirection = normalize(GetPosition(LightId) - WorldPosition);
 
@@ -175,7 +181,7 @@ float ComputeIESAttenuation(int LightId, float3 WorldPosition)
 		float dv = dot(LightDirection, GetdPdv(LightId));
 		float NormTangentAngle = atan2(dv, du) / (PI * 2.f) + 0.5f;
 
-		const float3 UVW = float3(NormAngle, NormTangentAngle, SceneLightsData.IESTextureSlice[LightId]);
+		const float3 UVW = float3(NormAngle, NormTangentAngle, SceneLights[LightId].IESTextureSlice);
 		Result = IESTexture.SampleLevel(IESTextureSampler, UVW, 0);
 	}
 #endif
@@ -184,15 +190,15 @@ float ComputeIESAttenuation(int LightId, float3 WorldPosition)
 
 bool HasTransmission(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_TRANSMISSION_MASK) != 0;
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_TRANSMISSION_MASK) != 0;
 }
 
 uint GetLightingChannelMask(int LightId)
 {
-	return SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+	return SceneLights[LightId].Flags & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 }
 
 bool IsStationary(int LightId)
 {
-	return (SceneLightsData.Flags[LightId] & PATHTRACER_FLAG_STATIONARY_MASK) != 0;
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_STATIONARY_MASK) != 0;
 }

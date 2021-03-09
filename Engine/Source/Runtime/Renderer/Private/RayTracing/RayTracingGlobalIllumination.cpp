@@ -23,6 +23,7 @@
 #include "SceneTextureParameters.h"
 #include "RayTracingDefinitions.h"
 #include "RayTracingDeferredMaterials.h"
+#include "RayTracingTypes.h"
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIllumination(
 	TEXT("r.RayTracing.GlobalIllumination"),
@@ -245,10 +246,10 @@ DECLARE_GPU_STAT_NAMED(RayTracingGICreateGatherPoints, TEXT("Ray Tracing GI: Cre
 
 RENDERER_API void SetupLightParameters(
 	const FScene& Scene,
-	const FViewInfo& View,
-	FPathTracingLightData* LightParameters)
+	const FViewInfo& View, FRDGBuilder& GraphBuilder, FRDGBufferSRV** OutLightBuffer, uint32* OutLightCount)
 {
-	LightParameters->Count = 0;
+	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM];
+	unsigned LightCount = 0;
 
 	// Get the SkyLight color
 
@@ -261,37 +262,42 @@ RENDERER_API void SetupLightParameters(
 		SkyLightTransmission = SkyLight->bTransmission;
 	}
 
-	// Prepend SkyLight to light buffer
-	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
-	uint32 SkyLightIndex = 0;
-	LightParameters->Color[SkyLightIndex] = SkyLightColor;
-	LightParameters->Flags[SkyLightIndex] = SkyLightTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
-	// SkyLight does not have a LightingChannelMask
-	LightParameters->Flags[SkyLightIndex] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-	LightParameters->Flags[SkyLightIndex] |= PATHTRACING_LIGHT_SKY;
-	
-	LightParameters->Count++;
+	// Prepend SkyLight to light buffer (if it is active)
+	{
+		FPathTracingLight& DestLight = Lights[LightCount];
 
+		DestLight.Color = SkyLightColor;
+		DestLight.Flags = SkyLightTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		// SkyLight does not have a LightingChannelMask
+		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
+
+		LightCount++;
+	}
+
+	
 	uint32 MaxLightCount = FMath::Min(CVarRayTracingGlobalIlluminationMaxLightCount.GetValueOnRenderThread(), RAY_TRACING_LIGHT_COUNT_MAXIMUM);
 	for (auto Light : Scene.Lights)
 	{
-		if (LightParameters->Count >= MaxLightCount) break;
+		if (LightCount >= MaxLightCount) break;
 
 		if (Light.LightSceneInfo->Proxy->HasStaticLighting() && Light.LightSceneInfo->IsPrecomputedLightingValid()) continue;
 		if (!Light.LightSceneInfo->Proxy->AffectGlobalIllumination()) continue;
+
+		FPathTracingLight& DestLight = Lights[LightCount]; // don't increment LightCount yet -- we might still skip this light
 
 		FLightShaderParameters LightShaderParameters;
 		Light.LightSceneInfo->Proxy->GetLightShaderParameters(LightShaderParameters);
 
 		uint32 Transmission = Light.LightSceneInfo->Proxy->Transmission();
 		uint8 LightingChannelMask = Light.LightSceneInfo->Proxy->GetLightingChannelMask();
-		LightParameters->Flags[LightParameters->Count]  = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
-		LightParameters->Flags[LightParameters->Count] |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-		LightParameters->Flags[LightParameters->Count] |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+		DestLight.Flags  = Transmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		DestLight.Flags |= LightingChannelMask & PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+		DestLight.Flags |= Light.LightSceneInfo->Proxy->IsInverseSquared() ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
 
-		LightParameters->FalloffExponent[LightParameters->Count] = LightShaderParameters.FalloffExponent;
-		LightParameters->Attenuation[LightParameters->Count] = LightShaderParameters.InvRadius;
-		LightParameters->IESTextureSlice[LightParameters->Count] = -1; // not used by this path at the moment
+		DestLight.FalloffExponent = LightShaderParameters.FalloffExponent;
+		DestLight.Attenuation = LightShaderParameters.InvRadius;
+		DestLight.IESTextureSlice = -1; // not used by this path at the moment
 
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
 		switch (LightComponentType)
@@ -300,24 +306,24 @@ RENDERER_API void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationDirectionalLight.GetValueOnRenderThread() == 0) continue;
 
-			LightParameters->Normal[LightParameters->Count] = LightShaderParameters.Direction;
-			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
-			LightParameters->Flags[LightParameters->Count] |= PATHTRACING_LIGHT_DIRECTIONAL;
+			DestLight.Normal = LightShaderParameters.Direction;
+			DestLight.Color = LightShaderParameters.Color;
+			DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
 			break;
 		}
 		case LightType_Rect:
 		{
 			if (CVarRayTracingGlobalIlluminationRectLight.GetValueOnRenderThread() == 0) continue;
 
-			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
-			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
-			LightParameters->dPdu[LightParameters->Count] = FVector::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
-			LightParameters->dPdv[LightParameters->Count] = LightShaderParameters.Tangent;
-			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
-			LightParameters->Dimensions[LightParameters->Count] = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
-			LightParameters->RectLightBarnCosAngle[LightParameters->Count] = LightShaderParameters.RectLightBarnCosAngle;
-			LightParameters->RectLightBarnLength[LightParameters->Count] = LightShaderParameters.RectLightBarnLength;
-			LightParameters->Flags[LightParameters->Count] |= PATHTRACING_LIGHT_RECT;
+			DestLight.Position = LightShaderParameters.Position;
+			DestLight.Normal = -LightShaderParameters.Direction;
+			DestLight.dPdu = FVector::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
+			DestLight.dPdv = LightShaderParameters.Tangent;
+			DestLight.Color = LightShaderParameters.Color;
+			DestLight.Dimensions = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
+			DestLight.RectLightBarnCosAngle = LightShaderParameters.RectLightBarnCosAngle;
+			DestLight.RectLightBarnLength = LightShaderParameters.RectLightBarnLength;
+			DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 			break;
 		}
 		case LightType_Point:
@@ -325,31 +331,40 @@ RENDERER_API void SetupLightParameters(
 		{
 			if (CVarRayTracingGlobalIlluminationPointLight.GetValueOnRenderThread() == 0) continue;
 
-			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
+			DestLight.Position = LightShaderParameters.Position;
 			// #dxr_todo: UE-72556 define these differences from Lit..
-			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
+			DestLight.Color = LightShaderParameters.Color;
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
-			LightParameters->Dimensions[LightParameters->Count] = FVector(0.0, 0.0, SourceRadius);
-			LightParameters->Flags[LightParameters->Count] |= PATHTRACING_LIGHT_POINT;
+			DestLight.Dimensions = FVector(0.0, 0.0, SourceRadius);
+			DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 			break;
 		}
 		case LightType_Spot:
 		{
 			if (CVarRayTracingGlobalIlluminationSpotLight.GetValueOnRenderThread() == 0) continue;
 
-			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
-			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
+			DestLight.Position = LightShaderParameters.Position;
+			DestLight.Normal = -LightShaderParameters.Direction;
 			// #dxr_todo: UE-72556 define these differences from Lit..
-			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
+			DestLight.Color = LightShaderParameters.Color;
 			float SourceRadius = 0.0; // LightShaderParameters.SourceRadius causes too much noise for little pay off at this time
-			LightParameters->Dimensions[LightParameters->Count] = FVector(LightShaderParameters.SpotAngles, SourceRadius);
-			LightParameters->Flags[LightParameters->Count] |= PATHTRACING_LIGHT_SPOT;
+			DestLight.Dimensions = FVector(LightShaderParameters.SpotAngles, SourceRadius);
+			DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
 			break;
 		}
 		};
 
-		LightParameters->Color[LightParameters->Count] *= Light.LightSceneInfo->Proxy->GetIndirectLightingScale();
-		LightParameters->Count++;
+		DestLight.Color *= Light.LightSceneInfo->Proxy->GetIndirectLightingScale();
+
+		// we definitely added the light if we reach this point
+		LightCount++;
+	}
+
+	{
+		// Upload the buffer of lights to the GPU (send at least one)
+		size_t DataSize = sizeof(FPathTracingLight) * FMath::Max(LightCount, 1u);
+		*OutLightBuffer = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("RTGILightsBuffer"), sizeof(FPathTracingLight), FMath::Max(LightCount, 1u), Lights, DataSize)));
+		*OutLightCount = LightCount;
 	}
 }
 
@@ -437,7 +452,8 @@ class FGlobalIlluminationRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RWGlobalIlluminationUAV)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float2>, RWGlobalIlluminationRayDistanceUAV)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
+		SHADER_PARAMETER(uint32, SceneLightCount)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
@@ -496,7 +512,8 @@ class FRayTracingGlobalIlluminationCreateGatherPointsRGS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		// Light data
-		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
+		SHADER_PARAMETER(uint32, SceneLightCount)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
 
 		// Shading data
@@ -562,7 +579,8 @@ class FRayTracingGlobalIlluminationCreateGatherPointsTraceRGS : public FGlobalSh
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		// Light data
-		SHADER_PARAMETER_STRUCT_REF(FPathTracingLightData, LightParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
+		SHADER_PARAMETER(uint32, SceneLightCount)
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLight)
 
 		// Shading data
@@ -812,7 +830,8 @@ void CopyGatherPassParameters(
 	NewParameters->TLAS = PassParameters.TLAS;
 	NewParameters->ViewUniformBuffer = PassParameters.ViewUniformBuffer;
 
-	NewParameters->LightParameters = PassParameters.LightParameters;
+	NewParameters->SceneLights = PassParameters.SceneLights;
+	NewParameters->SceneLightCount = PassParameters.SceneLightCount;
 	NewParameters->SkyLight = PassParameters.SkyLight;
 
 	NewParameters->SceneTextures = PassParameters.SceneTextures;
@@ -852,7 +871,8 @@ void CopyGatherPassParameters(
 	NewParameters->TLAS = PassParameters.TLAS;
 	NewParameters->ViewUniformBuffer = PassParameters.ViewUniformBuffer;
 
-	NewParameters->LightParameters = PassParameters.LightParameters;
+	NewParameters->SceneLightCount = PassParameters.SceneLightCount;
+	NewParameters->SceneLights = PassParameters.SceneLights;
 	NewParameters->SkyLight = PassParameters.SkyLight;
 
 	NewParameters->SceneTextures = PassParameters.SceneTextures;
@@ -889,8 +909,6 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	int32 GatherFilterWidth = FMath::Max(CVarRayTracingGlobalIlluminationFinalGatherFilterWidth.GetValueOnRenderThread(), 0);
 	GatherFilterWidth = GatherFilterWidth * 2 + 1;
 
-	FPathTracingLightData LightParameters;
-	SetupLightParameters(*Scene, View, &LightParameters);
 
 	float MaxShadowDistance = 1.0e27;
 	if (GRayTracingGlobalIlluminationMaxShadowDistance > 0.0)
@@ -929,7 +947,7 @@ void FDeferredShadingSceneRenderer::RayTracingGlobalIlluminationCreateGatherPoin
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 	// Light data
-	PassParameters->LightParameters = CreateUniformBufferImmediate(LightParameters, EUniformBufferUsage::UniformBuffer_SingleFrame);
+	SetupLightParameters(*Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
 	PassParameters->SceneTextures = SceneTextures;
 	PassParameters->SkyLight = CreateUniformBufferImmediate(SkyLightParameters, EUniformBufferUsage::UniformBuffer_SingleFrame);
 
@@ -1217,9 +1235,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 
 	int32 RayTracingGISamplesPerPixel = GetRayTracingGlobalIlluminationSamplesPerPixel(View);
 
-	FPathTracingLightData LightParameters;
-	SetupLightParameters(*Scene, View, &LightParameters);
-
 	float MaxShadowDistance = 1.0e27;
 	if (GRayTracingGlobalIlluminationMaxShadowDistance > 0.0)
 	{
@@ -1255,7 +1270,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingGlobalIlluminationBruteForce
 	PassParameters->NextEventEstimationSamples = GRayTracingGlobalIlluminationNextEventEstimationSamples;
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
-	PassParameters->LightParameters = CreateUniformBufferImmediate(LightParameters, EUniformBufferUsage::UniformBuffer_SingleDraw);
+	SetupLightParameters(*Scene, View, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
 	PassParameters->SceneTextures = SceneTextures;
 	PassParameters->SkyLight = CreateUniformBufferImmediate(SkyLightParameters, EUniformBufferUsage::UniformBuffer_SingleDraw);
 

@@ -164,119 +164,121 @@ struct FGPUBatchedTileRequests
 };
 
 #if RHI_RAYTRACING
-FPathTracingLightData SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState& LightScene)
+void SetupPathTracingLightParameters(const GPULightmass::FLightSceneRenderState& LightScene, FRDGBuilder& GraphBuilder, FRDGBufferSRV** OutLightBuffer, unsigned* OutLightCount)
 {
-	FPathTracingLightData LightParameters;
+	const uint32 MaxLightCount = RAY_TRACING_LIGHT_COUNT_MAXIMUM;
+	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM] = {};
 
-	FMemory::Memzero(LightParameters);
+	unsigned LightCount = 0;
 
-	LightParameters.Count = 0;
-
-	// Prepend SkyLight to light buffer
-	// WARNING: Until ray payload encodes Light data buffer, the execution depends on this ordering!
-	uint32 SkyLightIndex = 0;
-	LightParameters.Color[SkyLightIndex] = LightScene.SkyLight.IsSet() ? FVector(LightScene.SkyLight->Color) : FVector(0);
-	LightParameters.Flags[SkyLightIndex] = PATHTRACER_FLAG_TRANSMISSION_MASK;
-	LightParameters.Flags[SkyLightIndex] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-	bool SkyLightIsStationary = LightScene.SkyLight.IsSet() && LightScene.SkyLight->bStationary;
-	LightParameters.Flags[SkyLightIndex] |= SkyLightIsStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-	LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_SKY;
-	LightParameters.Count++;
-
-	uint32 MaxLightCount = RAY_TRACING_LIGHT_COUNT_MAXIMUM;
+	if (LightScene.SkyLight.IsSet())
+	{
+		FPathTracingLight& DestLight = Lights[LightCount++];
+		DestLight.Color = FVector(LightScene.SkyLight->Color);
+		DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
+		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+		bool SkyLightIsStationary = LightScene.SkyLight->bStationary;
+		DestLight.Flags |= SkyLightIsStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
+	}
 
 	for (auto Light : LightScene.DirectionalLights.Elements)
 	{
-		if (LightParameters.Count < MaxLightCount)
+		if (LightCount < MaxLightCount)
 		{
-			LightParameters.Normal[LightParameters.Count] = -Light.Direction;
-			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
-			LightParameters.Dimensions[LightParameters.Count] = FVector(0.0f, 0.0f, FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceAngle)));
-			LightParameters.Attenuation[LightParameters.Count] = 1.0;
-			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
+			FPathTracingLight& DestLight = Lights[LightCount++];
 
-			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_DIRECTIONAL;
+			DestLight.Normal = -Light.Direction;
+			DestLight.Color = FVector(Light.Color);
+			DestLight.Dimensions = FVector(0.0f, 0.0f, FMath::Sin(0.5f * FMath::DegreesToRadians(Light.LightSourceAngle)));
+			DestLight.Attenuation = 1.0;
+			DestLight.IESTextureSlice = -1;
 
-			LightParameters.Count++;
+			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			DestLight.Flags |= PATHTRACING_LIGHT_DIRECTIONAL;
 		}
 	}
 
 	for (auto Light : LightScene.PointLights.Elements)
 	{
-		if (LightParameters.Count < MaxLightCount)
+		if (LightCount < MaxLightCount)
 		{
-			LightParameters.Position[LightParameters.Count] = Light.Position;
-			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
-			LightParameters.Dimensions[LightParameters.Count] = FVector(0.0, 0.0, Light.SourceRadius);
-			LightParameters.Attenuation[LightParameters.Count] = 1.0f / Light.AttenuationRadius;
-			LightParameters.FalloffExponent[LightParameters.Count] = Light.FalloffExponent;
-			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
+			FPathTracingLight& DestLight = Lights[LightCount++];
 
-			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			LightParameters.Flags[LightParameters.Count] |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
-			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_POINT;
+			DestLight.Position = Light.Position;
+			DestLight.Color = FVector(Light.Color);
+			DestLight.Dimensions = FVector(0.0, 0.0, Light.SourceRadius);
+			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
+			DestLight.FalloffExponent = Light.FalloffExponent;
+			DestLight.IESTextureSlice = -1;
 
-			LightParameters.Count++;
+			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			DestLight.Flags |= PATHTRACING_LIGHT_POINT;
 		}
 	}
 
 	for (auto Light : LightScene.SpotLights.Elements)
 	{
-		if (LightParameters.Count < MaxLightCount)
+		if (LightCount < MaxLightCount)
 		{
-			LightParameters.Position[LightParameters.Count] = Light.Position;
-			LightParameters.Normal[LightParameters.Count] = Light.Direction;
-			LightParameters.Color[LightParameters.Count] = FVector(Light.Color);
-			LightParameters.Dimensions[LightParameters.Count] = FVector(Light.SpotAngles, Light.SourceRadius);
-			LightParameters.Attenuation[LightParameters.Count] = 1.0f / Light.AttenuationRadius;
-			LightParameters.FalloffExponent[LightParameters.Count] = Light.FalloffExponent;
-			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
+			FPathTracingLight& DestLight = Lights[LightCount++];
 
-			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			LightParameters.Flags[LightParameters.Count] |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
-			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_SPOT;
+			DestLight.Position = Light.Position;
+			DestLight.Normal = Light.Direction;
+			DestLight.Color = FVector(Light.Color);
+			DestLight.Dimensions = FVector(Light.SpotAngles, Light.SourceRadius);
+			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
+			DestLight.FalloffExponent = Light.FalloffExponent;
+			DestLight.IESTextureSlice = -1;
 
-			LightParameters.Count++;
+			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= Light.IsInverseSquared ? 0 : PATHTRACER_FLAG_NON_INVERSE_SQUARE_FALLOFF_MASK;
+			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			DestLight.Flags |= PATHTRACING_LIGHT_SPOT;
 		}
 	}
 
 	for (auto Light : LightScene.RectLights.Elements)
 	{
-		if (LightParameters.Count < MaxLightCount)
+		if (LightCount < MaxLightCount)
 		{
-			LightParameters.Position[LightParameters.Count] = Light.Position;
-			LightParameters.Normal[LightParameters.Count] = Light.Direction;
-			LightParameters.dPdu[LightParameters.Count] = FVector::CrossProduct(Light.Tangent, -Light.Direction);
-			LightParameters.dPdv[LightParameters.Count] = Light.Tangent;
+			FPathTracingLight& DestLight = Lights[LightCount++];
+
+			DestLight.Position = Light.Position;
+			DestLight.Normal = Light.Direction;
+			DestLight.dPdu = FVector::CrossProduct(Light.Tangent, -Light.Direction);
+			DestLight.dPdv = Light.Tangent;
 
 			FLinearColor LightColor = Light.Color;
 			LightColor /= 0.5f * Light.SourceWidth * Light.SourceHeight;
-			LightParameters.Color[LightParameters.Count] = FVector(LightColor);
+			DestLight.Color = FVector(LightColor);
 
-			LightParameters.Dimensions[LightParameters.Count] = FVector(Light.SourceWidth, Light.SourceHeight, 0.0f);
-			LightParameters.Attenuation[LightParameters.Count] = 1.0f / Light.AttenuationRadius;
-			LightParameters.RectLightBarnCosAngle[LightParameters.Count] = FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle));
-			LightParameters.RectLightBarnLength[LightParameters.Count] = Light.BarnDoorLength;
+			DestLight.Dimensions = FVector(Light.SourceWidth, Light.SourceHeight, 0.0f);
+			DestLight.Attenuation = 1.0f / Light.AttenuationRadius;
+			DestLight.RectLightBarnCosAngle = FMath::Cos(FMath::DegreesToRadians(Light.BarnDoorAngle));
+			DestLight.RectLightBarnLength = Light.BarnDoorLength;
 
-			LightParameters.IESTextureSlice[LightParameters.Count] = -1;
+			DestLight.IESTextureSlice = -1;
 
-			LightParameters.Flags[LightParameters.Count] = PATHTRACER_FLAG_TRANSMISSION_MASK;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
-			LightParameters.Flags[LightParameters.Count] |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
-			LightParameters.Flags[LightParameters.Count] |= PATHTRACING_LIGHT_RECT;
-
-			LightParameters.Count++;
+			DestLight.Flags = PATHTRACER_FLAG_TRANSMISSION_MASK;
+			DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
+			DestLight.Flags |= Light.bStationary ? PATHTRACER_FLAG_STATIONARY_MASK : 0;
+			DestLight.Flags |= PATHTRACING_LIGHT_RECT;
 		}
 	}
 
-	return LightParameters;
+	{
+		// Upload the buffer of lights to the GPU
+		size_t DataSize = sizeof(FPathTracingLight) * FMath::Max(LightCount, 1u);
+		*OutLightBuffer = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(CreateStructuredBuffer(GraphBuilder, TEXT("PathTracingLightsBuffer"), sizeof(FPathTracingLight), FMath::Max(LightCount, 1u), Lights, DataSize)));
+		*OutLightCount = LightCount;
+	}
 }
 
 FSkyLightData SetupSkyLightParameters(const GPULightmass::FLightSceneRenderState& LightScene)
@@ -1801,7 +1803,6 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 								}
 
 								// These two buffers must have lifetime extended beyond GraphBuilder.Execute()
-								TUniformBufferRef<FPathTracingLightData> LightDataUniformBuffer;
 								TUniformBufferRef<FSkyLightData> SkyLightDataUniformBuffer;
 
 								FIntPoint RayTracingResolution;
@@ -1835,8 +1836,8 @@ void FLightmapRenderer::Finalize(FRHICommandListImmediate& RHICmdList)
 										PassParameters->IrradianceCachingParameters = Scene->IrradianceCache->IrradianceCachingParametersUniformBuffer;
 
 										{
-											LightDataUniformBuffer = CreateUniformBufferImmediate(SetupPathTracingLightParameters(Scene->LightSceneRenderState), EUniformBufferUsage::UniformBuffer_SingleFrame);
-											PassParameters->LightParameters = LightDataUniformBuffer;
+											
+											SetupPathTracingLightParameters(Scene->LightSceneRenderState, GraphBuilder, &PassParameters->SceneLights, &PassParameters->SceneLightCount);
 										}
 
 										{
@@ -2923,7 +2924,7 @@ void FLightmapRenderer::BackgroundTick()
 
 		if (Mip0WorkDoneLastFrame < NumWorkPerFrame)
 		{
-			int32 PoolSize = FMath::CeilToInt(FMath::Sqrt(NumWorkPerFrame * 3));
+			int32 PoolSize = FMath::CeilToInt(FMath::Sqrt(static_cast<float>(NumWorkPerFrame * 3.f)));
 
 			FIntPoint TextureSize(PoolSize * GPreviewLightmapPhysicalTileSize, PoolSize * GPreviewLightmapPhysicalTileSize);
 
