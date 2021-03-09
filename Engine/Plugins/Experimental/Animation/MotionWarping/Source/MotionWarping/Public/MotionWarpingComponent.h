@@ -31,7 +31,7 @@ struct FMotionWarpingWindowData
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
-	TObjectPtr<UAnimNotifyState_MotionWarping> AnimNotify;
+	TObjectPtr<UAnimNotifyState_MotionWarping> AnimNotify = nullptr;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Defaults")
 	float StartTime = 0.f;
