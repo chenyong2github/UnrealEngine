@@ -46,7 +46,7 @@ bool FOnlineIdentityOculus::Login(int32 LocalUserNum, const FOnlineAccountCreden
 	}
 	else
 	{
-		TSharedPtr<const FUniqueNetId>* UserId = UserIds.Find(LocalUserNum);
+		FUniqueNetIdPtr* UserId = UserIds.Find(LocalUserNum);
 		if (UserId == nullptr)
 		{
 			auto OculusId = ovr_GetLoggedInUserID();
@@ -57,7 +57,7 @@ bool FOnlineIdentityOculus::Login(int32 LocalUserNum, const FOnlineAccountCreden
 			else
 			{
 				// Immediately add the Oculus ID to our cache list
-				UserIds.Add(LocalUserNum, MakeShareable(new FUniqueNetIdOculus(OculusId)));
+				UserIds.Add(LocalUserNum, FUniqueNetIdOculus::Create(OculusId));
 				OculusSubsystem.AddRequestDelegate(
 					ovr_User_GetLoggedInUser(),
 					FOculusMessageOnCompleteDelegate::CreateRaw(this, &FOnlineIdentityOculus::OnLoginComplete, LocalUserNum));
@@ -73,7 +73,7 @@ bool FOnlineIdentityOculus::Login(int32 LocalUserNum, const FOnlineAccountCreden
 	if (!ErrorStr.IsEmpty())
 	{
 		UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Failed Oculus login. %s"), *ErrorStr);
-		TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdOculus(), ErrorStr);
+		TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdOculus::EmptyId(), ErrorStr);
 	}
 
 	return false;
@@ -94,10 +94,10 @@ void FOnlineIdentityOculus::OnLoginComplete(ovrMessageHandle Message, bool bIsEr
 		auto Id = ovr_User_GetID(User);
 		FString Name(ovr_User_GetOculusID(User));
 
-		TSharedPtr<const FUniqueNetId>* NewUserId = UserIds.Find(LocalUserNum);
-		if (NewUserId == nullptr || !NewUserId->IsValid() || static_cast<const FUniqueNetIdOculus>(*NewUserId->Get()).GetID() != Id)
+		FUniqueNetIdPtr* NewUserId = UserIds.Find(LocalUserNum);
+		if (NewUserId == nullptr || !NewUserId->IsValid() || FUniqueNetIdOculus::Cast(**NewUserId).GetID() != Id)
 		{
-			UserIds.Add(LocalUserNum, MakeShareable(new FUniqueNetIdOculus(Id)));
+			UserIds.Add(LocalUserNum, FUniqueNetIdOculus::Create(Id));
 			NewUserId = UserIds.Find(LocalUserNum);
 		}
 		
@@ -110,7 +110,7 @@ void FOnlineIdentityOculus::OnLoginComplete(ovrMessageHandle Message, bool bIsEr
 			TSharedRef<FUserOnlineAccountOculus> UserAccountRef(new FUserOnlineAccountOculus(NewUserId->ToSharedRef(), Name));
 
 			// update/add cached entry for user
-			UserAccounts.Add(static_cast<FUniqueNetIdOculus>(*UserAccountRef->GetUserId()), UserAccountRef);
+			UserAccounts.Add(UserAccountRef->GetUserId(), UserAccountRef);
 
 			TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UserAccountRef->GetUserId(), *ErrorStr);
 			TriggerOnLoginStatusChangedDelegates(LocalUserNum, ELoginStatus::NotLoggedIn, ELoginStatus::LoggedIn, *UserAccountRef->GetUserId());
@@ -118,16 +118,16 @@ void FOnlineIdentityOculus::OnLoginComplete(ovrMessageHandle Message, bool bIsEr
 		}
 	}
 
-	TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdOculus(), *ErrorStr);
+	TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdOculus::EmptyId(), *ErrorStr);
 }
 
 bool FOnlineIdentityOculus::Logout(int32 LocalUserNum)
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		// remove cached user account
-		UserAccounts.Remove(FUniqueNetIdOculus(*UserId));
+		UserAccounts.Remove(UserId.ToSharedRef());
 		// remove cached user id
 		UserIds.Remove(LocalUserNum);
 		// not async but should call completion delegate anyway
@@ -155,8 +155,7 @@ TSharedPtr<FUserOnlineAccount> FOnlineIdentityOculus::GetUserAccount(const FUniq
 {
 	TSharedPtr<FUserOnlineAccount> Result;
 
-	FUniqueNetIdOculus OculusUserId(UserId);
-	const TSharedRef<FUserOnlineAccountOculus>* FoundUserAccount = UserAccounts.Find(OculusUserId);
+	const TSharedRef<FUserOnlineAccountOculus>* FoundUserAccount = UserAccounts.Find(UserId.AsShared());
 	if (FoundUserAccount != nullptr)
 	{
 		Result = *FoundUserAccount;
@@ -169,7 +168,7 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityOculus::GetAllUserAccount
 {
 	TArray<TSharedPtr<FUserOnlineAccount> > Result;
 
-	for (TMap<FUniqueNetIdOculus, TSharedRef<FUserOnlineAccountOculus>>::TConstIterator It(UserAccounts); It; ++It)
+	for (TUniqueNetIdMap<TSharedRef<FUserOnlineAccountOculus>>::TConstIterator It(UserAccounts); It; ++It)
 	{
 		Result.Add(It.Value());
 	}
@@ -177,9 +176,9 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityOculus::GetAllUserAccount
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityOculus::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineIdentityOculus::GetUniquePlayerId(int32 LocalUserNum) const
 {
-	const TSharedPtr<const FUniqueNetId>* FoundId = UserIds.Find(LocalUserNum);
+	const FUniqueNetIdPtr* FoundId = UserIds.Find(LocalUserNum);
 	if (FoundId != nullptr)
 	{
 		return *FoundId;
@@ -187,25 +186,25 @@ TSharedPtr<const FUniqueNetId> FOnlineIdentityOculus::GetUniquePlayerId(int32 Lo
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityOculus::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineIdentityOculus::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Bytes && Size == sizeof(ovrID))
 	{
 		uint64* RawUniqueId = (uint64*)Bytes;
 		ovrID OculusId(*RawUniqueId);
-		return MakeShareable(new FUniqueNetIdOculus(OculusId));
+		return FUniqueNetIdOculus::Create(OculusId);
 	}
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityOculus::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineIdentityOculus::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShareable(new FUniqueNetIdOculus(Str));
+	return FUniqueNetIdOculus::Create(Str);
 }
 
 ELoginStatus::Type FOnlineIdentityOculus::GetLoginStatus(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetLoginStatus(*UserId);
@@ -226,7 +225,7 @@ ELoginStatus::Type FOnlineIdentityOculus::GetLoginStatus(const FUniqueNetId& Use
 
 FString FOnlineIdentityOculus::GetPlayerNickname(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UniqueId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UniqueId = GetUniquePlayerId(LocalUserNum);
 	if (UniqueId.IsValid())
 	{
 		return GetPlayerNickname(*UniqueId);
@@ -254,7 +253,7 @@ FString FOnlineIdentityOculus::GetAuthToken(int32 LocalUserNum) const
 void FOnlineIdentityOculus::RevokeAuthToken(const FUniqueNetId& UserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate)
 {
 	UE_LOG_ONLINE_IDENTITY(Display, TEXT("FOnlineIdentityOculus::RevokeAuthToken not implemented"));
-	TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	OculusSubsystem.ExecuteNextTick([UserIdRef, Delegate]()
 	{
 		Delegate.ExecuteIfBound(*UserIdRef, FOnlineError(FString(TEXT("RevokeAuthToken not implemented"))));
@@ -273,7 +272,7 @@ void FOnlineIdentityOculus::GetUserPrivilege(const FUniqueNetId& UserId, EUserPr
 	// Check for entitlement
 	OculusSubsystem.AddRequestDelegate(
 		ovr_Entitlement_GetIsViewerEntitled(),
-		FOculusMessageOnCompleteDelegate::CreateLambda([&UserId, Privilege, Delegate](ovrMessageHandle Message, bool bIsError)
+		FOculusMessageOnCompleteDelegate::CreateLambda([UserId = UserId.AsShared(), Privilege, Delegate](ovrMessageHandle Message, bool bIsError)
 		{
 			uint32 PrivilegeResults = 0;
 
@@ -290,7 +289,7 @@ void FOnlineIdentityOculus::GetUserPrivilege(const FUniqueNetId& UserId, EUserPr
 				UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("User is entitled to app"));
 				PrivilegeResults = static_cast<uint32>(IOnlineIdentity::EPrivilegeResults::NoFailures);
 			}
-			Delegate.ExecuteIfBound(UserId, Privilege, PrivilegeResults);
+			Delegate.ExecuteIfBound(*UserId, Privilege, PrivilegeResults);
 		}));
 }
 

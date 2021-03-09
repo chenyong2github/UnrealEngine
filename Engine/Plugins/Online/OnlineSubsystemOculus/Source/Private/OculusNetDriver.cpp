@@ -96,7 +96,7 @@ bool UOculusNetDriver::InitConnect(FNetworkNotify* InNotify, const FURL& Connect
 {
 	UE_LOG(LogNet, Verbose, TEXT("Connecting to host: %s"), *ConnectURL.ToString(true));
 
-	FInternetAddrOculus OculusAddr(ConnectURL);
+	FInternetAddrOculus OculusAddr = FInternetAddrOculus::FromUrl(ConnectURL);
 	if (!OculusAddr.IsValid())
 	{
 		UE_LOG(LogNet, Verbose, TEXT("Init as IPNetDriver connect"));
@@ -293,7 +293,7 @@ void UOculusNetDriver::LowLevelSend(TSharedPtr<const FInternetAddr> Address, voi
 	{
 		return UIpNetDriver::LowLevelSend(Address, Data, CountBits, Traits);
 	}
-	FInternetAddrOculus OculusAddr(FURL(nullptr, *Address->ToString(false), ETravelType::TRAVEL_Absolute));
+	FInternetAddrOculus OculusAddr = FInternetAddrOculus::FromUrl(FURL(nullptr, *Address->ToString(false), ETravelType::TRAVEL_Absolute));
 	ovrID PeerID = OculusAddr.GetID();
 	if (ovr_Net_IsConnected(PeerID))
 	{

@@ -125,9 +125,9 @@ private:
 	bool bIsLocalPlayerMuted;
 
 	/** Mapping of UniqueIds to the incoming voice data and their audio component */
-	typedef TMap<class FUniqueNetIdOculus, FRemoteTalkerDataOculus> FRemoteTalkerData;
+	typedef TUniqueNetIdMap<FRemoteTalkerDataOculus> FRemoteTalkerDataMap;
 	/** Data from network playing on an audio component. */
-	FRemoteTalkerData RemoteTalkerBuffers;
+	FRemoteTalkerDataMap RemoteTalkerBuffers;
 	/** Voice decompression buffer, shared by all talkers */
 	TArray<int16_t> DecompressedVoiceBuffer;
 

@@ -93,7 +93,7 @@ void FOnlineAchievementsOculus::WriteAchievements(const FUniqueNetId& PlayerId, 
 	}
 
 	WriteObject->WriteState = EOnlineAsyncTaskState::InProgress;
-	TSharedRef<FOnlineMessageMultiTaskOculusWriteAchievements> MultiTask = FOnlineMessageMultiTaskOculusWriteAchievements::Create(OculusSubsystem, static_cast<FUniqueNetIdOculus>(PlayerId), WriteObject, Delegate);
+	TSharedRef<FOnlineMessageMultiTaskOculusWriteAchievements> MultiTask = FOnlineMessageMultiTaskOculusWriteAchievements::Create(OculusSubsystem, FUniqueNetIdOculus::Cast(PlayerId), WriteObject, Delegate);
 
 	// treat each achievement as unlocked
 	for (FStatPropertyArray::TConstIterator It(WriteObject->Properties); It; ++It)
@@ -158,7 +158,7 @@ void FOnlineAchievementsOculus::QueryAchievements(const FUniqueNetId& PlayerId, 
 		return;
 	}
 
-	auto OculusPlayerId = static_cast<FUniqueNetIdOculus>(PlayerId);
+	const FUniqueNetIdOculus& OculusPlayerId = FUniqueNetIdOculus::Cast(PlayerId);
 	OculusSubsystem.AddRequestDelegate(
 		ovr_Achievements_GetAllProgress(),
 		FOculusMessageOnCompleteDelegate::CreateLambda([this, OculusPlayerId, Delegate](ovrMessageHandle Message, bool bIsError)
@@ -209,7 +209,7 @@ void FOnlineAchievementsOculus::QueryAchievements(const FUniqueNetId& PlayerId, 
 
 void FOnlineAchievementsOculus::QueryAchievementDescriptions(const FUniqueNetId& PlayerId, const FOnQueryAchievementsCompleteDelegate& Delegate)
 {
-	auto OculusPlayerId = static_cast<FUniqueNetIdOculus>(PlayerId);
+	const FUniqueNetIdOculus& OculusPlayerId = FUniqueNetIdOculus::Cast(PlayerId);
 	OculusSubsystem.AddRequestDelegate(
 		ovr_Achievements_GetAllDefinitions(),
 		FOculusMessageOnCompleteDelegate::CreateLambda([this, OculusPlayerId, Delegate](ovrMessageHandle Message, bool bIsError)

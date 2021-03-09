@@ -2,6 +2,7 @@
 
 #include "OculusEntitlementCallbackProxy.h"
 #include "OnlineSubsystemOculusPrivate.h"
+#include "OnlineSubsystemOculusTypes.h"
 #include "Online.h"
 
 UOculusEntitlementCallbackProxy::UOculusEntitlementCallbackProxy(const FObjectInitializer& ObjectInitializer)
@@ -22,9 +23,8 @@ void UOculusEntitlementCallbackProxy::Activate()
 
 	if (OculusIdentityInterface.IsValid())
 	{
-		auto Unused = new FUniqueNetIdString("UNUSED", OCULUS_SUBSYSTEM);
 		OculusIdentityInterface->GetUserPrivilege(
-			*Unused,
+			*FUniqueNetIdOculus::EmptyId(),
 			EUserPrivileges::CanPlay,
 			IOnlineIdentity::FOnGetUserPrivilegeCompleteDelegate::CreateUObject(this, &UOculusEntitlementCallbackProxy::OnUserPrivilegeCompleteDelegate)
 		);

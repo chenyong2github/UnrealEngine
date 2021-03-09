@@ -71,7 +71,7 @@ private:
 
 private:
 	/** Helper method to generate requests looping over all the buckets and pages in a bucket*/
-	void RequestEnumeratePagedBuckets(TSharedPtr<const FUniqueNetId> UserId, ovrCloudStorageMetadataArrayHandle previousPage);
+	void RequestEnumeratePagedBuckets(FUniqueNetIdPtr UserId, ovrCloudStorageMetadataArrayHandle previousPage);
 
 	/** caches results from RequestEnumeratePagedBuckets until GetUserFileList is called */
 	TArray<FCloudFileHeader> EnumerateCache;
