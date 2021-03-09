@@ -56,20 +56,20 @@ void FPropertyTextUtilities::PropertyToTextHelper(FString& OutString, const FPro
 	}
 }
 
-void FPropertyTextUtilities::TextToPropertyHelper(const TCHAR* Buffer, const FPropertyNode* InPropertyNode, const FProperty* Property, uint8* ValueAddress, UObject* Object)
+void FPropertyTextUtilities::TextToPropertyHelper(const TCHAR* Buffer, const FPropertyNode* InPropertyNode, const FProperty* Property, uint8* ValueAddress, UObject* Object, EPropertyPortFlags PortFlags)
 {
 	if (InPropertyNode->GetArrayIndex() != INDEX_NONE || Property->ArrayDim == 1)
 	{
-		Property->ImportText(Buffer, ValueAddress, 0, Object);
+		Property->ImportText(Buffer, ValueAddress, PortFlags, Object);
 	}
 	else
 	{
-		FArrayProperty::ImportTextInnerItem(Buffer, Property, ValueAddress, 0, Object);
+		FArrayProperty::ImportTextInnerItem(Buffer, Property, ValueAddress, PortFlags, Object);
 	}
 }
 
-void FPropertyTextUtilities::TextToPropertyHelper(const TCHAR* Buffer, const FPropertyNode* InPropertyNode, const FProperty* Property, const FObjectBaseAddress& ObjectAddress)
+void FPropertyTextUtilities::TextToPropertyHelper(const TCHAR* Buffer, const FPropertyNode* InPropertyNode, const FProperty* Property, const FObjectBaseAddress& ObjectAddress, EPropertyPortFlags PortFlags)
 {
 	uint8* BaseAddress = InPropertyNode ? InPropertyNode->GetValueBaseAddressFromObject(ObjectAddress.GetUObject()) : ObjectAddress.BaseAddress;
-	TextToPropertyHelper(Buffer, InPropertyNode, Property, ObjectAddress.BaseAddress, ObjectAddress.GetUObject());
+	TextToPropertyHelper(Buffer, InPropertyNode, Property, ObjectAddress.BaseAddress, ObjectAddress.GetUObject(), PortFlags);
 }
