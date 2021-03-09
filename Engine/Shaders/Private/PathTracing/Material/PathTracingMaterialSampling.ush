@@ -47,6 +47,8 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:	
 		case SHADINGMODELID_THIN_TRANSLUCENT:
 		case SHADINGMODELID_CLOTH:
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
 		default:
 			return true;
 	}
@@ -55,17 +57,26 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 
 float3 GetMaterialTransparency(FMaterialClosestHitPayload Payload, float3 RayDirection)
 {
-	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	switch (Payload.ShadingModelID)
 	{
-		if (Payload.Ior == 1.0)
+		case SHADINGMODELID_THIN_TRANSLUCENT:
 		{
-			float VoN = dot(RayDirection, Payload.WorldNormal);
-			return (1 - Payload.Opacity) * pow(Payload.CustomData.xyz, 1.0 / abs(VoN));
+			if (Payload.Ior == 1.0)
+			{
+				float VoN = dot(RayDirection, Payload.WorldNormal);
+				return (1 - Payload.Opacity) * pow(Payload.CustomData.xyz, 1.0 / abs(VoN));
+			}
+			else
+			{
+				return 0;
+			}
 		}
-		else
-		{
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
 			return 0;
-		}
+		default:
+			// other shading models support blend modes
+			break;
 	}
 	switch (Payload.BlendingMode)
 	{
@@ -138,6 +149,10 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 		case SHADINGMODELID_CLOTH:
 			Albedo = BrdfWeight * (Payload.DiffuseColor + lerp(Payload.SpecularColor, Payload.CustomData.xyz, Payload.CustomData.w));
 			break;
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
+			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + Payload.CustomData.xyz);
+			break;
 		default:
 			Albedo = BrdfWeight * Payload.BaseColor;
 			break;
@@ -169,6 +184,8 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 		case SHADINGMODELID_DEFAULT_LIT:
 		case SHADINGMODELID_THIN_TRANSLUCENT:
 		case SHADINGMODELID_CLOTH:
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
 			Payload.Roughness = max(Payload.Roughness, PathRoughness);
 			break;
 		default:
@@ -271,6 +288,8 @@ FMaterialSample SampleMaterial(
 			// Nothing to do, material does not scatter light
 			return Result;
 		case SHADINGMODELID_DEFAULT_LIT:
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
 			Result = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
 		case SHADINGMODELID_CLOTH:
@@ -358,6 +377,8 @@ FMaterialEval EvalMaterial(
 		case SHADINGMODELID_UNLIT:
 			break;
 		case SHADINGMODELID_DEFAULT_LIT:
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
 			Result = DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		case SHADINGMODELID_CLOTH:

@@ -116,6 +116,11 @@ bool IsMaterialTransmissive(FMaterialClosestHitPayload HitInfo)
 		   (HitInfo.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && HitInfo.Roughness != 0 && HitInfo.Opacity < 1);
 }
 
+bool IsSubsurfaceMaterial(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.ShadingModelID == SHADINGMODELID_SUBSURFACE || HitInfo.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN;
+}
+
 // Given two lobes that will roughly contribute colors A and B to the total (estimated for example using directional albedo)
 // return the probability of choosing lobe A
 float LobeSelectionProb(float3 A, float3 B)

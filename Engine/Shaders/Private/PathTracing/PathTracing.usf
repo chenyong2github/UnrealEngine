@@ -6,6 +6,8 @@ PathTracingRayGenShader.usf: Reference path tracing
 
 #define PATH_TRACING  
 
+#define RANDSEQ_UNROLL_SOBOL 0 // unrolling sobol sampler doesn't seem to pay off in the path tracer
+
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
 #include "../RectLight.ush"
@@ -90,18 +92,6 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 
 		// Unpack the payload
 		FMaterialClosestHitPayload HitPayload = UnpackRayTracingPayload(PackedPayload, Ray);
-
-
-		// material tweaks to workaround temporary limitations
-		if (HitPayload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
-			HitPayload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
-		{
-			// for now just approximate SSS by moving it into the diffuse color
-			HitPayload.DiffuseColor += HitPayload.CustomData.xyz;
-			HitPayload.DiffuseColor = saturate(HitPayload.DiffuseColor);
-			HitPayload.Opacity = 1; // overwrite radius
-			HitPayload.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-		}
 
 		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
 			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
@@ -216,6 +206,154 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 	return 0;
 }
 
+struct FProbeResult
+{
+	float HitT;
+	float3 WorldNormal;
+
+	bool IsMiss() { return HitT <= 0; }
+};
+
+FProbeResult TraceProbeRay(RayDesc Ray, uint2 PixelCoord)
+{
+	// Trace a short ray to see if we escaped the surface
+	// TODO: figure out a way to only hit the object we started on (or handle blocking geometry)
+	FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+	// Set payload inputs
+	PackedPayload.SetPixelCoord(PixelCoord);
+	PackedPayload.SetIgnoreSkyMaterials();
+	// TODO: payload flag to skip shading (we only care about the normal)
+	const uint RayFlags = 0;
+	const uint MissShaderIndex = 0;
+	TraceRay(
+		TLAS,
+		RayFlags,
+		RAY_TRACING_MASK_ALL,
+		RAY_TRACING_SHADER_SLOT_MATERIAL,
+		RAY_TRACING_NUM_SHADER_SLOTS,
+		MissShaderIndex,
+		Ray,
+		PackedPayload);
+
+	if (PackedPayload.IsMiss())
+	{
+		return (FProbeResult)0;
+	}
+
+	FProbeResult Result;
+	Result.HitT = PackedPayload.HitT;
+	Result.WorldNormal = PackedPayload.GetWorldNormal();
+	return Result;
+}
+
+bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout float3 PathThroughput, inout RandomSequence RandSequence, uint2 PixelCoord, bool SimplifySSS)
+{
+	if (!IsSubsurfaceMaterial(Payload) || PathTracingData.MaxBounces == 0)
+	{
+		// material doesn't have SSS or we don't have any bounces configured
+		// just return so we can process the rest of the payload's shading
+		return true;
+	}
+
+	// TODO: support RGB extinction as well (SHADINGMODELID_SUBSURFACE_PROFILE)
+	// TODO: figure out the right multiplier between the 0-1 Opacity control and world space radius
+	float3 SSSColor = Payload.CustomData.xyz;
+	float SSSRadius = (1 - Payload.Opacity) * 10.0;
+
+	if (SimplifySSS || SSSRadius == 0)
+	{
+		// if we are running in a context that won't see the SSS directly -- just turn it into diffuse and skip the random walk
+		Payload.DiffuseColor += SSSColor;
+		Payload.DiffuseColor = saturate(Payload.DiffuseColor);
+		return true;
+	}
+	// decide randomly to evaluate the SSS part of the material, or keep shading the current part
+	float SSSProb = LobeSelectionProb(SSSColor, Payload.DiffuseColor + Payload.SpecularColor);
+	float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
+	if (RandSample.x < SSSProb)
+	{
+		// do random walk
+		PathThroughput *= 1 / SSSProb;
+		RandSample.x /= SSSProb;
+	}
+	else
+	{
+		// skip random walk and shade current point instead
+		PathThroughput *= 1 / (1 - SSSProb);
+		return true;
+	}
+
+	// create ray to enter the surface (using a diffuse scattering event)
+	RayDesc Ray;
+	Ray.Origin = Payload.WorldPos;
+	Ray.Direction = TangentToWorld(-CosineSampleHemisphere(RandSample.xy).xyz, Payload.WorldNormal);
+	Ray.TMin = 0;
+	ApplyPositionBias(Ray, -Payload.WorldNormal, PathTracingData.MaxNormalBias);
+
+	// Use the technique detailed in the Hyperion paper (Section 4.4.2)
+	// https://media.disneyanimation.com/uploads/production/publication_asset/177/asset/a.pdf
+	// This avoids overly bright thin regions by applying a bit of internal reflection when the boundary is hit
+#define SSS_USE_TIR 1
+
+#if SSS_USE_TIR
+	const float3 Albedo = 1 - exp(SSSColor * (-11.43 + SSSColor * (15.38 - 13.91 * SSSColor)));
+	SSSRadius *= 0.5; // roughly match parameterization below
+#else
+	// Van de-Hulst inverse mapping
+	// https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf (Slide 44)
+	// http://www.eugenedeon.com/project/a-hitchhikers-guide-to-multiple-scattering/ (Section 7.5.3 of v0.1.3)
+	const float3 Albedo = 1 - Pow2(4.09712 + 4.20863 * SSSColor - sqrt(9.59217 + SSSColor * (41.6808 + 17.7126 * SSSColor)));
+#endif
+	const int MAX_SSS_BOUNCES = PathTracingData.MaxSSSBounces;
+	for (int i = 0; i < MAX_SSS_BOUNCES; i++)
+	{
+		// Using an analog random walk - transmittance and scattering probabilities cancel out so only the albedo
+		// at each bounce needs to be accounted for in the throughput. This will get more complicated once we add
+		// proper support for RGB transmittance and fancier escape strategies like Dwivedi sampling.
+
+		// pick a maximum distance to scatter
+		Ray.TMax = -log(1 - RandSample.z) * SSSRadius;
+
+		FProbeResult ProbeResult = TraceProbeRay(Ray, PixelCoord);
+		if (ProbeResult.IsMiss())
+		{
+			// we didn't hit anything, so scatter randomly in the volume and keep tracing
+			RandSample = RandomSequence_GenerateSample3D(RandSequence);
+			Ray.Origin += Ray.TMax * Ray.Direction;
+			Ray.Direction = UniformSampleSphere(RandSample.xy).xyz;
+			PathThroughput *= Albedo;
+		}
+		else
+		{
+			// our short ray hit the geomtry - decide if we should exit or not
+#if SSS_USE_TIR
+			RandSample = RandomSequence_GenerateSample2D(RandSequence).xxy;
+			float3 WorldNormal = ProbeResult.WorldNormal;
+			float CosTheta = abs(dot(Ray.Direction, WorldNormal));
+			float Fresnel = FresnelReflectance(CosTheta, 1.0 / 1.4);
+			if (RandSample.x < Fresnel)
+			{
+				// internal reflection occured -- reflect and keep tracing
+				// NOTE: weight and probability cancel out, so no throughput adjustment is needed
+				Ray.Origin += ProbeResult.HitT * Ray.Direction;
+				Ray.Direction = reflect(Ray.Direction, WorldNormal);
+				ApplyPositionBias(Ray, -WorldNormal, PathTracingData.MaxNormalBias);
+				continue;
+			}
+#endif
+			// we hit the boundary! overwrite the current payload and exit the walk with a diffuse scattering event
+			Payload.WorldPos = Ray.Origin + ProbeResult.HitT * Ray.Direction;
+			Payload.WorldNormal = ProbeResult.WorldNormal;
+			Payload.ShadingModelID = SHADINGMODELID_NUM; // invalid value so that we get diffuse shading
+			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
+			Payload.BaseColor = 1;
+			return true;
+		}
+	}
+	// we scattered a bunch of times and never hit anything -- give up
+	return false;
+}
+
 
 RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 {
@@ -278,6 +416,9 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			break;
 		}
 
+		// As soon as the path is blurry enough, we can get away with diffuse sampling only
+		const bool bSimplifySSS = PathRoughness >= 0.15;
+
 		if (PathTracingData.ApproximateCaustics)
 		{
 			// modify the path roughness as well as the payload roughness to minimize difficult caustics
@@ -288,14 +429,17 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		}
 		
 
-		// Update origin
-		Ray.Origin = Payload.WorldPos;
-
-
 		// Make sure the surface normal points toward the viewer
 		if (dot(Ray.Direction, Payload.WorldNormal) > 0.0)
 		{
 			Payload.WorldNormal = -Payload.WorldNormal;
+		}
+
+		// Processing the random walk will (stochastically) move the shading point elsewhere on the surface of the object
+		if (!ProcessSubsurfaceRandomWalk(Payload, PathThroughput, RandSequence, LaunchIndex, bSimplifySSS))
+		{
+			// random walk did not terminate at a valid point
+			break;
 		}
 
 		// Choose a random number for both Light sampling and BxDF sampling
@@ -413,6 +557,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		}
 
 		// Update ray according to material sample
+		Ray.Origin = Payload.WorldPos;
 		Ray.Direction = MaterialSample.Direction;
 		Ray.TMin = 0;
 		Ray.TMax = POSITIVE_INFINITY;
