@@ -70,21 +70,18 @@ EMaterialGenerateHLSLStatus FMaterialHLSLGenerator::Error(const FString& Message
 UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FConstant& Value)
 {
 	UE::HLSLTree::FExpressionConstant* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(Scope, Value);
-	Expression->bInline = true;
 	return Expression;
 }
 
 UE::HLSLTree::FExpressionExternalInput* FMaterialHLSLGenerator::NewTexCoord(UE::HLSLTree::FScope& Scope, int32 Index)
 {
 	UE::HLSLTree::FExpressionExternalInput* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionExternalInput>(Scope, UE::HLSLTree::MakeInputTexCoord(Index));
-	Expression->bInline = true;
 	return Expression;
 }
 
 UE::HLSLTree::FExpressionSwizzle* FMaterialHLSLGenerator::NewSwizzle(UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FSwizzleParameters& Params, UE::HLSLTree::FExpression* Input)
 {
 	UE::HLSLTree::FExpressionSwizzle* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionSwizzle>(Scope, Params, Input);
-	Expression->bInline = true;
 	return Expression;
 }
 
@@ -94,7 +91,6 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewCast(UE::HLSLTree::FScope&
 	if (Input && Type != Input->Type)
 	{
 		UE::HLSLTree::FExpressionCast* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionCast>(Scope, Type, Input, Flags);
-		Expression->bInline = true;
 		return Expression;
 	}
 	return Input;
@@ -203,6 +199,7 @@ UE::HLSLTree::FFunctionCall* FMaterialHLSLGenerator::AcquireFunctionCall(UE::HLS
 	{
 		Hasher.Update((uint8*)&Input, sizeof(Input));
 	}
+	Hasher.Final();
 
 	FFunctionCallKey Key;
 	Key.Function = Function;

@@ -21,13 +21,12 @@ class FExpressionConstant : public FExpression
 {
 public:
 	explicit FExpressionConstant(const FConstant& InValue)
-		: FExpression(InValue.Type, EExpressionEvaluationType::Constant), Value(InValue)
+		: FExpression(InValue.Type), Value(InValue)
 	{}
 
 	FConstant Value;
 
-	virtual void EmitPreshader(FEmitContext& Context, FMaterialPreshaderData& OutPreshader) const override;
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionLocalVariable : public FExpression
@@ -47,14 +46,14 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionParameter : public FExpression
 {
 public:
 	FExpressionParameter(FParameterDeclaration* InDeclaration)
-		: FExpression(InDeclaration->DefaultValue.Type, EExpressionEvaluationType::Preshader)
+		: FExpression(InDeclaration->DefaultValue.Type)
 		, Declaration(InDeclaration)
 	{}
 
@@ -70,7 +69,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitPreshader(FEmitContext& Context, FMaterialPreshaderData& OutPreshader) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 enum class EExternalInputType
@@ -101,7 +100,7 @@ public:
 
 	EExternalInputType InputType;
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionTextureSample : public FExpression
@@ -131,7 +130,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionDefaultMaterialAttributes : public FExpression
@@ -139,7 +138,7 @@ class FExpressionDefaultMaterialAttributes : public FExpression
 public:
 	FExpressionDefaultMaterialAttributes() : FExpression(EExpressionType::MaterialAttributes) {}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionSetMaterialAttribute : public FExpression
@@ -162,14 +161,14 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionBinaryOp : public FExpression
 {
 public:
 	FExpressionBinaryOp(EExpressionType ResultType, EBinaryOp InOp, FExpression* InLhs, FExpression* InRhs)
-		: FExpression(ResultType, CombineEvaluationTypes(InLhs->EvaluationType, InRhs->EvaluationType))
+		: FExpression(ResultType)
 		, Op(InOp)
 		, Lhs(InLhs)
 		, Rhs(InRhs)
@@ -190,8 +189,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitPreshader(FEmitContext& Context, FMaterialPreshaderData& OutPreshader) const override;
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 struct FSwizzleParameters
@@ -208,7 +206,7 @@ class FExpressionSwizzle : public FExpression
 {
 public:
 	FExpressionSwizzle(const FSwizzleParameters& InParams, FExpression* InInput)
-		: FExpression(MakeExpressionType(InInput->Type, InParams.NumComponents), InInput->EvaluationType)
+		: FExpression(MakeExpressionType(InInput->Type, InParams.NumComponents))
 		, Parameters(InParams)
 		, Input(InInput)
 	{}
@@ -226,15 +224,14 @@ public:
 		return Result;
 	}
 
-	virtual void EmitPreshader(FEmitContext& Context, FMaterialPreshaderData& OutPreshader) const override;
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionCast : public FExpression
 {
 public:
 	FExpressionCast(EExpressionType InType, FExpression* InInput, ECastFlags InFlags = ECastFlags::None)
-		: FExpression(InType) // TODO preshader
+		: FExpression(InType)
 		, Input(InInput)
 		, Flags(InFlags)
 	{}
@@ -252,7 +249,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FExpressionFunctionInput : public FExpression
@@ -262,7 +259,7 @@ public:
 		: FExpression(InType), Name(InName), InputIndex(InIndex)
 	{}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 
 	FName Name;
 	int32 InputIndex;
@@ -292,7 +289,7 @@ public:
 		return Result;
 	}
 
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
 class FStatementSetFunctionOutput : public FStatement

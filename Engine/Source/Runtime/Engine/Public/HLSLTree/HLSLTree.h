@@ -67,21 +67,58 @@ public:
 
 	void WriteIndent();
 
+	void Reset();
+
+	void Append(const FCodeWriter& InWriter);
+
 	FStringBuilderBase* StringBuilder;
 	int32 IndentLevel;
+};
+
+class FEmitValue
+{
+public:
+	EExpressionEvaluationType GetEvaluationType() const { return EvaluationType; }
+	const FConstant& GetConstantValue() const { return ConstantValue; }
+
+	inline void Assign(const FEmitValue& InRef)
+	{
+		Preshader = InRef.Preshader;
+		EvaluationType = InRef.EvaluationType;
+		ConstantValue = InRef.ConstantValue;
+	}
+
+private:
+	mutable const TCHAR* Code = nullptr;
+	const FMaterialPreshaderData* Preshader = nullptr;
+	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
+	EExpressionType ExpressionType = EExpressionType::Void;
+	FConstant ConstantValue;
+
+	friend class FEmitContext;
 };
 
 /** Tracks shared state while emitting HLSL code */
 class FEmitContext
 {
 public:
-	/** Returns a snippet of HLSL source code that references the given expression */
-	const TCHAR* AcquireHLSLReference(FExpression* Expression);
+	FEmitContext();
+	~FEmitContext();
 
-	/** Returns a snippet of HLSL source code that references the given local variablew */
-	const TCHAR* AcquireHLSLReference(FLocalDeclaration* Declaration);
+	/** Returns a value that references the given expression */
+	const FEmitValue& AcquireValue(FExpression* Expression);
 
-	const TCHAR* AcquireHLSLReference(FFunctionCall* FunctionCall, int32 OutputIndex);
+	/** Returns value that references the given local variable */
+	const FEmitValue& AcquireValue(FLocalDeclaration* Declaration);
+
+	/** Returns value that references the given local function output */
+	const FEmitValue& AcquireValue(FFunctionCall* FunctionCall, int32 OutputIndex);
+
+	/** Gets HLSL code that references the given value */
+	const TCHAR* GetCode(const FEmitValue& Value) const;
+
+	/** Append preshader bytecode that represents the given value */
+	void AppendPreshader(const FEmitValue& Value, FMaterialPreshaderData& InOutPreshader) const;
 
 	struct FScopeEntry
 	{
@@ -89,33 +126,51 @@ public:
 		FCodeWriter* ExpressionCodeWriter;
 	};
 
-	struct FFunctionStackEntry
-	{
-		FFunctionCall* FunctionCall;
-	};
-
 	struct FDeclarationEntry
 	{
-		const TCHAR* Definition;
+		FEmitValue Value;
 	};
 
 	struct FFunctionCallEntry
 	{
-		TCHAR const* const* OutputDefinition;
+		const FEmitValue* OutputRef;
 		int32 NumOutputs;
+	};
+
+	struct FFunctionStackEntry
+	{
+		FFunctionCall* FunctionCall = nullptr;
+		FEmitValue* OutputRef = nullptr;
+
+		TMap<FNode*, FDeclarationEntry> DeclarationMap;
+		TMap<FFunctionCall*, FFunctionCallEntry> FunctionCallMap;
 	};
 
 	FScopeEntry* FindScope(FScope* Scope);
 
 	TArray<FScopeEntry> ScopeStack;
 	TArray<FFunctionStackEntry> FunctionStack;
-	TMap<FNode*, FDeclarationEntry> DeclarationMap;
-	TMap<FFunctionCall*, FFunctionCallEntry> FunctionCallMap;
+	TArray<FMaterialPreshaderData*> TempPreshaders;
 	FMemStackBase* Allocator = nullptr;
 	const FMaterial* Material = nullptr; // TODO - remove preshader material dependency
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	int32 NumExpressionLocals = 0;
 	int32 NumTexCoords = 0;
+};
+
+struct FExpressionEmitResult
+{
+	FExpressionEmitResult(FCodeWriter& InWriter, FMaterialPreshaderData& InPreshader)
+		: Writer(InWriter)
+		, Preshader(InPreshader)
+		, EvaluationType(EExpressionEvaluationType::Shader)
+		, bInline(false)
+	{}
+
+	FCodeWriter& Writer;
+	FMaterialPreshaderData& Preshader;
+	EExpressionEvaluationType EvaluationType;
+	bool bInline;
 };
 
 enum class ENodeVisitResult
@@ -181,28 +236,17 @@ public:
 class FExpression : public FNode
 {
 public:
-	inline bool IsInline() const { return bInline; }
-
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	/* Emits HLSL code for the expression. The code should NOT include any newlines or semi-colons. The returned string may be assigned to a temporary variable, or embedded in another HLSL string */
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const;
-
-	/* Emits bytecode for the preshader virtual machine */
-	virtual void EmitPreshader(FEmitContext& Context, FMaterialPreshaderData& OutPreshader) const;
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
 
 	/** The HLSL type of the expression (float, int, etc) */
 	EExpressionType Type;
 
-	EExpressionEvaluationType EvaluationType;
-	bool bInline;
-
 protected:
-	explicit FExpression(EExpressionType InType,
-		EExpressionEvaluationType InEvaluationType = EExpressionEvaluationType::Shader)
+	explicit FExpression(EExpressionType InType)
 		: Type(InType)
-		, EvaluationType(InEvaluationType)
-		, bInline(false)
 	{}
 };
 

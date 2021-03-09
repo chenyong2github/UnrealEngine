@@ -575,7 +575,33 @@ void FMaterialPreshaderData::WriteName(const FScriptName& Name)
 		Index = Names.Add(Name);
 	}
 	check(Index >= 0 && Index <= 0xffff);
+	const uint32 Offset = Data.Num();
+	NameOffsets.Add(Offset);
 	Write((uint16)Index);
+}
+
+void FMaterialPreshaderData::Append(const FMaterialPreshaderData& InPreshader)
+{
+	const uint32 BaseOffset = Data.Num();
+	Data.Append(InPreshader.Data);
+
+	TArray<uint16> NameIndexRemap;
+	NameIndexRemap.Empty(InPreshader.Names.Num());
+	for (const FScriptName& Name : InPreshader.Names)
+	{
+		const int32 Index = Names.AddUnique(Name);
+		check(Index >= 0 && Index <= 0xffff);
+		NameIndexRemap.Add(Index);
+	}
+
+	for (uint32 PrevOffset : InPreshader.NameOffsets)
+	{
+		const uint32 Offset = BaseOffset + PrevOffset;
+		uint16* PrevNameIndex = (uint16*)(Data.GetData() + Offset);
+		const uint16 RemapIndex = NameIndexRemap[*PrevNameIndex];
+		*PrevNameIndex = RemapIndex;
+		NameOffsets.Add(Offset);
+	}
 }
 
 namespace

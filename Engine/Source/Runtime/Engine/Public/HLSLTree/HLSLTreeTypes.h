@@ -59,6 +59,9 @@ EExpressionType MakeArithmeticResultType(EExpressionType Lhs, EExpressionType Rh
  * Describes how a given expression needs to be evaluated */
 enum class EExpressionEvaluationType
 {
+	/** Invalid/uninitialized */
+	None,
+
 	/** The expression needs to generate HLSL code (EmitHLSL will be called) */
 	Shader,
 

@@ -305,6 +305,8 @@ public:
 
 	void Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FLinearColor& OutValue);
 
+	void Append(const FMaterialPreshaderData& InPreshader);
+
 	const int32 Num() const { return Data.Num(); }
 
 	void WriteData(const void* Value, uint32 Size);
@@ -326,6 +328,7 @@ public:
 	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
 
 	LAYOUT_FIELD(TMemoryImageArray<FScriptName>, Names);
+	LAYOUT_FIELD(TMemoryImageArray<uint32>, NameOffsets);
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
 };
 
