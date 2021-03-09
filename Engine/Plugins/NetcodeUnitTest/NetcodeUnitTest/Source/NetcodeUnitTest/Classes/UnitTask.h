@@ -82,7 +82,7 @@ int32 GetUnitTaskPriority(EUnitTaskFlags InFlags);
  *
  * Unit tasks that are added to a unit test, must complete execution before the unit test itself can execute.
  */
-UCLASS()
+UCLASS(abstract)
 class NETCODEUNITTEST_API UUnitTask : public UObject, public FUnitLogRedirect
 {
 	friend class UUnitTest;
