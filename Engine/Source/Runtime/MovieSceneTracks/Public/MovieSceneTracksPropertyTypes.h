@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "Math/Vector2D.h"
 #include "Math/Vector.h"
+#include "Math/Vector4.h"
 #include "Math/Rotator.h"
+#include "Math/Color.h"
+#include "Styling/SlateColor.h"
 
 class USceneComponent;
 
