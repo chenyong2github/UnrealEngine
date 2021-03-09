@@ -288,33 +288,34 @@ void FSkeletalMeshSkinningData::UpdateBoneTransforms()
 			for (int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex)
 			{
 				bool bFoundMaster = false;
-				FTransform CompSpaceTransform;
 				if (MasterBoneMap.IsValidIndex(BoneIndex))
 				{
 					const int32 MasterIndex = MasterBoneMap[BoneIndex];
 					if (MasterIndex != INDEX_NONE && MasterIndex < MasterTransforms.Num())
 					{
-						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
-						CurrBones[BoneIndex] = SkelMesh->RefBasesInvMatrix[BoneIndex] * MasterTransforms[MasterIndex].ToMatrixWithScale();
 						bFoundMaster = true;
+						CurrTransforms[BoneIndex] = MasterTransforms[MasterIndex];
 					}
 				}
 
-				if (!bFoundMaster)
+				if ( !bFoundMaster )
 				{
 					const int32 ParentIndex = SkelMesh->RefSkeleton.GetParentIndex(BoneIndex);
-
-					if (CurrTransforms.IsValidIndex(ParentIndex) && ParentIndex < BoneIndex)
+					FTransform BoneTransform = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+					if ((ParentIndex >= 0) && (ParentIndex < BoneIndex))
 					{
-						CurrTransforms[BoneIndex] = CurrTransforms[ParentIndex] * SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
+						BoneTransform = BoneTransform * CurrTransforms[ParentIndex];
 					}
-					else
-					{
-						CurrTransforms[BoneIndex] = SkelMesh->RefSkeleton.GetRefBonePose()[BoneIndex];
-					}
+					CurrTransforms[BoneIndex] = BoneTransform;
+				}
 
+				if (SkelMesh->RefBasesInvMatrix.IsValidIndex(BoneIndex))
+				{
+					CurrBones[BoneIndex] = SkelMesh->RefBasesInvMatrix[BoneIndex] * CurrTransforms[BoneIndex].ToMatrixWithScale();
+				}
+				else
+				{
 					CurrBones[BoneIndex] = CurrTransforms[BoneIndex].ToMatrixWithScale();
-
 				}
 			}
 		}
