@@ -31,6 +31,7 @@
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeOp.h"
 #include "NiagaraNodeConvert.h"
+#include "NiagaraNodeOutputTag.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraNodeIf.h"
@@ -739,6 +740,18 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 			UEdGraphNode_Comment* BaseNode = NewObject<UEdGraphNode_Comment>(OwnerOfTemporaries);
 			Action->NodeTemplate = BaseNode;
 		}		
+	}
+
+	// Handle output tag nodes
+	{
+		FText MenuCat = FText::FromString("Compiler Tagging");
+
+		{
+			FString Name = TEXT("Add Compiler Output Tag");
+			TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, MenuCat, FText::FromString(Name), *Name, FText::GetEmpty());
+			UNiagaraNodeOutputTag* BaseNode = NewObject<UNiagaraNodeOutputTag>(OwnerOfTemporaries);
+			Action->NodeTemplate = BaseNode;
+		}
 	}
 
 

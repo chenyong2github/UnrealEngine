@@ -1961,6 +1961,18 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			}
 		}
 
+		// Display the computed compile tags in the source hlsl to make checking easier.
+		if (TranslateResults.CompileTags.Num() != 0)
+		{
+			Preamble += FString::Printf(TEXT("//\tCompile Tags: \n"));
+
+			for (const FNiagaraCompilerTag& Tag : TranslateResults.CompileTags)
+			{
+				Preamble += FString::Printf(TEXT("//\t\tVariable: \"%s\" StringValue: \"%s\" \n"), *Tag.Variable.ToString(),  *Tag.StringValue);
+			}
+
+		}
+
 		HlslOutput = Preamble + TEXT("\n\n") +  HlslOutput;
 
 		// We may have created some transient data interfaces. This cleans up the ones that we created.
@@ -7840,6 +7852,110 @@ void FHlslNiagaraTranslator::Select(UNiagaraNodeSelect* SelectNode, int32 Select
 
 	// Add an additional invalid output for the add pin which doesn't get compiled.
 	Outputs.Add(INDEX_NONE);
+}
+
+void FHlslNiagaraTranslator::WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin)
+{
+	FString Value;
+	FNiagaraTypeDefinition TypeDef = Schema->PinToTypeDefinition(Pin);
+	FNiagaraVariable Variable(TypeDef, *Pin->GetName());
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::GetModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	{		
+		bool bSearch = true;
+		FString SourceName;
+		while (bSearch)
+		{
+			if (InputCompileResult != INDEX_NONE)
+			{
+				if (CodeChunks.IsValidIndex(InputCompileResult))
+				{
+					if (CodeChunks[InputCompileResult].Mode >= ENiagaraCodeChunkMode::Body && CodeChunks[InputCompileResult].Mode < ENiagaraCodeChunkMode::SimulationStageBodyMax)
+					{
+						if (CodeChunks[InputCompileResult].SourceChunks.Num() == 1 && CodeChunks[InputCompileResult].Definition == TEXT("{0}")) // Handle intermediate assignment
+						{
+							InputCompileResult = CodeChunks[InputCompileResult].SourceChunks[0]; // Follow the linkage
+						}
+						else
+						{
+							TSharedPtr<INiagaraEditorTypeUtilities, ESPMode::ThreadSafe> TypeEditorUtilities = NiagaraEditorModule.GetTypeUtilities(TypeDef);
+							if (TypeEditorUtilities.IsValid() && TypeEditorUtilities->CanHandlePinDefaults())
+							{
+								// Note that this might fail due to string not being properly formatted for the type. If so, we just take the definition string altogether.
+								bool bHasValue = TypeEditorUtilities->SetValueFromPinDefaultString(CodeChunks[InputCompileResult].Definition, Variable); 
+								if (bHasValue == false)
+								{
+									Value = CodeChunks[InputCompileResult].Definition;
+								}
+							}
+							else
+							{
+								Value = CodeChunks[InputCompileResult].Definition;
+							}
+							bSearch = false;
+						}
+					}
+					else  if (CodeChunks[InputCompileResult].Mode == ENiagaraCodeChunkMode::Uniform)
+					{
+						Value = CodeChunks[InputCompileResult].SymbolName;
+						bSearch = false;
+					}
+					else  if (CodeChunks[InputCompileResult].Mode == ENiagaraCodeChunkMode::Source)
+					{
+						if (SourceName.Len() == 0)
+							SourceName = CodeChunks[InputCompileResult].SymbolName;
+						else
+							bSearch = false; // Don't keep searching as we might be going outside a function call boundary and lose track. Just allow one hop.
+
+						if (CodeChunks[InputCompileResult].SourceChunks.Num() == 0) // Search through parent chunks for a name match
+						{
+							for (int32 i = InputCompileResult - 1; i >= 0 && i < InputCompileResult; i--)
+							{
+								if (CodeChunks[i].SymbolName == SourceName)
+								{
+									InputCompileResult = i;
+									break;
+								}
+								if (i == 0)
+								{
+									bSearch = false;
+								}
+							}
+						}
+					}
+					else
+					{
+						break;
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+			else
+			{
+				break;
+			}
+		}
+	}
+	
+	if (Value.Len() == 0 && Variable.IsDataAllocated() == false)
+	{
+		Message(FNiagaraCompileEventSeverity::Log, FText::FromString(TEXT("Output Compile Tag must be connected to a constant or a uniform variable to work! Ignoring the compile tag.")), Cast<UNiagaraNode>(Pin->GetOwningNode()), Pin);
+	}
+	else
+	{
+		// Always use the latest output value for the tag.
+		if (FNiagaraCompilerTag* Tag = FNiagaraCompilerTag::FindTag(TranslateResults.CompileTags, Variable))
+		{
+			Tag->StringValue = Value;
+			Tag->Variable = Variable;
+		}
+		else
+		{
+			TranslateResults.CompileTags.Emplace(Variable, Value);
+		}
+	}
 }
 
 int32 FHlslNiagaraTranslator::CompilePin(const UEdGraphPin* Pin)

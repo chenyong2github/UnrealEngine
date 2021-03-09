@@ -991,6 +991,27 @@ void UNiagaraScript::Serialize(FArchive& Ar)
 	SerializeNiagaraShaderMaps(Ar, NiagaraVer, IsValidShaderScript);
 }
 
+FNiagaraCompilerTag* FNiagaraCompilerTag::FindTag(TArray< FNiagaraCompilerTag>& InTags, const FNiagaraVariableBase& InSearchVar)
+{
+	for (FNiagaraCompilerTag& Tag : InTags)
+	{
+		if (Tag.Variable == InSearchVar)
+			return &Tag;
+	}
+	return nullptr;
+}
+
+
+const FNiagaraCompilerTag* FNiagaraCompilerTag::FindTag(const TArray< FNiagaraCompilerTag>& InTags, const FNiagaraVariableBase& InSearchVar)
+{
+	for (const FNiagaraCompilerTag& Tag : InTags)
+	{
+		if (Tag.Variable == InSearchVar)
+			return &Tag;
+	}
+	return nullptr;
+}
+
 /** Is usage A dependent on Usage B?*/
 bool UNiagaraScript::IsUsageDependentOn(ENiagaraScriptUsage InUsageA, ENiagaraScriptUsage InUsageB)
 {
