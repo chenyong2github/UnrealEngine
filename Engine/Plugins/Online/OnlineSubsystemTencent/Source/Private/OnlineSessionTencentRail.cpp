@@ -81,7 +81,7 @@ void FOnlineSessionTencentRail::CheckPendingSessionInvite()
 		int64 UserId = FCString::Strtoui64(*UserIdIdStr, NULL, 10);
 		if (UserId > 0)
 		{
-			PendingInvite.InviterUserId = MakeShared<FUniqueNetIdRail>(UserId);
+			PendingInvite.InviterUserId = FUniqueNetIdRail::Create(UserId);
 			PendingInvite.bValidInvite = true;
 		}
 	}
@@ -109,7 +109,7 @@ void FOnlineSessionTencentRail::TickPendingInvites(float DeltaTime)
 			IOnlineIdentityPtr IdentityInt = TencentSubsystem->GetIdentityInterface();
 
 			// Wait until we have a valid user
-			TSharedPtr<const FUniqueNetIdRail> UserId = StaticCastSharedPtr<const FUniqueNetIdRail>(GetFirstSignedInUser(IdentityInt));
+			FUniqueNetIdRailPtr UserId = StaticCastSharedPtr<const FUniqueNetIdRail>(GetFirstSignedInUser(IdentityInt));
 			if (UserId.IsValid() && ensure(PendingInvite.InviterUserId.IsValid()))
 			{
 				QueryAcceptedUserInvitation(UserId.ToSharedRef(), PendingInvite.InviterUserId.ToSharedRef());
@@ -121,7 +121,7 @@ void FOnlineSessionTencentRail::TickPendingInvites(float DeltaTime)
 	}
 }
 
-void FOnlineSessionTencentRail::QueryAcceptedUserInvitation(TSharedRef<const FUniqueNetIdRail> InLocalUser, TSharedRef<const FUniqueNetIdRail> InRemoteUser)
+void FOnlineSessionTencentRail::QueryAcceptedUserInvitation(FUniqueNetIdRailRef InLocalUser, FUniqueNetIdRailRef InRemoteUser)
 {
 	TWeakPtr<FOnlineSessionTencent, ESPMode::ThreadSafe> LocalWeakThis(AsShared());
 	FOnOnlineAsyncTaskRailGetUserInviteComplete CompletionDelegate = FOnOnlineAsyncTaskRailGetUserInviteComplete::CreateLambda([InLocalUser, LocalWeakThis](const FGetUserInviteTaskResult& Result)
@@ -640,7 +640,7 @@ uint32 FOnlineSessionTencentRail::JoinInternetSession(int32 PlayerNum, FNamedOnl
 			IOnlineIdentityPtr IdentityInt = TencentSubsystem->GetIdentityInterface();
 			if (IdentityInt.IsValid())
 			{
-				TSharedPtr<const FUniqueNetId> UniqueId = IdentityInt->GetUniquePlayerId(PlayerNum);
+				FUniqueNetIdPtr UniqueId = IdentityInt->GetUniquePlayerId(PlayerNum);
 				if (UniqueId.IsValid() && UniqueId->IsValid())
 				{
 					if (Session->SessionSettings.bUsesPresence)
@@ -714,12 +714,12 @@ void FOnlineSessionTencentRail::OnJoinInternetSessionComplete(FName SessionName,
 
 bool FOnlineSessionTencentRail::RegisterPlayer(FName SessionName, const FUniqueNetId& PlayerId, bool bWasInvited)
 {
-	TArray< TSharedRef<const FUniqueNetId> > Players;
-	Players.Add(MakeShared<FUniqueNetIdRail>(PlayerId));
+	TArray< FUniqueNetIdRef > Players;
+	Players.Add(FUniqueNetIdRail::Create(PlayerId));
 	return RegisterPlayers(SessionName, Players, bWasInvited);
 }
 
-bool FOnlineSessionTencentRail::RegisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players, bool bWasInvited)
+bool FOnlineSessionTencentRail::RegisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players, bool bWasInvited)
 {
 	bool bSuccess = false;
 
@@ -731,7 +731,7 @@ bool FOnlineSessionTencentRail::RegisterPlayers(FName SessionName, const TArray<
 			TArray<FReportPlayedWithUser> ReportedUsers;
 			for (int32 PlayerIdx = 0; PlayerIdx < Players.Num(); PlayerIdx++)
 			{
-				const TSharedRef<const FUniqueNetId>& PlayerId = Players[PlayerIdx];
+				const FUniqueNetIdRef& PlayerId = Players[PlayerIdx];
 
 				FUniqueNetIdMatcher PlayerMatch(*PlayerId);
 				if (Session->RegisteredPlayers.IndexOfByPredicate(PlayerMatch) == INDEX_NONE)
@@ -785,10 +785,10 @@ void FOnlineSessionTencentRail::RegisterLocalPlayers(FNamedOnlineSession* Sessio
 		IOnlineIdentityPtr IdentityInt = TencentSubsystem->GetIdentityInterface();
 		if (IdentityInt.IsValid())
 		{
-			TArray<TSharedRef<const FUniqueNetId> > PlayersToRegister;
+			TArray<FUniqueNetIdRef > PlayersToRegister;
 			for (int32 Index = 0; Index < MAX_LOCAL_PLAYERS; Index++)
 			{
-				TSharedPtr<const FUniqueNetId> UserId = IdentityInt->GetUniquePlayerId(Index);
+				FUniqueNetIdPtr UserId = IdentityInt->GetUniquePlayerId(Index);
 				if (UserId.IsValid())
 				{
 					PlayersToRegister.Add(UserId.ToSharedRef());
@@ -805,12 +805,12 @@ void FOnlineSessionTencentRail::RegisterLocalPlayers(FNamedOnlineSession* Sessio
 
 bool FOnlineSessionTencentRail::UnregisterPlayer(FName SessionName, const FUniqueNetId& PlayerId)
 {
-	TArray< TSharedRef<const FUniqueNetId> > Players;
-	Players.Add(MakeShared<FUniqueNetIdRail>(PlayerId));
+	TArray< FUniqueNetIdRef > Players;
+	Players.Add(FUniqueNetIdRail::Create(PlayerId));
 	return UnregisterPlayers(SessionName, Players);
 }
 
-bool FOnlineSessionTencentRail::UnregisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players)
+bool FOnlineSessionTencentRail::UnregisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players)
 {
 	bool bSuccess = false;
 
@@ -821,7 +821,7 @@ bool FOnlineSessionTencentRail::UnregisterPlayers(FName SessionName, const TArra
 		{
 			for (int32 PlayerIdx = 0; PlayerIdx < Players.Num(); PlayerIdx++)
 			{
-				const TSharedRef<const FUniqueNetId>& PlayerId = Players[PlayerIdx];
+				const FUniqueNetIdRef& PlayerId = Players[PlayerIdx];
 
 				FUniqueNetIdMatcher PlayerMatch(*PlayerId);
 				int32 RegistrantIndex = Session->RegisteredPlayers.IndexOfByPredicate(PlayerMatch);
@@ -860,7 +860,7 @@ bool FOnlineSessionTencentRail::OwnsSession(FNamedOnlineSession* Session) const
 		IOnlineIdentityPtr IdentityInt = TencentSubsystem->GetIdentityInterface();
 		if (IdentityInt.IsValid())
 		{
-			TSharedPtr<const FUniqueNetId> UserId = IdentityInt->GetUniquePlayerId(Session->HostingPlayerNum);
+			FUniqueNetIdPtr UserId = IdentityInt->GetUniquePlayerId(Session->HostingPlayerNum);
 			bOwnsSession = (UserId.IsValid() && (*UserId == *Session->OwningUserId)) ? true : false;
 		}
 	}
@@ -1013,14 +1013,14 @@ void FOnlineSessionTencentRail::ParseSearchResult(TSharedPtr<FOnlineSessionSearc
 		{
 			FString SessionIdStr;
 			SessionId->GetValue(SessionIdStr);
-			SessionInfo->SessionId = MakeShared<FUniqueNetIdString>(SessionIdStr, TENCENT_SUBSYSTEM);
+			SessionInfo->SessionId = FUniqueNetIdString::Create(SessionIdStr, TENCENT_SUBSYSTEM);
 		}
 
 		if (OwningUserUniqueId->GetType() == EOnlineKeyValuePairDataType::String)
 		{
 			FString OwningUserUniqueIdStr;
 			OwningUserUniqueId->GetValue(OwningUserUniqueIdStr);
-			NewSearchResult->Session.OwningUserId = MakeShared<FUniqueNetIdRail>(OwningUserUniqueIdStr);
+			NewSearchResult->Session.OwningUserId = FUniqueNetIdRail::Create(OwningUserUniqueIdStr);
 		}
 
 		if (SessionBitsData->GetType() == EOnlineKeyValuePairDataType::UInt32)
@@ -1145,7 +1145,7 @@ bool FOnlineSessionTencentRail::FindFriendSession(const FUniqueNetId& LocalUserI
 	return FindFriendSession(GetLocalUserIdx(LocalUserId), Friend);
 }
 
-bool FOnlineSessionTencentRail::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList)
+bool FOnlineSessionTencentRail::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList)
 {
 	/** NYI */
 	return false;
@@ -1153,24 +1153,24 @@ bool FOnlineSessionTencentRail::FindFriendSession(const FUniqueNetId& LocalUserI
 
 bool FOnlineSessionTencentRail::SendSessionInviteToFriend(int32 LocalUserNum, FName SessionName, const FUniqueNetId& Friend)
 {
-	TArray< TSharedRef<const FUniqueNetId> > Friends;
+	TArray< FUniqueNetIdRef > Friends;
 	Friends.Add(Friend.AsShared());
 	return SendSessionInviteToFriends(LocalUserNum, SessionName, Friends);
 }
 
 bool FOnlineSessionTencentRail::SendSessionInviteToFriend(const FUniqueNetId& LocalUserId, FName SessionName, const FUniqueNetId& Friend)
 {
-	TArray< TSharedRef<const FUniqueNetId> > Friends;
+	TArray< FUniqueNetIdRef > Friends;
 	Friends.Add(Friend.AsShared());
 	return SendSessionInviteToFriends(LocalUserId, SessionName, Friends);
 }
 
-bool FOnlineSessionTencentRail::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionTencentRail::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
 	IOnlineIdentityPtr IdentityInt = TencentSubsystem->GetIdentityInterface();
 	if (IdentityInt.IsValid())
 	{
-		TSharedPtr<const FUniqueNetId> UserId = IdentityInt->GetUniquePlayerId(LocalUserNum);
+		FUniqueNetIdPtr UserId = IdentityInt->GetUniquePlayerId(LocalUserNum);
 		if (UserId.IsValid())
 		{
 			return SendSessionInviteToFriends(*UserId, SessionName, Friends);
@@ -1180,11 +1180,11 @@ bool FOnlineSessionTencentRail::SendSessionInviteToFriends(int32 LocalUserNum, F
 	return false;
 }
 
-bool FOnlineSessionTencentRail::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionTencentRail::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
 	if (!SessionName.IsNone() && Friends.Num() > 0)
 	{
-		TSharedRef<const FUniqueNetIdRail> UserIdRail = StaticCastSharedRef<const FUniqueNetIdRail>(LocalUserId.AsShared());
+		FUniqueNetIdRailRef UserIdRail = StaticCastSharedRef<const FUniqueNetIdRail>(LocalUserId.AsShared());
 
 		TWeakPtr<FOnlineSubsystemTencent, ESPMode::ThreadSafe> LocalWeakSubsystem(TencentSubsystem->AsShared());
 		// This function doesn't work for querying your own details

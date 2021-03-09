@@ -16,11 +16,11 @@ FOnlineUserTencent::FOnlineUserTencent(FOnlineSubsystemTencent* InSubsystem)
 {
 }
 
-bool FOnlineUserTencent::QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId>>& UserIds)
+bool FOnlineUserTencent::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef>& UserIds)
 {
 	FOnlineError Error(EOnlineErrorResult::Unknown);
 
-	TSharedPtr<const FUniqueNetId> LocalUserId = Subsystem->GetIdentityInterface()->GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr LocalUserId = Subsystem->GetIdentityInterface()->GetUniquePlayerId(LocalUserNum);
 	if (LocalUserId.IsValid())
 	{
 		StartNextQueryUserInfo(LocalUserNum, LocalUserId.ToSharedRef(), UserIds, 0);
@@ -48,9 +48,9 @@ bool FOnlineUserTencent::QueryUserInfo(int32 LocalUserNum, const TArray<TSharedR
 	return bSucceeded;
 }
 
-void FOnlineUserTencent::StartNextQueryUserInfo(int32 LocalUserNum, TSharedRef<const FUniqueNetId> LocalUserId, TArray<TSharedRef<const FUniqueNetId>> UserIds, int32 UserIdsQueriedCount)
+void FOnlineUserTencent::StartNextQueryUserInfo(int32 LocalUserNum, FUniqueNetIdRef LocalUserId, TArray<FUniqueNetIdRef> UserIds, int32 UserIdsQueriedCount)
 {
-	TArray<TSharedRef<const FUniqueNetId>> UserIdsSubset;
+	TArray<FUniqueNetIdRef> UserIdsSubset;
 	int32 UserIdx = 0;
 	for (; (UserIdsQueriedCount + UserIdx) < UserIds.Num() && UserIdx < TENCENT_MAX_USERS_PER_QUERY; ++UserIdx)
 	{
@@ -63,11 +63,11 @@ void FOnlineUserTencent::StartNextQueryUserInfo(int32 LocalUserNum, TSharedRef<c
 	Subsystem->QueueAsyncTask(AsyncTask);
 }
 
-void FOnlineUserTencent::QueryUserInfo_Complete(const FGetUsersInfoTaskResult& TaskResult, int32 LocalUserNum, TSharedRef<const FUniqueNetId> LocalUserId, TArray<TSharedRef<const FUniqueNetId>> UserIds, int32 UserIdsQueriedCount)
+void FOnlineUserTencent::QueryUserInfo_Complete(const FGetUsersInfoTaskResult& TaskResult, int32 LocalUserNum, FUniqueNetIdRef LocalUserId, TArray<FUniqueNetIdRef> UserIds, int32 UserIdsQueriedCount)
 {
 	if (TaskResult.Error.WasSuccessful())
 	{
-		TArray<FOnlineUserInfoTencentRef>& UsersArray = Users.FindOrAdd(*StaticCastSharedRef<const FUniqueNetIdRail>(LocalUserId));
+		TArray<FOnlineUserInfoTencentRef>& UsersArray = Users.FindOrAdd(LocalUserId);
 		for (const FOnlineUserInfoTencentRef& NewUser : TaskResult.UserInfos)
 		{
 			const int32 ExistingIndex = UsersArray.IndexOfByPredicate([&NewUser](const FOnlineUserInfoTencentRef& Element) -> bool {
@@ -97,10 +97,10 @@ void FOnlineUserTencent::QueryUserInfo_Complete(const FGetUsersInfoTaskResult& T
 bool FOnlineUserTencent::GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FOnlineUser>>& OutUsers)
 {
 	bool bValid = false;
-	TSharedPtr<const FUniqueNetId> LocalUserId = Subsystem->GetIdentityInterface()->GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr LocalUserId = Subsystem->GetIdentityInterface()->GetUniquePlayerId(LocalUserNum);
 	if (LocalUserId.IsValid())
 	{
-		TArray<FOnlineUserInfoTencentRef>* UsersForLocalUser = Users.Find(*StaticCastSharedPtr<const FUniqueNetIdRail>(LocalUserId));
+		TArray<FOnlineUserInfoTencentRef>* UsersForLocalUser = Users.Find(LocalUserId.ToSharedRef());
 		if (UsersForLocalUser)
 		{
 			OutUsers.Reserve(OutUsers.Num() + UsersForLocalUser->Num());
@@ -117,10 +117,10 @@ bool FOnlineUserTencent::GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FO
 TSharedPtr<FOnlineUser> FOnlineUserTencent::GetUserInfo(int32 LocalUserNum, const FUniqueNetId& UserId)
 {
 	TSharedPtr<FOnlineUser> Result;
-	TSharedPtr<const FUniqueNetId> LocalUserId = Subsystem->GetIdentityInterface()->GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr LocalUserId = Subsystem->GetIdentityInterface()->GetUniquePlayerId(LocalUserNum);
 	if (LocalUserId.IsValid())
 	{
-		TArray<FOnlineUserInfoTencentRef>* UsersForLocalUser = Users.Find(*StaticCastSharedPtr<const FUniqueNetIdRail>(LocalUserId));
+		TArray<FOnlineUserInfoTencentRef>* UsersForLocalUser = Users.Find(LocalUserId.ToSharedRef());
 		if (UsersForLocalUser)
 		{
 			FOnlineUserInfoTencentRef* FoundUser = UsersForLocalUser->FindByPredicate([&UserId](const FOnlineUserInfoTencentRef& UserInfo) -> bool {
@@ -147,16 +147,16 @@ bool FOnlineUserTencent::QueryExternalIdMappings(const FUniqueNetId& LocalUserId
 	return false;
 }
 
-void FOnlineUserTencent::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds)
+void FOnlineUserTencent::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds)
 {
 	// Not implemented, just set OutIds to be an array of size ExternalIds but with empty shared pointers
 	OutIds.SetNum(ExternalIds.Num());
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineUserTencent::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
+FUniqueNetIdPtr FOnlineUserTencent::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
 {
 	// Not implemented
-	TSharedPtr<const FUniqueNetId> Result;
+	FUniqueNetIdPtr Result;
 	return Result;
 }
 

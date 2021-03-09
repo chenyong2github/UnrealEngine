@@ -376,7 +376,7 @@ struct FGetUserMetadataTaskResult
 	/** Error information */
 	FOnlineError Error;
 	/** User whose presence was retrieved */
-	TSharedPtr<const FUniqueNetIdRail> UserId;
+	FUniqueNetIdRailPtr UserId;
 	/** Retrieved presence information */
 	FMetadataPropertiesRail Metadata;
 };
@@ -463,7 +463,7 @@ struct FGetInviteCommandLineTaskResult
 	/** Error information */
 	FOnlineError Error;
 	/** User whose command line invite was retrieved */
-	TSharedPtr<const FUniqueNetIdRail> UserId;
+	FUniqueNetIdRailPtr UserId;
 	/** Retrieved command line */
 	FString Commandline;
 };
@@ -511,7 +511,7 @@ struct FGetUserInviteTaskResult
 	/** Error information */
 	FOnlineError Error;
 	/** User whose invite was retrieved */
-	TSharedPtr<const FUniqueNetIdRail> UserId;
+	FUniqueNetIdRailPtr UserId;
 	/** Retrieved presence information */
 	FMetadataPropertiesRail Metadata;
 	/** Retrieved presence information */
@@ -673,7 +673,7 @@ class FOnlineAsyncTaskRailGetUsersInfo
 public:
 
 	FOnlineAsyncTaskRailGetUsersInfo() = delete;
-	FOnlineAsyncTaskRailGetUsersInfo(FOnlineSubsystemTencent* InSubsystem, const TArray<TSharedRef<const FUniqueNetId>>& InUserIds, const FOnOnlineAsyncTaskRailGetUsersInfoComplete& InCompletionDelegate);
+	FOnlineAsyncTaskRailGetUsersInfo(FOnlineSubsystemTencent* InSubsystem, const TArray<FUniqueNetIdRef>& InUserIds, const FOnOnlineAsyncTaskRailGetUsersInfoComplete& InCompletionDelegate);
 	virtual ~FOnlineAsyncTaskRailGetUsersInfo() = default;
 
 	//~ Begin FOnlineAsyncTask interface
@@ -694,7 +694,7 @@ protected:
 	/** Our request id */
 	int32 RequestId;
 	/** User to get data for */
-	TArray<TSharedRef<const FUniqueNetId>> UserIds;
+	TArray<FUniqueNetIdRef> UserIds;
 	/** Result of the task */
 	FGetUsersInfoTaskResult TaskResult;
 	/** Delegate to fire on completion */
@@ -1099,7 +1099,7 @@ public:
 	DECLARE_DELEGATE_OneParam(FCompletionDelegate, const FQueryUserPresenceTaskResult& /*TaskResult*/);
 
 	FOnlineAsyncTaskRailQueryFriendsPresence() = delete;
-	FOnlineAsyncTaskRailQueryFriendsPresence(FOnlineSubsystemTencent* InSubsystem, TArray<TSharedRef<const FUniqueNetId>>& InFriends, const FCompletionDelegate& InCompletionDelegate)
+	FOnlineAsyncTaskRailQueryFriendsPresence(FOnlineSubsystemTencent* InSubsystem, TArray<FUniqueNetIdRef>& InFriends, const FCompletionDelegate& InCompletionDelegate)
 		: FOnlineAsyncTaskBasic(InSubsystem)
 		, CompletionDelegate(InCompletionDelegate)
 		, FriendsList(InFriends)	
@@ -1122,7 +1122,7 @@ protected:
 	/** Completion delegate to fire */
 	FCompletionDelegate CompletionDelegate;
 	/** List of friends whose presence data is requested */
-	TArray<TSharedRef<const FUniqueNetId>> FriendsList;
+	TArray<FUniqueNetIdRef> FriendsList;
 	/** Result of operation */
 	FQueryUserPresenceTaskResult TaskResult;
 };
@@ -1161,7 +1161,7 @@ class FOnlineAsyncTaskRailSendInvite
 public:
 
 	FOnlineAsyncTaskRailSendInvite() = delete;
-	FOnlineAsyncTaskRailSendInvite(FOnlineSubsystemTencent* InSubsystem, const FString& InInviteStr, const TArray<TSharedRef<const FUniqueNetId>>& InUserIds, const FOnOnlineAsyncTaskRailSendInviteComplete& InCompletionDelegate)
+	FOnlineAsyncTaskRailSendInvite(FOnlineSubsystemTencent* InSubsystem, const FString& InInviteStr, const TArray<FUniqueNetIdRef>& InUserIds, const FOnOnlineAsyncTaskRailSendInviteComplete& InCompletionDelegate)
 		: FOnlineAsyncTaskRail(InSubsystem, {rail::kRailEventUsersInviteUsersResult})
 		, UserIds(InUserIds)
 		, CompletionDelegate(InCompletionDelegate)
@@ -1189,7 +1189,7 @@ protected:
 	void OnRailEventFriendsSendInviteResult(const rail::rail_event::RailUsersInviteUsersResult* InviteResult);
 
 	/** List of users to send invite to */
-	TArray<TSharedRef<const FUniqueNetId>> UserIds;
+	TArray<FUniqueNetIdRef> UserIds;
 	/** Delegate to fire on completion */
 	FOnOnlineAsyncTaskRailSendInviteComplete CompletionDelegate;
 	/** Task Result */
@@ -1261,7 +1261,7 @@ struct FQueryFriendPlayedGamesTaskResult
 	/** Error information */
 	FOnlineError Error;
 	/** Friend queried */
-	TSharedPtr<const FUniqueNetIdRail> FriendId;
+	FUniqueNetIdRailPtr FriendId;
 
 	struct FRailGamePlayedInfo
 	{
@@ -1391,7 +1391,7 @@ struct FQueryPlayedWithFriendsListTaskResult
 	/** Error information */
 	FOnlineError Error;
 	/** Users reported */
-	TArray<TSharedRef<const FUniqueNetId>> UsersPlayedWith;
+	TArray<FUniqueNetIdRef> UsersPlayedWith;
 };
 
 /**
@@ -1446,18 +1446,18 @@ struct FQueryPlayedWithFriendsTimeTaskResult
 	/** Error information */
 	FOnlineError Error;
 	/** List of users to query */
-	TArray<TSharedRef<const FUniqueNetId>> UserIds;
+	TArray<FUniqueNetIdRef> UserIds;
 	/** Last seen info for a single player */
 	struct FRecentPlayers 
 	{
 		FRecentPlayers() = delete;
-		FRecentPlayers(const TSharedRef<const FUniqueNetId> InUserId, const FDateTime& InLastPlayed)
+		FRecentPlayers(const FUniqueNetIdRef InUserId, const FDateTime& InLastPlayed)
 			: UserId(InUserId)
 			, LastPlayed(InLastPlayed)
 		{
 
 		}
-		TSharedRef<const FUniqueNetId> UserId;
+		FUniqueNetIdRef UserId;
 		FDateTime LastPlayed;
 	};
 	/** All users reported as being seen by this user */
@@ -1481,7 +1481,7 @@ class FOnlineAsyncTaskRailQueryPlayedWithFriendsTime
 public:
 
 	FOnlineAsyncTaskRailQueryPlayedWithFriendsTime() = delete;
-	FOnlineAsyncTaskRailQueryPlayedWithFriendsTime(FOnlineSubsystemTencent* InSubsystem, const TArray<TSharedRef<const FUniqueNetId>>& InUserIds, const FOnOnlineAsyncTaskRailQueryPlayedWithFriendsTimeComplete& InCompletionDelegate);
+	FOnlineAsyncTaskRailQueryPlayedWithFriendsTime(FOnlineSubsystemTencent* InSubsystem, const TArray<FUniqueNetIdRef>& InUserIds, const FOnOnlineAsyncTaskRailQueryPlayedWithFriendsTimeComplete& InCompletionDelegate);
 
 	virtual ~FOnlineAsyncTaskRailQueryPlayedWithFriendsTime()
 	{
@@ -1531,7 +1531,7 @@ class FOnlineAsyncTaskRailRequestAllAssets
 {
 public:
 	FOnlineAsyncTaskRailRequestAllAssets() = delete;
-	FOnlineAsyncTaskRailRequestAllAssets(FOnlineSubsystemTencent* InSubsystem, const TSharedRef<const FUniqueNetId>& InUserId, const FOnOnlineAsyncTaskRailRequestAllAssetsComplete& InCompletionDelegate)
+	FOnlineAsyncTaskRailRequestAllAssets(FOnlineSubsystemTencent* InSubsystem, const FUniqueNetIdRef& InUserId, const FOnOnlineAsyncTaskRailRequestAllAssetsComplete& InCompletionDelegate)
 		: FOnlineAsyncTaskRail(InSubsystem, {rail::kRailEventAssetsRequestAllAssetsFinished})
 		, UserId(InUserId)
 		, CompletionDelegate(InCompletionDelegate)
@@ -1556,7 +1556,7 @@ protected:
 	void OnRailRequestAllAssetsFinished(const rail::rail_event::RequestAllAssetsFinished* AssetsResponse);
 
 	/** User we are requesting assets for */
-	const TSharedRef<const FUniqueNetId> UserId;
+	const FUniqueNetIdRef UserId;
 	/** Delegate to fire on completion */
 	FOnOnlineAsyncTaskRailRequestAllAssetsComplete CompletionDelegate;
 	/** Task Result */
@@ -1664,7 +1664,7 @@ class FOnlineAsyncTaskRailPurchaseProducts
 public:
 
 	FOnlineAsyncTaskRailPurchaseProducts() = delete;
-	FOnlineAsyncTaskRailPurchaseProducts(FOnlineSubsystemTencent* InSubsystem, const TSharedRef<const FUniqueNetId>& InUserId, const FPurchaseCheckoutRequest& InCheckoutRequest, const FOnOnlineAsyncTaskRailPurchaseProductsComplete& InCompletionDelegate)
+	FOnlineAsyncTaskRailPurchaseProducts(FOnlineSubsystemTencent* InSubsystem, const FUniqueNetIdRef& InUserId, const FPurchaseCheckoutRequest& InCheckoutRequest, const FOnOnlineAsyncTaskRailPurchaseProductsComplete& InCompletionDelegate)
 		: FOnlineAsyncTaskRail(InSubsystem, {rail::kRailEventInGamePurchasePurchaseProductsToAssetsResult})
 		, UserId(InUserId)
 		, CheckoutRequest(InCheckoutRequest)
@@ -1694,7 +1694,7 @@ protected:
 	void HandlePurchaseProductsResult(const TOptional<rail::RailResult> RailResult);
 
 	/** User performing the purchase */
-	const TSharedRef<const FUniqueNetId> UserId;
+	const FUniqueNetIdRef UserId;
 	/** Items to purchase */
 	FPurchaseCheckoutRequest CheckoutRequest;
 	/** Result of the task */

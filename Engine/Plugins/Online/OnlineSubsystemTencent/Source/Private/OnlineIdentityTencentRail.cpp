@@ -15,7 +15,7 @@
 // Per request from Tencent - when WeGame does not provide us with a display name, use 'Player One'
 static const FString InvalidWeGameDisplayName(TEXT("Player One"));
 
-TSharedRef<const FUniqueNetId> FUserOnlineAccountTencent::GetUserId() const
+FUniqueNetIdRef FUserOnlineAccountTencent::GetUserId() const
 {
 	return UserId;
 }
@@ -90,11 +90,11 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityTencent::GetAllUserAccoun
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityTencent::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineIdentityTencent::GetUniquePlayerId(int32 LocalUserNum) const
 {
 	if (LocalUserNum >= 0 && LocalUserNum < MAX_LOCAL_PLAYERS)
 	{
-		const TSharedPtr<const FUniqueNetId>* FoundId = UserIds.Find(LocalUserNum);
+		const FUniqueNetIdPtr* FoundId = UserIds.Find(LocalUserNum);
 		if (FoundId != nullptr)
 		{
 			return *FoundId;
@@ -103,18 +103,18 @@ TSharedPtr<const FUniqueNetId> FOnlineIdentityTencent::GetUniquePlayerId(int32 L
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityTencent::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineIdentityTencent::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Bytes != nullptr && Size == sizeof(rail::RailID))
 	{
-		return MakeShared<FUniqueNetIdRail>(*reinterpret_cast<const rail::RailID*>(Bytes));
+		return FUniqueNetIdRail::Create(*reinterpret_cast<const rail::RailID*>(Bytes));
 	}
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityTencent::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineIdentityTencent::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShared<FUniqueNetIdRail>(Str);
+	return FUniqueNetIdRail::Create(Str);
 }
 
 bool FOnlineIdentityTencent::Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials)
@@ -162,7 +162,7 @@ bool FOnlineIdentityTencent::Login(int32 LocalUserNum, const FOnlineAccountCrede
 		const rail::RailID RailId = RailPlayer->GetRailID();
 		if (bIsNewAccount)
 		{
-			TSharedRef<const FUniqueNetId> UserId = MakeShared<FUniqueNetIdRail>(RailId);
+			FUniqueNetIdRef UserId = FUniqueNetIdRail::Create(RailId);
 			UserAccount = MakeShared<FUserOnlineAccountTencent>(UserId);
 			// Try to get the display name
 			rail::RailString RailPlayerName;
@@ -231,7 +231,7 @@ bool FOnlineIdentityTencent::Logout(int32 LocalUserNum)
 	UE_LOG_ONLINE_IDENTITY(Log, TEXT("Logout user %d"), LocalUserNum);
 
 	const ELoginStatus::Type LastLoginStatus = GetLoginStatus(LocalUserNum);
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 
 	if (UserAccount.IsValid())
 	{
@@ -262,7 +262,7 @@ bool FOnlineIdentityTencent::AutoLogin(int32 LocalUserNum)
 
 ELoginStatus::Type FOnlineIdentityTencent::GetLoginStatus(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetLoginStatus(*UserId);
@@ -285,7 +285,7 @@ ELoginStatus::Type FOnlineIdentityTencent::GetLoginStatus(const FUniqueNetId& Us
 
 FString FOnlineIdentityTencent::GetPlayerNickname(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetPlayerNickname(*UserId);
@@ -312,7 +312,7 @@ FString FOnlineIdentityTencent::GetAuthToken(int32 LocalUserNum) const
 {
 	FString AuthToken;
 
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		TSharedPtr<FUserOnlineAccountTencent> FoundUserAccount = GetUserAccountTencent(*UserId);
@@ -361,7 +361,7 @@ FString FOnlineIdentityTencent::GetAuthType() const
 void FOnlineIdentityTencent::RevokeAuthToken(const FUniqueNetId& UserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate)
 {
 	UE_LOG_ONLINE_IDENTITY(Display, TEXT("FOnlineIdentityTencent::RevokeAuthToken not implemented"));
-	TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	Subsystem->ExecuteNextTick([UserIdRef, Delegate]()
 	{
 		Delegate.ExecuteIfBound(*UserIdRef, FOnlineError(FString(TEXT("RevokeAuthToken not implemented"))));

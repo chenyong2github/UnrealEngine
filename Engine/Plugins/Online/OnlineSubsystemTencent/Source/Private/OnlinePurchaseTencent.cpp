@@ -110,7 +110,7 @@ void FOnlinePurchaseTencent::RedeemCode(const FUniqueNetId& UserId, const FRedee
 
 void FOnlinePurchaseTencent::QueryReceipts(const FUniqueNetId& UserId, bool bRestoreReceipts, const FOnQueryReceiptsComplete& Delegate)
 {
-	const TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	const FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	FOnOnlineAsyncTaskRailRequestAllAssetsComplete CompletionDelegate;
 	CompletionDelegate.BindThreadSafeSP(this, &FOnlinePurchaseTencent::QueryReceipts_Complete, UserIdRef, Delegate);
 
@@ -118,7 +118,7 @@ void FOnlinePurchaseTencent::QueryReceipts(const FUniqueNetId& UserId, bool bRes
 	Subsystem->QueueAsyncTask(AsyncTask);
 }
 
-void FOnlinePurchaseTencent::QueryReceipts_Complete(const FRequestAllAssetsTaskResult& Result, const TSharedRef<const FUniqueNetId> UserId, const FOnQueryReceiptsComplete Delegate)
+void FOnlinePurchaseTencent::QueryReceipts_Complete(const FRequestAllAssetsTaskResult& Result, const FUniqueNetIdRef UserId, const FOnQueryReceiptsComplete Delegate)
 {
 	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("QueryReceipts Complete with result=[%s]"), *Result.Error.ToLogString());
 	PurchaseReceipts.Empty(1);

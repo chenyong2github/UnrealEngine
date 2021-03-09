@@ -46,7 +46,7 @@ PACKAGE_SCOPE:
 private:
 
 	/** Called when the QueryReceipts async task completes */
-	void QueryReceipts_Complete(const FRequestAllAssetsTaskResult& Result, const TSharedRef<const FUniqueNetId> UserId, const FOnQueryReceiptsComplete Delegate);
+	void QueryReceipts_Complete(const FRequestAllAssetsTaskResult& Result, const FUniqueNetIdRef UserId, const FOnQueryReceiptsComplete Delegate);
 
 	/** Called when the Checkout async task completes */
 	void Checkout_Complete(const FPurchaseProductsTaskResult& Result, FOnPurchaseCheckoutComplete Delegate);

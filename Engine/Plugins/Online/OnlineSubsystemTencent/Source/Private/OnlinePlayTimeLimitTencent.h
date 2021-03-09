@@ -11,7 +11,7 @@ class ONLINESUBSYSTEMTENCENT_API FOnlinePlayTimeLimitUserTencentRail
 	: public FPlayTimeLimitUser
 {
 public:
-	explicit FOnlinePlayTimeLimitUserTencentRail(const TSharedRef<const FUniqueNetId>& InUserId)
+	explicit FOnlinePlayTimeLimitUserTencentRail(const FUniqueNetIdRef& InUserId)
 		: FPlayTimeLimitUser(InUserId)
 	{}
 	~FOnlinePlayTimeLimitUserTencentRail();

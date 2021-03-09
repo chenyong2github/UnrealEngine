@@ -43,63 +43,15 @@ PACKAGE_SCOPE:
 	/** Hidden on purpose */
 	FUniqueNetIdRail() = delete;
 
-	/**
-	 * Copy Constructor
-	 *
-	 * @param Src the id to copy
-	 */
-	explicit FUniqueNetIdRail(const FUniqueNetIdRail& Src) :
-		RailID(Src.RailID)
-	{
-	}
-
 public:
 	template<typename... TArgs>
 	static FUniqueNetIdRailRef Create(TArgs&&... Args)
 	{
-		return MakeShareable(new FUniqueNetIdRail(Forward<TArgs>(Args)...));
+		return MakeShared<FUniqueNetIdRail, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
 	}
 
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param InUniqueNetId the id to set ours to
-	 */
-	explicit FUniqueNetIdRail(uint64 InUniqueNetId) :
-		RailID(InUniqueNetId)
-	{
-	}
-
-	/**
-	 * Constructs this object with the RailID
-	 *
-	 * @param InUniqueNetId the id to set ours to
-	 */
-	explicit FUniqueNetIdRail(rail::RailID InRailID) :
-		RailID(InRailID)
-	{
-	}
-
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param String textual representation of an id
-	 */
-	explicit FUniqueNetIdRail(const FString& Str) :
-		RailID(FCString::Atoi64(*Str))
-	{
-	}
-
-
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param InUniqueNetId the id to set ours to (assumed to be FUniqueNetIdRail in fact)
-	 */
-	explicit FUniqueNetIdRail(const FUniqueNetId& InUniqueNetId) :
-		RailID(*(uint64*)InUniqueNetId.GetBytes())
-	{
-	}
+	/** Allow MakeShared to see private constructors */
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdRail>;
 
 	virtual FName GetType() const override
 	{
@@ -185,6 +137,58 @@ public:
 	{
 		return RailID;
 	}
+
+private:
+	/**
+	 * Copy Constructor
+	 *
+	 * @param Src the id to copy
+	 */
+	explicit FUniqueNetIdRail(const FUniqueNetIdRail& Src) :
+		RailID(Src.RailID)
+	{
+	}
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param InUniqueNetId the id to set ours to
+	 */
+	explicit FUniqueNetIdRail(uint64 InUniqueNetId) :
+		RailID(InUniqueNetId)
+	{
+	}
+
+	/**
+	 * Constructs this object with the RailID
+	 *
+	 * @param InUniqueNetId the id to set ours to
+	 */
+	explicit FUniqueNetIdRail(rail::RailID InRailID) :
+		RailID(InRailID)
+	{
+	}
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param String textual representation of an id
+	 */
+	explicit FUniqueNetIdRail(const FString& Str) :
+		RailID(FCString::Atoi64(*Str))
+	{
+	}
+
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param InUniqueNetId the id to set ours to (assumed to be FUniqueNetIdRail in fact)
+	 */
+	explicit FUniqueNetIdRail(const FUniqueNetId& InUniqueNetId) :
+		RailID(*(uint64*)InUniqueNetId.GetBytes())
+	{
+	}
 };
 
 #endif // WITH_TENCENT_RAIL_SDK
@@ -261,8 +265,8 @@ public:
 
 	virtual const FUniqueNetId& GetSessionId() const override
 	{
-		static FUniqueNetIdString InvalidId(TEXT("Invalid"), TENCENT_SUBSYSTEM);
-		return SessionId.IsValid() ? *SessionId : InvalidId;
+		static const FUniqueNetIdStringRef InvalidId = FUniqueNetIdString::Create(TEXT("Invalid"), TENCENT_SUBSYSTEM);
+		return SessionId.IsValid() ? *SessionId : *InvalidId;
 	}
 };
 
