@@ -40,14 +40,14 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 	}
 }
 
-FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool LastBounce, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
+FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
 	float SelectionWeightSum = 0;
 	float3 PayloadThroughput = PathThroughput;
 	FMaterialClosestHitPayload Payload;
 	for (;;)
 	{
-		const uint InitialRayFlags = 0;
+		const uint InitialRayFlags = IsCameraRay && PathTracingData.EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
 		const bool bInitialDisableSkyLightContribution = false;
 		const bool bIgnoreTranslucentMaterials = false;
 		FMaterialClosestHitPayload HitPayload = TraceMaterialRay(
@@ -76,7 +76,8 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 		}
 
 		// material tweaks to workaround temporary limitations
-		if (HitPayload.ShadingModelID == SHADINGMODELID_SUBSURFACE)
+		if (HitPayload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
+			HitPayload.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
 		{
 			// for now just approximate SSS by moving it into the diffuse color
 			HitPayload.DiffuseColor += HitPayload.CustomData.xyz;
@@ -265,7 +266,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 	for (int Bounce = 0; Bounce <= PathTracingData.MaxBounces; Bounce++)
 	{
-		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == PathTracingData.MaxBounces, LaunchIndex, NumLights, RandSequence, PathThroughput, Radiance);
+		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == 0, Bounce == PathTracingData.MaxBounces, LaunchIndex, NumLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
 		{
