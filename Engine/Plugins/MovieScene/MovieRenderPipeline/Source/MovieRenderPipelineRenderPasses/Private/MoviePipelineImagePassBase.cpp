@@ -141,11 +141,40 @@ TSharedPtr<FSceneViewFamilyContext> UMoviePipelineImagePassBase::CalculateViewFa
 
 	// Anti Aliasing
 	{
-		// If we're not using Temporal Anti-Aliasing we will apply the View Matrix projection jitter. Normally TAA sets this
-		// inside FSceneRenderer::PreVisibilityFrameSetup..
-		if (View->AntiAliasingMethod != EAntiAliasingMethod::AAM_TemporalAA)
+		// If we're not using Temporal Anti-Aliasing or Path Tracing we will apply the View Matrix projection jitter. Normally TAA sets this
+		// inside FSceneRenderer::PreVisibilityFrameSetup. Path Tracing does its own anti-aliasing internally.
+		if (View->AntiAliasingMethod != EAntiAliasingMethod::AAM_TemporalAA && !OutViewFamily->EngineShowFlags.PathTracing)
 		{
 			View->ViewMatrices.HackAddTemporalAAProjectionJitter(InOutSampleState.ProjectionMatrixJitterAmount);
+		}
+	}
+
+	// Path Tracer Sampling
+	if (OutViewFamily->EngineShowFlags.PathTracing)
+	{
+		// override whatever settings came from PostProcessVolume or Camera
+		int32 SampleCount = InOutSampleState.TemporalSampleCount * InOutSampleState.SpatialSampleCount;
+		int32 SampleIndex = InOutSampleState.TemporalSampleIndex * InOutSampleState.SpatialSampleCount + InOutSampleState.SpatialSampleIndex;
+
+		// TODO: pass along FrameIndex (which includes SampleIndex) to make sure sampling is fully deterministic
+
+		// Overwrite whatever sampling count came from the PostProcessVolume
+		View->FinalPostProcessSettings.bOverride_PathTracingSamplesPerPixel = true;
+		View->FinalPostProcessSettings.PathTracingSamplesPerPixel = InOutSampleState.SpatialSampleCount;
+		if (InOutSampleState.SpatialSampleIndex == 0)
+		{
+			// reset path tracer's accumulation at the start of each temporal sample
+			View->bForceCameraVisibilityReset = true;
+		}
+
+		// discard the result, unless its the last spatial sample
+		InOutSampleState.bDiscardResult |= !(InOutSampleState.SpatialSampleIndex == InOutSampleState.SpatialSampleCount - 1);
+
+		if (InOutSampleState.GetTileCount() > 1 && InOutSampleState.GetTileIndex() == 0 && SampleIndex == 0)
+		{
+			// warn the user
+			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("Path tracer does not support tiling correctly yet!"));
+			// FIXME: find a way to disable tiling earlier so this doesn't happen
 		}
 	}
 

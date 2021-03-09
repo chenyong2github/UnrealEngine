@@ -234,8 +234,9 @@ FSceneViewState::FSceneViewState()
 	VarianceMipTreeDimensions = FIntVector(0);
 	VarianceMipTree = new FRWBuffer;
 	PathTracingRect = FIntRect(0, 0, 0, 0);
-	PathTracingSPP = 0;
-	PathTracingFrameIndependentTemporalSeed = 0;
+	PathTracingTargetSPP = 0;
+	PathTracingSampleIndex = 0;
+	PathTracingFrameIndex = 0;
 	TotalRayCount = 0;
 	TotalRayCountBuffer = new FRWBuffer;
 	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)

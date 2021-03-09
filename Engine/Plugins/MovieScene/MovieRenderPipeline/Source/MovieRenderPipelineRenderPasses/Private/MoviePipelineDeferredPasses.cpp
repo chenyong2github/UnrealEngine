@@ -763,8 +763,9 @@ namespace MoviePipeline
 			return;
 		}
 
-		// For the first sample in a new output, we allocate memory
-		if (NewPayload->IsFirstTile() && NewPayload->IsFirstTemporalSample())
+		// Allocate memory if the ImageAccumulator has not been initialized yet for this output
+		// This usually happens on the first sample (regular case), or on the last spatial sample of the first temporal sample (path tracer)
+		if (InParams.ImageAccumulator->NumChannels == 0)
 		{
 			int32 ChannelCount = InParams.bAccumulateAlpha ? 4 : 3;
 			InParams.ImageAccumulator->InitMemory(FIntPoint(NewPayload->SampleState.TileSize.X * NewPayload->SampleState.TileCounts.X, NewPayload->SampleState.TileSize.Y * NewPayload->SampleState.TileCounts.Y), ChannelCount);

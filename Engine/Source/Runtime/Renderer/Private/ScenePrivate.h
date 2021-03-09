@@ -949,15 +949,16 @@ public:
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
 	FIntRect PathTracingRect;
+	uint32   PathTracingTargetSPP;
 	FRWBuffer* VarianceMipTree;
 	FIntVector VarianceMipTreeDimensions;
 
 	// Path tracer samples/pixel
-	uint32_t PathTracingSPP;
+	uint32 PathTracingSampleIndex;
 
-	// The frame independent temporal seed, not reset on invalidation unlike PathTracingSPP to avoid
+	// Path tracer frame index, not reset on invalidation unlike PathTracingSampleIndex to avoid
 	// the "screen door" effect and reduce temporal aliasing
-	uint32_t PathTracingFrameIndependentTemporalSeed;
+	uint32_t PathTracingFrameIndex;
 
 	// Path tracer ray counter
 	uint32 TotalRayCount;

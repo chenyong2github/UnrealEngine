@@ -452,7 +452,7 @@ void FSceneViewState::PathTracingInvalidate()
 	PathTracingRadianceRT.SafeRelease();
 	VarianceMipTreeDimensions = FIntVector(0);
 	TotalRayCount = 0;
-	PathTracingSPP = 0;
+	PathTracingSampleIndex = 0;
 }
 
 DECLARE_GPU_STAT_NAMED(Stat_GPU_PathTracing, TEXT("Path Tracing"));
@@ -469,13 +469,14 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	bool bArgsChanged = false;
 
 	// Get current value of MaxSPP and reset render if it has changed
-	int32 SamplesPerPixelCVar = CVarPathTracingSamplesPerPixel.GetValueOnRenderThread();
+	// NOTE: we ignore the CVar when using offline rendering
+	int32 SamplesPerPixelCVar = View.bIsOfflineRender ? -1 : CVarPathTracingSamplesPerPixel.GetValueOnRenderThread();
 	uint32 MaxSPP = SamplesPerPixelCVar > -1 ? SamplesPerPixelCVar : View.FinalPostProcessSettings.PathTracingSamplesPerPixel;
 	MaxSPP = FMath::Max(MaxSPP, 1u);
-	static uint32 PreviousMaxSPP = MaxSPP;
-	if (PreviousMaxSPP != MaxSPP)
+	if (View.ViewState->PathTracingTargetSPP != MaxSPP)
 	{
-		PreviousMaxSPP = MaxSPP;
+		// Store MaxSPP in the view state because we may have multiple views, each targetting a different sample count
+		View.ViewState->PathTracingTargetSPP = MaxSPP;
 		bArgsChanged = true;
 	}
 	// Changing FrameIndependentTemporalSeed requires starting over
@@ -511,14 +512,14 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	if (LockedSamplingPattern)
 	{
 		// Count samples from 0 for deterministic results
-		PathTracingData.TemporalSeed = View.ViewState->PathTracingSPP;
+		PathTracingData.TemporalSeed = View.ViewState->PathTracingSampleIndex;
 	}
 	else
 	{
 		// Count samples from an ever-increasing counter to avoid screen-door effect
-		PathTracingData.TemporalSeed = View.ViewState->PathTracingFrameIndependentTemporalSeed;
+		PathTracingData.TemporalSeed = View.ViewState->PathTracingFrameIndex;
 	}
-	PathTracingData.Iteration = View.ViewState->PathTracingSPP;
+	PathTracingData.Iteration = View.ViewState->PathTracingSampleIndex;
 	PathTracingData.MaxSamples = MaxSPP;
 
 	// Prepare radiance buffer (will be shared with display pass)
@@ -562,7 +563,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		TShaderMapRef<FPathTracingRG> RayGenShader(View.ShaderMap);
 		ClearUnusedGraphResources(RayGenShader, PassParameters);
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSPP, MaxSPP),
+			RDG_EVENT_NAME("Path Tracer Compute (%d x %d) Sample=%d/%d", View.ViewRect.Size().X, View.ViewRect.Size().Y, View.ViewState->PathTracingSampleIndex, MaxSPP),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, RayGenShader, &View](FRHICommandListImmediate& RHICmdList)
@@ -619,8 +620,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	);
 
 	// Bump counters for next frame
-	++View.ViewState->PathTracingSPP;
-	++View.ViewState->PathTracingFrameIndependentTemporalSeed;
+	++View.ViewState->PathTracingSampleIndex;
+	++View.ViewState->PathTracingFrameIndex;
 }
 
 #endif
