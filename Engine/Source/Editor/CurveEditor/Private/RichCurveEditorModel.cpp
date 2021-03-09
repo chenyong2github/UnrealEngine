@@ -719,6 +719,16 @@ FRichCurveEditorModelRaw::FRichCurveEditorModelRaw(FRichCurve* InRichCurve, UObj
 	checkf(RichCurve, TEXT("If is not valid to provide a null rich curve to this class"));
 }
 
+bool FRichCurveEditorModelRaw::IsReadOnly() const
+{
+	return ReadOnlyAttribute.Get(false);
+}
+
+void FRichCurveEditorModelRaw::SetIsReadOnly(TAttribute<bool> InReadOnlyAttribute)
+{
+	ReadOnlyAttribute = InReadOnlyAttribute;
+}
+
 FRichCurve& FRichCurveEditorModelRaw::GetRichCurve()
 {
 	return *RichCurve;
