@@ -10,7 +10,6 @@
 #include "OpenColorIOShared.h"
 #include "RenderCommandFence.h"
 #include "RHIDefinitions.h"
-#include "UObject/StrongObjectPtr.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
 #include "OpenColorIOColorTransform.generated.h"
@@ -159,7 +158,8 @@ private:
 
 	/** If the color space requires a 3dLUT, this will contains the data to do the transform */
 	/** Note: This will be serialized when cooking. Otherwhise, it relies on raw data of the library and what's on DDC */
-	TStrongObjectPtr<UVolumeTexture> Lut3dTexture;
+	UPROPERTY(Transient)
+	UVolumeTexture* Lut3dTexture = nullptr;
 	
 	/** Inline ColorTransform resources serialized from disk. To be processed on game thread in PostLoad. */
 	TArray<FOpenColorIOTransformResource> LoadedTransformResources;
