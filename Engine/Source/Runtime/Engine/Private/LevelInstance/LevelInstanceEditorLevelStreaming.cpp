@@ -25,7 +25,7 @@ ULevelStreamingLevelInstanceEditor::ULevelStreamingLevelInstanceEditor(const FOb
 #if WITH_EDITOR
 	SetShouldBeVisibleInEditor(true);
 
-	if (!IsTemplate() && !GetWorld()->IsPlayInEditor())
+	if (!IsTemplate() && !GetWorld()->IsGameWorld())
 	{
 		GEngine->OnLevelActorAdded().AddUObject(this, &ULevelStreamingLevelInstanceEditor::OnLevelActorAdded);
 	}

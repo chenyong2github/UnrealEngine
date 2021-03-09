@@ -43,7 +43,7 @@ void FLevelInstanceActorDesc::RegisterContainer()
 	check(!LevelInstanceContainer);
 	if (Container && (DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Embedded || DesiredRuntimeBehavior == ELevelInstanceRuntimeBehavior::Partitioned))
 	{
-		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage))
+		if (!LevelPackage.IsNone() && ULevel::GetIsLevelUsingExternalActorsFromPackage(LevelPackage) && !ULevel::GetIsLevelPartitionedFromPackage(LevelPackage))
 		{
 			UWorldPartition* WorldPartition = Container->GetWorld()->GetWorldPartition();
 			LevelInstanceContainer = WorldPartition->RegisterActorDescContainer(LevelPackage);

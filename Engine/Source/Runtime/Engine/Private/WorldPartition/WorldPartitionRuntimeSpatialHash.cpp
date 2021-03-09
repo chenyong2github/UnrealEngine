@@ -644,7 +644,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 						// Then, duplication of world for PIE will duplicate only these actors. 
 						// When stopping PIE, WorldPartition will release these FWorldPartitionReferences which 
 						// will unload actors that were not already loaded in the non PIE world.
-						if (bIsCellAlwaysLoaded && bIsMainWorldPartition && (Mode == EWorldPartitionStreamingMode::PIE))
+						if (bIsCellAlwaysLoaded && bIsMainWorldPartition && (Mode == EWorldPartitionStreamingMode::PIE || Mode == EWorldPartitionStreamingMode::EditorStandalone))
 						{
 							if (ActorInstance.ContainerInstance->Container == WorldPartition)
 							{
@@ -710,7 +710,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					StreamingCell->AddCellData(HLODCellData);
 				}
 
-				if (Mode == EWorldPartitionStreamingMode::RuntimeStreamingCells)
+				if (Mode == EWorldPartitionStreamingMode::Cook)
 				{
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Log, TEXT("Creating runtime streaming cells %s."), *StreamingCell->GetName());
 

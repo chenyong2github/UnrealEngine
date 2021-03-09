@@ -126,7 +126,7 @@ void UWorldPartitionLevelStreamingPolicy::UnloadCell(const UWorldPartitionRuntim
 
 FString UWorldPartitionLevelStreamingPolicy::GetCellPackagePath(const FName& InCellName, const UWorld* InWorld)
 {
-	if (InWorld->IsPlayInEditor())
+	if (InWorld->IsGameWorld())
 	{
 		// Set as memory package to avoid wasting time in FPackageName::DoesPackageExist
 		return FString::Printf(TEXT("/Memory/%s"), *InCellName.ToString());
@@ -142,7 +142,7 @@ TSubclassOf<UWorldPartitionRuntimeCell> UWorldPartitionLevelStreamingPolicy::Get
 	return UWorldPartitionRuntimeLevelStreamingCell::StaticClass();
 }
 
-void UWorldPartitionLevelStreamingPolicy::PrepareForPIE()
+void UWorldPartitionLevelStreamingPolicy::OnBeginPlay()
 {
 	TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
 	WorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bIncludeDataLayers*/ true);
@@ -159,7 +159,12 @@ void UWorldPartitionLevelStreamingPolicy::PrepareForPIE()
 	}
 }
 
-void UWorldPartitionLevelStreamingPolicy::OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
+void UWorldPartitionLevelStreamingPolicy::OnEndPlay()
+{
+	ActorToCellRemapping.Empty();
+}
+
+void UWorldPartitionLevelStreamingPolicy::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 {
 	// Once we fix up the path to the proper streaming Level, normal flow of FixupForPIE will adapt the path for PIE.
 	FString SrcPath = ObjectPath.ToString();

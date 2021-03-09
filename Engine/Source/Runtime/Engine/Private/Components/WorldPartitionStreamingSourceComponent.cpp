@@ -18,7 +18,7 @@ void UWorldPartitionStreamingSourceComponent::OnRegister()
 	UWorld* World = GetWorld();
 
 #if WITH_EDITOR
-	if (!World->IsPlayInEditor())
+	if (!World->IsGameWorld())
 	{
 		return;
 	}
@@ -37,7 +37,7 @@ void UWorldPartitionStreamingSourceComponent::OnUnregister()
 	UWorld* World = GetWorld();
 
 #if WITH_EDITOR
-	if (!World->IsPlayInEditor())
+	if (!World->IsGameWorld())
 	{
 		return;
 	}

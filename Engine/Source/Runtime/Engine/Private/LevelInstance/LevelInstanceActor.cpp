@@ -225,6 +225,14 @@ ALevelInstance::FOnLevelInstanceActorPostLoad ALevelInstance::OnLevelInstanceAct
 void ALevelInstance::PostLoad()
 {
 	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (ULevel::GetIsLevelPartitionedFromPackage(*WorldAsset.GetLongPackageName()))
+	{
+		UE_LOG(LogLevelInstance, Warning, TEXT("LevelInstance doesn't support partitioned world %s"), *WorldAsset.GetLongPackageName());
+		WorldAsset.Reset();
+	}
+#endif
 		
 	OnLevelInstanceActorPostLoad.Broadcast(this);
 }
@@ -387,6 +395,16 @@ bool ALevelInstance::CanSetValue(TSoftObjectPtr<UWorld> InLevelInstance, FString
 
 	TArray<TPair<FText, TSoftObjectPtr<UWorld>>> LoopInfo;
 	const ALevelInstance* LoopStart = nullptr;
+
+	if (ULevel::GetIsLevelPartitionedFromPackage(*InLevelInstance.GetLongPackageName()))
+	{
+		if (Reason)
+		{
+			*Reason = FString::Format(TEXT("LevelInstance doesn't support partitioned world {0}\n"), { InLevelInstance.GetLongPackageName() });
+		}
+
+		return false;
+	}
 
 	if (!CheckForLoop(InLevelInstance, Reason ? &LoopInfo : nullptr, Reason ? &LoopStart : nullptr))
 	{
@@ -569,7 +587,7 @@ bool ALevelInstance::IsLoaded() const
 
 void ALevelInstance::OnLevelInstanceLoaded()
 {
-	if (!GetWorld()->IsPlayInEditor())
+	if (!GetWorld()->IsGameWorld())
 	{
 		// Propagate bounds dirtyness up and check if we need to hide our LevelInstance because self or ancestor is hidden
 		bool bHiddenInEditor = false;

@@ -21,9 +21,10 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	friend class FActorClusterContext;
 
 #if WITH_EDITOR
+	bool GenerateRuntimeStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate = nullptr);
+
 	virtual void SetDefaultValues() {}
 	virtual void ImportFromWorldComposition(class UWorldComposition* WorldComposition) {}
-	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate = nullptr) { return false; }
 	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName) { return false; }
 	virtual void FinalizeGeneratedPackageForCook() {}
 	virtual void FlushStreaming() {}
@@ -32,9 +33,9 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual FName GetActorRuntimeGrid(const AActor* Actor) const { return NAME_None; }
 	virtual void DrawPreview() const {}
 
-	// PIE methods
-	void OnPreBeginPIE();
-	void OnEndPIE();
+	// PIE/Game methods
+	void OnBeginPlay(EWorldPartitionStreamingMode Mode);
+	void OnEndPlay();
 #endif
 
 	// Streaming interface
@@ -54,6 +55,7 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 protected:
 #if WITH_EDITOR
+	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate) { return false; }
 	virtual void CreateActorDescViewMap(const UActorDescContainer* Container, TMap<FGuid, FWorldPartitionActorDescView>& OutActorDescViewMap) const;
 	void ChangeActorDescViewGridPlacement(FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement) const;
 #endif

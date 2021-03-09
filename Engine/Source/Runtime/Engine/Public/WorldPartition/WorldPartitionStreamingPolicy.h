@@ -34,8 +34,11 @@ public:
 
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const PURE_VIRTUAL(UWorldPartitionStreamingPolicy::GetRuntimeCellClass, return UWorldPartitionRuntimeCell::StaticClass(); );
-	virtual void PrepareForPIE() {}
-	virtual void OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath) {}
+
+	// PIE/Game methods
+	virtual void OnBeginPlay() {}
+	virtual void OnEndPlay() {}
+	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) {}
 #endif
 
 	const TArray<FWorldPartitionStreamingSource>& GetStreamingSources() const { return StreamingSources; }

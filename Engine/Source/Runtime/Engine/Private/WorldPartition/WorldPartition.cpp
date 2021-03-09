@@ -36,6 +36,7 @@
 #include "WorldPartition/WorldPartitionRuntimeSpatialHash.h"
 #include "WorldPartition/WorldPartitionEditorPerProjectUserSettings.h"
 #include "Modules/ModuleManager.h"
+#include "GameDelegates.h"
 #endif //WITH_EDITOR
 
 DEFINE_LOG_CATEGORY(LogWorldPartition);
@@ -52,7 +53,7 @@ static FAutoConsoleCommand DumpActorDescs(
 		{
 			if (UWorld* World = GEditor->GetEditorWorldContext().World())
 			{
-				if (!World->IsPlayInEditor())
+				if (!World->IsGameWorld())
 				{
 					if (UWorldPartition* WorldPartition = World->GetWorldPartition())
 					{
@@ -152,15 +153,24 @@ void UWorldPartition::OnPreBeginPIE(bool bStartSimulate)
 	}
 
 	check(IsMainWorldPartition());
-	GenerateStreaming(EWorldPartitionStreamingMode::PIE);
-	RuntimeHash->OnPreBeginPIE();
+
+	OnBeginPlay(EWorldPartitionStreamingMode::PIE);
 }
 
-void UWorldPartition::OnEndPIE(bool bStartSimulate)
+void UWorldPartition::OnBeginPlay(EWorldPartitionStreamingMode Mode)
+{
+	GenerateStreaming(Mode);
+	RuntimeHash->OnBeginPlay(Mode);
+	GetStreamingPolicy()->OnBeginPlay();
+}
+
+void UWorldPartition::OnEndPlay()
 {
 	check(IsMainWorldPartition());
+
 	FlushStreaming();
-	RuntimeHash->OnEndPIE();
+	RuntimeHash->OnEndPlay();
+	GetStreamingPolicy()->OnEndPlay();
 
 	World->PersistentLevel->ActorsModifiedForPIE.Empty();
 }
@@ -197,8 +207,10 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	UWorld* OuterWorld = GetTypedOuter<UWorld>();
 	check(OuterWorld);
 
+	check(IsMainWorldPartition());
+
 #if WITH_EDITOR
-	bool bEditorOnly = !World->IsPlayInEditor();
+	bool bEditorOnly = !World->IsGameWorld();
 	if (bEditorOnly)
 	{
 		if (!EditorHash)
@@ -218,7 +230,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 		RuntimeHash = RuntimeSpatialHash;
 	}
 
-	if (bEditorOnly || !IsMainWorldPartition())
+	if (bEditorOnly || IsRunningGame())
 	{
 		TArray<FAssetData> Assets;
 		UPackage* LevelPackage = OuterWorld->PersistentLevel->GetOutermost();
@@ -240,7 +252,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 			ReplaceTo = DestWorldName + TEXT(".") + DestWorldName;
 		}
 
-		const bool bRegisterDelegates = bEditorOnly && IsMainWorldPartition();
+		const bool bRegisterDelegates = bEditorOnly;
 		UActorDescContainer::Initialize(World, PackageName, bRegisterDelegates);
 		check(bContainerInitialized);
 
@@ -264,52 +276,50 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				HashActorDesc(*ActorDescIterator);
 			}
 		}
+	}
 
-		if (bEditorOnly)
+	if (bEditorOnly)
+	{
+		// Make sure to preload any AInfo actors first (mainly for ShouldActorBeLoaded as it needs to have access to the WorldDataLayers actor)
+		TArray<UWorldPartitionEditorCell::FActorHandle> AlwaysLoadedActors = EditorHash->GetAlwaysLoadedCell()->Actors.Array();
+		AlwaysLoadedActors.Sort([](const UWorldPartitionEditorCell::FActorHandle& A, const UWorldPartitionEditorCell::FActorHandle& B) { return A->GetActorClass()->IsChildOf<AInfo>(); });
+			
+		TArray<FWorldPartitionReference> LoadedActors;
+		LoadedActors.Reserve(AlwaysLoadedActors.Num());
+		Algo::Transform(AlwaysLoadedActors, LoadedActors, [](const UWorldPartitionEditorCell::FActorHandle& ActorHandle) { return ActorHandle.Handle; });
+
+		// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
+		UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
+
+		// Load more cells depending on the user's settings
+		// Skipped when running from a commandlet
+		if (!IsRunningCommandlet())
 		{
-			// Make sure to preload any AInfo actors first (mainly for ShouldActorBeLoaded as it needs to have access to the WorldDataLayers actor)
-			TArray<UWorldPartitionEditorCell::FActorHandle> AlwaysLoadedActors = EditorHash->GetAlwaysLoadedCell()->Actors.Array();
-			AlwaysLoadedActors.Sort([](const UWorldPartitionEditorCell::FActorHandle& A, const UWorldPartitionEditorCell::FActorHandle& B) { return A->GetActorClass()->IsChildOf<AInfo>(); });
+			// Autoload all cells if the world is smaller than the project setting's value
+			IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+			const float AutoCellLoadingMaxWorldSize = WorldPartitionEditorModule.GetAutoCellLoadingMaxWorldSize();
+			FVector WorldSize = GetEditorWorldBounds().GetSize();
+			const bool bItsASmallWorld = WorldSize.X <= AutoCellLoadingMaxWorldSize && WorldSize.Y <= AutoCellLoadingMaxWorldSize && WorldSize.Z <= AutoCellLoadingMaxWorldSize;
 			
-			TArray<FWorldPartitionReference> LoadedActors;
-			LoadedActors.Reserve(AlwaysLoadedActors.Num());
-			Algo::Transform(AlwaysLoadedActors, LoadedActors, [](const UWorldPartitionEditorCell::FActorHandle& ActorHandle) { return ActorHandle.Handle; });
-
-			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
-			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
-
-			// Load more cells depending on the user's settings
-			// Skipped when running from a commandlet
-			if (!IsRunningCommandlet())
+			// When considered as a small world, load all actors
+			if (bItsASmallWorld)
 			{
-				// Autoload all cells if the world is smaller than the project setting's value
-				IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-				const float AutoCellLoadingMaxWorldSize = WorldPartitionEditorModule.GetAutoCellLoadingMaxWorldSize();
-				FVector WorldSize = GetEditorWorldBounds().GetSize();
-				const bool bItsASmallWorld = WorldSize.X <= AutoCellLoadingMaxWorldSize && WorldSize.Y <= AutoCellLoadingMaxWorldSize && WorldSize.Z <= AutoCellLoadingMaxWorldSize;
-			
-				// When loading a subworld, load all actors
-				const bool bWorldIsSubPartition = !IsMainWorldPartition();
-
-				if (bWorldIsSubPartition || bItsASmallWorld)
+				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
 				{
-					EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
+					UpdateLoadingEditorCell(Cell, true);
+				});
+			}
+
+			// Load last loaded cells
+			if (WorldPartitionEditorModule.GetEnableLoadingOfLastLoadedCells())
+			{
+				const TArray<FName>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
+
+				for (FName EditorGridLastLoadedCell : EditorGridLastLoadedCells)
+				{
+					if (UWorldPartitionEditorCell* Cell = FindObject<UWorldPartitionEditorCell>(EditorHash, *EditorGridLastLoadedCell.ToString()))
 					{
 						UpdateLoadingEditorCell(Cell, true);
-					});
-				}
-
-				// Load last loaded cells
-				if (WorldPartitionEditorModule.GetEnableLoadingOfLastLoadedCells())
-				{
-					const TArray<FName>& EditorGridLastLoadedCells = GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->GetEditorGridLoadedCells(InWorld);
-
-					for (FName EditorGridLastLoadedCell : EditorGridLastLoadedCells)
-					{
-						if (UWorldPartitionEditorCell* Cell = FindObject<UWorldPartitionEditorCell>(EditorHash, *EditorGridLastLoadedCell.ToString()))
-						{
-							UpdateLoadingEditorCell(Cell, true);
-						}
 					}
 				}
 			}
@@ -326,9 +336,9 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	}
 
 #if WITH_EDITOR
-	if (World->IsPlayInEditor())
+	if (IsRunningGame())
 	{
-		PrepareForPIE();
+		OnBeginPlay(EWorldPartitionStreamingMode::EditorStandalone);
 	}
 #endif
 }
@@ -376,9 +386,9 @@ void UWorldPartition::Uninitialize()
 		}
 		ActorDescContainers.Empty();
 
-		if (World->IsPlayInEditor())
+		if (World->IsGameWorld())
 		{
-			CleanupForPIE();
+			OnEndPlay();
 		}
 		else
 		{
@@ -433,7 +443,7 @@ void UWorldPartition::RegisterDelegates()
 	if (GEditor && !IsTemplate())
 	{
 		FEditorDelegates::PreBeginPIE.AddUObject(this, &UWorldPartition::OnPreBeginPIE);
-		FEditorDelegates::EndPIE.AddUObject(this, &UWorldPartition::OnEndPIE);
+		FGameDelegates::Get().GetEndPlayMapDelegate().AddUObject(this, &UWorldPartition::OnEndPlay);
 	}
 }
 
@@ -443,7 +453,7 @@ void UWorldPartition::UnregisterDelegates()
 	if (GEditor && !IsTemplate())
 	{
 		FEditorDelegates::PreBeginPIE.RemoveAll(this);
-		FEditorDelegates::EndPIE.RemoveAll(this);
+		FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 	}
 }
 
@@ -931,29 +941,10 @@ void UWorldPartition::DrawRuntimeHashPreview()
 	RuntimeHash->DrawPreview();
 }
 
-void UWorldPartition::PrepareForPIE()
-{
-	check(World->IsPlayInEditor());
-
-	if (!IsMainWorldPartition())
-	{
-		GenerateStreaming(EWorldPartitionStreamingMode::PIE);
-	}
-
-	GetStreamingPolicy()->PrepareForPIE();
-}
-
-void UWorldPartition::CleanupForPIE()
-{
-	check(World->IsPlayInEditor());
-
-	FlushStreaming();
-}
-
 bool UWorldPartition::GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate)
 {
 	check(RuntimeHash);
-	return RuntimeHash->GenerateStreaming(Mode, GetStreamingPolicy(), OutPackagesToGenerate);
+	return RuntimeHash->GenerateRuntimeStreaming(Mode, GetStreamingPolicy(), OutPackagesToGenerate);
 }
 
 bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, const FString& InPackageCookName)
@@ -1040,11 +1031,11 @@ void UWorldPartition::DumpActorDescs(const FString& Path)
 	}
 }
 
-void UWorldPartition::OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
+void UWorldPartition::RemapSoftObjectPath(FSoftObjectPath& ObjectPath)
 {
-	if (GetWorld()->IsPlayInEditor())
+	if (GetWorld()->IsGameWorld())
 	{
-		GetStreamingPolicy()->OnPreFixupForPIE(InPIEInstanceID, ObjectPath);
+		GetStreamingPolicy()->RemapSoftObjectPath(ObjectPath);
 	}
 }
 

@@ -31,8 +31,9 @@ DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 
 enum class EWorldPartitionStreamingMode
 {
-	PIE,
-	RuntimeStreamingCells
+	PIE,				// Used for PIE
+	EditorStandalone,	// Used when running with -game
+	Cook				// Used by cook commandlet
 };
 
 enum class EWorldPartitionInitState
@@ -85,9 +86,10 @@ private:
 
 	void FlushStreaming();
 
-	// PIE Methods
+	// PIE/Game Methods
 	void OnPreBeginPIE(bool bStartSimulate);
-	void OnEndPIE(bool bStartSimulate);
+	void OnBeginPlay(EWorldPartitionStreamingMode Mode);
+	void OnEndPlay();
 
 	// UActorDescContainer events
 	virtual void OnActorDescAdded(const TUniquePtr<FWorldPartitionActorDesc>& NewActorDesc) override;
@@ -129,12 +131,10 @@ public:
 	bool AreEditorCellsLoaded(const FBox& Box);
 	bool RefreshLoadedEditorCells();
 
-	// PIE Methods
-	void PrepareForPIE();
-	void CleanupForPIE();
-	void OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath);
+	// PIE/Game Methods
+	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
-	// PIE/Cook Methods
+	// PIE/Game/Cook Methods
 	bool GenerateStreaming(EWorldPartitionStreamingMode Mode, TArray<FString>* OutPackagesToGenerate = nullptr);
 
 	// Cook Methods

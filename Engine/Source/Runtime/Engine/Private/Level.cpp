@@ -1788,7 +1788,7 @@ namespace LevelAssetRegistryHelper
 
 bool ULevel::GetIsLevelPartitionedFromPackage(FName LevelPackage)
 {
-	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
+	return LevelPackage.IsNone() ? false : LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
 	{
 		FString LevelIsPartitionedStr;
 		static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));

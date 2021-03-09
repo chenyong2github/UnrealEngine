@@ -27,8 +27,9 @@ public:
 
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const override;
-	virtual void PrepareForPIE() override;
-	virtual void OnPreFixupForPIE(int32 InPIEInstanceID, FSoftObjectPath& ObjectPath) override;
+	virtual void OnBeginPlay() override;
+	virtual void OnEndPlay() override;
+	virtual void RemapSoftObjectPath(FSoftObjectPath& ObjectPath) override;
 	static FString GetCellPackagePath(const FName& InCellName, const UWorld* InWorld);
 #endif
 

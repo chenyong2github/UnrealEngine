@@ -160,7 +160,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 		check(CellWorld->PersistentLevel != LoadedLevel);
 
 		// Level already exists but may have the wrong type due to being inactive before, so copy data over
-		check(InPersistentWorld->IsPlayInEditor());
+		check(InPersistentWorld->IsGameWorld());
 		CellWorld->WorldType = InPersistentWorld->WorldType;
 		CellWorld->PersistentLevel->OwningWorld = InPersistentWorld;
 
@@ -185,7 +185,7 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 			check(CellLevelPackage);
 			check(UWorld::FindWorldInPackage(CellLevelPackage));
 			check(RuntimeLevel->OwningWorld);
-			check(RuntimeLevel->OwningWorld->WorldType == EWorldType::PIE);
+			check(RuntimeLevel->OwningWorld->WorldType == EWorldType::PIE || (IsRunningGame() && RuntimeLevel->OwningWorld->WorldType == EWorldType::Game));
 	
 			if (IssueLoadRequests())
 			{
@@ -309,7 +309,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 		{
 			UE_LOG(LogLevelStreaming, Fatal, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
 		}
-	}, /*bLoadForPie=*/true, /*bLoadAsync=*/true, &InstancingContext);
+	}, /*bLoadForPlay=*/true, /*bLoadAsync=*/true, &InstancingContext);
 
 	return bLoadRequestInProgress;
 }
@@ -321,24 +321,62 @@ void UWorldPartitionLevelStreamingDynamic::FinalizeRuntimeLevel()
 	check(!bLoadRequestInProgress);
 
 	// For RuntimeLevel's world NetGUID to be valid, make sure to flag bIsNameStableForNetworking so that IsNameStableForNetworking() returns true. (see FNetGUIDCache::SupportsObject)
-	RuntimeLevel->GetTypedOuter<UWorld>()->bIsNameStableForNetworking = true;
+	UWorld* OuterWorld = RuntimeLevel->GetTypedOuter<UWorld>();
+	OuterWorld->bIsNameStableForNetworking = true;
 
 	UPackage* RuntimePackage = RuntimeLevel->GetPackage();
 	RuntimePackage->MarkAsFullyLoaded();
 
-	int32 PIEInstanceID = GetPackage()->PIEInstanceID;
-	check(PIEInstanceID != INDEX_NONE);
-
-	// PIE Fixup LazyObjectPtrs
-	FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
-	FFixupLazyObjectPtrForPIEArchive FixupLazyPointersAr;
-	FixupLazyPointersAr << RuntimeLevel;
-
-	// PIE Fixup SoftObjectPaths
-	RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
+	if (OuterWorld->IsPlayInEditor())
 	{
-		OuterWorldPartition->OnPreFixupForPIE(InPIEInstanceID, ObjectPath);
-	});
+		int32 PIEInstanceID = GetPackage()->PIEInstanceID;
+		check(PIEInstanceID != INDEX_NONE);
+
+		// PIE Fixup LazyObjectPtrs
+		FTemporaryPlayInEditorIDOverride SetPlayInEditorID(PIEInstanceID);
+		FFixupLazyObjectPtrForPIEArchive FixupLazyPointersAr;
+		FixupLazyPointersAr << RuntimeLevel;
+
+		// PIE Fixup SoftObjectPaths
+		RuntimeLevel->FixupForPIE(PIEInstanceID, [&](int32 InPIEInstanceID, FSoftObjectPath& ObjectPath)
+		{
+			OuterWorldPartition->RemapSoftObjectPath(ObjectPath);
+		});
+	}
+	else if (IsRunningGame())
+	{
+		check(OuterWorld->IsGameWorld());
+
+		struct FSoftPathFixupSerializer : public FArchiveUObject
+		{
+			FSoftPathFixupSerializer(TFunctionRef<void(FSoftObjectPath&)> InCustomFixupFunction)
+			: CustomFixupFunction(InCustomFixupFunction)
+			{
+				this->SetIsSaving(true);
+			}
+
+			FArchive& operator<<(FSoftObjectPath& Value)
+			{
+				if (!Value.IsNull())
+				{
+					CustomFixupFunction(Value);
+				}
+				return *this;
+			}
+
+			TFunctionRef<void(FSoftObjectPath&)> CustomFixupFunction;
+		};
+
+		FSoftPathFixupSerializer FixupSerializer([&](FSoftObjectPath& ObjectPath) { OuterWorldPartition->RemapSoftObjectPath(ObjectPath); });
+		
+		TArray<UObject*> SubObjects;
+		GetObjectsWithOuter(RuntimeLevel, SubObjects);
+		
+		for (UObject* Object : SubObjects)
+		{
+			Object->Serialize(FixupSerializer);
+		}
+	}
 
 	SetLoadedLevel(RuntimeLevel);
 

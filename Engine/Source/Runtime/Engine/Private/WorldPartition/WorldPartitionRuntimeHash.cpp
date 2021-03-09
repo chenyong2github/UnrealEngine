@@ -6,20 +6,48 @@
 #include "Engine/World.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "ActorReferencesUtils.h"
+#if WITH_EDITOR
+#include "WorldPartition/WorldPartitionHandle.h"
+#endif
 
 UWorldPartitionRuntimeHash::UWorldPartitionRuntimeHash(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {}
 
 #if WITH_EDITOR
-void UWorldPartitionRuntimeHash::OnPreBeginPIE()
+bool UWorldPartitionRuntimeHash::GenerateRuntimeStreaming(EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* Policy, TArray<FString>* OutPackagesToGenerate)
 {
-	// Mark always loaded actors so that the Level will force reference to these actors for PIE.
-	// These actor will then be duplicated for PIE during the PIE world duplication process
-	ForceExternalActorLevelReference(/*bForceExternalActorLevelReferenceForPIE*/true);
+	FWorldPartitionReference LoadedWorldDataLayers;
+	if (Mode == EWorldPartitionStreamingMode::EditorStandalone)
+	{
+		// Pre-load AWorldDataLayer as it is necessary for GenerateStreaming to world properly
+		UWorldPartition* WorldPartition = GetOuterUWorldPartition();
+		for (UActorDescContainer::TConstIterator<> ActorDescIterator(WorldPartition); ActorDescIterator; ++ActorDescIterator)
+		{
+			if (ActorDescIterator->GetActorClass()->IsChildOf<AWorldDataLayers>())
+			{
+				if (ensure(!LoadedWorldDataLayers.IsLoaded()))
+				{
+					LoadedWorldDataLayers = FWorldPartitionReference(WorldPartition, ActorDescIterator->GetGuid());
+				}
+			}
+		}
+	}
+
+	return GenerateStreaming(Mode, Policy, OutPackagesToGenerate);
 }
 
-void UWorldPartitionRuntimeHash::OnEndPIE()
+void UWorldPartitionRuntimeHash::OnBeginPlay(EWorldPartitionStreamingMode Mode)
+{
+	if (Mode == EWorldPartitionStreamingMode::PIE)
+	{
+		// Mark always loaded actors so that the Level will force reference to these actors for PIE.
+		// These actor will then be duplicated for PIE during the PIE world duplication process
+		ForceExternalActorLevelReference(/*bForceExternalActorLevelReferenceForPIE*/true);
+	}
+}
+
+void UWorldPartitionRuntimeHash::OnEndPlay()
 {
 	// Unmark always loaded actors
 	ForceExternalActorLevelReference(/*bForceExternalActorLevelReferenceForPIE*/false);

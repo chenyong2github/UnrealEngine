@@ -2761,11 +2761,6 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 			// send a callback that a level was added to the world
 			FWorldDelegates::LevelAddedToWorld.Broadcast(Level, this);
 
-			if (UWorldPartition* WorldPartition = Level->GetWorldPartition())
-			{
-				WorldPartition->Initialize(Level->GetWorld(), LevelTransform);
-			}
-
 			BroadcastLevelsChanged();
 
 			ULevelStreaming::BroadcastLevelVisibleStatus(this, Level->GetOutermost()->GetFName(), true);

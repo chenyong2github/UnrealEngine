@@ -72,7 +72,7 @@ ULevelStreamingLevelInstance* ULevelStreamingLevelInstance::LoadInstance(ALevelI
 		LevelStreaming->LevelInstanceID = LevelInstanceActor->GetLevelInstanceID();
 		
 #if WITH_EDITOR
-		if (!LevelInstanceActor->GetWorld()->IsPlayInEditor())
+		if (!LevelInstanceActor->GetWorld()->IsGameWorld())
 		{
 			GEngine->BlockTillLevelStreamingCompleted(LevelInstanceActor->GetWorld());
 
