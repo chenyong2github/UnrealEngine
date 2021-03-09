@@ -371,14 +371,25 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 
 	EntitiesGeometry = MakeShared<FEntitiesGeometry>();
 
-	auto ProcessExtractedMesh = [&Context, this](FDatasmithSketchUpMesh& ExtractedMesh)
+	FDatasmithMeshExporter DatasmithMeshExporter;
+
+	auto ProcessExtractedMesh = [&Context, &DatasmithMeshExporter, this](FDatasmithSketchUpMesh& ExtractedMesh)
 	{
 		if (ExtractedMesh.ContainsGeometry())
 		{
 			FDatasmithMesh DatasmithMesh;
 			ExtractedMesh.ConvertMeshToDatasmith(DatasmithMesh);
 
-			TSharedPtr<IDatasmithMeshElement> MeshElementPtr = CreateMeshElement(Context, DatasmithMesh);
+			FString MeshElementName = FString::Printf(TEXT("M%ls_%d"), *FMD5::HashAnsiString(*Definition.GetSketchupSourceGUID()), EntitiesGeometry->Meshes.Num() + 1); // Count meshes from 1
+			FString MeshLabel = FDatasmithUtils::SanitizeObjectName(Definition.GetSketchupSourceName());
+
+			TSharedPtr<IDatasmithMeshElement> MeshElementPtr = FDatasmithSceneFactory::CreateMesh( *MeshElementName );
+			DatasmithMeshExporter.ExportToUObject(MeshElementPtr, Context.GetAssetsOutputPath(), DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
+
+			// Set the mesh element label used in the Unreal UI.
+			MeshElementPtr->SetLabel(*MeshLabel);
+
+			Context.DatasmithScene->AddMesh(MeshElementPtr);
 
 			EntitiesGeometry->AddMesh(Context, MeshElementPtr, ExtractedMesh.MeshTriangleMaterialIDSet);
 		}
