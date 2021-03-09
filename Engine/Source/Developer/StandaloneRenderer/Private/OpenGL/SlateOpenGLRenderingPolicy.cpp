@@ -244,11 +244,11 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 			}
 #endif
 
-			ElementProgram.SetTexture( ((FSlateOpenGLTexture*)ShaderResource)->GetTypedResource(), RepeatU, RepeatV );
+			ElementProgram.SetTexture( (FSlateOpenGLTexture*)ShaderResource, RepeatU, RepeatV );
 		}
 		else
 		{
-			ElementProgram.SetTexture( ((FSlateOpenGLTexture*)WhiteTexture)->GetTypedResource(), GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE );
+			ElementProgram.SetTexture( (FSlateOpenGLTexture*)WhiteTexture, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE );
 		}
 
 		check( RenderBatch.GetNumIndices() > 0 );

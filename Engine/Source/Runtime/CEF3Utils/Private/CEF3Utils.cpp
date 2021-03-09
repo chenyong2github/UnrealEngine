@@ -7,6 +7,14 @@
 #include "Modules/ModuleManager.h"
 #include "HAL/PlatformProcess.h"
 #include "CEF3UtilsLog.h"
+#if WITH_CEF3
+#	if PLATFORM_MAC
+#		include "include/wrapper/cef_library_loader.h"
+#		define CEF3_BIN_DIR TEXT("Binaries/ThirdParty/CEF3")
+#		define CEF3_FRAMEWORK_DIR CEF3_BIN_DIR TEXT("/Mac/Chromium Embedded Framework.framework")
+#		define CEF3_FRAMEWORK_EXE CEF3_FRAMEWORK_DIR TEXT("/Chromium Embedded Framework")
+#	endif
+#endif
 
 DEFINE_LOG_CATEGORY(LogCEF3Utils);
 
@@ -21,6 +29,9 @@ namespace CEF3Utils
 	void* D3DHandle = nullptr;
 	void* GLESHandle = nullptr;
     void* EGLHandle = nullptr;
+#elif PLATFORM_MAC
+	// Dynamically load the CEF framework library.
+	CefScopedLibraryLoader *CEFLibraryLoader = nullptr;
 #endif
 
 	void* LoadDllCEF(const FString& Path)
@@ -40,7 +51,7 @@ namespace CEF3Utils
 		return Handle;
 	}
 
-	void LoadCEF3Modules()
+	bool LoadCEF3Modules(bool bIsMainApp)
 	{
 #if PLATFORM_WINDOWS
 	#if PLATFORM_64BITS
@@ -54,16 +65,48 @@ namespace CEF3Utils
 		if (CEF3DLLHandle)
 		{
 			ElfHandle = LoadDllCEF(FPaths::Combine(*DllPath, TEXT("chrome_elf.dll")));
-
-	#if WINVER >= 0x600 // Different dll used pre-Vista
 			D3DHandle = LoadDllCEF(FPaths::Combine(*DllPath, TEXT("d3dcompiler_47.dll")));
-	#else
-			D3DHandle = LoadDllCEF(FPaths::Combine(*DllPath, TEXT("d3dcompiler_43.dll")));
-	#endif
 			GLESHandle = LoadDllCEF(FPaths::Combine(*DllPath, TEXT("libGLESv2.dll")));
 			EGLHandle = LoadDllCEF(FPaths::Combine(*DllPath, TEXT("libEGL.dll")));
 		}
 		FPlatformProcess::PopDllDirectory(*DllPath);
+		return CEF3DLLHandle != nullptr;
+#elif PLATFORM_MAC
+		// Dynamically load the CEF framework library.
+		CEFLibraryLoader = new CefScopedLibraryLoader();
+		
+		FString CefFrameworkPath(FPaths::Combine(*FPaths::EngineDir(), CEF3_FRAMEWORK_EXE));
+		CefFrameworkPath = FPaths::ConvertRelativePathToFull(CefFrameworkPath);
+		
+		bool bLoaderInitialized = false;
+		if (bIsMainApp)
+		{
+			if (!CEFLibraryLoader->LoadInMain(TCHAR_TO_ANSI(*CefFrameworkPath)))
+			{
+				UE_LOG(LogCEF3Utils, Error, TEXT("Chromium loader initialization failed"));
+			}
+			else
+			{
+				bLoaderInitialized = true;
+			}
+		}
+		else
+		{
+			if (!CEFLibraryLoader->LoadInHelper(TCHAR_TO_ANSI(*CefFrameworkPath)))
+			{
+				UE_LOG(LogCEF3Utils, Error, TEXT("Chromium helper loader initialization failed"));
+			}
+			else
+			{
+				bLoaderInitialized = true;
+			}
+		}
+		return bLoaderInitialized;
+#elif PLATFORM_LINUX
+		// we runtime link the libcef.so and don't need to manually load here
+		return true;
+#else
+		return false; // Unsupported libcef platform 
 #endif
 	}
 
@@ -80,6 +123,9 @@ namespace CEF3Utils
 		GLESHandle = nullptr;
 		FPlatformProcess::FreeDllHandle(EGLHandle);
 		EGLHandle = nullptr;
+#elif PLATFORM_MAC
+		delete CEFLibraryLoader;
+		CEFLibraryLoader = nullptr;
 #endif
 	}
 };

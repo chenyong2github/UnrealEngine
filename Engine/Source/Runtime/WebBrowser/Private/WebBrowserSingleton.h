@@ -30,6 +30,7 @@ THIRD_PARTY_INCLUDES_END
 	#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 #include "CEF/CEFSchemeHandler.h"
+#include "CEF/CEFResourceContextHandler.h"
 class CefListValue;
 class FCEFBrowserApp;
 class FCEFWebBrowserWindow;
@@ -126,6 +127,8 @@ public:
 		bJSBindingsToLoweringEnabled = bEnabled;
 	}
 
+	virtual void ClearOldCacheFolders(const FString& CachePathRoot, const FString& CachePrefix) override;
+
 	/** Set a reference to UWebBrowser's default material*/
 	virtual void SetDefaultMaterial(UMaterialInterface* InDefaultMaterial) override
 	{
@@ -163,11 +166,15 @@ private:
 #if WITH_CEF3
 	/** When new render processes are created, send all permanent variable bindings to them. */
 	void HandleRenderProcessCreated(CefRefPtr<CefListValue> ExtraInfo);
+	/** Helper function to generate the CEF build unique name for the cache_path */
+	FString GenerateWebCacheFolderName(const FString &InputPath);
 	/** Pointer to the CEF App implementation */
 	CefRefPtr<FCEFBrowserApp>			CEFBrowserApp;
 
 	TMap<FString, CefRefPtr<CefRequestContext>> RequestContexts;
+	TMap<FString, CefRefPtr<FCEFResourceContextHandler>> RequestResourceHandlers;
 	FCefSchemeHandlerFactories SchemeHandlerFactories;
+	bool bTaskFinished;
 #endif
 
 	/** List of currently existing browser windows */

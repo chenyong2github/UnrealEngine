@@ -96,9 +96,9 @@ bool FCEFJSScripting::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser, Ce
 
 void FCEFJSScripting::SendProcessMessage(CefRefPtr<CefProcessMessage> Message)
 {
-	if (IsValid() )
+	if (IsValid() && InternalCefBrowser->GetMainFrame())
 	{
-		InternalCefBrowser->SendProcessMessage(PID_RENDERER, Message);
+		InternalCefBrowser->GetMainFrame()->SendProcessMessage(PID_RENDERER, Message);
 	}
 }
 

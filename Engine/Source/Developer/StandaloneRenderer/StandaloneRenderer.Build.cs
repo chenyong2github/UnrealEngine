@@ -28,7 +28,7 @@ public class StandaloneRenderer : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicFrameworks.Add("QuartzCore");
+			PublicFrameworks.AddRange(new string[] { "QuartzCore", "IOSurface" });
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Linux))
 		{

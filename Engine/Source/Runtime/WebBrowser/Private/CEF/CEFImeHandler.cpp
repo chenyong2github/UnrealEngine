@@ -27,9 +27,9 @@ bool FCEFImeHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser, Cef
 
 void FCEFImeHandler::SendProcessMessage(CefRefPtr<CefProcessMessage> Message)
 {
-	if (IsValid() )
+	if (IsValid() && InternalCefBrowser->GetMainFrame())
 	{
-		InternalCefBrowser->SendProcessMessage(PID_RENDERER, Message);
+		InternalCefBrowser->GetMainFrame()->SendProcessMessage(PID_RENDERER, Message);
 	}
 }
 

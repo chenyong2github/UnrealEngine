@@ -63,4 +63,12 @@ public:
 	 * @return The Web Browser Singleton
 	 */
 	virtual IWebBrowserSingleton* GetSingleton() = 0;
+
+
+	/**
+	 * Check whether the web module loaded its requirements successfully
+	 *
+	 * @return True if the module load worked
+	 */
+	virtual bool IsWebModuleAvailable() const = 0;
 };

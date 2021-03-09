@@ -275,6 +275,11 @@ void FSlateOpenGLElementProgram::CreateProgram( const FSlateOpenGLVS& VertexShad
 	TextureParam = glGetUniformLocation( ProgramID, "ElementTexture" );
 	EffectsDisabledParam = glGetUniformLocation( ProgramID, "EffectsDisabled" );
 	IgnoreTextureAlphaParam = glGetUniformLocation( ProgramID, "IgnoreTextureAlpha" );
+#if PLATFORM_MAC
+	TextureRectParam = glGetUniformLocation( ProgramID, "ElementRectTexture" );
+	UseTextureRectangle = glGetUniformLocation( ProgramID, "UseTextureRectangle" );
+	SizeParam = glGetUniformLocation( ProgramID, "Size" );
+#endif
 	ShaderTypeParam = glGetUniformLocation( ProgramID, "ShaderType" );
 	ShaderParamsParam = glGetUniformLocation( ProgramID, "ShaderParams" );
 	ShaderParams2Param = glGetUniformLocation(ProgramID, "ShaderParams2");
@@ -284,17 +289,39 @@ void FSlateOpenGLElementProgram::CreateProgram( const FSlateOpenGLVS& VertexShad
 }
 
 
-void FSlateOpenGLElementProgram::SetTexture( GLuint Texture, uint32 AddressU, uint32 AddressV )
+void FSlateOpenGLElementProgram::SetTexture( FSlateOpenGLTexture *Texture, uint32 AddressU, uint32 AddressV )
 {
-	// Set the texture parameter to use 
-	glUniform1i( TextureParam, 0 );
-	// Set the first texture as active
-	glActiveTexture( GL_TEXTURE0 );
-	// bind the texture
-	glBindTexture( GL_TEXTURE_2D, Texture );
+	GLint TargetTextureType = Texture->GetTextureTargetType();
+#if PLATFORM_MAC
+	// Set the texture parameter to use
+	if (TargetTextureType == GL_TEXTURE_RECTANGLE_ARB)
+	{
+		glUniform1i( UseTextureRectangle, 1 );
+		glUniform2f( SizeParam, (GLfloat)Texture->GetWidth(), (GLfloat)Texture->GetHeight() );
+		// Use the 2nd texture unit for ARB type textures
+		glActiveTexture( GL_TEXTURE1 );
+	}
+	else
+	{
+		glUniform1i( UseTextureRectangle, 0 );
+		// Set the first texture as active
+		glActiveTexture( GL_TEXTURE0 );
+	}
 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, AddressU);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, AddressV);
+	glUniform1i(TextureRectParam, 1);
+#else
+	// Set the first texture as active
+	glActiveTexture(GL_TEXTURE0);
+#endif
+	glUniform1i( TextureParam, 0 );
+	CHECK_GL_ERRORS;
+
+	glEnable(TargetTextureType);
+	// bind the texture
+	glBindTexture(TargetTextureType, Texture->GetTypedResource() );
+
+	glTexParameteri(TargetTextureType, GL_TEXTURE_WRAP_S, AddressU);
+	glTexParameteri(TargetTextureType, GL_TEXTURE_WRAP_T, AddressV);
 
 	CHECK_GL_ERRORS;
 }

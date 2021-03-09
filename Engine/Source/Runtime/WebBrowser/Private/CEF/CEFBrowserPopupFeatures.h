@@ -45,6 +45,7 @@ public:
 	FCEFBrowserPopupFeatures();
 	FCEFBrowserPopupFeatures(const CefPopupFeatures& PopupFeatures);
 	virtual ~FCEFBrowserPopupFeatures();
+	void SetResizable(const bool bResize);
 
 	// IWebBrowserPopupFeatures Interface
 

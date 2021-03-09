@@ -14,7 +14,7 @@ DEFINE_LOG_CATEGORY(LogWebBrowser);
 static FWebBrowserSingleton* WebBrowserSingleton = nullptr;
 
 FWebBrowserInitSettings::FWebBrowserInitSettings()
-	: ProductVersion(FString::Printf(TEXT("%s/%s UnrealEngine/%s Chrome/59.0.3071.15"), FApp::GetProjectName(), FApp::GetBuildVersion(), *FEngineVersion::Current().ToString()))
+	: ProductVersion(FString::Printf(TEXT("%s/%s UnrealEngine/%s Chrome/84.0.4147.38"), FApp::GetProjectName(), FApp::GetBuildVersion(), *FEngineVersion::Current().ToString()))
 {
 }
 
@@ -26,8 +26,14 @@ private:
 	virtual void ShutdownModule() override;
 
 public:
+	virtual bool IsWebModuleAvailable() const override;
 	virtual IWebBrowserSingleton* GetSingleton() override;
 	virtual bool CustomInitialize(const FWebBrowserInitSettings& WebBrowserInitSettings) override;
+
+private:
+#if WITH_CEF3
+	bool bLoadedCEFModule = false;
+#endif
 };
 
 IMPLEMENT_MODULE( FWebBrowserModule, WebBrowser );
@@ -35,7 +41,7 @@ IMPLEMENT_MODULE( FWebBrowserModule, WebBrowser );
 void FWebBrowserModule::StartupModule()
 {
 #if WITH_CEF3
-	CEF3Utils::LoadCEF3Modules();
+	bLoadedCEFModule = CEF3Utils::LoadCEF3Modules(true);
 #endif
 }
 
@@ -70,3 +76,14 @@ IWebBrowserSingleton* FWebBrowserModule::GetSingleton()
 	}
 	return WebBrowserSingleton;
 }
+
+
+bool FWebBrowserModule::IsWebModuleAvailable() const
+{
+#if WITH_CEF3
+	return bLoadedCEFModule;
+#else
+	return true;
+#endif
+}
+

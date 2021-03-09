@@ -14,31 +14,9 @@
 #include "IWebBrowserWindow.h"
 #include "CEFBrowserHandler.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/WindowsHWrapper.h"
-	#include "Windows/AllowWindowsPlatformTypes.h"
-	#include "Windows/AllowWindowsPlatformAtomics.h"
-#endif
 
-THIRD_PARTY_INCLUDES_START
-#if PLATFORM_APPLE
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-#endif
-#pragma push_macro("OVERRIDE")
-#	undef OVERRIDE // cef headers provide their own OVERRIDE macro
-#	include "include/internal/cef_ptr.h"
-#	include "include/cef_render_handler.h"
-#	include "include/cef_jsdialog_handler.h"
-#pragma pop_macro("OVERRIDE")
-#if PLATFORM_APPLE
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-THIRD_PARTY_INCLUDES_END
+#include "CEFLibCefIncludes.h"
 
-#if PLATFORM_WINDOWS
-	#include "Windows/HideWindowsPlatformAtomics.h"
-	#include "Windows/HideWindowsPlatformTypes.h"
-#endif
 
 #endif
 
@@ -58,6 +36,7 @@ struct FInputEvent;
 class FWebJSScripting;
 class FCEFImeHandler;
 class ITextInputMethodSystem;
+class FCEFWebBrowserWindowRHIHelper;
 
 #if WITH_CEF3
 
@@ -117,7 +96,7 @@ private:
 	 * @param bUseTransparency Whether to enable transparency.
 	 * @param bJSBindingToLoweringEnabled Whether we ToLower all JavaScript member names.
 	 */
-	FCEFWebBrowserWindow(CefRefPtr<CefBrowser> Browser, CefRefPtr<FCEFBrowserHandler> Handler, FString Url, TOptional<FString> ContentsToLoad, bool bShowErrorMessage, bool bThumbMouseButtonNavigation, bool bUseTransparency, bool bJSBindingToLoweringEnabled);
+	FCEFWebBrowserWindow(CefRefPtr<CefBrowser> Browser, CefRefPtr<FCEFBrowserHandler> Handler, FString Url, TOptional<FString> ContentsToLoad, bool bShowErrorMessage, bool bThumbMouseButtonNavigation, bool bUseTransparency, bool bJSBindingToLoweringEnabled, bool bUsingAcceleratedPaint);
 
 	/**
 	 * Create the SWidget for this WebBrowserWindow
@@ -128,10 +107,11 @@ public:
 	/** Virtual Destructor. */
 	virtual ~FCEFWebBrowserWindow();
 
-	bool IsShowingErrorMessages() { return bShowErrorMessage; }
-	bool IsThumbMouseButtonNavigationEnabled() { return bThumbMouseButtonNavigation; }
-	bool UseTransparency() { return bUseTransparency; }
-
+	bool IsShowingErrorMessages() const { return bShowErrorMessage; }
+	bool IsThumbMouseButtonNavigationEnabled() const { return bThumbMouseButtonNavigation; }
+	bool UseTransparency() const { return bUseTransparency; }
+	bool UsingAcceleratedPaint() const { return bUsingAcceleratedPaint; }
+	
 public:
 
 	// IWebBrowserWindow Interface
@@ -352,7 +332,7 @@ private:
 	 * @param Rect Reference to CefRect to store sizes.
 	 * @return Whether Rect was set up correctly.
 	 */
-	bool GetViewRect(CefRect& Rect);
+	void GetViewRect(CefRect& Rect);
 
 	/** Notifies when document loading has failed. */
 	void NotifyDocumentError(CefLoadHandler::ErrorCode InErrorCode, const CefString& ErrorText, const CefString& FailedUrl);
@@ -379,6 +359,15 @@ private:
 	void OnPaint(CefRenderHandler::PaintElementType Type, const CefRenderHandler::RectList& DirtyRects, const void* Buffer, int Width, int Height);
 
 	/**
+	 * Called when there is an update to the rendered web page.
+	 *
+	 * @param Type Paint type.
+	 * @param DirtyRects List of image areas that have been changed.
+	 * @param SharedHandle the handle for a D3D11 Texture2D that can be accessed via ID3D11Device using the OpenSharedResource method
+	 */
+	void OnAcceleratedPaint(CefRenderHandler::PaintElementType type, const CefRenderHandler::RectList& DirtyRects, void* SharedHandle);
+
+	/**
 	 * Called when cursor would change due to web browser interaction.
 	 *
 	 * @param Cursor Handle to CEF mouse cursor.
@@ -393,7 +382,7 @@ private:
 	 * @param Message The actual message.
 	 * @return true if the message was handled, else false.
 	 */
-	bool OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message);
+	bool OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> frame, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message);
 
 	/**
 	 * Called before browser navigation.
@@ -401,14 +390,15 @@ private:
 	 * @param Browser The CefBrowser for this window.
 	 * @param Frame The CefFrame the request came from.
 	 * @param Request The CefRequest containing web request info.
+	 * @param user_gesture true if the navigation was a result of a gesture, false otherwise.
 	 * @param bIsRedirect true if the navigation was a result of redirection, false otherwise.
 	 * @return true if the navigation was handled and no further processing of the navigation request should be disabled, false if the navigation should be handled by the default CEF implementation.
 	 */
-	bool OnBeforeBrowse(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, bool bIsRedirect);
+	bool OnBeforeBrowse(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, bool user_gesture, bool bIsRedirect);
 
 	void HandleOnBeforeResourceLoad(const CefString& URL, CefRequest::ResourceType Type, FRequestHeaders& AdditionalHeaders);
-	void HandleOnResourceLoadComplete(const CefString& URL, CefRequest::ResourceType Type, CefRequestHandler::URLRequestStatus Status, int64 ContentLength);
-	void HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, const CefString& Message, const CefString& Source, int Line);
+	void HandleOnResourceLoadComplete(const CefString& URL, CefRequest::ResourceType Type, CefResourceRequestHandler::URLRequestStatus Status, int64 ContentLength);
+	void HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, cef_log_severity_t Level, const CefString& Message, const CefString& Source, int Line);
 
 	/**
 	 * Called before loading a resource to allow overriding the content for a request.
@@ -485,7 +475,6 @@ private:
 	 */
 	void ShowPopupMenu(bool bShow);
 
-#if !PLATFORM_LINUX
 	/**
 	 * Called when the IME composition DOM node has changed.
 	 * @param Browser The CefBrowser for this window.
@@ -496,7 +485,6 @@ private:
 		CefRefPtr<CefBrowser> Browser,
 		const CefRange& SelectionRange,
 		const CefRenderHandler::RectList& CharacterBounds);
-#endif
 
 	void UpdateDragRegions(const TArray<FWebBrowserDragRegion>& Regions);
 
@@ -526,6 +514,13 @@ public:
 	 */
 	static int32 GetCefInputModifiers(const FInputEvent& InputEvent);
 
+
+	/**
+	 * Is this platform able to support the accelerated paint path for CEF. 
+	 *
+	 * @return true if supported AND enabled on this platform, false otherwise.
+	 */
+	static bool CanSupportAcceleratedPaint();
 public:
 
 	/**
@@ -533,12 +528,6 @@ public:
 	 */
 	void UpdateCachedGeometry(const FGeometry& AllottedGeometry);
 
-	/**
-	* Set the Zoom Level of CEF based on the provided percentage
-	*
-	* @param Percentage The percentage to base the web browsers zoom level
-	*/
-	void SetZoomLevelByPercentage(float Percentage);
 
 	/**
 	 * Called from the WebBrowserSingleton tick event. Should test wether the widget got a tick from Slate last frame and set the state to hidden if not.
@@ -591,6 +580,9 @@ private:
 	/** Specifies whether or not a point falls within any tagged drag regions that are draggable. */
 	bool IsInDragRegion(const FIntPoint& Point);
 
+	/** Used to let us correctly render the web texture for the accelerated render path */
+	TOptional<FSlateRenderTransform> GetWebBrowserRenderTransform() const;
+
 private:
 
 	/** Current state of the document being loaded. */
@@ -640,6 +632,9 @@ private:
 
 	/** Whether transparency is enabled. */
 	bool bUseTransparency;
+
+	/** Whether the accelerated paint path is enabled (i.e shared texture handles) */
+	bool bUsingAcceleratedPaint;
 
 	/** Delegate for broadcasting title changes. */
 	FOnTitleChanged TitleChangedEvent;
@@ -748,7 +743,10 @@ private:
 	FString PendingLoadUrl;
 
 	TUniquePtr<FBrowserBufferedVideo> BufferedVideo;
-
+#if PLATFORM_MAC
+	void *LastPaintedSharedHandle;
+#endif
+	
 	/** Handling of passing and marshalling messages for JS integration is delegated to a helper class*/
 	TSharedPtr<FCEFJSScripting> Scripting;
 
@@ -760,6 +758,7 @@ private:
 	TArray<FWebBrowserDragRegion> DragRegions;
 
 	TWeakPtr<SWindow> ParentWindow;
+	FCEFWebBrowserWindowRHIHelper* RHIRenderHelper;
 };
 
 typedef FCEFWebBrowserWindow FWebBrowserWindow;

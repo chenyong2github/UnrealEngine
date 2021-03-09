@@ -5,6 +5,8 @@
 
 #if WITH_CEF3
 
+//#define DEBUG_ONBEFORELOAD // Debug print beforebrowse steps, used in CEFBrowserHandler.h so define early 
+
 #include "WebBrowserModule.h"
 #include "CEFBrowserClosureTask.h"
 #include "IWebBrowserSingleton.h"
@@ -15,6 +17,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "HAL/ThreadingBase.h"
 #include "PlatformHttp.h"
+#include "Misc/CommandLine.h"
 
 #define LOCTEXT_NAMESPACE "WebBrowserHandler"
 
@@ -23,9 +26,13 @@
 const FString CustomContentMethod(TEXT("X-GET-CUSTOM-CONTENT"));
 
 FCEFBrowserHandler::FCEFBrowserHandler(bool InUseTransparency, const TArray<FString>& InAltRetryDomains)
-: bUseTransparency(InUseTransparency),
+: bUseTransparency(InUseTransparency), 
+bAllowAllCookies(false),
 AltRetryDomains(InAltRetryDomains)
-{ }
+{
+	// should we forcefully allow all cookies to be set rather than filtering a couple store side ones
+	bAllowAllCookies = FParse::Param(FCommandLine::Get(), TEXT("CefAllowAllCookies"));
+}
 
 void FCEFBrowserHandler::OnTitleChange(CefRefPtr<CefBrowser> Browser, const CefString& Title)
 {
@@ -61,9 +68,9 @@ bool FCEFBrowserHandler::OnTooltip(CefRefPtr<CefBrowser> Browser, CefString& Tex
 	return false;
 }
 
-bool FCEFBrowserHandler::OnConsoleMessage(CefRefPtr<CefBrowser> Browser, const CefString& Message, const CefString& Source, int Line)
+bool FCEFBrowserHandler::OnConsoleMessage(CefRefPtr<CefBrowser> Browser, cef_log_severity_t level, const CefString& Message, const CefString& Source, int Line)
 {
-	ConsoleMessageDelegate.ExecuteIfBound(Browser, Message, Source, Line);
+	ConsoleMessageDelegate.ExecuteIfBound(Browser, level, Message, Source, Line);
 	// Return false to let it output to console.
 	return false;
 }
@@ -168,8 +175,9 @@ bool FCEFBrowserHandler::OnBeforePopup( CefRefPtr<CefBrowser> Browser,
 	else
 	{
 		TSharedPtr<FCEFBrowserPopupFeatures> NewBrowserPopupFeatures = MakeShareable(new FCEFBrowserPopupFeatures(PopupFeatures));
-
-		bool shouldUseTransparency = URL.Contains(TEXT("chrome-devtools")) ? false : bUseTransparency;
+		bool bIsDevtools = URL.Contains(TEXT("chrome-devtools"));
+		bool shouldUseTransparency = bIsDevtools ? false : bUseTransparency;
+		NewBrowserPopupFeatures->SetResizable(bIsDevtools); // only have the window for DevTools have resize options
 
 		cef_color_t Alpha = shouldUseTransparency ? 0 : CefColorGetA(OutSettings.background_color);
 		cef_color_t R = CefColorGetR(OutSettings.background_color);
@@ -184,7 +192,21 @@ bool FCEFBrowserHandler::OnBeforePopup( CefRefPtr<CefBrowser> Browser,
 
 		// Always use off screen rendering so we can integrate with our windows
 #if PLATFORM_LINUX
-		OutWindowInfo.SetAsWindowless(kNullWindowHandle, shouldUseTransparency);
+		OutWindowInfo.SetAsWindowless(kNullWindowHandle);
+#elif PLATFORM_WINDOWS
+		OutWindowInfo.SetAsWindowless(kNullWindowHandle);
+		OutWindowInfo.shared_texture_enabled = 0; // always render popups with the simple OSR renderer
+#elif PLATFORM_MAC
+		OutWindowInfo.SetAsWindowless(kNullWindowHandle);
+		TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
+		if (BrowserWindow.IsValid())
+		{
+			OutWindowInfo.shared_texture_enabled = BrowserWindow->UsingAcceleratedPaint() ? 1 : 0; // match what other windows do
+		}
+		else
+		{
+			OutWindowInfo.shared_texture_enabled = 0;
+		}
 #else
 		OutWindowInfo.SetAsWindowless(kNullWindowHandle);
 #endif
@@ -237,29 +259,9 @@ void FCEFBrowserHandler::OnLoadError(CefRefPtr<CefBrowser> Browser,
 	}
 }
 
-#if PLATFORM_LINUX
-void FCEFBrowserHandler::OnLoadStart(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame)
-{
-}
-#elif PLATFORM_WINDOWS
 void FCEFBrowserHandler::OnLoadStart(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, TransitionType CefTransitionType)
 {
-	if (Browser->GetHost()->GetWindowHandle() != nullptr)
-	{
-		RECT rcWnd;
-		GetWindowRect(Browser->GetHost()->GetWindowHandle(), &rcWnd);
-		float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(rcWnd.left, rcWnd.top);
-		double ZoomLevel = (double((DPIScaleFactor * 100) - 100)) / 25.0;
-		Browser->GetHost()->SetZoomLevel(ZoomLevel);
-	}
 }
-#else
-void FCEFBrowserHandler::OnLoadStart(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, TransitionType CefTransitionType)
-{
-
-}
-#endif
-
 
 void FCEFBrowserHandler::OnLoadingStateChange(CefRefPtr<CefBrowser> Browser, bool bIsLoading, bool bCanGoBack, bool bCanGoForward)
 {
@@ -280,17 +282,19 @@ bool FCEFBrowserHandler::GetRootScreenRect(CefRefPtr<CefBrowser> Browser, CefRec
 	return true;
 }
 
-bool FCEFBrowserHandler::GetViewRect(CefRefPtr<CefBrowser> Browser, CefRect& Rect)
+void FCEFBrowserHandler::GetViewRect(CefRefPtr<CefBrowser> Browser, CefRect& Rect)
 {
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 
 	if (BrowserWindow.IsValid())
 	{
-		return BrowserWindow->GetViewRect(Rect);
+		BrowserWindow->GetViewRect(Rect);
 	}
 	else
 	{
-		return false;
+		// CEF requires at least a 1x1 area for painting
+		Rect.x = Rect.y = 0;
+		Rect.width = Rect.height = 1;
 	}
 }
 
@@ -305,6 +309,19 @@ void FCEFBrowserHandler::OnPaint(CefRefPtr<CefBrowser> Browser,
 	if (BrowserWindow.IsValid())
 	{
 		BrowserWindow->OnPaint(Type, DirtyRects, Buffer, Width, Height);
+	}
+}
+
+void FCEFBrowserHandler::OnAcceleratedPaint(CefRefPtr<CefBrowser> Browser,
+	PaintElementType Type,
+	const RectList& DirtyRects,
+	void* SharedHandle)
+{
+	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
+
+	if (BrowserWindow.IsValid())
+	{
+		BrowserWindow->OnAcceleratedPaint(Type, DirtyRects, SharedHandle);
 	}
 }
 
@@ -373,7 +390,8 @@ void FCEFBrowserHandler::OnImeCompositionRangeChanged(
 }
 #endif
 
-CefRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, CefRefPtr<CefRequestCallback> Callback)
+
+CefResourceRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, CefRefPtr<CefRequestCallback> Callback)
 {
 	// Current thread is IO thread. We need to invoke BrowserWindow->GetResourceContent on the UI (aka Game) thread:
 	CefPostTask(TID_UI, new FCEFBrowserClosureTask(this, [=]()
@@ -391,6 +409,15 @@ CefRequestHandler::ReturnValue FCEFBrowserHandler::OnBeforeResourceLoad(CefRefPt
 		{
 			HeaderMap.insert(std::pair<CefString, CefString>(TCHAR_TO_WCHAR(*LanguageHeaderText), TCHAR_TO_WCHAR(*LocaleCode)));
 		}
+		
+#ifdef DEBUG_ONBEFORELOAD
+		auto url = Request->GetURL();
+		auto type = Request->GetResourceType();
+		if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
+		{
+			GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::OnBeforeResourceLoad :%s"), url.c_str());
+		}
+#endif
 
 		if (BeforeResourceLoadDelegate.IsBound())
 		{
@@ -474,13 +501,22 @@ void FCEFBrowserHandler::OnRenderProcessTerminated(CefRefPtr<CefBrowser> Browser
 bool FCEFBrowserHandler::OnBeforeBrowse(CefRefPtr<CefBrowser> Browser,
 	CefRefPtr<CefFrame> Frame,
 	CefRefPtr<CefRequest> Request,
+	bool user_gesture, 
 	bool IsRedirect)
 {
 	// Current thread: UI thread
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 	if (BrowserWindow.IsValid())
 	{
-		if(BrowserWindow->OnBeforeBrowse(Browser, Frame, Request, IsRedirect))
+#ifdef DEBUG_ONBEFORELOAD
+		auto url = Request->GetURL();
+		auto type = Request->GetResourceType();
+		if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
+		{
+			GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::OnBeforeBrowse :%s"), url.c_str());
+		}
+#endif
+		if(BrowserWindow->OnBeforeBrowse(Browser, Frame, Request, user_gesture, IsRedirect))
 		{
 			return true;
 		}
@@ -516,12 +552,27 @@ CefRefPtr<CefResourceHandler> FCEFBrowserHandler::GetResourceHandler( CefRefPtr<
 	return nullptr;
 }
 
+CefRefPtr<CefResourceRequestHandler> FCEFBrowserHandler::GetResourceRequestHandler( CefRefPtr<CefBrowser> browser, CefRefPtr<CefFrame> frame,
+	CefRefPtr<CefRequest> request, bool is_navigation, bool is_download, const CefString& request_initiator, bool& disable_default_handling) 
+{
+#ifdef DEBUG_ONBEFORELOAD
+	auto url = request->GetURL();
+	auto type = request->GetResourceType();
+	if (type == CefRequest::ResourceType::RT_MAIN_FRAME || type == CefRequest::ResourceType::RT_XHR)
+	{
+		GLog->Logf(ELogVerbosity::Display, TEXT("FCEFBrowserHandler::GetResourceRequestHandler :%s"), url.c_str());
+	}
+#endif
+	return this;
+}
+
 void FCEFBrowserHandler::SetBrowserWindow(TSharedPtr<FCEFWebBrowserWindow> InBrowserWindow)
 {
 	BrowserWindowPtr = InBrowserWindow;
 }
 
 bool FCEFBrowserHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser,
+	CefRefPtr<CefFrame> frame,
 	CefProcessId SourceProcess,
 	CefRefPtr<CefProcessMessage> Message)
 {
@@ -529,7 +580,7 @@ bool FCEFBrowserHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser,
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 	if (BrowserWindow.IsValid())
 	{
-		Retval = BrowserWindow->OnProcessMessageReceived(Browser, SourceProcess, Message);
+		Retval = BrowserWindow->OnProcessMessageReceived(Browser, frame, SourceProcess, Message);
 	}
 	return Retval;
 }
@@ -549,11 +600,9 @@ bool FCEFBrowserHandler::ShowDevTools(const CefRefPtr<CefBrowser>& Browser)
 	PopupFeatures.ySet = false;
 	PopupFeatures.heightSet = false;
 	PopupFeatures.widthSet = false;
-	PopupFeatures.locationBarVisible = false;
 	PopupFeatures.menuBarVisible = false;
 	PopupFeatures.toolBarVisible  = false;
 	PopupFeatures.statusBarVisible  = false;
-	PopupFeatures.resizable = true;
 
 	// Set max framerate to maximum supported.
 	BrowserSettings.windowless_frame_rate = 60;
@@ -577,13 +626,14 @@ bool FCEFBrowserHandler::OnKeyEvent(CefRefPtr<CefBrowser> Browser,
 	CefEventHandle OsEvent)
 {
 	// Show dev tools on CMD/CTRL+SHIFT+I
-	if( (Event.type == KEYEVENT_RAWKEYDOWN || Event.type == KEYEVENT_KEYDOWN) &&
+	if( (Event.type == KEYEVENT_RAWKEYDOWN || Event.type == KEYEVENT_KEYDOWN || Event.type == KEYEVENT_CHAR) &&
 #if PLATFORM_MAC
 		(Event.modifiers == (EVENTFLAG_COMMAND_DOWN | EVENTFLAG_SHIFT_DOWN)) &&
 #else
 		(Event.modifiers == (EVENTFLAG_CONTROL_DOWN | EVENTFLAG_SHIFT_DOWN)) &&
 #endif
-		(Event.unmodified_character == 'i' || Event.unmodified_character == 'I') &&
+		(Event.windows_key_code == 'I' ||
+		Event.unmodified_character == 'i' || Event.unmodified_character == 'I') &&
 		IWebBrowserModule::Get().GetSingleton()->IsDevToolsShortcutEnabled()
 	  )
 	{
@@ -639,11 +689,7 @@ bool FCEFBrowserHandler::OnKeyEvent(CefRefPtr<CefBrowser> Browser,
 	return false;
 }
 
-#if PLATFORM_LINUX
-bool FCEFBrowserHandler::OnJSDialog(CefRefPtr<CefBrowser> Browser, const CefString& OriginUrl, const CefString& AcceptLang, JSDialogType DialogType, const CefString& MessageText, const CefString& DefaultPromptText, CefRefPtr<CefJSDialogCallback> Callback, bool& OutSuppressMessage)
-#else
 bool FCEFBrowserHandler::OnJSDialog(CefRefPtr<CefBrowser> Browser, const CefString& OriginUrl, JSDialogType DialogType, const CefString& MessageText, const CefString& DefaultPromptText, CefRefPtr<CefJSDialogCallback> Callback, bool& OutSuppressMessage)
-#endif
 {
 	bool Retval = false;
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
@@ -683,7 +729,7 @@ void FCEFBrowserHandler::OnBeforeContextMenu(CefRefPtr<CefBrowser> Browser, CefR
 	}
 }
 
-void FCEFBrowserHandler::OnDraggableRegionsChanged(CefRefPtr<CefBrowser> Browser, const std::vector<CefDraggableRegion>& Regions)
+void FCEFBrowserHandler::OnDraggableRegionsChanged(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> frame, const std::vector<CefDraggableRegion>& Regions)
 {
 	TSharedPtr<FCEFWebBrowserWindow> BrowserWindow = BrowserWindowPtr.Pin();
 	if (BrowserWindow.IsValid())
@@ -697,6 +743,23 @@ void FCEFBrowserHandler::OnDraggableRegionsChanged(CefRefPtr<CefBrowser> Browser
 		}
 		BrowserWindow->UpdateDragRegions(DragRegions);
 	}
+}
+
+bool FCEFBrowserHandler::CanSaveCookie(CefRefPtr<CefBrowser> browser,
+	CefRefPtr<CefFrame> frame,
+	CefRefPtr<CefRequest> request,
+	CefRefPtr<CefResponse> response,
+	const CefCookie& cookie) 
+{
+	if (bAllowAllCookies)
+	{
+		return true;
+	}
+
+	// these two cookies shouldn't be saved by the client. While we are debugging why the backend is causing them to be set filter them out
+	if (CefString(&cookie.name).ToString() == "store-token" || CefString(&cookie.name) == "EPIC_SESSION_DIESEL")
+		return false;
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE

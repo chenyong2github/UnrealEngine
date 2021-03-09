@@ -12,6 +12,8 @@
 
 #if PLATFORM_LINUX
 	#include "HAL/PlatformApplicationMisc.h"
+#elif PLATFORM_MAC
+	#include "Mac/CocoaThread.h"
 #endif
 
 class FSlateOpenGLFontAtlasFactory : public ISlateFontAtlasFactory
@@ -145,11 +147,15 @@ void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 
 				Viewport->MakeCurrent();
 
+				// Update texture cache of pending requests before the resources are accessed during batching
+				TextureManager->UpdateCache();
+
 				// Batch elements.  Note that we must set the current viewport before doing this so we have a valid rendering context when calling OpenGL functions
 				ElementBatcher->AddElements(ElementList);
 
-				// Update the font cache with new text before elements are batched
+				// Update the font cache with new text after elements are batched
 				FontCache->UpdateCache();
+			
 
 				//@ todo Slate: implement for opengl
 				bool bRequiresStencilTest = false;
@@ -180,6 +186,7 @@ void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 
 	// flush the cache if needed
 	FontCache->ConditionalFlushCache();
+	TextureManager->ConditionalFlushCache();
 
 	// Safely release the references now that we are finished rendering with the dynamic brushes
 	DynamicBrushesToRemove.Empty();
@@ -254,9 +261,9 @@ bool FSlateOpenGLRenderer::GenerateDynamicImageResource(FName ResourceName, uint
 	return TextureManager->CreateDynamicTextureResource(ResourceName, Width, Height, Bytes) != NULL;
 }
 
-FSlateResourceHandle FSlateOpenGLRenderer::GetResourceHandle( const FSlateBrush& Brush )
+FSlateResourceHandle FSlateOpenGLRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
 {
-	return TextureManager->GetResourceHandle( Brush );
+	return TextureManager->GetResourceHandle(Brush, LocalSize, DrawScale);
 }
 
 void FSlateOpenGLRenderer::RemoveDynamicBrushResource( TSharedPtr<FSlateDynamicImageBrush> BrushToRemove )
@@ -279,6 +286,13 @@ FSlateUpdatableTexture* FSlateOpenGLRenderer::CreateUpdatableTexture(uint32 Widt
 	RawData.AddZeroed(Width * Height * 4);
 	FSlateOpenGLTexture* NewTexture = new FSlateOpenGLTexture(Width, Height);
 	NewTexture->Init(GL_RGBA, RawData);
+	return NewTexture;
+}
+
+FSlateUpdatableTexture* FSlateOpenGLRenderer::CreateSharedHandleTexture(void* SharedHandle)
+{
+	FSlateOpenGLTexture* NewTexture = new FSlateOpenGLTexture();
+	NewTexture->Init(SharedHandle);
 	return NewTexture;
 }
 

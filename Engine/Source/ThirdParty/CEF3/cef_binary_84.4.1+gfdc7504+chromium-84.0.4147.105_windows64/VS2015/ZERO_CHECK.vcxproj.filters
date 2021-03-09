@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\VS2015\CMakeFiles\0578c6124f3bbabebc13e21d4d55c811\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{429D0EA0-AEDF-3DCB-8782-2F770662F032}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

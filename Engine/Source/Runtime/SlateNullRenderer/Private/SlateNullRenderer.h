@@ -35,6 +35,7 @@ public:
 	virtual void PrepareToTakeScreenshot(const FIntRect& Rect, TArray<FColor>* OutColorData, SWindow* InScreenshotWindow) override;
 	virtual FSlateResourceHandle GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale) override;
 	virtual FSlateUpdatableTexture* CreateUpdatableTexture(uint32 Width, uint32 Height) override;
+	virtual FSlateUpdatableTexture* CreateSharedHandleTexture(void* SharedHandle) override;
 	virtual void ReleaseUpdatableTexture(FSlateUpdatableTexture* Texture) override;
 	virtual FCriticalSection* GetResourceCriticalSection() override;
 	virtual int32 RegisterCurrentScene(FSceneInterface* Scene) override;

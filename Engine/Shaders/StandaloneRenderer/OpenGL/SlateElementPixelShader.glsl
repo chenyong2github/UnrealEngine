@@ -34,6 +34,13 @@ uniform vec4 ShaderParams2;
 uniform int ShaderType;
 uniform sampler2D ElementTexture;
 
+#if PLATFORM_MAC
+// GL_TEXTURE_RECTANGLE_ARB support, used by the web surface on macOS
+uniform bool UseTextureRectangle;
+uniform sampler2DRect ElementRectTexture;
+uniform vec2 Size;
+#endif
+
 varying vec4 Position;
 varying vec4 TexCoords;
 varying vec4 Color;
@@ -160,7 +167,18 @@ vec4 GetDefaultElementColor()
 {
 	vec4 OutColor = Color;
 
-	vec4 TextureColor = texture2D(ElementTexture, TexCoords.xy*TexCoords.zw);
+	vec4 TextureColor;
+#if PLATFORM_MAC
+	if ( UseTextureRectangle )
+	{
+		TextureColor = texture2DRect(ElementRectTexture, TexCoords.xy*TexCoords.zw*Size).bgra;
+	}
+	else
+#endif
+	{
+		TextureColor = texture2D(ElementTexture, TexCoords.xy*TexCoords.zw);
+	}
+	
 	if( IgnoreTextureAlpha )
 	{
 		TextureColor.a = 1.0;

@@ -1567,6 +1567,11 @@ FSlateUpdatableTexture* FSlateRHIRenderer::CreateUpdatableTexture(uint32 Width, 
 	return NewTexture;
 }
 
+FSlateUpdatableTexture* FSlateRHIRenderer::CreateSharedHandleTexture(void* SharedHandle)
+{
+	return nullptr;
+}
+
 void FSlateRHIRenderer::ReleaseUpdatableTexture(FSlateUpdatableTexture* Texture)
 {
 	if (IsInRenderingThread())

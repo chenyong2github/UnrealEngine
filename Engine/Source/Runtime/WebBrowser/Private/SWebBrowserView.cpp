@@ -614,8 +614,11 @@ void SWebBrowserView::HandleShowPopup(const FIntRect& PopupSize)
 				.EnableGammaCorrection(false)
 				.EnableBlending(false)
 				.IgnoreTextureAlpha(true)
+#if WITH_CEF3
+				.RenderTransform(this, &SWebBrowserView::GetPopupRenderTransform)
+#endif
 				.Visibility(EVisibility::Visible);
-	MenuViewport = MakeShareable(new FWebBrowserViewport(BrowserWindow, true));
+		MenuViewport = MakeShareable(new FWebBrowserViewport(BrowserWindow, true));
 	MenuContent->SetViewportInterface(MenuViewport.ToSharedRef());
 	FWidgetPath WidgetPath;
 	FSlateApplication::Get().GeneratePathToWidgetUnchecked(SharedThis(this), WidgetPath);
@@ -632,6 +635,28 @@ void SWebBrowserView::HandleShowPopup(const FIntRect& PopupSize)
 		PopupMenuPtr = NewMenu;
 	}
 
+}
+
+TOptional <FSlateRenderTransform> SWebBrowserView::GetPopupRenderTransform() const
+{
+	if (BrowserWindow.IsValid())
+	{
+#if !defined(DUMMY_WEB_BROWSER) && WITH_CEF3
+		TOptional<FSlateRenderTransform> LocalRenderTransform = FSlateRenderTransform();
+		if (static_cast<FWebBrowserWindow*>(BrowserWindow.Get())->UsingAcceleratedPaint())
+		{
+			// the accelerated renderer for CEF generates inverted textures (compared to the slate co-ord system), so flip it here
+			LocalRenderTransform = FSlateRenderTransform(Concatenate(FScale2D(1, -1), FVector2D(0, PopupMenuPtr.Pin()->GetContent()->GetDesiredSize().Y)));
+		}
+		return LocalRenderTransform;
+#else
+		return FSlateRenderTransform();
+#endif
+	}
+	else
+	{
+		return FSlateRenderTransform();
+	}
 }
 
 void SWebBrowserView::HandleMenuDismissed(TSharedRef<IMenu>)

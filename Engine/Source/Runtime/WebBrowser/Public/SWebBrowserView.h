@@ -19,6 +19,7 @@ class IWebBrowserWindow;
 struct FWebNavigationRequest;
 enum class EWebBrowserDialogEventResponse;
 enum class EWebBrowserDocumentState;
+enum class EWebBrowserConsoleLogSeverity;
 
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnBeforePopupDelegate, FString, FString);
 DECLARE_DELEGATE_RetVal_TwoParams(bool, FOnCreateWindowDelegate, const TWeakPtr<IWebBrowserWindow>&, const TWeakPtr<IWebBrowserPopupFeatures>&);
@@ -340,6 +341,7 @@ private:
 
 	bool HandleDrag(const FPointerEvent& MouseEvent);
 
+	TOptional<FSlateRenderTransform> GetPopupRenderTransform() const;
 private:
 
 	/** Interface for dealing with a web browser window. */

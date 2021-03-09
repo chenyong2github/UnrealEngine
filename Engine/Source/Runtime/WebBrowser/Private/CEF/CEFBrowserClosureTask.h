@@ -5,31 +5,7 @@
 #include "CoreMinimal.h"
 
 #if WITH_CEF3
-
-#if PLATFORM_WINDOWS
-	#include "Windows/AllowWindowsPlatformTypes.h"
-#endif
-
-#pragma push_macro("OVERRIDE")
-#undef OVERRIDE // cef headers provide their own OVERRIDE macro
-THIRD_PARTY_INCLUDES_START
-#if PLATFORM_APPLE
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-#endif
-#include "include/cef_task.h"
-THIRD_PARTY_INCLUDES_END
-#if PLATFORM_APPLE
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-#pragma pop_macro("OVERRIDE")
-
-#if PLATFORM_LINUX
-typedef CefBase CefBaseRefCounted;
-#endif
-
-#if PLATFORM_WINDOWS
-	#include "Windows/HideWindowsPlatformTypes.h"
-#endif
+#include "CEFLibCefIncludes.h"
 
 // Helper for posting a closure as a task
 class FCEFBrowserClosureTask

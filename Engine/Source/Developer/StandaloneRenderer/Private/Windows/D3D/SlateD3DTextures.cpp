@@ -110,7 +110,7 @@ void FSlateD3DTexture::UpdateTextureRaw(const void* Buffer, const FIntRect& Dirt
 	}
 
 	D3D11_MAPPED_SUBRESOURCE Resource;
-	HRESULT Hr = GD3DDeviceContext->Map(TextureToUpdate, 0, bUseStagingTexture?D3D11_MAP_READ_WRITE:D3D11_MAP_WRITE_DISCARD, 0, &Resource);
+	HRESULT Hr = GD3DDeviceContext->Map(TextureToUpdate, 0, bUseStagingTexture ? D3D11_MAP_READ_WRITE : D3D11_MAP_WRITE_DISCARD, 0, &Resource);
 
 	if (SUCCEEDED(Hr))
 	{
@@ -162,11 +162,128 @@ void FSlateD3DTexture::UpdateTextureThreadSafeWithTextureData(FSlateTextureData*
 	delete TextureData; 
 }
 
+void FSlateD3DTexture::Init(void* ShareHandleIn)
+{
+	ID3D11Device1* dev1 = nullptr;
+	HRESULT Hr = GD3DDevice->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&dev1));
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3DSharedTexture::Init() - ID3D11Device::QueryInterface"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
+
+	ID3D11Texture2D* tex = nullptr;
+	Hr = dev1->OpenSharedResource1(ShareHandleIn, __uuidof(ID3D11Texture2D), (void**)(&tex));
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3DSharedTexture::Init() - ID3D11Device::OpenSharedResource"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
+
+	D3D11_TEXTURE2D_DESC TexDesc;
+	tex->GetDesc(&TexDesc);
+
+	SizeX = TexDesc.Width;
+	SizeY = TexDesc.Height;
+	ShareHandle = ShareHandleIn;
+
+	// Ideally we would use the input texture format here but we need the SRGB variants for our render pipeline
+	if (TexDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM_SRGB || TexDesc.Format == DXGI_FORMAT_R8G8B8A8_UNORM)
+	{
+		Init(DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, NULL, true, false);
+	}
+	else
+	{
+		Init(DXGI_FORMAT_B8G8R8A8_UNORM_SRGB, NULL, true, false);
+	}
+}
+
+void FSlateD3DTexture::UpdateTextureThreadSafeWithKeyedTextureHandle(void* TextureHandle, int KeyLockVal, int KeyUnlockVal, const FIntRect& InDirty)
+{
+	FIntRect Dirty = InDirty;
+	if (ShareHandle != TextureHandle)
+	{
+		Init(TextureHandle);
+		Dirty = FIntRect();
+	}
+
+	ID3D11Device1* dev1 = nullptr;
+	HRESULT Hr = GD3DDevice->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&dev1));
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3DTexture::UpdateTextureThreadSafeWithKeyedTextureHandle() - ID3D11Device::QueryInterface"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
+
+	ID3D11Texture2D* Tex = nullptr;
+	Hr = dev1->OpenSharedResource1(ShareHandle, __uuidof(ID3D11Texture2D), (void**)(&Tex));
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3DTexture::UpdateTextureThreadSafeWithKeyedTextureHandle() - ID3D11Device::OpenSharedResource"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
+
+	D3D11_TEXTURE2D_DESC TexDesc;
+	Tex->GetDesc(&TexDesc);
+	if (SizeX != TexDesc.Width || SizeY != TexDesc.Height)
+	{
+		ResizeTexture(TexDesc.Width, TexDesc.Height);
+		Dirty = FIntRect();
+	}
+
+	TRefCountPtr<IDXGIKeyedMutex> KeyedMutex;
+	Hr = Tex->QueryInterface(_uuidof(IDXGIKeyedMutex), (void**)&KeyedMutex);
+	if (FAILED(Hr))
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3DTexture::UpdateTextureThreadSafeWithKeyedTextureHandle() - ID3D11Texture2D::IDXGIKeyedMutex"), Hr);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
+
+	if (KeyedMutex)
+	{
+		if (KeyedMutex->AcquireSync(KeyLockVal, INFINITE) == S_OK)
+		{
+			D3D11_BOX Region;
+			Region.front = 0;
+			Region.back = 1;
+			if (Dirty.Area() > 0)
+			{
+				Region.left = Dirty.Min.X;
+				Region.top = Dirty.Min.Y;
+				Region.right = Dirty.Max.X;
+				Region.bottom = Dirty.Max.Y;
+			}
+			else
+			{
+				Region.left = 0;
+				Region.right = SizeX;
+				Region.top = 0;
+				Region.bottom = SizeY;
+			}
+
+			GD3DDeviceContext->CopySubresourceRegion(D3DTexture, 0, Region.left, Region.top, Region.front, Tex, 0, &Region);
+
+			KeyedMutex->ReleaseSync(KeyUnlockVal);
+		}
+	}
+	else
+	{
+		LogSlateD3DRendererFailure(TEXT("FSlateD3DSharedTexture::UpdateTextureThreadSafeWithKeyedTextureHandle() - missing KeyedMutex"), E_FAIL);
+		GEncounteredCriticalD3DDeviceError = true;
+		return;
+	}
+}
 
 FSlateTextureAtlasD3D::FSlateTextureAtlasD3D( uint32 Width, uint32 Height, uint32 StrideBytes, ESlateTextureAtlasPaddingStyle PaddingStyle )
-	: FSlateTextureAtlas( Width, Height, StrideBytes, PaddingStyle, true )
-	, AtlasTexture( new FSlateD3DTexture( Width, Height ) )
+	: FSlateTextureAtlas(Width, Height, StrideBytes, PaddingStyle, true)
+	, AtlasTexture(nullptr)
 {
+	InitAtlasTexture();
 }
 
 FSlateTextureAtlasD3D::~FSlateTextureAtlasD3D()
@@ -177,22 +294,22 @@ FSlateTextureAtlasD3D::~FSlateTextureAtlasD3D()
 	}
 }
 
-
-
-void FSlateTextureAtlasD3D::InitAtlasTexture( int32 Index )
+void FSlateTextureAtlasD3D::InitAtlasTexture()
 {
-	check( AtlasTexture );
+	check(!AtlasTexture);
 
-	D3D11_SUBRESOURCE_DATA InitData;
-	InitData.pSysMem = AtlasData.GetData();
-	InitData.SysMemPitch = AtlasWidth * 4;
+	AtlasTexture = new FSlateD3DTexture(AtlasWidth, AtlasHeight);
 
-	AtlasTexture->Init( DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, &InitData );
+	AtlasTexture->Init( DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, nullptr, true );
 }
 
 void FSlateTextureAtlasD3D::ConditionalUpdateTexture()
 {
-	// Not yet supported
+	if (bNeedsUpdate)
+	{
+		AtlasTexture->UpdateTexture(AtlasData);
+		bNeedsUpdate = false;
+	}
 }
 
 FSlateFontAtlasD3D::FSlateFontAtlasD3D(uint32 Width, uint32 Height, const bool InIsGrayscale)

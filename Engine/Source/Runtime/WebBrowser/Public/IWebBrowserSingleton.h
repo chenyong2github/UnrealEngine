@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Rendering/SlateRenderer.h"
-
+#include "IWebBrowserResourceLoader.h"
 class FCEFWebBrowserWindow;
 class IWebBrowserCookieManager;
 class IWebBrowserWindow;
@@ -47,6 +47,7 @@ struct WEBBROWSER_API FBrowserContextSettings
 	bool bPersistSessionCookies;
 	bool bIgnoreCertificateErrors;
 	bool bEnableNetSecurityExpiration;
+	FOnBeforeContextResourceLoadDelegate OnBeforeContextResourceLoad;
 };
 
 
@@ -206,6 +207,16 @@ public:
 	 * @param bEnabled a boolean value to enable or disable the to-lowering.
 	 */
 	virtual void SetJSBindingToLoweringEnabled(bool bEnabled) = 0;
+
+
+	/**
+	 * Delete old/unused web cache paths. Some Web implementations (i.e CEF) use version specific cache folders, this
+	 * call lets you schedule a deletion of any now unused folders. Calling this may resulting in async disk I/O.
+	 *
+	 * @param CachePathRoot the base path used for saving the webcache folder
+	 * @param CachePrefix the filename prefix we use for the cache folder (i.e "webcache")
+	 */
+	virtual void ClearOldCacheFolders(const FString &CachePathRoot, const FString &CachePrefix) = 0;
 
 
 	/** Set a reference to UWebBrowser's default material*/

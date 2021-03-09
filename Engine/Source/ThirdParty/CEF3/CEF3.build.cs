@@ -9,26 +9,28 @@ public class CEF3 : ModuleRules
 	public CEF3(ReadOnlyTargetRules Target) : base(Target)
 	{
 		/** Mark the current version of the library */
-		string CEFVersion = "3.3071.1611.g4a19305";
+		string CEFVersion = "";
 		string CEFPlatform = "";
 
 		Type = ModuleType.External;
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
+			CEFVersion = "84.1.6+gc551bc2+chromium-84.0.4147.38";
 			CEFPlatform = "windows64";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
+			CEFVersion = "84.4.0+g304e015+chromium-84.0.4147.105";
 			CEFPlatform = "macosx64";
 		}
 		else if(Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			CEFVersion = "3.2623.1395.g3034273";
+			CEFVersion = "84.4.1+gfdc7504+chromium-84.0.4147.105";
 			CEFPlatform = "linux64";
 		}
 
-		if (CEFPlatform.Length > 0 && Target.bCompileCEF3)
+		if (CEFPlatform.Length > 0 && CEFVersion.Length > 0 && Target.bCompileCEF3)
 		{
 			string PlatformPath = Path.Combine(Target.UEThirdPartySourceDirectory, "CEF3", "cef_binary_" + CEFVersion + "_" + CEFPlatform);
 
@@ -43,7 +45,7 @@ public class CEF3 : ModuleRules
 
                 // There are different versions of the C++ wrapper lib depending on the version of VS we're using
                 string VSVersionFolderName = "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-                string WrapperLibraryPath = Path.Combine(PlatformPath, VSVersionFolderName, "libcef_dll");
+                string WrapperLibraryPath = Path.Combine(PlatformPath, VSVersionFolderName, "libcef_dll_wrapper");
 
                 if (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT)
                 {
@@ -76,7 +78,7 @@ public class CEF3 : ModuleRules
                 RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/icudtl.dat");
 
 				// Add the V8 binary data files as well
-                RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/natives_blob.bin");
+                RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/v8_context_snapshot.bin");
                 RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/snapshot_blob.bin");
 
                 // And the entire Resources folder. Enumerate the entire directory instead of mentioning each file manually here.
@@ -93,7 +95,6 @@ public class CEF3 : ModuleRules
                 string FrameworkPath = Target.UEThirdPartyBinariesDirectory + "CEF3/Mac/Chromium Embedded Framework.framework";
 
 				PublicAdditionalLibraries.Add(WrapperPath);
-                PublicFrameworks.Add(FrameworkPath);
 
 				if(Directory.Exists(LibraryPath + "/locale"))
 				{
@@ -125,7 +126,7 @@ public class CEF3 : ModuleRules
 
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/libcef.so");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/icudtl.dat");
-				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/natives_blob.bin");
+				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/v8_context_snapshot.bin");
 				RuntimeDependencies.Add("$(EngineDir)/Binaries/ThirdParty/CEF3/" + Target.Platform.ToString() + "/snapshot_blob.bin");
 
 				// And the entire Resources folder. Enunerate the entire directory instead of mentioning each file manually here.

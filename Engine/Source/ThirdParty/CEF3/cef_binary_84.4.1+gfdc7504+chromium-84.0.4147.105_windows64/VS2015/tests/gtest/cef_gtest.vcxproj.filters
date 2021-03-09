@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\gtest\src\gtest-all.cc">
+      <Filter>cef_gtest</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\gtest\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="cef_gtest">
+      <UniqueIdentifier>{669EFB0E-CD8E-3280-8C38-95C5874E331A}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

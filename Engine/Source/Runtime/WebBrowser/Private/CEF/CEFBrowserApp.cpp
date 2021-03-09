@@ -18,6 +18,11 @@ void FCEFBrowserApp::OnBeforeCommandLineProcessing(const CefString& ProcessType,
 	CommandLine->AppendSwitch("enable-gpu");
 	CommandLine->AppendSwitch("enable-gpu-compositing");
 	CommandLine->AppendSwitch("enable-begin-frame-scheduling");
+	CommandLine->AppendSwitch("disable-pinch"); // the web pages we have don't expect zoom to work right now so disable touchpad pinch zoom
+	CommandLine->AppendSwitch("disable-gpu-shader-disk-cache"); // Don't create a "GPUCache" directory when cache-path is unspecified.
+#if PLATFORM_MAC
+	CommandLine->AppendSwitch("use-mock-keychain"); // Disable the toolchain prompt on macOS.
+#endif
 }
 
 void FCEFBrowserApp::OnRenderProcessThreadCreated(CefRefPtr<CefListValue> ExtraInfo)
@@ -25,7 +30,6 @@ void FCEFBrowserApp::OnRenderProcessThreadCreated(CefRefPtr<CefListValue> ExtraI
 	RenderProcessThreadCreatedDelegate.ExecuteIfBound(ExtraInfo);
 }
 
-#if !PLATFORM_LINUX
 void FCEFBrowserApp::OnScheduleMessagePumpWork(int64 delay_ms)
 {
 	FScopeLock Lock(&MessagePumpCountdownCS);
@@ -38,15 +42,9 @@ void FCEFBrowserApp::OnScheduleMessagePumpWork(int64 delay_ms)
 	}
 	MessagePumpCountdown = delay_ms;
 }
-#endif
 
-void FCEFBrowserApp::TickMessagePump(float DeltaTime, bool bForce)
+bool FCEFBrowserApp::TickMessagePump(float DeltaTime, bool bForce)
 {
-#if PLATFORM_LINUX
-	CefDoMessageLoopWork();
-	return;
-#endif
-
 	bool bPump = false;
 	{
 		FScopeLock Lock(&MessagePumpCountdownCS);
@@ -54,7 +52,7 @@ void FCEFBrowserApp::TickMessagePump(float DeltaTime, bool bForce)
 		// count down in order to call message pump
 		if (MessagePumpCountdown >= 0)
 		{
-			MessagePumpCountdown -= DeltaTime * 1000;
+			MessagePumpCountdown -= (DeltaTime * 1000);
 			if (MessagePumpCountdown <= 0)
 			{
 				bPump = true;
@@ -71,7 +69,9 @@ void FCEFBrowserApp::TickMessagePump(float DeltaTime, bool bForce)
 	if (bPump || bForce)
 	{
 		CefDoMessageLoopWork();
+		return true;
 	}
+	return false;
 }
 
 #endif

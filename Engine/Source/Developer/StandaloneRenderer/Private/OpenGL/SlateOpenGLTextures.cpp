@@ -9,8 +9,11 @@
 
 GLuint FSlateOpenGLTexture::NullTexture = 0;
 
-void FSlateOpenGLTexture::Init( GLenum TexFormat, const TArray<uint8>& TextureData )
+void FSlateOpenGLTexture::Init( GLenum InTexFormat, const TArray<uint8>& TextureData )
 {
+#if PLATFORM_MAC
+	LockGLContext([NSOpenGLContext currentContext]);
+#endif
 	// Create a new OpenGL texture
 	glGenTextures(1, &ShaderResource);
 	CHECK_GL_ERRORS;
@@ -27,12 +30,17 @@ void FSlateOpenGLTexture::Init( GLenum TexFormat, const TArray<uint8>& TextureDa
 #endif // USE_DEPRECATED_OPENGL_FUNCTIONALITY
 
 	// the raw data is in bgra or bgr
-	const GLint Format = GL_BGRA;
+	const GLint Format = GL_RGBA;
+
+	TexFormat = InTexFormat;
 
 	// Upload the texture data
 	glTexImage2D( GL_TEXTURE_2D, 0, TexFormat, SizeX, SizeY, 0, Format, GL_UNSIGNED_INT_8_8_8_8_REV, TextureData.GetData() );
 	bHasPendingResize = false;
 	CHECK_GL_ERRORS;
+#if PLATFORM_MAC
+	UnlockGLContext([NSOpenGLContext currentContext]);
+#endif
 }
 
 void FSlateOpenGLTexture::Init( GLuint TextureID )
@@ -40,6 +48,37 @@ void FSlateOpenGLTexture::Init( GLuint TextureID )
 	ShaderResource = TextureID;
 	bHasPendingResize = false;
 }
+
+void FSlateOpenGLTexture::Init( void* TextureHandle )
+{
+#if PLATFORM_MAC
+	LockGLContext([NSOpenGLContext currentContext]);
+
+	// Create a new OpenGL texture
+	glGenTextures(1, &ShaderResource);
+	CHECK_GL_ERRORS;
+	
+	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, ShaderResource);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	mach_port_t port = (mach_port_t)(uintptr_t)(TextureHandle);
+	IOSurfaceRef LastHandle = IOSurfaceLookupFromMachPort(port);
+	
+	CGLContextObj cglContext = CGLGetCurrentContext();
+	
+	SizeX = IOSurfaceGetWidth(LastHandle);
+	SizeY = IOSurfaceGetHeight(LastHandle);
+	
+	CFRelease(LastHandle);
+
+	bHasPendingResize = false;
+	UnlockGLContext([NSOpenGLContext currentContext]);
+#else
+	checkf( false, TEXT("Needs Implementation") );
+#endif
+}
+
 
 void FSlateOpenGLTexture::ResizeTexture(uint32 Width, uint32 Height)
 {
@@ -91,17 +130,17 @@ void FSlateOpenGLTexture::UpdateTextureRaw(const void* Buffer, const FIntRect& D
 
 	if (bHasPendingResize || Dirty.Area() == 0)
 	{
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
+		glTexImage2D(GL_TEXTURE_2D, 0, TexFormat, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
 		bHasPendingResize = false;
 	}
 	else
 	{
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, SizeX);
-		glTexSubImage2D(GL_TEXTURE_2D, 0, Dirty.Min.X, Dirty.Min.Y, Dirty.Width(), Dirty.Height(), GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, (uint8*)Buffer + Dirty.Min.Y * SizeX * 4 + Dirty.Min.X * 4);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, Dirty.Min.X, Dirty.Min.Y, Dirty.Width(), Dirty.Height(), TexFormat, GL_UNSIGNED_INT_8_8_8_8_REV, (uint8*)Buffer + Dirty.Min.Y * SizeX * 4 + Dirty.Min.X * 4);
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
 	}
 #else
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
+	glTexImage2D(GL_TEXTURE_2D, 0, TexFormat, SizeX, SizeY, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV, Buffer);
 #endif
 	CHECK_GL_ERRORS;
 #if PLATFORM_MAC
@@ -109,6 +148,52 @@ void FSlateOpenGLTexture::UpdateTextureRaw(const void* Buffer, const FIntRect& D
 #endif
 }
 
+#if PLATFORM_MAC
+void FSlateOpenGLTexture::UpdateTextureThreadSafeWithKeyedTextureHandle(void* TextureHandle, int KeyLockVal, int KeyUnlockVal, const FIntRect& Dirty)
+{
+	LockGLContext([NSOpenGLContext currentContext]);
+	glEnable(GL_TEXTURE_RECTANGLE_ARB);
+	glActiveTexture(GL_TEXTURE1);
+	
+	glBindTexture(GL_TEXTURE_RECTANGLE_ARB, ShaderResource);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_RECTANGLE_ARB, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	//glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	CHECK_GL_ERRORS;
+
+	mach_port_t port = (mach_port_t)(uintptr_t)(TextureHandle);
+	IOSurfaceRef LastHandle = IOSurfaceLookupFromMachPort(port);
+	if (LastHandle != nullptr)
+	{
+		//IOSurfaceUnlock(LastHandle, 0, NULL);
+		
+		CGLContextObj cglContext = CGLGetCurrentContext();
+		
+		GLsizei SurfaceWidth = IOSurfaceGetWidth(LastHandle);
+		GLsizei SurfaceHeight = IOSurfaceGetHeight(LastHandle);
+		
+		if (SurfaceWidth != SizeX || SurfaceHeight != SizeY )
+		{
+			//fprintf( stderr, "Buffer Size mistmatch: %d %d %d %d\n", SurfaceWidth, SizeY, SurfaceHeight, SizeX );
+			SizeX = SurfaceWidth;
+			SizeY = SurfaceHeight;
+		}
+		bHasPendingResize = false; // this always resizes our texture
+		
+		CGLError cglError = CGLTexImageIOSurface2D(cglContext, GL_TEXTURE_RECTANGLE_ARB, GL_SRGB,
+												   SurfaceWidth, SurfaceHeight, GL_BGRA,
+													GL_UNSIGNED_INT_8_8_8_8_REV, LastHandle, 0);
+		checkf( cglError == kCGLNoError, TEXT("CGL error: 0x%x"), cglError );
+
+		CFRelease(LastHandle);
+	}
+
+	glActiveTexture(GL_TEXTURE0);
+
+	UnlockGLContext([NSOpenGLContext currentContext]);
+}
+#endif
 
 FSlateFontTextureOpenGL::FSlateFontTextureOpenGL(uint32 Width, uint32 Height, const bool InIsGrayscale)
 	: FSlateFontAtlas(Width, Height, InIsGrayscale) 
@@ -210,4 +295,38 @@ GLint FSlateFontTextureOpenGL::GetGLTextureType() const
 		return GL_UNSIGNED_BYTE;
 	}
 	return GL_UNSIGNED_INT_8_8_8_8_REV;
+}
+
+FSlateTextureAtlasOpenGL::FSlateTextureAtlasOpenGL(uint32 Width, uint32 Height, uint32 StrideBytes, ESlateTextureAtlasPaddingStyle PaddingStyle)
+	: FSlateTextureAtlas(Width, Height, StrideBytes, PaddingStyle, true)
+{
+	InitAtlasTexture();
+}
+
+FSlateTextureAtlasOpenGL::~FSlateTextureAtlasOpenGL()
+{
+	if (AtlasTexture)
+	{
+		delete AtlasTexture;
+	}
+}
+
+void FSlateTextureAtlasOpenGL::ConditionalUpdateTexture()
+{
+	if (bNeedsUpdate)
+	{
+		AtlasTexture->UpdateTexture(AtlasData);
+		bNeedsUpdate = false;
+	}
+}
+
+void FSlateTextureAtlasOpenGL::InitAtlasTexture()
+{
+	AtlasTexture = new FSlateOpenGLTexture(AtlasWidth, AtlasHeight);
+			
+#if !PLATFORM_USES_GLES
+	AtlasTexture->Init(GL_SRGB8_ALPHA8, TArray<uint8>());
+#else
+	AtlasTexture->Init(GL_SRGB8_ALPHA8_EXT, TArray<uint8>());
+#endif
 }

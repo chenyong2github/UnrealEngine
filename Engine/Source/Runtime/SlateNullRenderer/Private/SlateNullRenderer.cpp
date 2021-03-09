@@ -88,6 +88,11 @@ FSlateUpdatableTexture* FSlateNullRenderer::CreateUpdatableTexture(uint32 Width,
 	return nullptr;
 }
 
+FSlateUpdatableTexture* FSlateNullRenderer::CreateSharedHandleTexture(void* SharedHandle)
+{
+	return nullptr;
+}
+
 void FSlateNullRenderer::ReleaseUpdatableTexture(FSlateUpdatableTexture* Texture)
 {
 }

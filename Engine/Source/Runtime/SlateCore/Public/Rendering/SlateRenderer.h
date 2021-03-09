@@ -458,6 +458,15 @@ public:
 	virtual FSlateUpdatableTexture* CreateUpdatableTexture(uint32 Width, uint32 Height) = 0;
 
 	/**
+	 * Create an updatable texture that can receive new data via a shared handle
+	 *
+	 * @param	SharedHandle	The OS dependant handle that backs the texture data
+	 *
+	 * @return	Newly created updatable texture
+	 */
+	virtual FSlateUpdatableTexture* CreateSharedHandleTexture(void *SharedHandle) = 0;
+
+	/**
 	 * Return an updatable texture to the renderer for release
 	 *
 	 * @param	Texture	The texture we are releasing (should not use this pointer after calling)

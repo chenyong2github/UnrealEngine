@@ -22,6 +22,17 @@ enum class EWebBrowserDocumentState
 	NoDocument
 };
 
+enum class EWebBrowserConsoleLogSeverity
+{
+	Default,
+	Verbose,
+	Debug,
+	Info,
+	Warning,
+	Error,
+	Fatal
+};
+
 struct FWebNavigationRequest
 {
 	bool bIsRedirect;
@@ -352,7 +363,7 @@ public:
 	virtual FOnResourceLoadCompleteDelegate& OnResourceLoadComplete() = 0;
 
 	/** A delegate that is invoked for each console message */
-	DECLARE_DELEGATE_ThreeParams(FOnConsoleMessageDelegate, const FString& /*Message*/, const FString& /*Source*/, int /*Line*/);
+	DECLARE_DELEGATE_FourParams(FOnConsoleMessageDelegate, const FString& /*Message*/, const FString& /*Source*/, int /*Line*/, EWebBrowserConsoleLogSeverity /*severity*/);
 	virtual FOnConsoleMessageDelegate& OnConsoleMessage() = 0;
 
 	/** A delegate that is invoked when an existing browser requests creation of a new browser window. */

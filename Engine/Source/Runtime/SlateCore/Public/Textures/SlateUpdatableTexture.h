@@ -82,4 +82,14 @@ public:
 	* NOTE: This function transfers ownership of the FSlateTextureData object. It will be deleted once the texture is used
 	*/
 	virtual void UpdateTextureThreadSafeWithTextureData(FSlateTextureData* TextureData) = 0;
+
+
+	/**
+	* Update the texture from a shared texture handle. The handle type/usage is render system dependent, D3D uses the D3D11 OpenSharedResource call
+	*  On macOS we use an IOSurface.
+	* @param TextureHandle A pointer to the opque texture handle provided by the OS.
+	* @param Dirty An optional hint of the area to update. An empty rectangle means that the entire texture should be updated.
+	*
+	*/
+	virtual void UpdateTextureThreadSafeWithKeyedTextureHandle(void* TextureHandle, int KeyLockVal, int KeyUnlockVal, const FIntRect& Dirty = FIntRect()) = 0;
 };

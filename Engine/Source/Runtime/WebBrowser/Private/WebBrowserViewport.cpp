@@ -35,7 +35,6 @@ void FWebBrowserViewport::Tick( const FGeometry& AllottedGeometry, double InCurr
 		// Forward the AllottedGeometry to the WebBrowserWindow so the IME implementation can use it
 		TSharedPtr<FCEFWebBrowserWindow> CefWebBrowserWindow = StaticCastSharedPtr<FCEFWebBrowserWindow>(WebBrowserWindow);
 		CefWebBrowserWindow->UpdateCachedGeometry(AllottedGeometry);
-		CefWebBrowserWindow->SetZoomLevelByPercentage(DPI);
 #endif
 	}
 }

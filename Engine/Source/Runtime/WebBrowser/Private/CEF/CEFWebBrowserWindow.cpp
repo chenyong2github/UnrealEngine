@@ -6,6 +6,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Textures/SlateUpdatableTexture.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Misc/CommandLine.h"
+#include "WebBrowserLog.h"
 
 #if WITH_CEF3
 
@@ -14,6 +16,7 @@
 #include "CEFBrowserClosureTask.h"
 #include "CEFJSScripting.h"
 #include "CEFImeHandler.h"
+#include "CEFWebBrowserWindowRHIHelper.h"
 #include "Async/Async.h"
 
 #if PLATFORM_MAC
@@ -230,8 +233,12 @@ enum KeyboardCode {
 
 #endif
 
-// Enable buffered video to smooth out the frames we get back from Cef
+#if PLATFORM_MAC
+// enable buffered video so we don't DoS the OpenGL API with texture uploads causing a downstream crash on macOS
 #define USE_BUFFERED_VIDEO 1
+#else
+#define USE_BUFFERED_VIDEO 0
+#endif
 
 namespace {
 	// Private helper class to post a callback to GetSource.
@@ -368,7 +375,7 @@ private:
 
 
 
-FCEFWebBrowserWindow::FCEFWebBrowserWindow(CefRefPtr<CefBrowser> InBrowser, CefRefPtr<FCEFBrowserHandler> InHandler, FString InUrl, TOptional<FString> InContentsToLoad, bool bInShowErrorMessage, bool bInThumbMouseButtonNavigation, bool bInUseTransparency, bool bInJSBindingToLoweringEnabled)
+FCEFWebBrowserWindow::FCEFWebBrowserWindow(CefRefPtr<CefBrowser> InBrowser, CefRefPtr<FCEFBrowserHandler> InHandler, FString InUrl, TOptional<FString> InContentsToLoad, bool bInShowErrorMessage, bool bInThumbMouseButtonNavigation, bool bInUseTransparency, bool bInJSBindingToLoweringEnabled, bool bInUsingAcceleratedPaint)
 	: DocumentState(EWebBrowserDocumentState::NoDocument)
 	, InternalCefBrowser(InBrowser)
 	, WebBrowserHandler(InHandler)
@@ -381,6 +388,7 @@ FCEFWebBrowserWindow::FCEFWebBrowserWindow(CefRefPtr<CefBrowser> InBrowser, CefR
 	, bShowErrorMessage(bInShowErrorMessage)
 	, bThumbMouseButtonNavigation(bInThumbMouseButtonNavigation)
 	, bUseTransparency(bInUseTransparency)
+	, bUsingAcceleratedPaint(bInUsingAcceleratedPaint)
 	, Cursor(EMouseCursor::Default)
 	, bIsDisabled(false)
 	, bIsHidden(false)
@@ -399,12 +407,17 @@ FCEFWebBrowserWindow::FCEFWebBrowserWindow(CefRefPtr<CefBrowser> InBrowser, CefR
 	, bRecoverFromRenderProcessCrash(false)
 	, ErrorCode(0)
 	, bDeferNavigations(false)
+#if PLATFORM_MAC
+	, LastPaintedSharedHandle(nullptr)
+#endif
 	, Scripting(new FCEFJSScripting(InBrowser, bInJSBindingToLoweringEnabled))
 #if !PLATFORM_LINUX
 	, Ime(new FCEFImeHandler(InBrowser))
 #endif
+	, RHIRenderHelper(nullptr)
 {
 	check(InBrowser.get() != nullptr);
+	check(!bUsingAcceleratedPaint || CanSupportAcceleratedPaint()); // make sure if accelerated paint is selected we can support it
 
 	UpdatableTextures[0] = nullptr;
 	UpdatableTextures[1] = nullptr;
@@ -451,6 +464,19 @@ bool FCEFWebBrowserWindow::CreateInitialTextures()
 			if (Renderer->HasLostDevice())
 			{
 				return false;
+			}
+
+			if (bUsingAcceleratedPaint)
+			{
+				if (FCEFWebBrowserWindowRHIHelper::BUseRHIRenderer() && RHIRenderHelper == nullptr)
+				{
+					RHIRenderHelper = new FCEFWebBrowserWindowRHIHelper;
+				}
+				
+				// the accelerated paint path attaches to the texture at render time as we don't know its details until then
+				UpdatableTextures[0] = nullptr;
+				UpdatableTextures[1] = nullptr;
+				return true;
 			}
 
 			// Create a transparent dummy texture for our buffers which will prevent slate from applying an 
@@ -504,6 +530,10 @@ FCEFWebBrowserWindow::~FCEFWebBrowserWindow()
 	ReleaseTextures();
 
 	BufferedVideo.Reset();
+	if (RHIRenderHelper != nullptr)
+	{
+		delete RHIRenderHelper;
+	}
 }
 
 void FCEFWebBrowserWindow::LoadURL(FString NewURL)
@@ -522,13 +552,31 @@ TSharedRef<SViewport> FCEFWebBrowserWindow::CreateWidget()
 		SNew(SViewport)
 		.EnableGammaCorrection(false)
 		.EnableBlending(bUseTransparency)
-		.IgnoreTextureAlpha(!bUseTransparency);
+		.IgnoreTextureAlpha(!bUseTransparency)
+		.RenderTransform(this, &FCEFWebBrowserWindow::GetWebBrowserRenderTransform);
 
 #if !PLATFORM_LINUX
 	Ime->CacheBrowserSlateInfo(BrowserWidgetRef);
 #endif
 
 	return BrowserWidgetRef;
+}
+
+TOptional<FSlateRenderTransform> FCEFWebBrowserWindow::GetWebBrowserRenderTransform() const
+{
+	TOptional<FSlateRenderTransform> LocalRenderTransform = FSlateRenderTransform();
+	if (bUsingAcceleratedPaint)
+	{
+		if (RHIRenderHelper != nullptr)
+		{
+			LocalRenderTransform = RHIRenderHelper->GetWebBrowserRenderTransform();
+		}
+		else
+		{
+			LocalRenderTransform = FSlateRenderTransform(Concatenate(FScale2D(1, -1), FVector2D(0, ViewportSize.Y)));
+		}
+	}
+	return LocalRenderTransform;
 }
 
 void FCEFWebBrowserWindow::SetViewportSize(FIntPoint WindowSize, FIntPoint WindowPos)
@@ -812,7 +860,15 @@ void FCEFWebBrowserWindow::PopulateCefKeyEvent(const FKeyEvent& InKeyEvent, CefK
 	OutKeyEvent.character = OutKeyEvent.unmodified_character;
 
 #elif PLATFORM_LINUX
+	OutKeyEvent.native_key_code = InKeyEvent.GetKeyCode();
 	FKey Key = InKeyEvent.GetKey();
+	// helper macro so we can fill in all the A-Z, 0-9 keys
+#define LETTER_KEY_MACRO(val, vkey) else if(Key == EKeys::val) \
+	{ \
+		OutKeyEvent.unmodified_character = InKeyEvent.GetCharacter(); \
+		OutKeyEvent.windows_key_code = vkey; \
+	} \
+
 	if (Key == EKeys::BackSpace)
 	{
 		OutKeyEvent.windows_key_code = VKEY_BACK;
@@ -997,6 +1053,42 @@ void FCEFWebBrowserWindow::PopulateCefKeyEvent(const FKeyEvent& InKeyEvent, CefK
 	{
 		OutKeyEvent.windows_key_code = VKEY_NUMPAD0;
 	}
+	LETTER_KEY_MACRO( A, VKEY_A)
+	LETTER_KEY_MACRO( B, VKEY_B)
+	LETTER_KEY_MACRO( C, VKEY_C)
+	LETTER_KEY_MACRO( D, VKEY_D)
+	LETTER_KEY_MACRO( E, VKEY_E)
+	LETTER_KEY_MACRO( F, VKEY_F)
+	LETTER_KEY_MACRO( G, VKEY_G)
+	LETTER_KEY_MACRO( H, VKEY_H)
+	LETTER_KEY_MACRO( I, VKEY_I)
+	LETTER_KEY_MACRO( J, VKEY_J)
+	LETTER_KEY_MACRO( K, VKEY_K)
+	LETTER_KEY_MACRO( L, VKEY_L)
+	LETTER_KEY_MACRO( M, VKEY_M)
+	LETTER_KEY_MACRO( N, VKEY_N)
+	LETTER_KEY_MACRO( O, VKEY_O)
+	LETTER_KEY_MACRO( P, VKEY_P)
+	LETTER_KEY_MACRO( Q, VKEY_Q)
+	LETTER_KEY_MACRO( R, VKEY_R)
+	LETTER_KEY_MACRO( S, VKEY_S)
+	LETTER_KEY_MACRO( T, VKEY_T)
+	LETTER_KEY_MACRO( U, VKEY_U)
+	LETTER_KEY_MACRO( V, VKEY_V)
+	LETTER_KEY_MACRO( W, VKEY_W)
+	LETTER_KEY_MACRO( X, VKEY_X)
+	LETTER_KEY_MACRO( Y, VKEY_Y)
+	LETTER_KEY_MACRO( Z, VKEY_Z)
+	LETTER_KEY_MACRO( Zero, VKEY_0)
+	LETTER_KEY_MACRO( One, VKEY_1)
+	LETTER_KEY_MACRO( Two, VKEY_2)
+	LETTER_KEY_MACRO( Three, VKEY_3)
+	LETTER_KEY_MACRO( Four, VKEY_4)
+	LETTER_KEY_MACRO( Five, VKEY_5)
+	LETTER_KEY_MACRO( Six, VKEY_6)
+	LETTER_KEY_MACRO( Seven, VKEY_7)
+	LETTER_KEY_MACRO( Eight, VKEY_8)
+	LETTER_KEY_MACRO( Nine, VKEY_9)
 	else
 	{
 		OutKeyEvent.unmodified_character = InKeyEvent.GetCharacter();
@@ -1007,6 +1099,8 @@ void FCEFWebBrowserWindow::PopulateCefKeyEvent(const FKeyEvent& InKeyEvent, CefK
 #endif
 
 	OutKeyEvent.modifiers = GetCefKeyboardModifiers(InKeyEvent);
+	//UE_LOG(LogWebBrowser, Log, TEXT("Modifiers: %i %i %i") , OutKeyEvent.unmodified_character, OutKeyEvent.windows_key_code, OutKeyEvent.modifiers);
+
 }
 
 bool FCEFWebBrowserWindow::OnKeyDown(const FKeyEvent& InKeyEvent)
@@ -1059,6 +1153,7 @@ bool FCEFWebBrowserWindow::OnKeyChar(const FCharacterEvent& InCharacterEvent)
 		CefKeyEvent KeyEvent;
 #if PLATFORM_MAC || PLATFORM_LINUX
 		KeyEvent.character = InCharacterEvent.GetCharacter();
+		KeyEvent.windows_key_code = InCharacterEvent.GetCharacter();
 #else
 		KeyEvent.windows_key_code = InCharacterEvent.GetCharacter();
 #endif
@@ -1423,12 +1518,16 @@ FReply FCEFWebBrowserWindow::OnMouseWheel(const FGeometry& MyGeometry, const FPo
 	if(IsValid() && bSupportsMouseWheel)
 	{
 		// The original delta is reduced so this should bring it back to what CEF expects
-		const float SpinFactor = 50.0f;
+		// see WindowsApplication.cpp , case WM_MOUSEWHEEL:
+		const float SpinFactor = 120.0f; 
 		const float TrueDelta = MouseEvent.GetWheelDelta() * SpinFactor;
-		CefMouseEvent Event = GetCefMouseEvent(MyGeometry, MouseEvent, bIsPopup);
-		InternalCefBrowser->GetHost()->SendMouseWheelEvent(Event,
-															MouseEvent.IsShiftDown() ? TrueDelta : 0,
-															!MouseEvent.IsShiftDown() ? TrueDelta : 0);
+		if (fabs(TrueDelta) > 0.001f)
+		{
+			CefMouseEvent Event = GetCefMouseEvent(MyGeometry, MouseEvent, bIsPopup);
+			InternalCefBrowser->GetHost()->SendMouseWheelEvent(Event,
+				MouseEvent.IsShiftDown() ? TrueDelta : 0,
+				!MouseEvent.IsShiftDown() ? TrueDelta : 0);
+		}
 		Reply = FReply::Handled();
 	}
 	return Reply;
@@ -1574,26 +1673,17 @@ void FCEFWebBrowserWindow::SetToolTip(const CefString& CefToolTip)
 	}
 }
 
-void FCEFWebBrowserWindow::SetZoomLevelByPercentage(float Percentage)
-{
-	if (InternalCefBrowser != nullptr && InternalCefBrowser->GetHost()->GetWindowHandle())
-	{
-		double ZoomLevel = (double((Percentage * 100) - 100)) / 25.0;
-		InternalCefBrowser->GetHost()->SetZoomLevel(ZoomLevel);
-	}
-}
-
-bool FCEFWebBrowserWindow::GetViewRect(CefRect& Rect)
+void FCEFWebBrowserWindow::GetViewRect(CefRect& Rect)
 {
 	if (ViewportSize == FIntPoint::ZeroValue)
 	{
-		return false;
+		Rect.width = 1; // CEF requires a minimum of a 1x1 window to correctly run
+		Rect.height = 1;
 	}
 	else
 	{
 		Rect.width = ViewportSize.X;
 		Rect.height = ViewportSize.Y;
-		return true;
 	}
 }
 
@@ -1706,6 +1796,20 @@ void FCEFWebBrowserWindow::HandleRenderingError()
 void FCEFWebBrowserWindow::OnPaint(CefRenderHandler::PaintElementType Type, const CefRenderHandler::RectList& DirtyRects, const void* Buffer, int Width, int Height)
 {
 	bool bNeedsRedraw = false;
+	if (bUsingAcceleratedPaint)
+	{
+		UE_LOG(LogWebBrowser, Error, TEXT("Accelerated CEF rendering selected but OnPaint called. Disabling accelerated rendering for this browser window."));
+		bUsingAcceleratedPaint = false;
+		if (UpdatableTextures[Type] != nullptr)
+		{
+			if (FSlateRenderer* const Renderer = GetRenderer())
+			{
+				Renderer->ReleaseUpdatableTexture(UpdatableTextures[Type]);
+				HandleRenderingError();
+				UpdatableTextures[Type] = nullptr;
+			}
+		}
+	}
 
 	if (UpdatableTextures[Type] == nullptr)
 	{
@@ -1754,6 +1858,84 @@ void FCEFWebBrowserWindow::OnPaint(CefRenderHandler::PaintElementType Type, cons
 	}
 }
 
+void FCEFWebBrowserWindow::OnAcceleratedPaint(CefRenderHandler::PaintElementType Type, const CefRenderHandler::RectList& DirtyRects, void* SharedHandle)
+{
+	bool bNeedsRedraw = false;
+	if (!bUsingAcceleratedPaint)
+	{
+		UE_LOG(LogWebBrowser, Error, TEXT("Accelerated CEF rendering NOT selected but OnAcceleratedPaint called. Enabling accelerated rendering for this browser window."));
+		bUsingAcceleratedPaint = true;
+		if (UpdatableTextures[Type] != nullptr)
+		{
+			if (FSlateRenderer* const Renderer = GetRenderer())
+			{
+				Renderer->ReleaseUpdatableTexture(UpdatableTextures[Type]);
+				HandleRenderingError();
+				UpdatableTextures[Type] = nullptr;
+			}
+		}
+	}
+
+#if PLATFORM_MAC
+	// an IOSurface backs the handle here and its texture is automatically updated if changed, so we only need to
+	// update our texture if the backing handle itself changed
+	if (LastPaintedSharedHandle == SharedHandle)
+		return;
+	LastPaintedSharedHandle = SharedHandle;
+#endif
+	FIntRect Dirty = (DirtyRects.size() == 1) ? FIntRect(DirtyRects[0].x, DirtyRects[0].y, DirtyRects[0].x + DirtyRects[0].width, DirtyRects[0].y + DirtyRects[0].height) : FIntRect();
+	if (UpdatableTextures[Type] == nullptr)
+	{
+		if (FSlateRenderer* const Renderer = GetRenderer())
+		{
+			if (RHIRenderHelper)
+			{
+				UpdatableTextures[Type] = RHIRenderHelper->CreateTexture(SharedHandle);
+			}
+			else
+			{
+				UpdatableTextures[Type] = Renderer->CreateSharedHandleTexture(SharedHandle);
+			}
+			Dirty = FIntRect(); // force a fully copy when we make a new texture
+			HandleRenderingError();
+		}
+	}
+	if (UpdatableTextures[Type] != nullptr)
+	{
+#if PLATFORM_WINDOWS
+		if (RHIRenderHelper)
+		{
+			RHIRenderHelper->UpdateSharedHandleTexture(SharedHandle, UpdatableTextures[Type], Dirty.Scale(ViewportDPIScaleFactor));
+		}
+		else
+		{
+			UpdatableTextures[Type]->UpdateTextureThreadSafeWithKeyedTextureHandle(SharedHandle, 1, 0, Dirty.Scale(ViewportDPIScaleFactor));
+		}
+#else
+		UpdatableTextures[Type]->UpdateTextureThreadSafeWithKeyedTextureHandle(SharedHandle, 1, 0, Dirty.Scale(ViewportDPIScaleFactor));
+#endif
+
+		bNeedsRedraw = true;
+		if (Type == PET_POPUP && bShowPopupRequested)
+		{
+			bShowPopupRequested = false;
+			bPopupHasFocus = true;
+
+			const float DPIScale = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(PopupPosition.X, PopupPosition.Y);
+			FIntPoint PopupSize = FIntPoint(UpdatableTextures[Type]->GetSlateResource()->GetWidth() / DPIScale, UpdatableTextures[Type]->GetSlateResource()->GetHeight() / DPIScale);
+
+			FIntRect PopupRect = FIntRect(PopupPosition, PopupPosition + PopupSize);
+			OnShowPopup().Broadcast(PopupRect);
+		}
+
+	}
+
+	bIsInitialized = true;
+	if (bNeedsRedraw)
+	{
+		NeedsRedrawEvent.Broadcast();
+	}
+}
 
 
 void FCEFWebBrowserWindow::UpdateVideoBuffering()
@@ -1860,7 +2042,7 @@ void FCEFWebBrowserWindow::OnCursorChange(CefCursorHandle CefCursor, CefRenderHa
 }
 
 
-bool FCEFWebBrowserWindow::OnBeforeBrowse( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, bool bIsRedirect )
+bool FCEFWebBrowserWindow::OnBeforeBrowse( CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> Frame, CefRefPtr<CefRequest> Request, bool user_gesture, bool bIsRedirect )
 {
 	if (InternalCefBrowser != nullptr && InternalCefBrowser->IsSame(Browser))
 	{
@@ -1905,93 +2087,8 @@ bool FCEFWebBrowserWindow::OnBeforeBrowse( CefRefPtr<CefBrowser> Browser, CefRef
 }
 
 
-FString ResourceTypeToString(const CefRequest::ResourceType& Type)
-{
-	const static FString ResourceType_MainFrame(TEXT("MAIN_FRAME"));
-	const static FString ResourceType_SubFrame(TEXT("SUB_FRAME"));
-	const static FString ResourceType_StyleSheet(TEXT("STYLESHEET"));
-	const static FString ResourceType_Script(TEXT("SCRIPT"));
-	const static FString ResourceType_Image(TEXT("IMAGE"));
-	const static FString ResourceType_FontResource(TEXT("FONT_RESOURCE"));
-	const static FString ResourceType_SubResource(TEXT("SUB_RESOURCE"));
-	const static FString ResourceType_Object(TEXT("OBJECT"));
-	const static FString ResourceType_Media(TEXT("MEDIA"));
-	const static FString ResourceType_Worker(TEXT("WORKER"));
-	const static FString ResourceType_SharedWorker(TEXT("SHARED_WORKER"));
-	const static FString ResourceType_Prefetch(TEXT("PREFETCH"));
-	const static FString ResourceType_Favicon(TEXT("FAVICON"));
-	const static FString ResourceType_XHR(TEXT("XHR"));
-	const static FString ResourceType_Ping(TEXT("PING"));
-	const static FString ResourceType_ServiceWorker(TEXT("SERVICE_WORKER"));
-	const static FString ResourceType_CspReport(TEXT("CSP_REPORT"));
-	const static FString ResourceType_PluginResource(TEXT("PLUGIN_RESOURCE"));
-	const static FString ResourceType_Unknown(TEXT("UNKNOWN"));
 
-	FString TypeStr;
-	switch (Type)
-	{
-	case CefRequest::ResourceType::RT_MAIN_FRAME:
-		TypeStr = ResourceType_MainFrame;
-		break;
-	case CefRequest::ResourceType::RT_SUB_FRAME:
-		TypeStr = ResourceType_SubFrame;
-		break;
-	case CefRequest::ResourceType::RT_STYLESHEET:
-		TypeStr = ResourceType_StyleSheet;
-		break;
-	case CefRequest::ResourceType::RT_SCRIPT:
-		TypeStr = ResourceType_Script;
-		break;
-	case CefRequest::ResourceType::RT_IMAGE:
-		TypeStr = ResourceType_Image;
-		break;
-	case CefRequest::ResourceType::RT_FONT_RESOURCE:
-		TypeStr = ResourceType_FontResource;
-		break;
-	case CefRequest::ResourceType::RT_SUB_RESOURCE:
-		TypeStr = ResourceType_SubResource;
-		break;
-	case CefRequest::ResourceType::RT_OBJECT:
-		TypeStr = ResourceType_Object;
-		break;
-	case CefRequest::ResourceType::RT_MEDIA:
-		TypeStr = ResourceType_Media;
-		break;
-	case CefRequest::ResourceType::RT_WORKER:
-		TypeStr = ResourceType_Worker;
-		break;
-	case CefRequest::ResourceType::RT_SHARED_WORKER:
-		TypeStr = ResourceType_SharedWorker;
-		break;
-	case CefRequest::ResourceType::RT_PREFETCH:
-		TypeStr = ResourceType_Prefetch;
-		break;
-	case CefRequest::ResourceType::RT_FAVICON:
-		TypeStr = ResourceType_Favicon;
-		break;
-	case CefRequest::ResourceType::RT_XHR:
-		TypeStr = ResourceType_XHR;
-		break;
-	case CefRequest::ResourceType::RT_PING:
-		TypeStr = ResourceType_Ping;
-		break;
-	case CefRequest::ResourceType::RT_SERVICE_WORKER:
-		TypeStr = ResourceType_ServiceWorker;
-		break;
-	case CefRequest::ResourceType::RT_CSP_REPORT:
-		TypeStr = ResourceType_CspReport;
-		break;
-	case CefRequest::ResourceType::RT_PLUGIN_RESOURCE:
-		TypeStr = ResourceType_PluginResource;
-		break;
-	default:
-		TypeStr = ResourceType_Unknown;
-		break;
-	}
-	return TypeStr;
-}
-
-FString URLRequestSTatusToString(const CefRequestHandler::URLRequestStatus& Status)
+FString URLRequestSTatusToString(const CefResourceRequestHandler::URLRequestStatus& Status)
 {
 	const static FString URLRequestStatus_Success(TEXT("SUCCESS"));
 	const static FString URLRequestStatus_IoPending(TEXT("IO_PENDING"));
@@ -2002,19 +2099,19 @@ FString URLRequestSTatusToString(const CefRequestHandler::URLRequestStatus& Stat
 	FString StatusStr;
 	switch (Status)
 	{
-	case CefRequestHandler::URLRequestStatus::UR_SUCCESS:
+	case CefResourceRequestHandler::URLRequestStatus::UR_SUCCESS:
 		StatusStr = URLRequestStatus_Success;
 		break;
-	case CefRequestHandler::URLRequestStatus::UR_IO_PENDING:
+	case CefResourceRequestHandler::URLRequestStatus::UR_IO_PENDING:
 		StatusStr = URLRequestStatus_IoPending;
 		break;
-	case CefRequestHandler::URLRequestStatus::UR_CANCELED:
+	case CefResourceRequestHandler::URLRequestStatus::UR_CANCELED:
 		StatusStr = URLRequestStatus_Canceled;
 		break;
-	case CefRequestHandler::URLRequestStatus::UR_FAILED:
+	case CefResourceRequestHandler::URLRequestStatus::UR_FAILED:
 		StatusStr = URLRequestStatus_Failed;
 		break;
-	case CefRequestHandler::URLRequestStatus::UR_UNKNOWN:
+	case CefResourceRequestHandler::URLRequestStatus::UR_UNKNOWN:
 		StatusStr = URLRequestStatus_Unknown;
 		break;
 	default:
@@ -2029,14 +2126,36 @@ void FCEFWebBrowserWindow::HandleOnBeforeResourceLoad(const CefString& URL, CefR
 	BeforeResourceLoadDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(URL.ToWString().c_str()), ResourceTypeToString(Type), AdditionalHeaders);
 }
 
-void FCEFWebBrowserWindow::HandleOnResourceLoadComplete(const CefString& URL, CefRequest::ResourceType Type, CefRequestHandler::URLRequestStatus Status, int64 ContentLength)
+void FCEFWebBrowserWindow::HandleOnResourceLoadComplete(const CefString& URL, CefRequest::ResourceType Type, CefResourceRequestHandler::URLRequestStatus Status, int64 ContentLength)
 {
 	ResourceLoadCompleteDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(URL.ToWString().c_str()), ResourceTypeToString(Type), URLRequestSTatusToString(Status), ContentLength);
 }
 
-void FCEFWebBrowserWindow::HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, const CefString& Message, const CefString& Source, int Line)
+EWebBrowserConsoleLogSeverity CefLogSeverityToWebBrowser(cef_log_severity_t Level)
 {
-	ConsoleMessageDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(Message.ToWString().c_str()), WCHAR_TO_TCHAR(Source.ToWString().c_str()), Line);
+	switch (Level)
+	{
+	case LOGSEVERITY_VERBOSE:
+		return EWebBrowserConsoleLogSeverity::Verbose;
+		//case LOGSEVERITY_DEBUG: // same as LOGSEVERITY_VERBOSE
+		//	return Verbose;
+	case LOGSEVERITY_INFO:
+		return EWebBrowserConsoleLogSeverity::Info;
+	case LOGSEVERITY_WARNING:
+		return EWebBrowserConsoleLogSeverity::Warning;
+	case LOGSEVERITY_ERROR:
+		return EWebBrowserConsoleLogSeverity::Error;
+	case LOGSEVERITY_FATAL:
+		return EWebBrowserConsoleLogSeverity::Fatal;
+	case LOGSEVERITY_DEFAULT:
+	default:
+		return EWebBrowserConsoleLogSeverity::Default;
+	}
+}
+
+void FCEFWebBrowserWindow::HandleOnConsoleMessage(CefRefPtr<CefBrowser> Browser, cef_log_severity_t Level, const CefString& Message, const CefString& Source, int Line)
+{
+	ConsoleMessageDelegate.ExecuteIfBound(WCHAR_TO_TCHAR(Message.ToWString().c_str()), WCHAR_TO_TCHAR(Source.ToWString().c_str()), Line, CefLogSeverityToWebBrowser(Level));
 }
 
 TOptional<FString> FCEFWebBrowserWindow::GetResourceContent( CefRefPtr< CefFrame > Frame, CefRefPtr< CefRequest > Request)
@@ -2121,13 +2240,21 @@ int32 FCEFWebBrowserWindow::GetCefMouseModifiers(const FPointerEvent& InMouseEve
 CefMouseEvent FCEFWebBrowserWindow::GetCefMouseEvent(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, bool bIsPopup)
 {
 	CefMouseEvent Event;
-	float DPIScale = MyGeometry.Scale;
+	FGeometry MouseGeometry = MyGeometry;
+	if (bUsingAcceleratedPaint)
+	{
+		// undo the texture flip if we are using accelerated rendering
+		MouseGeometry = MyGeometry.MakeChild(FSlateRenderTransform(FScale2D(1, -1)));
+	}
+
+	float DPIScale = MouseGeometry.Scale;
 	if (TSharedPtr<SWindow> ParentWindowPtr = ParentWindow.Pin())
 	{
 		DPIScale /= ParentWindowPtr->GetNativeWindow()->GetDPIScaleFactor();
 	}
 
-	FVector2D LocalPos = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()) * DPIScale;
+
+	FVector2D LocalPos = MouseGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()) * DPIScale;
 	if (bIsPopup)
 	{
 		LocalPos += PopupPosition;
@@ -2173,7 +2300,67 @@ int32 FCEFWebBrowserWindow::GetCefInputModifiers(const FInputEvent& InputEvent)
 		Modifiers |= EVENTFLAG_CAPS_LOCK_ON;
 	}
 
+#if PLATFORM_WINDOWS
+	if (InputEvent.IsAltDown() && InputEvent.IsLeftControlDown())
+	{
+		// For german and other keyboards with an AltGR state, windows sets alt and left control down 
+		// as well as VK_RMENU. So check for that state here and set the ALTGR flag if needed.
+		// See https://bitbucket.org/chromiumembedded/cef/commits/30d83cb94a79#chg-tests/cefclient/browser/osr_window_win.cc 
+		// from which the concept behind this check was taken
+		SHORT keystate = ::GetKeyState(VK_RMENU);
+		if ((keystate & 0x8000) != 0)
+		{
+			Modifiers &= ~(EVENTFLAG_CONTROL_DOWN | EVENTFLAG_ALT_DOWN);
+			Modifiers |= EVENTFLAG_ALTGR_DOWN;
+		}
+	}
+#endif
+
 	return Modifiers;
+}
+
+bool FCEFWebBrowserWindow::CanSupportAcceleratedPaint()
+{
+	static bool DisableAcceleratedPaint = FParse::Param(FCommandLine::Get(), TEXT("nocefaccelpaint"));
+	if (DisableAcceleratedPaint)
+	{
+		return false;
+	}
+
+	static bool ForceAcceleratedPaint = FParse::Param(FCommandLine::Get(), TEXT("forcecefaccelpaint"));
+	if (ForceAcceleratedPaint)
+	{
+		return true;
+	}
+
+	// Use off screen rendering so we can integrate with our windows
+#if PLATFORM_LINUX
+	return false;
+#elif PLATFORM_WINDOWS
+#if PLATFORM_64BITS
+	//return false;
+	
+	static bool Windows10OrAbove = FWindowsPlatformMisc::VerifyWindowsVersion(10, 0); //Win10
+	if (Windows10OrAbove == false)
+	{
+		return false;
+	}
+
+	// match the logic in GetStandardStandaloneRenderer() from StandaloneRenderer.cpp to check for the OGL slate renderer
+	if (FParse::Param(FCommandLine::Get(), TEXT("opengl")))
+	{
+		return false;
+	}
+	return true;
+#else
+	return false; // 32-bit windows doesn't have the accelerated rendering patches applied, it can be done if needed
+#endif
+#elif PLATFORM_MAC
+	return true;
+#else
+	return false;
+#endif
+
 }
 
 void FCEFWebBrowserWindow::UpdateCachedGeometry(const FGeometry& AllottedGeometry)
@@ -2182,6 +2369,10 @@ void FCEFWebBrowserWindow::UpdateCachedGeometry(const FGeometry& AllottedGeometr
 	// Forward along the geometry for use by IME
 	Ime->UpdateCachedGeometry(AllottedGeometry);
 #endif
+	if (RHIRenderHelper)
+	{
+		RHIRenderHelper->UpdateCachedGeometry(AllottedGeometry);
+	}
 }
 
 void FCEFWebBrowserWindow::CheckTickActivity()
@@ -2205,17 +2396,6 @@ void FCEFWebBrowserWindow::CheckTickActivity()
 		bNeedsResize = false;
 		InternalCefBrowser->GetHost()->WasResized();
 	}
-	else
-	{
-		// @todo: Ugly workaround for OPP-7349 until proper fix can be found.  When using CefDoMessageLoopWork() we see low OnPaint() buffer update frequency.
-		//   As a workaround, we schedule something on the main thread which improves things as specified in this 
-		//   cef issue:   https://bitbucket.org/chromiumembedded/cef/issues/2203/low-fps-with-cefdomessageloopwork-or
-		CefPostTask(TID_UI, new FCEFBrowserClosureTask(nullptr, []()
-		{
-			// Intentionally empty
-		}));
-	}
-
 
 	bTickedLastFrame = false;
 }
@@ -2277,8 +2457,6 @@ void FCEFWebBrowserWindow::SetIsHidden(bool bValue)
 	if ( IsValid() )
 	{
 		CefRefPtr<CefBrowserHost> BrowserHost = InternalCefBrowser->GetHost();
-		BrowserHost->WasHidden(bIsHidden);
-
 #if PLATFORM_WINDOWS
 		HWND NativeWindowHandle = BrowserHost->GetWindowHandle();
 		if (NativeWindowHandle != nullptr)
@@ -2294,6 +2472,13 @@ void FCEFWebBrowserWindow::SetIsHidden(bool bValue)
 					::SetFocus((HWND)ParentWindowPtr->GetNativeWindow()->GetOSWindowHandle());
 				}
 			}
+		}
+		else
+		{
+			// only hide OSR renderer windows
+#endif
+			BrowserHost->WasHidden(bIsHidden);
+#if PLATFORM_WINDOWS
 		}
 #endif
 	}
@@ -2332,7 +2517,7 @@ CefRefPtr<CefDictionaryValue> FCEFWebBrowserWindow::GetProcessInfo()
 	return Retval;
 }
 
-bool FCEFWebBrowserWindow::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message)
+bool FCEFWebBrowserWindow::OnProcessMessageReceived(CefRefPtr<CefBrowser> Browser, CefRefPtr<CefFrame> frame, CefProcessId SourceProcess, CefRefPtr<CefProcessMessage> Message)
 {
 	bool bHandled = Scripting->OnProcessMessageReceived(Browser, SourceProcess, Message);
 
@@ -2409,7 +2594,6 @@ void FCEFWebBrowserWindow:: ShowPopupMenu(bool bShow)
 	}
 }
 
-#if !PLATFORM_LINUX
 void FCEFWebBrowserWindow::OnImeCompositionRangeChanged(
 	CefRefPtr<CefBrowser> Browser, 
 	const CefRange& SelectionRange, 
@@ -2417,10 +2601,11 @@ void FCEFWebBrowserWindow::OnImeCompositionRangeChanged(
 {
 	if (InternalCefBrowser != nullptr && InternalCefBrowser->IsSame(Browser))
 	{
+#if !PLATFORM_LINUX
 		Ime->CEFCompositionRangeChanged(SelectionRange, CharacterBounds);
+#endif
 	}
 }
-#endif
 
 void FCEFWebBrowserWindow::UpdateDragRegions(const TArray<FWebBrowserDragRegion>& Regions)
 {

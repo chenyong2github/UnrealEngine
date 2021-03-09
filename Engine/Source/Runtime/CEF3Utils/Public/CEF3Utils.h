@@ -8,9 +8,9 @@
 namespace CEF3Utils
 {
 	/**
-	 * Load the required modules for CEF3
+	 * Load the required modules for CEF3, returns false if we fail to load the cef library
 	 */
-	CEF3UTILS_API void LoadCEF3Modules();
+	CEF3UTILS_API bool LoadCEF3Modules(bool bIsMainApp);
 
 	/**
 	 * Unload the required modules for CEF3

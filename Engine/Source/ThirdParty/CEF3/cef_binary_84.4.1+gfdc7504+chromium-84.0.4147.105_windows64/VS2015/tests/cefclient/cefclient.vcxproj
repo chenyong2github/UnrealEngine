@@ -1,0 +1,685 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{86DC2638-A9D1-3B0F-BED7-4D84D90D1D68}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <Platform>x64</Platform>
+    <ProjectName>cefclient</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v140</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\VS2015\tests\cefclient\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cefclient.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">cefclient</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\VS2015\tests\cefclient\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cefclient.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">cefclient</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.exe</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4100;4127;4244;4481;4512;4701;4702;4996</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;_WIN32;UNICODE;_UNICODE;WINVER=0x0601;_WIN32_WINNT=0x601;NOMINMAX;WIN32_LEAN_AND_MEAN;_HAS_EXCEPTIONS=0;PSAPI_VERSION=1;CEF_USE_SANDBOX;CEF_USE_ATL;CMAKE_INTDIR="Debug";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;_WIN32;UNICODE;_UNICODE;WINVER=0x0601;_WIN32_WINNT=0x601;NOMINMAX;WIN32_LEAN_AND_MEAN;_HAS_EXCEPTIONS=0;PSAPI_VERSION=1;CEF_USE_SANDBOX;CEF_USE_ATL;CMAKE_INTDIR=\"Debug\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message>Adding manifest...															</Message>
+      <Command>setlocal
+mt.exe -nologo -manifest "D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/tests/cefclient/resources/win/cefclient.exe.manifest" "D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/tests/cefclient/resources/win/compatibility.manifest" -outputresource:"D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/cefclient.exe";#1
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/chrome_elf.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/chrome_elf.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/d3dcompiler_47.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/d3dcompiler_47.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/libcef.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/libcef.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/libEGL.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/libEGL.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/libGLESv2.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/libGLESv2.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/snapshot_blob.bin D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/snapshot_blob.bin
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/v8_context_snapshot.bin D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/v8_context_snapshot.bin
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_directory D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Debug/swiftshader D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/swiftshader
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/cef.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef_100_percent.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/cef_100_percent.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef_200_percent.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/cef_200_percent.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef_extensions.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/cef_extensions.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/devtools_resources.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/devtools_resources.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/icudtl.dat D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/icudtl.dat
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_directory D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/locales D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/locales
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>..\..\..\Debug\libcef.lib;..\..\libcef_dll_wrapper\Debug\libcef_dll_wrapper.lib;comctl32.lib;rpcrt4.lib;shlwapi.lib;ws2_32.lib;d3d11.lib;glu32.lib;imm32.lib;opengl32.lib;oleacc.lib;..\..\..\Debug\cef_sandbox.lib;dbghelp.lib;Delayimp.lib;PowrProf.lib;Propsys.lib;psapi.lib;SetupAPI.lib;version.lib;wbemuuid.lib;winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/cefclient.lib</ImportLibrary>
+      <LargeAddressAware>true</LargeAddressAware>
+      <ProgramDataBaseFile>D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Debug/cefclient.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4100;4127;4244;4481;4512;4701;4702;4996</DisableSpecificWarnings>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
+      <StringPooling>true</StringPooling>
+      <TreatWarningAsError>true</TreatWarningAsError>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;_WIN32;UNICODE;_UNICODE;WINVER=0x0601;_WIN32_WINNT=0x601;NOMINMAX;WIN32_LEAN_AND_MEAN;_HAS_EXCEPTIONS=0;PSAPI_VERSION=1;CEF_USE_SANDBOX;CEF_USE_ATL;_NDEBUG;CMAKE_INTDIR="Release";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>WIN32;_WINDOWS;NDEBUG;__STDC_CONSTANT_MACROS;__STDC_FORMAT_MACROS;_WIN32;UNICODE;_UNICODE;WINVER=0x0601;_WIN32_WINNT=0x601;NOMINMAX;WIN32_LEAN_AND_MEAN;_HAS_EXCEPTIONS=0;PSAPI_VERSION=1;CEF_USE_SANDBOX;CEF_USE_ATL;_NDEBUG;CMAKE_INTDIR=\"Release\";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <PostBuildEvent>
+      <Message>Adding manifest...															</Message>
+      <Command>setlocal
+mt.exe -nologo -manifest "D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/tests/cefclient/resources/win/cefclient.exe.manifest" "D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/tests/cefclient/resources/win/compatibility.manifest" -outputresource:"D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/cefclient.exe";#1
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/chrome_elf.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/chrome_elf.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/d3dcompiler_47.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/d3dcompiler_47.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/libcef.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/libcef.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/libEGL.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/libEGL.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/libGLESv2.dll D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/libGLESv2.dll
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/snapshot_blob.bin D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/snapshot_blob.bin
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/v8_context_snapshot.bin D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/v8_context_snapshot.bin
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_directory D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Release/swiftshader D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/swiftshader
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/cef.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef_100_percent.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/cef_100_percent.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef_200_percent.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/cef_200_percent.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/cef_extensions.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/cef_extensions.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/devtools_resources.pak D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/devtools_resources.pak
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_if_different D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/icudtl.dat D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/icudtl.dat
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd
+setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -E copy_directory D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/Resources/locales D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/locales
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+    </PostBuildEvent>
+    <Link>
+      <AdditionalDependencies>..\..\..\Release\libcef.lib;..\..\libcef_dll_wrapper\Release\libcef_dll_wrapper.lib;comctl32.lib;rpcrt4.lib;shlwapi.lib;ws2_32.lib;d3d11.lib;glu32.lib;imm32.lib;opengl32.lib;oleacc.lib;..\..\..\Release\cef_sandbox.lib;dbghelp.lib;Delayimp.lib;PowrProf.lib;Propsys.lib;psapi.lib;SetupAPI.lib;version.lib;wbemuuid.lib;winmm.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/cefclient.lib</ImportLibrary>
+      <LargeAddressAware>true</LargeAddressAware>
+      <ProgramDataBaseFile>D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/Release/cefclient.pdb</ProgramDataBaseFile>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\CMakeLists.txt">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/tests/cefclient/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64 -BD:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015 --check-stamp-file D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\VS2015\tests\cefclient\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/tests/cefclient/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\CMake\bin\cmake.exe" -SD:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64 -BD:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015 --check-stamp-file D:/code/chromium_git/chromium/src/cef/binary_distrib/cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64/VS2015/tests/cefclient/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\VS2015\tests\cefclient\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\binding_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\binding_test.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\browser_window.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\browser_window.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\bytes_write_handler.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\bytes_write_handler.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_app_delegates_browser.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_browser.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_browser.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_handler.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_handler.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_handler_osr.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_handler_osr.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_handler_std.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_handler_std.h" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\client_types.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\dialog_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\dialog_test.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\drm_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\drm_test.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\image_cache.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\image_cache.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\main_context.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\main_context.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\main_context_impl.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\main_context_impl.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\media_router_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\media_router_test.h" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_dragdrop_events.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_renderer.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_renderer.h" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_renderer_settings.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\preferences_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\preferences_test.h" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\resource.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\response_filter_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\response_filter_test.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window_create.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window_manager.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window_manager.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\scheme_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\scheme_test.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\server_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\server_test.h" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\temp_window.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\test_runner.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\test_runner.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\urlrequest_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\urlrequest_test.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test_runner.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test_runner.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\client_app_browser.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\client_app_browser.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\extension_util.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\extension_util.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\file_util.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\file_util.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\geometry_util.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\geometry_util.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\main_message_loop.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\main_message_loop.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\main_message_loop_external_pump.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\main_message_loop_external_pump.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\main_message_loop_std.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\main_message_loop_std.h" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\resource_util.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\common\client_app_delegates_common.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\common\scheme_test_common.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\common\scheme_test_common.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\common\client_app.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\common\client_app.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\common\client_app_other.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\common\client_app_other.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\common\client_switches.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\common\client_switches.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\renderer\client_app_delegates_renderer.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\renderer\client_renderer.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\renderer\client_renderer.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\renderer\performance_test.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\renderer\performance_test.h" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\renderer\performance_test_setup.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\renderer\performance_test_tests.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\renderer\client_app_renderer.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\renderer\client_app_renderer.h" />
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\binding.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\dialogs.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\draggable.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\drm.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\localstorage.html">
+    </None>
+    <Image Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\logo.png">
+    </Image>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\media_router.html">
+    </None>
+    <Image Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\menu_icon.1x.png">
+    </Image>
+    <Image Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\menu_icon.2x.png">
+    </Image>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\other_tests.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\performance.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\performance2.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\preferences.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\response_filter.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\server.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\transparency.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\urlrequest.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\websocket.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\window.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\xmlhttprequest.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\extensions\set_page_color\README.md">
+    </None>
+    <Image Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\extensions\set_page_color\icon.png">
+    </Image>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\extensions\set_page_color\manifest.json">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\extensions\set_page_color\popup.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\extensions\set_page_color\popup.js">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\resources\osr_test.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\resources\pdf.html">
+    </None>
+    <None Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\resources\pdf.pdf">
+    </None>
+    <Image Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\resources\window_icon.1x.png">
+    </Image>
+    <Image Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\resources\window_icon.2x.png">
+    </Image>
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\cefclient_win.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\browser_window_osr_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\browser_window_osr_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\browser_window_std_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\browser_window_std_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\main_context_impl_win.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\main_message_loop_multithreaded_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\main_message_loop_multithreaded_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_accessibility_helper.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_accessibility_helper.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_accessibility_node.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_accessibility_node.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_accessibility_node_win.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_d3d11_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_d3d11_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_dragdrop_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_dragdrop_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_ime_handler_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_ime_handler_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_render_handler_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_render_handler_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_render_handler_win_d3d11.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_render_handler_win_d3d11.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_render_handler_win_gl.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_render_handler_win_gl.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_window_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\osr_window_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\resource_util_win_idmap.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window_views.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window_views.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\root_window_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\temp_window_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\temp_window_win.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\views_menu_bar.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\views_menu_bar.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\views_style.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\views_style.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\views_window.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\views_window.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test_runner_views.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test_runner_views.h" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test_runner_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\browser\window_test_runner_win.h" />
+    <ResourceCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\cefclient\resources\win\cefclient.rc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\main_message_loop_external_pump_win.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\resource_util_win.cc" />
+    <ClCompile Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\util_win.cc" />
+    <ClInclude Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\tests\shared\browser\util_win.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\VS2015\ZERO_CHECK.vcxproj">
+      <Project>{DDE18F43-7CD8-3A9A-B0B6-136050F3C111}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="D:\code\chromium_git\chromium\src\cef\binary_distrib\cef_binary_84.4.1+gfdc7504+chromium-84.0.4147.105_windows64\VS2015\libcef_dll_wrapper\libcef_dll_wrapper.vcxproj">
+      <Project>{217A1EAB-6B53-357C-8B10-D9923B3AEBF2}</Project>
+      <Name>libcef_dll_wrapper</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

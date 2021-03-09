@@ -193,7 +193,7 @@ bool FSlateD3DRenderer::CreateDevice()
 			DeviceCreationFlags |= D3D11_CREATE_DEVICE_DEBUG;
 		}
 
-		const D3D_FEATURE_LEVEL FeatureLevels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3 };
+		const D3D_FEATURE_LEVEL FeatureLevels[] = { D3D_FEATURE_LEVEL_11_1, D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0, D3D_FEATURE_LEVEL_9_3 };
 		D3D_FEATURE_LEVEL CreatedFeatureLevel;
 		HRESULT Hr = D3D11CreateDevice( NULL, DriverType, NULL, DeviceCreationFlags, FeatureLevels, sizeof(FeatureLevels)/sizeof(D3D_FEATURE_LEVEL), D3D11_SDK_VERSION, GD3DDevice.GetInitReference(), &CreatedFeatureLevel, GD3DDeviceContext.GetInitReference() );
 		
@@ -228,6 +228,14 @@ FSlateUpdatableTexture* FSlateD3DRenderer::CreateUpdatableTexture(uint32 Width, 
 	NewTexture->Init(DXGI_FORMAT_B8G8R8A8_UNORM, NULL, true, true);
 	return NewTexture;
 }
+
+FSlateUpdatableTexture* FSlateD3DRenderer::CreateSharedHandleTexture(void* SharedHandle)
+{
+	FSlateD3DTexture* NewTexture = new FSlateD3DTexture();
+	NewTexture->Init(SharedHandle);
+	return NewTexture;
+}
+
 
 void FSlateD3DRenderer::ReleaseUpdatableTexture(FSlateUpdatableTexture* Texture)
 {
@@ -383,14 +391,14 @@ bool FSlateD3DRenderer::GenerateDynamicImageResource(FName ResourceName, uint32 
 	return Result != nullptr;
 }
 
-FSlateResourceHandle FSlateD3DRenderer::GetResourceHandle( const FSlateBrush& Brush )
+FSlateResourceHandle FSlateD3DRenderer::GetResourceHandle(const FSlateBrush& Brush, FVector2D LocalSize, float DrawScale)
 {
 	if (!TextureManager.IsValid())
 	{
 		return FSlateResourceHandle();
 	}
 
-	return TextureManager->GetResourceHandle(Brush);
+	return TextureManager->GetResourceHandle(Brush, LocalSize, DrawScale);
 }
 
 void FSlateD3DRenderer::RemoveDynamicBrushResource( TSharedPtr<FSlateDynamicImageBrush> BrushToRemove )
@@ -537,11 +545,14 @@ void FSlateD3DRenderer::DrawWindows(FSlateDrawBuffer& InWindowDrawBuffer)
 
 			SWindow* WindowToDraw = ElementList.GetRenderWindow();
 
+			TextureManager->UpdateCache();
+
 			// Add all elements for this window to the element batcher
 			ElementBatcher->AddElements(ElementList);
 
 			// Update the font cache with new text before elements are batched
 			FontCache->UpdateCache();
+	
 
 			FVector2D WindowSize = WindowToDraw->GetSizeInScreen();
 
@@ -595,6 +606,7 @@ void FSlateD3DRenderer::DrawWindows(FSlateDrawBuffer& InWindowDrawBuffer)
 
 	// flush the cache if needed
 	FontCache->ConditionalFlushCache();
+	TextureManager->ConditionalFlushCache();
 
 	// Safely release the references now that we are finished rendering with the dynamic brushes
 	DynamicBrushesToRemove.Empty();

@@ -22,6 +22,15 @@ public:
 	{
 
 	}
+
+	FSlateD3DTexture()
+		: TSlateTexture()
+		, SizeX(0)
+		, SizeY(0)
+	{
+
+	}
+
 	
 	~FSlateD3DTexture()
 	{
@@ -29,6 +38,7 @@ public:
 	}
 
 	void Init( DXGI_FORMAT InFormat, D3D11_SUBRESOURCE_DATA* InitalData = NULL, bool bUpdatable = false, bool bUseStagingTexture = false );
+	void Init(void* ShareHandle); // shared handle variant 
 
 	virtual void Cleanup() override { delete this; }
 
@@ -44,6 +54,7 @@ public:
 	virtual void UpdateTextureThreadSafe(const TArray<uint8>& Bytes) override { UpdateTexture(Bytes); }
 	virtual void UpdateTextureThreadSafeRaw(uint32 Width, uint32 Height, const void* Buffer, const FIntRect& Dirty = FIntRect()) override;
 	virtual void UpdateTextureThreadSafeWithTextureData(FSlateTextureData* TextureData) override;
+	virtual void UpdateTextureThreadSafeWithKeyedTextureHandle(void* TextureHandle, int KeyLockVal, int KeyUnlockVal, const FIntRect& Dirty = FIntRect()) override;
 private:
 	// Helper method used by the different UpdateTexture* methods
 	void UpdateTextureRaw(const void* Buffer, const FIntRect& Dirty);
@@ -54,6 +65,8 @@ private:
 	uint32 SizeX;
 	uint32 SizeY;
 	uint32 BytesPerPixel;
+
+	void* ShareHandle;
 };
 
 class FSlateTextureAtlasD3D : public FSlateTextureAtlas
@@ -62,10 +75,13 @@ public:
 	FSlateTextureAtlasD3D( uint32 Width, uint32 Height, uint32 StrideBytes, ESlateTextureAtlasPaddingStyle PaddingStyle );
 	~FSlateTextureAtlasD3D();
 
-	void InitAtlasTexture( int32 Index );
+
 	virtual void ConditionalUpdateTexture() override;
+	virtual void ReleaseResources() override {}
 
 	FSlateD3DTexture* GetAtlasTexture() const { return AtlasTexture; }
+private:
+	void InitAtlasTexture();
 private:
 	FSlateD3DTexture* AtlasTexture;
 };
@@ -81,8 +97,10 @@ public:
 
 	/** FSlateFontAtlas interface */
 	virtual void ConditionalUpdateTexture();
-	virtual class FSlateShaderResource* GetSlateTexture() override { return FontTexture; }
+	virtual class FSlateShaderResource* GetSlateTexture() const override { return FontTexture; }
 	virtual class FTextureResource* GetEngineTexture() override { return nullptr; }
+	virtual void ReleaseResources() override {}
+
 private:
 	/** Texture used for rendering */
 	FSlateD3DTexture* FontTexture;

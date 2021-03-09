@@ -6,27 +6,7 @@
 #include "IWebBrowserCookieManager.h"
 #include "WebBrowserSingleton.h"
 
-#if PLATFORM_WINDOWS
-#	include "Windows/WindowsHWrapper.h"
-#	include "Windows/AllowWindowsPlatformTypes.h"
-#	include "Windows/AllowWindowsPlatformAtomics.h"
-#endif
-#pragma push_macro("OVERRIDE")
-#	undef OVERRIDE // cef headers provide their own OVERRIDE macro
-THIRD_PARTY_INCLUDES_START
-#if PLATFORM_APPLE
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-#endif
-#	include "include/cef_app.h"
-#if PLATFORM_APPLE
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
-THIRD_PARTY_INCLUDES_END
-#pragma pop_macro("OVERRIDE")
-#if PLATFORM_WINDOWS
-#	include "Windows/HideWindowsPlatformAtomics.h"
-#	include "Windows/HideWindowsPlatformTypes.h"
-#endif
+#include "CEFLibCefIncludes.h"
 
 class FCefCookieManager
 	: public IWebBrowserCookieManager
