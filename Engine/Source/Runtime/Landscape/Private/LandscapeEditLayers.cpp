@@ -3125,10 +3125,10 @@ void ALandscape::UpdateForChangedHeightmaps(ULandscapeComponent* InComponent, co
 
 	const int32 HeightUpdateMode = InReadbackResult.UpdateModes & (ELandscapeLayerUpdateMode::Update_Heightmap_All | ELandscapeLayerUpdateMode::Update_Heightmap_Editing | ELandscapeLayerUpdateMode::Update_Heightmap_Editing_NoCollision);
 
-	if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision, HeightUpdateMode))
+	// Only update collision if there was an actual change performed on the source data : 
+	if (InComponent->GetPendingCollisionDataUpdate())
 	{
-		// Only update collision if there was an actual change performed on the source data : 
-		if (InComponent->GetPendingCollisionDataUpdate())
+		if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Heightmap_Collision, HeightUpdateMode))
 		{
 			InComponent->UpdateCachedBounds();
 			InComponent->UpdateComponentToWorld();
@@ -3138,13 +3138,13 @@ void ALandscape::UpdateForChangedHeightmaps(ULandscapeComponent* InComponent, co
 			InComponent->UpdateCollisionData(bUpdateHeightfieldRegion);
 			InComponent->SetPendingCollisionDataUpdate(false);
 		}
-	}
-	else if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Approximated_Bounds, HeightUpdateMode))
-	{
-		// Update bounds with an approximated value (real computation will be done anyways when computing collision)
-		const bool bInApproximateBounds = true;
-		InComponent->UpdateCachedBounds(bInApproximateBounds);
-		InComponent->UpdateComponentToWorld();
+		else if (IsUpdateFlagEnabledForModes(ELandscapeComponentUpdateFlag::Component_Update_Approximated_Bounds, HeightUpdateMode))
+		{
+			// Update bounds with an approximated value (real computation will be done anyways when computing collision)
+			const bool bInApproximateBounds = true;
+			InComponent->UpdateCachedBounds(bInApproximateBounds);
+			InComponent->UpdateComponentToWorld();
+		}
 	}
 }
 
