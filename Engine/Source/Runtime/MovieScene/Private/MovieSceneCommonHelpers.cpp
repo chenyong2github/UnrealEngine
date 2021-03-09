@@ -528,7 +528,61 @@ FPropertyAndIndex FindPropertyAndArrayIndex(UStruct* InStruct, const FString& Pr
 	return PropertyAndIndex;
 }
 
-FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings::FindPropertyRecursive( void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index )
+
+FProperty* FTrackInstancePropertyBindings::FindPropertyRecursive(UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index)
+{
+	FProperty* Property = FindPropertyAndArrayIndex(InStruct, *InPropertyNames[Index]).Property;
+	if (!Property)
+	{
+		return nullptr;
+	}
+
+	/* Recursive property types */
+	if (Property->IsA(FArrayProperty::StaticClass()))
+	{
+		FArrayProperty* ArrayProp = CastFieldChecked<FArrayProperty>(Property);
+
+		FStructProperty* InnerStructProp = CastField<FStructProperty>(ArrayProp->Inner);
+		if (InnerStructProp && InPropertyNames.IsValidIndex(Index + 1))
+		{
+			return FindPropertyRecursive(InnerStructProp->Struct, InPropertyNames, Index + 1);
+		}
+		else
+		{
+			Property = ArrayProp->Inner;
+		}
+	}
+	else if (FStructProperty* StructProp = CastField<FStructProperty>(Property))
+	{
+		if( InPropertyNames.IsValidIndex(Index+1) )
+		{
+			return FindPropertyRecursive(StructProp->Struct, InPropertyNames, Index+1);
+		}
+		else
+		{
+			check( StructProp->GetName() == InPropertyNames[Index] );
+		}
+	}
+
+	return Property;
+}
+
+FProperty* FTrackInstancePropertyBindings::FindProperty(const UObject* Object, const FString& InPropertyPath)
+{
+	check(Object);
+
+	TArray<FString> PropertyNames;
+	InPropertyPath.ParseIntoArray(PropertyNames, TEXT("."), true);
+
+	if (PropertyNames.Num() > 0)
+	{
+		return FindPropertyRecursive(Object->GetClass(), PropertyNames, 0);
+	}
+
+	return nullptr;
+}
+
+FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings::FindPropertyAddressRecursive( void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index )
 {
 	FPropertyAndIndex PropertyAndIndex = FindPropertyAndArrayIndex(InStruct, *InPropertyNames[Index]);
 	
@@ -546,7 +600,7 @@ FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings:
 				FStructProperty* InnerStructProp = CastField<FStructProperty>(ArrayProp->Inner);
 				if (InnerStructProp && InPropertyNames.IsValidIndex(Index + 1))
 				{
-					return FindPropertyRecursive(ArrayHelper.GetRawPtr(PropertyAndIndex.ArrayIndex), InnerStructProp->Struct, InPropertyNames, Index + 1);
+					return FindPropertyAddressRecursive(ArrayHelper.GetRawPtr(PropertyAndIndex.ArrayIndex), InnerStructProp->Struct, InPropertyNames, Index + 1);
 				}
 				else
 				{
@@ -568,7 +622,7 @@ FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings:
 		if( InPropertyNames.IsValidIndex(Index+1) )
 		{
 			void* StructContainer = StructProp->ContainerPtrToValuePtr<void>(BasePointer);
-			return FindPropertyRecursive( StructContainer, StructProp->Struct, InPropertyNames, Index+1 );
+			return FindPropertyAddressRecursive( StructContainer, StructProp->Struct, InPropertyNames, Index+1 );
 		}
 		else
 		{
@@ -586,7 +640,7 @@ FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings:
 }
 
 
-FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings::FindProperty( const UObject& InObject, const FString& InPropertyPath )
+FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings::FindPropertyAddress( const UObject& InObject, const FString& InPropertyPath )
 {
 	TArray<FString> PropertyNames;
 
@@ -594,7 +648,7 @@ FTrackInstancePropertyBindings::FPropertyAddress FTrackInstancePropertyBindings:
 
 	if(IsValid(&InObject) && PropertyNames.Num() > 0)
 	{
-		return FindPropertyRecursive( (void*)&InObject, InObject.GetClass(), PropertyNames, 0 );
+		return FindPropertyAddressRecursive( (void*)&InObject, InObject.GetClass(), PropertyNames, 0 );
 	}
 	else
 	{
@@ -636,7 +690,7 @@ void FTrackInstancePropertyBindings::CacheBinding(const UObject& Object)
 {
 	FPropertyAndFunction PropAndFunction;
 	{
-		PropAndFunction.PropertyAddress = FindProperty(Object, PropertyPath);
+		PropAndFunction.PropertyAddress = FindPropertyAddress(Object, PropertyPath);
 
 		UFunction* SetterFunction = Object.FindFunction(FunctionName);
 		if (SetterFunction && SetterFunction->NumParms >= 1)
@@ -662,7 +716,7 @@ FProperty* FTrackInstancePropertyBindings::GetProperty(const UObject& Object) co
 		return Property;
 	}
 
-	return FindProperty(Object, PropertyPath).GetProperty();
+	return FindPropertyAddress(Object, PropertyPath).GetProperty();
 }
 
 int64 FTrackInstancePropertyBindings::GetCurrentValueForEnum(const UObject& Object)

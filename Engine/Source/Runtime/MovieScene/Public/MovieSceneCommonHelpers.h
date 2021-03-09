@@ -257,7 +257,7 @@ public:
 	{
 		checkf(Object, TEXT("No object specified"));
 
-		FPropertyAddress Address = FindProperty(*Object, InPropertyPath);
+		FPropertyAddress Address = FindPropertyAddress(*Object, InPropertyPath);
 
 		ValueType Value;
 		if (ResolvePropertyValue<ValueType>(Address, Value))
@@ -309,6 +309,8 @@ public:
 	{
 		return PropertyName;
 	}
+
+	static FProperty* FindProperty(const UObject* Object, const FString& InPropertyPath);
 
 private:
 
@@ -378,8 +380,10 @@ private:
 		return false;
 	}
 
-	static FPropertyAddress FindPropertyRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
-	static FPropertyAddress FindProperty(const UObject& Object, const FString& InPropertyPath);
+	static FPropertyAddress FindPropertyAddressRecursive(void* BasePointer, UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
+	static FPropertyAddress FindPropertyAddress(const UObject& Object, const FString& InPropertyPath);
+
+	static FProperty* FindPropertyRecursive(UStruct* InStruct, TArray<FString>& InPropertyNames, uint32 Index);
 
 	/** Find or add the FPropertyAndFunction for the specified object */
 	FPropertyAndFunction FindOrAdd(const UObject& InObject)
