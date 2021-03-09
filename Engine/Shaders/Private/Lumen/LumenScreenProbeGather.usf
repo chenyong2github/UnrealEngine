@@ -711,7 +711,8 @@ void ScreenProbeIndirectCS(
 
 				if (GBufferData.ShadingModelID == SHADINGMODELID_HAIR)
 				{
-					DiffuseLighting *= -min(-rcp(GBufferData.BaseColor), 0.0);
+					// Max op. prevents numerical issue which causes invalid color shift with dark albedo
+					DiffuseLighting *= -min(-rcp(max(0.01f, GBufferData.BaseColor)), 0.0);
 				}
 
 				#if GBUFFER_HAS_DIFFUSE_SAMPLE_OCCLUSION
