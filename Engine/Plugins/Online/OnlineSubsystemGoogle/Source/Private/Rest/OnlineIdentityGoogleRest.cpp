@@ -169,7 +169,7 @@ void FOnlineIdentityGoogle::OnAccessTokenLoginComplete(int32 LocalUserNum, bool 
 	OnLoginAttemptComplete(LocalUserNum, Error);
 }
 
-void FOnlineIdentityGoogle::OnExternalUILoginComplete(TSharedPtr<const FUniqueNetId> UniqueId, const int ControllerIndex, const FOnlineError& Error)
+void FOnlineIdentityGoogle::OnExternalUILoginComplete(FUniqueNetIdPtr UniqueId, const int ControllerIndex, const FOnlineError& Error)
 {
 	const FString& ErrorStr = Error.GetErrorCode();
 	const bool bWasSuccessful = Error.WasSuccessful() && UniqueId.IsValid() && UniqueId->IsValid();
@@ -184,7 +184,7 @@ void FOnlineIdentityGoogle::OnLoginAttemptComplete(int32 LocalUserNum, const FSt
 	if (GetLoginStatus(LocalUserNum) == ELoginStatus::LoggedIn)
 	{
 		UE_LOG_ONLINE_IDENTITY(Display, TEXT("Google login was successful"));
-		TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+		FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 		check(UserId.IsValid());
 
 		GoogleSubsystem->ExecuteNextTick([this, UserId, LocalUserNum, ErrorStrCopy]()
@@ -411,7 +411,7 @@ void FOnlineIdentityGoogle::RefreshAuthRequest_HttpRequestComplete(FHttpRequestP
 bool FOnlineIdentityGoogle::Logout(int32 LocalUserNum)
 {
 	bool bResult = false;
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		// remove cached user account

@@ -159,7 +159,7 @@ void FOnlineIdentityGoogle::OnLoginAttemptComplete(int32 LocalUserNum, const FSt
 	if (GetLoginStatus(LocalUserNum) == ELoginStatus::LoggedIn)
 	{
 		UE_LOG_ONLINE_IDENTITY(Display, TEXT("Google login was successful"));
-		TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+		FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 		check(UserId.IsValid());
 
 		GoogleSubsystem->ExecuteNextTick([this, UserId, LocalUserNum, ErrorStrCopy]()
@@ -190,7 +190,7 @@ bool FOnlineIdentityGoogle::Logout(int32 LocalUserNum)
 			LogoutCompletionDelegate = FOnInternalLogoutComplete::CreateLambda([this, LocalUserNum](EGoogleLoginResponse InResponseCode)
 	        {
 				UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("FOnInternalLogoutComplete %s"), ToString(InResponseCode));
-				TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 				if (UserId.IsValid())
 				{
 					// remove cached user account
