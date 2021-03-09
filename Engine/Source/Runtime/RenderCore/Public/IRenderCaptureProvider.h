@@ -32,8 +32,8 @@ public:
 	}
 
 	/**
-	 * Gets the first registered implementation of this feature. Will assert or crash.
-	 * If the specified feature is not available!  You should call IsAvailable() first!
+	 * Gets the first registered implementation of this feature. Will assert or crash
+	 * if the specified feature is not available!  You should call IsAvailable() first!
 	 *
 	 * @return	The feature.
 	 */
