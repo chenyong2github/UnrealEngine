@@ -65,10 +65,13 @@ bool AActor::CanEditChange(const FProperty* PropertyThatWillChange) const
 	{
 		if (!IsTemplate())
 		{
-			const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(GetWorld());
-			if (!bIsPartitionedWorld)
+			if (UWorld* World = GetWorld())
 			{
-				return false;
+				const bool bIsPartitionedWorld = UWorld::HasSubsystem<UWorldPartitionSubsystem>(World);
+				if (!bIsPartitionedWorld)
+				{
+					return false;
+				}
 			}
 		}
 	}
