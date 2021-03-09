@@ -61,7 +61,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	}
 
 	float3 Radiance = 0;
-	uint RayCounter = 0;
 
 	// Initialize ray and payload
 	RayDesc Ray;
@@ -88,11 +87,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	// path state variables (these cary information between bounces)
 	float3 PathThroughput = 1.0;
 
-	// We don't want the camera ray to have any MIS contribution against direct light sampling so we pretend that it came from
-	// a singular Material scattering event.
-	float PrevMaterialPdf = POSITIVE_INFINITY;
-	int PrevPrimitiveLightingChannelMask = 0xFF;
-
 	// 0: only Material sampling
 	// 1: only Light sampling
 	// 2: both Material and Light
@@ -109,37 +103,28 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			LaunchIndex,
 			bInitialDisableSkyLightContribution,
 			bIgnoreTranslucentMaterials);
-		RayCounter++;
 
-		if (MISMode != 1 || Bounce == 0)
+		// directly visible lights
+		if (Bounce == 0 && SceneLightCount > 0)
 		{
-			float HitT = Payload.IsMiss() ? Ray.TMax : Payload.HitT;
+			uint NumLights = 0;
+			if (PathTracingData.VisibleLights)
+			{
+				// user wants to see all lights
+				NumLights = SceneLightCount;
+			}
+			else if (IsEnvironmentLight(0))
+			{
+				// user doesn't want to see all lights - still check the first one in case its a skydome (there can be only one, and it always comes first if it is there)
+				NumLights = 1;
+			}
 			// Loop over lights to capture their contribution
 			// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
-			float PreviousCdfValue = 0.0;
-			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
+			for (uint LightId = 0; LightId < NumLights; ++LightId)
 			{
-				// Camera rays should only do the rest of the loop if we have visible lights OR if
-				// we have a skydome (which are always visible)
-				if (Bounce == 0 && PathTracingData.VisibleLights == 0 && !IsEnvironmentLight(LightId))
-				{
-					continue;
-				}
-
-				if ((PrevPrimitiveLightingChannelMask & GetLightingChannelMask(LightId)) == 0)
-				{
-					// light does not affect the current ray
-					continue;
-				}
-
-				float4 LightResult = TraceLight(Ray, LightId, HitT);
-				float3 LightRadiance = LightResult.xyz;
-				float LightPdf = LightResult.w;
-
-				float LightPickPdf = LightPickingCdf[LightId] - PreviousCdfValue;
-				PreviousCdfValue = LightPickingCdf[LightId];
-
-				AccumulateRadiance(Radiance, PathThroughput * LightRadiance * MISWeightRobust(PrevMaterialPdf, LightPdf * LightPickPdf));
+				float HitT = Payload.IsMiss() ? Ray.TMax : Payload.HitT;
+				float3 LightRadiance = TraceLight(Ray, LightId, HitT).xyz;
+				AccumulateRadiance(Radiance, PathThroughput * LightRadiance);
 			}
 		}
 
@@ -149,8 +134,25 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			break;
 		}
 
-		// add in surface emission
-		AccumulateRadiance(Radiance, PathThroughput * Payload.Radiance);
+		if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE)
+		{
+			// for now just approximate SSS by moving it into the diffuse color
+			Payload.DiffuseColor += Payload.CustomData.xyz;
+			Payload.Opacity = 1; // overwrite radius
+			Payload.ShadingModelID == SHADINGMODELID_DEFAULT_LIT;
+		}
+
+		// add in surface emission (except for modulate blend mode which uses Radiance as the transparency multiplier)
+		if (Payload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
+		{
+			AccumulateRadiance(Radiance, PathThroughput * Payload.Radiance);
+		}
+
+		if (Bounce == PathTracingData.MaxBounces)
+		{
+			// we've arrived at the last bounce - nothing left to do
+			break;
+		}
 
 		// Update origin
 		Ray.Origin = Payload.WorldPos;
@@ -164,14 +166,13 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		// Choose a random number for both Light sampling and BxDF sampling
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
-		// Does this material require NEE?
+		// Does this material require NEE? (will be false if MaterialPdf is always +inf)
 		bool bIsNeeValid = IsNeeValidMaterial(Payload);
 
-		// If we are using Light sampling and we are not on the last bounce ....
-		if (MISMode != 0 && Bounce < PathTracingData.MaxBounces && bIsNeeValid && SceneLightCount > 0)
+		// If we are using Light sampling and the material can use it ...
+		if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0)
 		{
 			// Choose a light and sample it
-
 			float3 WorldPos = Payload.WorldPos;
 			float3 WorldNormal = Payload.WorldNormal;
 			uint PrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
@@ -198,7 +199,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 					LightPdf);
 				RadianceOverPdf /= LightPickPdf;
 				LightPdf *= LightPickPdf;
-
 				if (LightPdf > 0)
 				{
 					float SignedPositionBias = 1.0;
@@ -210,18 +210,21 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 					}
 					ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, PathTracingData.MaxNormalBias);
 
+					bool LightIsVisible = true;
+					if (CastsShadow(LightId))
+					{
+						const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+						const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
 
-					const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
-					const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
+						FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
 
-					FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+						TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, LaunchIndex, LightRay);
 
-					TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, LaunchIndex, LightRay);
-
-					RayCounter++;
+						LightIsVisible = PackedPayload.IsMiss();
+					}
 
 					// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
-					if (PackedPayload.IsMiss())
+					if (LightIsVisible)
 					{
 						// Evaluate material
 						float3 MaterialWeight;
@@ -237,12 +240,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 					}
 				}
 			}
-		}
-
-		if (Bounce == PathTracingData.MaxBounces)
-		{
-			// we've arrived at the last bounce, don't bother trying to sample a direction
-			break;
 		}
 
 		// Sample material
@@ -298,18 +295,63 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			PathThroughput = NextPathThroughput;
 		}
 
-		if (MISMode == 2)
-		{
-			// If we are doing MIS, the Material ray on the next loop through will need to know the Pdf
-			PrevMaterialPdf = MaterialSamplePdf;
-		}
-
-		PrevPrimitiveLightingChannelMask = Payload.PrimitiveLightingChannelMask;
-
-		// Update ray and loop back around to trace again
+		// Update ray according to material sample
 		Ray.Direction = Direction;
 		Ray.TMin = 0;
+		Ray.TMax = POSITIVE_INFINITY;
 		ApplyPositionBias(Ray, SignedPositionBias * Payload.WorldNormal, PathTracingData.MaxNormalBias);
+
+		// If we are using Material sampling for lights
+		if (MISMode != 1)
+		{
+			// Check which lights can be seen by the material ray and trace a dedicated shadow ray
+			// While it would be possible to just loop around and use the indirect ray to do this, it would prevent the application
+			// of shadow ray specific logic for transparent shadows or various per light tricks like shadow casting
+			float PreviousCdfValue = 0.0;
+			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
+			{
+				if ((Payload.PrimitiveLightingChannelMask & GetLightingChannelMask(LightId)) == 0)
+				{
+					// light does not affect the current ray
+					continue;
+				}
+
+				float HitT = Ray.TMax;
+				float4 LightResult = TraceLight(Ray, LightId, HitT);
+				float3 LightRadiance = LightResult.xyz;
+
+				float3 LightContrib = PathThroughput * LightRadiance;
+				if (MISMode == 2)
+				{
+					float LightPdf = LightResult.w;
+					float LightPickPdf =  LightPickingCdf[LightId] - PreviousCdfValue;
+					PreviousCdfValue = LightPickingCdf[LightId];
+
+					LightPdf *= LightPickPdf;
+					LightContrib *= MISWeightRobust(MaterialSamplePdf, LightPdf);
+				}
+
+				if (any(LightContrib > 0))
+				{
+					bool LightIsVisible = true;
+					if (CastsShadow(LightId))
+					{
+						const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
+						const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
+						FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+						RayDesc LightRay = Ray;
+						LightRay.TMax = HitT;
+						TraceVisibilityRayPacked(PackedPayload, TLAS, RayFlags, InstanceInclusionMask, LaunchIndex, LightRay);
+						LightIsVisible = PackedPayload.IsMiss();
+					}
+					if (LightIsVisible)
+					{
+						// the light made some contribution, and there was nothing along the shadow ray
+						AccumulateRadiance(Radiance, LightContrib);
+					}
+				}
+			}
+		}
 	}
 
 

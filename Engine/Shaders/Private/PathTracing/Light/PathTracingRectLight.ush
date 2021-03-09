@@ -56,7 +56,7 @@ float4 SampleApproxProjectionSphericalRect(float2 Rand, FSphericalRect Spherical
 }
 
 
-float4 RectLight_TraceLight(RayDesc Ray, int LightId, float HitT)
+float4 RectLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 {
 	float3 LightPosition = GetPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
@@ -89,6 +89,7 @@ float4 RectLight_TraceLight(RayDesc Ray, int LightId, float HitT)
 			UV = float2(dot(P, LightdPdu), dot(P, LightdPdv));
 			if (all(abs(UV) <= Rect.Extent))
 			{
+				HitT = t;
 				// stored color is radiance
 				float3 Radiance = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 				Radiance *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);

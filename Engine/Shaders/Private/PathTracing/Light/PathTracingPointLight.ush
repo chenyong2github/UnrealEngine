@@ -8,7 +8,7 @@ PointLight.usf: Light sampling functions for Point light implementation
 
 #include "PathTracingLightCommon.ush"
 
-float4 PointLight_TraceLight(RayDesc Ray, int LightId, float HitT)
+float4 PointLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 {
 	float3 LightPosition = GetPosition(LightId);
 	float LightRadius = GetRadius(LightId);
@@ -29,6 +29,7 @@ float4 PointLight_TraceLight(RayDesc Ray, int LightId, float HitT)
 		float t = (-b - h) / a;
 		if (t > Ray.TMin && t < HitT)
 		{
+			HitT = t;
 			// #dxr_todo: sphere area is 4*pi*r^2 -- but the factor of 4 is missing for some reason?
 			float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 			float3 LightRadiance = LightPower / (PI * LightRadius2);

@@ -202,3 +202,8 @@ bool IsStationary(int LightId)
 {
 	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_STATIONARY_MASK) != 0;
 }
+
+bool CastsShadow(int LightId)
+{
+	return (SceneLights[LightId].Flags & PATHTRACER_FLAG_CAST_SHADOW_MASK) != 0;
+}

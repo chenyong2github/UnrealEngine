@@ -27,7 +27,7 @@ void SkyLight_EstimateLight(
 	OutIrradiance = SkyLightIlluminance * 2.0f * PI;
 }
 
-float4 SkyLight_TraceLight(RayDesc Ray, int LightId, float HitT) {
+float4 SkyLight_TraceLight(RayDesc Ray, int LightId, inout float HitT) {
 	if (Ray.TMax == HitT)
 	{
 		// LightUV convention in the code below is just the world space ray direction
