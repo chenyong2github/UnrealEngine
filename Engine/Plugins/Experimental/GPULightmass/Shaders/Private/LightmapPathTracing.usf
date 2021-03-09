@@ -245,10 +245,14 @@ void PathTracingKernel(
 		
 		if (MISMode != 1 && Bounce != 0) // In GPULightmass it is not possible to hit any light on its first fake ray
 		{
-			float HitT = Payload.IsMiss() ? Ray.TMax : Payload.HitT;
 			// Loop over lights to capture their contribution
 			// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
 			float PreviousCdfValue = 0.0;
+			RayDesc LightRay = Ray;
+			if (Payload.IsHit())
+			{
+				LightRay.TMax = Payload.HitT;
+			}
 			for (uint LightId = 0; LightId < SceneLightCount; ++LightId)
 			{
 				// Camera rays should only do the rest of the loop if we have visible lights OR if
@@ -256,9 +260,7 @@ void PathTracingKernel(
 				if (Bounce == 0 && !IsEnvironmentLight(LightId))
 					continue;
 
-				float4 LightResult = TraceLight(Ray, LightId, HitT);
-				float3 LightRadiance = LightResult.xyz;
-				float LightPdf = LightResult.w;
+				FLightHit LightResult = TraceLight(LightRay, LightId);
 
 				float LightPickPdf = LightPickingCdf[LightId] - PreviousCdfValue;
 				PreviousCdfValue = LightPickingCdf[LightId];
@@ -266,7 +268,7 @@ void PathTracingKernel(
 				// GPULightmass records direct contribution for only static lights
 				if (Bounce > 1 || (Bounce == 1 && !IsStationary(LightId)))
 				{
-					AccumulateRadiance(Radiance, PathThroughput * LightRadiance * MISWeightRobust(PrevMaterialPdf, LightPdf * LightPickPdf));
+					AccumulateRadiance(Radiance, PathThroughput * LightResult.Radiance * MISWeightRobust(PrevMaterialPdf, LightResult.Pdf * LightPickPdf));
 				}
 			}
 		}
@@ -387,30 +389,22 @@ void PathTracingKernel(
 
 				SelectLight(RandSample.x, LightPickingCdf, LightId, LightPickPdf);
 
-				RayDesc LightRay;
-				LightRay.Origin = WorldPos;
-				LightRay.TMin = 0;
-				float3 RadianceOverPdf;
-				float LightPdf;
-				SampleLight(LightId, RandSample, WorldPos, WorldNormal,
-					LightRay.Direction,
-					LightRay.TMax,
-					RadianceOverPdf,
-					LightPdf);
-				RadianceOverPdf /= LightPickPdf;
-				LightPdf *= LightPickPdf;
+				FLightSample LightSample = SampleLight(LightId, RandSample, WorldPos, WorldNormal);
 
-				if (LightPdf > 0)
+				LightSample.RadianceOverPdf /= LightPickPdf;
+				LightSample.Pdf *= LightPickPdf;
+
+				if (LightSample.Pdf > 0)
 				{
-					float SignedPositionBias = 1.0;
-					if (ENABLE_TRANSMISSION && IsMaterialTransmissive(Payload))
-					{
-						// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
-						float NoL = dot(Payload.WorldNormal, LightRay.Direction);
-						SignedPositionBias = sign(NoL);
-					}
-					ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, 0.01f);
+					// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
+					const float SignedPositionBias = IsTransmissiveMaterial ? sign(dot(Payload.WorldNormal, LightSample.Direction)) : 1.0;
 
+					RayDesc LightRay;
+					LightRay.Origin = WorldPos;
+					LightRay.TMin = 0;
+					LightRay.Direction = LightSample.Direction;
+					LightRay.TMax = LightSample.Distance;
+					ApplyPositionBias(LightRay, SignedPositionBias* Payload.WorldNormal, 0.01f);
 
 					const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 					const uint InstanceInclusionMask = RAY_TRACING_MASK_ALL;
@@ -423,12 +417,12 @@ void PathTracingKernel(
 					if (PackedPayload.IsMiss())
 					{
 						// Evaluate material
-						FMaterialEval MaterialEval = EvalMaterial(Ray.Direction, LightRay.Direction, Payload, Bounce == 0);
+						FMaterialEval MaterialEval = EvalMaterial(Ray.Direction, LightSample.Direction, Payload, Bounce == 0);
 
-						float3 LightContrib = PathThroughput * RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;
+						float3 LightContrib = PathThroughput * LightSample.RadianceOverPdf * MaterialEval.Weight * MaterialEval.Pdf;
 						if (MISMode == 2)
 						{
-							LightContrib *= MISWeightRobust(LightPdf, MaterialEval.Pdf);
+							LightContrib *= MISWeightRobust(LightSample.Pdf, MaterialEval.Pdf);
 						}
 
 						// Record the contribution
@@ -442,7 +436,7 @@ void PathTracingKernel(
 							if (!IsStationary(LightId))
 							{
 								DirectLightingNEERadianceValue += LightContrib;
-								DirectLightingNEERadianceDirection = LightRay.Direction;
+								DirectLightingNEERadianceDirection = LightSample.Direction;
 							}
 						}
 					}

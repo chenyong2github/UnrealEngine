@@ -56,7 +56,7 @@ float4 SampleApproxProjectionSphericalRect(float2 Rand, FSphericalRect Spherical
 }
 
 
-float4 RectLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
+FLightHit RectLight_TraceLight(RayDesc Ray, int LightId)
 {
 	float3 LightPosition = GetPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
@@ -64,7 +64,7 @@ float4 RectLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 	float DoN = dot(Ray.Direction, LightNormal);
 	float t = dot(LightDirection, LightNormal) / DoN;
 	// ray points toward the plane and intersect it?
-	if (DoN < 0 && t > Ray.TMin && t < HitT)
+	if (DoN < 0 && t > Ray.TMin && t < Ray.TMax)
 	{
 		float3 LightdPdu = GetdPdu(LightId);
 		float3 LightdPdv = GetdPdv(LightId);
@@ -89,27 +89,23 @@ float4 RectLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 			UV = float2(dot(P, LightdPdu), dot(P, LightdPdv));
 			if (all(abs(UV) <= Rect.Extent))
 			{
-				HitT = t;
 				// stored color is radiance
 				float3 Radiance = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 				Radiance *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
 				float SolidAngle = BuildSphericalRect(Rect).SolidAngle;
-				return float4(Radiance, 1.0 / SolidAngle);
+				return CreateLightHit(Radiance, 1.0 / SolidAngle, t);
 			}
 		}
 	}
-	return 0.0;
+	return NullLightHit();
 }
 
-void RectLight_SampleLight(
+FLightSample RectLight_SampleLight(
 	int LightId,
 	float4 RandSample,
 	float3 WorldPos,
-	float3 WorldNormal,
-	out float3 OutDirection,
-	out float  OutDistance,
-	out float3 OutRadianceOverPdf,
-	out float OutPdf)
+	float3 WorldNormal
+)
 {
 	float3 LightPosition = GetPosition(LightId);
 	float3 LightNormal = GetNormal(LightId);
@@ -132,19 +128,17 @@ void RectLight_SampleLight(
 
 	float3 Direction = UniformSampleSphericalRect(RandSample.yz, SphericalRect);
 
-	OutDirection = normalize(Direction);
-	OutDistance = length(Direction);
-	OutRadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, WorldPos);
-	OutRadianceOverPdf *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
-	OutPdf = 1.0 / SphericalRect.SolidAngle;
+	float3 RadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, WorldPos);
+	RadianceOverPdf *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
+
+	return CreateLightSample(RadianceOverPdf, 1.0 / SphericalRect.SolidAngle, normalize(Direction), length(Direction));
 }
 
-void RectLight_EstimateLight(
+float RectLight_EstimateLight(
 	int LightId,
 	float3 WorldPos,
 	float3 WorldNormal,
-	bool IsTransmissiveMaterial,
-	out float OutIrradiance
+	bool IsTransmissiveMaterial
 )
 {
 	// Distance to centroid
@@ -154,10 +148,10 @@ void RectLight_EstimateLight(
 	float3 LightNormal = GetNormal(LightId);
 
 	// Is the shading point behind the light?
-	if (dot(-LightDirection, LightNormal) <= 0.0)
+	float LNoL = saturate(-dot(normalize(LightDirection), LightNormal));
+	if (LNoL <= 0.0)
 	{
-		OutIrradiance = 0.0;
-		return;
+		return 0.0;
 	}
 	// Approximate geometric term
 	float Width = GetWidth(LightId);
@@ -169,5 +163,5 @@ void RectLight_EstimateLight(
 
 	float LightPower = Luminance(GetColor(LightId));
 	float Falloff = ComputeAttenuationFalloff(LightDistanceSquared, LightId);
-	OutIrradiance = LightPower * Falloff * Area * NoL / LightDistanceSquared;
+	return LightPower * Falloff * Area * NoL * LNoL / LightDistanceSquared;
 }
