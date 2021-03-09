@@ -362,7 +362,7 @@ namespace Gauntlet
 
 				if (!SkipDeploy)
 				{
-					StagedBuild.InstallBuildParallel(AppConfig, InBuild, BuildPath, DestPath, ToString());
+					DestPath = StagedBuild.InstallBuildParallel(AppConfig, InBuild, BuildPath, DestPath, ToString());
 				}
 				else
 				{
