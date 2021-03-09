@@ -14,7 +14,7 @@ struct FSceneOutlinerTreeItemID
 public:
 	using FUniqueID = uint32;
 
-	enum class EType : uint8 { Object, Folder, UniqueID, Guid, Null };
+	enum class EType : uint8 { Object, Folder, UniqueID, Null };
 
 	/** Default constructed null item ID */
 	FSceneOutlinerTreeItemID() : Type(EType::Null), CachedHash(0) {}
@@ -46,12 +46,6 @@ public:
 		CachedHash = CalculateTypeHash();
 	}
 
-	FSceneOutlinerTreeItemID(const FGuid& InGuid) : Type(EType::Guid)
-	{
-		new (Data) FGuid(InGuid);
-		CachedHash = CalculateTypeHash();
-	}
-
 	/** Copy construction / assignment */
 	FSceneOutlinerTreeItemID(const FSceneOutlinerTreeItemID& Other)
 	{
@@ -64,8 +58,7 @@ public:
 		{
 			case EType::Object:			new (Data) FObjectKey(Other.GetAsObjectKey());		break;
 			case EType::Folder:			new (Data) FName(Other.GetAsFolderRef());			break;
-			case EType::Guid:			new (Data) FGuid(Other.GetAsGuid());				break;
-			case EType::UniqueID:		new (Data) FUniqueID(Other.GetAsHash());			break;
+			case EType::UniqueID:		new (Data) FUniqueID(Other.GetAsHash());	break;
 			default:																		break;
 		}
 
@@ -90,7 +83,6 @@ public:
 		{
 			case EType::Object:			GetAsObjectKey().~FObjectKey();							break;
 			case EType::Folder:			GetAsFolderRef().~FName();								break;
-			case EType::Guid:			GetAsGuid().~FGuid();									break;
 			case EType::UniqueID:		/* NOP */												break;
 			default:																			break;
 		}
@@ -112,8 +104,7 @@ public:
 		{
 			case EType::Object:			Hash = GetTypeHash(GetAsObjectKey());				break;
 			case EType::Folder:			Hash = GetTypeHash(GetAsFolderRef());				break;
-			case EType::Guid:			Hash = GetTypeHash(GetAsGuid());					break;
-			case EType::UniqueID:		Hash = GetTypeHash(GetAsHash());					break;
+			case EType::UniqueID:		Hash = GetAsHash();									break;
 			default:																		break;
 		}
 
@@ -129,7 +120,6 @@ private:
 
 	FObjectKey& 	GetAsObjectKey() const 		{ return *reinterpret_cast<FObjectKey*>(Data); }
 	FName& 			GetAsFolderRef() const		{ return *reinterpret_cast<FName*>(Data); }
-	FGuid&			GetAsGuid() const			{ return *reinterpret_cast<FGuid*>(Data); }
 	FUniqueID&		GetAsHash() const			{ return *reinterpret_cast<FUniqueID*>(Data); }
 
 	/** Compares the specified ID with this one - assumes matching types */
@@ -139,7 +129,6 @@ private:
 		{
 			case EType::Object:			return GetAsObjectKey() == Other.GetAsObjectKey();
 			case EType::Folder:			return GetAsFolderRef() == Other.GetAsFolderRef();
-			case EType::Guid:			return GetAsGuid() == Other.GetAsGuid();
 			case EType::UniqueID:		return GetAsHash() == Other.GetAsHash();
 			case EType::Null:			return true;
 			default: check(false);		return false;
@@ -149,7 +138,7 @@ private:
 	EType Type;
 
 	uint32 CachedHash;
-	static const uint32 MaxSize = TMaxSizeof<FObjectKey, FName, FGuid, FUniqueID>::Value;
+	static const uint32 MaxSize = TMaxSizeof<FObjectKey, FName, FUniqueID>::Value;
 	mutable uint8 Data[MaxSize];
 };
 	

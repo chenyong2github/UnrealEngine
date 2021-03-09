@@ -99,7 +99,6 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateIsInCurrentLevelFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideComponentsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
-	static TSharedRef<FSceneOutlinerFilter> CreateHideUnloadedActorsFilter();
 	
 	void ToggleActorSCCStatusColumn();
 	bool isActorSCCStatusColumnActive() const { return bActorSCCStatusColumnActive; }

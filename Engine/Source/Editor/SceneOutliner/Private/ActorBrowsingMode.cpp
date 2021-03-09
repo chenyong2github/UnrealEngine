@@ -28,7 +28,6 @@
 #include "WorldTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "ActorBrowsingModeSettings.h"
-#include "ActorDescTreeItem.h"
 #include "ScopedTransaction.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
@@ -43,7 +42,6 @@ UActorBrowsingModeSettings::UActorBrowsingModeSettings(const FObjectInitializer&
 { }
 
 using FActorFilter = TSceneOutlinerPredicateFilter<FActorTreeItem>;
-using FActorDescFilter = TSceneOutlinerPredicateFilter<FActorDescTreeItem>;
 
 FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObjectPtr<UWorld> InSpecifiedWorldToDisplay)
 	: FActorModeInteractive(FActorModeParams(InSceneOutliner, InSpecifiedWorldToDisplay, true, false))
@@ -123,15 +121,6 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 			}
 		});
 	FilterInfoMap.Add(TEXT("HideLevelInstancesFilter"), HideLevelInstancesInfo);
-	
-	FSceneOutlinerFilterInfo HideUnloadedActorsInfo(LOCTEXT("ToggleHideUnloadedActors", "Hide Unloaded Actors"), LOCTEXT("ToggleHideUnloadedActorsToolTip", "When enabled, hides all unloaded world partition actors."), SharedSettings->bHideUnloadedActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideUnloadedActorsFilter));
-	HideUnloadedActorsInfo.OnToggle().AddLambda([this] (bool bIsActive)
-		{
-			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-	        Settings->bHideLevelInstanceHierarchy = bIsActive;
-	        Settings->PostEditChange();
-		});
-	FilterInfoMap.Add(TEXT("HideUnloadedActorsFilter"), HideUnloadedActorsInfo);
 
 	// Add a filter which sets the interactive mode of LevelInstance items and their children
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateStatic([](const AActor* Actor) {return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass, FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
@@ -322,12 +311,6 @@ TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideLevelInstancesFil
 			// Or if the actor itself is a LevelInstance editor instance
 			return Cast<ALevelInstanceEditorInstanceActor>(Actor) == nullptr;
 		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
-}
-
-TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideUnloadedActorsFilter()
-{
-	return MakeShareable(new FActorDescFilter(FActorDescTreeItem::FFilterPredicate::CreateStatic(
-		[](const FWorldPartitionActorDesc* ActorDesc) { return false; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
 static const FName DefaultContextBaseMenuName("SceneOutliner.DefaultContextMenuBase");

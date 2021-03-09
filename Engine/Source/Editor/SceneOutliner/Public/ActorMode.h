@@ -41,7 +41,7 @@ class SCENEOUTLINER_API FActorMode : public ISceneOutlinerMode
 public:
 	struct EItemSortOrder
 	{
-		enum Type { World = 0, Folder = 10, Actor = 20, Unloaded = 30 };
+		enum Type { World = 0, Folder = 10, Actor = 20 };
 	};
 	
 	FActorMode(const FActorModeParams& Params);
