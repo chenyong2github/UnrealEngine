@@ -14,6 +14,7 @@
 #include "SimpleVehicle.h"
 #include "VehicleUtility.h"
 #include "Engine/EngineTypes.h"
+#include "Curves/CurveFloat.h"
 
 #include "ChaosVehicleWheel.generated.h"
 
