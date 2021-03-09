@@ -98,6 +98,7 @@ private:
 	void StartQuery();
 	void UpdateQuery(TraceServices::IAllocationsProvider::EQueryStatus& OutStatus);
 	void CancelQuery();
+	void ResetAndStartQuery();
 
 	FReply OnDetailedViewClicked();
 	FReply OnSizeViewClicked();
@@ -125,6 +126,7 @@ private:
 	FText QueryInfo;
 	FText QueryInfoTooltip;
 	FStopwatch QueryStopwatch;
+	bool bHasPendingQueryReset = false;
 	bool bIsCallstackGroupingByFunction = true;
 };
 
