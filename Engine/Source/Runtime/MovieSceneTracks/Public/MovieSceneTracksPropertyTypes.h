@@ -56,7 +56,11 @@ enum class EColorPropertyType : uint8
 	Color,
 };
 
+#if UE_MOVIESCENE_ENTITY_DEBUG
+
 template<> struct TComponentDebugType<EColorPropertyType> { static const EComponentDebugType Type = EComponentDebugType::Uint8;   };
+
+#endif
 
 /** Intermediate type for the color property system that lets us store what kind of color type we should use */
 struct FIntermediateColor
