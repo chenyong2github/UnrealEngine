@@ -81,7 +81,7 @@ bool TraceLumenMinimalRay(
 
 	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
 	uint InstanceMask = RAY_TRACING_MASK_OPAQUE;
-	TraceLumenRay(Context.TLAS, RayFlags, InstanceMask, Ray, Payload);
+	TraceLumenRay(Context.TLAS, RayFlags, InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload);
 
 	return Payload.IsHit();
 }
@@ -232,8 +232,11 @@ float3 CalculateRayTracedLighting(
 		Radiance = CalculateDirectLighting(Ray, Context, Payload, RayHitWorldPosition, RayHitWorldNormal);
 	}
 
-	float3 DiffuseColor = Payload.GetDiffuseColor();
-	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, DFObjectIndex, DiffuseColor, LightingMode);
+	if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
+	{
+		float3 DiffuseColor = Payload.GetDiffuseColor();
+		Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, DFObjectIndex, DiffuseColor, LightingMode);
+	}
 	return Radiance;
 }
 
@@ -309,10 +312,7 @@ bool TraceAndCalculateRayTracedLighting(
 		bHit = true;
 #endif
 
-		if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
-		{
-			Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, DFObjectIndex, NormalMode, LightingMode);
-		}
+		Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, DFObjectIndex, NormalMode, LightingMode);
 	}
 
 	return bHit;
@@ -330,12 +330,16 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 
 	FLumenMinimalPayload Payload = (FLumenMinimalPayload)0;
 	bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
-	// TODO: Limit continuation trace count (one?)
-	while (bHit && Payload.IsTranslucent())
+
+	int TranslucentSkipCount = 0;
+    // TODO: Drive TranslucentSkipCountMax via Context
+	int TranslucentSkipCountMax = 2;
+	while (bHit && Payload.IsTranslucent() && TranslucentSkipCount < TranslucentSkipCountMax)
 	{
 		float Epsilon = 0.01;
 		Ray.TMin = Payload.HitT + Epsilon;
 		bHit = TraceLumenMinimalRay(Ray, Context, Payload);
+		TranslucentSkipCount++;
 	}
 
 	if (bHit)

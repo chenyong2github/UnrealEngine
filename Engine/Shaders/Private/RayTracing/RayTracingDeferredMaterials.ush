@@ -43,8 +43,8 @@ struct FRayIntersectionBookmark
 	TraceRay(TLAS, RayFlags, InstanceInclusionMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, BookmarkRay, InOutPayload);\
 }
 
-#define TraceLumenRay(TLAS, RayFlags, InstanceInclusionMask, Ray, InOutPayload){\
-	TraceRay(TLAS, RayFlags, InstanceInclusionMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, InOutPayload);\
+#define TraceLumenRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload){\
+	TraceRay(TLAS, RayFlags, InstanceInclusionMask, ShaderSlot, NumShaderSlots, MissIndex, Ray, InOutPayload);\
 }
 
 #endif // DIM_AMD_HIT_TOKEN

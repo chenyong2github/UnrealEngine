@@ -3,6 +3,7 @@
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/RayTracing/RayTracingHitGroupCommon.ush"
 #include "/Engine/Private/Lumen/LumenHardwareRayTracingPayloadCommon.ush"
+#include "/Engine/Private/Lumen/LumenHardwareRayTracingPlatformCommon.ush"
 
 #include "/Engine/Private/SceneData.ush"
 
@@ -20,30 +21,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(LumenHardwareRayTracingMaterialCHS,
 	uint bIsTranslucent = GetHitGroupUserData() & 0x1;
 	Payload.SetIsTranslucent(bIsTranslucent);
 
-	FTriangleBaseAttributes Tri = LoadTriangleBaseAttributes(PrimitiveIndex());
-#if 0
-	float3x3 ObjectToWorld3x3 = ObjectToWorld4x3();
-	float3 WorldPositions[3] = {
-		mul(float4(Tri.LocalPositions[0], 1), ObjectToWorld3x3),
-		mul(float4(Tri.LocalPositions[1], 1), ObjectToWorld3x3),
-		mul(float4(Tri.LocalPositions[2], 1), ObjectToWorld3x3)
-	};
-
-	float3 WorldEdges[2] = {
-		WorldPositions[1] - WorldPositions[0],
-		WorldPositions[2] - WorldPositions[0]
-	};
-	float3 WorldNormal = normalize(cross(WorldEdges[1], WorldEdges[0]));
-#else
-	float3 LocalEdges[2] = {
-		Tri.LocalPositions[1] - Tri.LocalPositions[0],
-		Tri.LocalPositions[2] - Tri.LocalPositions[0]
-	};
-	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
-
-	float3x3 InverseTranspose3x3 = transpose(WorldToObject4x3());
-	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
-#endif
+	float3 WorldNormal = ComputeWorldNormal(PrimitiveIndex());
 	Payload.SetWorldNormal(WorldNormal);
 }
 
