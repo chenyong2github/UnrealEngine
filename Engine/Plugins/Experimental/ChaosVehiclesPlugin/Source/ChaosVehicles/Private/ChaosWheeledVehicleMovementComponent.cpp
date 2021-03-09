@@ -1336,7 +1336,7 @@ void UChaosWheeledVehicleMovementComponent::SetupVehicleShapes()
 
 void UChaosWheeledVehicleMovementComponent::SetupSuspension(TUniquePtr<Chaos::FSimpleWheeledVehicle>& PVehicle)
 {
-	if (!PVehicle.IsValid())
+	if (!PVehicle.IsValid() || PVehicle->Suspension.Num() == 0)
 	{
 		return;
 	}
@@ -1360,7 +1360,7 @@ void UChaosWheeledVehicleMovementComponent::SetupSuspension(TUniquePtr<Chaos::FS
 
 	// Calculate the mass that will rest on each of the springs
 	TArray<float> OutSprungMasses;
-	if (!FSuspensionUtility::ComputeSprungMasses(LocalSpringPositions, TotalMass, OutSprungMasses))
+	if (!LocalSpringPositions.IsEmpty() && !FSuspensionUtility::ComputeSprungMasses(LocalSpringPositions, TotalMass, OutSprungMasses))
 	{
 		// if the sprung mass calc fails fall back to something that will still simulate
 		for (int Index = 0; Index < OutSprungMasses.Num(); Index++)
