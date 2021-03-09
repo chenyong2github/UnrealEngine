@@ -8,7 +8,7 @@
 #include "CEF/CEFWebBrowserWindow.h"
 #if WITH_ENGINE
 #include "RHI.h"
-#if !PLATFORM_LINUX
+#if PLATFORM_WINDOWS
 #include "Slate/SlateTextures.h"
 #endif
 #endif
