@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #if WITH_CEF3
 
 #ifndef OVERRIDE
