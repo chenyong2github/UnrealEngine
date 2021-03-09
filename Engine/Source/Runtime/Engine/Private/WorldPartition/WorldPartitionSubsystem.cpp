@@ -3,6 +3,7 @@
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
+#include "HAL/IConsoleManager.h"
 #include "Engine/Canvas.h"
 #include "Engine/Console.h"
 #include "ConsoleSettings.h"
@@ -78,11 +79,29 @@ void UWorldPartitionSubsystem::PostInitialize()
 		{
 			DrawHandle = UDebugDrawService::Register(TEXT("Game"), FDebugDrawDelegate::CreateUObject(this, &UWorldPartitionSubsystem::Draw));
 		}
+
+		// For now, enforce some GC settings when using World Partition
+		if (GetWorld()->IsGameWorld())
+		{
+			PreviousCVarValues.ReadFromCVars();
+
+			FWorldPartitionCVars OverrideCVars;
+			OverrideCVars.ContinuouslyIncremental = 0;
+			OverrideCVars.ForceGCAfterLevelStreamedOut = 0;
+			OverrideCVars.TimeBetweenPurgingPendingKillObjects = 120.f;
+			OverrideCVars.WriteToCVars();
+		}
 	}
 }
 
 void UWorldPartitionSubsystem::Deinitialize()
 {
+	UWorldPartition* MainPartition = GetMainWorldPartition();
+	if (MainPartition && GetWorld()->IsGameWorld())
+	{
+		PreviousCVarValues.WriteToCVars();
+	}
+
 	if (DrawHandle.IsValid())
 	{
 		UDebugDrawService::Unregister(DrawHandle);
@@ -253,3 +272,56 @@ void UWorldPartitionSubsystem::ForEachActorDesc(TSubclassOf<AActor> ActorClass, 
 	}
 }
 #endif // WITH_EDITOR
+
+//
+// UWorldPartitionSubsystem::FWorldPartitionCVars
+//
+
+const TCHAR* UWorldPartitionSubsystem::FWorldPartitionCVars::ContinuouslyIncrementalText = TEXT("s.ContinuouslyIncrementalGCWhileLevelsPendingPurge");
+const TCHAR* UWorldPartitionSubsystem::FWorldPartitionCVars::ForceGCAfterLevelStreamedOutText = TEXT("s.ForceGCAfterLevelStreamedOut");
+const TCHAR* UWorldPartitionSubsystem::FWorldPartitionCVars::TimeBetweenPurgingPendingKillObjectsText = TEXT("gc.TimeBetweenPurgingPendingKillObjects");
+
+void UWorldPartitionSubsystem::FWorldPartitionCVars::ReadFromCVars()
+{
+	if (IConsoleVariable* ContinuouslyIncrementalGCCVar = IConsoleManager::Get().FindConsoleVariable(ContinuouslyIncrementalText))
+	{
+		ContinuouslyIncremental = ContinuouslyIncrementalGCCVar->GetInt();
+	}
+
+	if (IConsoleVariable* ForceGCAfterLevelStreamedOutCVar = IConsoleManager::Get().FindConsoleVariable(ForceGCAfterLevelStreamedOutText))
+	{
+		ForceGCAfterLevelStreamedOut = ForceGCAfterLevelStreamedOutCVar->GetInt();
+	}
+
+	if (IConsoleVariable* TimeBetweenPurgingPendingKillObjectsCVar = IConsoleManager::Get().FindConsoleVariable(TimeBetweenPurgingPendingKillObjectsText))
+	{
+		TimeBetweenPurgingPendingKillObjects = TimeBetweenPurgingPendingKillObjectsCVar->GetFloat();
+	}
+}
+
+void UWorldPartitionSubsystem::FWorldPartitionCVars::WriteToCVars() const
+{
+	if (ContinuouslyIncremental.IsSet())
+	{
+		if (IConsoleVariable* ContinuouslyIncrementalGCCVar = IConsoleManager::Get().FindConsoleVariable(ContinuouslyIncrementalText))
+		{
+			ContinuouslyIncrementalGCCVar->Set(ContinuouslyIncremental.GetValue(), ECVF_SetByCode);
+		}
+	}
+
+	if (ForceGCAfterLevelStreamedOut.IsSet())
+	{
+		if (IConsoleVariable* ForceGCAfterLevelStreamedOutCVar = IConsoleManager::Get().FindConsoleVariable(ForceGCAfterLevelStreamedOutText))
+		{
+			ForceGCAfterLevelStreamedOutCVar->Set(ForceGCAfterLevelStreamedOut.GetValue(), ECVF_SetByCode);
+		}
+	}
+
+	if (TimeBetweenPurgingPendingKillObjects.IsSet())
+	{
+		if (IConsoleVariable* TimeBetweenPurgingPendingKillObjectsCVar = IConsoleManager::Get().FindConsoleVariable(TimeBetweenPurgingPendingKillObjectsText))
+		{
+			TimeBetweenPurgingPendingKillObjectsCVar->Set(TimeBetweenPurgingPendingKillObjects.GetValue(), ECVF_SetByCode);
+		}
+	}
+}

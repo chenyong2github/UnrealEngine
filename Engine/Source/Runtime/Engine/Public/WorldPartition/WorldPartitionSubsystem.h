@@ -4,6 +4,7 @@
 
 #include "Subsystems/WorldSubsystem.h"
 #include "Templates/SubclassOf.h"
+#include "Misc/Optional.h"
 #include "WorldPartitionSubsystem.generated.h"
 
 class UWorldPartition;
@@ -57,4 +58,22 @@ private:
 	TArray<TObjectPtr<UWorldPartition>> RegisteredWorldPartitions;
 
 	FDelegateHandle	DrawHandle;
+
+	struct FWorldPartitionCVars
+	{
+		FWorldPartitionCVars() {}
+
+		void ReadFromCVars();
+		void WriteToCVars() const;
+
+		static const TCHAR* ContinuouslyIncrementalText;
+		static const TCHAR* ForceGCAfterLevelStreamedOutText;
+		static const TCHAR* TimeBetweenPurgingPendingKillObjectsText;
+
+		TOptional<int32> ContinuouslyIncremental;
+		TOptional<int32> ForceGCAfterLevelStreamedOut;
+		TOptional<float> TimeBetweenPurgingPendingKillObjects;
+	};
+
+	FWorldPartitionCVars PreviousCVarValues;
 };
