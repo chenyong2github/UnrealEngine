@@ -77,13 +77,16 @@ class ENGINE_API UWorldPartition final : public UActorDescContainer
 	friend class FUnrealEdMisc;
 
 #if WITH_EDITOR
+public:
+	static UWorldPartition* CreateWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass = nullptr, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass = nullptr);
+
 private:
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FEnableWorldPartitionEvent, UWorld*, bool);
 	static FEnableWorldPartitionEvent EnableWorldPartitionEvent;
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionChangedEvent, UWorld*);
 	static FWorldPartitionChangedEvent WorldPartitionChangedEvent;
-
+		
 	void FlushStreaming();
 
 	// PIE/Game Methods

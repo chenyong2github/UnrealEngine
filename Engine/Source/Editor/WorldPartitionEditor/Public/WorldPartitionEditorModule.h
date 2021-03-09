@@ -55,8 +55,15 @@ public:
 	 */
 	virtual bool ConvertMap(const FString& InLongPackageName) override;
 
+	/**
+	 *
+	 */
+	virtual FWorldPartitionCreated& OnWorldPartitionCreated() override { return WorldPartitionCreatedEvent; }
+
 private:
 	FDelegateHandle LevelEditorExtenderDelegateHandle;
 
 	TSharedPtr<class FHLODLayerAssetTypeActions> HLODLayerAssetTypeActions;
+
+	FWorldPartitionCreated WorldPartitionCreatedEvent;
 };

@@ -205,19 +205,12 @@ void FLevelEditorActionCallbacks::NewLevel()
 	FString TemplateMapPackageName;
 	FNewLevelDialogModule& NewLevelDialogModule = FModuleManager::LoadModuleChecked<FNewLevelDialogModule>("NewLevelDialog");
 	
-	FNewLevelDialogModule::FNewLevelOptions NewLevelOptions;
-	NewLevelOptions.bExternalActors = true;
-	NewLevelOptions.bPartitionedWorld = true;
-
-	if (NewLevelDialogModule.CreateAndShowNewLevelDialog(MainFrameModule.GetParentWindow(), TemplateMapPackageName, &NewLevelOptions))
+	if (NewLevelDialogModule.CreateAndShowNewLevelDialog(MainFrameModule.GetParentWindow(), TemplateMapPackageName))
 	{
-		bool bChangedMap = false;
-
 		// The new map screen will return a blank TemplateName if the user has selected to begin a new blank map
 		if (TemplateMapPackageName.IsEmpty())
 		{
 			GEditor->CreateNewMapForEditing();
-			bChangedMap = true;
 		}
 		else
 		{
@@ -239,7 +232,7 @@ void FLevelEditorActionCallbacks::NewLevel()
 					{
 						// Load the template map file - passes LoadAsTemplate==true making the
 						// level load into an untitled package that won't save over the template
-						bChangedMap = FEditorFileUtils::LoadMap(*MapPackageFilename, /*bLoadAsTemplate=*/true);
+						FEditorFileUtils::LoadMap(*MapPackageFilename, /*bLoadAsTemplate=*/true);
 					}
 				}
 			}
@@ -248,88 +241,6 @@ void FLevelEditorActionCallbacks::NewLevel()
 			{
 				UE_LOG( LevelEditorActions, Warning, TEXT("Couldn't find template map package %s"), *TemplateMapPackageName);
 				GEditor->CreateNewMapForEditing();
-			}
-		}
-
-		if (bChangedMap)
-		{
-			// if target world needs to be saved (user asked for external actors or world partition)
-			if (NewLevelOptions.bExternalActors || NewLevelOptions.bPartitionedWorld)
-			{
-				UWorld* World = GetWorld();
-
-				if (World->GetStreamingLevels().Num())
-				{
-					FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "NewLevelContainsStreamingLevels", "The provided template contains streaming levels so it can't be converted with the provided options"));
-				}
-				else if (World->WorldComposition)
-				{
-					FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "NewLevelContainsExternalActors", "The provided template is using world composition so it can't be converted with the provided options"));
-				}
-				else if (World->PersistentLevel->bUseExternalActors)
-				{
-					FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "NewLevelContainsExternalActors", "The provided template contains external actors so it can't be converted with the provided options"));
-				}
-				else if (World->PersistentLevel->bIsPartitioned)
-				{
-					FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "NewLevelContainsExternalActors", "The provided template is already partitioned so it can't be converted with the provided options"));
-				}
-				else
-				{
-					bool bCanConvert = true;
-					FString SavedFilename;
-
-					while (!FEditorFileUtils::SaveLevelAs(GetWorld()->PersistentLevel, &SavedFilename))
-					{
-						if (FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::Yes, LOCTEXT("NewLevelNeedsSave", "The new level needs to be saved prior to converting to external actors, do you want to save it?")) == EAppReturnType::No)
-						{
-							bCanConvert = false;
-							break;
-						}
-					}
-
-					if (bCanConvert)
-					{
-						IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
-						bool bPreviousConversionPromptEnabled = WorldPartitionEditorModule.IsConversionPromptEnabled();
-						WorldPartitionEditorModule.SetConversionPromptEnabled(false);
-						ON_SCOPE_EXIT
-						{
-							WorldPartitionEditorModule.SetConversionPromptEnabled(bPreviousConversionPromptEnabled);
-						};
-
-						FEditorFileUtils::LoadMap(SavedFilename);
-
-						// Update the world pointer as we reloaded the map
-						World = GetWorld();
-				
-						if (NewLevelOptions.bExternalActors)
-						{
-							World->PersistentLevel->ConvertAllActorsToPackaging(true);
-							World->PersistentLevel->bUseExternalActors = true;
-						}
-
-						if (NewLevelOptions.bPartitionedWorld)
-						{
-							check(World->PersistentLevel->bUseExternalActors);
-							check(!World->GetStreamingLevels().Num());
-
-							AWorldSettings* WorldSettings = World->GetWorldSettings();
-
-							UWorldPartition* WorldPartition = NewObject<UWorldPartition>(WorldSettings);
-							WorldSettings->SetWorldPartition(WorldPartition);
-							WorldSettings->MarkPackageDirty();
-
-							World->PersistentLevel->bIsPartitioned = true;
-							World->ReinitializeSubSystems();
-
-							WorldPartition->Initialize(World, FTransform::Identity);					
-
-							FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>("WorldBrowser");
-							WorldBrowserModule.OnBrowseWorld.Broadcast(World);
-						}
-					}
-				}
 			}
 		}
 	}
@@ -491,6 +402,16 @@ bool FLevelEditorActionCallbacks::ToggleFavorite_IsChecked()
 bool FLevelEditorActionCallbacks::CanSaveWorld()
 {
 	return FSlateApplication::Get().IsNormalExecution() && (!GUnrealEd || !GUnrealEd->GetPackageAutoSaver().IsAutoSaving());
+}
+
+bool FLevelEditorActionCallbacks::CanSaveUnpartitionedWorld()
+{
+	if (!CanSaveWorld())
+	{
+		return false;
+	}
+
+	return GetWorld() && !GetWorld()->HasSubsystem<UWorldPartitionSubsystem>();
 }
 
 void FLevelEditorActionCallbacks::Save()

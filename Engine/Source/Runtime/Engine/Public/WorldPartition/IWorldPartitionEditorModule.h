@@ -18,4 +18,10 @@ public:
 	virtual bool GetEnableLoadingOfLastLoadedCells() const = 0;
 	virtual float GetAutoCellLoadingMaxWorldSize() const = 0;
 	virtual bool ConvertMap(const FString& InLongPackageName) = 0;
+
+	/** Triggered when a world is added. */
+	DECLARE_EVENT_OneParam(IWorldPartitionEditorModule, FWorldPartitionCreated, UWorld*);
+
+	/** Return the world added event. */
+	virtual FWorldPartitionCreated& OnWorldPartitionCreated() = 0;
 };

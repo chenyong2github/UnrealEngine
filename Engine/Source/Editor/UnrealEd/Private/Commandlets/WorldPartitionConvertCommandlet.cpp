@@ -216,12 +216,8 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionConvertCommandlet::CreateWorldPartition);
 
-	UWorldPartition* WorldPartition = NewObject<UWorldPartition>(MainWorldSettings);
-	MainWorldSettings->SetWorldPartition(WorldPartition);
-
-	WorldPartition->EditorHash = NewObject<UWorldPartitionEditorHash>(WorldPartition, EditorHashClass);
-	WorldPartition->RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(WorldPartition, RuntimeHashClass);
-
+	UWorldPartition* WorldPartition = UWorldPartition::CreateWorldPartition(MainWorldSettings, EditorHashClass, RuntimeHashClass);
+		
 	// Read the conversion config file
 	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*LevelConfigFilename))
 	{
@@ -229,13 +225,7 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 		WorldPartition->RuntimeHash->LoadConfig(*RuntimeHashClass, *LevelConfigFilename);
 		WorldPartition->DefaultHLODLayer = HLODLayers.FindRef(DefaultHLODLayerName);
 	}
-	else
-	{
-		WorldPartition->EditorHash->SetDefaultValues();
-		WorldPartition->RuntimeHash->SetDefaultValues();
-		WorldPartition->DefaultHLODLayer = nullptr;
-	}
-
+	
 	WorldPartition->RuntimeHash->ImportFromWorldComposition(WorldComposition);
 
 	return WorldPartition;

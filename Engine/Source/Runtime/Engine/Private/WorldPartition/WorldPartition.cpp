@@ -437,6 +437,34 @@ bool UWorldPartition::IsMainWorldPartition() const
 }
 
 #if WITH_EDITOR
+UWorldPartition* UWorldPartition::CreateWorldPartition(AWorldSettings* WorldSettings, TSubclassOf<UWorldPartitionEditorHash> EditorHashClass, TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass)
+{
+	if (!EditorHashClass)
+	{
+		EditorHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionEditorSpatialHash"));
+	}
+
+	if (!RuntimeHashClass)
+	{
+		RuntimeHashClass = FindObject<UClass>(ANY_PACKAGE, TEXT("WorldPartitionRuntimeSpatialHash"));
+	}
+
+	UWorldPartition* WorldPartition = NewObject<UWorldPartition>(WorldSettings);
+	WorldSettings->SetWorldPartition(WorldPartition);
+	WorldSettings->MarkPackageDirty();
+
+	WorldPartition->EditorHash = NewObject<UWorldPartitionEditorHash>(WorldPartition, EditorHashClass);
+	WorldPartition->RuntimeHash = NewObject<UWorldPartitionRuntimeHash>(WorldPartition, RuntimeHashClass);
+
+	WorldPartition->EditorHash->SetDefaultValues();
+	WorldPartition->RuntimeHash->SetDefaultValues();
+	WorldPartition->DefaultHLODLayer = nullptr;
+
+	WorldPartition->GetWorld()->PersistentLevel->bIsPartitioned = true;
+
+	return WorldPartition;
+}
+
 void UWorldPartition::RegisterDelegates()
 {
 	Super::RegisterDelegates();

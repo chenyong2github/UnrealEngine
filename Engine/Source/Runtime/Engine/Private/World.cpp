@@ -1837,6 +1837,18 @@ void UWorld::InitializeNewWorld(const InitializationValues IVS, bool bInSkipInit
 	check(GetWorldSettings());
 #if WITH_EDITOR
 	WorldSettings->SetIsTemporarilyHiddenInEditor(true);
+
+	// Check if newly created world should be partitioned
+	if (IVS.bCreateWorldPartition)
+	{
+		PersistentLevel->ConvertAllActorsToPackaging(true);
+		PersistentLevel->bUseExternalActors = true;
+		
+		check(!GetStreamingLevels().Num());
+
+		
+		UWorldPartition::CreateWorldPartition(WorldSettings);
+	}
 #endif
 
 #if INCLUDE_CHAOS

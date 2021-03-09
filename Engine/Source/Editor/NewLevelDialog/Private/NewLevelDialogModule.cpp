@@ -95,9 +95,6 @@ public:
 		/** A pointer to the parent window */
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
 		SLATE_ATTRIBUTE(TArray<FTemplateMapInfo>, Templates)
-		SLATE_ATTRIBUTE(bool, bExternalActors)
-		SLATE_ATTRIBUTE(bool, bPartitionedWorld)
-
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs)
@@ -106,8 +103,6 @@ public:
 
 		OutTemplateMapPackageName = TEXT("");
 		bUserClickedOkay = false;
-		bExternalActors = false;
-		bPartitionedWorld = false;
 
 		const TArray<FTemplateMapInfo>& TemplateInfoList = InArgs._Templates.Get();
 
@@ -129,9 +124,6 @@ public:
 			.ContentPadding(FMargin(10,3))
 			.Text(LOCTEXT("Cancel", "Cancel"))
 			.OnClicked(this, &SNewLevelDialog::OnCancelClicked);
-
-		const bool bExternalActorsEnabled = InArgs._bExternalActors.Get();
-		const bool bPartitionedWorldEnabled = InArgs._bPartitionedWorld.Get();
 
 		this->ChildSlot
 		[
@@ -175,8 +167,6 @@ public:
 
 	FString GetChosenTemplate() const { return OutTemplateMapPackageName; }
 	bool IsTemplateChosen() const { return bUserClickedOkay; }
-	bool GetExternalActors() const { return bExternalActors; }
-	bool GetPartitionedWorld() const { return bPartitionedWorld; }
 
 private:
 	void AddItemsToWrapBox()
@@ -326,13 +316,13 @@ void FNewLevelDialogModule::ShutdownModule()
 {
 }
 
-bool FNewLevelDialogModule::CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName, FNewLevelOptions* InOutNewLevelOptions )
+bool FNewLevelDialogModule::CreateAndShowNewLevelDialog( const TSharedPtr<const SWidget> ParentWidget, FString& OutTemplateMapPackageName )
 {
 	TArray<FTemplateMapInfo> EmptyTemplates;
-	return CreateAndShowTemplateDialog(ParentWidget, LOCTEXT("WindowHeader", "New Level"), GUnrealEd ? GUnrealEd->TemplateMapInfos : EmptyTemplates, OutTemplateMapPackageName, InOutNewLevelOptions);
+	return CreateAndShowTemplateDialog(ParentWidget, LOCTEXT("WindowHeader", "New Level"), GUnrealEd ? GUnrealEd->TemplateMapInfos : EmptyTemplates, OutTemplateMapPackageName);
 }
 
-bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName, FNewLevelOptions* InOutNewLevelOptions )
+bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const SWidget> ParentWidget, const FText& Title, const TArray<FTemplateMapInfo>& Templates, FString& OutTemplateMapPackageName )
 {
 	
 	TSharedPtr<SWindow> NewLevelWindow =
@@ -346,20 +336,14 @@ bool FNewLevelDialogModule::CreateAndShowTemplateDialog( const TSharedPtr<const 
 	TSharedRef<SNewLevelDialog> NewLevelDialog =
 		SNew(SNewLevelDialog)
 		.ParentWindow(NewLevelWindow)
-		.Templates(Templates)
-		.bExternalActors(InOutNewLevelOptions ? InOutNewLevelOptions->bExternalActors : false)
-		.bPartitionedWorld(InOutNewLevelOptions ? InOutNewLevelOptions->bPartitionedWorld : false);
+		.Templates(Templates);
 
 	NewLevelWindow->SetContent(NewLevelDialog);
 
 	FSlateApplication::Get().AddModalWindow(NewLevelWindow.ToSharedRef(), ParentWidget);
 
 	OutTemplateMapPackageName = NewLevelDialog->GetChosenTemplate();
-	if (InOutNewLevelOptions)
-	{
-		InOutNewLevelOptions->bExternalActors = NewLevelDialog->GetExternalActors();
-		InOutNewLevelOptions->bPartitionedWorld = NewLevelDialog->GetPartitionedWorld();
-	}
+	
 	return NewLevelDialog->IsTemplateChosen();
 }
 

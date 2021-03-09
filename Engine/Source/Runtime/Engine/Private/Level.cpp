@@ -2376,17 +2376,35 @@ TArray<UPackage*> ULevel::GetLoadedExternalActorPackages() const
 FString ULevel::GetExternalActorsPath(const FString& InLevelPackageName, const FString& InPackageShortName)
 {
 	// Strip the temp prefix if found
-	FString LevelPackageName = InLevelPackageName;
-	if (LevelPackageName.StartsWith(TEXT("/Temp")))
+	FString ExternalActorsPath;
+	
+	auto TrySplitLongPackageName = [&InPackageShortName](const FString& InLevelPackageName, FString& OutExternalActorsPath)
 	{
-		LevelPackageName = LevelPackageName.Mid(5);
+		FString MountPoint, PackagePath, ShortName;
+		if (FPackageName::SplitLongPackageName(InLevelPackageName, MountPoint, PackagePath, ShortName))
+		{
+			OutExternalActorsPath = FString::Printf(TEXT("%s__ExternalActors__/%s%s"), *MountPoint, *PackagePath, InPackageShortName.IsEmpty() ? *ShortName : *InPackageShortName);
+			return true;
+		}
+		return false;
+	};
+	
+	// This if exists only to support the Fortnite Foundation level streaming which prefix a valid package with /Temp (/Temp/Game/...)
+	// Unsaved worlds also have a /Temp prefix but no other mount point in their paths and they should fallback to not stripping the prefix. (first call to SplitLongPackageName will fail and second will succeed)
+	if (InLevelPackageName.StartsWith(TEXT("/Temp")))
+	{
+		FString BaseLevelPackageName = InLevelPackageName.Mid(5);
+		if (TrySplitLongPackageName(BaseLevelPackageName, ExternalActorsPath))
+		{
+			return ExternalActorsPath;
+		}
 	}
 
-	FString MountPoint, PackagePath, ShortName;
-	if (FPackageName::SplitLongPackageName(LevelPackageName, MountPoint, PackagePath, ShortName))
+	if (TrySplitLongPackageName(InLevelPackageName, ExternalActorsPath))
 	{
-		return FString::Printf(TEXT("%s__ExternalActors__/%s%s"), *MountPoint, *PackagePath, InPackageShortName.IsEmpty() ? *ShortName : *InPackageShortName);
+		return ExternalActorsPath;
 	}
+
 	return FString();
 }
 

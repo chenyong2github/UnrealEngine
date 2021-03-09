@@ -280,8 +280,16 @@ public:
 	 */
 	static UNREALED_API bool SaveLevel(ULevel* Level, const FString& DefaultFilename = TEXT( "" ), FString* OutSavedFilename = nullptr );
 
-	/** Saves packages which contain map data but are not map packages themselves. */
-	static UNREALED_API void SaveMapDataPackages(UWorld* World, bool bCheckDirty, bool bSaveExternal = false);
+	/** 
+	 * Saves packages which contain map data but are not map packages themselves. 
+	 * 
+	 * @param	World				The world map data packages to be saved.
+	 * @param	bCheckDirty			If true, only packages that are dirty will be saved.
+	 * @param	bSaveExternal		If true, save external actor packages.
+	 * 
+	 * @return				true if the data packages were saved.
+	 */
+	static UNREALED_API bool SaveMapDataPackages(UWorld* World, bool bCheckDirty, bool bSaveExternal = false);
 
 	/**
 	 * Does a SaveAs for the specified assets.

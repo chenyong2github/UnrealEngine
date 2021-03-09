@@ -7,6 +7,7 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/Images/SImage.h"
 #include "EditorStyleSet.h"
+#include "WorldPartition/IWorldPartitionEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "WorldPartitionEditor"
 
@@ -22,6 +23,9 @@ void SWorldPartitionEditor::Construct(const FArguments& InArgs)
 
 	FWorldBrowserModule& WorldBrowserModule = FModuleManager::LoadModuleChecked<FWorldBrowserModule>("WorldBrowser");
 	WorldBrowserModule.OnBrowseWorld.AddSP(this, &SWorldPartitionEditor::OnBrowseWorld);
+
+	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+	WorldPartitionEditorModule.OnWorldPartitionCreated().AddSP(this, &SWorldPartitionEditor::OnBrowseWorld);
 }
 
 SWorldPartitionEditor::~SWorldPartitionEditor()
@@ -29,6 +33,9 @@ SWorldPartitionEditor::~SWorldPartitionEditor()
 	FWorldBrowserModule& WorldBrowserModule = FModuleManager::GetModuleChecked<FWorldBrowserModule>("WorldBrowser");
 	WorldBrowserModule.OnBrowseWorld.RemoveAll(this);
 	
+	IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+	WorldPartitionEditorModule.OnWorldPartitionCreated().RemoveAll(this);
+
 	if (World)
 	{
 		if (UWorldPartition* WorldPartition = World->GetWorldPartition())

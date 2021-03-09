@@ -70,6 +70,8 @@
 #include "AnalyticsEventAttribute.h"
 #include "HierarchicalLOD.h"
 #include "WorldPartition/IWorldPartitionEditorModule.h"
+#include "WorldPartition/WorldPartition.h"
+#include "PackageSourceControlHelper.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogFileHelpers, Log, All);
 
@@ -711,7 +713,7 @@ static bool SaveWorld(UWorld* World,
 				if (!DuplicatedWorld)
 				{
 					// Duplicate failed or not needed. Just do a rename.
-					Package->Rename(*NewPackageName, NULL, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+					Package->Rename(*NewPackageName, NULL, REN_NonTransactional | REN_DontCreateRedirectors);
 					
 					if (bWorldNeedsRename)
 					{
@@ -728,7 +730,7 @@ static bool SaveWorld(UWorld* World,
 							}
 						}
 
-						World->Rename(*NewWorldAssetName, NULL, REN_NonTransactional | REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+						World->Rename(*NewWorldAssetName, NULL, REN_NonTransactional | REN_DontCreateRedirectors);
 					}
 
 					// We're changing the world path, add a path redirector so that soft object paths get fixed on save
@@ -754,11 +756,63 @@ static bool SaveWorld(UWorld* World,
 			SaveErrors.Flush();
 		}
 
+		UWorld* SaveWorld = DuplicatedWorld ? DuplicatedWorld : World;
+
+		if (bSuccess && bPackageNeedsRename)
+		{
+			// Delete External Actors if we are saving over an existing map
+			if (bPackageNeedsRename)
+			{
+				FPackageSourceControlHelper PackageHelper;
+				const FString ExternalActorsPath = ULevel::GetExternalActorsPath(NewPackageName);
+				FString ExternalActorsFilePath = FPackageName::LongPackageNameToFilename(ExternalActorsPath);
+				if (IFileManager::Get().DirectoryExists(*ExternalActorsFilePath))
+				{
+					bSuccess = IFileManager::Get().IterateDirectoryRecursively(*ExternalActorsFilePath, [&PackageHelper](const TCHAR* FilenameOrDirectory, bool bIsDirectory)
+						{
+							if (!bIsDirectory)
+							{
+								FString Filename(FilenameOrDirectory);
+								if (Filename.EndsWith(FPackageName::GetAssetPackageExtension()))
+								{
+									// If Delete fails it will return false and Directory Iteration will be stopped
+									return PackageHelper.Delete(Filename);
+								}
+							}
+							// Continue Directory Iteration
+							return true;
+						});
+
+					if (!bSuccess)
+					{
+						FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "FailedToDeleteExistingExternalActors", "Failed to delete existing map external actors."));
+					}
+				}
+			}
+		}
+
 		// @todo Autosaving should save build data as well
 		if (bSuccess && !bAutosaving)
 		{
 			// Also save MapBuildData packages when saving the current level and save external packages if the world was duplicated
-			FEditorFileUtils::SaveMapDataPackages(DuplicatedWorld ? DuplicatedWorld : World, bCheckDirty || bPIESaving, DuplicatedWorld != nullptr);
+			bCheckDirty = bCheckDirty || bPIESaving;
+			const bool bSaveExternal = DuplicatedWorld != nullptr || bPackageNeedsRename;
+			if (!FEditorFileUtils::SaveMapDataPackages(SaveWorld, bCheckDirty, bSaveExternal))
+			{
+				FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "Error_FailedToSaveExternalActorPackages", "Failed to save map data packages"));
+				bSuccess = false;
+			}
+		}
+
+		// Package was renamed if the world was partitioned the world partition needs to be reinitialized
+		if (bSuccess && bPackageNeedsRename)
+		{			
+			if (UWorldPartition* WorldPartition = SaveWorld->GetWorldPartition())
+			{
+				FTransform InstanceTransform = WorldPartition->GetInstanceTransform();
+				WorldPartition->Uninitialize();
+				WorldPartition->Initialize(SaveWorld, InstanceTransform);
+			}
 		}
 
 		SlowTask.EnterProgressFrame(25);
@@ -2635,6 +2689,53 @@ bool FEditorFileUtils::LoadMap(const FString& InFilename, bool LoadAsTemplate, b
 		NotifyBSPNeedsRebuild(LongMapPackageName);
 	}
 
+	// When loading world as template make sure it creates a world partition if needed
+	if (LoadAsTemplate)
+	{
+		IWorldPartitionEditorModule& WorldPartitionEditorModule = FModuleManager::LoadModuleChecked<IWorldPartitionEditorModule>("WorldPartitionEditor");
+		bool bInitializeWorldPartition = WorldPartitionEditorModule.IsWorldPartitionEnabled();
+		if (bInitializeWorldPartition)
+		{
+			if (World->GetStreamingLevels().Num())
+			{
+				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' contains streaming levels so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
+				bInitializeWorldPartition = false;
+			}
+			else if (World->WorldComposition)
+			{
+				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' is using world composition so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
+				bInitializeWorldPartition = false;
+			}
+			else if (World->PersistentLevel->bUseExternalActors)
+			{
+				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' contains external actors so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
+				bInitializeWorldPartition = false;
+			}
+			else if (World->PersistentLevel->bIsPartitioned)
+			{
+				UE_LOG(LogFileHelpers, Log, TEXT("The provided template '%s' is already partitioned so it can't be converted to world partition"), *FPaths::GetBaseFilename(Filename));
+				bInitializeWorldPartition = false;
+			}
+
+			if (bInitializeWorldPartition)
+			{
+				World->PersistentLevel->ConvertAllActorsToPackaging(true);
+				World->PersistentLevel->bUseExternalActors = true;
+
+				check(World->PersistentLevel->bUseExternalActors);
+				check(!World->GetStreamingLevels().Num());
+
+				AWorldSettings* WorldSettings = World->GetWorldSettings();
+				check(WorldSettings);
+
+				UWorldPartition::CreateWorldPartition(WorldSettings);
+				World->ReinitializeSubSystems();
+
+				WorldPartitionEditorModule.OnWorldPartitionCreated().Broadcast(World);
+			}
+		}
+	}
+
 	// Fire delegate when a new map is opened, with name of map
 	FEditorDelegates::OnMapOpened.Broadcast(InFilename, LoadAsTemplate);
 
@@ -3386,7 +3487,7 @@ static bool InternalSavePackages(const TArray<UPackage*>& PackagesToSave, bool b
 	return bReturnCode;
 }
 
-void FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty, bool bSaveExternal)
+bool FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty, bool bSaveExternal)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FEditorFileUtils_SaveMapDataPackages);
 
@@ -3415,8 +3516,10 @@ void FEditorFileUtils::SaveMapDataPackages(UWorld* WorldToSave, bool bCheckDirty
 			
 	if (PackagesToSave.Num() > 0)
 	{
-		FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, false, nullptr, false, false);
+		return UEditorLoadingAndSavingUtils::SavePackages(PackagesToSave, bCheckDirty);
 	}
+
+	return true;
 }
 
 /**
@@ -3626,6 +3729,10 @@ bool FEditorFileUtils::SaveCurrentLevel()
 				if (bCheckDirty && !Package->IsDirty() && !UPackage::IsEmptyPackage(Package))
 				{
 					It.RemoveCurrent();
+				} // Remove package unsaved packages located in /Temp (they should be saved with the level's first save)
+				else if (!FPackageName::IsValidLongPackageName(Package->GetName()))
+				{
+					It.RemoveCurrent(); 
 				}
 			}
 			bReturnCode &= InternalSavePackages(PackagesToSave, false, false, false);
@@ -4351,6 +4458,8 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 							}, false);
 						}
 
+						// Filter out Actors that might be unsaved (/Temp folder)
+						bActorPackageNeedsToSave &= FPackageName::IsValidLongPackageName(ExternalPackage->GetName());
 						if (bActorPackageNeedsToSave)
 						{
 							OutDirtyPackages.Add(ExternalPackage);

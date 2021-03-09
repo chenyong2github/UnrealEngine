@@ -699,6 +699,7 @@ public:
 
 	/** Determine whether the level can be saved at this moment */
 	static bool CanSaveWorld();
+	static bool CanSaveUnpartitionedWorld();
 
 	/** Save the current level as... */
 	static void SaveCurrentAs();
