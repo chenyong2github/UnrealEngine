@@ -426,6 +426,7 @@ namespace UnrealBuildTool
 					UEBuildPlatform BuildPlatform = UEBuildPlatform.GetBuildPlatform(TargetDescriptor.Platform);
 					BuildConfiguration.bAllowXGE &= BuildPlatform.CanUseXGE();
 					BuildConfiguration.bAllowDistcc &= BuildPlatform.CanUseDistcc();
+					BuildConfiguration.bAllowFASTBuild &= BuildPlatform.CanUseFASTBuild();
 					BuildConfiguration.bAllowSNDBS &= BuildPlatform.CanUseSNDBS();
 				}
 

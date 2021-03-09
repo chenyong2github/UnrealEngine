@@ -516,6 +516,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// If this platform can be compiled with FASTBuild
+		/// </summary>
+		public virtual bool CanUseFASTBuild()
+		{
+			return false;
+		}
+
+		/// <summary>
 		/// If this platform can be compiled with SN-DBS
 		/// </summary>
 		public virtual bool CanUseSNDBS()

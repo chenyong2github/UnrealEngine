@@ -1940,6 +1940,14 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// If this platform can be compiled with FASTBuild
+		/// </summary>
+		public override bool CanUseFASTBuild()
+		{
+			return true;
+		}
+
+		/// <summary>
 		/// Determines if the given name is a build product for a target.
 		/// </summary>
 		/// <param name="FileName">The name to check</param>
