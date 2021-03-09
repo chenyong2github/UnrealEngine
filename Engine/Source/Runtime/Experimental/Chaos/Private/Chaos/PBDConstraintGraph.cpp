@@ -245,6 +245,7 @@ void FPBDConstraintGraph::AddConstraint(const uint32 InContainerId, FConstraintH
 	// Must have at least one constrained particle
 	check((ConstrainedParticles[0]) || (ConstrainedParticles[1]));
 
+	// todo(chaos) : we shoudl probably have a list of indices of removed edges, so we can reuse them instead of adding to the end ( see RemoveConstraint logic )
 	const int32 NewEdgeIndex = Edges.Num();
 	FGraphEdge NewEdge;
 	NewEdge.Data = { InContainerId, InConstraintHandle };
@@ -290,25 +291,51 @@ void FPBDConstraintGraph::RemoveConstraint(const uint32 InContainerId, FConstrai
 	int32* PNodeIndex1 = (ConstrainedParticles[1]) ? ParticleToNodeIndex.Find(ConstrainedParticles[1]) : nullptr;
 	if (ensure(PNodeIndex0 || PNodeIndex1) )
 	{
-		if ( InContainerId < (uint32)Edges.Num() )
+		// we need to find the edge index that matches this constraint
+		// we could go through the entire edge list and find the matching InContainerId, 
+		// but each node has an edge array that will contain it 
+		int32 EdgeIndex = INDEX_NONE;
+		if (PNodeIndex0)
+		{
+			EdgeIndex = GetConstraintIndexFromNodeAndConstraintHandle(Nodes[*PNodeIndex0], InConstraintHandle);
+		}
+		if (PNodeIndex1 && EdgeIndex == INDEX_NONE)
+		{
+			EdgeIndex = GetConstraintIndexFromNodeAndConstraintHandle(Nodes[*PNodeIndex1], InConstraintHandle);
+		}
+		// we should have an valid index at this point
+		if (EdgeIndex != INDEX_NONE)
 		{
 			int32 Index0 = INDEX_NONE, Index1 = INDEX_NONE;
-			if (PNodeIndex0) 
+			if (PNodeIndex0)
 			{
-				Nodes[*PNodeIndex0].Edges.Remove(InContainerId);
+				Nodes[*PNodeIndex0].Edges.Remove(EdgeIndex);
 				Index0 = *PNodeIndex0;
 			}
 			if (PNodeIndex1)
 			{
-				Nodes[*PNodeIndex1].Edges.Remove(InContainerId);
+				Nodes[*PNodeIndex1].Edges.Remove(EdgeIndex);
 				Index1 = *PNodeIndex1;
 			}
-			if (Edges[InContainerId].FirstNode == Index0 && Edges[InContainerId].SecondNode == Index1)
+			if (Edges[EdgeIndex].FirstNode == Index0 && Edges[EdgeIndex].SecondNode == Index1)
 			{
-				Edges[InContainerId] = FGraphEdge();
+				Edges[EdgeIndex] = FGraphEdge();
 			}
 		}
 	}
+}
+
+int32 FPBDConstraintGraph::GetConstraintIndexFromNodeAndConstraintHandle(const FGraphNode& Node, const FConstraintHandle* ConstraintHandle)
+{
+	for (const int32 NodeEdgeIndex : Node.Edges)
+	{
+		const FConstraintData& EdgeData = Edges[NodeEdgeIndex].Data;
+		if (EdgeData.GetConstraintHandle() == ConstraintHandle)
+		{
+			return NodeEdgeIndex;
+		}
+	}
+	return INDEX_NONE;
 }
 
 const typename FPBDConstraintGraph::FConstraintData& FPBDConstraintGraph::GetConstraintData(int32 ConstraintDataIndex) const
@@ -366,6 +393,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 
 	for (auto& Particle : PBDRigids)
 	{
+		ensure(!Particle.Disabled());
 		auto* ParticleHandle = Particle.Handle();
 		int32 Idx = ParticleToNodeIndex[ParticleHandle];  // ryan - FAILS!
 		// selective reset of islands, don't reset if has been visited due to being edge connected to earlier processed node
@@ -614,17 +642,16 @@ bool FPBDConstraintGraph::ComputeIsland(const int32 InNode, const int32 Island, 
 		FPBDRigidParticleHandle* RigidHandle = Node.Particle->CastToRigidParticle();
 		const bool isRigidDynamic = RigidHandle && RigidHandle->ObjectState() != EObjectStateType::Kinematic;  //??
 
+		if (RigidHandle && RigidHandle->Disabled())
+		{
+			continue;
+		}
+
 		ParticlesInIsland.Add(Node.Particle);
 		if (isRigidDynamic == false)
 		{
 			continue;
 		}
-
-		// @todo(ccaulfield): we don't handle enable/disable properly so this breaks
-		//if (RigidHandle->Disabled())
-		//{
-		//	continue;
-		//}
 
 		Node.Island = Island;
 		Visited[NodeIndex] = VisitToken;

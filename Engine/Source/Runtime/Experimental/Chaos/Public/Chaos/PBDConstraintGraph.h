@@ -237,6 +237,8 @@ namespace Chaos
 		int32 GetNextNodeIndex();
 		const TArray<int32>& GetUpdatedNodes() const { return UpdatedNodes; }
 
+		int32 GetConstraintIndexFromNodeAndConstraintHandle(const FGraphNode& Node, const FConstraintHandle* ConstraintHandle);
+
 		TArray<FGraphNode> Nodes;
 		TArray<FGraphEdge> Edges;
 		TArray<FIslandData> IslandToData;

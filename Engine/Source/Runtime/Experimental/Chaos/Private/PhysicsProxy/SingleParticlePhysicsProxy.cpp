@@ -122,7 +122,6 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 						Evolution.EnableParticle(Handle, nullptr);
 					}
 				}
-				Evolution.SetParticleObjectState(RigidHandle, NewData->ObjectState());
 
 				RigidHandle->SetDynamicMisc(*NewData);
 

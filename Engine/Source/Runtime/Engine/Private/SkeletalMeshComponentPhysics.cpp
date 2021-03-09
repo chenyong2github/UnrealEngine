@@ -1095,9 +1095,15 @@ void USkeletalMeshComponent::SetAllBodiesNotifyRigidBodyCollision(bool bNewNotif
 
 void USkeletalMeshComponent::SetAllBodiesBelowPhysicsDisabled(const FName& InBoneName, bool bDisabled, bool bIncludeSelf)
 {
-	int32 NumBodiesFound = ForEachBodyBelow(InBoneName, bIncludeSelf, /*bSkipCustomPhysicsType=*/ false, [bDisabled](FBodyInstance* BI)
+	int32 NumBodiesFound = ForEachBodyBelow(InBoneName, bIncludeSelf, /*bSkipCustomPhysicsType=*/ false, [bDisabled, this](FBodyInstance* BI)
 	{
 		BI->SetPhysicsDisabled(bDisabled);
+		if (bDisabled == false)
+		{
+			FTransform BoneTransform(GetBoneMatrix(BI->InstanceBoneIndex));
+			// if we re-enable it, let's make sure the body transform is up to date 
+			BI->SetBodyTransform(BoneTransform, ETeleportType::TeleportPhysics, true);
+		}
 	});
 }
 

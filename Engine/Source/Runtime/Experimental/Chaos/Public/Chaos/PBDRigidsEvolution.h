@@ -320,6 +320,8 @@ public:
 	{
 		Particles.EnableParticle(Particle);
 		ConstraintGraph.EnableParticle(Particle, ParentParticle);
+		// enable constraint after disabling the particle in the graph because of dependencies 
+		AddConstraintsToConstraintGraph(Particle->ParticleConstraints());
 		DirtyParticle(*Particle);
 	}
 
@@ -327,8 +329,8 @@ public:
 	{
 		RemoveParticleFromAccelerationStructure(*Particle);
 		Particles.DisableParticle(Particle);
-		// disable constraint before particles has particles need to be in the constraint graph for constraints to be removed
-		DisableConstraints(TSet<FGeometryParticleHandle*>({ Particle }));
+		// disable constraint before disabling the particle in the graph because of dependencies 
+		RemoveConstraintsFromConstraintGraph(Particle->ParticleConstraints());
 		ConstraintGraph.DisableParticle(Particle);
 	}
 
@@ -340,9 +342,13 @@ public:
 		{
 			RemoveParticleFromAccelerationStructure(*Particle);
 			Particles.DisableParticle(Particle);
+			RemoveConstraintsFromConstraintGraph(Particle->ParticleConstraints());
+		}
+		// make sure we do this has a second loop to make sure constraints have valid particles when removed from the constraint graph in the first loop
+		for (FGeometryParticleHandle* Particle : ParticlesIn)
+		{
 			ConstraintGraph.DisableParticle(Particle);
 		}
-		DisableConstraints(ParticlesIn);
 	}
 
 	template <bool bPersistent>
@@ -422,7 +428,7 @@ public:
 		Particle->SetObjectStateLowLevel(ObjectState);
 		Particles.SetDynamicParticleSOA(Particle);
 
-		if (InitialState == EObjectStateType::Sleeping && InitialState != ObjectState)
+		if (InitialState == EObjectStateType::Sleeping && InitialState != ObjectState && !Particle->Disabled())
 		{
 			if (Particle->Island() != INDEX_NONE)
 			{
@@ -472,19 +478,39 @@ public:
 		}*/
 	}
 
+	/** remove a list of constraints from the constraint graph (see AddConstraintsToConstraintGraph) */
+	CHAOS_API void RemoveConstraintsFromConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
+	{
+		for (FConstraintHandle* BaseConstraintHandle : Constraints)
+		{
+			if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
+			{
+				ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+			}
+		}
+	}
+
+	/** Add a list of constraints to the constraint graph (see RemoveConstraintsFromConstraintGraph) */
+	CHAOS_API void AddConstraintsToConstraintGraph(const TArray<FConstraintHandle*>& Constraints)
+	{
+		for (FConstraintHandle* BaseConstraintHandle : Constraints)
+		{
+			if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
+			{
+				ConstraintGraph.AddConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
+			}
+		}
+	}
+
+	/** Disable constraints from a set of particles to be removed (or destroyed) 
+	* this will set the constraints to Enbaled = false and set their respective bodies handles to nullptr
+	*/
 	CHAOS_API void DisableConstraints(const TSet<FGeometryParticleHandle*>& RemovedParticles)
 	{
 		for (FGeometryParticleHandle* ParticleHandle : RemovedParticles)
 		{
-			for (FConstraintHandle* BaseConstraintHandle : ParticleHandle->ParticleConstraints())
-			{
-				if (FPBDJointConstraintHandle* ConstraintHandle = BaseConstraintHandle->As<FPBDJointConstraintHandle>())
-				{
-					ConstraintGraph.RemoveConstraint(ConstraintHandle->GetConstraintIndex(), ConstraintHandle, ConstraintHandle->GetConstrainedParticles());
-				}
-			}
+			RemoveConstraintsFromConstraintGraph(ParticleHandle->ParticleConstraints());
 		}
-
 
 		for (FPBDConstraintGraphRule* ConstraintRule : ConstraintRules)
 		{

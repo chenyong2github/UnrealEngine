@@ -117,7 +117,7 @@ namespace Chaos
 		void RemoveConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles) {}
 
 		/*
-		* Disable the constraints attached to the input particles. 
+		* Disable the constraints attached to the input particles. This will set the constrained Particle elements to nullptr and set the Enable flag to false
 		*/
 		void DisableConstraints(const TSet<TGeometryParticleHandle<FReal, 3>*>& RemovedParticles);
 
@@ -241,6 +241,8 @@ namespace Chaos
 		void SortConstraints();
 		void BatchConstraints();
 		void CheckBatches();
+
+		bool CanEvaluate(const int32 ConstraintIndex) const;
 
 		bool ApplyBatch(const FReal Dt, const int32 BatchIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);
 		bool ApplySingle(const FReal Dt, const int32 ConstraintIndex, const int32 NumPairIts, const int32 It, const int32 NumIts);

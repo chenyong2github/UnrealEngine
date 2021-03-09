@@ -287,7 +287,7 @@ public:
 			}
 			else
 			{
-				Particle->MoveToSOA(*DynamicDisabledParticles);
+				SetDynamicParticleSOA(PBDRigid);
 			}
 
 			// All active particles RIGID particles
@@ -474,33 +474,39 @@ public:
 	{
 		const EObjectStateType State = Particle->ObjectState();
 
-
-		if (Particle->ObjectState() != EObjectStateType::Dynamic)
+		if (Particle->Disabled())
 		{
+			Particle->MoveToSOA(*DynamicDisabledParticles);
 			RemoveFromMapAndArray(Particle->CastToRigidParticle(), ActiveParticlesToIndex, ActiveParticlesArray);
 		}
 		else
 		{
-			InsertToMapAndArray(Particle->CastToRigidParticle(), ActiveParticlesToIndex, ActiveParticlesArray);
+			if (Particle->ObjectState() != EObjectStateType::Dynamic)
+			{
+				RemoveFromMapAndArray(Particle->CastToRigidParticle(), ActiveParticlesToIndex, ActiveParticlesArray);
+			}
+			else
+			{
+				InsertToMapAndArray(Particle->CastToRigidParticle(), ActiveParticlesToIndex, ActiveParticlesArray);
+			}
+
+			// Move to appropriate dynamic SOA
+			switch (State)
+			{
+			case EObjectStateType::Kinematic:
+				Particle->MoveToSOA(*DynamicKinematicParticles);
+				break;
+
+			case EObjectStateType::Dynamic:
+				Particle->MoveToSOA(*DynamicParticles);
+				break;
+
+			default:
+				// TODO: Special SOAs for sleeping and static particles?
+				Particle->MoveToSOA(*DynamicParticles);
+				break;
+			}
 		}
-
-		// Move to appropriate dynamic SOA
-		switch (State)
-		{
-		case EObjectStateType::Kinematic:
-			Particle->MoveToSOA(*DynamicKinematicParticles);
-			break;
-
-		case EObjectStateType::Dynamic:
-			Particle->MoveToSOA(*DynamicParticles);
-			break;
-
-		default:
-			// TODO: Special SOAs for sleeping and static particles?
-			Particle->MoveToSOA(*DynamicParticles);
-			break;
-		}
-
 		UpdateViews();
 	}
 
