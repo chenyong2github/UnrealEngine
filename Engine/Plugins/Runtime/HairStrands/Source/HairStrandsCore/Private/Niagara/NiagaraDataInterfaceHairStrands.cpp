@@ -798,6 +798,30 @@ void FNDIHairStrandsProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher*
 
 //------------------------------------------------------------------------------------------------------------
 
+FORCEINLINE bool RequiresSimulationReset(FNiagaraSystemInstance* SystemInstance, uint32& OldSkeletalMeshes)
+{
+	uint32 NewSkeletalMeshes = 0;
+	if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
+	{
+		if (AActor* RootActor = AttachComponent->GetAttachmentRootActor())
+		{
+			for (UActorComponent* ActorComp : RootActor->GetComponents())
+			{
+				USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(ActorComp);
+				if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
+				{
+					NewSkeletalMeshes += GetTypeHash(SkelMeshComp->SkeletalMesh->GetName());
+				}
+			}
+		}
+	}
+	bool bNeedReset = NewSkeletalMeshes != OldSkeletalMeshes;
+	OldSkeletalMeshes = NewSkeletalMeshes;
+	return bNeedReset;
+}
+
+//------------------------------------------------------------------------------------------------------------
+
 UNiagaraDataInterfaceHairStrands::UNiagaraDataInterfaceHairStrands(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, DefaultSource(nullptr)
@@ -976,11 +1000,12 @@ bool UNiagaraDataInterfaceHairStrands::PerInstanceTick(void* PerInstanceData, FN
 
 	if (SourceComponent != nullptr)
 	{
-		if (SourceComponent->bResetSimulation)
+		const bool bRequiresReset = SourceComponent->bResetSimulation || RequiresSimulationReset(SystemInstance, InstanceData->SkeletalMeshes);
+		if (bRequiresReset)
 		{
 			InstanceData->TickCount = 0;
 		}
-		InstanceData->ForceReset = SourceComponent->bResetSimulation;
+		InstanceData->ForceReset = bRequiresReset;
 	}
 	InstanceData->Update(this, SystemInstance, StrandsDatas, GroomAsset, GroupIndex);
 	return false;
