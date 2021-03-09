@@ -91,7 +91,7 @@ FString GetShadingModelString(EMaterialShadingModel ShadingModel)
 class FPipelinedShaderFilter
 {
 	TSet<const FShaderType*>	PipelinedShaderTypes;
-	bool						bAnyTypesExcluded;
+	bool						bAnyTypesExcluded = false;
 
 public:
 
