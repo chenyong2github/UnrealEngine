@@ -4263,7 +4263,6 @@ void FEngineLoop::Exit()
 	AppPreExit();
 
 	TermGamePhys();
-	ParticleVertexFactoryPool_FreePool();
 #else
 	// AppPreExit() stops malloc profiler, do it here instead
 	MALLOC_PROFILER( GMalloc->Exec(nullptr, TEXT("MPROF STOP"), *GLog);	);

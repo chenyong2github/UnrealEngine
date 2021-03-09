@@ -2726,12 +2726,18 @@ void FParticleSimulationGPU::InitResources(const TArray<uint32>& Tiles, FGPUSpri
 class FGPUSpriteCollectorResources : public FOneFrameResource
 {
 public:
-	FGPUSpriteVertexFactory *VertexFactory;
-	FGPUSpriteEmitterDynamicUniformBufferRef UniformBuffer;
-
-	~FGPUSpriteCollectorResources()
+	FGPUSpriteCollectorResources(ERHIFeatureLevel::Type InFeatureLevel)
+		: VertexFactory(InFeatureLevel)
 	{
 	}
+
+	virtual ~FGPUSpriteCollectorResources()
+	{
+		VertexFactory.ReleaseResource();
+	}
+
+	FGPUSpriteVertexFactory VertexFactory;
+	FGPUSpriteEmitterDynamicUniformBufferRef UniformBuffer;
 };
 
 // recycle memory blocks for the NewParticle array
@@ -2898,14 +2904,7 @@ public:
 	{		
 	}
 
-	virtual FParticleVertexFactoryBase *CreateVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const FParticleSystemSceneProxy *InOwnerProxy) override
-	{
-		FGPUSpriteVertexFactory *VertexFactory = new FGPUSpriteVertexFactory(InFeatureLevel);
-		VertexFactory->InitResource();
-		return VertexFactory;
-	}
-
-	virtual void GetDynamicMeshElementsEmitter(const FParticleSystemSceneProxy* Proxy, const FSceneView* View, const FSceneViewFamily& ViewFamily, int32 ViewIndex, FMeshElementCollector& Collector, FParticleVertexFactoryBase *InVertexFactory) const override
+	virtual void GetDynamicMeshElementsEmitter(const FParticleSystemSceneProxy* Proxy, const FSceneView* View, const FSceneViewFamily& ViewFamily, int32 ViewIndex, FMeshElementCollector& Collector) const override
 	{
 		auto FeatureLevel = ViewFamily.GetFeatureLevel();
 
@@ -2939,10 +2938,9 @@ public:
 
 				// Iterate over views and assign parameters for each.
 				FParticleSimulationResources* SimulationResources = FXSystem->GetParticleSimulationResources();
-				FGPUSpriteCollectorResources& CollectorResources = Collector.AllocateOneFrameResource<FGPUSpriteCollectorResources>();
-				//CollectorResources.VertexFactory.InitResource();
-				CollectorResources.VertexFactory = static_cast<FGPUSpriteVertexFactory*>(InVertexFactory);
-				FGPUSpriteVertexFactory& VertexFactory = *CollectorResources.VertexFactory;
+				FGPUSpriteCollectorResources& CollectorResources = Collector.AllocateOneFrameResource<FGPUSpriteCollectorResources>(FeatureLevel);
+				FGPUSpriteVertexFactory& VertexFactory = CollectorResources.VertexFactory;
+				VertexFactory.InitResource();
 
 				// Do here rather than in CreateRenderThreadResources because in some cases Render can be called before CreateRenderThreadResources
 				// Create per-emitter uniform buffer for dynamic parameters

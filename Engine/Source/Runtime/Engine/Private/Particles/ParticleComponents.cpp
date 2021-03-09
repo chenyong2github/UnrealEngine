@@ -5872,10 +5872,6 @@ void UParticleSystemComponent::SetTemplate(class UParticleSystem* NewTemplate)
 			Instance->CurrentLODLevelIndex = 0;
 		}
 	}
-	if (SceneProxy)
-	{
-		static_cast<FParticleSystemSceneProxy*>(SceneProxy)->MarkVertexFactoriesDirty();
-	}
 
 	if (ShouldBeTickManaged())
 	{
