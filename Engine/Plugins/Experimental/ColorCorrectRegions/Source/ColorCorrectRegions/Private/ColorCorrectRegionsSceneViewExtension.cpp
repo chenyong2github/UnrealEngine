@@ -80,7 +80,7 @@ namespace
 
 	void GetPixelSpaceBoundingRect(const FSceneView& InView, const FVector& InBoxCenter, const FVector& InBoxExtents, FIntRect& OutViewport, float& OutMaxDepth, float& OutMinDepth)
 	{
-		OutViewport = FIntRect(INT_MAX, INT_MAX, -INT_MAX, -INT_MAX);
+		OutViewport = FIntRect(INT32_MAX, INT32_MAX, -INT32_MAX, -INT32_MAX);
 		// 8 corners of the bounding box. To be multiplied by box extent and offset by the center.
 		const int NumCorners = 8;
 		const FVector Verts[NumCorners] = {
@@ -385,6 +385,13 @@ void FColorCorrectRegionsSceneViewExtension::PrePostProcessPass_RenderThread(FRD
 			else
 			{
 				GetPixelSpaceBoundingRect(View, BoxCenter, BoxExtents, Viewport, MaxDepth, MinDepth);
+
+				// Check if CCR is too small to be rendered (less than one pixel on the screen).
+				if (Viewport.Width() == 0 || Viewport.Height() == 0)
+				{
+					continue;
+				}
+
 				// This is to handle corner cases when user has a very long disproportionate region and gets either
 				// within bounds or close to the center.
 				float MaxBoxExtent = FMath::Abs(BoxExtents.GetMax());

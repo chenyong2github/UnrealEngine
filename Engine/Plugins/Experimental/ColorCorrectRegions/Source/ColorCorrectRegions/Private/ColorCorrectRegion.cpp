@@ -17,12 +17,19 @@ AColorCorrectRegion::AColorCorrectRegion(const FObjectInitializer& ObjectInitial
 	, Temperature(6500)
 	, Enabled(true)
 	, ExcludeStencil(false)
+	, ColorCorrectRegionsSubsystem(nullptr)
 {
+
 }
 
 void AColorCorrectRegion::BeginPlay()
 {	
-	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem = static_cast<UColorCorrectRegionsSubsystem*>(this->GetWorld()->GetSubsystemBase(UColorCorrectRegionsSubsystem::StaticClass()));
+	Super::BeginPlay();
+	if (this->GetWorld())
+	{
+		ColorCorrectRegionsSubsystem = Cast<UColorCorrectRegionsSubsystem>(this->GetWorld()->GetSubsystemBase(UColorCorrectRegionsSubsystem::StaticClass()));
+	}
+
 	if (ColorCorrectRegionsSubsystem)
 	{
 		ColorCorrectRegionsSubsystem->OnActorSpawned(this);
@@ -31,25 +38,28 @@ void AColorCorrectRegion::BeginPlay()
 
 void AColorCorrectRegion::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem = static_cast<UColorCorrectRegionsSubsystem*>(this->GetWorld()->GetSubsystemBase(UColorCorrectRegionsSubsystem::StaticClass()));
 	if (ColorCorrectRegionsSubsystem)
 	{
 		ColorCorrectRegionsSubsystem->OnActorDeleted(this);
+		ColorCorrectRegionsSubsystem = nullptr;
 	}
+	Super::EndPlay(EndPlayReason);
 }
 
 void AColorCorrectRegion::BeginDestroy()
 {
-	if (this->GetWorld())
+	if (ColorCorrectRegionsSubsystem)
 	{
-		UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem = static_cast<UColorCorrectRegionsSubsystem*>(this->GetWorld()->GetSubsystemBase(UColorCorrectRegionsSubsystem::StaticClass()));
-		if (ColorCorrectRegionsSubsystem)
-		{
-			ColorCorrectRegionsSubsystem->OnActorDeleted(this);
-		}
+		ColorCorrectRegionsSubsystem->OnActorDeleted(this);
+		ColorCorrectRegionsSubsystem = nullptr;
 	}
 	
 	Super::BeginDestroy();
+}
+
+void AColorCorrectRegion::Cleanup()
+{
+	ColorCorrectRegionsSubsystem = nullptr;
 }
 
 #if WITH_EDITOR
@@ -60,7 +70,6 @@ void AColorCorrectRegion::PostEditChangeProperty(struct FPropertyChangedEvent& P
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(AColorCorrectRegion, Priority))
 	{
-		UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem = static_cast<UColorCorrectRegionsSubsystem*>(this->GetWorld()->GetSubsystemBase(UColorCorrectRegionsSubsystem::StaticClass()));
 		if (ColorCorrectRegionsSubsystem)
 		{
 			ColorCorrectRegionsSubsystem->SortRegionsByPriority();

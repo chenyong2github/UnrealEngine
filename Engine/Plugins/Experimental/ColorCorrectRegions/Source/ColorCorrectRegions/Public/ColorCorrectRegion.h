@@ -9,6 +9,7 @@
 #include "ColorCorrectRegion.generated.h"
 
 
+class UColorCorrectRegionsSubsystem;
 
 UENUM(BlueprintType)
 enum class EColorCorrectRegionsType : uint8 
@@ -90,4 +91,13 @@ public:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 	virtual void BeginDestroy() override;
+
+	/** 
+	* We have to manage the lifetime of the region ourselves, because EndPlay is not guaranteed to be called 
+	* and BeginDestroy could be called from GC when it is too late.
+	*/
+	void Cleanup();
+
+private:
+	UColorCorrectRegionsSubsystem* ColorCorrectRegionsSubsystem;
 };

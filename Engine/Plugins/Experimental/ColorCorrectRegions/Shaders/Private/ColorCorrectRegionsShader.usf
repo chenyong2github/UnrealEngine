@@ -689,13 +689,17 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 	MaterialFloat3 FinalColor = BasicColorGrade;
 #if ADVANCED_CC	
 	{
+		#define HIGHLIGHT_INTERPOLATION_THRESHOLD_WIDTH 1.0
 		MaterialFloat3 Local3 = ComposureColorGradePerRange(BasicColorGrade, ExternalExpressions.ColorSaturationShadows, ExternalExpressions.ColorContrastShadows, ExternalExpressions.ColorGammaShadows, ExternalExpressions.ColorGainShadows, ExternalExpressions.ColorOffsetShadows);
 		MaterialFloat BasicColorGrade_Mul = dot(BasicColorGrade, MaterialFloat3(0.30000001,0.58999997,0.11000000));
-		MaterialFloat Local5 = smoothstep(0.00000000, ExternalExpressions.ShadowMax, BasicColorGrade_Mul);
+		// In the future we might want to add a threshold width to increase or reduce interpolation area between shadows and midtones.
+		MaterialFloat Local5 = smoothstep(0.0 /*ExternalExpressions.ShadowMax - SHADOW_INTERPOLATION_THRESHOLD_WIDTH*/, ExternalExpressions.ShadowMax, BasicColorGrade_Mul);
 		MaterialFloat Local6 = (1.00000000 - Local5);
 		MaterialFloat3 Local7 = (Local3 * Local6);
 		MaterialFloat3 Local8 = ComposureColorGradePerRange(BasicColorGrade,ExternalExpressions.ColorSaturationMidtones, ExternalExpressions.ColorContrastMidtones, ExternalExpressions.ColorGammaMidtones, ExternalExpressions.ColorGainMidtones, ExternalExpressions.ColorOffsetMidtones);
-		MaterialFloat Local9 = smoothstep(ExternalExpressions.HighlightsMin,1.00000000, BasicColorGrade_Mul);
+		// Interpolation threshold width specifies the upper bound for the soft interpolated area between midtones and highlights. 
+		// In the future we want to add control that allows user to control this width.
+		MaterialFloat Local9 = smoothstep(ExternalExpressions.HighlightsMin, ExternalExpressions.HighlightsMin + HIGHLIGHT_INTERPOLATION_THRESHOLD_WIDTH, BasicColorGrade_Mul);
 		MaterialFloat Local10 = (Local6 + Local9);
 		MaterialFloat Local11 = (1.00000000 - Local10);
 		MaterialFloat3 Local12 = (Local8 * Local11);

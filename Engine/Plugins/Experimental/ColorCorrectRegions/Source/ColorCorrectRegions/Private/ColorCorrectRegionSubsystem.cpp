@@ -35,6 +35,8 @@ void UColorCorrectRegionsSubsystem::Initialize(FSubsystemCollectionBase& Collect
 		GEditor->RegisterForUndo(this);
 	}
 #endif
+	// In some cases (like nDisplay nodes) EndPlay is not guaranteed to be called when level is removed.
+	GetWorld()->OnLevelsChanged().AddUObject(this, &UColorCorrectRegionsSubsystem::OnLevelActorListChanged);
 	// Initializing Scene view extension responsible for rendering regions.
 	PostProcessSceneViewExtension = FSceneViewExtensions::NewExtension<FColorCorrectRegionsSceneViewExtension>(this);
 }
@@ -50,6 +52,11 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 		GEditor->UnregisterForUndo(this);
 	}
 #endif
+	GetWorld()->OnLevelsChanged().RemoveAll(this);
+	for (AColorCorrectRegion* Region : Regions)
+	{
+		Region->Cleanup();
+	}
 	Regions.Reset();
 	PostProcessSceneViewExtension.Reset();
 	PostProcessSceneViewExtension = nullptr;
@@ -58,19 +65,25 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
 {
 	AColorCorrectRegion* AsRegion = Cast<AColorCorrectRegion>(InActor);
-
 	if (IsRegionValid(AsRegion, GetWorld()))
 	{
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
-		Regions.Add(AsRegion);
-		SortRegionsByPriority();
+
+		// We wouldn't have to do a check here except in case of nDisplay we need to populate this list during OnLevelsChanged 
+		// because nDisplay can release Actors while those are marked as BeginningPlay. Therefore we want to avoid 
+		// adding regions twice.
+		if (!Regions.Contains(AsRegion))
+		{
+			Regions.Add(AsRegion);
+			SortRegionsByPriority();
+		}
 	}
 }
 
 void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 {
 	AColorCorrectRegion* AsRegion = Cast<AColorCorrectRegion>(InActor);
-	if (IsRegionValid(AsRegion, GetWorld()))
+	if (AsRegion && !AsRegion->bIsEditorPreviewActor)
 	{
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 		Regions.Remove(AsRegion);
