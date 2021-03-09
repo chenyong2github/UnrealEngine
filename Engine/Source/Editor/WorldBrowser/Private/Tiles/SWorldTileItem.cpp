@@ -21,7 +21,7 @@
 //----------------------------------------------------------------
 int32 SWorldTileImage::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
-	const FSlateBrush* ImageBrush = Image.Get();
+	const FSlateBrush* ImageBrush = GetImageAttribute().Get();
 
 	if ((ImageBrush != nullptr) && (ImageBrush->DrawAs != ESlateBrushDrawType::NoDrawType))
 	{

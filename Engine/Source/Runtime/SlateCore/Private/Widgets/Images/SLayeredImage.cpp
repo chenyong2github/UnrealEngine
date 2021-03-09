@@ -7,14 +7,24 @@ void SLayeredImage::Construct(const FArguments& InArgs, const TArray<ImageLayer>
 {
 	SImage::Construct(InArgs);
 
-	Layers = InLayers;
+	Layers.Reserve(InLayers.Num());
+
+	for(const ImageLayer& Layer : InLayers)
+	{
+		AddLayer(Layer.Get<0>(), Layer.Get<1>());
+	}
 }
 
 void SLayeredImage::Construct(const SLayeredImage::FArguments& InArgs, TArray<ImageLayer>&& InLayers)
 {
-	SImage::Construct(InArgs);
+	Layers.Reserve(InLayers.Num());
 
-	Layers = MoveTemp(InLayers);
+	for(ImageLayer& Layer : InLayers)
+	{
+		BrushAttributeType TmpBrush = BrushAttributeType{ AsShared(), MoveTemp(Layer.Get<0>()), nullptr };
+		ColorAttributeType TmpColor = ColorAttributeType{ AsShared(), MoveTemp(Layer.Get<1>()), FLinearColor::White };
+		Layers.Emplace(MoveTemp(TmpBrush), MoveTemp(TmpColor));
+	}
 }
 
 void SLayeredImage::Construct(const FArguments& InArgs, TAttribute<const FSlateBrush*> Brush, TAttribute<FSlateColor> Color)
@@ -30,12 +40,12 @@ void SLayeredImage::Construct(const FArguments& InArgs, int32 NumLayers)
 
 	if (NumLayers > 0)
 	{
-		Layers.AddDefaulted(NumLayers);
-
-		// replace the default fuschia color with white
-		for (ImageLayer& Layer : Layers)
+		Layers.Reset(NumLayers);
+		for (int32 Index = 0; Index < NumLayers; ++Index)
 		{
-			Layer.Value.Set(FLinearColor::White);
+			BrushAttributeType TmpBrush = BrushAttributeType(AsShared(), nullptr);
+			ColorAttributeType TmpColor = ColorAttributeType(AsShared(), FLinearColor::White);
+			Layers.Emplace(MoveTemp(TmpBrush), MoveTemp(TmpColor));
 		}
 	}
 }
@@ -56,7 +66,7 @@ int32 SLayeredImage::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGe
 	const ESlateDrawEffect DrawEffects = bIsEnabled ? ESlateDrawEffect::None : ESlateDrawEffect::DisabledEffect;
 	
 	// draw rest of the images, we reuse the LayerId because images are assumed to note overlap:
-	for (const ImageLayer& Layer : Layers)
+	for (const InnerImageLayerType& Layer : Layers)
 	{
 		const FSlateBrush* LayerImageResolved = Layer.Key.Get();
 		if (LayerImageResolved && LayerImageResolved->DrawAs != ESlateBrushDrawType::NoDrawType)
@@ -69,9 +79,18 @@ int32 SLayeredImage::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGe
 	return LayerId;
 }
 
+void SLayeredImage::AddLayer(TAttribute<const FSlateBrush*> Brush)
+{
+	BrushAttributeType TmpBrush = BrushAttributeType(AsShared(), MoveTemp(Brush), nullptr);
+	ColorAttributeType TmpColor = ColorAttributeType(AsShared(), FLinearColor::White);
+	Layers.Emplace(MoveTemp(TmpBrush), MoveTemp(TmpColor));
+}
+
 void SLayeredImage::AddLayer(TAttribute<const FSlateBrush*> Brush, TAttribute<FSlateColor> Color)
 {
-	Layers.Emplace(MoveTemp(Brush), MoveTemp(Color));
+	BrushAttributeType TmpBrush = BrushAttributeType(AsShared(), MoveTemp(Brush), nullptr);
+	ColorAttributeType TmpColor = ColorAttributeType(AsShared(), MoveTemp(Color), FLinearColor::White);
+	Layers.Emplace(MoveTemp(TmpBrush), MoveTemp(TmpColor));
 }
 
 void SLayeredImage::SetFromSlateIcon(const FSlateIcon& InIcon)
@@ -102,12 +121,11 @@ bool SLayeredImage::IsValidIndex(int32 Index) const
 	// Index 0 is our local SImage
 	return Index == 0 || Layers.IsValidIndex(Index - 1);
 }
-
 const FSlateBrush* SLayeredImage::GetLayerBrush(int32 Index) const
 {
 	if (Index == 0)
 	{
-		return Image.Get();
+		return GetImageAttribute().Get();
 	}
 	else if (Layers.IsValidIndex(Index - 1))
 	{
@@ -119,31 +137,15 @@ const FSlateBrush* SLayeredImage::GetLayerBrush(int32 Index) const
 	}
 }
 
-void SLayeredImage::SetLayerBrush(int32 Index, const TAttribute<const FSlateBrush*>& Brush)
+void SLayeredImage::SetLayerBrush(int32 Index, TAttribute<const FSlateBrush*> Brush)
 {
 	if (Index == 0)
 	{
-		Image = Brush;
+		SetImage(MoveTemp(Brush));
 	}
 	else if (Layers.IsValidIndex(Index - 1))
 	{
-		Layers[Index - 1].Key = Brush;
-	}
-	else
-	{
-		// That layer doesn't exist
-	}
-}
-
-void SLayeredImage::SetLayerBrush(int32 Index, TAttribute<const FSlateBrush*>&& Brush)
-{
-	if (Index == 0)
-	{
-		Image = MoveTemp(Brush);
-	}
-	else if (Layers.IsValidIndex(Index - 1))
-	{
-		Layers[Index - 1].Key = MoveTemp(Brush);
+		Layers[Index - 1].Key.Assign(MoveTemp(Brush));
 	}
 	else
 	{
@@ -155,7 +157,7 @@ FSlateColor SLayeredImage::GetLayerColor(int32 Index) const
 {
 	if (Index == 0)
 	{
-		return ColorAndOpacity.Get();
+		return GetColorAndOpacityAttribute().Get();
 	}
 	else if (Layers.IsValidIndex(Index - 1))
 	{
@@ -167,15 +169,15 @@ FSlateColor SLayeredImage::GetLayerColor(int32 Index) const
 	}
 }
 
-void SLayeredImage::SetLayerColor(int32 Index, const TAttribute<FSlateColor>& Color)
+void SLayeredImage::SetLayerColor(int32 Index, TAttribute<FSlateColor> Color)
 {
 	if (Index == 0)
 	{
-		ColorAndOpacity = Color;
+		SetColorAndOpacity(MoveTemp(Color));
 	}
 	else if (Layers.IsValidIndex(Index - 1))
 	{
-		Layers[Index - 1].Value = Color;
+		Layers[Index - 1].Value.Assign(MoveTemp(Color));
 	}
 	else
 	{
@@ -183,18 +185,3 @@ void SLayeredImage::SetLayerColor(int32 Index, const TAttribute<FSlateColor>& Co
 	}
 }
 
-void SLayeredImage::SetLayerColor(int32 Index, TAttribute<FSlateColor>&& Color)
-{
-	if (Index == 0)
-	{
-		ColorAndOpacity = MoveTemp(Color);
-	}
-	else if (Layers.IsValidIndex(Index - 1))
-	{
-		Layers[Index - 1].Value = MoveTemp(Color);
-	}
-	else
-	{
-		// That layer doesn't exist!
-	}
-}

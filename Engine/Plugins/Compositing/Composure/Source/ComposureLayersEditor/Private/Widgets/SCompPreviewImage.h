@@ -37,7 +37,7 @@ public:
 	//~ Begin SWidget interface
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override
 	{
-		const FSlateBrush* ImageBrush = Image.Get();
+		const FSlateBrush* ImageBrush = GetImageAttribute().Get();
 
 		if ((ImageBrush != nullptr) && (ImageBrush->DrawAs != ESlateBrushDrawType::NoDrawType))
 		{
@@ -47,7 +47,7 @@ public:
 				PaintEffects |= ESlateDrawEffect::DisabledEffect;
 			}
 
-			const FLinearColor FinalColorAndOpacity(InWidgetStyle.GetColorAndOpacityTint() * ColorAndOpacity.Get().GetColor(InWidgetStyle) * ImageBrush->GetTint(InWidgetStyle));
+			const FLinearColor FinalColorAndOpacity(InWidgetStyle.GetColorAndOpacityTint() * GetColorAndOpacityAttribute().Get().GetColor(InWidgetStyle) * ImageBrush->GetTint(InWidgetStyle));
 
 			FSlateDrawElement::MakeBox(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), ImageBrush, PaintEffects, FinalColorAndOpacity);
 		}

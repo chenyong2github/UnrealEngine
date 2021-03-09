@@ -32,8 +32,11 @@ public:
 	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
 	//~ End SWidget Interface
 
+	/** Adds a new layer to the top of the Image given a brush and color. Use White as the default color. */
+	void AddLayer(TAttribute<const FSlateBrush*> Brush);
+
 	/** Adds a new layer to the top of the Image given a brush and color */
-	void AddLayer(TAttribute<const FSlateBrush*> Brush, TAttribute<FSlateColor> Color = FLinearColor::White);
+	void AddLayer(TAttribute<const FSlateBrush*> Brush, TAttribute<FSlateColor> Color);
 
 	/** Sets the base image and any overlay layers defined in the Slate icon. Note: removes all layers */
 	void SetFromSlateIcon(const FSlateIcon& InIcon);
@@ -52,28 +55,28 @@ public:
 	 * 
 	 * @return Null if the layer index is invalid. Otherwise, the brush for the given layer
 	 */
+	UE_DEPRECATED(5.0, "GetLayerBrush is not accessible anymore since it's attribute value may not have been updated yet.")
 	const FSlateBrush* GetLayerBrush(int32 Index) const;
 
 	/** Sets the brush for a given layer, if it exists */
-	void SetLayerBrush(int32 Index, const TAttribute<const FSlateBrush*>& Brush);
-
-	/** Sets the brush for a given layer, if it exists */
-	void SetLayerBrush(int32 Index, TAttribute<const FSlateBrush*>&& Brush);
+	void SetLayerBrush(int32 Index, TAttribute<const FSlateBrush*> Brush);
 
 	/** 
 	 * Gets the Color for a given layer
 	 *
 	 * @return Uninitialized fuschia color if the layer index is invalid. Otherwise the color for the given layer
 	 */
+	UE_DEPRECATED(5.0, "GetLayerColor is not accessible anymore since it's attribute value may not have been updated yet.")
 	FSlateColor GetLayerColor(int32 Index) const;
 
 	/** Sets the color for a given layer, if it exists. */
-	void SetLayerColor(int32 Index, const TAttribute<FSlateColor>& Color);
-
-	/** Sets the color for a given layer, if it exists. */
-	void SetLayerColor(int32 Index, TAttribute<FSlateColor>&& Color);
+	void SetLayerColor(int32 Index, TAttribute<FSlateColor> Color);
 
 private:
+	typedef TSlateManagedAttribute<const FSlateBrush*, EInvalidateWidgetReason::Paint> BrushAttributeType;
+	typedef TSlateManagedAttribute<FSlateColor, EInvalidateWidgetReason::Paint> ColorAttributeType;
+	typedef TTuple<BrushAttributeType, ColorAttributeType> InnerImageLayerType;
+		
 	/** An array to hold the additional draw layers */
-	TArray<ImageLayer,TInlineAllocator<2>> Layers;
+	TArray<InnerImageLayerType,TInlineAllocator<2>> Layers;
 };

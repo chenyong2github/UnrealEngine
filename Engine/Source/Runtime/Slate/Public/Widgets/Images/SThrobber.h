@@ -60,6 +60,10 @@ public:
 	/** Sets which aspects of the throbber to animate */
 	void SetAnimate(EAnimation InAnimate);
 
+	//~ Begin SWidget interface
+	virtual bool ComputeVolatility() const override;
+	//~ End SWidget interface
+
 private:
 
 	FVector2D GetPieceScale(int32 PieceIndex) const;
@@ -83,7 +87,7 @@ private:
 	const FSlateBrush* PieceImage;
 
 	/** The number of pieces to display. */
-	int NumPieces;
+	int32 NumPieces;
 
 	/** Flags for which aspects of the throbber to animate. */
 	EAnimation Animate;
@@ -96,6 +100,8 @@ private:
 class SLATE_API SCircularThrobber
 	: public SLeafWidget
 {
+	SLATE_DECLARE_WIDGET(SCircularThrobber, SLeafWidget)
+
 public:
 	static const float MinimumPeriodValue;
 
@@ -119,6 +125,8 @@ public:
 
 	SLATE_END_ARGS()
 
+	SCircularThrobber();
+
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
@@ -134,8 +142,11 @@ public:
 	/** Sets the radius of the circle */
 	void SetRadius(float InRadius);
 
+	//~ Begin SWidget interface
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
+	virtual bool ComputeVolatility() const override;
+	//~ End SWidget interface
 
 private:
 
@@ -161,5 +172,6 @@ private:
 	float Radius;
 
 	/** Color and opacity of the throbber images. */
-	TAttribute<FSlateColor> ColorAndOpacity;
+	TSlateAttribute<FSlateColor> ColorAndOpacity;
+	bool bColorAndOpacitySet;
 };
