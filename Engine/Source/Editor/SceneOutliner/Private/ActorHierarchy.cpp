@@ -86,6 +86,10 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 				{
 					return *ParentItem;
 				}
+				else
+				{
+					return nullptr;
+				}
 			}
 
 			if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>())
