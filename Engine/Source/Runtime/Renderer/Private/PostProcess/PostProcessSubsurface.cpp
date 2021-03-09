@@ -119,6 +119,12 @@ namespace
 		TEXT("0: Depth Only. It is more performant (x2 faster for close view).")
 		TEXT("1: Depth and normal. It leads to better quality in regions like eyelids. (default)"),
 		ECVF_RenderThreadSafe);
+
+	TAutoConsoleVariable<int32> CVarSSSBurleySubmitCommandsBeforeSetup(
+		TEXT("r.SSS.Burley.SubmitCommandsBeforeSetup"),
+		0,
+		TEXT("Whether to submit rhi commands before the SubsurfaceSetup pass."),
+		ECVF_RenderThreadSafe);
 }
 
 // Define to use a custom ps to clear UAV.
@@ -932,8 +938,22 @@ void AddSubsurfaceViewPass(
 			TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
 
 			FIntPoint ComputeGroupCount = FIntPoint::DivideAndRoundUp(SubsurfaceViewport.Extent, kSubsurfaceGroupSize);
+			FIntVector GroupCount(ComputeGroupCount.X, ComputeGroupCount.Y, 1);
 
-			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceSetup"), ComputeShader, PassParameters, FIntVector(ComputeGroupCount.X, ComputeGroupCount.Y, 1));
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("SubsurfaceSetup"),
+				PassParameters,
+				ERDGPassFlags::Compute,
+				[PassParameters, ComputeShader, GroupCount](FRHIComputeCommandList& RHICmdList)
+				{
+					if (!!CVarSSSBurleySubmitCommandsBeforeSetup.GetValueOnRenderThread())
+					{
+						RHICmdList.SubmitCommandsHint();
+					}
+					FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupCount);
+				});
 		}
 
 		// In half resolution, only Separable is used. We do not need this mipmap.
