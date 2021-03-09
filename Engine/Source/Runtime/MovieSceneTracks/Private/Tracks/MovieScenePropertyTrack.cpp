@@ -371,8 +371,8 @@ void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieS
 				ParentBoundClass = ParentSpawnable->GetObjectTemplate() ? 
 					ParentSpawnable->GetObjectTemplate()->GetClass() : nullptr;
 			}
-			
-			if (ensure(ParentBoundClass))
+
+			if (ParentBoundClass) // This line was previously an ensure() but we removed it since that would fail cooks
 			{
 				PropertyPath.Resolve(ParentBoundClass->GetDefaultObject());
 				if (const FProperty* LeafProperty = PropertyPath.GetFProperty())
