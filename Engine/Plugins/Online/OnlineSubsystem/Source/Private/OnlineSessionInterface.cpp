@@ -20,7 +20,7 @@ void OnOnlineSessionStartMatchmakingBroadcast(FName DelegateSessionName, bool bW
 bool IOnlineSession::StartMatchmaking(const TArray<FSessionMatchmakingUser>& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings, const FOnStartMatchmakingComplete& CompletionDelegate)
 {
 	// TODO: Deprecate other StartMatchmaking function in favor of this when this is implemented on all platforms
-	TArray<TSharedRef<const FUniqueNetId>> LocalPlayerIds;
+	TArray<FUniqueNetIdRef> LocalPlayerIds;
 	LocalPlayerIds.Reserve(LocalPlayers.Num());
 	for (const FSessionMatchmakingUser& LocalPlayer : LocalPlayers)
 	{

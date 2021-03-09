@@ -178,7 +178,7 @@ public:
 class FOnlineUserPresence
 {
 public:
-	TSharedPtr<const FUniqueNetId> SessionId;
+	FUniqueNetIdPtr SessionId;
 	uint32 bIsOnline:1;
 	uint32 bIsPlaying:1;
 	uint32 bIsPlayingThisGame:1;
@@ -299,7 +299,7 @@ public:
 	 * @param UserIds The list of unique ids of the users to query for presence information.
 	 * @param Delegate The delegate to be executed when the potentially asynchronous query operation completes.
 	 */
-	virtual void QueryPresence(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FOnPresenceTaskCompleteDelegate& Delegate) {};
+	virtual void QueryPresence(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& UserIds, const FOnPresenceTaskCompleteDelegate& Delegate) {};
 
 	/**
 	 * Delegate executed when new presence data is available for a user.

@@ -74,7 +74,7 @@ void FOnlinePresenceSpec::Define()
 
 					LatentIt("When calling SetPresence with a valid FUniqueNetId and a status that is different from the user's current status, this subsystem correctly changes the user's cached presence", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{											
-						TSharedPtr<const FUniqueNetId> CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
+						FUniqueNetIdPtr CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
 
 						if (CurrentUser->IsValid())
 						{
@@ -156,7 +156,7 @@ void FOnlinePresenceSpec::Define()
 
 					LatentIt("When calling QueryPresence with a valid FUniqueNetId, this subsystem will get the cached presence status of that user", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
-						TSharedPtr<const FUniqueNetId> CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
+						FUniqueNetIdPtr CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
 
 						if (CurrentUser.IsValid())
 						{
@@ -199,7 +199,7 @@ void FOnlinePresenceSpec::Define()
 
 					LatentIt("When calling GetCachedPresence with a valid FUniqueNetId after polling for the local user's presence data, this subsystem will return that user's presence", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
-						TSharedPtr<const FUniqueNetId> CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
+						FUniqueNetIdPtr CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
 
 						OnlinePresence->QueryPresence(*CurrentUser, IOnlinePresence::FOnPresenceTaskCompleteDelegate::CreateLambda([this, CurrentUser, TestDone](const FUniqueNetId& QueryPresenceUniqueId, bool bQueryPresenceWasSuccessful)
 						{
@@ -225,7 +225,7 @@ void FOnlinePresenceSpec::Define()
 					LatentIt("When calling GetCachedPresence with an invalid FUniqueNetId, this subsystem will not return a presence status", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
 						FString InvalidUserIdString = TEXT(" ");
-						TSharedPtr<const FUniqueNetId> InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+						FUniqueNetIdPtr InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 						if (InvalidUserId.IsValid())
 						{
@@ -267,7 +267,7 @@ void FOnlinePresenceSpec::Define()
 					});
 					LatentIt("When calling GetCachedPresenceForApp with an valid FUniqueNetId, this subsystem will return a presence status of EOnlineCachedResult::Type::NotFound", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
-						TSharedPtr<const FUniqueNetId> CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
+						FUniqueNetIdPtr CurrentUser = OnlineIdentity->GetUniquePlayerId(0);
 						const FString& TestAppId = TEXT("TestAppId");
 						TSharedPtr<FOnlineUserPresence> OutPresence;
 

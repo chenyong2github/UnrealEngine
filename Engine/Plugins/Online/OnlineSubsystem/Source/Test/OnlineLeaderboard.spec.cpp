@@ -74,9 +74,9 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-						TArray<TSharedRef<const FUniqueNetId>> Players;
+						TArray<FUniqueNetIdRef> Players;
 						Players.Add(TestAccountId.ToSharedRef());
 
 						FOnlineLeaderboardReadPtr ReadObject = MakeShareable(new FOnlineLeaderboardRead());
@@ -100,9 +100,9 @@ void FOnlineLeaderboardSpec::Define()
 					{
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
-						TArray<TSharedRef<const FUniqueNetId>> Players;
+						TArray<FUniqueNetIdRef> Players;
 						Players.Add(TestAccountId.ToSharedRef());
 
 						FOnlineLeaderboardReadPtr ReadObject = MakeShareable(new FOnlineLeaderboardRead());
@@ -125,9 +125,9 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-						TArray<TSharedRef<const FUniqueNetId>> Players;
+						TArray<FUniqueNetIdRef> Players;
 						Players.Add(TestAccountId.ToSharedRef());
 
 						FOnlineLeaderboardReadPtr ReadObject = MakeShareable(new FOnlineLeaderboardRead());
@@ -292,7 +292,7 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						FOnlineLeaderboardReadPtr ReadObject = MakeShareable(new FOnlineLeaderboardRead());
 						FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
@@ -306,7 +306,7 @@ void FOnlineLeaderboardSpec::Define()
 					{
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 						FOnlineLeaderboardReadPtr ReadObject = MakeShareable(new FOnlineLeaderboardRead());
 						FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
@@ -321,7 +321,7 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						FOnlineLeaderboardReadPtr ReadObject = MakeShareable(new FOnlineLeaderboardRead());
 						FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
@@ -336,7 +336,7 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						FOnlineLeaderboardReadRef ReadObjectRef;
 
@@ -390,7 +390,7 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						FOnlineLeaderboardWrite LeaderboardWriteObject;
 						LeaderboardWriteObject.LeaderboardNames.Add(FName(TEXT("TestLeaderboard")));
@@ -413,7 +413,7 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						FOnlineLeaderboardWrite LeaderboardWriteObject;
 						LeaderboardWriteObject.LeaderboardNames.Add(FName(TEXT("TestLeaderboard")));
@@ -433,7 +433,7 @@ void FOnlineLeaderboardSpec::Define()
 					{
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 						FOnlineLeaderboardWrite LeaderboardWriteObject;
 						LeaderboardWriteObject.LeaderboardNames.Add(FName(TEXT("TestLeaderboard")));
@@ -454,7 +454,7 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						FOnlineLeaderboardWrite LeaderboardWriteObject;
 
@@ -477,7 +477,7 @@ void FOnlineLeaderboardSpec::Define()
 						UE_LOG_ONLINE_LEADERBOARD(Error, TEXT("OSS Automation: Test not yet implemented"));
 
 						FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						FOnlineLeaderboardWrite LeaderboardWriteObject;
 						LeaderboardWriteObject.LeaderboardNames.Add(FName(TEXT("TestLeaderboard")));
@@ -495,7 +495,7 @@ void FOnlineLeaderboardSpec::Define()
 							TestEqual("Verify that LeaderboardFlushSessionName is: TestSessionName", LeaderboardFlushSessionName == TEXT("TestSessionName"), true);
 							TestEqual("Verify that bCallStarted returns as: True", bLeaderboardFlushWasSuccessful, true);
 
-							TArray<TSharedRef<const FUniqueNetId>> Players;
+							TArray<FUniqueNetIdRef> Players;
 							Players.Add(TestAccountId.ToSharedRef());
 
 							FOnlineLeaderboardReadPtr ReadObject = MakeShareable(new FOnlineLeaderboardRead());

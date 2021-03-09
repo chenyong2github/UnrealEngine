@@ -32,7 +32,7 @@ public:
 	virtual ~FChatRoomInfo() {}
 
 	virtual const FChatRoomId& GetRoomId() const = 0;
-	virtual const TSharedRef<const FUniqueNetId>& GetOwnerId() const = 0;
+	virtual const FUniqueNetIdRef& GetOwnerId() const = 0;
 	virtual const FString& GetSubject() const = 0;
 	virtual bool IsPrivate() const = 0;
 	virtual bool IsJoined() const = 0;
@@ -90,7 +90,7 @@ class FChatRoomMember
 public:
 	virtual ~FChatRoomMember() {}
 
-	virtual const TSharedRef<const FUniqueNetId>& GetUserId() const = 0;
+	virtual const FUniqueNetIdRef& GetUserId() const = 0;
 	virtual const FString& GetNickname() const = 0;
 };
 
@@ -103,7 +103,7 @@ public:
 	virtual ~FChatMessage() {}
 
 	/** @return the user id the message is from */
-	virtual const TSharedRef<const FUniqueNetId>& GetUserId() const = 0;
+	virtual const FUniqueNetIdRef& GetUserId() const = 0;
 	/** @return the nickname of the user the message is from */
 	virtual const FString& GetNickname() const = 0;
 	/** @return the body of the message */

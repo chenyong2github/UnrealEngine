@@ -249,7 +249,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -299,7 +299,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -351,7 +351,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -406,7 +406,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -455,7 +455,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -507,7 +507,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -560,7 +560,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -620,7 +620,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -672,7 +672,7 @@ void FOnlineMessageSpec::Define()
 
 								if (MessageHeaders.Num() > 0)
 								{
-									TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+									FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 									OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 									{
@@ -722,9 +722,9 @@ void FOnlineMessageSpec::Define()
 							OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNumFriendAccount, bool bLoginWasSuccessfulFriendAccount, const FUniqueNetId& LoginUserIdFriendAccount, const FString& LoginErrorFriendAccount)
 							{
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-								TArray<TSharedRef<const FUniqueNetId>> Recipients;
+								TArray<FUniqueNetIdRef> Recipients;
 								Recipients.Add(TestAccountId.ToSharedRef());
 
 								FOnlineMessagePayload TestPayload;
@@ -755,7 +755,7 @@ void FOnlineMessageSpec::Define()
 
 												if (MessageHeaders.Num() > 0)
 												{
-													TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+													FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 													OnlineMessage->AddOnReadMessageCompleteDelegate_Handle(0, FOnReadMessageCompleteDelegate::CreateLambda([this, MsgId, TestDone](int32 ReadMessageLocalUserNum, bool bReadMessageWasSuccessful, const FUniqueMessageId& ReadMessageMessageId, const FString& ReadMessageErrorStr)
 													{
@@ -794,9 +794,9 @@ void FOnlineMessageSpec::Define()
 							OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNumFriendAccount, bool bLoginWasSuccessfulFriendAccount, const FUniqueNetId& LoginUserIdFriendAccount, const FString& LoginErrorFriendAccount)
 							{
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-								TArray<TSharedRef<const FUniqueNetId>> Recipients;
+								TArray<FUniqueNetIdRef> Recipients;
 								Recipients.Add(TestAccountId.ToSharedRef());
 
 								// TODO: Create invalid payload
@@ -847,9 +847,9 @@ void FOnlineMessageSpec::Define()
 							OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNumFriendAccount, bool bLoginWasSuccessfulFriendAccount, const FUniqueNetId& LoginUserIdFriendAccount, const FString& LoginErrorFriendAccount)
 							{
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-								TArray<TSharedRef<const FUniqueNetId>> Recipients;
+								TArray<FUniqueNetIdRef> Recipients;
 								Recipients.Add(TestAccountId.ToSharedRef());
 
 								FOnlineMessagePayload TestPayload;
@@ -899,9 +899,9 @@ void FOnlineMessageSpec::Define()
 						{
 							OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNumFriendAccount, bool bLoginWasSuccessfulFriendAccount, const FUniqueNetId& LoginUserIdFriendAccount, const FString& LoginErrorFriendAccount)
 							{
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
-								TArray<TSharedRef<const FUniqueNetId>> Recipients;
+								TArray<FUniqueNetIdRef> Recipients;
 								Recipients.Add(TestAccountId.ToSharedRef());
 
 								FOnlineMessagePayload TestPayload;
@@ -951,9 +951,9 @@ void FOnlineMessageSpec::Define()
 							OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNumFriendAccount, bool bLoginWasSuccessfulFriendAccount, const FUniqueNetId& LoginUserIdFriendAccount, const FString& LoginErrorFriendAccount)
 							{
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-								TArray<TSharedRef<const FUniqueNetId>> Recipients;
+								TArray<FUniqueNetIdRef> Recipients;
 								Recipients.Add(TestAccountId.ToSharedRef());
 
 								FOnlineMessagePayload TestPayload;
@@ -1019,7 +1019,7 @@ void FOnlineMessageSpec::Define()
 
 									if (MessageHeaders.Num() > 0)
 									{
-										TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+										FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 										OnlineMessage->ClearMessageHeaders(0);
 
@@ -1068,7 +1068,7 @@ void FOnlineMessageSpec::Define()
 									if (MessageHeaders.Num() > 0)
 									{
 										//TODO: Figure out how to mess with message ID
-										TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+										FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 										OnlineMessage->ClearMessageHeaders(0);
 
@@ -1116,7 +1116,7 @@ void FOnlineMessageSpec::Define()
 
 									if (MessageHeaders.Num() > 0)
 									{
-										TSharedRef<const FUniqueMessageId> MsgId = MessageHeaders[0]->MessageId;
+										FUniqueMessageIdRef MsgId = MessageHeaders[0]->MessageId;
 
 										OnlineMessage->ClearMessageHeaders(0);
 

@@ -369,7 +369,7 @@ void FOnlineFriendsSpec::Define()
 					LatentIt("When calling SendInvite with a valid local user, a valid friend ID, and a list name, this subsystem sends a friend invite to that friend ID", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
 						FString FriendIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> FriendIdToUse = OnlineIdentity->CreateUniquePlayerId(FriendIdString);
+						FUniqueNetIdPtr FriendIdToUse = OnlineIdentity->CreateUniquePlayerId(FriendIdString);
 
 						OnlineFriends->SendInvite(0, *FriendIdToUse, EFriendsLists::ToString(EFriendsLists::Default), FOnSendInviteComplete::CreateLambda([this, FriendIdToUse, SubsystemType, TestDone](int32 SendInviteLocalUserNum, bool bSendInviteWasSuccessful, const FUniqueNetId& SendInviteFriendId, const FString& SendInviteListName, const FString& SendInviteErrorStr)
 						{
@@ -410,10 +410,10 @@ void FOnlineFriendsSpec::Define()
 					LatentIt("When calling SendInvite with a valid local user and a list name but a valid friend ID that is already on the friends list, this subsystem states that both users are already friends", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
 						FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+						FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 						FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						AddExpectedError(ONLINE_EXPECTEDERROR_ALREADYFRIENDS, EAutomationExpectedErrorFlags::Contains, 0);
 
@@ -469,7 +469,7 @@ void FOnlineFriendsSpec::Define()
 						AddExpectedError(ONLINE_EXPECTEDERROR_INVALID_LOCALUSER, EAutomationExpectedErrorFlags::Contains, 0);
 
 						FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+						FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 						OnlineFriends->SendInvite(-1, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnSendInviteComplete::CreateLambda([this, FriendAccountId, SubsystemType, TestDone](int32 SendInviteLocalUserNum, bool bSendInviteWasSuccessful, const FUniqueNetId& SendInviteFriendId, const FString& SendInviteListName, const FString& SendInviteErrorStr)
 						{
@@ -486,7 +486,7 @@ void FOnlineFriendsSpec::Define()
 					LatentIt("When calling SendInvite with a valid local user and a list name but an invalid friend ID, this subsystem does not send a friend invite to that friend ID", [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
 						FString FriendAccountIdString = TEXT(" ");
-						TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+						FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 						AddExpectedError(ONLINE_EXPECTEDERROR_ACCOUNT_DOESNOTEXIST, EAutomationExpectedErrorFlags::Contains, 0);
 
@@ -508,7 +508,7 @@ void FOnlineFriendsSpec::Define()
 						AddExpectedError(ONLINE_EXPECTEDERROR_INVALID_LOCALUSER, EAutomationExpectedErrorFlags::Contains, 0);
 
 						FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+						FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 						OnlineFriends->SendInvite(0, *FriendAccountId, TEXT("InvalidListName"), FOnSendInviteComplete::CreateLambda([this, FriendAccountId, SubsystemType, TestDone](int32 SendInviteLocalUserNum, bool bSendInviteWasSuccessful, const FUniqueNetId& SendInviteFriendId, const FString& SendInviteListName, const FString& SendInviteErrorStr)
 						{
@@ -554,7 +554,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnlineFriends->AcceptInvite(0, *TestAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnAcceptInviteComplete::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 AcceptInviteLocalPlayerNum, bool bAcceptInviteWasSuccessful, const FUniqueNetId& AcceptInviteFriendId, const FString& AcceptInviteListName, const FString& AcceptInviteErrorStr)
 								{
@@ -594,7 +594,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnlineFriends->AcceptInvite(-1, *TestAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnAcceptInviteComplete::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 AcceptInviteLocalPlayerNum, bool bAcceptInviteWasSuccessful, const FUniqueNetId& AcceptInviteFriendId, const FString& AcceptInviteListName, const FString& AcceptInviteErrorStr)
 								{
@@ -635,7 +635,7 @@ void FOnlineFriendsSpec::Define()
 							{
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnlineFriends->AcceptInvite(0, *TestAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnAcceptInviteComplete::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 AcceptInviteLocalPlayerNum, bool bAcceptInviteWasSuccessful, const FUniqueNetId& AcceptInviteFriendId, const FString& AcceptInviteListName, const FString& AcceptInviteErrorStr)
 								{
@@ -672,7 +672,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnlineFriends->AcceptInvite(0, *TestAccountId, TEXT("InvalidListName"), FOnAcceptInviteComplete::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 AcceptInviteLocalPlayerNum, bool bAcceptInviteWasSuccessful, const FUniqueNetId& AcceptInviteFriendId, const FString& AcceptInviteListName, const FString& AcceptInviteErrorStr)
 								{
@@ -716,7 +716,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnRejectInviteCompleteDelegateHandle = OnlineFriends->AddOnRejectInviteCompleteDelegate_Handle(0, FOnRejectInviteCompleteDelegate::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 RejectInviteLocalPlayerNum, bool bRejectInviteWasSuccessful, const FUniqueNetId& RejectInviteFriendId, const FString& RejectInviteListName, const FString& RejectInviteErrorStr)
 								{
@@ -749,7 +749,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnRejectInviteCompleteDelegateHandle = OnlineFriends->AddOnRejectInviteCompleteDelegate_Handle(0, FOnRejectInviteCompleteDelegate::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 RejectInviteLocalPlayerNum, bool bRejectInviteWasSuccessful, const FUniqueNetId& RejectInviteFriendId, const FString& RejectInviteListName, const FString& RejectInviteErrorStr)
 								{
@@ -783,7 +783,7 @@ void FOnlineFriendsSpec::Define()
 							{
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnRejectInviteCompleteDelegateHandle = OnlineFriends->AddOnRejectInviteCompleteDelegate_Handle(0, FOnRejectInviteCompleteDelegate::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 RejectInviteLocalPlayerNum, bool bRejectInviteWasSuccessful, const FUniqueNetId& RejectInviteFriendId, const FString& RejectInviteListName, const FString& RejectInviteErrorStr)
 								{
@@ -814,7 +814,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+								FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 								OnRejectInviteCompleteDelegateHandle = OnlineFriends->AddOnRejectInviteCompleteDelegate_Handle(0, FOnRejectInviteCompleteDelegate::CreateLambda([this, SubsystemType, TestAccountIdString, TestDone](int32 RejectInviteLocalPlayerNum, bool bRejectInviteWasSuccessful, const FUniqueNetId& RejectInviteFriendId, const FString& RejectInviteListName, const FString& RejectInviteErrorStr)
 								{
@@ -864,7 +864,7 @@ void FOnlineFriendsSpec::Define()
 							OnlineFriends->ReadFriendsList(0, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([this, SubsystemType, TestDone](int32 ReadFriendsListLocalPlayerNumBeforeDelete, bool bReadFriendsListWasSuccessfulBeforeDelete, const FString& ReadFriendsListListNameBeforeDelete, const FString& ReadFriendsListErrorStrBeforeDelete)
 							{
 								FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+								FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 								OnDeleteFriendCompleteDelegateHandle = OnlineFriends->AddOnDeleteFriendCompleteDelegate_Handle(0, FOnDeleteFriendCompleteDelegate::CreateLambda([this, FriendAccountIdString, TestDone](int32 DeleteFriendLocalPlayerNum, bool bDeleteFriendWasSuccessful, const FUniqueNetId& DeleteFriendFriendId, const FString& DeleteFriendListName, const FString& DeleteFriendErrorStr)
 								{
@@ -903,7 +903,7 @@ void FOnlineFriendsSpec::Define()
 							OnlineFriends->ReadFriendsList(0, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([this, SubsystemType, TestDone](int32 ReadFriendsListLocalPlayerNum, bool bReadFriendsListWasSuccessful, const FString& ReadFriendsListListName, const FString& ReadFriendsListErrorStr)
 							{
 								FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+								FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 								OnDeleteFriendCompleteDelegateHandle = OnlineFriends->AddOnDeleteFriendCompleteDelegate_Handle(0, FOnDeleteFriendCompleteDelegate::CreateLambda([this, FriendAccountIdString, TestDone](int32 DeleteFriendLocalPlayerNum, bool bDeleteFriendWasSuccessful, const FUniqueNetId& DeleteFriendFriendId, const FString& DeleteFriendListName, const FString& DeleteFriendErrorStr)
 								{
@@ -943,7 +943,7 @@ void FOnlineFriendsSpec::Define()
 						{
 							OnlineFriends->ReadFriendsList(0, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([this, SubsystemType, FriendAccountIdString, TestDone](int32 ReadFriendsListLocalPlayerNum, bool bReadFriendsListWasSuccessful, const FString& ReadFriendsListListName, const FString& ReadFriendsListErrorStr)
 							{
-								TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+								FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 								OnDeleteFriendCompleteDelegateHandle = OnlineFriends->AddOnDeleteFriendCompleteDelegate_Handle(0, FOnDeleteFriendCompleteDelegate::CreateLambda([this, FriendAccountIdString, TestDone](int32 DeleteFriendLocalPlayerNum, bool bDeleteFriendWasSuccessful, const FUniqueNetId& DeleteFriendFriendId, const FString& DeleteFriendListName, const FString& DeleteFriendErrorStr)
 								{
@@ -1101,7 +1101,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+								FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 								TSharedPtr<FOnlineFriend> FriendEntry = OnlineFriends->GetFriend(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1129,7 +1129,7 @@ void FOnlineFriendsSpec::Define()
 							TestEqual("Verify that bLoginWasSuccessful returns as: True", bLoginWasSuccessful, true);
 
 							FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							TSharedPtr<FOnlineFriend> FriendEntry = OnlineFriends->GetFriend(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1149,7 +1149,7 @@ void FOnlineFriendsSpec::Define()
 							TestEqual("Verify that bLoginWasSuccessful returns as: True", bLoginWasSuccessful, true);
 
 							FString FriendAccountIdString = TEXT(" ");
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							TSharedPtr<FOnlineFriend> FriendEntry = OnlineFriends->GetFriend(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1169,7 +1169,7 @@ void FOnlineFriendsSpec::Define()
 							TestEqual("Verify that bLoginWasSuccessful returns as: True", bLoginWasSuccessful, true);
 
 							FString FriendAccountIdString = TEXT("0123456789");
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							TSharedPtr<FOnlineFriend> FriendEntry = OnlineFriends->GetFriend(-1, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1219,7 +1219,7 @@ void FOnlineFriendsSpec::Define()
 								TestEqual("Verify that bReadFriendsListWasSuccessful returns as: True", bReadFriendsListWasSuccessful, true);
 
 								FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+								FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 								bool bIsFriend = OnlineFriends->IsFriend(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1238,7 +1238,7 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							bool bIsFriend = OnlineFriends->IsFriend(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1262,7 +1262,7 @@ void FOnlineFriendsSpec::Define()
 								if (FriendsList.Num() > 0)
 								{
 									FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-									TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+									FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 									OnlineFriends->ClearOnDeleteFriendCompleteDelegate_Handle(0, OnDeleteFriendCompleteDelegateHandle);
 									OnDeleteFriendCompleteDelegateHandle = OnlineFriends->AddOnDeleteFriendCompleteDelegate_Handle(0, FOnDeleteFriendCompleteDelegate::CreateLambda([this, FriendAccountId, SubsystemType, TestDone](int32 DeleteFriendLocalUserNum, bool bDeleteFriendWasSuccessful, const FUniqueNetId& DeleteFriendFriendId, const FString& DeleteFriendListName, const FString& DeleteFriendErrorStr)
@@ -1298,7 +1298,7 @@ void FOnlineFriendsSpec::Define()
 							OnlineFriends->ReadFriendsList(0, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([this, SubsystemType, TestDone](int32 ReadFriendsListLocalPlayerNum, bool bReadFriendsListWasSuccessful, const FString& ReadFriendsListListName, const FString& ReadFriendsListErrorStr)
 							{
 								FString FriendAccountIdString = TEXT(" ");
-								TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+								FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 								bool bIsFriend = OnlineFriends->IsFriend(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1319,7 +1319,7 @@ void FOnlineFriendsSpec::Define()
 							OnlineFriends->ReadFriendsList(0, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([this, SubsystemType, TestDone](int32 ReadFriendsListLocalPlayerNum, bool bReadFriendsListWasSuccessful, const FString& ReadFriendsListListName, const FString& ReadFriendsListErrorStr)
 							{
 								FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-								TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+								FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 								bool bIsFriend = OnlineFriends->IsFriend(-1, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default));
 
@@ -1434,7 +1434,7 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							if (FriendAccountId.IsValid())
 							{
@@ -1446,7 +1446,7 @@ void FOnlineFriendsSpec::Define()
 									TestEqual("Verify that BlockedPlayerListName is: BlockedPlayers", BlockedPlayerListName == TEXT("BlockedPlayers"), true);
 									TestEqual("Verify that BlockedPlayerErrorStr is unpopulated", BlockedPlayerErrorStr.Len() == 0, true);
 
-									TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+									FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 									TArray<TSharedRef<FOnlineBlockedPlayer>> BlockedPlayersArray;
 
 									if (TestAccountId.IsValid())
@@ -1496,7 +1496,7 @@ void FOnlineFriendsSpec::Define()
 						OnlineIdentity->ClearOnLoginCompleteDelegate_Handle(0, OnLoginCompleteDelegateHandle);
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, FriendAccountIdString, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							if (FriendAccountId.IsValid())
 							{
@@ -1531,7 +1531,7 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							if (FriendAccountId.IsValid())
 							{
@@ -1580,7 +1580,7 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							if (FriendAccountId.IsValid())
 							{
@@ -1592,7 +1592,7 @@ void FOnlineFriendsSpec::Define()
 									TestEqual("Verify that UnblockedPlayerListName is: BlockedPlayers", UnblockedPlayerListName == TEXT("BlockedPlayers"), true);
 									TestEqual("Verify that UnblockedPlayerErrorStr is unpopulated", UnblockedPlayerErrorStr.Len() == 0, true);
 
-									TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+									FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 									TArray<TSharedRef<FOnlineBlockedPlayer>> BlockedPlayersArray;
 
 									if (TestAccountId.IsValid())
@@ -1642,7 +1642,7 @@ void FOnlineFriendsSpec::Define()
 						OnlineIdentity->ClearOnLoginCompleteDelegate_Handle(0, OnLoginCompleteDelegateHandle);
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, FriendAccountIdString, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							if (FriendAccountId.IsValid())
 							{
@@ -1677,7 +1677,7 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+							FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 							if (FriendAccountId.IsValid())
 							{
@@ -1726,7 +1726,7 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 							OnQueryBlockedPlayersCompleteDelegateHandle = OnlineFriends->AddOnQueryBlockedPlayersCompleteDelegate_Handle(FOnQueryBlockedPlayersCompleteDelegate::CreateLambda([this, TestAccountIdString, TestDone](const FUniqueNetId& QueryBlockedPlayersUserId, bool bQueryBlockedPlayersWasSuccessful, const FString& QueryBlockedPlayersError)
 							{
@@ -1765,7 +1765,7 @@ void FOnlineFriendsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestAccountIdString, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 							OnQueryBlockedPlayersCompleteDelegateHandle = OnlineFriends->AddOnQueryBlockedPlayersCompleteDelegate_Handle(FOnQueryBlockedPlayersCompleteDelegate::CreateLambda([this, TestAccountIdString, TestDone](const FUniqueNetId& QueryBlockedPlayersUserId, bool bQueryBlockedPlayersWasSuccessful, const FString& QueryBlockedPlayersError)
 							{
@@ -1824,7 +1824,7 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 							OnQueryBlockedPlayersCompleteDelegateHandle = OnlineFriends->AddOnQueryBlockedPlayersCompleteDelegate_Handle(FOnQueryBlockedPlayersCompleteDelegate::CreateLambda([this, TestAccountIdString, TestDone](const FUniqueNetId& QueryBlockedPlayersUserId, bool bQueryBlockedPlayersWasSuccessful, const FString& QueryBlockedPlayersError)
 							{
@@ -1858,14 +1858,14 @@ void FOnlineFriendsSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
 							FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 							OnQueryBlockedPlayersCompleteDelegateHandle = OnlineFriends->AddOnQueryBlockedPlayersCompleteDelegate_Handle(FOnQueryBlockedPlayersCompleteDelegate::CreateLambda([this, TestAccountIdString, TestDone](const FUniqueNetId& QueryBlockedPlayersUserId, bool bQueryBlockedPlayersWasSuccessful, const FString& QueryBlockedPlayersError)
 							{
 								TestEqual("Verify that bQueryBlockedPlayersWasSuccessful returns as: True", bQueryBlockedPlayersWasSuccessful, true);
 
 								FString InvalidUserIdString = TEXT(" ");
-								TSharedPtr<const FUniqueNetId> InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+								FUniqueNetIdPtr InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 								if (InvalidUserId.IsValid())
 								{

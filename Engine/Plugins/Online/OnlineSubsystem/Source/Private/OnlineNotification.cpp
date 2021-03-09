@@ -8,8 +8,8 @@
 FOnlineNotification::FOnlineNotification(
 	const FString& InTypeStr,
 	const TSharedPtr<FJsonValue>& InPayload,
-	TSharedPtr<const FUniqueNetId> InToUserId,
-	TSharedPtr<const FUniqueNetId> InFromUserId
+	FUniqueNetIdPtr InToUserId,
+	FUniqueNetIdPtr InFromUserId
 )
 : TypeStr(InTypeStr)
 , Payload(InPayload.IsValid() ? InPayload->AsObject() : nullptr)

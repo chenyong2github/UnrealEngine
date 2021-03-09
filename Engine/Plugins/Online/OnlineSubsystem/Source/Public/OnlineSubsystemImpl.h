@@ -36,7 +36,7 @@ private:
 	bool HandlePurchaseExecCommands(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar);
 	
 	/** Delegate fired when exec cheat related to receipts completes */
-	void OnQueryReceiptsComplete(const FOnlineError& Result, TSharedPtr<const FUniqueNetId> UserId);
+	void OnQueryReceiptsComplete(const FOnlineError& Result, FUniqueNetIdPtr UserId);
 	
 	/** Dump purchase receipts for a given user id */
 	void DumpReceipts(const FUniqueNetId& UserId);

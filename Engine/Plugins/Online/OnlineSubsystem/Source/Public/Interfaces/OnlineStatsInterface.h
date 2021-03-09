@@ -114,20 +114,20 @@ template <class TStatType>
 struct FOnlineUserStatsPair
 {
 public:
-	FOnlineUserStatsPair(const TSharedRef<const FUniqueNetId> InAccount)
+	FOnlineUserStatsPair(const FUniqueNetIdRef InAccount)
 		: Account(InAccount)
 	{
 		check(Account->IsValid());
 	}
 
-	FOnlineUserStatsPair(const TSharedRef<const FUniqueNetId> InAccount, const TMap<FString, TStatType>& InStats)
+	FOnlineUserStatsPair(const FUniqueNetIdRef InAccount, const TMap<FString, TStatType>& InStats)
 		: Account(InAccount)
 		, Stats(InStats)
 	{
 		check(Account->IsValid());
 	}
 
-	FOnlineUserStatsPair(const TSharedRef<const FUniqueNetId> InAccount, TMap<FString, TStatType>&& InStats)
+	FOnlineUserStatsPair(const FUniqueNetIdRef InAccount, TMap<FString, TStatType>&& InStats)
 		: Account(InAccount)
 		, Stats(MoveTemp(InStats))
 	{
@@ -135,7 +135,7 @@ public:
 	}
 
 public:
-	TSharedRef<const FUniqueNetId> Account;
+	FUniqueNetIdRef Account;
 	TMap<FString, TStatType> Stats;
 
 	using StatType = TStatType;
@@ -171,7 +171,7 @@ public:
 	 * @param StatsUser User to get stats for
 	 * @param Delegate Called when the user's stats have finished being requested and are now available, or when we fail to retrieve the user's stats
 	 */
-	virtual void QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TSharedRef<const FUniqueNetId> StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate) = 0;
+	virtual void QueryStats(const FUniqueNetIdRef LocalUserId, const FUniqueNetIdRef StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate) = 0;
 
 	/**
 	 * Query a one or more user's stats
@@ -181,7 +181,7 @@ public:
 	 * @param StatNames Stats to get stats for all specified users
 	 * @param Delegate Called when the user's stats have finished being requested and are now available, or when we fail to retrieve the user's stats
 	 */
-	virtual void QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate) = 0;
+	virtual void QueryStats(const FUniqueNetIdRef LocalUserId, const TArray<FUniqueNetIdRef>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate) = 0;
 
 	/**
 	 * Get a user's cached stats object
@@ -189,7 +189,7 @@ public:
 	 * @param StatsUserId The user to get stats for
 	 * @return The results if cached, else a null pointer
 	 */
-	virtual TSharedPtr<const FOnlineStatsUserStats> GetStats(const TSharedRef<const FUniqueNetId> StatsUserId) const = 0;
+	virtual TSharedPtr<const FOnlineStatsUserStats> GetStats(const FUniqueNetIdRef StatsUserId) const = 0;
 
 	/**
 	 * Asynchronous update one or more user's stats
@@ -198,7 +198,7 @@ public:
 	 * @param UpdatedStats The array of user to stats pairs to update the backend with
 	 * @param Delegate Called when update has completed
 	 */
-	virtual void UpdateStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate) = 0;
+	virtual void UpdateStats(const FUniqueNetIdRef LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate) = 0;
 
 #if !UE_BUILD_SHIPPING
 	/**
@@ -206,7 +206,7 @@ public:
 	 *
 	 * @param StatsUserId The user who's stats are to be deleted
 	 */
-	virtual void ResetStats( const TSharedRef<const FUniqueNetId> StatsUserId ) = 0;
+	virtual void ResetStats( const FUniqueNetIdRef StatsUserId ) = 0;
 #endif // !UE_BUILD_SHIPPING
 
 };

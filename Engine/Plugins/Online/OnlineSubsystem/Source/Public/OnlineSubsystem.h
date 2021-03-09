@@ -673,4 +673,4 @@ ONLINESUBSYSTEM_API bool IsUniqueIdLocal(const FUniqueNetId& UniqueId);
 ONLINESUBSYSTEM_API int32 GetBeaconPortFromSessionSettings(const class FOnlineSessionSettings& SessionSettings);
 
 /** Temp solution for some hardcoded access to logged in user 0, please avoid using this */
-ONLINESUBSYSTEM_API TSharedPtr<const FUniqueNetId> GetFirstSignedInUser(IOnlineIdentityPtr IdentityInt);
+ONLINESUBSYSTEM_API FUniqueNetIdPtr GetFirstSignedInUser(IOnlineIdentityPtr IdentityInt);

@@ -460,7 +460,7 @@ void FOnlineIdentitySpec::Define()
 
 					It("When calling GetUserAccount with a valid FUniqueNetId, this subsystem returns valid user information",  [this, SubsystemType]()
 					{
-						TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(0);
+						FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(0);
 
 						if (UserId.IsValid())
 						{
@@ -489,7 +489,7 @@ void FOnlineIdentitySpec::Define()
 					It("When calling GetUserAccount with an invalid FUniqueNetId, this subsystem returns a null object",  [this, SubsystemType]()
 					{
 						FString InvalidUserIdString = TEXT(" ");
-						TSharedPtr<const FUniqueNetId> InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+						FUniqueNetIdPtr InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 						if (InvalidUserId.IsValid())
 						{
@@ -559,7 +559,7 @@ void FOnlineIdentitySpec::Define()
 
 					It("When calling GetUniquePlayerId with a valid local user, this subsystem returns the user's FUniqueNetId",  [this]()
 					{
-						TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(0);
+						FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(0);
 						
 						if (UserId.IsValid())
 						{
@@ -573,7 +573,7 @@ void FOnlineIdentitySpec::Define()
 
 					It("When calling GetUniquePlayerId with an invalid local user (-1), this subsystem returns a null UserId",  [this]()
 					{
-						TSharedPtr<const FUniqueNetId> UserId = OnlineIdentity->GetUniquePlayerId(-1);
+						FUniqueNetIdPtr UserId = OnlineIdentity->GetUniquePlayerId(-1);
 						TestEqual("Verify that UserId is invalid/null after calling GetUniquePlayerId", UserId.IsValid(), false);
 					});
 
@@ -604,7 +604,7 @@ void FOnlineIdentitySpec::Define()
 					xIt("When calling GetSponsorUniquePlayer with a valid local user with a valid assigned sponsor Id, this subsystem returns the user's sponsor's unique id",  [this, SubsystemType]()
 					{
 						//@Todo: Stub test, needs a better way to be testable
-						TSharedPtr<const FUniqueNetId> SponsorId = OnlineIdentity->GetSponsorUniquePlayerId(0);
+						FUniqueNetIdPtr SponsorId = OnlineIdentity->GetSponsorUniquePlayerId(0);
 
 						if (SponsorId.IsValid())
 						{
@@ -620,7 +620,7 @@ void FOnlineIdentitySpec::Define()
 
 					It("When calling GetSponsorUniquePlayerId with an invalid local user (-1), this subsystem returns no information",  [this]()
 					{
-						TSharedPtr<const FUniqueNetId> SponsorId = OnlineIdentity->GetSponsorUniquePlayerId(-1);
+						FUniqueNetIdPtr SponsorId = OnlineIdentity->GetSponsorUniquePlayerId(-1);
 						TestEqual("Verify that SponsorId is invalid", SponsorId.IsValid(), false);
 					});
 
@@ -644,7 +644,7 @@ void FOnlineIdentitySpec::Define()
 						FPlatformMisc::CreateGuid(PlayerGUID);
 						PlayerGUIDString = PlayerGUID.ToString();
 
-						TSharedPtr<const FUniqueNetId> UniquePlayerId = OnlineIdentity->CreateUniquePlayerId((uint8*)PlayerGUIDString.GetCharArray().GetData(), PlayerGUIDString.Len());
+						FUniqueNetIdPtr UniquePlayerId = OnlineIdentity->CreateUniquePlayerId((uint8*)PlayerGUIDString.GetCharArray().GetData(), PlayerGUIDString.Len());
 
 						if (UniquePlayerId.IsValid())
 						{
@@ -663,7 +663,7 @@ void FOnlineIdentitySpec::Define()
 						FPlatformMisc::CreateGuid(PlayerGUID);
 						PlayerGUIDString = PlayerGUID.ToString();
 
-						TSharedPtr<const FUniqueNetId> UniquePlayerId = OnlineIdentity->CreateUniquePlayerId((uint8*)PlayerGUIDString.GetCharArray().GetData(), 0);
+						FUniqueNetIdPtr UniquePlayerId = OnlineIdentity->CreateUniquePlayerId((uint8*)PlayerGUIDString.GetCharArray().GetData(), 0);
 
 						TestEqual("Verify that UniquePlayerId is not valid", UniquePlayerId.IsValid(), false);
 					});
@@ -675,7 +675,7 @@ void FOnlineIdentitySpec::Define()
 						FPlatformMisc::CreateGuid(PlayerGUID);
 						PlayerGUIDString = PlayerGUID.ToString();
 
-						TSharedPtr<const FUniqueNetId> UniquePlayerId = OnlineIdentity->CreateUniquePlayerId(0, PlayerGUIDString.Len());
+						FUniqueNetIdPtr UniquePlayerId = OnlineIdentity->CreateUniquePlayerId(0, PlayerGUIDString.Len());
 
 						TestEqual("Verify that UniquePlayerId is not valid", UniquePlayerId.IsValid(), false);
 					});
@@ -687,7 +687,7 @@ void FOnlineIdentitySpec::Define()
 						FPlatformMisc::CreateGuid(PlayerGUID);
 						PlayerGUIDString = PlayerGUID.ToString();
 
-						TSharedPtr<const FUniqueNetId> UniquePlayerId = OnlineIdentity->CreateUniquePlayerId(0, 0);
+						FUniqueNetIdPtr UniquePlayerId = OnlineIdentity->CreateUniquePlayerId(0, 0);
 
 						TestEqual("Verify that UniquePlayerId is not valid", UniquePlayerId.IsValid(), false);
 					});
@@ -699,7 +699,7 @@ void FOnlineIdentitySpec::Define()
 						FPlatformMisc::CreateGuid(PlayerGUID);
 						PlayerGUIDString = PlayerGUID.ToString();
 
-						TSharedPtr<const FUniqueNetId> UniquePlayerId = OnlineIdentity->CreateUniquePlayerId(PlayerGUIDString);
+						FUniqueNetIdPtr UniquePlayerId = OnlineIdentity->CreateUniquePlayerId(PlayerGUIDString);
 
 						if (UniquePlayerId.IsValid())
 						{
@@ -753,7 +753,7 @@ void FOnlineIdentitySpec::Define()
 					It("When calling GetLoginStatus with an invalid FUniqueNetId, this subsystem returns login status as ELoginStatus::NotLoggedIn",  [this]()
 					{
 						FString InvalidUserIdString = TEXT(" ");
-						TSharedPtr<const FUniqueNetId> InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+						FUniqueNetIdPtr InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 						if (InvalidUserId.IsValid())
 						{
@@ -783,7 +783,7 @@ void FOnlineIdentitySpec::Define()
 							{
 								TestEqual("Verify that bLogoutWasSuccessful returns as: True", bLogoutWasSuccessful, true);
 
-								TSharedPtr<const FUniqueNetId> UserIdToCheck = OnlineIdentity->GetUniquePlayerId(0);
+								FUniqueNetIdPtr UserIdToCheck = OnlineIdentity->GetUniquePlayerId(0);
 
 								if (UserIdToCheck.IsValid())
 								{
@@ -859,7 +859,7 @@ void FOnlineIdentitySpec::Define()
 					xIt("When calling GetPlayerNickname with an invalid FUniqueNetId, this subsystem returns an error as the PlayerNickname",  [this]()
 					{
 						FString InvalidUserIdString = TEXT(" ");
-						TSharedPtr<const FUniqueNetId> InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+						FUniqueNetIdPtr InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 						if (InvalidUserId.IsValid())
 						{
@@ -931,7 +931,7 @@ void FOnlineIdentitySpec::Define()
 
 					LatentIt("When calling RevokeAuthToken with a valid FUniqueNetId, this subsystem revokes that user's auth token",  [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
-						TSharedPtr<const FUniqueNetId> UserIdToCheck = OnlineIdentity->GetUniquePlayerId(0);
+						FUniqueNetIdPtr UserIdToCheck = OnlineIdentity->GetUniquePlayerId(0);
 
 						if (UserIdToCheck.IsValid())
 						{
@@ -952,7 +952,7 @@ void FOnlineIdentitySpec::Define()
 					LatentIt("When calling RevokeAuthToken with an invalid FUniqueNetId, this subsystem returns an error",  [this, SubsystemType](const FDoneDelegate& TestDone)
 					{
 						FString InvalidUserIdString = TEXT(" ");
-						TSharedPtr<const FUniqueNetId> InvalidUserIdToCheck = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+						FUniqueNetIdPtr InvalidUserIdToCheck = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 						if (InvalidUserIdToCheck.IsValid())
 						{
@@ -1093,7 +1093,7 @@ void FOnlineIdentitySpec::Define()
 							TestEqual("Verify that bLoginWasSuccessful returns as: True", bLoginWasSuccessful, true);
 
 							FString InvalidUserIdString = TEXT(" ");
-							TSharedPtr<const FUniqueNetId> InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+							FUniqueNetIdPtr InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 							if (InvalidUserId.IsValid())
 							{
@@ -1126,7 +1126,7 @@ void FOnlineIdentitySpec::Define()
 								TestEqual("Verify that bLogoutWasSuccessful returns as: True", bLogoutWasSuccessful, true);
 								TestEqual("Verify that LoginStatus is: NotLoggedIn", CurrentLoginStatus, ELoginStatus::NotLoggedIn);
 
-								TSharedPtr<const FUniqueNetId> InnerUserId = OnlineIdentity->GetUniquePlayerId(0);
+								FUniqueNetIdPtr InnerUserId = OnlineIdentity->GetUniquePlayerId(0);
 								if (InnerUserId.IsValid())
 								{
 									OnlineIdentity->GetUserPrivilege(*InnerUserId, EUserPrivileges::CanPlayOnline, IOnlineIdentity::FOnGetUserPrivilegeCompleteDelegate::CreateLambda([this, TestDone](const FUniqueNetId& GetUserPrivilegeUniqueId, EUserPrivileges::Type GetUserPrivilegePrivilege, uint32 GetUserPrivilegePrivilegeResult)
@@ -1235,7 +1235,7 @@ void FOnlineIdentitySpec::Define()
 					It("When calling GetPlatformUserIdFromUniqueNetId with an invalid FUniqueNetId, the subsystem returns no information", [this]()
 					{
 						FString InvalidUserIdString = TEXT(" ");
-						TSharedPtr<const FUniqueNetId> InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
+						FUniqueNetIdPtr InvalidUserId = OnlineIdentity->CreateUniquePlayerId(InvalidUserIdString);
 
 						FPlatformUserId PlatformId = PLATFORMUSERID_NONE;
 

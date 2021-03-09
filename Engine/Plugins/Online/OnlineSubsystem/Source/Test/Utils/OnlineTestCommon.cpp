@@ -138,7 +138,7 @@ void FOnlineTestCommon::SendInviteToFriendAccount(IOnlineIdentityPtr OI, IOnline
 	OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 	{
 		FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-		TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+		FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 		OnlineFriends->SendInvite(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnSendInviteComplete::CreateLambda([this, TestDone](int32 SendInviteLocalPlayerNum, bool bSendInviteWasSuccessful, const FUniqueNetId& SendInviteFriendId, const FString& SendInviteListName, const FString& SendInviteErrorStr)
 		{
@@ -168,7 +168,7 @@ void FOnlineTestCommon::AddFriendToTestAccount(IOnlineIdentityPtr OI, IOnlineFri
 	OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalPlayerNumTestAccount, bool bLoginWasSuccessfulTestAccount, const FUniqueNetId& LoginUserIdTestAccount, const FString& LoginErrorTestAccount)
 	{
 		FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-		TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+		FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 		OnlineFriends->SendInvite(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnSendInviteComplete::CreateLambda([this, TestDone](int32 SendInviteLocalPlayerNumTestAccount, bool bSendInviteWasSuccessfulTestAccount, const FUniqueNetId& SendInviteFriendIdTestAccount, const FString& SendInviteListNameTestAccount, const FString& SendInviteErrorStrTestAccount)
 		{
@@ -181,7 +181,7 @@ void FOnlineTestCommon::AddFriendToTestAccount(IOnlineIdentityPtr OI, IOnlineFri
 					OnlineFriends->ReadFriendsList(0, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([this, TestDone](int32 ReadFriendsListLocalPlayerNumFriendAccount, bool bReadFriendsListWasSuccessfulFriendAccount, const FString& ReadFriendsListListNameFriendAccount, const FString& ReadFriendsListErrorStrFriendAccount)
 					{
 						FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						OnlineFriends->AcceptInvite(0, *TestAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnAcceptInviteComplete::CreateLambda([this, TestDone](int32 AcceptInviteLocalPlayerNumFriendAccount, bool bAcceptInviteWasSuccessfulFriendAccount, const FUniqueNetId& AcceptInviteFriendIdFriendAccount, const FString& AcceptInviteListNameFriendAccount, const FString& AcceptInviteErrorStrFriendAccount)
 						{
@@ -228,7 +228,7 @@ void FOnlineTestCommon::RemoveFriendFromTestAccount(IOnlineIdentityPtr OI, IOnli
 			if (FriendsList.Num() > 0)
 			{
 				FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-				TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+				FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 				OnlineFriends->ClearOnDeleteFriendCompleteDelegate_Handle(0, OnDeleteFriendCompleteDelegateHandle);
 				OnDeleteFriendCompleteDelegateHandle = OnlineFriends->AddOnDeleteFriendCompleteDelegate_Handle(0, FOnDeleteFriendCompleteDelegate::CreateLambda([this, TestDone](int32 DeleteFriendLocalUserNum, bool bDeleteFriendWasSuccessful, const FUniqueNetId& DeleteFriendFriendId, const FString& DeleteFriendListName, const FString& DeleteFriendErrorStr)
@@ -280,7 +280,7 @@ void FOnlineTestCommon::RejectInviteOnFriendAccount(IOnlineIdentityPtr OI, IOnli
 			if (FriendsList.Num() > 0)
 			{
 				FString TestAccountUserIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-				TSharedPtr<const FUniqueNetId> TestAccountUserId = OnlineIdentity->CreateUniquePlayerId(TestAccountUserIdString);
+				FUniqueNetIdPtr TestAccountUserId = OnlineIdentity->CreateUniquePlayerId(TestAccountUserIdString);
 
 				OnRejectInviteCompleteDelegateHandle = OnlineFriends->AddOnRejectInviteCompleteDelegate_Handle(0, FOnRejectInviteCompleteDelegate::CreateLambda([this, TestDone](int32 RejectInviteLocalUserNum, bool bRejectInviteWasSuccessful, const FUniqueNetId& RejectInviteFriendId, const FString& RejectInviteListName, const FString& RejectInviteErrorStr)
 				{
@@ -327,7 +327,7 @@ void FOnlineTestCommon::BlockFriendOnTestAccount(IOnlineIdentityPtr OI, IOnlineF
 	OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalPlayerNumTestAccountAddFriend, bool bLoginWasSuccessfulTestAccountAddFriend, const FUniqueNetId& LoginUserIdTestAccountAddFriend, const FString& LoginErrorTestAccountAddFriend)
 	{
 		FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-		TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+		FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 		OnlineFriends->SendInvite(0, *FriendAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnSendInviteComplete::CreateLambda([this, FriendAccountId, TestDone](int32 SendInviteLocalPlayerNumTestAccountAddFriend, bool bSendInviteWasSuccessfulTestAccountAddFriend, const FUniqueNetId& SendInviteFriendIdTestAccountAddFriend, const FString& SendInviteListNameTestAccountAddFriend, const FString& SendInviteErrorStrTestAccountAddFriend)
 		{
@@ -340,7 +340,7 @@ void FOnlineTestCommon::BlockFriendOnTestAccount(IOnlineIdentityPtr OI, IOnlineF
 					OnlineFriends->ReadFriendsList(0, EFriendsLists::ToString(EFriendsLists::Default), FOnReadFriendsListComplete::CreateLambda([this, FriendAccountId, TestDone](int32 ReadFriendsListLocalPlayerNumFriendAccountAcceptInvite, bool bReadFriendsListWasSuccessfulFriendAccountAcceptInvite, const FString& ReadFriendsListListNameFriendAccountAcceptInvite, const FString& ReadFriendsListErrorStrFriendAccountAcceptInvite)
 					{
 						FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+						FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
 						OnlineFriends->AcceptInvite(0, *TestAccountId, EFriendsLists::ToString(EFriendsLists::Default), FOnAcceptInviteComplete::CreateLambda([this, FriendAccountId, TestDone](int32 AcceptInviteLocalPlayerNumFriendAccountAcceptInvite, bool bAcceptInviteWasSuccessfulFriendAccountAcceptInvite, const FUniqueNetId& AcceptInviteFriendIdFriendAccountAcceptInvite, const FString& AcceptInviteListNameFriendAccountAcceptInvite, const FString& AcceptInviteErrorStrFriendAccountAcceptInvite)
 						{
@@ -408,7 +408,7 @@ void FOnlineTestCommon::UnblockFriendOnTestAccount(IOnlineIdentityPtr OI, IOnlin
 	OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalPlayerNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 	{
 		FString FriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-		TSharedPtr<const FUniqueNetId> FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
+		FUniqueNetIdPtr FriendAccountId = OnlineIdentity->CreateUniquePlayerId(FriendAccountIdString);
 
 		if (FriendAccountId.IsValid())
 		{
@@ -422,7 +422,7 @@ void FOnlineTestCommon::UnblockFriendOnTestAccount(IOnlineIdentityPtr OI, IOnlin
 					if (FriendsList.Num() > 0)
 					{
 						FString DeletedFriendAccountIdString = FOnlineTestCommon::GetSubsystemFriendAccountUniqueId(SubsystemType);
-						TSharedPtr<const FUniqueNetId> DeletedFriendAccountId = OnlineIdentity->CreateUniquePlayerId(DeletedFriendAccountIdString);
+						FUniqueNetIdPtr DeletedFriendAccountId = OnlineIdentity->CreateUniquePlayerId(DeletedFriendAccountIdString);
 
 						OnlineFriends->ClearOnDeleteFriendCompleteDelegate_Handle(0, OnDeleteFriendCompleteDelegateHandle);
 						OnDeleteFriendCompleteDelegateHandle = OnlineFriends->AddOnDeleteFriendCompleteDelegate_Handle(0, FOnDeleteFriendCompleteDelegate::CreateLambda([this, TestDone](int32 DeleteFriendLocalUserNum, bool bDeleteFriendWasSuccessful, const FUniqueNetId& DeleteFriendFriendId, const FString& DeleteFriendListName, const FString& DeleteFriendErrorStr)
@@ -477,9 +477,9 @@ void FOnlineTestCommon::SendMessageToTestAccount(IOnlineIdentityPtr OI, IOnlineF
 	OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalPlayerNumTestAccount, bool bLoginWasSuccessfulTestAccount, const FUniqueNetId& LoginUserIdTestAccount, const FString& LoginErrorTestAccount)
 	{
 		FString TestAccountIdString = FOnlineTestCommon::GetSubsystemTestAccountUniqueId(SubsystemType);
-		TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+		FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-		TArray<TSharedRef<const FUniqueNetId>> Recipients;
+		TArray<FUniqueNetIdRef> Recipients;
 		Recipients.Add(TestAccountId.ToSharedRef());
 
 		FOnlineMessagePayload TestPayload;
@@ -513,7 +513,7 @@ void FOnlineTestCommon::AddAchievementToTestAccount(IOnlineIdentityPtr OI, IOnli
 
 	OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 	{
-		TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+		FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 		if (TestAccountId.IsValid())
 		{
@@ -566,7 +566,7 @@ void FOnlineTestCommon::ResetTestAccountAchievements(IOnlineIdentityPtr OI, IOnl
 
 	OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 	{
-		TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+		FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 		if (TestAccountId.IsValid())
 		{
