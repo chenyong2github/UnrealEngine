@@ -152,8 +152,7 @@ void FNiagaraSystemInstance::SetEmitterEnable(FName EmitterName, bool bNewEnable
 	//	return;
 	//}
 
-
-	UE_LOG(LogNiagara, Warning, TEXT("SetEmitterEnable: Emitter \"%s\" is not currently implemented."), *EmitterName.ToString());
+	UE_LOG(LogNiagara, Warning, TEXT("SetEmitterEnable: Is not implemented in Niagara. Emitter(%s) System(%s) Component(%s)"), *EmitterName.ToString(), *GetNameSafe(Asset.Get()), *GetFullNameSafe(AttachComponent.Get()));
 	return;
 
 	/*
