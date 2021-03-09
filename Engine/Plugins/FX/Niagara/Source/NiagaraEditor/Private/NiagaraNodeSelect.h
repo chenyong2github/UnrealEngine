@@ -7,6 +7,7 @@
 #include "NiagaraNodeUsageSelector.h"
 #include "Kismet2/EnumEditorUtils.h"
 #include "Layout/Visibility.h"
+#include "ToolMenu.h"
 
 #include "NiagaraNodeSelect.generated.h"
 
@@ -48,6 +49,7 @@ private:
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
 	virtual void PostLoad() override;
+	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
 
 	/** UNiagaraNode interface */
 	virtual void Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;

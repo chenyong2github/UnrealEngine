@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "NiagaraNodeUsageSelector.h"
 #include "Kismet2/EnumEditorUtils.h"
-
+#include "ToolMenu.h"
 #include "NiagaraNodeStaticSwitch.generated.h"
 
 UENUM()
