@@ -511,6 +511,11 @@ void FConsoleSlateDebuggerInvalidate::HandleWidgetInvalidated(const FSlateDebugg
 		return;
 	}
 
+	if (!Args.WidgetInvalidated->GetProxyHandle().IsValid(Args.WidgetInvalidated))
+	{
+		return;
+	}
+
 	const FConsoleSlateDebuggerUtility::TSWidgetId WidgetInvalidatedId = FConsoleSlateDebuggerUtility::GetId(Args.WidgetInvalidated);
 	const FConsoleSlateDebuggerUtility::TSWidgetId WidgetInvalidatorId = FConsoleSlateDebuggerUtility::GetId(Args.WidgetInvalidateInvestigator);
 
