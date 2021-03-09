@@ -168,6 +168,8 @@ class ENGINE_API UTextRenderComponent : public UPrimitiveComponent
 
 	//~ Begin USceneComponent Interface.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
+	// Note: this is required because GetRenderMatrix is overridden, and therefore the updated world-space bounds must be based on that (not the component transform)
+	virtual void UpdateBounds() override;
 	//~ End USceneComponent Interface.
 
 	//~ Begin UActorComponent Interface.

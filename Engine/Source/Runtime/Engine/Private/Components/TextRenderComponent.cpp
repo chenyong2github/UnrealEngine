@@ -1157,9 +1157,7 @@ FBoxSphereBounds UTextRenderComponent::CalcBounds(const FTransform& LocalToWorld
 			while (It.NextCharacterInLine(Ch)) {}
 		}
 
-		LeftTop.Y = ComputeVerticalAlignmentOffset(Size.Y, VerticalAlignment, FirstLineHeight);
-		const FBox LocalBox(FVector(0.f, -LeftTop.X, -LeftTop.Y), FVector(0.f, -(LeftTop.X + Size.X), -(LeftTop.Y + Size.Y)));
-
+		const FBox LocalBox(FVector(0.f, -Size.X - LeftTop.X, -Size.Y), FVector(0.f, -LeftTop.X, 0.0f));
 		FBoxSphereBounds Ret(LocalBox.TransformBy(LocalToWorld));
 
 		Ret.BoxExtent *= BoundsScale;
@@ -1171,6 +1169,11 @@ FBoxSphereBounds UTextRenderComponent::CalcBounds(const FTransform& LocalToWorld
 	{
 		return FBoxSphereBounds(ForceInit).TransformBy(LocalToWorld);
 	}
+}
+
+void UTextRenderComponent::UpdateBounds()
+{
+	Bounds = CalcBounds(FTransform(GetRenderMatrix()));
 }
 
 bool UTextRenderComponent::RequiresGameThreadEndOfFrameUpdates() const

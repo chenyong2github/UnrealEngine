@@ -1734,8 +1734,10 @@ public:
 	void SyncComponentToRBPhysics();
 	
 	/** 
-	 *	Returns the matrix that should be used to render this component. 
-	 *	Allows component class to perform graphical distortion to the component not supported by an FTransform 
+	 * Returns the matrix that should be used to render this component. 
+	 * Allows component class to perform graphical distortion to the component not supported by an FTransform 
+	 * NOTE: When overriding this method to alter the transform used for rendering it is typically neccessary to also implement USceneComponent::UpdateBounds.
+	 *       Otherwise the Local bounds will not match the world space bounds, causing incorrect culling.
 	 */
 	virtual FMatrix GetRenderMatrix() const;
 
