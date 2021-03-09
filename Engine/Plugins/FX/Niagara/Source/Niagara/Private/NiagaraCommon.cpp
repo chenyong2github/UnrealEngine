@@ -830,12 +830,10 @@ FName NIAGARA_API FNiagaraUtilities::GetUniqueName(FName CandidateName, const TS
 	return UniqueName;
 }
 
-FNiagaraVariable FNiagaraUtilities::ConvertVariableToRapidIterationConstantName(FNiagaraVariable InVar, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage)
+FString FNiagaraUtilities::CreateRapidIterationConstantName(FName InVariableName, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage)
 {
-	FNiagaraVariable Var = InVar;
-
 	TArray<FString> SplitName;
-	Var.GetName().ToString().ParseIntoArray(SplitName, TEXT("."));
+	InVariableName.ToString().ParseIntoArray(SplitName, TEXT("."));
 	int32 NumSlots = SplitName.Num();
 	if (InEmitterName != nullptr)
 	{
@@ -863,8 +861,15 @@ FNiagaraVariable FNiagaraUtilities::ConvertVariableToRapidIterationConstantName(
 		SplitName.Insert(TEXT("Constants"), 0);
 	}
 
-	FString OutVarStrName = FString::Join(SplitName, TEXT("."));
-	Var.SetName(*OutVarStrName);
+	return FString::Join(SplitName, TEXT("."));
+}
+
+FNiagaraVariable FNiagaraUtilities::ConvertVariableToRapidIterationConstantName(FNiagaraVariable InVar, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage)
+{
+	FNiagaraVariable Var = InVar;
+
+	Var.SetName(*CreateRapidIterationConstantName(Var.GetName(), InEmitterName, InUsage));
+
 	return Var;
 }
 
