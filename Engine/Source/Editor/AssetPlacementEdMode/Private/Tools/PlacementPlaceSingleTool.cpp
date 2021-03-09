@@ -235,12 +235,17 @@ void UPlacementModePlaceSingleTool::GeneratePlacementData(const FInputDeviceRay&
 	if (PlacementSettings && PlacementSettings->PaletteItems.Num())
 	{
 		int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
-		const FPaletteItem& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
+		const TSharedPtr<FPaletteItem>& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
+		if (!ItemToPlace)
+		{
+			return;
+		}
+
 		FTransform TransformToUpdate(GenerateRandomRotation(PlacementSettings), LastBrushStamp.WorldPosition, GenerateRandomScale(PlacementSettings));
 
 		PlacementInfo = MakeUnique<FAssetPlacementInfo>();
-		PlacementInfo->AssetToPlace = ItemToPlace.AssetData;
-		PlacementInfo->FactoryOverride = ItemToPlace.FactoryOverride;
+		PlacementInfo->AssetToPlace = ItemToPlace->AssetData;
+		PlacementInfo->FactoryOverride = ItemToPlace->AssetFactoryInterface;
 		PlacementInfo->FinalizedTransform = FinalizeTransform(TransformToUpdate, LastBrushStamp.WorldNormal, PlacementSettings);
 		PlacementInfo->PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 	}

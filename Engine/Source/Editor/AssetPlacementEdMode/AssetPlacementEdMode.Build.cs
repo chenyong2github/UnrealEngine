@@ -8,6 +8,7 @@ public class AssetPlacementEdMode : ModuleRules
 	{
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"ContentBrowser",
 				"Core",
 				"CoreUObject",
                 "InputCore",

@@ -1,21 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SAssetPlacementPalette.h"
-#include "Widgets/Layout/SSplitter.h"
-#include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SCheckBox.h"
 #include "AssetPlacementPaletteItem.h"
-#include "Misc/MessageDialog.h"
-#include "Misc/FeedbackContext.h"
-#include "Modules/ModuleManager.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Text/SRichTextBlock.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SSlider.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "EditorStyleSet.h"
 #include "AssetThumbnail.h"
 #include "PropertyEditorModule.h"
@@ -24,9 +18,8 @@
 #include "ContentBrowserModule.h"
 #include "PropertyCustomizationHelpers.h"
 #include "IDetailsView.h"
-#include "AssetSelection.h"
-#include "ScopedTransaction.h"
 #include "AssetData.h"
+#include "AssetSelection.h"
 #include "Editor.h"
 #include "Widgets/Layout/SScrollBox.h"
 
@@ -39,6 +32,10 @@
 #include "Engine/AssetManager.h"
 #include "Engine/StreamableManager.h"
 #include "Modes/PlacementModeSubsystem.h"
+
+#include "IContentBrowserSingleton.h"
+#include "ContentBrowserModule.h"
+#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "AssetPlacementMode"
 
@@ -123,6 +120,22 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 
 	const FText BlankText = FText::GetEmpty();
 
+	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
+	if (PlacementSettings.IsValid())
+	{
+		for (const TSharedPtr<FPaletteItem>& PaletteItem : PlacementSettings->PaletteItems)
+		{
+			if (PaletteItem)
+			{
+				PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(PaletteItem, SharedThis(this), ThumbnailPool));
+			}
+		}
+
+		// Make sure the content browser setting is not what we're going to change to, so that the setup will happen.
+		bIsMirroringContentBrowser = !PlacementSettings->bUseContentBrowserSelection;
+		SetupContentBrowserMirroring(PlacementSettings->bUseContentBrowserSelection);
+	}
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -137,7 +150,26 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 			[
 				SNew(SVerticalBox)
 				+ SVerticalBox::Slot()
+				.AutoHeight()
+				.HAlign(HAlign_Fill)
+				[
+					SNew(SCheckBox)
+					.Type(ESlateCheckBoxType::Type::ToggleButton)
+					.IsChecked(bIsMirroringContentBrowser ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+					.Style(&FAssetPlacementEdModeStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
+					.OnCheckStateChanged(this, &SAssetPlacementPalette::OnContentBrowserMirrorButtonClicked)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Placement_ToggleContentBrowserMirroring", "Mirror Content Browser Selection"))
+						.Justification(ETextJustify::Type::Center)
+						.TextStyle(&FAssetPlacementEdModeStyle::Get().GetWidgetStyle<FTextBlockStyle>("ButtonText"))
+						.ToolTipText(LOCTEXT("Placement_ToggleContentBrowserMirroring_ToolTip", "Toggles palette to mirror the active content browser selection."))
+					]
+				]
+
+				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
+				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
 
@@ -223,15 +255,6 @@ void SAssetPlacementPalette::Construct(const FArguments& InArgs)
 		]
 	];
 
-	TWeakObjectPtr<const UAssetPlacementSettings> PlacementSettings = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->GetModeSettingsObject();
-	if (PlacementSettings.IsValid())
-	{
-		for (const FPaletteItem& PaletteItem : PlacementSettings->PaletteItems)
-		{
-			PaletteItems.Add(MakeShared<FAssetPlacementPaletteItemModel>(MakeShared<FPaletteItem>(PaletteItem), SharedThis(this), ThumbnailPool));
-		}
-	}
-
 	UpdatePalette(true);
 }
 
@@ -284,33 +307,9 @@ void SAssetPlacementPalette::RefreshActivePaletteViewWidget()
 
 void SAssetPlacementPalette::AddPlacementType(const FAssetData& AssetData)
 {
-	if (!AssetData.IsValid())
-	{
-		return;
-	}
-
-	if (AssetData.GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_NotPlaceable))
-	{
-		return;
-	}
-
-	TScriptInterface<IAssetFactoryInterface> FactoryInterface;
-	if (UPlacementSubsystem* PlacementSubystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
-	{
-		FactoryInterface = PlacementSubystem->FindAssetFactoryFromAssetData(AssetData);
-	}
-
-	if (!FactoryInterface)
-	{
-		return;
-	}
-
-	FAssetPlacementUIInfoPtr PlacementInfo = MakeShared<FPaletteItem>();
-	PlacementInfo->AssetData = AssetData;
-	PlacementInfo->FactoryOverride = FactoryInterface;
-
 	// Try to add the item to the mode's palette
-	if (!GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->AddPaletteItem(*PlacementInfo))
+	FAssetPlacementUIInfoPtr PlacementInfo = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>()->AddPaletteItem(AssetData);
+	if (!PlacementInfo.IsValid())
 	{
 		return;
 	}
@@ -336,6 +335,15 @@ void SAssetPlacementPalette::OnClearPalette()
 {
 	ClearPalette();
 	UpdatePalette(true);
+}
+
+void SAssetPlacementPalette::SetPaletteToAssetDataList(TArrayView<const FAssetData> InAssetDatas)
+{
+	ClearPalette();
+	for (const FAssetData& SelectedAsset : InAssetDatas)
+	{
+		AddPlacementType(SelectedAsset);
+	}
 }
 
 TSharedRef<SWidgetSwitcher> SAssetPlacementPalette::CreatePaletteViews()
@@ -425,6 +433,48 @@ bool SAssetPlacementPalette::ShouldFilterAsset(const FAssetData& InAssetData)
 	}
 
 	return true;
+}
+
+void SAssetPlacementPalette::OnContentBrowserMirrorButtonClicked(ECheckBoxState InState)
+{
+	SetupContentBrowserMirroring((InState == ECheckBoxState::Checked));
+
+	if (UPlacementModeSubsystem* PlacementModeSubsystem = GEditor->GetEditorSubsystem<UPlacementModeSubsystem>())
+	{
+		PlacementModeSubsystem->SetUseContentBrowserAsPalette(bIsMirroringContentBrowser);
+	}
+}
+
+void SAssetPlacementPalette::OnContentBrowserSelectionChanged(const TArray<FAssetData>& NewSelectedAssets, bool bIsPrimaryBrowser)
+{
+	if (bIsPrimaryBrowser)
+	{
+		SetPaletteToAssetDataList(NewSelectedAssets);
+		UpdatePalette(true);
+	}
+}
+
+void SAssetPlacementPalette::SetupContentBrowserMirroring(bool bInMirrorContentBrowser)
+{
+	bool bWasMirroringContentBrowser = bIsMirroringContentBrowser;
+	if (bWasMirroringContentBrowser != bInMirrorContentBrowser)
+	{
+		if (FContentBrowserModule* ContentBrowserModule = FModuleManager::GetModulePtr<FContentBrowserModule>("ContentBrowser"))
+		{
+			if (bInMirrorContentBrowser)
+			{
+				TArray<FAssetData> SelectedAssetDatas;
+				ContentBrowserModule->Get().GetSelectedAssets(SelectedAssetDatas);
+				OnContentBrowserSelectionChanged(SelectedAssetDatas, true);
+				ContentBrowserModule->GetOnAssetSelectionChanged().AddSP(SharedThis(this), &SAssetPlacementPalette::OnContentBrowserSelectionChanged);
+			}
+			else
+			{
+				ContentBrowserModule->GetOnAssetSelectionChanged().RemoveAll(this);
+			}
+		}
+	}
+	bIsMirroringContentBrowser = bInMirrorContentBrowser;
 }
 
 void SAssetPlacementPalette::SetViewMode(EViewMode NewViewMode)
@@ -549,11 +599,21 @@ TSharedPtr<SListView<FPlacementPaletteItemModelPtr>> SAssetPlacementPalette::Get
 
 EVisibility SAssetPlacementPalette::GetDropPlacementHintVisibility() const
 {
+	if (bIsMirroringContentBrowser)
+	{
+		return EVisibility::Collapsed;
+	}
+
 	return FilteredItems.Num() ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 EVisibility SAssetPlacementPalette::GetPlacementDropTargetVisibility() const
 {
+	if (bIsMirroringContentBrowser)
+	{
+		return EVisibility::Hidden;
+	}
+
 	if (FSlateApplication::Get().IsDragDropping())
 	{
 		TArray<FAssetData> DraggedAssets = AssetUtil::ExtractAssetDataFromDrag(FSlateApplication::Get().GetDragDroppingContent());
@@ -576,6 +636,11 @@ EVisibility SAssetPlacementPalette::GetPlacementDropTargetVisibility() const
 
 FReply SAssetPlacementPalette::HandlePlacementDropped(const FGeometry& DropZoneGeometry, const FDragDropEvent& DragDropEvent)
 {
+	if (bIsMirroringContentBrowser)
+	{
+		return FReply::Unhandled();
+	}
+
 	TArray<FAssetData> DroppedAssetData = AssetUtil::ExtractAssetDataFromDrag(DragDropEvent);
 	if (DroppedAssetData.Num() > 0)
 	{
@@ -603,12 +668,17 @@ bool SAssetPlacementPalette::HasAnyItemInPalette() const
 TSharedPtr<SWidget> SAssetPlacementPalette::ConstructPlacementTypeContextMenu()
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("Palette_Clear", "Clear Palette"),
-		LOCTEXT("Palette_ClearDesc", "Removes all items from the palette."),
-		FSlateIcon(),
-		FUIAction(FExecuteAction::CreateSP(this, &SAssetPlacementPalette::OnClearPalette), FCanExecuteAction::CreateSP(this, &SAssetPlacementPalette::HasAnyItemInPalette))
-	);
+	if (!bIsMirroringContentBrowser)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("Palette_Clear", "Clear Palette"),
+			LOCTEXT("Palette_ClearDesc", "Removes all items from the palette."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(this, &SAssetPlacementPalette::OnClearPalette),
+				FCanExecuteAction::CreateSP(this, &SAssetPlacementPalette::HasAnyItemInPalette))
+		);
+	}
 	return MenuBuilder.MakeWidget();
 }
 

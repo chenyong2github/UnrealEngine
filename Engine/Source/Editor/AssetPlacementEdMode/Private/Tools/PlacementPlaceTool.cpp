@@ -86,9 +86,15 @@ void UPlacementModePlacementTool::OnTick(float DeltaTime)
 			PotentialInstanceHash.InsertInstance(SpawnLocation, PotentialIdx);
 
 			int32 ItemIndex = FMath::RandHelper(PlacementSettings->PaletteItems.Num());
-			const FPaletteItem& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
+			const TSharedPtr<FPaletteItem>& ItemToPlace = PlacementSettings->PaletteItems[ItemIndex];
+			if (!ItemToPlace)
+			{
+				return;
+			}
+
 			FAssetPlacementInfo NewInfo;
-			NewInfo.AssetToPlace = ItemToPlace.AssetData;
+			NewInfo.AssetToPlace = ItemToPlace->AssetData;
+			NewInfo.FactoryOverride = ItemToPlace->AssetFactoryInterface;
 			NewInfo.PreferredLevel = GEditor->GetEditorWorldContext().World()->GetCurrentLevel();
 			NewInfo.FinalizedTransform = GenerateTransformFromHitLocationAndNormal(SpawnLocation, SpawnNormal);
 

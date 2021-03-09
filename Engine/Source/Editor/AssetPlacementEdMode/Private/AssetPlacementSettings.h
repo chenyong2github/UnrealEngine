@@ -19,7 +19,7 @@ struct FPaletteItem
 	FAssetData AssetData;
 
 	UPROPERTY()
-	TScriptInterface<IAssetFactoryInterface> FactoryOverride;
+	TScriptInterface<IAssetFactoryInterface> AssetFactoryInterface;
 };
 
 UCLASS(config = EditorPerProjectUserSettings)
@@ -130,7 +130,10 @@ public:
 
 	// todo: palette save and load between sessions
 	//UPROPERTY(config)
-	TArray<FPaletteItem> PaletteItems;
+	TArray<TSharedPtr<FPaletteItem>> PaletteItems;
+
+	UPROPERTY(config)
+	bool bUseContentBrowserSelection = true;
 
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 };

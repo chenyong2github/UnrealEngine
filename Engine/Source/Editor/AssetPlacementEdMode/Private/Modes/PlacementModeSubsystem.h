@@ -35,14 +35,19 @@ public:
 	/**
 	 * Adds the given palette item to the current palette.
 	 * 
-	 * @returns true if the item was added.
+	 * @returns a pointer to the added item, if the add was successful.
 	 */
-	bool AddPaletteItem(const FPaletteItem& InPaletteItem);
+	TSharedPtr<FPaletteItem> AddPaletteItem(const FAssetData& InAssetData);
 
 	/**
 	 * Clears all items from the current palette.
 	 */
 	void ClearPalette();
+
+	/**
+	 * Updates the settings object to use the content browser's active selection as the palette.
+	 */
+	void SetUseContentBrowserAsPalette(bool bInUseContentBrowser);
 
 protected:
 	UPROPERTY()

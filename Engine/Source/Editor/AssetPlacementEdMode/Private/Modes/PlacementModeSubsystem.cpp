@@ -8,6 +8,9 @@
 #include "Elements/Interfaces/TypedElementAssetDataInterface.h"
 #include "Factories/AssetFactoryInterface.h"
 
+#include "Subsystems/PlacementSubsystem.h"
+#include "Editor.h"
+
 void UPlacementModeSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	ModeSettings = NewObject<UAssetPlacementSettings>(this);
@@ -35,9 +38,14 @@ bool UPlacementModeSubsystem::DoesCurrentPaletteSupportElement(const FTypedEleme
 	if (TTypedElement<UTypedElementAssetDataInterface> AssetDataInterface = UTypedElementRegistry::GetInstance()->GetElement<UTypedElementAssetDataInterface>(InElementToCheck))
 	{
 		TArray<FAssetData> ReferencedAssetDatas = AssetDataInterface.GetAllReferencedAssetDatas();
-		for (const FPaletteItem& Item : ModeSettings->PaletteItems)
+		for (const TSharedPtr<FPaletteItem>& Item : ModeSettings->PaletteItems)
 		{
-			if (ReferencedAssetDatas.Find(Item.AssetData) != INDEX_NONE)
+			if (!Item)
+			{
+				continue;
+			}
+
+			if (ReferencedAssetDatas.Find(Item->AssetData) != INDEX_NONE)
 			{
 				return true;
 			}
@@ -46,10 +54,15 @@ bool UPlacementModeSubsystem::DoesCurrentPaletteSupportElement(const FTypedEleme
 
 	// The current implementation of the asset data interface for actors requires that individual actors report on assets contained within their components.
 	// Not all actors do this reliably, so additionally check the supplied factory for a match. 
-	for (const FPaletteItem& Item : ModeSettings->PaletteItems)
+	for (const TSharedPtr<FPaletteItem>& Item : ModeSettings->PaletteItems)
 	{
-		FAssetData FoundAssetDataFromFactory = Item.FactoryOverride->GetAssetDataFromElementHandle(InElementToCheck);
-		if (FoundAssetDataFromFactory == Item.AssetData)
+		if (!Item)
+		{
+			continue;
+		}
+
+		FAssetData FoundAssetDataFromFactory = Item->AssetFactoryInterface->GetAssetDataFromElementHandle(InElementToCheck);
+		if (FoundAssetDataFromFactory == Item->AssetData)
 		{
 			return true;
 		}
@@ -58,18 +71,42 @@ bool UPlacementModeSubsystem::DoesCurrentPaletteSupportElement(const FTypedEleme
 	return false;
 }
 
-bool UPlacementModeSubsystem::AddPaletteItem(const FPaletteItem& InPaletteItem)
+TSharedPtr<FPaletteItem> UPlacementModeSubsystem::AddPaletteItem(const FAssetData& InAssetData)
 {
-	if (ModeSettings && !ModeSettings->PaletteItems.FindByPredicate([InPaletteItem](const FPaletteItem& ItemIter) { return ItemIter.AssetData.ObjectPath == InPaletteItem.AssetData.ObjectPath; }))
+	TSharedPtr<FPaletteItem> NewPaletteItem;
+	if (!InAssetData.IsValid())
 	{
-		ModeSettings->PaletteItems.Add(InPaletteItem);
-		return true;
+		return NewPaletteItem;
 	}
 
-	return false;
+	if (InAssetData.GetClass()->HasAnyClassFlags(CLASS_Abstract | CLASS_Deprecated | CLASS_NewerVersionExists | CLASS_NotPlaceable))
+	{
+		return NewPaletteItem;
+	}
+
+	if (ModeSettings && !ModeSettings->PaletteItems.FindByPredicate([InAssetData](const TSharedPtr<FPaletteItem>& ItemIter) { return ItemIter ? (ItemIter->AssetData.ObjectPath == InAssetData.ObjectPath) : false; }))
+	{
+		if (UPlacementSubsystem* PlacementSubystem = GEditor->GetEditorSubsystem<UPlacementSubsystem>())
+		{
+			if (TScriptInterface<IAssetFactoryInterface> AssetFactory = PlacementSubystem->FindAssetFactoryFromAssetData(InAssetData))
+			{
+				NewPaletteItem = MakeShared<FPaletteItem>();
+				NewPaletteItem->AssetData = InAssetData;
+				NewPaletteItem->AssetFactoryInterface = AssetFactory;
+				ModeSettings->PaletteItems.Add(NewPaletteItem);
+			}
+		}
+	}
+
+	return NewPaletteItem;
 }
 
 void UPlacementModeSubsystem::ClearPalette()
 {
 	ModeSettings->PaletteItems.Empty();
+}
+
+void UPlacementModeSubsystem::SetUseContentBrowserAsPalette(bool bInUseContentBrowser)
+{
+	ModeSettings->bUseContentBrowserSelection = bInUseContentBrowser;
 }

@@ -76,6 +76,7 @@ private:
 	 */
 	void ClearPalette();
 	void OnClearPalette();
+	void SetPaletteToAssetDataList(TArrayView<const FAssetData> InAssetDatas);
 
 	/** Refreshes the active palette view widget */
 	void RefreshActivePaletteViewWidget();
@@ -91,8 +92,9 @@ private:
 
 	bool ShouldFilterAsset(const FAssetData& InAssetData);
 
-	/** Gets the visibility of the Add Placement Type text in the header row button */
-	EVisibility GetAddPlacementTypeButtonTextVisibility() const;
+	void OnContentBrowserMirrorButtonClicked(ECheckBoxState InState);
+	void OnContentBrowserSelectionChanged(const TArray<FAssetData>& NewSelectedAssets, bool bIsPrimaryBrowser);
+	void SetupContentBrowserMirroring(bool bInMirrorContentBrowser);
 
 	/** Sets the view mode of the palette */
 	void SetViewMode(EViewMode NewViewMode);
@@ -212,6 +214,7 @@ private:
 	bool bShowFullTooltips = true;
 	bool bIsRebuildTimerRegistered = true;
 	bool bIsRefreshTimerRegistered = true;
+	bool bIsMirroringContentBrowser = true;
 	EViewMode ActiveViewMode;
 	EColumnSortMode::Type ActiveSortOrder = EColumnSortMode::Type::Ascending;
 
