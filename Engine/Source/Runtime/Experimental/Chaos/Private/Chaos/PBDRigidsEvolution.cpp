@@ -169,8 +169,7 @@ namespace Chaos
 		}
 	};
 
-	template <typename Traits>
-	TPBDRigidsEvolutionBase<Traits>::TPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
+	FPBDRigidsEvolutionBase::FPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations, int32 InNumPushOutIterations, bool InIsSingleThreaded)
 	    : Particles(InParticles)
 		, SolverPhysicsMaterials(InSolverPhysicsMaterials)
 		, InternalAcceleration(nullptr)
@@ -196,8 +195,7 @@ namespace Chaos
 		ComputeIntermediateSpatialAcceleration();
 	}
 
-	template <typename Traits>
-	TPBDRigidsEvolutionBase<Traits>::~TPBDRigidsEvolutionBase()
+	FPBDRigidsEvolutionBase::~FPBDRigidsEvolutionBase()
 	{
 		Particles.GetParticleHandles().RemoveArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().RemoveArray(&PerParticlePhysicsMaterials);
@@ -215,8 +213,7 @@ namespace Chaos
 	DECLARE_CYCLE_STAT(TEXT("CreateInitialAccelerationStructure"), STAT_CreateInitialAccelerationStructure, STATGROUP_Chaos);
 	DECLARE_CYCLE_STAT(TEXT("CreateNonSlicedStructures"), STAT_CreateNonSlicedStructures, STATGROUP_Chaos);
 
-	template <typename Traits>
-	TPBDRigidsEvolutionBase<Traits>::FChaosAccelerationStructureTask::FChaosAccelerationStructureTask(
+	FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::FChaosAccelerationStructureTask(
 		ISpatialAccelerationCollectionFactory& InSpatialCollectionFactory
 		, const TMap<FSpatialAccelerationIdx, TUniquePtr<FSpatialAccelerationCache>>& InSpatialAccelerationCache
 		, FAccelerationStructure* InInternalAccelerationStructure
@@ -233,20 +230,17 @@ namespace Chaos
 
 	}
 
-	template <typename Traits>
-	TStatId TPBDRigidsEvolutionBase<Traits>::FChaosAccelerationStructureTask::GetStatId()
+	TStatId FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::GetStatId()
 	{
 		RETURN_QUICK_DECLARE_CYCLE_STAT(FChaosAccelerationStructureTask, STATGROUP_Chaos);
 	}
 
-	template <typename Traits>
-	ENamedThreads::Type TPBDRigidsEvolutionBase<Traits>::FChaosAccelerationStructureTask::GetDesiredThread()
+	ENamedThreads::Type FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::GetDesiredThread()
 	{
 		return ENamedThreads::AnyBackgroundThreadNormalTask;
 	}
 
-	template <typename Traits>
-	ESubsequentsMode::Type TPBDRigidsEvolutionBase<Traits>::FChaosAccelerationStructureTask::GetSubsequentsMode()
+	ESubsequentsMode::Type FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::GetSubsequentsMode()
 	{
 		return ESubsequentsMode::TrackSubsequents;
 	}
@@ -277,8 +271,7 @@ namespace Chaos
 		}
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FChaosAccelerationStructureTask::UpdateStructure(FAccelerationStructure* AccelerationStructure)
+	void FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::UpdateStructure(FAccelerationStructure* AccelerationStructure)
 	{
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 
@@ -365,8 +358,7 @@ namespace Chaos
 		}
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FChaosAccelerationStructureTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
+	void FPBDRigidsEvolutionBase::FChaosAccelerationStructureTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 
@@ -375,8 +367,7 @@ namespace Chaos
 		UpdateStructure(ExternalStructure);
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
+	void FPBDRigidsEvolutionBase::ApplyParticlePendingData(const FPendingSpatialData& SpatialData, FAccelerationStructure& AccelerationStructure, bool bUpdateCache)
 	{
 		if (SpatialData.bDelete)
 		{
@@ -436,8 +427,7 @@ namespace Chaos
 		}
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FlushInternalAccelerationQueue()
+	void FPBDRigidsEvolutionBase::FlushInternalAccelerationQueue()
 	{
 		for (const FPendingSpatialData& PendingData : InternalAccelerationQueue.PendingData)
 		{
@@ -447,8 +437,7 @@ namespace Chaos
 		InternalAccelerationQueue.Reset();
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FlushAsyncAccelerationQueue()
+	void FPBDRigidsEvolutionBase::FlushAsyncAccelerationQueue()
 	{
 		for (const FPendingSpatialData& PendingData : AsyncAccelerationQueue.PendingData)
 		{
@@ -475,8 +464,7 @@ namespace Chaos
 	}
 
 	//TODO: make static and _External suffix
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration, FPendingSpatialDataQueue& ExternalQueue)
+	void FPBDRigidsEvolutionBase::FlushExternalAccelerationQueue(FAccelerationStructure& Acceleration, FPendingSpatialDataQueue& ExternalQueue)
 	{
 		//update structure with any pending operations. Note that we must keep those operations around in case next structure still hasn't consumed them (async mode)
 		const int32 SyncTimestamp = Acceleration.GetSyncTimestamp();
@@ -513,8 +501,7 @@ namespace Chaos
 		}
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::WaitOnAccelerationStructure()
+	void FPBDRigidsEvolutionBase::WaitOnAccelerationStructure()
 	{
 		if (AccelerationStructureTaskComplete.GetReference())
 		{
@@ -525,8 +512,7 @@ namespace Chaos
 		}
 	}
 
-	template <typename Traits>
-	typename TPBDRigidsEvolutionBase<Traits>::FAccelerationStructure* TPBDRigidsEvolutionBase<Traits>::GetFreeSpatialAcceleration_Internal()
+	typename FPBDRigidsEvolutionBase::FAccelerationStructure* FPBDRigidsEvolutionBase::GetFreeSpatialAcceleration_Internal()
 	{
 		FAccelerationStructure* Structure;
 		if(!ExternalStructuresPool.Dequeue(Structure))
@@ -538,15 +524,13 @@ namespace Chaos
 		return Structure;
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FreeSpatialAcceleration_External(FAccelerationStructure* Structure)
+	void FPBDRigidsEvolutionBase::FreeSpatialAcceleration_External(FAccelerationStructure* Structure)
 	{
 		//don't need to reset as rebuild task does that for us
 		ExternalStructuresPool.Enqueue(Structure);
 	}
 	
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::ComputeIntermediateSpatialAcceleration(bool bBlock)
+	void FPBDRigidsEvolutionBase::ComputeIntermediateSpatialAcceleration(bool bBlock)
 	{
 		LLM_SCOPE(ELLMTag::ChaosAcceleration);
 		SCOPE_CYCLE_COUNTER(STAT_ComputeIntermediateSpatialAcceleration);
@@ -608,8 +592,7 @@ namespace Chaos
 		}
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::UpdateExternalAccelerationStructure_External(
+	void FPBDRigidsEvolutionBase::UpdateExternalAccelerationStructure_External(
 		ISpatialAccelerationCollection<FAccelerationStructureHandle, FReal, 3>*& StructToUpdate, FPendingSpatialDataQueue& PendingExternal)
 	{
 		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CreateExternalAccelerationStructure"), STAT_CreateExternalAccelerationStructure, STATGROUP_Physics);
@@ -633,8 +616,7 @@ namespace Chaos
 		}
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::FlushSpatialAcceleration()
+	void FPBDRigidsEvolutionBase::FlushSpatialAcceleration()
 	{
 		//force build acceleration structure with latest data
 		ComputeIntermediateSpatialAcceleration(true);
@@ -642,8 +624,7 @@ namespace Chaos
 		ComputeIntermediateSpatialAcceleration(true);
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::RebuildSpatialAccelerationForPerfTest()
+	void FPBDRigidsEvolutionBase::RebuildSpatialAccelerationForPerfTest()
 	{
 		WaitOnAccelerationStructure();
 
@@ -661,14 +642,12 @@ namespace Chaos
 		FlushSpatialAcceleration();
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::ReleaseIdx(FUniqueIdx Idx)
+	void FPBDRigidsEvolutionBase::ReleaseIdx(FUniqueIdx Idx)
 	{
 		PendingReleaseIndices.Add(Idx);
 	}
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::ReleasePendingIndices()
+	void FPBDRigidsEvolutionBase::ReleasePendingIndices()
 	{
 		for (FUniqueIdx Idx : PendingReleaseIndices)
 		{
@@ -678,8 +657,7 @@ namespace Chaos
 	}
 
 
-	template <typename Traits>
-	void TPBDRigidsEvolutionBase<Traits>::Serialize(FChaosArchive& Ar)
+	void FPBDRigidsEvolutionBase::Serialize(FChaosArchive& Ar)
 	{
 		ensure(false);	//disabled transient data serialization. Need to rethink
 		int32 DefaultBroadphaseType = ConfigSettings.BroadphaseType;
@@ -750,8 +728,4 @@ namespace Chaos
 
 		ConfigSettings.BroadphaseType = DefaultBroadphaseType;
 	}
-
-#define EVOLUTION_TRAIT(Trait) template class TPBDRigidsEvolutionBase<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 }

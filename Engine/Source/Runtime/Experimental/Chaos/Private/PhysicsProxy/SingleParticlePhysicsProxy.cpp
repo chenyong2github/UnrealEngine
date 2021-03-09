@@ -144,8 +144,7 @@ void PushToPhysicsStateImp(const Chaos::FDirtyPropertiesManager& Manager, Chaos:
 // TGeometryParticle<float, 3> template specialization 
 //
 
-template <typename Traits>
-void FSingleParticlePhysicsProxy::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution)
+void FSingleParticlePhysicsProxy::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager, int32 DataIdx, const Chaos::FDirtyProxy& Dirty, Chaos::FShapeDirtyData* ShapesData, Chaos::FPBDRigidsEvolutionGBF& Evolution)
 {
 	using namespace Chaos;
 	switch(Dirty.ParticleData.GetParticleBufferType())
@@ -310,9 +309,3 @@ void FSingleParticlePhysicsProxy::ClearEvents()
 		Rigid->ClearEvents();
 	}
 }
-
-#define EVOLUTION_TRAIT(Traits)\
-template void FSingleParticlePhysicsProxy::PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,\
-	int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Chaos::Traits>& Evolution);
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT

@@ -130,7 +130,6 @@ namespace GeometryCollectionTest
 			FTransform::Identity, GeomTransform, NumberOfMaterials);
 	}
 
-	template <typename Traits>
 	WrapperBase* CommonInit(const TSharedPtr<FGeometryCollection>& RestCollection, const CreationParameters& Params)
 	{
 		FTransformCollection SingleTransform = FTransformCollection::SingleTransform();
@@ -194,11 +193,10 @@ namespace GeometryCollectionTest
 				nullptr,			// Init func
 				nullptr,			// Cache sync func
 				nullptr);			// Final sync func
-		return new TGeometryCollectionWrapper<Traits>(RestCollection, DynamicCollection, PhysObject);
+		return new FGeometryCollectionWrapper(RestCollection, DynamicCollection, PhysObject);
 	}
 
 	template <>
-	template<typename Traits>
 	WrapperBase* TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(const CreationParameters Params)
 	{
 		TSharedPtr<FGeometryCollection> RestCollection;
@@ -234,11 +232,10 @@ namespace GeometryCollectionTest
 			break;
 		}
 
-		return CommonInit<Traits>(RestCollection, Params);
+		return CommonInit(RestCollection, Params);
 	}
 
 	template <>
-	template<typename Traits>
 	WrapperBase* TNewSimulationObject<GeometryType::RigidFloor>::Init(const CreationParameters Params)
 	{
 		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeShared<Chaos::FChaosPhysicsMaterial>(); InitMaterialToZero(PhysicalMaterial.Get());
@@ -256,30 +253,27 @@ namespace GeometryCollectionTest
 	}
 
 	template <>
-	template<typename Traits>
 	WrapperBase* TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(const CreationParameters Params)
 	{
 		check(Params.RestCollection.IsValid());
 
-		return CommonInit<Traits>(Params.RestCollection, Params);
+		return CommonInit(Params.RestCollection, Params);
 	}
 
-	template<typename Traits>
-	TFramework<Traits>::TFramework(FrameworkParameters Parameters)
+	FFramework::FFramework(FrameworkParameters Parameters)
 	: Dt(Parameters.Dt)
 	, Module(FChaosSolversModule::GetModule())
 	, Solver(nullptr)
 	{
-		Solver = Module->CreateSolver<Traits>(nullptr,Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
+		Solver = Module->CreateSolver(nullptr,Parameters.ThreadingMode);	//until refactor is done, solver must be created after thread change
 		ChaosTest::InitSolverSettings(Solver);
 	}
 
-	template<typename Traits>
-	TFramework<Traits>::~TFramework()
+	FFramework::~FFramework()
 	{
 		for (WrapperBase* Object : PhysicsObjects)
 		{
-			if (TGeometryCollectionWrapper<Traits>* GCW = Object->As<TGeometryCollectionWrapper<Traits>>())
+			if (FGeometryCollectionWrapper* GCW = Object->As<FGeometryCollectionWrapper>())
 			{
 				Solver->UnregisterObject(GCW->PhysObject);
 			}
@@ -299,18 +293,16 @@ namespace GeometryCollectionTest
 		}
 	}
 
-	template<typename Traits>
-	void TFramework<Traits>::AddSimulationObject(WrapperBase* Object)
+	void FFramework::AddSimulationObject(WrapperBase* Object)
 	{
 		PhysicsObjects.Add(Object);
 	}
 
-	template<typename Traits>
-	void TFramework<Traits>::Initialize()
+	void FFramework::Initialize()
 	{
 		for (WrapperBase* Object : PhysicsObjects)
 		{
-			if (TGeometryCollectionWrapper<Traits>* GCW = Object->As<TGeometryCollectionWrapper<Traits>>())
+			if (FGeometryCollectionWrapper* GCW = Object->As<FGeometryCollectionWrapper>())
 			{
 				Solver->RegisterObject(GCW->PhysObject);
 				Solver->AddDirtyProxy(GCW->PhysObject);
@@ -322,25 +314,12 @@ namespace GeometryCollectionTest
 		}
 	}
 
-	template<typename Traits>
-	void TFramework<Traits>::Advance()
+	void FFramework::Advance()
 	{
 		Solver->SyncEvents_GameThread();
 		Solver->AdvanceAndDispatch_External(Dt);
 		Solver->UpdateGameThreadStructures();
 	}
-
-#define EVOLUTION_TRAIT(Trait) template class TFramework<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
-
-
-#define EVOLUTION_TRAIT(Trait)\
-template WrapperBase* TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Trait>(const CreationParameters Params);\
-template WrapperBase* TNewSimulationObject<GeometryType::RigidFloor>::Init<Trait>(const CreationParameters Params);\
-template WrapperBase* TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Trait>(const CreationParameters Params);
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 
 } // end namespace GeometryCollectionTest
 

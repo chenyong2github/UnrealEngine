@@ -72,15 +72,8 @@ public:
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) { static_cast<Concrete*>(this)->DisableCollisionsCallback(InPairs); }
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) { static_cast<Concrete*>(this)->AddForceCallback(InParticles, InDt, InIndex); }
 
-	template <typename Traits>
-	void FieldForcesUpdateCallback(Chaos::TPBDRigidsSolver<Traits>* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector> & Force, Chaos::TArrayCollectionArray<FVector> & Torque, const float Time) { static_cast<Concrete*>(this)->FieldForcesUpdateCallback(InSolver, Particles, Force, Torque, Time); }
-
 	/** The Particle Binding creates a connection between the particles in the simulation and the solver objects dataset. */
 	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper> & PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32> & ParticleIDReverseMap) {static_cast<Concrete*>(this)->BindParticleCallbackMapping(PhysicsProxyReverseMap, ParticleIDReverseMap);}
-
-	/** Called to buffer a command to be processed at the next available safe opportunity */
-	template <typename Traits>
-	void BufferCommand(Chaos::TPBDRigidsSolver<Traits>* InSolver, const FFieldSystemCommand& InCommand) { static_cast<Concrete*>(this)->BufferCommand(InSolver, InCommand); }
 
 	/** Returns the concrete type of the derived class*/
 	EPhysicsProxyType ConcreteType() { return static_cast<Concrete*>(this)->ConcreteType(); }

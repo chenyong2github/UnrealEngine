@@ -35,11 +35,10 @@ namespace Chaos
 		const FGeometryParticleHandle* OldParticle,
 		const FGeometryParticleHandle* NewParticle)>;
 
-	template <typename Traits>
-	class TPBDRigidsEvolutionGBF : public TPBDRigidsEvolutionBase<Traits>
+	class FPBDRigidsEvolutionGBF : public FPBDRigidsEvolutionBase
 	{
 	public:
-		using Base = TPBDRigidsEvolutionBase<Traits>;
+		using Base = FPBDRigidsEvolutionBase;
 		using Base::Particles;
 		using typename Base::FForceRule;
 		using Base::ForceRules;
@@ -82,13 +81,12 @@ namespace Chaos
 		using Base::AddConstraintRule;
 		using Base::ParticleUpdatePosition;
 
-		using EvolutionTraits = Traits;
 		using FGravityForces = FPerParticleGravity;
 		using FCollisionConstraints = FPBDCollisionConstraints;
 		using FCollisionConstraintRule = TPBDConstraintColorRule<FCollisionConstraints>;
 		using FCollisionDetector = FSpatialAccelerationCollisionDetector;
 		using FExternalForces = FPerParticleExternalForces;
-		using FRigidClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>;
+		using FRigidClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
 
 		// Default iteration counts
 		static constexpr int32 DefaultNumIterations = 8;
@@ -104,8 +102,8 @@ namespace Chaos
 		// @todo(chaos): Required by clustering - clean up
 		using Base::ApplyPushOut;
 
-		CHAOS_API TPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
-		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
+		CHAOS_API FPBDRigidsEvolutionGBF(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, const TArray<ISimCallbackObject*>* InCollisionModifiers = nullptr, bool InIsSingleThreaded = false);
+		CHAOS_API ~FPBDRigidsEvolutionGBF() {}
 
 		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
@@ -160,8 +158,8 @@ namespace Chaos
 		FORCEINLINE FGravityForces& GetGravityForces() { return GravityForces; }
 		FORCEINLINE const FGravityForces& GetGravityForces() const { return GravityForces; }
 
-		FORCEINLINE const TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>& GetRigidClustering() const { return Clustering; }
-		FORCEINLINE TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>& GetRigidClustering() { return Clustering; }
+		FORCEINLINE const TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>& GetRigidClustering() const { return Clustering; }
+		FORCEINLINE TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>& GetRigidClustering() { return Clustering; }
 
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
@@ -254,10 +252,10 @@ namespace Chaos
 		
 		FEvolutionResimCache* GetCurrentStepResimCache()
 		{
-			return Traits::IsRewindable() ? CurrentStepResimCacheImp : nullptr; //(ternary is here to be able to compile out code that relies on cache data)
+			return CurrentStepResimCacheImp;
 		}
 
-		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints> Clustering;
+		TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints> Clustering;
 
 		FGravityForces GravityForces;
 		FCollisionConstraints CollisionConstraints;
@@ -276,7 +274,4 @@ namespace Chaos
 		const TArray<ISimCallbackObject*>* CollisionModifiers;
 	};
 
-#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionGBF<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 }

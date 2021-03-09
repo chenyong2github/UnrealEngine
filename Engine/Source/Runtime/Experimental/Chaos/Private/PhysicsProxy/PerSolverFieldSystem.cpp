@@ -25,9 +25,8 @@ void ResetIndicesArray(TArray<int32>& IndicesArray, int32 Size)
 // FPerSolverFieldSystem
 //==============================================================================
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateInternal(
-	Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	Chaos::FPBDRigidsSolver* RigidSolver,
 	Chaos::FPBDPositionConstraints& PositionTarget,
 	TMap<int32, int32>& TargetedParticles,
 	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
@@ -92,9 +91,8 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 	}
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateCallback(
-	Chaos::TPBDRigidsSolver<Traits>* InSolver,
+	Chaos::FPBDRigidsSolver* InSolver,
 	Chaos::FPBDPositionConstraints& PositionTarget,
 	TMap<int32, int32>& TargetedParticles)
 {
@@ -102,9 +100,8 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	FieldParameterUpdateInternal(InSolver, PositionTarget, TargetedParticles, PersistentCommands, false);
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldForcesUpdateInternal(
-	Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	Chaos::FPBDRigidsSolver* RigidSolver,
 	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_Object);
@@ -153,9 +150,8 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 	}
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldForcesUpdateCallback(
-	Chaos::TPBDRigidsSolver<Traits>* InSolver)
+	Chaos::FPBDRigidsSolver* InSolver)
 {
 	FieldForcesUpdateInternal(InSolver, TransientCommands, true);
 	FieldForcesUpdateInternal(InSolver, PersistentCommands, false);
@@ -403,10 +399,9 @@ void FPerSolverFieldSystem::RemovePersistentCommand(const FFieldSystemCommand& F
 	PersistentCommands.Remove(FieldCommand);
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::GetRelevantParticleHandles(
 	TArray<Chaos::FGeometryParticleHandle*>& Handles,
-	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	const Chaos::FPBDRigidsSolver* RigidSolver,
 	const EFieldResolutionType ResolutionType)
 {
 	Handles.SetNum(0, false);
@@ -466,10 +461,9 @@ void FPerSolverFieldSystem::GetRelevantParticleHandles(
 	}
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::GetFilteredParticleHandles(
 	TArray<Chaos::FGeometryParticleHandle*>& Handles,
-	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	const Chaos::FPBDRigidsSolver* RigidSolver,
 	const EFieldFilterType FilterType)
 {
 	Handles.SetNum(0, false);
@@ -528,25 +522,3 @@ void FPerSolverFieldSystem::GetFilteredParticleHandles(
 		}
 	}
 }
-
-#define EVOLUTION_TRAIT(Traits)\
-template void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
-		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		Chaos::FPBDPositionConstraints& PositionTarget, \
-		TMap<int32, int32>& TargetedParticles);\
-\
-template void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
-		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-\
-template void FPerSolverFieldSystem::GetRelevantParticleHandles(\
-		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
-		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		const EFieldResolutionType ResolutionType);\
-\
-template void FPerSolverFieldSystem::GetFilteredParticleHandles(\
-		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
-		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		const EFieldFilterType FilterType);\
-
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT

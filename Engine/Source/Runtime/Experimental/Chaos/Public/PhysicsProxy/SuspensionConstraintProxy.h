@@ -10,41 +10,31 @@
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
-#include "Chaos/EvolutionTraits.h"
 
 namespace Chaos
 {
 	class FSuspensionConstraint;
 
-	template <typename Traits>
-	class TPBDRigidsEvolutionGBF;
+	class FPBDRigidsEvolutionGBF;
 }
 
-/**
- * \p CONSTRAINT_TYPE is one of:
- *		\c Chaos::FSuspensionConstraint
- *      \c Chaos::FPositionConstraint // @todo(chaos)
- *      \c Chaos::FVelocityConstraint // @todo(chaos)
- */
-template<class CONSTRAINT_TYPE>
-class TSuspensionConstraintProxy : public TPhysicsProxy<TSuspensionConstraintProxy<CONSTRAINT_TYPE>,void>
+class CHAOS_API FSuspensionConstraintPhysicsProxy : public TPhysicsProxy<FSuspensionConstraintPhysicsProxy,void>
 {
-	typedef TPhysicsProxy<TSuspensionConstraintProxy<CONSTRAINT_TYPE>, void> Base;
+	typedef TPhysicsProxy<FSuspensionConstraintPhysicsProxy, void> Base;
 
 public:
 	using FReal = Chaos::FReal;
-	using FConstraintHandle = typename CONSTRAINT_TYPE::FHandle;
-	using FConstraintData = typename CONSTRAINT_TYPE::FData;
+	using FConstraintHandle = typename Chaos::FSuspensionConstraint::FHandle;
+	using FConstraintData = typename Chaos::FSuspensionConstraint::FData;
 	using FSuspensionConstraints = Chaos::FPBDSuspensionConstraints;
 	using FSuspensionConstraintDirtyFlags = Chaos::FSuspensionConstraintDirtyFlags;
 	using FParticlePair = Chaos::TVector<Chaos::FGeometryParticle*, 2>;
 	using FParticleHandlePair = Chaos::TVector<Chaos::FGeometryParticleHandle*, 2>;
 
-	TSuspensionConstraintProxy() = delete;
-	TSuspensionConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr); // @todo(brice) : make FPBDSuspensionSetting a type defined on the CONSTRAINT_TYPE
-	virtual ~TSuspensionConstraintProxy();
+	FSuspensionConstraintPhysicsProxy() = delete;
+	FSuspensionConstraintPhysicsProxy(Chaos::FSuspensionConstraint* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr);
 
-	EPhysicsProxyType ConcreteType();
+	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::SuspensionConstraintType; }
 	
 	bool IsValid() { return Constraint != nullptr && Constraint->IsValid(); }
 
@@ -57,19 +47,15 @@ public:
 	//  Lifespan Management
 	//
 
-	template <typename Traits>
-	void CHAOS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void InitializeOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
 
 	// Merge to perform a remote sync
-	template <typename Traits>
-	void CHAOS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver);
 
-	template <typename Traits>
-	void CHAOS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void PushStateOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
 	// Merge to perform a remote sync - END
 
-	template <typename Traits>
-	void CHAOS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void DestroyOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
 
 	void SyncBeforeDestroy() {}
 	void OnRemoveFromScene() {}
@@ -99,12 +85,12 @@ public:
 		Handle = InHandle;
 	}
 
-	CONSTRAINT_TYPE* GetConstraint()
+	Chaos::FSuspensionConstraint* GetConstraint()
 	{
 		return Constraint;
 	}
 
-	const CONSTRAINT_TYPE* GetConstraint() const
+	const Chaos::FSuspensionConstraint* GetConstraint() const
 	{
 		return Constraint;
 	}
@@ -116,8 +102,7 @@ public:
 	/**/
 	void FlipBuffer() { }
 
-	template <typename Traits>
-	void PushToPhysicsState(Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution) {}
+	void PushToPhysicsState(Chaos::FPBDRigidsEvolutionGBF& Evolution) {}
 
 	/**/
 	void ClearAccumulatedData() {}
@@ -136,7 +121,7 @@ private:
 	FConstraintData SuspensionSettingsBuffer;
 	FSuspensionConstraintDirtyFlags DirtyFlagsBuffer;
 
-	CONSTRAINT_TYPE* Constraint;
+	Chaos::FSuspensionConstraint* Constraint;
 	FConstraintHandle* Handle;
 	bool bInitialized;
 
@@ -153,9 +138,3 @@ public:
 	void StartFrameCallback(const FReal InDt, const FReal InTime) {}
 
 };
-
-
-template<> CHAOS_API EPhysicsProxyType TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::ConcreteType();
-
-extern template class TSuspensionConstraintProxy< Chaos::FSuspensionConstraint >;
-typedef TSuspensionConstraintProxy< Chaos::FSuspensionConstraint > FSuspensionConstraintPhysicsProxy;

@@ -21,7 +21,6 @@
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
-#include "Chaos/EvolutionTraits.h"
 #include "CoreMinimal.h"
 
 namespace Chaos
@@ -114,9 +113,9 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RewindAndEvolve<BGF>()"), STAT_RewindAndEvolve_BGF, STATGROUP_Chaos);
-	template<typename Traits, typename T, int d>
+	template<typename T, int d>
 	void RewindAndEvolve(
-		TPBDRigidsEvolutionGBF<Traits>& Evolution, 
+		FPBDRigidsEvolutionGBF& Evolution, 
 		TPBDRigidClusteredParticles<T, d>& InParticles, 
 		const TSet<int32>& IslandsToRecollide, 
 		const TSet<FPBDRigidParticleHandle*> AllActivatedChildren,
@@ -2356,7 +2355,5 @@ namespace Chaos
 
 using namespace Chaos;
 
-#define EVOLUTION_TRAIT(Trait) template class CHAOS_API Chaos::TPBDRigidClustering<Chaos::TPBDRigidsEvolutionGBF<Trait>, FPBDCollisionConstraints>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
+template class CHAOS_API Chaos::TPBDRigidClustering<Chaos::FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
 

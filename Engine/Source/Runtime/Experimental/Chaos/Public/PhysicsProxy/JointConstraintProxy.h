@@ -10,44 +10,38 @@
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
-#include "Chaos/EvolutionTraits.h"
 #include "JointConstraintProxyFwd.h"
 
 namespace Chaos
 {
 	class FJointConstraint;
 
-	template <typename Traits>
-	class TPBDRigidsEvolutionGBF;
+	class FPBDRigidsEvolutionGBF;
 
 	struct FDirtyJointConstraintData;
 }
 
-/**
- * \p CONSTRAINT_TYPE is one of:
- *		\c Chaos::FJointConstraint
- *      \c Chaos::FPositionConstraint // @todo(chaos)
- *      \c Chaos::FVelocityConstraint // @todo(chaos)
- */
-template<class CONSTRAINT_TYPE>
-class TJointConstraintProxy : public TPhysicsProxy<TJointConstraintProxy<CONSTRAINT_TYPE>,void>
+class FJointConstraintPhysicsProxy : public TPhysicsProxy<FJointConstraintPhysicsProxy,void>
 {
-	typedef TPhysicsProxy<TJointConstraintProxy<CONSTRAINT_TYPE>, void> Base;
+	typedef TPhysicsProxy<FJointConstraintPhysicsProxy, void> Base;
 
 public:
 	using FReal = Chaos::FReal;
-	using FConstraintHandle = typename CONSTRAINT_TYPE::FHandle;
-	using FConstraintData = typename CONSTRAINT_TYPE::FData;
+	using FConstraintHandle = typename Chaos::FJointConstraint::FHandle;
+	using FConstraintData = typename Chaos::FJointConstraint::FData;
 	using FJointConstraints = Chaos::FPBDJointConstraints;
 	using FJointConstraintDirtyFlags = Chaos::FJointConstraintDirtyFlags;
 	using FParticlePair = Chaos::TVec2<Chaos::FGeometryParticle*>;
 	using FParticleHandlePair = Chaos::TVector<Chaos::TGeometryParticleHandle<FReal, 3>*, 2>;
 
-	TJointConstraintProxy() = delete;
-	TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr); // @todo(brice) : make FPBDJointSetting a type defined on the CONSTRAINT_TYPE
-	virtual ~TJointConstraintProxy();
+	FJointConstraintPhysicsProxy() = delete;
+	FJointConstraintPhysicsProxy(Chaos::FJointConstraint* InConstraint, FConstraintHandle* InHandle, UObject* InOwner = nullptr);
 
-	EPhysicsProxyType ConcreteType();
+	EPhysicsProxyType ConcreteType()
+	{
+		return EPhysicsProxyType::JointConstraintType;
+	}
+
 	
 	bool IsValid() { return Constraint != nullptr && Constraint->IsValid(); }
 
@@ -60,19 +54,15 @@ public:
 	//  Lifespan Management
 	//
 
-	template <typename Traits>
-	void CHAOS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API InitializeOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
 
 	// Merge to perform a remote sync
-	template <typename Traits>
-	void CHAOS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver);
 
-	template <typename Traits>
-	void CHAOS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API PushStateOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
 	// Merge to perform a remote sync - END
 
-	template <typename Traits>
-	void CHAOS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API DestroyOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver);
 
 	void SyncBeforeDestroy() {}
 	void OnRemoveFromScene() {}
@@ -102,12 +92,12 @@ public:
 		Handle = InHandle;
 	}
 
-	CONSTRAINT_TYPE* GetConstraint()
+	Chaos::FJointConstraint* GetConstraint()
 	{
 		return Constraint;
 	}
 
-	const CONSTRAINT_TYPE* GetConstraint() const
+	const Chaos::FJointConstraint* GetConstraint() const
 	{
 		return Constraint;
 	}
@@ -116,8 +106,7 @@ public:
 	// Threading API
 	//
 	
-	template <typename Traits>
-	void PushToPhysicsState(Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution) {}
+	void PushToPhysicsState(Chaos::FPBDRigidsEvolutionGBF& Evolution) {}
 
 	/**/
 	void ClearAccumulatedData() {}
@@ -137,7 +126,7 @@ private:
 	FConstraintData JointSettingsBuffer;
 	FJointConstraintDirtyFlags DirtyFlagsBuffer;
 
-	CONSTRAINT_TYPE* Constraint; 	// This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
+	Chaos::FJointConstraint* Constraint; 	// This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
 	FConstraintHandle* Handle;
 	bool bInitialized;
 
@@ -154,11 +143,3 @@ public:
 	void StartFrameCallback(const float InDt, const float InTime) {}
 
 };
-
-
-template<> CHAOS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
-template<> CHAOS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer);
-template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp);
-
-extern template class TJointConstraintProxy< Chaos::FJointConstraint >;
-typedef TJointConstraintProxy< Chaos::FJointConstraint > FJointConstraintPhysicsProxy;

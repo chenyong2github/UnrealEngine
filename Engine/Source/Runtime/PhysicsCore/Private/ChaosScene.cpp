@@ -61,7 +61,7 @@ FChaosScene::FChaosScene(
 
 	Chaos::EThreadingMode ThreadingMode = bForceSingleThread ? Chaos::EThreadingMode::SingleThread : Chaos::EThreadingMode::TaskGraph;
 
-	SceneSolver = ChaosModule->CreateSolver<Chaos::FDefaultTraits>(OwnerPtr,ThreadingMode
+	SceneSolver = ChaosModule->CreateSolver(OwnerPtr,ThreadingMode
 #if CHAOS_CHECKED
 		,DebugName
 #endif

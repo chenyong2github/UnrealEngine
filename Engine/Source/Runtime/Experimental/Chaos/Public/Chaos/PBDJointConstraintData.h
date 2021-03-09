@@ -40,8 +40,7 @@ namespace Chaos
 		typedef TVector<FTransform, 2> FTransformPair;
 		friend FData;
 
-		template <typename Traits>
-		friend class TPBDRigidsSolver; // friend so we can call ReleaseKinematicEndPoint when unregistering joint.
+		friend class FPBDRigidsSolver; // friend so we can call ReleaseKinematicEndPoint when unregistering joint.
 
 		FJointConstraint();
 		virtual ~FJointConstraint() override {}
@@ -308,16 +307,8 @@ namespace Chaos
 
 	protected:
 
-		template <typename Traits>
-		void ReleaseKinematicEndPoint(TPBDRigidsSolver<Traits>* Solver)
-		{
-			if (KinematicEndPoint)
-			{
-				Solver->UnregisterObject(KinematicEndPoint);
-				KinematicEndPoint = nullptr;
-			}
-		}
-
+		void ReleaseKinematicEndPoint(FPBDRigidsSolver* Solver);
+		
 		FJointConstraintDirtyFlags MDirtyFlags;
 		FData JointSettings;
 

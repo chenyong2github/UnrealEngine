@@ -26,7 +26,6 @@
 #include "PhysicsProxy/JointConstraintProxy.h"
 #include "PhysicsProxy/SuspensionConstraintProxy.h"
 #include "SolverEventFilters.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "ChaosSolversModule.h"
 
@@ -82,11 +81,11 @@ namespace Chaos
 	/**
 	*
 	*/
-	template <typename Traits>
-	class TPBDRigidsSolver : public FPhysicsSolverBase
+	class CHAOS_API FPBDRigidsSolver : public FPhysicsSolverBase
 	{
 
-		TPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner);
+		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner);
+		virtual ~FPBDRigidsSolver();
 
 	public:
 
@@ -98,8 +97,7 @@ namespace Chaos
 		template<EThreadingMode Mode>
 		friend class FDispatcher;
 		
-		template <typename Traits2>
-		friend class TEventDefaults;
+		friend class FEventDefaults;
 
 		friend class FPhysInterface_Chaos;
 		friend class FPhysScene_ChaosInterface;
@@ -112,7 +110,7 @@ namespace Chaos
 
 		typedef Chaos::FGeometryParticle FParticle;
 		typedef Chaos::FGeometryParticleHandle FHandle;
-		typedef Chaos::TPBDRigidsEvolutionGBF<Traits> FPBDRigidsEvolution;
+		typedef Chaos::FPBDRigidsEvolutionGBF FPBDRigidsEvolution;
 
 		typedef FPBDRigidDynamicSpringConstraints FRigidDynamicSpringConstraints;
 		typedef FPBDPositionConstraints FPositionConstraints;
@@ -147,34 +145,16 @@ namespace Chaos
 		void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
 		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
-		void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
-		{
-			ensure(!RewindCallback || MRewindData);
-			MRewindCallback = MoveTemp(RewindCallback);
-		}
-
+		void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback);
+		
 		FRewindData* GetRewindData()
 		{
-			if(Traits::IsRewindable())
-			{
-				return MRewindData.Get();
-			}
-			else
-			{
-				return nullptr;
-			}
+			return MRewindData.Get();
 		}
 
 		IRewindCallback* GetRewindCallback()
 		{
-			if (Traits::IsRewindable())
-			{
-				return MRewindCallback.Get();
-			}
-			else
-			{
-				return nullptr;
-			}
+			return MRewindCallback.Get();
 		}
 		//
 		//  Simulation API
@@ -275,7 +255,7 @@ namespace Chaos
 		}
 
 		/**/
-		TEventManager<Traits>* GetEventManager() { return MEventManager.Get(); }
+		FEventManager* GetEventManager() { return MEventManager.Get(); }
 
 		/**/
 		FSolverEventFilters* GetEventFilters() { return MSolverEventFilters.Get(); }
@@ -368,7 +348,7 @@ namespace Chaos
 
 		FParticlesType Particles;
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;
-		TUniquePtr<TEventManager<Traits>> MEventManager;
+		TUniquePtr<FEventManager> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FDirtyParticlesBuffer> MDirtyParticlesBuffer;
 		TMap<const Chaos::FGeometryParticleHandle*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
@@ -458,9 +438,5 @@ namespace Chaos
 	private:
 		FPhysicsSolverBase* Solver;
 	};
-
-#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsSolver<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 
 }; // namespace Chaos

@@ -25,9 +25,9 @@ namespace ChaosTest
 		EXPECT_LT(Dynamics[0]->X()[2], 0);
 	}
 	
-	TYPED_TEST(AllEvolutions,Forces)
+	GTEST_TEST(AllEvolutions,Forces)
 	{
-		ChaosTest::Gravity<TypeParam>();
+		ChaosTest::Gravity<FPBDRigidsEvolutionGBF>();
 		SUCCEED();
 	}
 }

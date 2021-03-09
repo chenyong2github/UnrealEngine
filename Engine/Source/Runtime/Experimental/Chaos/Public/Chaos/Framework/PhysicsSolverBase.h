@@ -9,7 +9,6 @@
 #include "Chaos/ParticleDirtyFlags.h"
 #include "Async/ParallelFor.h"
 #include "Containers/Queue.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Chaos/ChaosMarshallingManager.h"
 
 class FChaosSolversModule;
@@ -91,22 +90,15 @@ namespace Chaos
 	{
 	public:
 
-#define EVOLUTION_TRAIT(Trait) case ETraits::Trait: Func((TPBDRigidsSolver<Trait>&)(*this)); return;
 		template <typename Lambda>
 		void CastHelper(const Lambda& Func)
 		{
-			switch(TraitIdx)
-			{
-#include "Chaos/EvolutionTraits.inl"
-			}
+			Func((FPBDRigidsSolver&)*this);
 		}
-#undef EVOLUTION_TRAIT
 
-		template <typename Traits>
-		TPBDRigidsSolver<Traits>& CastChecked()
+		FPBDRigidsSolver& CastChecked()
 		{
-			check(TraitIdx == TraitToIdx<Traits>());
-			return (TPBDRigidsSolver<Traits>&)(*this);
+			return (FPBDRigidsSolver&)(*this);
 		}
 
 		void ChangeBufferMode(EMultiBufferMode InBufferMode);
@@ -417,7 +409,7 @@ namespace Chaos
 		EThreadingModeTemp ThreadingMode;
 
 		/** Protected construction so callers still have to go through the module to create new instances */
-		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx);
+		FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner);
 
 		/** Only allow construction with valid parameters as well as restricting to module construction */
 		virtual ~FPhysicsSolverBase();
@@ -487,8 +479,6 @@ namespace Chaos
 
 		template<ELockType>
 		friend struct TSolverSimMaterialScope;
-
-		ETraits TraitIdx;
 
 		bool bIsShuttingDown;
 		FReal AsyncDt;

@@ -17,8 +17,7 @@
 namespace Chaos
 {
 
-	template <typename Traits>
-	void TEventDefaults<Traits>::RegisterSystemEvents(TEventManager<Traits>& EventManager)
+	void FEventDefaults::RegisterSystemEvents(FEventManager& EventManager)
 	{
 		RegisterCollisionEvent(EventManager);
 		RegisterBreakingEvent(EventManager);
@@ -26,11 +25,10 @@ namespace Chaos
 		RegisterSleepingEvent(EventManager);
 	}
 
-	template <typename Traits>
-	void TEventDefaults<Traits>::RegisterCollisionEvent(TEventManager<Traits>& EventManager)
+	void FEventDefaults::RegisterCollisionEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FCollisionEventData>(EEventType::Collision, []
-		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FCollisionEventData& CollisionEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FCollisionEventData& CollisionEventData)
 		{
 			check(Solver);
 			SCOPE_CYCLE_COUNTER(STAT_GatherCollisionEvent);
@@ -56,9 +54,9 @@ namespace Chaos
 			const FPBDRigidParticles& Particles = Evolution->GetParticles().GetDynamicParticles();
 			const TArrayCollectionArray<ClusterId>& ClusterIdsArray = Evolution->GetRigidClustering().GetClusterIdsArray();
 #if TODO_REIMPLEMENT_RIGID_CLUSTERING
-			const Chaos::TPBDRigidsSolver<Traits>::FClusteringType::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
+			const Chaos::FPBDRigidsSolver::FClusteringType::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 #endif
-			const typename Chaos::TPBDRigidClustering<typename TPBDRigidsSolver<Traits>::FPBDRigidsEvolution, FPBDCollisionConstraints>::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
+			const typename Chaos::TPBDRigidClustering<typename FPBDRigidsSolver::FPBDRigidsEvolution, FPBDCollisionConstraints>::FClusterMap& ParentToChildrenMap = Evolution->GetRigidClustering().GetChildrenMap();
 
 			if(CollisionRule.NumConstraints() > 0)
 			{
@@ -202,11 +200,11 @@ namespace Chaos
 #endif
 
 								// Add to AllCollisionsIndicesByPhysicsProxy
-								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(TEventManager<Traits>::EncodeCollisionIndex(NewIdx, false));
+								AllCollisionsIndicesByPhysicsProxy.FindOrAdd(PhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, false));
 
 								if (OtherPhysicsProxy && OtherPhysicsProxy != PhysicsProxy)
 								{
-									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(TEventManager<Traits>::EncodeCollisionIndex(NewIdx, true));
+									AllCollisionsIndicesByPhysicsProxy.FindOrAdd(OtherPhysicsProxy).Add(FEventManager::EncodeCollisionIndex(NewIdx, true));
 								}
 							}
 						}
@@ -216,11 +214,10 @@ namespace Chaos
 		});
 	}
 
-	template <typename Traits>
-	void TEventDefaults<Traits>::RegisterBreakingEvent(TEventManager<Traits>& EventManager)
+	void FEventDefaults::RegisterBreakingEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FBreakingEventData>(EEventType::Breaking, []
-		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FBreakingEventData& BreakingEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FBreakingEventData& BreakingEventData)
 		{
 			check(Solver);
 			SCOPE_CYCLE_COUNTER(STAT_GatherBreakingEvent);
@@ -295,11 +292,10 @@ namespace Chaos
 		});
 	}
 
-	template <typename Traits>
-	void TEventDefaults<Traits>::RegisterTrailingEvent(TEventManager<Traits>& EventManager)
+	void FEventDefaults::RegisterTrailingEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FTrailingEventData>(EEventType::Trailing, []
-		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FTrailingEventData& TrailingEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FTrailingEventData& TrailingEventData)
 		{
 			check(Solver);
 
@@ -368,11 +364,10 @@ namespace Chaos
 		});
 	}
 
-	template <typename Traits>
-	void TEventDefaults<Traits>::RegisterSleepingEvent(TEventManager<Traits>& EventManager)
+	void FEventDefaults::RegisterSleepingEvent(FEventManager& EventManager)
 	{
 		EventManager.template RegisterEvent<FSleepingEventData>(EEventType::Sleeping, []
-		(const Chaos::TPBDRigidsSolver<Traits>* Solver, FSleepingEventData& SleepingEventData)
+		(const Chaos::FPBDRigidsSolver* Solver, FSleepingEventData& SleepingEventData)
 		{
 			check(Solver);
 			SCOPE_CYCLE_COUNTER(STAT_GatherSleepingEvent);
@@ -382,7 +377,7 @@ namespace Chaos
 			FSleepingDataArray& EventSleepDataArray = SleepingEventData.SleepingData;
 			EventSleepDataArray.Reset();
 
-			Chaos::TPBDRigidsSolver<Traits>* NonConstSolver = const_cast<Chaos::TPBDRigidsSolver<Traits>*>(Solver);
+			Chaos::FPBDRigidsSolver* NonConstSolver = const_cast<Chaos::FPBDRigidsSolver*>(Solver);
 
 			NonConstSolver->Particles.GetDynamicParticles().GetSleepDataLock().ReadLock();
 			auto& SolverSleepingData = NonConstSolver->Particles.GetDynamicParticles().GetSleepData();
@@ -413,8 +408,4 @@ namespace Chaos
 
 		});
 	}
-
-#define EVOLUTION_TRAIT(Trait) template class TEventDefaults<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 }

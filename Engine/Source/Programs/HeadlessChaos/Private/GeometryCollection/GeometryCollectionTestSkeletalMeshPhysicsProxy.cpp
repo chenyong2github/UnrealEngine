@@ -24,14 +24,16 @@ namespace GeometryCollectionTest
 	 * Create an empty SkeletalMeshPhysicsProxy and register it with a solver.
 	 * Check that the appropriate callbacks are called and nothing crashes.
 	 */
-	template<typename Traits>
+#if 0
+
 	void TestSkeletalMeshPhysicsProxy_Register()
 	{
+		//TODO: this code has not been called in a while, but it was templated so it compiled
 		const float Dt = (FReal)1 / 60;
 
 		FrameworkParameters Fp;
 		Fp.Dt = Dt;
-		TFramework<Traits> UnitTest(Fp);
+		FFramework UnitTest(Fp);
 
 		int32 InitCallCount = 0;
 		int32 InputCallCount = 0;
@@ -78,12 +80,12 @@ namespace GeometryCollectionTest
 			EXPECT_NE(SkeletalMeshPhysicsProxy.GetOutputs(), nullptr);
 		}
 	}
+#endif
 
 	/**
 	 * A minimal class representing a component that uses the SkeletalMeshPhysicsProxy to
 	 * implements its physics. E.g., USkeletalMeshComponent or FAnimNode_RigidBody
 	 */
-	template <typename Traits>
 	class TFakeSkeletalMeshPhysicsComponent
 	{
 	public:
@@ -94,7 +96,7 @@ namespace GeometryCollectionTest
 		TArray<int32> Parents;
 		TArray< EObjectStateTypeEnum> BoneStates;
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		// Local-space transform inputs to physics (from animation)
 		TArray<FTransform> InputWorldTransforms;
@@ -190,7 +192,6 @@ namespace GeometryCollectionTest
 
 		void Tick(float Dt)
 		{
-			if (UnitTest.Solver->Enabled())
 			{
 				SkeletalMeshPhysicsProxy->CaptureInputs(Dt, 
 					[this](const float Dt, FSkeletalMeshPhysicsProxyParams & OutParams) -> bool
@@ -225,13 +226,12 @@ namespace GeometryCollectionTest
 	 * Check that the SkeletalMeshPhysicsProxy is able to provide input and receive correct simulated output from the Solver.
 	 * Check that kinematic body state is correctly reproduces the input animation pose.
 	 */
-	template<typename Traits>
 	void TestSkeletalMeshPhysicsProxy_Kinematic()
 	{
 		const float Dt = (FReal)1 / 30;
 
 		// Two kinematic bodies
-		TFakeSkeletalMeshPhysicsComponent<Traits> Component(Dt);
+		TFakeSkeletalMeshPhysicsComponent Component(Dt);
 		Component.InputWorldTransforms =
 		{
 			FTransform(FVector(0, 0, 100)),
@@ -273,13 +273,12 @@ namespace GeometryCollectionTest
 	 * Check that the SkeletalMeshPhysicsProxy is able to provide input and receive correct simulated output from the Solver.
 	 * Check that kinematic and dynamic body state is correctly reproduces the input animation pose.
 	 */
-	template<typename Traits>
 	void TestSkeletalMeshPhysicsProxy_Dynamic()
 	{
 		const float Dt = (FReal)1 / 30;
 
 		// One kinematic, one dynamic body
-		TFakeSkeletalMeshPhysicsComponent<Traits> Component(Dt);
+		TFakeSkeletalMeshPhysicsComponent Component(Dt);
 		
 		Component.ObjectState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		Component.InputWorldTransforms =

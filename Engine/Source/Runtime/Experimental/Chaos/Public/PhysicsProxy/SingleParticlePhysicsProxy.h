@@ -9,7 +9,6 @@
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/Core.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
@@ -17,8 +16,7 @@
 
 namespace Chaos
 {
-	template <typename Traits>
-	class TPBDRigidsEvolutionGBF;
+	class FPBDRigidsEvolutionGBF;
 
 	struct FDirtyRigidParticleData;
 }
@@ -120,8 +118,7 @@ public:
 
 	// Threading API
 
-	template <typename Traits>
-	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution);
+	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::FPBDRigidsEvolutionGBF& Evolution);
 
 	/**/
 	void ClearAccumulatedData();

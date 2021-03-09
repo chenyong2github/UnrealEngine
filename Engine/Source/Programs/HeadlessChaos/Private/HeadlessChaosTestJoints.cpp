@@ -584,32 +584,32 @@ namespace ChaosTest {
 
 
 
-	TYPED_TEST(AllEvolutions, JointTests_TestSingleConstraint) {
-		JointConstraint_Single<TypeParam>();
+	GTEST_TEST(AllEvolutions, JointTests_TestSingleConstraint) {
+		JointConstraint_Single<FPBDRigidsEvolutionGBF>();
 	}
 
-	TYPED_TEST(AllEvolutions, JointTests_TestSingleConstraintWithLateralTranslation) {
-		JointConstraint_SingleMoveRoot<TypeParam>();
+	GTEST_TEST(AllEvolutions, JointTests_TestSingleConstraintWithLateralTranslation) {
+		JointConstraint_SingleMoveRoot<FPBDRigidsEvolutionGBF>();
 	}
 
-	TYPED_TEST(AllEvolutions, JointTests_TestSingleConstraintWithAnimatedRoot) {
-		JointConstraint_SingleAnimated<TypeParam>();
+	GTEST_TEST(AllEvolutions, JointTests_TestSingleConstraintWithAnimatedRoot) {
+		JointConstraint_SingleAnimated<FPBDRigidsEvolutionGBF>();
 	}
 
-	TYPED_TEST(AllEvolutions, JointTests_TestShortJointChainWithAnimatedRoot) {
-		JointConstraint_ShortChainAnimated<TypeParam>();
+	GTEST_TEST(AllEvolutions, JointTests_TestShortJointChainWithAnimatedRoot) {
+		JointConstraint_ShortChainAnimated<FPBDRigidsEvolutionGBF>();
 	}
 
-	TYPED_TEST(AllEvolutions, JointTests_TestLongJointChainWithAnimatedRoot) {
-		JointConstraint_LongChainAnimated<TypeParam>();
+	GTEST_TEST(AllEvolutions, JointTests_TestLongJointChainWithAnimatedRoot) {
+		JointConstraint_LongChainAnimated<FPBDRigidsEvolutionGBF>();
 	}
 
-	TYPED_TEST(AllEvolutions, JointTests_TestSingleSpringConstraint) {
-		SpringConstraint<TypeParam>();
+	GTEST_TEST(AllEvolutions, JointTests_TestSingleSpringConstraint) {
+		SpringConstraint<FPBDRigidsEvolutionGBF>();
 	}
 
-	TYPED_TEST(AllEvolutions, JointTests_TestSingleDynamicSpringConstraint) {
-		DynamicSpringConstraint<TypeParam>();
+	GTEST_TEST(AllEvolutions, JointTests_TestSingleDynamicSpringConstraint) {
+		DynamicSpringConstraint<FPBDRigidsEvolutionGBF>();
 	}
 }
 

@@ -57,9 +57,9 @@ namespace ChaosTest {
 		EXPECT_NEAR(Test.GetParticle(1)->X().Z, ExpectedZ, 1.0f);
 	}
 
-	TYPED_TEST(AllEvolutions, JointBreakTests_TestManualBreak)
+	GTEST_TEST(AllEvolutions, JointBreakTests_TestManualBreak)
 	{
-		JointBreak_ManualBreak<TypeParam>();
+		JointBreak_ManualBreak<FPBDRigidsEvolutionGBF>();
 	}
 
 	// 1 Kinematic Body with 1 Dynamic body hanging from it by a breakable constraint.
@@ -99,9 +99,9 @@ namespace ChaosTest {
 		EXPECT_TRUE(Test.Joints.IsConstraintEnabled(0));
 	}
 
-	TYPED_TEST(AllEvolutions, JointBreakTests_TestUnderLinearThreshold)
+	GTEST_TEST(AllEvolutions, JointBreakTests_TestUnderLinearThreshold)
 	{
-		JointBreak_UnderLinearThreshold<TypeParam>();
+		JointBreak_UnderLinearThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 	// 1 Kinematic Body with 2 Dynamic bodies hanging from it by a breakable constraint.
@@ -144,9 +144,9 @@ namespace ChaosTest {
 		EXPECT_TRUE(Test.Joints.IsConstraintEnabled(1));
 	}
 
-	TYPED_TEST(AllEvolutions, JointBreakTests_TestUnderLinearThreshold2)
+	GTEST_TEST(AllEvolutions, JointBreakTests_TestUnderLinearThreshold2)
 	{
-		JointBreak_UnderLinearThreshold2<TypeParam>();
+		JointBreak_UnderLinearThreshold2<FPBDRigidsEvolutionGBF>();
 	}
 
 	// 1 Kinematic Body with 1 Dynamic body hanging from it by a breakable constraint.
@@ -186,9 +186,9 @@ namespace ChaosTest {
 		EXPECT_FALSE(Test.Joints.IsConstraintEnabled(0));
 	}
 
-	TYPED_TEST(AllEvolutions, JointBreakTests_TestOverLinearThreshold)
+	GTEST_TEST(AllEvolutions, JointBreakTests_TestOverLinearThreshold)
 	{
-		JointBreak_OverLinearThreshold<TypeParam>();
+		JointBreak_OverLinearThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 
@@ -232,9 +232,9 @@ namespace ChaosTest {
 		EXPECT_FALSE(Test.Joints.IsConstraintEnabled(1));
 	}
 
-	TYPED_TEST(AllEvolutions, JointBreakTests_TestOverLinearThreshold2)
+	GTEST_TEST(AllEvolutions, JointBreakTests_TestOverLinearThreshold2)
 	{
-		JointBreak_OverLinearThreshold2<TypeParam>();
+		JointBreak_OverLinearThreshold2<FPBDRigidsEvolutionGBF>();
 	}
 
 	// 1 Kinematic Body with 1 Dynamic body held vertically by a breakable angular constraint.
@@ -278,9 +278,9 @@ namespace ChaosTest {
 		EXPECT_TRUE(Test.Joints.IsConstraintEnabled(0));
 	}
 
-	TYPED_TEST(AllEvolutions, JointBreakTests_TestUnderAngularThreshold)
+	GTEST_TEST(AllEvolutions, JointBreakTests_TestUnderAngularThreshold)
 	{
-		JointBreak_UnderAngularThreshold<TypeParam>();
+		JointBreak_UnderAngularThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 	// 1 Kinematic Body with 1 Dynamic body held vertically by a breakable angular constraint.
@@ -324,9 +324,9 @@ namespace ChaosTest {
 		EXPECT_FALSE(Test.Joints.IsConstraintEnabled(0));
 	}
 
-	TYPED_TEST(AllEvolutions, JointBreakTests_TestOverAngularThreshold)
+	GTEST_TEST(AllEvolutions, JointBreakTests_TestOverAngularThreshold)
 	{
-		JointBreak_OverAngularThreshold<TypeParam>();
+		JointBreak_OverAngularThreshold<FPBDRigidsEvolutionGBF>();
 	}
 
 }

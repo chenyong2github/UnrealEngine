@@ -138,8 +138,7 @@ private:
 	}
 	
 
-	template <typename T>
-	friend class TPBDRigidsSolver;
+	friend class FPBDRigidsSolver;
 
 	friend class FPhysicsSolverBase;
 	friend class FChaosMarshallingManager;

@@ -321,12 +321,12 @@ namespace ChaosTest {
 
 	}
 
-	TYPED_TEST(AllEvolutions, Constraints)
+	GTEST_TEST(AllEvolutions, Constraints)
 	{
-		ChaosTest::Position<TypeParam>();
-		ChaosTest::PositionAndJoint<TypeParam>();
-		ChaosTest::SuspensionConstraintHardstop<TypeParam>();
-		ChaosTest::SuspensionConstraintSpring<TypeParam>();
+		ChaosTest::Position<FPBDRigidsEvolutionGBF>();
+		ChaosTest::PositionAndJoint<FPBDRigidsEvolutionGBF>();
+		ChaosTest::SuspensionConstraintHardstop<FPBDRigidsEvolutionGBF>();
+		ChaosTest::SuspensionConstraintSpring<FPBDRigidsEvolutionGBF>();
 
 		SUCCEED();
 	}

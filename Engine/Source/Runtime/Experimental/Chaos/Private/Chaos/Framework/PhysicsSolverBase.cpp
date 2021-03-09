@@ -120,7 +120,7 @@ namespace Chaos
 	CHAOS_API float AsyncInterpolationMultiplier = 4.f;
 	FAutoConsoleVariableRef CVarAsyncInterpolationMultiplier(TEXT("p.AsyncInterpolationMultiplier"), AsyncInterpolationMultiplier, TEXT("How many multiples of the fixed dt should we look behind for interpolation"));
 
-	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
+	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner)
 		: BufferMode(BufferingModeIn)
 		, ThreadingMode(InThreadingMode)
 		, PullResultsManager(MakeUnique<FChaosResultsManager>())
@@ -128,7 +128,6 @@ namespace Chaos
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
-		, TraitIdx(InTraitIdx)
 		, bIsShuttingDown(false)
 		, AsyncDt(DefaultAsyncDt)
 		, AccumulatedTime(0)
@@ -166,14 +165,13 @@ namespace Chaos
 
 		// GeometryCollection particles do not always remove collision constraints on unregister,
 		// explicitly clear constraints so we will not crash when filling collision events in advance.
-		InSolver.CastHelper([](auto& Concrete)
 		{
-			auto* Evolution = Concrete.GetEvolution();
+			auto* Evolution = static_cast<FPBDRigidsSolver&>(InSolver).GetEvolution();
 			if (Evolution)
 			{
 				Evolution->ResetConstraints();
 			}
-		});
+		}
 
 		// Advance in single threaded because we cannot block on an async task here if in multi threaded mode. see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);

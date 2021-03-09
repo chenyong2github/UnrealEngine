@@ -20,7 +20,6 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	template<typename Traits>
 	void SingleParticleProxySingleThreadTest()
 	{
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
@@ -28,7 +27,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr);
 
 		// Make a particle
 
@@ -62,7 +61,6 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	template<typename Traits>
 	void SingleParticleProxyWakeEventPropagationTest()
 	{
 		using namespace Chaos;
@@ -71,7 +69,7 @@ namespace ChaosTest {
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<Traits>(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr);
 
 		// Make a particle
 
@@ -119,9 +117,9 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	TYPED_TEST(AllTraits, SingleParticleProxyTests)
+	GTEST_TEST(AllTraits, SingleParticleProxyTests)
 	{
-		ChaosTest::SingleParticleProxySingleThreadTest<TypeParam>();
-		ChaosTest::SingleParticleProxyWakeEventPropagationTest<TypeParam>();
+		ChaosTest::SingleParticleProxySingleThreadTest();
+		ChaosTest::SingleParticleProxyWakeEventPropagationTest();
 	}
 }

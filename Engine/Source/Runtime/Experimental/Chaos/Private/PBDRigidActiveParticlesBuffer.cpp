@@ -13,8 +13,7 @@ namespace Chaos
 	}
 
 
-	template <typename Traits>
-	void FPBDRigidDirtyParticlesBuffer::CaptureSolverData(TPBDRigidsSolver<Traits>* Solver)
+	void FPBDRigidDirtyParticlesBuffer::CaptureSolverData(FPBDRigidsSolver* Solver)
 	{
 		WriteLock();
 		BufferPhysicsResults(Solver);
@@ -22,8 +21,7 @@ namespace Chaos
 		WriteUnlock();
 	}
 
-	template <typename Traits>
-	void FPBDRigidDirtyParticlesBuffer::BufferPhysicsResults(TPBDRigidsSolver<Traits>* Solver)
+	void FPBDRigidDirtyParticlesBuffer::BufferPhysicsResults(FPBDRigidsSolver* Solver)
 	{
 		auto& ActiveGameThreadParticles = SolverDataOut->AccessProducerBuffer()->DirtyGameThreadParticles;
 		auto& PhysicsParticleProxies = SolverDataOut->AccessProducerBuffer()->PhysicsParticleProxies;
@@ -89,13 +87,4 @@ namespace Chaos
 			ResourceOutLock.WriteUnlock();
 		}
 	}
-
-#define EVOLUTION_TRAIT(Trait) template void Chaos::FPBDRigidDirtyParticlesBuffer::BufferPhysicsResults<Trait>(TPBDRigidsSolver<Trait>* Solver);
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
-
-#define EVOLUTION_TRAIT(Trait) template void Chaos::FPBDRigidDirtyParticlesBuffer::CaptureSolverData<Trait>(TPBDRigidsSolver<Trait>* Solver);
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
-
 }

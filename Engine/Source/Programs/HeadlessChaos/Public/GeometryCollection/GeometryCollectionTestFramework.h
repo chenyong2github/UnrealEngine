@@ -6,7 +6,6 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollectionProxyData.h"
 #include "PhysicsProxy/PhysicsProxies.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Chaos/Defines.h"
 #include "PhysicsInterfaceDeclaresCore.h"
@@ -39,11 +38,10 @@ namespace GeometryCollectionTest
 		template<class AS_T> const AS_T* As() const { return AS_T::StaticType() == Type ? static_cast<const AS_T*>(this) : nullptr; }
 	};
 
-	template <typename Traits>
-	struct TGeometryCollectionWrapper : public WrapperBase
+	struct FGeometryCollectionWrapper : public WrapperBase
 	{
-		TGeometryCollectionWrapper() : WrapperBase(WrapperType::GeometryCollection) {}
-		TGeometryCollectionWrapper(
+		FGeometryCollectionWrapper() : WrapperBase(WrapperType::GeometryCollection) {}
+		FGeometryCollectionWrapper(
 			TSharedPtr<FGeometryCollection> RestCollectionIn,
 			TSharedPtr<FGeometryDynamicCollection> DynamicCollectionIn,
 			FGeometryCollectionPhysicsProxy* PhysObjectIn)
@@ -112,7 +110,6 @@ namespace GeometryCollectionTest
 	template <GeometryType>
 	struct TNewSimulationObject
 	{
-		template<typename Traits>
 		static WrapperBase* Init(const CreationParameters Params = CreationParameters());
 	};
 
@@ -124,24 +121,20 @@ namespace GeometryCollectionTest
 		Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread;
 	};
 
-	template<typename Traits>
-	class TFramework
+	class FFramework
 	{
 	public:
 
-		TFramework(FrameworkParameters Properties = FrameworkParameters());
-		virtual ~TFramework();
+		FFramework(FrameworkParameters Properties = FrameworkParameters());
+		virtual ~FFramework();
 
 		void AddSimulationObject(WrapperBase* Object);
 		void Initialize();
 		void Advance();
 		FReal Dt;
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		Chaos::TPBDRigidsSolver<Traits>* Solver;
+		Chaos::FPBDRigidsSolver* Solver;
 		TArray< WrapperBase* > PhysicsObjects;
 	};
 
-#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TFramework<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 }

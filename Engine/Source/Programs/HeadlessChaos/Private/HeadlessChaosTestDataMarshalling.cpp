@@ -99,9 +99,9 @@ namespace ChaosTest
 		}
 	}
 
-	TYPED_TEST(AllTraits, DataMarshalling_Callbacks)
+	GTEST_TEST(AllTraits, DataMarshalling_Callbacks)
 	{
-		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr, EThreadingMode::SingleThread);
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr, EThreadingMode::SingleThread);
 		
 		int Count = 0;
 		float Time = 0;
@@ -165,9 +165,9 @@ namespace ChaosTest
 		EXPECT_EQ(Count,10);
 	}
 
-	TYPED_TEST(AllTraits,DataMarshalling_OneShotCallbacks)
+	GTEST_TEST(AllTraits,DataMarshalling_OneShotCallbacks)
 	{
-		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr,EThreadingMode::SingleThread);
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver(nullptr,EThreadingMode::SingleThread);
 		
 		int Count = 0;
 		Solver->RegisterSimOneShotCallback([&Count]()

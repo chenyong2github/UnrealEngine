@@ -60,12 +60,11 @@ namespace GeometryCollectionTest
 	}
 
 
-	TYPED_TEST(AllTraits,GeometryCollection_RigidBodies_ClusterTest_SingleLevelNonBreaking)
+	GTEST_TEST(AllTraits,GeometryCollection_RigidBodies_ClusterTest_SingleLevelNonBreaking)
 	{
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)),FVector(1.0));
@@ -85,7 +84,7 @@ namespace GeometryCollectionTest
 		Params.Simulating = true;
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 1000.f };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -129,10 +128,9 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_DeactivateClusterParticle)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_DeactivateClusterParticle)
 	{
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		// 5 cube leaf nodes
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)),FVector(1.0));
@@ -165,7 +163,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;	
 
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();		
@@ -251,10 +249,9 @@ namespace GeometryCollectionTest
 	}
 	
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_BreakClusterParticle)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_BreakClusterParticle)
 	{
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		// 5 cube leaf nodes
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)), FVector(1.0));
@@ -287,7 +284,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;
 
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -382,7 +379,7 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_SingleLevelBreaking)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_SingleLevelBreaking)
 	{
 		//
 		// Test overview:
@@ -392,10 +389,9 @@ namespace GeometryCollectionTest
 		// Ensure that the cluster breaks and that the children have the correct states from then on.
 		//
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
-		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>());
+		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>());
 
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector::ZeroVector);
@@ -409,7 +405,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 0.1f };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 
 		UnitTest.AddSimulationObject(Collection);
@@ -480,12 +476,11 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster)
 	{
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)), FVector(1.0));
@@ -510,7 +505,7 @@ namespace GeometryCollectionTest
 		Params.Simulating = true;
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 0.1f };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -584,13 +579,12 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster_NonIdentityMassToLocal)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster_NonIdentityMassToLocal)
 	{
 		// Advance and release each cluster, everything is kinematic, so the output transforms should never change.
 		// This tests the transforms in BufferPhysicsResults, validating that MassToLocal, ChildToParent, and X,P
 		// will properly map back into the GeometryCollections animation transform hierarchy. 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoParents_TwoBodiesB(FVector(0, 0, 20));
 		CreationParameters Params;
@@ -603,7 +597,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.MaxClusterLevel = 1;
 		Params.ClusterGroupIndex = 0;
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection1 = Collection1->DynamicCollection;
 		DynamicCollection1->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		DynamicCollection1->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[0] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
@@ -663,12 +657,11 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster_MultiStrain)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_NestedCluster_MultiStrain)
 	{
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
 		UnitTest.AddSimulationObject(Floor);
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)),FVector(1.0));
@@ -702,7 +695,7 @@ namespace GeometryCollectionTest
 		Params.Simulating = true;
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 30.0, 30.0, 30.0, FLT_MAX };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
@@ -829,14 +822,13 @@ namespace GeometryCollectionTest
 
 	}
 
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_KinematicAnchor)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_KinematicAnchor)
 	{
 		// Test : Set one element kinematic. When the cluster breaks the elements that do not contain the kinematic
 		//        rigid body should be dynamic, while the clusters that contain the kinematic body should remain 
 		//        kinematic.
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)), FVector(1.0));
 		RestCollection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(30.f)), FVector(1.0)));
@@ -865,7 +857,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		Collection->DynamicCollection->template GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 
@@ -892,7 +884,7 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
-		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>;
+		using FClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
 		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 
@@ -1119,14 +1111,13 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_StaticAnchor)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_StaticAnchor)
 	{
 		// Test : Set one element static. When the cluster breaks the elements that do not contain the static
 		//        rigid body should be dynamic, while the clusters that contain the static body should remain 
 		//        static. 
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(20.f)), FVector(1.0));
 		RestCollection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0.f)), FVector(30.f)), FVector(1.0)));
@@ -1155,7 +1146,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
 		Params.MaxClusterLevel = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		Collection->DynamicCollection->template GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Static;
 
@@ -1182,7 +1173,7 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<FReal, 3>*>& ClusterHandles = Collection->PhysObject->GetSolverClusterHandles();
 
-		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>;
+		using FClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
 		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 
@@ -1410,12 +1401,11 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClusters)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClusters)
 	{
 		// Test : Joining collections using the ClusterGroupIndex by a particle dynamically created within the solver.
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(-2, 0, 3));
 		CreationParameters Params;
@@ -1427,7 +1417,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 
 		TSharedPtr<FGeometryCollection> RestCollection2 = CreateClusteredBody(FVector(2, 0, 3));
@@ -1440,7 +1430,7 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params2)->template As<FGeometryCollectionWrapper>();
 		
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Collection2);
@@ -1518,12 +1508,11 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClustersFalling)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClustersFalling)
 	{
 		// Test : Joining collections using the ClusterGroupIndex by a particle dynamically created within the solver. 		
 		
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(-2, 0, 3));
 		CreationParameters Params;
@@ -1535,7 +1524,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 
 		TSharedPtr<FGeometryCollection> RestCollection2 = CreateClusteredBody(FVector(2, 0, 3));
@@ -1548,7 +1537,7 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params2)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Collection2);
@@ -1623,12 +1612,11 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClusterCollisions)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_UnionClusterCollisions)
 	{
 		// Test : Joining collections using the ClusterGroupIndex by a particle dynamically created within the solver. 		
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(-2, 0, 3));
 		CreationParameters Params;
@@ -1640,7 +1628,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		TSharedPtr<FGeometryCollection> RestCollection2 = CreateClusteredBody(FVector(2, 0, 3));
 		CreationParameters Params2;
@@ -1652,11 +1640,11 @@ namespace GeometryCollectionTest
 		Params2.EnableClustering = true;
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params2)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Collection2);
-		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>());
+		UnitTest.AddSimulationObject(TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>());
 		//make newsimobject set a full block filter on all shapes!
 		UnitTest.Initialize();
 
@@ -1725,13 +1713,12 @@ namespace GeometryCollectionTest
 	
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredNode)
 	{
 		// Test : Build to geometry collections, cluster them together, release the sub bodies of the first collection. 
 		//        ... should create a internal cluster with property transform mappings. 
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(0, 0, 100));
 		CreationParameters Params;
@@ -1744,7 +1731,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
 		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 		UnitTest.AddSimulationObject(Collection1);
 
 
@@ -1759,7 +1746,7 @@ namespace GeometryCollectionTest
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
 		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params2)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection2);
 		UnitTest.Initialize();
@@ -1821,13 +1808,12 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticle_ClusteredKinematicNode)
 	{
 		// Test : Build to geometry collections, cluster them together, release the sub bodies of the first collection. 
 		// this should create a internal cluster with property transform mappings. 
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody(FVector(0, 0, 100));
 		CreationParameters Params;
@@ -1840,7 +1826,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.ClusterGroupIndex = 1;
 		Params.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 		UnitTest.AddSimulationObject(Collection1);
 
 
@@ -1855,7 +1841,7 @@ namespace GeometryCollectionTest
 		Params2.DamageThreshold = { FLT_MAX };
 		Params2.ClusterGroupIndex = 1;
 		Params2.ClusterConnectionMethod = Chaos::FClusterCreationParameters::EConnectionMethod::DelaunayTriangulation;
-		TGeometryCollectionWrapper<Traits>* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params2)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection2 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params2)->template As<FGeometryCollectionWrapper>();
 		UnitTest.AddSimulationObject(Collection2);
 
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection1 = Collection1->DynamicCollection;
@@ -1928,12 +1914,11 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticles_AllLeafNodes)
 	{
 		// Release the leaf nodes of a cluster. This test exercises the clusters ability to deactivate from the bottom up. 
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoParents_TwoBodies(FVector(0, 0, 100));
 		CreationParameters Params;
@@ -1946,7 +1931,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.MaxClusterLevel = 1;
 		Params.ClusterGroupIndex = 0;		
-		TGeometryCollectionWrapper<Traits>* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection1 = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection1 = Collection1->DynamicCollection;
 		DynamicCollection1->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 
@@ -1998,10 +1983,9 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_ClusterTest_ReleaseClusterParticles_ClusterNodeAndSubClusterNode)
 	{
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_TwoParents_TwoBodies(FVector(0, 0, 100));
 		CreationParameters Params;
@@ -2014,7 +1998,7 @@ namespace GeometryCollectionTest
 		Params.DamageThreshold = { FLT_MAX };
 		Params.MaxClusterLevel = 1;
 		Params.ClusterGroupIndex = 1;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = Collection->DynamicCollection;
 		DynamicCollection->GetAttribute<int32>("DynamicState", FGeometryCollection::TransformGroup)[1] = (uint8)EObjectStateTypeEnum::Chaos_Object_Kinematic;
@@ -2042,7 +2026,7 @@ namespace GeometryCollectionTest
 
 		UnitTest.Advance();
 
-		using FClustering = TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints>;
+		using FClustering = TPBDRigidClustering<FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
 		FClustering& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 		const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = Clustering.GetClusterIdsArray();
@@ -2093,12 +2077,11 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, DISABLED_GeometryCollection_RigidBodies_ClusterTest_RemoveOnFracture)
+	GTEST_TEST(AllTraits, DISABLED_GeometryCollection_RigidBodies_ClusterTest_RemoveOnFracture)
 	{
 		// Disabled as remove on fracture currently unimplemented for geometry collections. Potentially this should be deleted entirely.
 
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, -10, 10)), FVector(1.0));
 		RestCollection->AppendGeometry(*GeometryCollection::MakeCubeElement(FTransform(FQuat::MakeFromEuler(FVector(0, 0, 0.)), FVector(0, 10, 10)), FVector(1.0)));
@@ -2120,7 +2103,7 @@ namespace GeometryCollectionTest
 		Params.EnableClustering = true;
 		Params.DamageThreshold = { 0.1f };		
 		Params.RemoveOnFractureEnabled = true;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		FRadialFalloff * FalloffField = new FRadialFalloff();
 		FalloffField->Magnitude = 10.5;
@@ -2174,10 +2157,9 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodiess_ClusterTest_ParticleImplicitCollisionGeometry)
 	{
-		using Traits = TypeParam;
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 
 		TSharedPtr<FGeometryCollection> RestCollection = CreateClusteredBody_FracturedGeometry();
 
@@ -2191,7 +2173,7 @@ namespace GeometryCollectionTest
 		Params.CollisionGroup = -1;
 		Params.MinLevelSetResolution = 15;
 		Params.MaxLevelSetResolution = 20;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		UnitTest.AddSimulationObject(Collection);
 		

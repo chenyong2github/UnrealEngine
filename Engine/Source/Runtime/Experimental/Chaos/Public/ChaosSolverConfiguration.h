@@ -113,5 +113,5 @@ struct FChaosSolverConfiguration
 	bool bGenerateContactGraph;
 
 private:
-	using FEvolution = Chaos::TPBDRigidsEvolutionGBF<Chaos::FDefaultTraits>;
+	using FEvolution = Chaos::FPBDRigidsEvolutionGBF;
 };

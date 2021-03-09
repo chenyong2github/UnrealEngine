@@ -30,7 +30,6 @@ namespace ChaosTest {
 		Solver->UpdateGameThreadStructures();
 	}
 
-	template <typename TypeParam>
 	auto* CreateSolverHelper(int32 StepMode, int32 RewindHistorySize, int32 Optimization, FReal& OutSimDt)
 	{
 		constexpr FReal FixedDt = 1;
@@ -38,7 +37,7 @@ namespace ChaosTest {
 
 		// Make a solver
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr);
                 InitSolverSettings(Solver);
 
 		Solver->EnableRewindCapture(RewindHistorySize, !!Optimization);
@@ -52,21 +51,18 @@ namespace ChaosTest {
 		return Solver;
 	}
 
-	template <typename TypeParam>
 	struct TRewindHelper
 	{
 		template <typename TLambda>
 		static void TestEmpty(const TLambda& Lambda, int32 RewindHistorySize = 200)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
-
 			for (int Optimization = 0; Optimization < 2; ++Optimization)
 			{
 				for (int DtMode = 0; DtMode < 4; ++DtMode)
 				{
 					FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 					FReal SimDt;
-					auto* Solver = CreateSolverHelper<TypeParam>(DtMode, RewindHistorySize, Optimization, SimDt);
+					auto* Solver = CreateSolverHelper(DtMode, RewindHistorySize, Optimization, SimDt);
 					Solver->SetMaxDeltaTime(SimDt);	//make sure it can step even for huge steps
 
 					Lambda(Solver, SimDt, Optimization);
@@ -96,9 +92,9 @@ namespace ChaosTest {
 		}
 	};
 
-	TYPED_TEST(AllTraits, RewindTest_MovingGeomChange)
+	GTEST_TEST(AllTraits, RewindTest_MovingGeomChange)
 	{
-		TRewindHelper<TypeParam>::TestEmpty([](auto* Solver, FReal SimDt, int32 Optimization)
+		TRewindHelper::TestEmpty([](auto* Solver, FReal SimDt, int32 Optimization)
 		{
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(0), FVec3(1)));
@@ -177,9 +173,9 @@ namespace ChaosTest {
 	}
 
 
-	TYPED_TEST(AllTraits, RewindTest_AddForce)
+	GTEST_TEST(AllTraits, RewindTest_AddForce)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			const int32 LastGameStep = 20;
@@ -215,9 +211,9 @@ namespace ChaosTest {
 		});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_IntermittentForce)
+	GTEST_TEST(AllTraits, RewindTest_IntermittentForce)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			const int32 LastGameStep = 20;
@@ -283,9 +279,9 @@ namespace ChaosTest {
 		});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_IntermittentGeomChange)
+	GTEST_TEST(AllTraits, RewindTest_IntermittentGeomChange)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(0), FVec3(1)));
@@ -349,9 +345,9 @@ namespace ChaosTest {
 		});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_FallingObjectWithTeleport)
+	GTEST_TEST(AllTraits, RewindTest_FallingObjectWithTeleport)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 				auto& Particle = Proxy->GetGameThreadAPI();
 				Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -457,9 +453,9 @@ namespace ChaosTest {
 		int OutCounter;
 	};
 
-	TYPED_TEST(AllTraits, RewindTest_SimCallbackInputsOutputs)
+	GTEST_TEST(AllTraits, RewindTest_SimCallbackInputsOutputs)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
 				struct FSimCallbackHelper : TSimCallbackObject<FSimCallbackHelperInput, FSimCallbackHelperOutput>
 				{
@@ -567,9 +563,9 @@ namespace ChaosTest {
 			});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_SimCallbackInputsCorrection)
+	GTEST_TEST(AllTraits, RewindTest_SimCallbackInputsCorrection)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 			{
 				struct FSimCallbackHelper : TSimCallbackObject<FSimCallbackHelperInput, FSimCallbackHelperOutput>
 				{
@@ -685,9 +681,9 @@ namespace ChaosTest {
 			});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleport)
+	GTEST_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleport)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 			const int32 LastGameStep = 20;
 			FReal ExpectedVZ = 0;
@@ -755,9 +751,9 @@ namespace ChaosTest {
 		});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleportAsSlave)
+	GTEST_TEST(AllTraits, RewindTest_ResimFallingObjectWithTeleportAsSlave)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 			const int32 LastGameStep = 20;
 
@@ -826,9 +822,9 @@ namespace ChaosTest {
 		});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ApplyRewind)
+	GTEST_TEST(AllTraits, RewindTest_ApplyRewind)
 	{
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 			const int32 LastGameStep = 20;
 			{
@@ -918,10 +914,10 @@ namespace ChaosTest {
 		});
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_BufferLimit)
+	GTEST_TEST(AllTraits, RewindTest_BufferLimit)
 	{
 		//test that we are getting as much of the history buffer as possible and that we properly wrap around
-		TRewindHelper<TypeParam>::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
 		{
 			auto& Particle = Proxy->GetGameThreadAPI();
 			Solver->GetEvolution()->GetGravityForces().SetAcceleration(FVec3(0, 0, -1));
@@ -966,17 +962,16 @@ namespace ChaosTest {
 		}, 10);	//don't want 200 default steps
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_NumDirty)
+	GTEST_TEST(AllTraits, RewindTest_NumDirty)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			//note: this 5 is just a suggestion, there could be more frames saved than that
@@ -1033,17 +1028,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_Resim)
+	GTEST_TEST(AllTraits, RewindTest_Resim)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(5 , !!Optimization);
@@ -1182,17 +1176,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterMissingTeleport)
+	GTEST_TEST(AllTraits, RewindTest_ResimDesyncAfterMissingTeleport)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -1278,17 +1271,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimDesyncAfterChangingMass)
+	GTEST_TEST(AllTraits, RewindTest_ResimDesyncAfterChangingMass)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -1366,11 +1358,10 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_DesyncFromPT)
+	GTEST_TEST(AllTraits, RewindTest_DesyncFromPT)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			//We want to detect when sim results change
 			//Detecting output of position and velocity is expensive and hard to track
 			//Instead we need to rely on fast forward mechanism, this is still in progress
@@ -1380,7 +1371,7 @@ namespace ChaosTest {
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -1472,17 +1463,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_DeltaTimeRecord)
+	GTEST_TEST(AllTraits, RewindTest_DeltaTimeRecord)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 			
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -1523,17 +1513,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimDesyncFromChangeForce)
+	GTEST_TEST(AllTraits, RewindTest_ResimDesyncFromChangeForce)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -1614,18 +1603,17 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimAsSlave)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsSlave)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -100), FVec3(100, 100, 0)));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -1705,18 +1693,17 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_FullResimFallSeeCollisionCorrection)
+	GTEST_TEST(AllTraits, RewindTest_FullResimFallSeeCollisionCorrection)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -100), FVec3(100, 100, 0)));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(100, !!Optimization);
@@ -1798,18 +1785,17 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimAsSlaveFallIgnoreCollision)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsSlaveFallIgnoreCollision)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -100), FVec3(100, 100, 0)));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(100, !!Optimization);
@@ -1887,17 +1873,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimAsSlaveWithForces)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsSlaveWithForces)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -1966,17 +1951,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimAsSlaveWokenUp)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsSlaveWokenUp)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -2055,17 +2039,16 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_ResimAsSlaveWokenUpNoHistory)
+	GTEST_TEST(AllTraits, RewindTest_ResimAsSlaveWokenUpNoHistory)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(7, !!Optimization);
@@ -2145,18 +2128,17 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_DesyncSimOutOfCollision)
+	GTEST_TEST(AllTraits, RewindTest_DesyncSimOutOfCollision)
 	{
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			if (TypeParam::IsRewindable() == false) { return; }
 			auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 			auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -100), FVec3(100, 100, 0)));
 
 			FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 			// Make a solver
-			auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+			auto* Solver = Module->CreateSolver(nullptr);
 			InitSolverSettings(Solver);
 
 			Solver->EnableRewindCapture(100, !!Optimization);
@@ -2255,16 +2237,15 @@ namespace ChaosTest {
 		}
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_SoftDesyncFromSameIsland)
+	GTEST_TEST(AllTraits, RewindTest_SoftDesyncFromSameIsland)
 	{
-		if (TypeParam::IsRewindable() == false) { return; }
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -100), FVec3(100, 100, 0)));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr);
 		InitSolverSettings(Solver);
 
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
@@ -2367,16 +2348,15 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_SoftDesyncFromSameIslandThenBackToInSync)
+	GTEST_TEST(AllTraits, RewindTest_SoftDesyncFromSameIslandThenBackToInSync)
 	{
-		if (TypeParam::IsRewindable() == false) { return; }
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-100, -100, -10), FVec3(100, 100, 0)));
 
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr);
 		InitSolverSettings(Solver);
 
 		Solver->EnableRewindCapture(100,true);	//soft desync only exists when resim optimization is on
@@ -2482,16 +2462,14 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	TYPED_TEST(AllTraits, RewindTest_SoftDesyncFromSameIslandThenBackToInSync_GeometryCollection_SingleFallingUnderGravity)
+	GTEST_TEST(AllTraits, RewindTest_SoftDesyncFromSameIslandThenBackToInSync_GeometryCollection_SingleFallingUnderGravity)
 	{
-		if (TypeParam::IsRewindable() == false) { return; }
 
 		for (int Optimization = 0; Optimization < 2; ++Optimization)
 		{
-			using Traits = TypeParam;
-			TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>()->As<TGeometryCollectionWrapper<Traits>>();
+			FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init()->As<FGeometryCollectionWrapper>();
 
-			TFramework<Traits> UnitTest;
+			FFramework UnitTest;
 			UnitTest.Solver->EnableRewindCapture(100, !!Optimization);
 			UnitTest.AddSimulationObject(Collection);
 			UnitTest.Initialize();
@@ -2608,13 +2586,13 @@ namespace ChaosTest {
 		TArray<FEntry> History;
 	};
 
-	template <typename TypeParam, typename InitLambda>
+	template <typename InitLambda>
 	void RunHelper(FSimComparisonHelper& SimComparison, int32 NumSteps, FReal Dt, const InitLambda& InitFunc)
 	{
 		FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
 		// Make a solver
-		auto* Solver = Module->CreateSolver<TypeParam>(nullptr);
+		auto* Solver = Module->CreateSolver(nullptr);
 		InitSolverSettings(Solver);
 
 		TArray<FPhysicsActorHandle> Storage = InitFunc(Solver);
@@ -2628,7 +2606,7 @@ namespace ChaosTest {
 		Module->DestroySolver(Solver);
 	}
 
-	TYPED_TEST(AllTraits, DeterministicSim_SimpleFallingBox)
+	GTEST_TEST(AllTraits, DeterministicSim_SimpleFallingBox)
 	{
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
@@ -2649,10 +2627,10 @@ namespace ChaosTest {
 		};
 
 		FSimComparisonHelper FirstRun;
-		RunHelper<TypeParam>(FirstRun, 100, 1 / 30.f, InitLambda);
+		RunHelper(FirstRun, 100, 1 / 30.f, InitLambda);
 
 		FSimComparisonHelper SecondRun;
-		RunHelper<TypeParam>(SecondRun, 100, 1 / 30.f, InitLambda);
+		RunHelper(SecondRun, 100, 1 / 30.f, InitLambda);
 
 		FReal MaxLinearError, MaxAngularError;
 		FSimComparisonHelper::ComputeMaxErrors(FirstRun, SecondRun, MaxLinearError, MaxAngularError);
@@ -2660,7 +2638,7 @@ namespace ChaosTest {
 		EXPECT_EQ(MaxAngularError, 0);
 	}
 
-	TYPED_TEST(AllTraits, DeterministicSim_ThresholdTest)
+	GTEST_TEST(AllTraits, DeterministicSim_ThresholdTest)
 	{
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
@@ -2686,13 +2664,13 @@ namespace ChaosTest {
 		};
 
 		FSimComparisonHelper FirstRun;
-		RunHelper<TypeParam>(FirstRun, 10, 1 / 30.f, InitLambda);
+		RunHelper(FirstRun, 10, 1 / 30.f, InitLambda);
 
 		//move X within threshold
 		StartPos = FVec3(0, 0, 1);
 
 		FSimComparisonHelper SecondRun;
-		RunHelper<TypeParam>(SecondRun, 10, 1 / 30.f, InitLambda);
+		RunHelper(SecondRun, 10, 1 / 30.f, InitLambda);
 
 		FReal MaxLinearError, MaxAngularError;
 		FSimComparisonHelper::ComputeMaxErrors(FirstRun, SecondRun, MaxLinearError, MaxAngularError);
@@ -2705,7 +2683,7 @@ namespace ChaosTest {
 		StartRotation = FRotation3::FromAxisAngle(FVec3(1, 1, 0).GetSafeNormal(), 1);
 
 		FSimComparisonHelper ThirdRun;
-		RunHelper<TypeParam>(ThirdRun, 10, 1 / 30.f, InitLambda);
+		RunHelper(ThirdRun, 10, 1 / 30.f, InitLambda);
 
 		FSimComparisonHelper::ComputeMaxErrors(FirstRun, ThirdRun, MaxLinearError, MaxAngularError);
 		EXPECT_EQ(MaxLinearError, 0);
@@ -2713,7 +2691,7 @@ namespace ChaosTest {
 		EXPECT_GT(MaxAngularError, 0.99);
 	}
 
-	TYPED_TEST(AllTraits, DeterministicSim_DoubleTick)
+	GTEST_TEST(AllTraits, DeterministicSim_DoubleTick)
 	{
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 
@@ -2734,12 +2712,12 @@ namespace ChaosTest {
 		};
 
 		FSimComparisonHelper FirstRun;
-		RunHelper<TypeParam>(FirstRun, 100, 1 / 30.f, InitLambda);
+		RunHelper(FirstRun, 100, 1 / 30.f, InitLambda);
 
 		//tick twice as often
 
 		FSimComparisonHelper SecondRun;
-		RunHelper<TypeParam>(SecondRun, 200, 1 / 60.f, InitLambda);
+		RunHelper(SecondRun, 200, 1 / 60.f, InitLambda);
 
 		FReal MaxLinearError, MaxAngularError;
 		FSimComparisonHelper::ComputeMaxErrors(FirstRun, SecondRun, MaxLinearError, MaxAngularError, 2);
@@ -2747,7 +2725,7 @@ namespace ChaosTest {
 		EXPECT_NEAR(MaxAngularError, 0, 1e-4);
 	}
 
-	TYPED_TEST(AllTraits, DeterministicSim_DoubleTickGravity)
+	GTEST_TEST(AllTraits, DeterministicSim_DoubleTickGravity)
 	{
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-10, -10, -10), FVec3(10, 10, 10)));
 		const FReal Gravity = -980;
@@ -2770,12 +2748,12 @@ namespace ChaosTest {
 
 		const int32 NumSteps = 7;
 		FSimComparisonHelper FirstRun;
-		RunHelper<TypeParam>(FirstRun, NumSteps, 1 / 30.f, InitLambda);
+		RunHelper(FirstRun, NumSteps, 1 / 30.f, InitLambda);
 
 		//tick twice as often
 
 		FSimComparisonHelper SecondRun;
-		RunHelper<TypeParam>(SecondRun, NumSteps * 2, 1 / 60.f, InitLambda);
+		RunHelper(SecondRun, NumSteps * 2, 1 / 60.f, InitLambda);
 
 		//expected integration gravity error
 		const auto EulerIntegrationHelper = [Gravity](int32 Steps, FReal Dt)
@@ -2802,7 +2780,7 @@ namespace ChaosTest {
 		EXPECT_EQ(MaxAngularError, 0);
 	}
 
-	TYPED_TEST(AllTraits, DeterministicSim_DoubleTickCollide)
+	GTEST_TEST(AllTraits, DeterministicSim_DoubleTickCollide)
 	{
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 50));
 
@@ -2837,18 +2815,18 @@ namespace ChaosTest {
 
 		const int32 NumSteps = 7;
 		FSimComparisonHelper FirstRun;
-		RunHelper<TypeParam>(FirstRun, NumSteps, 1 / 30.f, InitLambda);
+		RunHelper(FirstRun, NumSteps, 1 / 30.f, InitLambda);
 
 		//tick twice as often
 
 		FSimComparisonHelper SecondRun;
-		RunHelper<TypeParam>(SecondRun, NumSteps * 2, 1 / 60.f, InitLambda);
+		RunHelper(SecondRun, NumSteps * 2, 1 / 60.f, InitLambda);
 
 		FReal MaxLinearError, MaxAngularError;
 		FSimComparisonHelper::ComputeMaxErrors(FirstRun, SecondRun, MaxLinearError, MaxAngularError, 2);
 	}
 
-	TYPED_TEST(AllTraits, DeterministicSim_DoubleTickStackCollide)
+	GTEST_TEST(AllTraits, DeterministicSim_DoubleTickStackCollide)
 	{
 		auto SmallBox = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-50, -50, -50), FVec3(50, 50, 50)));
 		auto Box = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TBox<FReal, 3>(FVec3(-1000, -1000, -1000), FVec3(1000, 1000, 0)));
@@ -2893,12 +2871,12 @@ namespace ChaosTest {
 
 		const int32 NumSteps = 20;
 		FSimComparisonHelper FirstRun;
-		RunHelper<TypeParam>(FirstRun, NumSteps, 1 / 30.f, InitLambda);
+		RunHelper(FirstRun, NumSteps, 1 / 30.f, InitLambda);
 
 		//tick twice as often
 
 		FSimComparisonHelper SecondRun;
-		RunHelper<TypeParam>(SecondRun, NumSteps, 1 / 30.f, InitLambda);
+		RunHelper(SecondRun, NumSteps, 1 / 30.f, InitLambda);
 
 		//make sure deterministic
 		FReal MaxLinearError, MaxAngularError;
@@ -2908,7 +2886,7 @@ namespace ChaosTest {
 
 		//try with 60fps
 		FSimComparisonHelper ThirdRun;
-		RunHelper<TypeParam>(ThirdRun, NumSteps * 2, 1 / 60.f, InitLambda);
+		RunHelper(ThirdRun, NumSteps * 2, 1 / 60.f, InitLambda);
 
 		FSimComparisonHelper::ComputeMaxErrors(FirstRun, ThirdRun, MaxLinearError, MaxAngularError, 2);
 	}

@@ -180,8 +180,7 @@ void FChaosSolversModule::SyncTask(bool bForceBlockingSync /*= false*/)
 #endif
 }
 
-template <typename Traits>
-Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode InThreadingMode
+Chaos::FPBDRigidsSolver* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode InThreadingMode
 #if CHAOS_CHECKED
 	, const FName& DebugName
 #endif
@@ -194,7 +193,7 @@ Chaos::TPBDRigidsSolver<Traits>* FChaosSolversModule::CreateSolver(UObject* InOw
 	
 	EMultiBufferMode SolverBufferMode = InThreadingMode == EThreadingMode::SingleThread ? EMultiBufferMode::Single : EMultiBufferMode::Double;
 	
-	auto* NewSolver = new TPBDRigidsSolver<Traits>(SolverBufferMode,InOwner);
+	auto* NewSolver = new FPBDRigidsSolver(SolverBufferMode,InOwner);
 	AllSolvers.Add(NewSolver);
 
 	// Add The solver to the owner list
@@ -736,14 +735,3 @@ const IChaosSettingsProvider& FChaosSolversModule::GetSettingsProvider() const
 {
 	return SettingsProvider ? *SettingsProvider : Chaos::GDefaultChaosSettings;
 }
-
-#if CHAOS_CHECKED
-#define EVOLUTION_TRAIT(Traits)\
-template Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode InFlags, const FName& DebugName);
-#else
-#define EVOLUTION_TRAIT(Traits)\
-template Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner,Chaos::EThreadingMode InFlags);
-#endif
-
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT

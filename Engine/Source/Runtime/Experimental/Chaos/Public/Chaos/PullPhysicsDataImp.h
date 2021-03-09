@@ -10,8 +10,7 @@
 #include "GeometryCollectionProxyData.h"
 #include "PBDRigidsEvolutionFwd.h"
 
-template <typename T>
-class TJointConstraintProxy;
+class FJointConstraintPhysicsProxy;
 
 namespace Chaos
 {
@@ -66,7 +65,7 @@ struct FJointConstraintOutputData {
 
 class FJointConstraint;
 
-struct FDirtyJointConstraintData : public TBasePullData<TJointConstraintProxy<FJointConstraint>>
+struct FDirtyJointConstraintData : public TBasePullData<FJointConstraintPhysicsProxy>
 {
 	FJointConstraintOutputData OutputData;
 };

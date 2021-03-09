@@ -16,8 +16,7 @@
 
 
 
-template< class CONSTRAINT_TYPE >
-TSuspensionConstraintProxy<CONSTRAINT_TYPE>::TSuspensionConstraintProxy(CONSTRAINT_TYPE* InConstraint, TSuspensionConstraintProxy<CONSTRAINT_TYPE>::FConstraintHandle* InHandle, UObject* InOwner)
+FSuspensionConstraintPhysicsProxy::FSuspensionConstraintPhysicsProxy(Chaos::FSuspensionConstraint* InConstraint, FConstraintHandle* InHandle, UObject* InOwner)
 	: Base(InOwner)
 	, Constraint(InConstraint)
 	, Handle(InHandle)
@@ -28,29 +27,8 @@ TSuspensionConstraintProxy<CONSTRAINT_TYPE>::TSuspensionConstraintProxy(CONSTRAI
 	SuspensionSettingsBuffer = Constraint->GetSuspensionSettings();
 }
 
-
-template< class CONSTRAINT_TYPE >
-TSuspensionConstraintProxy<CONSTRAINT_TYPE>::~TSuspensionConstraintProxy()
-{
-}
-
-
-template< class CONSTRAINT_TYPE>
-EPhysicsProxyType TSuspensionConstraintProxy<CONSTRAINT_TYPE>::ConcreteType()
-{
-	return EPhysicsProxyType::NoneType;
-}
-
-
-template<>
-EPhysicsProxyType TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::ConcreteType()
-{
-	return EPhysicsProxyType::SuspensionConstraintType;
-}
-
-template< class CONSTRAINT_TYPE>
 Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*
-TSuspensionConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase)
+FSuspensionConstraintPhysicsProxy::GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase)
 {
 	if (ProxyBase)
 	{
@@ -62,9 +40,7 @@ TSuspensionConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysics
 	return nullptr;
 }
 
-template < >
-template < class Trait >
-void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+void FSuspensionConstraintPhysicsProxy::InitializeOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver)
 {
 	auto& Handles = InSolver->GetParticles().GetParticleHandles();
 	if (Handles.Size() && IsValid())
@@ -87,9 +63,7 @@ void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::InitializeOnPhysi
 }
 
 
-template < >
-template < class Trait >
-void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+void FSuspensionConstraintPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver)
 {
 	if (Constraint != nullptr)
 	{
@@ -155,11 +129,9 @@ void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnGameTh
 }
 
 
-template < >
-template < class Trait >
-void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+void FSuspensionConstraintPhysicsProxy::PushStateOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver)
 {
-	typedef typename Chaos::TPBDRigidsSolver<Trait>::FPBDRigidsEvolution::FCollisionConstraints FCollisionConstraints;
+	typedef typename Chaos::FPBDRigidsSolver::FPBDRigidsEvolution::FCollisionConstraints FCollisionConstraints;
 	if (Handle)
 	{
 		if (DirtyFlagsBuffer.IsDirty())
@@ -217,9 +189,7 @@ void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnPhysic
 }
 
 
-template < >
-template < class Trait >
-void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* RBDSolver)
+void FSuspensionConstraintPhysicsProxy::DestroyOnPhysicsThread(Chaos::FPBDRigidsSolver* RBDSolver)
 {
 	if (Handle)
 	{
@@ -230,16 +200,3 @@ void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::DestroyOnPhysicsT
 		Constraint = nullptr;
 	}
 }
-
-
-template class TSuspensionConstraintProxy< Chaos::FSuspensionConstraint >;
-
-#define EVOLUTION_TRAIT(Traits)\
-template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
-
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
-
