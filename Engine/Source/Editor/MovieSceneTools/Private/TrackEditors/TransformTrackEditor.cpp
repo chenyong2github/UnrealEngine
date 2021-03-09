@@ -912,7 +912,7 @@ void F3DTransformTrackEditor::ProcessKeyOperation(UObject* ObjectToKey, TArrayVi
 		Query.Object   = Component;
 
 		FIntermediate3DTransform CurrentValue(Component->GetRelativeLocation(), Component->GetRelativeRotation(), Component->GetRelativeScale3D());
-		TRecompositionResult<FIntermediate3DTransform> TransformData = System->RecomposeBlendFinal(FMovieSceneTracksComponentTypes::Get()->ComponentTransform, Query, CurrentValue);
+		TRecompositionResult<FIntermediate3DTransform> TransformData = System->RecomposeBlendOperational(FMovieSceneTracksComponentTypes::Get()->ComponentTransform, Query, CurrentValue);
 
 		for (int32 Index = 0; Index < SectionsToKey.Num(); ++Index)
 		{

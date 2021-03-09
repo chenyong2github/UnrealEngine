@@ -13,8 +13,9 @@ namespace MovieScene
 {
 
 struct FPropertyStats;
-struct FPropertyDefinition;
+struct FEntityAllocation;
 struct FInitialValueCache;
+struct FPropertyDefinition;
 struct FSystemSubsequentTasks;
 struct FSystemTaskPrerequisites;
 struct FFloatDecompositionParams;
@@ -161,6 +162,17 @@ struct IPropertyComponentHandler
 	 * @param InPrerequisites  Task prerequisites for any entity system tasks that are dispatched
 	 * @param Subsequents      Subsequents to add any dispatched tasks to
 	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
+	 * @param MetaDataProvider Interface that is able to locate properties for entity IDs
+	 */
+	virtual void DispatchInitializePropertyMetaDataTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) {}
+
+	/**
+	 * Dispatch tasks that cache a pre-animated value for any entities that have the CachePreAnimatedState tag
+	 *
+	 * @param Definition       The property definition this handler was registered for
+	 * @param InPrerequisites  Task prerequisites for any entity system tasks that are dispatched
+	 * @param Subsequents      Subsequents to add any dispatched tasks to
+	 * @param Linker           The linker that owns the entity manager to dispatch tasks for
 	 */
 	virtual void DispatchCachePreAnimatedTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) = 0;
 
@@ -175,26 +187,14 @@ struct IPropertyComponentHandler
 	virtual void DispatchRestorePreAnimatedStateTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) = 0;
 
 	/**
-	 * Run a recomposition using the specified params and values. The current value and result views must be of type PropertyType
+	 * Run a recomposition using the specified params and values. The current value and result views must be of type StorageType
 	 *
 	 * @param Definition       The property definition this handler was registered for
 	 * @param Composites       The composite channels that this property type comprises
 	 * @param Params           The decomposition parameters
 	 * @param Blender          The blender system to recompose from
-	 * @param InCurrentValue   The current value (of type PropertyType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
-	 * @param OutResult        The result to receieve recomposed values, one for every entitiy in Params.Query.Entities. Must be of type PropertyType.
-	 */
-	virtual void RecomposeBlendFinal(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const FFloatDecompositionParams& Params, UMovieSceneBlenderSystem* Blender, FConstPropertyComponentView InCurrentValue, FPropertyComponentArrayView OutResult) = 0;
-
-	/**
-	 * Run a recomposition using the specified params and values. The current value and result views must be of type OperationalType
-	 *
-	 * @param Definition       The property definition this handler was registered for
-	 * @param Composites       The composite channels that this property type comprises
-	 * @param Params           The decomposition parameters
-	 * @param Blender          The blender system to recompose from
-	 * @param InCurrentValue   The current value (of type OperationalType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
-	 * @param OutResult        The result to receieve recomposed values, one for every entitiy in Params.Query.Entities. Must be of type OperationalType.
+	 * @param InCurrentValue   The current value (of type StorageType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
+	 * @param OutResult        The result to receieve recomposed values, one for every entitiy in Params.Query.Entities. Must be of type StorageType.
 	 */
 	virtual void RecomposeBlendOperational(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const FFloatDecompositionParams& Params, UMovieSceneBlenderSystem* Blender, FConstPropertyComponentView InCurrentValue, FPropertyComponentArrayView OutResult) = 0;
 
@@ -205,7 +205,7 @@ struct IPropertyComponentHandler
 	 * @param Composite        The composite channel of the property type that we want to decompose
 	 * @param Params           The decomposition parameters
 	 * @param Blender          The blender system to recompose from
-	 * @param InCurrentValue   The current value (of type OperationalType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
+	 * @param InCurrentValue   The current value (of type StorageType) to recompose using. For instance, if a property comprises 3 additive values (a:1, b:2, c:3), and we recompose 'a' with an InCurrentValue of 10, the result for 'a' would be 5.
 	 * @param OutResults       The result to receieve recomposed values, one for every entitiy in Params.Query.Entities.
 	 */
 	virtual void RecomposeBlendChannel(const FPropertyDefinition& Definition, const FPropertyCompositeDefinition& Composite, const FFloatDecompositionParams& Params, UMovieSceneBlenderSystem* Blender, float InCurrentValue, TArrayView<float> OutResults) = 0;
@@ -217,7 +217,7 @@ struct IPropertyComponentHandler
 	 * @param Composites		The composite channels that this property type comproses
 	 * @param EntityIDs			The entities on which the composite values will be found
 	 * @param Linker			The linker that owns the entity manager where the entities live
-	 * @param OutResult			The result to receieve rebuilt values, one for every entitiy in EntityIDs. Must be of type OperationalType.
+	 * @param OutResult			The result to receieve rebuilt values, one for every entitiy in EntityIDs. Must be of type StorageType.
 	 */
 	virtual void RebuildOperational(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) = 0;
 
@@ -230,7 +230,7 @@ struct IPropertyComponentHandler
 	 * @param Linker			The linker that owns the entity manager where the entities live
 	 * @param OutResult			The result to receieve rebuilt values, one for every entitiy in EntityIDs. Must be of type PropertyType.
 	 */
-	virtual void RebuildFinal(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) = 0;
+	//virtual void RebuildFinal(const FPropertyDefinition& Definition, TArrayView<const FPropertyCompositeDefinition> Composites, const TArrayView<FMovieSceneEntityID>& EntityIDs, UMovieSceneEntitySystemLinker* Linker, FPropertyComponentArrayView OutResult) = 0;
 
 	/**
 	 * Dispatch tasks that apply any entity that matches this property type to their final values

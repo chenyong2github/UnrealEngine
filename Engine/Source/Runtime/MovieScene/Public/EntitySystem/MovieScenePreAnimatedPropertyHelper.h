@@ -38,18 +38,23 @@ private:
 	static TMap<FName,  FMovieSceneAnimTypeID> SlowGlobalPreAnimatedTypeID;
 };
 
-template<typename PropertyType>
-struct TPreAnimatedPropertyHelper
+template<typename PropertyTraits, typename MetaDataType, typename MetaDataIndices>
+struct TPreAnimatedPropertyHelperBase;
+
+template<typename PropertyTraits, typename ...MetaDataTypes, int... MetaDataIndices>
+struct TPreAnimatedPropertyHelperBase<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, MetaDataIndices...>>
 {
-	TPreAnimatedPropertyHelper(const FPropertyDefinition& PropertyDefinition, UMovieSceneEntitySystemLinker* InLinker)
+	using StorageType = typename PropertyTraits::StorageType;
+
+	TPreAnimatedPropertyHelperBase(const FPropertyDefinition* InPropertyDefinition, UMovieSceneEntitySystemLinker* InLinker)
 		: Linker(InLinker)
+		, BuiltInComponents(FBuiltInComponentTypes::Get())
+		, PropertyDefinition(InPropertyDefinition)
 	{
-		PropertyTag = PropertyDefinition.PropertyType;
-		if (PropertyDefinition.CustomPropertyRegistration)
+		if (PropertyDefinition->CustomPropertyRegistration)
 		{
-			CustomAccessors = PropertyDefinition.CustomPropertyRegistration->GetAccessors();
+			CustomAccessors = PropertyDefinition->CustomPropertyRegistration->GetAccessors();
 		}
-		BuiltInComponents = FBuiltInComponentTypes::Get();
 	}
 
 	void SavePreAnimatedState()
@@ -66,10 +71,10 @@ struct TPreAnimatedPropertyHelper
 private:
 
 	UMovieSceneEntitySystemLinker* Linker;
+	FBuiltInComponentTypes* BuiltInComponents;
+	const FPropertyDefinition* PropertyDefinition;
 	FCustomAccessorView CustomAccessors;
 	FGlobalPreAnimatedStateIDs AnimTypeIDs;
-	FBuiltInComponentTypes* BuiltInComponents;
-	FComponentTypeID PropertyTag;
 
 private:
 
@@ -83,12 +88,12 @@ private:
 
 		FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 
-		auto CacheState =  [this, InstanceRegistry](UObject* Object, FInstanceHandle InstanceHandle, T InComponent)
+		auto CacheState =  [this, InstanceRegistry](UObject* Object, FInstanceHandle InstanceHandle, const MetaDataTypes&... InMetaData, T InComponent)
 		{
 			IMovieScenePlayer* Player = InstanceRegistry->GetInstance(InstanceHandle).GetPlayer();
 			if (Player->PreAnimatedState.IsGlobalCaptureEnabled())
 			{
-				this->SavePreAnimatedState(Player, Object, InComponent);
+				this->SavePreAnimatedState(Player, Object, InMetaData..., InComponent);
 			}
 		};
 
@@ -96,21 +101,28 @@ private:
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BoundObject)
 		.Read(BuiltInComponents->InstanceHandle)
+		.ReadAllOf(PropertyDefinition->MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
 		.Read(ComponentType)
-		.FilterAll({ BuiltInComponents->Tags.NeedsLink, PropertyTag })
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink, PropertyDefinition->PropertyType })
 		.Iterate_PerEntity(&Linker->EntityManager, CacheState);
 
 		// Special cases for blended entities running multiple inputs into outputs
 		if (Linker->EntityManager.ContainsComponent(BuiltInComponents->BlendChannelOutput))
 		{
-			TMap<uint16, T> RelinkedOutputs;
+			struct FOutputProperty
+			{
+				T PropertyComponent;
+				TTuple<MetaDataTypes...> MetaData;
+			};
+			TMap<uint16, FOutputProperty> RelinkedOutputs;
 
 			// Gather outputs that have been changed
 			FEntityTaskBuilder()
 			.Read(BuiltInComponents->BlendChannelOutput)
+			.ReadAllOf(PropertyDefinition->MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
 			.Read(ComponentType)
-			.FilterAll({ BuiltInComponents->Tags.NeedsLink, BuiltInComponents->BoundObject, PropertyTag })
-			.Iterate_PerEntity(&Linker->EntityManager, [&RelinkedOutputs](uint16 BlendChannel, T InComponent) { RelinkedOutputs.Add(BlendChannel, InComponent); });
+			.FilterAll({ BuiltInComponents->Tags.NeedsLink, BuiltInComponents->BoundObject, PropertyDefinition->PropertyType })
+			.Iterate_PerEntity(&Linker->EntityManager, [&RelinkedOutputs](uint16 BlendChannel, const MetaDataTypes&... InMetaData, T InComponent) { RelinkedOutputs.Add(BlendChannel, FOutputProperty{ InComponent, MakeTuple( InMetaData... )}); });
 
 			if (RelinkedOutputs.Num() > 0)
 			{
@@ -119,13 +131,13 @@ private:
 				.Read(BuiltInComponents->BlendChannelInput)
 				.Read(BuiltInComponents->BoundObject)
 				.Read(BuiltInComponents->InstanceHandle)
-				.FilterAll({ PropertyTag })
+				.FilterAll({ PropertyDefinition->PropertyType })
 				.Iterate_PerEntity(&Linker->EntityManager,
 					[&RelinkedOutputs, CacheState](uint16 BlendChannel, UObject* Object, FInstanceHandle InstanceHandle)
 					{
-						if (const T* OutputComponent = RelinkedOutputs.Find(BlendChannel))
+						if (const FOutputProperty* OutputComponent = RelinkedOutputs.Find(BlendChannel))
 						{
-							CacheState(Object, InstanceHandle, *OutputComponent);
+							CacheState(Object, InstanceHandle, OutputComponent->MetaData.template Get<MetaDataIndices>()..., OutputComponent->PropertyComponent);
 						}
 					}
 				);
@@ -133,48 +145,66 @@ private:
 		}
 	}
 
-	struct FFastToken : IMovieScenePreAnimatedToken
+	struct FBaseToken : IMovieScenePreAnimatedToken
 	{
-		PropertyType CachedValue;
+		TTuple<MetaDataTypes...> MetaData;
+
+		FBaseToken(const MetaDataTypes&... InMetaData)
+			: MetaData(InMetaData...)
+		{}
+	};
+	struct FFastToken : FBaseToken
+	{
+		StorageType CachedValue;
 		uint16 PropertyOffset;
 
-		explicit FFastToken(const PropertyType& InCachedValue, uint16 InPropertyOffset)
-			: CachedValue(InCachedValue), PropertyOffset(InPropertyOffset)
-		{}
+		explicit FFastToken(const UObject* Object, const MetaDataTypes&... InMetaData, uint16 InPropertyOffset)
+			: FBaseToken(InMetaData...)
+			, CachedValue{}
+			, PropertyOffset(InPropertyOffset)
+		{
+			PropertyTraits::GetObjectPropertyValue(Object, InMetaData..., InPropertyOffset, CachedValue);
+		}
 
 		virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
 		{
-			*reinterpret_cast<PropertyType*>( reinterpret_cast<uint8*>(&Object) + PropertyOffset ) = CachedValue;
+			PropertyTraits::SetObjectPropertyValue(&Object, this->MetaData.template Get<MetaDataIndices>()..., PropertyOffset, CachedValue);
 		}
 	};
-	struct FCustomToken : IMovieScenePreAnimatedToken
+	struct FCustomToken : FBaseToken
 	{
-		using SetterFunc = typename TCustomPropertyAccessorFunctions<PropertyType>::SetterFunc;
+		StorageType CachedValue;
+		const FCustomPropertyAccessor* Accessor;
 
-		PropertyType CachedValue;
-		SetterFunc Setter;
-
-		explicit FCustomToken(const PropertyType& InCachedValue, SetterFunc InSetter)
-			: CachedValue(InCachedValue), Setter(InSetter)
-		{}
+		explicit FCustomToken(const UObject* Object, const MetaDataTypes&... InMetaData, const FCustomPropertyAccessor* InAccessor)
+			: FBaseToken(InMetaData...)
+			, CachedValue{}
+			, Accessor(InAccessor)
+		{
+			PropertyTraits::GetObjectPropertyValue(Object, InMetaData..., *InAccessor, CachedValue);
+		}
 
 		virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
 		{
-			(*Setter)(&Object, CachedValue);
+			PropertyTraits::SetObjectPropertyValue(&Object, this->MetaData.template Get<MetaDataIndices>()..., *Accessor, CachedValue);
 		}
 	};
-	struct FSlowToken : IMovieScenePreAnimatedToken
+	struct FSlowToken : FBaseToken
 	{
-		PropertyType CachedValue;
+		StorageType CachedValue;
 		TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings;
 
-		explicit FSlowToken(const PropertyType& InCachedValue, TSharedPtr<FTrackInstancePropertyBindings> InPropertyBindings)
-			: CachedValue(InCachedValue), PropertyBindings(InPropertyBindings)
-		{}
+		explicit FSlowToken(const UObject* Object, const MetaDataTypes&... InMetaData, const TSharedPtr<FTrackInstancePropertyBindings>& InPropertyBindings)
+			: FBaseToken(InMetaData...)
+			, CachedValue{}
+			, PropertyBindings(InPropertyBindings)
+		{
+			PropertyTraits::GetObjectPropertyValue(Object, InMetaData..., InPropertyBindings.Get(), CachedValue);
+		}
 
 		virtual void RestoreState(UObject& Object, IMovieScenePlayer& Player) override
 		{
-			PropertyBindings->CallFunction<PropertyType>(Object, CachedValue);
+			PropertyTraits::SetObjectPropertyValue(&Object, this->MetaData.template Get<MetaDataIndices>()..., PropertyBindings.Get(), CachedValue);
 		}
 	};
 
@@ -192,14 +222,13 @@ private:
 		}
 	};
 
-	void SavePreAnimatedState(IMovieScenePlayer* Player, UObject* InObject, uint16 PropertyOffset)
+	void SavePreAnimatedState(IMovieScenePlayer* Player, UObject* InObject, MetaDataTypes... InMetaData, uint16 PropertyOffset)
 	{
 		if (PropertyOffset != 0)
 		{
-			auto MakeToken = [PropertyOffset, InObject]
+			auto MakeToken = [PropertyOffset, InObject, InMetaData...]
 			{
-				PropertyType CurrentValue = *reinterpret_cast<PropertyType*>( reinterpret_cast<uint8*>(InObject) + PropertyOffset );
-				return FFastToken(CurrentValue, PropertyOffset);
+				return FFastToken(InObject, InMetaData..., PropertyOffset);
 			};
 
 			FMovieSceneAnimTypeID TypeID = AnimTypeIDs.GetFast(PropertyOffset);
@@ -207,32 +236,31 @@ private:
 		}
 	}
 
-	void SavePreAnimatedState(IMovieScenePlayer* Player, UObject* InObject, FCustomPropertyIndex InCustomIndex)
+	void SavePreAnimatedState(IMovieScenePlayer* Player, UObject* InObject, MetaDataTypes... InMetaData, FCustomPropertyIndex InCustomIndex)
 	{
-		auto MakeToken = [this, InCustomIndex, InObject]
+		auto MakeToken = [this, InCustomIndex, InObject, InMetaData...]
 		{
-			const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(this->CustomAccessors[InCustomIndex.Value]);
-
-			PropertyType CurrentValue = CustomAccessor.Functions.Getter(InObject);
-			return FCustomToken(CurrentValue, CustomAccessor.Functions.Setter);
+			return FCustomToken(InObject, InMetaData..., &this->CustomAccessors[InCustomIndex.Value]);
 		};
 
 		FMovieSceneAnimTypeID TypeID = AnimTypeIDs.GetCustom(InCustomIndex.Value);
 		Player->SaveGlobalPreAnimatedState(*InObject, TypeID, FProducer(MakeToken));
 	}
 
-	void SavePreAnimatedState(IMovieScenePlayer* Player, UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings)
+	void SavePreAnimatedState(IMovieScenePlayer* Player, UObject* InObject, MetaDataTypes... InMetaData, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings)
 	{
-		auto MakeToken = [&PropertyBindings, InObject]
+		auto MakeToken = [&PropertyBindings, InObject, InMetaData...]
 		{
-			PropertyType CurrentValue = PropertyBindings->GetCurrentValue<PropertyType>(*InObject);
-			return FSlowToken(CurrentValue, PropertyBindings);
+			return FSlowToken(InObject, InMetaData..., PropertyBindings);
 		};
 
 		FMovieSceneAnimTypeID TypeID = AnimTypeIDs.GetSlow(*PropertyBindings->GetPropertyPath());
 		Player->SaveGlobalPreAnimatedState(*InObject, TypeID, FProducer(MakeToken));
 	}
 };
+
+template<typename PropertyTraits>
+using TPreAnimatedPropertyHelper = TPreAnimatedPropertyHelperBase<PropertyTraits, typename PropertyTraits::MetaDataType, TMakeIntegerSequence<int, PropertyTraits::MetaDataType::Num>>;
 
 
 } // namespace MovieScene

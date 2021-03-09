@@ -22,8 +22,8 @@ public:
 	/**
 	 * Must be called on construction of derived classes to initialize the members necessary for this system to animate its property
 	 */
-	template<typename PropertyType, typename OperationalType>
-	void BindToProperty(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& InComponents)
+	template<typename PropertyTraits>
+	void BindToProperty(const UE::MovieScene::TPropertyComponents<PropertyTraits>& InComponents)
 	{
 		check(!RelevantComponent && !CompositePropertyID);
 

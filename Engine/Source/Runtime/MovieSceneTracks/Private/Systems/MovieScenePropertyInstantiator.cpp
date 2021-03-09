@@ -169,6 +169,7 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 
 	FEntityTaskBuilder()
 	.ReadEntityIDs()
+	.FilterNone({ BuiltInComponents->BlendChannelOutput })
 	.FilterAll({ BuiltInComponents->BoundObject, BuiltInComponents->PropertyBinding, BuiltInComponents->Tags.NeedsUnlink })
 	.Iterate_PerEntity(&Linker->EntityManager, VisitExpiredEntities);
 }
@@ -390,6 +391,16 @@ void UMovieScenePropertyInstantiatorSystem::InitializeFastPath(const FPropertyPa
 		Linker->EntityManager.AddComponent(SoleContributor, BuiltInComponents->SlowProperty,        Params.PropertyInfo->Property.template Get<FSlowPropertyPtr>());
 		break;
 	}
+
+	if (Params.PropertyDefinition->MetaDataTypes.Num() > 0)
+	{
+		FComponentMask NewMask;
+		for (FComponentTypeID Component : Params.PropertyDefinition->MetaDataTypes)
+		{
+			NewMask.Set(Component);
+		}
+		Linker->EntityManager.AddComponents(SoleContributor, NewMask);
+	}
 }
 
 void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyParameters& Params)
@@ -430,12 +441,15 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		Params.PropertyInfo->BlendChannel = Params.PropertyInfo->Blender->AllocateBlendChannel();
 	}
 
-	FComponentMask NewMask;
-	FComponentMask OldMask;
-
 	if (!bWasAlreadyBlended)
 	{
+		FComponentMask NewMask;
 		NewMask.Set(Params.PropertyDefinition->InitialValueType);
+
+		for (FComponentTypeID Component : Params.PropertyDefinition->MetaDataTypes)
+		{
+			NewMask.Set(Component);
+		}
 
 		for (int32 Index = 0; Index < Composites.Num(); ++Index)
 		{

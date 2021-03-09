@@ -12,187 +12,103 @@ namespace MovieScene
 {
 
 
-template<typename InIntermediateType, typename... ProjectionTypes>
-void TPartialProjections<InIntermediateType, ProjectionTypes...>::Patch(IntermediateType* Properties, const FEntityAllocation* Allocation, int32 Num) const
-{
-	auto Visit = [Properties, Allocation, Num](auto& It)
-	{
-		using ComponentType = typename TDecay<decltype(It)>::Type::ComponentType;
-
-		const FComponentHeader* Header = It.ComponentTypeID ? Allocation->FindComponentHeader(It.ComponentTypeID) : nullptr;
-		if (Header)
-		{
-			Header->ReadWriteLock.ReadLock();
-
-			IntermediateType*    ThisProperty  = Properties;
-			const ComponentType* ThisComposite = reinterpret_cast<const ComponentType*>(Header->Components);
-
-			for (int32 EntityIndex = 0; EntityIndex < Num; ++EntityIndex)
-			{
-				Invoke(It.Projection, *ThisProperty++, *ThisComposite++);
-			}
-
-			Header->ReadWriteLock.ReadUnlock();
-		}
-	};
-	VisitTupleElements(Visit, Composites);
-}
-
-
-template<typename InIntermediateType, typename ProjectionType, int NumCompositeTypes>
-void THomogenousPartialProjections<InIntermediateType, ProjectionType, NumCompositeTypes>::Patch(IntermediateType* Properties, const FEntityAllocation* Allocation, int32 Num) const
-{
-	using ComponentType = typename ProjectionType::ComponentType;
-
-	for (int32 CompositeIndex = 0; CompositeIndex < NumCompositeTypes; ++CompositeIndex)
-	{
-		const FComponentHeader* Header = Composites[CompositeIndex].ComponentTypeID ? Allocation->FindComponentHeader(Composites[CompositeIndex].ComponentTypeID) : nullptr;
-		if (Header)
-		{
-			Header->ReadWriteLock.ReadLock();
-
-			IntermediateType*    ThisProperty  = Properties;
-			const ComponentType* ThisComposite = reinterpret_cast<const ComponentType*>(Header->Components);
-
-			for (int32 EntityIndex = 0; EntityIndex < Num; ++EntityIndex)
-			{
-				Invoke(Composites[CompositeIndex].Projection, *ThisProperty++, *ThisComposite++);
-			}
-
-			Header->ReadWriteLock.ReadUnlock();
-		}
-	}
-}
-
-
-template<typename PropertyType, typename ProjectionType>
-TSetPartialPropertyValues<PropertyType, ProjectionType>::TSetPartialPropertyValues(ProjectionType&& InProjections)
-	: Projections(MoveTemp(InProjections))
-{}
-
-
-template<typename PropertyType, typename ProjectionType>
-TSetPartialPropertyValues<PropertyType, ProjectionType>::TSetPartialPropertyValues(const ProjectionType& InProjections)
-	: Projections(InProjections)
-{}
-
-
-template<typename PropertyType, typename ProjectionType>
-void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor PropertyBindingComponents)
+template<typename PropertyTraits, typename ...MetaDataTypes, int ...CompositeIndices, typename ...CompositeTypes>
+void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, CompositeIndices...>, CompositeTypes...>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor PropertyBindingComponents, TRead<MetaDataTypes>... InMetaData, TReadOptional<CompositeTypes>... InCompositeComponents)
 {
 	// ----------------------------------------------------------------------------------------------------------------------------
 	// For partially animated composites, we first retrieve the current properties for the allocation, then go through and patch in
 	// All the animated values, then apply the properties to objects
 
 	const int32 Num = Allocation->Num();
-	IntermediateValues.SetNumUninitialized(Num);
 
 	if (const FCustomPropertyIndex* Custom = PropertyBindingComponents.template Get<0>())
 	{
-		ForEachCustom(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Custom, Num));
+		ForEachCustom(Allocation, BoundObjectComponents.AsPtr(), Custom, InMetaData.AsPtr()..., InCompositeComponents.AsPtr()...);
 	}
 	else if (const uint16* Fast = PropertyBindingComponents.template Get<1>())
 	{
-		ForEachFast(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Fast, Num));
+		ForEachFast(Allocation, BoundObjectComponents.AsPtr(), Fast, InMetaData.AsPtr()..., InCompositeComponents.AsPtr()...);
 	}
 	else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = PropertyBindingComponents.template Get<2>())
 	{
-		ForEachSlow(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Slow, Num));
+		ForEachSlow(Allocation, BoundObjectComponents.AsPtr(), Slow, InMetaData.AsPtr()..., InCompositeComponents.AsPtr()...);
 	}
 }
 
 
-template<typename PropertyType, typename ProjectionType>
-void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor PropertyBindingComponents)
+template<typename PropertyTraits, typename ...MetaDataTypes, int ...CompositeIndices, typename ...CompositeTypes>
+void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, CompositeIndices...>, CompositeTypes...>::ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor PropertyBindingComponents, TRead<MetaDataTypes>... InMetaData, TReadOptional<CompositeTypes>... InCompositeComponents)
 {
 	// ----------------------------------------------------------------------------------------------------------------------------
 	// For partially animated composites, we first retrieve the current properties for the allocation, then go through and patch in
 	// All the animated values, then apply the properties to objects
 
 	const int32 Num = Allocation->Num();
-	IntermediateValues.SetNumUninitialized(Num);
-
 	if (const uint16* Fast = PropertyBindingComponents.template Get<0>())
 	{
-		ForEachFast(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Fast, Num));
+		ForEachFast(Allocation, BoundObjectComponents.AsPtr(), Fast, InMetaData.AsPtr()..., InCompositeComponents.AsPtr()...);
 	}
 	else if (const TSharedPtr<FTrackInstancePropertyBindings>* Slow = PropertyBindingComponents.template Get<1>())
 	{
-		ForEachSlow(Allocation, BoundObjectComponents.AsArray(Num), MakeArrayView(Slow, Num));
+		ForEachSlow(Allocation, BoundObjectComponents.AsPtr(), Slow, InMetaData.AsPtr()..., InCompositeComponents.AsPtr()...);
 	}
 }
 
 
-template<typename PropertyType, typename ProjectionType>
-void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachCustom(const FEntityAllocation* Allocation, TArrayView<UObject* const> Objects, TArrayView<const FCustomPropertyIndex> Custom)
+template<typename PropertyTraits, typename ...MetaDataTypes, int ...CompositeIndices, typename ...CompositeTypes>
+void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, CompositeIndices...>, CompositeTypes...>::ForEachCustom(const FEntityAllocation* Allocation, UObject* const* Objects, const FCustomPropertyIndex* Custom, const MetaDataTypes*... InMetaData, const CompositeTypes*... InCompositeComponents)
 {
-	const int32 Num = Objects.Num();
+	const int32 Num = Allocation->Num();
 
 	for (int32 Index = 0; Index < Num; ++Index)
 	{
 		const FCustomPropertyIndex PropertyIndex = Custom[Index];
-		const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(CustomAccessors[PropertyIndex.Value]);
 
-		PropertyType CurrentValue = CustomAccessor.Functions.Getter(Objects[Index]);
-		ConvertOperationalProperty(CurrentValue, IntermediateValues[Index]);
-	}
+		StorageType Storage{};
+		PropertyTraits::GetObjectPropertyValue(Objects[Index], InMetaData[Index]..., CustomAccessors[PropertyIndex.Value], Storage);
 
-	Projections.Patch(IntermediateValues.GetData(), Allocation, Num);
+		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents...);
 
-	for (int32 Index = 0; Index < Num; ++Index)
-	{
-		const FCustomPropertyIndex PropertyIndex = Custom[Index];
-		const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(CustomAccessors[PropertyIndex.Value]);
-
-		PropertyType NewValue;
-		ConvertOperationalProperty(IntermediateValues[Index], NewValue);
-		CustomAccessor.Functions.Setter(Objects[Index], NewValue);
+		PropertyTraits::SetObjectPropertyValue(Objects[Index], InMetaData[Index]..., CustomAccessors[PropertyIndex.Value], Storage);
 	}
 }
 
 
-template<typename PropertyType, typename ProjectionType>
-void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachFast(const FEntityAllocation* Allocation, TArrayView<UObject* const> Objects, TArrayView<const uint16> Fast)
+template<typename PropertyTraits, typename ...MetaDataTypes, int ...CompositeIndices, typename ...CompositeTypes>
+void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, CompositeIndices...>, CompositeTypes...>::ForEachFast(const FEntityAllocation* Allocation, UObject* const* Objects, const uint16* Fast, const MetaDataTypes*... InMetaData, const CompositeTypes*... InCompositeComponents)
 {
-	const int32 Num = Objects.Num();
+	const int32 Num = Allocation->Num();
 
 	for (int32 Index = 0; Index < Num; ++Index)
 	{
 		const uint16 PropertyOffset = Fast[Index];
 		checkSlow(PropertyOffset != 0);
 
-		const PropertyType* CurrentValue = reinterpret_cast<const PropertyType*>( reinterpret_cast<const uint8*>(Objects[Index]) + PropertyOffset );
-		ConvertOperationalProperty(*CurrentValue, IntermediateValues[Index]);
-	}
+		StorageType Storage{};
+		PropertyTraits::GetObjectPropertyValue(Objects[Index], InMetaData[Index]..., PropertyOffset, Storage);
 
-	Projections.Patch(IntermediateValues.GetData(), Allocation, Num);
+		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents...);
 
-	for (int32 Index = 0; Index < Num; ++Index)
-	{
-		PropertyType* Property = reinterpret_cast<PropertyType*>( reinterpret_cast<uint8*>(Objects[Index]) + Fast[Index] );
-		ConvertOperationalProperty(IntermediateValues[Index], *Property);
+		PropertyTraits::SetObjectPropertyValue(Objects[Index], InMetaData[Index]..., PropertyOffset, Storage);
 	}
 }
 
 
-template<typename PropertyType, typename ProjectionType>
-void TSetPartialPropertyValues<PropertyType, ProjectionType>::ForEachSlow(const FEntityAllocation* Allocation, TArrayView<UObject* const> Objects, TArrayView<const TSharedPtr<FTrackInstancePropertyBindings>> Slow)
+template<typename PropertyTraits, typename ...MetaDataTypes, int ...CompositeIndices, typename ...CompositeTypes>
+void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, CompositeIndices...>, CompositeTypes...>::ForEachSlow(const FEntityAllocation* Allocation, UObject* const* Objects, const TSharedPtr<FTrackInstancePropertyBindings>* Slow, const MetaDataTypes*... InMetaData, const CompositeTypes*... InCompositeComponents)
 {
-	const int32 Num = Objects.Num();
+	const int32 Num = Allocation->Num();
 
 	for (int32 Index = 0; Index < Num; ++Index)
 	{
-		PropertyType CurrentValue = Slow[Index]->GetCurrentValue<PropertyType>(*Objects[Index]);
-		ConvertOperationalProperty(CurrentValue, IntermediateValues[Index]);
-	}
+		FTrackInstancePropertyBindings* Bindings = Slow[Index].Get();
 
-	Projections.Patch(IntermediateValues.GetData(), Allocation, Num);
+		StorageType Storage{};
+		PropertyTraits::GetObjectPropertyValue(Objects[Index], InMetaData[Index]..., Bindings, Storage);
 
-	for (int32 Index = 0; Index < Num; ++Index)
-	{
-		PropertyType NewValue;
-		ConvertOperationalProperty(IntermediateValues[Index], NewValue);
-		Slow[Index]->CallFunction<PropertyType>(*Objects[Index], NewValue);
+		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents...);
+
+		PropertyTraits::SetObjectPropertyValue(Objects[Index], InMetaData[Index]..., Bindings, Storage);
 	}
 }
 

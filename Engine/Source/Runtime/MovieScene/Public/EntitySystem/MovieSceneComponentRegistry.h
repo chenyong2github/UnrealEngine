@@ -11,7 +11,7 @@ namespace UE
 namespace MovieScene
 {
 
-template<typename, typename> struct TPropertyComponents;
+template<typename> struct TPropertyComponents;
 
 struct MOVIESCENE_API FComponentRegistry
 {
@@ -56,8 +56,8 @@ public:
 		*Ref = NewComponentType<T>(DebugName, Flags);
 	}
 
-	template<typename PropertyType, typename InitialValueType>
-	void NewPropertyType(TPropertyComponents<PropertyType, InitialValueType>& OutComponents, const TCHAR* DebugName)
+	template<typename PropertyTraits>
+	void NewPropertyType(TPropertyComponents<PropertyTraits>& OutComponents, const TCHAR* DebugName)
 	{
 #if UE_MOVIESCENE_ENTITY_DEBUG
 		FString PreAnimatedDebugName = FString(TEXT("Pre Animated ")) + DebugName;

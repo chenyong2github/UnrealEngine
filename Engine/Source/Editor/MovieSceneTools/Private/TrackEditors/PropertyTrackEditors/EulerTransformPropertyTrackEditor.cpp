@@ -240,7 +240,7 @@ FEulerTransform FEulerTransformPropertyTrackEditor::RecomposeTransform(const FEu
 			Query.Entities = MakeArrayView(&EntityID, 1);
 			Query.Object   = AnimatedObject;
 
-			return System->RecomposeBlendFinal(FMovieSceneTracksComponentTypes::Get()->EulerTransform, Query, InTransform).Values[0];
+			return System->RecomposeBlend(FMovieSceneTracksComponentTypes::Get()->EulerTransform, Query, InTransform).Values[0];
 		}
 	}
 

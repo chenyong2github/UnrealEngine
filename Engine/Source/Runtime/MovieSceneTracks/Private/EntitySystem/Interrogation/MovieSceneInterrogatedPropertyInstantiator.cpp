@@ -149,12 +149,6 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 
 	check(Inputs.Num() > 0);
 
-	if (PropertySupportsFastPath(Inputs, Output))
-	{
-		Linker->EntityManager.AddComponent(Inputs[0], BuiltInComponents->Interrogation.OutputKey, Key);
-		return;
-	}
-
 	auto FindPropertyIndex = [this, Input = Inputs[0]](const FPropertyDefinition& InDefinition)
 	{
 		return this->Linker->EntityManager.HasComponent(Input, InDefinition.PropertyType);
@@ -163,6 +157,22 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 
 	const FPropertyDefinition* PropertyDefinition = Algo::FindByPredicate(Properties, FindPropertyIndex);
 	check(PropertyDefinition);
+
+	if (PropertySupportsFastPath(Inputs, Output))
+	{
+		Linker->EntityManager.AddComponent(Inputs[0], BuiltInComponents->Interrogation.OutputKey, Key);
+
+		if (PropertyDefinition->MetaDataTypes.Num() > 0)
+		{
+			FComponentMask NewMask;
+			for (FComponentTypeID Component : PropertyDefinition->MetaDataTypes)
+			{
+				NewMask.Set(Component);
+			}
+			Linker->EntityManager.AddComponents(Inputs[0], NewMask);
+		}
+		return;
+	}
 
 	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(*PropertyDefinition);
 
@@ -186,6 +196,14 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::UpdateOutput(UE::MovieSc
 
 	FComponentMask NewMask;
 	FComponentMask OldMask;
+
+	if (PropertyDefinition->MetaDataTypes.Num() > 0)
+	{
+		for (FComponentTypeID Component : PropertyDefinition->MetaDataTypes)
+		{
+			NewMask.Set(Component);
+		}
+	}
 
 	if (!bWasAlreadyBlended)
 	{

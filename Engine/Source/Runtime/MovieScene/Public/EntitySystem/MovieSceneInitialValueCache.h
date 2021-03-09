@@ -14,7 +14,7 @@ namespace UE
 namespace MovieScene
 {
 
-template<typename PropertyType> struct TPropertyValueStorage;
+template<typename PropertyTraits> struct TPropertyValueStorage;
 
 /** Type-safe index that defines a unique index of an initial value within a TPropertyValueStorage instance
  *  This struct is added as a component to all entities with initial values inside non-interrogated linkers */
@@ -71,21 +71,21 @@ public:
 
 	/**
 	 * Retrieve the initial value storage for a given initial value type, creating it if necessary.
-	 * @note: Care should be taken to ensure that the template parameter matches TPropertyComponents::PropertyType,
-	 * not TPropertyComponents::OperationalType.
+	 * @note: Care should be taken to ensure that the template parameter matches the traits defined
+	 * by the TPropertyComponents for the property.
 	 *
 	 * @param InitialValueType      The ComponentTypeID for the initial value
 	 * @return Property storage for the initial values
 	 */
-	template<typename PropertyType>
-	TPropertyValueStorage<PropertyType>* GetStorage(FComponentTypeID InitialValueType)
+	template<typename PropertyTraits>
+	TPropertyValueStorage<PropertyTraits>* GetStorage(FComponentTypeID InitialValueType)
 	{
-		if (TPropertyValueStorage<PropertyType>* Storage = FindStorage<PropertyType>(InitialValueType))
+		if (TPropertyValueStorage<PropertyTraits>* Storage = FindStorage<PropertyTraits>(InitialValueType))
 		{
 			return Storage;
 		}
 
-		TPropertyValueStorage<PropertyType>* NewStorage = new TPropertyValueStorage<PropertyType>();
+		TPropertyValueStorage<PropertyTraits>* NewStorage = new TPropertyValueStorage<PropertyTraits>();
 		StorageByComponent.Add(InitialValueType, TUniquePtr<IPropertyValueStorage>(NewStorage));
 		return NewStorage;
 	}
@@ -93,20 +93,20 @@ public:
 
 	/**
 	 * Retrieve the initial value storage for a given initial value type.
-	 * @note: Care should be taken to ensure that the template parameter matches TPropertyComponents::PropertyType,
-	 * not TPropertyComponents::OperationalType.
+	 * @note: Care should be taken to ensure that the template parameter matches the traits defined
+	 * by the TPropertyComponents for the property.
 	 *
 	 * @param InitialValueType      The ComponentTypeID for the initial value
 	 * @return Property storage for the initial values or nullptr if none exists
 	 */
-	template<typename PropertyType>
-	TPropertyValueStorage<PropertyType>* FindStorage(FComponentTypeID InitialValueType)
+	template<typename PropertyTraits>
+	TPropertyValueStorage<PropertyTraits>* FindStorage(FComponentTypeID InitialValueType)
 	{
 		if (TUniquePtr<IPropertyValueStorage>* Existing = StorageByComponent.Find(InitialValueType))
 		{
 			// If the ptr exists, it cannot be null
 			check(Existing->IsValid());
-			return static_cast<TPropertyValueStorage<PropertyType>*>(Existing->Get());
+			return static_cast<TPropertyValueStorage<PropertyTraits>*>(Existing->Get());
 		}
 
 		return nullptr;
@@ -118,13 +118,15 @@ private:
 };
 
 /**
- * Templated storage for any initial value type, templated on TPropertyComponents::PropertyType for correct retrieval of resolved properties
+ * Templated storage for any initial value type, templated on the same parameter as TPropertyComponents for correct retrieval of resolved properties
  * Initial values are stored as a sparse array, with stable indices that uniquely identify the value.
  * A look-up-table exists for finding indices based on an object and resolved property.
  */
-template<typename PropertyType>
+template<typename PropertyTraits>
 struct TPropertyValueStorage : IPropertyValueStorage
 {
+	using StorageType = typename PropertyTraits::StorageType;
+
 	/**
 	 * Reset all the initial values that relate to the specified indices
 	 *
@@ -141,94 +143,53 @@ struct TPropertyValueStorage : IPropertyValueStorage
 
 
 	/**
-	 * Retrieve the cached value for the specified object and fast property ptr offset, returning both the value and its corresponding index.
-	 * @note: if the value is already cached, the existing value is returned
+	 * Add a cached value for the specified object and fast property ptr offset, returning a unique index for the value
+	 * @note: Value must not have been cached previously - doing so will result in a failed assertion
 	 *
 	 * @param BoundObject            The object instance to cache the property from
+	 * @param InValue                The value to cache
 	 * @param ResolvedPropertyOffset The byte offset from BoundObject that defines the address of the property
 	 * @return A tuple containing the cached value and its index
 	 */
-	TPair<FInitialValueIndex, PropertyType> CacheInitialValue(UObject* BoundObject, uint16 ResolvedPropertyOffset)
+	FInitialValueIndex AddInitialValue(UObject* BoundObject, const StorageType& InValue, uint16 ResolvedPropertyOffset)
 	{
 		FKeyType Key{ FObjectKey(BoundObject), FPropertyKey(TInPlaceType<uint16>(), ResolvedPropertyOffset) };
 
-		if (TOptional<FInitialValueIndex> ExistingIndex = FindPropertyIndex(Key))
-		{
-			FInitialValueIndex ExistingValue = ExistingIndex.GetValue();
-			return MakeTuple(ExistingValue, PropertyValues[ExistingValue.Index]);
-		}
-
-		PropertyType CachedValue = *reinterpret_cast<const PropertyType*>(reinterpret_cast<const uint8*>(static_cast<const void*>(BoundObject)) + ResolvedPropertyOffset);
-
-		const int32 NewIndex = PropertyValues.Add(CachedValue);
-		check(NewIndex < int32(uint16(0xFFFF)));
-
-		const uint16 NarrowIndex = static_cast<uint16>(NewIndex);
-		KeyToPropertyIndex.Add(Key, NarrowIndex);
-
-		return MakeTuple(FInitialValueIndex{NarrowIndex}, CachedValue);
+		return AddInitialValue(Key, InValue);
 	}
 
 
 	/**
-	 * Retrieve the cached value for the specified object and a custom property accessor, returning both the value and its corresponding index.
-	 * @note: if the value is already cached, the existing value is returned
+	 * Add a cached value for the specified object and a custom property accessor, returning a unique index for the value
+	 * @note: Value must not have been cached previously - doing so will result in a failed assertion
 	 *
 	 * @param BoundObject            The object instance to cache the property from.
-	 * @param Accessors              A type-erased view retrieved from the necessary ICustomPropertyRegistration::GetAccessors for the property type this cache relates to.
-	 * @param AccessorIndex          The index into Accessors to use for resolving the property
+	 * @param InValue                The value to cache
+	 * @param AccessorIndex          The index into ICustomPropertyRegistration::GetAccessors to use for resolving the property
 	 * @return A tuple containing the cached value and its index
 	 */
-	TPair<FInitialValueIndex, PropertyType> CacheInitialValue(UObject* BoundObject, FCustomAccessorView Accessors, FCustomPropertyIndex AccessorIndex)
+	FInitialValueIndex AddInitialValue(UObject* BoundObject, const StorageType& InValue, FCustomPropertyIndex AccessorIndex)
 	{
 		FKeyType Key{ FObjectKey(BoundObject), FPropertyKey(TInPlaceType<FCustomPropertyIndex>(), AccessorIndex) };
 
-		if (TOptional<FInitialValueIndex> ExistingIndex = FindPropertyIndex(Key))
-		{
-			FInitialValueIndex ExistingValue = ExistingIndex.GetValue();
-			return MakeTuple(ExistingValue, PropertyValues[ExistingValue.Index]);
-		}
-
-		const TCustomPropertyAccessor<PropertyType>& CustomAccessor = static_cast<const TCustomPropertyAccessor<PropertyType>&>(Accessors[AccessorIndex.Value]);
-		PropertyType CachedValue = CustomAccessor.Functions.Getter(BoundObject);
-
-		const int32 NewIndex = PropertyValues.Add(CachedValue);
-		check(NewIndex < int32(uint16(0xFFFF)));
-
-		const uint16 NarrowIndex = static_cast<uint16>(NewIndex);
-		KeyToPropertyIndex.Add(Key, NarrowIndex);
-
-		return MakeTuple(FInitialValueIndex{NarrowIndex}, CachedValue);
+		return AddInitialValue(Key, InValue);
 	}
 
 
 	/**
-	 * Retrieve the cached value for the specified object and a slow bindings instance, returning both the value and its corresponding index.
-	 * @note: if the value is already cached, the existing value is returned
+	 * Add a cached value for the specified object and a slow bindings instance, returning a unique index for the value
+	 * @note: Value must not have been cached previously - doing so will result in a failed assertion
 	 *
 	 * @param BoundObject            The object instance to cache the property from.
+	 * @param InValue                The value to cache
 	 * @param SlowBindings           Pointer to the track instance property bindings object used for retrieving the property value
 	 * @return A tuple containing the cached value and its index
 	 */
-	TPair<FInitialValueIndex, PropertyType> CacheInitialValue(UObject* BoundObject, FTrackInstancePropertyBindings* SlowBindings)
+	FInitialValueIndex AddInitialValue(UObject* BoundObject, const StorageType& InValue, FTrackInstancePropertyBindings* SlowBindings)
 	{
 		FKeyType Key{ FObjectKey(BoundObject), FPropertyKey(TInPlaceType<FName>(), SlowBindings->GetPropertyPath())};
 
-		if (TOptional<FInitialValueIndex> ExistingIndex = FindPropertyIndex(Key))
-		{
-			FInitialValueIndex ExistingValue = ExistingIndex.GetValue();
-			return MakeTuple(ExistingValue, PropertyValues[ExistingValue.Index]);
-		}
-
-		PropertyType CachedValue = SlowBindings->GetCurrentValue<PropertyType>(*BoundObject);
-
-		const int32 NewIndex = PropertyValues.Add(CachedValue);
-		check(NewIndex < int32(uint16(0xFFFF)));
-
-		const uint16 NarrowIndex = static_cast<uint16>(NewIndex);
-		KeyToPropertyIndex.Add(Key, NarrowIndex);
-
-		return MakeTuple(FInitialValueIndex{NarrowIndex}, CachedValue);
+		return AddInitialValue(Key, InValue);
 	}
 
 
@@ -266,7 +227,7 @@ struct TPropertyValueStorage : IPropertyValueStorage
 	/**
 	 * Find an initial value given its object and property name.
 	 */
-	const PropertyType* FindCachedValue(UObject* BoundObject, uint16 ResolvedPropertyOffset)
+	const StorageType* FindCachedValue(UObject* BoundObject, uint16 ResolvedPropertyOffset)
 	{
 		TOptional<FInitialValueIndex> Index = FindPropertyIndex(BoundObject, ResolvedPropertyOffset);
 		return Index.IsSet() ? &PropertyValues[Index.GetValue().Index] : nullptr;
@@ -276,7 +237,7 @@ struct TPropertyValueStorage : IPropertyValueStorage
 	/**
 	 * Find an initial value given its object and custom accessor index
 	 */
-	const PropertyType* FindCachedValue(UObject* BoundObject, FCustomPropertyIndex CustomIndex)
+	const StorageType* FindCachedValue(UObject* BoundObject, FCustomPropertyIndex CustomIndex)
 	{
 		TOptional<FInitialValueIndex> Index = FindPropertyIndex(BoundObject, CustomIndex);
 		return Index.IsSet() ? &PropertyValues[Index.GetValue().Index] : nullptr;
@@ -287,10 +248,19 @@ struct TPropertyValueStorage : IPropertyValueStorage
 	 * Find an initial value given its object and property name.
 	 * @note: Only properties cached using a FTrackInstancePropertyBindings instance will be retrieved using this method.
 	 */
-	const PropertyType* FindCachedValue(UObject* BoundObject, const FName& PropertyPath)
+	const StorageType* FindCachedValue(UObject* BoundObject, const FName& PropertyPath)
 	{
 		TOptional<FInitialValueIndex> Index = FindPropertyIndex(BoundObject, PropertyPath);
 		return Index.IsSet() ? &PropertyValues[Index.GetValue().Index] : nullptr;
+	}
+
+	/**
+	 * Find an initial value given its object and property name.
+	 * @note: Only properties cached using a FTrackInstancePropertyBindings instance will be retrieved using this method.
+	 */
+	const StorageType& GetCachedValue(FInitialValueIndex Index)
+	{
+		return PropertyValues[Index.Index];
 	}
 
 private:
@@ -351,8 +321,21 @@ private:
 		return Index ? TOptional<FInitialValueIndex>(FInitialValueIndex{*Index}) : TOptional<FInitialValueIndex>();
 	}
 
+	FInitialValueIndex AddInitialValue(const FKeyType& InKey, const StorageType& InValue)
+	{
+		checkSlow(!KeyToPropertyIndex.Contains(InKey));
+
+		const int32 NewIndex = PropertyValues.Add(InValue);
+		check(NewIndex < int32(uint16(0xFFFF)));
+
+		const uint16 NarrowIndex = static_cast<uint16>(NewIndex);
+		KeyToPropertyIndex.Add(InKey, NarrowIndex);
+
+		return FInitialValueIndex{NarrowIndex};
+	}
+
 	/** Sparse array containing all cached property values */
-	TSparseArray<PropertyType> PropertyValues;
+	TSparseArray<StorageType> PropertyValues;
 	/** LUT from object+property to its index. May contain stale values if bLUTContainsInvalidEntries is true */
 	TMap<FKeyType, uint16> KeyToPropertyIndex;
 	/** When true, KeyToPropertyIndex contains invalid entries which must be purged before use */

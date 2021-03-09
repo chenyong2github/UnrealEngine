@@ -121,7 +121,7 @@ FWidgetTransform F2DTransformTrackEditor::RecomposeTransform(const FWidgetTransf
 			Query.Entities = MakeArrayView(&EntityID, 1);
 			Query.Object   = AnimatedObject;
 
-			return System->RecomposeBlendFinal(FMovieSceneUMGComponentTypes::Get()->WidgetTransform, Query, InTransform).Values[0];
+			return System->RecomposeBlend(FMovieSceneUMGComponentTypes::Get()->WidgetTransform, Query, InTransform).Values[0];
 		}
 	}
 
