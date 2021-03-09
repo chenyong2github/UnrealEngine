@@ -609,6 +609,10 @@ private:
 	void OnIsConstFunctionModified(const ECheckBoxState NewCheckedState);
 	ECheckBoxState GetIsConstFunction() const;
 
+	bool IsExecFunctionVisible() const;
+	void OnIsExecFunctionModified(const ECheckBoxState NewCheckedState);
+	ECheckBoxState GetIsExecFunction() const;
+
 	/** Determines if the selected event is identified as editor callable */
 	ECheckBoxState GetIsEditorCallableEvent() const;
 
