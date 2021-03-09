@@ -273,9 +273,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 		float3 RefractedDirection = Ray.Direction;
 		if (TranslucencyRefraction)
 		{
-			// #dxr_todo Determine if parameterization from Specular is still the proper path forward
-			//float Ior = Payload.Ior;
-			float Ior = DielectricF0ToIor(DielectricSpecularToF0(Payload.Specular));
+			float Ior = Payload.Ior;
 			bHasScattered |= Ior > 1.0 ? true : false;
 
 			float ReflectionRefractionEventThroughput;
