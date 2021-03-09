@@ -17,6 +17,7 @@
 
 #define LOCTEXT_NAMESPACE "UBaseMeshProcessingTool"
 
+using namespace UE::Geometry;
 
 /*
  * ToolBuilder

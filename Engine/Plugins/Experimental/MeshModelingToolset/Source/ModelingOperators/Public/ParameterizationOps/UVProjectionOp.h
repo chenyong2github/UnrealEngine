@@ -8,7 +8,6 @@
 
 #include "UVProjectionOp.generated.h"
 
-
 UENUM()
 enum class EUVProjectionMethod : uint8
 {
@@ -17,7 +16,10 @@ enum class EUVProjectionMethod : uint8
 	Plane
 };
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 class MODELINGOPERATORS_API FUVProjectionOp : public FDynamicMeshOperator
 {
@@ -42,4 +44,6 @@ public:
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE
 

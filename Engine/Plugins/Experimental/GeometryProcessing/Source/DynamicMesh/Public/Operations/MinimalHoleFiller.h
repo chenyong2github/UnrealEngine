@@ -15,6 +15,11 @@
 #include "QueueRemesher.h"
 #include "MeshConstraintsUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /// Construct a "minimal" fill surface for the hole. This surface is often quasi-developable, reconstructs sharp edges, 
 /// etc. There are various options.
@@ -67,3 +72,6 @@ private:
 	void FlipToImproveAspectRatios();
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

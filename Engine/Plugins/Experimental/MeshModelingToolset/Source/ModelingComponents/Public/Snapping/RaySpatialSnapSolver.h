@@ -6,6 +6,12 @@
 
 class FToolDataVisualizer;
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * FRaySpatialSnapSolver solves for a Point snap location based on an input Ray
  * and a set of snap targets (3D points and 3D lines). 
@@ -45,3 +51,7 @@ protected:
 	TArray<FSnapTargetPoint> GeneratedTargetPoints;
 	void GenerateTargetPoints(const FRay3d& Ray);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

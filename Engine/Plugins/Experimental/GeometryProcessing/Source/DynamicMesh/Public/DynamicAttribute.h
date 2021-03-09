@@ -5,6 +5,13 @@
 #include "DynamicMesh3.h"
 #include "MeshIndexMappings.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+struct FMeshIndexMappings;
+
 template<typename ParentType>
 class TDynamicAttributeBase;
 
@@ -340,3 +347,6 @@ public:
 };
 
 typedef TDynamicAttributeSetBase<FDynamicMesh3> FDynamicMeshAttributeSetBase;
+
+} // end namespace UE::Geometry
+} // end namespace UE

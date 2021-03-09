@@ -12,6 +12,9 @@
 #include "DynamicMeshAABBTree3.h"
 #include "MeshTransforms.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 FInsetMeshRegion::FInsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
 {
 }

@@ -3,6 +3,8 @@
 #include "Generators/FlatTriangulationMeshGenerator.h"
 #include "BoxTypes.h"
 
+using namespace UE::Geometry;
+
 FFlatTriangulationMeshGenerator::FFlatTriangulationMeshGenerator()
 {
 	Normal = FVector3f::UnitZ();

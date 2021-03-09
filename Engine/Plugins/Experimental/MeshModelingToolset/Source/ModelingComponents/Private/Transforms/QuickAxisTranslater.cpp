@@ -4,6 +4,10 @@
 #include "Transforms/QuickAxisTranslater.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
+
 constexpr int TranslateXSnapID = FRaySpatialSnapSolver::BaseExternalLineID + 1;
 constexpr int TranslateYSnapID = FRaySpatialSnapSolver::BaseExternalLineID + 2;
 constexpr int TranslateZSnapID = FRaySpatialSnapSolver::BaseExternalLineID + 3;

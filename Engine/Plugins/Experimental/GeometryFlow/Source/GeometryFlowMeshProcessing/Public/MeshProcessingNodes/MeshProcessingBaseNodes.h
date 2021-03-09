@@ -12,10 +12,7 @@ namespace UE
 namespace GeometryFlow
 {
 
-
-
-
-
+using namespace UE::Geometry;
 
 
 class FProcessMeshBaseNode : public FNode

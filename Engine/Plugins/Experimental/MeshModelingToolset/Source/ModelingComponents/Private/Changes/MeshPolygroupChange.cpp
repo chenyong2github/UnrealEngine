@@ -5,6 +5,7 @@
 #include "DynamicMeshAttributeSet.h"
 #include "Polygroups/PolygroupUtil.h"
 
+using namespace UE::Geometry;
 
 void FDynamicMeshGroupEdit::ApplyToMesh(FDynamicMesh3* Mesh, bool bRevert)
 {

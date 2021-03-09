@@ -7,6 +7,12 @@
 #include "GroupTopology.h"
 
 class FProgressCancel;
+
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 class FGroupTopology;
 
@@ -114,3 +120,7 @@ public:
 	bool InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEidsOut = nullptr, FProgressCancel* Progress = nullptr);
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

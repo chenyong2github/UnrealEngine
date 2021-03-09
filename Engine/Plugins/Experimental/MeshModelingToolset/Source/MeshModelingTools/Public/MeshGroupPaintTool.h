@@ -417,7 +417,7 @@ protected:
 	bool UpdateStampPosition(const FRay& WorldRay);
 	void ApplyStamp();
 
-	FDynamicMeshOctree3 Octree;
+	UE::Geometry::FDynamicMeshOctree3 Octree;
 
 	bool UpdateBrushPosition(const FRay& WorldRay);
 

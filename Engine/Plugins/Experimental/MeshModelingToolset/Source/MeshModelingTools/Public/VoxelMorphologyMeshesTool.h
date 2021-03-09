@@ -63,7 +63,7 @@ protected:
 	virtual FText GetActionName() const override;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UVoxelMorphologyMeshesToolProperties* MorphologyProperties;

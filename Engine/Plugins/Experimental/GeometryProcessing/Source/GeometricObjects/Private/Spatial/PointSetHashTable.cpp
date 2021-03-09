@@ -3,6 +3,8 @@
 #include "Spatial/PointSetHashTable.h"
 #include "Util/IndexUtil.h"
 
+using namespace UE::Geometry;
+
 void FPointSetHashtable::Build(double CellSizeIn, const FVector3d& OriginIn)
 {
 	Origin = OriginIn;

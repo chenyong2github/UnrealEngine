@@ -7,7 +7,8 @@
 #include "MeshDescriptionBuilder.h"
 #include "MeshTangents.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 namespace DynamicMeshToMeshDescriptionConversionHelper

@@ -3,6 +3,9 @@
 #include "Misc/AutomationTest.h"
 #include "TransformTypes.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 BEGIN_DEFINE_SPEC(FTransformTypesSpec,

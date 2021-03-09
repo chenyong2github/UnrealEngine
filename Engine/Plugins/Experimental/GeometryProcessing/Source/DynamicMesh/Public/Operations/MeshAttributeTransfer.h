@@ -6,8 +6,12 @@
 #include "VectorTypes.h"
 #include "DynamicMeshAABBTree3.h"
 
-class FDynamicMesh3;
+namespace UE
+{
+namespace Geometry
+{
 
+class FDynamicMesh3;
 
 enum class EMeshAttributeTransferType
 {
@@ -59,3 +63,6 @@ protected:
 
 	bool Apply_MaterialID();
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

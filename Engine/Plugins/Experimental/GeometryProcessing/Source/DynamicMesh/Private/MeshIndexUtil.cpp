@@ -3,6 +3,9 @@
 
 #include "MeshIndexUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void MeshIndexUtil::TriangleToVertexIDs(const FDynamicMesh3* Mesh, const TArray<int>& TriangleIDs, TArray<int>& VertexIDsOut)
 {
 	UE::MeshIndexUtil::TriangleToVertexIDs(Mesh, TriangleIDs, VertexIDsOut);

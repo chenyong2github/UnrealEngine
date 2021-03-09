@@ -9,6 +9,7 @@
 #include "ToolDataVisualizer.h"
 #include "CollectSurfacePathMechanic.generated.h"
 
+using UE::Geometry::FDynamicMesh3;
 
 enum class ECollectSurfacePathDoneMode
 {
@@ -28,6 +29,9 @@ class MODELINGCOMPONENTS_API UCollectSurfacePathMechanic : public UInteractionMe
 {
 	GENERATED_BODY()
 public:
+	using FFrame3d = UE::Geometry::FFrame3d;
+	using FRay3d = UE::Geometry::FRay3d;
+	using FVector3d = UE::Geometry::FVector3d;
 
 	TUniqueFunction<bool()> IsDoneFunc = nullptr;
 
@@ -85,7 +89,7 @@ public:
 
 protected:
 	FDynamicMesh3 TargetSurface;
-	FDynamicMeshAABBTree3 TargetSurfaceAABB;
+	UE::Geometry::FDynamicMeshAABBTree3 TargetSurfaceAABB;
 
 	FFrame3d TargetPlane;
 	bool bHaveTargetPlane;

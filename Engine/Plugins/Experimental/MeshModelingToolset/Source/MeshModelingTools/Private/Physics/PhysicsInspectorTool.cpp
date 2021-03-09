@@ -15,10 +15,10 @@
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPhysicsInspectorTool"
-
-
 
 bool UPhysicsInspectorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {

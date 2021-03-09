@@ -7,6 +7,12 @@
 
 #include "Generators/MarchingCubes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * Use marching cubes to remesh a triangle mesh to a solid surface
  * Uses fast winding number to decide what is inside vs outside
@@ -134,3 +140,7 @@ public:
 		return MarchingCubes;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

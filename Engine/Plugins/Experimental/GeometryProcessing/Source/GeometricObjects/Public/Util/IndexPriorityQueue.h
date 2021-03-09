@@ -5,6 +5,10 @@
 #include "MathUtil.h"
 #include "Util/DynamicVector.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * This is a min-heap priority queue class that does not use an object for each queue node.
@@ -434,3 +438,7 @@ public:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

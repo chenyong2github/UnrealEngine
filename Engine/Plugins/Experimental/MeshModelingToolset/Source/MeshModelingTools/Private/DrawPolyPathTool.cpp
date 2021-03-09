@@ -20,8 +20,10 @@
 #include "Operations/ExtrudeMesh.h"
 #include "MeshNormals.h"
 
-#define LOCTEXT_NAMESPACE "UDrawPolyPathTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "UDrawPolyPathTool"
 
 namespace
 {

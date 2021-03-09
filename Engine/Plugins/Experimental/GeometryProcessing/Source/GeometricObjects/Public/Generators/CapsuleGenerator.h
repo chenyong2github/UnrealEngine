@@ -6,6 +6,12 @@
 #include "OrientedBoxTypes.h"
 #include "Util/IndexUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * Generate a Capsule mesh, with UVs wrapped cylindrically.
  * This is basically a "stretched" standard sphere triangulation, where we have
@@ -235,6 +241,8 @@ public:
 		OutputPolarTriangles();
 		return *this;
 	}
-
-
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

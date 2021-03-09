@@ -4,6 +4,8 @@
 #include "Async/ParallelFor.h"
 #include "DynamicMeshAttributeSet.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 //Bends along the Y-axis
 void FBendMeshOp::CalculateResult(FProgressCancel* Progress)

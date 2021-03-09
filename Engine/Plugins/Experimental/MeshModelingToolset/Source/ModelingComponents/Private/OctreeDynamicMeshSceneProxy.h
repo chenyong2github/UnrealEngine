@@ -29,6 +29,11 @@ DECLARE_CYCLE_STAT(TEXT("SculptToolOctree_BufferUpload"), STAT_SculptToolOctree_
  */
 class FOctreeDynamicMeshSceneProxy final : public FBaseDynamicMeshSceneProxy
 {
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FVector2f = UE::Geometry::FVector2f;
+	using FIndex2i = UE::Geometry::FIndex2i;
+	using FIndex3i = UE::Geometry::FIndex3i;
 private:
 	FMaterialRelevance MaterialRelevance;
 
@@ -96,7 +101,7 @@ public:
 
 
 
-	void InitializeFromDecomposition(const FArrayIndexSetsDecomposition& Decomposition)
+	void InitializeFromDecomposition(const UE::Geometry::FArrayIndexSetsDecomposition& Decomposition)
 	{
 		check(RenderBufferSets.Num() == 0);
 
@@ -134,7 +139,7 @@ public:
 
 
 
-	void UpdateFromDecomposition(const FArrayIndexSetsDecomposition& Decomposition, const TArray<int32>& SetsToUpdate )
+	void UpdateFromDecomposition(const UE::Geometry::FArrayIndexSetsDecomposition& Decomposition, const TArray<int32>& SetsToUpdate )
 	{
 		// CAN WE REUSE EXISTING BUFFER SETS??
 		//   - could have timestamp for each decomposition set array...if tris don't change we only have to update vertices

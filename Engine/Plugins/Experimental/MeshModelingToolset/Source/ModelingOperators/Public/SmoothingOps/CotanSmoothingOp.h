@@ -5,6 +5,10 @@
 #include "SmoothingOpBase.h"
 #include "CoreMinimal.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class MODELINGOPERATORS_API  FCotanSmoothingOp : public FSmoothingOpBase
 {
@@ -21,3 +25,6 @@ private:
 
 	double GetSmoothPower(int32 VertexID, bool bIsBoundary);
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

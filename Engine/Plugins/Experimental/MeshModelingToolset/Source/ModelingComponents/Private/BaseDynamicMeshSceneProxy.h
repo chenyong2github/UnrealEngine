@@ -9,6 +9,11 @@
 #include "PrimitiveViewRelevance.h"
 #include "BaseDynamicMeshComponent.h"
 
+using UE::Geometry::FDynamicMesh3;
+using UE::Geometry::FDynamicMeshAttributeSet;
+using UE::Geometry::FDynamicMeshUVOverlay;
+using UE::Geometry::FDynamicMeshNormalOverlay;
+using UE::Geometry::FDynamicMeshMaterialAttribute;
 
 /**
  * FMeshRenderBufferSet stores a set of RenderBuffers for a mesh
@@ -279,6 +284,11 @@ protected:
  */
 class FBaseDynamicMeshSceneProxy : public FPrimitiveSceneProxy
 {
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FVector2f = UE::Geometry::FVector2f;
+	using FIndex2i = UE::Geometry::FIndex2i;
+	using FIndex3i = UE::Geometry::FIndex3i;
 public:
 	UBaseDynamicMeshComponent* ParentBaseComponent;
 

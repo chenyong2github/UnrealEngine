@@ -11,7 +11,8 @@
 
 namespace IndexUtil
 {
-
+	using namespace UE::Geometry;
+	using UE::Geometry::FIndex2i;
 
 	/**
 	 * @return true if  [a0,a1] and [b0,b1] are the same pair, ignoring order

@@ -18,8 +18,9 @@ class USimpleDynamicMeshComponent;
 class UMaterialInstanceDynamic;
 class UTexture2D;
 class IAssetGenerationAPI;
-template<typename RealType> class TMeshTangents;
-class FMeshImageBakingCache;
+PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
+PREDECLARE_GEOMETRY(class FMeshImageBakingCache);
+using UE::Geometry::FImageDimensions;
 class IPrimitiveComponentBackedTarget;
 class IMeshDescriptionProvider;
 class IMaterialProvider;
@@ -307,14 +308,14 @@ protected:
 	UMaterialInstanceDynamic* PreviewMaterial;
 
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> BaseMeshDescription;
-	TSharedPtr<TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
-	FDynamicMesh3 BaseMesh;
-	FDynamicMeshAABBTree3 BaseSpatial;
+	TSharedPtr<UE::Geometry::TMeshTangents<double>, ESPMode::ThreadSafe> BaseMeshTangents;
+	UE::Geometry::FDynamicMesh3 BaseMesh;
+	UE::Geometry::FDynamicMeshAABBTree3 BaseSpatial;
 
 	bool bIsBakeToSelf = false;
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
-	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> DetailMesh;
+	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> DetailSpatial;
 	int32 DetailMeshTimestamp = 0;
 	void UpdateDetailMesh();
 	bool bDetailMeshValid = false;
@@ -325,7 +326,7 @@ protected:
 	void UpdateOnModeChange();
 	void UpdateVisualization();
 
-	TPimplPtr<FMeshImageBakingCache> BakeCache;
+	TPimplPtr<UE::Geometry::FMeshImageBakingCache> BakeCache;
 	struct FBakeCacheSettings
 	{
 		FImageDimensions Dimensions;

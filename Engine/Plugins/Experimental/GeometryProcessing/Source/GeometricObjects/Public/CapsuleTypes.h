@@ -9,6 +9,11 @@
 #include "OrientedBoxTypes.h"
 
 
+namespace UE 
+{
+namespace Geometry 
+{
+
 /*
  * 3D Capsule stored as Line Segment and Radius
  */
@@ -119,3 +124,7 @@ public:
 
 typedef TCapsule3<float> FCapsule3f;
 typedef TCapsule3<double> FCapsule3d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

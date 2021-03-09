@@ -6,6 +6,11 @@
 #include "VectorTypes.h"
 #include "CapsuleTypes.h"
 
+namespace UE {
+namespace Geometry {
+
+
+
 /**
  * Fit a Capsule to a set of 3D points.
  * Currently solved by using least-squares to fit a line to the point set.
@@ -50,3 +55,7 @@ public:
 
 typedef TFitCapsule3<float> FFitCapsule3f;
 typedef TFitCapsule3<double> FFitCapsule3d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

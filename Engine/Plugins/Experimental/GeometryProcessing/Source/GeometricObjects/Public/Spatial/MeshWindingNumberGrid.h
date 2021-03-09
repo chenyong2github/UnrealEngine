@@ -13,6 +13,11 @@
 #include "MatrixTypes.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Sample mesh winding number (MWN) on a discrete grid. Can sample full grid, or
  * compute MWN values along a specific iso-contour and then fill in rest of grid
@@ -343,11 +348,7 @@ private:
 		});
 	}
 
-
-
-
-
-
-
-
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

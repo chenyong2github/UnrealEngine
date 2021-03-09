@@ -27,10 +27,10 @@
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UExtractCollisionGeometryTool"
-
-
 
 bool UExtractCollisionGeometryToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {

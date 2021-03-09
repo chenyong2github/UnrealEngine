@@ -9,12 +9,13 @@
 class UBodySetup;
 class UStaticMesh;
 struct FKAggregateGeom;
-struct FSimpleShapeSet3d;
 
 namespace UE
 {
 namespace Geometry
 {
+
+struct FSimpleShapeSet3d;
 
 /**
  * Component/BodySetup collision settings (eg StaticMeshComponent) we might need to pass through the functions below

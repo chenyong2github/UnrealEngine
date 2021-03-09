@@ -13,7 +13,7 @@
 
 #include "AddPrimitiveTool.generated.h"
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 class IAssetGenerationAPI;
 
 /**
@@ -515,7 +515,7 @@ protected:
 	IAssetGenerationAPI* AssetAPI;
 
 	void UpdatePreviewPosition(const FInputDeviceRay& ClickPos);
-	FFrame3f ShapeFrame;
+	UE::Geometry::FFrame3f ShapeFrame;
 
 	void UpdatePreviewMesh();
 };

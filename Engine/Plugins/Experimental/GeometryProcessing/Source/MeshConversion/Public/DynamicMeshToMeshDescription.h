@@ -7,8 +7,8 @@
 #include "MeshDescription.h"
 #include "MeshConversionOptions.h"
 
-// predeclare tangents template
-template<typename RealType> class TMeshTangents;
+PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
+using UE::Geometry::FDynamicMesh3;
 
 /**
  * Convert FDynamicMesh3 to FMeshDescription
@@ -105,7 +105,7 @@ public:
 	 *	NOTE: assumes the order of triangles in the MeshIn correspond to the ordering you'd get by iterating over triangles, on MeshOut
 	 *		  This matches conversion currently used in MeshDescriptionToDynamicMesh.cpp, but if that changes we will need to change this function to match!
 	 */
-	void UpdateTangents(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const TMeshTangents<double>* SrcTangents);
+	void UpdateTangents(const FDynamicMesh3* MeshIn, FMeshDescription& MeshOut, const UE::Geometry::TMeshTangents<double>* SrcTangents);
 
 
 	/**

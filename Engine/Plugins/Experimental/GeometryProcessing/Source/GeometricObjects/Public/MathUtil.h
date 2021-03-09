@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "CoreTypes.h"   // required for GEOMETRICOBJECTS_API macro
+#include "GeometryBase.h"
 #include <cmath>
 #include <cfloat>
 

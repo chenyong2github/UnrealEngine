@@ -21,6 +21,12 @@
  */
 namespace MeshAdapterTransforms
 {
+	using namespace UE::Geometry;
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FTransform3d = UE::Geometry::FTransform3d;
+	using FFrame3d = UE::Geometry::FFrame3d;
+
 	/**
 	* Apply Translation to vertex positions of Mesh. Does not modify any other attributes.
 	*/

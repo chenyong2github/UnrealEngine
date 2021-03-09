@@ -6,6 +6,10 @@
 #include "BoxTypes.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FLinearIntersection contains intersection information returned by linear/primitive intersection functions
@@ -18,11 +22,16 @@ struct FLinearIntersection
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE
+
+
 /**
  * IntersectionUtil contains functions to compute intersections between geometric objects
  */
 namespace IntersectionUtil
 {
+	using namespace UE::Geometry;
 
 	template<typename RealType>
 	bool RayTriangleTest(const FVector3<RealType>& RayOrigin, const FVector3<RealType>& RayDirection, const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)

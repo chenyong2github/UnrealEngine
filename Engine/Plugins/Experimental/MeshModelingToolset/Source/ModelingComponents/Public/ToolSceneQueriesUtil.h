@@ -13,6 +13,9 @@
  */
 namespace ToolSceneQueriesUtil
 {
+	using namespace UE::Geometry;
+	using FVector3d = UE::Geometry::FVector3d;
+
 	/**
 	 * @return global visual angle snap threshold (default is 1 degree)
 	 */

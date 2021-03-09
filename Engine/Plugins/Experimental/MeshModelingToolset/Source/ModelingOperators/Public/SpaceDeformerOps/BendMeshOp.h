@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "MeshSpaceDeformerOp.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class MODELINGOPERATORS_API FBendMeshOp : public FMeshSpaceDeformerOp
 {
@@ -16,3 +20,6 @@ public:
 
 protected:
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

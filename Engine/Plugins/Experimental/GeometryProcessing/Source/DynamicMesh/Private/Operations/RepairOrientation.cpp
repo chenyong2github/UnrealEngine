@@ -10,6 +10,9 @@
 
 #include "Misc/ScopeLock.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 // TODO:
 //  - (in merge coincident) don't merge tris with same/opposite normals (option)
 //  - after orienting components, try to find adjacent open components and

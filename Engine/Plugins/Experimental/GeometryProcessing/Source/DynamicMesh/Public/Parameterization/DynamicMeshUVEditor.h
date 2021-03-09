@@ -5,6 +5,10 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 
 struct DYNAMICMESH_API FUVEditResult
@@ -89,3 +93,8 @@ public:
 	 */
 	bool CreateSeamAlongVertexPath(const TArray<int32>& VertexPath, FUVEditResult* Result = nullptr);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE
+

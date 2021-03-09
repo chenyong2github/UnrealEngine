@@ -7,7 +7,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "PhysicsEngine/BodySetup.h"
 
-
+using namespace UE::Geometry;
 
 void FPhysicsDataCollection::InitializeFromComponent(const UActorComponent* Component, bool bInitializeAggGeom)
 {

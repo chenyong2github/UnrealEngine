@@ -8,6 +8,11 @@
 #include "Misc/ScopeLock.h"
 #include "Util/GridIndexing2.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Hash Grid for values associated with 2D points.
  *
@@ -204,3 +209,6 @@ public:
 
 template <typename PointDataType> using TPointHashGrid2d = TPointHashGrid2<PointDataType, double>;
 template <typename PointDataType> using TPointHashGrid2f = TPointHashGrid2<PointDataType, float>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

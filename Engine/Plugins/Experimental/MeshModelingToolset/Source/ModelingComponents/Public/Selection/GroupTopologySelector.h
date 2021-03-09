@@ -11,6 +11,12 @@ struct FCameraRectangle;
 class FToolDataVisualizer;
 struct FViewCameraState;
 
+using UE::Geometry::FGroupTopologySelection;
+using UE::Geometry::FGroupTopology;
+using UE::Geometry::FDynamicMeshAABBTree3;
+using UE::Geometry::FDynamicMesh3;
+using UE::Geometry::FGeometrySet3;
+
 /**
  * FGroupTopologySelector implements selection behavior for a FGroupTopology mesh.
  * Groups, Group Edges, and Corners can be selected dependings on the settings passed in.
@@ -29,6 +35,9 @@ struct FViewCameraState;
  */
 class MODELINGCOMPONENTS_API FGroupTopologySelector
 {
+	using FRay3d = UE::Geometry::FRay3d;
+	using FVector3d = UE::Geometry::FVector3d;
+	using FTransform3d = UE::Geometry::FTransform3d;
 public:
 
 	//

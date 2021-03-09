@@ -5,6 +5,7 @@
 
 #include "Sampling/MeshResampleImageBaker.h"
 
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 void FBakeMeshTextureImageNode::Evaluate(

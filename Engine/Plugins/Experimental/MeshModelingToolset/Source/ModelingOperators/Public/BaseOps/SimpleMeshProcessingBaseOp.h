@@ -7,9 +7,12 @@
 #include "ModelingOperators.h"
 #include "VectorTypes.h"
 
-class FDynamicMesh3;
-class FMeshNormals;
+namespace UE
+{
+namespace Geometry
+{
 
+class FDynamicMesh3;
 
 class MODELINGOPERATORS_API FMeshBoundaryCache
 {
@@ -46,3 +49,7 @@ public:
 protected:
 	TArray<FVector3d> PositionBuffer;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

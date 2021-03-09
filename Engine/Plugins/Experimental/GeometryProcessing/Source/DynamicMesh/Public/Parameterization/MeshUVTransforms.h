@@ -14,6 +14,8 @@ namespace UE
 {
 	namespace MeshUVTransforms
 	{
+		using namespace UE::Geometry;
+
 		enum class EIslandPositionType
 		{
 			CurrentPosition,

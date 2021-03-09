@@ -13,6 +13,11 @@
 #include "MeshNormals.h"
 #include "Algo/RemoveIf.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * This class automatically extracts a submesh from a mesh, 
  *  and can re-insert it after you have edited it,
@@ -249,3 +254,7 @@ public:
 		return true;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -8,6 +8,11 @@
 #include "MeshConstraints.h"
 #include "Util/ProgressCancel.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMeshChangeTracker;
 
 /**
@@ -272,3 +277,7 @@ protected:
 	void DebugCheckVertexConstraints();
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

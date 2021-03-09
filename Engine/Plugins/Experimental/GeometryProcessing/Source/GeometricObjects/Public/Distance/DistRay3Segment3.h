@@ -8,6 +8,11 @@
 #include "SegmentTypes.h"
 #include "RayTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute distance between 3D ray and 3D segment
  */
@@ -387,3 +392,6 @@ public:
 
 typedef TDistRay3Segment3<float> FDistRay3Segment3f;
 typedef TDistRay3Segment3<double> FDistRay3Segment3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

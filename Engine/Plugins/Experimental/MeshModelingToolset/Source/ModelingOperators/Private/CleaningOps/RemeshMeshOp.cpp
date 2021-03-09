@@ -12,6 +12,9 @@
 #include "MeshNormals.h"
 #include "NormalFlowRemesher.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 TUniquePtr<FRemesher> FRemeshMeshOp::CreateRemesher(ERemeshType Type, FDynamicMesh3* TargetMesh)
 {
 	switch(Type)

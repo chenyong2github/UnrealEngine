@@ -8,6 +8,11 @@
 #include "Util/DynamicVector.h"
 #include "EdgeLoop.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FMeshVertexSelection;
 class FMeshEdgeSelection;
 
@@ -744,3 +749,7 @@ private:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

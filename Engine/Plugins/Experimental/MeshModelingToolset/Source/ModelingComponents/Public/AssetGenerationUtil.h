@@ -9,7 +9,7 @@
 class UMaterialInterface;
 class UInteractiveToolManager;
 struct FMeshDescription;
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 class AActor;
 class UPrimitiveComponent;
 class UTexture2D;
@@ -71,7 +71,7 @@ namespace AssetGenerationUtil
 		IAssetGenerationAPI* AssetAPI,
 		UWorld* TargetWorld,
 		const FDynamicMesh3* Mesh,
-		const FTransform3d& Transform,
+		const UE::Geometry::FTransform3d& Transform,
 		FString ObjectName,
 		UMaterialInterface* Material = nullptr
 	);
@@ -91,7 +91,7 @@ namespace AssetGenerationUtil
 		IAssetGenerationAPI* AssetAPI,
 		UWorld* TargetWorld,
 		const FDynamicMesh3* Mesh,
-		const FTransform3d& Transform,
+		const UE::Geometry::FTransform3d& Transform,
 		FString ObjectName,
 		const TArrayView<UMaterialInterface*>& Materials
 	);

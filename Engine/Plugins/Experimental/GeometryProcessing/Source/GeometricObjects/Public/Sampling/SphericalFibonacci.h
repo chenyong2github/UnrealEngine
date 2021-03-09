@@ -6,6 +6,10 @@
 #include "VectorTypes.h"
 #include "MatrixTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * A Spherical Fibonacci (SF) Point Set is a set of points that are roughly evenly distributed on a sphere.
@@ -125,6 +129,7 @@ protected:
 		return a * b + -TMathUtil<RealType>::Floor(a * b);
 	}
 
-
-
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

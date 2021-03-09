@@ -159,7 +159,6 @@ public:
 
 
 
-
 /**
  * Base Tool for mesh sculpting tools, provides some shared functionality
  */
@@ -167,7 +166,16 @@ UCLASS()
 class MESHMODELINGTOOLS_API UMeshSculptToolBase : public UMeshSurfacePointTool
 {
 	GENERATED_BODY()
+protected:
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FVector2d = UE::Geometry::FVector2d;
+	using FVector2f = UE::Geometry::FVector2f;
+	using FTransform3d = UE::Geometry::FTransform3d;
+	using FFrame3d = UE::Geometry::FFrame3d;
+	using FRay3d = UE::Geometry::FRay3d;
 public:
+
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void SetWorld(UWorld* World);
@@ -206,9 +214,9 @@ protected:
 	FViewCameraState CameraState;
 
 	/** Initial transformation on target mesh */
-	FTransform3d InitialTargetTransform;
+	UE::Geometry::FTransform3d InitialTargetTransform;
 	/** Active transformation on target mesh, includes baked scale */
-	FTransform3d CurTargetTransform;
+	UE::Geometry::FTransform3d CurTargetTransform;
 
 	FRay3d GetLocalRay(const FRay& WorldRay) const;
 
@@ -287,9 +295,9 @@ protected:
 	// Brush Size
 	//
 protected:
-	FInterval1d BrushRelativeSizeRange;
+	UE::Geometry::FInterval1d BrushRelativeSizeRange;
 	double CurrentBrushRadius = 1.0;
-	virtual void InitializeBrushSizeRange(const FAxisAlignedBox3d& TargetBounds);
+	virtual void InitializeBrushSizeRange(const UE::Geometry::FAxisAlignedBox3d& TargetBounds);
 	virtual void CalculateBrushRadius();
 	virtual double GetCurrentBrushRadius() const { return CurrentBrushRadius; }
 

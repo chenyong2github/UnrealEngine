@@ -4,6 +4,10 @@
 #include "Transforms/QuickAxisRotator.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
+
 constexpr int RotateXSnapID = FRaySpatialSnapSolver::BaseExternalLineID + 1;
 constexpr int RotateYSnapID = FRaySpatialSnapSolver::BaseExternalLineID + 2;
 constexpr int RotateZSnapID = FRaySpatialSnapSolver::BaseExternalLineID + 3;

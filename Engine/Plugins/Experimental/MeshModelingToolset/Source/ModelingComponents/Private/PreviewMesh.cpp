@@ -6,6 +6,8 @@
 #include "Engine/Classes/Materials/Material.h"
 #include "TargetInterfaces/MaterialProvider.h" //FComponentMaterialSet
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 APreviewMeshActor::APreviewMeshActor()
 {

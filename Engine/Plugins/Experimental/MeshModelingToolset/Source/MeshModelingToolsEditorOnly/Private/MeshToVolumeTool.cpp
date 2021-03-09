@@ -23,8 +23,10 @@
 #include "Model.h"
 #include "BSPOps.h"		// in UnrealEd
 
-#define LOCTEXT_NAMESPACE "UMeshToVolumeTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "UMeshToVolumeTool"
 
 /*
  * ToolBuilder

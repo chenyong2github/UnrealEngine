@@ -8,6 +8,9 @@
 
 class FProgressCancel;
 
+namespace UE {
+namespace Geometry {
+
 /**
  * EDetectedSimpleShapeType is used to identify auto-detected simple shapes for a mesh/etc
  */
@@ -166,3 +169,5 @@ protected:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

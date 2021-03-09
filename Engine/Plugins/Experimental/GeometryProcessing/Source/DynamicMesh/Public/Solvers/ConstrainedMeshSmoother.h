@@ -12,6 +12,8 @@ namespace UE
 {
 	namespace MeshDeformation
 	{
+		using namespace UE::Geometry;
+
 		/**
 		*  Solves the linear system for p_vec
 		*

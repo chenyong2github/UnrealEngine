@@ -9,6 +9,11 @@
 #include "EdgeLoop.h"
 #include "Util/SparseIndexCollectionTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Extract FEdgeLoops on the boundary of a set of triangles of a mesh.
  * @todo this was an early port and possibly can be optimized
@@ -151,3 +156,7 @@ protected:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

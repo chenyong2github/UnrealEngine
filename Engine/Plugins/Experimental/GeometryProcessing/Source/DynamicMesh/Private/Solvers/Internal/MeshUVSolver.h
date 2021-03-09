@@ -11,6 +11,11 @@
 
 #include "MatrixBase.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 enum class EUVSolveType
 {
 	NaturalConformal
@@ -63,3 +68,6 @@ protected:
 	// Used to map between VtxId and vertex Index in linear vector..
 	FVertexLinearization  VtxLinearization;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

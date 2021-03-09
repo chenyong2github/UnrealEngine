@@ -3,6 +3,8 @@
 #include "Generators/RectangleMeshGenerator.h"
 #include "MathUtil.h"
 
+using namespace UE::Geometry;
+
 FRectangleMeshGenerator::FRectangleMeshGenerator()
 {
 	Origin = FVector3d::Zero();

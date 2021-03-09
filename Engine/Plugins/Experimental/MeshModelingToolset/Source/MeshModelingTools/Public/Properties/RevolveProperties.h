@@ -10,7 +10,7 @@
 #include "RevolveProperties.generated.h"
 
 class UNewMeshMaterialProperties;
-class FCurveSweepOp;
+PREDECLARE_GEOMETRY(class FCurveSweepOp);
 
 UENUM()
 enum class ERevolvePropertiesCapFillMode : uint8
@@ -59,7 +59,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API URevolveProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	URevolveProperties()
@@ -197,7 +197,7 @@ public:
 	 */
 	void ApplyToCurveSweepOp(const UNewMeshMaterialProperties& MaterialProperties,
 		const FVector3d& RevolutionAxisOrigin, const FVector3d& RevolutionAxisDirection,
-		FCurveSweepOp& CurveSweepOpOut) const;
+		UE::Geometry::FCurveSweepOp& CurveSweepOpOut) const;
 
 	protected:
 		int32 ClampedRevolutionDegreesWatcherIndex;

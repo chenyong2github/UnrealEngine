@@ -5,6 +5,8 @@
 #include "GteUtil.h"
 
 
+using namespace UE::Geometry;
+
 template <typename Real>
 Real TDistLine3Circle3<Real>::ComputeResult()
 {
@@ -32,7 +34,13 @@ Real TDistLine3Circle3<Real>::ComputeResult()
 
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 template class GEOMETRYALGORITHMS_API TDistLine3Circle3<float>;
 template class GEOMETRYALGORITHMS_API TDistLine3Circle3<double>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

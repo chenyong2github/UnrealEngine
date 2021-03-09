@@ -7,6 +7,7 @@
 
 namespace PolygonTriangulation
 {
+	using namespace UE::Geometry;
 
 	/**
 	 * Compute triangulation of simple 2D polygon using ear-clipping

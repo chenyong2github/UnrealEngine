@@ -6,6 +6,7 @@
 #include "MeshNormals.h"
 #include "Operations/MergeCoincidentMeshEdges.h"
 
+using namespace UE::Geometry;
 
 void UE::Conversion::RenderBuffersToDynamicMesh(
 	const FStaticMeshVertexBuffers& VertexData,

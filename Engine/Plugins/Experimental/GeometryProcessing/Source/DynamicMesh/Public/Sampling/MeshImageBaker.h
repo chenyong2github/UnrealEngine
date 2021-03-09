@@ -4,6 +4,10 @@
 
 #include "Sampling/MeshImageBakingCache.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class DYNAMICMESH_API FMeshImageBaker
 {
@@ -29,3 +33,6 @@ protected:
 	const FMeshImageBakingCache* ImageBakeCache;
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

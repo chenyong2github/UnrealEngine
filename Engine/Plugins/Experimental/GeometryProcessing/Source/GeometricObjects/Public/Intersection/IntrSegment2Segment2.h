@@ -12,6 +12,11 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"  // for EIntersectionType
 
+namespace UE
+{
+namespace Geometry
+{
+
 // ported from WildMagic5
 //
 //
@@ -244,3 +249,6 @@ protected:
 
 typedef TIntrSegment2Segment2<double> FIntrSegment2Segment2d;
 typedef TIntrSegment2Segment2<float> FIntrSegment2Segment2f;
+
+} // end namespace UE::Geometry
+} // end namespace UE

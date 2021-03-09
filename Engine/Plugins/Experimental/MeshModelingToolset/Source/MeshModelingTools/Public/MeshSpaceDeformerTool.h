@@ -176,13 +176,13 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API USpaceDeformerOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API USpaceDeformerOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UMeshSpaceDeformerTool* SpaceDeformerTool;  // back pointer
@@ -196,7 +196,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UMeshSpaceDeformerTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
-
 public:
 	UMeshSpaceDeformerTool();
 
@@ -218,7 +217,7 @@ public:
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// sync the parameters owned by the MeshSpaceDeformerOp 
-	void UpdateOpParameters(FMeshSpaceDeformerOp& MeshSpaceDeformerOp) const;
+	void UpdateOpParameters(UE::Geometry::FMeshSpaceDeformerOp& MeshSpaceDeformerOp) const;
 
 protected:
 
@@ -241,7 +240,7 @@ protected:
 
 protected:	
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	UPROPERTY()
 	UPreviewMesh* OriginalMeshPreview;
@@ -274,9 +273,9 @@ protected:
 
 	// Button click support
 	EMeshSpaceDeformerToolAction PendingAction;
-	FVector3d MeshCenter;
+	UE::Geometry::FVector3d MeshCenter;
 
-	FFrame3d GizmoFrame;
+	UE::Geometry::FFrame3d GizmoFrame;
 
 	// The length of the third interval gizmo (which sets the intensity of the deformation)
 	// when the modifier is set to some reasonable maximum.
@@ -284,7 +283,7 @@ protected:
 
 	TPimplPtr<FSelectClickedAction> SetPointInWorldConnector;
 
-	TArray<FVector3d> VisualizationPoints;
+	TArray<UE::Geometry::FVector3d> VisualizationPoints;
 	FToolDataVisualizer VisualizationRenderer;
 
 	void TransformProxyChanged(UTransformProxy* Proxy, FTransform Transform);

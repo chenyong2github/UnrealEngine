@@ -12,6 +12,12 @@
 
 #include "Async/ParallelFor.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 template<typename TriangleMeshType>
 class TImplicitBlend 
 {
@@ -238,3 +244,7 @@ protected:
 		MarchingCubes.Implicit = nullptr;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

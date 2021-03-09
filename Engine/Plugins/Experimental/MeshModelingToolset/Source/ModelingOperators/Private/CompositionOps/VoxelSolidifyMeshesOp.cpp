@@ -7,13 +7,14 @@
 #include "MeshTransforms.h"
 #include "MeshSimplification.h"
 #include "Operations/ExtrudeMesh.h"
-
 #include "Spatial/FastWinding.h"
 #include "Generators/MarchingCubes.h"
 #include "MeshNormals.h"
 
 #include "Implicit/Solidify.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FVoxelSolidifyMeshesOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;

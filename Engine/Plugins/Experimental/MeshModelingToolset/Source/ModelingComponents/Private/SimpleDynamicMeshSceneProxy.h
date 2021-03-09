@@ -6,7 +6,6 @@
 #include "BaseDynamicMeshSceneProxy.h"
 #include "Async/ParallelFor.h"
 
-
 /**
  * Scene Proxy for USimpleDynamicMeshComponent.
  * 
@@ -17,6 +16,11 @@
  */
 class FSimpleDynamicMeshSceneProxy final : public FBaseDynamicMeshSceneProxy
 {
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FVector2f = UE::Geometry::FVector2f;
+	using FIndex2i = UE::Geometry::FIndex2i;
+	using FIndex3i = UE::Geometry::FIndex3i;
 private:
 	FMaterialRelevance MaterialRelevance;
 
@@ -109,7 +113,7 @@ public:
 		FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+		const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
 		if (Tangents != nullptr)
 		{
 			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
@@ -169,7 +173,7 @@ public:
 		}
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+		const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
 		if (Tangents != nullptr)
 		{
 			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
@@ -213,7 +217,7 @@ public:
 		}
 
 		TFunction<void(int, int, int, FVector3f&, FVector3f&)> TangentsFunc = nullptr;
-		const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+		const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
 		if (Tangents != nullptr)
 		{
 			TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, FVector3f& TangentX, FVector3f& TangentY)
@@ -367,7 +371,7 @@ public:
 			check(Mesh->HasAttributes());
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 
-			const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+			const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
 			if (Tangents != nullptr)
 			{
 				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY)
@@ -468,7 +472,7 @@ public:
 			check(Mesh->HasAttributes());
 			NormalOverlay = Mesh->Attributes()->PrimaryNormals();
 
-			const FMeshTangentsf* Tangents = ParentComponent->GetTangents();
+			const UE::Geometry::FMeshTangentsf* Tangents = ParentComponent->GetTangents();
 			if (Tangents != nullptr)
 			{
 				TangentsFunc = [Tangents](int VertexID, int TriangleID, int TriVtxIdx, const FVector3f& Normal, FVector3f& TangentX, FVector3f& TangentY)

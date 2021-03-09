@@ -18,7 +18,8 @@ UCLASS()
 class MODELINGCOMPONENTS_API UPlaneDistanceFromHitMechanic : public UInteractionMechanic
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
+	using FFrame3d = UE::Geometry::FFrame3d;
 public:
 	/** If this function is set, we will check it for a ray intersection if the target mesh is not hit */
 	TUniqueFunction<bool(const FRay&, FHitResult&)> WorldHitQueryFunc = nullptr;
@@ -36,7 +37,7 @@ public:
 	FHitResult LastActiveWorldHit;
 
 	/** World frame at last hit point */
-	FFrame3d CurrentHitPosFrameWorld;
+	UE::Geometry::FFrame3d CurrentHitPosFrameWorld;
 
 	/** If true, then if we don't find any intersection point, just use nearest point on plane normal to ray */
 	bool bFallbackToLineAxisPoint = true;
@@ -53,7 +54,7 @@ public:
 	 * If bMeshInWorldCoords is true, then HitTargetMesh is in world coords.
 	 * Otherwise we assume it is in local coords of PlaneFrameWorld
 	 */
-	virtual void Initialize(FDynamicMesh3&& HitTargetMesh, const FFrame3d& PlaneFrameWorld, bool bMeshInWorldCoords);
+	virtual void Initialize(UE::Geometry::FDynamicMesh3&& HitTargetMesh, const FFrame3d& PlaneFrameWorld, bool bMeshInWorldCoords);
 
 	/**
 	 * Update the current distance/height based on the input world ray
@@ -61,8 +62,8 @@ public:
 	virtual void UpdateCurrentDistance(const FRay& WorldRay);
 
 protected:
-	FDynamicMesh3 PreviewHeightTarget;
-	FDynamicMeshAABBTree3 PreviewHeightTargetAABB;
+	UE::Geometry::FDynamicMesh3 PreviewHeightTarget;
+	UE::Geometry::FDynamicMeshAABBTree3 PreviewHeightTargetAABB;
 	FFrame3d PreviewHeightFrame;
 
 };

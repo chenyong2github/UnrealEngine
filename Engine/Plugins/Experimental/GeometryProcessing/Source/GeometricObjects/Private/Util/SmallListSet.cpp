@@ -2,6 +2,8 @@
 
 #include "Util/SmallListSet.h"
 
+using namespace UE::Geometry;
+
 const int32 FSmallListSet::NullValue = -1;
 
 void FSmallListSet::Resize(int32 NewSize)

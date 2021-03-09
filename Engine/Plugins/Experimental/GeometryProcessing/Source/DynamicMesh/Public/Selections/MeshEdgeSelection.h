@@ -9,6 +9,12 @@
 #include "Containers/Set.h"
 #include "Selections/MeshVertexSelection.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * Currently a thin wrapper of a TSet<int> of Edge IDs paired with a Mesh; the backing storage will likely change as we need to optimize in the future
  */
@@ -171,3 +177,6 @@ public:
 	}
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -3,6 +3,9 @@
 #include "ProjectionTargets.h"
 #include "Distance/DistPoint3Triangle3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 FVector3d FMeshProjectionTarget::Project(const FVector3d& Point, int Identifier)
 {
 	double fDistSqr;

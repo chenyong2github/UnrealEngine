@@ -88,6 +88,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDeformMeshPolygonsTransformProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
+	using FVector3d = UE::Geometry::FVector3d;
 
 public:
 	UDeformMeshPolygonsTransformProperties();
@@ -148,6 +149,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDeformMeshPolygonsTool : public UMeshSurfacePointTool
 {
 	GENERATED_BODY()
+	using FVector3d = UE::Geometry::FVector3d;
 
 public:
 	UDeformMeshPolygonsTool();
@@ -204,8 +206,8 @@ protected:
 	FVector LastBrushPosLocal;
 	FVector StartBrushPosLocal;
 
-	FFrame3d ActiveSurfaceFrame;
-	FQuickTransformer* GetActiveQuickTransformer();
+	UE::Geometry::FFrame3d ActiveSurfaceFrame;
+	UE::Geometry::FQuickTransformer* GetActiveQuickTransformer();
 	void UpdateActiveSurfaceFrame(FGroupTopologySelection& Selection);
 	void UpdateQuickTransformer();
 
@@ -214,12 +216,12 @@ protected:
 	void ComputeUpdate();
 
 	FVector3d LastMoveDelta;
-	FQuickAxisTranslater QuickAxisTranslater;
+	UE::Geometry::FQuickAxisTranslater QuickAxisTranslater;
 	void ComputeUpdate_Translate();
 
-	FQuickAxisRotator QuickAxisRotator;
+	UE::Geometry::FQuickAxisRotator QuickAxisRotator;
 	FVector3d RotationStartPointWorld;
-	FFrame3d RotationStartFrame;
+	UE::Geometry::FFrame3d RotationStartFrame;
 	void ComputeUpdate_Rotate();
 
 	FGroupTopology Topology;
@@ -235,15 +237,15 @@ protected:
 	FGroupTopologySelection HilightSelection;
 	FToolDataVisualizer HilightRenderer;
 
-	FDynamicMeshAABBTree3 MeshSpatial;
-	FDynamicMeshAABBTree3& GetSpatial();
+	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
+	UE::Geometry::FDynamicMeshAABBTree3& GetSpatial();
 
 	FMeshVertexChangeBuilder* ActiveVertexChange;
 
 	EGroupTopologyDeformationStrategy DeformationStrategy;
 
 	// The two deformer type options.
-	FGroupTopologyDeformer LinearDeformer;
+	UE::Geometry::FGroupTopologyDeformer LinearDeformer;
 	TPimplPtr<FGroupTopologyLaplacianDeformer> LaplacianDeformer;
 
 

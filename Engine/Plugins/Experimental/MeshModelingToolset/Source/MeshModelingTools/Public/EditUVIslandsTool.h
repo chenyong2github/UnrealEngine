@@ -17,7 +17,7 @@
 #include "EditUVIslandsTool.generated.h"
 
 class FMeshVertexChangeBuilder;
-
+using UE::Geometry::FDynamicMeshUVOverlay;
 
 /**
  * ToolBuilder
@@ -40,7 +40,7 @@ public:
 	const FDynamicMeshUVOverlay* UVOverlay;
 
 	FUVGroupTopology() {}
-	FUVGroupTopology(const FDynamicMesh3* Mesh, uint32 UVLayerIndex, bool bAutoBuild = false);
+	FUVGroupTopology(const UE::Geometry::FDynamicMesh3* Mesh, uint32 UVLayerIndex, bool bAutoBuild = false);
 
 	void CalculateIslandGroups();
 
@@ -49,7 +49,7 @@ public:
 		return TriIslandGroups[TriangleID];
 	}
 
-	FFrame3d GetIslandFrame(int32 GroupID, FDynamicMeshAABBTree3& AABBTree);
+	UE::Geometry::FFrame3d GetIslandFrame(int32 GroupID, UE::Geometry::FDynamicMeshAABBTree3& AABBTree);
 };
 
 
@@ -116,15 +116,15 @@ protected:
 	FDelegateHandle OnDynamicMeshComponentChangedHandle;
 
 	// camera state at last render
-	FTransform3d WorldTransform;
+	UE::Geometry::FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
 	// True for the duration of UI click+drag
 	bool bInDrag;
 
 	double UVTranslateScale;
-	FFrame3d InitialGizmoFrame;
-	FVector3d InitialGizmoScale;
+	UE::Geometry::FFrame3d InitialGizmoFrame;
+	UE::Geometry::FVector3d InitialGizmoScale;
 	void ComputeUpdate_Gizmo();
 
 	FUVGroupTopology Topology;
@@ -140,12 +140,12 @@ protected:
 	//
 	struct FEditIsland
 	{
-		FFrame3d LocalFrame;
+		UE::Geometry::FFrame3d LocalFrame;
 		TArray<int32> Triangles;
 		TArray<int32> UVs;
-		FAxisAlignedBox2d UVBounds;
-		FVector2d UVOrigin;
-		TArray<FVector2f> InitialPositions;
+		UE::Geometry::FAxisAlignedBox2d UVBounds;
+		UE::Geometry::FVector2d UVOrigin;
+		TArray<UE::Geometry::FVector2f> InitialPositions;
 	};
 	TArray<FEditIsland> ActiveIslands;
 	void UpdateUVTransformFromSelection(const FGroupTopologySelection& Selection);

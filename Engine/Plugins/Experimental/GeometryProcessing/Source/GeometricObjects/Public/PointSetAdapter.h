@@ -4,6 +4,11 @@
 
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TPointSetAdapter provides a very generic interface to an indexable list of points.
  * The list may be sparse, ie some indices may be invalid.
@@ -31,3 +36,6 @@ struct TPointSetAdapter
 typedef TPointSetAdapter<double> FPointSetAdapterd;
 typedef TPointSetAdapter<float> FPointSetAdapterf;
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

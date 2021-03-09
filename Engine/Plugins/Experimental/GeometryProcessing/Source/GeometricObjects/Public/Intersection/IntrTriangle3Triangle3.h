@@ -14,6 +14,11 @@
 #include "Intersection/IntrSegment2Triangle2.h"
 #include "Intersection/IntrTriangle2Triangle2.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute intersection between 3D triangles
  * use Test() for fast boolean query, does not compute intersection info
@@ -825,3 +830,6 @@ protected:
 
 typedef TIntrTriangle3Triangle3<float> FIntrTriangle3Triangle3f;
 typedef TIntrTriangle3Triangle3<double> FIntrTriangle3Triangle3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

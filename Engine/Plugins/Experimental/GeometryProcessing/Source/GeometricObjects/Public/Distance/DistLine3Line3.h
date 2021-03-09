@@ -7,6 +7,11 @@
 #include "VectorTypes.h"
 #include "LineTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute distance between two 3D lines
  */
@@ -95,3 +100,6 @@ public:
 
 typedef TDistLine3Line3<float> FDistLine3Line3f;
 typedef TDistLine3Line3<double> FDistLine3Line3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

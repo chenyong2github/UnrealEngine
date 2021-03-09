@@ -13,6 +13,7 @@ namespace UE
 namespace GeometryFlow
 {
 
+using namespace UE::Geometry;
 
 enum class EComputeNormalsType
 {

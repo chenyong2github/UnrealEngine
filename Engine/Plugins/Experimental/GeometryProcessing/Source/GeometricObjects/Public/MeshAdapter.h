@@ -9,6 +9,11 @@
 #include "Math/Vector.h"
 #include "IndexTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Most generic / lazy example of a triangle mesh adapter; possibly useful for prototyping / building on top of (but slower than making a more specific-case adapter)
  */
@@ -220,3 +225,7 @@ struct TIndexVectorMeshArrayAdapter
 };
 
 typedef TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

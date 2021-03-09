@@ -2,6 +2,9 @@
 
 #include "EdgeSpan.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void FEdgeSpan::Initialize(const FDynamicMesh3* mesh, const TArray<int>& vertices, const TArray<int> & edges, const TArray<int>* BowtieVerticesIn)
 {
 	Mesh = mesh;

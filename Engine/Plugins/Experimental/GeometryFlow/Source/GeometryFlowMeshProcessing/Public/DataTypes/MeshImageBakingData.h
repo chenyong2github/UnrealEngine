@@ -15,7 +15,7 @@ namespace UE
 namespace GeometryFlow
 {
 
-
+using namespace UE::Geometry;
 
 struct GEOMETRYFLOWMESHPROCESSING_API FMeshBakingCache
 {
@@ -26,7 +26,7 @@ struct GEOMETRYFLOWMESHPROCESSING_API FMeshBakingCache
 	FDynamicMeshAABBTree3 DetailSpatial;
 	FDynamicMesh3 TargetMesh;
 
-	FMeshImageBakingCache BakeCache;
+	UE::Geometry::FMeshImageBakingCache BakeCache;
 };
 
 

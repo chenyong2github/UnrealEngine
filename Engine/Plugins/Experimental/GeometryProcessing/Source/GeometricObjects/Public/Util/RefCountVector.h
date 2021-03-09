@@ -8,6 +8,10 @@
 #include "Util/DynamicVector.h"
 #include "Util/IteratorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FRefCountVector is used to keep track of which indices in a linear Index list are in use/referenced.
@@ -456,3 +460,7 @@ private:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

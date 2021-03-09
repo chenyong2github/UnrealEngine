@@ -4,9 +4,11 @@
 #include "InteractiveToolManager.h"
 #include "ToolBuilderUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 // localization namespace
 #define LOCTEXT_NAMESPACE "UDynamicMeshBrushTool"
-
 
 /*
  * Tool

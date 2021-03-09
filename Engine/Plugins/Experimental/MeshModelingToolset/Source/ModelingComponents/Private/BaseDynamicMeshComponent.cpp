@@ -2,7 +2,7 @@
 
 #include "BaseDynamicMeshComponent.h"
 
-
+using namespace UE::Geometry;
 
 UBaseDynamicMeshComponent::UBaseDynamicMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

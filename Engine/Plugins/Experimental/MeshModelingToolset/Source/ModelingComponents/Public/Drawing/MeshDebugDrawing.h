@@ -8,12 +8,15 @@
 #include "ToolContextInterfaces.h"  // for FViewCameraState
 
 class FPrimitiveDrawInterface;
+using UE::Geometry::FDynamicMesh3;
+using UE::Geometry::FDynamicMeshNormalOverlay;
 
 /**
  * drawing utility functions useful for debugging. These are generally not performant.
  */
 namespace MeshDebugDraw
 {
+	using namespace UE::Geometry;
 
 	/**
 	 * Draw normals of mesh overlay as lines

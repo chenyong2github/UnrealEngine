@@ -17,6 +17,9 @@
 #include "ToolSetupUtil.h"
 #include "Transforms/MultiTransformer.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "ULatticeControlPointsMechanic"
 
 static const FText LatticePointDeselectionTransactionText = LOCTEXT("LatticePointDeselection", "Lattice Point Deselection");

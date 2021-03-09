@@ -6,6 +6,10 @@
 #include "MeshQueries.h"
 #include "Spatial/FastWinding.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -283,3 +287,7 @@ private:
 		}
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

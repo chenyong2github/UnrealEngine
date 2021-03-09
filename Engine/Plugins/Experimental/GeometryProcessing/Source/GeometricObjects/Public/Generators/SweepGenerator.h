@@ -18,6 +18,11 @@
 
 #include "Util/ProgressCancel.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * ECapType indicates the type of cap to use on a sweep
  */
@@ -832,3 +837,7 @@ protected:
 	void AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
 		TArray<FVector3d>& WeightedNormals, const FVector3d& AbNormalized);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

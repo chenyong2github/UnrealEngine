@@ -7,7 +7,8 @@
 #include <sstream>
 
 
-
+namespace UE {
+namespace Geometry {
 
 
 /**
@@ -1086,3 +1087,7 @@ FORCEINLINE uint32 GetTypeHash(const TVector4<T>& Vector)
 	// Note: this assumes there's no padding that could contain uncompared data.
 	return FCrc::MemCrc_DEPRECATED(&Vector, sizeof(TVector4<T>));
 }
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

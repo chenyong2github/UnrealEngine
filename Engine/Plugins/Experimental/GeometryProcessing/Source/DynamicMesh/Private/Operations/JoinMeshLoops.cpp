@@ -5,6 +5,8 @@
 #include "DynamicMeshEditor.h"
 #include "MeshIndexUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 FJoinMeshLoops::FJoinMeshLoops(FDynamicMesh3* MeshIn) 
 	: Mesh(MeshIn)

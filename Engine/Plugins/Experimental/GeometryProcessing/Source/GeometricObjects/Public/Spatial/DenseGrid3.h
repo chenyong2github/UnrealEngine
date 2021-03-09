@@ -9,6 +9,10 @@
 
 #include "HAL/PlatformAtomics.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * 3D dense grid of floating-point scalar values. 
@@ -225,3 +229,5 @@ namespace DenseGrid
 	}
 }
 
+} // end namespace UE::Geometry
+} // end namespace UE

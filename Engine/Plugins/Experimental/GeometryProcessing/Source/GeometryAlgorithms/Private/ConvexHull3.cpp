@@ -7,7 +7,8 @@
 
 #include "Async/ParallelFor.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 /**
@@ -654,7 +655,13 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealTy
 }
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 template class TConvexHull3<float>;
 template class TConvexHull3<double>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

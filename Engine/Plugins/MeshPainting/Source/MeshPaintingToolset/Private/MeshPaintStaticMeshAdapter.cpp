@@ -200,7 +200,7 @@ bool FMeshPaintStaticMeshComponentAdapter::LineTraceComponent(struct FHitResult&
 		float MinDistance = FLT_MAX;
 		FVector Intersect;
 		FVector Normal;
-		FIndex3i FoundTriangle;
+		UE::Geometry::FIndex3i FoundTriangle;
 		FVector HitPosition;
 		if (!RayIntersectAdapter(FoundTriangle, HitPosition, LocalStart, LocalEnd))
 		{
@@ -212,14 +212,14 @@ bool FMeshPaintStaticMeshComponentAdapter::LineTraceComponent(struct FHitResult&
 		const FVector& P1 = MeshVertices[FoundTriangle.B];
 		const FVector& P2 = MeshVertices[FoundTriangle.C];
 
-		FTriangle3d Triangle((FVector3d)P0, (FVector3d)P1, (FVector3d)P2);
-		FVector3d TriNormal = Triangle.Normal();
+		UE::Geometry::FTriangle3d Triangle((UE::Geometry::FVector3d)P0, (UE::Geometry::FVector3d)P1, (UE::Geometry::FVector3d)P2);
+		UE::Geometry::FVector3d TriNormal = Triangle.Normal();
 
 		//check collinearity of A,B,C
 		if (TriNormal.SquaredLength() > (double)SMALL_NUMBER)
 		{
-			FRay3d LocalRay((FVector3d)LocalStart, ((FVector3d)LocalEnd - (FVector3d)LocalStart).Normalized());
-			FIntrRay3Triangle3d RayTriIntersection(LocalRay, Triangle);
+			UE::Geometry::FRay3d LocalRay((UE::Geometry::FVector3d)LocalStart, ((UE::Geometry::FVector3d)LocalEnd - (UE::Geometry::FVector3d)LocalStart).Normalized());
+			UE::Geometry::FIntrRay3Triangle3d RayTriIntersection(LocalRay, Triangle);
 			if (RayTriIntersection.Find())
 			{
 				double Distance = RayTriIntersection.RayParameter;

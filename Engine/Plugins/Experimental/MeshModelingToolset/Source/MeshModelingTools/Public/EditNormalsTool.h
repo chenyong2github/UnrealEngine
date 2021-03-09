@@ -106,13 +106,13 @@ public:
  *  stores a pointer to the tool and enough info to know which specific operator it should spawn
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UEditNormalsOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UEditNormalsOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UEditNormalsTool *Tool;
@@ -168,7 +168,7 @@ protected:
 
 
 protected:
-	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
+	TArray<TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;

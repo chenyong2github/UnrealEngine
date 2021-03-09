@@ -7,6 +7,9 @@
 #include "ExactPredicates.h"
 #include "Algo/Unique.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 template<class RealType>
 bool TConvexHull2<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector2<RealType>(int32)> GetPointFunc, TFunctionRef<bool(int32)> FilterFunc)
 {
@@ -286,5 +289,13 @@ void TConvexHull2<RealType>::GetTangent(TFunctionRef<FVector2<RealType>(int32)> 
 }
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 template class TConvexHull2<float>;
 template class TConvexHull2<double>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

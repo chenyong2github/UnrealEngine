@@ -13,6 +13,8 @@ namespace UE
 { 
 namespace SculptUtil 
 {
+	using namespace UE::Geometry;
+
 	/** 
 	 * Recompute overlay normals for the overlay elements belonging to all the ModifiedTris. 
 	 * ElementSetBuffer and NormalsBuffer will be populated with all the normal overlay element IDs (you provide to allow for re-use of allocated memory)

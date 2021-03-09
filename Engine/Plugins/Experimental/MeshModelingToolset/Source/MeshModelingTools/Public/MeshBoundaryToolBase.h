@@ -12,7 +12,7 @@
 
 #include "MeshBoundaryToolBase.generated.h"
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 class UPolygonSelectionMechanic;
 class USingleClickInputBehavior;
 
@@ -45,7 +45,7 @@ protected:
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	// Used for hit querying
-	FDynamicMeshAABBTree3 MeshSpatial;
+	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 
 	UPROPERTY()
 	UPolygonSelectionMechanic* SelectionMechanic = nullptr;
@@ -53,7 +53,7 @@ protected:
 
 	// A variant of group topology that considers all triangles one group, so that group edges are boundary
 	// edges in the mesh.
-	class FBasicTopology : public FGroupTopology
+	class FBasicTopology : public UE::Geometry::FGroupTopology
 	{
 	public:
 		FBasicTopology(const FDynamicMesh3* Mesh, bool bAutoBuild) :

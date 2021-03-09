@@ -10,9 +10,15 @@
 #include "MeshBoundaryLoops.h"
 #include "Curve/GeneralPolygon2.h"
 
+
+
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
-template<typename RealType>
-class TDynamicMeshScalarTriangleAttribute;
+template<typename RealType> class TDynamicMeshScalarTriangleAttribute;
 
 /**
  * Cut the Mesh with the Plane. The *positive* side, ie (p-o).n > 0, is removed.
@@ -157,3 +163,7 @@ protected:
 	// set of vertices lying on plane after calling SplitCrossingEdges
 	TSet<int32> OnCutVertices;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

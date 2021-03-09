@@ -6,6 +6,10 @@
 #include "VectorTypes.h"
 #include "IndexTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FIndexedWeightMap stores an array of values, the intention is that these are "weights" on indices,
@@ -64,3 +68,7 @@ public:
 typedef TIndexedWeightMap<float> FIndexedWeightMap;
 typedef TIndexedWeightMap<float> FIndexedWeightMap1f;
 typedef TIndexedWeightMap<double> FIndexedWeightMap1d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

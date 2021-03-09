@@ -16,7 +16,11 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UTransformMeshesTool"
+
 
 /*
  * ToolBuilder

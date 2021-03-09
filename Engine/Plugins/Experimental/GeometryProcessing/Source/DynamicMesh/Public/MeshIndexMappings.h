@@ -4,6 +4,12 @@
 
 #include "DynamicMesh3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * FMeshIndexMappings stores a set of integer IndexMaps for a mesh
  * This is a convenient object to have, to avoid passing around large numbers of separate maps.
@@ -74,3 +80,6 @@ public:
 	inline bool ContainsNormal(int NormalLayer, int FromID) const { return NormalMaps[NormalLayer].ContainsFrom(FromID); }
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

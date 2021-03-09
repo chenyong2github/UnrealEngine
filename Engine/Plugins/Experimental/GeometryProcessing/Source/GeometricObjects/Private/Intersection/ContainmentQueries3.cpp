@@ -2,6 +2,7 @@
 
 #include "Intersection/ContainmentQueries3.h"
 
+using namespace UE::Geometry;
 
 template<typename RealType>
 bool UE::Geometry::IsInside(const TSphere3<RealType>& OuterSphere, const TSphere3<RealType>& InnerSphere)

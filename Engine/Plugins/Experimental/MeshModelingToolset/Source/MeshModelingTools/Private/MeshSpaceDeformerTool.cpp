@@ -27,10 +27,10 @@
 #include "CoreMinimal.h"
 #include "Math/Matrix.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "MeshSpaceDeformerTool"
-
 
 /*
  * ToolBuilder

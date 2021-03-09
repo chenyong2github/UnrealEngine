@@ -3,6 +3,8 @@
 #include "Drawing/UVLayoutPreview.h"
 #include "ToolSetupUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 UUVLayoutPreview::~UUVLayoutPreview()
 {

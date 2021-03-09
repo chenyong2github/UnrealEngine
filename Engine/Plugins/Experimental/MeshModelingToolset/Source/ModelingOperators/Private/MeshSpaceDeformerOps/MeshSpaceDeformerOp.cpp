@@ -3,6 +3,9 @@
 #include "SpaceDeformerOps/MeshSpaceDeformerOp.h"
 #include "DynamicMesh3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void FMeshSpaceDeformerOp::SetTransform(const FTransform& Transform)
 {
 	ResultTransform = (FTransform3d)Transform;

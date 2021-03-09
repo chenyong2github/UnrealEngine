@@ -12,6 +12,11 @@
 #include "MatrixBase.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FConstrainedSolver;
 
 /**
@@ -203,3 +208,7 @@ protected:
 	bool HasLaplacianScale() const;
 	double GetLaplacianScale(int32 LinearVtxIndex) const;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

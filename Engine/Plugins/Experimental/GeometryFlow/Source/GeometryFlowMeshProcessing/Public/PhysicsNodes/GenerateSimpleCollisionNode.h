@@ -16,6 +16,8 @@ namespace UE
 namespace GeometryFlow
 {
 
+using namespace UE::Geometry;
+
 enum class ESimpleCollisionGeometryType : uint8
 {
 	// NOTE: This must be kept in sync with EGenerateStaticMeshLODSimpleCollisionGeometryType in GenerateStaticMeshLODProcess.h

@@ -4,13 +4,17 @@
 
 #include "QueueRemesher.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Remeshing with "face aligned projection". This approach to projection attempts to preserve sharp features in the 
  * mesh by aligning triangle normals with normals from the original mesh during the projection pass.
  * This class also performs a pass of edge flips aimed at further aligning triangle normals to their originals. This
  * can be helpful in fixing the occasional single "bad edge" along a sequence of feature edges.
  */
-
 class DYNAMICMESH_API FNormalFlowRemesher : public FQueueRemesher
 {
 public:
@@ -83,3 +87,7 @@ protected:
 	/** Flip all edges for which EdgeFlipWouldReduceNormalError returns true */
 	void TrackedEdgeFlipPass();
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

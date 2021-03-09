@@ -31,7 +31,7 @@ class MODELINGCOMPONENTS_API FSpaceCurveSource
 {
 public:
 	TUniqueFunction<int32()> GetPointCount;
-	TUniqueFunction<FFrame3d(int32)> GetPoint;
+	TUniqueFunction<UE::Geometry::FFrame3d(int32)> GetPoint;
 	TUniqueFunction<bool()> IsLoop;
 };
 
@@ -68,6 +68,7 @@ UCLASS()
 class MODELINGCOMPONENTS_API USpaceCurveDeformationMechanicPropertySet : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
+	using FVector3d = UE::Geometry::FVector3d;
 
 public:
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -94,7 +95,7 @@ UCLASS()
 class MODELINGCOMPONENTS_API USpaceCurveDeformationMechanic : public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	// Behaviors used for moving points around and hovering them
@@ -119,7 +120,7 @@ public:
 	void SelectionFill();
 	void SelectionClear();
 
-	void GetCurrentCurvePoints(TArray<FFrame3d>& PointsOut) { PointsOut = CurvePoints; }
+	void GetCurrentCurvePoints(TArray<UE::Geometry::FFrame3d>& PointsOut) { PointsOut = CurvePoints; }
 
 
 	// Some other standard functions
@@ -152,10 +153,10 @@ protected:
 	TSharedPtr<FSpaceCurveSource> CurveSource;
 	TSharedPtr<FSpaceCurveSource> EmptyCurveSource;
 
-	TArray<FFrame3d> CurvePoints;
+	TArray<UE::Geometry::FFrame3d> CurvePoints;
 
 	// Used for spatial queries
-	FGeometrySet3 GeometrySet;
+	UE::Geometry::FGeometrySet3 GeometrySet;
 
 	bool bSpatialValid = false;
 	void UpdateSpatial();
@@ -214,9 +215,9 @@ protected:
 	// Support for selection
 	TArray<int32> SelectedPointIDs;
 	// We need the selected point start positions so we can move multiple points appropriately.
-	TArray<FFrame3d> CurveStartPositions;
+	TArray<UE::Geometry::FFrame3d> CurveStartPositions;
 	// The starting point of the gizmo is needed to determine the offset by which to move the points.
-	FFrame3d GizmoStartPosition;
+	UE::Geometry::FFrame3d GizmoStartPosition;
 
 	// These issue undo/redo change objects, and must therefore not be called in undo/redo code.
 	void ChangeSelection(int32 NewPointID, bool AddToSelection);
@@ -227,7 +228,7 @@ protected:
 	bool DeselectPoint(int32 PointID);
 	void UpdateSelection(const TArray<int32>& NewSelection);
 	void UpdateGizmoLocation();
-	void UpdateCurve(const TArray<FFrame3d>& NewPositions);
+	void UpdateCurve(const TArray<UE::Geometry::FFrame3d>& NewPositions);
 
 	// Used for expiring undo/redo changes, which compare this to their stored value and expire themselves if they do not match.
 	int32 CurrentChangeStamp = 0;
@@ -255,13 +256,13 @@ protected:
 class MODELINGCOMPONENTS_API FSpaceCurveDeformationMechanicMovementChange : public FToolCommandChange
 {
 public:
-	FSpaceCurveDeformationMechanicMovementChange(const TArray<FFrame3d>& FromPositions, const TArray<FFrame3d>& ToPositions);
+	FSpaceCurveDeformationMechanicMovementChange(const TArray<UE::Geometry::FFrame3d>& FromPositions, const TArray<UE::Geometry::FFrame3d>& ToPositions);
 
 	virtual void Apply(UObject* Object) override;
 	virtual void Revert(UObject* Object) override;
 	virtual FString ToString() const override;
 
 protected:
-	TArray<FFrame3d> From;
-	TArray<FFrame3d> To;
+	TArray<UE::Geometry::FFrame3d> From;
+	TArray<UE::Geometry::FFrame3d> To;
 };

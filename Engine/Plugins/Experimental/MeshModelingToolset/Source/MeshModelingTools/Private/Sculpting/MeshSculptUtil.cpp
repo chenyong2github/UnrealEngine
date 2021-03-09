@@ -4,6 +4,8 @@
 #include "Async/ParallelFor.h"
 #include "Async/Async.h"
 
+using namespace UE::Geometry;
+
 void UE::SculptUtil::RecalculateNormals_Overlay(
 	FDynamicMesh3* Mesh, 
 	const TSet<int32>& ModifiedTris, 

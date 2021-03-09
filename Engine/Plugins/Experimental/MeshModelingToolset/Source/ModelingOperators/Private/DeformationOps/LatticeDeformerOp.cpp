@@ -3,6 +3,9 @@
 #include "DeformationOps/LatticeDeformerOp.h"
 #include "Operations/FFDLattice.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void FLatticeDeformerOp::CalculateResult(FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())

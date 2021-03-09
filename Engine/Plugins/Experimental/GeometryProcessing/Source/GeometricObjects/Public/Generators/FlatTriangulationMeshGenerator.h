@@ -4,6 +4,11 @@
 
 #include "MeshShapeGenerator.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Generate planar triangulation of a Polygon.
  */
@@ -38,3 +43,7 @@ public:
 		return v;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

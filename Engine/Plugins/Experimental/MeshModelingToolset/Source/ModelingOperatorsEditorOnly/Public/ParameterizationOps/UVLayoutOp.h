@@ -6,6 +6,11 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 enum class EUVLayoutOpLayoutModes
 {
@@ -42,4 +47,6 @@ public:
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE
 

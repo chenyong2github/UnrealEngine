@@ -7,6 +7,11 @@
 #include "MatrixTypes.h"
 #include "Math/UnrealMathUtility.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * QuadricError represents a quadratic function that evaluates distance to plane.
@@ -791,3 +796,7 @@ TQuadricError<RealType>  CreateSeamQuadric(const FVector3<RealType>& p0, const F
 
 	return SeamQuadric;
 }
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

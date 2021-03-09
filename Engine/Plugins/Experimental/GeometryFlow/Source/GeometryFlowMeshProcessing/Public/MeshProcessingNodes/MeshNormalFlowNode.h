@@ -12,6 +12,8 @@ namespace UE
 namespace GeometryFlow
 {
 
+using namespace UE::Geometry;
+
 struct FMeshNormalFlowSettings : public FMeshSimplifySettings
 {
 	DECLARE_GEOMETRYFLOW_DATA_TYPE_IDENTIFIER(EMeshProcessingDataTypes::NormalFlowSettings);

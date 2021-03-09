@@ -8,8 +8,12 @@
 #include "ThirdParty/GTEngine/Mathematics/GteUIntegerAP32.h"
 #include "ThirdParty/GTEngine/Mathematics/GteMinimumVolumeSphere3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
+namespace UE {
+namespace Geometry {
 
 template <typename RealType>
 struct TMinVolumeSphere3Internal
@@ -57,6 +61,9 @@ struct TMinVolumeSphere3Internal
 
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE
+
 
 
 template<typename RealType>
@@ -100,7 +107,13 @@ void TMinVolumeSphere3<RealType>::Initialize(int32 NumPoints, bool bUseExactComp
 
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 template class GEOMETRYALGORITHMS_API TMinVolumeSphere3<float>;
 template class GEOMETRYALGORITHMS_API TMinVolumeSphere3<double>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

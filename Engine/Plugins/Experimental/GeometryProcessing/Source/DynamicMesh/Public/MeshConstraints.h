@@ -6,6 +6,11 @@
 
 #include "Spatial/SpatialInterfaces.h"   // for projection target
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * EEdgeRefineFlags indicate constraints on triangle mesh edges
  */
@@ -365,3 +370,7 @@ public:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

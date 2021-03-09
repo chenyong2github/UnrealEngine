@@ -8,6 +8,11 @@
 #include "RayTypes.h"
 #include "BoxTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TPolyline3 represents a 3D polyline stored as a list of Vertices.
  *
@@ -440,3 +445,6 @@ public:
 
 typedef TPolyline3<double> FPolyline3d;
 typedef TPolyline3<float> FPolyline3f;
+
+} // end namespace UE::Geometry
+} // end namespace UE

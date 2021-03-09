@@ -8,6 +8,12 @@
 #include "DynamicMeshAttributeSet.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 enum class EParamOpUnwrapType
 {
 	MinStretch = 0,
@@ -101,3 +107,6 @@ protected:
 
 	void NormalizeUVAreas(const FDynamicMesh3& Mesh, FDynamicMeshUVOverlay* Overlay, float GlobalScale = 1.0f);
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

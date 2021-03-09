@@ -8,6 +8,11 @@
 #include "DynamicMesh3.h"
 #include "Containers/IndirectArray.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FMeshConnectedComponents calculates Connected Components of a Mesh, or sub-regions of a Mesh.
  * By default the actual mesh connectivity is used, but an optional connectivity predicate
@@ -169,3 +174,7 @@ public:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

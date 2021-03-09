@@ -8,6 +8,10 @@
 #include "BoxTypes.h"
 #include "VectorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Compute intersection between 3D ray and 3D axis-aligned box
@@ -218,3 +222,6 @@ protected:
 
 typedef TIntrRay3AxisAlignedBox3<float> FIntrRay3AxisAlignedBox3f;
 typedef TIntrRay3AxisAlignedBox3<double> FIntrRay3AxisAlignedBox3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

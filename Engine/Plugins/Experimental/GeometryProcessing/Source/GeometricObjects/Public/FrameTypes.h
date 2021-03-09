@@ -9,6 +9,11 @@
 #include "Quaternion.h"
 #include "TransformTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TFrame3 is an object that represents an oriented 3D coordinate frame, ie orthogonal X/Y/Z axes at a point in space.
  * One can think of this Frame as a local coordinate space measured along these axes.
@@ -447,3 +452,5 @@ struct TFrame3
 typedef TFrame3<float> FFrame3f;
 typedef TFrame3<double> FFrame3d;
 
+} // end namespace UE::Geometry
+} // end namespace UE

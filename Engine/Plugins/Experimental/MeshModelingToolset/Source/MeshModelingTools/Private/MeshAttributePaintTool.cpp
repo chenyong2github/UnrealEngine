@@ -7,13 +7,12 @@
 #include "ToolSetupUtil.h"
 #include "Selections/MeshConnectedComponents.h"
 
-
 #include "MeshDescription.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMeshAttributePaintTool"
-
-
 
 class FMeshDescriptionVertexAttributeAdapter : public IMeshVertexAttributeAdapter
 {

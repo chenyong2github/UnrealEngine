@@ -9,6 +9,7 @@ namespace UE
 {
 	namespace MeshDeformation
 	{
+		using namespace UE::Geometry;
 
 		// Utility to compute the number of elements in the sparse laplacian matrix
 		DYNAMICMESH_API int32 ComputeNumMatrixElements(const FDynamicMesh3& DynamicMesh, const TArray<int32>& ToVtxId);

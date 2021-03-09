@@ -15,6 +15,8 @@ namespace UE
 {
 	namespace MeshDeformation
 	{
+		using namespace UE::Geometry;
+
 		/**
 		* Construct a sparse matrix representation of a uniform weighted Laplacian.
 		* The uniform weighted Laplacian is defined solely in terms of the connectivity

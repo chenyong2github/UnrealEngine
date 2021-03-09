@@ -17,8 +17,9 @@
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "PhysicsEngine/AggregateGeom.h"
 
+using namespace UE::Geometry;
 
-UE::Geometry::FComponentCollisionSettings UE::Geometry::GetCollisionSettings(const UPrimitiveComponent* Component)
+FComponentCollisionSettings UE::Geometry::GetCollisionSettings(const UPrimitiveComponent* Component)
 {
 	FComponentCollisionSettings Settings;
 

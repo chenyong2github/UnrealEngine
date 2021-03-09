@@ -7,6 +7,11 @@
 #include "RayTypes.h"
 #include "Polyline3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FGeometrySet3 stores a set of 3D Points and Polyline curves,
  * and supports spatial queries against these sets. 
@@ -221,3 +226,7 @@ protected:
 	TMap<int, int> CurveIDToIndex;
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

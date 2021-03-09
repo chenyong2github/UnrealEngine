@@ -13,6 +13,11 @@
 #include "MathUtil.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TGeneralPolygon2 is a 2D polygon with holes
  */
@@ -313,3 +318,6 @@ public:
 typedef TGeneralPolygon2<double> FGeneralPolygon2d;
 typedef TGeneralPolygon2<float> FGeneralPolygon2f;
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

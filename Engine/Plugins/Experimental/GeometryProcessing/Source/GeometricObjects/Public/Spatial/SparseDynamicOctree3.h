@@ -14,6 +14,10 @@
 #include "Intersection/IntrRay3AxisAlignedBox3.h"
 #include "Async/ParallelFor.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Utility class that allows for get/set of a flag for each integer ID, where
@@ -421,3 +425,6 @@ protected:
 
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

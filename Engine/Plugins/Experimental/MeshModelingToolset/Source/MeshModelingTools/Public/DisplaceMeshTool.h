@@ -240,7 +240,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDisplaceMeshTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 	void Setup() final;
 	void Shutdown(EToolShutdownType ShutdownType) final;
@@ -278,20 +278,20 @@ private:
 	void AdvanceComputation();
 	void ValidateSubdivisions();
 
-	FAsyncTaskExecuterWithAbort<TModelingOpTask<FDynamicMeshOperator>>* SubdivideTask = nullptr;
+	UE::Geometry::FAsyncTaskExecuterWithAbort<UE::Geometry::TModelingOpTask<UE::Geometry::FDynamicMeshOperator>>* SubdivideTask = nullptr;
 	bool bNeedsSubdivided = true;
-	FAsyncTaskExecuterWithAbort<TModelingOpTask<FDynamicMeshOperator>>* DisplaceTask = nullptr;
+	UE::Geometry::FAsyncTaskExecuterWithAbort<UE::Geometry::TModelingOpTask<UE::Geometry::FDynamicMeshOperator>>* DisplaceTask = nullptr;
 	bool bNeedsDisplaced = true;
 
-	FDynamicMesh3 OriginalMesh;
-	FDynamicMeshAABBTree3 OriginalMeshSpatial;
-	TSharedPtr<FIndexedWeightMap, ESPMode::ThreadSafe> ActiveWeightMap;
+	UE::Geometry::FDynamicMesh3 OriginalMesh;
+	UE::Geometry::FDynamicMeshAABBTree3 OriginalMeshSpatial;
+	TSharedPtr<UE::Geometry::FIndexedWeightMap, ESPMode::ThreadSafe> ActiveWeightMap;
 	void UpdateActiveWeightMap();
-	float WeightMapQuery(const FVector3d& Position, const FIndexedWeightMap& WeightMap) const;
+	float WeightMapQuery(const FVector3d& Position, const UE::Geometry::FIndexedWeightMap& WeightMap) const;
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SubdividedMesh = nullptr;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> SubdividedMesh = nullptr;
 	USimpleDynamicMeshComponent* DynamicMeshComponent = nullptr;
 
-	TUniquePtr<IDynamicMeshOperatorFactory> Subdivider = nullptr;
-	TUniquePtr<IDynamicMeshOperatorFactory> Displacer = nullptr;
+	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> Subdivider = nullptr;
+	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> Displacer = nullptr;
 };

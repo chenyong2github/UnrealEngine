@@ -18,6 +18,9 @@ UCLASS(Transient)
 class MODELINGCOMPONENTS_API UPolyEditPreviewMesh : public UPreviewMesh
 {
 	GENERATED_BODY()
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FTransform3d = UE::Geometry::FTransform3d;	
 public:
 
 	//
@@ -63,12 +66,12 @@ public:
 	const FDynamicMesh3& GetInitialPatchMesh() const { return InitialEditPatch; }
 
 	// must be non-const because query functions are non-const
-	FDynamicMeshAABBTree3& GetInitialPatchMeshSpatial() { return InitialEditPatchBVTree; }
+	UE::Geometry::FDynamicMeshAABBTree3& GetInitialPatchMeshSpatial() { return InitialEditPatchBVTree; }
 
 protected:
-	TUniquePtr<FDynamicSubmesh3> ActiveSubmesh;
+	TUniquePtr<UE::Geometry::FDynamicSubmesh3> ActiveSubmesh;
 	FDynamicMesh3 InitialEditPatch;
-	FDynamicMeshAABBTree3 InitialEditPatchBVTree;
+	UE::Geometry::FDynamicMeshAABBTree3 InitialEditPatchBVTree;
 
 	TArray<int32> EditVertices;
 	TArray<FVector3d> InitialPositions;
@@ -78,6 +81,6 @@ protected:
 
 	FVector3d InputDirection;
 
-	FTransform3d MeshTransform;
+	UE::Geometry::FTransform3d MeshTransform;
 	bool bHaveMeshTransform;
 };

@@ -9,6 +9,8 @@
  */
 namespace MeshIndexUtil
 {
+	using namespace UE::Geometry;
+
 	//
 	// Do not add any more functions to this namespace. Use UE::MeshIndexUtil instead
 	//
@@ -36,6 +38,8 @@ namespace UE
 {
 	namespace MeshIndexUtil
 	{
+		using namespace UE::Geometry;
+
 		/**
 		 * Find list of unique vertices that are contained in one or more triangles
 		 * @param Mesh input mesh

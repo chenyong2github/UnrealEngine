@@ -28,6 +28,9 @@
 #include "Misc/ScopedSlowTask.h"
 #endif
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UGenerateLODMeshesTool"
 
 /*
@@ -276,9 +279,9 @@ void UGenerateLODMeshesTool::OnPreviewUpdated(UMeshOpPreviewWithBackgroundComput
 }
 
 
-TUniquePtr<FDynamicMeshOperator> FGenerateLODOperatorFactory::MakeNewOperator()
+TUniquePtr<UE::Geometry::FDynamicMeshOperator> FGenerateLODOperatorFactory::MakeNewOperator()
 {
-	TUniquePtr<FSimplifyMeshOp> Op = MakeUnique<FSimplifyMeshOp>();
+	TUniquePtr<UE::Geometry::FSimplifyMeshOp> Op = MakeUnique<UE::Geometry::FSimplifyMeshOp>();
 
 	UGenerateLODMeshesToolProperties* SimplifyProperties = ParentTool->SimplifyProperties;
 

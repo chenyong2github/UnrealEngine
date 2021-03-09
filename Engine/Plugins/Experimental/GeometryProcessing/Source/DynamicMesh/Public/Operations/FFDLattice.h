@@ -7,9 +7,14 @@
 #include "Containers/StaticArray.h"
 #include "DynamicMeshAttributeSet.h"
 
-class FDynamicMesh3;
 class FProgressCancel;
 
+namespace UE
+{
+namespace Geometry
+{
+
+class FDynamicMesh3;
 
 enum class ELatticeInterpolation : uint8
 {
@@ -124,3 +129,6 @@ protected:
 
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -16,8 +16,10 @@
 #include "ParameterizationOps/ParameterizeMeshOp.h"
 #include "ToolSetupUtil.h"
 
-#define LOCTEXT_NAMESPACE "UParameterizeMeshTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "UParameterizeMeshTool"
 
 DEFINE_LOG_CATEGORY_STATIC(LogParameterizeMeshTool, Log, All);
 

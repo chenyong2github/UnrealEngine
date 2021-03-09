@@ -78,10 +78,10 @@ public:
  * Simple Mesh Simplifying Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsTool : public USingleSelectionTool, public IGenericDataOperatorFactory<FMeshTangentsd>
+class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsTool : public USingleSelectionTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshTangentsd>
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 	UMeshTangentsTool();
 
@@ -98,7 +98,7 @@ public:
 	virtual bool CanAccept() const override;
 
 	// IGenericDataOperatorFactory API
-	virtual TUniquePtr<TGenericDataOperator<FMeshTangentsd>> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::TGenericDataOperator<UE::Geometry::FMeshTangentsd>> MakeNewOperator() override;
 
 protected:
 	UPROPERTY()
@@ -114,20 +114,20 @@ protected:
 	UPROPERTY()
 	UPreviewGeometry* PreviewGeometry = nullptr;
 
-	TUniquePtr<TGenericDataBackgroundCompute<FMeshTangentsd>> Compute = nullptr;
+	TUniquePtr<TGenericDataBackgroundCompute<UE::Geometry::FMeshTangentsd>> Compute = nullptr;
 
 protected:
 	UWorld* TargetWorld;
 
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> InputMeshDescription;
-	TSharedPtr<FMeshTangentsf, ESPMode::ThreadSafe> InitialTangents;
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
+	TSharedPtr<UE::Geometry::FMeshTangentsf, ESPMode::ThreadSafe> InitialTangents;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
 
 	bool bThicknessDirty = false;
 	bool bLengthDirty = false;
 	bool bVisibilityChanged = false;
 
-	void OnTangentsUpdated(const TUniquePtr<FMeshTangentsd>& NewResult);
+	void OnTangentsUpdated(const TUniquePtr<UE::Geometry::FMeshTangentsd>& NewResult);
 	void UpdateVisualization(bool bThicknessChanged, bool bLengthChanged);
 
 	struct FMikktDeviation

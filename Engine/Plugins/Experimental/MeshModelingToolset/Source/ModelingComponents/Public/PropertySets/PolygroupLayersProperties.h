@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveTool.h"
+#include "GeometryBase.h"
 #include "PolygroupLayersProperties.generated.h"
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  * Basic Tool Property Set that allows for selecting from a list of FNames (that we assume are Polygroup Layers)

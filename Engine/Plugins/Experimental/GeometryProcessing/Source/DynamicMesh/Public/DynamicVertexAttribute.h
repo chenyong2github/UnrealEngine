@@ -5,6 +5,10 @@
 #include "DynamicMesh3.h"
 #include "DynamicAttribute.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 template<typename AttribValueType, int AttribDimension, typename ParentType>
 class TDynamicVertexAttribute;
@@ -438,4 +442,5 @@ bool TDynamicVertexAttributeChange<AttribValueType, AttribDimension, ParentType>
 }
 
 
-
+} // end namespace UE::Geometry
+} // end namespace UE

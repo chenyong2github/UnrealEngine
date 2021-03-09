@@ -144,7 +144,7 @@ public:
  * Simple Mesh Plane Cutting Tool
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshTool : public USingleSelectionTool, public IDynamicMeshOperatorFactory, public IClickBehaviorTarget, public IHoverBehaviorTarget
+class MESHMODELINGTOOLSEDITORONLY_API UPolygonOnMeshTool : public USingleSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -167,7 +167,7 @@ public:
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 
 	virtual void RequestAction(EPolygonOnMeshToolActions ActionType);
@@ -212,10 +212,10 @@ protected:
 protected:
 	UWorld* TargetWorld;
 
-	FTransform3d WorldTransform;
+	UE::Geometry::FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	UPROPERTY()
 	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
@@ -225,10 +225,10 @@ protected:
 
 	EPolygonOnMeshToolActions PendingAction = EPolygonOnMeshToolActions::NoAction;
 
-	FFrame3d DrawPlaneWorld;
+	UE::Geometry::FFrame3d DrawPlaneWorld;
 
-	FPolygon2d LastDrawnPolygon;
-	FPolygon2d ActivePolygon;
+	UE::Geometry::FPolygon2d LastDrawnPolygon;
+	UE::Geometry::FPolygon2d ActivePolygon;
 	void UpdatePolygonType();
 
 	void SetupPreview();

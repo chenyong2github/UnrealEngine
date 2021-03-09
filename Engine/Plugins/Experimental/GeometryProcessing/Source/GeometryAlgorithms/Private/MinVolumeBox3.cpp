@@ -23,6 +23,12 @@ THIRD_PARTY_INCLUDES_END
 #include "GteUtil.h"
 #include "Util/ProgressCancel.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
+namespace UE {
+namespace Geometry {
+
 template <typename RealType>
 struct TMinVolumeBox3Internal
 {
@@ -103,7 +109,8 @@ struct TMinVolumeBox3Internal
 
 };
 
-
+} // end namespace UE::Geometry
+} // end namespace UE
 
 template<typename RealType>
 bool TMinVolumeBox3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc, bool bUseExactBox, FProgressCancel* Progress )
@@ -143,6 +150,13 @@ void TMinVolumeBox3<RealType>::Initialize(int32 NumPoints, bool bUseExactBox)
 }
 
 
+namespace UE
+{
+namespace Geometry
+{
 
 template class GEOMETRYALGORITHMS_API TMinVolumeBox3<float>;
 template class GEOMETRYALGORITHMS_API TMinVolumeBox3<double>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

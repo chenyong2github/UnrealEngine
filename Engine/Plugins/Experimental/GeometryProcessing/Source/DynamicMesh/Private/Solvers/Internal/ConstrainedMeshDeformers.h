@@ -4,8 +4,12 @@
 
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
-
 #include "ConstrainedMeshDeformationSolver.h"
+
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -51,3 +55,7 @@ private:
 	FSOAPositions LaplacianVectors;
 	FSOAPositions OriginalPositions;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

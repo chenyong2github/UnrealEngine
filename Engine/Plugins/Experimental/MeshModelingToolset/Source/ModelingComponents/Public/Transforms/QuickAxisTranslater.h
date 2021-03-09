@@ -6,6 +6,10 @@
 #include "QuickTransformer.h"
 #include "Snapping/RaySpatialSnapSolver.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FQuickAxisTranslater implements the underpinnings for "quick" axis transformations, ie axis-gizmo-like
@@ -103,3 +107,6 @@ protected:
 
 	FToolDataVisualizer QuickAxisPreviewRenderer;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -8,10 +8,13 @@
 #include "FSparseMatrixD.h"
 #include "MatrixSolver.h"
 
-
 // only needed if you enable logging by changing the typedef for FConstrainedSolverTimeLogger
 //#include "ProfilingDebugging/ScopedTimers.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -377,3 +380,6 @@ private:
 
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

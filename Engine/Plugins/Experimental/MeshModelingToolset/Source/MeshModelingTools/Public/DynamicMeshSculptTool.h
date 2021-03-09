@@ -28,10 +28,12 @@ class UTransformProxy;
 class UMaterialInstanceDynamic;
 
 class FMeshVertexChangeBuilder;
-class FDynamicMeshChangeTracker;
 class UPreviewMesh;
-class FSubRegionRemesher;
+PREDECLARE_GEOMETRY(class FDynamicMeshChangeTracker);
+PREDECLARE_GEOMETRY(class FSubRegionRemesher);
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 class FPersistentStampRemesher;
+
 
 /** Mesh Sculpting Brush Types */
 UENUM()
@@ -224,6 +226,9 @@ class MESHMODELINGTOOLS_API UDynamicMeshSculptTool : public UMeshSurfacePointToo
 	GENERATED_BODY()
 
 public:
+	using FFrame3d = UE::Geometry::FFrame3d;
+	using FRay3d = UE::Geometry::FRay3d;
+
 	UDynamicMeshSculptTool();
 
 	virtual void SetWorld(UWorld* World);
@@ -315,8 +320,8 @@ private:
 	UPROPERTY()
 	UMaterialInstanceDynamic* ActiveOverrideMaterial;
 
-	FTransform3d InitialTargetTransform;
-	FTransform3d CurTargetTransform;
+	UE::Geometry::FTransform3d InitialTargetTransform;
+	UE::Geometry::FTransform3d CurTargetTransform;
 
 	// realtime visualization
 	void OnDynamicMeshComponentChanged();
@@ -337,15 +342,15 @@ private:
 	void UpdateBrushType(EDynamicMeshSculptBrushType BrushType);
 	void UpdateGizmoFromProperties();
 
-	FInterval1d BrushRelativeSizeRange;
+	UE::Geometry::FInterval1d BrushRelativeSizeRange;
 	double CurrentBrushRadius;
 	void CalculateBrushRadius();
 
 	bool bEnableRemeshing;
 	double InitialEdgeLength;
 	void ScheduleRemeshPass();
-	void ConfigureRemesher(FSubRegionRemesher& Remesher);
-	void InitializeRemesherROI(FSubRegionRemesher& Remesher);
+	void ConfigureRemesher(UE::Geometry::FSubRegionRemesher& Remesher);
+	void InitializeRemesherROI(UE::Geometry::FSubRegionRemesher& Remesher);
 
 	TSharedPtr<FPersistentStampRemesher> ActiveRemesher;
 	void InitializeActiveRemesher();
@@ -355,7 +360,7 @@ private:
 
 	bool bInDrag;
 
-	FFrame3d ActiveDragPlane;
+	UE::Geometry::FFrame3d ActiveDragPlane;
 	FVector3d LastHitPosWorld;
 	FVector3d BrushStartCenterWorld;
 	FVector3d BrushStartNormalWorld;
@@ -366,9 +371,9 @@ private:
 	int32 LastBrushTriangleID = -1;
 
 	TArray<int> UpdateROITriBuffer;
-	FUniqueIndexSet VertexROIBuilder;
+	UE::Geometry::FUniqueIndexSet VertexROIBuilder;
 	TArray<int> VertexROI;
-	FUniqueIndexSet TriangleROIBuilder;
+	UE::Geometry::FUniqueIndexSet TriangleROIBuilder;
 	TSet<int> TriangleROI;
 	//TSet<int> TriangleROI;
 	void UpdateROI(const FVector3d& BrushPos);
@@ -393,8 +398,8 @@ private:
 	void ApplyStamp(const FRay& WorldRay);
 
 	FDynamicMesh3 BrushTargetMesh;
-	FDynamicMeshAABBTree3 BrushTargetMeshSpatial;
-	FMeshNormals BrushTargetNormals;
+	UE::Geometry::FDynamicMeshAABBTree3 BrushTargetMeshSpatial;
+	UE::Geometry::FMeshNormals BrushTargetNormals;
 	bool bCachedFreezeTarget = false;
 	void UpdateTarget();
 	bool GetTargetMeshNearest(const FVector3d& Position, double SearchRadius, FVector3d& TargetPosOut, FVector3d& TargetNormalOut);
@@ -429,8 +434,8 @@ private:
 	TArray<FVector3d> ROIPositionBuffer;
 	void SyncMeshWithPositionBuffer(FDynamicMesh3* Mesh);
 
-	FFrame3d ActiveFixedBrushPlane;
-	FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned);
+	UE::Geometry::FFrame3d ActiveFixedBrushPlane;
+	UE::Geometry::FFrame3d ComputeROIBrushPlane(const FVector3d& BrushCenter, bool bIgnoreDepth, bool bViewAligned);
 
 	TArray<int> NormalsBuffer;
 	TArray<bool> NormalsVertexFlags;
@@ -446,7 +451,7 @@ private:
 	void RemeshROIPass();
 
 	FMeshVertexChangeBuilder* ActiveVertexChange = nullptr;
-	FDynamicMeshChangeTracker* ActiveMeshChange = nullptr;
+	UE::Geometry::FDynamicMeshChangeTracker* ActiveMeshChange = nullptr;
 	void BeginChange(bool bIsVertexChange);
 	void EndChange();
 	void SaveActiveROI();

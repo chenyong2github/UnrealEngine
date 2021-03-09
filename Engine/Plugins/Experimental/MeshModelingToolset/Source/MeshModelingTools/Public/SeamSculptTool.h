@@ -8,7 +8,7 @@
 
 class UExistingMeshMaterialProperties;
 class UPreviewGeometry;
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  *
@@ -50,6 +50,7 @@ UCLASS(Transient)
 class MESHMODELINGTOOLS_API USeamSculptTool : public UDynamicMeshBrushTool
 {
 	GENERATED_BODY()
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 	USeamSculptTool();
 
@@ -85,7 +86,7 @@ protected:
 	UPreviewGeometry* PreviewGeom;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh;
-	FTransform3d MeshTransform;
+	UE::Geometry::FTransform3d MeshTransform;
 	double NormalOffset = 0;
 
 	void InitPreviewGeometry();

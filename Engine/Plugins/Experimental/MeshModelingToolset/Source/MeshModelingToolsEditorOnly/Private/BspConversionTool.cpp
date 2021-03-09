@@ -24,6 +24,9 @@
 #include "Misc/MessageDialog.h"
 #include "Logging/TokenizedMessage.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UBspConversionTool"
 
 // Forward declarations of local functions

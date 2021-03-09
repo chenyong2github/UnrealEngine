@@ -8,6 +8,10 @@
 #include "ConstrainedMeshDeformationSolver.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -63,3 +67,7 @@ public:
 	bool ComputeSmoothedMeshPositions(TArray<FVector3d>& UpdatedPositions);
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -6,6 +6,8 @@
 #include "MatrixSolver.h"
 #include "ConstrainedPoissonSolver.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 #ifdef TIME_LAPLACIAN_SMOOTHERS
 

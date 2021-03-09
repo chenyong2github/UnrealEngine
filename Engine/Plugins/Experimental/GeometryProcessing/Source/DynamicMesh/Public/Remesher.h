@@ -7,6 +7,11 @@
 #include "MeshRefinerBase.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FRemesher implements edge flip/split/collapse/smooth Remeshing.
  * The basic process is very similar to the one described in:
@@ -372,3 +377,7 @@ protected:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

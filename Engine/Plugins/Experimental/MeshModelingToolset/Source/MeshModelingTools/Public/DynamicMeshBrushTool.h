@@ -11,6 +11,7 @@
 #include "PreviewMesh.h"
 #include "DynamicMeshBrushTool.generated.h"
 
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  * UDynamicMeshBrushTool is a base class that specializes UBaseBrushTool
@@ -47,7 +48,7 @@ protected:
 	virtual void OnBaseMeshComponentChanged() {}	
 	FDelegateHandle OnBaseMeshComponentChangedHandle;
 
-	FAxisAlignedBox3d InputMeshBoundsLocal;
+	UE::Geometry::FAxisAlignedBox3d InputMeshBoundsLocal;
 
 	//
 	// UBaseBrushTool private interface

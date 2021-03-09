@@ -3,6 +3,8 @@
 #include "MeshTangents.h"
 #include "Async/ParallelFor.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 template<typename RealType>
 void TMeshTangents<RealType>::SetTangentCount(int Count, bool bClearToZero)
@@ -477,10 +479,15 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 	}
 }
 
+namespace UE
+{
+namespace Geometry
+{
 
 template class DYNAMICMESH_API TMeshTangents<float>;
 template class DYNAMICMESH_API TMeshTangents<double>;
 
-
+} // end namespace UE::Geometry
+} // end namespace UE
 
 

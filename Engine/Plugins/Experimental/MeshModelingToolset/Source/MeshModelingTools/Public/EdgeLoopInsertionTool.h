@@ -101,13 +101,13 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLS_API UEdgeLoopInsertionOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UEdgeLoopInsertionOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UEdgeLoopInsertionTool* Tool;
@@ -118,7 +118,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API UEdgeLoopInsertionTool : public USingleSelectionTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	friend class UEdgeLoopInsertionOperatorFactory;
@@ -158,7 +158,7 @@ protected:
 
 	TSharedPtr<FDynamicMesh3> CurrentMesh;
 	TSharedPtr<FGroupTopology> CurrentTopology;
-	FDynamicMeshAABBTree3 MeshSpatial;
+	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 	FGroupTopologySelector TopologySelector;
 
 	TArray<TPair<FVector3d, FVector3d>> PreviewEdges;

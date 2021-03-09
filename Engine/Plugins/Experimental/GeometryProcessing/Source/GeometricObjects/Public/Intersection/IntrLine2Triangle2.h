@@ -11,6 +11,11 @@
 
 #include "Intersection/Intersector1.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute intersection between 2D Line and 2D Triangle
  */
@@ -259,3 +264,6 @@ public:
 
 typedef TIntrLine2Triangle2<float> FIntrLine2Triangle2f;
 typedef TIntrLine2Triangle2<double> FIntrLine2Triangle2d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

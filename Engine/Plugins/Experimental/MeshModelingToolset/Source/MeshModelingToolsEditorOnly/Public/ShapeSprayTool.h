@@ -102,9 +102,9 @@ protected:
 	UWorld* TargetWorld;
 	IAssetGenerationAPI* AssetAPI;
 
-	FDynamicMesh3 ShapeMesh;
+	UE::Geometry::FDynamicMesh3 ShapeMesh;
 	void UpdateShapeMesh();
-	void SplatShape(const FFrame3d& LocalFrame, double Scale, FDynamicMesh3* TargetMesh);
+	void SplatShape(const UE::Geometry::FFrame3d& LocalFrame, double Scale, UE::Geometry::FDynamicMesh3* TargetMesh);
 	TArray<int> VertexMap;
 
 	FRandomStream Random;

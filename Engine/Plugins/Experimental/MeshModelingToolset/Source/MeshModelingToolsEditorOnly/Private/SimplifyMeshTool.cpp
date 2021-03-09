@@ -30,6 +30,9 @@
 #include "Misc/ScopedSlowTask.h"
 #endif
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "USimplifyMeshTool"
 
 DEFINE_LOG_CATEGORY_STATIC(LogMeshSimplification, Log, All);

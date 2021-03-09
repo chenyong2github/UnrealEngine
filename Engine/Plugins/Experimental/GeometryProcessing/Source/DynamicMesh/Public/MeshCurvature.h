@@ -12,6 +12,8 @@ namespace UE
 	 */
 	namespace MeshCurvature
 	{
+		using namespace UE::Geometry;
+
 		/**
 		 * Calculate the Discrete Mean-Curvature Normal at a vertex as defined by discrete differential geometry.
 		 * Based on Eq 8 from "Discrete Differential-Geometry Operators for Triangulated 2-Manifolds", Meyer et al 2002
@@ -47,6 +49,10 @@ namespace UE
 }
 
 
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -77,3 +83,6 @@ public:
 
 	void BuildAll(const FDynamicMesh3& Mesh);
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

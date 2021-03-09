@@ -6,7 +6,8 @@
 #include "VectorUtil.h"
 #include "Async/ParallelFor.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 template<typename GetPositionFuncType>
 FVector3d TMeanCurvatureNormal(const FDynamicMesh3& mesh, int32 v_i, GetPositionFuncType GetPositionFunc, double CotClampRange = 1000 /* about 0.05 deg */)

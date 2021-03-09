@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * TVectorSetAnalysis3 computes various analyses of a set of input Vectors (currently mainly clustering.
@@ -101,3 +105,6 @@ public:
 
 typedef TVectorSetAnalysis3<float> FVectorSetAnalysis3f;
 typedef TVectorSetAnalysis3<double> FVectorSetAnalysis3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

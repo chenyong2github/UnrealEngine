@@ -8,9 +8,9 @@
 
 namespace UE
 {
-
 	namespace Solvers
 	{
+		using namespace UE::Geometry;
 
 		/**
 		 * Generic adapter for building a Sparse Matrix. Generally sparse-matrix assembly

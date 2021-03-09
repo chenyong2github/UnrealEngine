@@ -3,7 +3,8 @@
 #include "DynamicMeshOverlay.h"
 #include "DynamicMesh3.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 template<typename RealType, int ElementSize>
@@ -1388,7 +1389,10 @@ bool TDynamicMeshOverlay<RealType, ElementSize>::CheckValidity(bool bAllowNonMan
 
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 // These are explicit instantiations of the templates that are exported from the shared lib.
 // Only these instantiations of the template can be used.
@@ -1409,3 +1413,6 @@ template class DYNAMICMESH_API TDynamicMeshVectorOverlay<int, 2, FVector2i>;
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<float, 3, FVector3f>;
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<double, 3, FVector3d>;
 template class DYNAMICMESH_API TDynamicMeshVectorOverlay<int, 3, FVector3i>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

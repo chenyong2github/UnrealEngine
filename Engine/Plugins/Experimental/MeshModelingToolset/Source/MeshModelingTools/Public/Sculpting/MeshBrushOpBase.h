@@ -8,7 +8,10 @@
 #include "InteractiveTool.h"
 #include "MeshBrushOpBase.generated.h"
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
+using UE::Geometry::FFrame3d;
+using UE::Geometry::FMatrix3d;
+using UE::Geometry::FVector3d;
 
 enum class ESculptBrushOpTargetType : uint8
 {

@@ -7,6 +7,9 @@
 #include "Properties/RevolveProperties.h"
 #include "Util/RevolveUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& MaterialProperties,
 	const FVector3d& RevolutionAxisOrigin, const FVector3d& RevolutionAxisDirection,
 	FCurveSweepOp& CurveSweepOpOut) const

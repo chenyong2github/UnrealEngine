@@ -5,10 +5,10 @@
 #include "VectorTypes.h"
 
 
-//
-// @todo: base interface that allows for iterating over
-// different kinds of index decompositions in a generic way
-// 
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -77,6 +77,7 @@ public:
 		return (*Found)->IndexArray;
 	}
 
-
-
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

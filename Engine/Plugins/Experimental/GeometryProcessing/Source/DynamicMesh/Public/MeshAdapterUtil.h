@@ -13,6 +13,7 @@
  */
 namespace MeshAdapterUtil
 {
+	using namespace UE::Geometry;
 
 	/**
 	 * @return Transformed adapter of a FDynamicMesh

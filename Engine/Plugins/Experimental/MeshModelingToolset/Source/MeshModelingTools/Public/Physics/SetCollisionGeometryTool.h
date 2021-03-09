@@ -13,8 +13,8 @@
 #include "SetCollisionGeometryTool.generated.h"
 
 class UPreviewGeometry;
-class FMeshSimpleShapeApproximation;
-
+PREDECLARE_GEOMETRY(class FMeshSimpleShapeApproximation)
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 UCLASS()
 class MESHMODELINGTOOLS_API USetCollisionGeometryToolBuilder : public UInteractiveToolBuilder
@@ -185,9 +185,9 @@ protected:
 
 		EDetectedCollisionGeometry DetectedType = EDetectedCollisionGeometry::None;
 
-		FSphere3d DetectedSphere;
-		FOrientedBox3d DetectedBox;
-		FCapsule3d DetectedCapsule;
+		UE::Geometry::FSphere3d DetectedSphere;
+		UE::Geometry::FOrientedBox3d DetectedBox;
+		UE::Geometry::FCapsule3d DetectedCapsule;
 	};
 	
 	bool bInputMeshesValid = false;
@@ -196,17 +196,17 @@ protected:
 	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> SeparatedInputMeshes;
 	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> PerGroupInputMeshes;
 
-	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> InputMeshesApproximator;
-	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> CombinedInputMeshesApproximator;
-	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> SeparatedMeshesApproximator;
-	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> PerGroupMeshesApproximator;
+	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> InputMeshesApproximator;
+	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> CombinedInputMeshesApproximator;
+	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> SeparatedMeshesApproximator;
+	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe> PerGroupMeshesApproximator;
 
 	void PrecomputeInputMeshes();
 	void InitializeDerivedMeshSet(
 		const TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& FromInputMeshes,
 		TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>>& ToMeshes,
 		TFunctionRef<bool(const FDynamicMesh3*, int32, int32)> TrisConnectedPredicate);
-	TSharedPtr<FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>& GetApproximator(ESetCollisionGeometryInputMode MeshSetMode);
+	TSharedPtr<UE::Geometry::FMeshSimpleShapeApproximation, ESPMode::ThreadSafe>& GetApproximator(ESetCollisionGeometryInputMode MeshSetMode);
 
 	FTransform OrigTargetTransform;
 	FVector TargetScale3D;

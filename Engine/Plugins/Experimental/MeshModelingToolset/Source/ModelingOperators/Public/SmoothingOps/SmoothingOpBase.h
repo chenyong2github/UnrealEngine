@@ -8,6 +8,12 @@
 #include "VectorTypes.h"
 #include "WeightMapTypes.h"
 
+
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 class FMeshNormals;
 
@@ -42,12 +48,12 @@ public:
 		double WeightClamp = FMathf::MaxReal;
 
 		// mesh normals calculated for input mesh
-		TSharedPtr<FMeshNormals> BaseNormals;
+		TSharedPtr<UE::Geometry::FMeshNormals> BaseNormals;
 
 		// offset used by some smoothers
 		double NormalOffset = 0.0;
 
-		TSharedPtr<FIndexedWeightMap1f> WeightMap;
+		TSharedPtr<UE::Geometry::FIndexedWeightMap1f> WeightMap;
 		bool bUseWeightMap = false;
 		float WeightMapMinMultiplier = 0.0;
 	};
@@ -72,3 +78,6 @@ protected:
 	TArray<FVector3d> PositionBuffer;
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

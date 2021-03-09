@@ -45,6 +45,7 @@ class MODELINGCOMPONENTS_API UCurveControlPointsMechanic : public UInteractionMe
 	GENERATED_BODY()
 
 protected:
+	using FVector3d = UE::Geometry::FVector3d;
 
 	// We want some way to store the control point sequence that lets us easily associate points with their renderable and hit-testable
 	// representations, since we need to alter all of these together as points get moved or added. We use FOrderedPoints for this, until
@@ -246,7 +247,7 @@ public:
 	}
 
 	/** Sets the plane on which new points are added on the ends and in which the points are moved. */
-	void SetPlane(const FFrame3d& DrawPlaneIn);
+	void SetPlane(const UE::Geometry::FFrame3d& DrawPlaneIn);
 	// TODO: It is simple to allow the points to be moved arbitrarily, not just inside the plane, if we ever
 	// want to use the mechanic somewhere where that is desirable. However, we'd need to do a little more work
 	// to allow new points to be added in arbitrary locations.
@@ -255,7 +256,7 @@ public:
 
 	// Adds additional line to snap points to. Useful, for instance, if the curve is a revolution profile curve
 	// and needs to be able to snap to the revolution axis.
-	void AddSnapLine(int32 LineID, const FLine3d& Line);
+	void AddSnapLine(int32 LineID, const UE::Geometry::FLine3d& Line);
 
 	void RemoveSnapLine(int32 LineID);
 
@@ -320,7 +321,7 @@ protected:
 	bool bAutoRevertToInteractiveInitialization = false;
 
 	bool bSnappingEnabled = true;
-	FPointPlanarSnapSolver SnapEngine;
+	UE::Geometry::FPointPlanarSnapSolver SnapEngine;
 
 	// Used for snapping to the start/end of the curve to get out of initialization mode
 	int32 FirstPointSnapID;
@@ -334,7 +335,7 @@ protected:
 	int32 LineSnapPriority;
 	
 	// Used for spatial queries
-	FGeometrySet3 GeometrySet;
+	UE::Geometry::FGeometrySet3 GeometrySet;
 
 	/** Used for displaying points/segments */
 	UPROPERTY()
@@ -365,7 +366,7 @@ protected:
 	FColor SnapLineColor;
 
 	// Used for adding new points on the ends and for limiting point movement
-	FFrame3d DrawPlane;
+	UE::Geometry::FFrame3d DrawPlane;
 
 	// Support for Shift and Ctrl toggles
 	bool bAddToSelectionToggle = false;
@@ -456,6 +457,7 @@ protected:
 
 class MODELINGCOMPONENTS_API FCurveControlPointsMechanicInsertionChange : public FToolCommandChange
 {
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 	FCurveControlPointsMechanicInsertionChange(int32 SequencePositionIn, int32 PointID, 
 		const FVector3d& CoordinatesIn, bool AddedIn, int32 ChangeStampIn);
@@ -497,6 +499,7 @@ protected:
 
 class MODELINGCOMPONENTS_API FCurveControlPointsMechanicMovementChange : public FToolCommandChange
 {
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 	FCurveControlPointsMechanicMovementChange(int32 PointIDIn, const FVector3d& OriginalPositionIn, 
 		const FVector3d& NewPositionIn, int32 ChangeStampIn);

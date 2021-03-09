@@ -10,7 +10,7 @@
 #include "MeshNormals.h"
 #include "DynamicMeshEditor.h"
 
-
+using namespace UE::Geometry;
 
 void UPolyEditPreviewMesh::InitializeExtrudeType(
 	const FDynamicMesh3* SourceMesh, const TArray<int32>& Triangles,

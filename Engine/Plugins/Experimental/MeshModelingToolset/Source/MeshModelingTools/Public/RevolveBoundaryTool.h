@@ -36,13 +36,13 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLS_API URevolveBoundaryOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API URevolveBoundaryOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 
-	TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	URevolveBoundaryTool* RevolveBoundaryTool;
@@ -84,6 +84,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API URevolveBoundaryTool : public UMeshBoundaryToolBase, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
+	using FVector3d = UE::Geometry::FVector3d;
 
 public:
 	virtual void SetAssetAPI(IAssetGenerationAPI* NewAssetApi) { AssetAPI = NewAssetApi; }

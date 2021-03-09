@@ -5,6 +5,8 @@
 #include "Templates/SharedPointer.h"
 #include "Polygon2.h"
 
+using UE::Geometry::FPolygon2f;
+
 struct FContourNode;
 using TSharedContourNode = TSharedPtr<FContourNode>;
 

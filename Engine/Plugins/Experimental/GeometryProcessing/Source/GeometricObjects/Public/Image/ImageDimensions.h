@@ -4,6 +4,11 @@
 
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FImageDimensions provides various functions for working with size/indices/coordinates of a
  * 2D image, as well as standard UV spaces
@@ -129,6 +134,7 @@ public:
 };
 
 
-
+} // end namespace UE::Geometry
+} // end namespace UE
 
 

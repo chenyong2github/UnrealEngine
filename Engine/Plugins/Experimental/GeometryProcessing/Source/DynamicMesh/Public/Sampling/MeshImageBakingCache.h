@@ -10,6 +10,11 @@
 #include "Image/ImageDimensions.h"
 #include "Image/ImageOccupancyMap.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class DYNAMICMESH_API FMeshImageBakingCache
 {
 public:
@@ -75,3 +80,7 @@ protected:
 
 };
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

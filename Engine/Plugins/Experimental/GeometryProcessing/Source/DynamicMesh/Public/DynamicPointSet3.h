@@ -15,6 +15,10 @@
 
 class FDynamicAttributeSetBase;
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * TDynamicPointSet3 implements a dynamic 3D point set, templated on real-value type (float or double).
@@ -325,3 +329,5 @@ typedef TDynamicPointSet3<float> FDynamicPointSet3f;
 typedef TDynamicPointSet3<double> FDynamicPointSet3d;
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

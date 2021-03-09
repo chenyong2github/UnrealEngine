@@ -6,6 +6,11 @@
 
 #include "DynamicMesh3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FMeshWeights implements various techniques for computing local weights of a mesh,
  * for example one-ring weights like Cotangent or Mean-Value.
@@ -94,3 +99,7 @@ public:
 protected:
 	FMeshWeights() = delete;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

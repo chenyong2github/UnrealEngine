@@ -2,6 +2,8 @@
 
 #include "Util/IndexUtil.h"
 
+using namespace UE::Geometry;
+
 // integer indices offsets in x/y directions
 const FVector2i IndexUtil::GridOffsets4[] =
 {

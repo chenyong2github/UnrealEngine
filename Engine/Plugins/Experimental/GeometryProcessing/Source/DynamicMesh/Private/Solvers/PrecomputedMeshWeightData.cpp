@@ -2,6 +2,9 @@
 
 #include "Solvers/PrecomputedMeshWeightData.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 // Utility to compute the number of elements in the sparse laplacian matrix
 int32 UE::MeshDeformation::ComputeNumMatrixElements(const FDynamicMesh3& DynamicMesh, const TArray<int32>& ToVtxId)
 {

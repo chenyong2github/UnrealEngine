@@ -5,6 +5,11 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 template <typename RealType>
 struct TMatrix3
 {
@@ -477,3 +482,6 @@ typedef TMatrix3<float> FMatrix3f;
 typedef TMatrix3<double> FMatrix3d;
 typedef TMatrix2<float> FMatrix2f;
 typedef TMatrix2<double> FMatrix2d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

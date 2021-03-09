@@ -6,6 +6,11 @@
 #include "OrientedBoxTypes.h"
 #include "Util/IndexUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Generate a sphere mesh, with UVs wrapped cylindrically
  */
@@ -208,3 +213,7 @@ public:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

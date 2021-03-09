@@ -4,12 +4,12 @@
 
 #include "VectorTypes.h"
 #include "IndexTypes.h"
-
-
-#include "CoreMinimal.h"
 #include "DisjointSet.h"
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FUVPacker implements various strategies for packing UV islands in a
@@ -77,11 +77,14 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE
+
 namespace UE
 {
 namespace UVPacking
 {
-
+	using namespace UE::Geometry;
 /**
  * Create UV islands from a triangle mesh connectivity.
  * Assumes the triangles are already split at UV seams, but topologically connected otherwise.

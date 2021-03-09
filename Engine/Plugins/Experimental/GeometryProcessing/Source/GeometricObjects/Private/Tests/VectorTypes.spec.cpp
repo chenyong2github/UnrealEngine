@@ -3,6 +3,8 @@
 #include "Misc/AutomationTest.h"
 #include "VectorTypes.h"
 
+using namespace UE::Geometry;
+
 #if WITH_DEV_AUTOMATION_TESTS
 
 BEGIN_DEFINE_SPEC(FVectorTypesSpec,

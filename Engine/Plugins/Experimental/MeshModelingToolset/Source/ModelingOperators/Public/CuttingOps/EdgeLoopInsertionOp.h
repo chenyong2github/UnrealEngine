@@ -8,6 +8,11 @@
 
 class FProgressCancel;
 
+namespace UE
+{
+namespace Geometry
+{
+
 class MODELINGOPERATORS_API FEdgeLoopInsertionOp : public FDynamicMeshOperator
 {
 public:
@@ -40,3 +45,6 @@ public:
 	// FDynamicMeshOperator implementation
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

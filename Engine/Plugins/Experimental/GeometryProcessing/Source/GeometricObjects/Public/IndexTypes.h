@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "GeometryBase.h"
 #include "Math/IntVector.h"
 #include <limits>
 
@@ -10,6 +11,11 @@ namespace IndexConstants
 {
 	constexpr int InvalidID = -1;
 }
+
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * 2-index tuple. Ported from g3Sharp library, with the intention of
@@ -231,3 +237,7 @@ FORCEINLINE uint32 GetTypeHash(const FIndex4i& Index)
 	// Note: this assumes there's no padding that could contain uncompared data.
 	return FCrc::MemCrc_DEPRECATED(&Index, sizeof(FIndex4i));
 }
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

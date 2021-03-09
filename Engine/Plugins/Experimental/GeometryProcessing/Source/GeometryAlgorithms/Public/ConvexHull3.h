@@ -9,6 +9,11 @@
 #include "PlaneTypes.h"
 #include "HalfspaceTypes.h"
 
+namespace UE {
+namespace Geometry {
+
+
+
 template <typename RealType> struct TConvexHull3Internal;
 
 /**
@@ -174,3 +179,8 @@ protected:
 
 typedef TConvexHull3<float> FConvexHull3f;
 typedef TConvexHull3<double> FConvexHull3d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE
+

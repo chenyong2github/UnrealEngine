@@ -11,6 +11,12 @@
 #include "Solvers/ConstrainedMeshDeformer.h"
 
 
+
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Base class for Mesh Offset operations (ie displacement along some kind of normal)
  * Optionally duplicates input mesh and joins the two together, either by welding along
@@ -18,6 +24,7 @@
  */
 class FMeshOffsetBaseOp : public FSimpleMeshProcessingBaseOp
 {
+
 public:
 	FMeshOffsetBaseOp(const FDynamicMesh3* Mesh) : FSimpleMeshProcessingBaseOp(Mesh) {}
 
@@ -33,12 +40,12 @@ public:
 	TSharedPtr<FMeshNormals> BaseNormals;
 	FMeshBoundaryCache BoundaryCache;
 
-	TSharedPtr<FMeshBoundaryLoops> BoundaryLoops;
+	TSharedPtr<UE::Geometry::FMeshBoundaryLoops> BoundaryLoops;
 	bool bFixedBoundary = false;
 
 	bool bCreateShell = false;
 
-	TSharedPtr<FIndexedWeightMap1f> WeightMap;
+	TSharedPtr<UE::Geometry::FIndexedWeightMap1f> WeightMap;
 	bool bUseWeightMap = false;
 
 	/** @return signed offset distance at vertex, transformed by weight map iv applicable */
@@ -74,14 +81,14 @@ public:
 				ResultMesh->ReverseOrientation();
 			}
 
-			FDynamicMeshEditor Editor(ResultMesh.Get());
-			FMeshIndexMappings MeshMap;
+			UE::Geometry::FDynamicMeshEditor Editor(ResultMesh.Get());
+			UE::Geometry::FMeshIndexMappings MeshMap;
 			Editor.AppendMesh(&InnerMesh, MeshMap);
 
 			bool bWeldStitch = bFixedBoundary;
 
 			// join the boundary loops by weld or stitch
-			for (FEdgeLoop& BaseLoop : BoundaryLoops->Loops)
+			for (UE::Geometry::FEdgeLoop& BaseLoop : BoundaryLoops->Loops)
 			{
 				int32 LoopCount = BaseLoop.GetVertexCount();
 				TArray<int32> OffsetLoop;
@@ -100,7 +107,7 @@ public:
 				}
 				else
 				{
-					FJoinMeshLoops Join(ResultMesh.Get(), LoopA, LoopB);
+					UE::Geometry::FJoinMeshLoops Join(ResultMesh.Get(), LoopA, LoopB);
 					Join.Apply();
 				}
 			}
@@ -343,3 +350,5 @@ public:
 	}
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE

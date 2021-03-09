@@ -7,7 +7,8 @@
 #include "Engine/Engine.h"  // for GEngine - @todo remove this?
 #include "ToolSceneQueriesUtil.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 UInteractiveGizmo* UPositionPlaneGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
@@ -16,9 +17,6 @@ UInteractiveGizmo* UPositionPlaneGizmoBuilder::BuildGizmo(const FToolBuilderStat
 	NewGizmo->SetWorld(SceneState.World);
 	return NewGizmo;
 }
-
-
-
 
 
 

@@ -8,6 +8,10 @@
 #include "Image/ImageBuilder.h"
 #include "MeshTangents.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class DYNAMICMESH_API FMeshNormalMapBaker : public FMeshImageBaker
 {
@@ -40,3 +44,7 @@ protected:
 	TUniquePtr<TImageBuilder<FVector3f>> NormalsBuilder;
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

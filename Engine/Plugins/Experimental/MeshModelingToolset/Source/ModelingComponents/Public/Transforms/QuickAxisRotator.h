@@ -6,6 +6,10 @@
 #include "QuickTransformer.h"
 #include "Snapping/RaySpatialSnapSolver.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
 
@@ -108,3 +112,6 @@ protected:
 
 	FToolDataVisualizer QuickAxisPreviewRenderer;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

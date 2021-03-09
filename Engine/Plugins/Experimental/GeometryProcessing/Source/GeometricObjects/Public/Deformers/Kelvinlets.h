@@ -6,6 +6,11 @@
 #include "VectorTypes.h"
 #include "MatrixTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 template <typename KelvinletModelType>
 class TKelvinletIntegrator
@@ -657,3 +662,6 @@ typedef TBlendPairedKelvinlet< FTwistKelvinlet, FBiLaplacianPullKelvinlet >     
 typedef TBlendPairedKelvinlet< FBiLaplacianPullKelvinlet, FLaplacianPullKelvinlet >            FBlendPullKelvinlet;
 typedef TBlendPairedKelvinlet< FSharpBiLaplacianPullKelvinlet, FSharpLaplacianPullKelvinlet >  FBlendPullSharpKelvinlet;
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

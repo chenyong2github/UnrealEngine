@@ -9,6 +9,9 @@
 #include "Operations/ExtrudeMesh.h"
 #include "DynamicSubmesh3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 FOffsetMeshRegion::FOffsetMeshRegion(FDynamicMesh3* mesh) : Mesh(mesh)
 {
 	OffsetPositionFunc = [this](const FVector3d& Position, const FVector3f& Normal, int VertexID)

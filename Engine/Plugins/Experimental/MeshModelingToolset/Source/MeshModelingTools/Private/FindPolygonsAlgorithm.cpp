@@ -5,7 +5,8 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "Util/IndexUtil.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 FFindPolygonsAlgorithm::FFindPolygonsAlgorithm(FDynamicMesh3* MeshIn)
 {

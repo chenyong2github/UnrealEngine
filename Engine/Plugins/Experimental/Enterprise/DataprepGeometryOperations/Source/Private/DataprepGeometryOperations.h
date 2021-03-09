@@ -256,8 +256,8 @@ private:
 		TArray<UObject*>& OutModifiedStaticMeshes);
 
 	// Borrowed from UPlaneCutOperatorFactory::MakeNewOperator
-	TUniquePtr<FDynamicMeshOperator> MakeNewOperator(
+	TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator(
 		const FTransform& InMeshLocalToWorld, 
-		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
+		TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
 		float InMeshUVScaleFactor);
 };

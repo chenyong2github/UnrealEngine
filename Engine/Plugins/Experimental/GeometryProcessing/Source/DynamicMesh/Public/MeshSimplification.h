@@ -11,6 +11,11 @@
 #include "DynamicMeshAttributeSet.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 enum class ESimplificationResult
 {
 	Ok_Collapsed = 0,
@@ -402,3 +407,7 @@ protected:
 typedef TMeshSimplification< FAttrBasedQuadricErrord >  FAttrMeshSimplification;
 typedef TMeshSimplification < FVolPresQuadricErrord >   FVolPresMeshSimplification;
 typedef TMeshSimplification< FQuadricErrord >           FQEMSimplification;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

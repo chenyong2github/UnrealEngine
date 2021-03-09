@@ -9,6 +9,11 @@
 #include "TriangleTypes.h"
 #include "VectorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute intersection between 3D ray and 3D triangle
  */
@@ -170,3 +175,6 @@ public:
 
 typedef TIntrRay3Triangle3<float> FIntrRay3Triangle3f;
 typedef TIntrRay3Triangle3<double> FIntrRay3Triangle3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -35,7 +35,7 @@ public:
 	UPROPERTY(EditAnywhere, Category = VoxelSettings, meta = (UIMin = "0.0", UIMax = "100", ClampMin = "0.0", ClampMax = "1000"))
 	double CubeRootMinComponentVolume = 0.0;
 
-	void SetPropertiesOnOp(FVoxelBaseOp& Op)
+	void SetPropertiesOnOp(UE::Geometry::FVoxelBaseOp& Op)
 	{
 		Op.InputVoxelCount = VoxelCount;
 		Op.OutputVoxelCount = VoxelCount;

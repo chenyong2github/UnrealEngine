@@ -12,10 +12,12 @@
 // one file).
 
 class AVolume;
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 namespace UE {
 namespace Conversion { 
+
+using namespace UE::Geometry;
 
 struct FDynamicMeshFace
 {

@@ -59,11 +59,11 @@ public:
 
 	virtual void Setup() override;
 
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 private:
 
-	TUniquePtr<FDynamicMesh3> ProjectionTarget;
-	TUniquePtr<FDynamicMeshAABBTree3> ProjectionTargetSpatial;
+	TUniquePtr<UE::Geometry::FDynamicMesh3> ProjectionTarget;
+	TUniquePtr<UE::Geometry::FDynamicMeshAABBTree3> ProjectionTargetSpatial;
 
 };

@@ -7,6 +7,10 @@
 #include "Sampling/MeshImageBakingCache.h"
 #include "Image/ImageBuilder.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class DYNAMICMESH_API FMeshOcclusionMapBaker : public FMeshImageBaker
 {
@@ -42,3 +46,6 @@ protected:
 	TUniquePtr<TImageBuilder<FVector3f>> OcclusionBuilder;
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

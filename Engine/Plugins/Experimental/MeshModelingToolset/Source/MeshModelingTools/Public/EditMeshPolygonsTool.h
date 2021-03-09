@@ -476,7 +476,10 @@ UCLASS()
 class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public UMeshSurfacePointTool, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
+	using FTransform3d = UE::Geometry::FTransform3d;
+	using FFrame3d = UE::Geometry::FFrame3d;
+	using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;
 public:
 	UEditMeshPolygonsTool();
 
@@ -595,7 +598,7 @@ protected:
 
 
 	// camera state at last render
-	FTransform3d WorldTransform;
+	UE::Geometry::FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
 	// True for the duration of UI click+drag
@@ -613,8 +616,8 @@ protected:
 	TUniquePtr<FGroupTopology> Topology;
 	void PrecomputeTopology();
 
-	FDynamicMeshAABBTree3 MeshSpatial;
-	FDynamicMeshAABBTree3& GetSpatial();
+	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
+	UE::Geometry::FDynamicMeshAABBTree3& GetSpatial();
 	bool bSpatialDirty;
 
 	// UV Scale factor to apply to texturing on any new geometry (e.g. new faces added by extrude)
@@ -705,7 +708,7 @@ protected:
 	// data for current drag
 	//
 
-	FGroupTopologyDeformer LinearDeformer;
+	UE::Geometry::FGroupTopologyDeformer LinearDeformer;
 	void UpdateDeformerFromSelection(const FGroupTopologySelection& Selection);
 
 

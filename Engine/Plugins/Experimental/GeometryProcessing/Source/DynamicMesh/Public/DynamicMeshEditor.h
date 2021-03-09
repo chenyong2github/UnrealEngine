@@ -10,6 +10,11 @@
 #include "Util/SparseIndexCollectionTypes.h"
 #include "MeshIndexMappings.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 struct FDynamicSubmesh3;
 
 /**
@@ -490,3 +495,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

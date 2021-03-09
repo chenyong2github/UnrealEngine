@@ -5,16 +5,17 @@
 #include "CoreMinimal.h"
 
 #include "Components/PrimitiveComponent.h"
+#include "MathUtil.h"
 #include "IndexTypes.h"
 #include "InteractiveToolStorableSelection.h"
 
 #include "GroupTopologyStorableSelection.generated.h"
 
-struct FCompactMaps;
-struct FGroupTopologySelection;
-class FGroupTopology;
 class UPrimitiveComponent;
 class UInteractiveTool;
+PREDECLARE_USE_GEOMETRY_STRUCT(FGroupTopologySelection);
+PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopology);
+PREDECLARE_USE_GEOMETRY_STRUCT(FCompactMaps);
 
 /**
  * Class used to represent a group topology selection independently of a FGroupTopology. Relies
@@ -29,6 +30,7 @@ UCLASS()
 class MODELINGCOMPONENTS_API UGroupTopologyStorableSelection : public UInteractiveToolStorableSelection
 {
 	GENERATED_BODY()
+	using FIndex2i = UE::Geometry::FIndex2i;
 
 public:
 	enum class ETopologyType

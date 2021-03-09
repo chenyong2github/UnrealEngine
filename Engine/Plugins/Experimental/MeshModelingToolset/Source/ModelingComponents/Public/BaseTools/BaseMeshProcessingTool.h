@@ -14,11 +14,12 @@
 
 // predeclarations
 struct FMeshDescription;
-class FMeshNormals;
-class FMeshBoundaryLoops;
 class USimpleDynamicMeshComponent;
 class UPreviewMesh;
-
+PREDECLARE_USE_GEOMETRY_CLASS(FMeshBoundaryLoops);
+PREDECLARE_USE_GEOMETRY_CLASS(FMeshNormals);
+using UE::Geometry::FDynamicMesh3;
+using UE::Geometry::FIndexedWeightMap1f;
 /**
  * ToolBuilder for UBaseMeshProcessingTool
  */
@@ -74,10 +75,17 @@ public:
  *
  */
 UCLASS()
-class MODELINGCOMPONENTS_API UBaseMeshProcessingTool : public USingleSelectionTool, public IDynamicMeshOperatorFactory
+class MODELINGCOMPONENTS_API UBaseMeshProcessingTool : public USingleSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
-
+protected:
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FVector2d = UE::Geometry::FVector2d;
+	using FVector2f = UE::Geometry::FVector2f;
+	using FTransform3d = UE::Geometry::FTransform3d;
+	using FFrame3d = UE::Geometry::FFrame3d;
+	using FRay3d = UE::Geometry::FRay3d;
 public:
 	UBaseMeshProcessingTool() = default;
 
@@ -107,10 +115,10 @@ protected:
 	/**
 	 * IDynamicMeshOperatorFactory implementation that subclass must override and implement
 	 */
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override
 	{
 		check(false);
-		return TUniquePtr<FDynamicMeshOperator>();
+		return TUniquePtr<UE::Geometry::FDynamicMeshOperator>();
 	}
 
 

@@ -2,7 +2,7 @@
 
 #include "Intersection/IntersectionQueries3.h"
 
-
+using namespace UE::Geometry;
 
 
 

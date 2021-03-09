@@ -110,13 +110,13 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API UMirrorOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UMirrorOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UMirrorTool* MirrorTool;
@@ -185,7 +185,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API UMirrorTool : public UMultiSelectionTool, public IModifierToggleBehaviorTarget
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	friend UMirrorOperatorFactory;

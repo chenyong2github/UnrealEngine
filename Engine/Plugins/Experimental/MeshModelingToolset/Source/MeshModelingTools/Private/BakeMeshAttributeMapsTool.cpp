@@ -36,8 +36,10 @@
 #include "Engine/Classes/Components/StaticMeshComponent.h"
 #include "Engine/Classes/Engine/StaticMesh.h"
 
-#define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsTool"
 
 /*
  * ToolBuilder

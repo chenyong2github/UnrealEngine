@@ -29,7 +29,10 @@
 // 
 // 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -398,3 +401,7 @@ void FDynamicMeshChangeTracker::SaveVertexOneRingTriangles(EnumerableType Vertex
 	}
 }
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

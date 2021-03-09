@@ -48,7 +48,7 @@ public:
 		{
 			int32 VertIdx = Vertices[k];
 			FVector3d OrigPos = Mesh->GetVertex(VertIdx);
-			FVector3d Normal = FMeshNormals::ComputeVertexNormal(*Mesh, VertIdx);
+			FVector3d Normal = UE::Geometry::FMeshNormals::ComputeVertexNormal(*Mesh, VertIdx);
 			FVector3d MoveVec = UsePower * Normal;
 
 			double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);

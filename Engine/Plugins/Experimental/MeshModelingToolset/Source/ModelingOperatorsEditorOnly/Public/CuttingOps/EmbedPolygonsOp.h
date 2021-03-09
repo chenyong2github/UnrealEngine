@@ -6,7 +6,7 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 #include "ProxyLODVolume.h"
-
+#include "DynamicMesh3.h"
 #include "Polygon2.h"
 
 #include "EmbedPolygonsOp.generated.h"
@@ -20,6 +20,11 @@ enum class EEmbeddedPolygonOpMethod : uint8
 	InsertPolygon,
 	CutThrough
 };
+
+namespace UE
+{
+namespace Geometry
+{
 
 
 class MODELINGOPERATORSEDITORONLY_API FEmbedPolygonsOp : public FDynamicMeshOperator
@@ -66,4 +71,6 @@ private:
 	void BooleanPath(FProgressCancel* Progress);
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE
 

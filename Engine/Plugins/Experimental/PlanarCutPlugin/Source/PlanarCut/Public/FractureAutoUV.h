@@ -41,7 +41,7 @@ void PLANARCUT_API TextureInternalSurfaces(
 	FGeometryCollection& Collection,
 	double MaxDistance,
 	int32 GutterSize,
-	TImageBuilder<FVector3f>& TextureOut,
+	UE::Geometry::TImageBuilder<UE::Geometry::FVector3f>& TextureOut,
 	bool bOnlyOddMaterials = true,
 	TArrayView<int32> WhichMaterials = TArrayView<int32>()
 );

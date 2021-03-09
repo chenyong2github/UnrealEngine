@@ -8,6 +8,12 @@
 #include "MeshRegionBoundaryLoops.h"
 
 
+
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 class FMeshNormals;
 
@@ -85,3 +91,6 @@ protected:
 
 	
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

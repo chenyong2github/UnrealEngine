@@ -9,7 +9,10 @@
 #include "VectorTypes.h"
 #include "DenseGrid2.h"
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * TSampledScalarField2 implements a generic 2D grid of values that can be interpolated in various ways.
@@ -186,3 +189,6 @@ public:
 
 typedef TSampledScalarField2<double, double> FSampledScalarField2d;
 typedef TSampledScalarField2<float, float> FSampledScalarField2f;
+
+} // end namespace UE::Geometry
+} // end namespace UE

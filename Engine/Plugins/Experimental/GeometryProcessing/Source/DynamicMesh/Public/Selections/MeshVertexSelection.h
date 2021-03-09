@@ -6,6 +6,12 @@
 
 #include "DynamicMesh3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 class FMeshFaceSelection;
 class FMeshEdgeSelection;
 
@@ -295,3 +301,7 @@ public:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

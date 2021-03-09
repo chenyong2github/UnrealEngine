@@ -9,6 +9,11 @@
 #include "MeshWeights.h"
 #include "Async/ParallelFor.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FSubRegionRemesher is an extension of FRemesher that allows for constraining remeshing to
  * a localized region of a mesh. Currently this is initialized from a Vertex ROI.
@@ -576,3 +581,7 @@ private:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

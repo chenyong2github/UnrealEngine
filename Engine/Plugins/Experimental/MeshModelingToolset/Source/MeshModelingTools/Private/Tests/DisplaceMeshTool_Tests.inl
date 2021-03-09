@@ -56,7 +56,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestConstant,
 	UTEST_TRUE("Input mesh has vertex at index 0", InputMesh->IsVertex(0));
 
 	// This is done internally during DisplaceOp::CalculateResult, but do it here so we can verify normals up front
-	FMeshNormals InputMeshNormals(InputMesh.Get());
+	UE::Geometry::FMeshNormals InputMeshNormals(InputMesh.Get());
 	InputMeshNormals.ComputeVertexNormals();
 	UTEST_TRUE("Input mesh normals point in +Z direction", FMath::IsNearlyZero((InputMeshNormals.GetNormals()[0] - FVector3d{ 0,0,1 }).Length()));
 
@@ -268,7 +268,7 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(UDisplaceMeshTestDirectionalFilter,
 	// Create a box mesh, random noise, and a directional filter pointing in the +Y direction
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InputMesh = CreateTestBoxMesh();
 
-	FMeshNormals InputMeshNormals(InputMesh.Get());
+	UE::Geometry::FMeshNormals InputMeshNormals(InputMesh.Get());
 	InputMeshNormals.ComputeVertexNormals();
 
 	EDisplaceMeshToolDisplaceType DisplaceType = EDisplaceMeshToolDisplaceType::RandomNoise;

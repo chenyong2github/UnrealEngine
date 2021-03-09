@@ -10,7 +10,6 @@
 class UActorComponent;
 class UBodySetup;
 
-
 /**
  * FPhysicsDataCollection holds onto physics-system data that is needed for various interactive tools and algorithms.
  * Currently this is split into two parts, pointers to the owning physics state, and collision geometry data.
@@ -43,7 +42,7 @@ public:
 	/**
 	 * Stores representation of Collision geometry
 	 */
-	FSimpleShapeSet3d Geometry;
+	UE::Geometry::FSimpleShapeSet3d Geometry;
 
 	/**
 	 * Collision geometry in Physics-system format. Not necessarily in sync with Geometry member.

@@ -4,6 +4,11 @@
 #include "DynamicMesh3.h"
 #include "Util/ProgressCancel.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class DYNAMICMESH_API FMeshMirror
 {
 
@@ -46,3 +51,6 @@ public:
 	 */
 	void MirrorAndAppend(FProgressCancel* Progress = nullptr);
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

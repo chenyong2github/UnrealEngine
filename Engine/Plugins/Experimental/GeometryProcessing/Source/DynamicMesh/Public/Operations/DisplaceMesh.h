@@ -8,6 +8,11 @@
 #include "MeshNormals.h"
 #include "Async/ParallelFor.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDisplaceMesh
 {
 
@@ -41,3 +46,7 @@ public:
 	// TODO: Refactor DisplaceMeshTool to use this class
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

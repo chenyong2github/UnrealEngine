@@ -8,6 +8,11 @@
 #include "LineTypes.h"
 #include "VectorUtil.h"  // for EIntersectionType
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute intersection between two 2D lines
  */
@@ -185,3 +190,6 @@ public:
 
 typedef TIntrLine2Line2<double> FIntrLine2Line2d;
 typedef TIntrLine2Line2<float> FIntrLine2Line2f;
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -7,6 +7,13 @@
 #include "DynamicMesh3.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
+class FDynamicMesh3;
+
 /**
 * Used linearize the VtxIds in a mesh as a single array and allow mapping from array offset to mesh VtxId.
 * Generally, the array offset will correspond to a matrix row when forming a Laplacian.
@@ -123,3 +130,7 @@ public:
 private:
 	FTriangleLinearization(const FTriangleLinearization&);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -7,7 +7,8 @@
 #include "MeshDescription.h"
 
 // predeclare tangents template
-template<typename RealType> class TMeshTangents;
+PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
+using UE::Geometry::FDynamicMesh3;
 
 /**
  * Convert FMeshDescription to FDynamicMesh3
@@ -74,13 +75,13 @@ public:
 	 * Copy tangents from MeshDescription to a FMeshTangents instance.
 	 * @warning Convert() must have been used to create the TargetMesh before calling this function
 	 */
-	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<float>* TangentsOut);
+	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, UE::Geometry::TMeshTangents<float>* TangentsOut);
 
 	/**
 	 * Copy tangents from MeshDescription to a FMeshTangents instance.
 	 * @warning Convert() must have been used to create the TargetMesh before calling this function
 	 */
-	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, TMeshTangents<double>* TangentsOut);
+	void CopyTangents(const FMeshDescription* SourceMesh, const FDynamicMesh3* TargetMesh, UE::Geometry::TMeshTangents<double>* TangentsOut);
 
 
 public:

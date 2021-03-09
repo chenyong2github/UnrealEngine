@@ -35,7 +35,6 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include "ProfilingDebugging/ScopedTimers.h"
 
 
-
 // Matrix Solver Factory
 TUniquePtr<IMatrixSolverBase> ContructMatrixSolver(const EMatrixSolverType& MatrixSolverType);
 
@@ -267,4 +266,5 @@ private:
 //typedef Eigen::IncompleteCholesky< double, Eigen::Lower | Eigen::Upper>  FICPreConditioner;
 typedef TIterativeMatrixSolver<Eigen::ConjugateGradient<FSparseMatrixD, Eigen::Lower | Eigen::Upper>>               FPCGMatrixSolver;
 typedef TIterativeMatrixSolver<Eigen::BiCGSTAB<FSparseMatrixD, Eigen::IncompleteLUT<FSparseMatrixD::Scalar, int> >> FBiCGMatrixSolver;
+
 

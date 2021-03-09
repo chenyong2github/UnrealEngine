@@ -17,6 +17,10 @@
 
 #include "Util/IndexUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 enum class /*GEOMETRICOBJECTS_API*/ ERootfindingModes
 {
@@ -1188,3 +1192,5 @@ protected:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -8,6 +8,10 @@
 #include "Util/IndexUtil.h"
 #include "Polyline3.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Sequential lists of vertices/edges in a mesh that is *not* closed.
@@ -205,3 +209,7 @@ public:
 	static void VertexSpanToEdgeSpan(const FDynamicMesh3* Mesh, const TArray<int>& VertexSpan, TArray<int>& OutEdgeSpan);
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

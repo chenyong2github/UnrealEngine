@@ -10,6 +10,12 @@
 #include "Algo/Accumulate.h"
 #include "Async/ParallelFor.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 template <class TriangleMeshType>
 class TMeshQueries
 {
@@ -580,3 +586,7 @@ public:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

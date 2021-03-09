@@ -7,6 +7,11 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 template<typename RealType>
 struct TPlane3
 {
@@ -149,5 +154,6 @@ struct TPlane3
 typedef TPlane3<float> FPlane3f;
 typedef TPlane3<double> FPlane3d;
 
-
+} // end namespace UE::Geometry
+} // end namespace UE
 

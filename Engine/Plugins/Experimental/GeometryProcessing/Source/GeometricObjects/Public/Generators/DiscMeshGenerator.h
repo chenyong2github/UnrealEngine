@@ -4,6 +4,11 @@
 
 #include "MeshShapeGenerator.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Generate planar disc (a circle polygon)
  */
@@ -66,3 +71,6 @@ public:
 	/** Generate the disc */
 	virtual FMeshShapeGenerator& Generate() override;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

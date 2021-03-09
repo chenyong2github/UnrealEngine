@@ -8,6 +8,11 @@
 #include "VectorTypes.h"
 #include "Math/Ray.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /*
  * 3D Ray stored as Origin point and normalized Direction vector
  */
@@ -120,4 +125,7 @@ public:
 };
 typedef TRay3<float> FRay3f;
 typedef TRay3<double> FRay3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE
 

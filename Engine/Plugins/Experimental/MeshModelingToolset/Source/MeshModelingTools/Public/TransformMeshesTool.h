@@ -187,7 +187,7 @@ protected:
 	void ResetActiveGizmos();
 
 
-	FFrame3d StartDragFrameWorld;
+	UE::Geometry::FFrame3d StartDragFrameWorld;
 	FTransform StartDragTransform;
 	int ActiveSnapDragIndex = -1;
 

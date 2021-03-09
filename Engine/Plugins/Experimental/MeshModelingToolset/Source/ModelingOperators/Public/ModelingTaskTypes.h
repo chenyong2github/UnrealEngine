@@ -7,9 +7,10 @@
 #include "Util/ProgressCancel.h"
 
 
-
-
-
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -140,5 +141,9 @@ public:
 		return &Progress;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE
 
 

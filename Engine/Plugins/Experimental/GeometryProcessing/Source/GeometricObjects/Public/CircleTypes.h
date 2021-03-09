@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Port of WildMagic DistPoint3TCircle3
-
 #pragma once
 
 #include "VectorTypes.h"
@@ -9,6 +7,11 @@
 #include "BoxTypes.h"
 #include "OrientedBoxTypes.h"
 #include "FrameTypes.h"
+
+namespace UE 
+{
+namespace Geometry 
+{
 
 template<typename RealType>
 struct TCircle2
@@ -271,3 +274,6 @@ struct TCircle3
 typedef TCircle3<float> FCircle3f;
 typedef TCircle3<double> FCircle3d;
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

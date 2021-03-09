@@ -10,6 +10,11 @@
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TIntersector1 computes the intersection of one-dimensional intervals [u0,u1] and [v0,v1].
  * The end points of the input intervals must be ordered u0 <= u1 and v0 <= v1.
@@ -106,3 +111,6 @@ public:
 
 typedef TIntersector1<double> FIntersector1d;
 typedef TIntersector1<float> FIntersector1f;
+
+} // end namespace UE::Geometry
+} // end namespace UE

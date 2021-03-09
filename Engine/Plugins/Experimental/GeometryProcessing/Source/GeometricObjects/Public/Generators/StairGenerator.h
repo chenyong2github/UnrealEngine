@@ -5,6 +5,13 @@
 #include "IndexTypes.h"
 #include "MathUtil.h"
 
+
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * Base Stair mesh generator class.
  */
@@ -989,3 +996,8 @@ protected:
 		return FMathf::Max(FMathf::Max(MaxDepth, NumSteps * StepHeight), StepWidth);
 	}
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

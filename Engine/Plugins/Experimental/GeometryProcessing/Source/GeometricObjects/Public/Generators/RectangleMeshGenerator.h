@@ -5,6 +5,11 @@
 #include "MeshShapeGenerator.h"
 #include "Misc/EnumClassFlags.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Generate planar rectangular mesh with variable number of subdivisions along width and height.
  * By default, center of rectangle is centered at (0,0,0) origin
@@ -102,7 +107,8 @@ public:
 
 	/** Generate the mesh */
 	virtual FMeshShapeGenerator& Generate() override;
-
-
-
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

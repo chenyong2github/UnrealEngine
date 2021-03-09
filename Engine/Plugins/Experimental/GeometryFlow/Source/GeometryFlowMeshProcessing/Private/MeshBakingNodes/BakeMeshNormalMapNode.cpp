@@ -5,6 +5,7 @@
 
 #include "Sampling/MeshNormalMapBaker.h"
 
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 void FBakeMeshNormalMapNode::Evaluate(

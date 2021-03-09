@@ -7,6 +7,8 @@
 
 #include "RemeshProperties.generated.h"
 
+using UE::Geometry::EEdgeRefineFlags;
+
 /** Mesh Boundary Constraint Types */
 UENUM()
 enum class EMeshBoundaryConstraint : uint8

@@ -9,6 +9,9 @@
 #include "CircleTypes.h"
 #include "LineTypes.h"
 
+namespace UE {
+namespace Geometry {
+
 
 /**
 * Compute unsigned distance and closest-points between 3D line and 3D circle
@@ -48,3 +51,7 @@ public:
 typedef TDistLine3Circle3<float> FDistLine3Circle3f;
 typedef TDistLine3Circle3<double> FDistLine3Circle3d;
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -61,7 +61,7 @@ public:
 	virtual void OnEndDrag(const FRay& Ray);
 
 
-	TFunction<void(const FFrame3d&)> OnPositionUpdatedFunc = nullptr;
+	TFunction<void(const UE::Geometry::FFrame3d&)> OnPositionUpdatedFunc = nullptr;
 
 
 	virtual void ExternalUpdatePosition(const FVector& Position, const FQuat& Orientation, bool bPostUpdate);
@@ -81,7 +81,7 @@ public:
 	UPreviewMesh* MakeSphereMesh();
 
 	bool bInTransformDrag;
-	FQuickAxisTranslater QuickTransformer;
+	UE::Geometry::FQuickAxisTranslater QuickTransformer;
 
 	void PostUpdatedPosition();
 

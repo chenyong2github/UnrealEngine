@@ -1,11 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-// Port of WildMagic DistPoint3TTriangle3
-
 #pragma once
 
 #include "VectorTypes.h"
 #include "VectorUtil.h"
+
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * Triangle utility functions
@@ -237,3 +241,5 @@ typedef TTriangle3<float> FTriangle3f;
 typedef TTriangle3<double> FTriangle3d;
 typedef TTriangle3<int> FTriangle3i;
 
+} // end namespace UE::Geometry
+} // end namespace UE

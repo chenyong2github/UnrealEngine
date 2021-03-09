@@ -32,7 +32,7 @@ public:
 
 	bool bShowGrid = true;
 
-	FFrame3d Plane;
+	UE::Geometry::FFrame3d Plane;
 
 	DECLARE_MULTICAST_DELEGATE(OnConstructionPlaneChangedEvent);
 	OnConstructionPlaneChangedEvent OnPlaneChanged;
@@ -45,16 +45,16 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void Tick(float DeltaTime) override;
 
-	void Initialize(UWorld* TargetWorld, const FFrame3d& InitialPlane);
+	void Initialize(UWorld* TargetWorld, const UE::Geometry::FFrame3d& InitialPlane);
 
-	void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal, bool bIgnoreNormal);
+	void SetDrawPlaneFromWorldPos(const UE::Geometry::FVector3d& Position, const UE::Geometry::FVector3d& Normal, bool bIgnoreNormal);
 
 	/** 
 	 * Sets the plane without broadcasting OnPlaneChanged. Useful when the user of the tool wants to change
 	 * the plane through some other means. Better than setting the Plane field directly because this function
 	 * properly deals with the gizmo.
 	 */
-	void SetPlaneWithoutBroadcast(const FFrame3d& Plane);
+	void SetPlaneWithoutBroadcast(const UE::Geometry::FFrame3d& Plane);
 
 	void SetEnableGridSnaping(bool bEnable);
 

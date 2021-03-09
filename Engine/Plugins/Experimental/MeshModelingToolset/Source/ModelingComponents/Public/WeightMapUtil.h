@@ -15,6 +15,7 @@ namespace UE
 {
 	namespace WeightMaps
 	{
+		using namespace UE::Geometry;
 
 		/**
 		 * Find the set of per-vertex weight map attributes on a MeshDescription

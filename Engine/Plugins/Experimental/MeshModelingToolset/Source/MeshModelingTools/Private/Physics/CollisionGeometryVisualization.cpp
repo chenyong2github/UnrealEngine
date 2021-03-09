@@ -3,6 +3,9 @@
 #include "Physics/CollisionGeometryVisualization.h"
 #include "Generators/LineSegmentGenerators.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void UE::PhysicsTools::InitializePreviewGeometryLines(const FPhysicsDataCollection& PhysicsData, UPreviewGeometry* PreviewGeom,
 	const FColor& LineColor, float LineThickness, float DepthBias, int32 CircleStepResolution)
 {

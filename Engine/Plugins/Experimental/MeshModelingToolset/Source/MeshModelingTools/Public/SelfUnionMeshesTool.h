@@ -12,8 +12,7 @@
 #include "SelfUnionMeshesTool.generated.h"
 
 // predeclarations
-class FDynamicMesh3;
-
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
 /**
@@ -79,7 +78,7 @@ protected:
 	virtual FText GetActionName() const;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 protected:
 

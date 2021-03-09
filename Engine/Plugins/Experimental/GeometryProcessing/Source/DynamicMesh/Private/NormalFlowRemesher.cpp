@@ -4,6 +4,9 @@
 #include "Async/ParallelFor.h"
 #include "InfoTypes.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void FNormalFlowRemesher::RemeshWithFaceProjection()
 {
 	if (Mesh->TriangleCount() == 0)

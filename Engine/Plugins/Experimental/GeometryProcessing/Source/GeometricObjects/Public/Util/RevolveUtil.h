@@ -7,12 +7,14 @@
 #include "FrameTypes.h"
 #include "VectorTypes.h"
 
-class UNewMeshMaterialProperties;
-class URevolveProperties;
-class FCurveSweepOp;
+PREDECLARE_GEOMETRY(class FCurveSweepOp);
 
 namespace RevolveUtil
 {
+	using namespace UE::Geometry;
+	using UE::Geometry::FVector3d;
+	using UE::Geometry::FFrame3d;
+
 	/** 
 	 * Generates a sweep curve with the initial frame at the origin and the rest rotated around the given axis.
 	 *

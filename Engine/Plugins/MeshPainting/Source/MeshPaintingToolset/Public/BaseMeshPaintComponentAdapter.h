@@ -8,8 +8,7 @@
 #include "Spatial/MeshAABBTree3.h"
 #include "UObject/GCObject.h"
 
-struct FIndex3i;
-typedef TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;
+typedef UE::Geometry::TIndexMeshArrayAdapter<uint32, double> FIndexMeshArrayAdapterd;
 
 /** Base mesh paint geometry adapter, handles basic sphere intersection using a Octree */
 class MESHPAINTINGTOOLSET_API FBaseMeshPaintComponentAdapter : public IMeshPaintComponentAdapter, public FGCObject, public TSharedFromThis<FBaseMeshPaintComponentAdapter>
@@ -24,7 +23,7 @@ public:
 	virtual void GetInfluencedVertexIndices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing, TSet<int32> &InfluencedVertices) const override;
 	virtual void GetInfluencedVertexData(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing, TArray<TPair<int32, FVector>>& OutData) const override;
 	virtual TArray<FVector> SphereIntersectVertices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const override;
-	virtual bool RayIntersectAdapter(FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const override;
+	virtual bool RayIntersectAdapter(UE::Geometry::FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const override;
 	/** End IMeshPaintGeometryAdapter Overrides */
 
 	virtual bool InitializeVertexData() = 0;
@@ -37,5 +36,5 @@ protected:
 	/** Octree used for reducing the cost of sphere intersecting with triangles / vertices */
 	TUniquePtr<FMeshPaintTriangleOctree> MeshTriOctree;
 	FIndexMeshArrayAdapterd Adapter;
-	TUniquePtr<TMeshAABBTree3<const FIndexMeshArrayAdapterd>> AABBTree;
+	TUniquePtr<UE::Geometry::TMeshAABBTree3<const FIndexMeshArrayAdapterd>> AABBTree;
 };

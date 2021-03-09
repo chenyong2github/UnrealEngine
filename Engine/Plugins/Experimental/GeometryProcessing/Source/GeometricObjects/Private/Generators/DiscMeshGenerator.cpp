@@ -3,6 +3,8 @@
 #include "Generators/DiscMeshGenerator.h"
 #include "MathUtil.h"
 
+using namespace UE::Geometry;
+
 FDiscMeshGenerator::FDiscMeshGenerator()
 {
 	Normal = FVector3f::UnitZ();

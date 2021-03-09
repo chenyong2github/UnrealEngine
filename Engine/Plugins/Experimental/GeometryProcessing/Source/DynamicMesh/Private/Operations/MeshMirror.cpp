@@ -5,6 +5,9 @@
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshEditor.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 // Forward declarations of local functions
 void MirrorAndAppendVertices(FDynamicMesh3& Mesh, const FVector3d& PlaneNormal, const FVector3d& PlaneOrigin,
 	TArray<int32>& OutVidToMirrorMap);

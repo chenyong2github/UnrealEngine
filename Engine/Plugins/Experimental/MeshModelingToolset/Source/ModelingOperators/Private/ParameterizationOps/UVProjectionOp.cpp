@@ -14,6 +14,8 @@
 #include "MeshNormals.h"
 #include "DynamicMeshEditor.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FUVProjectionOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;

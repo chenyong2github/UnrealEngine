@@ -9,6 +9,10 @@
 #include "Util/IndexPriorityQueue.h"
 #include "Util/DynamicVector.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * TMeshDijkstra computes graph distances on a mesh from seed point(s) using Dijkstra's algorithm.
@@ -346,3 +350,7 @@ private:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

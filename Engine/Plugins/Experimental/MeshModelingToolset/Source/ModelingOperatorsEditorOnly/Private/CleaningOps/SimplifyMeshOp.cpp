@@ -20,6 +20,9 @@
 #include "OverlappingCorners.h"
 #include "StaticMeshOperations.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 template <typename SimplificationType>
 void ComputeSimplify(FDynamicMesh3* TargetMesh, const bool bReproject,
 					 int OriginalTriCount, FDynamicMesh3& OriginalMesh, FDynamicMeshAABBTree3& OriginalMeshSpatial,

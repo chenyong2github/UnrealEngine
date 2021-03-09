@@ -22,9 +22,10 @@
 
 #include "CompositionOps/VoxelSolidifyMeshesOp.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UVoxelSolidifyMeshesTool"
-
 
 
 void UVoxelSolidifyMeshesTool::SetupProperties()

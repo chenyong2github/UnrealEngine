@@ -21,6 +21,7 @@
 
 #define LOCTEXT_NAMESPACE "FractureToolAutoUV"
 
+using namespace UE::Geometry;
 
 UFractureToolAutoUV::UFractureToolAutoUV(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -217,9 +218,9 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		FImageDimensions Dimensions(OutputRes, OutputRes);
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
 
-		TImageBuilder<FVector3f> ImageBuilder;
+		UE::Geometry::TImageBuilder<UE::Geometry::FVector3f> ImageBuilder;
 		ImageBuilder.SetDimensions(Dimensions);
-		ImageBuilder.Clear(FVector3f(0, 0, 0));
+		ImageBuilder.Clear(UE::Geometry::FVector3f(0, 0, 0));
 
 		UE::PlanarCut::TextureInternalSurfaces(Collection, AutoUVSettings->MaxDistance, FMath::CeilToInt(AutoUVSettings->GutterSize), ImageBuilder);
 

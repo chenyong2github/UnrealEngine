@@ -6,6 +6,11 @@
 #include "VectorTypes.h"
 #include "Quaternion.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TTransform3 is a double/float templated version of standard UE FTransform.
  */
@@ -318,3 +323,7 @@ public:
 };
 typedef TTransform3<float> FTransform3f;
 typedef TTransform3<double> FTransform3d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

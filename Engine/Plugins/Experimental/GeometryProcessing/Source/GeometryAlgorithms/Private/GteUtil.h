@@ -13,6 +13,11 @@ THIRD_PARTY_INCLUDES_START
 #include "ThirdParty/GTEngine/Mathematics/GteCircle3.h"
 THIRD_PARTY_INCLUDES_END
 
+namespace UE
+{
+namespace Geometry
+{
+
 template<typename Real>
 gte::Vector2<Real> Convert(const FVector2<Real>& Vec)
 {
@@ -49,3 +54,6 @@ gte::Circle3<Real> Convert(const TCircle3<Real>& Circle)
 	return gte::Circle3<Real>(
 		Convert(Circle.Frame.Origin), Convert(Circle.GetNormal()), Circle.Radius);
 }
+
+} // end namespace UE::Geometry
+} // end namespace UE

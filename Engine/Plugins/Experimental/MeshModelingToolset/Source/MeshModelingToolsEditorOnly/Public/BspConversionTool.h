@@ -174,7 +174,7 @@ protected:
 	TArray<ABrush*> BrushesToDelete;
 	ABrush* BrushForPivot = nullptr;
 
-	TMap<ABrush*, TPair<TSharedPtr<const FDynamicMesh3>, 
+	TMap<ABrush*, TPair<TSharedPtr<const UE::Geometry::FDynamicMesh3>, 
 		TSharedPtr<const TArray<UMaterialInterface*>>>> CachedBrushes;
 
 	bool IsValidConversionTarget(const ABrush* Brush) const;

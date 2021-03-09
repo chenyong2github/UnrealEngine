@@ -7,6 +7,10 @@
 #include "Sampling/MeshImageBakingCache.h"
 #include "Image/ImageBuilder.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 enum class EMeshPropertyBakeType
 {
@@ -45,3 +49,6 @@ public:
 protected:
 	TUniquePtr<TImageBuilder<FVector3f>> ResultBuilder;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

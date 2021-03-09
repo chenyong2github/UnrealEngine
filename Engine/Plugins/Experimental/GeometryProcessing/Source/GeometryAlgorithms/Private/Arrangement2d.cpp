@@ -8,6 +8,8 @@
 #include "ThirdParty/GTEngine/Mathematics/GteUIntegerFP32.h"
 #include <vector>
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 namespace

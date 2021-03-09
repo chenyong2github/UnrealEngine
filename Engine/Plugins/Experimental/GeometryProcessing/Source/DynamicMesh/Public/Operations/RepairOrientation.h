@@ -9,6 +9,11 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAABBTree3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Invert triangles as needed to a consistent ~"outward" orientation
  */
@@ -56,3 +61,6 @@ protected:
 	void ComputeComponentStatistics(FDynamicMeshAABBTree3* Tree, Component& c);
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

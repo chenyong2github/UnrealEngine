@@ -21,8 +21,13 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 
-class FDynamicMeshAttributeSet;
+namespace UE
+{
+namespace Geometry
+{
+
 class FMeshShapeGenerator;
+class FDynamicMeshAttributeSet;
 
 enum class EMeshComponents : uint8
 {
@@ -1417,3 +1422,8 @@ protected:
 		}
 	}
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

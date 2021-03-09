@@ -3,11 +3,12 @@
 #include "CompositionOps/SelfUnionMeshesOp.h"
 
 #include "Operations/MeshSelfUnion.h"
-
 #include "MeshSimplification.h"
-
 #include "MeshBoundaryLoops.h"
 #include "Operations/MinimalHoleFiller.h"
+
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FSelfUnionMeshesOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;

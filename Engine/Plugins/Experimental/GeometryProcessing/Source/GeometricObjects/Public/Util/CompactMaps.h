@@ -8,6 +8,11 @@
 
 #include "IndexTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Stores index remapping arrays for different types of elements
  * Should only be used for compacting, and should maintain invariant that Map*[Idx] <= Idx for all maps
@@ -146,3 +151,7 @@ struct FCompactMaps
 		return true;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -5,12 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
 #include "InteractiveToolChange.h"
+#include "GeometryBase.h"
 #include "MeshReplacementChange.generated.h"
 
 
-class FDynamicMesh3;
-
-
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
 /**

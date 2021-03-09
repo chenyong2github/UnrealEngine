@@ -10,6 +10,8 @@
 namespace UE {
 namespace Conversion {
 
+using namespace UE::Geometry;
+
 /**
  * Convert rendering buffer data (from FStaticMeshLODResources) to a DynamicMesh3.
  * The output FDynamicMesh3 attribute set will have as many UV channels as found in VertexData,

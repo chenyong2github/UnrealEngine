@@ -2,6 +2,7 @@
 
 #include "MeshOpPreviewHelpers.h"
 
+using namespace UE::Geometry;
 
 void UMeshOpPreviewWithBackgroundCompute::Setup(UWorld* InWorld, IDynamicMeshOperatorFactory* OpGenerator)
 {

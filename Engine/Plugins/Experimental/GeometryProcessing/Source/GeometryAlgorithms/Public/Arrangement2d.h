@@ -13,6 +13,10 @@
 
 #include "CoreMinimal.h"
 
+namespace UE {
+namespace Geometry {
+
+
 /**
  * Arrangement2d constructs a planar arrangement of a set of 2D line segments.
  * When a segment is inserted, existing edges are split, and the inserted
@@ -534,3 +538,8 @@ protected:
 		return num_hits > 0;
 	}
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

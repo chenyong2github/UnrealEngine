@@ -2,6 +2,11 @@
 
 #pragma once
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * EMeshResult is returned by various mesh/graph operations to either indicate success,
  * or communicate which type of error ocurred (some errors are recoverable, and some not).
@@ -189,3 +194,5 @@ public:
 typedef TIndexMap<int> FIndexMapi;
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

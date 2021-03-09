@@ -12,6 +12,7 @@
 
 #define LOCTEXT_NAMESPACE "UBaseVoxelTool"
 
+using namespace UE::Geometry;
 
 void UBaseVoxelTool::SetupProperties()
 {

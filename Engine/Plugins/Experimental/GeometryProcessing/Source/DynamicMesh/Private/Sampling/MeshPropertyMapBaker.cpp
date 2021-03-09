@@ -2,6 +2,8 @@
 
 #include "Sampling/MeshPropertyMapBaker.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 static FVector3f NormalToColor(const FVector3d Normal)
 {

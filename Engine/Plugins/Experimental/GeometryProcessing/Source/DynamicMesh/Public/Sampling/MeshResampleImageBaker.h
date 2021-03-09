@@ -7,6 +7,10 @@
 #include "Sampling/MeshImageBakingCache.h"
 #include "Image/ImageBuilder.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class DYNAMICMESH_API FMeshResampleImageBaker : public FMeshImageBaker
 {
@@ -39,3 +43,6 @@ public:
 protected:
 	TUniquePtr<TImageBuilder<FVector4f>> ResultBuilder;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

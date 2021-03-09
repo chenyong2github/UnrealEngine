@@ -7,7 +7,7 @@
 #include "Parameterization/MeshUVTransforms.h"
 
 
-
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 

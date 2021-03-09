@@ -2,6 +2,9 @@
 
 #include "Sampling/MeshResampleImageBaker.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void FMeshResampleImageBaker::Bake()
 {
 	const FMeshImageBakingCache* BakeCache = GetCache();

@@ -13,6 +13,11 @@
 #include "Misc/ScopeLock.h"
 #include "Implicit/GridInterpolant.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * Compute discretely-sampled (ie gridded) signed distance field for a mesh
@@ -1277,3 +1282,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

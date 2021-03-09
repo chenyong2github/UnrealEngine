@@ -83,7 +83,7 @@ public:
 	USmoothHoleFillProperties()
 	{
 		// Create a default FSmoothFillOptions and populate this class with its defaults.
-		FSmoothFillOptions DefaultOptionsObject;
+		UE::Geometry::FSmoothFillOptions DefaultOptionsObject;
 		bConstrainToHoleInterior = DefaultOptionsObject.bConstrainToHoleInterior;
 		RemeshingExteriorRegionWidth = DefaultOptionsObject.RemeshingExteriorRegionWidth;
 		SmoothingExteriorRegionWidth = DefaultOptionsObject.SmoothingExteriorRegionWidth;
@@ -93,9 +93,9 @@ public:
 		bProjectDuringRemesh = DefaultOptionsObject.bProjectDuringRemesh;
 	}
 
-	FSmoothFillOptions ToSmoothFillOptions() const
+	UE::Geometry::FSmoothFillOptions ToSmoothFillOptions() const
 	{
-		FSmoothFillOptions Options;
+		UE::Geometry::FSmoothFillOptions Options;
 		Options.bConstrainToHoleInterior = bConstrainToHoleInterior;
 		Options.RemeshingExteriorRegionWidth = RemeshingExteriorRegionWidth;
 		Options.SmoothingExteriorRegionWidth = SmoothingExteriorRegionWidth;
@@ -184,7 +184,7 @@ public:
 
 	void Initialize(const UHoleFillTool& HoleFillTool);
 
-	void Update(const UHoleFillTool& HoleFillTool, const FHoleFillOp& HoleFillOp);
+	void Update(const UHoleFillTool& HoleFillTool, const UE::Geometry::FHoleFillOp& HoleFillOp);
 };
 
 
@@ -193,13 +193,13 @@ public:
  */
 
 UCLASS()
-class MESHMODELINGTOOLS_API UHoleFillOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UHoleFillOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 
-	TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UHoleFillTool* FillTool;
@@ -255,7 +255,7 @@ protected:
 	UPolygonSelectionMechanic* SelectionMechanic = nullptr;
 
 	// Input mesh. Ownership shared with Op.
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
 	// UV Scale factor is cached based on the bounding box of the mesh before any fills are performed
 	float MeshUVScaleFactor = 0.0f;
@@ -264,7 +264,7 @@ protected:
 	UWorld* TargetWorld = nullptr;
 
 	// Used for hit querying
-	FDynamicMeshAABBTree3 MeshSpatial;
+	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 
 	TSet<int32> NewTriangleIDs;
 
@@ -285,10 +285,10 @@ protected:
 	// Object used to get boundary loop information. All triangles return the same GroupID, so the only boundaries that 
 	// are returned are the the actual mesh boundaries.
 	// TODO: It seems like overkill to use a FGroupTopology subclass when we don't actually care about groups.
-	class FBasicTopology : public FGroupTopology
+	class FBasicTopology : public UE::Geometry::FGroupTopology
 	{
 	public:
-		FBasicTopology(const FDynamicMesh3* Mesh, bool bAutoBuild) :
+		FBasicTopology(const UE::Geometry::FDynamicMesh3* Mesh, bool bAutoBuild) :
 			FGroupTopology(Mesh, bAutoBuild)
 		{}
 
@@ -312,6 +312,6 @@ protected:
 
 	// Populate an array of Edge Loops to be processed by an FHoleFillOp. Returns the edge loops currently selected
 	// by this tool.
-	void GetLoopsToFill(TArray<FEdgeLoop>& OutLoops) const;
+	void GetLoopsToFill(TArray<UE::Geometry::FEdgeLoop>& OutLoops) const;
 
 };

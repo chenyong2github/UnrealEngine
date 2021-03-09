@@ -88,11 +88,11 @@ public:
 			FVector3d SmoothedPos = OrigPos;
 			if (bPreserveUVFlow)
 			{
-				SmoothedPos = FMeshWeights::CotanCentroidSafe(*Mesh, VertIdx, 10.0);
+				SmoothedPos = UE::Geometry::FMeshWeights::CotanCentroidSafe(*Mesh, VertIdx, 10.0);
 			}
 			else
 			{
-				SmoothedPos = FMeshWeights::UniformCentroid(*Mesh, VertIdx);
+				SmoothedPos = UE::Geometry::FMeshWeights::UniformCentroid(*Mesh, VertIdx);
 			}
 
 			FVector3d NewPos = FVector3d::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
@@ -146,18 +146,18 @@ public:
 			int32 VertIdx = Vertices[k];
 
 			FVector3d OrigPos = Mesh->GetVertex(VertIdx);
-			FVector3d Normal = FMeshNormals::ComputeVertexNormal(*Mesh, VertIdx);
+			FVector3d Normal = UE::Geometry::FMeshNormals::ComputeVertexNormal(*Mesh, VertIdx);
 
 			double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 
 			FVector3d SmoothedPos = OrigPos;
 			if (bPreserveUVFlow)
 			{
-				SmoothedPos = FMeshWeights::CotanCentroidSafe(*Mesh, VertIdx, 10.0);
+				SmoothedPos = UE::Geometry::FMeshWeights::CotanCentroidSafe(*Mesh, VertIdx, 10.0);
 			}
 			else
 			{
-				SmoothedPos = FMeshWeights::UniformCentroid(*Mesh, VertIdx);
+				SmoothedPos = UE::Geometry::FMeshWeights::UniformCentroid(*Mesh, VertIdx);
 			}
 
 			FVector3d NewPos = FVector3d::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
@@ -226,7 +226,7 @@ public:
 		{
 			int32 VertIdx = Vertices[k];
 			FVector3d OrigPos = Mesh->GetVertex(VertIdx);
-			FVector3d Normal = FMeshNormals::ComputeVertexNormal(*Mesh, VertIdx);
+			FVector3d Normal = UE::Geometry::FMeshNormals::ComputeVertexNormal(*Mesh, VertIdx);
 			FVector3d PlanePos = FlattenPlane.ToPlane(OrigPos, 2);
 			FVector3d MoveDelta = PlanePos - OrigPos;
 

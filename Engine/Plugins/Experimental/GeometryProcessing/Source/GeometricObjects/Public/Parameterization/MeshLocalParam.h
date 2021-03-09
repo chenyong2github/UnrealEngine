@@ -9,6 +9,10 @@
 #include "Util/IndexPriorityQueue.h"
 #include "Util/DynamicVector.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Type of local parameterization
@@ -459,3 +463,7 @@ protected:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

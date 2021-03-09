@@ -7,6 +7,12 @@
 #include "VectorTypes.h"
 #include "TransformTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 template <typename RealType>
 struct TInterval1
 {
@@ -711,3 +717,6 @@ typedef TAxisAlignedBox2<int> FAxisAlignedBox2i;
 typedef TAxisAlignedBox3<float> FAxisAlignedBox3f;
 typedef TAxisAlignedBox3<double> FAxisAlignedBox3d;
 typedef TAxisAlignedBox3<int> FAxisAlignedBox3i;
+
+} // end namespace UE::Geometry
+} // end namespace UE

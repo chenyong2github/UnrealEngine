@@ -18,7 +18,6 @@
 class UCollectSurfacePathMechanic;
 class UConstructionPlaneMechanic;
 class UCurveControlPointsMechanic;
-class FCurveSweepOp;
 class IAssetGenerationAPI;
 
 UCLASS()
@@ -70,13 +69,13 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLS_API URevolveOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API URevolveOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UDrawAndRevolveTool* RevolveTool;
@@ -117,8 +116,8 @@ protected:
 
 	// This information is replicated in the user-editable transform in the settings and in the PlaneMechanic
 	// plane, but the tool turned out to be much easier to write and edit with this decoupling.
-	FVector3d RevolutionAxisOrigin;
-	FVector3d RevolutionAxisDirection;
+	UE::Geometry::FVector3d RevolutionAxisOrigin;
+	UE::Geometry::FVector3d RevolutionAxisDirection;
 
 	bool bProfileCurveComplete = false;
 

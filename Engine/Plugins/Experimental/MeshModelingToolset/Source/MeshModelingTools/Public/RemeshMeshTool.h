@@ -110,7 +110,7 @@ public:
  * that subclasses of this class can work with multiple meshes (see, for example, UProjectToTargetTool.)
  */
 UCLASS()
-class MESHMODELINGTOOLS_API URemeshMeshTool : public UMultiSelectionTool, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API URemeshMeshTool : public UMultiSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
@@ -134,7 +134,7 @@ public:
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	URemeshMeshToolProperties* BasicProperties;
@@ -150,8 +150,8 @@ protected:
 	UWorld* TargetWorld;
 	IToolsContextAssetAPI* AssetAPI;
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
-	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 	double InitialMeshArea;
 
 	double CalculateTargetEdgeLength(int TargetTriCount);

@@ -104,7 +104,7 @@ protected:
 	UWorld* TargetWorld = nullptr;
 	IAssetGenerationAPI* AssetAPI = nullptr;
 
-	FDynamicMesh3 CurrentMesh;
+	UE::Geometry::FDynamicMesh3 CurrentMesh;
 
 	void RecalculateMesh();
 

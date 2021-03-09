@@ -30,8 +30,9 @@
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 #include "GeometryFlowExecutor.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
-
 
 
 void FGenerateMeshLODGraph::SetSourceMesh(const FDynamicMesh3& SourceMeshIn)
@@ -635,7 +636,7 @@ void FGenerateMeshLODGraph::BuildGraph()
 
 
 
-int32 FGenerateMeshLODGraph::AppendTextureBakeNode(const TImageBuilder<FVector4f>& SourceImage, const FString& Identifier)
+int32 FGenerateMeshLODGraph::AppendTextureBakeNode(const TImageBuilder<UE::Geometry::FVector4f>& SourceImage, const FString& Identifier)
 {
 	FBakeTextureGraphInfo NewNode;
 	NewNode.Index = BakeTextureNodes.Num();

@@ -46,6 +46,11 @@ enum class ETrimSide : uint8
 };
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 class MODELINGOPERATORS_API FBooleanMeshesOp : public FDynamicMeshOperator
 {
 public:
@@ -84,3 +89,5 @@ private:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

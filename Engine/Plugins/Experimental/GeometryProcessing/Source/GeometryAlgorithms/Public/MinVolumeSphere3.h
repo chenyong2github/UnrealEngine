@@ -7,6 +7,8 @@
 #include "SphereTypes.h"
 #include "Templates/PimplPtr.h"
 
+namespace UE {
+namespace Geometry {
 
 template <typename RealType> struct TMinVolumeSphere3Internal;
 
@@ -40,3 +42,6 @@ protected:
 
 typedef TMinVolumeSphere3<float> FMinVolumeSphere3f;
 typedef TMinVolumeSphere3<double> FMinVolumeSphere3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

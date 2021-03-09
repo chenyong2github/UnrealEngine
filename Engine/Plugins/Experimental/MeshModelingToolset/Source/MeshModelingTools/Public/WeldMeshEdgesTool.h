@@ -64,7 +64,7 @@ protected:
 
 protected:
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
-	FDynamicMesh3 OriginalMesh;
+	UE::Geometry::FDynamicMesh3 OriginalMesh;
 	bool bResultValid;
 	void UpdateResult();
 };

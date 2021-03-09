@@ -8,9 +8,15 @@
 #include "MeshRegionBoundaryLoops.h"
 #include "ProjectionTargets.h"
 
+
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
-class FDynamicMeshChangeTracker;
 class FMeshNormals;
+class FDynamicMeshChangeTracker;
 
 /**
  * FInsetMeshRegion implements local inset of a mesh region.
@@ -125,3 +131,7 @@ protected:
 
 	virtual bool ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals = nullptr);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

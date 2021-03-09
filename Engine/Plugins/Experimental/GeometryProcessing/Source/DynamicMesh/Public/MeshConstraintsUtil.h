@@ -9,6 +9,11 @@
 #include "DynamicMeshAttributeSet.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Utility functions for configuring a FMeshConstraints instance
  */
@@ -173,3 +178,7 @@ private:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

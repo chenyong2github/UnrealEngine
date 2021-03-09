@@ -3,18 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DynamicMesh3.h"
+#include "DynamicMeshAABBTree3.h"
 #include "MeshConstraints.h"
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
 #include "RemeshMeshOp.generated.h"
-
-class FDynamicMesh3;
-class FRemesher;
-
-template <class TriangleMeshType>
-class TMeshAABBTree3;
-typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
 
 /** Remeshing modes */
 UENUM()
@@ -44,6 +39,13 @@ enum class ERemeshSmoothingType : uint8
 	/** Mean Value Smoothing */
 	MeanValue = 2 UMETA(DisplayName = "Mixed")
 };
+
+namespace UE
+{
+namespace Geometry
+{
+
+class FRemesher;
 
 class MODELINGOPERATORS_API FRemeshMeshOp : public FDynamicMeshOperator
 {
@@ -79,5 +81,8 @@ protected:
 	TUniquePtr<FRemesher> CreateRemesher(ERemeshType Type, FDynamicMesh3* TargetMesh);
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE
 
 

@@ -9,7 +9,7 @@
 
 #include "BaseVoxelTool.generated.h"
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  * Base for Voxel tools

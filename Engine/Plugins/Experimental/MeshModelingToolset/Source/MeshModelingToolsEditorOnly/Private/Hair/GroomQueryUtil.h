@@ -16,6 +16,8 @@ namespace UE
 {
 	namespace GroomQueries
 	{
+		using namespace UE::Geometry;
+
 		// source card information
 		struct FCardSourceInfo
 		{

@@ -8,6 +8,8 @@
 
 #include "SimpleDynamicMeshComponent.h"
 
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UMeshStatisticsProperites"
 
 

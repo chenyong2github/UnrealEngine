@@ -22,6 +22,11 @@
 
 #include "Util/ProgressCancel.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 enum class EOcclusionTriangleSampling
 {
 	Centroids,
@@ -35,10 +40,17 @@ enum class EOcclusionCalculationMode
 	SimpleOcclusionTest
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE
+
+
 namespace UE
 {
 	namespace MeshAutoRepair
 	{
+		using namespace UE::Geometry;
+
 		/**
 		 * Remove any triangles that are internal to the input mesh
 		 * @param Mesh Input mesh to analyze and remove triangles from
@@ -54,6 +66,11 @@ namespace UE
 			int RandomSamplesPerTri = 0, double WindingNumberThreshold = .5, bool bTestOccludedByAny = false);
 	}
 }
+
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Remove "occluded" triangles, i.e. triangles on the "inside" of the mesh(es).
@@ -606,3 +623,6 @@ protected:
 
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

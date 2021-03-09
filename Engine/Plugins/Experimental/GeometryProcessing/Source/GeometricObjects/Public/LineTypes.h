@@ -7,6 +7,11 @@
 #include "Math/UnrealMath.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TLine2 is a two-dimensional infinite line.
  * The line is stored in (Center,Direction) form.
@@ -213,3 +218,7 @@ struct TLine3
 
 typedef TLine3<double> FLine3d;
 typedef TLine3<float> FLine3f;
+
+} // end namespace UE::Geometry
+} // end namespace UE
+

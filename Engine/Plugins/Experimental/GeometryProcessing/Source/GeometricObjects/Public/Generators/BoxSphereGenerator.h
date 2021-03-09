@@ -10,6 +10,12 @@
 
 #include "GridBoxMeshGenerator.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  *  Generate a sphere by pushing a boxes vertices onto a sphere -- often more useful
  */
@@ -68,3 +74,7 @@ public:
 
 };
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

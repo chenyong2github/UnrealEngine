@@ -7,6 +7,8 @@
 #include "ConvexHull2.h"
 #include "Generators/SweepGenerator.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 bool FMeshProjectionHull::Compute()
 {

@@ -9,6 +9,10 @@
 #include "RayTypes.h"
 #include "CircleTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FBasePositionSnapSolver3 is a base class for 3D position snapping implementations.
@@ -235,3 +239,7 @@ protected:
 	bool TestSnapTarget(const FSnapTargetPoint& Target, double MinMetric, int MinPriority,
 		const TFunction<FVector3d(const FVector3d&)>& GetSnapPointFromFunc);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

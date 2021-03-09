@@ -9,6 +9,10 @@
 #include "VectorTypes.h"
 #include "IndexTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /*
  * Blocked array with fixed, power-of-two sized blocks.
@@ -620,3 +624,7 @@ void TDynamicVector<Type>::Apply(const Func& applyF)
 		applyF(lastblock[k], k);
 	}
 }
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

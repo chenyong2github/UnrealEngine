@@ -4,6 +4,7 @@
 
 #include "Parameterization/MeshUVPacking.h"
 
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 

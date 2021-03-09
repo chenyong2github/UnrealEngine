@@ -5,6 +5,11 @@
 #include "Math/UnrealMath.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /*
  * 3D Sphere stored as Center point and Radius
  */
@@ -99,3 +104,6 @@ public:
 
 typedef TSphere3<float> FSphere3f;
 typedef TSphere3<double> FSphere3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

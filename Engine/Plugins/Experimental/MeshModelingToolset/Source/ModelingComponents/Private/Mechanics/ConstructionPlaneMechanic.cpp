@@ -8,6 +8,8 @@
 #include "Drawing/MeshDebugDrawing.h"
 #include "ToolSceneQueriesUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void UConstructionPlaneMechanic::Setup(UInteractiveTool* ParentToolIn)
 {

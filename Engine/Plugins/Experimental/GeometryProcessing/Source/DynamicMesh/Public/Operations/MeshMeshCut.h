@@ -14,6 +14,11 @@
 
 #include "DynamicMesh3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class DYNAMICMESH_API FMeshSelfCut
 {
 public:
@@ -151,3 +156,7 @@ public:
 		}
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

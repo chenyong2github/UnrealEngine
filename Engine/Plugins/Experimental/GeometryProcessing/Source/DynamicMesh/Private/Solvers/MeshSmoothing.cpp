@@ -4,6 +4,8 @@
 #include "Solvers/Internal/MeshDiffusionSmoothing.h"
 #include "Solvers/Internal/ConstrainedMeshSmoothers.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void UE::MeshDeformation::ComputeSmoothing_BiHarmonic(const ELaplacianWeightScheme WeightScheme, const FDynamicMesh3& OriginalMesh,
 	const double Speed, const double Intensity, const int32 NumIterations, TArray<FVector3d>& PositionArray)

@@ -7,6 +7,7 @@
 #include "DynamicSubmesh3.h"
 #include "Util/ProgressCancel.h"
 
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 

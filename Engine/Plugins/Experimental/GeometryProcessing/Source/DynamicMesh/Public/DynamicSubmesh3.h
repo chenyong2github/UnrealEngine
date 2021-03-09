@@ -8,6 +8,11 @@
 #include "DynamicMeshEditor.h"
 #include "Util/SparseIndexCollectionTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 struct DYNAMICMESH_API FDynamicSubmesh3
 {
 protected:
@@ -260,3 +265,7 @@ protected:
 	}
 };
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

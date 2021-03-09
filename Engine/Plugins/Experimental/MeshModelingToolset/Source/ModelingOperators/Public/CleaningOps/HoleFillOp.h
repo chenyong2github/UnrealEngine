@@ -28,6 +28,11 @@ enum class EHoleFillOpFillType : uint8
 };
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 struct FFillOptions
 {
 	bool bRemoveIsolatedTriangles = false;
@@ -43,10 +48,10 @@ public:
 
 	EHoleFillOpFillType FillType = EHoleFillOpFillType::Minimal;
 	double MeshUVScaleFactor = 1.0;
-	TArray<FEdgeLoop> Loops;
+	TArray<UE::Geometry::FEdgeLoop> Loops;
 
 	FFillOptions FillOptions;
-	FSmoothFillOptions SmoothFillOptions;
+	UE::Geometry::FSmoothFillOptions SmoothFillOptions;
 
 	// output
 	TArray<int32> NewTriangles;
@@ -57,3 +62,5 @@ public:
 
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE

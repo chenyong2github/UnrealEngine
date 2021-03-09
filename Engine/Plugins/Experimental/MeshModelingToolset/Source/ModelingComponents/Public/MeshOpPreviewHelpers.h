@@ -15,7 +15,7 @@
  * FBackgroundDynamicMeshComputeSource is an instantiation of the TBackgroundModelingComputeSource
  * template for FDynamicMeshOperator / IDynamicMeshOperatorFactory
  */
-using FBackgroundDynamicMeshComputeSource = TBackgroundModelingComputeSource<FDynamicMeshOperator, IDynamicMeshOperatorFactory>;
+using FBackgroundDynamicMeshComputeSource = UE::Geometry::TBackgroundModelingComputeSource<UE::Geometry::FDynamicMeshOperator, UE::Geometry::IDynamicMeshOperatorFactory>;
 
 
 /**
@@ -23,8 +23,8 @@ using FBackgroundDynamicMeshComputeSource = TBackgroundModelingComputeSource<FDy
  */
 struct MODELINGCOMPONENTS_API FDynamicMeshOpResult
 {
-	TUniquePtr<FDynamicMesh3> Mesh;
-	FTransform3d Transform;
+	TUniquePtr<UE::Geometry::FDynamicMesh3> Mesh;
+	UE::Geometry::FTransform3d Transform;
 };
 
 
@@ -59,7 +59,7 @@ public:
 	 * @param InWorld the Preview mesh actor will be created in this UWorld
 	 * @param OpGenerator This factory is called to create new MeshOperators on-demand
 	 */
-	void Setup(UWorld* InWorld, IDynamicMeshOperatorFactory* OpGenerator);
+	void Setup(UWorld* InWorld, UE::Geometry::IDynamicMeshOperatorFactory* OpGenerator);
 
 	/**
 	 * Terminate any active computation and return the current Preview Mesh/Transform
@@ -164,7 +164,7 @@ public:
 	/** This delegate is broadcast whenever the embedded preview mesh is updated */
 	FOnMeshUpdated OnMeshUpdated;
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnOpCompleted, const FDynamicMeshOperator*);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnOpCompleted, const UE::Geometry::FDynamicMeshOperator*);
 	FOnOpCompleted OnOpCompleted;
 
 public:
@@ -229,9 +229,9 @@ template<typename ResultDataType>
 class TGenericDataBackgroundCompute
 {
 public:
-	using OperatorType = TGenericDataOperator<ResultDataType>;
-	using FactoryType = IGenericDataOperatorFactory<ResultDataType>;
-	using ComputeSourceType = TBackgroundModelingComputeSource<OperatorType, FactoryType>;
+	using OperatorType = UE::Geometry::TGenericDataOperator<ResultDataType>;
+	using FactoryType = UE::Geometry::IGenericDataOperatorFactory<ResultDataType>;
+	using ComputeSourceType = UE::Geometry::TBackgroundModelingComputeSource<OperatorType, FactoryType>;
 
 	//
 	// required calls to setup/update/shutdown this object
@@ -327,8 +327,8 @@ protected:
 		check(BackgroundCompute);
 		if (BackgroundCompute)
 		{
-			EBackgroundComputeTaskStatus Status = BackgroundCompute->CheckStatus();
-			if (Status == EBackgroundComputeTaskStatus::NewResultAvailable)
+			UE::Geometry::EBackgroundComputeTaskStatus Status = BackgroundCompute->CheckStatus();
+			if (Status == UE::Geometry::EBackgroundComputeTaskStatus::NewResultAvailable)
 			{
 				TUniquePtr<OperatorType> ResultOp = BackgroundCompute->ExtractResult();
 				OnOpCompleted.Broadcast(ResultOp.Get());

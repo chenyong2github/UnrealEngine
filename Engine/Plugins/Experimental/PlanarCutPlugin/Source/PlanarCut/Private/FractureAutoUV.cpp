@@ -14,6 +14,9 @@
 #include "Misc/ScopedSlowTask.h"
 #endif
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 namespace UE { namespace PlanarCut {
 
 /**
@@ -58,7 +61,7 @@ int32 SetActiveTriangles(FGeometryCollection* Collection, TArray<bool>& ActiveTr
 
 // Adapter to use geometry collections in the UVPacker, and other GeometricObjects generic mesh processing code
 // Note: Adapts the whole geometry collection as a single mesh, with triangles filtered by an ActiveTriangles mask
-struct FGeomMesh : public FUVPacker::IUVMeshView
+struct FGeomMesh : public UE::Geometry::FUVPacker::IUVMeshView
 {
 	FGeometryCollection* Collection;
 	const TArrayView<bool> ActiveTriangles;
@@ -244,7 +247,7 @@ bool UVLayout(
 	TArray<TArray<int32>> UVIslands;
 	UE::UVPacking::CreateUVIslandsFromMeshTopology<FGeomMesh>(UVMesh, UVIslands);
 
-	FUVPacker Packer;
+	UE::Geometry::FUVPacker Packer;
 	Packer.bAllowFlips = false;
 	// StandardPack doesn't support the Packer.GutterSize feature, and always tries to leave a 1 texel gutter.
 	// To approximate a larger gutter, we tell it to consider a smaller output resolution --

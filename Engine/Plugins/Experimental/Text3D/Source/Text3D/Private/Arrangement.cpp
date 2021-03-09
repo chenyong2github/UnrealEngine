@@ -2,6 +2,9 @@
 
 #include "Arrangement.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 FArrangement::FArrangement(const FAxisAlignedBox2f& BoundsHint)
     : PointHash(static_cast<double>(BoundsHint.MaxDim()) / 64, -1)
 {

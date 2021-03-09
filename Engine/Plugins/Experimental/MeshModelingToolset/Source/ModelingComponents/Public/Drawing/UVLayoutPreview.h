@@ -8,9 +8,7 @@
 #include "InteractiveTool.h"
 #include "UVLayoutPreview.generated.h"
 
-class FDynamicMesh3;
-
-
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  * Where should in-viewport UVLayoutPreview be shown, relative to target object
@@ -149,10 +147,10 @@ protected:
 
 	FComponentMaterialSet SourceMaterials;
 
-	FFrame3d SourceObjectFrame;
-	FAxisAlignedBox3d SourceObjectWorldBounds;
+	UE::Geometry::FFrame3d SourceObjectFrame;
+	UE::Geometry::FAxisAlignedBox3d SourceObjectWorldBounds;
 
-	FFrame3d CurrentWorldFrame;
+	UE::Geometry::FFrame3d CurrentWorldFrame;
 
 	FViewCameraState CameraState;
 

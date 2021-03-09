@@ -12,6 +12,10 @@
 #include "TransformTypes.h"
 
 
+namespace UE {
+namespace Geometry {
+
+
 /**
  * Supported/known types of Simple Shapes
  */
@@ -152,3 +156,6 @@ struct DYNAMICMESH_API FSimpleShapeSet3d
 	void ApplyTransform(const FTransform3d& Transform);
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -190,9 +190,9 @@ protected:
 
 	TArray<int> MapToFirstOccurrences;
 
-	FTransform3d Transform;
-	FAxisAlignedBox3d ObjectBounds;
-	FAxisAlignedBox3d WorldBounds;
+	UE::Geometry::FTransform3d Transform;
+	UE::Geometry::FAxisAlignedBox3d ObjectBounds;
+	UE::Geometry::FAxisAlignedBox3d WorldBounds;
 	void Precompute();
 
 	UPROPERTY()
@@ -211,5 +211,5 @@ protected:
 	virtual void ApplyAction(EEditPivotToolActions ActionType);
 	virtual void SetPivotToBoxPoint(EEditPivotToolActions ActionPoint);
 
-	void UpdateAssets(const FFrame3d& NewPivotWorldFrame);
+	void UpdateAssets(const UE::Geometry::FFrame3d& NewPivotWorldFrame);
 };

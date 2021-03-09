@@ -7,6 +7,10 @@
 #include "DynamicMesh3.h"
 #include "Util/IndexUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Sequential lists of vertices/edges in a mesh that form a closed loop
@@ -225,3 +229,7 @@ public:
 	static void VertexLoopToEdgeLoop(const FDynamicMesh3* Mesh, const TArray<int>& VertexLoop, TArray<int>& OutEdgeLoop);
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

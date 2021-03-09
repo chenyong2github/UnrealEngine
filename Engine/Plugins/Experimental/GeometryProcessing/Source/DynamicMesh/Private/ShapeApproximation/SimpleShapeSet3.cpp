@@ -6,6 +6,8 @@
 #include "MeshTransforms.h"
 #include "Intersection/ContainmentQueries3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 // FSimpleShapeElementKey identifies an element of a FSimpleShapeSet3d, via the Type

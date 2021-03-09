@@ -7,6 +7,11 @@
 #include "GeometryTypes.h"
 #include "DynamicMesh3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Calculate Convex Hull of a Mesh
  */
@@ -64,3 +69,7 @@ protected:
 	bool Compute_FullMesh();
 	bool Compute_VertexSubset();
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

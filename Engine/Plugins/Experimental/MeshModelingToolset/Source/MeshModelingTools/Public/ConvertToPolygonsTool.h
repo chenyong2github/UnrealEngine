@@ -70,13 +70,13 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLS_API UConvertToPolygonsOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UConvertToPolygonsOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UConvertToPolygonsTool* ConvertToPolygonsTool;  // back pointer
@@ -123,7 +123,7 @@ protected:
 
 	UWorld* TargetWorld;
 
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	// for visualization
 	TArray<int> PolygonEdges;

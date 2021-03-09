@@ -9,7 +9,8 @@
 #include "Util/ColorConstants.h"
 #include "MeshNormals.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 UCollectSurfacePathMechanic::UCollectSurfacePathMechanic()
 {

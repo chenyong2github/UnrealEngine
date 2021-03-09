@@ -16,7 +16,10 @@
 #include "Util/ProgressCancel.h"
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 
 
@@ -205,3 +208,7 @@ public:
 		int32 RemoveV, const FVector3d& RemoveVPos, int32 KeepV, const FVector3d& KeepVPos,
 		const FVector3d& EdgeDir, bool bPreserveUVsForMesh, bool bPreserveVertexUVs, bool bPreserveOverlayUVs, float UVToleranceSq);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

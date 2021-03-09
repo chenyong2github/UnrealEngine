@@ -7,6 +7,11 @@
 #include "VectorTypes.h"
 #include "RayTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * ISpatial is a base interface for spatial queries
@@ -174,3 +179,7 @@ public:
 	 */
 	virtual bool RayIntersect(const FRay3d& Ray, FVector3d& HitOut, FVector3d& HitNormalOut) = 0;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

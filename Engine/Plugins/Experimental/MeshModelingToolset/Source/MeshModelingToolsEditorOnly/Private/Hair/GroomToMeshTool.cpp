@@ -48,6 +48,9 @@
 #include "Engine/Classes/Engine/StaticMeshActor.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UGroomToMeshTool"
 
 

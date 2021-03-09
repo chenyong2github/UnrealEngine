@@ -5,6 +5,10 @@
 #include "MeshDiffusionIntegrator.h"
 #include "LaplacianOperators.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Solve mesh diffusion using Laplacian matrix of various types
@@ -88,3 +92,7 @@ protected:
 	}
 };
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

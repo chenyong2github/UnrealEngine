@@ -7,8 +7,10 @@
 #include "InteractiveToolChange.h"
 #include "VectorTypes.h"
 #include "Changes/MeshChange.h"
+#include "GeometryBase.h"
 #include "Polygroups/PolygroupSet.h"
 
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  * FDynamicMeshGroupEdit stores a modification of polygroup IDs on a set of triangles

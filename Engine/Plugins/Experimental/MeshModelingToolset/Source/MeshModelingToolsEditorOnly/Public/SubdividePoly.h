@@ -6,8 +6,8 @@
 #include "ModelingOperators.h"
 #include "SubdividePoly.generated.h"
 
-class FGroupTopology;
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopology);
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 class FProgressCancel;
 
 /**

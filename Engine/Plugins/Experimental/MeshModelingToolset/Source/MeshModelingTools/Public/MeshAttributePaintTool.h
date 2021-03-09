@@ -47,7 +47,7 @@ public:
 	virtual int ElementNum() const = 0;
 	virtual float GetValue(int32 Index) const = 0;
 	virtual void SetValue(int32 Index, float Value) = 0;
-	virtual FInterval1f GetValueRange() = 0;
+	virtual UE::Geometry::FInterval1f GetValueRange() = 0;
 };
 
 
@@ -249,7 +249,7 @@ protected:
 	TUniquePtr<FMeshDescription> EditedMesh;
 
 	double CalculateBrushFalloff(double Distance);
-	TDynamicVerticesOctree3<FDynamicMesh3> VerticesOctree;
+	UE::Geometry::TDynamicVerticesOctree3<FDynamicMesh3> VerticesOctree;
 	TArray<int> PreviewBrushROI;
 	void CalculateVertexROI(const FBrushStampData& Stamp, TArray<int>& VertexROI);
 
@@ -266,7 +266,7 @@ protected:
 	TArray<FAttributeData> Attributes;
 	int32 AttributeBufferCount;
 	int32 CurrentAttributeIndex;
-	FInterval1f CurrentValueRange;
+	UE::Geometry::FInterval1f CurrentValueRange;
 
 	// actions
 

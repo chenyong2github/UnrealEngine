@@ -16,9 +16,9 @@
 #include "Selection/ToolSelectionUtil.h"
 
 
-
 #define LOCTEXT_NAMESPACE "UBaseCreateFromSelectedTool"
 
+using namespace UE::Geometry;
 
 /*
  * ToolBuilder

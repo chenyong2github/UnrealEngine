@@ -17,6 +17,9 @@
 #include "Transforms/MultiTransformer.h"
 #include "ToolDataVisualizer.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "USpaceCurveDeformationMechanic"
 
 const FText SpaceCurvePointDeselectionTransactionText = LOCTEXT("PointDeselection", "Point Deselection");

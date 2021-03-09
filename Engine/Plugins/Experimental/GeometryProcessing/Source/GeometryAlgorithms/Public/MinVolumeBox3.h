@@ -7,9 +7,12 @@
 #include "OrientedBoxTypes.h"
 #include "Templates/PimplPtr.h"
 
-template <typename RealType> struct TMinVolumeBox3Internal;
-
 class FProgressCancel;
+
+namespace UE {
+namespace Geometry {
+
+template <typename RealType> struct TMinVolumeBox3Internal;
 
 /**
  * Calculate a Minimal-Volume Oriented Box for a set of 3D points.
@@ -42,3 +45,7 @@ protected:
 
 typedef TMinVolumeBox3<float> FMinVolumeBox3f;
 typedef TMinVolumeBox3<double> FMinVolumeBox3d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

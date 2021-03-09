@@ -3,6 +3,8 @@
 #include "Changes/MeshChange.h"
 #include "DynamicMesh3.h"
 
+using namespace UE::Geometry;
+
 FMeshChange::FMeshChange()
 {
 }

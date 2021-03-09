@@ -10,6 +10,9 @@
 
 #include "MeshNormals.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 namespace ExtendedMeshAttribute
 {
 	const FName PolyTriGroups("PolyTriGroups");

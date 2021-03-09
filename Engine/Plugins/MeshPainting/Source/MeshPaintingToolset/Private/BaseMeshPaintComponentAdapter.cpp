@@ -10,7 +10,7 @@ bool FBaseMeshPaintComponentAdapter::Initialize()
 	bool bInit = InitializeVertexData() && BuildOctree();
 	FIndexMeshArrayAdapterd TempAdapter(&MeshVertices, &MeshIndices);
 	Adapter = TempAdapter;
-	AABBTree = MakeUnique< TMeshAABBTree3<const FIndexMeshArrayAdapterd>>(&Adapter);
+	AABBTree = MakeUnique<UE::Geometry::TMeshAABBTree3<const FIndexMeshArrayAdapterd>>(&Adapter);
 	return bInit;
 }
 
@@ -182,13 +182,13 @@ TArray<FVector> FBaseMeshPaintComponentAdapter::SphereIntersectVertices(const fl
 	return InRangeVertices;
 }
 
-bool FBaseMeshPaintComponentAdapter::RayIntersectAdapter(FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const
+bool FBaseMeshPaintComponentAdapter::RayIntersectAdapter(UE::Geometry::FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const
 {
 	int32 HitTriangleID;
 	double NearestT;
-	FVector3d Direction((FVector3d)End - (FVector3d)Start);
+	UE::Geometry::FVector3d Direction((UE::Geometry::FVector3d)End - (UE::Geometry::FVector3d)Start);
 	Direction.Normalize();
-	FRay3d Ray((FVector3d)Start, Direction);
+	UE::Geometry::FRay3d Ray((UE::Geometry::FVector3d)Start, Direction);
 	bool bHit = AABBTree->FindNearestHitTriangle(Ray, NearestT, HitTriangleID);
 	if (bHit)
 	{

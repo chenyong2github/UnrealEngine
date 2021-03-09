@@ -14,7 +14,10 @@
 #include "Async/ParallelFor.h"
 #include "Spatial/SparseDynamicOctree3.h"    // for FDynamicFlagArray
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FSparsePointOctreeCell is a Node in a SparseDynamicOctree3. 
@@ -968,3 +971,6 @@ FString FSparseDynamicPointOctree3::FStatistics::ToString() const
 	}
 	return Result;
 }
+
+} // end namespace UE::Geometry
+} // end namespace UE

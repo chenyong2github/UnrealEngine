@@ -6,6 +6,8 @@
 
 #include <cfloat>
 
+using namespace UE::Geometry;
+
 constexpr float TMathUtilConstants<float>::Epsilon;
 constexpr float TMathUtilConstants<float>::ZeroTolerance;
 constexpr float TMathUtilConstants<float>::MaxReal;

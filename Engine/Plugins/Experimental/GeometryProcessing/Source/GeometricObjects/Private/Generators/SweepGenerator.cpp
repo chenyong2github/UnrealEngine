@@ -6,6 +6,7 @@
 
 // TODO: Other functions from SweepGenerator.h should go here too.
 
+using namespace UE::Geometry;
 
 // FProfileSweepGenerator
 

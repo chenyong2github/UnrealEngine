@@ -7,6 +7,10 @@
 #include "TransformTypes.h"
 #include "Util/ProgressCancel.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * FDynamicMeshOperator is a base interface for operator implementations that can produce 
@@ -148,3 +152,7 @@ public:
 
 	virtual TUniquePtr<TGenericDataOperator<ResultType>> MakeNewOperator() = 0;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

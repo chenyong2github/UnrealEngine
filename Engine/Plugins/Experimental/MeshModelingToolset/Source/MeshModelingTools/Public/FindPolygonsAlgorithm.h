@@ -5,8 +5,11 @@
 #include "CoreMinimal.h"
 #include "DynamicMesh3.h"
 
+using UE::Geometry::FDynamicMesh3;
+
 class FFindPolygonsAlgorithm
 {
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	FFindPolygonsAlgorithm() {}

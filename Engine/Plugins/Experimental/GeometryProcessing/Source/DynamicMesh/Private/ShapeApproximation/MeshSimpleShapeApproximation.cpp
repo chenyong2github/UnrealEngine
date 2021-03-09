@@ -14,6 +14,9 @@
 #include "Operations/MeshProjectionHull.h"
 #include "Util/ProgressCancel.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 
 void FMeshSimpleShapeApproximation::DetectAndCacheSimpleShapeType(const FDynamicMesh3* SourceMesh, FSourceMeshCache& CacheOut)
 {
@@ -95,7 +98,7 @@ struct FSimpleShapeFitsResult
 	FOrientedBox3d Box;
 
 	bool bHaveCapsule = false;
-	FCapsule3d Capsule;
+	UE::Geometry::FCapsule3d Capsule;
 
 	bool bHaveConvex = false;
 	FDynamicMesh3 Convex;

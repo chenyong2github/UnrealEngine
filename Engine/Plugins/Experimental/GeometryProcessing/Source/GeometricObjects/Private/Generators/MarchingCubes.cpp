@@ -2,6 +2,7 @@
 
 #include "Generators/MarchingCubes.h"
 
+using namespace UE::Geometry;
 
 constexpr int FMarchingCubes::EdgeIndices[12][2];
 constexpr int FMarchingCubes::EdgeTable[256];

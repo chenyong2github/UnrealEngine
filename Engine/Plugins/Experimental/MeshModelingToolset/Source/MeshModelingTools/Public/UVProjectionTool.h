@@ -22,7 +22,7 @@ class USimpleDynamicMeshComponent;
 class UTransformGizmo;
 class UTransformProxy;
 class IAssetGenerationAPI;
-
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  *
@@ -102,13 +102,13 @@ public:
  *  stores a pointer to the tool and enough info to know which specific operator it should spawn
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UUVProjectionOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UUVProjectionOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UUVProjectionTool *Tool;

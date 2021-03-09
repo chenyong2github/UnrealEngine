@@ -12,11 +12,12 @@
 #include "Spatial/SpatialInterfaces.h"
 #include "Distance/DistTriangle3Triangle3.h"
 
-template <class TriangleMeshType>
-class TFastWindingTree;
 
 namespace MeshIntersection
 {
+	using namespace UE::Geometry;
+	using FVector3d = UE::Geometry::FVector3d;
+
 	/**
 	 * Intersection query result types for triangle mesh intersections
 	 */
@@ -43,6 +44,16 @@ namespace MeshIntersection
 		TArray<FPolygonIntersection> Polygons;
 	};
 }
+
+
+namespace UE
+{
+namespace Geometry
+{
+
+template <class TriangleMeshType>
+class TFastWindingTree;
+
 
 template <class TriangleMeshType>
 class TMeshAABBTree3 : public IMeshSpatial
@@ -2158,3 +2169,7 @@ private:
 		TreeTraversalImpl(IBox, 0, t, FQueryOptions());
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

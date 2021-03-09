@@ -114,7 +114,7 @@ public:
 	virtual void InitializeProperties() override;
 	virtual void OnShutdown(EToolShutdownType ShutdownType) override;
 
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	virtual bool RequiresInitialVtxNormals() const { return true; }
 	virtual bool RequiresInitialBoundaryLoops() const { return true; }

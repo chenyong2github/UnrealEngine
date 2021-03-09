@@ -5,7 +5,8 @@
 #include "DynamicMesh3.h"
 #include "MeshNormals.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FMeshBoundaryCache::Calculate(const FDynamicMesh3& Mesh)
 {

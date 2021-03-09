@@ -11,6 +11,8 @@ namespace UE
 {
 	namespace MeshDeformation
 	{
+		using namespace UE::Geometry;
+
 		/**
 		 * Create solver for Free-Boundary UV Parameterization for this mesh.
 		 * @warning Assumption is that mesh is a single connected component

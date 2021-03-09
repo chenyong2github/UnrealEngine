@@ -16,7 +16,7 @@ class UTexture2D;
 class UMaterialInstanceConstant;
 class UMaterialInstanceDynamic;
 struct FMeshDescription;
-
+using UE::Geometry::FDynamicMesh3;
 
 UENUM()
 enum class EGenerateStaticMeshLODBakeResolution
@@ -160,7 +160,7 @@ UCLASS(Transient)
 class UGenerateStaticMeshLODProcess : public UObject
 {
 	GENERATED_BODY()
-
+	using FVector4f = UE::Geometry::FVector4f;
 public:
 
 	bool Initialize(UStaticMesh* SourceMesh);
@@ -181,8 +181,8 @@ public:
 
 	bool ComputeDerivedSourceData(FProgressCancel* Progress);
 	const FDynamicMesh3& GetDerivedLOD0Mesh() const { return DerivedLODMesh; }
-	const FMeshTangentsd& GetDerivedLOD0MeshTangents() const { return DerivedLODMeshTangents; }
-	const FSimpleShapeSet3d& GetDerivedCollision() const { return DerivedCollision; }
+	const UE::Geometry::FMeshTangentsd& GetDerivedLOD0MeshTangents() const { return DerivedLODMeshTangents; }
+	const UE::Geometry::FSimpleShapeSet3d& GetDerivedCollision() const { return DerivedCollision; }
 
 	/**
 	 * Creates new Asset
@@ -229,8 +229,8 @@ protected:
 	{
 		UTexture2D* Texture = nullptr;
 		FName ParameterName;
-		FImageDimensions Dimensions;
-		TImageBuilder<FVector4f> Image;
+		UE::Geometry::FImageDimensions Dimensions;
+		UE::Geometry::TImageBuilder<FVector4f> Image;
 		bool bIsNormalMap = false;
 		bool bIsDefaultTexture = false;
 		bool bShouldBakeTexture = false;
@@ -257,8 +257,8 @@ protected:
 	FString DerivedAssetPath;
 
 	FDynamicMesh3 DerivedLODMesh;				// the new generated LOD0 mesh
-	FMeshTangentsd DerivedLODMeshTangents;		// Tangents for DerivedLODMesh
-	FSimpleShapeSet3d DerivedCollision;			// Simple Collision for DerivedLODMesh
+	UE::Geometry::FMeshTangentsd DerivedLODMeshTangents;		// Tangents for DerivedLODMesh
+	UE::Geometry::FSimpleShapeSet3d DerivedCollision;			// Simple Collision for DerivedLODMesh
 
 	// Texture set potentially required by output Material set
 	UE::GeometryFlow::FNormalMapImage DerivedNormalMapImage;	// Normal Map

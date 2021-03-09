@@ -9,6 +9,9 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "Selection/PolygonSelectionMechanic.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UMeshBoundaryToolBase"
 
 void UMeshBoundaryToolBase::Setup()

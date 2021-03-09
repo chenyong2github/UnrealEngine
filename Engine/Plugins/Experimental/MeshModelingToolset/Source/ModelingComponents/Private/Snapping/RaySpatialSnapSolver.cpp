@@ -8,6 +8,8 @@
 #include "Distance/DistLine3Circle3.h"
 #include "ToolDataVisualizer.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 FRaySpatialSnapSolver::FRaySpatialSnapSolver()

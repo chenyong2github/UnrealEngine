@@ -12,6 +12,8 @@ namespace UE
 namespace GeometryFlow
 {
 
+using namespace UE::Geometry;
+
 // declares FDataDynamicMesh, FDynamicMeshInput, FDynamicMeshOutput, FDynamicMeshSourceNode
 GEOMETRYFLOW_DECLARE_BASIC_TYPES(DynamicMesh, FDynamicMesh3, (int)EMeshProcessingDataTypes::DynamicMesh)
 

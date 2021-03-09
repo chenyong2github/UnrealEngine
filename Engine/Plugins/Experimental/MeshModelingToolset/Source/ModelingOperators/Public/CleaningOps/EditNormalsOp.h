@@ -33,6 +33,10 @@ enum class ESplitNormalMethod : uint8
 	PerVertex
 };
 
+namespace UE
+{
+namespace Geometry
+{
 
 class MODELINGOPERATORS_API FEditNormalsOp : public FDynamicMeshOperator
 {
@@ -60,3 +64,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

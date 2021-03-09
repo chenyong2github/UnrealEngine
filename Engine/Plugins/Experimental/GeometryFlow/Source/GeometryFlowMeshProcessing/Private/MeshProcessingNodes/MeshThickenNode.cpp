@@ -5,6 +5,7 @@
 #include "Operations/DisplaceMesh.h"
 #include "MeshNormals.h"
 
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 void FMeshThickenNode::ProcessMesh(

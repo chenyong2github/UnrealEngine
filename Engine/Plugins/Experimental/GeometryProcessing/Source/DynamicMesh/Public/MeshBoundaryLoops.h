@@ -10,6 +10,10 @@
 #include "VectorUtil.h"
 #include "Util/BufferUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class DYNAMICMESH_API FMeshBoundaryLoops
 {
@@ -188,3 +192,7 @@ protected:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

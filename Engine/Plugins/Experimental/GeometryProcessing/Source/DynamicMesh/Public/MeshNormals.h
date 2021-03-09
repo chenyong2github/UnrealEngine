@@ -7,6 +7,12 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * FMeshNormals is a utility class that can calculate and store various types of
  * normal vectors for a FDynamicMesh. 
@@ -193,3 +199,7 @@ protected:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

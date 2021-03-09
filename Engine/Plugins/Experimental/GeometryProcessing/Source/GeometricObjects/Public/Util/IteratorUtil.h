@@ -5,6 +5,11 @@
 #pragma once
 #include "IndexTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * Wrapper around an object of type IteratorT that provides STL
@@ -393,3 +398,7 @@ public:
 		return ExpandIteratorT(EndItr, EndItr, ExpandFunc);
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

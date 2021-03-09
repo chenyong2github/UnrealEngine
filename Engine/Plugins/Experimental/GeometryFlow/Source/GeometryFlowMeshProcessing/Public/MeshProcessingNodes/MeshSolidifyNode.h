@@ -13,7 +13,7 @@ namespace UE
 namespace GeometryFlow
 {
 
-
+using namespace UE::Geometry;
 
 struct FMeshSolidifySettings
 {

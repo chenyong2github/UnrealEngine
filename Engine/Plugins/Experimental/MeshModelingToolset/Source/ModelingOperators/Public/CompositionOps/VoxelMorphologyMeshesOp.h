@@ -29,6 +29,11 @@ enum class EMorphologyOperation : uint8
 
 };
 
+namespace UE
+{
+namespace Geometry
+{
+
 class MODELINGOPERATORS_API FVoxelMorphologyMeshesOp : public FVoxelBaseOp
 {
 public:
@@ -56,3 +61,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

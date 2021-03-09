@@ -7,7 +7,8 @@
 #include "Util/IndexUtil.h"
 #include "Async/ParallelFor.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 FMeshAttributeTransfer::FMeshAttributeTransfer(const FDynamicMesh3* SourceMeshIn, FDynamicMesh3* TargetMeshIn)

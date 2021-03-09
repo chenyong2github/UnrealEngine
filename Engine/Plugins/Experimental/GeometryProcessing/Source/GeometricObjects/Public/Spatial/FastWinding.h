@@ -13,6 +13,11 @@
  */
 namespace FastTriWinding
 {
+	using namespace UE::Geometry;
+	using FTriangle3d = UE::Geometry::FTriangle3d;
+	using FVector3d = UE::Geometry::FVector3d;
+	using FMatrix3d = UE::Geometry::FMatrix3d;
+
 	/**
 	 *  precompute constant coefficients of triangle winding number approximation
 	 *  P: 'Center' of expansion for Triangles (area-weighted centroid avg)
@@ -167,6 +172,11 @@ namespace FastTriWinding
 } // namespace FastTriWinding
 
 
+
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Fast Mesh Winding Number extension to a TMeshAABBTree3.
@@ -496,3 +506,7 @@ private:
 		}
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

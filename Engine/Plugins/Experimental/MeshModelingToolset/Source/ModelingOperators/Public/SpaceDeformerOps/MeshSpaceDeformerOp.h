@@ -6,6 +6,11 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class MODELINGOPERATORS_API FMeshSpaceDeformerOp : public FDynamicMeshOperator
 {
 public:
@@ -33,3 +38,6 @@ protected:
 	// transform, including translation, to gizmo space
 	FMatrix ObjectToGizmo;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

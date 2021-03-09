@@ -8,6 +8,12 @@
 #include "BoxTypes.h"
 #include "FrameTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * TOrientedBox3 is a non-axis-aligned 3D box defined by a 3D frame and extents along the axes of that frame
  * The frame is at the center of the box.
@@ -269,8 +275,8 @@ struct TOrientedBox3
 
 };
 
-
-
-
 typedef TOrientedBox3<float> FOrientedBox3f;
 typedef TOrientedBox3<double> FOrientedBox3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

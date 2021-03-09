@@ -5,6 +5,11 @@
 #include "VectorTypes.h"
 #include "IndexTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Base class for triangle mesh generators (eg like to generate sphere, cylinder, etc)
  * Subclasses must implement ::Generate() 
@@ -261,6 +266,7 @@ public:
 		return FVector3i((int)round(c.X), (int)round(c.Y), (int)round(c.Z));
 	}
 
-
-
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

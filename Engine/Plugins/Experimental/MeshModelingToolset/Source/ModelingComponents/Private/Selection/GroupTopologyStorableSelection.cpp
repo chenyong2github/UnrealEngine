@@ -8,6 +8,8 @@
 
 #include "GroupTopology.h"
 
+using namespace UE::Geometry;
+
 namespace StorableGroupTopologySelectionLocals
 {
 	// Helper function for GetGroupEdgeRepresentativeVerts(). Given a loop as a list of vids, with

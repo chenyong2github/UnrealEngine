@@ -7,6 +7,7 @@
 #include "Async/ParallelFor.h"
 #include "ComponentSourceInterfaces.h"
 
+using namespace UE::Geometry;
 
 void FMeshRenderDecomposition::BuildAssociations(const FDynamicMesh3* Mesh)
 {

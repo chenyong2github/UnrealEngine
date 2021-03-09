@@ -8,6 +8,8 @@
 #include "StaticMeshAttributes.h"
 #include "Async/Async.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 struct FVertexUV
 {

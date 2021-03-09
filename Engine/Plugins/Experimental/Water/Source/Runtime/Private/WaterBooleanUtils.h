@@ -32,6 +32,8 @@ namespace UE {
 
 	namespace WaterUtils {
 
+		using namespace UE::Geometry;
+
 		/** @return triangle aspect ratio transformed to be in [0,1] range */
 		double UnitAspectRatio(const FVector3d& A, const FVector3d& B, const FVector3d& C)
 		{
@@ -195,7 +197,7 @@ namespace UE {
 			// Merge the mesh edges to create a closed solid
 			double MinLen, MaxLen, AvgLen;
 			TMeshQueries<FDynamicMesh3>::EdgeLengthStats(Mesh, MinLen, MaxLen, AvgLen);
-			FMergeCoincidentMeshEdges Merge(&Mesh);
+			UE::Geometry::FMergeCoincidentMeshEdges Merge(&Mesh);
 			Merge.MergeVertexTolerance = FMathd::Max(Merge.MergeVertexTolerance, MinLen * 0.1);
 			Merge.Apply();
 

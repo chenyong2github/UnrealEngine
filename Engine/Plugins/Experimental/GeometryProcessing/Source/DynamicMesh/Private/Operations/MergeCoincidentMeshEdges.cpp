@@ -8,6 +8,8 @@
 #include "Util/IndexPriorityQueue.h"
 #include "Util/IndexUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 const double FMergeCoincidentMeshEdges::DEFAULT_TOLERANCE = FMathf::ZeroTolerance;
 

@@ -4,6 +4,12 @@
 
 #include "BoxTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * TSampleSetStatistics stores and calculates statistics for a scalar sample set,
  * such as the range of values, mean, variance, etc.
@@ -158,3 +164,6 @@ struct TSampleSetStatisticBuilder
 
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

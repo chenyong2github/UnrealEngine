@@ -16,6 +16,9 @@
 #include "ToolSetupUtil.h"
 #include "Transforms/MultiTransformer.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UCurveControlPointsMechanic"
 
 const FText PointAdditionTransactionText = LOCTEXT("PointAddition", "Point Addition");

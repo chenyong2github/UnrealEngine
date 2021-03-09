@@ -119,7 +119,7 @@ public:
 	 * Add a Quad (two triangles) with the given vertices, normal, Color, and Material
 	 * @return ID of the two triangles created
 	 */
-	FIndex2i AddQuad(const FVector& A, const FVector& B, const FVector& C, const FVector& D, const FVector& Normal, const FColor& Color, UMaterialInterface* Material);
+	UE::Geometry::FIndex2i AddQuad(const FVector& A, const FVector& B, const FVector& C, const FVector& D, const FVector& Normal, const FColor& Color, UMaterialInterface* Material);
 
 private:
 

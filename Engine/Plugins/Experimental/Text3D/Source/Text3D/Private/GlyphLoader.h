@@ -10,9 +10,11 @@
 #include "Containers/List.h"
 #include "Polygon2.h"
 
+using UE::Geometry::FPolygon2f;
 
 class FGlyphLoader final
 {
+	using FVector2f = UE::Geometry::FVector2f;
 public:
 	FGlyphLoader(const FT_GlyphSlot Glyph);
 

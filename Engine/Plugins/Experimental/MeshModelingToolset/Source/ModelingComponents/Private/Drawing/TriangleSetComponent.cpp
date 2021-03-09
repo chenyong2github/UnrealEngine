@@ -285,7 +285,7 @@ int32 UTriangleSetComponent::AddTriangle(const FVector& A, const FVector& B, con
 	return AddTriangle(NewTriangle);
 }
 
-FIndex2i UTriangleSetComponent::AddQuad(const FVector& A, const FVector& B, const FVector& C, const FVector& D, const FVector& Normal, const FColor& Color, UMaterialInterface* Material)
+UE::Geometry::FIndex2i UTriangleSetComponent::AddQuad(const FVector& A, const FVector& B, const FVector& C, const FVector& D, const FVector& Normal, const FColor& Color, UMaterialInterface* Material)
 {
 	FRenderableTriangle NewTriangle0;
 	NewTriangle0.Material = Material;
@@ -300,7 +300,7 @@ FIndex2i UTriangleSetComponent::AddQuad(const FVector& A, const FVector& B, cons
 
 	int32 Index0 = AddTriangle(NewTriangle0);
 	int32 Index1 = AddTriangle(NewTriangle1);
-	return FIndex2i(Index0, Index1);
+	return UE::Geometry::FIndex2i(Index0, Index1);
 }
 
 

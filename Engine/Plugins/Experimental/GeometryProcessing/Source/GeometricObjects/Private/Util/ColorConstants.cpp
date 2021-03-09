@@ -2,8 +2,7 @@
 
 #include "Util/ColorConstants.h"
 
-
-FColor LinearColors::SelectFColor(int32 Index)
+FColor UE::Geometry::LinearColors::SelectFColor(int32 Index)
 {
 	static const FColor ColorMap[] = {
 		SpringGreen3b(), Plum3b(), Khaki3b(),

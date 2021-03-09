@@ -14,8 +14,12 @@
 #include "MeshBoundaryLoops.h"
 
 
-class FDynamicMesh3;
+namespace UE
+{
+namespace Geometry
+{
 
+class FDynamicMesh3;
 
 /**
  * Fill a set of boundary loops with planar surfaces.  User must provide the triangulation function.
@@ -57,3 +61,7 @@ public:
 
 	bool Fill(int GroupID = -1) override;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

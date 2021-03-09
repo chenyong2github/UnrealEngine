@@ -8,6 +8,10 @@
 #include "Image/ImageBuilder.h"
 #include "Engine/Classes/Engine/Texture2D.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Texture2DBuilder is a utility class for creating/modifying various types of UTexture2D.
@@ -450,3 +454,7 @@ public:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

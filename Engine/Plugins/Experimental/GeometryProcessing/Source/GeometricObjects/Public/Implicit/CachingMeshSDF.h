@@ -12,6 +12,11 @@
 
 #include "Implicit/GridInterpolant.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * This is variant of TSweepingMeshSDF that does lazy evaluation of actual Distances,
@@ -475,3 +480,6 @@ public:
 
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

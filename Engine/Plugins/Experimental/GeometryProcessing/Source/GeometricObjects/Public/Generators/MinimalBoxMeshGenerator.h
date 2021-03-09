@@ -6,6 +6,11 @@
 #include "OrientedBoxTypes.h"
 #include "Util/IndexUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Generate an oriented Box mesh with the smallest number of triangles possible (6 vertices, 12 triangles)
  */
@@ -79,8 +84,8 @@ public:
 		return *this;
 	}
 
-
-
-
-
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

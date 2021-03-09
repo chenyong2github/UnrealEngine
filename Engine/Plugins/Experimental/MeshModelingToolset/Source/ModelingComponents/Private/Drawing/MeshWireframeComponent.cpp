@@ -13,6 +13,8 @@
 #include "IndexTypes.h"
 #include "Async/ParallelFor.h"
 
+using UE::Geometry::FIndex4i;
+
 struct FWireframeLinesMeshBatchData
 {
 	FWireframeLinesMeshBatchData()

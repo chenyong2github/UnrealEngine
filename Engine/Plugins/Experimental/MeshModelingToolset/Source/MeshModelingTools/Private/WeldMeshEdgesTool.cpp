@@ -13,8 +13,10 @@
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 #include "Async/ParallelFor.h"
 
-#define LOCTEXT_NAMESPACE "UWeldMeshEdgesTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "UWeldMeshEdgesTool"
 
 /*
  * ToolBuilder

@@ -15,8 +15,10 @@
 #include "Generators/MarchingCubes.h"
 #include "MeshQueries.h"
 
-
-
+namespace UE
+{
+namespace Geometry
+{
 
 template<typename TriangleMeshType>
 class TImplicitMorphology
@@ -100,15 +102,15 @@ public:
 		double SignedOffset = UnsignedOffset;
 		switch (MorphologyOp)
 		{
-		case TImplicitMorphology<FDynamicMesh3>::EMorphologyOp::Dilate:
-		case TImplicitMorphology<FDynamicMesh3>::EMorphologyOp::Close:
+		case TImplicitMorphology<TriangleMeshType>::EMorphologyOp::Dilate:
+		case TImplicitMorphology<TriangleMeshType>::EMorphologyOp::Close:
 			SignedOffset = -SignedOffset;
 			break;
 		}
 
 		ComputeFirstPass(UnsignedOffset, SignedOffset);
 
-		if (MorphologyOp == TImplicitMorphology<FDynamicMesh3>::EMorphologyOp::Close || MorphologyOp == TImplicitMorphology<FDynamicMesh3>::EMorphologyOp::Open)
+		if (MorphologyOp == TImplicitMorphology<TriangleMeshType>::EMorphologyOp::Close || MorphologyOp == TImplicitMorphology<TriangleMeshType>::EMorphologyOp::Open)
 		{
 			ComputeSecondPass(UnsignedOffset, -SignedOffset);
 		}
@@ -239,3 +241,7 @@ protected:
 		MarchingCubes.Implicit = nullptr;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

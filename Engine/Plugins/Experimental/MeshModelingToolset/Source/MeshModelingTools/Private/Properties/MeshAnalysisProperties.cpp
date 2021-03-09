@@ -9,11 +9,12 @@
 
 #define LOCTEXT_NAMESPACE "UMeshAnalysisProperites"
 
+using namespace UE::Geometry;
 
 void UMeshAnalysisProperties::Update(const FDynamicMesh3& MeshIn, const FTransform& Transform)
 {
 	FTriangleMeshAdapterd TransformedMesh = MeshAdapterUtil::MakeTransformedDynamicMeshAdapter(&MeshIn, Transform);
-	FVector2d VolArea = TMeshQueries<FTriangleMeshAdapterd>::GetVolumeArea(TransformedMesh);
+	UE::Geometry::FVector2d VolArea = TMeshQueries<FTriangleMeshAdapterd>::GetVolumeArea(TransformedMesh);
 	this->SurfaceArea = FString::Printf(TEXT("%.2f m^2"), VolArea.Y / 10000);
 	this->Volume = FString::Printf(TEXT("%.2f m^3"), VolArea.X / 1000000);
 }

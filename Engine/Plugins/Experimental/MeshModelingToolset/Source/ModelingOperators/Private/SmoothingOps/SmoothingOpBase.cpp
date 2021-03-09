@@ -5,6 +5,8 @@
 #include "DynamicMesh3.h"
 #include "MeshNormals.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 FSmoothingOpBase::FSmoothingOpBase(const FDynamicMesh3* Mesh, const FOptions& OptionsIn) :
 	FDynamicMeshOperator(),

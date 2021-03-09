@@ -6,6 +6,12 @@
 #include "DynamicMeshAttributeSet.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * Options used by TMeshTangents for tangents computation
  */
@@ -209,3 +215,7 @@ void TMeshTangents<RealType>::CopyTriVertexTangents(const TMeshTangents<OtherRea
 	}
 	AllDegenerateTris = OtherMeshTangents.GetDegenerateTris();
 }
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

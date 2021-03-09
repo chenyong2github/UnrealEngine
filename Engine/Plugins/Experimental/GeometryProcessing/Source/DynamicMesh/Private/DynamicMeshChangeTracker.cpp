@@ -2,7 +2,8 @@
 
 #include "DynamicMeshChangeTracker.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 //
 //
@@ -138,7 +139,10 @@ void TDynamicMeshAttributeChange<RealType,ElementSize>::ApplyReplaceChange(TDyna
 
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 // because ::ApplyReplaceChange() is in the .cpp we need to declare possible attribute types here
 template class DYNAMICMESH_API TDynamicMeshAttributeChange<float, 1>;
@@ -151,7 +155,8 @@ template class DYNAMICMESH_API TDynamicMeshAttributeChange<float, 3>;
 template class DYNAMICMESH_API TDynamicMeshAttributeChange<double, 3>;
 template class DYNAMICMESH_API TDynamicMeshAttributeChange<int, 3>;
 
-
+} // end namespace UE::Geometry
+} // end namespace UE
 
 
 

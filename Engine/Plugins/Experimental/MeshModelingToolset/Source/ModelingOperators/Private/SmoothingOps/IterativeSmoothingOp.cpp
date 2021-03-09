@@ -6,6 +6,9 @@
 #include "MeshCurvature.h"
 #include "Async/ParallelFor.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 FIterativeSmoothingOp::FIterativeSmoothingOp(const FDynamicMesh3* Mesh, const FSmoothingOpBase::FOptions& OptionsIn) :
 	FSmoothingOpBase(Mesh, OptionsIn)
 {

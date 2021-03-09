@@ -7,7 +7,7 @@
 #include "VectorTypes.h"
 
 class AVolume;
-class FDynamicMesh3;
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 namespace UE {
 namespace Conversion {
@@ -24,6 +24,6 @@ struct FVolumeToMeshOptions
 /**
  * Converts a volume to a dynamic mesh. Does not initialize normals and does not delete the volume.
  */
-void MESHMODELINGTOOLS_API VolumeToDynamicMesh(AVolume* Volume, FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
+void MESHMODELINGTOOLS_API VolumeToDynamicMesh(AVolume* Volume, UE::Geometry::FDynamicMesh3& Mesh, const FVolumeToMeshOptions& Options);
 
 }}//end namespace UE::Conversion

@@ -22,9 +22,9 @@ class MODELINGCOMPONENTS_API FMeshChange : public FToolCommandChange
 {
 public:
 	FMeshChange();
-	FMeshChange(TUniquePtr<FDynamicMeshChange> DynamicMeshChangeIn);
+	FMeshChange(TUniquePtr<UE::Geometry::FDynamicMeshChange> DynamicMeshChangeIn);
 
-	TUniquePtr<FDynamicMeshChange> DynamicMeshChange;
+	TUniquePtr<UE::Geometry::FDynamicMeshChange> DynamicMeshChange;
 
 	/** This function is called on Apply and Revert (last argument is true on Apply)*/
 	TFunction<void(FMeshChange*, UObject*, bool)> OnChangeAppliedFunc;
@@ -45,7 +45,7 @@ public:
 	 * This allows FMeshChange subclasses to customize the change behavior if necessary.
 	 * The default behavior just forwards the call to DynamicMeshChange->Apply(Mesh, bRevert).
 	 */
-	virtual void ApplyChangeToMesh(FDynamicMesh3* Mesh, bool bRevert) const;
+	virtual void ApplyChangeToMesh(UE::Geometry::FDynamicMesh3* Mesh, bool bRevert) const;
 };
 
 

@@ -7,6 +7,8 @@
 
 #include "SceneManagement.h" // FPrimitiveDrawInterface
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void MeshDebugDraw::DrawNormals(
 	const FDynamicMeshNormalOverlay* Overlay,

@@ -8,6 +8,11 @@
 #include "SegmentTypes.h"
 #include "BoxTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 template<typename RealType>
 struct TImplicitFunction3
 {
@@ -221,3 +226,5 @@ struct TSkeletalRicciNaryBlend3
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

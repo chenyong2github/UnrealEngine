@@ -6,6 +6,8 @@
 #include "Async/ParallelFor.h"
 #include "MeshIndexUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FMeshNormals::SetCount(int Count, bool bClearToZero)
 {

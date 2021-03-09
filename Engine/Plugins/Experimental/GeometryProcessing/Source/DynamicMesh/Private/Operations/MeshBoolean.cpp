@@ -14,7 +14,8 @@
 
 #include "DynamicMeshAABBTree3.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 // TODO: Commented out below is a custom thick triangle intersection.
 // It's much better at finding all the near-tolerance collision edges.

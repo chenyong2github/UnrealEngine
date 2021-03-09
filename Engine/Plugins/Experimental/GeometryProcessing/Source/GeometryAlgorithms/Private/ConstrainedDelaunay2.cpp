@@ -7,6 +7,9 @@
 #include "Async/ParallelFor.h"
 #include <vector>
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 //namespace
 //{
 //#define DEBUG_FILE_DUMPING 1
@@ -468,7 +471,7 @@ bool TConstrainedDelaunay2<RealType>::Triangulate()
 }
 //
 template<typename RealType>
-TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<RealType>& GeneralPolygon)
+TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulate(const TGeneralPolygon2<RealType>& GeneralPolygon)
 {
 	TConstrainedDelaunay2<RealType> Triangulation;
 	Triangulation.FillRule = TConstrainedDelaunay2<RealType>::EFillRule::Positive;
@@ -477,11 +480,18 @@ TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGe
 	return Triangulation.Triangles;
 }
 
+namespace UE
+{
+namespace Geometry
+{
 
-template TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<double>& GeneralPolygon);
-template TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGeneralPolygon2<float>& GeneralPolygon);
+template TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulate(const TGeneralPolygon2<double>& GeneralPolygon);
+template TArray<FIndex3i> GEOMETRYALGORITHMS_API UE::Geometry::ConstrainedDelaunayTriangulate(const TGeneralPolygon2<float>& GeneralPolygon);
 
 
 
 template struct TConstrainedDelaunay2<float>;
 template struct TConstrainedDelaunay2<double>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

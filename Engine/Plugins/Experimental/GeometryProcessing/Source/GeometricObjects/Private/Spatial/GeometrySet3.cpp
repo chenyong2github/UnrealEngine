@@ -4,6 +4,7 @@
 #include "Distance/DistRay3Segment3.h"
 #include "Async/ParallelFor.h"
 
+using namespace UE::Geometry;
 
 void FGeometrySet3::Reset(bool bPoints, bool bCurves)
 {

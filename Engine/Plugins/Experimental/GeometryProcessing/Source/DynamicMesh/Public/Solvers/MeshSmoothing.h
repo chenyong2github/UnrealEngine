@@ -10,6 +10,9 @@ namespace UE
 {
 	namespace MeshDeformation
 	{
+		using namespace UE::Geometry;
+		using UE::Geometry::FVector3d;
+
 		/**
 		*
 		* Note: for discussion of implicit / explicit integration of diffusion and biharmonic equations

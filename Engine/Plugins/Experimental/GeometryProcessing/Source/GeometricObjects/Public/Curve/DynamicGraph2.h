@@ -15,6 +15,11 @@
 #include "VectorTypes.h"
 #include "VectorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 template <typename T>
 class FDynamicGraph2 : public FDynamicGraph
 {
@@ -237,3 +242,7 @@ protected:
 };
 
 typedef FDynamicGraph2<double> FDynamicGraph2d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -14,6 +14,11 @@
 #include "Intersection/IntrSegment2Segment2.h"
 #include "Util/DynamicVector.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TPolygon2 is a 2D polygon represented as a list of Vertices.
  * 
@@ -1138,3 +1143,6 @@ public:
 
 typedef TPolygon2<double> FPolygon2d;
 typedef TPolygon2<float> FPolygon2f;
+
+} // end namespace UE::Geometry
+} // end namespace UE

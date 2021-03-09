@@ -11,6 +11,8 @@
 
 #include "BoxTypes.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 // Hash function to use FMD5Hash in TMap
 inline uint32 GetTypeHash(const FMD5Hash& Hash)

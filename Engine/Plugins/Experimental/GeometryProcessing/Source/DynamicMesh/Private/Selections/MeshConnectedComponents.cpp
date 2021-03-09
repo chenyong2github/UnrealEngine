@@ -3,7 +3,8 @@
 #include "Selections/MeshConnectedComponents.h"
 #include "Algo/Sort.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FMeshConnectedComponents::FindConnectedTriangles(TFunction<bool(int32, int32)> TrisConnectedPredicate)
 {

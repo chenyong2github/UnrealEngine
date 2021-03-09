@@ -5,6 +5,11 @@
 #include "IndexTypes.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FVertexInfo stores information about vertex attributes - position, normal, color, UV
  */
@@ -27,8 +32,16 @@ struct FVertexInfo
 		: Position{ PositionIn }, Normal{ NormalIn }, Color{ ColorIn }, UV{ UVIn }, bHaveN{ true }, bHaveC{true}, bHaveUV{true}{}
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE
+
+
+
 namespace DynamicMeshInfo
 {
+using namespace UE::Geometry;
+using FVector3d = UE::Geometry::FVector3d;
 
 /** Information about the mesh elements created by a call to SplitEdge() */
 struct FEdgeSplitInfo

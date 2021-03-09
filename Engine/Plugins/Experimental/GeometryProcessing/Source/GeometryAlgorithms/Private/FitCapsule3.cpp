@@ -4,6 +4,8 @@
 #include "ThirdParty/GTEngine/Mathematics/GteCapsule.h"
 #include "ThirdParty/GTEngine/Mathematics/GteContCapsule3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 template<typename RealType>
 bool TFitCapsule3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealType>(int32)> GetPointFunc)
@@ -38,5 +40,13 @@ bool TFitCapsule3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealTy
 }
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 template class GEOMETRYALGORITHMS_API TFitCapsule3<float>;
 template class GEOMETRYALGORITHMS_API TFitCapsule3<double>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

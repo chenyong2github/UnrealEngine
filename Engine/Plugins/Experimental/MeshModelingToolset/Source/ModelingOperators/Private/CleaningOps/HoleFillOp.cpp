@@ -9,6 +9,9 @@
 #include "CompGeom/PolygonTriangulation.h"
 #include "MeshQueries.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 namespace 
 {
 	bool LoopIsValid(const FDynamicMesh3& Mesh, const FEdgeLoop& Loop)

@@ -8,7 +8,7 @@
 #include "ToolSetupUtil.h"
 #include "Async/Async.h"
 
-
+using namespace UE::Geometry;
 
 
 /**

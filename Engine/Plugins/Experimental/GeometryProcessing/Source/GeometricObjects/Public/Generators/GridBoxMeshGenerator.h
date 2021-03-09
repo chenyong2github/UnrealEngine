@@ -6,6 +6,11 @@
 #include "OrientedBoxTypes.h"
 #include "Util/IndexUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  *  Generate a mesh of a box that has "gridded" faces, i.e. grid of triangulated quads, 
  *  with EdgeVertices setting the number of verts along each edge in each dimension
@@ -269,3 +274,7 @@ public:
 
 };
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

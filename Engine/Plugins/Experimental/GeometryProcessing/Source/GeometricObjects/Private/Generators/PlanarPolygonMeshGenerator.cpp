@@ -3,6 +3,8 @@
 #include "Generators/PlanarPolygonMeshGenerator.h"
 #include "CompGeom/PolygonTriangulation.h"
 
+using namespace UE::Geometry;
+
 FPlanarPolygonMeshGenerator::FPlanarPolygonMeshGenerator()
 {
 	Normal = FVector3f::UnitZ();

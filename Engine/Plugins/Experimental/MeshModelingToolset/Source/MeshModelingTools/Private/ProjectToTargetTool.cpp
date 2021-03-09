@@ -4,6 +4,9 @@
 #include "MeshDescriptionToDynamicMesh.h"
 #include "InteractiveToolManager.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 #define LOCTEXT_NAMESPACE "UProjectToTargetTool"
 
 bool UProjectToTargetToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const

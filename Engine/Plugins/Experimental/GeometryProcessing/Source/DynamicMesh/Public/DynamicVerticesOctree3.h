@@ -8,6 +8,10 @@
 #include "Intersection/IntersectionUtil.h"
 #include "DynamicMesh3.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * TDynamicVerticesOctree3 is an extension of FSparseDynamicPointOctree3 for the vertices of 
@@ -220,3 +224,8 @@ public:
 
 
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

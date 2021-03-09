@@ -7,6 +7,11 @@
 #include "MathUtil.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 
 /**
@@ -63,3 +68,7 @@ protected:
 			(a.DistanceSquared(d) < MergeVtxDistSqr && b.DistanceSquared(c) < MergeVtxDistSqr);
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

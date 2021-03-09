@@ -5,6 +5,11 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * FDynamicMeshUVPacker implements various strategies for packing UV islands in a 
@@ -44,3 +49,7 @@ public:
 	bool StackPack();
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

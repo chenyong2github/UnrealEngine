@@ -8,9 +8,14 @@
 #include "MeshRegionBoundaryLoops.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
-class FDynamicMeshChangeTracker;
 class FMeshNormals;
+class FDynamicMeshChangeTracker;
 
 /**
  * FOffsetMeshRegion implements local extrusion/offset of a mesh region. 
@@ -127,3 +132,6 @@ protected:
 
 	virtual bool ApplySolidExtrude(FOffsetInfo& Region, FMeshNormals* UseNormals = nullptr);
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

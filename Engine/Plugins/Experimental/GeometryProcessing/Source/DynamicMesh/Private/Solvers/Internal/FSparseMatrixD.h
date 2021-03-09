@@ -32,6 +32,7 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #endif
 
 
+
 // NB: The LU solver likes ColMajor but the CG sovler likes RowMajor
 //     Also, to change everything to float / double just change the scalar type here
 
@@ -82,7 +83,7 @@ public:
 * A struct of arrays representation used to hold vertex positions
 * in three vectors that can interface with the eigen library
 */
-class FSOAPositions : public TVector3Arrays<double>
+class FSOAPositions : public UE::Geometry::TVector3Arrays<double>
 {
 public:
 	typedef typename FSparseMatrixD::Scalar ScalarType;
@@ -90,7 +91,7 @@ public:
 	typedef Eigen::Map<RealVectorType> VectorType;
 	typedef Eigen::Map<const RealVectorType> ConstVectorType;
 
-	FSOAPositions(int32 Size) : TVector3Arrays<double>(Size)
+	FSOAPositions(int32 Size) : UE::Geometry::TVector3Arrays<double>(Size)
 	{ }
 
 	FSOAPositions()
@@ -108,3 +109,5 @@ public:
 	}
 
 };
+
+

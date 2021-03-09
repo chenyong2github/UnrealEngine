@@ -5,6 +5,9 @@
 #include "Async/ParallelFor.h"
 #include "DynamicMeshAttributeSet.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 //Twists along the Z axis
 void FTwistMeshOp::CalculateResult(FProgressCancel* Progress)
 {

@@ -130,7 +130,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDrawPolyPathTool : public UInteractiveTool, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
-
 public:
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
@@ -174,7 +173,7 @@ protected:
 
 protected:
 	// camera state at last render
-	FTransform3d WorldTransform;
+	UE::Geometry::FTransform3d WorldTransform;
 	FViewCameraState CameraState;
 
 	// drawing plane and gizmo
@@ -182,17 +181,17 @@ protected:
 	UPROPERTY()
 	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
 
-	FFrame3d DrawPlaneWorld;
+	UE::Geometry::FFrame3d DrawPlaneWorld;
 
 	bool CanUpdateDrawPlane() const;
 
 	// UV Scale factor to apply to texturing on any new geometry (e.g. new faces added by extrude)
 	float UVScaleFactor = 1.0f;
 
-	TArray<FFrame3d> CurPathPoints;
+	TArray<UE::Geometry::FFrame3d> CurPathPoints;
 	TArray<double> OffsetScaleFactors;
 	TArray<double> ArcLengths;
-	TArray<FVector3d> CurPolyLine;
+	TArray<UE::Geometry::FVector3d> CurPolyLine;
 	double CurPathLength;
 	double CurOffsetDistance;
 	double CurHeight;
@@ -221,8 +220,8 @@ protected:
 	void UpdateExtrudePreview();
 	void InitializePreviewMesh();
 	void ClearPreview();
-	void GeneratePathMesh(FDynamicMesh3& Mesh);
-	void GenerateExtrudeMesh(FDynamicMesh3& PathMesh);
+	void GeneratePathMesh(UE::Geometry::FDynamicMesh3& Mesh);
+	void GenerateExtrudeMesh(UE::Geometry::FDynamicMesh3& PathMesh);
 	void GenerateRampMesh(FDynamicMesh3& PathMesh);
 	void EmitNewObject(EDrawPolyPathOutputMode OutputMode);
 

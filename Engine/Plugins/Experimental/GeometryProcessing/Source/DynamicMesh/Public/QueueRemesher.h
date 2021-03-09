@@ -5,6 +5,12 @@
 #include "Remesher.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  *
  * Extension to Remesher that is smarter about which edges/vertices to touch:
@@ -15,7 +21,6 @@
  *  - TrackedFullProjectionPass() projects all vertices but only adds to queue if edge changes enough
  * 
  */
-
 class DYNAMICMESH_API FQueueRemesher : public FRemesher
 {
 
@@ -151,3 +156,8 @@ protected:
 
 
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -9,6 +9,7 @@ namespace UE
 {
 	namespace SculptFalloffs
 	{
+		using namespace UE::Geometry;
 
 		static TUniqueFunction<double(const FSculptBrushStamp&, const FVector3d&)> MakeStandardSmoothFalloff()
 		{

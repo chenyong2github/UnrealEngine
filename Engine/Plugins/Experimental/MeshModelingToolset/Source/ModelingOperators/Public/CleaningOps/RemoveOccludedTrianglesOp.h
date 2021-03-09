@@ -10,7 +10,10 @@
 #include "MeshAdapter.h"
 #include "Operations/RemoveOccludedTriangles.h"
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 class MODELINGOPERATORS_API FRemoveOccludedTrianglesOp : public FDynamicMeshOperator
 {
@@ -20,14 +23,14 @@ public:
 	// inputs
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	
-	TArray<TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>> OccluderTrees;
-	TArray<TSharedPtr<TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>> OccluderWindings;
+	TArray<TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe>> OccluderTrees;
+	TArray<TSharedPtr<UE::Geometry::TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>> OccluderWindings;
 	TArray<FTransform3d> OccluderTransforms;
 
 	TArray<FTransform3d> MeshTransforms;
 
-	EOcclusionTriangleSampling TriangleSamplingMethod =
-		EOcclusionTriangleSampling::Centroids;
+	UE::Geometry::EOcclusionTriangleSampling TriangleSamplingMethod =
+		UE::Geometry::EOcclusionTriangleSampling::Centroids;
 
 	// we nudge points out by this amount to try to counteract numerical issues
 	double NormalOffset = FMathd::ZeroTolerance;
@@ -56,8 +59,8 @@ public:
 	// if true, the ActiveGroupLayer is the name of the "default" layer, so we'll use the built-in group IDs
 	bool bActiveGroupLayerIsDefault = true;
 
-	EOcclusionCalculationMode InsideMode =
-		EOcclusionCalculationMode::FastWindingNumber;
+	UE::Geometry::EOcclusionCalculationMode InsideMode =
+		UE::Geometry::EOcclusionCalculationMode::FastWindingNumber;
 
 
 	// outputs, used when bSetTriangleGroupInsteadOfRemoving is true
@@ -75,3 +78,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

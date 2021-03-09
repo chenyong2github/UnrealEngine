@@ -7,8 +7,10 @@
 #include "ModelingOperators.h"
 #include "Util/ProgressCancel.h"
 
-class URevolveProperties;
-class UNewMeshMaterialProperties;
+namespace UE
+{
+namespace Geometry
+{
 
 /*
  * Operation for sweeping a profile curve along a sweep curve to create a mesh.
@@ -77,3 +79,6 @@ public:
 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -187,7 +187,7 @@ protected:
 	UPROPERTY()
 	UGenerateStaticMeshLODProcess* GenerateProcess;
 
-	TUniquePtr<IDynamicMeshOperatorFactory> OpFactory;
+	TUniquePtr<UE::Geometry::IDynamicMeshOperatorFactory> OpFactory;
 
 	void OnSettingsModified();
 

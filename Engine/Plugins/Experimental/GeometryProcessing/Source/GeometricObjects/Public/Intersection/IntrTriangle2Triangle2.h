@@ -8,6 +8,11 @@
 #include "TriangleTypes.h"
 #include "VectorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute intersection between 2D triangles
  */
@@ -312,3 +317,6 @@ private:
 
 typedef TIntrTriangle2Triangle2<float> FIntrTriangle2Triangle2f;
 typedef TIntrTriangle2Triangle2<double> FIntrTriangle2Triangle2d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

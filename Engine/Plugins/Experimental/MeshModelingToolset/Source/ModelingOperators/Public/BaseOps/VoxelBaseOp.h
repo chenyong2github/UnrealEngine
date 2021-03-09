@@ -6,7 +6,10 @@
 #include "Util/ProgressCancel.h"
 #include "ModelingOperators.h"
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 class MODELINGOPERATORS_API FVoxelBaseOp : public FDynamicMeshOperator
 {
@@ -28,3 +31,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

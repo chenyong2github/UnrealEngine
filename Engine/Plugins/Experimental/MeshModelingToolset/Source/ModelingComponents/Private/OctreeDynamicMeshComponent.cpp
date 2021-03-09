@@ -28,10 +28,11 @@
 #include "DynamicMeshChangeTracker.h"
 
 
-
 // default proxy for this component
 #include "OctreeDynamicMeshSceneProxy.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 

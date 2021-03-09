@@ -7,6 +7,11 @@
 #include "Image/ImageDimensions.h"
 #include "Spatial/DenseGrid2.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * TImageBuilder is used to create and populate a 2D image with a templated "pixel" type.
  */
@@ -154,3 +159,7 @@ public:
 	}
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

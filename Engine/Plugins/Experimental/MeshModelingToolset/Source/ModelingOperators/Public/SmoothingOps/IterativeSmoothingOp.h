@@ -6,6 +6,11 @@
 #include "CoreMinimal.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class MODELINGOPERATORS_API  FIterativeSmoothingOp : public FSmoothingOpBase
 {
 public:
@@ -32,3 +37,6 @@ private:
 private:
 	TArray<FVector3d> SmoothedBuffer;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

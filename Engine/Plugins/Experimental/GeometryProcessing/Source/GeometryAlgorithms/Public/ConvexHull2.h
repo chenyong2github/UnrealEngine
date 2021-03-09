@@ -13,6 +13,11 @@
 #include "Polygon2.h"
 
 
+namespace UE {
+namespace Geometry {
+
+
+
 template<typename RealType>
 class GEOMETRYALGORITHMS_API TConvexHull2
 {
@@ -115,3 +120,7 @@ protected:
 typedef TConvexHull2<float> FConvexHull2f;
 typedef TConvexHull2<double> FConvexHull2d;
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

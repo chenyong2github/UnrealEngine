@@ -5,6 +5,11 @@
 #include "Math/UnrealMath.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /*
  * 3D Halfspace stored as parameters to Plane Equation (Normal, Normal.Dot(PointOnPlane))
  * The Normal points "into" the halfspace, ie X is inside if (Normal.Dot(X) - Constant) >= 0
@@ -50,3 +55,7 @@ public:
 
 typedef THalfspace3<float> FHalfspace3f;
 typedef THalfspace3<double> FHalfspace3d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

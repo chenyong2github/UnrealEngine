@@ -109,7 +109,7 @@ protected:
 protected:
 	IAssetGenerationAPI* AssetAPI = nullptr;
 
-	FDynamicMesh3 InputMesh;
+	UE::Geometry::FDynamicMesh3 InputMesh;
 
 	void RecalculateVolume();
 	void UpdateLineSet();

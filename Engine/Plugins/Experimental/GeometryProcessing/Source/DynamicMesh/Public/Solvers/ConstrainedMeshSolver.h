@@ -5,12 +5,13 @@
 #include "CoreMinimal.h"
 #include "VectorTypes.h"
 
-class FDynamicMesh3;
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 namespace UE
 {
 	namespace Solvers
 	{
+		using namespace UE::Geometry;
 
 		/**
 		 * Interface to a index-based deformation solver for a 3D mesh vertex set that supports weighted point constraints.

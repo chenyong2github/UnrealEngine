@@ -5,6 +5,12 @@
 #pragma once
 
 #include "MathUtil.h"
+#include "VectorTypes.h"
+
+namespace UE
+{
+namespace Geometry
+{
 
 
 /**
@@ -184,3 +190,7 @@ public:
 		return FVector3d(gradX, gradY, gradZ);
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

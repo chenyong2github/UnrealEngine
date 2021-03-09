@@ -1,11 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CompositionOps/VoxelMorphologyMeshesOp.h"
-
 #include "CleaningOps/EditNormalsOp.h"
 
 #include "DynamicMeshEditor.h"
-
 #include "DynamicMeshAABBTree3.h"
 #include "MeshTransforms.h"
 #include "MeshSimplification.h"
@@ -16,6 +14,8 @@
 #include "Implicit/Morphology.h"
 #include "Implicit/Solidify.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FVoxelMorphologyMeshesOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;

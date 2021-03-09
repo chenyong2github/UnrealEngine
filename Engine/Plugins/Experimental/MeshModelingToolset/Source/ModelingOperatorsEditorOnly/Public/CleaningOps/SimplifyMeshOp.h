@@ -5,16 +5,14 @@
 #include "CoreMinimal.h"
 #include "MeshConstraints.h"
 #include "ModelingOperators.h"
+#include "DynamicMesh3.h"
+#include "DynamicMeshAABBTree3.h"
 #include "Util/ProgressCancel.h"
 
 #include "SimplifyMeshOp.generated.h"
 
-class FDynamicMesh3;
 struct FMeshDescription;
-
-template <class TriangleMeshType>
-class TMeshAABBTree3;
-typedef TMeshAABBTree3<FDynamicMesh3> FDynamicMeshAABBTree3;
+class IMeshReduction;
 
 UENUM()
 enum class ESimplifyTargetType : uint8
@@ -55,6 +53,12 @@ enum class ESimplifyType : uint8
 
 };
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 class MODELINGOPERATORSEDITORONLY_API FSimplifyMeshOp : public FDynamicMeshOperator
 {
 public:
@@ -68,7 +72,7 @@ public:
 	int TargetPercentage, TargetCount;
 	float TargetEdgeLength;
 	bool bDiscardAttributes, bReproject, bPreventNormalFlips, bPreserveSharpEdges, bAllowSeamCollapse;
-	EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
+	UE::Geometry::EEdgeRefineFlags MeshBoundaryConstraint, GroupBoundaryConstraint, MaterialBoundaryConstraint;
 	/** Angle threshold in degrees used for testing if two triangles should be considered coplanar, or two lines collinear */
 	float MinimalPlanarAngleThresh = 0.01f;
 
@@ -78,7 +82,7 @@ public:
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 
-	class IMeshReduction* MeshReduction;
+	IMeshReduction* MeshReduction;
 
 
 	// set ability on protected transform.
@@ -93,3 +97,6 @@ public:
 
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

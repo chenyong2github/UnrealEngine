@@ -326,9 +326,9 @@ protected:
 	IAssetGenerationAPI* AssetAPI;
 
 	// note: ideally this octree would be part of PreviewMesh!
-	TUniquePtr<FDynamicMeshOctree3> Octree;
+	TUniquePtr<UE::Geometry::FDynamicMeshOctree3> Octree;
 	bool bOctreeValid = false;
-	TUniquePtr<FDynamicMeshOctree3>& GetOctree();
+	TUniquePtr<UE::Geometry::FDynamicMeshOctree3>& GetOctree();
 
 	EMeshSelectionElementType SelectionType = EMeshSelectionElementType::Face;
 

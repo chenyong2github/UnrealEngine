@@ -8,6 +8,10 @@
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /*
  * 2D Line Segment stored as Center point, normalized Direction vector, and scalar Extent
@@ -535,3 +539,7 @@ protected:
 };
 typedef TSegment3<float> FSegment3f;
 typedef TSegment3<double> FSegment3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE
+

@@ -6,6 +6,11 @@
 #include "ModelingOperators.h"
 #include "Util/ProgressCancel.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class MODELINGOPERATORS_API FMirrorOp : public FDynamicMeshOperator
 {
 public:
@@ -40,3 +45,6 @@ public:
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

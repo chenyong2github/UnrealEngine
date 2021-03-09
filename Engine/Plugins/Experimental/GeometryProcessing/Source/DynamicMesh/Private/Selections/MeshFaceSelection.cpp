@@ -4,6 +4,8 @@
 #include "Selections/MeshVertexSelection.h"
 #include "DynamicMesh3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 // convert vertex selection to face selection. Require at least minCount verts of
 // tri to be selected (valid values are 1,2,3)

@@ -22,8 +22,10 @@
 #include "ToolSetupUtil.h"
 #include "AssetUtils/MeshDescriptionUtil.h"
 
-#define LOCTEXT_NAMESPACE "UMeshInspectorTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "UMeshInspectorTool"
 
 /*
  * ToolBuilder

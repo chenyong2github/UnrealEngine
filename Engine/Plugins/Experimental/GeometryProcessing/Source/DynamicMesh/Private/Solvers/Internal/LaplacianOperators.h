@@ -9,6 +9,8 @@
 
 #include "FSparseMatrixD.h"
 
+// this is a private header
+using namespace UE::Geometry;
 
 /**
 * Construct a sparse matrix representation of the requested "Laplacian" type operator.

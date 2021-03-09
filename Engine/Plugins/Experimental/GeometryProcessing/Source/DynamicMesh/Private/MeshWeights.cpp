@@ -3,6 +3,8 @@
 #include "MeshWeights.h"
 #include "VectorUtil.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 FVector3d FMeshWeights::UniformCentroid(const FDynamicMesh3 & mesh, int32 VertexIndex)
 {

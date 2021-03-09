@@ -10,6 +10,11 @@
 #include "Spatial/SparseGrid3.h"
 #include "Util/GridIndexing3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FPointSetHashTable builds a spatial data structure that supports efficient
  * range queries on a point set (in FPointSetAdapterd form). The spatial data
@@ -59,3 +64,7 @@ public:
 	bool FindPointsInBall(const FVector3d& QueryPt, double QueryRadius, TArray<int>& ResultOut);
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

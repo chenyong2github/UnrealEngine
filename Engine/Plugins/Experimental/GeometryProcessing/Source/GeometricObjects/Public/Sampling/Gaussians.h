@@ -5,6 +5,12 @@
 #include "MathUtil.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * 1D Gaussian
  */
@@ -176,3 +182,7 @@ public:
 };
 typedef TGaussian3<float> TGaussian3f;
 typedef TGaussian3<double> TGaussian3d;
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

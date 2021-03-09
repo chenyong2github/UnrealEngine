@@ -20,6 +20,9 @@
 #undef M_PI
 #endif
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 namespace SubdividePolyLocal
 {
 	// Vertices with positions and normals. Used for interpolating from polymesh to subdivision surface mesh.

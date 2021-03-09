@@ -2,10 +2,8 @@
 
 #include "AssetUtils/Texture2DUtil.h"
 
-
-
-
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 static bool ReadTexture_PlatformData(
 	UTexture2D* TextureMap,

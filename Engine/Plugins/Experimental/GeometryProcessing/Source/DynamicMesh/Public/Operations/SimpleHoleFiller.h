@@ -10,9 +10,12 @@
 #include "GeometryTypes.h"
 #include "MeshRegionBoundaryLoops.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class FDynamicMesh3;
-
 
 /**
  * Fill an EdgeLoop hole with triangles.
@@ -91,3 +94,7 @@ protected:
 	bool Fill_Fan(int32 NewGroupID);
 	bool Fill_EarClip(int32 NewGroupID);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

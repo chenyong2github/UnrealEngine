@@ -6,6 +6,11 @@
 #include "Sampling/MeshImageBakingCache.h"
 #include "Image/ImageBuilder.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FMeshVertexCurvatureCache;
 
 class DYNAMICMESH_API FMeshCurvatureMapBaker : public FMeshImageBaker
@@ -84,3 +89,7 @@ protected:
 
 	void GetColorMapRange(FVector3f& NegativeColor, FVector3f& ZeroColor, FVector3f& PositiveColor);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

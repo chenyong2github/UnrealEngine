@@ -88,13 +88,13 @@ public:
 	 * Copy externally-calculated tangents into the internal tangets buffer.
 	 * @param bFastUpdateIfPossible if true, will try to do a fast normals/tangets update of the SceneProxy, instead of full invalidatiohn
 	 */
-	void UpdateTangents(const FMeshTangentsf* ExternalTangents, bool bFastUpdateIfPossible);
+	void UpdateTangents(const UE::Geometry::FMeshTangentsf* ExternalTangents, bool bFastUpdateIfPossible);
 
 	/**
 	 * Copy externally-calculated tangents into the internal tangets buffer.
 	 * @param bFastUpdateIfPossible if true, will try to do a fast normals/tangets update of the SceneProxy, instead of full invalidatiohn
 	 */
-	void UpdateTangents(const FMeshTangentsd* ExternalTangents, bool bFastUpdateIfPossible);
+	void UpdateTangents(const UE::Geometry::FMeshTangentsd* ExternalTangents, bool bFastUpdateIfPossible);
 
 
 	/**
@@ -102,7 +102,7 @@ public:
 	 * @warning calling this with TangentsType = AutoCalculated will result in possibly-expensive Tangents calculation
 	 * @warning this is only currently safe to call on the Game Thread!!
 	 */
-	const FMeshTangentsf* GetTangents();
+	const UE::Geometry::FMeshTangentsf* GetTangents();
 
 
 
@@ -128,7 +128,7 @@ public:
 	 * Apply transform to internal mesh. Updates Octree and RenderProxy if available.
 	 * @param bInvert if true, inverse tranform is applied instead of forward transform
 	 */
-	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert) override;
+	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert) override;
 
 
 	//
@@ -195,7 +195,7 @@ public:
 	 * buffers that will be modified, as well as the bounds of the modified region. These are both computed in parallel.
 	 * @return a future that will (eventually) return true if the precompute is OK, and (immediately) false if it is not
 	 */
-	TFuture<bool> FastNotifyTriangleVerticesUpdated_TryPrecompute(const TArray<int32>& Triangles, TArray<int32>& UpdateSetsOut, FAxisAlignedBox3d& BoundsOut);
+	TFuture<bool> FastNotifyTriangleVerticesUpdated_TryPrecompute(const TArray<int32>& Triangles, TArray<int32>& UpdateSetsOut, UE::Geometry::FAxisAlignedBox3d& BoundsOut);
 
 
 	/**
@@ -206,7 +206,7 @@ public:
 	 * If the Precompute future returns false, then we forward the call to FastNotifyTriangleVerticesUpdated(), which will do more work.
 	 */
 	void FastNotifyTriangleVerticesUpdated_ApplyPrecompute(const TArray<int32>& Triangles, EMeshRenderAttributeFlags UpdatedAttributes,
-		TFuture<bool>& Precompute, const TArray<int32>& UpdateSets, const FAxisAlignedBox3d& UpdateSetBounds);
+		TFuture<bool>& Precompute, const TArray<int32>& UpdateSets, const UE::Geometry::FAxisAlignedBox3d& UpdateSetBounds);
 
 
 
@@ -335,10 +335,10 @@ private:
 	void InitializeNewMesh();
 
 	// local-space bounding of Mesh
-	FAxisAlignedBox3d LocalBounds;
+	UE::Geometry::FAxisAlignedBox3d LocalBounds;
 
 	bool bTangentsValid = false;
-	FMeshTangentsf Tangents;
+	UE::Geometry::FMeshTangentsf Tangents;
 	
 	FColor GetTriangleColor(const FDynamicMesh3* Mesh, int TriangleID);
 

@@ -14,6 +14,7 @@ namespace UE
 {
 namespace AssetUtils
 {
+	using namespace UE::Geometry;
 
 	MODELINGCOMPONENTS_API bool ReadTexture(
 		UTexture2D* TextureMap,

@@ -18,7 +18,7 @@
 struct FMeshDescription;
 class FMeshVertexChange;
 class FMeshChange;
-
+using UE::Geometry::FDynamicMesh3;
 
 
 /**
@@ -131,7 +131,7 @@ public:
 	//
 public:
 
-	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert)
+	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
 	{
 		unimplemented();
 	}

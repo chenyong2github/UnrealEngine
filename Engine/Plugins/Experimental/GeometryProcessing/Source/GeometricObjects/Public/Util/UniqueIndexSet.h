@@ -4,6 +4,11 @@
 
 #include "CoreMinimal.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FUniqueIndexSet is used to construct a list of unique elements of integers in range [0, MaxValue].
  * General usage is for things like converting a vertex set to the set of connected one-ring triangles.
@@ -129,3 +134,7 @@ protected:
 	int64* Bits = nullptr;
 	int32 NumWords = 0;
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -94,10 +94,17 @@ public:
  * that provides support for common functionality in tools that create a new mesh from a selection of one or more existing meshes
  */
 UCLASS()
-class MODELINGCOMPONENTS_API UBaseCreateFromSelectedTool : public UMultiSelectionTool, public IDynamicMeshOperatorFactory
+class MODELINGCOMPONENTS_API UBaseCreateFromSelectedTool : public UMultiSelectionTool, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
-
+protected:
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+	using FVector2d = UE::Geometry::FVector2d;
+	using FVector2f = UE::Geometry::FVector2f;
+	using FTransform3d = UE::Geometry::FTransform3d;
+	using FFrame3d = UE::Geometry::FFrame3d;
+	using FRay3d = UE::Geometry::FRay3d;
 public:
 	UBaseCreateFromSelectedTool() = default;
 
@@ -159,10 +166,10 @@ protected:
 	/**
 	 * IDynamicMeshOperatorFactory implementation that subclass must override and implement
 	 */
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override
 	{
 		check(false);
-		return TUniquePtr<FDynamicMeshOperator>();
+		return TUniquePtr<UE::Geometry::FDynamicMeshOperator>();
 	}
 
 protected:

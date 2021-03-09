@@ -20,7 +20,7 @@ struct FCollisionGeometry
 {
 	DECLARE_GEOMETRYFLOW_DATA_TYPE_IDENTIFIER(EMeshProcessingDataTypes::CollisionGeometry);
 
-	FSimpleShapeSet3d Geometry;
+	UE::Geometry::FSimpleShapeSet3d Geometry;
 };
 
 

@@ -17,6 +17,9 @@
 
 #include "DynamicMeshAABBTree3.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 bool FMeshSelfUnion::Compute()
 {
 	// transform the mesh to a shared space (centered at the origin, and scaled to a unit cube)

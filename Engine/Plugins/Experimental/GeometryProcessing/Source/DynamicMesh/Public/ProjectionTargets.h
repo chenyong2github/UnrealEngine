@@ -7,6 +7,12 @@
 #include "DynamicMeshAABBTree3.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * FMeshProjectionTarget provides an IProjectionTarget interface to a FDynamicMesh + FDynamicMeshAABBTree3
  * Use to project points to mesh surface.
@@ -44,3 +50,7 @@ public:
 
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

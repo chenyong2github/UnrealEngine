@@ -2,6 +2,7 @@
 
 #include "DataTypes/MeshImageBakingData.h"
 
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 void FMakeMeshBakingCacheNode::Evaluate(

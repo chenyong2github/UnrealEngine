@@ -54,7 +54,7 @@ public:
 	virtual const FDynamicMesh3* GetMesh() const override { return Mesh.Get(); }
 
 
-	FDynamicMeshOctree3* GetOctree() { return Octree.Get(); }
+	UE::Geometry::FDynamicMeshOctree3* GetOctree() { return Octree.Get(); }
 
 	/**
 	 * @return the current internal mesh, which is replaced with an empty mesh
@@ -82,7 +82,7 @@ public:
 	 * Apply transform to internal mesh. Invalidates RenderProxy.
 	 * @param bInvert if true, inverse tranform is applied instead of forward transform
 	 */
-	virtual void ApplyTransform(const FTransform3d& Transform, bool bInvert) override;
+	virtual void ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert) override;
 
 	//
 	// change tracking/etc
@@ -157,12 +157,12 @@ private:
 	//~ Begin USceneComponent Interface.
 
 	TUniquePtr<FDynamicMesh3> Mesh;
-	TUniquePtr<FDynamicMeshOctree3> Octree;
-	TUniquePtr<FDynamicMeshOctree3::FTreeCutSet> OctreeCut;
-	FArrayIndexSetsDecomposition TriangleDecomposition;
+	TUniquePtr<UE::Geometry::FDynamicMeshOctree3> Octree;
+	TUniquePtr<UE::Geometry::FDynamicMeshOctree3::FTreeCutSet> OctreeCut;
+	UE::Geometry::FArrayIndexSetsDecomposition TriangleDecomposition;
 	struct FCutCellIndexSet
 	{
-		FDynamicMeshOctree3::FCellReference CellRef;
+		UE::Geometry::FDynamicMeshOctree3::FCellReference CellRef;
 		int32 DecompSetID;
 	};
 	TArray<FCutCellIndexSet> CutCellSetMap;

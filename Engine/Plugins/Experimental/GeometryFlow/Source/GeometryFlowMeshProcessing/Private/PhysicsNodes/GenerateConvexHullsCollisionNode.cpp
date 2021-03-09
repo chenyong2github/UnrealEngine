@@ -8,6 +8,7 @@
 #include "Async/ParallelFor.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 
+using namespace UE::Geometry;
 using namespace UE::GeometryFlow;
 
 void FGenerateConvexHullsCollisionNode::Evaluate(

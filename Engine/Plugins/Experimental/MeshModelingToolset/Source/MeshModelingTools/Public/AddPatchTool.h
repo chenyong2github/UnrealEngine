@@ -13,7 +13,7 @@
 
 class IAssetGenerationAPI;
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  *
@@ -120,14 +120,14 @@ protected:
 
 	FBox WorldBounds;
 
-	FFrame3f ShapeFrame;
+	UE::Geometry::FFrame3f ShapeFrame;
 	bool bPreviewValid = true;
 
 	void UpdatePreviewPosition(const FInputDeviceRay& ClickPos);
 	void UpdatePreviewMesh();
 
-	TUniquePtr<FDynamicMesh3> BaseMesh;
+	TUniquePtr<UE::Geometry::FDynamicMesh3> BaseMesh;
 	void GeneratePreviewBaseMesh();
 
-	void GeneratePlane(FDynamicMesh3* OutMesh);
+	void GeneratePlane(UE::Geometry::FDynamicMesh3* OutMesh);
 };

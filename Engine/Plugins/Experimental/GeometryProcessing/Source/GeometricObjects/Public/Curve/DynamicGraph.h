@@ -15,6 +15,12 @@
 #include "Util/SmallListSet.h"
 #include "VectorUtil.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 class FDynamicGraph
 {
 public:
@@ -699,3 +705,7 @@ protected:
 		return AppendVertex();
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

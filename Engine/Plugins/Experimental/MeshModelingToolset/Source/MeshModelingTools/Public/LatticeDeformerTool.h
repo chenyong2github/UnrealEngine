@@ -82,13 +82,13 @@ public:
 
 
 UCLASS()
-class MESHMODELINGTOOLS_API ULatticeDeformerOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API ULatticeDeformerOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	ULatticeDeformerTool* LatticeDeformerTool;
@@ -118,7 +118,7 @@ public:
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	FVector3i GetLatticeResolution() const;
+	UE::Geometry::FVector3i GetLatticeResolution() const;
 
 protected:
 
@@ -126,9 +126,9 @@ protected:
 	IToolsContextAssetAPI* AssetAPI;
 
 	// Input mesh
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 
-	TSharedPtr<FFFDLattice, ESPMode::ThreadSafe> Lattice;
+	TSharedPtr<UE::Geometry::FFFDLattice, ESPMode::ThreadSafe> Lattice;
 
 	UPROPERTY()
 	ULatticeControlPointsMechanic* ControlPointsMechanic = nullptr;
@@ -145,7 +145,7 @@ protected:
 	bool bShouldRebuild = false;
 
 	// Create and store an FFFDLattice. Pass out the lattice's positions and edges.
-	void InitializeLattice(TArray<FVector3d>& OutLatticePoints, TArray<FVector2i>& OutLatticeEdges);
+	void InitializeLattice(TArray<UE::Geometry::FVector3d>& OutLatticePoints, TArray<UE::Geometry::FVector2i>& OutLatticeEdges);
 
 	void StartPreview();
 

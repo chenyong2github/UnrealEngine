@@ -6,6 +6,11 @@
 
 #include "Async/ParallelFor.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /*
  * Basic cache of per-triangle information for a mesh
  */
@@ -43,3 +48,6 @@ struct FMeshTriInfoCache
 	}
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

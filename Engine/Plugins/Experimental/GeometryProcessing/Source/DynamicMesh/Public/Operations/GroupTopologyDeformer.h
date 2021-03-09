@@ -4,9 +4,14 @@
 
 #include "EdgeSpan.h"
 
+
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 class FGroupTopology;
-
 
 
 /**
@@ -195,7 +200,9 @@ protected:
 	};
 	TArray<FFaceEncoding> FaceEncodings;
 
-
-
-
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

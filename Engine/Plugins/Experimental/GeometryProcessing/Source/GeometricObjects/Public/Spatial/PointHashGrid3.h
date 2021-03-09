@@ -8,6 +8,11 @@
 #include "Misc/ScopeLock.h"
 #include "Util/GridIndexing3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Hash Grid for values associated with 3D points.
  *
@@ -293,3 +298,6 @@ public:
 
 template <typename PointDataType> using TPointHashGrid3d = TPointHashGrid3<PointDataType, double>;
 template <typename PointDataType> using TPointHashGrid3f = TPointHashGrid3<PointDataType, float>;
+
+} // end namespace UE::Geometry
+} // end namespace UE

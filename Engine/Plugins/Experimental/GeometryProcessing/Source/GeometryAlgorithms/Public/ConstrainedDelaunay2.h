@@ -11,6 +11,11 @@
 #include "CoreMinimal.h"
 
 
+namespace UE {
+namespace Geometry {
+
+
+
 template<typename RealType>
 struct TConstrainedDelaunay2
 {
@@ -146,3 +151,7 @@ TArray<FIndex3i> GEOMETRYALGORITHMS_API ConstrainedDelaunayTriangulate(const TGe
 typedef TConstrainedDelaunay2<float> FConstrainedDelaunay2f;
 typedef TConstrainedDelaunay2<double> FConstrainedDelaunay2d;
 
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

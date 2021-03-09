@@ -4,8 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "MeshDescription.h"
+#include "GeometryBase.h"
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
 /**

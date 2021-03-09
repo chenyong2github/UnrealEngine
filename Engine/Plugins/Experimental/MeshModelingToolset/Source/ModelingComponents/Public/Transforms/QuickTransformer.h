@@ -7,6 +7,10 @@
 #include "ToolDataVisualizer.h"
 #include "FrameTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
 
@@ -61,3 +65,6 @@ public:
 	virtual void PreviewRender(IToolsContextRenderAPI* RenderAPI) = 0;
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

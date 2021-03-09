@@ -31,6 +31,9 @@ class MODELINGCOMPONENTS_API ULatticeControlPointsMechanic :
 	public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector2i = UE::Geometry::FVector2i;
+	using FTransform3d = UE::Geometry::FTransform3d;
 
 public:
 
@@ -79,7 +82,7 @@ protected:
 	FTransform3d LocalToWorldTransform;
 
 	// Used for spatial queries
-	FGeometrySet3 GeometrySet;
+	UE::Geometry::FGeometrySet3 GeometrySet;
 	FViewCameraState CachedCameraState;
 
 	/** Used for displaying points/segments */
@@ -208,6 +211,7 @@ protected:
 // Control points have moved
 class MODELINGCOMPONENTS_API FLatticeControlPointsMechanicMovementChange : public FToolCommandChange
 {
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	FLatticeControlPointsMechanicMovementChange(

@@ -9,6 +9,12 @@
 
 #include "MatrixSolver.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * FMeshDiffusionIntegrator solves diffusion problems over vertices of a 3D triangle mesh.
  *
@@ -71,3 +77,6 @@ protected:
 	int32                               Id; // double buffer id
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

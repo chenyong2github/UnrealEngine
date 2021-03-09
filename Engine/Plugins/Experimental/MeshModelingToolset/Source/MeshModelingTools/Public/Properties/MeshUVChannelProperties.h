@@ -4,11 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "InteractiveTool.h"
-
+#include "GeometryBase.h"
 #include "MeshUVChannelProperties.generated.h"
 
 struct FMeshDescription;
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
 UCLASS()

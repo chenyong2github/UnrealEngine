@@ -10,6 +10,11 @@
 #include "MeshRegionBoundaryLoops.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 class FMeshNormals;
 
@@ -115,3 +120,6 @@ protected:
 
 	bool ApplyExtrude(FExtrusionInfo& Region, FMeshNormals* UseNormals = nullptr);
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -11,6 +11,11 @@
 #include "DistLine3Triangle3.h"
 #include "DistPoint3Triangle3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
 * Compute unsigned distance between 3D segment and 3D triangle
 */
@@ -84,3 +89,5 @@ public:
 typedef TDistSegment3Triangle3<float> FDistSegment3Triangle3f;
 typedef TDistSegment3Triangle3<double> FDistSegment3Triangle3d;
 
+} // end namespace UE::Geometry
+} // end namespace UE

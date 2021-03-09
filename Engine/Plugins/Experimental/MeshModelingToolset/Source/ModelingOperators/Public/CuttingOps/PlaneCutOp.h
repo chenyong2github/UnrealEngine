@@ -7,7 +7,10 @@
 #include "ModelingOperators.h"
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 
 class MODELINGOPERATORS_API FPlaneCutOp : public FDynamicMeshOperator
@@ -33,4 +36,6 @@ public:
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE
 

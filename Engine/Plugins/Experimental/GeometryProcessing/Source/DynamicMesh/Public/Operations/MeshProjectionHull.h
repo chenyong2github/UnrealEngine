@@ -8,6 +8,11 @@
 #include "Polygon2.h"
 #include "DynamicMesh3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Calculate a Convex Hull for a Mesh by first Projecting all vertices to a plane, computing a
  * 2D convex polygon that contains them, and then sweeping that 2D hull to create an extruded 3D volume.
@@ -54,3 +59,6 @@ public:
 	bool Compute();
 
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

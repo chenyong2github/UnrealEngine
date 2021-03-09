@@ -13,6 +13,8 @@
  */
 namespace FaceGroupUtil
 {
+	using namespace UE::Geometry;
+
 	/**
 	 * Set group ID of all triangles in Mesh
 	 */

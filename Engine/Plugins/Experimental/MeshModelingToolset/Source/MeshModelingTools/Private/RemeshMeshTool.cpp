@@ -17,8 +17,10 @@
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
-#define LOCTEXT_NAMESPACE "URemeshMeshTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "URemeshMeshTool"
 
 /*
  * ToolBuilder

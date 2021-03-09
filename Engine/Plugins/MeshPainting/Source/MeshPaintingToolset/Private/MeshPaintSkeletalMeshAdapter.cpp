@@ -259,7 +259,7 @@ bool FMeshPaintSkeletalMeshComponentAdapter::LineTraceComponent(struct FHitResul
 		float MinDistance = FLT_MAX;
 		FVector Intersect;
 		FVector Normal;
-		FIndex3i FoundTriangle;
+		UE::Geometry::FIndex3i FoundTriangle;
 		FVector HitPosition;
 		if (!RayIntersectAdapter(FoundTriangle, HitPosition, LocalStart, LocalEnd))
 		{

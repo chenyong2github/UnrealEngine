@@ -136,7 +136,7 @@ public:
 
 
 
-class FGenerateLODOperatorFactory : public IDynamicMeshOperatorFactory
+class FGenerateLODOperatorFactory : public UE::Geometry::IDynamicMeshOperatorFactory
 {
 public:
 	TWeakObjectPtr<UGenerateLODMeshesTool> ParentTool;
@@ -144,7 +144,7 @@ public:
 	FTransform UseTransform;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 };
 
 
@@ -191,12 +191,12 @@ private:
 
 	TSharedPtr<FMeshDescription, ESPMode::ThreadSafe> OriginalMeshDescription;
 	// Dynamic Mesh versions precomputed in Setup (rather than recomputed for every simplify op)
-	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
-	TSharedPtr<FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
+	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
+	TSharedPtr<UE::Geometry::FDynamicMeshAABBTree3, ESPMode::ThreadSafe> OriginalMeshSpatial;
 
 	TArray<FLODLevelGenerateSettings> CachedLODLevels;
 
-	FAxisAlignedBox3d WorldBounds;
+	UE::Geometry::FAxisAlignedBox3d WorldBounds;
 
 	void GenerateAssets();
 	void UpdateVisualization();

@@ -6,6 +6,11 @@
 
 #include "Util/DynamicVector.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FSmallListSet stores a set of short integer-valued variable-size lists.
  * The lists are encoded into a few large TDynamicVector buffers, with internal pooling,
@@ -476,3 +481,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

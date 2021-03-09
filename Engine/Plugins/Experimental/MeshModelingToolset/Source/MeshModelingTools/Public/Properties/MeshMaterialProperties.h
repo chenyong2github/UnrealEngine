@@ -5,12 +5,10 @@
 #include "CoreMinimal.h"
 #include "Engine/Classes/Engine/Texture2D.h"
 #include "InteractiveToolBuilder.h"
-
 #include "MeshMaterialProperties.generated.h"
 
 
 // predeclarations
-class FDynamicMesh3;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
 

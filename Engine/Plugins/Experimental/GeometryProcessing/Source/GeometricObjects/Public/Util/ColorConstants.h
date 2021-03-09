@@ -4,6 +4,11 @@
 
 #include "Math/Color.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 
 /**
  * Color constants in Linear color space.
@@ -224,3 +229,7 @@ namespace LinearColors
 	GEOMETRICOBJECTS_API FColor SelectFColor(int32 Index);
 
 }
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

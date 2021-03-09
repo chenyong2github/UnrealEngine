@@ -12,6 +12,8 @@
 #include "Parameterization/MeshLocalParam.h"
 #include "Solvers/MeshParameterizationSolvers.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 FDynamicMeshUVEditor::FDynamicMeshUVEditor(FDynamicMesh3* MeshIn, int32 UVLayerIndex, bool bCreateIfMissing)
 {

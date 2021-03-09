@@ -12,7 +12,10 @@
  */
 namespace MeshTransforms
 {
-	
+	using namespace UE::Geometry;
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector3f = UE::Geometry::FVector3f;
+
 	/**
 	 * Apply Translation to vertex positions of Mesh. Does not modify any other attributes.
 	 */

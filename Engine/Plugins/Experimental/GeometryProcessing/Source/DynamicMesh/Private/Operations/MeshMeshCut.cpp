@@ -3,8 +3,10 @@
 // Port of geometry3Sharp MeshMeshCut
 
 #include "Operations/MeshMeshCut.h"
-
 #include "Operations/EmbedSurfacePath.h"
+
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 namespace MeshCut
 {

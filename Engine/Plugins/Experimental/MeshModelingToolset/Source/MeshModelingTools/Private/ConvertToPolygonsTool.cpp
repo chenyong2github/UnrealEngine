@@ -20,8 +20,10 @@
 #include "MeshOpPreviewHelpers.h"
 #include "ModelingOperators.h"
 
-#define LOCTEXT_NAMESPACE "UConvertToPolygonsTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "UConvertToPolygonsTool"
 
 /*
  * ToolBuilder

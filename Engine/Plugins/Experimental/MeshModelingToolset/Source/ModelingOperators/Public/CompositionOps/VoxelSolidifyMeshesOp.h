@@ -8,7 +8,10 @@
 
 #include "BaseOps/VoxelBaseOp.h"
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 class MODELINGOPERATORS_API FVoxelSolidifyMeshesOp : public FVoxelBaseOp
 {
@@ -38,3 +41,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

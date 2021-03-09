@@ -19,6 +19,7 @@
 class UTransformGizmo;
 class UTransformProxy;
 class IAssetGenerationAPI;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  *
@@ -166,7 +167,8 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDrawPolygonTool : public UInteractiveTool, public IClickSequenceBehaviorTarget
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
+	using FVector2d = UE::Geometry::FVector2d;
 public:
 	UDrawPolygonTool();
 
@@ -233,7 +235,7 @@ protected:
 	FVector3d DrawPlaneOrigin;
 
 	/** Orientation of plane we will draw polygon on */
-	FQuaterniond DrawPlaneOrientation;
+	UE::Geometry::FQuaterniond DrawPlaneOrientation;
 	
 	/** Vertices of current preview polygon */
 	TArray<FVector3d> PolygonVertices;
@@ -293,7 +295,7 @@ protected:
 	FVector3d SurfaceOffsetPoint;
 
 	bool bIgnoreSnappingToggle = false;		// toggled by hotkey (shift)
-	FPointPlanarSnapSolver SnapEngine;
+	UE::Geometry::FPointPlanarSnapSolver SnapEngine;
 	ToolSceneQueriesUtil::FSnapGeometry LastSnapGeometry;
 	FVector3d LastGridSnapPoint;
 
@@ -312,10 +314,10 @@ protected:
 	UPlaneDistanceFromHitMechanic* HeightMechanic;
 
 
-	FFrame3f HitPosFrameWorld;
+	UE::Geometry::FFrame3f HitPosFrameWorld;
 
 	/** Generate extruded meshes.  Returns true on success. */
-	bool GeneratePolygonMesh(const TArray<FVector3d>& Polygon, const TArray<TArray<FVector3d>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
+	bool GeneratePolygonMesh(const TArray<FVector3d>& Polygon, const TArray<TArray<FVector3d>>& PolygonHoles, FDynamicMesh3* ResultMeshOut, UE::Geometry::FFrame3d& WorldFrameOut, bool bIncludePreviewVtx, double ExtrudeDistance, bool bExtrudeSymmetric);
 
 
 	// user feedback messages
@@ -336,7 +338,7 @@ protected:
 class MESHMODELINGTOOLS_API FDrawPolygonStateChange : public FToolCommandChange
 {
 public:
-	using Points = TArray<FVector3d>;
+	using Points = TArray<UE::Geometry::FVector3d>;
 	bool bHaveDoneUndo = false;
 	int32 CurveTimestamp = 0;
 	const Points FixedVertexPoints;

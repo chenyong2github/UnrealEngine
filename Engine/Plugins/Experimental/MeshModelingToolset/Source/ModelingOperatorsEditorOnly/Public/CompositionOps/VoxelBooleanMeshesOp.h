@@ -8,6 +8,10 @@
 #include "ProxyLODVolume.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
 
 
 class MODELINGOPERATORSEDITORONLY_API FVoxelBooleanMeshesOp : public FDynamicMeshOperator
@@ -45,4 +49,6 @@ private:
 
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE
 

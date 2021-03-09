@@ -7,7 +7,8 @@
 #include "Async/ParallelFor.h"
 #include "Templates/UnrealTypeTraits.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 template <typename QuadricErrorType>
 QuadricErrorType TMeshSimplification<QuadricErrorType>::ComputeFaceQuadric(const int tid, FVector3d& nface, FVector3d& c, double& Area) const
@@ -1595,7 +1596,10 @@ void TMeshSimplification<FAttrBasedQuadricErrord>::OnEdgeCollapse(int edgeID, in
 
 }
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 // These are explicit instantiations of the templates that are exported from the shared lib.
 // Only these instantiations of the template can be used.
@@ -1603,3 +1607,6 @@ void TMeshSimplification<FAttrBasedQuadricErrord>::OnEdgeCollapse(int edgeID, in
 template class DYNAMICMESH_API TMeshSimplification< FAttrBasedQuadricErrord >;
 template class DYNAMICMESH_API TMeshSimplification< FVolPresQuadricErrord >;
 template class DYNAMICMESH_API TMeshSimplification< FQuadricErrord >;
+
+} // end namespace UE::Geometry
+} // end namespace UE

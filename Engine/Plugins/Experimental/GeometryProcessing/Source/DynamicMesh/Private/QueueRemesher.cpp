@@ -4,6 +4,9 @@
 #include <iostream>
 #include "Async/ParallelFor.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 void FQueueRemesher::FastestRemesh()
 {
 	if (Mesh->HasAttributes() && GetConstraints().IsSet() == false)

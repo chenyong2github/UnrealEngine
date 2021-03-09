@@ -15,7 +15,8 @@ UCLASS()
 class MODELINGCOMPONENTS_API USpatialCurveDistanceMechanic : public UInteractionMechanic
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
+	using FTransform3d = UE::Geometry::FTransform3d;
 public:
 	/** If this function is set, the hit point will be passed in to this function for snapping. Return false to indicate no snapping occurred. */
 	TUniqueFunction<bool(const FVector3d&, FVector3d&)> WorldPointSnapFunc = nullptr;
@@ -43,7 +44,7 @@ public:
 
 protected:
 	TArray<FVector3d> Curve;
-	FDynamicMesh3 TargetHitMesh;
-	FDynamicMeshAABBTree3 TargetHitMeshAABB;
+	UE::Geometry::FDynamicMesh3 TargetHitMesh;
+	UE::Geometry::FDynamicMeshAABBTree3 TargetHitMeshAABB;
 	FTransform3d Transform;
 };

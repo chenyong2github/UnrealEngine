@@ -9,6 +9,12 @@
 #include "Async/ParallelFor.h"
 
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 /**
  * FDynamicMeshOctree3 is an extension of FSparseDynamicOctree3 for the triangles of a FDynamicMesh3 instance.
  * This extension does several things:
@@ -443,3 +449,8 @@ public:
 
 
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

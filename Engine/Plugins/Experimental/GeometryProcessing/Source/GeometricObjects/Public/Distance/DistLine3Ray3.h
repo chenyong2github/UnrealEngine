@@ -8,6 +8,11 @@
 #include "LineTypes.h"
 #include "RayTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Compute distance between 3D line and 3D ray
  */
@@ -105,3 +110,6 @@ public:
 
 typedef TDistLine3Ray3<float> FDistLine3Ray3f;
 typedef TDistLine3Ray3<double> FDistLine3Ray3d;
+
+} // end namespace UE::Geometry
+} // end namespace UE

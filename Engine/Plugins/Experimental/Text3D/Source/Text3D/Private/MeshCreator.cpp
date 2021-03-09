@@ -9,6 +9,7 @@
 
 #include "ConstrainedDelaunay2.h"
 
+using namespace UE::Geometry;
 
 constexpr float FMeshCreator::OutlineExpand;
 
@@ -358,8 +359,8 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 	if (!Node->bClockwise)
 	{
 		int32 VertexCount = 0;
-		FConstrainedDelaunay2f Triangulation;
-		Triangulation.FillRule = FConstrainedDelaunay2f::EFillRule::Positive;
+		UE::Geometry::FConstrainedDelaunay2f Triangulation;
+		Triangulation.FillRule = UE::Geometry::FConstrainedDelaunay2f::EFillRule::Positive;
 
 		const TSharedPtr<FContourList> ContoursLocal = Contours;
 		const TSharedRef<FData> DataLocal = Data;
@@ -369,7 +370,7 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 			FContour& Contour = ContoursLocal->Add();
 			const FPolygon2f& Polygon = *NodeIn->Contour;
 
-			for (const FVector2f& Vertex : Polygon.GetVertices())
+			for (const UE::Geometry::FVector2f& Vertex : Polygon.GetVertices())
 			{
 				// Add point to contour in old format
 				const FPartPtr Point = MakeShared<FPart>();

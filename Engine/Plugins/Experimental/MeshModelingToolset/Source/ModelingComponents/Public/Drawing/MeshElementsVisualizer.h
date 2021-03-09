@@ -6,9 +6,10 @@
 #include "Drawing/PreviewGeometryActor.h"
 #include "InteractiveTool.h"
 #include "MeshWireframeComponent.h"
+#include "GeometryBase.h"
 #include "MeshElementsVisualizer.generated.h"
 
-class FDynamicMesh3;
+PREDECLARE_GEOMETRY(class FDynamicMesh3);
 
 /**
  * Visualization settings UMeshElementsVisualizer
@@ -86,7 +87,7 @@ public:
 	 * will access the mesh when creating their Scene Proxies/etc. The callback can return null
 	 * if the mesh has become invalid/etc
 	 */
-	void SetMeshAccessFunction(TUniqueFunction<const FDynamicMesh3* (void)>&& MeshAccessFunction);
+	void SetMeshAccessFunction(TUniqueFunction<const UE::Geometry::FDynamicMesh3* (void)>&& MeshAccessFunction);
 
 	/**
 	 * Call if mesh provided by MeshAccessFunction has been modified, will cause a full recomputation

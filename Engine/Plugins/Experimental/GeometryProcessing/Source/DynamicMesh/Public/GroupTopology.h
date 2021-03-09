@@ -8,9 +8,12 @@
 #include "Util/IndexUtil.h"
 #include "Containers/BitArray.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 class FGroupTopology;
-
 
 /**
  * FGroupTopologySelection represents a set of selected elements of a FGroupTopology
@@ -451,3 +454,8 @@ public:
 		return TriangleID;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE
+

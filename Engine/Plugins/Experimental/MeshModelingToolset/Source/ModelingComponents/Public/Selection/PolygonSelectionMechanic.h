@@ -15,12 +15,14 @@
 #include "InteractionMechanic.h"
 #include "PolygonSelectionMechanic.generated.h"
 
-struct FCompactMaps;
 class FPolygonSelectionMechanicSelectionChange;
 class UGroupTopologyStorableSelection;
 class UMouseHoverBehavior;
 class URectangleMarqueeMechanic;
 class USingleClickInputBehavior;
+
+using UE::Geometry::FDynamicMeshAABBTree3;
+PREDECLARE_USE_GEOMETRY_STRUCT(FCompactMaps);
 
 UCLASS()
 class MODELINGCOMPONENTS_API UPolygonSelectionMechanicProperties : public UInteractiveToolPropertySet
@@ -79,6 +81,9 @@ UCLASS()
 class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
+	using FFrame3d = UE::Geometry::FFrame3d;
+	using FVector3d = UE::Geometry::FVector3d;
+	using FTransform3d = UE::Geometry::FTransform3d;	
 public:
 
 	virtual ~UPolygonSelectionMechanic();

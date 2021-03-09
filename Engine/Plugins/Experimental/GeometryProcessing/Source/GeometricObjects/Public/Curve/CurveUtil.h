@@ -9,6 +9,11 @@
 #include "BoxTypes.h"
 #include "SegmentTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Curve utility functions
  */
@@ -164,3 +169,6 @@ struct TCurveUtil
 	}
 };
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

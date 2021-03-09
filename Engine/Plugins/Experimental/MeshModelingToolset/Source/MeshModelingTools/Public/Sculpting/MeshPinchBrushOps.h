@@ -62,7 +62,7 @@ public:
 		FVector3d MotionVec = NewSmoothBrushPosLocal - LastSmoothBrushPosLocal;
 		bool bHaveMotion = (MotionVec.Length() > FMathd::ZeroTolerance);
 		MotionVec.Normalize();
-		FLine3d MoveLine(LastSmoothBrushPosLocal, MotionVec);
+		UE::Geometry::FLine3d MoveLine(LastSmoothBrushPosLocal, MotionVec);
 
 		FVector3d DepthPosLocal = NewSmoothBrushPosLocal - (Stamp.Depth * Stamp.Radius * NewSmoothBrushNormal);
 		double UseSpeed = Stamp.Direction * Stamp.Radius * Stamp.Power * Stamp.DeltaTime * BrushSpeedTuning;

@@ -15,6 +15,9 @@
 #include "MeshConstraintsUtil.h"
 #include "DynamicMeshEditor.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 namespace
 {
 	// hard-coded remeshing parameters

@@ -18,7 +18,7 @@
 #include "DataTypes/MeshImageBakingData.h"
 #include "PhysicsNodes/GenerateSimpleCollisionNode.h"
 
-
+using UE::Geometry::FDynamicMesh3;
 
 struct FMeshLODGraphPreFilterSettings
 {
@@ -28,10 +28,11 @@ struct FMeshLODGraphPreFilterSettings
 
 class FGenerateMeshLODGraph
 {
+	using FVector4f = UE::Geometry::FVector4f;
 public:
 	void BuildGraph();
 
-	int32 AppendTextureBakeNode(const TImageBuilder<FVector4f>& SourceImage, const FString& Identifier);
+	int32 AppendTextureBakeNode(const UE::Geometry::TImageBuilder<FVector4f>& SourceImage, const FString& Identifier);
 
 	void SetSourceMesh(const FDynamicMesh3& SourceMesh);
 
@@ -65,15 +66,15 @@ public:
 
 	void EvaluateResult(
 		FDynamicMesh3& ResultMesh,
-		FMeshTangentsd& ResultTangents,
-		FSimpleShapeSet3d& ResultCollision,
+		UE::Geometry::FMeshTangentsd& ResultTangents,
+		UE::Geometry::FSimpleShapeSet3d& ResultCollision,
 		UE::GeometryFlow::FNormalMapImage& NormalMap,
 		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
 		FProgressCancel* Progress);
 
 	void EvaluateResultParallel(FDynamicMesh3& ResultMesh,
-								FMeshTangentsd& ResultTangents,
-								FSimpleShapeSet3d& ResultCollision,
+								UE::Geometry::FMeshTangentsd& ResultTangents,
+								UE::Geometry::FSimpleShapeSet3d& ResultCollision,
 								UE::GeometryFlow::FNormalMapImage& NormalMap,
 								TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
 								FProgressCancel* Progress);

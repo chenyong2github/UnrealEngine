@@ -12,14 +12,19 @@
 #include "Implicit/GridInterpolant.h"
 #include "Operations/FFDLattice.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class MODELINGOPERATORS_API FLatticeDeformerOp : public FDynamicMeshOperator
 {
 public:
 
 	FLatticeDeformerOp(TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> InOriginalMesh,
-					   TSharedPtr<FFFDLattice, ESPMode::ThreadSafe> InLattice,
+					   TSharedPtr<UE::Geometry::FFFDLattice, ESPMode::ThreadSafe> InLattice,
 					   const TArray<FVector3d>& InLatticeControlPoints,
-					   ELatticeInterpolation InInterpolationType,
+					   UE::Geometry::ELatticeInterpolation InInterpolationType,
 					   bool bInDeformNormals);
 
 	// FDynamicMeshOperator implementation
@@ -28,10 +33,13 @@ public:
 protected:
 
 	// Inputs
-	const TSharedPtr<const FFFDLattice, ESPMode::ThreadSafe> Lattice;
+	const TSharedPtr<const UE::Geometry::FFFDLattice, ESPMode::ThreadSafe> Lattice;
 	const TSharedPtr<const FDynamicMesh3, ESPMode::ThreadSafe> OriginalMesh;
 	const TArray<FVector3d> LatticeControlPoints;
-	ELatticeInterpolation InterpolationType;
+	UE::Geometry::ELatticeInterpolation InterpolationType;
 	bool bDeformNormals = false;
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE
 

@@ -7,7 +7,13 @@
 class FReferenceCollector;
 class UMeshComponent;
 class UTexture;
-struct FIndex3i;
+namespace UE
+{
+	namespace Geometry
+	{
+		struct FIndex3i;
+	}
+}
 
 /**
  * Interface for a class to provide mesh painting support for a subclass of UMeshComponent
@@ -94,6 +100,6 @@ public:
 	virtual TArray<FVector> SphereIntersectVertices(const float ComponentSpaceSquaredBrushRadius, const FVector& ComponentSpaceBrushPosition, const FVector& ComponentSpaceCameraPosition, const bool bOnlyFrontFacing) const = 0;
 
 	/** Returns the hit result which intersect with the given ray */
-	virtual bool RayIntersectAdapter(FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const = 0;
+	virtual bool RayIntersectAdapter(UE::Geometry::FIndex3i& HitTriangle, FVector& HitPosition, const FVector Start, const FVector End) const = 0;
 
 };

@@ -5,6 +5,10 @@
 #include "DynamicMesh3.h"
 #include "DynamicAttribute.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 template<typename AttribValueType, int AttribDimension>
 class TDynamicMeshTriangleAttribute;
@@ -444,3 +448,7 @@ public:
 		this->AttribValues[TriangleID] = Value;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

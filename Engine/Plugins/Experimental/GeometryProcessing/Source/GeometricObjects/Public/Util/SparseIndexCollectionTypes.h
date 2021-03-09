@@ -9,6 +9,11 @@
 #include <CoreMinimal.h>
 
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  *  This class provides optionally sparse or dense boolean flags for a set of integer indices
  */
@@ -366,3 +371,6 @@ struct FOptionallySparseIndexMap
 		Set(Index, IndexConstants::InvalidID);
 	}
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -7,6 +7,11 @@
 #include "VectorTypes.h"
 #include "BoxTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Convert between integer grid coordinates and scaled real-valued coordinates (ie assumes integer grid origin == real origin)
  */
@@ -131,3 +136,5 @@ struct TBoundsGridIndexer3 : public TShiftGridIndexer3<RealType>
 typedef TBoundsGridIndexer3<float> FBoundsGridIndexer3f;
 typedef TBoundsGridIndexer3<double> FBoundsGridIndexer3d;
 
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -19,8 +19,10 @@
 #include "Algo/ForEach.h"
 #include "Operations/FFDLattice.h"
 
-#define LOCTEXT_NAMESPACE "ULatticeDeformerTool"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
+#define LOCTEXT_NAMESPACE "ULatticeDeformerTool"
 
 // Tool builder
 

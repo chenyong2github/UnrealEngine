@@ -2,11 +2,18 @@
 
 #pragma once
 
+#include "Math/Quat.h"		// Engine types
 #include "VectorTypes.h"
 #include "MatrixTypes.h"
 #include "IndexTypes.h"
 
 // ported from geometry3Sharp Quaternion
+
+namespace UE
+{
+namespace Geometry
+{
+
 
 template<typename RealType>
 struct TQuaternion
@@ -498,3 +505,6 @@ bool TQuaternion<RealType>::EpsilonEqual(const TQuaternion<RealType>& Other, Rea
 		(RealType)fabs(W - Other.W) <= Epsilon;
 }
 
+
+} // end namespace UE::Geometry
+} // end namespace UE

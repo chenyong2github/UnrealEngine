@@ -10,11 +10,16 @@
 #include "DynamicMeshAABBTree3.h"
 #include "ProjectionTargets.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 class FSubRegionRemesher;
-class FEdgeLoop;
-class FMeshBoundaryLoops;
 class FMeshFaceSelection;
+class FMeshBoundaryLoops;
+class FEdgeLoop;
 
 /**
  * Fill parameters
@@ -92,3 +97,7 @@ protected:
 	void DefaultConfigureRemesher(FSubRegionRemesher& Remesher, bool bConstrainROIBoundary);
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

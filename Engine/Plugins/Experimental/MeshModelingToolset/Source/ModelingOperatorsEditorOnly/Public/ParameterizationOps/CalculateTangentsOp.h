@@ -23,16 +23,20 @@ enum class EMeshTangentsType : uint8
 	CopyExisting = 3
 };
 
+namespace UE
+{
+namespace Geometry
+{
 
 
-class MODELINGOPERATORSEDITORONLY_API FCalculateTangentsOp : public TGenericDataOperator<FMeshTangentsd>
+class MODELINGOPERATORSEDITORONLY_API FCalculateTangentsOp : public TGenericDataOperator<UE::Geometry::FMeshTangentsd>
 {
 public:
 	virtual ~FCalculateTangentsOp() {}
 
 	// inputs
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> SourceMesh;
-	TSharedPtr<FMeshTangentsf, ESPMode::ThreadSafe> SourceTangents;
+	TSharedPtr<UE::Geometry::FMeshTangentsf, ESPMode::ThreadSafe> SourceTangents;
 
 	// parameters
 	EMeshTangentsType CalculationMethod;
@@ -47,9 +51,11 @@ public:
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 
 
-	virtual void CalculateStandard(FProgressCancel* Progress, TUniquePtr<FMeshTangentsd>& Tangents);
-	virtual void CalculateMikkT(FProgressCancel* Progress, TUniquePtr<FMeshTangentsd>& Tangents);
-	virtual void CopyFromSource(FProgressCancel* Progress, TUniquePtr<FMeshTangentsd>& Tangents);
+	virtual void CalculateStandard(FProgressCancel* Progress, TUniquePtr<UE::Geometry::FMeshTangentsd>& Tangents);
+	virtual void CalculateMikkT(FProgressCancel* Progress, TUniquePtr<UE::Geometry::FMeshTangentsd>& Tangents);
+	virtual void CopyFromSource(FProgressCancel* Progress, TUniquePtr<UE::Geometry::FMeshTangentsd>& Tangents);
 };
 
+} // end namespace UE::Geometry
+} // end namespace UE
 

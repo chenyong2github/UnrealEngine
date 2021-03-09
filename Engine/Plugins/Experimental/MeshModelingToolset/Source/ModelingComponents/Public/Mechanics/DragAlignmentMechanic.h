@@ -14,7 +14,7 @@
 
 #include "DragAlignmentMechanic.generated.h"
 
-class FGroupTopologyDeformer;
+PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopologyDeformer);
 class UPrimitiveComponent;
 class UIntervalGizmo;
 class UTransformGizmo;
@@ -53,8 +53,8 @@ public:
 	 * This works with only one deformed mesh, so it probably wouldn't be used with multiple gizmos.
 	 */
 	void InitializeDeformedMeshRayCast(
-		TFunction<FDynamicMeshAABBTree3* ()> GetSpatialIn,
-		const FTransform3d& TargetTransform, const FGroupTopologyDeformer* LinearDeformer);
+		TFunction<UE::Geometry::FDynamicMeshAABBTree3* ()> GetSpatialIn,
+		const UE::Geometry::FTransform3d& TargetTransform, const FGroupTopologyDeformer* LinearDeformer);
 
 	virtual void Setup(UInteractiveTool* ParentToolIn) override;
 	virtual void Shutdown() override;
@@ -90,7 +90,7 @@ protected:
 	bool bPreviewEndpointsValid = false;
 	bool bWaitingOnProjectedResult = false;
 	FHitResult LastHitResult;
-	FVector3d LastProjectedResult;
+	UE::Geometry::FVector3d LastProjectedResult;
 
 	bool bAlignmentToggle = false;
 	int32 AlignmentModifierID = 1;

@@ -17,7 +17,10 @@
 #include "Operations/MeshBoolean.h" // for shared utility functions
 
 
-
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * MeshSelfUnion -- perform a "Mesh Boolean" style union of a mesh on itself, resolving any self intersections and welding the new boundaries as needed
@@ -137,3 +140,7 @@ private:
 	void SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<int, int>& FoundMatches);
 
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -10,8 +10,14 @@
  */
 struct FArrangement final
 {
-    FDynamicGraph2d Graph;
-    TPointHashGrid2d<int> PointHash;
+	using FVector2d = UE::Geometry::FVector2d;
+	using FIndex2i = UE::Geometry::FIndex2i;
+	using FSegment2f = UE::Geometry::FSegment2f;
+	using FSegment2d = UE::Geometry::FSegment2d;
+	using FAxisAlignedBox2f = UE::Geometry::FAxisAlignedBox2f;
+	
+    UE::Geometry::FDynamicGraph2d Graph;
+    UE::Geometry::TPointHashGrid2d<int> PointHash;
     TMap<int, bool> Directions; //bool - from A to B
 	const double VertexSnapTol = 0.001;
 
@@ -31,13 +37,13 @@ protected:
         int EID;
         int SideX;
         int SideY;
-        FIntrSegment2Segment2d Intr;
+        UE::Geometry::FIntrSegment2Segment2d Intr;
     };
 
 
     int insert_point(const FVector2d &P, double Tol = 0);
     bool insert_segment(FVector2d A, FVector2d B, double Tol = 0);
-    FIndex2i split_segment_at_t(int EID, double T, double Tol);
+    UE::Geometry::FIndex2i split_segment_at_t(int EID, double T, double Tol);
     int find_existing_vertex(FVector2d Pt);
     int find_nearest_vertex(FVector2d Pt, double SearchRadius, int IgnoreVID = -1);
     bool find_intersecting_edges(FVector2d A, FVector2d B, TArray<FIntersection>& Hits, double Tol = 0);

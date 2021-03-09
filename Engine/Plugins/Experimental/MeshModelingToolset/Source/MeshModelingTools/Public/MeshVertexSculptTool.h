@@ -182,7 +182,7 @@ UCLASS()
 class MESHMODELINGTOOLS_API UMeshVertexSculptTool : public UMeshSculptToolBase
 {
 	GENERATED_BODY()
-
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -257,14 +257,14 @@ protected:
 	void WaitForPendingStampUpdate();
 
 	TArray<int> RangeQueryTriBuffer;
-	FUniqueIndexSet VertexROIBuilder;
-	FUniqueIndexSet TriangleROIBuilder;
-	TArray<FIndex3i> TriangleROIInBuf;
+	UE::Geometry::FUniqueIndexSet VertexROIBuilder;
+	UE::Geometry::FUniqueIndexSet TriangleROIBuilder;
+	TArray<UE::Geometry::FIndex3i> TriangleROIInBuf;
 	TArray<int> VertexROI;
 	TArray<int> TriangleROIArray;
 	void UpdateROI(const FVector3d& BrushPos);
 
-	FUniqueIndexSet NormalsROIBuilder;
+	UE::Geometry::FUniqueIndexSet NormalsROIBuilder;
 	TArray<std::atomic<bool>> NormalsFlags;		// set of per-vertex or per-element-id flags that indicate
 												// whether normal needs recompute. Fast to do it this way
 												// than to use a TSet or UniqueIndexSet...
@@ -279,22 +279,22 @@ protected:
 	FRandomStream StampRandomStream;
 
 	FDynamicMesh3 BaseMesh;
-	FDynamicMeshOctree3 BaseMeshSpatial;
+	UE::Geometry::FDynamicMeshOctree3 BaseMeshSpatial;
 	TArray<int32> BaseMeshIndexBuffer;
 	bool bCachedFreezeTarget = false;
 	void UpdateBaseMesh(const TSet<int32>* TriangleROI = nullptr);
 	bool GetBaseMeshNearest(int32 VertexID, const FVector3d& Position, double SearchRadius, FVector3d& TargetPosOut, FVector3d& TargetNormalOut);
 	TFunction<bool(int32, const FVector3d&, double MaxDist, FVector3d&, FVector3d&)> BaseMeshQueryFunc;
 
-	FDynamicMeshOctree3 Octree;
+	UE::Geometry::FDynamicMeshOctree3 Octree;
 
 	bool UpdateBrushPosition(const FRay& WorldRay);
 
 	double SculptMaxFixedHeight = -1.0;
 
 	bool bHaveBrushAlpha = false;
-	TImageBuilder<FVector4f> BrushAlphaValues;
-	FImageDimensions BrushAlphaDimensions;
+	UE::Geometry::TImageBuilder<UE::Geometry::FVector4f> BrushAlphaValues;
+	UE::Geometry::FImageDimensions BrushAlphaDimensions;
 	double SampleBrushAlpha(const FSculptBrushStamp& Stamp, const FVector3d& Position) const;
 
 	TArray<FVector3d> ROIPositionBuffer;

@@ -3,7 +3,8 @@
 #include "Operations/PlanarHoleFiller.h"
 #include "Curve/PlanarComplex.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 bool FPlanarHoleFiller::Fill(int GroupID)
 {

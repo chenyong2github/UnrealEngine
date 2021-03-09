@@ -4,6 +4,12 @@
 
 #include "Containers/Array.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
+
 class IHoleFiller
 {
 public:
@@ -13,3 +19,7 @@ public:
 
 	virtual bool Fill(int32 GroupID = -1) = 0;	
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

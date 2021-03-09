@@ -7,6 +7,11 @@
 #include "Image/ImageDimensions.h"
 #include "Spatial/MeshAABBTree3.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * ImageOccupancyMap calculates and stores coverage information for a 2D image/texture,
  * for example coverage derived from UV islands of a mesh, 2D polygons, etc.
@@ -207,3 +212,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

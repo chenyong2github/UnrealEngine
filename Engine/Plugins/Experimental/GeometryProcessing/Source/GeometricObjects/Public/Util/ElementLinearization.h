@@ -6,6 +6,10 @@
 #include "IndexTypes.h"
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
 * FElementLinearization maps a potentially-sparse index list into a linear array.
@@ -268,3 +272,7 @@ public:
 		YVector[i] = Value.Y;
 	}
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

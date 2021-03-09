@@ -10,7 +10,20 @@
 #include "Async/ParallelFor.h"
 #include "KelvinletBrushOp.generated.h"
 
-
+// import kelvinlet types
+using UE::Geometry::FPullKelvinlet;
+using UE::Geometry::FLaplacianPullKelvinlet;
+using UE::Geometry::FBiLaplacianPullKelvinlet;
+using UE::Geometry::FSharpLaplacianPullKelvinlet;
+using UE::Geometry::FSharpBiLaplacianPullKelvinlet;
+using UE::Geometry::FAffineKelvinlet;
+using UE::Geometry::FTwistKelvinlet;
+using UE::Geometry::FPinchKelvinlet;
+using UE::Geometry::FScaleKelvinlet;
+using UE::Geometry::FBlendPullSharpKelvinlet;
+using UE::Geometry::FBlendPullKelvinlet;
+using UE::Geometry::FLaplacianTwistPullKelvinlet;
+using UE::Geometry::FBiLaplacianTwistPullKelvinlet;
 
 UCLASS()
 class MESHMODELINGTOOLS_API UBaseKelvinletBrushOpProps : public UMeshSculptBrushOpProps

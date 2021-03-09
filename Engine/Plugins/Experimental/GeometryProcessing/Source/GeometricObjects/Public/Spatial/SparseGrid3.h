@@ -7,6 +7,11 @@
 #include "CoreMinimal.h"
 #include "BoxTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * Dynamic sparse 3D grid. Useful in cases where we have grid of some type of non-trivial 
  * object and we don't want to pre-allocate full grid of them. So we allocate on-demand.
@@ -169,3 +174,6 @@ protected:
 		return NewElem;
 	}
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

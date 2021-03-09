@@ -11,6 +11,11 @@
 #include "InfoTypes.h"
 #include "IndexTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 
 /**
@@ -547,3 +552,5 @@ public:
 };
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

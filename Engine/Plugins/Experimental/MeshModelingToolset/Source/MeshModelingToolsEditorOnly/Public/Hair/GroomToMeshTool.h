@@ -14,6 +14,7 @@
 class AGroomActor;
 class AStaticMeshActor;
 class IAssetGenerationAPI;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 /**
  *

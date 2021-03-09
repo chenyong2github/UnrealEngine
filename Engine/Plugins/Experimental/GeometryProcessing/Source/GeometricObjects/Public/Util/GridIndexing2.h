@@ -6,6 +6,10 @@
 
 #include "VectorTypes.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Convert between integer grid coordinates and scaled real-valued coordinates (ie assumes integer grid origin == real origin)
@@ -85,4 +89,5 @@ typedef TShiftGridIndexer2<float> FShiftGridIndexer2f;
 typedef TShiftGridIndexer2<double> FShiftGridIndexer2d;
 
 
-
+} // end namespace UE::Geometry
+} // end namespace UE

@@ -4,6 +4,11 @@
 
 #include "CoreMinimal.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 class FDynamicMesh3;
 
 /**
@@ -35,3 +40,6 @@ public:
 protected:
 	void ApplySinglePass();
 };
+
+} // end namespace UE::Geometry
+} // end namespace UE

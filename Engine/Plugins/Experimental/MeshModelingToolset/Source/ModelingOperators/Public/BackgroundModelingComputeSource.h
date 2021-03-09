@@ -10,6 +10,10 @@
 // @todo nothing in this file is specific to modeling operations...these templates are general-purpose?
 // 
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * TModelingOpTask is an FAbortableBackgroundTask that executes a modeling operator of template type OpType.
@@ -299,3 +303,5 @@ TUniquePtr<OpType> TBackgroundModelingComputeSource<OpType, OpTypeFactory>::Extr
 
 
 
+} // end namespace UE::Geometry
+} // end namespace UE

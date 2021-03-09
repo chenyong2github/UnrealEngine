@@ -6,6 +6,11 @@
 
 class IToolsContextRenderAPI;
 
+namespace UE
+{
+namespace Geometry
+{
+
 /**
  * FPointPlanarSnapSolver solves for a Point snap location on a plane, based
  * on an input Point and a set of target points and lines in the plane.
@@ -119,3 +124,7 @@ protected:
 	void GenerateLineIntersectionTargets();
 	void GenerateTargets(const FVector3d& PointIn);
 };
+
+
+} // end namespace UE::Geometry
+} // end namespace UE

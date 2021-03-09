@@ -3,7 +3,8 @@
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
 
-
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 
 int FDynamicMesh3::AppendVertex(const FVertexInfo& VtxInfo)

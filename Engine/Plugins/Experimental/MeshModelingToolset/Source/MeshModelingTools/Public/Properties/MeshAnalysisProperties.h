@@ -3,14 +3,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
-
 #include "InteractiveToolBuilder.h"
-
+#include "GeometryBase.h"
 #include "MeshAnalysisProperties.generated.h"
 
 
 // predeclarations
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 
 
 

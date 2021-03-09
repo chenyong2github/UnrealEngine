@@ -6,8 +6,11 @@
 #include "TriangleTypes.h"
 #include "SegmentTypes.h"
 #include "Distance/DistPoint3Triangle3.h"
-
 #include "DynamicMesh3.h"
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 FVector3d FMeshSurfacePoint::Pos(const FDynamicMesh3 *Mesh) const
 {
@@ -781,7 +784,7 @@ bool AddEdgesOnPath(const FDynamicMesh3& Mesh, FFrame3d Frame, const TArray<int>
 }
 
 
-bool EmbedProjectedPaths(FDynamicMesh3* Mesh, const TArrayView<const int> StartTriIDs, FFrame3d Frame, const TArrayView<const TArray<FVector2d>> AllPaths, TArray<TArray<int>>& OutAllPathVertices, TArray<TArray<int>>& OutAllVertexCorrespondence, bool bClosePaths, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq)
+bool UE::Geometry::EmbedProjectedPaths(FDynamicMesh3* Mesh, const TArrayView<const int> StartTriIDs, FFrame3d Frame, const TArrayView<const TArray<FVector2d>> AllPaths, TArray<TArray<int>>& OutAllPathVertices, TArray<TArray<int>>& OutAllVertexCorrespondence, bool bClosePaths, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq)
 {
 	check(Mesh);
 	check(AllPaths.Num() == StartTriIDs.Num());
@@ -945,7 +948,7 @@ bool EmbedProjectedPaths(FDynamicMesh3* Mesh, const TArrayView<const int> StartT
 }
 
 
-bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, TArray<int>& OutVertexCorrespondence, bool bClosePath, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq)
+bool UE::Geometry::EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, TArray<int>& OutVertexCorrespondence, bool bClosePath, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq)
 {
 	TArrayView<int> StartTriIDs(&StartTriID, 1);
 	const TArrayView<const TArray<FVector2d>> AllPaths(&Path2D, 1);

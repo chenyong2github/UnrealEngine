@@ -4,6 +4,9 @@
 #include "MatrixSolver.h"
 #include "ConstrainedPoissonSolver.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
+
 
 FConstrainedMeshDeformer::FConstrainedMeshDeformer(const FDynamicMesh3& DynamicMesh, const ELaplacianWeightScheme LaplacianType)
 	: FConstrainedMeshDeformationSolver(DynamicMesh, LaplacianType, EMatrixSolverType::LU)

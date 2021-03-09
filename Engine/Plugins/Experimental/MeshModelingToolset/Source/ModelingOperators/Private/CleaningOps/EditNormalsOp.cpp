@@ -8,10 +8,12 @@
 #include "MeshSimplification.h"
 #include "MeshConstraintsUtil.h"
 
-
 #include "MeshNormals.h"
 #include "Operations/RepairOrientation.h"
 #include "DynamicMeshAABBTree3.h"
+
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 void FEditNormalsOp::SetTransform(const FTransform& Transform) {
 	ResultTransform = (FTransform3d)Transform;

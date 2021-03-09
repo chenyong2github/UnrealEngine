@@ -230,7 +230,7 @@ protected:
 
 	struct FLODMeshInfo
 	{
-		FDynamicMesh3 Mesh;
+		UE::Geometry::FDynamicMesh3 Mesh;
 
 		bool bInfoCached = false;
 		TArray<int> BoundaryEdges;

@@ -16,7 +16,7 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 	IAssetGenerationAPI* AssetAPI,
 	UWorld* TargetWorld,
 	const FDynamicMesh3* Mesh,
-	const FTransform3d& Transform,
+	const UE::Geometry::FTransform3d& Transform,
 	FString ObjectName,
 	UMaterialInterface* Material
 )
@@ -29,7 +29,7 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 	IAssetGenerationAPI* AssetAPI,
 	UWorld* TargetWorld,
 	const FDynamicMesh3* Mesh,
-	const FTransform3d& Transform,
+	const UE::Geometry::FTransform3d& Transform,
 	FString ObjectName,
 	const TArrayView<UMaterialInterface*>& Materials
 )

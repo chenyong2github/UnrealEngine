@@ -28,11 +28,11 @@
 #include "DynamicMeshChangeTracker.h"
 #include "MeshTransforms.h"
 
-
-
 // default proxy for this component
 #include "SimpleDynamicMeshSceneProxy.h"
 
+#include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
+using namespace UE::Geometry;
 
 namespace
 {

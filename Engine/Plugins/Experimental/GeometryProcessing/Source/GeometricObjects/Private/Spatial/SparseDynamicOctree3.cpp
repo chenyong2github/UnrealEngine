@@ -5,6 +5,7 @@
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 
+using namespace UE::Geometry;
 
 // NB: These have to be here until C++17 allows inline variables
 constexpr int32 FDynamicFlagArray::GrowChunkSize;

@@ -6,6 +6,10 @@
 #include "DynamicMeshAttributeSet.h"
 #include "DynamicMeshAABBTree3.h"
 
+namespace UE
+{
+namespace Geometry
+{
 
 /**
  * Wrapper around a Mesh and UV Overlay that provides UVs triangles as vertices.
@@ -294,4 +298,7 @@ bool TMeshSurfaceUVSampler<SampleType>::CachedSampleUV(const FMeshUVSampleInfo& 
 }
 
 
+
+} // end namespace UE::Geometry
+} // end namespace UE
 

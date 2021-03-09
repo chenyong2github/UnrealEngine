@@ -10,11 +10,11 @@
 #include "Changes/MeshChange.h"
 #include "PreviewMesh.generated.h"
 
-class FDynamicMesh3;
+PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 struct FMeshDescription;
 
 // predeclare tangents template
-template<typename RealType> class TMeshTangents;
+PREDECLARE_GEOMETRY(template<typename RealType> class TMeshTangents);
 
 
 /**
@@ -57,7 +57,8 @@ UCLASS(Transient)
 class MODELINGCOMPONENTS_API UPreviewMesh : public UObject, public IMeshVertexCommandChangeTarget, public IMeshCommandChangeTarget, public IMeshReplacementCommandChangeTarget
 {
 	GENERATED_BODY()
-
+	using FRay3d = UE::Geometry::FRay3d;
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 	UPreviewMesh();
 	virtual ~UPreviewMesh();
@@ -176,13 +177,13 @@ public:
 	/**
 	 * @return a MeshTangents data structure for the underlying component, if available, otherwise nullptr
 	 */
-	const TMeshTangents<float>* GetTangents() const;
+	const UE::Geometry::TMeshTangents<float>* GetTangents() const;
 
 	/**
 	 * Update tangents on internal Mesh Component
 	 */
 	template<typename RealType>
-	void UpdateTangents(const TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible);
+	void UpdateTangents(const UE::Geometry::TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible);
 
 
 
@@ -312,7 +313,7 @@ public:
 	 * @return point to the current AABBTree used for preview spatial mesh, or nullptr if not available
 	 * @warning this has to return non-const because of current FDynamicMeshAABBTree3 API, but you should not modify this!
 	 */
-	FDynamicMeshAABBTree3* GetSpatial();
+	UE::Geometry::FDynamicMeshAABBTree3* GetSpatial();
 
 	/**
 	 * @return the current preview FDynamicMesh, and replace with a new empty mesh
@@ -386,7 +387,7 @@ public:
 	 * EditFunc is required to notify the given FDynamicMeshChangeTracker about all mesh changes
 	 * @return FMeshChange extracted from FDynamicMeshChangeTracker that represents mesh edit
 	 */
-	TUniquePtr<FMeshChange> TrackedEditMesh(TFunctionRef<void(FDynamicMesh3&, FDynamicMeshChangeTracker&)> EditFunc);
+	TUniquePtr<FMeshChange> TrackedEditMesh(TFunctionRef<void(FDynamicMesh3&, UE::Geometry::FDynamicMeshChangeTracker&)> EditFunc);
 
 	/**
 	 * Apply/Revert a vertex deformation change to the internal mesh (implements IMeshVertexCommandChangeTarget)
@@ -444,7 +445,7 @@ protected:
 	USimpleDynamicMeshComponent* DynamicMeshComponent = nullptr;
 
 	/** Spatial data structure that is initialized if bBuildSpatialDataStructure = true when UpdatePreview() is called */
-	FDynamicMeshAABBTree3 MeshAABBTree;
+	UE::Geometry::FDynamicMeshAABBTree3 MeshAABBTree;
 
 	/** If true, mesh will be chunked into multiple render buffers inside the DynamicMeshComponent */
 	bool bDecompositionEnabled = false;
@@ -456,7 +457,7 @@ protected:
 
 
 template<typename RealType>
-void UPreviewMesh::UpdateTangents(const TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible)
+void UPreviewMesh::UpdateTangents(const UE::Geometry::TMeshTangents<RealType>* ExternalTangents, bool bFastUpdateIfPossible)
 {
 	if (ensure(DynamicMeshComponent))
 	{

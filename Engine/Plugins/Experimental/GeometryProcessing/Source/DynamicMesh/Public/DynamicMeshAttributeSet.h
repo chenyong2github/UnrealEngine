@@ -10,6 +10,11 @@
 #include "InfoTypes.h"
 #include "Containers/IndirectArray.h"
 
+namespace UE
+{
+namespace Geometry
+{
+
 /** Standard UV overlay type - 2-element float */
 typedef TDynamicMeshVectorOverlay<float, 2, FVector2f> FDynamicMeshUVOverlay;
 /** Standard Normal overlay type - 3-element float */
@@ -391,4 +396,9 @@ protected:
 		return bValid;
 	}
 };
+
+
+
+} // end namespace UE::Geometry
+} // end namespace UE
 

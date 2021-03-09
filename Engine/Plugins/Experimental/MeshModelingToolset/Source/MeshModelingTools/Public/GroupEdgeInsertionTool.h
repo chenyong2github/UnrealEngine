@@ -19,6 +19,9 @@
 
 class UDynamicMeshReplacementChangeTarget;
 
+using UE::Geometry::FGroupEdgeInserter;
+using UE::Geometry::FDynamicMesh3;
+
 UCLASS()
 class MESHMODELINGTOOLS_API UGroupEdgeInsertionToolBuilder : public UInteractiveToolBuilder
 {
@@ -61,13 +64,13 @@ public:
 };
 
 UCLASS()
-class MESHMODELINGTOOLS_API UGroupEdgeInsertionOperatorFactory : public UObject, public IDynamicMeshOperatorFactory
+class MESHMODELINGTOOLS_API UGroupEdgeInsertionOperatorFactory : public UObject, public UE::Geometry::IDynamicMeshOperatorFactory
 {
 	GENERATED_BODY()
 
 public:
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	UPROPERTY()
 	UGroupEdgeInsertionTool* Tool;
@@ -86,6 +89,8 @@ class MESHMODELINGTOOLS_API UGroupEdgeInsertionTool : public USingleSelectionToo
 		WaitingForInsertComplete
 	};
 
+	using FRay3d = UE::Geometry::FRay3d;
+	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	friend class UGroupEdgeInsertionOperatorFactory;
@@ -131,7 +136,7 @@ protected:
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;
-	FDynamicMeshAABBTree3 MeshSpatial;
+	UE::Geometry::FDynamicMeshAABBTree3 MeshSpatial;
 	FGroupTopologySelector TopologySelector;
 
 	TArray<TPair<FVector3d, FVector3d>> PreviewEdges;
