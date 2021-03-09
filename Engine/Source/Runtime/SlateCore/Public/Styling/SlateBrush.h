@@ -134,23 +134,7 @@ public:
 	/**
 	 * Default constructor.
 	 */
-	FSlateBrush()
-		: ImageSize(SlateBrushDefs::DefaultImageSize, SlateBrushDefs::DefaultImageSize)
-		, Margin(0.0f)
-#if WITH_EDITORONLY_DATA
-		, Tint_DEPRECATED(FLinearColor::White)
-#endif
-		, TintColor(FLinearColor::White)
-		, ResourceObject(nullptr)
-		, ResourceName(NAME_None)
-		, UVRegion(ForceInit)
-		, DrawAs(ESlateBrushDrawType::Image)
-		, Tiling(ESlateBrushTileType::NoTile)
-		, Mirroring(ESlateBrushMirrorType::NoMirror)
-		, ImageType(ESlateBrushImageType::NoImage)
-		, bIsDynamicallyLoaded(false)
-		, bHasUObject_DEPRECATED(false)
-	{ }
+	FSlateBrush();
 
 	virtual ~FSlateBrush(){}
 

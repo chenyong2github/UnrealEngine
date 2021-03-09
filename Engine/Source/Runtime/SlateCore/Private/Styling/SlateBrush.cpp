@@ -4,6 +4,25 @@
 #include "SlateGlobals.h"
 #include "Application/SlateApplicationBase.h"
 
+FSlateBrush::FSlateBrush()
+	: ImageSize(SlateBrushDefs::DefaultImageSize, SlateBrushDefs::DefaultImageSize)
+	, Margin(0.0f)
+#if WITH_EDITORONLY_DATA
+	, Tint_DEPRECATED(FLinearColor::White)
+#endif
+	, TintColor(FLinearColor::White)
+	, ResourceObject(nullptr)
+	, ResourceName(NAME_None)
+	, UVRegion(ForceInit)
+	, DrawAs(ESlateBrushDrawType::Image)
+	, Tiling(ESlateBrushTileType::NoTile)
+	, Mirroring(ESlateBrushMirrorType::NoMirror)
+	, ImageType(ESlateBrushImageType::NoImage)
+	, bIsDynamicallyLoaded(false)
+	, bHasUObject_DEPRECATED(false)
+{
+}
+
 FSlateBrush::FSlateBrush( ESlateBrushDrawType::Type InDrawType, const FName InResourceName, const FMargin& InMargin, ESlateBrushTileType::Type InTiling, ESlateBrushImageType::Type InImageType, const FVector2D& InImageSize, const FLinearColor& InTint, UObject* InObjectResource, bool bInDynamicallyLoaded )
 	: ImageSize( InImageSize )
 	, Margin( InMargin )
