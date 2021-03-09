@@ -57,6 +57,14 @@ static FAutoConsoleVariableRef CVarFXAllowParticleMeshLODs(
 	ECVF_Default
 );
 
+static int32 GFXUseVertexFactoryCache = 0;
+static FAutoConsoleVariableRef CVarFXUseVertexFactoryCache(
+	TEXT("fx.FXUseVertexFactoryCache"),
+	GFXUseVertexFactoryCache,
+	TEXT("If we allow the vertex factory cache to run, this does not work on all platforms without racing"),
+	ECVF_Default
+);
+
 /** 
  * Whether to track particle rendering stats.  
  * Enable with the TRACKPARTICLERENDERINGSTATS command. 
@@ -6917,15 +6925,35 @@ void FParticleSystemSceneProxy::GetDynamicMeshElements(const TArray<const FScene
 				{
 					if (VisibilityMap & (1 << ViewIndex))
 					{
-						if ((ViewIndex >= EmitterVertexFactoryArray.Num()) || (Data->EmitterIndex >= EmitterVertexFactoryArray[ViewIndex].Num()))
+						FParticleVertexFactoryBase* VertexFactory = nullptr;
+						if (GFXUseVertexFactoryCache)
 						{
-							AddEmitterVertexFactory(Data, ViewIndex);
-						}
-						FParticleVertexFactoryBase* VertexFactory = EmitterVertexFactoryArray[ViewIndex][Data->EmitterIndex];
-						if (VertexFactory == nullptr)
-						{
-							AddEmitterVertexFactory(Data, ViewIndex);
+							if ((ViewIndex >= EmitterVertexFactoryArray.Num()) || (Data->EmitterIndex >= EmitterVertexFactoryArray[ViewIndex].Num()))
+							{
+								AddEmitterVertexFactory(Data, ViewIndex);
+							}
 							VertexFactory = EmitterVertexFactoryArray[ViewIndex][Data->EmitterIndex];
+							if (VertexFactory == nullptr)
+							{
+								AddEmitterVertexFactory(Data, ViewIndex);
+								VertexFactory = EmitterVertexFactoryArray[ViewIndex][Data->EmitterIndex];
+							}
+						}
+						else
+						{
+							struct FParticleVF : public FOneFrameResource
+							{
+								virtual ~FParticleVF()
+								{
+									VertexFactory->ReleaseResource();
+									delete VertexFactory;
+								}
+
+								FParticleVertexFactoryBase* VertexFactory = nullptr;
+							};
+							FParticleVF* ParticleVF = &Collector.AllocateOneFrameResource<FParticleVF>();
+							ParticleVF->VertexFactory = Data->CreateVertexFactory(FeatureLevel, this);
+							VertexFactory = ParticleVF->VertexFactory;
 						}
 
 						const FSceneView* View = Views[ViewIndex];
