@@ -259,6 +259,7 @@ void FAnimNode_RandomPlayer::Evaluate_AnyThread(FPoseContext& Output)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_ANIMNODE(Evaluate_AnyThread)
 	if (ValidEntries.Num() == 0)
 	{
+		Output.ResetToRefPose();
 		return;
 	}
 
