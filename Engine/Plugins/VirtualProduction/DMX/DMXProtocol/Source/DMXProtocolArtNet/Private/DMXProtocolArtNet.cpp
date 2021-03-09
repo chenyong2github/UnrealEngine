@@ -131,6 +131,11 @@ TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolArtNet::AddUni
 
 void FDMXProtocolArtNet::CollectUniverses(const TArray<FDMXCommunicationEndpoint>& Endpoints)
 {
+	if (!ArtNetSender.IsValid())
+	{
+		return;
+	}
+
 	for (const FDMXCommunicationEndpoint& Endpoint : Endpoints)
 	{
 		FJsonObject UniverseSettings;
@@ -241,9 +246,10 @@ bool FDMXProtocolArtNet::RestartNetworkInterface(const FString& InInterfaceIPAdd
 	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
 	check(ProtocolSettings);
 
-	ReceivingRunnable = FDMXProtocolArtNetReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate, SharedThis(this));
-
 	FScopeLock Lock(&SocketsCS);
+
+	ArtNetSender.Reset();
+	ReceivingRunnable.Reset();
 
 	// Clean the error message
 	OutErrorMessage.Empty();
@@ -294,7 +300,7 @@ bool FDMXProtocolArtNet::RestartNetworkInterface(const FString& InInterfaceIPAdd
 	ArtNetSender = MakeShared<FDMXProtocolSenderArtNet>(*BroadcastSocket, this);
 
 	// Create a listener if DMX should be received
-	if(bShouldReceiveDMX)
+	if (bShouldReceiveDMX)
 	{
 		if (!CreateDMXListener(OutErrorMessage))
 		{
@@ -367,9 +373,16 @@ bool FDMXProtocolArtNet::CreateDMXListener(FString& OutErrorMessage)
 	// Save New socket;
 	ListeningSocket = NewListeningSocket;
 
+	// Create FDMXProtocolReceiverArtNet (the obj that gets the network traffic)
 	FTimespan ThreadWaitTime = FTimespan::FromMilliseconds(0);
 	ArtNetReceiver = MakeShared<FDMXProtocolReceiverArtNet>(*ListeningSocket, this, ThreadWaitTime);
 	ArtNetReceiver->OnDataReceived().BindRaw(this, &FDMXProtocolArtNet::OnDataReceived);
+
+	// Create FDMXProtocolArtNetReceivingRunnable (the obj that forwards data to the game thread) 
+	const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+	check(ProtocolSettings);
+
+	ReceivingRunnable = FDMXProtocolArtNetReceivingRunnable::CreateNew(ProtocolSettings->ReceivingRefreshRate, SharedThis(this));
 
 	return true;
 }

@@ -7,6 +7,7 @@
 #include "Interfaces/IDMXProtocol.h"
 
 #include "IPAddress.h"
+#include "Misc/Parse.h"
 #include "SocketSubsystem.h"
 
 
@@ -162,6 +163,25 @@ void UDMXProtocolSettings::PostInitProperties()
 		Attribute.CleanupKeywords();
 	}
 
+	bool bCommandLineSendDMXEnabled;
+	if (FParse::Bool(FCommandLine::Get(), TEXT("DEFAULTSENDDMXENABLED="), bCommandLineSendDMXEnabled))
+	{
+		bDefaultSendDMXEnabled = bCommandLineSendDMXEnabled;
+		UE_LOG(LogDMXProtocol, Log, TEXT("Overriden Default Send DMX Enabled from command line, set to %s."), bCommandLineSendDMXEnabled ? TEXT("True") : TEXT("False"));
+	}
 	bOverrideSendDMXEnabled = bDefaultSendDMXEnabled;
+
+	bool bCommandLineReceiveDMXEnabled;
+	if (FParse::Bool(FCommandLine::Get(), TEXT("DEFAULTRECEIVEDMXENABLED="), bCommandLineReceiveDMXEnabled))
+	{
+		bDefaultReceiveDMXEnabled = bCommandLineReceiveDMXEnabled;
+		UE_LOG(LogDMXProtocol, Log, TEXT("Overriden Default Receive DMX Enabled from command line, set to %s."), bCommandLineSendDMXEnabled ? TEXT("True") : TEXT("False"));
+	}
 	bOverrideReceiveDMXEnabled = bDefaultReceiveDMXEnabled;
+
+	FString CommandLineInterfaceIPAddress;
+	if (FParse::Value(FCommandLine::Get(), TEXT("DMXNETWORKINTERFACEIPADDRESS="), CommandLineInterfaceIPAddress))
+	{
+		InterfaceIPAddress = CommandLineInterfaceIPAddress;
+	}
 }
