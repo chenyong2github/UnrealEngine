@@ -445,6 +445,33 @@ struct FPackedMaterialClosestHitPayload : FMinimalPayload
 	float3 GetDiffuseColor() { return GetBaseColor() - GetBaseColor() * GetMetallic(); }
 	float3 GetSpecularColor() { return ComputeF0(GetSpecular(), GetBaseColor(), GetMetallic()); }
 
+
+	// These method are meant to be used only when IsPathTracingVisibilityRay() is true
+	float3 GetRayThroughput()
+	{
+		return float3(
+			asfloat(RadianceAndNormal[0]),
+			asfloat(RadianceAndNormal[1]),
+			asfloat(RadianceAndNormal[2])
+		);
+	}
+
+	void SetRayThroughput(float3 RayThroughput)
+	{
+		RadianceAndNormal[0] = asuint(RayThroughput.x);
+		RadianceAndNormal[1] = asuint(RayThroughput.y);
+		RadianceAndNormal[2] = asuint(RayThroughput.z);
+	}
+
+	float GetPathRoughness()
+	{
+		return asfloat(MetallicAndSpecularAndRoughness);
+	}
+
+	void SetPathRoughness(float PathRoughness)
+	{
+		MetallicAndSpecularAndRoughness = asuint(PathRoughness);
+	}
 };
 
 FPackedMaterialClosestHitPayload PackRayTracingPayload(FMaterialClosestHitPayload Input, in FRayCone RayCone)

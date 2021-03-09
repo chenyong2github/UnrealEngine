@@ -33,6 +33,7 @@
 #include "/Engine/Private/VirtualTextureCommon.ush" 
 #include "/Engine/Private/LightmapCommon.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
+#include "/Engine/Private/PathTracing/Material/PathTracingThinGlass.ush"
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
 void GetSkyLighting(
@@ -368,6 +369,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
 	#if CLEAR_COAT_BOTTOM_NORMAL
+	if (Payload.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
 		float2 oct2 = UnitVectorToOctahedron(Payload.WorldNormal);
 
@@ -401,6 +403,13 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	{
 		Payload.CustomData.a = saturate(GetMaterialCustomData0(MaterialParameters));
 	}
+
+#if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
+	{
+		Payload.CustomData.xyz = GetThinTranslucentMaterialOutput0(MaterialParameters);
+	}
+#endif
 
 #if MATERIAL_USES_ANISOTROPY
 	Payload.WorldTangent = CalculateAnisotropyTangent(MaterialParameters, PixelMaterialInputs);
@@ -570,14 +579,45 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 #elif MATERIALBLENDING_ALPHACOMPOSITE
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Transparency = 1 - Opacity;
+#elif MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
+	// Assume Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT
+	float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
+	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	float3 Transparency = 1 - Opacity;
+	float3 V = WorldRayDirection();
+	float3 N = normalize(MaterialParameters.WorldNormal);
+	float VoN = abs(dot(V, N));
+	if (Opacity < 1.0 && Ior != 1.0)
+	{
+		float PathRoughness = PackedPayload.GetPathRoughness();
+		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
+		if (PathRoughness <= Roughness)
+		{
+			// not using fast caustic approximation - treat as opaque
+			return;
+		}
+		// compute transmission through the slab (fresnel + absorption)
+		Transparency *= ComputeThinSlabWeights(Transmission, VoN, Ior).Transmitted;
+
+		// fake caustic approximation (see comments below)
+		Transparency *= (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+	}
+	else
+	{
+		// no bending at the interface so no fresnel - equation above simplifies to just A
+		float3 A = pow(Transmission, 1.0 / VoN);
+		Transparency *= A;
+	}
 #elif MATERIALBLENDING_TRANSLUCENT
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Transparency = 1 - Opacity;
 	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+
 	// Is refraction enabled?
 	if (Transparency > 0 && Ior != 1.0)
 	{
-		float PathRoughness = asfloat(PackedPayload.MetallicAndSpecularAndRoughness);
+		float PathRoughness = PackedPayload.GetPathRoughness();
 		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
 		if (PathRoughness <= Roughness)
 		{
@@ -602,17 +642,11 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 #endif
 
 	// Update the ray throughput (it is packed simply into the payload since we don't need to carry any other information across hits)
-	float3 RayThroughput = float3(
-		asfloat(PackedPayload.RadianceAndNormal[0]),
-		asfloat(PackedPayload.RadianceAndNormal[1]),
-		asfloat(PackedPayload.RadianceAndNormal[2])
-	);
+	float3 RayThroughput = PackedPayload.GetRayThroughput();
 
 	RayThroughput *= Transparency;
 
-	PackedPayload.RadianceAndNormal[0] = asuint(RayThroughput.x);
-	PackedPayload.RadianceAndNormal[1] = asuint(RayThroughput.y);
-	PackedPayload.RadianceAndNormal[2] = asuint(RayThroughput.z);
+	PackedPayload.SetRayThroughput(RayThroughput);
 
 	if (any(RayThroughput > 0))
 	{
