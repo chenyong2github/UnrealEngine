@@ -98,21 +98,6 @@ static FName StaticGetNativeClassName(UClass* InClass)
 /** Returns true if we're inside a FGCScopeLock */
 bool IsGarbageCollectionLocked();
 
-TAtomic<int>	GAsyncLoadingFlushIsActive(0);
-
-class FScopeAsyncLoadingFlushIsActive
-{
-public:
-	FScopeAsyncLoadingFlushIsActive()
-	{
-		GAsyncLoadingFlushIsActive++;
-	}
-
-	~FScopeAsyncLoadingFlushIsActive()
-	{
-		GAsyncLoadingFlushIsActive--;
-	}
-};
 
 
 /**
@@ -7013,7 +6998,6 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		{
 			return;
 		}
-		FScopeAsyncLoadingFlushIsActive FlushIsActive;
 
 		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
 
