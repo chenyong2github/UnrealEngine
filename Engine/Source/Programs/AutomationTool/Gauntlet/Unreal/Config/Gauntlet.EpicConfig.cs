@@ -46,6 +46,7 @@ namespace EpicConfig
 				"platform",
 				"config",
 				"testName",
+				"context",
 				"dataPoint",
 				"recordedValue"
 			};
@@ -68,6 +69,7 @@ namespace EpicConfig
 					Role.Platform.ToString(),
 					Role.Configuration.ToString(),
 					Data.TestName,
+					Data.Context,
 					Data.DataPoint,
 					Data.Measurement.ToString()
 				};

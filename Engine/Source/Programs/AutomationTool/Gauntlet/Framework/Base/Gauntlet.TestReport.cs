@@ -50,11 +50,13 @@ namespace Gauntlet
 		public string TestName { get; private set; }
 		public string DataPoint { get; private set; }
 		public double Measurement { get; private set; }
-		public TelemetryData(string InTestName, string InDataPoint, double InMeasurement)
+		public string Context { get; private set; }
+		public TelemetryData(string InTestName, string InDataPoint, double InMeasurement, string InContext = "")
 		{
 			TestName = InTestName;
 			DataPoint = InDataPoint;
 			Measurement = InMeasurement;
+			Context = InContext;
 		}
 	}
 
@@ -62,15 +64,16 @@ namespace Gauntlet
 	/// Interface for telemetry report
 	/// </summary>
 	public interface ITelemetryReport
-	{ 
+	{
 		/// <summary>
 		/// Attach Telemetry data to the ITestReport
 		/// </summary>
 		/// <param name="TestName"></param>
 		/// <param name="DataPoint"></param>
 		/// <param name="Measurement"></param>
+		/// <param name="Context"></param>
 		/// <returns></returns>
-		void AddTelemetry(string TestName, string DataPoint, double Measurement);
+		void AddTelemetry(string TestName, string DataPoint, double Measurement, string Context = "");
 
 		/// <summary>
 		/// Return the telemetry data accumulated
@@ -142,15 +145,16 @@ namespace Gauntlet
 		/// <param name="TestName"></param>
 		/// <param name="DataPoint"></param>
 		/// <param name="Measurement"></param>
+		/// <param name="Context"></param>
 		/// <returns></returns>
-		public virtual void AddTelemetry(string TestName, string DataPoint, double Measurement)
+		public virtual void AddTelemetry(string TestName, string DataPoint, double Measurement, string Context = "")
 		{
 			if (TelemetryDataList is null)
 			{
 				TelemetryDataList = new List<TelemetryData>();
 			}
 
-			TelemetryDataList.Add(new TelemetryData(TestName, DataPoint, Measurement));
+			TelemetryDataList.Add(new TelemetryData(TestName, DataPoint, Measurement, Context));
 		}
 
 		/// <summary>
