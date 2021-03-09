@@ -1753,8 +1753,8 @@ FORCEINLINE int32 UNiagaraDataInterfaceStaticMesh::RandomSection<TSampleModeArea
 {
 	if (Res.AreaWeightedSampler.GetNumEntries() > 0)
 	{
-	return Res.AreaWeightedSampler.GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
-}
+		return Res.AreaWeightedSampler.GetEntryIndex(RandStream.GetFraction(), RandStream.GetFraction());
+	}
 	else
 	{
 		return 0;
@@ -1873,7 +1873,6 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoord(FVectorVMContext& Context)
 
 	check(InstData->StaticMesh.IsValid());
 	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		OutTri.SetAndAdvance(RandomTriIndex<TSampleMode, true>(Context.RandStream, *Res, InstData));
@@ -1985,15 +1984,29 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& 
 	FNDIOutputParam<int32> OutTri(Context);
 	FNDIOutputParam<FVector> OutBary(Context);
 
+	// This is handled on bind
 	check(InstData->bMeshValid);
+
 	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 	const int32 MaxSection = Res->Sections.Num() - 1;
+	if (MaxSection >= 0)
+	{
+		for (int32 i = 0; i < Context.NumInstances; ++i)
+		{
+			int32 SecIdx = FMath::Clamp(SectionIdxParam.GetAndAdvance(), 0, MaxSection);
+			OutTri.SetAndAdvance(RandomTriIndexOnSection<TSampleMode>(Context.RandStream, *Res, SecIdx, InstData));
+			OutBary.SetAndAdvance(RandomBarycentricCoord(Context.RandStream));
+		}
+		// Early out as we are done
+		return;
+	}
+
+	// Fall through that handles missing or invalid data
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		int32 SecIdx = FMath::Clamp(SectionIdxParam.GetAndAdvance(), 0, MaxSection);
-		OutTri.SetAndAdvance(RandomTriIndexOnSection<TSampleMode>(Context.RandStream, *Res, SecIdx, InstData));
-		OutBary.SetAndAdvance(RandomBarycentricCoord(Context.RandStream));
+		OutTri.SetAndAdvance(-1);
+		OutBary.SetAndAdvance(FVector::ZeroVector);
 	}
 }
 
@@ -2024,35 +2037,37 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 
 	FNDIOutputParam<FVector> OutPos(Context);
 
-	// Handle no mesh case
-	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->bMeshValid)
+	if (InstData->bMeshValid)
 	{
-		FVector Pos(0.0f);
-		TransformHandler.TransformPosition(Pos, InstData->Transform);
-
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+		const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
+		if ( (Indices.Num() > 0) && (Positions.GetNumVertices() > 0) && Positions.GetVertexData() )
 		{
-			OutPos.SetAndAdvance(Pos);
+			const int32 NumTriangles = Indices.Num() / 3;
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
+				const int32 Idx0 = Indices[Tri];
+				const int32 Idx1 = Indices[Tri + 1];
+				const int32 Idx2 = Indices[Tri + 2];
+
+				FVector Pos = BarycentricInterpolate(BaryParam.GetAndAdvance(), Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
+				TransformHandler.TransformPosition(Pos, InstData->Transform);
+
+				OutPos.SetAndAdvance(Pos);
+			}
+			// Early out as we are done
+			return;
 		}
-		return;
 	}
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
-	const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
+	// Fall through that handles missing or invalid data
+	FVector Pos(0.0f);
+	TransformHandler.TransformPosition(Pos, InstData->Transform);
 
-	const int32 NumTriangles = Indices.Num() / 3;
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
-		const int32 Idx0 = Indices[Tri];
-		const int32 Idx1 = Indices[Tri + 1];
-		const int32 Idx2 = Indices[Tri + 2];
-
-		FVector Pos = BarycentricInterpolate(BaryParam.GetAndAdvance(), Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
-		TransformHandler.TransformPosition(Pos, InstData->Transform);
-
 		OutPos.SetAndAdvance(Pos);
 	}
 }
@@ -2069,33 +2084,35 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 
 	FNDIOutputParam<FVector> OutNorm(Context);
 
-	// Handle no mesh case
-	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->bMeshValid)
+	if (InstData->bMeshValid)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+		const FStaticMeshVertexBuffer& Verts = Res->VertexBuffers.StaticMeshVertexBuffer;
+		if ((Indices.Num() > 0) && (Verts.GetNumVertices() > 0) && Verts.GetTangentData())
 		{
-			OutNorm.SetAndAdvance(FVector::ZeroVector);
+			const int32 NumTriangles = Indices.Num() / 3;
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
+				const int32 Idx0 = Indices[Tri];
+				const int32 Idx1 = Indices[Tri + 1];
+				const int32 Idx2 = Indices[Tri + 2];
+
+				FVector Norm = BarycentricInterpolate(BaryParam.GetAndAdvance(), Verts.VertexTangentZ(Idx0), Verts.VertexTangentZ(Idx1), Verts.VertexTangentZ(Idx2));
+				TransformHandler.TransformVector(Norm, InstData->TransformInverseTransposed);
+
+				OutNorm.SetAndAdvance(Norm);
+			}
+			// Early out as we are done
+			return;
 		}
-		return;
 	}
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
-	const FStaticMeshVertexBuffer& Verts = Res->VertexBuffers.StaticMeshVertexBuffer;
-
-	const int32 NumTriangles = Indices.Num() / 3;
+	// Fall through that handles missing or invalid data
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
-		const int32 Idx0 = Indices[Tri];
-		const int32 Idx1 = Indices[Tri + 1];
-		const int32 Idx2 = Indices[Tri + 2];
-
-		FVector Norm = BarycentricInterpolate(BaryParam.GetAndAdvance(), Verts.VertexTangentZ(Idx0), Verts.VertexTangentZ(Idx1), Verts.VertexTangentZ(Idx2));
-		TransformHandler.TransformVector(Norm, InstData->TransformInverseTransposed);
-
-		OutNorm.SetAndAdvance(Norm);
+		OutNorm.SetAndAdvance(FVector::ZeroVector);
 	}
 }
 
@@ -2113,36 +2130,39 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 	FNDIOutputParam<FVector> OutBinorm(Context);
 	FNDIOutputParam<FVector> OutNorm(Context);
 
-	// Handle no mesh case
-	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->bMeshValid)
+	if (InstData->bMeshValid)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+		const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
+		if ((Indices.Num() > 0) && (Res->VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0) && Res->VertexBuffers.StaticMeshVertexBuffer.GetTangentData())
 		{
-			OutTangent.SetAndAdvance(FVector::ForwardVector);
-			OutBinorm.SetAndAdvance(FVector::RightVector);
-			OutNorm.SetAndAdvance(FVector::UpVector);
+			const int32 NumTriangles = Indices.Num() / 3;
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
+				const int32 Idx0 = Indices[Tri];
+				const int32 Idx1 = Indices[Tri + 1];
+				const int32 Idx2 = Indices[Tri + 2];
+				const FVector BaryCoord(BaryParam.GetAndAdvance());
+				FVector Tangent = BarycentricInterpolate(BaryCoord, Verts.GetTangentX(Idx0), Verts.GetTangentX(Idx1), Verts.GetTangentX(Idx2));
+				FVector Binorm = BarycentricInterpolate(BaryCoord, Verts.GetTangentY(Idx0), Verts.GetTangentY(Idx1), Verts.GetTangentY(Idx2));
+				FVector Norm = BarycentricInterpolate(BaryCoord, Verts.GetTangentZ(Idx0), Verts.GetTangentZ(Idx1), Verts.GetTangentZ(Idx2));
+				TransformHandler.TransformVector(Tangent, InstData->TransformInverseTransposed);
+				TransformHandler.TransformVector(Binorm, InstData->TransformInverseTransposed);
+				TransformHandler.TransformVector(Norm, InstData->TransformInverseTransposed);
+			}
+			// Early out as we are done
+			return;
 		}
-		return;
 	}
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
-	const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
-	const int32 NumTriangles = Indices.Num() / 3;
+	// Fall through that handles missing or invalid data
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
-		const int32 Idx0 = Indices[Tri];
-		const int32 Idx1 = Indices[Tri + 1];
-		const int32 Idx2 = Indices[Tri + 2];
-		const FVector BaryCoord(BaryParam.GetAndAdvance());
-		FVector Tangent = BarycentricInterpolate(BaryCoord, Verts.GetTangentX(Idx0), Verts.GetTangentX(Idx1), Verts.GetTangentX(Idx2));
-		FVector Binorm = BarycentricInterpolate(BaryCoord, Verts.GetTangentY(Idx0), Verts.GetTangentY(Idx1), Verts.GetTangentY(Idx2));
-		FVector Norm = BarycentricInterpolate(BaryCoord, Verts.GetTangentZ(Idx0), Verts.GetTangentZ(Idx1), Verts.GetTangentZ(Idx2));
-		TransformHandler.TransformVector(Tangent, InstData->TransformInverseTransposed);
-		TransformHandler.TransformVector(Binorm, InstData->TransformInverseTransposed);
-		TransformHandler.TransformVector(Norm, InstData->TransformInverseTransposed);
+		OutTangent.SetAndAdvance(FVector::ForwardVector);
+		OutBinorm.SetAndAdvance(FVector::RightVector);
+		OutNorm.SetAndAdvance(FVector::UpVector);
 	}
 }
 
@@ -2155,38 +2175,37 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 
 	FNDIOutputParam<FLinearColor> OutColor(Context);
 
-	TRefCountPtr<const FStaticMeshLODResources> Res;
 	if (InstData->bMeshValid)
 	{
-		Res = InstData->GetCurrentFirstLOD();
-	}
-
-	if (Res && Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() > 0)
-	{
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
 		const FColorVertexBuffer& Colors = Res->VertexBuffers.ColorVertexBuffer;
-		const int32 NumTriangles = Indices.Num() / 3;
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		if ((Indices.Num() > 0) && (Colors.GetNumVertices() > 0) && Colors.GetVertexData())
 		{
-			const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
-			const int32 Idx0 = Indices[Tri];
-			const int32 Idx1 = Indices[Tri + 1];
-			const int32 Idx2 = Indices[Tri + 2];
-			const FVector BaryCoord(BaryParam.GetAndAdvance());
+			const int32 NumTriangles = Indices.Num() / 3;
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
+				const int32 Idx0 = Indices[Tri];
+				const int32 Idx1 = Indices[Tri + 1];
+				const int32 Idx2 = Indices[Tri + 2];
+				const FVector BaryCoord(BaryParam.GetAndAdvance());
 
-			FLinearColor Color = BarycentricInterpolate(BaryCoord, Colors.VertexColor(Idx0).ReinterpretAsLinear(), Colors.VertexColor(Idx1).ReinterpretAsLinear(), Colors.VertexColor(Idx2).ReinterpretAsLinear());
+				FLinearColor Color = BarycentricInterpolate(BaryCoord, Colors.VertexColor(Idx0).ReinterpretAsLinear(), Colors.VertexColor(Idx1).ReinterpretAsLinear(), Colors.VertexColor(Idx2).ReinterpretAsLinear());
 
-			OutColor.SetAndAdvance(Color);
+				OutColor.SetAndAdvance(Color);
+			}
+			// Early out as we are done
+			return;
 		}
 	}
-	else
+
+	// Fall through that handles missing or invalid data
+	// This mesh is invalid or doesn't have color information so set the color to white.
+	FLinearColor Color = FLinearColor::White;
+	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		// This mesh is invalid or doesn't have color information so set the color to white.
-		FLinearColor Color = FLinearColor::White;
-		for (int32 i = 0; i < Context.NumInstances; ++i)
-		{
-			OutColor.SetAndAdvance(Color);
-		}
+		OutColor.SetAndAdvance(Color);
 	}
 }
 
@@ -2201,33 +2220,35 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 
 	FNDIOutputParam<FVector2D> OutUV(Context);
 
-	// Handle no mesh case
-	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->bMeshValid)
+	if (InstData->bMeshValid)
 	{
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+		const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
+		if ( (Indices.Num() > 0) && (Res->VertexBuffers.StaticMeshVertexBuffer.GetNumTexCoords() > 0) && Res->VertexBuffers.StaticMeshVertexBuffer.GetTexCoordData() )
 		{
-			OutUV.SetAndAdvance(FVector2D::ZeroVector);
+			const int32 NumTriangles = Indices.Num() / 3;
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
+				const int32 Idx0 = Indices[Tri];
+				const int32 Idx1 = Indices[Tri + 1];
+				const int32 Idx2 = Indices[Tri + 2];
+				const FVector BaryCoord(BaryParam.GetAndAdvance());
+				const int32 UVSet = UVSetParam.GetAndAdvance();
+				FVector2D UV = BarycentricInterpolate(BaryCoord, Verts.GetUV(Idx0, UVSet), Verts.GetUV(Idx1, UVSet), Verts.GetUV(Idx2, UVSet));
+
+				OutUV.SetAndAdvance(UV);
+			}
+			// Early out as we are done
+			return;
 		}
-		return;
 	}
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
-	const VertexAccessorType Verts(Res->VertexBuffers.StaticMeshVertexBuffer);
-
-	const int32 NumTriangles = Indices.Num() / 3;
+	// Fall through that handles missing or invalid data
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
-		const int32 Idx0 = Indices[Tri];
-		const int32 Idx1 = Indices[Tri + 1];
-		const int32 Idx2 = Indices[Tri + 2];
-		const FVector BaryCoord(BaryParam.GetAndAdvance());
-		const int32 UVSet = UVSetParam.GetAndAdvance();
-		FVector2D UV = BarycentricInterpolate(BaryCoord,	Verts.GetUV(Idx0, UVSet), Verts.GetUV(Idx1, UVSet),	Verts.GetUV(Idx2, UVSet));
-
-		OutUV.SetAndAdvance(UV);
+		OutUV.SetAndAdvance(FVector2D::ZeroVector);
 	}
 }
 
@@ -2241,48 +2262,50 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 	FNDIOutputParam<FVector> OutPos(Context);
 	FNDIOutputParam<FVector> OutVel(Context);
 
-	// Handle no mesh case
-	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->bMeshValid)
+	if (InstData->bMeshValid)
 	{
-		FVector WSPos = InstData->Transform.TransformPosition(FVector(0.0f));
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
+		const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
+		if ( (Indices.Num() > 0) && (Positions.GetNumVertices() > 0) && Positions.GetVertexData() )
 		{
-			OutPos.SetAndAdvance(WSPos);
-			OutVel.SetAndAdvance(FVector::ZeroVector);
+			const int32 NumTriangles = Indices.Num() / 3;
+			float InvDt = InstData->DeltaSeconds > 0.0f ? (1.0f / InstData->DeltaSeconds) : 0.0f;
+			for (int32 i = 0; i < Context.NumInstances; ++i)
+			{
+				const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
+				const int32 Idx0 = Indices[Tri];
+				const int32 Idx1 = Indices[Tri + 1];
+				const int32 Idx2 = Indices[Tri + 2];
+				const FVector BaryCoord(BaryParam.GetAndAdvance());
+				FVector Pos = BarycentricInterpolate(BaryCoord, Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
+				FVector WSPos = InstData->Transform.TransformPosition(Pos);
+
+				FVector Vel;
+				if (InstData->bUsePhysicsVelocity)
+				{
+					Vel = InstData->PhysicsVelocity;
+				}
+				else
+				{
+					FVector PrevWSPos = InstData->PrevTransform.TransformPosition(Pos);
+					Vel = (WSPos - PrevWSPos) * InvDt;
+				}
+
+				OutPos.SetAndAdvance(WSPos);
+				OutVel.SetAndAdvance(Vel);
+			}
+			// Early out as we are done
+			return;
 		}
-		return;
 	}
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-	const FIndexArrayView& Indices = Res->IndexBuffer.GetArrayView();
-	const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
-
-	const int32 NumTriangles = Indices.Num() / 3;
-	float InvDt = InstData->DeltaSeconds > 0.0f ? (1.0f / InstData->DeltaSeconds) : 0.0f;
+	// Fall through that handles missing or invalid data
+	FVector WSPos = InstData->Transform.TransformPosition(FVector(0.0f));
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		const int32 Tri = (TriParam.GetAndAdvance() % NumTriangles) * 3;
-		const int32 Idx0 = Indices[Tri];
-		const int32 Idx1 = Indices[Tri + 1];
-		const int32 Idx2 = Indices[Tri + 2];
-		const FVector BaryCoord(BaryParam.GetAndAdvance());
-		FVector Pos = BarycentricInterpolate(BaryCoord, Positions.VertexPosition(Idx0), Positions.VertexPosition(Idx1), Positions.VertexPosition(Idx2));
-		FVector WSPos = InstData->Transform.TransformPosition(Pos);
-		
-		FVector Vel;
-		if (InstData->bUsePhysicsVelocity)
-		{
-			Vel = InstData->PhysicsVelocity;
-		}
-		else
-		{
-			FVector PrevWSPos = InstData->PrevTransform.TransformPosition(Pos);
-			Vel = (WSPos - PrevWSPos) * InvDt;
-		}
-		
 		OutPos.SetAndAdvance(WSPos);
-		OutVel.SetAndAdvance(Vel);
+		OutVel.SetAndAdvance(FVector::ZeroVector);
 	}
 }
 
@@ -2375,29 +2398,32 @@ void UNiagaraDataInterfaceStaticMesh::GetVertexPosition(FVectorVMContext& Contex
 
 	FNDIOutputParam<FVector> OutPos(Context);
 
-	// Handle no mesh case
-	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->bMeshValid)
+	if (InstData->bMeshValid)
 	{
-		FVector WSPos = InstData->Transform.TransformPosition(FVector(0.0f));
-		for (int32 i = 0; i < Context.NumInstances; ++i)
+		TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
+		const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
+		const int32 NumVerts = Positions.GetNumVertices();
+		if ((NumVerts > 0) && Positions.GetVertexData())
 		{
-			OutPos.SetAndAdvance(WSPos);
+			FVector Pos;
+			for (int32 i = 0; i < Context.NumInstances; i++)
+			{
+				int32 VertexIndex = VertexIndexParam.GetAndAdvance() % NumVerts;
+				Pos = Positions.VertexPosition(VertexIndex);		
+				TransformHandler.TransformPosition(Pos, InstData->Transform);
+				OutPos.SetAndAdvance(Pos);
+			}
+
+			// Early out as we are done
+			return;
 		}
-		return;
 	}
 
-	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
-	const FPositionVertexBuffer& Positions = Res->VertexBuffers.PositionVertexBuffer;
-
-	const int32 NumVerts = Positions.GetNumVertices();
-	FVector Pos;
-	for (int32 i = 0; i < Context.NumInstances; i++)
+	// Fall through that handles missing or invalid data
+	FVector WSPos = InstData->Transform.TransformPosition(FVector(0.0f));
+	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
-		int32 VertexIndex = VertexIndexParam.GetAndAdvance() % NumVerts;
-		Pos = Positions.VertexPosition(VertexIndex);		
-		TransformHandler.TransformPosition(Pos, InstData->Transform);
-		OutPos.SetAndAdvance(Pos);
+		OutPos.SetAndAdvance(WSPos);
 	}
 }
 
