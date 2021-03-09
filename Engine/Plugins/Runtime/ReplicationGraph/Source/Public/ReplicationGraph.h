@@ -1084,6 +1084,9 @@ protected:
 		// Number of actors replicated using the fast path.
 		int32 NumReplicatedFastPathActors = 0;
 
+		// Total connections replicated to during the tick including children (splitscreen) and replay connections.
+		int32 NumConnections = 0;
+
 		void Reset()
 		{
 			*this = FFrameReplicationStats();

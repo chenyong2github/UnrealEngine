@@ -1130,6 +1130,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	}
 #endif
 
+	FrameReplicationStats.NumConnections = Connections.Num() + NumChildrenConnectionsProcessed;
 	PostServerReplicateStats(FrameReplicationStats);
 
 	CSVTracker.EndReplicationFrame();
