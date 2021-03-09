@@ -30,6 +30,14 @@ TAutoConsoleVariable<int32> CVarPathTracingSamplesPerPixel(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<float> CVarPathTracingFilterWidth(
+	TEXT("r.PathTracing.FilterWidth"),
+	-1,
+	TEXT("Define the anti-aliasing filter width (default = -1 (driven by postprocesing volume))"),
+	ECVF_RenderThreadSafe
+);
+
+
 TAutoConsoleVariable<int32> CVarPathTracingUseErrorDiffusion(
 	TEXT("r.PathTracing.UseErrorDiffusion"),
 	0,
@@ -110,7 +118,9 @@ IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FPathTracingData, "PathTracingData");
 static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTracingData) {
 	int32 PathTracingMaxBounces = CVarPathTracingMaxBounces.GetValueOnRenderThread();
 	if (PathTracingMaxBounces < 0)
+	{
 		PathTracingMaxBounces = View.FinalPostProcessSettings.PathTracingMaxBounces;
+	}
 	PathTracingData.MaxBounces = PathTracingMaxBounces;
 	PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
@@ -118,6 +128,12 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
 	PathTracingData.UseErrorDiffusion = CVarPathTracingUseErrorDiffusion.GetValueOnRenderThread();
 	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
+	float FilterWidth = CVarPathTracingFilterWidth.GetValueOnRenderThread();
+	if (FilterWidth < 0)
+	{
+		FilterWidth = View.FinalPostProcessSettings.PathTracingFilterWidth;
+	}
+	PathTracingData.FilterWidth = FilterWidth;
 
 	bool NeedInvalidation = false;
 
@@ -169,6 +185,14 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PreviousApproximateCaustics = PathTracingData.ApproximateCaustics;
+	}
+
+	// Changing filter width requires starting over
+	static float PreviousFilterWidth = PathTracingData.FilterWidth;
+	if (PreviousFilterWidth != PathTracingData.FilterWidth)
+	{
+		NeedInvalidation = true;
+		PreviousFilterWidth = PathTracingData.FilterWidth;
 	}
 
 	// the rest of PathTracingData and AdaptiveSamplingData is filled in by SetParameters below
