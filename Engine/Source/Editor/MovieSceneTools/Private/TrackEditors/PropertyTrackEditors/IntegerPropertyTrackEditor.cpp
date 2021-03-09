@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TrackEditors/PropertyTrackEditors/IntegerPropertyTrackEditor.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 
 TSharedRef<ISequencerTrackEditor> FIntegerPropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> OwningSequencer )
@@ -17,29 +18,22 @@ void FIntegerPropertyTrackEditor::GenerateKeysFromPropertyChanged( const FProper
 
 bool FIntegerPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
-	IMovieSceneTrackTemplateProducer* TrackTemplateProducer = Cast<IMovieSceneTrackTemplateProducer>(Track);
-	if (!TrackTemplateProducer)
-	{
-		return false;
-	}
+	using namespace UE::MovieScene;
 
-	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
-	FMovieSceneEvaluationTrack EvalTrack = TrackTemplateProducer->GenerateTrackTemplate(Track);
-	FMovieSceneInterrogationData InterrogationData;
-	GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
+	FSystemInterrogator Interrogator;
 
-	FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
-	EvalTrack.Interrogate(Context, InterrogationData, Object);
+	Interrogator.ImportTrack(Track, FInterrogationChannel::Default());
+	Interrogator.AddInterrogation(KeyTime);
 
-	int32 CurValue = 0;
-	for (const int32 &Value : InterrogationData.Iterate<int32>(FMovieScenePropertySectionTemplate::GetInt32InterrogationKey()))
-	{
-		CurValue = Value;
-		break;
-	}
+	Interrogator.Update();
 
+	const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
+	TArray<int32> InterrogatedValues;
+	Interrogator.QueryPropertyValues(ComponentTypes->Integer, InterrogatedValues);
+
+	int32 CurValue = InterrogatedValues[0];
 	FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 	GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&CurValue, Weight);
+
 	return true;
-	
 }

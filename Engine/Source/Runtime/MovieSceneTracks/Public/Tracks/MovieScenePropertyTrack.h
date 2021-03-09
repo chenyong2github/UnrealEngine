@@ -3,10 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "MovieSceneNameableTrack.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
 #include "MovieSceneCommonHelpers.h"
+#include "MovieSceneNameableTrack.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "Systems/MovieScenePiecewiseBoolBlenderSystem.h"
 #include "EntitySystem/MovieScenePropertyBinding.h"
+#include "UObject/ObjectMacros.h"
 #include "MovieScenePropertyTrack.generated.h"
 
 /**
@@ -141,3 +146,125 @@ protected:
 	UPROPERTY()
 	TArray<UMovieSceneSection*> Sections;
 };
+
+
+struct FMovieScenePropertyTrackEntityImportHelper
+{
+	static const int32 SectionPropertyValueImportingID;
+	static const int32 SectionEditConditionToggleImportingID;
+
+	static void PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
+
+	static bool IsPropertyValueID(const UE::MovieScene::FEntityImportParams& Params);
+	static bool IsEditConditionToggleID(const UE::MovieScene::FEntityImportParams& Params);
+	static void ImportEditConditionToggleEntity(const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity);
+
+	static FName SanitizeBoolPropertyName(FName InPropertyName);
+};
+
+
+namespace UE
+{
+namespace MovieScene
+{
+
+/**
+ * Utility class for importing a customizable property track entity in a way that automatically supports
+ * being inside a bound property track or not, and being hooked up to a property with an edit condition or not.
+ */
+template<typename... T>
+struct TPropertyTrackEntityImportHelperImpl
+{
+	TPropertyTrackEntityImportHelperImpl(TEntityBuilder<T...>&& InBuilder)
+		: Builder(MoveTemp(InBuilder))
+	{
+	}
+
+	template<typename U, typename PayloadType>
+	TPropertyTrackEntityImportHelperImpl<T..., TAdd<U>> Add(TComponentTypeID<U> ComponentType, PayloadType&& InPayload)
+	{
+		return TPropertyTrackEntityImportHelperImpl<T..., TAdd<U>>(Builder.Add(ComponentType, InPayload));
+	}
+
+	template<typename U, typename PayloadType>
+	TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, PayloadType&& InPayload, bool bCondition)
+	{
+		return TPropertyTrackEntityImportHelperImpl<T..., TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition));
+	}
+
+	void Commit(const UMovieSceneSection* InSection, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+	{
+		const FGuid ObjectBindingID = Params.GetObjectBindingID();
+
+		const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+		if (UMovieScenePropertyTrack* PropertyTrack = Cast<UMovieScenePropertyTrack>(InSection->GetOuter()))
+		{
+			if (FMovieScenePropertyTrackEntityImportHelper::IsPropertyValueID(Params))
+			{
+				OutImportedEntity->AddBuilder(
+					Builder
+						.Add(BuiltInComponents->PropertyBinding, PropertyTrack->GetPropertyBinding())
+						.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid()));
+			}
+			else if (FMovieScenePropertyTrackEntityImportHelper::IsEditConditionToggleID(Params))
+			{
+				// We effectively discard the builder we've been setting up, because we just
+				// need to import the edit condition toggle entity.
+				FMovieScenePropertyTrackEntityImportHelper::ImportEditConditionToggleEntity(Params, OutImportedEntity);
+			}
+		}
+		else
+		{
+			OutImportedEntity->AddBuilder(
+				Builder
+					.AddConditional(BuiltInComponents->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid()));
+		}
+	}
+
+protected:
+
+	TEntityBuilder<T...> Builder;
+};
+
+
+/**
+ * The starting point for TPropertyTrackEntityImportHelperImpl<...T>
+ */
+template<>
+struct TPropertyTrackEntityImportHelperImpl<>
+{
+	TPropertyTrackEntityImportHelperImpl(FComponentTypeID PropertyTag)
+		: Builder(FEntityBuilder().AddTag(PropertyTag))
+	{
+	}
+
+	template<typename U, typename PayloadType>
+	TPropertyTrackEntityImportHelperImpl<FAdd, TAdd<U>> Add(TComponentTypeID<U> ComponentType, PayloadType&& InPayload)
+	{
+		return TPropertyTrackEntityImportHelperImpl<FAdd, TAdd<U>>(Builder.Add(ComponentType, InPayload));
+	}
+
+	template<typename U, typename PayloadType>
+	TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>> AddConditional(TComponentTypeID<U> ComponentType, PayloadType&& InPayload, bool bCondition)
+	{
+		return TPropertyTrackEntityImportHelperImpl<FAdd, TAddConditional<U>>(Builder.AddConditional(ComponentType, InPayload, bCondition));
+	}
+
+protected:
+
+	TEntityBuilder<FAdd> Builder;
+};
+
+struct FPropertyTrackEntityImportHelper : TPropertyTrackEntityImportHelperImpl<>
+{
+	template<typename PropertyTraits>
+	FPropertyTrackEntityImportHelper(const TPropertyComponents<PropertyTraits>& PropertyComponents)
+		: TPropertyTrackEntityImportHelperImpl<>(PropertyComponents.PropertyTag)
+	{}
+};
+
+}
+}
+

@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneTracksComponentTypes.h"
+#include "Components/LightComponent.h"
+#include "Components/SkyLightComponent.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
@@ -8,7 +10,9 @@
 #include "EntitySystem/MovieSceneBlenderSystem.h"
 #include "EntitySystem/MovieScenePropertyComponentHandler.h"
 #include "EntitySystem/MovieSceneEntityFactoryTemplates.h"
-
+#include "EntitySystem/MovieScenePropertyMetaDataTraits.inl"
+#include "Systems/MovieSceneColorPropertySystem.h"
+#include "Systems/MovieSceneVectorPropertySystem.h"
 #include "MovieSceneObjectBindingID.h"
 #include "GameFramework/Actor.h"
 
@@ -19,6 +23,9 @@ namespace UE
 namespace MovieScene
 {
 
+/* ---------------------------------------------------------------------------
+ * Transform conversion functions
+ * ---------------------------------------------------------------------------*/
 void ConvertOperationalProperty(const FIntermediate3DTransform& In, FEulerTransform& Out)
 {
 	Out.Location = In.GetTranslation();
@@ -42,6 +49,74 @@ void ConvertOperationalProperty(const FTransform& In, FIntermediate3DTransform& 
 
 	Out = FIntermediate3DTransform(Location, Rotation, Scale);
 }
+
+/* ---------------------------------------------------------------------------
+ * Color conversion functions
+ * ---------------------------------------------------------------------------*/
+void ConvertOperationalProperty(const FIntermediateColor& InColor, FColor& Out)
+{
+	Out = InColor.GetColor();
+}
+
+void ConvertOperationalProperty(const FIntermediateColor& InColor, FLinearColor& Out)
+{
+	Out = InColor.GetLinearColor();
+}
+
+void ConvertOperationalProperty(const FIntermediateColor& InColor, FSlateColor& Out)
+{
+	Out = InColor.GetSlateColor();
+}
+
+void ConvertOperationalProperty(const FColor& InColor, FIntermediateColor& OutIntermediate)
+{
+	OutIntermediate = FIntermediateColor(InColor);
+}
+
+void ConvertOperationalProperty(const FLinearColor& InColor, FIntermediateColor& OutIntermediate)
+{
+	OutIntermediate = FIntermediateColor(InColor);
+}
+
+void ConvertOperationalProperty(const FSlateColor& InColor, FIntermediateColor& OutIntermediate)
+{
+	OutIntermediate = FIntermediateColor(InColor);
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Vector conversion functions
+ * ---------------------------------------------------------------------------*/
+void ConvertOperationalProperty(const FIntermediateVector& InVector, FVector2D& Out)
+{
+	Out = FVector2D(InVector.X, InVector.Y);
+}
+
+void ConvertOperationalProperty(const FIntermediateVector& InVector, FVector& Out)
+{
+	Out = FVector(InVector.X, InVector.Y, InVector.Z);
+}
+
+void ConvertOperationalProperty(const FIntermediateVector& InVector, FVector4& Out)
+{
+	Out = FVector4(InVector.X, InVector.Y, InVector.Z, InVector.W);
+}
+
+void ConvertOperationalProperty(const FVector2D& In, FIntermediateVector& Out)
+{
+	Out = FIntermediateVector(In.X, In.Y);
+}
+
+void ConvertOperationalProperty(const FVector& In, FIntermediateVector& Out)
+{
+	Out = FIntermediateVector(In.X, In.Y, In.Z);
+}
+
+void ConvertOperationalProperty(const FVector4& In, FIntermediateVector& Out)
+{
+	Out = FIntermediateVector(In.X, In.Y, In.Z, In.W);
+}
+
 
 
 FIntermediate3DTransform GetComponentTransform(const UObject* Object)
@@ -74,6 +149,47 @@ void SetComponentTransform(USceneComponent* SceneComponent, const FIntermediate3
 void SetComponentTransformAndVelocity(UObject* Object, const FIntermediate3DTransform& InTransform)
 {
 	InTransform.ApplyTo(CastChecked<USceneComponent>(Object));
+}
+
+FIntermediateColor GetLightComponentLightColor(const UObject* Object, EColorPropertyType InColorType)
+{
+	ensure(InColorType == EColorPropertyType::Color);
+
+	const ULightComponent* LightComponent = CastChecked<const ULightComponent>(Object);
+	return FIntermediateColor(LightComponent->GetLightColor());
+}
+
+void SetLightComponentLightColor(UObject* Object, EColorPropertyType InColorType, const FIntermediateColor& InColor)
+{
+	// This is a little esoteric - ULightComponentBase::LightColor is the UPROPERTY that generates the meta-data
+	// for this custom callback, but it is an FColor, even though the public get/set functions expose it as an
+	// FLinearColor. FIntermediateColor is always blended and dealt with in linear space, so it's fine to 
+	// simply reinterpret the color
+	ensure(InColorType == EColorPropertyType::Color);
+
+	const bool bConvertBackToSRgb = true;
+	ULightComponent* LightComponent = CastChecked<ULightComponent>(Object);
+	LightComponent->SetLightColor(InColor.GetLinearColor(), bConvertBackToSRgb);
+}
+
+FIntermediateColor GetSkyLightComponentLightColor(const UObject* Object, EColorPropertyType InColorType)
+{
+	ensure(InColorType == EColorPropertyType::Color);
+
+	const USkyLightComponent* SkyLightComponent = CastChecked<const USkyLightComponent>(Object);
+	return FIntermediateColor(SkyLightComponent->GetLightColor());
+}
+
+void SetSkyLightComponentLightColor(UObject* Object, EColorPropertyType InColorType, const FIntermediateColor& InColor)
+{
+	// This is a little esoteric - ULightComponentBase::LightColor is the UPROPERTY that generates the meta-data
+	// for this custom callback, but it is an FColor, even though the public get/set functions expose it as an
+	// FLinearColor. FIntermediateColor is always blended and dealt with in linear space, so it's fine to 
+	// simply reinterpret the color
+	ensure(InColorType == EColorPropertyType::Color);
+
+	USkyLightComponent* SkyLightComponent = CastChecked<USkyLightComponent>(Object);
+	SkyLightComponent->SetLightColor(InColor.GetLinearColor());
 }
 
 void FIntermediate3DTransform::ApplyTo(USceneComponent* SceneComponent) const
@@ -174,18 +290,109 @@ void FComponentDetachParams::ApplyDetach(USceneComponent* ChildComponentToAttach
 static bool GMovieSceneTracksComponentTypesDestroyed = false;
 static TUniquePtr<FMovieSceneTracksComponentTypes> GMovieSceneTracksComponentTypes;
 
+struct FColorHandler : TPropertyComponentHandler<FColorPropertyTraits, float, float, float, float>
+{
+	virtual void DispatchInitializePropertyMetaDataTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
+	{
+		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+		FEntityTaskBuilder()
+		.Read(BuiltInComponents->BoundObject)
+		.Read(BuiltInComponents->PropertyBinding)
+		.Write(TrackComponents->Color.MetaDataComponents.GetType<0>())
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+		.Iterate_PerEntity(&Linker->EntityManager, [](UObject* Object, const FMovieScenePropertyBinding& Binding, EColorPropertyType& OutType)
+		{
+			FStructProperty* BoundProperty = CastField<FStructProperty>(FTrackInstancePropertyBindings::FindProperty(Object, Binding.PropertyPath.ToString()));
+			if (ensure(BoundProperty && BoundProperty->Struct))
+			{
+				if (BoundProperty->Struct == TBaseStructure<FColor>::Get())
+				{
+					// We assume the color we get back is in sRGB, assigning it to a linear color will implicitly
+					// convert it to a linear color instead of using ReinterpretAsLinear which will just change the
+					// bytes into floats using divide by 255.
+					OutType = EColorPropertyType::Color;
+				}
+				else if (BoundProperty->Struct == TBaseStructure<FSlateColor>::Get())
+				{
+					OutType = EColorPropertyType::Slate;
+				}
+				else
+				{
+					ensure(BoundProperty->Struct == TBaseStructure<FLinearColor>::Get());
+					OutType = EColorPropertyType::Linear;
+				}
+			}
+			else
+			{
+				OutType = EColorPropertyType::Linear;
+			}
+		});
+	}
+};
+
+
+struct FVectorHandler : TPropertyComponentHandler<FVectorPropertyTraits, float, float, float, float>
+{
+	virtual void DispatchInitializePropertyMetaDataTasks(const FPropertyDefinition& Definition, FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents, UMovieSceneEntitySystemLinker* Linker) override
+	{
+		FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+		FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
+
+		FEntityTaskBuilder()
+		.Read(BuiltInComponents->BoundObject)
+		.Read(BuiltInComponents->PropertyBinding)
+		.Write(TrackComponents->Vector.MetaDataComponents.GetType<0>())
+		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
+		.Iterate_PerEntity(&Linker->EntityManager, [](UObject* Object, const FMovieScenePropertyBinding& Binding, FVectorChannelMetaData& OutMetaData)
+		{
+			FStructProperty* BoundProperty = CastField<FStructProperty>(FTrackInstancePropertyBindings::FindProperty(Object, Binding.PropertyPath.ToString()));
+			if (ensure(BoundProperty && BoundProperty->Struct))
+			{
+				if (BoundProperty->Struct == TBaseStructure<FVector2D>::Get())
+				{
+					OutMetaData.NumChannels = 2;
+				}
+				else if (BoundProperty->Struct == TBaseStructure<FVector>::Get())
+				{
+					OutMetaData.NumChannels = 3;
+				}
+				else
+				{
+					ensure(BoundProperty->Struct == TBaseStructure<FVector4>::Get());
+					OutMetaData.NumChannels = 4;
+				}
+			}
+			else
+			{
+				OutMetaData.NumChannels = 4;
+			}
+		});
+	}
+};
+
 FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 {
 	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
 
-	// We purposefully do not use a preanimated token for component properties
-	ComponentTransform.PropertyTag = ComponentRegistry->NewTag(TEXT("Component Transform"), EComponentTypeFlags::CopyToChildren);
-	ComponentRegistry->NewComponentType(&ComponentTransform.InitialValue, TEXT("Initial Component Transform"), EComponentTypeFlags::Preserved);
+	ComponentRegistry->NewPropertyType(Bool, TEXT("bool"));
+	ComponentRegistry->NewPropertyType(Byte, TEXT("byte"));
+	ComponentRegistry->NewPropertyType(Enum, TEXT("enum"));
+	ComponentRegistry->NewPropertyType(Float, TEXT("float"));
+	ComponentRegistry->NewPropertyType(Color, TEXT("color"));
+	ComponentRegistry->NewPropertyType(Integer, TEXT("int32"));
+	ComponentRegistry->NewPropertyType(Vector, TEXT("vector"));
 
 	ComponentRegistry->NewPropertyType(Transform, TEXT("FTransform"));
 	ComponentRegistry->NewPropertyType(EulerTransform, TEXT("FEulerTransform"));
-	ComponentRegistry->NewPropertyType(Float, TEXT("float"));
-	ComponentRegistry->NewPropertyType(Bool, TEXT("bool"));
+
+	Color.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Color Type"));
+	Vector.MetaDataComponents.Initialize(ComponentRegistry, TEXT("Num Vector Channels"));
+
+	// We purposefully do not use a preanimated token for component properties
+	ComponentTransform.PropertyTag = ComponentRegistry->NewTag(TEXT("Component Transform"), EComponentTypeFlags::CopyToChildren);
+	ComponentRegistry->NewComponentType(&ComponentTransform.InitialValue, TEXT("Initial Component Transform"), EComponentTypeFlags::Preserved);
 
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[0], TEXT("Quaternion Rotation Channel 0"));
 	ComponentRegistry->NewComponentType(&QuaternionRotationChannel[1], TEXT("Quaternion Rotation Channel 1"));
@@ -200,6 +407,12 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	// --------------------------------------------------------------------------------------------
+	// Set up bool properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(Bool)
+	.AddSoleChannel(BuiltInComponents->BoolResult)
+	.SetCustomAccessors(&Accessors.Bool)
+	.Commit();
+
 	// Set up FTransform properties
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Transform)
 	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediate3DTransform::T_X)
@@ -214,6 +427,62 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	.Commit();
 
 	// --------------------------------------------------------------------------------------------
+	// Set up byte properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(Byte)
+	.AddSoleChannel(BuiltInComponents->ByteResult)
+	.SetCustomAccessors(&Accessors.Byte)
+	.Commit();
+
+	// --------------------------------------------------------------------------------------------
+	// Set up enum properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(Enum)
+	.AddSoleChannel(BuiltInComponents->ByteResult)
+	.SetCustomAccessors(&Accessors.Enum)
+	.Commit();
+
+	// --------------------------------------------------------------------------------------------
+	// Set up integer properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(Integer)
+	.AddSoleChannel(BuiltInComponents->IntegerResult)
+	.SetCustomAccessors(&Accessors.Integer)
+	.Commit();
+
+	// --------------------------------------------------------------------------------------------
+	// Set up float properties
+	BuiltInComponents->PropertyRegistry.DefineProperty(Float)
+	.AddSoleChannel(BuiltInComponents->FloatResult[0])
+	.SetCustomAccessors(&Accessors.Float)
+	.Commit();
+
+	// --------------------------------------------------------------------------------------------
+	// Set up color properties
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Color)
+	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateColor::R)
+	.AddComposite(BuiltInComponents->FloatResult[1], &FIntermediateColor::G)
+	.AddComposite(BuiltInComponents->FloatResult[2], &FIntermediateColor::B)
+	.AddComposite(BuiltInComponents->FloatResult[3], &FIntermediateColor::A)
+	.SetCustomAccessors(&Accessors.Color)
+	.Commit(FColorHandler());
+
+	// We have some custom accessors for well-known types.
+	Accessors.Color.Add(
+			ULightComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(ULightComponent, LightColor), 
+			GetLightComponentLightColor, SetLightComponentLightColor);
+	Accessors.Color.Add(
+			USkyLightComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USkyLightComponent, LightColor), 
+			GetSkyLightComponentLightColor, SetSkyLightComponentLightColor);
+	
+	// --------------------------------------------------------------------------------------------
+	// Set up vector properties
+	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Vector)
+	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediateVector::X)
+	.AddComposite(BuiltInComponents->FloatResult[1], &FIntermediateVector::Y)
+	.AddComposite(BuiltInComponents->FloatResult[2], &FIntermediateVector::Z)
+	.AddComposite(BuiltInComponents->FloatResult[3], &FIntermediateVector::W)
+	.SetCustomAccessors(&Accessors.Vector)
+	.Commit(FVectorHandler());
+
+	// --------------------------------------------------------------------------------------------
 	// Set up FEulerTransform properties
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(EulerTransform)
 	.AddComposite(BuiltInComponents->FloatResult[0], &FIntermediate3DTransform::T_X)
@@ -225,19 +494,6 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 	.AddComposite(BuiltInComponents->FloatResult[6], &FIntermediate3DTransform::S_X)
 	.AddComposite(BuiltInComponents->FloatResult[7], &FIntermediate3DTransform::S_Y)
 	.AddComposite(BuiltInComponents->FloatResult[8], &FIntermediate3DTransform::S_Z)
-	.Commit();
-
-	// --------------------------------------------------------------------------------------------
-	// Set up bool properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Bool)
-	.AddSoleChannel(BuiltInComponents->BoolResult)
-	.SetCustomAccessors(&Accessors.Bool)
-	.Commit();
-
-	// Set up float properties
-	BuiltInComponents->PropertyRegistry.DefineProperty(Float)
-	.AddSoleChannel(BuiltInComponents->FloatResult[0])
-	.SetCustomAccessors(&Accessors.Float)
 	.Commit();
 
 	// --------------------------------------------------------------------------------------------

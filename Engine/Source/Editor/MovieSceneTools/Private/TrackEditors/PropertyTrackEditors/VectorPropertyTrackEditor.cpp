@@ -8,6 +8,7 @@
 #include "Editor/UnrealEdEngine.h"
 #include "MovieSceneToolHelpers.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 
 FName FVectorPropertyTrackEditor::XName( "X" );
@@ -133,35 +134,30 @@ void FVectorPropertyTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilde
 
 bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
-	IMovieSceneTrackTemplateProducer* TrackTemplateProducer = Cast<IMovieSceneTrackTemplateProducer>(Track);
-	if (!TrackTemplateProducer)
-	{
-		return false;
-	}
-
-	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+	using namespace UE::MovieScene;
 
 	UMovieSceneVectorTrack* VectorTrack = Cast<UMovieSceneVectorTrack>(Track);
-	FMovieSceneEvaluationTrack EvalTrack = TrackTemplateProducer->GenerateTrackTemplate(Track);
 
 	if (VectorTrack)
 	{
-		FMovieSceneInterrogationData InterrogationData;
-		GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
+		FSystemInterrogator Interrogator;
 
-		FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
-		EvalTrack.Interrogate(Context, InterrogationData, Object);
+		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
+
+		Interrogator.ImportTrack(VectorTrack, FInterrogationChannel::Default());
+		Interrogator.AddInterrogation(KeyTime);
+
+		Interrogator.Update();
+
+		const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
+		TArray<FIntermediateVector> InterrogatedValues;
+		Interrogator.QueryPropertyValues(ComponentTypes->Vector, InterrogatedValues);
 
 		switch (VectorTrack->GetNumChannelsUsed())
 		{
 		case 2:
 			{
-				FVector2D Val(0.0f, 0.0f);
-				for (const FVector2D& InVector: InterrogationData.Iterate<FVector2D>(FMovieScenePropertySectionTemplate::GetVector2DInterrogationKey()))
-				{
-					Val = InVector;
-					break;
-				}
+				FVector2D Val(InterrogatedValues[0].X, InterrogatedValues[0].Y);
 				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
 				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);
@@ -169,12 +165,7 @@ bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *
 			break;
 		case 3:
 			{
-				FVector Val(0.0f, 0.0f, 0.0f);
-				for (const FVector& InVector : InterrogationData.Iterate<FVector>(FMovieScenePropertySectionTemplate::GetVectorInterrogationKey()))
-				{
-					Val = InVector;
-					break;
-				}
+				FVector Val(InterrogatedValues[0].X, InterrogatedValues[0].Y, InterrogatedValues[0].Z);
 				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
 				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);
@@ -183,12 +174,7 @@ bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *
 			break;
 		case 4:
 			{
-				FVector4 Val(0.0f, 0.0f, 0.0f, 0.0f);
-				for (const FVector4& InVector : InterrogationData.Iterate<FVector4>(FMovieScenePropertySectionTemplate::GetVector4InterrogationKey()))
-				{
-					Val = InVector;
-					break;
-				}
+				FVector4 Val(InterrogatedValues[0].X, InterrogatedValues[0].Y, InterrogatedValues[0].Z, InterrogatedValues[0].W);
 				FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 				GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.X, Weight);
 				GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.Y, Weight);
@@ -198,7 +184,9 @@ bool FVectorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *
 			}
 			break;
 		}
+
 		return true;
 	}
+
 	return false;
 }

@@ -1,8 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Tracks/MovieScenePropertyTrack.h"
-#include "MovieSceneCommonHelpers.h"
 #include "Algo/Sort.h"
+#include "MovieSceneCommonHelpers.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "PropertyPathHelpers.h"
+#include "Systems/MovieScenePiecewiseBoolBlenderSystem.h"
+#include "UObject/Field.h"
 
 UMovieScenePropertyTrack::UMovieScenePropertyTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -313,3 +317,165 @@ UMovieSceneSection* UMovieScenePropertyTrack::GetSectionToKey() const
 	return SectionToKey;
 }
 
+const int32 FMovieScenePropertyTrackEntityImportHelper::SectionPropertyValueImportingID = 0;
+const int32 FMovieScenePropertyTrackEntityImportHelper::SectionEditConditionToggleImportingID = 1;
+
+void FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(UMovieSceneSection& Section, const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	using namespace UE::MovieScene;
+
+	// Add the default entity for this section.
+	const int32 EntityIndex   = OutFieldBuilder->FindOrAddEntity(&Section, SectionPropertyValueImportingID);
+	const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+	OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+
+	// Check if this section is animating a property with an edit-condition. If so, we need to also animate a boolean toggle
+	// that will be set to true while the main property is animated.
+	UMovieScenePropertyTrack* PropertyTrack = Section.GetTypedOuter<UMovieScenePropertyTrack>();
+	UMovieScene* MovieScene = Section.GetTypedOuter<UMovieScene>();
+	if (PropertyTrack && MovieScene)
+	{
+		const FMovieScenePropertyBinding& PropertyBinding = PropertyTrack->GetPropertyBinding();
+
+		TArray<FString> PropertyPathSegments;
+		PropertyBinding.PropertyPath.ToString().ParseIntoArray(PropertyPathSegments, TEXT("."), true);
+		FCachedPropertyPath PropertyPath(PropertyPathSegments);
+
+		// Prepare the edit condition toggle property path by taking the beginning part of the
+		// main property path. We'll append the toggle name to it. This is necessary for nested stuff, like:
+		//
+		// (this.)PostProcessSettings.bOverride_FooBar 
+		//
+		// ...where the main property was:
+		//
+		// (this.)PostProcessSettings.FooBar
+		//
+		FString EditConditionPropertyPath = FString::Join(
+				MakeArrayView(PropertyPathSegments.GetData(), PropertyPathSegments.Num() - 1),
+				TEXT("."));
+		bool bHasEditCondition = false;
+
+#if WITH_EDITORONLY_DATA
+
+		FGuid ParentBindingGuid;
+		const bool bFoundParentBinding = MovieScene->FindTrackBinding(*PropertyTrack, ParentBindingGuid);
+		if (ensure(bFoundParentBinding && ParentBindingGuid.IsValid()))
+		{
+			const UClass* ParentBoundClass = nullptr;
+			if (const FMovieScenePossessable* ParentPossessable = MovieScene->FindPossessable(ParentBindingGuid))
+			{
+				ParentBoundClass = ParentPossessable->GetPossessedObjectClass();
+			}
+			else if (const FMovieSceneSpawnable* ParentSpawnable = MovieScene->FindSpawnable(ParentBindingGuid))
+			{
+				ParentBoundClass = ParentSpawnable->GetObjectTemplate() ? 
+					ParentSpawnable->GetObjectTemplate()->GetClass() : nullptr;
+			}
+			
+			if (ensure(ParentBoundClass))
+			{
+				PropertyPath.Resolve(ParentBoundClass->GetDefaultObject());
+				if (const FProperty* LeafProperty = PropertyPath.GetFProperty())
+				{
+					const FString EditConditionPropertyName = LeafProperty->GetMetaData("EditCondition");
+					if (!EditConditionPropertyName.IsEmpty())
+					{
+						EditConditionPropertyPath.Append(".");
+						EditConditionPropertyPath.Append(EditConditionPropertyName);
+						bHasEditCondition = true;
+					}
+				}
+			}
+		}
+
+#else
+
+		// HACK: We don't have the metadata info in non-editor builds, so we need to hard-code some well-known
+		//       stuff that uses edit-conditions... until we find a better solution.
+		//       For now, this is only for PostProcessSettings properties.
+		if (PropertyPathSegments.Num() >= 2 && PropertyPathSegments[PropertyPathSegments.Num() - 2] == "PostProcessSettings")
+		{
+			FString EditConditionPropertyName = PropertyPathSegments[PropertyPathSegments.Num() - 1];
+			EditConditionPropertyName.InsertAt(0, TEXT("bOverride_"));
+
+			EditConditionPropertyPath.Append(".");
+			EditConditionPropertyPath.Append(EditConditionPropertyName);
+			bHasEditCondition = true;
+		}
+
+#endif
+
+		if (bHasEditCondition)
+		{
+			FMovieSceneEvaluationFieldEntityMetaData OverrideToggleMetaData(InMetaData);
+			OverrideToggleMetaData.OverrideBoundPropertyPath = EditConditionPropertyPath;
+
+			const int32 OverrideToggleEntityIndex = OutFieldBuilder->FindOrAddEntity(&Section, SectionEditConditionToggleImportingID);
+			const int32 OverrideToggleMetaDataIndex = OutFieldBuilder->AddMetaData(OverrideToggleMetaData);
+			OutFieldBuilder->AddPersistentEntity(EffectiveRange, OverrideToggleEntityIndex, OverrideToggleMetaDataIndex);
+		}
+
+	}
+}
+
+bool FMovieScenePropertyTrackEntityImportHelper::IsPropertyValueID(const UE::MovieScene::FEntityImportParams& Params)
+{
+	return Params.EntityID == SectionPropertyValueImportingID;
+}
+
+bool FMovieScenePropertyTrackEntityImportHelper::IsEditConditionToggleID(const UE::MovieScene::FEntityImportParams& Params)
+{
+	return Params.EntityID == SectionEditConditionToggleImportingID;
+}
+
+void FMovieScenePropertyTrackEntityImportHelper::ImportEditConditionToggleEntity(const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	if (!ensure(Params.EntityMetaData))
+	{
+		return;
+	}
+
+	const FString& OverrideBoundPropertyPath = Params.EntityMetaData->OverrideBoundPropertyPath;
+	if (!ensure(!OverrideBoundPropertyPath.IsEmpty()))
+	{
+		return;
+	}
+
+	// TODO: The interrogation property instantiator doesn't support multiple unrelated entities for a given interrogation so let's not add the bool override setter.
+	if (Params.InterrogationKey.IsValid())
+	{
+		return;
+	}
+
+	int32 LastDotIndex = INDEX_NONE;
+	OverrideBoundPropertyPath.FindLastChar('.', LastDotIndex);
+	const FName OverrideBoundPropertyName = SanitizeBoolPropertyName(
+			(LastDotIndex != INDEX_NONE) ?
+				FName(OverrideBoundPropertyPath.RightChop(LastDotIndex + 1)) :
+				FName(OverrideBoundPropertyPath)
+			);
+
+	const FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	const FGuid ObjectBindingID = Params.GetObjectBindingID();
+	const FMovieScenePropertyBinding OverrideTogglePropertyBinding(OverrideBoundPropertyName, OverrideBoundPropertyPath);
+
+	OutImportedEntity->AddBuilder(
+			FEntityBuilder()
+			.Add(Components->BoolResult, true)
+			.Add(Components->BlenderType, UMovieScenePiecewiseBoolBlenderSystem::StaticClass())
+			.Add(Components->PropertyBinding, OverrideTogglePropertyBinding)
+			.AddConditional(Components->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid())
+			.AddTag(TracksComponents->Bool.PropertyTag)
+			);
+}
+
+FName FMovieScenePropertyTrackEntityImportHelper::SanitizeBoolPropertyName(FName InPropertyName)
+{
+	FString PropertyVarName = InPropertyName.ToString();
+	PropertyVarName.RemoveFromStart("b", ESearchCase::CaseSensitive);
+	return FName(*PropertyVarName);
+}

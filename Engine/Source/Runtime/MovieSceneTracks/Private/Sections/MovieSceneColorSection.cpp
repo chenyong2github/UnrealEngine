@@ -1,13 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneColorSection.h"
-#include "Tracks/MovieSceneColorTrack.h"
-#include "UObject/StructOnScope.h"
-#include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
+#include "MovieSceneTracksComponentTypes.h"
 #include "Styling/SlateColor.h"
-#include "Evaluation/MovieScenePropertyTemplate.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
+#include "Tracks/MovieSceneColorTrack.h"
+#include "Tracks/MovieScenePropertyTrack.h"
+#include "UObject/SequencerObjectVersion.h"
+#include "UObject/StructOnScope.h"
 
 #if WITH_EDITOR
 struct FColorSectionEditorData
@@ -37,17 +37,12 @@ struct FColorSectionEditorData
 		ExternalValues[1].OnGetExternalValue = ExtractChannelG;
 		ExternalValues[2].OnGetExternalValue = ExtractChannelB;
 		ExternalValues[3].OnGetExternalValue = ExtractChannelA;
-		ExternalValues[0].OnGetCurrentValueAndWeight = GetChannelRValueAndWeight;
-		ExternalValues[1].OnGetCurrentValueAndWeight = GetChannelGValueAndWeight;
-		ExternalValues[2].OnGetCurrentValueAndWeight = GetChannelBValueAndWeight;
-		ExternalValues[3].OnGetCurrentValueAndWeight = GetChannelAValueAndWeight;
-
 	}
 
 	static FLinearColor GetPropertyValue(UObject& InObject, FTrackInstancePropertyBindings& Bindings)
 	{
 		const FName SlateColorName("SlateColor");
-
+	
 		FStructProperty* ColorStructProperty = CastField<FStructProperty>(Bindings.GetProperty(InObject));
 		if (ColorStructProperty != nullptr)
 		{
@@ -55,12 +50,12 @@ struct FColorSectionEditorData
 			{
 				return Bindings.GetCurrentValue<FSlateColor>(InObject).GetSpecifiedColor();
 			}
-
+	
 			if (ColorStructProperty->Struct->GetFName() == NAME_LinearColor)
 			{
 				return Bindings.GetCurrentValue<FLinearColor>(InObject);
 			}
-
+	
 			if (ColorStructProperty->Struct->GetFName() == NAME_Color)
 			{
 				return Bindings.GetCurrentValue<FColor>(InObject);
@@ -68,7 +63,7 @@ struct FColorSectionEditorData
 		}
 		return FLinearColor(0.f,0.f,0.f,0.f);
 	}
-
+	
 	static TOptional<float> ExtractChannelR(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		return Bindings ? GetPropertyValue(InObject, *Bindings).R : TOptional<float>();
@@ -84,70 +79,6 @@ struct FColorSectionEditorData
 	static TOptional<float> ExtractChannelA(UObject& InObject, FTrackInstancePropertyBindings* Bindings)
 	{
 		return Bindings ? GetPropertyValue(InObject, *Bindings).A : TOptional<float>();
-	}
-
-	static void GetChannelRValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float OutWeight)
-	{
-		GetChannelValueAndWeight(0, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetChannelGValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float OutWeight)
-	{
-		GetChannelValueAndWeight(1, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetChannelBValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float OutWeight)
-	{
-		GetChannelValueAndWeight(2, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-	static void GetChannelAValueAndWeight(UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float OutWeight)
-	{
-		GetChannelValueAndWeight(3, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight);
-	}
-
-	static void GetChannelValueAndWeight(int32 Index, UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		OutValue = 0.0f;
-		OutWeight = 1.0f;
-
-		UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
-
-		if (Track)
-		{
-			FMovieSceneEvaluationTrack EvalTrack = CastChecked<UMovieSceneColorTrack>(Track)->GenerateTrackTemplate(Track);
-			FMovieSceneInterrogationData InterrogationData;
-			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
-
-			FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, TickResolution));
-			EvalTrack.Interrogate(Context, InterrogationData, Object);
-
-			FLinearColor Val(0.0f, 0.0f, 0.0f, 0.0f);
-			for (const FLinearColor& InColor : InterrogationData.Iterate<FLinearColor>(FMovieScenePropertySectionTemplate::GetColorInterrogationKey()))
-			{
-				Val = InColor;
-				break;
-			}
-			switch (Index)
-			{
-			case 0:
-				OutValue = Val.R;
-				break;
-			case 1:
-				OutValue = Val.G;
-				break;
-			case 2:
-				OutValue = Val.B;
-				break;
-			case 3:
-				OutValue = Val.A;
-				break;
-			}
-			
-		}
-		OutWeight = MovieSceneHelpers::CalculateWeightForBlending(SectionToKey, KeyTime);
 	}
 
 	FMovieSceneChannelMetaData      MetaData[4];
@@ -218,4 +149,30 @@ TSharedPtr<FStructOnScope> UMovieSceneColorSection::GetKeyStruct(TArrayView<cons
 	Struct->Time = Struct->KeyStructInterop.GetUnifiedKeyTime().Get(0);
 
 	return KeyStruct;
+}
+
+bool UMovieSceneColorSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(*this, EffectiveRange, InMetaData, OutFieldBuilder);
+	return true;
+}
+
+void UMovieSceneColorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	if (!RedCurve.HasAnyData() && !GreenCurve.HasAnyData() && !BlueCurve.HasAnyData() && !AlphaCurve.HasAnyData())
+	{
+		return;
+	}
+
+	const FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FPropertyTrackEntityImportHelper(TracksComponents->Color)
+		.Add(Components->FloatChannel[0], &RedCurve)
+		.Add(Components->FloatChannel[1], &GreenCurve)
+		.Add(Components->FloatChannel[2], &BlueCurve)
+		.Add(Components->FloatChannel[3], &AlphaCurve)
+		.Commit(this, Params, OutImportedEntity);
 }

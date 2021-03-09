@@ -133,7 +133,7 @@ private:
 		/** The object being animated */
 		UObject* BoundObject;
 		/** The path of the property being animated */
-		FName PropertyPath;
+		FMovieScenePropertyBinding PropertyBinding;
 		/** Mask of composite channels that are not animated (set bits indicate an unanimated channel) */
 		FChannelMask EmptyChannels;
 		/** The entity that contains the property component itself. For fast path properties this is the actual child entity produced from the bound object instantiators. */
@@ -168,6 +168,8 @@ private:
 
 	UE::MovieScene::FPropertyRecomposerPropertyInfo FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const;
 
+	void InitializePropertyMetaData(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
+
 	void AssignPreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 	void RestorePreAnimatedValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
@@ -190,6 +192,7 @@ private:
 
 	UE::MovieScene::FComponentMask CleanFastPathMask;
 
+	TBitArray<> InitializePropertyMetaDataTasks;
 	TBitArray<> SaveGlobalStateTasks;
 	TBitArray<> CachePreAnimatedStateTasks;
 	TBitArray<> RestorePreAnimatedStateTasks;
@@ -198,14 +201,6 @@ private:
 	 
 	UE::MovieScene::FPropertyRecomposerImpl RecomposerImpl;
 };
-
-
-
-// template<typename PropertyType, typename OperationalType>
-// UE::MovieScene::TRecompositionResult<PropertyType> UMovieScenePropertyInstantiatorSystem::RecomposeBlendFinal(const UE::MovieScene::TPropertyComponents<PropertyType, OperationalType>& Components, const UE::MovieScene::FDecompositionQuery& InQuery, const PropertyType& InCurrentValue)
-// {
-// 	return RecomposerImpl.RecomposeBlendFinal<PropertyType, OperationalType>(Components, InQuery, InCurrentValue);
-// }
 
 
 template<typename PropertyTraits>

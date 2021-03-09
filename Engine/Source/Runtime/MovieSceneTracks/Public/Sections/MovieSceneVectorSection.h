@@ -9,6 +9,7 @@
 #include "MovieSceneSection.h"
 #include "MovieSceneKeyStruct.h"
 #include "Channels/MovieSceneFloatChannel.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneVectorSection.generated.h"
 
 class FStructOnScope;
@@ -32,16 +33,10 @@ struct FMovieSceneVectorKeyStructBase
 	virtual void PropagateChanges(const FPropertyChangedEvent& ChangeEvent) override;
 
 	/** Gets a ptr value of a channel by index, 0-3 = x-w */
-	virtual float* GetPropertyChannelByIndex(int32 Index) { return nullptr; }
+	virtual float* GetPropertyChannelByIndex(int32 Index) PURE_VIRTUAL(FMovieSceneVectorKeyStructBase::GetPropertyChannelByIndex, return nullptr; );
 };
-template<> struct TStructOpsTypeTraits<FMovieSceneVectorKeyStructBase> : public TStructOpsTypeTraitsBase2<FMovieSceneVectorKeyStructBase> 
-{ 
-	enum 
-	{ 
-		WithCopy = false,
-		WithPureVirtual = true
-	};
-};
+template<> struct TStructOpsTypeTraits<FMovieSceneVectorKeyStructBase> : public TStructOpsTypeTraitsBase2<FMovieSceneVectorKeyStructBase> { enum { WithCopy = false }; };
+
 
 /**
  * Proxy structure for 2D vector section key data.
@@ -104,6 +99,7 @@ template<> struct TStructOpsTypeTraits<FMovieSceneVector4KeyStruct> : public TSt
 UCLASS(MinimalAPI)
 class UMovieSceneVectorSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -137,6 +133,12 @@ protected:
 	virtual TSharedPtr<FStructOnScope> GetKeyStruct(TArrayView<const FKeyHandle> KeyHandles) override;
 
 	MOVIESCENETRACKS_API void RecreateChannelProxy();
+
+private:
+
+	//~ IMovieSceneEntityProvider interface
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
 private:
 

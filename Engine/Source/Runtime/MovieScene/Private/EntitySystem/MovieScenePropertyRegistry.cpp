@@ -22,6 +22,14 @@ TOptional<uint16> ComputeFastPropertyPtrOffset(UClass* ObjectClass, const FMovie
 	UFunction* Setter   = ObjectClass->FindFunctionByName(*(FString("Set") + PropertyBinding.PropertyName.ToString()));
 	if (Property && !Setter)
 	{
+		// @todo: We disable fast offsets for all bools atm becasue there is no way of knowing whether the property
+		// represents a raw bool, or a bool : 1 or uint8 : 1;
+		FBoolProperty* BoolProperty = CastField<FBoolProperty>(Property);
+		if (BoolProperty)
+		{
+			return TOptional<uint16>();
+		}
+
 		UObject* DefaultObject   = ObjectClass->GetDefaultObject();
 		uint8*   PropertyAddress = Property->ContainerPtrToValuePtr<uint8>(DefaultObject);
 		int32    PropertyOffset  = PropertyAddress - reinterpret_cast<uint8*>(DefaultObject);

@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "UObject/ObjectMacros.h"
-#include "Curves/KeyHandle.h"
-#include "Curves/IntegralCurve.h"
-#include "MovieSceneSection.h"
 #include "Channels/MovieSceneIntegerChannel.h"
+#include "CoreMinimal.h"
+#include "Curves/IntegralCurve.h"
+#include "Curves/KeyHandle.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
+#include "MovieSceneSection.h"
+#include "UObject/ObjectMacros.h"
 #include "MovieSceneIntegerSection.generated.h"
 
 
@@ -17,6 +18,7 @@
 UCLASS(MinimalAPI)
 class UMovieSceneIntegerSection 
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -25,6 +27,12 @@ public:
 	 * Access this section's underlying raw data
 	 */
 	const FMovieSceneIntegerChannel& GetChannel() const { return IntegerCurve; }
+
+private:
+
+	//~ IMovieSceneEntityProvider interface
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
 private:
 

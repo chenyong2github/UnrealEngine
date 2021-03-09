@@ -16,6 +16,8 @@
 #include "BuiltInComponentTypes.generated.h"
 
 enum class EMovieSceneBlendType : uint8;
+struct FMovieSceneByteChannel;
+struct FMovieSceneIntegerChannel;
 struct FMovieSceneFloatChannel;
 struct FMovieScenePropertyBinding;
 
@@ -88,6 +90,37 @@ namespace UE
 namespace MovieScene
 {
 
+/**
+ * The component data for evaluating a byte channel
+ */
+struct FSourceByteChannel
+{
+	FSourceByteChannel()
+		: Source(nullptr)
+	{}
+
+	FSourceByteChannel(const FMovieSceneByteChannel* InSource)
+		: Source(InSource)
+	{}
+
+	const FMovieSceneByteChannel* Source;
+};
+
+/**
+ * The component data for evaluating an integer channel
+ */
+struct FSourceIntegerChannel
+{
+	FSourceIntegerChannel()
+		: Source(nullptr)
+	{}
+
+	FSourceIntegerChannel(const FMovieSceneIntegerChannel* InSource)
+		: Source(InSource)
+	{}
+
+	const FMovieSceneIntegerChannel* Source;
+};
 
 /**
  * The component data for evaluating a float channel
@@ -164,6 +197,21 @@ public:
 
 	// A boolean repesenting the output of a bool property track or channel
 	TComponentTypeID<bool> BoolResult;
+
+	// An FMovieSceneByteChannel
+	TComponentTypeID<FSourceByteChannel> ByteChannel;
+
+	// A byte representing the output of a byte or enum track or channel
+	TComponentTypeID<uint8> ByteResult;
+
+	// An FMovieSceneIntegerChannel
+	TComponentTypeID<FSourceIntegerChannel> IntegerChannel;
+
+	// An integer representing the output of an integer track or channel
+	TComponentTypeID<int32> IntegerResult;
+
+	// An integer representing the base value for the integer channel for the purposes of "additive from base" blending.
+	TComponentTypeID<int32> BaseInteger;
 
 	// An FMovieSceneFloatChannel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X, Color.R; 1 = Location.Y, Vector.Y, Color.G)
 	TComponentTypeID<FSourceFloatChannel> FloatChannel[9];

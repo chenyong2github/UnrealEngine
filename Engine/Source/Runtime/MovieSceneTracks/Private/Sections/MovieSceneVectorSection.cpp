@@ -1,14 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Sections/MovieSceneVectorSection.h"
-#include "Tracks/MovieSceneVectorTrack.h"
-#include "UObject/StructOnScope.h"
-#include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
-#include "Compilation/MovieSceneTemplateInterrogation.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
-#include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
-#include "Evaluation/MovieScenePropertyTemplate.h"
+#include "MovieSceneTracksComponentTypes.h"
+#include "Tracks/MovieScenePropertyTrack.h"
+#include "Tracks/MovieSceneVectorTrack.h"
+#include "UObject/SequencerObjectVersion.h"
+#include "UObject/StructOnScope.h"
 
 /* FMovieSceneVectorKeyStruct interface
  *****************************************************************************/
@@ -41,17 +39,6 @@ struct FVectorSectionEditorData
 		ExternalValues[1].OnGetExternalValue = [NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelY(InObject, Bindings, NumChannels); };
 		ExternalValues[2].OnGetExternalValue = [NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelZ(InObject, Bindings, NumChannels); };
 		ExternalValues[3].OnGetExternalValue = [NumChannels](UObject& InObject, FTrackInstancePropertyBindings* Bindings) { return ExtractChannelW(InObject, Bindings, NumChannels); };
-
-
-		ExternalValues[0].OnGetCurrentValueAndWeight = [NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(NumChannels, 0, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
-		ExternalValues[1].OnGetCurrentValueAndWeight = [NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(NumChannels, 1, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
-		ExternalValues[2].OnGetCurrentValueAndWeight = [NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(NumChannels, 2,Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
-		ExternalValues[3].OnGetCurrentValueAndWeight = [NumChannels](UObject* Object, UMovieSceneSection*  SectionToKey, FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-			float& OutValue, float& OutWeight) { GetChannelValueAndWeight(NumChannels, 3, Object, SectionToKey, KeyTime, TickResolution, RootTemplate, OutValue, OutWeight); };
-
 	}
 
 	static FVector4 GetPropertyValue(UObject& InObject, FTrackInstancePropertyBindings& Bindings, int32 NumChannels)
@@ -71,7 +58,7 @@ struct FVectorSectionEditorData
 			return Bindings.GetCurrentValue<FVector4>(InObject);
 		}
 	}
-
+	
 	static TOptional<float> ExtractChannelX(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
 	{
 		return Bindings ? GetPropertyValue(InObject, *Bindings, NumChannels).X : TOptional<float>();
@@ -87,100 +74,6 @@ struct FVectorSectionEditorData
 	static TOptional<float> ExtractChannelW(UObject& InObject, FTrackInstancePropertyBindings* Bindings, int32 NumChannels)
 	{
 		return Bindings ? GetPropertyValue(InObject, *Bindings, NumChannels).W : TOptional<float>();
-	}
-
-	static void GetChannelValueAndWeight(int32 NumChannels, int32 Index, UObject* Object, UMovieSceneSection*  SectionToKey,  FFrameNumber KeyTime, FFrameRate TickResolution, FMovieSceneRootEvaluationTemplateInstance& RootTemplate,
-		float& OutValue, float& OutWeight)
-	{
-		OutValue = 0.0f;
-		OutWeight = 1.0f;
-		if (Index >= NumChannels)
-		{
-			return;
-		}
-
-		UMovieSceneTrack* Track = SectionToKey->GetTypedOuter<UMovieSceneTrack>();
-
-		if (Track)
-		{
-			FMovieSceneEvaluationTrack EvalTrack = CastChecked<UMovieSceneVectorTrack>(Track)->GenerateTrackTemplate(Track);
-			FMovieSceneInterrogationData InterrogationData;
-			RootTemplate.CopyActuators(InterrogationData.GetAccumulator());
-
-			FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, TickResolution));
-			EvalTrack.Interrogate(Context, InterrogationData, Object);
-
-			switch (NumChannels)
-			{
-			case 2:
-			{
-				FVector2D Val(0.0f, 0.0f);
-				for (const FVector2D& InVector : InterrogationData.Iterate<FVector2D>(FMovieScenePropertySectionTemplate::GetVector2DInterrogationKey()))
-				{
-					Val = InVector;
-					break;
-				}
-				switch (Index)
-				{
-				case 0:
-					OutValue = Val.X;
-					break;
-				case 1:
-					OutValue = Val.Y;
-					break;
-				}
-			}
-			break;
-			case 3:
-			{
-				FVector Val(0.0f, 0.0f, 0.0f);
-				for (const FVector& InVector : InterrogationData.Iterate<FVector>(FMovieScenePropertySectionTemplate::GetVectorInterrogationKey()))
-				{
-					Val = InVector;
-					break;
-				}
-				switch (Index)
-				{
-				case 0:
-					OutValue = Val.X;
-					break;
-				case 1:
-					OutValue = Val.Y;
-					break;
-				case 2:
-					OutValue = Val.Z;
-					break;
-				}
-			}
-			break;
-			case 4:
-			{
-				FVector4 Val(0.0f, 0.0f, 0.0f, 0.0f);
-				for (const FVector4& InVector : InterrogationData.Iterate<FVector4>(FMovieScenePropertySectionTemplate::GetVector4InterrogationKey()))
-				{
-					Val = InVector;
-					break;
-				}
-				switch (Index)
-				{
-				case 0:
-					OutValue = Val.X;
-					break;
-				case 1:
-					OutValue = Val.Y;
-					break;
-				case 2:
-					OutValue = Val.Z;
-					break;
-				case 3:
-					OutValue = Val.W;
-					break;
-				}
-			}
-			break;
-			}
-		}
-		OutWeight = MovieSceneHelpers::CalculateWeightForBlending(SectionToKey, KeyTime);
 	}
 
 	FMovieSceneChannelMetaData      MetaData[4];
@@ -285,4 +178,30 @@ TSharedPtr<FStructOnScope> UMovieSceneVectorSection::GetKeyStruct(TArrayView<con
 	}
 
 	return KeyStruct;
+}
+
+bool UMovieSceneVectorSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	FMovieScenePropertyTrackEntityImportHelper::PopulateEvaluationField(*this, EffectiveRange, InMetaData, OutFieldBuilder);
+	return true;
+}
+
+void UMovieSceneVectorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	if (ChannelsUsed <= 0)
+	{
+		return;
+	}
+
+	const FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
+	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	FPropertyTrackEntityImportHelper(TracksComponents->Vector)
+		.AddConditional(Components->FloatChannel[0], &Curves[0], ChannelsUsed > 0)
+		.AddConditional(Components->FloatChannel[1], &Curves[1], ChannelsUsed > 1)
+		.AddConditional(Components->FloatChannel[2], &Curves[2], ChannelsUsed > 2)
+		.AddConditional(Components->FloatChannel[3], &Curves[3], ChannelsUsed > 3)
+		.Commit(this, Params, OutImportedEntity);
 }
