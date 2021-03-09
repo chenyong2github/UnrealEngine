@@ -3064,6 +3064,8 @@ TMap<FFXSystem*,TSet<class FGPUSpriteParticleEmitterInstance*> > GPUSpritePartic
  */
 class FGPUSpriteParticleEmitterInstance : public FParticleEmitterInstance
 {
+	/** Weak pointer to the world we are in, if this is invalid the FXSystem is also invalid. */
+	TWeakObjectPtr<UWorld> WeakWorld;
 	/** Pointer the the FX system with which the instance is associated. */
 	FFXSystem* FXSystem;
 	/** Information on how to emit and simulate particles. */
@@ -3483,6 +3485,8 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 		CurrentMaterial = EmitterInfo.RequiredModule ? EmitterInfo.RequiredModule->Material : UMaterial::GetDefaultMaterial(MD_Surface);
 
 		InitLocalVectorField();
+
+		WeakWorld = Component->GetWorld();
 	}
 
 	FORCENOINLINE void ReserveNewParticles(int32 Num)
@@ -3883,35 +3887,55 @@ private:
 	 */
 	void ReleaseSimulationResources()
 	{
+		auto GetWorldFXSystem =
+			[](TWeakObjectPtr<UWorld> InWeakWorld) -> FFXSystem*
+			{
+				UWorld* World = InWeakWorld.Get();
+				if (World && World->Scene)
+				{
+					if (FFXSystemInterface* FXSystemInterface = World->Scene->GetFXSystem())
+					{
+						return static_cast<FFXSystem*>(FXSystemInterface->GetInterface(FFXSystem::Name));
+					}
+				}
+				return nullptr;
+			};
+
 		if (FXSystem)
 		{
-			FXSystem->RemoveGPUSimulation( Simulation );
-
-			FParticleSimulationResources* ParticleSimulationResources = FXSystem->GetParticleSimulationResources();
-			// The check for IsEngineExitRequested() is done because at shut down UWorld can be destroyed before particle emitters(?)
-			if (!IsEngineExitRequested() && ParticleSimulationResources)
+			// There are edge cases where the UWorld that contains the FFXSystem could have been destroyed before us.
+			// We therefore see if our World is still valid and that the FFXSystem matches what we cached, if it does
+			// not we can not remove the simulation or free the tiles as they don't belong to us.
+			FFXSystem* WorldFXSystem = GetWorldFXSystem(WeakWorld);
+			if ( WorldFXSystem == FXSystem )
 			{
-				const int32 TileCount = AllocatedTiles.Num();
-				for ( int32 ActiveTileIndex = 0; ActiveTileIndex < TileCount; ++ActiveTileIndex )
+				FXSystem->RemoveGPUSimulation(Simulation);
+				if ( FParticleSimulationResources* ParticleSimulationResources = FXSystem->GetParticleSimulationResources() )
 				{
-					const uint32 TileIndex = AllocatedTiles[ActiveTileIndex];
-					ParticleSimulationResources->FreeTile( TileIndex );
-				}
-				AllocatedTiles.Reset();
+					const int32 TileCount = AllocatedTiles.Num();
+					for (int32 ActiveTileIndex = 0; ActiveTileIndex < TileCount; ++ActiveTileIndex)
+					{
+						const uint32 TileIndex = AllocatedTiles[ActiveTileIndex];
+						ParticleSimulationResources->FreeTile(TileIndex);
+					}
+					AllocatedTiles.Reset();
 #if TRACK_TILE_ALLOCATIONS
-				UE_LOG(LogParticles,VeryVerbose,
-					TEXT("%s|%s|0x%016p [ReleaseSimulationResources] %d tiles"),
-					*Component->GetName(),*Component->Template->GetName(),(PTRINT)this, AllocatedTiles.Num());
+					UE_LOG(LogParticles, VeryVerbose,
+						TEXT("%s|%s|0x%016p [ReleaseSimulationResources] %d tiles"),
+						*Component->GetName(), *Component->Template->GetName(), (PTRINT)this, AllocatedTiles.Num());
 #endif // #if TRACK_TILE_ALLOCATIONS
+				}
 			}
 		}
-		else if (!IsEngineExitRequested())
+		else
 		{
-			UE_LOG(LogParticles,Warning,
-				TEXT("%s|%s|0x%016p [ReleaseSimulationResources] LEAKING %d tiles FXSystem=0x%016x"),
-				*Component->GetName(),*Component->Template->GetName(),(PTRINT)this, AllocatedTiles.Num(), (PTRINT)FXSystem);
+			if (AllocatedTiles.Num())
+			{
+				UE_LOG(LogParticles, Warning,
+					TEXT("%s|%s|0x%016p [ReleaseSimulationResources] LEAKING %d tiles FXSystem=0x%016x"),
+					*Component->GetName(), *Component->Template->GetName(), (PTRINT)this, AllocatedTiles.Num(), (PTRINT)FXSystem);
+			}
 		}
-
 
 		ActiveTiles.Reset();
 		AllocatedTiles.Reset();
