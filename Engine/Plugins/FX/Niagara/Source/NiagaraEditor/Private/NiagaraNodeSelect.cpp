@@ -2,7 +2,6 @@
 
 #include "NiagaraNodeSelect.h"
 
-#include "ContentBrowserModule.h"
 #include "EditorFontGlyphs.h"
 #include "FindInBlueprintManager.h"
 #include "NiagaraEditorStyle.h"
@@ -15,8 +14,6 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSeparator.h"
-#include "IContentBrowserSingleton.h"
-#include "ContentBrowserModule.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeSelect"
 
@@ -86,6 +83,7 @@ void UNiagaraNodeSelect::ChangeSelectorPinType(FNiagaraTypeDefinition Type)
 	{
 		SelectorPin->bOrphanedPin = true;
 	}
+
 	
 	ReallocatePins(true);
 }
@@ -283,54 +281,6 @@ void UNiagaraNodeSelect::GetPinHoverText(const UEdGraphPin& Pin, FString& HoverT
 	}
 }
 
-void UNiagaraNodeSelect::PostLoad()
-{
-	Super::PostLoad();
-	
-	// assume the enum changed just to make sure
-	if (SelectorPinType.IsEnum() && SelectorPinType.GetEnum())
-	{
-		RefreshFromExternalChanges();
-	}
-}
-
-void UNiagaraNodeSelect::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
-{
-	Super::GetNodeContextMenuActions(Menu, Context);
-
-	if (SelectorPinType.IsEnum() && SelectorPinType.GetEnum())
-	{
-		FToolMenuSection& Section = Menu->FindOrAddSection("Node");
-
-		Section.AddMenuEntry(
-			"BrowseToEnum",
-			FText::Format(LOCTEXT("BrowseToEnumLabel", "Browse to {0}"), FText::FromString(SelectorPinType.GetEnum()->GetName())),
-			LOCTEXT("BrowseToEnumTooltip", "Browses to the enum in the content browser."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]()
-			{
-				FContentBrowserModule& Module = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-				Module.Get().SyncBrowserToAssets({ FAssetData(SelectorPinType.GetEnum()) });
-			}), FCanExecuteAction::CreateLambda([=]()
-			{
-				return Cast<UUserDefinedEnum>(SelectorPinType.GetEnum()) != nullptr;
-			})));
-
-		Section.AddMenuEntry(
-			"OpenEnum",
-			FText::Format(LOCTEXT("OpenEnumLabel", "Open {0}"), FText::FromString(SelectorPinType.GetEnum()->GetName())),
-			LOCTEXT("OpenEnumTooltip", "Opens up the enum asset."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]()
-			{
-				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SelectorPinType.GetEnum());
-			}), FCanExecuteAction::CreateLambda([=]()
-			{
-				return Cast<UUserDefinedEnum>(SelectorPinType.GetEnum()) != nullptr;
-			})));
-	}
-}
-
 void UNiagaraNodeSelect::Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {	
 	const UEdGraphPin* SelectorPin = GetSelectorPin();
@@ -459,6 +409,12 @@ void UNiagaraNodeSelect::AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox)
 	];
 }
 
+bool UNiagaraNodeSelect::RefreshFromExternalChanges()
+{
+	ReallocatePins();
+	return true;
+}
+
 void UNiagaraNodeSelect::GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const
 {
 	if(ConnectionResponse == ECanCreateConnectionResponse::CONNECT_RESPONSE_DISALLOW)
@@ -556,7 +512,7 @@ void UNiagaraNodeSelect::PostChange(const UUserDefinedEnum* Changed, FEnumEditor
 {
 	if (SelectorPinType.GetEnum() == Changed)
 	{
-		RefreshFromExternalChanges();
+		ReallocatePins(true);
 	}
 }
 

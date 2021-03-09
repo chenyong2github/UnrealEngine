@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraNodeStaticSwitch.h"
-
-#include "ContentBrowserModule.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraConstants.h"
@@ -13,10 +11,8 @@
 #include "Widgets/Images/SImage.h"
 #include "ScopedTransaction.h"
 #include "EdGraphSchema_Niagara.h"
-#include "ContentBrowserModule.h"
-#include "IContentBrowserSingleton.h"
 #include "NiagaraSettings.h"
-#include "Subsystems/AssetEditorSubsystem.h"
+#include "ToolMenu.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeStaticSwitch"
 
@@ -97,19 +93,6 @@ TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 	}
 
 	return OptionValues;
-}
-
-void UNiagaraNodeStaticSwitch::PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
-{
-	// do nothing
-}
-
-void UNiagaraNodeStaticSwitch::PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
-{
-	if(Changed == SwitchTypeData.Enum)
-	{
-		RefreshFromExternalChanges();
-	}
 }
 
 FName UNiagaraNodeStaticSwitch::GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const
@@ -520,12 +503,6 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 			MarkNodeRequiresSynchronization(TEXT("Static switch metadata updated"), true);
 		}
 	}
-
-	// assume the enum changed so we'll refresh to make sure
-	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
-	{
-		RefreshFromExternalChanges();
-	}
 }
 
 UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOwnedOutputPin, bool bFilterForCompilation) const
@@ -637,37 +614,9 @@ void UNiagaraNodeStaticSwitch::GetNodeContextMenuActions(UToolMenu* Menu, UGraph
 		FToolMenuSection& Section = Menu->FindOrAddSection("Node");
 
 		Section.AddMenuEntry(
-			"BrowseToEnum",
-			FText::Format(LOCTEXT("BrowseToEnumLabel", "Browse to {0}"), FText::FromString(SwitchTypeData.Enum->GetName())),
-			LOCTEXT("BrowseToEnumTooltip", "Browses to the enum in the content browser."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]()
-			{
-				FContentBrowserModule& Module = FModuleManager::Get().LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-				Module.Get().SyncBrowserToAssets({ FAssetData(SwitchTypeData.Enum) });
-			}) , FCanExecuteAction::CreateLambda([=]()
-			{
-				return Cast<UUserDefinedEnum>(SwitchTypeData.Enum) != nullptr;
-			})));
-
-
-		Section.AddMenuEntry(
-			"OpenEnum",
-			FText::Format(LOCTEXT("OpenEnumLabel", "Open {0}"), FText::FromString(SwitchTypeData.Enum->GetName())),
-			LOCTEXT("OpenEnumTooltip", "Opens up the enum asset."),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateLambda([=]()
-			{
-				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(SwitchTypeData.Enum);
-			}),	FCanExecuteAction::CreateLambda([=]()
-			{
-				return Cast<UUserDefinedEnum>(SwitchTypeData.Enum) != nullptr;
-			})));
-			
-		Section.AddMenuEntry(
 			"AddEnumAsNiagaraType",
-			FText::Format(LOCTEXT("AddEnumToTypesLabel", "Add enum {0} to user added enums"), FText::FromString(SwitchTypeData.Enum->GetName())),
-			LOCTEXT("AddEnumToTypesTooltip", "Adds the enum to the list of user added enums so it can be used as a parameter."), 
+			FText::Format(LOCTEXT("AddEnumToTypesLabel", "Add enum {0} to Niagara type registry"), FText::FromString(SwitchTypeData.Enum->GetName())),
+			LOCTEXT("AddEnumToTypesTooltip", "Adds the enum to the list of Niagara types so it can be used as a parameter."), 
 			FSlateIcon(), 
 			FUIAction(FExecuteAction::CreateLambda([=]()
 			{
