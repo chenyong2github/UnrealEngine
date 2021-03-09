@@ -6,7 +6,6 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "Fonts/CompositeFont.h"
-#include <limits>
 #include "SlateFontInfo.generated.h"
 
 /**
@@ -278,7 +277,7 @@ public:
 	const FCompositeFont* GetCompositeFont() const;
 
 	/** Get the font size clamp for the font renderer (on 16bits) */
-	uint16 GetClampSize() const { return (uint16)FMath::Clamp<int32>(Size, 0, std::numeric_limits<uint16>::max()); }
+	uint16 GetClampSize() const;
 
 	/**
 	 * Calculates a type hash value for a font info.

@@ -223,3 +223,8 @@ void FSlateFontInfo::UpgradeLegacyFontInfo(FName LegacyFontName, EFontHinting Le
 		? FLegacySlateFontInfoCache::Get().GetSystemFont()
 		: FLegacySlateFontInfoCache::Get().GetCompositeFont(LegacyFontName, LegacyHinting);
 }
+
+uint16 FSlateFontInfo::GetClampSize() const
+{
+	return (uint16)FMath::Clamp<int32>(Size, 0, std::numeric_limits<uint16>::max());
+}
