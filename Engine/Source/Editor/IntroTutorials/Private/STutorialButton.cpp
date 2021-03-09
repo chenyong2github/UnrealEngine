@@ -330,7 +330,7 @@ bool STutorialButton::ShouldLaunchBrowser() const
 
 bool STutorialButton::ShouldShowAlert() const
 {
-	if ((bTestAlerts || !FEngineBuildSettings::IsInternalBuild()) && bTutorialAvailable && !(bTutorialCompleted || bTutorialDismissed))
+	if (!GIsDemoMode && (bTestAlerts || !FEngineBuildSettings::IsInternalBuild()) && bTutorialAvailable && !(bTutorialCompleted || bTutorialDismissed))
 	{
 		return (!GetMutableDefault<UEditorTutorialSettings>()->bDisableAllTutorialAlerts && !GetMutableDefault<UTutorialStateSettings>()->AreAllTutorialsDismissed());
 	}
