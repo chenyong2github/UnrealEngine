@@ -1515,35 +1515,40 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 	}
 }
 
-void FMobileSceneRenderer::RenderOcclusion(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets)
+void FMobileSceneRenderer::RenderOcclusion(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
-	if (!DoOcclusionQueries(FeatureLevel))
-	{
-		return;
-	}
-
 	{
 		SCOPED_NAMED_EVENT(FMobileSceneRenderer_BeginOcclusionTests, FColor::Emerald);
-		FViewOcclusionQueriesPerView QueriesPerView = AllocateOcclusionTests(Scene, VisibleLightInfos, Views);
+		const FViewOcclusionQueriesPerView QueriesPerView = AllocateOcclusionTests(Scene, VisibleLightInfos, Views);
 
 		if (QueriesPerView.Num())
 		{
-			auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
-			PassParameters->RenderTargets = BasePassRenderTargets;
-
-			GraphBuilder.AddPass(RDG_EVENT_NAME("BeginOcclusionTestsPass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-				[this, LocalQueriesPerView = MoveTemp(QueriesPerView)](FRHICommandListImmediate& RHICmdList)
-			{
-				BeginOcclusionTests(RHICmdList, Views, FeatureLevel, LocalQueriesPerView, 1.0f);
-			});
+			BeginOcclusionTests(RHICmdList, Views, FeatureLevel, QueriesPerView, 1.0f);
 		}
 	}
 
-	FenceOcclusionTests(GraphBuilder);
+	if (IsRunningRHIInSeparateThread())
+	{
+		FenceOcclusionTestsInternal(RHICmdList);
+	}
 }
 
 DECLARE_CYCLE_STAT(TEXT("OcclusionSubmittedFence Dispatch"), STAT_OcclusionSubmittedFence_Dispatch, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("OcclusionSubmittedFence Wait"), STAT_OcclusionSubmittedFence_Wait, STATGROUP_SceneRendering);
+
+void FSceneRenderer::FenceOcclusionTestsInternal(FRHICommandListImmediate& RHICmdList)
+{
+	SCOPE_CYCLE_COUNTER(STAT_OcclusionSubmittedFence_Dispatch);
+	int32 NumFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(FeatureLevel);
+	for (int32 Dest = NumFrames - 1; Dest >= 1; Dest--)
+	{
+		CA_SUPPRESS(6385);
+		OcclusionSubmittedFence[Dest] = OcclusionSubmittedFence[Dest - 1];
+	}
+	OcclusionSubmittedFence[0] = RHICmdList.RHIThreadFence();
+	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	RHICmdList.PollRenderQueryResults();
+}
 
 void FSceneRenderer::FenceOcclusionTests(FRDGBuilder& GraphBuilder)
 {
@@ -1551,16 +1556,7 @@ void FSceneRenderer::FenceOcclusionTests(FRDGBuilder& GraphBuilder)
 	{
 		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_OcclusionSubmittedFence_Dispatch);
-			int32 NumFrames = FOcclusionQueryHelpers::GetNumBufferedFrames(FeatureLevel);
-			for (int32 Dest = NumFrames - 1; Dest >= 1; Dest--)
-			{
-				CA_SUPPRESS(6385);
-				OcclusionSubmittedFence[Dest] = OcclusionSubmittedFence[Dest - 1];
-			}
-			OcclusionSubmittedFence[0] = RHICmdList.RHIThreadFence();
-			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-			RHICmdList.PollRenderQueryResults();
+			FenceOcclusionTestsInternal(RHICmdList);
 		});
 	}
 }

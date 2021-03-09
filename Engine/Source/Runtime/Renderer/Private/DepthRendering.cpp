@@ -607,53 +607,29 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 	}
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FMobileDepthPassParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-void FMobileSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets)
+bool FMobileSceneRenderer::ShouldRenderPrePass() const
 {
+	// Draw a depth pass to avoid overdraw in the other passes.
+	// Mobile only does MaskedOnly DepthPass for the moment
+	bool bShouldRenderPrePass = Scene->EarlyZPassMode == DDM_MaskedOnly;
+
+	return bShouldRenderPrePass;
+}
+
+void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FInstanceCullingDrawParams* InstanceCullingDrawParams/* = nullptr*/)
+{
+	checkSlow(RHICmdList.IsInsideRenderPass());
+	checkSlow(ShouldRenderPrePass());
+
 	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderPrePass, FColor::Emerald);
-	RDG_EVENT_SCOPE(GraphBuilder, "MobileRenderPrePass");
+	SCOPED_DRAW_EVENT(RHICmdList, MobileRenderPrePass);
 
 	SCOPE_CYCLE_COUNTER(STAT_DepthDrawTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderPrePass);
-	RDG_GPU_STAT_SCOPE(GraphBuilder, Prepass);
+	SCOPED_GPU_STAT(RHICmdList, Prepass);
 
-	// Draw a depth pass to avoid overdraw in the other passes.
-	// Mobile only does MaskedOnly DepthPass for the moment
-	if (Scene->EarlyZPassMode == DDM_MaskedOnly)
-	{
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-		{
-			FViewInfo& View = Views[ViewIndex];
-
-			RDG_GPU_MASK_SCOPE(GraphBuilder, !View.IsInstancedStereoPass() ? View.GPUMask : (Views[0].GPUMask | Views[1].GPUMask));
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-			if (!View.ShouldRenderView())
-			{
-				continue;
-			}
-
-			View.BeginRenderView();
-
-			auto* PassParameters = GraphBuilder.AllocParameters<FMobileDepthPassParameters>();
-			PassParameters->View = View.GetShaderParameters();
-			View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene, PassParameters->InstanceCullingDrawParams);
-
-			PassParameters->RenderTargets = BasePassRenderTargets;
-
-			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderPrePass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-				[this, &View, PassParameters](FRHICommandListImmediate& RHICmdList)
-			{
-				SetStereoViewport(RHICmdList, View);
-				View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList, &PassParameters->InstanceCullingDrawParams);
-			});
-		}
-	}
+	SetStereoViewport(RHICmdList, View);
+	View.ParallelMeshDrawCommandPasses[EMeshPass::DepthPass].DispatchDraw(nullptr, RHICmdList, InstanceCullingDrawParams);
 }
 
 void FDeferredShadingSceneRenderer::RenderPrePassHMD(FRDGBuilder& GraphBuilder, FRDGTextureRef DepthTexture)

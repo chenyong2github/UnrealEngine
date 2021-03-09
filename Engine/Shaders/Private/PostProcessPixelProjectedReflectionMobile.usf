@@ -161,7 +161,7 @@ void ProjectionPassCS(
 
 		float PlaneDistance = dot(ReflectionPlane, float4(ViewPosition, -1.0f));
 
-		if (PlaneDistance > 0.01f )
+		if (PlaneDistance > 0.5f )
 		{
 			float3 MirroredViewPosition = ViewPosition - ReflectionPlane.xyz * (2.f * PlaneDistance);
 

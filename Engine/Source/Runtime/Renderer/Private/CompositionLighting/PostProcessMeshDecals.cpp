@@ -359,40 +359,32 @@ void RenderMeshDecals(
 	}
 }
 
-void RenderMeshDecalsMobile(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const FViewInfo& View)
+void RenderMeshDecalsMobile(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode = IsMobileDeferredShadingEnabled(View.GetShaderPlatform()) ? 
 		FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal : 
 		FDecalRenderingCommon::RTM_SceneColor;
 
-	auto* PassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
-	PassParameters->View = View.GetShaderParameters();
-	PassParameters->RenderTargets = BasePassRenderTargets;
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-	GraphBuilder.AddPass(RDG_EVENT_NAME("MeshDecalsPass"), PassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[RenderTargetMode, &View](FRHICommandList& RHICmdList)
+	DrawDynamicMeshPass(View, RHICmdList, [&View, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 	{
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		FMeshDecalMeshProcessor PassMeshProcessor(
+			View.Family->Scene->GetRenderScene(),
+			&View,
+			DRS_Mobile,
+			RenderTargetMode,
+			DynamicMeshPassContext);
 
-		DrawDynamicMeshPass(View, RHICmdList, [&View, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+		for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)
 		{
-			FMeshDecalMeshProcessor PassMeshProcessor(
-				View.Family->Scene->GetRenderScene(),
-				&View,
-				DRS_Mobile,
-				RenderTargetMode,
-				DynamicMeshPassContext);
+			const FMeshBatch* Mesh = View.MeshDecalBatches[MeshBatchIndex].Mesh;
+			const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.MeshDecalBatches[MeshBatchIndex].Proxy;
+			const uint64 DefaultBatchElementMask = ~0ull;
 
-			for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)
-			{
-				const FMeshBatch* Mesh = View.MeshDecalBatches[MeshBatchIndex].Mesh;
-				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.MeshDecalBatches[MeshBatchIndex].Proxy;
-				const uint64 DefaultBatchElementMask = ~0ull;
-
-				PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
-			}
-		}, true);
-	});
+			PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
+		}
+	}, true);
 }

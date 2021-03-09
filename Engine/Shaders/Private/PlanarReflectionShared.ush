@@ -72,3 +72,16 @@ half4 ComputePlanarReflections(float3 WorldPosition, half3 WorldNormal, half Rou
 
 	return OutPlanarReflection;
 }
+
+#if (FEATURE_LEVEL <= FEATURE_LEVEL_ES3_1)
+half4 GetPlanarReflection(float3 WorldPosition, half3 WorldNormal, half Roughness)
+{
+	half4 PlanarReflection = ComputePlanarReflections(WorldPosition, WorldNormal, Roughness, PlanarReflectionStruct.PlanarReflectionSampler);
+#if OUTPUT_GAMMA_SPACE
+	// the capture will also be in gamma space, convert to linear:
+	PlanarReflection.rgb *= PlanarReflection.rgb;
+#endif
+
+	return PlanarReflection;
+}
+#endif

@@ -3755,9 +3755,6 @@ FRendererModule::FRendererModule()
 	static auto CVarVertexDeformationOutputsVelocity = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VertexDeformationOutputsVelocity"));
 	CVarVertexDeformationOutputsVelocity->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
 
-	static auto MobilePixelProjectedReflectionQualityCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.PixelProjectedReflectionQuality"));
-	MobilePixelProjectedReflectionQualityCVar->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnChangeCVarRequiringRecreateRenderState));
-
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void InitDebugViewModeInterfaces();
 	InitDebugViewModeInterfaces();

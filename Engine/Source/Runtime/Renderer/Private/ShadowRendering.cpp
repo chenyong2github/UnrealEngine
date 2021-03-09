@@ -1110,152 +1110,205 @@ void FProjectedShadowInfo::RenderProjection(
 		ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, *View, *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
 	}
 
+	const FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;
+
 	GraphBuilder.AddPass(
 		RDG_EVENT_NAME("%s", *EventName),
 		PassParameters,
 		ERDGPassFlags::Raster | PassFlags,
-		[this, SceneRender, View, ViewIndex, LightSceneProxy, HairVisibilityData, bProjectingForForwardShading, bMobileModulatedProjections, PassParameters](FRHICommandListImmediate& RHICmdList)
+		[this, SceneRender, View, ViewIndex, LightSceneProxy, HairVisibilityData, bProjectingForForwardShading, bMobileModulatedProjections, &InstanceCullingDrawParams](FRHICommandListImmediate& RHICmdList)
 	{
-		RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
-		LightSceneProxy->SetScissorRect(RHICmdList, *View, View->ViewRect);
+		RenderProjectionInternal(RHICmdList, ViewIndex, View, LightSceneProxy, SceneRender, bProjectingForForwardShading, bMobileModulatedProjections, HairVisibilityData, InstanceCullingDrawParams);
+	});
+}
 
-		FScopeCycleCounter Scope(bWholeSceneShadow ? GET_STATID(STAT_RenderWholeSceneShadowProjectionsTime) : GET_STATID(STAT_RenderPerObjectShadowProjectionsTime));
+void FProjectedShadowInfo::RenderProjectionInternal(
+	FRHICommandListImmediate& RHICmdList,
+	int32 ViewIndex,
+	const FViewInfo* View,
+	const FLightSceneProxy* LightSceneProxy,
+	const FSceneRenderer* SceneRender,
+	bool bProjectingForForwardShading,
+	bool bMobileModulatedProjections,
+	const FHairStrandsVisibilityData* HairVisibilityData,
+	const FInstanceCullingDrawParams& InstanceCullingDrawParams) const
+{
+	RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
+	LightSceneProxy->SetScissorRect(RHICmdList, *View, View->ViewRect);
 
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+	FScopeCycleCounter Scope(bWholeSceneShadow ? GET_STATID(STAT_RenderWholeSceneShadowProjectionsTime) : GET_STATID(STAT_RenderPerObjectShadowProjectionsTime));
 
-		FPlane OutFrustmPlanes[6];
-		bool bCameraInsideShadowFrustum;
-		TArray<FVector4, TInlineAllocator<8>> FrustumVertices;
-		SetupFrustumForProjection(View, FrustumVertices, bCameraInsideShadowFrustum, OutFrustmPlanes);
+	FGraphicsPipelineStateInitializer GraphicsPSOInit;
+	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
 
-		const bool bSubPixelSupport = HairVisibilityData != nullptr;
-		const bool bStencilTestEnabled = !bSubPixelSupport && GShadowStencilCulling;
-		const bool bDepthBoundsTestEnabled = IsWholeSceneDirectionalShadow() && GSupportsDepthBoundsTest && CVarCSMDepthBoundsTest.GetValueOnRenderThread() != 0 && !bSubPixelSupport;
+	FPlane OutFrustmPlanes[6];
+	bool bCameraInsideShadowFrustum;
+	TArray<FVector4, TInlineAllocator<8>> FrustumVertices;
+	SetupFrustumForProjection(View, FrustumVertices, bCameraInsideShadowFrustum, OutFrustmPlanes);
 
-		if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
+	const bool bSubPixelSupport = HairVisibilityData != nullptr;
+	const bool bStencilTestEnabled = !bSubPixelSupport && GShadowStencilCulling;
+	const bool bDepthBoundsTestEnabled = IsWholeSceneDirectionalShadow() && GSupportsDepthBoundsTest && CVarCSMDepthBoundsTest.GetValueOnRenderThread() != 0 && !bSubPixelSupport;
+
+	if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
+	{
+		SetupProjectionStencilMask(RHICmdList, View, ViewIndex, SceneRender, FrustumVertices, bMobileModulatedProjections, bCameraInsideShadowFrustum, InstanceCullingDrawParams);
+	}
+
+	// solid rasterization w/ back-face culling.
+	GraphicsPSOInit.RasterizerState = (View->bReverseCulling || IsWholeSceneDirectionalShadow()) ? TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI() : TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI();
+
+	GraphicsPSOInit.bDepthBounds = bDepthBoundsTestEnabled;
+	if (bDepthBoundsTestEnabled)
+	{
+		// no depth test or writes
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+	}
+	else if (bStencilTestEnabled)
+	{
+		if (GStencilOptimization)
 		{
-			SetupProjectionStencilMask(RHICmdList, View, ViewIndex, SceneRender, FrustumVertices, bMobileModulatedProjections, bCameraInsideShadowFrustum, PassParameters->InstanceCullingDrawParams);
+			// No depth test or writes, zero the stencil
+			// Note: this will disable hi-stencil on many GPUs, but still seems 
+			// to be faster. However, early stencil still works 
+			GraphicsPSOInit.DepthStencilState =
+				TStaticDepthStencilState<
+				false, CF_Always,
+				true, CF_NotEqual, SO_Zero, SO_Zero, SO_Zero,
+				false, CF_Always, SO_Zero, SO_Zero, SO_Zero,
+				ShadowStencilMask, ShadowStencilMask
+				>::GetRHI();
+		}
+		else
+		{
+			// no depth test or writes, Test stencil for non-zero.
+			GraphicsPSOInit.DepthStencilState =
+				TStaticDepthStencilState<
+				false, CF_Always,
+				true, CF_NotEqual, SO_Keep, SO_Keep, SO_Keep,
+				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+				ShadowStencilMask, ShadowStencilMask
+				>::GetRHI();
+		}
+	}
+	else
+	{
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_DepthFartherOrEqual>::GetRHI();
+	}
+
+	GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, bMobileModulatedProjections);
+
+	GraphicsPSOInit.PrimitiveType = IsWholeSceneDirectionalShadow() ? PT_TriangleStrip : PT_TriangleList;
+
+	{
+		uint32 LocalQuality = GetShadowQuality();
+
+		if (LocalQuality > 1)
+		{
+			if (IsWholeSceneDirectionalShadow() && CascadeSettings.ShadowSplitIndex > 0)
+			{
+				// adjust kernel size so that the penumbra size of distant splits will better match up with the closer ones
+				const float SizeScale = CascadeSettings.ShadowSplitIndex / FMath::Max(0.001f, CVarCSMSplitPenumbraScale.GetValueOnRenderThread());
+			}
+			else if (LocalQuality > 2 && !bWholeSceneShadow)
+			{
+				static auto CVarPreShadowResolutionFactor = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.PreShadowResolutionFactor"));
+				const int32 TargetResolution = bPreShadow ? FMath::TruncToInt(512 * CVarPreShadowResolutionFactor->GetValueOnRenderThread()) : 512;
+
+				int32 Reduce = 0;
+
+				{
+					int32 Res = ResolutionX;
+
+					while (Res < TargetResolution)
+					{
+						Res *= 2;
+						++Reduce;
+					}
+				}
+
+				// Never drop to quality 1 due to low resolution, aliasing is too bad
+				LocalQuality = FMath::Clamp((int32)LocalQuality - Reduce, 3, 5);
+			}
 		}
 
-		// solid rasterization w/ back-face culling.
-		GraphicsPSOInit.RasterizerState = (View->bReverseCulling || IsWholeSceneDirectionalShadow()) ? TStaticRasterizerState<FM_Solid, CM_CCW>::GetRHI() : TStaticRasterizerState<FM_Solid, CM_CW>::GetRHI();
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
+		BindShadowProjectionShaders(LocalQuality, RHICmdList, GraphicsPSOInit, ViewIndex, *View, HairVisibilityData, this, bMobileModulatedProjections);
 
-		GraphicsPSOInit.bDepthBounds = bDepthBoundsTestEnabled;
 		if (bDepthBoundsTestEnabled)
 		{
-			// no depth test or writes
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+			SetDepthBoundsTest(RHICmdList, CascadeSettings.SplitNear, CascadeSettings.SplitFar, View->ViewMatrices.GetProjectionMatrix());
 		}
-		else if (bStencilTestEnabled)
+
+		RHICmdList.SetStencilRef(0);
+	}
+
+	if (IsWholeSceneDirectionalShadow())
+	{
+		RHICmdList.SetStreamSource(0, GClearVertexBuffer.VertexBufferRHI, 0);
+		RHICmdList.DrawPrimitive(0, 2, 1);
+	}
+	else
+	{
+		FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoFrustum"));
+		FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
+		void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
+		FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
+		RHIUnlockBuffer(VertexBufferRHI);
+
+		RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
+		// Draw the frustum using the projection shader..
+		RHICmdList.DrawIndexedPrimitive(GCubeIndexBuffer.IndexBufferRHI, 0, 0, 8, 0, 12, 1);
+		VertexBufferRHI.SafeRelease();
+	}
+
+	if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
+	{
+		// Clear the stencil buffer to 0.
+		if (!GStencilOptimization)
 		{
-			if (GStencilOptimization)
-			{
-				// No depth test or writes, zero the stencil
-				// Note: this will disable hi-stencil on many GPUs, but still seems 
-				// to be faster. However, early stencil still works 
-				GraphicsPSOInit.DepthStencilState =
-					TStaticDepthStencilState<
-					false, CF_Always,
-					true, CF_NotEqual, SO_Zero, SO_Zero, SO_Zero,
-					false, CF_Always, SO_Zero, SO_Zero, SO_Zero,
-					ShadowStencilMask, ShadowStencilMask
-					>::GetRHI();
-			}
-			else
-			{
-				// no depth test or writes, Test stencil for non-zero.
-				GraphicsPSOInit.DepthStencilState =
-					TStaticDepthStencilState<
-					false, CF_Always,
-					true, CF_NotEqual, SO_Keep, SO_Keep, SO_Keep,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					ShadowStencilMask, ShadowStencilMask
-					>::GetRHI();
-			}
+			DrawClearQuad(RHICmdList, false, FLinearColor::Transparent, false, 0, true, 0);
 		}
-		else
+	}
+
+	RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+}
+
+void FProjectedShadowInfo::RenderMobileModulatedShadowProjection(
+	FRHICommandListImmediate& RHICmdList,
+	int32 ViewIndex,
+	const FViewInfo* View,
+	const FLightSceneProxy* LightSceneProxy,
+	const FSceneRenderer* SceneRender) const
+{
+	// Find the shadow's view relevance.
+	const FVisibleLightViewInfo& VisibleLightViewInfo = View->VisibleLightInfos[LightSceneInfo->Id];
+	{
+		FPrimitiveViewRelevance ViewRelevance = VisibleLightViewInfo.ProjectedShadowViewRelevanceMap[ShadowId];
+
+		// Don't render shadows for subjects which aren't view relevant.
+		if (ViewRelevance.bShadowRelevance == false)
 		{
-			GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_DepthFartherOrEqual>::GetRHI();
+			return;
 		}
+	}
 
-		GraphicsPSOInit.BlendState = GetBlendStateForProjection(bProjectingForForwardShading, bMobileModulatedProjections);
+	FString EventName;
 
-		GraphicsPSOInit.PrimitiveType = IsWholeSceneDirectionalShadow() ? PT_TriangleStrip : PT_TriangleList;
+#if WANTS_DRAW_MESH_EVENTS
+	if (GetEmitDrawEvents())
+	{
+		GetShadowTypeNameForDrawEvent(EventName);
+	}
+#endif
 
-		{
-			uint32 LocalQuality = GetShadowQuality();
+	const bool bProjectingForForwardShading = false;
+	const bool bMobileModulatedProjections = true;
 
-			if (LocalQuality > 1)
-			{
-				if (IsWholeSceneDirectionalShadow() && CascadeSettings.ShadowSplitIndex > 0)
-				{
-					// adjust kernel size so that the penumbra size of distant splits will better match up with the closer ones
-					const float SizeScale = CascadeSettings.ShadowSplitIndex / FMath::Max(0.001f, CVarCSMSplitPenumbraScale.GetValueOnRenderThread());
-				}
-				else if (LocalQuality > 2 && !bWholeSceneShadow)
-				{
-					static auto CVarPreShadowResolutionFactor = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.Shadow.PreShadowResolutionFactor"));
-					const int32 TargetResolution = bPreShadow ? FMath::TruncToInt(512 * CVarPreShadowResolutionFactor->GetValueOnRenderThread()) : 512;
+	// GPUCULL_TODO, mobile modulated shadow is inside the mobile render pass, probably couldn't work with the GPUCull.
+	FInstanceCullingDrawParams InstanceCullingDrawParams;
 
-					int32 Reduce = 0;
-
-					{
-						int32 Res = ResolutionX;
-
-						while (Res < TargetResolution)
-						{
-							Res *= 2;
-							++Reduce;
-						}
-					}
-
-					// Never drop to quality 1 due to low resolution, aliasing is too bad
-					LocalQuality = FMath::Clamp((int32)LocalQuality - Reduce, 3, 5);
-				}
-			}
-
-			GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GetVertexDeclarationFVector4();
-			BindShadowProjectionShaders(LocalQuality, RHICmdList, GraphicsPSOInit, ViewIndex, *View, HairVisibilityData, this, bMobileModulatedProjections);
-
-			if (bDepthBoundsTestEnabled)
-			{
-				SetDepthBoundsTest(RHICmdList, CascadeSettings.SplitNear, CascadeSettings.SplitFar, View->ViewMatrices.GetProjectionMatrix());
-			}
-
-			RHICmdList.SetStencilRef(0);
-		}
-
-		if (IsWholeSceneDirectionalShadow())
-		{
-			RHICmdList.SetStreamSource(0, GClearVertexBuffer.VertexBufferRHI, 0);
-			RHICmdList.DrawPrimitive(0, 2, 1);
-		}
-		else
-		{
-			FRHIResourceCreateInfo CreateInfo(TEXT("FProjectedShadowInfoFrustum"));
-			FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector4) * FrustumVertices.Num(), BUF_Volatile, CreateInfo);
-			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector4) * FrustumVertices.Num(), RLM_WriteOnly);
-			FPlatformMemory::Memcpy(VoidPtr, FrustumVertices.GetData(), sizeof(FVector4) * FrustumVertices.Num());
-			RHIUnlockBuffer(VertexBufferRHI);
-
-			RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
-			// Draw the frustum using the projection shader..
-			RHICmdList.DrawIndexedPrimitive(GCubeIndexBuffer.IndexBufferRHI, 0, 0, 8, 0, 12, 1);
-			VertexBufferRHI.SafeRelease();
-		}
-
-		if (!bDepthBoundsTestEnabled && bStencilTestEnabled)
-		{
-			// Clear the stencil buffer to 0.
-			if (!GStencilOptimization)
-			{
-				DrawClearQuad(RHICmdList, false, FLinearColor::Transparent, false, 0, true, 0);
-			}
-		}
-
-		RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-	});
+	RenderProjectionInternal(RHICmdList, ViewIndex, View, LightSceneProxy, SceneRender, bProjectingForForwardShading, bMobileModulatedProjections, nullptr, InstanceCullingDrawParams);
 }
 
 template <uint32 Quality, bool bUseTransmission, bool bUseSubPixel>
@@ -2202,7 +2255,7 @@ void FDeferredShadingSceneRenderer::RenderDeferredShadowProjections(
 	}
 }
 
-void FMobileSceneRenderer::RenderModulatedShadowProjections(FRDGBuilder& GraphBuilder, TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures)
+void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const FViewInfo& View)
 {
 	if (IsSimpleForwardShadingEnabled(ShaderPlatform) || !ViewFamily.EngineShowFlags.DynamicShadows)
 	{
@@ -2211,11 +2264,8 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRDGBuilder& GraphBu
 
 	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderModulatedShadowProjections, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);
-	RDG_EVENT_SCOPE(GraphBuilder, "ShadowProjectionOnOpaque");
-	RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowProjection);
-
-	FShadowProjectionPassParameters CommonPassParameters;
-	CommonPassParameters.SceneTextures.MobileSceneTextures = MobileSceneTextures;
+	SCOPED_DRAW_EVENT(RHICmdList, ShadowProjectionOnOpaque);
+	SCOPED_GPU_STAT(RHICmdList, ShadowProjection);
 
 	// render shadowmaps for relevant lights.
 	for (TSparseArray<FLightSceneInfoCompact>::TConstIterator LightIt(Scene->Lights); LightIt; ++LightIt)
@@ -2229,17 +2279,29 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRDGBuilder& GraphBu
 			const FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
 
 			if (VisibleLightInfo.ShadowsToProject.Num() > 0)
-			{
-				const bool bProjectingForForwardShading = false;
-				const bool bMobileModulatedProjections = true;
-				RenderShadowProjections(
-					GraphBuilder,
-					CommonPassParameters,
-					LightSceneProxy,
-					nullptr,
-					VisibleLightInfo.ShadowsToProject,
-					bProjectingForForwardShading,
-					bMobileModulatedProjections);
+			{			
+				LightSceneProxy->SetScissorRect(RHICmdList, View, View.ViewRect);
+
+				const FHairStrandsVisibilityData* HairVisibilityData = nullptr;
+				const FHairStrandsMacroGroupDatas* HairMacroGroupData = nullptr;
+
+				TArrayView<const FProjectedShadowInfo* const> Shadows = VisibleLightInfo.ShadowsToProject;
+
+				// Project the shadow depth buffers onto the scene.
+				for (const FProjectedShadowInfo* ProjectedShadowInfo : Shadows)
+				{
+					if (ProjectedShadowInfo->bAllocated)
+					{
+						// Only project the shadow if it's large enough in this particular view (split screen, etc... may have shadows that are large in one view but irrelevantly small in others)
+						if (ProjectedShadowInfo->FadeAlphas[ViewIndex] > 1.0f / 256.0f)
+						{
+							checkSlow(!ProjectedShadowInfo->bOnePassPointLightShadow);
+							ProjectedShadowInfo->RenderMobileModulatedShadowProjection(RHICmdList, ViewIndex, &View, LightSceneProxy, this);
+						}
+					}
+				}
+
+				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 			}
 		}
 	}

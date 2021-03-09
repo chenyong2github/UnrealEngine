@@ -8,6 +8,7 @@
 #include "MobileShadingModels.ush"
 #include "IESLightProfilesCommon.ush"
 #include "LightFunctionCommon.ush"
+#include "PlanarReflectionShared.ush"
 
 #if APPLY_SKY_REFLECTION
 #define ENABLE_SKY_LIGHT 1
@@ -238,6 +239,8 @@ void MobileDirectLightPS(
 	float4 SvPosition : SV_POSITION, 
 	out HALF4_TYPE OutColor : SV_Target0)
 {
+	ResolvedView = ResolveView();
+
 	FGBufferData GBuffer = (FGBufferData)0;
 	float SceneDepth = 0; 
 	{
@@ -313,6 +316,14 @@ void MobileDirectLightPS(
 		DataStartIndex,
 		0,
 		true);
+
+	BRANCH
+	if (abs(dot(PlanarReflectionStruct.ReflectionPlane.xyz, 1)) > .0001f)
+	{
+		half4 PlanarReflection = GetPlanarReflection(WorldPosition, GBuffer.WorldNormal, GBuffer.Roughness);
+		// Planar reflections win over reflection environment
+		SpecularIBL = lerp(SpecularIBL, PlanarReflection.rgb, PlanarReflection.a);
+	}
 		
 	Color += SpecularIBL * ShadingModelContext.SpecularColor;
 #elif APPLY_SKY_REFLECTION

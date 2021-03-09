@@ -136,17 +136,6 @@ int NumDynamicPointLights;
 #endif
 
 #if !FULLY_ROUGH
-half4 GetPlanarReflection(float3 WorldPosition, half3 WorldNormal, half Roughness)
-{
-	half4 PlanarReflection = ComputePlanarReflections(WorldPosition, WorldNormal, Roughness, PlanarReflectionStruct.PlanarReflectionSampler);
-#if OUTPUT_GAMMA_SPACE
-	// the capture will also be in gamma space, convert to linear:
-	PlanarReflection.rgb *= PlanarReflection.rgb;
-#endif
-
-	return PlanarReflection;
-}
-
 // Half precision version for mobile's high quality reflection
 half MobileComputeMixingWeight(half IndirectIrradiance, half AverageBrightness, half Roughness)
 {
@@ -732,6 +721,9 @@ void Main(
 
 	half Shadow = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters).r;
 
+	// Apply MaterialAO to Color since we don't have the DiffuseIndirectComposite pass on mobile deferred.
+	Color *= MaterialAO;
+
 #if DEFERRED_SHADING_PATH
 	float4 OutGBufferD;
 	float4 OutGBufferE;
@@ -758,8 +750,7 @@ void Main(
 	half3 DiffuseLookup = SkyDiffuseLighting * ResolvedView.SkyLightColor.rgb;
 	IndirectIrradiance += Luminance(DiffuseLookup);
 #endif
-			
-	Color *= MaterialAO;
+
 	IndirectIrradiance *= MaterialAO;
 
 	float  ShadowPositionZ = 0;

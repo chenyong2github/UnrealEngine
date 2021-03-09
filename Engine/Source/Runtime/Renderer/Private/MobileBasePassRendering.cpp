@@ -43,7 +43,9 @@ static TAutoConsoleVariable<int32> CVarMobileMaxVisibleMovableSpotLightsShadow(
 	TEXT("The max number of visible spotlighs can cast shadow sorted by screen size, should be as less as possible for performance reason"),
 	ECVF_RenderThreadSafe);
 
-IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileBasePassUniformParameters, "MobileBasePass", SceneTextures);
+// Specify a unique slot for mobile base pass because some rendering in the mobile base pass (e.g. modulated shadow and ViewExtensions) use SceneTextures uniform buffer, but the SceneTextures uniform buffer and MobileBasePass uniform buffer share the same slot
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(MobileBasePass);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileBasePassUniformParameters, "MobileBasePass", MobileBasePass);
 
 static TAutoConsoleVariable<int32> CVarMobileUseHWsRGBEncoding(
 	TEXT("r.Mobile.UseHWsRGBEncoding"),
@@ -142,6 +144,7 @@ void SetupMobileBasePassUniformParameters(
 	const FViewInfo& View,
 	EMobileBasePass BasePass,
 	FRDGTextureRef ScreenSpaceAOTexture,
+	FTextureRHIRef PixelProjectedReflectionTexture,
 	FMobileBasePassUniformParameters& BasePassParameters)
 {
 	SetupFogUniformParameters(GraphBuilder, View, BasePassParameters.Fog);
@@ -167,32 +170,15 @@ void SetupMobileBasePassUniformParameters(
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;
 	BasePassParameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
-	if (GPixelProjectedReflectionMobileOutputs.IsValid())
+	if (PixelProjectedReflectionTexture.IsValid())
 	{
-		if (BasePass == EMobileBasePass::Translucent)
-		{
-			BasePassParameters.PlanarReflection.PlanarReflectionTexture = GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture->GetRenderTargetItem().ShaderResourceTexture;
-			if (GetMobilePixelProjectedReflectionQuality() <= EMobilePixelProjectedReflectionQuality::BestPerformance)
-			{
-				// We only render the meshes used for pixel projected reflection once and it could cause color bleeding artifact if we use bilinear filter.
-				BasePassParameters.PlanarReflection.PlanarReflectionSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			}
-			else
-			{
-				// We render the meshes used for pixel projected reflection twice, so we could use bilinear filter.
-				BasePassParameters.PlanarReflection.PlanarReflectionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			}
-		}
-		else
-		{
-			// Clear the ReflectionPlane to skip planar reflection on opaque mesh when the PPR is enabled because we render the reflection meshes used for pixel projected reflection in the translucent pass.
-			BasePassParameters.PlanarReflection.ReflectionPlane.Set(0.0f, 0.0f, 0.0f, 0.0f);
-		}
+		BasePassParameters.PlanarReflection.PlanarReflectionTexture = PixelProjectedReflectionTexture;
+		BasePassParameters.PlanarReflection.PlanarReflectionSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
 	BasePassParameters.EyeAdaptationBuffer = GraphBuilder.CreateSRV(GetEyeAdaptationBuffer(GraphBuilder, View), PF_A32B32G32R32F);
 
-	if (BasePass == EMobileBasePass::Opaque && HasBeenProduced(ScreenSpaceAOTexture))
+	if (BasePass == EMobileBasePass::Opaque && ScreenSpaceAOTexture != nullptr)
 	{
 		BasePassParameters.AmbientOcclusionTexture = ScreenSpaceAOTexture;
 	}
@@ -222,10 +208,11 @@ TRDGUniformBufferRef<FMobileBasePassUniformParameters> CreateMobileBasePassUnifo
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	EMobileBasePass BasePass,
-	FRDGTextureRef ScreenSpaceAO)
+	FRDGTextureRef ScreenSpaceAO,
+	FTextureRHIRef PixelProjectedReflectionTexture)
 {
 	FMobileBasePassUniformParameters* BasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassUniformParameters>();
-	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, ScreenSpaceAO, *BasePassParameters);
+	SetupMobileBasePassUniformParameters(GraphBuilder, View, BasePass, ScreenSpaceAO, PixelProjectedReflectionTexture, *BasePassParameters);
 	return GraphBuilder.CreateUniformBuffer(BasePassParameters);
 }
 
@@ -312,57 +299,27 @@ void SetupMobileSkyReflectionUniformParameters(FSkyLightSceneProxy* SkyLight, FM
 	Parameters.TextureSampler = CaptureTexture->SamplerStateRHI;
 }
 
-void FMobileSceneRenderer::RenderMobileBasePass(
-	FRDGBuilder& GraphBuilder,
-	FRenderTargetBindingSlots& BasePassRenderTargets,
-	const TArrayView<const FViewInfo> PassViews,
-	FRDGTextureRef ScreenSpaceAO)
+void FMobileSceneRenderer::RenderMobileBasePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderBasePass);
-	RDG_EVENT_SCOPE(GraphBuilder, "MobileBasePass");
+	SCOPED_DRAW_EVENT(RHICmdList, MobileBasePass);
 	SCOPE_CYCLE_COUNTER(STAT_BasePassDrawTime);
-	RDG_GPU_STAT_SCOPE(GraphBuilder, Basepass);
+	SCOPED_GPU_STAT(RHICmdList, Basepass);
 
-	for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
+	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
+	View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList);
+
+	if (View.Family->EngineShowFlags.Atmosphere)
 	{
-		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-		const FViewInfo& View = PassViews[ViewIndex];
-		if (!View.ShouldRenderView())
-		{
-			continue;
-		}
-
-		View.BeginRenderView();
-
-		UpdateDirectionalLightUniformBuffers(GraphBuilder, View);
-
-		auto* OpaqueBasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
-		OpaqueBasePassParameters->View = View.GetShaderParameters();
-		OpaqueBasePassParameters->RenderTargets = BasePassRenderTargets;
-		OpaqueBasePassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Opaque, ScreenSpaceAO);
-
-		GraphBuilder.AddPass(RDG_EVENT_NAME("RenderOpaqueBasePass"), OpaqueBasePassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-			[this, &View, OpaqueBasePassParameters](FRHICommandListImmediate& RHICmdList)
-		{
-			RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-			View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList);
-		
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
-		View.ParallelMeshDrawCommandPasses[EMeshPass::BasePass].DispatchDraw(nullptr, RHICmdList);
-		
-		if (View.Family->EngineShowFlags.Atmosphere)
-		{
-			View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList);
-		}
-
-		// editor primitives
-		FMeshPassProcessorRenderState DrawRenderState;
-		DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA>::GetRHI());
-		DrawRenderState.SetDepthStencilAccess(Scene->DefaultBasePassDepthStencilAccess);
-		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
-		RenderMobileEditorPrimitives(RHICmdList, View, DrawRenderState);
-		});
+		View.ParallelMeshDrawCommandPasses[EMeshPass::SkyPass].DispatchDraw(nullptr, RHICmdList);
 	}
+
+	// editor primitives
+	FMeshPassProcessorRenderState DrawRenderState;
+	DrawRenderState.SetBlendState(TStaticBlendStateWriteMask<CW_RGBA>::GetRHI());
+	DrawRenderState.SetDepthStencilAccess(Scene->DefaultBasePassDepthStencilAccess);
+	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
+	RenderMobileEditorPrimitives(RHICmdList, View, DrawRenderState);
 }
 
 void FMobileSceneRenderer::RenderMobileEditorPrimitives(FRHICommandList& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState)

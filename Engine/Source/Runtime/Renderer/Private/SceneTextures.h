@@ -58,6 +58,9 @@ struct RENDERER_API FSceneTexturesConfig
 	// Extent of all full-resolution textures.
 	FIntPoint Extent = FIntPoint::ZeroValue;
 
+	// Extend of the mobile Pixel Projected Reflection texture
+	FIntPoint MobilePixelProjectedReflectionExtent = FIntPoint::ZeroValue;
+
 	// Downsample factors to divide against the full resolution texture extent.
 	uint32 SmallDepthDownsampleFactor = 2;
 	uint32 CustomDepthDownsampleFactor = 1;
@@ -161,7 +164,7 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 	// (Mobile Deferred) Additional GBuffer texture used by mobile
 	FRDGTextureRef DepthAux{};
 
-	// (Deferred) Texture containing dynamic motion vectors. Can be bound by the base pass or its own velocity pass.
+	// Texture containing dynamic motion vectors. Can be bound by the base pass or its own velocity pass.
 	FRDGTextureRef Velocity{};
 
 	// Texture containing the screen space ambient occlusion result.
@@ -172,6 +175,9 @@ struct RENDERER_API FSceneTextures : public FMinimalSceneTextures
 
 	// Texture used to control shading rate for rendering.
 	FRDGTextureRef ShadingRate{};
+
+	// (Mobile) Texture used by mobile PPR in the next frame.
+	FRDGTextureRef PixelProjectedReflection{};
 
 	// Textures used to composite editor primitives. Also used by the base pass when in wireframe mode.
 #if WITH_EDITOR

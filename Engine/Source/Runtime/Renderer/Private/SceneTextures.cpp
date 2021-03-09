@@ -16,6 +16,8 @@
 #include "PostProcessCompositeEditorPrimitives.h"
 #include "ShaderCompiler.h"
 #include "SystemTextures.h"
+#include "PostProcess/PostProcessAmbientOcclusionMobile.h"
+#include "PostProcess/PostProcessPixelProjectedReflectionMobile.h"
 
 static TAutoConsoleVariable<int32> CVarSceneTargetsResizeMethod(
 	TEXT("r.SceneRenderTargetResizeMethod"),
@@ -702,6 +704,11 @@ FSceneTextures& FSceneTextures::Create(FRDGBuilder& GraphBuilder, const FSceneTe
 	{
 		// Mobile Screen Space Ambient Occlusion
 		SceneTextures.ScreenSpaceAO = CreateMobileScreenSpaceAOTexture(GraphBuilder, Config.Extent);
+
+		if (Config.MobilePixelProjectedReflectionExtent != FIntPoint::ZeroValue)
+		{
+			SceneTextures.PixelProjectedReflection = CreateMobilePixelProjectedReflectionTexture(GraphBuilder, Config.MobilePixelProjectedReflectionExtent);
+		}
 	}
 
 	// Velocity

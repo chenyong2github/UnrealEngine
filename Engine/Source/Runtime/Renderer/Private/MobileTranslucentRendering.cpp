@@ -31,48 +31,16 @@
 #include "MeshPassProcessor.inl"
 #include "ClearQuad.h"
 
-void FMobileSceneRenderer::RenderTranslucency(FRDGBuilder& GraphBuilder, FRenderTargetBindingSlots& BasePassRenderTargets, const TArrayView<const FViewInfo> PassViews, FRDGTextureRef ScreenSpaceAO)
+void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const EMeshPass::Type TranslucencyMeshPass)
 {
-	ETranslucencyPass::Type TranslucencyPass = 
-		ViewFamily.AllowTranslucencyAfterDOF() ? ETranslucencyPass::TPT_StandardTranslucency : ETranslucencyPass::TPT_AllTranslucency;
-		
-	if (ShouldRenderTranslucency(TranslucencyPass))
+	SCOPED_DRAW_EVENT(RHICmdList, Translucency);
+	SCOPED_GPU_STAT(RHICmdList, Translucency);
+
+	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+	if (!View.Family->UseDebugViewPS())
 	{
-		RDG_EVENT_SCOPE(GraphBuilder, "Translucency");
-		RDG_GPU_STAT_SCOPE(GraphBuilder, Translucency);
-
-		for (int32 ViewIndex = 0; ViewIndex < PassViews.Num(); ViewIndex++)
-		{
-			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
-
-			const FViewInfo& View = PassViews[ViewIndex];
-			if (!View.ShouldRenderView())
-			{
-				continue;
-			}
-
-			// GPUCULL_TODO: View.ParallelMeshDrawCommandPasses[MeshPass].BuildRenderingCommands(GraphBuilder, Scene->GPUScene);
-
-			View.BeginRenderView();
-			UpdateDirectionalLightUniformBuffers(GraphBuilder, View);
-
-			auto* TranslucencyBasePassParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
-			TranslucencyBasePassParameters->View = View.GetShaderParameters();
-			TranslucencyBasePassParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent, ScreenSpaceAO);
-			TranslucencyBasePassParameters->RenderTargets = BasePassRenderTargets;
-
-			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderTranslucencyBasePass"), TranslucencyBasePassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-				[this, &View, TranslucencyPass](FRHICommandListImmediate& RHICmdList)
-			{
-				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-
-				if (!View.Family->UseDebugViewPS())
-				{
-					const EMeshPass::Type MeshPass = TranslucencyPassToMeshPass(TranslucencyPass);
-					View.ParallelMeshDrawCommandPasses[MeshPass].DispatchDraw(nullptr, RHICmdList);
-				}
-			});
-		}
+		View.ParallelMeshDrawCommandPasses[TranslucencyMeshPass].DispatchDraw(nullptr, RHICmdList);
 	}
 }
 
@@ -85,7 +53,7 @@ void FMobileSceneRenderer::RenderInverseOpacity(FRDGBuilder& GraphBuilder, const
 
 	auto* InverseOpacityParameters = GraphBuilder.AllocParameters<FMobileBasePassParameters>();
 	InverseOpacityParameters->View = View.GetShaderParameters();
-	InverseOpacityParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent, SceneTextures.ScreenSpaceAO);
+	InverseOpacityParameters->MobileBasePass = CreateMobileBasePassUniformBuffer(GraphBuilder, View, EMobileBasePass::Translucent);
 	InverseOpacityParameters->RenderTargets[0] = FRenderTargetBinding(SceneTextures.Color.Target, SceneTextures.Color.Resolve, ERenderTargetLoadAction::EClear);
 	InverseOpacityParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneTextures.Depth.Target, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 	// Opacity could fetch depth as we use exactly the same shaders as in base pass

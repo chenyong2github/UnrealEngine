@@ -18,19 +18,4 @@
 #define PROJECTION_OUTPUT_TYPE PROJECTION_OUTPUT_TYPE_TEXTURE
 #endif
 
-struct FPixelProjectedReflectionMobileOutputs
-{
-	TRefCountPtr<IPooledRenderTarget> PixelProjectedReflectionTexture;
-
-	bool IsValid()
-	{
-		return PixelProjectedReflectionTexture.IsValid();
-	}
-
-	void Release()
-	{
-		PixelProjectedReflectionTexture.SafeRelease();
-	}
-};
-
-extern FPixelProjectedReflectionMobileOutputs GPixelProjectedReflectionMobileOutputs;
+FRDGTextureRef CreateMobilePixelProjectedReflectionTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent);

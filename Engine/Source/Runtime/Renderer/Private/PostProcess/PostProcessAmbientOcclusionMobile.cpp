@@ -501,6 +501,7 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("AmbientOcclusion_HorizonSearchIntegralSpatialFilter %dx%d (CS)", ViewRect.Width(), ViewRect.Height()),
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				ComputeShader,
 				HorizonSearchIntegralSpatialFilterParameters,
 				FComputeShaderUtils::GetGroupCount(ViewRect.Size(), FGTAOMobile_HorizonSearchIntegralSpatialFilterCS::TexelsPerThreadGroup));
@@ -524,7 +525,7 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("AmbientOcclusion_HorizonSearchIntegral %dx%d (PS)", ViewRect.Width(), ViewRect.Height()),
 				HorizonSearchIntegralParameters,
-				ERDGPassFlags::Raster,
+				ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
 				[VertexShader, HorizonSearchIntegralShader, HorizonSearchIntegralParameters, ViewRect, BufferSize](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
@@ -570,7 +571,7 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("AmbientOcclusion_SpatialFilter %dx%d (PS)", ViewRect.Width(), ViewRect.Height()),
 				SpatialFilterParameters,
-				ERDGPassFlags::Raster,
+				ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
 				[VertexShader, SpatialFilterShader, SpatialFilterParameters, ViewRect, BufferSize](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
@@ -616,6 +617,7 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("AmbientOcclusion_HorizonSearchIntegral %dx%d (CS)", ViewRect.Width(), ViewRect.Height()),
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				HorizonSearchIntegralShader,
 				HorizonSearchIntegralParameters,
 				FComputeShaderUtils::GetGroupCount(ViewRect.Size(), FGTAOMobile_HorizonSearchIntegralCS::TexelsPerThreadGroup));
@@ -629,9 +631,15 @@ static void RenderGTAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("AmbientOcclusion_SpatialFilter %dx%d (CS)", ViewRect.Width(), ViewRect.Height()),
+				ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 				SpatialFilterShader,
 				SpatialFilterParameters,
 				FComputeShaderUtils::GetGroupCount(ViewRect.Size(), FGTAOMobile_SpatialFilterCS::TexelsPerThreadGroup));
+		}
+
+		if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+		{
+			GraphBuilder.QueueTextureExtraction(AmbientOcclusionTexture, &View.ViewState->PrevFrameViewInfo.MobileAmbientOcclusion);
 		}
 	}
 }
@@ -960,8 +968,6 @@ static void RenderSSAO(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTextu
 // --------------------------------------------------------------------------------------------------------------------
 void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneDepthTexture, FRDGTextureRef AmbientOcclusionTexture)
 {
-	FMemMark Mark(FMemStack::Get());
-
 	const int32 Technique = CVarMobileAmbientOcclusionTechnique.GetValueOnRenderThread();
 	switch (Technique)
 	{
@@ -972,6 +978,4 @@ void FMobileSceneRenderer::RenderAmbientOcclusion(FRDGBuilder& GraphBuilder, FRD
 		RenderSSAO(GraphBuilder, SceneDepthTexture, AmbientOcclusionTexture, Views);
 		break;
 	}
-
-	GraphBuilder.Execute();
 }

@@ -11,6 +11,7 @@
 #include "MobileBasePassRendering.h"
 #include "ScreenPass.h"
 #include "RenderTargetPool.h"
+#include "ScenePrivate.h"
 
 
 static TAutoConsoleVariable<int32> CVarMobilePlanarReflectionMode(
@@ -29,7 +30,7 @@ static TAutoConsoleVariable<int32> CVarMobilePixelProjectedReflectionQuality(
 	TEXT("The quality of pixel projected reflection on mobile platform.\n")
 	TEXT("0: Disabled\n")
 	TEXT("1: Best performance but may have some artifacts in some view angles. [default]\n")
-	TEXT("2: Better quality and reasonable performance and could fix some artifacts, but the PlanarReflection mesh has to render twice.\n")
+	TEXT("2: Better quality and reasonable performance and could fix some artifacts.\n")
 	TEXT("3: Best quality but will be much heavier.\n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
@@ -161,8 +162,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FPixelProjectedReflectionMobile_ReflectionPassPS, "/Engine/Private/PostProcessPixelProjectedReflectionMobile.usf", "ReflectionPassPS", SF_Pixel);
 
-FPixelProjectedReflectionMobileOutputs GPixelProjectedReflectionMobileOutputs;
-
 class FReflectionPlaneVertexDeclaration : public FRenderResource
 {
 public:
@@ -186,19 +185,11 @@ public:
 
 TGlobalResource<FReflectionPlaneVertexDeclaration> GReflectionPlaneVertexDeclaration;
 
-void FMobileSceneRenderer::InitPixelProjectedReflectionOutputs(FRHICommandListImmediate& RHICmdList, const FIntPoint& BufferSize)
+FRDGTextureRef CreateMobilePixelProjectedReflectionTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
 {
-	if (!GPixelProjectedReflectionMobileOutputs.IsValid() || GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture->GetDesc().Extent != BufferSize)
-	{
-		GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture.SafeRelease();
-
-		GRenderTargetPool.FindFreeElement(RHICmdList, FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, false, 1, false), GPixelProjectedReflectionMobileOutputs.PixelProjectedReflectionTexture, TEXT("PixelProjectedReflectionTexture"));
-	}
-}
-
-void FMobileSceneRenderer::ReleasePixelProjectedReflectionOutputs()
-{
-	GPixelProjectedReflectionMobileOutputs.Release();
+	return GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2D(Extent, PF_FloatRGBA, FClearValueBinding::Transparent, TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV),
+		TEXT("PixelProjectedReflectionTexture"));
 }
 
 void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture, FRDGTextureRef PixelProjectedReflectionTexture, const FPlanarReflectionSceneProxy* PlanarReflectionSceneProxy)
@@ -247,6 +238,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("PixelProjectedReflection_Projection %dx%d (CS)", ViewRect.Width(), ViewRect.Height()),
+			ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(ViewRect.Size(), FPixelProjectedReflectionMobile_ProjectionPassCS::TexelsPerThreadGroup));
@@ -301,7 +293,7 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("PixelProjectedReflection_Reflection %dx%d (PS)", ViewRect.Width(), ViewRect.Height()),
 			PSShaderParameters,
-			ERDGPassFlags::Raster,
+			ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
 			[VertexShader, VSShaderParameters, PixelShader, PSShaderParameters, ViewRect](FRHICommandList& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
@@ -326,5 +318,10 @@ void FMobileSceneRenderer::RenderPixelProjectedReflection(FRDGBuilder& GraphBuil
 			RHICmdList.SetStreamSource(0, GScreenSpaceVertexBuffer.VertexBufferRHI, 0);
 			RHICmdList.DrawPrimitive(0, 2, 1);
 		});
+
+		if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
+		{
+			GraphBuilder.QueueTextureExtraction(PixelProjectedReflectionTexture, &View.ViewState->PrevFrameViewInfo.MobilePixelProjectedReflection);
+		}
 	}
 }

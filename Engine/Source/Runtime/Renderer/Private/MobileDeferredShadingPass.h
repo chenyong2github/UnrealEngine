@@ -16,9 +16,10 @@ struct FSortedLightSetSceneInfo;
 extern int32 GMobileUseClusteredDeferredShading;
 
 void MobileDeferredShadingPass(
-	FRDGBuilder& GraphBuilder,
-	FRenderTargetBindingSlots& BasePassRenderTargets,
-	TRDGUniformBufferRef<FMobileSceneTextureUniformParameters> MobileSceneTextures,
+	FRHICommandListImmediate& RHICmdList,
+	int32 ViewIndex,
+	int32 NumViews,
+	const FViewInfo& View,
 	const FScene& Scene, 
-	const TArrayView<const FViewInfo> PassViews, 
-	const FSortedLightSetSceneInfo &SortedLightSet);
+	const FSortedLightSetSceneInfo &SortedLightSet,
+	const FTextureRHIRef MobilePixelProjectedReflection);

@@ -253,6 +253,8 @@ public:
 
 	virtual bool ShouldRenderVelocities() const override;
 
+	virtual bool ShouldRenderPrePass() const override;
+
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void RenderVisualizeTexturePool(FRHICommandListImmediate& RHICmdList);
 #endif
