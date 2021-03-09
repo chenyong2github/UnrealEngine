@@ -1,21 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================================
-PointLight.usf: Light sampling functions for Point light implementation
+PathTracingPointLight.ush: Light sampling functions for Point lights
 ===============================================================================================*/
 
 #pragma once
 
 #include "PathTracingLightCommon.ush"
+#include "PathTracingCapsuleLight.ush"
+
 
 float4 PointLight_TraceLight(RayDesc Ray, int LightId, inout float HitT)
 {
+	if (GetSourceLength(LightId) > 0)
+	{
+		return CapsuleLight_TraceLight(Ray, LightId, HitT);
+	}
+
 	float3 LightPosition = GetPosition(LightId);
 	float LightRadius = GetRadius(LightId);
 	float LightRadius2 = Pow2(LightRadius);
-
 	float3 oc = Ray.Origin - LightPosition;
-
 	float LightDistanceSquared = dot(oc, oc);
 
 	// #dxr_todo: switch to numericaly stable ray/sphere test?
@@ -57,34 +62,46 @@ void PointLight_SampleLight(
 	out float3 OutRadianceOverPdf,
 	out float OutPdf)
 {
-	float Radius = GetRadius(LightId);
-
-	// Sample the solid angle subtended by the sphere (which could be singgular, in which case the PDF will be infinite)
 	float3 LightDirection = GetPosition(LightId) - WorldPos;
 	float LightDistanceSquared = dot(LightDirection, LightDirection);
-	float Radius2 = Pow2(Radius);
 
-	// #dxr_todo: come up with a better definition when we are inside the light
-	float SinThetaMax2 = saturate(Radius2 / LightDistanceSquared);
+	if (GetSourceLength(LightId) > 0)
+	{
+		CapsuleLight_SampleLight(LightId, RandSample, WorldPos, WorldNormal, OutDirection, OutDistance, OutRadianceOverPdf, OutPdf);
+	}
+	else
+	{
+		// Point light case
 
-	// #dxr_todo: find a better way of handling the region inside the light than just clamping to 1.0 here
-	float4 DirAndPdf = UniformSampleConeRobust(RandSample.yz, SinThetaMax2);
+		// Sample the solid angle subtended by the sphere (which could be singgular, in which case the PDF will be infinite)
+		float Radius = GetRadius(LightId);
+		float Radius2 = Pow2(Radius);
 
-	float CosTheta = DirAndPdf.z;
-	float SinTheta2 = 1.0 - CosTheta * CosTheta;
+		// #dxr_todo: come up with a better definition when we are inside the light
+		float SinThetaMax2 = saturate(Radius2 / LightDistanceSquared);
 
-	OutDirection = TangentToWorld(DirAndPdf.xyz, normalize(LightDirection));
-	OutDistance = length(LightDirection) * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
+		// #dxr_todo: find a better way of handling the region inside the light than just clamping to 1.0 here
+		float4 DirAndPdf = UniformSampleConeRobust(RandSample.yz, SinThetaMax2);
 
-	OutPdf = DirAndPdf.w;
+		float CosTheta = DirAndPdf.z;
+		float SinTheta2 = 1.0 - CosTheta * CosTheta;
 
-	float3 LightPower = GetColor(LightId) * ComputeIESAttenuation(LightId, WorldPos);
-	float3 LightRadiance = LightPower / (PI * Radius2);
+		OutDirection = TangentToWorld(DirAndPdf.xyz, normalize(LightDirection));
+		OutDistance = length(LightDirection) * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
 
-	// When the angle is very small, Radiance over pdf simplifies even more since SolidAngle ~= PI * SinThetaMax2
-	// Canceling out common factors further leads to the classic Power / D^2 formula
-	OutRadianceOverPdf = SinThetaMax2 < 0.001 ? LightPower / LightDistanceSquared : LightRadiance / OutPdf;
+		OutPdf = DirAndPdf.w;
+
+		float3 LightPower = GetColor(LightId);
+		float3 LightRadiance = LightPower / (PI * Radius2);
+
+		// When the angle is very small, Radiance over pdf simplifies even more since SolidAngle ~= PI * SinThetaMax2
+		// Canceling out common factors further leads to the classic Power / D^2 formula
+		OutRadianceOverPdf = SinThetaMax2 < 0.001 ? LightPower / LightDistanceSquared : LightRadiance / OutPdf;
+	}
+
+	// NOTE: uses distance to center to keep fadeoff mask consistent for all samples
 	OutRadianceOverPdf *= ComputeAttenuationFalloff(LightDistanceSquared, LightId);
+	OutRadianceOverPdf *= ComputeIESAttenuation(LightId, WorldPos);
 }
 
 void PointLight_EstimateLight(
