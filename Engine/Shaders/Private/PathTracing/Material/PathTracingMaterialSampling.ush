@@ -18,6 +18,7 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingDefaultLit.ush"
 #include "PathTracingClearCoat.ush"
 #include "PathTracingTwoSidedFoliage.ush"
+#include "PathTracingCloth.ush"
 
 #ifndef FORCE_ALL_MATERIALS_DIFFUSE
 	#define FORCE_ALL_MATERIALS_DIFFUSE 0
@@ -45,6 +46,7 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 		case SHADINGMODELID_CLEAR_COAT:			
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:	
 		case SHADINGMODELID_THIN_TRANSLUCENT:
+		case SHADINGMODELID_CLOTH:
 		default:
 			return true;
 	}
@@ -133,6 +135,9 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 		case SHADINGMODELID_CLEAR_COAT:
 			// FIXME: could make this more accurate by estimating the directional albedo
 			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor);
+		case SHADINGMODELID_CLOTH:
+			Albedo = BrdfWeight * (Payload.DiffuseColor + lerp(Payload.SpecularColor, Payload.CustomData.xyz, Payload.CustomData.w));
+			break;
 		default:
 			Albedo = BrdfWeight * Payload.BaseColor;
 			break;
@@ -163,6 +168,7 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
 		case SHADINGMODELID_DEFAULT_LIT:
 		case SHADINGMODELID_THIN_TRANSLUCENT:
+		case SHADINGMODELID_CLOTH:
 			Payload.Roughness = max(Payload.Roughness, PathRoughness);
 			break;
 		default:
@@ -278,6 +284,9 @@ void SampleMaterial(
 		case SHADINGMODELID_DEFAULT_LIT:
 			DefaultLit_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
 			break;
+		case SHADINGMODELID_CLOTH:
+			Cloth_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
+			break;
 		case SHADINGMODELID_CLEAR_COAT:
 			ClearCoat_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf);
 			break;
@@ -366,6 +375,9 @@ void EvalMaterial(
 			break;
 		case SHADINGMODELID_DEFAULT_LIT:
 			DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
+			break;
+		case SHADINGMODELID_CLOTH:
+			Cloth_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
 			break;
 		case SHADINGMODELID_CLEAR_COAT:
 			ClearCoat_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, OutWeight, OutPdf);
