@@ -15,9 +15,11 @@
 #pragma warning(disable : 6313)
 #pragma warning(disable : 6294)
 #endif
+PRAGMA_DEFAULT_VISIBILITY_START
 THIRD_PARTY_INCLUDES_START
 #include <Eigen/Dense> // for Matrix4d in testing
 THIRD_PARTY_INCLUDES_END
+PRAGMA_DEFAULT_VISIBILITY_END
 #if defined(_MSC_VER) && USING_CODE_ANALYSIS
 #pragma warning(pop)
 #endif
