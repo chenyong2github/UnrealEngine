@@ -18,10 +18,9 @@ struct FPathTracingLight {
 	FVector dPdv;
 	FVector Color;
 	FVector Dimensions; // Radius,SoftRadius,Length or RectWidth,RectHeight or Sin(Angle/2),Sin(SoftAngle/2) depending on light type
+	FVector2D Shaping;  // Barndoor controls for RectLights, Cone angles for spots lights
 	float   Attenuation;
 	float   FalloffExponent; // for non-inverse square decay lights only
-	float   RectLightBarnCosAngle;
-	float   RectLightBarnLength;
 	int32   IESTextureSlice;
 	uint32  Flags; // see defines above
 
@@ -41,10 +40,9 @@ struct FPathTracingLight {
 	float3  dPdv;
 	float3  Color;
 	float3  Dimensions;
+	float2  Shaping;
 	float   Attenuation;
 	float   FalloffExponent;
-	float   RectLightBarnCosAngle;
-	float   RectLightBarnLength;
 	int     IESTextureSlice;
 	uint    Flags;
 

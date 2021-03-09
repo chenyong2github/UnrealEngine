@@ -41,6 +41,7 @@ FDirectionalLightRenderState::FDirectionalLightRenderState(UDirectionalLightComp
 	Color = DirectionalLightComponent->GetColoredLightBrightness();
 	Direction = DirectionalLightComponent->GetDirection();
 	LightSourceAngle = DirectionalLightComponent->LightSourceAngle;
+	LightSourceSoftAngle = DirectionalLightComponent->LightSourceSoftAngle;
 	ShadowMapChannel = DirectionalLightComponent->PreviewShadowMapChannel;
 }
 
@@ -69,8 +70,15 @@ FPointLightRenderState::FPointLightRenderState(UPointLightComponent* PointLightC
 	bStationary = bCastStationaryShadows;
 	Color = PointLightComponent->GetColoredLightBrightness();
 	Position = PointLightComponent->GetLightPosition();
+	Direction = PointLightComponent->GetDirection();
+	{
+		FMatrix LightToWorld = PointLightComponent->GetComponentTransform().ToMatrixNoScale();
+		Tangent = FVector(LightToWorld.M[2][0], LightToWorld.M[2][1], LightToWorld.M[2][2]);
+	}
 	AttenuationRadius = PointLightComponent->AttenuationRadius;
 	SourceRadius = PointLightComponent->SourceRadius;
+	SourceSoftRadius = PointLightComponent->SoftSourceRadius;
+	SourceLength = PointLightComponent->SourceLength;
 	ShadowMapChannel = PointLightComponent->PreviewShadowMapChannel;
 	FalloffExponent = PointLightComponent->LightFalloffExponent;
 	IsInverseSquared = PointLightComponent->bUseInverseSquaredFalloff;
@@ -143,6 +151,8 @@ FSpotLightRenderState::FSpotLightRenderState(USpotLightComponent* SpotLightCompo
 	}
 	AttenuationRadius = SpotLightComponent->AttenuationRadius;
 	SourceRadius = SpotLightComponent->SourceRadius;
+	SourceSoftRadius = SpotLightComponent->SoftSourceRadius;
+	SourceLength = SpotLightComponent->SourceLength;
 	ShadowMapChannel = SpotLightComponent->PreviewShadowMapChannel;
 	FalloffExponent = SpotLightComponent->LightFalloffExponent;
 	IsInverseSquared = SpotLightComponent->bUseInverseSquaredFalloff;

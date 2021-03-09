@@ -203,6 +203,7 @@ struct FDirectionalLightRenderState : public FLocalLightRenderState
 	FVector Direction;
 	FLinearColor Color;
 	float LightSourceAngle;
+	float LightSourceSoftAngle;
 
 	virtual FLightShaderParameters GetLightShaderParameters() const override;
 };
@@ -214,9 +215,13 @@ struct FPointLightRenderState : public FLocalLightRenderState
 	FPointLightRenderState(UPointLightComponent* PointLightComponent);
 
 	FVector Position;
+	FVector Direction;
+	FVector Tangent;
 	FLinearColor Color;
 	float AttenuationRadius;
 	float SourceRadius;
+	float SourceSoftRadius;
+	float SourceLength;
 	float FalloffExponent;
 	bool IsInverseSquared;
 
@@ -236,6 +241,8 @@ struct FSpotLightRenderState : public FLocalLightRenderState
 	FLinearColor Color;
 	float AttenuationRadius;
 	float SourceRadius;
+	float SourceSoftRadius;
+	float SourceLength;
 	float FalloffExponent;
 	bool IsInverseSquared;
 
