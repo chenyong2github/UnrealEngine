@@ -326,13 +326,13 @@ namespace PyUtil
 	bool CalculatePropertyDef(PyObject* InPyObj, FPropertyDef& OutPropertyDef);
 
 	/** Given a property definition, create a property instance */
-	FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = DefaultPythonPropertyName);
+	FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim = 1, FFieldVariant InOuter = nullptr, const FName InName = DefaultPythonPropertyName);
 
 	/** Given a Python type, create a compatible property instance */
-	FProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = DefaultPythonPropertyName);
+	FProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim = 1, FFieldVariant InOuter = nullptr, const FName InName = DefaultPythonPropertyName);
 
 	/** Given a Python instance, create a compatible property instance */
-	FProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim = 1, UObject* InOuter = nullptr, const FName InName = DefaultPythonPropertyName);
+	FProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim = 1, FFieldVariant InOuter = nullptr, const FName InName = DefaultPythonPropertyName);
 
 	/** Check to see if the given property is an input parameter for a function */
 	bool IsInputParameter(const FProperty* InParam);

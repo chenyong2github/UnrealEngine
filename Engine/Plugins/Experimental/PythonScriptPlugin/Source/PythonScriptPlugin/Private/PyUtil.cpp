@@ -388,7 +388,7 @@ bool CalculatePropertyDef(PyObject* InPyObj, FPropertyDef& OutPropertyDef)
 	return CalculatePropertyDef(PyType_Check(InPyObj) ? (PyTypeObject*)InPyObj : Py_TYPE(InPyObj), OutPropertyDef);
 }
 
-FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim, UObject* InOuter, const FName InName)
+FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArrayDim, FFieldVariant InOuter, const FName InName)
 {
 	check(InArrayDim > 0);
 	FProperty* Prop = CastFieldChecked<FProperty>(InPropertyDef.PropertyClass->Construct(InOuter, InName, RF_NoFlags));
@@ -454,18 +454,18 @@ FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArray
 
 		if (FArrayProperty* ArrayProp = CastField<FArrayProperty>(Prop))
 		{
-			ArrayProp->Inner = CreateProperty(*InPropertyDef.ValueDef, 1, InOuter);
+			ArrayProp->Inner = CreateProperty(*InPropertyDef.ValueDef, 1, ArrayProp);
 		}
 
 		if (FSetProperty* SetProp = CastField<FSetProperty>(Prop))
 		{
-			SetProp->ElementProp = CreateProperty(*InPropertyDef.ValueDef, 1, InOuter);
+			SetProp->ElementProp = CreateProperty(*InPropertyDef.ValueDef, 1, SetProp);
 		}
 
 		if (FMapProperty* MapProp = CastField<FMapProperty>(Prop))
 		{
-			MapProp->KeyProp = CreateProperty(*InPropertyDef.KeyDef, 1, InOuter);
-			MapProp->ValueProp = CreateProperty(*InPropertyDef.ValueDef, 1, InOuter);
+			MapProp->KeyProp = CreateProperty(*InPropertyDef.KeyDef, 1, MapProp);
+			MapProp->ValueProp = CreateProperty(*InPropertyDef.ValueDef, 1, MapProp);
 		}
 
 		// Need to manually call Link to fix-up some data (such as the C++ property flags) that are only set during Link
@@ -478,13 +478,13 @@ FProperty* CreateProperty(const FPropertyDef& InPropertyDef, const int32 InArray
 	return Prop;
 }
 
-FProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim, UObject* InOuter, const FName InName)
+FProperty* CreateProperty(PyTypeObject* InPyType, const int32 InArrayDim, FFieldVariant InOuter, const FName InName)
 {
 	FPropertyDef PropertyDef;
 	return CalculatePropertyDef(InPyType, PropertyDef) ? CreateProperty(PropertyDef, InArrayDim, InOuter, InName) : nullptr;
 }
 
-FProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim, UObject* InOuter, const FName InName)
+FProperty* CreateProperty(PyObject* InPyObj, const int32 InArrayDim, FFieldVariant InOuter, const FName InName)
 {
 	FPropertyDef PropertyDef;
 	return CalculatePropertyDef(InPyObj, PropertyDef) ? CreateProperty(PropertyDef, InArrayDim, InOuter, InName) : nullptr;
