@@ -101,7 +101,7 @@ private:
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BoundObject)
 		.Read(BuiltInComponents->InstanceHandle)
-		.ReadAllOf(PropertyDefinition->MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
+		.ReadAllOf(PropertyDefinition->GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
 		.Read(ComponentType)
 		.FilterAll({ BuiltInComponents->Tags.NeedsLink, PropertyDefinition->PropertyType })
 		.Iterate_PerEntity(&Linker->EntityManager, CacheState);
@@ -119,7 +119,7 @@ private:
 			// Gather outputs that have been changed
 			FEntityTaskBuilder()
 			.Read(BuiltInComponents->BlendChannelOutput)
-			.ReadAllOf(PropertyDefinition->MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
+			.ReadAllOf(PropertyDefinition->GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
 			.Read(ComponentType)
 			.FilterAll({ BuiltInComponents->Tags.NeedsLink, BuiltInComponents->BoundObject, PropertyDefinition->PropertyType })
 			.Iterate_PerEntity(&Linker->EntityManager, [&RelinkedOutputs](uint16 BlendChannel, const MetaDataTypes&... InMetaData, T InComponent) { RelinkedOutputs.Add(BlendChannel, FOutputProperty{ InComponent, MakeTuple( InMetaData... )}); });

@@ -68,6 +68,17 @@ struct FPropertyDefinition
 	FPropertyDefinition(FPropertyDefinition&&) = default;
 	FPropertyDefinition(const FPropertyDefinition&) = delete;
 
+	/**
+	 * Return a typed component ID for the meta data at the specified index.
+	 * Care should obviously be taken here to ensure that the meta data type being used
+	 * matches the TPropertyComponents traits that constructed this property definition.
+	 */
+	template<typename T>
+	TComponentTypeID<T> GetMetaDataComponent(int32 Index) const
+	{
+		return MetaDataTypes[Index].ReinterpretCast<T>();
+	}
+
 	/** Pointer to a custom getter/setter registry for short circuiting the UObject VM. Must outlive this definitions lifetime (usually these are static or singletons) */
 	ICustomPropertyRegistration* CustomPropertyRegistration = nullptr;
 

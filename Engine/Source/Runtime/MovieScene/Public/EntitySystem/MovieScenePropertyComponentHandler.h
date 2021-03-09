@@ -31,7 +31,7 @@ struct TPropertyComponentHandlerImpl;
 
 template<typename PropertyTraits, typename ...CompositeTypes>
 struct TPropertyComponentHandler
-	: TPropertyComponentHandlerImpl<PropertyTraits, typename PropertyTraits::MetaDataType, TMakeIntegerSequence<int32, PropertyTraits::MetaDataType::Num>, TMakeIntegerSequence<int32, sizeof...(CompositeTypes)>, CompositeTypes...>
+	: TPropertyComponentHandlerImpl<PropertyTraits, typename PropertyTraits::MetaDataType, TMakeIntegerSequence<int, PropertyTraits::MetaDataType::Num>, TMakeIntegerSequence<int, sizeof...(CompositeTypes)>, CompositeTypes...>
 {
 };
 
@@ -109,7 +109,7 @@ struct TInitialValueProcessorImpl<PropertyTraits, TPropertyMetaData<MetaDataType
 		TComponentReader<UObject*>    BoundObjects  = Allocation->ReadComponents(BuiltInComponents->BoundObject);
 
 		TTuple< TComponentReader<MetaDataTypes>... > MetaData(
-			Allocation->ReadComponents(PropertyDefinition->MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>())...
+			Allocation->ReadComponents(PropertyDefinition->GetMetaDataComponent<MetaDataTypes>(MetaDataIndices))...
 		);
 
 		if (TOptionalComponentReader<FCustomPropertyIndex> CustomIndices = Allocation->TryReadComponents(BuiltInComponents->CustomPropertyIndex))
@@ -149,7 +149,7 @@ struct TInitialValueProcessorImpl<PropertyTraits, TPropertyMetaData<MetaDataType
 		TComponentReader<UObject*>           BoundObjects        = Allocation->ReadComponents(BuiltInComponents->BoundObject);
 
 		TTuple< TComponentReader<MetaDataTypes>... > MetaData(
-			Allocation->ReadComponents(PropertyDefinition->MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>())...
+			Allocation->ReadComponents(PropertyDefinition->GetMetaDataComponent<MetaDataTypes>(MetaDataIndices))...
 		);
 
 		if (TOptionalComponentReader<FCustomPropertyIndex> CustomIndices = Allocation->TryReadComponents(BuiltInComponents->CustomPropertyIndex))
@@ -224,7 +224,7 @@ struct TInitialValueProcessorImpl<PropertyTraits, TPropertyMetaData<MetaDataType
 		TComponentReader<FInterrogationKey> OutputKeys    = Allocation->ReadComponents(BuiltInComponents->Interrogation.OutputKey);
 
 		TTuple< TComponentReader<MetaDataTypes>... > MetaData(
-			Allocation->ReadComponents(PropertyDefinition->MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>())...
+			Allocation->ReadComponents(PropertyDefinition->GetMetaDataComponent<MetaDataTypes>(MetaDataIndices))...
 		);
 
 		const FSparseInterrogationChannelInfo& SparseChannelInfo = Interrogation->GetSparseChannelInfo();
@@ -317,7 +317,7 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BoundObject)
 		.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-		.ReadAllOf(Definition.MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
+		.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
 		.ReadAllOf(Composites[CompositeIndices].ComponentTypeID.ReinterpretCast<CompositeTypes>()...)
 		.FilterAll({ Definition.PropertyType })
 		.SetStat(GET_STATID(MovieSceneEval_ApplyProperties))
@@ -335,7 +335,7 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 			FEntityTaskBuilder()
 			.Read(BuiltInComponents->BoundObject)
 			.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-			.ReadAllOf(Definition.MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
+			.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
 			.ReadAnyOf(Composites[CompositeIndices].ComponentTypeID.ReinterpretCast<CompositeTypes>()...)
 			.FilterAny({ CompletePropertyMask })
 			.FilterAll({ Definition.PropertyType })
@@ -355,7 +355,7 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BoundObject)
 		.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-		.ReadAllOf(Definition.MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
+		.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
 		.Write(Definition.PreAnimatedValue.ReinterpretCast<StorageType>())
 		.FilterAll({ BuiltInComponents->Tags.CachePreAnimatedValue, Definition.PropertyType })
 		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
@@ -371,7 +371,7 @@ struct TPropertyComponentHandlerImpl<PropertyTraits, TPropertyMetaData<MetaDataT
 		FEntityTaskBuilder()
 		.Read(BuiltInComponents->BoundObject)
 		.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-		.ReadAllOf(Definition.MetaDataTypes[MetaDataIndices].ReinterpretCast<MetaDataTypes>()...)
+		.ReadAllOf(Definition.GetMetaDataComponent<MetaDataTypes>(MetaDataIndices)...)
 		.Read(Definition.PreAnimatedValue.ReinterpretCast<StorageType>())
 		.FilterAll({ Definition.PropertyType, BuiltInComponents->Tags.Finished })
 		.SetDesiredThread(Linker->EntityManager.GetGatherThread())
