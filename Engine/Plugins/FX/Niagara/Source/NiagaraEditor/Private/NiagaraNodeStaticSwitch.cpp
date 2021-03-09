@@ -95,6 +95,19 @@ TArray<int32> UNiagaraNodeStaticSwitch::GetOptionValues() const
 	return OptionValues;
 }
 
+void UNiagaraNodeStaticSwitch::PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	// do nothing
+}
+
+void UNiagaraNodeStaticSwitch::PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType)
+{
+	if(Changed == SwitchTypeData.Enum)
+	{
+		RefreshFromExternalChanges();
+	}
+}
+
 FName UNiagaraNodeStaticSwitch::GetOptionPinName(const FNiagaraVariable& Variable, int32 Value) const
 {
 	FString Suffix = TEXT("");
@@ -502,6 +515,12 @@ void UNiagaraNodeStaticSwitch::PostLoad()
 			Var->Metadata.SetIsStaticSwitch(true);
 			MarkNodeRequiresSynchronization(TEXT("Static switch metadata updated"), true);
 		}
+	}
+
+	// assume the enum changed so we'll refresh to make sure
+	if(SwitchTypeData.SwitchType == ENiagaraStaticSwitchType::Enum && SwitchTypeData.Enum)
+	{
+		RefreshFromExternalChanges();
 	}
 }
 
