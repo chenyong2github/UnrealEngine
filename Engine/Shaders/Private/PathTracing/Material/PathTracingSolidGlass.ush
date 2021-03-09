@@ -10,20 +10,11 @@ PathTracingSolidGlass.ush: Microfacet Refractive BSDF for solid glass
 #include "PathTracingFresnel.ush"
 #include "PathTracingGlossy.ush"
 
-void RoughGlass_SampleMaterial(
+FMaterialSample RoughGlass_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf,
-	out float OutPositionBiasSign)
+	float4 RandSample)
 {
-	OutDirection = 0;
-	OutWeight = 0;
-	OutPdf = 0;
-	OutPositionBiasSign = 1;
-
 	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
 	bool bIsEntering = Payload.IsFrontFace();
 	float3 N_World = GetWorldNormal(Payload);
@@ -42,7 +33,7 @@ void RoughGlass_SampleMaterial(
 	if (NoV == 0)
 	{
 		// invalid grazing angle
-		return;
+		return NullMaterialSample();
 	}
 
 	float3 H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
@@ -56,32 +47,24 @@ void RoughGlass_SampleMaterial(
 	{
 		const float2 GGXResult = GGXEvalRefraction(L, V, H, Alpha, Eta);
 
-		OutWeight = GGXResult.x;
-		OutPdf = F * GGXResult.y;
-
-		OutPositionBiasSign = -1;
+		// transform to world space
+		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, -1.0);
 	}
 	else
 	{
 		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-		OutWeight = GGXResult.x;
-		OutPdf = F * GGXResult.y;
-	}
 
-	// transform to world space
-	OutDirection = normalize(mul(L, Basis));
+		// transform to world space
+		return CreateMaterialSample(normalize(mul(L, Basis)), GGXResult.x, F * GGXResult.y, 1.0);
+	}
 }
 
-void RoughGlass_EvalMaterial(
+FMaterialEval RoughGlass_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf)
+	FMaterialClosestHitPayload Payload
+)
 {
-	OutWeight = 0;
-	OutPdf = 0;
-
 	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
 	bool bIsEntering = Payload.IsFrontFace();
 	float3 V_World = -IncomingDirection;
@@ -102,7 +85,7 @@ void RoughGlass_EvalMaterial(
 	if (V.z <= 0)
 	{
 		// invalid input
-		return;
+		return NullMaterialEval();
 	}
 
 	float NoV = saturate(V.z);
@@ -114,8 +97,7 @@ void RoughGlass_EvalMaterial(
 		const float F = FresnelReflectance(VoH, Eta);
 
 		const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
-		OutWeight = GGXResult.x;
-		OutPdf = F * GGXResult.y;
+		return CreateMaterialEval(GGXResult.x, F * GGXResult.y);
 	}
 	else if (L.z < 0)
 	{
@@ -131,8 +113,8 @@ void RoughGlass_EvalMaterial(
 		{
 			const float2 GGXResult = GGXEvalRefraction(L, V, Htn, Alpha, Eta);
 
-			OutWeight = GGXResult.x;
-			OutPdf = F * GGXResult.y;
+			return CreateMaterialEval(GGXResult.x, F * GGXResult.y);
 		}
 	}
+	return NullMaterialEval();
 }

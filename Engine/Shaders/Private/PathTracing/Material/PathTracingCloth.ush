@@ -21,16 +21,13 @@ float ClothLobeSelectionPdf(float3 V, FMaterialClosestHitPayload Payload)
 	return LobeSelectionProb(Diff + Cloth * Fuzz, (1.0 - Cloth) * Spec);
 }
 
-void Cloth_EvalMaterial(
+FMaterialEval Cloth_EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf
+	FMaterialClosestHitPayload Payload
 )
 {
-	OutWeight = 0;
-	OutPdf = 0;
+	FMaterialEval Result = NullMaterialEval();
 
 	const float3 V_World = -IncomingDirection;
 	const float3 L_World = OutgoingDirection;
@@ -60,7 +57,7 @@ void Cloth_EvalMaterial(
 	const float3 FCloth = F_Schlick(FuzzColor, VoH);
 	const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * Cloth * DCloth * Vis_Cloth(NoV, NoL)) * FCloth : 0.0;
 
-	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor + ClothWeight, NoL / PI, LobeSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, Payload.DiffuseColor + ClothWeight, NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
 	const float2 GGXResult = GGXEvalReflection(L, V, H, Alpha);
@@ -68,22 +65,17 @@ void Cloth_EvalMaterial(
 	const float3 SpecWeight = (1 - Cloth) * F * GGXResult.x;
 	const float SpecPdf = GGXResult.y;
 
-	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1 - LobeSelectionPdf);
+	AddLobeWithMIS(Result.Weight, Result.Pdf, SpecWeight, SpecPdf, 1 - LobeSelectionPdf);
+
+	return Result;
 }
 
-void Cloth_SampleMaterial(
+FMaterialSample Cloth_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf
+	float4 RandSample
 )
 {
-	OutDirection = 0;
-	OutWeight = 0;
-	OutPdf = 0;
-
 	float3 N = GetWorldNormal(Payload);
 	float3 V = -RayDirection;
 
@@ -120,9 +112,10 @@ void Cloth_SampleMaterial(
 		H = ImportanceSampleVisibleGGX_aniso(UniformSampleDisk(RandSample.xy), Alpha, V).xyz;
 
 		L = reflect(-V, H);
-		if (L.z <= 0) {
+		if (L.z <= 0)
+		{
 			// invalid output direction, exit early
-			return;
+			return NullMaterialSample();
 		}
 	}
 
@@ -141,6 +134,8 @@ void Cloth_SampleMaterial(
 	const float3 FCloth = F_Schlick(FuzzColor, VoH);
 	const float3 ClothWeight = NoL > 0 && NoV > 0 ? (PI * Cloth * DCloth * Vis_Cloth(NoV, NoL)) * FCloth : 0.0;
 
+	float3 OutWeight = 0;
+	float OutPdf = 0;
 	AddLobeWithMIS(OutWeight, OutPdf, Payload.DiffuseColor + ClothWeight, NoL / PI, LobeSelectionPdf);
 
 	// Specular lobe
@@ -151,5 +146,5 @@ void Cloth_SampleMaterial(
 	AddLobeWithMIS(OutWeight, OutPdf, SpecWeight, SpecPdf, 1 - LobeSelectionPdf);
 
 	// transform to world space
-	OutDirection = normalize(mul(L, Basis));
+	return CreateMaterialSample(normalize(mul(L, Basis)), OutWeight, OutPdf, 1.0);
 }

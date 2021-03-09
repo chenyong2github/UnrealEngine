@@ -9,14 +9,10 @@ PathTracingSpecularTransmission.ush: Refractive BSDFs (pure singular)
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingGlossy.ush"
 
-void SpecularRefraction_SampleMaterial(
+FMaterialSample SpecularRefraction_SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf,
-	out float OutPositionBiasSign)
+	float4 RandSample)
 {
 	// NOTE: IsFrontFace() determines polygon orientation, because the normal is always flipped towards in the incoming ray
 	bool bIsEntering = Payload.IsFrontFace();
@@ -26,24 +22,20 @@ void SpecularRefraction_SampleMaterial(
 	float Ior = Payload.Ior;
 	float Eta = bIsEntering ? Ior : 1.0 / Ior;
 
-	// Throughput is 1 since we pick reflect/refract according to the fresnel term
-	OutWeight = 1.0;
-	OutPdf = POSITIVE_INFINITY;
 
-	float F = 0;
+	float F = 0, BiasSign = 1.0;
+	float3 OutDirection = 0;
 	if (SampleRefraction(RayDirection, WorldNormal, Eta, RandSample.x, OutDirection, F))
 	{
-		OutPositionBiasSign = -1;
+		BiasSign = -1;
 	}
-	else
-	{
-		OutPositionBiasSign = 1;
-	}
+
+	// Throughput is 1 since we pick reflect/refract according to the fresnel term
+	return CreateMaterialSample(OutDirection, 1.0, POSITIVE_INFINITY, BiasSign);
 } 
 
-void SpecularTransmission_EvalMaterial(out float3 OutThroughput, out float OutPdf)
+FMaterialEval SpecularTransmission_EvalMaterial()
 {
-	OutThroughput = 0;
-	OutPdf = 0;
+	return NullMaterialEval();
 }
 

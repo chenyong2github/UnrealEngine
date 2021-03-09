@@ -5,20 +5,15 @@ PathTracingLambert.usf: Lambertian BRDF sampling functions
 ===============================================================================================*/
 #pragma once
 
-void Lambert_SampleMaterial(
+FMaterialSample Lambert_SampleMaterial(
 	FMaterialClosestHitPayload Payload,
-	float4 RandSample,
-	out float3 OutDirection,
-	out float3 OutWeight,
-	out float OutPdf)
+	float4 RandSample)
 {
 	float3 N_World = GetWorldNormal(Payload);
 
 	float4 SampledValue = CosineSampleHemisphere(RandSample.xy);
-	OutDirection = TangentToWorld(SampledValue.xyz, N_World);
 
-	OutWeight = GetBaseColor(Payload);
-	OutPdf = SampledValue.w;
+	return CreateMaterialSample(TangentToWorld(SampledValue.xyz, N_World), GetBaseColor(Payload), SampledValue.w, 1.0);
 }
 
 float Lambert_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
@@ -28,16 +23,13 @@ float Lambert_Pdf(float3 OutgoingDirection, FMaterialClosestHitPayload Payload)
 	return NoL / PI;
 }
 
-void Lambert_EvalMaterial(
+FMaterialEval Lambert_EvalMaterial(
 	float3 OutgoingDirection,
-	FMaterialClosestHitPayload Payload,
-	out float3 OutWeight,
-	out float OutPdf
+	FMaterialClosestHitPayload Payload
 )
 {
 	float3 N_World = GetWorldNormal(Payload);
 	float NoL = saturate(dot(N_World, OutgoingDirection));
 
-	OutWeight = GetBaseColor(Payload);
-	OutPdf = NoL / PI;
+	return CreateMaterialEval(GetBaseColor(Payload), NoL / PI);
 }
