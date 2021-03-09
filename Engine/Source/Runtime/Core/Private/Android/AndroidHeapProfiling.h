@@ -10,12 +10,9 @@
 	#include <type_traits>
 	#include "HAL/MallocAnsi.h"
 
-	struct AHeapInfo;
-	extern AHeapInfo* (*AHeapInfoCreate)(const char* heap_name);
-	extern uint32_t (*AHeapProfileRegisterHeap)(AHeapInfo* info);
+	uint32_t CreateHeap(const TCHAR* AllocatorName);
 	extern bool (*AHeapProfileReportAllocation)(uint32_t heap_id, uint64_t alloc_id, uint64_t size);
 	extern void (*AHeapProfileReportFree)(uint32_t heap_id, uint64_t alloc_id);
-	extern char* AppPackageName;
 #endif
 
 template <class T>
@@ -25,7 +22,7 @@ struct FMallocProfilingProxy : public T
 	FMallocProfilingProxy()
 	{
 		static_assert(!std::is_same<T, FMallocAnsi>::value, "FMallocProfilingProxy should never be parametrized with FMallocAnsi since FMallocAnsi will be hooked by heapprofd internally");
-		HeapId = AHeapProfileRegisterHeap(AHeapInfoCreate(AppPackageName));
+		HeapId = CreateHeap(T::GetDescriptiveName());
 	}
 
 	virtual void* Malloc(SIZE_T Size, uint32 Alignment) final
