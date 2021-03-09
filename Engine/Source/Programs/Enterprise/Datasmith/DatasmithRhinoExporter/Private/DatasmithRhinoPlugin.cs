@@ -25,7 +25,7 @@ namespace DatasmithRhino
 		public DatasmithRhinoPlugin()
 		{
 			Instance = this;
-			AppDomain.CurrentDomain.ProcessExit += OnProcessExit;
+			RhinoApp.Closing += OnProcessExit;
 
 			//Initialize DirectLink framework.
 			DirectLinkManager = new DatasmithRhinoDirectLinkManager();
@@ -66,7 +66,7 @@ namespace DatasmithRhino
 
 		public void OnProcessExit(object Sender, EventArgs Args)
 		{
-			AppDomain.CurrentDomain.ProcessExit -= OnProcessExit;
+			RhinoApp.Closing -= OnProcessExit;
 
 			DirectLinkManager.ShutDown();
 
