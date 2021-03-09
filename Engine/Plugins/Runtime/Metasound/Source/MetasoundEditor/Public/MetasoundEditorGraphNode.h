@@ -19,6 +19,14 @@
 class UEdGraphPin;
 class UMetasound;
 
+namespace Metasound
+{
+	namespace Editor
+	{
+		class FGraphBuilder;
+	}
+}
+
 
 UCLASS(MinimalAPI)
 class UMetasoundEditorGraphNode : public UEdGraphNode
@@ -71,20 +79,33 @@ public:
 	const UObject& GetMetasoundChecked() const;
 
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
-	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
+	Metasound::Frontend::FConstGraphHandle GetConstRootGraphHandle() const;
 
-	void SetNodeID(FGuid InNodeID);
+	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
+	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
+
 	FGuid GetNodeID() const;
 
 protected:
 	UPROPERTY()
+	FMetasoundFrontendClassName ClassName;
+
+	UPROPERTY()
 	FGuid NodeID;
+
+	friend class Metasound::Editor::FGraphBuilder;
 };
 
 UCLASS(MinimalAPI)
 class UMetasoundEditorGraphOutputNode : public UMetasoundEditorGraphNode
 {
 	GENERATED_BODY()
+
+protected:
+	UPROPERTY()
+	FName OutputTypeName;
+
+	friend class Metasound::Editor::FGraphBuilder;
 };
 
 UCLASS(MinimalAPI)

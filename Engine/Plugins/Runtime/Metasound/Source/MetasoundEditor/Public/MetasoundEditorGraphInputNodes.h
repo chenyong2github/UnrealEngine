@@ -20,6 +20,14 @@
 class UEdGraphPin;
 class UMetasound;
 
+namespace Metasound
+{
+	namespace Editor
+	{
+		class FGraphBuilder;
+	}
+}
+
 
 UCLASS()
 class METASOUNDEDITOR_API UMetasoundEditorGraphInputNode : public UMetasoundEditorGraphNode
@@ -64,6 +72,12 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::None;
 	}
+
+protected:
+	UPROPERTY()
+	FName InputTypeName;
+
+	friend class Metasound::Editor::FGraphBuilder;
 };
 
 UCLASS(MinimalAPI)

@@ -93,6 +93,15 @@ const UObject& UMetasoundEditorGraphNode::GetMetasoundChecked() const
 	return EdGraph->GetMetasoundChecked();
 }
 
+Metasound::Frontend::FConstGraphHandle UMetasoundEditorGraphNode::GetConstRootGraphHandle() const
+{
+	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
+	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
+	check(MetasoundAsset);
+
+	return MetasoundAsset->GetRootGraphHandle();
+}
+
 Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle() const
 {
 	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
@@ -100,6 +109,11 @@ Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle(
 	check(MetasoundAsset);
 
 	return MetasoundAsset->GetRootGraphHandle();
+}
+
+Metasound::Frontend::FConstNodeHandle UMetasoundEditorGraphNode::GetConstNodeHandle() const
+{
+	return GetConstRootGraphHandle()->GetNodeWithID(NodeID);
 }
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() const
@@ -123,14 +137,20 @@ void UMetasoundEditorGraphNode::AllocateDefaultPins()
 	using namespace Metasound;
 
 	ensureAlways(Pins.IsEmpty());
-	Editor::FGraphBuilder::RebuildNodePins(*this, GetNodeHandle());
+	Editor::FGraphBuilder::RebuildNodePins(*this);
 }
 
 void UMetasoundEditorGraphNode::ReconstructNode()
 {
 	using namespace Metasound;
 
-	Editor::FGraphBuilder::RebuildNodePins(*this, GetNodeHandle());
+	// Don't remove unused pins here. Reconstruction can occur while duplicating or pasting nodes,
+	// and subsequent steps clean-up unused pins.  This can be called mid-copy, which means the node
+	// handle may be invalid.  Setting to remove unused causes premature removal and then default values
+	// are lost.
+	// TODO: User will want to see dead pins as well for node definition changes. Label and color-code dead
+	// pins (ex. red), and leave dead connections for reference like BP.
+	Editor::FGraphBuilder::SynchronizeNodePins(*this, GetNodeHandle(), false /* bRemoveUnusedPins */);
 }
 
 void UMetasoundEditorGraphNode::AutowireNewNode(UEdGraphPin* FromPin)
@@ -205,11 +225,6 @@ bool UMetasoundEditorGraphNode::CanUserDeleteNode() const
 FString UMetasoundEditorGraphNode::GetDocumentationLink() const
 {
 	return TEXT("Shared/GraphNodes/Metasound");
-}
-
-void UMetasoundEditorGraphNode::SetNodeID(FGuid InNodeID)
-{
-	NodeID = InNodeID;
 }
 
 FGuid UMetasoundEditorGraphNode::GetNodeID() const

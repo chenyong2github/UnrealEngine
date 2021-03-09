@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AudioMeterStyle.h"
+#include "AudioSynesthesia/Classes/Meter.h"
 #include "CoreMinimal.h"
 #include "EditorUndoClient.h"
 #include "Framework/Commands/UICommandList.h"
@@ -10,25 +12,25 @@
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
 #include "Misc/NotifyHook.h"
+#include "SAudioMeter.h"
+#include "SGraphActionMenu.h"
 #include "SMetasoundPalette.h"
+#include "Sound/AudioBus.h"
 #include "Textures/SlateIcon.h"
 #include "Toolkits/IToolkitHost.h"
 #include "UObject/GCObject.h"
-#include "Widgets/SPanel.h"
-#include "Sound/AudioBus.h"
-#include "SAudioMeter.h"
-#include "AudioMeterStyle.h"
-#include "AudioSynesthesia/Classes/Meter.h"
+#include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/StrongObjectPtr.h"
+#include "Widgets/SPanel.h"
 
 // Forward Declarations
-class FSlateRect;
-class FTabManager;
 class IDetailsView;
 class IToolkitHost;
 class SDockableTab;
 class SGraphEditor;
 class SMetasoundPalette;
+class FSlateRect;
+class FTabManager;
 class SVerticalBox;
 class UEdGraphNode;
 class UMetasound;
@@ -182,7 +184,6 @@ namespace Metasound
 			TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 
 		private:
-
 			/** List of open tool panels; used to ensure only one exists at any one time */
 			TMap<FName, TWeakPtr<SDockableTab>> SpawnedToolPanels;
 
@@ -224,8 +225,8 @@ namespace Metasound
 			/** Whether or not metasound being edited is valid */
 			bool bPassedValidation = true;
 
-			/** Document used when pasting from clipboard to avoid deserializing twice */
-			FMetasoundFrontendDocument PastedDocument;
+			/** Clipboard content used when pasting from clipboard to avoid deserializing twice */
+			FString ClipboardContent;
 		};
 	} // namespace Editor
 } // namespace Metasound

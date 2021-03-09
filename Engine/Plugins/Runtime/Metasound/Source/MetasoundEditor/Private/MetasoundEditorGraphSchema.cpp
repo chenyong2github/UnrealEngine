@@ -274,7 +274,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewNode::PerformAction(UEdGraph* Paren
 
 	FMetasoundFrontendNodeStyle Style;
 	Style.Display.Location = Location;
-	if (UEdGraphNode* NewGraphNode = FGraphBuilder::AddNode(ParentMetasound, NodeClassInfo, Style))
+	if (UEdGraphNode* NewGraphNode = FGraphBuilder::AddExternalNode(ParentMetasound, NodeClassInfo, Style, bSelectNewNode))
 	{
 		TryConnectNewNodeToPin(*NewGraphNode, FromPin);
 		return NewGraphNode;
@@ -305,7 +305,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewInput::PerformAction(UEdGraph* Pare
 	FMetasoundFrontendNodeStyle Style;
 	Style.Display.Location = Location;
 
-	if (UMetasoundEditorGraphInputNode* NewGraphNode = FGraphBuilder::AddInput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty()))
+	if (UMetasoundEditorGraphInputNode* NewGraphNode = FGraphBuilder::AddInputNode(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty()))
 	{
 		UEdGraphNode* EdGraphNode = CastChecked<UEdGraphNode>(NewGraphNode);
 		TryConnectNewNodeToPin(*EdGraphNode, FromPin);
@@ -337,7 +337,7 @@ UEdGraphNode* FMetasoundGraphSchemaAction_NewOutput::PerformAction(UEdGraph* Par
 	FMetasoundFrontendNodeStyle Style;
 	Style.Display.Location = Location;
 
-	if (UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutput(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty()))
+	if (UEdGraphNode* NewGraphNode = FGraphBuilder::AddOutputNode(ParentMetasound, NewNodeName, NodeTypeName, Style, FText::GetEmpty()))
 	{
 		TryConnectNewNodeToPin(*NewGraphNode, FromPin);
 		return NewGraphNode;

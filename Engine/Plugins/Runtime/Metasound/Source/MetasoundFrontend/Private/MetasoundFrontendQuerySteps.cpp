@@ -59,5 +59,15 @@ namespace Metasound
 	{
 		return InEntry.Value.Get<FMetasoundFrontendClass>().Metadata.ClassName == ClassName;
 	}
+
+	FFilterClassesByClassID::FFilterClassesByClassID(const FGuid InClassID)
+		: ClassID(InClassID)
+	{
+	}
+
+	bool FFilterClassesByClassID::Filter(const FFrontendQueryEntry& InEntry) const
+	{
+		return InEntry.Value.Get<FMetasoundFrontendClass>().ID == ClassID;
+	}
 }
 

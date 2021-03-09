@@ -60,5 +60,16 @@ namespace Metasound
 	private:
 		FMetasoundFrontendClassName ClassName;
 	};
+
+	class METASOUNDFRONTEND_API FFilterClassesByClassID : public IFrontendQueryFilterStep
+	{
+	public:
+		FFilterClassesByClassID(const FGuid InClassID);
+
+		bool Filter(const FFrontendQueryEntry& InEntry) const override;
+
+	private:
+		FGuid ClassID;
+	};
 }
 
