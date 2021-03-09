@@ -39,6 +39,10 @@
 			"Enabled": true
 		},
 		{
+			"Name": "LiveLinkCamera",
+			"Enabled": true
+		},
+		{
 			"Name": "MultiUserClient",
 			"Enabled": true
 		},
