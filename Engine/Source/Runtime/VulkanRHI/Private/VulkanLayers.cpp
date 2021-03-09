@@ -47,10 +47,10 @@ static TAutoConsoleVariable<int32> GStandardValidationCvar(
 
 TAutoConsoleVariable<int32> GGPUValidationCvar(
 	TEXT("r.Vulkan.GPUValidation"),
-	0,
-	TEXT("2 to use enable GPU assised validation AND extra binding slot when using validation layers, or\n")
-	TEXT("1 to use enable GPU assised validation when using validation layers, or\n")
-	TEXT("0 to not use (default)"),
+	2,
+	TEXT("2 to use enable GPU assisted validation AND extra binding slot when using validation layers (default)\n")
+	TEXT("1 to use enable GPU assisted validation when using validation layers, or\n")
+	TEXT("0 to not use"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 

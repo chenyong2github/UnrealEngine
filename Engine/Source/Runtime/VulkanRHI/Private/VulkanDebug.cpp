@@ -6,7 +6,7 @@
 
 #include "VulkanRHIPrivate.h"
 
-FAutoConsoleVariable GCVarUniqueValidationMessages(
+static FAutoConsoleVariable GCVarUniqueValidationMessages(
 	TEXT("r.Vulkan.UniqueValidationMessages"),
 	1,
 	TEXT("Filter out validation errors with the same code (only when r.Vulkan.EnableValidation is non zero)")
@@ -274,6 +274,11 @@ static VkBool32 DebugUtilsCallback(VkDebugUtilsMessageSeverityFlagBitsEXT MsgSev
 	else if (!FCStringAnsi::Strcmp(CallbackData->pMessageIdName, "UNASSIGNED-GPU-Assisted Validation Setup Error."))
 	{
 		// *** [Error:Validation(UNASSIGNED-GPU-Assisted Validation Setup Error.)] Unable to reserve descriptor binding slot on a device with only one slot.
+		return VK_FALSE;
+	}
+	else if (!FCStringAnsi::Strcmp(CallbackData->pMessageIdName, "UNASSIGNED-BestPractices-vkCreateDevice-deprecated-extension"))
+	{
+		// *** CreateDevice(): Attempting to enable deprecated extension VK_KHR_get_memory_requirements2, but this extension has been promoted to VK_VERSION_1_1.
 		return VK_FALSE;
 	}
 

@@ -85,14 +85,23 @@ extern TAutoConsoleVariable<int32> GRHIAllowAsyncComputeCvar;
 uint32 GVulkanDeviceShaderStageBits = 0;
 
 #if VULKAN_HAS_VALIDATION_FEATURES
-static inline TArray<VkValidationFeatureEnableEXT> GetValidationFeaturesEnabled()
+static inline TArray<VkValidationFeatureEnableEXT> GetValidationFeaturesEnabled(bool bEnableValidation)
 {
 	TArray<VkValidationFeatureEnableEXT> Features;
-	Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
 	extern TAutoConsoleVariable<int32> GGPUValidationCvar;
-	if (GGPUValidationCvar.GetValueOnAnyThread() > 1)
+	int32 GPUValidationValue = GGPUValidationCvar.GetValueOnAnyThread();
+	if (bEnableValidation && GPUValidationValue > 0)
 	{
-		Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+		Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_EXT);
+		if (GPUValidationValue > 1)
+		{
+			Features.Add(VK_VALIDATION_FEATURE_ENABLE_GPU_ASSISTED_RESERVE_BINDING_SLOT_EXT);
+		}
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("vulkanbestpractices")))
+	{
+		Features.Add(VK_VALIDATION_FEATURE_ENABLE_BEST_PRACTICES_EXT);
 	}
 
 	return Features;
@@ -401,7 +410,7 @@ void FVulkanDynamicRHI::CreateInstance()
 			return Key && !FCStringAnsi::Strcmp(Key, VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME);
 		});
 	VkValidationFeaturesEXT ValidationFeatures;
-	TArray<VkValidationFeatureEnableEXT> ValidationFeaturesEnabled = GetValidationFeaturesEnabled();
+	TArray<VkValidationFeatureEnableEXT> ValidationFeaturesEnabled = GetValidationFeaturesEnabled(bHasGPUValidation);
 	if (bHasGPUValidation)
 	{
 		ZeroVulkanStruct(ValidationFeatures, VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT);

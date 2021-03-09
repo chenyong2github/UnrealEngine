@@ -852,6 +852,8 @@ inline bool UseVulkanDescriptorCache()
 
 extern int32 GVulkanSubmitAfterEveryEndRenderPass;
 extern int32 GWaitForIdleOnSubmit;
+
+// Vendor-specific GPU crash dumps
 extern bool GGPUCrashDebuggingEnabled;
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
