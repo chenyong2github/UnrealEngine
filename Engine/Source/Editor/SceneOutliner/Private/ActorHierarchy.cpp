@@ -85,8 +85,8 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 				if (const FSceneOutlinerTreeItemPtr* ParentItem = Items.Find(ParentActor))
 				{
 					return *ParentItem;
-				}
-				else
+				} // IF Parent can be listed in SceneOutliner return nullptr so it gets created
+				else if(ParentActor->IsListedInSceneOutliner())
 				{
 					return nullptr;
 				}
