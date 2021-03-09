@@ -63,6 +63,14 @@ TAutoConsoleVariable<float> CVarPathTracingMaxPathIntensity(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingApproximateCaustics(
+	TEXT("r.PathTracing.ApproximateCaustics"),
+	1,
+	TEXT("When non-zero, the path tracer will approximate caustic paths to reduce noise. This reduces speckles and noise from low-roughness glass and metals. (default = 1 (enabled))"),
+	ECVF_RenderThreadSafe
+);
+
+
 TAutoConsoleVariable<int32> CVarPathTracingFrameIndependentTemporalSeed(
 	TEXT("r.PathTracing.FrameIndependentTemporalSeed"),
 	1,
@@ -109,6 +117,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	PathTracingData.VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
 	PathTracingData.MaxPathIntensity = CVarPathTracingMaxPathIntensity.GetValueOnRenderThread();
 	PathTracingData.UseErrorDiffusion = CVarPathTracingUseErrorDiffusion.GetValueOnRenderThread();
+	PathTracingData.ApproximateCaustics = CVarPathTracingApproximateCaustics.GetValueOnRenderThread();
 
 	bool NeedInvalidation = false;
 
@@ -152,6 +161,14 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PreviousUseErrorDiffusion = PathTracingData.UseErrorDiffusion;
+	}
+
+	// Changing approximate caustics requires starting over
+	static uint32 PreviousApproximateCaustics = PathTracingData.ApproximateCaustics;
+	if (PreviousApproximateCaustics != PathTracingData.ApproximateCaustics)
+	{
+		NeedInvalidation = true;
+		PreviousApproximateCaustics = PathTracingData.ApproximateCaustics;
 	}
 
 	// the rest of PathTracingData and AdaptiveSamplingData is filled in by SetParameters below

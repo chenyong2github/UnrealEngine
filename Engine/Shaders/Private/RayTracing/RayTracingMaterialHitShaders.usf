@@ -31,7 +31,8 @@
 #include "/Engine/Private/SHCommon.ush"
 #include "/Engine/Private/ReflectionEnvironmentShared.ush"
 #include "/Engine/Private/VirtualTextureCommon.ush" 
-#include "/Engine/Private/LightmapCommon.ush"     
+#include "/Engine/Private/LightmapCommon.ush"
+#include "/Engine/Private/PathTracing/Material/PathTracingFresnel.ush"
 
 /** Computes sky diffuse lighting, including precomputed shadowing. */
 void GetSkyLighting(
@@ -482,7 +483,7 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	// Usually this path is inactive because opaque materials don't have AHS bound
 	return;
 #elif MATERIALBLENDING_ALPHAHOLDOUT || MATERIALBLENDING_ADDITIVE
-	if (PackedPayload.IsEvalOpacity())
+	if (PackedPayload.IsPathTracingVisibilityRay())
 	{
 		// path tracer wants to treat these cases as fully transparent
 		// no material evaluation is required
@@ -506,7 +507,7 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 #endif
 		return;
 	}
-	else if (PackedPayload.IsEvalOpacity())
+	else if (PackedPayload.IsPathTracingVisibilityRay())
 	{
 		// this case is used by the path tracer only currently
 		// We want to evaluate the material opacity and accumulate it
@@ -561,7 +562,8 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	}
 #else
 	// If we got this far -- we have a blending mode that can produce partial opacity _and_ we want to
-	// know how much it contributes to the throughput along this ray
+	// know how much it contributes to the throughput along this ray. These cases are currently only
+	// exercised by the path tracer.
 #if MATERIALBLENDING_MODULATE
 	// this material is the only one to lead to colored opacity
 	float3 Transparency = GetMaterialEmissive(PixelMaterialInputs);
@@ -569,16 +571,32 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Transparency = 1 - Opacity;
 #elif MATERIALBLENDING_TRANSLUCENT
-	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
-	if (Ior != 1.0)
-	{
-		// refraction enabled, treat as opaque for now
-		// #dxr_todo: the path tracer will eventualy want an option for "fake caustics" 
-		return;
-	}
-	// refraction disabled - treat as transparency
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 	float Transparency = 1 - Opacity;
+	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	// Is refraction enabled?
+	if (Transparency > 0 && Ior != 1.0)
+	{
+		float PathRoughness = asfloat(PackedPayload.MetallicAndSpecularAndRoughness);
+		float Roughness = GetMaterialRoughness(PixelMaterialInputs);
+		if (PathRoughness <= Roughness)
+		{
+			// not using fast caustic approximation - treat as opaque
+			return;
+		}
+		// The heuristic used here is inspired by the following presentations:
+		//   - Kulla & Conty: Revisiting Physically Based Shading at Imageworks
+		//       https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf
+		//   - Colin Barré-Brisebois - Pica Pica & Nvidia Turing
+		//       https://www.ea.com/seed/news/siggraph-2018-picapica-nv-turing
+
+		// fake caustics
+		float3 N = normalize(MaterialParameters.WorldNormal);
+		float Eta = Ior;
+		float VoN = abs(dot(WorldRayDirection(), N));
+		float Fr = FresnelReflectance(VoN, Eta);
+		Transparency *= pow(1 - Fr, 2) * (1 - Roughness * Roughness) * saturate(PathRoughness - Roughness);
+	}
 #else
 #error "Control flow does not account for all blending modes!"
 #endif
