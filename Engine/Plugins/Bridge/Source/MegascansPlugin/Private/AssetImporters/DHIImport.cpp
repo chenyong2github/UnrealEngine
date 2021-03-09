@@ -58,6 +58,12 @@ void FImportDHI::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 		EAppReturnType::Type ContinueImport = FMessageDialog::Open(EAppMsgType::YesNo, FText(FText::FromString("The character you are trying to import already exists. Do you want to overwrite it.")));
 		if (ContinueImport == EAppReturnType::No) return;
 
+		//Delete existing asset
+		FString CharacterPath = FPaths::Combine(TEXT("/Game/MetaHumans"), CharacterSourceData->CharacterName);
+		AssetUtils::DeleteDirectory(CharacterPath);
+
+
+
 	}
 
 	TArray<FString> SourceCommonFiles;

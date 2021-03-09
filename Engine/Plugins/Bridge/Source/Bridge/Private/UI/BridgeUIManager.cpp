@@ -158,7 +158,7 @@ TSharedRef<SDockTab> FBridgeUIManagerImpl::CreateBridgeTab(const FSpawnTabArgs& 
 	// Temp workaround which enables authentication (by impersonating Launcher's user agent)
 	FWebBrowserInitSettings browserInitSettings = FWebBrowserInitSettings();
 	// browserInitSettings.ProductVersion = TEXT("EpicGamesLauncher/255.255.255-7654321+++Debug+Launcher UnrealEngine/4.23.0-0+UE4 Chrome/59.0.3071.15");
-	browserInitSettings.ProductVersion = TEXT("EpicGamesLauncher/12.0.5-15338009+++Portal+Release-Live UnrealEngine/4.23.0-0+UE4 Chrome/59.0.3071.15");
+	browserInitSettings.ProductVersion = TEXT("EpicGamesLauncher/12.0.5-15338009+++Portal+Release-Live UnrealEngine/4.23.0-0+UE4 Chrome/84.0.4147.38");
 	IWebBrowserModule::Get().CustomInitialize(browserInitSettings);
 
 	FString PluginPath = FPaths::Combine(FPaths::EnginePluginsDir(), TEXT("Bridge"));
@@ -170,24 +170,10 @@ TSharedRef<SDockTab> FBridgeUIManagerImpl::CreateBridgeTab(const FSpawnTabArgs& 
 	TSharedPtr<SDockTab> LocalBrowserDock;
     {
 		SAssignNew(LocalBrowserDock, SDockTab)
-		.OnCanCloseTab_Lambda([]() -> bool
+		.OnTabClosed_Lambda([](TSharedRef<class SDockTab> InParentTab)
 		{
-			const FText Title = FText::FromString(TEXT("Confirm Exit"));
-			EAppReturnType::Type ReturnType = FMessageDialog::Open(
-				EAppMsgType::OkCancel, 
-				FText::FromString(TEXT("Are you sure you want to exit? Running downloads will be canceled.")),
-				&Title
-			);
-
-			if (ReturnType == EAppReturnType::Ok)
-			{
-				FBridgeUIManager::Instance->WebBrowserWidget->LoadURL("https://google.com");
-				FBridgeUIManager::BrowserBinding->OnExitDelegate.Execute(TEXT("test"));
-
-				return true;
-			}
-
-			return false;
+			FBridgeUIManager::Instance->WebBrowserWidget.Reset();
+			FBridgeUIManager::BrowserBinding->OnExitDelegate.Execute(TEXT("test"));
 		})
 		.TabRole(ETabRole::NomadTab)
 		[

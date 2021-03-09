@@ -20,7 +20,8 @@ bool CopyMaterialPreset(const FString & MaterialName);
 FString GetMSPresetsName();
 void CopyMSPresets();
 bool CopyPresetTextures();
-void CopyUassetFiles(TArray<FString> FilesToCopy, const FString& Destination);
+void CopyUassetFiles(TArray<FString> FilesToCopy, FString DestinationDirectory);
+void CopyUassetFilesPlants(TArray<FString> FilesToCopy, FString DestinationDirectory, const int8 & AssetTier);
 
 
 

@@ -105,9 +105,7 @@ void UBrowserBinding::ShowLoginDialog(FString Url)
 										FString LoginCode = RedirectedUrl.Replace(CodeUrl, TEXT(""));
 										FBridgeUIManager::BrowserBinding->DialogSuccessDelegate.ExecuteIfBound("Login", LoginCode);
 										
-
-										// TODO: CEF keeps running even after window is destroyed - temp workaround: navigate to google
-										FBridgeUIManager::BrowserBinding->DialogMainBrowser->LoadURL(TEXT("https://google.com"));
+										FBridgeUIManager::BrowserBinding->DialogMainBrowser.Reset();
 									}
 								}
 					);
@@ -157,32 +155,37 @@ void UBrowserBinding::OpenExternalUrl(FString Url)
 
 void UBrowserBinding::DragStarted(TArray<FString> ImageUrls)
 {
-	for (int32 index = ImageUrls.Num() - 1; index >= 0; index--)
-	{
-		FString ImageUrl = ImageUrls[index];
-
-	 	// UE_LOG(LogTemp, Error, TEXT("Image: %s"), *ImageUrl);
-		TSharedPtr<SWebBrowser> PopupWebBrowser = SNew(SWebBrowser)
+	TSharedPtr<SWebBrowser> PopupWebBrowser = SNew(SWebBrowser)
 									.ShowControls(false);
-		TSharedPtr<SWindow> DragDropWindow = SNew(SWindow)
-			.ClientSize(FVector2D(120, 120))
-			.SupportsTransparency(EWindowTransparency::PerWindow)
-			.RenderOpacity(0.3)
-			.CreateTitleBar(false)
-			.IsTopmostWindow(true)
-			.FocusWhenFirstShown(false)
-			.SupportsMaximize(false)
-			.SupportsMinimize(false)
-			[
-				PopupWebBrowser.ToSharedRef()
-			];
-					
-		FBridgeUIManager::Instance->DragDropWindows.Add(DragDropWindow);
 
-		PopupWebBrowser->LoadString(FString::Printf(TEXT("<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\" /> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" /> <style> * { padding: 0px; } body { padding: 0px; margin: 0px; } #container { display: flex; width: 120px; height: 120px; background: #202020; justify-content: center; align-items: center;} #full-image { max-width: 110px; max-height: 110px; display: block; font-size: 0; } </style> </head> <body> <div id=\"container\"> <img id=\"full-image\" src=\"%s\" /> </div> </body></html>"), *ImageUrl), TEXT(""));
+	FString ImageUrl = ImageUrls[0];
+	int32 Count = ImageUrls.Num();
 
-		FSlateApplication::Get().AddWindow(DragDropWindow.ToSharedRef(), false);
+	TSharedPtr<SWindow> DragDropWindow = SNew(SWindow)
+		.ClientSize(FVector2D(120, 120))
+		.SupportsTransparency(EWindowTransparency::PerWindow)
+		.RenderOpacity(0.3)
+		.CreateTitleBar(false)
+		.IsTopmostWindow(true)
+		.FocusWhenFirstShown(false)
+		.SupportsMaximize(false)
+		.SupportsMinimize(false)
+		[
+			PopupWebBrowser.ToSharedRef()
+		];
+
+	FBridgeUIManager::Instance->DragDropWindows.Add(DragDropWindow);
+
+	if (Count > 1)
+	{
+		PopupWebBrowser->LoadString(FString::Printf(TEXT("<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <style>*{padding: 0px;}body{padding: 0px; margin: 0px;}#container{display: flex; position: relative; width: 120px; height: 120px; background: #202020; justify-content: center; align-items: center;}#full-image{max-width: 110px; max-height: 110px; display: block; font-size: 0;}#number-circle{position: absolute; border-radius: 50%; width: 18px; height: 18px; padding: 4px; background: #fff; color: #666; text-align: center; font: 16px Arial, sans-serif; box-shadow: 1px 1px 1px #888888; opacity: 0.5;}</style> </head> <body> <div id=\"container\"> <img id=\"full-image\" src=\"%s\"/> <div id=\"number-circle\">+%d</div></div></body></html>"), *ImageUrl, Count-1), TEXT(""));
 	}
+	else
+	{
+		PopupWebBrowser->LoadString(FString::Printf(TEXT("<!DOCTYPE html><html lang=\"en\"> <head> <meta charset=\"UTF-8\"/> <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"/> <style>*{padding: 0px;}body{padding: 0px; margin: 0px;}#container{display: flex; position: relative; width: 120px; height: 120px; background: #202020; justify-content: center; align-items: center;}#full-image{max-width: 110px; max-height: 110px; display: block; font-size: 0;}#number-circle{position: absolute; border-radius: 50%; width: 18px; height: 18px; padding: 4px; background: #fff; color: #666; text-align: center; font: 16px Arial, sans-serif; box-shadow: 1px 1px 1px #888888; opacity: 0.5;}</style> </head> <body> <div id=\"container\"> <img id=\"full-image\" src=\"%s\"/></div></body></html>"), *ImageUrl), TEXT(""));
+	}
+	
+	FSlateApplication::Get().AddWindow(DragDropWindow.ToSharedRef(), false);
 
 	TSharedRef<FGenericApplicationMessageHandler> TargetHandler = FSlateApplication::Get().GetPlatformApplication().Get()->GetMessageHandler();
 	UBrowserBinding::BridgeMessageHandler->SetTargetHandler(TargetHandler);

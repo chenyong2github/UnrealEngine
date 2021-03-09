@@ -46,7 +46,7 @@ TSharedPtr<FImportProgressive3D> FImportProgressive3D::Get()
 }
 
 
-void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAssetData> ImportData, float LocationOffset)
+void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAssetData> ImportData, float LocationOffset, bool bIsNormal)
 {
 	FViewport* ActiveViewport = GEditor->GetActiveViewport();
 	FEditorViewportClient* EditorViewClient = (FEditorViewportClient*)ActiveViewport->GetClient();
@@ -70,13 +70,15 @@ void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAsse
 	SMActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
 
 	//SMActor->Rename(TEXT("MyStaticMeshInTheWorld"));
-	SMActor->SetActorLabel("StaticMeshActor");
+	SMActor->SetActorLabel(AssetData.AssetName.ToString());
 
 	GEditor->EditorUpdateComponents();
 	CurrentWorld->UpdateWorldComponents(true, false);
 	SMActor->RerunConstructionScripts();
 
-	if (!ProgressiveData.Contains(ImportData->AssetId))
+	if (bIsNormal) return;
+
+	if (!ProgressiveData.Contains(ImportData->AssetId) )
 	{
 		ProgressiveData.Add(ImportData->AssetId, SMActor);
 	}
@@ -86,7 +88,7 @@ void FImportProgressive3D::SpawnAtCenter(FAssetData AssetData, TSharedPtr<FUAsse
 
 }
 
-void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset)
+void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset, bool bIsNormal)
 {
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -106,7 +108,28 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 	FString DestinationFolder = FPaths::Combine(FPaths::ProjectContentDir(), DestinationPath.Replace(TEXT("/Game/"), TEXT("")));
 	
 
-	CopyUassetFiles(ImportData->FilePaths, DestinationFolder);
+	
+
+	if (AssetMetaData.assetType == TEXT("3dplant"))
+	{
+		CopyUassetFilesPlants(ImportData->FilePaths, DestinationFolder, AssetMetaData.assetTier);
+	}
+	else {
+		CopyUassetFiles(ImportData->FilePaths, DestinationFolder);
+	}
+
+	if (bIsNormal)
+	{
+		FString MeshPath = AssetMetaData.meshList[0].path;
+		FAssetData AssetMeshData = AssetRegistry.GetAssetByObjectPath(FName(*MeshPath));
+		FSoftObjectPath ItemToStream = AssetMeshData.ToSoftObjectPath();
+		if (!AssetMeshData.IsValid()) return;
+
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandleNormalAssetLoad, AssetMeshData, AssetMetaData, LocationOffset));
+
+
+		return;
+	}
 	
 
 	if (!PreviewDetails.Contains(ImportData->AssetId))
@@ -127,7 +150,7 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
 		FSoftObjectPath ItemToStream = PreviewMeshData.ToSoftObjectPath();
 		
-		if (!MInstanceData.IsValid()) return;
+		if (!MInstanceData.IsValid()) return;		
 		
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressive3D::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId));
 		SpawnAtCenter(PreviewMeshData, ImportData, LocationOffset);
@@ -251,6 +274,8 @@ void FImportProgressive3D::HandleHighAssetLoad(FAssetData HighAssetData, FString
 	});
 }
 
+
+
 void FImportProgressive3D::AsyncCacheData(FAssetData HighAssetData, FString AssetID, FUAssetMeta AssetMetaData, bool bWaitNaniteConversion)
 {
 
@@ -305,6 +330,49 @@ void FImportProgressive3D::SwitchHigh(FAssetData HighAssetData, FString AssetID)
 	ProgressiveData.Remove(AssetID);
 	PreviewDetails.Remove(AssetID);
 }
+
+
+
+
+// Handle normal drag and drop import.
+void FImportProgressive3D::HandleNormalAssetLoad(FAssetData NormalAssetData, FUAssetMeta AssetMetaData, float LocationOffset)
+{
+	UStaticMesh* SourceMesh = Cast<UStaticMesh>(NormalAssetData.GetAsset());
+
+	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
+	{
+		AssetUtils::DeleteAsset(AssetMetaData.materialInstances[0].instancePath);
+		UMaterialInstanceConstant* OverridenInstance = FMaterialUtils::CreateMaterialOverride(AssetMetaData);
+		FMaterialUtils::ApplyMaterialInstance(AssetMetaData, OverridenInstance);
+	}
+
+	AssetUtils::ManageImportSettings(AssetMetaData);
+
+	AsyncTask(ENamedThreads::AnyThread, [this, NormalAssetData, AssetMetaData, LocationOffset]() {
+		AsyncNormalImportCache(NormalAssetData, AssetMetaData, LocationOffset);
+	});
+
+}
+
+
+void FImportProgressive3D::AsyncNormalImportCache(FAssetData NormalAssetData, FUAssetMeta AssetMetaData, float LocationOffset)
+{
+	UStaticMesh* SourceMesh = Cast<UStaticMesh>(NormalAssetData.GetAsset());
+
+	if (FStaticMeshCompilingManager::Get().IsAsyncCompilationAllowed(SourceMesh) && FStaticMeshCompilingManager::Get().IsAsyncStaticMeshCompilationEnabled())
+	{
+		while (SourceMesh->IsCompiling())
+		{
+			FPlatformProcess::Sleep(1.0f);
+		}
+	}	
+
+	AsyncTask(ENamedThreads::GameThread, [this, NormalAssetData, AssetMetaData, LocationOffset]() {
+		SpawnAtCenter(NormalAssetData, nullptr, LocationOffset, true);
+	});
+
+}
+
 
 
 

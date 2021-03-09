@@ -45,8 +45,14 @@ void FImportUAssetNormal::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson)
 	FText AssetCopyMsgDialogMessage = FText::FromString(AssetCopyMsg);
 	FScopedSlowTask AssetLoadprogress(1.0f, AssetCopyMsgDialogMessage, true);
 	AssetLoadprogress.MakeDialog();*/
-	CopyUassetFiles(AssetPaths, DestinationFolder);	
-	
+	if (AssetMetaData.assetType == TEXT("3dplant"))
+	{
+		CopyUassetFilesPlants(AssetPaths, DestinationFolder, AssetMetaData.assetTier);
+	}
+	else {
+		CopyUassetFiles(AssetPaths, DestinationFolder);
+	}
+
 	if (FMaterialUtils::ShouldOverrideMaterial(AssetMetaData.assetType))
 	{
 		

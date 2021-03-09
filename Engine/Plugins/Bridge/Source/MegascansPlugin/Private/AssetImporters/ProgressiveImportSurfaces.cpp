@@ -45,7 +45,7 @@ TSharedPtr<FImportProgressiveSurfaces> FImportProgressiveSurfaces::Get()
 }
 
 
-void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset)
+void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, float LocationOffset, bool bIsNormal)
 {
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -66,14 +66,27 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 
 	CopyUassetFiles(ImportData->FilePaths, DestinationFolder);
 
+	if (bIsNormal)
+	{
+
+		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath;
+		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
+
+		if (!MInstanceData.IsValid()) return;
+
+		FSoftObjectPath ItemToStream = MInstanceData.ToSoftObjectPath();
+		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandleNormalMaterialLoad, MInstanceData, AssetMetaData,  LocationOffset));
+
+		return;
+	}
+
 	if (AssetMetaData.assetSubType == TEXT("imperfection") && ImportData->ProgressiveStage == 3)
 	{
 		ImportData->ProgressiveStage = 4;
 	}
-
 	
 
-	if (!PreviewDetails.Contains(ImportData->AssetId))
+	if (!PreviewDetails.Contains(ImportData->AssetId) )
 	{
 		TSharedPtr< FProgressiveSurfaces> ProgressiveDetails = MakeShareable(new FProgressiveSurfaces);
 		PreviewDetails.Add(ImportData->AssetId, ProgressiveDetails);
@@ -84,6 +97,8 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 	{
 		FString MInstancePath = AssetMetaData.materialInstances[0].instancePath;
 		FAssetData MInstanceData = AssetRegistry.GetAssetByObjectPath(FName(*MInstancePath));
+
+		if (!MInstanceData.IsValid()) return;
 
 		FSoftObjectPath ItemToStream = MInstanceData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewInstanceLoad, MInstanceData, ImportData->AssetId, LocationOffset));
@@ -112,6 +127,9 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		}		
 
 		FAssetData TextureData = AssetRegistry.GetAssetByObjectPath(FName(*TexturePath));
+
+		if (!TextureData.IsValid()) return;
+
 		FSoftObjectPath ItemToStream = TextureData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewTextureLoad, TextureData, ImportData->AssetId, TextureType));
 
@@ -133,6 +151,9 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 		}		
 
 		FAssetData NormalData = AssetRegistry.GetAssetByObjectPath(FName(*NormalPath));
+
+		if (!NormalData.IsValid()) return;
+
 		FSoftObjectPath ItemToStream = NormalData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandlePreviewTextureLoad, NormalData, ImportData->AssetId, TextureType));
 
@@ -142,6 +163,8 @@ void FImportProgressiveSurfaces::ImportAsset(TSharedPtr<FJsonObject> AssetImport
 	{	
 		FString MInstanceHighPath = AssetMetaData.materialInstances[0].instancePath;
 		FAssetData MInstanceHighData = AssetRegistry.GetAssetByObjectPath(FName(*MInstanceHighPath));
+
+		if (!MInstanceHighData.IsValid()) return;
 
 		FSoftObjectPath ItemToStream = MInstanceHighData.ToSoftObjectPath();
 		Streamable.RequestAsyncLoad(ItemToStream, FStreamableDelegate::CreateRaw(this, &FImportProgressiveSurfaces::HandleHighInstanceLoad, MInstanceHighData, ImportData->AssetId, AssetMetaData));
@@ -167,14 +190,14 @@ void FImportProgressiveSurfaces::HandlePreviewTextureLoad(FAssetData TextureData
 
 void FImportProgressiveSurfaces::HandlePreviewInstanceLoad(FAssetData PreviewInstanceData, FString AssetID, float LocationOffset)
 {
-
+	
 	PreviewDetails[AssetID]->PreviewInstance = Cast<UMaterialInstanceConstant>(PreviewInstanceData.GetAsset());
 	SpawnMaterialPreviewActor(AssetID, LocationOffset);
-
+	
 
 }
 
-void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, float LocationOffset)
+void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, float LocationOffset, bool bIsNormal, FAssetData MInstanceData)
 {
 	IAssetRegistry& AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry").Get();
 	FString SphereMeshPath = TEXT("/Engine/BasicShapes/Sphere.Sphere");
@@ -199,14 +222,24 @@ void FImportProgressiveSurfaces::SpawnMaterialPreviewActor(FString AssetID, floa
 
 	AStaticMeshActor* SMActor = Cast<AStaticMeshActor>(CurrentWorld->SpawnActor(AStaticMeshActor::StaticClass(), &InitialTransform));
 	SMActor->GetStaticMeshComponent()->SetStaticMesh(SourceMesh);
-	SMActor->GetStaticMeshComponent()->SetMaterial(0, CastChecked<UMaterialInterface>(PreviewDetails[AssetID]->PreviewInstance));
+	if (bIsNormal)
+	{
+		UMaterialInstanceConstant* MInstance = Cast<UMaterialInstanceConstant>(MInstanceData.GetAsset());
+		SMActor->GetStaticMeshComponent()->SetMaterial(0, MInstance);
 
+	}
+	else
+	{
+		SMActor->GetStaticMeshComponent()->SetMaterial(0, CastChecked<UMaterialInterface>(PreviewDetails[AssetID]->PreviewInstance));
+	}
 	//SMActor->Rename(TEXT("MyStaticMeshInTheWorld"));
 	//SMActor->SetActorLabel("StaticMeshActor");
 
 	GEditor->EditorUpdateComponents();
 	CurrentWorld->UpdateWorldComponents(true, false);
 	SMActor->RerunConstructionScripts();
+	if (bIsNormal) return;
+
 	if (PreviewDetails.Contains(AssetID))
 	{
 		PreviewDetails[AssetID]->ActorInLevel = SMActor;
@@ -232,5 +265,13 @@ void FImportProgressiveSurfaces::HandleHighInstanceLoad(FAssetData HighInstanceD
 	//UMaterialInstanceConstant* HighInstance = Cast<UMaterialInstanceConstant>(HighInstanceData.GetAsset());
 	PreviewDetails[AssetID]->ActorInLevel->GetStaticMeshComponent()->SetMaterial(0, CastChecked<UMaterialInterface>(HighInstanceData.GetAsset()));
 	PreviewDetails.Remove(AssetID);
+}
+
+
+//Handle normal surfaces/decals/imperfections import through drag.
+void FImportProgressiveSurfaces::HandleNormalMaterialLoad(FAssetData AssetInstanceData, FUAssetMeta AssetMetaData, float LocationOffset)
+{
+	SpawnMaterialPreviewActor(AssetMetaData.assetID, LocationOffset, true, AssetInstanceData);
+
 }
 

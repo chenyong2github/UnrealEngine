@@ -281,6 +281,8 @@ void CopyMSPresets()
 		for (FString FoliageTypePath : FoliageTypePaths)
 		{
 			FAssetData AssetData = AssetRegistry.GetAssetByObjectPath(FName(*FoliageTypePath));
+			if (!AssetData.IsValid()) return;
+
 			auto* CurrentWorld = GEditor->GetEditorWorldContext().World();
 			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForCurrentLevel(CurrentWorld, true);
 			IFA->AddFoliageType(Cast<UFoliageType_InstancedStaticMesh>(AssetData.GetAsset()));
@@ -298,10 +300,10 @@ void CopyMSPresets()
 			
 		}
 
-		/*if (AssetMetaData.assetType == TEXT("3dplant") && MegascansSettings->bCreateFoliage)
+		if (AssetMetaData.assetType == TEXT("3dplant") && MegascansSettings->bCreateFoliage)
 		{
 			AssetUtils::AddFoliageTypesToLevel(AssetMetaData.foliageAssetPaths);
-		}*/
+		}
 
 	}
 
@@ -352,13 +354,14 @@ TSharedPtr<FUAssetData> JsonUtils::ParseUassetJson(TSharedPtr<FJsonObject> Impor
 	
 }
 
-void CopyUassetFiles(TArray<FString> FilesToCopy, const FString& DestinationDirectory)
+void CopyUassetFiles(TArray<FString> FilesToCopy, FString DestinationDirectory)
 {
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 	PlatformFile.CreateDirectoryTree(*DestinationDirectory);
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
 
+	
 
 	for (FString FileToCopy : FilesToCopy)
 	{
@@ -375,4 +378,41 @@ void CopyUassetFiles(TArray<FString> FilesToCopy, const FString& DestinationDire
 
 }
 
+void CopyUassetFilesPlants(TArray<FString> FilesToCopy, FString DestinationDirectory, const int8& AssetTier)
+{
 
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	PlatformFile.CreateDirectoryTree(*DestinationDirectory);
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+
+	FString FoliageDestination = FPaths::Combine(DestinationDirectory, TEXT("Foliage"));
+
+	if (AssetTier < 4)
+	{
+		PlatformFile.CreateDirectoryTree(*FoliageDestination);
+	}
+
+
+
+	for (FString FileToCopy : FilesToCopy)
+	{
+		FString DestinationFile = TEXT("");
+		FString TypeConvention = FPaths::GetBaseFilename(FileToCopy).Left(2);
+		if (TypeConvention == TEXT("FT"))
+		{
+			DestinationFile = FPaths::Combine(FoliageDestination, FPaths::GetCleanFilename(FileToCopy));
+		}
+		else {
+
+			DestinationFile = FPaths::Combine(DestinationDirectory, FPaths::GetCleanFilename(FileToCopy));
+		}
+		PlatformFile.CopyFile(*DestinationFile, *FileToCopy);
+	}
+
+
+
+	TArray<FString> SyncPaths;
+	SyncPaths.Add(TEXT("/Game/Megascans"));
+	AssetRegistryModule.Get().ScanPathsSynchronous(SyncPaths, true);
+}

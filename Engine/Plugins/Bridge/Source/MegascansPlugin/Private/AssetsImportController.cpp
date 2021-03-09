@@ -72,25 +72,28 @@ void FAssetsImportController::DataReceived(const FString DataFromBridge)
 			{
 				FImportUAssetNormal::Get()->ImportAsset(AssetJson->AsObject());
 			}
-			else if (ExportMode == TEXT("progressive") && ( AssetType == TEXT("3d") || AssetType == TEXT("3dplant") ))
+			else if (ExportMode == TEXT("progressive") || ExportMode == TEXT("normal_drag"))
 			{
-				
-				FImportProgressive3D::Get()->ImportAsset(AssetJson->AsObject(), LocationOffset);
-				if (AssetJson->AsObject()->GetIntegerField(TEXT("progressiveStage")) == 1)
-				{
-					LocationOffset += 200;
-				}
-			}
+				bool bIsNormal = (ExportMode == TEXT("normal_drag")) ? true : false;				
 
-			else if (ExportMode == TEXT("progressive") && (AssetType == TEXT("surface") || AssetType == TEXT("atlas")))
-			{
-				
-				FImportProgressiveSurfaces::Get()->ImportAsset(AssetJson->AsObject(), LocationOffset);
-				if (AssetJson->AsObject()->GetIntegerField(TEXT("progressiveStage")) == 1)
+				if (AssetType == TEXT("3d") || AssetType == TEXT("3dplant"))
+				{
+					FImportProgressive3D::Get()->ImportAsset(AssetJson->AsObject(), LocationOffset, bIsNormal);
+					
+				}
+
+				else if (AssetType == TEXT("surface") || AssetType == TEXT("atlas"))
+				{
+					FImportProgressiveSurfaces::Get()->ImportAsset(AssetJson->AsObject(), LocationOffset, bIsNormal);
+				}
+
+				if (AssetJson->AsObject()->GetIntegerField(TEXT("progressiveStage")) == 1 || bIsNormal)
 				{
 					LocationOffset += 200;
 				}
-			}
+			}			
+
+			
 
 		}	
 		else if (ImportType == EAssetImportType::DHI_CHARACTER)
