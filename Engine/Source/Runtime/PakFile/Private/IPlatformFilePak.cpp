@@ -74,7 +74,6 @@ int64 GTotalLoadedLastTick = 0;
 static FString GMountStartupPaksWildCard = TEXT(MOUNT_STARTUP_PAKS_WILDCARD);
 
 
-extern TAtomic<int>	GAsyncLoadingFlushIsActive;
 
 int32 GetPakchunkIndexFromPakFile(const FString& InFilename)
 {
@@ -509,14 +508,6 @@ static FAutoConsoleVariableRef CVar_EnableNoCaching(
 	TEXT("pakcache.EnableNoCaching"),
 	GPakCache_EnableNoCaching,
 	TEXT("if > 0, then we'll allow a read requests pak cache memory to be ditched early")
-);
-
-static int32 GAsyncLoadingAllowFlushProtection = 0;
-static FAutoConsoleVariableRef CVarAsyncLoadingAllowFlushProtection(
-	TEXT("pakcache.AsyncLoadingAllowFlushProtection"),
-	GAsyncLoadingAllowFlushProtection,
-	TEXT("Used to try and stop a hang in asyncloading if a flush comes in when the loading queue has a read request queued at a low priority and we've stopped trying to load low priority read requests because a higher priority read request has completed but hasn't been consumed!"),
-	ECVF_Default
 );
 
 
@@ -2091,10 +2082,6 @@ private: // below here we assume CachedFilesScopeLock until we get to the next s
 	FJoinedOffsetAndPakIndex GetNextBlock(EAsyncIOPriorityAndFlags& OutPriority)
 	{
 		EAsyncIOPriorityAndFlags AsyncMinPriorityLocal = AsyncMinPriority;
-		if (GAsyncLoadingAllowFlushProtection && GAsyncLoadingFlushIsActive)
-		{
-			AsyncMinPriorityLocal = AIOP_MIN;
-		}
 
 		// CachedFilesScopeLock is locked
 		uint16 BestPakIndex = 0;

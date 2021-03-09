@@ -101,21 +101,6 @@ bool IsGarbageCollectionLocked();
 /** Global request ID counter */
 static FThreadSafeCounter GPackageRequestID;
 
-TAtomic<int>	GAsyncLoadingFlushIsActive(0);
-
-class FScopeAsyncLoadingFlushIsActive
-{
-public:
-	FScopeAsyncLoadingFlushIsActive()
-	{
-		GAsyncLoadingFlushIsActive++;
-	}
-
-	~FScopeAsyncLoadingFlushIsActive()
-	{
-		GAsyncLoadingFlushIsActive--;
-	}
-};
 
 
 /**
@@ -6989,7 +6974,6 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		{
 			return;
 		}
-		FScopeAsyncLoadingFlushIsActive FlushIsActive;
 
 		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
 
