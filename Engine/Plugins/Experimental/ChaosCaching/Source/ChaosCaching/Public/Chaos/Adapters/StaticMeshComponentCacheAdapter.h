@@ -17,7 +17,7 @@ namespace Chaos
 		FGuid                  GetGuid() const override;
 		bool                   ValidForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
 		Chaos::FPhysicsSolver* GetComponentSolver(UPrimitiveComponent* InComponent) const override;
-		bool                   InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
+		bool                   InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) override;
 		bool                   InitializeForPlayback(UPrimitiveComponent* InComponent, UChaosCache* InCache) const override;
 		void                   Record_PostSolve(UPrimitiveComponent* InComp, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const override;
 		void                   Playback_PreSolve(UPrimitiveComponent*                               InComponent,

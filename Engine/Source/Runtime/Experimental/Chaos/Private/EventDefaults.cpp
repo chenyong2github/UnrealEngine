@@ -246,10 +246,14 @@ namespace Chaos
 				return;
 
 			FBreakingDataArray& AllBreakingDataArray = BreakingEventData.BreakingData.AllBreakingsArray;
+			TMap<IPhysicsProxyBase*, TArray<int32>>& AllBreakingIndicesByPhysicsProxy = BreakingEventData.PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap;
 
-			AllBreakingDataArray.Reset();
-
-			BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
+			if (BreakingEventData.BreakingData.TimeCreated != Solver->MTime)
+			{
+				AllBreakingDataArray.Reset();
+				AllBreakingIndicesByPhysicsProxy.Reset();
+				BreakingEventData.BreakingData.TimeCreated = Solver->MTime;
+			}
 
 			const auto* Evolution = Solver->GetEvolution();
 			const TPBDRigidParticles<float, 3>& Particles = Evolution->GetParticles().GetDynamicParticles();
@@ -294,6 +298,9 @@ namespace Chaos
 								TBreakingData<float, 3>& BreakingDataArrayItem = AllBreakingDataArray[NewIdx];
 								BreakingDataArrayItem = BreakingData;
 
+								// Add to AllBreakingIndicesByPhysicsProxy
+								AllBreakingIndicesByPhysicsProxy.FindOrAdd(BreakingData.ParticleProxy).Add(TEventManager<Traits>::EncodeCollisionIndex(NewIdx, false));
+
 #if 0 // #todo
 								// If AllBreakingsArray[Idx].ParticleIndex is a cluster store an index for a mesh in this cluster
 								if(ClusterIdsArray[AllBreakingsArray[Idx].ParticleIndex].NumChildren > 0)
@@ -308,6 +315,7 @@ namespace Chaos
 					}
 				}
 			}
+		
 		});
 	}
 

@@ -118,7 +118,7 @@ namespace Chaos
 		 * @param InComponent Target component to initialize
 		 * @param InCache Target cache to initialize
 		 */
-		virtual bool InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) const = 0;
+		virtual bool InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) = 0;
 
 		/**
 		 * Called from the game thread to initialize a component and cache ready to playback a cache

@@ -229,6 +229,18 @@ public:
 	/* Implemented so we can construct TAccelerationStructureHandle. */
 	virtual void* GetHandleUnsafe() const override { return nullptr; }
 
+	int32 GetTransformGroupIndexFromHandle(const FParticleHandle* Handle) const
+	{
+		if (HandleToTransformGroupIndex.Contains(Handle))
+		{
+			return HandleToTransformGroupIndex[Handle];
+		}
+		else
+		{
+			return INDEX_NONE;
+		}
+	}
+
 protected:
 	/**
 	 * Build a physics thread cluster parent particle.

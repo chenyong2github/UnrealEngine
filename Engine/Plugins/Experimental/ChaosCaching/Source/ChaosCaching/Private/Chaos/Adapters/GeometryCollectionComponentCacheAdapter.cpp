@@ -10,6 +10,7 @@
 #include "Chaos/ChaosSolverActor.h"
 
 FName FEnableStateEvent::EventName("GC_Enable");
+FName FBreakingEvent::EventName("GC_Breaking");
 
 namespace Chaos
 {
@@ -120,6 +121,26 @@ namespace Chaos
 			}
 		}
 
+		if (BreakingDataArray && ProxyBreakingDataIndices)
+		{
+			for (int32 Index : *ProxyBreakingDataIndices)
+			{
+				if (BreakingDataArray->IsValidIndex(Index))
+				{
+					const TBreakingData<float, 3>& BreakingData = (*BreakingDataArray)[Index];
+					if (const TPBDRigidParticleHandle<FReal, 3>*Rigid = BreakingData.Particle->CastToRigidParticle())
+					{
+						int32 TransformIndex = Proxy->GetTransformGroupIndexFromHandle(Rigid);
+						if (TransformIndex > INDEX_NONE)
+						{
+							OutFrame.PushEvent(FBreakingEvent::EventName, InTime, FBreakingEvent(TransformIndex, BreakingData));
+						}
+					}
+				}
+				
+			}
+		}
+
 		// Never going to change again till freed after writing to the cache so free up the extra space we reserved
 		OutFrame.PendingParticleData.Shrink();
 	}
@@ -163,6 +184,7 @@ namespace Chaos
 
 		const int32                      NumEventTracks = EvaluatedResult.Events.Num();
 		const TArray<FCacheEventHandle>* EnableEvents   = EvaluatedResult.Events.Find(FEnableStateEvent::EventName);
+		const TArray<FCacheEventHandle>* BreakingEvents = EvaluatedResult.Events.Find(FBreakingEvent::EventName);
 
 		if(EnableEvents)
 		{
@@ -175,26 +197,28 @@ namespace Chaos
 					{
 						Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ChildParticle = Particles[Event->Index];
 						
-						if(ChildParticle->ObjectState() != EObjectStateType::Kinematic)
+						if (ChildParticle)
 						{
-							// If a field or other external actor set the particle to static or dynamic we no longer apply the cache
-							continue;
-						}
-
-						if(FRigidParticle* ClusterParent = ChildParticle->ClusterIds().Id)
-						{
-							if(FClusterParticle* Parent = ClusterParent->CastToClustered())
+							if (ChildParticle->ObjectState() != EObjectStateType::Kinematic)
 							{
-								TArray<FRigidParticle*>& Cluster = NewClusters.FindOrAdd(Parent);
-								Cluster.Add(ChildParticle);
+								// If a field or other external actor set the particle to static or dynamic we no longer apply the cache
+								continue;
+							}
+
+							if (FRigidParticle* ClusterParent = ChildParticle->ClusterIds().Id)
+							{
+								if (FClusterParticle* Parent = ClusterParent->CastToClustered())
+								{
+									TArray<FRigidParticle*>& Cluster = NewClusters.FindOrAdd(Parent);
+									Cluster.Add(ChildParticle);
+								}
+							}
+							else
+							{
+								// This is a cluster parent
+								ChildParticle->SetDisabled(!Event->bEnable);
 							}
 						}
-						else
-						{
-							// This is a cluster parent
-							ChildParticle->SetDisabled(!Event->bEnable);
-						}
-						
 					}
 				}
 			}
@@ -226,6 +250,54 @@ namespace Chaos
 					if (ClusterHandle)
 					{
 						Solver->GetEvolution()->GetRigidClustering().ReleaseClusterParticlesNoInternalCluster(ClusterHandle->CastToClustered(), nullptr, true);
+					}
+				}
+			}
+		}
+
+		if (BreakingEvents)
+		{
+			const FSolverBreakingEventFilter* SolverBreakingEventFilter = Solver->GetEventFilters()->GetBreakingFilter();
+
+			for (const FCacheEventHandle& Handle : *BreakingEvents)
+			{
+				if (FBreakingEvent* Event = Handle.Get<FBreakingEvent>())
+				{
+					if (Particles.IsValidIndex(Event->Index))
+					{
+						Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Particle = Particles[Event->Index];
+
+						if (Particle)
+						{
+							if (Particle->ObjectState() != EObjectStateType::Kinematic)
+							{
+								// If a field or other external actor set the particle to static or dynamic we no longer apply the cache
+								continue;
+							}
+
+							TBreakingData<float, 3> CachedBreak;
+							CachedBreak.Particle = Particle;
+							CachedBreak.ParticleProxy = Proxy;
+							CachedBreak.Location = Event->Location;
+							CachedBreak.Velocity = Event->Velocity;
+							CachedBreak.AngularVelocity = Event->AngularVelocity;
+							CachedBreak.Mass = Event->Mass;
+							CachedBreak.BoundingBox = TAABB<float, 3>(Event->BoundingBoxMin, Event->BoundingBoxMax);
+
+							if (!SolverBreakingEventFilter->Enabled() || SolverBreakingEventFilter->Pass(CachedBreak))
+							{
+								float TimeStamp = Solver->GetSolverTime();
+								Solver->GetEventManager()->AddEvent<FBreakingEventData>(EEventType::Breaking, [&CachedBreak, TimeStamp](FBreakingEventData& BreakingEventData)
+									{
+										if (BreakingEventData.BreakingData.TimeCreated != TimeStamp)
+										{
+											BreakingEventData.BreakingData.AllBreakingsArray.Reset();
+											BreakingEventData.BreakingData.TimeCreated = TimeStamp;
+										}
+										BreakingEventData.BreakingData.AllBreakingsArray.Add(CachedBreak);
+									});
+							}
+						}
 					}
 				}
 			}
@@ -346,10 +418,14 @@ namespace Chaos
 		return nullptr;
 	}
 
-	bool FGeometryCollectionCacheAdapter::InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache) const
+	bool FGeometryCollectionCacheAdapter::InitializeForRecord(UPrimitiveComponent* InComponent, UChaosCache* InCache)
 	{
 		UGeometryCollectionComponent*    Comp     = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy    = Comp->GetPhysicsProxy();
+		
+		ProxyKey = Proxy;
+		BreakingDataArray = nullptr;
+		ProxyBreakingDataIndices = nullptr;
 
 		if(!Proxy)
 		{
@@ -364,7 +440,15 @@ namespace Chaos
 		}
 
 		// We need breaking data to record cluster breaking information into the cache
-		Solver->GetEvolution()->GetRigidClustering().SetGenerateClusterBreaking(true);
+		Solver->SetGenerateBreakingData(true);
+
+
+		// Initialize event handlers to capture Breaking, Collision and Trailing events.
+		Chaos::FEventManager* EventManager = Solver->GetEventManager();
+		if (EventManager)
+		{
+			EventManager->RegisterHandler<Chaos::FBreakingEventData>(Chaos::EEventType::Breaking, const_cast<FGeometryCollectionCacheAdapter*>(this), &FGeometryCollectionCacheAdapter::HandleBreakingEvents);
+		}
 
 		return true;
 	}
@@ -376,12 +460,24 @@ namespace Chaos
 
 		FGeometryDynamicCollection& Collection = Proxy->GetPhysicsCollection();
 
-		for(int32& State : Collection.DynamicState)
+		for (int32& State : Collection.DynamicState)
 		{
 			State = (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		}
 
 		return true;
+	}
+
+	void FGeometryCollectionCacheAdapter::HandleBreakingEvents(const Chaos::FBreakingEventData& Event)
+	{
+		if (ProxyKey)
+		{
+			BreakingDataArray = &Event.BreakingData.AllBreakingsArray;
+			if (Event.PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap.Contains(ProxyKey))
+			{
+				ProxyBreakingDataIndices = &Event.PhysicsProxyToBreakingIndices.PhysicsProxyToIndicesMap[ProxyKey];
+			}
+		}
 	}
 
 }    // namespace Chaos

@@ -6,6 +6,8 @@
 #include "Chaos/CollisionResolutionTypes.h"
 #include "Chaos/Framework/PhysicsProxy.h"
 
+class UPrimitiveComponent;
+
 namespace Chaos
 {
 	// base class for data that requires time of creation to be recorded
@@ -86,6 +88,7 @@ namespace Chaos
 		FBreakingEventData() {}
 
 		FAllBreakingData BreakingData;
+		FIndicesByPhysicsProxy PhysicsProxyToBreakingIndices;
 	};
 
 	/* Trailing */
