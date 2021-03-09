@@ -481,9 +481,45 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	// Continue traversal by simply returning from this shader
 	// Usually this path is inactive because opaque materials don't have AHS bound
 	return;
-#endif // MATERIALBLENDING_SOLID
+#elif MATERIALBLENDING_ALPHAHOLDOUT || MATERIALBLENDING_ADDITIVE
+	if (PackedPayload.IsEvalOpacity())
+	{
+		// path tracer wants to treat these cases as fully transparent
+		// no material evaluation is required
+		IgnoreHit();
+	}
+	// otherwise accept hit
+#else
+	// All other blending modes _might_ need material evaluation - so we need
+	// to generate some code
 
 #if MATERIALBLENDING_MASKED
+	// NOTE: Masked mode execute always - regardless of ray flags
+	// This ensures that both material rays and shadow rays "see" the same thing
+#else
+	// For any other blending models, we have a few options:
+	if (PackedPayload.IsIgnoreTranslucentMaterials())
+	{
+		// special mode used by regular RT shadows - translucent materials are skipped, everything else is treated as opaque
+#if MATERIALBLENDING_TRANSLUCENT
+		IgnoreHit();
+#endif
+		return;
+	}
+	else if (PackedPayload.IsEvalOpacity())
+	{
+		// this case is used by the path tracer only currently
+		// We want to evaluate the material opacity and accumulate it
+		// Keep going and evaluate the material
+	}
+	else
+	{
+		// non-opaque blending mode but no special behavior was requested
+		return;
+	}
+#endif  // !MATERIALBLENDING_MASKED
+
+	// If we got here -- we have a reason to evaluate the material -- do the setup 
 
 	GlobalTextureMipBias = PackedPayload.GetMipBias();
 
@@ -515,22 +551,60 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 		// #endif
 	}
 
+	// Now extract the relevant info from PixelMaterialInputs according to the blending mode
+
+#if MATERIALBLENDING_MASKED
+	// Regardless of payload flags -- we always apply this 
 	if (GetMaterialMask(PixelMaterialInputs) < 0)
 	{
 		IgnoreHit();
 	}
-	else
+#else
+	// If we got this far -- we have a blending mode that can produce partial opacity _and_ we want to
+	// know how much it contributes to the throughput along this ray
+#if MATERIALBLENDING_MODULATE
+	// this material is the only one to lead to colored opacity
+	float3 Transparency = GetMaterialEmissive(PixelMaterialInputs);
+#elif MATERIALBLENDING_ALPHACOMPOSITE
+	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	float Transparency = 1 - Opacity;
+#elif MATERIALBLENDING_TRANSLUCENT
+	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+	if (Ior != 1.0)
 	{
-		// Continue traversal by simply returning from this shader
+		// refraction enabled, treat as opaque for now
+		// #dxr_todo: the path tracer will eventualy want an option for "fake caustics" 
 		return;
 	}
-#endif // MATERIALBLENDING_MASKED
+	// refraction disabled - treat as transparency
+	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+	float Transparency = 1 - Opacity;
+#else
+#error "Control flow does not account for all blending modes!"
+#endif
 
-	// For any other blending models, ignore hit in anyhit shader if we're tracing visibility rays until we have proper handling for translucent
-	if (PackedPayload.IsIgnoreTranslucentMaterials())
+	// Update the ray throughput (it is packed simply into the payload since we don't need to carry any other information across hits)
+	float3 RayThroughput = float3(
+		asfloat(PackedPayload.RadianceAndNormal[0]),
+		asfloat(PackedPayload.RadianceAndNormal[1]),
+		asfloat(PackedPayload.RadianceAndNormal[2])
+	);
+
+	RayThroughput *= Transparency;
+
+	PackedPayload.RadianceAndNormal[0] = asuint(RayThroughput.x);
+	PackedPayload.RadianceAndNormal[1] = asuint(RayThroughput.y);
+	PackedPayload.RadianceAndNormal[2] = asuint(RayThroughput.z);
+
+	if (any(RayThroughput > 0))
 	{
+		// not at full opacity yet -- ignore the hit so we can keep going
 		IgnoreHit();
 	}
+	// If RayThroughput reached 0 -- just return which will accept the hit
+#endif // !MATERIALBLENDING_MASKED
+
+#endif // !MATERIALBLENDING_SOLID && !MATERIALBLENDING_ALPHAHOLDOUT && !MATERIALBLENDING_ADDITIVE
 
 #endif // USE_MATERIAL_ANY_HIT_SHADER
 }

@@ -48,6 +48,89 @@ bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 #endif
 }
 
+float3 GetMaterialTransparency(FMaterialClosestHitPayload Payload)
+{
+	switch (Payload.BlendingMode)
+	{
+		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
+			if (Payload.Ior == 1.0)
+			{
+				// material is not configured with refraction, can use transparency
+				return 1 - Payload.Opacity;
+			}
+			else
+			{
+				// not using transparency - material will be opaque
+				return 0;
+			}
+		case RAY_TRACING_BLEND_MODE_ADDITIVE:
+			return 1;
+		case RAY_TRACING_BLEND_MODE_MODULATE:
+			return Payload.Radiance;
+		case RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE:
+			return 1 - Payload.Opacity;
+		case RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT:
+			return 1;
+		default: 
+			return 0;
+	}
+}
+
+float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
+{
+	float BrdfWeight = 1;
+	bool HasRefraction = false;
+	switch (Payload.BlendingMode)
+	{
+		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
+			if (Payload.Ior == 1.0)
+			{
+				// material is not configured with refraction, can use transparency
+				// NOTE: the albedo when considering refraction is handled below
+				BrdfWeight = Payload.Opacity;
+			}
+			else
+			{
+				HasRefraction = true;
+			}
+			break;
+		case RAY_TRACING_BLEND_MODE_ADDITIVE:
+			BrdfWeight = Payload.Opacity;
+			break;
+		case RAY_TRACING_BLEND_MODE_MODULATE:
+		case RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT:
+			// In these modes, the light does not interact with the material at all, only passes through
+			return 0;
+		default:
+			break;
+	}
+
+	float3 Albedo = 0;
+	switch (Payload.ShadingModelID)
+	{
+		case SHADINGMODELID_UNLIT:
+			// this object does not scatter light
+			return 0;
+		case SHADINGMODELID_TWOSIDED_FOLIAGE:
+			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + GetSubsurfaceColor(Payload));
+			break;
+		case SHADINGMODELID_DEFAULT_LIT:
+		case SHADINGMODELID_CLEAR_COAT:
+			// FIXME: could make this more accurate by estimating the directional albedo
+			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor);
+		default:
+			Albedo = BrdfWeight * Payload.BaseColor;
+			break;
+	}
+	if (HasRefraction)
+	{
+		// glass is currently perfectly clear - so has unit albedo
+		float3 White = 1;
+		Albedo = lerp(White, Albedo, Payload.Opacity);
+	}
+	return Albedo;
+}
+
 void SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
@@ -72,21 +155,13 @@ void SampleMaterial(
 	}
 #else
 
-	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE)
+	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_MODULATE ||
+		Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
 	{
-		OutDirection = RayDirection;
-		OutWeight = Payload.Radiance;
-		OutPdf = POSITIVE_INFINITY;
-		OutPositionBiasSign = -1;
-		return;
-	}
-
-	if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_ALPHA_HOLDOUT)
-	{
-		OutDirection = RayDirection;
-		OutWeight = 1;
-		OutPdf = POSITIVE_INFINITY;
-		OutPositionBiasSign = -1;
+		// transparency only, nothing to sample
+		OutDirection = 0;
+		OutWeight = 0;
+		OutPdf = 0;
 		return;
 	}
 
@@ -98,19 +173,21 @@ void SampleMaterial(
 	switch (Payload.BlendingMode)
 	{
 		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
-			BrdfWeight = 1;
-			TransWeight = 1;
-			BrdfProb = Payload.Opacity;
+			if (Payload.Ior == 1.0)
+			{
+				// scale down BRDF contribution, but don't pick any indirect ray because its already accounted for by transparency handling
+				BrdfWeight = Payload.Opacity;
+			}
+			else
+			{
+				// randomly choose between brdf and glass
+				BrdfWeight = 1;
+				TransWeight = 1;
+				BrdfProb = Payload.Opacity;
+			}
 			break;
 		case RAY_TRACING_BLEND_MODE_ADDITIVE:
-			BrdfWeight = 1 + Payload.Opacity;
-			TransWeight = 1 + Payload.Opacity;
-			BrdfProb = Payload.Opacity / (1 + Payload.Opacity);
-			break;
-		case RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE:
-			BrdfWeight = 2 - Payload.Opacity;;
-			TransWeight = 2 - Payload.Opacity;
-			BrdfProb = 1 / (2 - Payload.Opacity);
+			BrdfWeight = Payload.Opacity;
 			break;
 		default:
 			// opaque or one of the modes handled above
@@ -126,29 +203,18 @@ void SampleMaterial(
 	{
 		// we randomly decided to sample the translucent portion
 		RandSample.x = (RandSample.x - BrdfProb) / (1 - BrdfProb);
-		// now decide what to do based on blend mode
-		if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0)
+
+		// only case that should reach this point is the refraction model
+		if (Payload.Roughness == 0)
 		{
-			// refraction model
-			if (Payload.Roughness == 0)
-			{
-				SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
-			}
-			else
-			{
-				RoughGlass_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
-			}
-			OutWeight *= TransWeight;
-			OutPdf *= 1 - BrdfProb;
+			SpecularRefraction_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
 		}
 		else
 		{
-			// plain transparency
-			OutDirection = RayDirection;
-			OutWeight = TransWeight;
-			OutPdf = POSITIVE_INFINITY; // * 1 - BrdfProb
-			OutPositionBiasSign = -1;
+			RoughGlass_SampleMaterial(RayDirection, Payload, RandSample, OutDirection, OutWeight, OutPdf, OutPositionBiasSign);
 		}
+		OutWeight *= TransWeight;
+		OutPdf *= 1 - BrdfProb;
 		return;
 	}
 
@@ -219,23 +285,22 @@ void EvalMaterial(
 		case RAY_TRACING_BLEND_MODE_TRANSLUCENT:
 			// brdf:   Opacity
 			// glass:  1.0 - Opacity
-			BrdfWeight = 1;
-			TransWeight = 1;
-			BrdfProb = Payload.Opacity;
+			if (Payload.Ior == 1.0)
+			{
+				// handled by native transpaarency, just weight down the brdf contrib
+				BrdfWeight = Payload.Opacity;
+			}
+			else
+			{
+				// brdf or glass
+				BrdfWeight = 1;
+				TransWeight = 1;
+				BrdfProb = Payload.Opacity;
+			}
 			break;
 		case RAY_TRACING_BLEND_MODE_ADDITIVE:
 			// brdf:   Opacity
-			// transp: 1.0
-			BrdfWeight = 1 + Payload.Opacity;
-			TransWeight = 1 + Payload.Opacity;
-			BrdfProb = Payload.Opacity / (1 + Payload.Opacity);
-			break;
-		case RAY_TRACING_BLEND_MODE_ALPHA_COMPOSITE:
-			// brdf:   1.0
-			// transp: 1.0 - Opacity
-			BrdfWeight = 2 - Payload.Opacity;;
-			TransWeight = 2 - Payload.Opacity;
-			BrdfProb = 1 / (2 - Payload.Opacity);
+			BrdfWeight = Payload.Opacity;
 			break;
 		default:
 			// opaque or one of the modes handled above
@@ -270,17 +335,14 @@ void EvalMaterial(
 
 	if (BrdfProb < 1.0)
 	{
-		if (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0)
+		// refraction model (only evaluate for rough case as singular can't be evaluated)
+		if (Payload.Roughness != 0)
 		{
-			// refraction model (only evaluate for rough case as singular can't be evaluated)
-			if (Payload.Roughness != 0)
-			{
-				float3 GlassWeight = 0;
-				float GlassPdf = 0;
-				RoughGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
+			float3 GlassWeight = 0;
+			float GlassPdf = 0;
+			RoughGlass_EvalMaterial(IncomingDirection, OutgoingDirection, Payload, GlassWeight, GlassPdf);
 
-				AddLobeWithMIS(OutWeight, OutPdf, GlassWeight, GlassPdf, 1.0 - BrdfProb);
-			}
+			AddLobeWithMIS(OutWeight, OutPdf, GlassWeight, GlassPdf, 1.0 - BrdfProb);
 		}
 	}
 #endif
