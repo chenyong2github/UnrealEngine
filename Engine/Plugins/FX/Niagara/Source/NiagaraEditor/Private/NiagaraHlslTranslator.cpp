@@ -25,6 +25,7 @@
 #include "NiagaraSimulationStageBase.h"
 #include "NiagaraTrace.h"
 #include "NiagaraCommon.h"
+#include "Modules/ModuleManager.h"
 
 #include "NiagaraFunctionLibrary.h"
 
