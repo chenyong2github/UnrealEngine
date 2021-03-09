@@ -717,11 +717,18 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			SceneContext.GetSceneDepthSurface(),
 			EDepthStencilTargetActions::ClearDepthStencil_StoreDepthStencil);
 
+		DepthPrePassRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
+		DepthPrePassRenderPassInfo.bOcclusionQueries = DepthPrePassRenderPassInfo.NumOcclusionQueries != 0;
+
 		RHICmdList.BeginRenderPass(DepthPrePassRenderPassInfo, TEXT("DepthPrepass"));
 
 		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_MobilePrePass));
 		// Full Depth pre-pass
 		RenderPrePass(RHICmdList);
+
+		// Issue occlusion queries
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+		RenderOcclusion(RHICmdList);
 
 		RHICmdList.EndRenderPass();
 
@@ -996,9 +1003,11 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		FExclusiveDepthStencil::DepthWrite_StencilWrite
 	);
 	SceneColorRenderPassInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
-	SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
-	SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
-
+	if (!bIsFullPrepassEnabled)
+	{
+		SceneColorRenderPassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
+		SceneColorRenderPassInfo.bOcclusionQueries = SceneColorRenderPassInfo.NumOcclusionQueries != 0;
+	}
 	//if the scenecolor isn't multiview but the app is, need to render as a single-view multiview due to shaders
 	SceneColorRenderPassInfo.MultiViewCount = View.bIsMobileMultiViewEnabled ? 2 : (bIsMultiViewApplication ? 1 : 0);
 
@@ -1033,12 +1042,16 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	const bool bAdrenoOcclusionMode = CVarMobileAdrenoOcclusionMode.GetValueOnRenderThread() != 0;
-	if (!bAdrenoOcclusionMode)
+	if (!bIsFullPrepassEnabled)
 	{
-		// Issue occlusion queries
-		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
-		RenderOcclusion(RHICmdList);
-		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		
+		if (!bAdrenoOcclusionMode)
+		{
+			// Issue occlusion queries
+			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+			RenderOcclusion(RHICmdList);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		}
 	}
 
 	{
@@ -1148,15 +1161,18 @@ FRHITexture* FMobileSceneRenderer::RenderForward(FRHICommandListImmediate& RHICm
 		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 	}
 
-	if (bAdrenoOcclusionMode)
+	if (!bIsFullPrepassEnabled)
 	{
-		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
-		// flush
-		RHICmdList.SubmitCommandsHint();
-		bSubmitOffscreenRendering = false; // submit once
-		// Issue occlusion queries
-		RenderOcclusion(RHICmdList);
-		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		if (bAdrenoOcclusionMode)
+		{
+			RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+			// flush
+			RHICmdList.SubmitCommandsHint();
+			bSubmitOffscreenRendering = false; // submit once
+			// Issue occlusion queries
+			RenderOcclusion(RHICmdList);
+			RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+		}
 	}
 
 	// Pre-tonemap before MSAA resolve (iOS only)
@@ -1221,8 +1237,11 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 	BasePassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthWrite_StencilWrite;
 		
 	BasePassInfo.SubpassHint = ESubpassHint::DeferredShadingSubpass;
-	BasePassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
-	BasePassInfo.bOcclusionQueries = BasePassInfo.NumOcclusionQueries != 0;
+	if (!bIsFullPrepassEnabled)
+	{
+		BasePassInfo.NumOcclusionQueries = ComputeNumOcclusionQueriesToBatch();
+		BasePassInfo.bOcclusionQueries = BasePassInfo.NumOcclusionQueries != 0;
+	}
 	BasePassInfo.ShadingRateTexture = nullptr;
 	BasePassInfo.bIsMSAA = false;
 	BasePassInfo.MultiViewCount = 0;
@@ -1246,10 +1265,13 @@ FRHITexture* FMobileSceneRenderer::RenderDeferred(FRHICommandListImmediate& RHIC
 	RenderMobileBasePass(RHICmdList, ViewList);
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 
-	// Issue occlusion queries
-	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
-	RenderOcclusion(RHICmdList);
-	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	if (!bIsFullPrepassEnabled)
+	{
+		// Issue occlusion queries
+		RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Occlusion));
+		RenderOcclusion(RHICmdList);
+		RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+	}
 
 	if (!bRequiresMultiPass)
 	{
