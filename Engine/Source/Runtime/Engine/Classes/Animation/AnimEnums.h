@@ -56,6 +56,8 @@ enum EAdditiveBasePoseType
 	ABPT_AnimScaled UMETA(DisplayName = "Selected animation scaled"),
 	/** Use one frame of an animation as a base pose. BasePoseSeq and RefFrameIndex must be set (RefFrameIndex will be clamped). */
 	ABPT_AnimFrame UMETA(DisplayName = "Selected animation frame"),
+	/** Use one frame of this animation. RefFrameIndex must be set (RefFrameIndex will be clamped). */
+	ABPT_LocalAnimFrame UMETA(DisplayName = "Frame from this animation"),
 	ABPT_MAX,
 };
 

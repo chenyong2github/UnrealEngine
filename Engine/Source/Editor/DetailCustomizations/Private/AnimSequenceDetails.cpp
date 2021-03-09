@@ -230,7 +230,7 @@ EVisibility FAnimSequenceDetails::ShouldShowRefFrameIndex() const
 	uint8 RefPoseType = ABPT_None; 
 	AdditiveAnimTypeHandle->GetValue(AdditiveAnimType);
 	RefPoseTypeHandle->GetValue(RefPoseType);
-	return TargetSkeleton.IsValid() && AdditiveAnimType != AAT_None && RefPoseType == ABPT_AnimFrame? EVisibility::Visible : EVisibility::Collapsed;
+	return TargetSkeleton.IsValid() && AdditiveAnimType != AAT_None && (RefPoseType == ABPT_AnimFrame || RefPoseType == ABPT_LocalAnimFrame)? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 
