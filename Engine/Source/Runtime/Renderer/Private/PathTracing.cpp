@@ -76,6 +76,13 @@ TAutoConsoleVariable<int32> CVarPathTracingVisibleLights(
 	ECVF_RenderThreadSafe
 );
 
+TAutoConsoleVariable<int32> CVarPathTracingMaxSSSBounces(
+	TEXT("r.PathTracing.MaxSSSBounces"),
+	256,
+	TEXT("Sets the maximum number of bounces inside subsurface materials. Lowering this value can make subsurface scattering render too dim, while setting it too high can cause long render times.  (default = 256)"),
+	ECVF_RenderThreadSafe
+);
+
 TAutoConsoleVariable<float> CVarPathTracingMaxPathIntensity(
 	TEXT("r.PathTracing.MaxPathIntensity"),
 	-1,
@@ -164,6 +171,7 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	}
 
 	PathTracingData.MaxBounces = MaxBounces;
+	PathTracingData.MaxSSSBounces = CVarPathTracingMaxSSSBounces.GetValueOnRenderThread();
 	PathTracingData.MaxNormalBias = GetRaytracingMaxNormalBias();
 	PathTracingData.MISMode = CVarPathTracingMISMode.GetValueOnRenderThread();
 	uint32 VisibleLights = CVarPathTracingVisibleLights.GetValueOnRenderThread();
@@ -188,6 +196,14 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	{
 		NeedInvalidation = true;
 		PrevMaxBounces = PathTracingData.MaxBounces;
+	}
+
+	// Changing the number of SSS bounces requires starting over
+	static uint32 PrevMaxSSSBounces = PathTracingData.MaxSSSBounces;
+	if (PathTracingData.MaxSSSBounces != PrevMaxSSSBounces)
+	{
+		NeedInvalidation = true;
+		PrevMaxSSSBounces = PathTracingData.MaxSSSBounces;
 	}
 
 	// Changing MIS mode requires starting over
