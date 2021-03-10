@@ -721,6 +721,11 @@ URigVMGraph* UControlRigBlueprint::GetModel(const UEdGraph* InEdGraph) const
 		return Model;
 	}
 
+	if(InEdGraph->GetOutermost() != GetOutermost())
+	{
+		return nullptr;
+	}
+
 #if WITH_EDITORONLY_DATA
 	if (InEdGraph == FunctionLibraryEdGraph)
 	{
@@ -994,6 +999,11 @@ URigVMController* UControlRigBlueprint::GetTemplateController()
 UEdGraph* UControlRigBlueprint::GetEdGraph(URigVMGraph* InModel) const
 {
 	if (InModel == nullptr)
+	{
+		return nullptr;
+	}
+
+	if(InModel->GetOutermost() != GetOutermost())
 	{
 		return nullptr;
 	}
