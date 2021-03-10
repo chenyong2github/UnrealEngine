@@ -174,7 +174,7 @@ EActiveTimerReturnType SDDCStatusIndicator::UpdateWarnings(double InCurrentTime,
 	const UEditorSettings* Settings = GetDefault<UEditorSettings>();
 	const UDDCProjectSettings* DDCProjectSettings = GetDefault<UDDCProjectSettings>();
 
-	if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && !Settings->GlobalLocalDDCPath.Path.IsEmpty())
+	if (DDCProjectSettings->RecommendEveryoneSetupAGlobalLocalDDCPath && Settings->GlobalLocalDDCPath.Path.IsEmpty())
 	{
 		TPromise<TWeakPtr<SNotificationItem>> NotificationPromise;
 
