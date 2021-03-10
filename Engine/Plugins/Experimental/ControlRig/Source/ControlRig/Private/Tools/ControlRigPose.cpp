@@ -33,18 +33,18 @@ void FControlRigControlPose::PastePose(UControlRig* ControlRig, bool bDoKey, boo
 
 }
 
-void FControlRigControlPose::SetControlMirrorTransform(bool bDoLocal, UControlRig* ControlRig, const FName& Name, bool bIsMatched, const FVector& GlobalTranslation, const FQuat& GlobalRotation, const FVector& LocalTranslation, const FQuat& LocalRotation, bool bNotify, const  FRigControlModifiedContext& Context)
+void FControlRigControlPose::SetControlMirrorTransform(bool bDoLocal, UControlRig* ControlRig, const FName& Name, bool bIsMatched, const FVector& GlobalTranslation, const FQuat& GlobalRotation, const FVector& LocalTranslation, const FQuat& LocalRotation, bool bNotify, const  FRigControlModifiedContext&Context,bool bSetupUndo)
 {
 	if (bDoLocal || bIsMatched)
 	{
 		FTransform NewLocalTransform(LocalRotation, LocalTranslation);
-		ControlRig->SetControlLocalTransform(Name, NewLocalTransform, bNotify, Context);
+		ControlRig->SetControlLocalTransform(Name, NewLocalTransform, bNotify,Context,bSetupUndo);
 
 	}
 	else
 	{
 		FTransform NewGlobalTransform(GlobalRotation, GlobalTranslation);
-		ControlRig->SetControlGlobalTransform(Name, NewGlobalTransform, bNotify, Context);
+		ControlRig->SetControlGlobalTransform(Name, NewGlobalTransform, bNotify,Context,bSetupUndo);
 	}	
 }
 
@@ -61,7 +61,9 @@ void FControlRigControlPose::PastePoseInternal(UControlRig* ControlRig, bool bDo
 	TArray<FRigControlElement*> SortedControls;
 	ControlRig->GetControlsInOrder(SortedControls);
 	
-	bool bDoLocal = true;
+	const bool bDoLocal = true;
+	const bool bSetupUndo = false;
+
 	for (FRigControlElement* ControlElement : SortedControls)
 	{
 		if (!ControlRig->IsControlSelected(ControlElement->GetName()))
@@ -87,11 +89,11 @@ void FControlRigControlPose::PastePoseInternal(UControlRig* ControlRig, bool bDo
 					{
 						if (bDoLocal) // -V547  
 						{
-							ControlRig->SetControlLocalTransform(ControlElement->GetName(), CopyRigControl->LocalTransform, true, Context);
+							ControlRig->SetControlLocalTransform(ControlElement->GetName(), CopyRigControl->LocalTransform, true,Context,bSetupUndo);
 						}
 						else
 						{
-							ControlRig->SetControlGlobalTransform(ControlElement->GetName(), CopyRigControl->GlobalTransform, true, Context);
+							ControlRig->SetControlGlobalTransform(ControlElement->GetName(), CopyRigControl->GlobalTransform, true,Context,bSetupUndo);
 						}
 					}
 					else
@@ -102,32 +104,32 @@ void FControlRigControlPose::PastePoseInternal(UControlRig* ControlRig, bool bDo
 						FQuat LocalRotation;
 						bool bIsMatched = MirrorTable.IsMatched(CopyRigControl->Name);
 						MirrorTable.GetMirrorTransform(*CopyRigControl, bDoLocal,bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation, LocalRotation);
-						SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation,LocalRotation, true, Context);
+						SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation, LocalTranslation,LocalRotation, true,Context,bSetupUndo);
 					}				
 					break;
 				}
 				case ERigControlType::Float:
 				{
 					float Val = CopyRigControl->Value.Get<float>();
-					ControlRig->SetControlValue<float>(ControlElement->GetName(), Val, true, Context);
+					ControlRig->SetControlValue<float>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
 					break;
 				}
 				case ERigControlType::Bool:
 				{
 					bool Val = CopyRigControl->Value.Get<bool>();
-					ControlRig->SetControlValue<bool>(ControlElement->GetName(), Val, true, Context);
+					ControlRig->SetControlValue<bool>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
 					break;
 				}
 				case ERigControlType::Integer:
 				{
 					int32 Val = CopyRigControl->Value.Get<int32>();
-					ControlRig->SetControlValue<int32>(ControlElement->GetName(), Val, true, Context);
+					ControlRig->SetControlValue<int32>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
 					break;
 				}
 				case ERigControlType::Vector2D:
 				{
 					FVector2D Val = CopyRigControl->Value.Get<FVector2D>();
-					ControlRig->SetControlValue<FVector2D>(ControlElement->GetName(), Val, true, Context);
+					ControlRig->SetControlValue<FVector2D>(ControlElement->GetName(), Val, true, Context,bSetupUndo);
 					break;
 				}
 				default:
@@ -159,7 +161,8 @@ void FControlRigControlPose::BlendWithInitialPoses(FControlRigControlPose& Initi
 	TArray<FRigControlElement*> SortedControls;
 	ControlRig->GetControlsInOrder(SortedControls);
 	
-	bool bDoLocal = true;
+	const bool bDoLocal = true;
+	const bool bSetupUndo = false;
 	for (FRigControlElement* ControlElement : SortedControls)
 	{
 		if (!ControlRig->IsControlSelected(ControlElement->GetName()))
@@ -197,7 +200,7 @@ void FControlRigControlPose::BlendWithInitialPoses(FControlRigControlPose& Initi
 								Rotation = FQuat::Slerp(InitialVal.GetRotation(), Val.GetRotation(), BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
 								Scale = FMath::Lerp(InitialVal.GetScale3D(), Val.GetScale3D(), BlendValue);
 								Val = FTransform(Rotation, Translation, Scale);
-								ControlRig->SetControlLocalTransform(ControlElement->GetName(), Val, bDoKey, Context);
+								ControlRig->SetControlLocalTransform(ControlElement->GetName(), Val, bDoKey,Context,bSetupUndo);
 							}
 							else
 							{
@@ -209,7 +212,7 @@ void FControlRigControlPose::BlendWithInitialPoses(FControlRigControlPose& Initi
 								Rotation = FQuat::Slerp(InitialVal.GetRotation(), Val.GetRotation(), BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
 								Scale = FMath::Lerp(InitialVal.GetScale3D(), Val.GetScale3D(), BlendValue);
 								Val = FTransform(Rotation, Translation, Scale);
-								ControlRig->SetControlGlobalTransform(ControlElement->GetName(), Val, bDoKey, Context);
+								ControlRig->SetControlGlobalTransform(ControlElement->GetName(), Val, bDoKey,Context,bSetupUndo);
 							}
 						}
 						else
@@ -228,7 +231,7 @@ void FControlRigControlPose::BlendWithInitialPoses(FControlRigControlPose& Initi
 							GlobalRotation = FQuat::Slerp(InitialGlobalRotation, GlobalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
 							LocalTranslation = FMath::Lerp(InitialLocalTranslation, LocalTranslation, BlendValue);
 							LocalRotation = FQuat::Slerp(InitialLocationRotation, LocalRotation, BlendValue); //doing slerp here not fast lerp, can be slow this is for content creation
-							SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation,LocalTranslation, LocalRotation, bDoKey, Context);							
+							SetControlMirrorTransform(bDoLocal,ControlRig, ControlElement->GetName(), bIsMatched, GlobalTranslation, GlobalRotation,LocalTranslation, LocalRotation, bDoKey,Context,bSetupUndo);							
 						}
 					}
 				}

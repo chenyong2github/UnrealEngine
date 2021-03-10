@@ -91,13 +91,13 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 				{
 					case EControlRigFKRigExecuteMode::Replace:
 					{
-						GetHierarchy()->SetCurveValue(CurveElement, CurveValue, false);
+						GetHierarchy()->SetCurveValue(CurveElement, CurveValue, false /*bSetupUndo*/);
 						break;
 					}
 					case EControlRigFKRigExecuteMode::Additive:
 					{
 						const float PreviousValue = GetHierarchy()->GetCurveValue(CurveElement);
-						GetHierarchy()->SetCurveValue(CurveElement, PreviousValue + CurveValue, false);
+						GetHierarchy()->SetCurveValue(CurveElement, PreviousValue + CurveValue, false /*bSetupUndo*/);
 						break;
 					}
 				}
@@ -108,7 +108,9 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 	else if (InEventName == FRigUnit_InverseExecution::EventName)
 	{
 		FRigVMExecuteContext VMContext;
-
+		const bool bNotify = true;
+		const FRigControlModifiedContext Context = FRigControlModifiedContext();
+		const bool bSetupUndo = false;
 		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
         {
             const FName ControlName = GetControlName(BoneElement->GetName());
@@ -118,7 +120,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 			if (IsControlActive[ControlIndex])
 			{
 				const FEulerTransform EulerTransform(GetHierarchy()->GetTransform(BoneElement, ERigTransformType::CurrentLocal));
-				SetControlValue(ControlName, FRigControlValue::Make(EulerTransform));
+				SetControlValue(ControlName, FRigControlValue::Make(EulerTransform), bNotify, Context, bSetupUndo);
 			}
 			
 			return true;
@@ -133,7 +135,7 @@ void UFKControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InE
 			if (IsControlActive[ControlIndex])
 			{
 				const float CurveValue = GetHierarchy()->GetCurveValue(CurveElement);
-				SetControlValue(ControlName, FRigControlValue::Make(CurveValue));
+				SetControlValue(ControlName, FRigControlValue::Make(CurveValue), bNotify, Context, bSetupUndo);
 			}
 
 			return true;
@@ -296,11 +298,11 @@ void UFKControlRig::ToggleApplyMode()
 	{
 		ApplyMode = EControlRigFKRigExecuteMode::Additive;
 	}
-
 	if (ApplyMode == EControlRigFKRigExecuteMode::Additive)
 	{
 		FRigControlModifiedContext Context;
 		Context.SetKey = EControlRigSetKey::Never;
+		const bool bSetupUndo = false;
 
 		FTransform ZeroScale = FTransform::Identity;
 		ZeroScale.SetScale3D(FVector::ZeroVector);
@@ -310,11 +312,11 @@ void UFKControlRig::ToggleApplyMode()
         {
             if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
-				SetControlValue<FEulerTransform>(ControlElement->GetName(), EulerZero, true, Context);
+				SetControlValue<FEulerTransform>(ControlElement->GetName(), EulerZero, true, Context, bSetupUndo);
 			}
 			else if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
-				SetControlValue<float>(ControlElement->GetName(), 0.f, true, Context);
+				SetControlValue<float>(ControlElement->GetName(), 0.f, true, Context, bSetupUndo);
 			}
 
 			return true;
@@ -324,18 +326,19 @@ void UFKControlRig::ToggleApplyMode()
 	{
 		FRigControlModifiedContext Context;
 		Context.SetKey = EControlRigSetKey::Never;
+		const bool bSetupUndo = false;
 
 		GetHierarchy()->ForEach<FRigControlElement>([&](FRigControlElement* ControlElement) -> bool
         {
             if (ControlElement->Settings.ControlType == ERigControlType::EulerTransform)
 			{
 				const FEulerTransform InitValue = GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Initial).Get<FEulerTransform>();
-				SetControlValue<FEulerTransform>(ControlElement->GetName(), InitValue, true, Context);
+				SetControlValue<FEulerTransform>(ControlElement->GetName(), InitValue, true, Context, bSetupUndo);
 			}
 			else if (ControlElement->Settings.ControlType == ERigControlType::Float)
 			{
 				const float InitValue = GetHierarchy()->GetControlValue(ControlElement, ERigControlValueType::Initial).Get<float>();
-				SetControlValue<float>(ControlElement->GetName(), InitValue, true, Context);
+				SetControlValue<float>(ControlElement->GetName(), InitValue, true, Context, bSetupUndo);
 			}
 
 			return true;
