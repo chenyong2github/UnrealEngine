@@ -126,7 +126,7 @@ namespace Chaos
 			return PhiWithNormalInternal(X, Normal);
 		}
 
-		FReal PhiWithNormalScaled(const FVec3& X, const FVec3& Scale, const FVec3& InvScale, FVec3& Normal) const
+		virtual FReal PhiWithNormalScaled(const FVec3& X, const FVec3& Scale, FVec3& Normal) const override
 		{
 			return PhiWithNormalScaledInternal(X, Scale, Normal);
 		}
@@ -313,6 +313,7 @@ namespace Chaos
 		// Get the nearest point on an edge of the specified face
 		FVec3 GetClosestEdgePosition(int32 PlaneIndex, const FVec3& Position) const;
 
+		bool GetClosestEdgeVertices(int32 PlaneIndex, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const;
 
 		// The number of planes that use the specified vertex
 		int32 NumVertexPlanes(int32 VertexIndex) const;
@@ -511,6 +512,7 @@ namespace Chaos
 		}
 
 		// Return support point on the shape
+		// @todo(chaos): do we need to support thickness?
 		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
 		{
 			const int32 MaxVIdx = GetSupportVertex(Direction);
@@ -523,6 +525,16 @@ namespace Chaos
 				return Vertices[MaxVIdx];
 			}
 			return FVec3(0);
+		}
+
+		FORCEINLINE FVec3 SupportScaled(const FVec3& Direction, const FReal Thickness, const FVec3& Scale) const
+		{
+			FVec3 SupportPoint = Support(Direction * Scale, 0.0f) * Scale;
+			if (Thickness > 0.0f)
+			{
+				SupportPoint += Thickness * Direction.GetSafeNormal();
+			}
+			return SupportPoint;
 		}
 
 		virtual FString ToString() const

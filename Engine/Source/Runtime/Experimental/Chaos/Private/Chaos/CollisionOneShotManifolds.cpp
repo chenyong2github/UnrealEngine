@@ -16,7 +16,7 @@
 
 namespace Chaos
 {
-	float Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.001f;
+	float Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.01f;
 	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Collision_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
 
 	// @todo(chaos): TEMP - use convex-convex collisio detection for box-box until TBox::GetClosestEdgePosition is implemented for that path (without plane hint)
@@ -569,17 +569,56 @@ namespace Chaos
 			const FReal PlaneContactNormalEpsilon = Chaos_Collision_Manifold_PlaneContactNormalEpsilon;
 			const bool bIsPlaneContact = FMath::IsNearlyEqual(BestPlaneDotNormalConvex1, 1.0f, PlaneContactNormalEpsilon) || FMath::IsNearlyEqual(BestPlaneDotNormalConvex2, 1.0f, PlaneContactNormalEpsilon);
 
-			// For edge-edge contacts, we find the edges involved and project the contact onto the edges
+			// For edge-edge contacts, we find the edges involved and generate contact from the closest points on the edges
 			if (!bIsPlaneContact)
 			{
-				FVec3 ShapeEdgePos1 = Convex1.GetClosestEdgePosition(MostOpposingPlaneIndexConvex1, GJKContactPoint.ShapeContactPoints[0]);
-				FVec3 ShapeEdgePos2 = Convex2.GetClosestEdgePosition(MostOpposingPlaneIndexConvex2, GJKContactPoint.ShapeContactPoints[1]);
-				FVec3 EdgePos1 = Convex1Transform.TransformPosition(ShapeEdgePos1);
-				FVec3 EdgePos2 = Convex2Transform.TransformPosition(ShapeEdgePos2);
-				FReal EdgePhi = FVec3::DotProduct(EdgePos1 - EdgePos2, GJKContactPoint.Normal);
+				// Get the edge vertices on each convex closest to the GJK contact
+				int32 EdgeVertexIndex1A, EdgeVertexIndex1B;
+				int32 EdgeVertexIndex2A, EdgeVertexIndex2B;
+				bool bFoundEdge1 = Convex1.GetClosestEdgeVertices(MostOpposingPlaneIndexConvex1, GJKContactPoint.ShapeContactPoints[0], EdgeVertexIndex1A, EdgeVertexIndex1B);
+				bool bFoundEdge2 = Convex2.GetClosestEdgeVertices(MostOpposingPlaneIndexConvex2, GJKContactPoint.ShapeContactPoints[1], EdgeVertexIndex2A, EdgeVertexIndex2B);
+				
+				// Sanity check - should only happen with null convexes
+				if (!bFoundEdge1 || !bFoundEdge2)
+				{
+					return;
+				}
 
+				// Get the world-space edge vertices and find tge closest point
+				const FVec3 EdgeVertex1A = Convex1Transform.TransformPosition(Convex1.GetVertex(EdgeVertexIndex1A));
+				const FVec3 EdgeVertex1B = Convex1Transform.TransformPosition(Convex1.GetVertex(EdgeVertexIndex1B));
+				const FVec3 EdgeVertex2A = Convex2Transform.TransformPosition(Convex2.GetVertex(EdgeVertexIndex2A));
+				const FVec3 EdgeVertex2B = Convex2Transform.TransformPosition(Convex2.GetVertex(EdgeVertexIndex2B));
+				FReal S, T;
+				FVec3 EdgePos1, EdgePos2;
+				Utilities::NearestPointsOnLineSegments(EdgeVertex1A, EdgeVertex1B, EdgeVertex2A, EdgeVertex2B, S, T, EdgePos1, EdgePos2);
+
+				// Generate the normal from the edges (make sure we don't change the sign)
+				FVec3 EdgeNormal = FVec3::CrossProduct(EdgeVertex1B - EdgeVertex1A, EdgeVertex2B - EdgeVertex2A);
+				const FReal EdgeNormalSq = EdgeNormal.SizeSquared();
+				if (EdgeNormalSq > SMALL_NUMBER)
+				{
+					EdgeNormal = EdgeNormal * FMath::InvSqrt(EdgeNormalSq);
+					if (FVec3::DotProduct(EdgeNormal, GJKContactPoint.Normal) < 0.0f)
+					{
+						EdgeNormal = -EdgeNormal;
+					}
+				}
+				else
+				{
+					EdgeNormal = GJKContactPoint.Normal;
+				}
+
+				// Shape-space contact data
+				const FReal EdgePhi = FVec3::DotProduct(EdgePos1 - EdgePos2, EdgeNormal);
+				const FVec3 ShapeEdgePos1 = Convex1Transform.InverseTransformPositionNoScale(EdgePos1);
+				const FVec3 ShapeEdgePos2 = Convex2Transform.InverseTransformPositionNoScale(EdgePos2);
+				const FVec3 ShapeEdgeNormal2 = Convex2Transform.InverseTransformVectorNoScale(EdgeNormal);
+
+				// Update the contact with the edge-edge contact
 				GJKContactPoint.ShapeContactPoints[0] = ShapeEdgePos1;
 				GJKContactPoint.ShapeContactPoints[1] = ShapeEdgePos2;
+				GJKContactPoint.ShapeContactNormal = ShapeEdgeNormal2;
 				GJKContactPoint.Phi = EdgePhi;
 				GJKContactPoint.Location = 0.5f * (EdgePos1 + EdgePos2);
 
@@ -668,7 +707,7 @@ namespace Chaos
 				ContactPoint.ShapeMargins[1] = 0.0f;
 				ContactPoint.ShapeContactPoints[0] = ReferenceFaceConvex1 ? PointProjectedOntoReferenceFace : ClippedPointInOtherCoordinates;
 				ContactPoint.ShapeContactPoints[1] = ReferenceFaceConvex1 ? ClippedPointInOtherCoordinates : PointProjectedOntoReferenceFace;
-				ContactPoint.ShapeContactNormal = RefSeparationDirection;
+				ContactPoint.ShapeContactNormal = ReferenceFaceConvex1 ? -RefPlaneNormal : RefPlaneNormal;
 				ContactPoint.ContactNormalOwnerIndex = ReferenceFaceConvex1 ? 0 : 1;
 
 				ContactPoint.Location = RefConvexTM->TransformPositionNoScale(PointProjectedOntoReferenceFace);

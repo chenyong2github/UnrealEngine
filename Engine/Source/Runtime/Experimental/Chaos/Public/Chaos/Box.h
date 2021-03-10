@@ -156,6 +156,11 @@ namespace Chaos
 			return AABB.PhiWithNormal(Pos, Normal);
 		}
 
+		virtual T PhiWithNormalScaled(const TVector<T, d>& Pos, const TVector<T, d>& Scale, TVector<T, d>& Normal) const override
+		{
+			return TAABB<T, d>(Scale * AABB.Min(), Scale * AABB.Max()).PhiWithNormal(Pos, Normal);
+		}
+
 		static FORCEINLINE bool RaycastFast(const TVector<T,d>& InMin, const TVector<T,d>& InMax, const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const TVector<T, d>& InvDir, const bool* bParallel, const T Length, const T InvLength, T& OutTime, TVector<T, d>& OutPosition)
 		{
 			return TAABB<T, d>(InMin, InMax).RaycastFast(StartPoint, Dir, InvDir, bParallel, Length, InvLength, OutTime, OutPosition);
@@ -239,6 +244,48 @@ namespace Chaos
 			}
 			return ClosestEdgePosition;
 		}
+
+		bool GetClosestEdgeVertices(int32 PlaneIndexHint, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const
+		{
+			if (PlaneIndexHint >= 0)
+			{
+				FReal ClosestDistanceSq = FLT_MAX;
+
+				int32 PlaneVerticesNum = NumPlaneVertices(PlaneIndexHint);
+				if (PlaneVerticesNum > 0)
+				{
+					int32 VertexIndex0 = GetPlaneVertex(PlaneIndexHint, PlaneVerticesNum - 1);
+					FVec3 P0 = GetVertex(VertexIndex0);
+
+					for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
+					{
+						const int32 VertexIndex1 = GetPlaneVertex(PlaneIndexHint, PlaneVertexIndex);
+						const FVec3 P1 = GetVertex(VertexIndex1);
+
+						const TVector<T, d> EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
+						const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
+
+						if (EdgeDistanceSq < ClosestDistanceSq)
+						{
+							OutVertexIndex0 = VertexIndex0;
+							OutVertexIndex1 = VertexIndex1;
+							ClosestDistanceSq = EdgeDistanceSq;
+						}
+
+						VertexIndex0 = VertexIndex1;
+						P0 = P1;
+					}
+					return true;
+				}
+			}
+			else
+			{
+				// @todo(chaos)
+				check(false);
+			}
+			return false;
+		}
+
 
 		// The number of planes that use the specified vertex
 		int32 NumVertexPlanes(int32 VertexIndex) const

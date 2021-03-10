@@ -91,6 +91,7 @@ namespace Chaos
 	using TTransientPBDGeometryCollectionParticleHandle = TPBDGeometryCollectionParticleHandleImp<T, d, false>;
 	
 	class FGenericParticleHandle;
+	class FConstGenericParticleHandle;
 
 	// TParticleIterator
 

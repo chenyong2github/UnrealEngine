@@ -147,6 +147,36 @@ class TRigidTransform<float, 3> : public FTransform
 	{
 		return ToMatrixNoScale().Inverse();
 	}
+
+	// Get the transform which maps from Other to This, ignoring the scale on both.
+	TRigidTransform<float, 3> GetRelativeTransformNoScale(const TRigidTransform<float, 3>& Other) const
+	{
+		// @todo(chaos): optimize
+		TRigidTransform<float, 3> ThisNoScale(GetTranslation(), GetRotation());
+		TRigidTransform<float, 3> OtherNoScale(Other.GetTranslation(), Other.GetRotation());
+		return ThisNoScale.GetRelativeTransform(OtherNoScale);
+	}
+
+	TVector<float, 3> TransformNormalNoScale(const TVector<float, 3>& Normal) const
+	{
+		return TransformVectorNoScale(Normal);
+	}
+
+	// Transform the normal when scale may be non-unitary. Assumes no scale components are zero.
+	TVector<float, 3> TransformNormalUnsafe(const TVector<float, 3>& Normal) const
+	{
+		const TVector<float, 3> RotatedNormal = TransformNormalNoScale(Normal);
+		const TVector<float, 3> ScaledNormal = RotatedNormal / GetScale3D();
+		const float ScaledNormal2 = ScaledNormal.SizeSquared();
+		if (ScaledNormal2 > SMALL_NUMBER)
+		{
+			return ScaledNormal * FMath::InvSqrt(ScaledNormal2);
+		}
+		else
+		{
+			return RotatedNormal;
+		}
+	}
 };
 }
 

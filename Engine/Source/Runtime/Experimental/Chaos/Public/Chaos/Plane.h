@@ -12,6 +12,83 @@ template <typename T, int d>
 class TPlaneConcrete
 {
 public:
+
+	// Scale the plane and assume that any of the scale components could be zero
+	static TPlaneConcrete<T, d> MakeScaledSafe(const TPlaneConcrete<T, d>& Plane, const TVector<T, d>& Scale)
+	{
+		const FVec3 ScaledX = Plane.MX * Scale;
+		
+		// If all 3 scale components are non-zero we can just inverse-scale the normal
+		// If 1 scale component is zero, the normal will point in that direction of the zero scale
+		// If 2 scale components are zero, the normal will be zero along the non-zero scale direction
+		// If 3 scale components are zero, the normal will be unchanged
+		const int32 ZeroX = FMath::IsNearlyZero(Scale.X) ? 1 : 0;
+		const int32 ZeroY = FMath::IsNearlyZero(Scale.Y) ? 1 : 0;
+		const int32 ZeroZ = FMath::IsNearlyZero(Scale.Z) ? 1 : 0;
+		const int32 NumZeros = ZeroX + ZeroY + ZeroZ;
+		FVec3 ScaledN;
+		if (NumZeros == 0)
+		{
+			// All 3 scale components non-zero
+			ScaledN = FVec3(Plane.MNormal.X / Scale.X, Plane.MNormal.Y / Scale.Y, Plane.MNormal.Z / Scale.Z);
+		}
+		else if (NumZeros == 1)
+		{
+			// Exactly one Scale component is zero
+			ScaledN = FVec3(
+				(ZeroX) ? 1.0f : 0.0f,
+				(ZeroY) ? 1.0f : 0.0f,
+				(ZeroZ) ? 1.0f : 0.0f);
+		}
+		else if (NumZeros == 2)
+		{
+			// Exactly two Scale components is zero
+			ScaledN = FVec3(
+				(ZeroX) ? Plane.MNormal.X : 0.0f,
+				(ZeroY) ? Plane.MNormal.Y : 0.0f,
+				(ZeroZ) ? Plane.MNormal.Z : 0.0f);
+		}
+		else // (NumZeros == 3)
+		{
+			// All 3 scale components are zero
+			ScaledN = Plane.MNormal;
+		}
+
+		// Even after all the above, we may still get a zero normal (e.g., we scale N=(1,0,0) by S=(0,1,0))
+		const FReal ScaleN2 = ScaledN.SizeSquared();
+		if (ScaleN2 > SMALL_NUMBER)
+		{
+			ScaledN = ScaledN * FMath::InvSqrt(ScaleN2);
+		}
+		else
+		{
+			ScaledN = Plane.MNormal;
+		}
+		
+		return TPlaneConcrete<FReal, 3>(ScaledX, ScaledN);
+	}
+
+	// Scale the plane and assume that none of the scale components are zero
+	static TPlaneConcrete<T, d> MakeScaledUnsafe(const TPlaneConcrete<T, d>& Plane, const TVector<T, d>& Scale)
+	{
+		const FVec3 ScaledX = Plane.MX * Scale;
+		FVec3 ScaledN = Plane.MNormal / Scale;
+
+		// We don't handle zero scales, but we could still end up with a small normal
+		const FReal ScaleN2 = ScaledN.SizeSquared();
+		if (ScaleN2 > SMALL_NUMBER)
+		{
+			ScaledN =  ScaledN * FMath::InvSqrt(ScaleN2);
+		}
+		else
+		{
+			ScaledN = Plane.MNormal;
+		}
+
+		return TPlaneConcrete<FReal, 3>(ScaledX, ScaledN);
+	}
+
+
 	TPlaneConcrete() = default;
 	TPlaneConcrete(const TVector<T, d>& InX, const TVector<T, d>& InNormal)
 	    : MX(InX)
@@ -110,7 +187,7 @@ public:
 	const TVector<T, d>& X() const { return MX; }
 	const TVector<T, d>& Normal() const { return MNormal; }
 	const TVector<T, d>& Normal(const TVector<T, d>&) const { return MNormal; }
-	
+
 	FORCEINLINE void Serialize(FArchive& Ar)
 	{
 		Ar << MX << MNormal;
