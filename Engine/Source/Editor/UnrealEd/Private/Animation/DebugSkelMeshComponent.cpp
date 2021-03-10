@@ -204,7 +204,7 @@ FPrimitiveSceneProxy* UDebugSkelMeshComponent::CreateSceneProxy()
 	// only create a scene proxy for rendering if
 	// properly initialized
 	if(SkelMeshRenderData &&
-		SkelMeshRenderData->LODRenderData.IsValidIndex(PredictedLODLevel) &&
+		SkelMeshRenderData->LODRenderData.IsValidIndex(GetPredictedLODLevel()) &&
 		!bHideSkin &&
 		MeshObject)
 	{

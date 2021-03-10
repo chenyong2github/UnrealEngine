@@ -902,7 +902,7 @@ void UAnimInstance::DisplayDebugInstance(FDisplayDebugManager& DisplayDebugManag
 		FAnimInstanceProxy& Proxy = GetProxyOnGameThread<FAnimInstanceProxy>();
 
 		FString DebugText = FString::Printf(TEXT("LOD(%d/%d) UpdateCounter(%d) EvalCounter(%d) CacheBoneCounter(%d) InitCounter(%d) DeltaSeconds(%.3f)"),
-			SkelMeshComp->PredictedLODLevel, MaxLODIndex, Proxy.GetUpdateCounter().Get(), Proxy.GetEvaluationCounter().Get(),
+			SkelMeshComp->GetPredictedLODLevel(), MaxLODIndex, Proxy.GetUpdateCounter().Get(), Proxy.GetEvaluationCounter().Get(),
 			Proxy.GetCachedBonesCounter().Get(), Proxy.GetInitializationCounter().Get(), Proxy.GetDeltaSeconds());
 
 		DisplayDebugManager.DrawString(DebugText, Indent);
@@ -1180,7 +1180,7 @@ int32 UAnimInstance::GetLODLevel() const
 	USkeletalMeshComponent* SkelMeshComp = GetSkelMeshComponent();
 	check(SkelMeshComp)
 
-	return SkelMeshComp->PredictedLODLevel;
+	return SkelMeshComp->GetPredictedLODLevel();
 }
 
 void UAnimInstance::RecalcRequiredBones()
@@ -2841,7 +2841,28 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 				}
 			}
 		}
+
+#if DO_CHECK
+		// Verify required bones are consistent now we may have spawned a new instance.
+		// If required bones arrays for linked instances are not built to the same LOD, then when running the anim graph
+		// we can get problems/asserts trying to blend curves/poses of differing sizes (see FORT-354970, for example).
+		// If required bones are flagged for update we are assuming that RefreshBoneTransforms will end up rectifying
+		// any inconsistencies.
+		if(MeshComp->GetAnimInstance() && MeshComp->bRequiredBonesUpToDate)
+		{
+			const int32 RootLOD = MeshComp->GetAnimInstance()->GetRequiredBones().GetCalculatedForLOD();
+			for(UAnimInstance* LinkedInstance : MeshComp->GetLinkedAnimInstances())
+			{
+				check(RootLOD == LinkedInstance->GetRequiredBones().GetCalculatedForLOD());
+			}
+
+			if(MeshComp->GetPostProcessInstance())
+			{
+				check(RootLOD == MeshComp->GetPostProcessInstance()->GetRequiredBones().GetCalculatedForLOD());
+			}
+		}
 	}
+#endif
 }
 
 void UAnimInstance::LinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass)

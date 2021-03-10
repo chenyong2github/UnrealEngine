@@ -600,7 +600,7 @@ void FSkeletalMeshEditor::FillMeshClickMenu(FMenuBuilder& MenuBuilder, HActor* H
 		return;
 	}
 
-	const int32 LodIndex = MeshComp->PredictedLODLevel;
+	const int32 LodIndex = MeshComp->GetPredictedLODLevel();
 	const int32 SectionIndex = HitProxy->SectionIndex;
 
 	TSharedRef<SWidget> InfoWidget = SNew(SBox)

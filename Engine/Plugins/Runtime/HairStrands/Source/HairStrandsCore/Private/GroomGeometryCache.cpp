@@ -77,7 +77,7 @@ static void BuildBoneMatrices(USkeletalMeshComponent* SkeletalMeshComponent, con
 	{
 		FSkeletalMeshRenderData* RenderData = SkeletalMeshComponent->SkeletalMesh->GetResourceForRendering();
 
-		const uint32 LODIndex = SkeletalMeshComponent->PredictedLODLevel;// RenderData->PendingFirstLODIdx;
+		const uint32 LODIndex = SkeletalMeshComponent->GetPredictedLODLevel();// RenderData->PendingFirstLODIdx;
 		FSkeletalMeshLODRenderData& LODData = RenderData->LODRenderData[LODIndex];
 
 		TArray<uint32> MatrixOffsets;

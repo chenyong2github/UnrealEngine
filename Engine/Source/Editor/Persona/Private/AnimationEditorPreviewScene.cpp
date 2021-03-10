@@ -1155,10 +1155,10 @@ void FAnimationEditorPreviewScene::Tick(float InDeltaTime)
 	const FBoxSphereBounds& Bounds = GetFloorBounds();
 	SkeletalMeshComponent->ConsumeRootMotion(Bounds.GetBox().Min, Bounds.GetBox().Max);
 
-	if (LastCachedLODForPreviewComponent != SkeletalMeshComponent->PredictedLODLevel)
+	if (LastCachedLODForPreviewComponent != SkeletalMeshComponent->GetPredictedLODLevel())
 	{
 		OnLODChanged.Broadcast();
-		LastCachedLODForPreviewComponent = SkeletalMeshComponent->PredictedLODLevel;
+		LastCachedLODForPreviewComponent = SkeletalMeshComponent->GetPredictedLODLevel();
 	}
 
 	OnPostTickDelegate.Broadcast();

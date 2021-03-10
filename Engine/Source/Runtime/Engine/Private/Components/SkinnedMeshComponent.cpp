@@ -286,7 +286,7 @@ namespace FAnimUpdateRateManager
 			MaxDistanceFactor = FMath::Max(MaxDistanceFactor, Component->MaxDistanceFactor);
 			bPlayingNetworkedRootMotionMontage |= Component->IsPlayingNetworkedRootMotionMontage();
 			bUsingRootMotionFromEverything &= Component->IsPlayingRootMotionFromEverything();
-			MinLod = FMath::Min(MinLod, Tracker->UpdateRateParameters.bShouldUseMinLod ? Component->MinLodModel : Component->PredictedLODLevel);
+			MinLod = FMath::Min(MinLod, Tracker->UpdateRateParameters.bShouldUseMinLod ? Component->MinLodModel : Component->GetPredictedLODLevel());
 		}
 
 		bNeedsValidRootMotion &= bPlayingNetworkedRootMotionMontage;
@@ -372,7 +372,9 @@ USkinnedMeshComponent::USkinnedMeshComponent(const FObjectInitializer& ObjectIni
 
 	CurrentSkinWeightProfileName = NAME_None;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PredictedLODLevel = 0;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 
@@ -430,7 +432,7 @@ FPrimitiveSceneProxy* USkinnedMeshComponent::CreateSceneProxy()
 
 	// Only create a scene proxy for rendering if properly initialized
 	if (SkelMeshRenderData &&
-		SkelMeshRenderData->LODRenderData.IsValidIndex(PredictedLODLevel) &&
+		SkelMeshRenderData->LODRenderData.IsValidIndex(GetPredictedLODLevel()) &&
 		!bHideSkin &&
 		MeshObject)
 	{
@@ -591,21 +593,22 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 			//	without animated, causing random skinning issues
 			// This can happen if your MinLOD is not valid anymore after loading
 			// which causes meshes to be invisible
+			int32 ModifiedLODLevel = GetPredictedLODLevel();
 			{
 				int32 MinLodIndex = ComputeMinLOD();
 				int32 MaxLODIndex = MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num() - 1;
-				PredictedLODLevel = FMath::Clamp(PredictedLODLevel, MinLodIndex, MaxLODIndex);
+				ModifiedLODLevel = FMath::Clamp(ModifiedLODLevel, MinLodIndex, MaxLODIndex);
 			}
 
 			// Clamp to loaded streaming data if available
 			if (SkeletalMesh->IsStreamable() && MeshObject)
 			{
-				PredictedLODLevel = FMath::Max<int32>(PredictedLODLevel, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
+				ModifiedLODLevel = FMath::Max<int32>(ModifiedLODLevel, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
 			}
 
 			// If we have a valid LOD, set up required data, during reimport we may try to create data before we have all the LODs
 			// imported, in that case we skip until we have all the LODs
-			if(SkeletalMesh->IsValidLODIndex(PredictedLODLevel))
+			if(SkeletalMesh->IsValidLODIndex(ModifiedLODLevel))
 			{
 				const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
 
@@ -615,7 +618,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 					ActiveMorphTargets.Empty();
 				}
 
-				MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
+				MeshObject->Update(ModifiedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
 			}
 		}
 
@@ -676,7 +679,7 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MeshObjectUpdate);
 
-		const int32 UseLOD = PredictedLODLevel;
+		const int32 UseLOD = GetPredictedLODLevel();
 
 		// Only update the state if PredictedLODLevel is valid
 		FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
@@ -702,7 +705,7 @@ void USkinnedMeshComponent::SendRenderDynamicData_Concurrent()
 
 void USkinnedMeshComponent::ClearMotionVector()
 {
-	const int32 UseLOD = PredictedLODLevel;
+	const int32 UseLOD = GetPredictedLODLevel();
 
 	if (MeshObject)
 	{
@@ -723,7 +726,7 @@ void USkinnedMeshComponent::ForceMotionVector()
 	if (MeshObject)
 	{
 		++CurrentBoneTransformRevisionNumber;
-		MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
+		MeshObject->Update(GetPredictedLODLevel(), this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::None);
 	}
 }
 
@@ -1534,7 +1537,7 @@ void USkinnedMeshComponent::SetSkeletalMesh(USkeletalMesh* InSkelMesh, bool bRei
 		FRenderStateRecreator RenderStateRecreator(this);
 
 		SkeletalMesh = InSkelMesh;
-		PredictedLODLevel = 0;
+		SetPredictedLODLevel(0);
 
 		//SlavePoseComponents is an array of weak obj ptrs, so it can contain null elements
 		for (auto Iter = SlavePoseComponents.CreateIterator(); Iter; ++Iter)
@@ -3012,7 +3015,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 	// Predict the best (min) LOD level we are going to need. Basically we use the Min (best) LOD the renderer desired last frame.
 	// Because we update bones based on this LOD level, we have to update bones to this LOD before we can allow rendering at it.
 
-	const int32 OldPredictedLODLevel = PredictedLODLevel;
+	const int32 OldPredictedLODLevel = GetPredictedLODLevel();
 	int32 NewPredictedLODLevel = OldPredictedLODLevel;
 
 	if (SkeletalMesh != nullptr)
@@ -3046,7 +3049,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 			}
 			else if (bSyncAttachParentLOD && GetAttachParent() && GetAttachParent()->IsA(USkinnedMeshComponent::StaticClass()))
 			{
-				NewPredictedLODLevel = FMath::Clamp(CastChecked<USkinnedMeshComponent>(GetAttachParent())->PredictedLODLevel, 0, MaxLODIndex);
+				NewPredictedLODLevel = FMath::Clamp(CastChecked<USkinnedMeshComponent>(GetAttachParent())->GetPredictedLODLevel(), 0, MaxLODIndex);
 			}
 			else if (MeshObject)
 			{
@@ -3088,13 +3091,13 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 				{
 					const float ScreenSize = FMath::Sqrt(MeshObject->MaxDistanceFactor) * 2.f;
 					FString DebugString = FString::Printf(TEXT("PredictedLODLevel(%d)\nMinDesiredLODLevel(%d) ForcedLodModel(%d) MinLodIndex(%d) LODBias(%d)\nMaxDistanceFactor(%f) ScreenSize(%f)"),
-						PredictedLODLevel, MeshObject->MinDesiredLODLevel, LocalForcedLodModel, MinLodIndex, LODBias, MeshObject->MaxDistanceFactor, ScreenSize);
+						GetPredictedLODLevel(), MeshObject->MinDesiredLODLevel, LocalForcedLodModel, MinLodIndex, LODBias, MeshObject->MaxDistanceFactor, ScreenSize);
 
 					// See if Child classes want to add something.
 					UpdateVisualizeLODString(DebugString);
 
 					FColor DrawColor = FColor::White;
-					switch (PredictedLODLevel)
+					switch (GetPredictedLODLevel())
 					{
 					case 0: DrawColor = FColor::White; break;
 					case 1: DrawColor = FColor::Green; break;
@@ -3117,7 +3120,9 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 
 	// See if LOD has changed. 
 	bool bLODChanged = (NewPredictedLODLevel != OldPredictedLODLevel);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PredictedLODLevel = NewPredictedLODLevel;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// also update slave component LOD status, as we may need to recalc required bones if this changes
 	// independently of our LOD

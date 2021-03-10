@@ -407,7 +407,7 @@ bool FSkeletonSelectionEditMode::IsSelectedBoneRequired() const
 		FSkeletalMeshRenderData* SkelMeshRenderData = PreviewMeshComponent->GetSkeletalMeshRenderData();
 		if(SkelMeshRenderData->LODRenderData.Num() > 0)
 		{
-			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshRenderData->LODRenderData.Num() - 1);
+			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->GetPredictedLODLevel(), 0, SkelMeshRenderData->LODRenderData.Num() - 1);
 			FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
 
 			//Check whether the bone is vertex weighted

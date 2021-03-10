@@ -737,7 +737,7 @@ void USkeletalMeshComponent::InitAnim(bool bForceReinit)
 		}
 
 		// this has to be called before Initialize Animation because it will required RequiredBones list when InitializeAnimScript
-		RecalcRequiredBones(PredictedLODLevel);
+		RecalcRequiredBones(GetPredictedLODLevel());
 
 		// In Editor, animations won't get ticked. So Update once to get accurate representation instead of T-Pose.
 		// Also allow this to be an option to support pre-4.19 games that might need it..
@@ -1146,6 +1146,18 @@ void USkeletalMeshComponent::TickAnimation(float DeltaTime, bool bNeedsValidRoot
 	}
 }
 
+void USkeletalMeshComponent::SetPredictedLODLevel(int32 InPredictedLODLevel)
+{
+	int32 OldPredictedLODLevel = GetPredictedLODLevel();
+	
+	Super::SetPredictedLODLevel(InPredictedLODLevel);
+
+	if(OldPredictedLODLevel != GetPredictedLODLevel())
+	{
+		bRequiredBonesUpToDate = false;
+	}
+} 
+
 bool USkeletalMeshComponent::UpdateLODStatus()
 {
 	if (Super::UpdateLODStatus())
@@ -1166,9 +1178,9 @@ void USkeletalMeshComponent::UpdateVisualizeLODString(FString& DebugString)
 	{
 		if (FSkeletalMeshRenderData* RenderData = SkeletalMesh->GetResourceForRendering())
 		{
-			if (RenderData->LODRenderData.IsValidIndex(PredictedLODLevel))
+			if (RenderData->LODRenderData.IsValidIndex(GetPredictedLODLevel()))
 			{
-				NumVertices = RenderData->LODRenderData[PredictedLODLevel].GetNumVertices();
+				NumVertices = RenderData->LODRenderData[GetPredictedLODLevel()].GetNumVertices();
 			}
 		}
 	}
@@ -1617,7 +1629,7 @@ void USkeletalMeshComponent::RecalcRequiredCurves()
 		CachedCurveUIDList = SkeletalMesh->GetSkeleton()->GetDefaultCurveUIDList();
 	}
 
-	const FCurveEvaluationOption CurveEvalOption(bAllowAnimCurveEvaluation, &DisallowedAnimCurves, PredictedLODLevel);
+	const FCurveEvaluationOption CurveEvalOption(bAllowAnimCurveEvaluation, &DisallowedAnimCurves, GetPredictedLODLevel());
 
 	// make sure animation requiredcurve to mark as dirty
 	if (AnimScriptInstance)
@@ -2184,7 +2196,7 @@ void USkeletalMeshComponent::RefreshBoneTransforms(FActorComponentTickFunction* 
 	if (!bRequiredBonesUpToDate)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_USkeletalMeshComponent_RefreshBoneTransforms_RecalcRequiredBones);
-		RecalcRequiredBones(PredictedLODLevel);
+		RecalcRequiredBones(GetPredictedLODLevel());
 	}
 	// if curves have to be refreshed
 	else if (!AreRequiredCurvesUpToDate())
