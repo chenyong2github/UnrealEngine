@@ -1,0 +1,63 @@
+<?xml version='1.0' ?>
+<BuildGraph xmlns="http://www.epicgames.com/BuildGraph" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../../Schema.xsd" >
+
+	<!--
+		This script defines the local and network paths used for builds. It is expected that most licensees
+		will need to replace this script due to the network paths.
+		
+		On a build machine a network path is always needed to allow tests on other agents retrieve the 
+		build, however a differentiation is made between "temp" storage and "build" storage. At Epic 
+		the former has a life of <1 day whereas build are evicted over time.
+
+		This script should be included after CommonProperties.xml where build strings are defines.
+
+		InOption: PublishBuilds - Enabled/Disable publishing of builds to build storage
+		
+		InProperty: ProjectName
+		InProperty: EscapedBranch
+
+		OutProperty: ProjectOutputDirectory - Local path to package builds to
+		OutProperty: ProjectPublishPath - Path to publish builds to. If empty publishing should be skipped
+	-->
+
+	<!-- Publish builds to the network ?-->
+	<Option Name="PublishBuilds" DefaultValue="false" Description="Publish packaged builds to the builds folder on the netwok"/>
+	<Option Name="PublishReports" DefaultValue="$(PublishBuilds)" Description="Publish packaged builds to the builds folder on the netwok"/>
+
+
+	<!-- Where builds are saved to locally (todo - use ProjectDir?) -->
+	<Property Name="ProjectOutputDirectory" Value="$(RootDir)/LocalBuilds/$(ProjectName)"/>
+	<Property Name="AutomationReportOutputDirectory" Value=""/>
+
+	<!-- Scratch network path that can be used for tests if we aren't publishing. Assumes there's a cleanup script.. -->
+	<Property Name="NetworkTempRoot" Value="/Volumes/Builds/UE5/TempStorage"/>
+	<Property Name="NetworkTempRoot" Value="P:/Builds/UE5/TempStorage" If="'$(HostPlatform)' == 'Win64'"/>
+
+	<!-- Network path that can be used for builds that are published -->
+	<Property Name="NetworkPublishRoot" Value="/Volumes/Builds/UE5/PackagedBuilds"/>
+	<Property Name="NetworkPublishRoot" Value="P:/Builds/UE5/PackagedBuilds" If="'$(HostPlatform)' == 'Win64'"/>
+
+	<!-- Network path that can be used for storing reports and logs -->
+	<Property Name="NetworkReportRoot" Value="/Volumes/Builds/Automation/Reports"/>
+	<Property Name="NetworkReportRoot" Value="P:/Builds/Automation/Reports" If="'$(HostPlatform)' == 'Win64'"/>
+
+	<!-- Declare the publish path, and point to the network if PublishBuilds is true -->
+	<Property Name="ProjectPublishPath" Value="" />
+	<Property Name="ProjectPublishPath" Value="$(NetworkPublishRoot)" If="$(PublishBuilds)"/>
+
+	<!-- Automation can publish reports to a folder that is mapped to a website -->
+	<Do If="$(IsBuildMachine) or $(PublishReports)" >
+		<Property Name="AutomationReportOutputDirectory" Value="$(NetworkReportRoot)"/>
+		<Property Name="AutomationReportOutputDirectory" Value="$(AutomationReportOutputDirectory)/$(EscapedBranch)/$(ProjectName)/$(CL-String)"/>
+		<Property Name="AutomationReportUrl" Value="http://automation.epicgames.net/reports/$(EscapedBranch)/$(ProjectName)/$(CL-String)"/>
+	</Do>
+
+	<!-- Build machines always need to publish somewhere so other agents can run the builds-->
+	<Do If="$(IsBuildMachine) And !$(PublishBuilds)">
+		<Property Name="ProjectPublishPath" Value="$(NetworkTempRoot)/$(EscapedBranch)/$(ProjectName)/$(CL-String)" />
+	</Do>
+
+	<!-- If we have a publish dir now, fully form the path-->
+	<Property Name="ProjectPublishPath" Value="$(NetworkPublishRoot)/$(EscapedBranch)/$(BuildName)" If="'$(ProjectPublishPath)' != ''"/>
+
+</BuildGraph>

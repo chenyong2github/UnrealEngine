@@ -1,0 +1,296 @@
+<?xml version='1.0' ?>
+<BuildGraph xmlns="http://www.epicgames.com/BuildGraph" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../Schema.xsd" >
+	<EnvVar Name="UE_HORDE_JOBID"/>
+	
+	<!-- Project Options -->
+	<Option Name="ProjectName" DefaultValue="" Restrict="" Description="Name of Project"/>
+	<Option Name="TargetName" DefaultValue="" Restrict="" Description="If your project supports both Game and Client you can set this, otherwise one will be selected"/>
+
+	<Option Name="ProjectPath" DefaultValue="" Restrict=".*" Description="Path to the folder that contains the project (should not include the .uproject file!)" />
+	<Option Name="PlatformsToSkipTests" DefaultValue="" Restrict=".*" Description="List of platforms that tests won't be run on" />
+
+	<Option Name="WithBATDefaults" DefaultValue="true" Description="Used by parent scripts to specify defaults when including this script"/>
+
+	<!-- 
+		Allow tests to specify their own defaults by specifying a WithBATDefaults property that is true. The reason 
+		we use an option is we need something to check, and a property in a parent script will always override 
+		an option. Note - this means if a parent script includes this script multiple tiles then it should
+		always WithBATDefaults true/false before doing so, and if false it should supply all these arguments.
+	-->
+	<Do If="$(WithBATDefaults)">
+		<Property Name="DefaultEditorPlatforms" Value="" />
+		<Property Name="DefaultTargetPlatforms" Value="" />
+		<Property Name="DefaultEditorTestList" Value="UE.EditorAutomation(RunTest=Project.Maps.PIE)" />
+		<Property Name="DefaultTargetTestList" Value="UE.TargetAutomation(RunTest=Project.Maps.Cycle)" />
+	</Do>
+
+	<!-- This will define options for all platforms and create lists called EditorPlatforms, RequiredEditorPlatforms, and TargetPlatforms. E.g. TargetPlatforms=Win64+Mac+PS4 -->
+	<Include Script="Inc/PlatformOptions.xml" />
+
+	<!-- Does this project require a dedicated server for testing? (not currently implemented!)-->
+	<Option Name="DedicatedServer" DefaultValue="false" Description="Project uses a dedicated server" />
+
+	<!-- Customizations -->
+	<Option Name="SkipBuild" DefaultValue="false" Description="Whether to skip building" />
+	<Option Name="SkipCook" DefaultValue="false" Description="Whether to skip cooking and packaging" />
+	<Option Name="SkipPackage" DefaultValue="false" Description="Whether to skip packaging" />
+	<Option Name="SkipPublish" DefaultValue="false" Description="Whether to skip cooking, packaging, publishing" />
+	<Option Name="SkipTest" DefaultValue="false" Description="Whether to skip testing" />
+
+	<!-- Defines whether we always run a simple 'does it boot' test before running other tests. This can save a lot of time/repeated errors -->
+	<Option Name="EditorBootTest" DefaultValue="!$(SkipTest)" Description="Run a simple boot test on the editor before other tests"/>
+	<Option Name="TargetBootTest" DefaultValue="!$(SkipTest)" Description="Run a simple boot test on target platforms before other tests"/>
+
+	<Option Name="EditorTestList" DefaultValue="$(DefaultEditorTestList)" Description="Tests to run on the edutor. Test1+Test2 etc"/>
+	<Option Name="TargetTestList" DefaultValue="$(DefaultTargetTestList)" Description="Tests to run on the target platform(s). Test1+Test2 etc"/>
+
+	<!-- Settings files that can be overriden -->
+	<Option Name="PathSettingsFile" DefaultValue="Inc/PathSettings.xml" Description="Path settings to use" />
+	<Option Name="GauntletSettingsFile" DefaultValue="Inc/GauntletSettings.xml" Description="Gauntlet settings to use" />
+	
+	<!-- Some common properties -->
+	<Include Script="Inc/CommonProperties.xml" />
+
+	<!-- Common settings but can be overidden -->
+	<Include Script="$(PathSettingsFile)" />
+	<Include Script="$(GauntletSettingsFile)" />
+
+	<!-- At this point we have all options so calculate a few things -->
+
+	<!-- Validate that the project exists-->
+	<Error Message="ProjectName is not set" If="'$(ProjectName)' == ''" />
+	<Property Name="TargetProject" Value="$(ProjectPath)/$(ProjectName).uproject" />
+	<Error Message="Project file $(TargetProject) does not exist" If="!Exists('$(TargetProject)')" />
+
+	<!-- If the user didn't supply a TargetName then try to auto detect is. This is reliable uness the project has 'Game' in it but the target doesn't -->
+	<Do If="'$(TargetName)' == ''">
+		<!-- 
+			If the user didn't supply a TargetName, try to figure it out based on GameName.Target or GameNameClient.target.
+			Note - if the project is ShooterGame and the target is ShooterClient.txt then this will fail and we'll tell the user -->
+		<Property Name="TargetName" Value="$(ProjectName)Client" If="Exists('$(ProjectPath)/Source/$(ProjectName)Client.Target.cs')" />
+		<Property Name="TargetName" Value="$(ProjectName)" If="Exists('$(ProjectPath)/Source/$(ProjectName).Target.cs')" />
+
+		<Do If="'$(TargetName)' == ''">
+			<Do If="Exists('$(ProjectPath)/Source/$(ProjectName)/$(ProjectName).Build.cs')">
+				<Error Message="The project has source but the name the target couldn't be determined. use -set:TargetName:Foo to ensure things build correctly" />
+			</Do>
+			<Property Name="TargetName" Value="UnrealGame" />
+		</Do>
+	</Do>
+
+	<!-- If skip test is true, add all target platforms to the "do not test" list -->
+	<Do If="$(SkipTest)">
+		<Property Name="PlatformsToSkipTests" Value="$(EditorPlatforms)+$(TargetPlatforms)" />
+	</Do>
+
+	<!-- If skip packaging is true, add all target platforms to the "do not test" list -->
+	<Do If="$(SkipPackage)">
+		<Property Name="PlatformsToSkipPackaging" Value="$(EditorPlatforms)+$(TargetPlatforms)" />
+	</Do>
+
+	<!-- Detect the type of the client based on the target name -->
+	<Property Name="TargetType" Value="Game" />
+	<Property Name="TargetType" Value="Client" If="Contains('$(TargetName)', 'Client')" />
+
+	<!-- We want a display name for a number of jobs which is best if it's the target (e.g. ShooterClient), but not if it's content Only -->
+	<Property Name="DisplayTargetName" Value="$(TargetName)" />
+	<Property Name="DisplayTargetName" Value="$(ProjectName)" If="$(TargetName) == 'UnrealGame'" />
+	
+	<!-- These properties will be filled in with nodes that are generated based on options -->
+	<Property Name="GeneratedToolNodes" Value="" />
+	<Property Name="GeneratedEditorTestNodes" Value="" />
+	<Property Name="GeneratedTargetNodes" Value="" />
+	<Property Name="GeneratedTargetTestNodes" Value="" />
+
+	<!-- Do all editor steps under a single agent as the things that can be done in parallel probably aren't worth the overhead-->
+	<ForEach Name="EditorPlatform" Values="$(RequiredEditorPlatforms)" Separator="+">
+		<!-- Set Agent Types -->
+		<Property Name="HostAgentType" Value="$(EditorPlatform)" />
+		<Property Name="TestAgentType" Value="Test$(EditorPlatform)" />
+
+		<!-- Test nodes for this editor platform -->
+		<Property Name="PlatformEditorTestNodes" Value="" />
+
+		<Agent Name="Build $(ProjectName)Editor $(EditorPlatform)" Type="$(HostAgentType)">
+			<!-- First generate nodes to build the required tools (e.g. UHT, ShaderCompiler, Editor -->
+			<Node Name="Compile $(ProjectName)Tools $(EditorPlatform)">
+				<Compile Target="UnrealHeaderTool" Platform="$(EditorPlatform)" Configuration="Development"/>
+				<Compile Target="ShaderCompileWorker" Platform="$(EditorPlatform)" Configuration="Development"/>
+				<Compile Target="UnrealPak" Platform="$(EditorPlatform)" Configuration="Development"/>
+				<Compile Target="CrashReportClient" Platform="$(EditorPlatform)" Configuration="Shipping"/>
+				<Compile Target="CrashReportClientEditor" Platform="$(EditorPlatform)" Configuration="Shipping"/>
+			</Node>
+			<Node Name="Compile $(ProjectName)Editor $(EditorPlatform)" Requires="Compile $(ProjectName)Tools $(EditorPlatform)">
+				<Compile Target="$(ProjectName)Editor" Platform="$(EditorPlatform)" Configuration="Development" />
+			</Node>
+			<!--Add these nodes to our dependency list -->
+			<Property Name="GeneratedToolNodes" Value="Compile $(ProjectName)Editor $(EditorPlatform); Compile $(ProjectName)Tools $(EditorPlatform)" If="!$(SkipBuild)" />
+		</Agent>
+		<Agent Name="Test $(ProjectName)Editor $(EditorPlatform)" Type="$(TestAgentType)">
+			<!-- Prerequisites for the editor test to run -->
+			<Property Name="TestPrerequisites" Value="$(GeneratedToolNodes)"/>
+			<!-- Declare a boot test for the editor-->
+			<Property Name="PlatformBootTestNodeName" Value="$(ProjectName)Editor $(EditorPlatform) Test=BootTest" />
+			<Do If="'$(AutomationReportOutputDirectory)' != ''">
+				<Property Name="OutputFragmentPath" Value="$(EditorPlatform)Editor/UE.EditorBootTest" />
+				<Property Name="OutputReportPath" Value="$(AutomationReportOutputDirectory)/$(OutputFragmentPath)" />
+				<Property Name="GauntletReportArgs" Value="-logdir=&quot;$(OutputReportPath)&quot; -artifactname=Gauntlet -ReportExportPath=&quot;$(OutputReportPath)&quot;" />
+				<Property Name="GauntletReportArgs" Value="$(GauntletReportArgs) -ReportURL=&quot;$(AutomationReportUrl)/$(OutputFragmentPath)/&quot;" If="'$(AutomationReportUrl)' != ''" />
+			</Do>
+			<Node Name="$(PlatformBootTestNodeName)" Requires="$(GeneratedToolNodes)">
+				<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -build=Editor -test=&quot;UE.EditorBootTest&quot; $(GauntletEditorTestArgs) $(GauntletReportArgs)" />
+			</Node>
+			<!-- Link the boot test in to the prerequisites and generated nodes if its enabled-->
+			<Do If="$(EditorBootTest)">
+				<Property Name="TestPrerequisites" Value="$(TestPrerequisites);$(PlatformBootTestNodeName)" />
+			</Do>
+			<!-- Now generate a test node for each editor test in the list-->
+			<ForEach Name="TestName" Values="$(EditorTestList)" Separator="+">
+			<Do If="'$(AutomationReportOutputDirectory)' != ''">
+				<Property Name="OutputFragmentPath" Value="$(EditorPlatform)/Editor$(TestName)" />
+				<Property Name="OutputReportPath" Value="$(AutomationReportOutputDirectory)/$(OutputFragmentPath)" />
+				<Property Name="GauntletReportArgs" Value="-logdir=&quot;$(OutputReportPath)&quot; -artifactname=Gauntlet -ReportExportPath=&quot;$(OutputReportPath)&quot;" />
+				<Property Name="GauntletReportArgs" Value="$(GauntletReportArgs) -ReportURL=&quot;$(AutomationReportUrl)/$(OutputFragmentPath)/&quot;" If="'$(AutomationReportUrl)' != ''" />
+			</Do>
+				<Property Name="TestNodeName" Value="$(ProjectName)Editor $(EditorPlatform) Test=$(TestName)" />
+				<Node Name="$(TestNodeName)" Requires="$(TestPrerequisites)">
+					<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -build=Editor -test=&quot;$(TestName)&quot; $(GauntletReportArgs) $(GauntletEditorTestArgs)" />
+				</Node>
+				<!-- Add each test node to our generated list -->
+				<Property Name="PlatformEditorTestNodes" Value="$(PlatformEditorTestNodes);$(TestNodeName)"  />
+			</ForEach>
+
+			<!-- Create Labels -->
+			<Label Category="Editors" Name="$(ProjectName) Editor $(EditorPlatform)" Requires="$(GeneratedToolNodes)" />
+
+			<!-- If this editor was requested (as opposed to being required due to target platforms) then link in the test nodes and set up labels -->
+			<Do If="ContainsItem('$(EditorPlatforms)', '$(EditorPlatform)', '+') And !ContainsItem('$(PlatformsToSkipTests)', '$(EditorPlatform)', '+')">
+				<Label Category="Test" Name="BootTest $(ProjectName)Editor $(EditorPlatform)" Requires="$(PlatformBootTestNodeName)" />
+				<Label Category="Test" Name="Test $(ProjectName)Editor $(EditorPlatform)" Requires="$(PlatformEditorTestNodes)" />
+				<Property Name="GeneratedEditorTestNodes" Value="$(GeneratedEditorTestNodes);$(PlatformBootTestNodeName);$(PlatformEditorTestNodes)" />
+			</Do>
+		</Agent>
+	</ForEach>
+
+	<!-- Now, for each platform we build, cook, package, and test -->
+	<ForEach Name="TargetPlatform" Values="$(TargetPlatforms)" Separator="+">
+
+		<!-- Declare type of host required to build & cook this platform-->
+		<Property Name="HostAgentType" Value="Win64" />
+		<Property Name="HostAgentType" Value="Mac" If="'$(TargetPlatform)' == 'Mac' or '$(TargetPlatform)' == 'IOS'"/>
+		<!-- On consoles we can use regualr agents, but locally hosted tests need a Test agent-->
+		<Property Name="TestAgentType" Value="$(HostAgentType)" />
+		<Property Name="TestAgentType" Value="Test$(HostAgentType)" If="'$(TargetPlatform)' == 'Win64' or '$(TargetPlatform)' == 'Mac'"/>
+
+		<!-- Building and cooking will require these nodes from the appropriate host. They should have been built above... -->
+		<Property Name="PlatformToolsNodeName" Value="Compile $(ProjectName)Tools $(HostAgentType)" />
+		<Property Name="PlatformEditorNodeName" Value="Compile $(ProjectName)Editor $(HostAgentType)" />
+		<!-- Define these names up front as we use some of them several times -->
+		<Property Name="PlatformAgentName" Value="$(DisplayTargetName) $(TargetPlatform)" />
+		<Property Name="PlatformCompileNodeName" Value="Compile $(TargetName) $(TargetPlatform) $(TargetConfiguration)" />
+		<Property Name="PlatformCookNodeName" Value="Cook $(DisplayTargetName) $(TargetPlatform) $(TargetConfiguration)" />
+		<Property Name="PlatformPackageNodeName" Value="Package $(DisplayTargetName) $(TargetPlatform) $(TargetConfiguration)" />
+		<Property Name="PlatformPublishNodeName" Value="Publish $(DisplayTargetName) $(TargetPlatform) $(TargetConfiguration)" />
+		<Property Name="PlatformBootTestNodeName" Value="$(DisplayTargetName) $(TargetPlatform) Test=BootTest" />
+
+		<!-- This will be a generated string of all tests for this platform that can be tied to an aggregate -->
+		<Property Name="PlatformTestNodeNames" Value="" />
+		
+		<!-- Set CookPlatform since it isn't always the same as the target -->
+		<Property Name="CookPlatform" Value="$(TargetPlatform)" />
+		<Property Name="CookPlatform" Value="Android_ETC2" If="'$(TargetPlatform)' == 'Android'"/>
+		<Property Name="CookPlatform" Value="Windows" If="'$(TargetPlatform)' == 'Win64'"/>
+		<Property Name="CookPlatform" Value="$(CookPlatform)Client" If="'$(TargetType)' == 'Client'" />
+
+		<!-- Build the client and if necessary a server-->
+		<Agent Name="Build $(PlatformAgentName)" Type="$(HostAgentType)">
+			<Node Name="$(PlatformCompileNodeName)" Requires="$(PlatformToolsNodeName)">
+				<Compile Target="$(TargetName)" Platform="$(TargetPlatform)" Configuration="$(TargetConfiguration)"/>
+				<Do If="'$(DedicatedServer)'" >
+					<Compile Target="$(TargetName)Server" Platform="Win64" Configuration="$(TargetConfiguration)"/>
+				</Do>
+			</Node>
+		</Agent>
+
+		<!-- Cook for the platform. This can run at the same time as the above since we don't need the exe -->
+		<Agent Name="Cook $(PlatformAgentName)" Type="$(HostAgentType)">
+			<Node Name="$(PlatformCookNodeName)" Requires="$(PlatformEditorNodeName)">
+				<Cook Project="$(TargetProject)" Platform="$(CookPlatform)" Arguments="" />				
+			</Node>			
+		</Agent>
+
+		<!-- Now package the exe and cooked data-->
+		<Agent Name="Package $(PlatformAgentName)" Type="$(HostAgentType)">
+			<Node Name="$(PlatformPackageNodeName)" Requires="$(PlatformCompileNodeName);$(PlatformCookNodeName)">
+				<Property Name="BCRArgs" Value="-project=$(TargetProject) -platform=$(TargetPlatform) -configuration=$(TargetConfiguration) -skipbuild -skipcook -pak -stage -archive -archivedirectory=&quot;$(ProjectOutputDirectory)&quot;" />
+				<Property Name="BCRArgs" Value="$(BCRArgs) -client" If="'$(TargetType)' == 'Client'" />
+				<Property Name="BCRArgs" Value="$(BCRArgs) -server" If="'$(DedicatedServer)'" />
+				<Property Name="BCRArgs" Value="$(BCRArgs) -package" If="!ContainsItem('$(PlatformsToSkipPackaging)','$(TargetPlatform)','+')" />		
+				<Command Name="BuildCookRun" Arguments="$(BCRArgs)" />
+			</Node>
+			<Node Name="$(PlatformPublishNodeName)" Requires="$(PlatformPackageNodeName)">
+				<!-- Typically only build machines publish -->
+				<Do If="'$(ProjectPublishPath)' != ''" >
+					<Copy Files="..." From="$(ProjectOutputDirectory)/$(CookPlatform)" To="$(ProjectPublishPath)/$(CookPlatform)"/>
+				</Do>
+			</Node>
+		</Agent>			
+
+		<!-- Test Time! -->		
+		<Agent Name="Test $(PlatformAgentName)" Type="$(TestAgentType)">	
+			<!-- Prerequisites for the test to run -->
+			<Property Name="TestPrerequisites" Value="$(PlatformEditorNodeName)" />
+			<!-- Declare a boot test for the target-->	
+			<Node Name="$(PlatformBootTestNodeName)" After="$(PlatformPublishNodeName)">
+				<Do If="'$(AutomationReportOutputDirectory)' != ''">
+					<Property Name="OutputFragmentPath" Value="$(TargetPlatform)/UE.BootTest" />
+					<Property Name="OutputReportPath" Value="$(AutomationReportOutputDirectory)/$(OutputFragmentPath)" />
+					<Property Name="GauntletReportArgs" Value="-logdir=&quot;$(OutputReportPath)&quot; -artifactname=Gauntlet -ReportExportPath=&quot;$(OutputReportPath)&quot;" />
+					<Property Name="GauntletReportArgs" Value="$(GauntletReportArgs) -ReportURL=&quot;$(AutomationReportUrl)/$(OutputFragmentPath)/&quot;" If="'$(AutomationReportUrl)' != ''" />
+				</Do>
+				<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -test=&quot;UE.BootTest&quot; -platform=$(TargetPlatform) -configuration=$(TargetConfiguration) $(GauntletTargetTestArgs) $(GauntletReportArgs)" />
+			</Node>
+			<!-- Link the boot test in to the prerequisites and generated nodes if its enabled-->
+			<Do If="$(TargetBootTest)">
+				<Property Name="TestPrerequisites" Value="$(TestPrerequisites);$(PlatformBootTestNodeName)" />
+			</Do>
+			<!-- Go through the list of tests -->	
+			<ForEach Name="TestName" Values="$(TargetTestList)" Separator="+">
+				<!-- Run and report on the test-->
+				<Do If="'$(AutomationReportOutputDirectory)' != ''">
+					<Property Name="OutputFragmentPath" Value="$(TargetPlatform)/$(TestName)" />
+					<Property Name="OutputReportPath" Value="$(AutomationReportOutputDirectory)/$(OutputFragmentPath)" />
+					<Property Name="GauntletReportArgs" Value="-logdir=&quot;$(OutputReportPath)&quot; -artifactname=Gauntlet -ReportExportPath=&quot;$(OutputReportPath)&quot;" />
+					<Property Name="GauntletReportArgs" Value="$(GauntletReportArgs) -ReportURL=&quot;$(AutomationReportUrl)/$(OutputFragmentPath)/&quot;" If="'$(AutomationReportUrl)' != ''" />
+				</Do>
+				<Property Name="TestNodeName" Value="$(DisplayTargetName) $(TargetPlatform) Test=$(TestName)" />
+				<!-- Run the test. No 'Requires' as we run on the same machine locally and use the publish folder otherwose -->
+				<Node Name="$(TestNodeName)" Requires="$(TestPrerequisites)">
+					<Command Name="RunUnreal" Arguments="-project=$(TargetProject) -test=&quot;$(TestName)&quot; -platform=$(TargetPlatform) -configuration=$(TargetConfiguration) $(GauntletTargetTestArgs) $(GauntletReportArgs)"/>
+				</Node>
+				<!-- Add it to our list -->
+				<Property Name="PlatformTestNodeNames" Value="$(PlatformTestNodeNames);$(TestNodeName)"/>
+			</ForEach>	
+		</Agent>
+
+		<!-- Declare labels for CIS -->
+		<Label Category="Platforms" Name="$(ProjectName) $(TargetPlatform)" Requires="$(PlatformCompileNodeName)" />
+		<Label Category="Cook" Name="Cook $(DisplayTargetName) $(TargetPlatform)" Requires="$(PlatformCookNodeName)" Exclude="$(PlatformEditorNodeName)" />
+		<Label Category="Package" Name="Pkg $(DisplayTargetName) $(TargetPlatform)" Requires="$(PlatformPackageNodeName);$(PlatformPublishNodeName)" Exclude="$(PlatformCompileNodeName);$(PlatformCookNodeName)"/>
+		<Label Category="Test" Name="BootTest $(DisplayTargetName) $(TargetPlatform)" Requires="$(PlatformBootTestNodeName)" Exclude="$(PlatformEditorNodeName)" />
+		<Label Category="Test" Name="Test $(DisplayTargetName) $(TargetPlatform)" Requires="$(PlatformTestNodeNames)" Exclude="$(PlatformEditorNodeName);$(PlatformBootTestNodeName)"/>
+
+		<!-- Tie all steps into our platform tasks uless excluded -->
+		<Property Name="PlatformTasks" Value="" />
+		<Property Name="PlatformTasks" Value="$(PlatformCompileNodeName)" If="!$(SkipBuild)" />
+		<Property Name="PlatformTasks" Value="$(PlatformTasks);$(PlatformCookNodeName)" If="!$(SkipCook) and !$(SkipPublish)" />		
+		<Property Name="PlatformTasks" Value="$(PlatformTasks);$(PlatformPackageNodeName);$(PlatformPublishNodeName)" If="!$(SkipPublish)" />		
+		<Property Name="PlatformTasks" Value="$(PlatformTasks);$(PlatformBootTestNodeName);$(PlatformTestNodeNames)" If="!ContainsItem('$(PlatformsToSkipTests)','$(TargetPlatform)','+')" />		
+
+		<Property Name="GeneratedTargetNodes" Value="$(GeneratedTargetNodes);$(PlatformTasks)"/>
+	</ForEach>
+
+	<!-- Create an aggregate with all the generated nodes -->
+	<Aggregate Name="BuildAndTest $(ProjectName)" Requires="$(GeneratedToolNodes);$(GeneratedEditorTestNodes);$(GeneratedTargetNodes);$(GeneratedTargetTestNodes)"/>
+
+</BuildGraph>

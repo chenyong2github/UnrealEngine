@@ -1,0 +1,40 @@
+<?xml version='1.0' ?>
+<BuildGraph xmlns="http://www.epicgames.com/BuildGraph" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../../Schema.xsd" >
+
+	<!--
+		This script defines parameters passed to Gauntlet. It is expected that most licensees will need
+        to create a custom version of this scrupt due to things like the device service url
+
+		This script should be includedEng after CommonProperties.xml and PathSettings.xml where build
+        strings and paths are defines
+		
+		InProperty: ProjectPath - Path where the .uproject is located
+        InProperty: ProjectName - Name of the project (e.g. <ProjectName>.uproject)
+		InProperty: EscapedBranch
+		InProperty: ProjectOutputDirectory - Local pathwhere builds are found
+		InProperty: ProjectPublishPath - Path (if any) builds are published to
+
+        OutProperty: GauntletEditorTestArgs - Arguments to pass to Gauntlet tests executed under the editor
+		OutProperty: GauntletTargetTestArgs - Arguments to pass to Gauntlet tests executed using cooked builds
+	-->
+
+
+	<!-- How long to give Gauntlet before a test is considered timed out (some tests will time out earlier if they detect inactivity)-->
+	<Option Name="GauntletTimeout" DefaultValue="3600" Description="Max running time of a test in Gauntlet"/>
+	
+	<!-- Create the -build argument for Gauntlet based on whether builds are local or on the network-->
+	<Property Name="GauntletBuildArgs" Value="-build=&quot;$(ProjectOutputDirectory)&quot;" />
+	<Property Name="GauntletBuildArgs" Value="-build=&quot;$(ProjectPublishPath)&quot;" If ="'$(ProjectPublishPath)' != ''" />
+
+	<Property Name="GauntletCommonArgs" Value="-maxduration=$(GauntletTimeOut) -unattended -verbose" />
+
+	<Property Name="GauntletDeviceArgs" Value="" />
+	<Property Name="GauntletDeviceArgs" Value="-deviceurl=http://deviceservice.epicgames.net -reboot -cleardevices -sandbox=&quot;$(ProjectName)&quot;" If ="$(IsBuildMachine)" />
+
+	<Property Name="GauntletTargetTestArgs" Value="$(GauntletBuildArgs) $(GauntletCommonArgs) $(GauntletDeviceArgs)" />
+	<Property Name="GauntletEditorTestArgs" Value="-build=editor $(GauntletCommonArgs)" />
+
+    <!-- this is fully generated dynamiclly when needed, it's simply here so it can be used without worrying if its set -->
+    <Property Name="GauntletReportArgs" Value="" />
+
+</BuildGraph>

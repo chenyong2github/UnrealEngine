@@ -1,0 +1,102 @@
+<?xml version='1.0' ?>
+<BuildGraph xmlns="http://www.epicgames.com/BuildGraph" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.epicgames.com/BuildGraph ../../Schema.xsd" >
+
+	<!--
+		This script exposes all supported platforms as options and turns the selected platforms
+		into three + separated lists.
+
+		1) EditorPlatforms - these are editor platforms the user requested directly or via WithWin64Editor=true
+		2) TargetPlatforms - these are cooked platforms the user requested directly or via WithPS4=true
+		3) RequiredEditorPlatforms - these are editor platforms that need to be build due to #2, but shouldn't be
+		 used for tests etc because they weren't in #1
+
+		Both 1) and 2) can be specified directly for convenience. E.g. -set:TargetPlatforms=PS5+XSX
+
+		Downstream code can make the distinction of an editor to build but not test by the following 
+		condition being true - ContainsItem('$(EditorName)', '$(EditorPlatforms)', '+')
+
+		If no platforms are found either by being specified directly or via the 'WithFoo' syntax, then 
+		the DefaultEditorPlatforms and DefaultTargetPlatforms properties are returned. This allows scripts
+		to set defaults.
+
+		OutProperty: EditorPlatforms - Editor platforms to build and test, separated by +
+		OutProperty: TargetPlatforms - Target platforms to build and test, separated by +
+		OutProperty: RequiredEditorPlatforms - Editor platforms to build to cook targets      
+	-->
+
+<Option Name="EditorPlatforms" DefaultValue="" Description="Alternative to 'WithFooEditor', a list of editors to build and test. Win64+Mac etc"/>
+<Option Name="TargetPlatforms" DefaultValue="" Description="Alternative to 'WithFoo', a list of Platforms to build and test. PS4+XSX etc"/>
+
+<Option Name="WithWin64Editor" DefaultValue="false" Description="Build and test Win64 Editor"/>
+<Option Name="WithMacEditor" DefaultValue="false" Description="Build and test Mac Editor"/>
+
+<Option Name="WithAndroid" DefaultValue="false" Description="Build and test Android"/>
+<Option Name="WithIOS" DefaultValue="false" Description="Build and test IOS"/>
+<Option Name="WithLumin" DefaultValue="false" Description="Build and test Lumin"/>
+<Option Name="WithMac" DefaultValue="false" Description="Build and test Mac"/>
+<Option Name="WithPS4" DefaultValue="false" Description="Build and test PS4"/>
+<Option Name="WithPS5" DefaultValue="false" Description="Build and test PS5"/>
+<Option Name="WithStadia" DefaultValue="false" Description="Build and test Stadia"/>
+<Option Name="WithSwitch" DefaultValue="false" Description="Build and test Switch"/>
+<Option Name="WithWin64" DefaultValue="false" Description="Build and test Win64"/>
+<Option Name="WithWinGDK" DefaultValue="false" Description="Build and test WinGDK"/>
+<Option Name="WithXboxOneGDK" DefaultValue="false" Description="Build and test XboxOneGDK"/>
+<Option Name="WithXSX" DefaultValue="false" Description="Build and test XSX"/>
+
+<Option Name="TargetConfiguration" DefaultValue="Development" Description="Configuration to build and test"/>
+
+<Do If="'$(EditorPlatforms)' == ''" >
+	<Property Name="EditorPlatforms" Value="" />
+	<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Win64+" If="$(WithWin64Editor)" />
+	<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Mac+" If="$(WithMacEditor)" />
+</Do>
+
+<Do If="'$(TargetPlatforms)' == ''" >
+	<Property Name="TargetPlatforms" Value="" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Android+" If="$(WithAndroid)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)IOS+" If="$(WithIOS)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Lumin+" If="$(WithLumin)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Mac+" If="$(WithMac)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS4+" If="$(WithPS4)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS5+" If="$(WithPS5)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Stadia+" If="$(WithStadia)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Switch+" If="$(WithSwitch)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Win64+" If="$(WithWin64)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)WinGDK+" If="$(WithWinGDK)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)XboxOneGDK+" If="$(WithXboxOneGDK)" />
+	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)XSX+" If="$(WithXSX)" />
+</Do>
+
+<!-- If still no platforms, pick the defaults that the script should have specified-->
+<Do If="'$(EditorPlatforms)' == ''" >
+	<Property Name="EditorPlatforms" Value="$(DefaultEditorPlatforms)" />
+</Do>
+
+<Do If="'$(TargetPlatforms)' == ''" >
+	<Property Name="TargetPlatforms" Value="$(DefaultTargetPlatforms)" />
+</Do>
+
+<!-- 'None' means don't do any platforms. We need to do this because an empty string means use defaults.. -->
+<Do If="'$(EditorPlatforms)' == 'None'" >
+	<Property Name="EditorPlatforms" Value="" />
+</Do>
+<Do If="'$(TargetPlatforms)' == 'None'" >
+	<Property Name="TargetPlatforms" Value="" />
+</Do>
+
+<Property Name="RequiredEditorPlatforms" Value="$(EditorPlatforms)" />
+
+<ForEach Name="TargetPlatform" Values="$(TargetPlatforms)" Separator="+">
+	<!-- Declare type of host required to build & cook this platform-->
+	<Property Name="HostAgentType" Value="Win64" />
+	<Property Name="HostAgentType" Value="Mac" If="'$(TargetPlatform)' == 'Mac' or '$(TargetPlatform)' == 'IOS'"/>
+
+	<Do If="!ContainsItem('$(RequiredEditorPlatforms)','$(HostAgentType)', '+')">
+		<Property Name="RequiredEditorPlatforms" Value="$(RequiredEditorPlatforms)+$(HostAgentType)" />
+	</Do>
+</ForEach>
+
+<!-- PS5 packaging isn't supported by Gauntlet yet :( )-->
+<Property Name="PlatformsToSkipPackaging" Value="PS5" />
+
+</BuildGraph>

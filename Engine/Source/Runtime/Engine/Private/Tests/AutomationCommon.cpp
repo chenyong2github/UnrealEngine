@@ -22,6 +22,8 @@
 #include "StereoRendering.h"
 #include "Misc/PackageName.h"
 #include "TextureCompiler.h"
+#include "Tests/AutomationTestSettings.h"
+#include "GameMapsSettings.h"
 
 #if WITH_AUTOMATION_TESTS
 
@@ -666,6 +668,137 @@ void RequestImageComparison(const FString& InImageName, int32 InWidth, int32 InH
 	FAutomationComparisonToleranceAmount ToleranceAmount = FAutomationComparisonToleranceAmount::FromToleranceLevel(InTolerance);
 	ADD_LATENT_AUTOMATION_COMMAND(AutomationCommon::FAutomationImageComparisonRequest(InImageName, InWidth, InHeight, InImageData, ToleranceAmount, InNotes));
 #endif
+}
+
+
+/**
+ * Write a string to editor automation tests log
+ */
+DEFINE_ENGINE_LATENT_AUTOMATION_COMMAND_ONE_PARAMETER(FEngineAutomationLogCommand, FString, LogText);
+
+bool FEngineAutomationLogCommand::Update()
+{
+	UE_LOG(LogEngineAutomationTests, Log, TEXT("%s"), *LogText);
+	return true;
+}
+
+/**
+ * Generic Pie Test for projects.
+ * By default this test will PIE the lit of MapsToPIETest from automation settings. if that is empty it will PIE the default editor and game (if they're different)
+ * maps.
+ *
+ * If the editor session was started with a map on the command line then that's the only map that will be PIE'd. This allows project to set up tests that PIE
+ * a list of maps from an external source.
+ */
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FProjectMapsCycleTest, "Project.Maps.Cycle", EAutomationTestFlags::ClientContext | EAutomationTestFlags::ProductFilter)
+
+/**
+ * Execute the loading of one map to verify PIE works
+ *
+ * @param Parameters - Unused for this test
+ * @return	TRUE if the test was successful, FALSE otherwise
+ */
+bool FProjectMapsCycleTest::RunTest(const FString& Parameters)
+{
+	UAutomationTestSettings const* AutomationTestSettings = GetDefault<UAutomationTestSettings>();
+	check(AutomationTestSettings);
+
+	// todo , move to automation settings
+	int CycleCount = 2;
+	TArray<FString> CycleMaps;
+
+	FString ParsedMapName;
+
+	if (FParse::Value(FCommandLine::Get(), TEXT("map="), ParsedMapName))
+	{
+		TArray<FString> MapList;
+
+		ParsedMapName.ParseIntoArray(MapList, TEXT("+"), true);
+
+		for (const FString& Map : MapList)
+		{
+			FString ActualName = Map;
+			// If the specified package exists
+			if (FPackageName::SearchForPackageOnDisk(Map, NULL, &ActualName) &&
+				// and it's a valid map file
+				FPaths::GetExtension(ActualName, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension())
+			{
+				CycleMaps.Add(ActualName);
+				UE_LOG(LogEngineAutomationTests, Display, TEXT("Found Map %s on command line. Cycle Test will be use this map"), *ActualName);
+			}
+			else
+			{
+				UE_LOG(LogEngineAutomationTests, Fatal, TEXT("Cound not find package for Map '%s' specified on command line."), *ActualName);
+			}
+		}
+	}
+
+	FParse::Value(FCommandLine::Get(), TEXT("map.cycles="), CycleCount);
+
+	// If there was no command line map then default to the project settings
+	if (CycleMaps.Num() == 0)
+	{
+		// If the project has maps configured for PIE then use those
+	#if 0
+		if (AutomationTestSettings->MapsToPIETest.Num())
+		{
+			for (const FString& Map : AutomationTestSettings->MapsToPIETest)
+			{
+				CycleMaps.Add(Map);
+			}
+		}
+		else
+	#endif
+		{
+			
+			UGameMapsSettings const* MapSettings = GetDefault<UGameMapsSettings>();
+
+			if (MapSettings->GetGameDefaultMap().Len())
+			{
+				FString StartupMap = MapSettings->GetGameDefaultMap();
+				// Else pick the editor startup and game startup maps (if they are different).
+				UE_LOG(LogEngineAutomationTests, Display, TEXT("No MapsToCycle specified in DefaultEngine.ini [/Script/Engine.AutomationTestSettings]. Using GameStartup Map %s"), *StartupMap);
+				CycleMaps.Add(StartupMap);
+			}
+		}
+	}
+
+	// Uh-oh
+	if (CycleMaps.Num() == 0)
+	{
+		UE_LOG(LogEngineAutomationTests, Fatal, TEXT("No automation or default maps are configured for cycling!"));
+	}
+
+	for (int i = 1; i <= CycleCount; i++)
+	{
+		AddCommand(new FEngineAutomationLogCommand(FString::Printf(TEXT("Starting Project.Maps Cycle (%d/%d)"), i, CycleCount)));
+		for (const FString& Map : CycleMaps)
+		{
+			FString MapPackageName = FPackageName::ObjectPathToPackageName(Map);
+
+			if (!FPackageName::IsValidObjectPath(MapPackageName))
+			{
+				if (!FPackageName::SearchForPackageOnDisk(MapPackageName, NULL, &MapPackageName))
+				{
+					UE_LOG(LogEditorAutomationTests, Error, TEXT("Couldn't resolve map for PIE test from %s to valid package name!"), *MapPackageName);
+					continue;
+				}
+			}
+
+			AddCommand(new FEngineAutomationLogCommand(FString::Printf(TEXT("LoadMap-Begin: %s"), *MapPackageName)));
+			AddCommand(new FLoadGameMapCommand(Map));
+			AddCommand(new FEngineAutomationLogCommand(FString::Printf(TEXT("LoadMap-End: %s"), *MapPackageName)));
+			AddCommand(new FEngineAutomationLogCommand(FString::Printf(TEXT("MapWait-Begin: %s"), *MapPackageName)));
+			AddCommand(new FWaitForShadersToFinishCompilingInGame());
+			AddCommand(new FWaitForSpecifiedMapToLoadCommand(MapPackageName)); 
+			AddCommand(new FWaitLatentCommand(AutomationTestSettings->PIETestDuration));
+			AddCommand(new FEngineAutomationLogCommand(FString::Printf(TEXT("MapWait-End: %s"), *Map)));
+
+		}
+		AddCommand(new FEngineAutomationLogCommand(FString::Printf(TEXT("Ended Project.Maps Cycle (%d/%d)"), i, CycleCount)));
+	}
+
+	return true;
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS

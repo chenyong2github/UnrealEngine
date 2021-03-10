@@ -669,6 +669,14 @@ namespace Gauntlet
 			return RequireRoles(InRole, null, Count);
 		}
 
+		/// <summary>
+		/// Clears all roles from this config. 
+		/// </summary>
+		public void ClearRoles()
+		{
+			RequiredRoles.Clear();
+		}
+
 		public IEnumerable<UnrealTestRole> RequireRoles(UnrealTargetRole InRole, UnrealTargetPlatform? PlatformOverride, int Count, ERoleModifier roleType = ERoleModifier.None)
 		{
 			if (RequiredRoles.ContainsKey(InRole) == false)

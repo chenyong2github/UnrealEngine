@@ -348,6 +348,15 @@ namespace Gauntlet
 		}
 
 		/// <summary>
+		/// Returns channels that signify the editor doing stuff
+		/// </summary>
+		/// <returns></returns>
+		public IEnumerable<string> GetEditorBusyChannels ()
+		{
+			return GetLogChannels(new string[] { "Automation", "FunctionalTest", "Material", "DerivedDataCache", "ShaderCompilers", "Texture" }, false);
+		}
+
+		/// <summary>
 		/// Return all entries for the specified channel. E.g. "OrionGame" will
 		/// return all entries starting with LogOrionGame
 		/// </summary>
