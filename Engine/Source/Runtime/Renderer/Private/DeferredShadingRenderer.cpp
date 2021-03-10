@@ -1851,6 +1851,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	check(!SceneContext.DBufferA);
 	check(!SceneContext.DBufferB);
 	check(!SceneContext.DBufferC);
+	GCompositionLighting.Reset();
 
 	if (bDBuffer || IsForwardShadingEnabled(ShaderPlatform))
 	{
