@@ -7,6 +7,7 @@
 #include "RootMotionModifier.generated.h"
 
 class UMotionWarpingComponent;
+class UAnimNotifyState_MotionWarping;
 
 /** The possible states of a Root Motion Modifier */
 UENUM(BlueprintType)
@@ -37,6 +38,10 @@ public:
 	UPROPERTY()
 	TWeakObjectPtr<const UAnimSequenceBase> Animation = nullptr;
 
+	/** AnimNotifyState this modifier was created from. May be NULL */
+	UPROPERTY()
+	TWeakObjectPtr<const UAnimNotifyState_MotionWarping> AnimNotifyState = nullptr;
+
 	/** Start time of the warping window */
 	UPROPERTY()
 	float StartTime = 0.f;
@@ -63,7 +68,7 @@ public:
 
 	/** Current state */
 	UPROPERTY()
-	ERootMotionModifierState State = ERootMotionModifierState::Waiting;
+	ERootMotionModifierState State = ERootMotionModifierState::Waiting; //@TODO: Move to private
 
 	FRootMotionModifier(){}
 	virtual ~FRootMotionModifier() {}
@@ -76,6 +81,15 @@ public:
 
 	/** Performs the actual modification to the motion */
 	virtual FTransform ProcessRootMotion(UMotionWarpingComponent& OwnerComp, const FTransform& InRootMotion, float DeltaSeconds) PURE_VIRTUAL(FRootMotionModifier::ProcessRootMotion, return FTransform::Identity;);
+
+	/** Called when the state of the modifier changes */
+	virtual void OnStateChanged(ERootMotionModifierState LastState){}
+
+	/** Sets the state of the modifier */
+	void SetState(ERootMotionModifierState NewState);
+
+	/** Returns the state of the modifier */
+	FORCEINLINE ERootMotionModifierState GetState() const { return State; }
 };
 
 /** Blueprint wrapper around the config properties of a root motion modifier */

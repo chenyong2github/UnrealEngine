@@ -7,6 +7,8 @@
 #include "Animation/AnimMontage.h"
 #include "MotionWarpingComponent.h"
 #include "DrawDebugHelpers.h"
+#include "Animation/AnimInstance.h"
+#include "AnimNotifyState_MotionWarping.h"
 
 // FRootMotionModifier
 ///////////////////////////////////////////////////////////////
@@ -22,7 +24,7 @@ void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
 		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier for removal. Reason: Animation is not valid. Char: %s Current Montage: %s. Window: Animation: %s [%f %f] [%f %f]"),
 			*GetNameSafe(OwnerComp.GetCharacterOwner()), *GetNameSafe(Montage), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
 
-		State = ERootMotionModifierState::MarkedForRemoval;
+		SetState(ERootMotionModifierState::MarkedForRemoval);
 		return;
 	}
 
@@ -37,7 +39,7 @@ void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
 		UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier for removal. Reason: Window has ended. Char: %s Animation: %s [%f %f] [%f %f]"),
 			*GetNameSafe(OwnerComp.GetCharacterOwner()), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
 
-		State = ERootMotionModifierState::MarkedForRemoval;
+		SetState(ERootMotionModifierState::MarkedForRemoval);
 		return;
 	}
 
@@ -45,10 +47,22 @@ void FRootMotionModifier::Update(UMotionWarpingComponent& OwnerComp)
 	if (PreviousPosition >= StartTime && PreviousPosition < EndTime)
 	{
 		// If we were waiting, switch to active
-		if (State == ERootMotionModifierState::Waiting)
+		if (GetState() == ERootMotionModifierState::Waiting)
 		{
-			State = ERootMotionModifierState::Active;
+			SetState(ERootMotionModifierState::Active);
 		}
+	}
+}
+
+void FRootMotionModifier::SetState(ERootMotionModifierState NewState)
+{
+	if(State != NewState)
+	{
+		ERootMotionModifierState LastState = State;
+
+		State = NewState;
+
+		OnStateChanged(LastState);
 	}
 }
 
@@ -61,7 +75,7 @@ void FRootMotionModifier_Warp::Update(UMotionWarpingComponent& OwnerComp)
 	FRootMotionModifier::Update(OwnerComp);
 
 	// Cache sync point transform and trigger OnSyncPointChanged if needed
-	if (State == ERootMotionModifierState::Active)
+	if (GetState() == ERootMotionModifierState::Active)
 	{
 		const FMotionWarpingSyncPoint* SyncPointPtr = OwnerComp.FindSyncPoint(SyncPointName);
 
@@ -71,7 +85,7 @@ void FRootMotionModifier_Warp::Update(UMotionWarpingComponent& OwnerComp)
 			UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: Marking RootMotionModifier as Disabled. Reason: Invalid Sync Point (%s). Char: %s Animation: %s [%f %f] [%f %f]"),
 				*SyncPointName.ToString(), *GetNameSafe(OwnerComp.GetCharacterOwner()), *GetNameSafe(Animation.Get()), StartTime, EndTime, PreviousPosition, CurrentPosition);
 
-			State = ERootMotionModifierState::Disabled;
+			SetState(ERootMotionModifierState::Disabled);
 			return;
 		}
 

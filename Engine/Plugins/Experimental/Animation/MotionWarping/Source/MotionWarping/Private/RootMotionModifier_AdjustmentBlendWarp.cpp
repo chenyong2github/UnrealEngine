@@ -407,7 +407,7 @@ void URootMotionModifierConfig_AdjustmentBlendWarp::GetIKBoneTransformAndAlpha(A
 	{
 		for (const auto& Modifier : MotionWarpingComp->GetRootMotionModifiers())
 		{
-			if (Modifier.IsValid() && Modifier->State == ERootMotionModifierState::Active && Modifier->GetScriptStruct()->IsChildOf(FRootMotionModifier_AdjustmentBlendWarp::StaticStruct()))
+			if (Modifier.IsValid() && Modifier->GetState() == ERootMotionModifierState::Active && Modifier->GetScriptStruct()->IsChildOf(FRootMotionModifier_AdjustmentBlendWarp::StaticStruct()))
 			{
 				// We must check if the Animation for the modifier is still relevant because in RootMotionFromMontageOnlyMode the montage could be aborted 
 				// but the modifier will remain in the list until the next update

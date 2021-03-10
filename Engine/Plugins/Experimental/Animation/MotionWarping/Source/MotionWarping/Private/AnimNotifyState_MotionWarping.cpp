@@ -10,7 +10,7 @@ UAnimNotifyState_MotionWarping::UAnimNotifyState_MotionWarping(const FObjectInit
 {
 }
 
-void UAnimNotifyState_MotionWarping::AddRootMotionModifier_Implementation(UMotionWarpingComponent* MotionWarpingComp, UAnimSequenceBase* Animation, float StartTime, float EndTime) const
+void UAnimNotifyState_MotionWarping::AddRootMotionModifier_Implementation(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const
 {
 	if (MotionWarpingComp && RootMotionModifierConfig)
 	{

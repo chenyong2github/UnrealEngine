@@ -175,7 +175,7 @@ void UMotionWarpingComponent::DisableAllRootMotionModifiers()
 	{
 		for (TSharedPtr<FRootMotionModifier>& Modifier : RootMotionModifiers)
 		{
-			Modifier->State = ERootMotionModifierState::Disabled;
+			Modifier->SetState(ERootMotionModifierState::Disabled);
 		}
 	}
 }
@@ -205,6 +205,17 @@ void UMotionWarpingComponent::Update()
 					if (!ContainsModifier(Montage, StartTime, EndTime))
 					{
 						MotionWarpingNotify->AddRootMotionModifier(this, Montage, StartTime, EndTime);
+
+						//@TODO: Temp hack to keep track of the AnimNotifyState each modifier is created from.
+						if (RootMotionModifiers.Num())
+						{
+							TSharedPtr<FRootMotionModifier> Last = RootMotionModifiers.Last();
+							if (Last.IsValid() && Last->Animation.Get() == Montage && Last->StartTime == StartTime && Last->EndTime == EndTime)
+							{
+								Last->AnimNotifyState = MotionWarpingNotify;
+								Last->AnimNotifyState->OnWarpBegin(this, Last->Animation.Get(), Last->StartTime, Last->EndTime);
+							}
+						}
 					}
 				}
 			}
@@ -236,6 +247,17 @@ void UMotionWarpingComponent::Update()
 								if (!ContainsModifier(Montage, StartTime, EndTime))
 								{
 									MotionWarpingNotify->AddRootMotionModifier(this, Montage, StartTime, EndTime);
+
+									//@TODO: Temp hack to keep track of the AnimNotifyState each modifier is created from.
+									if (RootMotionModifiers.Num())
+									{
+										TSharedPtr<FRootMotionModifier> Last = RootMotionModifiers.Last();
+										if(Last.IsValid() && Last->Animation.Get() == Montage && Last->StartTime == StartTime && Last->EndTime == EndTime)
+										{
+											Last->AnimNotifyState = MotionWarpingNotify;
+											Last->AnimNotifyState->OnWarpBegin(this, Last->Animation.Get(), Last->StartTime, Last->EndTime);
+										}
+									}
 								}
 							}
 						}
@@ -252,13 +274,27 @@ void UMotionWarpingComponent::Update()
 	{
 		for (TSharedPtr<FRootMotionModifier>& Modifier : RootMotionModifiers)
 		{
+			const UAnimNotifyState_MotionWarping* AnimNotify = Modifier->AnimNotifyState.Get();
+			if (AnimNotify)
+			{
+				AnimNotify->OnWarpPreUpdate(this, Modifier->Animation.Get(), Modifier->StartTime, Modifier->EndTime);
+			}
+
 			Modifier->Update(*this);
+
+			if(AnimNotify)
+			{
+				if(Modifier->GetState() == ERootMotionModifierState::Disabled || Modifier->GetState() == ERootMotionModifierState::MarkedForRemoval)
+				{
+					AnimNotify->OnWarpEnd(this, Modifier->Animation.Get(), Modifier->StartTime, Modifier->EndTime);
+				}
+			}
 		}
 
 		// Remove the modifiers that has been marked for removal
 		RootMotionModifiers.RemoveAll([this](const TSharedPtr<FRootMotionModifier>& Modifier) 
 		{ 
-			if(Modifier->State == ERootMotionModifierState::MarkedForRemoval)
+			if(Modifier->GetState() == ERootMotionModifierState::MarkedForRemoval)
 			{
 				UE_LOG(LogMotionWarping, Verbose, TEXT("MotionWarping: RootMotionModifier removed. NetMode: %d WorldTime: %f Char: %s Animation: %s [%f %f] [%f %f] Loc: %s Rot: %s"),
 					GetWorld()->GetNetMode(), GetWorld()->GetTimeSeconds(), *GetNameSafe(GetCharacterOwner()), *GetNameSafe(Modifier->Animation.Get()), Modifier->StartTime, Modifier->EndTime, Modifier->PreviousPosition, Modifier->CurrentPosition,
@@ -289,7 +325,7 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPreConvertToWorld(const FTr
 	// Apply Local Space Modifiers
 	for (TSharedPtr<FRootMotionModifier>& RootMotionModifier : RootMotionModifiers)
 	{
-		if (RootMotionModifier->State == ERootMotionModifierState::Active && RootMotionModifier->bInLocalSpace)
+		if (RootMotionModifier->GetState() == ERootMotionModifierState::Active && RootMotionModifier->bInLocalSpace)
 		{
 			FinalRootMotion = RootMotionModifier->ProcessRootMotion(*this, FinalRootMotion, DeltaSeconds);
 		}
@@ -312,7 +348,7 @@ FTransform UMotionWarpingComponent::ProcessRootMotionPostConvertToWorld(const FT
 	// Apply World Space Modifiers
 	for (TSharedPtr<FRootMotionModifier>& RootMotionModifier : RootMotionModifiers)
 	{
-		if (RootMotionModifier->State == ERootMotionModifierState::Active && !RootMotionModifier->bInLocalSpace)
+		if (RootMotionModifier->GetState() == ERootMotionModifierState::Active && !RootMotionModifier->bInLocalSpace)
 		{
 			FinalRootMotion = RootMotionModifier->ProcessRootMotion(*this, FinalRootMotion, DeltaSeconds);
 		}
