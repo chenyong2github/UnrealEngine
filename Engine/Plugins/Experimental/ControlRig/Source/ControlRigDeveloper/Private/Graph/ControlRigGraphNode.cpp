@@ -26,6 +26,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
+#include "RigVMModel/Nodes/RigVMCollapseNode.h"
 
 #if WITH_EDITOR
 #include "IControlRigEditorModule.h"
@@ -36,6 +37,7 @@
 UControlRigGraphNode::UControlRigGraphNode()
 : Dimensions(0.0f, 0.0f)
 , NodeTitle(FText::GetEmpty())
+, FullNodeTitle(FText::GetEmpty())
 , CachedTitleColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 , CachedNodeColor(FLinearColor(0.f, 0.f, 0.f, 0.f))
 {
@@ -47,6 +49,7 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if(NodeTitle.IsEmpty())
 	{
+		FString SubTitle;
 		if(URigVMNode* ModelNode = GetModelNode())
 		{
 			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(ModelNode))
@@ -61,6 +64,26 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 				}
 			}
 
+			else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ModelNode))
+			{
+				UPackage* ReferencedPackage = FunctionReferenceNode->GetReferencedNode()->GetOutermost();
+				if(ReferencedPackage != ModelNode->GetOutermost())
+				{
+					SubTitle = FString::Printf(TEXT("From %s"), *ReferencedPackage->GetName());
+				}
+				else
+				{
+					static const FString LocalFunctionString = TEXT("Local Function");
+					SubTitle = LocalFunctionString;
+				}
+			}
+
+			else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(ModelNode))
+			{
+				static const FString CollapseNodeString = TEXT("Collapsed Graph");
+				SubTitle = CollapseNodeString;
+			}
+
 			if (NodeTitle.IsEmpty())
 			{
 				NodeTitle = FText::FromString(ModelNode->GetNodeTitle());
@@ -71,8 +94,19 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 		{
 			NodeTitle = FText::FromString(FString::Printf(TEXT("%s (Deprecated)"), *NodeTitle.ToString()));
 		}
+
+		FullNodeTitle = NodeTitle;
+
+		if(!SubTitle.IsEmpty())
+		{
+			FullNodeTitle = FText::FromString(FString::Printf(TEXT("%s\n%s"), *NodeTitle.ToString(), *SubTitle));
+		}
 	}
 
+	if(TitleType == ENodeTitleType::FullTitle)
+	{
+		return FullNodeTitle;
+	}
 	return NodeTitle;
 }
 
@@ -790,7 +824,7 @@ FText UControlRigGraphNode::GetTooltipText() const
 void UControlRigGraphNode::InvalidateNodeTitle() const
 {
 	NodeTitle = FText();
-
+	FullNodeTitle = FText();
 	NodeTitleDirtied.ExecuteIfBound();
 }
 

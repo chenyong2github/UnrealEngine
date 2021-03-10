@@ -49,6 +49,7 @@ enum class ERigVMGraphNotifType : uint8
 	InteractionBracketCanceled, // A bracket has been canceled (Subject == nullptr)
 	PinBoundVariableChanged, // A pin has been bound or unbound to / from a variable (Subject == URigVMPin)
 	NodeRenamed, // A node has been renamed in the graph (Subject == URigVMNode)
+	NodeReferenceChanged, // A node has changed it's referenced function
 	NodeCategoryChanged, // A node's category has changed (Subject == URigVMNode)
 	NodeKeywordsChanged, // A node's keywords have changed (Subject == URigVMNode)
 	Invalid // The max for this enum (used for guarding)

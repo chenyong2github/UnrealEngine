@@ -70,6 +70,9 @@ private:
 	/** The cached node titles */
 	mutable FText NodeTitle;
 
+	/** The cached fulol node title */
+	mutable FText FullNodeTitle;
+
 public:
 
 	DECLARE_DELEGATE(FNodeTitleDirtied);

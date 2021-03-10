@@ -68,6 +68,10 @@ void URigVMController::SetGraph(URigVMGraph* InGraph)
 	URigVMGraph* PreviousGraph = GetGraph();
 	if (PreviousGraph)
 	{
+		if(PreviousGraph == InGraph)
+		{
+			return;
+		}
 		PreviousGraph->OnModified().RemoveAll(this);
 	}
 
@@ -3363,6 +3367,9 @@ void URigVMController::SetReferencedFunction(URigVMFunctionReferenceNode* InFunc
 	NewReferences.FunctionReferences.Add(InFunctionRefNode);
 
 	InFunctionRefNode->SetReferencedNode(InNewReferencedNode);
+	
+	FRigVMControllerGraphGuard GraphGuard(this, InFunctionRefNode->GetGraph(), false);
+	GetGraph()->Notify(ERigVMGraphNotifType::NodeReferenceChanged, InFunctionRefNode);
 }
 
 void URigVMController::RefreshFunctionPins(URigVMNode* InNode, bool bNotify)

@@ -582,6 +582,7 @@ void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URi
 			break;
 		}
 		case ERigVMGraphNotifType::VariableRenamed:
+		case ERigVMGraphNotifType::NodeReferenceChanged:
 		{
 			if (URigVMNode* ModelNode = Cast<URigVMNode>(InSubject))
 			{
