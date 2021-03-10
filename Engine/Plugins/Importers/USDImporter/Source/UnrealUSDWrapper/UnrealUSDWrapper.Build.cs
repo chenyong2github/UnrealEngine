@@ -76,11 +76,8 @@ namespace UnrealBuildTool.Rules
 					PublicSystemIncludePaths.Add(IntelTBBIncludes);
 					PrivateRuntimeLibraryPaths.Add(IntelTBBBinaries);
 					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBBinaries, "libtbb.so"));
-					PublicAdditionalLibraries.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.so"));
 					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbb.so"));
 					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbb.so.2"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.so"));
-					RuntimeDependencies.Add(Path.Combine(IntelTBBBinaries, "libtbbmalloc.so.2"));
 
 					// Python3
 					PublicIncludePaths.Add(Path.Combine(PythonSourceTPSDir, "include"));
@@ -148,8 +145,7 @@ namespace UnrealBuildTool.Rules
 
 			bool bEnableUsdSdk = (
 				Target.WindowsPlatform.Compiler != WindowsCompiler.Clang &&
-				Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None &&
-				Target.Platform != UnrealTargetPlatform.Linux
+				Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None
 			);
 
 			// Don't enable USD when running the include tool because it has issues parsing Boost headers
