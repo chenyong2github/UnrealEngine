@@ -625,7 +625,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		PassParameters->SceneVisibleLightCount = LightCount;
 	}
 
-	if (!IESLightProfilesMap.IsEmpty())
+	if (IESLightProfilesMap.Num() > 0)
 	{
 		// We found some IES profiles to use -- upload them into a single atlas so we can access them easily in HLSL
 
