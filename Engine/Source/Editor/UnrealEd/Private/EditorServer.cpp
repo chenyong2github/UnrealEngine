@@ -163,6 +163,7 @@
 
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/Formatters/JsonArchiveInputFormatter.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditorServer, Log, All);
 
@@ -2436,6 +2437,8 @@ bool UEditorEngine::PackageIsAMapFile( const TCHAR* PackageFilename, FText& OutN
 
 bool UEditorEngine::Map_Load(const TCHAR* Str, FOutputDevice& Ar)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UEditorEngine::Map_Load)
+
 	auto FindWorldInPackageOrFollowRedirector = [](UPackage*& InOutPackage)
 	{
 		UWorld* RetVal = nullptr;
