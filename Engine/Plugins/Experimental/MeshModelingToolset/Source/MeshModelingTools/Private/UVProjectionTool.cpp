@@ -356,16 +356,7 @@ void UUVProjectionTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Result
 		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			//if (??) // TODO check if UV topology changed?  or remove all traces of this if statement (may be safe to assume it almost always changes w/ a uv projection op)
-			{
-				// full conversion if topology changed
-				Converter.Convert(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription);
-			}
-			//else
-			//{
-			//	// otherwise just copy attributes
-			//	Converter.UpdateAttributes(Results[ComponentIdx]->Mesh.Get(), *MeshDescription, false, true);
-			//}
+			Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription, false, false, true/*update uvs*/);
 		});
 	}
 

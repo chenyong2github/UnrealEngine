@@ -200,7 +200,7 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
+			Converter.UpdateAttributes(DynamicMeshResult, *CommitParams.MeshDescription, false, false, true/*update uvs*/);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
