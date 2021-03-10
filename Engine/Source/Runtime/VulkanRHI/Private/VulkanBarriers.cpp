@@ -564,7 +564,12 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 
 		if (Info.Type == FRHITransitionInfo::EType::Texture)
 		{
-			++NumTextures;
+			// CPU accessible "textures" are implemented as buffers. Check if this is a real texture or a buffer.
+			FVulkanTextureBase* Texture = FVulkanTextureBase::Cast(Info.Texture);
+			if (Texture->Surface.GetCpuReadbackBuffer() == nullptr)
+			{
+				++NumTextures;
+			}
 			continue;
 		}
 
@@ -607,8 +612,14 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 		switch (Info.Type)
 		{
 		case FRHITransitionInfo::EType::Texture:
+		{
 			Texture = FVulkanTextureBase::Cast(Info.Texture);
+			if (Texture->Surface.GetCpuReadbackBuffer())
+			{
+				Texture = nullptr;
+			}
 			break;
+		}
 
 		case FRHITransitionInfo::EType::VertexBuffer:
 			Buffer = ResourceCast(Info.VertexBuffer);
@@ -1152,10 +1163,7 @@ void FVulkanCommandListContext::RHIEndTransitions(TArrayView<const FRHITransitio
 		{
 			const VkImageMemoryBarrier& ImageBarrier = Data->ImageBarriers[ImgBarrierIdx];
 			FVulkanTextureBase* Texture = Data->Textures[ImgBarrierIdx];
-			if((Texture->Surface.UEFlags & TexCreate_CPUReadback) == TexCreate_CPUReadback)
-			{
-				continue;
-			}
+			check(Texture->Surface.GetCpuReadbackBuffer() == nullptr);
 
 			Texture->OnLayoutTransition(*this, ImageBarrier.newLayout);
 
