@@ -991,16 +991,16 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 	TemplateIDBackwardStack.Push(ActiveTemplateIDs.Top());
 	TemplateIDForwardStack.Reset();
 
-	FMovieSceneRootOverridePath Path;
+	UE::MovieScene::FSubSequencePath Path;
 
 	// Ensure the hierarchy is up to date
 	FMovieSceneCompiledDataID DataID = CompiledDataManager->Compile(RootSequence.Get());
 	const FMovieSceneSequenceHierarchy& Hierarchy = CompiledDataManager->GetHierarchyChecked(DataID);
 
-	Path.Set(ActiveTemplateIDs.Last(), &Hierarchy);
+	Path.Reset(ActiveTemplateIDs.Last(), &Hierarchy);
 
 	// Root out the SequenceID for the sub section
-	FMovieSceneSequenceID SequenceID = Path.Remap(InSubSection.GetSequenceID());
+	FMovieSceneSequenceID SequenceID = Path.ResolveChildSequenceID(InSubSection.GetSequenceID());
 
 	// If the sequence isn't found, reset to the root and dive in from there
 	if (!Hierarchy.FindSubData(SequenceID))
@@ -1049,10 +1049,10 @@ void FSequencer::FocusSequenceInstance(UMovieSceneSubSection& InSubSection)
 			}
 		}
 
-		Path.Set(ActiveTemplateIDs.Last(), &Hierarchy);
+		Path.Reset(ActiveTemplateIDs.Last(), &Hierarchy);
 
 		// Root out the SequenceID for the sub section
-		SequenceID = Path.Remap(InSubSection.GetSequenceID());
+		SequenceID = Path.ResolveChildSequenceID(InSubSection.GetSequenceID());
 	}
 
 	if (!ensure(Hierarchy.FindSubData(SequenceID)))
@@ -2232,7 +2232,7 @@ void FSequencer::BakeTransform()
 			for (auto AttachSection : AttachTrack->GetAllSections())
 			{
 				FMovieSceneObjectBindingID ConstraintBindingID = (Cast<UMovieScene3DAttachSection>(AttachSection))->GetConstraintBindingID();
-				for (auto ParentObject : FindBoundObjects(ConstraintBindingID.GetGuid(), ConstraintBindingID.GetSequenceID()) )
+				for (auto ParentObject : ConstraintBindingID.ResolveBoundObjects(GetFocusedTemplateID(), *this))
 				{
 					AttachParentActor = Cast<AActor>(ParentObject.Get());
 					break;
@@ -6021,7 +6021,7 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 					// Create an attach track
 					UMovieScene3DAttachTrack* AttachTrack = Cast<UMovieScene3DAttachTrack>(OwnerMovieScene->AddTrack(UMovieScene3DAttachTrack::StaticClass(), NewCameraGuid));
 
-					FMovieSceneObjectBindingID AttachBindingID(NewGuid, MovieSceneSequenceID::Root);
+					FMovieSceneObjectBindingID AttachBindingID = UE::MovieScene::FRelativeObjectBindingID(NewGuid);
 					FFrameNumber StartTime = UE::MovieScene::DiscreteInclusiveLower(GetPlaybackRange());
 					FFrameNumber Duration  = UE::MovieScene::DiscreteSize(GetPlaybackRange());
 

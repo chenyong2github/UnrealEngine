@@ -419,7 +419,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 
 	FInstanceHandle             RootInstanceHandle = InstanceHandle;
 	FMovieSceneCompiledDataID   RootCompiledDataID = CompiledDataID;
-	FMovieSceneRootOverridePath RootOverridePath;
+	FSubSequencePath            RootOverridePath;
 	FMovieSceneContext          RootContext = Context;
 
 	TArray<FMovieSceneSequenceID, TInlineAllocator<16>> ActiveSequences;
@@ -435,7 +435,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 			RootCompiledDataID = CompiledDataManager->GetDataID(RootSequence);
 			RootContext        = Context.Transform(SubData->RootToSequenceTransform, SubData->TickResolution);
 
-			RootOverridePath.Set(RootOverrideSequenceID, MasterHierarchy);
+			RootOverridePath.Reset(RootOverrideSequenceID, MasterHierarchy);
 
 			ActiveSequences.Add(RootOverrideSequenceID);
 		}
@@ -507,7 +507,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		for (FMovieSceneSubSequenceTreeEntry Entry : RootOverrideHierarchy->GetTree().GetAllData(SubSequenceIt.Node()))
 		{
 			// When a root override path is specified, we always remap the 'local' sequence IDs to their equivalents from the master sequence.
-			FMovieSceneSequenceID SequenceIDFromMaster = RootOverridePath.Remap(Entry.SequenceID);
+			FMovieSceneSequenceID SequenceIDFromMaster = RootOverridePath.ResolveChildSequenceID(Entry.SequenceID);
 
 			ActiveSequences.Add(SequenceIDFromMaster);
 

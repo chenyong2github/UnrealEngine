@@ -112,10 +112,7 @@ namespace MovieScene
 	{
 		static UObject* FindBoundObject(FMovieSceneObjectBindingID BindingID, FMovieSceneSequenceID SequenceID, IMovieScenePlayer& Player)
 		{
-			FMovieSceneObjectBindingID ResolvedID = BindingID.ResolveLocalToRoot(SequenceID, Player);
-
-			FMovieSceneEvaluationOperand Operand(ResolvedID.GetSequenceID(), BindingID.GetGuid());
-			TArrayView<TWeakObjectPtr<>> Objects = Player.FindBoundObjects(Operand);
+			TArrayView<TWeakObjectPtr<>> Objects = BindingID.ResolveBoundObjects(SequenceID, Player);
 			if (Objects.Num() > 0)
 			{
 				return Objects[0].Get();

@@ -920,8 +920,7 @@ bool FMatineeImportTools::CopyInterpDirectorTrack( UInterpTrackDirector* Directo
 				FGuid CameraHandle = Player.FindObjectId(*CameraActor, MovieSceneSequenceID::Root);
 				if (CameraHandle.IsValid())
 				{
-					FMovieSceneObjectBindingID CameraBindingID(CameraHandle, MovieSceneSequenceID::Root);
-					CameraCutTrack->AddNewCameraCut(CameraBindingID, (TrackCut.Time * FrameRate).RoundToFrame());
+					CameraCutTrack->AddNewCameraCut(UE::MovieScene::FRelativeObjectBindingID(CameraHandle), (TrackCut.Time * FrameRate).RoundToFrame());
 					bCutsAdded = true;
 				}
 			}

@@ -1101,12 +1101,12 @@ public:
 	/*
 	 * Tag the specified binding ID with the specified name
 	 */
-	void TagBinding(const FName& NewTag, FMovieSceneObjectBindingID BindingToTag);
+	void TagBinding(const FName& NewTag, const UE::MovieScene::FFixedObjectBindingID& BindingToTag);
 
 	/*
 	 * Remove a tag from the specified object binding
 	 */
-	void UntagBinding(const FName& Tag, FMovieSceneObjectBindingID Binding);
+	void UntagBinding(const FName& Tag, const UE::MovieScene::FFixedObjectBindingID& Binding);
 
 	/*
 	 * Remove the specified tag from any binding and forget about it completely

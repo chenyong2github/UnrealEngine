@@ -26,7 +26,7 @@ UTakeRecorderCameraCutSource::UTakeRecorderCameraCutSource(const FObjectInitiali
 	TrackTint = FColor(160, 160, 160);
 }
 
-TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	World = TakeRecorderSourcesUtils::GetSourceWorld(InSequence);
 	MasterLevelSequence = InMasterSequence;
@@ -141,7 +141,8 @@ TArray<UTakeRecorderSource*> UTakeRecorderCameraCutSource::PostRecording(class U
 			}
 
 			UMovieSceneCameraCutSection* CameraCutSection = Cast<UMovieSceneCameraCutSection>(CameraCutTrack->CreateNewSection());
-			CameraCutSection->SetCameraBindingID(FMovieSceneObjectBindingID(CameraCutData[CameraCutIndex].Guid, CameraCutData[CameraCutIndex].SequenceID, EMovieSceneObjectBindingSpace::Local));
+			FMovieSceneObjectBindingID CameraCutBinding = UE::MovieScene::FRelativeObjectBindingID(CameraCutData[CameraCutIndex].Guid, CameraCutData[CameraCutIndex].SequenceID);
+			CameraCutSection->SetCameraBindingID(CameraCutBinding);
 			CameraCutSection->SetRange(Range);
 			CameraCutTrack->AddSection(*CameraCutSection);
 		}

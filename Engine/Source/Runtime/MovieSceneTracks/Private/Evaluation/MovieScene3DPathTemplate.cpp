@@ -125,35 +125,18 @@ struct F3DPathExecutionToken
 	{
 		MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_PathTrack_TokenExecute)
 
-		FMovieSceneSequenceID SequenceID = Operand.SequenceID;
-		if (PathBindingID.GetSequenceID().IsValid())
-		{
-			// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-			FMovieSceneObjectBindingID RootBindingID = PathBindingID.ResolveLocalToRoot(SequenceID, Player);
-			SequenceID = RootBindingID.GetSequenceID();
-		}
-
-		// If the transform is set, otherwise use the bound actor's transform
-		FMovieSceneEvaluationOperand PathOperand(SequenceID, PathBindingID.GetGuid());
-		
-		TArrayView<TWeakObjectPtr<>> Objects = Player.FindBoundObjects(PathOperand);
-		if (!Objects.Num())
-		{
-			return;
-		}
-
-		// Only ever deal with one parent
-		UObject* ParentObject = Objects[0].Get();
-		AActor* Actor = Cast<AActor>(ParentObject);
-
 		USplineComponent* SplineComponent = nullptr;
 
-		for (UActorComponent* Component : Actor->GetComponents())
+		// Find the first spline component on any of the objects resolved through the path binding ID
+		for (TWeakObjectPtr<> PathTarget : PathBindingID.ResolveBoundObjects(Operand.SequenceID, Player))
 		{
-			SplineComponent = Cast<USplineComponent>(Component);
-			if (SplineComponent)
+			if (AActor* Actor = Cast<AActor>(PathTarget.Get()))
 			{
-				break;
+				SplineComponent = Actor->FindComponentByClass<USplineComponent>();
+				if (SplineComponent)
+				{
+					break;
+				}
 			}
 		}
 

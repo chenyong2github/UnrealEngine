@@ -12,12 +12,16 @@
 #include "Textures/SlateIcon.h"
 #include "EditorStyleSet.h"
 #include "Widgets/Images/SImage.h"
+#include "EditorFontGlyphs.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/SOverlay.h"
 #include "ISequencer.h"
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Evaluation/MovieSceneSequenceHierarchy.h"
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "Framework/Application/SlateApplication.h"
+#include "EditorStyleSet.h"
+#include "EditorFontGlyphs.h"
 
 #define LOCTEXT_NAMESPACE "MovieSceneObjectBindingIDPicker"
 
@@ -50,7 +54,7 @@ void FMovieSceneObjectBindingIDPicker::OnGetMenuContent(FMenuBuilder& MenuBuilde
 
 	bool bHadAnyEntries = false;
 
-	if (Node->BindingID.GetGuid().IsValid())
+	if (Node->BindingID.Guid.IsValid())
 	{
 		bHadAnyEntries = true;
 		MenuBuilder.AddMenuEntry(
@@ -67,7 +71,7 @@ void FMovieSceneObjectBindingIDPicker::OnGetMenuContent(FMenuBuilder& MenuBuilde
 	{
 		check(Child.IsValid())
 
-		if (!Child->BindingID.GetGuid().IsValid())
+		if (!Child->BindingID.Guid.IsValid())
 		{
 			if (Child->Children.Num())
 			{
@@ -156,9 +160,41 @@ TSharedRef<SWidget> FMovieSceneObjectBindingIDPicker::GetCurrentItemWidget(TShar
 		];
 }
 
-void FMovieSceneObjectBindingIDPicker::SetBindingId(FMovieSceneObjectBindingID InBindingId)
+TSharedRef<SWidget> FMovieSceneObjectBindingIDPicker::GetWarningWidget()
 {
-	SetRemappedCurrentValue(InBindingId);
+	return SNew(SButton)
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ContentPadding(FMargin(0))
+		.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
+		.ToolTipText(LOCTEXT("FixedBindingWarningText", "This binding is fixed to the current Master Sequence hierarchy, so will break if evaluated in a different hierarchy.\nClick here to fix this problem."))
+		.Visibility_Raw(this, &FMovieSceneObjectBindingIDPicker::GetFixedWarningVisibility)
+		.OnClicked_Raw(this, &FMovieSceneObjectBindingIDPicker::AttemptBindingFixup)
+		[
+			SNew(STextBlock)
+			.ColorAndOpacity(FLinearColor::Yellow)
+			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
+			.Text(FEditorFontGlyphs::Exclamation_Triangle)
+		];
+}
+
+EVisibility FMovieSceneObjectBindingIDPicker::GetFixedWarningVisibility() const
+{
+	FMovieSceneObjectBindingID CurrentValue = GetCurrentValue();
+
+	const bool bShowError = CurrentValue.IsFixedBinding() && LocalSequenceID != MovieSceneSequenceID::Invalid;
+	return bShowError ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
+FReply FMovieSceneObjectBindingIDPicker::AttemptBindingFixup()
+{
+	SetCurrentValueFromFixed(GetCurrentValueAsFixed());
+	return FReply::Handled();
+}
+
+void FMovieSceneObjectBindingIDPicker::SetBindingId(UE::MovieScene::FFixedObjectBindingID InBindingId)
+{
+	SetCurrentValueFromFixed(InBindingId);
 	UpdateCachedData();
 
 	TSharedPtr<SWidget> MenuWidget = DismissWidget.Pin();
@@ -170,8 +206,11 @@ void FMovieSceneObjectBindingIDPicker::SetBindingId(FMovieSceneObjectBindingID I
 
 void FMovieSceneObjectBindingIDPicker::UpdateCachedData()
 {
-	FMovieSceneObjectBindingID CurrentValue = GetRemappedCurrentValue();
-	TSharedPtr<FSequenceBindingNode> Object = CurrentValue.IsValid() ? DataTree->FindNode(CurrentValue) : nullptr;
+	using namespace UE::MovieScene;
+
+	FFixedObjectBindingID CurrentValue = GetCurrentValueAsFixed();
+
+	TSharedPtr<FSequenceBindingNode> Object = CurrentValue.Guid.IsValid() ? DataTree->FindNode(CurrentValue) : nullptr;
 
 	if (!Object.IsValid())
 	{
@@ -187,7 +226,7 @@ void FMovieSceneObjectBindingIDPicker::UpdateCachedData()
 		bIsCurrentItemSpawnable = Object->bIsSpawnable;
 
 		ToolTipText = FText();
-		while (Object.IsValid() && Object->BindingID != FMovieSceneObjectBindingID())
+		while (Object.IsValid() && Object->BindingID.SequenceID != MovieSceneSequenceID::Invalid)
 		{
 			ToolTipText = ToolTipText.IsEmpty() ? Object->DisplayString : FText::Format(LOCTEXT("ToolTipFormat", "{0} -> {1}"), Object->DisplayString, ToolTipText);
 			Object = DataTree->FindNode(Object->ParentID);
@@ -220,63 +259,37 @@ EVisibility FMovieSceneObjectBindingIDPicker::GetSpawnableIconOverlayVisibility(
 	return bIsCurrentItemSpawnable ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-FMovieSceneObjectBindingID FMovieSceneObjectBindingIDPicker::GetRemappedCurrentValue() const
+UE::MovieScene::FFixedObjectBindingID FMovieSceneObjectBindingIDPicker::GetCurrentValueAsFixed() const
 {
 	FMovieSceneObjectBindingID ID = GetCurrentValue();
 
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-
 	// If the ID is in local space, remap it to the root space as according to the LocalSequenceID we were created with
-	if (Sequencer.IsValid() && LocalSequenceID != MovieSceneSequenceID::Root && ID.IsValid() && ID.GetBindingSpace() == EMovieSceneObjectBindingSpace::Local)
+	if (TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin())
 	{
-		ID = ID.ResolveLocalToRoot(LocalSequenceID, *Sequencer);
+		ID = ID.ResolveToFixed(LocalSequenceID, *Sequencer);
 	}
 
-	return ID;
+	return ID.ReinterpretAsFixed();
 }
 
-void FMovieSceneObjectBindingIDPicker::SetRemappedCurrentValue(FMovieSceneObjectBindingID InValue)
+void FMovieSceneObjectBindingIDPicker::SetCurrentValueFromFixed(UE::MovieScene::FFixedObjectBindingID InValue)
 {
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	TSharedPtr<ISequencer>              Sequencer = WeakSequencer.Pin();
+	const FMovieSceneSequenceHierarchy* Hierarchy = Sequencer.IsValid() ? Sequencer->GetEvaluationTemplate().GetHierarchy() : nullptr;
 
-	// If we have a local sequence ID set, and the supplied binding is in root space, we attempt to remap it into the local sequence ID's space, and use a sequence ID
-	// that will resolve from LocalSequenceID instead of from the root. This ensures that you can work on sub sequences on their own, or within a master sequence
-	// and the binding will resolve correctly.
-	if (LocalSequenceID.IsValid() && Sequencer.IsValid() && InValue.GetGuid().IsValid() && InValue.GetBindingSpace() == EMovieSceneObjectBindingSpace::Root)
+	// If we don't know the local sequence ID, or we have no hierarchy, or we're resetting the binding; just set the ID directly
+	if (LocalSequenceID == MovieSceneSequenceID::Invalid || !InValue.Guid.IsValid())
 	{
-		FMovieSceneRootEvaluationTemplateInstance& Instance = Sequencer->GetEvaluationTemplate();
-
-		const FMovieSceneSequenceHierarchy* Hierarchy = Instance.GetCompiledDataManager()->FindHierarchy(Instance.GetCompiledDataID());
-		if (Hierarchy)
-		{
-			FMovieSceneSequenceID NewLocalSequenceID = MovieSceneSequenceID::Root;
-			FMovieSceneSequenceID CurrentSequenceID = InValue.GetSequenceID();
-
-			while (CurrentSequenceID.IsValid())
-			{
-				if (LocalSequenceID == CurrentSequenceID)
-				{
-					// Found it
-					InValue = FMovieSceneObjectBindingID(InValue.GetGuid(), NewLocalSequenceID, EMovieSceneObjectBindingSpace::Local);
-					break;
-				}
-
-				const FMovieSceneSequenceHierarchyNode* CurrentNode = Hierarchy->FindNode(CurrentSequenceID);
-				if (!ensureAlwaysMsgf(CurrentNode, TEXT("Malformed sequence hierarchy")))
-				{
-					break;
-				}
-				else if (const FMovieSceneSubSequenceData* SubData = Hierarchy->FindSubData(CurrentSequenceID))
-				{
-					NewLocalSequenceID = NewLocalSequenceID.AccumulateParentID(SubData->DeterministicSequenceID);
-				}
-				
-				CurrentSequenceID = CurrentNode->ParentID;
-			}
-		}
+		SetCurrentValue(InValue);
 	}
-
-	SetCurrentValue(InValue);
+	else
+	{
+		// Attempt to remap the desired binding to the current local sequence by either making it local to this sequence
+		// or specifying a parent index so that this binding is still able to resolve correctly if the master sequence is added
+		// as a subsequence elsewhere
+		// This ensures that you can work on sub sequences on their own, or within a master sequence and the binding will resolve correctly.
+		SetCurrentValue(InValue.ConvertToRelative(LocalSequenceID, Hierarchy));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

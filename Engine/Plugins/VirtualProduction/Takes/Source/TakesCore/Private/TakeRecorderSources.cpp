@@ -94,6 +94,7 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 		if (Source->bEnabled)
 		{
 			ULevelSequence* TargetSequence = InMasterSequence;
+			FMovieSceneSequenceID TargetSequenceID = MovieSceneSequenceID::Root;
 
 			// The Sequencer Take system is built around swapping out sub-sequences. If they want to use this system, we create a sub-sequence
 			// for the Source and tell it to write into this sub-sequence instead of the master sequence. We then keep track of which Source
@@ -157,6 +158,8 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 				NewSubSection->SetRowIndex(SubsceneTrack->GetMaxRowIndex() + 1);
 				SubsceneTrack->FixRowIndices();
 
+				TargetSequenceID = NewSubSection->GetSequenceID();
+
 				ActiveSubSections.Add(NewSubSection);
 				if (InManifestSerializer)
 				{
@@ -198,7 +201,7 @@ void UTakeRecorderSources::StartRecordingRecursive(TArray<UTakeRecorderSource*> 
 			// Update our mappings of which sources use which sub-sequence.
 			SourceSubSequenceMap.FindOrAdd(Source) = TargetSequence;
 			Source->TimecodeSource = Timecode;
-			for (UTakeRecorderSource* NewlyAddedSource : Source->PreRecording(TargetSequence, InMasterSequence, InManifestSerializer))
+			for (UTakeRecorderSource* NewlyAddedSource : Source->PreRecording(TargetSequence, TargetSequenceID, InMasterSequence, InManifestSerializer))
 			{
 				// Add it to our classes list of sources 
 				Sources.Add(NewlyAddedSource);
@@ -257,6 +260,7 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 		if (Source->bEnabled)
 		{
 			ULevelSequence* TargetSequence = InMasterSequence;
+			FMovieSceneSequenceID TargetSequenceID = MovieSceneSequenceID::Root;
 
 			// The Sequencer Take system is built around swapping out sub-sequences. If they want to use this system, we create a sub-sequence
 			// for the Source and tell it to write into this sub-sequence instead of the master sequence. We then keep track of which Source
@@ -318,6 +322,8 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 				NewSubSection->SetRowIndex(SubsceneTrack->GetMaxRowIndex() + 1);
 				SubsceneTrack->FixRowIndices();
 
+				TargetSequenceID = NewSubSection->GetSequenceID();
+
 				ActiveSubSections.Add(NewSubSection);
 				if (InManifestSerializer)
 				{
@@ -359,7 +365,7 @@ void UTakeRecorderSources::PreRecordingRecursive(TArray<UTakeRecorderSource*> In
 			// Update our mappings of which sources use which sub-sequence.
 			SourceSubSequenceMap.FindOrAdd(Source) = TargetSequence;
 
-			for (UTakeRecorderSource* NewlyAddedSource : Source->PreRecording(TargetSequence, InMasterSequence, InManifestSerializer))
+			for (UTakeRecorderSource* NewlyAddedSource : Source->PreRecording(TargetSequence, TargetSequenceID, InMasterSequence, InManifestSerializer))
 			{
 				// Add it to our classes list of sources 
 				Sources.Add(NewlyAddedSource);

@@ -2,6 +2,7 @@
 
 #include "TrackEditors/PropertyTrackEditors/ActorReferencePropertyTrackEditor.h"
 #include "GameFramework/Actor.h"
+#include "MovieSceneSpawnableAnnotation.h"
 
 
 TSharedRef<ISequencerTrackEditor> FActorReferencePropertyTrackEditor::CreateTrackEditor( TSharedRef<ISequencer> OwningSequencer )
@@ -15,11 +16,26 @@ void FActorReferencePropertyTrackEditor::GenerateKeysFromPropertyChanged( const 
 	AActor* NewReferencedActor = Cast<AActor>(PropertyChangedParams.GetPropertyValue<UObject*>());
 	if ( NewReferencedActor != nullptr )
 	{
-		FGuid ActorGuid = GetSequencer()->GetHandleToObject( NewReferencedActor );
-		if ( ActorGuid.IsValid() )
+		TSharedPtr<ISequencer> SequencerPtr = GetSequencer();
+
+		FMovieSceneObjectBindingID Binding;
+
+		TOptional<FMovieSceneSpawnableAnnotation> Spawnable = FMovieSceneSpawnableAnnotation::Find(NewReferencedActor);
+		if (Spawnable.IsSet())
+		{
+			// Check whether the spawnable is underneath the current sequence, if so, we can remap it to a local sequence ID
+			Binding = UE::MovieScene::FRelativeObjectBindingID(SequencerPtr->GetFocusedTemplateID(), Spawnable->SequenceID, Spawnable->ObjectBindingID, *SequencerPtr);
+		}
+		else
+		{
+			FGuid ParentActorId = FindOrCreateHandleToObject(NewReferencedActor).Handle;
+			Binding = UE::MovieScene::FRelativeObjectBindingID(ParentActorId);
+		}
+
+		if (Binding.IsValid())
 		{
 			FMovieSceneActorReferenceKey NewKey;
-			NewKey.Object = FMovieSceneObjectBindingID(ActorGuid, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
+			NewKey.Object = Binding;
 			OutGeneratedKeys.Add(FMovieSceneChannelValueSetter::Create<FMovieSceneActorReferenceData>(0, NewKey, true));
 		}
 	}

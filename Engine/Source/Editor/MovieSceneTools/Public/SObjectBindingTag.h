@@ -27,7 +27,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Construct this widget. Binding cache can be retrieved through FSequencer::GetObjectTagCache()*/
-	MOVIESCENETOOLS_API void Construct(const FArguments& InArgs, const FMovieSceneObjectBindingID& InBindingID, FObjectBindingTagCache* BindingCache);
+	MOVIESCENETOOLS_API void Construct(const FArguments& InArgs, const UE::MovieScene::FFixedObjectBindingID& InBindingID, FObjectBindingTagCache* BindingCache);
 
 private:
 
@@ -40,7 +40,7 @@ private:
 private:
 
 	FTagEvent OnTagDeletedEvent;
-	FMovieSceneObjectBindingID BindingID;
+	UE::MovieScene::FFixedObjectBindingID BindingID;
 };
 
 /** A single named tag widget for an object binding within a sequence, represented as a rounded 'pill' */

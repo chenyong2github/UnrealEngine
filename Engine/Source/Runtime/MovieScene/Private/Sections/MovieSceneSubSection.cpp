@@ -10,6 +10,7 @@
 #include "Evaluation/MovieSceneEvaluationTemplate.h"
 #include "Misc/FrameRate.h"
 #include "Logging/MessageLog.h"
+#include "Evaluation/MovieSceneRootOverridePath.h"
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneInstanceRegistry.h"
 #include "EntitySystem/IMovieSceneEntityProvider.h"
@@ -427,14 +428,13 @@ void UMovieSceneSubSection::BuildDefaultSubSectionComponents(UMovieSceneEntitySy
 	if (Easing.GetEaseInDuration() > 0 || Easing.GetEaseOutDuration() > 0)
 	{
 		FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
-		FInstanceRegistry* InstanceRegistry = EntityLinker->GetInstanceRegistry();
 
-		const FSequenceInstance& Instance = InstanceRegistry->GetInstance(Params.Sequence.InstanceHandle);
-		const FMovieSceneSequenceID SubSequenceID = GetSequenceID();
+		const FSubSequencePath      PathToRoot         = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle).GetSubSequencePath();
+		const FMovieSceneSequenceID ResolvedSequenceID = PathToRoot.ResolveChildSequenceID(this->GetSequenceID());
 
 		OutImportedEntity->AddBuilder(
-			FEntityBuilder()
-				.AddConditional(Components->HierarchicalEasingProvider, SubSequenceID, SubSequenceID.IsValid()));
+			FEntityBuilder().Add(Components->HierarchicalEasingProvider, ResolvedSequenceID)
+		);
 	}
 }
 

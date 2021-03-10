@@ -65,8 +65,7 @@ void ExecuteGameplayCueEvent(IMovieScenePlayer* Player, const UE::MovieScene::FE
 
 	if (GameplayCueKey.Instigator.IsValid())
 	{
-		FMovieSceneObjectBindingID Resolved = GameplayCueKey.Instigator.ResolveLocalToRoot(Params.SequenceID, *Player);
-		for (TWeakObjectPtr<> WeakObject : Player->FindBoundObjects(Resolved.GetGuid(), Resolved.GetSequenceID()))
+		for (TWeakObjectPtr<> WeakObject : GameplayCueKey.Instigator.ResolveBoundObjects(Params.SequenceID, *Player))
 		{
 			if (AActor* Actor = ActorFromResolvedObject(WeakObject.Get()))
 			{
@@ -78,8 +77,7 @@ void ExecuteGameplayCueEvent(IMovieScenePlayer* Player, const UE::MovieScene::FE
 
 	if (GameplayCueKey.EffectCauser.IsValid())
 	{
-		FMovieSceneObjectBindingID Resolved = GameplayCueKey.EffectCauser.ResolveLocalToRoot(Params.SequenceID, *Player);
-		for (TWeakObjectPtr<> WeakObject : Player->FindBoundObjects(Resolved.GetGuid(), Resolved.GetSequenceID()))
+		for (TWeakObjectPtr<> WeakObject : GameplayCueKey.EffectCauser.ResolveBoundObjects(Params.SequenceID, *Player))
 		{
 			if (AActor* Actor = ActorFromResolvedObject(WeakObject.Get()))
 			{

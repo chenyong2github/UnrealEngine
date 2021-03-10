@@ -670,18 +670,7 @@ void FSequencerEdMode::DrawAudioTracks(FPrimitiveDrawInterface* PDI)
 					FMovieSceneObjectBindingID AttachBindingID = Values[Index].Object;
 					FName AttachSocketName = Values[Index].SocketName;
 
-					FMovieSceneSequenceID SequenceID = Sequencer->GetFocusedTemplateID();
-					if (AttachBindingID.GetSequenceID().IsValid())
-					{
-						// Ensure that this ID is resolvable from the root, based on the current local sequence ID
-						FMovieSceneObjectBindingID RootBindingID = AttachBindingID.ResolveLocalToRoot(SequenceID, *Sequencer);
-						SequenceID = RootBindingID.GetSequenceID();
-					}
-
-					// If the transform is set, otherwise use the bound actor's transform
-					FMovieSceneEvaluationOperand ObjectOperand(SequenceID, AttachBindingID.GetGuid());
-
-					for (TWeakObjectPtr<> WeakObject : Sequencer->FindBoundObjects(ObjectOperand))
+					for (TWeakObjectPtr<> WeakObject : AttachBindingID.ResolveBoundObjects(Sequencer->GetFocusedTemplateID(), *Sequencer))
 					{
 						AActor* AttachActor = Cast<AActor>(WeakObject.Get());
 						if (AttachActor)

@@ -1064,7 +1064,8 @@ void UMovieSceneSequencePlayer::SetTimeController(TSharedPtr<FMovieSceneTimeCont
 TArray<UObject*> UMovieSceneSequencePlayer::GetBoundObjects(FMovieSceneObjectBindingID ObjectBinding)
 {
 	TArray<UObject*> Objects;
-	for (TWeakObjectPtr<> WeakObject : FindBoundObjects(ObjectBinding.GetGuid(), ObjectBinding.GetSequenceID()))
+
+	for (TWeakObjectPtr<> WeakObject : ObjectBinding.ResolveBoundObjects(MovieSceneSequenceID::Root, *this))
 	{
 		if (UObject* Object = WeakObject.Get())
 		{

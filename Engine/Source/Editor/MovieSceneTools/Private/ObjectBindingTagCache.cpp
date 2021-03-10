@@ -70,7 +70,7 @@ void FObjectBindingTagCache::ConditionalUpdate(UMovieSceneSequence* RootSequence
 
 		for (FMovieSceneObjectBindingID ID : Pair.Value.IDs)
 		{
-			ExposedNameReverseLUT.Add(ID, Pair.Key);
+			ExposedNameReverseLUT.Add(ID.ReinterpretAsFixed(), Pair.Key);
 		}
 	}
 

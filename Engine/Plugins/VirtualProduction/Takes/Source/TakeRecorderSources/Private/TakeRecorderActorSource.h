@@ -121,7 +121,7 @@ public:
 	
 	// UTakeRecorderSource Interface
 	virtual bool IsValid()const override;
-	virtual TArray<UTakeRecorderSource*> PreRecording(class ULevelSequence* InSequence, class ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
+	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
 	virtual void TickRecording(const FQualifiedFrameTime& CurrentSequenceTime) override;
 	virtual void StopRecording(class ULevelSequence* InSequence) override;
@@ -130,6 +130,8 @@ public:
 	virtual FString GetSubsceneTrackName(ULevelSequence* InSequence) const override;
 	virtual FString GetSubsceneAssetName(ULevelSequence* InSequence) const override;
 	virtual void AddContentsToFolder(class UMovieSceneFolder* InFolder) override;
+	virtual FMovieSceneSequenceID GetSequenceID() const override { return TargetSequenceID; }
+
 	// ~UTakeRecorderSource Interface
 
 	/** Set the Target actor that we are going to record. Will reset the Recorded Property Map to defaults. */
@@ -147,13 +149,6 @@ public:
 
 	/** Get the record type. If set to project default, gets the type from the project settings */
 	bool GetRecordToPossessable() const;
-
-	TOptional<FMovieSceneSequenceID> GetSequenceID() const
-	{
-		return SequenceID;
-	}
-
-	void SetSequenceID(FMovieSceneSequenceID InSequenceID) { SequenceID = InSequenceID; }
 
 protected:
 
@@ -310,9 +305,9 @@ private:
 	TSet<class UActorComponent*> CachedComponentList;
 
 	/**
-	* Optional ID of the TargetLevelSequence. Cached since calculating this can be heavy. 
+	* ID of the TargetLevelSequence.
 	*/
-	TOptional<FMovieSceneSequenceID> SequenceID;
+	FMovieSceneSequenceID TargetSequenceID;
 
 	/**
 	*  Serializer

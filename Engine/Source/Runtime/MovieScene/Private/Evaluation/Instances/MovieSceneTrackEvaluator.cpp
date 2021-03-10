@@ -171,7 +171,7 @@ const FMovieSceneEvaluationGroup* FMovieSceneTrackEvaluator::SetupFrame(UMovieSc
 	check(OverrideRootSequence);
 
 	RootID = InOverrideRootID;
-	RootOverridePath.Set(InOverrideRootID, RootHierarchy);
+	RootOverridePath.Reset(InOverrideRootID, RootHierarchy);
 
 	const FMovieSceneEvaluationField* OverrideRootField = nullptr;
 	FFrameTime RootTime = Context.GetTime();
@@ -236,7 +236,7 @@ void FMovieSceneTrackEvaluator::EvaluateGroup(const FMovieSceneEvaluationGroup& 
 			FMovieSceneEvaluationFieldTrackPtr    TrackPtr   = TrackEntry.TrackPtr;
 
 			// Ensure we're able to find the sequence instance in our root if we've overridden
-			TrackPtr.SequenceID = RootOverridePath.Remap(TrackPtr.SequenceID);
+			TrackPtr.SequenceID = RootOverridePath.ResolveChildSequenceID(TrackPtr.SequenceID);
 
 			const FCachedPtrs&                EvalPtrs = CachedPtrs.FindChecked(TrackPtr.SequenceID);
 			const FMovieSceneEvaluationTrack* Track    = EvalPtrs.Template->FindTrack(TrackPtr.TrackIdentifier);
@@ -276,7 +276,7 @@ void FMovieSceneTrackEvaluator::EvaluateGroup(const FMovieSceneEvaluationGroup& 
 			FMovieSceneEvaluationFieldTrackPtr    TrackPtr   = TrackEntry.TrackPtr;
 
 			// Ensure we're able to find the sequence instance in our root if we've overridden
-			TrackPtr.SequenceID = RootOverridePath.Remap(TrackPtr.SequenceID);
+			TrackPtr.SequenceID = RootOverridePath.ResolveChildSequenceID(TrackPtr.SequenceID);
 
 			const FCachedPtrs&                EvalPtrs = CachedPtrs.FindChecked(TrackPtr.SequenceID);
 			const FMovieSceneEvaluationTrack* Track    = EvalPtrs.Template->FindTrack(TrackPtr.TrackIdentifier);
@@ -334,7 +334,7 @@ void FMovieSceneTrackEvaluator::CallSetupTearDown(IMovieScenePlayer& Player, FDe
 		FMovieSceneEvaluationKey Key = OrderedKey.Key;
 
 		// Ensure we're able to find the sequence instance in our root if we've overridden
-		Key.SequenceID = RootOverridePath.Remap(Key.SequenceID);
+		Key.SequenceID = RootOverridePath.ResolveChildSequenceID(Key.SequenceID);
 
 		const FCachedPtrs* EvalPtrs = CachedPtrs.Find(Key.SequenceID);
 		if (EvalPtrs)
@@ -385,7 +385,7 @@ void FMovieSceneTrackEvaluator::CallSetupTearDown(IMovieScenePlayer& Player, FDe
 		FMovieSceneEvaluationKey Key = OrderedKey.Key;
 
 		// Ensure we're able to find the sequence instance in our root if we've overridden
-		Key.SequenceID = RootOverridePath.Remap(Key.SequenceID);
+		Key.SequenceID = RootOverridePath.ResolveChildSequenceID(Key.SequenceID);
 
 		const FCachedPtrs&                EvalPtrs = CachedPtrs.FindChecked(Key.SequenceID);
 		const FMovieSceneEvaluationTrack* Track    = EvalPtrs.Template->FindTrack(Key.TrackIdentifier);

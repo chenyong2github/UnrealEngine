@@ -84,6 +84,8 @@ bool FSequenceBindingTree::ConditionalRebuild(UMovieSceneSequence* InSequence, F
 
 void FSequenceBindingTree::ForceRebuild(UMovieSceneSequence* InSequence, FObjectKey InActiveSequence, FMovieSceneSequenceID InActiveSequenceID)
 {
+	using namespace UE::MovieScene;
+
 	CachedSequenceSignatures.Empty();
 	bIsEmpty = true;
 
@@ -95,7 +97,7 @@ void FSequenceBindingTree::ForceRebuild(UMovieSceneSequence* InSequence, FObject
 	ActiveSequenceNode = nullptr;
 
 	// Create a node for the root sequence
-	FMovieSceneObjectBindingID RootSequenceID;
+	FFixedObjectBindingID RootSequenceID = FFixedObjectBindingID(FGuid(), MovieSceneSequenceID::Root);
 	TSharedRef<FSequenceBindingNode> RootSequenceNode = MakeShared<FSequenceBindingNode>(FText(), RootSequenceID, FSlateIcon());
 	Hierarchy.Add(RootSequenceID, RootSequenceNode);
 
@@ -121,7 +123,7 @@ void FSequenceBindingTree::ForceRebuild(UMovieSceneSequence* InSequence, FObject
 			ActiveParent->Children.Remove(ActiveSequenceNode.ToSharedRef());
 
 			// Make a new top level node (with an invalid ID)
-			FMovieSceneObjectBindingID TopLevelID = FMovieSceneObjectBindingID(FGuid(), FMovieSceneSequenceID());
+			FFixedObjectBindingID TopLevelID = FFixedObjectBindingID(FGuid(), MovieSceneSequenceID::Invalid);
 			TopLevelNode = MakeShared<FSequenceBindingNode>(FText(), TopLevelID, FSlateIcon());
 
 			// Override the display string and icon
@@ -140,9 +142,9 @@ void FSequenceBindingTree::Sort(TSharedRef<FSequenceBindingNode> Node)
 		[](TSharedRef<FSequenceBindingNode> A, TSharedRef<FSequenceBindingNode> B)
 		{
 			// Sort shots first
-			if (A->BindingID.IsValid() != B->BindingID.IsValid())
+			if (A->BindingID.Guid.IsValid() != B->BindingID.Guid.IsValid())
 			{
-				return !A->BindingID.IsValid();
+				return !A->BindingID.Guid.IsValid();
 			}
 			return A->DisplayString.CompareToCaseIgnored(B->DisplayString) < 0;
 		}
@@ -156,6 +158,8 @@ void FSequenceBindingTree::Sort(TSharedRef<FSequenceBindingNode> Node)
 
 void FSequenceBindingTree::Build(UMovieSceneSequence* InSequence, FSequenceIDStack& SequenceIDStack)
 {
+	using namespace UE::MovieScene;
+
 	check(InSequence);
 
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
@@ -173,7 +177,7 @@ void FSequenceBindingTree::Build(UMovieSceneSequence* InSequence, FSequenceIDSta
 		}
 
 		// Keep track of the active sequence node
-		ActiveSequenceNode = Hierarchy.FindChecked(FMovieSceneObjectBindingID(FGuid(), SequenceIDStack.GetCurrent()));
+		ActiveSequenceNode = Hierarchy.FindChecked(FFixedObjectBindingID(FGuid(), SequenceIDStack.GetCurrent()));
 	}
 
 	// Iterate all sub sections
@@ -192,7 +196,7 @@ void FSequenceBindingTree::Build(UMovieSceneSequence* InSequence, FSequenceIDSta
 					FMovieSceneSequenceID ParentID = SequenceIDStack.GetCurrent();
 					SequenceIDStack.Push(SubSection->GetSequenceID());
 					
-					FMovieSceneObjectBindingID CurrentID(FGuid(), SequenceIDStack.GetCurrent());
+					FFixedObjectBindingID CurrentID = FFixedObjectBindingID(FGuid(), SequenceIDStack.GetCurrent());
 
 					UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(Section);
 					FText DisplayString = ShotSection ? FText::FromString(ShotSection->GetShotDisplayName()) : FText::FromName(SubSequence->GetFName());
@@ -222,7 +226,7 @@ void FSequenceBindingTree::Build(UMovieSceneSequence* InSequence, FSequenceIDSta
 	{
 		const FMovieSceneSpawnable& Spawnable = MovieScene->GetSpawnable(Index);
 		
-		FMovieSceneObjectBindingID ID(Spawnable.GetGuid(), CurrentSequenceID);
+		FFixedObjectBindingID ID = FFixedObjectBindingID(Spawnable.GetGuid(), CurrentSequenceID);
 
 		FSlateIcon Icon;
 		if (const UObject* ObjectTemplate = Spawnable.GetObjectTemplate())
@@ -251,7 +255,7 @@ void FSequenceBindingTree::Build(UMovieSceneSequence* InSequence, FSequenceIDSta
 		const FMovieScenePossessable& Possessable = MovieScene->GetPossessable(Index);
 		if (InSequence->CanRebindPossessable(Possessable))
 		{
-			FMovieSceneObjectBindingID ID(Possessable.GetGuid(), CurrentSequenceID);
+			FFixedObjectBindingID ID = FFixedObjectBindingID(Possessable.GetGuid(), CurrentSequenceID);
 
 			FSlateIcon Icon = FSlateIconFinder::FindIconForClass(Possessable.GetPossessedObjectClass());
 			TSharedRef<FSequenceBindingNode> NewNode = MakeShared<FSequenceBindingNode>(MovieScene->GetObjectDisplayName(Possessable.GetGuid()), ID, Icon);
@@ -267,7 +271,9 @@ void FSequenceBindingTree::Build(UMovieSceneSequence* InSequence, FSequenceIDSta
 
 TSharedRef<FSequenceBindingNode> FSequenceBindingTree::EnsureParent(const FGuid& InParentGuid, UMovieScene* InMovieScene, FMovieSceneSequenceID SequenceID)
 {
-	FMovieSceneObjectBindingID ParentPtr(InParentGuid, SequenceID);
+	using namespace UE::MovieScene;
+
+	FFixedObjectBindingID ParentPtr = FFixedObjectBindingID(InParentGuid, SequenceID);
 
 	// If the node already exists
 	TSharedPtr<FSequenceBindingNode> Parent = Hierarchy.FindRef(ParentPtr);

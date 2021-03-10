@@ -128,7 +128,7 @@ void FMovieSceneObjectCache::FilterObjectBindings(UObject* PredicateObject, IMov
 				UObject* Object = WeakObject.Get();
 				if (Object && Object == PredicateObject)
 				{
-					OutBindings->Add(FMovieSceneObjectBindingID(Pair.Key, SequenceID));
+					OutBindings->Add(UE::MovieScene::FFixedObjectBindingID(Pair.Key, SequenceID));
 					break;
 				}
 			}
@@ -149,7 +149,7 @@ void FMovieSceneObjectCache::FilterObjectBindings(UObject* PredicateObject, IMov
 			UObject* Object = WeakObject.Get();
 			if (Object && Object == PredicateObject)
 			{
-				OutBindings->Add(FMovieSceneObjectBindingID(DirtyBinding, SequenceID));
+				OutBindings->Add(UE::MovieScene::FFixedObjectBindingID(DirtyBinding, SequenceID));
 				break;
 			}
 		}

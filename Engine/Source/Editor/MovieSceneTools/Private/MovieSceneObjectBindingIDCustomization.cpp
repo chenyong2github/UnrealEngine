@@ -56,22 +56,34 @@ void FMovieSceneObjectBindingIDCustomization::CustomizeHeader(TSharedRef<IProper
 	]
 	.ValueContent()
 	[
-		SNew(SDropTarget)
-		.OnDrop(this, &FMovieSceneObjectBindingIDCustomization::OnDrop)
-		.OnAllowDrop_Static(IsAcceptable)
-		.OnIsRecognized_Static(IsAcceptable)
+		SNew(SHorizontalBox)
+
+		+ SHorizontalBox::Slot()
 		[
-			SNew(SComboButton)
-			.ToolTipText(this, &FMovieSceneObjectBindingIDCustomization::GetToolTipText)
-			.OnGetMenuContent(this, &FMovieSceneObjectBindingIDCustomization::GetPickerMenu)
-			.ContentPadding(FMargin(4.0, 2.0))
-			.ButtonContent()
+			SNew(SDropTarget)
+			.OnDrop(this, &FMovieSceneObjectBindingIDCustomization::OnDrop)
+			.OnAllowDrop_Static(IsAcceptable)
+			.OnIsRecognized_Static(IsAcceptable)
 			[
-				GetCurrentItemWidget(
-					SNew(STextBlock)
-					.Font(CustomizationUtils.GetRegularFont())
-				)
+				SNew(SComboButton)
+				.ToolTipText(this, &FMovieSceneObjectBindingIDCustomization::GetToolTipText)
+				.OnGetMenuContent(this, &FMovieSceneObjectBindingIDCustomization::GetPickerMenu)
+				.ContentPadding(FMargin(4.0, 2.0))
+				.ButtonContent()
+				[
+					GetCurrentItemWidget(
+						SNew(STextBlock)
+						.Font(CustomizationUtils.GetRegularFont())
+					)
+				]
 			]
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.Padding(FMargin(4.f, 0.f, 0.f, 0.f))
+		[
+			GetWarningWidget()
 		]
 	];
 }
@@ -81,7 +93,7 @@ FReply FMovieSceneObjectBindingIDCustomization::OnDrop(TSharedPtr<FDragDropOpera
 	FSequencerObjectBindingDragDropOp* SequencerOp = InOperation->IsOfType<FSequencerObjectBindingDragDropOp>() ? static_cast<FSequencerObjectBindingDragDropOp*>(InOperation.Get()) : nullptr;
 	if (SequencerOp)
 	{
-		TArray<FMovieSceneObjectBindingID> Bindings = SequencerOp->GetDraggedBindings();
+		TArray<UE::MovieScene::FFixedObjectBindingID> Bindings = SequencerOp->GetDraggedBindings();
 		if (Bindings.Num() == 1)
 		{
 			SetBindingId(Bindings[0]);

@@ -118,7 +118,7 @@ void UMovieSceneActorReferenceSection::PostLoad()
 
 		if (Guids.IsValidIndex(ActorGuidIndexCurve_DEPRECATED.GetDefaultValue()))
 		{
-			FMovieSceneObjectBindingID DefaultValue(Guids[ActorGuidIndexCurve_DEPRECATED.GetDefaultValue()], MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
+			FMovieSceneObjectBindingID DefaultValue = UE::MovieScene::FRelativeObjectBindingID(Guids[ActorGuidIndexCurve_DEPRECATED.GetDefaultValue()]);
 			ActorReferenceData.SetDefault(DefaultValue);
 		}
 
@@ -126,7 +126,7 @@ void UMovieSceneActorReferenceSection::PostLoad()
 		{
 			if (ensure(Guids.IsValidIndex(It->Value)))
 			{
-				FMovieSceneObjectBindingID BindingID(Guids[It->Value], MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
+				FMovieSceneObjectBindingID BindingID = UE::MovieScene::FRelativeObjectBindingID(Guids[It->Value]);
 				ActorReferenceData.UpgradeLegacyTime(this, It->Time, BindingID);
 			}
 		}

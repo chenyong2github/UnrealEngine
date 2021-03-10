@@ -600,7 +600,7 @@ void FSequencerObjectBindingNode::AddTagMenu(FMenuBuilder& MenuBuilder)
 			{
 				const FGuid& ObjectID = StaticCastSharedRef<FSequencerObjectBindingNode>(Node)->GetObjectBinding();
 
-				FMovieSceneObjectBindingID BindingID(ObjectID, SequenceID);
+				UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
 				for (auto It = Sequencer->GetObjectBindingTagCache()->IterateTags(BindingID); It; ++It)
 				{
 					AllTags.Add(It.Value());
@@ -655,7 +655,7 @@ ECheckBoxState FSequencerObjectBindingNode::GetTagCheckState(FName TagName)
 		{
 			const FGuid& ObjectID = StaticCastSharedRef<FSequencerObjectBindingNode>(Node)->GetObjectBinding();
 
-			FMovieSceneObjectBindingID BindingID(ObjectID, SequenceID);
+			UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
 			ECheckBoxState ThisCheckState = Sequencer.GetObjectBindingTagCache()->HasTag(BindingID, TagName)
 				? ECheckBoxState::Checked
 				: ECheckBoxState::Unchecked;
@@ -686,7 +686,7 @@ void FSequencerObjectBindingNode::ToggleTag(FName TagName)
 		{
 			const FGuid& ObjectID = StaticCastSharedRef<FSequencerObjectBindingNode>(Node)->GetObjectBinding();
 
-			FMovieSceneObjectBindingID BindingID(ObjectID, SequenceID);
+			UE::MovieScene::FFixedObjectBindingID BindingID(ObjectID, SequenceID);
 			if (!Sequencer.GetObjectBindingTagCache()->HasTag(BindingID, TagName))
 			{
 				HandleAddTag(TagName);
@@ -712,7 +712,7 @@ void FSequencerObjectBindingNode::HandleDeleteTag(FName TagName)
 		{
 			const FGuid& ObjectID = StaticCastSharedRef<FSequencerObjectBindingNode>(Node)->GetObjectBinding();
 
-			MovieScene->UntagBinding(TagName, FMovieSceneObjectBindingID(ObjectID, SequenceID));
+			MovieScene->UntagBinding(TagName, UE::MovieScene::FFixedObjectBindingID(ObjectID, SequenceID));
 		}
 	}
 }
@@ -731,7 +731,7 @@ void FSequencerObjectBindingNode::HandleAddTag(FName TagName)
 		{
 			const FGuid& ObjectID = StaticCastSharedRef<FSequencerObjectBindingNode>(Node)->GetObjectBinding();
 
-			MovieScene->TagBinding(TagName, FMovieSceneObjectBindingID(ObjectID, SequenceID));
+			MovieScene->TagBinding(TagName, UE::MovieScene::FFixedObjectBindingID(ObjectID, SequenceID));
 		}
 	}
 }
@@ -770,7 +770,7 @@ TSharedRef<SWidget> FSequencerObjectBindingNode::GetCustomOutlinerContent()
 TSharedPtr<SWidget> FSequencerObjectBindingNode::GetAdditionalOutlinerLabel()
 {
 	FSequencer& Sequencer = GetSequencer();
-	FMovieSceneObjectBindingID BindingID(ObjectBinding, Sequencer.GetFocusedTemplateID());
+	UE::MovieScene::FFixedObjectBindingID BindingID(ObjectBinding, Sequencer.GetFocusedTemplateID());
 
 	return SNew(SObjectBindingTags, BindingID, Sequencer.GetObjectBindingTagCache());
 }

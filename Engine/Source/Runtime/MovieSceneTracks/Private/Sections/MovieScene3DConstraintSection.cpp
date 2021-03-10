@@ -10,22 +10,6 @@ UMovieScene3DConstraintSection::UMovieScene3DConstraintSection( const FObjectIni
 	bSupportsInfiniteRange = true;
 }
 
-void UMovieScene3DConstraintSection::SetConstraintId(const FGuid& InConstraintId, const FMovieSceneSequenceID& SequenceID)
-{
-	if (TryModify())
-	{
-		SetConstraintBindingID(FMovieSceneObjectBindingID(InConstraintId, SequenceID, EMovieSceneObjectBindingSpace::Root)); //use root if specifying binding
-	}
-}
-
-void UMovieScene3DConstraintSection::SetConstraintId(const FGuid& InConstraintId)
-{
-	if (TryModify())
-	{
-		SetConstraintBindingID(FMovieSceneObjectBindingID(InConstraintId, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local));
-	}
-}
-
 void UMovieScene3DConstraintSection::OnBindingsUpdated(const TMap<FGuid, FGuid>& OldGuidToNewGuidMap)
 {
 	if (OldGuidToNewGuidMap.Contains(ConstraintBindingID.GetGuid()))
@@ -49,7 +33,7 @@ void UMovieScene3DConstraintSection::PostLoad()
 	{
 		if (!ConstraintBindingID.IsValid())
 		{
-			ConstraintBindingID = FMovieSceneObjectBindingID(ConstraintId_DEPRECATED, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local);
+			ConstraintBindingID = UE::MovieScene::FRelativeObjectBindingID(ConstraintId_DEPRECATED);
 		}
 		ConstraintId_DEPRECATED.Invalidate();
 	}

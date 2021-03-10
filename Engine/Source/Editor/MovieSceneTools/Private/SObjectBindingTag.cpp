@@ -20,7 +20,7 @@
 
 #define LOCTEXT_NAMESPACE "SObjectBindingTag"
 
-void SObjectBindingTags::Construct(const FArguments& InArgs, const FMovieSceneObjectBindingID& InBindingID, FObjectBindingTagCache* BindingCache)
+void SObjectBindingTags::Construct(const FArguments& InArgs, const UE::MovieScene::FFixedObjectBindingID& InBindingID, FObjectBindingTagCache* BindingCache)
 {
 	BindingID = InBindingID;
 	OnTagDeletedEvent = InArgs._OnTagDeleted;

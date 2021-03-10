@@ -357,7 +357,7 @@ FKeyPropertyResult FCameraCutTrackEditor::AddKeyInternal( FFrameNumber KeyTime, 
 	UMovieSceneCameraCutTrack* CameraCutTrack = FindOrCreateCameraCutTrack();
 	const TArray<UMovieSceneSection*>& AllSections = CameraCutTrack->GetAllSections();
 
-	UMovieSceneCameraCutSection* NewSection = CameraCutTrack->AddNewCameraCut(FMovieSceneObjectBindingID(ObjectGuid, MovieSceneSequenceID::Root, EMovieSceneObjectBindingSpace::Local), KeyTime);
+	UMovieSceneCameraCutSection* NewSection = CameraCutTrack->AddNewCameraCut(UE::MovieScene::FRelativeObjectBindingID(ObjectGuid), KeyTime);
 	KeyPropertyResult.bTrackModified = true;
 	KeyPropertyResult.SectionsCreated.Add(NewSection);
 

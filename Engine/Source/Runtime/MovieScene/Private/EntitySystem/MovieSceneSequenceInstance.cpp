@@ -10,6 +10,7 @@
 
 #include "Evaluation/MovieSceneEvaluationTemplateInstance.h"
 #include "Evaluation/Instances/MovieSceneTrackEvaluator.h"
+#include "Evaluation/MovieSceneRootOverridePath.h"
 
 #include "IMovieScenePlayer.h"
 #include "MovieSceneSequencePlayer.h"
@@ -310,6 +311,11 @@ FInstanceHandle FSequenceInstance::FindSubInstance(FMovieSceneSequenceID SubSequ
 FMovieSceneEntityID FSequenceInstance::FindEntity(UObject* Owner, uint32 EntityID) const
 {
 	return Ledger.FindImportedEntity(FMovieSceneEvaluationFieldEntityKey{ Owner, EntityID });
+}
+
+FSubSequencePath FSequenceInstance::GetSubSequencePath() const
+{
+	return FSubSequencePath(SequenceID, *GetPlayer());
 }
 
 } // namespace MovieScene

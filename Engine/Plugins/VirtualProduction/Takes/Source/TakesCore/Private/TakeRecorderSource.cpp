@@ -2,6 +2,7 @@
 
 #include "TakeRecorderSource.h"
 #include "Styling/SlateIconFinder.h"
+#include "MovieSceneSequenceID.h"
 
 UTakeRecorderSource::UTakeRecorderSource(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
@@ -14,4 +15,9 @@ UTakeRecorderSource::UTakeRecorderSource(const FObjectInitializer& ObjInit)
 const FSlateBrush* UTakeRecorderSource::GetDisplayIconImpl() const
 {
 	return FSlateIconFinder::FindCustomIconBrushForClass(GetClass(), TEXT("ClassThumbnail"));
+}
+
+TArray<UTakeRecorderSource*> UTakeRecorderSource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
+{
+	return TArray<UTakeRecorderSource*>();
 }

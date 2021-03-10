@@ -368,7 +368,8 @@ void ALevelSequenceActor::SetBinding(FMovieSceneObjectBindingID Binding, const T
 		BindingOverrides->SetBinding(Binding, TArray<UObject*>(Actors), bAllowBindingsFromAsset);
 		if (SequencePlayer)
 		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+			FMovieSceneSequenceID SequenceID = Binding.ResolveSequenceID(MovieSceneSequenceID::Root, *SequencePlayer);
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), SequenceID);
 		}
 	}
 }
@@ -405,7 +406,8 @@ void ALevelSequenceActor::AddBinding(FMovieSceneObjectBindingID Binding, AActor*
 		BindingOverrides->AddBinding(Binding, Actor, bAllowBindingsFromAsset);
 		if (SequencePlayer)
 		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+			FMovieSceneSequenceID SequenceID = Binding.ResolveSequenceID(MovieSceneSequenceID::Root, *SequencePlayer);
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), SequenceID);
 		}
 	}
 }
@@ -442,7 +444,8 @@ void ALevelSequenceActor::RemoveBinding(FMovieSceneObjectBindingID Binding, AAct
 		BindingOverrides->RemoveBinding(Binding, Actor);
 		if (SequencePlayer)
 		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+			FMovieSceneSequenceID SequenceID = Binding.ResolveSequenceID(MovieSceneSequenceID::Root, *SequencePlayer);
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), SequenceID);
 		}
 	}
 }
@@ -479,7 +482,8 @@ void ALevelSequenceActor::ResetBinding(FMovieSceneObjectBindingID Binding)
 		BindingOverrides->ResetBinding(Binding);
 		if (SequencePlayer)
 		{
-			SequencePlayer->State.Invalidate(Binding.GetGuid(), Binding.GetSequenceID());
+			FMovieSceneSequenceID SequenceID = Binding.ResolveSequenceID(MovieSceneSequenceID::Root, *SequencePlayer);
+			SequencePlayer->State.Invalidate(Binding.GetGuid(), SequenceID);
 		}
 	}
 }

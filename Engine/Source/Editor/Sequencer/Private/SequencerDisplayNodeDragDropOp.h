@@ -7,7 +7,13 @@
 #include "DisplayNodes/SequencerDisplayNode.h"
 #include "SequencerObjectBindingDragDropOp.h"
 
-struct FMovieSceneObjectBindingID;
+namespace UE
+{
+namespace MovieScene
+{
+	struct FFixedObjectBindingID;
+}
+}
 
 /** A decorated drag drop operation object for dragging sequencer display nodes. */
 class FSequencerDisplayNodeDragDropOp : public FSequencerObjectBindingDragDropOp
@@ -23,7 +29,7 @@ public:
 public:
 
 	//~ FSequencerObjectBindingDragDropOp interface
-	virtual TArray<FMovieSceneObjectBindingID> GetDraggedBindings() const override;
+	virtual TArray<UE::MovieScene::FFixedObjectBindingID> GetDraggedBindings() const override;
 
 	//~ FGraphEditorDragDropAction interface
 	virtual void HoverTargetChanged() override;
