@@ -18,6 +18,8 @@ class FPersistentUniformBuffers;
 class FCompositionLighting
 {
 public:
+	void Reset();
+
 	void ProcessBeforeBasePass(
 		FRDGBuilder& GraphBuilder,
 		FPersistentUniformBuffers& UniformBuffers,
