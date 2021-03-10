@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "CleaningOps/RemoveOccludedTrianglesOp.h"
 
 #include "DynamicMesh3.h"
