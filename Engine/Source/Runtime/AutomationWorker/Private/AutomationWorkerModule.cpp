@@ -219,6 +219,8 @@ void FAutomationWorkerModule::ReportTestComplete()
 		//see if there are any more network commands left to execute
 		bool bAllLatentCommandsComplete = FAutomationTestFramework::Get().ExecuteLatentCommands();
 
+		FString TestFullName = FAutomationTestFramework::Get().GetCurrentTest()->GetTestFullName();
+
 		//structure to track error/warning/log messages
 		FAutomationTestExecutionInfo ExecutionInfo;
 
@@ -250,6 +252,11 @@ void FAutomationWorkerModule::ReportTestComplete()
 				}
 				FAutomationAnalytics::FireEvent_AutomationTestResults(Message, BeautifiedTestName);
 				SendAnalyticsEvents(ExecutionInfo.AnalyticsItems);
+			}
+
+			if (ExecutionInfo.TelemetryItems.Num() > 0)
+			{
+				HandleTelemetryData(ExecutionInfo.TelemetryStorage, TestFullName, ExecutionInfo.TelemetryItems);
 			}
 
 			MessageEndpoint->Send(Message, TestRequesterAddress);
@@ -558,6 +565,24 @@ void FAutomationWorkerModule::SendAnalyticsEvents(TArray<FString>& InAnalyticsIt
 			RecordPerformanceAnalytics( PerfSnapshot );
 		}
 	}
+}
+
+void FAutomationWorkerModule::HandleTelemetryData(const FString& StorageName, const FString& InTestName, const TArray<FAutomationTelemetryData>& InItems)
+{
+	FAutomationWorkerTelemetryData* Message = new FAutomationWorkerTelemetryData();
+
+	Message->Storage = StorageName;
+	Message->Platform = FPlatformProperties::PlatformName();
+	Message->Configuration = LexToString(FApp::GetBuildConfiguration());
+	Message->TestName = InTestName;
+	for (const FAutomationTelemetryData& Item : InItems)
+	{
+		Message->Items.Add(FAutomationWorkerTelemetryItem(Item));
+	}
+
+	UE_LOG(LogAutomationWorker, Log, TEXT("Sending Telemetry Data for %s"), *Message->TestName);
+
+	MessageEndpoint->Send(Message, TestRequesterAddress);
 }
 
 void FAutomationWorkerModule::RecordPerformanceAnalytics( const FAutomationPerformanceSnapshot& PerfSnapshot )

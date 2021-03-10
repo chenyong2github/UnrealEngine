@@ -820,3 +820,69 @@ struct FAutomationWorkerPerformanceDataResponse
 	UPROPERTY(EditAnywhere, Category="Message")
 	FString ErrorMessage;
 };
+
+/**
+ * Implements a message that contains telemetry data point.
+ */
+USTRUCT()
+struct FAutomationWorkerTelemetryItem
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FString DataPoint;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	double Measurement;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FString Context;
+
+	FAutomationWorkerTelemetryItem() : Measurement(0.0) {}
+
+	FAutomationWorkerTelemetryItem(FString& InDataPoint, double InMeasurement, FString& InContext)
+		: DataPoint(InDataPoint)
+		, Measurement(InMeasurement)
+		, Context(InContext)
+	{
+	}
+
+	FAutomationWorkerTelemetryItem(const FAutomationTelemetryData& InItem)
+		: DataPoint(InItem.DataPoint)
+		, Measurement(InItem.Measurement)
+		, Context(InItem.Context)
+	{
+	}
+};
+
+/**
+ * Implements a message that contains telemetry data.
+ */
+USTRUCT()
+struct FAutomationWorkerTelemetryData
+{
+	GENERATED_USTRUCT_BODY()
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FString Storage;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FString Configuration;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FString Platform;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	FString TestName;
+
+	/**  */
+	UPROPERTY(EditAnywhere, Category = "Message")
+	TArray<FAutomationWorkerTelemetryItem> Items;
+};

@@ -24,6 +24,8 @@
 #include "Misc/FileHelper.h"
 #include "PlatformHttp.h"
 
+#include "AutomationTelemetry.h"
+
 #if WITH_EDITOR
 #include "Logging/MessageLog.h"
 #endif
@@ -638,7 +640,8 @@ void FAutomationControllerManager::Startup()
 		.Handling<FAutomationWorkerRunTestsReply>(this, &FAutomationControllerManager::HandleRunTestsReplyMessage)
 		.Handling<FAutomationWorkerScreenImage>(this, &FAutomationControllerManager::HandleReceivedScreenShot)
 		.Handling<FAutomationWorkerTestDataRequest>(this, &FAutomationControllerManager::HandleTestDataRequest)
-		.Handling<FAutomationWorkerWorkerOffline>(this, &FAutomationControllerManager::HandleWorkerOfflineMessage);
+		.Handling<FAutomationWorkerWorkerOffline>(this, &FAutomationControllerManager::HandleWorkerOfflineMessage)
+		.Handling<FAutomationWorkerTelemetryData>(this, &FAutomationControllerManager::HandleReceivedTelemetryData);
 
 	if ( MessageEndpoint.IsValid() )
 	{
@@ -1268,6 +1271,10 @@ void FAutomationControllerManager::HandleRequestTestsReplyCompleteMessage(const 
 	SetTestNames(Context->GetSender(), TestInfo);
 }
 
+void FAutomationControllerManager::HandleReceivedTelemetryData(const FAutomationWorkerTelemetryData& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context)
+{
+	FAutomationTelemetry::HandleAddTelemetry(Message);
+}
 
 void FAutomationControllerManager::ReportAutomationResult(const TSharedPtr<IAutomationReport> InReport, int32 ClusterIndex, int32 PassIndex)
 {

@@ -11,5 +11,6 @@ UAutomationControllerSettings::UAutomationControllerSettings(const FObjectInitia
 	, bTreatLogErrorsAsTestErrors(true)
 	, bTreatLogWarningsAsTestErrors(true)
 	, GameInstanceLostTimerSeconds(300.0f)
+	, bResetTelemetryStorageOnNewSession(false)
 {
 }

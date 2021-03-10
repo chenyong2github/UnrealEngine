@@ -106,6 +106,9 @@ private:
 	/** Handles FAutomationWorkerPerformanceDataResponse messages. */
 	void HandlePerformanceDataRetrieved(const FAutomationWorkerPerformanceDataResponse& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
+	/** Dispatches telemetry data to data collector */
+	void HandleTelemetryData(const FString& StorageName, const FString& InTestName, const TArray<FAutomationTelemetryData>& InItems);
+
 	/** Handles FAutomationTestFramework PreTestingEvents. */
 	void HandlePreTestingEvent();
 

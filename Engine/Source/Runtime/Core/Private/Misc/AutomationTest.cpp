@@ -103,7 +103,7 @@ void FAutomationTestFramework::FAutomationTestOutputDevice::Serialize( const TCH
 			{
 				if (!LoggedFailureCause.Contains(CurTest))
 				{
-					CurTest->AddError(FString::Printf(TEXT("%s %s will be marked as failing due to errors being logged"), *CurTest->GetBeautifiedTestName(), *CurTest->GetTestContext()), STACK_OFFSET);
+					CurTest->AddError(FString::Printf(TEXT("%s will be marked as failing due to errors being logged"), *CurTest->GetTestFullName()), STACK_OFFSET);
 					LoggedFailureCause.Add(CurTest);
 				}
 				CurTest->AddError(FString(V), STACK_OFFSET);
@@ -1005,6 +1005,8 @@ void FAutomationTestExecutionInfo::Clear()
 
 	Entries.Empty();
 	AnalyticsItems.Empty();
+	TelemetryItems.Empty();
+	TelemetryStorage.Empty();
 
 	Errors = 0;
 	Warnings = 0;
@@ -1177,6 +1179,24 @@ void FAutomationTestBase::AddAnalyticsItem(const FString& InAnalyticsItem)
 	ExecutionInfo.AnalyticsItems.Add(InAnalyticsItem);
 }
 
+void FAutomationTestBase::AddTelemetryData(const FString& DataPoint, double Measurement, const FString& Context)
+{
+	ExecutionInfo.TelemetryItems.Add(FAutomationTelemetryData(DataPoint, Measurement, Context));
+}
+
+void FAutomationTestBase::AddTelemetryData(const TMap <FString, double>& ValuePairs, const FString& Context)
+{
+	for (const TPair<FString, double>& Item : ValuePairs)
+	{
+		ExecutionInfo.TelemetryItems.Add(FAutomationTelemetryData(Item.Key, Item.Value, Context));
+	}
+}
+
+void FAutomationTestBase::SetTelemetryStorage(const FString& StorageName)
+{
+	ExecutionInfo.TelemetryStorage = StorageName;
+}
+
 void FAutomationTestBase::AddEvent(const FAutomationEvent& InEvent, int32 StackOffset)
 {
 	ExecutionInfo.AddEvent(InEvent, StackOffset + 1);
@@ -1287,7 +1307,7 @@ void FAutomationTestBase::GenerateTestNames(TArray<FAutomationTestInfo>& TestInf
 
 		if (ParameterNames[ParameterIndex].Len())
 		{
-			CompleteBeautifiedNames = FString::Printf(TEXT("%s.%s"), *BeautifiedTestName, *BeautifiedNames[ParameterIndex]);;
+			CompleteBeautifiedNames = FString::Printf(TEXT("%s.%s"), *BeautifiedTestName, *BeautifiedNames[ParameterIndex]);
 			CompleteTestName = FString::Printf(TEXT("%s %s"), *TestName, *ParameterNames[ParameterIndex]);
 		}
 

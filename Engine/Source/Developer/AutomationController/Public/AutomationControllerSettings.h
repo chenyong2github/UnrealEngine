@@ -90,4 +90,12 @@ public:
 	/** The maximum response wait time for detecting a lost game instance (default=300sec)*/
 	UPROPERTY(Config)
 	float GameInstanceLostTimerSeconds;
+
+	/** Path to where telemetry files are saved (default=<project>/Saved/Automation/Telemetry/)*/
+	UPROPERTY(Config)
+	FString TelemetryDirectory;
+
+	/** Whether to reset data stored in telemetry file (default=false) */
+	UPROPERTY(Config)
+	bool bResetTelemetryStorageOnNewSession;
 };

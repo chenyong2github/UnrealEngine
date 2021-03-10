@@ -117,6 +117,20 @@ namespace EAutomationExpectedErrorFlags
 	}
 }
 
+struct FAutomationTelemetryData
+{
+	FString DataPoint;
+	double Measurement;
+	FString Context;
+
+	FAutomationTelemetryData(const FString& InDataPoint, double InMeasurement, const FString& InContext)
+		:DataPoint(InDataPoint)
+		, Measurement(InMeasurement)
+		, Context(InContext)
+	{
+	}
+};
+
 /** Simple class to store the results of the execution of a automation test */
 class CORE_API FAutomationTestExecutionInfo
 {
@@ -179,6 +193,12 @@ public:
 	
 	/** Any analytics items that occurred during execution */
 	TArray<FString> AnalyticsItems;
+
+	/** Telemetry items that occurred during execution */
+	TArray<FAutomationTelemetryData> TelemetryItems;
+
+	/** Telemetry storage name set by the test */
+	FString TelemetryStorage;
 
 	/** Time to complete the task */
 	double Duration;
@@ -1180,6 +1200,14 @@ public:
 	FString GetTestContext() const { return TestParameterContext; }
 
 	/**
+	 * Returns the beautified test name with test context. Should return what is displayed in the Test Automation UI. See GenerateTestNames()
+	 */
+	virtual FString GetTestFullName() const {
+		if (GetTestContext().IsEmpty()) { return GetBeautifiedTestName(); }
+		return FString::Printf(TEXT("%s.%s"), *GetBeautifiedTestName(), *GetTestContext());
+	}
+
+	/**
 	 * Pure virtual method; returns the number of participants for this test
 	 *
 	 * @return	Number of required participants
@@ -1255,6 +1283,30 @@ public:
 	 * @param	InLogItem	Log item to add to this test
 	 */
 	virtual void AddAnalyticsItem(const FString& InAnalyticsItem);
+
+	/**
+	 * Adds a telemetry data point measurement
+	 *
+	 * @param	DataPoint	Name of the Data point
+	 * @param	Measurement	Value to associate to the data point
+	 * @param	Context		optional context associated with the data point
+	 */
+	virtual void AddTelemetryData(const FString& DataPoint, double Measurement, const FString& Context = TEXT(""));
+
+	/**
+	 * Adds several telemetry data point measurements
+	 *
+	 * @param	ValuePairs	value pair of Name and Measurement of several Data points
+	 * @param	Context		optional context associated with the data point
+	 */
+	virtual void AddTelemetryData(const TMap<FString, double>& ValuePairs, const FString& Context = TEXT(""));
+
+	/**
+	 * Set telemetry storage name
+	 *
+	 * @param	StorageName	Name of the data storage
+	 */
+	virtual void SetTelemetryStorage(const FString& StorageName);
 
 	/**
 	 * Returns whether this test has any errors associated with it or not

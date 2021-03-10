@@ -202,7 +202,7 @@ namespace AutomationCommon
 			if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
 			{
 				Context = CurrentTest->GetTestContext();
-				if (Context.IsEmpty()) { Context = CurrentTest->GetTestName(); }
+				if (Context.IsEmpty()) { Context = CurrentTest->GetTestFullName(); }
 			}
 
 			FAutomationScreenshotData Data = BuildScreenshotData(Context, TEXT(""), ImageName, InWidth, InHeight);
