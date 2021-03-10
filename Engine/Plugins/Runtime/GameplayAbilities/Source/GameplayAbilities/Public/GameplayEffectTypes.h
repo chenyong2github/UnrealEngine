@@ -1000,6 +1000,10 @@ struct GAMEPLAYABILITIES_API FGameplayCueParameters
 	UPROPERTY(BlueprintReadWrite, Category = GameplayCue)
 	TWeakObjectPtr<USceneComponent> TargetAttachComponent;
 
+	/** If we're using a minimal replication proxy, should we replicate location for this cue */
+	UPROPERTY(BlueprintReadWrite, Category = GameplayCue)
+	bool bReplicateLocationWhenUsingMinimalRepProxy = false;
+
 	/** Optimized serializer */
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
 

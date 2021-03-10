@@ -377,9 +377,18 @@ void FMinimalGameplayCueReplicationProxy::PreReplication(const FActiveGameplayCu
 	{
 		LastSourceArrayReplicationKey = SourceContainer.ArrayReplicationKey;
 		ReplicatedTags.SetNum(SourceContainer.GameplayCues.Num(), false);
+		ReplicatedLocations.SetNum(SourceContainer.GameplayCues.Num(), false);
 		for (int32 idx=0; idx < SourceContainer.GameplayCues.Num(); ++idx)
 		{
 			ReplicatedTags[idx] = SourceContainer.GameplayCues[idx].GameplayCueTag;
+			if (SourceContainer.GameplayCues[idx].Parameters.bReplicateLocationWhenUsingMinimalRepProxy)
+			{
+				ReplicatedLocations[idx] = SourceContainer.GameplayCues[idx].Parameters.Location;
+			}
+			else
+			{
+				ReplicatedLocations[idx] = FVector::ZeroVector;
+			}
 		}
 	}
 }
@@ -411,6 +420,17 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 		for (uint8 i=0; i < NumElements; ++i)
 		{
 			ReplicatedTags[i].NetSerialize(Ar, Map, bOutSuccess);
+			if (ReplicatedLocations[i].IsZero())
+			{
+				bool bHasLocation = false;
+				Ar << bHasLocation;
+			}
+			else
+			{
+				bool bHasLocation = true;
+				Ar << bHasLocation;
+				ReplicatedLocations[i].NetSerialize(Ar, Map, bOutSuccess);
+			}
 		}
 	}
 	else
@@ -444,12 +464,26 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 		// This struct does not serialize GC parameters but will synthesize them on the receiving side.
 		FGameplayCueParameters Parameters;
 		InitGameplayCueParametersFunc(Parameters, Owner);
+		FVector OriginalLocationParameter = Parameters.Location;
 
 		for (uint8 i=0; i < NumElements; ++i)
 		{
 			FGameplayTag& ReplicatedTag = ReplicatedTags[i];
 
 			ReplicatedTag.NetSerialize(Ar, Map, bOutSuccess);
+
+			bool bHasReplicatedLocation = false;
+			Ar << bHasReplicatedLocation;
+			if (bHasReplicatedLocation)
+			{
+				FVector_NetQuantize ReplicatedLocation;
+				ReplicatedLocation.NetSerialize(Ar, Map, bOutSuccess);
+				Parameters.Location = ReplicatedLocation;
+			}
+			else
+			{
+				Parameters.Location = OriginalLocationParameter;
+			}
 
 			int32 LocalIdx = LocalTags.IndexOfByKey(ReplicatedTag);
 			if (LocalIdx != INDEX_NONE)
@@ -468,6 +502,9 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 				LastSourceArrayReplicationKey++;
 			}
 		}
+
+		// Restore the location in case we touched it
+		Parameters.Location = OriginalLocationParameter;
 
 		if (UpdateOwnerTagMap)
 		{
