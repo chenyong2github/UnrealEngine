@@ -54,6 +54,7 @@
 #include "ShaderCore.h"
 #include "DistributedBuildInterface/Public/DistributedBuildControllerInterface.h"
 #include "Misc/ScopeRWLock.h"
+#include "Async/ParallelFor.h"
 #include "ObjectCacheContext.h"
 #include "ProfilingDebugging/StallDetector.h"
 #include "RenderUtils.h"
@@ -420,6 +421,12 @@ void FShaderCompileJobCollection::SubmitJobs(const TArray<FShaderCommonCompileJo
 		int32 SubmittedJobsCount = 0;
 		int32 NumSubmittedJobs[NumShaderCompileJobPriorities] = { 0 };
 		{
+			// Just precompute the InputHash for each job in multiple-thread.
+			if (ShaderCompiler::IsJobCacheEnabled())
+			{
+				ParallelFor(InJobs.Num(), [&InJobs](int32 Index) { InJobs[Index]->GetInputHash(); });
+			}
+
 			FWriteScopeLock Locker(Lock);
 
 			for (FShaderCommonCompileJob* Job : InJobs)
