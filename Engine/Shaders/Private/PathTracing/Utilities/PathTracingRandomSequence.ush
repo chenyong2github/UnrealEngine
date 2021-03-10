@@ -165,7 +165,7 @@ uint FastOwenScrambling(uint Index, uint Seed) {
 	// reference implementation - scramble bits one at a time
 
 	// loop below does not require pre-inverted bits, so undo the inversion assumed in the optimized case below
-	Index = ReverseBits32(Index);
+	Index = reversebits(Index);
 	for (uint Mask = 1u << 31, Input = Index; Mask; Mask >>= 1) {
 		Seed = PerfectIntegerHash(Seed); // randomize state
 		Index ^= Seed & Mask;  // flip output (depending on state)
@@ -177,7 +177,7 @@ uint FastOwenScrambling(uint Index, uint Seed) {
 
 	// The operations below will mix bits toward the left, so temporarily reverse the order
 	// NOTE: This operation has been performed outside this call
-	// Index = ReverseBits32(Index);
+	// Index = reversebits(Index);
 	
 	// This follows the basic construction from the paper above. The error-diffusion sampler which
 	// tiles a single point set across the screen, makes it much easier to visually "see" the impact of the scrambling.
@@ -202,7 +202,7 @@ uint FastOwenScrambling(uint Index, uint Seed) {
 
 	// Undo the reverse so that we get left-to-right scrambling
 	// thereby emulating owen-scrambling
-	return ReverseBits32(Index);
+	return reversebits(Index);
 #endif
 }
 
@@ -316,7 +316,7 @@ void RandomSequence_Initialize(inout RandomSequence RandSequence, uint PositionS
 	RandSequence.SampleSeed = 0; // this sampler just counts dimensions
 #elif RANDSEQ == RANDSEQ_OWENSOBOL
 	// pre-compute bit reversal needed for FastOwenScrambling since this index doesn't change
-	RandSequence.SampleIndex = ReverseBits32(TimeSeed);
+	RandSequence.SampleIndex = reversebits(TimeSeed);
 	// change seed to get a unique sequence per pixel
 	RandSequence.SampleSeed  = StrongIntegerHash(PositionSeed);
 #else
@@ -372,12 +372,12 @@ void RandomSequence_Initialize(inout RandomSequence RandSequence, uint2 PixelCoo
 #endif
 
 	// Combine pixel-level and sample-level bits into the sample index (visible structure will be hidden by owen scrambling of the index)
-	RandSequence.SampleIndex = ReverseBits32((65536 * TimeSeed0 + TileID) * MaxSamples + SampleIndex);
+	RandSequence.SampleIndex = reversebits((65536 * TimeSeed0 + TileID) * MaxSamples + SampleIndex);
 
 	// progressive encodings (these kind of work, but quality is much worse)
-	//RandSequence.SampleIndex = ReverseBits32(MortonEncode(uint2(TimeSeed0, TileID)) * MaxSamples + SampleIndex);
-	//RandSequence.SampleIndex = ReverseBits32((MortonCode3(MaxSamples * TimeSeed0 + SampleIndex) * 4) | (MortonCode3(Y) * 2) | MortonCode3(X));
-	//RandSequence.SampleIndex = ReverseBits32(MortonEncode(uint2(MortonEncode(uint2(X, Y)), SampleIndex)));
+	//RandSequence.SampleIndex = reversebits(MortonEncode(uint2(TimeSeed0, TileID)) * MaxSamples + SampleIndex);
+	//RandSequence.SampleIndex = reversebits((MortonCode3(MaxSamples * TimeSeed0 + SampleIndex) * 4) | (MortonCode3(Y) * 2) | MortonCode3(X));
+	//RandSequence.SampleIndex = reversebits(MortonEncode(uint2(MortonEncode(uint2(X, Y)), SampleIndex)));
 
 	RandSequence.SampleSeed = 0; // always use the same sequence
 #else

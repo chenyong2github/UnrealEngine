@@ -121,7 +121,7 @@ uint2 Coord(in uint2 P, in bool bHorizontal)
 
 uint BitReverse(in uint Idx, in uint BitRange)
 {
-	uint ReversedValue = ReverseBits32(Idx);
+	uint ReversedValue = reversebits(Idx);
 		
 	// Shift into correct range.
 	// 32 = sizeof(uint) 
