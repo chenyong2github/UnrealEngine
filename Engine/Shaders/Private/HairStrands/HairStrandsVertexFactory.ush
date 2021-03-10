@@ -11,7 +11,7 @@
 
 #include "/Engine/Generated/UniformBuffers/PrecomputedLightingBuffer.ush"
 
-#define USE_HAIR_COMPLEX_TRANSMITTANCE 1
+#define USE_HAIR_COMPLEX_TRANSMITTANCE 1 
 
 #if MANUAL_VERTEX_FETCH
 	Buffer<float4> VertexFetch_InstanceOriginBuffer;

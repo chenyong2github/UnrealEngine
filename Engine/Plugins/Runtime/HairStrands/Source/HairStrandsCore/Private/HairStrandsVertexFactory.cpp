@@ -13,7 +13,7 @@
 #include "HairStrandsInterface.h"
 #include "GroomInstance.h"
 
-#define VF_STRANDS_SUPPORT_GPU_SCENE 1
+#define VF_STRANDS_SUPPORT_GPU_SCENE 0
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
