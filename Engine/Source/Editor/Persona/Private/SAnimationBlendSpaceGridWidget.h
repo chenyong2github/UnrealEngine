@@ -32,8 +32,6 @@ public:
 public:
 	SLATE_BEGIN_ARGS(SBlendSpaceGridWidget) 
 		: _BlendSpaceBase(nullptr)
-		, _Position(0.f)
-		, _FilteredPosition(0.f)
 		, _NotifyHook(nullptr)
 		, _ReadOnly(false)
 		, _ShowAxisLabels(true)
