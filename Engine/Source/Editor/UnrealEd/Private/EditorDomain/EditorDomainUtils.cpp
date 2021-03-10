@@ -70,8 +70,9 @@ EPackageDigestResult GetPackageDigest(IAssetRegistry& AssetRegistry, FName Packa
 
 UE::DerivedData::FCacheKey GetEditorDomainPackageKey(const FPackageDigest& PackageDigest)
 {
-	static UE::DerivedData::FCacheBucket EditorDomainPackageCacheBucket(EditorDomainPackageBucketName);
-	return UE::DerivedData::FCacheKey(EditorDomainPackageCacheBucket, PackageDigest);
+	static UE::DerivedData::FCacheBucket EditorDomainPackageCacheBucket =
+		GetDerivedDataCacheRef().GetCache().CreateBucket(EditorDomainPackageBucketName);
+	return UE::DerivedData::FCacheKey{EditorDomainPackageCacheBucket, PackageDigest};
 }
 
 UE::DerivedData::FRequest RequestEditorDomainPackage(const FPackagePath& PackagePath,

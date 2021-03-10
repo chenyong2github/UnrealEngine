@@ -4,14 +4,12 @@
 
 #include "CoreTypes.h"
 #include "Compression/CompressedBuffer.h"
-#include "Containers/StringFwd.h"
+#include "Containers/StringConv.h"
+#include "Containers/StringView.h"
 #include "IO/IoHash.h"
 #include "Memory/MemoryView.h"
-
-#define UE_API DERIVEDDATACACHE_API
-
-class FCbObjectId;
-class FString;
+#include "Misc/StringBuilder.h"
+#include "String/BytesToHex.h"
 
 namespace UE
 {
@@ -33,25 +31,17 @@ public:
 	inline explicit FPayloadId(FMemoryView Id);
 
 	/** Construct an ID from a non-zero hash. */
-	UE_API static FPayloadId FromHash(const FIoHash& Hash);
+	static inline FPayloadId FromHash(const FIoHash& Hash);
 
 	/** Construct an ID from a non-empty name. */
-	UE_API static FPayloadId FromName(FAnsiStringView Name);
-	UE_API static FPayloadId FromName(FWideStringView Name);
+	static inline FPayloadId FromName(FAnsiStringView Name);
+	static inline FPayloadId FromName(FWideStringView Name);
 
-	/** Construct an ID from an ObjectId. */
-	UE_API static FPayloadId FromObjectId(const FCbObjectId& ObjectId);
-
-	/** Convert the ID to an ObjectId. */
-	UE_API FCbObjectId ToObjectId() const;
-
-	/** Convert the ID to a 24-character hex string. */
-	UE_API void ToString(FAnsiStringBuilderBase& Builder) const;
-	UE_API void ToString(FWideStringBuilderBase& Builder) const;
-	UE_API FString ToString() const;
+	/** Returns a reference to the raw byte array for the ID. */
+	inline const ByteArray& GetBytes() const { return Bytes; }
 
 	/** Returns a view of the raw byte array for the ID. */
-	constexpr inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
+	inline FMemoryView GetView() const { return MakeMemoryView(Bytes); }
 
 	/** Whether this is null. */
 	inline bool IsNull() const;
@@ -64,45 +54,6 @@ public:
 private:
 	alignas(uint32) ByteArray Bytes{};
 };
-
-inline bool operator==(const FPayloadId& A, const FPayloadId& B)
-{
-	return A.GetView().EqualBytes(B.GetView());
-}
-
-inline bool operator!=(const FPayloadId& A, const FPayloadId& B)
-{
-	return !A.GetView().EqualBytes(B.GetView());
-}
-
-inline bool operator<(const FPayloadId& A, const FPayloadId& B)
-{
-	return A.GetView().CompareBytes(B.GetView()) < 0;
-}
-
-inline uint32 GetTypeHash(const FPayloadId& Id)
-{
-	return *reinterpret_cast<const uint32*>(Id.GetView().GetData());
-}
-
-inline FPayloadId::FPayloadId(const FMemoryView InId)
-{
-	checkf(InId.GetSize() == sizeof(ByteArray),
-		TEXT("FPayloadId cannot be constructed from a view of %" UINT64_FMT " bytes."), InId.GetSize());
-	FMemory::Memcpy(Bytes, InId.GetData(), sizeof(ByteArray));
-}
-
-inline bool FPayloadId::IsNull() const
-{
-	return *this == FPayloadId();
-}
-
-template <typename CharType>
-inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FPayloadId& Id)
-{
-	Id.ToString(Builder);
-	return Builder;
-}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -119,11 +70,11 @@ public:
 	FPayload() = default;
 
 	/** Construct a payload from the hash of a compressed buffer. */
-	UE_API FPayload(const FPayloadId& Id, const FIoHash& BufferHash);
+	inline FPayload(const FPayloadId& Id, const FIoHash& BufferHash);
 	/** Construct a payload from a compressed buffer and its hash. See FCompressedBuffer::Compress. */
-	UE_API FPayload(const FPayloadId& Id, const FIoHash& BufferHash, FCompressedBuffer Buffer);
+	inline FPayload(const FPayloadId& Id, const FIoHash& BufferHash, FCompressedBuffer Buffer);
 	/** Construct a payload from a compressed buffer and calculates its hash. See FCompressedBuffer::Compress. */
-	UE_API FPayload(const FPayloadId& Id, FCompressedBuffer Buffer);
+	inline FPayload(const FPayloadId& Id, FCompressedBuffer Buffer);
 
 	/** Returns the PayloadId for the payload. */
 	inline const FPayloadId& GetId() const { return Id; }
@@ -149,6 +100,106 @@ private:
 	FIoHash Hash;
 	FCompressedBuffer Buffer;
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline FPayloadId::FPayloadId(const FMemoryView InId)
+{
+	checkf(InId.GetSize() == sizeof(ByteArray),
+		TEXT("FPayloadId cannot be constructed from a view of %" UINT64_FMT " bytes."), InId.GetSize());
+	FMemory::Memcpy(Bytes, InId.GetData(), sizeof(ByteArray));
+}
+
+inline FPayloadId FPayloadId::FromHash(const FIoHash& Hash)
+{
+	checkf(!Hash.IsZero(), TEXT("PayloadId requires a non-zero hash."));
+	return FPayloadId(MakeMemoryView(Hash.GetBytes()).Left(sizeof(ByteArray)));
+}
+
+inline FPayloadId FPayloadId::FromName(const FAnsiStringView Name)
+{
+	checkf(!Name.IsEmpty(), TEXT("PayloadId requires a non-empty name."));
+	return FPayloadId::FromHash(FIoHash::HashBuffer(Name.GetData(), Name.Len()));
+}
+
+inline FPayloadId FPayloadId::FromName(const FWideStringView Name)
+{
+	return FPayloadId::FromName(FTCHARToUTF8(Name));
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline FPayload::FPayload(const FPayloadId& InId, const FIoHash& InHash)
+	: Id(InId)
+	, Hash(InHash)
+{
+	checkf(Id.IsValid(), TEXT("A valid PayloadId is required to construct a payload."));
+}
+
+inline FPayload::FPayload(const FPayloadId& InId, const FIoHash& InHash, FCompressedBuffer InBuffer)
+	: Id(InId)
+	, Hash(InHash)
+	, Buffer(MoveTemp(InBuffer))
+{
+	checkf(Id.IsValid(), TEXT("A valid PayloadId is required to construct a payload."));
+	if (Buffer.GetCompressedSize())
+	{
+		checkfSlow(Hash == FIoHash::HashBuffer(Buffer.GetCompressed()),
+			TEXT("Provided compressed data hash %s does not match calculated hash %s"),
+			*Hash.ToString(), *FIoHash::HashBuffer(Buffer.GetCompressed()).ToString());
+		checkf(!Hash.IsZero(), TEXT("A non-empty compressed data buffer must have a non-zero hash."));
+	}
+	else
+	{
+		checkf(Hash.IsZero(), TEXT("A null or empty compressed data buffer must use a hash of zero."));
+	}
+}
+
+inline FPayload::FPayload(const FPayloadId& InId, FCompressedBuffer InBuffer)
+	: Id(InId)
+	, Buffer(MoveTemp(InBuffer))
+{
+	checkf(Id.IsValid(), TEXT("A valid PayloadId is required to construct a payload."));
+	if (Buffer.GetCompressedSize())
+	{
+		Hash = FIoHash::HashBuffer(Buffer.GetCompressed());
+	}
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+inline bool operator==(const FPayloadId& A, const FPayloadId& B)
+{
+	return A.GetView().EqualBytes(B.GetView());
+}
+
+inline bool operator!=(const FPayloadId& A, const FPayloadId& B)
+{
+	return !A.GetView().EqualBytes(B.GetView());
+}
+
+inline bool operator<(const FPayloadId& A, const FPayloadId& B)
+{
+	return A.GetView().CompareBytes(B.GetView()) < 0;
+}
+
+inline uint32 GetTypeHash(const FPayloadId& Id)
+{
+	return *reinterpret_cast<const uint32*>(Id.GetView().GetData());
+}
+
+/** Convert the ID to a 24-character hex string. */
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FPayloadId& Id)
+{
+	UE::String::BytesToHexLower(Id.GetBytes(), Builder);
+	return Builder;
+}
+
+inline bool FPayloadId::IsNull() const
+{
+	return *this == FPayloadId();
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -206,5 +257,3 @@ struct FPayloadLessById
 
 } // DerivedData
 } // UE
-
-#undef UE_API

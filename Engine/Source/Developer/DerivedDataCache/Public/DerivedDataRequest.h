@@ -166,5 +166,3 @@ private:
 
 } // DerivedData
 } // UE
-
-#undef UE_API

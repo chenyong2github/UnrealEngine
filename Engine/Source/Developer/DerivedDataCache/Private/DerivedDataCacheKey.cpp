@@ -4,10 +4,7 @@
 
 #include "Algo/AllOf.h"
 #include "Containers/Set.h"
-#include "Containers/StringConv.h"
-#include "HAL/CriticalSection.h"
 #include "Misc/ScopeRWLock.h"
-#include "Misc/StringBuilder.h"
 
 namespace UE
 {
@@ -104,69 +101,13 @@ private:
 	TSet<FBucket> Buckets;
 };
 
-const TCHAR* FCacheBucket::FindOrAddCacheBucket(FStringView Bucket)
+FCacheBucket CreateCacheBucket(FStringView Name)
 {
-	checkf(!Bucket.IsEmpty() && Bucket.Len() < 256 && Algo::AllOf(Bucket, FChar::IsAlnum),
+	checkf(!Name.IsEmpty() && Name.Len() < 256 && Algo::AllOf(Name, FChar::IsAlnum),
 		TEXT("Invalid cache bucket name '%.*s' must be alphanumeric, non-empty, and contain fewer than 256 characters."),
-		Bucket.Len(), Bucket.GetData());
+		Name.Len(), Name.GetData());
 	static FCacheBuckets Buckets;
-	return Buckets.FindOrAdd(Bucket);
-}
-
-void FCacheBucket::ToString(FAnsiStringBuilderBase& Builder) const
-{
-	Builder << TCHAR_TO_UTF8(Name);
-}
-
-void FCacheBucket::ToString(FWideStringBuilderBase& Builder) const
-{
-	Builder << ToString();
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FCacheKey::ToString(FAnsiStringBuilderBase& Builder) const
-{
-	Builder << Bucket;
-	if (!Bucket.IsNull())
-	{
-		Builder << "/" << Hash;
-	}
-}
-
-void FCacheKey::ToString(FWideStringBuilderBase& Builder) const
-{
-	Builder << Bucket;
-	if (!Bucket.IsNull())
-	{
-		Builder << TEXT("/") << Hash;
-	}
-}
-
-FString FCacheKey::ToString() const
-{
-	TStringBuilder<72> Out;
-	ToString(Out);
-	return FString(Out);
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FCachePayloadKey::ToString(FAnsiStringBuilderBase& Builder) const
-{
-	Builder << Key << '/' << Id;
-}
-
-void FCachePayloadKey::ToString(FWideStringBuilderBase& Builder) const
-{
-	Builder << Key << TEXT('/') << Id;
-}
-
-FString FCachePayloadKey::ToString() const
-{
-	TStringBuilder<84> Out;
-	ToString(Out);
-	return FString(Out);
+	return FCacheBucket(Private::FCacheBucketName{Buckets.FindOrAdd(Name)});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

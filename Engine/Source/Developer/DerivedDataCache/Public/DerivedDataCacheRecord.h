@@ -3,24 +3,57 @@
 #pragma once
 
 #include "CoreTypes.h"
-#include "DerivedDataCacheKey.h"
 #include "DerivedDataPayload.h"
+#include "DerivedDataRequest.h"
 #include "Memory/MemoryFwd.h"
-#include "Templates/PimplPtr.h"
-
-#define UE_API DERIVEDDATACACHE_API
+#include "Templates/UniquePtr.h"
 
 class FCbObject;
-template <typename ResultType> class TFuture;
+template <typename FuncType> class TUniqueFunction;
 
 namespace UE
 {
 namespace DerivedData
 {
 
-class FCacheRecordBuilder;
-struct FCacheRecordData;
-struct FCacheRecordBuilderData;
+class FCacheRecord;
+struct FCacheKey;
+
+using FOnCacheRecordComplete = TUniqueFunction<void (FCacheRecord&& Record)>;
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+namespace Private
+{
+
+class ICacheRecordInternal
+{
+public:
+	virtual ~ICacheRecordInternal() = default;
+	virtual FCacheRecord Clone() const = 0;
+	virtual const FCacheKey& GetKey() const = 0;
+	virtual const FCbObject& GetMeta() const = 0;
+	virtual FSharedBuffer GetValue() const = 0;
+	virtual const FPayload& GetValuePayload() const = 0;
+	virtual FSharedBuffer GetAttachment(const FPayloadId& Id) const = 0;
+	virtual const FPayload& GetAttachmentPayload(const FPayloadId& Id) const = 0;
+	virtual TConstArrayView<FPayload> GetAttachmentPayloads() const = 0;
+};
+
+class ICacheRecordBuilderInternal
+{
+public:
+	virtual ~ICacheRecordBuilderInternal() = default;
+	virtual void SetMeta(FCbObject&& Meta) = 0;
+	virtual FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
+	virtual FPayloadId SetValue(FPayload&& Payload) = 0;
+	virtual FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id) = 0;
+	virtual FPayloadId AddAttachment(FPayload&& Payload) = 0;
+	virtual FCacheRecord Build() = 0;
+	virtual FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority) = 0;
+};
+
+} // Private
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -43,34 +76,34 @@ class FCacheRecord
 {
 public:
 	/** Construct a null cache record. */
-	FCacheRecord() = default;
+	explicit FCacheRecord() = default;
 
 	/** Clone this cache record. Prefer to move records, and clone only when a copy is necessary. */
-	UE_API FCacheRecord Clone() const;
+	inline FCacheRecord Clone() const { return Record->Clone(); }
 
 	/** Returns the key that identifies this record in the cache. Always available in a non-null cache record. */
-	UE_API const FCacheKey& GetKey() const;
+	inline const FCacheKey& GetKey() const { return Record->GetKey(); }
 
 	/** Returns the metadata for the cache record unless it was skipped in the request. */
-	UE_API const FCbObject& GetMeta() const;
+	inline const FCbObject& GetMeta() const { return Record->GetMeta(); }
 
 	/** Returns the value. Null if the value was skipped in the request. */
-	UE_API FSharedBuffer GetValue() const;
+	inline FSharedBuffer GetValue() const { return Record->GetValue(); }
 
 	/** Returns the value payload. Always available in a non-null cache record. */
-	UE_API const FPayload& GetValuePayload() const;
+	inline const FPayload& GetValuePayload() const { return Record->GetValuePayload(); }
 
 	/** Returns the attachment that matches the ID. Null if no match or attachments were skipped in the request. */
-	UE_API FSharedBuffer GetAttachment(const FPayloadId& Id) const;
+	inline FSharedBuffer GetAttachment(const FPayloadId& Id) const { return Record->GetAttachment(Id); }
 
 	/** Returns the attachment payload that matches the ID. Null if no match or the cache record is null. */
-	UE_API const FPayload& GetAttachmentPayload(const FPayloadId& Id) const;
+	inline const FPayload& GetAttachmentPayload(const FPayloadId& Id) const { return Record->GetAttachmentPayload(Id); }
 
 	/** Returns a view of the attachments. Always available in a non-null cache record, but buffer may be skipped. */
-	UE_API TConstArrayView<FPayload> GetAttachmentPayloads() const;
+	inline TConstArrayView<FPayload> GetAttachmentPayloads() const { return Record->GetAttachmentPayloads(); }
 
 	/** Whether this is null. */
-	inline bool IsNull() const { return !Data; }
+	inline bool IsNull() const { return !Record; }
 	/** Whether this is not null. */
 	inline bool IsValid() const { return !IsNull(); }
 	/** Whether this is not null. */
@@ -82,14 +115,14 @@ public:
 public:
 	// Internal API
 
-	/** Construct a cache record by cloning a cache record. Use Clone(). */
-	explicit FCacheRecord(const FCacheRecordData& Data);
-
-	/** Construct a cache record from a builder. Use Builder.Build() or Builder.BuildAsync(). */
-	explicit FCacheRecord(FCacheRecordBuilderData&& Builder);
+	/** Construct a cache record. Use Record.Clone() or Builder.Build[Async](). */
+	inline explicit FCacheRecord(Private::ICacheRecordInternal* InRecord)
+		: Record(InRecord)
+	{
+	}
 
 private:
-	TPimplPtr<FCacheRecordData> Data;
+	TUniquePtr<Private::ICacheRecordInternal> Record;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -97,31 +130,26 @@ private:
 /**
  * A cache record builder is used to construct a cache record.
  *
- * A key must be set before using the this to construct a cache record. The value and attachments
- * can be provided as buffers or as payloads which are already compressed and have an identifier.
+ * Create using ICache::CreateRecord, which must be given a key uniquely corresponds to the value
+ * and attachments for the cache record. Optional metadata may vary and may be non-deterministic.
+ *
+ * The value and attachments can be provided as buffers, which will be compressed, or as payloads
+ * which were previously compressed and have an identifier assigned.
  *
  * @see FCacheRecord
  */
 class FCacheRecordBuilder
 {
 public:
-	/** Construct an empty cache record builder. */
-	UE_API FCacheRecordBuilder();
-
-	/**
-	 * Set the key for the cache record.
-	 *
-	 * The key must uniquely correspond to the value and attachments for the cache record, while the
-	 * optional metadata may vary and may be non-deterministic.
-	 */
-	UE_API void SetKey(const FCacheKey& Key);
-
 	/**
 	 * Set the metadata for the cache record.
 	 *
 	 * The metadata is cloned if not owned.
 	 */
-	UE_API void SetMeta(FCbObject Meta);
+	inline void SetMeta(FCbObject&& Meta)
+	{
+		return Builder->SetMeta(MoveTemp(Meta));
+	}
 
 	/**
 	 * Set the value for the cache record.
@@ -131,7 +159,10 @@ public:
 	 *           the builder will create an ID by hashing the buffer.
 	 * @return The ID that was provided or created.
 	 */
-	UE_API FPayloadId SetValue(const FSharedBuffer& Buffer, FPayloadId Id = FPayloadId());
+	inline FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	{
+		return Builder->SetValue(Buffer, Id);
+	}
 
 	/**
 	 * Set the value for the cache record.
@@ -139,7 +170,7 @@ public:
 	 * @param Payload The value payload, which is reset to null.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	UE_API FPayloadId SetValue(FPayload&& Payload);
+	inline FPayloadId SetValue(FPayload&& Payload) { return Builder->SetValue(MoveTemp(Payload)); }
 
 	/**
 	 * Add an attachment to the cache record.
@@ -149,7 +180,10 @@ public:
 	 *           is omitted the builder will create an ID by hashing the buffer.
 	 * @return The ID that was provided or created.
 	 */
-	UE_API FPayloadId AddAttachment(const FSharedBuffer& Buffer, FPayloadId Id = FPayloadId());
+	inline FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
+	{
+		return Builder->AddAttachment(Buffer, Id);
+	}
 
 	/**
 	 * Add an attachment to the cache record.
@@ -157,41 +191,53 @@ public:
 	 * @param Payload The attachment payload, which is reset to null.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	UE_API FPayloadId AddAttachment(FPayload&& Payload);
+	inline FPayloadId AddAttachment(FPayload&& Payload)
+	{
+		return Builder->AddAttachment(MoveTemp(Payload));
+	}
 
 	/**
-	 * Build a cache record, resetting this builder.
+	 * Build a cache record, which leaves this builder null.
 	 *
 	 * Prefer BuildAsync() when the value or attachments are added from a buffer, as this must block
 	 * on compression of those buffers before it can construct a cache record.
 	 */
-	UE_API FCacheRecord Build();
+	inline FCacheRecord Build()
+	{
+		return Builder->Build();
+	}
 
 	/**
-	 * Build a cache record asynchronously, resetting this builder.
+	 * Build a cache record asynchronously, which leaves this builder null.
 	 *
 	 * Prefer Build() when the value and attachments are added by payload, as compression is already
 	 * complete and BuildAsync() will complete immediately in that case.
 	 */
-	UE_API TFuture<FCacheRecord> BuildAsync();
+	inline FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority)
+	{
+		return Builder->BuildAsync(MoveTemp(Callback), Priority);
+	}
 
 	/** Whether this is null. */
-	inline bool IsNull() const { return !Data; }
+	inline bool IsNull() const { return !Builder; }
 	/** Whether this is not null. */
 	inline bool IsValid() const { return !IsNull(); }
 	/** Whether this is not null. */
 	inline explicit operator bool() const { return IsValid(); }
 
-	/** Reset this to empty. */
-	inline void Reset() { *this = FCacheRecordBuilder(); }
+public:
+	// Internal API
+
+	inline explicit FCacheRecordBuilder(Private::ICacheRecordBuilderInternal* InBuilder)
+		: Builder(InBuilder)
+	{
+	}
 
 private:
-	TPimplPtr<FCacheRecordBuilderData> Data;
+	TUniquePtr<Private::ICacheRecordBuilderInternal> Builder;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // DerivedData
 } // UE
-
-#undef UE_API

@@ -13,6 +13,8 @@ namespace UE
 namespace DerivedData
 {
 
+class FCacheBucket;
+class FCacheRecordBuilder;
 struct FCacheGetCompleteParams;
 struct FCacheGetPayloadCompleteParams;
 struct FCachePutCompleteParams;
@@ -100,6 +102,18 @@ class ICache
 {
 public:
 	virtual ~ICache() = default;
+
+	/**
+	 * Create a cache bucket from a name.
+	 *
+	 * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 characters.
+	 */
+	virtual FCacheBucket CreateBucket(FStringView Name) = 0;
+
+	/**
+	 * Create a cache record builder from a cache key.
+	 */
+	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) = 0;
 
 	/**
 	 * Asynchronous request to put cache records according to the policy.

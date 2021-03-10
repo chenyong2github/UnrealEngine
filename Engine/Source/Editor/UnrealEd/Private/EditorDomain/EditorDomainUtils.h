@@ -14,7 +14,7 @@ namespace UE
 {
 namespace DerivedData
 {
-	class FCacheKey;
+struct FCacheKey;
 }
 }
 
