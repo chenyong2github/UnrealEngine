@@ -37,10 +37,34 @@ public:
 	}
 
 	/**
-     * Resets the internal state. 
+	 * Resets the internal state.
 	 * Should be called for every read.
-     */
+	 */
 	void ResetContext();
+
+	/**
+	 * Get the time in seconds spent waiting for the socket to be readable.
+	 */
+	float GetSecondsWaitingForReadableSocket() const
+	{
+		return SecondsWaitingForReadableSocket;
+	}
+
+	/**
+	 * Add time (in seconds) spent waiting for the socket to be readable.
+	 */
+	void AddSecondsWaitingForReadableSocket(float Seconds)
+	{
+		SecondsWaitingForReadableSocket += Seconds;
+	}
+
+	/**
+	 * Reset the time spent waiting for the socket to be readable.
+	 */
+	void ResetSecondsWaitingForReadableSocket()
+	{
+		SecondsWaitingForReadableSocket = 0.f;
+	}
 
 private:
 
@@ -112,4 +136,6 @@ private:
 	TArray<uint8> HeaderBytes;
 	/** State variable which tracks bytes read for an incoming request */
 	int32 IncomingRequestBodyBytesToRead = 0;
+	/** The time spent waiting for the socket to be readable. */
+	float SecondsWaitingForReadableSocket = 0.f;
 };

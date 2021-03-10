@@ -20,7 +20,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogHttpConnection, Log, All);
 
 struct FHttpConnection final : public TSharedFromThis<FHttpConnection>
 {
-
 public:
 
 	/**
@@ -28,7 +27,7 @@ public:
 	 * 
 	 * @param InSocket The underlying file descriptor
 	 */
-	FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId, FTimespan InSelectWaitTime);
+	FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId);
 	/**
 	 * Destructor
 	 */
@@ -75,6 +74,21 @@ public:
 	}
 
 private:
+	/**
+	 * The reason why the connection was destroyed.
+	 */
+	enum class EConnectionDestroyReason : uint8
+	{
+		WriteError,
+        AwaitReadTimeout,
+        BeginReadTimeout,
+        ReadTimeout,
+        WriteTimeout,
+        WriteComplete,
+        DestroyRequest
+    };
+
+private:
 
 	/**
      * Changes the internal state of the connection to NewState
@@ -112,7 +126,6 @@ private:
 	 */
 	void CompleteRead(const TSharedPtr<FHttpServerRequest>& Request);
 
-
 	/**
 	 * Proxies the respective request to a bound handler
 	 * @param Request              The request to process
@@ -143,8 +156,9 @@ private:
 
 	/**
 	 * Closes and nullifies the underlying connection
+	 * @param DestroyReason The reason why the connection should be destroyed.
 	 */
-	void Destroy();
+	void Destroy(EConnectionDestroyReason DestroyReason);
 
 	/**
 	 * Logs and responds with the caller-supplied error code
@@ -162,14 +176,44 @@ private:
 	void HandleWriteError(const TCHAR* ErrorCodeStr);
 
 	/**
-	* Determines whether KeepAlive is set based on the caller-supplied http version and connection headers
-	*
-	* @param HttpVersion         The http version of the request
-	* @param ConnectionHeaders   The request "Connection:" headers
-	* @return                    true if KeepAlive should be set, false otherwise
-    */
+	 * Determines whether KeepAlive is set based on the caller-supplied http version and connection headers
+	 *
+	 * @param HttpVersion         The http version of the request
+	 * @param ConnectionHeaders   The request "Connection:" headers
+	 * @return                    true if KeepAlive should be set, false otherwise
+     */
 	static bool ResolveKeepAlive(HttpVersion::EHttpServerHttpVersion HttpVersion, const TArray<FString>& ConnectionHeaders);
 
+	/**
+	 * Convert a connection destroy reason to a string.
+	 * @param DestroyReason The reason why the connection was destroyed.
+	 * @return				The output string.
+	 */
+	static const TCHAR* LexToString(EConnectionDestroyReason DestroyReason)
+	{
+		switch (DestroyReason)
+		{
+			case EConnectionDestroyReason::WriteError:
+				return TEXT("Write error");
+		    case EConnectionDestroyReason::AwaitReadTimeout:
+		    	return TEXT("Await read timeout");
+		    case EConnectionDestroyReason::BeginReadTimeout:
+		    	return TEXT("Begin read timeout");
+		    case EConnectionDestroyReason::ReadTimeout:
+		    	return TEXT("Read timeout");
+		    case EConnectionDestroyReason::WriteTimeout:
+		    	return TEXT("Write timeout");
+		    case EConnectionDestroyReason::WriteComplete:
+		    	return TEXT("Write complete");
+		    case EConnectionDestroyReason::DestroyRequest:
+		    	return TEXT("Destroy connection request");
+			default:
+			{
+				checkNoEntry();
+				return TEXT("Unknown");
+			}
+		}
+	}
 
 private:
 
@@ -208,8 +252,5 @@ private:
 
 	/** The duration (seconds) at which idle keep-alive connections are forcefully timed out */
 	static constexpr float ConnectionKeepAliveTimeout = 15.0f;
-
-	/** The maximum time spent waiting for a client to accept reading its data. */
-	FTimespan SelectWaitTime;
 };
 

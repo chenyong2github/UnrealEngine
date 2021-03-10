@@ -17,14 +17,13 @@
 
 DEFINE_LOG_CATEGORY(LogHttpConnection)
 
-FHttpConnection::FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId, FTimespan InSelectWaitTime)
+FHttpConnection::FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId)
 	: Socket(InSocket)
 	,Router(InRouter)
 	,OriginPort(InOriginPort)
 	,ConnectionId(InConnectionId)
 	,ReadContext(InSocket)
 	,WriteContext(InSocket)
-	,SelectWaitTime(InSelectWaitTime)
 {
 	check(nullptr != Socket);
 }
@@ -42,9 +41,9 @@ void FHttpConnection::Tick(float DeltaTime)
 	switch (State)
 	{
 	case EHttpConnectionState::AwaitingRead:
-		if (ReadContext.GetElapsedIdleTime() > AwaitReadTimeout)
+		if (ReadContext.GetElapsedIdleTime() > AwaitReadTimeout || ReadContext.GetSecondsWaitingForReadableSocket() > AwaitReadTimeout)
 		{
-			Destroy();
+			Destroy(EConnectionDestroyReason::AwaitReadTimeout);
 			return;
 		}
 		BeginRead(DeltaTime);
@@ -53,7 +52,7 @@ void FHttpConnection::Tick(float DeltaTime)
 	case EHttpConnectionState::Reading:
 		if (ReadContext.GetElapsedIdleTime() > ConnectionTimeout)
 		{
-			Destroy();
+			Destroy(EConnectionDestroyReason::ReadTimeout);
 			return;
 		}
 		ContinueRead(DeltaTime);
@@ -65,7 +64,7 @@ void FHttpConnection::Tick(float DeltaTime)
 	case EHttpConnectionState::Writing:
 		if (WriteContext.GetElapsedIdleTime() > ConnectionTimeout)
 		{
-			Destroy();
+			Destroy(EConnectionDestroyReason::WriteTimeout);
 			return;
 		}
 		ContinueWrite(DeltaTime);
@@ -96,25 +95,31 @@ void FHttpConnection::TransferState(EHttpConnectionState CurrentState, EHttpConn
 
 void FHttpConnection::BeginRead(float DeltaTime)
 {
-	// Wait should always return true if the connection is valid
-	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, SelectWaitTime))
+	const FTimespan WaitTime = FTimespan::FromMilliseconds(1);
+	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, WaitTime))
 	{
-		Destroy();
-		return;
-	}
-
-	// The socket is reachable, however there may not be data in the pipe
-	uint32 PendingDataSize = 0;
-	if (Socket->HasPendingData(PendingDataSize))
-	{
-		TransferState(EHttpConnectionState::AwaitingRead, EHttpConnectionState::Reading);
-		LastRequestNumber++;
-		ReadContext.ResetContext();
-		ContinueRead(DeltaTime);
+		const float SecondsPollingSocketThisFrame = WaitTime.GetTotalSeconds();
+		// We don't add DeltaTime on the first attempt as only 1ms has passed since we started waiting for the socket to be reachable.
+		const float SecondsPollingSocketSinceLastFrame = ReadContext.GetSecondsWaitingForReadableSocket() == 0.f ? SecondsPollingSocketThisFrame : DeltaTime + SecondsPollingSocketThisFrame;
+		ReadContext.AddSecondsWaitingForReadableSocket(SecondsPollingSocketSinceLastFrame);
 	}
 	else
 	{
-		ReadContext.AddElapsedIdleTime(DeltaTime);
+		ReadContext.ResetSecondsWaitingForReadableSocket();
+
+		// The socket is reachable, however there may not be data in the pipe
+		uint32 PendingDataSize = 0;
+		if (Socket->HasPendingData(PendingDataSize))
+		{
+			TransferState(EHttpConnectionState::AwaitingRead, EHttpConnectionState::Reading);
+			LastRequestNumber++;
+			ReadContext.ResetContext();
+			ContinueRead(DeltaTime);
+		}
+		else
+		{
+			ReadContext.AddElapsedIdleTime(DeltaTime);
+		}
 	}
 }
 
@@ -253,7 +258,7 @@ void FHttpConnection::CompleteWrite()
 	}
 	else
 	{
-		Destroy();
+		Destroy(EConnectionDestroyReason::WriteComplete);
 	}
 }
 
@@ -270,11 +275,11 @@ void FHttpConnection::RequestDestroy(bool bGraceful)
 	// awaiting a read operation (not started yet), destroy() immediately.
 	if (!bGracefulDestroyRequested || State == EHttpConnectionState::AwaitingRead)
 	{
-		Destroy();
+		Destroy(EConnectionDestroyReason::DestroyRequest);
 	}
 }
 
-void FHttpConnection::Destroy()
+void FHttpConnection::Destroy(EConnectionDestroyReason Reason)
 {
 	check(State != EHttpConnectionState::Destroyed);
 	ChangeState(EHttpConnectionState::Destroyed);
@@ -287,6 +292,8 @@ void FHttpConnection::Destroy()
 			SocketSubsystem->DestroySocket(Socket);
 		}
 		Socket = nullptr;
+
+		UE_LOG(LogHttpConnection, Verbose, TEXT("ConnectionDestroyed, Reason: %s"), LexToString(Reason));
 	}
 }
 
@@ -306,7 +313,7 @@ void FHttpConnection::HandleWriteError(const TCHAR* ErrorCodeStr)
 
 	// Forcibly Close
 	bKeepAlive = false;
-	Destroy();
+	Destroy(EConnectionDestroyReason::WriteError);
 }
 
 bool FHttpConnection::ResolveKeepAlive(HttpVersion::EHttpServerHttpVersion HttpVersion, const TArray<FString>& ConnectionHeaders)
