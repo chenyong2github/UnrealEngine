@@ -528,7 +528,7 @@ void UGameplayTasksComponent::SetCurrentlyClaimedResources(FGameplayResourceSet 
 //----------------------------------------------------------------------//
 // debugging
 //----------------------------------------------------------------------//
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 FString UGameplayTasksComponent::GetTickingTasksDescription() const
 {
 	FString TasksDescription;
@@ -586,7 +586,7 @@ FString UGameplayTasksComponent::GetTaskStateName(EGameplayTaskState Value)
 	check(Enum);
 	return Enum->GetNameStringByValue(int64(Value));
 }
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 
 FConstGameplayTaskIterator UGameplayTasksComponent::GetTickingTaskIterator() const
 {
@@ -768,7 +768,7 @@ FString FGameplayResourceSet::GetDebugDescription() const
 	FFlagContainer FlagsCopy = Flags;
 	int32 FlagIndex = 0;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 	FString Description;
 	for (; FlagIndex < FlagsCount && FlagsCopy != 0; ++FlagIndex)
 	{
@@ -790,7 +790,7 @@ FString FGameplayResourceSet::GetDebugDescription() const
 	}
 	Description[FlagIndex] = TCHAR('\0');
 	return FString(Description);
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 }
 
 #undef LOCTEXT_NAMESPACE

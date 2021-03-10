@@ -385,7 +385,7 @@ void UGameplayTask::PauseInTaskQueue()
 	}
 }
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 //----------------------------------------------------------------------//
 // debug
 //----------------------------------------------------------------------//
@@ -411,7 +411,7 @@ FString UGameplayTask::GetTaskStateName() const
 	return Enum->GetNameStringByValue(int64(TaskState));
 }
 
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 
 //////////////////////////////////////////////////////////////////////////
 // Child tasks

@@ -9,6 +9,7 @@
 #include "UObject/ScriptMacros.h"
 #include "GameplayTaskOwnerInterface.h"
 #include "UObject/WeakInterfacePtr.h"
+#include "GameplayTaskTypes.h"
 #include "GameplayTask.generated.h"
 
 class AActor;
@@ -364,7 +365,7 @@ protected:
 	UPROPERTY()
 	UGameplayTask* ChildTask;
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 	mutable FString DebugDescription;
 public:
 	const FString& GetDebugDescription() const
@@ -377,7 +378,7 @@ public:
 	}
 	virtual FString GenerateDebugDescription() const;
 	FString GetTaskStateName() const;
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 };
 
 template <class T>

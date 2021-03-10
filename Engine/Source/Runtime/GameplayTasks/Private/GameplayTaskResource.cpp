@@ -4,9 +4,9 @@
 #include "GameplayTask.h"
 #include "Modules/ModuleManager.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 TArray<FString> UGameplayTaskResource::ResourceDescriptions;
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 
 #if WITH_HOT_RELOAD
 namespace
@@ -51,10 +51,10 @@ void UGameplayTaskResource::PostInitProperties()
 			}
 
 			const uint8 DebugId = GetResourceID();
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 			ResourceDescriptions.SetNum(FMath::Max(DebugId + 1, ResourceDescriptions.Num()));
 			ResourceDescriptions[DebugId] = GenerateDebugDescription();
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 
 #if WITH_HOT_RELOAD
 			ClassNameToIDMap.Add(GetFName(), DebugId);
@@ -101,7 +101,7 @@ void UGameplayTaskResource::PostEditChangeProperty(FPropertyChangedEvent& Proper
 }
 #endif // WITH_EDITOR
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 FString UGameplayTaskResource::GenerateDebugDescription() const
 {
 	const FString ClassName = GetClass()->GetName();
@@ -114,4 +114,4 @@ FString UGameplayTaskResource::GenerateDebugDescription() const
 	return ClassName;
 
 }
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
