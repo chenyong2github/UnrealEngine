@@ -262,9 +262,11 @@ FDebugRenderSceneProxy* FGameplayDebuggerCategory_Navmesh::CreateDebugSceneProxy
 {
 	FNavMeshSceneProxy* NavMeshSceneProxy = new FNavMeshSceneProxy(InComponent, &NavmeshRenderData, true);
 
+#if WITH_RECAST && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	auto* OutDelegateHelper2 = new FNavMeshDebugDrawDelegateHelper();
 	OutDelegateHelper2->InitDelegateHelper(NavMeshSceneProxy);
 	OutDelegateHelper = OutDelegateHelper2;
+#endif // WITH_RECAST && !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
 	return NavMeshSceneProxy;
 }
