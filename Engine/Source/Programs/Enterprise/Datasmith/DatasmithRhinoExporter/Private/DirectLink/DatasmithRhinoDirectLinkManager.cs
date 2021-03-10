@@ -64,6 +64,7 @@ namespace DatasmithRhino.DirectLink
 			if (bInitialized)
 			{
 				RhinoDoc.EndOpenDocument -= OnEndOpenDocument;
+				RhinoDoc.BeginOpenDocument -= OnBeginOpenDocument;
 				RhinoDoc.NewDocument -= OnNewDocument;
 
 				FDatasmithFacadeDirectLink.Shutdown();

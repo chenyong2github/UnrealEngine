@@ -14,10 +14,12 @@ namespace DatasmithRhino
 		public RhinoDoc RhinoDocument { get; private set; }
 		public FDatasmithFacadeScene DatasmithScene { get; private set; }
 		public bool bSkipHidden { get; private set; }
+		public UnitSystem ModelUnitSystem { get; set; }
 
 		public DatasmithRhinoExportOptions(RhinoDoc InRhinoDocument, FDatasmithFacadeScene InDatasmithScene, bool bInSkipHidden)
 		{
 			RhinoDocument = InRhinoDocument;
+			ModelUnitSystem = RhinoDocument.ModelUnitSystem;
 			DatasmithScene = InDatasmithScene;
 			bSkipHidden = bInSkipHidden;
 		}

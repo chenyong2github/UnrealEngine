@@ -56,12 +56,12 @@ namespace DatasmithRhino.DirectLink
 					RhinoDoc.GroupTableEvent += OnGroupTableEvent;
 					RhinoDoc.MaterialTableEvent += OnMaterialTableEvent;
 					RhinoDoc.RenderMaterialsTableEvent += OnRenderMaterialsTableEvent;
+					RhinoDoc.DocumentPropertiesChanged += OnDocumentPropertiesChanged;
 
 					//#ueent-todo Listen to the following events to update their associated DatasmithElement
 					//RhinoDoc.DimensionStyleTableEvent;
 					//RhinoDoc.LightTableEvent;
 					//RhinoDoc.RenderEnvironmentTableEvent;
-					//RhinoDoc.DocumentPropertiesChanged;
 				}
 
 				ExportContext = Context;
@@ -84,6 +84,7 @@ namespace DatasmithRhino.DirectLink
 			RhinoDoc.GroupTableEvent -= OnGroupTableEvent;
 			RhinoDoc.MaterialTableEvent -= OnMaterialTableEvent;
 			RhinoDoc.RenderMaterialsTableEvent -= OnRenderMaterialsTableEvent;
+			RhinoDoc.DocumentPropertiesChanged -= OnDocumentPropertiesChanged;
 		}
 
 		private void OnBeforeTransformObjects(object Sender, RhinoTransformObjectsEventArgs RhinoEventArgs)
@@ -227,6 +228,14 @@ namespace DatasmithRhino.DirectLink
 				case RhinoDoc.RenderContentTableEventType.Clearing:
 				default:
 					break;
+			}
+		}
+
+		private void OnDocumentPropertiesChanged(object Sender, DocumentEventArgs RhinoEventArgs)
+		{
+			if (RhinoEventArgs.Document != null && ExportContext.ExportOptions.ModelUnitSystem != RhinoEventArgs.Document.ModelUnitSystem)
+			{
+				ExportContext.OnModelUnitChange();
 			}
 		}
 

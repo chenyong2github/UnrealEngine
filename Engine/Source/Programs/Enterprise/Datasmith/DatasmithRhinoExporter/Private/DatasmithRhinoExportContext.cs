@@ -252,9 +252,32 @@ namespace DatasmithRhino
 			RelativeLayerIndices = OtherInfo.RelativeLayerIndices;
 			LayerIndices = OtherInfo.LayerIndices;
 
-			WorldTransform = OtherInfo.WorldTransform;
 			MaterialIndex = OtherInfo.MaterialIndex;
 			bOverrideMaterial = OtherInfo.bOverrideMaterial;
+
+			//Update world transform, if it has changed we need to modify transform of children as well.
+			Transform NewWorldTransform = Parent != null 
+				? Transform.Multiply(Parent.WorldTransform, OtherInfo.WorldTransform)
+				: OtherInfo.WorldTransform;
+			if (NewWorldTransform != WorldTransform)
+			{
+				Transform InverseTransform;
+				if (WorldTransform.TryGetInverse(out InverseTransform) || InverseTransform.IsValid)
+				{
+					Transform DiffTransform = NewWorldTransform * InverseTransform;
+					ApplyTransform(DiffTransform);
+				}
+				else
+				{
+					WorldTransform = NewWorldTransform;
+					const bool bIncludeHidden = true;
+					foreach (DatasmithActorInfo Descendant in GetDescendantEnumerator(bIncludeHidden))
+					{
+						Descendant.ApplyModifiedStatus();
+						Descendant.WorldTransform = Transform.Multiply(Descendant.Parent.WorldTransform, DatasmithRhinoUtilities.GetModelComponentTransform(Descendant.RhinoModelComponent));		
+					}
+				}
+			}
 		}
 
 		public List<string> GetTags(DatasmithRhinoExportContext ExportContext)
@@ -310,6 +333,7 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo ActorInfo in GetEnumerator(/*bIncludeHidden=*/true))
 			{
+				ActorInfo.ApplyModifiedStatus();
 				ActorInfo.WorldTransform = InTransform * ActorInfo.WorldTransform;
 			}
 		}
@@ -713,6 +737,30 @@ namespace DatasmithRhino
 			}
 		}
 
+		public void OnModelUnitChange()
+		{
+			FDatasmithFacadeElement.SetWorldUnitScale((float)RhinoMath.UnitScale(RhinoDocument.ModelUnitSystem, UnitSystem.Centimeters));
+			ExportOptions.ModelUnitSystem = RhinoDocument.ModelUnitSystem;
+
+			const bool bIncludeHidden = true;
+			foreach (InstanceDefinition BlockInstanceDefinition in InstanceDefinitionHierarchyNodeDictionary.Keys)
+			{
+				UpdateDefinitionNode(BlockInstanceDefinition);
+			}
+
+			foreach (DatasmithActorInfo DescendantInfo in SceneRoot.GetDescendantEnumerator(bIncludeHidden))
+			{
+				RhinoObject DescendantRhinoObject = DescendantInfo.RhinoModelComponent as RhinoObject;
+				bool bIsNotInstancedObject = DescendantRhinoObject == null || DescendantInfo.DefinitionNode == null || (DescendantRhinoObject.ObjectType == ObjectType.InstanceReference && !DescendantInfo.bIsInstanceDefinition);
+				
+				if (bIsNotInstancedObject)
+				{
+					const bool bReparent = false;
+					ModifyActor(DescendantInfo.RhinoModelComponent, bReparent);
+				}
+			}
+		}
+
 		/// <summary>
 		/// Actor creation event used when a RhinoObject is created.
 		/// </summary>
@@ -794,11 +842,14 @@ namespace DatasmithRhino
 			if ((bHasMesh || bIsInstance)
 				&& ObjectIdToHierarchyActorNodeDictionary.TryGetValue(InRhinoObject.Id, out DatasmithActorInfo ActorInfo))
 			{
-				ActorInfo.ApplyModifiedStatus();
-
 				if (bIsInstance)
 				{
 					ActorInfo.ApplyTransform(InTransform);
+				}
+				else
+				{
+					//Mesh offset has changed, this will affect related actors.
+					ActorInfo.ApplyModifiedStatus();
 				}
 			}
 		}
@@ -856,8 +907,8 @@ namespace DatasmithRhino
 
 					// if the visibility changed, update the status of the descendants.
 					bool bIsVisible = ActorInfo.bIsVisible;
-					bool bWasHidden = (ActorInfo.DirectLinkStatus & (DirectLinkSynchronizationStatus.PendingHidding | DirectLinkSynchronizationStatus.Hidden)) != DirectLinkSynchronizationStatus.None;
-					if (!bIsVisible || bWasHidden)
+					bool bHasHiddenFlag = (ActorInfo.DirectLinkStatus & (DirectLinkSynchronizationStatus.PendingHidding | DirectLinkSynchronizationStatus.Hidden)) != DirectLinkSynchronizationStatus.None;
+					if (bIsVisible == bHasHiddenFlag)
 					{
 						const bool bIncludeHidden = true;
 						foreach (DatasmithActorInfo DescendantActor in ActorInfo.GetEnumerator(bIncludeHidden))
@@ -871,10 +922,6 @@ namespace DatasmithRhino
 								DescendantActor.RestorePreviousDirectLinkStatus();
 							}
 						}
-					}
-					else
-					{
-						ActorInfo.ApplyModifiedStatus();
 					}
 				}
 				else
@@ -903,7 +950,6 @@ namespace DatasmithRhino
 				if (TryGenerateMeshInfoFromRhinoObjects(InRhinoObject) is DatasmithMeshInfo DiffMeshInfo)
 				{
 					MeshInfo.ApplyDiffs(DiffMeshInfo);
-					MeshInfo.ApplyModifiedStatus();
 				}
 			}
 		}
@@ -1098,11 +1144,14 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo CurrentInfo in ActorInfos)
 			{
-				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion)
+				RhinoObject CurrentRhinoObject = CurrentInfo.RhinoModelComponent as RhinoObject;
+				bool bIsNotInstancedObject = CurrentRhinoObject == null || CurrentInfo.DefinitionNode == null || (CurrentRhinoObject.ObjectType == ObjectType.InstanceReference && !CurrentInfo.bIsInstanceDefinition);
+
+				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion && bIsNotInstancedObject)
 				{
 					ObjectIdToHierarchyActorNodeDictionary[CurrentInfo.RhinoModelComponent.Id] = CurrentInfo;
 
-					if (CurrentInfo.RhinoModelComponent is RhinoObject CurrentRhinoObject)
+					if (CurrentRhinoObject != null)
 					{
 						AddObjectMaterialReference(CurrentRhinoObject, CurrentInfo.MaterialIndex);
 					}
