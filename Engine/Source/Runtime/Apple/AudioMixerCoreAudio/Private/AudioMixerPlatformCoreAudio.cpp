@@ -417,7 +417,7 @@ namespace Audio
 	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
 	{
 #if WITH_ENGINE
-		if (!ensure(InSoundWave.IsValid))
+		if (!ensure(InSoundWave.IsValid()))
 		{
 			return nullptr;
 		}
