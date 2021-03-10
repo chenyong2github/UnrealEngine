@@ -48,8 +48,8 @@ static TAutoConsoleVariable<int32> GStandardValidationCvar(
 TAutoConsoleVariable<int32> GGPUValidationCvar(
 	TEXT("r.Vulkan.GPUValidation"),
 	0,
-	TEXT("2 to use enable GPU assised validation AND extra binding slot when using validation layers, or\n")
-	TEXT("1 to use enable GPU assised validation when using validation layers, or\n")
+	TEXT("2 to use enable GPU assisted validation AND extra binding slot when using validation layers\n")
+	TEXT("1 to use enable GPU assisted validation when using validation layers, or\n")
 	TEXT("0 to not use (default)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
@@ -335,21 +335,30 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	}
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
-#if VULKAN_ENABLE_API_DUMP
-	if (!bGfxReconstructOrVkTrace)
+	if (FParse::Param(FCommandLine::Get(), TEXT("vulkanapidump")))
 	{
-		const char* VkApiDumpName = "VK_LAYER_LUNARG_api_dump";
-		bool bApiDumpFound = FindLayerInList(GlobalLayerExtensions, VkApiDumpName);
-		if (bApiDumpFound)
+		if (bGfxReconstructOrVkTrace)
 		{
-			OutInstanceLayers.Add(VkApiDumpName);
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Can't enable api_dump when GfxReconstruct/VkTrace is enabled"));
 		}
 		else
 		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance layer %s"), ANSI_TO_TCHAR(VkApiDumpName));
+			const char* VkApiDumpName = "VK_LAYER_LUNARG_api_dump";
+			bool bApiDumpFound = FindLayerInList(GlobalLayerExtensions, VkApiDumpName);
+			if (bApiDumpFound)
+			{
+				OutInstanceLayers.Add(VkApiDumpName);
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_LOG_FILENAME"), TEXT("vk_apidump.txt"));
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_DETAILED"), TEXT("true"));
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_FLUSH"), TEXT("true"));
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_OUTPUT_FORMAT"), TEXT("text"));
+			}
+			else
+			{
+				UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance layer %s"), ANSI_TO_TCHAR(VkApiDumpName));
+			}
 		}
 	}
-#endif	// VULKAN_ENABLE_API_DUMP
 
 	// At this point the CVar holds the final value
 #if VULKAN_HAS_DEBUGGING_ENABLED
@@ -879,6 +888,15 @@ void FVulkanDynamicRHI::SetupValidationRequests()
 	else if (FParse::Value(FCommandLine::Get(), TEXT("vulkanvalidation="), VulkanValidationOption))
 	{
 		GValidationCvar->Set(VulkanValidationOption, ECVF_SetByCommandline);
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("gpuvalidation")))
+	{
+		if (GValidationCvar->GetInt() < 2)
+		{
+			GValidationCvar->Set(2, ECVF_SetByCommandline);
+		}
+		GGPUValidationCvar->Set(2, ECVF_SetByCommandline);
 	}
 #endif
 }
