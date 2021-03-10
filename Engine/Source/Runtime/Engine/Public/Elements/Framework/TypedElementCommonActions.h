@@ -12,7 +12,7 @@ class UTypedElementSelectionSet;
 /**
  * Customization used to allow asset editors (such as the level editor) to override the base behavior of common actions.
  */
-class EDITORFRAMEWORK_API FTypedElementCommonActionsCustomization
+class ENGINE_API FTypedElementCommonActionsCustomization
 {
 public:
 	virtual ~FTypedElementCommonActionsCustomization() = default;
@@ -26,7 +26,7 @@ public:
 /**
  * Utility to hold a typed element handle and its associated world interface and common actions customization.
  */
-struct EDITORFRAMEWORK_API FTypedElementCommonActionsElement
+struct ENGINE_API FTypedElementCommonActionsElement
 {
 public:
 	FTypedElementCommonActionsElement() = default;
@@ -67,7 +67,7 @@ private:
  * but asset editors can customize this behavior via FTypedElementCommonActionsCustomization.
  */
 UCLASS(Transient)
-class EDITORFRAMEWORK_API UTypedElementCommonActions : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementCommonActionsCustomization>
+class ENGINE_API UTypedElementCommonActions : public UObject, public TTypedElementInterfaceCustomizationRegistry<FTypedElementCommonActionsCustomization>
 {
 	GENERATED_BODY()
 
