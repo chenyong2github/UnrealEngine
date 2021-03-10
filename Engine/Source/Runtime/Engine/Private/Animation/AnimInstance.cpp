@@ -2861,8 +2861,8 @@ void UAnimInstance::PerformLinkedLayerOverlayOperation(TSubclassOf<UAnimInstance
 				check(RootLOD == MeshComp->GetPostProcessInstance()->GetRequiredBones().GetCalculatedForLOD());
 			}
 		}
+#endif	
 	}
-#endif
 }
 
 void UAnimInstance::LinkAnimClassLayers(TSubclassOf<UAnimInstance> InClass)
