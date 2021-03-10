@@ -17,7 +17,8 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
-					"Engine"
+					"Engine",
+					"DeveloperSettings"
 				}
 				);
 
@@ -34,8 +35,7 @@ namespace UnrealBuildTool.Rules
                 new string[]
                 {
                     "SlateCore",
-                    "Slate",
-					"DeveloperSettings"
+                    "Slate"
 				}
                 );
             }
