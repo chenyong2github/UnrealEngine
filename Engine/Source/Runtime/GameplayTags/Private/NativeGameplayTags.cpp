@@ -9,8 +9,6 @@
 
 #define LOCTEXT_NAMESPACE "FNativeGameplayTag"
 
-TSet<const class FNativeGameplayTag*> FNativeGameplayTag::RegisteredNativeTags;
-
 #if !UE_BUILD_SHIPPING
 
 //FEditorDelegates
@@ -69,7 +67,7 @@ FNativeGameplayTag::FNativeGameplayTag(FName InPluginName, FName InModuleName, F
 	DeveloperComment = TagDevComment;
 #endif
 
-	RegisteredNativeTags.Add(this);
+	GetRegisteredNativeTags().Add(this);
 
 	if (UGameplayTagsManager* Manager = UGameplayTagsManager::GetIfAllocated())
 	{
@@ -79,7 +77,7 @@ FNativeGameplayTag::FNativeGameplayTag(FName InPluginName, FName InModuleName, F
 
 FNativeGameplayTag::~FNativeGameplayTag()
 {
-	RegisteredNativeTags.Remove(this);
+	GetRegisteredNativeTags().Remove(this);
 
 	if (UGameplayTagsManager* Manager = UGameplayTagsManager::GetIfAllocated())
 	{
@@ -124,5 +122,11 @@ void FNativeGameplayTag::ValidateTagRegistration() const
 }
 
 #endif
+
+TSet<const FNativeGameplayTag*>& FNativeGameplayTag::GetRegisteredNativeTags()
+{
+	static TSet<const class FNativeGameplayTag*> RegisteredNativeTags;
+	return RegisteredNativeTags;
+}
 
 #undef LOCTEXT_NAMESPACE

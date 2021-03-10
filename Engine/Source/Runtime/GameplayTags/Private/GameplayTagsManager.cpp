@@ -314,7 +314,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 				AddTagTableRow(FGameplayTagTableRow(TagToAdd), FGameplayTagSource::GetNativeName());
 			}
 
-			for (const class FNativeGameplayTag* NativeTag : FNativeGameplayTag::RegisteredNativeTags)
+			for (const class FNativeGameplayTag* NativeTag : FNativeGameplayTag::GetRegisteredNativeTags())
 			{
 				AddTagTableRow(NativeTag->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
 			}
