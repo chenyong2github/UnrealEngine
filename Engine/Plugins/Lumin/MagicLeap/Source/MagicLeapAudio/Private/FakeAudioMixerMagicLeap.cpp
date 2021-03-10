@@ -184,6 +184,17 @@ namespace Audio
 		return new FADPCMAudioInfo();
 	}
 
+	ICompressedAudioInfo* FFakeAudioMixerMagicLeap::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	{
+		if (!(InSoundWave.IsValid() && InSoundWave->IsStreaming()))
+		{
+			return nullptr;
+		}
+
+		static FName NAME_ADPCM(TEXT("ADPCM"));
+		return new FADPCMAudioInfo();
+	}
+
 	FString FFakeAudioMixerMagicLeap::GetDefaultDeviceName()
 	{
 		return FString(TEXT("MLAudio"));

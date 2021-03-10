@@ -386,6 +386,37 @@ namespace Audio
 		return nullptr;
 	}
 
+	ICompressedAudioInfo* FMixerPlatformNonRealtime::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	{
+		if (!(InSoundWave.IsValid() && InSoundWave->IsStreaming()))
+		{
+			return nullptr;
+		}
+
+		// TODO: Currently this is a copy paste of the XAudio2 platform interface. Ultimately, this function needs to propagate to the current platform's correct CrateCompressedAudioInfo call.
+#if PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
+
+#if WITH_XMA2 && USE_XMA2_FOR_STREAMING
+		if (InSoundWave->IsStreaming() && InSoundWave->GetNumChannels() <= 2)
+		{
+			return XMA2_INFO_NEW();
+		}
+#endif
+
+		if (InSoundWave->IsStreaming())
+		{
+#if USE_VORBIS_FOR_STREAMING
+			return new FVorbisAudioInfo();
+#else
+			return new FOpusAudioInfo();
+#endif
+		}
+
+#endif // PLATFORM_WINDOWS || HAS_COMPRESSED_AUDIO_INFO_CLASS
+
+		return nullptr;
+	}
+
 	FString FMixerPlatformNonRealtime::GetDefaultDeviceName()
 	{
 		//GConfig->GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("AudioDevice"), WindowsAudioDeviceName, GEngineIni);

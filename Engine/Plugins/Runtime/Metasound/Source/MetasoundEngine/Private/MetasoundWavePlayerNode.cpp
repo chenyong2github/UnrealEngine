@@ -179,7 +179,7 @@ namespace Metasound
 
 				int32 NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, *PitchShiftCents) / NumInputChannels;
 
-				// TODO: handle decoder having completed during it's decode
+				// handle decoder having completed during it's decode
 				if (!Decoder.CanGenerateAudio() ||  (NumFramesDecoded < NumOutputFrames))
 				{
 					bIsPlaying = false;

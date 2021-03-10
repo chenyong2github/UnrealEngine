@@ -414,6 +414,27 @@ namespace Audio
 		return nullptr;
 	}
 
+	ICompressedAudioInfo* FMixerPlatformCoreAudio::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	{
+#if WITH_ENGINE
+		if (!ensure(InSoundWave.IsValid))
+		{
+			return nullptr;
+		}
+
+
+		if (InSoundWave->IsSeekableStreaming())
+		{
+			return new FADPCMAudioInfo();
+		}
+		else if (InSoundWave->IsStreaming())
+		{
+			return new FOpusAudioInfo();
+		}
+
+		return nullptr;
+	}
+
 	FString FMixerPlatformCoreAudio::GetDefaultDeviceName()
 	{
 		return FString();

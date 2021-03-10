@@ -403,6 +403,11 @@ namespace Audio
 	{
 		return new FADPCMAudioInfo();
 	}
+
+	ICompressedAudioInfo* FMixerPlatformAudioUnit::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	{
+		return new FADPCMAudioInfo();
+	}
 	
 	FString FMixerPlatformAudioUnit::GetDefaultDeviceName()
 	{

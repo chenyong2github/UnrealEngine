@@ -443,6 +443,17 @@ namespace Audio
 		return new FADPCMAudioInfo();
 	}
 
+	ICompressedAudioInfo* FMixerPlatformMagicLeap::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	{
+		if (!(InSoundWave.IsValid() && InSoundWave->IsStreaming()))
+		{
+			return nullptr;
+		}
+
+		static FName NAME_ADPCM(TEXT("ADPCM"));
+		return new FADPCMAudioInfo();
+	}
+
 	FString FMixerPlatformMagicLeap::GetDefaultDeviceName()
 	{
 		return FString(TEXT("MLAudio"));

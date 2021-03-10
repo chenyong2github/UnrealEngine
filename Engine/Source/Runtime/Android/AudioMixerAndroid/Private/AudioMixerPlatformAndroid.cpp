@@ -468,6 +468,28 @@ namespace Audio
 #endif // WITH_ENGINE
 	}
 
+	ICompressedAudioInfo* FMixerPlatformAndroid::CreateCompressedAudioInfo(const FSoundWaveProxyPtr& InSoundWave)
+	{
+		if (!ensure(InSoundWave.IsValid() && InSoundWave->IsStreaming()))
+		{
+			return nullptr;
+		}
+
+#if WITH_ENGINE
+		static FName NAME_OGG(TEXT("OGG"));
+		static FName NAME_ADPCM(TEXT("ADPCM"));
+
+		if (InSoundWave->IsSeekableStreaming())
+		{
+			return new FADPCMAudioInfo();
+		}
+
+		return new FVorbisAudioInfo();
+#endif // WITH_ENGINE
+
+		return nullptr;
+	}
+
 	FString FMixerPlatformAndroid::GetDefaultDeviceName()
 	{
 		return FString();
