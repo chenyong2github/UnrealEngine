@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Tools.DotNETCommon;
 
@@ -557,12 +558,28 @@ namespace UnrealBuildTool
 					// avoids child processes spuriously detecting manualsdks.
 					if (bNeedsToWriteAutoSetupEnvVar)
 					{
-						using (StreamWriter Writer = File.AppendText(EnvVarFile))
+						int AttemptsRemaining = 3;
+						while (AttemptsRemaining-- > 0)
 						{
-							Writer.WriteLine("{0}=1", PlatformSetupEnvVar);
+							try
+							{
+								using (StreamWriter Writer = File.AppendText(EnvVarFile))
+								{
+									Writer.WriteLine("{0}=1", PlatformSetupEnvVar);
+								}
+								// set the variable in the local environment in case this process spawns any others.
+								Environment.SetEnvironmentVariable(PlatformSetupEnvVar, "1");
+							}
+							catch
+							{
+								if (AttemptsRemaining == 0)
+								{
+									throw;
+								}
+
+								Thread.Sleep(TimeSpan.FromSeconds(1));
+							}
 						}
-						// set the variable in the local environment in case this process spawns any others.
-						Environment.SetEnvironmentVariable(PlatformSetupEnvVar, "1");
 					}
 
 					// make sure we know that we've modified the local environment, invalidating manual installs for this run.
