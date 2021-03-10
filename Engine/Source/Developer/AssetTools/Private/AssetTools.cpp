@@ -851,7 +851,7 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 	if (ValidateFlattenedAdvancedCopyDestinations(SourceAndDestPackages))
 	{
 		TArray<FString> SuccessfullyCopiedDestinationFiles;
-		TArray<FString> SuccessfullyCopiedSourcePackages;
+		TArray<FName> SuccessfullyCopiedSourcePackages;
 		TArray<UObject*> ExistingObjects;
 		TSet<UObject*> ExistingObjectSet;
 		TArray<UObject*> NewObjects;
@@ -892,8 +892,6 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 					UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), Pkg, *Name);
 					if (ExistingObject)
 					{
-						ExistingObjects.Add(ExistingObject);
-						ExistingObjectSet.Add(ExistingObject);
 						TSet<UPackage*> ObjectsUserRefusedToFullyLoad;
 						ObjectTools::FMoveDialogInfo MoveDialogInfo;
 						MoveDialogInfo.bOkToAll = bCopyOverAllDestinationOverlaps;
@@ -906,9 +904,11 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 						UObject* NewObject = ObjectTools::DuplicateSingleObject(ExistingObject, MoveDialogInfo.PGN, ObjectsUserRefusedToFullyLoad, bShouldPromptForDestinationConflict);
 						if (NewObject)
 						{
+							ExistingObjects.Add(ExistingObject);
+							ExistingObjectSet.Add(ExistingObject);
 							NewObjects.Add(NewObject);
 							NewObjectSet.Add(NewObject);
-							SuccessfullyCopiedSourcePackages.Add(PackageName);
+							SuccessfullyCopiedSourcePackages.Add(FName(*PackageName));
 							SuccessfullyCopiedDestinationFiles.Add(DestFilename);
 						}
 					}
@@ -920,24 +920,24 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 
 		TSet<UObject*> ObjectsAndSubObjectsToReplaceWithin;
 		ObjectTools::GatherSubObjectsForReferenceReplacement(NewObjectSet, ExistingObjectSet, ObjectsAndSubObjectsToReplaceWithin);
-		for (int32 ObjectIdx = 0; ObjectIdx < NewObjects.Num(); ObjectIdx++)
+
+		TArray<FName> Dependencies;
+		TArray<UObject*> ObjectsToReplace;
+		for (FName SuccessfullyCopiedPackage : SuccessfullyCopiedSourcePackages)
 		{
-			TMap<UObject*, UObject*> ReplacementMap;
-			TArray<FName> Dependencies;
-			FName SuccessfullyCopiedPackage = FName(*SuccessfullyCopiedSourcePackages[ObjectIdx]);
+			Dependencies.Reset();
 			AssetRegistryModule.Get().GetDependencies(SuccessfullyCopiedPackage, Dependencies);
 			for (FName Dependency : Dependencies)
 			{
-				const FString DependencyString = Dependency.ToString();
-				if (SuccessfullyCopiedSourcePackages.Contains(DependencyString))
+				if (SuccessfullyCopiedSourcePackages.Contains(Dependency))
 				{
-					int32 DependencyIndex = ExistingObjects.IndexOfByPredicate([&](UObject* Object) { 
-						return Object && Object->IsValidLowLevel() && Object->GetOuter()->GetName() == DependencyString;
+					int32 DependencyIndex = ExistingObjects.IndexOfByPredicate([Dependency](UObject* Object)
+						{
+							return Object && Object->IsValidLowLevel() && Object->GetOuter()->GetFName() == Dependency;
 						});
-
 					if (DependencyIndex != INDEX_NONE)
 					{
-						TArray<UObject*> ObjectsToReplace;
+						ObjectsToReplace.Reset();
 						ObjectsToReplace.Add(ExistingObjects[DependencyIndex]);
 						ObjectTools::ConsolidateObjects(NewObjects[DependencyIndex], ObjectsToReplace, ObjectsAndSubObjectsToReplaceWithin, ExistingObjectSet, false);
 					}
@@ -994,9 +994,9 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 				ErrorMessage += LOCTEXT("AdvancedCopyPackages_CopyErrorsSuccesslist", "Some files were copied successfully.").ToString();
 				for (auto FileIt = SuccessfullyCopiedSourcePackages.CreateConstIterator(); FileIt; ++FileIt)
 				{
-					if (FileIt->Len() > 0)
+					if (!FileIt->IsNone())
 					{
-						AdvancedCopyLog.Info(FText::FromString(*FileIt));
+						AdvancedCopyLog.Info(FText::FromName(*FileIt));
 					}
 				}
 			}
@@ -1007,9 +1007,9 @@ bool UAssetToolsImpl::AdvancedCopyPackages(const TMap<FString, FString>& SourceA
 			AdvancedCopyLog.NewPage(LOCTEXT("AdvancedCopyPackages_CompletePage", "Advanced content copy completed successfully!"));
 			for (auto FileIt = SuccessfullyCopiedSourcePackages.CreateConstIterator(); FileIt; ++FileIt)
 			{
-				if (FileIt->Len() > 0)
+				if (!FileIt->IsNone())
 				{
-					AdvancedCopyLog.Info(FText::FromString(*FileIt));
+					AdvancedCopyLog.Info(FText::FromName(*FileIt));
 				}
 			}
 		}
