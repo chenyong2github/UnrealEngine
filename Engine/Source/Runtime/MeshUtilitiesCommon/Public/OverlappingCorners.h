@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LayoutUV.h"
 
 /**
 * Container to hold overlapping corners. For a vertex, lists all the overlapping vertices
@@ -12,6 +13,7 @@ struct MESHUTILITIESCOMMON_API FOverlappingCorners
 	FOverlappingCorners() {}
 
 	FOverlappingCorners(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, float ComparisonThreshold);
+	FOverlappingCorners(const FLayoutUV::IMeshView& MeshView, float ComparisonThreshold);
 
 	/* Resets, pre-allocates memory, marks all indices as not overlapping in preperation for calls to Add() */
 	void Init(int32 NumIndices);

@@ -1916,118 +1916,173 @@ bool FStaticMeshOperations::CreateLightMapUVLayout(FMeshDescription& MeshDescrip
 	return bPackSuccess;
 }
 
-bool FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescription& MeshDescription, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords)
+// Mesh view that will expose only unique UVs if bMergeIdenticalMaterials is provided
+struct FUniqueUVMeshDescriptionView final : FLayoutUV::IMeshView
 {
-	// Create a copy of original mesh (only copy necessary data)
-	FMeshDescription DuplicateMeshDescription(MeshDescription);
+	const FMeshDescription& MeshDescription;
 
+	TVertexAttributesConstRef<FVector> Positions;
+	TVertexInstanceAttributesConstRef<FVector> Normals;
+	TVertexInstanceAttributesConstRef<FVector2D> TexCoords;
 
-	//Make sure we have a destination UV TextureCoordinnate
+	uint32 NumIndices = 0;
+
+	TArray<int32>						RemapVerts;
+	TMap<FVertexInstanceID, int32>		InstanceToIndex;
+	TArray<FVertexInstanceID>			UniqueVerts;
+	TArray<FVector2D>					OutputTexCoords;
+
+	FUniqueUVMeshDescriptionView(const FMeshDescription& InMeshDescription, bool bMergeIdenticalMaterials)
+		: MeshDescription(InMeshDescription)
 	{
-		TVertexInstanceAttributesRef<FVector2D> DuplicateVertexInstanceUVs = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		if (DuplicateVertexInstanceUVs.GetNumChannels() < 2)
+		FStaticMeshConstAttributes Attributes(MeshDescription);
+		Positions = Attributes.GetVertexPositions();
+		Normals = Attributes.GetVertexInstanceNormals();
+		TexCoords = Attributes.GetVertexInstanceUVs();
+
+		TVertexInstanceAttributesConstRef<FVector4> VertexColors = Attributes.GetVertexInstanceColors();
+
+		NumIndices = MeshDescription.VertexInstances().Num();
+
+		OutputTexCoords.SetNumUninitialized(NumIndices);
+		UniqueVerts.Reserve(NumIndices);
+
+		TMap<uint32, FTriangleID> UniqueTriangles;
+
+		if (bMergeIdenticalMaterials)
 		{
-			DuplicateVertexInstanceUVs.SetNumChannels(2);
+			RemapVerts.Reserve(NumIndices);
+			UniqueTriangles.Reserve(MeshDescription.Triangles().Num());
 		}
-	}
 
-	TMap<FVertexInstanceID, FVertexInstanceID> RemapVertexInstance;
-	//Remove the identical material
-	if (bMergeIdenticalMaterials)
-	{
-		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		TVertexInstanceAttributesConstRef<FVector4> VertexColors = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector4>(MeshAttribute::VertexInstance::Color);
-
-		TArray<FPolygonID> ToDeletePolygons;
-		RemapVertexInstance.Reserve(DuplicateMeshDescription.VertexInstances().Num());
-
-		int32 NumPolygons = DuplicateMeshDescription.Polygons().Num();
-
-		TMap<uint32, FPolygonID> UniquePolygons;
-		UniquePolygons.Reserve(NumPolygons);
-		ToDeletePolygons.Reserve(NumPolygons);
-
-		auto HashAttribute = [](FVertexInstanceID InVertexInstanceID, auto InAttributeArrayRef, int32& OutPolyHash)
+		auto HashAttribute = [](FVertexInstanceID InVertexInstanceID, auto InAttributeArrayRef, int32& TriangleHash)
 		{
 			for (int32 Channel = 0; Channel < InAttributeArrayRef.GetNumChannels(); ++Channel)
 			{
 				for (const auto& Element : InAttributeArrayRef.GetArrayView(InVertexInstanceID, Channel))
 				{
-					OutPolyHash = HashCombine(OutPolyHash, GetTypeHash(Element));
+					TriangleHash = HashCombine(TriangleHash, GetTypeHash(Element));
 				}
 			}
 		};
 
-		for (FPolygonID RefPolygonID : DuplicateMeshDescription.Polygons().GetElementIDs())
+		for (const FTriangleID TriangleID : MeshDescription.Triangles().GetElementIDs())
 		{
-			const FPolygonGroupID RefPolygonGroupID = DuplicateMeshDescription.GetPolygonPolygonGroup(RefPolygonID);
-			TArray<FVertexInstanceID, TInlineAllocator<4>> RefVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances<TInlineAllocator<4>>(RefPolygonID);
+			const FPolygonGroupID RefPolygonGroupID = MeshDescription.GetTrianglePolygonGroup(TriangleID);
+			TArrayView<const FVertexInstanceID> VertexInstances = MeshDescription.GetTriangleVertexInstances(TriangleID);
 
-			int32 PolyHash = GetTypeHash(RefPolygonGroupID);
-			for (FVertexInstanceID RefVertexInstanceID : RefVertexInstances)
+			bool bUnique = true;
+			if (bMergeIdenticalMaterials)
 			{
-				// Compute hash based on UVs & vertices colors
-				HashAttribute(RefVertexInstanceID, VertexInstanceUVs, PolyHash);
-				HashAttribute(RefVertexInstanceID, VertexColors, PolyHash);
-			}
-
-			FPolygonID& UniquePoly = UniquePolygons.FindOrAdd(PolyHash);
-			if (UniquePoly == INDEX_NONE)
-			{
-				UniquePoly = RefPolygonID;
-				for (FVertexInstanceID RefVertexInstanceID : RefVertexInstances)
+				int32 TriangleHash = GetTypeHash(RefPolygonGroupID);
+				for (const FVertexInstanceID VertexInstanceID : VertexInstances)
 				{
-					RemapVertexInstance.Add(RefVertexInstanceID, RefVertexInstanceID);
+					// Compute hash based on UVs & vertices colors
+					HashAttribute(VertexInstanceID, TexCoords, TriangleHash);
+					HashAttribute(VertexInstanceID, VertexColors, TriangleHash);
+				}
+
+				FTriangleID& UniqueTriangle = UniqueTriangles.FindOrAdd(TriangleHash);
+				if (UniqueTriangle != INDEX_NONE)
+				{
+					for (const FVertexInstanceID UniqueVertexInstance : MeshDescription.GetTriangleVertexInstances(UniqueTriangle))
+					{
+						RemapVerts.Add(InstanceToIndex[UniqueVertexInstance]);
+					}
+
+					bUnique = false;
+				}
+				else
+				{
+					UniqueTriangle = TriangleID;
 				}
 			}
-			else
+			
+			if (bUnique)
 			{
-				TArray<FVertexInstanceID, TInlineAllocator<4>> TestVertexInstances = DuplicateMeshDescription.GetPolygonVertexInstances<TInlineAllocator<4>>(UniquePoly);
-				int32 VertexInstanceIndex = 0;
-				for (FVertexInstanceID RefVertexInstanceID : RefVertexInstances)
+				for (const FVertexInstanceID VertexInstanceID : VertexInstances)
 				{
-					RemapVertexInstance.Add(RefVertexInstanceID, TestVertexInstances[VertexInstanceIndex]);
-					VertexInstanceIndex++;
+					if (bMergeIdenticalMaterials)
+					{
+						InstanceToIndex.Emplace(VertexInstanceID, UniqueVerts.Num());
+						RemapVerts.Add(UniqueVerts.Num());
+					}
+
+					UniqueVerts.Add(VertexInstanceID);
 				}
-				ToDeletePolygons.Add(RefPolygonID);
 			}
-		}
-
-		//Delete polygons
-		if (ToDeletePolygons.Num() > 0)
-		{
-			DuplicateMeshDescription.DeletePolygons(ToDeletePolygons);
-
-			//Avoid compacting the DuplicateMeshDescription, since the remap of the VertexInstanceID will not be good anymore
 		}
 	}
+
+	uint32 GetNumIndices() const override 
+	{
+		return UniqueVerts.Num();
+	}
+
+	FVector GetPosition(uint32 Index) const override
+	{
+		FVertexID VertexID = MeshDescription.GetVertexInstanceVertex(UniqueVerts[Index]);
+		return Positions[VertexID];
+	}
+
+	FVector GetNormal(uint32 Index) const override
+	{
+		return Normals[UniqueVerts[Index]];
+	}
+
+	FVector2D GetInputTexcoord(uint32 Index) const override
+	{
+		return TexCoords.Get(UniqueVerts[Index], 0);
+	}
+
+	void InitOutputTexcoords(uint32 Num) override
+	{
+		check(Num == UniqueVerts.Num());
+	}
+
+	void SetOutputTexcoord(uint32 Index, const FVector2D& Value) override
+	{
+		OutputTexCoords[Index] = Value;
+	}
+
+	TArray<FVector2D> RetrievePackedUVs()
+	{
+		if (RemapVerts.IsEmpty())
+		{ 
+			return OutputTexCoords;
+		}
+		
+		TArray<FVector2D> Out;
+		Out.Reserve(NumIndices);
+
+		for (uint32 i = 0; i < NumIndices; ++i)
+		{
+			Out.Add(OutputTexCoords[RemapVerts[i]]);
+		}
+
+		return Out;
+	}
+};
+
+bool FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(const FMeshDescription& MeshDescription, int32 TextureResolution, bool bMergeIdenticalMaterials, TArray<FVector2D>& OutTexCoords)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::GenerateUniqueUVsForStaticMesh)
+
+	FUniqueUVMeshDescriptionView MeshDescriptionView(MeshDescription, bMergeIdenticalMaterials);
+
 	// Find overlapping corners for UV generator. Allow some threshold - this should not produce any error in a case if resulting
 	// mesh will not merge these vertices.
-	FOverlappingCorners OverlappingCorners;
-	FindOverlappingCorners(OverlappingCorners, DuplicateMeshDescription, THRESH_POINTS_ARE_SAME);
+	FOverlappingCorners OverlappingCorners(MeshDescriptionView, THRESH_POINTS_ARE_SAME);
 
 	// Generate new UVs
-	FLayoutUVMeshDescriptionView DuplicateMeshDescriptionView(DuplicateMeshDescription, 0, 1);
-	FLayoutUV Packer(DuplicateMeshDescriptionView);
-	Packer.FindCharts(OverlappingCorners);
+	FLayoutUV Packer(MeshDescriptionView);
+	int32 NumCharts = Packer.FindCharts(OverlappingCorners);
 
 	bool bPackSuccess = Packer.FindBestPacking(FMath::Clamp(TextureResolution / 4, 32, 512));
 	if (bPackSuccess)
 	{
 		Packer.CommitPackedUVs();
-		TVertexInstanceAttributesConstRef<FVector2D> DupVertexInstanceUVs = DuplicateMeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-		// Save generated UVs
-		check(DupVertexInstanceUVs.GetNumChannels() > 1);
-		OutTexCoords.AddZeroed(VertexInstanceUVs.GetNumElements());
-		int32 TextureCoordIndex = 0;
-		for (const FVertexInstanceID& VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
-		{
-			FVertexInstanceID RemapID = bMergeIdenticalMaterials ? RemapVertexInstance[VertexInstanceID] : VertexInstanceID;
-			// Save generated UVs
-			OutTexCoords[TextureCoordIndex] = DupVertexInstanceUVs.Get(RemapID, 1);	// UV1
-			TextureCoordIndex++;
-		}
+		OutTexCoords = MeshDescriptionView.RetrievePackedUVs();
 	}
 
 	return bPackSuccess;
