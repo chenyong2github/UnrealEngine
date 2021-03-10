@@ -49,6 +49,7 @@ protected:
 	virtual bool ShouldConvertStreamingLevel(ULevelStreaming* StreamingLevel);
 	virtual bool ShouldDeleteActor(AActor* Actor, bool bMainLevel) const;
 	virtual void PerformAdditionalWorldCleanup(UWorld* World) const;
+	virtual void PerformAdditionalActorChanges(AActor* Actor) const {}
 	virtual void OutputConversionReport() const;
 	virtual void OnWorldLoaded(UWorld* World);
 	virtual void ReadAdditionalTokensAndSwitches(const TArray<FString>& Tokens, const TArray<FString>& Switches) {}

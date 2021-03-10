@@ -1380,6 +1380,16 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		// Required to clear any deleted actors from the level
 		CollectGarbage(RF_Standalone);
 
+		for (AActor* Actor : ActorList)
+		{
+			if (!Actor || Actor->IsPendingKill())
+			{
+				continue;
+			}
+
+			PerformAdditionalActorChanges(Actor);
+		}
+
 		MainLevel->bUseExternalActors = true;
 		MainWorld->WorldComposition = nullptr;
 		MainLevel->bIsPartitioned = true;
