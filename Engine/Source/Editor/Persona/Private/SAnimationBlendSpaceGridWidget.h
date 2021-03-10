@@ -31,7 +31,11 @@ public:
 	friend class FBlendSampleDetails;
 public:
 	SLATE_BEGIN_ARGS(SBlendSpaceGridWidget) 
-		: _ReadOnly(false)
+		: _BlendSpaceBase(nullptr)
+		, _Position(0.f)
+		, _FilteredPosition(0.f)
+		, _NotifyHook(nullptr)
+		, _ReadOnly(false)
 		, _ShowAxisLabels(true)
 		, _ShowSettingsButtons(true)
 		, _StatusBarName(TEXT("AssetEditor.AnimationEditor.MainMenu"))

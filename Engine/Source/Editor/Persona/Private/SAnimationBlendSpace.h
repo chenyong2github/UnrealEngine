@@ -20,7 +20,10 @@ class SBlendSpaceEditor : public SAnimEditorBase, public FNotifyHook, public FSe
 {
 public:
 	SLATE_BEGIN_ARGS(SBlendSpaceEditor)
-		: _BlendSpace(NULL)
+		: _BlendSpace(nullptr)
+		, _DisplayScrubBar(true)
+		, _PreviewPosition(0.f)
+		, _PreviewFilteredPosition(0.f)
 		, _StatusBarName(TEXT("AssetEditor.AnimationEditor.MainMenu"))
 		{}
 		
