@@ -90,18 +90,6 @@ public:
 #endif	
 	//~ End UObject Interface
 
-protected:
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
-	FLensDistortionState CurrentState;
-
-	/** Computed overscan factor needed to scale the camera's sensor dimensions (read-only) */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
-	float OverscanFactor = 1.0f;
-
-	/** Dynamically created post-process material instance for the currently specified lens model */
-	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Transient, Category = "Distortion")
-	UMaterialInstanceDynamic* DistortionMID;
-
 private:
 	/** Use the current distortion state to compute the distortion position of an input UV coordinate */
 	FVector2D ComputeDistortedUV(const FVector2D& InScreenUV) const;
@@ -111,4 +99,16 @@ private:
 
 	/** Update the lens distortion state, recompute the overscan factor, and set all material parameters */
 	void UpdateInternal(const FLensDistortionState& InNewState);
+
+protected:
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Distortion", meta = (ShowOnlyInnerProperties))
+	FLensDistortionState CurrentState;
+
+	/** Computed overscan factor needed to scale the camera's sensor dimensions (read-only) */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
+	float OverscanFactor = 1.0f;
+
+	/** Dynamically created post-process material instance for the currently specified lens model */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Distortion")
+	UMaterialInstanceDynamic* DistortionMID;
 };

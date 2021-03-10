@@ -48,11 +48,17 @@ struct LENSDISTORTION_API FLensInfo
 
 public:
 
+	/** Model name of the lens */
 	UPROPERTY(EditAnywhere, Category = "Lens Info")
-	FString LensModel;
+	FString LensModelName;
 
+	/** Serial number of the lens */
 	UPROPERTY(EditAnywhere, Category = "Lens Info")
 	FString LensSerialNumber;
+
+	/** Model of the lens (spherical, anamorphic, etc...) */
+	UPROPERTY(EditAnywhere, Category = "Lens Info")
+	ELensModel LensModel = ELensModel::Spherical;
 };
 
 /**

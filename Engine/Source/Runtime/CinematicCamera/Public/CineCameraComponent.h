@@ -37,6 +37,11 @@ struct FCameraFilmbackSettings
 			&& (SensorHeight == Other.SensorHeight);
 	}
 
+	bool operator!=(const FCameraFilmbackSettings& Other) const
+	{
+		return !operator==(Other);
+	}
+
 	FCameraFilmbackSettings()
 		: SensorWidth(24.89f)
 		, SensorHeight(18.67f)

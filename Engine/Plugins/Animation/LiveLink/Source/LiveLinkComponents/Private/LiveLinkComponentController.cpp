@@ -33,6 +33,15 @@ ULiveLinkComponentController::ULiveLinkComponentController()
 
 void ULiveLinkComponentController::OnSubjectRoleChanged()
 {
+	//Whenever the subject role is changed, we start from clean controller map. Cleanup the ones currently active
+	for (TPair<TSubclassOf<ULiveLinkRole>, ULiveLinkControllerBase*>& ControllerPair : ControllerMap)
+	{
+		if (ControllerPair.Value)
+		{
+			ControllerPair.Value->Cleanup();
+		}
+	}
+
 	if (SubjectRepresentation.Role == nullptr)
 	{
 		ControllerMap.Empty();
@@ -62,9 +71,14 @@ void ULiveLinkComponentController::SetControllerClassForRole(TSubclassOf<ULiveLi
 		ULiveLinkControllerBase*& CurrentController = ControllerMap.FindOrAdd(RoleClass);
 		if (CurrentController == nullptr || CurrentController->GetClass() != DesiredControllerClass)
 		{
+			//Controller is about to change, cleanup current one before 
+			if (CurrentController)
+			{
+				CurrentController->Cleanup();
+			}
+
 			if (DesiredControllerClass != nullptr)
 			{
-
 				const EObjectFlags ControllerObjectFlags = GetMaskedFlags(RF_Public | RF_Transactional | RF_ArchetypeObject);
 				CurrentController = NewObject<ULiveLinkControllerBase>(this, DesiredControllerClass, NAME_None, ControllerObjectFlags);
 
@@ -101,6 +115,20 @@ void ULiveLinkComponentController::OnRegister()
 	Super::OnRegister();
 
 	bIsDirty = true;
+}
+
+void ULiveLinkComponentController::DestroyComponent(bool bPromoteChildren /*= false*/)
+{
+	//Whenever the subject role is changed, we start from clean controller map. Cleanup the ones currently active
+	for (TPair<TSubclassOf<ULiveLinkRole>, ULiveLinkControllerBase*>& ControllerPair : ControllerMap)
+	{
+		if (ControllerPair.Value)
+		{
+			ControllerPair.Value->Cleanup();
+		}
+	}
+
+	Super::DestroyComponent(bPromoteChildren);
 }
 
 void ULiveLinkComponentController::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
