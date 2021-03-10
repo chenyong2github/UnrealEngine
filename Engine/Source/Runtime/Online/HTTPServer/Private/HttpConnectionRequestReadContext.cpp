@@ -16,6 +16,7 @@ void FHttpConnectionRequestReadContext::ResetContext()
 {
 	Request = nullptr;
 	ElapsedIdleTime = 0.0f;
+	SecondsWaitingForReadableSocket = 0.f;
 	ErrorBuilder.Empty();
 	HeaderBytes.Empty();
 	IncomingRequestBodyBytesToRead = 0;

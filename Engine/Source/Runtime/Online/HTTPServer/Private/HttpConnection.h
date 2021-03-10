@@ -27,7 +27,7 @@ public:
 	 * 
 	 * @param InSocket The underlying file descriptor
 	 */
-	FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId, FTimespan InSelectWaitTime);
+	FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId);
 	/**
 	 * Destructor
 	 */
@@ -252,8 +252,5 @@ private:
 
 	/** The duration (seconds) at which idle keep-alive connections are forcefully timed out */
 	static constexpr float ConnectionKeepAliveTimeout = 15.0f;
-
-	/** The maximum time spent waiting for a client to accept reading its data. */
-	FTimespan SelectWaitTime;
 };
 

@@ -17,14 +17,13 @@
 
 DEFINE_LOG_CATEGORY(LogHttpConnection)
 
-FHttpConnection::FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId, FTimespan InSelectWaitTime)
+FHttpConnection::FHttpConnection(FSocket* InSocket, TSharedPtr<FHttpRouter> InRouter, uint32 InOriginPort, uint32 InConnectionId)
 	: Socket(InSocket)
 	,Router(InRouter)
 	,OriginPort(InOriginPort)
 	,ConnectionId(InConnectionId)
 	,ReadContext(InSocket)
 	,WriteContext(InSocket)
-	,SelectWaitTime(InSelectWaitTime)
 {
 	check(nullptr != Socket);
 }
@@ -42,7 +41,7 @@ void FHttpConnection::Tick(float DeltaTime)
 	switch (State)
 	{
 	case EHttpConnectionState::AwaitingRead:
-		if (ReadContext.GetElapsedIdleTime() > AwaitReadTimeout)
+		if (ReadContext.GetElapsedIdleTime() > AwaitReadTimeout || ReadContext.GetSecondsWaitingForReadableSocket() > AwaitReadTimeout)
 		{
 			Destroy(EConnectionDestroyReason::AwaitReadTimeout);
 			return;
@@ -96,25 +95,31 @@ void FHttpConnection::TransferState(EHttpConnectionState CurrentState, EHttpConn
 
 void FHttpConnection::BeginRead(float DeltaTime)
 {
-	// Wait should always return true if the connection is valid
-	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, SelectWaitTime))
+	const FTimespan WaitTime = FTimespan::FromMilliseconds(1);
+	if (!Socket->Wait(ESocketWaitConditions::WaitForRead, WaitTime))
 	{
-		Destroy(EConnectionDestroyReason::BeginReadTimeout);
-		return;
-	}
-
-	// The socket is reachable, however there may not be data in the pipe
-	uint32 PendingDataSize = 0;
-	if (Socket->HasPendingData(PendingDataSize))
-	{
-		TransferState(EHttpConnectionState::AwaitingRead, EHttpConnectionState::Reading);
-		LastRequestNumber++;
-		ReadContext.ResetContext();
-		ContinueRead(DeltaTime);
+		const float SecondsPollingSocketThisFrame = WaitTime.GetTotalSeconds();
+		// We don't add DeltaTime on the first attempt as only 1ms has passed since we started waiting for the socket to be reachable.
+		const float SecondsPollingSocketSinceLastFrame = ReadContext.GetSecondsWaitingForReadableSocket() == 0.f ? SecondsPollingSocketThisFrame : DeltaTime + SecondsPollingSocketThisFrame;
+		ReadContext.AddSecondsWaitingForReadableSocket(SecondsPollingSocketSinceLastFrame);
 	}
 	else
 	{
-		ReadContext.AddElapsedIdleTime(DeltaTime);
+		ReadContext.ResetSecondsWaitingForReadableSocket();
+
+		// The socket is reachable, however there may not be data in the pipe
+		uint32 PendingDataSize = 0;
+		if (Socket->HasPendingData(PendingDataSize))
+		{
+			TransferState(EHttpConnectionState::AwaitingRead, EHttpConnectionState::Reading);
+			LastRequestNumber++;
+			ReadContext.ResetContext();
+			ContinueRead(DeltaTime);
+		}
+		else
+		{
+			ReadContext.AddElapsedIdleTime(DeltaTime);
+		}
 	}
 }
 
