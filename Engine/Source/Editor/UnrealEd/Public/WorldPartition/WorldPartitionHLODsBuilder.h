@@ -18,9 +18,17 @@ public:
 	// UWorldPartitionBuilder interface end
 
 protected:
+	bool ValidateParams() const;
+
 	bool SetupHLODActors(bool bCreateOnly);
 	bool BuildHLODActors();
 	bool DeleteHLODActors();
+
+	bool GenerateBuildManifest() const;
+	bool GetHLODActorsToBuild(TArray<FGuid>& HLODActorsToBuild) const;
+
+	TArray<TArray<FGuid>> GetHLODWorldloads(int32 NumWorkloads) const;
+	bool ValidateWorkload(const TArray<FGuid>& Workload) const;
 
 private:
 	class UWorldPartition* WorldPartition;
@@ -30,4 +38,8 @@ private:
 	bool bBuildHLODs;
 	bool bDeleteHLODs;
 	bool bForceGC;
+
+	FString BuildManifest;
+	int32 BuilderIdx;
+	int32 BuilderCount;
 };
