@@ -422,7 +422,6 @@ namespace Audio
 			return nullptr;
 		}
 
-
 		if (InSoundWave->IsSeekableStreaming())
 		{
 			return new FADPCMAudioInfo();
@@ -432,6 +431,7 @@ namespace Audio
 			return new FOpusAudioInfo();
 		}
 
+#endif // WITH_ENGINE
 		return nullptr;
 	}
 
