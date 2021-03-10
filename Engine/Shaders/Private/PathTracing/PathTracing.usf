@@ -24,6 +24,7 @@ PathTracingRayGenShader.usf: Reference path tracing
 RWTexture2D<float4> RadianceTexture;
 RaytracingAccelerationStructure TLAS;
 int3 TileOffset;
+uint SceneVisibleLightCount;
 
 void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 {
@@ -42,39 +43,47 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 
 FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
+	const uint RayFlags = IsCameraRay && PathTracingData.EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
+	const uint MissShaderIndex = 0;
 	float SelectionWeightSum = 0;
 	float3 PayloadThroughput = PathThroughput;
 	FMaterialClosestHitPayload Payload;
 	for (;;)
 	{
-		const uint InitialRayFlags = IsCameraRay && PathTracingData.EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
-		const bool bInitialDisableSkyLightContribution = false;
-		const bool bIgnoreTranslucentMaterials = false;
-		FMaterialClosestHitPayload HitPayload = TraceMaterialRay(
+		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
+		// Set payload inputs
+		PackedPayload.SetRayCone(RayCone);
+		PackedPayload.SetPixelCoord(LaunchIndex);
+		// Trace the ray
+		TraceRay(
 			TLAS,
-			InitialRayFlags,
+			RayFlags,
 			RAY_TRACING_MASK_ALL,
+			RAY_TRACING_SHADER_SLOT_MATERIAL,
+			RAY_TRACING_NUM_SHADER_SLOTS,
+			MissShaderIndex,
 			Ray,
-			RayCone,
-			LaunchIndex,
-			bInitialDisableSkyLightContribution,
-			bIgnoreTranslucentMaterials);
+			PackedPayload);
 
 		// Loop over lights to capture their contribution
 		// #dxr_todo: if we have lots of lights, having some hierarchical structure would be better ....
 		for (uint LightId = 0; LightId < NumLights; ++LightId)
 		{
 			RayDesc LightRay = Ray;
-			LightRay.TMax = HitPayload.IsMiss() ? Ray.TMax : HitPayload.HitT;
+			LightRay.TMax = PackedPayload.IsMiss() ? Ray.TMax : PackedPayload.HitT;
 			float3 LightRadiance = TraceLight(LightRay, LightId).Radiance;
 			AccumulateRadiance(Radiance, PathThroughput * LightRadiance);
 		}
 
-		if (HitPayload.IsMiss())
+		if (PackedPayload.IsMiss())
 		{
 			// Ray didn't hit any real geometry, so nothing left to do
 			break;
 		}
+
+		// Unpack the payload
+		FMaterialClosestHitPayload HitPayload = UnpackRayTracingPayload(PackedPayload, Ray);
+
 
 		// material tweaks to workaround temporary limitations
 		if (HitPayload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
@@ -250,11 +259,11 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	const int MISMode = PathTracingData.MISMode;
 
 	// number of directly visible lights for the first bounce
-	uint NumLights = PathTracingData.VisibleLights ? SceneLightCount : 0;
+	uint NumVisibleLights = SceneVisibleLightCount;
 
 	for (int Bounce = 0; Bounce <= PathTracingData.MaxBounces; Bounce++)
 	{
-		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == 0, Bounce == PathTracingData.MaxBounces, PathTracingData.SkipDirectLighting == 0 || Bounce > 1, LaunchIndex, NumLights, RandSequence, PathThroughput, Radiance);
+		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == 0, Bounce == PathTracingData.MaxBounces, PathTracingData.SkipDirectLighting == 0 || Bounce > 1, LaunchIndex, NumVisibleLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
 		{
@@ -445,7 +454,10 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 		// from this point on, we don't need to include lights in the trace call
 		// because NEE handled it for us
-		NumLights = 0;
+		NumVisibleLights = 0;
+		
+		// update ray cone for the next bounce
+		RayCone = Payload.GetRayCone();
 	}
 
 
