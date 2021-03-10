@@ -950,8 +950,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
 	FIntRect PathTracingRect;
 	uint32   PathTracingTargetSPP;
-	FRWBuffer* VarianceMipTree;
-	FIntVector VarianceMipTreeDimensions;
 
 	// Path tracer samples/pixel
 	uint32 PathTracingSampleIndex;
@@ -959,14 +957,6 @@ public:
 	// Path tracer frame index, not reset on invalidation unlike PathTracingSampleIndex to avoid
 	// the "screen door" effect and reduce temporal aliasing
 	uint32_t PathTracingFrameIndex;
-
-	// Path tracer ray counter
-	uint32 TotalRayCount;
-	FRWBuffer* TotalRayCountBuffer;
-
-	// Ray Count readback:
-	FRHIGPUBufferReadback* RayCountGPUReadback;
-	bool bReadbackInitialized = false;
 
 	// IES light profiles
 	FIESLightProfileResource IESLightProfileResources;

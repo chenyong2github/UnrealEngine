@@ -231,24 +231,10 @@ FSceneViewState::FSceneViewState()
 	bUpdateLastExposure = false;
 
 #if RHI_RAYTRACING
-	VarianceMipTreeDimensions = FIntVector(0);
-	VarianceMipTree = new FRWBuffer;
 	PathTracingRect = FIntRect(0, 0, 0, 0);
 	PathTracingTargetSPP = 0;
 	PathTracingSampleIndex = 0;
 	PathTracingFrameIndex = 0;
-	TotalRayCount = 0;
-	TotalRayCountBuffer = new FRWBuffer;
-	if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
-	{
-		ENQUEUE_RENDER_COMMAND(InitializeSceneViewStateRWBuffer)(
-			[this](FRHICommandList&)
-			{
-				TotalRayCountBuffer->Initialize(sizeof(uint32), 1, PF_R32_UINT, BUF_SourceCopy);
-			});
-	}
-	bReadbackInitialized = false;
-	RayCountGPUReadback = new FRHIGPUBufferReadback(TEXT("Ray Count Readback"));
 
 	GatherPointsBuffer = nullptr;
 	GatherPointsResolution = FIntVector(0, 0, 0);
@@ -293,17 +279,6 @@ FSceneViewState::~FSceneViewState()
 	DestroyRenderResource(AOScreenGridResources);
 	AOScreenGridResources = NULL;
 	DestroyLightPropagationVolume();
-
-#if RHI_RAYTRACING
-	DestroyRWBuffer(VarianceMipTree);
-	DestroyRWBuffer(TotalRayCountBuffer);
-
-	ENQUEUE_RENDER_COMMAND(FDeleteGpuReadback)(
-		[DeleteMe = RayCountGPUReadback](FRHICommandList&)
-	{
-		delete DeleteMe;
-	});
-#endif // RHI_RAYTRACING
 }
 
 #if WITH_EDITOR
