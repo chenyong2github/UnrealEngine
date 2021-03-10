@@ -67,9 +67,9 @@ namespace Metasound
 			check(OutputSampleRate);
 			check(AudioBufferL->Num() == OutputBlockSizeInFrames && AudioBufferR->Num() == OutputBlockSizeInFrames);
 
-			if (Wave->SoundWaveProxy.IsValid())
+			if (Wave->IsSoundWaveValid())
 			{
-				CurrentSoundWaveName = Wave->SoundWaveProxy->GetFName();
+				CurrentSoundWaveName = (*Wave)->GetFName();
 			}
 		}
 
@@ -100,7 +100,7 @@ namespace Metasound
 			FName NewSoundWaveName = FName();
 			if (Wave->IsSoundWaveValid())
 			{
-				NewSoundWaveName = Wave->SoundWaveProxy->GetFName();
+				NewSoundWaveName = (*Wave)->GetFName();
 			}
 
 			if (NewSoundWaveName != CurrentSoundWaveName)
@@ -149,13 +149,13 @@ namespace Metasound
 				return false;
 			}
 
-			return Decoder.Initialize(Params, Wave->SoundWaveProxy);
+			return Decoder.Initialize(Params, Wave->GetSoundWaveProxy());
 		}
 
 
 		void ExecuteInternal(int32 StartFrame, int32 EndFrame)
 		{
-			bool bCanDecodeWave = Wave->IsSoundWaveValid() && (Wave->SoundWaveProxy->GetNumChannels() <= 2); // only support mono or stereo inputs
+			bool bCanDecodeWave = Wave->IsSoundWaveValid() && ((*Wave)->GetNumChannels() <= 2); // only support mono or stereo inputs
 
 			// note: output is hard-coded to stereo (dual-mono)
 			float* FinalOutputLeft = AudioBufferL->GetData() + StartFrame;
@@ -167,7 +167,7 @@ namespace Metasound
 				ensure(Decoder.CanGenerateAudio());
 
 
-				const int32 NumInputChannels = Wave->SoundWaveProxy->GetNumChannels();
+				const int32 NumInputChannels = (*Wave)->GetNumChannels();
 				const bool bNeedsUpmix = (NumInputChannels == 1);
 				const bool bNeedsDeinterleave = !bNeedsUpmix;
 
@@ -253,7 +253,7 @@ namespace Metasound
 			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("NoSoundWave", "No Sound Wave"));
 
 		}
-		else if (Wave->SoundWaveProxy->GetNumChannels() > 2)
+		else if ((*Wave)->GetNumChannels() > 2)
 		{
 			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("WavePlayerCurrentlyOnlySuportsMonoAssets", "Wave Player Currently Only Supports Mono Or Stereo Assets"));
 		}

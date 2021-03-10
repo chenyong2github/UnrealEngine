@@ -306,7 +306,7 @@ namespace Metasound
 				const int32 IndexValue = *Index;
 				const ArrayType& ArrayRef = *Array;
 
-				if (IndexValue < ArrayRef.Num())
+				if ((IndexValue >= 0) && (IndexValue < ArrayRef.Num()))
 				{
 					*Value = ArrayRef[IndexValue];
 				}
@@ -601,9 +601,9 @@ namespace Metasound
 		virtual ~TArrayConcatNode() = default;
 	};
 
-	/** TArraySliceOperator slices an array on trigger. */
+	/** TArraySubsetOperator slices an array on trigger. */
 	template<typename ArrayType>
-	class TArraySliceOperator : public TExecutableOperator<TArraySliceOperator<ArrayType>>
+	class TArraySubsetOperator : public TExecutableOperator<TArraySubsetOperator<ArrayType>>
 	{
 	public:
 		using FArrayDataReadReference = TDataReadReference<ArrayType>;
@@ -616,14 +616,14 @@ namespace Metasound
 
 			static const FVertexInterface DefaultInterface(
 				FInputVertexInterface(
-					TInputDataVertexModel<FTrigger>(GetInputTriggerName(), LOCTEXT("ArrayOpArraySliceTrigger", "Trigger to set value.")),
-					TInputDataVertexModel<ArrayType>(GetInputArrayName(), LOCTEXT("ArrayOpArraySliceInputLeft", "Input Array.")),
-					TInputDataVertexModel<int32>(GetInputStartIndexName(), LOCTEXT("ArrayOpArraySliceStartIndex", "First index to include.")),
-					TInputDataVertexModel<int32>(GetInputEndIndexName(), LOCTEXT("ArrayOpArraySliceEndIndex", "Last index to include."))
+					TInputDataVertexModel<FTrigger>(GetInputTriggerName(), LOCTEXT("ArrayOpArraySubsetTrigger", "Trigger to set value.")),
+					TInputDataVertexModel<ArrayType>(GetInputArrayName(), LOCTEXT("ArrayOpArraySubsetInputLeft", "Input Array.")),
+					TInputDataVertexModel<int32>(GetInputStartIndexName(), LOCTEXT("ArrayOpArraySubsetStartIndex", "First index to include.")),
+					TInputDataVertexModel<int32>(GetInputEndIndexName(), LOCTEXT("ArrayOpArraySubsetEndIndex", "Last index to include."))
 
 				),
 				FOutputVertexInterface(
-					TOutputDataVertexModel<ArrayType>(GetOutputArrayName(), LOCTEXT("ArrayOpArraySliceOutput", "Array after slicing."))
+					TOutputDataVertexModel<ArrayType>(GetOutputArrayName(), LOCTEXT("ArrayOpArraySubsetOutput", "Subset of input array."))
 				)
 			);
 
@@ -635,9 +635,9 @@ namespace Metasound
 			auto CreateNodeClassMetadata = []() -> FNodeClassMetadata
 			{
 				FName DataTypeName = GetMetasoundDataTypeName<ArrayType>();
-				FName OperatorName = TEXT("Slice"); 
-				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArraySliceDisplayNamePattern", "Slice ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
-				FText NodeDescription = LOCTEXT("ArrayOpArraySliceDescription", "Slice array on trigger.");
+				FName OperatorName = TEXT("Subset"); 
+				FText NodeDisplayName = FText::Format(LOCTEXT("ArrayOpArraySubsetDisplayNamePattern", "Subset ({0})"), FText::FromString(GetMetasoundDataTypeString<ArrayType>()));
+				FText NodeDescription = LOCTEXT("ArrayOpArraySubsetDescription", "Subset array on trigger.");
 				FVertexInterface NodeInterface = GetDefaultInterface();
 			
 				return MetasoundArrayNodesPrivate::CreateArrayNodeClassMetadata(DataTypeName, OperatorName, NodeDisplayName, NodeDescription, NodeInterface);
@@ -664,11 +664,11 @@ namespace Metasound
 
 			FArrayDataWriteReference OutArray = TDataWriteReferenceFactory<ArrayType>::CreateExplicitArgs(InParams.OperatorSettings);
 
-			return MakeUnique<TArraySliceOperator>(Trigger, InArray, StartIndex, EndIndex, OutArray);
+			return MakeUnique<TArraySubsetOperator>(Trigger, InArray, StartIndex, EndIndex, OutArray);
 		}
 
 
-		TArraySliceOperator(TDataReadReference<FTrigger> InTrigger, FArrayDataReadReference InInputArray, TDataReadReference<int32> InStartIndex, TDataReadReference<int32> InEndIndex, FArrayDataWriteReference InOutputArray)
+		TArraySubsetOperator(TDataReadReference<FTrigger> InTrigger, FArrayDataReadReference InInputArray, TDataReadReference<int32> InStartIndex, TDataReadReference<int32> InEndIndex, FArrayDataWriteReference InOutputArray)
 		: Trigger(InTrigger)
 		, InputArray(InInputArray)
 		, StartIndex(InStartIndex)
@@ -677,7 +677,7 @@ namespace Metasound
 		{
 		}
 
-		virtual ~TArraySliceOperator() = default;
+		virtual ~TArraySubsetOperator() = default;
 
 		virtual FDataReferenceCollection GetInputs() const override
 		{
@@ -712,7 +712,7 @@ namespace Metasound
 
 				const ArrayType& InputArrayRef = *InputArray;
 				const int32 StartIndexValue = FMath::Max(0, *StartIndex);
-				const int32 EndIndexValue = FMath::Min(InputArrayRef.Num(), *EndIndex);
+				const int32 EndIndexValue = FMath::Min(InputArrayRef.Num(), *EndIndex + 1);
 
 				if (StartIndexValue < EndIndexValue)
 				{
@@ -732,15 +732,15 @@ namespace Metasound
 	};
 
 	template<typename ArrayType>
-	class TArraySliceNode : public FNodeFacade
+	class TArraySubsetNode : public FNodeFacade
 	{
 	public:
-		TArraySliceNode(const FNodeInitData& InInitData)
-		: FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<TArraySliceOperator<ArrayType>>())
+		TArraySubsetNode(const FNodeInitData& InInitData)
+		: FNodeFacade(InInitData.InstanceName, InInitData.InstanceID, TFacadeOperatorClass<TArraySubsetOperator<ArrayType>>())
 		{
 		}
 
-		virtual ~TArraySliceNode() = default;
+		virtual ~TArraySubsetNode() = default;
 	};
 }
 

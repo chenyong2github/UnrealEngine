@@ -20,24 +20,12 @@ namespace Metasound
 	// Metasound data type that holds onto a weak ptr. Mostly used as a placeholder until we have a proper proxy type.
 	class METASOUNDENGINE_API FWaveAsset
 	{
-	public:
-		// TODO: Implement using TSharedPtr<> to enable cheaper assignment when 
-		// choosing between multiple instances of FWaveAsset.
 		FSoundWaveProxyPtr SoundWaveProxy;
+	public:
 
 		FWaveAsset() = default;
-		FWaveAsset(const FWaveAsset&) = delete;
-
-		// Define move constructor and move assignment since
-		// object cannot be copied to due TUniquePtr member.
-		FWaveAsset(FWaveAsset&&) = default;
-		FWaveAsset& operator=(FWaveAsset&&) = default;
-
-		FWaveAsset& operator=(const FWaveAsset& Other)
-		{
-			SoundWaveProxy = Other.SoundWaveProxy;
-			return *this;
-		}
+		FWaveAsset(const FWaveAsset&) = default;
+		FWaveAsset& operator=(const FWaveAsset& Other) = default;
 
 		FWaveAsset(const TUniquePtr<Audio::IProxyData>& InInitData)
 		{
@@ -45,8 +33,11 @@ namespace Metasound
 
 			if (InInitData.IsValid())
 			{
-				// should we be getting handed a SharedPtr here?
-				SoundWaveProxy = MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(InInitData->GetAs<FSoundWaveProxy>());
+				if (InInitData->CheckTypeCast<FSoundWaveProxy>())
+				{
+					// should we be getting handed a SharedPtr here?
+					SoundWaveProxy = MakeShared<FSoundWaveProxy, ESPMode::ThreadSafe>(InInitData->GetAs<FSoundWaveProxy>());
+				}
 			}
 		}
 
@@ -54,7 +45,21 @@ namespace Metasound
 		{
 			return SoundWaveProxy.IsValid();
 		}
-		
+
+		const FSoundWaveProxyPtr& GetSoundWaveProxy() const
+		{
+			return SoundWaveProxy;
+		}
+
+		const FSoundWaveProxy* operator->() const
+		{
+			return SoundWaveProxy.Get();
+		}
+
+		FSoundWaveProxy* operator->()
+		{
+			return SoundWaveProxy.Get();
+		}
 	};
 
 	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FWaveAsset, METASOUNDENGINE_API, FWaveAssetTypeInfo, FWaveAssetReadRef, FWaveAssetWriteRef)

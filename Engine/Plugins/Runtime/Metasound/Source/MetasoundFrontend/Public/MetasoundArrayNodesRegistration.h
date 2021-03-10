@@ -37,7 +37,7 @@ namespace Metasound
 			static constexpr bool bIsArrayConcatSupported = std::is_copy_constructible<ElementType>::value;
 
 			// Elements must be copy constructible
-			static constexpr bool bIsArraySliceSupported = std::is_copy_constructible<ElementType>::value;
+			static constexpr bool bIsArraySubsetSupported = std::is_copy_constructible<ElementType>::value;
 		};
 
 		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArrayGetSupported, bool>::type = true>
@@ -71,18 +71,18 @@ namespace Metasound
 			return true;
 		}
 
-		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArraySliceSupported, bool>::type = true>
-		bool RegisterArraySliceNode()
+		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArraySubsetSupported, bool>::type = true>
+		bool RegisterArraySubsetNode()
 		{
-			using FNodeType = typename Metasound::TArraySliceNode<ArrayType>;
+			using FNodeType = typename Metasound::TArraySubsetNode<ArrayType>;
 
-			static_assert(TArrayNodeSupport<ArrayType>::bIsArraySliceSupported, "TArraySliceNode<> is not supported by array type");
+			static_assert(TArrayNodeSupport<ArrayType>::bIsArraySubsetSupported, "TArraySubsetNode<> is not supported by array type");
 
 			return RegisterNodeWithFrontend<FNodeType>();
 		}
 
-		template<typename ArrayType, typename std::enable_if<!TArrayNodeSupport<ArrayType>::bIsArraySliceSupported, bool>::type = true>
-		bool RegisterArraySliceNode()
+		template<typename ArrayType, typename std::enable_if<!TArrayNodeSupport<ArrayType>::bIsArraySubsetSupported, bool>::type = true>
+		bool RegisterArraySubsetNode()
 		{
 			// No op if not supported
 			return true;
@@ -126,7 +126,7 @@ namespace Metasound
 		bool bSuccess = RegisterArrayNumNode<ArrayType>();
 		bSuccess = bSuccess && RegisterArrayGetNode<ArrayType>();
 		bSuccess = bSuccess && RegisterArraySetNode<ArrayType>();
-		bSuccess = bSuccess && RegisterArraySliceNode<ArrayType>();
+		bSuccess = bSuccess && RegisterArraySubsetNode<ArrayType>();
 		bSuccess = bSuccess && RegisterArrayConcatNode<ArrayType>();
 
 		return bSuccess;
