@@ -33,6 +33,8 @@
 
 #define LOCTEXT_NAMESPACE "SourceControlChangelist"
 
+DEFINE_LOG_CATEGORY_STATIC(LogSourceControlChangelist, All, All);
+
 //////////////////////////////
 struct FSCCFileDragDropOp : public FDragDropOperation
 {
@@ -517,7 +519,7 @@ void SSourceControlChangelistsWidget::OnDeleteShelvedFiles()
 	SourceControlProvider.Execute(DeleteShelvedOperation, GetChangelistFromSelection(), GetSelectedShelvedFiles());
 }
 
-static void GetChangelistValidationResult(FSourceControlChangelistPtr InChangelist, FString& OutValidationText, FName& OutValidationIcon)
+static bool GetChangelistValidationResult(FSourceControlChangelistPtr InChangelist, FString& OutValidationText, FName& OutValidationIcon)
 {
 	FSourceControlPreSubmitDataValidationDelegate ValidationDelegate = ISourceControlModule::Get().GetRegisteredPreSubmitDataValidation();
 
@@ -525,12 +527,15 @@ static void GetChangelistValidationResult(FSourceControlChangelistPtr InChangeli
 	TArray<FText> ValidationErrors;
 	TArray<FText> ValidationWarnings;
 
+	bool bValidationResult = true;
+
 	if (ValidationDelegate.ExecuteIfBound(InChangelist, ValidationResult, ValidationErrors, ValidationWarnings))
 	{
 		if (ValidationResult == EDataValidationResult::Invalid || ValidationErrors.Num() > 0)
 		{
 			OutValidationIcon = "MessageLog.Error";
 			OutValidationText = LOCTEXT("SourceControl.Submit.ChangelistValidationError", "Changelist validation failed!").ToString();
+			bValidationResult = false;
 		}
 		else if (ValidationResult == EDataValidationResult::NotValidated || ValidationWarnings.Num() > 0)
 		{
@@ -545,7 +550,8 @@ static void GetChangelistValidationResult(FSourceControlChangelistPtr InChangeli
 
 		int32 NumLinesDisplayed = 0;
 
-		auto AppendInfo = [&OutValidationText, &NumLinesDisplayed](const TArray<FText>& Info, const FString& InfoType) {
+		auto AppendInfo = [&OutValidationText, &NumLinesDisplayed](const TArray<FText>& Info, const FString& InfoType)
+		{
 			const int32 MaxNumLinesDisplayed = 5;
 
 			if (Info.Num() > 0)
@@ -557,6 +563,8 @@ static void GetChangelistValidationResult(FSourceControlChangelistPtr InChangeli
 				{
 					if (NumLinesDisplayed >= MaxNumLinesDisplayed)
 					{
+						OutValidationText += LINE_TERMINATOR;
+						OutValidationText += FString::Printf(TEXT("See log for complete list of %s"), *InfoType);
 						break;
 					}
 
@@ -568,9 +576,26 @@ static void GetChangelistValidationResult(FSourceControlChangelistPtr InChangeli
 			}
 		};
 
+		auto LogInfo = [](const TArray<FText>& Info, const FString& InfoType, const ELogVerbosity::Type LogVerbosity)
+		{
+			if (Info.Num() > 0)
+			{
+				FMsg::Logf(nullptr, 0, LogSourceControlChangelist.GetCategoryName(), LogVerbosity, TEXT("Encountered %d %s:"), Info.Num(), *InfoType);
+				for (const FText& Line : Info)
+				{
+					FMsg::Logf(nullptr, 0, LogSourceControlChangelist.GetCategoryName(), LogVerbosity, TEXT("%s"), *Line.ToString());
+				}
+			}
+		};
+
 		AppendInfo(ValidationErrors, TEXT("errors"));
 		AppendInfo(ValidationWarnings, TEXT("warnings"));
+
+		LogInfo(ValidationErrors, TEXT("errors"), ELogVerbosity::Error);
+		LogInfo(ValidationWarnings, TEXT("warnings"), ELogVerbosity::Warning);
 	}
+
+	return bValidationResult;
 }
 
 void SSourceControlChangelistsWidget::OnSubmitChangelist()
@@ -584,7 +609,7 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 
 	FString ChangelistValidationText;
 	FName ChangelistValidationIconName;
-	GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationText, ChangelistValidationIconName);
+	bool bValidationResult = GetChangelistValidationResult(ChangelistState->GetChangelist(), ChangelistValidationText, ChangelistValidationIconName);
 
 	// Build list of states for the dialog
 	FText ChangelistDescription = ChangelistState->GetDescriptionText();
@@ -606,7 +631,8 @@ void SSourceControlChangelistsWidget::OnSubmitChangelist()
 		.ChangeValidationIcon(ChangelistValidationIconName)
 		.AllowDescriptionChange(bAskForChangelistDescription)
 		.AllowUncheckFiles(false)
-		.AllowKeepCheckedOut(false);
+		.AllowKeepCheckedOut(false)
+		.AllowSubmit(bValidationResult);
 
 	NewWindow->SetContent(
 		SourceControlWidget

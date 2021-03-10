@@ -76,6 +76,8 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	SortByColumn = SSourceControlSubmitWidgetDefs::ColumnID_AssetLabel;
 	SortMode = EColumnSortMode::Ascending;
 	SavedChangeListDescription = InArgs._Description.Get();
+	bAllowSubmit = InArgs._AllowSubmit.Get();
+
 	const bool bDescriptionIsReadOnly = !InArgs._AllowDescriptionChange.Get();
 	const bool bAllowUncheckFiles = InArgs._AllowUncheckFiles.Get();
 	const bool bAllowKeepCheckedOut = InArgs._AllowKeepCheckedOut.Get();
@@ -261,9 +263,9 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 			SNew(SButton)
 			.HAlign(HAlign_Center)
 			.ContentPadding(FEditorStyle::GetMargin("StandardDialog.ContentPadding"))
-			.IsEnabled(this, &SSourceControlSubmitWidget::IsOKEnabled)
+			.IsEnabled(this, &SSourceControlSubmitWidget::IsSubmitEnabled)
 			.Text( NSLOCTEXT("SourceControl.SubmitPanel", "OKButton", "Submit") )
-			.OnClicked(this, &SSourceControlSubmitWidget::OKClicked)
+			.OnClicked(this, &SSourceControlSubmitWidget::SubmitClicked)
 		]
 		+SUniformGridPanel::Slot(1,0)
 		[
@@ -488,7 +490,7 @@ void SSourceControlSubmitWidget::ClearChangeListDescription()
 	ChangeListDescriptionTextCtrl->SetText(FText());
 }
 
-FReply SSourceControlSubmitWidget::OKClicked()
+FReply SSourceControlSubmitWidget::SubmitClicked()
 {
 	DialogResult = ESubmitResults::SUBMIT_ACCEPTED;
 	ParentFrame.Pin()->RequestDestroyWindow();
@@ -506,15 +508,15 @@ FReply SSourceControlSubmitWidget::CancelClicked()
 }
 
 
-bool SSourceControlSubmitWidget::IsOKEnabled() const
+bool SSourceControlSubmitWidget::IsSubmitEnabled() const
 {
-	return !ChangeListDescriptionTextCtrl->GetText().IsEmpty();
+	return bAllowSubmit && !ChangeListDescriptionTextCtrl->GetText().IsEmpty();
 }
 
 
 EVisibility SSourceControlSubmitWidget::IsWarningPanelVisible() const
 {
-	return IsOKEnabled()? EVisibility::Hidden : EVisibility::Visible;
+	return IsSubmitEnabled()? EVisibility::Hidden : EVisibility::Visible;
 }
 
 

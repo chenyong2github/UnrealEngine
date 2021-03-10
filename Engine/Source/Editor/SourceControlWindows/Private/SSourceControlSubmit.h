@@ -52,6 +52,7 @@ public:
 		, _AllowDescriptionChange(true)
 		, _AllowUncheckFiles(true)
 		, _AllowKeepCheckedOut(true)
+		, _AllowSubmit(true)
 	{}
 
 		SLATE_ATTRIBUTE(TSharedPtr<SWindow>, ParentWindow)
@@ -62,6 +63,7 @@ public:
 		SLATE_ATTRIBUTE(bool, AllowDescriptionChange)
 		SLATE_ATTRIBUTE(bool, AllowUncheckFiles)
 		SLATE_ATTRIBUTE(bool, AllowKeepCheckedOut)
+		SLATE_ATTRIBUTE(bool, AllowSubmit)
 
 	SLATE_END_ARGS()
 
@@ -102,13 +104,13 @@ private:
 	void OnToggleSelectedCheckBox(ECheckBoxState InNewState);
 
 	/** Called when the settings of the dialog are to be accepted*/
-	FReply OKClicked();
+	FReply SubmitClicked();
 
 	/** Called when the settings of the dialog are to be ignored*/
 	FReply CancelClicked();
 
-	/** Called to check if the OK button is enabled or not. */
-	bool IsOKEnabled() const;
+	/** Called to check if the submit button is enabled or not. */
+	bool IsSubmitEnabled() const;
 
 	/** Check if the warning panel should be visible. */
 	EVisibility IsWarningPanelVisible() const;
@@ -177,6 +179,9 @@ private:
 
 	/** State of the "Keep checked out" checkbox */
 	ECheckBoxState	KeepCheckedOut;
+
+	/** Whether the submit button should be enabled or not */
+	bool bAllowSubmit;
 
 	/** Specify which column to sort with */
 	FName SortByColumn;
