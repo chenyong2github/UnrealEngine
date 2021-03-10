@@ -2,6 +2,7 @@
 
 #include "Curves/RichCurve.h"
 #include "Templates/Function.h"
+#include "Containers/ArrayView.h"
 
 // Broken - do not turn on! 
 #define MIXEDKEY_STRIPS_TANGENTS 0
@@ -1242,11 +1243,9 @@ void FRichCurve::RemoveRedundantKeysInternal(float Tolerance, int32 InStartKeepK
 	AutoSetTangents();
 
 	// Rebuild KeyHandlesToIndices
-	KeyHandlesToIndices.Empty();
-	for (int32 KeyIndex = 0; KeyIndex < Keys.Num(); ++KeyIndex)
-	{
-		KeyHandlesToIndices.Add(KeepHandles[KeyIndex], KeyIndex);
-	}
+
+	check(Keys.Num() == KeepHandles.Num());
+	KeyHandlesToIndices.Initialize(KeepHandles);
 }
 
 void FRichCurve::RemapTimeValue(float& InTime, float& CycleValueOffset) const

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Containers/ArrayView.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Class.h"
 #include "KeyHandle.generated.h"
@@ -70,9 +71,12 @@ public:
 	FKeyHandleMap( const FKeyHandleMap& Other ) {}
 	void operator=(const FKeyHandleMap& Other) {}
 
+	// Quickly initializes this map by clearing it and filling with KeyHandles in O(n) time, instead of O(n^2) if Add() was used in a loop.
+	void Initialize(TArrayView<const FKeyHandle> InKeyHandles);
+
 	/** TMap functionality */
 	void Add( const FKeyHandle& InHandle, int32 InIndex );
-	void Empty();
+	void Empty(int32 ExpectedNumElements = 0);
 	void Remove( const FKeyHandle& InHandle );
 	const int32* Find(const FKeyHandle& InHandle) const { return KeyHandlesToIndices.Find(InHandle); }
 	const FKeyHandle* FindKey( int32 KeyIndex ) const;

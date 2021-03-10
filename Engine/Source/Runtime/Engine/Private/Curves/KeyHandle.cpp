@@ -20,6 +20,18 @@ FKeyHandle FKeyHandle::Invalid()
 	return FKeyHandle(0);
 }
 
+void FKeyHandleMap::Initialize(TArrayView<const FKeyHandle> InKeyHandles)
+{
+	Empty(InKeyHandles.Num());
+
+	for (int32 Index = 0; Index < InKeyHandles.Num(); ++Index)
+	{
+		const FKeyHandle& Handle = InKeyHandles[Index];
+		KeyHandles.Add(Handle);
+		KeyHandlesToIndices.Add(Handle, Index);
+	}
+}
+
 /* FKeyHandleMap interface
  *****************************************************************************/
 
@@ -63,10 +75,10 @@ void FKeyHandleMap::SetKeyHandles(int32 Num)
 }
 
 
-void FKeyHandleMap::Empty()
+void FKeyHandleMap::Empty(int32 ExpectedNumElements)
 {
-	KeyHandlesToIndices.Empty();
-	KeyHandles.Empty();
+	KeyHandlesToIndices.Empty(ExpectedNumElements);
+	KeyHandles.Empty(ExpectedNumElements);
 }
 
 
