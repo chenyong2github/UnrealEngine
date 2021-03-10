@@ -74,6 +74,8 @@
 #include "Async/Async.h"
 #include "TextureCompiler.h"
 
+#include "ISMPartition/ISMComponentDescriptor.h"
+
 #if WITH_EDITOR
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Notifications/NotificationManager.h"
@@ -185,7 +187,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 			for (const int32 LODIndex : MaterialOptions->LODIndices)
 			{
 				FMeshData MeshSettings;
-				MeshSettings.RawMeshDescription = nullptr;
+				MeshSettings.MeshDescription = nullptr;
 
 				// Add material indices used for rendering out material
 				for (const auto& Pair : UniqueSectionIndexPerLOD[LODIndex])
@@ -199,13 +201,13 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 				if (MeshSettings.MaterialIndices.Num())
 				{
 					// Retrieve raw mesh
-					MeshSettings.RawMeshDescription = RawMeshLODs.Find(LODIndex);
+					MeshSettings.MeshDescription = RawMeshLODs.Find(LODIndex);
 					
 					//Should not be using mesh data if there is no mesh
-					check(MeshSettings.RawMeshDescription);
+					check(MeshSettings.MeshDescription);
 
 					MeshSettings.TextureCoordinateBox = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
-					const bool bUseVertexColor = FStaticMeshOperations::HasVertexColor(*(MeshSettings.RawMeshDescription));
+					const bool bUseVertexColor = FStaticMeshOperations::HasVertexColor(*(MeshSettings.MeshDescription));
 					if (MaterialOptions->bUseSpecificUVIndex)
 					{
 						MeshSettings.TextureCoordinateIndex = MaterialOptions->TextureCoordinateIndex;
@@ -223,10 +225,10 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 					Adapter->ApplySettings(LODIndex, MeshSettings);
 					
 					// In case part of the UVs is not within the 0-1 range try to use the lightmap UVs
-					const bool bNeedsUniqueUVs = FMeshMergeHelpers::CheckWrappingUVs(*(MeshSettings.RawMeshDescription), MeshSettings.TextureCoordinateIndex);
+					const bool bNeedsUniqueUVs = FMeshMergeHelpers::CheckWrappingUVs(*(MeshSettings.MeshDescription), MeshSettings.TextureCoordinateIndex);
 					const int32 LightMapUVIndex = Adapter->LightmapUVIndex();
 					
-					TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshSettings.RawMeshDescription).GetVertexInstanceUVs();
+					TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = FStaticMeshConstAttributes(*MeshSettings.MeshDescription).GetVertexInstanceUVs();
 					if (bNeedsUniqueUVs && MeshSettings.TextureCoordinateIndex != LightMapUVIndex && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumChannels() > LightMapUVIndex)
 					{
 						MeshSettings.TextureCoordinateIndex = LightMapUVIndex;
@@ -276,7 +278,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 
 			if (MeshSettings.MaterialIndices.Num())
 			{
-				MeshSettings.RawMeshDescription = nullptr;
+				MeshSettings.MeshDescription = nullptr;
 				MeshSettings.TextureCoordinateBox = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
 				MeshSettings.TextureCoordinateIndex = 0;
 
@@ -1100,6 +1102,289 @@ float FMeshMergeUtilities::FlattenEmissivescale(TArray<struct FFlattenMaterial>&
 	return MaxScale;
 }
 
+class FProxyMeshDescriptor
+{
+public:
+	FProxyMeshDescriptor(const UStaticMeshComponent* StaticMeshComponent, int32 LODIndex)
+		: LODIndex(LODIndex)
+		, LightMapIndex(INDEX_NONE)
+	{
+		ISMDescriptor.InitFrom(StaticMeshComponent, false);
+		ISMDescriptor.ComputeHash();
+
+		// Retrieve lightmap for usage of lightmap data
+		if (StaticMeshComponent->LODData.IsValidIndex(0))
+		{
+			const FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[0];
+			const FMeshMapBuildData* MeshMapBuildData = StaticMeshComponent->GetMeshMapBuildData(ComponentLODInfo);
+			if (MeshMapBuildData)
+			{
+				LightMap = MeshMapBuildData->LightMap;
+				LightMapIndex = StaticMeshComponent->GetStaticMesh()->GetLightMapCoordinateIndex();
+			}
+		}
+
+		
+		Hash = ISMDescriptor.ComputeHash();
+
+		FCrc::TypeCrc32(LODIndex, Hash);
+
+		if (LightMapIndex != INDEX_NONE)
+		{
+			FCrc::TypeCrc32(LightMap.GetReference(), Hash);
+			FCrc::TypeCrc32(LightMapIndex, Hash);
+		}
+	}
+
+	bool operator==(const FProxyMeshDescriptor& InOther) const
+	{
+		return Hash == InOther.Hash &&
+			   LODIndex == InOther.LODIndex &&
+			   LightMap == InOther.LightMap &&
+			   LightMapIndex == InOther.LightMapIndex &&
+			   ISMDescriptor == InOther.ISMDescriptor;
+	}
+
+	int32 GetLODIndex() const { return LODIndex; }
+	FLightMapRef GetLightMap() const { return LightMap; }
+	int32 GetLightMapIndex() const { return LightMapIndex; }
+
+	UStaticMesh* GetStaticMesh() const { return ISMDescriptor.StaticMesh; }
+
+	const FMeshDescription& GetMeshDescription() const
+	{
+		return MeshDescription;
+	}
+
+	void PrepareMeshDescription(const FMeshProxySettings& InMeshProxySettings)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(PrepareMeshDescription);
+
+		// Retrieve mesh data in FMeshDescription form
+		FStaticMeshAttributes(MeshDescription).Register();
+		FMeshMergeHelpers::RetrieveMesh(ISMDescriptor.StaticMesh, LODIndex, MeshDescription);
+
+		TArray<FVector2D> TexCoords;
+		bool bSuccess = FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(MeshDescription, InMeshProxySettings.MaterialSettings.TextureSize.GetMax(), false, TexCoords);
+
+		if (bSuccess)
+		{
+			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
+			for (int32 Idx = 0; Idx < TexCoords.Num(); Idx++)
+			{
+				VertexInstanceUVs.Set(Idx, TexCoords[Idx]);
+			}
+		}
+		else
+		{
+			UE_LOG(LogMeshMerging, Warning, TEXT("GenerateUniqueUVsForStaticMesh: Failed to pack UVs for static mesh \"%s\" (num triangles = %d, texture resolution = %d)."), *ISMDescriptor.StaticMesh->GetName(), MeshDescription.Triangles().Num(), InMeshProxySettings.MaterialSettings.TextureSize.GetMax());
+			MeshDescription.Empty();
+		}
+	}
+
+private:
+	int32			Hash;
+
+	int32			LODIndex;
+	FLightMapRef	LightMap;
+	int32			LightMapIndex;
+
+	FISMComponentDescriptor ISMDescriptor;
+
+	FMeshDescription MeshDescription;
+};
+
+static void ScaleTextureCoordinatesToBox(const FBox2D& Box, TArray<FVector2D>& InOutTextureCoordinates)
+{
+	const FBox2D CoordinateBox(InOutTextureCoordinates);
+	const FVector2D CoordinateRange = CoordinateBox.GetSize();
+	const FVector2D Offset = CoordinateBox.Min + Box.Min;
+	const FVector2D Scale = Box.GetSize() / CoordinateRange;
+	for (FVector2D& Coordinate : InOutTextureCoordinates)
+	{
+		Coordinate = (Coordinate - Offset) * Scale;
+	}
+}
+
+typedef TFunctionRef<int32(const UStaticMeshComponent*)> FGetMeshLODFunc;
+
+static TArray<FMeshDescription*> GatherGeometry(const TArray<UStaticMeshComponent*>& InStaticMeshComponents, const FMeshProxySettings& InMeshProxySettings, TArray<FProxyMeshDescriptor>& InDescriptors, const TArray<TArray<int32>>& InMeshesToMergePerDescriptor, const TArray<int32>& InMeshesToMeshDescriptor, FGetMeshLODFunc InGetMeshLODFunc, int32& OutSummedLightmapPixels)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::GatherGeometry);
+
+	TArray<FMeshDescription> TempDescriptionData;
+	TempDescriptionData.SetNum(InStaticMeshComponents.Num());
+
+	TAtomic<int32>  SummedLightmapPixels(0);
+
+	TArray<FMeshDescription*> MeshesDescriptions;
+	MeshesDescriptions.SetNum(InDescriptors.Num());
+
+	// If grouping by identical meshes, prepare each mesh description along with their flattened UVs
+	// These meshes descriptions will serve for material baking, but also as the basis for creating a
+	// single merged mesh out of all instances.
+	if (InMeshProxySettings.bGroupIdenticalMeshesForBaking)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(UniqueUVs);
+		ParallelFor(InDescriptors.Num(), [&InDescriptors, &InMeshProxySettings](uint32 Index)
+		{
+			InDescriptors[Index].PrepareMeshDescription(InMeshProxySettings);
+		});
+	}
+
+	// Gather geometry from each component, expand ISMC geometry
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(GatherGeometryFromComponents);
+		ParallelFor(InStaticMeshComponents.Num(), [InStaticMeshComponents, &InGetMeshLODFunc, InDescriptors, InMeshesToMeshDescriptor, InMeshProxySettings, &TempDescriptionData, &SummedLightmapPixels](uint32 Index)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(GatherGeometryFromComponent);
+			const UStaticMeshComponent* StaticMeshComponent = InStaticMeshComponents[Index];
+
+			FMeshDescription& MeshDescription = TempDescriptionData[Index];
+
+			// Retrieve meshes
+			if (!InMeshProxySettings.bGroupIdenticalMeshesForBaking || InDescriptors[InMeshesToMeshDescriptor[Index]].GetMeshDescription().IsEmpty())
+			{
+				const int32 LODIndex = InGetMeshLODFunc(StaticMeshComponent);
+				static const bool bPropagateVertexColours = true;
+
+				// Retrieve mesh data in FMeshDescription form
+				FStaticMeshAttributes(MeshDescription).Register();
+				FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, MeshDescription, bPropagateVertexColours);
+			}
+			else
+			{
+				MeshDescription = InDescriptors[InMeshesToMeshDescriptor[Index]].GetMeshDescription();
+				FStaticMeshOperations::ApplyTransform(MeshDescription, StaticMeshComponent->GetComponentTransform());
+			}
+
+			// If the component is an ISMC then we need to duplicate the vertex data
+			int32 NumInstances = 1;
+			if (const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent))
+			{
+				FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, MeshDescription);
+				NumInstances = InstancedStaticMeshComponent->PerInstanceSMData.Num();
+			}
+
+			int32 LightMapWidth, LightMapHeight;
+			StaticMeshComponent->GetLightMapResolution(LightMapWidth, LightMapHeight);
+			// Make sure we at least have some lightmap space allocated in case the static mesh is set up with invalid input
+			SummedLightmapPixels += FMath::Max(16, LightMapHeight * LightMapWidth * NumInstances);
+		}, EParallelForFlags::Unbalanced);
+	}
+
+	// For each mesh, append each component geometry
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(AppendMeshes);
+		FStaticMeshOperations::FAppendSettings AppendSettings;
+		for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
+		{
+			AppendSettings.bMergeUVChannels[ChannelIdx] = true;
+		}
+
+		ParallelFor(InDescriptors.Num(), [&MeshesDescriptions, &InMeshesToMergePerDescriptor, &TempDescriptionData, &AppendSettings, &InMeshProxySettings](uint32 Index)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(AppendMeshes);
+			FMeshDescription* TargetMeshDescription = new FMeshDescription();
+			FStaticMeshAttributes(*TargetMeshDescription).Register();
+
+			TArray<const FMeshDescription*> SourceMeshDescriptions;
+			SourceMeshDescriptions.Reserve(InMeshesToMergePerDescriptor[Index].Num());
+			for (int32 TempIdx : InMeshesToMergePerDescriptor[Index])
+			{
+				SourceMeshDescriptions.Add(&TempDescriptionData[TempIdx]);
+			}
+
+			FStaticMeshOperations::AppendMeshDescriptions(SourceMeshDescriptions, *TargetMeshDescription, AppendSettings);
+
+			MeshesDescriptions[Index] = TargetMeshDescription;
+		}, EParallelForFlags::Unbalanced);
+	}
+
+	OutSummedLightmapPixels = SummedLightmapPixels;
+
+	return MeshesDescriptions;
+}
+
+TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshProxySettings, const TArray<FProxyMeshDescriptor>& InDescriptors, TArray<FMeshDescription*> InMeshDescriptions)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(PrepareBakingMeshes)
+
+	check(InDescriptors.Num() == InMeshDescriptions.Num());
+
+	TArray<FMeshData> MeshData;
+	MeshData.SetNum(InDescriptors.Num());
+
+	ParallelFor(InDescriptors.Num(), [&MeshData, &InDescriptors, &InMeshDescriptions, &InMeshProxySettings](uint32 MeshIndex)
+	{
+		const FProxyMeshDescriptor& MeshDescriptor = InDescriptors[MeshIndex];
+
+		FMeshData& MeshSettings = MeshData[MeshIndex];
+
+		bool bSuccess = true;
+
+		if (InMeshProxySettings.bGroupIdenticalMeshesForBaking)
+		{
+			// Grouping by identical meshes, the UVs should have already been setup
+			bSuccess = !MeshDescriptor.GetMeshDescription().IsEmpty();
+			MeshSettings.MeshDescription = &MeshDescriptor.GetMeshDescription();
+		}
+		else
+		{
+			FMeshDescription& MeshDescription = *InMeshDescriptions[MeshIndex];
+			MeshSettings.MeshDescription = &MeshDescription;
+
+			if (MeshDescriptor.GetLightMapIndex() != INDEX_NONE)
+			{
+				MeshSettings.LightMap = MeshDescriptor.GetLightMap();
+				MeshSettings.LightMapIndex = MeshDescriptor.GetLightMapIndex();
+			}
+
+			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
+
+		    // If we already have lightmap uvs generated and they are valid, we can reuse those instead of having to generate new ones
+		    const int32 LightMapCoordinateIndex = MeshDescriptor.GetStaticMesh()->GetLightMapCoordinateIndex();
+		    if (InMeshProxySettings.bReuseMeshLightmapUVs &&
+			    LightMapCoordinateIndex > 0 &&
+			    VertexInstanceUVs.GetNumElements() > 0 &&
+			    VertexInstanceUVs.GetNumChannels() > LightMapCoordinateIndex)
+		    {
+			    MeshSettings.CustomTextureCoordinates.Reset(VertexInstanceUVs.GetNumElements());
+			    for (const FVertexInstanceID VertexInstanceID : MeshDescription.VertexInstances().GetElementIDs())
+			    {
+				    MeshSettings.CustomTextureCoordinates.Add(VertexInstanceUVs.Get(VertexInstanceID, LightMapCoordinateIndex));
+			    }
+			    MeshSettings.TextureCoordinateBox = FBox2D(FVector2D::ZeroVector, FVector2D(1, 1));
+			    ScaleTextureCoordinatesToBox(MeshSettings.TextureCoordinateBox, MeshSettings.CustomTextureCoordinates);
+		    }
+		    else
+		    {
+			    // Generate unique UVs for mesh (should only be done if needed)
+			    bSuccess = FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(MeshDescription, InMeshProxySettings.MaterialSettings.TextureSize.GetMax(), false, MeshSettings.CustomTextureCoordinates);
+			    if (bSuccess)
+			    {
+				    MeshSettings.TextureCoordinateBox = FBox2D(FVector2D::ZeroVector, FVector2D(1, 1));
+				    ScaleTextureCoordinatesToBox(MeshSettings.TextureCoordinateBox, MeshSettings.CustomTextureCoordinates);
+			    }
+			    else
+			    {
+				    UE_LOG(LogMeshMerging, Warning, TEXT("GenerateUniqueUVsForStaticMesh: Failed to pack UVs for static mesh \"%s\" (num triangles = %d, texture resolution = %d)."), *MeshDescriptor.GetStaticMesh()->GetName(), MeshDescription.Triangles().Num(), InMeshProxySettings.MaterialSettings.TextureSize.GetMax());
+			    }
+		    }
+		}
+
+		if (!bSuccess)
+		{
+			MeshSettings.MeshDescription = nullptr;
+			MeshSettings.TextureCoordinateBox = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
+			MeshSettings.TextureCoordinateIndex = 0;
+			MeshSettings.CustomTextureCoordinates.Empty();
+		}
+	});
+
+	return MeshData;
+}
+
 void FMeshMergeUtilities::CreateProxyMesh(const TArray<AActor*>& InActors, const struct FMeshProxySettings& InMeshProxySettings, UPackage* InOuter, const FString& InProxyBasePackageName, const FGuid InGuid, const FCreateProxyDelegate& InProxyCreatedDelegate, const bool bAllowAsync, const float ScreenSize) const
 {
 	UMaterial* BaseMaterial = LoadObject<UMaterial>(NULL, TEXT("/Engine/EngineMaterials/BaseFlattenMaterial.BaseFlattenMaterial"), NULL, LOAD_None, NULL);
@@ -1186,7 +1471,6 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 	TArray<FRawMeshExt> SourceMeshes;
 	TMap<FMeshIdAndLOD, TArray<int32>> GlobalMaterialMap;
-	static const int32 ProxyMeshTargetLODLevel = 0;
 
 	FBoxSphereBounds EstimatedBounds(ForceInitToZero);
 	for (const UStaticMeshComponent* StaticMeshComponent : ComponentsToMerge)
@@ -1195,11 +1479,20 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	}
 
 	static const float FOVRad = FMath::DegreesToRadians(45.0f);
-
 	static const FMatrix ProjectionMatrix = FPerspectiveMatrix(FOVRad, 1920, 1080, 0.01f);
 	FHierarchicalLODUtilitiesModule& HLODModule = FModuleManager::LoadModuleChecked<FHierarchicalLODUtilitiesModule>("HierarchicalLODUtilities");
 	IHierarchicalLODUtilities* Utilities = HLODModule.GetUtilities();
 	float EstimatedDistance = Utilities->CalculateDrawDistanceFromScreenSize(EstimatedBounds.SphereRadius, ScreenSize, ProjectionMatrix);
+
+	auto SelectLODFunc = [&InMeshProxySettings, &Utilities, EstimatedDistance] (const UStaticMeshComponent* Component)
+	{
+		int32 LODIndex = 0;
+		if (InMeshProxySettings.bCalculateCorrectLODModel)
+		{
+			LODIndex = Utilities->GetLODLevelForScreenSize(Component, Utilities->CalculateScreenSizeFromDrawDistance(Component->Bounds.SphereRadius, ProjectionMatrix, EstimatedDistance));
+		}
+		return LODIndex;
+	};
 
 	SlowTask.EnterProgressFrame(5.0f, LOCTEXT("CreateProxyMesh_CollectingMeshes", "Collecting Input Static Meshes"));
 
@@ -1213,104 +1506,69 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	TArray<FSectionInfo> UniqueSections;
 	TMultiMap<uint32, uint32> SectionToMesh;
 
-	// Copies of mesh data
-	TArray<FMeshDescription*> MeshDescriptionData;
-	MeshDescriptionData.SetNum(ComponentsToMerge.Num());
-
 	TArray<const UStaticMeshComponent*> ImposterMeshComponents;
-	ImposterMeshComponents.SetNum(ComponentsToMerge.Num());
-
 	TArray<UStaticMeshComponent*> StaticMeshComponents;
-	StaticMeshComponents.SetNum(ComponentsToMerge.Num());
-
-	TAtomic<int32>  SummedLightmapPixels(0);
-	TAtomic<uint32> ImposterMeshComponentsIndex(0);
-	TAtomic<uint32> StaticMeshComponentsIndex(0);
-
+	for (UStaticMeshComponent* StaticMeshComponent : ComponentsToMerge)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::MeshGathering);
-
-		TArray<TArray<FSectionInfo>> GlobalSections;
-		GlobalSections.SetNum(ComponentsToMerge.Num());
-
-		ParallelFor(
-			ComponentsToMerge.Num(),
-			[
-				&ComponentsToMerge,
-				&ImposterMeshComponents,
-				&StaticMeshComponents,
-				&ImposterMeshComponentsIndex,
-				&StaticMeshComponentsIndex,
-				&Utilities,
-				&EstimatedDistance,
-				&InMeshProxySettings,
-				&MeshDescriptionData,
-				&GlobalSections,
-				&SummedLightmapPixels
-			](uint32 Index)
-			{
-				UStaticMeshComponent* StaticMeshComponent = ComponentsToMerge[Index];
-
-				int32 NumInstances = 1;
-				if (StaticMeshComponent->bUseMaxLODAsImposter)
-				{
-					ImposterMeshComponents[ImposterMeshComponentsIndex++] = StaticMeshComponent;
-				}
-				else
-				{
-					const int32 MeshIndex = StaticMeshComponentsIndex++;
-					StaticMeshComponents[MeshIndex] = StaticMeshComponent;
-
-					const int32 ScreenSizeBasedLODLevel = Utilities->GetLODLevelForScreenSize(StaticMeshComponent, Utilities->CalculateScreenSizeFromDrawDistance(StaticMeshComponent->Bounds.SphereRadius, ProjectionMatrix, EstimatedDistance));
-					const int32 LODIndex = InMeshProxySettings.bCalculateCorrectLODModel ? ScreenSizeBasedLODLevel : 0;
-					static const bool bPropagateVertexColours = true;
-
-					// Retrieve mesh data in FMeshDescription form
-					MeshDescriptionData[MeshIndex] = new FMeshDescription();
-					FMeshDescription& MeshDescription = *MeshDescriptionData[MeshIndex];
-					FStaticMeshAttributes(MeshDescription).Register();
-					FMeshMergeHelpers::RetrieveMesh(StaticMeshComponent, LODIndex, MeshDescription, bPropagateVertexColours);
-
-					TArray<FSectionInfo>& Sections = GlobalSections[MeshIndex];
-
-					// Extract sections for given LOD index from the mesh 
-					FMeshMergeHelpers::ExtractSections(StaticMeshComponent, LODIndex, Sections);
-
-					// If the component is an ISMC then we need to duplicate the vertex data
-					if(StaticMeshComponent->IsA<UInstancedStaticMeshComponent>())
-					{
-						const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(StaticMeshComponent);
-						FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, MeshDescription, Sections);
-						NumInstances = InstancedStaticMeshComponent->PerInstanceSMData.Num();
-					}
-				}	
-
-				int32 LightMapWidth, LightMapHeight;
-				StaticMeshComponent->GetLightMapResolution(LightMapWidth, LightMapHeight);
-				// Make sure we at least have some lightmap space allocated in case the static mesh is set up with invalid input
-				SummedLightmapPixels += FMath::Max(16, LightMapHeight * LightMapWidth * NumInstances);
-			},
-			EParallelForFlags::Unbalanced
-		);
-
-		ImposterMeshComponents.SetNum(ImposterMeshComponentsIndex);
-		StaticMeshComponents.SetNum(StaticMeshComponentsIndex);
-		MeshDescriptionData.SetNum(StaticMeshComponentsIndex);
-
-		for (uint32 MeshIndex = 0; MeshIndex < StaticMeshComponentsIndex; ++MeshIndex)
+		if (StaticMeshComponent->bUseMaxLODAsImposter)
 		{
-			TArray<FSectionInfo>& Sections = GlobalSections[MeshIndex];
-
-			for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
-			{
-				FSectionInfo& Section = Sections[SectionIndex];
-
-				const int32 UniqueIndex = UniqueSections.AddUnique(Section);
-				MeshSectionToUniqueSection.Add(MeshIndex, TPair<uint32, uint32>(SectionIndex, UniqueIndex));
-				SectionToMesh.Add(UniqueIndex, MeshIndex);
-			}
+			ImposterMeshComponents.Add(StaticMeshComponent);
+		}
+		else
+		{
+			StaticMeshComponents.Add(StaticMeshComponent);
 		}
 	}
+
+	TArray<FProxyMeshDescriptor>	MeshDescriptors;
+	TArray<TArray<int32>>			MeshesToMergePerDescriptor;
+	TArray<int32>					MeshToMeshDescriptor;
+
+	TArray<TArray<FSectionInfo>>	GlobalSections;
+
+	MeshToMeshDescriptor.Reserve(StaticMeshComponents.Num());
+
+	for (int32 ComponentIndex = 0; ComponentIndex < StaticMeshComponents.Num(); ++ComponentIndex)
+	{
+		const UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[ComponentIndex];
+
+		FProxyMeshDescriptor MeshDescriptor(StaticMeshComponent, SelectLODFunc(StaticMeshComponent));
+
+		int32 Index;
+		if (!InMeshProxySettings.bGroupIdenticalMeshesForBaking || !MeshDescriptors.Find(MeshDescriptor, Index))
+		{
+			Index = MeshDescriptors.Num();
+			MeshDescriptors.Add(MeshDescriptor);
+			MeshesToMergePerDescriptor.AddDefaulted();
+
+			TArray<FSectionInfo>& Sections = GlobalSections.AddDefaulted_GetRef();
+
+			// Extract sections for given LOD index from the mesh 
+			FMeshMergeHelpers::ExtractSections(StaticMeshComponent, MeshDescriptor.GetLODIndex(), Sections);
+		}
+
+		MeshesToMergePerDescriptor[Index].Add(ComponentIndex);
+		MeshToMeshDescriptor.Add(Index);
+	}
+
+	for (int32 MeshIndex = 0; MeshIndex < GlobalSections.Num(); ++MeshIndex)
+	{
+		TArray<FSectionInfo>& Sections = GlobalSections[MeshIndex];
+
+		for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); ++SectionIndex)
+		{
+			FSectionInfo& Section = Sections[SectionIndex];
+
+			const int32 UniqueIndex = UniqueSections.AddUnique(Section);
+			MeshSectionToUniqueSection.Add(MeshIndex, TPair<uint32, uint32>(SectionIndex, UniqueIndex));
+			SectionToMesh.Add(UniqueIndex, MeshIndex);
+		}
+	}
+
+	int32 SummedLightmapPixels;
+	
+	TArray<FMeshDescription*> MeshDescriptionData = GatherGeometry(StaticMeshComponents, InMeshProxySettings, MeshDescriptors, MeshesToMergePerDescriptor, MeshToMeshDescriptor, SelectLODFunc, SummedLightmapPixels);
+	TArray<FMeshData> MeshBakingData = PrepareBakingMeshes(InMeshProxySettings, MeshDescriptors, MeshDescriptionData);
 
 	TArray<UMaterialInterface*> UniqueMaterials;
 	//Unique material index to unique section index
@@ -1340,7 +1598,6 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeUtilities::MaterialAnalysisAndUVGathering);
 
-		TArray<TFunction<void ()>> Lambdas;
 		for (int32 MaterialIndex = 0; MaterialIndex < UniqueMaterials.Num(); ++MaterialIndex)
 		{
 			UMaterialInterface* Material = UniqueMaterials[MaterialIndex];
@@ -1374,46 +1631,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 					for (const uint32 MeshIndex : MeshIndices)
 					{
-						// Retrieve mesh description
-						const UStaticMeshComponent* StaticMeshComponent = StaticMeshComponents[MeshIndex];
-						FMeshDescription* MeshDescription = MeshDescriptionData[MeshIndex];
-
-						FMeshData MeshSettings;
-						MeshSettings.RawMeshDescription = MeshDescription;
-
-						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshDescription).GetVertexInstanceUVs();
-
-						// If we already have lightmap uvs generated and they are valid, we can reuse those instead of having to generate new ones
-						const int32 LightMapCoordinateIndex = StaticMeshComponent->GetStaticMesh()->GetLightMapCoordinateIndex();
-						if (InMeshProxySettings.bReuseMeshLightmapUVs &&
-							LightMapCoordinateIndex > 0 &&
-							VertexInstanceUVs.GetNumElements() > 0 &&
-							VertexInstanceUVs.GetNumChannels() > LightMapCoordinateIndex)
-						{
-							MeshSettings.CustomTextureCoordinates.Reset(VertexInstanceUVs.GetNumElements());
-							for (const FVertexInstanceID VertexInstanceID : MeshDescription->VertexInstances().GetElementIDs())
-							{
-								MeshSettings.CustomTextureCoordinates.Add(VertexInstanceUVs.Get(VertexInstanceID, LightMapCoordinateIndex));
-							}
-							ScaleTextureCoordinatesToBox(FBox2D(FVector2D::ZeroVector, FVector2D(1, 1)), MeshSettings.CustomTextureCoordinates);
-						}
-						else
-						{
-							// Accumulate slow running tasks to process them in parallel once the arrays
-							// are finished being resized.
-							Lambdas.Emplace(
-								[this, GlobalMeshSettingsIndex = GlobalMeshSettings.Num(), &GlobalMeshSettings, MeshDescription, Options]()
-								{
-									FMeshData& MeshSettings = GlobalMeshSettings[GlobalMeshSettingsIndex];
-									// Generate unique UVs for mesh (should only be done if needed)
-									FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(*MeshDescription, Options->TextureSize.GetMax(), false, MeshSettings.CustomTextureCoordinates);
-									ScaleTextureCoordinatesToBox(FBox2D(FVector2D::ZeroVector, FVector2D(1, 1)), MeshSettings.CustomTextureCoordinates);
-									MeshSettings.TextureCoordinateBox = FBox2D(MeshSettings.CustomTextureCoordinates);
-								}
-							);
-						}
-						
-						MeshSettings.TextureCoordinateBox = FBox2D(MeshSettings.CustomTextureCoordinates);
+						FMeshData MeshSettings = MeshBakingData[MeshIndex];
 
 						// Section index is a unique one so we need to map it to the mesh's equivalent(s)
 						TArray<TPair<uint32, uint32>> SectionToUniqueSectionIndices;
@@ -1427,19 +1645,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 							}
 						}
 
-						// Retrieve lightmap for usage of lightmap data
-						if (StaticMeshComponent->LODData.IsValidIndex(0))
-						{
-							const FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[0];
-							const FMeshMapBuildData* MeshMapBuildData = StaticMeshComponent->GetMeshMapBuildData(ComponentLODInfo);
-							if (MeshMapBuildData)
-							{
-								MeshSettings.LightMap = MeshMapBuildData->LightMap;
-								MeshSettings.LightMapIndex = StaticMeshComponent->GetStaticMesh()->GetLightMapCoordinateIndex();
-							}
-						}
-
-						GlobalMeshSettings.Add(MeshSettings);
+						GlobalMeshSettings.Add(MoveTemp(MeshSettings));
 						GlobalMaterialSettings.Add(MaterialSettings);
 					}
 				}
@@ -1448,7 +1654,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			{
 				// Add simple bake entry 
 				FMeshData MeshSettings;
-				MeshSettings.RawMeshDescription = nullptr;
+				MeshSettings.MeshDescription = nullptr;
 				MeshSettings.TextureCoordinateBox = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
 				MeshSettings.TextureCoordinateIndex = 0;
 
@@ -1475,19 +1681,6 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 				GlobalMeshSettings.Add(MeshSettings);
 				GlobalMaterialSettings.Add(MaterialSettings);
 			}
-		}
-
-		if (Lambdas.Num())
-		{
-			TRACE_CPUPROFILER_EVENT_SCOPE(GenerateUVs);
-			ParallelFor(
-				Lambdas.Num(),
-				[&Lambdas](uint32 Index)
-				{
-					Lambdas[Index]();
-				},
-				EParallelForFlags::Unbalanced
-			);
 		}
 	}
 
@@ -1601,16 +1794,14 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 	// Add this proxy job to map	
 	Processor->AddProxyJob(InGuid, Data);
 
-	// We are only using LOD level 0 (ProxyMeshTargetLODLevel)
 	TArray<FMeshMergeData> MergeDataEntries;
-
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(MergeDataPreparation)
 
 		for (int32 Index = 0; Index < MeshDescriptionData.Num(); ++Index)
 		{
 			FMeshMergeData MergeData;
-			MergeData.SourceStaticMesh = StaticMeshComponents[Index]->GetStaticMesh();
+			MergeData.SourceStaticMesh = MeshDescriptors[Index].GetStaticMesh();
 			MergeData.RawMesh = MeshDescriptionData[Index];
 			MergeData.bIsClippingMesh = false;
 
@@ -1618,7 +1809,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 
 			FMeshData* MeshData = GlobalMeshSettings.FindByPredicate([&](const FMeshData& Entry)
 			{
-				return Entry.RawMeshDescription == MergeData.RawMesh && (Entry.CustomTextureCoordinates.Num() || Entry.TextureCoordinateIndex != 0);
+				return Entry.MeshDescription == MergeData.RawMesh && (Entry.CustomTextureCoordinates.Num() || Entry.TextureCoordinateIndex != 0);
 			});
 
 			if (MeshData)
@@ -1629,9 +1820,9 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 				}
 				else
 				{
-					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshData->RawMeshDescription).GetVertexInstanceUVs();
-					MergeData.NewUVs.Reset(MeshData->RawMeshDescription->VertexInstances().Num());
-					for (const FVertexInstanceID VertexInstanceID : MeshData->RawMeshDescription->VertexInstances().GetElementIDs())
+					TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = FStaticMeshConstAttributes(*MeshData->MeshDescription).GetVertexInstanceUVs();
+					MergeData.NewUVs.Reset(MeshData->MeshDescription->VertexInstances().Num());
+					for (const FVertexInstanceID VertexInstanceID : MeshData->MeshDescription->VertexInstances().GetElementIDs())
 					{
 						MergeData.NewUVs.Add(VertexInstanceUVs.Get(VertexInstanceID, MeshData->TextureCoordinateIndex));
 					}
@@ -1861,7 +2052,7 @@ bool RetrieveRawMeshData(FMeshMergeDataTracker& DataTracker
 	if (Component->IsA<UInstancedStaticMeshComponent>())
 	{
 		const UInstancedStaticMeshComponent* InstancedStaticMeshComponent = Cast<UInstancedStaticMeshComponent>(Component);
-		FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, RawMesh, Sections);
+		FMeshMergeHelpers::ExpandInstances(InstancedStaticMeshComponent, RawMesh);
 	}
 
 	if (InSettings.bUseLandscapeCulling)
@@ -2189,17 +2380,17 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				
 				if (InSettings.bCreateMergedMaterial || bGloballyRemapUVs || (InSettings.bUseVertexDataForBakingMaterial && (bDoesMaterialUseVertexData || bRequiresUniqueUVs)))
 				{
-					FMeshDescription* RawMeshDescription = DataTracker.GetRawMeshPtr(Key);
-					MeshData.RawMeshDescription = RawMeshDescription;
+					FMeshDescription* MeshDescription = DataTracker.GetRawMeshPtr(Key);
+					MeshData.MeshDescription = MeshDescription;
 
 					// if it has vertex color/*WedgetColors.Num()*/, it should also use light map UV index
 					// we can't do this for all meshes, but only for the mesh that has vertex color.
-					if (bRequiresUniqueUVs || MeshData.RawMeshDescription->VertexInstances().Num() > 0)
+					if (bRequiresUniqueUVs || MeshData.MeshDescription->VertexInstances().Num() > 0)
 					{
 						// Check if there are lightmap uvs available?
 						const int32 LightMapUVIndex = StaticMeshComponentsToMerge[Key.GetMeshIndex()]->GetStaticMesh()->GetLightMapCoordinateIndex();
 
-						TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(*MeshData.RawMeshDescription).GetVertexInstanceUVs();
+						TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = FStaticMeshConstAttributes(*MeshData.MeshDescription).GetVertexInstanceUVs();
 						if (InSettings.bReuseMeshLightmapUVs && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumChannels() > LightMapUVIndex)
 						{
 							MeshData.TextureCoordinateIndex = LightMapUVIndex;
@@ -2211,10 +2402,10 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 							if (!MeshLODsTextureCoordinates.Find(Tuple))
 							{
 								// No job found yet, fire an async task
-								MeshLODsTextureCoordinates.Add(Tuple, Async(EAsyncExecution::Thread, [RawMeshDescription, MaterialOptions, this]()
+								MeshLODsTextureCoordinates.Add(Tuple, Async(EAsyncExecution::Thread, [MeshDescription, MaterialOptions, this]()
 								{
 									TArray<FVector2D> UniqueTextureCoordinates;
-									FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(*RawMeshDescription, MaterialOptions->TextureSize.GetMax(), false, UniqueTextureCoordinates);
+									FStaticMeshOperations::GenerateUniqueUVsForStaticMesh(*MeshDescription, MaterialOptions->TextureSize.GetMax(), false, UniqueTextureCoordinates);
 									ScaleTextureCoordinatesToBox(FBox2D(FVector2D::ZeroVector, FVector2D(1, 1)), UniqueTextureCoordinates);
 									return UniqueTextureCoordinates;
 								}));
@@ -2274,7 +2465,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				}
 				else
 				{
-					MeshData.RawMeshDescription = nullptr;
+					MeshData.MeshDescription = nullptr;
 					MeshData.TextureCoordinateBox = FBox2D(FVector2D(0.0f, 0.0f), FVector2D(1.0f, 1.0f));
 
 					// This prevents baking out the same material multiple times, which would be wasteful when it does not use vertex data anyway
@@ -2350,7 +2541,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				// copy to mesh data
 				for(FMeshData& MeshData : GlobalMeshSettings)
 				{
-					if(MeshData.RawMeshDescription == &RawMesh)
+					if(MeshData.MeshDescription == &RawMesh)
 					{
 						MeshData.CustomTextureCoordinates = UniqueTextureCoordinates;
 					}
@@ -3456,19 +3647,6 @@ void FMeshMergeUtilities::ExtractPhysicsDataFromComponents(const TArray<UPrimiti
 			OutBodySetupSource = BodySetup;
 		}
 	}
-}
-
-void FMeshMergeUtilities::ScaleTextureCoordinatesToBox(const FBox2D& Box, TArray<FVector2D>& InOutTextureCoordinates) const
-{
-	const FBox2D CoordinateBox(InOutTextureCoordinates);
-	const FVector2D CoordinateRange = CoordinateBox.GetSize();
-	const FVector2D Offset = CoordinateBox.Min + Box.Min;
-	const FVector2D Scale = Box.GetSize() / CoordinateRange;
-	for (FVector2D& Coordinate : InOutTextureCoordinates)
-	{
-		Coordinate = (Coordinate - Offset) * Scale;
-	}
-
 }
 
 #undef LOCTEXT_NAMESPACE // "MeshMergeUtils"

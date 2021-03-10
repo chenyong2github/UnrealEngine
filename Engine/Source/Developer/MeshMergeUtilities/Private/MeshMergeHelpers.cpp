@@ -181,7 +181,7 @@ void FMeshMergeHelpers::ExtractSections(const UStaticMesh* StaticMesh, int32 LOD
 	}
 }
 
-void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InInstancedStaticMeshComponent, FMeshDescription& InOutMeshDescription, TArray<FSectionInfo>& InOutSections)
+void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InInstancedStaticMeshComponent, FMeshDescription& InOutMeshDescription)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::ExpandInstances)
 
@@ -191,11 +191,26 @@ void FMeshMergeHelpers::ExpandInstances(const UInstancedStaticMeshComponent* InI
 	FTransform ComponentTransform = InInstancedStaticMeshComponent->GetComponentTransform();
 	FTransform ComponentTransformInv = ComponentTransform.Inverse();
 
+	// Reserve memory upfront
+	int32 NumInstances = InInstancedStaticMeshComponent->GetInstanceCount();
+
+	CombinedMeshDescription.ReserveNewVertices(InOutMeshDescription.Vertices().Num() * NumInstances);
+	CombinedMeshDescription.ReserveNewVertexInstances(InOutMeshDescription.VertexInstances().Num() * NumInstances);
+	CombinedMeshDescription.ReserveNewEdges(InOutMeshDescription.Edges().Num() * NumInstances);
+	CombinedMeshDescription.ReserveNewTriangles(InOutMeshDescription.Triangles().Num() * NumInstances);
+
+	FStaticMeshOperations::FAppendSettings AppendSettings;
+	for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
+	{
+		AppendSettings.bMergeUVChannels[ChannelIdx] = true;
+	}
+
+	FMeshDescription InstanceMeshDescription;
 	for(const FInstancedStaticMeshInstanceData& InstanceData : InInstancedStaticMeshComponent->PerInstanceSMData)
 	{
-		FMeshDescription InstanceMeshDescription = InOutMeshDescription;
+		InstanceMeshDescription = InOutMeshDescription;
 		FStaticMeshOperations::ApplyTransform(InstanceMeshDescription, ComponentTransformInv * FTransform(InstanceData.Transform) * ComponentTransform);
-		AppendMesh(CombinedMeshDescription, InstanceMeshDescription);
+		FStaticMeshOperations::AppendMeshDescription(InstanceMeshDescription, CombinedMeshDescription, AppendSettings);
 	}
 
 	InOutMeshDescription = CombinedMeshDescription;
@@ -208,11 +223,9 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->GetSourceModel(LODIndex);
 
-	const bool bIsSplineMeshComponent = StaticMeshComponent->IsA<USplineMeshComponent>();
-
 	// Imported meshes will have a valid mesh description
 	const bool bImportedMesh = StaticMesh->IsMeshDescriptionValid(LODIndex);
-		
+
 	// Export the mesh data using static mesh render data
 	ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], OutMeshDescription, StaticMesh->GetStaticMaterials());
 
@@ -222,13 +235,11 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 		return;
 	}
 
-	// Use build settings from base mesh for LOD entries that was generated inside Editor.
-	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
-
 	// Transform mesh to world space
 	FTransform ComponentToWorldTransform = StaticMeshComponent->GetComponentTransform();
 
 	// Handle spline mesh deformation
+	const bool bIsSplineMeshComponent = StaticMeshComponent->IsA<USplineMeshComponent>();
 	if (bIsSplineMeshComponent)
 	{
 		const USplineMeshComponent* SplineMeshComponent = Cast<USplineMeshComponent>(StaticMeshComponent);
@@ -245,10 +256,8 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	// Transform raw mesh vertex data by the Static Mesh Component's component to world transformation	
 	FStaticMeshOperations::ApplyTransform(OutMeshDescription, ComponentToWorldTransform);
 
-	if (OutMeshDescription.VertexInstances().Num() <= 0)
-	{
-		return;
-	}
+	// Use build settings from base mesh for LOD entries that were generated inside Editor.
+	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
 
 	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals	
 	EComputeNTBsFlags ComputeNTBsOptions = EComputeNTBsFlags::BlendOverlappingNormals;
@@ -261,6 +270,7 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMeshComponent* StaticMeshCompo
 	{
 		ComputeNTBsOptions |= EComputeNTBsFlags::UseMikkTSpace;
 	}
+
 	FStaticMeshOperations::ComputeTriangleTangentsAndNormals(OutMeshDescription, 0.0f);
 	FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(OutMeshDescription, ComputeNTBsOptions);
 }
@@ -382,33 +392,23 @@ void FMeshMergeHelpers::RetrieveMesh(const USkeletalMeshComponent* SkeletalMeshC
 
 void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODIndex, FMeshDescription& OutMeshDescription)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::RetrieveMesh)
+
 	const FStaticMeshSourceModel& StaticMeshModel = StaticMesh->GetSourceModel(LODIndex);
 
 	// Imported meshes will have a valid mesh description
 	const bool bImportedMesh = StaticMesh->IsMeshDescriptionValid(LODIndex);
-	
-	// Check whether or not this mesh has been reduced in-engine
-	const bool bReducedMesh = StaticMesh->IsReductionActive(LODIndex);
-	// Trying to retrieve mesh from SourceStaticMeshModel was giving issues, which causes a mismatch			
-	const bool bRenderDataMismatch = (LODIndex > 0) || StaticMeshModel.BuildSettings.bGenerateLightmapUVs;
 
-	if (bImportedMesh && !bReducedMesh && !bRenderDataMismatch)
-	{
-		OutMeshDescription = *StaticMesh->GetMeshDescription(LODIndex);
-	}
-	else
-	{
-		ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], OutMeshDescription, StaticMesh->GetStaticMaterials());
-	}
+	// Export the mesh data using static mesh render data
+	ExportStaticMeshLOD(StaticMesh->GetRenderData()->LODResources[LODIndex], OutMeshDescription, StaticMesh->GetStaticMaterials());
 
 	// Make sure the mesh is not irreparably malformed.
 	if (OutMeshDescription.VertexInstances().Num() <= 0)
 	{
-		// wrong
-		bool check = true;
+		return;
 	}
 
-	// Use build settings from base mesh for LOD entries that was generated inside Editor.
+	// Use build settings from base mesh for LOD entries that were generated inside Editor.
 	const FMeshBuildSettings& BuildSettings = bImportedMesh ? StaticMeshModel.BuildSettings : StaticMesh->GetSourceModel(0).BuildSettings;
 
 	// Figure out if we should recompute normals and tangents. By default generated LODs should not recompute normals	
@@ -422,8 +422,6 @@ void FMeshMergeHelpers::RetrieveMesh(const UStaticMesh* StaticMesh, int32 LODInd
 	{
 		ComputeNTBsOptions |= EComputeNTBsFlags::UseMikkTSpace;
 	}
-	ComputeNTBsOptions |= (bImportedMesh && BuildSettings.bRecomputeNormals) ? EComputeNTBsFlags::Normals : EComputeNTBsFlags::None;
-	ComputeNTBsOptions |= (bImportedMesh && BuildSettings.bRecomputeTangents) ? EComputeNTBsFlags::Tangents : EComputeNTBsFlags::None;
 
 	FStaticMeshOperations::ComputeTriangleTangentsAndNormals(OutMeshDescription, 0.0f);
 	FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(OutMeshDescription, ComputeNTBsOptions);
@@ -1129,134 +1127,6 @@ bool FMeshMergeHelpers::IsLandscapeHit(const FVector& RayOrigin, const FVector& 
 	return bHitLandscape;
 }
 
-void FMeshMergeHelpers::AppendMesh(FMeshDescription& InTarget, const FMeshDescription& InSource)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMeshMergeHelpers::AppendMesh)
-
-	FStaticMeshConstAttributes SourceAttributes(InSource);
-	TVertexAttributesConstRef<FVector> SourceVertexPositions = SourceAttributes.GetVertexPositions();
-	TEdgeAttributesConstRef<bool> SourceEdgeHardnesses = SourceAttributes.GetEdgeHardnesses();
-	TPolygonGroupAttributesConstRef<FName> SourcePolygonGroupImportedMaterialSlotNames = SourceAttributes.GetPolygonGroupMaterialSlotNames();
-	TVertexInstanceAttributesConstRef<FVector> SourceVertexInstanceNormals = SourceAttributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesConstRef<FVector> SourceVertexInstanceTangents = SourceAttributes.GetVertexInstanceTangents();
-	TVertexInstanceAttributesConstRef<float> SourceVertexInstanceBinormalSigns = SourceAttributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesConstRef<FVector4> SourceVertexInstanceColors = SourceAttributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesConstRef<FVector2D> SourceVertexInstanceUVs = SourceAttributes.GetVertexInstanceUVs();
-
-
-	FStaticMeshAttributes TargetAttributes(InTarget);
-	TVertexAttributesRef<FVector> TargetVertexPositions = TargetAttributes.GetVertexPositions();
-	TEdgeAttributesRef<bool> TargetEdgeHardnesses = TargetAttributes.GetEdgeHardnesses();
-	TPolygonGroupAttributesRef<FName> TargetPolygonGroupImportedMaterialSlotNames = TargetAttributes.GetPolygonGroupMaterialSlotNames();
-	TVertexInstanceAttributesRef<FVector> TargetVertexInstanceNormals = TargetAttributes.GetVertexInstanceNormals();
-	TVertexInstanceAttributesRef<FVector> TargetVertexInstanceTangents = TargetAttributes.GetVertexInstanceTangents();
-	TVertexInstanceAttributesRef<float> TargetVertexInstanceBinormalSigns = TargetAttributes.GetVertexInstanceBinormalSigns();
-	TVertexInstanceAttributesRef<FVector4> TargetVertexInstanceColors = TargetAttributes.GetVertexInstanceColors();
-	TVertexInstanceAttributesRef<FVector2D> TargetVertexInstanceUVs = TargetAttributes.GetVertexInstanceUVs();
-
-	InTarget.ReserveNewVertices(InSource.Vertices().Num());
-	InTarget.ReserveNewVertexInstances(InSource.VertexInstances().Num());
-	InTarget.ReserveNewEdges(InSource.Edges().Num());
-	InTarget.ReserveNewPolygons(InSource.Polygons().Num());
-
-	//Append PolygonGroup
-	for (const FPolygonGroupID SourcePolygonGroupID : InSource.PolygonGroups().GetElementIDs())
-	{
-		if (!InTarget.IsPolygonGroupValid(SourcePolygonGroupID))
-		{
-			const FName BaseName = SourcePolygonGroupImportedMaterialSlotNames[SourcePolygonGroupID];
-			FName CurrentTestName = BaseName;
-			int32 UniqueID = 1;
-			bool bUnique = true;
-			do 
-			{
-				bUnique = true;
-				for (const FPolygonGroupID PolygonGroupID : InTarget.PolygonGroups().GetElementIDs())
-				{
-					if (TargetPolygonGroupImportedMaterialSlotNames[PolygonGroupID] == CurrentTestName)
-					{
-						CurrentTestName = FName(*(BaseName.ToString() + FString::FromInt(UniqueID++)));
-						bUnique = false;
-						break;
-					}
-				}
-			} while (!bUnique);
-
-			InTarget.CreatePolygonGroupWithID(SourcePolygonGroupID);
-			TargetPolygonGroupImportedMaterialSlotNames[SourcePolygonGroupID] = CurrentTestName;
-		}
-	}
-
-	//Append the Vertexs
-	TMap<FVertexID, FVertexID> SourceToTargetVertexID;
-	SourceToTargetVertexID.Reserve(InSource.Vertices().Num());
-	for (const FVertexID SourceVertexID : InSource.Vertices().GetElementIDs())
-	{
-		const FVertexID TargetVertexID = InTarget.CreateVertex();
-		SourceToTargetVertexID.Add(SourceVertexID, TargetVertexID);
-		TargetVertexPositions[TargetVertexID] = SourceVertexPositions[SourceVertexID];
-	}
-
-	//Append VertexInstances
-	if (SourceVertexInstanceUVs.GetNumChannels() > TargetVertexInstanceUVs.GetNumChannels())
-	{
-		TargetVertexInstanceUVs.SetNumChannels(SourceVertexInstanceUVs.GetNumChannels());
-	}
-	TMap<FVertexInstanceID, FVertexInstanceID> SourceToTargetVertexInstanceID;
-	SourceToTargetVertexInstanceID.Reserve(InSource.VertexInstances().Num());
-	for (const FVertexInstanceID SourceVertexInstanceID : InSource.VertexInstances().GetElementIDs())
-	{
-		const FVertexID SourceVertexID = InSource.GetVertexInstanceVertex(SourceVertexInstanceID);
-		const FVertexInstanceID TargetVertexInstanceID = InTarget.CreateVertexInstance(SourceToTargetVertexID[SourceVertexID]);
-		TargetVertexInstanceTangents[TargetVertexInstanceID] = SourceVertexInstanceTangents[SourceVertexInstanceID];
-		TargetVertexInstanceBinormalSigns[TargetVertexInstanceID] = SourceVertexInstanceBinormalSigns[SourceVertexInstanceID];
-		TargetVertexInstanceNormals[TargetVertexInstanceID] = SourceVertexInstanceNormals[SourceVertexInstanceID];
-		TargetVertexInstanceColors[TargetVertexInstanceID] = SourceVertexInstanceColors[SourceVertexInstanceID];
-		for (int32 UVIndex = 0; UVIndex < TargetVertexInstanceUVs.GetNumChannels(); ++UVIndex)
-		{
-			FVector2D SourceUV = SourceVertexInstanceUVs.GetNumChannels() > UVIndex ? SourceVertexInstanceUVs.Get(SourceVertexInstanceID, UVIndex) : FVector2D(0.0f, 0.0f);
-			TargetVertexInstanceUVs.Set(TargetVertexInstanceID, UVIndex, SourceUV);
-		}
-		SourceToTargetVertexInstanceID.Add(SourceVertexInstanceID, TargetVertexInstanceID);
-	}
-
-	//Append Edges
-	TMap<FEdgeID, FEdgeID> SourceToTargetEdgeID;
-	SourceToTargetEdgeID.Reserve(InSource.Edges().Num());
-	for (const FEdgeID SourceEdgeID : InSource.Edges().GetElementIDs())
-	{
-		const FVertexID EdgeVertex0 = InSource.GetEdgeVertex(SourceEdgeID, 0);
-		const FVertexID EdgeVertex1 = InSource.GetEdgeVertex(SourceEdgeID, 1);
-		const FEdgeID TargetEdgeID = InTarget.CreateEdge(SourceToTargetVertexID[EdgeVertex0], SourceToTargetVertexID[EdgeVertex1]);
-		TargetEdgeHardnesses[TargetEdgeID] = SourceEdgeHardnesses[SourceEdgeID];
-		SourceToTargetEdgeID.Add(SourceEdgeID, TargetEdgeID);
-	}
-
-	auto CreateContour = [&InSource, &SourceToTargetVertexInstanceID, &SourceToTargetEdgeID](const TArray<FVertexInstanceID>& SourceVertexInstanceIDs, TArray<FVertexInstanceID>& DestVertexInstanceIDs)
-	{
-		const int32 ContourCount = SourceVertexInstanceIDs.Num();
-		for (int32 ContourIndex = 0; ContourIndex < ContourCount; ++ContourIndex)
-		{
-			FVertexInstanceID SourceVertexInstanceID = SourceVertexInstanceIDs[ContourIndex];
-			DestVertexInstanceIDs.Add(SourceToTargetVertexInstanceID[SourceVertexInstanceID]);
-		}
-	};
-
-	// @todo: make this work in terms of triangles instead of polygons
-	//Append Polygons
-	for (const FPolygonID SourcePolygonID : InSource.Polygons().GetElementIDs())
-	{
-		TArray<FVertexInstanceID> SourceVertexInstanceIDs = InSource.GetPolygonVertexInstances(SourcePolygonID);
-		const FPolygonGroupID PolygonGroupID = InSource.GetPolygonPolygonGroup(SourcePolygonID);
-
-		TArray<FVertexInstanceID> ContourVertexInstances;
-		CreateContour(SourceVertexInstanceIDs, ContourVertexInstances);
-
-		// Insert a polygon into the mesh
-		const FPolygonID TargetPolygonID = InTarget.CreatePolygon(PolygonGroupID, ContourVertexInstances);
-	}
-}
-
 void FMeshMergeHelpers::MergeImpostersToMesh(TArray<const UStaticMeshComponent*> ImposterComponents, FMeshDescription& InMeshDescription, const FVector& InPivot, int32 InBaseMaterialIndex, TArray<UMaterialInterface*>& OutImposterMaterials)
 {
 	TMap<UMaterialInterface*, FPolygonGroupID> ImposterMaterialToPolygonGroupID;
@@ -1341,6 +1211,12 @@ void FMeshMergeHelpers::MergeImpostersToMesh(TArray<const UStaticMeshComponent*>
 		}
 		ImposterMesh.RemapPolygonGroups(RemapSourcePolygonGroup);
 
-		AppendMesh(InMeshDescription, ImposterMesh);
+		FStaticMeshOperations::FAppendSettings AppendSettings;
+		AppendSettings.bMergeVertexColor = true;
+		for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
+		{
+			AppendSettings.bMergeUVChannels[ChannelIdx] = true;
+		}
+		FStaticMeshOperations::AppendMeshDescription(ImposterMesh, InMeshDescription, AppendSettings);
 	}
 }

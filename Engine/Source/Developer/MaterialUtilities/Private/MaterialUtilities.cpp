@@ -2322,7 +2322,7 @@ bool FMaterialUtilities::ExportMaterials(TArray<FMaterialMergeData*>& MergeData,
 		FMaterialMergeData* CurrentMergeData = MergeData[MaterialIndex];
 
 		FMeshData* MeshSet = new FMeshData();
-		MeshSet->RawMeshDescription = const_cast<FMeshDescription*>(CurrentMergeData->Mesh);
+		MeshSet->MeshDescription = CurrentMergeData->Mesh;
 		MeshSet->TextureCoordinateBox = CurrentMergeData->TexcoordBounds;
 		MeshSet->CustomTextureCoordinates = CurrentMergeData->TexCoords;
 		MeshSettings.Add(MeshSet);

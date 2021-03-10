@@ -884,7 +884,7 @@ namespace UsdShadeConversionImpl
 		}
 
 		FMeshData MeshSettings;
-		MeshSettings.RawMeshDescription = nullptr;
+		MeshSettings.MeshDescription = nullptr;
 		MeshSettings.TextureCoordinateBox = FBox2D( FVector2D( 0.0f, 0.0f ), FVector2D( 1.0f, 1.0f ) );
 		MeshSettings.TextureCoordinateIndex = 0;
 

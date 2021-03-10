@@ -85,7 +85,7 @@ void FMeshMaterialRenderItem::GenerateRenderData()
 	// Reset array without resizing
 	Vertices.SetNum(0, false);
 	Indices.SetNum(0, false);
-	if (MeshSettings->RawMeshDescription)
+	if (MeshSettings->MeshDescription)
 	{
 		// Use supplied FMeshDescription data to populate render data
 		PopulateWithMeshData();
@@ -182,7 +182,7 @@ void FMeshMaterialRenderItem::PopulateWithQuadData()
 
 void FMeshMaterialRenderItem::PopulateWithMeshData()
 {
-	const FMeshDescription* RawMesh = MeshSettings->RawMeshDescription;
+	const FMeshDescription* RawMesh = MeshSettings->MeshDescription;
 
 	FStaticMeshConstAttributes Attributes(*RawMesh);
 	TArrayView<const FVector> VertexPositions = Attributes.GetVertexPositions().GetRawArray();
@@ -266,16 +266,13 @@ void FMeshMaterialRenderItem::PopulateWithMeshData()
 				Vert->TextureCoordinate[6].X = VertexPositions[SrcVertexID].X;
 				Vert->TextureCoordinate[6].Y = VertexPositions[SrcVertexID].Y;
 				Vert->TextureCoordinate[7].X = VertexPositions[SrcVertexID].Z;
+				Vert->TextureCoordinate[7].Y = 0.0f;
 
 				Vert->Color = FLinearColor(VertexInstanceColors[SrcVertexInstanceID]).ToFColor(true);
 				// add index
 				Indices.Add(VertIndex);
 				VertIndex++;
 			}
-			// add the same triangle with opposite vertex order
-			Indices.Add(VertIndex - 3);
-			Indices.Add(VertIndex - 1);
-			Indices.Add(VertIndex - 2);
 		}
 		FaceIndex++;
 	}

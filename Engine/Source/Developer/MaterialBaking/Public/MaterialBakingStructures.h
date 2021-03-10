@@ -45,14 +45,14 @@ struct FMaterialDataEx
 struct FMeshData
 {
 	FMeshData()
-		: RawMeshDescription(nullptr), Mesh(nullptr), bMirrored(false), VertexColorHash(0), TextureCoordinateIndex(0), LightMapIndex(0), LightMap(nullptr), LightmapResourceCluster(nullptr)
+		: MeshDescription(nullptr), Mesh(nullptr), bMirrored(false), VertexColorHash(0), TextureCoordinateIndex(0), LightMapIndex(0), LightMap(nullptr), LightmapResourceCluster(nullptr)
 	{}
 
 	/** Ptr to raw mesh data to use for baking out the material data, if nullptr a standard quad is used */
-	FMeshDescription* RawMeshDescription;
+	const FMeshDescription* MeshDescription;
 
 	/** Ptr to original static mesh this mesh data came from */
-	UStaticMesh* Mesh;
+	const UStaticMesh* Mesh;
 
 	/** Transform determinant used to detect mirroring */
 	bool bMirrored;

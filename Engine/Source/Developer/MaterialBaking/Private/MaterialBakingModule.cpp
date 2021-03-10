@@ -30,6 +30,8 @@
 
 IMPLEMENT_MODULE(FMaterialBakingModule, MaterialBaking);
 
+DEFINE_LOG_CATEGORY_STATIC(LogMaterialBaking, All, All);
+
 #define LOCTEXT_NAMESPACE "MaterialBakingModule"
 
 /** Cvars for advanced features */
@@ -349,6 +351,15 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialData*>& Material
 
 void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& MaterialSettings, const TArray<FMeshData*>& MeshSettings, TArray<FBakeOutputEx>& Output)
 {
+	UE_LOG(LogMaterialBaking, Verbose, TEXT("Performing material baking for %d materials"), MaterialSettings.Num());
+	for (int32 i = 0; i < MaterialSettings.Num(); i++)
+	{
+		if (MaterialSettings[i]->Material && MeshSettings[i]->MeshDescription)
+		{
+			UE_LOG(LogMaterialBaking, Verbose, TEXT("    [%5d] Material: %-50s Vertices: %8d    Triangles: %8d"), i, *MaterialSettings[i]->Material->GetName(), MeshSettings[i]->MeshDescription->Vertices().Num(), MeshSettings[i]->MeshDescription->Triangles().Num());
+		}
+	}
+
 	RenderCaptureInterface::FScopedCapture RenderCapture(CVarMaterialBakingRDOCCapture.GetValueOnAnyThread() == 1, TEXT("MaterialBaking"));
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterialBakingModule::BakeMaterials)
@@ -376,7 +387,7 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 	// Soft page faults are now incredibly expensive on Windows 10.
 	Algo::SortBy(
 		ProcessingOrder,
-		[&MeshSettings](const uint32 Index){ return MeshSettings[Index]->RawMeshDescription ? MeshSettings[Index]->RawMeshDescription->Vertices().Num() : 0; },
+		[&MeshSettings](const uint32 Index){ return MeshSettings[Index]->MeshDescription ? MeshSettings[Index]->MeshDescription->Vertices().Num() : 0; },
 		TGreater<>()
 	);
 
@@ -507,6 +518,8 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 		const FMeshData* CurrentMeshSettings = MeshSettings[MaterialIndex];
 		FBakeOutputEx& CurrentOutput = Output[MaterialIndex];
 
+		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*CurrentMaterialSettings->Material->GetName())
+
 		TArray<FMaterialPropertyEx> MaterialPropertiesToBakeOut;
 		CurrentMaterialSettings->PropertySizes.GenerateKeyArray(MaterialPropertiesToBakeOut);
 
@@ -526,6 +539,9 @@ void FMaterialBakingModule::BakeMaterials(const TArray<FMaterialDataEx*>& Materi
 			for (int32 PropertyIndex = 0; PropertyIndex < NumPropertiesToRender; ++PropertyIndex)
 			{
 				const FMaterialPropertyEx& Property = MaterialPropertiesToBakeOut[PropertyIndex];
+
+				TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*Property.ToString())
+
 				FExportMaterialProxy* ExportMaterialProxy = CreateMaterialProxy(CurrentMaterialSettings->Material, Property);
 
 				if (!ExportMaterialProxy->IsCompilationFinished())
