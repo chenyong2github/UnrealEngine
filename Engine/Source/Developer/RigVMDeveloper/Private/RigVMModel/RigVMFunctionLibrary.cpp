@@ -75,3 +75,41 @@ TArray< FString > URigVMFunctionLibrary::GetReferencePathsForFunction(const FNam
 
 	return Result;
 }
+
+URigVMLibraryNode* URigVMFunctionLibrary::FindPreviouslyLocalizedFunction(URigVMLibraryNode* InFunctionToLocalize)
+{
+	if(InFunctionToLocalize == nullptr)
+	{
+		return nullptr;
+	}
+	
+	const FString PathName = InFunctionToLocalize->GetPathName();
+
+	if(!LocalizedFunctions.Contains((PathName)))
+	{
+		return nullptr;
+	}
+
+	URigVMLibraryNode* LocalizedFunction = LocalizedFunctions.FindChecked(PathName);
+
+	// once we found the function - let's make sure it's notation is right
+	if(LocalizedFunction->GetPins().Num() != InFunctionToLocalize->GetPins().Num())
+	{
+		return nullptr;
+	}
+	for(int32 PinIndex=0; PinIndex < InFunctionToLocalize->GetPins().Num(); PinIndex++)
+	{
+		URigVMPin* PinA = InFunctionToLocalize->GetPins()[PinIndex];
+		URigVMPin* PinB = LocalizedFunction->GetPins()[PinIndex];
+
+		if((PinA->GetFName() != PinB->GetFName()) ||
+			(PinA->GetCPPType() != PinB->GetCPPType()) ||
+			(PinA->GetCPPTypeObject() != PinB->GetCPPTypeObject()) ||
+			(PinA->IsArray() != PinB->IsArray()))
+		{
+			return nullptr;
+		}
+	}
+	
+	return LocalizedFunction;
+}

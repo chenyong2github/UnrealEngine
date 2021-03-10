@@ -12,6 +12,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/Package.h"
 #include "Misc/CoreMisc.h"
+#include "Algo/Sort.h"
 
 #if WITH_EDITOR
 #include "Exporters/Exporter.h"
@@ -1767,26 +1768,41 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			ActionStack->AddAction(FRigVMRemoveNodeAction(CreatedNode, this));
 		}
 
-		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(CreatedNode))
+		// find all nodes affected by this
+		TArray<URigVMNode*> SubNodes;
+		SubNodes.Add(CreatedNode);
+
+		for(int32 SubNodeIndex=0; SubNodeIndex < SubNodes.Num(); SubNodeIndex++)
 		{
-			if (UnitNodeCreatedContext.IsValid())
+			if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(SubNodes[SubNodeIndex]))
 			{
-				if (TSharedPtr<FStructOnScope> StructScope = UnitNode->ConstructStructInstance())
-				{
-					TGuardValue<FName> NodeNameScope(UnitNodeCreatedContext.NodeName, UnitNode->GetFName());
-					FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
-					StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
-				}
+				SubNodes.Append(CollapseNode->GetContainedNodes());
 			}
 		}
 
-		if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(CreatedNode))
+		for(URigVMNode* SubNode : SubNodes)
 		{
-			if (URigVMFunctionLibrary* FunctionLibrary = FunctionRefNode->GetLibrary())
+			if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(SubNode))
 			{
-				if (URigVMLibraryNode* FunctionDefinition = FunctionRefNode->GetReferencedNode())
+				if (UnitNodeCreatedContext.IsValid())
 				{
-					FunctionLibrary->FunctionReferences.FindOrAdd(FunctionDefinition).FunctionReferences.Add(FunctionRefNode);
+					if (TSharedPtr<FStructOnScope> StructScope = UnitNode->ConstructStructInstance())
+					{
+						TGuardValue<FName> NodeNameScope(UnitNodeCreatedContext.NodeName, UnitNode->GetFName());
+						FRigVMStruct* StructInstance = (FRigVMStruct*)StructScope->GetStructMemory();
+						StructInstance->OnUnitNodeCreated(UnitNodeCreatedContext);
+					}
+				}
+			}
+
+			if (URigVMFunctionReferenceNode* FunctionRefNode = Cast<URigVMFunctionReferenceNode>(SubNode))
+			{
+				if (URigVMFunctionLibrary* FunctionLibrary = FunctionRefNode->GetLibrary())
+				{
+					if (URigVMLibraryNode* FunctionDefinition = FunctionRefNode->GetReferencedNode())
+					{
+						FunctionLibrary->FunctionReferences.FindOrAdd(FunctionDefinition).FunctionReferences.Add(FunctionRefNode);
+					}
 				}
 			}
 		}
@@ -1855,6 +1871,214 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 	}
 
 	return NodeNames;
+}
+
+URigVMLibraryNode* URigVMController::LocalizeFunction(
+	URigVMLibraryNode* InFunctionDefinition,
+	bool bLocalizeDependentPrivateFunctions,
+	bool bSetupUndoRedo)
+{
+	if(!IsValidGraph())
+	{
+		return nullptr;
+	}
+
+	if(InFunctionDefinition == nullptr)
+	{
+		return nullptr;
+	}
+
+	TArray<URigVMLibraryNode*> FunctionsToLocalize;
+	FunctionsToLocalize.Add(InFunctionDefinition);
+
+	TMap<URigVMLibraryNode*, URigVMLibraryNode*> Results = LocalizeFunctions(FunctionsToLocalize, bLocalizeDependentPrivateFunctions, bSetupUndoRedo);
+
+	URigVMLibraryNode** LocalizedFunctionPtr = Results.Find(FunctionsToLocalize[0]);
+	if(LocalizedFunctionPtr)
+	{
+		return *LocalizedFunctionPtr;
+	}
+	return nullptr;
+}
+
+TMap<URigVMLibraryNode*, URigVMLibraryNode*> URigVMController::LocalizeFunctions(
+    TArray<URigVMLibraryNode*> InFunctionDefinitions,
+    bool bLocalizeDependentPrivateFunctions,
+    bool bSetupUndoRedo)
+{
+	TMap<URigVMLibraryNode*, URigVMLibraryNode*> LocalizedFunctions;
+
+	if(!IsValidGraph())
+	{
+		return LocalizedFunctions;
+	}
+
+	URigVMGraph* Graph = GetGraph();
+	check(Graph);
+
+	URigVMFunctionLibrary* ThisLibrary = Graph->GetDefaultFunctionLibrary();
+	if(ThisLibrary == nullptr)
+	{
+		return LocalizedFunctions;
+	}
+
+	TArray<URigVMLibraryNode*> FunctionsToLocalize;
+
+	TArray<URigVMLibraryNode*> NodesToVisit;
+	for(URigVMLibraryNode* FunctionDefinition : InFunctionDefinitions)
+	{
+		NodesToVisit.AddUnique(FunctionDefinition);
+		FunctionsToLocalize.AddUnique(FunctionDefinition);
+	}
+
+	// find all functions to localize
+	for(int32 NodeToVisitIndex=0; NodeToVisitIndex<NodesToVisit.Num(); NodeToVisitIndex++)
+	{
+		URigVMLibraryNode* NodeToVisit = NodesToVisit[NodeToVisitIndex];
+
+		if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(NodeToVisit))
+		{
+			const TArray<URigVMNode*>& ContainedNodes = CollapseNode->GetContainedNodes();
+			for(URigVMNode* ContainedNode : ContainedNodes)
+			{
+				if(URigVMLibraryNode* ContainedLibraryNode = Cast<URigVMLibraryNode>(ContainedNode))
+				{
+					NodesToVisit.AddUnique(ContainedLibraryNode);
+				}
+			}
+
+			if(URigVMFunctionLibrary* OtherLibrary = Cast<URigVMFunctionLibrary>(CollapseNode->GetOuter()))
+			{
+				if(OtherLibrary != ThisLibrary)
+				{
+					bool bIsAvailable = false;
+					if(IsFunctionAvailableDelegate.IsBound())
+					{
+						bIsAvailable = IsFunctionAvailableDelegate.Execute(CollapseNode);
+					}
+
+					if(!bIsAvailable)
+					{
+						if(!bLocalizeDependentPrivateFunctions)
+						{
+							ReportAndNotifyErrorf(TEXT("Cannot localize function - dependency %s is private."), *CollapseNode->GetPathName());
+							return LocalizedFunctions;
+						}
+						
+						FunctionsToLocalize.AddUnique(CollapseNode);
+					}
+				}
+			}
+		}
+
+		else if(URigVMFunctionReferenceNode* FunctionReferencedNode = Cast<URigVMFunctionReferenceNode>(NodeToVisit))
+		{
+			if(FunctionReferencedNode->GetLibrary() != ThisLibrary)
+			{
+				if(URigVMCollapseNode* FunctionDefinition = Cast<URigVMCollapseNode>(FunctionReferencedNode->GetReferencedNode()))
+				{
+					NodesToVisit.AddUnique(FunctionDefinition);
+				}
+			}
+		}
+	}
+	
+	// sort the functions to localize based on their nesting
+	Algo::Sort(FunctionsToLocalize, [](URigVMLibraryNode* A, URigVMLibraryNode* B) -> bool
+	{
+		check(A);
+		check(B);
+		return B->Contains(A);
+	});
+
+	// export all of the content for each node
+	TMap<URigVMLibraryNode*, FString> ExportedTextPerFunction;
+	for(URigVMLibraryNode* FunctionToLocalize : FunctionsToLocalize)
+	{
+		URigVMFunctionLibrary* OtherLibrary = Cast<URigVMFunctionLibrary>(FunctionToLocalize->GetOuter());
+		FRigVMControllerGraphGuard GraphGuard(this, OtherLibrary, false);
+
+		const TArray<FName> NodeNamesToExport = {FunctionToLocalize->GetFName()};
+		const FString ExportedText = ExportNodesToText(NodeNamesToExport);
+		ExportedTextPerFunction.Add(FunctionToLocalize, ExportedText);
+	}
+
+	if (bSetupUndoRedo)
+	{
+		OpenUndoBracket(TEXT("Localize functions"));
+	}
+
+	// import the functions to our local function library
+	{
+		FRigVMControllerGraphGuard GraphGuard(this, ThisLibrary, bSetupUndoRedo);
+
+		// override the availability and check up later
+		TGuardValue<FRigVMController_IsFunctionAvailableDelegate> IsFunctionAvailableGuard(IsFunctionAvailableDelegate,
+			FRigVMController_IsFunctionAvailableDelegate::CreateLambda([](URigVMLibraryNode*)
+			{
+				return true;
+			})
+		);
+
+		for(URigVMLibraryNode* FunctionToLocalize : FunctionsToLocalize)
+		{
+			const FString& ExportedText = ExportedTextPerFunction.FindChecked(FunctionToLocalize);
+			TArray<FName> ImportedNodeNames = ImportNodesFromText(ExportedText);
+			if(ImportedNodeNames.Num() != 1)
+			{
+				ReportErrorf(TEXT("Not possible to localize function %s"), *FunctionToLocalize->GetPathName());
+				continue;
+			}
+
+			URigVMLibraryNode* LocalizedFunction = Cast<URigVMLibraryNode>(GetGraph()->FindNodeByName(ImportedNodeNames[0]));
+			if(LocalizedFunction == nullptr)
+			{
+				ReportErrorf(TEXT("Not possible to localize function %s"), *FunctionToLocalize->GetPathName());
+				continue;
+			}
+
+			LocalizedFunctions.Add(FunctionToLocalize, LocalizedFunction);
+			ThisLibrary->LocalizedFunctions.FindOrAdd(FunctionToLocalize->GetPathName(), LocalizedFunction);
+		}
+	}
+
+	// once we have all local functions available, clean up the references
+	TArray<URigVMGraph*> GraphsToUpdate;
+	GraphsToUpdate.AddUnique(Graph);
+	if(URigVMFunctionLibrary* DefaultFunctionLibrary = Graph->GetDefaultFunctionLibrary())
+	{
+		GraphsToUpdate.AddUnique(DefaultFunctionLibrary);
+	}
+	for(int32 GraphToUpdateIndex=0; GraphToUpdateIndex<GraphsToUpdate.Num(); GraphToUpdateIndex++)
+	{
+		URigVMGraph* GraphToUpdate = GraphsToUpdate[GraphToUpdateIndex];
+		
+		const TArray<URigVMNode*> NodesToUpdate = GraphToUpdate->GetNodes();
+		for(URigVMNode* NodeToUpdate : NodesToUpdate)
+		{
+			if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(NodeToUpdate))
+			{
+				GraphsToUpdate.AddUnique(CollapseNode->GetContainedGraph());
+			}
+			else if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(NodeToUpdate))
+			{
+				URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->GetReferencedNode();
+				URigVMLibraryNode** RemappedNodePtr = LocalizedFunctions.Find(ReferencedNode);
+				if(RemappedNodePtr)
+				{
+					URigVMLibraryNode* RemappedNode = *RemappedNodePtr;
+					SetReferencedFunction(FunctionReferenceNode, RemappedNode, bSetupUndoRedo);
+				}
+			}
+		}
+	}
+
+	if(bSetupUndoRedo)
+	{
+		CloseUndoBracket();
+	}
+
+	return LocalizedFunctions;
 }
 
 FName URigVMController::GetUniqueName(const FName& InName, TFunction<bool(const FName&)> IsNameAvailableFunction)
@@ -3117,6 +3341,30 @@ URigVMCollapseNode* URigVMController::PromoteFunctionReferenceNodeToCollapseNode
 	return CollapseNode;
 }
 
+void URigVMController::SetReferencedFunction(URigVMFunctionReferenceNode* InFunctionRefNode, URigVMLibraryNode* InNewReferencedNode, bool bSetupUndoRedo)
+{
+	if(!IsValidGraph())
+	{
+		return;
+	}
+	
+	URigVMLibraryNode* ReferencedNode = InFunctionRefNode->GetReferencedNode();
+	
+	if(URigVMFunctionLibrary* OtherLibrary = Cast<URigVMFunctionLibrary>(ReferencedNode->GetOuter()))
+	{
+		if(FRigVMFunctionReferenceArray* OtherReferences = OtherLibrary->FunctionReferences.Find(ReferencedNode))
+		{
+			OtherReferences->FunctionReferences.Remove(InFunctionRefNode);
+		}
+	}
+
+	URigVMFunctionLibrary* NewLibrary = Cast<URigVMFunctionLibrary>(InNewReferencedNode->GetOuter());
+	FRigVMFunctionReferenceArray& NewReferences = NewLibrary->FunctionReferences.FindOrAdd(InNewReferencedNode);
+	NewReferences.FunctionReferences.Add(InFunctionRefNode);
+
+	InFunctionRefNode->SetReferencedNode(InNewReferencedNode);
+}
+
 void URigVMController::RefreshFunctionPins(URigVMNode* InNode, bool bNotify)
 {
 	if (InNode == nullptr)
@@ -3284,6 +3532,15 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bSetupUndoRedo, bool 
 				}
 			}
 			FunctionLibrary->FunctionReferences.Remove(LibraryNode);
+
+			for(const TPair<FString, URigVMLibraryNode*>& Pair : FunctionLibrary->LocalizedFunctions)
+			{
+				if(Pair.Value == LibraryNode)
+				{
+					FunctionLibrary->LocalizedFunctions.Remove(Pair.Key);
+					break;
+				}
+			}
 		}
 	}
 
@@ -6756,18 +7013,30 @@ bool URigVMController::CanAddNode(URigVMNode* InNode, bool bReportErrors)
 	{
 		if (URigVMFunctionLibrary* FunctionLibrary = FunctionRefNode->GetLibrary())
 		{
-			if(Graph->GetDefaultFunctionLibrary() != FunctionLibrary)
+			if (URigVMLibraryNode* FunctionDefinition = FunctionRefNode->GetReferencedNode())
 			{
-				// this node references a function that is not part of our function library
-				if(bReportErrors)
+				if(!CanAddFunctionRefForDefinition(FunctionDefinition, false))
 				{
-					ReportError(TEXT("Cannot import function reference node."));
+					URigVMFunctionLibrary* TargetLibrary = Graph->GetDefaultFunctionLibrary();
+					URigVMLibraryNode* NewFunctionDefinition = TargetLibrary->FindPreviouslyLocalizedFunction(FunctionDefinition);
+					
+					if((NewFunctionDefinition == nullptr) && RequestLocalizeFunctionDelegate.IsBound())
+					{
+						if(RequestLocalizeFunctionDelegate.Execute(FunctionDefinition))
+						{
+							NewFunctionDefinition = TargetLibrary->FindPreviouslyLocalizedFunction(FunctionDefinition);
+						}
+					}
+
+					if(NewFunctionDefinition == nullptr)
+					{
+						return false;
+					}
+					
+					SetReferencedFunction(FunctionRefNode, NewFunctionDefinition, false);
+					FunctionDefinition = NewFunctionDefinition;
 				}
-				DestroyObject(InNode);
-				return false;
-			}
-			else if (URigVMLibraryNode* FunctionDefinition = FunctionRefNode->GetReferencedNode())
-			{
+				
 				if(!CanAddFunctionRefForDefinition(FunctionDefinition, bReportErrors))
 				{
 					DestroyObject(InNode);
@@ -6775,6 +7044,19 @@ bool URigVMController::CanAddNode(URigVMNode* InNode, bool bReportErrors)
 				}
 			}
 		}			
+	}
+	else if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(InNode))
+	{
+		FRigVMControllerGraphGuard GraphGuard(this, CollapseNode->GetContainedGraph(), false);
+
+		TArray<URigVMNode*> ContainedNodes = CollapseNode->GetContainedNodes();
+		for(URigVMNode* ContainedNode : ContainedNodes)
+		{
+			if(!CanAddNode(ContainedNode, bReportErrors))
+			{
+				return false;
+			}
+		}
 	}
 
 	return true;
@@ -6791,6 +7073,18 @@ bool URigVMController::CanAddFunctionRefForDefinition(URigVMLibraryNode* InFunct
 
 	URigVMGraph* Graph = GetGraph();
 	check(Graph);
+
+	if(IsFunctionAvailableDelegate.IsBound())
+	{
+		if(!IsFunctionAvailableDelegate.Execute(InFunctionDefinition))
+		{
+			if(bReportErrors)
+			{
+				ReportAndNotifyError(TEXT("Function is not available for placement in another graph host."));
+			}
+			return false;
+		}
+	}
 
 	URigVMLibraryNode* ParentLibraryNode = Cast<URigVMLibraryNode>(Graph->GetOuter());
 	while (ParentLibraryNode)

@@ -23,6 +23,8 @@ class URigVMActionStack;
 DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_ShouldStructUnfoldDelegate, const UStruct*)
 DECLARE_DELEGATE_RetVal(TArray<FRigVMExternalVariable>, FRigVMController_GetExternalVariablesDelegate)
 DECLARE_DELEGATE_RetVal(const FRigVMByteCode*, FRigVMController_GetByteCodeDelegate)
+DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_IsFunctionAvailableDelegate, URigVMLibraryNode*)
+DECLARE_DELEGATE_RetVal_OneParam(bool, FRigVMController_RequestLocalizeFunctionDelegate, URigVMLibraryNode*)
 
 /**
  * The Controller is the sole authority to perform changes
@@ -276,6 +278,19 @@ public:
 	// Exports the given nodes as text
 	UFUNCTION(BlueprintCallable, Category = RigVMController)
 	TArray<FName> ImportNodesFromText(const FString& InText, bool bSetupUndoRedo = true);
+
+	// Copies a function declaration into this graph's local function library
+	UFUNCTION(BlueprintCallable, Category = RigVMController)
+    URigVMLibraryNode* LocalizeFunction(
+    	URigVMLibraryNode* InFunctionDefinition,
+		bool bLocalizeDependentPrivateFunctions = true,
+    	bool bSetupUndoRedo = true);
+
+	// Copies a series of function declaratioms into this graph's local function library
+    TMap<URigVMLibraryNode*, URigVMLibraryNode*> LocalizeFunctions(
+        TArray<URigVMLibraryNode*> InFunctionDefinitions,
+        bool bLocalizeDependentPrivateFunctions = true,
+        bool bSetupUndoRedo = true);
 
 	// Returns a unique name
 	static FName GetUniqueName(const FName& InName, TFunction<bool(const FName&)> IsNameAvailableFunction);
@@ -548,6 +563,12 @@ public:
 	// A delegate to retrieve the current bytecode of the graph
 	FRigVMController_GetByteCodeDelegate GetCurrentByteCodeDelegate;
 
+	// A delegate to determine if a function is public
+	FRigVMController_IsFunctionAvailableDelegate IsFunctionAvailableDelegate;
+
+	// A delegate to localize a function on demand
+	FRigVMController_RequestLocalizeFunctionDelegate RequestLocalizeFunctionDelegate;
+
 	int32 DetachLinksFromPinObjects(const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
 	int32 ReattachLinksToPinObjects(bool bFollowCoreRedirectors = false, const TArray<URigVMLink*>* InLinks = nullptr, bool bNotify = false);
 	void AddPinRedirector(bool bInput, bool bOutput, const FString& OldPinPath, const FString& NewPinPath);
@@ -649,6 +670,7 @@ private:
 	TArray<URigVMNode*> ExpandLibraryNode(URigVMLibraryNode* InNode, bool bSetupUndoRedo);
 	URigVMFunctionReferenceNode* PromoteCollapseNodeToFunctionReferenceNode(URigVMCollapseNode* InCollapseNode, bool bSetupUndoRedo);
 	URigVMCollapseNode* PromoteFunctionReferenceNodeToCollapseNode(URigVMFunctionReferenceNode* InFunctionRefNode, bool bSetupUndoRedo);
+	void SetReferencedFunction(URigVMFunctionReferenceNode* InFunctionRefNode, URigVMLibraryNode* InNewReferencedNode, bool bSetupUndoRedo);
 
 	void RefreshFunctionPins(URigVMNode* InNode, bool bNotify = true);
 

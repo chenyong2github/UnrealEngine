@@ -24,6 +24,10 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 
+#if WITH_EDITOR
+#include "ControlRigEditor/Private/Editor/SControlRigFunctionLocalizationWidget.h"
+#endif
+
 #define LOCTEXT_NAMESPACE "ControlRigGraphSchema"
 
 const FName UControlRigGraphSchema::GraphName_ControlRig(TEXT("Rig Graph"));
@@ -40,7 +44,23 @@ FReply FControlRigFunctionDragDropAction::DroppedOnPanel(const TSharedRef< class
 				{
 					if(URigVMController* TargetController = TargetRigBlueprint->GetController(TargetRigGraph))
 					{
-						TargetController->AddFunctionReferenceNode(FunctionDefinitionNode, GraphPosition);
+						if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(FunctionDefinitionNode->GetOuter()))
+						{
+							if(UControlRigBlueprint* FunctionRigBlueprint = Cast<UControlRigBlueprint>(FunctionLibrary->GetOuter()))
+							{
+#if WITH_EDITOR
+								if(FunctionRigBlueprint != TargetRigBlueprint)
+								{
+									if(!FunctionRigBlueprint->IsFunctionPublic(FunctionDefinitionNode->GetFName()))
+									{
+										TargetRigBlueprint->BroadcastRequestLocalizeFunctionDialog(FunctionDefinitionNode);
+										FunctionDefinitionNode = TargetRigBlueprint->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(FunctionDefinitionNode);
+									}
+								}
+#endif
+								TargetController->AddFunctionReferenceNode(FunctionDefinitionNode, GraphPosition);
+							}
+						}
 					}
 				}
 			}

@@ -188,6 +188,17 @@ bool UControlRigBlueprint::TryImportGraphFromText(const FString& InClipboardText
 
 	if (URigVMController* FunctionLibraryController = GetOrCreateController(GetLocalFunctionLibrary()))
 	{
+		TGuardValue<FRigVMController_RequestLocalizeFunctionDelegate> RequestLocalizeDelegateGuard(
+            FunctionLibraryController->RequestLocalizeFunctionDelegate,
+            FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](URigVMLibraryNode* InFunctionToLocalize)
+            {
+            	BroadcastRequestLocalizeFunctionDialog(InFunctionToLocalize);
+
+                const URigVMLibraryNode* LocalizedFunctionNode = GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(InFunctionToLocalize);
+                return LocalizedFunctionNode != nullptr;
+            })
+        );
+		
 		TArray<FName> ImportedNodeNames = FunctionLibraryController->ImportNodesFromText(InClipboardText, true);
 		if (ImportedNodeNames.Num() == 0)
 		{
@@ -885,6 +896,36 @@ URigVMController* UControlRigBlueprint::GetOrCreateController(URigVMGraph* InGra
 
 	});
 
+	Controller->IsFunctionAvailableDelegate.BindLambda([WeakThis](URigVMLibraryNode* InFunction) -> bool
+	{
+		if(InFunction == nullptr)
+		{
+			return false;
+		}
+		
+		if(URigVMFunctionLibrary* Library = Cast<URigVMFunctionLibrary>(InFunction->GetOuter()))
+		{
+			if(UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Library->GetOuter()))
+			{
+				if(Blueprint->IsFunctionPublic(InFunction->GetFName()))
+				{
+					return true;
+				}
+
+				// if it is private - we still see it as public if we are within the same blueprint 
+				if(WeakThis.IsValid())
+				{
+					if(WeakThis.Get() == Blueprint)
+					{
+						return true;
+					}
+				}
+			}
+		}
+
+		return false;
+	});
+
 #if WITH_EDITOR
 
 	// this sets up three delegates:
@@ -998,6 +1039,60 @@ UEdGraph* UControlRigBlueprint::GetEdGraph(const FString& InNodePath) const
 		return GetEdGraph(ModelForNodePath);
 	}
 	return nullptr;
+}
+
+bool UControlRigBlueprint::IsFunctionPublic(const FName& InFunctionName) const
+{
+	for(const FControlRigPublicFunctionData& PublicFunction : PublicFunctions)
+	{
+		if(PublicFunction.Name == InFunctionName)
+		{
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+void UControlRigBlueprint::MarkFunctionPublic(const FName& InFunctionName, bool bIsPublic)
+{
+	if(IsFunctionPublic(InFunctionName) == bIsPublic)
+	{
+		return;
+	}
+	
+	Modify();
+
+	if(bIsPublic)
+	{
+		if(URigVMLibraryNode* FunctionNode = GetLocalFunctionLibrary()->FindFunction(InFunctionName))
+		{
+			if(UControlRigGraph* RigGraph = Cast<UControlRigGraph>(GetEdGraph(FunctionNode->GetContainedGraph())))
+			{
+				const FControlRigPublicFunctionData NewFunctionData = RigGraph->GetPublicFunctionData();
+				for(FControlRigPublicFunctionData& ExistingFunctionData : PublicFunctions)
+				{
+					if(ExistingFunctionData.Name == NewFunctionData.Name)
+					{
+						ExistingFunctionData = NewFunctionData;
+						return;
+					}
+				}
+				PublicFunctions.Add(NewFunctionData);
+			}
+		}
+	}
+	else
+	{
+		for(int32 Index = 0; Index < PublicFunctions.Num(); Index++)
+		{
+			if(PublicFunctions[Index].Name == InFunctionName)
+			{
+				PublicFunctions.RemoveAt(Index);
+				return;
+			}
+		}
+	}
 }
 
 void UControlRigBlueprint::GetTypeActions(FBlueprintActionDatabaseRegistrar& ActionRegistrar) const
@@ -2669,6 +2764,11 @@ void UControlRigBlueprint::BroadcastGraphImported(UEdGraph* InGraph)
 void UControlRigBlueprint::BroadcastPostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
 	PostEditChangeChainPropertyEvent.Broadcast(PropertyChangedChainEvent);
+}
+
+void UControlRigBlueprint::BroadcastRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, bool bForce)
+{
+	RequestLocalizeFunctionDialog.Broadcast(InFunction, this, bForce);
 }
 
 #endif

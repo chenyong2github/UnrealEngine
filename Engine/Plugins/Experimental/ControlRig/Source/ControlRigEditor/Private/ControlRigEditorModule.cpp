@@ -1912,6 +1912,22 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 						));
 					}
 
+					if (URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(RigNode->GetModelNode()))
+					{
+						if(FunctionReferenceNode->GetLibrary() != RigBlueprint->GetLocalFunctionLibrary())
+						{
+							OrganizationSection.AddMenuEntry(
+                                "Localize Function",
+                                LOCTEXT("LocalizeFunction", "Localize Function"),
+                                LOCTEXT("LocalizeFunction_Tooltip", "Creates a local copy of the function backing the node."),
+                                FSlateIcon(),
+                                FUIAction(FExecuteAction::CreateLambda([RigBlueprint, FunctionReferenceNode]() {
+                                    RigBlueprint->BroadcastRequestLocalizeFunctionDialog(FunctionReferenceNode->GetReferencedNode(), true);
+                                })
+                            ));
+						}
+					}
+
 					OrganizationSection.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
 					{
 						{

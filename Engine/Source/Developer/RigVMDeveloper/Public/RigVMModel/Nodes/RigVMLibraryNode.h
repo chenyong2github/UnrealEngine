@@ -36,6 +36,7 @@ public:
 	virtual const TArray<URigVMLink*>& GetContainedLinks() const;
 	virtual URigVMFunctionEntryNode* GetEntryNode() const;
 	virtual URigVMFunctionReturnNode* GetReturnNode() const;
+	virtual bool Contains(URigVMLibraryNode* InContainedNode, bool bRecursive = true) const;
 
 protected:
 

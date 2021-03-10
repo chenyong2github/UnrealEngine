@@ -62,10 +62,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray< FString > GetReferencePathsForFunction(const FName& InFunctionName);
 
+	// Returns a function that has been previously localized based on the provided function to localize.
+	// We maintain meta data on what functions have been created locally based on which other ones,
+	// and use this method to avoid redundant localizations.
+	URigVMLibraryNode* FindPreviouslyLocalizedFunction(URigVMLibraryNode* InFunctionToLocalize);
+
 private:
 
 	UPROPERTY()
 	TMap< URigVMLibraryNode*, FRigVMFunctionReferenceArray > FunctionReferences;
+
+	// A map which stores a library node per original pathname.
+	// The source pathname is the full path of the source function that was localized
+	// to the local copy stored in the value of the pair.
+	UPROPERTY()
+	TMap< FString, URigVMLibraryNode* > LocalizedFunctions;
 
 	friend class URigVMController;
 	friend class URigVMCompiler;

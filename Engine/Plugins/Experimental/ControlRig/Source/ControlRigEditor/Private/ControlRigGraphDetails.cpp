@@ -940,15 +940,10 @@ FText FControlRigGraphDetails::GetCurrentAccessSpecifierName() const
 		UControlRigBlueprint* ControlRigBlueprint = ControlRigBlueprintPtr.Get();
 
 		const FControlRigPublicFunctionData ExpectedFunctionData = Graph->GetPublicFunctionData();
-		for(const FControlRigPublicFunctionData& PublicFunction : ControlRigBlueprint->PublicFunctions)
+		if(ControlRigBlueprint->IsFunctionPublic(ExpectedFunctionData.Name))
 		{
-			if(PublicFunction.Name == ExpectedFunctionData.Name)
-			{
-				return FText::FromString(*AccessSpecifierStrings[0].Get()); // public
-			}
+			return FText::FromString(*AccessSpecifierStrings[0].Get()); // public
 		}
-
-		return FText::FromString(*AccessSpecifierStrings[1].Get()); // private
 	}
 
 	return FText::FromString(*AccessSpecifierStrings[1].Get()); // private
@@ -960,31 +955,15 @@ void FControlRigGraphDetails::OnAccessSpecifierSelected( TSharedPtr<FString> Spe
 	{
 		UControlRigGraph* Graph = GraphPtr.Get();
 		UControlRigBlueprint* ControlRigBlueprint = ControlRigBlueprintPtr.Get();
-		ControlRigBlueprint->Modify();
-
+		const FControlRigPublicFunctionData ExpectedFunctionData = Graph->GetPublicFunctionData();
+		
 		if(SpecifierName->Equals(TEXT("Private")))
 		{
-			for(int32 Index = 0; Index < ControlRigBlueprint->PublicFunctions.Num(); Index++)
-			{
-				if(ControlRigBlueprint->PublicFunctions[Index].Name == Graph->GetFName())
-				{
-					ControlRigBlueprint->PublicFunctions.RemoveAt(Index);
-					return;
-				}
-			}
+			ControlRigBlueprint->MarkFunctionPublic(ExpectedFunctionData.Name, false);
 		}
 		else
 		{
-			const FControlRigPublicFunctionData NewFunctionData = Graph->GetPublicFunctionData();
-			for(FControlRigPublicFunctionData& ExistingFunctionData : ControlRigBlueprint->PublicFunctions)
-			{
-				if(ExistingFunctionData.Name == NewFunctionData.Name)
-				{
-					ExistingFunctionData = NewFunctionData;
-					return;
-				}
-			}
-			ControlRigBlueprint->PublicFunctions.Add(NewFunctionData);
+			ControlRigBlueprint->MarkFunctionPublic(ExpectedFunctionData.Name, true);
 		}
 	}
 }

@@ -4,6 +4,8 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "RigVMModel/RigVMGraph.h"
+#include "RigVMModel/Nodes/RigVMCollapseNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
 
 const TArray<URigVMNode*> URigVMLibraryNode::EmptyNodes;
 const TArray<URigVMLink*> URigVMLibraryNode::EmptyLinks;
@@ -65,3 +67,40 @@ URigVMFunctionReturnNode* URigVMLibraryNode::GetReturnNode() const
 	}
 	return nullptr;
 }
+
+bool URigVMLibraryNode::Contains(URigVMLibraryNode* InContainedNode, bool bRecursive) const
+{
+	if(InContainedNode == nullptr)
+	{
+		return false;
+	}
+	
+	for(URigVMNode* ContainedNode : GetContainedNodes())
+	{
+		if(ContainedNode == InContainedNode)
+		{
+			return true;
+		}
+
+		if(URigVMFunctionReferenceNode* FunctionReferenceNode = Cast<URigVMFunctionReferenceNode>(ContainedNode))
+		{
+			if(URigVMLibraryNode* ReferencedNode = FunctionReferenceNode->GetReferencedNode())
+			{
+				if(ReferencedNode == InContainedNode)
+				{
+					return true;
+				}
+			}
+		}
+		if(URigVMLibraryNode* ContainedLibraryNode = Cast<URigVMLibraryNode>(ContainedNode))
+		{
+			if(ContainedLibraryNode->Contains(InContainedNode))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+

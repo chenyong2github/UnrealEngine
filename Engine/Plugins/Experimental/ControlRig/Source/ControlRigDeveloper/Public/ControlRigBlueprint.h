@@ -37,7 +37,7 @@ DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnExternalVariablesChanged, const 
 DECLARE_EVENT_TwoParams(UControlRigBlueprint, FOnNodeDoubleClicked, UControlRigBlueprint*, URigVMNode*);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnGraphImported, UEdGraph*);
 DECLARE_EVENT_OneParam(UControlRigBlueprint, FOnPostEditChangeChainProperty, FPropertyChangedChainEvent&);
-
+DECLARE_EVENT_ThreeParams(UControlRigBlueprint, FOnLocalizeFunctionDialogRequested, URigVMLibraryNode*, UControlRigBlueprint*, bool);
 
 USTRUCT()
 struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionArg
@@ -202,6 +202,9 @@ public:
 	UPROPERTY()
 	UControlRigGraph* FunctionLibraryEdGraph;
 #endif
+
+	bool IsFunctionPublic(const FName& InFunctionName) const;
+	void MarkFunctionPublic(const FName& InFunctionName, bool bIsPublic = true);
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM")
 	FRigVMCompileSettings VMCompileSettings;
@@ -441,6 +444,9 @@ public:
 	FOnPostEditChangeChainProperty& OnPostEditChangeChainProperty() { return PostEditChangeChainPropertyEvent; }
 	void BroadcastPostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent);
 
+	FOnLocalizeFunctionDialogRequested& OnRequestLocalizeFunctionDialog() { return RequestLocalizeFunctionDialog; }
+	void BroadcastRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, bool bForce = false);
+
 private:
 
 	FOnExternalVariablesChanged ExternalVariablesChangedEvent;
@@ -449,6 +455,7 @@ private:
 	FOnNodeDoubleClicked NodeDoubleClickedEvent;
 	FOnGraphImported GraphImportedEvent;
 	FOnPostEditChangeChainProperty PostEditChangeChainPropertyEvent;
+	FOnLocalizeFunctionDialogRequested RequestLocalizeFunctionDialog;
 
 #endif
 

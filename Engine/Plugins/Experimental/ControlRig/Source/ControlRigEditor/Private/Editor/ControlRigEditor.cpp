@@ -78,6 +78,7 @@
 #include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
 #include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 #include "BlueprintActionDatabaseRegistrar.h"
+#include "SControlRigFunctionLocalizationWidget.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -126,6 +127,7 @@ FControlRigEditor::~FControlRigEditor()
 		RigBlueprint->OnNodeDoubleClicked().RemoveAll(this);
 		RigBlueprint->OnGraphImported().RemoveAll(this);
 		RigBlueprint->OnPostEditChangeChainProperty().RemoveAll(this);
+		RigBlueprint->OnRequestLocalizeFunctionDialog().RemoveAll(this);
 	}
 
 	if (NodeDetailBuffer.Num() > 0 && NodeDetailStruct != nullptr)
@@ -352,6 +354,7 @@ void FControlRigEditor::InitControlRigEditor(const EToolkitMode::Type Mode, cons
 		InControlRigBlueprint->OnNodeDoubleClicked().AddSP(this, &FControlRigEditor::OnNodeDoubleClicked);
 		InControlRigBlueprint->OnGraphImported().AddSP(this, &FControlRigEditor::OnGraphImported);
 		InControlRigBlueprint->OnPostEditChangeChainProperty().AddSP(this, &FControlRigEditor::OnBlueprintPropertyChainEvent);
+		InControlRigBlueprint->OnRequestLocalizeFunctionDialog().AddSP(this, &FControlRigEditor::OnRequestLocalizeFunctionDialog);
 	}
 
 	UpdateStaleWatchedPins();
@@ -1579,6 +1582,18 @@ void FControlRigEditor::PasteNodes()
 
 	FString TextToImport;
 	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+
+	TGuardValue<FRigVMController_RequestLocalizeFunctionDelegate> RequestLocalizeDelegateGuard(
+		GetFocusedController()->RequestLocalizeFunctionDelegate,
+		FRigVMController_RequestLocalizeFunctionDelegate::CreateLambda([this](URigVMLibraryNode* InFunctionToLocalize)
+		{
+			OnRequestLocalizeFunctionDialog(InFunctionToLocalize, GetControlRigBlueprint(), true);
+
+			const URigVMLibraryNode* LocalizedFunctionNode = GetControlRigBlueprint()->GetLocalFunctionLibrary()->FindPreviouslyLocalizedFunction(InFunctionToLocalize);
+			return LocalizedFunctionNode != nullptr;
+		})
+	);
+	
 	TArray<FName> NodeNames = GetFocusedController()->ImportNodesFromText(TextToImport);
 
 	if (NodeNames.Num() > 0)
@@ -3212,6 +3227,41 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 			ControlRigBP->PropagatePoseFromBPToInstances();
 			ControlRigBP->Modify();
 			ControlRigBP->MarkPackageDirty();
+		}
+	}
+}
+
+void FControlRigEditor::OnRequestLocalizeFunctionDialog(URigVMLibraryNode* InFunction, UControlRigBlueprint* InTargetBlueprint, bool bForce)
+{
+	check(InFunction);
+	check(InTargetBlueprint);
+
+	if(InTargetBlueprint != GetControlRigBlueprint())
+	{
+		return;
+	}
+	
+	if(URigVMController* TargetController = InTargetBlueprint->GetController(InTargetBlueprint->GetModel()))
+	{
+		if(URigVMFunctionLibrary* FunctionLibrary = Cast<URigVMFunctionLibrary>(InFunction->GetOuter()))
+		{
+			if(UControlRigBlueprint* FunctionRigBlueprint = Cast<UControlRigBlueprint>(FunctionLibrary->GetOuter()))
+			{
+				if(FunctionRigBlueprint != InTargetBlueprint)
+				{
+					if(bForce || !FunctionRigBlueprint->IsFunctionPublic(InFunction->GetFName()))
+					{
+                        TSharedRef<SControlRigFunctionLocalizationDialog> LocalizationDialog = SNew(SControlRigFunctionLocalizationDialog)
+                        .Function(InFunction)
+                        .TargetBlueprint(InTargetBlueprint);
+
+						if (LocalizationDialog->ShowModal() != EAppReturnType::Cancel)
+						{
+							TargetController->LocalizeFunctions(LocalizationDialog->GetFunctionsToLocalize());
+						}
+					}
+				}
+			}
 		}
 	}
 }
