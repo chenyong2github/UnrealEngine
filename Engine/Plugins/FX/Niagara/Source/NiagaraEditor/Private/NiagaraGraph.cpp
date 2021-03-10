@@ -29,13 +29,14 @@
 #include "Misc/Paths.h"
 #include "String/ParseTokens.h"
 
+DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - PostLoad"), STAT_NiagaraEditor_Graph_PostLoad, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes"), STAT_NiagaraEditor_Graph_FindInputNodes, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_NotFilterUsage"), STAT_NiagaraEditor_Graph_FindInputNodes_NotFilterUsage, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_FilterUsage"), STAT_NiagaraEditor_Graph_FindInputNodes_FilterUsage, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_FilterDupes"), STAT_NiagaraEditor_Graph_FindInputNodes_FilterDupes, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_FindInputNodes_Sort"), STAT_NiagaraEditor_Graph_FindInputNodes_Sort, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindOutputNode"), STAT_NiagaraEditor_Graph_FindOutputNode, STATGROUP_NiagaraEditor);
-DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - BuildTraversalHelper"), STAT_NiagaraEditor_Graph_BuildTraversalHelper, STATGROUP_NiagaraEditor);
+DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - BuildTraversal"), STAT_NiagaraEditor_Graph_BuildTraversal, STATGROUP_NiagaraEditor);
 
 bool bWriteToLog = false;
 
@@ -128,6 +129,8 @@ void UNiagaraGraph::NotifyGraphChanged()
 void UNiagaraGraph::PostLoad()
 {
 	Super::PostLoad();
+
+	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_PostLoad);
 
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
@@ -1026,8 +1029,6 @@ void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiaga
 		return;
 	}
 
-	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_BuildTraversalHelper);
-
 	for (UEdGraphPin* Pin : CurrentNode->GetAllPins())
 	{
 		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && Pin->LinkedTo.Num() > 0)
@@ -1056,6 +1057,8 @@ void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraverse
 	UNiagaraNodeOutput* Output = FindOutputNode(TargetUsage, TargetUsageId);
 	if (Output)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_BuildTraversal);
+
 		BuildTraversalHelper(OutNodesTraversed, Output, bEvaluateStaticSwitches);
 	}
 }
@@ -1064,6 +1067,8 @@ void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraverse
 {
 	if (FinalNode)
 	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_BuildTraversal);
+
 		BuildTraversalHelper(OutNodesTraversed, FinalNode, bEvaluateStaticSwitches);
 	}
 }
