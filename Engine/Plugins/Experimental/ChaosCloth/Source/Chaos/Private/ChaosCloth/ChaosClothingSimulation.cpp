@@ -106,6 +106,7 @@ namespace ChaosClothingSimulationConsole
 		FCommand()
 			: StepCount(0)
 			, bIsPaused(false)
+			, ResetCount(0)
 		{
 #if INTEL_ISPC
 			// Register Ispc console command
@@ -122,6 +123,13 @@ namespace ChaosClothingSimulationConsole
 				TEXT("Pause/step/resume cloth simulations."),
 				FConsoleCommandWithArgsDelegate::CreateRaw(this, &FCommand::DebugStep),
 				ECVF_Cheat));
+
+			// Register Reset console command
+			ConsoleObjects.Add(IConsoleManager::Get().RegisterConsoleCommand(
+				TEXT("p.ChaosCloth.Reset"),
+				TEXT("Reset all cloth simulations."),
+				FConsoleCommandDelegate::CreateRaw(this, &FCommand::Reset),
+				ECVF_Cheat));
 		}
 
 		~FCommand()
@@ -137,6 +145,13 @@ namespace ChaosClothingSimulationConsole
 			const bool bMustStep = !bIsPaused || (InOutStepCount != StepCount);
 			InOutStepCount = StepCount;
 			return bMustStep;
+		}
+
+		bool MustReset(int32& InOutResetCount) const
+		{
+			const bool bMustReset = (InOutResetCount != ResetCount);
+			InOutResetCount = ResetCount;
+			return bMustReset;
 		}
 
 	private:
@@ -223,10 +238,17 @@ namespace ChaosClothingSimulationConsole
 			UE_LOG(LogChaosCloth, Display, TEXT("  p.ChaosCloth.DebugStep [Pause|Step|Resume]"));
 		}
 
+		void Reset()
+		{
+			UE_LOG(LogChaosCloth, Display, TEXT("All cloth simulations have now been asked to reset."));
+			++ResetCount;
+		}
+
 	private:
 		TArray<IConsoleObject*> ConsoleObjects;
 		TAtomic<int32> StepCount;
 		TAtomic<bool> bIsPaused;
+		TAtomic<int32> ResetCount;
 	};
 	static TUniquePtr<FCommand> Command;
 }
@@ -247,6 +269,7 @@ FClothingSimulation::FClothingSimulation()
 	, MaxDistancesMultipliers(ChaosClothingSimulationDefault::MaxDistancesMultipliers)
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	, StepCount(0)
+	, ResetCount(0)
 #endif
 {
 #if WITH_EDITOR
@@ -480,7 +503,12 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 
 		const double StartTime = FPlatformTime::Seconds();
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		const bool bNeedsReset = (ChaosClothingSimulationConsole::Command && ChaosClothingSimulationConsole::Command->MustReset(ResetCount)) ||
+			(Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+#else
 		const bool bNeedsReset = (Context->TeleportMode == EClothingTeleportMode::TeleportAndReset);
+#endif
 		const bool bNeedsTeleport = (Context->TeleportMode > EClothingTeleportMode::None);
 		bIsTeleported = bNeedsTeleport;
 
