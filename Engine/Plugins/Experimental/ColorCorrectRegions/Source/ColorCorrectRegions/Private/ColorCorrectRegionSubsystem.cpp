@@ -36,7 +36,7 @@ void UColorCorrectRegionsSubsystem::Initialize(FSubsystemCollectionBase& Collect
 	}
 #endif
 	// In some cases (like nDisplay nodes) EndPlay is not guaranteed to be called when level is removed.
-	GetWorld()->OnLevelsChanged().AddUObject(this, &UColorCorrectRegionsSubsystem::OnLevelActorListChanged);
+	GetWorld()->OnLevelsChanged().AddUObject(this, &UColorCorrectRegionsSubsystem::OnLevelsChanged);
 	// Initializing Scene view extension responsible for rendering regions.
 	PostProcessSceneViewExtension = FSceneViewExtensions::NewExtension<FColorCorrectRegionsSceneViewExtension>(this);
 }
@@ -83,15 +83,29 @@ void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
 void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 {
 	AColorCorrectRegion* AsRegion = Cast<AColorCorrectRegion>(InActor);
-	if (AsRegion && !AsRegion->bIsEditorPreviewActor)
+	if (AsRegion 
+#if WITH_EDITORONLY_DATA
+		&& !AsRegion->bIsEditorPreviewActor)
+#else
+		)
+#endif
 	{
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 		Regions.Remove(AsRegion);
 	}
 }
 
-#if WITH_EDITOR
-void UColorCorrectRegionsSubsystem::PostUndo(bool bSuccess)
+void UColorCorrectRegionsSubsystem::SortRegionsByPriority()
+{
+	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
+
+	Regions.Sort([](const AColorCorrectRegion& A, const AColorCorrectRegion& B) {
+		// Regions with the same priority could potentially cause flickering on overlap
+		return A.Priority < B.Priority;
+	});
+}
+
+void UColorCorrectRegionsSubsystem::RefreshRegions()
 {
 	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 
@@ -105,17 +119,6 @@ void UColorCorrectRegionsSubsystem::PostUndo(bool bSuccess)
 		}
 	}
 	SortRegionsByPriority();
-}
-#endif
-
-void UColorCorrectRegionsSubsystem::SortRegionsByPriority()
-{
-	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
-
-	Regions.Sort([](const AColorCorrectRegion& A, const AColorCorrectRegion& B) {
-		// Regions with the same priority could potentially cause flickering on overlap
-		return A.Priority < B.Priority;
-	});
 }
 
 
