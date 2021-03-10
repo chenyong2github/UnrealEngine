@@ -34,6 +34,15 @@ void SWarningOrErrorBox::Construct(const FArguments& InArgs)
 				.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.White"))
 				.AutoWrapText(true)
 			]
+
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			.HAlign(HAlign_Right)
+			[
+				InArgs._Content.Widget
+			]
+
 		]);
 }
 

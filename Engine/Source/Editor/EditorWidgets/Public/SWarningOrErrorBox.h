@@ -18,11 +18,15 @@ public:
 		: _MessageStyle(EMessageStyle::Warning)
 		, _Padding(16.0f)
 		, _IconSize(24,24)
+		, _Content()
 	{}
 		SLATE_ATTRIBUTE(FText, Message)
 		SLATE_ATTRIBUTE(EMessageStyle, MessageStyle)
 		SLATE_ARGUMENT(FMargin, Padding)
 		SLATE_ARGUMENT(FVector2D, IconSize)
+
+		SLATE_DEFAULT_SLOT( FArguments, Content )
+
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
