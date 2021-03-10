@@ -188,6 +188,9 @@ protected:
 	// Helper to generate assets when a result is accepted; typically does not need to be overloaded
 	virtual void UpdateAsset(const FDynamicMeshOpResult& Result, TUniquePtr<FPrimitiveComponentTarget>& Target);
 
+	// Which of the transform gizmos to hide, or -1 if all gizmos can be shown
+	virtual int32 GetHiddenGizmoIndex() const;
+
 protected:
 
 	UPROPERTY()
@@ -208,7 +211,5 @@ protected:
 
 	UWorld* TargetWorld = nullptr;
 	IAssetGenerationAPI* AssetAPI = nullptr;
-
-	int32 HideGizmoIndex = -1; // Override UI setting and always hide this gizmo
 };
 

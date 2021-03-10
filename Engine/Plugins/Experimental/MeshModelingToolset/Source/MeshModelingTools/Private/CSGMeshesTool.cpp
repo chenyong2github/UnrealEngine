@@ -30,6 +30,16 @@ void UCSGMeshesTool::SetupProperties()
 		TrimProperties->RestoreProperties(this);
 		AddToolPropertySource(TrimProperties);
 
+		TrimProperties->WatchProperty(TrimProperties->WhichMesh, [this](ETrimOperation)
+		{
+			UpdateGizmoVisibility();
+			UpdatePreviewsVisibility();
+		});
+		TrimProperties->WatchProperty(TrimProperties->bShowTrimmingMesh, [this](bool)
+		{
+			UpdatePreviewsVisibility();
+		});
+
 		SetToolDisplayName(LOCTEXT("TrimMeshesToolName", "Trim"));
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("OnStartTrimTool", "Trim one mesh with another. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
@@ -41,10 +51,69 @@ void UCSGMeshesTool::SetupProperties()
 		CSGProperties->RestoreProperties(this);
 		AddToolPropertySource(CSGProperties);
 
+		CSGProperties->WatchProperty(CSGProperties->Operation, [this](ECSGOperation)
+		{
+			UpdateGizmoVisibility();
+			UpdatePreviewsVisibility();
+		});
+		CSGProperties->WatchProperty(CSGProperties->bShowSubtractedMesh, [this](bool)
+		{
+			UpdatePreviewsVisibility();
+		});
+
 		SetToolDisplayName(LOCTEXT("CSGMeshesToolName", "Boolean"));
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("OnStartTool", "Compute CSG Booleans on the input meshes. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
 			EToolMessageLevel::UserNotification);
+	}
+}
+
+void UCSGMeshesTool::UpdatePreviewsVisibility()
+{
+	int32 ShowPreviewIdx = -1;
+	if (bTrimMode && TrimProperties->bShowTrimmingMesh)
+	{
+		ShowPreviewIdx = TrimProperties->WhichMesh == ETrimOperation::TrimA ? OriginalMeshPreviews.Num() - 1 : 0;
+	}
+	else if (!bTrimMode && CSGProperties->bShowSubtractedMesh)
+	{
+		if (CSGProperties->Operation == ECSGOperation::DifferenceAB)
+		{
+			ShowPreviewIdx = OriginalMeshPreviews.Num() - 1;
+		}
+		else if (CSGProperties->Operation == ECSGOperation::DifferenceBA)
+		{
+			ShowPreviewIdx = 0;
+		}
+	}
+	for (int32 MeshIdx = 0; MeshIdx < OriginalMeshPreviews.Num(); MeshIdx++)
+	{
+		OriginalMeshPreviews[MeshIdx]->SetVisible(ShowPreviewIdx == MeshIdx);
+	}
+}
+
+int32 UCSGMeshesTool::GetHiddenGizmoIndex() const
+{
+	int32 ParentHiddenIndex = Super::GetHiddenGizmoIndex();
+	if (ParentHiddenIndex != -1)
+	{
+		return ParentHiddenIndex;
+	}
+	if (bTrimMode)
+	{
+		return TrimProperties->WhichMesh == ETrimOperation::TrimA ? 0 : 1;
+	}
+	else if (CSGProperties->Operation == ECSGOperation::DifferenceAB)
+	{
+		return 0;
+	}
+	else if (CSGProperties->Operation == ECSGOperation::DifferenceBA)
+	{
+		return 1;
+	}
+	else
+	{
+		return -1;
 	}
 }
 
@@ -119,6 +188,13 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 		{
 			MaterialIDs->SetValue(TID, MaterialRemap[ComponentIdx][MaterialIDs->GetValue(TID)]);
 		}
+
+		UPreviewMesh* OriginalMeshPreview = OriginalMeshPreviews.Add_GetRef(NewObject<UPreviewMesh>());
+		OriginalMeshPreview->CreateInWorld(TargetWorld, ComponentTargets[ComponentIdx]->GetWorldTransform());
+		OriginalMeshPreview->UpdatePreview(OriginalDynamicMeshes[ComponentIdx].Get());
+		OriginalMeshPreview->SetMaterial(0, ToolSetupUtil::GetSimpleCustomMaterial(GetToolManager(), FLinearColor::White, 0.05));
+		OriginalMeshPreview->SetVisible(false);
+		TransformProxies[ComponentIdx]->AddComponent(OriginalMeshPreview->GetRootComponent());
 	}
 	Preview->ConfigureMaterials(AllMaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 }
@@ -254,7 +330,17 @@ FText UCSGMeshesTool::GetActionName() const
 
 
 
+void UCSGMeshesTool::Shutdown(EToolShutdownType ShutdownType)
+{
+	Super::Shutdown(ShutdownType);
 
+	for (UPreviewMesh* MeshPreview : OriginalMeshPreviews)
+	{
+		MeshPreview->SetVisible(false);
+		MeshPreview->Disconnect();
+		MeshPreview = nullptr;
+	}
+}
 
 
 

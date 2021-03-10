@@ -106,14 +106,13 @@ void UBaseCreateFromSelectedTool::Setup()
 		if (NewType == EBaseCreateFromSelectedTargetType::NewAsset)
 		{
 			HandleSourcesProperties->OutputAsset = TEXT("");
-			HideGizmoIndex = -1;
 			UpdateGizmoVisibility();
 		}
 		else
 		{
 			int32 Index = (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : ComponentTargets.Num() - 1;
 			HandleSourcesProperties->OutputAsset = AssetGenerationUtil::GetComponentAssetBaseName(ComponentTargets[Index]->GetOwnerComponent(), false);
-			HideGizmoIndex = Index;
+
 			// Reset the hidden gizmo to its initial position
 			FTransform ComponentTransform = ComponentTargets[Index]->GetWorldTransform();
 			TransformGizmos[Index]->SetNewGizmoTransform(ComponentTransform, true);
@@ -122,6 +121,19 @@ void UBaseCreateFromSelectedTool::Setup()
 	});
 
 	Preview->InvalidateResult();
+}
+
+
+int32 UBaseCreateFromSelectedTool::GetHiddenGizmoIndex() const
+{
+	if (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::NewAsset)
+	{
+		return -1;
+	}
+	else
+	{
+		return (HandleSourcesProperties->WriteOutputTo == EBaseCreateFromSelectedTargetType::FirstInputAsset) ? 0 : ComponentTargets.Num() - 1;
+	}
 }
 
 
@@ -154,7 +166,7 @@ void UBaseCreateFromSelectedTool::UpdateGizmoVisibility()
 	for (int32 GizmoIndex = 0; GizmoIndex < TransformGizmos.Num(); GizmoIndex++)
 	{
 		UTransformGizmo* Gizmo = TransformGizmos[GizmoIndex];
-		Gizmo->SetVisibility(TransformProperties->bShowTransformUI && GizmoIndex != HideGizmoIndex);
+		Gizmo->SetVisibility(TransformProperties->bShowTransformUI && GizmoIndex != GetHiddenGizmoIndex());
 	}
 }
 

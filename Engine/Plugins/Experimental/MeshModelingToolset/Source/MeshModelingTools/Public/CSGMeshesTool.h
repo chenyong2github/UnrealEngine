@@ -40,6 +40,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bCollapseExtraEdges = true;
 
+	/** Whether to show a translucent version of the subtracted mesh, to help visualize what is being removed */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (EditCondition = "Operation == ECSGOperation::DifferenceAB || Operation == ECSGOperation::DifferenceBA", EditConditionHides))
+	bool bShowSubtractedMesh = true;
+
 	/** If true, only the first mesh will keep its materials assignments; all other triangles will be assigned material 0 */
 	UPROPERTY(EditAnywhere, Category = Materials)
 	bool bOnlyUseFirstMeshMaterials = false;
@@ -61,6 +65,10 @@ public:
 	/** Whether to remove the surface inside or outside of the trimming geometry */
 	UPROPERTY(EditAnywhere, Category = Options)
 	ETrimSide TrimSide = ETrimSide::RemoveInside;
+
+	/** Whether to show a translucent version of the trimming mesh, to help visualize what is being cut */
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bShowTrimmingMesh = true;
 };
 
 
@@ -80,6 +88,8 @@ public:
 	void EnableTrimMode();
 
 protected:
+
+	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
@@ -108,12 +118,20 @@ protected:
 	TArray<TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe>> OriginalDynamicMeshes;
 
 	UPROPERTY()
+	TArray<UPreviewMesh*> OriginalMeshPreviews;
+
+	UPROPERTY()
 	ULineSetComponent* DrawnLineSet;
 
 	// for visualization of any errors in the currently-previewed CSG operation
 	TArray<int> CreatedBoundaryEdges;
 
 	bool bTrimMode = false;
+
+	virtual int32 GetHiddenGizmoIndex() const;
+
+	// Update visibility of ghostly preview meshes (used to show trimming or subtracting surface)
+	void UpdatePreviewsVisibility();
 };
 
 
