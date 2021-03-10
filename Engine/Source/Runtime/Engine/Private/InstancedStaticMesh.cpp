@@ -95,6 +95,13 @@ static TAutoConsoleVariable<float> CVarRayTracingInstancesLowScaleCullRadius(
 	1000.0f, 
 	TEXT("Cull radius for small instances (default = 1000 (10m))"));
 
+static TAutoConsoleVariable<float> CVarRayTracingInstancesCullAngle(
+	TEXT("r.RayTracing.Geometry.InstancedStaticMeshes.CullAngle"),
+	2.0f,
+	TEXT("Solid angle to test instance bounds against for culling (default 2 degrees)\n")
+	TEXT("  -1 => use distance based culling")
+);
+
 class FDummyFloatBuffer : public FVertexBufferWithSRV
 {
 public:
@@ -1184,60 +1191,115 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	//#dxr_todo: possibly track used instances and reserve based on previous behavior
 	RayTracingInstanceTemplate.InstanceTransforms.Reserve(InstanceCount);
 
+	FMatrix ToWorld = InstancedRenderData.Component->GetComponentTransform().ToMatrixWithScale();
+
+	// whether to use angular culling instead of distance, angle is halved as it is compared against the projection of the radius rather than the diameter
+	const float CullAngle = FMath::Min(CVarRayTracingInstancesCullAngle.GetValueOnRenderThread(), 179.9f) * 0.5f;
+
 	if (CVarRayTracingRenderInstancesCulling.GetValueOnRenderThread() > 0 && RayTracingCullClusters.Num() > 0)
 	{
-		const float BVHCullRadius = CVarRayTracingInstancesCullClusterRadius.GetValueOnRenderThread();
-		const float BVHLowScaleThreshold = CVarRayTracingInstancesLowScaleThreshold.GetValueOnRenderThread();
-		const float BVHLowScaleRadius = CVarRayTracingInstancesLowScaleCullRadius.GetValueOnRenderThread();
-		const bool ApplyGeneralCulling = BVHCullRadius > 0.0f;
-		const bool ApplyLowScaleCulling = BVHLowScaleThreshold > 0.0f && BVHLowScaleRadius > 0.0f;
-		FMatrix ToWorld = GetLocalToWorld();
-
-		// Iterate over all culling clusters
-		for (int32 ClusterIdx = 0; ClusterIdx < RayTracingCullClusters.Num(); ++ClusterIdx)
+		if (CullAngle < 0.0f)
 		{
-			FRayTracingCullCluster& Cluster = RayTracingCullClusters[ClusterIdx];
+			//
+			//  Distance based culling
+			//    Check clusters/nodes for being within minimum distances
+			//
+			const float BVHCullRadius = CVarRayTracingInstancesCullClusterRadius.GetValueOnRenderThread();
+			const float BVHLowScaleThreshold = CVarRayTracingInstancesLowScaleThreshold.GetValueOnRenderThread();
+			const float BVHLowScaleRadius = CVarRayTracingInstancesLowScaleCullRadius.GetValueOnRenderThread();
+			const bool ApplyGeneralCulling = BVHCullRadius > 0.0f;
+			const bool ApplyLowScaleCulling = BVHLowScaleThreshold > 0.0f && BVHLowScaleRadius > 0.0f;
 
-			FVector VClusterBBoxSize = Cluster.BoundsMax - Cluster.BoundsMin;
-			FVector VClusterCenter = 0.5f * (Cluster.BoundsMax + Cluster.BoundsMin);
-			FVector VToClusterCenter = VClusterCenter - Context.ReferenceView->ViewLocation;
-			float ClusterRadius = 0.5f * VClusterBBoxSize.Size();
-			float DistToClusterCenter = VToClusterCenter.Size();
-
-			// Cull whole cluster if the bounding sphere is too far away
-			if ((DistToClusterCenter - ClusterRadius) > BVHCullRadius && ApplyGeneralCulling)
+			// Iterate over all culling clusters
+			for (int32 ClusterIdx = 0; ClusterIdx < RayTracingCullClusters.Num(); ++ClusterIdx)
 			{
-				continue;
-			}
+				FRayTracingCullCluster& Cluster = RayTracingCullClusters[ClusterIdx];
 
-			// Cull instances in the cluster
-			for (FCullNode& Node : Cluster.Nodes)
-			{
-				const uint32 InstanceIdx = Node.Instance;
+				FVector VClusterBBoxSize = Cluster.BoundsMax - Cluster.BoundsMin;
+				FVector VClusterCenter = 0.5f * (Cluster.BoundsMax + Cluster.BoundsMin);
+				FVector VToClusterCenter = VClusterCenter - Context.ReferenceView->ViewLocation;
+				float ClusterRadius = 0.5f * VClusterBBoxSize.Size();
+				float DistToClusterCenter = VToClusterCenter.Size();
 
-				FVector InstanceLocation = Node.Center;
-				FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
-				float DistanceToInstanceCenter = VToInstanceCenter.Size();
-				float InstanceRadius = Node.Radius;
-				float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
-
-				// Cull instance based on distance
-				if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
-					continue;
-
-				// Special culling for small scale objects
-				if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
+				// Cull whole cluster if the bounding sphere is too far away
+				if ((DistToClusterCenter - ClusterRadius) > BVHCullRadius && ApplyGeneralCulling)
 				{
-					if (DistanceToInstanceStart > BVHLowScaleRadius)
-						continue;
+					continue;
 				}
 
-				FMatrix Transform;
-				InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-				Transform.M[3][3] = 1.0f;
-				FMatrix InstanceTransform = Transform * GetLocalToWorld();
+				// Cull instances in the cluster
+				for (FCullNode& Node : Cluster.Nodes)
+				{
+					const uint32 InstanceIdx = Node.Instance;
 
-				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
+					if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
+					{
+
+						FVector InstanceLocation = Node.Center;
+						FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
+						float DistanceToInstanceCenter = VToInstanceCenter.Size();
+						float InstanceRadius = Node.Radius;
+						float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
+
+						// Cull instance based on distance
+						if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
+							continue;
+
+						// Special culling for small scale objects
+						if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
+						{
+							if (DistanceToInstanceStart > BVHLowScaleRadius)
+								continue;
+						}
+
+						const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
+						RayTracingInstanceTemplate.InstanceTransforms.Emplace(InstanceData.Transform * ToWorld);
+					}
+				}
+			}
+		}
+		else
+		{
+			//
+			// Angle based culling
+			//  Instead of culling objects based on distance check the radius of bounding sphere against a minimum culling angle
+			//  This ensures objects essentially cull based on size as seen from viewer rather than distance. Provides much less
+			//  popping for the same number of instances
+			//
+			float Ratio = FMath::Tan(CullAngle / 360.0f * 2.0f * PI);
+
+			for (const FRayTracingCullCluster& Cluster : RayTracingCullClusters)
+			{
+				FVector VClusterBBoxSize = Cluster.BoundsMax - Cluster.BoundsMin;
+				FVector VClusterCenter = 0.5f * (Cluster.BoundsMax + Cluster.BoundsMin);
+				FVector VToClusterCenter = VClusterCenter - Context.ReferenceView->ViewLocation;
+				float ClusterRadius = 0.5f * VClusterBBoxSize.Size();
+				float DistToClusterCenter = VToClusterCenter.Size();
+
+				if (DistToClusterCenter * Ratio <= ClusterRadius)
+				{
+					// Unroll instances in the current cluster into the array
+					for (const FCullNode& Node : Cluster.Nodes)
+					{
+						const uint32 InstanceIdx = Node.Instance;
+
+						if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
+						{
+
+							FVector InstanceLocation = Node.Center;
+							FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
+							float DistanceToInstanceCenter = VToInstanceCenter.Size();
+							float InstanceRadius = Node.Radius;
+
+							if (DistanceToInstanceCenter * Ratio <= InstanceRadius)
+							{
+
+								const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
+								RayTracingInstanceTemplate.InstanceTransforms.Emplace(InstanceData.Transform * ToWorld);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
