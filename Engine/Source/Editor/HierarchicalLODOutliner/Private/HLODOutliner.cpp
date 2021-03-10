@@ -685,7 +685,7 @@ namespace HLODOutliner
 
 	FText SHLODOutliner::GetBuildText() const
 	{
-		return GetDefault<UHierarchicalLODSettings>()->bInvalidateHLODClusters ? LOCTEXT("BuildMeshes", "Generate Proxy Meshes") : LOCTEXT("RebuildMeshes", "Re-generate Proxy Meshes");
+		return LOCTEXT("BuildMeshes", "Generate Proxy Meshes");
 	}
 
 	FText SHLODOutliner::GetForceBuildText() const

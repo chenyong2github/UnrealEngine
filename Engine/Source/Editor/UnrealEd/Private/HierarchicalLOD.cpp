@@ -52,7 +52,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogLODGenerator, Log, All);
 #define METER_TO_CM		100.0f
 
 UHierarchicalLODSettings::UHierarchicalLODSettings(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer), bForceSettingsInAllMaps(false), bInvalidateHLODClusters(true), bDeleteHLODAssets(true), BaseMaterial(nullptr)
+	: Super(ObjectInitializer), bForceSettingsInAllMaps(false), BaseMaterial(nullptr)
 {	
 	BaseMaterial = ConstructorHelpers::FObjectFinder<UMaterialInterface>(TEXT("/Engine/EngineMaterials/BaseFlattenMaterial")).Object;
 }

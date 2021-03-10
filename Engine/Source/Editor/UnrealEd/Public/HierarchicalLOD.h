@@ -48,12 +48,6 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = HLODSystem, AdvancedDisplay, meta = (DisplayName = "Map UAssets used for building HLOD data through the ", RelativeToGameContentDir, LongPackageName))
 	TArray<FFilePath> MapsToBuild;
 
-	UPROPERTY(EditAnywhere, config, Category = HLODSystem, meta = (DisplayName = "Invalidate HLOD Clusters on changes to the Sub Actors"))
-	bool bInvalidateHLODClusters;
-
-	UPROPERTY(EditAnywhere, config, Category = HLODSystem, meta = (DisplayName = "Delete (out-dated) HLOD Assets on Save", editcondition = "bInvalidateHLODClusters"))
-	bool bDeleteHLODAssets;
-	
 	/** Base material used for creating a Constant Material Instance as the Proxy Material */
 	UPROPERTY(EditAnywhere, config, Category = HLODSystem)
 	TSoftObjectPtr<class UMaterialInterface> BaseMaterial;
