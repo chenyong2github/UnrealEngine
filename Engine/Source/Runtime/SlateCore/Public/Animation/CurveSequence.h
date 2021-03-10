@@ -125,6 +125,9 @@ public:
 	/** Unpause this curve sequence to resume play. */
 	void Resume( );
 
+	/** Plays forward if it can, otherwise holds it at the end of the animation, if we play in reverse it will reverse the animation if it can */
+	void PlayRelative(const TSharedRef<SWidget>& InOwnerWidget, bool bForward);
+
 	/**
 	 * Checks whether the sequence is currently playing.
 	 *

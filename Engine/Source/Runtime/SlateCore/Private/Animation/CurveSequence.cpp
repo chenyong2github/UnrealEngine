@@ -156,6 +156,34 @@ void FCurveSequence::Resume()
 	}
 }
 
+void FCurveSequence::PlayRelative(const TSharedRef<SWidget>& InOwnerWidget, bool bForward)
+{
+	if (IsPlaying() == false)
+	{
+		if (bForward == true)
+		{
+			if (IsAtStart())
+			{
+				Play(InOwnerWidget);
+			}
+		}
+		else
+		{
+			if (IsAtEnd())
+			{
+				PlayReverse(InOwnerWidget);
+			}
+		}
+	}
+	else
+	{
+		if (IsForward() != bForward)
+		{
+			Reverse();
+		}
+	}
+}
+
 bool FCurveSequence::IsPlaying( ) const
 {
 	return !bIsPaused && ( bIsLooping || ( FSlateApplicationBase::Get().GetCurrentTime() - StartTime ) <= TotalDuration );
