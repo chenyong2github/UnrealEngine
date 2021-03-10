@@ -107,16 +107,21 @@ static FString GetMetalCompilerFolder()
 
 bool FShaderCompileFASTBuildThreadRunnable::IsSupported()
 {
-	// Check to see if the FASTBuild exe exists.
 	if (FASTBuildShaderCompilerVariables::Enabled == 1)
 	{
-		FString BrokeragePath = FPlatformMisc::GetEnvironmentVariable(TEXT("FASTBUILD_BROKERAGE_PATH"));
-		if (BrokeragePath.IsEmpty())
+		// Only try to use FASTBuild if either the brokerahe path or the coordinator env variable is set up
+		FString CoordinatorAddress = FPlatformMisc::GetEnvironmentVariable(TEXT("FASTBUILD_COORDINATOR"));
+		if (CoordinatorAddress.IsEmpty())
 		{
-			FASTBuildShaderCompilerVariables::Enabled = 0;
-			return false;
+			FString BrokeragePath = FPlatformMisc::GetEnvironmentVariable(TEXT("FASTBUILD_BROKERAGE_PATH"));
+			if (BrokeragePath.IsEmpty())
+			{
+				FASTBuildShaderCompilerVariables::Enabled = 0;
+				return false;
+			}
 		}
 
+		// Check to see if the FASTBuild exe exists
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
 		FASTBuild_ExecutablePath = FPaths::EngineDir() / FASTBuild_ExecutablePath;

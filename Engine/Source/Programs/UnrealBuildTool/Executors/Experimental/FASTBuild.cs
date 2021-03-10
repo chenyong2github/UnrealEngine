@@ -97,6 +97,12 @@ namespace UnrealBuildTool
 		[XmlConfigFile]
 		public static string FBuildBrokeragePath	= null;
 
+		/// <summary>
+		/// Used to specify the FASTBuild coordinator IP or network name. If null, FASTBuild will fall back to checking FASTBUILD_COORDINATOR
+		/// </summary>
+		[XmlConfigFile]
+		public static string FBuildCoordinator = null;
+
 		/////////////////
 		// Caching
 
@@ -193,6 +199,20 @@ namespace UnrealBuildTool
 			return FBuildBrokeragePath;
 		}
 
+		public static string GetCoordinator()
+		{
+			if (string.IsNullOrEmpty(FBuildCoordinator))
+			{
+				string EnvPath = Environment.GetEnvironmentVariable("FASTBUILD_COORDINATOR");
+				if (!string.IsNullOrEmpty(EnvPath))
+				{
+					FBuildCoordinator = EnvPath;
+				}
+			}
+
+			return FBuildCoordinator;
+		}
+
 		public static bool IsAvailable()
 		{
 			string ExecutablePath = GetExecutablePath();
@@ -201,13 +221,6 @@ namespace UnrealBuildTool
 				if (string.IsNullOrEmpty(ExecutablePath))
 				{
 					FBuildExecutablePath = Path.Combine(DefaultExecutableBasePath, BuildHostPlatform.Current.Platform.ToString(), "FBuild");
-				}
-
-				// There's no easy way to set global env variables on Mac, so set up default path for convenience
-				string DefaultBrokeragePath = GetBrokeragePath();
-				if (string.IsNullOrEmpty(DefaultBrokeragePath))
-				{
-					FBuildBrokeragePath = @"/Volumes/FASTBuildBrokerage";
 				}
 			}
 			else if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64)
@@ -223,12 +236,17 @@ namespace UnrealBuildTool
 				return false;
 			}
 
-			// UBT is faster than FASTBuild for local only builds, so only allow FASTBuild if the environment is fully set up to use FASTBuild
-			// On Mac that's when the brokerage folder is mounted, on Windows when the brokerage env variable is set or the path is set in UBT's config
-			string BrokeragePath = GetBrokeragePath();
-			if (string.IsNullOrEmpty(BrokeragePath) || !Directory.Exists(BrokeragePath))
+			// UBT is faster than FASTBuild for local only builds, so only allow FASTBuild if the environment is fully set up to use FASTBuild.
+			// That's when the FASTBuild coordinator or brokerage folder is available.
+			// On Mac the latter needs the brokerage folder to be mounted, on Windows the brokerage env variable has to be set or the path specified in UBT's config
+			string Coordinator = GetCoordinator();
+			if (string.IsNullOrEmpty(Coordinator))
 			{
-				return false;
+				string BrokeragePath = GetBrokeragePath();
+				if (string.IsNullOrEmpty(BrokeragePath) || !Directory.Exists(BrokeragePath))
+				{
+					return false;
+				}
 			}
 
 			if (!string.IsNullOrEmpty(FBuildExecutablePath))
@@ -1438,6 +1456,11 @@ namespace UnrealBuildTool
 			FBStartInfo.RedirectStandardError	= true;
 			FBStartInfo.RedirectStandardOutput	= true;
 
+			string Coordinator = GetCoordinator();
+			if (!string.IsNullOrEmpty(Coordinator) && !FBStartInfo.EnvironmentVariables.ContainsKey("FASTBUILD_COORDINATOR"))
+			{
+				FBStartInfo.EnvironmentVariables.Add("FASTBUILD_COORDINATOR", Coordinator);
+			}
 			FBStartInfo.EnvironmentVariables.Remove("FASTBUILD_BROKERAGE_PATH"); // remove stale serialized value and defer to GetBrokeragePath
 			string BrokeragePath = GetBrokeragePath();
 			if (!string.IsNullOrEmpty(BrokeragePath) && !FBStartInfo.EnvironmentVariables.ContainsKey("FASTBUILD_BROKERAGE_PATH"))
