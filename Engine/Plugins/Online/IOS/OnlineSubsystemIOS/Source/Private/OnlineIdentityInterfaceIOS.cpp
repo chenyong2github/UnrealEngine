@@ -163,7 +163,7 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 					{
 						if (PlayerId.IsSet())
 						{
-							UniqueNetId = FUniqueNetIdIOS::Create(PlayerId.GetValue()));
+							UniqueNetId = FUniqueNetIdIOS::Create(PlayerId.GetValue());
 						}
 						else
 						{
