@@ -250,20 +250,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 	const int MISMode = PathTracingData.MISMode;
 
 	// number of directly visible lights for the first bounce
-	uint NumLights = 0;
-	if (SceneLightCount > 0)
-	{
-		if (PathTracingData.VisibleLights)
-		{
-			// user wants to see all lights
-			NumLights = SceneLightCount;
-		}
-		else if (IsEnvironmentLight(0))
-		{
-			// user doesn't want to see all lights - still check the first one in case its a skydome (there can be only one, and it always comes first if it is there)
-			NumLights = 1;
-		}
-	}
+	uint NumLights = PathTracingData.VisibleLights ? SceneLightCount : 0;
 
 	for (int Bounce = 0; Bounce <= PathTracingData.MaxBounces; Bounce++)
 	{

@@ -7,14 +7,10 @@
 #include "RendererPrivate.h"
 #include "GlobalShader.h"
 #include "DeferredShadingRenderer.h"
-#include "PostProcess/PostProcessing.h"
-#include "PostProcess/SceneFilterRendering.h"
 #include "PathTracingUniformBuffers.h"
-#include "RHI/Public/PipelineStateCache.h"
-#include "RayTracing/RayTracingSkyLight.h"
-#include "RayTracing/RaytracingOptions.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "RayTracingTypes.h"
+#include "RenderCore/Public/GenerateMips.h"
 
 TAutoConsoleVariable<int32> CVarPathTracingMaxBounces(
 	TEXT("r.PathTracing.MaxBounces"),
@@ -246,6 +242,36 @@ static bool PrepareShaderArgs(const FViewInfo& View, FPathTracingData& PathTraci
 	return NeedInvalidation;
 }
 
+class FPathTracingSkylightPrepareCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingSkylightPrepareCS)
+	SHADER_USE_PARAMETER_STRUCT(FPathTracingSkylightPrepareCS, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_TEXTURE(TextureCube, SkyLightCubemap0)
+		SHADER_PARAMETER_TEXTURE(TextureCube, SkyLightCubemap1)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SkyLightCubemapSampler0)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SkyLightCubemapSampler1)
+		SHADER_PARAMETER(float, SkylightBlendFactor)
+		SHADER_PARAMETER(float, SkylightInvResolution)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTextureOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTexturePdf)
+		SHADER_PARAMETER(FVector, SkyColor)
+	END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_SHADER_TYPE(, FPathTracingSkylightPrepareCS, TEXT("/Engine/Private/PathTracing/PathTracingSkylightPrepare.usf"), TEXT("PathTracingSkylightPrepareCS"), SF_Compute);
+
 class FPathTracingRG : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPathTracingRG)
@@ -256,15 +282,26 @@ class FPathTracingRG : public FGlobalShader
 		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
 	}
 
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("USE_NEW_SKYDOME"), 1);
+	}
+
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, RadianceTexture)
 		SHADER_PARAMETER_SRV(RaytracingAccelerationStructure, TLAS)
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
-		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
 		SHADER_PARAMETER_STRUCT_REF(FPathTracingData, PathTracingData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FPathTracingLight>, SceneLights)
 		SHADER_PARAMETER(uint32, SceneLightCount)
+		// Skylight
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SkylightPdf)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SkylightTextureSampler)
+		SHADER_PARAMETER(float, SkylightInvResolution)
+		SHADER_PARAMETER(int32, SkylightMipCount)
 		// IES Profiles
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
@@ -286,7 +323,6 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
 		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
 	}
@@ -300,21 +336,88 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
 
-void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FSkyLightData& SkyLightData, FScene* Scene, const FViewInfo& View)
+bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, FPathTracingRG::FParameters* PathTracingParameters)
 {
-	// Sky light
-	bool IsSkyLightValid = SetupSkyLightParameters(*Scene, &SkyLightData);
+	PathTracingParameters->SkylightTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
+	FReflectionUniformParameters Parameters;
+	SetupReflectionUniformParameters(View, Parameters);
+	if (!(Parameters.SkyLightParameters.Y > 0))
+	{
+		// textures not ready, or skylight not active
+		// just put in a placeholder
+		PathTracingParameters->SkylightTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		PathTracingParameters->SkylightPdf = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		PathTracingParameters->SkylightInvResolution = 0;
+		PathTracingParameters->SkylightMipCount = 0;
+		return false;
+	}
+
+	// TODO: this current runs every frame, but should only run when something has been updated
+	// This pass is not too expensive (at least compared to the cost of the path tracer) but this should
+	// be cleaned up.
+	RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing SkylightPrepare");
+
+	FLinearColor SkyColor = Scene->SkyLight->GetEffectiveLightColor();
+	// since we are resampled into an octahedral layout, we multiply the cubemap resolution by 2 to get roughly the same number of texels
+	uint32 Size = FMath::RoundUpToPowerOfTwo(2 * Scene->SkyLight->CaptureCubeMapResolution);
+
+	FRDGTextureDesc SkylightTextureDesc = FRDGTextureDesc::Create2D(
+		FIntPoint(Size, Size),
+		PF_A32B32G32R32F, // half precision might be ok?
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV);
+	PathTracingParameters->SkylightTexture = GraphBuilder.CreateTexture(SkylightTextureDesc, TEXT("PathTracer.Skylight"), ERDGTextureFlags::None);
+	FRDGTextureDesc SkylightPdfDesc = FRDGTextureDesc::Create2D(
+		FIntPoint(Size, Size),
+		PF_R32_FLOAT, // half precision might be ok?
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV,
+		FMath::CeilLogTwo(Size) + 1);
+	PathTracingParameters->SkylightPdf = GraphBuilder.CreateTexture(SkylightPdfDesc, TEXT("PathTracer.SkylightPdf"), ERDGTextureFlags::None);
+
+	PathTracingParameters->SkylightInvResolution = 1.0f / Size;
+	PathTracingParameters->SkylightMipCount = SkylightPdfDesc.NumMips;
+
+	// run a simple compute shader to sample the cubemap and prep the top level of the mipmap hierarchy
+	{
+		TShaderMapRef<FPathTracingSkylightPrepareCS> ComputeShader(View.ShaderMap);
+		FPathTracingSkylightPrepareCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightPrepareCS::FParameters>();
+		PassParameters->SkyColor = FVector(SkyColor.R, SkyColor.G, SkyColor.B);
+		PassParameters->SkyLightCubemap0 = Parameters.SkyLightCubemap;
+		PassParameters->SkyLightCubemap1 = Parameters.SkyLightBlendDestinationCubemap;
+		PassParameters->SkyLightCubemapSampler0 = Parameters.SkyLightCubemapSampler;
+		PassParameters->SkyLightCubemapSampler1 = Parameters.SkyLightBlendDestinationCubemapSampler;
+		PassParameters->SkylightBlendFactor = Parameters.SkyLightParameters.W;
+		PassParameters->SkylightInvResolution = PathTracingParameters->SkylightInvResolution;
+		PassParameters->SkylightTextureOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightTexture, 0));
+		PassParameters->SkylightTexturePdf = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightPdf, 0));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("SkylightPrepare"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
+	}
+
+	FGenerateMips::ExecuteCompute(GraphBuilder, PathTracingParameters->SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+
+	return true;
+}
+
+void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FScene* Scene, const FViewInfo& View)
+{
 	// Lights
 	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM]; // Keep this on the stack for now -- eventually will need to make this dynamic to lift size limit (and also avoid uploading per frame ...)
 	unsigned LightCount = 0;
 
 	// Prepend SkyLight to light buffer since it is not part of the regular light list
-	if (IsSkyLightValid && View.Family->EngineShowFlags.SkyLighting)
+	if (PrepareSkyTexture(GraphBuilder, Scene, View, PassParameters))
 	{
+		check(Scene->SkyLight != nullptr);
 		FPathTracingLight& DestLight = Lights[LightCount];
-		DestLight.Color = FVector(SkyLightData.Color);
-		DestLight.Flags = SkyLightData.bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
+		DestLight.Color = FVector(1, 1, 1); // not used
+		DestLight.Flags = Scene->SkyLight->bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
 		DestLight.Flags |= Scene->SkyLight->bCastShadows ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
@@ -610,12 +713,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->PathTracingData = CreateUniformBufferImmediate(PathTracingData, EUniformBufferUsage::UniformBuffer_SingleFrame);
-		{
-			// upload sky/lights data
-			FSkyLightData SkyLightData;
-			SetLightParameters(GraphBuilder, PassParameters, SkyLightData, Scene, View);
-			PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleFrame);
-		}
+		// upload sky/lights data
+		SetLightParameters(GraphBuilder, PassParameters, Scene, View);
 		PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
 
