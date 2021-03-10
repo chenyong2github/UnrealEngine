@@ -14,6 +14,22 @@
 struct FFieldSystemSampleData;
 class FChaosSolversModule;
 
+///**
+//*
+//*/
+//UENUM(BlueprintType)
+//enum class EChaosObjectType
+//{
+//	Chaos_Destruction        UMETA(DisplayName = "Set Always", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside a sphere / Exterior-value otherwise."),
+//	Chaos_Rigid, 
+//
+//	Chaos_Rban  UMETA(DisplayName = "Merge Interior", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside the sphere or if the particle input value is already Interior-Value / Exterior-value otherwise."),
+//	Chaos_Cloth  UMETA(DisplayName = "Merge Exterior", ToolTip = "The particle output value will be equal to Exterior-value if the particle position is outside the sphere or if the particle input value is already Exterior-Value / Interior-value otherwise."),
+//	//~~~
+//	//256th entry
+//	Chaos_Objects_Max                 UMETA(Hidden)
+//};
+
 /**
 *	FieldSystemComponent
 */
@@ -39,7 +55,7 @@ public:
 	FORCEINLINE const UFieldSystem* GetFieldSystem() const { return FieldSystem; }
 
 	/** Field system asset to be used to store the construction fields */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Field", meta = (ToolTip = "Field system asset to be used to store the construction fields"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Field", meta = (ToolTip = "Field system asset to be used to store the construction fields"))
 	UFieldSystem* FieldSystem;
 
 	/** If enabled the field will be pushed to the world fields and will be available to materials and niagara */
@@ -51,7 +67,7 @@ public:
 	bool bIsChaosField;
 
 	/** List of solvers this field will affect. An empty list makes this field affect all solvers. */
-	UPROPERTY(EditAnywhere, Category = "Field", meta = (EditCondition = "bIsChaosField == true", ToolTip = "List of chaos solvers that will used the field"))
+	UPROPERTY(EditAnywhere, Category = "Field", meta = (EditCondition = "bIsChaosField == true", ToolTip = "List of chaos solvers that will use the field"))
 	TArray<TSoftObjectPtr<AChaosSolverActor>> SupportedSolvers;
 
 	/** List of all the construction command */
