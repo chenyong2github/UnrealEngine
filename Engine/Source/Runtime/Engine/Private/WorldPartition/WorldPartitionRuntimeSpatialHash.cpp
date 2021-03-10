@@ -368,6 +368,15 @@ UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObje
 #endif
 {}
 
+void UWorldPartitionRuntimeSpatialHash::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+
+	// We don't want this to be persisted but we can't set the property Transient as it is NonPIEDuplicateTransient and those flags aren't compatible
+	// If at some point GenerateStreaming is done after duplication we can remove this code.
+	StreamingGrids.Empty();
+}
+
 #if WITH_EDITOR
 void UWorldPartitionRuntimeSpatialHash::DrawPreview() const
 {
@@ -384,15 +393,6 @@ FName UWorldPartitionRuntimeSpatialHash::GetActorRuntimeGrid(const AActor* Actor
 		}
 	}
 	return Super::GetActorRuntimeGrid(Actor);
-}
-
-void UWorldPartitionRuntimeSpatialHash::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	Super::PreSave(TargetPlatform);
-
-	// We don't want this to be persisted but we can't set the property Transient as it is NonPIEDuplicateTransient and those flags aren't compatible
-	// If at some point GenerateStreaming is done after duplication we can remove this code.
-	StreamingGrids.Empty();
 }
 
 void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
