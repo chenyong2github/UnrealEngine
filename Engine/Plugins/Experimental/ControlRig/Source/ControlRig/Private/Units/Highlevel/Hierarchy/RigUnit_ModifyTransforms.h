@@ -97,12 +97,7 @@ struct FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable
 
 			if (ItemToModify.IsValidIndex(Index))
 			{
-				if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
-				{
-					return ItemToModify[Index].Item;
-				}
-
-				if (Mode == EControlRigModifyBoneMode::OverrideLocal)
+				if (Mode == EControlRigModifyBoneMode::AdditiveLocal || Mode == EControlRigModifyBoneMode::OverrideLocal)
 				{
 					if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
 					{
@@ -115,6 +110,46 @@ struct FRigUnit_ModifyTransforms : public FRigUnit_HighlevelBaseMutable
 			}
 		}
 		return FRigElementKey();
+	}
+	
+	virtual FTransform DetermineOffsetTransformForPin(const FString& InPinPath, void* InUserContext) const override
+	{
+		if (InPinPath.StartsWith(TEXT("ItemToModify")))
+		{
+			int32 Index = INDEX_NONE;
+			FString Left, Middle, Right;
+			if (InPinPath.Replace(TEXT("["), TEXT(".")).Split(TEXT("."), &Left, &Middle))
+			{
+				if (Middle.Replace(TEXT("]"), TEXT(".")).Split(TEXT("."), &Left, &Right))
+				{
+					Index = FCString::Atoi(*Left);
+				}
+			}
+
+			if (ItemToModify.IsValidIndex(Index))
+			{
+				if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
+				{
+					if (const FRigHierarchyContainer* Container = (const FRigHierarchyContainer*)InUserContext)
+					{
+						if (ItemToModify[Index].Item.IsValid())
+						{
+							// in the case of AdditiveLocal, we want the transient control's global transform to match the item's global transform
+							// we know: transient control's global = transform value * offset transfom * parent transform
+							// we know: item's global transform = item's local transform from rig graph evaluation * its parent transform
+							// we ensure: the item and the transient control share the same parent
+							// so from our goal, transient control's global == item's global transform
+							// we get: transform value * offset transfom * parent transform == item's local transform from rig graph evaluation * its parent transform
+							// we get: transform value * offset transfom == item's local transform from rig graph evaluation
+							// we get: offset transfom == transform value.inverse * item's local transform from rig graph evaluation
+							return ItemToModify[Index].Transform.Inverse() * Container->GetLocalTransform(ItemToModify[Index].Item);
+						}
+					}
+				}
+			}
+		}
+
+		return FTransform::Identity;
 	}
 
 	RIGVM_METHOD()
