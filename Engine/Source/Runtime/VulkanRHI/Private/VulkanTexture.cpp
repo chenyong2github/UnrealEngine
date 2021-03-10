@@ -2698,17 +2698,14 @@ void FVulkanDynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCH
 	}
 #endif
 
-#if VULKAN_ENABLE_DUMP_LAYER || VULKAN_ENABLE_API_DUMP
+#if VULKAN_ENABLE_DUMP_LAYER
 	{
 // TODO: this dies in the printf on android. Needs investigation.
 #if !PLATFORM_ANDROID
 		FVulkanTextureBase* Base = (FVulkanTextureBase*)TextureRHI->GetTextureBaseRHI();
 #if VULKAN_ENABLE_DUMP_LAYER
-		VulkanRHI::PrintfBegin
-#elif VULKAN_ENABLE_API_DUMP
-		FPlatformMisc::LowLevelOutputDebugStringf
+		VulkanRHI::PrintfBegin(*FString::Printf(TEXT("vkDebugMarkerSetObjectNameEXT(0x%p=%s)\n"), Base->Surface.Image, Name));
 #endif
-			(*FString::Printf(TEXT("vkDebugMarkerSetObjectNameEXT(0x%p=%s)\n"), Base->Surface.Image, Name));
 #endif
 	}
 #endif
@@ -2736,7 +2733,7 @@ void FVulkanDynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCH
 
 void FVulkanDynamicRHI::RHIBindDebugLabelName(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const TCHAR* Name)
 {
-#if VULKAN_ENABLE_DUMP_LAYER || VULKAN_ENABLE_API_DUMP
+#if VULKAN_ENABLE_DUMP_LAYER
 	//if (Device->SupportsDebugMarkers())
 	{
 		//if (FRHITexture2D* Tex2d = UnorderedAccessViewRHI->GetTexture2D())
