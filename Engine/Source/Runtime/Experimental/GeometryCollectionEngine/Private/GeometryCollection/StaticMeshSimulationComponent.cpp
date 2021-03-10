@@ -23,6 +23,8 @@
 
 DEFINE_LOG_CATEGORY_STATIC(UStaticMeshSimulationComponentLogging, NoLogging, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 UStaticMeshSimulationComponent::UStaticMeshSimulationComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Simulating(true)
@@ -474,5 +476,5 @@ void UStaticMeshSimulationComponent::ForceRecreatePhysicsState()
 	RecreatePhysicsState();
 }
 
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
