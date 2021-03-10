@@ -63,18 +63,18 @@ void FPakFileDerivedDataBackend::Close()
 	}
 }
 
-bool FPakFileDerivedDataBackend::IsWritable()
+bool FPakFileDerivedDataBackend::IsWritable() const
 {
 	return bWriting && !bClosed;
 }
 
 /** Returns a class of speed for this interface **/
-FDerivedDataBackendInterface::ESpeedClass FPakFileDerivedDataBackend::GetSpeedClass() 
+FDerivedDataBackendInterface::ESpeedClass FPakFileDerivedDataBackend::GetSpeedClass() const
 {
 	return ESpeedClass::Local;
 }
 
-bool FPakFileDerivedDataBackend::BackfillLowerCacheLevels()
+bool FPakFileDerivedDataBackend::BackfillLowerCacheLevels() const
 {
 	return false;
 }
@@ -400,9 +400,12 @@ bool FPakFileDerivedDataBackend::SortAndCopy(const FString &InputFilename, const
 	return true;
 }
 
-void FPakFileDerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath)
+TSharedRef<FDerivedDataCacheStatsNode> FPakFileDerivedDataBackend::GatherUsageStats() const
 {
-	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, TEXT("PakFile"), *Filename), UsageStats));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("PakFile"), *Filename));
+	Usage->Stats.Add(TEXT(""), UsageStats);
+
+	return Usage;
 }
 
 FCompressedPakFileDerivedDataBackend::FCompressedPakFileDerivedDataBackend(const TCHAR* InFilename, bool bInWriting)

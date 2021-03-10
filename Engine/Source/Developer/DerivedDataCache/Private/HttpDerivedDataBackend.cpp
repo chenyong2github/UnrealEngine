@@ -964,7 +964,7 @@ bool FHttpDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const
 	return true;
 }
 
-FHttpDerivedDataBackend::ESpeedClass FHttpDerivedDataBackend::GetSpeedClass()
+FHttpDerivedDataBackend::ESpeedClass FHttpDerivedDataBackend::GetSpeedClass() const
 {
 	return ESpeedClass::Slow;
 }
@@ -1258,9 +1258,12 @@ void FHttpDerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTran
 	}
 }
 
-void FHttpDerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath)
+TSharedRef<FDerivedDataCacheStatsNode> FHttpDerivedDataBackend::GatherUsageStats() const
 {
-	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s @ %s (%s)"), *GraphPath, TEXT("HTTP"), *Domain, *Namespace), UsageStats));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s @ %s (%s)"), TEXT("HTTP"), *Domain, *Namespace));
+	Usage->Stats.Add(TEXT(""), UsageStats);
+
+	return Usage;
 }
 
 #endif //WITH_HTTP_DDC_BACKEND

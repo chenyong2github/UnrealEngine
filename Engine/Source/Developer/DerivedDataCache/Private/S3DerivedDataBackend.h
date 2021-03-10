@@ -40,19 +40,19 @@ public:
 	bool IsUsable() const;
 
 	/* S3 Cache cannot be written to*/
-	bool IsWritable() override { return false; }
+	bool IsWritable() const override { return false; }
 
 	/* S3 Cache does not try to write back to lower caches (e.g. Shared DDC) */
-	bool BackfillLowerCacheLevels() override { return false; }
+	bool BackfillLowerCacheLevels() const override { return false; }
 
 	bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
 	bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
 	void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
-	void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
 	FString GetName() const override;
-	ESpeedClass GetSpeedClass() override;
+	ESpeedClass GetSpeedClass() const override;
 	bool TryToPrefetch(const TCHAR* CacheKey) override;
 	bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
 

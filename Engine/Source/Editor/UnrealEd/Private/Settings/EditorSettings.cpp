@@ -16,23 +16,37 @@ UEditorSettings::UEditorSettings(const FObjectInitializer& ObjectInitializer)
 	bEditorAnalyticsEnabled_DEPRECATED = true;
 	AutoScalabilityWorkScaleAmount = 1;
 
-	FProperty* S3Property = StaticClass()->FindPropertyByName("bEnableS3DDC");
-	if (ensure(S3Property != nullptr))
+	// Read the current state of the environment variables and cache it.
+	GlobalLocalDDCPath.Path = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-LocalDataCachePath"));
+	GlobalSharedDDCPath.Path = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-SharedDataCachePath"));
+	GlobalS3DDCPath.Path = FPlatformMisc::GetEnvironmentVariable(TEXT("UE-S3DataCachePath"));
+	FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-LocalDataCachePath"), GlobalLocalDDCPath.Path);
+	FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-SharedDataCachePath"), GlobalSharedDDCPath.Path);
+	FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-S3DataCachePath"), GlobalS3DDCPath.Path);
+}
+
+bool UEditorSettings::CanEditChange(const FProperty* InProperty) const
+{
+	if (InProperty->GetFName().IsEqual(GET_MEMBER_NAME_CHECKED(UEditorSettings, bEnableS3DDC)))
 	{
 		bool bValue = false;
 		if (!GConfig->GetBool(TEXT("EditorSettings"), TEXT("bShowEnableS3DDC"), bValue, GEditorIni) || !bValue)
 		{
-			S3Property->ClearPropertyFlags(CPF_Edit);
+			return false;
 		}
 	}
+
+	return Super::CanEditChange(InProperty);
 }
 
 void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& PropertyChangedEvent)
 {
-	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	const FName Name = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
-	if (Name == FName(TEXT("bLoadTheMostRecentlyLoadedProjectAtStartup")))
+	FProperty* PropertyThatChanged = PropertyChangedEvent.MemberProperty;
+	const FName PropertyName = PropertyThatChanged ? PropertyThatChanged->GetFName() : NAME_None;
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UEditorSettings, bLoadTheMostRecentlyLoadedProjectAtStartup))
 	{
 		const FString& AutoLoadProjectFileName = IProjectManager::Get().GetAutoLoadProjectFileName();
 		if ( bLoadTheMostRecentlyLoadedProjectAtStartup )
@@ -46,7 +60,18 @@ void UEditorSettings::PostEditChangeProperty( struct FPropertyChangedEvent& Prop
 			IFileManager::Get().Delete(*AutoLoadProjectFileName);
 		}
 	}
-
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UEditorSettings, GlobalLocalDDCPath))
+	{
+		FPlatformMisc::SetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-LocalDataCachePath"), GlobalLocalDDCPath.Path);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UEditorSettings, GlobalSharedDDCPath))
+	{
+		FPlatformMisc::SetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-SharedDataCachePath"), GlobalSharedDDCPath.Path);
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UEditorSettings, GlobalS3DDCPath))
+	{
+		FPlatformMisc::SetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), TEXT("UE-S3DataCachePath"), GlobalS3DDCPath.Path);
+	}
 
 	SaveConfig(CPF_Config);
 }

@@ -42,6 +42,7 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Subsystems/PanelExtensionSubsystem.h"
 #include "Classes/EditorStyleSettings.h"
+#include "DDC/SDDCStatusIndicator.h"
 
 #define LOCTEXT_NAMESPACE "LevelEditor"
 
@@ -255,11 +256,19 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.Padding(BadgeSizeGetter)
 		.VAlign(VAlign_Center)
 		[
 			TutorialWidget
-		];
+		]
+
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Top)
+		.Padding(BadgeSizeGetter)
+		[
+			SNew(SDDCStatusIndicator)
+		]
+	;
 
 	LevelEditorTab->SetRightContent( RightContent.ToSharedRef() );
 

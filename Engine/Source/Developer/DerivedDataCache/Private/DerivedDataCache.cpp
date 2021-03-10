@@ -50,8 +50,8 @@ namespace DerivedDataCacheCookStats
 	// See https://developercommunity.visualstudio.com/content/problem/576913/c6244-regression-in-new-lambda-processorpermissive.html
 	static void AddCookStats(FCookStatsManager::AddStatFuncRef AddStat)
 	{
-		TMap<FString, FDerivedDataCacheUsageStats> DDCStats;
-		GetDerivedDataCacheRef().GatherUsageStats(DDCStats);
+		TSharedRef<FDerivedDataCacheStatsNode> DDCUsage = GetDerivedDataCacheRef().GatherUsageStats();
+		TMap<FString, FDerivedDataCacheUsageStats> DDCStats = DDCUsage->ToLegacyUsageMap();
 		{
 			const FString StatName(TEXT("DDC.Usage"));
 			for (const auto& UsageStatPair : DDCStats)
@@ -511,6 +511,11 @@ public:
 		FDerivedDataBackend::Get().AddToAsyncCompletionCounter(Addend);
 	}
 
+	bool AnyAsyncRequestsRemaining() const override
+	{
+		return FDerivedDataBackend::Get().AnyAsyncRequestsRemaining();
+	}
+
 	void WaitForQuiescence(bool bShutdown) override
 	{
 		DDC_SCOPE_CYCLE_COUNTER(DDC_WaitForQuiescence);
@@ -528,14 +533,19 @@ public:
 		return FDerivedDataBackend::Get().GetGraphName();
 	}
 
+	virtual const TCHAR* GetDefaultGraphName() const override
+	{
+		return FDerivedDataBackend::Get().GetDefaultGraphName();
+	}
+
 	void GetDirectories(TArray<FString>& OutResults) override
 	{
 		FDerivedDataBackend::Get().GetDirectories(OutResults);
 	}
 
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap) override
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
-		FDerivedDataBackend::Get().GatherUsageStats(UsageStatsMap);
+		return FDerivedDataBackend::Get().GatherUsageStats();
 	}
 
 	/** Get event delegate for data cache notifications */

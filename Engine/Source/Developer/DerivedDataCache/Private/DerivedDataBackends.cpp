@@ -24,7 +24,12 @@
 #include "Misc/EngineBuildSettings.h"
 #include "Modules/ModuleManager.h"
 #include "Misc/ConfigCacheIni.h"
-
+#include "Containers/StringFwd.h"
+#include "Misc/StringBuilder.h"
+#include "ProfilingDebugging/CookStats.h"
+#include "Math/UnitConversion.h"
+#include "Internationalization/FastDecimalFormat.h"
+#include "Math/BasicMathExpressionEvaluator.h"
 
 DEFINE_LOG_CATEGORY(LogDerivedDataCache);
 
@@ -515,6 +520,17 @@ public:
 			}
 		}
 
+		{
+			FString DDCPath;
+			if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *EnvPathOverride, DDCPath))
+			{
+				if (DDCPath.Len() > 0)
+				{
+					Path = DDCPath;
+				}
+			}
+		}
+
 		// Check the CommandLineOverride argument to allow redirecting in build scripts
 		FString CommandLineOverride;
 		if( FParse::Value( Entry, TEXT("CommandLineOverride="), CommandLineOverride ) )
@@ -599,7 +615,7 @@ public:
 
 				if (InnerFileSystem)
 				{
-					bUsingSharedDDC = bUsingSharedDDC ? bUsingSharedDDC : bShared;
+					bUsingSharedDDC |= bShared;
 	
 					DataCache = new FDerivedDataBackendCorruptionWrapper(InnerFileSystem);
 					UE_LOG(LogDerivedDataCache, Log, TEXT("Using %s data cache path %s: %s"), NodeName, *Path, !InnerFileSystem->IsWritable() ? TEXT("ReadOnly") : TEXT("Writable"));
@@ -674,6 +690,14 @@ public:
 				{
 					CachePath = FilesystemCachePathEnv;
 					UE_LOG(LogDerivedDataCache, Log, TEXT("Found environment variable %s=%s"), *EnvPathOverride, *CachePath);
+				}
+			}
+
+			{
+				FString DDCPath;
+				if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *EnvPathOverride, DDCPath))
+				{
+					CachePath = DDCPath;
 				}
 			}
 		}
@@ -932,10 +956,20 @@ public:
 		return *GraphName;
 	}
 
+	virtual const TCHAR* GetDefaultGraphName() const override
+	{
+		return FApp::IsEngineInstalled() ? TEXT("InstalledDerivedDataBackendGraph") : TEXT("DerivedDataBackendGraph");
+	}
+
 	virtual void AddToAsyncCompletionCounter(int32 Addend) override
 	{
 		AsyncCompletionCounter.Add(Addend);
 		check(AsyncCompletionCounter.GetValue() >= 0);
+	}
+
+	virtual bool AnyAsyncRequestsRemaining() override
+	{
+		return AsyncCompletionCounter.GetValue() > 0;
 	}
 
 	virtual void GetDirectories(TArray<FString>& OutResults) override
@@ -993,12 +1027,14 @@ public:
 		return false;
 	}
 
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) override
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
 		if (RootCache)
 		{
-			RootCache->GatherUsageStats(UsageStats, TEXT(" 0"));
+			return RootCache->GatherUsageStats();
 		}
+
+		return MakeShared<FDerivedDataCacheStatsNode>(nullptr, TEXT(""));
 	}
 
 private:

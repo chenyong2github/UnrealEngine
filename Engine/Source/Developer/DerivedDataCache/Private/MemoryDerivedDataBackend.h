@@ -24,10 +24,10 @@ public:
 	virtual FString GetName() const override { return Name; }
 
 	/** return true if this cache is writable **/
-	virtual bool IsWritable() override;
+	virtual bool IsWritable() const override;
 
 	/** Returns a class of speed for this interface **/
-	virtual ESpeedClass GetSpeedClass() override;
+	virtual ESpeedClass GetSpeedClass()  const override;
 
 	/**
 	 * Synchronous test for the existence of a cache item
@@ -76,7 +76,7 @@ public:
 	 */
 	void Disable() override;
 
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
 	virtual bool TryToPrefetch(const TCHAR* CacheKey) override;
 
@@ -122,7 +122,7 @@ private:
 	/** When set to true, this cache is disabled...ignore all requests. */
 	bool bDisabled;
 	/** Object used for synchronization via a scoped lock						*/
-	FCriticalSection	SynchronizationObject;
+	mutable FCriticalSection SynchronizationObject;
 	/** Current estimated cache size in bytes */
 	int64 CurrentCacheSize;
 	/** Indicates that the cache max size has been exceeded. This is used to avoid

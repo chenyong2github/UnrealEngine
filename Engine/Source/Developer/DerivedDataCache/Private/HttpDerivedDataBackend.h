@@ -49,17 +49,17 @@ public:
 	 */
 	bool IsUsable() const { return bIsUsable; }
 
-	virtual bool IsWritable() override { return true; }
+	virtual bool IsWritable() const override { return true; }
 	virtual bool CachedDataProbablyExists(const TCHAR* CacheKey) override;
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
 	virtual void PutCachedData(const TCHAR* CacheKey, TArrayView<const uint8> InData, bool bPutEvenIfExists) override;
 	virtual void RemoveCachedData(const TCHAR* CacheKey, bool bTransient) override;
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 	
 	virtual FString GetName() const override;
 	virtual bool TryToPrefetch(const TCHAR* CacheKey) override;
 	virtual bool WouldCache(const TCHAR* CacheKey, TArrayView<const uint8> InData) override;
-	virtual ESpeedClass GetSpeedClass() override;
+	virtual ESpeedClass GetSpeedClass() const override;
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
 
 private:

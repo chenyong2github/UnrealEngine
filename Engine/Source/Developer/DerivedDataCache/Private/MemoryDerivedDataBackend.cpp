@@ -17,13 +17,13 @@ FMemoryDerivedDataBackend::~FMemoryDerivedDataBackend()
 	Disable();
 }
 
-bool FMemoryDerivedDataBackend::IsWritable()
+bool FMemoryDerivedDataBackend::IsWritable() const
 {
 	FScopeLock ScopeLock(&SynchronizationObject);
 	return !bDisabled;
 }
 
-FDerivedDataBackendInterface::ESpeedClass FMemoryDerivedDataBackend::GetSpeedClass()
+FDerivedDataBackendInterface::ESpeedClass FMemoryDerivedDataBackend::GetSpeedClass() const
 {
 	return ESpeedClass::Local;
 }
@@ -320,9 +320,12 @@ void FMemoryDerivedDataBackend::Disable()
 	CurrentCacheSize = SerializationSpecificDataSize;
 }
 
-void FMemoryDerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath)
+TSharedRef<FDerivedDataCacheStatsNode> FMemoryDerivedDataBackend::GatherUsageStats() const
 {
-	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, TEXT("MemoryBackend"), *CacheFilename), UsageStats));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s.%s"), TEXT("MemoryBackend"), *CacheFilename));
+	Usage->Stats.Add(TEXT(""), UsageStats);
+
+	return Usage;
 }
 
 bool FMemoryDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)

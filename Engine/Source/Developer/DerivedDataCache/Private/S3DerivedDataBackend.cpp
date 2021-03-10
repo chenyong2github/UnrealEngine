@@ -931,9 +931,12 @@ void FS3DerivedDataBackend::RemoveCachedData(const TCHAR* CacheKey, bool bTransi
 	// Not implemented
 }
 
-void FS3DerivedDataBackend::GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath)
+TSharedRef<FDerivedDataCacheStatsNode> FS3DerivedDataBackend::GatherUsageStats() const
 {
-	COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s @ %s"), *GraphPath, TEXT("S3"), *BaseUrl), UsageStats));
+	TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, FString::Printf(TEXT("%s @ %s"), TEXT("S3"), *BaseUrl));
+	Usage->Stats.Add(TEXT(""), UsageStats);
+
+	return Usage;
 }
 
 FString FS3DerivedDataBackend::GetName() const
@@ -941,7 +944,7 @@ FString FS3DerivedDataBackend::GetName() const
 	return BaseUrl;
 }
 
-FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass()
+FDerivedDataBackendInterface::ESpeedClass FS3DerivedDataBackend::GetSpeedClass() const
 {
 	return ESpeedClass::Local;
 }

@@ -31,12 +31,12 @@ public:
 	virtual FString GetName() const override { return Filename; }
 
 	/** return true if this cache is writable **/
-	virtual bool IsWritable() override;
+	virtual bool IsWritable() const override;
 
 	/** Returns a class of speed for this interface **/
-	virtual ESpeedClass GetSpeedClass() override;
+	virtual ESpeedClass GetSpeedClass() const override;
 
-	virtual bool BackfillLowerCacheLevels() override;
+	virtual bool BackfillLowerCacheLevels() const override;
 
 	/**
 	 * Synchronous test for the existence of a cache item
@@ -90,7 +90,7 @@ public:
 
 	static bool SortAndCopy(const FString &InputFilename, const FString &OutputFilename);
 
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override;
 
 	virtual bool TryToPrefetch(const TCHAR* CacheKey) override { return false; }
 
@@ -142,7 +142,7 @@ public:
 	virtual bool GetCachedData(const TCHAR* CacheKey, TArray<uint8>& OutData) override;
 
 	/** Returns a class of speed for this interface **/
-	virtual ESpeedClass GetSpeedClass() override
+	virtual ESpeedClass GetSpeedClass() const override
 	{
 		return ESpeedClass::Fast;
 	}

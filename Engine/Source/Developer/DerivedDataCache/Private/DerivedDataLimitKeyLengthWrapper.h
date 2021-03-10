@@ -34,13 +34,13 @@ public:
 	}
 
 	/** return true if this cache is writable **/
-	virtual bool IsWritable() override
+	virtual bool IsWritable() const override
 	{
 		return InnerBackend->IsWritable();
 	}
 
 	/** Returns a class of speed for this interface **/
-	virtual ESpeedClass GetSpeedClass() override
+	virtual ESpeedClass GetSpeedClass() const override
 	{
 		return InnerBackend->GetSpeedClass();
 	}
@@ -198,16 +198,17 @@ public:
 		return InnerBackend->RemoveCachedData(*NewKey, bTransient);
 	}
 
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
-		COOK_STAT(
+		TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("LimitKeyLength"));
+		Usage->Stats.Add(TEXT(""), UsageStats);
+
+		if (InnerBackend)
 		{
-			UsageStatsMap.Add(GraphPath + TEXT(": LimitKeyLength"), UsageStats);
-			if (InnerBackend)
-			{
-				InnerBackend->GatherUsageStats(UsageStatsMap, GraphPath + TEXT(". 0"));
-			}
-		});
+			Usage->Children.Add(InnerBackend->GatherUsageStats());
+		}
+
+		return Usage;
 	}
 
 private:

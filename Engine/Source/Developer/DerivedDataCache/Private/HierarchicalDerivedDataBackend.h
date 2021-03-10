@@ -8,6 +8,7 @@
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataBackendAsyncPutWrapper.h"
 #include "Templates/UniquePtr.h"
+#include "Containers/ArrayView.h"
 
 /** 
  * A backend wrapper that implements a cache hierarchy of backends. 
@@ -35,7 +36,7 @@ public:
 	}
 
 	/** Are we a remote cache? */
-	virtual ESpeedClass GetSpeedClass() override
+	virtual ESpeedClass GetSpeedClass() const override
 	{
 		return ESpeedClass::Local;
 	}
@@ -78,7 +79,7 @@ public:
 	}
 
 	/** return true if this cache is writable **/
-	virtual bool IsWritable() override
+	virtual bool IsWritable() const override
 	{
 		return bIsWritable;
 	}
@@ -344,29 +345,28 @@ public:
 		}
 	}
 
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) override
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const override
 	{
-		COOK_STAT(
+		TSharedRef<FDerivedDataCacheStatsNode> Usage = MakeShared<FDerivedDataCacheStatsNode>(this, TEXT("Hierarchical"));
+		Usage->Stats.Add(TEXT(""), UsageStats);
+
+		// All the inner backends are actually wrapped by AsyncPut backends in writable cases (most cases in practice)
+		if (AsyncPutInnerBackends.Num() > 0)
 		{
-			UsageStatsMap.Add(GraphPath + TEXT(": Hierarchical"), UsageStats);
-			// All the inner backends are actually wrapped by AsyncPut backends in writable cases (most cases in practice)
-			if (AsyncPutInnerBackends.Num() > 0)
+			for (const auto& InnerBackend : AsyncPutInnerBackends)
 			{
-				int Ndx = 0;
-				for (const auto& InnerBackend : AsyncPutInnerBackends)
-				{
-					InnerBackend->GatherUsageStats(UsageStatsMap, GraphPath + FString::Printf(TEXT(".%2d"), Ndx++));
-				}
+				Usage->Children.Add(InnerBackend->GatherUsageStats());
 			}
-			else
+		}
+		else
+		{
+			for (auto InnerBackend : InnerBackends)
 			{
-				int Ndx = 0;
-				for (auto InnerBackend : InnerBackends)
-				{
-					InnerBackend->GatherUsageStats(UsageStatsMap, GraphPath + FString::Printf(TEXT(".%2d"), Ndx++));
-				}
+				Usage->Children.Add(InnerBackend->GatherUsageStats());
 			}
-		});
+		}
+
+		return Usage;
 	}
 
 
