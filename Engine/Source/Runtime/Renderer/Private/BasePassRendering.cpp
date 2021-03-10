@@ -840,7 +840,8 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
 
 	TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets> BasePassTextures;
-	uint32 BasePassTextureCount = SceneContext.GetGBufferRenderTargets(GraphBuilder, BasePassTextures);
+	int32 GBufferDIndex = INDEX_NONE;
+	uint32 BasePassTextureCount = SceneContext.GetGBufferRenderTargets(GraphBuilder, BasePassTextures, GBufferDIndex);
 	TArrayView<FRDGTextureRef> BasePassTexturesView = MakeArrayView(BasePassTextures.GetData(), BasePassTextureCount);
 	FRDGTextureRef BasePassDepthTexture = SceneDepthTexture;
 	FLinearColor SceneColorClearValue;
@@ -874,6 +875,12 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 
 		auto* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 		PassParameters->RenderTargets = GetRenderTargetBindings(ColorLoadAction, BasePassTexturesView);
+
+		static TConsoleVariableData<int32>* CVarNoGBufferDClear = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.NoGBufferDClear"));
+		if (CVarNoGBufferDClear && !!CVarNoGBufferDClear->GetValueOnRenderThread() && GBufferDIndex != INDEX_NONE)
+		{
+			PassParameters->RenderTargets[GBufferDIndex].SetLoadAction(ERenderTargetLoadAction::ENoAction);
+		}
 
 		if (SceneDepthLoadAction == ERenderTargetLoadAction::EClear)
 		{

@@ -828,12 +828,11 @@ int32 FSceneRenderTargets::GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ER
 	return MRTCount;
 }
 
-int32 FSceneRenderTargets::GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& OutRenderTargets) const
+int32 FSceneRenderTargets::GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& OutRenderTargets, int32& OutGBufferDIndex) const
 {
 	int32 OutVelocityRTIndex = -1;
 	const TRefCountPtr<IPooledRenderTarget>* RenderTargets[MaxSimultaneousRenderTargets];
-	int32 GBufferDIndex;
-	const int32 Count = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex, GBufferDIndex);
+	const int32 Count = GetGBufferRenderTargets(RenderTargets, OutVelocityRTIndex, OutGBufferDIndex);
 
 	for (int32 Index = 0; Index < Count; ++Index)
 	{

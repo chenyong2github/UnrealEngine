@@ -582,7 +582,7 @@ public:
 	/** Gets all GBuffers to use.  Returns the number actually used. */
 	int32 GetGBufferRenderTargets(const TRefCountPtr<IPooledRenderTarget>* OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex, int32& OutGBufferDIndex) const;
 	int32 GetGBufferRenderTargets(ERenderTargetLoadAction ColorLoadAction, FRHIRenderTargetView OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const;
-	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& OutRenderTargets) const;
+	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, TStaticArray<FRDGTextureRef, MaxSimultaneousRenderTargets>& OutRenderTargets, int32& OutGBufferDIndex) const;
 	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBinding OutRenderTargets[MaxSimultaneousRenderTargets], int32& OutVelocityRTIndex) const;
 	int32 GetGBufferRenderTargets(FRDGBuilder& GraphBuilder, ERenderTargetLoadAction ColorLoadAction, FRenderTargetBindingSlots& OutRenderTargets) const;
 
