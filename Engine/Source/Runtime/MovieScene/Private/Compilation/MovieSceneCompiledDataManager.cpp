@@ -1186,13 +1186,25 @@ bool UMovieSceneCompiledDataManager::CompileHierarchy(UMovieSceneSequence* Seque
 bool UMovieSceneCompiledDataManager::CompileHierarchy(UMovieSceneSequence* Sequence, const FGatherParameters& Params, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
 	FMovieSceneRootOverridePath RootPath;
-	return CompileHierarchyImpl(Sequence, Params, FMovieSceneEvaluationOperand(), &RootPath, InOutHierarchy);
+
+	// Compile all the sub data for every part of the hierarchy
+	const bool bContainsSubSequences = GenerateSubSequenceData(Sequence, Params, FMovieSceneEvaluationOperand(), &RootPath, InOutHierarchy);
+
+	// Populate the sub sequence tree that defines which sub sequences happen at a given time
+	PopulateSubSequenceTree(Sequence, Params, &RootPath, InOutHierarchy);
+
+	return bContainsSubSequences;
 }
 
-bool UMovieSceneCompiledDataManager::CompileHierarchyImpl(UMovieSceneSequence* Sequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
+bool UMovieSceneCompiledDataManager::GenerateSubSequenceData(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
-	UMovieScene* MovieScene = Sequence->GetMovieScene();
-	check(MovieScene && RootPath && InOutHierarchy);
+	UMovieScene* MovieScene = SubSequence ? SubSequence->GetMovieScene() : nullptr;
+	if (!MovieScene)
+	{
+		return false;
+	}
+
+	check(RootPath && InOutHierarchy);
 
 	bool bContainsSubSequences = false;
 
@@ -1200,7 +1212,7 @@ bool UMovieSceneCompiledDataManager::CompileHierarchyImpl(UMovieSceneSequence* S
 	{
 		if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track))
 		{
-			bContainsSubSequences |= CompileSubTrackHierarchy(SubTrack, Params, Operand, RootPath, InOutHierarchy);
+			bContainsSubSequences |= GenerateSubSequenceData(SubTrack, Params, Operand, RootPath, InOutHierarchy);
 		}
 	}
 
@@ -1212,7 +1224,7 @@ bool UMovieSceneCompiledDataManager::CompileHierarchyImpl(UMovieSceneSequence* S
 			{
 				const FMovieSceneEvaluationOperand ChildOperand(Params.SequenceID, ObjectBinding.GetObjectGuid());
 
-				bContainsSubSequences |= CompileSubTrackHierarchy(SubTrack, Params, ChildOperand, RootPath, InOutHierarchy);
+				bContainsSubSequences |= GenerateSubSequenceData(SubTrack, Params, ChildOperand, RootPath, InOutHierarchy);
 			}
 		}
 	}
@@ -1220,7 +1232,7 @@ bool UMovieSceneCompiledDataManager::CompileHierarchyImpl(UMovieSceneSequence* S
 	return bContainsSubSequences;
 }
 
-bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
+bool UMovieSceneCompiledDataManager::GenerateSubSequenceData(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
 {
 	bool bContainsSubSequences = false;
 
@@ -1228,10 +1240,6 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 	const FMovieSceneSequenceID ParentSequenceID = Params.SequenceID;
 
-	TSortedMap<UMovieSceneSection*, FMovieSceneSequenceID, TInlineAllocator<16>> SectionToID;
-
-	// ---------------------------------------------------------------------------------------------------------------------------
-	// Step 1 - Add structural information for the sequence
 	for (UMovieSceneSection* Section : SubTrack->GetAllSections())
 	{
 		UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Section);
@@ -1251,8 +1259,6 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 		const FMovieSceneSequenceID InnerSequenceID = RootPath->Remap(SubSection->GetSequenceID());
 
-		SectionToID.Add(SubSection, InnerSequenceID);
-
 		FSubSequenceInstanceDataParams InstanceParams{ InnerSequenceID, Operand };
 		FMovieSceneSubSequenceData     NewSubData = SubSection->GenerateSubSequenceData(InstanceParams);
 
@@ -1266,58 +1272,108 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 		// Add the sub data to the root hierarchy
 		InOutHierarchy->Add(NewSubData, InnerSequenceID, ParentSequenceID);
+
+		// Iterate into the sub sequence
+		FGatherParameters SubParams = Params.CreateForSubData(NewSubData, InnerSequenceID);
+
+		RootPath->Push(NewSubData.DeterministicSequenceID);
+		GenerateSubSequenceData(SubSequence, SubParams, Operand, RootPath, InOutHierarchy);
+		RootPath->Pop();
+
 		bContainsSubSequences = true;
 	}
 
-	// ---------------------------------------------------------------------------------------------------------------------------
-	// Step 2 - add entries to the tree for each sub sequence in the range
+	return bContainsSubSequences;
+}
+
+void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
+{
+	UMovieScene* MovieScene = SubSequence ? SubSequence->GetMovieScene() : nullptr;
+	if (!MovieScene)
+	{
+		return;
+	}
+
+	check(RootPath && InOutHierarchy);
+
+	for (UMovieSceneTrack* Track : MovieScene->GetMasterTracks())
+	{
+		if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track))
+		{
+			PopulateSubSequenceTree(SubTrack, Params, RootPath, InOutHierarchy);
+		}
+	}
+
+	for (const FMovieSceneBinding& ObjectBinding : MovieScene->GetBindings())
+	{
+		for (UMovieSceneTrack* Track : ObjectBinding.GetTracks())
+		{
+			if (UMovieSceneSubTrack* SubTrack = Cast<UMovieSceneSubTrack>(Track))
+			{
+				PopulateSubSequenceTree(SubTrack, Params, RootPath, InOutHierarchy);
+			}
+		}
+	}
+}
+
+void UMovieSceneCompiledDataManager::PopulateSubSequenceTree(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy)
+{
+	check(SubTrack && RootPath);
+
 	const bool bTrackMatchesFlags = ( Params.Flags == ESectionEvaluationFlags::None )
 		|| ( EnumHasAnyFlags(Params.Flags, ESectionEvaluationFlags::PreRoll)  && SubTrack->EvalOptions.bEvaluateInPreroll  )
 		|| ( EnumHasAnyFlags(Params.Flags, ESectionEvaluationFlags::PostRoll) && SubTrack->EvalOptions.bEvaluateInPostroll );
 
-	const bool bIsEvalDisabled = SubTrack->IsEvalDisabled();
-
-	if (bTrackMatchesFlags && !bIsEvalDisabled)
+	if (!bTrackMatchesFlags)
 	{
-		for (const FMovieSceneTrackEvaluationFieldEntry& Entry : SubTrack->GetEvaluationField().Entries)
+		return;
+	}
+
+	if (SubTrack->IsEvalDisabled())
+	{
+		return;
+	}
+
+	for (const FMovieSceneTrackEvaluationFieldEntry& Entry : SubTrack->GetEvaluationField().Entries)
+	{
+		UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Entry.Section);
+		if (!SubSection || SubSection->GetSequence() == nullptr)
 		{
-			UMovieSceneSubSection* SubSection  = Cast<UMovieSceneSubSection>(Entry.Section);
-			if (!SubSection || SubSection->GetSequence() == nullptr)
-			{
-				continue;
-			}
+			continue;
+		}
 
-			EMovieSceneServerClientMask NewMask = Params.NetworkMask & SubSection->GetNetworkMask();
-			if (NewMask == EMovieSceneServerClientMask::None)
-			{
-				continue;
-			}
+		EMovieSceneServerClientMask NewMask = Params.NetworkMask & SubSection->GetNetworkMask();
+		if (NewMask == EMovieSceneServerClientMask::None)
+		{
+			continue;
+		}
 
-			TRange<FFrameNumber> EffectiveRange = Params.ClampRoot(Entry.Range * Params.RootToSequenceTransform.InverseLinearOnly());
-			if (EffectiveRange.IsEmpty())
-			{
-				continue;
-			}
+		TRange<FFrameNumber> EffectiveRange = Params.ClampRoot(Entry.Range * Params.RootToSequenceTransform.InverseLinearOnly());
+		if (EffectiveRange.IsEmpty())
+		{
+			continue;
+		}
 
-			const FMovieSceneSequenceID       SubSequenceID = SectionToID.FindChecked(Entry.Section);
-			const FMovieSceneSubSequenceData* SubData       = InOutHierarchy->FindSubData(SubSequenceID);
+		const FMovieSceneSequenceID       SubSequenceID = RootPath->Remap(SubSection->GetSequenceID());
+		const FMovieSceneSubSequenceData* SubData       = InOutHierarchy->FindSubData(SubSequenceID);
 
-			checkf(SubData, TEXT("Unable to locate sub-data for a sub section that appears in the track's evaluation field - this indicates that the section is being evaluated even though it is not active"));
+		checkf(SubData, TEXT("Unable to locate sub-data for a sub section that appears in the track's evaluation field - this indicates that the section is being evaluated even though it is not active"));
 
-			// Add the sub sequence to the tree
-			InOutHierarchy->AddRange(SubSequenceID, EffectiveRange, Entry.Flags | Params.Flags);
+		// Add the sub sequence to the tree
+		InOutHierarchy->AddRange(SubSequenceID, EffectiveRange, Entry.Flags | Params.Flags);
 
-			// Iterate into the sub sequence
+		// Recurse into the sub sequence
+		RootPath->Push(SubData->DeterministicSequenceID);
+		{
+
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
 			SubParams.SetClampRange(EffectiveRange);
 			SubParams.Flags |= Entry.Flags;
 			SubParams.NetworkMask = NewMask;
 
-			RootPath->Push(SubData->DeterministicSequenceID);
-			CompileHierarchyImpl(SubData->GetSequence(), SubParams, Operand, RootPath, InOutHierarchy);
-			RootPath->Pop();
-		}
-	}
+			PopulateSubSequenceTree(SubData->GetSequence(), SubParams, RootPath, InOutHierarchy);
 
-	return bContainsSubSequences;
+		}
+		RootPath->Pop();
+	}
 }

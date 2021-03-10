@@ -247,7 +247,11 @@ private:
 
 	static bool CompileHierarchyImpl(UMovieSceneSequence* Sequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
 
-	static bool CompileSubTrackHierarchy(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static bool GenerateSubSequenceData(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static bool GenerateSubSequenceData(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, const FMovieSceneEvaluationOperand& Operand, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+
+	static void PopulateSubSequenceTree(UMovieSceneSequence* SubSequence, const FGatherParameters& Params, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
+	static void PopulateSubSequenceTree(UMovieSceneSubTrack* SubTrack, const FGatherParameters& Params, FMovieSceneRootOverridePath* RootPath, FMovieSceneSequenceHierarchy* InOutHierarchy);
 
 	void CompileTrackTemplateField(FMovieSceneCompiledDataEntry* OutEntry, const FMovieSceneSequenceHierarchy& Hierarchy, FMovieSceneGatheredCompilerData* InCompilerData);
 
