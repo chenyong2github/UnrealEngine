@@ -538,8 +538,8 @@ uint2 PackSuperResHistory(FSuperResHistory SuperRes)
 	Packed[0] |= ((SuperRes.Age) & SUPERRES_AGE_BITMASK) << 0;
 	Packed[0] |= ((CompressedInterferenceSeed) & SUPERRES_INTERFERENCE_BITMASK) << 5;
 
-	Packed[1] |= (uint(SuperRes.TexelToSample.x + SUPERRES_OFFSET_OFFSET) & SUPERRES_OFFSET_BITS) << 0 * SUPERRES_OFFSET_BITS;
-	Packed[1] |= (uint(SuperRes.TexelToSample.y + SUPERRES_OFFSET_OFFSET) & SUPERRES_OFFSET_BITS) << 1 * SUPERRES_OFFSET_BITS;
+	Packed[1] |= (uint(SuperRes.TexelToSample.x + SUPERRES_OFFSET_OFFSET) & SUPERRES_OFFSET_BITMASK) << 0 * SUPERRES_OFFSET_BITS;
+	Packed[1] |= (uint(SuperRes.TexelToSample.y + SUPERRES_OFFSET_OFFSET) & SUPERRES_OFFSET_BITMASK) << 1 * SUPERRES_OFFSET_BITS;
 
 	return Packed;
 }

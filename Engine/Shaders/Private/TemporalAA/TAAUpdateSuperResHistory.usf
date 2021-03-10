@@ -136,7 +136,7 @@ void MainCS(
 
 			const float2 PixelOffset = float2(BilinearSamplingOffsets2x2[SampleId]);
 
-			int2 KernelToTexel = int2(round((PixelOffset - SampleInfos.BilinearInterp) * 0x20));
+			int2 KernelToTexel = int2(round((PixelOffset - SampleInfos.BilinearInterp) * 2 * SUPERRES_OFFSET_MAX));
 
 			int2 KernelToSample = KernelToTexel + UnpackedSubpixel.TexelToSample;
 
@@ -178,7 +178,7 @@ void MainCS(
 		SubpixelHistory.InterferenceSeed = saturate(ClosestInterferenceSeed + (E.x - 0.5) * rcp(taa_half(SUPERRES_INTERFERENCE_BITMASK)));
 	}
 
-	#if 0
+	#if 1
 	{
 		Debug.r = SubpixelHistory.InterferenceSeed;
 		Debug.g = SubpixelHistory.Age * rcp(SUPERRES_AGE_BITMASK);
