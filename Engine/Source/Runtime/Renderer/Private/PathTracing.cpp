@@ -22,14 +22,14 @@ TAutoConsoleVariable<int32> CVarPathTracingMaxBounces(
 TAutoConsoleVariable<int32> CVarPathTracingSamplesPerPixel(
 	TEXT("r.PathTracing.SamplesPerPixel"),
 	-1,
-	TEXT("Defines the samples per pixel before resetting the simulation (default = -1 (driven by postprocesing volume))"),
+	TEXT("Sets the maximum number of samples per pixel (default = -1 (driven by postprocesing volume))"),
 	ECVF_RenderThreadSafe
 );
 
 TAutoConsoleVariable<float> CVarPathTracingFilterWidth(
 	TEXT("r.PathTracing.FilterWidth"),
 	-1,
-	TEXT("Define the anti-aliasing filter width (default = -1 (driven by postprocesing volume))"),
+	TEXT("Sets the anti-aliasing filter width (default = -1 (driven by postprocesing volume))"),
 	ECVF_RenderThreadSafe
 );
 
@@ -44,10 +44,26 @@ TAutoConsoleVariable<int32> CVarPathTracingUseErrorDiffusion(
 TAutoConsoleVariable<int32> CVarPathTracingMISMode(
 	TEXT("r.PathTracing.MISMode"),
 	2,
-	TEXT("Selects the sampling techniques (default = 2 (MIS enabled))\n")
+	TEXT("Selects the sampling technique for light integration (default = 2 (MIS enabled))\n")
 	TEXT("0: Material sampling\n")
 	TEXT("1: Light sampling\n")
 	TEXT("2: MIS betwen material and light sampling (default)\n"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingMISCompensation(
+	TEXT("r.PathTracing.MISCompensation"),
+	1,
+	TEXT("Activates MIS compensation for skylight importance sampling. (default = 1 (enabled))\n")
+	TEXT("This option only takes effect when r.PathTracing.MISMode = 2\n"),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarPathTracingSkylightCaching(
+	TEXT("r.PathTracing.SkylightCaching"),
+	1,
+	TEXT("Attempts to re-use skylight data between frames. (default = 1 (enabled))\n")
+	TEXT("When set to 0, the skylight texture and importance samping data will be regenerated every frame. This is mainly intended as a benchmarking and debugging aid\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -272,6 +288,34 @@ class FPathTracingSkylightPrepareCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingSkylightPrepareCS, TEXT("/Engine/Private/PathTracing/PathTracingSkylightPrepare.usf"), TEXT("PathTracingSkylightPrepareCS"), SF_Compute);
 
+class FPathTracingSkylightMISCompensationCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPathTracingSkylightMISCompensationCS)
+	SHADER_USE_PARAMETER_STRUCT(FPathTracingSkylightMISCompensationCS, FGlobalShader)
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		//OutEnvironment.CompilerFlags.Add(CFLAG_WarningsAsErrors);
+		OutEnvironment.CompilerFlags.Add(CFLAG_AllowTypedUAVLoads);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_X"), FComputeShaderUtils::kGolden2DGroupSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUPSIZE_Y"), FComputeShaderUtils::kGolden2DGroupSize);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, SkylightTexturePdfAverage)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTextureOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, SkylightTexturePdf)
+		SHADER_PARAMETER(FVector, SkyColor)
+		END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_SHADER_TYPE(, FPathTracingSkylightMISCompensationCS, TEXT("/Engine/Private/PathTracing/PathTracingSkylightMISCompensation.usf"), TEXT("PathTracingSkylightMISCompensationCS"), SF_Compute);
+
+
 class FPathTracingRG : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FPathTracingRG)
@@ -336,7 +380,7 @@ class FPathTracingIESAtlasCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingIESAtlasCS, TEXT("/Engine/Private/PathTracing/PathTracingIESAtlas.usf"), TEXT("PathTracingIESAtlasCS"), SF_Compute);
 
-bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, FPathTracingRG::FParameters* PathTracingParameters)
+bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool UseMISCompensation, FPathTracingRG::FParameters* PathTracingParameters)
 {
 	PathTracingParameters->SkylightTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
@@ -353,9 +397,26 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 		return false;
 	}
 
-	// TODO: this current runs every frame, but should only run when something has been updated
-	// This pass is not too expensive (at least compared to the cost of the path tracer) but this should
-	// be cleaned up.
+	const bool IsSkylightCachingEnabled = CVarPathTracingSkylightCaching.GetValueOnAnyThread() != 0;
+
+	if (!IsSkylightCachingEnabled)
+	{
+		// we don't want any caching - release what we might have been holding onto
+		Scene->PathTracingSkylightTexture.SafeRelease();
+		Scene->PathTracingSkylightPdf.SafeRelease();
+	}
+
+	if (Scene->PathTracingSkylightTexture.IsValid() &&
+		Scene->PathTracingSkylightPdf.IsValid())
+	{
+		// we already have a valid texture and pdf, just re-use them!
+		// it is the responsability of code that may invalidate the contents to reset these pointers
+		PathTracingParameters->SkylightTexture = GraphBuilder.RegisterExternalTexture(Scene->PathTracingSkylightTexture, TEXT("PathTracer.Skylight"));
+		PathTracingParameters->SkylightPdf = GraphBuilder.RegisterExternalTexture(Scene->PathTracingSkylightPdf, TEXT("PathTracer.SkylightPdf"));
+		PathTracingParameters->SkylightInvResolution = 1.0f / PathTracingParameters->SkylightTexture->Desc.GetSize().X;
+		PathTracingParameters->SkylightMipCount = PathTracingParameters->SkylightPdf->Desc.NumMips;
+		return true;
+	}
 	RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing SkylightPrepare");
 
 	FLinearColor SkyColor = Scene->SkyLight->GetEffectiveLightColor();
@@ -399,24 +460,45 @@ bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
 	}
-
 	FGenerateMips::ExecuteCompute(GraphBuilder, PathTracingParameters->SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
+	if (UseMISCompensation)
+	{
+		TShaderMapRef<FPathTracingSkylightMISCompensationCS> ComputeShader(View.ShaderMap);
+		FPathTracingSkylightMISCompensationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FPathTracingSkylightMISCompensationCS::FParameters>();
+		PassParameters->SkylightTexturePdfAverage = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(PathTracingParameters->SkylightPdf, PathTracingParameters->SkylightMipCount - 1));
+		PassParameters->SkylightTextureOutput = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightTexture, 0));
+		PassParameters->SkylightTexturePdf = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(PathTracingParameters->SkylightPdf, 0));
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("SkylightMISCompensation"),
+			ComputeShader,
+			PassParameters,
+			FComputeShaderUtils::GetGroupCount(FIntPoint(Size, Size), FComputeShaderUtils::kGolden2DGroupSize));
+		FGenerateMips::ExecuteCompute(GraphBuilder, PathTracingParameters->SkylightPdf, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
+	}
+
+	// hang onto these for next time (if caching is enabled)
+	if (IsSkylightCachingEnabled)
+	{
+		GraphBuilder.QueueTextureExtraction(PathTracingParameters->SkylightTexture, &Scene->PathTracingSkylightTexture);
+		GraphBuilder.QueueTextureExtraction(PathTracingParameters->SkylightPdf, &Scene->PathTracingSkylightPdf);
+	}
 	return true;
 }
 
-void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FScene* Scene, const FViewInfo& View)
+void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* PassParameters, FScene* Scene, const FViewInfo& View, bool UseMISCompensation)
 {
 	// Lights
 	FPathTracingLight Lights[RAY_TRACING_LIGHT_COUNT_MAXIMUM]; // Keep this on the stack for now -- eventually will need to make this dynamic to lift size limit (and also avoid uploading per frame ...)
 	unsigned LightCount = 0;
 
 	// Prepend SkyLight to light buffer since it is not part of the regular light list
-	if (PrepareSkyTexture(GraphBuilder, Scene, View, PassParameters))
+	if (PrepareSkyTexture(GraphBuilder, Scene, View, UseMISCompensation, PassParameters))
 	{
 		check(Scene->SkyLight != nullptr);
 		FPathTracingLight& DestLight = Lights[LightCount];
-		DestLight.Color = FVector(1, 1, 1); // not used
+		DestLight.Color = FVector(1, 1, 1); // not used (it is folded into the importance table directly)
 		DestLight.Flags = Scene->SkyLight->bTransmission ? PATHTRACER_FLAG_TRANSMISSION_MASK : 0;
 		DestLight.Flags |= PATHTRACER_FLAG_LIGHTING_CHANNEL_MASK;
 		DestLight.Flags |= PATHTRACING_LIGHT_SKY;
@@ -662,6 +744,17 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		bArgsChanged = true;
 	}
 
+	bool UseMISCompensation = CVarPathTracingMISMode.GetValueOnRenderThread() == 2 && CVarPathTracingMISCompensation.GetValueOnRenderThread() != 0;
+	static bool PreviousUseMISCompensation = UseMISCompensation;
+	if (PreviousUseMISCompensation != UseMISCompensation)
+	{
+		PreviousUseMISCompensation = UseMISCompensation;
+		bArgsChanged = true;
+		// if the mode changes we need to rebuild the importance table
+		Scene->PathTracingSkylightTexture.SafeRelease();
+		Scene->PathTracingSkylightPdf.SafeRelease();
+	}
+
 	// Get other basic path tracing settings and see if we need to invalidate the current state
 	FPathTracingData PathTracingData;
 	bArgsChanged |= PrepareShaderArgs(View, PathTracingData);
@@ -714,7 +807,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 		PassParameters->PathTracingData = CreateUniformBufferImmediate(PathTracingData, EUniformBufferUsage::UniformBuffer_SingleFrame);
 		// upload sky/lights data
-		SetLightParameters(GraphBuilder, PassParameters, Scene, View);
+		SetLightParameters(GraphBuilder, PassParameters, Scene, View, UseMISCompensation);
 		PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
 

@@ -948,10 +948,12 @@ public:
 
 	// Reference path tracing cached results
 	TRefCountPtr<IPooledRenderTarget> PathTracingRadianceRT;
+	// Keep track of the rectangle of pixels the Radiance texture is valid for so that path tracing can restart if this changes
 	FIntRect PathTracingRect;
+	// Target sampling count for the path tracer - to allow different views to target different quality levels
 	uint32   PathTracingTargetSPP;
 
-	// Path tracer samples/pixel
+	// Current sample index to be rendered by the path tracer - this gets incremented each time the path tracer accumulates a frame of samples
 	uint32 PathTracingSampleIndex;
 
 	// Path tracer frame index, not reset on invalidation unlike PathTracingSampleIndex to avoid
@@ -2555,6 +2557,14 @@ public:
 
 	/** The current progress of the real time reflection capture when time sliced. */
 	int32 RealTimeSlicedReflectionCaptureState;
+
+	/**
+	 * The path tracer uses its own representation of the skylight. These textures
+	 * are updated lazily by the path tracer when missing. Any code that modifies
+	 * the skylight appearance should simplify reset these pointers.
+	 */
+	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightTexture;
+	TRefCountPtr<IPooledRenderTarget> PathTracingSkylightPdf;
 
 	/** Used to track the order that skylights were enabled in. */
 	TArray<FSkyLightSceneProxy*> SkyLightStack;
