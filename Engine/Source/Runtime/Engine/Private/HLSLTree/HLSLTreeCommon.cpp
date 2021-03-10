@@ -414,20 +414,6 @@ void UE::HLSLTree::FExpressionFunctionOutput::EmitHLSL(FEmitContext& Context, FE
 	}
 }
 
-void UE::HLSLTree::FStatementSetFunctionOutput::EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const
-{
-	const FEmitContext::FFunctionStackEntry& StackEntry = Context.FunctionStack.Last();
-	const FEmitValue& ExpressionRef = Context.AcquireValue(Expression);
-
-	check(OutputIndex >= 0 && OutputIndex < StackEntry.FunctionCall->NumOutputs);
-	FEmitValue& OutputRef = StackEntry.OutputRef[OutputIndex];
-	OutputRef.Assign(ExpressionRef);
-	if (OutputRef.GetEvaluationType() == EExpressionEvaluationType::Shader)
-	{
-		OutWriter.WriteLinef(TEXT("%s = %s;"), Context.GetCode(OutputRef), Context.GetCode(ExpressionRef));
-	}
-}
-
 void UE::HLSLTree::FStatementReturn::EmitHLSL(UE::HLSLTree::FEmitContext& Context, UE::HLSLTree::FCodeWriter& OutWriter) const
 {
 	const FEmitValue& Ref = Context.AcquireValue(Expression);

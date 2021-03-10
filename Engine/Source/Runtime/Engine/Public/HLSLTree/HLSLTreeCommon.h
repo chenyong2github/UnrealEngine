@@ -269,7 +269,7 @@ class FExpressionFunctionOutput : public FExpression
 {
 public:
 	FExpressionFunctionOutput(FFunctionCall* InFunctionCall, int32 InIndex)
-		: FExpression(InFunctionCall->OutputTypes[InIndex])
+		: FExpression(InFunctionCall->GetOutputType(InIndex))
 		, FunctionCall(InFunctionCall)
 		, OutputIndex(InIndex)
 	{
@@ -290,26 +290,6 @@ public:
 	}
 
 	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
-};
-
-class FStatementSetFunctionOutput : public FStatement
-{
-public:
-	FExpression* Expression;
-	FName Name;
-	int32 OutputIndex;
-
-	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
-	{
-		const ENodeVisitResult Result = FStatement::Visit(Visitor);
-		if (ShouldVisitDependentNodes(Result))
-		{
-			Visitor.VisitNode(Expression);
-		}
-		return Result;
-	}
-
-	virtual void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const override;
 };
 
 class FStatementReturn : public FStatement

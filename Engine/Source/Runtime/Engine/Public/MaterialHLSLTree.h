@@ -19,7 +19,6 @@ class FScope;
 class FExpression;
 class FLocalDeclaration;
 class FFunctionCall;
-enum class EExpressionType : uint8;
 }
 }
 
@@ -40,7 +39,7 @@ public:
 private:
 	FMemStackBase Allocator;
 	UE::HLSLTree::FTree* HLSLTree = nullptr;
-	UE::HLSLTree::EExpressionType* FunctionOutputTypes = nullptr;
+	UE::HLSLTree::FExpression** FunctionOutputExpressions = nullptr;
 	int32 NumFunctionInputs = 0;
 	int32 NumFunctionOutputs = 0;
 };

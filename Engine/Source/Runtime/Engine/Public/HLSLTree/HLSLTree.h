@@ -29,6 +29,8 @@ public:
 
 	const FStringBuilderBase& GetStringBuilder() const { return *StringBuilder; }
 
+	FSHAHash GetCodeHash() const;
+
 	void IncreaseIndent();
 	void DecreaseIndent();
 
@@ -81,13 +83,6 @@ public:
 	EExpressionEvaluationType GetEvaluationType() const { return EvaluationType; }
 	const FConstant& GetConstantValue() const { return ConstantValue; }
 
-	inline void Assign(const FEmitValue& InRef)
-	{
-		Preshader = InRef.Preshader;
-		EvaluationType = InRef.EvaluationType;
-		ConstantValue = InRef.ConstantValue;
-	}
-
 private:
 	mutable const TCHAR* Code = nullptr;
 	const FMaterialPreshaderData* Preshader = nullptr;
@@ -124,6 +119,7 @@ public:
 	{
 		const FScope* Scope;
 		FCodeWriter* ExpressionCodeWriter;
+		TMap<FSHAHash, const TCHAR*>* ExpressionMap;
 	};
 
 	struct FDeclarationEntry
@@ -140,13 +136,13 @@ public:
 	struct FFunctionStackEntry
 	{
 		FFunctionCall* FunctionCall = nullptr;
-		FEmitValue* OutputRef = nullptr;
 
-		TMap<FNode*, FDeclarationEntry> DeclarationMap;
-		TMap<FFunctionCall*, FFunctionCallEntry> FunctionCallMap;
+		TMap<FNode*, FDeclarationEntry*> DeclarationMap;
+		TMap<FFunctionCall*, FFunctionCallEntry*> FunctionCallMap;
 	};
 
 	FScopeEntry* FindScope(FScope* Scope);
+	int32 FindScopeIndex(FScope* Scope);
 
 	TArray<FScopeEntry> ScopeStack;
 	TArray<FFunctionStackEntry> FunctionStack;
@@ -300,11 +296,21 @@ class FFunctionCall final : public FNode
 public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
+	inline EExpressionType GetOutputType(int32 Index) const
+	{
+		check(Index >= 0 && Index < NumOutputs);
+		return Outputs[Index] ? Outputs[Index]->Type : EExpressionType::Float1;
+	}
+
 	/** Root scope of the function to call. Note that this scope will be from a separate (external) tree */
 	const FScope* FunctionScope;
 
+	/** Outputs are expressions from the function's scope */
+	FExpression* const* Outputs;
+
+	/** Inputs are connected to the calling scope */
 	FExpression* const* Inputs;
-	EExpressionType const* OutputTypes;
+	
 	int32 NumInputs;
 	int32 NumOutputs;
 };
@@ -317,7 +323,9 @@ class FScope final : public FNode
 {
 public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-	void EmitHLSL(FEmitContext& Context, FCodeWriter& Writer) const;
+	void EmitHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
+
+	void EmitUnscopedHLSL(FEmitContext& Context, FCodeWriter& OutWriter) const;
 
 	void AddDeclaration(FLocalDeclaration* Declaration);
 	void AddExpression(FExpression* Expression);
@@ -389,7 +397,7 @@ public:
 	FFunctionCall* NewFunctionCall(FScope& Scope,
 		const FScope& FunctionScope,
 		FExpression* const* Inputs,
-		EExpressionType const* OutputTypes,
+		FExpression* const* Outputs,
 		int32 NumInputs,
 		int32 NumOutputs);
 

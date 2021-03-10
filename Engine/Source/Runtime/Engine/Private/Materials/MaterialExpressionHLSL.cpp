@@ -263,6 +263,11 @@ EMaterialGenerateHLSLStatus UMaterialExpressionMaterialFunctionCall::GenerateHLS
 	{
 		const FFunctionExpressionInput& Input = FunctionInputs[InputIndex];
 		UE::HLSLTree::FExpression* InputExpression = Input.Input.AcquireHLSLExpression(Generator, Scope);
+		if (!InputExpression)
+		{
+			InputExpression = Generator.AcquireExpression(Scope, Input.ExpressionInput, 0);
+		}
+		check(InputExpression);
 		InputExpressions.Add(InputExpression);
 	}
 

@@ -40,7 +40,7 @@ void FMaterialHLSLTree::InitializeForFunction(const FMaterialCompileTargetParame
 
 	NumFunctionInputs = FunctionInputs.Num();
 	NumFunctionOutputs = FunctionOutputs.Num();
-	FunctionOutputTypes = New<UE::HLSLTree::EExpressionType>(Allocator, NumFunctionOutputs);
+	FunctionOutputExpressions = New<UE::HLSLTree::FExpression*>(Allocator, NumFunctionOutputs);
 
 	FMaterialHLSLGenerator Generator(InCompilerTarget, *HLSLTree);
 	for (int32 InputIndex = 0; InputIndex < FunctionInputs.Num(); ++InputIndex)
@@ -53,18 +53,7 @@ void FMaterialHLSLTree::InitializeForFunction(const FMaterialCompileTargetParame
 	{
 		const FFunctionExpressionOutput& Output = FunctionOutputs[OutputIndex];
 		UMaterialExpressionFunctionOutput* ExpressionOutput = Output.ExpressionOutput;
-
-		UE::HLSLTree::FExpression* Expression = ExpressionOutput->A.AcquireHLSLExpression(Generator, RootScope);
-		UE::HLSLTree::EExpressionType OutputType = UE::HLSLTree::EExpressionType::Void;
-		if (Expression)
-		{
-			UE::HLSLTree::FStatementSetFunctionOutput* OutputStatement = Generator.GetTree().NewStatement<UE::HLSLTree::FStatementSetFunctionOutput>(RootScope);
-			OutputStatement->Name = ExpressionOutput->OutputName;
-			OutputStatement->OutputIndex = OutputIndex;
-			OutputStatement->Expression = Expression;
-			OutputType = Expression->Type;
-		}
-		FunctionOutputTypes[OutputIndex] = OutputType;
+		FunctionOutputExpressions[OutputIndex] = ExpressionOutput->A.AcquireHLSLExpression(Generator, RootScope);
 	}
 }
 
@@ -75,7 +64,7 @@ UE::HLSLTree::FFunctionCall* FMaterialHLSLTree::GenerateFunctionCall(FMaterialHL
 	return HLSLTree->NewFunctionCall(Scope,
 		HLSLTree->GetRootScope(),
 		Inputs.GetData(),
-		FunctionOutputTypes,
+		FunctionOutputExpressions,
 		NumFunctionInputs,
 		NumFunctionOutputs);
 }
