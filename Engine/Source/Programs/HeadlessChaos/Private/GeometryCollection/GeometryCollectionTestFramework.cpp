@@ -16,6 +16,8 @@
 #include "../Resource/SphereGeometry.h"
 
 
+using namespace UE::Geometry;
+
 namespace GeometryCollectionTest
 {
 	TSharedPtr<FGeometryCollection> MakeSphereElement(
