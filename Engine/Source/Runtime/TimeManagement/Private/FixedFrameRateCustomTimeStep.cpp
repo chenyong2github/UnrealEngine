@@ -8,13 +8,10 @@
 #include "HAL/PlatformProcess.h"
 
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 UFixedFrameRateCustomTimeStep::UFixedFrameRateCustomTimeStep(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, FixedFrameRate(30, 1)
 {
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UFixedFrameRateCustomTimeStep::WaitForFixedFrameRate() const
 {
@@ -53,7 +50,5 @@ void UFixedFrameRateCustomTimeStep::WaitForFixedFrameRate() const
 
 FFrameRate UFixedFrameRateCustomTimeStep::GetFixedFrameRate_PureVirtual() const
 {
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return FixedFrameRate;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	return FFrameRate(24, 1);
 }
