@@ -398,21 +398,35 @@ void UMovieSceneCameraCutTrackInstance::OnEndUpdateInputs()
 	const FInstanceRegistry* InstanceRegistry = GetLinker()->GetInstanceRegistry();
 
 	// Rebuild our sorted input infos.
+	TMap<FMovieSceneTrackInstanceInput, float> GlobalStartTimePerSection;
+	for (const FCameraCutInputInfo& InputInfo : SortedInputInfos)
+	{
+		GlobalStartTimePerSection.Add(InputInfo.Input, InputInfo.GlobalStartTime);
+	}
+
 	SortedInputInfos.Reset();
+
 	for (const FMovieSceneTrackInstanceInput& Input : GetInputs())
 	{
 		FCameraCutInputInfo InputInfo;
 		InputInfo.Input = Input;
 
-		const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(Input.InstanceHandle);
-		IMovieScenePlayer* Player = SequenceInstance.GetPlayer();
-
-		if (UObject* PlaybackContext = Player->GetPlaybackContext())
+		if (const float* GlobalStartTime = GlobalStartTimePerSection.Find(Input))
 		{
-			if (UWorld* World = PlaybackContext->GetWorld())
+			InputInfo.GlobalStartTime = *GlobalStartTime;
+		}
+		else
+		{
+			const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(Input.InstanceHandle);
+			IMovieScenePlayer* Player = SequenceInstance.GetPlayer();
+
+			if (UObject* PlaybackContext = Player->GetPlaybackContext())
 			{
-				const float WorldTime = World->GetTimeSeconds();
-				InputInfo.GlobalStartTime = WorldTime;	
+				if (UWorld* World = PlaybackContext->GetWorld())
+				{
+					const float WorldTime = World->GetTimeSeconds();
+					InputInfo.GlobalStartTime = WorldTime;
+				}
 			}
 		}
 
