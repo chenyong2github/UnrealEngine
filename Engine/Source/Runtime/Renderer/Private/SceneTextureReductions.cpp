@@ -90,12 +90,24 @@ class FHZBBuildCS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FHZBBuildPS, "/Engine/Private/HZB.usf", "HZBBuildPS", SF_Pixel);
 IMPLEMENT_GLOBAL_SHADER(FHZBBuildCS, "/Engine/Private/HZB.usf", "HZBBuildCS", SF_Compute);
 
+static bool HZBBuildUseCompute(EShaderPlatform ShaderPlatform)
+{
+	if (IsMobilePlatform(ShaderPlatform))
+	{
+		return false;
+	}
+	else
+	{
+		return CVarHZBBuildUseCompute.GetValueOnRenderThread() == 1;
+	}
+}
 
 void BuildHZB(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBufferTexture,
 	const FIntRect ViewRect,
+	EShaderPlatform ShaderPlatform,
 	FRDGTextureRef* OutClosestHZBTexture,
 	FRDGTextureRef* OutFurthestHZBTexture,
 	EPixelFormat Format)
@@ -110,7 +122,7 @@ void BuildHZB(
 	int32 NumMips = FMath::Log2( FMath::Max<float>( HZBSize.X, HZBSize.Y ) );
 
 	bool bReduceClosestDepth = OutClosestHZBTexture != nullptr;
-	bool bUseCompute = bReduceClosestDepth || CVarHZBBuildUseCompute.GetValueOnRenderThread();
+	bool bUseCompute = bReduceClosestDepth || HZBBuildUseCompute(ShaderPlatform);
 
 	FRDGTextureDesc HZBDesc = FRDGTextureDesc::Create2D(
 		HZBSize, Format,
@@ -282,5 +294,5 @@ void BuildHZB(
 	FRDGTextureRef* OutClosestHZBTexture,
 	FRDGTextureRef* OutFurthestHZBTexture)
 {
-	BuildHZB(GraphBuilder, SceneDepth, VisBufferTexture, View.ViewRect, OutClosestHZBTexture, OutFurthestHZBTexture);
+	BuildHZB(GraphBuilder, SceneDepth, VisBufferTexture, View.ViewRect, View.GetShaderPlatform(), OutClosestHZBTexture, OutFurthestHZBTexture);
 }

@@ -11,6 +11,7 @@ void BuildHZB(
 	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBufferTexture,
 	const FIntRect ViewRect,
+	EShaderPlatform ShaderPlatform,
 	FRDGTextureRef* OutClosestHZBTexture,
 	FRDGTextureRef* OutFurthestHZBTexture,
 	EPixelFormat Format = PF_R16F);

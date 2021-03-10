@@ -3242,6 +3242,7 @@ void CullRasterize(
 				SceneDepth,
 				RasterizedDepth,
 				CullingContext.HZBBuildViewRect,
+				Scene.GetShaderPlatform(),
 				/* OutClosestHZBTexture = */ nullptr,
 				/* OutFurthestHZBTexture = */ &OutFurthestHZBTexture);
 

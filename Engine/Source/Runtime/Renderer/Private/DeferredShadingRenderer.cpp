@@ -2019,6 +2019,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 						SceneDepth,
 						RasterContext.VisBuffer64,
 						PrimaryViewRect,
+						ShaderPlatform,
 						/* OutClosestHZBTexture = */ nullptr,
 						/* OutFurthestHZBTexture = */ &GraphHZB );
 					

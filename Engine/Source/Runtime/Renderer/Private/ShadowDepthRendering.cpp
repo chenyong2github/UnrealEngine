@@ -1418,6 +1418,7 @@ static void RenderShadowDepthAtlasNanite(
 				GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy),
 				RasterContext.DepthBuffer,
 				FullAtlasViewRect,
+				Scene.GetShaderPlatform(),
 				/* OutClosestHZBTexture = */ nullptr,
 				/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
 			ConvertToExternalTexture(GraphBuilder, FurthestHZBTexture, PrevAtlasHZBs[AtlasIndex]);
@@ -1808,6 +1809,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 					SceneDepth,
 					RasterContext.DepthBuffer,
 					VirtualShadowViewRect,
+					Scene->GetShaderPlatform(),
 					/* OutClosestHZBTexture = */ nullptr,
 					/* OutFurthestHZBTexture = */ &HZBPhysicalRDG,
 					PF_R32_FLOAT);
@@ -1967,6 +1969,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 							GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy),
 							RasterContext.DepthBuffer,
 							ShadowViewRect,
+							Scene->GetShaderPlatform(),
 							/* OutClosestHZBTexture = */ nullptr,
 							/* OutFurthestHZBTexture = */ &FurthestHZBTexture);
 
