@@ -48,8 +48,8 @@ static TAutoConsoleVariable<int32> GStandardValidationCvar(
 TAutoConsoleVariable<int32> GGPUValidationCvar(
 	TEXT("r.Vulkan.GPUValidation"),
 	0,
-	TEXT("2 to use enable GPU assised validation AND extra binding slot when using validation layers, or\n")
-	TEXT("1 to use enable GPU assised validation when using validation layers, or\n")
+	TEXT("2 to use enable GPU assisted validation AND extra binding slot when using validation layers\n")
+	TEXT("1 to use enable GPU assisted validation when using validation layers, or\n")
 	TEXT("0 to not use (default)"),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
@@ -327,38 +327,56 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 
 	FVulkanPlatform::NotifyFoundInstanceLayersAndExtensions(FoundUniqueLayers, FoundUniqueExtensions);
 
-	bool bVkTrace = false;
+	bool bGfxReconstructOrVkTrace = false;
 	if (FParse::Param(FCommandLine::Get(), TEXT("vktrace")))
 	{
-		const char* VkTraceName = "VK_LAYER_LUNARG_vktrace";
-		if (FindLayerInList(GlobalLayerExtensions, VkTraceName))
+		const char* GfxReconstructName = "VK_LAYER_LUNARG_gfxreconstruct";
+		if (FindLayerInList(GlobalLayerExtensions, GfxReconstructName))
 		{
-			OutInstanceLayers.Add(VkTraceName);
-			bVkTrace = true;
+			OutInstanceLayers.Add(GfxReconstructName);
+			bGfxReconstructOrVkTrace = true;
+		}
+		else
+		{
+			const char* VkTraceName = "VK_LAYER_LUNARG_vktrace";
+			if (FindLayerInList(GlobalLayerExtensions, VkTraceName))
+			{
+				OutInstanceLayers.Add(VkTraceName);
+				bGfxReconstructOrVkTrace = true;
+			}
 		}
 	}
 
 #if VULKAN_HAS_DEBUGGING_ENABLED
-#if VULKAN_ENABLE_API_DUMP
-	if (!bVkTrace)
+	if (FParse::Param(FCommandLine::Get(), TEXT("vulkanapidump")))
 	{
-		const char* VkApiDumpName = "VK_LAYER_LUNARG_api_dump";
-		bool bApiDumpFound = FindLayerInList(GlobalLayerExtensions, VkApiDumpName);
-		if (bApiDumpFound)
+		if (bGfxReconstructOrVkTrace)
 		{
-			OutInstanceLayers.Add(VkApiDumpName);
+			UE_LOG(LogVulkanRHI, Warning, TEXT("Can't enable api_dump when GfxReconstruct/VkTrace is enabled"));
 		}
 		else
 		{
-			UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance layer %s"), ANSI_TO_TCHAR(VkApiDumpName));
+			const char* VkApiDumpName = "VK_LAYER_LUNARG_api_dump";
+			bool bApiDumpFound = FindLayerInList(GlobalLayerExtensions, VkApiDumpName);
+			if (bApiDumpFound)
+			{
+				OutInstanceLayers.Add(VkApiDumpName);
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_LOG_FILENAME"), TEXT("vk_apidump.txt"));
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_DETAILED"), TEXT("true"));
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_FLUSH"), TEXT("true"));
+				FPlatformMisc::SetEnvironmentVar(TEXT("VK_APIDUMP_OUTPUT_FORMAT"), TEXT("text"));
+			}
+			else
+			{
+				UE_LOG(LogVulkanRHI, Warning, TEXT("Unable to find Vulkan instance layer %s"), ANSI_TO_TCHAR(VkApiDumpName));
+			}
 		}
 	}
-#endif	// VULKAN_ENABLE_API_DUMP
 
 	// At this point the CVar holds the final value
 #if VULKAN_HAS_DEBUGGING_ENABLED
 	const int32 VulkanValidationOption = GValidationCvar.GetValueOnAnyThread();
-	if (!bVkTrace && VulkanValidationOption > 0)
+	if (!bGfxReconstructOrVkTrace && VulkanValidationOption > 0)
 	{
 		bool bSkipStandard = false;
 		bool bStandardAvailable = false;
@@ -417,7 +435,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 #endif
 
 #if VULKAN_SUPPORTS_DEBUG_UTILS
-	if (!bVkTrace && VulkanValidationOption > 0)
+	if (!bGfxReconstructOrVkTrace && VulkanValidationOption > 0)
 	{
 		const char* FoundDebugUtilsLayer = nullptr;
 		bOutDebugUtils = FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME, FoundDebugUtilsLayer);
@@ -489,13 +507,13 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 	}
 
 #if VULKAN_SUPPORTS_DEBUG_UTILS
-	if (!bVkTrace && bOutDebugUtils && FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
+	if (!bGfxReconstructOrVkTrace && bOutDebugUtils && FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_DEBUG_UTILS_EXTENSION_NAME))
 	{
 		OutInstanceExtensions.Add(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
 #endif
 #if VULKAN_HAS_DEBUGGING_ENABLED
-	if (!bVkTrace && !bOutDebugUtils && VulkanValidationOption > 0)
+	if (!bGfxReconstructOrVkTrace && !bOutDebugUtils && VulkanValidationOption > 0)
 	{
 		if (FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_DEBUG_REPORT_EXTENSION_NAME))
 		{
@@ -503,7 +521,7 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		}
 	}
 
-	if (VulkanValidationOption > 0 && !bVkTrace)
+	if (VulkanValidationOption > 0 && !bGfxReconstructOrVkTrace)
 	{
 #if VULKAN_HAS_VALIDATION_FEATURES
 		if (FindLayerExtensionInList(GlobalLayerExtensions, VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME) && GGPUValidationCvar.GetValueOnAnyThread() != 0)
@@ -909,6 +927,15 @@ void FVulkanDynamicRHI::SetupValidationRequests()
 	else if (FParse::Value(FCommandLine::Get(), TEXT("vulkanvalidation="), VulkanValidationOption))
 	{
 		GValidationCvar->Set(VulkanValidationOption, ECVF_SetByCommandline);
+	}
+
+	if (FParse::Param(FCommandLine::Get(), TEXT("gpuvalidation")))
+	{
+		if (GValidationCvar->GetInt() < 2)
+		{
+			GValidationCvar->Set(2, ECVF_SetByCommandline);
+		}
+		GGPUValidationCvar->Set(2, ECVF_SetByCommandline);
 	}
 #endif
 }
