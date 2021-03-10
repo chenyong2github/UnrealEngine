@@ -40,7 +40,7 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance)
 	}
 }
 
-FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
+FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bool IsCameraRay, bool LastBounce, bool IncludeEmission, uint2 LaunchIndex, uint NumLights, inout RandomSequence RandSequence, inout float3 PathThroughput, inout float3 Radiance)
 {
 	float SelectionWeightSum = 0;
 	float3 PayloadThroughput = PathThroughput;
@@ -95,7 +95,7 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 		}
 
 		// add in surface emission (except for modulate blend mode which uses Radiance as the transparency multiplier)
-		if (HitPayload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
+		if (IncludeEmission && HitPayload.BlendingMode != RAY_TRACING_BLEND_MODE_MODULATE)
 		{
 			AccumulateRadiance(Radiance, PathThroughput * HitPayload.Radiance);
 		}
@@ -267,7 +267,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 
 	for (int Bounce = 0; Bounce <= PathTracingData.MaxBounces; Bounce++)
 	{
-		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == 0, Bounce == PathTracingData.MaxBounces, LaunchIndex, NumLights, RandSequence, PathThroughput, Radiance);
+		FMaterialClosestHitPayload Payload = TraceTransparentRay(Ray, RayCone, Bounce == 0, Bounce == PathTracingData.MaxBounces, PathTracingData.SkipDirectLighting == 0 || Bounce > 1, LaunchIndex, NumLights, RandSequence, PathThroughput, Radiance);
 
 		if (Payload.IsMiss())
 		{
@@ -299,10 +299,12 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		float4 RandSample = RandomSequence_GenerateSample4D(RandSequence);
 
 		// Does this material require NEE? (will be false if MaterialPdf is always +inf)
-		bool bIsNeeValid = IsNeeValidMaterial(Payload);
+		const bool bIsNeeValid = IsNeeValidMaterial(Payload);
+
+		const bool bDoLightLoop = PathTracingData.SkipDirectLighting == 0 || Bounce > 0;
 
 		// If we are using Light sampling and the material can use it ...
-		if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0)
+		if (MISMode != 0 && bIsNeeValid && SceneLightCount > 0 && bDoLightLoop)
 		{
 			// Choose a light and sample it
 			float3 WorldPos = Payload.WorldPos;
@@ -414,7 +416,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 		ApplyPositionBias(Ray, MaterialSample.PositionBiasSign * Payload.WorldNormal, PathTracingData.MaxNormalBias);
 
 		// If we are using Material sampling for lights
-		if (MISMode != 1)
+		if (MISMode != 1 && bDoLightLoop)
 		{
 			// Check which lights can be seen by the material ray and trace a dedicated shadow ray
 			// While it would be possible to just loop around and use the indirect ray to do this, it would prevent the application
