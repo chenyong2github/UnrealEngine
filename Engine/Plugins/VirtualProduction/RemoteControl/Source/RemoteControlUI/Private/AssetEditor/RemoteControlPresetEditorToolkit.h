@@ -21,6 +21,8 @@ public:
 	 */
 	static TSharedRef<FRemoteControlPresetEditorToolkit> CreateEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, class URemoteControlPreset* InPreset);
 
+	~FRemoteControlPresetEditorToolkit();
+
 	/**
 	 * Initialize a remote control preset editor module. 
 	 */

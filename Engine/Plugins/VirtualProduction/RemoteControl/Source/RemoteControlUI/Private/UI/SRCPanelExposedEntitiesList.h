@@ -22,6 +22,7 @@ struct SRCPanelTreeNode;
 class SRemoteControlTarget;
 struct SRCPanelExposedField;
 class STableViewBase;
+class URemoteControlPreset;
 
 /** Holds information about a group drag and drop event  */
 struct FGroupDragEvent
@@ -40,7 +41,7 @@ struct FGroupDragEvent
 	FRCPanelGroup& DragTargetGroup;
 };
 
-DECLARE_DELEGATE_OneParam(FOnSelectionChange, const TSharedPtr<SRCPanelTreeNode>&/*SelectedNode*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnSelectionChange, const TSharedPtr<SRCPanelTreeNode>&/*SelectedNode*/);
 
 class SRCPanelExposedEntitiesList : public SCompoundWidget
 {
@@ -50,7 +51,6 @@ public:
 		, _DisplayValues(true)
 	{}
 		SLATE_ATTRIBUTE(bool, EditMode)
-		SLATE_EVENT(FOnSelectionChange, OnSelectionChange)
 		SLATE_ARGUMENT(bool, DisplayValues)
 	SLATE_END_ARGS()
 

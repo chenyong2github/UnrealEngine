@@ -22,16 +22,20 @@ struct SRCPanelExposedActor : public SCompoundWidget, public SRCPanelTreeNode
 		SLATE_ATTRIBUTE(bool, EditMode)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FRemoteControlActor& Field, URemoteControlPreset* Preset);
+	void Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlActor> InWeakActor, URemoteControlPreset* InPreset);
 
 	//~ Tick
 	virtual void Tick(const FGeometry&, const double, const float) override;
 
-	//~ SRCPanelTreeNode interface
+	//~ Begin SRCPanelTreeNode interface
 	FGuid GetId() const override;
 	ENodeType GetType() const override;
 	virtual void Refresh() override;
 	TSharedPtr<SRCPanelExposedActor> AsActor() override;
+	//~ End SRCPanelTreeNode interface
+
+	/** Get a weak pointer to the underlying remote control actor. */
+	TWeakPtr<FRemoteControlActor> GetRemoteControlActor() const { return WeakActor; }
 
 private:
 	/** Regenerate this row's content. */
@@ -53,9 +57,11 @@ private:
 	FName CachedLabel;
 	/** Weak reference to the preset that exposes the actor. */
 	TWeakObjectPtr<URemoteControlPreset> WeakPreset;
+	/** Weak ptr to the remote control actor structure. */
+	TWeakPtr<FRemoteControlActor> WeakActor;
 	/** Holds this row's panel edit mode. */
 	TAttribute<bool> bEditMode;
-	/** Whether to enter edit mode on the label text box */
+	/** Whether to enter edit mode on the label text box. */
 	bool bNeedsRename = false;
 	/** Holds the editable label text box. */
 	TSharedPtr<SInlineEditableTextBlock> NameTextBox;

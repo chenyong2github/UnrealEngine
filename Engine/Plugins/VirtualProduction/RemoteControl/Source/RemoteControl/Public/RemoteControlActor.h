@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "RemoteControlEntity.h"
+
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
-#include "RemoteControlEntity.h"
-#include "UObject/SoftObjectPath.h"
 #include "RemoteControlBinding.h"
+#include "RemoteControlPreset.h"
+#include "UObject/SoftObjectPath.h"
+
 #include "RemoteControlActor.generated.h"
 
 class URemoteControlPreset;
@@ -37,6 +40,11 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 
 	void SetActor(AActor* InActor)
 	{
+		if (Owner.IsValid())
+		{
+			Owner->Modify();
+		}
+
 		if (ensure(Bindings.Num()) && Bindings[0].IsValid())
 		{
 			Bindings[0]->SetBoundObject(InActor);
@@ -47,6 +55,6 @@ public:
 	/**
 	 * Path to the exposed object.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlEntity")
 	FSoftObjectPath Path;
 };

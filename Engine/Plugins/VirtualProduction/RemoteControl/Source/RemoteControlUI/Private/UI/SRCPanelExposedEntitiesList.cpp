@@ -28,7 +28,6 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 {
 	bIsInEditMode = InArgs._EditMode;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
-	OnSelectionChangeDelegate = InArgs._OnSelectionChange;
 	bDisplayValues = InArgs._DisplayValues;
 
 	ChildSlot
@@ -132,12 +131,12 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 		}
 	}
 
-	for (const TWeakPtr<FRemoteControlActor>& WeakActor : Preset->GetExposedEntities<FRemoteControlActor>())
+	for (TWeakPtr<FRemoteControlActor> WeakActor : Preset->GetExposedEntities<FRemoteControlActor>())
 	{
 		if (TSharedPtr<FRemoteControlActor> Actor = WeakActor.Pin())
 		{
 			FieldWidgetMap.Add(Actor->GetId(),
-				SNew(SRCPanelExposedActor, *Actor, Preset.Get())
+				SNew(SRCPanelExposedActor, MoveTemp(WeakActor), Preset.Get())
 				.EditMode(bIsInEditMode));
 		}
 	}
@@ -265,7 +264,7 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 		}
 	}
 
-	OnSelectionChangeDelegate.ExecuteIfBound(Node);
+	OnSelectionChangeDelegate.Broadcast(Node);
 }
 
 FReply SRCPanelExposedEntitiesList::OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelTreeNode>& TargetEntity, const TSharedPtr<FRCPanelGroup>& DragTargetGroup)
@@ -427,7 +426,7 @@ void SRCPanelExposedEntitiesList::OnEntityAdded(const FGuid& InEntityId)
 
 	if (TSharedPtr<FRemoteControlActor> Actor = Preset->GetExposedEntity<FRemoteControlActor>(InEntityId).Pin())
 	{
-		ExposeEntity(SNew(SRCPanelExposedActor, *Actor, Preset.Get())
+		ExposeEntity(SNew(SRCPanelExposedActor, MoveTemp(Actor), Preset.Get())
 			.EditMode(bIsInEditMode));
 	}
 	else if (TSharedPtr<FRemoteControlField> Field = Preset->GetExposedEntity<FRemoteControlField>(InEntityId).Pin())

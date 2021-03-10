@@ -35,6 +35,18 @@ void FRemoteControlUIModule::ShutdownModule()
 	FRemoteControlPanelStyle::Shutdown();
 }
 
+FGuid FRemoteControlUIModule::AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon)
+{
+	FGuid FilterId = FGuid::NewGuid();
+	ExternalFilterDelegates.Add(FilterId, MoveTemp(OnDisplayExposeIcon));
+	return FilterId;
+}
+
+void FRemoteControlUIModule::RemovePropertyFilter(const FGuid& FilterId)
+{
+	ExternalFilterDelegates.Remove(FilterId);
+}
+
 TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset)
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
@@ -175,19 +187,28 @@ EVisibility FRemoteControlUIModule::OnGetExposeButtonVisibility(TSharedPtr<IProp
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
-		if (Panel->GetPreset() && Panel->IsInEditMode())
+		if (Handle)
 		{
-			EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(Handle);
-			if (ExposeStatus == EPropertyExposeStatus::Exposed || ExposeStatus == EPropertyExposeStatus::Unexposed)
+			if (!ShouldDisplayExposeIcon(Handle.ToSharedRef()))
 			{
-				return EVisibility::Visible;
+				return EVisibility::Collapsed;
 			}
-			else
+
+			if (Panel->GetPreset() && Panel->IsInEditMode())
 			{
-				// Show no icon when property is unexposable.
-				return EVisibility::Hidden;
+				EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(Handle);
+				if (ExposeStatus == EPropertyExposeStatus::Exposed || ExposeStatus == EPropertyExposeStatus::Unexposed)
+				{
+					return EVisibility::Visible;
+				}
+				else
+				{
+					// Show no icon when property is unexposable.
+					return EVisibility::Hidden;
+				}
 			}
 		}
+
 	}
 	return EVisibility::Collapsed;
 }
@@ -247,6 +268,31 @@ TSharedRef<FExtender> FRemoteControlUIModule::ExtendLevelViewportContextMenuForR
 	}
 
 	return Extender.ToSharedRef();
+}
+
+bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyHandle>& PropertyHandle) const
+{
+	// Don't display an expose icon for RCEntities since they're only displayed in the Remote Control Panel.
+	if (FProperty* Prop = PropertyHandle->GetProperty())
+	{
+		if (Prop->GetOwnerStruct() && Prop->GetOwnerStruct()->IsChildOf(FRemoteControlEntity::StaticStruct()))
+		{
+			return false;
+		}
+	}
+
+	for (const TPair<FGuid, FOnDisplayExposeIcon>& DelegatePair : ExternalFilterDelegates)
+	{
+		if (DelegatePair.Value.IsBound())
+		{
+			if (!DelegatePair.Value.Execute(PropertyHandle))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 IMPLEMENT_MODULE(FRemoteControlUIModule, RemoteControlUI);

@@ -26,6 +26,19 @@ TSharedRef<FRemoteControlPresetEditorToolkit> FRemoteControlPresetEditorToolkit:
 	return NewEditor;
 }
 
+FRemoteControlPresetEditorToolkit::~FRemoteControlPresetEditorToolkit()
+{
+	if (PanelTab && PanelTab->GetEntityList())
+	{
+		PanelTab->GetEntityList()->OnSelectionChange().RemoveAll(this);
+	}
+	
+	if (InputBindingsTab && InputBindingsTab->GetEntityList())
+	{
+		InputBindingsTab->GetEntityList()->OnSelectionChange().RemoveAll(this);
+	}
+}
+
 void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost> & InitToolkitHost, URemoteControlPreset* InPreset)
 {
 	Preset = InPreset;
@@ -33,8 +46,8 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 	PanelTab = FRemoteControlUIModule::Get().CreateRemoteControlPanel(InPreset);
 	InputBindingsTab = FRemoteControlUIModule::Get().CreateInputBindingsPanel(InPreset);
 	
-	PanelTab->GetEntityList()->OnSelectionChange().BindRaw(this, &FRemoteControlPresetEditorToolkit::OnPanelSelectionChange);
-	InputBindingsTab->GetEntityList()->OnSelectionChange().BindRaw(this, &FRemoteControlPresetEditorToolkit::OnInputBindingsSelectionChange);
+	PanelTab->GetEntityList()->OnSelectionChange().AddRaw(this, &FRemoteControlPresetEditorToolkit::OnPanelSelectionChange);
+	InputBindingsTab->GetEntityList()->OnSelectionChange().AddRaw(this, &FRemoteControlPresetEditorToolkit::OnInputBindingsSelectionChange);
 
 	const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_RemoteControlPresetEditor")
 		->AddArea

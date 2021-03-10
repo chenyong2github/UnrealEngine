@@ -45,13 +45,13 @@ public:
 	/**
 	 * The field's type.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
 	EExposedFieldType FieldType = EExposedFieldType::Invalid;
 
 	/**
 	 * The exposed field's name.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
 	FName FieldName;
 
 	/**
@@ -131,7 +131,7 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 	/**
 	 * The exposed function.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlEntity")
 	UFunction* Function = nullptr;
 
 	/**

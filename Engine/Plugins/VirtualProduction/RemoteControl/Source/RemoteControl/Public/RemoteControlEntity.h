@@ -3,6 +3,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
+
 #include "RemoteControlEntity.generated.h"
 
 class URemoteControlBinding;
@@ -51,7 +52,7 @@ public:
 	/**
 	 * User specified metadata for this entity.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
 	TMap<FString, FString> Metadata;
 
 	/**
@@ -65,20 +66,20 @@ protected:
 	FRemoteControlEntity(URemoteControlPreset* InPreset, FName InLabel);
 	
 	/** The preset that owns this entity. */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlEntity")
 	TWeakObjectPtr<URemoteControlPreset> Owner;
 	
 protected:
 	/**
 	 * This exposed entity's alias.
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
 	FName Label;
 
 	/**
 	 * Unique identifier for this entity
 	 */
-	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlPreset")
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
 	FGuid Id;
 
 	friend class URemoteControlExposeRegistry;
