@@ -2661,10 +2661,26 @@ void UGeometryCollectionComponent::GetInitializationCommands(TArray<FFieldSystem
 		{
 			if (FieldSystemActor->GetFieldSystemComponent())
 			{
-				for (int32 CommandIndex = 0, NumCommands = FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.GetNumCommands();
-					CommandIndex < NumCommands; ++CommandIndex)
+				const int32 NumCommands = FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.GetNumCommands();
+				if (NumCommands > 0)
 				{
-					CombinedCommmands.Add(FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.BuildFieldCommand(CommandIndex));
+					for (int32 CommandIndex = 0; CommandIndex < NumCommands; ++CommandIndex)
+					{
+						CombinedCommmands.Add(FieldSystemActor->GetFieldSystemComponent()->ConstructionCommands.BuildFieldCommand(CommandIndex));
+					}
+				}
+				// Legacy path : only there for old levels. New ones will have the commands directly stored onto the component
+				else if (FieldSystemActor->GetFieldSystemComponent()->GetFieldSystem())
+				{
+					for (const FFieldSystemCommand& Command : FieldSystemActor->GetFieldSystemComponent()->GetFieldSystem()->Commands)
+					{
+						FFieldSystemCommand NewCommand = { Command.TargetAttribute, Command.RootNode->NewCopy() };
+						for (auto& Elem : Command.MetaData)
+						{
+							NewCommand.MetaData.Add(Elem.Key, TUniquePtr<FFieldSystemMetaData>(Elem.Value->NewCopy()));
+						}
+						CombinedCommmands.Add(NewCommand);
+					}
 				}
 			}
 		}
