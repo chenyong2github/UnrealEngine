@@ -92,7 +92,7 @@ void UMovieScenePreAnimatedComponentTransformSystem::OnRun(FSystemTaskPrerequisi
 	ComponentFilter.All({ FMovieSceneTracksComponentTypes::Get()->ComponentTransform.PropertyTag });
 
 	TrackedTransforms.Update(Linker, FBuiltInComponentTypes::Get()->BoundObject, ComponentFilter);
-	TrackedTransforms.ProcessInvalidatedOutputs(FPreAnimatedComponentTransformHandler(this));
+	TrackedTransforms.ProcessInvalidatedOutputs(Linker, FPreAnimatedComponentTransformHandler(this));
 }
 
 void UMovieScenePreAnimatedComponentTransformSystem::TagGarbage(UMovieSceneEntitySystemLinker*)

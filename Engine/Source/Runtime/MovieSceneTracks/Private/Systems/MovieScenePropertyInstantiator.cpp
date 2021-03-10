@@ -542,6 +542,15 @@ void UMovieScenePropertyInstantiatorSystem::InitializeBlendPath(const FPropertyP
 		}
 		NewEntityType.Set(Params.PropertyDefinition->PropertyType);
 
+		if (Params.PropertyInfo->bWantsRestoreState)
+		{
+			NewEntityType.Set(BuiltInComponents->Tags.RestoreState);
+		}
+		else
+		{
+			NewEntityType.Remove(BuiltInComponents->Tags.RestoreState);
+		}
+
 		Linker->EntityManager.ChangeEntityType(Params.PropertyInfo->PropertyEntityID, NewEntityType);
 	}
 

@@ -139,7 +139,7 @@ void UMovieSceneComponentMobilitySystem::OnRun(FSystemTaskPrerequisites& InPrere
 
 	// Update the mobility tracker, caching preanimated mobilities and assigning everything as moveable that needs it
 	MobilityTracker.Update(Linker, FBuiltInComponentTypes::Get()->BoundObject, Filter);
-	MobilityTracker.ProcessInvalidatedOutputs(FMobilityCacheHandler(this));
+	MobilityTracker.ProcessInvalidatedOutputs(Linker, FMobilityCacheHandler(this));
 }
 
 void UMovieSceneComponentMobilitySystem::TagGarbage(UMovieSceneEntitySystemLinker*)

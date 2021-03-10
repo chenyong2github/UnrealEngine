@@ -315,5 +315,5 @@ void UMovieSceneInterrogatedPropertyInstantiatorSystem::OnRun(FSystemTaskPrerequ
 		.Iterate_PerAllocation(&Linker->EntityManager, UnlinkCallback);
 	}
 
-	PropertyTracker.ProcessInvalidatedOutputs(*this);
+	PropertyTracker.ProcessInvalidatedOutputs(Linker, *this);
 }
