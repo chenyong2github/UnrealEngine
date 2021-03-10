@@ -1,4 +1,0 @@
-../../../Templates/TP_RollingBP/manifest.json
-../../../Templates/TP_RollingBP/Config/config.ini
-../../../Templates/TP_RollingBP/Media/TP_RollingBP.png
-../../../Templates/TP_RollingBP/Media/TP_RollingBP_Preview.png

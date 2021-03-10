@@ -1,4 +1,0 @@
-../../../Templates/FP_FirstPerson/manifest.json
-../../../Templates/FP_FirstPerson/Config/config.ini
-../../../Templates/FP_FirstPerson/Media/FP_FirstPerson.png
-../../../Templates/FP_FirstPerson/Media/FP_FirstPerson_Preview.png
