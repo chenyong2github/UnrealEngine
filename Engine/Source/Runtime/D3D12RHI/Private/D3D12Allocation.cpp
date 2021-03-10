@@ -1267,6 +1267,17 @@ FD3D12BufferPool* FD3D12DefaultBufferAllocator::CreateBufferPool(D3D12_HEAP_TYPE
 
 	// Disable defrag if not Default memory
 	bool bDefragEnabled = (InitConfig.HeapType == D3D12_HEAP_TYPE_DEFAULT);
+
+#if D3D12_RHI_RAYTRACING
+	// Disable defrag on the RT Acceleration pool - #kenzo_todo
+	// Acceleration structure buffers may be created, but not built immediately.
+	// If CopyRaytracingAccelerationStructure is called on such buffer, the GPU will crash.
+	if (InitConfig.InitialResourceState == D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE)
+	{
+		bDefragEnabled = false;
+	}
+#endif // D3D12_RHI_RAYTRACING
+
 	FD3D12BufferPool* NewPool = new FD3D12PoolAllocator(Device, GetVisibilityMask(), InitConfig, Name, AllocationStrategy, PoolSize, PoolAlignment, MaxAllocationSize, FreeListOrder, bDefragEnabled);
 
 #else // USE_POOL_ALLOCATOR

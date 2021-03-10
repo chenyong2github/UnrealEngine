@@ -19,11 +19,11 @@ struct FHitGroupSystemParameters
 	FHitGroupSystemRootConstants RootConstants;
 };
 
-class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry, public FD3D12ShaderResourceRenameListener
+class FD3D12RayTracingGeometry : public FRHIRayTracingGeometry, public FD3D12AdapterChild, public FD3D12ShaderResourceRenameListener, public FNoncopyable
 {
 public:
 
-	FD3D12RayTracingGeometry(const FRayTracingGeometryInitializer& Initializer);
+	FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const FRayTracingGeometryInitializer& Initializer);
 	~FD3D12RayTracingGeometry();
 
 	void SetupHitGroupSystemParameters(uint32 InGPUIndex);
@@ -63,7 +63,6 @@ public:
 	static FBufferRHIRef NullTransformBuffer; // Null transform for hidden sections
 
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
-	TRefCountPtr<FD3D12Buffer> ScratchBuffers[MAX_NUM_GPUS];
 
 	bool bRegisteredAsRenameListener[MAX_NUM_GPUS];
 	bool bHasPendingCompactionRequests[MAX_NUM_GPUS];
@@ -72,6 +71,16 @@ public:
 	TArray<FHitGroupSystemParameters> HitGroupSystemParameters[MAX_NUM_GPUS];
 
 	FName DebugName;
+
+	// Array of geometry descriptions, one per segment (single-segment geometry is a common case).
+	// Only references CPU-accessible structures (no GPU resources).
+	// Used as a template for BuildAccelerationStructure() later.
+	TArray<D3D12_RAYTRACING_GEOMETRY_DESC, TInlineAllocator<1>> GeometryDescs;
+
+	uint64 AccelerationStructureSize = 0;
+	uint64 AccelerationStructureCompactedSize = 0;
+	uint64 BuildScratchBufferSize = 0;
+	uint64 UpdateScratchBufferSize = 0;
 };
 
 class FD3D12RayTracingScene : public FRHIRayTracingScene, public FD3D12AdapterChild, public FNoncopyable
@@ -89,11 +98,13 @@ public:
 	void BuildAccelerationStructure(FD3D12CommandContext& CommandContext);
 
 	TRefCountPtr<FD3D12Buffer> AccelerationStructureBuffers[MAX_NUM_GPUS];
-	bool bAccelerationStructureViewInitialized[MAX_NUM_GPUS] = {};
 
 	TResourceArray<D3D12_RAYTRACING_INSTANCE_DESC, 16> Instances;
 	D3D12_BUILD_RAYTRACING_ACCELERATION_STRUCTURE_INPUTS BuildInputs = {};
-	
+
+	uint64 AccelerationStructureSize = 0;
+	uint64 BuildScratchBufferSize = 0;
+
 	struct FInstanceCopyCommand
 	{
 		FShaderResourceViewRHIRef Source;
