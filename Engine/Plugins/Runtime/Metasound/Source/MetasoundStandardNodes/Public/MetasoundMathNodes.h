@@ -777,7 +777,7 @@ namespace Metasound
 				return;
 			}
 
-			FMemory::Memcpy(OutResult->GetData(), InAdditionalOperands[0]->GetData(), sizeof(float) * NumSamples);
+			FMemory::Memcpy(OutResult->GetData(), InPrimaryOperand->GetData(), sizeof(float) * NumSamples);
 
 			for (int32 i = 0; i < InAdditionalOperands.Num(); ++i)
 			{

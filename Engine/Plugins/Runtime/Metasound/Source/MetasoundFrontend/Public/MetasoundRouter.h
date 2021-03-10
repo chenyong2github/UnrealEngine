@@ -436,7 +436,7 @@ namespace Metasound
 		FSenderInitParams Params;
 
 		// The amount of pop operations before elements before this sender pushed appear.
-		uint32 NumElementsToDelayBy;
+		uint32 NumElementsToDelayBy = 0;
 	};
 
 	template<typename TDataType>

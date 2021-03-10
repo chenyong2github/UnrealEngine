@@ -69,7 +69,7 @@ namespace Metasound
 	{
 		FOperatorBuilderSettings Settings;
 
-		Settings.PruningMode = EOperatorBuilderNodePruning::PruneNodesWithoutOutputDependency;
+		Settings.PruningMode = EOperatorBuilderNodePruning::PruneNodesWithoutExternalDependency;
 		Settings.bValidateNoCyclesInGraph = true;
 		Settings.bValidateNoDuplicateInputs = true;
 		Settings.bValidateVerticesExist = true;
@@ -84,7 +84,7 @@ namespace Metasound
 	{
 		FOperatorBuilderSettings Settings;
 
-		Settings.PruningMode = EOperatorBuilderNodePruning::PruneNodesWithoutOutputDependency;
+		Settings.PruningMode = EOperatorBuilderNodePruning::PruneNodesWithoutExternalDependency;
 		Settings.bValidateNoCyclesInGraph = false;
 		Settings.bValidateNoDuplicateInputs = false;
 		Settings.bValidateVerticesExist = false;
@@ -99,7 +99,7 @@ namespace Metasound
 	{
 		FOperatorBuilderSettings Settings;
 
-		Settings.PruningMode = EOperatorBuilderNodePruning::PruneNodesWithoutOutputDependency;
+		Settings.PruningMode = EOperatorBuilderNodePruning::PruneNodesWithoutExternalDependency;
 		Settings.bValidateNoCyclesInGraph = false;
 		Settings.bValidateNoDuplicateInputs = false;
 		Settings.bValidateVerticesExist = false;
