@@ -26,6 +26,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DetailCustomizations",
 					"EditorStyle",
+					"EditorWidgets",
 					"Engine",
 					"InputCore",
 					"KismetCompiler",

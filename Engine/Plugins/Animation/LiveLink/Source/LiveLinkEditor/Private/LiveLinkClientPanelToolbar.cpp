@@ -46,6 +46,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SNullWidget.h"
+#include "SEditorHeaderButton.h"
 
 
 #define LOCTEXT_NAMESPACE "LiveLinkClientPanel"
@@ -436,53 +437,11 @@ void SLiveLinkClientPanelToolbar::Construct(const FArguments& Args, FLiveLinkCli
 			.Padding(.0f)
 			.AutoWidth()
 			[
-				// The green button containing the "+ Add Source" items
-				SAssignNew(AddSourceButton, SComboButton)
-				.ToolTipText(LOCTEXT("AddSource_ToolTip", "Add a new LiveLink source"))
-				.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-				.ForegroundColor(FLinearColor::White)
-				.ContentPadding(FMargin(4, 0))
+				SNew(SEditorHeaderButton)
 				.OnGetMenuContent(this, &SLiveLinkClientPanelToolbar::OnGenerateSourceMenu)
-				.OnMenuOpenChanged(this, &SLiveLinkClientPanelToolbar::OnGeneratedSourceMenuOpenChanged)
-				.HasDownArrow(false)
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.ButtonContent()
-				[
-					SNew(SHorizontalBox)
-					// The "+" sign.
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(0, 1))
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FEditorFontGlyphs::Plus)
-					]
-					// The "Create Session" text.
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(FMargin(4, 0, 0, 0))
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Text(LOCTEXT("AddSource", "Source"))
-					]
-					// The caret sign.
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					.Padding(4, 0, 0, 0)
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FEditorFontGlyphs::Caret_Down)
-					]
-				]
+				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+				.Text(LOCTEXT("AddSource", "Source"))
+				.ToolTipText(LOCTEXT("AddSource_ToolTip", "Add a new LiveLink source"))
 			]
 
 			+ SHorizontalBox::Slot()
@@ -644,17 +603,6 @@ TSharedRef<SWidget> SLiveLinkClientPanelToolbar::OnGenerateSourceMenu()
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
-}
-
-void SLiveLinkClientPanelToolbar::OnGeneratedSourceMenuOpenChanged(bool bOpen)
-{
-	if (!bOpen)
-	{
-		if (AddSourceButton.IsValid())
-		{
-			AddSourceButton->SetMenuContent(SNullWidget::NullWidget);
-		}
-	}
 }
 
 void SLiveLinkClientPanelToolbar::RetrieveFactorySourcePanel(FMenuBuilder& MenuBuilder, int32 FactoryIndex)

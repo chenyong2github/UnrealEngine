@@ -15,6 +15,7 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Widgets/Views/SListView.h"
+#include "SWarningOrErrorBox.h"
 
 #include "ILiveLinkSource.h"
 #include "LiveLinkClientCommands.h"
@@ -467,17 +468,17 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 	PerformanceThrottlingProperty->GetDisplayNameText();
 	FFormatNamedArguments Arguments;
 	Arguments.Add(TEXT("PropertyName"), PerformanceThrottlingProperty->GetDisplayNameText());
-	FText PerformanceWarningText = FText::Format(LOCTEXT("LiveLinkPerformanceWarningMessage", "Warning: The editor setting '{PropertyName}' is currently enabled\nThis will stop editor windows from updating in realtime while the editor is not in focus"), Arguments);
+	FText PerformanceWarningText = FText::Format(LOCTEXT("LiveLinkPerformanceWarningMessage", "Warning: The editor setting '{PropertyName}' is currently enabled.  This will stop editor windows from updating in realtime while the editor is not in focus."), Arguments);
 	
 	ChildSlot
 	[
 		SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("MessageLog.ListBorder")) // set panel background color to same color as message log at the bottom
+		.Padding(FMargin(4.f, 4.f, 4.f, 4.f))
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.AutoHeight()
-			.Padding(FMargin(0.0f, 4.0f, 0.0f, 0.0f))
 			[
 				SNew(SLiveLinkClientPanelToolbar, Client)
 			]
@@ -588,33 +589,17 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
+			.Padding(FMargin(0.0f, 8.0f, 0.0f, 4.0f))
 			[
-				SNew(SBorder)
-				.BorderImage(FEditorStyle::GetBrush("SettingsEditor.CheckoutWarningBorder"))
-				.BorderBackgroundColor(FColor(166, 137, 0))
+				SNew(SWarningOrErrorBox)
 				.Visibility(this, &SLiveLinkClientPanel::ShowEditorPerformanceThrottlingWarning)
+				.MessageStyle(EMessageStyle::Warning)
+				.Message(PerformanceWarningText)
 				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					.Padding(FMargin(WarningPadding, WarningPadding, WarningPadding, WarningPadding))
-					.VAlign(VAlign_Center)
-					[
-						SNew(STextBlock)
-						.Text(PerformanceWarningText)
-						.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
-						.ShadowColorAndOpacity(FLinearColor::Black.CopyWithNewOpacity(0.3f))
-						.ShadowOffset(FVector2D::UnitVector)
-					]
-					+SHorizontalBox::Slot()
-					.Padding(FMargin(0.f, 0.f, WarningPadding, 0.f))
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					[
-						SNew(SButton)
-						.OnClicked(this, &SLiveLinkClientPanel::DisableEditorPerformanceThrottling)
-						.Text(LOCTEXT("LiveLinkPerformanceWarningDisable", "Disable"))
-					]
+					SNew(SButton)
+					.OnClicked(this, &SLiveLinkClientPanel::DisableEditorPerformanceThrottling)
+					.TextStyle(FAppStyle::Get(), "DialogButtonText")
+					.Text(LOCTEXT("LiveLinkPerformanceWarningDisable", "Disable"))
 				]
 			]
 		]
