@@ -13,6 +13,7 @@
 #include "ActorTreeItem.h"
 #include "FolderTreeItem.h"
 #include "ComponentTreeItem.h"
+#include "ActorDescTreeItem.h"
 #include "WorldTreeItem.h"
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 
@@ -333,6 +334,11 @@ int32 FActorMode::GetTypeSortPriority(const ISceneOutlinerTreeItem& Item) const
 	{
 		return EItemSortOrder::Actor;
 	}
+	else if (Item.IsA<FActorDescTreeItem>())
+	{
+		return EItemSortOrder::Unloaded;
+	}
+
 	// Warning: using actor mode with an unsupported item type!
 	check(false);
 	return -1;
