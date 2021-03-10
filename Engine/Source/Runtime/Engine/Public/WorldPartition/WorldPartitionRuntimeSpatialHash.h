@@ -194,6 +194,8 @@ class ENGINE_API UWorldPartitionRuntimeSpatialHash : public UWorldPartitionRunti
 	GENERATED_UCLASS_BODY()
 
 public:
+	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
+
 #if WITH_EDITOR
 	virtual void SetDefaultValues() override;
 	virtual void ImportFromWorldComposition(class UWorldComposition* WorldComposition) override;

@@ -386,6 +386,15 @@ FName UWorldPartitionRuntimeSpatialHash::GetActorRuntimeGrid(const AActor* Actor
 	return Super::GetActorRuntimeGrid(Actor);
 }
 
+void UWorldPartitionRuntimeSpatialHash::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+	Super::PreSave(TargetPlatform);
+
+	// We don't want this to be persisted but we can't set the property Transient as it is NonPIEDuplicateTransient and those flags aren't compatible
+	// If at some point GenerateStreaming is done after duplication we can remove this code.
+	StreamingGrids.Empty();
+}
+
 void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
 {
 	FSpatialHashRuntimeGrid& MainGrid = Grids.AddDefaulted_GetRef();
@@ -456,7 +465,8 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 		}
 	}
 
-	check(!StreamingGrids.Num());
+	// Fix case where StreamingGrids might have been persisted.
+	StreamingGrids.Empty();
 
 	TMap<FName, int32> GridsMapping;
 	GridsMapping.Add(NAME_None, 0);
