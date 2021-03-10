@@ -117,7 +117,7 @@ static void Allocate(VkPhysicalDevice Gpu, VkDevice Device, VkDeviceSize Size, V
 
 	VkMemoryAllocateFlagsInfo MemoryAllocateFlagsInfo;
 	ZeroVulkanStruct(MemoryAllocateFlagsInfo, VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO);
-	MemoryAllocateFlagsInfo.flags = MemoryFlags;
+	MemoryAllocateFlagsInfo.flags = VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR;
 
 	VkMemoryAllocateInfo MemoryAllocateInfo;
 	ZeroVulkanStruct(MemoryAllocateInfo, VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
@@ -264,7 +264,7 @@ void FVulkanRayTracingGeometry::BuildAccelerationStructure(FVulkanCommandListCon
 		Device, 
 		BuildSizesInfo.accelerationStructureSize,
 		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT, 
-		VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR, 
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		Allocation);
 
 	Allocate(
@@ -272,7 +272,7 @@ void FVulkanRayTracingGeometry::BuildAccelerationStructure(FVulkanCommandListCon
 		Device,
 		BuildSizesInfo.buildScratchSize,
 		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR, 
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		Scratch);
 
 	VkBufferDeviceAddressInfoKHR ScratchDeviceAddressInfo;
@@ -441,7 +441,7 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(FVulkanCommandListContex
 		Device,
 		TLASBuildSizesInfo.accelerationStructureSize,
 		VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_STORAGE_BIT_KHR | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		Allocation);
 
 	Allocate(
@@ -449,7 +449,7 @@ void FVulkanRayTracingScene::BuildAccelerationStructure(FVulkanCommandListContex
 		Device,
 		TLASBuildSizesInfo.buildScratchSize,
 		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT,
-		VK_MEMORY_ALLOCATE_DEVICE_ADDRESS_BIT_KHR,
+		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		Scratch);
 
 	VkBufferDeviceAddressInfoKHR ScratchDeviceAddressInfo;
