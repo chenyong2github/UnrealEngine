@@ -303,7 +303,7 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 			if (bIsWindowServerAvailable)
 			{
 				NSAlert* AlertPanel = [NSAlert new];
-				[AlertPanel setAlertStyle:NSWarningAlertStyle];
+				[AlertPanel setAlertStyle:NSAlertStyleWarning];
 				[AlertPanel setInformativeText:@"You are attempting to run Unreal Editor on hardware that falls below the recommended minimum configuration. If you choose to proceed, you may experience odd behavior like crashing due to memory constraints or issues with unsupported graphics drivers. You may disable this warning by running with \r '-skipminspeccheck'"];
 				[AlertPanel setMessageText:@"Warning"];
 				[AlertPanel addButtonWithTitle:@"Quit"];
