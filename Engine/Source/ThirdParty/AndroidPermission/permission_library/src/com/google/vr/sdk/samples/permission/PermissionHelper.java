@@ -23,7 +23,7 @@ public class PermissionHelper {
 		if (activity != null) return activity;
 		//for non Daydream app, directly attach the fragment to GameActivity
 		try {
-			Class<?> clazz = Class.forName("com.epicgames.ue4.GameActivity");
+			Class<?> clazz = Class.forName("com.epicgames.unreal.GameActivity");
 			Method m = clazz.getMethod("Get", new Class[] {});
 			return (Activity)m.invoke(null);
 		} catch (Exception e) {
