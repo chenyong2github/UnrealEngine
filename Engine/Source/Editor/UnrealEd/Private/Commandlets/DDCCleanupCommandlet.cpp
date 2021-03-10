@@ -2,19 +2,20 @@
 
 #include "Commandlets/DDCCleanupCommandlet.h"
 #include "DDCCleanup.h"
+#include "DerivedDataCacheInterface.h"
 #include "HAL/PlatformProcess.h"
 
 int32 UDDCCleanupCommandlet::Main(const FString& Params)
 {
-	if (FDDCCleanup::Get())
+	if (IDDCCleanup* Cleanup = GetDerivedDataCacheRef().GetCleanup())
 	{
-		FDDCCleanup::GetNoInit()->WaitBetweenDeletes(false);
+		Cleanup->WaitBetweenDeletes(false);
 		do
-		{			
+		{
 			// Cleanup works from its own thread so just wait until it's done and flush logs once in a while
 			FPlatformProcess::SleepNoStats(1.0f);
 			GLog->Flush();
-		} while (FDDCCleanup::GetNoInit() && !FDDCCleanup::GetNoInit()->IsFinished());
+		} while (!Cleanup->IsFinished());
 	}
 
 	return 0;

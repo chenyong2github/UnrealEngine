@@ -8,10 +8,18 @@
 
 struct FFilesystemInfo;
 
+class IDDCCleanup
+{
+public:
+	virtual ~IDDCCleanup() = default;
+	virtual bool IsFinished() const = 0;
+	virtual void WaitBetweenDeletes(bool bWait) = 0;
+};
+
 /** 
  * DDC Filesystem Cache cleanup thread.
  */
-class DERIVEDDATACACHE_API FDDCCleanup : public FRunnable
+class FDDCCleanup final : public FRunnable, public IDDCCleanup
 {
 	/** Singleton instance */
 	static FDDCCleanup* Runnable;
@@ -93,13 +101,13 @@ public:
 	static void Shutdown();
 
 	/** Sets whether cleanup should give up time to other threads between deletes */
-	void WaitBetweenDeletes(bool bWait)
+	virtual void WaitBetweenDeletes(bool bWait) final
 	{
 		bDontWaitBetweenDeletes = !bWait;
 	}
 
 	/** Checks if the cleanup thread is done deleting files */
-	bool IsFinished() const
+	virtual bool IsFinished() const final
 	{
 		return !CleanupList.Num();
 	}

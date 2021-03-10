@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "DerivedDataPayload.h"
 #include "DerivedDataRequest.h"
 #include "Memory/MemoryFwd.h"
@@ -197,7 +196,7 @@ public:
 	}
 
 	/**
-	 * Build a cache record, which leaves this builder null.
+	 * Build a cache record, which makes this builder subsequently unusable.
 	 *
 	 * Prefer BuildAsync() when the value or attachments are added from a buffer, as this must block
 	 * on compression of those buffers before it can construct a cache record.
@@ -208,7 +207,7 @@ public:
 	}
 
 	/**
-	 * Build a cache record asynchronously, which leaves this builder null.
+	 * Build a cache record asynchronously, which makes this builder subsequently unusable.
 	 *
 	 * Prefer Build() when the value and attachments are added by payload, as compression is already
 	 * complete and BuildAsync() will complete immediately in that case.
@@ -217,13 +216,6 @@ public:
 	{
 		return Builder->BuildAsync(MoveTemp(Callback), Priority);
 	}
-
-	/** Whether this is null. */
-	inline bool IsNull() const { return !Builder; }
-	/** Whether this is not null. */
-	inline bool IsValid() const { return !IsNull(); }
-	/** Whether this is not null. */
-	inline explicit operator bool() const { return IsValid(); }
 
 public:
 	// Internal API

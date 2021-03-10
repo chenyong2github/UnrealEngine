@@ -617,6 +617,11 @@ public:
 		FDerivedDataBackend::Get().GetDirectories(OutResults);
 	}
 
+	virtual IDDCCleanup* GetCleanup() const override
+	{
+		return FDDCCleanup::Get();
+	}
+
 	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap) override
 	{
 		FDerivedDataBackend::Get().GatherUsageStats(UsageStatsMap);
@@ -723,9 +728,9 @@ class FCache final : public ICache
 public:
 	virtual ~FCache() = default;
 
-	virtual FCacheBucket CreateBucket(FStringView Name) final { return CreateCacheBucket(Name); }
+	virtual FCacheBucket CreateBucket(FStringView Name) final { return Private::CreateCacheBucket(Name); }
 
-	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return CreateCacheRecordBuilder(Key); }
+	virtual FCacheRecordBuilder CreateRecord(const FCacheKey& Key) final { return Private::CreateCacheRecordBuilder(Key); }
 
 	virtual FRequest Put(
 		TArrayView<FCacheRecord> Records,

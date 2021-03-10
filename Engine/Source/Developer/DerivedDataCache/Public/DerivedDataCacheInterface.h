@@ -9,6 +9,7 @@
 #include "Modules/ModuleInterface.h"
 
 class FDerivedDataCacheUsageStats;
+class IDDCCleanup;
 
 namespace UE { namespace DerivedData { class ICache; } }
 
@@ -258,6 +259,11 @@ public:
 	 * Retrieve the name of the graph used when configuring DDC
 	 */
 	virtual const TCHAR* GetGraphName() const = 0;
+
+	/**
+	 * Retrieve the interface to the background cache cleanup.
+	 */
+	virtual IDDCCleanup* GetCleanup() const = 0;
 
 	//--------------------
 	// UsageStats Interface

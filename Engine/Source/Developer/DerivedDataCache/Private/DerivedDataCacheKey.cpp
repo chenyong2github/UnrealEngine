@@ -10,6 +10,8 @@ namespace UE
 {
 namespace DerivedData
 {
+namespace Private
+{
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -107,10 +109,11 @@ FCacheBucket CreateCacheBucket(FStringView Name)
 		TEXT("Invalid cache bucket name '%.*s' must be alphanumeric, non-empty, and contain fewer than 256 characters."),
 		Name.Len(), Name.GetData());
 	static FCacheBuckets Buckets;
-	return FCacheBucket(Private::FCacheBucketName{Buckets.FindOrAdd(Name)});
+	return FCacheBucket(FCacheBucketName{Buckets.FindOrAdd(Name)});
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+} // Private
 } // DerivedData
 } // UE
