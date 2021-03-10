@@ -577,6 +577,7 @@ namespace UnrealBuildTool
 									throw;
 								}
 
+								Log.TraceInformation("Retrying File.AppendTest({0})..", EnvVarFile);
 								Thread.Sleep(TimeSpan.FromSeconds(1));
 							}
 						}
