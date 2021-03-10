@@ -254,8 +254,20 @@ public:
 	}
 };
 
+/**
+ * HACK Fix for previewing camera blends in editor without touching the header for the next 4.26 patch release.
+ */
+struct FSequencerViewModifierInfo
+{
+	bool bApplyViewModifier = false;
+	float BlendFactor = 1.f;
+	TWeakObjectPtr<AActor> PreviousCamera;
+	TWeakObjectPtr<AActor> NextCamera;
+};
+
 void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSharedRef<ISequencerObjectChangeListener>& InObjectChangeListener, const TArray<FOnCreateTrackEditor>& TrackEditorDelegates, const TArray<FOnCreateEditorObjectBinding>& EditorObjectBindingDelegates)
 {
+
 	bIsEditingWithinLevelEditor = InitParams.bEditWithinLevelEditor;
 	ScrubStyle = InitParams.ViewParams.ScrubberStyle;
 	HostCapabilities = InitParams.HostCapabilities;
@@ -422,6 +434,17 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 	RootTemplateInstance.Initialize(*InitParams.RootSequence, *this, CompiledDataManager);
 
 	ResetTimeController();
+
+	{
+		static_assert(sizeof(FSequencerViewModifierInfo) <= sizeof(FSequencer::FViewModifierInfo),
+			"We need to stomp the FViewModifierInfo objects with something new as a patch fix");
+
+		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
+		VMI = FSequencerViewModifierInfo();
+
+		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
+		CachedVMI = FSequencerViewModifierInfo();
+	}
 
 	// Make internal widgets
 	SequencerWidget = SNew( SSequencer, SharedThis( this ) )
@@ -3283,11 +3306,75 @@ void FSequencer::SetPerspectiveViewportCameraCutEnabled(bool bEnabled)
 
 void FSequencer::ModifyViewportClientView(FMinimalViewInfo& ViewInfo)
 {
-	if (ViewModifierInfo.bApplyViewModifier)
+	const FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
+
+	if (!VMI.bApplyViewModifier)
 	{
-		ViewInfo.Location = ViewModifierInfo.ViewModifierLocation;
-		ViewInfo.Rotation = ViewModifierInfo.ViewModifierRotation;
-		ViewInfo.FOV = ViewModifierInfo.ViewModifierFOV;
+		return;
+	}
+
+	const float BlendFactor = VMI.BlendFactor;
+	AActor* CameraActor = VMI.NextCamera.Get();
+	AActor* PreviousCameraActor = VMI.PreviousCamera.Get();
+	
+	UCameraComponent* CameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(CameraActor);
+	UCameraComponent* PreviousCameraComponent = MovieSceneHelpers::CameraComponentFromRuntimeObject(PreviousCameraActor);
+
+
+	if (CameraActor)
+	{
+		const FVector ViewLocation = CameraComponent ? CameraComponent->GetComponentLocation() : CameraActor->GetActorLocation();
+		const FRotator ViewRotation = CameraComponent ? CameraComponent->GetComponentRotation() : CameraActor->GetActorRotation();
+
+		// If we have no previous camera actor or component, it means we're blending from the original
+		// editor viewport camera transform that we cached.
+		const FVector PreviousViewLocation = PreviousCameraComponent ?
+			PreviousCameraComponent->GetComponentLocation() :
+			(PreviousCameraActor ? PreviousCameraActor->GetActorLocation() : PreAnimatedViewportLocation);
+		const FRotator PreviousViewRotation = PreviousCameraComponent ?
+			PreviousCameraComponent->GetComponentRotation() :
+			(PreviousCameraActor ? PreviousCameraActor->GetActorRotation() : PreAnimatedViewportRotation);
+
+		const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, ViewLocation, BlendFactor);
+		const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, ViewRotation, BlendFactor);
+
+		ViewInfo.Location = BlendedLocation;
+		ViewInfo.Rotation = BlendedRotation;
+	}
+	else
+	{
+		// Blending from a shot back to editor camera.
+
+		const FVector PreviousViewLocation = PreviousCameraComponent ?
+			PreviousCameraComponent->GetComponentLocation() :
+			PreviousCameraActor->GetActorLocation();
+		const FRotator PreviousViewRotation = PreviousCameraComponent ?
+			PreviousCameraComponent->GetComponentRotation() :
+			PreviousCameraActor->GetActorRotation();
+
+		const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, PreAnimatedViewportLocation, BlendFactor);
+		const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, PreAnimatedViewportRotation, BlendFactor);
+
+		ViewInfo.Location = BlendedLocation;
+		ViewInfo.Rotation = BlendedRotation;
+	}
+
+	// Deal with camera properties.
+	if (CameraComponent)
+	{
+		const float PreviousFOV = PreviousCameraComponent != nullptr ?
+			PreviousCameraComponent->FieldOfView : PreAnimatedViewportFOV;
+		const float BlendedFOV = FMath::Lerp(PreviousFOV, CameraComponent->FieldOfView, BlendFactor);
+
+		ViewInfo.FOV = BlendedFOV;
+	}
+	else
+	{
+		const float PreviousFOV = PreviousCameraComponent != nullptr ?
+			PreviousCameraComponent->FieldOfView : PreAnimatedViewportFOV;
+		const float BlendedFOV = FMath::Lerp(PreviousFOV, PreAnimatedViewportFOV, BlendFactor);
+
+		ViewInfo.FOV = BlendedFOV;
 	}
 }
 
@@ -3403,7 +3490,9 @@ void FSequencer::EnterSilentMode()
 {
 	if (SilentModeCount == 0)
 	{
-		CachedViewModifierInfo = ViewModifierInfo;
+		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
+		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
+		CachedVMI = VMI;
 	}
 	++SilentModeCount;
 }
@@ -3414,7 +3503,9 @@ void FSequencer::ExitSilentMode()
 	ensure(SilentModeCount >= 0);
 	if (SilentModeCount == 0)
 	{
-		ViewModifierInfo = CachedViewModifierInfo;
+		FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
+		FSequencerViewModifierInfo& CachedVMI = reinterpret_cast<FSequencerViewModifierInfo&>(CachedViewModifierInfo);
+		VMI = CachedVMI;
 	}
 }
 
@@ -5763,7 +5854,11 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 			(CameraActor != nullptr || PreviousCameraActor != nullptr));
 
 	// To preview blending we'll have to offset the viewport camera using the view modifiers API.
-	ViewModifierInfo.bApplyViewModifier = bIsBlending && !IsInSilentMode();
+	FSequencerViewModifierInfo& VMI = reinterpret_cast<FSequencerViewModifierInfo&>(ViewModifierInfo);
+	VMI.bApplyViewModifier = bIsBlending && !IsInSilentMode();
+	VMI.BlendFactor = BlendFactor;
+	VMI.NextCamera = CameraActor;
+	VMI.PreviousCamera = PreviousCameraActor;
 
 	bool bCameraHasBeenCut = CameraCutParams.bJumpCut;
 
@@ -5778,61 +5873,15 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 		const FVector ViewLocation = CameraComponent ? CameraComponent->GetComponentLocation() : CameraActor->GetActorLocation();
 		const FRotator ViewRotation = CameraComponent ? CameraComponent->GetComponentRotation() : CameraActor->GetActorRotation();
 
-		if (!bIsBlending)
-		{
-			InViewportClient.SetViewLocation(ViewLocation);
-			InViewportClient.SetViewRotation(ViewRotation);
-		}
-		else
-		{
-			// If we have no previous camera actor or component, it means we're blending from the original
-			// editor viewport camera transform that we cached.
-			const FVector PreviousViewLocation = PreviousCameraComponent ? 
-				PreviousCameraComponent->GetComponentLocation() : 
-				(PreviousCameraActor ? PreviousCameraActor->GetActorLocation() : PreAnimatedViewportLocation);
-			const FRotator PreviousViewRotation = PreviousCameraComponent ?
-				PreviousCameraComponent->GetComponentRotation() :
-				(PreviousCameraActor ? PreviousCameraActor->GetActorRotation() : PreAnimatedViewportRotation);
-
-			const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, ViewLocation, BlendFactor);
-			const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, ViewRotation, BlendFactor);
-
-			InViewportClient.SetViewLocation(BlendedLocation);
-			InViewportClient.SetViewRotation(BlendedRotation);
-
-			ViewModifierInfo.ViewModifierLocation = BlendedLocation;
-			ViewModifierInfo.ViewModifierRotation = BlendedRotation;
-		}
+		InViewportClient.SetViewLocation(ViewLocation);
+		InViewportClient.SetViewRotation(ViewRotation);
 	}
 	else
 	{
-		if (!bIsBlending)
+		if (CameraCutParams.bCanBlend && bHasPreAnimatedInfo)
 		{
-			if (CameraCutParams.bCanBlend && bHasPreAnimatedInfo)
-			{
-				InViewportClient.SetViewLocation(PreAnimatedViewportLocation);
-				InViewportClient.SetViewRotation(PreAnimatedViewportRotation);
-			}
-		}
-		else
-		{
-			// Blending from a shot back to editor camera.
-
-			const FVector PreviousViewLocation = PreviousCameraComponent ? 
-				PreviousCameraComponent->GetComponentLocation() : 
-				PreviousCameraActor->GetActorLocation();
-			const FRotator PreviousViewRotation = PreviousCameraComponent ?
-				PreviousCameraComponent->GetComponentRotation() :
-				PreviousCameraActor->GetActorRotation();
-
-			const FVector BlendedLocation = FMath::Lerp(PreviousViewLocation, PreAnimatedViewportLocation, BlendFactor);
-			const FRotator BlendedRotation = FMath::Lerp(PreviousViewRotation, PreAnimatedViewportRotation, BlendFactor);
-
-			InViewportClient.SetViewLocation(BlendedLocation);
-			InViewportClient.SetViewRotation(BlendedRotation);
-
-			ViewModifierInfo.ViewModifierLocation = BlendedLocation;
-			ViewModifierInfo.ViewModifierRotation = BlendedRotation;
+			InViewportClient.SetViewLocation(PreAnimatedViewportLocation);
+			InViewportClient.SetViewRotation(PreAnimatedViewportRotation);
 		}
 	}
 
@@ -5875,19 +5924,7 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 		}
 
 		// don't stop the camera from zooming when not playing back
-		if (!bIsBlending)
-		{
-			InViewportClient.ViewFOV = CameraComponent->FieldOfView;
-		}
-		else
-		{
-			const float PreviousFOV = PreviousCameraComponent != nullptr ?
-				PreviousCameraComponent->FieldOfView : PreAnimatedViewportFOV;
-			const float BlendedFOV = FMath::Lerp(PreviousFOV, CameraComponent->FieldOfView, BlendFactor);
-
-			InViewportClient.ViewFOV = BlendedFOV;
-			ViewModifierInfo.ViewModifierFOV = BlendedFOV;
-		}
+		InViewportClient.ViewFOV = CameraComponent->FieldOfView;
 
 		// If there are selected actors, invalidate the viewports hit proxies, otherwise they won't be selectable afterwards
 		if (InViewportClient.Viewport && GEditor->GetSelectedActorCount() > 0)
@@ -5897,20 +5934,7 @@ void FSequencer::UpdatePreviewLevelViewportClientFromCameraCut(FLevelEditorViewp
 	}
 	else
 	{
-		if (!bIsBlending)
-		{
-			InViewportClient.ViewFOV = InViewportClient.FOVAngle;
-		}
-		else
-		{
-			const float PreviousFOV = PreviousCameraComponent != nullptr ?
-				PreviousCameraComponent->FieldOfView : PreAnimatedViewportFOV;
-			const float InverseBlendFactor = FMath::Clamp(1.0f - BlendFactor, 0.f, 1.f);
-			const float BlendedFOV = FMath::Lerp(PreviousFOV, PreAnimatedViewportFOV, InverseBlendFactor);
-
-			InViewportClient.ViewFOV = BlendedFOV;
-			ViewModifierInfo.ViewModifierFOV = BlendedFOV;
-		}
+		InViewportClient.ViewFOV = InViewportClient.FOVAngle;
 	}
 
 	// Update ControllingActorViewInfo, so it is in sync with the updated viewport
