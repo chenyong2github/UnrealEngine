@@ -146,6 +146,7 @@ struct FNDIHairStrandsData
 		{
 			ParamsScale[i] = 1.0;
 		}
+		SkeletalMeshes = 0;
 	}
 
 	inline void CopyDatas(const FNDIHairStrandsData* OtherDatas)
@@ -196,6 +197,8 @@ struct FNDIHairStrandsData
 			StrandsThickness = OtherDatas->StrandsThickness;
 
 			ParamsScale = OtherDatas->ParamsScale;
+
+			SkeletalMeshes = OtherDatas->SkeletalMeshes;
 
 			TickingGroup = OtherDatas->TickingGroup;
 		}
@@ -299,6 +302,9 @@ struct FNDIHairStrandsData
 
 	/** Scales along the strand */
 	TStaticArray<float, 32 * NumScales> ParamsScale;
+
+	/** List of all the skel meshes in the hierarchy*/
+	uint32 SkeletalMeshes;
 
 	/** The instance ticking group */
 	ETickingGroup TickingGroup;
