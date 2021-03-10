@@ -2,6 +2,7 @@
 
 #include "AudioAnalyzerSubsystem.h"
 #include "Engine/World.h"
+#include "Engine/Engine.h"
 
 UAudioAnalyzerSubsystem::UAudioAnalyzerSubsystem()
 {
