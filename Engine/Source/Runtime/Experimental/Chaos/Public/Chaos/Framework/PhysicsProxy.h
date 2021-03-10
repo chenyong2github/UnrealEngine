@@ -39,7 +39,7 @@ class TPhysicsProxy : public IPhysicsProxyBase
 public:
 	using FParticleType = Concrete;
 
-	using FParticlesType = Chaos::TPBDRigidParticles<float, 3>;
+	using FParticlesType = Chaos::FPBDRigidParticles;
 	using FCollisionConstraintsType = Chaos::FPBDCollisionConstraints;
 	using FIntArray = Chaos::TArrayCollectionArray<int32>;
 
@@ -65,12 +65,12 @@ public:
 
 	// Previously callback related functions, all called in the context of the physics thread if enabled.
 	bool IsSimulating() const { return static_cast<const Concrete*>(this)->IsSimulating(); }
-	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy) { static_cast<Concrete*>(this)->UpdateKinematicBodiesCallback(InParticles, InDt, InTime, InKinematicProxy); }
-	void StartFrameCallback(const float InDt, const float InTime) { static_cast<Concrete*>(this)->StartFrameCallback(InDt, InTime); }
-	void EndFrameCallback(const float InDt) { static_cast<Concrete*>(this)->EndFrameCallback(InDt); }
+	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const Chaos::FReal InDt, const Chaos::FReal InTime, FKinematicProxy& InKinematicProxy) { static_cast<Concrete*>(this)->UpdateKinematicBodiesCallback(InParticles, InDt, InTime, InKinematicProxy); }
+	void StartFrameCallback(const Chaos::FReal InDt, const Chaos::FReal InTime) { static_cast<Concrete*>(this)->StartFrameCallback(InDt, InTime); }
+	void EndFrameCallback(const Chaos::FReal InDt) { static_cast<Concrete*>(this)->EndFrameCallback(InDt); }
 	void CreateRigidBodyCallback(FParticlesType& InOutParticles) { static_cast<Concrete*>(this)->CreateRigidBodyCallback(InOutParticles); }
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs) { static_cast<Concrete*>(this)->DisableCollisionsCallback(InPairs); }
-	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) { static_cast<Concrete*>(this)->AddForceCallback(InParticles, InDt, InIndex); }
+	void AddForceCallback(FParticlesType& InParticles, const Chaos::FReal InDt, const int32 InIndex) { static_cast<Concrete*>(this)->AddForceCallback(InParticles, InDt, InIndex); }
 
 	/** The Particle Binding creates a connection between the particles in the simulation and the solver objects dataset. */
 	void BindParticleCallbackMapping(Chaos::TArrayCollectionArray<PhysicsProxyWrapper> & PhysicsProxyReverseMap, Chaos::TArrayCollectionArray<int32> & ParticleIDReverseMap) {static_cast<Concrete*>(this)->BindParticleCallbackMapping(PhysicsProxyReverseMap, ParticleIDReverseMap);}
@@ -128,7 +128,7 @@ public:
 
 	void* GetUserData() const { return nullptr; }
 
-	Chaos::TRigidTransform<float, 3> GetTransform() const { return Chaos::TRigidTransform<float, 3>(); }
+	Chaos::FRigidTransform3 GetTransform() const { return Chaos::FRigidTransform3(); }
 
 
 private:

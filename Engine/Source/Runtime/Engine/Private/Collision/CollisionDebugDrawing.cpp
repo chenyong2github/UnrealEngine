@@ -257,11 +257,11 @@ void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::FImplicitObject& Geom,
 	FVector Pos = GeomPose.GetLocation();
 	FQuat Rot = GeomPose.GetRotation();
 
-	if (const auto Box = Geom.template GetObject<TBox<float,3>>())
+	if (const auto Box = Geom.template GetObject<TBox<FReal,3>>())
 	{
 		DrawBoxOverlap(InWorld, Pos, Box->Extents() * 0.5f, Rot, Overlaps, Lifetime);
 	}
-	else if (const auto Sphere = Geom.template GetObject<TSphere<float, 3>>())
+	else if (const auto Sphere = Geom.template GetObject<TSphere<FReal, 3>>())
 	{
 		DrawSphereOverlap(InWorld, Pos, Sphere->GetRadius(), Overlaps, Lifetime);
 	}
@@ -275,11 +275,11 @@ void DrawGeomOverlaps(const UWorld* InWorld, const Chaos::FImplicitObject& Geom,
 void DrawGeomSweeps(const UWorld* InWorld, const FVector& Start, const FVector& End, const Chaos::FImplicitObject& Geom, const FQuat& Rotation, const TArray<FHitResult>& Hits, float Lifetime)
 {
 	using namespace Chaos;
-	if (const auto Box = Geom.template GetObject<TBox<float, 3>>())
+	if (const auto Box = Geom.template GetObject<TBox<FReal, 3>>())
 	{
 		DrawBoxSweeps(InWorld, Start, End, Box->Extents() * 0.5f, Rotation, Hits, Lifetime);
 	}
-	else if (const auto Sphere = Geom.template GetObject<TSphere<float, 3>>())
+	else if (const auto Sphere = Geom.template GetObject<TSphere<FReal, 3>>())
 	{
 		DrawSphereSweeps(InWorld, Start, End, Sphere->GetRadius(), Hits, Lifetime);
 	}

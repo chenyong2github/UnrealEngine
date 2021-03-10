@@ -80,6 +80,7 @@ USkeletalMeshSimulationComponent::USkeletalMeshSimulationComponent(FVTableHelper
 
 USkeletalMeshSimulationComponent::~USkeletalMeshSimulationComponent() = default;
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 Chaos::FPhysicsSolver* GetSolver(const USkeletalMeshSimulationComponent& SkeletalMeshSimulationComponent)
 {
 #if INCLUDE_CHAOS
@@ -90,6 +91,7 @@ Chaos::FPhysicsSolver* GetSolver(const USkeletalMeshSimulationComponent& Skeleta
 	return nullptr;
 #endif
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void USkeletalMeshSimulationComponent::OnCreatePhysicsState()
 {

@@ -41,8 +41,8 @@ namespace Chaos
 
 	void FGeometryCollectionCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComp, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
 	{
-		using FClusterParticle = Chaos::TPBDRigidClusteredParticleHandle<float, 3>;
-		using FRigidParticle = Chaos::TPBDRigidParticleHandle<float, 3>;
+		using FClusterParticle = Chaos::FPBDRigidClusteredParticleHandle;
+		using FRigidParticle = Chaos::FPBDRigidParticleHandle;
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComp);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
@@ -130,8 +130,8 @@ namespace Chaos
 															FPlaybackTickRecord&                               TickRecord,
 															TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const
 	{
-		using FClusterParticle = Chaos::TPBDRigidClusteredParticleHandle<float, 3>;
-		using FRigidParticle = Chaos::TPBDRigidParticleHandle<float, 3>;
+		using FClusterParticle = Chaos::FPBDRigidClusteredParticleHandle;
+		using FRigidParticle = Chaos::FPBDRigidParticleHandle;
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
@@ -173,7 +173,7 @@ namespace Chaos
 				{
 					if(Particles.IsValidIndex(Event->Index))
 					{
-						Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ChildParticle = Particles[Event->Index];
+						Chaos::FPBDRigidClusteredParticleHandle* ChildParticle = Particles[Event->Index];
 						
 						if(ChildParticle->ObjectState() != EObjectStateType::Kinematic)
 						{
@@ -239,7 +239,7 @@ namespace Chaos
 
 			if(Particles.IsValidIndex(ParticleIndex))
 			{
-				Chaos::TPBDRigidClusteredParticleHandleFloat3* Handle = Particles[ParticleIndex];
+				Chaos::FPBDRigidClusteredParticleHandle* Handle = Particles[ParticleIndex];
 
 				if(!Handle || Handle->ObjectState() != EObjectStateType::Kinematic)
 				{

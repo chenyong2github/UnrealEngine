@@ -24,7 +24,7 @@ namespace Chaos
 
 		FORCEINLINE const TVec3<T>& GetAxis() const { return MAxis; }
 
-		FORCEINLINE float GetLength() const { return MLength; }
+		FORCEINLINE FReal GetLength() const { return MLength; }
 
 		TVec3<T> Support(const TVec3<T>& Direction, const T Thickness) const
 		{

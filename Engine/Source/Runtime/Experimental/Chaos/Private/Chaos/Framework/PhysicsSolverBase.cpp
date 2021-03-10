@@ -108,7 +108,7 @@ namespace Chaos
 		Solver.ConditionalApplyRewind_Internal();
 	}
 
-	CHAOS_API float DefaultAsyncDt = -1;
+	CHAOS_API FRealSingle DefaultAsyncDt = -1;
 	FAutoConsoleVariableRef CVarDefaultAsyncDt(TEXT("p.DefaultAsyncDt"), DefaultAsyncDt,TEXT("Whether to use async results -1 means not async"));
 
 	CHAOS_API int32 UseAsyncInterpolation = 1;
@@ -117,7 +117,7 @@ namespace Chaos
 	CHAOS_API int32 ForceDisableAsyncPhysics = 0;
 	FAutoConsoleVariableRef CVarForceDisableAsyncPhysics(TEXT("p.ForceDisableAsyncPhysics"), ForceDisableAsyncPhysics, TEXT("Whether to force async physics off regardless of other settings"));
 
-	CHAOS_API float AsyncInterpolationMultiplier = 4.f;
+	CHAOS_API FRealSingle AsyncInterpolationMultiplier = 4.f;
 	FAutoConsoleVariableRef CVarAsyncInterpolationMultiplier(TEXT("p.AsyncInterpolationMultiplier"), AsyncInterpolationMultiplier, TEXT("How many multiples of the fixed dt should we look behind for interpolation"));
 
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner)

@@ -29,7 +29,7 @@ namespace GeometryCollectionTest
 	void TestSkeletalMeshPhysicsProxy_Register()
 	{
 		//TODO: this code has not been called in a while, but it was templated so it compiled
-		const float Dt = (FReal)1 / 60;
+		const FReal Dt = (FReal)1 / 60;
 
 		FrameworkParameters Fp;
 		Fp.Dt = Dt;
@@ -41,7 +41,7 @@ namespace GeometryCollectionTest
 		{
 			++InitCallCount;
 		};
-		auto InputFunc = [&](const float Dt, FSkeletalMeshPhysicsProxyParams& OutPhysicsParams) -> bool
+		auto InputFunc = [&](const FReal Dt, FSkeletalMeshPhysicsProxyParams& OutPhysicsParams) -> bool
 		{
 			++InputCallCount;
 			return true;
@@ -91,7 +91,7 @@ namespace GeometryCollectionTest
 	public:
 		TSharedPtr<FSkeletalMeshPhysicsProxy> SkeletalMeshPhysicsProxy;		
 
-		float BoneRadius = 50.0f;
+		FReal BoneRadius = 50.0f;
 		EObjectStateTypeEnum ObjectState = EObjectStateTypeEnum::Chaos_Object_Kinematic;
 		TArray<int32> Parents;
 		TArray< EObjectStateTypeEnum> BoneStates;
@@ -109,7 +109,7 @@ namespace GeometryCollectionTest
 		TArray<FVector> OutputAngularVelocities;
 
 
-		TFakeSkeletalMeshPhysicsComponent(float dt)
+		TFakeSkeletalMeshPhysicsComponent(FReal dt)
 		: UnitTest(FrameworkParameters(dt))
 		{			
 			SkeletalMeshPhysicsProxy = MakeShared<FSkeletalMeshPhysicsProxy>(
@@ -143,7 +143,7 @@ namespace GeometryCollectionTest
 					const FName NAME_Bone = FName(*FString::Printf(TEXT("Bone_%03d"), BoneIndex));
 					TUniquePtr<FAnalyticImplicitGroup> Group(new FAnalyticImplicitGroup(NAME_Bone, BoneIndex));
 					Group->SetParentBoneIndex(Parents[BoneIndex]);
-					Group->Add(FTransform::Identity, new TSphere<float, 3>(FVec3(0), BoneRadius));
+					Group->Add(FTransform::Identity, new TSphere<FReal, 3>(FVec3(0), BoneRadius));
 					Group->SetRigidBodyState(BoneStates[BoneIndex]);
 					Hierarchy.Add(MoveTemp(Group));
 				}
@@ -190,11 +190,11 @@ namespace GeometryCollectionTest
 			// UnitTest.Solver->UnregisterObject(SkeletalMeshPhysicsProxy.Get());
 		}
 
-		void Tick(float Dt)
+		void Tick(FReal Dt)
 		{
 			{
 				SkeletalMeshPhysicsProxy->CaptureInputs(Dt, 
-					[this](const float Dt, FSkeletalMeshPhysicsProxyParams & OutParams) -> bool
+					[this](const FReal Dt, FSkeletalMeshPhysicsProxyParams & OutParams) -> bool
 					{
 						FBoneHierarchy& Hierarchy = OutParams.BoneHierarchy;
 						Hierarchy.PrepareForUpdate();
@@ -228,7 +228,7 @@ namespace GeometryCollectionTest
 	 */
 	void TestSkeletalMeshPhysicsProxy_Kinematic()
 	{
-		const float Dt = (FReal)1 / 30;
+		const FReal Dt = (FReal)1 / 30;
 
 		// Two kinematic bodies
 		TFakeSkeletalMeshPhysicsComponent Component(Dt);
@@ -246,7 +246,7 @@ namespace GeometryCollectionTest
 		Component.Initialize();
 		
 
-		float Time = (FReal)0;		
+		FReal Time = (FReal)0;
 
 		for (int32 TickIndex = 0; TickIndex < 100; ++TickIndex)
 		{
@@ -275,7 +275,7 @@ namespace GeometryCollectionTest
 	 */
 	void TestSkeletalMeshPhysicsProxy_Dynamic()
 	{
-		const float Dt = (FReal)1 / 30;
+		const FReal Dt = (FReal)1 / 30;
 
 		// One kinematic, one dynamic body
 		TFakeSkeletalMeshPhysicsComponent Component(Dt);
@@ -304,10 +304,10 @@ namespace GeometryCollectionTest
 		Component.Initialize();
 
 		const TArray<FTransform> InitialTransforms = Component.InputWorldTransforms;
-		const float InitialDistance = (InitialTransforms[1].GetTranslation() - InitialTransforms[0].GetTranslation()).Size();
+		const FReal InitialDistance = (InitialTransforms[1].GetTranslation() - InitialTransforms[0].GetTranslation()).Size();
 		
 
-		float Time = (FReal)0;		
+		FReal Time = (FReal)0;
 
 		for (int32 TickIndex = 0; TickIndex < 100; ++TickIndex)
 		{

@@ -25,7 +25,7 @@ namespace Chaos
 	struct FMTDInfo
 	{
 		FVec3 Normal;
-		float Penetration;
+		FReal Penetration;
 	};
 
 	template <typename QueryGeometry>
@@ -136,7 +136,7 @@ namespace Chaos
 
 		OutFaceIndex = INDEX_NONE;
 		
-		FVec3 LocalPosition(-TNumericLimits<float>::Max()); // Make it obvious when things go wrong
+		FVec3 LocalPosition(-TNumericLimits<FReal>::Max()); // Make it obvious when things go wrong
 		FVec3 LocalNormal(0);
 
 		const FRigidTransform3 BToATM = BTM.GetRelativeTransform(ATM);

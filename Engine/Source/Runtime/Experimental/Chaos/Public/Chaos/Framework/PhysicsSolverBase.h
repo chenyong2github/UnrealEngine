@@ -26,7 +26,7 @@ namespace Chaos
 
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
-	extern CHAOS_API float AsyncInterpolationMultiplier;
+	extern CHAOS_API FRealSingle AsyncInterpolationMultiplier;
 
 	struct CHAOS_API FSubStepInfo
 	{

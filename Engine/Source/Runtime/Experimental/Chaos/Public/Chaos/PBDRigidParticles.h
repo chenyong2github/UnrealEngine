@@ -118,14 +118,14 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 		{
 			// When the state is first initialized, treat it like a static.
 			this->InvM(Index) = 0.0f;
-			this->InvI(Index) = PMatrix<float, 3, 3>(0);
+			this->InvI(Index) = FMatrix33(0);
 		}
 
 		if ((CurrentState == EObjectStateType::Dynamic || CurrentState == EObjectStateType::Sleeping) && (InObjectState == EObjectStateType::Kinematic || InObjectState == EObjectStateType::Static))
 		{
 			// Transitioning from dynamic to static or kinematic, set inverse mass and inertia tensor to zero.
 			this->InvM(Index) = 0.0f;
-			this->InvI(Index) = PMatrix<float, 3, 3>(0);
+			this->InvI(Index) = FMatrix33(0);
 		}
 		else if ((CurrentState == EObjectStateType::Kinematic || CurrentState == EObjectStateType::Static || CurrentState == EObjectStateType::Uninitialized) && (InObjectState == EObjectStateType::Dynamic || InObjectState == EObjectStateType::Sleeping))
 		{
@@ -135,7 +135,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 			checkSlow(this->I(Index).M[1][1] != 0.0);
 			checkSlow(this->I(Index).M[2][2] != 0.0);
 			this->InvM(Index) = 1.f / this->M(Index);
-			this->InvI(Index) = Chaos::PMatrix<float, 3, 3>(
+			this->InvI(Index) = Chaos::FMatrix33(
 				1.f / this->I(Index).M[0][0], 0.f, 0.f,
 				0.f, 1.f / this->I(Index).M[1][1], 0.f,
 				0.f, 0.f, 1.f / this->I(Index).M[2][2]);
@@ -165,7 +165,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	{
 		// Reset VSmooth to something roughly in the same direction as what V will be after integration.
 		// This is temp fix, if this is only re-computed after solve, island will get incorrectly put back to sleep even if it was just impulsed.
-		float FakeDT = 1.0f / 30.0f;
+		FReal FakeDT = (FReal)1. / (FReal)30.;
 		if (this->LinearImpulse(Index).IsNearlyZero() == false || this->F(Index).IsNearlyZero() == false)
 		{
 			this->VSmooth(Index) = this->F(Index) * this->InvM(Index) * FakeDT + this->LinearImpulse(Index) * this->InvM(Index);

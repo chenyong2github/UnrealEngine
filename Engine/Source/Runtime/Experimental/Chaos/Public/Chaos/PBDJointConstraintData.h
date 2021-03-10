@@ -66,13 +66,13 @@ namespace Chaos
 		//void SetProjectionEnabled(bool bInProjectionEnabled);
 		//bool GetProjectionEnabled() const;
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(float, ProjectionLinearAlpha, EJointConstraintFlags::Projection, JointSettings.LinearProjection);
-		//void SetProjectionLinearAlpha(float InProjectionLinearAlpha);
-		//float GetProjectionLinearAlpha() const;
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ProjectionLinearAlpha, EJointConstraintFlags::Projection, JointSettings.LinearProjection);
+		//void SetProjectionLinearAlpha(FReal InProjectionLinearAlpha);
+		//FReal GetProjectionLinearAlpha() const;
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(float, ProjectionAngularAlpha, EJointConstraintFlags::Projection, JointSettings.AngularProjection);
-		//void SetProjectionAngularAlpha(float InProjectionAngularAlpha);
-		//float GetProjectionAngularAlpha() const;
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ProjectionAngularAlpha, EJointConstraintFlags::Projection, JointSettings.AngularProjection);
+		//void SetProjectionAngularAlpha(FReal InProjectionAngularAlpha);
+		//FReal GetProjectionAngularAlpha() const;
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ParentInvMassScale, EJointConstraintFlags::ParentInvMassScale, JointSettings.ParentInvMassScale);
 		//void SetParentInvMassScale(FReal InParentInvMassScale);

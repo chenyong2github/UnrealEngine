@@ -54,14 +54,14 @@ const Chaos::FImplicitObject& FPhysicsGeometryCollection_Chaos::GetGeometry() co
 	return Geom;
 }
 
-const Chaos::TBox<float,3>& FPhysicsGeometryCollection_Chaos::GetBoxGeometry() const
+const Chaos::TBox<Chaos::FReal,3>& FPhysicsGeometryCollection_Chaos::GetBoxGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TBox<float,3>>();
+	return Geom.GetObjectChecked<Chaos::TBox<Chaos::FReal,3>>();
 }
 
-const Chaos::TSphere<float,3>&  FPhysicsGeometryCollection_Chaos::GetSphereGeometry() const
+const Chaos::TSphere<Chaos::FReal,3>&  FPhysicsGeometryCollection_Chaos::GetSphereGeometry() const
 {
-	return Geom.GetObjectChecked<Chaos::TSphere<float,3>>();
+	return Geom.GetObjectChecked<Chaos::TSphere<Chaos::FReal,3>>();
 }
 const Chaos::FCapsule&  FPhysicsGeometryCollection_Chaos::GetCapsuleGeometry() const
 {
@@ -103,7 +103,7 @@ FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FC
 		{
 			// Use a sphere instead.
 			const float UseRadius = FMath::Max(CapsuleRadius,FCollisionShape::MinSphereRadius());
-			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<float,3>(Chaos::FVec3(0),UseRadius));
+			Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<Chaos::FReal,3>(Chaos::FVec3(0),UseRadius));
 		}
 		break;
 	}
@@ -114,13 +114,13 @@ FPhysicsShapeAdapter_Chaos::FPhysicsShapeAdapter_Chaos(const FQuat& Rot,const FC
 		HalfExtents.Y = FMath::Max(HalfExtents.Y,FCollisionShape::MinBoxExtent());
 		HalfExtents.Z = FMath::Max(HalfExtents.Z,FCollisionShape::MinBoxExtent());
 
-		Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TBox<float,3>(-HalfExtents,HalfExtents));
+		Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TBox<Chaos::FReal,3>(-HalfExtents,HalfExtents));
 		break;
 	}
 	case ECollisionShape::Sphere:
 	{
 		const float UseRadius = FMath::Max(CollisionShape.GetSphereRadius(),FCollisionShape::MinSphereRadius());
-		Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<float,3>(Chaos::FVec3(0),UseRadius));
+		Geometry = TUniquePtr<FPhysicsGeometry>(new Chaos::TSphere<Chaos::FReal,3>(Chaos::FVec3(0),UseRadius));
 		break;
 	}
 	default:

@@ -48,9 +48,9 @@ namespace Chaos
 
 		FORCEINLINE FVec3 Support(const FVec3& Direction, const FReal Thickness) const
 		{
-			const float DotA = FVec3::DotProduct(A, Direction);
-			const float DotB = FVec3::DotProduct(B, Direction);
-			const float DotC = FVec3::DotProduct(C, Direction);
+			const FReal DotA = FVec3::DotProduct(A, Direction);
+			const FReal DotB = FVec3::DotProduct(B, Direction);
+			const FReal DotC = FVec3::DotProduct(C, Direction);
 
 			if(DotA >= DotB && DotA >= DotC)
 			{
@@ -76,11 +76,11 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, float InMargin) const
+		FORCEINLINE_DEBUGGABLE FVec3 SupportCore(const FVec3& Direction, FReal InMargin) const
 		{
-			const float DotA = FVec3::DotProduct(A, Direction);
-			const float DotB = FVec3::DotProduct(B, Direction);
-			const float DotC = FVec3::DotProduct(C, Direction);
+			const FReal DotA = FVec3::DotProduct(A, Direction);
+			const FReal DotB = FVec3::DotProduct(B, Direction);
+			const FReal DotC = FVec3::DotProduct(C, Direction);
 
 			if (DotA >= DotB && DotA >= DotC)
 			{
@@ -94,7 +94,7 @@ namespace Chaos
 			return C;
 		}
 
-		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, float InMargin, const FVec3& Scale) const
+		FORCEINLINE FVec3 SupportCoreScaled(const FVec3& Direction, FReal InMargin, const FVec3& Scale) const
 		{
 			// Note: ignores InMargin, assumed 0 (triangles cannot have a margin as they are zero thickness)
 			return SupportCore(Direction * Scale, 0.0f) * Scale;
@@ -117,7 +117,7 @@ namespace Chaos
 		FORCEINLINE bool Overlap(const FVec3& Point, const FReal Thickness) const
 		{
 			const FVec3 ClosestPoint = FindClosestPointOnTriangle(GetPlane(), A, B, C, Point);
-			const float AdjustedThickness = FMath::Max(Thickness, KINDA_SMALL_NUMBER);
+			const FReal AdjustedThickness = FMath::Max(Thickness, KINDA_SMALL_NUMBER);
 			return (Point - ClosestPoint).SizeSquared() <= (AdjustedThickness * AdjustedThickness);
 		}
 

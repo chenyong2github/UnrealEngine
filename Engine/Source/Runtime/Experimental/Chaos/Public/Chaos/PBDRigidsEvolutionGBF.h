@@ -21,11 +21,11 @@ namespace Chaos
 	class IResimCacheBase;
 	class FEvolutionResimCache;
 
-	CHAOS_API extern float HackMaxAngularVelocity;
-	CHAOS_API extern float HackMaxVelocity;
+	CHAOS_API extern FRealSingle HackMaxAngularVelocity;
+	CHAOS_API extern FRealSingle HackMaxVelocity;
 
-	CHAOS_API extern float HackLinearDrag;
-	CHAOS_API extern float HackAngularDrag;
+	CHAOS_API extern FRealSingle HackLinearDrag;
+	CHAOS_API extern FRealSingle HackAngularDrag;
 
 	using FPBDRigidsEvolutionCallback = TFunction<void()>;
 
@@ -93,9 +93,9 @@ namespace Chaos
 		static constexpr int32 DefaultNumCollisionPairIterations = 1;
 		static constexpr int32 DefaultNumPushOutIterations = 1;
 		static constexpr int32 DefaultNumCollisionPushOutPairIterations = 3;
-		static constexpr float DefaultCollisionMarginFraction = 0.1f;
-		static constexpr float DefaultCollisionMarginMax = 100.0f;
-		static constexpr float DefaultCollisionCullDistance = 5.0f;
+		static constexpr FRealSingle DefaultCollisionMarginFraction = 0.1f;
+		static constexpr FRealSingle DefaultCollisionMarginMax = 100.0f;
+		static constexpr FRealSingle DefaultCollisionCullDistance = 5.0f;
 		static constexpr int32 DefaultNumJointPairIterations = 3;
 		static constexpr int32 DefaultNumJointPushOutPairIterations = 0;
 

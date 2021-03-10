@@ -170,10 +170,10 @@ void GeometryCollection::AttributeTransfer(const FGeometryCollection * FromColle
 	ParallelFor(ToCollection->NumElements(FGeometryCollection::VerticesGroup), [&](int32 ToIndex)
 	{
 		int32 ClosestFromIndex = -1;
-		float ClosestDist = MAX_FLT;
+		Chaos::FReal ClosestDist = MAX_FLT;
 		for (int32 FromIndex = 0, ni = FromVertex.Num(); FromIndex < ni ; ++FromIndex)
 		{
-			float CurrDist = FVector::DistSquared(FromVertex[FromIndex], ToVertex[ToIndex]);
+			Chaos::FReal CurrDist = FVector::DistSquared(FromVertex[FromIndex], ToVertex[ToIndex]);
 			if (CurrDist < ClosestDist)
 			{
 				ClosestDist = CurrDist;

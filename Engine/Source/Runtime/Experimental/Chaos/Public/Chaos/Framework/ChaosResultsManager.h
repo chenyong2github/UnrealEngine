@@ -31,7 +31,7 @@ namespace Chaos
 		TArray<FChaosRigidInterpolationData> RigidInterpolations;
 		FPullPhysicsData* Prev;
 		FPullPhysicsData* Next;
-		FReal Alpha;
+		FRealSingle Alpha;
 	};
 
 	class CHAOS_API FChaosResultsManager

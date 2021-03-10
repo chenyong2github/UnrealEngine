@@ -40,7 +40,7 @@ namespace Chaos
 	{
 		if(TGeometryParticleHandle<FReal,3>* Handle = InProxy->GetHandle_LowLevel())
 		{
-			if(TPBDRigidParticleHandle<float, 3> * AsRigid = Handle->CastToRigidParticle())
+			if(FPBDRigidParticleHandle* AsRigid = Handle->CastToRigidParticle())
 			{
 				FPendingParticleWrite NewData;
 
@@ -75,7 +75,7 @@ namespace Chaos
 		
 		if(Handle && Handle->ObjectState() == EObjectStateType::Kinematic)
 		{
-			if(TPBDRigidParticleHandle<float, 3>* AsRigid = Handle->CastToRigidParticle())
+			if(FPBDRigidParticleHandle* AsRigid = Handle->CastToRigidParticle())
 			{
 				FCacheEvaluationContext Context(TickRecord);
 				Context.bEvaluateTransform = true;

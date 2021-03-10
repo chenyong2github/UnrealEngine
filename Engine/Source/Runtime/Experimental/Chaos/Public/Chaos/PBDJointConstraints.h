@@ -47,7 +47,7 @@ namespace Chaos
 		const FPBDJointSettings& GetSettings() const;
 
 		void SetSettings(const FPBDJointSettings& Settings);
-		TVector<TGeometryParticleHandle<float, 3>*, 2> GetConstrainedParticles() const;
+		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;

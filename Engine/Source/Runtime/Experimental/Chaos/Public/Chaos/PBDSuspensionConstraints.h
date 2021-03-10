@@ -31,7 +31,7 @@ namespace Chaos
 
 		void SetSettings(const FPBDSuspensionSettings& Settings);
 
-		TVec2<TGeometryParticleHandle<float, 3>*> GetConstrainedParticles() const;
+		TVec2<FGeometryParticleHandle*> GetConstrainedParticles() const;
 
 	protected:
 		using Base::ConstraintIndex;
@@ -194,7 +194,7 @@ namespace Chaos
 		void ApplyPositionConstraintSoft(const int ConstraintIndex, const FReal Dt, const bool bAccelerationMode) const;
 		FPBDSuspensionSolverSettings SolverSettings;
 
-		TArray<TGeometryParticleHandle<FReal, 3>*> ConstrainedParticles;
+		TArray<FGeometryParticleHandle*> ConstrainedParticles;
 		TArray<FVec3> SuspensionLocalOffset;
 		TArray<FPBDSuspensionSettings> ConstraintSettings;
 

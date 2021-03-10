@@ -353,12 +353,12 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TRigidParticles<T, d>& Particles)
 
 #ifdef __clang__
 #if PLATFORM_WINDOWS
-extern template class TRigidParticles<float, 3>;
+extern template class TRigidParticles<FReal, 3>;
 #else
-extern template class CHAOS_API TRigidParticles<float, 3>;
+extern template class CHAOS_API TRigidParticles<FReal, 3>;
 #endif
 #else
-extern template class TRigidParticles<float, 3>;
+extern template class TRigidParticles<FReal, 3>;
 #endif
 
 }

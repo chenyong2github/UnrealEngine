@@ -165,7 +165,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		}
 		else if (Parameters.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
 		{
-			Chaos::TSphere<float,3>* Sphere = new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Parameters.ShapeParams.SphereRadius);
+			Chaos::TSphere<Chaos::FReal,3>* Sphere = new Chaos::TSphere<Chaos::FReal, 3>(Chaos::FVec3(0), Parameters.ShapeParams.SphereRadius);
 			const Chaos::FAABB3 BBox = Sphere->BoundingBox();
 			Bounds.Min = BBox.Min();
 			Bounds.Max = BBox.Max();
@@ -186,7 +186,7 @@ void FStaticMeshPhysicsProxy::CreateRigidBodyCallback(FParticlesType& Particles)
 		else if (Parameters.ShapeType == EImplicitTypeEnum::Chaos_Implicit_Box)
 		{
 			Chaos::FVec3 HalfExtents = Parameters.ShapeParams.BoxExtents / 2;
-			Chaos::TBox<float,3>* Box = new Chaos::TBox<float, 3>(-HalfExtents, HalfExtents);
+			Chaos::TBox<Chaos::FReal,3>* Box = new Chaos::TBox<Chaos::FReal, 3>(-HalfExtents, HalfExtents);
 			Bounds.Min = Box->Min();
 			Bounds.Max = Box->Max();
 			Particles.SetDynamicGeometry(RigidBodyId, TUniquePtr<Chaos::FImplicitObject>(Box));

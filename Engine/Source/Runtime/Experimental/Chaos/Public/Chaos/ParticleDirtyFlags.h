@@ -19,7 +19,7 @@ class FName;
 namespace Chaos
 {
 
-using FKinematicTarget = TKinematicTarget<float, 3>;
+using FKinematicTarget = TKinematicTarget<FReal, 3>;
 
 enum class EResimType: uint8;
 

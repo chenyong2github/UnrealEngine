@@ -196,13 +196,13 @@ namespace Chaos
 			return Center + Normalized * (GetRadius() + Thickness);
 		}
 
-		FORCEINLINE const TVector<T, d>& SupportCore(const TVector<T, d>& Direction, float InMargin) const
+		FORCEINLINE const TVector<T, d>& SupportCore(const TVector<T, d>& Direction, FReal InMargin) const
 		{
 			// Note: ignores InMargin, assumed Radius
 			return Center;
 		}
 
-		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, float InMargin, const TVector<T, d>& Scale) const
+		FORCEINLINE TVector<T, d> SupportCoreScaled(const TVector<T, d>& Direction, FReal InMargin, const TVector<T, d>& Scale) const
 		{
 			// Note: ignores InMargin, assumed Radius
 			return Center * Scale;

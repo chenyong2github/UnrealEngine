@@ -399,7 +399,7 @@ void AChaosSolverActor::MakeFloor()
 	if(bHasFloor)
 	{
 		TUniquePtr<Chaos::FGeometryParticle> FloorParticle = Chaos::FGeometryParticle::CreateParticle();
-		FloorParticle->SetGeometry(TUniquePtr<Chaos::TPlane<float, 3>>(new Chaos::TPlane<float, 3>(FVector(0), FVector(0, 0, 1))));
+		FloorParticle->SetGeometry(TUniquePtr<Chaos::TPlane<Chaos::FReal, 3>>(new Chaos::TPlane<Chaos::FReal, 3>(FVector(0), FVector(0, 0, 1))));
 		FloorParticle->SetX(Chaos::FVec3(0.f, 0.f, FloorHeight));
 		FCollisionFilterData FilterData;
 		FilterData.Word1 = 0xFFFF;
