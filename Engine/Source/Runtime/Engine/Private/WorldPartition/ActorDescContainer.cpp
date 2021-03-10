@@ -184,57 +184,58 @@ bool UActorDescContainer::ShouldHandleAssetEvent(const FAssetData& InAssetData)
 	return (ThisLevelPath == AssetLevelPath);
 }
 
-void UActorDescContainer::OnAssetAdded(const FAssetData& InAssetData)
+void UActorDescContainer::OnObjectPreSave(UObject* Object)
 {
-	if (ShouldHandleAssetEvent(InAssetData))
+	if (const AActor* Actor = Cast<AActor>(Object))
 	{
-		TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(GetActorDescriptor(InAssetData));
-		check(NewActorDesc->IsValid());
+		if (Actor->GetLevel() == World->PersistentLevel)
+		{
+			if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(Actor->GetActorGuid()))
+			{
+				// Pin the actor handle on the actor to prevent unloading it when unhashing
+				FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
+				FWorldPartitionHandlePinRefScope ExistingActorHandlePin(ExistingActorHandle);
 
-		check(!Actors.Contains((*NewActorDesc)->GetGuid()));
-		Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
+				TUniquePtr<FWorldPartitionActorDesc> NewActorDesc(Actor->CreateActorDesc());
 
-		OnActorDescAdded(*NewActorDesc);
+				OnActorDescUpdating(*ExistingActorDesc);
+
+				// Transfer any reference count from external sources
+				NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
+
+				*ExistingActorDesc = MoveTemp(NewActorDesc);
+
+				OnActorDescUpdated(*ExistingActorDesc);
+			}
+			// New actor
+			else
+			{
+				TUniquePtr<FWorldPartitionActorDesc>* NewActorDesc = new(ActorDescList) TUniquePtr<FWorldPartitionActorDesc>(Actor->CreateActorDesc());
+				check(NewActorDesc->IsValid());
+
+				check(!Actors.Contains((*NewActorDesc)->GetGuid()));
+				Actors.Add((*NewActorDesc)->GetGuid(), NewActorDesc);
+
+				OnActorDescAdded(*NewActorDesc);
+			}
+		}
 	}
 }
 
-void UActorDescContainer::OnAssetRemoved(const FAssetData& InAssetData)
+void UActorDescContainer::OnPackageDeleted(UPackage* Package)
 {
-	if (ShouldHandleAssetEvent(InAssetData))
+	AActor* Actor = nullptr;
+
+	ForEachObjectWithPackage(Package, [&Actor](UObject* Object)	{ Actor = Cast<AActor>(Object);	return !Actor; }, false);
+
+	if (Actor && (Actor->GetLevel() == World->PersistentLevel))
 	{
-		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
-		check(NewActorDesc.IsValid());
-
-		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
-
-		OnActorDescRemoved(*ExistingActorDesc);
-
-		Actors.Remove((*ExistingActorDesc)->GetGuid());
-		ExistingActorDesc->Release();
-	}
-}
-
-void UActorDescContainer::OnAssetUpdated(const FAssetData& InAssetData)
-{
-	if (ShouldHandleAssetEvent(InAssetData))
-	{
-		TUniquePtr<FWorldPartitionActorDesc> NewActorDesc = GetActorDescriptor(InAssetData);
-		check(NewActorDesc.IsValid());
-
-		TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindChecked(NewActorDesc->GetGuid());
-
-		// Pin the actor handle on the actor to prevent unloading it when unhashing
-		FWorldPartitionHandle ExistingActorHandle(ExistingActorDesc);
-		FWorldPartitionHandlePinRefScope ExistingActorHandlePin(ExistingActorHandle);
-
-		OnActorDescUpdating(*ExistingActorDesc);
-
-		// Transfer any reference count from external sources
-		NewActorDesc->TransferRefCounts(ExistingActorDesc->Get());
-
-		*ExistingActorDesc = MoveTemp(NewActorDesc);
-
-		OnActorDescUpdated(*ExistingActorDesc);
+		if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(Actor->GetActorGuid()))
+		{
+			OnActorDescRemoved(*ExistingActorDesc);
+			Actors.Remove((*ExistingActorDesc)->GetGuid());
+			ExistingActorDesc->Release();
+		}
 	}
 }
 
@@ -242,10 +243,8 @@ void UActorDescContainer::RegisterDelegates()
 {
 	if (GEditor && !IsTemplate())
 	{
-		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.OnAssetAdded().AddUObject(this, &UActorDescContainer::OnAssetAdded);
-		AssetRegistry.OnAssetRemoved().AddUObject(this, &UActorDescContainer::OnAssetRemoved);
-		AssetRegistry.OnAssetUpdated().AddUObject(this, &UActorDescContainer::OnAssetUpdated);
+		FCoreUObjectDelegates::OnObjectSaved.AddUObject(this, &UActorDescContainer::OnObjectPreSave);
+		FEditorDelegates::OnPackageDeleted.AddUObject(this, &UActorDescContainer::OnPackageDeleted);
 	}
 }
 
@@ -253,13 +252,8 @@ void UActorDescContainer::UnregisterDelegates()
 {
 	if (GEditor && !IsTemplate())
 	{
-		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
-		{
-			IAssetRegistry& AssetRegistry = AssetRegistryModule->Get();
-			AssetRegistry.OnAssetAdded().RemoveAll(this);
-			AssetRegistry.OnAssetRemoved().RemoveAll(this);
-			AssetRegistry.OnAssetUpdated().RemoveAll(this);
-		}
+		FCoreUObjectDelegates::OnObjectSaved.RemoveAll(this);
+		FEditorDelegates::OnPackageDeleted.RemoveAll(this);
 	}
 }
 #endif

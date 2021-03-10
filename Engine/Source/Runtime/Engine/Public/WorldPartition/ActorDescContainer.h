@@ -23,10 +23,9 @@ public:
 	virtual UWorld* GetWorld() const override;
 
 #if WITH_EDITOR
-	// Asset registry events
-	virtual void OnAssetAdded(const FAssetData& InAssetData);
-	virtual void OnAssetRemoved(const FAssetData& InAssetData);
-	virtual void OnAssetUpdated(const FAssetData& InAssetData);
+	// Events
+	virtual void OnObjectPreSave(UObject* Object);
+	virtual void OnPackageDeleted(UPackage* Package);
 
 	FName GetContainerPackage() const { return ContainerPackageName; }
 #endif

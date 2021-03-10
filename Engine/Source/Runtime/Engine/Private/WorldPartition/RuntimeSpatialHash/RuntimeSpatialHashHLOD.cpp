@@ -228,11 +228,7 @@ static TArray<FGuid> GenerateHLODsForGrid(UWorldPartition* WorldPartition, const
 						}
 					}
 
-					// Manually tick the directory watcher and the asset registry to register newly created actors
-					DirectoryWatcherModule.Get()->Tick(-1.0f);
-					AssetRegistryModule.Get().Tick(-1.0f);
-
-					// Make sure the previous ticks properly registered all our actor descriptors
+					// Make sure we registered actor descriptors for newly created actors
 					for (AWorldPartitionHLOD* CellHLODActor : CellHLODActors)
 					{
 						check(WorldPartition->GetActorDesc(CellHLODActor->GetActorGuid()));

@@ -2125,6 +2125,7 @@ namespace ObjectTools
 		for (UPackage* PackageToDelete : PackagesToDelete)
 		{
 			FAssetRegistryModule::PackageDeleted(PackageToDelete);
+			FEditorDelegates::OnPackageDeleted.Broadcast(PackageToDelete);
 		}
 
 		// Unload the packages and collect garbage.
