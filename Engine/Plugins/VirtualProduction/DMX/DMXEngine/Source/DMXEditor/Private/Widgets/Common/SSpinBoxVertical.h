@@ -164,7 +164,7 @@ public:
 
 		Style = InArgs._Style;
 
-		ForegroundColor = InArgs._Style->ForegroundColor;
+		SetForegroundColor(InArgs._Style->ForegroundColor);
 		Interface = InArgs._TypeInterface.IsValid() ? InArgs._TypeInterface : MakeShared<TDefaultNumericTypeInterface<NumericType>>();
 
 		ValueAttribute = InArgs._Value;

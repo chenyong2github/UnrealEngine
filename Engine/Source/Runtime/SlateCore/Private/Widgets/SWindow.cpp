@@ -530,7 +530,7 @@ EHorizontalAlignment SWindow::GetTitleAlignment()
 
 void SWindow::ConstructWindowInternals()
 {
-	ForegroundColor = FAppStyle::Get().GetSlateColor("DefaultForeground");
+	SetForegroundColor(FAppStyle::Get().GetSlateColor("DefaultForeground"));
 
 	// Setup widget that represents the main area of the window.  That is, everything inside the window's border.
 	TSharedRef< SVerticalBox > MainWindowArea =

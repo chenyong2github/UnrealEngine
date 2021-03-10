@@ -20,16 +20,18 @@ int32 SPopup::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry,
 	// There may be zero elements in this array if our child collapsed/hidden
 	if (ArrangedChildren.Num() > 0)
 	{
+		const bool bShouldBeEnabled = ShouldBeEnabled(bParentEnabled);
+
 		check(ArrangedChildren.Num() == 1);
 		FArrangedWidget& TheChild = ArrangedChildren[0];
 
 		FWidgetStyle CompoundedWidgetStyle = FWidgetStyle(InWidgetStyle)
-			.BlendColorAndOpacityTint(ColorAndOpacity.Get())
-			.SetForegroundColor(GetForegroundColor());
+			.BlendColorAndOpacityTint(GetColorAndOpacity())
+			.SetForegroundColor(bShouldBeEnabled ? GetForegroundColor() : GetDisabledForegroundColor());
 
 		// An SPopup just queues up its children to be painted after everything in this window is done painting.
 		OutDrawElements.QueueDeferredPainting(
-			FSlateWindowElementList::FDeferredPaint(TheChild.Widget, Args.WithNewParent(this), TheChild.Geometry, CompoundedWidgetStyle, ShouldBeEnabled(bParentEnabled))
+			FSlateWindowElementList::FDeferredPaint(TheChild.Widget, Args.WithNewParent(this), TheChild.Geometry, CompoundedWidgetStyle, bShouldBeEnabled)
 		);
 	}
 	return LayerId;

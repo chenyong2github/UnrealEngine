@@ -81,7 +81,7 @@ void SDockingTarget::OnDragEnter( const FGeometry& MyGeometry, const FDragDropEv
 	{
 		bIsDragHovered = true;
 		// Provide feedback that this target is hovered
-		ColorAndOpacity = FCoreStyle::Get().GetColor(TEXT("Docking.Cross.HoveredTint"));
+		SetColorAndOpacity(FCoreStyle::Get().GetColor(TEXT("Docking.Cross.HoveredTint")));
 
 		// Let the drag and drop operation know that we are currently hovering over this node
 		DragDropOperation->SetHoveredTarget( FDockingDragOperation::FDockTarget(OwnerNode.Pin(), GetDockDirection()), DragDropEvent );
@@ -95,7 +95,7 @@ void SDockingTarget::OnDragLeave( const FDragDropEvent& DragDropEvent )
 	{
 		bIsDragHovered = false;
 		// We are no longer hovered, remove the hover feedback
-		ColorAndOpacity = FCoreStyle::Get().GetColor(TEXT("Docking.Cross.Tint"));
+		SetColorAndOpacity(FCoreStyle::Get().GetColor(TEXT("Docking.Cross.Tint")));
 		
 		// Let the drag and drop operation know that we are no longer hovering over any nodes
 		DragDropOperation->SetHoveredTarget( FDockingDragOperation::FDockTarget(), DragDropEvent );

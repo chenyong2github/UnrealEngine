@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Misc/Attribute.h"
 #include "Styling/SlateColor.h"
+#include "Types/SlateAttribute.h"
 #include "Layout/Visibility.h"
 #include "Widgets/SWidget.h"
 #include "Layout/Children.h"
@@ -19,6 +20,8 @@ class FSlateWindowElementList;
  */
 class SLATECORE_API SCompoundWidget : public SWidget
 {
+	SLATE_DECLARE_WIDGET(SCompoundWidget, SWidget)
+
 public:
 
 	/**
@@ -28,7 +31,7 @@ public:
 	 */
 	const FVector2D GetContentScale() const
 	{
-		return ContentScale.Get();
+		return ContentScaleAttribute.Get();
 	}
 
 	/**
@@ -36,9 +39,9 @@ public:
 	 *
 	 * @param InContentScale Content scaling factor.
 	 */
-	void SetContentScale( const TAttribute< FVector2D >& InContentScale )
+	void SetContentScale( TAttribute<FVector2D> InContentScale )
 	{
-		SetAttribute(ContentScale, InContentScale, EInvalidateWidgetReason::Layout);
+		ContentScaleAttribute.Assign(*this, MoveTemp(InContentScale));
 	}
 
 	/**
@@ -46,7 +49,7 @@ public:
 	 */
 	FLinearColor GetColorAndOpacity() const
 	{
-		return ColorAndOpacity.Get();
+		return ColorAndOpacityAttribute.Get();
 	}
 
 	/**
@@ -54,9 +57,9 @@ public:
 	 *
 	 * @param InColorAndOpacity The ColorAndOpacity to be applied to this widget and all its contents.
 	 */
-	void SetColorAndOpacity( const TAttribute<FLinearColor>& InColorAndOpacity )
+	void SetColorAndOpacity( TAttribute<FLinearColor> InColorAndOpacity )
 	{
-		SetAttribute(ColorAndOpacity, InColorAndOpacity, EInvalidateWidgetReason::Paint);
+		ColorAndOpacityAttribute.Assign(*this, MoveTemp(InColorAndOpacity));
 	}
 
 	/**
@@ -64,9 +67,9 @@ public:
 	 *
 	 * @param InColor The color to set.
 	 */
-	void SetForegroundColor( const TAttribute<FSlateColor>& InForegroundColor )
+	void SetForegroundColor( TAttribute<FSlateColor> InForegroundColor )
 	{
-		SetAttribute(ForegroundColor, InForegroundColor, EInvalidateWidgetReason::Paint);
+		ForegroundColorAttribute.Assign(*this, MoveTemp(InForegroundColor));
 	}
 
 public:
@@ -85,6 +88,15 @@ protected:
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	// End SWidget overrides.
 
+	/** @return an attribute reference of ContentScale */
+	TSlateAttributeRef<FVector2D> GetContentScaleAttribute() const { return TSlateAttributeRef<FVector2D>(*this, ContentScaleAttribute); }
+
+	/** @return an attribute reference of ColorAndOpacity */
+	TSlateAttributeRef<FLinearColor> GetColorAndOpacityAttribute() const { return TSlateAttributeRef<FLinearColor>{*this, ColorAndOpacityAttribute}; }
+
+	/** @return an attribute reference of ForegroundColor */
+	TSlateAttributeRef<FSlateColor> GetForegroundColorAttribute() const {	return TSlateAttributeRef<FSlateColor>{*this, ForegroundColorAttribute}; }
+
 protected:
 
 	/** Disallow public construction */
@@ -93,12 +105,22 @@ protected:
 	/** The slot that contains this widget's descendants.*/
 	FSimpleSlot ChildSlot;
 
+//#if WITH_EDITORONLY_DATA
+//	UE_DEPRECATED(5.0, "Direct access to ContentScale is now deprecated. Use the setter or getter.")
+//	FSlateDeprecatedTAttribute<FVector2D> ContentScale;
+//	UE_DEPRECATED(5.0, "Direct access to ColorAndOpacity is now deprecated. Use the setter or getter.")
+//	FSlateDeprecatedTAttribute<FLinearColor> ColorAndOpacity;
+//	UE_DEPRECATED(5.0, "Direct access to ForegroundColor is now deprecated. Use the setter or getter.")
+//	FSlateDeprecatedTAttribute<FSlateColor> ForegroundColor;
+//#endif
+
+private:
 	/** The layout scale to apply to this widget's contents; useful for animation. */
-	TAttribute<FVector2D> ContentScale;
+	TSlateAttribute<FVector2D> ContentScaleAttribute;
 
 	/** The color and opacity to apply to this widget and all its descendants. */
-	TAttribute<FLinearColor> ColorAndOpacity;
+	TSlateAttribute<FLinearColor> ColorAndOpacityAttribute;
 
 	/** Optional foreground color that will be inherited by all of this widget's contents */
-	TAttribute<FSlateColor> ForegroundColor;
+	TSlateAttribute<FSlateColor> ForegroundColorAttribute;
 };

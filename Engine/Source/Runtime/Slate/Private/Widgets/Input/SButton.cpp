@@ -421,7 +421,7 @@ bool SButton::IsInteractable() const
 bool SButton::ComputeVolatility() const
 {
 	// Note: we need to be careful with button volatility.  The parent SBorder class always has bound delegates to button but the following are the only thing that actually would be bound that would not be caught by an Invalidate call alone
-	return ContentScale.IsBound() || DesiredSizeScale.IsBound() || BorderBackgroundColor.IsBound() || ContentPadding.IsBound() || ForegroundColor.IsBound();
+	return DesiredSizeScale.IsBound() || BorderBackgroundColor.IsBound() || ContentPadding.IsBound();
 }
 
 TEnumAsByte<EButtonClickMethod::Type> SButton::GetClickMethodFromInputType(const FPointerEvent& MouseEvent) const
@@ -533,6 +533,34 @@ void SButton::SetTouchMethod(EButtonTouchMethod::Type InTouchMethod)
 void SButton::SetPressMethod(EButtonPressMethod::Type InPressMethod)
 {
 	PressMethod = InPressMethod;
+}
+
+FSlateColor SButton::GetDisabledForegroundColor() const
+{
+	return Style->DisabledForeground;	
+}
+
+FSlateColor SButton::GetForegroundColor() const
+{
+	FSlateColor UserColor = GetForegroundColorAttribute().Get();
+
+	if(UserColor == FSlateColor::UseStyle())
+	{
+		if (IsPressed())
+		{
+			return Style->PressedForeground;
+		}
+		else if (IsHovered())
+		{
+			return Style->HoveredForeground;
+		}
+		else
+		{
+			return Style->NormalForeground;
+		}
+	}
+
+	return UserColor;
 }
 
 #if WITH_ACCESSIBILITY

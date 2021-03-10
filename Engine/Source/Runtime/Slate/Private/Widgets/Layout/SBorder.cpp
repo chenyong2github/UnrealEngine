@@ -21,8 +21,8 @@ void SBorder::Construct( const SBorder::FArguments& InArgs )
 		bCanSupportFocus = false;
 	}
 
-	ContentScale = InArgs._ContentScale;
-	ColorAndOpacity = InArgs._ColorAndOpacity;
+	SetContentScale(InArgs._ContentScale);
+	SetColorAndOpacity(InArgs._ColorAndOpacity);
 	DesiredSizeScale = InArgs._DesiredSizeScale;
 
 	ShowDisabledEffect = InArgs._ShowEffectWhenDisabled;
@@ -31,7 +31,7 @@ void SBorder::Construct( const SBorder::FArguments& InArgs )
 
 	BorderImage = InArgs._BorderImage;
 	BorderBackgroundColor = InArgs._BorderBackgroundColor;
-	ForegroundColor = InArgs._ForegroundColor;
+	SetForegroundColor(InArgs._ForegroundColor);
 
 	if (InArgs._OnMouseButtonDown.IsBound())
 	{

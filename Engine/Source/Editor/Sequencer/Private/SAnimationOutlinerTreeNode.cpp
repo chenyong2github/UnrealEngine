@@ -98,7 +98,7 @@ void SAnimationOutlinerTreeNode::Construct( const FArguments& InArgs, TSharedRef
 
 	auto NodeHeight = [=]() -> FOptionalSize { return DisplayNode->GetNodeHeight(); };
 
-	ForegroundColor.Bind(this, &SAnimationOutlinerTreeNode::GetForegroundBasedOnSelection);
+	SetForegroundColor(MakeAttributeSP(this, &SAnimationOutlinerTreeNode::GetForegroundBasedOnSelection));
 
 	TSharedRef<SWidget>	FinalWidget = 
 		SNew( SBorder )

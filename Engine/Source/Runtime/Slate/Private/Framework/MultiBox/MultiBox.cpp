@@ -538,7 +538,7 @@ bool FMultiBox::IsInEditMode() const
 void SMultiBoxWidget::Construct( const FArguments& InArgs )
 {
 	LinkedBoxManager = MakeShared<FLinkedBoxManager>();
-	ContentScale = InArgs._ContentScale;
+	SetContentScale(InArgs._ContentScale);
 }
 
 TSharedRef<ITableRow> SMultiBoxWidget::GenerateTiles(TSharedPtr<SWidget> Item, const TSharedRef<STableViewBase>& OwnerTable)

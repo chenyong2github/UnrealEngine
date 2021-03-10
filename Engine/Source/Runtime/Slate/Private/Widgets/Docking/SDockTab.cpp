@@ -231,9 +231,10 @@ bool SDockTab::IsForeground() const
 
 FSlateColor SDockTab::GetForegroundColor() const
 {
-	if (ForegroundColor.IsBound() || ForegroundColor.Get() != FSlateColor::UseStyle())
+	auto LocalForegroundColorAttribute = GetForegroundColorAttribute();
+	if (LocalForegroundColorAttribute.IsBound() || LocalForegroundColorAttribute.Get() != FSlateColor::UseStyle())
 	{
-		return ForegroundColor.Get();
+		return LocalForegroundColorAttribute.Get();
 	}
 	else if (IsActive())
 	{

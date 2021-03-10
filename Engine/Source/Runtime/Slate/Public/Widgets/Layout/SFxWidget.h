@@ -73,12 +73,6 @@ public:
 	/** @see RenderScale */
 	void SetRenderScale( float InScale );
 
-	/** @see ColorAndOpacity */
-	void SetColorAndOpacity( const TAttribute<FLinearColor>& InColorAndOpacity );
-
-	/** @see ColorAndOpacity */
-	void SetColorAndOpacity( FLinearColor InColorAndOpacity );
-
 	
 
 protected:

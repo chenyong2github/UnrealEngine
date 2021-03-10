@@ -12,7 +12,7 @@ void SFxWidget::Construct( const FArguments& InArgs )
 	LayoutScale = InArgs._LayoutScale;
 	VisualOffset = InArgs._VisualOffset;
 	bIgnoreClipping = InArgs._IgnoreClipping;
-	ColorAndOpacity = InArgs._ColorAndOpacity;
+	SetColorAndOpacity(InArgs._ColorAndOpacity);
 	
 	this->ChildSlot
 	.HAlign(InArgs._HAlign)
@@ -42,16 +42,6 @@ void SFxWidget::SetRenderScale( float InScale )
 	RenderScale = InScale;
 }
 
-void SFxWidget::SetColorAndOpacity( const TAttribute<FLinearColor>& InColorAndOpacity )
-{
-	ColorAndOpacity = InColorAndOpacity;
-}
-
-void SFxWidget::SetColorAndOpacity( FLinearColor InColorAndOpacity )
-{
-	ColorAndOpacity = InColorAndOpacity;
-}
-
 /**
  * This widget was created before render transforms existed for each widget, and it chose to apply the render transform AFTER the layout transform.
  * This means leveraging the render transform of FGeometry would be expensive, as we would need to use Concat(LayoutTransform, RenderTransform, Inverse(LayoutTransform).
@@ -73,6 +63,8 @@ int32 SFxWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 	// There may be zero elements in this array if our child collapsed/hidden
 	if( ArrangedChildren.Num() > 0 )
 	{
+		const bool bShouldBeEnabled = ShouldBeEnabled(bParentEnabled);
+
 		// We can only have one direct descendant.
 		check( ArrangedChildren.Num() == 1 );
 		const FArrangedWidget& TheChild = ArrangedChildren[0];
@@ -83,10 +75,10 @@ int32 SFxWidget::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeome
 			: MyCullingRect.IntersectionWith(ModifiedGeometry.GetLayoutBoundingRect());
 
 		FWidgetStyle CompoundedWidgetStyle = FWidgetStyle(InWidgetStyle)
-			.BlendColorAndOpacityTint(ColorAndOpacity.Get())
-			.SetForegroundColor( ForegroundColor );
+			.BlendColorAndOpacityTint(GetColorAndOpacity())
+			.SetForegroundColor(bShouldBeEnabled ? GetForegroundColor() : GetDisabledForegroundColor());
 
-		return TheChild.Widget->Paint( Args.WithNewParent(this), TheChild.Geometry, ChildClippingRect, OutDrawElements, LayerId + 1, CompoundedWidgetStyle, ShouldBeEnabled( bParentEnabled ) );
+		return TheChild.Widget->Paint( Args.WithNewParent(this), TheChild.Geometry, ChildClippingRect, OutDrawElements, LayerId + 1, CompoundedWidgetStyle, bShouldBeEnabled );
 	}
 	return LayerId;
 

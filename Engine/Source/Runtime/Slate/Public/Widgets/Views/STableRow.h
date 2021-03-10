@@ -1137,7 +1137,7 @@ protected:
 
 		this->BorderImage = FInvalidatableBrushAttribute(TAttribute<const FSlateBrush*>(this, &STableRow::GetBorder));
 
-		this->ForegroundColor = TAttribute<FSlateColor>( this, &STableRow::GetForegroundBasedOnSelection );
+		this->SetForegroundColor(TAttribute<FSlateColor>( this, &STableRow::GetForegroundBasedOnSelection ));
 
 		this->OnCanAcceptDrop = InArgs._OnCanAcceptDrop;
 		this->OnAcceptDrop = InArgs._OnAcceptDrop;
