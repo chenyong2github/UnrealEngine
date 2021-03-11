@@ -80,7 +80,9 @@ bool FDirectoryWatchRequestWindows::Init(const FString& InDirectory)
 
 	if ( DirectoryHandle == INVALID_HANDLE_VALUE )
 	{
+		const DWORD ErrorCode = ::GetLastError();
 		// Failed to obtain a handle to this directory
+		UE_LOG(LogDirectoryWatcher, Display, TEXT("Failed initialise directory notification handle for '%s', and we were unable to create a new request. GetLastError code [%d]"), *FullPath, ErrorCode);
 		return false;
 	}
 
@@ -96,6 +98,8 @@ bool FDirectoryWatchRequestWindows::Init(const FString& InDirectory)
 	
 	if ( !bSuccess  )
 	{
+		const DWORD ErrorCode = ::GetLastError();
+		UE_LOG(LogDirectoryWatcher, Display, TEXT("An initialise directory notification failed for '%s', and we were unable to create a new request. GetLastError code [%d]"), *Directory, ErrorCode);
 		::CloseHandle(DirectoryHandle);
 		DirectoryHandle = INVALID_HANDLE_VALUE;
 		return false;
@@ -203,12 +207,12 @@ void FDirectoryWatchRequestWindows::ProcessChange(uint32 Error, uint32 NumBytes)
 		if (bAccessError)
 		{
 			CloseHandleAndMarkForDelete();
-			UE_LOG(LogDirectoryWatcher, Log, TEXT("A directory notification failed for '%s' because it could not be accessed. Aborting watch request..."), *Directory);
+			UE_LOG(LogDirectoryWatcher, Display, TEXT("A directory notification failed for '%s' because it could not be accessed. Aborting watch request..."), *Directory);
 			return;
 		}
 		else
 		{
-			UE_LOG(LogDirectoryWatcher, Log, TEXT("A directory notification failed for '%s' because it was empty or there was a buffer overflow. Attemping another request..."), *Directory);
+			UE_LOG(LogDirectoryWatcher, Display, TEXT("A directory notification failed for '%s' because it was empty or there was a buffer overflow. Attemping another request..."), *Directory);
 		}
 	}
 
@@ -225,9 +229,10 @@ void FDirectoryWatchRequestWindows::ProcessChange(uint32 Error, uint32 NumBytes)
 
 	if ( !bSuccess  )
 	{
+		const DWORD ErrorCode = ::GetLastError();
+		UE_LOG(LogDirectoryWatcher, Display, TEXT("A directory notification failed, and we were unable to create a new request. GetLastError code [%d] Handle [%p], Path [%s] "), ErrorCode, DirectoryHandle, *Directory);
 		// Failed to re-create the read request.
 		CloseHandleAndMarkForDelete();
-		UE_LOG(LogDirectoryWatcher, Display, TEXT("A directory notification failed for '%s', and we were unable to create a new request."), *Directory);
 		return;
 	}
 
