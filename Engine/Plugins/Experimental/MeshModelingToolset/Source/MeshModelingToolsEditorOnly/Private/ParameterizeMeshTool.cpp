@@ -199,8 +199,21 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 
 		ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.UpdateAttributes(DynamicMeshResult, *CommitParams.MeshDescription, false, false, true/*update uvs*/);
+			FMeshDescription* MeshDescription = CommitParams.MeshDescription;
+
+			bool bVerticesOnly = false;
+			bool bAttributesOnly = true;
+			if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(DynamicMeshResult, MeshDescription, bVerticesOnly, bAttributesOnly))
+			{
+				FDynamicMeshToMeshDescription Converter;
+				Converter.UpdateAttributes(DynamicMeshResult, *MeshDescription, false, false, true/*update uvs*/);
+			}
+			else
+			{
+				// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert 
+				FDynamicMeshToMeshDescription Converter;
+				Converter.Convert(DynamicMeshResult, *MeshDescription);
+			}
 		});
 		GetToolManager()->EndUndoTransaction();
 	}

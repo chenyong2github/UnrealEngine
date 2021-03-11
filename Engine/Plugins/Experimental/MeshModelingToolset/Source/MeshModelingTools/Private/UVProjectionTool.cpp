@@ -355,8 +355,22 @@ void UUVProjectionTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Result
 		check(Results[ComponentIdx].Mesh.Get() != nullptr);
 		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
 		{
-			FDynamicMeshToMeshDescription Converter;
-			Converter.UpdateAttributes(Results[ComponentIdx].Mesh.Get(), *CommitParams.MeshDescription, false, false, true/*update uvs*/);
+			FDynamicMesh3* DynamicMesh = Results[ComponentIdx].Mesh.Get();
+			FMeshDescription* MeshDescription = CommitParams.MeshDescription;
+
+			bool bVerticesOnly = false;
+			bool bAttributesOnly = true;
+			if (FDynamicMeshToMeshDescription::HaveMatchingElementCounts(DynamicMesh, MeshDescription, bVerticesOnly, bAttributesOnly))
+			{
+				FDynamicMeshToMeshDescription Converter;
+				Converter.UpdateAttributes(DynamicMesh, *MeshDescription, false, false, true/*update uvs*/);
+			}
+			else
+			{
+				// must have been duplicate tris in the mesh description; we can't count on 1-to-1 mapping of TriangleIDs.  Just convert 
+				FDynamicMeshToMeshDescription Converter;
+				Converter.Convert(DynamicMesh, *MeshDescription);
+			}
 		});
 	}
 
