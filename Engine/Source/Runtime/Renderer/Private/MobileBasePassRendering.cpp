@@ -54,6 +54,11 @@ static TAutoConsoleVariable<int32> CVarMobileUseHWsRGBEncoding(
 	TEXT("1: Use GPU HW to convert linear to sRGB automatically (device must support sRGB write control)\n"),
 	ECVF_RenderThreadSafe);
 
+namespace MobileBasePass
+{
+	FShaderPlatformCachedIniValue<int32> MobileDynamicPointLightsUseStaticBranchIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.MobileDynamicPointLightsUseStaticBranch"));
+	FShaderPlatformCachedIniValue<int32> MobileNumDynamicPointLightsIniValue(TEXT("/Script/Engine.RendererSettings"), TEXT("r.MobileNumDynamicPointLights"));
+};
 
 #define IMPLEMENT_MOBILE_SHADING_BASEPASS_LIGHTMAPPED_VERTEX_SHADER_TYPE(LightMapPolicyType,LightMapPolicyName) \
 	typedef TMobileBasePassVS< LightMapPolicyType, LDR_GAMMA_32 > TMobileBasePassVS##LightMapPolicyName##LDRGamma32; \
