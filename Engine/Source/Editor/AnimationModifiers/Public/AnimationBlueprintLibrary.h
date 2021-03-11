@@ -249,6 +249,10 @@ public:
 	/** Returns the actual trigger time for a NotifyEvent */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|AnimationNotifies")
 	static float GetAnimNotifyEventTriggerTime(const FAnimNotifyEvent& NotifyEvent);
+	
+	/** Returns the duration for a NotifyEvent, only non-zero for Anim Notify States */
+	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|AnimationNotifies")
+	static float GetAnimNotifyEventDuration(const FAnimNotifyEvent& NotifyEvent);
 
 	/** Retrieves all Animation Sync Markers for the given Notify Track Name from the given Animation Sequence */
 	UFUNCTION(BlueprintPure, Category = "AnimationBlueprintLibrary|MarkerSyncing")

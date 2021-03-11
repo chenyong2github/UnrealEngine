@@ -865,6 +865,7 @@ static void ReplaceAnimNotifies_Helper(UAnimSequenceBase* AnimationSequence, UCl
 					if (NewEvent.NotifyStateClass)
 					{
 						NewEvent.NotifyName = FName(*NewEvent.NotifyStateClass->GetNotifyName());
+						NewEvent.SetDuration(Length);
 						NewEvent.EndTriggerTimeOffset = EndTriggerTimeOffset;
 						NewEvent.EndLink.ChangeSlotIndex(EndSlotIndex);
 						NewEvent.EndLink.SetSegmentIndex(EndSegmentIndex);
@@ -1133,6 +1134,11 @@ const FAnimNotifyTrack& UAnimationBlueprintLibrary::GetNotifyTrackByName(const U
 float UAnimationBlueprintLibrary::GetAnimNotifyEventTriggerTime(const FAnimNotifyEvent& NotifyEvent)
 {
 	return NotifyEvent.GetTriggerTime();
+}
+
+float UAnimationBlueprintLibrary::GetAnimNotifyEventDuration(const FAnimNotifyEvent& NotifyEvent)
+{
+	return NotifyEvent.Duration;
 }
 
 void UAnimationBlueprintLibrary::GetAnimationSyncMarkersForTrack(const UAnimSequence* AnimationSequence, FName NotifyTrackName, TArray<FAnimSyncMarker>& Markers)
