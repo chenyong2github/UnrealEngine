@@ -2633,19 +2633,21 @@ bool ULevel::CanEditChange(const FProperty* PropertyThatWillChange) const
 	return Super::CanEditChange(PropertyThatWillChange);
 }
 
-UObject* ULevel::LoadSubobject(const TCHAR* SubObjectPath)
+bool ULevel::LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence)
 {
-	UObject* LoadedObject = StaticFindObject(nullptr, this, SubObjectPath);
+	OutObject = StaticFindObject(nullptr, this, SubObjectPath);
 
-	if (!LoadedObject)
+	if (!OutObject)
 	{
 		if (UWorldPartition* WorldPartition = GetWorldPartition())
 		{
-			LoadedObject = WorldPartition->LoadSubobject(SubObjectPath);
+			return WorldPartition->LoadSubobject(SubObjectPath, OutObject, bOnlyTestExistence);
 		}
+
+		return false;
 	}
 
-	return LoadedObject;
+	return true;
 }
 
 void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftObjectPath&)> InCustomFixupFunction)

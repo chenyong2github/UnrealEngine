@@ -592,7 +592,31 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 		];
 	}
 
-	if( InArgs._DisplayBrowse )
+	bool bDisplayBrowse = InArgs._DisplayBrowse;
+	if (bDisplayBrowse && bIsActor)
+	{
+		FObjectOrAssetData Value;
+		GetValue(Value);
+
+		UWorld* World = Value.Object ? CastChecked<AActor>(Value.Object)->GetWorld() : nullptr;
+
+		if (!World)
+		{			
+			FSoftObjectPath MapObjectPath = FSoftObjectPath(Value.ObjectPath.GetAssetPathName(), FString());
+
+			if (UObject* MapObject = MapObjectPath.ResolveObject())
+			{
+				World = CastChecked<UWorld>(MapObject);
+			}
+		}
+
+		if (World && World->GetWorldPartition())
+		{
+			bDisplayBrowse = false;
+		}
+	}
+
+	if( bDisplayBrowse )
 	{
 		ButtonBox->AddSlot()
 		.Padding( 2.0f, 0.0f )
@@ -677,9 +701,20 @@ SPropertyEditorAsset::EActorReferenceState SPropertyEditorAsset::GetActorReferen
 			// Get a path pointing to the owning map
 			FSoftObjectPath MapObjectPath = FSoftObjectPath(Value.ObjectPath.GetAssetPathName(), FString());
 
-			if (MapObjectPath.ResolveObject())
+			if (UObject* MapObject = MapObjectPath.ResolveObject())
 			{
-				// If the map is valid but the object is not
+				UWorld* World = CastChecked<UWorld>(MapObject);
+
+				// In a partitioned world, the world object will exist but the actor itself can be unloaded
+				if (World->GetWorldPartition())
+				{
+					UObject* Object = nullptr;
+					if (World->LoadSubobject(*Value.ObjectPath.GetSubPathString(), Object, /*bOnlyTestExistence*/true))
+					{
+						return EActorReferenceState::Exists;
+					}
+				}
+
 				return EActorReferenceState::Error;
 			}
 
@@ -861,6 +896,10 @@ FText SPropertyEditorAsset::OnGetToolTip() const
 			else if (State == EActorReferenceState::Error)
 			{
 				ToolTipText = FText::Format(LOCTEXT("BrokenActorReference", "Broken reference to Actor ID '{Actor}', it was deleted or renamed"), Args);
+			}
+			else if (State == EActorReferenceState::Exists)
+			{
+				ToolTipText = FText::Format(LOCTEXT("ExistsActorReference", "Unloaded reference to Actor ID '{Actor}', use World Partition editor to load its corresponding cells"), Args);
 			}
 			else if (State == EActorReferenceState::Unknown)
 			{

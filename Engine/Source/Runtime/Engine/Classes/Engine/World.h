@@ -2613,7 +2613,7 @@ public:
 	virtual bool Rename(const TCHAR* NewName = NULL, UObject* NewOuter = NULL, ERenameFlags Flags = REN_None) override;
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	virtual bool IsNameStableForNetworking() const override;
-	virtual UObject* LoadSubobject(const TCHAR* SubObjectPath) override;
+	virtual bool LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence) override;
 #endif
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	//~ End UObject Interface

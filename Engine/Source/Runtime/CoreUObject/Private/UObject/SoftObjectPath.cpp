@@ -477,7 +477,7 @@ UObject* FSoftObjectPath::TryLoad(FUObjectSerializeContext* InLoadContext) const
 			// it knows how to load that specific object.
 			if (!LoadedObject && TopLevelObject)
 			{
-				LoadedObject = TopLevelObject->LoadSubobject(*SubPathString);
+				TopLevelObject->LoadSubobject(*SubPathString, LoadedObject);
 			}
 #endif
 		}

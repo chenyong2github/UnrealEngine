@@ -37,6 +37,8 @@ public:
 		Null,
 		// The pointed to actor is fully loaded in memory
 		Loaded,
+		// The pointed to actor exists because the pointed to map is loaded but not the actor
+		Exists,
 		// The pointed to actor is unknown because the pointed to map is not loaded 
 		Unknown,
 		// This is a known bad reference, the owning map is loaded but the actor does not exist

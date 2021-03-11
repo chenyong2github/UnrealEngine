@@ -122,7 +122,7 @@ private:
 #if WITH_EDITOR
 public:
 	//~ Begin UObject Interface
-	virtual UObject* LoadSubobject(const TCHAR* SubObjectPath) override;
+	virtual bool LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence) override;
 	//~ End UObject Interface
 
 	FName GetWorldPartitionEditorName();

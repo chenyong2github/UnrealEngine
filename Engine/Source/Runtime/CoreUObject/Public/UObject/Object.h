@@ -263,8 +263,15 @@ public:
 	 * Called to defer loading a subobject to its top-level container object. Usefull with the package override
 	 * feature, where an object might not be saved in the same package as its outer, especially if the the top-level
 	 * object does lazy loading of these objects.
+	 * 
+ 	 * @param	SubObjectPath		object path to handle, relative to the current implementer
+	 * @param	OutObject			receives the loaded object, or existing loaded object if bOnlyTestExistence is true and object is already loaded
+	 * @param	bOnlyTestExistence	if true, don't load the object, just return true if it exists
+	 * 
+	 * @return true if the object loaded or exists, depending on bOnlyTestExistence
+* 
 	 */
-	virtual UObject* LoadSubobject(const TCHAR* SubObjectPath) { return nullptr; }
+	virtual bool LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence = false) { return false; }
 #endif
 
 	/**

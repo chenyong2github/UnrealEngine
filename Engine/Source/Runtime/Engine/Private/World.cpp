@@ -8002,21 +8002,20 @@ bool UWorld::IsNameStableForNetworking() const
 	return bIsNameStableForNetworking || Super::IsNameStableForNetworking();
 }
 
-UObject* UWorld::LoadSubobject(const TCHAR* SubObjectPath)
+bool UWorld::LoadSubobject(const TCHAR* SubObjectPath, UObject*& OutObject, bool bOnlyTestExistence)
 {
-	UObject* LoadedObject = nullptr;
-
 	FString SubObjectName;
 	FString SubObjectContext;	
 	if (FString(SubObjectPath).Split(TEXT("."), &SubObjectContext, &SubObjectName))
 	{
 		if (UObject* SubObject = StaticFindObject(nullptr, this, *SubObjectContext))
 		{
-			LoadedObject = SubObject->LoadSubobject(*SubObjectName);
+			return SubObject->LoadSubobject(*SubObjectName, OutObject, bOnlyTestExistence);
 		}
 	}
 
-	return LoadedObject;
+	OutObject = nullptr;
+	return false;
 }
 #endif
 
