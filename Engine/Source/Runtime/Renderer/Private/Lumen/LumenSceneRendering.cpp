@@ -2048,7 +2048,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 				LumenCardRenderer.CardIdsToRender.Add(CardRenderData.CardIndex);
 			}
 
-			if (DoesPlatformSupportNanite(ShaderPlatform) && bAnyNaniteMeshes)
+			if (UseNanite(ShaderPlatform) && ViewFamily.EngineShowFlags.NaniteMeshes && bAnyNaniteMeshes)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(NaniteMeshPass);
 				QUICK_SCOPE_CYCLE_COUNTER(NaniteMeshPass);
