@@ -5,6 +5,7 @@
 #include "Units/RigUnitContext.h"
 #include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Units/Execution/RigUnit_InverseExecution.h"
+#include "Units/Hierarchy/RigUnit_SetControlOffset.h"
 
 FString FRigUnit_SetTransform::GetUnitLabel() const
 {
@@ -43,6 +44,21 @@ FRigUnit_SetTransform_Execute()
 				}
 				else
 				{
+					// for controls - set the control offset transform instead
+					if(bInitial && (CachedIndex.GetKey().Type == ERigElementType::Control))
+					{
+						FRigUnit_SetControlOffset::StaticExecute(RigVMExecuteContext, CachedIndex.GetKey().Name, Transform, Space, CachedIndex, ExecuteContext, Context);
+						
+						if (ExecuteContext.EventName == FRigUnit_PrepareForExecution::EventName)
+						{
+							Hierarchy->SetLocalTransformByIndex(CachedIndex, FTransform::Identity, true, bPropagateToChildren);
+							Hierarchy->SetLocalTransformByIndex(CachedIndex, FTransform::Identity, false, bPropagateToChildren);
+
+							
+						}
+						return;
+					}
+					
 					FTransform WeightedTransform = Transform;
 					if (Weight < 1.f - SMALL_NUMBER)
 					{

@@ -7,6 +7,10 @@
 
 /**
  * SetTransform is used to set a single transform on hierarchy.
+ * 
+ * Note: For Controls when setting the initial transform this node
+ * actually sets the Control's offset transform and resets the local
+ * values to (0, 0, 0).
  */
 USTRUCT(meta=(DisplayName="Set Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords="SetBoneTransform,SetControlTransform,SetInitialTransform,SetSpaceTransform", Varying))
 struct CONTROLRIG_API FRigUnit_SetTransform : public FRigUnitMutable
