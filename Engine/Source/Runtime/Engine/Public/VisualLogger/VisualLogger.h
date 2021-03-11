@@ -422,7 +422,7 @@ public:
 	void Cleanup(UWorld* OldWorld, bool bReleaseMemory = false);
 
 	/** Set log owner redirection from one object to another, to combine logs */
-	static void Redirect(UObject* FromObject, UObject* ToObject);
+	static void Redirect(const UObject* FromObject, const UObject* ToObject);
 
 	/** find and return redirection object for given object*/
 	static UObject* FindRedirection(const UObject* Object);

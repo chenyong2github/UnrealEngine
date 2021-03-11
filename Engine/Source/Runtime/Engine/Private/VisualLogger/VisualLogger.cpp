@@ -475,7 +475,7 @@ FVisualLogger::FOwnerToChildrenRedirectionMap& FVisualLogger::GetRedirectionMap(
 	return WorldToRedirectionMap.FindOrAdd(World);
 }
 
-void FVisualLogger::Redirect(UObject* FromObject, UObject* ToObject)
+void FVisualLogger::Redirect(const UObject* FromObject, const UObject* ToObject)
 {
 	if (FromObject == ToObject || FromObject == nullptr || ToObject == nullptr)
 	{
