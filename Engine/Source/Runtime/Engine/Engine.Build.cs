@@ -17,7 +17,6 @@ public class Engine : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Developer/DerivedDataCache/Public",
 				"Runtime/SynthBenchmark/Public",
 				"Runtime/Engine/Private",
 				"Runtime/Net/Core/Private/Net/Core/PushModel/Types"
@@ -26,6 +25,7 @@ public class Engine : ModuleRules
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
+				"DerivedDataCache",
 				"TargetPlatform",
 				"ImageWrapper",
 				"ImageWriteQueue",
@@ -304,7 +304,6 @@ public class Engine : ModuleRules
 
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {
-					"DerivedDataCache",
 					"DesktopPlatform",
 				}
 			);

@@ -12,13 +12,14 @@ public class PakFileUtilities : ModuleRules
             "Json",
             "Projects",
             "RSA",
-            "DerivedDataCache"
         });
 
-        PrivateIncludePathModuleNames.AddRange(
-            new string[] {
-                "Json"
+        PrivateIncludePathModuleNames.AddRange(new string[] {
+            "DerivedDataCache",
+            "Json",
         });
+
+		DynamicallyLoadedModuleNames.Add("DerivedDataCache");
 		
 	}
 }

@@ -51,7 +51,6 @@ public class Kismet : ModuleRules
 				"EngineSettings",
                 "Projects",
                 "JsonUtilities",
-                "DerivedDataCache",
 				"DesktopPlatform",
 				"HotReload",
                 "BlueprintNativeCodeGen",

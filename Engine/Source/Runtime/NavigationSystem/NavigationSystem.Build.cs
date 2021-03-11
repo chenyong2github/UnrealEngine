@@ -16,7 +16,6 @@ namespace UnrealBuildTool.Rules
                 new string[] {
                     "Runtime/NavigationSystem/Private",
                     "Runtime/Engine/Private",
-                    "Developer/DerivedDataCache/Public",
                 }
                 );
 
@@ -38,14 +37,10 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.AddRange(
 				new string[]
 				{
+					"DerivedDataCache",
 					"TargetPlatform",
 				}
 				);
-            
-            if (!Target.bBuildRequiresCookedData && Target.bCompileAgainstEngine)
-            {
-                DynamicallyLoadedModuleNames.Add("DerivedDataCache");
-            }
 
             SetupModulePhysicsSupport(Target);
 

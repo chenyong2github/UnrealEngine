@@ -26,7 +26,6 @@ public class Core : ModuleRules
 
 		PrivateIncludePaths.AddRange(
 			new string[] {
-				"Developer/DerivedDataCache/Public",
 				"Runtime/SynthBenchmark/Public",
 				"Runtime/Core/Private",
 				"Runtime/Core/Private/Misc",
@@ -157,12 +156,9 @@ public class Core : ModuleRules
 		PublicDefinitions.Add("UE_ENABLE_ICU=" + (Target.bCompileICU ? "1" : "0")); // Enable/disable (=1/=0) ICU usage in the codebase. NOTE: This flag is for use while integrating ICU and will be removed afterward.
 
 		// If we're compiling with the engine, then add Core's engine dependencies
-		if (Target.bCompileAgainstEngine == true)
+		if (Target.bCompileAgainstEngine && !Target.bBuildRequiresCookedData)
 		{
-			if (!Target.bBuildRequiresCookedData)
-			{
-				DynamicallyLoadedModuleNames.AddRange(new string[] { "DerivedDataCache" });
-			}
+			DynamicallyLoadedModuleNames.AddRange(new string[] { "DerivedDataCache" });
 		}
 
 		// On Windows platform, VSPerfExternalProfiler.cpp needs access to "VSPerf.h".  This header is included with Visual Studio, but it's not in a standard include path.

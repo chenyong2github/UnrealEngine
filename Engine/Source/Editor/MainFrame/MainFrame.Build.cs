@@ -43,7 +43,6 @@ public class MainFrame : ModuleRules
 				"Analytics",
 				"ToolMenus",
 				"LauncherServices",
-				"DerivedDataCache",
 				"InterchangeCore",
 				"InterchangeEngine"
 			}
@@ -52,6 +51,7 @@ public class MainFrame : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetTools",
+				"DerivedDataCache",
 				"DesktopPlatform",
 				"GameProjectGeneration",
 				"ProjectTargetPlatformEditor",

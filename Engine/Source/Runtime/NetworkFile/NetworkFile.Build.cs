@@ -18,15 +18,6 @@ public class NetworkFile : ModuleRules
 		PublicIncludePaths.Add("Runtime/CoreUObject/Public/UObject");
 		PublicIncludePaths.Add("Runtime/CoreUObject/Public");
 
-		if (!Target.bBuildRequiresCookedData)
-		{
-			DynamicallyLoadedModuleNames.AddRange(
-				new string[]
-				{
-					"DerivedDataCache",
-				});
-		}
-
 		PublicDefinitions.Add("ENABLE_HTTP_FOR_NETWORK_FILE=0");
 	}
 }

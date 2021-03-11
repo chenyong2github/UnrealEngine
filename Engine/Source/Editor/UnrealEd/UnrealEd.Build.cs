@@ -22,7 +22,6 @@ public class UnrealEd : ModuleRules
 				"Editor/UnrealEd/Private",
 				"Editor/UnrealEd/Private/Settings",
 				"Editor/PackagesDialog/Public",
-				"Developer/DerivedDataCache/Public",
 				"Developer/TargetPlatform/Public",
 			}
 		);
@@ -188,7 +187,6 @@ public class UnrealEd : ModuleRules
 				"PakFileUtilities",
 				"TimeManagement",
                 "LandscapeEditorUtilities",
-                "DerivedDataCache",
 				"ScriptDisassembler",
 				"ToolMenus",
 				"FreeImage",

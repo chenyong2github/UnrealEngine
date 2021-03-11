@@ -30,6 +30,7 @@ namespace UnrealBuildTool.Rules
 
 			PrivateIncludePathModuleNames.AddRange(
 				new string[] {
+					"DerivedDataCache",
 				});
 
 			PrivateIncludePaths.AddRange(
@@ -53,7 +54,6 @@ namespace UnrealBuildTool.Rules
 				PrivateDependencyModuleNames.AddRange(
 					new string[]
 					{
-						"DerivedDataCache",
 						"OpenColorIOLib",
 						"TargetPlatform",
 						"EditorFramework",

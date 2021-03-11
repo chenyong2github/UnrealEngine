@@ -33,11 +33,6 @@ namespace UnrealBuildTool.Rules
 				PublicDependencyModuleNames.Add("APEX");
 			}
 
-	        if (!Target.bBuildRequiresCookedData)
-			{
-				DynamicallyLoadedModuleNames.Add("DerivedDataCache");
-			}
-
 			PrivateIncludePathModuleNames.Add("DerivedDataCache");
 
 			if (Target.bBuildEditor)

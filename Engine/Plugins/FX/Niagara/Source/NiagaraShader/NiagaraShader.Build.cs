@@ -31,9 +31,8 @@ public class NiagaraShader : ModuleRules
         {
             PublicDependencyModuleNames.AddRange(
                 new string[] {
-                "DerivedDataCache",
-                "TargetPlatform",
-            });
+                    "TargetPlatform",
+                });
 
             PrivateDependencyModuleNames.AddRange(
                 new string[] {
@@ -46,6 +45,7 @@ public class NiagaraShader : ModuleRules
 
         PrivateIncludePathModuleNames.AddRange(
             new string[] {
+                "DerivedDataCache",
                 "Niagara",
             });
     }
