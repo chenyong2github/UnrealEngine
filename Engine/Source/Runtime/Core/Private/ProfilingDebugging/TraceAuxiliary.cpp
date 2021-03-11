@@ -5,6 +5,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include "BuildSettings.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
@@ -365,6 +366,9 @@ UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, Important)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Platform)
 	UE_TRACE_EVENT_FIELD(Trace::AnsiString, AppName)
 	UE_TRACE_EVENT_FIELD(Trace::WideString, CommandLine)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, Branch)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, BuildVersion)
+	UE_TRACE_EVENT_FIELD(uint32, Changelist)
 	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
 	UE_TRACE_EVENT_FIELD(uint8, TargetType)
 UE_TRACE_EVENT_END()
@@ -379,6 +383,9 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 		<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
 		<< Session2.AppName(UE_APP_NAME)
 		<< Session2.CommandLine(CommandLine)
+		<< Session2.Branch(BuildSettings::GetBranchName())
+		<< Session2.BuildVersion(BuildSettings::GetBuildVersion())
+		<< Session2.Changelist(BuildSettings::GetCurrentChangelist())
 		<< Session2.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
 		<< Session2.TargetType(uint8(FApp::GetBuildTargetType()));
 
