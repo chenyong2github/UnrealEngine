@@ -8,6 +8,7 @@
 #include "LineTypes.h"
 #include "PlaneTypes.h"
 #include "HalfspaceTypes.h"
+#include "Util/ProgressCancel.h"
 
 namespace UE {
 namespace Geometry {
@@ -165,6 +166,10 @@ public:
 	{
 		return NumHullPoints;
 	}
+
+
+	/** Set this to be able to cancel running operation */
+	FProgressCancel* Progress = nullptr;
 
 protected:
 

@@ -642,6 +642,10 @@ bool TConvexHull3<RealType>::Solve(int32 NumPoints, TFunctionRef<FVector3<RealTy
 	Connectivity.InitVisibility(Hull, NumPoints, GetPointFunc, FilterFunc);
 	while (true)
 	{
+		if (Progress && (NumHullPoints % 100) == 0 && Progress->Cancelled())
+		{
+			return false;
+		}
 		FIndex2i Visible = Connectivity.ChooseVisiblePoint();
 		if (Visible.A == -1)
 		{
