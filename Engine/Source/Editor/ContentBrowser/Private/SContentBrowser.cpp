@@ -319,7 +319,6 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 					.DelimiterImage(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
 					.TextStyle(FAppStyle::Get(), "NormalText")
 					.ShowLeadingDelimiter(false)
-					.InvertTextColorOnHover(false)
 					.OnCrumbClicked(this, &SContentBrowser::OnPathClicked)
 					.HasCrumbMenuContent(this, &SContentBrowser::OnHasCrumbDelimiterContent)
 					.GetCrumbMenuContent(this, &SContentBrowser::OnGetCrumbDelimiterContent)

@@ -63,11 +63,8 @@ public:
 	/** Callback for getting the menu content to be displayed when clicking on a crumb's delimiter arrow */
 	DECLARE_DELEGATE_RetVal_OneParam( TSharedRef< SWidget >, FGetCrumbMenuContent, const ItemType& /*CrumbData*/ );
 
-	DECLARE_DELEGATE_RetVal_TwoParams( FSlateColor, FOnGetCrumbColor, int32 /*CrumbId*/, bool /*bInvert*/ );
-
 	SLATE_BEGIN_ARGS( SBreadcrumbTrail )
-		: _InvertTextColorOnHover(true)
-		, _ButtonStyle( &FCoreStyle::Get().GetWidgetStyle< FButtonStyle >( "BreadcrumbButton" ) )
+		: _ButtonStyle( &FCoreStyle::Get().GetWidgetStyle< FButtonStyle >( "BreadcrumbButton" ) )
 		, _TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText") )
 		, _ButtonContentPadding(FMargin(4.0, 2.0))
 		, _DelimiterImage( FCoreStyle::Get().GetBrush("BreadcrumbTrail.Delimiter") )
@@ -75,11 +72,7 @@ public:
 		, _PersistentBreadcrumbs(false)
 		, _HasCrumbMenuContent()
 		, _GetCrumbMenuContent()
-		, _OnGetCrumbColor()
 	    {}
-
-		/** When true, will invert the button text color when a crumb button is hovered */
-		SLATE_ARGUMENT( bool, InvertTextColorOnHover )
 
 		/** The name of the style to use for the crumb buttons */
 		SLATE_STYLE_ARGUMENT( FButtonStyle, ButtonStyle )
@@ -112,14 +105,11 @@ public:
 
 		SLATE_EVENT( FGetCrumbMenuContent, GetCrumbMenuContent )
 
-		SLATE_EVENT( FOnGetCrumbColor, OnGetCrumbColor )
-
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
 	void Construct( const FArguments& InArgs )
 	{
-		bInvertTextColorOnHover = InArgs._InvertTextColorOnHover;
 		ButtonStyle = InArgs._ButtonStyle;
 		TextStyle = InArgs._TextStyle;
 		ButtonContentPadding = InArgs._ButtonContentPadding;
@@ -131,7 +121,6 @@ public:
 		bHasStaticBreadcrumbs = InArgs._PersistentBreadcrumbs;
 		HasCrumbMenuContentCallback = InArgs._HasCrumbMenuContent;
 		GetCrumbMenuContentCallback = InArgs._GetCrumbMenuContent;
-		OnGetCrumbColor = InArgs._OnGetCrumbColor;
 
 		NextValidCrumbID = 0;
 
@@ -170,7 +159,7 @@ public:
 				.TextStyle(TextStyle)
 				.Text(CrumbText)
 				.OnClicked( this, &SBreadcrumbTrail::CrumbButtonClicked, NextValidCrumbID )
-				.ForegroundColor( this, &SBreadcrumbTrail::GetButtonForegroundColor, NextValidCrumbID )
+				// .ForegroundColor( FSlateColor::Uthis, &SBreadcrumbTrail::GetButtonForegroundColor, NextValidCrumbID )
 			]
 		];
 
@@ -377,51 +366,6 @@ private:
 		return ShowLeadingDelimiter.Get() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
 
-	/** Handler to determine the text color of crumb buttons. Will invert the text color if allowed. */
-	FSlateColor GetButtonForegroundColor(int32 CrumbID) const
-	{
-		TSharedPtr< SButton > CrumbButton;
-
-		if ( !OnGetCrumbColor.IsBound() )
-		{
-			if ( bInvertTextColorOnHover )
-			{
-				for ( int32 CrumbListIdx = 0; CrumbListIdx < NumCrumbs(); ++CrumbListIdx )
-				{
-					if ( CrumbList[ CrumbListIdx ].CrumbID == CrumbID )
-					{
-						CrumbButton = CrumbList[ CrumbListIdx ].Button;
-						break;
-					}
-				}
-
-				if ( CrumbButton.IsValid() && CrumbButton->IsHovered() )
-				{
-					static const FName InvertedForegroundName( "InvertedForeground" );
-					return FCoreStyle::Get().GetSlateColor( InvertedForegroundName );
-				}
-			}
-
-			static const FName DefaultForegroundName("DefaultForeground");
-			return FCoreStyle::Get().GetSlateColor( DefaultForegroundName );
-		}
-		else
-		{
-			int32 CrumbPosition = INDEX_NONE;
-			for ( int32 CrumbListIdx = 0; CrumbListIdx < NumCrumbs(); ++CrumbListIdx )
-			{
-				if ( CrumbList[ CrumbListIdx ].CrumbID == CrumbID )
-				{
-					CrumbButton = CrumbList[ CrumbListIdx ].Button;
-					CrumbPosition = CrumbListIdx;
-					break;
-				}
-			}
-
-			return OnGetCrumbColor.Execute( CrumbPosition, ( CrumbButton.IsValid() && CrumbButton->IsHovered() ) );
-		}
-	}
-
 	/** Handler for when a crumb is clicked. Will pop crumbs down to the selected one. */
 	FReply CrumbButtonClicked(int32 CrumbID)
 	{
@@ -485,9 +429,6 @@ private:
 	/** The next ID to assign to a crumb when it is created */
 	int32 NextValidCrumbID;
 
-	/** When true, will invert the button text color when a crumb button is hovered */
-	bool bInvertTextColorOnHover;
-
 	/** The button style to apply to all crumbs */
 	const FButtonStyle* ButtonStyle;
 
@@ -521,5 +462,4 @@ private:
 	/** If true, don't dynamically remove items when clicking */
 	bool bHasStaticBreadcrumbs;
 
-	FOnGetCrumbColor OnGetCrumbColor;
 };

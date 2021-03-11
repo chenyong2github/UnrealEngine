@@ -593,7 +593,6 @@ void STutorialsBrowser::Construct(const FArguments& InArgs)
 						.DelimiterImage(FEditorStyle::GetBrush("Tutorials.Browser.Breadcrumb"))
 						.TextStyle(FEditorStyle::Get(), "Tutorials.Browser.PathText")
 						.ShowLeadingDelimiter( true )
-						.InvertTextColorOnHover( false )
 						.OnCrumbClicked(this, &STutorialsBrowser::OnBreadcrumbClicked)
 					]
 					+SVerticalBox::Slot()
