@@ -25,7 +25,9 @@
         //Config setup
         //**********************;
 		this.cfg = parOptions.peerConnectionOptions || {};
-		this.cfg.sdpSemantics = 'unified-plan';
+        this.cfg.sdpSemantics = 'unified-plan';
+        //If this is true in Chrome 89+ SDP is sent that is incompatible with UE WebRTC and breaks.
+        this.cfg.offerExtmapAllowMixed = false;
         this.pcClient = null;
         this.dcClient = null;
         this.tnClient = null;
