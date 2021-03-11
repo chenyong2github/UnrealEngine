@@ -1879,8 +1879,9 @@ void UGroomComponent::InitResources(bool bIsBindingReloading)
 	}
 	if (ValidatedMeshComponent)
 	{
-		if ((BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh && Cast<USkeletalMeshComponent>(ValidatedMeshComponent)->SkeletalMesh == nullptr) ||
-			(BindingAsset->GroomBindingType == EGroomBindingType::GeometryCache && Cast<UGeometryCacheComponent>(ValidatedMeshComponent)->GeometryCache == nullptr))
+		if (BindingAsset && 
+			((BindingAsset->GroomBindingType == EGroomBindingType::SkeletalMesh && Cast<USkeletalMeshComponent>(ValidatedMeshComponent)->SkeletalMesh == nullptr) ||
+			(BindingAsset->GroomBindingType == EGroomBindingType::GeometryCache && Cast<UGeometryCacheComponent>(ValidatedMeshComponent)->GeometryCache == nullptr)))
 		{
 			ValidatedMeshComponent = nullptr;
 		}
