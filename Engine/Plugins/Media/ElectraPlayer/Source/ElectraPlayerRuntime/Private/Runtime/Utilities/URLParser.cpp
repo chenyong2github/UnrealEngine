@@ -235,7 +235,7 @@ namespace Electra
 				}
 				UrlEncode(URL, Path, RequiredEscapeCharsPath);
 			}
-			else if (Query.Len() || Fragment.Len())
+			else if ((Query.Len() && bIncludeQuery) || (Fragment.Len() && bIncludeFragment))
 			{
 				URL += TEXT("/");
 			}
@@ -244,12 +244,12 @@ namespace Electra
 		{
 			UrlEncode(URL, Path, RequiredEscapeCharsPath);
 		}
-		if (Query.Len())
+		if (Query.Len() && bIncludeQuery)
 		{
 			URL += TEXT("?");
 			URL += Query;
 		}
-		if (Fragment.Len())
+		if (Fragment.Len() && bIncludeFragment)
 		{
 			URL += TEXT("#");
 			UrlEncode(URL, Fragment, FString());

@@ -89,21 +89,6 @@ IManifest::EType FManifestMP4Internal::GetPresentationType() const
 
 //-----------------------------------------------------------------------------
 /**
- * Returns the media timeline object for this asset.
- *
- * @return
- */
-TSharedPtrTS<IPlaybackAssetTimeline> FManifestMP4Internal::GetTimeline() const
-{
-	// Since an mp4 file is fixed and will not change the timeline is fixed.
-	// That's why we are inheriting from IPlaybackAssetTimeline and return ourselves.
-	TSharedPtrTS<const FManifestMP4Internal> This = SharedThis(this);
-	return StaticCastSharedPtr<IPlaybackAssetTimeline>(ConstCastSharedPtr<FManifestMP4Internal>(This));
-}
-
-
-//-----------------------------------------------------------------------------
-/**
  * Returns the starting bitrate.
  *
  * This is merely informational and not strictly required.
@@ -290,10 +275,10 @@ TSharedPtrTS<ITimelineMediaAsset> FManifestMP4Internal::FPlayPeriodMP4::GetMedia
 /**
  * Selects a particular stream (== internal track ID) for playback.
  *
- * @param AdaptationSet
- * @param Representation
+ * @param AdaptationSetID
+ * @param RepresentationID
  */
-void FManifestMP4Internal::FPlayPeriodMP4::SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation)
+void FManifestMP4Internal::FPlayPeriodMP4::SelectStream(const FString& AdaptationSetID, const FString& RepresentationID)
 {
 	// Presently this method is only called by the ABR to switch between quality levels.
 	// Since a single mp4 doesn't have different quality levels (technically it could, but we are concerning ourselves only with different bitrates and that doesn't apply since we are streaming
@@ -343,6 +328,19 @@ IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetLoopingSegment(TShar
 
 //-----------------------------------------------------------------------------
 /**
+ * Called by the ABR to increase the delay in fetching the next segment in case the segment returned a 404 when fetched at
+ * the announced availability time. This may reduce 404's on the next segment fetches.
+ * 
+ * @param IncreaseAmount
+ */
+void FManifestMP4Internal::FPlayPeriodMP4::IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount)
+{
+	// No-op.
+}
+
+
+//-----------------------------------------------------------------------------
+/**
  * Creates the next segment request.
  *
  * @param OutSegment
@@ -385,12 +383,12 @@ IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetRetrySegment(TShared
  * @param AdaptationSet
  * @param Representation
  */
-void FManifestMP4Internal::FPlayPeriodMP4::GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation)
+void FManifestMP4Internal::FPlayPeriodMP4::GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID)
 {
 	TSharedPtrTS<FTimelineAssetMP4> ma = MediaAsset.Pin();
 	if (ma.IsValid())
 	{
-		ma->GetSegmentInformation(OutSegmentInformation, OutAverageSegmentDuration, CurrentSegment, LookAheadTime, AdaptationSet, Representation);
+		ma->GetSegmentInformation(OutSegmentInformation, OutAverageSegmentDuration, CurrentSegment, LookAheadTime, AdaptationSetID, RepresentationID);
 	}
 }
 
@@ -849,7 +847,7 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetLoopingSegment(TS
 }
 
 
-void FManifestMP4Internal::FTimelineAssetMP4::GetSegmentInformation(TArray<IManifest::IPlayPeriod::FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation)
+void FManifestMP4Internal::FTimelineAssetMP4::GetSegmentInformation(TArray<IManifest::IPlayPeriod::FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID)
 {
 	// This is not expected to be called. And if it does we return a dummy entry.
 	OutAverageSegmentDuration.SetFromSeconds(60.0);
@@ -859,7 +857,7 @@ void FManifestMP4Internal::FTimelineAssetMP4::GetSegmentInformation(TArray<IMani
 	si.Duration.SetFromSeconds(60.0);
 }
 
-TSharedPtrTS<IParserISO14496_12>	FManifestMP4Internal::FTimelineAssetMP4::GetMoovBoxParser()
+TSharedPtrTS<IParserISO14496_12> FManifestMP4Internal::FTimelineAssetMP4::GetMoovBoxParser()
 {
 	return MoovBoxParser;
 }

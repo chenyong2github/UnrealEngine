@@ -38,6 +38,7 @@ namespace Electra
 			DASHMPDBuilder,
 			DASHManifest,
 			DASHFMP4Reader,
+			EntityCache,
 			LastEntry = 255
 		};
 
@@ -95,6 +96,8 @@ namespace Electra
 					return TEXT("DASH manifest");
 				case EFacility::DASHFMP4Reader:
 					return TEXT("DASH fmp4 reader");
+				case EFacility::EntityCache:
+					return TEXT("Entity cache");
 			}
 			return TEXT("???");
 		}

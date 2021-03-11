@@ -10,10 +10,14 @@
 #include "ManifestDASH.h"
 #include "Utilities/HashFunctions.h"
 #include "Utilities/TimeUtilities.h"
+#include "Utilities/URLParser.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "ElectraPlayerPrivate.h"
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
 #include "Player/PlayerEntityCache.h"
+#include "Player/DASH/OptionKeynamesDASH.h"
+
+#include "Misc/DateTime.h"
 
 #define ERRCODE_DASH_PARSER_ERROR							1
 #define ERRCODE_DASH_MPD_DOWNLOAD_FAILED					2
@@ -22,15 +26,10 @@
 #define ERRCODE_DASH_MPD_REMOTE_ENTITY_FAILED				5
 
 
+//#define DO_NOT_PERFORM_CONDITIONAL_GET
 
 namespace Electra
 {
-
-const FString IPlaylistReaderDASH::OptionKeyMPDLoadConnectTimeout(TEXT("mpd_connection_timeout"));				//!< (FTimeValue) value specifying connection timeout fetching the MPD
-const FString IPlaylistReaderDASH::OptionKeyMPDLoadNoDataTimeout(TEXT("mpd_nodata_timeout"));					//!< (FTimeValue) value specifying no-data timeout fetching the MPD
-const FString IPlaylistReaderDASH::OptionKeyMPDReloadConnectTimeout(TEXT("mpd_update_connection_timeout"));		//!< (FTimeValue) value specifying connection timeout fetching the MPD repeatedly
-const FString IPlaylistReaderDASH::OptionKeyMPDReloadNoDataTimeout(TEXT("mpd_update_connection_timeout"));		//!< (FTimeValue) value specifying no-data timeout fetching the MPD repeatedly
-
 
 /**
  * This class is responsible for downloading a DASH MPD and parsing it.
@@ -43,51 +42,20 @@ public:
 
 	virtual ~FPlaylistReaderDASH();
 	virtual void Close() override;
-
-	/**
-	 * Returns the type of playlist format.
-	 * For this implementation it will be "dash".
-	 *
-	 * @return "dash" to indicate this is a DASH MPD.
-	 */
 	virtual const FString& GetPlaylistType() const override
 	{
 		static FString Type("dash");
 		return Type;
 	}
-
-	/**
-	 * Loads and parses the MPD.
-	 *
-	 * @param URL     URL of the MPD to load
-	 * @param Preferences
-	 *                User preferences for initial stream selection.
-	 * @param Options Options for the reader and parser
-	 */
-	virtual void LoadAndParse(const FString& URL, const FStreamPreferences& Preferences, const FParamDict& Options) override;
-
-	/**
-	 * Returns the URL from which the MPD was loaded (or supposed to be loaded).
-	 *
-	 * @return The MPD URL
-	 */
+	virtual void LoadAndParse(const FString& URL) override;
 	virtual FString GetURL() const override;
-
-	/**
-	 * Returns an interface to the manifest created from the loaded MPD.
-	 *
-	 * @return A shared manifest interface pointer.
-	 */
 	virtual TSharedPtrTS<IManifest> GetManifest() override;
-
-	/**
-	 * Requests updating of a dynamic DASH MPD or an XLINK item.
-	 *
-	 * @param LoadRequest
-	 */
-	virtual void RequestMPDUpdate(const FMPDLoadRequestDASH& LoadRequest) override;
-
 	virtual void AddElementLoadRequests(const TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& RemoteElementLoadRequests) override;
+	virtual void RequestMPDUpdate(bool bForcedUpdate) override;
+	virtual TSharedPtrTS<FManifestDASHInternal> GetCurrentMPD() override
+	{
+		return Manifest;
+	}
 
 private:
 	using FResourceLoadRequestPtr = TSharedPtrTS<FMPDLoadRequestDASH>;
@@ -98,11 +66,11 @@ private:
 
 	void StartWorkerThread();
 	void StopWorkerThread();
-	void WorkerThread(void);
+	void WorkerThread();
 	void ExecutePendingRequests(const FTimeValue& TimeNow);
 	void HandleCompletedRequests(const FTimeValue& TimeNow);
 	void HandleStaticRequestCompletions(const FTimeValue& TimeNow);
-	void CheckForMPDUpdate(const FTimeValue& TimeNow);
+	void CheckForMPDUpdate();
 
 	void PostError(const FErrorDetail& Error);
 	void PostError(const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
@@ -117,22 +85,34 @@ private:
 	void EnqueueInitialXLinkRequests();
 
 	void ManifestDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
+	void ManifestUpdateDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
 	void InitialMPDXLinkElementDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess);
 
 
-	IPlayerSessionServices*									PlayerSessionServices;
-	FStreamPreferences										StreamPreferences;
-	FParamDict												Options;
+	IPlayerSessionServices*									PlayerSessionServices = nullptr;
 	FString													MPDURL;
+	FString													Fragment;
 	FMediaSemaphore											WorkerThreadSignal;
-	bool													bIsWorkerThreadStarted;
-	volatile bool											bTerminateWorkerThread;
+	bool													bIsWorkerThreadStarted = false;
+	volatile bool											bTerminateWorkerThread = false;
 
 	FCriticalSection										RequestsLock;
 	TArray<FResourceLoadRequestPtr>							PendingRequests;
 	TArray<FResourceLoadRequestPtr>							ActiveRequests;
 	TArray<FResourceLoadRequestPtr>							CompletedRequests;
+	FTimeValue												MinTimeBetweenUpdates;
+	FTimeValue												NextMPDUpdateTime;
+	FTimeValue												MostRecentMPDUpdateTime;
+	bool													bIsMPDUpdateInProgress = false;
+	enum class EUpdateRequestType
+	{
+		None,
+		Regular,
+		Forced
+	};
+	EUpdateRequestType										UpdateRequested = EUpdateRequestType::None;
 
+	TUniquePtr<IManifestBuilderDASH>						Builder;
 
 	TSharedPtrTS<FManifestDASHInternal>						Manifest;
 	FErrorDetail											LastErrorDetail;
@@ -162,9 +142,6 @@ TSharedPtrTS<IPlaylistReader> IPlaylistReaderDASH::Create(IPlayerSessionServices
 
 FPlaylistReaderDASH::FPlaylistReaderDASH()
 	: FMediaThread("ElectraPlayer::DASH MPD")
-	, PlayerSessionServices(nullptr)
-	, bIsWorkerThreadStarted(false)
-	, bTerminateWorkerThread(false)
 {
 }
 
@@ -256,20 +233,102 @@ void FPlaylistReaderDASH::LogMessage(IInfoLog::ELevel Level, const FString& Mess
 	}
 }
 
-void FPlaylistReaderDASH::LoadAndParse(const FString& URL, const FStreamPreferences& Preferences, const FParamDict& InOptions)
+void FPlaylistReaderDASH::LoadAndParse(const FString& URL)
 {
-	StreamPreferences = Preferences;
-	Options 		  = InOptions;
 	MPDURL = URL;
 	StartWorkerThread();
 }
 
-void FPlaylistReaderDASH::RequestMPDUpdate(const FMPDLoadRequestDASH& LoadRequest)
-{
-}
 
-void FPlaylistReaderDASH::CheckForMPDUpdate(const FTimeValue& TimeNow)
+void FPlaylistReaderDASH::CheckForMPDUpdate()
 {
+	RequestsLock.Lock();
+	FTimeValue Next = NextMPDUpdateTime;
+	bool bRequestNow = false;
+	bool bIsForced = false;
+	if (UpdateRequested == EUpdateRequestType::Forced)
+	{
+		bIsForced = true;
+		Next.SetToZero();
+	}
+	else if (UpdateRequested == EUpdateRequestType::Regular)
+	{
+		if (!Next.IsValid())
+		{
+			Next.SetToZero();
+		}
+	}
+	if (!bIsMPDUpdateInProgress && Next.IsValid())
+	{
+		// Get the time now and do not pass it in from the worker thread as the clock could have been
+		// resynchronized to the server time in the meantime.
+		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+		// Limit the frequency of the updates.
+		bool bIsPossible = !MostRecentMPDUpdateTime.IsValid() || Now - MostRecentMPDUpdateTime > MinTimeBetweenUpdates;
+		if (Next < Now && bIsPossible)
+		{
+			bRequestNow = true;
+			NextMPDUpdateTime.SetToInvalid();
+		}
+	}
+	UpdateRequested = EUpdateRequestType::None;
+	RequestsLock.Unlock();
+	if (bRequestNow)
+	{
+		TSharedPtrTS<const FDashMPD_MPDType> MPDRoot = Manifest.IsValid() ? Manifest->GetMPDRoot() : nullptr;
+		if (MPDRoot.IsValid())
+		{
+			FString NewMPDLocation;
+			// See if there are any <Location> elements on the current MPD that tell us from where to get the update.
+			// As per A.11 no <BaseURL> elements affect the construction of the new document URL. At most, if it is
+			// a relative URL it will be resolved against the current document URL.
+			const TArray<TSharedPtrTS<FDashMPD_OtherType>>& Locations = MPDRoot->GetLocations();
+			if (Locations.Num())
+			{
+				// There can be several new locations, but the elements have no DASH defined attributes to differentiate them.
+				// They are merely elements containing a URL. In absence of any preference we just use the first one.
+				NewMPDLocation = Locations[0]->GetData();
+			}
+
+			TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> OutBaseURLs;
+			FString URL, RequestHeader;
+			FTimeValue UrlATO;
+			DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, MPDRoot->GetDocumentURL(), OutBaseURLs, NewMPDLocation);
+
+			// The URL query might need to be changed. Look for the UrlQuery properties.
+			TArray<TSharedPtrTS<FDashMPD_UrlQueryInfoType>> UrlQueries;
+			DASHUrlHelpers::GetAllHierarchyUrlQueries(UrlQueries, MPDRoot, DASHUrlHelpers::EUrlQueryRequestType::Mpd, false);
+			FErrorDetail Error = DASHUrlHelpers::ApplyUrlQueries(PlayerSessionServices, MPDRoot->GetDocumentURL(), URL, RequestHeader, UrlQueries);
+			if (Error.IsOK())
+			{
+				FString ETag = MPDRoot->GetETag();
+
+				TSharedPtrTS<FMPDLoadRequestDASH> PlaylistLoadRequest = MakeSharedTS<FMPDLoadRequestDASH>();
+				PlaylistLoadRequest->LoadType = FMPDLoadRequestDASH::ELoadType::MPDUpdate;
+				PlaylistLoadRequest->URL = URL;
+				if (RequestHeader.Len())
+				{
+					PlaylistLoadRequest->Headers.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, RequestHeader}));
+				}
+#ifndef DO_NOT_PERFORM_CONDITIONAL_GET
+				// As per the standard we should perform conditional GET requests.
+				if (ETag.Len())
+				{
+					PlaylistLoadRequest->Headers.Emplace(HTTP::FHTTPHeader({TEXT("If-None-Match"), ETag}));
+				}
+#endif
+				PlaylistLoadRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::ManifestUpdateDownloadCompleted);
+				
+				bIsMPDUpdateInProgress = true;
+				EnqueueResourceRequest(MoveTemp(PlaylistLoadRequest));
+			}
+			else
+			{
+				// Failed to build the URL.
+				PostError(Error);
+			}
+		}
+	}
 }
 
 
@@ -339,17 +398,35 @@ void FPlaylistReaderDASH::AddElementLoadRequests(const TArray<TWeakPtrTS<FMPDLoa
 	}
 }
 
+void FPlaylistReaderDASH::RequestMPDUpdate(bool bForcedUpdate)
+{
+	FScopeLock lock(&RequestsLock);
+	if (bForcedUpdate)
+	{
+		UpdateRequested = EUpdateRequestType::Forced;
+	}
+	else if (UpdateRequested == EUpdateRequestType::None)
+	{
+		UpdateRequested = EUpdateRequestType::Regular;
+	}
+}
 
 
-void FPlaylistReaderDASH::WorkerThread(void)
+void FPlaylistReaderDASH::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	CSV_SCOPED_TIMING_STAT(ElectraPlayer, MPDReaderDASH_Worker);
 
+	// Get the minimum MPD update time limit.
+	MinTimeBetweenUpdates = PlayerSessionServices->GetOptions().GetValue(DASH::OptionKey_MinTimeBetweenMPDUpdates).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000));
+
 	// Setup the playlist load request for the master playlist.
 	TSharedPtrTS<FMPDLoadRequestDASH> PlaylistLoadRequest = MakeSharedTS<FMPDLoadRequestDASH>();
 	PlaylistLoadRequest->LoadType = FMPDLoadRequestDASH::ELoadType::MPD;
-	PlaylistLoadRequest->URL = MPDURL;
+	FURL_RFC3986 UrlParser;
+	UrlParser.Parse(MPDURL);
+	PlaylistLoadRequest->URL = UrlParser.Get(true, false);
+	Fragment = UrlParser.GetFragment();
 	PlaylistLoadRequest->CompleteCallback.BindThreadSafeSP(AsShared(), &FPlaylistReaderDASH::ManifestDownloadCompleted);
 	EnqueueResourceRequest(MoveTemp(PlaylistLoadRequest));
 
@@ -367,7 +444,7 @@ void FPlaylistReaderDASH::WorkerThread(void)
 		ExecutePendingRequests(Now);
 
 		// Check if the MPD must be updated.
-		CheckForMPDUpdate(Now);
+		CheckForMPDUpdate();
 	}
 
 	// Cleanup!
@@ -383,6 +460,7 @@ void FPlaylistReaderDASH::WorkerThread(void)
 	ActiveRequests.Empty();
 	CompletedRequests.Empty();
 	RequestsLock.Unlock();
+	Builder.Reset();
 }
 
 
@@ -425,18 +503,19 @@ void FPlaylistReaderDASH::ExecutePendingRequests(const FTimeValue& TimeNow)
 
 void FPlaylistReaderDASH::SetupRequestTimeouts(FResourceLoadRequestPtr InRequest)
 {
+	const FParamDict& Options = PlayerSessionServices->GetOptions();
 	switch(InRequest->LoadType)
 	{
 		case FMPDLoadRequestDASH::ELoadType::MPD:
 		{
-			InRequest->Request->ConnectionTimeout(Options.GetValue(IPlaylistReaderDASH::OptionKeyMPDLoadConnectTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 8)));
-			InRequest->Request->NoDataTimeout(Options.GetValue(IPlaylistReaderDASH::OptionKeyMPDLoadNoDataTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 5)));
+			InRequest->Request->ConnectionTimeout(Options.GetValue(DASH::OptionKeyMPDLoadConnectTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 8)));
+			InRequest->Request->NoDataTimeout(Options.GetValue(DASH::OptionKeyMPDLoadNoDataTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 5)));
 			break;
 		}
 		case FMPDLoadRequestDASH::ELoadType::MPDUpdate:
 		{
-			InRequest->Request->ConnectionTimeout(Options.GetValue(IPlaylistReaderDASH::OptionKeyMPDReloadConnectTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 2)));
-			InRequest->Request->NoDataTimeout(Options.GetValue(IPlaylistReaderDASH::OptionKeyMPDReloadNoDataTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 2)));
+			InRequest->Request->ConnectionTimeout(Options.GetValue(DASH::OptionKeyMPDReloadConnectTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 2)));
+			InRequest->Request->NoDataTimeout(Options.GetValue(DASH::OptionKeyMPDReloadNoDataTimeout).SafeGetTimeValue(FTimeValue().SetFromMilliseconds(1000 * 2)));
 			break;
 		}
 		case FMPDLoadRequestDASH::ELoadType::Segment:
@@ -650,25 +729,32 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 		// Get the Date header from the response and set our clock to this time.
 		// Do this once only with the date from the master playlist.
 		const HTTP::FConnectionInfo* ConnInfo = Request->GetConnectionInfo();
+		FString ETag;
+		FTimeValue FetchTime;
+		FString EffectiveURL = ConnInfo->EffectiveURL;
 		if (ConnInfo)
 		{
 			for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
 			{
 				if (ConnInfo->ResponseHeaders[i].Header == "Date")
 				{
-					// How old is the response already?
-					FTimeValue ResponseAge = MEDIAutcTime::Current() - ConnInfo->RequestStartTime - FTimeValue().SetFromSeconds(ConnInfo->TimeUntilFirstByte);
 					// Parse the header
 					FTimeValue DateFromHeader;
 					UEMediaError DateParseError = RFC7231::ParseDateTime(DateFromHeader, ConnInfo->ResponseHeaders[i].Value);
 					if (DateParseError == UEMEDIA_ERROR_OK && DateFromHeader.IsValid())
 					{
-						PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(DateFromHeader + ResponseAge);
+						PlayerSessionServices->GetSynchronizedUTCTime()->SetTime(ConnInfo->RequestStartTime, DateFromHeader);
 					}
-					break;
+					// The MPD 'FetchTime' is the time at which the request to get the MPD was made to the server.
+					FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
+				}
+				else if (ConnInfo->ResponseHeaders[i].Header == "ETag")
+				{
+					ETag = ConnInfo->ResponseHeaders[i].Value;
 				}
 			}
 		}
+		MostRecentMPDUpdateTime = FetchTime;
 
 		PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistDownloadMessage::Create(ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
 
@@ -676,23 +762,56 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 		LastErrorDetail = GetXMLResponseString(XML, Request);
 		if (LastErrorDetail.IsOK())
 		{
-			IManifestBuilderDASH* Builder = IManifestBuilderDASH::Create(PlayerSessionServices);
+			Builder.Reset(IManifestBuilderDASH::Create(PlayerSessionServices));
 			TSharedPtrTS<FManifestDASHInternal> NewManifest;
-			LastErrorDetail = Builder->BuildFromMPD(NewManifest, XML.GetCharArray().GetData(), Request, StreamPreferences, Options);
-			Manifest = NewManifest;
-			PlayerManifest = FManifestDASH::Create(PlayerSessionServices, Options, AsShared(), Manifest);
-			// Notify that the "master playlist" has been parsed, successfully or not. If we still need to resolve remote entities this is not an error!
-			PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(!LastErrorDetail.IsTryAgain() ? LastErrorDetail : FErrorDetail(), ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
-			if (LastErrorDetail.IsOK())
+			LastErrorDetail = Builder->BuildFromMPD(NewManifest, XML.GetCharArray().GetData(), EffectiveURL, FetchTime, ETag);
+			if (LastErrorDetail.IsOK() || LastErrorDetail.IsTryAgain())
 			{
-				PlayerManifest->UpdateTimeline();
-				// Notify that the "variant playlists" are ready. There are no variants in DASH, but this is the trigger that the playlists are all set up and are good to go now.
-				PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, ConnInfo, Playlist::EListType::Variant, Playlist::ELoadType::Initial));
-			}
-			// "try again" is returned when there are remote entities that need to be resolved first.
-			else if (LastErrorDetail.IsTryAgain())
-			{
-				EnqueueInitialXLinkRequests();
+				if (NewManifest.IsValid())
+				{
+					// Parse the URL fragment into its components. For a DASH URL the fragment is constructed like a query string with & delimited key/value pairs.
+					TArray<FURL_RFC3986::FQueryParam> URLFragmentComponents;
+					FURL_RFC3986::GetQueryParams(URLFragmentComponents, Fragment, false);	// The fragment is already URL escaped, so no need to do it again.
+					NewManifest->SetURLFragmentComponents(MoveTemp(URLFragmentComponents));
+					// If the URL has a special fragment part to turn this presentation into an event, do so.
+					// Note: This MAY require the client clock to be synced to the server IF the special keyword 'now' is used.
+					NewManifest->TransformIntoEpicEvent();
+				}
+				Manifest = NewManifest;
+				PlayerManifest = FManifestDASH::Create(PlayerSessionServices, Manifest);
+
+				// Check if the MPD defines an @minimumUpdatePeriod
+				FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
+				// If the update time is zero then updates happen just in time when segments are required or through
+				// an inband event stream. Either way, we do not need to update periodically.
+				if (mup.IsValid() && mup > FTimeValue::GetZero())
+				{
+					// Warn if MUP is really small
+					if (mup.GetAsMilliseconds() < 1000)
+					{
+						LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("MPD@minimumUpdatePeriod is set to a really small value of %lld msec. This could be a performance issue."), (long long int)mup.GetAsMilliseconds()));
+					}
+					RequestsLock.Lock();
+					NextMPDUpdateTime = MostRecentMPDUpdateTime + mup;
+					RequestsLock.Unlock();
+				}
+
+				// Notify that the "master playlist" has been parsed, successfully or not. If we still need to resolve remote entities this is not an error!
+				PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(!LastErrorDetail.IsTryAgain() ? LastErrorDetail : FErrorDetail(), ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Initial));
+				if (LastErrorDetail.IsOK())
+				{
+					// Notify that the "variant playlists" are ready. There are no variants in DASH, but this is the trigger that the playlists are all set up and are good to go now.
+					PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, ConnInfo, Playlist::EListType::Variant, Playlist::ELoadType::Initial));
+				}
+				// "try again" is returned when there are remote entities that need to be resolved first.
+				else if (LastErrorDetail.IsTryAgain())
+				{
+					EnqueueInitialXLinkRequests();
+				}
+				else
+				{
+					PostError(LastErrorDetail);
+				}
 			}
 			else
 			{
@@ -710,6 +829,119 @@ void FPlaylistReaderDASH::ManifestDownloadCompleted(FResourceLoadRequestPtr Requ
 	}
 }
 
+
+void FPlaylistReaderDASH::ManifestUpdateDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess)
+{
+	bIsMPDUpdateInProgress = false;
+
+	if (bSuccess)
+	{
+		if (!Request->Request.IsValid() || !Request->Request->GetResponseBuffer().IsValid())
+		{
+			return;
+		}
+		
+		const HTTP::FConnectionInfo* ConnInfo = Request->GetConnectionInfo();
+		FString ETag;
+		FString EffectiveURL;
+		FTimeValue FetchTime;
+		if (ConnInfo)
+		{
+			EffectiveURL = ConnInfo->EffectiveURL;
+			FetchTime = PlayerSessionServices->GetSynchronizedUTCTime()->MapToSyncTime(ConnInfo->RequestStartTime);
+			for(int32 i=0; i<ConnInfo->ResponseHeaders.Num(); ++i)
+			{
+				if (ConnInfo->ResponseHeaders[i].Header == "ETag")
+				{
+					ETag = ConnInfo->ResponseHeaders[i].Value;
+				}
+			}
+		}
+		MostRecentMPDUpdateTime = FetchTime;
+
+		// If this was a "304 - Not modified" (RFC 7323) there is no new MPD at the moment.
+		if (ConnInfo->StatusInfo.HTTPStatus == 304)
+		{
+			// It does however extend the validity of the MPD.
+			Manifest->GetMPDRoot()->SetFetchTime(FetchTime);
+
+			// The minimum update period still holds.
+			FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
+			if (mup.IsValid() && mup > FTimeValue::GetZero())
+			{
+				RequestsLock.Lock();
+				NextMPDUpdateTime = MostRecentMPDUpdateTime + mup;
+				RequestsLock.Unlock();
+			}
+		}
+		else
+		{
+			PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistDownloadMessage::Create(ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Update));
+
+			FString XML;
+			LastErrorDetail = GetXMLResponseString(XML, Request);
+			if (LastErrorDetail.IsOK())
+			{
+				TSharedPtrTS<FManifestDASHInternal> NewManifest;
+				LastErrorDetail = Builder->BuildFromMPD(NewManifest, XML.GetCharArray().GetData(), EffectiveURL, FetchTime, ETag);
+				if (LastErrorDetail.IsOK() || LastErrorDetail.IsTryAgain())
+				{
+					// Copy over the initial document URL fragments.
+					if (NewManifest.IsValid())
+					{
+						NewManifest->SetURLFragmentComponents(Manifest->GetURLFragmentComponents());
+					}
+
+					// Switch over tp the new manifest.
+					Manifest = NewManifest;
+					// Also update in the external manifest we handed out to the player.
+					PlayerManifest->UpdateInternalManifest(Manifest);
+
+					// Check if the new MPD also defines an @minimumUpdatePeriod
+					FTimeValue mup = Manifest->GetMinimumUpdatePeriod();
+					if (mup.IsValid() && mup > FTimeValue::GetZero())
+					{
+						if (mup.GetAsMilliseconds() < 1000)
+						{
+							LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("MPD@minimumUpdatePeriod is set to a really small value of %lld msec. This could be a performance issue."), (long long int)mup.GetAsMilliseconds()));
+						}
+						RequestsLock.Lock();
+						NextMPDUpdateTime = MostRecentMPDUpdateTime + mup;
+						RequestsLock.Unlock();
+					}
+
+					PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(!LastErrorDetail.IsTryAgain() ? LastErrorDetail : FErrorDetail(), ConnInfo, Playlist::EListType::Master, Playlist::ELoadType::Update));
+					if (LastErrorDetail.IsOK())
+					{
+					}
+					// "try again" is returned when there are remote entities that need to be resolved first.
+					else if (LastErrorDetail.IsTryAgain())
+					{
+						EnqueueInitialXLinkRequests();
+					}
+					else
+					{
+						PostError(LastErrorDetail);
+					}
+				}
+				else
+				{
+					PostError(LastErrorDetail);
+				}
+			}
+			else
+			{
+				PostError(LastErrorDetail);
+			}
+		}
+	}
+	else
+	{
+		PostError(FString::Printf(TEXT("Failed to download MPD \"%s\" (%s)"), *Request->URL, *Request->GetErrorDetail()), ERRCODE_DASH_MPD_DOWNLOAD_FAILED, UEMEDIA_ERROR_READ_ERROR);
+	}
+}
+
+
 void FPlaylistReaderDASH::InitialMPDXLinkElementDownloadCompleted(FResourceLoadRequestPtr Request, bool bSuccess)
 {
 	// Is the manifest for which this request was made still of interest?
@@ -718,16 +950,12 @@ void FPlaylistReaderDASH::InitialMPDXLinkElementDownloadCompleted(FResourceLoadR
 	{
 		FString XML;
 		LastErrorDetail = GetXMLResponseString(XML, Request);
-		LastErrorDetail = ForManifest->ResolveInitialRemoteElementRequest(PlayerSessionServices, Request, MoveTemp(XML), bSuccess);
+		LastErrorDetail = ForManifest->ResolveInitialRemoteElementRequest(Request, MoveTemp(XML), bSuccess);
 
 		// Now check if all pending requests have finished
 		if (LastErrorDetail.IsOK())
 		{
-			LastErrorDetail = ForManifest->BuildAfterInitialRemoteElementDownload(PlayerSessionServices);
-			if (LastErrorDetail.IsOK())
-			{
-				PlayerManifest->UpdateTimeline();
-			}
+			LastErrorDetail = ForManifest->BuildAfterInitialRemoteElementDownload();
 			// Notify that the "variant playlists" are ready. There are no variants in DASH, but this is the trigger that the playlists are all set up and are good to go now.
 			PlayerSessionServices->SendMessageToPlayer(IPlaylistReader::PlaylistLoadedMessage::Create(LastErrorDetail, nullptr, Playlist::EListType::Variant, Playlist::ELoadType::Initial));
 		}

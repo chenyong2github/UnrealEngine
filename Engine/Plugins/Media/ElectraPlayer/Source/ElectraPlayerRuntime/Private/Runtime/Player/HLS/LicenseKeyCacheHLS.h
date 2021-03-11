@@ -14,7 +14,7 @@ class IPlayerSessionServices;
 class ILicenseKeyCacheHLS
 {
 public:
-	static ILicenseKeyCacheHLS* Create(IPlayerSessionServices* SessionServices, const FParamDict& Options);
+	static ILicenseKeyCacheHLS* Create(IPlayerSessionServices* SessionServices);
 
 	virtual ~ILicenseKeyCacheHLS() = default;
 

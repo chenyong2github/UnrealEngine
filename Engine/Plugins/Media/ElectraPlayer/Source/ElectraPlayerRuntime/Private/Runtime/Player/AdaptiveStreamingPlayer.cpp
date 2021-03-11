@@ -7,6 +7,7 @@
 #include "StreamAccessUnitBuffer.h"
 #include "Player/AdaptiveStreamingPlayerABR.h"
 #include "Player/PlayerLicenseKey.h"
+#include "Player/AdaptivePlayerOptionKeynames.h"
 
 #include "HAL/LowLevelMemTracker.h"
 
@@ -1177,7 +1178,7 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 						case EStreamType::Audio:
 							InitialStreamSelectionAud = MakeShared<FStreamMetadata, ESPMode::ThreadSafe>(msg.Data.TrackSelection.StreamMetadata);
 							// For media with multiplexed tracks we can switch to a different track pretty much immediately.
-							if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
+							if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == TEXT("mp4"))
 							{
 								// Only select audio for now.
 								if (InitialStreamSelectionAud.IsValid())
@@ -1203,7 +1204,7 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 						case EStreamType::Audio:
 							InitialStreamSelectionAud.Reset();
 							// For media with multiplexed tracks we can switch to a different track pretty much immediately.
-							if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
+							if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == TEXT("mp4"))
 							{
 								MultiStreamBufferAud.Deselect();
 							}
@@ -1324,6 +1325,8 @@ void FAdaptiveStreamingPlayer::WorkerThreadFN()
 			CheckForErrors();
 			// Handle pending media segment requests.
 			HandlePendingMediaSegmentRequests();
+			// Handle changes in metadata, like timeline changes or track availability.
+			HandleMetadataChanges();
 			// Handle buffer level changes
 			HandleNewBufferedData();
 			// Handle new output data (finish prerolling)
@@ -1382,6 +1385,30 @@ void FAdaptiveStreamingPlayer::HandlePlayStateChanges()
 
 //-----------------------------------------------------------------------------
 /**
+ * Handle changes in metadata, like timeline changes or track availability.
+ */
+void FAdaptiveStreamingPlayer::HandleMetadataChanges()
+{
+	// The timeline can change dynamically. Refresh it on occasion.
+	if (Manifest.IsValid() && ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == TEXT("dash"))
+	{
+		PlaybackState.SetSeekableRange(Manifest->GetSeekableTimeRange());
+		PlaybackState.SetTimelineRange(Manifest->GetTotalTimeRange());
+		PlaybackState.SetDuration(Manifest->GetDuration());
+/*
+		TArray<FStreamMetadata> VideoStreamMetadata;
+		TArray<FStreamMetadata> AudioStreamMetadata;
+		pPresentation->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
+		pPresentation->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
+		PlaybackState.SetStreamMetadata(VideoStreamMetadata, AudioStreamMetadata);
+		PlaybackState.SetHaveMetadata(true);
+*/
+	}
+}
+
+
+//-----------------------------------------------------------------------------
+/**
  * Handles a player session message sent by one of the player sub-systems.
  *
  * @param SessionMessage
@@ -1414,7 +1441,7 @@ void FAdaptiveStreamingPlayer::HandleSessionMessage(TSharedPtrTS<IPlayerMessage>
 			{
 				if (!Result.WasAborted())
 				{
-					if (pMsg->GetListType() == Playlist::EListType::Master)
+					if (pMsg->GetListType() == Playlist::EListType::Master && pMsg->GetLoadType() == Playlist::ELoadType::Initial)
 					{
 						DispatchEvent(FMetricEvent::ReportReceivedMasterPlaylist(pMsg->GetConnectionInfo().EffectiveURL));
 					}
@@ -1544,7 +1571,7 @@ void FAdaptiveStreamingPlayer::HandleNewBufferedData()
 			// When we are dealing with a single multiplexed stream and one buffer is blocked then essentially all buffers
 			// must be considered blocked since demuxing cannot continue.
 			// FIXME: do this more elegant somehow
-			if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
+			if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == TEXT("mp4"))
 			{
 				if (VideoBufferStats.StreamBuffer.bLastPushWasBlocked ||
 					AudioBufferStats.StreamBuffer.bLastPushWasBlocked)
@@ -1756,7 +1783,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 		return;
 	}
 
-	FTimeValue	CurrentTime 			= MEDIAutcTime::Current();
+	FTimeValue CurrentTime = MEDIAutcTime::Current();
 
 	// Is there a start request?
 	if (PendingStartRequest.IsValid())
@@ -1779,16 +1806,21 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 					// If the starting time has not been set we now check if we are dealing with a VoD or a Live stream and choose a starting point.
 					if (!PendingStartRequest->StartAt.Time.IsValid())
 					{
-						FTimeRange Seekable = CurrentTimeline->GetSeekableTimeRange();
-						if (Manifest->GetPresentationType() == IManifest::EType::OnDemand)
+						// Use the presentation provided start time, if it has one.
+						PendingStartRequest->StartAt.Time = Manifest->GetDefaultStartTime();
+						if (!PendingStartRequest->StartAt.Time.IsValid())
 						{
-							check(Seekable.Start.IsValid());
-							PendingStartRequest->StartAt.Time = Seekable.Start;
-						}
-						else
-						{
-							check(Seekable.End.IsValid());
-							PendingStartRequest->StartAt.Time = Seekable.End;
+							FTimeRange Seekable = Manifest->GetSeekableTimeRange();
+							if (Manifest->GetPresentationType() == IManifest::EType::OnDemand)
+							{
+								check(Seekable.Start.IsValid());
+								PendingStartRequest->StartAt.Time = Seekable.Start;
+							}
+							else
+							{
+								check(Seekable.End.IsValid());
+								PendingStartRequest->StartAt.Time = Seekable.End;
+							}
 						}
 					}
 
@@ -1850,7 +1882,7 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 						StreamSelector->SetCurrentPlaybackPeriod(CurrentPlayPeriod);
 
 						// Single stream mp4 files cannot switch streams. Failures need to retry the same file.
-						if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
+						if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == TEXT("mp4"))
 						{
 							StreamSelector->SetCanSwitchToAlternateStreams(false);
 						}
@@ -1907,9 +1939,15 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 									break;
 								}
 								case IManifest::FResult::EType::NotFound:
+								case IManifest::FResult::EType::NotLoaded:
+								{
+									// Reset the current play period and start over with the initial period selection.
+									PostLog(Facility::EFacility::Player, IInfoLog::ELevel::Info, FString::Printf(TEXT("Period start segments not found. Reselecting start period.")));
+									CurrentPlayPeriod.Reset();
+									break;
+								}
 								case IManifest::FResult::EType::BeforeStart:
 								case IManifest::FResult::EType::PastEOS:
-								case IManifest::FResult::EType::NotLoaded:
 								{
 									FErrorDetail err;
 									err.SetFacility(Facility::EFacility::Player);
@@ -2042,8 +2080,26 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 		else if (CurrentPlayPeriod.IsValid())
 		{
 			// Evaluate ABR to select the next stream quality.
-			FTimeValue ActionDelay;
-			IAdaptiveStreamSelector::ESegmentAction Action = StreamSelector->SelectSuitableStreams(ActionDelay, FinishedReq.Request);
+			IAdaptiveStreamSelector::ESegmentAction Action;
+			if (FinishedReq.PreviousEvalResult.IsSet())
+			{
+				Action = FinishedReq.PreviousEvalResult.Value();
+				FinishedReq.PreviousEvalResult.Reset();
+			}
+			else
+			{
+				FTimeValue ActionDelay(FTimeValue::GetZero());
+				Action = StreamSelector->SelectSuitableStreams(ActionDelay, FinishedReq.Request);
+				// If the selected choice is to be executed after a certain time take note of
+				// the choice and add the request back to the pending queue.
+				if (ActionDelay > FTimeValue::GetZero())
+				{
+					FinishedReq.AtTime = CurrentTime + ActionDelay;
+					FinishedReq.PreviousEvalResult.Set(Action);
+					NextPendingSegmentRequests.Enqueue(MoveTemp(FinishedReq));
+					continue;
+				}
+			}
 			if (Action == IAdaptiveStreamSelector::ESegmentAction::Fail)
 			{
 				FErrorDetail err;
@@ -2155,10 +2211,10 @@ void FAdaptiveStreamingPlayer::HandlePendingMediaSegmentRequests()
 			// Looping enabled?
 			if (CurrentLoopParam.bEnableLooping)
 			{
-				if (CurrentTimeline.IsValid() && CurrentPlayPeriod.IsValid())
+				if (Manifest.IsValid() && CurrentPlayPeriod.IsValid())
 				{
 					FPlayStartPosition	StartAt;
-					FTimeRange			Seekable = CurrentTimeline->GetSeekableTimeRange();
+					FTimeRange			Seekable = Manifest->GetSeekableTimeRange();
 					StartAt.Time = Seekable.Start;
 
 					TSharedPtrTS<IStreamSegment> FirstSegmentRequest;
@@ -2629,7 +2685,7 @@ bool FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	int64 StartingBitrate = StreamSelector->GetAverageBandwidth();
 	if (StartingBitrate <= 0)
 	{
-		StartingBitrate = PlayerOptions.GetValue("initial_bitrate").SafeGetInt64(0);
+		StartingBitrate = PlayerOptions.GetValue(OptionKeyInitialBitrate).SafeGetInt64(0);
 	}
 	if (StartingBitrate <= 0)
 	{
@@ -2655,7 +2711,7 @@ bool FAdaptiveStreamingPlayer::InternalStartAt(const FSeekParam& NewPosition)
 	UpdateDataAvailabilityState(DataAvailabilityStateTxt, Metrics::FDataAvailabilityChange::EAvailability::DataNotAvailable);
 
 	// For an mp4 file we expect several audio tracks to be available and select the one matching the selected index, if there is one.
-	if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == "mp4")
+	if (ManifestReader.IsValid() && ManifestReader->GetPlaylistType() == TEXT("mp4"))
 	{
 		// Only select audio for now.
 		if (InitialStreamSelectionAud.IsValid())

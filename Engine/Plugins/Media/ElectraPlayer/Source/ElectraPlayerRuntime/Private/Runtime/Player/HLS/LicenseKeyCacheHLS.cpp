@@ -11,7 +11,7 @@ namespace Electra
 class FLicenseKeyCacheHLS : public ILicenseKeyCacheHLS
 {
 public:
-	FLicenseKeyCacheHLS(IPlayerSessionServices* SessionServices, const FParamDict& Options);
+	FLicenseKeyCacheHLS(IPlayerSessionServices* SessionServices);
 	virtual ~FLicenseKeyCacheHLS();
 
 	virtual TSharedPtr<TArray<uint8>, ESPMode::ThreadSafe> GetLicenseKeyFor(const TSharedPtr<const FManifestHLSInternal::FMediaStream::FDRMKeyInfo, ESPMode::ThreadSafe>& LicenseKeyInfo) override;
@@ -21,7 +21,6 @@ private:
 
 	static const uint32 kMaxCacheEntries = 32;
 
-	FParamDict				Options;
 	IPlayerSessionServices* SessionServices;
 
 	struct FEntry
@@ -39,18 +38,17 @@ private:
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-ILicenseKeyCacheHLS* ILicenseKeyCacheHLS::Create(IPlayerSessionServices* SessionServices, const FParamDict& Options)
+ILicenseKeyCacheHLS* ILicenseKeyCacheHLS::Create(IPlayerSessionServices* SessionServices)
 {
-	return new FLicenseKeyCacheHLS(SessionServices, Options);
+	return new FLicenseKeyCacheHLS(SessionServices);
 }
 
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-FLicenseKeyCacheHLS::FLicenseKeyCacheHLS(IPlayerSessionServices* InSessionServices, const FParamDict& InOptions)
-	: Options(InOptions)
-	, SessionServices(InSessionServices)
+FLicenseKeyCacheHLS::FLicenseKeyCacheHLS(IPlayerSessionServices* InSessionServices)
+	: SessionServices(InSessionServices)
 	, Cache(kMaxCacheEntries)
 {
 }

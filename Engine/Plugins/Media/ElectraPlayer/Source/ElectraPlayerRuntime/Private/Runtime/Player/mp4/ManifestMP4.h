@@ -21,7 +21,7 @@ namespace Electra
  * This class represents the internal "manifest" or "playlist" of an mp4 file.
  * All metadata of the tracks it is composed of are maintained by this class.
  */
-class FManifestMP4Internal : public IManifest, public IPlaybackAssetTimeline, public TSharedFromThis<FManifestMP4Internal, ESPMode::ThreadSafe>
+class FManifestMP4Internal : public IManifest, public TSharedFromThis<FManifestMP4Internal, ESPMode::ThreadSafe>
 {
 public:
 	FManifestMP4Internal(IPlayerSessionServices* InPlayerSessionServices);
@@ -30,7 +30,32 @@ public:
 	FErrorDetail Build(TSharedPtrTS<IParserISO14496_12> MP4Parser, const FString& URL, const HTTP::FConnectionInfo& InConnectionInfo);
 
 	virtual EType GetPresentationType() const override;
-	virtual TSharedPtrTS<IPlaybackAssetTimeline> GetTimeline() const override;
+	virtual FTimeValue GetAnchorTime() const override
+	{ return FTimeValue::GetZero(); }
+	virtual FTimeRange GetTotalTimeRange() const override
+	{ return MediaAsset.IsValid() ? MediaAsset->GetTimeRange() : FTimeRange(); }
+	virtual FTimeRange GetSeekableTimeRange() const override
+	{
+		FTimeRange tr = GetTotalTimeRange();
+		// FIXME: This would need to be the time of the last sync frame of video (if it exists) or audio.
+		//        For now it does not need to be precise since the nearest sync frame is searched for when seeking.
+		//        It doesn't seem to make a lot of sense to seek very close to the end and play from there so we
+		//        allow only to go as close to the end as we deem feasible.
+		tr.End -= FTimeValue().SetFromSeconds(2.0);
+		if (tr.End < FTimeValue::GetZero())
+		{
+			tr.End = FTimeValue::GetZero();
+		}
+		return tr;
+	}
+	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override
+	{
+		// For the time being we do not return anything here as that would require to iterate the tracks.
+	}
+	virtual FTimeValue GetDuration() const override
+	{ return MediaAsset.IsValid() ? MediaAsset->GetDuration() : FTimeValue(); }
+	virtual FTimeValue GetDefaultStartTime() const override
+	{ return FTimeValue::GetInvalid(); }
 	virtual int64 GetDefaultStartingBitrate() const override;
 	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const override;
 	virtual FTimeValue GetMinBufferTime() const override;
@@ -167,7 +192,7 @@ public:
 		FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData);
 		FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType);
 
-		void GetSegmentInformation(TArray<IManifest::IPlayPeriod::FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation);
+		void GetSegmentInformation(TArray<IManifest::IPlayPeriod::FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID);
 		TSharedPtrTS<IParserISO14496_12>	GetMoovBoxParser();
 		const FString& GetMediaURL() const
 		{
@@ -193,61 +218,19 @@ public:
 		virtual EReadyState GetReadyState() override;
 		virtual void PrepareForPlay(const FParamDict& Options) override;
 		virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
-		virtual void SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) override;
+		virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
 		virtual FResult GetStartingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
 		virtual FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 		virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) override;
 		virtual FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType) override;
-		virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) override;
+		virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
+		virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
 	private:
 		TWeakPtrTS<FTimelineAssetMP4>			MediaAsset;
 		FStreamPreferences						Preferences;
 		FParamDict								Options;
 		bool									bIsReady;
 	};
-
-	//-------------------------------------------------------------------------
-	// Methods from IPlaybackAssetTimeline
-	//
-	virtual FTimeValue GetAnchorTime() const override
-	{
-		return FTimeValue::GetZero();
-	}
-	virtual FTimeRange GetTotalTimeRange() const override
-	{
-		return MediaAsset.IsValid() ? MediaAsset->GetTimeRange() : FTimeRange();
-	}
-	virtual FTimeRange GetSeekableTimeRange() const override
-	{
-		FTimeRange tr = GetTotalTimeRange();
-		// FIXME: This would need to be the time of the last sync frame of video (if it exists) or audio.
-		//        For now it does not need to be precise since the nearest sync frame is searched for when seeking.
-		//        It doesn't seem to make a lot of sense to seek very close to the end and play from there so we
-		//        allow only to go as close to the end as we deem feasible.
-		tr.End -= FTimeValue().SetFromSeconds(2.0);
-		if (tr.End < FTimeValue::GetZero())
-		{
-			tr.End = FTimeValue::GetZero();
-		}
-		return tr;
-	}
-	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override
-	{
-		// For the time being we do not return anything here as that would require to iterate the tracks.
-	}
-	virtual FTimeValue GetDuration() const override
-	{
-		return MediaAsset.IsValid() ? MediaAsset->GetDuration() : FTimeValue();
-	}
-	virtual int32 GetNumberOfMediaAssets() const override
-	{
-		return 1;
-	}
-	virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAssetByIndex(int32 MediaAssetIndex) const override
-	{
-		return MediaAsset;
-	}
-
 
 	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
 

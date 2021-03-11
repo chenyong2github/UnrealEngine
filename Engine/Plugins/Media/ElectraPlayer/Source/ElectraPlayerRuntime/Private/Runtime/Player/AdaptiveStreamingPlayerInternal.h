@@ -1181,6 +1181,7 @@ private:
 	void HandlePendingMediaSegmentRequests();
 	void HandleDeselectedBuffers();
 	void HandleDecoderChanges();
+	void HandleMetadataChanges();
 
 	void CheckForStreamEnd();
 
@@ -1287,7 +1288,6 @@ private:
 
 	TMediaQueueDynamic<TSharedPtrTS<FErrorDetail>>						ErrorQueue;
 
-	TSharedPtrTS<IPlaybackAssetTimeline>								CurrentTimeline;
 	TSharedPtrTS<IManifest>												Manifest;
 	TSharedPtrTS<IPlaylistReader>										ManifestReader;
 
@@ -1358,6 +1358,7 @@ private:
 	{
 		TSharedPtrTS<IStreamSegment>		Request;
 		FTimeValue							AtTime;
+		TMediaOptionalValue<IAdaptiveStreamSelector::ESegmentAction> PreviousEvalResult;
 	};
 
 	TSharedPtrTS<IManifest::IPlayPeriod>								CurrentPlayPeriod;

@@ -112,19 +112,19 @@ void FAdaptiveStreamingPlayer::InternalLoadManifest(const FString& URL, const FS
 			{
 				ManifestReader = IPlaylistReaderHLS::Create(this);
 				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
-				ManifestReader->LoadAndParse(URL, StreamPreferences, PlayerOptions);
+				ManifestReader->LoadAndParse(URL);
 			}
 			else if (mimeType == Playlist::MIMETypeMP4)
 			{
 				ManifestReader = IPlaylistReaderMP4::Create(this);
 				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
-				ManifestReader->LoadAndParse(URL, StreamPreferences, PlayerOptions);
+				ManifestReader->LoadAndParse(URL);
 			}
 			else if (mimeType == Playlist::MIMETypeDASH)
 			{
 				ManifestReader = IPlaylistReaderDASH::Create(this);
 				DispatchEvent(FMetricEvent::ReportOpenSource(URL));
-				ManifestReader->LoadAndParse(URL, StreamPreferences, PlayerOptions);
+				ManifestReader->LoadAndParse(URL);
 			}
 			else
 			{
@@ -162,89 +162,28 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 	if (ManifestReader)
 	{
 		check(Manifest == nullptr);
-		if (ManifestReader->GetPlaylistType() == TEXT("hls"))
+		if (ManifestReader->GetPlaylistType() == TEXT("hls") ||
+			ManifestReader->GetPlaylistType() == TEXT("mp4") ||
+			ManifestReader->GetPlaylistType() == TEXT("dash"))
 		{
 			TArray<FTimespan> SeekablePositions;
-			TSharedPtrTS<IManifest> pPresentation = ManifestReader->GetManifest();
-			check(pPresentation.IsValid());
+			TSharedPtrTS<IManifest> NewPresentation = ManifestReader->GetManifest();
+			check(NewPresentation.IsValid());
 
-			CurrentTimeline = pPresentation->GetTimeline();
-			PlaybackState.SetSeekableRange(CurrentTimeline->GetSeekableTimeRange());
-			CurrentTimeline->GetSeekablePositions(SeekablePositions);
+			PlaybackState.SetSeekableRange(NewPresentation->GetSeekableTimeRange());
+			NewPresentation->GetSeekablePositions(SeekablePositions);
 			PlaybackState.SetSeekablePositions(SeekablePositions);
-			PlaybackState.SetTimelineRange(CurrentTimeline->GetTotalTimeRange());
-			PlaybackState.SetDuration(CurrentTimeline->GetDuration());
+			PlaybackState.SetTimelineRange(NewPresentation->GetTotalTimeRange());
+			PlaybackState.SetDuration(NewPresentation->GetDuration());
 
 			TArray<FStreamMetadata> VideoStreamMetadata;
 			TArray<FStreamMetadata> AudioStreamMetadata;
-			pPresentation->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
-			pPresentation->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
+			NewPresentation->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
+			NewPresentation->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
 			PlaybackState.SetStreamMetadata(VideoStreamMetadata, AudioStreamMetadata);
 			PlaybackState.SetHaveMetadata(true);
 
-			Manifest = pPresentation;
-
-			CurrentState = EPlayerState::eState_Ready;
-
-			double minBufTimeMPD = Manifest->GetMinBufferTime().GetAsSeconds();
-			PlayerConfig.InitialBufferMinTimeAvailBeforePlayback = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDInitialBufferMinTimeBeforePlayback,   PlayerConfig.InitialBufferMinTimeAvailBeforePlayback);
-			PlayerConfig.SeekBufferMinTimeAvailBeforePlayback    = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDSeekBufferMinTimeAvailBeforePlayback, PlayerConfig.SeekBufferMinTimeAvailBeforePlayback);
-			PlayerConfig.RebufferMinTimeAvailBeforePlayback 	 = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDRebufferMinTimeAvailBeforePlayback,   PlayerConfig.RebufferMinTimeAvailBeforePlayback);
-
-			return true;
-		}
-		else if (ManifestReader->GetPlaylistType() == TEXT("mp4"))
-		{
-			TArray<FTimespan> SeekablePositions;
-			TSharedPtrTS<IManifest> pPresentation = ManifestReader->GetManifest();
-			check(pPresentation.IsValid());
-
-			CurrentTimeline = pPresentation->GetTimeline();
-			PlaybackState.SetSeekableRange(CurrentTimeline->GetSeekableTimeRange());
-			CurrentTimeline->GetSeekablePositions(SeekablePositions);
-			PlaybackState.SetSeekablePositions(SeekablePositions);
-			PlaybackState.SetTimelineRange(CurrentTimeline->GetTotalTimeRange());
-			PlaybackState.SetDuration(CurrentTimeline->GetDuration());
-
-			TArray<FStreamMetadata> VideoStreamMetadata;
-			TArray<FStreamMetadata> AudioStreamMetadata;
-			pPresentation->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
-			pPresentation->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
-			PlaybackState.SetStreamMetadata(VideoStreamMetadata, AudioStreamMetadata);
-			PlaybackState.SetHaveMetadata(true);
-
-			Manifest = pPresentation;
-
-			CurrentState = EPlayerState::eState_Ready;
-
-			double minBufTimeMPD = Manifest->GetMinBufferTime().GetAsSeconds();
-			PlayerConfig.InitialBufferMinTimeAvailBeforePlayback = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDInitialBufferMinTimeBeforePlayback,   PlayerConfig.InitialBufferMinTimeAvailBeforePlayback);
-			PlayerConfig.SeekBufferMinTimeAvailBeforePlayback    = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDSeekBufferMinTimeAvailBeforePlayback, PlayerConfig.SeekBufferMinTimeAvailBeforePlayback);
-			PlayerConfig.RebufferMinTimeAvailBeforePlayback 	 = Utils::Min(minBufTimeMPD * PlayerConfig.ScaleMPDRebufferMinTimeAvailBeforePlayback,   PlayerConfig.RebufferMinTimeAvailBeforePlayback);
-
-			return true;
-		}
-		else if (ManifestReader->GetPlaylistType() == TEXT("dash"))
-		{
-			TArray<FTimespan> SeekablePositions;
-			TSharedPtrTS<IManifest> pPresentation = ManifestReader->GetManifest();
-			check(pPresentation.IsValid());
-
-			CurrentTimeline = pPresentation->GetTimeline();
-			PlaybackState.SetSeekableRange(CurrentTimeline->GetSeekableTimeRange());
-			CurrentTimeline->GetSeekablePositions(SeekablePositions);
-			PlaybackState.SetSeekablePositions(SeekablePositions);
-			PlaybackState.SetTimelineRange(CurrentTimeline->GetTotalTimeRange());
-			PlaybackState.SetDuration(CurrentTimeline->GetDuration());
-
-			TArray<FStreamMetadata> VideoStreamMetadata;
-			TArray<FStreamMetadata> AudioStreamMetadata;
-			pPresentation->GetStreamMetadata(VideoStreamMetadata, EStreamType::Video);
-			pPresentation->GetStreamMetadata(AudioStreamMetadata, EStreamType::Audio);
-			PlaybackState.SetStreamMetadata(VideoStreamMetadata, AudioStreamMetadata);
-			PlaybackState.SetHaveMetadata(true);
-
-			Manifest = pPresentation;
+			Manifest = NewPresentation;
 
 			CurrentState = EPlayerState::eState_Ready;
 
@@ -271,17 +210,15 @@ bool FAdaptiveStreamingPlayer::SelectManifest()
 
 void FAdaptiveStreamingPlayer::UpdateManifest()
 {
-	check(Manifest != nullptr);
+	check(Manifest.IsValid());
 
 	TArray<FTimespan> SeekablePositions;
 
-	// Update the current timeline.
-	CurrentTimeline = Manifest->GetTimeline();
-	PlaybackState.SetSeekableRange(CurrentTimeline->GetSeekableTimeRange());
-	CurrentTimeline->GetSeekablePositions(SeekablePositions);
+	PlaybackState.SetSeekableRange(Manifest->GetSeekableTimeRange());
+	Manifest->GetSeekablePositions(SeekablePositions);
 	PlaybackState.SetSeekablePositions(SeekablePositions);
-	PlaybackState.SetTimelineRange(CurrentTimeline->GetTotalTimeRange());
-	PlaybackState.SetDuration(CurrentTimeline->GetDuration());
+	PlaybackState.SetTimelineRange(Manifest->GetTotalTimeRange());
+	PlaybackState.SetDuration(Manifest->GetDuration());
 
 	TArray<FStreamMetadata> VideoStreamMetadata;
 	TArray<FStreamMetadata> AudioStreamMetadata;

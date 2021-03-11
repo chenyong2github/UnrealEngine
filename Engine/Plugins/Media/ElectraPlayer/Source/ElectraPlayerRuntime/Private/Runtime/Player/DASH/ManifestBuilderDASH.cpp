@@ -7,6 +7,8 @@
 #include "Player/PlayerSessionServices.h"
 #include "Player/PlayerStreamFilter.h"
 #include "Player/PlayerEntityCache.h"
+#include "Player/DASH/OptionKeynamesDASH.h"
+#include "Player/AdaptivePlayerOptionKeynames.h"
 
 #include "ManifestBuilderDASH.h"
 #include "ManifestParserDASH.h"
@@ -38,11 +40,19 @@
 #define ERRCODE_DASH_MPD_BUILDER_BAD_PERIOD_DURATION				203
 
 
+
 namespace Electra
 {
+#ifdef LOG_DASHINT_CTORDTOR
+DECLARE_LOG_CATEGORY_EXTERN(LogElectraDASHMPD, Log, All);
+DEFINE_LOG_CATEGORY(LogElectraDASHMPD);
+#endif
 
 namespace
 {
+	const TCHAR* const Custom_EpicStaticStart = TEXT("EpicStaticStart");
+	const TCHAR* const Custom_EpicDynamicStart = TEXT("EpicDynamicStart");
+
 	const TCHAR* const XLinkActuateOnLoad = TEXT("onLoad");
 	const TCHAR* const XLinkActuateOnRequest = TEXT("onRequest");
 	const TCHAR* const XLinkResolveToZero = TEXT("urn:mpeg:dash:resolve-to-zero:2013");
@@ -452,6 +462,14 @@ namespace DASHUrlHelpers
 				}
 			}
 
+			// In case parameter replacement failed we could have sequences of double ampersands (&&) or a last/only & char.
+			while(FinalQueryString.ReplaceInline(TEXT("&&"), TEXT("&")))
+			{ }
+			if (FinalQueryString.Len() && FinalQueryString[FinalQueryString.Len()-1] == TCHAR('&'))
+			{
+				FinalQueryString.LeftChopInline(1);
+			}
+
 			// Where does the output go? URL query param or HTTP request header?
 			if (uq->GetExtendedUrlInfoType() == FDashMPD_UrlQueryInfoType::EExtendedUrlInfoType::ExtUrlQueryInfo)
 			{
@@ -504,8 +522,10 @@ namespace DASHUrlHelpers
 	 * Returns true if an absolute URL could be generated, false if not.
 	 * Since the MPD URL had to be an absolute URL this cannot actually fail.
 	 */
-	bool BuildAbsoluteElementURL(FString& OutURL, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& InElementURL)
+	bool BuildAbsoluteElementURL(FString& OutURL, FTimeValue& ATO, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& InElementURL)
 	{
+		FTimeValue SumOfUrlATOs(FTimeValue::GetZero());
+		ATO.SetToZero();
 		FURL_RFC3986 UrlParser;
 		FString ElementURL(InElementURL);
 		// If the element URL is empty it is specified as the first entry in the BaseURL array.
@@ -514,10 +534,11 @@ namespace DASHUrlHelpers
 		int32 nBase = 0;
 		if (ElementURL.IsEmpty())
 		{
-			// Must not be empty for this!
+			// If there is no element URL and BaseURLs this is probably for an MPD update in which case we return the original document URL.
 			if (BaseURLs.Num() == 0)
 			{
-				return false;
+				OutURL = DocumentURL;
+				return true;
 			}
 			ElementURL = BaseURLs[0]->GetURL();
 			++nBase;
@@ -534,7 +555,9 @@ namespace DASHUrlHelpers
 				{
 					if (nBase < BaseURLs.Num())
 					{
-						UrlParser.ResolveAgainst(BaseURLs[nBase++]->GetURL());
+						UrlParser.ResolveAgainst(BaseURLs[nBase]->GetURL());
+						SumOfUrlATOs += BaseURLs[nBase]->GetAvailabilityTimeOffset();
+						++nBase;
 					}
 					else
 					{
@@ -544,6 +567,7 @@ namespace DASHUrlHelpers
 				}
 			}
 			OutURL = UrlParser.Get();
+			ATO = SumOfUrlATOs;
 			return UrlParser.IsAbsolute();
 		}
 		return false;
@@ -668,19 +692,9 @@ class FManifestBuilderDASH : public IManifestBuilderDASH
 public:
 	FManifestBuilderDASH(IPlayerSessionServices* InPlayerSessionServices);
 	virtual ~FManifestBuilderDASH() = default;
+	
+	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FTimeValue& FetchTime, const FString& ETag) override;
 
-	/**
-	 * Builds a new internal manifest from a DASH MPD
-	 *
-	 * @param OutMPD
-	 * @param InOutMPDXML
-	 * @param SourceRequest
-	 * @param Preferences
-	 * @param Options
-	 *
-	 * @return
-	 */
-	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, TSharedPtrTS<FMPDLoadRequestDASH> SourceRequest, const FStreamPreferences& Preferences, const FParamDict& Options) override;
 private:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHMPDBuilder);
 
@@ -701,7 +715,7 @@ FManifestBuilderDASH::FManifestBuilderDASH(IPlayerSessionServices* InPlayerSessi
 {
 }
 
-FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, TSharedPtrTS<FMPDLoadRequestDASH> SourceRequest, const FStreamPreferences& Preferences, const FParamDict& Options)
+FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FTimeValue& FetchTime, const FString& ETag)
 {
 	TSharedPtrTS<FDashMPD_MPDType> NewMPD;
 	TArray<TWeakPtrTS<IDashMPDElement>> XLinkElements;
@@ -717,8 +731,9 @@ FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHIntern
 		return CreateErrorAndLog(PlayerSessionServices, FString::Printf(TEXT("No root <MPD> element found")), ERRCODE_DASH_MPD_BUILDER_MISSING_REQUIRED_ELEMENT);
 	}
 	NewMPD = RootEntities.MPDs[0];
-	NewMPD->SetDocumentURL(SourceRequest->URL);
-	NewMPD->SetFetchTime(SourceRequest->GetConnectionInfo()->RequestStartTime);
+	NewMPD->SetDocumentURL(EffectiveURL);
+	NewMPD->SetFetchTime(FetchTime);
+	NewMPD->SetETag(ETag);
 
 	// Check if this MPD uses a profile we can handle. (If our array is empty we claim to handle anything)
 	bool bHasUsableProfile = UE_ARRAY_COUNT(SupportedProfiles) == 0;
@@ -775,7 +790,7 @@ FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHIntern
 	}
 
 	TSharedPtrTS<FManifestDASHInternal> NewManifest = MakeSharedTS<FManifestDASHInternal>();
-	Error = NewManifest->Build(PlayerSessionServices, NewMPD, MoveTemp(XLinkElements), Preferences, Options);
+	Error = NewManifest->Build(PlayerSessionServices, NewMPD, MoveTemp(XLinkElements));
 	if (Error.IsOK() || Error.IsTryAgain())
 	{
 		OutMPD = MoveTemp(NewManifest);
@@ -785,7 +800,7 @@ FErrorDetail FManifestBuilderDASH::BuildFromMPD(TSharedPtrTS<FManifestDASHIntern
 
 
 
-FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(IPlayerSessionServices* PlayerSessionServices, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, TWeakPtrTS<IDashMPDElement> InElementWithXLink, int64 RequestID)
+FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, TWeakPtrTS<IDashMPDElement> InElementWithXLink, int64 RequestID)
 {
 	const TCHAR* PreferredServiceLocation = nullptr;
 
@@ -818,6 +833,7 @@ FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(IPlayerSessi
 
 		FString URL;
 		FString RequestHeader;
+		FTimeValue UrlATO;
 		// Get the xlink:href
 		FString XlinkHRef = xl.GetHref();
 		if (!XlinkHRef.Equals(XLinkResolveToZero))
@@ -830,7 +846,7 @@ FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(IPlayerSessi
 			{
 				TArray<TSharedPtrTS<const FDashMPD_BaseURLType>> OutBaseURLs;
 				DASHUrlHelpers::GetAllHierarchyBaseURLs(PlayerSessionServices, OutBaseURLs, XElem->GetParentElement(), PreferredServiceLocation);
-				if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, MPDRoot->GetDocumentURL(), OutBaseURLs, XlinkHRef))
+				if (!DASHUrlHelpers::BuildAbsoluteElementURL(URL, UrlATO, MPDRoot->GetDocumentURL(), OutBaseURLs, XlinkHRef))
 				{
 					// Not resolving to an absolute URL is very unlikely as we had to load the MPD itself from somewhere.
 					return CreateErrorAndLog(PlayerSessionServices, FString::Printf(TEXT("xlink:href did not resolve to an absolute URL")), ERRCODE_DASH_MPD_BUILDER_URL_FAILED_TO_RESOLVE);
@@ -857,7 +873,7 @@ FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(IPlayerSessi
 		LoadReq->URL = URL;
 		if (RequestHeader.Len())
 		{
-			LoadReq->Headers.Emplace(HTTP::FHTTPHeader({TEXT("MPEG-DASH-Param"), RequestHeader}));
+			LoadReq->Headers.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, RequestHeader}));
 		}
 		LoadReq->XLinkElement = XElem;
 
@@ -872,15 +888,72 @@ FErrorDetail FManifestDASHInternal::PrepareRemoteElementLoadRequest(IPlayerSessi
 }
 
 
-
-FErrorDetail FManifestDASHInternal::Build(IPlayerSessionServices* PlayerSessionServices, TSharedPtr<FDashMPD_MPDType, ESPMode::ThreadSafe> InMPDRoot, TArray<TWeakPtrTS<IDashMPDElement>> InXLinkElements, const FStreamPreferences& InPreferences, const FParamDict& InOptions)
+void FManifestDASHInternal::TransformIntoEpicEvent()
 {
+	// For this to work the presentation must be 'static'
+	if (PresentationType == EPresentationType::Static)
+	{
+		FString Time;
+		bool bDynamic = false;
+		for(int32 i=0,iMax=URLFragmentComponents.Num(); i<iMax; ++i)
+		{
+			bool bStaticStart = URLFragmentComponents[i].Name.Equals(Custom_EpicStaticStart);
+			bool bDynamicStart = URLFragmentComponents[i].Name.Equals(Custom_EpicDynamicStart);
+			if (bStaticStart || bDynamicStart)
+			{
+				bDynamic = bDynamicStart;
+				Time = URLFragmentComponents[i].Value;
+				break;
+			}
+		}
+		if (!Time.IsEmpty())
+		{
+			// Get the event start time. This is either a Posix time in seconds since the Epoch (1/1/1970) or the special
+			// word 'now' optionally followed by a value to be added or subtracted from now.
+			FTimeValue Start;
+			if (Time.StartsWith(TEXT("now")))
+			{
+				Time.RightChopInline(3);
+				Start = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+			}
+			if (!Time.IsEmpty())
+			{
+				FTimeValue Posix = FTimeValue().SetFromTimeFraction(FTimeFraction().SetFromFloatString(Time));
+				if (Posix.IsValid())
+				{
+					if (Start.IsValid())
+					{
+						Start += Posix;
+					}
+					else
+					{
+						Start = Posix;
+					}
+				}
+			}
+			if (Start.IsValid())
+			{
+				MPDRoot->SetAvailabilityStartTime(Start);
+				if (bDynamic)
+				{
+					MPDRoot->SetPublishTime(Start);
+					MPDRoot->SetType(TEXT("dynamic"));
+					PresentationType = EPresentationType::Dynamic;
+					bIsEventType = true;
+				}
+			}
+		}
+	}
+}
+
+
+
+FErrorDetail FManifestDASHInternal::Build(IPlayerSessionServices* InPlayerSessionServices, TSharedPtr<FDashMPD_MPDType, ESPMode::ThreadSafe> InMPDRoot, TArray<TWeakPtrTS<IDashMPDElement>> InXLinkElements)
+{
+	PlayerSessionServices = InPlayerSessionServices;
 	RemoteElementsToResolve = MoveTemp(InXLinkElements);
 
 	FErrorDetail Error;
-
-	Preferences = InPreferences;
-	Options = InOptions;
 
 	MPDRoot = InMPDRoot;
 	
@@ -921,7 +994,7 @@ FErrorDetail FManifestDASHInternal::Build(IPlayerSessionServices* PlayerSessionS
 	// As long as this list is not empty we are not done with the initial MPD setup.
 	for(int32 nRemoteElement=0; nRemoteElement<RemoteElementsToResolve.Num(); ++nRemoteElement)
 	{
-		Error = PrepareRemoteElementLoadRequest(PlayerSessionServices, PendingRemoteElementLoadRequests, RemoteElementsToResolve[nRemoteElement], 1);
+		Error = PrepareRemoteElementLoadRequest(PendingRemoteElementLoadRequests, RemoteElementsToResolve[nRemoteElement], 1);
 		if (Error.IsSet())
 		{
 			return Error;
@@ -931,10 +1004,10 @@ FErrorDetail FManifestDASHInternal::Build(IPlayerSessionServices* PlayerSessionS
 	{
 		return Error.SetTryAgain();
 	}
-	return BuildAfterInitialRemoteElementDownload(PlayerSessionServices);
+	return BuildAfterInitialRemoteElementDownload();
 }
 
-FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload(IPlayerSessionServices* PlayerSessionServices)
+FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload()
 {
 	FErrorDetail Error;
 
@@ -954,7 +1027,7 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload(IPlay
 		// In this case we make up an artificial name.
 		if (p->ID.IsEmpty())
 		{
-			p->ID = FString::Printf(TEXT("$unnamed.%d$"), nPeriod);
+			p->ID = FString::Printf(TEXT("$period.%d$"), nPeriod);
 		}
 
 		p->Start = MPDperiods[nPeriod]->GetStart();
@@ -973,6 +1046,10 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload(IPlay
 			}
 			else if (PresentationType == EPresentationType::Dynamic)
 			{
+				if (nPeriod == 0)
+				{
+					LogMessage(PlayerSessionServices, IInfoLog::ELevel::Info, FString::Printf(TEXT("The first period \"%s\" of this dynamic presentation has no start. Is this intended?"), *p->ID));
+				}
 				p->bIsEarlyPeriod = true;
 			}
 			else
@@ -1101,13 +1178,17 @@ FErrorDetail FManifestDASHInternal::BuildAfterInitialRemoteElementDownload(IPlay
 }
 
 
-FErrorDetail FManifestDASHInternal::PreparePeriodAdaptationSets(IPlayerSessionServices* PlayerSessionServices, TSharedPtrTS<FPeriod> Period, bool bRequestXlink)
+void FManifestDASHInternal::PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> Period, bool bRequestXlink)
 {
-	FErrorDetail Error;
 	check(Period.IsValid());
 	TSharedPtrTS<FDashMPD_PeriodType> MPDPeriod = Period->Period.Pin();
 	if (MPDPeriod.IsValid())
 	{
+		// If already prepared just return.
+		if (Period->GetHasBeenPrepared() && !bRequestXlink)
+		{
+			return;
+		}
 		Period->AdaptationSets.Empty();
 		const TArray<TSharedPtrTS<FDashMPD_AdaptationSetType>>& MPDAdaptationSets = MPDPeriod->GetAdaptationSets();
 		for(int32 nAdapt=0, nAdaptMax=MPDAdaptationSets.Num(); nAdapt<nAdaptMax; ++nAdapt)
@@ -1286,6 +1367,9 @@ FErrorDetail FManifestDASHInternal::PreparePeriodAdaptationSets(IPlayerSessionSe
 					continue;
 				}
 
+				Representation->ID = MPDRepresentation->GetID();
+				Representation->Bitrate = MPDRepresentation->GetBandwidth();
+
 				// Propagate the language code from the AdaptationSet into the codec info
 				Representation->CodecInfo.SetStreamLanguageCode(AdaptationSet->Language);
 
@@ -1449,8 +1533,8 @@ FErrorDetail FManifestDASHInternal::PreparePeriodAdaptationSets(IPlayerSessionSe
 			}
 
 		}
+		Period->SetHasBeenPrepared(true);
 	}
-	return Error;
 }
 
 
@@ -1458,7 +1542,7 @@ FErrorDetail FManifestDASHInternal::PreparePeriodAdaptationSets(IPlayerSessionSe
 /**
  * Resolves an xlink request made by the initial load of the MPD.
  */
-FErrorDetail FManifestDASHInternal::ResolveInitialRemoteElementRequest(IPlayerSessionServices* PlayerSessionServices, TSharedPtrTS<FMPDLoadRequestDASH> RequestResponse, FString XMLResponse, bool bSuccess)
+FErrorDetail FManifestDASHInternal::ResolveInitialRemoteElementRequest(TSharedPtrTS<FMPDLoadRequestDASH> RequestResponse, FString XMLResponse, bool bSuccess)
 {
 	// Because this is intended solely for initial MPD entities we do not need to worry about anyone accessing our internal structures
 	// while we update them. The player proper has not been informed yet that the initial manifest is ready for use.
@@ -1586,6 +1670,481 @@ int32 FManifestDASHInternal::ReplaceElementWithRemoteEntities(TSharedPtrTS<IDash
 }
 
 
+FTimeValue FManifestDASHInternal::GetAnchorTime() const
+{
+	return MPDRoot->GetAvailabilityStartTime().IsValid() ? MPDRoot->GetAvailabilityStartTime() : FTimeValue::GetZero();
+}
+
+FTimeRange FManifestDASHInternal::GetTotalTimeRange() const
+{
+	if (GetPresentationType() == FManifestDASHInternal::EPresentationType::Static)
+	{
+		FTimeValue Anchor = GetAnchorTime();
+		TotalTimeRange.Start = Anchor + GetPeriods()[0]->GetStart();
+		TotalTimeRange.End = TotalTimeRange.Start + GetDuration();
+	}
+	else
+	{
+		bool bIsUpdating = AreUpdatesExpected();
+		FTimeValue ast = GetAnchorTime();
+		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+		FTimeValue LastEnd = GetLastPeriodEndTime();
+		TotalTimeRange.End = bIsUpdating ? Now : LastEnd;
+		if (TotalTimeRange.End.IsValid())
+		{
+			if (LastEnd.IsValid() && TotalTimeRange.End > LastEnd)
+			{
+				TotalTimeRange.End = LastEnd;
+			}
+
+			FTimeValue tsb = MPDRoot->GetTimeShiftBufferDepth();
+			if (tsb.IsValid())
+			{
+				TotalTimeRange.Start = TotalTimeRange.End - tsb;
+			}
+			else
+			{
+				TotalTimeRange.Start = ast;
+			}
+			FTimeValue PST = ast + GetPeriods()[0]->GetStart();
+			if (TotalTimeRange.Start < PST)
+			{
+				TotalTimeRange.Start = PST;
+			}
+			if (TotalTimeRange.End < TotalTimeRange.Start)
+			{
+				TotalTimeRange.End = TotalTimeRange.Start;
+			}
+		}
+		else
+		{
+			TotalTimeRange.Start = TotalTimeRange.End = ast;
+		}
+	}
+	return TotalTimeRange;
+}
+
+
+FTimeValue FManifestDASHInternal::CalculateDistanceToLiveEdge() const
+{
+	// Check if there is a user provided value. If there is it takes precedence over everything else.
+	FTimeValue Distance = PlayerSessionServices->GetOptions().GetValue(OptionKeyLiveSeekableEndOffset).SafeGetTimeValue(FTimeValue());
+	// If not set use the MPD@suggestedPresentationDelay
+	if (!Distance.IsValid())
+	{
+		Distance = MPDRoot->GetSuggestedPresentationDelay();
+	}
+	// If not set see if there is an MPD@maxSegmentDuration and use that.
+	if (!Distance.IsValid())
+	{
+		// Keep a distance of 3 segment durations.
+		// The DASH-IF-IOP recommendation is 2 to 4 SDURATION. See section 4.3.3.2.2.
+		Distance = MPDRoot->GetMaxSegmentDuration() * 3;
+		// And no less than 4 seconds.
+		if (Distance.GetAsMilliseconds(4000) < 4000)
+		{
+			Distance.SetFromMilliseconds(4000);
+		}
+	}
+	// If still not valid use MPD@minBufferTime. That one is mandatory to be present.
+	if (!Distance.IsValid())
+	{
+		// Also stay 3 durations away. This could be a really short or a really large value now.
+		// We make no adjustments here.
+		Distance = MPDRoot->GetMinBufferTime() * 3;
+	}
+	// We do clamp this to the MPD@timeShiftBufferDepth however to ensure it doesn't get bigger than that.
+	if (Distance > MPDRoot->GetTimeShiftBufferDepth())
+	{
+		Distance = MPDRoot->GetTimeShiftBufferDepth();
+	}
+	check(Distance.IsValid());
+	return Distance;
+}
+
+bool FManifestDASHInternal::UsesAST() const
+{
+	return MPDRoot->GetAvailabilityStartTime().IsValid();
+}
+
+bool FManifestDASHInternal::IsStaticType() const
+{
+	return GetPresentationType() == FManifestDASHInternal::EPresentationType::Static;
+}
+
+
+FTimeValue FManifestDASHInternal::GetMinimumUpdatePeriod() const
+{
+	if (GetPresentationType() == FManifestDASHInternal::EPresentationType::Dynamic && MPDRoot.IsValid())
+	{
+		return MPDRoot->GetMinimumUpdatePeriod();
+	}
+	return FTimeValue::GetInvalid();
+}
+
+bool FManifestDASHInternal::AreUpdatesExpected() const
+{
+	// Returns true if the MPD is subject to updates.
+	if (GetPresentationType() == FManifestDASHInternal::EPresentationType::Static)
+	{
+		return false;
+	}
+	return MPDRoot.IsValid() && MPDRoot->GetMinimumUpdatePeriod().IsValid();
+}
+
+
+FTimeValue FManifestDASHInternal::GetAvailabilityEndTime() const
+{
+	return GetMPDRoot()->GetAvailabilityEndTime();
+}
+
+FTimeValue FManifestDASHInternal::GetTimeshiftBufferDepth() const
+{
+	FTimeValue TSB = GetMPDRoot()->GetTimeShiftBufferDepth();
+	if (!TSB.IsValid())
+	{
+		// Section 5.3.1.2
+		// "When not present, the value is infinite. This value of the attribute is undefined if the type attribute is equal to 'static'."
+		TSB = GetPresentationType() == FManifestDASHInternal::EPresentationType::Static ? FTimeValue::GetZero() : FTimeValue::GetPositiveInfinity();
+	}
+	return TSB;
+}
+
+
+FTimeValue FManifestDASHInternal::GetLastPeriodEndTime() const
+{
+	// As per Annex A.3.2
+	FTimeValue ast = GetAnchorTime();
+	FTimeValue FetchTime = MPDRoot->GetFetchTime();
+	FTimeValue MediaPresentationDuration = FTimeValue::GetPositiveInfinity();
+	if (MPDRoot->GetMediaPresentationDuration().IsValid())
+	{
+		MediaPresentationDuration = MPDRoot->GetMediaPresentationDuration();
+	}
+	else if (Periods.Last()->GetDuration().IsValid())
+	{
+		MediaPresentationDuration = Periods.Last()->GetStart() + Periods.Last()->GetDuration() - Periods[0]->GetStart();
+	}
+	else if (Periods.Last()->GetEnd().IsValid())
+	{
+		MediaPresentationDuration = Periods.Last()->GetEnd() - Periods[0]->GetStart();
+	}
+
+	FTimeValue End = ast + MediaPresentationDuration;
+	if (MPDRoot->GetMinimumUpdatePeriod().IsValid())
+	{
+		FTimeValue CheckTime = FetchTime + MPDRoot->GetMinimumUpdatePeriod();
+		return CheckTime < End ? CheckTime : End;
+	}
+	else
+	{
+		return End;
+	}
+}
+
+
+FTimeValue FManifestDASHInternal::GetMPDValidityEndTime() const
+{
+	// Here we return the time until which the MPD is valid.
+	FTimeValue ast = GetAnchorTime();
+	FTimeValue FetchTime = MPDRoot->GetFetchTime();
+	if (MPDRoot->GetMinimumUpdatePeriod().IsValid())
+	{
+		return FetchTime + MPDRoot->GetMinimumUpdatePeriod();
+	}
+	return FetchTime;
+}
+
+
+FTimeRange FManifestDASHInternal::GetSeekableTimeRange() const
+{
+	const FTimeValue FixedSeekEndDistance(0.0);
+	if (GetPresentationType() == FManifestDASHInternal::EPresentationType::Static)
+	{
+		FTimeValue Anchor = GetAnchorTime();
+		SeekableTimeRange.Start = Anchor + GetPeriods()[0]->GetStart();
+		// FIXME: 10 seconds is an arbitrary value. We do not know the actual segment duration of the very last segment
+		//        so the only recourse right now is to only allow seeking up to some sensible point before the end.
+		SeekableTimeRange.End = Anchor + GetPeriods().Last()->GetEnd() - FixedSeekEndDistance;
+		if (SeekableTimeRange.End < SeekableTimeRange.Start)
+		{
+			SeekableTimeRange.End = SeekableTimeRange.Start;
+		}
+	}
+	else
+	{
+		// We can only rely on the MPD up to the time it was fetched. While it could be documenting
+		// future segments already (a pre-existing presentation made available over time) we would not
+		// be able to fetch them anyway on account of their availability window not being valid yet.
+		// Typically we would want to play some distance away from the bleeding Live edge.
+		bool bIsUpdating = AreUpdatesExpected();
+		FTimeValue Distance = bIsUpdating ? CalculateDistanceToLiveEdge() : FixedSeekEndDistance;
+		FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+		FTimeValue LastEnd = GetLastPeriodEndTime();
+		FTimeValue CurrentEnd = Now;
+		if (LastEnd.IsValid() && CurrentEnd > LastEnd)
+		{
+			CurrentEnd = LastEnd;
+		}
+		FTimeValue ast = GetAnchorTime();
+		if (CurrentEnd.IsValid())
+		{
+			SeekableTimeRange.End = CurrentEnd - Distance;
+
+			FTimeValue tsb = MPDRoot->GetTimeShiftBufferDepth();
+			if (tsb.IsValid())
+			{
+				SeekableTimeRange.Start = CurrentEnd - tsb;
+			}
+			else
+			{
+				SeekableTimeRange.Start = ast;
+			}
+			/*
+				The start must be covered by a Period. See: https://dashif-documents.azurewebsites.net/Guidelines-TimingModel/master/Guidelines-TimingModel.html#timing-timeshift
+					"Clients SHALL NOT allow seeking into regions of the time shift buffer that are not covered by periods, 
+					regardless of whether such regions are before or after the periods described by the MPD."
+			*/
+			FTimeValue PST = ast + GetPeriods()[0]->GetStart();
+			if (SeekableTimeRange.Start < PST)
+			{
+				SeekableTimeRange.Start = PST;
+			}
+			if (SeekableTimeRange.End < SeekableTimeRange.Start)
+			{
+				SeekableTimeRange.End = SeekableTimeRange.Start;
+			}
+			else if (SeekableTimeRange.End > LastEnd - Distance)
+			{
+				SeekableTimeRange.End = LastEnd - Distance;
+			}
+		}
+		else
+		{
+			SeekableTimeRange.Start = SeekableTimeRange.End = ast;
+		}
+	}
+	return SeekableTimeRange;
+}
+
+void FManifestDASHInternal::GetSeekablePositions(TArray<FTimespan>& OutPositions) const
+{
+	FTimeValue Anchor = GetAnchorTime();
+	for(int32 i=0; i<Periods.Num(); ++i)
+	{
+		if (!Periods[i]->GetIsEarlyPeriod())
+		{
+			if (GetPresentationType() == FManifestDASHInternal::EPresentationType::Static)
+			{
+				// The beginning of a period is a seekable position.
+				OutPositions.Emplace(FTimespan((Periods[i]->GetStart() + Anchor).GetAsHNS()));
+			}
+			else
+			{
+				/*
+					If the period is within the availability window we could add times.
+					But as with static presentations, without knowing the period contents there is nothing
+					we can really add here.
+				*/
+			}
+		}
+	}
+}
+
+FTimeValue FManifestDASHInternal::GetDuration() const
+{
+	// An MPD@mediaPresentationDuration is authoritative in both static and dynamic presentations.
+	if (MPDRoot->GetMediaPresentationDuration().IsValid())
+	{
+		return MPDRoot->GetMediaPresentationDuration();
+	}
+	else if (GetPresentationType() == FManifestDASHInternal::EPresentationType::Static)
+	{
+		if (MPDRoot->GetMediaPresentationDuration().IsValid())
+		{
+			return MPDRoot->GetMediaPresentationDuration();
+		}
+		else
+		{
+			// In a static period there cannot be any early periods so we can just use the difference between first and last.
+			return Periods.Last()->GetEnd() - Periods[0]->GetStart();
+		}
+	}
+	else
+	{
+		if (!MPDRoot->GetMinimumUpdatePeriod().IsValid() && (Periods.Last()->GetDuration().IsValid() || Periods.Last()->GetEnd().IsValid()))
+		{
+			return (Periods.Last()->GetEnd().IsValid() ? Periods.Last()->GetEnd() : Periods.Last()->GetStart() + Periods.Last()->GetDuration()) - Periods[0]->GetStart();
+		}
+		return FTimeValue::GetPositiveInfinity();
+	}
+}
+
+
+FTimeRange FManifestDASHInternal::GetPlayTimesFromURI() const
+{
+	FTimeRange FromTo;
+	
+	// We are interested in the 't' and 'period' fragment values here.
+	FString Time, PeriodID;
+	for(int32 i=0,iMax=URLFragmentComponents.Num(); i<iMax; ++i)
+	{
+		if (URLFragmentComponents[i].Name.Equals(TEXT("t")))
+		{
+			Time = URLFragmentComponents[i].Value;
+		}
+		else if (URLFragmentComponents[i].Name.Equals(TEXT("period")))
+		{
+			PeriodID = URLFragmentComponents[i].Value;
+		}
+	}
+	if (Time.IsEmpty() && PeriodID.IsEmpty())
+	{
+		return FromTo;
+	}
+
+	FTimeRange Seekable = GetSeekableTimeRange();
+	// Is the time specified as a POSIX time?
+	TArray<FString> TimeRange;
+	const TCHAR* const TimeDelimiter = TEXT(",");
+	if (Time.StartsWith(TEXT("posix")))
+	{
+		Time.RightChopInline(6);
+		Time.ParseIntoArray(TimeRange, TimeDelimiter, false);
+		// There needs to be a start time in the range. If there is only an end time we do nothing.
+		if (TimeRange.Num() && !TimeRange[0].IsEmpty())
+		{
+			// Is the start time the special time 'now'?
+			if (TimeRange[0].Equals(TEXT("now")))
+			{
+				FTimeValue Now = PlayerSessionServices->GetSynchronizedUTCTime()->GetTime();
+				/*
+				FTimeValue LastEnd = GetLastPeriodEndTime();
+				if (LastEnd.IsValid() && Now > LastEnd)
+				{
+					LastEnd = Now;
+				}
+				*/
+				FromTo.Start = Now;
+			}
+			else
+			{
+				int64 s = 0;
+				LexFromString(s, *TimeRange[0]);
+				FromTo.Start.SetFromSeconds(s);
+			}
+		}
+	}
+	else
+	{
+		// If there is no period specified then the period is the one with the earliest start time
+		if (PeriodID.IsEmpty())
+		{
+			FromTo.Start = Periods[0]->GetStart();
+		}
+		else
+		{
+			// Look for the named period.
+			for(int32 i=0; i<Periods.Num(); ++i)
+			{
+				if (Periods[i]->GetID().Equals(PeriodID))
+				{
+					FromTo.Start = Periods[i]->GetStart();
+					break;
+				}
+			}
+			// If the named period wasn't found use the first one.
+			if (!FromTo.Start.IsValid())
+			{
+				FromTo.Start = Periods[0]->GetStart();
+			}
+		}
+
+		FromTo.Start += GetAnchorTime();
+		// If there is no t specified we are done, otherwise we need to parse it.
+		if (!Time.IsEmpty())
+		{
+			// We need to parse out the 't' and add it to the period.
+			Time.ParseIntoArray(TimeRange, TimeDelimiter, false);
+			// There needs to be a start time in the range. If there is only an end time we do nothing.
+			if (TimeRange.Num() && !TimeRange[0].IsEmpty())
+			{
+				// When there is no POSIX time these values here are NPT
+				FTimeValue Offset;
+				if (RFC2326::ParseNPTTime(Offset, TimeRange[0]))
+				{
+					FromTo.Start += Offset;
+				}
+			}
+		}
+	}
+	// Need to clamp this into the seekable range to prevent any issues.
+	if (FromTo.Start.IsValid())
+	{
+		if (Seekable.Start.IsValid() && FromTo.Start < Seekable.Start)
+		{
+			FromTo.Start = Seekable.Start;
+		}
+		/*
+		else if (Seekable.End.IsValid() && FromTo.Start > Seekable.End)
+		{
+			FromTo.Start = Seekable.End;
+		}
+		*/
+	}
+	return FromTo;
+}
+
+FTimeValue FManifestDASHInternal::GetDefaultStartTime() const
+{
+	FTimeRange FromTo = GetPlayTimesFromURI();
+	return FromTo.Start;
+}
+
+
+#ifdef LOG_DASHINT_CTORDTOR
+FManifestDASHInternal::~FManifestDASHInternal()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("~FManifestDASHInternal(%p)"), this);
+}
+
+FManifestDASHInternal::FManifestDASHInternal()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal(%p)"), this);
+}
+
+FManifestDASHInternal::FPeriod::FPeriod()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::FPeriod(%p)"), this);
+}
+
+FManifestDASHInternal::FPeriod::~FPeriod()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::~FPeriod(%p)"), this);
+}
+
+FManifestDASHInternal::FAdaptationSet::FAdaptationSet()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::FAdaptationSet(%p)"), this);
+}
+
+FManifestDASHInternal::FAdaptationSet::~FAdaptationSet()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::~FAdaptationSet(%p)"), this);
+}
+
+FManifestDASHInternal::FRepresentation::FRepresentation()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::FRepresentation(%p)"), this);
+}
+
+FManifestDASHInternal::FRepresentation::~FRepresentation()
+{
+	UE_LOG(LogElectraDASHMPD, Log, TEXT("FManifestDASHInternal::~FRepresentation(%p)"), this);
+}
+
+
+#endif
 
 
 } // namespace Electra
