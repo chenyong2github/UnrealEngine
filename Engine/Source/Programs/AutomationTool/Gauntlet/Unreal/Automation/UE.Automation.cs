@@ -73,6 +73,12 @@ namespace UE
 		public string ReportURL = "";
 
 		/// <summary>
+		/// Absolute or project relative directory path to write automation telemetry outputs.
+		/// </summary>
+		[AutoParam]
+		public string TelemetryDirectory = "";
+
+		/// <summary>
 		/// Use Simple Horde Report instead of Unreal Automated Tests
 		/// </summary>
 		[AutoParam]
@@ -128,6 +134,21 @@ namespace UE
 				{
 					HordeArtifactPath = HordeReport.DefaultArtifactsDir;
 				}
+			}
+
+			// Setup commandline for telemetry outputs
+			if (!string.IsNullOrEmpty(PublishTelemetryTo) || !string.IsNullOrEmpty(TelemetryDirectory))
+			{
+				if (string.IsNullOrEmpty(TelemetryDirectory))
+				{
+					TelemetryDirectory = Path.Combine(Globals.TempDir, "Telemetry");
+				}
+				if (Directory.Exists(TelemetryDirectory))
+				{
+					// clean any previous data
+					Directory.Delete(TelemetryDirectory, true);
+				}
+				AppConfig.CommandLine += string.Format("-TelemetryDirectory=\"{0}\"", TelemetryDirectory);
 			}
 
 			// Arguments for writing out the report and providing a URL where it can be viewed
@@ -410,25 +431,60 @@ namespace UE
 		/// <returns>ITestReport</returns>
 		public override ITestReport CreateReport(TestResult Result)
 		{
+			ITestReport Report = null;
 			// Save test result data for Horde build system
 			bool WriteTestResultsForHorde = GetConfiguration().WriteTestResultsForHorde;
 			if (WriteTestResultsForHorde)
 			{
 				if (GetConfiguration().SimpleHordeReport)
 				{
-					return base.CreateReport(Result);
+					Report = base.CreateReport(Result);
 				}
 				else
 				{
 					string ReportPath = GetConfiguration().ReportExportPath;
 					if (!string.IsNullOrEmpty(ReportPath))
 					{
-						return CreateUnrealEngineTestPassReport(ReportPath, GetConfiguration().ReportURL);
+						Report = CreateUnrealEngineTestPassReport(ReportPath, GetConfiguration().ReportURL);
 					}
 				}
 			}
 
-			return null;
+			string TelemetryDirectory = GetConfiguration().TelemetryDirectory;
+			if (!string.IsNullOrEmpty(TelemetryDirectory))
+			{
+				if (Report is ITelemetryReport Telemetry)
+				{
+					// Scan for csv files
+					foreach (string File in Directory.GetFiles(TelemetryDirectory))
+					{
+						if (Path.GetExtension(File) != ".csv")
+						{
+							continue;
+						}
+						List<Dictionary<string, string>> CSVData = CSVParser.Load(File);
+						// Populate telemetry report
+						foreach(Dictionary<string, string> Row in CSVData)
+						{
+							string TestName;
+							Row.TryGetValue("TestName", out TestName);
+							string DataPoint;
+							Row.TryGetValue("DataPoint", out DataPoint);
+							string Measurement;
+							Row.TryGetValue("Measurement", out Measurement);
+							string Context;
+							Row.TryGetValue("Context", out Context);
+							Telemetry.AddTelemetry(TestName, DataPoint, double.Parse(Measurement), Context);
+						}
+					}
+				}
+				else
+				{
+					Log.Warning("Publishing Telemetry is requested but '{0}' does not support telemetry input.", Report.GetType().FullName);
+				}
+			}
+
+			return Report;
 		}
 
 		/// <summary>
