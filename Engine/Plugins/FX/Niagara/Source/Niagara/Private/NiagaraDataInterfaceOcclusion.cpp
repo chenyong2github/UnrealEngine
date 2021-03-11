@@ -73,7 +73,7 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 		static const TCHAR *FormatSample = TEXT(R"(
 			void {FunctionName}(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
 			{
-				float CameraDistance = length(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz);
+				float CameraDistance = abs(dot(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz, View.ViewForward.xyz));
 				float4 SamplePosition = float4(In_SampleCenterWorldPos + View.PreViewTranslation, 1);
 				float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
 				float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
@@ -132,7 +132,7 @@ bool UNiagaraDataInterfaceOcclusion::GetFunctionHLSL(const FNiagaraDataInterface
 			{
 				const float PI = 3.14159265;
 				const float SPIRAL_TURN = 2 * PI * 0.61803399; // use golden ratio to rotate sample pattern each ring so we get a spiral
-				float CameraDistance = length(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz);
+				float CameraDistance = abs(dot(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz, View.ViewForward.xyz));
 				float4 SamplePosition = float4(In_SampleCenterWorldPos + View.PreViewTranslation, 1);
 				float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
 				float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
