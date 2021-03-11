@@ -138,6 +138,18 @@ public:
 	static UAutomationEditorTask* TakeHighResScreenshot(int32 ResX, int32 ResY, FString Filename, ACameraActor* Camera = nullptr, bool bMaskEnabled = false, bool bCaptureHDR = false, EComparisonTolerance ComparisonTolerance = EComparisonTolerance::Low, FString ComparisonNotes = TEXT(""), float Delay = 0.0);
 
 	/**
+	* Add Telemetry data to currently running automated test.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Automation", meta = (AdvancedDisplay = "Context"))
+	static void AddTestTelemetryData(FString DataPoint, float Measurement, FString Context = TEXT(""));
+
+	/**
+	* Set Telemetry data storage name of currently running automated test.
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Automation")
+	static void SetTestTelemetryStorage(FString StorageName);
+
+	/**
 	 * 
 	 */
 	UFUNCTION(BlueprintPure, Category="Automation")

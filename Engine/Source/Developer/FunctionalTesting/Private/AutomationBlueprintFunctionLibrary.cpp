@@ -1216,6 +1216,28 @@ UAutomationEditorTask* UAutomationBlueprintFunctionLibrary::TakeHighResScreensho
 	return Task;
 }
 
+void UAutomationBlueprintFunctionLibrary::AddTestTelemetryData(FString DataPoint, float Measurement, FString Context)
+{
+	if (GIsAutomationTesting)
+	{
+		if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+		{
+			CurrentTest->AddTelemetryData(DataPoint, Measurement, Context);
+		}
+	}
+}
+
+void UAutomationBlueprintFunctionLibrary::SetTestTelemetryStorage(FString StorageName)
+{
+	if (GIsAutomationTesting)
+	{
+		if (FAutomationTestBase* CurrentTest = FAutomationTestFramework::Get().GetCurrentTest())
+		{
+			CurrentTest->SetTelemetryStorage(StorageName);
+		}
+	}
+}
+
 FAutomationScreenshotOptions UAutomationBlueprintFunctionLibrary::GetDefaultScreenshotOptionsForGameplay(EComparisonTolerance Tolerance, float Delay)
 {
 	FAutomationScreenshotOptions Options;
