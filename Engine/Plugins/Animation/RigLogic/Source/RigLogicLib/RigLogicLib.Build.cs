@@ -26,6 +26,7 @@ public class RigLogicLib : ModuleRules
         if (Target.Type == TargetType.Editor)
         {
             PublicDependencyModuleNames.Add("UnrealEd");
+            PublicDependencyModuleNames.Add("EditorFramework");
         }
 
         Type = ModuleType.CPlusPlus;

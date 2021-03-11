@@ -29,19 +29,18 @@ namespace UnrealBuildTool.Rules
                     "ControlRig",
                     "RigLogicLib",
                     "RigVM",
-                    "Projects",
-					"RenderCore",
-					"RHI"
+                    "Projects"
                 }
             );
 
             if (Target.Type == TargetType.Editor)
             {
                 PublicDependencyModuleNames.Add("UnrealEd");
-				PublicDependencyModuleNames.Add("MessageLog");
-			}
+                PublicDependencyModuleNames.Add("EditorFramework");
+                PublicDependencyModuleNames.Add("MessageLog");
+            }
 
-			PrivateDependencyModuleNames.AddRange(
+            PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
                     "AnimationCore"

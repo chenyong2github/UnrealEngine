@@ -6,7 +6,6 @@
 #include "DNAReader.h"
 #include "RigInstance.h"
 #include "RigLogic.h"
-#include "SkelMeshDNAUtils.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Math/TransformNonVectorized.h"
 #include "Units/RigUnitContext.h"
