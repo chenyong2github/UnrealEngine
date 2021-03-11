@@ -461,7 +461,7 @@ void AddDeferredDecalPass(
 	{
 		if (Target)
 		{
-			return GraphBuilder.RegisterExternalTexture(Target);
+			return GraphBuilder.RegisterExternalTexture(Target, ERenderTargetTexture::ShaderResource, Flags);
 		}
 		else
 		{
