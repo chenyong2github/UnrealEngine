@@ -128,11 +128,14 @@ export interface TargetInfo {
 	additionalDescriptionText?: string
 }
 
+type UserRequest =
+	'node-reconsider' | 'edge-reconsider'
+
 export interface ChangeInfo extends TargetInfo {
 	branch: Branch
 	cl: number
 	source_cl: number
-	isManual: boolean
+	userRequest?: UserRequest
 	authorTag?: string
 	source: string
 	description: string

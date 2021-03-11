@@ -274,7 +274,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		const owner = getIntegrationOwner(pending) || pending.change.author
 
-		if (pending.change.isManual) {
+		if (pending.change.userRequest) {
 			const shelfMsg = `${owner}, please merge this change by hand.\nMore info at ${this.sourceNode.getBotUrl()}\n\n` + failure.description
 			await this.shelveChangelist(pending, shelfMsg)
 			this.edgeBotLogger.info(`${logMessage}. Shelved CL ${pending.newCl} for ${owner} to resolve manually (from reconsider).`)
@@ -427,7 +427,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		// If we aren't paused after the integration, assume we've correctly processed the CL
 		// Unless this is a manual change (which could be anything), update the lastCl if it's larger than our previous cl
-		if (this.isAvailable && !info.isManual && info.cl > this.lastCl) {
+		if (this.isAvailable && !info.userRequest && info.cl > this.lastCl) {
 			this.lastCl = info.cl
 		}
 
@@ -565,7 +565,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		if (errorStr) {
 			// Failed!
 
-			if (toShelve.change.isManual) {
+			if (toShelve.change.userRequest) {
 				// send email in parallel
 				// this._sendGenericEmail(new Recipients(toShelve.change.owner!), 'RoboShelf error', errorStr, errorDetails!);
 				await targetEdge.revertAndDelete(toShelve.newCl)

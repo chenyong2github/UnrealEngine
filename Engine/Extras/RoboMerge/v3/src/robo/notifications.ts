@@ -390,7 +390,7 @@ export class BotNotifications implements BotEventHandler {
 	async onBlockage(blockage: Blockage) {
 		const changeInfo = blockage.change
 
-		if (changeInfo.isManual) {
+		if (changeInfo.userRequest) {
 			// maybe DM?
 			return
 		}

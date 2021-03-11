@@ -222,7 +222,7 @@ export interface Change {
 	time?: number;
 
 	// hacked in
-	isManual?: boolean;
+	isUserRequest?: boolean;
 	ignoreExcludedAuthors?: boolean
 	forceCreateAShelf?: boolean
 	sendNoShelfEmail?: boolean // Used for requesting stomps for internal RM usage, such as stomp changes

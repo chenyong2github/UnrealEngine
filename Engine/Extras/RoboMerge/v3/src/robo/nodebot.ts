@@ -383,7 +383,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		// prep the change
 		const change : Change = changeResult.changes[0]
-		change.isManual = true
+		change.isUserRequest = true
 
 		const additionalFlags = fromQueue.additionalFlags || []
 		// By default, we'll submit any changes as a result of processing the CL. In some cases, such as
@@ -571,7 +571,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		const blockageChange = blockageChangeRetrieval.changes[0]
 
 		// Set a variety of flags on the change before processing
-		blockageChange.isManual = true
+		blockageChange.isUserRequest = true
 		blockageChange.forceCreateAShelf = true // We don't want to submit this
 		blockageChange.sendNoShelfEmail = true // Don't send any shelf creation emails for this
 
@@ -1229,7 +1229,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		// process manual changes even if paused or above the lastGoodCL
 		for (const change of allChanges) {
-			if (change.isManual) {
+			if (change.isUserRequest) {
 				this.nodeBotLogger.debug(`Processing manual change CL ${change.change}`)
 				await this._processAndMergeCl(availableEdges, change, true)
 			}
@@ -1334,7 +1334,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 								throw new Error('Missing edge! ' + action.branch.name)
 							}
 
-							if (info.isManual || info.cl > edge.lastCl) {
+							if (info.userRequest || info.cl > edge.lastCl) {
 								blockAssetEdges.push([edge, action])
 							}
 							break
@@ -1496,7 +1496,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 	_emailNoActionIfRequested(info: ChangeInfo, _msg: string) {
 
-		if (info.isManual) {
+		if (info.userRequest) {
 			// this._sendEmail(new Recipients(info.owner!), msg, `Just an FYI that RoboMerge (${this.botname}) did not perform an integration for this changelist`, info.description);
 		}
 	}
@@ -1563,7 +1563,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			branch: this.branch,
 			cl: change.change,
 			source_cl: source_cl,
-			isManual: !!change.isManual,
 			author,
 			source: parsedLines.source,
 			description,
@@ -1575,6 +1574,10 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			hasOkForGithubTag: parsedLines.hasOkForGithubTag,
 			overriddenCommand: commandOverride,
 			macros: parsedLines.expandedMacros
+		}
+
+		if (change.isUserRequest) {
+			info.userRequest = optTargetBranch ? 'edge-reconsider' : 'node-reconsider'
 		}
 
 		if (parsedLines.authorTag) {
@@ -1636,7 +1639,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 				continue
 			}
 
-			if (!info.isManual && !target.flags.has('disregardexcludedauthors') && targetEdge.excludedAuthors.indexOf(info.author) >= 0) {
+			if (!info.userRequest && !target.flags.has('disregardexcludedauthors') && targetEdge.excludedAuthors.indexOf(info.author) >= 0) {
 				// skip this one
 				const skipMessage = `Skipping CL ${info.cl} due to excluded author '${info.author}'`
 				this.nodeBotLogger.info(skipMessage)
@@ -1662,7 +1665,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			}
 
 			// If this is not a manual change, ensure we don't tell an edge that has moved past this point to redo work
-			if (!info.isManual && info.cl <= targetEdge.lastCl) {
+			if (!info.userRequest && info.cl <= targetEdge.lastCl) {
 				this.nodeBotLogger.debug(`${info.cl} is behind ${targetEdge.displayName} lastCL: ${targetEdge.lastCl}`)
 				continue
 			}
@@ -1712,7 +1715,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 		const owner: string = change.owner || change.author
 
-		if (change.isManual) {
+		if (change.userRequest) {
 			this.nodeBotLogger.info(shortMessage + ` (reconsider triggered by ${change.owner}):\n${message}.`)
 			this._sendError(new Recipients(owner), shortMessage, message + '\nFull CL description:\n\n' + originalCommitMessage)
 		}
@@ -1738,7 +1741,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		const shortMessage = `${failure.kind} while merging CL ${pending.change.cl} to ${targetBranch.name}`
 
 		const owner = getIntegrationOwner(pending) || pending.change.author
-		if (pending.change.isManual) {
+		if (pending.change.userRequest) {
 			this.nodeBotLogger.info(shortMessage + ` (reconsider triggered by ${pending.change.owner}):\n${failure.description}.`)
 
 			let message = `While reconsidering CL#${pending.change.cl}\n`

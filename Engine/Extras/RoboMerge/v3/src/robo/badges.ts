@@ -73,7 +73,7 @@ class BadgeHandler implements BotEventHandler {
 	onBlockage(blockage: Blockage) {
 		const change = blockage.change
 
-		if (!change.isManual && isChangeUpstreamFromBadgeProject(change)) {
+		if (!change.userRequest && isChangeUpstreamFromBadgeProject(change)) {
 			this.sendBadge(Badge.FAILURE, change.branch.stream!, change.cl, change.branch)
 		}
 	}
