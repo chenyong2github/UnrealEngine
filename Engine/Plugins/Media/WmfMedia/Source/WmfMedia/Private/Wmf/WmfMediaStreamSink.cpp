@@ -1013,9 +1013,7 @@ void FWmfMediaStreamSink::ScheduleWaitForNextSample(IMFSample* pSample)
 
 			// Keep requesting a new sample if this one is before the current time.
 			bIsSampleRequested = SampleTime < Time;
-			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("ScheduleWaitForNextSample Time:%f Sample:%f RequestSample:%d"),
-				Time.GetTotalSeconds(), SampleTime.GetTotalSeconds(), bIsSampleRequested);
-
+			
 			// Is this the sample we want?
 			bIsThisSampleDesiredSample = FMath::IsNearlyEqual(SampleTime.GetTotalSeconds(), CurrentTime, (double)KINDA_SMALL_NUMBER);
 			if (bIsThisSampleDesiredSample)
@@ -1023,7 +1021,13 @@ void FWmfMediaStreamSink::ScheduleWaitForNextSample(IMFSample* pSample)
 				// Send out scrub complete event.
 				UE_LOG(LogWmfMedia, VeryVerbose, TEXT("ScheduleWaitForNextSample send MEStreamSinkScrubSampleComplete."));
 				QueueEvent(MEStreamSinkScrubSampleComplete, GUID_NULL, S_OK, NULL);
+				
+				// This might be true due to floating point issues, so force it to false.
+				bIsSampleRequested = false;
 			}
+
+			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("ScheduleWaitForNextSample Time:%f Sample:%f RequestSample:%d"),
+				Time.GetTotalSeconds(), SampleTime.GetTotalSeconds(), bIsSampleRequested);
 		}
 	}
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
