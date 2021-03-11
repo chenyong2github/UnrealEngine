@@ -372,7 +372,7 @@ uint8 FRemoteControlProtocolEntity::GetRangePropertySize() const
 	return 0;
 }
 
-bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtocolValue)
+bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtocolValue) const
 {
 	if (Mappings.Num() == 0 || Mappings.Num() == 1)
 	{
@@ -420,7 +420,7 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 	return bSuccess;
 }
 
-bool FRemoteControlProtocolEntity::GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer)
+bool FRemoteControlProtocolEntity::GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer) const
 {
 	OutBuffer.Empty();
 

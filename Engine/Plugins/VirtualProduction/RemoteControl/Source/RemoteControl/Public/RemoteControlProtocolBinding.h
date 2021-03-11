@@ -158,7 +158,7 @@ public:
 	 * @param InProtocolValue double value from the protocol
 	 * @return true of applied successfully
 	 */
-	bool ApplyProtocolValueToProperty(double InProtocolValue);
+	bool ApplyProtocolValueToProperty(double InProtocolValue) const;
 
 	/** 
 	 * Get bound range property. For example, the range could be bound to FFloatProperty or FIntProperty, etc.
@@ -179,7 +179,7 @@ private:
 	 * @param OutBuffer serialized buffer
 	 * @return true if serialized correctly
 	 */
-	bool GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer);
+	bool GetInterpolatedPropertyBuffer(FProperty* InProperty, double InProtocolValue, TArray<uint8>& OutBuffer) const;
 
 private:
 	/** Get Ranges and Mapping Value pointers */
