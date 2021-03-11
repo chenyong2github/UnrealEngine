@@ -1238,8 +1238,6 @@ void FRHICommandListBase::QueueParallelAsyncCommandListSubmit(FGraphEventRef* An
 	{
 		// Execute everything that is queued up on the immediate command list before submitting sublists built in parallel.
 		FRHICommandListImmediate& ImmediateCommandList = FRHICommandListExecutor::GetImmediateCommandList();
-		ImmediateCommandList.SubmitCommandsHint();
-
 		ImmediateCommandList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread); // we should start on the stuff before this async list
 
 		// as good a place as any to clear this
