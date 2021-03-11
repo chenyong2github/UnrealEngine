@@ -224,7 +224,7 @@ namespace P4VUtils.Commands
 				string[] LocalFiles = Records.Select(x => OpenedClientToLocalMap[x.ClientFile!]).ToArray();
 				foreach (string LocalFile in LocalFiles)
 				{
-					Logger.LogInformation("    {LocalFile}", LocalFiles);
+					Logger.LogInformation("    {LocalFile}", LocalFile);
 				}
 
 				if (!Debug)
