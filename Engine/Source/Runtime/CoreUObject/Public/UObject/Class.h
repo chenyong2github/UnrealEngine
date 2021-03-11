@@ -343,8 +343,12 @@ public:
 	int32 FieldPathSerialNumber;
 #endif
 
-	/** Cached schema for optimized unversioned property serialization, owned by this. */
-	mutable const struct FUnversionedStructSchema* UnversionedSchema = nullptr;
+	/** Cached schema for optimized unversioned and filtereditoronly property serialization, owned by this. */
+	mutable const struct FUnversionedStructSchema* UnversionedGameSchema = nullptr;
+#if WITH_EDITORONLY_DATA
+	/** Cached schema for optimized unversioned property serialization, with editor data, owned by this. */
+	mutable const struct FUnversionedStructSchema* UnversionedEditorSchema = nullptr;
+#endif
 
 public:
 	// Constructors.
