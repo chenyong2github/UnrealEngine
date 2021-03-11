@@ -726,7 +726,7 @@ static FAutoConsoleVariableRef CVarDumpShaderDebugSCWCommandLine(
 	TEXT("When set to 1, it will generate a file that can be used with ShaderCompileWorker's -directcompile.")
 	);
 
-static int32 GShaderMapCompilationTimeout = 30 * 60;
+static int32 GShaderMapCompilationTimeout = 2 * 60 * 60;	// anything below an hour can hit a false positive
 static FAutoConsoleVariableRef CVarShaderMapCompilationTimeout(
 	TEXT("r.ShaderCompiler.ShadermapCompilationTimeout"),
 	GShaderMapCompilationTimeout,
