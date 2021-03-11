@@ -112,7 +112,7 @@ bool FWmfMediaStreamSink::Initialize(FWmfMediaSink& InOwner)
 HRESULT FWmfMediaStreamSink::Pause()
 {
 	FScopeLock Lock(&CriticalSection);
-
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::Pause"));
 	return QueueEvent(MEStreamSinkPaused, GUID_NULL, S_OK, NULL);
 }
 
@@ -168,7 +168,7 @@ void FWmfMediaStreamSink::Shutdown()
 HRESULT FWmfMediaStreamSink::Start()
 {
 	FScopeLock Lock(&CriticalSection);
-
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::Start Rate:%f"), ClockRate);
 	if (WaitTimer == nullptr)
 	{
 		// Set a high the timer resolution (ie, short timer period).
@@ -201,6 +201,7 @@ HRESULT FWmfMediaStreamSink::Start()
 
 HRESULT FWmfMediaStreamSink::Stop()
 {
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::Stop"));
 	Flush();
 
 	FScopeLock Lock(&CriticalSection);
@@ -678,6 +679,7 @@ STDMETHODIMP FWmfMediaStreamSink::ProcessSample(__RPC__in_opt IMFSample* pSample
 		}
 	}
 
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::ProcessSample Sample time %f"), FTimespan::FromMicroseconds(Time / 10).GetTotalSeconds());
 	SampleQueue.Add({ MFSTREAMSINK_MARKER_DEFAULT, NULL, pSample });
 
 	// finish pre-rolling
@@ -695,6 +697,7 @@ STDMETHODIMP FWmfMediaStreamSink::ProcessSample(__RPC__in_opt IMFSample* pSample
 			if (GetNextSample(NextSample))
 			{
 				CopyTextureAndEnqueueSample(NextSample);
+				UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::ProcessSample Request Sample"));
 				return QueueEvent(MEStreamSinkRequestSample, GUID_NULL, S_OK, NULL);
 			}
 			else
@@ -728,6 +731,7 @@ STDMETHODIMP FWmfMediaStreamSink::ProcessSample(__RPC__in_opt IMFSample* pSample
 		}
 		else
 		{
+			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::ProcessSample Request Sample2"));
 			QueueEvent(MEStreamSinkRequestSample, GUID_NULL, S_OK, NULL);
 		}
 		return S_OK;
@@ -790,7 +794,7 @@ bool FWmfMediaStreamSink::IsVideoSampleQueueFull() const
 
 void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 {
-	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("Queue Size: %d"), VideoSampleQueue->Num());
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::CopyTextureAndEnqueueSample Queue Size: %d"), VideoSampleQueue->Num());
 
 	if (IsVideoSampleQueueFull())
 	{
@@ -904,6 +908,7 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 				// Sample will be read in FWmfMediaHardwareVideoDecodingParameters::ConvertTextureFormat_RenderThread
 				KeyedMutex->ReleaseSync(1);
 				VideoSampleQueue->Enqueue(TextureSample);
+				UE_LOG(LogWmfMedia, VeryVerbose, TEXT("Enqueued onto VideoSampleQueue."));
 			}
 		}
 	}
@@ -982,6 +987,9 @@ void FWmfMediaStreamSink::SetMediaSamplePoolAndQueue(
 
 void FWmfMediaStreamSink::ScheduleWaitForNextSample(IMFSample* pSample)
 {
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::ScheduleWaitForNextSample VideoSampleQueue:%d Rate:%d ThreadId:%x"),
+		VideoSampleQueue->Num(), ClockRate, FPlatformTLS::GetCurrentThreadId());
+
 #if WMFMEDIA_PLAYER_VERSION >= 2
 	double CurrentTime = -1.0f;
 	bool bIsSampleRequested = false;
@@ -1038,6 +1046,7 @@ void FWmfMediaStreamSink::ScheduleWaitForNextSample(IMFSample* pSample)
 			}
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 			VideoSampleQueue->Dequeue(Sample);
+			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("ScheduleWaitForNextSample drop sample:%f"), Sample.IsValid() ? Sample->GetTime().Time.GetTotalSeconds() : -1.0);
 		}
 	}
 
