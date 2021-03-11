@@ -172,7 +172,7 @@ void Attributes::CopyAndRemapAttributes(const FHeapAttributeContainer& SourceAtt
 			{
 				const FAttributeId& AttributeId = AttributeIds[EntryIndex];
 
-				const FCompactPoseBoneIndex PoseBoneIndex = FCompactPoseBoneIndex(AttributeId.Index);
+				const FCompactPoseBoneIndex PoseBoneIndex = FCompactPoseBoneIndex(AttributeId.GetIndex());
 				const int32 SkeletonBoneIndex = RequiredBones.GetSkeletonIndex(FCompactPoseBoneIndex(PoseBoneIndex));
 				const int32 MeshBoneIndex = RequiredBones.GetSkeletonToPoseBoneIndexArray()[SkeletonBoneIndex];
 				const int32* Value = BoneMapToSource.Find(MeshBoneIndex);
@@ -181,7 +181,7 @@ void Attributes::CopyAndRemapAttributes(const FHeapAttributeContainer& SourceAtt
 				if (Value)
 				{
 					const int32 RemappedBoneIndex = *Value;
-					const FAttributeId NewInfo(AttributeId.Name, RemappedBoneIndex);
+					const FAttributeId NewInfo(AttributeId.GetName(), RemappedBoneIndex, AttributeId.GetNamespace());
 					uint8* NewAttribute = TargetAttributes.FindOrAdd(ScriptStruct, NewInfo);
 					ScriptStruct->CopyScriptStruct(NewAttribute, SourceValues[EntryIndex].GetPtr<void>());
 				}
@@ -456,7 +456,7 @@ ECustomAttributeBlendType Attributes::GetAttributeBlendType(const FAttributeId& 
 	Settings->AttributeBlendModes.GenerateKeyArray(Names);
 	const FName* NamePtr = Names.FindByPredicate([Info](const FName& Name)
 	{
-		return Name == Info.Name;
+		return Name == Info.GetName();
 	});
 
 	return NamePtr ? Settings->AttributeBlendModes.FindChecked(*NamePtr) : Settings->DefaultAttributeBlendMode;

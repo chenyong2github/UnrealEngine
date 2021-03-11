@@ -19,18 +19,24 @@ enum class ECustomAttributeBlendType : uint8;
 namespace UE
 {
 	namespace Anim
-	{	
+	{
+		static FName BoneAttributeNamespace("bone");
 		/** Runtime identifier for an attribute */
 		struct ENGINE_API FAttributeId
 		{
-			FAttributeId(const FName& InName, const FCompactPoseBoneIndex& InCompactBoneIndex) : Name(InName), Index(InCompactBoneIndex.GetInt()) {}
-			FAttributeId(const FName& InName, int32 InIndex) : Name(InName), Index(InIndex) {}
+			FAttributeId(const FName& InName, const FCompactPoseBoneIndex& InCompactBoneIndex) : Namespace(BoneAttributeNamespace), Name(InName), Index(InCompactBoneIndex.GetInt()) {}
+			FAttributeId(const FName& InName, int32 InIndex, const FName& InNamespace) : Namespace(InNamespace), Name(InName), Index(InIndex) {}
 			
 			bool operator==(const FAttributeId& Other) const
 			{
-				return Index == Other.Index && Name == Other.Name;
+				return Index == Other.Index && Name == Other.Name && Namespace == Other.Namespace;
 			}
 
+			int32 GetIndex() const { return Index; }
+			const FName& GetName() const { return Name; }
+			const FName& GetNamespace() const { return Namespace; }			
+		protected:
+			FName Namespace;
 			FName Name;
 			int32 Index;
 		};
@@ -234,7 +240,7 @@ namespace UE
 
 					AttributeIds.Add(InAttributeId);
 
-					UniqueTypedBoneIndices[TypeIndex].AddUnique(InAttributeId.Index);
+					UniqueTypedBoneIndices[TypeIndex].AddUnique(InAttributeId.GetIndex());
 
 					TArray<TWrappedAttribute<InAllocator>, InAllocator>& TypedArray = Values[TypeIndex];
 					NewIndex = TypedArray.Add(InScriptStruct);
@@ -286,7 +292,7 @@ namespace UE
 				{
 					AttributeIds.Add(InAttributeId);
 
-					UniqueTypedBoneIndices[TypeIndex].AddUnique(InAttributeId.Index);
+					UniqueTypedBoneIndices[TypeIndex].AddUnique(InAttributeId.GetIndex());
 
 					AttributeIndex = TypedArray.Add(InScriptStruct);
 					TWrappedAttribute<InAllocator>& StructData = TypedArray[AttributeIndex];
@@ -474,7 +480,7 @@ namespace UE
 					const TArray<int32, InAllocator>& UniqueBoneIndices = UniqueTypedBoneIndices[TypeIndex];
 
 					// Early out if for this bone index no attributes are currently contained
-					if (UniqueBoneIndices.Contains(InAttributeId.Index))
+					if (UniqueBoneIndices.Contains(InAttributeId.GetIndex()))
 					{
 						const TArray<FAttributeId, InAllocator>& AttributeIds = AttributeIdentifiers[TypeIndex];
 						const int32 AttributeIndex = AttributeIds.IndexOfByKey(InAttributeId);
@@ -699,6 +705,6 @@ struct ENGINE_API UE_DEPRECATED(5.0, "FCustomAttributeInfo has been deprecated u
 	UE_DEPRECATED(5.0, "Deprecated constructor, see  UE::Anim::FAttributeId")
 	FCustomAttributeInfo(const FName& InName, const FCompactPoseBoneIndex& InCompactBoneIndex, const ECustomAttributeBlendType& InBlendType) : UE::Anim::FAttributeId(InName, InCompactBoneIndex) {}
 	
-	FCustomAttributeInfo(const FName& InName, const FCompactPoseBoneIndex& InCompactBoneIndex) : UE::Anim::FAttributeId(InName, InCompactBoneIndex.GetInt()) {}
-	FCustomAttributeInfo(const FName& InName, int32 InIndex) : UE::Anim::FAttributeId(InName, InIndex) {}
+	FCustomAttributeInfo(const FName& InName, const FCompactPoseBoneIndex& InCompactBoneIndex) : UE::Anim::FAttributeId(InName, InCompactBoneIndex) {}
+	FCustomAttributeInfo(const FName& InName, int32 InIndex) : UE::Anim::FAttributeId(InName, InIndex, UE::Anim::BoneAttributeNamespace) {}
 };

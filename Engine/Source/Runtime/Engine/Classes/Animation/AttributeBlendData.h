@@ -191,7 +191,7 @@ namespace UE
 				{
 					check(Data.HasBoneWeights());
 					check(CurrentIndex < Collection.DataPtrs.Num() && Collection.WeightIndices.IsValidIndex(CurrentIndex));
-					return Data.GetBoneWeight(Collection.WeightIndices[CurrentIndex], Collection.Identifier->Index);
+					return Data.GetBoneWeight(Collection.WeightIndices[CurrentIndex], Collection.Identifier->GetIndex());
 				}
 
 				/** Returns highest (container level) weighted value for the attribute set */
@@ -211,7 +211,7 @@ namespace UE
 					float Weight = -1.f;
 					for (const int32 Index : Collection.WeightIndices)
 					{
-						const float BoneWeight = Data.GetBoneWeight(Index, Collection.Identifier->Index);
+						const float BoneWeight = Data.GetBoneWeight(Index, Collection.Identifier->GetIndex());
 						if (BoneWeight > Weight)
 						{
 							Weight = BoneWeight;
@@ -231,7 +231,7 @@ namespace UE
 					float Weight = -1.f;
 					for (const int32 Index : Collection.WeightIndices)
 					{
-						const float BoneWeight = Data.GetBoneWeight(Index, Collection.Identifier->Index);
+						const float BoneWeight = Data.GetBoneWeight(Index, Collection.Identifier->GetIndex());
 						if (BoneWeight > Weight)
 						{
 							Weight = BoneWeight;
@@ -314,7 +314,7 @@ namespace UE
 					check(Data.HasBoneWeights());
 					check(CurrentIndex < AttributesView.Num() && AttributesView.IsValidIndex(CurrentIndex));
 					
-					return Data.GetBoneWeight(AttributesView[CurrentIndex].WeightIndex, AttributesView[CurrentIndex].Identifier->Index);
+					return Data.GetBoneWeight(AttributesView[CurrentIndex].WeightIndex, AttributesView[CurrentIndex].Identifier->GetIndex());
 				}
 
 				/** Returns whether or not the unique attribute its (bone level) weight is the highest across the containers */
@@ -322,9 +322,9 @@ namespace UE
 				{
 					check(Data.HasBoneWeights());
 					check(CurrentIndex < AttributesView.Num() && AttributesView.IsValidIndex(CurrentIndex));
-					check(Data.HighestBoneWeightedIndices.IsValidIndex(AttributesView[CurrentIndex].Identifier->Index));
+					check(Data.HighestBoneWeightedIndices.IsValidIndex(AttributesView[CurrentIndex].Identifier->GetIndex()));
 
-					return Data.HighestBoneWeightedIndices[AttributesView[CurrentIndex].Identifier->Index] == AttributesView[CurrentIndex].WeightIndex;
+					return Data.HighestBoneWeightedIndices[AttributesView[CurrentIndex].Identifier->GetIndex()] == AttributesView[CurrentIndex].WeightIndex;
 				}
 
 				/** Returns the identifier for the current attribute set */

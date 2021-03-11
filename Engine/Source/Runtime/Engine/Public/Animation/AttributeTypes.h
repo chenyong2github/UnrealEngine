@@ -122,12 +122,15 @@ namespace UE
 			template<typename AttributeType>
 			static void UnregisterType()
 			{
-				UScriptStruct* ScriptStruct = AttributeType::StaticStruct();
-				const int32 Index = AttributeTypes::RegisteredTypes.IndexOfByKey(ScriptStruct);
-				if (Index != INDEX_NONE)
+				if (UObjectInitialized())
 				{
-					AttributeTypes::RegisteredTypes.RemoveAtSwap(Index);
-					AttributeTypes::Operators.RemoveAtSwap(Index);
+					UScriptStruct* ScriptStruct = AttributeType::StaticStruct();
+					const int32 Index = AttributeTypes::RegisteredTypes.IndexOfByKey(ScriptStruct);
+					if (Index != INDEX_NONE)
+					{
+						AttributeTypes::RegisteredTypes.RemoveAtSwap(Index);
+						AttributeTypes::Operators.RemoveAtSwap(Index);
+					}
 				}
 			}
 
@@ -152,6 +155,13 @@ namespace UE
 			{
 				AttributeTypes::Initialize();
 				return AttributeTypes::RegisteredTypes.Contains(ScriptStruct);
+			}
+
+			/** Returns all registered types */
+			static TArray<TWeakObjectPtr<const UScriptStruct>>& GetRegisteredTypes()
+			{
+				AttributeTypes::Initialize();
+				return AttributeTypes::RegisteredTypes;
 			}
 		};
 	}

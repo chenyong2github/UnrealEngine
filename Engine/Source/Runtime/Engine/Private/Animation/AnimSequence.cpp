@@ -4745,11 +4745,11 @@ void UAnimSequence::SynchronousAnimatedBoneAttributesCompression()
 					const float CurrentFrameTime = Frame * EvalContext.IntervalTime;
 
 					UE::Anim::FStackAttributeContainer AdditiveAttributes;
-					uint8* AdditivePtr = AdditiveAttributes.FindOrAdd(AdditiveAttribute.Identifier.GetType(), UE::Anim::FAttributeId(NAME_None, 0));
+					uint8* AdditivePtr = AdditiveAttributes.FindOrAdd(AdditiveAttribute.Identifier.GetType(), UE::Anim::FAttributeId(NAME_None, 0,NAME_None));
 					AdditiveAttribute.Curve.EvaluateToPtr(AdditiveAttribute.Identifier.GetType(), CurrentFrameTime, AdditivePtr);
 
 					UE::Anim::FStackAttributeContainer RefAttributes;
-					uint8* RefPtr = RefAttributes.FindOrAdd(RefAttribute.Identifier.GetType(), UE::Anim::FAttributeId(NAME_None, 0));
+					uint8* RefPtr = RefAttributes.FindOrAdd(RefAttribute.Identifier.GetType(), UE::Anim::FAttributeId(NAME_None, 0, NAME_None));
 					RefAttribute.Curve.EvaluateToPtr(RefAttribute.Identifier.GetType(), GetBasePoseTimeToSample(CurrentFrameTime), RefPtr);
 
 					UE::Anim::Attributes::ConvertToAdditive(RefAttributes, AdditiveAttributes);
