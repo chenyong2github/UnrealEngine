@@ -20,7 +20,13 @@ enum class EHandleSourcesMethod : uint8
 
 	HideSources = 1		UMETA(DisplayName = "Hide Sources"),
 
-	KeepSources = 2		UMETA(DisplayName = "Keep Sources")
+	KeepSources = 2		UMETA(DisplayName = "Keep Sources"),
+
+	/** Delete all but the first source */
+	KeepFirstSource = 3	UMETA(DisplayName = "Keep First Source"),
+
+	/** Delete all but the last source */
+	KeepLastSource = 4	UMETA(DisplayName = "Keep Last Source")
 };
 
 

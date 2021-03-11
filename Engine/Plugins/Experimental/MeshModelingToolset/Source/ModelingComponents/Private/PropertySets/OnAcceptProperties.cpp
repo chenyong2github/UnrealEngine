@@ -12,9 +12,17 @@
 void UOnAcceptHandleSourcesProperties::ApplyMethod(const TArray<AActor*>& Actors, UInteractiveToolManager* ToolManager)
 {
 	// Hide or destroy the sources
-	if (OnToolAccept != EHandleSourcesMethod::KeepSources)
+	bool bKeepSources = OnToolAccept == EHandleSourcesMethod::KeepSources;
+	if (Actors.Num() == 1 && (OnToolAccept == EHandleSourcesMethod::KeepFirstSource || OnToolAccept == EHandleSourcesMethod::KeepLastSource))
 	{
-		bool bDelete = OnToolAccept == EHandleSourcesMethod::DeleteSources;
+		// if there's only one actor, keeping any source == keeping all sources
+		bKeepSources = true;
+	}
+	if (!bKeepSources)
+	{
+		bool bDelete = OnToolAccept == EHandleSourcesMethod::DeleteSources
+					|| OnToolAccept == EHandleSourcesMethod::KeepFirstSource
+					|| OnToolAccept == EHandleSourcesMethod::KeepLastSource;
 		if (bDelete)
 		{
 			ToolManager->BeginUndoTransaction(LOCTEXT("RemoveSources", "Remove Sources"));
@@ -26,8 +34,23 @@ void UOnAcceptHandleSourcesProperties::ApplyMethod(const TArray<AActor*>& Actors
 #endif
 		}
 
-		for (AActor* Actor : Actors)
+		int32 SkipIdx = -1;
+		if (OnToolAccept == EHandleSourcesMethod::KeepFirstSource)
 		{
+			SkipIdx = 0;
+		}
+		else if (OnToolAccept == EHandleSourcesMethod::KeepLastSource)
+		{
+			SkipIdx = Actors.Num() - 1;
+		}
+		for (int32 ActorIdx = 0; ActorIdx < Actors.Num(); ActorIdx++)
+		{
+			if (ActorIdx == SkipIdx)
+			{
+				continue;
+			}
+
+			AActor* Actor = Actors[ActorIdx];
 			if (bDelete)
 			{
 				Actor->Destroy();
