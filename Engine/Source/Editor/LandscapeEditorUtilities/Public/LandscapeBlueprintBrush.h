@@ -9,7 +9,7 @@
 
 #include "LandscapeBlueprintBrush.generated.h"
 
-UCLASS(Abstract, Blueprintable, hidecategories = (Replication, Input, LOD, Actor, Cooking, Rendering))
+UCLASS(Abstract, Blueprintable, hidecategories = (Replication, Input, LOD, Actor, Rendering), showcategories = (Cooking))
 class LANDSCAPEEDITORUTILITIES_API ALandscapeBlueprintBrush : public ALandscapeBlueprintBrushBase
 {
 	GENERATED_UCLASS_BODY()
