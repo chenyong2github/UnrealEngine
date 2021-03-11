@@ -1,65 +1,61 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using AutomationTool;
+using System.IO;
 using System.Collections.Generic;
-using EpicGames.Core;
+using System.Text.Json;
 
 namespace Gauntlet
 {
-	// The following classes are used for json deserialization of the Unreal Automation Test Results.
-	// Because of a bug in the json deserialization used here(EpicGames.Core.Json),
-	// the names of the properties need to match the case of the json properties.
-
 	public class UnrealAutomationComparisonFiles
 	{
-		public string difference;
-		public string approved;
-		public string unapproved;
+		public string Difference { get; set; }
+		public string Approved { get; set; }
+		public string Unapproved { get; set; }
 	}
 	public class UnrealAutomationArtifact
 	{
-		public string id;
-		public string name;
-		public string type;
-		public UnrealAutomationComparisonFiles files;
+		public string Id { get; set; }
+		public string Name { get; set; }
+		public string Type { get; set; }
+		public UnrealAutomationComparisonFiles Files { get; set; }
 	}
 	public class UnrealAutomationEvent
 	{
-		public string type;
-		public string message;
-		public string context;
-		public string artifact;
+		public string Type { get; set; }
+		public string Message { get; set; }
+		public string Context { get; set; }
+		public string Artifact { get; set; }
 	}
 	public class UnrealAutomationEntry
 	{
-		public UnrealAutomationEvent @event;
-		public string filename;
-		public int lineNumber;
-		public string timestamp;
+		public UnrealAutomationEvent Event { get; set; }
+		public string Filename { get; set; }
+		public int LineNumber { get; set; }
+		public string Timestamp { get; set; }
 	}
 	public class UnrealAutomatedTestResult
 	{
-		public string testDisplayName;
-		public string fullTestPath;
-		public string artifactName;
-		public string state;
-		public int warnings;
-		public int errors;
-		public List<UnrealAutomationArtifact> artifacts;
-		public List<UnrealAutomationEntry> entries;
+		public string TestDisplayName { get; set; }
+		public string FullTestPath { get; set; }
+		public string ArtifactName { get; set; }
+		public string State { get; set; }
+		public int Warnings { get; set; }
+		public int Errors { get; set; }
+		public List<UnrealAutomationArtifact> Artifacts { get; set; }
+		public List<UnrealAutomationEntry> Entries { get; set; }
 	}
 	public class UnrealAutomatedTestPassResults
 	{
-		public string clientDescriptor;
-		public string reportCreatedOn;
-		public int succeeded;
-		public int succeededWithWarnings;
-		public int failed;
-		public int notRun;
-		public float totalDuration;
-		public bool comparisonExported;
-		public string comparisonExportDirectory;
-		public List<UnrealAutomatedTestResult> tests;
+		public string ClientDescriptor { get; set; }
+		public string ReportCreatedOn { get; set; }
+		public int Succeeded { get; set; }
+		public int SucceededWithWarnings { get; set; }
+		public int Failed { get; set; }
+		public int NotRun { get; set; }
+		public float TotalDuration { get; set; }
+		public bool ComparisonExported { get; set; }
+		public string ComparisonExportDirectory { get; set; }
+		public List<UnrealAutomatedTestResult> Tests { get; set; }
 
 		/// <summary>
 		/// Load Unreal Automated Test Results from json report
@@ -67,7 +63,12 @@ namespace Gauntlet
 		/// <param name="FilePath"></param>
 		public static UnrealAutomatedTestPassResults LoadFromJson(string FilePath)
 		{
-			UnrealAutomatedTestPassResults JsonTestPassResults = Json_DEPRECATED.Load<UnrealAutomatedTestPassResults>(new FileReference(FilePath));
+			JsonSerializerOptions Options = new JsonSerializerOptions
+			{
+				PropertyNameCaseInsensitive = true
+			};
+			string JsonString = File.ReadAllText(FilePath);
+			UnrealAutomatedTestPassResults JsonTestPassResults = JsonSerializer.Deserialize<UnrealAutomatedTestPassResults>(JsonString, Options);
 			return JsonTestPassResults;
 		}
 	}
