@@ -141,11 +141,11 @@ namespace Chaos
 		}
 
 
-		FORCEINLINE T PhiWithNormal(const TVector<T, d>& x, TVector<T, d>& Normal) const 
+		FORCEINLINE T PhiWithNormal(const TVector<T, d>& X, TVector<T, d>& Normal) const 
 		{
-			const TVector<T, d> MaxDists = x - MMax;
-			const TVector<T, d> MinDists = MMin - x;
-			if (x <= MMax && x >= MMin)
+			const TVector<T, d> MaxDists = X - MMax;
+			const TVector<T, d> MinDists = MMin - X;
+			if (X <= MMax && X >= MMin)
 			{
 				const Pair<T, int32> MaxAndAxis = TVector<T, d>::MaxAndAxis(MinDists, MaxDists);
 				Normal = MaxDists[MaxAndAxis.Second] > MinDists[MaxAndAxis.Second] ? TVector<T, d>::AxisVector(MaxAndAxis.Second) : -TVector<T, d>::AxisVector(MaxAndAxis.Second);
