@@ -1696,7 +1696,7 @@ int32 SAnimationEditorViewportTabBody::GetLODSelection() const
 		// as the mesh can potentially change LOD count under the viewport.
 		if(PreviewComponent->GetForcedLOD() > 0)
 		{
-			return PreviewComponent->PredictedLODLevel + 1;
+			return PreviewComponent->GetPredictedLODLevel() + 1;
 		}
 		else
 		{

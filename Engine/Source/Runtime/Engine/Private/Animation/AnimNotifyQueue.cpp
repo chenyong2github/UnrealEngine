@@ -92,7 +92,7 @@ void FAnimNotifyQueue::Reset(USkeletalMeshComponent* Component)
 {
 	AnimNotifies.Reset();
 	UnfilteredMontageAnimNotifies.Reset();
-	PredictedLODLevel = Component ? Component->PredictedLODLevel : -1;
+	PredictedLODLevel = Component ? Component->GetPredictedLODLevel() : -1;
 }
 
 void FAnimNotifyQueue::Append(const FAnimNotifyQueue& Queue)

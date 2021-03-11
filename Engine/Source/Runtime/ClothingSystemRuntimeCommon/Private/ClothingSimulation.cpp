@@ -48,7 +48,7 @@ void FClothingSimulationContextCommon::Fill(const USkeletalMeshComponent* InComp
 	FillTeleportMode(InComponent, InDeltaSeconds, InMaxPhysicsDelta);
 	FillMaxDistanceScale(InComponent);
 
-	PredictedLod = InComponent->PredictedLODLevel;
+	PredictedLod = InComponent->GetPredictedLODLevel();
 }
 
 void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshComponent* InComponent)
@@ -111,7 +111,7 @@ void FClothingSimulationContextCommon::FillBoneTransforms(const USkeletalMeshCom
 void FClothingSimulationContextCommon::FillRefToLocals(const USkeletalMeshComponent* InComponent)
 {
 	RefToLocals.Reset();
-	InComponent->GetCurrentRefToLocalMatrices(RefToLocals, InComponent->PredictedLODLevel);
+	InComponent->GetCurrentRefToLocalMatrices(RefToLocals, InComponent->GetPredictedLODLevel());
 }
 
 void FClothingSimulationContextCommon::FillComponentToWorld(const USkeletalMeshComponent* InComponent)

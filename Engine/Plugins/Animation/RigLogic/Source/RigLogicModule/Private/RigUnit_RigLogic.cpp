@@ -343,7 +343,7 @@ FRigUnit_RigLogic_Execute()
 				{
 					return;
 				}
-				Data.CurrentLOD = Data.SkelMeshComponent->PredictedLODLevel;
+				Data.CurrentLOD = Data.SkelMeshComponent->GetPredictedLODLevel();
 
 				// Fetch shared runtime context of rig from DNAAsset
 				Data.SharedRigRuntimeContext = GetSharedRigRuntimeContext(Data.SkelMeshComponent->SkeletalMesh);

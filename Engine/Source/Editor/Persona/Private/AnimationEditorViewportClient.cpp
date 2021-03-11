@@ -590,7 +590,7 @@ void FAnimationViewportClient::ShowBoneNames( FCanvas* Canvas, FSceneView* View 
 	//Most of the code taken from FASVViewportClient::Draw() in AnimSetViewerMain.cpp
 	FSkeletalMeshRenderData* SkelMeshRenderData = PreviewMeshComponent->GetSkeletalMeshRenderData();
 	check(SkelMeshRenderData);
-	const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshRenderData->LODRenderData.Num()-1);
+	const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->GetPredictedLODLevel(), 0, SkelMeshRenderData->LODRenderData.Num()-1);
 	FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[ LODIndex ];
 
 	// Check if our reference skeleton is out of synch with the one on the loddata
@@ -818,7 +818,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 			int32 NumBonesMappedToVerts;
 			int32 NumSectionsInUse;
 
-			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshResource->LODRenderData.Num() - 1);
+			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->GetPredictedLODLevel(), 0, SkelMeshResource->LODRenderData.Num() - 1);
 			FSkeletalMeshLODRenderData& LODData = SkelMeshResource->LODRenderData[LODIndex];
 
 			NumBonesInUse = LODData.RequiredBones.Num();
@@ -909,7 +909,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 			FSkeletalMeshRenderData* SkelMeshResource = PreviewMeshComponent->GetSkeletalMeshRenderData();
 			check(SkelMeshResource);
 
-			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshResource->LODRenderData.Num() - 1);
+			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->GetPredictedLODLevel(), 0, SkelMeshResource->LODRenderData.Num() - 1);
 			FSkeletalMeshLODRenderData& LODData = SkelMeshResource->LODRenderData[LODIndex];
 
 			// Current LOD 
@@ -947,7 +947,7 @@ FText FAnimationViewportClient::GetDisplayInfo(bool bDisplayAllInfo) const
 			const FSkeletalMeshRenderData* SkelMeshResource = PreviewMeshComponent->GetSkeletalMeshRenderData();
 			check(SkelMeshResource);
 			
-			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshResource->LODRenderData.Num() - 1);
+			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->GetPredictedLODLevel(), 0, SkelMeshResource->LODRenderData.Num() - 1);
 			const FSkeletalMeshLODRenderData& LODData = SkelMeshResource->LODRenderData[LODIndex];
 			
 			const FName ProfileName = PreviewMeshComponent->GetCurrentSkinWeightProfileName();
@@ -1625,7 +1625,7 @@ FBox FAnimationViewportClient::ComputeBoundingBoxForSelectedEditorSection() cons
 		return FBox(ForceInitToZero);
 	}
 
-	const int32 LODLevel = PreviewMeshComponent->PredictedLODLevel;
+	const int32 LODLevel = PreviewMeshComponent->GetPredictedLODLevel();
 	const int32 SelectedEditorSection = PreviewMeshComponent->GetSelectedEditorSection();
 	const FSkeletalMeshRenderData& SkelMeshRenderData = MeshObject->GetSkeletalMeshRenderData();
 

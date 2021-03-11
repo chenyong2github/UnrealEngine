@@ -1855,6 +1855,7 @@ protected:
 public:
 	//~ Begin USkinnedMeshComponent Interface
 	virtual bool UpdateLODStatus() override;
+	virtual void SetPredictedLODLevel(int32 InPredictedLODLevel) override;
 	virtual void UpdateVisualizeLODString(FString& DebugString) override;
 	virtual void RefreshBoneTransforms( FActorComponentTickFunction* TickFunction = NULL ) override;
 protected:

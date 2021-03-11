@@ -182,7 +182,7 @@ static void DrawBonesFromCompactPose(const FCompactPose& Pose, USkeletalMeshComp
 		if (MeshComponent->SkeletalMesh && MeshComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num())
 		{
 			//Get current LOD
-			const int32 LODIndex = FMath::Clamp(MeshComponent->PredictedLODLevel, 0, MeshComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() - 1);
+			const int32 LODIndex = FMath::Clamp(MeshComponent->GetPredictedLODLevel(), 0, MeshComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() - 1);
 			LODData = &(MeshComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex]);
 		}
 

@@ -2165,7 +2165,7 @@ void SSkeletonTree::OnLODSwitched()
 
 		if (PreviewComponent)
 		{
-			LastCachedLODForPreviewMeshComponent = PreviewComponent->PredictedLODLevel;
+			LastCachedLODForPreviewMeshComponent = PreviewComponent->GetPredictedLODLevel();
 
 			if (BoneFilter == EBoneFilter::Weighted || BoneFilter == EBoneFilter::LOD)
 			{

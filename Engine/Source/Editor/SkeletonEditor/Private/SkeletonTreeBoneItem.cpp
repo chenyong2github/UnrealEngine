@@ -461,7 +461,7 @@ bool FSkeletonTreeBoneItem::IsBoneWeighted(int32 MeshBoneIndex, UDebugSkelMeshCo
 	}
 
 	//Get current LOD
-	const int32 LODIndex = FMath::Clamp(PreviewComponent->PredictedLODLevel, 0, PreviewComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() - 1);
+	const int32 LODIndex = FMath::Clamp(PreviewComponent->GetPredictedLODLevel(), 0, PreviewComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() - 1);
 	FSkeletalMeshLODRenderData& LODData = PreviewComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex];
 
 	//Check whether the bone is vertex weighted
@@ -481,7 +481,7 @@ bool FSkeletonTreeBoneItem::IsBoneRequired(int32 MeshBoneIndex, UDebugSkelMeshCo
 	}
 
 	//Get current LOD
-	const int32 LODIndex = FMath::Clamp(PreviewComponent->PredictedLODLevel, 0, PreviewComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() - 1);
+	const int32 LODIndex = FMath::Clamp(PreviewComponent->GetPredictedLODLevel(), 0, PreviewComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData.Num() - 1);
 	FSkeletalMeshLODRenderData& LODData = PreviewComponent->SkeletalMesh->GetResourceForRendering()->LODRenderData[LODIndex];
 
 	//Check whether the bone is vertex weighted

@@ -269,9 +269,9 @@ void FSkeletalMeshStreamOut::ConditionalMarkComponentsDirty(const FContext& Cont
 		{
 			check(Comps[Idx]->IsA<USkinnedMeshComponent>());
 			USkinnedMeshComponent* Comp = (USkinnedMeshComponent*)Comps[Idx];
-			if (Comp->PredictedLODLevel < RenderData->PendingFirstLODIdx)
+			if (Comp->GetPredictedLODLevel() < RenderData->PendingFirstLODIdx)
 			{
-				Comp->PredictedLODLevel = RenderData->PendingFirstLODIdx;
+				Comp->SetPredictedLODLevel(RenderData->PendingFirstLODIdx);
 				Comp->bForceMeshObjectUpdate = true;
 				Comp->MarkRenderDynamicDataDirty();
 			}

@@ -214,6 +214,10 @@ private:
 	TArray<FAnimCurveType> UIDToCurveTypeLUT;
 
 	/** For debugging. */
+#if DO_CHECK
+	/** The LOD that we calculated required bones when regenerated */
+	int32 CalculatedForLOD;
+#endif
 	/** Disable Retargeting. Extract animation, but do not retarget it. */
 	bool bDisableRetargeting;
 	/** Disable animation compression, use RAW data instead. */
@@ -481,6 +485,11 @@ public:
 	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InRetargetSource) const;
 	const FRetargetSourceCachedData& GetRetargetSourceCachedData(const FName& InSourceName, const TArray<FTransform>& InRetargetTransforms) const;
 
+#if DO_CHECK
+	/** Get the LOD that we calculated required bones when regenerated */
+	int32 GetCalculatedForLOD() const { return CalculatedForLOD; }
+#endif
+	
 	// Curve remapping
 	const FCachedSkeletonCurveMapping& GetOrCreateCachedCurveMapping(const FSkeletonRemapping* SkeletonRemapping) const;
 	void MarkAllCachedCurveMappingsDirty();
