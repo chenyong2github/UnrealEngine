@@ -52,7 +52,7 @@ public:
 
 
 	/** Insert a new input event which is used to check for new captures, or forwarded to active capture */
-	virtual void PostInputEvent(const FInputDeviceState& Input);
+	virtual bool PostInputEvent(const FInputDeviceState& Input);
 
 	/** Returns true if there is an active mouse capture */
 	virtual bool HasActiveMouseCapture() const;

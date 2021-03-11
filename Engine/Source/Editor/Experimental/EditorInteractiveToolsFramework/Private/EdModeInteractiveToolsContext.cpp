@@ -534,7 +534,6 @@ UEdModeInteractiveToolsContext::UEdModeInteractiveToolsContext()
 	QueriesAPI = nullptr;
 	TransactionAPI = nullptr;
 	AssetAPI = nullptr;
-	bIsTrackingMouse = false;
 }
 
 
@@ -571,21 +570,6 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 	{
 		RestoreEditorState();
 	});
-
-
-	// If user right-press-drags, this enables "fly mode" in the main viewport, and in that mode the QEWASD keys should
-	// be used for flying control. However the EdMode InputKey/etc system doesn't enforce any of this, we can still also
-	// get that mouse input and hotkeys. So we register a dummy behavior that captures all right-mouse dragging, and
-	// in that mode we set bInFlyMode=true, so that Modes based on this Context will know to skip hotkey processing
-	ULocalClickDragInputBehavior* RightMouseBehavior = NewObject<ULocalClickDragInputBehavior>(this);
-	RightMouseBehavior->CanBeginClickDragFunc = [](const FInputDeviceRay& PressPos) { return  FInputRayHit(0); };
-	RightMouseBehavior->OnClickPressFunc = [this](const FInputDeviceRay&) { bInFlyMode = true; };
-	RightMouseBehavior->OnClickReleaseFunc = [this](const FInputDeviceRay&) { bInFlyMode = false; };
-	RightMouseBehavior->OnTerminateFunc = [this]() { bInFlyMode = false; };
-	RightMouseBehavior->SetDefaultPriority(FInputCapturePriority(0));
-	RightMouseBehavior->SetUseRightMouseButton();
-	RightMouseBehavior->Initialize();
-	InputRouter->RegisterBehavior(RightMouseBehavior, this);
 
 	InvalidationTimestamp = 0;
 }
@@ -940,88 +924,9 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	else if (Event == IE_DoubleClick) { UE_LOG(LogTemp, Warning, TEXT("DOUBLECLICK EVENT")); }
 #endif
 
-	bool bHandled = false;
-
-	// This is true if we are using the fly camera controls (ie right-mouse possibly + WASD). 
-	// Those controls do *not* capture the mouse and so we still get the events, and we need to ignore them.
-	// Note that it is possible to enter fly camera by holding right-mouse, then hold another button and release right-mouse,
-	// and that stays in fly mode, so we cannot rely on right-mouse state alone.
-	if (ViewportClient->IsMovingCamera())
-	{
-		// We are still in this state when user releases right-mouse button but is still holding down left-mouse.
-		// In that state we need to allow the InputRouter to see the event, so that the right-mouse-capture behavior can release
-		bool bIsReleaseRightNavButton = Key.IsMouseButton() && (Key == EKeys::RightMouseButton) && (Event == IE_Released);
-		if (bIsReleaseRightNavButton == false)
-		{
-			return false;
-		}
-	}
-
-	// convert doubleclick events to pressed, for now...this is a hack!
-	if (Event == IE_DoubleClick)
-	{
-		Event = IE_Pressed;
-	}
-
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
-		if (Key.IsMouseButton())
-		{
-			bool bIsLeftMouse = (Key == EKeys::LeftMouseButton);
-			bool bIsMiddleMouse = (Key == EKeys::MiddleMouseButton);
-			bool bIsRightMouse = (Key == EKeys::RightMouseButton);
-
-			if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
-			{
-				// if alt is down and we are not capturing, somewhere higher in the ViewportClient/EdMode stack 
-				// is going to start doing alt+mouse camera manipulation. So we should ignore this mouse event.
-				if (ViewportClient->IsAltPressed() && InputRouter->HasActiveMouseCapture() == false)
-				{
-					return false;
-				}
-
-				FInputDeviceState InputState = CurrentMouseState;
-				InputState.InputDevice = EInputDevices::Mouse;
-				InputState.SetModifierKeyStates(
-					ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
-					ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
-
-				if (bIsLeftMouse)
-				{
-					InputState.Mouse.Left.SetStates(
-						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
-					CurrentMouseState.Mouse.Left.bDown = (Event == IE_Pressed);
-				}
-				else if (bIsMiddleMouse)
-				{
-					InputState.Mouse.Middle.SetStates(
-						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
-					CurrentMouseState.Mouse.Middle.bDown = (Event == IE_Pressed);
-				}
-				else
-				{
-					InputState.Mouse.Right.SetStates(
-						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
-					CurrentMouseState.Mouse.Right.bDown = (Event == IE_Pressed);
-				}
-
-				InputRouter->PostInputEvent(InputState);
-
-				if (InputRouter->HasActiveMouseCapture() && bInFlyMode == false)
-				{
-					// what is this about? MeshPaintMode has it...
-					ViewportClient->bLockFlightCamera = true;
-					bHandled = true;   // indicate that we handled this event,
-									   // which will disable camera movement/etc ?
-				}
-				else
-				{
-					//ViewportClient->bLockFlightCamera = false;
-				}
-
-			}
-		}
-		else if (Key.IsGamepadKey())
+		if (Key.IsGamepadKey())
 		{
 			// not supported yet
 		}
@@ -1043,15 +948,12 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 			InputState.Keyboard.ActiveKey.Button = Key;
 			bool bPressed = (Event == IE_Pressed);
 			InputState.Keyboard.ActiveKey.SetStates(bPressed, bPressed, !bPressed);
-			InputRouter->PostInputEvent(InputState);
+			return InputRouter->PostInputEvent(InputState);
 		}
-
 	}
 
-	return bHandled;
+	return false;
 }
-
-
 
 bool UEdModeInteractiveToolsContext::MouseEnter(FEditorViewportClient* ViewportClient, FViewport* Viewport, int32 x, int32 y)
 {
@@ -1111,18 +1013,45 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 
 bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	bIsTrackingMouse = InputRouter->HasActiveMouseCapture();
-	return bIsTrackingMouse;
+	bool bIsLeftMouse = InViewport->KeyState(EKeys::LeftMouseButton);
+	bool bIsMiddleMouse = InViewport->KeyState(EKeys::MiddleMouseButton);
+	bool bIsRightMouse = InViewport->KeyState(EKeys::RightMouseButton);
+
+	if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
+	{
+		FInputDeviceState InputState = CurrentMouseState;
+		InputState.InputDevice = EInputDevices::Mouse;
+		InputState.SetModifierKeyStates(
+			InViewportClient->IsShiftPressed(), InViewportClient->IsAltPressed(),
+			InViewportClient->IsCtrlPressed(), InViewportClient->IsCmdPressed());
+
+		if (bIsLeftMouse)
+		{
+			InputState.Mouse.Left.SetStates(true, true, false);
+			CurrentMouseState.Mouse.Left.bDown = true;
+		}
+		else if (bIsMiddleMouse)
+		{
+			InputState.Mouse.Middle.SetStates(true, true, false);
+			CurrentMouseState.Mouse.Middle.bDown = true;
+		}
+		else
+		{
+			InputState.Mouse.Right.SetStates(true, true, false);
+			CurrentMouseState.Mouse.Right.bDown = true;
+		}
+
+		if (InputRouter->PostInputEvent(InputState))
+		{
+			InViewportClient->bLockFlightCamera = true;
+			return true;
+		}
+	}
+	return false;
 }
 
 bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
 {
-	// if alt is down we will not allow client to see this event
-	if (InViewportClient->IsAltPressed())
-	{
-		return false;
-	}
-
 	FVector2D OldPosition = CurrentMouseState.Mouse.Position2D;
 	CurrentMouseState.Mouse.Position2D = FVector2D(InMouseX, InMouseY);
 	CurrentMouseState.Mouse.WorldRay = GetRayFromMousePos(InViewportClient, InViewport, InMouseX, InMouseY);
@@ -1151,9 +1080,31 @@ bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewpo
 	// unlock flight camera
 	InViewportClient->bLockFlightCamera = false;
 
-	if (bIsTrackingMouse)
+	FInputDeviceState InputState = CurrentMouseState;
+	InputState.InputDevice = EInputDevices::Mouse;
+	InputState.SetModifierKeyStates(
+		InViewportClient->IsShiftPressed(), InViewportClient->IsAltPressed(),
+		InViewportClient->IsCtrlPressed(), InViewportClient->IsCmdPressed());
+
+	// Clear the current mouse state button down
+	if (CurrentMouseState.Mouse.Left.bDown)
 	{
-		bIsTrackingMouse = false;
+		CurrentMouseState.Mouse.Left.bDown = false;
+		InputState.Mouse.Left.SetStates(false, false, true);
+	}
+	if (CurrentMouseState.Mouse.Middle.bDown)
+	{
+		CurrentMouseState.Mouse.Middle.bDown = false;
+		InputState.Mouse.Middle.SetStates(false, false, true);
+	}
+	if (CurrentMouseState.Mouse.Right.bDown)
+	{
+		CurrentMouseState.Mouse.Right.bDown = false;
+		InputState.Mouse.Right.SetStates(false, false, true);
+	}
+
+	if (InputRouter->PostInputEvent(InputState))
+	{
 		return true;
 	}
 

@@ -57,6 +57,7 @@
 #include "UnrealEngine.h"
 #include "BufferVisualizationData.h"
 #include "UnrealWidget.h"
+#include "EdModeInteractiveToolsContext.h"
 
 #include "CustomEditorStaticScreenPercentage.h"
 
@@ -2929,6 +2930,12 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 		bHandled |= true;
 	}
 
+	// Give the interactive tools context a shot at input if it hasn't been handled already.
+	if (!bHandled)
+	{
+		bHandled = ModeTools->GetInteractiveToolsContext()->InputKey(this, Viewport, Key, Event);
+	}
+
 	//apply the visibility and set the cursor positions
 	ApplyRequiredCursorVisibility( true );
 	return bHandled;
@@ -4683,7 +4690,7 @@ bool FEditorViewportClient::ShouldPanOrDollyCamera() const
 {
 	const bool bIsCtrlDown = IsCtrlPressed();
 
-	const bool bLeftMouseButtonDown = Viewport->KeyState( EKeys::LeftMouseButton );
+	const bool bLeftMouseButtonDown = Viewport->KeyState( EKeys::LeftMouseButton ) && !bLockFlightCamera;
 	const bool bRightMouseButtonDown = Viewport->KeyState( EKeys::RightMouseButton );
 	const bool bIsMarqueeSelect = IsOrtho() && bLeftMouseButtonDown;
 
@@ -5045,7 +5052,7 @@ void FEditorViewportClient::MoveViewportCamera(const FVector& InDrag, const FRot
 				CameraUserImpulseData->RotatePitchVelocityModifier += VelModRotSpeed * RotEuler.Y / ViewportSettings->MouseSensitivty;
 				CameraUserImpulseData->RotateYawVelocityModifier += VelModRotSpeed * RotEuler.Z / ViewportSettings->MouseSensitivty;
 			}
-			else
+			else if (!bLockFlightCamera)
 			{
 				MoveViewportPerspectiveCamera( InDrag, InRot, bDollyCamera );
 			}

@@ -91,8 +91,6 @@ public:
 	void StartTool(const FString ToolTypeIdentifier);
 	void EndTool(EToolShutdownType ShutdownType);
 
-	bool ShouldIgnoreHotkeys() const { return bInFlyMode; }
-
 	FRay GetLastWorldRay() const;
 
 protected:
@@ -138,9 +136,6 @@ protected:
 	// Copy-pasted from other Editor code, seems kind of expensive?
 	static FRay GetRayFromMousePos(FEditorViewportClient* ViewportClient, FViewport* Viewport, int MouseX, int MouseY);
 
-	/** This will be set to true if user is in right-mouse "fly mode", which requires special handling to intercept hotkeys/etc */
-	bool bInFlyMode = false;
-
 	// editor UI state that we set before starting tool and when exiting tool
 	// Currently disabling anti-aliasing during active Tools because it causes PDI flickering
 	void SetEditorStateForTool();
@@ -151,5 +146,4 @@ protected:
 
 private:
 	FEditorModeTools* EditorModeManager = nullptr;
-	bool bIsTrackingMouse;
 };

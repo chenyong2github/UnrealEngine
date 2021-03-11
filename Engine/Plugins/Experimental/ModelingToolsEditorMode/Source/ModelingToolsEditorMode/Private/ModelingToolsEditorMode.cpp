@@ -769,20 +769,6 @@ bool UModelingToolsEditorMode::GetPivotForOrbit(FVector& OutPivot) const
 	return false;
 }
 
-bool UModelingToolsEditorMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
-{
-	// TODO: This is a bit of a hack around the fact that when we fly around with right click + wasd,
-	// we still get the key presses passed to us. UEdMode currently does this check  for ToolCommandList,
-	// but we want our hotkeys to live in the toolkit command list so that we respond to them when the
-	// viewport is not focused.
-	// This should get removed when we have fixed wasd flying to capture its keys properly.
-	if (ToolsContext->ShouldIgnoreHotkeys())
-	{
-		return false;
-	}
-	return UEdMode::InputKey(ViewportClient, Viewport, Key, Event);
-}
-
 
 
 void UModelingToolsEditorMode::ConfigureRealTimeViewportsOverride(bool bEnable)

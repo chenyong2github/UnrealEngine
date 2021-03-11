@@ -1137,7 +1137,7 @@ bool FEditorModeTools::StartTracking(FEditorViewportClient* InViewportClient, FV
 	bIsTracking = true;
 	CachedLocation = PivotLocation;	// Cache the pivot location
 
-	bool bTransactionHandled = InteractiveToolsContext->StartTracking(InViewportClient, InViewport);
+	bool bTransactionHandled = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
 		bTransactionHandled |= Mode->StartTracking(InViewportClient, InViewportClient->Viewport);
@@ -1150,7 +1150,7 @@ bool FEditorModeTools::StartTracking(FEditorViewportClient* InViewportClient, FV
 bool FEditorModeTools::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	bIsTracking = false;
-	bool bTransactionHandled = InteractiveToolsContext->EndTracking(InViewportClient, InViewport);
+	bool bTransactionHandled = false;
 
 	for (UEdMode* Mode : ActiveScriptableModes)
 	{
@@ -1380,21 +1380,15 @@ bool FEditorModeTools::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 /** Notifies all active modes of keyboard input */
 bool FEditorModeTools::InputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
-	bool bToolsContextHandled = InteractiveToolsContext->InputKey(InViewportClient, Viewport, Key, Event);
 	bool bHandled = false;
 	
-	//Copy the modes and iterate of that since a key may remove the edit mode and change CopyActiveScriptableModes
+	// Copy the modes and iterate of that since a key may remove the edit mode and change CopyActiveScriptableModes
 	TArray<UEdMode*> CopyActiveScriptableModes(ActiveScriptableModes);
 	for (UEdMode* Mode : CopyActiveScriptableModes)
 	{
-		// If the interactive tools context did not handle the InputKey, then pass along to the UEdMode
-		// Always pass through for the FEdModes to handle for backwards compat.
-		if (!bToolsContextHandled || Mode->AsLegacyMode())
-		{
-			bHandled |= Mode->InputKey(InViewportClient, Viewport, Key, Event);
-		}
+		bHandled |= Mode->InputKey(InViewportClient, Viewport, Key, Event);
 	}
-	return bHandled || bToolsContextHandled;
+	return bHandled;
 }
 
 /** Notifies all active modes of axis movement */

@@ -42,8 +42,6 @@ public:
 
 	virtual bool GetPivotForOrbit(FVector& OutPivot) const override;
 
-	virtual bool InputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) override;
-
 	/*
 	 * focus events
 	 */

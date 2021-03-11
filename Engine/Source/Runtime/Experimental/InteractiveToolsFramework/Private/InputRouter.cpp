@@ -54,26 +54,28 @@ void UInputRouter::RegisterBehavior(UInputBehavior* Behavior, void* Source, cons
 }
 
 
-void UInputRouter::PostInputEvent(const FInputDeviceState& Input)
+bool UInputRouter::PostInputEvent(const FInputDeviceState& Input)
 {
 	if (ActiveInputBehaviors->IsEmpty())
 	{
-		return;
+		return false;
 	}
 
 	if (Input.IsFromDevice(EInputDevices::Mouse))
 	{
 		PostInputEvent_Mouse(Input);
+		return HasActiveMouseCapture();
 	}
 	else if (Input.IsFromDevice(EInputDevices::Keyboard))
 	{
 		PostInputEvent_Keyboard(Input);
+		return (ActiveKeyboardCapture != nullptr);
 	}
 	else
 	{
 		unimplemented();
 		TransactionsAPI->DisplayMessage(LOCTEXT("PostInputEventMessage", "UInteractiveToolManager::PostInputEvent - input device is not currently supported."), EToolMessageLevel::Internal);
-		return;
+		return false;
 	}
 }
 
