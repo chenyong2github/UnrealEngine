@@ -5400,6 +5400,8 @@ bool FEngineLoop::AppInit( )
 	if (FParse::Param(FCommandLine::Get(), TEXT("BUILDMACHINE")))
 	{
 		GIsBuildMachine = true;
+		// propagate to subprocesses, especially because some - like ShaderCompileWorker - use DDC, for which this switch matters
+		FCommandLine::AddToSubprocessCommandline(TEXT(" -buildmachine"));
 	}
 
 	// If "-WaitForDebugger" was specified, halt startup and wait for a debugger to attach before continuing
