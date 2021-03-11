@@ -410,7 +410,7 @@ public:
 private:
 	FDebugDrawQueue()
 		: RequestedCommandCost(0)
-		, MaxCommandCost(0)
+		, MaxCommandCost(10000)
 		, CenterOfInterest(FVector::ZeroVector)
 		, RadiusOfInterest(0)
 		, bEnableDebugDrawing(false)
