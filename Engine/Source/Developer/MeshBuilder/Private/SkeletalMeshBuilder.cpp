@@ -19,6 +19,9 @@
 #include "ClothingAsset.h"
 #include "MeshUtilities.h"
 #include "EditorFramework/AssetImportData.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/CoreMisc.h"
 
 DEFINE_LOG_CATEGORY(LogSkeletalMeshBuilder);
 
@@ -55,8 +58,11 @@ FSkeletalMeshBuilder::FSkeletalMeshBuilder()
 }
 
 
-bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs)
+bool FSkeletalMeshBuilder::Build(const FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters)
 {
+	const int32 LODIndex = SkeletalMeshBuildParameters.LODIndex;
+	USkeletalMesh* SkeletalMesh = SkeletalMeshBuildParameters.SkeletalMesh;
+
 	check(SkeletalMesh->GetImportedModel());
 	check(SkeletalMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex));
 	check(SkeletalMesh->GetLODInfo(LODIndex) != nullptr);
@@ -102,6 +108,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		//Build the skeletalmesh using mesh utilities module
 		IMeshUtilities::MeshBuildOptions Options;
 		Options.FillOptions(LODInfo->BuildSettings);
+		Options.TargetPlatform = SkeletalMeshBuildParameters.TargetPlatform;
 		//Force the normals or tangent in case the data is missing
 		Options.bComputeNormals |= !SkeletalMeshImportData.bHasNormals;
 		Options.bComputeTangents |= !SkeletalMeshImportData.bHasTangents;
@@ -179,7 +186,7 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 					SkeletalMesh->GetLODInfo(LODIndex)->SourceImportFilename = SkeletalMesh->GetAssetImportData()->GetFirstFilename();
 				}
 			}
-			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, false);
+			FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, SkeletalMeshBuildParameters.TargetPlatform, false);
 		}
 		else
 		{
@@ -207,10 +214,10 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 	LODModelAfterReduction.BuildStringID = BackupBuildStringID;
 
 	SlowTask.EnterProgressFrame(1.0f, NSLOCTEXT("SkeltalMeshBuilder", "RegenerateDependentLODs", "Regenerate Dependent LODs..."));
-	if (bRegenDepLODs)
+	if (SkeletalMeshBuildParameters.bRegenDepLODs)
 	{
 		//Regenerate dependent LODs
-		FLODUtilities::RegenerateDependentLODs(SkeletalMesh, LODIndex);
+		FLODUtilities::RegenerateDependentLODs(SkeletalMesh, LODIndex, SkeletalMeshBuildParameters.TargetPlatform);
 	}
 	return true;
 }

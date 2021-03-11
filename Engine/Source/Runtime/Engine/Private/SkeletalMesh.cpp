@@ -73,6 +73,7 @@
 
 #endif // #if WITH_EDITOR
 
+#include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
@@ -85,6 +86,7 @@
 #include "Components/BrushComponent.h"
 #include "Streaming/UVChannelDensity.h"
 #include "Misc/Paths.h"
+#include "Misc/Crc.h"
 
 #include "ClothingAssetBase.h"
 
@@ -1451,6 +1453,24 @@ static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh*
 		check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 		Swap(PlatformRenderData->NextCachedRenderData, Mesh->GetResourceForRendering()->NextCachedRenderData);
 		Mesh->GetResourceForRendering()->NextCachedRenderData = TUniquePtr<FSkeletalMeshRenderData>(PlatformRenderData);
+
+		{
+			//If the running platform DDC key is not equal to the target platform DDC key.
+			//We need to cache the skeletalmesh ddc with the running platform to retrieve the ddc editor data LODModel which can be different because of chunking and reduction
+			//Normally it should just take back the ddc for the running platform, since the ddc was cache when we have load the asset to cook it.
+			ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+			check(RunningPlatform);
+			if (RunningPlatform != TargetPlatform)
+			{
+				FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, Mesh);
+				if (RunningPlatformDerivedDataKey != PlatformDerivedDataKey)
+				{
+					FSkeletalMeshRenderData RunningPlatformRenderData;
+					RunningPlatformRenderData.Cache(RunningPlatform, Mesh);
+					check(RunningPlatformRenderData.DerivedDataKey == RunningPlatformDerivedDataKey);
+				}
+			}
+		}
 	}
 	check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 	check(PlatformRenderData);
@@ -1525,8 +1545,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 				else
 				{
 					//Fall back in case we use an archive that the cooking target has not been set (i.e. Duplicate archive)
-					ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-					ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+					ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 					check(RunningPlatform != NULL);
 					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, RunningPlatform);
 				}
@@ -2361,6 +2380,54 @@ void USkeletalMesh::PostLoadValidateUserSectionData()
 	}
 }
 
+void USkeletalMesh::PostLoadEnsureImportDataExist()
+{
+	//If we have a LODModel with no import data and the LOD model have at least one section using more bone then any platform max GPU bone count. We will recreate the import data to allow the asset to be build and chunk properly.
+	const int32 MinimumPerPlatformMaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMinimumPerPlatformMaxGPUSkinBonesValue();
+	bool bNeedToCreateImportData = false;
+	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
+	{
+		const FSkeletalMeshLODModel* LODModel = &(GetImportedModel()->LODModels[LodIndex]);
+		const FSkeletalMeshLODInfo* ThisLODInfo = GetLODInfo(LodIndex);
+		check(ThisLODInfo);
+		const bool bRawDataEmpty = IsLODImportedDataEmpty(LodIndex);
+		const bool bRawBuildDataAvailable = IsLODImportedDataBuildAvailable(LodIndex);
+		if (!bRawDataEmpty && bRawBuildDataAvailable)
+		{
+			continue;
+		}
+		const bool bReductionActive = IsReductionActive(LodIndex);
+		const bool bInlineReduction = bReductionActive && (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
+		if (bReductionActive && !bInlineReduction)
+		{
+			//Generated LOD (not inline) do not need imported data
+			continue;
+		}
+		//See if the LODModel data use more bones then the chunking allow
+		int32 MaxBoneperSection = 0;
+		for(const FSkelMeshSection& Section : LODModel->Sections)
+		{
+			MaxBoneperSection = FMath::Max(MaxBoneperSection, Section.BoneMap.Num());
+		}
+		//If we use more bone then the minimum maxGPUSkinbone, we need to re-create de import data to be able to build the asset
+		if (MaxBoneperSection > MinimumPerPlatformMaxGPUSkinBones)
+		{
+			bNeedToCreateImportData = true;
+			break;
+		}
+	}
+	if (bNeedToCreateImportData)
+	{
+		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+		//We create the import data for all LOD that do not have import data except for the generated LODs.
+		MeshUtilities.CreateImportDataFromLODModel(this);
+#if WITH_EDITORONLY_DATA
+		//If the import data is existing we want to turn use legacy derive data key to false
+		SetUseLegacyMeshDerivedDataKey(false);
+#endif
+	}
+}
+
 void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 {
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
@@ -2707,6 +2774,8 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 
 		PostLoadValidateUserSectionData();
+
+		PostLoadEnsureImportDataExist();
 
 		PostLoadVerifyAndFixBadTangent();
 
@@ -3723,8 +3792,7 @@ namespace InternalSkeletalMeshHelper
 void USkeletalMesh::CacheDerivedData()
 {
 	// Cache derived data for the running platform.
-	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 	check(RunningPlatform);
 
 	AllocateResourceForRendering();
@@ -3796,8 +3864,7 @@ void USkeletalMesh::BeginCacheForCookedPlatformData(const ITargetPlatform* Targe
 FString USkeletalMesh::GetDerivedDataKey()
 {
 	// Cache derived data for the running platform.
-	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 	check(RunningPlatform);
 
 	return SkeletalMeshRenderData->GetDerivedDataKey(RunningPlatform, this);

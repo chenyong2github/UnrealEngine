@@ -412,6 +412,11 @@ public:
 
 	//Fit another rig data on this one
 	bool ApplyRigToGeo(FSkeletalMeshImportData& Other);
+
+	/*
+	 * Use the faces corner normals to create the face smooth groups data
+	 */
+	void ComputeSmoothGroupFromNormals();
 };
 
 /**

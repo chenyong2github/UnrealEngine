@@ -184,6 +184,8 @@ private:
 
 	virtual void GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const override;
 
+	virtual void CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) const override;
+
 	void RegisterMenus();
 
 	// Need to call some members from this class, (which is internal to this module)

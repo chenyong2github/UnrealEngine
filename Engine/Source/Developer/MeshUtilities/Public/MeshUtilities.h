@@ -232,6 +232,7 @@ public:
 		, bComputeTangents(true)
 		, bUseMikkTSpace(false)
 		, bComputeWeightedNormals(false)
+		, TargetPlatform(nullptr)
 		{
 		}
 
@@ -241,6 +242,7 @@ public:
 		bool bUseMikkTSpace;
 		bool bComputeWeightedNormals;
 		FOverlappingThresholds OverlappingThresholds;
+		const class ITargetPlatform* TargetPlatform;
 
 		void FillOptions(const FSkeletalMeshBuildSettings& SkeletalMeshBuildSettings)
 		{
@@ -404,4 +406,10 @@ public:
 
 	/** Used to generate runtime skin weight data from Editor-only data */
 	virtual void GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* ImportedModel, const TArray<FRawSkinWeight>& InRawSkinWeights, struct FRuntimeSkinWeightProfileData& InOutSkinWeightOverrideData) const = 0;
+
+	/*
+	 * This function create the import data using the LODModel. You can call this function if you load an asset that was not re-import since the build refactor and the chunking is more agressive than the bake data in the LODModel.
+	 * You can also need this function if you create a skeletalmesh with LODModel instead of import data, so your newly created skeletalmesh can be build properly.
+	 */
+	virtual void CreateImportDataFromLODModel(USkeletalMesh* SkeletalMesh) const = 0;
 };

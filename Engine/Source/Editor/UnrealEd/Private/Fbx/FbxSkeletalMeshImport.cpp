@@ -59,6 +59,9 @@
 #include "ClothingAsset.h"
 #include "LODUtilities.h"
 #include "IMeshBuilderModule.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/CoreMisc.h"
 
 #define LOCTEXT_NAMESPACE "FBXImpoter"
 
@@ -1866,6 +1869,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 		{
 			IMeshUtilities::MeshBuildOptions LegacyBuildOptions;
 			LegacyBuildOptions.FillOptions(BuildOptions);
+			LegacyBuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 
 			IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 
@@ -1894,7 +1898,9 @@ USkeletalMesh* UnFbx::FFbxImporter::ImportSkeletalMesh(FImportSkeletalMeshArgs &
 			//New MeshDescription build process
 			IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForRunningPlatform();
 			//We must build the LODModel so we can restore properly the mesh, but we do not have to regenerate LODs
-			bBuildSuccess = MeshBuilderModule.BuildSkeletalMesh(SkeletalMesh, ImportLODModelIndex, false);
+			const bool bRegenDepLODs = false;
+			FSkeletalMeshBuildParameters SkeletalMeshBuildParameters(SkeletalMesh, GetTargetPlatformManagerRef().GetRunningTargetPlatform(), ImportLODModelIndex, bRegenDepLODs);
+			bBuildSuccess = MeshBuilderModule.BuildSkeletalMesh(SkeletalMeshBuildParameters);
 		}
 
 		if( !bBuildSuccess )
@@ -2586,7 +2592,7 @@ USkeletalMesh* UnFbx::FFbxImporter::ReimportSkeletalMesh(USkeletalMesh* Mesh, UF
 				FSkeletalMeshLODInfo* LODInfo = NewMesh->GetLODInfo(SuccessfulLodIndex);
 				LODInfo->ReductionSettings.NumOfTrianglesPercentage = FMath::Pow(0.5f, (float)(SuccessfulLodIndex));
 				LODInfo->ReductionSettings.BaseLOD = 0;
-				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, SuccessfulLodIndex, false);
+				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, SuccessfulLodIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform(), false);
 				LODInfo->bImportWithBaseMesh = true;
 				LODInfo->SourceImportFilename = FString(TEXT(""));
 				ImportedSuccessfulLodIndex = SuccessfulLodIndex;

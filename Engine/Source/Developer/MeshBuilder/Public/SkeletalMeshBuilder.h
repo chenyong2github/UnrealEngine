@@ -25,7 +25,7 @@ public:
 		return false;
 	}
 	
-	virtual bool Build(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) override;
+	virtual bool Build(const struct FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters) override;
 
 	virtual ~FSkeletalMeshBuilder() {}
 

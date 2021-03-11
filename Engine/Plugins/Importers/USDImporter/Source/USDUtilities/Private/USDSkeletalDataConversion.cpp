@@ -14,6 +14,9 @@
 #include "Animation/AnimCurveTypes.h"
 #include "AnimationRuntime.h"
 #include "AnimEncoding.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/CoreMisc.h"
 #include "Modules/ModuleManager.h"
 #include "Rendering/SkeletalMeshLODImporterData.h"
 #include "Rendering/SkeletalMeshLODModel.h"
@@ -2126,6 +2129,7 @@ USkeletalMesh* UsdToUnreal::GetSkeletalMeshFromImportData(
 
 #if WITH_EDITOR
 		IMeshUtilities::MeshBuildOptions BuildOptions;
+		BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 		// #ueent_todo: Normals and tangents shouldn't need to be recomputed when they are retrieved from USD
 		//BuildOptions.bComputeNormals = !SkelMeshImportData.bHasNormals;
 		//BuildOptions.bComputeTangents = !SkelMeshImportData.bHasTangents;

@@ -25,7 +25,9 @@
 #include "ClothingAsset.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
 #include "LODUtilities.h"
-
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/CoreMisc.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshReduction"
 
@@ -113,7 +115,8 @@ public:
 	* @returns true if reduction was successful.
 	*/
 	virtual bool ReduceSkeletalMesh( class USkeletalMesh* SkeletalMesh,
-		                             int32 LODIndex		                             
+		                             int32 LODIndex,
+									 const ITargetPlatform* TargetPlatform
 	                                ) override ;
 
 
@@ -161,7 +164,7 @@ private:
 	*  @param SkeletalMeshModel - the Model that belongs to the skeletal mesh, i.e. SkeletalMesh->GetImportedModel();
 	*  @param LODIndex          - target index for the LOD   
 	*/
-	void ReduceSkeletalMesh( USkeletalMesh& SkeletalMesh, FSkeletalMeshModel& SkeletalMeshModel, int32 LODIndex ) const ;
+	void ReduceSkeletalMesh( USkeletalMesh& SkeletalMesh, FSkeletalMeshModel& SkeletalMeshModel, int32 LODIndex, const ITargetPlatform* TargetPlatform) const ;
 
 
 	/**
@@ -185,7 +188,8 @@ private:
 								 const FImportantBones& ImportantBones,
 		                         const TArray<FMatrix>& BoneMatrices,
 		                         const int32 LODIndex,
-								 const bool bReducingSourceModel) const;
+								 const bool bReducingSourceModel,
+								 const ITargetPlatform* TargetPlatform) const;
 
 	/**
 	* Remove the specified section from the mesh.
@@ -222,7 +226,8 @@ private:
 		                                 const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
 		                                 const FReferenceSkeleton& RefSkeleton,
 		                                 FSkeletalMeshLODModel& NewModel,
-										 const bool bReducingSourceModel) const;
+										 const bool bReducingSourceModel,
+										 const ITargetPlatform* TargetPlatform) const;
 
 	/**
 	* Add the SourceModelInflunces to the LODModel in the case that alternate weights exists.
@@ -384,7 +389,7 @@ void FSkeletalMeshReduction::ShutdownModule()
 
 }
 
-bool FQuadricSkeletalMeshReduction::ReduceSkeletalMesh( USkeletalMesh* SkeletalMesh, int32 LODIndex )
+bool FQuadricSkeletalMeshReduction::ReduceSkeletalMesh( USkeletalMesh* SkeletalMesh, int32 LODIndex, const ITargetPlatform* TargetPlatform)
 {
 	check(SkeletalMesh);
 	check(LODIndex >= 0);
@@ -395,7 +400,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalMesh( USkeletalMesh* SkeletalM
 	check(LODIndex <= SkeletalMeshResource->LODModels.Num());
 
 	FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
-	ReduceSkeletalMesh(*SkeletalMesh, *SkeletalMeshResource, LODIndex);
+	ReduceSkeletalMesh(*SkeletalMesh, *SkeletalMeshResource, LODIndex, TargetPlatform);
 
 	return true;
 }
@@ -1583,7 +1588,8 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const FStrin
 	                                                                const SkeletalSimplifier::FSkinnedSkeletalMesh& SkinnedMesh,
 	                                                                const FReferenceSkeleton& RefSkeleton,
 	                                                                FSkeletalMeshLODModel& NewModel,
-																	const bool bReducingSourceModel) const
+																	const bool bReducingSourceModel,
+																    const ITargetPlatform* TargetPlatform) const
 {
 	// We might be re-using this model - so clear it.
 
@@ -1623,6 +1629,7 @@ void FQuadricSkeletalMeshReduction::ConvertToFSkeletalMeshLODModel( const FStrin
 	Options.bComputeWeightedNormals = false;
 	//Leave the default threshold
 	Options.bRemoveDegenerateTriangles = false;
+	Options.TargetPlatform = TargetPlatform;
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
 	
 	// Create skinning streams for NewModel.
@@ -1663,7 +1670,8 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 															const FImportantBones& ImportantBones,
 	                                                        const TArray<FMatrix>& BoneMatrices,
 	                                                        const int32 LODIndex,
-															const bool bReducingSourceModel
+															const bool bReducingSourceModel,
+														    const ITargetPlatform* TargetPlatform
                                                            ) const
 {
 
@@ -1742,7 +1750,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 
 		// Convert to SkeletalMeshLODModel. 
 
-		ConvertToFSkeletalMeshLODModel(SkeletalMeshName, Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel, bReducingSourceModel);
+		ConvertToFSkeletalMeshLODModel(SkeletalMeshName, Settings.MaxBonesPerVertex, SrcModel, SkinnedSkeletalMesh, RefSkeleton, OutSkeletalMeshLODModel, bReducingSourceModel, TargetPlatform);
 
 		// We may need to do additional simplification if the user specified a hard number limit for verts and
 		// the internal chunking during conversion split some verts.
@@ -1789,7 +1797,7 @@ bool FQuadricSkeletalMeshReduction::ReduceSkeletalLODModel( const FSkeletalMeshL
 }
 
 
-void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMesh, FSkeletalMeshModel& SkeletalMeshResource, int32 LODIndex) const
+void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMesh, FSkeletalMeshModel& SkeletalMeshResource, int32 LODIndex, const ITargetPlatform* TargetPlatform) const
 {
 	check(LODIndex <= SkeletalMeshResource.LODModels.Num());
 
@@ -2058,7 +2066,7 @@ void FQuadricSkeletalMeshReduction::ReduceSkeletalMesh(USkeletalMesh& SkeletalMe
 	}
 
 	// Reduce LOD model with SrcMesh if src mesh has more then 1 triangle
-	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetPathName(), SkeletalMesh.GetImportedBounds(), SkeletalMesh.GetRefSkeleton(), Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel))
+	if (SrcModel->NumVertices > 3 && ReduceSkeletalLODModel(*SrcModel, *NewModel, SkeletalMesh.GetPathName(), SkeletalMesh.GetImportedBounds(), SkeletalMesh.GetRefSkeleton(), Settings, ImportantBones, RelativeToRefPoseMatrices, LODIndex, bReducingSourceModel, TargetPlatform))
 	{
 		FSkeletalMeshLODInfo* ReducedLODInfoPtr = SkeletalMesh.GetLODInfo(LODIndex);
 		check(ReducedLODInfoPtr);

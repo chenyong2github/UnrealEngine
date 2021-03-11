@@ -8,6 +8,7 @@ class UStaticMesh;
 class FStaticMeshRenderData;
 class FStaticMeshLODGroup;
 class USkeletalMesh;
+struct FSkeletalMeshBuildParameters;
 
 /**
  * Abstract class which is the base class of all builder.
@@ -26,7 +27,7 @@ public:
 	/**
 	 * Build function should be override and is the starting point for skeletal mesh builders
 	 */
-	virtual bool Build(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) = 0;
+	virtual bool Build(const FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters) = 0;
 
 private:
 

@@ -1010,4 +1010,228 @@ void FWedgePosition::FillWedgePosition(
 	}
 }
 
+namespace InternalImportDataHelper
+{
+	struct FEdgeMapKey
+	{
+		int32 VertexIndexes[2];
+
+		FEdgeMapKey(const int32 VertexIndex0, const int32 VertexIndex1)
+		{
+			const bool bSwap = (VertexIndex0 > VertexIndex1);
+			VertexIndexes[0] = (bSwap) ? VertexIndex1 : VertexIndex0;
+			VertexIndexes[1] = (bSwap) ? VertexIndex0 : VertexIndex1;
+		}
+
+	};
+
+	bool operator==(const FEdgeMapKey& Lhs, const FEdgeMapKey& Rhs)
+	{
+		if (Lhs.VertexIndexes[0] == Rhs.VertexIndexes[0])
+		{
+			if (Lhs.VertexIndexes[1] == Rhs.VertexIndexes[1])
+			{
+				return true;
+			}
+		}
+		else if (Lhs.VertexIndexes[0] == Rhs.VertexIndexes[1])
+		{
+			if (Lhs.VertexIndexes[1] == Rhs.VertexIndexes[0])
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	bool operator!=(const FEdgeMapKey& Lhs, const FEdgeMapKey& Rhs)
+	{
+		return !(Lhs == Rhs);
+	}
+
+	FORCEINLINE uint32 GetTypeHash(const FEdgeMapKey& EdgeMapKey)
+	{
+		uint64 Index0Hash = static_cast<uint64>(EdgeMapKey.VertexIndexes[0]);
+		uint64 Index1Hash = static_cast<uint64>(EdgeMapKey.VertexIndexes[1]);
+		uint64 HashBig64 = Index0Hash + (Index1Hash << 32);
+		return FCrc::MemCrc_DEPRECATED(&HashBig64, sizeof(uint64));
+	}
+
+	struct FEdgeInfo
+	{
+		TArray<TTuple<int32, int32>> WedgeIndexes;
+		TArray<int32> ConnectedFaces;
+	};
+} //namespace InternalImportDataHelper
+
+void FSkeletalMeshImportData::ComputeSmoothGroupFromNormals()
+{
+	//TRACE_CPUPROFILER_EVENT_SCOPE(ComputeSmoothGroupFromNormals);
+	const int32 FaceCount = Faces.Num();
+
+	//Create edge connection data
+	TMap<InternalImportDataHelper::FEdgeMapKey, InternalImportDataHelper::FEdgeInfo> EdgeInfos;
+	EdgeInfos.Reserve(FaceCount * 3);
+	for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
+	{
+		SkeletalMeshImportData::FTriangle& Face = Faces[FaceIndex];
+		const int32 BaseWedgeIndex = FaceIndex * 3;
+		for (int32 Corner = 0; Corner < 3; ++Corner)
+		{
+			const int32 WedgeIndex = BaseWedgeIndex + Corner;
+			const int32 WedgeIndexNext = BaseWedgeIndex + ((Corner + 1) % 3);
+			SkeletalMeshImportData::FVertex& Wedge = Wedges[WedgeIndex];
+			SkeletalMeshImportData::FVertex& WedgeNext = Wedges[WedgeIndexNext];
+			InternalImportDataHelper::FEdgeMapKey EdgeMapKey(Wedge.VertexIndex, WedgeNext.VertexIndex);
+			InternalImportDataHelper::FEdgeInfo& EdgeInfo = EdgeInfos.FindOrAdd(EdgeMapKey);
+			EdgeInfo.ConnectedFaces.Add(FaceIndex);
+			TTuple<int32, int32> TupleWedges = (WedgeIndex <= WedgeIndexNext) ? TTuple<int32, int32>(WedgeIndex, WedgeIndexNext) : TTuple<int32, int32>(WedgeIndexNext, WedgeIndex);
+			EdgeInfo.WedgeIndexes.Add(TupleWedges);
+		}
+	}
+	//////////////////////////////////////////////////////////////////////////
+
+	TMap<int32, uint32> FaceSmoothGroup;
+	FaceSmoothGroup.Reserve(FaceCount);
+	TArray<bool> ConsumedFaces;
+	ConsumedFaces.AddZeroed(FaceCount);
+
+	TMap < int32, uint32> FaceAvoidances;
+
+	TArray<int32> SoftEdgeNeigbors;
+	TArray<int32> ConnectedFaces;
+	TArray<int32> LastConnectedFaces;
+
+	for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
+	{
+		if (ConsumedFaces[FaceIndex])
+		{
+			continue;
+		}
+
+		ConnectedFaces.Reset();
+		LastConnectedFaces.Reset();
+		ConnectedFaces.Add(FaceIndex);
+		LastConnectedFaces.Add(INDEX_NONE);
+		while (ConnectedFaces.Num() > 0)
+		{
+			check(LastConnectedFaces.Num() == ConnectedFaces.Num());
+			int32 LastFaceIndex = LastConnectedFaces.Pop(false);
+			int32 CurrentFaceIndex = ConnectedFaces.Pop(false);
+			if (ConsumedFaces[CurrentFaceIndex])
+			{
+				continue;
+			}
+			SoftEdgeNeigbors.Reset();
+			uint32& SmoothGroup = FaceSmoothGroup.FindOrAdd(CurrentFaceIndex);
+			uint32 AvoidSmoothGroup = 0;
+			uint32 NeighborSmoothGroup = 0;
+			const uint32 LastSmoothGroupValue = (LastFaceIndex == INDEX_NONE) ? 0 : FaceSmoothGroup[LastFaceIndex];
+
+			SkeletalMeshImportData::FTriangle& Face = Faces[CurrentFaceIndex];
+			const int32 BaseWedgeIndex = CurrentFaceIndex * 3;
+			for (int32 Corner = 0; Corner < 3; ++Corner)
+			{
+				const int32 CornerNext = (Corner + 1) % 3;
+				const int32 WedgeIndex = BaseWedgeIndex + Corner;
+				const int32 WedgeIndexNext = BaseWedgeIndex + CornerNext;
+				SkeletalMeshImportData::FVertex& Wedge = Wedges[WedgeIndex];
+				SkeletalMeshImportData::FVertex& WedgeNext = Wedges[WedgeIndexNext];
+				const FVector& WedgePosition = Points[Wedge.VertexIndex];
+				const FVector& WedgePositionNext = Points[WedgeNext.VertexIndex];
+				InternalImportDataHelper::FEdgeMapKey EdgeMapKey(Wedge.VertexIndex, WedgeNext.VertexIndex);
+				InternalImportDataHelper::FEdgeInfo& EdgeInfo = EdgeInfos.FindChecked(EdgeMapKey);
+				for (int32 EdgeInfoConnectedFaceIndex = 0; EdgeInfoConnectedFaceIndex < EdgeInfo.ConnectedFaces.Num(); ++EdgeInfoConnectedFaceIndex)
+				{
+					const int32 ConnectedFaceIndex = EdgeInfo.ConnectedFaces[EdgeInfoConnectedFaceIndex];
+					if (ConnectedFaceIndex == CurrentFaceIndex)
+					{
+						continue;
+					}
+					const SkeletalMeshImportData::FTriangle& ConnectedFace = Faces[ConnectedFaceIndex];
+					const TTuple<int32, int32> ConnectedWedgeIndexes = EdgeInfo.WedgeIndexes[EdgeInfoConnectedFaceIndex];
+					//Is the edge is hard or smooth? Test only the normals, since we create the smooth group from the normals
+					SkeletalMeshImportData::FVertex& ConnectedWedge = Wedges[ConnectedWedgeIndexes.Key];
+					SkeletalMeshImportData::FVertex& ConnectedWedgeNext = Wedges[ConnectedWedgeIndexes.Value];
+					uint32 SmoothValue = 0;
+					if (FaceSmoothGroup.Contains(ConnectedFaceIndex))
+					{
+						SmoothValue = FaceSmoothGroup[ConnectedFaceIndex];
+					}
+					bool bSmoothEdgeNormal = false;
+					const int32 ConnectedCorner = ((ConnectedWedge.VertexIndex == Wedge.VertexIndex) ? ConnectedWedgeIndexes.Key : ConnectedWedgeIndexes.Value) % 3;
+					const int32 ConnectedCornerNext = ((ConnectedWedge.VertexIndex == Wedge.VertexIndex) ? ConnectedWedgeIndexes.Value : ConnectedWedgeIndexes.Key) % 3;
+					if (ConnectedFace.TangentZ[ConnectedCorner].Equals(Face.TangentZ[Corner]))
+					{
+						if (ConnectedFace.TangentZ[ConnectedCornerNext].Equals(Face.TangentZ[CornerNext]))
+						{
+							bSmoothEdgeNormal = true;
+						}
+					}
+
+					if (!bSmoothEdgeNormal) //Hard Edge
+					{
+						AvoidSmoothGroup |= SmoothValue;
+					}
+					else
+					{
+						NeighborSmoothGroup |= SmoothValue;
+						//Put all none hard edge polygon in the next iteration
+						if (!ConsumedFaces[ConnectedFaceIndex])
+						{
+							ConnectedFaces.Add(ConnectedFaceIndex);
+							LastConnectedFaces.Add(CurrentFaceIndex);
+						}
+						else
+						{
+							SoftEdgeNeigbors.Add(ConnectedFaceIndex);
+						}
+					}
+				}
+			}
+
+			if (AvoidSmoothGroup != 0)
+			{
+				FaceAvoidances.FindOrAdd(CurrentFaceIndex) = AvoidSmoothGroup;
+				//find neighbor avoidance
+				for (int32 NeighborID : SoftEdgeNeigbors)
+				{
+					if (!FaceAvoidances.Contains(NeighborID))
+					{
+						continue;
+					}
+					AvoidSmoothGroup |= FaceAvoidances[NeighborID];
+				}
+				uint32 NewSmoothGroup = 1;
+				while ((NewSmoothGroup & AvoidSmoothGroup) != 0 && NewSmoothGroup < MAX_uint32)
+				{
+					//Shift the smooth group
+					NewSmoothGroup = NewSmoothGroup << 1;
+				}
+				SmoothGroup = NewSmoothGroup;
+				//Apply to all neighboard
+				for (int32 NeighborID : SoftEdgeNeigbors)
+				{
+					FaceSmoothGroup[NeighborID] |= NewSmoothGroup;
+				}
+			}
+			else if (NeighborSmoothGroup != 0)
+			{
+				SmoothGroup |= LastSmoothGroupValue | NeighborSmoothGroup;
+			}
+			else
+			{
+				SmoothGroup = 1;
+			}
+			ConsumedFaces[CurrentFaceIndex] = true;
+		}
+	}
+	//Set the resulting smooth group for all the faces
+	check(FaceSmoothGroup.Num() == FaceCount);
+	for (int32 FaceIndex = 0; FaceIndex < FaceCount; ++FaceIndex)
+	{
+		Faces[FaceIndex].SmoothingGroups = FaceSmoothGroup[FaceIndex];
+	}
+}
+
 #endif // WITH_EDITOR

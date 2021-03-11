@@ -32,6 +32,9 @@
 #include "DesktopPlatformModule.h"
 #include "EditorDirectories.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/CoreMisc.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkinWeightsUtilities, Log, All);
 
@@ -295,7 +298,7 @@ bool FSkinWeightsUtilities::ReimportAlternateSkinWeight(USkeletalMesh* SkeletalM
 	
 	if (bResult)
 	{
-		FLODUtilities::RegenerateDependentLODs(SkeletalMesh, TargetLODIndex);
+		FLODUtilities::RegenerateDependentLODs(SkeletalMesh, TargetLODIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform());
 	}
 	
 	return bResult;
@@ -335,6 +338,7 @@ bool FSkinWeightsUtilities::RemoveSkinnedWeightProfileData(USkeletalMesh* Skelet
 	BuildOptions.bUseMikkTSpace = (OriginalSkeletalMeshImportData->NormalGenerationMethod == EFBXNormalGenerationMethod::MikkTSpace) && (!bShouldImportNormals || !bShouldImportTangents);
 	BuildOptions.bComputeWeightedNormals = OriginalSkeletalMeshImportData->bComputeWeightedNormals;
 	BuildOptions.bRemoveDegenerateTriangles = false;
+	BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 
 	//Build the skeletal mesh asset
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");

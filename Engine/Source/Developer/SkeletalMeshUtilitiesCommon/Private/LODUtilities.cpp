@@ -31,6 +31,9 @@
 #include "Animation/SkinWeightProfile.h"
 
 #include "Async/ParallelFor.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/CoreMisc.h"
 
 IMPLEMENT_MODULE(FDefaultModuleImpl, SkeletalMeshUtilitiesCommon)
 
@@ -199,7 +202,7 @@ void FLODUtilities::ProcessImportMeshInfluences(const int32 WedgeCount, TArray<S
 }
 
 
-bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
+bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, const ITargetPlatform* TargetPlatform, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
 {
 	if (SkeletalMesh)
 	{
@@ -241,7 +244,7 @@ bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount
 			for (int32 LODIdx = CurrentNumLODs; LODIdx < LODCount; LODIdx++)
 			{
 				// if no previous setting found, it will use default setting. 
-				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIdx, false);
+				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIdx, TargetPlatform, false);
 			}
 		}
 		else
@@ -251,7 +254,7 @@ bool FLODUtilities::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount
 				FSkeletalMeshLODInfo& CurrentLODInfo = *(SkeletalMesh->GetLODInfo(LODIdx));
 				if ((bRegenerateEvenIfImported && LODIdx > 0) || (bGenerateBaseLOD && LODIdx == 0) || CurrentLODInfo.bHasBeenSimplified )
 				{
-					FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIdx, false);
+					FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIdx, TargetPlatform, false);
 				}
 			}
 		}
@@ -1172,7 +1175,7 @@ void FLODUtilities::ApplyMorphTargetsToLOD(USkeletalMesh* SkeletalMesh, int32 So
 	CreateLODMorphTarget(SkeletalMesh, ReductionBaseSkeletalMeshBulkData, SourceLOD, DestinationLOD, PerMorphTargetBaseIndexToMorphTargetDelta, BaseMorphIndexToTargetIndexList, TargetVertices, TargetMatchData);
 }
 
-void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
+void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 DesiredLOD, const ITargetPlatform* TargetPlatform, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
 {
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
@@ -1280,7 +1283,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 	}
 	
 
-	if (MeshReduction->ReduceSkeletalMesh(SkeletalMesh, DesiredLOD))
+	if (MeshReduction->ReduceSkeletalMesh(SkeletalMesh, DesiredLOD, TargetPlatform))
 	{
 		check(SkeletalMesh->GetLODNum() >= 1);
 
@@ -1329,7 +1332,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 	}
 }
 
-void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
+void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD, const ITargetPlatform* TargetPlatform, bool bRestoreClothing /*= false*/, FThreadSafeBool* OutNeedsPackageDirtied/*= nullptr*/)
 {
 	USkeletalMesh* SkeletalMesh = UpdateContext.SkeletalMesh;
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
@@ -1337,7 +1340,7 @@ void FLODUtilities::SimplifySkeletalMeshLOD(FSkeletalMeshUpdateContext& UpdateCo
 
 	if (MeshReduction && MeshReduction->IsSupported() && SkeletalMesh)
 	{
-		SimplifySkeletalMeshLOD(SkeletalMesh, DesiredLOD, bRestoreClothing, OutNeedsPackageDirtied);
+		SimplifySkeletalMeshLOD(SkeletalMesh, DesiredLOD, TargetPlatform, bRestoreClothing, OutNeedsPackageDirtied);
 		
 		if (UpdateContext.OnLODChanged.IsBound())
 		{
@@ -2116,6 +2119,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 	BuildOptions.bUseMikkTSpace = (bUseMikkTSpace) && (!ShouldImportNormals || !ShouldImportTangents);
 	BuildOptions.bComputeWeightedNormals = bComputeWeightedNormals;
 	BuildOptions.bRemoveDegenerateTriangles = false;
+	BuildOptions.TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 
 	//Build the skeletal mesh asset
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
@@ -2277,7 +2281,7 @@ void FLODUtilities::RegenerateAllImportSkinWeightProfileData(FSkeletalMeshLODMod
 	}
 }
 
-void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 LODIndex)
+void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 LODIndex, const ITargetPlatform* TargetPlatform)
 {
 	int32 LODNumber = SkeletalMesh->GetLODNum();
 	TMap<int32, TArray<int32>> Dependencies;
@@ -2364,19 +2368,19 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 				if (!DepLODInfo || (!DepLODInfo->bHasBeenSimplified || DependentLODIndex == DepLODInfo->ReductionSettings.BaseLOD))
 				{
 					CanReduceLODInParallel[DependentLODIndex] = false;
-					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, TargetPlatform, false, &bNeedsPackageDirtied);
 				}
 			}
 			
 			//Reduce LODs in parallel
-			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, &CanReduceLODInParallel](int32 IterationIndex)
+			ParallelFor(DependentLODs.Num(), [&DependentLODs, &SkeletalMesh, &bNeedsPackageDirtied, &CanReduceLODInParallel, &TargetPlatform](int32 IterationIndex)
 			{
 				check(DependentLODs.IsValidIndex(IterationIndex));
 				int32 DependentLODIndex = DependentLODs[IterationIndex];
 				if (CanReduceLODInParallel[DependentLODIndex])
 				{
 					check(SkeletalMesh->GetLODInfo(DependentLODIndex)); //We cannot add a LOD when reducing with multi thread, so check we already have one
-					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, false, &bNeedsPackageDirtied);
+					FLODUtilities::SimplifySkeletalMeshLOD(SkeletalMesh, DependentLODIndex, TargetPlatform, false, &bNeedsPackageDirtied);
 				}
 			});
 

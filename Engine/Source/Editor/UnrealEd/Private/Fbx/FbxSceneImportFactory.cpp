@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Factories/FbxSceneImportFactory.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/MessageDialog.h"
 #include "Misc/Paths.h"
 #include "Misc/FeedbackContext.h"
@@ -51,6 +52,8 @@
 #include "Fbx/SSceneImportNodeTreeView.h"
 #include "SFbxSceneOptionWindow.h"
 #include "Interfaces/IMainFrameModule.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "PackageTools.h"
 
 #include "Kismet2/KismetEditorUtilities.h"
@@ -2016,7 +2019,7 @@ UObject* UFbxSceneImportFactory::ImportOneSkeletalMesh(void* VoidRootNodeToImpor
 				LODInfo.ReductionSettings.BaseLOD = 0;
 				LODInfo.bImportWithBaseMesh = true;
 				LODInfo.SourceImportFilename = FString(TEXT(""));
-				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, false);
+				FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform(), false);
 			}
 			else
 			{

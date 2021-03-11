@@ -22,10 +22,13 @@
 #include "FbxImporter.h"
 #include "HAL/FileManager.h"
 #include "IContentBrowserSingleton.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "JsonObjectConverter.h"
 #include "LODUtilities.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/FbxErrors.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/Paths.h"
@@ -728,7 +731,7 @@ UObject* UFbxFactory::FactoryCreateFile
 								LODInfo.ReductionSettings.BaseLOD = 0;
 								LODInfo.bImportWithBaseMesh = true;
 								LODInfo.SourceImportFilename = FString(TEXT(""));
-								FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, SuccessfulLodIndex);
+								FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, SuccessfulLodIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform());
 								ImportedSuccessfulLodIndex = SuccessfulLodIndex;
 								SuccessfulLodIndex++;
 							}

@@ -10,6 +10,14 @@
 #include "GPUSkinCache.h"
 #include "ShaderParameterUtils.h"
 #include "MeshMaterialShader.h"
+
+#include "PlatformInfo.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Logging/LogMacros.h"
+#include "Misc/CoreMisc.h"
+
+#include "Engine/RendererSettings.h"
 #if INTEL_ISPC
 #include "GPUSkinVertexFactory.ispc.generated.h"
 #endif
@@ -20,7 +28,7 @@ static int32 GCVarMaxGPUSkinBones = FGPUBaseSkinVertexFactory::GHardwareMaxGPUSk
 static FAutoConsoleVariableRef CVarMaxGPUSkinBones(
 	TEXT("Compat.MAX_GPUSKIN_BONES"),
 	GCVarMaxGPUSkinBones,
-	TEXT("Max number of bones that can be skinned on the GPU in a single draw call. Cannot be changed at runtime."),
+	TEXT("Max number of bones that can be skinned on the GPU in a single draw call. This setting clamp the per platform project setting URendererSettings::MaxSkinBones. Cannot be changed at runtime."),
 	ECVF_ReadOnly);
 
 static int32 GCVarSupport16BitBoneIndex = 0;
@@ -350,17 +358,72 @@ bool FGPUBaseSkinVertexFactory::FShaderDataType::UpdateBoneData(FRHICommandListI
 	return false;
 }
 
-int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones()
+int32 FGPUBaseSkinVertexFactory::GetMinimumPerPlatformMaxGPUSkinBonesValue()
 {
+	const bool bUseGlobalMaxGPUSkinBones = (GCVarMaxGPUSkinBones != FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones);
+	//Use the default value in case there is no valid target platform
+	int32 MaxGPUSkinBones = GetDefault<URendererSettings>()->MaxSkinBones.GetValue();
+#if WITH_EDITORONLY_DATA && WITH_EDITOR
+	for (const TPair<FName, int32>& PlatformData : GetDefault<URendererSettings>()->MaxSkinBones.PerPlatform)
+	{
+		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, PlatformData.Value);
+	}
+#endif
+	if (bUseGlobalMaxGPUSkinBones)
+	{
+		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, GCVarMaxGPUSkinBones);
+	}
+	return MaxGPUSkinBones;
+}
+
+int32 FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones(const ITargetPlatform* TargetPlatform /*= nullptr*/)
+{
+	const bool bUseGlobalMaxGPUSkinBones = (GCVarMaxGPUSkinBones != FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones);
+	if (bUseGlobalMaxGPUSkinBones)
+	{
+		static bool bIsLogged = false;
+		if (!bIsLogged)
+		{
+			UE_LOG(LogSkeletalMesh, Display, TEXT("The Engine config variable [SystemSettings] Compat.MAX_GPUSKIN_BONES (%d) is deprecated, please remove the variable from any engine .ini file. Instead use the per platform project settings - Engine - Rendering - Skinning - Maximum bones per sections. Until the variable is remove we will clamp the per platform value"),
+				   GCVarMaxGPUSkinBones);
+			bIsLogged = true;
+		}
+	}
+	//Use the default value in case there is no valid target platform
+	int32 MaxGPUSkinBones = GetDefault<URendererSettings>()->MaxSkinBones.GetValue();
+	
+#if WITH_EDITOR
+	const ITargetPlatform* TargetPlatformTmp = TargetPlatform;
+	if (!TargetPlatformTmp)
+	{
+		//Get the running platform if the caller did not supply a platform
+		ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
+		TargetPlatformTmp = TargetPlatformManager.GetRunningTargetPlatform();
+	}
+	if (TargetPlatformTmp)
+	{
+		//Get the platform value
+		const FName PlatformGroupName = TargetPlatformTmp->GetPlatformInfo().PlatformGroupName;
+		const FName VanillaPlatformName = TargetPlatformTmp->GetPlatformInfo().VanillaPlatformName;
+		MaxGPUSkinBones = GetDefault<URendererSettings>()->MaxSkinBones.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	}
+#endif
+
+	if (bUseGlobalMaxGPUSkinBones)
+	{
+		//Make sure we do not go over the global ini console variable GCVarMaxGPUSkinBones
+		MaxGPUSkinBones = FMath::Min(MaxGPUSkinBones, GCVarMaxGPUSkinBones);
+		
+	}
 	if (GCVarSupport16BitBoneIndex > 0)
 	{
-		// 16-bit bone index is supported, use GCVarMaxGPUSkinBones
-		return GCVarMaxGPUSkinBones;
+		// 16-bit bone index is supported
+		return MaxGPUSkinBones;
 	}
 	else
 	{
 		// 16-bit bone index is not supported, clamp the max bones to 8-bit
-		return FMath::Min(GCVarMaxGPUSkinBones, 256);
+		return FMath::Min(MaxGPUSkinBones, 256);
 	}
 }
 

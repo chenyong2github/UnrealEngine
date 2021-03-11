@@ -2061,6 +2061,11 @@ private:
 	void PostLoadValidateUserSectionData();
 
 	/*
+	 * This function ensure skeletalmesh each non generated LOD has some imported data. If there is no import data it will create it from the LODModel data.
+	 */
+	void PostLoadEnsureImportDataExist();
+
+	/*
 	 * This function will ensure we have valid tangent in all LODs. if we found an invalid tangent axis we will try to set it with the cross product of the two other axis.
 	 * If the two other axis are also bad it will simply apply the triangle normals which will faceted the mesh.
 	 * It will validate tangents only for asset that do not have source build data, this mean asset imported before the build refactor done in the UE version 4.24)
@@ -2519,6 +2524,20 @@ protected:
 	TArray<FSkinWeightProfileInfo> SkinWeightProfiles;
 };
 
+struct FSkeletalMeshBuildParameters
+{
+	FSkeletalMeshBuildParameters(USkeletalMesh* InSkeletalMesh, const ITargetPlatform* InTargetPlatform, int32 InLODIndex, bool bInRegenDepLODs)
+		: SkeletalMesh(InSkeletalMesh)
+		, TargetPlatform(InTargetPlatform)
+		, LODIndex(InLODIndex)
+		, bRegenDepLODs(bInRegenDepLODs)
+	{}
+
+	USkeletalMesh* SkeletalMesh;
+	const ITargetPlatform* TargetPlatform;
+	const int32 LODIndex;
+	const bool bRegenDepLODs;
+};
 
 /**
  * Refresh Physics Asset Change

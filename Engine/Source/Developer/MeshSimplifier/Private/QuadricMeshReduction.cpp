@@ -575,7 +575,8 @@ public:
 
 	virtual bool ReduceSkeletalMesh(
 		USkeletalMesh* SkeletalMesh,
-		int32 LODIndex
+		int32 LODIndex,
+		const class ITargetPlatform* TargetPlatform
 		) override
 	{
 		return false;

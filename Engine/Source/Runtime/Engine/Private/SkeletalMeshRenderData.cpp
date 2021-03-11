@@ -14,6 +14,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Interfaces/ITargetPlatform.h"
+#include "Misc/CoreMisc.h"
 #include "PlatformInfo.h"
 #include "IMeshBuilderModule.h"
 #include "EngineUtils.h"
@@ -100,8 +101,8 @@ FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlatform, U
 		KeySuffix += tmpDebugString;
 		
 		//Add the max gpu bone per section
-		const uint32 MaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones();
-		KeySuffix += FString::FromInt((int32)MaxGPUSkinBones);
+		const int32 MaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMaxGPUSkinBones(TargetPlatform);
+		KeySuffix += FString::FromInt(MaxGPUSkinBones);
 
 		tmpDebugString = TEXT("");
 		SerializeLODInfoForDDC(SkelMesh, tmpDebugString);
@@ -206,6 +207,7 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 
 
 	check(LODRenderData.Num() == 0); // Should only be called on new, empty RenderData
+	check(TargetPlatform);
 
 	auto SerializeLodModelDdcData = [&Owner](FSkeletalMeshLODModel* LODModel, FArchive& Ar)
 	{
@@ -332,7 +334,9 @@ void FSkeletalMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, USkel
 				IMeshBuilderModule& MeshBuilderModule = IMeshBuilderModule::GetForPlatform(TargetPlatform);
 				if (!bRawDataEmpty && bRawBuildDataAvailable)
 				{
-					MeshBuilderModule.BuildSkeletalMesh(Owner, LODIndex, true);
+					const bool bRegenDepLODs = true;
+					FSkeletalMeshBuildParameters BuildParameters(Owner, TargetPlatform, LODIndex, bRegenDepLODs);
+					MeshBuilderModule.BuildSkeletalMesh(BuildParameters);
 					LODModel = &(SkelMeshModel->LODModels[LODIndex]);
 				}
 				else
