@@ -18,12 +18,15 @@ class FDelayedCallbackLatentCommand : public IAutomationLatentCommand
 public:
 	FDelayedCallbackLatentCommand(TFunction<void()>&& InCallback, float InDelay = 0.1f)
 		: Callback(MoveTemp(InCallback)), Delay(InDelay)
-	{}
+	{
+		//Set the start time
+		StartTime = FPlatformTime::Seconds();
+	}
 
 	virtual bool Update() override
 	{
-		float NewTime = FPlatformTime::Seconds();
-		if (NewTime - StartTime >= Delay)
+		double NewTime = FPlatformTime::Seconds();
+		if (NewTime - StartTime >= static_cast<double>(Delay))
 		{
 			Callback();
 			return true;
@@ -153,6 +156,19 @@ bool CopyTestFiles(const FAutoReimportTestPayload& Test, const TArray<FSrcDstFil
 	return true;
 }
 
+const int32 LocalMaxRetryCounter = 5;
+const float LocalRetryDelay = 1.0f;
+
+void RetryLatentCommand(TFunction<bool(const bool)>&& LatentCommandFunction, const float RetryDelay, int32& MaxRetryCounter)
+{
+	ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]() mutable {
+		if (!LatentCommandFunction(MaxRetryCounter == 1) && MaxRetryCounter > 0)
+		{
+			RetryLatentCommand(MoveTemp(LatentCommandFunction), RetryDelay, --MaxRetryCounter);
+		}
+	}, RetryDelay));
+}
+
 /** Test that creating a new file gets reported correctly */
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAutoReimportSimpleCreateTest, "Editor.Auto Reimport.Simple Create", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 bool FAutoReimportSimpleCreateTest::RunTest(const FString& Parameters)
@@ -165,11 +181,6 @@ bool FAutoReimportSimpleCreateTest::RunTest(const FString& Parameters)
 	TSharedPtr<FAutoReimportTestPayload> Test = MakeShareable(new FAutoReimportTestPayload(WorkingDir));
 	Test->StartWatching();
 	Test->WaitForStartup([=]{
-		if (!Test->FileCache->HasStartedUp())
-		{
-			//WaitForStartup should ensure this state
-			UE_LOG(LogAutoReimportTests, Error, TEXT("FileCache not ready to listen folder change!"));
-		}
 
 		TArray<FSrcDstFilenames> Files;
 		Files.Emplace(Filename, Filename);
@@ -179,11 +190,13 @@ bool FAutoReimportSimpleCreateTest::RunTest(const FString& Parameters)
 			return;
 		}
 
-		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-			
-			Test->FileCache->Tick();
-
+		auto SimpleCreateFunction = [=](const bool bLastIteration)->bool
+		{
 			auto Changes = Test->FileCache->GetOutstandingChanges();
+			if (!bLastIteration && Changes.Num() == 0)
+			{
+				return false;
+			}
 
 			if (Changes.Num() != 1)
 			{
@@ -208,9 +221,12 @@ bool FAutoReimportSimpleCreateTest::RunTest(const FString& Parameters)
 					UE_LOG(LogAutoReimportTests, Error, TEXT("Add transaction was not applied correctly."));
 				}
 			}
+			return true;
+		};
 
-		}, 1));
-
+		int32 MaxRetryCounter = LocalMaxRetryCounter;
+		const float RetryDelay = LocalRetryDelay;
+		RetryLatentCommand(SimpleCreateFunction, RetryDelay, MaxRetryCounter);
 	});
 
 	return true;
@@ -238,6 +254,9 @@ bool FAutoReimportSimpleModifyTest::RunTest(const FString& Parameters)
 			return false;
 		}
 	}
+	
+	Test->Config.RequireFileHashes(true);
+	Test->Config.DetectChangesFor(DirectoryWatcher::FFileCacheConfig::FileHash, true);
 
 	Test->StartWatching();
 	Test->WaitForStartup([=]{
@@ -250,10 +269,13 @@ bool FAutoReimportSimpleModifyTest::RunTest(const FString& Parameters)
 			return;
 		}
 
-		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-			
-			Test->FileCache->Tick();
+		auto SimpleModifyFunction = [=](const bool bLastIteration)->bool
+		{
 			auto Changes = Test->FileCache->GetOutstandingChanges();
+			if (!bLastIteration && Changes.Num() == 0)
+			{
+				return false;
+			}
 
 			if (Changes.Num() != 1)
 			{
@@ -281,9 +303,12 @@ bool FAutoReimportSimpleModifyTest::RunTest(const FString& Parameters)
 					UE_LOG(LogAutoReimportTests, Error, TEXT("Modify transaction was not applied correctly."));
 				}
 			}
+			return true;
+		};
 
-		}, 1));
-
+		int32 MaxRetryCounter = LocalMaxRetryCounter;
+		const float RetryDelay = LocalRetryDelay;
+		RetryLatentCommand(SimpleModifyFunction, RetryDelay, MaxRetryCounter);
 	});
 
 	return true;
@@ -319,11 +344,13 @@ bool FAutoReimportSimpleDeleteTest::RunTest(const FString& Parameters)
 			return;
 		}
 
-		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-
-			Test->FileCache->Tick();
-
+		auto SimpleDeleteFunction = [=](const bool bLastIteration)->bool
+		{
 			auto Changes = Test->FileCache->GetOutstandingChanges();
+			if (!bLastIteration && Changes.Num() == 0)
+			{
+				return false;
+			}
 
 			if (Changes.Num() != 1)
 			{
@@ -348,8 +375,12 @@ bool FAutoReimportSimpleDeleteTest::RunTest(const FString& Parameters)
 					UE_LOG(LogAutoReimportTests, Error, TEXT("Remove transaction was not applied correctly."));
 				}
 			}
+			return true;
+		};
 
-		}, 1));
+		int32 MaxRetryCounter = LocalMaxRetryCounter;
+		const float RetryDelay = LocalRetryDelay;
+		RetryLatentCommand(SimpleDeleteFunction, RetryDelay, MaxRetryCounter);
 
 	});
 
@@ -383,10 +414,13 @@ bool FAutoReimportSimpleRenameTest::RunTest(const FString& Parameters)
 		// Rename the file
 		IFileManager::Get().Move(*(Test->Config.Directory / DstFilename), *(Test->Config.Directory / SrcFilename));
 
-		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-
-			Test->FileCache->Tick();
+		auto SimpleRenameFunction = [=](const bool bLastIteration)->bool
+		{
 			auto Changes = Test->FileCache->GetOutstandingChanges();
+			if (!bLastIteration && Changes.Num() == 0)
+			{
+				return false;
+			}
 
 			if (Changes.Num() != 1)
 			{
@@ -414,9 +448,12 @@ bool FAutoReimportSimpleRenameTest::RunTest(const FString& Parameters)
 					UE_LOG(LogAutoReimportTests, Error, TEXT("Rename transaction was not applied correctly."));
 				}
 			}
+			return true;
+		};
 
-		}, 1));
-
+		int32 MaxRetryCounter = LocalMaxRetryCounter;
+		const float RetryDelay = LocalRetryDelay;
+		RetryLatentCommand(SimpleRenameFunction, RetryDelay, MaxRetryCounter);
 	});
 
 	return true;
@@ -454,11 +491,13 @@ bool FAutoReimportSimpleMoveExternallyTest::RunTest(const FString& Parameters)
 		// Rename the file
 		IFileManager::Get().Move(*(Test->Config.Directory / DstFilename), *(Test->Config.Directory / SrcFilename));
 
-		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-
-			Test->FileCache->Tick();
-
+		auto MoveExternallyFunction = [=](const bool bLastIteration)->bool
+		{
 			auto Changes = Test->FileCache->GetOutstandingChanges();
+			if (!bLastIteration && Changes.Num() == 0)
+			{
+				return false;
+			}
 
 			if (Changes.Num() != 1)
 			{
@@ -482,9 +521,12 @@ bool FAutoReimportSimpleMoveExternallyTest::RunTest(const FString& Parameters)
 					UE_LOG(LogAutoReimportTests, Error, TEXT("Found data for file that should have been removed (%s)."), SrcFilename);
 				}
 			}
+			return true;
+		};
 
-		}, 1));
-
+		int32 MaxRetryCounter = LocalMaxRetryCounter;
+		const float RetryDelay = LocalRetryDelay;
+		RetryLatentCommand(MoveExternallyFunction, RetryDelay, MaxRetryCounter);
 	});
 
 	return true;
@@ -623,11 +665,14 @@ bool FAutoReimportMultipleChangesTest::RunTest(const FString& Parameters)
 			return;
 		}
 
-		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-
-			Test->FileCache->Tick();
+		auto MultipleChangesFunction = [=](const bool bLastIteration)->bool
+		{
 			// The net change should just be a single added file
 			auto Changes = Test->FileCache->GetOutstandingChanges();
+			if (!bLastIteration && Changes.Num() == 0)
+			{
+				return false;
+			}
 
 			if (Changes.Num() != 1)
 			{
@@ -638,9 +683,12 @@ bool FAutoReimportMultipleChangesTest::RunTest(const FString& Parameters)
 			{
 				UE_LOG(LogAutoReimportTests, Error, TEXT("Incorrect action for added file %s."), Filename2);
 			}
+			return true;
+		};
 
-		}, 1));
-
+		int32 MaxRetryCounter = LocalMaxRetryCounter;
+		const float RetryDelay = LocalRetryDelay;
+		RetryLatentCommand(MultipleChangesFunction, RetryDelay, MaxRetryCounter);
 	});
 
 	return true;
@@ -674,25 +722,29 @@ bool FAutoReimportChangeExtensionsTest::RunTest(const FString& Parameters)
 			}
 		}
 
-		ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-
-			Test->FileCache->Tick();
+		auto ChangeExtensionsFunction = [=](const bool bLastIteration)->bool
+		{
+			// The net change should just be a single added file
 			auto Changes = Test->FileCache->GetOutstandingChanges();
+			if (!bLastIteration && Changes.Num() == 0)
+			{
+				return false;
+			}
 
 			if (Changes.Num() != 1)
 			{
 				UE_LOG(LogAutoReimportTests, Error, TEXT("Incorrect number of changes reported (%d != 1)."), Changes.Num());
-				return;
+				return true;
 			}
 			else if (Changes[0].Action != DirectoryWatcher::EFileAction::Added)
 			{
 				UE_LOG(LogAutoReimportTests, Error, TEXT("Incorrect action for added file %s."), SrcFilename3);
-				return;
+				return true;
 			}
 			else if (!Changes[0].Filename.Get().Equals(SrcFilename3))
 			{
 				UE_LOG(LogAutoReimportTests, Error, TEXT("Added file path reported incorrectly (%s != %s)."), *Changes[0].Filename.Get(), SrcFilename3);
-				return;
+				return true;
 			}
 			Test->FileCache->CompleteTransaction(MoveTemp(Changes[0]));
 
@@ -721,19 +773,33 @@ bool FAutoReimportChangeExtensionsTest::RunTest(const FString& Parameters)
 					return;
 				}
 
-				ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
+				auto ChangeExtensionsInternalFunction = [=](const bool bLastIteration)->bool
+				{
+					// The net change should just be a single added file
 					auto OutstandingChanges = Test->FileCache->GetOutstandingChanges();
+					if (!bLastIteration && OutstandingChanges.Num() == 0)
+					{
+						return false;
+					}
 
 					if (OutstandingChanges.Num() != 1)
 					{
 						UE_LOG(LogAutoReimportTests, Error, TEXT("Incorrect number of changes reported (%d != 1)."), OutstandingChanges.Num());
 					}
-				}, 1));
+					return true;
+				};
+
+				int32 MaxRetryCounter2 = LocalMaxRetryCounter;
+				const float RetryDelay2 = LocalRetryDelay;
+				RetryLatentCommand(ChangeExtensionsInternalFunction, RetryDelay2, MaxRetryCounter2);
 
 			});
+			return true;
+		};
 
-		}, 1));
-
+		int32 MaxRetryCounter = LocalMaxRetryCounter;
+		const float RetryDelay = LocalRetryDelay;
+		RetryLatentCommand(ChangeExtensionsFunction, RetryDelay, MaxRetryCounter);
 	});
 
 	return true;
@@ -751,6 +817,7 @@ bool FAutoReimportWildcardFiltersTest::RunTest(const FString& Parameters)
 	static const TCHAR* DstFilename1 = TEXT("sub-folder/square.png");
 	static const TCHAR* DstFilename2 = TEXT("red-square.png");
 	static const TCHAR* DstFilename3 = TEXT("sub-folder/empty.txt");
+	static const TCHAR* DstFilename4 = TEXT("sub-folder/foo.txt");
 	
 	TSharedPtr<FAutoReimportTestPayload> Test = MakeShareable(new FAutoReimportTestPayload(WorkingDir));
 	Test->Config.Rules.SetApplicableExtensions(TEXT("txt;png;"));
@@ -794,26 +861,35 @@ bool FAutoReimportWildcardFiltersTest::RunTest(const FString& Parameters)
 			Files.Emplace(SrcFilename2, DstFilename1);
 			Files.Emplace(SrcFilename1, DstFilename2);
 			Files.Emplace(SrcFilename2, DstFilename3);
+			Files.Emplace(SrcFilename2, DstFilename4);
 			if (!CopyTestFiles(*Test, Files))
 			{
 				return;
 			}
 
-			ADD_LATENT_AUTOMATION_COMMAND(FDelayedCallbackLatentCommand([=]{
-				Test->FileCache->Tick();
+			auto WildcardFiltersFunction = [=](const bool bLastIteration)->bool
+			{
+				// The net change should just be a single added file
 				auto Changes = Test->FileCache->GetOutstandingChanges();
+				if (!bLastIteration && Changes.Num() == 0)
+				{
+					return false;
+				}
 
 				if (Changes.Num() != 1)
 				{
 					UE_LOG(LogAutoReimportTests, Error, TEXT("Incorrect number of changes reported (%d != 1)."), Changes.Num());
 				}
-				else if (!Changes[0].Filename.Get().Equals(DstFilename3))
+				else if (!Changes[0].Filename.Get().Equals(DstFilename4))
 				{
-					UE_LOG(LogAutoReimportTests, Error, TEXT("Modified file path reported incorrectly (%s != %s)."), *Changes[0].Filename.Get(), DstFilename3);
+					UE_LOG(LogAutoReimportTests, Error, TEXT("Modified file path reported incorrectly (%s != %s)."), *Changes[0].Filename.Get(), DstFilename4);
 				}
+				return true;
+			};
 
-			}, 1));
-
+			int32 MaxRetryCounter = LocalMaxRetryCounter;
+			const float RetryDelay = LocalRetryDelay;
+			RetryLatentCommand(WildcardFiltersFunction, RetryDelay, MaxRetryCounter);
 		}
 
 	});
