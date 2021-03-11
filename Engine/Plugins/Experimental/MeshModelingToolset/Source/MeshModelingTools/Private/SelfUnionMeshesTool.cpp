@@ -52,14 +52,14 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 {
 	FComponentMaterialSet AllMaterialSet;
 	TMap<UMaterialInterface*, int> KnownMaterials;
-	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(ComponentTargets.Num());
+	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(Targets.Num());
 
 	if (!Properties->bOnlyUseFirstMeshMaterials)
 	{
-		for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+		for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
 			FComponentMaterialSet ComponentMaterialSet;
-			ComponentTargets[ComponentIdx]->GetMaterialSet(ComponentMaterialSet);
+			TargetMaterialInterface(ComponentIdx)->GetMaterialSet(ComponentMaterialSet);
 			for (UMaterialInterface* Mat : ComponentMaterialSet.Materials)
 			{
 				int* FoundMatIdx = KnownMaterials.Find(Mat);
@@ -79,14 +79,14 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	}
 	else
 	{
-		ComponentTargets[0]->GetMaterialSet(AllMaterialSet);
+		TargetMaterialInterface(0)->GetMaterialSet(AllMaterialSet);
 		for (int MatIdx = 0; MatIdx < AllMaterialSet.Materials.Num(); MatIdx++)
 		{
 			MaterialRemap[0].Add(MatIdx);
 		}
-		for (int ComponentIdx = 1; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+		for (int ComponentIdx = 1; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			MaterialRemap[ComponentIdx].Init(0, ComponentTargets[ComponentIdx]->GetNumMaterials());
+			MaterialRemap[ComponentIdx].Init(0, TargetMaterialInterface(ComponentIdx)->GetNumMaterials());
 		}
 	}
 
@@ -96,11 +96,11 @@ void USelfUnionMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewM
 	CombinedSourceMeshes->Attributes()->EnableMaterialID();
 	FDynamicMeshEditor AppendEditor(CombinedSourceMeshes.Get());
 
-	for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		FDynamicMesh3 ComponentMesh;
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(ComponentTargets[ComponentIdx]->GetMesh(), ComponentMesh);
+		Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), ComponentMesh);
 
 		// ensure materials and attributes are always enabled
 		ComponentMesh.EnableAttributes();

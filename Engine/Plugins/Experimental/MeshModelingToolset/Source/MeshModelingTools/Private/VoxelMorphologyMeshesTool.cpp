@@ -58,9 +58,9 @@ TUniquePtr<FDynamicMeshOperator> UVoxelMorphologyMeshesTool::MakeNewOperator()
 {
 	TUniquePtr<FVoxelMorphologyMeshesOp> Op = MakeUnique<FVoxelMorphologyMeshesOp>();
 
-	Op->Transforms.SetNum(ComponentTargets.Num());
-	Op->Meshes.SetNum(ComponentTargets.Num());
-	for (int Idx = 0; Idx < ComponentTargets.Num(); Idx++)
+	Op->Transforms.SetNum(Targets.Num());
+	Op->Meshes.SetNum(Targets.Num());
+	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
 		Op->Meshes[Idx] = OriginalDynamicMeshes[Idx];
 		Op->Transforms[Idx] = TransformProxies[Idx]->GetTransform();

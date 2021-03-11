@@ -111,7 +111,6 @@ public:
 
 	UWorld* GetWorld() const { return TargetWorld; }
 	UInteractiveGizmoManager* GetGizmoManager() const { return GizmoManager; }
-	const TArray<TUniquePtr<FPrimitiveComponentTarget>>& GetSelection() const { return ComponentTargets; }
 
 
 	static FString TrailKeyTransformGizmoInstanceIdentifier;

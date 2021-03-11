@@ -18,6 +18,12 @@
 
 #include "AssetGenerationUtil.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -28,29 +34,28 @@ using namespace UE::Geometry;
  */
 
 
+const FToolTargetTypeRequirements& UUVLayoutToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool UUVLayoutToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 1;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= 1;
 }
 
 UInteractiveTool* UUVLayoutToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UUVLayoutTool* NewTool = NewObject<UUVLayoutTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -83,17 +88,17 @@ void UUVLayoutTool::Setup()
 	UInteractiveTool::Setup();
 
 	// hide input StaticMeshComponent
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(false);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(false);
 	}
 
 	// if we only have one object, add ability to set UV channel
-	if (ComponentTargets.Num() == 1)
+	if (Targets.Num() == 1)
 	{
 		UVChannelProperties = NewObject<UMeshUVChannelProperties>(this);
 		UVChannelProperties->RestoreProperties(this);
-		UVChannelProperties->Initialize(ComponentTargets[0]->GetMesh(), false);
+		UVChannelProperties->Initialize(TargetMeshProviderInterface(0)->GetMeshDescription(), false);
 		UVChannelProperties->ValidateSelection(true);
 		AddToolPropertySource(UVChannelProperties);
 		UVChannelProperties->WatchProperty(UVChannelProperties->UVChannel, [this](const FString& NewValue)
@@ -111,18 +116,18 @@ void UUVLayoutTool::Setup()
 	AddToolPropertySource(MaterialSettings);
 
 	// if we only have one object, add optional UV layout view
-	if (ComponentTargets.Num() == 1)
+	if (Targets.Num() == 1)
 	{
 		UVLayoutView = NewObject<UUVLayoutPreview>(this);
 		UVLayoutView->CreateInWorld(TargetWorld);
 
 		FComponentMaterialSet MaterialSet;
-		ComponentTargets[0]->GetMaterialSet(MaterialSet);
+		TargetMaterialInterface(0)->GetMaterialSet(MaterialSet);
 		UVLayoutView->SetSourceMaterials(MaterialSet);
 
 		UVLayoutView->SetSourceWorldPosition(
-			ComponentTargets[0]->GetOwnerActor()->GetTransform(),
-			ComponentTargets[0]->GetOwnerActor()->GetComponentsBoundingBox());
+			TargetComponentInterface(0)->GetOwnerActor()->GetTransform(),
+			TargetComponentInterface(0)->GetOwnerActor()->GetComponentsBoundingBox());
 
 		UVLayoutView->Settings->RestoreProperties(this);
 		AddToolPropertySource(UVLayoutView->Settings);
@@ -139,7 +144,7 @@ void UUVLayoutTool::Setup()
 void UUVLayoutTool::UpdateNumPreviews()
 {
 	int32 CurrentNumPreview = Previews.Num();
-	int32 TargetNumPreview = ComponentTargets.Num();
+	int32 TargetNumPreview = Targets.Num();
 	if (TargetNumPreview < CurrentNumPreview)
 	{
 		for (int32 PreviewIdx = CurrentNumPreview - 1; PreviewIdx >= TargetNumPreview; PreviewIdx--)
@@ -159,18 +164,18 @@ void UUVLayoutTool::UpdateNumPreviews()
 			OpFactory->ComponentIndex = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.Convert(ComponentTargets[PreviewIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
+			Converter.Convert(TargetMeshProviderInterface(PreviewIdx)->GetMeshDescription(), *OriginalDynamicMeshes[PreviewIdx]);
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
 
 			FComponentMaterialSet MaterialSet;
-			ComponentTargets[PreviewIdx]->GetMaterialSet(MaterialSet);
+			TargetMaterialInterface(PreviewIdx)->GetMaterialSet(MaterialSet);
 			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
 			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
-			Preview->PreviewMesh->SetTransform(ComponentTargets[PreviewIdx]->GetWorldTransform());
+			Preview->PreviewMesh->SetTransform(TargetComponentInterface(PreviewIdx)->GetWorldTransform());
 
 			Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute)
 			{
@@ -195,9 +200,9 @@ void UUVLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 	MaterialSettings->SaveProperties(this);
 
 	// Restore (unhide) the source meshes
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
 	}
 
 	TArray<FDynamicMeshOpResult> Results;
@@ -220,7 +225,7 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 {
 	TUniquePtr<FUVLayoutOp> Op = MakeUnique<FUVLayoutOp>();
 
-	FTransform LocalToWorld = Tool->ComponentTargets[ComponentIndex]->GetWorldTransform();
+	FTransform LocalToWorld = Tool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
 	Op->OriginalMesh = Tool->OriginalDynamicMeshes[ComponentIndex];
 
 	switch (Tool->BasicProperties->LayoutType)
@@ -251,7 +256,7 @@ TUniquePtr<FDynamicMeshOperator> UUVLayoutOperatorFactory::MakeNewOperator()
 
 int32 UUVLayoutTool::GetSelectedUVChannel() const
 {
-	return UVChannelProperties->GetSelectedChannelIndex(true);
+	return UVChannelProperties ? UVChannelProperties->GetSelectedChannelIndex(true) : 0;
 }
 
 
@@ -349,15 +354,15 @@ void UUVLayoutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("UVLayoutToolTransactionName", "UV Layout Tool"));
 
-	check(Results.Num() == ComponentTargets.Num());
+	check(Results.Num() == Targets.Num());
 	
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		check(Results[ComponentIdx].Mesh.Get() != nullptr);
-		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &ComponentIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&Results, &ComponentIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMesh3* DynamicMesh = Results[ComponentIdx].Mesh.Get();
-			FMeshDescription* MeshDescription = CommitParams.MeshDescription;
+			FMeshDescription* MeshDescription = CommitParams.MeshDescriptionOut;
 			
 			bool bVerticesOnly = false;
 			bool bAttributesOnly = true;

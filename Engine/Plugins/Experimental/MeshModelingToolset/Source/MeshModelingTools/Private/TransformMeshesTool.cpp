@@ -16,6 +16,9 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -27,29 +30,25 @@ using namespace UE::Geometry;
  */
 
 
+const FToolTargetTypeRequirements& UTransformMeshesToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements(
+		UPrimitiveComponentBackedTarget::StaticClass()
+		);
+	return TypeRequirements;
+}
+
 bool UTransformMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 1;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= 1;
 }
 
 UInteractiveTool* UTransformMeshesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UTransformMeshesTool* NewTool = NewObject<UTransformMeshesTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
 
 	return NewTool;
@@ -229,14 +228,15 @@ void UTransformMeshesTool::SetActiveGizmos_Single(bool bLocalRotations)
 
 	TArray<const UPrimitiveComponent*> ComponentsToIgnoreInAlignment;
 
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
-		ComponentsToIgnoreInAlignment.Add(Target->GetOwnerComponent());
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
+		Transformable.TransformProxy->AddComponent(TargetComponent->GetOwnerComponent());
+		ComponentsToIgnoreInAlignment.Add(TargetComponent->GetOwnerComponent());
 	}
 
 	// leave out nonuniform scale if we have multiple objects in non-local mode
-	bool bCanNonUniformScale = ComponentTargets.Num() == 1 || bLocalRotations;
+	bool bCanNonUniformScale = Targets.Num() == 1 || bLocalRotations;
 	ETransformGizmoSubElements GizmoElements = (bCanNonUniformScale) ?
 		ETransformGizmoSubElements::FullTranslateRotateScale : ETransformGizmoSubElements::TranslateRotateUniformScale;
 	Transformable.TransformGizmo = GizmoManager->CreateCustomRepositionableTransformGizmo(GizmoElements, this);
@@ -252,14 +252,16 @@ void UTransformMeshesTool::SetActiveGizmos_PerObject()
 	check(ActiveGizmos.Num() == 0);
 
 	TArray<const UPrimitiveComponent*> ComponentsToIgnoreInAlignment;
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
+
 		ComponentsToIgnoreInAlignment.Reset();
 
 		FTransformMeshesTarget Transformable;
 		Transformable.TransformProxy = NewObject<UTransformProxy>(this);
-		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
-		ComponentsToIgnoreInAlignment.Add(Target->GetOwnerComponent());
+		Transformable.TransformProxy->AddComponent(TargetComponent->GetOwnerComponent());
+		ComponentsToIgnoreInAlignment.Add(TargetComponent->GetOwnerComponent());
 
 		ETransformGizmoSubElements GizmoElements = ETransformGizmoSubElements::FullTranslateRotateScale;
 		Transformable.TransformGizmo = GizmoManager->CreateCustomRepositionableTransformGizmo(GizmoElements, this);
@@ -292,12 +294,12 @@ FInputRayHit UTransformMeshesTool::CanBeginClickDragSequence(const FInputDeviceR
 	float MinHitDistance = TNumericLimits<float>::Max();
 	FVector HitNormal;
 
-	for ( int k = 0; k < ComponentTargets.Num(); ++k )
+	for ( int k = 0; k < Targets.Num(); ++k )
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[k];
+		IPrimitiveComponentBackedTarget* Target = TargetComponentInterface(k);
 
 		FHitResult WorldHit;
-		if (Target->HitTest(PressPos.WorldRay, WorldHit))
+		if (Target->HitTestComponent(PressPos.WorldRay, WorldHit))
 		{
 			MinHitDistance = FMath::Min(MinHitDistance, WorldHit.Distance);
 			HitNormal = WorldHit.Normal;
@@ -341,11 +343,11 @@ void UTransformMeshesTool::OnClickDrag(const FInputDeviceRay& DragPos)
 	{
 		int IgnoreIndex = (TransformProps->TransformMode == ETransformMeshesTransformMode::PerObjectGizmo) ?
 			ActiveSnapDragIndex : -1;
-		for (int k = 0; k < ComponentTargets.Num(); ++k)
+		for (int k = 0; k < Targets.Num(); ++k)
 		{
 			if (IgnoreIndex == -1 || k == IgnoreIndex)
 			{
-				IgnoreComponents.Add(ComponentTargets[k]->GetOwnerComponent());
+				IgnoreComponents.Add(TargetComponentInterface(k)->GetOwnerComponent());
 			}
 		}
 	}

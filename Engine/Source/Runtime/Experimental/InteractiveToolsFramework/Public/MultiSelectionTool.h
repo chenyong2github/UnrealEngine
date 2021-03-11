@@ -6,24 +6,18 @@
 #include "ComponentSourceInterfaces.h"
 #include "ToolTargets/ToolTarget.h"
 
-#include "MultiSelectionTool.generated.h"
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 
-class IPrimitiveComponentBackedTarget;
-class IMeshDescriptionCommitter;
-class IMeshDescriptionProvider;
-class IMaterialProvider;
+#include "MultiSelectionTool.generated.h"
 
 UCLASS(Transient)
 class INTERACTIVETOOLSFRAMEWORK_API UMultiSelectionTool : public UInteractiveTool
 {
 GENERATED_BODY()
 public:
-	// @deprecated Use SetTarget instead, and don't use FPrimitiveComponentTarget.
-	void SetSelection(TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargetsIn)
-    {
-		ComponentTargets = MoveTemp(ComponentTargetsIn);
-	}
-
 	void SetTargets(TArray<TObjectPtr<UToolTarget>> TargetsIn)
 	{
 		Targets = MoveTemp(TargetsIn);
@@ -41,13 +35,6 @@ public:
 				return false;
 			}
 		}
-		for (const TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
-		{
-			if (Target->IsValid() == false)
-			{
-				return false;
-			}
-		}
 		return true;
 	}
 
@@ -59,52 +46,27 @@ public:
 	}
 
 protected:
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets{};
-
 	UPROPERTY()
 	TArray<TObjectPtr<UToolTarget>> Targets{};
 
 	/**
-	 * Helper to find which component targets share source data
-	 *
-	 * @return Array of indices, 1:1 with ComponentTargets, indicating the first index where a component target sharing the same source data appeared.
-	 */
-	bool GetMapToFirstComponentsSharingSourceData(TArray<int32>& MapToFirstOccurrences)
-	{
-		bool bSharesSources = false;
-		MapToFirstOccurrences.SetNumUninitialized(ComponentTargets.Num());
-		for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
-		{
-			MapToFirstOccurrences[ComponentIdx] = -1;
-		}
-		for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
-		{
-			if (MapToFirstOccurrences[ComponentIdx] >= 0) // already mapped
-			{
-				continue;
-			}
-
-			MapToFirstOccurrences[ComponentIdx] = ComponentIdx;
-
-			FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[ComponentIdx].Get();
-			for (int32 VsIdx = ComponentIdx + 1; VsIdx < ComponentTargets.Num(); VsIdx++)
-			{
-				if (ComponentTarget->HasSameSourceData(*ComponentTargets[VsIdx]))
-				{
-					bSharesSources = true;
-					MapToFirstOccurrences[VsIdx] = ComponentIdx;
-				}
-			}
-		}
-		return bSharesSources;
-	}
-
-	/**
-	 * Helper to find which targets share source data
+	 * Helper to find which targets share source data.
+	 * Requires UAssetBackedTarget as a tool target requirement.
 	 *
 	 * @return Array of indices, 1:1 with Targets, indicating the first index where a component target sharing the same source data appeared.
 	 */
 	bool GetMapToSharedSourceData(TArray<int32>& MapToFirstOccurrences);
+
+	/**
+	 * Template helper to retrieve an interface from a ToolTarget.
+	 */
+	template <class T>
+	T* TargetInterface(int32 TargetIdx) const
+	{
+		T* Interface = Cast<T>(Targets[TargetIdx]);
+		check(Interface);
+		return Interface;
+	}
 
 	/**
 	 * Helper to cast a Target into the IPrimitiveComponentBackedTarget interface.
@@ -126,3 +88,24 @@ protected:
 	 */
 	IMaterialProvider* TargetMaterialInterface(int32 ComponentIdx) const;
 };
+
+inline IPrimitiveComponentBackedTarget* UMultiSelectionTool::TargetComponentInterface(int32 TargetIdx) const
+{
+	return TargetInterface<IPrimitiveComponentBackedTarget>(TargetIdx);
+}
+
+inline IMeshDescriptionCommitter* UMultiSelectionTool::TargetMeshCommitterInterface(int32 TargetIdx) const
+{
+	return TargetInterface<IMeshDescriptionCommitter>(TargetIdx);
+}
+
+inline IMeshDescriptionProvider* UMultiSelectionTool::TargetMeshProviderInterface(int32 TargetIdx) const
+{
+	return TargetInterface<IMeshDescriptionProvider>(TargetIdx);
+}
+
+inline IMaterialProvider* UMultiSelectionTool::TargetMaterialInterface(int32 TargetIdx) const
+{
+	return TargetInterface<IMaterialProvider>(TargetIdx);
+}
+

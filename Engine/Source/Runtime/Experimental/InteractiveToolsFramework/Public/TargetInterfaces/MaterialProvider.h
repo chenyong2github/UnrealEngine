@@ -50,7 +50,7 @@ public:
 	 * @param bAssetMaterials Prefer the underlying asset materials. This may be ignored by targets
 	 *  to which this is not relevant.
 	 */
-	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials) const = 0;
+	virtual void GetMaterialSet(FComponentMaterialSet& MaterialSetOut, bool bPreferAssetMaterials = false) const = 0;
 
 	/**
 	 * Commit an update to the material set. This may generate a transaction.

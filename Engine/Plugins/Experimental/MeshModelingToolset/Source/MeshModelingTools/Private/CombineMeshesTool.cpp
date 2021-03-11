@@ -351,7 +351,7 @@ void UCombineMeshesTool::CreateNewAsset()
 void UCombineMeshesTool::UpdateExistingAsset()
 {
 	TArray<const FMeshDescription*> MeshDescriptions;
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		MeshDescriptions.Add(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription());
 	}

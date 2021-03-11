@@ -14,40 +14,44 @@
 #include "ToolBuilderUtil.h"
 #include "ToolSetupUtil.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UMirrorTool"
 
-// Local function forward declarations
-void CheckAndDisplayWarnings(const TArray<TUniquePtr<FPrimitiveComponentTarget>>& ComponentTargets, UInteractiveToolManager& ToolsManager);
-
 
 //Tool builder functions
 
+const FToolTargetTypeRequirements& UMirrorToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UAssetBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool UMirrorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 0;
+	return AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 UInteractiveTool* UMirrorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UMirrorTool* NewTool = NewObject<UMirrorTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if (MeshComponent)
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -68,7 +72,7 @@ TUniquePtr<FDynamicMeshOperator> UMirrorOperatorFactory::MakeNewOperator()
 	MirrorOp->bWeldAlongPlane = MirrorTool->Settings->bWeldVerticesOnMirrorPlane;
 	MirrorOp->bAllowBowtieVertexCreation = MirrorTool->Settings->bAllowBowtieVertexCreation;
 
-	FTransform LocalToWorld = MirrorTool->ComponentTargets[ComponentIndex]->GetWorldTransform();
+	FTransform LocalToWorld = MirrorTool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
 	MirrorOp->SetTransform(LocalToWorld);
 
 	// We also need WorldToLocal. Threshold the LocalToWorld scaling transform so we can get the inverse.
@@ -138,9 +142,9 @@ void UMirrorTool::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 	// Editing the "show preview" option changes whether we need to be displaying the preview or the original mesh.
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UMirrorToolProperties, bShowPreview)))
 	{
-		for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			ComponentTarget->SetOwnerVisibility(!Settings->bShowPreview);
+			TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(!Settings->bShowPreview);
 		}
 		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 		{
@@ -202,17 +206,18 @@ void UMirrorTool::Setup()
 	ToolActions->Initialize(this);
 	AddToolPropertySource(ToolActions);
 
-	CheckAndDisplayWarnings(ComponentTargets, *GetToolManager());
+	CheckAndDisplayWarnings();
 
 	// Fill in the MeshesToMirror array with suitably converted meshes.
-	for (int i = 0; i < ComponentTargets.Num(); i++)
+	for (int i = 0; i < Targets.Num(); i++)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[i];
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(i);
+		IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(i);
 
 		// Convert into dynamic mesh
 		TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> DynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(ComponentTarget->GetMesh(), *DynamicMesh);
+		Converter.Convert(TargetMeshProvider->GetMeshDescription(), *DynamicMesh);
 
 		// Wrap the dynamic mesh in a replacement change target
 		UDynamicMeshReplacementChangeTarget* WrappedTarget = MeshesToMirror.Add_GetRef(NewObject<UDynamicMeshReplacementChangeTarget>());
@@ -223,9 +228,9 @@ void UMirrorTool::Setup()
 	}
 
 	// Set the visibility of the StaticMeshComponents depending on whether we are showing them or the preview.
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(!Settings->bShowPreview);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(!Settings->bShowPreview);
 	}
 
 	// Initialize the PreviewMesh and BackgroundCompute objects
@@ -233,10 +238,10 @@ void UMirrorTool::Setup()
 
 	// Update the bounding box of the meshes.
 	CombinedBounds.Init();
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		FVector ComponentOrigin, ComponentExtents;
-		ComponentTarget->GetOwnerActor()->GetActorBounds(false, ComponentOrigin, ComponentExtents);
+		TargetComponentInterface(ComponentIdx)->GetOwnerActor()->GetActorBounds(false, ComponentOrigin, ComponentExtents);
 		CombinedBounds += FBox::BuildAABB(ComponentOrigin, ComponentExtents);
 	}
 
@@ -272,9 +277,10 @@ void UMirrorTool::Setup()
 	};
 	// Also include the original components in the ctrl+click hit testing even though we made them 
 	// invisible, since we want to be able to reposition the plane onto the original mesh.
-	for (const TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(Target->GetOwnerComponent());
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
+		PlaneMechanic->SetPlaneCtrlClickBehaviorTarget->InvisibleComponentsToHitTest.Add(TargetComponent->GetOwnerComponent());
 	}
 
 
@@ -307,38 +313,25 @@ void UMirrorTool::SetupPreviews()
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 		FComponentMaterialSet MaterialSet;
-		ComponentTargets[PreviewIndex]->GetMaterialSet(MaterialSet);
+		TargetMaterialInterface(PreviewIndex)->GetMaterialSet(MaterialSet);
 		Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 
 		// Set initial preview to unprocessed mesh, so that things don't disappear initially
 		Preview->PreviewMesh->UpdatePreview(MeshesToMirror[PreviewIndex]->GetMesh().Get());
-		Preview->PreviewMesh->SetTransform(ComponentTargets[PreviewIndex]->GetWorldTransform());
+		Preview->PreviewMesh->SetTransform(TargetComponentInterface(PreviewIndex)->GetWorldTransform());
 		Preview->SetVisibility(Settings->bShowPreview);
 	}
 }
 
-void CheckAndDisplayWarnings(const TArray<TUniquePtr<FPrimitiveComponentTarget>>& ComponentTargets, 
-	UInteractiveToolManager& ToolsManager)
+void UMirrorTool::CheckAndDisplayWarnings()
 {
 	// We can have more than one warning, which makes this a bit more work.
 	FText SameSourceWarning;
 	FText NonUniformScaleWarning;
 
 	// See if any of the selected components have the same source.
-	bool bAnyHaveSameSource = false;
-	for (int32 FirstComponentIndex = 0; !bAnyHaveSameSource && FirstComponentIndex < ComponentTargets.Num(); FirstComponentIndex++)
-	{
-		FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[FirstComponentIndex].Get();
-		for (int32 SecondComponentIndex = FirstComponentIndex + 1; SecondComponentIndex < ComponentTargets.Num(); SecondComponentIndex++)
-		{
-			if (ComponentTarget->HasSameSourceData(*ComponentTargets[SecondComponentIndex]))
-			{
-				bAnyHaveSameSource = true;
-				break;
-			}
-		}
-	}
-
+	TArray<int32> MapToFirstOccurrences;
+	bool bAnyHaveSameSource = GetMapToSharedSourceData(MapToFirstOccurrences);
 	if (bAnyHaveSameSource)
 	{
 		SameSourceWarning = LOCTEXT("MirrorMultipleAssetsWithSameSource", "WARNING: Multiple meshes in your selection use the same source asset! Only the \"Create New Assets\" save mode is supported.");
@@ -348,13 +341,13 @@ void CheckAndDisplayWarnings(const TArray<TUniquePtr<FPrimitiveComponentTarget>>
 	}
 
 	// See if any of the selected components have a nonuniform scaling transform.
-	FPrimitiveComponentTarget* NonUniformScalingTarget = nullptr;
-	for (int32 i = 0; i < ComponentTargets.Num(); ++i)
+	IPrimitiveComponentBackedTarget* NonUniformScalingTarget = nullptr;
+	for (int32 i = 0; i < Targets.Num(); ++i)
 	{
-		FVector Scaling = ComponentTargets[i]->GetWorldTransform().GetScale3D();
+		FVector Scaling = TargetComponentInterface(i)->GetWorldTransform().GetScale3D();
 		if (Scaling.X != Scaling.Y || Scaling.Y != Scaling.Z)
 		{
-			NonUniformScalingTarget = ComponentTargets[i].Get();
+			NonUniformScalingTarget = TargetComponentInterface(i);
 			break;
 		}
 	}
@@ -369,16 +362,16 @@ void CheckAndDisplayWarnings(const TArray<TUniquePtr<FPrimitiveComponentTarget>>
 	if (bAnyHaveSameSource && NonUniformScalingTarget)
 	{
 		// Concatenates the two warnings with an extra line in between.
-		ToolsManager.DisplayMessage(FText::Format(LOCTEXT("CombinedWarnings", "{0}\n\n{1}"),
+		GetToolManager()->DisplayMessage(FText::Format(LOCTEXT("CombinedWarnings", "{0}\n\n{1}"),
 			SameSourceWarning, NonUniformScaleWarning), EToolMessageLevel::UserWarning);
 	}
 	else if (bAnyHaveSameSource)
 	{
-		ToolsManager.DisplayMessage(SameSourceWarning, EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(SameSourceWarning, EToolMessageLevel::UserWarning);
 	}
 	else if (NonUniformScalingTarget)
 	{
-		ToolsManager.DisplayMessage(NonUniformScaleWarning, EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(NonUniformScaleWarning, EToolMessageLevel::UserWarning);
 	}
 }
 
@@ -389,9 +382,9 @@ void UMirrorTool::Shutdown(EToolShutdownType ShutdownType)
 	PlaneMechanic->Shutdown();
 
 	// Restore (unhide) the source meshes
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
 	}
 
 	// Swap in results, if appropriate
@@ -456,6 +449,7 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 	NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
 	for (int OrigMeshIdx = 0; OrigMeshIdx < NumSourceMeshes; OrigMeshIdx++)
 	{
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(OrigMeshIdx);
 		FDynamicMesh3* Mesh = Results[OrigMeshIdx].Mesh.Get();
 		check(Mesh != nullptr);
 
@@ -463,28 +457,28 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 		{
 			if (bWantToDestroy)
 			{
-				ComponentTargets[OrigMeshIdx]->GetOwnerComponent()->DestroyComponent();
+				TargetComponent->GetOwnerComponent()->DestroyComponent();
 			}
 			continue;
 		}
 		else if (Settings->SaveMode == EMirrorSaveMode::UpdateAssets)
 		{
-			NewSelection.Actors.Add(ComponentTargets[OrigMeshIdx]->GetOwnerActor());
+			NewSelection.Actors.Add(TargetComponent->GetOwnerActor());
 
-			ComponentTargets[OrigMeshIdx]->CommitMesh([&Mesh](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			TargetMeshCommitterInterface(OrigMeshIdx)->CommitMeshDescription([&Mesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 				{
 					FDynamicMeshToMeshDescription Converter;
-					Converter.Convert(Mesh, *CommitParams.MeshDescription);
+					Converter.Convert(Mesh, *CommitParams.MeshDescriptionOut);
 				});
 		}
 		else
 		{
 			// Build array of materials from the original.
 			TArray<UMaterialInterface*> Materials;
-			TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[OrigMeshIdx];
-			for (int MaterialIdx = 0, NumMaterials = ComponentTarget->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
+			IMaterialProvider* TargetMaterial = TargetMaterialInterface(OrigMeshIdx);
+			for (int MaterialIdx = 0, NumMaterials = TargetMaterial->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
 			{
-				Materials.Add(ComponentTarget->GetMaterial(MaterialIdx));
+				Materials.Add(TargetMaterial->GetMaterial(MaterialIdx));
 			}
 
 			// Create the new actor
@@ -496,7 +490,7 @@ void UMirrorTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			}
 
 			// Remove the original actor
-			ComponentTarget->GetOwnerComponent()->DestroyComponent();
+			TargetComponent->GetOwnerComponent()->DestroyComponent();
 		}
 	}
 

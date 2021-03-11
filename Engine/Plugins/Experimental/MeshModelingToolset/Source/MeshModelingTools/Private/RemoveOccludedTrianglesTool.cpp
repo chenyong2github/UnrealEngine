@@ -25,6 +25,13 @@
 #include "Misc/ScopedSlowTask.h"
 #endif
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -35,29 +42,29 @@ using namespace UE::Geometry;
  */
 
 
+const FToolTargetTypeRequirements& URemoveOccludedTrianglesToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UAssetBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool URemoveOccludedTrianglesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 0;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 UInteractiveTool* URemoveOccludedTrianglesToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	URemoveOccludedTrianglesTool* NewTool = NewObject<URemoveOccludedTrianglesTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -96,39 +103,28 @@ void URemoveOccludedTrianglesTool::Setup()
 	UInteractiveTool::Setup();
 
 	// hide input StaticMeshComponent
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
-		ComponentTarget->SetOwnerVisibility(false);
+		TargetComponentInterface(Idx)->SetOwnerVisibility(false);
 	}
+
 
 	// find components with the same source asset
-	TargetToPreviewIdx.SetNum(ComponentTargets.Num());
+	TArray<int32> MapToFirstOccurrences;
+	bool bAnyHasSameSource = GetMapToSharedSourceData(MapToFirstOccurrences);
+	TargetToPreviewIdx.SetNum(Targets.Num());
 	PreviewToTargetIdx.Reset();
-	for (int ComponentIdx = 0; ComponentIdx < TargetToPreviewIdx.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < MapToFirstOccurrences.Num(); ComponentIdx++)
 	{
-		TargetToPreviewIdx[ComponentIdx] = -1;
-	}
-	bool bAnyHasSameSource = false;
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
-	{
-		if (TargetToPreviewIdx[ComponentIdx] >= 0) // already mapped
+		if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
 		{
-			continue;
+			int32 NumPreviews = PreviewToTargetIdx.Num();
+			PreviewToTargetIdx.Add(ComponentIdx);
+			TargetToPreviewIdx[ComponentIdx] = NumPreviews;
 		}
-
-		int32 NumPreviews = PreviewToTargetIdx.Num();
-		PreviewToTargetIdx.Add(ComponentIdx);
-		TargetToPreviewIdx[ComponentIdx] = NumPreviews;
-
-		FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[ComponentIdx].Get();
-		for (int32 VsIdx = ComponentIdx + 1; VsIdx < ComponentTargets.Num(); VsIdx++)
+		else
 		{
-			if (ComponentTarget->HasSameSourceData(*ComponentTargets[VsIdx]))
-			{
-				bAnyHasSameSource = true;
-
-				TargetToPreviewIdx[VsIdx] = NumPreviews;
-			}
+			TargetToPreviewIdx[ComponentIdx] = TargetToPreviewIdx[MapToFirstOccurrences[ComponentIdx]];
 		}
 	}
 
@@ -196,7 +192,7 @@ void URemoveOccludedTrianglesTool::MakePolygroupLayerProperties()
 
 void URemoveOccludedTrianglesTool::SetupPreviews()
 {	
-	int32 NumTargets = ComponentTargets.Num();
+	int32 NumTargets = Targets.Num();
 	int32 NumPreviews = PreviewToTargetIdx.Num();
 
 #if WITH_EDITOR
@@ -261,25 +257,25 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			OpFactory->PreviewIdx = PreviewIdx;
 			OriginalDynamicMeshes[PreviewIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 			FMeshDescriptionToDynamicMesh Converter;
-			Converter.Convert(ComponentTargets[TargetIdx]->GetMesh(), *OriginalDynamicMeshes[PreviewIdx]);
+			Converter.Convert(TargetMeshProviderInterface(TargetIdx)->GetMeshDescription(), *OriginalDynamicMeshes[PreviewIdx]);
 
 			UMeshOpPreviewWithBackgroundCompute* Preview = Previews.Add_GetRef(NewObject<UMeshOpPreviewWithBackgroundCompute>(OpFactory, "Preview"));
 			Preview->Setup(this->TargetWorld, OpFactory);
 			Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 			FComponentMaterialSet MaterialSet;
-			ComponentTargets[TargetIdx]->GetMaterialSet(MaterialSet);
+			TargetMaterialInterface(TargetIdx)->GetMaterialSet(MaterialSet);
 			Preview->ConfigureMaterials(MaterialSet.Materials,
 				ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 			);
 
-			Preview->PreviewMesh->SetTransform(ComponentTargets[TargetIdx]->GetWorldTransform());
+			Preview->PreviewMesh->SetTransform(TargetComponentInterface(TargetIdx)->GetWorldTransform());
 			Preview->PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
 			Preview->SetVisibility(true);
 
 			OccluderTrees[TargetIdx] = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalDynamicMeshes[PreviewIdx].Get());
 			OccluderWindings[TargetIdx] = MakeShared<TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>(OccluderTrees[TargetIdx].Get());
-			OccluderTransforms[TargetIdx] = (FTransform3d)ComponentTargets[TargetIdx]->GetWorldTransform();
+			OccluderTransforms[TargetIdx] = (FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
 
 			// configure secondary render material
 			Preview->SecondaryMaterial = OccludedMaterial;
@@ -299,21 +295,21 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 			// already did the conversion for a full UMeshOpPreviewWithBackgroundCompute -- just make a light version of that and hook it up to copy the other's work
 			int CopyIdx = PreviewCopies.Num();
 			UPreviewMesh* PreviewMesh = PreviewCopies.Add_GetRef(NewObject<UPreviewMesh>(this));
-			PreviewMesh->CreateInWorld(this->TargetWorld, ComponentTargets[TargetIdx]->GetWorldTransform());
+			PreviewMesh->CreateInWorld(this->TargetWorld, TargetComponentInterface(TargetIdx)->GetWorldTransform());
 
 			PreviewToCopyIdx[PreviewIdx].Add(CopyIdx);
 
 			PreviewMesh->UpdatePreview(OriginalDynamicMeshes[PreviewIdx].Get());
 
 			FComponentMaterialSet MaterialSet;
-			ComponentTargets[TargetIdx]->GetMaterialSet(MaterialSet);
+			TargetMaterialInterface(TargetIdx)->GetMaterialSet(MaterialSet);
 			PreviewMesh->SetMaterials(MaterialSet.Materials);
 			
 			PreviewMesh->SetVisible(true);
 
 			OccluderTrees[TargetIdx] = OccluderTrees[PreviewToTargetIdx[PreviewIdx]];
 			OccluderWindings[TargetIdx] = OccluderWindings[PreviewToTargetIdx[PreviewIdx]];
-			OccluderTransforms[TargetIdx] = (FTransform3d)ComponentTargets[TargetIdx]->GetWorldTransform();
+			OccluderTransforms[TargetIdx] = (FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
 
 			PreviewMesh->SetSecondaryRenderMaterial(OccludedMaterial);
 			PreviewMesh->EnableSecondaryTriangleBuffers(MoveTemp(IsOccludedGroupFn));
@@ -336,9 +332,9 @@ void URemoveOccludedTrianglesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 
 	// Restore (unhide) the source meshes
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
 	}
 
 	// clear all the preview copies
@@ -403,7 +399,7 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	Op->WindingIsoValue = Tool->BasicProperties->WindingIsoValue;
 
 	int ComponentIndex = Tool->PreviewToTargetIdx[PreviewIdx];
-	FTransform LocalToWorld = Tool->ComponentTargets[ComponentIndex]->GetWorldTransform();
+	FTransform LocalToWorld = Tool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
 	Op->OriginalMesh = Tool->OriginalDynamicMeshes[PreviewIdx];
 
 	if (Tool->BasicProperties->bOnlySelfOcclude)
@@ -536,21 +532,21 @@ void URemoveOccludedTrianglesTool::GenerateAsset(const TArray<FDynamicMeshOpResu
 		{
 			if (bWantDestroy)
 			{
-				for (int TargetIdx = 0; TargetIdx < ComponentTargets.Num(); TargetIdx++)
+				for (int TargetIdx = 0; TargetIdx < Targets.Num(); TargetIdx++)
 				{
 					if (TargetToPreviewIdx[TargetIdx] == PreviewIdx)
 					{
-						ComponentTargets[TargetIdx]->GetOwnerComponent()->DestroyComponent();
+						TargetComponentInterface(TargetIdx)->GetOwnerComponent()->DestroyComponent();
 					}
 				}
 			}
 			continue;
 		}
 
-		ComponentTargets[ComponentIdx]->CommitMesh([&Results, &PreviewIdx, this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&Results, &PreviewIdx, this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(Results[PreviewIdx].Mesh.Get(), *CommitParams.MeshDescription);
+			Converter.Convert(Results[PreviewIdx].Mesh.Get(), *CommitParams.MeshDescriptionOut);
 		});
 	}
 

@@ -17,6 +17,12 @@
 
 #include "SceneManagement.h" // for FPrimitiveDrawInterface
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -25,25 +31,28 @@ using namespace UE::Geometry;
 /*
  * ToolBuilder
  */
+const FToolTargetTypeRequirements& URemeshMeshToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool URemeshMeshToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) == 1;
 }
 
 UInteractiveTool* URemeshMeshToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	URemeshMeshTool* NewTool = NewObject<URemeshMeshTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() == 1);
-
-	auto* MeshComponent = Cast<UPrimitiveComponent>(Components[0]);
-	check(MeshComponent != nullptr);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -99,12 +108,14 @@ void URemeshMeshTool::Setup()
 	BasicProperties->RestoreProperties(this);
 	MeshStatisticsProperties = NewObject<UMeshStatisticsProperties>(this);
 
-	check(ComponentTargets.Num() > 0);
-	check(ComponentTargets[0]);
-	FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[0].Get();
+	check(Targets.Num() > 0);
+	check(Targets[0]);
+	IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(0);
+	IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(0);
+	IMaterialProvider* TargetMaterial = TargetMaterialInterface(0);
 
 	// hide component and create + show preview
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 	Preview = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	Preview->Setup(this->TargetWorld, this);
 	Preview->OnMeshUpdated.AddLambda([this](UMeshOpPreviewWithBackgroundCompute* Compute)
@@ -112,7 +123,7 @@ void URemeshMeshTool::Setup()
 		MeshStatisticsProperties->Update(*Compute->PreviewMesh->GetPreviewDynamicMesh());
 	});
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	TargetMaterial->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials( MaterialSet.Materials,
 								 ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 	);
@@ -125,9 +136,9 @@ void URemeshMeshTool::Setup()
 
 	OriginalMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), *OriginalMesh);
+	Converter.Convert(TargetMeshProvider->GetMeshDescription(), *OriginalMesh);
 
-	Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 	Preview->PreviewMesh->UpdatePreview(OriginalMesh.Get());
 
@@ -162,9 +173,9 @@ void URemeshMeshTool::Setup()
 void URemeshMeshTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	BasicProperties->SaveProperties(this);
-	for (auto& ComponentTarget : ComponentTargets)
+	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
 	}
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
@@ -209,8 +220,8 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 	Op->SmoothingStrength = BasicProperties->SmoothingStrength;
 	Op->SmoothingType = BasicProperties->SmoothingType;
 
-	check(ComponentTargets.Num() > 0);
-	FTransform LocalToWorld = ComponentTargets[0]->GetWorldTransform();
+	check(Targets.Num() > 0);
+	FTransform LocalToWorld = TargetComponentInterface(0)->GetWorldTransform();
 	Op->SetTransform(LocalToWorld);
 
 	Op->OriginalMesh = OriginalMesh;
@@ -225,7 +236,7 @@ TUniquePtr<FDynamicMeshOperator> URemeshMeshTool::MakeNewOperator()
 void URemeshMeshTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
-	FTransform Transform = ComponentTargets[0]->GetWorldTransform();
+	FTransform Transform = TargetComponentInterface(0)->GetWorldTransform();
 
 	if (BasicProperties->bShowConstraintEdges)
 	{
@@ -280,7 +291,7 @@ void URemeshMeshTool::UpdateVisualization()
 	}
 	else
 	{
-		ComponentTargets[0]->GetMaterialSet(MaterialSet);
+		TargetMaterialInterface(0)->GetMaterialSet(MaterialSet);
 		Preview->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
 	Preview->ConfigureMaterials(MaterialSet.Materials,
@@ -304,12 +315,12 @@ void URemeshMeshTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemeshMeshToolTransactionName", "Remesh Mesh"));
 
 	check(Result.Mesh.Get() != nullptr);
-	ComponentTargets[0]->CommitMesh([&Result](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	TargetMeshCommitterInterface(0)->CommitMeshDescription([&Result](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
 
 		// full conversion if normal topology changed or faces were inverted
-		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescription);
+		Converter.Convert(Result.Mesh.Get(), *CommitParams.MeshDescriptionOut);
 	});
 
 	GetToolManager()->EndUndoTransaction();

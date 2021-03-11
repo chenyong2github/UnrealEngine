@@ -118,7 +118,7 @@ void UBakeMeshAttributeMapsTool::Setup()
 
 	// transfer materials
 	FComponentMaterialSet MaterialSet;
-	MaterialProvider->GetMaterialSet(MaterialSet, false);
+	MaterialProvider->GetMaterialSet(MaterialSet);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);

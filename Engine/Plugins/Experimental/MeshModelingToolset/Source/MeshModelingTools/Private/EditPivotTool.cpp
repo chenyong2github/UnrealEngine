@@ -22,6 +22,12 @@
 #include "Components/PrimitiveComponent.h"
 #include "Engine/World.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -32,29 +38,28 @@ using namespace UE::Geometry;
  */
 
 
+const FToolTargetTypeRequirements& UEditPivotToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UAssetBackedTarget::StaticClass()
+	});
+	return TypeRequirements;
+}
+
 bool UEditPivotToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= 1;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= 1;
 }
 
 UInteractiveTool* UEditPivotToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UEditPivotTool* NewTool = NewObject<UEditPivotTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World, SceneState.GizmoManager);
 
 	return NewTool;
@@ -117,7 +122,7 @@ void UEditPivotTool::Setup()
 	FText AllTheWarnings = LOCTEXT("EditPivotWarning", "WARNING: This Tool will Modify the selected StaticMesh Assets! If you do not wish to modify the original Assets, please make copies in the Content Browser first!");
 
 	// detect and warn about any meshes in selection that correspond to same source data
-	bool bSharesSources = GetMapToFirstComponentsSharingSourceData(MapToFirstOccurrences);
+	bool bSharesSources = GetMapToSharedSourceData(MapToFirstOccurrences);
 	if (bSharesSources)
 	{
 		AllTheWarnings = FText::Format(FTextFormat::FromString("{0}\n\n{1}"), AllTheWarnings, LOCTEXT("EditPivotSharedAssetsWarning", "WARNING: Multiple meshes in your selection use the same source asset!  This is not supported -- each asset can only have one baked pivot."));
@@ -165,12 +170,12 @@ void UEditPivotTool::Precompute()
 	ObjectBounds = FAxisAlignedBox3d::Empty();
 	WorldBounds = FAxisAlignedBox3d::Empty();
 
-	int NumComponents = ComponentTargets.Num();
+	int NumComponents = Targets.Num();
 	if (NumComponents == 1)
 	{
-		Transform = FTransform3d(ComponentTargets[0]->GetWorldTransform());
+		Transform = FTransform3d(TargetComponentInterface(0)->GetWorldTransform());
 
-		FMeshDescription* Mesh = ComponentTargets[0]->GetMesh();
+		FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 		VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 			ObjectBounds.Contain(Position);
 			WorldBounds.Contain(Transform.TransformPosition(Position));
@@ -179,11 +184,12 @@ void UEditPivotTool::Precompute()
 	else
 	{
 		Transform = FTransform3d::Identity();
-		for (int k = 0; k < ComponentTargets.Num(); ++k)
+		for (int k = 0; k < NumComponents; ++k)
 		{
-			TUniquePtr<FPrimitiveComponentTarget>& Target = ComponentTargets[k];
-			FTransform3d CurTransform(Target->GetWorldTransform());
-			FMeshDescription* Mesh = Target->GetMesh();
+			IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(k);
+			IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(k);
+			FTransform3d CurTransform(TargetComponent->GetWorldTransform());
+			FMeshDescription* Mesh = TargetMeshProvider->GetMeshDescription();
 			VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 				ObjectBounds.Contain(CurTransform.TransformPosition(Position));
 				WorldBounds.Contain(CurTransform.TransformPosition(Position));
@@ -297,9 +303,9 @@ void UEditPivotTool::SetActiveGizmos_Single(bool bLocalRotations)
 	Transformable.TransformProxy = NewObject<UTransformProxy>(this);
 	Transformable.TransformProxy->bRotatePerObject = bLocalRotations;
 
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Transformable.TransformProxy->AddComponent(Target->GetOwnerComponent());
+		Transformable.TransformProxy->AddComponent(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());
 	}
 	Transformable.TransformGizmo = GizmoManager->CreateCustomTransformGizmo(
 		ETransformGizmoSubElements::StandardTranslateRotate, this
@@ -408,25 +414,26 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 	FTransform NewWorldTransform = NewPivotWorldFrame.ToFTransform();
 	FTransform NewWorldInverse = NewWorldTransform.Inverse();
 	TArray<FTransform> OriginalTransforms;
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		OriginalTransforms.Add(ComponentTargets[ComponentIdx]->GetWorldTransform());
+		OriginalTransforms.Add(TargetComponentInterface(ComponentIdx)->GetWorldTransform());
 	}
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
 		if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
 		{
 			FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
 
-			UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
+			UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
 			Component->Modify();
 
 			// transform simple collision geometry
 			UE::Geometry::TransformSimpleCollision(Component, ToBake);
 
-			ComponentTargets[ComponentIdx]->CommitMesh([&ToBake](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&ToBake](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 			{
-				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescription);
+				FMeshDescriptionEditableTriangleMeshAdapter EditableMeshDescAdapter(CommitParams.MeshDescriptionOut);
 				MeshAdapterTransforms::ApplyTransform(EditableMeshDescAdapter, ToBake);
 			});
 
@@ -434,22 +441,22 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 		}
 		else
 		{
-			UPrimitiveComponent* Component = ComponentTargets[ComponentIdx]->GetOwnerComponent();
+			UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
 			Component->Modify();
 			// try to invert baked transform
 			FTransform Baked = OriginalTransforms[MapToFirstOccurrences[ComponentIdx]] * NewWorldInverse;
 			Component->SetWorldTransform(Baked.Inverse() * OriginalTransforms[ComponentIdx]);
 		}
-		ComponentTargets[ComponentIdx]->GetOwnerActor()->MarkComponentsRenderStateDirty();
+		TargetComponent->GetOwnerActor()->MarkComponentsRenderStateDirty();
 	}
 
 	// hack to ensure user sees the updated pivot immediately: request re-select of the original selection
 	FSelectedOjectsChangeList NewSelection;
 	NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
-	for (int OrigMeshIdx = 0; OrigMeshIdx < ComponentTargets.Num(); OrigMeshIdx++)
+	for (int OrigMeshIdx = 0; OrigMeshIdx < Targets.Num(); OrigMeshIdx++)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[OrigMeshIdx];
-		NewSelection.Actors.Add(ComponentTarget->GetOwnerActor());
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(OrigMeshIdx);
+		NewSelection.Actors.Add(TargetComponent->GetOwnerActor());
 	}
 	GetToolManager()->RequestSelectionChange(NewSelection);
 

@@ -12,6 +12,10 @@
 
 #include "CompositionOps/VoxelMergeMeshesOp.h"
 
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -22,11 +26,20 @@ using namespace UE::Geometry;
  */
 
 
+const FToolTargetTypeRequirements& UMergeMeshesToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool UMergeMeshesToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	const bool bHasBuildAPI = (this->AssetAPI != nullptr);
 	const int32 MinRequiredComponents = 1;
-	const bool bHasComponents = ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) >= MinRequiredComponents;
+	const bool bHasComponents = SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) >= MinRequiredComponents;
 	return ( bHasBuildAPI && bHasComponents );
 }
 
@@ -34,20 +47,8 @@ UInteractiveTool* UMergeMeshesToolBuilder::BuildTool(const FToolBuilderState& Sc
 {
 	UMergeMeshesTool* NewTool = NewObject<UMergeMeshesTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -93,9 +94,9 @@ void UMergeMeshesTool::Setup()
 	AddToolPropertySource(HandleSourcesProperties);
 
 	// Hide the source meshes
-	for (auto& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(false);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(false);
 	}
 
 	// save transformed version of input meshes (maybe this could happen in the Operator?)
@@ -133,9 +134,9 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
 	// Restore (unhide) the source meshes
-	for (auto& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(true);
 	}
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -145,9 +146,9 @@ void UMergeMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 		GenerateAsset(Result);
 
 		TArray<AActor*> Actors;
-		for (auto& ComponentTarget : ComponentTargets)
+		for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			Actors.Add(ComponentTarget->GetOwnerActor());
+			Actors.Add(TargetComponentInterface(ComponentIdx)->GetOwnerActor());
 		}
 		HandleSourcesProperties->ApplyMethod(Actors, GetToolManager());
 
@@ -193,11 +194,11 @@ void UMergeMeshesTool::CacheInputMeshes()
 	InputMeshes = MakeShared<TArray<IVoxelBasedCSG::FPlacedMesh>>();
 
 	// Package the selected meshes and transforms for consumption by the CSGTool
-	for (auto& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		IVoxelBasedCSG::FPlacedMesh PlacedMesh;
-		PlacedMesh.Mesh = ComponentTarget->GetMesh();
-		PlacedMesh.Transform = ComponentTarget->GetWorldTransform();
+		PlacedMesh.Mesh = TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription();
+		PlacedMesh.Transform = TargetComponentInterface(ComponentIdx)->GetWorldTransform();
 		InputMeshes->Add(PlacedMesh);
 	}
 }

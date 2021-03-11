@@ -133,17 +133,17 @@ void UCSGMeshesTool::SaveProperties()
 
 void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 {
-	OriginalDynamicMeshes.SetNum(ComponentTargets.Num());
+	OriginalDynamicMeshes.SetNum(Targets.Num());
 	FComponentMaterialSet AllMaterialSet;
 	TMap<UMaterialInterface*, int> KnownMaterials;
-	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(ComponentTargets.Num());
+	TArray<TArray<int>> MaterialRemap; MaterialRemap.SetNum(Targets.Num());
 
 	if (bTrimMode || !CSGProperties->bOnlyUseFirstMeshMaterials)
 	{
-		for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+		for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
 			FComponentMaterialSet ComponentMaterialSet;
-			ComponentTargets[ComponentIdx]->GetMaterialSet(ComponentMaterialSet);
+			TargetMaterialInterface(ComponentIdx)->GetMaterialSet(ComponentMaterialSet);
 			for (UMaterialInterface* Mat : ComponentMaterialSet.Materials)
 			{
 				int* FoundMatIdx = KnownMaterials.Find(Mat);
@@ -163,22 +163,22 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 	}
 	else
 	{
-		ComponentTargets[0]->GetMaterialSet(AllMaterialSet);
+		TargetMaterialInterface(0)->GetMaterialSet(AllMaterialSet);
 		for (int MatIdx = 0; MatIdx < AllMaterialSet.Materials.Num(); MatIdx++)
 		{
 			MaterialRemap[0].Add(MatIdx);
 		}
-		for (int ComponentIdx = 1; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+		for (int ComponentIdx = 1; ComponentIdx < Targets.Num(); ComponentIdx++)
 		{
-			MaterialRemap[ComponentIdx].Init(0, ComponentTargets[ComponentIdx]->GetNumMaterials());
+			MaterialRemap[ComponentIdx].Init(0, TargetMaterialInterface(ComponentIdx)->GetNumMaterials());
 		}
 	}
 
-	for (int ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		OriginalDynamicMeshes[ComponentIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(ComponentTargets[ComponentIdx]->GetMesh(), *OriginalDynamicMeshes[ComponentIdx]);
+		Converter.Convert(TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription(), *OriginalDynamicMeshes[ComponentIdx]);
 
 		// ensure materials and attributes are always enabled
 		OriginalDynamicMeshes[ComponentIdx]->EnableAttributes();
@@ -190,7 +190,7 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 		}
 
 		UPreviewMesh* OriginalMeshPreview = OriginalMeshPreviews.Add_GetRef(NewObject<UPreviewMesh>());
-		OriginalMeshPreview->CreateInWorld(TargetWorld, ComponentTargets[ComponentIdx]->GetWorldTransform());
+		OriginalMeshPreview->CreateInWorld(TargetWorld, TargetComponentInterface(ComponentIdx)->GetWorldTransform());
 		OriginalMeshPreview->UpdatePreview(OriginalDynamicMeshes[ComponentIdx].Get());
 		OriginalMeshPreview->SetMaterial(0, ToolSetupUtil::GetSimpleCustomMaterial(GetToolManager(), FLinearColor::White, 0.05));
 		OriginalMeshPreview->SetVisible(false);
@@ -265,7 +265,7 @@ TUniquePtr<FDynamicMeshOperator> UCSGMeshesTool::MakeNewOperator()
 	}
 
 	check(OriginalDynamicMeshes.Num() == 2);
-	check(ComponentTargets.Num() == 2);
+	check(Targets.Num() == 2);
 	BooleanOp->Transforms.SetNum(2);
 	BooleanOp->Meshes.SetNum(2);
 	for (int Idx = 0; Idx < 2; Idx++)

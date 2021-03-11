@@ -24,32 +24,38 @@
 
 #include "Async/ParallelFor.h"
 
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "USetCollisionGeometryTool"
 
+
+const FToolTargetTypeRequirements& USetCollisionGeometryToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool USetCollisionGeometryToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	return (Components.Num() > 0 && Cast<UStaticMeshComponent>(Components[Components.Num() - 1]) != nullptr);
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	return (Targets.Num() > 0 && Cast<IStaticMeshBackedTarget>(Targets[Targets.Num() - 1]) != nullptr);
 }
 
 
 UInteractiveTool* USetCollisionGeometryToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	USetCollisionGeometryTool* NewTool = NewObject<USetCollisionGeometryTool>(SceneState.ToolManager);
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if (MeshComponent)
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	return NewTool;
 }
 
@@ -58,24 +64,24 @@ void USetCollisionGeometryTool::Setup()
 {
 	UInteractiveTool::Setup();
 
-	// if we have one selection, use it as the source, otherwise use all but hte last selected mesh
-	bSourcesHidden = (ComponentTargets.Num() > 1);
-	if (ComponentTargets.Num() == 1)
+	// if we have one selection, use it as the source, otherwise use all but the last selected mesh
+	bSourcesHidden = (Targets.Num() > 1);
+	if (Targets.Num() == 1)
 	{
 		SourceObjectIndices.Add(0);
 	}
 	else
 	{
-		for (int32 k = 0; k < ComponentTargets.Num() -1; ++k)
+		for (int32 k = 0; k < Targets.Num() -1; ++k)
 		{
 			SourceObjectIndices.Add(k);
-			ComponentTargets[k]->SetOwnerVisibility(false);
+			TargetComponentInterface(k)->SetOwnerVisibility(false);
 		}
 	}
 
 	bInputMeshesValid = true;
 
-	TUniquePtr<FPrimitiveComponentTarget>& CollisionTarget = ComponentTargets[ComponentTargets.Num() - 1];
+	IPrimitiveComponentBackedTarget* CollisionTarget = TargetComponentInterface(Targets.Num() - 1);
 	PreviewGeom = NewObject<UPreviewGeometry>(this);
 	FTransform PreviewTransform = CollisionTarget->GetWorldTransform();
 	OrigTargetTransform = PreviewTransform;
@@ -141,7 +147,7 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		for (int32 k : SourceObjectIndices)
 		{
-			ComponentTargets[k]->SetOwnerVisibility(true);
+			TargetComponentInterface(k)->SetOwnerVisibility(true);
 		}
 	}
 
@@ -154,7 +160,7 @@ void USetCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 
 		// code below derived from FStaticMeshEditor::DuplicateSelectedPrims(), FStaticMeshEditor::OnCollisionSphere(), and GeomFitUtils.cpp::GenerateSphylAsSimpleCollision()
 
-		TUniquePtr<FPrimitiveComponentTarget>& CollisionTarget = ComponentTargets[ComponentTargets.Num() - 1];
+		IPrimitiveComponentBackedTarget* CollisionTarget = TargetComponentInterface(Targets.Num() - 1);
 		UStaticMeshComponent* StaticMeshComponent = CastChecked<UStaticMeshComponent>(CollisionTarget->GetOwnerComponent());
 		UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
 		UBodySetup* BodySetup = StaticMesh->GetBodySetup();
@@ -407,7 +413,7 @@ TArray<const T*> MakeRawPointerList(const TArray<TSharedPtr<T, ESPMode::ThreadSa
 
 void USetCollisionGeometryTool::PrecomputeInputMeshes()
 {
-	TUniquePtr<FPrimitiveComponentTarget>& CollisionTarget = ComponentTargets[ComponentTargets.Num()-1];
+	IPrimitiveComponentBackedTarget* CollisionTarget = TargetComponentInterface(Targets.Num()-1);
 	FTransform3d TargetTransform(CollisionTarget->GetWorldTransform());
 	FTransform3d TargetTransformInv = TargetTransform.Inverse();
 
@@ -419,10 +425,10 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 		Converter.bCalculateMaps = false;
 		Converter.bDisableAttributes = true;
 		FDynamicMesh3 SourceMesh;
-		Converter.Convert(ComponentTargets[k]->GetMesh(), SourceMesh);
+		Converter.Convert(TargetMeshProviderInterface(k)->GetMeshDescription(), SourceMesh);
 		if (Settings->bUseWorldSpace)
 		{
-			FTransform3d ToWorld(ComponentTargets[k]->GetWorldTransform());
+			FTransform3d ToWorld(TargetComponentInterface(k)->GetWorldTransform());
 			MeshTransforms::ApplyTransform(SourceMesh, ToWorld);
 			MeshTransforms::ApplyTransform(SourceMesh, TargetTransformInv);
 		}

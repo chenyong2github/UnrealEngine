@@ -28,6 +28,9 @@ class MESHMODELINGTOOLS_API UEditPivotToolBuilder : public UInteractiveToolBuild
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 

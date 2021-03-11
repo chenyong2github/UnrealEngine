@@ -33,6 +33,8 @@ public:
 	// subclass must override!
 	virtual UBaseCreateFromSelectedTool* MakeNewToolInstance(UObject* Outer) const { check(false); return nullptr; }
 
+protected:
+	virtual const FToolTargetTypeRequirements& GetTargetRequirements() const override;
 };
 
 
@@ -186,7 +188,7 @@ protected:
 	virtual void GenerateAsset(const FDynamicMeshOpResult& Result);
 
 	// Helper to generate assets when a result is accepted; typically does not need to be overloaded
-	virtual void UpdateAsset(const FDynamicMeshOpResult& Result, TUniquePtr<FPrimitiveComponentTarget>& Target);
+	virtual void UpdateAsset(const FDynamicMeshOpResult& Result, UToolTarget* Target);
 
 	// Which of the transform gizmos to hide, or -1 if all gizmos can be shown
 	virtual int32 GetHiddenGizmoIndex() const;

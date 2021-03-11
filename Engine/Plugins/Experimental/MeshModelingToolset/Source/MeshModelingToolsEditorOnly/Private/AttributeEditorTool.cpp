@@ -19,6 +19,11 @@
 
 #include "Components/PrimitiveComponent.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -29,29 +34,27 @@ using namespace UE::Geometry;
  */
 
 
+const FToolTargetTypeRequirements& UAttributeEditorToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool UAttributeEditorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 0;
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 UInteractiveTool* UAttributeEditorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UAttributeEditorTool* NewTool = NewObject<UAttributeEditorTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 
 	return NewTool;
@@ -112,7 +115,7 @@ void UAttributeEditorTool::Setup()
 	NormalsActions->Initialize(this);
 	AddToolPropertySource(NormalsActions);
 
-	if (ComponentTargets.Num() == 1)
+	if (Targets.Num() == 1)
 	{
 		UVActions = NewObject<UAttributeEditorUVActions>(this);
 		UVActions->Initialize(this);
@@ -280,7 +283,7 @@ static bool RemoveAttribute(FMeshDescription* Mesh, EAttributeEditorElementType 
 
 void UAttributeEditorTool::InitializeAttributeLists()
 {
-	FMeshDescription* Mesh = ComponentTargets[0]->GetMesh();
+	FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 
 
 	TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
@@ -293,7 +296,7 @@ void UAttributeEditorTool::InitializeAttributeLists()
 	}
 	UVActions->UVLayer = UVActions->UVLayerNamesList[0];
 
-	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(ComponentTargets[0]->GetOwnerComponent());
+	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponentInterface(0)->GetOwnerComponent());
 	if (StaticMeshComponent && StaticMeshComponent->GetStaticMesh() != nullptr)
 	{
 		const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
@@ -402,7 +405,7 @@ void UAttributeEditorTool::OnTick(float DeltaTime)
 	}
 	PendingAction = EAttributeEditorToolActions::NoAction;
 
-	if (bAttributeListsValid == false && ComponentTargets.Num() == 1)
+	if (bAttributeListsValid == false && Targets.Num() == 1)
 	{
 		InitializeAttributeLists();
 	}
@@ -415,9 +418,9 @@ void UAttributeEditorTool::OptimizeForEditing()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("OptimizeForEditing", "Optimize For Editing"));
 
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Target->GetOwnerComponent());
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());
 		if (StaticMeshComponent == nullptr || StaticMeshComponent->GetStaticMesh() == nullptr)
 		{
 			continue;
@@ -435,12 +438,12 @@ void UAttributeEditorTool::OptimizeForEditing()
 		BuildSettings.DistanceFieldResolutionScale = 0.01;
 
 		// this will call StaticMesh->PostEditChange()...
-		Target->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			TEdgeAttributesRef<bool> EdgeHardnesses = CommitParams.MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
+			TEdgeAttributesRef<bool> EdgeHardnesses = CommitParams.MeshDescriptionOut->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
 			if (EdgeHardnesses.IsValid())
 			{
-				for (FEdgeID ElID : CommitParams.MeshDescription->Edges().GetElementIDs())
+				for (FEdgeID ElID : CommitParams.MeshDescriptionOut->Edges().GetElementIDs())
 				{
 					EdgeHardnesses[ElID] = false;
 				}
@@ -449,7 +452,7 @@ void UAttributeEditorTool::OptimizeForEditing()
 			// force computation of normals/tangents if they are auto-generated
 			if (BuildSettings.bRecomputeNormals || BuildSettings.bRecomputeTangents)
 			{
-				UE::MeshDescription::InitializeAutoGeneratedAttributes(*CommitParams.MeshDescription, StaticMeshComponent, 0);
+				UE::MeshDescription::InitializeAutoGeneratedAttributes(*CommitParams.MeshDescriptionOut, StaticMeshComponent, 0);
 			}
 
 			// now clear these build settings
@@ -470,20 +473,20 @@ void UAttributeEditorTool::ClearNormals()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("ClearNormalsTransactionMessage", "Clear Normals"));
 
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Target->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			TEdgeAttributesRef<bool> EdgeHardnesses = CommitParams.MeshDescription->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
+			TEdgeAttributesRef<bool> EdgeHardnesses = CommitParams.MeshDescriptionOut->EdgeAttributes().GetAttributesRef<bool>(MeshAttribute::Edge::IsHard);
 			if (EdgeHardnesses.IsValid())
 			{
-				for (FEdgeID ElID : CommitParams.MeshDescription->Edges().GetElementIDs())
+				for (FEdgeID ElID : CommitParams.MeshDescriptionOut->Edges().GetElementIDs())
 				{
 					EdgeHardnesses[ElID] = false;
 				}
 			}
-			FStaticMeshOperations::ComputeTriangleTangentsAndNormals(*CommitParams.MeshDescription, FMathf::Epsilon);
-			FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(*CommitParams.MeshDescription, EComputeNTBsFlags::WeightedNTBs | EComputeNTBsFlags::Normals);
+			FStaticMeshOperations::ComputeTriangleTangentsAndNormals(*CommitParams.MeshDescriptionOut, FMathf::Epsilon);
+			FStaticMeshOperations::RecomputeNormalsAndTangentsIfNeeded(*CommitParams.MeshDescriptionOut, EComputeNTBsFlags::WeightedNTBs | EComputeNTBsFlags::Normals);
 		});
 	}
 	GetToolManager()->EndUndoTransaction();
@@ -495,17 +498,17 @@ void UAttributeEditorTool::ClearNormals()
 void UAttributeEditorTool::ClearUVs()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("ClearUVsTransactionMessage", "Clear Selected UVs"));
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Target->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 			int32 NumChannels = InstanceUVs.GetNumChannels();
-			const FVertexInstanceArray& Instances = CommitParams.MeshDescription->VertexInstances();
+			const FVertexInstanceArray& Instances = CommitParams.MeshDescriptionOut->VertexInstances();
 			for (int LayerIndex = NumChannels-1; LayerIndex >= 0; LayerIndex--)
 			{
-				if (!FStaticMeshOperations::RemoveUVChannel(*CommitParams.MeshDescription, LayerIndex))
+				if (!FStaticMeshOperations::RemoveUVChannel(*CommitParams.MeshDescriptionOut, LayerIndex))
 				{
 					for (const FVertexInstanceID& ElID : Instances.GetElementIDs())
 					{
@@ -516,7 +519,7 @@ void UAttributeEditorTool::ClearUVs()
 
 			if (bHaveAutoGeneratedLightmapUVSet)
 			{
-				UpdateAutoGeneratedLightmapUVChannel(Target, InstanceUVs.GetNumChannels());
+				UpdateAutoGeneratedLightmapUVChannel(TargetComponentInterface(ComponentIdx), InstanceUVs.GetNumChannels());
 			}
 		});
 	}
@@ -543,15 +546,15 @@ void UAttributeEditorTool::DeleteSelectedUVSet()
 	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("ClearUVsTransactionMessage", "Clear Selected UVs"));
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Target->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
-			if (!FStaticMeshOperations::RemoveUVChannel(*CommitParams.MeshDescription, DeleteIndex))
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			if (!FStaticMeshOperations::RemoveUVChannel(*CommitParams.MeshDescriptionOut, DeleteIndex))
 			{
-				const FVertexInstanceArray& Instances = CommitParams.MeshDescription->VertexInstances();
+				const FVertexInstanceArray& Instances = CommitParams.MeshDescriptionOut->VertexInstances();
 				for (const FVertexInstanceID& InstanceID : Instances.GetElementIDs())
 				{
 					InstanceUVs.Set(InstanceID, DeleteIndex, FVector2D::ZeroVector);
@@ -560,7 +563,7 @@ void UAttributeEditorTool::DeleteSelectedUVSet()
 
 			if (bHaveAutoGeneratedLightmapUVSet)
 			{
-				UpdateAutoGeneratedLightmapUVChannel(Target, InstanceUVs.GetNumChannels());
+				UpdateAutoGeneratedLightmapUVChannel(TargetComponentInterface(ComponentIdx), InstanceUVs.GetNumChannels());
 			}
 		});
 	}
@@ -573,14 +576,14 @@ void UAttributeEditorTool::DeleteSelectedUVSet()
 void UAttributeEditorTool::AddUVSet()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddUVSetMessage", "Add UV Set"));
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Target->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 			int32 NewChannelIndex = InstanceUVs.GetNumChannels();
-			if (!FStaticMeshOperations::AddUVChannel(*CommitParams.MeshDescription))
+			if (!FStaticMeshOperations::AddUVChannel(*CommitParams.MeshDescriptionOut))
 			{
 				GetToolManager()->DisplayMessage(LOCTEXT("FailedToAddUVSet", "Adding UV Set Failed"), EToolMessageLevel::UserWarning);
 			}
@@ -590,7 +593,7 @@ void UAttributeEditorTool::AddUVSet()
 
 				if (bHaveAutoGeneratedLightmapUVSet)
 				{
-					UpdateAutoGeneratedLightmapUVChannel(Target, InstanceUVs.GetNumChannels());
+					UpdateAutoGeneratedLightmapUVChannel(TargetComponentInterface(ComponentIdx), InstanceUVs.GetNumChannels());
 				}
 			}
 		});
@@ -612,20 +615,20 @@ void UAttributeEditorTool::DuplicateSelectedUVSet()
 	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("DuplicateUVSetMessage", "Duplicate UV Set"));
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		Target->CommitMesh([&](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(ComponentIdx)->CommitMeshDescription([&](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			TVertexInstanceAttributesRef<FVector2D> InstanceUVs =
-				CommitParams.MeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+				CommitParams.MeshDescriptionOut->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 			int32 NewChannelIndex = InstanceUVs.GetNumChannels();
-			if (!FStaticMeshOperations::AddUVChannel(*CommitParams.MeshDescription))
+			if (!FStaticMeshOperations::AddUVChannel(*CommitParams.MeshDescriptionOut))
 			{
 				GetToolManager()->DisplayMessage(LOCTEXT("FailedToAddUVSet", "Adding UV Set Failed"), EToolMessageLevel::UserWarning);
 			}
 			else
 			{
-				const FVertexInstanceArray& Instances = CommitParams.MeshDescription->VertexInstances();
+				const FVertexInstanceArray& Instances = CommitParams.MeshDescriptionOut->VertexInstances();
 				for (const FVertexInstanceID& InstanceID : Instances.GetElementIDs())
 				{
 					FVector2D SourceUV = InstanceUVs.Get(InstanceID, SourceIndex);
@@ -634,7 +637,7 @@ void UAttributeEditorTool::DuplicateSelectedUVSet()
 
 				if (bHaveAutoGeneratedLightmapUVSet)
 				{
-					UpdateAutoGeneratedLightmapUVChannel(Target, InstanceUVs.GetNumChannels());
+					UpdateAutoGeneratedLightmapUVChannel(TargetComponentInterface(ComponentIdx), InstanceUVs.GetNumChannels());
 				}
 
 				GetToolManager()->DisplayMessage(FText::Format(LOCTEXT("Copied UV Set", "Copied UV{0} to UV{1}"), 
@@ -659,7 +662,7 @@ void UAttributeEditorTool::AddNewAttribute(EAttributeEditorElementType ElemType,
 		return;
 	}
 
-	FMeshDescription* CurMesh = ComponentTargets[0]->GetMesh();
+	FMeshDescription* CurMesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 	if (HasAttribute(CurMesh, ElemType, AttributeName))
 	{
 		GetToolManager()->DisplayMessage(LOCTEXT("ErrorAddingDuplicateNameMessage", "Attribute with this name already exists"), EToolMessageLevel::UserWarning);
@@ -674,9 +677,9 @@ void UAttributeEditorTool::AddNewAttribute(EAttributeEditorElementType ElemType,
 	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("NewAttributeTransactionMessage", "Add Attribute"));
-	ComponentTargets[0]->CommitMesh([&NewMesh](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	TargetMeshCommitterInterface(0)->CommitMeshDescription([&NewMesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
-		*CommitParams.MeshDescription = NewMesh;
+		*CommitParams.MeshDescriptionOut = NewMesh;
 	});
 	GetToolManager()->EndUndoTransaction();
 
@@ -712,7 +715,7 @@ void UAttributeEditorTool::ClearAttribute()
 
 void UAttributeEditorTool::DeleteAttribute()
 {
-	FMeshDescription* CurMesh = ComponentTargets[0]->GetMesh();
+	FMeshDescription* CurMesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 	FName SelectedName(ModifyAttributeProps->Attribute);
 
 	// @todo: use FAttributesSetBase::DoesAttributeHaveAnyFlags(EMeshAttributeFlags::Mandatory) to determine this ?
@@ -741,9 +744,9 @@ void UAttributeEditorTool::DeleteAttribute()
 	}
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("RemoveAttributeTransactionMessage", "Remove Attribute"));
-	ComponentTargets[0]->CommitMesh([&NewMesh](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	TargetMeshCommitterInterface(0)->CommitMeshDescription([&NewMesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
-		*CommitParams.MeshDescription = NewMesh;
+		*CommitParams.MeshDescriptionOut = NewMesh;
 	});
 	GetToolManager()->EndUndoTransaction();
 
@@ -762,9 +765,9 @@ void UAttributeEditorTool::SetLightmapUVsEnabled(bool bEnabled)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("DisableLightmapUVs", "Disable Lightmap UVs"));
 	}
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Target->GetOwnerComponent());
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());
 		if (StaticMeshComponent && StaticMeshComponent->GetStaticMesh() != nullptr)
 		{
 			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
@@ -786,13 +789,13 @@ void UAttributeEditorTool::SetLightmapUVsEnabled(bool bEnabled)
 void UAttributeEditorTool::ResetLightmapUVsChannels()
 {
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("ResetLightmapUVs", "Reset Lightmap UVs"));
-	for (TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		TVertexInstanceAttributesRef<FVector2D> InstanceUVs = 
-			Target->GetMesh()->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+			TargetMeshProviderInterface(ComponentIdx)->GetMeshDescription()->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 		int32 SetChannel = FMath::Max(InstanceUVs.GetNumChannels(), 1);
 
-		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Target->GetOwnerComponent());
+		UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(TargetComponentInterface(ComponentIdx)->GetOwnerComponent());
 		if (StaticMeshComponent && StaticMeshComponent->GetStaticMesh() != nullptr)
 		{
 			UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh();
@@ -812,7 +815,7 @@ void UAttributeEditorTool::ResetLightmapUVsChannels()
 
 
 
-void UAttributeEditorTool::UpdateAutoGeneratedLightmapUVChannel(TUniquePtr<FPrimitiveComponentTarget>& Target, int32 NewMaxUVChannels)
+void UAttributeEditorTool::UpdateAutoGeneratedLightmapUVChannel(IPrimitiveComponentBackedTarget* Target, int32 NewMaxUVChannels)
 {
 	UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(Target->GetOwnerComponent());
 	if (StaticMeshComponent && StaticMeshComponent->GetStaticMesh() != nullptr)

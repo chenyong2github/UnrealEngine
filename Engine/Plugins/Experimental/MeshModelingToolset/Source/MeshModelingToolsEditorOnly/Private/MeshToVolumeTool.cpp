@@ -83,7 +83,7 @@ void UMeshToVolumeTool::Setup()
 
 	FComponentMaterialSet MaterialSet;
 	check(Cast<IMaterialProvider>(Target));
-	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet, false);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	PreviewMesh->SetMaterials(MaterialSet.Materials);
 
 	PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::ExternallyCalculated);

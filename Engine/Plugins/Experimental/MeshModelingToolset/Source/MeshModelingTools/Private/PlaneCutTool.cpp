@@ -30,6 +30,13 @@
 
 #include "Misc/MessageDialog.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -39,30 +46,29 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
+const FToolTargetTypeRequirements& UPlaneCutToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UMaterialProvider::StaticClass(),
+		UMeshDescriptionCommitter::StaticClass(),
+		UMeshDescriptionProvider::StaticClass(),
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UAssetBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
 
 bool UPlaneCutToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) > 0;
+	return AssetAPI != nullptr && SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 UInteractiveTool* UPlaneCutToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UPlaneCutTool* NewTool = NewObject<UPlaneCutTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : Components)
-	{
-		auto* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-		if ( MeshComponent )
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
 
@@ -106,26 +112,15 @@ void UPlaneCutTool::Setup()
 	AddInputBehavior(SnapToggleBehavior);
 
 	// hide input StaticMeshComponents
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		ComponentTarget->SetOwnerVisibility(false);
+		TargetComponentInterface(ComponentIdx)->SetOwnerVisibility(false);
 	}
 
-	bool bAnyHasSameSource = false;
-	for (int32 ComponentIdx = 0; !bAnyHasSameSource && ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
-	{
-		FPrimitiveComponentTarget* ComponentTarget = ComponentTargets[ComponentIdx].Get();
-		for (int32 VsIdx = ComponentIdx + 1; VsIdx < ComponentTargets.Num(); VsIdx++)
-		{
-			if (ComponentTarget->HasSameSourceData(*ComponentTargets[VsIdx]))
-			{
-				bAnyHasSameSource = true;
-				break;
-			}
-		}
-	}
+	TArray<int32> MapToFirstOccurrences;
+	bool bAnyHaveSameSource = GetMapToSharedSourceData(MapToFirstOccurrences);
 
-	if (bAnyHasSameSource)
+	if (bAnyHaveSameSource)
 	{
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("PlaneCutMultipleAssetWithSameSource", "WARNING: Multiple meshes in your selection use the same source asset!  Plane cuts apply to the source asset, and this tool will not duplicate assets for you, so the tool typically cannot give a correct result in this case.  Please consider exiting the tool and duplicating the source assets."),
@@ -133,12 +128,12 @@ void UPlaneCutTool::Setup()
 	}
 
 	// Convert input mesh descriptions to dynamic mesh
-	for (int Idx = 0; Idx < ComponentTargets.Num(); Idx++)
+	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[Idx];
+		IMeshDescriptionProvider* TargetMesh = TargetMeshProviderInterface(Idx);
 		FDynamicMesh3* OriginalDynamicMesh = new FDynamicMesh3;
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
+		Converter.Convert(TargetMesh->GetMeshDescription(), *OriginalDynamicMesh);
 		OriginalDynamicMesh->EnableAttributes();
 		TDynamicMeshScalarTriangleAttribute<int>* SubObjectIDs = new TDynamicMeshScalarTriangleAttribute<int>(OriginalDynamicMesh);
 		SubObjectIDs->Initialize(0);
@@ -160,9 +155,9 @@ void UPlaneCutTool::Setup()
 
 	// Include the original components even though we made them invisible, since we want
 	// to be able to reposition the plane onto the original mesh.
-	for (const TUniquePtr<FPrimitiveComponentTarget>& Target : ComponentTargets)
+	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
-		SetPlaneAction->InvisibleComponentsToHitTest.Add(Target->GetOwnerComponent());
+		SetPlaneAction->InvisibleComponentsToHitTest.Add(TargetComponentInterface(Idx)->GetOwnerComponent());
 	}
 
 	SetPlaneAction->OnClickedPositionFunc = [this](const FHitResult& Hit)
@@ -202,10 +197,10 @@ void UPlaneCutTool::Setup()
 
 	// set initial cut plane (also attaches gizmo/proxy)
 	FBox CombinedBounds; CombinedBounds.Init();
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
 		FVector ComponentOrigin, ComponentExtents;
-		ComponentTarget->GetOwnerActor()->GetActorBounds(false, ComponentOrigin, ComponentExtents);
+		TargetComponentInterface(Idx)->GetOwnerActor()->GetActorBounds(false, ComponentOrigin, ComponentExtents);
 		CombinedBounds += FBox::BuildAABB(ComponentOrigin, ComponentExtents);
 	}
 	SetCutPlaneFromWorldPos(CombinedBounds.GetCenter(), FVector::UpVector, true);
@@ -254,14 +249,14 @@ void UPlaneCutTool::SetupPreviews()
 		Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 		FComponentMaterialSet MaterialSet;
-		ComponentTargets[PreviewIdx]->GetMaterialSet(MaterialSet);
+		TargetMaterialInterface(PreviewIdx)->GetMaterialSet(MaterialSet);
 		Preview->ConfigureMaterials(MaterialSet.Materials,
 			ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager())
 		);
 
 		// set initial preview to un-processed mesh, so stuff doesn't just disappear if the first cut takes a while
 		Preview->PreviewMesh->UpdatePreview(MeshesToCut[PreviewIdx]->GetMesh().Get());
-		Preview->PreviewMesh->SetTransform(ComponentTargets[PreviewIdx]->GetWorldTransform());
+		Preview->PreviewMesh->SetTransform(TargetComponentInterface(PreviewIdx)->GetWorldTransform());
 		Preview->SetVisibility(BasicProperties->bShowPreview);
 	}
 }
@@ -305,9 +300,9 @@ void UPlaneCutTool::Shutdown(EToolShutdownType ShutdownType)
 	AcceptProperties->SaveProperties(this);
 
 	// Restore (unhide) the source meshes
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int Idx = 0; Idx < Targets.Num(); Idx++)
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		TargetComponentInterface(Idx)->SetOwnerVisibility(true);
 	}
 
 	TArray<FDynamicMeshOpResult> Results;
@@ -339,7 +334,7 @@ TUniquePtr<FDynamicMeshOperator> UPlaneCutOperatorFactory::MakeNewOperator()
 	CutOp->bFillCutHole = CutTool->BasicProperties->bFillCutHole;
 	CutOp->bFillSpans = CutTool->BasicProperties->bFillSpans;
 
-	FTransform LocalToWorld = CutTool->ComponentTargets[ComponentIndex]->GetWorldTransform();
+	FTransform LocalToWorld = CutTool->TargetComponentInterface(ComponentIndex)->GetWorldTransform();
 	CutOp->SetTransform(LocalToWorld);
 	// for all plane computation, change LocalToWorld to not have any zero scale dims
 	FVector LocalToWorldScale = LocalToWorld.GetScale3D();
@@ -418,9 +413,9 @@ void UPlaneCutTool::OnPropertyModified(UObject* PropertySet, FProperty* Property
 {
 	if (Property && (Property->GetFName() == GET_MEMBER_NAME_CHECKED(UPlaneCutToolProperties, bShowPreview)))
 	{
-		for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+		for (int Idx = 0; Idx < Targets.Num(); Idx++)
 		{
-			ComponentTarget->SetOwnerVisibility(!BasicProperties->bShowPreview);
+			TargetComponentInterface(Idx)->SetOwnerVisibility(!BasicProperties->bShowPreview);
 		}
 		for (UMeshOpPreviewWithBackgroundCompute* Preview : Previews)
 		{
@@ -508,8 +503,8 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 	NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
 	for (int OrigMeshIdx = 0; OrigMeshIdx < NumSourceMeshes; OrigMeshIdx++)
 	{
-		TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[OrigMeshIdx];
-		NewSelection.Actors.Add(ComponentTarget->GetOwnerActor());
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(OrigMeshIdx);
+		NewSelection.Actors.Add(TargetComponent->GetOwnerActor());
 	}
 
 	// check if we entirely cut away any meshes
@@ -540,7 +535,7 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 		{
 			if (bWantDestroy)
 			{
-				ComponentTargets[OrigMeshIdx]->GetOwnerComponent()->DestroyComponent();
+				TargetComponentInterface(OrigMeshIdx)->GetOwnerComponent()->DestroyComponent();
 			}
 			continue;
 		}
@@ -568,10 +563,10 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 			}
 		}
 
-		ComponentTargets[OrigMeshIdx]->CommitMesh([&UseMesh](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		TargetMeshCommitterInterface(OrigMeshIdx)->CommitMeshDescription([&UseMesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(UseMesh, *CommitParams.MeshDescription);
+			Converter.Convert(UseMesh, *CommitParams.MeshDescriptionOut);
 		});
 	}
 
@@ -587,10 +582,10 @@ void UPlaneCutTool::GenerateAsset(const TArray<FDynamicMeshOpResult>& Results)
 
 			// build array of materials from the original
 			TArray<UMaterialInterface*> Materials;
-			TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget = ComponentTargets[OrigMeshIdx];
-			for (int MaterialIdx = 0, NumMaterials = ComponentTarget->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
+			IMaterialProvider* TargetMaterial = TargetMaterialInterface(OrigMeshIdx);
+			for (int MaterialIdx = 0, NumMaterials = TargetMaterial->GetNumMaterials(); MaterialIdx < NumMaterials; MaterialIdx++)
 			{
-				Materials.Add(ComponentTarget->GetMaterial(MaterialIdx));
+				Materials.Add(TargetMaterial->GetMaterial(MaterialIdx));
 			}
 
 			// add all the additional meshes

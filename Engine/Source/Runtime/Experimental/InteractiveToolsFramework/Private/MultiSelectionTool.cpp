@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MultiSelectionTool.h"
-#include "TargetInterfaces/MaterialProvider.h"
-#include "TargetInterfaces/MeshDescriptionCommitter.h"
-#include "TargetInterfaces/MeshDescriptionProvider.h"
-#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
 #include "TargetInterfaces/AssetBackedTarget.h"
 
 bool UMultiSelectionTool::GetMapToSharedSourceData(TArray<int32>& MapToFirstOccurrences)
@@ -41,34 +37,3 @@ bool UMultiSelectionTool::GetMapToSharedSourceData(TArray<int32>& MapToFirstOccu
 	return bSharesSources;
 }
 
-IPrimitiveComponentBackedTarget* UMultiSelectionTool::TargetComponentInterface(int32 ComponentIdx) const
-{
-	check(ComponentIdx >= 0 && ComponentIdx < Targets.Num());
-	IPrimitiveComponentBackedTarget* Component = Cast<IPrimitiveComponentBackedTarget>(Targets[ComponentIdx]);
-	check(Component);
-	return Component;
-}
-
-IMeshDescriptionCommitter* UMultiSelectionTool::TargetMeshCommitterInterface(int32 ComponentIdx) const
-{
-	check(ComponentIdx >= 0 && ComponentIdx < Targets.Num());
-	IMeshDescriptionCommitter* TargetMeshCommitter = Cast<IMeshDescriptionCommitter>(Targets[ComponentIdx]);
-	check(TargetMeshCommitter);
-	return TargetMeshCommitter;
-}
-
-IMeshDescriptionProvider* UMultiSelectionTool::TargetMeshProviderInterface(int32 ComponentIdx) const
-{
-	check(ComponentIdx >= 0 && ComponentIdx < Targets.Num());
-	IMeshDescriptionProvider* TargetMeshProvider = Cast<IMeshDescriptionProvider>(Targets[ComponentIdx]);
-	check(TargetMeshProvider);
-	return TargetMeshProvider;
-}
-
-IMaterialProvider* UMultiSelectionTool::TargetMaterialInterface(int32 ComponentIdx) const
-{
-	check(ComponentIdx >= 0 && ComponentIdx < Targets.Num());
-	IMaterialProvider* TargetMaterial = Cast<IMaterialProvider>(Targets[ComponentIdx]);
-	check(TargetMaterial);
-	return TargetMaterial;
-}

@@ -15,16 +15,28 @@
 #include "Engine/Classes/PhysicsEngine/BodySetup.h"
 #include "Engine/Classes/PhysicsEngine/AggregateGeom.h"
 
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/StaticMeshBackedTarget.h"
+#include "ToolTargetManager.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
 #define LOCTEXT_NAMESPACE "UPhysicsInspectorTool"
 
+
+const FToolTargetTypeRequirements& UPhysicsInspectorToolBuilder::GetTargetRequirements() const
+{
+	static FToolTargetTypeRequirements TypeRequirements({
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UStaticMeshBackedTarget::StaticClass()
+		});
+	return TypeRequirements;
+}
+
 bool UPhysicsInspectorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
-	int32 NumStaticMeshes = ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Comp) { return Cast<UStaticMeshComponent>(Comp) != nullptr; });
-	int32 NumComponentTargets = ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget);
-	return (NumStaticMeshes > 0 && NumStaticMeshes == NumComponentTargets);
+	return SceneState.TargetManager->CountSelectedAndTargetable(SceneState, GetTargetRequirements()) > 0;
 }
 
 
@@ -32,21 +44,9 @@ UInteractiveTool* UPhysicsInspectorToolBuilder::BuildTool(const FToolBuilderStat
 {
 	UPhysicsInspectorTool* NewTool = NewObject<UPhysicsInspectorTool>(SceneState.ToolManager);
 
-	TArray<UActorComponent*> ValidComponents = ToolBuilderUtil::FindAllComponents(SceneState,
-		[&](UActorComponent* Comp) { return Cast<UStaticMeshComponent>(Comp) != nullptr; });
-	check(ValidComponents.Num() > 0);
+	TArray<TObjectPtr<UToolTarget>> Targets = SceneState.TargetManager->BuildAllSelectedTargetable(SceneState, GetTargetRequirements());
+	NewTool->SetTargets(MoveTemp(Targets));
 
-	TArray<TUniquePtr<FPrimitiveComponentTarget>> ComponentTargets;
-	for (UActorComponent* ActorComponent : ValidComponents)
-	{
-		UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(ActorComponent);
-		if (MeshComponent)
-		{
-			ComponentTargets.Add(MakeComponentTarget(MeshComponent));
-		}
-	}
-
-	NewTool->SetSelection(MoveTemp(ComponentTargets));
 	return NewTool;
 }
 
@@ -62,9 +62,10 @@ void UPhysicsInspectorTool::Setup()
 	VizSettings->WatchProperty(VizSettings->Color, [this](FColor NewValue) { bVisualizationDirty = true; });
 	VizSettings->WatchProperty(VizSettings->bShowHidden, [this](bool bNewValue) { bVisualizationDirty = true; });
 
-	for (TUniquePtr<FPrimitiveComponentTarget>& ComponentTarget : ComponentTargets)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
-		const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(ComponentTarget->GetOwnerComponent());
+		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
+		const UStaticMeshComponent* Component = CastChecked<UStaticMeshComponent>(TargetComponent->GetOwnerComponent());
 		const UStaticMesh* StaticMesh = Component->GetStaticMesh();
 		if (ensure(StaticMesh && StaticMesh->GetBodySetup()))
 		{
@@ -76,10 +77,10 @@ void UPhysicsInspectorTool::Setup()
 			PhysicsInfos.Add(PhysicsData);
 
 			UPreviewGeometry* PreviewGeom = NewObject<UPreviewGeometry>(this);
-			FTransform TargetTransform = ComponentTarget->GetWorldTransform();
+			FTransform TargetTransform = TargetComponent->GetWorldTransform();
 			PhysicsData->ExternalScale3D = TargetTransform.GetScale3D();
 			TargetTransform.SetScale3D(FVector::OneVector);
-			PreviewGeom->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), TargetTransform);
+			PreviewGeom->CreateInWorld(TargetComponent->GetOwnerActor()->GetWorld(), TargetTransform);
 			PreviewElements.Add(PreviewGeom);
 
 			InitializeGeometry(*PhysicsData, PreviewGeom);

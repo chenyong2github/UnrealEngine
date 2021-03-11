@@ -22,6 +22,7 @@
 #include "TargetInterfaces/MeshDescriptionCommitter.h"
 #include "TargetInterfaces/MeshDescriptionProvider.h"
 #include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+#include "TargetInterfaces/AssetBackedTarget.h"
 #include "ToolTargetManager.h"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -39,7 +40,8 @@ const FToolTargetTypeRequirements& UBakeTransformToolBuilder::GetTargetRequireme
 	static FToolTargetTypeRequirements TypeRequirements({
 		UMeshDescriptionCommitter::StaticClass(),
 		UMeshDescriptionProvider::StaticClass(),
-		UPrimitiveComponentBackedTarget::StaticClass()
+		UPrimitiveComponentBackedTarget::StaticClass(),
+		UAssetBackedTarget::StaticClass()
 		});
 	return TypeRequirements;
 }
@@ -100,7 +102,7 @@ void UBakeTransformTool::Setup()
 	}
 
 	bool bHasZeroScales = false;
-	for (int32 ComponentIdx = 0; ComponentIdx < ComponentTargets.Num(); ComponentIdx++)
+	for (int32 ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
 		if (TargetComponent->GetWorldTransform().GetScale3D().GetAbsMin() < KINDA_SMALL_NUMBER)
