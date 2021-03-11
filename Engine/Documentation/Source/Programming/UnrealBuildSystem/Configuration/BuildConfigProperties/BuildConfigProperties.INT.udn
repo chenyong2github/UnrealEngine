@@ -253,6 +253,8 @@ $ bEnableDistribution : Controls network build distribution
 
 $ FBuildBrokeragePath : Used to specify the location of the brokerage. If null, FASTBuild will fall back to checking FASTBUILD_BROKERAGE_PATH
 
+$ FBuildCoordinator : Used to specify the FASTBuild coordinator IP or network name. If null, FASTBuild will fall back to checking FASTBUILD_COORDINATOR
+
 $ bEnableCaching : Controls whether to use caching at all. CachePath and FASTCacheMode are only relevant if this is enabled.
 
 $ CacheMode : Cache access mode - only relevant if bEnableCaching is true;
