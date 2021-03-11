@@ -8,8 +8,7 @@
 
 #define PROJECTION_CLEAR_VALUE				0xFFFFFFFF
 #define PROJECTION_PLANE_VALUE				0xFFFFFFFE
-#define PROJECTION_OUTPUT_TYPE_BUFFER		0
-#define PROJECTION_OUTPUT_TYPE_TEXTURE		1
+
 #define QUALITY_LEVEL_BEST_PERFORMANCE		0
 #define QUALITY_LEVEL_BETTER_QUALITY		1
 #define QUALITY_LEVEL_BEST_QUALITY			2
@@ -53,10 +52,10 @@ float2 ProjectionPixelToBufferUV(int2 ReflectionPixel)
 
 RWTexture2D<half4> OutputSceneColor;
 
-#if PROJECTION_OUTPUT_TYPE == PROJECTION_OUTPUT_TYPE_TEXTURE
-RWTexture2D<uint> OutputProjection;
+#if PROJECTION_OUTPUT_TYPE_TEXTURE
+RWTexture2D<uint> OutputProjectionTexture;
 #else
-RWBuffer<uint> OutputProjection;
+RWBuffer<uint> OutputProjectionBuffer;
 #endif
 
 // Calculate coordinate system index based on offset
@@ -89,13 +88,17 @@ uint EncodeProjectionBufferValue(int2 PixelOffset)
 
 void ProjectionBufferWrite(int2 BufferPos, uint BufferValue)
 {
-#if PROJECTION_OUTPUT_TYPE == PROJECTION_OUTPUT_TYPE_TEXTURE
+#if PROJECTION_OUTPUT_TYPE_TEXTURE
 	int2 WriteOffset = BufferPos + ViewRectMin.xy;
 #else
 	int WriteOffset = (BufferPos.x + ViewRectMin.x) + ((BufferPos.y + ViewRectMin.y) * BufferSizeAndInvSize.x);
 #endif
 	uint OriginalValue = 0;
-	InterlockedMin(OutputProjection[WriteOffset], BufferValue, OriginalValue);
+#if PROJECTION_OUTPUT_TYPE_TEXTURE
+	InterlockedMin(OutputProjectionTexture[WriteOffset], BufferValue, OriginalValue);
+#else
+	InterlockedMin(OutputProjectionBuffer[WriteOffset], BufferValue, OriginalValue);
+#endif
 }
 
 void ProjectionPassWrite(int2 ReflectedPixel, half2 ReflectingCoord)
@@ -230,20 +233,20 @@ void ReflectionPassVS(
 
 #if REFLECTION_PASS_PIXEL_SHADER
 
-#if PROJECTION_OUTPUT_TYPE == PROJECTION_OUTPUT_TYPE_TEXTURE
-Texture2D<uint> ProjectionBuffer;
-SamplerState ProjectionBufferSampler;
+#if PROJECTION_OUTPUT_TYPE_TEXTURE
+Texture2D<uint> ProjectionTexture;
+SamplerState ProjectionTextureSampler;
 #else
 Buffer<uint> ProjectionBuffer;
 #endif
 
 uint GetEncodeValue(int2 ReflectingPixel)
 {
-#if PROJECTION_OUTPUT_TYPE == PROJECTION_OUTPUT_TYPE_TEXTURE
+#if PROJECTION_OUTPUT_TYPE_TEXTURE
 #if COMPILER_GLSL_ES3_1 // Force to use a point sampler for Texture2D<uint> on OpenGLES platform
-	uint EncodeValue = ProjectionBuffer.SampleLevel(ProjectionBufferSampler, (ReflectingPixel + float2(0.5f, 0.5f)) * BufferSizeAndInvSize.zw, 0).x;
+	uint EncodeValue = ProjectionTexture.SampleLevel(ProjectionTextureSampler, (ReflectingPixel + float2(0.5f, 0.5f)) * BufferSizeAndInvSize.zw, 0).x;
 #else
-	uint EncodeValue = ProjectionBuffer.Load(int3(ReflectingPixel, 0));
+	uint EncodeValue = ProjectionTexture.Load(int3(ReflectingPixel, 0));
 #endif
 #else
 	uint EncodeValue = ProjectionBuffer[ReflectingPixel.x + ReflectingPixel.y * int(BufferSizeAndInvSize.x)];
