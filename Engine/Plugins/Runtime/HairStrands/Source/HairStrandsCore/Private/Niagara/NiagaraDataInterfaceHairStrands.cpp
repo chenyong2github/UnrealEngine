@@ -7,6 +7,7 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 
+#include "Components/SkeletalMeshComponent.h"
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
 #include "RenderGraphBuilder.h"
