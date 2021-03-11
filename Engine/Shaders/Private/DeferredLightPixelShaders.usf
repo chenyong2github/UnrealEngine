@@ -24,11 +24,6 @@
 
 #if USE_CLOUD_TRANSMITTANCE
 #include "VolumetricCloudCommon.ush"
-Texture2D<float3> CloudShadowmapTexture;
-SamplerState CloudShadowmapSampler;
-float CloudShadowmapFarDepthKm;
-float4x4 CloudShadowmapWorldToLightClipMatrix;
-float CloudShadowmapStrength;
 #endif
 
 #if STRATA_ENABLED

@@ -15,6 +15,13 @@
 #define KILOMETER_TO_METERS  	1000.0f
 #define CENTIMETER_TO_KILOMETER	(1.0f / KILOMETER_TO_CENTIMETER)
 
+#if USE_CLOUD_TRANSMITTANCE
+	Texture2D<float3> CloudShadowmapTexture;
+	SamplerState CloudShadowmapSampler;
+	float CloudShadowmapFarDepthKm;
+	float4x4 CloudShadowmapWorldToLightClipMatrix;
+	float CloudShadowmapStrength;
+#endif
 
 // Uv in [0,1]
 // ZDepth = 1.0 for near clip plane (See FReversedZOrthoMatrix)

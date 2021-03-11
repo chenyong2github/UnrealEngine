@@ -13,6 +13,7 @@
 #include "LumenSceneUtils.h"
 #include "DistanceFieldLightingShared.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
+#include "VolumetricCloudRendering.h"
 
 int32 GLumenDirectLighting = 1;
 FAutoConsoleVariableRef CVarLumenDirectLighting(
@@ -86,6 +87,14 @@ FAutoConsoleVariableRef CVarShadowingSlopeScaledSurfaceBias(
 	ECVF_RenderThreadSafe
 	);
 
+int32 GLumenDirectLightingCloudTransmittance = 1;
+FAutoConsoleVariableRef CVarLumenDirectLightingCloudTransmittance(
+	TEXT("r.Lumen.DirectLighting.CloudTransmittance"),
+	GLumenDirectLightingCloudTransmittance,
+	TEXT("Whether to sample cloud shadows when avaible."),
+	ECVF_RenderThreadSafe
+);
+
 int32 GLumenDirectLightingVirtualShadowMap = 1;
 FAutoConsoleVariableRef CVarLumenDirectLightingVirtualShadowMap(
 	TEXT("r.Lumen.DirectLighting.VirtualShadowMap"),
@@ -142,6 +151,7 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParameters, VolumeShadowingShaderParameters)
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)	
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightFunctionParameters, LightFunctionParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLightCloudTransmittanceParameters, LightCloudTransmittanceParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldObjectBufferParameters, ObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FDistanceFieldCulledObjectBufferParameters, CulledObjectBufferParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLightTileIntersectionParameters, LightTileIntersectionParameters)
@@ -166,13 +176,14 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 
 	class FDynamicallyShadowed	: SHADER_PERMUTATION_BOOL("DYNAMICALLY_SHADOWED");
 	class FShadowed	: SHADER_PERMUTATION_BOOL("SHADOWED_LIGHT");
-	class FTraceMeshSDFs	: SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
+	class FTraceMeshSDFs : SHADER_PERMUTATION_BOOL("OFFSCREEN_SHADOWING_TRACE_MESH_SDF");
 	class FVirtualShadowMap : SHADER_PERMUTATION_BOOL("VIRTUAL_SHADOW_MAP");
 	class FLightFunction : SHADER_PERMUTATION_BOOL("LIGHT_FUNCTION");
+	class FCloudTransmittance : SHADER_PERMUTATION_BOOL("USE_CLOUD_TRANSMITTANCE");
 	class FLightType : SHADER_PERMUTATION_ENUM_CLASS("LIGHT_TYPE", ELumenLightType);
 	class FRayTracingShadowPassCombine : SHADER_PERMUTATION_BOOL("HARDWARE_RAYTRACING_SHADOW_PASS_COMBINE");
 	using FPermutationDomain = TShaderPermutationDomain<FLightType, FDynamicallyShadowed, FShadowed, FTraceMeshSDFs,
-								FVirtualShadowMap, FLightFunction, FRayTracingShadowPassCombine>;
+								FVirtualShadowMap, FLightFunction, FCloudTransmittance, FRayTracingShadowPassCombine>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
@@ -182,6 +193,12 @@ class FLumenCardDirectLightingPS : public FMaterialShader
 			PermutationVector.Set<FRayTracingShadowPassCombine>(false);
 			PermutationVector.Set<FTraceMeshSDFs>(false);
 			PermutationVector.Set<FVirtualShadowMap>(false);
+			PermutationVector.Set<FCloudTransmittance>(false);
+		}
+
+		if (PermutationVector.Get<FLightType>() != ELumenLightType::Directional)
+		{
+			PermutationVector.Set<FCloudTransmittance>(false);
 		}
 
 		if (PermutationVector.Get<FRayTracingShadowPassCombine>() || PermutationVector.Get<FLightType>() != ELumenLightType::Directional)
@@ -586,6 +603,8 @@ void RenderDirectLightIntoLumenCards(
 		LightFunctionMaterialProxy = UMaterial::GetDefaultMaterial(MD_LightFunction)->GetRenderProxy();
 	}
 
+	const bool bUseCloudTransmittance = SetupLightCloudTransmittanceParameters(Scene, View, GLumenDirectLightingCloudTransmittance != 0 ? LightSceneInfo : nullptr, PassParameters->PS.LightCloudTransmittanceParameters);
+
 	FLumenCardDirectLightingPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set< FLumenCardDirectLightingPS::FLightType >(LumenLightType);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FDynamicallyShadowed >(bDynamicallyShadowed);
@@ -594,6 +613,7 @@ void RenderDirectLightIntoLumenCards(
 	PermutationVector.Set< FLumenCardDirectLightingPS::FVirtualShadowMap >(bUseVirtualShadowMap);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FLightFunction >(bUseLightFunction);
 	PermutationVector.Set< FLumenCardDirectLightingPS::FRayTracingShadowPassCombine>(bLumenUseHardwareRayTracedShadow);
+	PermutationVector.Set< FLumenCardDirectLightingPS::FCloudTransmittance >(bUseCloudTransmittance);
 	
 	PermutationVector = FLumenCardDirectLightingPS::RemapPermutation(PermutationVector);
 
