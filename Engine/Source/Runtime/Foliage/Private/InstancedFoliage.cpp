@@ -436,6 +436,8 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	bOverrideLightMapRes = false;
 	OverriddenLightMapRes = 8;
 	bUseAsOccluder = false;
+	bVisibleInRayTracing = true;
+	bEvaluateWorldPositionOffset = false;
 
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 
@@ -1413,6 +1415,17 @@ void FFoliageStaticMesh::UpdateComponentSettings(const UFoliageType_InstancedSta
 			Component->bUseAsOccluder = FoliageType->bUseAsOccluder;
 			bNeedsMarkRenderStateDirty = true;
 		}
+		if (Component->bVisibleInRayTracing != FoliageType->bVisibleInRayTracing)
+		{
+			Component->bVisibleInRayTracing = FoliageType->bVisibleInRayTracing;
+			bNeedsMarkRenderStateDirty = true;
+		}
+		if (Component->bEvaluateWorldPositionOffset != FoliageType->bEvaluateWorldPositionOffset)
+		{
+			Component->bEvaluateWorldPositionOffset = FoliageType->bEvaluateWorldPositionOffset;
+			bNeedsMarkRenderStateDirty = true;
+		}
+
 
 		if (Component->bEnableDensityScaling != FoliageType->bEnableDensityScaling)
 		{

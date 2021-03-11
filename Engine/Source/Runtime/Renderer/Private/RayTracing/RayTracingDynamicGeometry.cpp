@@ -20,7 +20,8 @@ static bool IsSupportedDynamicVertexFactoryType(const FVertexFactoryType* Vertex
 		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))
 		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeFixedGridVertexFactory"), FNAME_Find))
 		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find))
-		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FGPUSkinPassthroughVertexFactory"), FNAME_Find));
+		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FGPUSkinPassthroughVertexFactory"), FNAME_Find))
+		|| VertexFactoryType == FindVertexFactoryType(FName(TEXT("FInstancedStaticMeshVertexFactory"), FNAME_Find));
 }
 
 class FRayTracingDynamicGeometryConverterCS : public FMeshMaterialShader
@@ -39,6 +40,8 @@ public:
 		PrimitiveId.Bind(Initializer.ParameterMap, TEXT("PrimitiveId"));
 		OutputVertexBaseIndex.Bind(Initializer.ParameterMap, TEXT("OutputVertexBaseIndex"));
 		bApplyWorldPositionOffset.Bind(Initializer.ParameterMap, TEXT("bApplyWorldPositionOffset"));
+		InstanceTransform.Bind(Initializer.ParameterMap, TEXT("InstanceTransform"));
+		InverseTransform.Bind(Initializer.ParameterMap, TEXT("InverseTransform"));
 	}
 
 	FRayTracingDynamicGeometryConverterCS() = default;
@@ -85,6 +88,8 @@ public:
 	LAYOUT_FIELD(FShaderParameter, PrimitiveId);
 	LAYOUT_FIELD(FShaderParameter, bApplyWorldPositionOffset);
 	LAYOUT_FIELD(FShaderParameter, OutputVertexBaseIndex);
+	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
+	LAYOUT_FIELD(FShaderParameter, InverseTransform);
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FRayTracingDynamicGeometryConverterCS, TEXT("/Engine/Private/RayTracing/RayTracingDynamicMesh.usf"), TEXT("RayTracingDynamicGeometryConverterCS"), SF_Compute);
@@ -169,6 +174,10 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		RWBuffer = &VertexPositionBuffer->RWBuffer;
 	}
 
+	FMatrix InstanceTransform = UpdateParams.InstanceTransform;
+	FMatrix InverseTransform = InstanceTransform;
+	InverseTransform.M[3][3] = 1.0f;
+	InverseTransform = InverseTransform.InverseFast();
 
 	for (const FMeshBatch& MeshBatch : UpdateParams.MeshBatches)
 	{
@@ -232,6 +241,8 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		SingleShaderBindings.Add(Shader->PrimitiveId, PrimitiveId);
 		SingleShaderBindings.Add(Shader->OutputVertexBaseIndex, OutputVertexBaseIndex);
 		SingleShaderBindings.Add(Shader->bApplyWorldPositionOffset, UpdateParams.bApplyWorldPositionOffset ? 1 : 0);
+		SingleShaderBindings.Add(Shader->InstanceTransform, InstanceTransform);
+		SingleShaderBindings.Add(Shader->InverseTransform, InverseTransform);
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 		FMeshProcessorShaders ShadersForDebug = Shaders.GetUntypedShaders();

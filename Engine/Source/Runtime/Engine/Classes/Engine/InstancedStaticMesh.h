@@ -500,6 +500,8 @@ public:
 		return Result;
 	}
 
+	bool bAnySegmentUsesWorldPositionOffset = false;
+
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingStaticRelevant() const override
 	{
@@ -508,6 +510,7 @@ public:
 
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) final override;
 	void SetupRayTracingCullClusters();
+	void SetupRayTracingDynamicInstances(int32 NumDynamicInstances);
 
 #endif
 
@@ -574,6 +577,7 @@ protected:
 		FVector Center;
 		float Radius;
 		uint32 Instance;
+		int32 DynamicInstance;
 	};
 
 	struct FRayTracingCullCluster
@@ -584,7 +588,14 @@ protected:
 	};
 
 	TArray<FRayTracingCullCluster> RayTracingCullClusters;
-	bool bSupportRayTracing = true;
+
+	struct FRayTracingDynamicData
+	{
+		FRayTracingGeometry DynamicGeometry;
+		FRWBuffer DynamicGeometryVertexBuffer;
+	};
+
+	TArray<FRayTracingDynamicData> RayTracingDynamicData;
 #endif
 
 	/** Common path for the Get*MeshElement functions */
