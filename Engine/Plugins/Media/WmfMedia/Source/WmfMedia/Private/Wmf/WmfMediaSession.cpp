@@ -301,6 +301,13 @@ bool FWmfMediaSession::CanControl(EMediaControl Control) const
 
 	FScopeLock Lock(&CriticalSection);
 
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	if (Control == EMediaControl::BlockOnFetch)
+	{
+		return true;
+	}
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
+
 	if (Control == EMediaControl::Pause)
 	{
 		return ((SessionState == EMediaState::Playing) && (((Capabilities & MFSESSIONCAP_PAUSE) != 0) || UnthinnedRates.Contains(0.0f)));
@@ -909,7 +916,12 @@ bool FWmfMediaSession::CommitTime(FTimespan Time)
 		UE_LOG(LogWmfMedia, Verbose, TEXT("Session %p: Starting from <current>, because media can't seek"), this);
 		Time = WmfMediaSession::RequestedTimeCurrent;
 	}
+#if WMFMEDIA_PLAYER_VERSION == 1
 	else if (Time == GetTime())
+#else // WMFMEDIA_PLAYER_VERSION == 1
+	// Only do this whan the rate is non zero, otherwise we will not ask for the correct time.
+	else if ((Time == GetTime()) && (SessionRate != 0.0f))
+#endif // WMFMEDIA_PLAYER_VERSION == 1
 	{
 		// Fix for audio desync and video fast-forwarding behavior
 		// There long delay (500ms+) until samples start arriving unless we specifically use RequestedTimeCurrent

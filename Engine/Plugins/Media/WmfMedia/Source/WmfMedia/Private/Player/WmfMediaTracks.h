@@ -188,6 +188,9 @@ public:
 	virtual bool FetchMetadata(TRange<FTimespan> TimeRange, TSharedPtr<IMediaBinarySample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual bool FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample) override;
 	virtual void FlushSamples() override;
+#if WMFMEDIA_PLAYER_VERSION >= 2
+	virtual EFetchBestSampleResult FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse) override;
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 	virtual bool PeekVideoSampleTime(FMediaTimeStamp & TimeStamp) override;
 
 public:

@@ -197,7 +197,11 @@ STDMETHODIMP FWmfMediaSink::GetCharacteristics(__RPC__out DWORD* pdwCharacterist
 		return MF_E_SHUTDOWN;
 	}
 
+#if WMFMEDIA_PLAYER_VERSION == 1
 	*pdwCharacteristics = MEDIASINK_FIXED_STREAMS | MEDIASINK_CAN_PREROLL;
+#else  // WMFMEDIA_PLAYER_VERSION == 1
+	*pdwCharacteristics = MEDIASINK_FIXED_STREAMS | MEDIASINK_CAN_PREROLL | MEDIASINK_RATELESS;
+#endif // WMFMEDIA_PLAYER_VERSION == 1
 
 	return S_OK;
 }

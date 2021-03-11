@@ -478,6 +478,81 @@ void FWmfMediaTracks::FlushSamples()
 	VideoSampleQueue.RequestFlush();
 }
 
+#if WMFMEDIA_PLAYER_VERSION >= 2
+
+IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTimeRange(const TRange<FMediaTimeStamp> & TimeRange, TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe>& OutSample, bool bReverse)
+{
+	FTimespan TimeRangeLow = TimeRange.GetLowerBoundValue().Time;
+	FTimespan TimeRangeHigh = TimeRange.GetUpperBoundValue().Time;
+	TRange<FTimespan> TimeRangeTime(TimeRangeLow, TimeRangeHigh);
+	float CurrentOverlap = 0.0f;
+	IMediaSamples::EFetchBestSampleResult Result = IMediaSamples::EFetchBestSampleResult::NoSample;
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange %f %f"),
+		TimeRangeLow.GetTotalSeconds(), TimeRangeHigh.GetTotalSeconds());
+
+	// Loop over our samples.
+	while (true)
+	{
+		// Is there a sample available?
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+		if (VideoSampleQueue.Peek(Sample))
+		{
+			FTimespan SampleStartTime = Sample->GetTime().Time;
+			FTimespan SampleEndTime = SampleStartTime + Sample->GetDuration();
+			UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange looking at sample %f"), SampleStartTime.GetTotalSeconds());
+			// Are we already past this sample?
+			if (SampleEndTime < TimeRangeLow)
+			{
+				// Yes. Try next sample.
+				VideoSampleQueue.Pop();
+			}
+			else
+			{
+				// Is this sample before the end of the requested time range?
+				if (SampleStartTime < TimeRangeHigh)
+				{
+					// Yes.
+					// Does this sample have the largest overlap so far?
+					TRange<FTimespan> SampleRange(SampleStartTime, SampleEndTime);
+					TRange<FTimespan> OverlapRange = TRange<FTimespan>::Intersection(SampleRange, TimeRangeTime);
+					FTimespan OverlapTimespan = OverlapRange.Size<FTimespan>();
+					float Overlap = OverlapTimespan.GetTotalSeconds();
+					if (CurrentOverlap <= Overlap)
+					{
+						// Yes. Use this sample.
+						if (VideoSampleQueue.Dequeue(OutSample))
+						{
+							Result = IMediaSamples::EFetchBestSampleResult::Ok;
+							CurrentOverlap = Overlap;
+							UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange got sample."));
+						}
+					}
+					else
+					{
+						// No need to continue.
+						// This sample is overlapping our end point.
+						break;
+					}
+				}
+				else
+				{
+					// Sample is not before the end of the requested time range.
+					// We are done for now.
+					break;
+				}
+			}
+		}
+		else
+		{
+			// No samples available.
+			break;
+		}
+	}
+
+	return Result;
+}
+
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
 
 bool FWmfMediaTracks::PeekVideoSampleTime(FMediaTimeStamp & TimeStamp)
 {
