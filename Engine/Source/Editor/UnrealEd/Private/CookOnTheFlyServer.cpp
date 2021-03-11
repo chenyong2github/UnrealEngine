@@ -471,8 +471,6 @@ UCookOnTheFlyServer::~UCookOnTheFlyServer()
 
 	delete CookByTheBookOptions;
 	CookByTheBookOptions = nullptr;
-
-	ClearHierarchyTimers();
 }
 
 // This tick only happens in the editor.  The cook commandlet directly calls tick on the side.
@@ -3362,6 +3360,11 @@ void UCookOnTheFlyServer::EndNetworkFileServer()
 		NetworkFileServer->Shutdown();
 		delete NetworkFileServer;
 		NetworkFileServer = NULL;
+	}
+
+	if (NetworkFileServers.Num() > 0)
+	{
+		ClearHierarchyTimers();
 	}
 	NetworkFileServers.Empty();
 }
