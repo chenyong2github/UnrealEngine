@@ -7,6 +7,7 @@
 #include "Commandlets/EditorDomainSaveCommandlet.h"
 #include "DerivedDataCache.h"
 #include "DerivedDataCacheInterface.h"
+#include "DerivedDataCacheRecord.h"
 #include "Dom/JsonObject.h"
 #include "EditorDomain/EditorDomainUtils.h"
 #include "HAL/FileManager.h"

@@ -4,7 +4,7 @@
 
 #include "Containers/UnrealString.h"
 #include "DerivedDataCacheKey.h"
-#include "DerivedDataCachePrivate.h"
+#include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
 
 namespace UE
@@ -45,7 +45,7 @@ class FCacheRecordInternal final : public ICacheRecordInternal
 {
 public:
 	FCacheRecordInternal() = default;
-	explicit FCacheRecordInternal(FCacheRecordBuilderInternal&& Builder);
+	explicit FCacheRecordInternal(FCacheRecordBuilderInternal&& RecordBuilder);
 
 	virtual ~FCacheRecordInternal() = default;
 
@@ -84,11 +84,11 @@ static FPayloadId GetOrCreatePayloadId(const FPayloadId& Id, const FSharedBuffer
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCacheRecordInternal::FCacheRecordInternal(FCacheRecordBuilderInternal&& Builder)
-	: Key(Builder.Key)
-	, Meta(MoveTemp(Builder.Meta))
-	, Value(MoveTemp(Builder.Value))
-	, Attachments(MoveTemp(Builder.Attachments))
+FCacheRecordInternal::FCacheRecordInternal(FCacheRecordBuilderInternal&& RecordBuilder)
+	: Key(RecordBuilder.Key)
+	, Meta(MoveTemp(RecordBuilder.Meta))
+	, Value(MoveTemp(RecordBuilder.Value))
+	, Attachments(MoveTemp(RecordBuilder.Attachments))
 {
 }
 

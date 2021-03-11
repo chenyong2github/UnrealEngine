@@ -4,7 +4,6 @@
 
 #include "CoreTypes.h"
 #include "DerivedDataCacheKey.h"
-#include "DerivedDataCacheRecord.h"
 #include "DerivedDataRequest.h"
 #include "Misc/EnumClassFlags.h"
 
@@ -14,7 +13,9 @@ namespace DerivedData
 {
 
 class FCacheBucket;
+class FCacheRecord;
 class FCacheRecordBuilder;
+class FPayload;
 struct FCacheGetCompleteParams;
 struct FCacheGetPayloadCompleteParams;
 struct FCachePutCompleteParams;
@@ -106,7 +107,7 @@ public:
 	/**
 	 * Create a cache bucket from a name.
 	 *
-	 * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 characters.
+	 * A cache bucket name must be alphanumeric, non-empty, and contain fewer than 256 code units.
 	 */
 	virtual FCacheBucket CreateBucket(FStringView Name) = 0;
 
@@ -206,7 +207,7 @@ struct FCacheGetCompleteParams
 	 * The value, attachments, and metadata may be skipped based on cache policy flags. When a value
 	 * or attachment has been skipped, it will have a payload but its buffers will be null.
 	 */
-	FCacheRecord Record;
+	FCacheRecord&& Record;
 
 	/** Status of the cache request. */
 	EStatus Status = EStatus::Error;
@@ -223,7 +224,7 @@ struct FCacheGetPayloadCompleteParams
 	 *
 	 * The ID is always populated. The hash and buffer are populated when Status is Cached.
 	 */
-	FPayload Payload;
+	FPayload&& Payload;
 
 	/** Status of the cache request. */
 	EStatus Status = EStatus::Error;

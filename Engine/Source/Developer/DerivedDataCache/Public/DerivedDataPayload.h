@@ -5,10 +5,10 @@
 #include "CoreTypes.h"
 #include "Compression/CompressedBuffer.h"
 #include "Containers/StringConv.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "IO/IoHash.h"
 #include "Memory/MemoryView.h"
-#include "Misc/StringBuilder.h"
 #include "String/BytesToHex.h"
 
 namespace UE

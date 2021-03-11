@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Containers/UnrealString.h"
+#include "DerivedDataCache.h"
 #include "EditorDomain/EditorDomain.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
@@ -10,13 +11,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogEditorDomainSave, Log, All);
 class FAssetPackageData;
 class FPackagePath;
 class IAssetRegistry;
-namespace UE
-{
-namespace DerivedData
-{
-struct FCacheKey;
-}
-}
 
 namespace UE
 {

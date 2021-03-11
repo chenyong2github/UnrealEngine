@@ -4,6 +4,8 @@
 
 #include "AssetRegistry/AssetData.h"
 #include "Async/AsyncFileHandleNull.h"
+#include "DerivedDataCache.h"
+#include "DerivedDataCacheRecord.h"
 #include "EditorDomain/EditorDomainSave.h"
 #include "HAL/UnrealMemory.h"
 #include "Memory/SharedBuffer.h"

@@ -18,6 +18,7 @@
 
 #include "DerivedDataBackendInterface.h"
 #include "DerivedDataCachePrivate.h"
+#include "DerivedDataCacheRecord.h"
 #include "DerivedDataPluginInterface.h"
 #include "DDCCleanup.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -787,9 +788,9 @@ private:
 
 	static FString MakePayloadKey(const FCachePayloadKey& PayloadKey)
 	{
-		check(PayloadKey.Record.Bucket.IsValid() && !PayloadKey.Record.Hash.IsZero() && PayloadKey.Payload.IsValid());
+		check(PayloadKey.CacheKey.Bucket.IsValid() && !PayloadKey.CacheKey.Hash.IsZero() && PayloadKey.Id.IsValid());
 		TStringBuilder<96> Out;
-		Out << PayloadKey.Record.Bucket << TEXT("_") << PayloadKey.Record.Hash << TEXT("_") << PayloadKey.Payload;
+		Out << PayloadKey.CacheKey.Bucket << TEXT("_") << PayloadKey.CacheKey.Hash << TEXT("_") << PayloadKey.Id;
 		return FDerivedDataCacheInterface::SanitizeCacheKey(Out.ToString());
 	}
 };
@@ -803,25 +804,25 @@ void FCache::Put(
 	EPriority Priority,
 	FOnCachePutComplete& Callback)
 {
-	FCachePutCompleteParams Params;
-	Params.Key = Record.GetKey();
+	const FCacheKey& Key = Record.GetKey();
+	EStatus Status = EStatus::Error;
 
 	ON_SCOPE_EXIT
 	{
 		if (Callback)
 		{
-			Callback(MoveTemp(Params));
+			Callback(FCachePutCompleteParams{Key, Status});
 		}
 	};
 
 	if (!EnumHasAnyFlags(Policy, ECachePolicy::Store))
 	{
 		UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Put skipped for %s from '%.*s'"),
-			*WriteToString<96>(Params.Key), Context.Len(), Context.GetData());
+			*WriteToString<96>(Key), Context.Len(), Context.GetData());
 		return;
 	}
 
-	const auto PutPayload = [&Key = Params.Key, Context](const FPayload& Payload)
+	const auto PutPayload = [&Key, Context](const FPayload& Payload)
 	{
 		const FSharedBuffer Buffer = Payload.GetBuffer().GetCompressed();
 		check(Buffer && Buffer.GetSize() <= MAX_int32);
@@ -870,11 +871,11 @@ void FCache::Put(
 	Data.SetNumUninitialized(static_cast<int32>(SaveSize));
 	Writer.Save(MakeMemoryView(Data));
 
-	GetDerivedDataCacheRef().Put(*MakeRecordKey(Params.Key), Data, Context);
+	GetDerivedDataCacheRef().Put(*MakeRecordKey(Key), Data, Context);
 
 	UE_LOG(LogDerivedDataCache, VeryVerbose, TEXT("Cache: Put for %s from '%.*s'"),
-		*WriteToString<96>(Params.Key), Context.Len(), Context.GetData());
-	Params.Status = EStatus::Ok;
+		*WriteToString<96>(Key), Context.Len(), Context.GetData());
+	Status = EStatus::Ok;
 }
 
 FRequest FCache::Put(
@@ -901,15 +902,14 @@ void FCache::Get(
 	FPayload Value;
 	TArray<FPayload> Attachments;
 	TArray<FPayloadId, TInlineAllocator<1>> SkippedPayloads;
-	FCacheRecordBuilder Builder = CreateRecord(Key);
+	FCacheRecordBuilder RecordBuilder = CreateRecord(Key);
+	EStatus Status = EStatus::Error;
 
-	FCacheGetCompleteParams Params;
 	ON_SCOPE_EXIT
 	{
 		if (Callback)
 		{
-			Params.Record = Builder.Build();
-			Callback(MoveTemp(Params));
+			Callback(FCacheGetCompleteParams{RecordBuilder.Build(), Status});
 		}
 	};
 
@@ -1017,20 +1017,20 @@ void FCache::Get(
 	// Populate the builder now that any error conditions have been handled.
 	if (!EnumHasAnyFlags(Policy, ECachePolicy::SkipMeta) && MetaObject.CreateViewIterator())
 	{
-		Builder.SetMeta(MoveTemp(MetaObject));
+		RecordBuilder.SetMeta(MoveTemp(MetaObject));
 	}
 	if (Value)
 	{
-		Builder.SetValue(MoveTemp(Value));
+		RecordBuilder.SetValue(MoveTemp(Value));
 	}
 	for (FPayload& Attachment : Attachments)
 	{
-		Builder.AddAttachment(MoveTemp(Attachment));
+		RecordBuilder.AddAttachment(MoveTemp(Attachment));
 	}
 
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache hit for %s from '%.*s'"),
 		*WriteToString<96>(Key), Context.Len(), Context.GetData());
-	Params.Status = EStatus::Ok;
+	Status = EStatus::Ok;
 }
 
 FRequest FCache::Get(
@@ -1054,18 +1054,14 @@ void FCache::GetPayload(
 	EPriority Priority,
 	FOnCacheGetPayloadComplete& Callback)
 {
-	FCacheGetPayloadCompleteParams Params;
-	Params.Key = Key.Record;
+	FPayload Payload(Key.Id, FIoHash());
+	EStatus Status = EStatus::Error;
 
 	ON_SCOPE_EXIT
 	{
 		if (Callback)
 		{
-			if (!Params.Payload)
-			{
-				Params.Payload = FPayload(Key.Payload, FIoHash());
-			}
-			Callback(MoveTemp(Params));
+			Callback(FCacheGetPayloadCompleteParams{Key.CacheKey, MoveTemp(Payload), Status});
 		}
 	};
 
@@ -1089,7 +1085,7 @@ void FCache::GetPayload(
 			FSharedBuffer RecordBuffer;
 			{
 				TArray<uint8> RecordData;
-				if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key.Record), RecordData, Context))
+				if (!GetDerivedDataCacheRef().GetSynchronous(*MakeRecordKey(Key.CacheKey), RecordData, Context))
 				{
 					UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: Get cache miss with missing record for %s from '%.*s'"),
 						*WriteToString<96>(Key), Context.Len(), Context.GetData());
@@ -1112,10 +1108,10 @@ void FCache::GetPayload(
 			const FCbArrayView AttachmentsArray = RecordObject["Attachments"_ASV].AsArrayView();
 
 			// Find the hash of the payload in the record.
-			const FCbObjectId KeyObjectId(Key.Payload.GetView());
+			const FCbObjectId KeyObjectId(Key.Id.GetView());
 			if (ValueObject["Id"_ASV].AsObjectId() == KeyObjectId)
 			{
-				Params.Payload = FPayload(Key.Payload, ValueObject["Hash"_ASV].AsBinaryAttachment());
+				Payload = FPayload(Key.Id, ValueObject["Hash"_ASV].AsBinaryAttachment());
 			}
 			else
 			{
@@ -1123,17 +1119,17 @@ void FCache::GetPayload(
 				{
 					if (AttachmentField.AsObjectView()["Id"_ASV].AsObjectId() == KeyObjectId)
 					{
-						Params.Payload = FPayload(Key.Payload, AttachmentField.AsObjectView()["Hash"_ASV].AsBinaryAttachment());
+						Payload = FPayload(Key.Id, AttachmentField.AsObjectView()["Hash"_ASV].AsBinaryAttachment());
 						break;
 					}
 				}
 			}
 
-			if (Params.Payload)
+			if (Payload)
 			{
 				UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload (exists) cache hit for %s from '%.*s'"),
 					*WriteToString<96>(Key), Context.Len(), Context.GetData());
-				Params.Status = EStatus::Ok;
+				Status = EStatus::Ok;
 			}
 			else
 			{
@@ -1159,11 +1155,11 @@ void FCache::GetPayload(
 		return;
 	}
 
-	Params.Payload = FPayload(Key.Payload, FCompressedBuffer(MakeSharedBufferFromArray(MoveTemp(Data))));
+	Payload = FPayload(Key.Id, FCompressedBuffer(MakeSharedBufferFromArray(MoveTemp(Data))));
 
 	UE_LOG(LogDerivedDataCache, Verbose, TEXT("Cache: GetPayload cache hit for %s from '%.*s'"),
 		*WriteToString<96>(Key), Context.Len(), Context.GetData());
-	Params.Status = EStatus::Ok;
+	Status = EStatus::Ok;
 }
 
 FRequest FCache::GetPayload(

@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "DerivedDataPayload.h"
 #include "IO/IoHash.h"
-#include "Misc/StringBuilder.h"
 #include "Templates/TypeHash.h"
 
 namespace UE
@@ -36,9 +36,6 @@ public:
 	/** Construct a null cache bucket. */
 	FCacheBucket() = default;
 
-	/** Get the name of the cache bucket as a string. */
-	inline FStringView ToString() const;
-
 	/** Whether this is null. */
 	inline bool IsNull() const { return !Name; }
 	/** Whether this is not null. */
@@ -52,13 +49,21 @@ public:
 
 	inline bool operator<(FCacheBucket Other) const
 	{
-		return Name != Other.Name && ToString().Compare(Other.ToString(), ESearchCase::IgnoreCase) < 0;
+		return Name != Other.Name && ToString<TCHAR>().Compare(Other.ToString<TCHAR>(), ESearchCase::IgnoreCase) < 0;
 	}
 
 	friend inline uint32 GetTypeHash(FCacheBucket Bucket)
 	{
 		return ::GetTypeHash(reinterpret_cast<UPTRINT>(Bucket.Name));
 	}
+
+	/** Get the name of the cache bucket as a string. */
+	template <typename CharType>
+	inline TStringView<CharType> ToString() const;
+	template <>
+	inline FStringView ToString<TCHAR>() const;
+	template <>
+	inline FAnsiStringView ToString<ANSICHAR>() const;
 
 public:
 	// Internal API
@@ -69,18 +74,33 @@ public:
 	}
 
 private:
-	/** Name with a one-byte length stored in the preceding character. */
+	/**
+	 * Name in TCHAR followed by UTF-8 in ANSICHAR, both null-terminated.
+	 *
+	 * The byte preceding the TCHAR name is the number of UTF-8 code units.
+	 * The byte preceding the UTF-8 name length is the number of TCHAR code units.
+	 */
 	const TCHAR* Name = nullptr;
 };
 
-inline FStringView FCacheBucket::ToString() const
+template <>
+inline FStringView FCacheBucket::ToString<TCHAR>() const
 {
-	return Name ? FStringView(Name, *reinterpret_cast<const uint8*>(Name - 1)) : FStringView();
+	return Name ? FStringView(Name, reinterpret_cast<const uint8*>(Name)[-2]) : FStringView();
 }
 
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FCacheBucket& Bucket)
+template <>
+inline FAnsiStringView FCacheBucket::ToString<ANSICHAR>() const
 {
-	return Builder << Bucket.ToString();
+	return Name ? FAnsiStringView(
+		reinterpret_cast<const ANSICHAR*>(Name + reinterpret_cast<const uint8*>(Name)[-2] + 1),
+		reinterpret_cast<const uint8*>(Name)[-1]) : FAnsiStringView();
+}
+
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheBucket& Bucket)
+{
+	return Builder << Bucket.ToString<CharType>();
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -114,9 +134,10 @@ inline uint32 GetTypeHash(const FCacheKey& Key)
 	return HashCombine(GetTypeHash(Key.Bucket), GetTypeHash(Key.Hash));
 }
 
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FCacheKey& Key)
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCacheKey& Key)
 {
-	return Builder << Key.Bucket << TEXT('/') << Key.Hash;
+	return Builder << Key.Bucket << CharType('/') << Key.Hash;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -124,35 +145,36 @@ inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FCacheK
 /** A key that uniquely identifies a payload within a cache record. */
 struct FCachePayloadKey
 {
-	FCacheKey Record;
-	FPayloadId Payload;
+	FCacheKey CacheKey;
+	FPayloadId Id;
 };
 
 inline bool operator==(const FCachePayloadKey& A, const FCachePayloadKey& B)
 {
-	return A.Record == B.Record && A.Payload == B.Payload;
+	return A.CacheKey == B.CacheKey && A.Id == B.Id;
 }
 
 inline bool operator!=(const FCachePayloadKey& A, const FCachePayloadKey& B)
 {
-	return A.Record != B.Record || A.Payload != B.Payload;
+	return A.CacheKey != B.CacheKey || A.Id != B.Id;
 }
 
 inline bool operator<(const FCachePayloadKey& A, const FCachePayloadKey& B)
 {
-	const FCacheKey& KeyA = A.Record;
-	const FCacheKey& KeyB = B.Record;
-	return KeyA == KeyB ? A.Payload < B.Payload : KeyA < KeyB;
+	const FCacheKey& KeyA = A.CacheKey;
+	const FCacheKey& KeyB = B.CacheKey;
+	return KeyA == KeyB ? A.Id < B.Id : KeyA < KeyB;
 }
 
 inline uint32 GetTypeHash(const FCachePayloadKey& Key)
 {
-	return HashCombine(GetTypeHash(Key.Record), GetTypeHash(Key.Payload));
+	return HashCombine(GetTypeHash(Key.CacheKey), GetTypeHash(Key.Id));
 }
 
-inline FStringBuilderBase& operator<<(FStringBuilderBase& Builder, const FCachePayloadKey& Key)
+template <typename CharType>
+inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const FCachePayloadKey& Key)
 {
-	return Builder << Key.Record << TEXT('/') << Key.Payload;
+	return Builder << Key.CacheKey << CharType('/') << Key.Id;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

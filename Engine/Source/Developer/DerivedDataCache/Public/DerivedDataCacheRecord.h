@@ -147,7 +147,7 @@ public:
 	 */
 	inline void SetMeta(FCbObject&& Meta)
 	{
-		return Builder->SetMeta(MoveTemp(Meta));
+		return RecordBuilder->SetMeta(MoveTemp(Meta));
 	}
 
 	/**
@@ -160,7 +160,7 @@ public:
 	 */
 	inline FPayloadId SetValue(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
 	{
-		return Builder->SetValue(Buffer, Id);
+		return RecordBuilder->SetValue(Buffer, Id);
 	}
 
 	/**
@@ -169,7 +169,10 @@ public:
 	 * @param Payload The value payload, which is reset to null.
 	 * @return The ID that was provided. Unique within the scope of the cache record.
 	 */
-	inline FPayloadId SetValue(FPayload&& Payload) { return Builder->SetValue(MoveTemp(Payload)); }
+	inline FPayloadId SetValue(FPayload&& Payload)
+	{
+		return RecordBuilder->SetValue(MoveTemp(Payload));
+	}
 
 	/**
 	 * Add an attachment to the cache record.
@@ -181,7 +184,7 @@ public:
 	 */
 	inline FPayloadId AddAttachment(const FSharedBuffer& Buffer, const FPayloadId& Id = FPayloadId())
 	{
-		return Builder->AddAttachment(Buffer, Id);
+		return RecordBuilder->AddAttachment(Buffer, Id);
 	}
 
 	/**
@@ -192,7 +195,7 @@ public:
 	 */
 	inline FPayloadId AddAttachment(FPayload&& Payload)
 	{
-		return Builder->AddAttachment(MoveTemp(Payload));
+		return RecordBuilder->AddAttachment(MoveTemp(Payload));
 	}
 
 	/**
@@ -203,7 +206,7 @@ public:
 	 */
 	inline FCacheRecord Build()
 	{
-		return Builder->Build();
+		return RecordBuilder->Build();
 	}
 
 	/**
@@ -214,19 +217,19 @@ public:
 	 */
 	inline FRequest BuildAsync(FOnCacheRecordComplete&& Callback, EPriority Priority)
 	{
-		return Builder->BuildAsync(MoveTemp(Callback), Priority);
+		return RecordBuilder->BuildAsync(MoveTemp(Callback), Priority);
 	}
 
 public:
 	// Internal API
 
-	inline explicit FCacheRecordBuilder(Private::ICacheRecordBuilderInternal* InBuilder)
-		: Builder(InBuilder)
+	inline explicit FCacheRecordBuilder(Private::ICacheRecordBuilderInternal* InRecordBuilder)
+		: RecordBuilder(InRecordBuilder)
 	{
 	}
 
 private:
-	TUniquePtr<Private::ICacheRecordBuilderInternal> Builder;
+	TUniquePtr<Private::ICacheRecordBuilderInternal> RecordBuilder;
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

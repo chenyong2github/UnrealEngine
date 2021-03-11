@@ -3,7 +3,6 @@
 #pragma once
 
 #include "AssetRegistry/AssetData.h"
-#include "DerivedDataCache.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
 #include "IO/IoHash.h"

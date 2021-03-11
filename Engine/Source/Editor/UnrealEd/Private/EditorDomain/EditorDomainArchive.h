@@ -3,10 +3,11 @@
 #pragma once
 
 #include "Async/AsyncFileHandle.h"
-#include "DerivedDataCache.h"
+#include "DerivedDataRequest.h"
 #include "EditorDomain/EditorDomain.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
+#include "Memory/SharedBuffer.h"
 #include "Misc/PackagePath.h"
 #include "Serialization/Archive.h"
 #include "Templates/RefCounting.h"
@@ -14,6 +15,7 @@
 #include "UObject/PackageResourceManager.h"
 
 class FAssetPackageData;
+namespace UE { namespace DerivedData { struct FCacheGetCompleteParams; } }
 
 /**
  * An Archive that asynchronously waits for the cache request to complete, and reads either from the returned cache bytes
