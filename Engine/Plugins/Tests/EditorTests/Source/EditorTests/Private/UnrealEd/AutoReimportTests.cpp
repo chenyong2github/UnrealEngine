@@ -817,13 +817,14 @@ bool FAutoReimportWildcardFiltersTest::RunTest(const FString& Parameters)
 	static const TCHAR* DstFilename1 = TEXT("sub-folder/square.png");
 	static const TCHAR* DstFilename2 = TEXT("red-square.png");
 	static const TCHAR* DstFilename3 = TEXT("sub-folder/empty.txt");
-	static const TCHAR* DstFilename4 = TEXT("sub-folder/foo.txt");
 	
 	TSharedPtr<FAutoReimportTestPayload> Test = MakeShareable(new FAutoReimportTestPayload(WorkingDir));
 	Test->Config.Rules.SetApplicableExtensions(TEXT("txt;png;"));
 	Test->Config.Rules.AddWildcardRule(TEXT("sub-folder/*"), true);
 	Test->Config.Rules.AddWildcardRule(TEXT("sub-folder/*.png"), false);
 	Test->Config.bDetectChangesSinceLastRun = true;
+	Test->Config.RequireFileHashes(true);
+	Test->Config.DetectChangesFor(DirectoryWatcher::FFileCacheConfig::FileHash, true);
 
 	IFileManager::Get().MakeDirectory(*( AutoReimportTests::GetWorkingDir() / TEXT("Content") / TEXT("sub-folder")), false);
 		
@@ -861,7 +862,6 @@ bool FAutoReimportWildcardFiltersTest::RunTest(const FString& Parameters)
 			Files.Emplace(SrcFilename2, DstFilename1);
 			Files.Emplace(SrcFilename1, DstFilename2);
 			Files.Emplace(SrcFilename2, DstFilename3);
-			Files.Emplace(SrcFilename2, DstFilename4);
 			if (!CopyTestFiles(*Test, Files))
 			{
 				return;
@@ -880,9 +880,9 @@ bool FAutoReimportWildcardFiltersTest::RunTest(const FString& Parameters)
 				{
 					UE_LOG(LogAutoReimportTests, Error, TEXT("Incorrect number of changes reported (%d != 1)."), Changes.Num());
 				}
-				else if (!Changes[0].Filename.Get().Equals(DstFilename4))
+				else if (!Changes[0].Filename.Get().Equals(DstFilename3))
 				{
-					UE_LOG(LogAutoReimportTests, Error, TEXT("Modified file path reported incorrectly (%s != %s)."), *Changes[0].Filename.Get(), DstFilename4);
+					UE_LOG(LogAutoReimportTests, Error, TEXT("Modified file path reported incorrectly (%s != %s)."), *Changes[0].Filename.Get(), DstFilename3);
 				}
 				return true;
 			};
