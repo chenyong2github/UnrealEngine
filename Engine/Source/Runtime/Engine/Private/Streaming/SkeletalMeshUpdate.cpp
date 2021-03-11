@@ -13,6 +13,7 @@ SkeletalMeshUpdate.cpp: Helpers to stream in and out skeletal mesh LODs.
 #include "Serialization/MemoryReader.h"
 #include "Rendering/SkeletalMeshRenderData.h"
 #include "Components/SkinnedMeshComponent.h"
+#include "Components/SkeletalMeshComponent.h"
 #include "Streaming/RenderAssetUpdate.inl"
 
 extern int32 GStreamingMaxReferenceChecks;
@@ -256,6 +257,10 @@ void FSkeletalMeshStreamOut::ConditionalMarkComponentsDirty(const FContext& Cont
 			if (Comp->PredictedLODLevel < RenderData->PendingFirstLODIdx)
 			{
 				Comp->PredictedLODLevel = RenderData->PendingFirstLODIdx;
+				if(USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Comp))
+				{
+					SkelMeshComp->bRequiredBonesUpToDate = false;
+				}
 				Comp->bForceMeshObjectUpdate = true;
 				Comp->MarkRenderDynamicDataDirty();
 			}

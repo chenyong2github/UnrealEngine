@@ -589,15 +589,22 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 			//	without animated, causing random skinning issues
 			// This can happen if your MinLOD is not valid anymore after loading
 			// which causes meshes to be invisible
+			int32 ModifiedLODLevel = PredictedLODLevel;
 			{
 				int32 MinLodIndex = ComputeMinLOD();
 				int32 MaxLODIndex = MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num() - 1;
-				PredictedLODLevel = FMath::Clamp(PredictedLODLevel, MinLodIndex, MaxLODIndex);
+				ModifiedLODLevel = FMath::Clamp(ModifiedLODLevel, MinLodIndex, MaxLODIndex);
+			}
+
+			// Clamp to loaded streaming data if available
+			if (SkeletalMesh->IsStreamable() && MeshObject)
+			{
+				ModifiedLODLevel = FMath::Max<int32>(ModifiedLODLevel, MeshObject->GetSkeletalMeshRenderData().PendingFirstLODIdx);
 			}
 
 			// If we have a valid LOD, set up required data, during reimport we may try to create data before we have all the LODs
 			// imported, in that case we skip until we have all the LODs
-			if(SkeletalMesh->IsValidLODIndex(PredictedLODLevel))
+			if(SkeletalMesh->IsValidLODIndex(ModifiedLODLevel))
 			{
 				const bool bMorphTargetsAllowed = CVarEnableMorphTargets.GetValueOnAnyThread(true) != 0;
 
@@ -607,7 +614,7 @@ void USkinnedMeshComponent::CreateRenderState_Concurrent(FRegisterComponentConte
 					ActiveMorphTargets.Empty();
 				}
 
-				MeshObject->Update(PredictedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
+				MeshObject->Update(ModifiedLODLevel, this, ActiveMorphTargets, MorphTargetWeights, EPreviousBoneTransformUpdateMode::UpdatePrevious);  // send to rendering thread
 			}
 		}
 
@@ -3009,7 +3016,7 @@ bool USkinnedMeshComponent::UpdateLODStatus_Internal(int32 InMasterPoseComponent
 #endif
 
 		int32 MinLodIndex = ComputeMinLOD();
-		int32 MaxLODIndex = 0;
+		int32 MaxLODIndex = MinLodIndex;
 		if (MeshObject)
 		{
 			MaxLODIndex = MeshObject->GetSkeletalMeshRenderData().LODRenderData.Num() - 1;
