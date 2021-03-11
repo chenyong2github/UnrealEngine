@@ -72,6 +72,8 @@ void FGeometryCollectionConversion::AppendStaticMesh(const UStaticMesh* StaticMe
 			UV[VertexOffset] = VertexBuffer.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, 0);
 			if (VertexBuffer.ColorVertexBuffer.GetNumVertices() == VertexCount)
 				Color[VertexOffset] = VertexBuffer.ColorVertexBuffer.VertexColor(VertexIndex);
+			else
+				Color[VertexOffset] = FLinearColor::White;
 		}
 
 		// Triangle Indices
@@ -654,6 +656,8 @@ void FGeometryCollectionConversion::AppendSkeletalMesh(const USkeletalMesh* Skel
 							UV[VertexOffset] = VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertexIndex, 0);
 							if (VertexBuffers.ColorVertexBuffer.GetNumVertices() == VertexCount)
 								Color[VertexOffset] = VertexBuffers.ColorVertexBuffer.VertexColor(VertexIndex);
+							else
+								Color[VertexOffset] = FLinearColor::White;
 						}
 
 						int32 InitialIndex = -1;

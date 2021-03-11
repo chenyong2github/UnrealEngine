@@ -278,6 +278,7 @@ void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int N
 {
     State.BufferBits |= Value << State.BufferOffset;
 
+	// State.BufferOffset <= 31
     uint NextBufferOffset = State.BufferOffset + NumBits;
     
     if (NextBufferOffset >= 32)
@@ -285,7 +286,13 @@ void BitStreamWriter_Writer(inout FBitStreamWriterState State, uint Value, int N
         State.Output.InterlockedAnd(State.AlignedByteAddress, State.BufferMask);
         State.Output.InterlockedOr(State.AlignedByteAddress, State.BufferBits);
 		State.BufferMask = 0;
-        State.BufferBits = Value >> (32 - State.BufferOffset);
+		
+		// Shifts are mod 32, so we need special handling when shift could be >= 32.
+		// State.BufferOffset can only be 0 here if NumBits >= 32 and therefore CompileTimeMaxBits >= 32.
+		if(CompileTimeMaxBits >= 32)
+			State.BufferBits = State.BufferOffset ? (Value >> (32 - State.BufferOffset)) : 0u;
+		else
+			State.BufferBits = Value >> (32 - State.BufferOffset);
         State.AlignedByteAddress += 4;
     }
 
