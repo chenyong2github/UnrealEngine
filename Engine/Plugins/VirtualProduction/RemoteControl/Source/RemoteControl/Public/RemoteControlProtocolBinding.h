@@ -150,6 +150,13 @@ struct REMOTECONTROL_API FRemoteControlProtocolEntity
 public:
 	virtual ~FRemoteControlProtocolEntity(){}
 
+	/**
+	 * Initialize after allocation
+	 * @param InOwner The preset that owns this entity.
+	 * @param InPropertyId exposed property id.
+	 */
+	void Init(URemoteControlPreset* InOwner, FGuid InPropertyId);
+
 	/** Get exposed property id */
 	const FGuid& GetPropertyId() const { return PropertyId; }
 
@@ -185,7 +192,7 @@ private:
 	/** Get Ranges and Mapping Value pointers */
 	TArray<TPair<const uint8*, const uint8*>> GetRangeMappingBuffers() const;
 
-public:
+protected:
 	/** The preset that owns this entity. */
 	UPROPERTY()
 	TWeakObjectPtr<URemoteControlPreset> Owner;

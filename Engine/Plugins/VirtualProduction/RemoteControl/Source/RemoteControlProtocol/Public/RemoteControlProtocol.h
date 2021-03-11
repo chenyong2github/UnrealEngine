@@ -3,29 +3,21 @@
 #pragma once
 
 #include "IRemoteControlProtocol.h"
-#include "RemoteControlPreset.h"
-#include "RemoteControlProtocolBinding.h"
-
-#include "UObject/StructOnScope.h"
 
 /**
  * Base class implementation for remote control protocol
  */
-class FRemoteControlProtocol : public IRemoteControlProtocol
+class REMOTECONTROLPROTOCOL_API FRemoteControlProtocol : public IRemoteControlProtocol
 {
 public:
-
 	//~ Begin IRemoteControlProtocol interface
-	virtual FRemoteControlProtocolEntityPtr CreateNewProtocolEntity(FProperty* InProperty, URemoteControlPreset* InOwner, FGuid InPropertyId) const override
-	{
-		const FStructOnScope BaseScope(GetProtocolScriptStruct());
-		FRemoteControlProtocolEntityPtr NewDataPtr = MakeShared<TStructOnScope<FRemoteControlProtocolEntity>>();
-		NewDataPtr->InitializeFrom(BaseScope);
-
-		(*NewDataPtr)->Owner = InOwner;
-		(*NewDataPtr)->PropertyId = MoveTemp(InPropertyId);
-
-		return NewDataPtr;
-	}
+	virtual FRemoteControlProtocolEntityPtr CreateNewProtocolEntity(FProperty* InProperty, URemoteControlPreset* InOwner, FGuid InPropertyId) const override;
 	//~ End IRemoteControlProtocol interface
+
+	/**
+	 * Helper function for comparing the Protocol Entity with given Property Id inside returned lambda
+	 * @param InPropertyId Property unique Id
+	 * @return Lambda function with ProtocolEntityWeakPtr as argument
+	 */
+	static TFunction<bool(FRemoteControlProtocolEntityWeakPtr InProtocolEntityWeakPtr)> CreateProtocolComparator(FGuid InPropertyId);
 };

@@ -327,6 +327,12 @@ TSharedPtr<FStructOnScope> FRemoteControlProtocolMapping::GetMappingPropertyAsSt
 	return nullptr;
 }
 
+void FRemoteControlProtocolEntity::Init(URemoteControlPreset* InOwner, FGuid InPropertyId)
+{
+	Owner = InOwner;
+	PropertyId = MoveTemp(InPropertyId);
+}
+
 uint8 FRemoteControlProtocolEntity::GetRangePropertySize() const
 {
 	if (const EName* PropertyType = GetRangePropertyName().ToEName())
