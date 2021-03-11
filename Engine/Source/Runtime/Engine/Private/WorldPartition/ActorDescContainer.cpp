@@ -14,7 +14,6 @@ UActorDescContainer::UActorDescContainer(const FObjectInitializer& ObjectInitial
 	, World(nullptr)
 #if WITH_EDITOR
 	, bContainerInitialized(false)
-	, bIgnoreAssetRegistryEvents(false)
 #endif
 {}
 
@@ -29,8 +28,6 @@ void UActorDescContainer::Initialize(UWorld* InWorld, FName InPackageName, bool 
 	
 	if (!ContainerPackageName.IsNone())
 	{
-		TGuardValue<bool> IgnoreAssetRegistryEvents(bIgnoreAssetRegistryEvents, true);
-
 		const FString LevelPathStr = ContainerPackageName.ToString();
 		const FString LevelExternalActorsPath = ULevel::GetExternalActorsPath(LevelPathStr);
 
@@ -138,50 +135,6 @@ TUniquePtr<FWorldPartitionActorDesc> UActorDescContainer::GetActorDescriptor(con
 	}
 
 	return nullptr;
-}
-
-bool UActorDescContainer::ShouldHandleAssetEvent(const FAssetData& InAssetData)
-{
-	// Ignore asset event when specifically asking to
-	if (bIgnoreAssetRegistryEvents)
-	{
-		return false;
-	}
-
-	// Ignore in-memory assets until they gets saved
-	if (InAssetData.HasAnyPackageFlags(PKG_NewlyCreated))
-	{
-		return false;
-	}
-
-	// Only handle actors
-	if (!InAssetData.GetClass()->IsChildOf<AActor>())
-	{
-		return false;
-	}
-
-	// Make sure asset contains the required tags
-	static FName NAME_ActorMetaDataClass(TEXT("ActorMetaDataClass"));
-	static FName NAME_ActorMetaData(TEXT("ActorMetaData"));
-	if (!InAssetData.FindTag(NAME_ActorMetaDataClass) || !InAssetData.FindTag(NAME_ActorMetaData))
-	{
-		return false;
-	}
-
-	// Only handle assets that belongs to our level
-	auto RemoveAfterFirstDot = [](const FString& InValue)
-	{
-		int32 DotIndex;
-		if (InValue.FindChar(TEXT('.'), DotIndex))
-		{
-			return InValue.LeftChop(InValue.Len() - DotIndex);
-		}
-		return InValue;
-	};
-
-	const FString ThisLevelPath = ContainerPackageName.ToString();
-	const FString AssetLevelPath = RemoveAfterFirstDot(InAssetData.ObjectPath.ToString());
-	return (ThisLevelPath == AssetLevelPath);
 }
 
 void UActorDescContainer::OnObjectPreSave(UObject* Object)

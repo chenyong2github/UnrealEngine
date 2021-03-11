@@ -52,10 +52,7 @@ protected:
 	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) {}
 	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) {}
 
-	bool ShouldHandleAssetEvent(const FAssetData& InAssetData);
-
 	bool bContainerInitialized;
-	bool bIgnoreAssetRegistryEvents;
 
 	FName ContainerPackageName;
 #endif

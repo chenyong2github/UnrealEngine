@@ -102,8 +102,6 @@ private:
 
 	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) override;
 	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) override;
-
-	bool ShouldHandleAssetEvent(const FAssetData& InAssetData);
 #endif
 
 	//~ Begin UObject Interface
