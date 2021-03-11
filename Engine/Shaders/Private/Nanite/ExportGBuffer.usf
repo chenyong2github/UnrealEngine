@@ -315,6 +315,7 @@ bool BinarySearch(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
 
 #if EDITOR_SELECTED_BUFFER_COUNT > 0 || EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
 float2 OutputToInputScale;
+float2 OutputToInputBias;
 #endif
 
 #if EDITOR_LEVELINSTANCE_BUFFER_COUNT > 0
@@ -324,7 +325,7 @@ void EmitEditorLevelInstanceDepthPS(
 	out float OutDepth : SV_Depth
 )
 {
-	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale);
+	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale + OutputToInputBias);
 	UlongType VisPixel = VisBuffer64[PixelPos];
 
 	uint DepthInt = 0;
@@ -361,7 +362,7 @@ void EmitEditorSelectionDepthPS(
 	out float OutDepth : SV_Depth
 )
 {
-	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale);
+	uint2 PixelPos = (uint2)(SvPosition.xy * OutputToInputScale + OutputToInputBias);
 	UlongType VisPixel = VisBuffer64[PixelPos];
 
 	uint DepthInt = 0;
