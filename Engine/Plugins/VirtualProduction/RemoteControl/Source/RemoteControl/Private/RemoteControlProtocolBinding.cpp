@@ -93,7 +93,7 @@ namespace EntityInterpolation
 		{
 			return ensure(false);
 		}
-		if (RangeMax.Key == nullptr || RangeMax.Key == nullptr)
+		if (RangeMax.Key == nullptr || RangeMin.Key == nullptr)
 		{
 			return ensure(false);
 		}
