@@ -84,6 +84,11 @@ public:
 		}
 	}
 
+	bool GetEnableLoadingOfLastLoadedCells() const
+	{
+		return !bDisableLoadingOfLastLoadedCells;
+	}
+
 	const TArray<FName>& GetWorldDataLayersNotLoadedInEditor(UWorld* InWorld)
 	{
 		return PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).NotLoadedDataLayers;
@@ -107,6 +112,9 @@ private:
 
 	UPROPERTY(config)
 	uint32 bShowDataLayerContent : 1;
+
+	UPROPERTY(config)
+	uint32 bDisableLoadingOfLastLoadedCells : 1;
 
 	UPROPERTY(config)
 	TMap<TSoftObjectPtr<UWorld>, FWorldPartitionPerWorldSettings> PerWorldEditorSettings;
