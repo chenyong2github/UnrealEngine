@@ -34,7 +34,7 @@ typedef TArray<FStringFormatArg> FStringFormatOrderedArguments;
 
 TCHAR*       GetData(FString&);
 const TCHAR* GetData(const FString&);
-
+int32        GetNum(const FString& String);
 /**
  * A dynamically sizeable string.
  * @see https://docs.unrealengine.com/latest/INT/Programming/UnrealArchitecture/StringHandling/FString/
@@ -938,14 +938,29 @@ public:
 	}
 
 	/**
-	 * Concatenate this path with given path ensuring the / character is used between them
-	 * 
-	 * @param Str path FString to be concatenated onto the end of this
-	 * @return reference to path
-	 */
-	FORCEINLINE FString& operator/=( const FString& Str )
+	* Concatenate this path with given path ensuring the / character is used between them
+	* 
+	* @param Str path CharRangeType (FString/FStringView/TStringBuilder etc) to be concatenated onto the end of this
+	* @return reference to path
+	*/
+	template <typename CharRangeType, typename TEnableIf<TIsTCharRangeNotCArray <CharRangeType>::Value>::Type* = nullptr>
+	FORCEINLINE FString& operator/=(CharRangeType&& Str)
 	{
-		PathAppend(Str.Data.GetData(), Str.Len());
+		PathAppend(GetData(Str), GetNum(Str));
+		return *this;
+	}
+
+	/**
+	* Concatenate this path with given path ensuring the / character is used between them
+	* 
+	* @param Str path array of CharType (that needs converting) to be concatenated onto the end of this
+	* @return reference to path
+	*/
+	template <typename CharType,typename TEnableIf<TIsCharType<CharType>::Value>::Type* = nullptr>
+	FORCEINLINE FString& operator/=(const CharType* Str)
+	{
+		FString Temp = Str;
+		PathAppend(GetData(Temp), GetNum(Temp));
 		return *this;
 	}
 

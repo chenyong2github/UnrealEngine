@@ -313,7 +313,7 @@ protected:
 };
 
 template <typename CharType>
-constexpr inline SIZE_T GetNum(const TStringBuilderBase<CharType>& Builder)
+constexpr inline int32 GetNum(const TStringBuilderBase<CharType>& Builder)
 {
 	return Builder.Len();
 }

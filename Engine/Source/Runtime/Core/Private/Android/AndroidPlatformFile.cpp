@@ -607,12 +607,12 @@ public:
 		FEntryMap::TIterator Current;
 		FString Path;
 
-		Directory(FEntryMap & entries, const FString & dirpath)
-			: Current(entries.CreateIterator()), Path(dirpath)
+		Directory(FEntryMap& Entries, const FString& DirPath)
+			: Current(Entries.CreateIterator()), Path(DirPath)
 		{
 			if (!Path.IsEmpty())
 			{
-				Path /= "";
+				Path /= TEXT("");
 			}
 			// This would be much easier, and efficient, if TMap
 			// supported getting iterators to found entries in
