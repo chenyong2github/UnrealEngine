@@ -106,6 +106,105 @@ public:
 	}
 
 private:
+	template<typename T>
+	T SwitchOnNumeric(const T& Left, const T& Right, EOnlineStatModificationType ModType) const
+	{
+		switch (ModificationType)
+		{
+		case EOnlineStatModificationType::Sum:
+			return Left + Right;
+		case EOnlineStatModificationType::Set:
+			return Right;
+		case EOnlineStatModificationType::Largest:
+			return (Left > Right) ? Left : Right;
+		case EOnlineStatModificationType::Smallest:
+			return (Left > Right) ? Right : Left;
+		case EOnlineStatModificationType::Unknown:
+		default:
+			return Right; //default- new
+		}
+	}
+
+public:
+	/** Takes the value saved here and its corresponding ModificationType and outputs the new final value. New final value should be directly set onto the preexisting value */
+	FOnlineStatValue GetResult(const FOnlineStatValue& Other) const
+	{
+		if(Other.GetType() != NewValue.GetType())
+		{
+			// mismatched- just return the new value
+			return NewValue;
+		}
+
+		switch(Other.GetType())
+		{
+		case EOnlineKeyValuePairDataType::Int32:
+		{
+			int32 Old, New;
+			Other.GetValue(Old);
+			NewValue.GetValue(New);
+
+			FVariantData ReturnData;
+			ReturnData.SetValue(SwitchOnNumeric(Old, New, ModificationType));
+			return ReturnData;
+		}
+		case EOnlineKeyValuePairDataType::Int64:
+		{
+			int64 Old, New;
+			Other.GetValue(Old);
+			NewValue.GetValue(New);
+
+			FVariantData ReturnData;
+			ReturnData.SetValue(SwitchOnNumeric(Old,New, ModificationType));
+			return ReturnData;
+		}
+		case EOnlineKeyValuePairDataType::UInt32:
+		{
+			uint32 Old, New;
+			Other.GetValue(Old);
+			NewValue.GetValue(New);
+
+			FVariantData ReturnData;
+			ReturnData.SetValue(SwitchOnNumeric(Old, New, ModificationType));
+			return ReturnData;
+		}
+		case EOnlineKeyValuePairDataType::UInt64:
+		{
+			uint64 Old, New;
+			Other.GetValue(Old);
+			NewValue.GetValue(New);
+			FVariantData ReturnData;
+			ReturnData.SetValue(SwitchOnNumeric(Old, New, ModificationType));
+			return ReturnData;
+		}
+		case EOnlineKeyValuePairDataType::Float:
+		{
+			float Old, New;
+			Other.GetValue(Old);
+			NewValue.GetValue(New);
+
+			FVariantData ReturnData;
+			ReturnData.SetValue(SwitchOnNumeric(Old, New, ModificationType));
+			return ReturnData;
+		}
+		case EOnlineKeyValuePairDataType::Double:
+		{
+			double Old, New;
+			Other.GetValue(Old);
+			NewValue.GetValue(New);
+
+			FVariantData ReturnData;
+			ReturnData.SetValue(SwitchOnNumeric(Old, New, ModificationType));
+			return ReturnData;
+		}
+		case EOnlineKeyValuePairDataType::String:
+		default:
+		{
+			return NewValue; // only valid operation here is Set
+		}
+		}
+	}
+
+private:
 	FOnlineStatValue NewValue;
 	EOnlineStatModificationType ModificationType;
 };
