@@ -1581,15 +1581,8 @@ public:
 			for (TRefCountPtr<TMaterial>& Material : Materials)
 			{
 				TMaterial* MaterialToDestroy = Material.GetReference();
-				if (MaterialToDestroy->PrepareDestroy_GameThread())
-				{
-					MaterialsRenderThread.Add(MoveTemp(Material));
-				}
-				else
-				{
-					Material.SafeRelease();
-					delete MaterialToDestroy;
-				}
+				MaterialToDestroy->PrepareDestroy_GameThread();
+				MaterialsRenderThread.Add(MoveTemp(Material));
 			}
 
 			Materials.Empty();
@@ -1605,14 +1598,8 @@ public:
 			TArray<TRefCountPtr<TMaterial>> MaterialsRenderThread;
 			for (TMaterial* Material : Materials)
 			{
-				if (Material->PrepareDestroy_GameThread())
-				{
-					MaterialsRenderThread.Add(Material);
-				}
-				else
-				{
-					delete Material;
-				}
+				Material->PrepareDestroy_GameThread();
+				MaterialsRenderThread.Add(Material);
 			}
 
 			Materials.Empty();
