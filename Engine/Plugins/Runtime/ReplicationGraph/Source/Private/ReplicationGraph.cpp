@@ -3470,9 +3470,8 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 					FDynamicSpatialFrequency_SortedItem& Item = SortedReplicationList[idx];
 					AActor* Actor = Item.Actor;
 					FGlobalActorReplicationInfo& GlobalInfo = *Item.GlobalInfo;
-					FConnectionReplicationActorInfo& ConnectionInfo = ConnectionActorInfoMap.FindOrAdd(Actor);
 				
-					CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionInfo, MySettings, Params.Viewers, FrameNum, idx);
+					CalcFrequencyForActor(Actor, RepGraph, ConnectionActorInfoMap, NetConnection, GlobalInfo, MySettings, Params.Viewers, FrameNum, idx);
 				}
 
 				SortedReplicationList.Sort();
@@ -3616,8 +3615,10 @@ FORCEINLINE uint32 CalcDynamicReplicationPeriod(const float FinalPCT, const uint
 
 static TArray<FColor> DynamicSpatialFrequencyDebugColorArray = { FColor::Red, FColor::Green, FColor::Blue, FColor::Cyan, FColor::Orange, FColor::Purple };
 
-void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
+void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, FPerConnectionActorInfoMap& ConnectionMap, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
 {
+	FConnectionReplicationActorInfo& ConnectionInfo = ConnectionMap.FindOrAdd(Actor);
+
 	// If we need to filter out the actor and he is already in the SortedReplicationList, we need to remove it (instead of just skipping/returning).
 	auto RemoveExistingItem = [&ExistingItemIndex, this]()
 	{
@@ -3722,6 +3723,13 @@ void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor
 
 				// Update actor timeout frame here in case we get starved and can't actually replicate before then
 				ConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(ConnectionInfo.ActorChannelCloseFrameNum, ConnectionInfo.NextReplicationFrameNum + 1);
+
+				const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalInfo.GetDependentActorList();
+				for (AActor* DependentActor : DependentActorList)
+				{
+					FConnectionReplicationActorInfo& DependentActorConnectionInfo = ConnectionMap.FindOrAdd(DependentActor);
+					DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(ConnectionInfo.ActorChannelCloseFrameNum, ConnectionInfo.NextReplicationFrameNum + 1);
+				}
 
 				// Calc Replication Period for FastShared replication
 				if (ActorSupportsFastShared && ZoneInfo.FastPath_MinRepPeriod > 0)
@@ -3830,9 +3838,8 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActors(const FActorRep
 		}
 
 		FGlobalActorReplicationInfo& GlobalInfo = GlobalMap.Get(Actor);
-		FConnectionReplicationActorInfo& ConnectionInfo = ConnectionMap.FindOrAdd(Actor);
 
-		CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionInfo, MySettings, Params.Viewers, FrameNum, INDEX_NONE);
+		CalcFrequencyForActor(Actor, RepGraph, ConnectionMap, NetConnection, GlobalInfo, MySettings, Params.Viewers, FrameNum, INDEX_NONE);
 	}
 }
 
