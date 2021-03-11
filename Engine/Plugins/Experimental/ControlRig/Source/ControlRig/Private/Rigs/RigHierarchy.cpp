@@ -1639,7 +1639,7 @@ void URigHierarchy::SetControlVisibility(FRigControlElement* InControlElement, b
 	}
 
 	InControlElement->Settings.bGizmoVisible = bVisibility;
-		Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
+	Notify(ERigHierarchyNotification::ControlVisibilityChanged, InControlElement);
 }
 
 float URigHierarchy::GetCurveValue(FRigCurveElement* InCurveElement) const
