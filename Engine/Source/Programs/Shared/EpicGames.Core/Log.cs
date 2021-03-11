@@ -969,7 +969,7 @@ namespace EpicGames.Core
 				WriteOnceSet.Add(Formatted);
 			}
 
-			if (Verbosity > OutputLevel)
+			if (Verbosity >= OutputLevel)
 			{
 				lock (SyncObject)
 				{
