@@ -224,7 +224,7 @@ namespace UnrealBuildTool
 
 		protected override string GetLinkArguments(LinkEnvironment LinkEnvironment, string Architecture)
 		{
-			string Result = "";
+			string Result = " -fuse-ld=lld";
 
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
