@@ -323,17 +323,18 @@ void SLevelSequenceContextPicker::Construct(const FArguments& InArgs)
 	[
 		SNew(SBorder)
 		.BorderImage(this, &SLevelSequenceContextPicker::GetBorderBrush)
-		.Padding(0.0f)
+		.Padding(FMargin(4.f, 0.f))
 		[
 			SNew(SComboButton)
 			.ContentPadding(0)
 			.ForegroundColor(FSlateColor::UseForeground())
-			.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+			.ComboButtonStyle(FAppStyle::Get(), "SimpleComboButton")
 			.OnGetMenuContent(this, &SLevelSequenceContextPicker::BuildWorldPickerMenu)
 			.ToolTipText(FText::Format(LOCTEXT("WorldPickerTextFomrat", "'{0}': The world context and playback client that sequencer should be bound to, and playback within."), GetCurrentContextAndClientText()))
 			.ButtonContent()
 			[
 				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 				.Image(FEditorStyle::GetBrush("SceneOutliner.World"))
 			]
 		]

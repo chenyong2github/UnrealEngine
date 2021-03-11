@@ -31,6 +31,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "SEditorHeaderButton.h"
 #include "EditorStyleSet.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "MovieSceneSequenceEditor.h"
@@ -580,6 +581,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 					// Toolbar
 					+ SGridPanel::Slot( Column0, Row0, SGridPanel::Layer(10) )
 					.ColumnSpan(2)
+					.Padding(4.f, 0.f, 8.f, 0.f)
 					[
 						SNew(SBox)
 						.Padding(FMargin(CommonPadding,0.0f,0.0f,0.f))
@@ -620,17 +622,20 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 										SNew(SButton)
 										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
 										.VAlign(EVerticalAlignment::VAlign_Center)
-										.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-										.ForegroundColor(FLinearColor::White)
+										.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 										.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateBackwardTooltip(); })
 										.ContentPadding(FMargin(1, 0))
 										.OnClicked_Lambda([this] { return SequencerPtr.Pin()->NavigateBackward(); })
 										.IsEnabled_Lambda([this] { return SequencerPtr.Pin()->CanNavigateBackward(); })
 										[
-											SNew(STextBlock)
-											.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-											.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-											.Text(FText::FromString(FString(TEXT("\xf060"))) /*fa-arrow-left*/)
+											SNew(SBox) // scale up since the default icons are 16x16
+											.WidthOverride(20)
+											.HeightOverride(20)
+											[
+												SNew(SImage)
+												.ColorAndOpacity(FSlateColor::UseForeground())
+												.Image(FAppStyle::Get().GetBrush("Icons.ArrowLeft"))
+											]
 										]
 									]
 								]
@@ -649,17 +654,20 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 										SNew(SButton)
 										.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
 										.VAlign(EVerticalAlignment::VAlign_Center)
-										.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-										.ForegroundColor(FLinearColor::White)
+										.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 										.ToolTipText_Lambda([this] { return SequencerPtr.Pin()->GetNavigateForwardTooltip(); })
 										.ContentPadding(FMargin(1, 0))
 										.OnClicked_Lambda([this] { return SequencerPtr.Pin()->NavigateForward(); })
 										.IsEnabled_Lambda([this] { return SequencerPtr.Pin()->CanNavigateForward(); })
 										[
-											SNew(STextBlock)
-											.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
-											.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-											.Text(FText::FromString(FString(TEXT("\xf061"))) /*fa-arrow-right*/)
+											SNew(SBox) // scale up since the default icons are 16x16
+											.WidthOverride(20)
+											.HeightOverride(20)
+											[
+												SNew(SImage)
+												.ColorAndOpacity(FSlateColor::UseForeground())
+												.Image(FAppStyle::Get().GetBrush("Icons.ArrowRight"))
+											]
 										]
 									]
 								]
@@ -681,17 +689,15 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								[
 									SAssignNew(BreadcrumbPickerButton, SComboButton)
 									.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
-									.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-									.ForegroundColor(FLinearColor::White)
+									.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 									.OnGetMenuContent_Lambda([this] { return SNew(SSequencerHierarchyBrowser, SequencerPtr); })
 									.HasDownArrow(false)
 									.ContentPadding(FMargin(3, 3))
 									.ButtonContent()
 									[
-										SNew(STextBlock)
-										.TextStyle(FEditorStyle::Get(), "Sequencer.BreadcrumbText")
-										.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.11"))
-										.Text(FText::FromString(FString(TEXT("\xf07c"))) /*fa-folder-open*/)
+										SNew(SImage)
+										.ColorAndOpacity(FSlateColor::UseForeground())
+										.Image(FAppStyle::Get().GetBrush("Icons.FolderOpen"))
 									]
 								]
 
@@ -704,9 +710,9 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 									SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<FSequencerBreadcrumb>)
 									.Visibility(this, &SSequencer::GetBreadcrumbTrailVisibility)
 									.OnCrumbClicked(this, &SSequencer::OnCrumbClicked)
-									.ButtonStyle(FEditorStyle::Get(), "FlatButton")
-									.DelimiterImage(FEditorStyle::GetBrush("Sequencer.BreadcrumbIcon"))
-									.TextStyle(FEditorStyle::Get(), "Sequencer.BreadcrumbText")
+									.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+									.DelimiterImage(FAppStyle::Get().GetBrush("Sequencer.BreadcrumbIcon"))
+									.TextStyle(FAppStyle::Get(), "Sequencer.BreadcrumbText")
 								]
 
 								// Sequence Locking symbol
@@ -714,20 +720,21 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								.HAlign(HAlign_Right)
 								.VAlign(VAlign_Center)
 								.AutoWidth()
-								.Padding(2, 0, 0, 0)
 								[
 									SNew(SCheckBox)
+									.Style(FAppStyle::Get(),"ToggleButtonCheckBoxAlt")
+									.Type(ESlateCheckBoxType::CheckBox) // Use CheckBox instead of ToggleType since we're not putting ohter widget inside
+									.Padding(FMargin(0.f))
 									.IsFocusable(false)		
 									.IsChecked_Lambda([this] { return GetIsSequenceReadOnly() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
 									.OnCheckStateChanged(this, &SSequencer::OnSetSequenceReadOnly)
 									.ToolTipText_Lambda([this] { return GetIsSequenceReadOnly() ? LOCTEXT("UnlockSequence", "Unlock the animation so that it is editable") : LOCTEXT("LockSequence", "Lock the animation so that it is not editable"); } )
-									.ForegroundColor(FLinearColor::White)
-									.CheckedImage(FEditorStyle::GetBrush("Sequencer.LockSequence"))
-									.CheckedHoveredImage(FEditorStyle::GetBrush("Sequencer.LockSequence"))
-									.CheckedPressedImage(FEditorStyle::GetBrush("Sequencer.LockSequence"))
-									.UncheckedImage(FEditorStyle::GetBrush("Sequencer.UnlockSequence"))
-									.UncheckedHoveredImage(FEditorStyle::GetBrush("Sequencer.UnlockSequence"))
-									.UncheckedPressedImage(FEditorStyle::GetBrush("Sequencer.UnlockSequence"))
+									.CheckedImage(FAppStyle::Get().GetBrush("Icons.Lock"))
+									.CheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Lock"))
+									.CheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Lock"))
+									.UncheckedImage(FAppStyle::Get().GetBrush("Icons.Unlock"))
+									.UncheckedHoveredImage(FAppStyle::Get().GetBrush("Icons.Unlock"))
+									.UncheckedPressedImage(FAppStyle::Get().GetBrush("Icons.Unlock"))
 								]
 							]
 						]
@@ -758,7 +765,15 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 							[
 								MakeAddButton()
 							]
-							
+						
+							+ SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							[
+								SAssignNew(SearchBox, SSearchBox)
+								.HintText(LOCTEXT("SearchNodesHint", "Search Tracks"))
+								.OnTextChanged( this, &SSequencer::OnOutlinerSearchChanged )
+							]
+
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
 							.VAlign(VAlign_Center)
@@ -767,13 +782,6 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 								MakeFilterButton()
 							]
 
-							+ SHorizontalBox::Slot()
-							.VAlign(VAlign_Center)
-							[
-								SAssignNew(SearchBox, SSearchBox)
-								.HintText(LOCTEXT("SearchNodesHint", "Search Tracks"))
-								.OnTextChanged( this, &SSequencer::OnOutlinerSearchChanged )
-							]
 							+ SHorizontalBox::Slot()
 							.AutoWidth()
 							.VAlign(VAlign_Center)
@@ -1067,6 +1075,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 					+ SSplitter::Slot()
 					.Value(FillCoefficient_0)
+					.MinSize(200)
 					.OnSlotResized(SSplitter::FOnSlotResized::CreateSP(this, &SSequencer::OnColumnFillCoefficientChanged, 0))
 					[
 						SNew(SSpacer)
@@ -1317,81 +1326,28 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 
 TSharedRef<SWidget> SSequencer::MakeAddButton()
 {
-	return SNew(SComboButton)
+	return SNew(SEditorHeaderButton)
 	.OnGetMenuContent(this, &SSequencer::MakeAddMenu)
-	.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-	.ContentPadding(FMargin(2.0f, 1.0f))
-	.HasDownArrow(false)
-	.ButtonContent()
-	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FEditorFontGlyphs::Plus)
-			.IsEnabled_Lambda([=]() { return !SequencerPtr.Pin()->IsReadOnly(); })
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(4, 0, 0, 0)
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			.Text(LOCTEXT("Track", "Track"))
-			.IsEnabled_Lambda([=]() { return !SequencerPtr.Pin()->IsReadOnly(); })
-		]
-
-		+ SHorizontalBox::Slot()
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		.Padding(4, 0, 0, 0)
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-			.Text(FEditorFontGlyphs::Caret_Down)
-			.IsEnabled_Lambda([=]() { return !SequencerPtr.Pin()->IsReadOnly(); })
-		]
-	];
+	.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+	.Text(LOCTEXT("Track", "Track"))
+	.IsEnabled_Lambda([=]() { return !SequencerPtr.Pin()->IsReadOnly(); });
 }
 
 TSharedRef<SWidget> SSequencer::MakeFilterButton()
 {
 	return SNew(SComboButton)
-	.ComboButtonStyle(FEditorStyle::Get(), "GenericFilters.ComboButtonStyle")
-	.ForegroundColor(FLinearColor::White)
+	.ButtonStyle( FAppStyle::Get(), "SimpleButton" )
+	.ForegroundColor(FSlateColor::UseForeground())
 	.ContentPadding(0)
 	.ToolTipText(LOCTEXT("AddTrackFilterToolTip", "Add a track filter."))
 	.OnGetMenuContent(this, &SSequencer::MakeFilterMenu)
-	.HasDownArrow(true)
 	.ContentPadding(FMargin(1, 0))
+	.HasDownArrow(false)
 	.ButtonContent()
 	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-			.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-			.Text(FEditorFontGlyphs::Filter)
-		]
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.Padding(2, 0, 0, 0)
-		[
-			SNew(STextBlock)
-			.TextStyle(FEditorStyle::Get(), "GenericFilters.TextStyle")
-			.Text(LOCTEXT("Filters", "Filters"))
-		]
+		SNew(SImage)
+		.ColorAndOpacity(FSlateColor::UseForeground())
+		.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
 	];
 }
 

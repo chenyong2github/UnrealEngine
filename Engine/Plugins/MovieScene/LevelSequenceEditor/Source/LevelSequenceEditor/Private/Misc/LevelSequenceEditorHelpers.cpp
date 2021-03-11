@@ -79,6 +79,7 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 		Details2View = PropertyEditor.CreateDetailView(Details2ViewArgs);
 
 		ChildSlot
+		.Padding(8.f)
 		[
 			SNew(SVerticalBox)
 
@@ -122,7 +123,8 @@ class SMasterSequenceSettings : public SCompoundWidget, public FGCObject
 			.Padding(5.f)
 			[
 				SNew(SButton)
-				.ContentPadding(FMargin(10, 5))
+                .ButtonStyle( &FAppStyle::Get().GetWidgetStyle< FButtonStyle >( "PrimaryButton" ) )
+                .TextStyle( &FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >("DialogButtonText"))
 				.Text(LOCTEXT("CreateMasterSequence", "Create Master Sequence"))
 				.OnClicked(this, &SMasterSequenceSettings::OnCreateMasterSequence)
 			]
