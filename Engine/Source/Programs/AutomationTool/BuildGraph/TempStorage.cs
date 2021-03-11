@@ -1402,20 +1402,27 @@ namespace AutomationTool
 			// Try to delete any empty branch folders
 			foreach (DirectoryInfo StreamDirectory in new DirectoryInfo(TempStorageDir).EnumerateDirectories())
 			{
-				if(StreamDirectory.EnumerateDirectories().Count() == 0 && StreamDirectory.EnumerateFiles().Count() == 0)
+				try
 				{
-					try
+					if (StreamDirectory.EnumerateDirectories().Count() == 0 && StreamDirectory.EnumerateFiles().Count() == 0)
 					{
-						StreamDirectory.Delete();
+						try
+						{
+							StreamDirectory.Delete();
+						}
+						catch (IOException)
+						{
+							// only catch "directory is not empty type exceptions, if possible. Best we can do is check for IOException.
+						}
+						catch (Exception Ex)
+						{
+							CommandUtils.LogWarning("Unexpected failure trying to delete (potentially empty) stream directory {0}: {1}", StreamDirectory.FullName, Ex);
+						}
 					}
-					catch (IOException)
-					{
-						// only catch "directory is not empty type exceptions, if possible. Best we can do is check for IOException.
-					}
-					catch (Exception Ex)
-					{
-						CommandUtils.LogWarning("Unexpected failure trying to delete (potentially empty) stream directory {0}: {1}", StreamDirectory.FullName, Ex);
-					}
+				}
+				catch (Exception Ex)
+				{
+					Log.TraceError("Exception while trying to delete {0}: {1}", StreamDirectory, Ex);
 				}
 			}
 		}
