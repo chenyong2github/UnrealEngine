@@ -6,6 +6,7 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/DateTime.h"
+#include "Misc/CommandLine.h"
 #include "AutomationControllerSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationTelemetry, Log, All)
