@@ -243,9 +243,9 @@ void FHairStrandsVertexFactory::InitRHI()
 	if (bNeedsDeclaration)
 	{
 		check(Streams.Num() > 0);
-		InitDeclaration(Elements);
-		check(IsValidRef(GetDeclaration()));
 	}
+	InitDeclaration(Elements);
+	check(IsValidRef(GetDeclaration()));
 }
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FHairStrandsVertexFactory, SF_Vertex,		FHairStrandsVertexFactoryShaderParameters);
