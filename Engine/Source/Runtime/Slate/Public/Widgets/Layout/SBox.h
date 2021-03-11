@@ -21,6 +21,8 @@ class FSlateWindowElementList;
  */
 class SLATE_API SBox : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SBox, SPanel)
+
 public:
 	class FBoxSlot : public TSupportsOneChildMixin<FBoxSlot>, public TSupportsContentAlignmentMixin<FBoxSlot>, public TSupportsContentPaddingMixin<FBoxSlot>
 	{
@@ -140,24 +142,24 @@ protected:
 
 private:
 	/** When specified, ignore the content's desired size and report the.WidthOverride as the Box's desired width. */
-	TAttribute<FOptionalSize> WidthOverride;
+	TSlateAttribute<FOptionalSize> WidthOverride;
 
 	/** When specified, ignore the content's desired size and report the.HeightOverride as the Box's desired height. */
-	TAttribute<FOptionalSize> HeightOverride;
+	TSlateAttribute<FOptionalSize> HeightOverride;
 
 	/** When specified, will report the MinDesiredWidth if larger than the content's desired width. */
-	TAttribute<FOptionalSize> MinDesiredWidth;
+	TSlateAttribute<FOptionalSize> MinDesiredWidth;
 
 	/** When specified, will report the MinDesiredHeight if larger than the content's desired height. */
-	TAttribute<FOptionalSize> MinDesiredHeight;
+	TSlateAttribute<FOptionalSize> MinDesiredHeight;
 
 	/** When specified, will report the MaxDesiredWidth if smaller than the content's desired width. */
-	TAttribute<FOptionalSize> MaxDesiredWidth;
+	TSlateAttribute<FOptionalSize> MaxDesiredWidth;
 
 	/** When specified, will report the MaxDesiredHeight if smaller than the content's desired height. */
-	TAttribute<FOptionalSize> MaxDesiredHeight;
+	TSlateAttribute<FOptionalSize> MaxDesiredHeight;
 
-	TAttribute<FOptionalSize> MinAspectRatio;
+	TSlateAttribute<FOptionalSize> MinAspectRatio;
 
-	TAttribute<FOptionalSize> MaxAspectRatio;
+	TSlateAttribute<FOptionalSize> MaxAspectRatio;
 };
