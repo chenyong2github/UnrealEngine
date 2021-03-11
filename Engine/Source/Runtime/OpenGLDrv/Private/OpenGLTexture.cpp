@@ -2087,20 +2087,20 @@ FShaderResourceViewRHIRef FOpenGLDynamicRHI::RHICreateShaderResourceView(FRHITex
 /** Generates mip maps for the surface. */
 void FOpenGLDynamicRHI::RHIGenerateMips(FRHITexture* SurfaceRHI)
 {
-	VERIFY_GL_SCOPE();
-
-	FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(SurfaceRHI);
-
-	if ( FOpenGL::SupportsGenerateMipmap())
+	if (FOpenGL::SupportsGenerateMipmap())
 	{
-		GPUProfilingData.RegisterGPUWork(0);
+		RunOnGLRenderContextThread([=]()
+		{
+			VERIFY_GL_SCOPE();
+			GPUProfilingData.RegisterGPUWork(0);
 
-		FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
-		// Setup the texture on a disused unit
-		// need to figure out how to setup mips properly in no views case
-		CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->GetResource(), -1, 1);
-
-		FOpenGL::GenerateMipmap( Texture->Target);
+			FOpenGLContextState& ContextState = GetContextStateForCurrentContext();
+			FOpenGLTextureBase* Texture = GetOpenGLTextureFromRHITexture(SurfaceRHI);
+			// Setup the texture on a disused unit
+			// need to figure out how to setup mips properly in no views case
+			CachedSetupTextureStage(ContextState, FOpenGL::GetMaxCombinedTextureImageUnits() - 1, Texture->Target, Texture->GetResource(), -1, Texture->NumMips); 
+			FOpenGL::GenerateMipmap(Texture->Target);
+		});
 	}
 	else
 	{
