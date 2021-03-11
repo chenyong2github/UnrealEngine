@@ -47,12 +47,14 @@ void FShaderCompileDistributedThreadRunnable_Interface::DispatchShaderCompileJob
 	const FString InputFileName = FPaths::GetCleanFilename(InputFilePath);
 	const FString OutputFileName = FPaths::GetCleanFilename(OutputFilePath);
 
-	const FString WorkerParameters = FString::Printf(TEXT("\"%s/\" %d 0 \"%s\" \"%s\" -xge_int %s"),
+	const FString WorkerParameters = FString::Printf(TEXT("\"%s/\" %d 0 \"%s\" \"%s\" -xge_int %s%s"),
 		*WorkingDirectory,
 		Manager->ProcessId,
 		*InputFileName,
 		*OutputFileName,
-		*FCommandLine::GetSubprocessCommandline());
+		*FCommandLine::GetSubprocessCommandline(),
+		GIsBuildMachine ? TEXT(" -buildmachine") : TEXT("")
+	);
 
 	// Serialize the jobs to the input file
 	FArchive* InputFileAr = IFileManager::Get().CreateFileWriter(*InputFilePath, FILEWRITE_EvenIfReadOnly | FILEWRITE_NoFail);
