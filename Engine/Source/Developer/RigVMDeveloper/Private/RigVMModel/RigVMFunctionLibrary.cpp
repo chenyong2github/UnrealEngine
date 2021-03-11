@@ -5,11 +5,21 @@
 URigVMFunctionLibrary::URigVMFunctionLibrary()
 : URigVMGraph()
 {
+	
 }
 
 FString URigVMFunctionLibrary::GetNodePath() const
 {
 	return FString::Printf(TEXT("FunctionLibrary::%s"), *Super::GetNodePath());
+}
+
+URigVMFunctionLibrary* URigVMFunctionLibrary::GetDefaultFunctionLibrary() const
+{
+	if(URigVMFunctionLibrary* DefaultFunctionLibrary = Super::GetDefaultFunctionLibrary())
+	{
+		return DefaultFunctionLibrary;
+	}
+	return (URigVMFunctionLibrary*)this;
 }
 
 TArray<URigVMLibraryNode*> URigVMFunctionLibrary::GetFunctions() const

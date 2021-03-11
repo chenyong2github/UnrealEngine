@@ -100,7 +100,7 @@ public:
 
 	// Returns the locally available function library
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
-	URigVMFunctionLibrary* GetDefaultFunctionLibrary() const;
+	virtual URigVMFunctionLibrary* GetDefaultFunctionLibrary() const;
 
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	void SetDefaultFunctionLibrary(URigVMFunctionLibrary* InFunctionLibrary);

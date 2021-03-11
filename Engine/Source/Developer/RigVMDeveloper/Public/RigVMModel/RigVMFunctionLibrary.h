@@ -44,6 +44,7 @@ public:
 
 	// URigVMGraph interface
 	virtual FString GetNodePath() const override;
+	virtual URigVMFunctionLibrary* GetDefaultFunctionLibrary() const override;
 	// end URigVMGraph interface
 
 	// Returns all of the stored functions
