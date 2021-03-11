@@ -1315,6 +1315,24 @@ TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshPro
 	TArray<FMeshData> MeshData;
 	MeshData.SetNum(InDescriptors.Num());
 
+	// Step that must run on the game thread
+	for (int32 MeshIndex = 0; MeshIndex < InDescriptors.Num(); MeshIndex++)
+	{
+		FMeshData& MeshSettings = MeshData[MeshIndex];
+		FMeshDescription& MeshDescription = *InMeshDescriptions[MeshIndex];
+		const FProxyMeshDescriptor& MeshDescriptor = InDescriptors[MeshIndex];
+
+		if (!InMeshProxySettings.bGroupIdenticalMeshesForBaking)
+		{
+			if (MeshDescriptor.GetLightMapIndex() != INDEX_NONE)
+			{
+				MeshSettings.LightMap = MeshDescriptor.GetLightMap();
+				MeshSettings.LightMapIndex = MeshDescriptor.GetLightMapIndex();
+			}
+		}
+	}
+
+	// Parallel step
 	ParallelFor(InDescriptors.Num(), [&MeshData, &InDescriptors, &InMeshDescriptions, &InMeshProxySettings](uint32 MeshIndex)
 	{
 		const FProxyMeshDescriptor& MeshDescriptor = InDescriptors[MeshIndex];
@@ -1333,12 +1351,6 @@ TArray<FMeshData> PrepareBakingMeshes(const struct FMeshProxySettings& InMeshPro
 		{
 			FMeshDescription& MeshDescription = *InMeshDescriptions[MeshIndex];
 			MeshSettings.MeshDescription = &MeshDescription;
-
-			if (MeshDescriptor.GetLightMapIndex() != INDEX_NONE)
-			{
-				MeshSettings.LightMap = MeshDescriptor.GetLightMap();
-				MeshSettings.LightMapIndex = MeshDescriptor.GetLightMapIndex();
-			}
 
 			TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = FStaticMeshAttributes(MeshDescription).GetVertexInstanceUVs();
 
