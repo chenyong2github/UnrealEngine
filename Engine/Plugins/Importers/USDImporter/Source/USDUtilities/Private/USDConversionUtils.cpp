@@ -789,10 +789,19 @@ void UsdUtils::AddReference( UE::FUsdPrim& Prim, const TCHAR* AbsoluteFilePath )
 		}
 	}
 
+	FString RelativePath = AbsoluteFilePath;
+
 	pxr::SdfLayerHandle EditLayer = UsdPrim.GetStage()->GetEditTarget().GetLayer();
 
-	FString RelativePath = AbsoluteFilePath;
-	MakePathRelativeToLayer( UE::FSdfLayer( EditLayer ), RelativePath );
+	std::string RepositoryPath = EditLayer->GetRepositoryPath().empty() ? EditLayer->GetRealPath() : EditLayer->GetRepositoryPath();
+
+	// If we're editing an in-memory stage our root layer may not have a path yet
+	// Giving an empty InRelativeTo to MakePathRelativeTo causes it to use the engine binary
+	if ( !RepositoryPath.empty() )
+	{
+		FString LayerAbsolutePath = UsdToUnreal::ConvertString( RepositoryPath );
+		FPaths::MakePathRelativeTo( RelativePath, *LayerAbsolutePath );
+	}
 
 	References.AddReference( UnrealToUsd::ConvertString( *RelativePath ).Get() );
 #endif // #if USE_USD_SDK

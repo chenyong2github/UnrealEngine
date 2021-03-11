@@ -57,7 +57,10 @@ bool UsdUtils::InsertSubLayer( const TUsdStore< pxr::SdfLayerRefPtr >& ParentLay
 	FString LayerFilePath = UsdToUnreal::ConvertString( UsdLayerFilePath );
 
 	FString SubLayerFilePath = FPaths::ConvertRelativePathToFull( SubLayerFile );
-	FPaths::MakePathRelativeTo( SubLayerFilePath, *LayerFilePath );
+	if ( !LayerFilePath.IsEmpty() )
+	{
+		FPaths::MakePathRelativeTo( SubLayerFilePath, *LayerFilePath );
+	}
 
 	ParentLayer.Get()->InsertSubLayerPath( UnrealToUsd::ConvertString( *SubLayerFilePath ).Get(), Index );
 

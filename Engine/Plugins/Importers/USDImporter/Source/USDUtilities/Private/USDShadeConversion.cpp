@@ -1197,7 +1197,10 @@ namespace UsdShadeConversionImpl
 
 				pxr::UsdShadeInput TextureFileInput = UsdUVTextureShader.CreateInput( UnrealIdentifiers::File, pxr::SdfValueTypeNames->Asset );
 				FString TextureRelativePath = *TextureFilePath;
-				FPaths::MakePathRelativeTo( TextureRelativePath, *UsdFilePath );
+				if ( !UsdFilePath.IsEmpty() )
+				{
+					FPaths::MakePathRelativeTo( TextureRelativePath, *UsdFilePath );
+				}
 				TextureFileInput.Set( pxr::SdfAssetPath( UnrealToUsd::ConvertString( *TextureRelativePath ).Get() ) );
 
 				pxr::UsdShadeInput TextureStInput = UsdUVTextureShader.CreateInput( UnrealIdentifiers::St, pxr::SdfValueTypeNames->Float2 );
@@ -1378,7 +1381,6 @@ bool UsdToUnreal::ConvertMaterial( const pxr::UsdShadeMaterial& UsdShadeMaterial
 		{
 			Material.BaseColor.Expression = Expression;
 			SetOutputIndex( ParameterValue, Material.BaseColor.OutputIndex );
-			
 			bHasMaterialInfo = true;
 		}
 	}
