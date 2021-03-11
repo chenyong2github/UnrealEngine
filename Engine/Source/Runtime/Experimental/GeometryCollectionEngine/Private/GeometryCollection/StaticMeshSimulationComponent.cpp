@@ -87,7 +87,6 @@ void UStaticMeshSimulationComponent::TickComponent(float DeltaTime, enum ELevelT
 #endif
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 Chaos::FPhysicsSolver* GetSolver(const UStaticMeshSimulationComponent& StaticMeshSimulationComponent)
 {
 #if INCLUDE_CHAOS
@@ -96,7 +95,6 @@ Chaos::FPhysicsSolver* GetSolver(const UStaticMeshSimulationComponent& StaticMes
 	return nullptr;
 #endif
 }
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void UStaticMeshSimulationComponent::OnCreatePhysicsState()
 {
