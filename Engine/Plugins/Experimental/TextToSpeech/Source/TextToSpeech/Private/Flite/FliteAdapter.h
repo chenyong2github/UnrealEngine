@@ -5,12 +5,12 @@
 #include "CoreMinimal.h"
 #include "Flite/FliteSynthesizedSpeechData.h"
 
-namespace FliteSpeechStreaming
+struct FliteSpeechStreaming
 {
 	/** Delegate that fires when flite streams in a chunk of audio */
 	DECLARE_DELEGATE_OneParam(FOnSynthesizedSpeechChunk, FFliteSynthesizedSpeechData);
-	FOnSynthesizedSpeechChunk OnSynthesizedSpeechChunk;
-} // namespace Flite
+	static FOnSynthesizedSpeechChunk OnSynthesizedSpeechChunk;
+};
 
 struct cst_voice_struct;
 struct cst_audio_streaming_info_struct;
