@@ -794,7 +794,15 @@ FScreenPassTexture AddAmbientOcclusionPass(
 	SharedParameters.SSAOParameters = GetSSAOShaderParameters(View, InputViewport, OutputViewport, CommonParameters.SceneTexturesViewport, EAOTechnique::SSAO);
 
 	SharedParameters.SSAO_SetupTexture = SetupTexture.Texture;
-	SharedParameters.SSAO_NormalsTexture = NormalsTexture.Texture;
+
+	if (NormalsTexture.IsValid())
+	{
+		SharedParameters.SSAO_NormalsTexture = NormalsTexture.Texture;
+	}
+	else
+	{
+		SharedParameters.SSAO_NormalsTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy, TEXT("BlackDummy"));
+	}
 
 	if (DownsampledAO.IsValid())
 	{
