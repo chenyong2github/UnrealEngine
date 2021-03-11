@@ -159,6 +159,34 @@ void UBlueprintGeneratedClass::PostLoad()
 	AssembleReferenceTokenStream(true);
 }
 
+void UBlueprintGeneratedClass::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+{
+	Super::GetAssetRegistryTags(OutTags);
+
+	FString NativeParentClassName;
+	FString ParentClassName;
+
+	if (UClass* ParentClass = GetSuperClass())
+	{
+		ParentClassName = FString::Printf(TEXT("%s'%s'"), *ParentClass->GetClass()->GetName(), *ParentClass->GetPathName());
+
+		// Walk up until we find a native class (ie 'while they are BP classes')
+		UClass* NativeParentClass = ParentClass;
+		while (Cast<UBlueprintGeneratedClass>(NativeParentClass))
+		{
+			NativeParentClass = NativeParentClass->GetSuperClass();
+		}
+		NativeParentClassName = FString::Printf(TEXT("%s'%s'"), *NativeParentClass->GetClass()->GetName(), *NativeParentClass->GetPathName());
+	}
+	else
+	{
+		NativeParentClassName = ParentClassName = TEXT("None");
+	}
+
+	OutTags.Add(FAssetRegistryTag(FBlueprintTags::ParentClassPath, ParentClassName, FAssetRegistryTag::TT_Alphabetical));
+	OutTags.Add(FAssetRegistryTag(FBlueprintTags::NativeParentClassPath, NativeParentClassName, FAssetRegistryTag::TT_Alphabetical));
+}
+
 FPrimaryAssetId UBlueprintGeneratedClass::GetPrimaryAssetId() const
 {
 	FPrimaryAssetId AssetId;

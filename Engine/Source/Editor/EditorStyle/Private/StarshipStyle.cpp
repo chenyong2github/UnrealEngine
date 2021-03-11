@@ -5888,6 +5888,7 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			{TEXT("BlockingVolume")},
 			{TEXT("Blueprint")},
 			{TEXT("BlueprintFunctionLibrary")},
+			{TEXT("BlueprintGeneratedClass")},
 			{TEXT("BoxReflectionCapture")},
 			{TEXT("Brush")},
 			{TEXT("ButtonStyleAsset")},
@@ -6023,6 +6024,7 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			{TEXT("VolumetricCloud"), false},
 			{TEXT("VolumetricLightmapDensityVolume")},
 			{TEXT("WidgetBlueprint")},
+			{TEXT("WidgetBlueprintGeneratedClass")},
 			{TEXT("WindDirectionalSource")},
 			{TEXT("World")},
 		};
