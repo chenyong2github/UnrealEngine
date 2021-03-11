@@ -163,6 +163,8 @@ namespace Chaos
 		/**/
 		FDirtyParticlesBuffer* GetDirtyParticlesBuffer() const { return MDirtyParticlesBuffer.Get(); }
 
+		int32 NumJointConstraints() const;
+		int32 NumCollisionConstraints() const;
 
 		//Make friend with unit test code so we can verify some behavior
 		template <typename TSolver>

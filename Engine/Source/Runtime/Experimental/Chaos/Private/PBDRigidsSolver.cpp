@@ -28,6 +28,18 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
 
+// Stat Counters
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDisabledParticles"), STAT_ChaosCounter_NumDisabledParticles, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumParticles"), STAT_ChaosCounter_NumParticles, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDynamicParticles"), STAT_ChaosCounter_NumDynamicParticles, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumKinematicParticles"), STAT_ChaosCounter_NumKinematicParticles, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumStaticParticles"), STAT_ChaosCounter_NumStaticParticles, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumGeomCollParticles"), STAT_ChaosCounter_NumGeometryCollectionParticles, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumIslands"), STAT_ChaosCounter_NumIslands, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumContacts"), STAT_ChaosCounter_NumContacts, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumJoints"), STAT_ChaosCounter_NumJoints, STATGROUP_ChaosCounters);
+
+
 // DebugDraw CVars
 #if CHAOS_DEBUG_DRAW
 
@@ -251,6 +263,22 @@ namespace Chaos
 				}
 #endif
 			}
+
+			{
+				// Particle counts
+				SET_DWORD_STAT(STAT_ChaosCounter_NumDisabledParticles, MSolver->GetEvolution()->GetParticles().GetAllParticlesView().Num() - MSolver->GetEvolution()->GetParticles().GetNonDisabledView().Num());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumParticles, MSolver->GetEvolution()->GetParticles().GetNonDisabledView().Num());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumDynamicParticles, MSolver->GetEvolution()->GetParticles().GetNonDisabledDynamicView().Num());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumKinematicParticles, MSolver->GetEvolution()->GetParticles().GetActiveKinematicParticlesView().Num());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumStaticParticles, MSolver->GetEvolution()->GetParticles().GetActiveStaticParticlesView().Num());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumGeometryCollectionParticles, MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles().Size());
+
+				// Constraint counts
+				SET_DWORD_STAT(STAT_ChaosCounter_NumIslands, MSolver->GetEvolution()->GetConstraintGraph().NumIslands());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumContacts, MSolver->NumCollisionConstraints());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumJoints, MSolver->NumJointConstraints());
+			}
+
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_EventDataGathering);
@@ -1130,6 +1158,17 @@ namespace Chaos
 	{
 		PullPhysicsStateForEachDirtyProxy_External([](auto){});
 	}
+
+	int32 FPBDRigidsSolver::NumJointConstraints() const
+	{
+		return JointConstraints.NumConstraints();
+	}
+	
+	int32 FPBDRigidsSolver::NumCollisionConstraints() const
+	{
+		return GetEvolution()->GetCollisionConstraints().NumConstraints();
+	}
+
 
 	void FPBDRigidsSolver::PostTickDebugDraw(FReal Dt) const
 	{
