@@ -704,8 +704,11 @@ void SAnimMontagePanel::SummonTrackContextMenu( FMenuBuilder& MenuBuilder, float
 	// Slots
 	MenuBuilder.BeginSection("AnimMontageSlots", LOCTEXT("Slots", "Slots") );
 	{
-		UIAction.ExecuteAction.BindRaw(this, &SAnimMontagePanel::OnNewSlotClicked);
-		MenuBuilder.AddMenuEntry(LOCTEXT("NewSlot", "New Slot"), LOCTEXT("NewSlotToolTip", "Adds a new Slot"), FSlateIcon(), UIAction);
+		MenuBuilder.AddSubMenu(
+			LOCTEXT("NewSlot", "New Slot"),
+			LOCTEXT("NewSlotToolTip", "Adds a new Slot"), 
+			FNewMenuDelegate::CreateSP(this, &SAnimMontagePanel::BuildNewSlotMenu)
+		);
 
 		if(AnimSlotIndex != INDEX_NONE)
 		{
@@ -751,9 +754,53 @@ void SAnimMontagePanel::FillSlotSubMenu(FMenuBuilder& Menubuilder)
 }
 
 /** Slots */
-void SAnimMontagePanel::OnNewSlotClicked()
+
+void SAnimMontagePanel::BuildNewSlotMenu(FMenuBuilder& InMenuBuilder)
 {
-	AddNewMontageSlot(FAnimSlotGroup::DefaultSlotName);
+	USkeleton* Skeleton = Montage->GetSkeleton();
+	FName CurrentSlotGroupName = FAnimSlotGroup::DefaultGroupName;
+	if (Montage->SlotAnimTracks.Num() > 0)
+	{
+		FName CurrentSlotName = Montage->SlotAnimTracks[0].SlotName;
+		CurrentSlotGroupName = Skeleton->GetSlotGroupName(CurrentSlotName);
+	}
+		
+	if (FAnimSlotGroup* SlotGroup = Skeleton->FindAnimSlotGroup(CurrentSlotGroupName))
+	{
+		InMenuBuilder.BeginSection("AnimMontageAvailableAddSlots", FText::FromString(SlotGroup->GroupName.ToString()));
+		{
+			for (const FName& SlotName : SlotGroup->SlotNames)
+			{
+				FText SlotItemText = FText::FromString(*SlotName.ToString());
+
+				FText Tooltip = CanCreateNewSlot(SlotName) ? FText::Format(LOCTEXT("SlotTooltipFormat", "Add new Slot '{0}'"), SlotItemText) :
+				                                             FText::Format(LOCTEXT("SlotUnavailableTooltipFormat", "Slot '{0}' already has a track in this Montage"), SlotItemText);
+
+				InMenuBuilder.AddMenuEntry(
+					SlotItemText,
+					Tooltip,
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SAnimMontagePanel::AddNewMontageSlot, SlotName),
+						FCanExecuteAction::CreateSP(this, &SAnimMontagePanel::CanCreateNewSlot, SlotName)
+					));
+			}
+		}
+		InMenuBuilder.EndSection();
+	}
+}
+
+bool SAnimMontagePanel::CanCreateNewSlot(FName InName) const
+{
+	for (auto &Track : Montage->SlotAnimTracks)
+	{
+		if (Track.SlotName == InName)
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 void SAnimMontagePanel::CreateNewSlot(const FText& NewSlotName, ETextCommit::Type CommitInfo)

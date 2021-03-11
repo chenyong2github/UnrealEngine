@@ -153,11 +153,10 @@ TSharedRef<SWidget> FAnimTimelineTrack_MontagePanel::BuildMontageSlotSubMenu(int
 				FNewMenuDelegate::CreateSP(this, &FAnimTimelineTrack_MontagePanel::BuildSlotNameMenu, InSlotIndex)
 			);
 
-			MenuBuilder.AddMenuEntry(
-				LOCTEXT("NewSlot", "New Slot"), 
-				LOCTEXT("NewSlotToolTip", "Adds a new Slot"), 
-				FSlateIcon(), 
-				FUIAction(FExecuteAction::CreateSP(AnimMontagePanel.Get(), &SAnimMontagePanel::OnNewSlotClicked))
+			MenuBuilder.AddSubMenu(
+				LOCTEXT("NewSlot", "New Slot"),
+			 	LOCTEXT("NewSlotToolTip", "Adds a new Slot"), 
+				FNewMenuDelegate::CreateSP(AnimMontagePanel.Get(), &SAnimMontagePanel::BuildNewSlotMenu)
 			);
 
 			if(InSlotIndex != INDEX_NONE)

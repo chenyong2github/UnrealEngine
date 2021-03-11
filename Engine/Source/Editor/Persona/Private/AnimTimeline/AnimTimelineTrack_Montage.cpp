@@ -518,11 +518,10 @@ TSharedRef<SWidget> FAnimTimelineTrack_Montage::BuildMontageSubMenu()
 		// Slots
 		MenuBuilder.BeginSection("AnimMontageSlots", LOCTEXT("Slots", "Slots") );
 		{
-			MenuBuilder.AddMenuEntry(
+			MenuBuilder.AddSubMenu(
 				LOCTEXT("NewSlot", "New Slot"),
-				LOCTEXT("NewSlotToolTip", "Adds a new Slot"),
-				FSlateIcon(), 
-				FUIAction(FExecuteAction::CreateSP(&MontageModel->GetMontagePanel()->GetAnimMontagePanel().Get(), &SAnimMontagePanel::OnNewSlotClicked))
+				LOCTEXT("NewSlotToolTip", "Adds a new Slot"), 
+				FNewMenuDelegate::CreateSP(&MontageModel->GetMontagePanel()->GetAnimMontagePanel().Get(), &SAnimMontagePanel::BuildNewSlotMenu)
 			);
 
 			MenuBuilder.AddMenuEntry(

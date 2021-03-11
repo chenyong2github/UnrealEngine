@@ -93,7 +93,10 @@ public:
 	void FillElementSubMenuForTimes( FMenuBuilder& MenuBuilder );
 	void FillSlotSubMenu( FMenuBuilder& Menubuilder );
 
-	void OnNewSlotClicked();
+	void BuildNewSlotMenu(FMenuBuilder& InMenuBuilder);
+	void CreateNewSlot(FName InName);
+	bool CanCreateNewSlot(FName InName) const;
+
 	void OnNewSectionClicked(float DataPosX);
 	bool CanAddNewSection();
 
