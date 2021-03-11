@@ -40,7 +40,7 @@ struct LIVELINKCAMERA_API FLensDistortionConfiguration
 	bool bEnableDistortionDebugView = false;
 
 	UPROPERTY(Transient, BlueprintReadOnly, Category = "Live Link")
-	UMaterialInstanceDynamic* LensDistortionMID;
+	UMaterialInstanceDynamic* LensDistortionMID = nullptr;
 };
 
 /**
