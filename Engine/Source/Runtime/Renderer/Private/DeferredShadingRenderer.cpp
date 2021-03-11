@@ -2051,6 +2051,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Pre-lighting composition lighting stage
 	// e.g. deferred decals, SSAO
+	GCompositionLighting.Reset();
 	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AfterBasePass);
