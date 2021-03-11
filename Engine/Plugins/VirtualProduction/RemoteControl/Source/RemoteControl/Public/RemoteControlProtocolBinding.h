@@ -5,10 +5,12 @@
 #include "CoreMinimal.h"
 #include "UObject/Class.h"
 #include "UObject/StructOnScope.h"
+#include "UObject/WeakObjectPtr.h"
 
 #include "RemoteControlProtocolBinding.generated.h"
 
 class FCborWriter;
+class URemoteControlPreset;
 
 struct FRemoteControlProtocolBinding;
 struct FRemoteControlProtocolEntity;
@@ -184,9 +186,9 @@ private:
 	TArray<TPair<const uint8*, const uint8*>> GetRangeMappingBuffers() const;
 
 public:
-	/** Bound preset asset name */
+	/** The preset that owns this entity. */
 	UPROPERTY()
-	FName PresetName;
+	TWeakObjectPtr<URemoteControlPreset> Owner;
 
 	/** Exposed property Id */
 	UPROPERTY()

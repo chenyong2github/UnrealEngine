@@ -45,6 +45,11 @@
 			"Name": "RemoteControlEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "RemoteControlProtocol",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
 		}
 	]
 }

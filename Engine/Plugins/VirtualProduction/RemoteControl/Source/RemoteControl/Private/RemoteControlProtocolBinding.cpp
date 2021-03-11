@@ -379,7 +379,7 @@ bool FRemoteControlProtocolEntity::ApplyProtocolValueToProperty(double InProtoco
 		return false;
 	}
 
-	URemoteControlPreset* Preset = IRemoteControlModule::Get().ResolvePreset(PresetName);
+	URemoteControlPreset* Preset = Owner.Get();
 	if (!Preset)
 	{
 		return false;
