@@ -9,6 +9,7 @@
 #include "Player/AdaptiveStreamingPlayerABR.h"
 #include "Player/PlayerSessionServices.h"
 #include "Player/PlayerStreamFilter.h"
+#include "Player/AdaptivePlayerOptionKeynames.h"
 
 #include "InitSegmentCacheHLS.h"
 #include "LicenseKeyCacheHLS.h"
@@ -55,6 +56,9 @@ namespace Electra
 
 namespace
 {
+
+static const TCHAR* const DefaultAssetNameHLS = TEXT("asset.0");
+
 
 static void SplitOnOneOf(TArray<FString>& OutResults, const FString& Subject, const FString& SplitAt)
 {
@@ -125,227 +129,6 @@ static bool IsH264Codec(TArray<FString>& OutResults, const FString& Codec)
 
 
 
-namespace HLSTimeline
-{
-
-class FPlaybackAssetRepresentation : public IPlaybackAssetRepresentation
-{
-public:
-	FPlaybackAssetRepresentation()
-	{ }
-	virtual ~FPlaybackAssetRepresentation()
-	{ }
-	virtual FString GetUniqueIdentifier() const override
-	{
-		return UniqueIdentifier;
-	}
-	virtual const FStreamCodecInformation& GetCodecInformation() const override
-	{
-		return CodecInformation;
-	}
-	virtual int32 GetBitrate() const override
-	{
-		return Bitrate;
-	}
-	virtual int32 GetQualityIndex() const override
-	{ 
-		return QualityIndex;
-	}
-	virtual bool CanBePlayed() const override
-	{
-		return true;
-	}
-	FStreamCodecInformation	CodecInformation;
-	FString					UniqueIdentifier;
-	int32					Bitrate = 0;
-	int32					QualityIndex = 0;
-};
-
-class FPlaybackAssetAdaptationSet : public IPlaybackAssetAdaptationSet
-{
-public:
-	virtual ~FPlaybackAssetAdaptationSet()
-	{
-	}
-	virtual FString GetUniqueIdentifier() const override
-	{
-		return UniqueIdentifier;
-	}
-	virtual FString GetListOfCodecs() const override
-	{
-		return Codecs;
-	}
-	virtual FString GetLanguage() const override
-	{
-		return Language;
-	}
-	virtual int32 GetNumberOfRepresentations() const override
-	{
-		return Representations.Num();
-	}
-	virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByIndex(int32 RepresentationIndex) const override
-	{
-		check(RepresentationIndex < Representations.Num());
-		if (RepresentationIndex < Representations.Num())
-		{
-			return Representations[RepresentationIndex];
-		}
-		return TSharedPtrTS<IPlaybackAssetRepresentation>();
-	}
-	virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByUniqueIdentifier(const FString& InUniqueIdentifier) const override
-	{
-		for(int32 i=0, iMax=Representations.Num(); i<iMax; ++i)
-		{
-			if (Representations[i]->GetUniqueIdentifier() == InUniqueIdentifier)
-			{
-				return Representations[i];
-			}
-		}
-		return TSharedPtrTS<IPlaybackAssetRepresentation>();
-	}
-
-	TArray<TSharedPtrTS<IPlaybackAssetRepresentation>>		Representations;
-	FString													UniqueIdentifier;
-	FString													Language;
-	FString													Codecs;
-};
-
-
-class FTimelineMediaAsset : public ITimelineMediaAsset
-{
-public:
-	virtual ~FTimelineMediaAsset()
-	{
-	}
-	virtual FTimeRange GetTimeRange() const override
-	{
-		return TimeRange;
-	}
-	virtual FTimeValue GetDuration() const override
-	{
-		return Duration;
-	}
-	virtual FString GetAssetIdentifier() const override
-	{
-		return AssetIdentifier;
-	}
-	virtual FString GetUniqueIdentifier() const override
-	{
-		return UniqueIdentifier;
-	}
-	virtual int32 GetNumberOfAdaptationSets(EStreamType OfStreamType) const override
-	{
-		switch(OfStreamType)
-		{
-			case EStreamType::Video:
-				return VideoAdaptationSet.IsValid() ? 1 : 0;
-			case EStreamType::Audio:
-				return (int32) AudioAdaptationSets.Num();
-			default:
-				return 0;
-		}
-	}
-	virtual TSharedPtrTS<IPlaybackAssetAdaptationSet> GetAdaptationSetByTypeAndIndex(EStreamType OfStreamType, int32 AdaptationSetIndex) const override
-	{
-		switch(OfStreamType)
-		{
-			case EStreamType::Video:
-			{
-				check(AdaptationSetIndex == 0);
-				return AdaptationSetIndex == 0 ? VideoAdaptationSet : TSharedPtrTS<FPlaybackAssetAdaptationSet>();
-			}
-			case EStreamType::Audio:
-			{
-				check(AdaptationSetIndex < AudioAdaptationSets.Num());
-				return AdaptationSetIndex < AudioAdaptationSets.Num() ? AudioAdaptationSets[AdaptationSetIndex] : TSharedPtrTS<FPlaybackAssetAdaptationSet>();
-			}
-			default:
-			{
-				return TSharedPtrTS<FPlaybackAssetAdaptationSet>();
-			}
-		}
-	}
-	TSharedPtrTS<IPlaybackAssetAdaptationSet> GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType OfStreamType, const FString& InUniqueIdentifier) const
-	{
-		switch(OfStreamType)
-		{
-			case EStreamType::Video:
-			{
-				return VideoAdaptationSet;
-			}
-			case EStreamType::Audio:
-			{
-				for(int32 i=0, iMax=(int32)AudioAdaptationSets.Num(); i<iMax; ++i)
-				{
-					if (AudioAdaptationSets[i]->GetUniqueIdentifier() == InUniqueIdentifier)
-					{
-						return AudioAdaptationSets[i];
-					}
-				}
-				return TSharedPtrTS<FPlaybackAssetAdaptationSet>();
-			}
-			default:
-			{
-				return TSharedPtrTS<FPlaybackAssetAdaptationSet>();
-			}
-		}
-	}
-
-	TSharedPtrTS<FPlaybackAssetAdaptationSet>				VideoAdaptationSet;
-	TArray<TSharedPtrTS<FPlaybackAssetAdaptationSet>>		AudioAdaptationSets;
-	FString													UniqueIdentifier;
-	FString													AssetIdentifier;
-	FTimeRange												TimeRange;
-	FTimeValue												Duration;
-};
-
-
-class FPlaybackTimeline : public IPlaybackAssetTimeline
-{
-public:
-	virtual ~FPlaybackTimeline()
-	{
-	}
-	virtual FTimeValue GetAnchorTime() const override
-	{
-		return FTimeValue::GetZero();
-	}
-	virtual FTimeRange GetTotalTimeRange() const override
-	{
-		return TotalTimeRange;
-	}
-	virtual FTimeRange GetSeekableTimeRange() const override
-	{
-		return SeekableTimeRange;
-	}
-	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override
-	{
-		OutPositions = SeekablePositions;
-	}
-	virtual FTimeValue GetDuration() const override
-	{
-		return Duration;
-	}
-	virtual int32 GetNumberOfMediaAssets() const override
-	{
-		return 1;
-	}
-	virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAssetByIndex(int32 MediaAssetIndex) const override
-	{
-		return PlayAsset;
-	}
-
-	FTimeRange								TotalTimeRange;
-	FTimeRange								SeekableTimeRange;
-	FTimeValue								Duration;
-	TSharedPtrTS<FTimelineMediaAsset>		PlayAsset;
-	TArray<FTimespan>						SeekablePositions;
-};
-
-}
-
-
-
 
 class FManifestBuilderHLS : public IManifestBuilderHLS
 {
@@ -354,18 +137,18 @@ public:
 	void Initialize(IPlayerSessionServices* PlayerSessionServices);
 	virtual ~FManifestBuilderHLS();
 
-	virtual FErrorDetail BuildFromMasterPlaylist(TSharedPtrTS<FManifestHLSInternal>& OutHLSPlaylist, const HLSPlaylistParser::FPlaylist& Playlist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, const FStreamPreferences& Preferences, const FParamDict& Options) override;
+	virtual FErrorDetail BuildFromMasterPlaylist(TSharedPtrTS<FManifestHLSInternal>& OutHLSPlaylist, const HLSPlaylistParser::FPlaylist& Playlist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo) override;
 
-	virtual FErrorDetail GetInitialPlaylistLoadRequests(TArray<FPlaylistLoadRequestHLS>& OutRequests, TSharedPtrTS<FManifestHLSInternal> Manifest, const FStreamPreferences& Preferences, const FParamDict& Options) override;
-	virtual UEMediaError UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest, const FStreamPreferences& Preferences, const FParamDict& Options) override;
+	virtual FErrorDetail GetInitialPlaylistLoadRequests(TArray<FPlaylistLoadRequestHLS>& OutRequests, TSharedPtrTS<FManifestHLSInternal> Manifest) override;
+	virtual UEMediaError UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest) override;
 
-	virtual FErrorDetail UpdateFromVariantPlaylist(TSharedPtrTS<FManifestHLSInternal> InOutHLSPlaylist, const HLSPlaylistParser::FPlaylist& VariantPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, uint32 ResponseCRC, const FStreamPreferences& Preferences, const FParamDict& Options) override;
+	virtual FErrorDetail UpdateFromVariantPlaylist(TSharedPtrTS<FManifestHLSInternal> InOutHLSPlaylist, const HLSPlaylistParser::FPlaylist& VariantPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, uint32 ResponseCRC) override;
 	virtual void SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInternal> InHLSPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC) override;
 
 private:
 	FErrorDetail SetupRenditions(FManifestHLSInternal* Manifest, const HLSPlaylistParser::FPlaylist& Playlist);
 	FErrorDetail SetupVariants(FManifestHLSInternal* Manifest, const HLSPlaylistParser::FPlaylist& Playlist);
-	void UpdateManifestMetadataFromStream(FManifestHLSInternal* Manifest, const FManifestHLSInternal::FPlaylistBase* Playlist, FManifestHLSInternal::FMediaStream* Stream, const FStreamPreferences& Preferences, const FParamDict& Options);
+	void UpdateManifestMetadataFromStream(FManifestHLSInternal* Manifest, const FManifestHLSInternal::FPlaylistBase* Playlist, FManifestHLSInternal::FMediaStream* Stream);
 	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
 	FErrorDetail CreateErrorAndLog(const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
 
@@ -424,7 +207,7 @@ void FManifestBuilderHLS::LogMessage(IInfoLog::ELevel Level, const FString& Mess
 }
 
 
-FErrorDetail FManifestBuilderHLS::BuildFromMasterPlaylist(TSharedPtrTS<FManifestHLSInternal>& OutHLSPlaylist, const HLSPlaylistParser::FPlaylist& Playlist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, const FStreamPreferences& Preferences, const FParamDict& Options)
+FErrorDetail FManifestBuilderHLS::BuildFromMasterPlaylist(TSharedPtrTS<FManifestHLSInternal>& OutHLSPlaylist, const HLSPlaylistParser::FPlaylist& Playlist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo)
 {
 	FErrorDetail Error;
 
@@ -435,8 +218,8 @@ FErrorDetail FManifestBuilderHLS::BuildFromMasterPlaylist(TSharedPtrTS<FManifest
 
 	TUniquePtr<FManifestHLSInternal> Manifest(new FManifestHLSInternal);
 
-	Manifest->InitSegmentCache = MakeShareable(IInitSegmentCacheHLS::Create(PlayerSessionServices, Options));
-	Manifest->LicenseKeyCache = MakeShareable(ILicenseKeyCacheHLS::Create(PlayerSessionServices, Options));
+	Manifest->InitSegmentCache = MakeShareable(IInitSegmentCacheHLS::Create(PlayerSessionServices));
+	Manifest->LicenseKeyCache = MakeShareable(ILicenseKeyCacheHLS::Create(PlayerSessionServices));
 
 	// Remember the URL we got the playlist from and the time we got it.
 	Manifest->MasterPlaylistVars.PlaylistLoadRequest = SourceRequest;
@@ -464,15 +247,9 @@ FErrorDetail FManifestBuilderHLS::BuildFromMasterPlaylist(TSharedPtrTS<FManifest
 	//		if (Playlist.ContainsTag(HLSPlaylistParser::ExtXSessionKey))
 
 
-	// Create timeline and its primary asset object
-	HLSTimeline::FPlaybackTimeline* Timeline = new HLSTimeline::FPlaybackTimeline;
-	HLSTimeline::FTimelineMediaAsset* Asset = new HLSTimeline::FTimelineMediaAsset;
-	Asset->UniqueIdentifier = TEXT("Asset0");
-	Timeline->PlayAsset = MakeShareable(Asset);
-	Manifest->PlaybackTimeline = MakeShareable(Timeline);
-	Timeline = nullptr;
-	Asset = nullptr;
-
+	// Create the media asset that setting up of variants and renditions will populate
+	Manifest->CurrentMediaAsset = MakeSharedTS<FTimelineMediaAssetHLS>();
+	Manifest->CurrentMediaAsset->UniqueIdentifier = Manifest->CurrentMediaAsset->AssetIdentifier = DefaultAssetNameHLS;
 
 	// Set up any renditions specified in the master playlist.
 	Error = SetupRenditions(Manifest.Get(), Playlist);
@@ -607,23 +384,23 @@ FErrorDetail FManifestBuilderHLS::SetupRenditions(FManifestHLSInternal* Manifest
 	}
 
 	// Get the timeline asset object.
-	HLSTimeline::FTimelineMediaAsset* Asset = static_cast<HLSTimeline::FTimelineMediaAsset*>(Manifest->PlaybackTimeline->GetMediaAssetByIndex(0).Get());
+	TSharedPtrTS<FTimelineMediaAssetHLS> Asset = Manifest->CurrentMediaAsset;
 
 	// Create adaptation sets for the audio rendition groups
 // FIXME: We will need to do this for the other rendition types (VIDEO, SUBTITLES and CLOSED-CAPTIONS as well)
 	for(TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
 	{
-		HLSTimeline::FPlaybackAssetAdaptationSet* Adapt = static_cast<HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, It.Key()).Get());
+		FPlaybackAssetAdaptationSetHLS* Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, It.Key()).Get());
 		if (!Adapt)
 		{
-			Adapt = new HLSTimeline::FPlaybackAssetAdaptationSet;
+			Adapt = new FPlaybackAssetAdaptationSetHLS;
 			Adapt->UniqueIdentifier = It.Key();
-			TSharedPtrTS<HLSTimeline::FPlaybackAssetAdaptationSet> IAdapt(Adapt);
+			TSharedPtrTS<FPlaybackAssetAdaptationSetHLS> IAdapt(Adapt);
 			Asset->AudioAdaptationSets.Push(IAdapt);
 		}
 
 		TSharedPtrTS<FManifestHLSInternal::FRendition> Rendition = It.Value();
-		HLSTimeline::FPlaybackAssetRepresentation* Repr = new HLSTimeline::FPlaybackAssetRepresentation;
+		FPlaybackAssetRepresentationHLS* Repr = new FPlaybackAssetRepresentationHLS;
 		Repr->UniqueIdentifier = LexToString(Rendition->Internal.UniqueID);
 		Rendition->Internal.AdaptationSetUniqueID = It.Key();
 		Rendition->Internal.RepresentationUniqueID = Repr->UniqueIdentifier;
@@ -645,7 +422,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 	}
 
 	// Get the timeline asset object.
-	HLSTimeline::FTimelineMediaAsset* Asset = static_cast<HLSTimeline::FTimelineMediaAsset*>(Manifest->PlaybackTimeline->GetMediaAssetByIndex(0).Get());
+	TSharedPtrTS<FTimelineMediaAssetHLS> Asset = Manifest->CurrentMediaAsset;
 
 	TUniquePtr<IURLParser> UrlBuilder(IURLParser::Create());
 	UrlBuilder->ParseURL(Manifest->MasterPlaylistVars.PlaylistLoadRequest.URL);
@@ -928,14 +705,14 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				Manifest->StreamMetadataVideo.Push(StreamMetaData);
 
 				// Add to timeline asset
-				HLSTimeline::FPlaybackAssetAdaptationSet* Adapt = nullptr;
+				FPlaybackAssetAdaptationSetHLS* Adapt = nullptr;
 				if (!Asset->VideoAdaptationSet.IsValid())
 				{
-					Adapt = new HLSTimeline::FPlaybackAssetAdaptationSet;
+					Adapt = new FPlaybackAssetAdaptationSetHLS;
 					Asset->VideoAdaptationSet = MakeShareable(Adapt);
 					Adapt->UniqueIdentifier = TEXT("$video$");
 				}
-				Adapt = static_cast<HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->VideoAdaptationSet.Get());
+				Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->VideoAdaptationSet.Get());
 				if (Adapt->Codecs.Find(StreamMetaData.CodecInformation.GetCodecSpecifierRFC6381()) == INDEX_NONE)
 				{
 					if (Adapt->Codecs.Len())
@@ -944,7 +721,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					}
 					Adapt->Codecs.Append(StreamMetaData.CodecInformation.GetCodecSpecifierRFC6381());
 				}
-				HLSTimeline::FPlaybackAssetRepresentation* Repr = new HLSTimeline::FPlaybackAssetRepresentation;
+				FPlaybackAssetRepresentationHLS* Repr = new FPlaybackAssetRepresentationHLS;
 				Repr->UniqueIdentifier = LexToString(StreamMetaData.StreamUniqueID);
 				Repr->CodecInformation = StreamMetaData.CodecInformation;
 				Repr->Bitrate   	   = StreamMetaData.Bandwidth;
@@ -957,7 +734,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				// Check if there is an audio adaptation set already due to an audio rendition group referenced by this variant.
 				if (bHaveAudioGroup)
 				{
-					Adapt = static_cast<HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, vs->AudioGroupID).Get());
+					Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, vs->AudioGroupID).Get());
 					if (!Adapt)
 					{
 						return CreateErrorAndLog(FString::Printf(TEXT("EXT-X-STREAM-INF references AUDIO rendition group \"%s\" that has not been defined!"), *vs->AudioGroupID), ERRCODE_HLS_BUILDER_REFERENCED_GROUP_NOT_DEFINED, UEMEDIA_ERROR_FORMAT_ERROR);
@@ -980,7 +757,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 					}
 					for(int32 i=0; i<Adapt->GetNumberOfRepresentations(); ++i)
 					{
-						Repr = static_cast<HLSTimeline::FPlaybackAssetRepresentation*>(Adapt->GetRepresentationByIndex(i).Get());
+						Repr = static_cast<FPlaybackAssetRepresentationHLS*>(Adapt->GetRepresentationByIndex(i).Get());
 						// FIXME: This is setting the last codec info from all codecs onto all renditions. Not sure if this is the correct thing to do.
 						Repr->CodecInformation = StreamMetaData.CodecInformation;
 						//Repr->CDN;
@@ -1007,10 +784,10 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				Manifest->StreamMetadataAudio.Push(StreamMetaData);
 
 				// Check if there is an audio adaptation set already due to an audio rendition group referenced by this variant.
-				HLSTimeline::FPlaybackAssetAdaptationSet* Adapt = nullptr;
+				FPlaybackAssetAdaptationSetHLS* Adapt = nullptr;
 				if (bHaveAudioGroup)
 				{
-					Adapt = static_cast<HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, vs->AudioGroupID).Get());
+					Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, vs->AudioGroupID).Get());
 					if (!Adapt)
 					{
 						return CreateErrorAndLog(FString::Printf(TEXT("EXT-X-STREAM-INF references AUDIO rendition group \"%s\" that has not been defined!"), *vs->AudioGroupID), ERRCODE_HLS_BUILDER_REFERENCED_GROUP_NOT_DEFINED, UEMEDIA_ERROR_FORMAT_ERROR);
@@ -1019,12 +796,12 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				if (!Adapt)
 				{
 					// FIXME: What do we do if there are several audio-only variant streams with different language codes? Or codecs?
-					Adapt = static_cast<HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, "$audio$").Get());
+					Adapt = static_cast<FPlaybackAssetAdaptationSetHLS*>(Asset->GetAdaptationSetByTypeAndUniqueIdentifier(EStreamType::Audio, "$audio$").Get());
 					if (!Adapt)
 					{
-						Adapt = new HLSTimeline::FPlaybackAssetAdaptationSet;
+						Adapt = new FPlaybackAssetAdaptationSetHLS;
 						Adapt->UniqueIdentifier = TEXT("$audio$");
-						TSharedPtrTS<HLSTimeline::FPlaybackAssetAdaptationSet> IAdapt(Adapt);
+						TSharedPtrTS<FPlaybackAssetAdaptationSetHLS> IAdapt(Adapt);
 						Asset->AudioAdaptationSets.Push(IAdapt);
 					}
 				}
@@ -1039,7 +816,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				}
 				if (!bHaveAudioGroup)
 				{
-					HLSTimeline::FPlaybackAssetRepresentation* Repr = new HLSTimeline::FPlaybackAssetRepresentation;
+					FPlaybackAssetRepresentationHLS* Repr = new FPlaybackAssetRepresentationHLS;
 					Repr->UniqueIdentifier = LexToString(StreamMetaData.StreamUniqueID);
 					Repr->CodecInformation = StreamMetaData.CodecInformation;
 					Repr->Bitrate   	   = StreamMetaData.Bandwidth;
@@ -1053,7 +830,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 				{
 					for(int32 i=0; i<Adapt->GetNumberOfRepresentations(); ++i)
 					{
-						HLSTimeline::FPlaybackAssetRepresentation* Repr = static_cast<HLSTimeline::FPlaybackAssetRepresentation*>(Adapt->GetRepresentationByIndex(i).Get());
+						FPlaybackAssetRepresentationHLS* Repr = static_cast<FPlaybackAssetRepresentationHLS*>(Adapt->GetRepresentationByIndex(i).Get());
 						// FIXME: This is setting the last codec info from all codecs onto all renditions. Not sure if this is the correct thing to do.
 						Repr->CodecInformation = StreamMetaData.CodecInformation;
 						//Repr->CDN;
@@ -1062,7 +839,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 						// We let those point back to this variant stream since that is what we effectively have to use.
 						TArray<TSharedPtrTS<FManifestHLSInternal::FRendition>*> RenditionRange;
 						Manifest->AudioRenditions.MultiFindPointer(vs->AudioGroupID, RenditionRange);
-						if (!RenditionRange.IsEmpty())
+						if (RenditionRange.Num())
 						{
 							for(int32 ii=0; ii < RenditionRange.Num(); ++ii)
 							{
@@ -1106,10 +883,10 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 		// Set up variants from the renditions in the audio adaptation sets.
 		for(int32 i=0; i<Asset->AudioAdaptationSets.Num(); ++i)
 		{
-			const HLSTimeline::FPlaybackAssetAdaptationSet* Adapt = static_cast<const HLSTimeline::FPlaybackAssetAdaptationSet*>(Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, i).Get());
+			const FPlaybackAssetAdaptationSetHLS* Adapt = static_cast<const FPlaybackAssetAdaptationSetHLS*>(Asset->GetAdaptationSetByTypeAndIndex(EStreamType::Audio, i).Get());
 			for(int32 j=0; j<Adapt->GetNumberOfRepresentations(); ++j)
 			{
-				const HLSTimeline::FPlaybackAssetRepresentation* Repr = static_cast<const HLSTimeline::FPlaybackAssetRepresentation*>(Adapt->GetRepresentationByIndex(j).Get());
+				const FPlaybackAssetRepresentationHLS* Repr = static_cast<const FPlaybackAssetRepresentationHLS*>(Adapt->GetRepresentationByIndex(j).Get());
 				int32 ReprID = 0;
 				LexFromString(ReprID, *Repr->GetUniqueIdentifier());
 				for(TMultiMap<FString, TSharedPtrTS<FManifestHLSInternal::FRendition>>::TConstIterator It = Manifest->AudioRenditions.CreateConstIterator(); It; ++It)
@@ -1167,7 +944,7 @@ FErrorDetail FManifestBuilderHLS::SetupVariants(FManifestHLSInternal* Manifest, 
 
 
 
-FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylistLoadRequestHLS>& OutRequests, TSharedPtrTS<FManifestHLSInternal> Manifest, const FStreamPreferences& Preferences, const FParamDict& Options)
+FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylistLoadRequestHLS>& OutRequests, TSharedPtrTS<FManifestHLSInternal> Manifest)
 {
 	OutRequests.Empty();
 
@@ -1182,7 +959,7 @@ FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylis
 	}
 
 	TSharedPtrTS<FManifestHLSInternal::FVariantStream> StartingVariantStream;
-	int32 InitialBitrate = (int32) Options.GetValue(IPlaylistReaderHLS::OptionKeyInitialBitrate).SafeGetInt64(0);
+	int32 InitialBitrate = (int32) PlayerSessionServices->GetOptions().GetValue(OptionKeyInitialBitrate).SafeGetInt64(0);
 	bool bIsAudioOnlyVariant = false;
 
 	if (Manifest->VariantStreams.Num())
@@ -1253,7 +1030,7 @@ FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylis
 		// Get the range of renditions
 		TArray< const TSharedPtrTS<FManifestHLSInternal::FRendition>* > RenditionRange;
 		Manifest->AudioRenditions.MultiFindPointer(StartingVariantStream->AudioGroupID, RenditionRange);
-		if (!RenditionRange.IsEmpty())
+		if (RenditionRange.Num())
 		{
 			for(int32 ii=0; ii < RenditionRange.Num(); ++ii)
 			{
@@ -1297,7 +1074,7 @@ FErrorDetail FManifestBuilderHLS::GetInitialPlaylistLoadRequests(TArray<FPlaylis
 	return FErrorDetail();
 }
 
-UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest, const FStreamPreferences& Preferences, const FParamDict& Options)
+UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlaylistLoadRequestHLS& InOutFailedRequest, const HTTP::FConnectionInfo* ConnectionInfo, TSharedPtrTS<HTTP::FRetryInfo> PreviousAttempts, const FTimeValue& BlacklistUntilUTC, TSharedPtrTS<FManifestHLSInternal> Manifest)
 {
 	// Is the failed request a video variant?
 	for(int32 i=0, iMax=Manifest->VariantStreams.Num(); i<iMax; ++i)
@@ -1363,7 +1140,7 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 			VideoVariant->Internal.Blacklisted = MakeSharedTS<FManifestHLSInternal::FBlacklist>();
 			VideoVariant->Internal.Blacklisted->PreviousAttempts				= PreviousAttempts;
 			VideoVariant->Internal.Blacklisted->BecomesAvailableAgainAtUTC  	= BlacklistUntilUTC;
-			VideoVariant->Internal.Blacklisted->AssetIDs.AssetUniqueID  		= Manifest->PlaybackTimeline->GetMediaAssetByIndex(0)->GetUniqueIdentifier();
+			VideoVariant->Internal.Blacklisted->AssetIDs.AssetUniqueID  		= DefaultAssetNameHLS;
 			VideoVariant->Internal.Blacklisted->AssetIDs.AdaptationSetUniqueID  = InOutFailedRequest.AdaptationSetUniqueID;
 			VideoVariant->Internal.Blacklisted->AssetIDs.RepresentationUniqueID = InOutFailedRequest.RepresentationUniqueID;
 			VideoVariant->Internal.Blacklisted->AssetIDs.CDN					= InOutFailedRequest.CDN;
@@ -1410,7 +1187,7 @@ UEMediaError FManifestBuilderHLS::UpdateFailedInitialPlaylistLoadRequest(FPlayli
 				AudioRendition->Internal.Blacklisted = MakeSharedTS<FManifestHLSInternal::FBlacklist>();
 				AudioRendition->Internal.Blacklisted->PreviousAttempts  			  = PreviousAttempts;
 				AudioRendition->Internal.Blacklisted->BecomesAvailableAgainAtUTC	  = BlacklistUntilUTC;
-				AudioRendition->Internal.Blacklisted->AssetIDs.AssetUniqueID		  = Manifest->PlaybackTimeline->GetMediaAssetByIndex(0)->GetUniqueIdentifier();
+				AudioRendition->Internal.Blacklisted->AssetIDs.AssetUniqueID		  = DefaultAssetNameHLS;
 				AudioRendition->Internal.Blacklisted->AssetIDs.AdaptationSetUniqueID  = InOutFailedRequest.AdaptationSetUniqueID;
 				AudioRendition->Internal.Blacklisted->AssetIDs.RepresentationUniqueID = InOutFailedRequest.RepresentationUniqueID;
 				AudioRendition->Internal.Blacklisted->AssetIDs.CDN  				  = InOutFailedRequest.CDN;
@@ -1451,7 +1228,7 @@ void FManifestBuilderHLS::SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInt
 			Playlist->Internal.Blacklisted->PreviousAttempts		   = PreviousAttempts;
 			Playlist->Internal.Blacklisted->BecomesAvailableAgainAtUTC = BlacklistUntilUTC;
 
-			Playlist->Internal.Blacklisted->AssetIDs.AssetUniqueID  		= InHLSPlaylist->PlaybackTimeline->GetMediaAssetByIndex(0)->GetUniqueIdentifier();
+			Playlist->Internal.Blacklisted->AssetIDs.AssetUniqueID  		= DefaultAssetNameHLS;
 			Playlist->Internal.Blacklisted->AssetIDs.AdaptationSetUniqueID  = SourceRequest.AdaptationSetUniqueID;
 			Playlist->Internal.Blacklisted->AssetIDs.RepresentationUniqueID = SourceRequest.RepresentationUniqueID;
 			Playlist->Internal.Blacklisted->AssetIDs.CDN					= SourceRequest.CDN;
@@ -1468,7 +1245,7 @@ void FManifestBuilderHLS::SetVariantPlaylistFailure(TSharedPtrTS<FManifestHLSInt
 
 
 
-FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManifestHLSInternal> InOutHLSPlaylist, const HLSPlaylistParser::FPlaylist& VariantPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, uint32 ResponseCRC, const FStreamPreferences& Preferences, const FParamDict& Options)
+FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManifestHLSInternal> InOutHLSPlaylist, const HLSPlaylistParser::FPlaylist& VariantPlaylist, const FPlaylistLoadRequestHLS& SourceRequest, const HTTP::FConnectionInfo* ConnectionInfo, uint32 ResponseCRC)
 {
 	// Find the variant or rendition this playlist updates.
 	TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> Playlist;
@@ -1895,7 +1672,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 		Playlist->Internal.bReloadTriggered = false;
 		Playlist->Internal.bNewlySelected   = false;
 
-		UpdateManifestMetadataFromStream(InOutHLSPlaylist.Get(), Playlist.Get(), UpdatedMediaStream.Get(), Preferences, Options);
+		UpdateManifestMetadataFromStream(InOutHLSPlaylist.Get(), Playlist.Get(), UpdatedMediaStream.Get());
 		InOutHLSPlaylist->UnlockPlaylists();
 	}
 
@@ -1903,7 +1680,7 @@ FErrorDetail FManifestBuilderHLS::UpdateFromVariantPlaylist(TSharedPtrTS<FManife
 }
 
 
-void FManifestBuilderHLS::UpdateManifestMetadataFromStream(FManifestHLSInternal* Manifest, const FManifestHLSInternal::FPlaylistBase* Playlist, FManifestHLSInternal::FMediaStream* Stream, const FStreamPreferences& Preferences, const FParamDict& Options)
+void FManifestBuilderHLS::UpdateManifestMetadataFromStream(FManifestHLSInternal* Manifest, const FManifestHLSInternal::FPlaylistBase* Playlist, FManifestHLSInternal::FMediaStream* Stream)
 {
 	// NOTE: The master playlist mutex must be locked already!
 
@@ -1913,6 +1690,7 @@ void FManifestBuilderHLS::UpdateManifestMetadataFromStream(FManifestHLSInternal*
 	bool bIsAudioOnly = Manifest->AudioOnlyStreams.Num() && Manifest->VariantStreams.Num() == 0;
 	const TArray<FManifestHLSInternal::FMediaStream::FMediaSegment>& SegmentList = Stream->SegmentList;
 	check(SegmentList.Num());
+	const FParamDict& Options = PlayerSessionServices->GetOptions();
 	if (SegmentList.Num())
 	{
 		EarliestTimeline = SegmentList[0].AbsoluteDateTime;
@@ -1962,9 +1740,9 @@ void FManifestBuilderHLS::UpdateManifestMetadataFromStream(FManifestHLSInternal*
 				}
 			}
 			// Try the video config value regardless of presentation type.
-			if (!LastOffset.IsValid() && Options.HaveKey(IPlaylistReaderHLS::OptionKeyLiveSeekableEndOffset))
+			if (!LastOffset.IsValid() && Options.HaveKey(OptionKeyLiveSeekableEndOffset))
 			{
-				LastOffset = Options.GetValue(IPlaylistReaderHLS::OptionKeyLiveSeekableEndOffset).SafeGetTimeValue(ThreeTargetDurations);
+				LastOffset = Options.GetValue(OptionKeyLiveSeekableEndOffset).SafeGetTimeValue(ThreeTargetDurations);
 			}
 			// If still not valid use the default from the HLS specification.
 			if (!LastOffset.IsValid())
@@ -2117,26 +1895,14 @@ void FManifestBuilderHLS::UpdateManifestMetadataFromStream(FManifestHLSInternal*
 			Manifest->MasterPlaylistVars.SeekablePositions = Stream->SeekablePositions;
 		}
 
-		// Update the timeline.
-		// A new timeline object is created to avoid updating the existing one that may be held onto by some client code.
-		// This isn't overly expensive since we do share the actual streams.
-		check(Manifest->PlaybackTimeline.IsValid());
-		if (Manifest->PlaybackTimeline.IsValid())
+		if (Manifest->CurrentMediaAsset.IsValid())
 		{
-			HLSTimeline::FPlaybackTimeline* CurrentTimeline = static_cast<HLSTimeline::FPlaybackTimeline*>(Manifest->PlaybackTimeline.Get());
-			HLSTimeline::FPlaybackTimeline* Timeline		= new HLSTimeline::FPlaybackTimeline;
-			HLSTimeline::FTimelineMediaAsset* Asset 		= new HLSTimeline::FTimelineMediaAsset;
-			Timeline->PlayAsset = MakeShareable(Asset);
-			Timeline->SeekableTimeRange = Manifest->MasterPlaylistVars.SeekableRange;
-			Timeline->SeekablePositions = Manifest->MasterPlaylistVars.SeekablePositions;
-			Timeline->TotalTimeRange	= Asset->TimeRange = Manifest->MasterPlaylistVars.TimelineRange;
-			Timeline->Duration  		= Asset->Duration  = Manifest->MasterPlaylistVars.PresentationDuration;
-			Asset->UniqueIdentifier    = CurrentTimeline->PlayAsset->UniqueIdentifier;
-			Asset->AssetIdentifier     = CurrentTimeline->PlayAsset->AssetIdentifier;
-			Asset->VideoAdaptationSet  = CurrentTimeline->PlayAsset->VideoAdaptationSet;
-			Asset->AudioAdaptationSets = CurrentTimeline->PlayAsset->AudioAdaptationSets;
-			// Switch over
-			Manifest->PlaybackTimeline = MakeShareable(Timeline);
+			Manifest->CurrentMediaAsset->UpdateLock.Lock();
+			Manifest->CurrentMediaAsset->TimeRange         = Manifest->MasterPlaylistVars.TimelineRange;
+			Manifest->CurrentMediaAsset->Duration          = Manifest->MasterPlaylistVars.PresentationDuration;
+			Manifest->CurrentMediaAsset->SeekableTimeRange = Manifest->MasterPlaylistVars.SeekableRange;
+			Manifest->CurrentMediaAsset->SeekablePositions = Manifest->MasterPlaylistVars.SeekablePositions;
+			Manifest->CurrentMediaAsset->UpdateLock.Unlock();
 		}
 	}
 	else

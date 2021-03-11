@@ -44,9 +44,13 @@ public:
 	bool													bIsEOSSegment = false;								//!< true if this is not an actual request but a stream-has-already-ended request.
 	bool													bIsInitialStartRequest = false;						//!< true if this is the initial playback start request.
 	FTimeValue												PeriodStart;										//!< Value to add to all DTS & PTS to map them into the Period timeline
-	FTimeValue												AvailabilityStartTime = FTimeValue::GetZero();		//!< Value of AST to add to all time to generate wallclock time
+	FTimeValue												AST = FTimeValue::GetZero();						//!< Value of AST to add to all time to generate wallclock time
 	FTimeValue												AdditionalAdjustmentTime = FTimeValue::GetZero();	//!< Sum of any other time corrections
 	bool													bInsertFillerData = false;							//!< true to insert empty access units into the buffer instead of reading actual data.
+
+	// UTC wallclock times during which this segment can be fetched;
+	FTimeValue												ASAST;
+	FTimeValue												SAET;
 
 	// Internal work variables
 	FPlayerLoopState										PlayerLoopState;
@@ -56,6 +60,8 @@ public:
 	Metrics::FSegmentDownloadStats							DownloadStats;
 	HTTP::FConnectionInfo									ConnectionInfo;
 	FTimeValue												NextLargestExpectedTimestamp;						//!< Largest timestamp of all samples (plus its duration) across all tracks.
+
+	bool													bWarnedAboutTimescale = false;
 };
 
 

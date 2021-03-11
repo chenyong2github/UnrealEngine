@@ -11,6 +11,8 @@
 #include "Player/AdaptiveStreamingPlayerABR.h"
 #include "Player/PlayerEntityCache.h"
 #include "Player/DASH/PlaylistReaderDASH.h"
+#include "Player/DASH/OptionKeynamesDASH.h"
+#include "Utilities/Utilities.h"
 
 #define INTERNAL_ERROR_INIT_SEGMENT_DOWNLOAD_ERROR					1
 #define INTERNAL_ERROR_INIT_SEGMENT_PARSE_ERROR						2
@@ -70,7 +72,7 @@ void FStreamSegmentRequestFMP4DASH::GetEndedStreams(TArray<TSharedPtrTS<IStreamS
 
 FTimeValue FStreamSegmentRequestFMP4DASH::GetFirstPTS() const
 {
-	return AvailabilityStartTime + AdditionalAdjustmentTime + PeriodStart + FTimeValue(Segment.Time - Segment.PTO, Segment.Timescale);
+	return AST + AdditionalAdjustmentTime + PeriodStart + FTimeValue(Segment.Time - Segment.PTO, Segment.Timescale);
 }
 
 int32 FStreamSegmentRequestFMP4DASH::GetQualityIndex() const
@@ -364,7 +366,7 @@ FErrorDetail FStreamReaderFMP4DASH::FStreamHandler::GetInitSegment(TSharedPtrTS<
 	LoadReq->Range = Request->Segment.InitializationURL.Range;
 	if (Request->Segment.InitializationURL.CustomHeader.Len())
 	{
-		LoadReq->Headers.Emplace(HTTP::FHTTPHeader({TEXT("MPEG-DASH-Param"), Request->Segment.InitializationURL.CustomHeader}));
+		LoadReq->Headers.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, Request->Segment.InitializationURL.CustomHeader}));
 	}
 	LoadReq->PlayerSessionServices = PlayerSessionService;
 	LoadReq->CompleteCallback.BindLambda([LoadResult](TSharedPtrTS<FMPDLoadRequestDASH> LoadRequest, bool bSuccess)
@@ -501,6 +503,37 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 	ds.RetryNumber  	= Request->NumOverallRetries;
 	ds.ABRState.Reset();
 
+
+	// Does this request have an availability window?
+	if (Request->ASAST.IsValid())
+	{
+		FTimeValue Now = PlayerSessionService->GetSynchronizedUTCTime()->GetTime();
+#if 0
+		if (Now < Request->ASAST)
+		{
+			LogMessage(IInfoLog::ELevel::Info, FString::Printf(TEXT("waiting fr ASAST %lld"), (long long int) (Request->ASAST - Now).GetAsMilliseconds() ));
+		}
+#endif
+		// Availability start time not reached yet?
+		while(Now < Request->ASAST)
+		{
+			if (HasReadBeenAborted())
+			{
+				CurrentRequest.Reset();
+				return;
+			}
+			const int64 SleepIntervalMS = 100;
+			FMediaRunnable::SleepMilliseconds((uint32) Utils::Max(Utils::Min((Request->ASAST - Now).GetAsMilliseconds(), SleepIntervalMS), (int64)0));
+			Now = PlayerSessionService->GetSynchronizedUTCTime()->GetTime();
+		}
+
+		// Already expired?
+		if (Now > Request->SAET)
+		{
+			// TODO:
+		}
+	}
+
 	// Clear internal work variables.
 	bHasErrored 		   = false;
 	bAbortedByABR   	   = false;
@@ -512,7 +545,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 
 	FTimeValue NextExpectedDTS;
 	FTimeValue LastKnownAUDuration;
-	FTimeValue TimeOffset = Request->PeriodStart + Request->AvailabilityStartTime + Request->AdditionalAdjustmentTime;
+	FTimeValue TimeOffset = Request->PeriodStart + Request->AST + Request->AdditionalAdjustmentTime;
 
 	// Get the init segment if there is one. Either gets it from the entity cache or requests it now and adds it to the cache.
 	InitSegmentError = GetInitSegment(MP4InitSegment, Request);
@@ -552,7 +585,7 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 			HTTP->Parameters.AcceptEncoding.Set(TEXT("identity"));
 			if (Request->Segment.MediaURL.CustomHeader.Len())
 			{
-				HTTP->Parameters.RequestHeaders.Emplace(HTTP::FHTTPHeader({TEXT("MPEG-DASH-Param"), Request->Segment.MediaURL.CustomHeader}));
+				HTTP->Parameters.RequestHeaders.Emplace(HTTP::FHTTPHeader({DASH::HTTPHeaderOptionName, Request->Segment.MediaURL.CustomHeader}));
 			}
 
 			ProgressReportCount = 0;
@@ -589,9 +622,20 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 								IParserISO14496_12::ITrackIterator* TrackIterator = Track->CreateIterator();
 								TrackTimescale = TrackIterator->GetTimescale();
 
+								int64 MediaLocalFirstAUTime = Request->Segment.MediaLocalFirstAUTime;
+								int64 MediaLocalLastAUTime = Request->Segment.MediaLocalLastAUTime;
+
 								if (TrackTimescale != Request->Segment.Timescale)
 								{
-									LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("Track timescale %u differs from timescale of %u in MPD or segment index. This may cause playback problems!"), TrackTimescale, Request->Segment.Timescale));
+									// Need to rescale the AU times from the MPD timescale to the media timescale.
+									MediaLocalFirstAUTime = FTimeFraction(Request->Segment.MediaLocalFirstAUTime, Request->Segment.Timescale).GetAsTimebase(TrackTimescale);
+									MediaLocalLastAUTime = FTimeFraction(Request->Segment.MediaLocalLastAUTime, Request->Segment.Timescale).GetAsTimebase(TrackTimescale);
+
+									if (!Request->bWarnedAboutTimescale)
+									{
+										Request->bWarnedAboutTimescale = true;
+										LogMessage(IInfoLog::ELevel::Warning, FString::Printf(TEXT("Track timescale %u differs from timescale of %u in MPD or segment index. This may cause playback problems!"), TrackTimescale, Request->Segment.Timescale));
+									}
 								}
 
 								for(Error = TrackIterator->StartAtFirst(false); Error == UEMEDIA_ERROR_OK; Error = TrackIterator->Next())
@@ -614,32 +658,38 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 
 									AccessUnit->DropState = FAccessUnit::EDropState::None;
 									// Is this AU entirely before the time we want?
-									int64 Overlap = AUPTS + AUDuration - Request->Segment.MediaLocalFirstAUTime;
+									int64 Overlap = AUPTS + AUDuration - MediaLocalFirstAUTime;
 									if (Overlap <= 0)
 									{
 										AccessUnit->DropState |= FAccessUnit::EDropState::PtsTooEarly;
 										AccessUnit->DropState |= FAccessUnit::EDropState::DtsTooEarly;
 									}
 									// Partial overlap?
-									else if (AUPTS < Request->Segment.MediaLocalFirstAUTime)
+									else if (AUPTS < MediaLocalFirstAUTime)
 									{
 										// Use it, but remember the amount of overlap.
 										AccessUnit->OverlapAdjust.SetFromND(Overlap, TrackTimescale);
 									}
-									// Entirely past the time allowed?
-									if (AUPTS >= Request->Segment.MediaLocalLastAUTime)
-									{
-										AccessUnit->DropState |= FAccessUnit::EDropState::PtsTooLate;
-										AccessUnit->DropState |= FAccessUnit::EDropState::DtsTooLate;
-									}
-									else if (AUPTS + AUDuration >= Request->Segment.MediaLocalLastAUTime)
-									{
-										// Note that we cannot stop reading here. For one we need to continue in case there are additional tracks here
-										// that have not yet finished and we also need to make it all the way to the end in case there are additional
-										// boxes that we have to read (like 'emsg' or 'lmsg').
-										AccessUnit->OverlapAdjust.SetFromND(AUPTS + AUDuration - Request->Segment.MediaLocalLastAUTime, TrackTimescale);
-									}
-
+									/*
+										Taken out for now since varying segment durations and possible timescale conversions
+										can lead to inaccuracies. We need a flag saying this is the last segment of the period
+										and only when that is set and the period has a valid duration should we mark the
+										overlapping AUs. Unless the period has a duration this should never be set.
+						
+										// Entirely past the time allowed?
+										if (AUPTS >= MediaLocalLastAUTime)
+										{
+											AccessUnit->DropState |= FAccessUnit::EDropState::PtsTooLate;
+											AccessUnit->DropState |= FAccessUnit::EDropState::DtsTooLate;
+										}
+										else if (AUPTS + AUDuration >= MediaLocalLastAUTime)
+										{
+											// Note that we cannot stop reading here. For one we need to continue in case there are additional tracks here
+											// that have not yet finished and we also need to make it all the way to the end in case there are additional
+											// boxes that we have to read (like 'emsg' or 'lmsg').
+											AccessUnit->OverlapAdjust.SetFromND(AUPTS + AUDuration - MediaLocalLastAUTime, TrackTimescale);
+										}
+									*/
 									FTimeValue Duration(TrackIterator->GetDuration(), TrackTimescale);
 									AccessUnit->Duration = Duration;
 
@@ -979,6 +1029,17 @@ void FStreamReaderFMP4DASH::FStreamHandler::HandleRequest()
 		CurrentRequest->Segment.bIsMissing = true;
 	}
 
+	// If we had to wait for the segment to become available and we got a 404 back we might have been trying to fetch
+	// the segment before the server made it available.
+	if (Request->ASAST.IsValid() && (ds.HTTPStatusCode == 404 || ds.HTTPStatusCode == 416))
+	{
+		FTimeValue Now = PlayerSessionService->GetSynchronizedUTCTime()->GetTime();
+		if ((ds.AvailibilityDelay = (Request->ASAST - Now).GetAsSeconds()) == 0.0)
+		{
+			// In the extremely unlikely event this comes out to zero exactly set a small value so the ABR knows there was a delay.
+			ds.AvailibilityDelay = -0.01;
+		}
+	}
 
 	StreamSelector->ReportDownloadEnd(ds);
 

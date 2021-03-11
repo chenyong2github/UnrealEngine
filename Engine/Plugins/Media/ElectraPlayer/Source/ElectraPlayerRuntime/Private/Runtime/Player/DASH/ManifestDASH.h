@@ -14,12 +14,17 @@ class FDASHTimeline;
 class FManifestDASH : public IManifest
 {
 public:
-	static TSharedPtrTS<FManifestDASH> Create(IPlayerSessionServices* SessionServices, const FParamDict& Options, TWeakPtrTS<FPlaylistReaderDASH> PlaylistReader, TSharedPtrTS<FManifestDASHInternal> Manifest);
-	void UpdateTimeline();
+	static TSharedPtrTS<FManifestDASH> Create(IPlayerSessionServices* SessionServices, TSharedPtrTS<FManifestDASHInternal> Manifest);
+	void UpdateInternalManifest(TSharedPtrTS<FManifestDASHInternal> UpdatedManifest);
 
 	virtual ~FManifestDASH();
 	virtual EType GetPresentationType() const override;
-	virtual TSharedPtrTS<IPlaybackAssetTimeline> GetTimeline() const override;
+	virtual FTimeValue GetAnchorTime() const override;
+	virtual FTimeRange GetTotalTimeRange() const override;
+	virtual FTimeRange GetSeekableTimeRange() const override;
+	virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const override;
+	virtual FTimeValue GetDuration() const override;
+	virtual FTimeValue GetDefaultStartTime() const override;
 	virtual int64 GetDefaultStartingBitrate() const override;
 	virtual FTimeValue GetMinBufferTime() const override;
 	virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const override;
@@ -31,13 +36,10 @@ public:
 private:
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);
 
-	FManifestDASH(IPlayerSessionServices* SessionServices, const FParamDict& InOptions, TWeakPtrTS<FPlaylistReaderDASH> PlaylistReader, TSharedPtrTS<FManifestDASHInternal> Manifest);
+	FManifestDASH(IPlayerSessionServices* SessionServices, TSharedPtrTS<FManifestDASHInternal> Manifest);
 
-	FParamDict									Options;
-	TWeakPtrTS<FManifestDASHInternal>			InternalManifest;
 	IPlayerSessionServices* 					PlayerSessionServices = nullptr;
-	TWeakPtrTS<FPlaylistReaderDASH>				PlaylistReader;
-	TSharedPtrTS<FDASHTimeline>					CurrentTimeline;
+	TSharedPtrTS<FManifestDASHInternal>			CurrentManifest;
 	mutable TArray<FStreamMetadata>				CurrentMetadataVideo;
 	mutable TArray<FStreamMetadata>				CurrentMetadataAudio;
 	mutable TArray<FStreamMetadata>				CurrentMetadataSubtitle;

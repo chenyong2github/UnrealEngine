@@ -224,51 +224,9 @@ public:
 		return *this;
 	}
 
-	FTimeValue& SetFromND(int64 Numerator, uint32 Denominator)
-	{
-		if (Denominator != 0)
-		{
-			if (Denominator == 10000000)
-			{
-				HNS 		= Numerator;
-				bIsValid	= true;
-				bIsInfinity = false;
-			}
-			else if (Numerator >= -922337203685LL && Numerator <= 922337203685LL)
-			{
-				HNS 		= Numerator * 10000000 / Denominator;
-				bIsValid	= true;
-				bIsInfinity = false;
-			}
-			else
-			{
-				// Need a bigint here!
-				check(!"TODO");
-				HNS 		= (int64)(Numerator * (10000000.0 / (double)Denominator));
-				bIsValid	= true;
-				bIsInfinity = false;
-			}
-		}
-		else
-		{
-			HNS 		= Numerator>=0 ? 0x7fffffffffffffffLL : -0x7fffffffffffffffLL;
-			bIsValid	= true;
-			bIsInfinity = true;
-		}
-		return *this;
-	}
-
+	FTimeValue& SetFromND(int64 Numerator, uint32 Denominator);
 
 	FTimeValue& SetFromTimeFraction(const FTimeFraction& TimeFraction);
-
-	#if 0
-	FTimeValue& AdvanceBySeconds(double Seconds)
-	{
-		FTimeValue tv;
-		tv.SetFromSeconds(Seconds);
-		return operator += (tv);
-	}
-	#endif
 
 
 	bool operator == (const FTimeValue& rhs) const
@@ -324,7 +282,7 @@ public:
 				}
 				else
 				{
-					SetToInvalid();
+					SetToPositiveInfinity();
 				}
 			}
 			else
@@ -347,7 +305,7 @@ public:
 				}
 				else
 				{
-					SetToInvalid();
+					SetToPositiveInfinity();
 				}
 			}
 			else
@@ -394,6 +352,10 @@ public:
 				Result.HNS = HNS + rhs.HNS;
 				Result.bIsValid = true;
 			}
+			else
+			{
+				Result.SetToPositiveInfinity();
+			}
 		}
 		return Result;
 	}
@@ -408,6 +370,10 @@ public:
 				Result.HNS = HNS - rhs.HNS;
 				Result.bIsValid = true;
 			}
+			else
+			{
+				Result.SetToPositiveInfinity();
+			}
 		}
 		return Result;
 	}
@@ -415,9 +381,16 @@ public:
 	inline FTimeValue operator << (int32 Shift) const
 	{
 		FTimeValue Result(*this);
-		if (bIsValid && !bIsInfinity)
+		if (bIsValid)
 		{
-			Result.HNS <<= Shift;
+			if (!bIsInfinity)
+			{
+				Result.HNS <<= Shift;
+			}
+			else
+			{
+				Result.SetToPositiveInfinity();
+			}
 		}
 		return Result;
 	}
@@ -425,9 +398,16 @@ public:
 	inline FTimeValue operator >> (int32 Shift) const
 	{
 		FTimeValue Result(*this);
-		if (bIsValid && !bIsInfinity)
+		if (bIsValid)
 		{
-			Result.HNS >>= Shift;
+			if (!bIsInfinity)
+			{
+				Result.HNS >>= Shift;
+			}
+			else
+			{
+				Result.SetToPositiveInfinity();
+			}
 		}
 		return Result;
 	}
@@ -435,9 +415,16 @@ public:
 	inline FTimeValue operator * (int32 Scale) const
 	{
 		FTimeValue Result(*this);
-		if (bIsValid && !bIsInfinity)
+		if (bIsValid)
 		{
-			Result.HNS *= Scale;
+			if (!bIsInfinity)
+			{
+				Result.HNS *= Scale;
+			}
+			else
+			{
+				Result.SetToPositiveInfinity();
+			}
 		}
 		return Result;
 	}
@@ -445,11 +432,8 @@ public:
 	inline FTimeValue operator / (int32 Scale) const
 	{
 		FTimeValue Result(*this);
-		if (bIsValid && !bIsInfinity)
-		{
-			Result.HNS /= Scale;
-		}
-		return(Result);
+		Result.HNS /= Scale;
+		return Result;
 	}
 
 private:
@@ -596,7 +580,7 @@ class MEDIAutcTime
 public:
 	static Electra::FTimeValue Current()
 	{
-		return Electra::FTimeValue().SetFromMilliseconds(CurrentMSec());
+		return Electra::FTimeValue(Electra::FTimeValue::MillisecondsToHNS(CurrentMSec()));
 	}
 	static int64 CurrentMSec();
 };

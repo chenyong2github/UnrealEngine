@@ -830,7 +830,7 @@ namespace Electra
 			}
 		}
 		RequestsCompleted.Empty();
-		while(!ActiveRequests.IsEmpty())
+		while(ActiveRequests.Num() != 0)
 		{
 			TMap<FHandle*, TSharedPtrTS<FRequest>>::TIterator It = ActiveRequests.CreateIterator();
 			FHandle* Handle = It.Key();
@@ -948,7 +948,7 @@ namespace Electra
 
 					FHttpResponsePtr Response = EvData.Response;
 					const int32 /*EHttpResponseCodes::Type*/ ResponseCode = Response ? Response->GetResponseCode() : EHttpResponseCodes::Unknown;
-					const bool bHTTPResponseSuccess = ResponseCode >= 200 && ResponseCode <= 299;
+					const bool bHTTPResponseSuccess = (ResponseCode >= 200 && ResponseCode <= 299) || ResponseCode == 304;
 
 					//FPlatformMisc::LocalPrint(*FString::Printf(TEXT("(%d, %d, %f; %d, %d, %d, %d)\n"), Status, ResponseCode, ElapsedTime, EvData.bComplete, EvData.bConnectedSuccessfully, EvData.BytesReceived, EvData.BytesSent));
 
@@ -1073,12 +1073,11 @@ namespace Electra
 					if (EvData.bComplete && Response.IsValid())
 					{
 						/*
-											// Get the effective URL. This may however be the original URL that was requested.
-											ci.EffectiveURL.assign(TCHAR_TO_ANSI(*Response->GetURL()));
+							We would like to get the effective URL after any redirections.
+							There doesn't seem to be a way right now to get it.
 
-									Taken out because this does not work on iOS and Mac. The engine HTTP module implementation there return an *empty* URL
-									for some reason which is very bad since user code makes use of the effective URL.
-									In absence of the actual effective URL (after redirection) we set the URL we made the request with.
+							UE_LOG(LogElectraHTTPManager, Log, TEXT("Effective URL: %s"), *Response->GetURL());
+							UE_LOG(LogElectraHTTPManager, Log, TEXT("Request   URL: %s"), *Request->Parameters.URL);
 						*/
 						ci.EffectiveURL = Request->Parameters.URL;
 						ci.StatusInfo.HTTPStatus = ResponseCode;

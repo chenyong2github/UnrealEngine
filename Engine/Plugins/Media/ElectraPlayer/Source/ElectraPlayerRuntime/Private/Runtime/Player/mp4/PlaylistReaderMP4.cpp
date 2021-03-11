@@ -51,11 +51,8 @@ public:
 	 * Loads and parses the playlist.
 	 *
 	 * @param URL     URL of the playlist to load
-	 * @param Preferences
-	 *                User preferences for initial stream selection.
-	 * @param Options Options for the reader and parser
 	 */
-	virtual void LoadAndParse(const FString& URL, const FStreamPreferences& Preferences, const FParamDict& Options) override;
+	virtual void LoadAndParse(const FString& URL) override;
 
 	/**
 	 * Returns the URL from which the playlist was loaded (or supposed to be loaded).
@@ -108,7 +105,7 @@ private:
 
 	void StartWorkerThread();
 	void StopWorkerThread();
-	void WorkerThread(void);
+	void WorkerThread();
 
 	void PostError(const FString& Message, uint16 Code, UEMediaError Error = UEMEDIA_ERROR_OK);
 	void LogMessage(IInfoLog::ELevel Level, const FString& Message);
@@ -124,8 +121,6 @@ private:
 	}
 
 	IPlayerSessionServices*									PlayerSessionServices;
-	FStreamPreferences										StreamPreferences;
-	FParamDict												Options;
 	FString													MasterPlaylistURL;
 	FMediaEvent												WorkerThreadQuitSignal;
 	bool													bIsWorkerThreadStarted;
@@ -266,10 +261,8 @@ void FPlaylistReaderMP4::LogMessage(IInfoLog::ELevel Level, const FString& Messa
 	}
 }
 
-void FPlaylistReaderMP4::LoadAndParse(const FString& URL, const FStreamPreferences& Preferences, const FParamDict& InOptions)
+void FPlaylistReaderMP4::LoadAndParse(const FString& URL)
 {
-	StreamPreferences = Preferences;
-	Options 		  = InOptions;
 	MasterPlaylistURL = URL;
 	StartWorkerThread();
 }
@@ -286,7 +279,7 @@ void FPlaylistReaderMP4::HTTPCompletionCallback(const IElectraHttpManager::FRequ
 }
 
 
-void FPlaylistReaderMP4::WorkerThread(void)
+void FPlaylistReaderMP4::WorkerThread()
 {
 	LLM_SCOPE(ELLMTag::ElectraPlayer);
 	CSV_SCOPED_TIMING_STAT(ElectraPlayer, PlaylistReaderMP4_Worker);

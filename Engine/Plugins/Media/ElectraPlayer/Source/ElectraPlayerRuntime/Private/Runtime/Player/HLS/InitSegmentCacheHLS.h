@@ -16,7 +16,7 @@ class IParserISO14496_12;
 class IInitSegmentCacheHLS
 {
 public:
-	static IInitSegmentCacheHLS* Create(IPlayerSessionServices* SessionServices, const FParamDict& Options);
+	static IInitSegmentCacheHLS* Create(IPlayerSessionServices* SessionServices);
 
 	virtual ~IInitSegmentCacheHLS() = default;
 

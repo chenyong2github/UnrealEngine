@@ -6,28 +6,6 @@
 namespace Electra
 {
 
-	FTimeValue& FTimeValue::SetFromTimeFraction(const FTimeFraction& TimeFraction)
-	{
-		if (TimeFraction.IsValid())
-		{
-			if (TimeFraction.IsPositiveInfinity())
-			{
-				SetToPositiveInfinity();
-			}
-			else
-			{
-				SetFromND(TimeFraction.GetNumerator(), TimeFraction.GetDenominator());
-			}
-		}
-		else
-		{
-			SetToInvalid();
-		}
-		return *this;
-	}
-
-
-
 	namespace
 	{
 		struct FTimeComponents
@@ -292,7 +270,7 @@ namespace Electra
 					{
 						if (Anchor && !bHaveT && !bHaveY)
 						{
-							int32 Years = ParseSubStringToInt(Anchor, Start-Anchor);
+							int64 Years = ParseSubStringToInt(Anchor, Start-Anchor);
 							TotalSeconds += Years * (12 * 30 * 24 * 60 * 60);
 							Anchor = nullptr;
 							++Start;
@@ -308,7 +286,7 @@ namespace Electra
 					{
 						if (Anchor && !bHaveM)
 						{
-							int32 Value = ParseSubStringToInt(Anchor, Start-Anchor);
+							int64 Value = ParseSubStringToInt(Anchor, Start-Anchor);
 							if (!bHaveT)
 							{
 								TotalSeconds += Value * (30 * 24 * 60 * 60);
@@ -331,7 +309,7 @@ namespace Electra
 					{
 						if (Anchor && !bHaveT && !bHaveD)
 						{
-							int32 Days = ParseSubStringToInt(Anchor, Start-Anchor);
+							int64 Days = ParseSubStringToInt(Anchor, Start-Anchor);
 							TotalSeconds += Days * (24 * 60 * 60);
 							Anchor = nullptr;
 							++Start;
@@ -347,7 +325,7 @@ namespace Electra
 					{
 						if (Anchor && bHaveT && !bHaveH)
 						{
-							int32 Hours = ParseSubStringToInt(Anchor, Start-Anchor);
+							int64 Hours = ParseSubStringToInt(Anchor, Start-Anchor);
 							TotalSeconds += Hours * (60 * 60);
 							Anchor = nullptr;
 							++Start;
@@ -556,6 +534,39 @@ namespace Electra
 
 	} // namespace RFC7231
 
+
+	namespace RFC2326
+	{
+		bool ParseNPTTime(FTimeValue& OutTimeValue, const FString& NPTtime)
+		{
+			// See: https://www.w3.org/TR/media-frags/#naming-time
+			// and: https://www.ietf.org/rfc/rfc2326.txt  (section 3.6)
+			TArray<FString> NPTparts;
+			const TCHAR* const NPTDelimiter = TEXT(":");
+			NPTtime.ParseIntoArray(NPTparts, NPTDelimiter, false);
+			if (NPTparts.Num() < 4)
+			{
+				// Note that we do no validation here on whether or not the minutes and seconds are
+				// using double digits (in case of h:mm:ss.fff) or if they are within 0-59 range.
+				int64 h=0, m=0;
+				if (NPTparts.Num() == 3)
+				{
+					// h:mm:ss[.fff]
+					LexFromString(h, *NPTparts[0]);
+					LexFromString(m, *NPTparts[1]);
+				}
+				else if (NPTparts.Num() == 2)
+				{
+					// mm:ss[.fff]
+					LexFromString(m, *NPTparts[1]);
+				}
+				// The last part will always be seconds with optional fraction. We parse those independently from minutes and hours and add everything.
+				OutTimeValue = FTimeValue().SetFromMilliseconds((h * 3600 + m * 60) * 1000) + FTimeValue().SetFromTimeFraction(FTimeFraction().SetFromFloatString(NPTparts.Last()));
+				return true;
+			}
+			return false;
+		}
+	} // namespace RFC2326
 
 
 } // namespace Electra

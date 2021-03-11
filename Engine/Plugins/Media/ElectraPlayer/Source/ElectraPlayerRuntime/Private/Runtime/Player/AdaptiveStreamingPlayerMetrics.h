@@ -146,6 +146,7 @@ namespace Metrics
 		// Outputs from stream reader
 		uint32			StatsID = 0;						//!< ID uniquely identifying this download
 		FString			FailureReason;						//!< Human readable failure reason. Only for display purposes.
+		double			AvailibilityDelay = 0.0;			//!< Time the download had to wait for the segment to enter its availability window.
 		double			DurationDownloaded = 0.0;			//!< Duration of content successfully downloaded. May be less than Duration in case of errors.
 		double			DurationDelivered = 0.0;			//!< Duration of content delivered to buffer. If larger than DurationDownloaded indicates dummy data was inserted into buffer.
 		double			TimeToFirstByte = 0.0;				//!< Time in seconds until first data byte was received

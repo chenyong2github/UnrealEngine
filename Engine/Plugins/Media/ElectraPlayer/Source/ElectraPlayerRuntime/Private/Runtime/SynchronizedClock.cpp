@@ -14,13 +14,14 @@ namespace Electra
 		virtual ~FSynchronizedUTCTime();
 
 		virtual void SetTime(const FTimeValue& TimeNow) override;
-
+		virtual void SetTime(const FTimeValue& LocalTime, const FTimeValue& UTCTime) override;
 		virtual FTimeValue GetTime() override;
+		virtual FTimeValue MapToSyncTime(const FTimeValue& InTimeToMap) override;
 
 	private:
+		FMediaCriticalSection	Lock;
 		FTimeValue				BaseUTCTime;
 		int64					BaseSystemTime;
-		FMediaCriticalSection	Lock;
 	};
 
 
@@ -51,6 +52,14 @@ namespace Electra
 		Lock.Unlock();
 	}
 
+	void FSynchronizedUTCTime::SetTime(const FTimeValue& LocalTime, const FTimeValue& UTCTime)
+	{
+		Lock.Lock();
+		BaseUTCTime = UTCTime;
+		BaseSystemTime = LocalTime.GetAsMilliseconds();
+		Lock.Unlock();
+	}
+
 	FTimeValue FSynchronizedUTCTime::GetTime()
 	{
 		int64 NowSystem = MEDIAutcTime::CurrentMSec();
@@ -58,10 +67,16 @@ namespace Electra
 		FTimeValue 	LastBaseUTC = BaseUTCTime;
 		int64   	LastBaseSystem = BaseSystemTime;
 		Lock.Unlock();
+		return LastBaseUTC + FTimeValue(FTimeValue::MillisecondsToHNS(NowSystem - LastBaseSystem));
+	}
 
-		FTimeValue Offset;
-		Offset.SetFromMilliseconds(NowSystem - LastBaseSystem);
-		return LastBaseUTC + Offset;
+	FTimeValue FSynchronizedUTCTime::MapToSyncTime(const FTimeValue& InTimeToMap)
+	{
+		Lock.Lock();
+		FTimeValue 	LastBaseUTC = BaseUTCTime;
+		int64   	LastBaseSystem = BaseSystemTime;
+		Lock.Unlock();
+		return LastBaseUTC + FTimeValue(FTimeValue::MillisecondsToHNS(InTimeToMap.GetAsMilliseconds() - LastBaseSystem));
 	}
 
 

@@ -21,10 +21,7 @@ public:
 
 	virtual ~IPlaylistReaderHLS() = default;
 
-
-	static const FString OptionKeyInitialBitrate;						//!< (int64) value indicating the bitrate to start with.
 	static const FString OptionKeyLiveSeekableStartOffset;				//!< (FTimeValue) value specifying how many seconds away from the Live media timeline the seekable range should start.
-	static const FString OptionKeyLiveSeekableEndOffset;				//!< (FTimeValue) value specifying how many seconds away from the Live media timeline the seekable range should end.
 	static const FString OptionKeyLiveSeekableEndOffsetAudioOnly;		//!< (FTimeValue) value specifying how many seconds away from the Live media timeline the seekable range should end for audio-only playlists.
 	static const FString OptionKeyLiveSeekableEndOffsetBeConservative;	//!< (bool) true to use a larger Live edge distance, false to go with the smaller absolute difference
 	static const FString OptionKeyMasterPlaylistLoadConnectTimeout;		//!< (FTimeValue) value specifying connection timeout fetching the master playlist
@@ -38,11 +35,8 @@ public:
 	 * Loads and parses the playlist.
 	 *
 	 * @param URL     URL of the playlist to load
-	 * @param Preferences
-	 *                User preferences for initial stream selection.
-	 * @param Options Options
 	 */
-	virtual void LoadAndParse(const FString& URL, const FStreamPreferences& Preferences, const FParamDict& Options) = 0;
+	virtual void LoadAndParse(const FString& URL) = 0;
 
 	/**
 	 * Returns the URL from which the playlist was loaded (or supposed to be loaded).

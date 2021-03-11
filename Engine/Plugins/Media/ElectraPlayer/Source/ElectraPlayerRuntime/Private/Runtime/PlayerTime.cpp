@@ -9,6 +9,58 @@
 namespace Electra
 {
 
+	FTimeValue& FTimeValue::SetFromTimeFraction(const FTimeFraction& TimeFraction)
+	{
+		if (TimeFraction.IsValid())
+		{
+			if (TimeFraction.IsPositiveInfinity())
+			{
+				SetToPositiveInfinity();
+			}
+			else
+			{
+				HNS = TimeFraction.GetAsTimebase(10000000);
+				bIsInfinity = false;
+				bIsValid = true;
+			}
+		}
+		else
+		{
+			SetToInvalid();
+		}
+		return *this;
+	}
+
+	FTimeValue& FTimeValue::SetFromND(int64 Numerator, uint32 Denominator)
+	{
+		if (Denominator != 0)
+		{
+			if (Denominator == 10000000)
+			{
+				HNS 		= Numerator;
+				bIsValid	= true;
+				bIsInfinity = false;
+			}
+			else if (Numerator >= -922337203685LL && Numerator <= 922337203685LL)
+			{
+				HNS 		= Numerator * 10000000 / Denominator;
+				bIsValid	= true;
+				bIsInfinity = false;
+			}
+			else
+			{
+				SetFromTimeFraction(FTimeFraction(Numerator, Denominator));
+			}
+		}
+		else
+		{
+			HNS 		= Numerator>=0 ? 0x7fffffffffffffffLL : -0x7fffffffffffffffLL;
+			bIsValid	= true;
+			bIsInfinity = true;
+		}
+		return *this;
+	}
+
 	//-----------------------------------------------------------------------------
 	/**
 	 * Returns this time value in a custom timebase. Requires internal bigint conversion and is therefor SLOW!

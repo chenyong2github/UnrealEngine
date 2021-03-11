@@ -8,6 +8,10 @@
 #include "MPDElementsDASH.h"
 
 #include "Player/AdaptiveStreamingPlayerResourceRequest.h"
+#include "Utilities/URLParser.h"
+
+
+//#define LOG_DASHINT_CTORDTOR
 
 namespace Electra
 {
@@ -102,7 +106,7 @@ namespace DASHUrlHelpers
 	};
 	void GetAllHierarchyUrlQueries(TArray<TSharedPtrTS<FDashMPD_UrlQueryInfoType>>& OutUrlQueries, TSharedPtrTS<const IDashMPDElement> StartingAt, EUrlQueryRequestType ForRequestType, bool bInclude2014);
 	FErrorDetail ApplyUrlQueries(IPlayerSessionServices* PlayerSessionServices, const FString& InMPDUrl, FString& InOutURL, FString& OutRequestHeader, const TArray<TSharedPtrTS<FDashMPD_UrlQueryInfoType>>& UrlQueries);
-	bool BuildAbsoluteElementURL(FString& OutURL, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& ElementURL);
+	bool BuildAbsoluteElementURL(FString& OutURL, FTimeValue& ATO, const FString& DocumentURL, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& BaseURLs, const FString& ElementURL);
 	FString ApplyAnnexEByteRange(FString InURL, FString InRange, const TArray<TSharedPtrTS<const FDashMPD_BaseURLType>>& OutBaseURLs);
 }
 
@@ -129,7 +133,7 @@ public:
 		};
 		FURL InitializationURL;
 		FURL MediaURL;
-		FTimeValue AvailabilityTimeOffset;			//!< ATO, if applicable.
+		FTimeValue ATO;
 		int64 Time = 0;								//!< Time value T in timescale units without PTO, EPT or ELST applied
 		int64 PTO = 0;								//!< PresentationTimeOffset
 		int64 EPTdelta = 0;
@@ -144,14 +148,50 @@ public:
 		bool bMayBeMissing = false;					//!< true if the last segment in <SegmentTemplate> that might not exist.
 		bool bIsMissing = false;					//!< Set to true if known to be missing.
 		bool bSawLMSG = false;						//!< Will be set to true by the stream reader if the 'lmsg' brand was found.
+
+		FTimeValue CalculateASAST(const FTimeValue& AST, const FTimeValue& PeriodStart, bool bIsStatic)
+		{
+			if (bIsStatic)
+			{
+				return AST;
+			}
+			else
+			{
+				if (ATO < FTimeValue::GetPositiveInfinity())
+				{
+					return AST + PeriodStart + FTimeValue(Time - PTO - EPTdelta + Duration, Timescale) - ATO;
+				}
+				// ATO of infinity means the segment is always available, so we return zero time as earliest UTC time.
+				return FTimeValue::GetZero();
+			}
+		}
+		FTimeValue CalculateSAET(const FTimeValue& AST, const FTimeValue& PeriodStart, const FTimeValue& MPDAET, const FTimeValue& TSB, bool bIsStatic)
+		{
+			if (bIsStatic)
+			{
+				// If the MPD has a global availabilityEndTime then that is the end time of the segment as well.
+				if (MPDAET.IsValid())
+				{
+					return MPDAET;
+				}
+				return FTimeValue::GetPositiveInfinity();
+			}
+			else
+			{
+				// If the MPD has a global availabilityEndTime then that is the end time of the segment as well.
+				if (MPDAET.IsValid())
+				{
+					return MPDAET;
+				}
+				return AST + PeriodStart + FTimeValue(Time - PTO - EPTdelta + Duration * 2, Timescale) + (TSB.IsValid() ? TSB : FTimeValue::GetPositiveInfinity());
+			}
+		}
 	};
 
 	struct FSegmentSearchOption
 	{
-		FTimeValue PeriodLocalTime;
-		FTimeValue PeriodDuration;
-		int64 Number = -1;							//!< Explicit segment number
-		int64 Time = -1;							//!< Explicit segment time
+		FTimeValue PeriodLocalTime;					//!< Time local in the period to search a segment for.
+		FTimeValue PeriodDuration;					//!< Duration of the period. Needed to determine the number of segments in the period.
 		IManifest::ESearchType SearchType = IManifest::ESearchType::Closest;
 		int64 RequestID = 0;						//!< Sequential request ID across all segments during playback, needed to re-resolve potential UrlQueryInfo xlinks.
 	};
@@ -159,9 +199,13 @@ public:
 	class FRepresentation : public IPlaybackAssetRepresentation, public TSharedFromThis<FRepresentation, ESPMode::ThreadSafe>
 	{
 	public:
-		FRepresentation()
-		{ }
-		virtual ~FRepresentation() = default;
+		#ifdef LOG_DASHINT_CTORDTOR
+			FRepresentation();
+			virtual ~FRepresentation();
+		#else
+			FRepresentation() = default;
+			virtual ~FRepresentation() = default;
+		#endif
 
 		enum ESearchResult
 		{
@@ -182,8 +226,7 @@ public:
 		//
 		virtual FString GetUniqueIdentifier() const override
 		{
-			TSharedPtrTS<FDashMPD_RepresentationType> MPDRepresentation = Representation.Pin();
-			return MPDRepresentation.IsValid() ? MPDRepresentation->GetID() : FString(TEXT(" invalid name "));
+			return ID;
 		}
 		virtual const FStreamCodecInformation& GetCodecInformation() const override
 		{
@@ -191,13 +234,7 @@ public:
 		}
 		virtual int32 GetBitrate() const override
 		{
-			TSharedPtrTS<FDashMPD_RepresentationType> MPDRepresentation = Representation.Pin();
-			if (MPDRepresentation.IsValid())
-			{
-				return (int32) MPDRepresentation->GetBandwidth();
-			}
-			// Return max possible value to make sure this will never get chosen.
-			return TNumericLimits<int32>::Max();
+			return Bitrate;
 		}
 		virtual int32 GetQualityIndex() const override
 		{
@@ -223,6 +260,8 @@ public:
 		friend class FManifestDASHInternal;
 		TWeakPtrTS<FDashMPD_RepresentationType> Representation;
 		FStreamCodecInformation CodecInfo;
+		FString ID;
+		int32 Bitrate = MAX_int32;
 		int32 QualityIndex = -1;
 		bool bIsUsable = false;
 		bool bIsEnabled = true;
@@ -231,6 +270,7 @@ public:
 		bool bWarnedAboutTimelineNumberOverflow = false;
 		bool bWarnedAboutInconsistentNumbering = false;
 		bool bWarnedAboutTimelineOverlap = false;
+		bool bWarnedAboutTimescale = false;
 		//
 		bool bNeedsSegmentIndex = true;
 		TSharedPtrTS<const IParserISO14496_12> SegmentIndex;
@@ -242,9 +282,13 @@ public:
 	class FAdaptationSet : public IPlaybackAssetAdaptationSet
 	{
 	public:
-		FAdaptationSet()
-		{ }
-		virtual ~FAdaptationSet() = default;
+		#ifdef LOG_DASHINT_CTORDTOR
+			FAdaptationSet();
+			virtual ~FAdaptationSet();
+		#else
+			FAdaptationSet() = default;
+			virtual ~FAdaptationSet() = default;
+		#endif
 
 		const FStreamCodecInformation& GetCodec() const								{ return Codec; }
 		const TArray<TSharedPtrTS<FRepresentation>>& GetRepresentations() const		{ return Representations; }
@@ -254,6 +298,18 @@ public:
 		//const FString& GetLanguage() const											{ return Language; }
 		int32 GetMaxBandwidth() const												{ return MaxBandwidth; }
 		bool GetIsUsable() const													{ return bIsUsable; }
+
+		TSharedPtrTS<FRepresentation> GetRepresentationByUniqueID(const FString& UniqueIdentifier) const
+		{
+			for(int32 i=0; i<Representations.Num(); ++i)
+			{
+				if (Representations[i]->GetUniqueIdentifier().Equals(UniqueIdentifier))
+				{
+					return Representations[i];
+				}
+			}
+			return nullptr;
+		}
 
 		//----------------------------------------------
 		// Methods from IPlaybackAssetAdaptationSet
@@ -284,14 +340,7 @@ public:
 		}
 		virtual TSharedPtrTS<IPlaybackAssetRepresentation> GetRepresentationByUniqueIdentifier(const FString& UniqueIdentifier) const override
 		{
-			for(int32 i=0; i<Representations.Num(); ++i)
-			{
-				if (Representations[i]->GetUniqueIdentifier().Equals(UniqueIdentifier))
-				{
-					return Representations[i];
-				}
-			}
-			return nullptr;
+			return GetRepresentationByUniqueID(UniqueIdentifier);
 		}
 	private:
 		friend class FManifestDASHInternal;
@@ -311,9 +360,22 @@ public:
 	class FPeriod : public ITimelineMediaAsset
 	{
 	public:
-		FPeriod()
-		{ }
-		virtual ~FPeriod() = default;
+		#ifdef LOG_DASHINT_CTORDTOR
+			FPeriod();
+			virtual ~FPeriod();
+		#else
+			FPeriod() = default;
+			virtual ~FPeriod() = default;
+		#endif
+
+		bool GetHasBeenPrepared() const
+		{
+			return bHasBeenPrepared;
+		}
+		void SetHasBeenPrepared(bool bPrepared)
+		{
+			bHasBeenPrepared = bPrepared;
+		}
 
 		const FString& GetID() const { return ID; }
 		const FTimeValue& GetStart() const { return Start; }
@@ -321,6 +383,28 @@ public:
 		bool GetIsEarlyPeriod() const { return bIsEarlyPeriod; }
 		const TArray<TSharedPtrTS<FAdaptationSet>>& GetAdaptationSets() const { return AdaptationSets; }
 
+		TSharedPtrTS<FAdaptationSet> GetAdaptationSetByUniqueID(const FString& UniqueID) const
+		{
+			for(int32 i=0; i<AdaptationSets.Num(); ++i)
+			{
+				if (AdaptationSets[i]->GetUniqueIdentifier().Equals(UniqueID))
+				{
+					return AdaptationSets[i];
+				}
+			}
+			return nullptr;
+		}
+/*
+		TSharedPtrTS<FRepresentation> GetRepresentationFromAdaptationSetIDs(const FString& AdaptationSetID, const FString& RepresentationID) const
+		{
+			TSharedPtrTS<FAdaptationSet> Adapt = GetAdaptationSetByUniqueID(AdaptationSetID);
+			if (Adapt.IsValid())
+			{
+				return Adapt->GetRepresentationByUniqueID(RepresentationID);
+			}
+			return nullptr;
+		}
+*/
 		TSharedPtrTS<FDashMPD_PeriodType> GetMPDPeriod() { return Period.Pin(); }
 
 		//----------------------------------------------
@@ -373,29 +457,35 @@ public:
 
 	private:
 		friend class FManifestDASHInternal;
+		TArray<TSharedPtrTS<FAdaptationSet>> AdaptationSets;
 		TWeakPtrTS<FDashMPD_PeriodType> Period;
 		FString ID;
 		FTimeValue Start;
 		FTimeValue End;
 		FTimeValue Duration;
 		bool bIsEarlyPeriod = false;
-		TArray<TSharedPtrTS<FAdaptationSet>> AdaptationSets;
+		bool bHasBeenPrepared = false;
 	};
 
-	FErrorDetail Build(IPlayerSessionServices* InPlayerSessionServices, TSharedPtr<FDashMPD_MPDType, ESPMode::ThreadSafe> InMPDRoot, TArray<TWeakPtrTS<IDashMPDElement>> InXLinkElements, const FStreamPreferences& InPreferences, const FParamDict& InOptions);
+	FErrorDetail Build(IPlayerSessionServices* InPlayerSessionServices, TSharedPtr<FDashMPD_MPDType, ESPMode::ThreadSafe> InMPDRoot, TArray<TWeakPtrTS<IDashMPDElement>> InXLinkElements);
 
-	FErrorDetail BuildAfterInitialRemoteElementDownload(IPlayerSessionServices* InPlayerSessionServices);
+	FErrorDetail BuildAfterInitialRemoteElementDownload();
 
 	void GetRemoteElementLoadRequests(TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests)
 	{
 		OutRemoteElementLoadRequests = PendingRemoteElementLoadRequests;
 	}
 
-	FErrorDetail ResolveInitialRemoteElementRequest(IPlayerSessionServices* PlayerSessionServices, TSharedPtrTS<FMPDLoadRequestDASH> RequestResponse, FString XMLResponse, bool bSuccess);
+	FErrorDetail ResolveInitialRemoteElementRequest(TSharedPtrTS<FMPDLoadRequestDASH> RequestResponse, FString XMLResponse, bool bSuccess);
 
 	EPresentationType GetPresentationType() const
 	{
 		return PresentationType;
+	}
+
+	bool IsEventType() const
+	{
+		return bIsEventType;
 	}
 
 	const TArray<TSharedPtrTS<FPeriod>>& GetPeriods() const
@@ -403,35 +493,115 @@ public:
 		return Periods;
 	}
 
+	TSharedPtrTS<FManifestDASHInternal::FPeriod> GetPeriodByUniqueID(const FString& InUniqueID) const
+	{
+		for(int32 i=0, iMax=Periods.Num(); i<iMax; ++i)
+		{
+			if (Periods[i]->GetUniqueIdentifier().Equals(InUniqueID))
+			{
+				return Periods[i];
+			}
+		}
+		return nullptr;
+	}
+
+	bool HasFollowingRegularPeriod(TSharedPtrTS<FPeriod> InPeriod) const
+	{
+		for(int32 i=0, iMax=Periods.Num(); i<iMax; ++i)
+		{
+			if (Periods[i] == InPeriod)
+			{
+				// Is there a following period and is it a regular period?
+				if (i+1 < iMax && !Periods[i+1]->GetIsEarlyPeriod())
+				{
+					return true;
+				}
+				return false;
+			}
+		}
+		return false;
+	}
+
 	TSharedPtrTS<const FDashMPD_MPDType> GetMPDRoot() const
 	{
 		return MPDRoot;
 	}
 
-	FErrorDetail PreparePeriodAdaptationSets(IPlayerSessionServices* PlayerSessionServices, TSharedPtrTS<FPeriod> InPeriod, bool bRequestXlink);
+	TSharedPtrTS<FDashMPD_MPDType> GetMPDRoot()
+	{
+		return MPDRoot;
+	}
+
+	void PreparePeriodAdaptationSets(TSharedPtrTS<FPeriod> InPeriod, bool bRequestXlink);
+
+	const TArray<FURL_RFC3986::FQueryParam>& GetURLFragmentComponents() const
+	{
+		return URLFragmentComponents;
+	}
+	
+	void SetURLFragmentComponents(TArray<FURL_RFC3986::FQueryParam> InURLFragmentComponents)
+	{
+		URLFragmentComponents = MoveTemp(InURLFragmentComponents);
+	}
+
+	const TArray<FURL_RFC3986::FQueryParam>& GetURLFragmentComponents()
+	{
+		return URLFragmentComponents;
+	}
+
+	void TransformIntoEpicEvent();
 
 	ELECTRA_IMPL_DEFAULT_ERROR_METHODS(DASHManifest);
 
+
+	FTimeValue GetAnchorTime() const;
+	FTimeRange GetTotalTimeRange() const;
+	FTimeRange GetSeekableTimeRange() const;
+	void GetSeekablePositions(TArray<FTimespan>& OutPositions) const;
+	FTimeValue GetDuration() const;
+	FTimeValue GetDefaultStartTime() const;
+
+	FTimeValue GetMPDValidityEndTime() const;
+	FTimeValue GetLastPeriodEndTime() const;
+	FTimeValue GetMinimumUpdatePeriod() const;
+	bool AreUpdatesExpected() const;
+	bool IsStaticType() const;
+	bool UsesAST() const;
+	FTimeValue GetAvailabilityEndTime() const;
+	FTimeValue GetTimeshiftBufferDepth() const;
+
+#ifdef LOG_DASHINT_CTORDTOR
+	FManifestDASHInternal();
+	~FManifestDASHInternal();
+#endif
+
 private:
-	FErrorDetail PrepareRemoteElementLoadRequest(IPlayerSessionServices* PlayerSessionServices, TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, TWeakPtrTS<IDashMPDElement> ElementWithXLink, int64 RequestID);
+	FErrorDetail PrepareRemoteElementLoadRequest(TArray<TWeakPtrTS<FMPDLoadRequestDASH>>& OutRemoteElementLoadRequests, TWeakPtrTS<IDashMPDElement> ElementWithXLink, int64 RequestID);
 
 	int32 ReplaceElementWithRemoteEntities(TSharedPtrTS<IDashMPDElement> Element, const FDashMPD_RootEntities& NewRootEntities, int64 OldResolveID, int64 NewResolveID);
 
+	FTimeValue CalculateDistanceToLiveEdge() const;
+	FTimeRange GetPlayTimesFromURI() const;
+
+	IPlayerSessionServices* PlayerSessionServices = nullptr;
 
 	TArray<TWeakPtrTS<IDashMPDElement>> RemoteElementsToResolve;
 	TArray<TWeakPtrTS<FMPDLoadRequestDASH>> PendingRemoteElementLoadRequests;
 
-	FStreamPreferences Preferences;
-	FParamDict Options;
-
 	// The parsed MPD.
 	TSharedPtrTS<FDashMPD_MPDType> MPDRoot;
 
+	// The MPD URL fragment components
+	TArray<FURL_RFC3986::FQueryParam> URLFragmentComponents;
+
 	// Type of the presentation.
 	EPresentationType PresentationType;
+	bool bIsEventType = false;
 
 	TArray<TSharedPtrTS<FPeriod>> Periods;
 
+	mutable FTimeRange TotalTimeRange;
+	mutable FTimeRange SeekableTimeRange;
 };
 
 

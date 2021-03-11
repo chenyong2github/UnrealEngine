@@ -642,7 +642,7 @@ public:
 	const FTimeValue& GetTimeShiftBufferDepth() const						{ return TimeShiftBufferDepth; }
 	const FString& GetIndexRange() const									{ return IndexRange; }
 	bool GetIndexRangeExact() const											{ return bIndexRangeExact; }
-	const FTimeValue GetAvailabilityTimeOffset() const						{ return AvailabilityTimeOffset; }
+	const FTimeValue& GetAvailabilityTimeOffset() const						{ return AvailabilityTimeOffset; }
 	bool GetAvailabilityTimeComplete() const								{ return bAvailabilityTimeComplete; }
 
 protected:
@@ -1655,16 +1655,38 @@ public:
 
 	virtual FString GetDocumentURL() const override			{ return DocumentURL; }
 	void SetDocumentURL(const FString& InDocumentURL)		{ DocumentURL = InDocumentURL; }
-	const FTimeValue& GetFetchTime() const					{ return FetchTime; }
-	void SetFetchTime(const FTimeValue& InFetchTime)		{ FetchTime = InFetchTime; }
+	const FTimeValue& GetFetchTime() const					{ FScopeLock Lock(&UpdateLock); return FetchTime; }
+	void SetFetchTime(const FTimeValue& InFetchTime)		{ FScopeLock Lock(&UpdateLock); FetchTime = InFetchTime; }
+	FString GetETag() const									{ return ETag; }
+	void SetETag(const FString& InETag)						{ ETag = InETag; }
+
+	// Methods to manipulate the presentation type.
+	void LockAccess()											{ UpdateLock.Lock(); }
+	void UnlockAccess()											{ UpdateLock.Unlock(); }
+	void SetType(const FString& InType)							{ Type = InType; }
+	void SetPublishTime(const FTimeValue& InPUBT)				{ PublishTime = InPUBT; }
+	void SetAvailabilityStartTime(const FTimeValue& InAST)		{ AvailabilityStartTime = InAST; }
+	void SetAvailabilityEndTime(const FTimeValue& InAET)		{ AvailabilityEndTime = InAET; }
+	void SetMediaPresentationDuration(const FTimeValue& InPD)	{ MediaPresentationDuration = InPD; }
+	void SetMinimumUpdatePeriod(const FTimeValue& InMUP)		{ MinimumUpdatePeriod = InMUP; }
+	void SetTimeShiftBufferDepth(const FTimeValue& InTSB)		{ TimeShiftBufferDepth = InTSB; }
+	void SetSuggestedPresentationDelay(const FTimeValue& InSPD)	{ SuggestedPresentationDelay = InSPD; }
 
 private:
 	virtual bool ProcessElement(FManifestParserDASH* Builder, const TCHAR* ElementName, const TCHAR* ElementData, int32 XmlFileLineNumber) override;
 	virtual bool ProcessAttribute(FManifestParserDASH* Builder, const TCHAR* AttributeName, const TCHAR* AttributeValue) override;
 	virtual int32 ReplaceChildElementWithRemoteEntities(TSharedPtrTS<IDashMPDElement> Element, const FDashMPD_RootEntities& NewRootEntities, int64 OldResolveID, int64 NewResolveID) override;
 
+	// The MPD is not expected to get modified after being built except for potential XLink changes
+	// and extending the validity if an MPD update returned a 304 on a conditional GET.
+	// For these occurrences we need to lock access to the document on occasion.
+	mutable FCriticalSection UpdateLock;
+
 	// The URL from which this MPD was loaded. Provided for convenience.
 	FString DocumentURL;
+
+	// Optional ETag for conditional GET update requests.
+	FString ETag;
 	
 	// Time the MPD load request was started.
 	FTimeValue FetchTime;

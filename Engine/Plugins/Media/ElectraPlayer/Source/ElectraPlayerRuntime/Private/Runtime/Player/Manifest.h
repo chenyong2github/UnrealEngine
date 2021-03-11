@@ -176,15 +176,62 @@ namespace Electra
 		//-------------------------------------------------------------------------
 		// Presentation and play time related functions.
 		//
-		//! Returns the current timeline object.
-		virtual TSharedPtrTS<IPlaybackAssetTimeline> GetTimeline() const = 0;
+
+		/**
+		 * Returns the time value the timeline is anchored at.
+		 * Usually this is a UTC timestamp at which the presentation began but it could
+		 * literally be anything.
+		 * All time values are absolute and have this anchor added in.
+		 *
+		 * @return The time this presentation timeline is anchored at.
+		 */
+		virtual FTimeValue GetAnchorTime() const = 0;
+
+		/**
+		 * Returns the total time range of the timeline, including the end time of the last sample
+		 * to which the player will not be able to seek to.
+		 *
+		 * @return Time range of assets on the timeline.
+		 */
+		virtual FTimeRange GetTotalTimeRange() const = 0;
+
+		/**
+		 * Returns the seekable range of the timeline, which is a subset of the total
+		 * time range. Playback can start at any point in the seekable range with
+		 * additional constraints imposed by the format.
+		 *
+		 * @return Time range in which playback can start.
+		 */
+		virtual FTimeRange GetSeekableTimeRange() const = 0;
+
+		/**
+		 * Returns the timestamps of the segments from the video or audio track (if no video is present).
+		 * Segments are required to start with a keyframe and can thus be used to start playback with.
+		 */
+		virtual void GetSeekablePositions(TArray<FTimespan>& OutPositions) const = 0;
+
+		/**
+		 * Returns the duration of the assets on the timeline.
+		 * Typically this is the difference of the end and start values of the total time range
+		 * unless this is a Live presentation for which the duration will be set to infinite.
+		 *
+		 * @return Duration of the timeline.
+		 */
+		virtual FTimeValue GetDuration() const = 0;
+
+		/**
+		 * Returns the playback start time as defined by the presentation itself.
+		 * If the presentation has no preferred start time an invalid value is returned.
+		 */
+		virtual FTimeValue GetDefaultStartTime() const = 0;
+
+
 
 		//! Returns the bitrate of the default stream (usually the first one specified).
 		virtual int64 GetDefaultStartingBitrate() const = 0;
 
 		//! Returns stream metadata. For period based presentations the streams can be different per period in which case the metadata of the first period is returned.
 		virtual void GetStreamMetadata(TArray<FStreamMetadata>& OutMetadata, EStreamType StreamType) const = 0;
-
 
 		//
 		virtual FTimeValue GetMinBufferTime() const = 0;
@@ -234,10 +281,10 @@ namespace Electra
 			/**
 			 * Selects a specific stream to be used for all next segment downloads.
 			 *
-			 * @param AdaptationSet
-			 * @param Representation
+			 * @param AdaptationSetID
+			 * @param RepresentationID
 			 */
-			virtual void SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) = 0;
+			virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) = 0;
 
 			/**
 			 * Sets up a starting segment request to begin playback at the specified time.
@@ -288,6 +335,14 @@ namespace Electra
 			 */
 			virtual FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) = 0;
 
+			/**
+			 * Called by the ABR to increase the delay in fetching the next segment in case the segment returned a 404 when fetched at
+			 * the announced availability time. This may reduce 404's on the next segment fetches.
+			 * 
+			 * @param IncreaseAmount
+			 */
+			virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) = 0;
+
 			struct FSegmentInformation
 			{
 				FTimeValue	Duration;
@@ -301,10 +356,10 @@ namespace Electra
 			 * @param OutAverageSegmentDuration
 			 * @param CurrentSegment
 			 * @param LookAheadTime
-			 * @param AdaptationSet
-			 * @param Representation
+			 * @param AdaptationSetID
+			 * @param RepresentationID
 			 */
-			virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) = 0;
+			virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) = 0;
 		};
 
 		virtual FResult FindPlayPeriod(TSharedPtrTS<IPlayPeriod>& OutPlayPeriod, const FPlayStartPosition& StartPosition, ESearchType SearchType) = 0;

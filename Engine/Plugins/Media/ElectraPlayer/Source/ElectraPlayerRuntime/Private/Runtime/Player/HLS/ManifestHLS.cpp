@@ -35,13 +35,14 @@ public:
 	virtual IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment) override;
 	virtual IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, bool bReplaceWithFillerData) override;
 	virtual IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	virtual void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
 
 	// Obtains information on the stream segmentation of a particular stream starting at a given current reference segment (optional, if not given returns suitable default values).
-	virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) override;
+	virtual void GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID) override;
 
 	virtual TSharedPtrTS<ITimelineMediaAsset> GetMediaAsset() const override;
 
-	virtual void SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation) override;
+	virtual void SelectStream(const FString& AdaptationSetID, const FString& RepresentationID) override;
 
 private:
 	struct FSegSearchParam
@@ -83,14 +84,13 @@ private:
 
 
 
-TSharedPtrTS<FManifestHLS> FManifestHLS::Create(IPlayerSessionServices* SessionServices, const FParamDict& Options, IPlaylistReaderHLS* PlaylistReader, TSharedPtrTS<FManifestHLSInternal> Manifest)
+TSharedPtrTS<FManifestHLS> FManifestHLS::Create(IPlayerSessionServices* SessionServices, IPlaylistReaderHLS* PlaylistReader, TSharedPtrTS<FManifestHLSInternal> Manifest)
 {
-	return TSharedPtrTS<FManifestHLS>(new FManifestHLS(SessionServices, Options, PlaylistReader, Manifest));
+	return TSharedPtrTS<FManifestHLS>(new FManifestHLS(SessionServices, PlaylistReader, Manifest));
 }
 
-FManifestHLS::FManifestHLS(IPlayerSessionServices* InSessionServices, const FParamDict& InOptions, IPlaylistReaderHLS* InPlaylistReader, TSharedPtrTS<FManifestHLSInternal> Manifest)
-	: Options(InOptions)
-	, InternalManifest(Manifest)
+FManifestHLS::FManifestHLS(IPlayerSessionServices* InSessionServices, IPlaylistReaderHLS* InPlaylistReader, TSharedPtrTS<FManifestHLSInternal> Manifest)
+	: InternalManifest(Manifest)
 	, SessionServices(InSessionServices)
 	, PlaylistReader(InPlaylistReader)
 {
@@ -107,11 +107,50 @@ IManifest::EType FManifestHLS::GetPresentationType() const
 }
 
 
-TSharedPtrTS<IPlaybackAssetTimeline> FManifestHLS::GetTimeline() const
+FTimeValue FManifestHLS::GetAnchorTime() const
 {
-	FManifestHLSInternal::ScopedLockPlaylists lock(InternalManifest);
-	return InternalManifest->PlaybackTimeline;
+	return FTimeValue::GetZero();
 }
+FTimeRange FManifestHLS::GetTotalTimeRange() const
+{
+	if (InternalManifest.IsValid() && InternalManifest->CurrentMediaAsset.IsValid())
+	{
+		FScopeLock lock(&InternalManifest->CurrentMediaAsset->UpdateLock);
+		return InternalManifest->CurrentMediaAsset->TimeRange;
+	}
+	return FTimeRange();
+}
+FTimeRange FManifestHLS::GetSeekableTimeRange() const
+{
+	if (InternalManifest.IsValid() && InternalManifest->CurrentMediaAsset.IsValid())
+	{
+		FScopeLock lock(&InternalManifest->CurrentMediaAsset->UpdateLock);
+		return InternalManifest->CurrentMediaAsset->SeekableTimeRange;
+	}
+	return FTimeRange();
+}
+void FManifestHLS::GetSeekablePositions(TArray<FTimespan>& OutPositions) const
+{
+	if (InternalManifest.IsValid() && InternalManifest->CurrentMediaAsset.IsValid())
+	{
+		FScopeLock lock(&InternalManifest->CurrentMediaAsset->UpdateLock);
+		OutPositions = InternalManifest->CurrentMediaAsset->SeekablePositions;
+	}
+}
+FTimeValue FManifestHLS::GetDuration() const
+{
+	if (InternalManifest.IsValid() && InternalManifest->CurrentMediaAsset.IsValid())
+	{
+		FScopeLock lock(&InternalManifest->CurrentMediaAsset->UpdateLock);
+		return InternalManifest->CurrentMediaAsset->Duration;
+	}
+	return FTimeValue();
+}
+FTimeValue FManifestHLS::GetDefaultStartTime() const
+{
+	return FTimeValue::GetInvalid();
+}
+
 
 
 /**
@@ -429,27 +468,24 @@ IManifest::FResult FPlayPeriodHLS::FindSegment(TSharedPtrTS<FStreamSegmentReques
 	TSharedPtrTS<FStreamSegmentRequestHLSfmp4>	Req(new FStreamSegmentRequestHLSfmp4);
 	Req->StreamType 	= StreamType;
 	Req->StreamUniqueID = StreamUniqueID;
-	if (InternalManifest->PlaybackTimeline.IsValid())
+	Req->MediaAsset = InternalManifest->CurrentMediaAsset;
+	if (!Req->MediaAsset.IsValid())
 	{
-		Req->MediaAsset = InternalManifest->PlaybackTimeline->GetMediaAssetByIndex(0);
-		if (!Req->MediaAsset.IsValid())
-		{
-			return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage("Internal error, media asset not found on asset timeline!"));
-		}
-		if (Req->MediaAsset->GetNumberOfAdaptationSets(StreamType) > 1)
-		{
-			return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage(FString::Printf(TEXT("Internal error, more than one %s rendition group found on asset timeline!"), GetStreamTypeName(StreamType))));
-		}
-		Req->AdaptationSet = Req->MediaAsset->GetAdaptationSetByTypeAndIndex(StreamType, 0);
-		if (!Req->AdaptationSet.IsValid())
-		{
-			return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage(FString::Printf(TEXT("Internal error, no %s rendition group found on asset timeline!"), GetStreamTypeName(StreamType))));
-		}
-		Req->Representation = Req->AdaptationSet->GetRepresentationByUniqueIdentifier(LexToString(StreamUniqueID));
-		if (!Req->Representation.IsValid())
-		{
-			return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage(FString::Printf(TEXT("Internal error, %s rendition not found in group on asset timeline!"), GetStreamTypeName(StreamType))));
-		}
+		return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage("Internal error, media asset not found on asset timeline!"));
+	}
+	if (Req->MediaAsset->GetNumberOfAdaptationSets(StreamType) > 1)
+	{
+		return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage(FString::Printf(TEXT("Internal error, more than one %s rendition group found on asset timeline!"), GetStreamTypeName(StreamType))));
+	}
+	Req->AdaptationSet = Req->MediaAsset->GetAdaptationSetByTypeAndIndex(StreamType, 0);
+	if (!Req->AdaptationSet.IsValid())
+	{
+		return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage(FString::Printf(TEXT("Internal error, no %s rendition group found on asset timeline!"), GetStreamTypeName(StreamType))));
+	}
+	Req->Representation = Req->AdaptationSet->GetRepresentationByUniqueIdentifier(LexToString(StreamUniqueID));
+	if (!Req->Representation.IsValid())
+	{
+		return IManifest::FResult(IManifest::FResult::EType::NotFound).SetErrorDetail(FErrorDetail().SetMessage(FString::Printf(TEXT("Internal error, %s rendition not found in group on asset timeline!"), GetStreamTypeName(StreamType))));
 	}
 	Req->InitSegmentCache   	   = InternalManifest->InitSegmentCache;
 	Req->LicenseKeyCache		   = InternalManifest->LicenseKeyCache;
@@ -839,6 +875,13 @@ IManifest::FResult FPlayPeriodHLS::GetStartingSegment(TSharedPtrTS<IStreamSegmen
 	}
 }
 
+
+void FPlayPeriodHLS::IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount)
+{
+	// No-op.
+}
+
+
 IManifest::FResult FPlayPeriodHLS::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, FPlayerLoopState& InOutLoopState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
 {
 	if (InFinishedSegments.Num())
@@ -1066,10 +1109,10 @@ void FPlayPeriodHLS::RefreshBlacklistState()
  * @param OutAverageSegmentDuration
  * @param InCurrentSegment
  * @param LookAheadTime
- * @param AdaptationSet
- * @param Representation
+ * @param AdaptationSetID
+ * @param RepresentationID
  */
-void FPlayPeriodHLS::GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FTimeValue& LookAheadTime, const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation)
+void FPlayPeriodHLS::GetSegmentInformation(TArray<FSegmentInformation>& OutSegmentInformation, FTimeValue& OutAverageSegmentDuration, TSharedPtrTS<const IStreamSegment> InCurrentSegment, const FTimeValue& LookAheadTime, const FString& AdaptationSetID, const FString& RepresentationID)
 {
 	OutSegmentInformation.Empty();
 	OutAverageSegmentDuration.SetToInvalid();
@@ -1096,7 +1139,7 @@ void FPlayPeriodHLS::GetSegmentInformation(TArray<FSegmentInformation>& OutSegme
 
 	// The representation ID is the unique ID of the stream as a string. Convert it back
 	uint32 UniqueID;
-	LexFromString(UniqueID, *Representation->GetUniqueIdentifier());
+	LexFromString(UniqueID, *RepresentationID);
 	TSharedPtrTS<FManifestHLSInternal::FPlaylistBase> Playlist = pInt->GetPlaylistForUniqueID(UniqueID);
 	if (!Playlist.IsValid() || !Playlist->IsVariantStream())
 	{
@@ -1200,64 +1243,51 @@ TSharedPtrTS<ITimelineMediaAsset> FPlayPeriodHLS::GetMediaAsset() const
 {
 	FManifestHLSInternal::ScopedLockPlaylists lock(InternalManifest);
 	const FManifestHLSInternal* pInt = InternalManifest.Get();
-	check(pInt && pInt->PlaybackTimeline.IsValid());
-	if (pInt && pInt->PlaybackTimeline.IsValid())
+	if (pInt)
 	{
 		// HLS only has a single playback "asset". (aka Period)
-		return pInt->PlaybackTimeline->GetMediaAssetByIndex(0);
+		return pInt->CurrentMediaAsset;
 	}
 	return TSharedPtrTS<ITimelineMediaAsset>();
 }
 
 
 
-void FPlayPeriodHLS::SelectStream(const TSharedPtrTS<IPlaybackAssetAdaptationSet>& AdaptationSet, const TSharedPtrTS<IPlaybackAssetRepresentation>& Representation)
+void FPlayPeriodHLS::SelectStream(const FString& AdaptationSetID, const FString& RepresentationID)
 {
-	if (AdaptationSet.IsValid() && Representation.IsValid())
+	RefreshBlacklistState();
+
+	// The representation ID is the unique ID of the stream as a string. Convert it back
+	uint32 UniqueID;
+	LexFromString(UniqueID, *RepresentationID);
+
+	// Which stream type is this?
+	if (AdaptationSetID.Equals(TEXT("$video$")))
 	{
-		RefreshBlacklistState();
-
-		// The representation ID is the unique ID of the stream as a string. Convert it back
-		uint32 UniqueID;
-		LexFromString(UniqueID, *Representation->GetUniqueIdentifier());
-
-		// Which stream type is this?
-		switch(Representation->GetCodecInformation().GetStreamType())
+		// Different from what we have actively selected?
+		if (UniqueID != ActiveVideoUniqueID)
 		{
-			case EStreamType::Video:
-			{
-				// Different from what we have actively selected?
-				if (UniqueID != ActiveVideoUniqueID)
-				{
-					// FIXME: We could emit a QoS event here. Although selecting the stream does not mean it will actually get used.
-					//        There is still a chance that (if the playlist is not loaded yet) another stream will be selected right away.
+			// FIXME: We could emit a QoS event here. Although selecting the stream does not mean it will actually get used.
+			//        There is still a chance that (if the playlist is not loaded yet) another stream will be selected right away.
 
-					// Tell the manifest that we are now using a different stream.
-					InternalManifest->SelectActiveStreamID(UniqueID, ActiveVideoUniqueID);
+			// Tell the manifest that we are now using a different stream.
+			InternalManifest->SelectActiveStreamID(UniqueID, ActiveVideoUniqueID);
 
-					ActiveVideoUniqueID = UniqueID;
-				}
-				break;
-			}
-			case EStreamType::Audio:
-			{
-				// Different from what we have actively selected?
-				if (UniqueID != ActiveAudioUniqueID)
-				{
-					// FIXME: We could emit a QoS event here. Although selecting the stream does not mean it will actually get used.
-					//        There is still a chance that (if the playlist is not loaded yet) another stream will be selected right away.
+			ActiveVideoUniqueID = UniqueID;
+		}
+	}
+	else if (AdaptationSetID.Equals(TEXT("$audio$")))
+	{
+		// Different from what we have actively selected?
+		if (UniqueID != ActiveAudioUniqueID)
+		{
+			// FIXME: We could emit a QoS event here. Although selecting the stream does not mean it will actually get used.
+			//        There is still a chance that (if the playlist is not loaded yet) another stream will be selected right away.
 
-					// Tell the manifest that we are now using a different stream.
-					InternalManifest->SelectActiveStreamID(UniqueID, ActiveAudioUniqueID);
+			// Tell the manifest that we are now using a different stream.
+			InternalManifest->SelectActiveStreamID(UniqueID, ActiveAudioUniqueID);
 
-					ActiveAudioUniqueID = UniqueID;
-				}
-				break;
-			}
-			default:
-			{
-				break;
-			}
+			ActiveAudioUniqueID = UniqueID;
 		}
 	}
 }

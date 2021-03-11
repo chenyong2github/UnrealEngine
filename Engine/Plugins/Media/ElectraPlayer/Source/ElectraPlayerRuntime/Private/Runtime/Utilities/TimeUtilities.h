@@ -20,5 +20,10 @@ namespace Electra
 		UEMediaError ParseDateTime(FTimeValue& OutTimeValue, const FString& DateTime);
 	}
 
+	namespace RFC2326
+	{
+		bool ParseNPTTime(FTimeValue& OutTimeValue, const FString& NPTtime);
+	}
+
 } // namespace Electra
 

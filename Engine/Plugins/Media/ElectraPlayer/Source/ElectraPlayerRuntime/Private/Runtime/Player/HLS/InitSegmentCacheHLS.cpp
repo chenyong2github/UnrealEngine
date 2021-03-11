@@ -12,7 +12,7 @@ namespace Electra
 class FInitSegmentCacheHLS : public IInitSegmentCacheHLS
 {
 public:
-	FInitSegmentCacheHLS(IPlayerSessionServices* SessionServices, const FParamDict& Options);
+	FInitSegmentCacheHLS(IPlayerSessionServices* SessionServices);
 	virtual ~FInitSegmentCacheHLS();
 	virtual TSharedPtrTS<const IParserISO14496_12> GetInitSegmentFor(const TSharedPtrTS<const FManifestHLSInternal::FMediaStream::FInitSegmentInfo>& InitSegmentInfo) override;
 	virtual void AddInitSegment(const TSharedPtrTS<const IParserISO14496_12>& InitSegment, const TSharedPtrTS<const FManifestHLSInternal::FMediaStream::FInitSegmentInfo>& InitSegmentInfo, const FTimeValue& ExpiresAtUTC) override;
@@ -20,7 +20,6 @@ private:
 
 	static const uint32 kMaxCacheEntries = 32;
 
-	FParamDict				Options;
 	IPlayerSessionServices* SessionServices;
 
 	struct FEntry
@@ -38,18 +37,17 @@ private:
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-IInitSegmentCacheHLS* IInitSegmentCacheHLS::Create(IPlayerSessionServices* SessionServices, const FParamDict& Options)
+IInitSegmentCacheHLS* IInitSegmentCacheHLS::Create(IPlayerSessionServices* SessionServices)
 {
-	return new FInitSegmentCacheHLS(SessionServices, Options);
+	return new FInitSegmentCacheHLS(SessionServices);
 }
 
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 /***************************************************************************************************************************************************/
 
-FInitSegmentCacheHLS::FInitSegmentCacheHLS(IPlayerSessionServices* InSessionServices, const FParamDict& InOptions)
-	: Options(InOptions)
-	, SessionServices(InSessionServices)
+FInitSegmentCacheHLS::FInitSegmentCacheHLS(IPlayerSessionServices* InSessionServices)
+	: SessionServices(InSessionServices)
 	, Cache(kMaxCacheEntries)
 {
 }

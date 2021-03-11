@@ -26,13 +26,13 @@ public:
 	 *
 	 * @param OutMPD
 	 * @param InOutMPDXML
-	 * @param Request
-	 * @param Preferences
-	 * @param Options
+	 * @param EffectiveURL
+	 * @param FetchTime
+	 * @param ETag
 	 *
 	 * @return
 	 */
-	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, TSharedPtrTS<FMPDLoadRequestDASH> Request, const FStreamPreferences& Preferences, const FParamDict& Options) = 0;
+	virtual FErrorDetail BuildFromMPD(TSharedPtrTS<FManifestDASHInternal>& OutMPD, TCHAR* InOutMPDXML, const FString& EffectiveURL, const FTimeValue& FetchTime, const FString& ETag) = 0;
 };
 
 
