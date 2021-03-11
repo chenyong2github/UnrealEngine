@@ -2554,7 +2554,7 @@ namespace VulkanRHI
 		if(bTryFree)
 		{
 			FScopeLock ScopeLockResourceheap(&GResourceHeapLock);
-			FScopeLock ScopeLock(&CS);
+			FScopeLock ScopeLockResource(&GResourceLock);
 			if(JoinFreeBlocks()) //someone could've allocated memory before we claimed this lock.
 			{
 				Owner->ReleaseSubresourceAllocator(this);
