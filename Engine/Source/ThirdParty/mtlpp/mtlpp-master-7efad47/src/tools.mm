@@ -150,6 +150,12 @@ namespace mtlpp
 			ns::String Ver;
 			switch(options.GetLanguageVersion())
 			{
+				case LanguageVersion::Version2_3:
+					Ver = @"2.3";
+					break;
+				case LanguageVersion::Version2_2:
+					Ver = @"2.2";
+					break;
 				case LanguageVersion::Version2_1:
 					Ver = @"2.1";
 					break;

@@ -1685,6 +1685,14 @@ int main(int argc, const char * argv[])
 				{
 					Options.SetLanguageVersion(mtlpp::LanguageVersion::Version2_1);
 				}
+				else if (!strcmp(argv[i], "2.2"))
+				{
+					Options.SetLanguageVersion(mtlpp::LanguageVersion::Version2_2);
+				}
+				else if (!strcmp(argv[i], "2.3"))
+				{
+					Options.SetLanguageVersion(mtlpp::LanguageVersion::Version2_3);
+				}
 			}
 		}
 
