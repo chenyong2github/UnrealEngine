@@ -54,57 +54,119 @@ namespace UnrealBuildTool
 			}
 		}
 
-		/// <summary>
-		/// The current file version
-		/// </summary>
-		public const int CurrentVersion = 3;
+		class CachePartition
+		{
+			/// <summary>
+			/// The current file version
+			/// </summary>
+			public const int CurrentVersion = 3;
+
+			/// <summary>
+			/// Location of this dependency cache
+			/// </summary>
+			public FileReference Location;
+
+			/// <summary>
+			/// Directory for files to cache dependencies for.
+			/// </summary>
+			public DirectoryReference BaseDir;
+
+			/// <summary>
+			/// Map from file item to dependency info
+			/// </summary>
+			public ConcurrentDictionary<FileItem, DependencyInfo> DependencyFileToInfo = new ConcurrentDictionary<FileItem, DependencyInfo>();
+
+			/// <summary>
+			/// Whether the cache has been modified and needs to be saved
+			/// </summary>
+			public bool bModified;
+
+			/// <summary>
+			/// Constructs a dependency cache. This method is private; call CppDependencyCache.Create() to create a cache hierarchy for a given project.
+			/// </summary>
+			/// <param name="Location">File to store the cache</param>
+			/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
+			public CachePartition(FileReference Location, DirectoryReference BaseDir)
+			{
+				this.Location = Location;
+				this.BaseDir = BaseDir;
+
+				if (FileReference.Exists(Location))
+				{
+					Read();
+				}
+			}
+
+			/// <summary>
+			/// Reads data for this dependency cache from disk
+			/// </summary>
+			public void Read()
+			{
+				try
+				{
+					using (BinaryArchiveReader Reader = new BinaryArchiveReader(Location))
+					{
+						int Version = Reader.ReadInt();
+						if (Version != CurrentVersion)
+						{
+							Log.TraceLog("Unable to read dependency cache from {0}; version {1} vs current {2}", Location, Version, CurrentVersion);
+							return;
+						}
+
+						int Count = Reader.ReadInt();
+						for (int Idx = 0; Idx < Count; Idx++)
+						{
+							FileItem File = Reader.ReadFileItem();
+							DependencyFileToInfo[File] = DependencyInfo.Read(Reader);
+						}
+					}
+				}
+				catch (Exception Ex)
+				{
+					Log.TraceWarning("Unable to read {0}. See log for additional information.", Location);
+					Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
+				}
+			}
+
+			/// <summary>
+			/// Writes data for this dependency cache to disk
+			/// </summary>
+			public void Write()
+			{
+				DirectoryReference.CreateDirectory(Location.Directory);
+				using (FileStream Stream = File.Open(Location.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
+				{
+					using (BinaryArchiveWriter Writer = new BinaryArchiveWriter(Stream))
+					{
+						Writer.WriteInt(CurrentVersion);
+
+						Writer.WriteInt(DependencyFileToInfo.Count);
+						foreach (KeyValuePair<FileItem, DependencyInfo> Pair in DependencyFileToInfo)
+						{
+							Writer.WriteFileItem(Pair.Key);
+							Pair.Value.Write(Writer);
+						}
+					}
+				}
+				bModified = false;
+			}
+		}
 
 		/// <summary>
-		/// Location of this dependency cache
+		/// List of partitions
 		/// </summary>
-		FileReference Location;
-
-		/// <summary>
-		/// Directory for files to cache dependencies for.
-		/// </summary>
-		DirectoryReference BaseDir;
-
-		/// <summary>
-		/// The parent cache.
-		/// </summary>
-		CppDependencyCache? Parent;
-
-		/// <summary>
-		/// Map from file item to dependency info
-		/// </summary>
-		ConcurrentDictionary<FileItem, DependencyInfo> DependencyFileToInfo = new ConcurrentDictionary<FileItem, DependencyInfo>();
-
-		/// <summary>
-		/// Whether the cache has been modified and needs to be saved
-		/// </summary>
-		bool bModified;
+		List<CachePartition> Partitions = new List<CachePartition>();
 
 		/// <summary>
 		/// Static cache of all constructed dependency caches
 		/// </summary>
-		static Dictionary<FileReference, CppDependencyCache> Caches = new Dictionary<FileReference, CppDependencyCache>();
+		static Dictionary<FileReference, CachePartition> GlobalPartitions = new Dictionary<FileReference, CachePartition>();
 
 		/// <summary>
 		/// Constructs a dependency cache. This method is private; call CppDependencyCache.Create() to create a cache hierarchy for a given project.
 		/// </summary>
-		/// <param name="Location">File to store the cache</param>
-		/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
-		/// <param name="Parent">The parent cache to use</param>
-		private CppDependencyCache(FileReference Location, DirectoryReference BaseDir, CppDependencyCache? Parent)
+		public CppDependencyCache()
 		{
-			this.Location = Location;
-			this.BaseDir = BaseDir;
-			this.Parent = Parent;
-
-			if (FileReference.Exists(Location))
-			{
-				Read();
-			}
 		}
 
 		/// <summary>
@@ -204,23 +266,25 @@ namespace UnrealBuildTool
 		/// <returns>True if the input file exists and the dependencies were read</returns>
 		private bool TryGetDependencyInfoInternal(FileItem InputFile, [NotNullWhen(true)] out DependencyInfo? OutInfo)
 		{
-			if (Parent != null && !InputFile.Location.IsUnderDirectory(BaseDir))
+			foreach(CachePartition Partition in Partitions)
 			{
-				return Parent.TryGetDependencyInfoInternal(InputFile, out OutInfo);
-			}
-			else
-			{
-				DependencyInfo? Info;
-				if (!DependencyFileToInfo.TryGetValue(InputFile, out Info) || InputFile.LastWriteTimeUtc.Ticks > Info.LastWriteTimeUtc)
+				if (InputFile.Location.IsUnderDirectory(Partition.BaseDir))
 				{
-					Info = ReadDependencyInfo(InputFile);
-					DependencyFileToInfo.TryAdd(InputFile, Info);
-					bModified = true;
-				}
+					DependencyInfo? Info;
+					if (!Partition.DependencyFileToInfo.TryGetValue(InputFile, out Info) || InputFile.LastWriteTimeUtc.Ticks > Info.LastWriteTimeUtc)
+					{
+						Info = ReadDependencyInfo(InputFile);
+						Partition.DependencyFileToInfo.TryAdd(InputFile, Info);
+						Partition.bModified = true;
+					}
 
-				OutInfo = Info;
-				return true;
+					OutInfo = Info;
+					return true;
+				}
 			}
+
+			OutInfo = null;
+			return false;
 		}
 
 		/// <summary>
@@ -233,10 +297,8 @@ namespace UnrealBuildTool
 		/// <param name="TargetType">The target type</param>
 		/// <param name="Architecture">The target architecture</param>
 		/// <returns>Dependency cache hierarchy for the given project</returns>
-		public static CppDependencyCache CreateHierarchy(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture)
+		public void Mount(FileReference? ProjectFile, string TargetName, UnrealTargetPlatform Platform, UnrealTargetConfiguration Configuration, TargetType TargetType, string Architecture)
 		{
-			CppDependencyCache Cache = null!;
-
 			if (ProjectFile == null || !UnrealBuildTool.IsEngineInstalled())
 			{
 				string AppName;
@@ -250,16 +312,14 @@ namespace UnrealBuildTool
 				}
 
 				FileReference EngineCacheLocation = FileReference.Combine(UnrealBuildTool.EngineDirectory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), AppName, Configuration.ToString(), "DependencyCache.bin");
-				Cache = FindOrAddCache(EngineCacheLocation, UnrealBuildTool.EngineDirectory, Cache);
+				FindOrAddPartition(EngineCacheLocation, UnrealBuildTool.EngineDirectory);
 			}
 
 			if (ProjectFile != null)
 			{
 				FileReference ProjectCacheLocation = FileReference.Combine(ProjectFile.Directory, UEBuildTarget.GetPlatformIntermediateFolder(Platform, Architecture), TargetName, Configuration.ToString(), "DependencyCache.bin");
-				Cache = FindOrAddCache(ProjectCacheLocation, ProjectFile.Directory, Cache);
+				FindOrAddPartition(ProjectCacheLocation, ProjectFile.Directory);
 			}
-
-			return Cache;
 		}
 
 		/// <summary>
@@ -267,24 +327,21 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Location">File to store the cache</param>
 		/// <param name="BaseDir">Base directory for files that this cache should store data for</param>
-		/// <param name="Parent">The parent cache to use</param>
 		/// <returns>Reference to a dependency cache with the given settings</returns>
-		static CppDependencyCache FindOrAddCache(FileReference Location, DirectoryReference BaseDir, CppDependencyCache? Parent)
+		void FindOrAddPartition(FileReference Location, DirectoryReference BaseDir)
 		{
-			lock (Caches)
+			lock (GlobalPartitions)
 			{
-				CppDependencyCache? Cache;
-				if (Caches.TryGetValue(Location, out Cache))
+				if (!Partitions.Any(x => x.Location == Location))
 				{
-					Debug.Assert(Cache.BaseDir == BaseDir);
-					Debug.Assert(Cache.Parent == Parent);
+					CachePartition? Partition;
+					if (!GlobalPartitions.TryGetValue(Location, out Partition))
+					{
+						Partition = new CachePartition(Location, BaseDir);
+						GlobalPartitions.Add(Location, Partition);
+					}
+					Partitions.Add(Partition);
 				}
-				else
-				{
-					Cache = new CppDependencyCache(Location, BaseDir, Parent);
-					Caches.Add(Location, Cache);
-				}
-				return Cache;
 			}
 		}
 
@@ -293,62 +350,9 @@ namespace UnrealBuildTool
 		/// </summary>
 		public static void SaveAll()
 		{
-			Parallel.ForEach(Caches.Values, Cache => { if (Cache.bModified) { Cache.Write(); } });
+			Parallel.ForEach(GlobalPartitions.Values, Cache => { if (Cache.bModified) { Cache.Write(); } });
 		}
 
-		/// <summary>
-		/// Reads data for this dependency cache from disk
-		/// </summary>
-		private void Read()
-		{
-			try
-			{
-				using (BinaryArchiveReader Reader = new BinaryArchiveReader(Location))
-				{
-					int Version = Reader.ReadInt();
-					if (Version != CurrentVersion)
-					{
-						Log.TraceLog("Unable to read dependency cache from {0}; version {1} vs current {2}", Location, Version, CurrentVersion);
-						return;
-					}
-
-					int Count = Reader.ReadInt();
-					for (int Idx = 0; Idx < Count; Idx++)
-					{
-						FileItem File = Reader.ReadFileItem();
-						DependencyFileToInfo[File] = DependencyInfo.Read(Reader);
-					}
-				}
-			}
-			catch (Exception Ex)
-			{
-				Log.TraceWarning("Unable to read {0}. See log for additional information.", Location);
-				Log.TraceLog("{0}", ExceptionUtils.FormatExceptionDetails(Ex));
-			}
-		}
-
-		/// <summary>
-		/// Writes data for this dependency cache to disk
-		/// </summary>
-		private void Write()
-		{
-			DirectoryReference.CreateDirectory(Location.Directory);
-			using (FileStream Stream = File.Open(Location.FullName, FileMode.Create, FileAccess.Write, FileShare.Read))
-			{
-				using (BinaryArchiveWriter Writer = new BinaryArchiveWriter(Stream))
-				{
-					Writer.WriteInt(CurrentVersion);
-
-					Writer.WriteInt(DependencyFileToInfo.Count);
-					foreach (KeyValuePair<FileItem, DependencyInfo> Pair in DependencyFileToInfo)
-					{
-						Writer.WriteFileItem(Pair.Key);
-						Pair.Value.Write(Writer);
-					}
-				}
-			}
-			bModified = false;
-		}
 
 		/// <summary>
 		/// Reads dependencies from the given file.

@@ -348,12 +348,23 @@ namespace UnrealBuildTool
 					}
 				}
 
+				// Create the C++ dependency cache
+				CppDependencyCache CppDependencies = new CppDependencyCache();
+				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+				{
+					using (Timeline.ScopeEvent("Reading dependency cache"))
+					{
+						TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
+						CppDependencies.Mount(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
+					}
+				}
+
 				// Pre-process module interfaces to generate dependency files
 				List<LinkedAction> ModuleDependencyActions = PrerequisiteActions.Where(x => x.ActionType == ActionType.GatherModuleDependencies).ToList();
 				if (ModuleDependencyActions.Count > 0)
 				{
 					Dictionary<LinkedAction, bool> PreprocessActionToOutdatedFlag = new Dictionary<LinkedAction, bool>();
-					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, null!, BuildConfiguration.bIgnoreOutdatedImportLibraries);
+					ActionGraph.GatherAllOutdatedActions(ModuleDependencyActions, History, PreprocessActionToOutdatedFlag, CppDependencies, BuildConfiguration.bIgnoreOutdatedImportLibraries);
 
 					List<LinkedAction> PreprocessActions = PreprocessActionToOutdatedFlag.Where(x => x.Value).Select(x => x.Key).ToList();
 					if (PreprocessActions.Count > 0)
@@ -374,28 +385,30 @@ namespace UnrealBuildTool
 				{
 					TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
 
-					// Create the dependencies cache
-					CppDependencyCache CppDependencies;
-					using (Timeline.ScopeEvent("Reading dependency cache"))
-					{
-						CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
-					}
-
 					// Update the module dependencies
 					Dictionary<string, FileItem> ModuleOutputs = new Dictionary<string, FileItem>(StringComparer.Ordinal);
 					if (ModuleDependencyActions.Count > 0)
 					{
+						Dictionary<FileItem, List<string>> ModuleImports = new Dictionary<FileItem, List<string>>();
+
 						List<FileItem> CompiledModuleInterfaces = new List<FileItem>();
-						foreach(LinkedAction PrerequisiteAction in PrerequisiteActions)
+						foreach(LinkedAction ModuleDependencyAction in ModuleDependencyActions)
 						{
-							ICppCompileAction? CppModulesAction = PrerequisiteAction.Inner as ICppCompileAction;
+							ICppCompileAction? CppModulesAction = ModuleDependencyAction.Inner as ICppCompileAction;
 							if (CppModulesAction != null && CppModulesAction.CompiledModuleInterfaceFile != null)
 							{
 								string? ProducedModule;
-								if (CppDependencies.TryGetProducedModule(PrerequisiteAction.DependencyListFile!, out ProducedModule))
+								if (CppDependencies.TryGetProducedModule(ModuleDependencyAction.DependencyListFile!, out ProducedModule))
 								{
 									ModuleOutputs[ProducedModule] = CppModulesAction.CompiledModuleInterfaceFile;
 								}
+
+								List<string>? ImportedModules;
+								if (CppDependencies.TryGetImportedModules(ModuleDependencyAction.DependencyListFile!, out ImportedModules))
+								{
+									ModuleImports[CppModulesAction.CompiledModuleInterfaceFile] = ImportedModules;
+								}
+
 								CompiledModuleInterfaces.Add(CppModulesAction.CompiledModuleInterfaceFile);
 							}
 						}
@@ -405,8 +418,10 @@ namespace UnrealBuildTool
 						{
 							if (PrerequisiteAction.ActionType == ActionType.CompileModuleInterface)
 							{
+								ICppCompileAction CppModulesAction = (ICppCompileAction)PrerequisiteAction.Inner;
+
 								List<string>? ImportedModules;
-								if(CppDependencies.TryGetImportedModules(PrerequisiteAction.DependencyListFile!, out ImportedModules))
+								if(ModuleImports.TryGetValue(CppModulesAction.CompiledModuleInterfaceFile, out ImportedModules))
 								{
 									foreach (string ImportedModule in ImportedModules)
 									{

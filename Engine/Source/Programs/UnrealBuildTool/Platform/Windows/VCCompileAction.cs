@@ -25,6 +25,11 @@ namespace UnrealBuildTool
 	class VCCompileAction : ICppCompileAction
 	{
 		/// <summary>
+		/// The action type
+		/// </summary>
+		public ActionType ActionType { get; set; } = ActionType.Compile;
+
+		/// <summary>
 		/// Path to the compiler
 		/// </summary>
 		public FileItem CompilerExe { get; }
@@ -146,7 +151,6 @@ namespace UnrealBuildTool
 
 		#region Implementation of IAction
 
-		ActionType IExternalAction.ActionType => ActionType.Compile;
 		IEnumerable<FileItem> IExternalAction.DeleteItems => DeleteItems;
 		public DirectoryReference WorkingDirectory => UnrealBuildTool.EngineSourceDirectory;
 		string IExternalAction.CommandDescription => "Compile";
@@ -207,12 +211,17 @@ namespace UnrealBuildTool
 			}
 		}
 
+		/// <summary>
+		/// Whether to use cl-filter
+		/// </summary>
+		bool UsingClFilter => DependencyListFile != null && !DependencyListFile.HasExtension(".json");
+
 		/// <inheritdoc/>
 		FileReference IExternalAction.CommandPath
 		{
 			get
 			{
-				if (DependencyListFile != null)
+				if (UsingClFilter)
 				{
 					return FileReference.Combine(UnrealBuildTool.EngineDirectory, "Build", "Windows", "cl-filter", "cl-filter.exe");
 				}
@@ -228,7 +237,7 @@ namespace UnrealBuildTool
 		{
 			get
 			{
-				if (DependencyListFile != null)
+				if (UsingClFilter)
 				{
 					return GetClFilterArguments();
 				}
@@ -300,6 +309,7 @@ namespace UnrealBuildTool
 		/// <param name="Reader">Reader to serialize from</param>
 		public VCCompileAction(BinaryArchiveReader Reader)
 		{
+			ActionType = (ActionType)Reader.ReadInt();
 			CompilerExe = Reader.ReadFileItem();
 			CompilerType = (WindowsCompiler)Reader.ReadInt();
 			ToolChainVersion = Reader.ReadString();
@@ -330,6 +340,7 @@ namespace UnrealBuildTool
 		/// <inheritdoc/>
 		public void Write(BinaryArchiveWriter Writer)
 		{
+			Writer.WriteInt((int)ActionType);
 			Writer.WriteFileItem(CompilerExe);
 			Writer.WriteInt((int)CompilerType);
 			Writer.WriteString(ToolChainVersion);

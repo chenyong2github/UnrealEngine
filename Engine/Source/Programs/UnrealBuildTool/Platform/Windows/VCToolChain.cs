@@ -1166,21 +1166,34 @@ namespace UnrealBuildTool
 
 				if (SourceFile.HasExtension(".ixx"))
 				{
+					FileItem IfcFile = FileItem.GetItemByFileReference(FileReference.Combine(GetModuleInterfaceDir(OutputDir), SourceFile.Location.ChangeExtension(".ifc").GetFileName()));
+					CompileAction.Arguments.Add("/interface");
+					CompileAction.Arguments.Add(String.Format("/ifcOutput \"{0}\"", IfcFile.Location));
+					CompileAction.CompiledModuleInterfaceFile = IfcFile;
+
 					FileItem IfcDepsFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, SourceFile.Location.GetFileName() + ".md.json"));
 
 					VCCompileAction CompileDepsAction = new VCCompileAction(CompileAction);
+					CompileDepsAction.ActionType = ActionType.GatherModuleDependencies;
+					CompileDepsAction.ResponseFile = FileItem.GetItemByPath(IfcDepsFile + ".response");
+					CompileDepsAction.ObjectFile = null;
+					CompileDepsAction.DependencyListFile = IfcDepsFile;
 					CompileDepsAction.Arguments.Add(String.Format("/sourceDependencies:directives \"{0}\"", IfcDepsFile.Location));
 					CompileDepsAction.AdditionalPrerequisiteItems.Add(SourceFile);
 					CompileDepsAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
 					CompileDepsAction.AdditionalPrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 					CompileDepsAction.AdditionalProducedItems.Add(IfcDepsFile);
+					Graph.AddAction(CompileDepsAction);
 
-					FileItem IfcFile = FileItem.GetItemByFileReference(FileReference.Combine(GetModuleInterfaceDir(OutputDir), SourceFile.Location.ChangeExtension(".ifc").GetFileName()));
-					CompileAction.Arguments.Add("/interface");
-					CompileAction.Arguments.Add(String.Format("/ifcOutput \"{0}\"", IfcFile.Location));
+					if (!ProjectFileGenerator.bGenerateProjectFiles)
+					{
+						CompileDepsAction.WriteResponseFile(Graph);
+					}
+
+					CompileAction.ActionType = ActionType.CompileModuleInterface;
 					CompileAction.AdditionalPrerequisiteItems.Add(IfcDepsFile); // Force the dependencies file into the action graph
 					CompileAction.AdditionalProducedItems.Add(IfcFile);
-					CompileAction.DependencyListFile = IfcDepsFile;
+					CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, String.Format("{0}.txt", SourceFile.Location.GetFileName())));
 					CompileAction.CompiledModuleInterfaceFile = IfcFile;
 				}
 				else if (CompileEnvironment.bGenerateDependenciesFile)
