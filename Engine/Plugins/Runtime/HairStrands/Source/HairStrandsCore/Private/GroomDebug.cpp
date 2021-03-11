@@ -54,6 +54,7 @@ bool IsHairStrandsSkinCacheEnable();
 
 static void GetGroomInterpolationData(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const TArray<FHairGroupInstance*> Instances,
 	const EWorldType::Type WorldType,
 	const EHairStrandsProjectionMeshType MeshType,
@@ -75,7 +76,6 @@ static void GetGroomInterpolationData(
 			
 			if (IsHairStrandsSkinCacheEnable() && CachedGeometry.Sections.Num() == 0)
 			{
-				FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 				BuildCacheGeometry(GraphBuilder, ShaderMap, Instance->Debug.SkeletalComponent, CachedGeometry);
 			}
 		}
@@ -492,13 +492,12 @@ IMPLEMENT_GLOBAL_SHADER(FVoxelPlainRaymarchingCS, "/Engine/Private/HairStrands/H
 static void AddVoxelPlainRaymarchingPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FRDGTextureRef OutputTexture)
 {
 #if 0 // #hair_todo: renable if needed
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-
 	const FHairStrandClusterData::FHairGroup& HairGroupClusters = HairClusterData.HairGroups[DataIndex];
 
 	FViewInfo& View = Views[ViewIndex];
@@ -532,7 +531,7 @@ static void AddVoxelPlainRaymarchingPass(
 		//ShaderPrint::SetParameters(View, Parameters->ShaderPrintParameters);
 		Parameters->OutputTexture = GraphBuilder.CreateUAV(OutputTexture);
 
-		TShaderMapRef<FVoxelPlainRaymarchingCS> ComputeShader(View.ShaderMap);
+		TShaderMapRef<FVoxelPlainRaymarchingCS> ComputeShader(ShaderMap);
 		const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(OutputTexture->Desc.Extent.X, OutputTexture->Desc.Extent.Y, 1), FIntVector(8, 8, 1));
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrandsVoxelPlainRaymarching"), ComputeShader, Parameters, DispatchCount);
 	}
@@ -571,12 +570,11 @@ IMPLEMENT_GLOBAL_SHADER(FDrawDebugCardAtlasCS, "/Engine/Private/HairStrands/Hair
 static void AddDrawDebugCardsAtlasPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
 	FRDGTextureRef SceneColorTexture)
 {
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-
 	if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards || ShaderDrawData == nullptr)
 	{
 		return;
@@ -665,6 +663,7 @@ IMPLEMENT_GLOBAL_SHADER(FDrawDebugCardGuidesCS, "/Engine/Private/HairStrands/Hai
 static void AddDrawDebugCardsGuidesPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneView& View,
+	FGlobalShaderMap* ShaderMap,
 	const FHairGroupInstance* Instance,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const bool bDeformed, 
@@ -681,8 +680,6 @@ static void AddDrawDebugCardsGuidesPass(
 	{
 		ShaderDrawDebug::SetMaxElementCount(MaxCount);
 	}
-
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 
 	if (Instance->HairGroupPublicData->VFInput.GeometryType != EHairGeometryType::Cards || ShaderDrawData == nullptr)
 	{
@@ -849,7 +846,7 @@ void RunHairStrandsDebug(
 				auto RenderMeshProjection = [&bClearDepth, WorldType, ShaderMap, Viewport, &ViewUniformBuffer, Instances, SkinCache, &SceneColorTexture, &DepthTexture, &GraphBuilder](FRDGBuilder& LocalGraphBuilder, EHairStrandsProjectionMeshType MeshType)
 				{
 					FHairStrandsProjectionMeshData::LOD MeshProjectionLODData;
-					GetGroomInterpolationData(GraphBuilder, Instances, WorldType, MeshType, SkinCache, MeshProjectionLODData);
+					GetGroomInterpolationData(GraphBuilder, ShaderMap, Instances, WorldType, MeshType, SkinCache, MeshProjectionLODData);
 					for (FHairStrandsProjectionMeshData::Section& Section : MeshProjectionLODData.Sections)
 					{
 						AddDebugProjectionMeshPass(LocalGraphBuilder, ShaderMap, Viewport, ViewUniformBuffer, MeshType, bClearDepth, Section, SceneColorTexture, DepthTexture);
@@ -983,7 +980,7 @@ void RunHairStrandsDebug(
 	{
 		for (FHairGroupInstance* Instance : Instances)
 		{
-			AddVoxelPlainRaymarchingPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorTexture);
+			AddVoxelPlainRaymarchingPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, SceneColorTexture);
 		}
 	}
 
@@ -991,15 +988,15 @@ void RunHairStrandsDebug(
 	{
 		for (FHairGroupInstance* Instance : Instances)
 		{
-			AddDrawDebugCardsAtlasPass(GraphBuilder, View, Instance, ShaderDrawData, SceneColorTexture);
+			AddDrawDebugCardsAtlasPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, SceneColorTexture);
 		}
 	}
 
 	for (FHairGroupInstance* Instance : Instances)
 	{
 		if (GHairCardsGuidesDebug_Ren > 0 || Instance->Debug.bDrawCardsGuides)
-			AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, Instance->Debug.bDrawCardsGuides ? false : GHairCardsGuidesDebug_Ren == 1, true);
+			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, Instance->Debug.bDrawCardsGuides ? false : GHairCardsGuidesDebug_Ren == 1, true);
 		if (GHairCardsGuidesDebug_Sim > 0)
-			AddDrawDebugCardsGuidesPass(GraphBuilder, View, Instance, ShaderDrawData, GHairCardsGuidesDebug_Sim == 1, false);
+			AddDrawDebugCardsGuidesPass(GraphBuilder, View, ShaderMap, Instance, ShaderDrawData, GHairCardsGuidesDebug_Sim == 1, false);
 	}
 }

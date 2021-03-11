@@ -2218,6 +2218,7 @@ static bool AreBoundsValid( const FVector& Mins, const FVector& Maxs )
  */
 static FBox ComputeParticleBounds(
 	FRHICommandListImmediate& RHICmdList,
+	ERHIFeatureLevel::Type FeatureLevel,
 	FRHIShaderResourceView* VertexBufferSRV,
 	FRHITexture2D* PositionTextureRHI,
 	int32 ParticleCount )
@@ -2226,7 +2227,7 @@ static FBox ComputeParticleBounds(
 	FParticleBoundsParameters Parameters;
 	FParticleBoundsUniformBufferRef UniformBuffer;
 
-	if (ParticleCount > 0 && GMaxRHIFeatureLevel == ERHIFeatureLevel::SM5)
+	if (ParticleCount > 0 && FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		// Determine how to break the work up over individual work groups.
 		const uint32 MaxGroupCount = 128;
@@ -2252,7 +2253,7 @@ static FBox ComputeParticleBounds(
 			PF_A32B32G32R32F );
 
 		// Grab the shader.
-		TShaderMapRef<FParticleBoundsCS> ParticleBoundsCS(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+		TShaderMapRef<FParticleBoundsCS> ParticleBoundsCS(GetGlobalShaderMap(FeatureLevel));
 		RHICmdList.SetComputeShader(ParticleBoundsCS.GetComputeShader());
 
 		// Dispatch shader to compute bounds.
@@ -3754,12 +3755,15 @@ FGPUSpriteParticleEmitterInstance(FFXSystem* InFXSystem, FGPUSpriteEmitterInfo& 
 			return;
 		}
 
+		ERHIFeatureLevel::Type FeatureLevel = FXSystem->GetFeatureLevel();
+
 		FGPUSpriteParticleEmitterInstance* EmitterInstance = this;
 		ENQUEUE_RENDER_COMMAND(FComputeGPUSpriteBoundsCommand)(
-			[EmitterInstance](FRHICommandListImmediate& RHICmdList)
+			[EmitterInstance, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 			{
 				EmitterInstance->ParticleBoundingBox = ComputeParticleBounds(
 					RHICmdList,
+					FeatureLevel,
 					EmitterInstance->Simulation->VertexBuffer.VertexBufferSRV,
 					EmitterInstance->FXSystem->GetParticleSimulationResources()->GetVisualizeStateTextures().PositionTextureRHI,
 					EmitterInstance->Simulation->VertexBuffer.ParticleCount

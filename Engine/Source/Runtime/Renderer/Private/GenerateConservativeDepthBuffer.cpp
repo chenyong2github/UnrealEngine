@@ -28,7 +28,7 @@ class FGenerateConservativeDepthBufferCS : public FGlobalShader
 		END_SHADER_PARAMETER_STRUCT()
 
 public:
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5; }
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5); }
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
@@ -44,7 +44,7 @@ void AddGenerateConservativeDepthBufferPass(FViewInfo& View, FRDGBuilder& GraphB
 	if (View.HZB)
 	{
 		FGenerateConservativeDepthBufferCS::FPermutationDomain Permutation;
-		TShaderMapRef<FGenerateConservativeDepthBufferCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), Permutation);
+		TShaderMapRef<FGenerateConservativeDepthBufferCS> ComputeShader(GetGlobalShaderMap(View.GetFeatureLevel()), Permutation);
 
 		FIntVector ConservativeDepthTextureSize3D = ConservativeDepthTexture->Desc.GetSize();
 		FIntPoint ConservativeDepthTextureSize = FIntPoint(ConservativeDepthTextureSize3D.X, ConservativeDepthTextureSize3D.Y);

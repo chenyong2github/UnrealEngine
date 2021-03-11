@@ -674,7 +674,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 		NaniteRasterResults.AddDefaulted(Views.Num());
 
 		Nanite::FRasterState RasterState;
-		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, HitProxyTextureSize);
+		Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, FeatureLevel, HitProxyTextureSize);
 
 		const bool bTwoPassOcclusion = false;
 		const bool bUpdateStreaming = false;

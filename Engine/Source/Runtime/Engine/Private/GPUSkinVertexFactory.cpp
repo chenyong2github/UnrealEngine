@@ -1086,7 +1086,7 @@ void TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ModifyCompilationEnviron
 template <GPUSkinBoneInfluenceType BoneInfluenceType>
 bool TGPUSkinAPEXClothVertexFactory<BoneInfluenceType>::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
-	return GetMaxSupportedFeatureLevel(Parameters.Platform) >= ERHIFeatureLevel::SM5
+	return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5)
 		&& (Parameters.MaterialParameters.bIsUsedWithAPEXCloth || Parameters.MaterialParameters.bIsSpecialEngineMaterial)
 		&& Super::ShouldCompilePermutation(Parameters);
 }

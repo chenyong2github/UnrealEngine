@@ -496,7 +496,7 @@ IMPLEMENT_SHADER_TYPE(, FClearPressureGridCS, TEXT("/Plugin/Runtime/HairStrands/
 
 //------------------------------------------------------------------------------------------------------------
 
-inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
+inline void ClearBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
 {
 	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
 	FRHIShaderResourceView* CurrentGridBufferSRV = CurrentGridBuffer->GridDataBuffer.SRV;
@@ -504,7 +504,7 @@ inline void ClearBuffer(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* Cur
 
 	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
 	{
-		TShaderMapRef<FClearPressureGridCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+		TShaderMapRef<FClearPressureGridCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		FRHITransitionInfo Transitions[] = {
@@ -535,7 +535,7 @@ void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 	{
 		if (Context.SimulationStageIndex == 0)
 		{
-			ClearBuffer(RHICmdList, ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
+			ClearBuffer(RHICmdList, Context.Batcher->GetFeatureLevel(), ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
 		}
 	}
 }

@@ -44,6 +44,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairMacroGroupAABBCS, "/Engine/Private/HairStrands/Hair
 
 static void AddHairMacroGroupAABBPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	FHairStrandsMacroGroupData& MacroGroup,
 	FRDGBufferUAVRef& OutHairMacroGroupAABBBufferUAV)
 {
@@ -100,7 +101,7 @@ static void AddHairMacroGroupAABBPass(
 		Parameters->MacroGroupValid = MacroGroupValid;
 		Parameters->bClearBuffer = bNeedClear ? 1 : 0;
 
-		TShaderMapRef<FHairMacroGroupAABBCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+		TShaderMapRef<FHairMacroGroupAABBCS> ComputeShader(ShaderMap);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
 			RDG_EVENT_NAME("HairStrandsMacroGroupAABBUpdate"),
@@ -229,7 +230,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 				FRDGBufferUAVRef MacroGroupAABBBufferUAV = GraphBuilder.CreateUAV(MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 				for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups.Datas)
 				{				
-					AddHairMacroGroupAABBPass(GraphBuilder, MacroGroup, MacroGroupAABBBufferUAV);
+					AddHairMacroGroupAABBPass(GraphBuilder, View.ShaderMap, MacroGroup, MacroGroupAABBBufferUAV);
 				}
 				MacroGroups.MacroGroupResources.MacroGroupCount = MacroGroups.Datas.Num();
 			}

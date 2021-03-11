@@ -1004,8 +1004,6 @@ static void AddDrawDebugClusterPass(
 		return;
 	}
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		if (ViewIndex < InMacroGroupViews.Views.Num())
@@ -1035,7 +1033,7 @@ static void AddDrawDebugClusterPass(
 
 							FDrawDebugClusterAABBCS::FPermutationDomain Permutation;
 							Permutation.Set<FDrawDebugClusterAABBCS::FDebugAABBBuffer>(bDebugAABB ? 1 : 0);
-							TShaderMapRef<FDrawDebugClusterAABBCS> ComputeShader(ShaderMap, Permutation);
+							TShaderMapRef<FDrawDebugClusterAABBCS> ComputeShader(ViewInfo.ShaderMap, Permutation);
 
 							FDrawDebugClusterAABBCS::FParameters* Parameters = GraphBuilder.AllocParameters<FDrawDebugClusterAABBCS::FParameters>();
 							Parameters->ViewUniformBuffer = ViewInfo.ViewUniformBuffer;

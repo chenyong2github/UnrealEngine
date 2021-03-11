@@ -472,7 +472,7 @@ DECLARE_GPU_STAT(VolumetricCloudShadow);
 
 FORCEINLINE bool IsVolumetricCloudMaterialSupported(const EShaderPlatform Platform)
 {
-	return GetMaxSupportedFeatureLevel(Platform) >= ERHIFeatureLevel::SM5;
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
 }
 
 
@@ -1606,7 +1606,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 
 						FCloudShadowFilterCS::FPermutationDomain Permutation;
 						Permutation.Set<FCloudShadowFilterCS::FFilterSkyAO>(bSkyAOPass);
-						TShaderMapRef<FCloudShadowFilterCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), Permutation);
+						TShaderMapRef<FCloudShadowFilterCS> ComputeShader(GetGlobalShaderMap(ViewInfo.GetFeatureLevel()), Permutation);
 
 						FCloudShadowFilterCS::FParameters* Parameters = GraphBuilder.AllocParameters<FCloudShadowFilterCS::FParameters>();
 						Parameters->BilinearSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
@@ -1683,7 +1683,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRDGBuilder& GraphBuilder, boo
 								const float LightRotationCutCosAngle = FMath::Cos(FMath::DegreesToRadians(CVarVolumetricCloudShadowTemporalFilteringLightRotationCutHistory.GetValueOnAnyThread()));
 
 								FCloudShadowTemporalProcessCS::FPermutationDomain Permutation;
-								TShaderMapRef<FCloudShadowTemporalProcessCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), Permutation);
+								TShaderMapRef<FCloudShadowTemporalProcessCS> ComputeShader(GetGlobalShaderMap(ViewInfo.GetFeatureLevel()), Permutation);
 
 								FTemporalRenderTargetState& CloudShadowTemporalRT = ViewInfo.ViewState->VolumetricCloudShadowRenderTarget[LightIndex];
 								FRDGTextureRef CurrentShadowTexture = CloudShadowTemporalRT.GetOrCreateCurrentRT(GraphBuilder);
@@ -2299,7 +2299,7 @@ bool FSceneRenderer::RenderVolumetricCloud(
 						if (ShaderDrawDebug::IsShaderDrawDebugEnabled(ViewInfo))
 						{
 							FDrawDebugCloudShadowCS::FPermutationDomain Permutation;
-							TShaderMapRef<FDrawDebugCloudShadowCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5), Permutation);
+							TShaderMapRef<FDrawDebugCloudShadowCS> ComputeShader(GetGlobalShaderMap(ViewInfo.GetFeatureLevel()), Permutation);
 
 							ShaderDrawDebug::SetParameters(GraphBuilder, ViewInfo.ShaderDrawData, Parameters->ShaderDrawParameters);
 

@@ -417,6 +417,8 @@ struct FPackedView
 
 struct FCullingContext
 {
+	FGlobalShaderMap* ShaderMap;
+
 	uint32			DrawPassIndex;
 	uint32			NumInstancesPreCull;
 	uint32			RenderFlags;
@@ -444,6 +446,8 @@ struct FCullingContext
 
 struct FRasterContext
 {
+	FGlobalShaderMap*	ShaderMap;
+
 	FVector2D			RcpViewSize;
 	FIntPoint			TextureSize;
 	ERasterTechnique	RasterTechnique;
@@ -491,6 +495,7 @@ FCullingContext	InitCullingContext(
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
+	ERHIFeatureLevel::Type FeatureLevel,
 	FIntPoint TextureSize,
 	EOutputBufferMode RasterMode = EOutputBufferMode::VisBuffer,
 	bool bClearTarget = true,

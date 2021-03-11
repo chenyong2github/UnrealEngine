@@ -534,7 +534,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 		SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_ClearClipmap);
 		SCOPED_GPU_STAT(RHICmdList, PhysicsFields_ClearClipmap);
 
-		TShaderMapRef<FResetPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+		TShaderMapRef<FResetPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];
@@ -565,7 +565,7 @@ void FPhysicsFieldResource::UpdateResource(FRHICommandListImmediate& RHICmdList,
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, PhysicsFields_BuildClipmap);
 		SCOPED_GPU_STAT(RHICmdList, PhysicsFields_BuildClipmap);
-		TShaderMapRef<FBuildPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+		TShaderMapRef<FBuildPhysicsFieldClipmapCS> ComputeShader(GetGlobalShaderMap(GetFeatureLevel()));
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		const uint32 NumCells = FieldInfos.CellsOffsets[CellsCount];

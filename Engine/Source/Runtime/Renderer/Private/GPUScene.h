@@ -157,6 +157,7 @@ public:
 	inline bool IsRendering() const { return bInBeginEndBlock; }
 	void EndRender();
 
+	ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
 	EShaderPlatform GetShaderPlatform() const { return GShaderPlatformForFeatureLevel[FeatureLevel]; }
 
 	/**

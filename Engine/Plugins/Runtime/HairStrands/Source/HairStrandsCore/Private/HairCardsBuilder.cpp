@@ -146,6 +146,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairCardAtlasTextureRectPS, "/Engine/Private/HairStrand
 
 static void AddCardsTracingPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const bool bOutputCoverageOnly,
 	const bool bClear,
 	const FHairCardsProceduralAtlas& InAtlas,
@@ -200,7 +201,6 @@ static void AddCardsTracingPass(
 		ParametersPS->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTestTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilNop);
 	}
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	FHairCardAtlasTextureRectPS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairCardAtlasTextureRectPS::FOutput>(bOutputCoverageOnly ? 1 : 0);
 	TShaderMapRef<FHairCardAtlasTextureRectVS> VertexShader(ShaderMap);
@@ -268,6 +268,7 @@ static void AddCardsTracingPass(
 
 static void AddHairCardAtlasTexturePass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const FHairCardsProceduralAtlas& InAtlas,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const uint32 TotalVertexCount,
@@ -286,6 +287,7 @@ static void AddHairCardAtlasTexturePass(
 		// 1. Generate depth/tangent/attribute
 		AddCardsTracingPass(
 			GraphBuilder,
+			ShaderMap,
 			false,
 			bClear,
 			InAtlas,
@@ -303,6 +305,7 @@ static void AddHairCardAtlasTexturePass(
 		// 2. Generate Coverage
 		AddCardsTracingPass(
 			GraphBuilder,
+			ShaderMap,
 			true,
 			bClear,
 			InAtlas,
@@ -3854,6 +3857,7 @@ void RunHairCardsAtlasQueries(
 		FRDGTextureRef AttributeTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_RenderTargetable | TexCreate_ShaderResource, 1), TEXT("Hair.CardAttribute"));
 		AddHairCardAtlasTexturePass(
 			GraphBuilder,
+			ShaderMap,
 			Q.ProceduralData->Atlas,
 			DebugShaderData,
 			Q.ProceduralResource->CardsStrandsPositions.Buffer->Desc.NumElements,

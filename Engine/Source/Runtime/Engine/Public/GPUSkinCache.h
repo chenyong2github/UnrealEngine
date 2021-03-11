@@ -146,7 +146,8 @@ public:
 		uint32 bAnySegmentUsesWorldPositionOffset : 1;
 	};
 
-	ENGINE_API FGPUSkinCache(bool bInRequiresMemoryLimit);
+	FGPUSkinCache() = delete;
+	ENGINE_API FGPUSkinCache(ERHIFeatureLevel::Type InFeatureLevel, bool bInRequiresMemoryLimit);
 	ENGINE_API ~FGPUSkinCache();
 
 	ENGINE_API FCachedGeometry GetCachedGeometry(uint32 ComponentId) const;
@@ -392,6 +393,8 @@ public:
 	void EndBatchDispatch(FRHICommandListImmediate& RHICmdList);
 	bool IsBatchingDispatch() const { return bShouldBatchDispatches; }
 
+	inline ERHIFeatureLevel::Type GetFeatureLevel() const { return FeatureLevel; }
+
 protected:
 
 	void AddBufferToTransition(FRHIUnorderedAccessView* InUAV);
@@ -438,6 +441,8 @@ protected:
 	// For recompute tangents, holds the data required between compute shaders
 	TArray<FRWBuffer> StagingBuffers;
 	int32 CurrentStagingBufferIndex;
+
+	ERHIFeatureLevel::Type FeatureLevel;
 
 	static void CVarSinkFunction();
 	static FAutoConsoleVariableSink CVarSink;

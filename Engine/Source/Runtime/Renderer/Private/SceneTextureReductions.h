@@ -11,6 +11,7 @@ void BuildHZB(
 	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBufferTexture,
 	const FIntRect ViewRect,
+	ERHIFeatureLevel::Type FeatureLevel,
 	EShaderPlatform ShaderPlatform,
 	FRDGTextureRef* OutClosestHZBTexture,
 	FRDGTextureRef* OutFurthestHZBTexture,

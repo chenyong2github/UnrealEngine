@@ -77,7 +77,7 @@ void FDisplayClusterRenderingManager::RenderSceneToTexture(const FDisplayCluster
 	ViewFamily.SceneCaptureCompositeMode = ESceneCaptureCompositeMode::SCCM_Overwrite;
 	ViewFamily.bResolveScene = true;
 
-	FCanvas Canvas(RenderInfo.RenderTarget, nullptr, RenderInfo.Scene->GetWorld(), ERHIFeatureLevel::SM5, FCanvas::CDM_DeferDrawing /*FCanvas::CDM_ImmediateDrawing*/, 1.0f);
+	FCanvas Canvas(RenderInfo.RenderTarget, nullptr, RenderInfo.Scene->GetWorld(), RenderInfo.Scene->GetFeatureLevel(), FCanvas::CDM_DeferDrawing /*FCanvas::CDM_ImmediateDrawing*/, 1.0f);
 	Canvas.Clear(FLinearColor::Transparent);
 
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);

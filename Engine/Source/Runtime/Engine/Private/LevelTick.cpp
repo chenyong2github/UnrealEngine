@@ -956,6 +956,7 @@ struct FSendAllEndOfFrameUpdates
 {
 	FGPUSkinCache* GPUSkinCache = nullptr;
 	FComputeFramework* ComputeFramework = nullptr;
+	ERHIFeatureLevel::Type FeatureLevel = ERHIFeatureLevel::Num;
 
 #if WANTS_DRAW_MESH_EVENTS
 	FDrawEvent DrawEvent;
@@ -964,12 +965,14 @@ struct FSendAllEndOfFrameUpdates
 
 FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(
 	FGPUSkinCache* GPUSkinCache,
-	FComputeFramework* ComputeFramework
+	FComputeFramework* ComputeFramework,
+	ERHIFeatureLevel::Type FeatureLevel
 	)
 {
 	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = new FSendAllEndOfFrameUpdates;
 	SendAllEndOfFrameUpdates->GPUSkinCache = GPUSkinCache;
 	SendAllEndOfFrameUpdates->ComputeFramework = ComputeFramework;
+	SendAllEndOfFrameUpdates->FeatureLevel = FeatureLevel;
 
 #if WANTS_DRAW_MESH_EVENTS
 	ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
@@ -1012,7 +1015,7 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 
 		if (SendAllEndOfFrameUpdates->ComputeFramework)
 		{
-			SendAllEndOfFrameUpdates->ComputeFramework->ExecuteBatches(RHICmdList);
+			SendAllEndOfFrameUpdates->ComputeFramework->ExecuteBatches(RHICmdList, SendAllEndOfFrameUpdates->FeatureLevel);
 		}
 
 		delete SendAllEndOfFrameUpdates;
@@ -1074,7 +1077,8 @@ void UWorld::SendAllEndOfFrameUpdates()
 	// Issue a GPU event to wrap GPU work done during SendAllEndOfFrameUpdates, like skin cache updates
 	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = BeginSendEndOfFrameUpdatesDrawEvent(
 		Scene ? Scene->GetGPUSkinCache() : nullptr,
-		Scene ? Scene->GetComputeFramework() : nullptr
+		Scene ? Scene->GetComputeFramework() : nullptr,
+		Scene ? Scene->GetFeatureLevel() : ERHIFeatureLevel::Num
 		);
 
 	// update all dirty components. 

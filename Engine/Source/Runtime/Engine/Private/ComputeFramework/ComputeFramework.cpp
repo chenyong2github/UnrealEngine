@@ -77,7 +77,8 @@ struct FComputeExecutionBuffer
 };
 
 void FComputeFramework::ExecuteBatches(
-	FRHICommandListImmediate& RHICmdList
+	FRHICommandListImmediate& RHICmdList,
+	ERHIFeatureLevel::Type FeatureLevel
 	)
 {
 	if (ComputeShaders.IsEmpty())
@@ -91,6 +92,7 @@ void FComputeFramework::ExecuteBatches(
 		SCOPED_GPU_STAT(RHICmdList, ComputeFramework_ExecuteBatches);
 
 		FRDGBuilder GraphBuilder(RHICmdList);
+		FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 		TArray<FComputeExecutionBuffer> ExecutionBuffers;
 
@@ -163,7 +165,7 @@ void FComputeFramework::ExecuteBatches(
 
 						FComputeShaderUtils::ClearUAV(
 							GraphBuilder,
-							GetGlobalShaderMap(ERHIFeatureLevel::SM5),
+							ShaderMap,
 							GraphBuilder.CreateUAV(InputBuffer, PF_A32B32G32R32F),
 							FVector4(0.0f)
 							);

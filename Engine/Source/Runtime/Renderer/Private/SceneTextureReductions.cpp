@@ -107,6 +107,7 @@ void BuildHZB(
 	FRDGTextureRef SceneDepth,
 	FRDGTextureRef VisBufferTexture,
 	const FIntRect ViewRect,
+	ERHIFeatureLevel::Type FeatureLevel,
 	EShaderPlatform ShaderPlatform,
 	FRDGTextureRef* OutClosestHZBTexture,
 	FRDGTextureRef* OutFurthestHZBTexture,
@@ -188,7 +189,7 @@ void BuildHZB(
 			PermutationVector.Set<FHZBBuildCS::FDimClosest>(bOutputClosest);
 			PermutationVector.Set<FHZBBuildCS::FDimVisBufferFormat>(VisBufferFormat);
 
-			TShaderMapRef<FHZBBuildCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel), PermutationVector);
+			TShaderMapRef<FHZBBuildCS> ComputeShader(GetGlobalShaderMap(FeatureLevel), PermutationVector);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
 				RDG_EVENT_NAME("ReduceHZB(mips=[%d;%d]%s%s) %dx%d",
@@ -209,7 +210,7 @@ void BuildHZB(
 			PassParameters->Shared = ShaderParameters;
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(FurthestHZBTexture, ERenderTargetLoadAction::ENoAction, StartDestMip);
 
-			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+			FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(FeatureLevel);
 			TShaderMapRef<FHZBBuildPS> PixelShader(GlobalShaderMap);
 
 			FPixelShaderUtils::AddFullscreenPass(
@@ -294,5 +295,5 @@ void BuildHZB(
 	FRDGTextureRef* OutClosestHZBTexture,
 	FRDGTextureRef* OutFurthestHZBTexture)
 {
-	BuildHZB(GraphBuilder, SceneDepth, VisBufferTexture, View.ViewRect, View.GetShaderPlatform(), OutClosestHZBTexture, OutFurthestHZBTexture);
+	BuildHZB(GraphBuilder, SceneDepth, VisBufferTexture, View.ViewRect, View.GetFeatureLevel(), View.GetShaderPlatform(), OutClosestHZBTexture, OutFurthestHZBTexture);
 }

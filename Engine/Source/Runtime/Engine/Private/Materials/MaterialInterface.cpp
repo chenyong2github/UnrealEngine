@@ -44,8 +44,8 @@ bool IsHairStrandsGeometrySupported(const EShaderPlatform Platform)
 		(
 			((IsD3DPlatform(Platform) || IsVulkanSM5Platform(Platform)) && IsPCPlatform(Platform) && !IsMobilePlatform(Platform)) || (IsConsolePlatform(Platform) && !IsSwitchPlatform(Platform))
 		)
-		&&
-		GetMaxSupportedFeatureLevel(Platform) == ERHIFeatureLevel::SM5;
+		&& 
+		IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
 }
 
 bool IsCompatibleWithHairStrands(const FMaterial* Material, const ERHIFeatureLevel::Type FeatureLevel)

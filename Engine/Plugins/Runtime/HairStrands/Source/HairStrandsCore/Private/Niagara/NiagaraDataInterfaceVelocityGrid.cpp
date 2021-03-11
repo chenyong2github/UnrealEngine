@@ -698,7 +698,7 @@ public:
 
 IMPLEMENT_SHADER_TYPE(, FCopyVelocityGridCS, TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraCopyVelocityGrid.usf"), TEXT("MainCS"), SF_Compute);
 
-inline void CopyTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize)
+inline void CopyTexture(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize)
 {
 	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
 	FRHIShaderResourceView* CurrentGridBufferSRV = CurrentGridBuffer->GridDataBuffer.SRV;
@@ -706,7 +706,7 @@ inline void CopyTexture(FRHICommandList& RHICmdList, FNDIVelocityGridBuffer* Cur
 
 	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
 	{
-		TShaderMapRef<FCopyVelocityGridCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+		TShaderMapRef<FCopyVelocityGridCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
 		RHICmdList.SetComputeShader(ComputeShader.GetComputeShader());
 
 		FRHITransitionInfo Transitions[] = {
@@ -734,7 +734,7 @@ void FNDIVelocityGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagar
 	if (ProxyData != nullptr)
 	{
 		//ProxyData->Swap();
-		CopyTexture(RHICmdList, ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer,  ProxyData->GridSize);
+		CopyTexture(RHICmdList, Context.Batcher->GetFeatureLevel(), ProxyData->DestinationGridBuffer, ProxyData->CurrentGridBuffer,  ProxyData->GridSize);
 		//FRHICopyTextureInfo CopyInfo;
 		//RHICmdList.CopyTexture(ProxyData->DestinationGridBuffer->GridDataBuffer.Buffer,
 		//	ProxyData->CurrentGridBuffer->GridDataBuffer.Buffer, CopyInfo);

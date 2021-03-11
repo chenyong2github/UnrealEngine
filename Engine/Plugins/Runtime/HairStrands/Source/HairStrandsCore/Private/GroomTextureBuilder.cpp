@@ -132,6 +132,7 @@ static void RasterToTexture(int32 Resolution, int32 KernelExtent, uint32 Channel
 // GPU raster
 static void InternalGenerateFollicleTexture_GPU(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	bool bCopyDataBackToCPU,
 	const FIntPoint Resolution,
 	const uint32 MipCount,
@@ -144,7 +145,6 @@ static void InternalGenerateFollicleTexture_GPU(
 	UTexture2D*	OutTexture)
 {
 	const ERHIFeatureLevel::Type FeatureLevel = GMaxRHIFeatureLevel;
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	if (OutTexture == nullptr || !OutTexture->Resource || !OutTexture->Resource->GetTexture2DRHI() ||
 		(InRootUVBuffers_R.Num() == 0 &&
@@ -272,6 +272,7 @@ static void InternalBuildFollicleTexture_CPU(const TArray<FFollicleInfo>& InInfo
 // GPU path
 static void InternalBuildFollicleTexture_GPU(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const TArray<FFollicleInfo>& InInfos,
 	const FIntPoint Resolution,
 	const uint32 MipCount,
@@ -316,7 +317,7 @@ static void InternalBuildFollicleTexture_GPU(
 	}
 
 	const EPixelFormat Format = bCopyDataBackToCPU ? PF_B8G8R8A8 : PF_R8G8B8A8;		 
-	InternalGenerateFollicleTexture_GPU(GraphBuilder, bCopyDataBackToCPU, Resolution, MipCount, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);
+	InternalGenerateFollicleTexture_GPU(GraphBuilder, ShaderMap, bCopyDataBackToCPU, Resolution, MipCount, Format, KernelSizeInPixels, RootUVBuffers[0], RootUVBuffers[1], RootUVBuffers[2], RootUVBuffers[3], OutTexture);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -344,7 +345,7 @@ void RunHairStrandsFolliculeMaskQueries(FRDGBuilder& GraphBuilder, FGlobalShader
 	{
 		if (Q.Infos.Num() > 0 && Q.MipCount>0 && Q.Resolution.X > 0 && Q.Resolution.Y > 0)
 		{
-			InternalBuildFollicleTexture_GPU(GraphBuilder, Q.Infos, Q.Resolution, Q.MipCount, Q.Format, Q.OutTexture);
+			InternalBuildFollicleTexture_GPU(GraphBuilder, ShaderMap, Q.Infos, Q.Resolution, Q.MipCount, Q.Format, Q.OutTexture);
 		}
 	}
 }
@@ -421,6 +422,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairStrandTextureDilationCS, "/Engine/Private/HairStran
 
 static void AddTextureDilationPass(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const FIntPoint& Resolution,
 	FRDGTextureRef TriangleMaskTexture,
 
@@ -434,7 +436,6 @@ static void AddTextureDilationPass(
 	FRDGTextureRef Target_TangentTexture,
 	FRDGTextureRef Target_AttributeTexture)
 {
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	FHairStrandTextureDilationCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandTextureDilationCS::FParameters>();
 	Parameters->Resolution				= Resolution;
 	Parameters->TriangleMaskTexture		= GraphBuilder.CreateUAV(TriangleMaskTexture);
@@ -589,6 +590,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairStrandsTexturePS, "/Engine/Private/HairStrands/Hair
 
 static void InternalGenerateHairStrandsTextures(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const FShaderDrawDebugData* ShaderDrawData,
 	const bool bClear,
 	const float InMaxDistance, 
@@ -673,7 +675,6 @@ static void InternalGenerateHairStrandsTextures(
 		ERenderTargetLoadAction::ENoAction,
 		FExclusiveDepthStencil::DepthWrite_StencilNop);
 
-	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(ERHIFeatureLevel::SM5);
 	TShaderMapRef<FHairStrandsTextureVS> VertexShader(ShaderMap);
 	TShaderMapRef<FHairStrandsTexturePS> PixelShader(ShaderMap);
 
@@ -805,6 +806,7 @@ static void AddReadbackPass(
 
 static void InternalBuildStrandsTextures_GPU(
 	FRDGBuilder& GraphBuilder,
+	FGlobalShaderMap* ShaderMap,
 	const FStrandsTexturesInfo& InInfo,
 	const FStrandsTexturesOutput& Output,
 	const struct FShaderDrawDebugData* DebugShaderData)
@@ -934,6 +936,7 @@ static void InternalBuildStrandsTextures_GPU(
 
 			InternalGenerateHairStrandsTextures(
 				GraphBuilder,
+				ShaderMap,
 				DebugShaderData,
 				bClear,
 				InInfo.MaxTracingDistance,
@@ -986,6 +989,7 @@ static void InternalBuildStrandsTextures_GPU(
 
 		AddTextureDilationPass(
 			GraphBuilder,
+			ShaderMap,
 			OutputResolution,
 			TriangleMaskTexture,
 
@@ -1028,7 +1032,7 @@ void RunHairStrandsTexturesQueries(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 	FStrandsTexturesQuery Q;
 	while (GStrandsTexturesQueries.Dequeue(Q))
 	{
-		InternalBuildStrandsTextures_GPU(GraphBuilder, Q.Info, Q.Output, DebugShaderData);
+		InternalBuildStrandsTextures_GPU(GraphBuilder, ShaderMap, Q.Info, Q.Output, DebugShaderData);
 	}
 }
 

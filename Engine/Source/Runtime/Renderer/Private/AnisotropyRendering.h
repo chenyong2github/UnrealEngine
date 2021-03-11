@@ -14,6 +14,7 @@ class FAnisotropyMeshProcessor : public FMeshPassProcessor
 public:
 	FAnisotropyMeshProcessor(
 		const FScene* Scene,
+		ERHIFeatureLevel::Type InFeatureLevel,
 		const FSceneView* InViewIfDynamicMeshCommand,
 		const FMeshPassProcessorRenderState& InPassDrawRenderState,
 		FMeshPassDrawListContext* InDrawListContext

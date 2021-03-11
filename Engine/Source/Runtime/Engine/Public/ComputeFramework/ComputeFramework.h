@@ -70,7 +70,8 @@ public:
 		);
 
 	void ExecuteBatches(
-		FRHICommandListImmediate& RHICmdList
+		FRHICommandListImmediate& RHICmdList,
+		ERHIFeatureLevel::Type FeatureLevel
 		);
 
 private:

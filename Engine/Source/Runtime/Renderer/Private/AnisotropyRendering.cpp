@@ -83,23 +83,26 @@ DECLARE_CYCLE_STAT(TEXT("AnisotropyPass"), STAT_CLP_AnisotropyPass, STATGROUP_Pa
 
 FAnisotropyMeshProcessor::FAnisotropyMeshProcessor(
 	const FScene* Scene, 
-	const FSceneView* InViewIfDynamicMeshCommand, 
+	ERHIFeatureLevel::Type InFeatureLevel,
+	const FSceneView* InViewIfDynamicMeshCommand,
 	const FMeshPassProcessorRenderState& InPassDrawRenderState, 
 	FMeshPassDrawListContext* InDrawListContext
 	)
-	: FMeshPassProcessor(Scene, ERHIFeatureLevel::SM5, InViewIfDynamicMeshCommand, InDrawListContext)
+	: FMeshPassProcessor(Scene, InFeatureLevel, InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
 {
 }
 
 FMeshPassProcessor* CreateAnisotropyPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
+	const ERHIFeatureLevel::Type FeatureLevel = Scene ? Scene->GetFeatureLevel() : (InViewIfDynamicMeshCommand ? InViewIfDynamicMeshCommand->GetFeatureLevel() : GMaxRHIFeatureLevel);
+
 	FMeshPassProcessorRenderState AnisotropyPassState;
 
 	AnisotropyPassState.SetBlendState(TStaticBlendState<>::GetRHI());
 	AnisotropyPassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Equal>::GetRHI());
 
-	return new(FMemStack::Get()) FAnisotropyMeshProcessor(Scene, InViewIfDynamicMeshCommand, AnisotropyPassState, InDrawListContext);
+	return new(FMemStack::Get()) FAnisotropyMeshProcessor(Scene, FeatureLevel, InViewIfDynamicMeshCommand, AnisotropyPassState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterAnisotropyPass(
