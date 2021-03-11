@@ -608,13 +608,119 @@ void FRigBaseElementDetails::OnStructContentsChanged(FProperty* InProperty, cons
 	PropertyUtilities->NotifyFinishedChangingProperties(ChangeEvent);
 }
 
+bool FRigBaseElementDetails::IsSetupModeEnabled() const
+{
+	if(BlueprintBeingCustomized)
+	{
+		if (UControlRig* DebuggedRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+		{
+			return DebuggedRig->IsSetupModeEnabled();
+		}
+	}
+	return false;
+}
+
 void FRigTransformElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	FRigBaseElementDetails::CustomizeDetails(DetailBuilder);
 
-	IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TEXT("Pose"));
+	//if(ElementKeyBeingCustomized.Type != ERigElementType::Control)
+	{
+		IDetailCategoryBuilder& Category = DetailBuilder.EditCategory(TEXT("Pose"));
+		if(ElementKeyBeingCustomized.Type == ERigElementType::Control)
+		{
+			Category
+			.InitiallyCollapsed(true);
+		}
 
-	Category.InitiallyCollapsed(ElementKeyBeingCustomized.Type != ERigElementType::Control);
+		// setup initial global
+		{
+			const TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(TEXT("Pose.Initial.Global.Transform"), FRigTransformElement::StaticStruct());
+			Category.AddProperty(PropertyHandle, EPropertyLocation::Advanced).DisplayName(FText::FromString(TEXT("Initial Global")))
+			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
+
+			PoseInitialGlobal.AddHead(FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Pose")));
+			PoseInitialGlobal.AddTail(FRigCurrentAndInitialTransform::StaticStruct()->FindPropertyByName(TEXT("Initial")));
+			PoseInitialGlobal.AddTail(FRigLocalAndGlobalTransform::StaticStruct()->FindPropertyByName(TEXT("Global")));
+			PoseInitialGlobal.AddTail(FRigComputedTransform::StaticStruct()->FindPropertyByName(TEXT("Transform")));
+			PoseInitialGlobal.SetActiveMemberPropertyNode(PoseInitialGlobal.GetTail()->GetValue());
+
+			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&FRigTransformElementDetails::OnTransformChanged, &PoseInitialGlobal, BlueprintBeingCustomized);
+			PropertyHandle->SetOnPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetOnChildPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetToolTipText(FText::FromString(TEXT("The initial / ref pose global transform in the space of the rig / actor.")));
+		}
+
+		// setup initial local
+		{
+			const TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(TEXT("Pose.Initial.Local.Transform"), FRigTransformElement::StaticStruct());
+			Category.AddProperty(PropertyHandle, EPropertyLocation::Advanced).DisplayName(FText::FromString(TEXT("Initial Local")))
+			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
+
+			PoseInitialLocal.AddHead(FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Pose")));
+			PoseInitialLocal.AddTail(FRigCurrentAndInitialTransform::StaticStruct()->FindPropertyByName(TEXT("Initial")));
+			PoseInitialLocal.AddTail(FRigLocalAndGlobalTransform::StaticStruct()->FindPropertyByName(TEXT("Local")));
+			PoseInitialLocal.AddTail(FRigComputedTransform::StaticStruct()->FindPropertyByName(TEXT("Transform")));
+			PoseInitialLocal.SetActiveMemberPropertyNode(PoseInitialLocal.GetTail()->GetValue());
+
+			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&FRigTransformElementDetails::OnTransformChanged, &PoseInitialLocal, BlueprintBeingCustomized);
+			PropertyHandle->SetOnPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetOnChildPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetToolTipText(FText::FromString(TEXT("The initial / ref pose local transform in the space of the parent.\nFor Controls the initial value is relative to the offset.")));
+		}
+
+		// setup current global
+		{
+			const TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(TEXT("Pose.Current.Global.Transform"), FRigTransformElement::StaticStruct());
+			Category.AddProperty(PropertyHandle, EPropertyLocation::Advanced).DisplayName(FText::FromString(TEXT("Current Global")))
+			.IsEnabled(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &FRigBaseElementDetails::IsSetupModeEnabled)));
+
+			PoseCurrentGlobal.AddHead(FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Pose")));
+			PoseCurrentGlobal.AddTail(FRigCurrentAndInitialTransform::StaticStruct()->FindPropertyByName(TEXT("Current")));
+			PoseCurrentGlobal.AddTail(FRigLocalAndGlobalTransform::StaticStruct()->FindPropertyByName(TEXT("Global")));
+			PoseCurrentGlobal.AddTail(FRigComputedTransform::StaticStruct()->FindPropertyByName(TEXT("Transform")));
+			PoseCurrentGlobal.SetActiveMemberPropertyNode(PoseCurrentGlobal.GetTail()->GetValue());
+
+			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&FRigTransformElementDetails::OnTransformChanged, &PoseCurrentGlobal, BlueprintBeingCustomized);
+			PropertyHandle->SetOnPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetOnChildPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetToolTipText(FText::FromString(TEXT("The current global transform in the space of the rig / actor.")));
+		}
+
+		// setup current local
+		{
+			const TSharedRef<IPropertyHandle> PropertyHandle = DetailBuilder.GetProperty(TEXT("Pose.Current.Local.Transform"), FRigTransformElement::StaticStruct());
+			Category.AddProperty(PropertyHandle).DisplayName(FText::FromString(TEXT("Current Local")))
+			.IsEnabled(ElementKeyBeingCustomized.Type != ERigElementType::Control);
+
+			PoseCurrentLocal.AddHead(FRigControlElement::StaticStruct()->FindPropertyByName(TEXT("Pose")));
+			PoseCurrentLocal.AddTail(FRigCurrentAndInitialTransform::StaticStruct()->FindPropertyByName(TEXT("Current")));
+			PoseCurrentLocal.AddTail(FRigLocalAndGlobalTransform::StaticStruct()->FindPropertyByName(TEXT("Local")));
+			PoseCurrentLocal.AddTail(FRigComputedTransform::StaticStruct()->FindPropertyByName(TEXT("Transform")));
+			PoseCurrentLocal.SetActiveMemberPropertyNode(PoseCurrentLocal.GetTail()->GetValue());
+
+			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&FRigTransformElementDetails::OnTransformChanged, &PoseCurrentLocal, BlueprintBeingCustomized);
+			PropertyHandle->SetOnPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetOnChildPropertyValueChanged(OnTransformChangedDelegate);
+			PropertyHandle->SetToolTipText(FText::FromString(TEXT("The current local transform in the space of the parent.\nFor Controls the initial value is relative to the offset.")));
+		}
+
+		DetailBuilder.HideProperty(TEXT("Pose"), FRigTransformElement::StaticStruct());
+	}
+}
+
+void FRigTransformElementDetails::OnTransformChanged(FEditPropertyChain* InPropertyChain, UControlRigBlueprint* InBlueprint)
+{
+	if(InBlueprint && InPropertyChain)
+	{
+		if(InPropertyChain->Num() > 1)
+		{
+			FPropertyChangedEvent ChangeEvent(InPropertyChain->GetHead()->GetValue(), EPropertyChangeType::ValueSet);
+			ChangeEvent.SetActiveMemberProperty(InPropertyChain->GetTail()->GetValue());
+			FPropertyChangedChainEvent ChainEvent(*InPropertyChain, ChangeEvent);
+			InBlueprint->BroadcastPostEditChangeChainProperty(ChainEvent);
+		}
+	}
 }
 
 void FRigBoneElementDetails::CustomizeDetails( IDetailLayoutBuilder& DetailBuilder )
@@ -952,13 +1058,18 @@ void FRigControlElementDetails_SetupStructValueWidget(IDetailCategoryBuilder& In
 	TWeakObjectPtr<URigHierarchy> HierarchyPtr = InHierarchy;
 	const FRigElementKey Key = InControlElement->GetKey();
 
-	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, Key, InValueType]()->bool
+	const TAttribute<bool> EnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateLambda([HierarchyPtr, Key, InValueType, StructToDisplay, ValueStruct]()->bool
     {
         if(HierarchyPtr.IsValid())
         {
             if(FRigControlElement* ControlElement = HierarchyPtr->Find<FRigControlElement>(Key))
             {
-                return ControlElement->Settings.IsValueTypeEnabled(InValueType);
+            	// update the struct with the current control value
+            	uint8* StructMemory = StructToDisplay->GetStructMemory();
+            	const FRigControlValue& CurrentValue = HierarchyPtr->GetControlValue(Key, InValueType);            	
+            	FMemory::Memcpy(StructToDisplay->GetStructMemory(), &CurrentValue.GetRef<T>(), sizeof(T));
+
+            	return ControlElement->Settings.IsValueTypeEnabled(InValueType);
             }
         }
         return false;
@@ -1244,23 +1355,6 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		}
 	));
 
-	struct Local
-	{
-		static void OnTransformChanged(FEditPropertyChain* InPropertyChain, UControlRigBlueprint* InBlueprint)
-		{
-			if(InBlueprint && InPropertyChain)
-			{
-				if(InPropertyChain->Num() > 1)
-				{
-					FPropertyChangedEvent ChangeEvent(InPropertyChain->GetHead()->GetValue(), EPropertyChangeType::ValueSet);
-					ChangeEvent.SetActiveMemberProperty(InPropertyChain->GetTail()->GetValue());
-					FPropertyChangedChainEvent ChainEvent(*InPropertyChain, ChangeEvent);
-					InBlueprint->BroadcastPostEditChangeChainProperty(ChainEvent);
-				}
-			}
-		}
-	};
-
 	if(ControlElement->Settings.ControlType == ERigControlType::Bool)
 	{
 		DetailBuilder.HideCategory(TEXT("Pose"));
@@ -1271,7 +1365,6 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 	{
 		// setup offset transform
 		{
-			const TSharedRef<IPropertyHandle> OffsetHandle = DetailBuilder.GetProperty(TEXT("Offset"));
 			const TSharedRef<IPropertyHandle> OffsetInitialLocalTransformHandle = DetailBuilder.GetProperty(TEXT("Offset.Initial.Local.Transform"));
 			ControlCategory.AddProperty(OffsetInitialLocalTransformHandle).DisplayName(FText::FromString(TEXT("Offset Transform")));
 			DetailBuilder.HideProperty(TEXT("Offset"));
@@ -1282,14 +1375,14 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 			OffsetPropertyChain.AddTail(FRigComputedTransform::StaticStruct()->FindPropertyByName(TEXT("Transform")));
 			OffsetPropertyChain.SetActiveMemberPropertyNode(OffsetPropertyChain.GetTail()->GetValue());
 
-			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&Local::OnTransformChanged, &OffsetPropertyChain, BlueprintBeingCustomized);
+			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&FRigTransformElementDetails::OnTransformChanged, &OffsetPropertyChain, BlueprintBeingCustomized);
 			OffsetInitialLocalTransformHandle->SetOnPropertyValueChanged(OnTransformChangedDelegate);
 			OffsetInitialLocalTransformHandle->SetOnChildPropertyValueChanged(OnTransformChangedDelegate);
+			OffsetInitialLocalTransformHandle->SetToolTipText(FText::FromString(TEXT("The offset transform is used as a middle man between the parent and the local transform.\nYou can use it to offset a control for visual adjustment.")));
 		}
 
 		// setup gizmo transform
 		{
-			const TSharedRef<IPropertyHandle> GizmoHandle = DetailBuilder.GetProperty(TEXT("Gizmo"));
 			const TSharedRef<IPropertyHandle> GizmoInitialLocalTransformHandle = DetailBuilder.GetProperty(TEXT("Gizmo.Initial.Local.Transform"));
 			GizmoCategory.AddProperty(GizmoInitialLocalTransformHandle).DisplayName(FText::FromString(TEXT("Gizmo Transform")));
 			DetailBuilder.HideProperty(TEXT("Gizmo"));
@@ -1300,9 +1393,10 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 			GizmoPropertyChain.AddTail(FRigComputedTransform::StaticStruct()->FindPropertyByName(TEXT("Transform")));
 			GizmoPropertyChain.SetActiveMemberPropertyNode(GizmoPropertyChain.GetTail()->GetValue());
 
-			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&Local::OnTransformChanged, &GizmoPropertyChain, BlueprintBeingCustomized);
+			const FSimpleDelegate OnTransformChangedDelegate = FSimpleDelegate::CreateStatic(&FRigTransformElementDetails::OnTransformChanged, &GizmoPropertyChain, BlueprintBeingCustomized);
 			GizmoInitialLocalTransformHandle->SetOnPropertyValueChanged(OnTransformChangedDelegate);
 			GizmoInitialLocalTransformHandle->SetOnChildPropertyValueChanged(OnTransformChangedDelegate);
+			GizmoInitialLocalTransformHandle->SetToolTipText(FText::FromString(TEXT("The gizmo transform is used as a transform applied only to the UI element on the screen.\nIt doesn't affect animation.")));
 		}
 	}
 

@@ -120,6 +120,7 @@ public:
 	void SetName(const FText& InNewText, ETextCommit::Type InCommitType);
 
 	void OnStructContentsChanged(FProperty* InProperty, const TSharedRef<IPropertyUtilities> PropertyUtilities);
+	bool IsSetupModeEnabled() const; 
 
 protected:
 
@@ -134,6 +135,14 @@ public:
 
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+
+protected:
+	static void OnTransformChanged(FEditPropertyChain* InPropertyChain, UControlRigBlueprint* InBlueprint);
+
+	FEditPropertyChain PoseInitialGlobal;
+	FEditPropertyChain PoseInitialLocal;
+	FEditPropertyChain PoseCurrentGlobal;
+	FEditPropertyChain PoseCurrentLocal;
 };
 
 class FRigBoneElementDetails : public FRigTransformElementDetails
@@ -181,6 +190,7 @@ private:
 	static TArray<TSharedPtr<FString>> ControlTypeList;
 	TSharedPtr<FRigInfluenceEntryModifier> InfluenceModifier;
 	TSharedPtr<FStructOnScope> InfluenceModifierStruct;
+	FEditPropertyChain PoseCurrentChain;
 	FEditPropertyChain OffsetPropertyChain;
 	FEditPropertyChain GizmoPropertyChain;
 };

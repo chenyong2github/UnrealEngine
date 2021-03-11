@@ -1972,47 +1972,16 @@ void FControlRigEditor::HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* I
 void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
 {
 	UpdateGraphCompilerErrors();
-}
 
-
-void FControlRigEditor::CreateEditorModeManager()
-{
-	TSharedPtr<FAssetEditorModeManager> ModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	SetAssetEditorModeManager(ModeManager.Get());
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-}
-
-
-void FControlRigEditor::Tick(float DeltaTime)
-{
-	FBlueprintEditor::Tick(DeltaTime);
-
-	bool bDrawHierarchyBones = false;
-
-	// tick the control rig in case we don't have skeletal mesh
-	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
+	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
-		if (Blueprint->GetPreviewMesh() == nullptr && 
-			ControlRig != nullptr && 
-			bExecutionControlRig)
-		{
-			// reset transforms here to prevent additive transforms from accumulating to INF
-			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
-			
-			ControlRig->SetDeltaTime(DeltaTime);
-			ControlRig->Evaluate_AnyThread();
-			bDrawHierarchyBones = true;
-		}
-
 		if(RigElementInDetailPanel.IsValid())
 		{
-			URigHierarchy* Hierarchy = Blueprint->Hierarchy; 
+			URigHierarchy* Hierarchy = ControlRigBP->Hierarchy; 
 
 			if(!bSetupModeEnabled)
 			{
-				UControlRig* DebuggedControlRig = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged());
+				UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged());
 				if (DebuggedControlRig == nullptr)
 				{
 					DebuggedControlRig = ControlRig;
@@ -2047,6 +2016,40 @@ void FControlRigEditor::Tick(float DeltaTime)
 				Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialGlobal);
 				Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
 			}
+		}
+	}
+}
+
+void FControlRigEditor::CreateEditorModeManager()
+{
+	TSharedPtr<FAssetEditorModeManager> ModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	SetAssetEditorModeManager(ModeManager.Get());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+
+void FControlRigEditor::Tick(float DeltaTime)
+{
+	FBlueprintEditor::Tick(DeltaTime);
+
+	bool bDrawHierarchyBones = false;
+
+	// tick the control rig in case we don't have skeletal mesh
+	if (UControlRigBlueprint* Blueprint = GetControlRigBlueprint())
+	{
+		if (Blueprint->GetPreviewMesh() == nullptr && 
+			ControlRig != nullptr && 
+			bExecutionControlRig)
+		{
+			// reset transforms here to prevent additive transforms from accumulating to INF
+			ControlRig->GetHierarchy()->ResetPoseToInitial(ERigElementType::Bone);
+			
+			ControlRig->SetDeltaTime(DeltaTime);
+			ControlRig->Evaluate_AnyThread();
+			bDrawHierarchyBones = true;
+			
 		}
 	}
 
@@ -3595,9 +3598,10 @@ void FControlRigEditor::SynchronizeViewportBoneSelection()
 		TArray<FRigBaseElement*> SelectedBones = RigBlueprint->Hierarchy->GetSelectedElements(ERigElementType::Bone);
 		for (const FRigBaseElement* SelectedBone : SelectedBones)
 		{
-			if(EditorSkelComp->GetReferenceSkeleton().IsValidIndex(SelectedBone->GetSubIndex()))
+ 			const int32 BoneIndex = EditorSkelComp->GetReferenceSkeleton().FindBoneIndex(SelectedBone->GetName());
+			if(BoneIndex != INDEX_NONE)
 			{
-				EditorSkelComp->BonesOfInterest.AddUnique(SelectedBone->GetSubIndex());
+				EditorSkelComp->BonesOfInterest.AddUnique(BoneIndex);
 			}
 		}
 	}
