@@ -207,6 +207,8 @@ public:
 		TArray<uint8> Data(InData.GetData(), InData.Num());
 		check(Data.Num());
 		int32 KeyLen = FCString::Strlen(CacheKey) + 1;
+		checkf(int64(Data.Num()) + KeyLen <= INT32_MAX,
+			TEXT("FDerivedDataLimitKeyLengthWrapper: shortening the key makes the data exceed 2 GiB for %s"), CacheKey);
 		Data.AddUninitialized(KeyLen);
 		FCStringAnsi::Strcpy((char*)&Data[Data.Num() - KeyLen], KeyLen, TCHAR_TO_ANSI(CacheKey));
 		check(Data.Last()==0);

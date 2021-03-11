@@ -199,6 +199,8 @@ public:
 		}
 		COOK_STAT(Timer.AddHit(InData.Num()));
 		// Get rid of the double copy!
+		checkf(int64(InData.Num()) + sizeof(FDerivedDataTrailer) <= INT32_MAX,
+			TEXT("FDerivedDataBackendCorruptionWrapper: appending the trailer makes the data exceed 2 GiB for %s"), CacheKey);
 		TArray<uint8> Data;
 		Data.Reset( InData.Num() + sizeof(FDerivedDataTrailer) );
 		Data.AddUninitialized(InData.Num());
