@@ -359,7 +359,7 @@ FRigUnit_RigLogic_Execute()
 				{
 					return;
 				}
-				Data.CurrentLOD = Data.SkelMeshComponent->PredictedLODLevel;
+				Data.CurrentLOD = Data.SkelMeshComponent->GetPredictedLODLevel();
 				Data.CalculateRigLogic(Hierarchy);
 
 				//Filing a struct so we can call the same method for updating joints from tests
