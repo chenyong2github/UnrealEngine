@@ -39,11 +39,9 @@ bool FShaderMapResource::ArePlatformsCompatible(EShaderPlatform CurrentPlatform,
 	{
 		bFeatureLevelCompatible = GetMaxSupportedFeatureLevel(CurrentPlatform) >= GetMaxSupportedFeatureLevel(TargetPlatform);
 
-		bool const bIsTargetD3D = TargetPlatform == SP_PCD3D_SM5 ||
-			TargetPlatform == SP_PCD3D_ES3_1;
+		bool const bIsTargetD3D = IsD3DPlatform(TargetPlatform);
 
-		bool const bIsCurrentPlatformD3D = CurrentPlatform == SP_PCD3D_SM5 ||
-			TargetPlatform == SP_PCD3D_ES3_1;
+		bool const bIsCurrentPlatformD3D = IsD3DPlatform(CurrentPlatform);
 
 		// For Metal in Editor we can switch feature-levels, but not in cooked projects when using Metal shader librariss.
 		bool const bIsCurrentMetal = IsMetalPlatform(CurrentPlatform);
