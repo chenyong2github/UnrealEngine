@@ -1395,6 +1395,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 										ActiveInstances[Node.DynamicInstance] = OutRayTracingInstances.Num();
 										FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.Add_GetRef(RayTracingWPOInstanceTemplate);
 										RayTracingInstance.Geometry = &DynamicData.DynamicGeometry;
+										RayTracingInstance.InstanceTransforms.Reserve(InstanceCount);
 
 										DynamicInstance = &RayTracingInstance;
 										
@@ -1449,7 +1450,61 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			Transform.M[3][3] = 1.0f;
 			FMatrix InstanceTransform = Transform * GetLocalToWorld();
 
-			RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
+			if (bHasWorldPositionOffset)
+			{
+				FRayTracingInstance *DynamicInstance = nullptr;
+
+				if (ActiveInstances[0] == -1)
+				{
+					// first case of this dynamic instance, setup the material and add it
+					const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
+					float InstanceRandom = InstanceData.Transform.M[3][3];
+
+					const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
+
+					FRayTracingDynamicData &DynamicData = RayTracingDynamicData[0];
+
+					ActiveInstances[0] = OutRayTracingInstances.Num();
+					FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.Add_GetRef(RayTracingWPOInstanceTemplate);
+					RayTracingInstance.Geometry = &DynamicData.DynamicGeometry;
+					RayTracingInstance.InstanceTransforms.Reserve(InstanceCount);
+
+					DynamicInstance = &RayTracingInstance;
+
+					FRayTracingInstance SimulationInstance = RayTracingWPODynamicTemplate;
+
+					// ToDo - deeper dive into ensuring better instance simulation matching
+					FMatrix Passthrough = FMatrix::Identity;
+					Passthrough.M[3][3] = InstanceRandom;
+
+					Context.DynamicRayTracingGeometriesToUpdate.Add(
+						FRayTracingDynamicGeometryUpdateParams
+						{
+							SimulationInstance.Materials,
+							false,
+							(uint32)LODModel.GetNumVertices(),
+							uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
+							DynamicData.DynamicGeometry.Initializer.TotalPrimitiveCount,
+							&DynamicData.DynamicGeometry,
+							&DynamicData.DynamicGeometryVertexBuffer,
+							true,
+							Passthrough
+						}
+					);
+
+				}
+				else
+				{
+					DynamicInstance = &OutRayTracingInstances[ActiveInstances[0]];
+				}
+
+				DynamicInstance->InstanceTransforms.Add(InstanceTransform);
+
+			}
+			else
+			{
+				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
+			}
 		}
 	}
 
