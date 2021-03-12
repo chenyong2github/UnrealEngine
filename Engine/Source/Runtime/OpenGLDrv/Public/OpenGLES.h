@@ -579,6 +579,13 @@ struct FOpenGLES : public FOpenGLBase
 		glClearDepthf(Depth);
 	}
 
+	static FORCEINLINE void GenerateMipmap( GLenum Target )
+	{
+		glGenerateMipmap( Target);
+	}
+	
+	static FORCEINLINE bool SupportsGenerateMipmap() { return true; }
+
 	static FORCEINLINE GLuint GetMajorVersion()
 	{
 		return 3;

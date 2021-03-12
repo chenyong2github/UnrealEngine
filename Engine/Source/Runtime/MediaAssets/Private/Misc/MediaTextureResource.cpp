@@ -356,11 +356,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			{
 				check(OutputTarget);
 
-#if PLATFORM_ANDROID
-				const EGenerateMipsPass GenerateMipsPass = EGenerateMipsPass::Raster;
-#else
 				const EGenerateMipsPass GenerateMipsPass = EGenerateMipsPass::Compute;
-#endif
 
 				CacheRenderTarget(OutputTarget, TEXT("MipGeneration"), MipGenerationCache);
 
