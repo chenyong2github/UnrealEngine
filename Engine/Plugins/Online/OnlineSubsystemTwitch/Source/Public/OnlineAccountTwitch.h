@@ -18,7 +18,7 @@ public:
 
 	// FOnlineUser
 	
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override;
+	virtual FUniqueNetIdRef GetUserId() const override;
 	virtual FString GetRealName() const override;
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override;
 	virtual bool GetUserAttribute(const FString& AttrName, FString& OutAttrValue) const override;
@@ -31,7 +31,7 @@ public:
 
 	// FUserOnlineAccountTwitch
 	FUserOnlineAccountTwitch(const FString& InUserId = FString(), const FString& InAuthTicket = FString())
-		: UserId(MakeShared<FUniqueNetIdTwitch>(InUserId))
+		: UserId(FUniqueNetIdTwitch::Create(InUserId))
 		, AuthTicket(InAuthTicket)
 	{
 	}
@@ -94,7 +94,7 @@ protected:
 	FJsonSerializableKeyValueMap AccountData;
 
 	/** User Id represented as a FUniqueNetId */
-	TSharedRef<const FUniqueNetId> UserId;
+	FUniqueNetIdRef UserId;
 	/** Ticket which is provided to user once authenticated by the online service */
 	FString AuthTicket;
 	/** Scope permissions the user has authorized us for */
