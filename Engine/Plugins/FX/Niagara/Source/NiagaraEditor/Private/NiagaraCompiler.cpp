@@ -1195,6 +1195,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 			CompileResults.bComputeSucceeded = true;
 		}
 		CompileResults.Data->LastHlslTranslationGPU = TranslatedHLSL;
+		CompileResults.Data->CompileTags = InTranslateResults.CompileTags;
 		DumpDebugInfo(CompileResults, Input, true);
 		CompilationJob->CompileResults = CompileResults;
 		return JobID;
