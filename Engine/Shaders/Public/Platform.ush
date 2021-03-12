@@ -566,6 +566,14 @@ void ShaderYield()
 #define HOIST_DESCRIPTORS
 #endif
 
+#ifndef SCHEDULER_MIN_PRESSURE
+#define SCHEDULER_MIN_PRESSURE
+#endif
+
+#ifndef MAX_OCCUPENCY
+#define MAX_OCCUPENCY
+#endif
+
 // ---------------------------------------------------- Interpolator attribute fallbacks
 
 #ifndef COMPRESSED_16_FLOAT

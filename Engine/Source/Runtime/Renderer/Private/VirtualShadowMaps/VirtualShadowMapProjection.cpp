@@ -514,6 +514,9 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		{
 			OutEnvironment.CompilerFlags.Add(CFLAG_WaveOperations);
 		}
+
+		OutEnvironment.CompilerFlags.Add( CFLAG_Wave32 );
+		OutEnvironment.CompilerFlags.Add( CFLAG_AllowRealTypes );
 	}
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)

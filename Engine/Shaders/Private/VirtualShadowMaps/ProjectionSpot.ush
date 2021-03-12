@@ -144,7 +144,7 @@ FSMRTResult ShadowRayCastSpotLight(
 	float3 RayStart,
 	float3 RayEnd,
 	int NumSteps,
-	float StepOffset)
+	half StepOffset)
 {
 	FSMRTSingleRayState RayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStart, RayEnd);
 	return SMRTRayCast(RayState, NumSteps, StepOffset);
@@ -155,7 +155,7 @@ FSMRTResult ShadowRayCastPointLight(
 	float3 RayStart,
 	float3 RayEnd,
 	int NumSteps,
-	float StepOffset)
+	half StepOffset)
 {
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
@@ -181,28 +181,30 @@ FSMRTResult ShadowRayCastPointLight(
 	return Result;
 }
 
-float3 GetRandomPointLightRayVector(FLightShaderParameters LightParameters, float3 WorldPosition, float2 E)
+// MaxBits version reduces unrolled iterations
+float4 SobolSampler(uint SampleIndex, inout uint Seed, uint MaxBits)
 {
-	float3 LightDirection = LightParameters.Position - WorldPosition;
-	float RayLength2 = dot(LightDirection, LightDirection);
-	float Radius2 = LightParameters.SourceRadius * LightParameters.SourceRadius;
+	// first scramble the index to decorelate from other 4-tuples
+	uint SobolIndex = FastOwenScrambling(SampleIndex, EvolveSobolSeed(Seed)) & ( (1 << MaxBits) - 1 );
+	// now get Sobol' point from this index
+	uint4 Result = uint4(SobolIndex, 0, 0, 0);
+	UNROLL for (uint b = 0, v = 1; b < MaxBits; b++)
+	{
+		uint IndexBit = (SobolIndex >> b) & 1;
+		Result.y ^= IndexBit * v;
+		Result.zw ^= IndexBit * SobolMatrices[b];
+		v ^= v << 1;
+	}
 
-	// Clamping this instead of handling sampling point inside light radius properly is good enough for now
-	float SinThetaMax2 = saturate(Radius2 / RayLength2);
+	// finally scramble the points to avoid structured artifacts
+	Result.x = FastOwenScrambling(Result.x, EvolveSobolSeed(Seed));
+	Result.y = FastOwenScrambling(Result.y, EvolveSobolSeed(Seed));
+	Result.z = FastOwenScrambling(Result.z, EvolveSobolSeed(Seed));
+	Result.w = FastOwenScrambling(Result.w, EvolveSobolSeed(Seed));
 
-	float4 DirAndPdf = UniformSampleConeConcentricRobust(E, SinThetaMax2);
-	float CosTheta = DirAndPdf.z;
-	float SinTheta2 = 1.0 - CosTheta * CosTheta;
-
-	// Project ray direction to world-space, such that z-axis aligns with LightDirection
-	float RayLength = sqrt(RayLength2);
-	LightDirection *= rcp(RayLength + 1e-4);
-	float3 RayDirection = TangentToWorld(DirAndPdf.xyz, LightDirection);
-
-	// Clip length to closest intersection with the sphere
-	//RayLength = RayLength * (CosTheta - sqrt(max(SinThetaMax2 - SinTheta2, 0.0)));
-
-	return RayLength * RayDirection;
+	// output as float in [0,1) taking care not to skew the distribution
+	// due to the non-uniform spacing of floats in this range
+	return (Result >> 8) * 5.96046447754e-08; // * 2^-24
 }
 
 
@@ -222,74 +224,71 @@ float TraceLocalLight(
 	inout float3 DebugOutput,
 	inout float InOutHitDistance)
 {
-	FGBufferData GBufferData = GetGBufferDataUint( uint2( SvPosition.xy ), true );
+	uint2 PixelPos = uint2( SvPosition.xy );
+
+	const half3 N = GetGBufferDataUint( PixelPos, true ).WorldNormal;
 	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 
 	float3 ToLight = Light.Position - WorldPosition;
 	float DistSqr = dot(ToLight, ToLight);
 	float Falloff = rcp(DistSqr + 1);
 
-	float DistToLight = sqrt(DistSqr);
-	float3 L = ToLight / DistToLight;	
+	float InvDist = rsqrt( DistSqr );
+	float DistToLight = DistSqr * InvDist;
 
-	float SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
-	float SinAlpha = sqrt(SinAlphaSqr);
-	bool bBackFace = dot(GBufferData.WorldNormal, normalize(ToLight)) < -SinAlpha;
+	half3 ConeAxis = ToLight * InvDist;
 
-	float RayMissFactor = 0;
+	half SinAlphaSqr = saturate(Pow2(Light.SourceRadius) * Falloff);
+	half SinAlpha = sqrt(SinAlphaSqr);
+	bool bBackFace = dot( N, ConeAxis ) < -SinAlpha;
+
+	half RayMissFactor = 0;
 	uint SampleCount = 0;
 	if (!bBackFace)
 	{
-		uint2 SobolBase = SobolPixel(SvPosition.xy);
-		uint2 SobolFrame = SobolIndex(SobolBase, View.StateFrameIndexMod8, 3);
-
 		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+
+		half ConeSin = Light.SourceRadius * InvDist;
+		half ConeCos = sqrt( 1 - Pow2( ConeSin ) );
+
+		uint TileID = MortonEncode( PixelPos );
 
 		uint i = 0;
 		for( ; i < uint(RayCount); i++ )
 		{
 			RandomSequence RandSequence;
-			RandomSequence_Initialize( RandSequence, uint2( SvPosition.xy ), i, View.StateFrameIndex, RayCount );
+#if 0
+			RandomSequence_Initialize( RandSequence, PixelPos, i, View.StateFrameIndex, RayCount );
 
-#if 1
-			float2 E = RandomSequence_GenerateSample2D( RandSequence );
+			float4 RandSample = RandomSequence_GenerateSample4D( RandSequence );
 #else
-			float2 E = float2( SobolIndex( SobolFrame, i << 3 ) ) / 0x10000;
+			// Combine pixel-level and sample-level bits into the sample index (visible structure will be hidden by owen scrambling of the index)
+			RandSequence.SampleIndex = reversebits((65536 * View.StateFrameIndex + TileID) * RayCount + i);
+			RandSequence.SampleSeed = 0; // always use the same sequence
+
+			float4 RandSample = SobolSampler( RandSequence.SampleIndex, RandSequence.SampleSeed, 8 );
 #endif
 
-			float3 RayEnd = float3(0, 0, 0);
-			if (LightType == LIGHT_TYPE_SPOT)
-			{
-				float2 LightUV = UniformSampleDiskConcentric( E ) * Light.SourceRadius;
+			float2 E = RandSample.xy;
 
-				RayEnd =
-					Light.Position +
-					LightUV.x * Light.Tangent +
-					LightUV.y * cross( Light.Direction, Light.Tangent );
-			}
-			else
-			{
-				// Point light
-				RayEnd = WorldPosition + GetRandomPointLightRayVector( Light, WorldPosition, E );
-			}
+			half2 LightUV = UniformSampleDiskConcentricApprox( E ).xy;
+			LightUV *= ConeSin;
 
-			float3 Dir = normalize( RayEnd - WorldPosition );
-			float3 RayStart = WorldPosition + Dir * RayStartOffset;
+			half SinTheta2 = dot( LightUV, LightUV );
+			half SinTheta = sqrt( SinTheta2 );
+			half CosTheta = sqrt( 1 - SinTheta2 );
+
+			half3 Dir = TangentToWorld( half3( LightUV, CosTheta ), ConeAxis );
 
 			// The further afield our rays go the poorer our approximation is as the "bend" due to our testing
 			// against a shadow map instead of along the ray increases. Thus we avoid going all the way to the light
-			// where the projeciton becomes extreme.
-			RayEnd = lerp( RayStart, RayEnd, 0.75f );
+			// where the projection becomes extreme.
+			
+			// Clip ray to max angle to limit penumbra sizes
+			float ClampedLength = DistToLight * 0.75 * saturate( 1.5 / ( CosTheta + CotMaxRayAngleFromLight * SinTheta ) );
 
-			{
-				// Clip ray to max angle to limit penumbra sizes
-				float CosLambda = dot( L, Dir );
-				float SinLambda = sqrt( 1.0f - CosLambda * CosLambda );
-				float MaxRayLength = DistToLight / ( CosLambda + CotMaxRayAngleFromLight * SinLambda );
-				float ClampedLength = saturate( MaxRayLength / length( RayEnd - RayStart ) );
-
-				RayEnd = lerp( RayStart, RayEnd, ClampedLength );
-			}
+			float3 RayStart = WorldPosition + Dir * RayStartOffset;
+			float3 RayEnd = WorldPosition + Dir * ClampedLength;
 
 			FSMRTResult Result;
 			if ( LightType == LIGHT_TYPE_SPOT )
@@ -334,9 +333,15 @@ float TraceLocalLight(
 				bool bHit = Result.bValidHit;
 				if( bHit )
 				{
-					float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, Result.OccluderDistance );
-					float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
+				#if 0
+					//float WorldBluringRadius = ComputeLightSampleWorldBluringRadius( TranslatedWorldPosition, LIGHT_TYPE_SPOT, Light, Result.OccluderDistance );
+					//float PixelBluringRadius = ProjectWorldDistanceToPixelDistance( SceneDepth, WorldBluringRadius );
+					float WorldBluringRadius = Light.SourceRadius * Result.OccluderDistance / max( DistToLight - Result.OccluderDistance, 0.001 );
+					float PixelBluringRadius = WorldBluringRadius * View.ViewSizeAndInvSize.x * 0.5 / ( SceneDepth * View.ClipToView[0][0] );
 					bHit = PixelBluringRadius > 2;
+				#else
+					bHit = Result.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
+				#endif
 				}
 
 				// All lanes miss or hit something close enough to not be noisy.

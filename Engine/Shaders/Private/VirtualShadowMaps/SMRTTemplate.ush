@@ -27,13 +27,18 @@ FSMRTResult SMRTRayCast(
 	int SampleMissCount = 0;
 	float OccluderDistance = 100000;
 
-	const float CompareScale = 2.0 / Pow2(NumSteps);
-	const float CompareBias = -CompareScale * (NumSteps - StepOffset + 1.0f);
+	const float TimeScale = -1.0f / NumSteps;
+	const float TimeBias = 1.0f + ( 1.0 - StepOffset ) * TimeScale;
+
+	// Backward delta. Time[i] - Time[i-1], Half because CompareTolerance is doubled.
+	const float CompareScale = Pow2( TimeScale );
+	const float CompareBias = ( TimeBias - 0.5 * TimeScale ) * TimeScale;
 
 	bool bValidHit = false;
 	for (int i = 0; i <= NumSteps; i++)
 	{
-		float SampleTime = Pow2(saturate((-1.0f / NumSteps) * i + 1.0f - (StepOffset - 0.5f) / NumSteps));
+		const float SampleTime		= i == NumSteps ? 0 : Pow2( TimeScale * i + TimeBias );
+		const float SampleCompare	= i == NumSteps ? 0.5 * Pow2( TimeScale * StepOffset ) : CompareScale * i + CompareBias;
 
 		FSMRTSample Sample = SMRTFindSample(RayState, SampleTime);
 		if (Sample.bValid)
@@ -53,7 +58,7 @@ FSMRTResult SMRTRayCast(
 			}
 			else
 			{
-				const float CompareTolerance = abs(Sample.CompareToleranceScale * (CompareScale * i + CompareBias));
+				const float CompareTolerance = abs(Sample.CompareToleranceScale * SampleCompare);
 
 				bool bBehind = (SampleDepth - ReferenceDepth) > (2.0f * CompareTolerance);
 				float DepthSample = bBehind ? DepthHistory : SampleDepth;

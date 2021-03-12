@@ -356,6 +356,9 @@ void VirtualShadowMapCompositePS(
 	OutShadowMask = EncodeLightAttenuationFromMask(Shadow);
 }
 
+SCHEDULER_MIN_PRESSURE
+MAX_OCCUPENCY
+
 FLightShaderParameters ConvertFromLocal( const FLocalLightData LightData )
 {
 	FLightShaderParameters Light = (FLightShaderParameters)0;
@@ -371,13 +374,6 @@ FLightShaderParameters ConvertFromLocal( const FLocalLightData LightData )
 	Light.SoftSourceRadius	= LightData.LightTangentAndSoftSourceRadius.w;
 	Light.SourceLength		= f16tof32(asuint(LightData.SpotAnglesAndSourceRadiusPacked.w));
 	return Light;
-}
-
-uint EncodeBlurRadius( float Radius )
-{
-	// Does WORLD_RADIUS_MISS really need to be that big?
-	const float Scale = 254 / log2( WORLD_RADIUS_MISS + 0.5 );
-	return max( Scale * log2( Radius + 0.5 ), 254 );
 }
 
 StructuredBuffer< int > VirtualShadowMapIdRemap;
@@ -404,19 +400,18 @@ void VirtualShadowMapProjection(
 	const float SceneDepth = ConvertFromDeviceZ( DeviceZ );
 
 	const float4 SvPosition = float4( float2( PixelPos ) + 0.5, DeviceZ, 1.0f );
-	const float2 ScreenUV = SvPositionToBufferUV( SvPosition );
+	//const float2 ScreenUV = SvPositionToBufferUV( SvPosition );
 
 	const float3 TranslatedWorldPosition = SvPositionToTranslatedWorld( SvPosition );
 	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 
 	const float ContactShadowLengthWorld = ContactShadowLength * View.ClipToView[1][1] * SceneDepth;
-	const float Noise = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
+	const half Noise = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
 
-	const float3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
+	//const half3 EstimatedGeoWorldNormal = GetEstimatedGeoWorldNormal(TranslatedWorldPosition, ScreenUV);
+	const half3 EstimatedGeoWorldNormal = GetGBufferDataUint( PixelPos, true ).WorldNormal;
 
 	uint ShadowMask = 0xffffffff;
-	uint ShadowIndexes = 0xffffffff;
-	uint ShadowValues = 0;
 	
 	uint EyeIndex = 0; // ??
 	uint GridLinearIndex = ComputeLightGridCellIndex( LocalPixelPos, SceneDepth, EyeIndex );
@@ -425,28 +420,27 @@ void VirtualShadowMapProjection(
 	LOOP
 	for (uint Index = 0; Index < CulledLightGridData.NumLocalLights; ++Index)
 	{
+		const uint LocalLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
 		const FLocalLightData LightData = GetLocalLightData(CulledLightGridData.DataStartIndex + Index, EyeIndex);
-		const uint LightGridLightIndex = ForwardLightData.CulledLightDataGrid[CulledLightGridData.DataStartIndex + Index];
 
 		// The Virtual Shadow Remap stores directional lights first
-		int VirtualShadowMapId = VirtualShadowMapIdRemap[NumDirectionalLightSmInds + LightGridLightIndex];
+		int VirtualShadowMapId = VirtualShadowMapIdRemap[NumDirectionalLightSmInds + LocalLightIndex];
 		if (VirtualShadowMapId != INDEX_NONE)
 		{
-			float3 DebugOutput = float3(0, 0, 0);
-			int SampleCount = 1;
-			float HitDistance = WORLD_RADIUS_MISS;
-			float RayMissFactor = 0.0f;
-
 			float3 ToLight = LightData.LightPositionAndInvRadius.xyz - WorldPosition;
 			float d2 = dot( ToLight, ToLight );
 			float InvDist = rsqrt( d2 );
-			float3 L = ToLight * InvDist;
+			half3 L = ToLight * InvDist;
 			
 			bool bInLightRadius = InvDist >= LightData.LightPositionAndInvRadius.w;
 			bool bInLightCone = dot( L, LightData.LightDirectionAndShadowMask.xyz ) >= LightData.SpotAnglesAndSourceRadiusPacked.x;
 
 			if (bInLightRadius && bInLightCone)
 			{
+				half RayMissFactor = 1.0f;
+				half HitDistance = WORLD_RADIUS_MISS;
+				float3 DebugOutput = float3(0, 0, 0);
+
 				FLightShaderParameters Light = ConvertFromLocal( LightData );
 
 				uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
@@ -482,7 +476,7 @@ void VirtualShadowMapProjection(
 
 				if (ContactShadowLengthWorld > 0.0f)
 				{
-					float ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, Noise);		
+					half ContactShadowHitDistance = VirtualShadowMapScreenRayCast(TranslatedWorldPosition, L, ContactShadowLengthWorld, CONTACT_SHADOW_SAMPLES, Noise);		
 					if (ContactShadowHitDistance >= 0.0f)
 					{
 						RayMissFactor = 0.0f;
@@ -490,20 +484,8 @@ void VirtualShadowMapProjection(
 					}
 				}
 
-				//ShadowMask ^= uint( RayMissFactor < 1.0 ) << Index;
 				ShadowMask ^= ( ~uint( round( RayMissFactor * 7.0 ) ) & 7 ) << (Index*3);
-
-				if( Index < 4 && LightGridLightIndex < 255 )
-				{
-					float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, HitDistance);
-					uint EncodedValue = RayMissFactor < 1.0 ? EncodeBlurRadius( WorldBluringRadius ) : 255;
-
-					ShadowIndexes = ( ShadowIndexes << 8 ) | LightGridLightIndex;
-					ShadowValues = ( ShadowValues << 8 ) | EncodedValue;
-				}
 			}
-
-			//OutputTarget = EncodeOutput(TranslatedWorldPosition, Light, LIGHT_TYPE_SPOT, RayMissFactor, HitDistance, SampleCount, DebugOutput);
 		}
 	}
 

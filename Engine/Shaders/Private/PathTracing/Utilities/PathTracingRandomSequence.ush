@@ -277,7 +277,7 @@ float4 SobolSampler(uint SampleIndex, inout uint Seed)
 #if RANDSEQ_UNROLL_SOBOL // unrolled version seems faster in most cases
 	UNROLL for (uint b = 0, v = 1; b < 32; b++)
 	{
-		uint IndexBit = (SobolIndex >> b) & 1;
+		uint IndexBit = (SobolIndex >> b) & 1;		// bitfield extract
 #else // however a loop with early exit seems faster in the path tracing context (possibly due to low occupancy?)
 	for (uint b = 0, v = 1; SobolIndex; SobolIndex >>= 1, b++)
 	{
