@@ -439,60 +439,22 @@ namespace ChaosInterface
 		return false;
 	}
 
-	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
+	void CalculateMassPropertiesFromShapeCollectionImp(
+		Chaos::FMassProperties& OutProperties, 
+		int32 InNumShapes, 
+		float InDensityKGPerCM,
+		const TArray<bool>& bContributesToMass,
+		TFunction<Chaos::FPerShapeData* (int32 ShapeIndex)> GetShapeDelegate)
 	{
-		float TotalMass = 0.f;
-		Chaos::FVec3 TotalCenterOfMass(0.f);
+		float TotalMass = 0;
+		float TotalVolume = 0;
+		Chaos::FVec3 TotalCenterOfMass(0);
 		TArray< Chaos::FMassProperties > MassPropertiesList;
-		for (const FPhysicsShapeHandle& ShapeHandle : InShapes)
+		for (int32 ShapeIndex = 0; ShapeIndex < InNumShapes; ++ShapeIndex)
 		{
-			if (const Chaos::FPerShapeData* Shape = ShapeHandle.Shape)
-			{
-				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
-				{
-					FTransform WorldTransform(ShapeHandle.ActorRef->GetGameThreadAPI().R(), ShapeHandle.ActorRef->GetGameThreadAPI().X());
-					Chaos::FMassProperties MassProperties;
-					if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
-					{
-						MassPropertiesList.Add(MassProperties);
-						TotalMass += MassProperties.Mass;
-						TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
-					}
-				}
-			}
-		}
+			const Chaos::FPerShapeData* Shape = GetShapeDelegate(ShapeIndex);
 
-		if (TotalMass > 0.f)
-		{
-			TotalCenterOfMass /= TotalMass;
-		}
-
-		Chaos::PMatrix<float, 3, 3> Tensor;
-		if (MassPropertiesList.Num())
-		{
-			Tensor = Chaos::CombineWorldSpace(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
-		}
-		else
-		{
-			// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
-			Tensor = Chaos::PMatrix<float, 3, 3>(5.24e5, 5.24e5, 5.24e5);
-			TotalMass = 523.f;
-		}
-
-		OutProperties.InertiaTensor = Tensor;
-		OutProperties.Mass = TotalMass;
-		OutProperties.CenterOfMass = TotalCenterOfMass;
-	}
-
-	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM)
-	{
-		float TotalMass = 0.f;
-		Chaos::FVec3 TotalCenterOfMass(0.f);
-		TArray< Chaos::FMassProperties > MassPropertiesList;
-		for (int32 ShapeIndex = 0; ShapeIndex < InShapes.Num(); ++ShapeIndex)
-		{
-			const TUniquePtr<Chaos::FPerShapeData>& Shape = InShapes[ShapeIndex];
-			const bool bHassMass = (ShapeIndex < bContributesToMass.Num())? bContributesToMass[ShapeIndex] : true;
+			const bool bHassMass = (ShapeIndex < bContributesToMass.Num()) ? bContributesToMass[ShapeIndex] : true;
 			if (bHassMass)
 			{
 				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
@@ -502,6 +464,7 @@ namespace ChaosInterface
 					{
 						MassPropertiesList.Add(MassProperties);
 						TotalMass += MassProperties.Mass;
+						TotalVolume += MassProperties.Volume;
 						TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
 					}
 				}
@@ -514,8 +477,14 @@ namespace ChaosInterface
 		}
 
 		Chaos::PMatrix<float, 3, 3> Tensor;
+		Chaos::FRotation3 RotationOfMass = Chaos::FRotation3::Identity;
 		if (MassPropertiesList.Num())
 		{
+			Tensor = Chaos::CombineWorldSpace(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
+			// NOTE: If multiple items in the list, rotation of mass will be zero, but if only 1 item is the list the item is returned directly and we may have a rotation of mass
+			Chaos::FMassProperties CombinedMassProperties = Chaos::CombineWorldSpace<float, 3>(MassPropertiesList);
+			Tensor = CombinedMassProperties.InertiaTensor;
+			RotationOfMass = CombinedMassProperties.RotationOfMass;
 			Tensor = Chaos::CombineWorldSpace(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
 		}
 		else
@@ -523,11 +492,37 @@ namespace ChaosInterface
 			// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
 			Tensor = Chaos::PMatrix<float, 3, 3>(5.24e5f, 5.24e5f, 5.24e5f);
 			TotalMass = 523.0f;
+			TotalVolume = 523000;
 		}
 
 		OutProperties.InertiaTensor = Tensor;
 		OutProperties.Mass = TotalMass;
+		OutProperties.Volume = TotalVolume;
 		OutProperties.CenterOfMass = TotalCenterOfMass;
+		OutProperties.RotationOfMass = RotationOfMass;
+	}
+
+
+	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
+	{
+		CalculateMassPropertiesFromShapeCollectionImp(
+			OutProperties,
+			InShapes.Num(),
+			InDensityKGPerCM,
+			TArray<bool>(),
+			[&InShapes](int32 ShapeIndex) { return InShapes[ShapeIndex].Shape; }
+		);
+	}
+
+	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM)
+	{
+		CalculateMassPropertiesFromShapeCollectionImp(
+			OutProperties,
+			InShapes.Num(),
+			InDensityKGPerCM,
+			bContributesToMass,
+			[&InShapes](int32 ShapeIndex) { return InShapes[ShapeIndex].Get(); }
+		);
 	}
 
 #endif // WITH_CHAOS
