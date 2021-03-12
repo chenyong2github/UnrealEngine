@@ -356,7 +356,7 @@ namespace Metasound
 				{
 					if (InputNode.IsValid())
 					{
-						InputNode->UpdateDocumentInput();
+						InputNode->OnLiteralChanged();
 					}
 				}
 			});
@@ -484,7 +484,7 @@ namespace Metasound
 					{
 						if (InGraphNode.IsValid())
 						{
-							InGraphNode->UpdateDocumentInput();
+							InGraphNode->OnLiteralChanged();
 						}
 					});
 

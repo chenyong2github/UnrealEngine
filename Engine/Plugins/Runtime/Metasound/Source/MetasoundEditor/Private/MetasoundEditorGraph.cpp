@@ -48,6 +48,21 @@ UObject& UMetasoundEditorGraph::GetMetasoundChecked() const
 	return *ParentMetasound;
 }
 
+void UMetasoundEditorGraph::SetMetasoundInstanceTransmitter(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitter)
+{
+	Transmitter = MoveTemp(InTransmitter);
+}
+
+IAudioInstanceTransmitter* UMetasoundEditorGraph::GetMetasoundInstanceTransmitter()
+{
+	return Transmitter.Get();
+}
+
+const IAudioInstanceTransmitter* UMetasoundEditorGraph::GetMetasoundInstanceTransmitter() const
+{
+	return Transmitter.Get();
+}
+
 void UMetasoundEditorGraph::Synchronize()
 {
 	if (ParentMetasound)
@@ -55,3 +70,4 @@ void UMetasoundEditorGraph::Synchronize()
 		Metasound::Editor::FGraphBuilder::SynchronizeGraph(*ParentMetasound);
 	}
 }
+

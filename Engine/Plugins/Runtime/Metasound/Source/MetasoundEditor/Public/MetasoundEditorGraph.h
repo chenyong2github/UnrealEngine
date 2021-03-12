@@ -25,11 +25,23 @@ public:
 	UObject* GetMetasound() const;
 	UObject& GetMetasoundChecked() const;
 
+
 	virtual void Synchronize();
+
+	// Sets the transmitter interface for the current metasound preview.
+	void SetMetasoundInstanceTransmitter(TUniquePtr<IAudioInstanceTransmitter>&& InTransmitter);
+
+	// Gets the transmitter interface for the current metasound preview.
+	IAudioInstanceTransmitter* GetMetasoundInstanceTransmitter();
+
+	// Gets the transmitter interface for the current metasound preview.
+	const IAudioInstanceTransmitter* GetMetasoundInstanceTransmitter() const;
 
 private:
 	UPROPERTY()
 	UObject* ParentMetasound;
+
+	TUniquePtr<IAudioInstanceTransmitter> Transmitter;
 
 	friend class Metasound::Editor::FEditor;
 };

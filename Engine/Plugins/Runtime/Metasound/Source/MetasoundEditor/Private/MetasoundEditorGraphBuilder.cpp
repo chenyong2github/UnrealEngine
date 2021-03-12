@@ -891,20 +891,31 @@ namespace Metasound
 				InGraphNode.RemovePin(InGraphNode.Pins[i]);
 			}
 
-			TArray<FInputHandle> InputHandles = NodeHandle->GetInputs();
-			InputHandles = NodeHandle->GetInputStyle().SortDefaults(InputHandles);
-			for (const FInputHandle& InputHandle : InputHandles)
+			// Only add input pins of the node is not an input node. Input nodes
+			// have their input pins hidden because they cannot be connected internal
+			// to the graph.
+			if (EMetasoundFrontendClassType::Input != NodeHandle->GetClassType())
 			{
-				AddPinToNode(InGraphNode, InputHandle);
+				TArray<FInputHandle> InputHandles = NodeHandle->GetInputs();
+				InputHandles = NodeHandle->GetInputStyle().SortDefaults(InputHandles);
+				for (const FInputHandle& InputHandle : InputHandles)
+				{
+					AddPinToNode(InGraphNode, InputHandle);
+				}
 			}
 
-			TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputs();
-			OutputHandles = NodeHandle->GetOutputStyle().SortDefaults(OutputHandles);
-			for (const FOutputHandle& OutputHandle : OutputHandles)
+			// Only add output pins of the node is not an output node. Output nodes
+			// have their output pins hidden because they cannot be connected internal
+			// to the graph.
+			if (EMetasoundFrontendClassType::Output != NodeHandle->GetClassType())
 			{
-				AddPinToNode(InGraphNode, OutputHandle);
+				TArray<FOutputHandle> OutputHandles = NodeHandle->GetOutputs();
+				OutputHandles = NodeHandle->GetOutputStyle().SortDefaults(OutputHandles);
+				for (const FOutputHandle& OutputHandle : OutputHandles)
+				{
+					AddPinToNode(InGraphNode, OutputHandle);
+				}
 			}
-
 			InGraphNode.MarkPackageDirty();
 		}
 
@@ -1178,17 +1189,28 @@ namespace Metasound
 				}
 			}
 
-			// Add unmatched input pins
-			InputHandles = InNode->GetOutputStyle().SortDefaults(InputHandles);
-			for (Frontend::FInputHandle& InputHandle : InputHandles)
+			// Only add input pins of the node is not an input node. Input nodes
+			// have their input pins hidden because they cannot be connected internal
+			// to the graph.
+			if (EMetasoundFrontendClassType::Input != InNode->GetClassType())
 			{
-				AddPinToNode(InEditorNode, InputHandle);
+				InputHandles = InNode->GetOutputStyle().SortDefaults(InputHandles);
+				for (Frontend::FInputHandle& InputHandle : InputHandles)
+				{
+					AddPinToNode(InEditorNode, InputHandle);
+				}
 			}
 
-			OutputHandles = InNode->GetOutputStyle().SortDefaults(OutputHandles);
-			for (Frontend::FOutputHandle& OutputHandle : OutputHandles)
+			// Only add output pins of the node is not an output node. Output nodes
+			// have their output pins hidden because they cannot be connected internal
+			// to the graph.
+			if (EMetasoundFrontendClassType::Output != InNode->GetClassType())
 			{
-				AddPinToNode(InEditorNode, OutputHandle);
+				OutputHandles = InNode->GetOutputStyle().SortDefaults(OutputHandles);
+				for (Frontend::FOutputHandle& OutputHandle : OutputHandles)
+				{
+					AddPinToNode(InEditorNode, OutputHandle);
+				}
 			}
 			
 			if (bIsNodeDirty)
@@ -1230,6 +1252,13 @@ namespace Metasound
 				bool bIsNodeDirty = false;
 
 				FNodeHandle Node = MetasoundEditorNode->GetNodeHandle();
+
+				if (EMetasoundFrontendClassType::Input == Node->GetClassType())
+				{
+					// Skip this node if it is an input node. Input pins on input 
+					// nodes are not connected internal to the graph.
+					continue;
+				}
 
 				TArray<UEdGraphPin*> Pins = MetasoundEditorNode->GetAllPins();
 				TArray<FInputHandle> NodeInputs = Node->GetInputs();

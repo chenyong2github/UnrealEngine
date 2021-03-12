@@ -2,6 +2,7 @@
 
 #include "MetasoundEditor.h"
 
+#include "AudioDevice.h"
 #include "Components/AudioComponent.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraphUtilities.h"
@@ -525,6 +526,7 @@ namespace Metasound
 
 			if (USoundBase* MetasoundToPlay = Cast<USoundBase>(Metasound))
 			{
+
 				GEditor->PlayPreviewSound(MetasoundToPlay);
 
 				// Set the send to the audio bus that is used for analyzing the metasound output
@@ -534,7 +536,27 @@ namespace Metasound
 					{
 						PreviewComp->SetAudioBusSendPostEffect(MetasoundAudioBus.Get(), 1.0f);
 					}
+
+					TUniquePtr<IAudioInstanceTransmitter> MetasoundComm;
+
+					// Communicating with playing component requires audio component ID and sample rate. 
+					if (FAudioDevice* PreviewAudioDevice = PreviewComp->GetAudioDevice())
+					{
+						if(FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound))
+						{
+							const uint64 AudioComponentID = PreviewComp->GetAudioComponentID();
+							float SampleRate = PreviewAudioDevice->GetSampleRate();
+
+							MetasoundComm = MetasoundToPlay->CreateInstanceTransmitter(FAudioInstanceTransmitterInitParams{AudioComponentID, SampleRate});
+						}
+					}
+
+					if (UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph()))
+					{
+						Graph->SetMetasoundInstanceTransmitter(MoveTemp(MetasoundComm));
+					}
 				}
+
 
 				MetasoundGraphEditor->RegisterActiveTimer(0.0f,
 					FWidgetActiveTimerDelegate::CreateLambda([](double InCurrentTime, float InDeltaTime)

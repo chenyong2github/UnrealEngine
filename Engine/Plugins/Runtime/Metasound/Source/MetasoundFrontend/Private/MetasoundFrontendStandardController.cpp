@@ -600,6 +600,59 @@ namespace Metasound
 		}
 
 		//
+		// FOutputNodeOutputController
+		// 
+		FOutputNodeOutputController::FOutputNodeOutputController(const FOutputNodeOutputController::FInitParams& InParams)
+		: FBaseOutputController({InParams.ID, InParams.NodeVertexPtr, InParams.ClassOutputPtr, InParams.GraphPtr, InParams.OwningNode})
+		, OwningGraphClassOutputPtr(InParams.OwningGraphClassOutputPtr)
+		{
+		}
+
+		bool FOutputNodeOutputController::IsValid() const
+		{
+			return FBaseOutputController::IsValid() && OwningGraphClassOutputPtr.IsValid();
+		}
+
+		const FText& FOutputNodeOutputController::GetDisplayName() const
+		{
+			if (const FMetasoundFrontendClassOutput* OwningOutput = OwningGraphClassOutputPtr.Get())
+			{
+				return OwningOutput->Metadata.DisplayName;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const FText& FOutputNodeOutputController::GetTooltip() const
+		{
+			if (OwningGraphClassOutputPtr.IsValid())
+			{
+				return OwningGraphClassOutputPtr->Metadata.Description;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		FConnectability FOutputNodeOutputController::CanConnectTo(const IInputController& InController) const 
+		{
+			// Cannot connect to a graph's output.
+			static const FConnectability Connectability = {FConnectability::EConnectable::No};
+
+			return Connectability;
+		}
+
+		bool FOutputNodeOutputController::Connect(IInputController& InController) 
+		{
+			return false;
+		}
+
+		bool FOutputNodeOutputController::ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName)
+		{
+			return false;
+		}
+
+
+		//
 		// FBaseInputController
 		// 
 		FBaseInputController::FBaseInputController(const FBaseInputController::FInitParams& InParams)
@@ -979,6 +1032,55 @@ namespace Metasound
 			return Access;
 		}
 
+		//
+		// FInputNodeInputController
+		//
+		FInputNodeInputController::FInputNodeInputController(const FInputNodeInputController::FInitParams& InParams)
+		: FBaseInputController({InParams.ID, InParams.NodeVertexPtr, InParams.ClassInputPtr, InParams.GraphPtr, InParams.OwningNode})
+		, OwningGraphClassInputPtr(InParams.OwningGraphClassInputPtr)
+		{
+		}
+
+		bool FInputNodeInputController::IsValid() const
+		{
+			return FBaseInputController::IsValid() && OwningGraphClassInputPtr.IsValid();
+		}
+
+		const FText& FInputNodeInputController::GetDisplayName() const
+		{
+			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
+			{
+				return OwningInput->Metadata.DisplayName;
+			}
+
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		const FText& FInputNodeInputController::GetTooltip() const
+		{
+			if (const FMetasoundFrontendClassInput* OwningInput = OwningGraphClassInputPtr.Get())
+			{
+				return OwningInput->Metadata.Description;
+			}
+			
+			return FrontendControllerIntrinsics::GetInvalidValueConstRef<FText>();
+		}
+
+		FConnectability FInputNodeInputController::CanConnectTo(const IOutputController& InController) const 
+		{
+			static const FConnectability Connectability = {FConnectability::EConnectable::No};
+			return Connectability;
+		}
+
+		bool FInputNodeInputController::Connect(IOutputController& InController) 
+		{
+			return false;
+		}
+
+		bool FInputNodeInputController::ConnectWithConverterNode(IOutputController& InController, const FConverterNodeInfo& InNodeClassName)
+		{
+			return false;
+		}
 
 		//
 		// FBaseNodeController
@@ -1744,7 +1846,7 @@ namespace Metasound
 
 		FOutputHandle FOutputNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const
 		{
-			return FInvalidOutputController::GetInvalid();
+			return MakeShared<FOutputNodeOutputController>(FOutputNodeOutputController::FInitParams{InVertexID, InNodeVertexPtr, InClassOutputPtr, OwningGraphClassOutputPtr, GraphPtr, InOwningNode});
 		}
 
 		FDocumentAccess FOutputNodeController::ShareAccess() 
@@ -1834,7 +1936,7 @@ namespace Metasound
 
 		FInputHandle FInputNodeController::CreateInputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassInputAccessPtr InClassInputPtr, FNodeHandle InOwningNode) const
 		{
-			return FInvalidInputController::GetInvalid();
+			return MakeShared<FInputNodeInputController>(FInputNodeInputController::FInitParams{InVertexID, InNodeVertexPtr, InClassInputPtr, OwningGraphClassInputPtr, GraphPtr, InOwningNode});
 		}
 
 		FOutputHandle FInputNodeController::CreateOutputController(FGuid InVertexID, FConstVertexAccessPtr InNodeVertexPtr, FConstClassOutputAccessPtr InClassOutputPtr, FNodeHandle InOwningNode) const

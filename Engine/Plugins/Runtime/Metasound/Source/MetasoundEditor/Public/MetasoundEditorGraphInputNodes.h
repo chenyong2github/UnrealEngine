@@ -1,9 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
-#include "UObject/ObjectMacros.h"
+#include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphNode.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
@@ -12,6 +13,7 @@
 #include "MetasoundFrontendRegistries.h"
 #include "Misc/Guid.h"
 #include "Sound/SoundWave.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/SoftObjectPath.h"
 
 #include "MetasoundEditorGraphInputNodes.generated.h"
@@ -42,6 +44,7 @@ public:
 		return FMetasoundFrontendLiteral();
 	}
 
+
 	void UpdateDocumentInput() const
 	{
 		using namespace Metasound::Frontend;
@@ -54,12 +57,36 @@ public:
 		GraphHandle->SetDefaultInput(VertexID, GetLiteralDefault());
 	}
 
+	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParamterName, IAudioInstanceTransmitter& InInstanceTransmitter) const {}
+
+	void OnLiteralChanged() 
+	{
+		UpdateDocumentInput();
+
+		if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(GetGraph()))
+		{
+			if (IAudioInstanceTransmitter* Transmitter = MetasoundGraph->GetMetasoundInstanceTransmitter())
+			{
+				// TODO: fix how this parameter name is determined. It should not be done with a "DisplayName" but rather 
+				// the vertex "Name". Currently user entered vertex names only have their "Names" stored as "DisplayNames" 
+				TArray<Metasound::Frontend::FConstInputHandle> Inputs = GetNodeHandle()->GetConstInputs();
+
+				// An input node should only have one input. 
+				if (ensure(Inputs.Num() == 1))
+				{
+					Metasound::FVertexKey VertexKey = Metasound::FVertexKey(Inputs[0]->GetDisplayName().ToString());
+					UpdatePreviewInstance(VertexKey, *Transmitter);
+				}
+			}
+		}
+	}
+
 #if WITH_EDITORONLY_DATA
 	virtual void PostEditUndo() override
 	{
 		Super::PostEditUndo();
 
-		UpdateDocumentInput();
+		OnLiteralChanged();
 	}
 #endif // WITH_EDITORONLY_DATA
 
@@ -102,6 +129,11 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::Boolean;
 	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		InInstanceTransmitter.SetBoolParameter(*InParameterName, Default);
+	}
 };
 
 UCLASS(MinimalAPI)
@@ -125,6 +157,12 @@ public:
 	virtual EMetasoundFrontendLiteralType GetLiteralType() const
 	{
 		return EMetasoundFrontendLiteralType::BooleanArray;
+	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		// TODO:
+		//InInstanceTransmitter.SetBoolArrayParameter(InParameterName, Default);
 	}
 };
 
@@ -160,6 +198,11 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::Integer;
 	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		InInstanceTransmitter.SetIntParameter(*InParameterName, Default.Value);
+	}
 };
 
 UCLASS(MinimalAPI)
@@ -190,6 +233,16 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::IntegerArray;
 	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+
+		TArray<int32> IntArray;
+		Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphInputInt& InValue) { return InValue.Value; });
+
+		// TODO:
+		//InInstanceTransmitter.SetIntArrayParameter(*InParameterName, IntArray);
+	}
 };
 
 UCLASS(MinimalAPI)
@@ -213,6 +266,11 @@ public:
 	virtual EMetasoundFrontendLiteralType GetLiteralType() const
 	{
 		return EMetasoundFrontendLiteralType::Float;
+	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		InInstanceTransmitter.SetFloatParameter(*InParameterName, Default);
 	}
 };
 
@@ -238,6 +296,12 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::FloatArray;
 	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		// TODO:
+		//InInstanceTransmitter.SetFloatArrayParameter(*InParameterName, Default);
+	}
 };
 
 UCLASS(MinimalAPI)
@@ -262,6 +326,12 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::String;
 	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParamterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		// TODO:
+		//InInstanceTransmitter.SetStringParameter(*InParameterName, Default);
+	}
 };
 
 UCLASS(MinimalAPI)
@@ -285,6 +355,12 @@ public:
 	virtual EMetasoundFrontendLiteralType GetLiteralType() const
 	{
 		return EMetasoundFrontendLiteralType::StringArray;
+	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		// TODO:
+		//InInstanceTransmitter.SetStringArrayParameter(*InParameterName, Default);
 	}
 };
 
@@ -320,6 +396,12 @@ public:
 	{
 		return EMetasoundFrontendLiteralType::UObject;
 	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		// TODO:
+		//InInstanceTransmitter.SetUObjectParameter(*InParameterName, Default.Object);
+	}
 };
 
 UCLASS(MinimalAPI)
@@ -349,5 +431,14 @@ public:
 	virtual EMetasoundFrontendLiteralType GetLiteralType() const
 	{
 		return EMetasoundFrontendLiteralType::UObjectArray;
+	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	{
+		TArray<UObject*> ObjectArray;
+		Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphInputObject& InValue) { return InValue.Object; });
+
+		// TODO:
+		//InInstanceTransmitter.SetUObjectArrayParameter(*InParameterName, Default.Object);
 	}
 };

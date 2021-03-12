@@ -126,6 +126,47 @@ namespace Metasound
 			FConstClassInputAccessPtr OwningGraphClassInputPtr;
 		};
 
+		/** FOutputNodeOutputController represents the output vertex of an input 
+		 * node. 
+		 *
+		 * FOutputNodeOutputController is largely to represent inputs coming into 
+		 * graph. 
+		 */
+		class METASOUNDFRONTEND_API FOutputNodeOutputController : public FBaseOutputController
+		{
+		public:
+			struct FInitParams
+			{
+				FGuid ID;
+
+				FConstVertexAccessPtr NodeVertexPtr;
+				FConstClassOutputAccessPtr ClassOutputPtr;
+				FConstClassOutputAccessPtr OwningGraphClassOutputPtr;
+				FGraphAccessPtr GraphPtr; 
+
+				/* Node handle which owns this output. */
+				FNodeHandle OwningNode;
+			};
+
+			/** Constructs the output controller. */
+			FOutputNodeOutputController(const FInitParams& InParams);
+
+			virtual ~FOutputNodeOutputController() = default;
+
+			bool IsValid() const override;
+
+			// Output metadata
+			const FText& GetDisplayName() const override;
+			const FText& GetTooltip() const override;
+
+			FConnectability CanConnectTo(const IInputController& InController) const override;
+			bool Connect(IInputController& InController) override;
+			bool ConnectWithConverterNode(IInputController& InController, const FConverterNodeInfo& InNodeClassName) override;
+
+		private:
+			FConstClassOutputAccessPtr OwningGraphClassOutputPtr;
+		};
+
 		
 		/** FBaseInputController provides common functionality for multiple derived
 		 * input controllers.
@@ -235,6 +276,46 @@ namespace Metasound
 			mutable FText CachedDisplayName;
 
 			FConstClassOutputAccessPtr OwningGraphClassOutputPtr;
+		};
+
+		/** FInputNodeInputController represents the input vertex of an output 
+		 * node. 
+		 *
+		 * FInputNodeInputController is largely to represent outputs exposed from
+		 * a graph. 
+		 */
+		class METASOUNDFRONTEND_API FInputNodeInputController : public FBaseInputController 
+		{
+		public:
+			struct FInitParams
+			{
+				FGuid ID; 
+				FConstVertexAccessPtr NodeVertexPtr;
+				FConstClassInputAccessPtr ClassInputPtr;
+				FConstClassInputAccessPtr OwningGraphClassInputPtr;
+				FGraphAccessPtr GraphPtr; 
+				FNodeHandle OwningNode;
+			};
+
+			/** Constructs the input controller. */
+			FInputNodeInputController(const FInitParams& InParams);
+
+			bool IsValid() const override;
+
+			// Input metadata
+			const FText& GetDisplayName() const override;
+			const FText& GetTooltip() const override;
+
+			FConnectability CanConnectTo(const IOutputController& InController) const override;
+			bool Connect(IOutputController& InController) override;
+
+			// Connection controls.
+			bool ConnectWithConverterNode(IOutputController& InController, const FConverterNodeInfo& InNodeClassName) override;
+
+
+		private:
+
+			FConstClassInputAccessPtr OwningGraphClassInputPtr;
 		};
 
 		/** FBaseNodeController provides common functionality for multiple derived
