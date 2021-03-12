@@ -81,7 +81,7 @@ bool FOnlineIdentityNull::Login(int32 LocalUserNum, const FOnlineAccountCredenti
 	}
 	else
 	{
-		TSharedPtr<const FUniqueNetId>* UserId = UserIds.Find(LocalUserNum);
+		FUniqueNetIdPtr* UserId = UserIds.Find(LocalUserNum);
 		if (UserId == NULL)
 		{
 			FString RandomUserId = GenerateRandomUserId(LocalUserNum);
@@ -118,7 +118,7 @@ bool FOnlineIdentityNull::Login(int32 LocalUserNum, const FOnlineAccountCredenti
 
 bool FOnlineIdentityNull::Logout(int32 LocalUserNum)
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		// remove cached user account
@@ -203,9 +203,9 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityNull::GetAllUserAccounts(
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityNull::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineIdentityNull::GetUniquePlayerId(int32 LocalUserNum) const
 {
-	const TSharedPtr<const FUniqueNetId>* FoundId = UserIds.Find(LocalUserNum);
+	const FUniqueNetIdPtr* FoundId = UserIds.Find(LocalUserNum);
 	if (FoundId != NULL)
 	{
 		return *FoundId;
@@ -213,24 +213,24 @@ TSharedPtr<const FUniqueNetId> FOnlineIdentityNull::GetUniquePlayerId(int32 Loca
 	return NULL;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityNull::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineIdentityNull::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Bytes != NULL && Size > 0)
 	{
 		FString StrId(Size, (TCHAR*)Bytes);
-		return MakeShareable(new FUniqueNetIdNull(StrId));
+		return FUniqueNetIdNull::Create(StrId);
 	}
 	return NULL;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityNull::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineIdentityNull::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShareable(new FUniqueNetIdNull(Str));
+	return FUniqueNetIdNull::Create(Str);
 }
 
 ELoginStatus::Type FOnlineIdentityNull::GetLoginStatus(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetLoginStatus(*UserId);
@@ -251,7 +251,7 @@ ELoginStatus::Type FOnlineIdentityNull::GetLoginStatus(const FUniqueNetId& UserI
 
 FString FOnlineIdentityNull::GetPlayerNickname(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UniqueId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UniqueId = GetUniquePlayerId(LocalUserNum);
 	if (UniqueId.IsValid())
 	{
 		return UniqueId->ToString();
@@ -267,7 +267,7 @@ FString FOnlineIdentityNull::GetPlayerNickname(const FUniqueNetId& UserId) const
 
 FString FOnlineIdentityNull::GetAuthToken(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		TSharedPtr<FUserOnlineAccount> UserAccount = GetUserAccount(*UserId);
@@ -282,7 +282,7 @@ FString FOnlineIdentityNull::GetAuthToken(int32 LocalUserNum) const
 void FOnlineIdentityNull::RevokeAuthToken(const FUniqueNetId& UserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate)
 {
 	UE_LOG_ONLINE_IDENTITY(Display, TEXT("FOnlineIdentityNull::RevokeAuthToken not implemented"));
-	TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	NullSubsystem->ExecuteNextTick([UserIdRef, Delegate]()
 	{
 		Delegate.ExecuteIfBound(*UserIdRef, FOnlineError(FString(TEXT("RevokeAuthToken not implemented"))));
