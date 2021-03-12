@@ -293,18 +293,4 @@ bool FFliteTextToSpeechSubmixListener::FSynthesizedSpeechBuffer::IsFull() const
 	return SynthesizedSpeechChunks.GetNextIndex(WriteIndex) == ReadIndex;
 }
 
-#if !UE_BUILD_SHIPPING
-void FFliteTextToSpeechSubmixListener::FSynthesizedSpeechBuffer::DumpStats() const
-{
-	uint32 MemoryUsage = sizeof(TCircularBuffer<FFliteSynthesizedSpeechData>);
-	// for ReadIndex, WriteIndex and ChunkIndex
-	MemoryUsage += 3* sizeof(int32);
-	// Go through entire buffer and caluclate memory 
-	for (int32 CurrentIndex = ReadIndex; CurrentIndex != ReadIndex; CurrentIndex = SynthesizedSpeechChunks.GetNextIndex(CurrentIndex))
-	{
-		MemoryUsage += sizeof(FFliteSynthesizedSpeechData) + SynthesizedSpeechChunks[CurrentIndex].SpeechBuffer.GetAllocatedSize();
-	}
-	UE_LOG(LogTextToSpeech, Log, TEXT("Memory usage of Flite speech buffer: %u kb."), MemoryUsage / 1000);
-}
-#endif
 #endif

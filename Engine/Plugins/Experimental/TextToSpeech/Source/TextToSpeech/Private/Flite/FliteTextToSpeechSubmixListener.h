@@ -61,9 +61,6 @@ private:
 		bool IsEmpty() const;
 		/** Should only be called from audio render thread */
 		const FFliteSynthesizedSpeechData& GetCurrentChunk_AudioRenderThread() const;
-#if !UE_BUILD_SHIPPING
-		void DumpStats() const;
-#endif
 	private:
 		bool IsFull() const;
 		TCircularBuffer<FFliteSynthesizedSpeechData> SynthesizedSpeechChunks;
