@@ -71,6 +71,13 @@ static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingD
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingMaxTranslucentSkipCount(
+	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.MaxTranslucentSkipCount"),
+	2,
+	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
+	ECVF_RenderThreadSafe
+);
+
 #endif // RHI_RAYTRACING
 
 namespace Lumen
@@ -156,6 +163,9 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 		// Screen probes
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenIndirectTracingParameters, IndirectTracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
+
+		// Constants
+		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 
 		// Radiance cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
@@ -354,6 +364,9 @@ void RenderHardwareRayTracingScreenProbe(
 		// Screen-probe gather arguments
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
 		PassParameters->ScreenProbeParameters = ScreenProbeParameters;
+
+		// Constants
+		PassParameters->MaxTranslucentSkipCount = CVarLumenScreenProbeGatherHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		// Radiance cache arguments
 		FRGSRadianceCacheParameters RGSRadianceCacheParameters;

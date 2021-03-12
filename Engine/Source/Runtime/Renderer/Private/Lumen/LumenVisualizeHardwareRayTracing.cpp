@@ -62,6 +62,13 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingDeferredM
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount(
+	TEXT("r.Lumen.Visualize.HardwareRayTracing.MaxTranslucentSkipCount"),
+	2,
+	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
+	ECVF_RenderThreadSafe
+);
+
 #endif // RHI_RAYTRACING
 
 namespace Lumen
@@ -115,6 +122,7 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
 		SHADER_PARAMETER(int, NormalMode)
+		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -261,6 +269,7 @@ void VisualizeHardwareRayTracing(
 
 		// Constants!
 		PassParameters->NormalMode = PermutationSettings.NormalMode;
+		PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		// Output..
 		PassParameters->RWRadiance = GraphBuilder.CreateUAV(SceneColor);

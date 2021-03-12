@@ -23,6 +23,7 @@
 
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
+int MaxTranslucentSkipCount;
 float SurfaceBias;
 
 StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
@@ -91,11 +92,12 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 			FRayCone RayCone = (FRayCone)0;
 			RayCone = PropagateRayCone(RayCone, ConeHalfAngle, 0.0);
 
-			FRayTracedLightingContext Context;
-			Context.TLAS = TLAS;
-			Context.RayCone = RayCone;
-			Context.TraceCoord = ScreenTileCoord;
-			Context.LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
+			FRayTracedLightingContext Context = CreateRayTracedLightingContext(
+				TLAS,
+				RayCone,
+				ScreenTileCoord,
+				ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x,
+				MaxTranslucentSkipCount);
 
 			bool bTraceRay = true;
 			if (DIM_DEFERRED_MATERIAL_MODE)
@@ -194,12 +196,8 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingDeferredMateria
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 	RayCone = PropagateRayCone(RayCone, ConeHalfAngle, SceneDepth);
 
-	FRayTracedLightingContext Context;
-	Context.TLAS = TLAS;
-	Context.RayCone = RayCone;
-	Context.TraceCoord = ScreenTileCoord;
-	Context.LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
-
+	uint LinearCoord = ScreenTileCoord.y * ScreenProbeViewSize.x + ScreenTileCoord.x;
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ScreenTileCoord, LinearCoord);
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
 	// Encode max trace distance in the case of an invalid or miss condition

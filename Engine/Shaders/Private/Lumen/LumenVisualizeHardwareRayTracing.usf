@@ -28,6 +28,7 @@ StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 
 int LightingMode;
 int NormalMode;
+int MaxTranslucentSkipCount;
 int bIsDeferredMaterial;
 
 RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
@@ -59,12 +60,14 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
+		int LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
 
-		FRayTracedLightingContext Context;
-		Context.TLAS = TLAS;
-		Context.RayCone = RayCone;
-		Context.TraceCoord = TraceCoord;
-		Context.LinearCoord = TraceCoord.y * View.BufferSizeAndInvSize.x + TraceCoord.x;
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(
+			TLAS,
+			RayCone,
+			TraceCoord,
+			LinearCoord,
+			MaxTranslucentSkipCount);
 
 		bool bTraceRay = true;
 		if (DIM_DEFERRED_MATERIAL_MODE)
@@ -129,12 +132,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingDeferredMaterialRGS)
 		FRayCone RayCone = (FRayCone)0;
 		RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
-		FRayTracedLightingContext Context;
-		Context.TLAS = TLAS;
-		Context.RayCone = RayCone;
-		Context.TraceCoord = TraceCoord;
-		Context.LinearCoord = LinearCoord;
-
+		FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord);
 		TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 	}
 

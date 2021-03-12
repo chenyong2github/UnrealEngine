@@ -51,7 +51,35 @@ struct FRayTracedLightingContext
 	FRayCone RayCone;
 	uint2 TraceCoord;
 	uint LinearCoord;
+	int TranslucentSkipCountMax;
 };
+
+FRayTracedLightingContext CreateRayTracedLightingContext(
+	in RaytracingAccelerationStructure TLAS,
+	in FRayCone RayCone,
+	in uint2 TraceCoord,
+	in uint LinearCoord,
+	in int TranslucentSkipCountMax
+)
+{
+	FRayTracedLightingContext Context;
+	Context.TLAS = TLAS;
+	Context.RayCone = RayCone;
+	Context.TraceCoord = TraceCoord;
+	Context.TranslucentSkipCountMax = TranslucentSkipCountMax;
+	return Context;
+}
+
+FRayTracedLightingContext CreateRayTracedLightingContext(
+	in RaytracingAccelerationStructure TLAS,
+	in FRayCone RayCone,
+	in uint2 TraceCoord,
+	in uint LinearCoord
+)
+{
+	int TranslucentSkipCountMax = 0;
+	return CreateRayTracedLightingContext(TLAS, RayCone, TraceCoord, LinearCoord, TranslucentSkipCountMax);
+}
 
 bool TraceDeferredMaterialRay(
 	in RayDesc Ray,
@@ -332,9 +360,7 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	bool bHit = TraceLumenMinimalRay(Ray, Context, Payload);
 
 	int TranslucentSkipCount = 0;
-    // TODO: Drive TranslucentSkipCountMax via Context
-	int TranslucentSkipCountMax = 2;
-	while (bHit && Payload.IsTranslucent() && TranslucentSkipCount < TranslucentSkipCountMax)
+	while (bHit && Payload.IsTranslucent() && TranslucentSkipCount < Context.TranslucentSkipCountMax)
 	{
 		float Epsilon = 0.01;
 		Ray.TMin = Payload.HitT + Epsilon;

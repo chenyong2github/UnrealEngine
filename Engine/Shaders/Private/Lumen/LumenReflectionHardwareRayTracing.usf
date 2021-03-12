@@ -25,6 +25,7 @@ RWTexture2D<float3> RWTraceRadiance;
 
 RaytracingAccelerationStructure TLAS;
 float MaxTraceDistance;
+int MaxTranslucentSkipCount;
 
 StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 
@@ -80,11 +81,12 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingRGS)
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 	RayCone = PropagateRayCone(RayCone, RayData.ConeHalfAngle, SceneDepth);
 
-	FRayTracedLightingContext Context;
-	Context.TLAS = TLAS;
-	Context.RayCone = RayCone;
-	Context.TraceCoord = ReflectionTracingCoord;
-	Context.LinearCoord = LinearCoord;
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(
+		TLAS,
+		RayCone,
+		ReflectionTracingCoord,
+		LinearCoord,
+		MaxTranslucentSkipCount);
 
 	bool bTraceRay = true;
 	if (DIM_DEFERRED_MATERIAL_MODE)
@@ -162,12 +164,7 @@ RAY_TRACING_ENTRY_RAYGEN(LumenReflectionHardwareRayTracingDeferredMaterialRGS)
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 	RayCone = PropagateRayCone(RayCone, RayData.ConeHalfAngle, SceneDepth);
 
-	FRayTracedLightingContext Context;
-	Context.TLAS = TLAS;
-	Context.RayCone = RayCone;
-	Context.TraceCoord = ReflectionTracingCoord;
-	Context.LinearCoord = LinearCoord;
-
+	FRayTracedLightingContext Context = CreateRayTracedLightingContext(TLAS, RayCone, ReflectionTracingCoord, LinearCoord);
 	bool bIsHit = TraceDeferredMaterialRay(Ray, Context, DeferredMaterialPayload);
 
 	// Encode max trace distance in the case of an invalid or miss condition

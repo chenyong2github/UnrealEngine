@@ -66,6 +66,13 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingDeferre
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount(
+	TEXT("r.Lumen.Reflections.HardwareRayTracing.MaxTranslucentSkipCount"),
+	2,
+	TEXT("Determines the maximum number of translucent surfaces skipped during ray traversal (Default = 2)"),
+	ECVF_RenderThreadSafe
+);
+
 #endif // RHI_RAYTRACING
 
 namespace Lumen
@@ -159,6 +166,7 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
+		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 
 		// Reflection-specific includes (includes output targets)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTracingParameters, ReflectionTracingParameters)
@@ -350,6 +358,7 @@ void RenderLumenHardwareRayTracingReflections(
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
 		PassParameters->RayTraceDispatchIndirectArgs = CompactedTraceParameters.RayTraceDispatchIndirectArgs;
 		PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
+		PassParameters->MaxTranslucentSkipCount = CVarLumenReflectionsHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		PassParameters->ReflectionTracingParameters = ReflectionTracingParameters;
 		PassParameters->ReflectionTileParameters = ReflectionTileParameters;
