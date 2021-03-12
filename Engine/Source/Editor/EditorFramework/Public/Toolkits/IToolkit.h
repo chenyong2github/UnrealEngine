@@ -61,6 +61,8 @@ class IToolkit
 {
 public:
 
+	virtual ~IToolkit() = default;
+
 	/** Register tabs that this toolkit can spawn with the TabManager */
 	virtual void RegisterTabSpawners(const TSharedRef<FTabManager>& TabManager) = 0;
 

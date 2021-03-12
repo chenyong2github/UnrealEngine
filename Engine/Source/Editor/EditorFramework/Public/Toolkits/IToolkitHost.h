@@ -15,6 +15,7 @@ class IToolkitHost
 {
 
 public:
+	virtual ~IToolkitHost() = default;
 
 	/* Notificaton when the active viewport changed */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnActiveViewportChanged,  TSharedPtr<IAssetViewport>, TSharedPtr<IAssetViewport>)
