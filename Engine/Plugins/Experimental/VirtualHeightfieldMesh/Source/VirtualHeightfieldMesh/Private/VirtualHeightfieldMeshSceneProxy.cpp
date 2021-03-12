@@ -437,10 +437,44 @@ void FVirtualHeightfieldMeshSceneProxy::CreateRenderThreadResources()
 		if (RuntimeVirtualTexture->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight)
 		{
 			AllocatedVirtualTexture = RuntimeVirtualTexture->GetAllocatedVirtualTexture();
-
 			NumQuadsPerTileSide = RuntimeVirtualTexture->GetTileSize();
-			VertexFactory = new FVirtualHeightfieldMeshVertexFactory(GetScene().GetFeatureLevel(), NumQuadsPerTileSide);
-			VertexFactory->InitResource();
+
+			if (AllocatedVirtualTexture != nullptr)
+			{
+				// Gather vertex factory uniform parameters.
+				FVirtualHeightfieldMeshVertexFactoryParameters UniformParams;
+				UniformParams.PageTableTexture = AllocatedVirtualTexture->GetPageTableTexture(0);
+				UniformParams.HeightTexture = AllocatedVirtualTexture->GetPhysicalTextureSRV(0, false);
+				UniformParams.HeightSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
+				UniformParams.LodBiasTexture = LodBiasTexture ? LodBiasTexture->Resource->TextureRHI : GBlackTexture->TextureRHI;
+				UniformParams.LodBiasSampler = TStaticSamplerState<SF_Point>::GetRHI();
+				UniformParams.NumQuadsPerTileSide = NumQuadsPerTileSide;
+
+				FUintVector4 PackedUniform;
+				AllocatedVirtualTexture->GetPackedUniform(&PackedUniform, 0);
+				UniformParams.VTPackedUniform = PackedUniform;
+				FUintVector4 PackedPageTableUniform[2];
+				AllocatedVirtualTexture->GetPackedPageTableUniform(PackedPageTableUniform);
+				UniformParams.VTPackedPageTableUniform0 = PackedPageTableUniform[0];
+				UniformParams.VTPackedPageTableUniform1 = PackedPageTableUniform[1];
+
+				const float PageTableSizeX = AllocatedVirtualTexture->GetWidthInTiles();
+				const float PageTableSizeY = AllocatedVirtualTexture->GetHeightInTiles();
+				UniformParams.PageTableSize = FVector4(PageTableSizeX, PageTableSizeY, 1.f / PageTableSizeX, 1.f / PageTableSizeY);
+
+				const float PhysicalTextureSize = AllocatedVirtualTexture->GetPhysicalTextureSize(0);
+				UniformParams.PhysicalTextureSize = FVector2D(PhysicalTextureSize, 1.f / PhysicalTextureSize);
+
+				UniformParams.VirtualHeightfieldToLocal = UVToLocal;
+				UniformParams.VirtualHeightfieldToWorld = UVToWorld;
+
+				UniformParams.MaxLod = AllocatedVirtualTexture->GetMaxLevel();
+				UniformParams.LodBiasScale = LodBiasScale;
+
+				// Create vertex factory.
+				VertexFactory = new FVirtualHeightfieldMeshVertexFactory(GetScene().GetFeatureLevel(), UniformParams);
+				VertexFactory->InitResource();
+			}
 		}
 	}
 }
@@ -514,7 +548,7 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 			{
 				FMeshBatchElement& BatchElement = Mesh.Elements[0];
 
-				BatchElement.IndexBuffer = VertexFactory->IndexBuffer;
+				BatchElement.IndexBuffer = VertexFactory->GetIndexBuffer();
 				BatchElement.IndirectArgsBuffer = Buffers.IndirectArgsBuffer;
 				BatchElement.IndirectArgsOffset = 0;
 
@@ -523,30 +557,16 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				BatchElement.MinVertexIndex = 0;
 				BatchElement.MaxVertexIndex = 0;
 
+				BatchElement.PrimitiveIdMode = PrimID_ForceZero;
+				BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
+
 				FVirtualHeightfieldMeshUserData* UserData = &Collector.AllocateOneFrameResource<FVirtualHeightfieldMeshUserData>();
 				BatchElement.UserData = (void*)UserData;
 
 				UserData->InstanceBufferSRV = Buffers.InstanceBufferSRV;
-				UserData->PageTableTexture = AllocatedVirtualTexture->GetPageTableTexture(0);
-				UserData->HeightPhysicalTexture = AllocatedVirtualTexture->GetPhysicalTexture(0);
-				UserData->LodBiasTexture = LodBiasTexture ? LodBiasTexture->Resource->TextureRHI : GBlackTexture->TextureRHI;
 
-				AllocatedVirtualTexture->GetPackedUniform(&UserData->PackedUniform, 0);
-				AllocatedVirtualTexture->GetPackedPageTableUniform(UserData->PackedPageTableUniform);
-
-				const float PageTableSizeX = AllocatedVirtualTexture->GetWidthInTiles();
-				const float PageTableSizeY = AllocatedVirtualTexture->GetHeightInTiles();
-				UserData->PageTableSize = FVector4(PageTableSizeX, PageTableSizeY, 1.f / PageTableSizeX, 1.f / PageTableSizeY);
-
-				const float PhysicalTextureSize = AllocatedVirtualTexture->GetPhysicalTextureSize(0);
-				UserData->PhysicalTextureSize = FVector2D(PhysicalTextureSize, 1.f / PhysicalTextureSize);
-
-				UserData->MaxLod = AllocatedVirtualTexture->GetMaxLevel();
-				UserData->VirtualHeightfieldToLocal = UVToLocal;
-				UserData->VirtualHeightfieldToWorld = UVToWorld;
-
+				//todo[vhm]: Move all the view dependent lod logic into shader. Would help us to move to static mesh batches in the future.
 				FSceneView const* MainView = ViewFamily.Views[0];
-				
 				UserData->LodViewOrigin = MainView->ViewMatrices.GetViewOrigin();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -559,11 +579,8 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 #endif
 				
 				UserData->LodDistances = VirtualHeightfieldMesh::CalculateLodRanges(MainView, this);
-				UserData->LodBiasScale = LodBiasScale;
-				
-				BatchElement.PrimitiveIdMode = PrimID_ForceZero;
-				BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 			}
+
 			Collector.AddMesh(ViewIndex, Mesh);
 		}
 	}
