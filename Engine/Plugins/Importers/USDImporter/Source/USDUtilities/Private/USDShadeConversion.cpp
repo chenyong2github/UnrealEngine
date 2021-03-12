@@ -401,10 +401,12 @@ namespace UsdShadeConversionImpl
 
 					if ( Texture )
 					{
-						if ( bIsNormalInput )
+						if ( bIsNormalInput && ( Texture->SRGB || Texture->CompressionSettings != TextureCompressionSettings::TC_Normalmap ) )
 						{
+							Texture->PreEditChange(nullptr);
 							Texture->SRGB = false;
 							Texture->CompressionSettings = TextureCompressionSettings::TC_Normalmap;
+							Texture->PostEditChange();
 						}
 
 						FString PrimvarName = GetPrimvarUsedAsST(Source);
