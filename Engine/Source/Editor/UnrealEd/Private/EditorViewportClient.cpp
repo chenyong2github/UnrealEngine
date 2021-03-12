@@ -2933,7 +2933,7 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 	// Give the interactive tools context a shot at input if it hasn't been handled already.
 	if (!bHandled)
 	{
-		bHandled = ModeTools->GetInteractiveToolsContext()->InputKey(this, Viewport, Key, Event);
+		ModeTools->GetInteractiveToolsContext()->InputKey(this, Viewport, Key, Event);
 	}
 
 	//apply the visibility and set the cursor positions
