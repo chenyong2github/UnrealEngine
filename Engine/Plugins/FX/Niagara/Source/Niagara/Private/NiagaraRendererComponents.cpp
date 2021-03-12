@@ -165,6 +165,13 @@ FNiagaraRendererComponents::~FNiagaraRendererComponents()
 {
 	// These should have been freed in DestroyRenderState_Concurrent
 	check(ComponentPool.Num() == 0);
+
+#if WITH_EDITORONLY_DATA
+	if (GEditor)
+	{
+		GEditor->OnObjectsReplaced().RemoveAll(this);
+	}
+#endif
 }
 
 void FNiagaraRendererComponents::DestroyRenderState_Concurrent()
