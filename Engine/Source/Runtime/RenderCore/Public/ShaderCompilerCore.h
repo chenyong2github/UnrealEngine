@@ -145,6 +145,7 @@ struct FShaderCompilerInput
 {
 	FShaderTarget Target;
 	FName ShaderFormat;
+	FName CompressionFormat;
 	FString SourceFilePrefix;
 	FString VirtualSourceFilePath;
 	FString EntryPointName;
@@ -296,52 +297,12 @@ struct FShaderCompilerInput
 		}
 	}
 
-	friend FArchive& operator<<(FArchive& Ar,FShaderCompilerInput& Input)
-	{
-		// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
-		Ar << Input.Target;
-		{
-			FString ShaderFormatString(Input.ShaderFormat.ToString());
-			Ar << ShaderFormatString;
-			Input.ShaderFormat = FName(*ShaderFormatString);
-		}
-		Ar << Input.SourceFilePrefix;
-		Ar << Input.VirtualSourceFilePath;
-		Ar << Input.EntryPointName;
-		Ar << Input.bSkipPreprocessedCache;
-		Ar << Input.bCompilingForShaderPipeline;
-		Ar << Input.bGenerateDirectCompileFile;
-		Ar << Input.bIncludeUsedOutputs;
-		Ar << Input.UsedOutputs;
-		Ar << Input.DumpDebugInfoRootPath;
-		Ar << Input.DumpDebugInfoPath;
-		Ar << Input.DebugExtension;
-		Ar << Input.DebugGroupName;
-		Ar << Input.DebugDescription;
-		Ar << Input.Environment;
-		Ar << Input.ExtraSettings;
-		Ar << Input.RootParameterBindings;
-
-		// Note: skipping Input.SharedEnvironment, which is handled by FShaderCompileUtilities::DoWriteTasks in order to maintain sharing
-
-		return Ar;
-	}
+	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input);
 
 	bool IsUsingTessellation() const
 	{
-		switch (Target.GetFrequency())
-		{
-		case SF_Vertex:
-		{
-			const FString* UsingTessellationDefine = Environment.GetDefinitions().Find(TEXT("USING_TESSELLATION"));
-			return (UsingTessellationDefine != nullptr && *UsingTessellationDefine == TEXT("1"));
-		}
-		case SF_Hull:
-		case SF_Domain:
-			return true;
-		default:
-			return false;
-		}
+		// no more tessellation in UE5
+		return false;
 	}
 
 	bool IsRayTracingShader() const
@@ -478,10 +439,13 @@ struct FShaderCompilerOutput
 	/** Generates OutputHash from the compiler output. */
 	RENDERCORE_API void GenerateOutputHash();
 
+	/** Calls GenerateOutputHash() before the compression, replaces FShaderCode with the compressed data (if compression result was smaller). */
+	RENDERCORE_API void CompressOutput(FName ShaderCompressionFormat);
+
 	friend FArchive& operator<<(FArchive& Ar, FShaderCompilerOutput& Output)
 	{
 		// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
-		Ar << Output.ParameterMap << Output.Errors << Output.Target << Output.ShaderCode << Output.NumInstructions << Output.NumTextureSamplers << Output.bSucceeded;
+		Ar << Output.ParameterMap << Output.Errors << Output.Target << Output.ShaderCode << Output.OutputHash << Output.NumInstructions << Output.NumTextureSamplers << Output.bSucceeded;
 		Ar << Output.bFailedRemovingUnused << Output.bSupportsQueryingUsedAttributes << Output.UsedAttributes;
 		Ar << Output.CompileTime;
 		Ar << Output.OptionalFinalShaderSource;

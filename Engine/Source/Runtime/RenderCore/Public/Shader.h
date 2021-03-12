@@ -359,7 +359,7 @@ public:
 
 	int32 FindShaderIndex(const FSHAHash& InHash) const;
 
-	RENDERCORE_API void AddShaderCode(EShaderFrequency InFrequency, const FSHAHash& InHash, TConstArrayView<uint8> InCode);
+	RENDERCORE_API void AddShaderCode(EShaderFrequency InFrequency, const FSHAHash& InHash, const FShaderCode& InCode);
 #if WITH_EDITORONLY_DATA
 	RENDERCORE_API void AddPlatformDebugData(TConstArrayView<uint8> InPlatformDebugData);
 #endif

@@ -1281,9 +1281,8 @@ static bool ReadSingleJob(FShaderCompileJob* CurrentJob, FArchive& OutputFile)
 	// Deserialize the shader compilation output.
 	OutputFile << CurrentJob->Output;
 
-	// Generate a hash of the output and cache it
-	// The shader processing this output will use it to search for existing FShaderResources
-	CurrentJob->Output.GenerateOutputHash();
+	// The job should already have a non-zero output hash
+	checkf(CurrentJob->Output.OutputHash != FSHAHash(), TEXT("OutputHash was not set in the shader compile worker!"));
 	CurrentJob->bSucceeded = CurrentJob->Output.bSucceeded;
 
 	if (CurrentJob->bSucceeded && CurrentJob->Input.DumpDebugInfoPath.Len() > 0)
@@ -2233,9 +2232,10 @@ void FShaderCompileUtilities::ExecuteShaderCompileJob(FShaderCommonCompileJob& J
 
 		if (SingleJob->Output.bSucceeded)
 		{
-			// Generate a hash of the output and cache it
-			// The shader processing this output will use it to search for existing FShaderResources
+			// Generate a hash of the output and compress the code
+			// The shader processing this output will use the heash to search for existing FShaderResources
 			SingleJob->Output.GenerateOutputHash();
+			SingleJob->Output.CompressOutput(NAME_LZ4);
 		}
 	}
 	else
@@ -4469,6 +4469,7 @@ void GlobalBeginCompileShader(
 
 	Input.Target = Target;
 	Input.ShaderFormat = ShaderFormatName;
+	Input.CompressionFormat = GetShaderCompressionFormat();
 	Input.VirtualSourceFilePath = SourceFilename;
 	Input.EntryPointName = FunctionName;
 	Input.bCompilingForShaderPipeline = false;

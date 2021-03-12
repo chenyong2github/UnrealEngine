@@ -424,6 +424,14 @@ void FShaderCompilerOutput::GenerateOutputHash()
 	HashState.GetHash(&OutputHash.Hash[0]);
 }
 
+void FShaderCompilerOutput::CompressOutput(FName ShaderCompressionFormat)
+{
+	// make sure the hash has been generated
+	checkf(OutputHash != FSHAHash(), TEXT("Output hash must be generated before compressing the shader code."));
+	checkf(ShaderCompressionFormat != NAME_None, TEXT("Compression format should be valid"));
+	ShaderCode.Compress(ShaderCompressionFormat);
+}
+
 static void ReportVirtualShaderFilePathError(TArray<FShaderCompilerError>* CompileErrors, FString ErrorString)
 {
 	if (CompileErrors)
@@ -1359,3 +1367,85 @@ void AddShaderSourceDirectoryMapping(const FString& VirtualShaderDirectory, cons
 	GShaderSourceDirectoryMappings.Add(VirtualShaderDirectory, RealShaderDirectory);
 }
 
+void FShaderCode::Compress(FName ShaderCompressionFormat)
+{
+	checkf(OptionalDataSize == -1, TEXT("FShaderCode::Compress() was called before calling FShaderCode::FinalizeShaderCode()"));
+
+	TArray<uint8> Compressed;
+	int32 CompressedSize = ShaderCodeWithOptionalData.Num();
+	Compressed.AddUninitialized(CompressedSize);
+
+	// there is code that assumes that if CompressedSize == CodeSize, the shader isn't compressed. Because of that, do not accept equal compressed size (very unlikely anyway)
+	if (FCompression::CompressMemory(ShaderCompressionFormat, Compressed.GetData(), CompressedSize, ShaderCodeWithOptionalData.GetData(), ShaderCodeWithOptionalData.Num()) && CompressedSize < ShaderCodeWithOptionalData.Num())
+	{
+		// cache the ShaderCodeSize since it will no longer possible to get it as the reader will fail to parse the compressed data
+		FShaderCodeReader Wrapper(ShaderCodeWithOptionalData);
+		ShaderCodeSize = Wrapper.GetShaderCodeSize();
+
+		// finalize the compression
+		CompressionFormat = ShaderCompressionFormat;
+		UncompressedSize = ShaderCodeWithOptionalData.Num();
+
+		Compressed.SetNum(CompressedSize);
+		ShaderCodeWithOptionalData = Compressed;
+	}
+}
+
+FArchive& operator<<(FArchive& Ar, FShaderCode& Output)
+{
+	if (Ar.IsLoading())
+	{
+		Output.OptionalDataSize = -1;
+	}
+	else
+	{
+		Output.FinalizeShaderCode();
+	}
+
+	// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
+	Ar << Output.ShaderCodeWithOptionalData;
+	Ar << Output.UncompressedSize;
+	{
+		FString CompressionFormatString(Output.CompressionFormat.ToString());
+		Ar << CompressionFormatString;
+		Output.CompressionFormat = FName(*CompressionFormatString);
+	}
+	Ar << Output.ShaderCodeSize;
+	return Ar;
+}
+
+FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
+{
+	// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
+	Ar << Input.Target;
+	{
+		FString ShaderFormatString(Input.ShaderFormat.ToString());
+		Ar << ShaderFormatString;
+		Input.ShaderFormat = FName(*ShaderFormatString);
+	}
+	{
+		FString CompressionFormatString(Input.CompressionFormat.ToString());
+		Ar << CompressionFormatString;
+		Input.CompressionFormat = FName(*CompressionFormatString);
+	}
+	Ar << Input.SourceFilePrefix;
+	Ar << Input.VirtualSourceFilePath;
+	Ar << Input.EntryPointName;
+	Ar << Input.bSkipPreprocessedCache;
+	Ar << Input.bCompilingForShaderPipeline;
+	Ar << Input.bGenerateDirectCompileFile;
+	Ar << Input.bIncludeUsedOutputs;
+	Ar << Input.UsedOutputs;
+	Ar << Input.DumpDebugInfoRootPath;
+	Ar << Input.DumpDebugInfoPath;
+	Ar << Input.DebugExtension;
+	Ar << Input.DebugGroupName;
+	Ar << Input.DebugDescription;
+	Ar << Input.Environment;
+	Ar << Input.ExtraSettings;
+	Ar << Input.RootParameterBindings;
+
+	// Note: skipping Input.SharedEnvironment, which is handled by FShaderCompileUtilities::DoWriteTasks in order to maintain sharing
+
+	return Ar;
+}

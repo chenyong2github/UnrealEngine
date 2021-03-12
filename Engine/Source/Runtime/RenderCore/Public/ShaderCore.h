@@ -99,6 +99,9 @@ extern RENDERCORE_API bool AllowDebugViewmodes();
 /** Returns true if debug viewmodes are allowed for the given platform. */
 extern RENDERCORE_API bool AllowDebugViewmodes(EShaderPlatform Platform);
 
+/** Returns the shader compression format (passing ShaderFormat for future proofing, but as of now the setting is global for all formats). */
+extern RENDERCORE_API FName GetShaderCompressionFormat(const FName& ShaderFormat = NAME_None);
+
 struct FShaderTarget
 {
 	// The rest of uint32 holding the bitfields can be left unitialized. Union with a uint32 serves to prevent that to be able to set the whole uint32 value
@@ -733,10 +736,22 @@ class FShaderCode
 	// access through class methods
 	mutable TArray<uint8> ShaderCodeWithOptionalData;
 
+	/** ShaderCode may be compressed in SCWs on demand. If this value isn't null, the shader code is compressed. */
+	mutable int32 UncompressedSize;
+
+	/** Compression algo */
+	mutable FName CompressionFormat;
+
+	/** We cannot get the code size after the compression, so store it here */
+	mutable int32 ShaderCodeSize;
+
 public:
 
 	FShaderCode()
 	: OptionalDataSize(0)
+	, UncompressedSize(0)
+	, CompressionFormat(NAME_None)
+	, ShaderCodeSize(0)
 	{
 	}
 
@@ -745,35 +760,60 @@ public:
 	{
 		if(OptionalDataSize != -1)
 		{
+			checkf(UncompressedSize == 0, TEXT("FShaderCode::FinalizeShaderCode() was called after compressing the code"));
 			OptionalDataSize += sizeof(OptionalDataSize);
 			ShaderCodeWithOptionalData.Append((const uint8*)&OptionalDataSize, sizeof(OptionalDataSize));
 			OptionalDataSize = -1;
 		}
 	}
 
+	void Compress(FName ShaderCompressionFormat);
+
 	// Write access for regular microcode: Optional Data must be added AFTER regular microcode and BEFORE Finalize
 	TArray<uint8>& GetWriteAccess()
 	{
-		checkf(OptionalDataSize != -1, TEXT("Tried to add ShaderCode after adding being finalized!"));
+		checkf(OptionalDataSize != -1, TEXT("Tried to add ShaderCode after being finalized!"));
 		checkf(OptionalDataSize == 0, TEXT("Tried to add ShaderCode after adding Optional data!"));
 		return ShaderCodeWithOptionalData;
 	}
 
 	int32 GetShaderCodeSize() const
 	{
-		FinalizeShaderCode();
+		// use the cached size whenever available
+		if (ShaderCodeSize != 0)
+		{
+			return ShaderCodeSize;
+		}
+		else
+		{
+			FinalizeShaderCode();
 
-		FShaderCodeReader Wrapper(ShaderCodeWithOptionalData);
-
-		return Wrapper.GetShaderCodeSize();
+			FShaderCodeReader Wrapper(ShaderCodeWithOptionalData);
+			return Wrapper.GetShaderCodeSize();
+		}
 	}
 
-	// for read access, can have additional data attached to the end
+	// for read access, can have additional data attached to the end. Can also be compressed
 	const TArray<uint8>& GetReadAccess() const
 	{
 		FinalizeShaderCode();
 
 		return ShaderCodeWithOptionalData;
+	}
+
+	bool IsCompressed() const
+	{
+		return UncompressedSize != 0;
+	}
+
+	FName GetCompressionFormat() const
+	{
+		return CompressionFormat;
+	}
+
+	int32 GetUncompressedSize() const
+	{
+		return UncompressedSize;
 	}
 
 	// for convenience
@@ -809,21 +849,7 @@ public:
 		AddOptionalData(Key, (uint8*)InString, Size);
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FShaderCode& Output)
-	{
-		if(Ar.IsLoading())
-		{
-			Output.OptionalDataSize = -1;
-		}
-		else
-		{
-			Output.FinalizeShaderCode();
-		}
-
-		// Note: this serialize is used to pass between UE4 and the shader compile worker, recompile both when modifying
-		Ar << Output.ShaderCodeWithOptionalData;
-		return Ar;
-	}
+	friend RENDERCORE_API FArchive& operator<<(FArchive& Ar, FShaderCode& Output);
 };
 
 /**

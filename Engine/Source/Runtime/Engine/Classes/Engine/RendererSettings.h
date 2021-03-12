@@ -148,6 +148,19 @@ namespace EDefaultBackBufferPixelFormat
 }
 
 /**
+ * Enumerates supported shader compression formats.
+ */
+UENUM()
+namespace EShaderCompressionFormat
+{
+	enum Type
+	{
+		None = 0 UMETA(DisplayName = "Do not compress", ToolTip = "Fastest, but disk and memory footprint will be large"),
+		LZ4 = 1 UMETA(DisplayName = "LZ4", ToolTip = "Compressing using LZ4"),
+	};
+}
+
+/**
  * Rendering settings.
  */
 UCLASS(config=Engine, defaultconfig, meta=(DisplayName="Rendering"))
@@ -200,6 +213,12 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		ConsoleVariable = "r.DiscardUnusedQuality", DisplayName = "Game Discards Unused Material Quality Levels",
 		ToolTip = "When running in game mode, whether to keep shaders for all quality levels in memory or only those needed for the current quality level.\nUnchecked: Keep all quality levels in memory allowing a runtime quality level change. (default)\nChecked: Discard unused quality levels when loading content for the game, saving some memory."))
 	uint32 bDiscardUnusedQualityLevels : 1;
+
+	UPROPERTY(config, EditAnywhere, Category = Materials, meta = (
+		ConsoleVariable = "r.Shaders.CompressionFormat", DisplayName = "Shader Compression Format",
+		ToolTip = "Select how the shaders are compressed for storage",
+		ConfigRestartRequired = true))
+	TEnumAsByte<EShaderCompressionFormat::Type> ShaderCompressionFormat;	// requires restart as we may have jobs in flight that already used the previous one. Also it's also used for decompression the currently compressed shaders
 
 	UPROPERTY(config, EditAnywhere, Category=Culling, meta=(
 		ConsoleVariable="r.AllowOcclusionQueries",DisplayName="Occlusion Culling",

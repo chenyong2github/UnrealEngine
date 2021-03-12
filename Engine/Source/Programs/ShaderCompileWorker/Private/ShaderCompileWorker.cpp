@@ -128,6 +128,14 @@ static void ProcessCompilationJob(const FShaderCompilerInput& Input,FShaderCompi
 	// Compile the shader directly through the platform dll (directly from the shader dir as the working directory)
 	double TimeStart = FPlatformTime::Seconds();
 	Compiler->CompileShader(Input.ShaderFormat, Input, Output, WorkingDirectory);
+	if (Output.bSucceeded)
+	{
+		Output.GenerateOutputHash();
+		if (Input.CompressionFormat != NAME_None)
+		{
+			Output.CompressOutput(Input.CompressionFormat);
+		}
+	}
 	Output.CompileTime = FPlatformTime::Seconds() - TimeStart;
 
 	if (Compiler->UsesHLSLcc(Input))

@@ -29,7 +29,29 @@
 #include "Interfaces/IShaderFormat.h"
 #endif
 
-static const FName ShaderCompressionFormat = NAME_LZ4;
+int32 GShaderCompressionFormatChoice = 1;
+static FAutoConsoleVariableRef CVarShaderCompressionFormatChoice(
+	TEXT("r.Shaders.CompressionFormat"),
+	GShaderCompressionFormatChoice,
+	TEXT("Select the compression methods for the shader code.\n")
+	TEXT(" 0: None (uncompressed)\n")
+	TEXT(" 1: LZ4 (default)"),
+	ECVF_ReadOnly);
+
+FName GetShaderCompressionFormat(const FName& ShaderFormat)
+{
+	// support an older developer-only CVar for compatibility and make it preempt
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	static const IConsoleVariable* CVarSkipCompression = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.SkipCompression"));
+	static bool bSkipCompression = (CVarSkipCompression && CVarSkipCompression->GetInt() != 0);
+	if (UNLIKELY(bSkipCompression))
+	{
+		return NAME_None;
+	}
+#endif
+
+	return (GShaderCompressionFormatChoice == 1) ? NAME_LZ4 : NAME_None;
+}
 
 bool FShaderMapResource::ArePlatformsCompatible(EShaderPlatform CurrentPlatform, EShaderPlatform TargetPlatform)
 {
@@ -162,10 +184,10 @@ void FShaderMapResourceCode::AddShaderCompilerOutput(const FShaderCompilerOutput
 #if WITH_EDITORONLY_DATA
 	AddPlatformDebugData(Output.PlatformDebugData);
 #endif
-	AddShaderCode(Output.Target.GetFrequency(), Output.OutputHash, Output.ShaderCode.GetReadAccess());
+	AddShaderCode(Output.Target.GetFrequency(), Output.OutputHash, Output.ShaderCode);
 }
 
-void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const FSHAHash& InHash, TConstArrayView<uint8> InCode)
+void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const FSHAHash& InHash, const FShaderCode& InCode)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapResourceCode::AddShaderCode);
 
@@ -176,26 +198,44 @@ void FShaderMapResourceCode::AddShaderCode(EShaderFrequency InFrequency, const F
 
 		FShaderEntry& Entry = ShaderEntries.InsertDefaulted_GetRef(Index);
 		Entry.Frequency = InFrequency;
-		Entry.UncompressedSize = InCode.Num();
+		const TArray<uint8>& ShaderCode = InCode.GetReadAccess();
 
-		bool bAllowShaderCompression = true;
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		static const IConsoleVariable* CVarSkipCompression = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Shaders.SkipCompression"));
-		bAllowShaderCompression = CVarSkipCompression ? CVarSkipCompression->GetInt() == 0 : true;
-#endif
-
-		int32 CompressedSize = InCode.Num();
-		Entry.Code.AddUninitialized(CompressedSize);
-
-		if (bAllowShaderCompression && FCompression::CompressMemory(ShaderCompressionFormat, Entry.Code.GetData(), CompressedSize, InCode.GetData(), InCode.Num()))
+		FName ShaderCompressionFormat = GetShaderCompressionFormat();
+		if (ShaderCompressionFormat != NAME_None)
 		{
-			// resize to fit reduced compressed size, but don't reallocate memory
-			Entry.Code.SetNum(CompressedSize, false);
+			Entry.UncompressedSize = InCode.GetUncompressedSize();
+
+			// we trust that SCWs also obeyed by the same CVar, so we expect a compressed shader code at this point
+			// However, if we see an uncompressed shader, it perhaps means that SCW tried to compress it, but the result was worse than uncompressed. 
+			// Because of that we special-case NAME_None here
+			if (ShaderCompressionFormat != InCode.GetCompressionFormat())
+			{
+				if (InCode.GetCompressionFormat() != NAME_None)
+				{
+					UE_LOG(LogShaders, Fatal, TEXT("Shader %s is expected to be compressed with %s, but it is compressed with %s instead."),
+						*InHash.ToString(),
+						*ShaderCompressionFormat.ToString(),
+						*InCode.GetCompressionFormat().ToString()
+						);
+					// unreachable
+					return;
+				}
+				
+				// assume uncompressed due to worse ratio than the compression
+				Entry.UncompressedSize = ShaderCode.Num();
+				UE_LOG(LogShaders, Warning, TEXT("Shader %s is expected to be compressed with %s, but it arrived uncompressed. Assuming compressing made it longer and storing uncompressed."),
+					*InHash.ToString(),
+					*ShaderCompressionFormat.ToString(),
+					*InCode.GetCompressionFormat().ToString()
+				);
+			}
 		}
 		else
 		{
-			FMemory::Memcpy(Entry.Code.GetData(), InCode.GetData(), InCode.Num());
+			Entry.UncompressedSize = ShaderCode.Num();
 		}
+
+		Entry.Code = ShaderCode;
 	}
 }
 
@@ -403,7 +443,7 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 	if (ShaderEntry.Code.Num() != ShaderEntry.UncompressedSize)
 	{
 		void* UncompressedCode = MemStack.Alloc(ShaderEntry.UncompressedSize, 16);
-		auto bSucceed = FCompression::UncompressMemory(ShaderCompressionFormat, UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Code.Num());
+		auto bSucceed = FCompression::UncompressMemory(GetShaderCompressionFormat(), UncompressedCode, ShaderEntry.UncompressedSize, ShaderCode, ShaderEntry.Code.Num());
 		check(bSucceed);
 		ShaderCode = (uint8*)UncompressedCode;
 	}

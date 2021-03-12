@@ -1838,4 +1838,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		const bool bSupportsAnisotropicMaterials = FDataDrivenShaderPlatformInfo::GetSupportsAnisotropicMaterials(Platform);
 		KeyString += FString::Printf(TEXT("_Aniso-%d"), bSupportsAnisotropicMaterials ? 1 : 0);
 	}
+
+	{
+		// add shader compression format
+		KeyString += TEXT("_Compr");
+		KeyString += GetShaderCompressionFormat().ToString();
+	}
 }
