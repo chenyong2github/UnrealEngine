@@ -754,6 +754,12 @@ public:
 	*   See ISimCallbackObject for recording inputs to callbacks associated with this PhysicsStep */
 	virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs){}
 
+	/** Called before any inputs are marshalled over to the physics thread.
+	*	The physics state has not been applied yet, and cannot be inspected anyway because this is triggered from the external thread (game thread)
+	*	Gives user the ability to modify inputs or record them - this can help with reducing latency if you want to act on inputs immediately
+	*/
+	virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) {}
+
 	/** Called after sim step to give the option to rewind. Any pending inputs for the next frame will remain in the queue
 	*   Return the PhysicsStep to start resimulating from. Resim will run up until latest step passed into RecordInputs (i.e. latest physics sim simulated so far)
 	*   Return INDEX_NONE to indicate no rewind

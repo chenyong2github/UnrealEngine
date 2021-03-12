@@ -9,6 +9,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/Framework/ChaosResultsManager.h"
 #include "Framework/Threading.h"
+#include "RewindData.h"
 
 namespace Chaos
 {	
@@ -125,6 +126,7 @@ namespace Chaos
 		, ThreadingMode(InThreadingMode)
 		, PullResultsManager(MakeUnique<FChaosResultsManager>())
 		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
+		, bUseCollisionResimCache(false)
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
@@ -237,5 +239,104 @@ namespace Chaos
 			UniqueIdxToGTParticles[Idx] = nullptr;
 		}
 	}
-	//////////////////////////////////////////////////////////////////////////
+	
+	void FPhysicsSolverBase::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
+	{
+		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache);
+		bUseCollisionResimCache = InUseCollisionResimCache;
+		MRewindCallback = MoveTemp(RewindCallback);
+		MarshallingManager.SetHistoryLength_Internal(NumFrames);
+	}
+
+	void FPhysicsSolverBase::SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
+	{
+		ensure(!RewindCallback || MRewindData);
+		MRewindCallback = MoveTemp(RewindCallback);
+	}
+
+	FGraphEventRef FPhysicsSolverBase::AdvanceAndDispatch_External(FReal InDt)
+	{
+		const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
+		FReal InternalDt = DtWithPause;
+		int32 NumSteps = 1;
+
+		if (IsUsingFixedDt())
+		{
+			AccumulatedTime += DtWithPause;
+			if (InDt == 0)	//this is a special flush case
+			{
+				//just use any remaining time and sync up to latest no matter what
+				InternalDt = AccumulatedTime;
+				NumSteps = 1;
+				AccumulatedTime = 0;
+			}
+			else
+			{
+				InternalDt = AsyncDt;
+				NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
+				AccumulatedTime -= InternalDt * NumSteps;
+			}
+		}
+
+		FGraphEventRef BlockingTasks = PendingTasks;
+
+		if (InDt > 0)
+		{
+			ExternalSteps++;	//we use this to average forces. It assumes external dt is about the same. 0 dt should be ignored as it typically has nothing to do with force
+		}
+
+		if (NumSteps > 0)
+		{
+			//make sure any GT state is pushed into necessary buffer
+			PushPhysicsState(InternalDt, NumSteps, FMath::Max(ExternalSteps, 1));
+			ExternalSteps = 0;
+		}
+
+		while (FPushPhysicsData* PushData = MarshallingManager.StepInternalTime_External())
+		{
+			if(MRewindCallback && !bIsShuttingDown)
+			{
+				MRewindCallback->ProcessInputs_External(PushData->InternalStep, PushData->SimCallbackInputs);
+			}
+
+			if (ThreadingMode == EThreadingModeTemp::SingleThread)
+			{
+				ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
+				FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
+#if !UE_BUILD_SHIPPING
+				if (bStealAdvanceTasksForTesting)
+				{
+					StolenSolverAdvanceTasks.Emplace(MoveTemp(ImmediateTask));
+				}
+				else
+				{
+					ImmediateTask.AdvanceSolver();
+				}
+#else
+				ImmediateTask.AdvanceSolver();
+#endif
+			}
+			else
+			{
+				FGraphEventArray Prereqs;
+				if (PendingTasks && !PendingTasks->IsComplete())
+				{
+					Prereqs.Add(PendingTasks);
+				}
+
+				PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this, *PushData);
+				if (IsUsingAsyncResults() == false)
+				{
+					BlockingTasks = PendingTasks;	//block right away
+				}
+			}
+
+			if (IsUsingAsyncResults() == false)
+			{
+				break;	//non async can only process one step at a time
+			}
+		}
+
+		return BlockingTasks;
+	}
 }

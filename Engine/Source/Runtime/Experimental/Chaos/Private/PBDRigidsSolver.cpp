@@ -346,7 +346,6 @@ namespace Chaos
 		, MSolverEventFilters(new FSolverEventFilters())
 		, MDirtyParticlesBuffer(new FDirtyParticlesBuffer(BufferingModeIn, BufferingModeIn == Chaos::EMultiBufferMode::Single))
 		, MCurrentLock(new FCriticalSection())
-		, bUseCollisionResimCache(false)
 		, JointConstraintRule(JointConstraints)
 		, SuspensionConstraintRule(SuspensionConstraints)
 		, PerSolverField(nullptr)
@@ -954,6 +953,8 @@ namespace Chaos
 
 	void FPBDRigidsSolver::ProcessPushedData_Internal(FPushPhysicsData& PushData)
 	{
+		ensure(PushData.InternalStep == CurrentFrame);	//push data was generated for this specific frame
+
 		//update callbacks
 		SimCallbackObjects.Reserve(SimCallbackObjects.Num() + PushData.SimCallbackObjectsToAdd.Num());
 		for(ISimCallbackObject* SimCallbackObject : PushData.SimCallbackObjectsToAdd)
@@ -1262,19 +1263,6 @@ namespace Chaos
 		QueryMaterialMasks_External = SimMaterialMasks;
 	}
 
-	void FPBDRigidsSolver::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
-	{
-		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache);
-		bUseCollisionResimCache = InUseCollisionResimCache;
-		MRewindCallback = MoveTemp(RewindCallback);
-		MarshallingManager.SetHistoryLength_Internal(NumFrames);
-	}
-
-	void FPBDRigidsSolver::SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
-	{
-		ensure(!RewindCallback || MRewindData);
-		MRewindCallback = MoveTemp(RewindCallback);
-	}
 
 	void FPBDRigidsSolver::FinalizeRewindData(const TParticleView<TPBDRigidParticles<FReal,3>>& DirtyParticles)
 	{

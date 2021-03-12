@@ -54,8 +54,6 @@ namespace Chaos
 {
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
-	class FRewindData;
-	class IRewindCallback;
 	class FSingleParticleProxy;
 	class FGeometryParticleBuffer;
 
@@ -144,18 +142,6 @@ namespace Chaos
 		void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 		void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
-		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
-		void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback);
-		
-		FRewindData* GetRewindData()
-		{
-			return MRewindData.Get();
-		}
-
-		IRewindCallback* GetRewindCallback()
-		{
-			return MRewindCallback.Get();
-		}
 		//
 		//  Simulation API
 		//
@@ -363,7 +349,6 @@ namespace Chaos
 		TSharedPtr<FCriticalSection> MCurrentLock;
 		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_Internal; // PT
 		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_Internal; // PT
-		bool bUseCollisionResimCache;
 
 		//
 		//  Constraints

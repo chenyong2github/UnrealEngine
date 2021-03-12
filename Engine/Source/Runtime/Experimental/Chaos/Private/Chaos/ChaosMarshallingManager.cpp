@@ -13,6 +13,7 @@ FChaosMarshallingManager::FChaosMarshallingManager()
 : ExternalTime_External(0)
 , ExternalTimestamp_External(0)
 , SimTime_External(0)
+, InternalStep_External(0)
 , ProducerData(nullptr)
 , CurPullData(nullptr)
 , Delay(SimDelay)
@@ -76,6 +77,7 @@ void FChaosMarshallingManager::Step_External(FReal ExternalDT, const int32 NumSt
 		//expecting queue to be fairly small (3,4 at most) so probably doesn't matter
 		ProducerData->ExternalDt = ExternalDT;
 		ProducerData->ExternalTimestamp = ExternalTimestamp_External;
+		ProducerData->InternalStep = InternalStep_External++;
 		ProducerData->IntervalStep = Step;
 		ProducerData->IntervalNumSteps = NumSteps;
 

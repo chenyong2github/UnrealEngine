@@ -23,6 +23,8 @@ namespace Chaos
 	struct FPendingSpatialDataQueue;
 	class FPhysicsSceneGuard;
 	class FChaosResultsManager;
+	class FRewindData;
+	class IRewindCallback;
 
 	extern CHAOS_API int32 UseAsyncInterpolation;
 	extern CHAOS_API int32 ForceDisableAsyncPhysics;
@@ -159,6 +161,19 @@ namespace Chaos
 			RegisterSimOneShotCallback(MoveTemp(Func));
 		}
 
+		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
+		void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback);
+
+		FRewindData* GetRewindData()
+		{
+			return MRewindData.Get();
+		}
+
+		IRewindCallback* GetRewindCallback()
+		{
+			return MRewindCallback.Get();
+		}
+
 		//Used as helper for GT to go from unique idx back to gt particle
 		//If GT deletes a particle, this function will return null (that's a good thing when consuming async outputs as GT may have already deleted the particle we care about)
 		//Note: if the physics solver has been advanced after the particle was freed on GT, the index may have been freed and reused.
@@ -250,86 +265,7 @@ namespace Chaos
 			return ThreadingMode;
 		}
 
-		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
-		{
-			const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
-			FReal InternalDt = DtWithPause;
-			int32 NumSteps = 1;
-
-			if(IsUsingFixedDt())
-			{
-				AccumulatedTime += DtWithPause;
-				if(InDt == 0)	//this is a special flush case
-				{
-					//just use any remaining time and sync up to latest no matter what
-					InternalDt = AccumulatedTime;
-					NumSteps = 1;
-					AccumulatedTime = 0;
-				}
-				else
-				{
-					InternalDt = AsyncDt;
-					NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
-					AccumulatedTime -= InternalDt * NumSteps;
-				}
-			}
-
-			FGraphEventRef BlockingTasks = PendingTasks;
-
-			if(InDt > 0)
-			{
-				ExternalSteps++;	//we use this to average forces. It assumes external dt is about the same. 0 dt should be ignored as it typically has nothing to do with force
-			}
-
-			if(NumSteps > 0)
-			{
-				//make sure any GT state is pushed into necessary buffer
-				PushPhysicsState(InternalDt, NumSteps, FMath::Max(ExternalSteps,1));
-				ExternalSteps = 0;
-			}
-
-			while(FPushPhysicsData* PushData = MarshallingManager.StepInternalTime_External())
-			{
-				if (ThreadingMode == EThreadingModeTemp::SingleThread)
-				{
-					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-					FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
-#if !UE_BUILD_SHIPPING
-					if (bStealAdvanceTasksForTesting)
-					{
-						StolenSolverAdvanceTasks.Emplace(MoveTemp(ImmediateTask));
-					}
-					else
-					{
-						ImmediateTask.AdvanceSolver();
-					}
-#else
-					ImmediateTask.AdvanceSolver();
-#endif
-				}
-				else
-				{
-					FGraphEventArray Prereqs;
-					if(PendingTasks && !PendingTasks->IsComplete())
-					{
-						Prereqs.Add(PendingTasks);
-					}
-
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this, *PushData);
-					if (IsUsingAsyncResults() == false)
-					{
-						BlockingTasks = PendingTasks;	//block right away
-					}
-				}
-
-				if(IsUsingAsyncResults() == false)
-				{
-					break;	//non async can only process one step at a time
-				}
-			}
-
-			return BlockingTasks;
-		}
+		FGraphEventRef AdvanceAndDispatch_External(FReal InDt);
 
 #if CHAOS_CHECKED
 		void SetDebugName(const FName& Name)
@@ -439,6 +375,11 @@ namespace Chaos
 
 	TArray<ISimCallbackObject*> SimCallbackObjects;
 	TArray<ISimCallbackObject*> ContactModifiers;
+
+	TUniquePtr<FRewindData> MRewindData;
+	TUniquePtr<IRewindCallback> MRewindCallback;
+
+	bool bUseCollisionResimCache;
 
 	FGraphEventRef PendingTasks;
 

@@ -468,8 +468,9 @@ namespace ChaosTest {
 
 				struct FRewindCallback : public IRewindCallback
 				{
-					FRewindCallback(int32 InNumPhysicsSteps)
+					FRewindCallback(int32 InNumPhysicsSteps, FReal InSimDt)
 						: NumPhysicsSteps(InNumPhysicsSteps)
+						, SimDt(InSimDt)
 					{
 
 					}
@@ -477,6 +478,7 @@ namespace ChaosTest {
 					TArray<int32> InCounters;
 					int32 NumPhysicsSteps;
 					bool bResim = false;
+					FReal SimDt;
 
 					virtual int32 TriggerRewindIfNeeded_Internal(int32 LastCompletedStep) override
 					{
@@ -487,6 +489,23 @@ namespace ChaosTest {
 						}
 
 						return INDEX_NONE;
+					}
+
+					virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
+					{
+						EXPECT_EQ(bResim, false);	//should never be triggered during resim, since resim happens on internal thread
+						EXPECT_EQ(SimCallbackInputs.Num(), 1);
+						FSimCallbackHelperInput* Input = static_cast<FSimCallbackHelperInput*>(SimCallbackInputs[0].Input);
+						if(SimDt > 1)
+						{
+							//several external ticks before we finally get the final input
+							EXPECT_EQ(FMath::TruncToInt((PhysicsStep+1) * SimDt - 1), Input->InCounter);
+						}
+						else
+						{
+							//potentially the same input over multiple sub-steps
+							EXPECT_EQ(FMath::TruncToInt(PhysicsStep * SimDt), Input->InCounter);
+						}
 					}
 
 					virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) override
@@ -517,7 +536,7 @@ namespace ChaosTest {
 				const int32 LastGameStep = 20;
 				const int32 NumPhysSteps = FMath::TruncToInt(LastGameStep / SimDt);
 
-				Solver->SetRewindCallback(MakeUnique<FRewindCallback>(NumPhysSteps));
+				Solver->SetRewindCallback(MakeUnique<FRewindCallback>(NumPhysSteps, SimDt));
 				FSimCallbackHelper* SimCallback = Solver->CreateAndRegisterSimCallbackObject_External<FSimCallbackHelper>();
 
 				{
