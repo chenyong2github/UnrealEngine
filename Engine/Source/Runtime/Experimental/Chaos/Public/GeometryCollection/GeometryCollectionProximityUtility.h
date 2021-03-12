@@ -81,5 +81,8 @@ public:
 
 	static bool IsPointInsideOfTriangle(const FVector& P, const FVector& Vertex0, const FVector& Vertex1, const FVector& Vertex2, float Threshold);
 
+	// For any transform index, get the connected indices at the operating level. If OperatingLevel is -1, the operating level will be determined by the level of the Indexed node.
+	static void LevelConnectivity(FGeometryCollection* GeometryCollection, int32 Index, TSet<int32>& OutConnections, int32 OperatingLevel = -1);
+
 private:
 };
