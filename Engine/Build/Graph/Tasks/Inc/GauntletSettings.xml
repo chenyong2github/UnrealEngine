@@ -23,15 +23,15 @@
 	<Option Name="GauntletTimeout" DefaultValue="3600" Description="Max running time of a test in Gauntlet"/>
 	
 	<!-- Create the -build argument for Gauntlet based on whether builds are local or on the network-->
-	<Property Name="GauntletBuildArgs" Value="-build=&quot;$(ProjectOutputDirectory)&quot;" />
-	<Property Name="GauntletBuildArgs" Value="-build=&quot;$(ProjectPublishPath)&quot;" If ="'$(ProjectPublishPath)' != ''" />
+	<Property Name="GauntletBuildRoot" Value="$(ProjectOutputDirectory)" />
+	<Property Name="GauntletBuildRoot" Value="$(ProjectPublishPath)" If ="'$(ProjectPublishPath)' != ''" />
 
 	<Property Name="GauntletCommonArgs" Value="-maxduration=$(GauntletTimeOut) -unattended -verbose" />
 
 	<Property Name="GauntletDeviceArgs" Value="" />
 	<Property Name="GauntletDeviceArgs" Value="-deviceurl=http://deviceservice.epicgames.net -reboot -cleardevices -sandbox=&quot;$(ProjectName)&quot;" If ="$(IsBuildMachine)" />
 
-	<Property Name="GauntletTargetTestArgs" Value="$(GauntletBuildArgs) $(GauntletCommonArgs) $(GauntletDeviceArgs)" />
+	<Property Name="GauntletTargetTestArgs" Value="$(GauntletCommonArgs) $(GauntletDeviceArgs)" />
 	<Property Name="GauntletEditorTestArgs" Value="-build=editor $(GauntletCommonArgs)" />
 
     <!-- this is fully generated dynamiclly when needed, it's simply here so it can be used without worrying if its set -->
