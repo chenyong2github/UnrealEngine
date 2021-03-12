@@ -629,6 +629,9 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 {
 	if (Evolution)
 	{
+		bool bHasVelocityField = false;
+		bool bHasForceField = false;
+
 		if (!PerSolverField.IsEmpty())
 		{
 			TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
@@ -645,52 +648,72 @@ void FClothingSimulationSolver::AddExternalForces(uint32 GroupId, bool bUseLegac
 				SampleIndices[Index] = FFieldContextIndex(Index, Index);
 			}
 			PerSolverField.ComputeFieldLinearImpulse(GetTime());
+
+			if (PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearVelocity).Num() > 0)
+			{
+				bHasVelocityField = true;
+			}
+			if (PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearForce).Num() > 0)
+			{
+				bHasForceField = true;
+			}
 		}
 
 		const FVec3& AngularDisplacement = FictitiousAngularDisplacement[GroupId];
+		const bool bHasFictitiousForces = !AngularDisplacement.IsNearlyZero();
+
+		static const FReal LegacyWindMultiplier = (FReal)25.;
+		const FVec3 LegacyWindVelocity = WindVelocity * LegacyWindMultiplier;
 
 		Evolution->GetForceFunction(GroupId) =
-			[this, bUseLegacyWind, AngularDisplacement](FPBDParticles& Particles, const FReal Dt, const int32 Index)
-		{
-			if (!PerSolverField.IsEmpty())
+			[this, bHasVelocityField, bHasForceField, bHasFictitiousForces, bUseLegacyWind, &LegacyWindVelocity, &AngularDisplacement](FPBDParticles& Particles, const FReal Dt, const int32 Index)
 			{
-				const TArray<FVector>& LinearVelocities = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearVelocity);
-				const TArray<FVector>& LinearForces = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearForce);
+				FVec3 Forces((FReal)0.);
 
-				if ((LinearVelocities.Num() != 0) && (Dt != 0.0))
+				if (bHasVelocityField)
 				{
-					Particles.F(Index) += LinearVelocities[Index] * Particles.M(Index) / Dt;
+					const TArray<FVector>& LinearVelocities = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearVelocity);
+					Forces += LinearVelocities[Index] * Particles.M(Index) / Dt;
 				}
-				if (LinearForces.Num() != 0)
-				{
-					Particles.F(Index) += LinearForces[Index];
-				}
-			}
 
-			// Apply Fictitious forces
-			const FVec3& X = Particles.X(Index);
-			const FVec3& V = Particles.V(Index);
-			const FVec3 W = AngularDisplacement / Dt;
-			const FReal& M = Particles.M(Index);
-			//Particles.F(Index) -= (FVec3::CrossProduct(W, V) * 2.f + FVec3::CrossProduct(W, FVec3::CrossProduct(W, X))) * M;  // Coriolis + Centrifugal seems a bit overkilled, but let's keep the code around in case it's needed
-			Particles.F(Index) -= FVec3::CrossProduct(W, FVec3::CrossProduct(W, X)) * M;  // Centrifugal force
+				if (bHasForceField)
+				{
+					const TArray<FVector>& LinearForces = PerSolverField.GetVectorResults(EFieldVectorType::Vector_LinearForce);
+					Forces += LinearForces[Index];
+				}
+
+				if (bHasFictitiousForces)
+				{
+					const FVec3& X = Particles.X(Index);
+					const FVec3 W = AngularDisplacement / Dt;
+					const FReal& M = Particles.M(Index);
+#if 0
+					// Coriolis + Centrifugal seems a bit overkilled, but let's keep the code around in case it's ever required
+					const FVec3& V = Particles.V(Index);
+					Forces -= (FVec3::CrossProduct(W, V) * 2.f + FVec3::CrossProduct(W, FVec3::CrossProduct(W, X))) * M;
+#else
+					// Centrifugal force
+					Forces -= FVec3::CrossProduct(W, FVec3::CrossProduct(W, X)) * M;
+#endif
+				}
 				
-			if (bUseLegacyWind)
-			{
-				// Calculate wind velocity delta
-				static const FRealSingle LegacyWindMultiplier = 25.f;
-				const FVec3 VelocityDelta = WindVelocity * LegacyWindMultiplier - Particles.V(Index);
-
-				FVec3 Direction = VelocityDelta;
-				if (Direction.Normalize())
+				if (bUseLegacyWind)
 				{
-					// Scale by angle
-					const FReal DirectionDot = FVec3::DotProduct(Direction, Normals[Index]);
-					const FReal ScaleFactor = FMath::Min(1.f, FMath::Abs(DirectionDot) * LegacyWindAdaption);
-					Particles.F(Index) += VelocityDelta * ScaleFactor * Particles.M(Index);
+					// Calculate wind velocity delta
+					const FVec3 VelocityDelta = LegacyWindVelocity - Particles.V(Index);
+
+					FVec3 Direction = VelocityDelta;
+					if (Direction.Normalize())
+					{
+						// Scale by angle
+						const FReal DirectionDot = FVec3::DotProduct(Direction, Normals[Index]);
+						const FReal ScaleFactor = FMath::Min(1.f, FMath::Abs(DirectionDot) * LegacyWindAdaption);
+						Forces += VelocityDelta * ScaleFactor * Particles.M(Index);
+					}
 				}
-			}
-		};
+
+				Particles.F(Index) += Forces;
+			};
 	}
 }
 
