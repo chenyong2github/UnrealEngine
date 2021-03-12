@@ -28,12 +28,12 @@ FDMXEditorDefaultApplicationMode::FDMXEditorDefaultApplicationMode(TSharedPtr<FD
 	: FApplicationMode(FDMXEditorApplicationMode::DefaultsMode, FDMXEditorApplicationMode::GetLocalizedMode)
 	, DMXEditorCachedPtr(InDMXEditor)
 {
-	// 1. Create and register Tabs
-	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorControllersSummoner>(InDMXEditor));
+	// 1. Create and register Tabs Factories
+	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXLibraryEditorTabSummoner>(InDMXEditor));
 	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorFixtureTypesSummoner>(InDMXEditor));
 	DefaultsTabFactories.RegisterFactory(MakeShared<FDMXEditorFixturePatchSummoner>(InDMXEditor));
 
-	// 2. REGISATER TAB LAYOUT
+	// 2. Register Tab Layouts
 	TabLayout = FTabManager::NewLayout("Standalone_SimpleAssetEditor_Layout_v5")
 		->AddArea
 		(
@@ -48,14 +48,14 @@ FDMXEditorDefaultApplicationMode::FDMXEditorDefaultApplicationMode(TSharedPtr<FD
 			->Split
 			(
 				FTabManager::NewStack()
-				->AddTab(FDMXEditorTabs::DMXControllersId, ETabState::OpenedTab)
+				->AddTab(FDMXEditorTabs::DMXLibraryEditorTabId, ETabState::OpenedTab)
 				->AddTab(FDMXEditorTabs::DMXFixtureTypesEditorTabId, ETabState::OpenedTab)
 				->AddTab(FDMXEditorTabs::DMXFixturePatchEditorTabId, ETabState::OpenedTab)
-				->SetForegroundTab(FDMXEditorTabs::DMXControllersId)
+				->SetForegroundTab(FDMXEditorTabs::DMXLibraryEditorTabId)
 			)
 		);
 
-	// 3. SETUP TOOLBAR
+	// 3. Setup Toolbar
 	InDMXEditor->GetToolbarBuilder()->AddCompileToolbar(ToolbarExtender);
 }
 

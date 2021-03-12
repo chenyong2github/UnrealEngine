@@ -149,7 +149,7 @@ TWeakObjectPtr<UObject> SDMXEntityReferenceGraphPin::GetCurrentDMXLibrary() cons
 
 void SDMXEntityReferenceGraphPin::OnDMXLibrarySelected(const FAssetData& InAssetData) const
 {
-	const FScopedTransaction Transaction(LOCTEXT("ChangeObjectPinValue", "Change Object Pin Value"));
+	const FScopedTransaction Transaction(LOCTEXT("ChangeObjectPinValue", "Select DMX Library"));
 	GraphPinObj->Modify();
 
 	FDMXEntityReference&& EntityRef = GetPinValue();

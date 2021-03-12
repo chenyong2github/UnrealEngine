@@ -23,7 +23,6 @@ UTakeRecorderDMXLibrarySource::UTakeRecorderDMXLibrarySource(const FObjectInitia
 	: Super(ObjInit)
 	, DMXLibrary(nullptr)
 	, bReduceKeys(false)
-	, bUseSourceTimecode(true)
 	, bDiscardSamplesBeforeStart(true)
 {
 	// DMX Tracks are blue
@@ -61,33 +60,13 @@ void UTakeRecorderDMXLibrarySource::AddAllPatches()
 	}
 }
 
-void UTakeRecorderDMXLibrarySource::OnEntitiesUpdated(UDMXLibrary* UpdatedLibrary)
-{
-	check(DMXLibrary);
-	check(UpdatedLibrary == DMXLibrary);
-
-	if (TrackRecorder)
-	{
-		DMXLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
-			{
-				if (!FixturePatchRefs.Contains(Patch))
-				{
-					UE_LOG(LogDMXEditor, Error, TEXT("DMXLibrary %s edited while recording. Recording stopped."), *DMXLibrary->GetName());
-					TrackRecorder->StopRecording();
-					TrackRecorder->RefreshTracks();
-					return;
-				};
-			});
-	}
-}
-
 TArray<UTakeRecorderSource*> UTakeRecorderDMXLibrarySource::PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer)
 {
 	if (DMXLibrary)
 	{
 		UMovieScene* MovieScene = InMasterSequence->GetMovieScene();
 		TrackRecorder = NewObject<UMovieSceneDMXLibraryTrackRecorder>();
-		CachedDMXLibraryTrack = TrackRecorder->CreateTrack(MovieScene, DMXLibrary, FixturePatchRefs, bUseSourceTimecode, bDiscardSamplesBeforeStart, nullptr);
+		CachedDMXLibraryTrack = TrackRecorder->CreateTrack(MovieScene, DMXLibrary, FixturePatchRefs, bDiscardSamplesBeforeStart, nullptr);
 	}
 	else
 	{

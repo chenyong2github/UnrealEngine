@@ -3,13 +3,18 @@
 #pragma once
 
 #include "Components/DMXPixelMappingOutputDMXComponent.h"
+
 #include "DMXProtocolTypes.h"
 #include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXOutputPortReference.h"
+
 #include "DMXPixelMappingScreenComponent.generated.h"
 
-class UTextureRenderTarget2D;
-class SDMXPixelMappingScreenLayout;
 enum class EDMXCellFormat : uint8;
+class FDMXOutputPort;
+class SDMXPixelMappingScreenLayout;
+class UTextureRenderTarget2D;
+
 
 /**
  * DMX Screen(Grid) rendering component
@@ -87,14 +92,30 @@ private:
 	void AddColorToSendBuffer(const FColor& Color, TArray<uint8>& OutDMXSendBuffer);
 
 public:
+	/** If true, outputs to all DMX Output Ports */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Settings")
+	bool bSendToAllOutputPorts;
+
+	/** The port this render component outputs to */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Common Settings", Meta = (DisplayName = "DMX Output Ports", EditCondition = "!bSendToAllOutputPorts"))
+	TArray<FDMXOutputPortReference> OutputPortReferences;
+
+	/** Returns the output Ports of the renderer component */
+	FORCEINLINE TSet<FDMXOutputPortSharedRef> GetOutputPorts() const { return OutputPorts; }
+
+private:
+	/** The output port instances, generated from OutputPortReferences */
+	TSet<FDMXOutputPortSharedRef> OutputPorts;
+
+public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings", meta = (DisplayName = "X Cells", ClampMin = "1", ClampMax = "1000", UIMin = "1", UIMax = "1000", DisplayPriority = "1"))
 	int32 NumXCells;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings", meta = (DisplayName = "Y Cells", ClampMin = "1", ClampMax = "1000", UIMin = "1", UIMax = "1000", DisplayPriority = "1"))
 	int32 NumYCells;
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Mapping Settings")
-	FDMXProtocolName ProtocolName;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use Output Ports instead."))
+	FDMXProtocolName ProtocolName_DEPRECATED;
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Patch Settings", meta = (ClampMin = "1", ClampMax = "100000", UIMin = "1", UIMax = "100000", DisplayPriority = "1"))
 	int32 RemoteUniverse;

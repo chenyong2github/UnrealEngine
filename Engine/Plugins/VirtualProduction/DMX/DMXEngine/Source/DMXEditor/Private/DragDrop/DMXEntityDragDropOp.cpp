@@ -75,60 +75,43 @@ bool FDMXEntityDragDropOperation::HandleDropOnCategoryRow(const TSharedPtr<SDMXC
 
 		switch (CategoryNode->GetCategoryType())
 		{
-		case FDMXTreeNodeBase::ECategoryType::DeviceProtocol:
-		{
-			const FDMXProtocolName& DeviceProtocol = *CategoryNode->GetCategoryValue<FDMXProtocolName>();
-			for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
+			case FDMXTreeNodeBase::ECategoryType::DMXCategory:
 			{
-				if (UDMXEntityController* Controller = Cast<UDMXEntityController>(Entity))
+				const FDMXFixtureCategory& FixtureCategory = *CategoryNode->GetCategoryValue<FDMXFixtureCategory>();
+				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
 				{
-					Controller->Modify();
+					if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
+					{
+						FixtureType->Modify();
 
-					Controller->PreEditChange(nullptr);
-					Controller->DeviceProtocol = DeviceProtocol;
-					Controller->PostEditChange();
+						FixtureType->PreEditChange(nullptr);
+						FixtureType->DMXCategory = FixtureCategory;
+						FixtureType->PostEditChange();
+					}
 				}
 			}
-		}
-		break;
-
-		case FDMXTreeNodeBase::ECategoryType::DMXCategory:
-		{
-			const FDMXFixtureCategory& FixtureCategory = *CategoryNode->GetCategoryValue<FDMXFixtureCategory>();
-			for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
-			{
-				if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
-				{
-					FixtureType->Modify();
-
-					FixtureType->PreEditChange(nullptr);
-					FixtureType->DMXCategory = FixtureCategory;
-					FixtureType->PostEditChange();
-				}
-			}
-		}
-		break;
-
-		case FDMXTreeNodeBase::ECategoryType::UniverseID:
-		case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
-		{
-			const uint32& UniverseID = *CategoryNode->GetCategoryValue<uint32>();
-			for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
-			{
-				if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
-				{
-					FixturePatch->Modify();
-
-					FixturePatch->PreEditChange(nullptr);
-					FixturePatch->UniverseID = UniverseID;
-					FixturePatch->PostEditChange();
-				}
-			}
-		}
-
-		default:
-			// The other category types don't change properties
 			break;
+
+			case FDMXTreeNodeBase::ECategoryType::UniverseID:
+			case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
+			{
+				const uint32& UniverseID = *CategoryNode->GetCategoryValue<uint32>();
+				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
+				{
+					if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
+					{
+						FixturePatch->Modify();
+
+						FixturePatch->PreEditChange(nullptr);
+						FixturePatch->UniverseID = UniverseID;
+						FixturePatch->PostEditChange();
+					}
+				}
+			}
+
+			default:
+				// The other category types don't change properties
+				break;
 		}
 
 		if (CategoryNode->GetChildren().Num() > 0)
@@ -216,54 +199,40 @@ bool FDMXEntityDragDropOperation::HandleDropOnEntityRow(const TSharedPtr<SDMXEnt
 		{
 			switch (TargetCategory->GetCategoryType())
 			{
-			case FDMXTreeNodeBase::ECategoryType::DeviceProtocol:
-			{
-				const FDMXProtocolName& DeviceProtocol = *TargetCategory->GetCategoryValue<FDMXProtocolName>();
-				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
+				case FDMXTreeNodeBase::ECategoryType::DMXCategory:
 				{
-					if (UDMXEntityController* Controller = Cast<UDMXEntityController>(Entity))
+					const FDMXFixtureCategory& FixtureCategory = *TargetCategory->GetCategoryValue<FDMXFixtureCategory>();
+					for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
 					{
-						Controller->Modify();
-						Controller->DeviceProtocol = DeviceProtocol;
+						if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
+						{
+							FixtureType->Modify();
+							FixtureType->DMXCategory = FixtureCategory;
+						}
 					}
 				}
-			}
-			break;
-
-			case FDMXTreeNodeBase::ECategoryType::DMXCategory:
-			{
-				const FDMXFixtureCategory& FixtureCategory = *TargetCategory->GetCategoryValue<FDMXFixtureCategory>();
-				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
-				{
-					if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity))
-					{
-						FixtureType->Modify();
-						FixtureType->DMXCategory = FixtureCategory;
-					}
-				}
-			}
-			break;
-
-			case FDMXTreeNodeBase::ECategoryType::UniverseID:
-			case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
-			{
-				const uint32& UniverseID = *TargetCategory->GetCategoryValue<uint32>();
-
-				for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
-				{
-					if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
-					{
-						FixturePatch->Modify();
-
-						FixturePatch->bAutoAssignAddress = false;
-						FixturePatch->UniverseID = UniverseID;
-					}
-				}
-			}
-
-			default:
-				// The other category types don't change properties
 				break;
+
+				case FDMXTreeNodeBase::ECategoryType::UniverseID:
+				case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
+				{
+					const uint32& UniverseID = *TargetCategory->GetCategoryValue<uint32>();
+
+					for (TWeakObjectPtr<UDMXEntity> Entity : DraggedEntities)
+					{
+						if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
+						{
+							FixturePatch->Modify();
+
+							FixturePatch->bAutoAssignAddress = false;
+							FixturePatch->UniverseID = UniverseID;
+						}
+					}
+				}
+
+				default:
+					// The other category types don't change properties
+					break;
 			}
 		}
 
@@ -427,12 +396,7 @@ bool FDMXEntityDragDropOperation::TestCanDropOnCategoryRow(const TSharedPtr<SDMX
 					FText CategoryText;
 
 					const TSubclassOf<UDMXEntity> ListType = EntityList->GetListType();
-					if (ListType == UDMXEntityController::StaticClass())
-					{
-						ListTypeText = LOCTEXT("Property_DeviceProtocol", "Device Protocol");
-						CategoryText = TargetCategory->GetDisplayName();
-					}
-					else if (ListType == UDMXEntityFixtureType::StaticClass())
+					if (ListType == UDMXEntityFixtureType::StaticClass())
 					{
 						ListTypeText = LOCTEXT("Property_DMXCategory", "DMX Category");
 						CategoryText = TargetCategory->GetDisplayName();
@@ -532,12 +496,7 @@ bool FDMXEntityDragDropOperation::TestCanDropOnEntityRow(const TSharedPtr<SDMXEn
 		FText ListTypeText;
 		FText CategoryText;
 
-		if (ListType == UDMXEntityController::StaticClass())
-		{
-			ListTypeText = LOCTEXT("Property_DeviceProtocol", "Device Protocol");
-			CategoryText = TargetCategory->GetDisplayName();
-		}
-		else if (ListType == UDMXEntityFixtureType::StaticClass())
+		if (ListType == UDMXEntityFixtureType::StaticClass())
 		{
 			ListTypeText = LOCTEXT("Property_DMXCategory", "DMX Category");
 			CategoryText = TargetCategory->GetDisplayName();

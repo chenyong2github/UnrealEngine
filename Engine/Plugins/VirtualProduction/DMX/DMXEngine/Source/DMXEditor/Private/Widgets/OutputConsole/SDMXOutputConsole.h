@@ -26,15 +26,6 @@ public:
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-	/** Restores the console */
-	void RestoreConsole();
-
-	/** Saves the console */
-	void SaveConsole();
-
-	/** Should be called when the parent tab opens closed */
-	void HandleCloseParentTab(TSharedRef<class SDockTab> InParentTab);
-
 private:
 	/** Generates an entry in the 'affected faders' ComboBox */
 	TSharedRef<SWidget> GenerateAffectedFadersComboBoxEntry(TSharedPtr<FString> Text);

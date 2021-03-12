@@ -8,7 +8,7 @@
 
 #include "DMXEditorSettings.generated.h"
 
-
+/** Struct to describe a single fader, so it can be stored in the config */
 USTRUCT()
 struct FDMXOutputConsoleFaderDescriptor
 {
@@ -39,6 +39,35 @@ struct FDMXOutputConsoleFaderDescriptor
 	FName ProtocolName;
 };
 
+/**
+ * Struct to describe a monitor source, so it can be stored in settings 
+ * Defaults to Monitor all Inputs.
+ */
+USTRUCT()
+struct FDMXMonitorSourceDescriptor
+{
+	GENERATED_BODY()
+
+	FDMXMonitorSourceDescriptor()
+		: bMonitorAllPorts(true)
+		, bMonitorInputPorts(true)
+		, MonitoredPortGuid(FGuid())
+	{}
+
+	/** True if all ports should be monitored */
+	UPROPERTY()
+	bool bMonitorAllPorts;
+
+	/** True if Input Ports should be monitored. Only relevant if bMonitorAllPorts */
+	UPROPERTY()
+	bool bMonitorInputPorts;
+
+	/** The monitored Port Guid. Only relevant if !bMonitorAllPorts*/
+	UPROPERTY()
+	FGuid MonitoredPortGuid;
+};
+
+/** Settings that holds editor configurations. Not accessible in Project Settings. TODO: Idealy rename to UDMXEditorConfiguration */
 UCLASS(Config = DMXEditor, DefaultConfig, meta = (DisplayName = "DMXEditor"))
 class UDMXEditorSettings : public UObject
 {
@@ -50,28 +79,24 @@ public:
 	TArray<FDMXOutputConsoleFaderDescriptor> OutputConsoleFaders;
 	
 public:
-	/** Protocol the Channels Monitor uses */
-	UPROPERTY(Config)
-	FName ChannelsMonitorProtocol;
-
 	/** The Universe ID to be monitored in the Channels Monitor  */
 	UPROPERTY(Config)
-	uint16 ChannelsMonitorUniverseID = 1;
+	int32 ChannelsMonitorUniverseID = 1;
+
+	/** Source for the channels monitor */
+	UPROPERTY(Config)
+	FDMXMonitorSourceDescriptor ChannelsMonitorSource;
 
 public:
-	/** Protocol the DMX Activity Monitor uses */
+	/** Source for the DMX Activity Monitor */
 	UPROPERTY(Config)
-	FName ActivityMonitorProtocol;
-
-	/** Source of packets to monitor in the DMX Activity Monitor  */
-	UPROPERTY(Config)
-	FName ActivityMonitorSource;
+	FDMXMonitorSourceDescriptor ActivityMonitorSource;
 
 	/** ID of the first universe to monitor in the DMX Activity Monitor  */
 	UPROPERTY(Config)
-	uint16 ActivityMonitorMinUniverseID = 1;
+	int32 ActivityMonitorMinUniverseID = 1;
 
 	/** ID of the last universe to monitor in the DMX Activity Monitor */
 	UPROPERTY(Config)
-	uint16 ActivityMonitorMaxUniverseID = 100;
+	int32 ActivityMonitorMaxUniverseID = 100;
 };

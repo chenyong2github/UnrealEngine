@@ -7,8 +7,8 @@
 /**  DMX editor tabs identifiers */
 struct FDMXEditorTabs
 {
-	/**	The tab id for the dmx constollers tab */
-	static const FName DMXControllersId;
+	/**	The tab id for the dmx library editor tab */
+	static const FName DMXLibraryEditorTabId;
 
 	/**	The tab id for the dmx fixture types tab */
 	static const FName DMXFixtureTypesEditorTabId;
@@ -22,4 +22,3 @@ struct FDMXEditorTabs
 	// Disable default constructor
 	FDMXEditorTabs() = delete;
 };
-

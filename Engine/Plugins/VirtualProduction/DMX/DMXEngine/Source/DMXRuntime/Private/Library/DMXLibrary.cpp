@@ -1,9 +1,137 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Library/DMXLibrary.h"
+
+#include "DMXRuntimeLog.h"
+#include "IO/DMXInputPort.h"
+#include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 #include "Library/DMXEntity.h"
+#include "Library/DMXEntityController.h"
+#include "Library/DMXEntityFixturePatch.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXLibrary"
+
+void UDMXLibrary::PostLoad()
+{
+	Super::PostLoad();
+
+	TArray<UDMXEntity*> CachedEntities = Entities;
+	for (UDMXEntity* Entity : CachedEntities)
+	{
+		// Clean out controllers that were in the entity array before 4.27
+		if (UDMXEntityController* VoidController = Cast<UDMXEntityController>(Entity))
+		{
+			UE_LOG(LogDMXRuntime, Warning, TEXT("UE4.27: Removed obsolete Controllers from DMXLibrary %s. Please setup ports for the library and resave the asset."), *GetName());
+			Modify();
+			Entities.Remove(VoidController);
+		}
+
+		// From hereon all entities have to be valid. We should never enter this statement, ever.
+		if (!ensure(Entity))
+		{
+			UE_LOG(LogDMXRuntime, Warning, TEXT("Invalid Entity found in Library %s. Please resave the library."), *GetName());
+			Modify();
+			Entities.Remove(Entity);
+		}
+	}
+
+	// Update ports
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		UpdatePorts();
+	}
+}
+
+void UDMXLibrary::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+{
+	Super::PostDuplicate(DuplicateMode);
+
+	if (DuplicateMode != EDuplicateMode::Normal)
+	{
+		return;
+	}
+
+	// Make sure all Entity children have this library as their parent
+	// and refresh their ID
+	TArray<UDMXEntity*> ValidEntities;
+	for (UDMXEntity* Entity : Entities)
+	{
+		// Entity could be null
+		if (ensure(Entity))
+		{
+			Entity->SetParentLibrary(this);
+			Entity->RefreshID();
+			ValidEntities.Add(Entity);
+		}
+	}
+
+	// duplicate only valid entities
+	Entities = ValidEntities;
+}
+
+#if WITH_EDITOR
+void UDMXLibrary::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedChainEvent);
+
+	FName PropertyName = PropertyChangedChainEvent.GetPropertyName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXLibrary, InputPortReferences))
+	{
+		if(InputPortReferences.Num() > 1)
+		{
+			//  Prevent from having the same port twice (Note: Since duplicates were prevented here before, there can only ever be one duplicate)
+			const int32 LastIndexOfDuplicate = GetLastIndexOfDuplicatePortReference(InputPortReferences);
+
+			const FDMXInputPortSharedRef* AvailablePortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([this, LastIndexOfDuplicate](const FDMXInputPortSharedRef& InputPort) {
+				return
+					!InputPortReferences.Contains(InputPort->GetPortGuid()) &&
+					InputPort->GetPortGuid() != InputPortReferences[LastIndexOfDuplicate].GetPortGuid();
+				});
+
+			if (AvailablePortPtr)
+			{
+				InputPortReferences.EmplaceAt(LastIndexOfDuplicate, FDMXInputPortReference((*AvailablePortPtr)->GetPortGuid()));
+			}
+			else
+			{
+				// Don't allow for the same port twice
+				InputPortReferences.RemoveAt(LastIndexOfDuplicate);
+			}
+		}
+
+		UpdatePorts();
+	}
+	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXLibrary, OutputPortReferences))
+	{
+		if(OutputPortReferences.Num() > 1)
+		{
+			// Prevent from having the same port twice (Note: Since duplicates were prevented here before, there can only ever be one duplicate)
+			const int32 LastIndexOfDuplicate = GetLastIndexOfDuplicatePortReference(OutputPortReferences);
+
+			const FDMXOutputPortSharedRef* AvailablePortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([this, LastIndexOfDuplicate](const FDMXOutputPortSharedRef& OutputPort) {
+				return
+					!OutputPortReferences.Contains(OutputPort->GetPortGuid()) &&
+					OutputPort->GetPortGuid() != OutputPortReferences[LastIndexOfDuplicate].GetPortGuid();
+				});
+
+			if (AvailablePortPtr)
+			{
+				OutputPortReferences.EmplaceAt(LastIndexOfDuplicate, FDMXOutputPortReference((*AvailablePortPtr)->GetPortGuid()));
+			}
+			else
+			{
+				// Don't allow for the same port twice
+				OutputPortReferences.RemoveAt(LastIndexOfDuplicate);
+			}
+		}
+
+		UpdatePorts();
+	}
+}
+#endif // WITH_EDITOR
 
 UDMXEntity* UDMXLibrary::GetOrCreateEntityObject(const FString& InName, TSubclassOf<UDMXEntity> DMXEntityClass)
 {
@@ -211,31 +339,126 @@ FOnEntitiesUpdated& UDMXLibrary::GetOnEntitiesUpdated()
 	return OnEntitiesUpdated;
 }
 
-void UDMXLibrary::PostDuplicate(EDuplicateMode::Type DuplicateMode)
+TSet<int32> UDMXLibrary::GetAllLocalUniversesIDsInPorts() const
 {
-	Super::PostDuplicate(DuplicateMode);
-
-	if (DuplicateMode != EDuplicateMode::Normal)
+	TSet<int32> Result;
+	for (const FDMXPortSharedRef& Port : GenerateAllPortsSet())
 	{
-		return;
-	}
-
-	// Make sure all Entity children have this library as their parent
-	// and refresh their ID
-	TArray<UDMXEntity*> ValidEntities;
-	for (UDMXEntity* Entity : Entities)
-	{
-		// Entity could be null
-		if (Entity)
+		for (int32 UniverseID = Port->GetLocalUniverseStart(); UniverseID <= Port->GetLocalUniverseEnd(); UniverseID++)
 		{
-			Entity->SetParentLibrary(this);
-			Entity->RefreshID();
-			ValidEntities.Add(Entity);
+			if (!Result.Contains(UniverseID))
+			{
+				Result.Add(UniverseID);
+			}
 		}
 	}
 
-	// duplicate only valid entities
-	Entities = ValidEntities;
+	return Result;
+}
+
+TSet<FDMXPortSharedRef> UDMXLibrary::GenerateAllPortsSet() const
+{
+	TSet<FDMXPortSharedRef> Result;
+	for (const FDMXInputPortSharedRef& InputPort : InputPorts)
+	{
+		Result.Add(InputPort);
+	}
+
+	for (const FDMXOutputPortSharedRef& OutputPort : OutputPorts)
+	{
+		Result.Add(OutputPort);
+	}
+
+	return Result;
+}
+
+void UDMXLibrary::UpdatePorts()
+{
+	// Remove entries no longer present in the port reference arrays
+	TSet<FDMXInputPortSharedRef> CachedInputPorts = InputPorts;
+	for (const FDMXInputPortSharedRef& InputPort : CachedInputPorts)
+	{
+		const bool bPortStillExists = InputPortReferences.ContainsByPredicate([&InputPort](const FDMXInputPortReference& InputPortReference) {
+			return InputPortReference.GetPortGuid() == InputPort->GetPortGuid();
+		});
+
+		if (!bPortStillExists)
+		{
+			InputPorts.Remove(InputPort);
+		}
+	}
+
+	TSet<FDMXOutputPortSharedRef> CachedOutputPorts = OutputPorts;
+	for (const FDMXOutputPortSharedRef& OutputPort : CachedOutputPorts)
+	{
+		const bool bPortStillExists = OutputPortReferences.ContainsByPredicate([&OutputPort](const FDMXOutputPortReference& OutputPortReference) {
+			return OutputPortReference.GetPortGuid() == OutputPort->GetPortGuid();
+			});
+
+		if (!bPortStillExists)
+		{
+			OutputPorts.Remove(OutputPort);
+		}
+	}
+
+	// Add entries newly added to the port reference arrays
+	for (const FDMXInputPortReference& InputPortRef : InputPortReferences)
+	{
+		const FGuid& PortGuid = InputPortRef.GetPortGuid();
+
+		for (const FDMXInputPortSharedRef& InputPort : InputPorts)
+		{
+			if (InputPort->GetPortGuid() == PortGuid)
+			{
+				continue;
+			}
+		}
+
+		// No entry found for the current InputPortRef
+		const FDMXInputPortSharedRef* InputPortPtr = FDMXPortManager::Get().GetInputPorts().FindByPredicate([&PortGuid](const FDMXInputPortSharedRef& InputPort) {
+			return InputPort->GetPortGuid() == PortGuid;
+		});
+
+		if (InputPortPtr)
+		{
+			InputPorts.Add(*InputPortPtr);
+		}
+		else
+		{
+			// We do not expect the port to be missing, as we warned the user when trying to remove a port from settings while it still is referenced 
+			UE_LOG(LogDMXRuntime, Warning, TEXT("DMX Library %s contains an invalid port. Please update the library."), *GetName());
+		}
+	}
+
+	for (const FDMXOutputPortReference& OutputPortRef : OutputPortReferences)
+	{
+		const FGuid& PortGuid = OutputPortRef.GetPortGuid();
+
+		for (const FDMXOutputPortSharedRef& OutputPort : OutputPorts)
+		{
+			if (OutputPort->GetPortGuid() == PortGuid)
+			{
+				continue;
+			}
+		}
+
+		// No entry found for the current OutputPortRef
+		const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([&PortGuid](const FDMXOutputPortSharedRef& OutputPort) {
+			return OutputPort->GetPortGuid() == PortGuid;
+			});
+
+		if (OutputPortPtr)
+		{
+			OutputPorts.Add(*OutputPortPtr);
+		}
+		else
+		{
+			// We do not expect the port to be missing, as we warned the user when trying to remove a port from settings while it still is referenced 
+			UE_LOG(LogDMXRuntime, Warning, TEXT("DMX Library %s contains an invalid port. Please update the library."), *GetName());
+		}
+	}
+
+	OnPortsChanged.Broadcast();
 }
 
 #undef LOCTEXT_NAMESPACE

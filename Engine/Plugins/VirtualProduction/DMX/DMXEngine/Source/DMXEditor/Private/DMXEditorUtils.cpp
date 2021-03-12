@@ -6,8 +6,10 @@
 #include "DMXRuntimeUtils.h"
 #include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXInputPort.h"
+#include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 #include "Library/DMXLibrary.h"
-#include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
@@ -528,14 +530,7 @@ bool FDMXEditorUtils::AreFixtureTypesIdentical(const UDMXEntityFixtureType* A, c
 
 FText FDMXEditorUtils::GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass, bool bPlural /*= false*/)
 {
-	if (EntityClass->IsChildOf(UDMXEntityController::StaticClass()))
-	{
-		return FText::Format(
-			LOCTEXT("EntityTypeName_Controller", "{0}|plural(one=Controller, other=Controllers)"),
-			bPlural ? 2 : 1
-		);
-	}
-	else if (EntityClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
+	if (EntityClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
 	{
 		return FText::Format(
 			LOCTEXT("EntityTypeName_FixtureType", "Fixture {0}|plural(one=Type, other=Types)"),
@@ -566,6 +561,12 @@ bool FDMXEditorUtils::TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, co
 	
 	for(auto UniverseIt = AllowedUniverses.CreateConstIterator(); UniverseIt; ++UniverseIt)
 	{
+		// Don't auto assign to a universe smaller than the initial one
+		if (Patch->UniverseID > *UniverseIt)
+		{
+			continue;
+		}
+
 		Patch->UniverseID = *UniverseIt;
 		const FUnassignedPatchesArray UnassignedPatches = AutoAssignedAddresses({ Patch }, 1, false);
 		
@@ -879,59 +880,87 @@ void FDMXEditorUtils::GetAllAssetsOfClass(UClass* Class, TArray<UObject*>& OutOb
 	}
 }
 
-bool FDMXEditorUtils::TryGetEntityUniverseConflicts(UDMXEntity* Entity, TArray<UDMXEntity*>& OutConflictingEntities)
+bool FDMXEditorUtils::DoesLibraryHaveUniverseConflicts(UDMXLibrary* Library, FText& OutInputPortConflictMessage, FText& OutOutputPortConflictMessage)
 {
-	check(Entity);
-	
+	check(Library);
+
+	OutInputPortConflictMessage = FText::GetEmpty();
+	OutOutputPortConflictMessage = FText::GetEmpty();
+
 	TArray<UObject*> LoadedLibraries;
 	GetAllAssetsOfClass(UDMXLibrary::StaticClass(), LoadedLibraries);
 
 	for (UObject* OtherLibrary : LoadedLibraries)
 	{
-		if (OtherLibrary == Entity->GetParentLibrary())
+		if (OtherLibrary == Library)
 		{
 			continue;
 		}
 
 		UDMXLibrary* OtherDMXLibrary = CastChecked<UDMXLibrary>(OtherLibrary);
-		const TArray<UDMXEntity*>& OtherEntities = OtherDMXLibrary->GetEntities();
-		for (UDMXEntity* OtherEntity : OtherEntities)
+		
+		// Find conflicting input ports
+		for (const FDMXInputPortSharedRef& InputPort : Library->GetInputPorts())
 		{
-			if (DoEntitiesHaveUniverseConflict(Entity, OtherEntity))
+			for (const FDMXInputPortSharedRef& OtherInputPort : OtherDMXLibrary->GetInputPorts())
 			{
-				OutConflictingEntities.Add(OtherEntity);
+				if (InputPort->GetProtocol() == OtherInputPort->GetProtocol())
+				{
+					if (InputPort->GetLocalUniverseStart() <= OtherInputPort->GetLocalUniverseEnd() &&
+						OtherInputPort->GetLocalUniverseStart() <= InputPort->GetLocalUniverseEnd())
+					{
+						continue;
+					}
+
+					if (OutInputPortConflictMessage.IsEmpty())
+					{
+						OutInputPortConflictMessage = LOCTEXT("LibraryInputPortUniverseConflictMessageStart", "Libraries use the same Input Port: ");
+					}
+					
+					FText::Format(LOCTEXT("LibraryInputPortUniverseConflictMessage", "{0} {1}"), OutInputPortConflictMessage, FText::FromString(OtherDMXLibrary->GetName()));
+				}
+			}
+		}
+
+		// Find conflicting output ports
+		for (const FDMXOutputPortSharedRef& OutputPort : Library->GetOutputPorts())
+		{
+			for (const FDMXOutputPortSharedRef& OtherOutputPort : OtherDMXLibrary->GetOutputPorts())
+			{
+				if (OutputPort->GetProtocol() == OtherOutputPort->GetProtocol())
+				{
+					if (OutputPort->GetLocalUniverseStart() <= OtherOutputPort->GetLocalUniverseEnd() &&
+						OtherOutputPort->GetLocalUniverseStart() <= OutputPort->GetLocalUniverseEnd())
+					{
+						continue;
+					}
+
+					if (OutOutputPortConflictMessage.IsEmpty())
+					{
+						OutOutputPortConflictMessage = LOCTEXT("LibraryOutputPortUniverseConflictMessageStart", "Libraries that use the same Output Port: ");
+					}
+
+					FText::Format(LOCTEXT("LibraryOutputPortUniverseConflictMessage", "{0} {1}"), OutOutputPortConflictMessage, FText::FromString(OtherDMXLibrary->GetName()));
+				}
 			}
 		}
 	}
 
-	return OutConflictingEntities.Num() > 0;
+	bool bNoConflictsFound = OutOutputPortConflictMessage.IsEmpty() && OutInputPortConflictMessage.IsEmpty();
+
+	return bNoConflictsFound;
 }
 
-bool FDMXEditorUtils::DoEntitiesHaveUniverseConflict(UDMXEntity* EntityA, UDMXEntity* EntityB)
+void FDMXEditorUtils::ClearAllDMXPortBuffers()
 {
-	if (UDMXEntityController* FirstEntityController = Cast<UDMXEntityController>(EntityA))
+	for (const FDMXInputPortSharedRef& InputPort : FDMXPortManager::Get().GetInputPorts())
 	{
-		if (UDMXEntityController* SecondEntityController = Cast<UDMXEntityController>(EntityB))
-		{
-			return FirstEntityController->UniverseLocalStart <= SecondEntityController->UniverseLocalEnd &&
-				SecondEntityController->UniverseLocalStart <= FirstEntityController->UniverseLocalEnd;
-		}
+		InputPort->ClearBuffers();
 	}
 
-	return false;
-}
-
-void FDMXEditorUtils::ZeroAllDMXBuffers()
-{
-	TArray<FName> ProtocolNames = IDMXProtocol::GetProtocolNames();
-	for (const FName& ProtocolName : ProtocolNames)
+	for (const FDMXOutputPortSharedRef& OutputPort : FDMXPortManager::Get().GetOutputPorts())
 	{
-		IDMXProtocolPtr Protocol = IDMXProtocol::Get(ProtocolName);
-		check(Protocol.IsValid());
-
-		Protocol->ClearInputBuffers();
-
-		Protocol->ZeroOutputBuffers();
+		OutputPort->ClearBuffers();
 	}
 }
 

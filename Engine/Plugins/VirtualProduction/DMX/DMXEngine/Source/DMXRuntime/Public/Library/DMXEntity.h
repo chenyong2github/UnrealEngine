@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include "Library/DMXObjectBase.h"
 #include "DMXProtocolTypes.h"
+#include "Library/DMXObjectBase.h"
 
 #include "Misc/Guid.h"
 #include "Templates/SubclassOf.h"
@@ -65,32 +65,4 @@ protected:
 	/** Uniquely identifies the parameter, used for fixing up Blueprints that reference this Entity when renaming. */
 	UPROPERTY(DuplicateTransient)
 	FGuid Id;
-};
-
-/**  Specialized version of UDMXEntity which represents an entity that is managed by a Universe */
-UCLASS()
-class DMXRUNTIME_API UDMXEntityUniverseManaged
-	: public UDMXEntity
-{
-	GENERATED_BODY()
-public:
-
-	UPROPERTY(EditAnywhere, Category = "Communication Properties", meta = (DisplayName = "Protocol", DisplayPriority = "1"))
-	FDMXProtocolName DeviceProtocol;
-
-	UPROPERTY(EditAnywhere, Category = "Universe Properties", meta = (ShowOnlyInnerProperties, DisplayPriority = 30))
-	TArray<FDMXCommunicationEndpoint> Endpoints;
-
-public:
-	UDMXEntityUniverseManaged();
-
-	virtual void PostLoad() override;
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
-
-
-private:
-	void UpdateProtocolUniverses() const;
 };

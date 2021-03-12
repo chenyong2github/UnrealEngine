@@ -168,8 +168,4 @@ private:
 
 	/** Command list for the DMX Monitor menu */
 	TSharedPtr<class FUICommandList> DMXLevelEditorMenuCommands;
-
-	TSharedPtr<class SDMXActivityMonitor> UniverseMonitorTab;
-	TSharedPtr<class SDMXChannelsMonitor> ChannelsMonitorTab;
-	TSharedPtr<class SDMXOutputConsole> OutputConsoleTab;
 };

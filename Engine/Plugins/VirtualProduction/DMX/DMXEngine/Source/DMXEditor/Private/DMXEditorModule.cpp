@@ -10,11 +10,14 @@
 #include "DMXProtocolBlueprintLibrary.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityReference.h"
+#include "Library/DMXInputPortReference.h"
 #include "Library/DMXEntity.h"
 #include "Game/DMXComponent.h"
 #include "Commands/DMXEditorCommands.h"
 #include "AssetTools/AssetTypeActions_DMXEditorLibrary.h"
 #include "Customizations/DMXEditorPropertyEditorCustomization.h"
+#include "Customizations/DMXInputPortReferenceCustomization.h"
+#include "Customizations/DMXOutputPortReferenceCustomization.h"
 #include "Sequencer/DMXLibraryTrackEditor.h"
 #include "Sequencer/TakeRecorderDMXLibrarySource.h"
 #include "Sequencer/Customizations/TakeRecorderDMXLibrarySourceEditorCustomization.h"
@@ -218,8 +221,11 @@ void FDMXEditorModule::RegisterPropertyTypeCustomizations()
 	RegisterCustomPropertyTypeLayout(FDMXAttributeName::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FNameListCustomization<FDMXAttributeName>>));
 	RegisterCustomPropertyTypeLayout("EDMXPixelMappingDistribution", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXPixelMappingDistributionCustomization>));
 
+	// Customization for the Port Reference type
+	RegisterCustomPropertyTypeLayout(FDMXInputPortReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXInputPortReferenceCustomization::MakeInstance));
+	RegisterCustomPropertyTypeLayout(FDMXOutputPortReference::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXOutputPortReferenceCustomization::MakeInstance));
+
 	// Customizations for the Entity Reference types
-	RegisterCustomPropertyTypeLayout(FDMXEntityControllerRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
 	RegisterCustomPropertyTypeLayout(FDMXEntityFixtureTypeRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
 	RegisterCustomPropertyTypeLayout(FDMXEntityFixturePatchRef::StaticStruct()->GetFName(), FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXEntityReferenceCustomization>));
 	
@@ -244,10 +250,10 @@ FDMXEditorModule& FDMXEditorModule::Get()
 
 TSharedRef<FDMXEditor> FDMXEditorModule::CreateEditor(const EToolkitMode::Type Mode, const TSharedPtr<class IToolkitHost>& InitToolkitHost, UDMXLibrary * DMXLibrary)
 {
-	TSharedRef<FDMXEditor> DMXEditor(new FDMXEditor());
-	DMXEditor->InitEditor(Mode, InitToolkitHost, DMXLibrary);
+	TSharedRef<FDMXEditor> NewDMXEditor = MakeShareable<FDMXEditor>(new FDMXEditor());
+	NewDMXEditor->InitEditor(Mode, InitToolkitHost, DMXLibrary);
 
-	return DMXEditor;
+	return NewDMXEditor;
 }
 
 void FDMXEditorModule::AddToolbarExtension(FToolBarBuilder& InOutBuilder)
@@ -325,13 +331,11 @@ TSharedRef<SWidget> FDMXEditorModule::GenerateMonitorsMenu(TSharedPtr<FUICommand
 
 TSharedRef<SDockTab> FDMXEditorModule::OnSpawnActivityMonitorTab(const FSpawnTabArgs& InSpawnTabArgs)
 {
-	UniverseMonitorTab = SNew(SDMXActivityMonitor);
-
 	return SNew(SDockTab)
 		.Label(LOCTEXT("ActivityMonitorTitle", "DMX Activity Monitor"))
 		.TabRole(ETabRole::NomadTab)
 		[
-			UniverseMonitorTab.ToSharedRef()
+			SNew(SDMXActivityMonitor)
 		];
 }
 
@@ -341,20 +345,17 @@ TSharedRef<SDockTab> FDMXEditorModule::OnSpawnChannelsMonitorTab(const FSpawnTab
 		.Label(LOCTEXT("ChannelsMonitorTitle", "DMX Channel Monitor"))
 		.TabRole(ETabRole::NomadTab)
 		[
-			SAssignNew(ChannelsMonitorTab, SDMXChannelsMonitor)
+			SNew(SDMXChannelsMonitor)
 		];
 }
 
 TSharedRef<SDockTab> FDMXEditorModule::OnSpawnOutputConsoleTab(const FSpawnTabArgs& InSpawnTabArgs)
 {
-	OutputConsoleTab = SNew(SDMXOutputConsole);
-
 	return SNew(SDockTab)
-		.OnTabClosed(SDockTab::FOnTabClosedCallback::CreateSP(OutputConsoleTab.ToSharedRef(), &SDMXOutputConsole::HandleCloseParentTab))
 		.Label(LOCTEXT("OutputConsoleTitle", "DMX Output Console"))
 		.TabRole(ETabRole::NomadTab)
 		[
-			OutputConsoleTab.ToSharedRef()
+			SNew(SDMXOutputConsole)
 		];
 }
 
@@ -371,9 +372,6 @@ void FDMXEditorModule::OnOpenActivityMonitor()
 void FDMXEditorModule::OnOpenOutputConsole()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(FDMXEditorTabNames::OutputConsoleTabName);
-
-	check(OutputConsoleTab.IsValid());
-	OutputConsoleTab->RestoreConsole();	
 }
 
 void FDMXEditorModule::OnToggleSendDMX()

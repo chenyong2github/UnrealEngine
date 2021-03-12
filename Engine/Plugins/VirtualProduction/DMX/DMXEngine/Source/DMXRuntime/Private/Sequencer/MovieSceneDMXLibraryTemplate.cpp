@@ -8,10 +8,10 @@
 #include "DMXStats.h"
 #include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXOutputPort.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXEntityController.h"
 
 #include "MovieSceneExecutionToken.h"
 
@@ -56,21 +56,12 @@ namespace
 				return;
 			}
 
-			// Get the Controllers affecting this Fixture Patch's universe
-			const TArray<UDMXEntityController*>&& Controllers = FixturePatch->GetRelevantControllers();
-
-			bool bNoControllerAssigned = Controllers.Num() == 0;
-			if (bNoControllerAssigned)
-			{
-				return;
-			}
-
 			const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
 			const TArray<FDMXFixtureFunction>& Functions = Mode.Functions;
 
-			// Cache the FragmentMap to send through the controllers
-			IDMXFragmentMap FragmentMap;
-			FragmentMap.Reserve(Functions.Num());
+			// Cache the data to send through the ports
+			TMap<int32, uint8> ChannelToValueMap;
+			ChannelToValueMap.Reserve(Functions.Num());
 
 			const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
 
@@ -88,8 +79,8 @@ namespace
 				// Get each individual channel value from the Function
 				TArray<uint8, TFixedAllocator<4>> FunctionValues;
 				UDMXEntityFixtureType::FunctionValueToBytes(Function, Function.DefaultValue, FunctionValues.GetData());
-			
-				// Write each channel (byte) to the fragment map
+
+				// Write each channel (byte) to the channel to value map
 				const int32 FunctionStartChannel = Function.Channel + PatchChannelOffset;
 				const int32 FunctionEndChannel = UDMXEntityFixtureType::GetFunctionLastChannel(Function) + PatchChannelOffset;
 
@@ -98,7 +89,7 @@ namespace
 					int32 ByteIndex = FunctionEndChannel - FunctionStartChannel;
 					check(ByteIndex < FunctionValues.Num());
 
-					FragmentMap.Add(Channel, FunctionValues[ByteIndex]);
+					ChannelToValueMap.Add(Channel, FunctionValues[ByteIndex]);
 				}
 			}
 
@@ -149,36 +140,22 @@ namespace
 							int32 ByteIndex = 0;
 							for (int32 ChannelIndex = FirstChannelAddress; ChannelIndex <= LastChannelAddress && ByteIndex < 4; ++ChannelIndex, ++ByteIndex)
 							{
-								FragmentMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
+								ChannelToValueMap.Add(ChannelIndex, ValueBytes[ByteIndex]);
 							}
 						}
 					}
 				}
 			}
 
-			// Send the fragment map through each Controller that affects this Patch
-			for (const UDMXEntityController* Controller : Controllers)
+			// TODO
+			for (const FDMXOutputPortSharedRef& OutputPort : DMXLibrary->GetOutputPorts())
 			{
-				if (Controller == nullptr || !Controller->IsValidLowLevelFast() || !Controller->DeviceProtocol.IsValid())
-				{
-					continue;
-				}
-
-				IDMXProtocolPtr Protocol = Controller->DeviceProtocol;
-
-				// If sent DMX will not be received via network, input it directly
-				const bool bCanLoopback = Protocol->IsSendDMXEnabled() && Protocol->IsReceiveDMXEnabled();
-				if (!bCanLoopback)
-				{
-					Protocol->InputDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
-				}
-
-				Protocol->SendDMXFragment(FixturePatch->UniverseID + Controller->RemoteOffset, FragmentMap);
+				OutputPort->SendDMX(FixturePatch->UniverseID, ChannelToValueMap);
 			}
 		}
 	};
 
-	struct FPreAnimatedDMXLibraryTokenProducer 
+	struct FPreAnimatedDMXLibraryTokenProducer
 		: IMovieScenePreAnimatedTokenProducer
 	{
 		const FGuid EntityID;
@@ -193,321 +170,104 @@ namespace
 			return FPreAnimatedDMXLibraryToken(EntityID);
 		}
 	};
+}
 
-	/**
-	* Cached info of fixture function channels. Exists to streamline performance.
-	*
-	* Without this class, data for all tracks would have to be prepared each tick, leading to significant overhead.
-	*
-	* Besides caching values, the instance deduces how the track should be evaluated:
-	*
-	* 1. bNeedsEvalutation - These channels need update each tick
-	* 2. bNeedsInitialization - These channels need update only in the first tick!
-	* 3. Other tracks - These do not need update ever.
-	*
-	* Profiled, issues were appereant in 4.26 with a great number of sequencer channels (attributes).
-	*/
-	struct FDMXCachedFunctionChannelInfo
+/** 
+ * Token executed each tick during playback 
+ */
+struct FDMXLibraryExecutionToken 
+	: IMovieSceneExecutionToken
+{
+	/** Constructor, called at begin of playback */
+	FDMXLibraryExecutionToken(const UMovieSceneDMXLibrarySection* InSection)
+		: Section(InSection) 
+	{}
+
+	FDMXLibraryExecutionToken(FDMXLibraryExecutionToken&&) = default;
+	FDMXLibraryExecutionToken& operator=(FDMXLibraryExecutionToken&&) = default;
+
+	// Non-copyable
+	FDMXLibraryExecutionToken(const FDMXLibraryExecutionToken&) = delete;
+	FDMXLibraryExecutionToken& operator=(const FDMXLibraryExecutionToken&) = delete;
+
+private:
+	// Keeps all values from Fixture Functions that will be sent using the ports.
+	// A Protocol points to Universe IDs. Each Universe ID points to a FragmentMap.
+	TMap<int32 /** Universe */, TMap<int32, uint8> /** ChannelToValueMap */> UniverseToChannelToValueMap;
+
+	const UMovieSceneDMXLibrarySection* Section;
+
+	bool bInitialized = false;
+
+
+public:
+	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
 	{
-		FDMXCachedFunctionChannelInfo(const FDMXFixturePatchChannel& InPatchChannel, const FDMXFixtureFunctionChannel& InFunctionChannel)
+		SCOPE_CYCLE_COUNTER(STAT_DMXSequencerExecuteExecutionToken);
+
+		const FFrameTime Time = Context.GetTime();
+
+		UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
+		check(DMXSubsystem);
+
+		if (!bInitialized)
 		{
-			// Valid patch
-			UDMXEntityFixturePatch* FixturePatch = InPatchChannel.Reference.GetFixturePatch();
-			if (FixturePatch == nullptr || !FixturePatch->IsValidLowLevelFast())
+			bInitialized = true;
+
+			bool bIsCacheValid = true;
+			for (const FDMXCachedFunctionChannelInfo& InfoForChannelToInitialize : Section->GetChannelsToInitializeOnly())
 			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: A Fixture Patch is null."), __FUNCTION__);
-				return;
-			}
-
-			// Enabled
-			if (!InFunctionChannel.bEnabled)
-			{
-				return;
-			}
-
-			// Valid controller
-			UDMXEntityController* Controller = FixturePatch->GetFirstRelevantController();
-			if (!Controller)
-			{
-				return;
-			}
-
-			// Valid protocol
-			Protocol = Controller->DeviceProtocol;
-			if (!Protocol.IsValid())
-			{
-				return;
-			}
-
-			// Try to access the active mode
-			const UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate;
-			if (FixtureType == nullptr || !FixtureType->IsValidLowLevelFast())
-			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch %s has invalid Fixture Type template."), __FUNCTION__, *FixturePatch->GetDisplayName());
-				return;
-			}
-
-			if (InPatchChannel.ActiveMode >= FixtureType->Modes.Num())
-			{
-				UE_LOG(MovieSceneDMXLibraryTemplateLog, Error, TEXT("%S: Patch track %s ActiveMode is invalid."), __FUNCTION__, *FixturePatch->GetDisplayName());
-				return;
-			}
-
-			const FDMXFixtureMode& Mode = FixtureType->Modes[InPatchChannel.ActiveMode];
-
-			// Cache the universe ID
-			UniverseID = FixturePatch->UniverseID + Controller->RemoteOffset;
-			if (UniverseID < Protocol->GetMinUniverseID())
-			{
-				return;
-			}
-
-			// Cache Fuction properties
-			if (InFunctionChannel.IsCellFunction())
-			{
-				const FDMXFixtureMatrix& MatrixConfig = Mode.FixtureMatrixConfig;
-				const TArray<FDMXFixtureCellAttribute>& CellAttributes = MatrixConfig.CellAttributes;
-				
-				TMap<FDMXAttributeName, int32> AttributeNameChannelMap;
-				GetMatrixCellChannelsAbsoluteNoSorting(FixturePatch, InFunctionChannel.CellCoordinate, AttributeNameChannelMap);
-
-				const FDMXFixtureCellAttribute* CellAttributePtr = CellAttributes.FindByPredicate([&InFunctionChannel](const FDMXFixtureCellAttribute& CellAttribute) {
-					return CellAttribute.Attribute == InFunctionChannel.AttributeName;
-					});
-
-				const bool bMissingFunction = !AttributeNameChannelMap.Contains(InFunctionChannel.AttributeName) || !CellAttributePtr;
-				if (!CellAttributePtr && bMissingFunction)
+				if (const FDMXFixtureFunctionChannel* FixtureFunctionChannelPtr = InfoForChannelToInitialize.TryGetFunctionChannel(Section->GetFixturePatchChannels()))
 				{
-					UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *InFunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
-					UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Further attributes may be missing. Warnings ommited to avoid overflowing the log."), __FUNCTION__);
-
-					return;
-				}
-
-				const FDMXFixtureCellAttribute& CellAttribute = *CellAttributePtr;
-				StartingChannel = AttributeNameChannelMap[InFunctionChannel.AttributeName];
-				SignalFormat = CellAttribute.DataType;
-				bLSBMode = CellAttribute.bUseLSBMode;
-			}
-			else
-			{
-				const TArray<FDMXFixtureFunction>& Functions = Mode.Functions;
-
-				const FDMXFixtureFunction* FunctionPtr = Functions.FindByPredicate([&InFunctionChannel](const FDMXFixtureFunction& TestedFunction) {
-					return TestedFunction.Attribute == InFunctionChannel.AttributeName;
-					});
-
-				if (!FunctionPtr)
-				{
-					UE_LOG(MovieSceneDMXLibraryTemplateLog, Warning, TEXT("%S: Function with attribute %s from %s doesn't have a counterpart Fixture Function."), __FUNCTION__, *InFunctionChannel.AttributeName.ToString(), *FixturePatch->GetDisplayName());
-
-					return;
-				}
-
-				const FDMXFixtureFunction& Function = *FunctionPtr;
-
-				const int32 PatchChannelOffset = FixturePatch->GetStartingChannel() - 1;
-				StartingChannel = Function.Channel + PatchChannelOffset;
-				SignalFormat = Function.DataType;
-				bLSBMode = Function.bUseLSBMode;
-			}
-
-			// UNSAFE, TODO 4.27: Cached pointer to a struct. 
-			FunctionChannelPtr = &InFunctionChannel;
-
-			// Now that we know it's fully valid, define how it should be processed.
-			bNeedsInitialization = InFunctionChannel.Channel.GetNumKeys() > 0;
-			bNeedsEvaluation = InFunctionChannel.Channel.GetNumKeys() > 1;
-
-			check(FunctionChannelPtr);
-		}
-		
-	private:
-		/** 
-		 * Gets the cell channels, but unlike subsystem's methods doesn't sort channels by pixel mapping distribution.
-		 * If the cell coordinate would be sorted here, it would be sorted on receive again causing doubly sorting.
-		 */
-		void GetMatrixCellChannelsAbsoluteNoSorting(UDMXEntityFixturePatch* FixturePatch, const FIntPoint& CellCoordinate, TMap<FDMXAttributeName, int32>& OutAttributeToAbsoluteChannelMap) const
-		{
-			if (!FixturePatch ||
-				!FixturePatch->ParentFixtureTypeTemplate ||
-				!FixturePatch->ParentFixtureTypeTemplate->bFixtureMatrixEnabled)
-			{
-				return;
-			}
-
-			FDMXFixtureMatrix MatrixProperties;
-			if (!FixturePatch->GetMatrixProperties(MatrixProperties))
-			{
-				return;
-			}
-
-			TMap<const FDMXFixtureCellAttribute*, int32> AttributeToRelativeChannelOffsetMap;
-			int32 CellDataSize = 0;
-			int32 AttributeChannelOffset = 0;
-			for (const FDMXFixtureCellAttribute& CellAttribute : MatrixProperties.CellAttributes)
-			{
-				AttributeToRelativeChannelOffsetMap.Add(&CellAttribute, AttributeChannelOffset);
-				const int32 AttributeSize = UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
-
-				CellDataSize += AttributeSize;
-				AttributeChannelOffset += UDMXEntityFixtureType::NumChannelsToOccupy(CellAttribute.DataType);
-			}
-			
-			const int32 FixtureMatrixAbsoluteStartingChannel = FixturePatch->GetStartingChannel() + MatrixProperties.FirstCellChannel - 1;
-			const int32 CellChannelOffset = (CellCoordinate.Y * MatrixProperties.XCells + CellCoordinate.X) * CellDataSize;
-			const int32 AbsoluteCellStartingChannel = FixtureMatrixAbsoluteStartingChannel + CellChannelOffset;
-
-			for (const TTuple<const FDMXFixtureCellAttribute*, int32>& AttributeToRelativeChannelOffsetKvp : AttributeToRelativeChannelOffsetMap)
-			{
-				const FDMXAttributeName AttributeName = AttributeToRelativeChannelOffsetKvp.Key->Attribute;
-				const int32 AbsoluteChannel = AbsoluteCellStartingChannel + AttributeToRelativeChannelOffsetKvp.Value;
-
-				check(AbsoluteChannel > 0 && AbsoluteChannel <= DMX_UNIVERSE_SIZE);
-				OutAttributeToAbsoluteChannelMap.Add(AttributeName, AbsoluteChannel);
-			}
-		}
-
-	public:
-		FORCEINLINE const FDMXFixtureFunctionChannel& GetFunctionChannel() const { return *FunctionChannelPtr; }
-
-		FORCEINLINE const IDMXProtocolPtr& GetProtocol() const { return Protocol; }
-
-		FORCEINLINE bool NeedsInitialization() const { return bNeedsInitialization; }
-
-		FORCEINLINE bool NeedsEvaluation() const { return bNeedsEvaluation; }
-
-		FORCEINLINE int32 GetUniverseID() const { return UniverseID; }
-
-		FORCEINLINE int32 GetStartingChannel() const { return StartingChannel; }
-
-		FORCEINLINE EDMXFixtureSignalFormat GetSignalFormat() const { return SignalFormat; }
-
-		FORCEINLINE bool ShouldUseLSBMode() const { return bLSBMode; }
-
-	private:
-		bool bNeedsInitialization = false;
-		bool bNeedsEvaluation = false;
-
-		const FDMXFixtureFunctionChannel* FunctionChannelPtr = nullptr;
-
-		int32 UniverseID = -1;
-
-		int32 StartingChannel = -1;
-
-		EDMXFixtureSignalFormat SignalFormat;
-
-		bool bLSBMode = false;
-
-		IDMXProtocolPtr Protocol;
-	};
-
-	/** Arrays of those channels that actually need initialization and channels that need evaluation each tick. */
-	struct FDMXCachedSectionInfo
-	{
-		TArray<FDMXCachedFunctionChannelInfo> ChannelsToInitialize;
-		TArray<FDMXCachedFunctionChannelInfo> ChannelsToEvaluate;
-	};
-
-	/**
-	 * Global map of sections with cached info
-	 * TODO 4.27: Required to be declared globally to avoid altering public headers for 4.26.1 sequencer performance hotfix
-	 */
-	TMap<const UMovieSceneDMXLibrarySection*, FDMXCachedSectionInfo> SectionsWithCachedInfo;
-
-	/** 
-	 * Token executed each tick during playback 
-	 */
-	struct FDMXLibraryExecutionToken 
-		: IMovieSceneExecutionToken
-	{
-		/** Constructor, called at begin of playback */
-		FDMXLibraryExecutionToken(const UMovieSceneDMXLibrarySection* InSection, const TArray<FDMXCachedFunctionChannelInfo>* InChannelsToEvaluate, const TArray<FDMXCachedFunctionChannelInfo>* InChannelsToInitializeOnly)
-			: Section(InSection) 
-			, ChannelsToEvaluate(InChannelsToEvaluate)
-			, ChannelsToInitializeOnly(InChannelsToInitializeOnly)
-		{}
-
-		FDMXLibraryExecutionToken(FDMXLibraryExecutionToken&&) = default;
-		FDMXLibraryExecutionToken& operator=(FDMXLibraryExecutionToken&&) = default;
-
-		// Non-copyable
-		FDMXLibraryExecutionToken(const FDMXLibraryExecutionToken&) = delete;
-		FDMXLibraryExecutionToken& operator=(const FDMXLibraryExecutionToken&) = delete;
-
-	private:
-		// Keeps all values from Fixture Functions that will be sent using the controllers.
-		// A Protocol points to Universe IDs. Each Universe ID points to a FragmentMap.
-		TMap<IDMXProtocolPtr, TMap<uint16 /** Universe */, IDMXFragmentMap /** ChannelValueKvp */>> DMXFragmentMaps;
-
-		const UMovieSceneDMXLibrarySection* Section;
-
-		const TArray<FDMXCachedFunctionChannelInfo>* ChannelsToEvaluate;
-
-		const TArray<FDMXCachedFunctionChannelInfo>* ChannelsToInitializeOnly;
-
-		bool bInitialized = false;
-
-	public:
-		virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player) override
-		{
-			SCOPE_CYCLE_COUNTER(STAT_DMXSequencerExecuteExecutionToken);
-
-			const FFrameTime Time = Context.GetTime();
-
-			UDMXSubsystem* DMXSubsystem = UDMXSubsystem::GetDMXSubsystem_Pure();
-			check(DMXSubsystem);
-
-
-			if (!bInitialized)
-			{
-				bInitialized = true;
-
-				for (const FDMXCachedFunctionChannelInfo& InfoForChannelToInitialize : *ChannelsToInitializeOnly)
-				{
-					const FDMXFixtureFunctionChannel& FixtureFunctionChannel = InfoForChannelToInitialize.GetFunctionChannel();
-
 					float ChannelValue = 0.0f;
-					if (FixtureFunctionChannel.Channel.Evaluate(Time, ChannelValue))
+					if (FixtureFunctionChannelPtr->Channel.Evaluate(Time, ChannelValue))
 					{
 						// Round to int so if the user draws into the tracks, values are assigned to int accurately
 						const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
-
-						TMap<uint16, IDMXFragmentMap>& UniverseFragmentMapKvp = DMXFragmentMaps.FindOrAdd(InfoForChannelToInitialize.GetProtocol());
-
-						IDMXFragmentMap& FragmentMap = UniverseFragmentMapKvp.FindOrAdd(InfoForChannelToInitialize.GetUniverseID());
 
 						// Round to int so if the user draws into the tracks, values are assigned to int accurately
 						TArray<uint8> ByteArr;
 						DMXSubsystem->IntValueToBytes(FunctionValue, InfoForChannelToInitialize.GetSignalFormat(), ByteArr, InfoForChannelToInitialize.ShouldUseLSBMode());
 
+						TMap<int32, uint8>& ChannelToValueMap = UniverseToChannelToValueMap.FindOrAdd(InfoForChannelToInitialize.GetUniverseID());
+
 						for (int32 ByteIdx = 0; ByteIdx < ByteArr.Num(); ByteIdx++)
 						{
-							uint8& Value = FragmentMap.FindOrAdd(InfoForChannelToInitialize.GetStartingChannel() + ByteIdx);
+							uint8& Value = ChannelToValueMap.FindOrAdd(InfoForChannelToInitialize.GetStartingChannel() + ByteIdx);
 							Value = ByteArr[ByteIdx];
 						}
 					}
 				}
-			}
-			else
-			{
-				// Reset previous fragments
-				DMXFragmentMaps.Reset();
+				else
+				{
+					bIsCacheValid = false;
+					break;
+				}
 			}
 
-			for (const FDMXCachedFunctionChannelInfo& InfoForChannelToEvaluate : *ChannelsToEvaluate)
+			if(!bIsCacheValid)
 			{
-				const FDMXFixtureFunctionChannel& FixtureFunctionChannel = InfoForChannelToEvaluate.GetFunctionChannel();
-
+				Section->RebuildPlaybackCache();
+			}
+		}
+		else
+		{
+			// Reset previous values
+			UniverseToChannelToValueMap.Reset();
+		}
+		
+		for (const FDMXCachedFunctionChannelInfo& InfoForChannelToEvaluate : Section->GetChannelsToEvaluate())
+		{
+			bool bIsCacheValid = true;
+			if (const FDMXFixtureFunctionChannel* FixtureFunctionChannelPtr = InfoForChannelToEvaluate.TryGetFunctionChannel(Section->GetFixturePatchChannels()))
+			{
 				float ChannelValue = 0.0f;
-				if (FixtureFunctionChannel.Channel.Evaluate(Time, ChannelValue))
+				if (FixtureFunctionChannelPtr->Channel.Evaluate(Time, ChannelValue))
 				{
 					// Round to int so if the user draws into the tracks, values are assigned to int accurately
 					const uint32 FunctionValue = FMath::RoundToInt(ChannelValue);
 
-					TMap<uint16, IDMXFragmentMap>& UniverseFragmentMapKvp = DMXFragmentMaps.FindOrAdd(InfoForChannelToEvaluate.GetProtocol());
-
-					IDMXFragmentMap& FragmentMap = UniverseFragmentMapKvp.FindOrAdd(InfoForChannelToEvaluate.GetUniverseID());
+					TMap<int32, uint8>& ChannelToValueMap = UniverseToChannelToValueMap.FindOrAdd(InfoForChannelToEvaluate.GetUniverseID());
 
 					// Round to int so if the user draws into the tracks, values are assigned to int accurately
 					TArray<uint8> ByteArr;
@@ -515,43 +275,37 @@ namespace
 
 					for (int32 ByteIdx = 0; ByteIdx < ByteArr.Num(); ByteIdx++)
 					{
-						uint8& Value = FragmentMap.FindOrAdd(InfoForChannelToEvaluate.GetStartingChannel() + ByteIdx);
+						uint8& Value = ChannelToValueMap.FindOrAdd(InfoForChannelToEvaluate.GetStartingChannel() + ByteIdx);
 						Value = ByteArr[ByteIdx];
 					}
 				}
-			}
-
-			// Send the Universes data from the accumulated DMXFragmentMaps
-			for (const TPair<IDMXProtocolPtr, TMap<uint16, IDMXFragmentMap>>& Protocol_Universes : DMXFragmentMaps)
-			{
-				for (const TPair<uint16, IDMXFragmentMap>& Universe_FragmentMaps : Protocol_Universes.Value)
+				else
 				{
-					IDMXProtocolPtr Protocol = Protocol_Universes.Key;
-					const bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
-
-					// If sent DMX will not be looped back via network, input it directly
-					if (!bCanLoopback)
-					{
-						Protocol->InputDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
-					}
-
-					Protocol->SendDMXFragment(Universe_FragmentMaps.Key, Universe_FragmentMaps.Value);
+					bIsCacheValid = false;
+					break;
 				}
 			}
-		}
-	};
 
-}
+			if (!bIsCacheValid)
+			{
+				Section->RebuildPlaybackCache();
+			}
+		}
+
+		for(const TPair<int32, TMap<int32, uint8>>& UniverseToChannelToValueMapKvp : UniverseToChannelToValueMap)
+		{
+			for (const FDMXOutputPortSharedRef& OutputPort : Section->GetCachedOutputPorts())
+			{
+				OutputPort->SendDMX(UniverseToChannelToValueMapKvp.Key, UniverseToChannelToValueMapKvp.Value);
+			}
+		}
+	}
+};
 
 FMovieSceneDMXLibraryTemplate::FMovieSceneDMXLibraryTemplate(const UMovieSceneDMXLibrarySection& InSection)
 	: Section(&InSection)
 {
-	// By removing the section, we force the section's cache to be updated when a new template is created.
-	// That alike changes in editor are considered (otherwise existing cached data would reused, and changes ingored).
-	if (SectionsWithCachedInfo.Contains(&InSection))
-	{
-		SectionsWithCachedInfo.Remove(&InSection);
-	}
+	check(IsValid(Section));
 }
 
 void FMovieSceneDMXLibraryTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
@@ -560,39 +314,12 @@ void FMovieSceneDMXLibraryTemplate::Evaluate(const FMovieSceneEvaluationOperand&
 
 	check(Section && Section->IsValidLowLevelFast());
 
-	// Don't evaluate while recording to prevent conflicts between
-	// sent DMX data and incoming recorded data
+	// Don't evaluate while recording to prevent conflicts between sent DMX data and incoming recorded data
 	if (Section->GetIsRecording())
 	{
 		return;
 	}
 
-	// Reuse cached info or initialize that if no chached section info exists
-	FDMXCachedSectionInfo* CachedSectionInfoPtr = SectionsWithCachedInfo.Find(Section);
-
-	if (!CachedSectionInfoPtr)
-	{
-		CachedSectionInfoPtr = &SectionsWithCachedInfo.Add(Section);
-
-		// Cache channel data to streamline performance
-		for (const FDMXFixturePatchChannel& PatchChannel : Section->GetFixturePatchChannels())
-		{
-			for (const FDMXFixtureFunctionChannel& FunctionChannel : PatchChannel.FunctionChannels)
-			{
-				FDMXCachedFunctionChannelInfo CachedFunctionChannelInfo = FDMXCachedFunctionChannelInfo(PatchChannel, FunctionChannel);
-				if (CachedFunctionChannelInfo.NeedsEvaluation())
-				{
-					CachedSectionInfoPtr->ChannelsToEvaluate.Add(CachedFunctionChannelInfo);
-				}
-				else if (CachedFunctionChannelInfo.NeedsInitialization())
-				{
-					CachedSectionInfoPtr->ChannelsToInitialize.Add(CachedFunctionChannelInfo);
-				}
-			}
-		}
-	}
-	check(CachedSectionInfoPtr);
-
-	FDMXLibraryExecutionToken ExecutionToken(Section, &CachedSectionInfoPtr->ChannelsToEvaluate, &CachedSectionInfoPtr->ChannelsToInitialize);
+	FDMXLibraryExecutionToken ExecutionToken(Section);
 	ExecutionTokens.Add(MoveTemp(ExecutionToken));
 }

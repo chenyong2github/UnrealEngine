@@ -2,18 +2,27 @@
 
 #pragma once
 
+#include "DMXProtocolTypes.h"
+#include "DMXAttribute.h"
+#include "IO/DMXInputPortConfig.h"
+#include "IO/DMXOutputPortConfig.h"
+
 #include "CoreMinimal.h"
 #include "Misc/Optional.h"
 #include "UObject/Object.h"
-#include "DMXProtocolTypes.h"
-#include "DMXAttribute.h"
 
 #include "DMXProtocolSettings.generated.h"
 
-/**  User defined protocol settings that apply to a whole protocol module */
-UCLASS(config = Engine, defaultconfig, notplaceable)
-class DMXPROTOCOL_API UDMXProtocolSettings : public UObject
+
+
+/**  DMX Project Settings */
+UCLASS(Config = Engine, DefaultConfig, NotPlaceable)
+class DMXPROTOCOL_API UDMXProtocolSettings 
+	: public UObject
 {
+	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnSendDMXEnabled, bool /** bEnabled */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FDMXOnReceiveDMXEnabled, bool /** bEnabled */);
+
 public:
 	GENERATED_BODY()
 
@@ -24,20 +33,29 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
-#endif
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
+#endif // WITH_EDITOR
+
 public:
 	/** Manual Interface IP Address */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Interface IP address"))
-	FString InterfaceIPAddress;
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "InterfaceIPAddress is deprecated. Use Ports instead."))
+	FString InterfaceIPAddress_DEPRECATED;
+
+	/** DMX Input Port Configs */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Input Ports"))
+	TArray<FDMXInputPortConfig> InputPortConfigs;
+
+	/** DMX Output Port Configs */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Communication Settings", Meta = (DisplayName = "Output Ports"))
+	TArray<FDMXOutputPortConfig> OutputPortConfigs;
 
 	/** Universe Remote Start for ArtNet */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Universe Settings", Meta = (DisplayName = "Global Art-Net Universe Offset", ClampMin = "0", ClampMax = "65535"))
-	int32 GlobalArtNetUniverseOffset;
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "GlobalArtNetUniverseOffset is deprecated. Use Ports instead."))
+	int32 GlobalArtNetUniverseOffset_DEPRECATED;
 
 	/** Universe Remote Start for sACN */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Universe Settings", Meta = (DisplayName = "Global sACN Universe Offset", ClampMin = "0", ClampMax = "65535"))
-	int32 GlobalSACNUniverseOffset;
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "GlobalSACNUniverseOffset is deprecated. Use Ports instead."))
+	int32 GlobalSACNUniverseOffset_DEPRECATED;
 
 	/** Fixture Categories ENum */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Fixture Settings", Meta = (DisplayName = "Fixture Categories"))
@@ -52,34 +70,39 @@ public:
 	uint32 SendingRefreshRate;
 
 	/** Rate at which DMX is received, in Hz from 1 to 1000. 44Hz is recommended */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (ClampMin = "1", ClampMax = "1000", EditCondition = "bUseSeparateReceivingThread"))
+	UPROPERTY(Meta = (DeprecatedProperty, DeprecationMessage = "ReceivingRefreshRate is deprecated without replacement. It would deter timestamps on the receivers. Instead use a per object rate where desired."))
 	uint32 ReceivingRefreshRate;
+
+	/** Broadcast when send DMX is enabled or disabled */
+	FDMXOnSendDMXEnabled OnSetSendDMXEnabled;
+
+	/** Broadcast when receive DMX is enabled or disabled */
+	FDMXOnReceiveDMXEnabled OnSetReceiveDMXEnabled;
 
 	/** Returns whether send DMX is currently enabled, considering runtime override */
 	bool IsSendDMXEnabled() const { return bOverrideSendDMXEnabled; }
 
 	/** Overrides if send DMX is enabled at runtime */
-	void OverrideSendDMXEnabled(bool bEnabled) { bOverrideSendDMXEnabled = bEnabled; }
+	void OverrideSendDMXEnabled(bool bEnabled);
 
 	/** Returns whether receive DMX is currently enabled, considering runtime override */
 	bool IsReceiveDMXEnabled() const { return bOverrideReceiveDMXEnabled; }
 
 	/** Overrides if send DMX is enabled at runtime */
-	void OverrideReceiveDMXEnabled(bool bEnabled) { bOverrideReceiveDMXEnabled = bEnabled; }
+	void OverrideReceiveDMXEnabled(bool bEnabled);
 
 private:
-
 	/** Whether DMX is received from the network. Recalled whenever editor or game starts. */
-	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Receive DMX by default"))
-	bool bDefaultReceiveDMXEnabled;
-
-	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
 	UPROPERTY(Config, EditAnywhere, Category = "DMX|Sending Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Send DMX by default"))
 	bool bDefaultSendDMXEnabled;
 
-	/** Overrides the default bDefaultReceiveDMXEnabled at runtime */
+	/** Whether DMX is sent to the network. Recalled whenever editor or game starts.  */
+	UPROPERTY(Config, EditAnywhere, Category = "DMX|Receiving Settings", Meta = (AllowPrivateAccess = true, DisplayName = "Receive DMX by default"))
+	bool bDefaultReceiveDMXEnabled;
+
+	/** Overrides the default bDefaultSendDMXEnabled value at runtime */
 	bool bOverrideReceiveDMXEnabled;
 
-	/** Overrides the default bDefaultSendDMXEnabled at runtime */
+	/** Overrides the default bDefaultSendDMXEnabled value at runtime */
 	bool bOverrideSendDMXEnabled;
 };

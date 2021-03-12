@@ -35,8 +35,8 @@ public:
 		/** The Universe ID this widget resides in */
 		SLATE_ARGUMENT(int32, UniverseID)
 
-		/** The current value from the channel */
-		SLATE_ATTRIBUTE(uint8, Value)
+		/** The value of the channel */
+		SLATE_ARGUMENT(uint8, Value)
 
 		/** Called when drag enters the widget */
 		SLATE_EVENT(FOnDragOverChannel, OnDragEnterChannel)

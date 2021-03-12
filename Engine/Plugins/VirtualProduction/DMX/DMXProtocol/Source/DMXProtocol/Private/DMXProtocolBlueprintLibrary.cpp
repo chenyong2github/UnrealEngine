@@ -6,22 +6,13 @@
 
 #include "Interfaces/IDMXProtocol.h"
 
+
 void UDMXProtocolBlueprintLibrary::SetSendDMXEnabled(bool bSendDMXEnabled, bool bAffectEditor)
 {
 	if (bAffectEditor || !GIsEditor)
 	{
-		UDMXProtocolSettings* ProtocolSettings = CastChecked<UDMXProtocolSettings>(UDMXProtocolSettings::StaticClass()->GetDefaultObject());
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 		ProtocolSettings->OverrideSendDMXEnabled(bSendDMXEnabled);		
-
-		TMap<FName, IDMXProtocolPtr> AllProtocols = FDMXProtocolModule::Get().GetProtocols();
-
-		for (const TPair<FName, IDMXProtocolPtr>& ProtocolKvp : AllProtocols)
-		{
-			IDMXProtocolPtr Protocol = ProtocolKvp.Value;
-			check(Protocol.IsValid());
-
-			Protocol->SetSendDMXEnabled(bSendDMXEnabled);
-		}
 	}
 }
 
@@ -35,18 +26,8 @@ void UDMXProtocolBlueprintLibrary::SetReceiveDMXEnabled(bool bReceiveDMXEnabled,
 {
 	if (bAffectEditor || !GIsEditor)
 	{
-		UDMXProtocolSettings* ProtocolSettings = CastChecked<UDMXProtocolSettings>(UDMXProtocolSettings::StaticClass()->GetDefaultObject());
+		UDMXProtocolSettings* ProtocolSettings = GetMutableDefault<UDMXProtocolSettings>();
 		ProtocolSettings->OverrideReceiveDMXEnabled(bReceiveDMXEnabled);
-
-		TMap<FName, IDMXProtocolPtr> AllProtocols = FDMXProtocolModule::Get().GetProtocols();
-
-		for (const TPair<FName, IDMXProtocolPtr>& ProtocolKvp : AllProtocols)
-		{
-			IDMXProtocolPtr Protocol = ProtocolKvp.Value;
-			check(Protocol.IsValid());
-
-			Protocol->SetReceiveDMXEnabled(bReceiveDMXEnabled);
-		}
 	}
 }
 

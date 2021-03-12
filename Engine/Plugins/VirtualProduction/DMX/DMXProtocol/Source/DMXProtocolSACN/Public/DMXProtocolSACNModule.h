@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Interfaces/IDMXProtocolFactory.h"
+
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleInterface.h"
-#include "Interfaces/IDMXProtocolFactory.h"
 
 /**
  */
@@ -25,6 +26,7 @@ private:
 	TUniquePtr<FDMXProtocolFactorySACN> FactorySACN;
 
 public:
+	UE_DEPRECATED(4.27, "Use DMX_PROTOCOLNAME_SACN instead, see DMXProtocolSACNConstants.h")
 	static FName const NAME_SACN;
 
 public:

@@ -8,10 +8,14 @@
 #include "DMXProtocolModule.h"
 
 #include "Interfaces/IDMXProtocolBase.h"
-#include "Interfaces/IDMXProtocolRDM.h"
-#include "Interfaces/IDMXProtocolTransport.h"
 
+
+enum class EDMXCommunicationType : uint8;
 class FDMXSignal;
+class FDMXInputPort;
+class FDMXOutputPort;
+class IDMXSender;
+
 
 /**
  * Delegate used when a network interface has been changed
@@ -21,22 +25,158 @@ class FDMXSignal;
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNetworkInterfaceChanged, const FString& /*InMessage*/);
 typedef FOnNetworkInterfaceChanged::FDelegate FOnNetworkInterfaceChangedDelegate;
 
-/**
- * Delegate used when a Receiving thread settings has been changed
+/**  
+ * Serves as a higher level abstraction of a specific protocol such as Art-Net or sACN with the purpose to hide its complexity. 
+ * 
+ * By that the commonly expected responsability of the implementation is to:
+ * - Provide a way to send and receive protocol specific DMX from and to the system.
+ * - Push received DXM as generic DMXSignals to the registered DMXInputPorts.
+ * - Pull generic DMXSignals from the registered DMXOutputPorts and send it as Protocol specific DMX. 
  *
- * @param InRefreshRate						Receiving refresh rate
- * @param bInUseSeparateReceivingThread		If true, uses a separate thread to receive DMX
+ * For an overview for DMX and protocol developers, see DMXPortManager (in IO folder)
+ * For an exemplary implementation, see DMXProtocolArtNet (in ProtocolArtNetModule)
+ *
+ * FOR PROTOCOL DEVELOPERS
+ * =======================
+ *
+ * * Naming Guideline/Terminology
+ * ============================
+ *
+ * Senders, Receivers		Send and Receive Protocol specific DMX. For protocol implementations only, should not be publicly exposed.
+ * InputPorts, OutputPorts	Send and Receive Protocol agnostic DMX.
+ * Listeners				Listen to DMX traffic of Ports and input heard DMX into the engine. 
+ *
+ * DMX Protocol Life-Cycle 
+ * =======================
+ *
+ * Startup:
+ *
+ *  1. DMX Protocol Module gets instantiated (Pre-Default).
+ *		- DMX Protocol Manager gets created
+ *		- DMX Protocol Settings CDO gets created
+ *
+ *  2. Modules that implement actual protocol (e.g. DMXProtocolArtNet) are instantiated. 
+ *		- Each module registeres itself with the Protocol Module via IDMXProtocolModule::RegisterProtocol
+ *		- The module waits for all protocols being registered
+ *		- A check is hit if more protocol modules register itself than expected 
+ *		  To add a new protocol you need to increase the counter in DMXProtocolModule.
+ *
+ *  3. DMX Port Manager gets started
+ *		- Looks up DMX Protocol Settings instantiates DMX Ports according to the DMX Port Config Arrays
+ *		- Calls FDMXPort::Initialize on each port right after instantiation.
+ *
+ *  4. The DMX Ports register themselves with their protocol by calling IDMXProtocol::RegisterInputPort resp. IDMXProtocol::RegisterOutputPort.
+ *		- Pass received DMX by calling DMXInputPort::SingleProducerInputDMXSignal on all Input Ports.
+ *		  The Input Ports do the required filtering for relevant data, you don't need to do it.
+ *		- The protocol needs to return an object that implements IDMXSender for each registered OutputPort.
+ *		- If an Input Port cannot be registered, e.g. because the network interface is not reachable, the protocol needs to return false.
+ *		- If an Output Port cannot be registered, e.g. because the network interface is not reachable, the protocol needs to return nullptr.
+ *		(see DMXProtocolArtNet for an example)
+ *
  */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReceivingThreadChanged, int32 /*InRefreshRate*/, bool/*bInUseSeparateReceivingThread*/);
-typedef FOnReceivingThreadChanged::FDelegate FOnReceivingThreadChangedDelegate;
-
-struct FDMXCommunicationEndpoint;
-
-/**  Generic protocol interface, it should be inherited by all protocol implementations. */
 class DMXPROTOCOL_API IDMXProtocol 
 	: public IDMXProtocolBase
-	, public IDMXProtocolRDM
 {
+
+	///////////////////////////////////////////////////
+	// ~Begin IDMXProtocol Interface definition
+
+public:
+	/**
+	 * Whether protocol enabled
+	 * @return Return true if the protocol is enabled
+	 */
+	virtual bool IsEnabled() const = 0;
+
+	/**
+	 * Get the Protocol Name
+	 * @return Return FName of the protocol
+	 */
+	virtual const FName& GetProtocolName() const = 0;
+
+	/**
+	 * Get minimum supported universe ID for protocol
+	 * @return		Minimum supported universe ID for protocol
+	 */
+	virtual int32 GetMinUniverseID() const = 0;
+
+	/**
+	 * Get maximum supported universe ID for protocol
+	 * @return		Maximum supported universe ID for protocol
+	 */
+	virtual int32 GetMaxUniverseID() const = 0;
+
+	/** Returns true if the Universe ID is valid for the protocol */
+	virtual bool IsValidUniverseID(int32 UniverseID) const = 0;
+
+	/** Returns a valid Universe ID as close as possible to the provided Universe ID */
+	virtual int32 MakeValidUniverseID(int32 DesiredUniverseID) const = 0;
+
+	/** 
+	 * Returns the communication types the protocol supports for its input ports. 
+	 * Can be empty if the protocol doesn't want to expose a selection to the user.
+	 * If an empty array is returned, input ports that use the protocol will set CommunicationType to EDMXCommunicationType::InternalOnly.
+	 *
+	 * @return	Array of communication types the user can select from, when defining input ports in editor. 
+	 */
+	virtual const TArray<EDMXCommunicationType> GetInputPortCommunicationTypes() const = 0;
+
+	/**
+	 * Returns the communication types the protocol supports for its input ports.
+	 * Can be empty if the protocol doesn't want to expose a selection to the user.
+	 * If an empty array is returned, output ports that use the protocol will set CommunicationType to EDMXCommunicationType::InternalOnly.
+	 *
+	 * @return						Array of communication types the user can select from, when defining output ports in editor.
+	 */
+	virtual const TArray<EDMXCommunicationType> GetOutputPortCommunicationTypes() const = 0;
+
+	/** 
+	 * Called to register a DMXInputPort with the protocol. 
+	 * This should be implemented so each port can only register once (see Art-Net for an example). 
+	 *
+	 * @param	InputPort			The input port that needs to be registered
+	 * @return						True if the port was successfully registered
+	 */
+	virtual bool RegisterInputPort(const FDMXInputPortSharedRef& InputPort) = 0;
+
+	/**
+	 * Called to unregister a DMXInputPort with the protocol.
+	 *
+	 * @param	InputPort			The input port that needs to be unregistered
+	 */
+	virtual void UnregisterInputPort(const FDMXInputPortSharedRef& InputPort) = 0;
+
+	/** 
+	 * Called to register a DMXOutputPort with the protocol.
+	 * If initially valid, returned sender needs to guarantee to be valid while the port is registered.
+	 * This should be implemented so each port can only register once (see Art-Net for an example).
+	 *
+	 * @param	OutputPort			The Output port that needs to be registered
+	 * @return						The DMX sender, or nullptr if the port couldn't be registered.
+	 */
+	virtual TSharedPtr<IDMXSender> RegisterOutputPort(const FDMXOutputPortSharedRef& OutputPort) = 0;
+
+	/**
+	 * Called to unregister a DMXOutputPort with the protocol.
+	 *
+	 * @param	OutputPort			The Output port that needs to be unregistered
+	 */
+	virtual void UnregisterOutputPort(const FDMXOutputPortSharedRef& OutputPort) = 0;
+
+	/**
+	 * Called to deduce if the communication type will be heard by corresponding input ports.
+	 *
+	 * As an example, this should be true, when the output port broadcasts to network. Broadcast traffic is heard
+	 * by any input port that receives this protocol on corresponding universes. We forward this info to users,
+	 * so they can take appropriate messures when specifying their ports.
+	 *
+	 * @param	InCommunicationType		The communication type that may cause intrinsic loopback
+	 */
+	virtual bool IsCausingLoopback(EDMXCommunicationType InCommunicationType) = 0;
+	
+	// ~End IDMXProtocol Interface definition
+	///////////////////////////////////////////////////
+
 public:
 	static const TMap<FName, IDMXProtocolFactory*>& GetProtocolFactories()
 	{
@@ -83,224 +223,4 @@ public:
 		FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>(DMXProtocolModuleName);
 		return DMXProtocolModule.GetProtocol(ProtocolName);
 	}
-
-	/**
-	 * Get the Protocol Name
-	 * @return Return FName of the protocol
-	 */
-	virtual const FName& GetProtocolName() const = 0;
-	
-
-	virtual const IDMXUniverseSignalMap& GameThreadGetInboundSignals() const = 0;
-
-	/**
-	 * Get the Protocol Sender Interface
-	 * Sender interface holds the functionality to queue and physically send the DMX buffer
-	 * @return Return the pointer to SenderInterface
-	 */
-	virtual TSharedPtr<IDMXProtocolSender> GetSenderInterface() const = 0;
-
-	/**
-	 * Get the protocol settings
-	 * @return Return the pointer to Protocol Settings
-	 */
-	virtual TSharedPtr<FJsonObject> GetSettings() const = 0;
-
-	/**
-	 * Whether protocol enabled
-	 * @return Return true if the protocol is enabled
-	 */
-	virtual bool IsEnabled() const = 0;
-
-	/**
-	 * Sets if DMX is sent to the network. 
-	 * NOTE: Should be set to same for all protocols as. This is a globally accessible switch, see DMXProtocolSettings, DMXProtocolBlueprintLibrary.
-	 * @param bEnabled	If true, sends DMX signals to the network.
-	 */
-	virtual void SetSendDMXEnabled(bool bEnabled) = 0;
-
-	 /**
-	 * Returns whether dmx is received from network.
-	 * @return Return	If true, DMX is received from the network.
-	 */
-	virtual bool IsSendDMXEnabled() const = 0;
-
-	/**
-	 * Sets if DMX is received from the network. 
-	 * NOTE: Should be set to same for all protocols. This is a globally accessible switch, see DMXProtocolSettings, DMXProtocolBlueprintLibrary.
-	 * @param bEnabled	If true, receives inbound DMX signals, else ignores them.
-	 */
-	virtual void SetReceiveDMXEnabled(bool bEnabled) = 0;
-
-	 /**
-	 * Returns whether dmx is received from network.
-	 * @return Return	If true, DMX is received from the network.
-	 */
-	virtual bool IsReceiveDMXEnabled() const = 0;
-
-	/**
-	 * Add universe to the manager
-	 * @param  FJsonObject universe settings, such as UniverseID, Subnet, etc.
-	 * This is unique to each protocol implementation
-	 * @return Return the pointer to universe
-	 */
-	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) = 0;
-
-	/**
-	 * Collects the universes related to a UniverseManger Entity and add them to
-	 * the protocol to be used for communication.
-	 * @param Universes The list of universes from the Entity.
-	 */
-	virtual void CollectUniverses(const TArray<FDMXCommunicationEndpoint>& Endpoints) = 0;
-
-	/**
-	* Update the universe by id in universe manager
-	* @param InUniverseId id of the universe we are going to update
-	* @param InSettings FJsonObject of universe settings, such as UniverseId, Unicast IP, etc
-	**/
-	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings) = 0;
-
-	/**
-	 * Remove Universe from the Protocol Universe Manager.
-	 * @param  InUniverseId unique number of universe
-	 * @return Return true if it was successfully removed
-	 */
-	virtual bool RemoveUniverseById(uint32 InUniverseId) = 0;
-
-	/**  Remove all universes from protocol manager */
-	virtual void RemoveAllUniverses() = 0;
-
-	/**
-	 * Getting Universe from the Protocol Universe Manager.
-	 * @param  InUniverseId unique number of universe
-	 * @return Return the pointer to the universe, or nullptr if there is no Universe by the given ID
-	 */
-	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const = 0;
-
-	/**
-	 * Getting Universe from the Protocol Universe Manager.
-	 * Creates a default new universe if the universe doesn't exist
-	 *
-	 * @param  InUniverseId unique number of universe
-	 * @return Return the pointer to the universe.
-	 */
-	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseByIdCreateDefault(uint32 InUniverseId);
-
-	/**
-	 * Get current amount of universes in the Map
-	 * @return Return amount of universes in the Map
-	 */
-	virtual uint32 GetUniversesNum() const = 0;
-
-	/**
-	 * Get minimum supported universe ID for protocol
-	 * @return Minimum supported universe ID for protocol
-	 */
-	virtual uint16 GetMinUniverseID() const = 0;
-	
-	/**
-	 * Get maximum supported universes in protocol
-	 * @return Maximum supported universes in protocol
-	 */
-	virtual uint16 GetMaxUniverses() const = 0;
-
-	/**
-	 * Injects a DMX fragment directly into the input buffers. No networking involved.
-	 * @param  UniverseID ID of universe to input
-	 * @param  DMXFragment Map of DMX channel  and values
-	 * @return Return the status of sending
-	 */
-	virtual EDMXSendResult InputDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) = 0;
-
-	/**
-	 * Sets the DMX fragment for a particular universe
-	 * @param  UniverseID ID of universe to send
-	 * @param  DMXFragment Map of DMX channel  and values
-	 * @return Return the status of sending
-	 */
-	virtual EDMXSendResult SendDMXFragment(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) = 0;
-
-	/**
-	 * Sets the DMX fragment for a particular universe
-	 * Create protocol Universe if it does not exist
-	 * @param  UniverseID ID of universe to send
-	 * @param  DMXFragment Map of DMX channel  and values
-	 * @return Return the status of sending
-	 */
-	virtual EDMXSendResult SendDMXFragmentCreate(uint16 UniverseID, const IDMXFragmentMap& DMXFragment) = 0;
-
-	/**
-	 * Sets zeroed DMX universe
-	 *
-	 * @param  UniverseID ID of universe to send
-	 * @param  bForceSendDMX whether DMX should be sent over the network
-	 * @return Return the status of sending
-	 */
-	virtual EDMXSendResult SendDMXZeroUniverse(uint16 UniverseID, bool bForceSendDMX = false) = 0;
-
-	/**
-	 * Gets the final protocol universe ID to send
-	 * This is implemented protocol-specific offset
-	 * @param  UniverseID ID of universe to send
-	 * @return Return final Universe ID for sending
-	 */
-	virtual uint16 GetFinalSendUniverseID(uint16 InUniverseID) const = 0;
-
-	/**
-	 * Modify the FJsonObject passed in with the correct fields for Universe InUniverseID
-	 * @param InUniverseID Universe ID 
-	 * @param OutSettings is the FJsonObject to set the fields in
-	 */
-	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const = 0;
-
-	/**
-	 * Zeroes Input DMX Buffers in all active Universes
-	 */
-	virtual void ClearInputBuffers() = 0;
-
-	/**
-	 * Zeroes Output DMX Buffers in all active Universes
-	 */
-	virtual void ZeroOutputBuffers() = 0;
-
-
-	/**
-	 * Called on when a Universe Input Buffer was updated
-	 * Event Parameters: FName ProtocolName, uint16 UniverseID, const TArray<uint8>& InputBuffer
-	 */
-	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseInputBufferUpdated, FName, uint16, const TArray<uint8>&);
-	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() = 0;
-
-	/**
-	 * Called on when a Universe Output Buffer was updated
-	 * Event Parameters: FName ProtocolName, uint16 UniverseID, const TArray<uint8>& OutputBuffer
-	 */
-	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnUniverseOutputBufferUpdated, FName, uint16, const TArray<uint8>&);
-	virtual FOnUniverseOutputBufferUpdated& GetOnUniverseOutputBufferUpdated() = 0;
-
-	/**
-	 * Called when a packet was Received
-	 * Event Parameters: FName ProtocolName, uint16 UniverseID, const TArray<uint8>& Packet
-	 */
-	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnPacketReceived, FName, uint16, const TArray<uint8>&);
-	virtual FOnPacketReceived& GetOnPacketReceived() = 0;
-
-	/**
-	 * Called when a packet was sent
-	 * Event Parameters: FName Protocol Name, uint16 UniverseID, const TArray<uint8>& Packet
-	 */
-	DECLARE_EVENT_ThreeParams(IDMXProtocol, FOnPacketSent, FName, uint16, const TArray<uint8>&);
-	virtual FOnPacketSent& GetOnPacketSent() = 0;
-
-	/**
-	 * Called when a packet was sent
-	 * Event Parameters: FName Protocol Name, uint16 UniverseID, const TArray<uint8>& Packet
-	 */
-	DECLARE_EVENT_TwoParams(IDMXProtocol, FOnGameThreadOnlyBufferUpdated, const FName& /*InProtocolName*/, int32 /* InUniverseID */);
-	virtual FOnGameThreadOnlyBufferUpdated& GetOnGameThreadOnlyBufferUpdated() = 0;
-
-public:
-	/** Delegate used for listening to a network interface changes  */
-	static FOnNetworkInterfaceChanged OnNetworkInterfaceChanged;
 };
-

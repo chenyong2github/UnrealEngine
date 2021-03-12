@@ -15,8 +15,6 @@ public class DMXRuntime : ModuleRules
                 "CoreUObject",
                 "Engine",
 				"DMXProtocol",
-				"DMXProtocolArtNet",
-				"DMXProtocolSACN",
 			}
 		);
 

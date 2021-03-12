@@ -19,6 +19,11 @@
 			"LoadingPhase": "PreDefault"
 		},
 		{
+			"Name": "DMXProtocolEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
 			"Name": "DMXProtocolArtNet",
 			"Type": "Runtime",
 			"LoadingPhase": "Default"

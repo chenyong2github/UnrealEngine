@@ -2,11 +2,12 @@
 
 #include "SDMXFader.h"
 
+#include "DMXEditorLog.h"
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolSettings.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXOutputPort.h"
 #include "Widgets/OutputConsole/SDMXOutputFaderList.h"
-#include "DMXEditorLog.h"
 
 #include "Styling/SlateTypes.h"
 #include "Widgets/Common/SSpinBoxVertical.h"
@@ -34,23 +35,13 @@ void SDMXFader::Construct(const FArguments& InArgs)
 	OnRequestDelete = InArgs._OnRequestDelete;
 	OnRequestSelect = InArgs._OnRequestSelect;
 	FaderName = InArgs._FaderName.ToString();
-
-	// Init args and test them for general DMX validity, no protocol specifics
-	check(InArgs._UniverseID >= 0 && InArgs._UniverseID < DMX_MAX_UNIVERSE);
 	UniverseID = InArgs._UniverseID;
-
-	check(InArgs._MaxValue > 0 && InArgs._MaxValue <= DMX_MAX_VALUE);
 	MaxValue = InArgs._MaxValue;
-
-	check(InArgs._MinValue < InArgs._MaxValue && InArgs._MinValue >= 0);
 	MinValue = InArgs._MinValue;
-
-	check(InArgs._StartingAddress >= 0 && InArgs._StartingAddress < DMX_MAX_ADDRESS);
 	StartingAddress = InArgs._StartingAddress;
-
-	check(InArgs._EndingAddress >= 0 && InArgs._EndingAddress < DMX_MAX_ADDRESS);
 	EndingAddress = InArgs._EndingAddress;
 
+	SanetizeDMXProperties();
 
 	// Init styles
 	FSlateBrush FillBrush;
@@ -210,19 +201,9 @@ void SDMXFader::Construct(const FArguments& InArgs)
 				[
 					GenerateAdressEditWidget()
 				]
-
-				+ SVerticalBox::Slot()
-				.VAlign(VAlign_Top)
-				.HAlign(HAlign_Fill)
-				[
-					GenerateProtocolComboBox(InArgs._ProtocolName)
-				]
 			]
 		]
 	];
-
-	// Send dmx from the console as it was initialized
-	SendDMX();
 }
 
 void SDMXFader::Select()
@@ -243,28 +224,43 @@ void SDMXFader::Unselect()
 	BackgroundBorder->SetBorderImage(FEditorStyle::GetBrush("DetailsView.CategoryMiddle"));
 }
 
-void SDMXFader::SendDMX()
+void SDMXFader::SanetizeDMXProperties()
 {
-	IDMXFragmentMap FragmentMap;
-	for (int32 Channel = StartingAddress; Channel <= EndingAddress; Channel++)
+	if (UniverseID < 0)
 	{
-		FragmentMap.Add(Channel, Value);
+		UniverseID = 0;
+	}
+	else if (UniverseID > DMX_MAX_UNIVERSE)
+	{
+		UniverseID = DMX_MAX_UNIVERSE;
 	}
 
-	check(Protocol.IsValid());
-
-	// If sent DMX will not be looped back via network, input it directly
-	const bool bCanLoopback = Protocol->IsReceiveDMXEnabled() && Protocol->IsSendDMXEnabled();
-	if (!bCanLoopback)
+	if (MaxValue > DMX_MAX_VALUE)
 	{
-		Protocol->InputDMXFragment(UniverseID, FragmentMap);
+		MaxValue = DMX_MAX_VALUE;
 	}
 
-	// TODO: This does not overcome issues with SendDMXFragment as described in #397
-	EDMXSendResult SendResult = Protocol->SendDMXFragmentCreate(UniverseID, FragmentMap);
-	if (SendResult != EDMXSendResult::Success)
+	if (MinValue > MaxValue)
 	{
-		UE_LOG_DMXEDITOR(Error, TEXT("Error sending DMX"));
+		MinValue = MaxValue;
+	}
+
+	if (EndingAddress < 1)
+	{
+		EndingAddress = 1;
+	}
+	else if (EndingAddress > DMX_MAX_ADDRESS)
+	{
+		EndingAddress = DMX_MAX_ADDRESS;
+	}
+
+	if (StartingAddress < 1)
+	{
+		StartingAddress = 1;
+	}
+	else if (StartingAddress > EndingAddress)
+	{
+		StartingAddress = EndingAddress;
 	}
 }
 
@@ -387,82 +383,6 @@ TSharedRef<SWidget> SDMXFader::GenerateAdressEditWidget()
 		];
 }
 
-TSharedRef<SComboBox<TSharedPtr<FName>>> SDMXFader::GenerateProtocolComboBox(const FName& InitialProtocolName)
-{
-	TArray<FName> ProtocolNames = FDMXProtocolName::GetPossibleValues();
-	for (const FName& Name : ProtocolNames)
-	{
-		ProtocolNameArray.Add(MakeShared<FName>(Name));
-	}
-	
-	ProtocolComboBox =
-		SNew(SComboBox<TSharedPtr<FName>>)
-		.OptionsSource(&ProtocolNameArray)
-		.OnGenerateWidget(this, &SDMXFader::GenerateProtocolComboBoxEntry)
-		.OnSelectionChanged(this, &SDMXFader::OnProtocolSelected)			
-		[
-			SNew(STextBlock)	
-			.Font(DMXFader::NameFont)
-			.Text(this, &SDMXFader::GetSelectedProtocolText)
-		];
-
-	// Select the initial protocol
-	TSharedPtr<FName>* InitialProtocolNamePtr = ProtocolNameArray.FindByPredicate([&](const TSharedPtr<FName>& ProtocolNameCandidate) {
-		return *ProtocolNameCandidate == InitialProtocolName;
-	});
-	check(InitialProtocolNamePtr);
-	ProtocolComboBox->SetSelectedItem(*InitialProtocolNamePtr);
-
-	return ProtocolComboBox.ToSharedRef();
-}
-
-const FName& SDMXFader::GetProtocolName() const
-{
-	check(Protocol.IsValid());
-
-	return Protocol->GetProtocolName();
-}
-
-TSharedRef<SWidget> SDMXFader::GenerateProtocolComboBoxEntry(TSharedPtr<FName> ProtocolName)
-{
-	check(ProtocolName.IsValid());
-
-	return
-		SNew(STextBlock)
-		.Font(DMXFader::NameFont)
-		.Text(FText::FromString((*ProtocolName.Get()).ToString()));
-}
-
-FText SDMXFader::GetSelectedProtocolText() const
-{
-	check(ProtocolComboBox.IsValid());
-	TSharedPtr<FName> ProtocolName = ProtocolComboBox->GetSelectedItem();
-	check(ProtocolName.IsValid());
-
-	return FText::FromString(ProtocolName.Get()->ToString());
-}
-
-void SDMXFader::OnProtocolSelected(TSharedPtr<FName> NewProtocolName, ESelectInfo::Type SelectInfo)
-{
-	check(NewProtocolName.IsValid());
-
-	FDMXProtocolName ProtocolName = FDMXProtocolName(*NewProtocolName.Get());
-	Protocol = IDMXProtocol::Get(ProtocolName);
-	check(Protocol.IsValid());
-
-	int32 OldUniverseID = UniverseID;
-
-	if (UniverseID > Protocol->GetMaxUniverses())
-	{
-		UniverseID = Protocol->GetMaxUniverses();
-
-		check(Protocol.IsValid());
-		FJsonObject UniverseSettings;
-		Protocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
-		Protocol->AddUniverse(UniverseSettings);
-	}
-}
-
 uint8 SDMXFader::GetValue() const
 {
 	check(FaderSpinBox.IsValid());
@@ -486,7 +406,6 @@ FReply SDMXFader::OnDeleteClicked()
 void SDMXFader::HandleValueChanged(uint8 NewValue)
 {
 	Value = NewValue;
-	SendDMX();
 }
 
 void SDMXFader::OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Type InCommit)
@@ -574,22 +493,8 @@ void SDMXFader::OnUniverseIDCommitted(const FText& UniverseIDText, ETextCommit::
 	int32 NewUniverseID;
 	if (LexTryParseString<int32>(NewUniverseID, *Str))
 	{
-		if (UniverseID != NewUniverseID)
-		{
-			int32 OldUniverseID = UniverseID;
-
-			if (UniverseID != NewUniverseID)
-			{
-				check(Protocol.IsValid());
-				check(NewUniverseID >= 0 && NewUniverseID < Protocol->GetMaxUniverses());
-
-				UniverseID = NewUniverseID;
-
-				FJsonObject UniverseSettings;
-				Protocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
-				Protocol->AddUniverse(UniverseSettings);
-			}
-		}
+		UniverseID = NewUniverseID;
+		SanetizeDMXProperties();
 	}
 }
 
@@ -601,8 +506,7 @@ bool SDMXFader::VerifyStartingAddress(const FText& StartingAddressText, FText& O
 		int32 StrValue;
 		if (LexTryParseString<int32>(StrValue, *Str))
 		{
-			check(Protocol.IsValid());
-			if (StrValue > 0 && StrValue <= Protocol->GetMaxUniverses())
+			if (StrValue > 0 && StrValue <= DMX_MAX_UNIVERSE)
 			{
 				return true;
 			}
@@ -621,13 +525,7 @@ void SDMXFader::OnStartingAddressCommitted(const FText& StartingAddressText, ETe
 		if (StartingAddress != StrValue)
 		{
 			StartingAddress = StrValue;
-
-			if (StartingAddress > EndingAddress)
-			{
-				EndingAddress = StartingAddress;
-			}
-
-			SendDMX();
+			SanetizeDMXProperties();
 		}
 	}
 }
@@ -659,13 +557,7 @@ void SDMXFader::OnEndingAddressCommitted(const FText& EndingAddressText, ETextCo
 		if (EndingAddress != StrValue)
 		{
 			EndingAddress = StrValue;
-
-			if (EndingAddress < StartingAddress)
-			{
-				StartingAddress = EndingAddress;
-			}
-
-			SendDMX();
+			SanetizeDMXProperties();
 		}
 	}
 }
@@ -678,7 +570,7 @@ bool SDMXFader::VerifyMaxValue(const FText& MaxValueText, FText& OutErrorText)
 		int32 StrValue;
 		if (LexTryParseString<int32>(StrValue, *Str))
 		{
-			if (StrValue >= 0 && StrValue <= 255)
+			if (StrValue >= 0 && StrValue <= DMX_MAX_VALUE)
 			{
 				if (StrValue >= MinValue)
 				{
@@ -700,6 +592,8 @@ void SDMXFader::OnMaxValueCommitted(const FText& MaxValueText, ETextCommit::Type
 	if (LexTryParseString<int32>(StrValue, *Str))
 	{
 		MaxValue = StrValue;
+		SanetizeDMXProperties();
+
 		FaderSpinBox->SetMaxValue(MaxValue);
 
 		if (Value > MaxValue)
@@ -720,7 +614,7 @@ bool SDMXFader::VerifyMinValue(const FText& MinValueText, FText& OutErrorText)
 		int32 StrValue;
 		if (LexTryParseString<int32>(StrValue, *Str))
 		{
-			if (StrValue >= 0 && StrValue <= 255)
+			if (StrValue >= 0 && StrValue <= DMX_MAX_VALUE)
 			{
 				if (StrValue <= MaxValue)
 				{
@@ -742,6 +636,8 @@ void SDMXFader::OnMinValueCommitted(const FText& MinValueText, ETextCommit::Type
 	if (LexTryParseString<int32>(StrValue, *Str))
 	{
 		MinValue = StrValue;
+		SanetizeDMXProperties();
+
 		FaderSpinBox->SetMinValue(MinValue);
 
 		if (Value < MinValue)

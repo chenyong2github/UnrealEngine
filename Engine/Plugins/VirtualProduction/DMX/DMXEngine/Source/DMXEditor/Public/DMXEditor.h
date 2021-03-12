@@ -5,18 +5,20 @@
 #include "WorkflowOrientedApp/WorkflowCentricApplication.h"
 #include "Misc/NotifyHook.h"
 
-class UDMXLibrary;
-class SDockTab;
-class UFactory;
-class SDMXInputConsole;
-class SDMXControllerEditor;
-class SDMXFixturePatchEditor;
-class SDMXFixtureTypeEditor;
-class SDMXEntityEditor;
 class FDMXEditorToolbar;
 class FDMXFixtureTypeSharedData;
 class FDMXFixturePatchSharedData;
+class SDMXEntityEditor;
+class SDMXInputConsole;
+class SDMXFixturePatchEditor;
+class SDMXFixtureTypeEditor;
+class SDMXLibraryEditorTab;
 class UDMXEntity;
+class UDMXLibrary;
+
+class SDockTab;
+class UFactory;
+
 
 // Used to enable Entity creator code to inject a base name before the entity creation
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnGetBaseNameForNewEntity, TSubclassOf<UDMXEntity>, FString&);
@@ -26,18 +28,14 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnSetupNewEntity, UDMXEntity*);
 class DMXEDITOR_API FDMXEditor
 	: public FWorkflowCentricApplication	// Allow Add ApplicationModes
 	, public FNotifyHook
-{
+{	
 public:
-	FDMXEditor();
-
-	virtual ~FDMXEditor();
-
 	//~ Begin IToolkit implementation
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
-	//~ End IToolkit implementationFExtensibilityManager
+	//~ End IToolkit Implementation
 
 	/** Adds a new Entity to this DMX Library */
 	void OnAddNewEntity(TSubclassOf<UDMXEntity> InEntityClass);
@@ -64,7 +62,7 @@ public:
 	TArray<UDMXEntity*> GetSelectedEntitiesFromTypeTab(TSubclassOf<UDMXEntity> InEntityClass) const;
 
 	//~ Getters for the various DMX widgets
-	TSharedRef<SDMXControllerEditor> GetControllerEditor() const { return ControllerEditor.ToSharedRef(); }
+	TSharedRef<SDMXLibraryEditorTab> GetDMXLibraryEditorTab() const { return DMXLibraryEditorTab.ToSharedRef(); }
 	TSharedRef<SDMXFixturePatchEditor> GetFixturePatchEditor() const { return FixturePatchEditor.ToSharedRef(); }
 	TSharedRef<SDMXFixtureTypeEditor> GetFixtureTypeEditor() const { return FixtureTypeEditor.ToSharedRef(); }
 
@@ -114,7 +112,7 @@ private:
 	UDMXLibrary* GetEditableDMXLibrary() const;
 
 	//~ Generate Editor widgets for tabs
-	TSharedRef<SDMXControllerEditor> CreateControllerEditor();
+	TSharedRef<SDMXLibraryEditorTab> CreateDMXLibraryEditorTab();
 	TSharedRef<SDMXFixtureTypeEditor> CreateFixtureTypeEditor();
 	TSharedRef<SDMXFixturePatchEditor> CreateFixturePatchEditor();
 
@@ -125,9 +123,8 @@ private:
 	/** The name given to all instances of this type of editor */
 	static const FName ToolkitFName;
 
-	// TODO. Should sold object for particular DMX object, like actor components in blueprint editor
-	/** UI for the "DMX Controllers" tab */
-	TSharedPtr<SDMXControllerEditor> ControllerEditor;
+	/** UI for the "DMX Library Editor" tab */
+	TSharedPtr<SDMXLibraryEditorTab> DMXLibraryEditorTab;
 
 	/** UI for the "DMX Fixture Types" tab */
 	TSharedPtr<SDMXFixtureTypeEditor> FixtureTypeEditor;

@@ -22,7 +22,6 @@ public:
 	TSharedPtr< FUICommandInfo > GoToDocumentation;
 
 	// Entity Editor related
-	TSharedPtr< FUICommandInfo > AddNewEntityController;
 	TSharedPtr< FUICommandInfo > AddNewEntityFixtureType;
 	TSharedPtr< FUICommandInfo > AddNewEntityFixturePatch;
 	

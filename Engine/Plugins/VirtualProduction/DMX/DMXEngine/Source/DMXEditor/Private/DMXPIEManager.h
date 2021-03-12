@@ -22,7 +22,4 @@ private:
 
 	/** Called when play in editor ends */
 	void OnEndPIE(const bool bIsSimulating);
-
-	/** Clears DMX Buffers */
-	void ZeroAllBuffers();
 };

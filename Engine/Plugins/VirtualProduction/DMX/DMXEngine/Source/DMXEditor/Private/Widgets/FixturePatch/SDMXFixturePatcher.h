@@ -120,11 +120,8 @@ protected:
 	/** Returns true if the patcher allows for the selection of a single universe and show only that */
 	bool IsUniverseSelectionEnabled() const;
 
-	/** Returns true if the library has any controllers */
-	bool HasAnyControllers() const;
-
-	/** Returns true if the universes currently being displayed are in Controllers range */
-	bool AreUniversesInControllersRange() const;
+	/** Returns true if the library has any ports */
+	bool HasAnyPorts() const;
 
 	/** If true updates selection once during tick and resets */
 	int32 UniverseToSetNextTick = INDEX_NONE;

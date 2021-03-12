@@ -575,7 +575,6 @@ private:
 	
 	/** Empty Nodes array and create a FDMXEntityListTreeNode for each relevant entity and category */
 	void InitializeNodes();
-	void InitializeNodesForControllers();
 	void InitializeNodesForFixtureTypes();
 	void InitializeNodesForPatches();
 

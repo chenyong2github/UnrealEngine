@@ -5,17 +5,16 @@
 #include "DMXProtocolBlueprintLibrary.h"
 #include "DMXProtocolConstants.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXPortManager.h"
 
-#include "IPAddress.h"
-#include "Misc/Parse.h"
-#include "SocketSubsystem.h"
+#include "Misc/ScopeLock.h"
 
 
 UDMXProtocolSettings::UDMXProtocolSettings()
-	: SendingRefreshRate(DMX_MAX_REFRESH_RATE)
-	, ReceivingRefreshRate(DMX_MAX_REFRESH_RATE)
-	, bDefaultReceiveDMXEnabled(true)
+	: SendingRefreshRate(DMX_RATE)
+	, ReceivingRefreshRate(DMX_RATE)
 	, bDefaultSendDMXEnabled(true)
+	, bDefaultReceiveDMXEnabled(true)
 	, bOverrideReceiveDMXEnabled(true)
 	, bOverrideSendDMXEnabled(true)	
 {
@@ -71,25 +70,21 @@ UDMXProtocolSettings::UDMXProtocolSettings()
 		{ TEXT("Angle"),			TEXT("") },
 		{ TEXT("NumBeams"),			TEXT("") }
 	};
+}
 
+void UDMXProtocolSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
 
-	// Find a good default default network interface IP address
-	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-
-	TSharedRef<FInternetAddr> PreferedIPAddress = SocketSubsystem->CreateInternetAddr();
-	PreferedIPAddress->SetIp(*TEXT("127.0.0.1"));
-
-	TArray<TSharedPtr<FInternetAddr>> Addresses;
-	SocketSubsystem->GetLocalAdapterAddresses(Addresses);
-
-	if (Addresses.Contains(PreferedIPAddress))
+	// Force cleanup of the keywords on load
+	// This is required for supporting previous implementations where spaces were used
+	for (FDMXAttribute& Attribute : Attributes)
 	{
-		InterfaceIPAddress = TEXT("127.0.0.1");
+		Attribute.CleanupKeywords();
 	}
-	else
-	{
-		InterfaceIPAddress = TEXT("0.0.0.0");
-	}
+
+	bOverrideSendDMXEnabled = bDefaultSendDMXEnabled;
+	bOverrideReceiveDMXEnabled = bDefaultReceiveDMXEnabled;
 }
 
 #if WITH_EDITOR
@@ -113,15 +108,11 @@ void UDMXProtocolSettings::PostEditChangeProperty(FPropertyChangedEvent& Propert
 #endif // WITH_EDITOR
 
 #if WITH_EDITOR
-void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
+void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent)
 {
-	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	const FName PropertyName = PropertyChangedChainEvent.GetPropertyName();
 
-	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InterfaceIPAddress))
-	{
-		IDMXProtocol::OnNetworkInterfaceChanged.Broadcast(InterfaceIPAddress);
-	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, FixtureCategories))
 	{
 		if (FixtureCategories.Num() == 0)
 		{
@@ -130,8 +121,9 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 
 		FDMXFixtureCategory::OnValuesChanged.Broadcast();
 	}
-	else if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, Attributes) || 
-		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttribute, Name) || 
+	else if (
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, Attributes) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttribute, Name) ||
 		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXAttribute, Keywords))
 	{
 		if (Attributes.Num() == 0)
@@ -146,38 +138,27 @@ void UDMXProtocolSettings::PostEditChangeChainProperty(FPropertyChangedChainEven
 
 		FDMXAttributeName::OnValuesChanged.Broadcast();
 	}
+	else if (
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InputPortConfigs)	||
+		PropertyName == GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, OutputPortConfigs))
+	{
+		FDMXPortManager::Get().NotifyPortConfigArraysChanged();
+	}
 
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	Super::PostEditChangeChainProperty(PropertyChangedChainEvent);
 }
 #endif // WITH_EDITOR
 
-void UDMXProtocolSettings::PostInitProperties()
+void UDMXProtocolSettings::OverrideSendDMXEnabled(bool bEnabled) 
 {
-	Super::PostInitProperties();
+	bOverrideSendDMXEnabled = bEnabled; 
+	
+	OnSetSendDMXEnabled.Broadcast(bEnabled);
+}
 
-	// force cleanup of the keywords on load
-	// this is required for supporting previous implementations
-	// where spaces were used
-	for (FDMXAttribute& Attribute : Attributes)
-	{
-		Attribute.CleanupKeywords();
-	}
+void UDMXProtocolSettings::OverrideReceiveDMXEnabled(bool bEnabled) 
+{ 
+	bOverrideReceiveDMXEnabled = bEnabled; 
 
-	if (FParse::Bool(FCommandLine::Get(), TEXT("DEFAULTSENDDMXENABLED="), bDefaultSendDMXEnabled))
-	{
-		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Send DMX Enabled from command line, set to %s."), bDefaultSendDMXEnabled ? TEXT("True") : TEXT("False"));
-	}
-	bOverrideSendDMXEnabled = bDefaultSendDMXEnabled;
-
-	if (FParse::Bool(FCommandLine::Get(), TEXT("DEFAULTRECEIVEDMXENABLED="), bDefaultReceiveDMXEnabled))
-	{
-		UE_LOG(LogDMXProtocol, Log, TEXT("Overridden Default Receive DMX Enabled from command line, set to %s."), bDefaultReceiveDMXEnabled ? TEXT("True") : TEXT("False"));
-	}
-	bOverrideReceiveDMXEnabled = bDefaultReceiveDMXEnabled;
-
-	FString CommandLineInterfaceIPAddress;
-	if (FParse::Value(FCommandLine::Get(), TEXT("DMXNETWORKINTERFACEIPADDRESS="), CommandLineInterfaceIPAddress))
-	{
-		InterfaceIPAddress = CommandLineInterfaceIPAddress;
-	}
+	OnSetReceiveDMXEnabled.Broadcast(bEnabled);
 }

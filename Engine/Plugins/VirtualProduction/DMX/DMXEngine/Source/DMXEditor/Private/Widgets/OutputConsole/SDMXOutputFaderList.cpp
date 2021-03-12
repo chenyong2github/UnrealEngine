@@ -5,14 +5,14 @@
 #include "DMXEditorLog.h"
 #include "DMXEditorSettings.h"
 #include "DMXEditorUtils.h"
-#include "Interfaces/IDMXProtocol.h"
+#include "IO/DMXOutputPort.h"
 #include "Widgets/OutputConsole/SDMXFader.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/SNameListPicker.h"
+#include "Widgets/OutputConsole/SDMXOutputConsolePortSelector.h"
 
 #include "Editor.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWrapBox.h"
 
 
@@ -26,8 +26,25 @@ namespace DMXOutputFaderList
 	static FSpinBoxStyle MasterFaderStyle(FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox"));
 };
 
+SDMXOutputFaderList::SDMXOutputFaderList()
+	: NewFaderUniverseID(1)
+	, NewFaderStartingAddress(1)
+	, NumFadersToAdd(1)
+	, bRunSineWaveOscillator(false)
+	, bMacrosAffectAllFaders(false)
+	, SinWavRadians(0.f)
+{}
+
+SDMXOutputFaderList::~SDMXOutputFaderList()
+{
+	SaveFaders();
+	StopOscillators();
+}
+
 void SDMXOutputFaderList::Construct(const FArguments& InArgs)
 {
+	SetCanTick(true);
+
 	FSlateBrush FillBrush;
 	FillBrush.TintColor = DMXOutputFaderList::DefaultFillColor;
 
@@ -86,6 +103,12 @@ void SDMXOutputFaderList::Construct(const FArguments& InArgs)
 			[
 				SNew(SWrapBox)
 				.UseAllottedWidth(true)
+
+				+ SWrapBox::Slot()
+				[
+					SAssignNew(PortSelector, SDMXOutputConsolePortSelector)
+					.OnPortsSelected(this, &SDMXOutputFaderList::OnPortsSelected)
+				]
 
 				+ SWrapBox::Slot()
 				.HAlign(HAlign_Left)
@@ -160,14 +183,33 @@ void SDMXOutputFaderList::Construct(const FArguments& InArgs)
 		];
 
 	RestoreFaders();
-	
+	UpdateOutputPorts();
+
 	FEditorDelegates::OnShutdownPostPackagesSaved.AddSP(this, &SDMXOutputFaderList::OnEditorShutDown);
 }
 
-SDMXOutputFaderList::~SDMXOutputFaderList()
-{	
-	SaveFaders();
-	StopOscillators();
+void SDMXOutputFaderList::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
+{
+	// Accumulate fader values
+	TMap<int32, TMap<int32, uint8>> UniverseToFragmentMap;
+	for (const TSharedPtr<SDMXFader>& Fader : Faders)
+	{
+		TMap<int32, uint8>& FragmentMapRef = UniverseToFragmentMap.FindOrAdd(Fader->GetUniverseID());
+		
+		for (int32 Address = Fader->GetStartingAddress(); Address <= Fader->GetEndingAddress(); Address++)
+		{
+			FragmentMapRef.FindOrAdd(Address) = Fader->GetValue();
+		}		
+	}
+
+	// Send DMX
+	for (const TTuple<int32, TMap<int32, uint8>>& UniverseToFragementKvp : UniverseToFragmentMap)
+	{
+		for (const FDMXOutputPortSharedRef& OutputPort : OutputPorts)
+		{
+			OutputPort->SendDMX(UniverseToFragementKvp.Key, UniverseToFragementKvp.Value);
+		}
+	}
 }
 
 void SDMXOutputFaderList::OnEditorShutDown()
@@ -200,7 +242,6 @@ void SDMXOutputFaderList::SaveFaders()
 			FaderDesc.UniversID = Fader->GetUniverseID();
 			FaderDesc.StartingAddress = Fader->GetStartingAddress();
 			FaderDesc.EndingAddress = Fader->GetEndingAddress();
-			FaderDesc.ProtocolName = Fader->GetProtocolName();
 
 			DMXEditorSettings->OutputConsoleFaders.Add(FaderDesc);			
 		}
@@ -236,7 +277,6 @@ void SDMXOutputFaderList::RestoreFaders()
 		DefaultFaderDesc.UniversID = 1;
 		DefaultFaderDesc.StartingAddress = 1;
 		DefaultFaderDesc.EndingAddress = 1;
-		DefaultFaderDesc.ProtocolName = FDMXProtocolName();
 
 		AddFader(DefaultFaderDesc);
 	}
@@ -246,6 +286,13 @@ void SDMXOutputFaderList::RestoreFaders()
 
 	/** Save in case restored settings were mended */
 	SaveFaders();
+}
+
+void SDMXOutputFaderList::UpdateOutputPorts()
+{
+	check(PortSelector.IsValid());
+
+	OutputPorts = PortSelector->GetSelectedOutputPorts();
 }
 
 void SDMXOutputFaderList::StopOscillators()
@@ -370,26 +417,6 @@ TSharedRef<SWidget> SDMXOutputFaderList::GenerateAddFadersWidget()
 		];
 }
 
-void SDMXOutputFaderList::HandleMasterFaderChanged(uint8 NewValue)
-{
-	for (TSharedPtr<SDMXFader> Fader : Faders)
-	{
-		check(Fader.IsValid());		
-		Fader->SetValueByPercentage(static_cast<float>(NewValue));
-	}
-}
-
-FReply SDMXOutputFaderList::HandleAddFadersClicked()
-{
-	AddFaders();
-
-	check(FaderScrollBox.IsValid());
-	check(Faders.Num() > 0);
-	FaderScrollBox->ScrollDescendantIntoView(Faders.Last());
-
-	return FReply::Handled();
-}
-
 void SDMXOutputFaderList::AddFaders(const FString& InName /*= TEXT("")*/)
 {
 	for (int32 IndexFader = 0; IndexFader < NumFadersToAdd; IndexFader++)
@@ -414,7 +441,6 @@ void SDMXOutputFaderList::AddFaders(const FString& InName /*= TEXT("")*/)
 			.UniverseID(NewFaderUniverseID)
 			.StartingAddress(StartingAddress)
 			.EndingAddress(StartingAddress)
-			.ProtocolName(IDMXProtocol::GetFirstProtocolName())
 			.OnRequestDelete(this, &SDMXOutputFaderList::OnFaderRequestsDelete)
 			.OnRequestSelect(this, &SDMXOutputFaderList::OnFaderRequestsSelect);
 
@@ -440,7 +466,6 @@ void SDMXOutputFaderList::AddFader(const FDMXOutputConsoleFaderDescriptor& Fader
 		.MaxValue(FaderDescriptor.MaxValue)
 		.MinValue(FaderDescriptor.MinValue)
 		.Value(FaderDescriptor.Value)
-		.ProtocolName(FaderDescriptor.ProtocolName)
 		.OnRequestDelete(this, &SDMXOutputFaderList::OnFaderRequestsDelete)
 		.OnRequestSelect(this, &SDMXOutputFaderList::OnFaderRequestsSelect);
 	
@@ -561,7 +586,7 @@ void SDMXOutputFaderList::ApplyMinValueMacro(bool bAffectAllFaders)
 	bMacrosAffectAllFaders = bAffectAllFaders;
 	if (bMacrosAffectAllFaders)
 	{
-		for (TSharedPtr<SDMXFader> Fader : Faders)
+		for (const TSharedPtr<SDMXFader>& Fader : Faders)
 		{
 			Fader->SetValueByPercentage(0.0f);
 		}
@@ -583,7 +608,7 @@ void SDMXOutputFaderList::ApplyMaxValueMacro(bool bAffectAllFaders)
 	bMacrosAffectAllFaders = bAffectAllFaders;
 	if (bMacrosAffectAllFaders)
 	{
-		for (TSharedPtr<SDMXFader> Fader : Faders)
+		for (const TSharedPtr<SDMXFader>& Fader : Faders)
 		{
 			Fader->SetValueByPercentage(100.0f);
 		}
@@ -596,6 +621,13 @@ void SDMXOutputFaderList::ApplyMaxValueMacro(bool bAffectAllFaders)
 			Fader->SetValueByPercentage(100.0f);
 		}
 	}
+}
+
+void SDMXOutputFaderList::OnPortsSelected()
+{
+	check(PortSelector.IsValid());
+
+	OutputPorts = PortSelector->GetSelectedOutputPorts();
 }
 
 FReply SDMXOutputFaderList::OnSortFadersClicked()
@@ -622,6 +654,26 @@ FReply SDMXOutputFaderList::OnSortFadersClicked()
 	}
 
 	SaveFaders();
+
+	return FReply::Handled();
+}
+
+void SDMXOutputFaderList::HandleMasterFaderChanged(uint8 NewValue)
+{
+	for (TSharedPtr<SDMXFader> Fader : Faders)
+	{
+		check(Fader.IsValid());
+		Fader->SetValueByPercentage(static_cast<float>(NewValue));
+	}
+}
+
+FReply SDMXOutputFaderList::HandleAddFadersClicked()
+{
+	AddFaders();
+
+	check(FaderScrollBox.IsValid());
+	check(Faders.Num() > 0);
+	FaderScrollBox->ScrollDescendantIntoView(Faders.Last());
 
 	return FReply::Handled();
 }

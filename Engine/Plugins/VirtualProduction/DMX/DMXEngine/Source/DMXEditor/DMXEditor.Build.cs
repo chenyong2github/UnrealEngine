@@ -13,8 +13,7 @@ public class DMXEditor : ModuleRules
 			{
 				"Core",
 				"DMXProtocol",
-				"DMXProtocolArtNet",
-				"DMXProtocolSACN",
+				"DMXProtocolEditor",
 				"DMXRuntime",
 			}
 		);

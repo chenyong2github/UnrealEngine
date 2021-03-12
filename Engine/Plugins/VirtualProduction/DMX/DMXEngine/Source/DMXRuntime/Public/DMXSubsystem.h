@@ -8,12 +8,15 @@
 #include "DMXTypes.h"
 #include "Library/DMXEntityReference.h"
 #include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXInputPortReference.h"
+#include "Library/DMXOutputPortReference.h"
 #include "Subsystems/EngineSubsystem.h"
 #include "DMXSubsystem.generated.h"
 
 class UDMXLibrary;
 class IDMXProtocol;
 class UDMXEntityFixturePatch;
+
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_ThreeParams(FProtocolReceivedDelegate, FDMXProtocolName, Protocol, int32, RemoteUniverse, const TArray<uint8>&, DMXBuffer);
 
@@ -29,19 +32,32 @@ class DMXRUNTIME_API UDMXSubsystem
 	
 public:
 	/**  Send DMX using function names and integer values. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Use DMXEntityFixurePatch::SendDMX instead"))
 	void SendDMX(UDMXEntityFixturePatch* FixturePatch, TMap<FDMXAttributeName, int32> AttributeMap, EDMXSendResult& OutResult);
 
-	/**  Send DMX using channel and raw values. NOTE: Universe Index cannot be lower than 0. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
+	/**  DEPRECATED 4.27 */
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Use SendDMXToOutputPort instead."))
 	void SendDMXRaw(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TMap<int32, uint8> AddressValueMap, EDMXSendResult& OutResult);
+
+	/**  Sends DMX Values over the Output Port */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void SendDMXToOutputPort(FDMXOutputPortReference OutputPortReference, int32 LocalUniverse, TMap<int32, uint8> ChannelToValueMap);
+
+	/**  DEPRECATED 4.27 */
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Use GetRawBufferFromInputPort or GetRawBufferFromOutputPort from instead."))
+	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TArray<uint8>& DMXBuffer);
+	
+	/**  Gets accumulated latest DMX Values from the Input Port (all that's been received since Begin Play) */
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void GetDMXDataFromInputPort(FDMXInputPortReference InputPortReference, int32 LocalUniverse, TArray<uint8>& DMXData);
+	
+	/**  Gets accumulated latest DMX Values from the Output Port  (all that's been sent since Begin Play)*/
+	UFUNCTION(BlueprintCallable, Category = "DMX")
+	static void GetDMXDataFromOutputPort(FDMXOutputPortReference OutputPortReference, int32 LocalUniverse, TArray<uint8>& DMXData);
 
 	/**  Return reference to array of Fixture Patch objects of a given type. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "FixtureType"))
 	void GetAllFixturesOfType(const FDMXEntityFixtureTypeRef& FixtureType, TArray<UDMXEntityFixturePatch*>& OutResult);
-	
-	UE_DEPRECATED(4.26, "This function is deprecated. The node can simply be removed. Libraries are now accessible at all times, everywhere, without explicit loading.")
-	void LoadDMXLibrary(UDMXLibrary* DMXLibrary) {} // It could be empty. It automatically pre-loads all Objects if we have a reference in the blueprint.
 
 	/**  Return reference to array of Fixture Patch objects of a given category. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
@@ -50,14 +66,6 @@ public:
 	/**  Return reference to array of Fixture Patch objects in a given universe. */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
 	void GetAllFixturesInUniverse(const UDMXLibrary* DMXLibrary, int32 UniverseId, TArray<UDMXEntityFixturePatch*>& OutResult);
-
-	/**  Return reference to array of Fixture Patch objects in a given controller. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void GetAllUniversesInController(const UDMXLibrary* DMXLibrary, FString ControllerName, TArray<int32>& OutResult);
-
-	/**  Return byte array from the DMX buffer given a universe. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
-	void GetRawBuffer(FDMXProtocolName SelectedProtocol, int32 RemoteUniverse, TArray<uint8>& DMXBuffer);
 
 	/**  Return map with all DMX functions and their associated values given DMX buffer and desired universe. */
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DisplayName = "Get Fixture Attributes"))
@@ -83,12 +91,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "Name"))
 	UDMXEntityFixtureType* GetFixtureTypeByName(const UDMXLibrary* DMXLibrary, const FString& Name);
 
-	/**  Return reference to array of Controller objects in library. */
-	UFUNCTION(BlueprintCallable, Category = "DMX")
+	/**  DEPRECATED 4.27 */
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Controllers are removed in favor of Ports."))
+	void GetAllUniversesInController(const UDMXLibrary* DMXLibrary, FString ControllerName, TArray<int32>& OutResult);
+
+	/**  DEPRECATED 4.27 */
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Controllers are removed in favor of Ports."))
 	TArray<UDMXEntityController*> GetAllControllersInLibrary(const UDMXLibrary* DMXLibrary);
 
-	/**  Return reference to Controller object with a given name. */
-	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "Name"))
+	/**  DEPRECATED 4.27 */
+	UFUNCTION(BlueprintCallable, Category = "DMX", meta = (AutoCreateRefTerm = "Name"), meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.27. Controllers are removed in favor of Ports."))
 	UDMXEntityController* GetControllerByName(const UDMXLibrary* DMXLibrary, const FString& Name);
 
 	/**  Return reference to array of DMX Library objects. */
@@ -275,13 +287,8 @@ private:
 	UFUNCTION()
 	void OnAssetRegistryRemovedAsset(const FAssetData& Asset);
 
-	// DEPRECATED 4.26, here to retain functionality of deprecated OnProtocolReceived
-	UFUNCTION(meta = (DeprecatedFunction, DeprecationMessage = "Deprecated 4.26. Exists to retain support of DEPRECATED OnProtocolReceived in 4.26 only"))
-	void OnGameThreadOnlyBufferUpdated(const FName& InProtocolName, int32 InUniverseID);
-
 private:
-
 	/** Strongly references all libraries at all times */
-	UPROPERTY()
+	UPROPERTY(Transient)
 	TArray<UDMXLibrary*> LoadedDMXLibraries;
 };

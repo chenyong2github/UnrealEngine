@@ -58,6 +58,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "DMX")
 	FDMXEntityFixturePatchRef FixturePatchRef;
 
+	/** If set to true, the fixture patch will receive DMX when used in the world */
+	UPROPERTY(EditDefaultsOnly, BluePrintReadOnly, Category = "Fixture Patch")
+	bool bAutoActivateReceiveDMX;
+
 public:
 	UFUNCTION(BlueprintPure, Category = "DMX")
 	UDMXEntityFixturePatch* GetFixturePatch() const;

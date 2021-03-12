@@ -15,7 +15,6 @@
 
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
-#include "Library/DMXEntityController.h"
 
 #include "Game/DMXComponent.h"
 
@@ -131,18 +130,6 @@ TSharedRef<SWidget> SDMXEntityInspector::MakeEditingWidget(const TArray<UObject*
 	];
 
 	return InnerEditingWidget;
-}
-
-void SDMXEntityInspectorControllers::Construct(const FArguments& InArgs)
-{
-	SDMXEntityInspector::Construct(SDMXEntityInspector::FArguments()
-		.DMXEditor(InArgs._DMXEditor)
-		.OnFinishedChangingProperties(InArgs._OnFinishedChangingProperties)
-	);
-
-	// Register customization for UOBJECT
-	FOnGetDetailCustomizationInstance ControllersDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FDMXCustomizationFactory::MakeInstance<FDMXControllersDetails>, InArgs._DMXEditor);
-	GetPropertyView()->RegisterInstancedCustomPropertyLayout(UDMXEntityController::StaticClass(), ControllersDetails);
 }
 
 void SDMXEntityInspectorFixtureTypes::Construct(const FArguments& InArgs, EDMXFixtureTypeLayout Layout)

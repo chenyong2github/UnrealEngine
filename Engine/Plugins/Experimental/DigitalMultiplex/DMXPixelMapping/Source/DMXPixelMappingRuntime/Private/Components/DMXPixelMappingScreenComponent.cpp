@@ -1,24 +1,25 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DMXPixelMappingScreenComponent.h"
-#include "Components/DMXPixelMappingRendererComponent.h"
+
 #include "DMXPixelMappingRuntimeCommon.h"
-#include "IDMXPixelMappingRenderer.h"
 #include "DMXPixelMappingUtils.h"
 #include "DMXPixelMappingTypes.h"
-#include "Interfaces/IDMXProtocol.h"
-#include "Interfaces/IDMXProtocolUniverse.h"
-#include "DMXProtocolConstants.h"
+#include "IDMXPixelMappingRenderer.h"
+#include "Components/DMXPixelMappingRendererComponent.h"
+#include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixtureType.h"
 
 #include "Engine/TextureRenderTarget2D.h"
 #include "Widgets/Layout/SBox.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/Images/SImage.h"
 
 #if WITH_EDITOR
 #include "SDMXPixelMappingEditorWidgets.h"
 #endif // WITH_EDITOR
+
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingScreenComponent"
 
@@ -29,6 +30,7 @@ const uint32 UDMXPixelMappingScreenComponent::MaxGridUICells = 40 * 40;
 #endif
 
 UDMXPixelMappingScreenComponent::UDMXPixelMappingScreenComponent()
+	: bSendToAllOutputPorts(true)
 {
 	SizeX = 100;
 	SizeY = 100;
@@ -117,6 +119,22 @@ void UDMXPixelMappingScreenComponent::PostEditChangeChainProperty(FPropertyChang
 			CachedWidget->SetWidthOverride(SizeX);
 			CachedWidget->SetHeightOverride(SizeY);
 			CachedLabelBox->SetWidthOverride(SizeX);
+		}
+	}
+	else if (PropertyChangedChainEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXPixelMappingScreenComponent, OutputPortReferences))
+	{
+		// Rebuild the set of ports
+		OutputPorts.Reset();
+		for (const FDMXOutputPortReference& OutputPortReference : OutputPortReferences)
+		{
+			const FDMXOutputPortSharedRef* OutputPortPtr = FDMXPortManager::Get().GetOutputPorts().FindByPredicate([&OutputPortReference](const FDMXOutputPortSharedRef& OutputPort) {
+				return OutputPort->GetPortGuid() == OutputPortReference.GetPortGuid();
+				});
+
+			if (OutputPortPtr)
+			{
+				OutputPorts.Add(*OutputPortPtr);
+			}
 		}
 	}
 }
@@ -378,6 +396,7 @@ void UDMXPixelMappingScreenComponent::ResetDMX()
 
 	SendDMX();
 }
+
 void UDMXPixelMappingScreenComponent::SendDMX()
 {
 	if (RemoteUniverse < 0)
@@ -386,11 +405,24 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 		return;
 	}
 
-	if (!ProtocolName)
+	// Helper to send to the correct ports, depending on bSendToAllOutputPorts
+	auto SendDMXToPorts = [this](int32 InUniverseID, const TMap<int32, uint8>& InChannelToValueMap)
 	{
-		UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("ProtocolName is not valid"));
-		return;
-	}
+		if (bSendToAllOutputPorts)
+		{
+			for (const FDMXOutputPortSharedRef& OutputPort : FDMXPortManager::Get().GetOutputPorts())
+			{
+				OutputPort->SendDMX(InUniverseID, InChannelToValueMap);
+			}
+		}
+		else
+		{
+			for (const FDMXOutputPortSharedRef& OutputPort : OutputPorts)
+			{
+				OutputPort->SendDMX(InUniverseID, InChannelToValueMap);
+			}
+		}
+	};
 
 	TArray<FColor> SortedList;
 	GetSurfaceBuffer([this, &SortedList](const TArray<FColor>& InSurfaceBuffer, const FIntRect& InSurfaceRect)
@@ -400,63 +432,59 @@ void UDMXPixelMappingScreenComponent::SendDMX()
 		FDMXPixelMappingUtils::TextureDistributionSort<FColor>(Distribution, NumXPanelsLocal, NumYPanelsLocal, InSurfaceBuffer, SortedList);
 	});
 
-	IDMXProtocolPtr Protocol = ProtocolName.GetProtocol();
-	if (Protocol.IsValid())
+	// Sending only if there enough space at least for one pixel
+	if (!FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress))
 	{
-		// Sending only if there enough space at least for one pixel
-		if (!FDMXPixelMappingUtils::CanFitCellIntoChannels(PixelFormat, StartAddress))
+		return;
+	}
+
+	// Prepare Universes for send
+	TArray<uint8> SendBuffer;
+	for (const FColor& Color : SortedList)
+	{
+		FColor ColorWithAppliedIntensity = Color;
+		const float MaxValue = 255;
+		ColorWithAppliedIntensity.R = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.R * PixelIntensity, MaxValue));
+		ColorWithAppliedIntensity.G = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.G * PixelIntensity, MaxValue));
+		ColorWithAppliedIntensity.B = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.B * PixelIntensity, MaxValue));
+		ColorWithAppliedIntensity.A = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.A * AlphaIntensity, MaxValue));;
+		AddColorToSendBuffer(ColorWithAppliedIntensity, SendBuffer);
+	}
+
+	// Start sending
+	uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
+	uint32 SendDMXIndex = StartAddress;
+	int32 UniverseToSend = RemoteUniverse;
+	int32 SendBufferNum = SendBuffer.Num();
+	TMap<int32, uint8> ChannelToValueMap;
+	for (int32 FragmentMapIndex = 0; FragmentMapIndex < SendBufferNum; FragmentMapIndex++)
+	{			
+		// ready to send here
+		if (SendDMXIndex > UniverseMaxChannels)
 		{
-			return;
+			SendDMXToPorts(UniverseToSend, ChannelToValueMap);
+
+			// Now reset
+			ChannelToValueMap.Empty();
+			SendDMXIndex = StartAddress;
+			UniverseToSend++;
 		}
 
-		// Prepare Universes for send
-		TArray<uint8> SendBuffer;
-		for (const FColor& Color : SortedList)
+		// should be channels from 1...UniverseMaxChannels
+		ChannelToValueMap.Add(SendDMXIndex, SendBuffer[FragmentMapIndex]);
+		if (SendDMXIndex > UniverseMaxChannels || SendDMXIndex < 1)
 		{
-			FColor ColorWithAppliedIntensity = Color;
-			const float MaxValue = 255;
-			ColorWithAppliedIntensity.R = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.R * PixelIntensity, MaxValue));
-			ColorWithAppliedIntensity.G = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.G * PixelIntensity, MaxValue));
-			ColorWithAppliedIntensity.B = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.B * PixelIntensity, MaxValue));
-			ColorWithAppliedIntensity.A = static_cast<uint8>(FMath::Min(ColorWithAppliedIntensity.A * AlphaIntensity, MaxValue));;
-			AddColorToSendBuffer(ColorWithAppliedIntensity, SendBuffer);
+			UE_LOG(LogTemp, Warning, TEXT("WrongIndex FragmentMapIndex %d, SendDMXIndex %d"), FragmentMapIndex, SendDMXIndex);
 		}
 
-		// Start sending
-		uint32 UniverseMaxChannels = FDMXPixelMappingUtils::GetUniverseMaxChannels(PixelFormat, StartAddress);
-		uint32 SendDMXIndex = StartAddress;
-		int32 UniverseToSend = RemoteUniverse;
-		int32 SendBufferNum = SendBuffer.Num();
-		IDMXFragmentMap DMXFragmentMapToSend;
-		for (int32 FragmentMapIndex = 0; FragmentMapIndex < SendBufferNum; FragmentMapIndex++)
-		{			
-			// ready to send here
-			if (SendDMXIndex > UniverseMaxChannels)
-			{
-				Protocol->SendDMXFragmentCreate(UniverseToSend, DMXFragmentMapToSend);
-
-				// Now reset
-				DMXFragmentMapToSend.Empty();
-				SendDMXIndex = StartAddress;
-				UniverseToSend++;
-			}
-
-			// should be channels from 1...UniverseMaxChannels
-			DMXFragmentMapToSend.Add(SendDMXIndex, SendBuffer[FragmentMapIndex]);
-			if (SendDMXIndex > UniverseMaxChannels || SendDMXIndex < 1)
-			{
-				UE_LOG(LogTemp, Warning, TEXT("WrongIndex FragmentMapIndex %d, SendDMXIndex %d"), FragmentMapIndex, SendDMXIndex);
-			}
-
-			// send dmx if next iteration is the last one
-			if ((SendBufferNum > FragmentMapIndex + 1) == false)
-			{
-				Protocol->SendDMXFragmentCreate(UniverseToSend, DMXFragmentMapToSend);
-				break;
-			}
-
-			SendDMXIndex++;
+		// send dmx if next iteration is the last one
+		if ((SendBufferNum > FragmentMapIndex + 1) == false)
+		{
+			SendDMXToPorts(UniverseToSend, ChannelToValueMap);
+			break;
 		}
+
+		SendDMXIndex++;
 	}
 }
 

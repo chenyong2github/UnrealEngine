@@ -91,6 +91,9 @@ struct DMXRUNTIME_API FDMXFixtureFunction
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, meta = (DisplayName = "Use LSB Mode", DisplayPriority = "29"), Category = "DMX")
 	bool bUseLSBMode = false;
 
+	/** Returns the number of channels the function spans, according to its data type */
+	FORCEINLINE uint8 GetNumChannels() const { return static_cast<uint8>(DataType) + 1;	}
+
 	FDMXFixtureFunction()
 		: Attribute(FDMXNameListItem::None)
 		, FunctionName()
@@ -151,6 +154,9 @@ struct DMXRUNTIME_API FDMXFixtureCellAttribute
 		, DataType(EDMXFixtureSignalFormat::E8Bit)
 		, bUseLSBMode(false)
 	{}
+
+	/** Returns the number of channels of the attribute */
+	uint8 GetNumChannels() const { return static_cast<uint8>(DataType) + 1; }
 };
 
 USTRUCT(BlueprintType)

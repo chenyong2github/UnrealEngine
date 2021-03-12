@@ -26,7 +26,7 @@ public:
 public:
 	UMovieSceneDMXLibraryTrack();
 
-	//~ UMovieSceneTrack interface
+	// ~Begin UMovieSceneTrack Interface
 	virtual UMovieSceneSection* CreateNewSection() override;
 	virtual void AddSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSection(UMovieSceneSection& Section) override;
@@ -38,6 +38,7 @@ public:
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual bool SupportsMultipleRows() const override;
 	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
+	// ~End UMovieSceneTrack Interface
 
 private:
 	/** The sections owned by this track .*/

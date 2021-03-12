@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "DMXProtocolCommon.h"
+#include "Serialization/BufferArchive.h"
 
 struct IDMXProtocolPacket
 {

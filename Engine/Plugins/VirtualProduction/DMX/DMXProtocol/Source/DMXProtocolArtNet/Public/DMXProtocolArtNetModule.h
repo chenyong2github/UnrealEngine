@@ -2,10 +2,11 @@
 
 #pragma once
 
+#include "Interfaces/IDMXProtocolFactory.h"
+
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 #include "HAL/IConsoleManager.h"
-#include "Interfaces/IDMXProtocolFactory.h"
 
 /**
  */
@@ -27,6 +28,7 @@ private:
 	TUniquePtr<FDMXProtocolFactoryArtNet> FactoryArtNet;
 
 public:
+	UE_DEPRECATED(4.27, "Use DMX_PROTOCOLNAME_ARTNET instead")
 	static FName const NAME_Artnet;
 
 public:

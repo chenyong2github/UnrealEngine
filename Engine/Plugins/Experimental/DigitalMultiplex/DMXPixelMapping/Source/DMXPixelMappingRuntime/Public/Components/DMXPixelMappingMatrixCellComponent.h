@@ -80,6 +80,9 @@ public:
 	virtual bool CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const override;
 
 private:
+	/** Helper that returns the renderer component this component belongs to */
+	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
+
 	void SetPositionInBoundaryBox(const FVector2D& InPosition);
 
 	void SetSizeWithinBoundaryBox(const FVector2D& InSize);

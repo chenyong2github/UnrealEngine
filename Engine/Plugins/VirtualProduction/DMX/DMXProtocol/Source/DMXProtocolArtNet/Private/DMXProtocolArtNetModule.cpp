@@ -1,16 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXProtocolArtNetModule.h"
-#include "CoreMinimal.h"
-#include "Modules/ModuleManager.h"
-#include "Dom/JsonObject.h"
 
 #include "DMXProtocolArtNet.h"
 #include "DMXProtocolTypes.h"
 #include "DMXProtocolArtNetConstants.h"
+#include "IO/DMXOutputPort.h"
+#include "IO/DMXPortManager.h"
 
+#include "CoreMinimal.h"
+#include "Dom/JsonObject.h"
+#include "Modules/ModuleManager.h"
 
 IMPLEMENT_MODULE(FDMXProtocolArtNetModule, DMXProtocolArtNet);
+
 
 const FName FDMXProtocolArtNetModule::NAME_Artnet = FName(DMX_PROTOCOLNAME_ARTNET);
 
@@ -29,8 +32,7 @@ FAutoConsoleCommand FDMXProtocolArtNetModule::ResetDMXSendUniverseCommand(
 
 IDMXProtocolPtr FDMXProtocolFactoryArtNet::CreateProtocol(const FName & ProtocolName)
 {
-	FJsonObject ProtocolSettings;
-	IDMXProtocolPtr ProtocolArtNetPtr = MakeShared<FDMXProtocolArtNet, ESPMode::ThreadSafe>(ProtocolName, ProtocolSettings);
+	IDMXProtocolPtr ProtocolArtNetPtr = MakeShared<FDMXProtocolArtNet, ESPMode::ThreadSafe>(ProtocolName);
 	if (ProtocolArtNetPtr->IsEnabled())
 	{
 		if (!ProtocolArtNetPtr->Init())
@@ -56,7 +58,7 @@ void FDMXProtocolArtNetModule::StartupModule()
 
 	// Create and register our singleton factory with the main online subsystem for easy access
 	FDMXProtocolModule& DMXProtocolModule = FModuleManager::GetModuleChecked<FDMXProtocolModule>("DMXProtocol");
-	DMXProtocolModule.RegisterProtocol(NAME_Artnet, FactoryArtNet.Get());
+	DMXProtocolModule.RegisterProtocol(DMX_PROTOCOLNAME_ARTNET, FactoryArtNet.Get());
 }
 
 void FDMXProtocolArtNetModule::ShutdownModule()
@@ -65,7 +67,7 @@ void FDMXProtocolArtNetModule::ShutdownModule()
 	FDMXProtocolModule* DMXProtocolModule = FModuleManager::GetModulePtr<FDMXProtocolModule>("DMXProtocol");
 	if (DMXProtocolModule != nullptr)
 	{
-		DMXProtocolModule->UnregisterProtocol(NAME_Artnet);
+		DMXProtocolModule->UnregisterProtocol(DMX_PROTOCOLNAME_ARTNET);
 	}
 	
 	FactoryArtNet.Release();
@@ -88,15 +90,15 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 
 	uint32 UniverseID = 0;
 	LexTryParseString<uint32>(UniverseID, *Args[0]);
-	if (UniverseID > ARTNET_MAX_UNIVERSES)
+	if (UniverseID > ARTNET_MAX_UNIVERSE)
 	{
 		UE_LOG_DMXPROTOCOL(Verbose, TEXT("The UniverseID is bigger then the max universe value. It won't be sent\n"
 			"For example: DMX.ArtNet.SendDMX 17 10:6 11:7 12:8 13:9\n"
-			"Where Universe %d should be less then %d"), UniverseID, ARTNET_MAX_UNIVERSES);
+			"Where Universe %d should be less then %d"), UniverseID, ARTNET_MAX_UNIVERSE);
 		return;
 	}
 
-	IDMXFragmentMap DMXFragment;
+	TMap<int32, uint8> ChannelToValueMap;
 	for (int32 i = 1; i < Args.Num(); i++)
 	{
 		FString ChannelAndValue = Args[i];
@@ -123,13 +125,15 @@ void FDMXProtocolArtNetModule::SendDMXCommandHandler(const TArray<FString>& Args
 				"Where value %d should be less then %d"), Value, DMX_MAX_CHANNEL_VALUE);
 			return;
 		}
-		DMXFragment.Add(Key, Value);
+		ChannelToValueMap.Add(Key, Value);
 	}
 
-	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
-	if (DMXProtocol.IsValid())
+	for (const FDMXOutputPortSharedRef& OutputPort : FDMXPortManager::Get().GetOutputPorts())
 	{
-		DMXProtocol->SendDMXFragmentCreate(UniverseID, DMXFragment);
+		if (OutputPort->GetProtocol()->GetProtocolName() == DMX_PROTOCOLNAME_ARTNET)
+		{
+			OutputPort->SendDMX(UniverseID, ChannelToValueMap);
+		}
 	}
 }
 
@@ -144,16 +148,25 @@ void FDMXProtocolArtNetModule::ResetDMXSendUniverseHandler(const TArray<FString>
 
 	uint32 UniverseID = 0;
 	LexTryParseString<uint32>(UniverseID, *Args[0]);
-	if (UniverseID > ARTNET_MAX_UNIVERSES)
+	if (UniverseID > ARTNET_MAX_UNIVERSE)
 	{
 		UE_LOG_DMXPROTOCOL(Verbose, TEXT("The UniverseID is bigger then the max universe value. It won't be sent. It won't be sent\n"
-			"Where Universe %d should be less then %d"), UniverseID, ARTNET_MAX_UNIVERSES);
+			"Where Universe %d should be less then %d"), UniverseID, ARTNET_MAX_UNIVERSE);
 		return;
 	}
 
-	IDMXProtocolPtr DMXProtocol = IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet);
-	if (DMXProtocol.IsValid())
+	// Create Channel To Value map with all channels being set to 0
+	TMap<int32, uint8> ChannelToValueMap;
+	for (int ChannelID = 1; ChannelID <= DMX_MAX_ADDRESS; ChannelID++)
 	{
-		DMXProtocol->SendDMXZeroUniverse(UniverseID, true);
+		ChannelToValueMap.Add(ChannelID, 0);
+	}
+
+	for (const FDMXOutputPortSharedRef& OutputPort : FDMXPortManager::Get().GetOutputPorts())
+	{
+		if (OutputPort->GetProtocol()->GetProtocolName() == DMX_PROTOCOLNAME_ARTNET)
+		{
+			OutputPort->SendDMX(UniverseID, ChannelToValueMap);
+		}
 	}
 }

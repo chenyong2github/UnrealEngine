@@ -80,6 +80,9 @@ public:
 	void SetPositionFromParent(const FVector2D& InPosition);
 
 private:
+	/** Helper that returns the renderer component this component belongs to */
+	UDMXPixelMappingRendererComponent* GetRendererComponent() const;
+
 	/** Set position of Fixture Pixel inside Fixture Group Boundary Box */
 	void SetPositionInBoundaryBox(const FVector2D& InPosition);
 

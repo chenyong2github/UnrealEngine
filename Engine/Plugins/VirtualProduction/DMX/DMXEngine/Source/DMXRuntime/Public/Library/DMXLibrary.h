@@ -3,7 +3,10 @@
 #pragma once
 
 #include "Library/DMXObjectBase.h"
+
 #include "Library/DMXEntity.h"
+#include "Library/DMXInputPortReference.h"
+#include "Library/DMXOutputPortReference.h"
 
 #include "Templates/SubclassOf.h"
 #include "Misc/Guid.h"
@@ -11,17 +14,24 @@
 #include "DMXLibrary.generated.h"
 
 
-class UDMXEntityFader;
-
 /** Called when the list of entities is changed by either adding or removing entities */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnEntitiesUpdated, class UDMXLibrary*);
 
-
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable, AutoExpandCategories = DMX)
 class DMXRUNTIME_API UDMXLibrary
 	: public UDMXObjectBase
 {
 	GENERATED_BODY()
+
+public:
+	// ~Begin UObject Interface
+	virtual void PostLoad() override;
+	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
+#endif // WITH_EDITOR
+	// ~End UObject Interface
 
 public:
 	/** Creates a new Entity or return an existing one with the passed in name */
@@ -138,12 +148,71 @@ public:
 	/** Called when the list of entities is changed by either adding or removing entities */
 	FOnEntitiesUpdated& GetOnEntitiesUpdated();
 
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+public:
+	/** Returns all local Universe IDs in Ports */
+	TSet<int32> GetAllLocalUniversesIDsInPorts() const;
 
+	/** Returns the input ports */
+	const TSet<FDMXInputPortSharedRef>& GetInputPorts() const { return InputPorts; }
+
+	/** Returns the output ports */
+	const TSet<FDMXOutputPortSharedRef>& GetOutputPorts() const { return OutputPorts; }
+
+	/** Returns all ports as a set, slower than GetInputPorts and GetOutputPorts. */
+	TSet<FDMXPortSharedRef> GenerateAllPortsSet() const;
+
+	/** Returns the property name of the input port references array */
+	FName GetInputPortReferencesPropertyName() const { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, InputPortReferences); }
+
+	/** Returns the property name of the output port references array */
+	FName GetOutputPortReferencesPropertyName() const { return GET_MEMBER_NAME_CHECKED(UDMXLibrary, OutputPortReferences); }
+
+	/** Broadcast when the ports changed */
+	FSimpleMulticastDelegate OnPortsChanged;
+
+protected:
+	/** Updates the ports from what's set in the Input and Output Port References arrays */
+	void UpdatePorts();
+
+	/** Input ports of the Library */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (DisplayName = "Input Ports"))
+	TArray<FDMXInputPortReference> InputPortReferences;
+
+	/** Output ports of the Library */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonTransactional, Category = "DMX", Meta = (DisplayName = "Output Ports"))
+	TArray<FDMXOutputPortReference> OutputPortReferences;
 
 private:
+#if WITH_EDITOR
+	/** Helper to return the last index of a duplicate in the port reference arrays. Only expect one duplicate since the user cannot property change many */
+	template <typename PortReferenceType>
+	const int32 GetLastIndexOfDuplicatePortReference(const TArray<PortReferenceType>& PortReferenceArray) const
+	{
+		for (int32 FirstIndex = 0; FirstIndex < PortReferenceArray.Num(); FirstIndex++)
+		{
+			const PortReferenceType& TestedElement = PortReferenceArray[FirstIndex];
+			const int32 LastIndex = PortReferenceArray.FindLastByPredicate([TestedElement](const PortReferenceType& PortRef) {
+				return &PortRef != &TestedElement;
+				});
+			if (FirstIndex != LastIndex)
+			{
+				// Either the valid last index or INDEX_NONE
+				return LastIndex;
+			}
+		}
+		return INDEX_NONE;
+	}
+#endif // WITH_EDITOR
+
+	/** All Fixture Types and Fixture Patches in the library */
 	UPROPERTY()
 	TArray<UDMXEntity*> Entities;
+
+	/** The input ports available to the library, according to the InputPortReferences array */
+	TSet<FDMXInputPortSharedRef> InputPorts;
+
+	/** The output ports available to the library, according to the OutputPortReferences array */
+	TSet<FDMXOutputPortSharedRef> OutputPorts;
 
 	/** Called when the list of entities is changed by either adding or removing entities */
 	FOnEntitiesUpdated OnEntitiesUpdated;

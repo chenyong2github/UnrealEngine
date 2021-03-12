@@ -24,17 +24,14 @@ public:
 	virtual TSharedRef<SDockTab> SpawnTab(const FWorkflowTabSpawnInfo& Info) const override;
 };
 
-struct FDMXEditorControllersSummoner : public FDMXEditorPropertyTabSummoner
+struct FDMXLibraryEditorTabSummoner : public FDMXEditorPropertyTabSummoner
 {
 public:
-	FDMXEditorControllersSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp);
+	FDMXLibraryEditorTabSummoner(TSharedPtr<FAssetEditorToolkit> InHostingApp);
 
 	virtual TSharedRef<SWidget> CreateTabBody(const FWorkflowTabSpawnInfo& Info) const override;
 
-	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const override
-	{
-		return LOCTEXT("DMXControllersTab", "Controllers");
-	}
+	virtual FText GetTabToolTipText(const FWorkflowTabSpawnInfo& Info) const override;
 };
 
 struct FDMXEditorFixtureTypesSummoner : public FDMXEditorPropertyTabSummoner
