@@ -165,6 +165,8 @@ void ULatticeDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 	Settings->SaveProperties(this);
 	ControlPointsMechanic->Shutdown();
 
+	ComponentTarget->SetOwnerVisibility(true);
+
 	if (Preview)
 	{
 		FDynamicMeshOpResult Result = Preview->Shutdown();
@@ -190,8 +192,6 @@ void ULatticeDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 			GetToolManager()->EndUndoTransaction();
 		}
 	}
-
-	ComponentTarget->SetOwnerVisibility(true);
 }
 
 

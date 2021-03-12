@@ -388,6 +388,8 @@ void USubdividePolyTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		PreviewGeometry->Disconnect();
 	}
+	
+	ComponentTarget->SetOwnerVisibility(true);
 
 	if (PreviewMesh)
 	{
@@ -409,8 +411,6 @@ void USubdividePolyTool::Shutdown(EToolShutdownType ShutdownType)
 		PreviewMesh->Disconnect();
 		PreviewMesh = nullptr;
 	}
-
-	ComponentTarget->SetOwnerVisibility(true);
 }
 
 bool USubdividePolyTool::CanAccept() const

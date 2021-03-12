@@ -191,6 +191,10 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 	MaterialSettings->SaveProperties(this);
 
 	FDynamicMeshOpResult Result = Preview->Shutdown();
+	
+	// Restore (unhide) the source meshes
+	ComponentTarget->SetOwnerVisibility(true);
+
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
@@ -217,9 +221,6 @@ void UParameterizeMeshTool::Shutdown(EToolShutdownType ShutdownType)
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
-
-	// Restore (unhide) the source meshes
-	ComponentTarget->SetOwnerVisibility(true);
 
 }
 

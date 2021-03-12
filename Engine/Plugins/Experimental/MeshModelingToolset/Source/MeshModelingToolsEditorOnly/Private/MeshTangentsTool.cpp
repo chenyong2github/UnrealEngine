@@ -121,6 +121,9 @@ void UMeshTangentsTool::Shutdown(EToolShutdownType ShutdownType)
 
 	Settings->SaveProperties(this);
 
+	// Restore (unhide) the source meshes
+	ComponentTarget->SetOwnerVisibility(true);
+
 	TUniquePtr<FMeshTangentsd> Tangents = Compute->Shutdown();
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
@@ -150,10 +153,6 @@ void UMeshTangentsTool::Shutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->EndUndoTransaction();
 	}
-
-	// Restore (unhide) the source meshes
-	ComponentTarget->SetOwnerVisibility(true);
-
 }
 
 void UMeshTangentsTool::OnTick(float DeltaTime)
