@@ -134,6 +134,7 @@ public:
 	virtual TWeakObjectPtr<class UEdMode> GetScriptableEditorMode() const final;
 	virtual FText GetEditorModeDisplayName() const override;
 	virtual FSlateIcon GetEditorModeIcon() const override;
+	virtual FEditorModeTools& GetEditorModeManager() const final;
 
 	/** IAssetEditorInstance interface */
 	virtual FName GetEditorName() const override;
@@ -386,7 +387,8 @@ protected:
 	/** Whether only dirty assets should be prompted about on save - otherwise all edited assets will be prompted to the user for save/check-out */
 	bool bCheckDirtyOnAssetSave;
 
-	/** The asset editor mode manager */
+	/** The editor mode manager */
+	TSharedPtr<FEditorModeTools> EditorModeManager;
 	UE_DEPRECATED(4.26, "Use EditorModeManager instead.")
 	FAssetEditorModeManager* AssetEditorModeManager;
 

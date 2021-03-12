@@ -428,6 +428,17 @@ FSlateIcon FAssetEditorToolkit::GetEditorModeIcon() const
 	return FSlateIcon();
 }
 
+FEditorModeTools& FAssetEditorToolkit::GetEditorModeManager() const
+{
+	if (IsWorldCentricAssetEditor() && IsHosted())
+	{
+		return GetToolkitHost()->GetEditorModeManager();
+	}
+
+	check(EditorModeManager.IsValid());
+	return *EditorModeManager.Get();
+}
+
 const TArray< UObject* >* FAssetEditorToolkit::GetObjectsCurrentlyBeingEdited() const
 {
 	return &EditingObjects;

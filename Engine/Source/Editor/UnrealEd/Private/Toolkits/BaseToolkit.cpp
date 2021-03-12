@@ -26,8 +26,6 @@ FBaseToolkit::FBaseToolkit()
 
 FBaseToolkit::~FBaseToolkit()
 {
-
-	EditorModeManager.Reset();
 }
 
 
@@ -110,17 +108,6 @@ bool FBaseToolkit::IsBlueprintEditor() const
 	return false;
 }
 
-FEditorModeTools& FBaseToolkit::GetEditorModeManager() const
-{
-	if (IsWorldCentricAssetEditor() && IsHosted())
-	{
-		return GetToolkitHost()->GetEditorModeManager();
-	}
-
-	check(EditorModeManager.IsValid());
-	return *EditorModeManager.Get();
-}
-
 #undef LOCTEXT_NAMESPACE
 
 
@@ -136,7 +123,6 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 	ToolkitMode = EToolkitMode::Type::Standalone;
 	ToolkitHost = InitToolkitHost;
 	OwningEditorMode = InOwningMode;
-	EditorModeManager = InitToolkitHost->GetEditorModeManager().AsShared();
 
 	UInteractiveToolManager* ToolManager = GetEditorModeManager().GetInteractiveToolsContext()->ToolManager;
 	ToolManager->OnToolStarted.AddSP(this, &FModeToolkit::OnToolStarted);
@@ -174,9 +160,12 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost,
 
 FModeToolkit::~FModeToolkit()
 {
-	UInteractiveToolManager* ToolManager = GetEditorModeManager().GetInteractiveToolsContext()->ToolManager;
-	ToolManager->OnToolStarted.RemoveAll(this);
-	ToolManager->OnToolEnded.RemoveAll(this);
+	if (IsHosted())
+	{
+		UInteractiveToolManager* ToolManager = GetEditorModeManager().GetInteractiveToolsContext()->ToolManager;
+		ToolManager->OnToolStarted.RemoveAll(this);
+		ToolManager->OnToolEnded.RemoveAll(this);
+	}
 
 	OwningEditorMode.Reset();
 }
@@ -308,6 +297,12 @@ FSlateIcon FModeToolkit::GetEditorModeIcon() const
 	}
 
 	return FSlateIcon();
+}
+
+FEditorModeTools& FModeToolkit::GetEditorModeManager() const
+{
+	check(IsHosted());
+	return GetToolkitHost()->GetEditorModeManager();
 }
 
 TWeakObjectPtr<UEdMode> FModeToolkit::GetScriptableEditorMode() const

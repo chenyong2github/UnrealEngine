@@ -43,7 +43,7 @@ public:
 	virtual bool IsBlueprintEditor() const override;
 	virtual TSharedRef<FWorkspaceItem> GetWorkspaceMenuCategory() const override { return WorkspaceMenuCategory.ToSharedRef(); }
 
-	virtual FEditorModeTools& GetEditorModeManager() const final;
+	virtual FEditorModeTools& GetEditorModeManager() const = 0;
 
 public:
 
@@ -83,8 +83,6 @@ protected:
 
 	/** The workspace menu category of this toolkit */
 	TSharedPtr<FWorkspaceItem> WorkspaceMenuCategory;
-
-	TSharedPtr<FEditorModeTools> EditorModeManager;
 };
 
 
@@ -125,6 +123,7 @@ public:
 	virtual class FEdMode* GetEditorMode() const override;
 	virtual FText GetEditorModeDisplayName() const override;
 	virtual FSlateIcon GetEditorModeIcon() const override;
+	virtual FEditorModeTools& GetEditorModeManager() const final;
 
 	virtual TWeakObjectPtr<UEdMode> GetScriptableEditorMode() const final;
 	virtual TSharedPtr<SWidget> GetInlineContent() const override;
