@@ -228,18 +228,19 @@ TSharedRef<SButton> FFoliagePaletteItemModel::CreateSaveAssetButton(TAttribute<E
 {
 	return 
 		SNew(SButton)
-		.ContentPadding(0)
-		.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
+		.ButtonStyle(FAppStyle::Get(), "FoliageEditMode.FloatingButton")
 		.Visibility(InVisibility)
 		.IsEnabled(this, &FFoliagePaletteItemModel::IsSaveEnabled)
 		.OnClicked(this, &FFoliagePaletteItemModel::HandleSaveAsset)
 		.ToolTipText(LOCTEXT("SaveButtonToolTip", "Save foliage asset"))
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.VAlign(VAlign_Top)
+		.ContentPadding(0)
 		.Content()
 		[
 			SNew(SImage)
-			.Image(FEditorStyle::GetBrush("Level.SaveIcon16x"))
+	        .ColorAndOpacity(FSlateColor::UseForeground())
+			.Image(FAppStyle::Get().GetBrush("Icons.Save"))
 		];
 }
 
@@ -410,7 +411,7 @@ void SFoliagePaletteItemTile::Construct(const FArguments& InArgs, TSharedRef<STa
 
 	STableRow<FFoliageMeshUIInfoPtr>::Construct(
 		STableRow<FFoliageMeshUIInfoPtr>::FArguments()
-		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.TableRow")
+		.Style(FEditorStyle::Get(), "ContentBrowser.AssetListView.ColumnListTableRow")
 		.Padding(1.f)
 		.Content()
 		[
@@ -421,7 +422,7 @@ void SFoliagePaletteItemTile::Construct(const FArguments& InArgs, TSharedRef<STa
 			+ SOverlay::Slot()
 			[
 				SNew(SBorder)
-				.Padding(4.f)
+				.Padding(2.f)
 				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
 				.ForegroundColor(FLinearColor::White)
 				.ColorAndOpacity(this, &SFoliagePaletteItemTile::GetTileColorAndOpacity)
@@ -438,8 +439,6 @@ void SFoliagePaletteItemTile::Construct(const FArguments& InArgs, TSharedRef<STa
 			[
 				SNew(SBorder)
 				.BorderImage(FEditorStyle::GetBrush("ContentBrowser.ThumbnailShadow"))
-				.BorderBackgroundColor(FLinearColor::Black)
-				.ForegroundColor(FLinearColor::White)
 				.Padding(3.f)
 				[
 					Model->CreateActivationCheckBox(IsSelectedGetter, CheckBoxVisibility)
@@ -450,7 +449,7 @@ void SFoliagePaletteItemTile::Construct(const FArguments& InArgs, TSharedRef<STa
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Right)
 			.VAlign(VAlign_Top)
-			.Padding(FMargin(3.f))
+			.Padding(FMargin(2.f))
 			[
 				Model->CreateSaveAssetButton(SaveButtonVisibility)
 			]

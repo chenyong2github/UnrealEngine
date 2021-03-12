@@ -1562,6 +1562,26 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetHighlightColor(FLinearColor(1.0f, 1.0f, 1.0f))
 			.SetShadowOffset(FVector2D(1, 1))
 			.SetShadowColorAndOpacity(FLinearColor(0, 0, 0, 0.9f)));
+
+
+		FLinearColor InputA = FStyleColors::Input.GetSpecifiedColor();
+		InputA .A = .60;
+
+		FLinearColor InputB = FStyleColors::Input.GetSpecifiedColor();
+		InputA .A = .70;
+
+		Set("FoliageEditMode.FloatingButton", FButtonStyle()
+			.SetNormal(FSlateRoundedBoxBrush(InputA, 2))
+			.SetHovered(FSlateRoundedBoxBrush(InputB, 2))
+			.SetPressed(FSlateRoundedBoxBrush(InputB, 2))
+			.SetNormalForeground(FStyleColors::Foreground)
+			.SetHoveredForeground(FStyleColors::ForegroundHover)
+			.SetPressedForeground(FStyleColors::ForegroundHover)
+			.SetDisabledForeground(FStyleColors::White25)
+			.SetNormalPadding(FMargin(4))
+			.SetPressedPadding(FMargin(4))
+		 );
+
 	}
 #endif // WITH_EDITOR || (IS_PROGRAM && WITH_UNREAL_DEVELOPER_TOOLS)
 

@@ -249,7 +249,7 @@ private:	// DETAILS
 	const FSlateBrush* GetShowHideDetailsImage() const;
 
 	/** Handles the show/hide details button click */
-	FReply OnShowHideDetailsClicked() const;
+	void OnShowHideDetailsClicked(const ECheckBoxState ) const;
 
 	/** Gets the visibility of the uneditable blueprint foliage type warning */
 	EVisibility GetUneditableFoliageTypeWarningVisibility() const;
@@ -278,7 +278,7 @@ private:
 	TSharedPtr<class SWidgetSwitcher> WidgetSwitcher;
 
 	/** The Add Foliage Type combo button */
-	TSharedPtr<class SComboButton> AddFoliageTypeCombo;
+	TSharedPtr<class SEditorHeaderButton> AddFoliageTypeCombo;
 
 	/** The header row of the foliage mesh tree */
 	TSharedPtr<class SHeaderRow> TreeViewHeaderRow;

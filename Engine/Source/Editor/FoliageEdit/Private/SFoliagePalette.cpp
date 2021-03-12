@@ -19,6 +19,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Input/SSlider.h"
+#include "SEditorHeaderButton.h"
 #include "EditorStyleSet.h"
 #include "FoliagePaletteCommands.h"
 #include "AssetThumbnail.h"
@@ -210,74 +211,66 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 		+ SVerticalBox::Slot()
 		.AutoHeight()
 		.HAlign(HAlign_Fill)
+		.Padding(FMargin(2.f, 8.f))
 		[
-			// Top bar
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("DetailsView.CategoryTop"))
-			.Padding(FMargin(6.f, 2.f))
-			.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f, 1.0f))
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Left)
+			.AutoWidth()
 			[
-				SNew(SHorizontalBox)
+				// +Add Foliage Type button
+				SAssignNew(AddFoliageTypeCombo, SEditorHeaderButton)
+				.Icon(FAppStyle::Get().GetBrush("Icons.Plus"))
+				.Text(LOCTEXT("AddFoliageTypeButtonLabel", "Foliage"))
+				.OnGetMenuContent(this, &SFoliagePalette::GetAddFoliageTypePicker)
+			]
 
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Left)
-				.AutoWidth()
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.VAlign(VAlign_Center)
+			.Padding(6.f, 0.f)
+			[
+				SAssignNew(SearchBoxPtr, SSearchBox)
+				.HintText(LOCTEXT("SearchFoliagePaletteHint", "Search Foliage"))
+				.OnTextChanged(this, &SFoliagePalette::OnSearchTextChanged)
+			]
+
+			// Show Details  
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.ToolTipText(this, &SFoliagePalette::GetShowHideDetailsTooltipText)
+				.Style(FAppStyle::Get(), "ToggleButtonCheckBox")
+				.IsChecked_Lambda([this]() -> ECheckBoxState {
+						return FoliageEditMode->UISettings.GetShowPaletteItemDetails() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+					})
+
+				.OnCheckStateChanged(this, &SFoliagePalette::OnShowHideDetailsClicked)
+				.Content()
 				[
-					// +Add Foliage Type button
-					SAssignNew(AddFoliageTypeCombo, SComboButton)
-					.ForegroundColor(FLinearColor::White)
-					.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-					.OnGetMenuContent(this, &SFoliagePalette::GetAddFoliageTypePicker)
-					.ContentPadding(FMargin(1.f))
-					.ButtonContent()
-					[
-						SNew(SHorizontalBox)
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.AutoWidth()
-						.Padding(1.f)
-						[
-							SNew(STextBlock)
-							.TextStyle(FEditorStyle::Get(), "FoliageEditMode.AddFoliageType.Text")
-							.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.9"))
-							.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-						]
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.Padding(1.f)
-						[
-							SNew(STextBlock)
-							.Text(LOCTEXT("AddFoliageTypeButtonLabel", "Add Foliage Type"))
-							.TextStyle(FEditorStyle::Get(), "FoliageEditMode.AddFoliageType.Text")
-						]
-					]
+					SNew(SImage)
+            		.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
 				]
+			]
 
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Fill)
-				.VAlign(VAlign_Center)
-				.Padding(6.f, 0.f)
+			// View Options
+			+ SHorizontalBox::Slot()
+			.HAlign(HAlign_Right)
+			.AutoWidth()
+			[
+				SNew( SComboButton )
+				.ComboButtonStyle( FAppStyle::Get(), "SimpleComboButton" ) // Use the tool bar item style for this button
+				.OnGetMenuContent(this, &SFoliagePalette::GetViewOptionsMenuContent)
+				.HasDownArrow(false)
+				.ButtonContent()
 				[
-					SAssignNew(SearchBoxPtr, SSearchBox)
-					.HintText(LOCTEXT("SearchFoliagePaletteHint", "Search Foliage"))
-					.OnTextChanged(this, &SFoliagePalette::OnSearchTextChanged)
-				]
-
-				// View Options
-				+ SHorizontalBox::Slot()
-				.HAlign(HAlign_Right)
-				.AutoWidth()
-				[
-					SNew( SComboButton )
-					.ContentPadding(0)
-					.ForegroundColor( FSlateColor::UseForeground() )
-					.ButtonStyle( FEditorStyle::Get(), "ToggleButton" )
-					.OnGetMenuContent(this, &SFoliagePalette::GetViewOptionsMenuContent)
-					.ButtonContent()
-					[
-						SNew(SImage)
-						.Image( FEditorStyle::GetBrush("GenericViewButton") )
-					]
+					SNew(SImage)
+            		.ColorAndOpacity(FSlateColor::UseForeground())
+					.Image( FAppStyle::Get().GetBrush("Icons.Settings") )
 				]
 			]
 		]
@@ -336,44 +329,6 @@ void SFoliagePalette::Construct(const FArguments& InArgs)
 						[
 							SNew(STextBlock)
 							.Text(this, &SFoliagePalette::GetDetailsNameAreaText)
-						]
-
-						// Show/Hide Details
-						+ SHorizontalBox::Slot()
-						.HAlign(HAlign_Right)
-						.AutoWidth()
-						[
-							SNew(SButton)
-							.ToolTipText(this, &SFoliagePalette::GetShowHideDetailsTooltipText)
-							.ForegroundColor(FSlateColor::UseForeground())
-							.ButtonStyle(FEditorStyle::Get(), "ToggleButton")
-							.OnClicked(this, &SFoliagePalette::OnShowHideDetailsClicked)
-							.ContentPadding(FMargin(2.f))
-							.Content()
-							[
-								SNew(SHorizontalBox)
-
-								// Details icon
-								+SHorizontalBox::Slot()
-								.AutoWidth()
-								.HAlign(HAlign_Center)
-								.VAlign(VAlign_Center)
-								[
-									SNew(SImage)
-									.Image(FEditorStyle::GetBrush("LevelEditor.Tabs.Details"))
-								]
-
-								// Arrow
-								+ SHorizontalBox::Slot()
-								.Padding(FMargin(3.f, 0.f))
-								.AutoWidth()
-								.HAlign(HAlign_Center)
-								.VAlign(VAlign_Center)
-								[
-									SNew(SImage)
-									.Image(this, &SFoliagePalette::GetShowHideDetailsImage)
-								]
-							]
 						]
 					]
 				]
@@ -568,7 +523,7 @@ void SFoliagePalette::AddFoliageType(const FAssetData& AssetData)
 {
 	if (AddFoliageTypeCombo.IsValid())
 	{
-		AddFoliageTypeCombo->SetIsOpen(false);
+		AddFoliageTypeCombo->SetIsMenuOpen(false, false);
 	}
 
 	GWarn->BeginSlowTask(LOCTEXT("AddFoliageType_LoadPackage", "Loading Foliage Type"), true, false);
@@ -1422,13 +1377,12 @@ const FSlateBrush* SFoliagePalette::GetShowHideDetailsImage() const
 	return FEditorStyle::Get().GetBrush(bDetailsCurrentlyVisible ? "Symbols.DoubleDownArrow" : "Symbols.DoubleUpArrow");
 }
 
-FReply SFoliagePalette::OnShowHideDetailsClicked() const
+void SFoliagePalette::OnShowHideDetailsClicked(const ECheckBoxState InCheckedState) const
 {
-	const bool bDetailsCurrentlyVisible = DetailsWidget->GetVisibility() != EVisibility::Collapsed;
-	DetailsWidget->SetVisibility(bDetailsCurrentlyVisible ? EVisibility::Collapsed : EVisibility::SelfHitTestInvisible);
-	FoliageEditMode->UISettings.SetShowPaletteItemDetails(!bDetailsCurrentlyVisible);
+	const bool bShouldShowDetails = InCheckedState == ECheckBoxState::Checked;
 
-	return FReply::Handled();
+	DetailsWidget->SetVisibility(bShouldShowDetails ? EVisibility::SelfHitTestInvisible : EVisibility::Collapsed );
+	FoliageEditMode->UISettings.SetShowPaletteItemDetails(bShouldShowDetails);
 }
 
 EVisibility SFoliagePalette::GetUneditableFoliageTypeWarningVisibility() const
