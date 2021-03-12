@@ -24,47 +24,62 @@
 		OutProperty: RequiredEditorPlatforms - Editor platforms to build to cook targets      
 	-->
 
+<Property Name="ShowExplicitFlags" Value="$(IsBuildMachine)" />
+
+<Property Name="AllEditorPlatforms" Value="Mac+Win64" />
+<Property Name="AllTargetPlatforms" Value="Android+HoloLens+iOS+Lumin+Mac+PS4+PS5+Stadia+Switch+tvOS+Win64+WinGDK+XboxOneGDK+XSX" />
+
 <Option Name="EditorPlatforms" DefaultValue="" Description="Alternative to 'WithFooEditor', a list of editors to build and test. Win64+Mac etc"/>
 <Option Name="TargetPlatforms" DefaultValue="" Description="Alternative to 'WithFoo', a list of Platforms to build and test. PS4+XSX etc"/>
 
-<Option Name="WithWin64Editor" DefaultValue="false" Description="Build and test Win64 Editor"/>
-<Option Name="WithMacEditor" DefaultValue="false" Description="Build and test Mac Editor"/>
+<!-- Support simple One+Two+Three style -->
+<Option Name="TargetConfigurations" DefaultValue="" Description="Configuration(s) to build"/>
+<Option Name="PackageConfigurations" DefaultValue="$(TargetConfigurations)" Description="Configuration to package"/>
+<Option Name="TestConfigurations" DefaultValue="$(PackageConfigurations)" Description="Configuration to test"/>
 
-<Option Name="WithAndroid" DefaultValue="false" Description="Build and test Android"/>
-<Option Name="WithIOS" DefaultValue="false" Description="Build and test IOS"/>
-<Option Name="WithLumin" DefaultValue="false" Description="Build and test Lumin"/>
-<Option Name="WithMac" DefaultValue="false" Description="Build and test Mac"/>
-<Option Name="WithPS4" DefaultValue="false" Description="Build and test PS4"/>
-<Option Name="WithPS5" DefaultValue="false" Description="Build and test PS5"/>
-<Option Name="WithStadia" DefaultValue="false" Description="Build and test Stadia"/>
-<Option Name="WithSwitch" DefaultValue="false" Description="Build and test Switch"/>
-<Option Name="WithWin64" DefaultValue="false" Description="Build and test Win64"/>
-<Option Name="WithWinGDK" DefaultValue="false" Description="Build and test WinGDK"/>
-<Option Name="WithXboxOneGDK" DefaultValue="false" Description="Build and test XboxOneGDK"/>
-<Option Name="WithXSX" DefaultValue="false" Description="Build and test XSX"/>
+<!-- Support explicit flags for horde but hide them otherwise as the option list is overwhelming..-->
+<Do If="$(ShowExplicitFlags)" >
+	<Option Name="WithWin64Editor" DefaultValue="false" Description="Build and test Win64 Editor"/>
+	<Option Name="WithMacEditor" DefaultValue="false" Description="Build and test Mac Editor"/>
 
-<Option Name="TargetConfiguration" DefaultValue="Development" Description="Configuration to build and test"/>
+	<Option Name="WithAndroid" DefaultValue="false" Description="Build and test Android"/>
+	<Option Name="WithHoloLens" DefaultValue="false" Description="Build and test HoloLens"/>
+	<Option Name="WithIOS" DefaultValue="false" Description="Build and test IOS"/>
+	<Option Name="WithLumin" DefaultValue="false" Description="Build and test Lumin"/>
+	<Option Name="WithMac" DefaultValue="false" Description="Build and test Mac"/>
+	<Option Name="WithPS4" DefaultValue="false" Description="Build and test PS4"/>
+	<Option Name="WithPS5" DefaultValue="false" Description="Build and test PS5"/>
+	<Option Name="WithStadia" DefaultValue="false" Description="Build and test Stadia"/>
+	<Option Name="WithSwitch" DefaultValue="false" Description="Build and test Switch"/>
+	<Option Name="WithTvOS" DefaultValue="false" Description="Build and test TvOS"/>
+	<Option Name="WithWin64" DefaultValue="false" Description="Build and test Win64"/>
+	<Option Name="WithWinGDK" DefaultValue="false" Description="Build and test WinGDK"/>
+	<Option Name="WithXboxOneGDK" DefaultValue="false" Description="Build and test XboxOneGDK"/>
+	<Option Name="WithXSX" DefaultValue="false" Description="Build and test XSX"/>
 
-<Do If="'$(EditorPlatforms)' == ''" >
-	<Property Name="EditorPlatforms" Value="" />
-	<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Win64+" If="$(WithWin64Editor)" />
-	<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Mac+" If="$(WithMacEditor)" />
-</Do>
+	<Do If="'$(EditorPlatforms)' == ''" >
+		<Property Name="EditorPlatforms" Value="" />
+		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Win64+" If="$(WithWin64Editor)" />
+		<Property Name="EditorPlatforms" Value="$(EditorPlatforms)Mac+" If="$(WithMacEditor)" />
+	</Do>
 
-<Do If="'$(TargetPlatforms)' == ''" >
-	<Property Name="TargetPlatforms" Value="" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Android+" If="$(WithAndroid)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)IOS+" If="$(WithIOS)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Lumin+" If="$(WithLumin)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Mac+" If="$(WithMac)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS4+" If="$(WithPS4)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS5+" If="$(WithPS5)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Stadia+" If="$(WithStadia)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Switch+" If="$(WithSwitch)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Win64+" If="$(WithWin64)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)WinGDK+" If="$(WithWinGDK)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)XboxOneGDK+" If="$(WithXboxOneGDK)" />
-	<Property Name="TargetPlatforms" Value="$(TargetPlatforms)XSX+" If="$(WithXSX)" />
+	<Do If="'$(TargetPlatforms)' == ''" >
+		<Property Name="TargetPlatforms" Value="" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Android+" If="$(WithAndroid)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)HoloLens+" If="$(WithHoloLens)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)IOS+" If="$(WithIOS)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Lumin+" If="$(WithLumin)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Mac+" If="$(WithMac)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS4+" If="$(WithPS4)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)PS5+" If="$(WithPS5)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Stadia+" If="$(WithStadia)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Switch+" If="$(WithSwitch)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)TVOS+" If="$(WithTVOS)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)Win64+" If="$(WithWin64)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)WinGDK+" If="$(WithWinGDK)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)XboxOneGDK+" If="$(WithXboxOneGDK)" />
+		<Property Name="TargetPlatforms" Value="$(TargetPlatforms)XSX+" If="$(WithXSX)" />
+	</Do>
 </Do>
 
 <!-- If still no platforms, pick the defaults that the script should have specified-->
@@ -84,12 +99,24 @@
 	<Property Name="TargetPlatforms" Value="" />
 </Do>
 
+<!-- 'None' means don't do any platforms. We need to do this because an empty string means use defaults.. -->
+<Do If="'$(EditorPlatforms)' == 'All'" >
+	<Property Name="EditorPlatforms" Value="$(AllEditorPlatforms)" />
+</Do>
+<Do If="'$(TargetPlatforms)' == 'All'" >
+	<Property Name="TargetPlatforms" Value="$(AllTargetPlatforms)" />
+</Do>
+
 <Property Name="RequiredEditorPlatforms" Value="$(EditorPlatforms)" />
 
 <ForEach Name="TargetPlatform" Values="$(TargetPlatforms)" Separator="+">
+	<!-- Check the platform is valid -->
+	<Do If="!ContainsItem('$(AllTargetPlatforms)','$(TargetPlatform)','+')" >
+		<Error Message="Platform $(TargetPlatform) is not a recognized platform!" />
+	</Do>
 	<!-- Declare type of host required to build & cook this platform-->
 	<Property Name="HostAgentType" Value="Win64" />
-	<Property Name="HostAgentType" Value="Mac" If="'$(TargetPlatform)' == 'Mac' or '$(TargetPlatform)' == 'IOS'"/>
+	<Property Name="HostAgentType" Value="Mac" If="'$(TargetPlatform)' == 'Mac' or '$(TargetPlatform)' == 'IOS' or '$(TargetPlatform)' == 'tvOS'"/>
 
 	<Do If="!ContainsItem('$(RequiredEditorPlatforms)','$(HostAgentType)', '+')">
 		<Property Name="RequiredEditorPlatforms" Value="$(RequiredEditorPlatforms)+$(HostAgentType)" />
@@ -98,5 +125,62 @@
 
 <!-- PS5 packaging isn't supported by Gauntlet yet :( )-->
 <Property Name="PlatformsToSkipPackaging" Value="PS5" />
+
+
+<!-- Support explicit flags for horde but hide them otherwise as the option list is overwhelming..-->
+<Do If="$(ShowExplicitFlags)" >
+	<Option Name="WithDebugTargets" DefaultValue="false" Description="Build Debug configurations"/>
+	<Option Name="WithDevelopmentTargets" DefaultValue="false" Description="Build Development configurations"/>
+	<Option Name="WithTestTargets" DefaultValue="false" Description="Build Test configurations"/>
+	<Option Name="WithShippingTargets" DefaultValue="false" Description="Build Shipping configurations"/>
+
+	<Option Name="WithDebugPackages" DefaultValue="false" Description="Build Debug packages"/>
+	<Option Name="WithDevelopmentPackages" DefaultValue="false" Description="Build Development packages"/>
+	<Option Name="WithTestPackages" DefaultValue="false" Description="Build Test packages"/>
+	<Option Name="WithShippingPackages" DefaultValue="false" Description="Build Shipping packages"/>
+
+	<Option Name="WithDebugTests" DefaultValue="false" Description="Run tests on Debug builds"/>
+	<Option Name="WithDevelopmentTests" DefaultValue="false" Description="Run tests on Development builds"/>
+	<Option Name="WithTestTests" DefaultValue="false" Description="Run tests on Test builds"/>
+	<Option Name="WithShippingTests" DefaultValue="false" Description="Run tests on Shipping builds"/>
+
+	<Do If="'$(TargetConfigurations)' == ''" >	
+		<Property Name="TargetConfigurations" Value="" />
+		<Property Name="TargetConfigurations" Value="$(TargetConfigurations)Debug+"  If="$(WithDebugTargets)" />
+		<Property Name="TargetConfigurations" Value="$(TargetConfigurations)Development+"  If="$(WithDevelopmentTargets)" />
+		<Property Name="TargetConfigurations" Value="$(TargetConfigurations)Test+"  If="$(WithTestTargets)" />
+		<Property Name="TargetConfigurations" Value="$(TargetConfigurations)Shipping+"  If="$(WithShippingTargets)" />
+	</Do>
+
+	<Do If="'$(PackageConfigurations)' == ''" >	
+		<Property Name="PackageConfigurations" Value="" />
+		<Property Name="PackageConfigurations" Value="$(PackageConfigurations)Debug+"  If="$(WithDebugPackages)" />
+		<Property Name="PackageConfigurations" Value="$(PackageConfigurations)Development+"  If="$(WithDevelopmentPackages)" />
+		<Property Name="PackageConfigurations" Value="$(PackageConfigurations)Test+"  If="$(WithTestPackages)" />
+		<Property Name="PackageConfigurations" Value="$(PackageConfigurations)Shipping+"  If="$(WithShippingPackages)" />
+	</Do>
+
+	<Do If="'$(TestConfigurations)' == ''" >	
+		<Property Name="TestConfigurations" Value="" />
+		<Property Name="TestConfigurations" Value="$(TestConfigurations)Debug+"  If="$(WithDebugTests)" />
+		<Property Name="TestConfigurations" Value="$(TestConfigurations)Development+"  If="$(WithDevelopmentTests)" />
+		<Property Name="TestConfigurations" Value="$(TestConfigurations)Test+"  If="$(WithTestTests)" />
+		<Property Name="TestConfigurations" Value="$(TestConfigurations)Shipping+"  If="$(WithShippingTests)" />
+	</Do>
+</Do>
+
+<Do If="'$(TargetConfigurations)' == ''" >
+	<Property Name="TargetConfigurations" Value="$(DefaultTargetConfigurations)" />
+</Do>
+
+<Do If="'$(PackageConfigurations)' == ''" >	
+	<Property Name="PackageConfigurations" Value="$(TargetConfigurations)" />
+</Do>
+
+<Do If="'$(TestConfigurations)' == ''" >	
+	<Property Name="TestConfigurations" Value="$(PackageConfigurations)" />
+</Do>
+
+
 
 </BuildGraph>
