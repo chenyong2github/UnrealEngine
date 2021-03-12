@@ -460,6 +460,7 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 		LocalBitMask.Init(true, LocalTags.Num());
 		
 		ReplicatedTags.SetNumUninitialized(NumElements, false);
+		ReplicatedLocations.SetNum(NumElements, false);
 
 		// This struct does not serialize GC parameters but will synthesize them on the receiving side.
 		FGameplayCueParameters Parameters;
@@ -476,7 +477,7 @@ bool FMinimalGameplayCueReplicationProxy::NetSerialize(FArchive& Ar, class UPack
 			Ar << bHasReplicatedLocation;
 			if (bHasReplicatedLocation)
 			{
-				FVector_NetQuantize ReplicatedLocation;
+				FVector_NetQuantize& ReplicatedLocation = ReplicatedLocations[i];
 				ReplicatedLocation.NetSerialize(Ar, Map, bOutSuccess);
 				Parameters.Location = ReplicatedLocation;
 			}
