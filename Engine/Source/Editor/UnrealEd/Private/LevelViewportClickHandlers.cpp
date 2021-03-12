@@ -203,6 +203,10 @@ namespace LevelViewportClickHandlers
 						}
 						LevelEditorElementSelectionSet->SelectElement(ResolvedElement, SelectionOptions);
 					}
+
+					// Notify any pending selection change now, as this avoids the visual pivot location "lagging" behind the actual selection,
+					// and also ensures that the pivot is at the correct location prior to opening any context menus (which block the update)
+					LevelEditorElementSelectionSet->NotifyPendingChanges();
 				}
 
 				if (bNeedViewportRefresh)
