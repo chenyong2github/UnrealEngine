@@ -170,9 +170,9 @@ void UMovieSceneColorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* En
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
 	FPropertyTrackEntityImportHelper(TracksComponents->Color)
-		.Add(Components->FloatChannel[0], &RedCurve)
-		.Add(Components->FloatChannel[1], &GreenCurve)
-		.Add(Components->FloatChannel[2], &BlueCurve)
-		.Add(Components->FloatChannel[3], &AlphaCurve)
+		.AddConditional(Components->FloatChannel[0], &RedCurve, RedCurve.HasAnyData())
+		.AddConditional(Components->FloatChannel[1], &GreenCurve, GreenCurve.HasAnyData())
+		.AddConditional(Components->FloatChannel[2], &BlueCurve, BlueCurve.HasAnyData())
+		.AddConditional(Components->FloatChannel[3], &AlphaCurve, AlphaCurve.HasAnyData())
 		.Commit(this, Params, OutImportedEntity);
 }

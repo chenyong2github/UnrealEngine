@@ -194,14 +194,18 @@ void UMovieSceneVectorSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* E
 	{
 		return;
 	}
+	else if (!Curves[0].HasAnyData() && !Curves[1].HasAnyData() && !Curves[2].HasAnyData() && !Curves[3].HasAnyData())
+	{
+		return;
+	}
 
 	const FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
 	const FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
 
 	FPropertyTrackEntityImportHelper(TracksComponents->Vector)
-		.AddConditional(Components->FloatChannel[0], &Curves[0], ChannelsUsed > 0)
-		.AddConditional(Components->FloatChannel[1], &Curves[1], ChannelsUsed > 1)
-		.AddConditional(Components->FloatChannel[2], &Curves[2], ChannelsUsed > 2)
-		.AddConditional(Components->FloatChannel[3], &Curves[3], ChannelsUsed > 3)
+		.AddConditional(Components->FloatChannel[0], &Curves[0], ChannelsUsed > 0 && Curves[0].HasAnyData())
+		.AddConditional(Components->FloatChannel[1], &Curves[1], ChannelsUsed > 1 && Curves[1].HasAnyData())
+		.AddConditional(Components->FloatChannel[2], &Curves[2], ChannelsUsed > 2 && Curves[2].HasAnyData())
+		.AddConditional(Components->FloatChannel[3], &Curves[3], ChannelsUsed > 3 && Curves[3].HasAnyData())
 		.Commit(this, Params, OutImportedEntity);
 }
