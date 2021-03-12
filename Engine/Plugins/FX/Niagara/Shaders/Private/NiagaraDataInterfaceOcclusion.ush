@@ -7,7 +7,8 @@
 void DIOcclusion_Rectangle(in float3 In_SampleCenterWorldPos, in float In_SampleWindowWidthWorld, in float In_SampleWindowHeightWorld, in float In_SampleSteps, out float Out_VisibilityFraction, out float Out_SampleFraction)
 {
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-	float CameraDistance = length(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz);
+	// we need to project the camera vector to a plane to compare it with scene depth
+	float CameraDistance = abs(dot(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz, View.ViewForward.xyz));
 	float4 SamplePosition = float4(In_SampleCenterWorldPos + View.PreViewTranslation, 1);
 	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
 	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
@@ -42,7 +43,7 @@ void DIOcclusion_Rectangle(in float3 In_SampleCenterWorldPos, in float In_Sample
 				{
 					continue;
 				}
-			
+				
 				float Depth = CalcSceneDepth(float2(SampleX, SampleY));
 				if (Depth < CameraDistance) 
 				{
@@ -65,7 +66,7 @@ void DIOcclusion_Circle(in float3 In_SampleCenterWorldPos, in float In_SampleWin
 #if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	const float PI = 3.14159265;
 	const float SPIRAL_TURN = 2 * PI * 0.61803399; // use golden ratio to rotate sample pattern each ring so we get a spiral
-	float CameraDistance = length(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz);
+	float CameraDistance = abs(dot(In_SampleCenterWorldPos.xyz - View.WorldViewOrigin.xyz, View.ViewForward.xyz)); // we need to project the camera vector to a plane to compare it with scene depth
 	float4 SamplePosition = float4(In_SampleCenterWorldPos + View.PreViewTranslation, 1);
 	float4 ClipPosition = mul(SamplePosition, View.TranslatedWorldToClip);
 	float2 ScreenPosition = ClipPosition.xy / ClipPosition.w;
