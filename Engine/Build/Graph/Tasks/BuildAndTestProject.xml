@@ -8,7 +8,7 @@
 
 	<Option Name="TargetName" DefaultValue="" Restrict="" Description="If your project supports both Game and Client you can set this, otherwise one will be selected"/>
 
-
+	<Option Name="ExtraToolCompileArguments" DefaultValue="" Restrict="" Description="Extra arguments to use when building the tools" />
 	<Option Name="ExtraEditorCompileArguments" DefaultValue="" Restrict="" Description="Extra arguments to use when building the editor" />
 	<Option Name="ExtraTargetCompileArguments" DefaultValue="" Restrict="" Description="Extra arguments to use when building targets" />
 	<Option Name="MapIniSection" DefaultValue="" Restrict="" Description="MapIniSection argument to pass when cooking" />
@@ -99,6 +99,12 @@
 	<!-- If skip packaging is true, add all target platforms to the "do not test" list -->
 	<Do If="$(SkipPackage)">
 		<Property Name="PlatformsToSkipPackaging" Value="$(EditorPlatforms)+$(TargetPlatforms)" />
+	</Do>
+
+	<Do If="$(UseIncrementalAgents)" >
+		<Property Name="ExtraToolCompileArguments" Value="-allmodules -disableunity -nodebuginfo -2019 -Strict -WarningsAsErrors"/>
+		<Property Name="ExtraEditorCompileArguments" Value="-allmodules -disableunity -nodebuginfo -2019 -Strict -WarningsAsErrors"/>
+		<Property Name="ExtraTargetCompileArguments" Value="-nodebuginfo -WarningsAsErrors"/>
 	</Do>
 
 	<!-- Detect the type of the client based on the target name -->
