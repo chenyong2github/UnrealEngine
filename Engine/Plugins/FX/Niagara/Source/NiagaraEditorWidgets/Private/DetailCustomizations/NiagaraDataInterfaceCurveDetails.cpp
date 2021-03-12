@@ -41,6 +41,8 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/MultiBox/MultiBoxDefs.h"
 #include "Curves/CurveVector.h"
 #include "Curves/CurveFloat.h"
 #include "Curves/CurveLinearColor.h"
