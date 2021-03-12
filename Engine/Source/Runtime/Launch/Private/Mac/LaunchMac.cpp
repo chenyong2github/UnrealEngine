@@ -259,8 +259,8 @@ static int32 MacOSVersionCompare(const NSOperatingSystemVersion& VersionA, const
 	NSString* MinimumSystemVersionString = (NSString*)InfoDictionary[@"LSMinimumSystemVersion"];
 	NSOperatingSystemVersion MinimumSystemVersion = { 0 };
 	NSOperatingSystemVersion CurrentSystemVersion = [[NSProcessInfo processInfo] operatingSystemVersion];
-	NSOperatingSystemVersion MinSupportedMacOSVersion = { 10, 14, 6 };
-	NSString* MinSupportedMacOSVersionString = @"10.14.6";
+	NSOperatingSystemVersion MinSupportedMacOSVersion = { 10, 15, 7 };
+	NSString* MinSupportedMacOSVersionString = @"10.15.7";
 
 	NSArray<NSString*>* VersionComponents = [MinimumSystemVersionString componentsSeparatedByString:@"."];
 	MinimumSystemVersion.majorVersion = [[VersionComponents objectAtIndex:0] integerValue];

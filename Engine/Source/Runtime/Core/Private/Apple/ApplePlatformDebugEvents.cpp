@@ -60,7 +60,11 @@
 	#define PLATFORM_MAC 1
 	#define PLATFORM_IOS 0
 	#define PLATFORM_TVOS 0
-#elif PLATFORM_TVOS	
+
+	#define DEBUG_SIGNPOST_EMIT(Code, Arg1, Arg2, Arg3, Arg4)			os_signpost_event_emit(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_BEGIN(Code, Arg1, Arg2, Arg3, Arg4)	os_signpost_interval_begin(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_END(Code, Arg1, Arg2, Arg3, Arg4)	os_signpost_interval_end(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
+#elif PLATFORM_TVOS
 	#include <os/log.h>
 	#include <os/signpost.h>
 	
@@ -71,6 +75,10 @@
 	#define PLATFORM_MAC 0
 	#define PLATFORM_IOS 1
 	#define PLATFORM_TVOS 1
+
+	#define DEBUG_SIGNPOST_EMIT(Code, Arg1, Arg2, Arg3, Arg4)			os_signpost_event_emit(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_BEGIN(Code, Arg1, Arg2, Arg3, Arg4)	os_signpost_interval_begin(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_END(Code, Arg1, Arg2, Arg3, Arg4)	os_signpost_interval_end(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
 #else
 	#include <os/log.h>
 	#include <os/signpost.h>
@@ -82,8 +90,16 @@
 	#define PLATFORM_MAC 0
 	#define PLATFORM_IOS 1
 	#define PLATFORM_TVOS 0
+
+	#define DEBUG_SIGNPOST_EMIT(Code, Arg1, Arg2, Arg3, Arg4)			os_signpost_event_emit(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_BEGIN(Code, Arg1, Arg2, Arg3, Arg4)	os_signpost_interval_begin(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_END(Code, Arg1, Arg2, Arg3, Arg4)	os_signpost_interval_end(GetLog(), Code, "DebugSignPost", "%lu, %lu, %lu, %lu", Arg1, Arg2, Arg3, Arg4)
 #endif
-#endif
+#else // APPLE_PROFILING_SIGNPOST
+	#define DEBUG_SIGNPOST_EMIT(Code, Arg1, Arg2, Arg3, Arg4)			kdebug_signpost(Code, Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_BEGIN(Code, Arg1, Arg2, Arg3, Arg4)	kdebug_signpost_start(Code, Arg1, Arg2, Arg3, Arg4)
+	#define DEBUG_SIGNPOST_INTERVAL_END(Code, Arg1, Arg2, Arg3, Arg4)	kdebug_signpost_end(Code, Arg1, Arg2, Arg3, Arg4)
+#endif // APPLE_PROFILING_SIGNPOST
 
 DEFINE_LOG_CATEGORY(LogInstruments)
 
@@ -163,7 +179,7 @@ void FApplePlatformDebugEvents::DebugSignPost(uint16 Code, uintptr_t Arg1, uintp
 		else
 #endif
 		{
-			kdebug_signpost(Code, Arg1, Arg2, Arg3, Arg4);
+			DEBUG_SIGNPOST_EMIT(Code, Arg1, Arg2, Arg3, Arg4);
 		}
 	}
 }
@@ -186,7 +202,7 @@ void FApplePlatformDebugEvents::DebugSignPostStart(uint16 Code, uintptr_t Arg1, 
 		else
 #endif
 		{
-			kdebug_signpost_start(Code, Arg1, Arg2, Arg3, Arg4);
+			DEBUG_SIGNPOST_INTERVAL_BEGIN(Code, Arg1, Arg2, Arg3, Arg4);
 		}
 	}
 }
@@ -209,7 +225,7 @@ void FApplePlatformDebugEvents::DebugSignPostEnd(uint16 Code, uintptr_t Arg1, ui
 		else
 #endif
 		{
-			kdebug_signpost_end(Code, Arg1, Arg2, Arg3, Arg4);
+			DEBUG_SIGNPOST_INTERVAL_END(Code, Arg1, Arg2, Arg3, Arg4);
 		}
 	}
 }

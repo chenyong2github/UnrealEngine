@@ -1304,11 +1304,11 @@ RHI_API uint32 RHIGetShaderLanguageVersion(const FStaticShaderPlatform Platform)
 			static int32 MaxShaderVersion = -1;
 			if (MaxShaderVersion < 0)
 			{
-				MaxShaderVersion = 2;
-				int32 MinShaderVersion = 3;
+				MaxShaderVersion = 5; // MSL v2.2
+				int32 MinShaderVersion = 4; // MSL v2.1
 				if(!GConfig->GetInt(TEXT("/Script/MacTargetPlatform.MacTargetSettings"), TEXT("MaxShaderLanguageVersion"), MaxShaderVersion, GEngineIni))
 				{
-					MaxShaderVersion = 4;
+					MaxShaderVersion = 0;
 				}
 				MaxShaderVersion = FMath::Max(MinShaderVersion, MaxShaderVersion);
 			}

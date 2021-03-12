@@ -105,9 +105,6 @@ protected:
 		bool bNeedsReferenceAttitude;
 		bool bHasReferenceAttitude;
 #endif
-        
-        // Deprecated but buttonMenu in iOS 14 is not working in current Beta (August 2020).
-        bool bPauseWasPressed;
 	};
 	
     // there is a hardcoded limit of 4 controllers in the API

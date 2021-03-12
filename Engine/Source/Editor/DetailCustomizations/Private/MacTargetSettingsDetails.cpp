@@ -286,7 +286,9 @@ static uint32 GMacTargetSettingsMinOSVers[][3] = {
 	{10,11,6},
 	{10,12,6},
 	{10,13,0},
-	{10,14,0}
+	{10,14,0},
+	{10,15,0},
+	{11, 0,0},
 };
 
 TSharedRef<SWidget> FMacTargetSettingsDetails::OnGetShaderVersionContent()

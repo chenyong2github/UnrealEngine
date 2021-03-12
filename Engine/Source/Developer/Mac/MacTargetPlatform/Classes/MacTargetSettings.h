@@ -13,11 +13,17 @@
 UENUM()
 enum class EMacMetalShaderStandard : uint8
 {
-    /** Metal Shaders, supporting multiple viewports, Compatible With macOS 10.13.0 or later (std=osx-metal2.0) */
+    /** Metal Shaders Compatible With macOS 10.13 or later (std=osx-metal2.0) */
     MacMetalSLStandard_2_0 = 3 UMETA(DisplayName="Metal v2.0 (10.13.0+)"),
     
-    /** Metal Shaders, supporting indirect command buffers, Compatible With macOS 10.14.0 or later (std=osx-metal2.1) */
+    /** Metal Shaders Compatible With macOS 10.14 or later (std=osx-metal2.1) */
     MacMetalSLStandard_2_1 = 4 UMETA(DisplayName="Metal v2.1 (10.14.0+)"),
+
+	/** Metal Shaders Compatible With macOS 10.15 or later (std=osx-metal2.2) */
+	MacMetalSLStandard_2_2 = 5 UMETA(DisplayName="Metal v2.2 (10.15.0+)"),
+
+	/** Metal Shaders Compatible With macOS 11.0 or later (std=osx-metal2.3) */
+	MacMetalSLStandard_2_3 = 6 UMETA(DisplayName="Metal v2.3 (11.0+)"),
 };
 
 UENUM()

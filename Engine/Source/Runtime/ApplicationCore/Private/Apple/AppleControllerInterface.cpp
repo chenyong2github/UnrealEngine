@@ -136,13 +136,6 @@ void FAppleControllerInterface::HandleConnection(GCController* Controller)
         Controllers[ControllerIndex].Controller = Controller;
         SetControllerType(ControllerIndex);
         
-		// Deprecated but buttonMenu behavior is unreliable in iOS/tvOS 14.0.1
-        Controllers[ControllerIndex].bPauseWasPressed = false;
-        Controller.controllerPausedHandler = ^(GCController* Cont)
-        {
-            Controllers[ControllerIndex].bPauseWasPressed = true;
-        };
-        
         bFoundSlot = true;
         
         UE_LOG(LogAppleController, Log, TEXT("New %s controller inserted, assigned to playerIndex %d"),
@@ -179,21 +172,6 @@ void FAppleControllerInterface::SendControllerEvents()
 {
     for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
  	{
-        GCController* Cont = Controllers[i].Controller;
-        
-        GCExtendedGamepad* ExtendedGamepad = nil;
-
-        if (@available(iOS 13, tvOS 13, *))
-        {
-            ExtendedGamepad = [Cont capture].extendedGamepad;
-        }
-        else
-        {
-            ExtendedGamepad = [Cont.extendedGamepad saveSnapshot];
-        }
-
-		GCMotion* Motion = Cont.motion;
-		
 		// make sure the connection handler has run on this guy
 		if (Controllers[i].PlayerIndex == PlayerIndex::PlayerUnset)
 		{
@@ -201,14 +179,11 @@ void FAppleControllerInterface::SendControllerEvents()
 		}
 
 		FUserController& Controller = Controllers[i];
-		
-        if (Controller.bPauseWasPressed)
-        {
-            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
-            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
+		GCController* Cont = Controller.Controller;
 
-            Controller.bPauseWasPressed = false;
-        }
+		// Assumes iOS13, tvOS 13 & macOS 10.15
+        GCExtendedGamepad* ExtendedGamepad = [Cont capture].extendedGamepad;
+		GCMotion* Motion = Cont.motion;
         
 		if (ExtendedGamepad != nil)
 		{

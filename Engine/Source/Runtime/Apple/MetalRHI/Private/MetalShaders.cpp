@@ -53,13 +53,17 @@ mtlpp::LanguageVersion ValidateVersion(uint8 Version)
 		{10,12,6},
 		{10,13,0},
 		{10,14,0},
+		{10,15,0},
+		{11, 0,0},
 	};
 	static uint32 MetaliOSVersions[][3] = {
-		{8,0,0},
-		{9,0,0},
+		{ 8,0,0},
+		{ 9,0,0},
 		{10,0,0},
 		{11,0,0},
 		{12,0,0},
+		{13,0,0},
+		{14,0,0},
 	};
 	static TCHAR const* StandardNames[] =
 	{
@@ -68,11 +72,19 @@ mtlpp::LanguageVersion ValidateVersion(uint8 Version)
 		TEXT("Metal 1.2"),
 		TEXT("Metal 2.0"),
 		TEXT("Metal 2.1"),
+		TEXT("Metal 2.2"),
+		TEXT("Metal 2.3"),
 	};
 	
 	mtlpp::LanguageVersion Result = mtlpp::LanguageVersion::Version1_1;
 	switch(Version)
 	{
+		case 6:
+			Result = mtlpp::LanguageVersion::Version2_3;
+			break;
+		case 5:
+			Result = mtlpp::LanguageVersion::Version2_2;
+			break;
 		case 4:
 			Result = mtlpp::LanguageVersion::Version2_1;
 			break;

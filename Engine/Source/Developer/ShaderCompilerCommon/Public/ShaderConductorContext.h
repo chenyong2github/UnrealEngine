@@ -56,7 +56,7 @@ namespace CrossCompiler
 
 		/**
 		Target shader version.
-		Valid values for Metal family: 20100, 20000, 10200, 10100, 10000.
+		Valid values for Metal family: 20300, 20200, 20100, 20000, 10200, 10100, 10000.
 		Valid values for GLSL family: 310, 320, 330, 430.
 		*/
 		int32 Version = 0;

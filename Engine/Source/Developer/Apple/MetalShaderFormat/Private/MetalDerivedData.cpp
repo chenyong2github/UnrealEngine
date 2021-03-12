@@ -1732,18 +1732,30 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 				CCHeaderWriter.WriteTessellationIndexBuffer(HullIndexBuffer);
 			}
 			
+			if (VersionEnum >= 4)
+			{
+				if (IABTier >= 1)
+				{
+					TargetDesc.CompileFlags.SetDefine(TEXT("argument_buffers"), 1);
+					TargetDesc.CompileFlags.SetDefine(TEXT("argument_buffer_offset"), IABOffsetIndex);
+				}
+				TargetDesc.CompileFlags.SetDefine(TEXT("texture_buffer_native"), 1);
+			}
+			
 			switch (VersionEnum)
 			{
 				case 6:
+				{
+					TargetDesc.Version = 20300;
+					break;
+				}
 				case 5:
+				{
+					TargetDesc.Version = 20200;
+					break;
+				}
 				case 4:
 				{
-					if (IABTier >= 1)
-					{
-						TargetDesc.CompileFlags.SetDefine(TEXT("argument_buffers"), 1);
-						TargetDesc.CompileFlags.SetDefine(TEXT("argument_buffer_offset"), IABOffsetIndex);
-					}
-					TargetDesc.CompileFlags.SetDefine(TEXT("texture_buffer_native"), 1);
 					TargetDesc.Version = 20100;
 					break;
 				}
@@ -1769,7 +1781,6 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 					break;
 				}
 			}
-			
 		}
 
 		// Convert SPIR-V binary to Metal source
