@@ -328,7 +328,7 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 	else
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Unable to Login() user (%d) due to missing auth parameters"), LocalUserNum);
-		TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), FString(TEXT("Missing auth parameters")));
+		TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdEOS::EmptyId(), FString(TEXT("Missing auth parameters")));
 		return false;
 	}
 
@@ -344,7 +344,7 @@ bool FUserManagerEOS::Login(int32 LocalUserNum, const FOnlineAccountCredentials&
 		{
 			FString ErrorString = FString::Printf(TEXT("Login(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 			UE_LOG_ONLINE(Warning, TEXT("%s"), *ErrorString);
-			TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), ErrorString);
+			TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdEOS::EmptyId(), ErrorString);
 		}
 	};
 	// Perform the auth call
@@ -599,7 +599,7 @@ void FUserManagerEOS::CreateConnectedLogin(int32 LocalUserNum, EOS_EpicAccountId
 		{
 // @todo joeg - logout?
 			FString ErrorString = FString::Printf(TEXT("Login(%d) failed with EOS result code (%s)"), LocalUserNum, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-			TriggerOnLoginCompleteDelegates(LocalUserNum, false, FUniqueNetIdEOS(), ErrorString);
+			TriggerOnLoginCompleteDelegates(LocalUserNum, false, *FUniqueNetIdEOS::EmptyId(), ErrorString);
 		}
 	};
 	EOS_Connect_CreateUser(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
@@ -750,7 +750,7 @@ void FUserManagerEOS::AddLocalUser(int32 LocalUserNum, EOS_EpicAccountId EpicAcc
 	}
 
 	const FString& NetId = MakeNetIdStringFromIds(EpicAccountId, UserId);
-	FUniqueNetIdEOSRef UserNetId(new FUniqueNetIdEOS(NetId));
+	FUniqueNetIdEOSRef UserNetId = FUniqueNetIdEOS::Create(NetId);
 	FUserOnlineAccountEOSRef UserAccountRef(new FUserOnlineAccountEOS(UserNetId));
 
 	UserNumToNetIdMap.Add(LocalUserNum, UserNetId);
@@ -821,7 +821,7 @@ TSharedPtr<FUserOnlineAccount> FUserManagerEOS::GetUserAccount(const FUniqueNetI
 {
 	TSharedPtr<FUserOnlineAccount> Result;
 
-	FUniqueNetIdEOS EOSID(UserId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(UserId);
 	const FUserOnlineAccountEOSRef* FoundUserAccount = StringToUserAccountMap.Find(EOSID.UniqueNetIdStr);
 	if (FoundUserAccount != nullptr)
 	{
@@ -841,14 +841,14 @@ TArray<TSharedPtr<FUserOnlineAccount>> FUserManagerEOS::GetAllUserAccounts() con
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FUserManagerEOS::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FUserManagerEOS::GetUniquePlayerId(int32 LocalUserNum) const
 {
 	return GetLocalUniqueNetIdEOS(LocalUserNum);
 }
 
 int32 FUserManagerEOS::GetLocalUserNumFromUniqueNetId(const FUniqueNetId& NetId) const
 {
-	FUniqueNetIdEOS EosId(NetId);
+	const FUniqueNetIdEOS& EosId = FUniqueNetIdEOS::Cast(NetId);
 	if (StringToAccountIdMap.Contains(EosId.UniqueNetIdStr))
 	{
 		EOS_EpicAccountId AccountId = StringToAccountIdMap[EosId.UniqueNetIdStr];
@@ -937,7 +937,7 @@ EOS_ProductUserId FUserManagerEOS::GetLocalProductUserId(EOS_EpicAccountId Accou
 
 EOS_EpicAccountId FUserManagerEOS::GetEpicAccountId(const FUniqueNetId& NetId) const
 {
-	FUniqueNetIdEOS EOSId(NetId);
+	const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(NetId);
 
 	if (StringToAccountIdMap.Contains(EOSId.UniqueNetIdStr))
 	{
@@ -948,7 +948,7 @@ EOS_EpicAccountId FUserManagerEOS::GetEpicAccountId(const FUniqueNetId& NetId) c
 
 EOS_ProductUserId FUserManagerEOS::GetProductUserId(const FUniqueNetId& NetId) const
 {
-	FUniqueNetIdEOS EOSId(NetId);
+	const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(NetId);
 
 	if (StringToProductUserIdMap.Contains(EOSId.UniqueNetIdStr))
 	{
@@ -1103,20 +1103,20 @@ void FUserManagerEOS::RemoveLocalUser(int32 LocalUserNum)
 	}
 }
 
-TSharedPtr<const FUniqueNetId> FUserManagerEOS::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FUserManagerEOS::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Bytes != nullptr && Size >= 32)
 	{
 		// In the case of crossplay the size might be larger, but we only know how to parse the 32
 // @todo joeg crossplay
-		return MakeShareable(new FUniqueNetIdEOS(Bytes, 32));
+		return FUniqueNetIdEOS::Create(Bytes, 32);
 	}
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FUserManagerEOS::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FUserManagerEOS::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShareable(new FUniqueNetIdEOS(Str));
+	return FUniqueNetIdEOS::Create(Str);
 }
 
 ELoginStatus::Type FUserManagerEOS::GetLoginStatus(int32 LocalUserNum) const
@@ -1159,7 +1159,7 @@ ELoginStatus::Type FUserManagerEOS::GetLoginStatus(const FUniqueNetIdEOS& UserId
 
 ELoginStatus::Type FUserManagerEOS::GetLoginStatus(const FUniqueNetId& UserId) const
 {
-	FUniqueNetIdEOS EosId(UserId);
+	const FUniqueNetIdEOS& EosId = FUniqueNetIdEOS::Cast(UserId);
 	return GetLoginStatus(EosId);
 }
 
@@ -1189,7 +1189,7 @@ FString FUserManagerEOS::GetPlayerNickname(const FUniqueNetId& UserId) const
 
 FString FUserManagerEOS::GetAuthToken(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		TSharedPtr<FUserOnlineAccount> UserAccount = GetUserAccount(*UserId);
@@ -1476,7 +1476,7 @@ void FUserManagerEOS::FriendStatusChanged(const EOS_Friends_OnFriendsUpdateInfo*
 void FUserManagerEOS::AddFriend(int32 LocalUserNum, EOS_EpicAccountId EpicAccountId)
 {
 	const FString& NetId = MakeStringFromEpicAccountId(EpicAccountId);
-	FUniqueNetIdEOSRef FriendNetId(new FUniqueNetIdEOS(NetId));
+	FUniqueNetIdEOSRef FriendNetId = FUniqueNetIdEOS::Create(NetId);
 	FOnlineFriendEOSRef FriendRef = MakeShareable(new FOnlineFriendEOS(FriendNetId));
 	LocalUserNumToFriendsListMap[LocalUserNum]->Add(NetId, FriendRef);
 
@@ -1494,7 +1494,7 @@ void FUserManagerEOS::AddFriend(int32 LocalUserNum, EOS_EpicAccountId EpicAccoun
 
 void FUserManagerEOS::AddRemotePlayer(const FString& NetId, EOS_EpicAccountId EpicAccountId)
 {
-	FUniqueNetIdEOSRef EOSID(new FUniqueNetIdEOS(NetId));
+	FUniqueNetIdEOSRef EOSID = FUniqueNetIdEOS::Create(NetId);
 	FOnlineUserEOSRef UserRef = MakeShareable(new FOnlineUserEOS(EOSID));
 	// Add this user as a remote (this will grab presence & user info)
 	AddRemotePlayer(NetId, EpicAccountId, EOSID, UserRef, UserRef);
@@ -1528,7 +1528,7 @@ void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountI
 {
 	// See if the net ids have changed for this user and bail if they are the same
 	FString NewNetIdStr = MakeNetIdStringFromIds(AccountId, UserId);
-	const FString PrevNetIdStr = AccountIdToStringMap[AccountId];
+	const FString& PrevNetIdStr = AccountIdToStringMap[AccountId];
 	if (PrevNetIdStr == NewNetIdStr)
 	{
 		// No change, so skip any work
@@ -1543,7 +1543,7 @@ void FUserManagerEOS::UpdateRemotePlayerProductUserId(EOS_EpicAccountId AccountI
 	FUniqueNetIdEOSPtr NetIdEOS = AttrAccess->GetUniqueNetIdEOS();
 	if (NetIdEOS.IsValid())
 	{
-		NetIdEOS->UpdateNetIdStr(NewNetIdStr);
+		ConstCastSharedPtr<FUniqueNetIdEOS>(NetIdEOS)->UpdateNetIdStr(NewNetIdStr);
 	}
 	// Update any old friends entries with the new net id key
 	for (TMap<int32, FFriendsListEOSRef>::TConstIterator It(LocalUserNumToFriendsListMap); It; ++It)
@@ -1604,7 +1604,7 @@ bool FUserManagerEOS::SendInvite(int32 LocalUserNum, const FUniqueNetId& FriendI
 		return false;
 	}
 
-	FUniqueNetIdEOS EOSID(FriendId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(FriendId);
 	if (!StringToAccountIdMap.Contains(EOSID.UniqueNetIdStr))
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Can't SendInvite() for user (%d) since the potential player id is unknown"), LocalUserNum);
@@ -1615,8 +1615,7 @@ bool FUserManagerEOS::SendInvite(int32 LocalUserNum, const FUniqueNetId& FriendI
 	FSendInviteCallback* CallbackObj = new FSendInviteCallback();
 	CallbackObj->CallbackLambda = [LocalUserNum, ListName, this, Delegate](const EOS_Friends_SendInviteCallbackInfo* Data)
 	{
-		FString NetId = AccountIdToStringMap[Data->TargetUserId];
-		FUniqueNetIdEOS EOSID(NetId);
+		const FString& NetId = AccountIdToStringMap[Data->TargetUserId];
 
 		FString ErrorString;
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
@@ -1624,7 +1623,7 @@ bool FUserManagerEOS::SendInvite(int32 LocalUserNum, const FUniqueNetId& FriendI
 		{
 			ErrorString = FString::Printf(TEXT("Failed to send invite for user (%d) to player (%s) with result code (%s)"), LocalUserNum, *NetId, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 		}
-		Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, EOSID, ListName, ErrorString);
+		Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, *FUniqueNetIdEOS::Create(NetId), ListName, ErrorString);
 	};
 
 	EOS_Friends_SendInviteOptions Options = { };
@@ -1647,7 +1646,7 @@ bool FUserManagerEOS::AcceptInvite(int32 LocalUserNum, const FUniqueNetId& Frien
 		return false;
 	}
 
-	FUniqueNetIdEOS EOSID(FriendId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(FriendId);
 	if (!StringToAccountIdMap.Contains(EOSID.UniqueNetIdStr))
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Can't AcceptInvite() for user (%d) since the friend is not in their list"), LocalUserNum);
@@ -1658,8 +1657,7 @@ bool FUserManagerEOS::AcceptInvite(int32 LocalUserNum, const FUniqueNetId& Frien
 	FAcceptInviteCallback* CallbackObj = new FAcceptInviteCallback();
 	CallbackObj->CallbackLambda = [LocalUserNum, ListName, this, Delegate](const EOS_Friends_AcceptInviteCallbackInfo* Data)
 	{
-		FString NetId = AccountIdToStringMap[Data->TargetUserId];
-		FUniqueNetIdEOS EOSID(NetId);
+		const FString& NetId = AccountIdToStringMap[Data->TargetUserId];
 
 		FString ErrorString;
 		bool bWasSuccessful = Data->ResultCode == EOS_EResult::EOS_Success;
@@ -1667,7 +1665,7 @@ bool FUserManagerEOS::AcceptInvite(int32 LocalUserNum, const FUniqueNetId& Frien
 		{
 			ErrorString = FString::Printf(TEXT("Failed to accept invite for user (%d) from friend (%s) with result code (%s)"), LocalUserNum, *NetId, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 		}
-		Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, EOSID, ListName, ErrorString);
+		Delegate.ExecuteIfBound(LocalUserNum, bWasSuccessful, *FUniqueNetIdEOS::Create(NetId), ListName, ErrorString);
 	};
 
 	EOS_Friends_AcceptInviteOptions Options = { };
@@ -1691,7 +1689,7 @@ bool FUserManagerEOS::RejectInvite(int32 LocalUserNum, const FUniqueNetId& Frien
 		return false;
 	}
 
-	FUniqueNetIdEOS EOSID(FriendId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(FriendId);
 	if (!StringToAccountIdMap.Contains(EOSID.UniqueNetIdStr))
 	{
 		UE_LOG_ONLINE(Warning, TEXT("Can't RejectInvite() for user (%d) since the friend is not in their list"), LocalUserNum);
@@ -1772,7 +1770,7 @@ TSharedPtr<FOnlineFriend> FUserManagerEOS::GetFriend(int32 LocalUserNum, const F
 	if (LocalUserNumToFriendsListMap.Contains(LocalUserNum))
 	{
 		FFriendsListEOSRef FriendsList = LocalUserNumToFriendsListMap[LocalUserNum];
-		FUniqueNetIdEOS EosId(FriendId);
+		const FUniqueNetIdEOS& EosId = FUniqueNetIdEOS::Cast(FriendId);
 		FOnlineFriendEOSPtr FoundFriend = FriendsList->GetByNetIdString(EosId.UniqueNetIdStr);
 		if (FoundFriend.IsValid())
 		{
@@ -1806,7 +1804,7 @@ bool FUserManagerEOS::QueryRecentPlayers(const FUniqueNetId& UserId, const FStri
 bool FUserManagerEOS::GetRecentPlayers(const FUniqueNetId& UserId, const FString& Namespace, TArray<TSharedRef<FOnlineRecentPlayer>>& OutRecentPlayers)
 {
 	OutRecentPlayers.Reset();
-	FUniqueNetIdEOS EosId(UserId);
+	const FUniqueNetIdEOS& EosId = FUniqueNetIdEOS::Cast(UserId);
 	if (NetIdStringToRecentPlayerListMap.Contains(EosId.UniqueNetIdStr))
 	{
 		FRecentPlayersListEOSRef List = NetIdStringToRecentPlayerListMap[EosId.UniqueNetIdStr];
@@ -1834,7 +1832,7 @@ bool FUserManagerEOS::QueryBlockedPlayers(const FUniqueNetId& UserId)
 bool FUserManagerEOS::GetBlockedPlayers(const FUniqueNetId& UserId, TArray<TSharedRef<FOnlineBlockedPlayer>>& OutBlockedPlayers)
 {
 	OutBlockedPlayers.Reset();
-	FUniqueNetIdEOS EosId(UserId);
+	const FUniqueNetIdEOS& EosId = FUniqueNetIdEOS::Cast(UserId);
 	if (NetIdStringToBlockedPlayerListMap.Contains(EosId.UniqueNetIdStr))
 	{
 		FBlockedPlayersListEOSRef List = NetIdStringToBlockedPlayerListMap[EosId.UniqueNetIdStr];
@@ -1874,7 +1872,7 @@ typedef TEOSCallback<EOS_Presence_SetPresenceCompleteCallback, EOS_Presence_SetP
 
 void FUserManagerEOS::SetPresence(const FUniqueNetId& UserId, const FOnlineUserPresenceStatus& Status, const FOnPresenceTaskCompleteDelegate& Delegate)
 {
-	FUniqueNetIdEOS EOSID(UserId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(UserId);
 	if (!StringToAccountIdMap.Contains(EOSID.UniqueNetIdStr))
 	{
 		UE_LOG_ONLINE(Error, TEXT("Can't SetPresence() for user (%s) since they are not logged in"), *EOSID.UniqueNetIdStr);
@@ -1941,12 +1939,12 @@ void FUserManagerEOS::SetPresence(const FUniqueNetId& UserId, const FOnlineUserP
 	{
 		if (Data->ResultCode == EOS_EResult::EOS_Success && AccountIdToStringMap.Contains(Data->LocalUserId))
 		{
-			FUniqueNetIdEOS EOSID(AccountIdToStringMap[Data->LocalUserId]);
-			Delegate.ExecuteIfBound(EOSID, true);
+			FUniqueNetIdEOSRef EOSID = FUniqueNetIdEOS::Create(AccountIdToStringMap[Data->LocalUserId]);
+			Delegate.ExecuteIfBound(*EOSID, true);
 			return;
 		}
 		UE_LOG_ONLINE(Error, TEXT("SetPresence() failed with result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-		Delegate.ExecuteIfBound(FUniqueNetIdEOS(), false);
+		Delegate.ExecuteIfBound(*FUniqueNetIdEOS::EmptyId(), false);
 	};
 
 	EOS_Presence_SetPresenceOptions PresOptions = { };
@@ -1969,7 +1967,7 @@ void FUserManagerEOS::QueryPresence(const FUniqueNetId& UserId, const FOnPresenc
 		return;
 	}
 
-	FUniqueNetIdEOS EOSID(UserId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(UserId);
 	const FString& NetId = EOSID.UniqueNetIdStr;
 	if (!StringToAccountIdMap.Contains(NetId))
 	{
@@ -1998,7 +1996,7 @@ void FUserManagerEOS::QueryPresence(const FUniqueNetId& UserId, const FOnPresenc
 			}
 			const FString& TargetUser = MakeNetIdStringFromIds(Data->TargetUserId, nullptr);
 			UE_LOG_ONLINE(Error, TEXT("QueryPresence() for user (%s) failed with result code (%s)"), *TargetUser, ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
-			Delegate.ExecuteIfBound(FUniqueNetIdEOS(), false);
+			Delegate.ExecuteIfBound(*FUniqueNetIdEOS::EmptyId(), false);
 		};
 
 		// Query for updated presence
@@ -2082,7 +2080,7 @@ void FUserManagerEOS::UpdateFriendPresence(const FString& FriendId, FOnlineUserP
 
 EOnlineCachedResult::Type FUserManagerEOS::GetCachedPresence(const FUniqueNetId& UserId, TSharedPtr<FOnlineUserPresence>& OutPresence)
 {
-	FUniqueNetIdEOS EOSID(UserId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(UserId);
 	if (NetIdStringToOnlineUserPresenceMap.Contains(EOSID.UniqueNetIdStr))
 	{
 		OutPresence = NetIdStringToOnlineUserPresenceMap[EOSID.UniqueNetIdStr];
@@ -2096,12 +2094,12 @@ EOnlineCachedResult::Type FUserManagerEOS::GetCachedPresenceForApp(const FUnique
 	return GetCachedPresence(UserId, OutPresence);
 }
 
-bool FUserManagerEOS::QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId>>& UserIds)
+bool FUserManagerEOS::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef>& UserIds)
 {
 	// Trigger a query for each user in the list
-	for (FUniqueNetIdRef NetId : UserIds)
+	for (const FUniqueNetIdRef& NetId : UserIds)
 	{
-		FUniqueNetIdEOS EOSID(*NetId);
+		const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(*NetId);
 		// Skip querying for local users since we already have that data
 		if (StringToUserAccountMap.Contains(EOSID.UniqueNetIdStr))
 		{
@@ -2167,10 +2165,10 @@ bool FUserManagerEOS::GetAllUserInfo(int32 LocalUserNum, TArray<TSharedRef<FOnli
 	return true;
 }
 
-TSharedPtr<FOnlineUser> FUserManagerEOS::GetUserInfo(int32 LocalUserNum, const class FUniqueNetId& UserId)
+TSharedPtr<FOnlineUser> FUserManagerEOS::GetUserInfo(int32 LocalUserNum, const FUniqueNetId& UserId)
 {
 	TSharedPtr<FOnlineUser> OnlineUser;
-	FUniqueNetIdEOS EOSID(UserId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(UserId);
 	if (NetIdStringToOnlineUserMap.Contains(EOSID.UniqueNetIdStr))
 	{
 		OnlineUser = NetIdStringToOnlineUserMap[EOSID.UniqueNetIdStr];
@@ -2194,12 +2192,12 @@ typedef TEOSCallback<EOS_UserInfo_OnQueryUserInfoByDisplayNameCallback, EOS_User
 
 bool FUserManagerEOS::QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate)
 {
-	FUniqueNetIdEOS EOSID(UserId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(UserId);
 	const FString& NetId = EOSID.UniqueNetIdStr;
 	if (!StringToAccountIdMap.Contains(NetId))
 	{
 		UE_LOG_ONLINE(Error, TEXT("Specified local user (%s) is not known"), *EOSID.UniqueNetIdStr);
-		Delegate.ExecuteIfBound(false, UserId, DisplayNameOrEmail, FUniqueNetIdEOS(), FString::Printf(TEXT("Specified local user (%s) is not known"), *EOSID.UniqueNetIdStr));
+		Delegate.ExecuteIfBound(false, UserId, DisplayNameOrEmail, *FUniqueNetIdEOS::EmptyId(), FString::Printf(TEXT("Specified local user (%s) is not known"), *EOSID.UniqueNetIdStr));
 		return false;
 	}
 	int32 LocalUserNum = GetLocalUserNumFromUniqueNetId(UserId);
@@ -2226,13 +2224,13 @@ bool FUserManagerEOS::QueryUserIdMapping(const FUniqueNetId& UserId, const FStri
 				AddRemotePlayer(NetIdStr, Data->TargetUserId);
 			}
 
-			Delegate.ExecuteIfBound(true, *LocalUserId, DisplayNameOrEmail, FUniqueNetIdEOS(NetIdStr), ErrorString);
+			Delegate.ExecuteIfBound(true, *LocalUserId, DisplayNameOrEmail, *FUniqueNetIdEOS::Create(NetIdStr), ErrorString);
 		}
 		else
 		{
 			ErrorString = FString::Printf(TEXT("QueryUserIdMapping(%d, '%s') failed with EOS result code (%s)"), DefaultLocalUser, *DisplayNameOrEmail, ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 		}
-		Delegate.ExecuteIfBound(false, FUniqueNetIdEOS(), DisplayNameOrEmail, FUniqueNetIdEOS(), ErrorString);
+		Delegate.ExecuteIfBound(false, *FUniqueNetIdEOS::EmptyId(), DisplayNameOrEmail, *FUniqueNetIdEOS::EmptyId(), ErrorString);
 	};
 
 	FQueryByDisplayNameOptions Options;
@@ -2288,7 +2286,7 @@ typedef TEOSCallback<EOS_Connect_OnQueryExternalAccountMappingsCallback, EOS_Con
 
 bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FOnQueryExternalIdMappingsComplete& Delegate)
 {
-	FUniqueNetIdEOS EOSID(UserId);
+	const FUniqueNetIdEOS& EOSID = FUniqueNetIdEOS::Cast(UserId);
 	if (!StringToProductUserIdMap.Contains(EOSID.UniqueNetIdStr))
 	{
 		Delegate.ExecuteIfBound(false, UserId, QueryOptions, ExternalIds, FString::Printf(TEXT("User (%s) is not logged in, so can't query external account ids"), *EOSID.UniqueNetIdStr));
@@ -2323,10 +2321,10 @@ bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const 
 			}
 
 			FString ErrorString;
-			FUniqueNetIdEOS EOSID;
+			FUniqueNetIdEOSPtr EOSID = FUniqueNetIdEOS::EmptyId();
 			if (Result == EOS_EResult::EOS_Success)
 			{
-				EOSID = *UserNumToNetIdMap[LocalUserNum];
+				EOSID = UserNumToNetIdMap[LocalUserNum];
 
 				FGetAccountMappingOptions Options;
 				Options.LocalUserId = UserNumToProductUserIdMap[DefaultLocalUser];
@@ -2346,7 +2344,7 @@ bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const 
 			{
 				ErrorString = FString::Printf(TEXT("EOS_Connect_QueryExternalAccountMappings() failed with result code (%s)"), ANSI_TO_TCHAR(EOS_EResult_ToString(Result)));
 			}
-			Delegate.ExecuteIfBound(false, EOSID, QueryOptions, BatchIds, ErrorString);
+			Delegate.ExecuteIfBound(false, *EOSID, QueryOptions, BatchIds, ErrorString);
 		};
 
 		EOS_Connect_QueryExternalAccountMappings(EOSSubsystem->ConnectHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
@@ -2354,7 +2352,7 @@ bool FUserManagerEOS::QueryExternalIdMappings(const FUniqueNetId& UserId, const 
 	return true;
 }
 
-void FUserManagerEOS::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds)
+void FUserManagerEOS::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds)
 {
 	OutIds.Reset();
 	for (const FString& AccountIdStr : ExternalIds)
@@ -2363,9 +2361,9 @@ void FUserManagerEOS::GetExternalIdMappings(const FExternalIdQueryOptions& Query
 	}
 }
 
-TSharedPtr<const FUniqueNetId> FUserManagerEOS::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
+FUniqueNetIdPtr FUserManagerEOS::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
 {
-	TSharedPtr<const FUniqueNetId> NetId;
+	FUniqueNetIdPtr NetId;
 	EOS_EpicAccountId AccountId = EOS_EpicAccountId_FromString(TCHAR_TO_UTF8(*ExternalId));
 	if (EOS_EpicAccountId_IsValid(AccountId) == EOS_TRUE && AccountIdToStringMap.Contains(AccountId))
 	{

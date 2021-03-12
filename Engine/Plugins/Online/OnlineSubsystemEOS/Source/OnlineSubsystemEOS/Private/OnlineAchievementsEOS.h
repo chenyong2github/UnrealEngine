@@ -45,7 +45,7 @@ private:
 	/** Reference to the main EOS subsystem */
 	FOnlineSubsystemEOS* EOSSubsystem;
 	/** Holds the cached info from the last time this was called */
-	TMap<FString, TSharedPtr<TArray<FOnlineAchievement>>> CachedAchievementsMap;
+	TUniqueNetIdMap<TSharedRef<TArray<FOnlineAchievement>>> CachedAchievementsMap;
 	/** Holds the cached info from the last time this was called */
 	TArray<FOnlineAchievementDesc> CachedAchievementDefinitions;
 	/** Hack to work around the fact the description doesn't include the ID */

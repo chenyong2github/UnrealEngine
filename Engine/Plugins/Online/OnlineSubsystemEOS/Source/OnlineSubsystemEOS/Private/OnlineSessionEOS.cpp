@@ -343,7 +343,7 @@ struct FLobbyAttributeOptions :
 
 FOnlineSessionInfoEOS::FOnlineSessionInfoEOS()
 	: HostAddr(nullptr)
-	, SessionId(TEXT("INVALID"))
+	, SessionId(FUniqueNetIdEOS::EmptyId())
 	, SessionHandle(nullptr)
 	, bIsFromClone(false)
 {
@@ -351,7 +351,7 @@ FOnlineSessionInfoEOS::FOnlineSessionInfoEOS()
 
 FOnlineSessionInfoEOS::FOnlineSessionInfoEOS(const FString& InHostIp, const FString& InSessionId, EOS_HSessionDetails InSessionHandle)
 	: FOnlineSessionInfo()
-	, SessionId(InSessionId)
+	, SessionId(FUniqueNetIdEOS::Create(InSessionId))
 	, SessionHandle(InSessionHandle)
 	, bIsFromClone(false)
 {
@@ -398,7 +398,7 @@ void FOnlineSessionInfoEOS::InitLAN(FOnlineSubsystemEOS* Subsystem)
 
 	FGuid OwnerGuid;
 	FPlatformMisc::CreateGuid(OwnerGuid);
-	SessionId = FUniqueNetIdEOS(OwnerGuid.ToString());
+	SessionId = FUniqueNetIdEOS::Create(OwnerGuid.ToString());
 }
 
 typedef TEOSGlobalCallback<EOS_Sessions_OnSessionInviteReceivedCallback, EOS_Sessions_SessionInviteReceivedCallbackInfo> FSessionInviteReceivedCallback;
@@ -1628,7 +1628,7 @@ bool FOnlineSessionEOS::IsPlayerInSession(FName SessionName, const FUniqueNetId&
 	return IsPlayerInSessionImpl(this, SessionName, UniqueId);
 }
 
-bool FOnlineSessionEOS::StartMatchmaking(const TArray< TSharedRef<const FUniqueNetId> >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
+bool FOnlineSessionEOS::StartMatchmaking(const TArray< FUniqueNetIdRef >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
 {
 	EOSSubsystem->ExecuteNextTick([this, SessionName]()
 		{
@@ -1831,7 +1831,7 @@ void FOnlineSessionEOS::CopyAttributes(EOS_HSessionDetails SessionHandle, FOnlin
 			}
 			else if (Key == TEXT("OwningNetId"))
 			{
-				OutSession.OwningUserId = MakeShareable(new FUniqueNetIdEOS(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8)));
+				OutSession.OwningUserId = FUniqueNetIdEOS::Create(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
 			}
 			// Handle FOnlineSessionSetting settings
 			else
@@ -2151,7 +2151,7 @@ uint32 FOnlineSessionEOS::JoinEOSSession(int32 PlayerNum, FNamedOnlineSession* S
 		return ONLINE_FAIL;
 	}
 	TSharedPtr<FOnlineSessionInfoEOS> EOSSessionInfo = StaticCastSharedPtr<FOnlineSessionInfoEOS>(Session->SessionInfo);
-	if (!EOSSessionInfo->SessionId.IsValid())
+	if (!EOSSessionInfo->SessionId->IsValid())
 	{
 		UE_LOG_ONLINE_SESSION(Error, TEXT("Session (%s) has invalid session id"), *Session->SessionName.ToString());
 		return ONLINE_FAIL;
@@ -2242,7 +2242,7 @@ bool FOnlineSessionEOS::FindFriendSession(const FUniqueNetId& LocalUserId, const
 	return FindFriendSession(EOSSubsystem->UserManager->GetLocalUserNumFromUniqueNetId(LocalUserId), Friend);
 }
 
-bool FOnlineSessionEOS::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList)
+bool FOnlineSessionEOS::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList)
 {
 	EOSSubsystem->ExecuteNextTick([this, LocalUserIdRef = LocalUserId.AsShared()]()
 		{
@@ -2375,9 +2375,9 @@ bool FOnlineSessionEOS::SendSessionInviteToFriend(const FUniqueNetId& LocalNetId
 	return SendSessionInvite(SessionName, LocalUserId, TargetUserId);
 }
 
-bool FOnlineSessionEOS::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionEOS::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
-	for (TSharedRef<const FUniqueNetId> NetId : Friends)
+	for (const FUniqueNetIdRef& NetId : Friends)
 	{
 		if (SendSessionInviteToFriend(LocalUserNum, SessionName, *NetId) == false)
 		{
@@ -2387,9 +2387,9 @@ bool FOnlineSessionEOS::SendSessionInviteToFriends(int32 LocalUserNum, FName Ses
 	return true;
 };
 
-bool FOnlineSessionEOS::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionEOS::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
-	for (TSharedRef<const FUniqueNetId> NetId : Friends)
+	for (const FUniqueNetIdRef& NetId : Friends)
 	{
 		if (SendSessionInviteToFriend(LocalUserId, SessionName, *NetId) == false)
 		{
@@ -2505,12 +2505,12 @@ void FOnlineSessionEOS::RegisterLocalPlayers(FNamedOnlineSession* Session)
 
 bool FOnlineSessionEOS::RegisterPlayer(FName SessionName, const FUniqueNetId& PlayerId, bool bWasInvited)
 {
-	TArray< TSharedRef<const FUniqueNetId> > Players;
-	Players.Add(MakeShareable(new FUniqueNetIdEOS(PlayerId)));
+	TArray< FUniqueNetIdRef > Players;
+	Players.Add(PlayerId.AsShared());
 	return RegisterPlayers(SessionName, Players, bWasInvited);
 }
 
-bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players, bool bWasInvited)
+bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players, bool bWasInvited)
 {
 	bool bSuccess = false;
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
@@ -2520,7 +2520,7 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< TShared
 
 		for (int32 PlayerIdx=0; PlayerIdx<Players.Num(); PlayerIdx++)
 		{
-			const TSharedRef<const FUniqueNetId>& PlayerId = Players[PlayerIdx];
+			const FUniqueNetIdRef& PlayerId = Players[PlayerIdx];
 
 			FUniqueNetIdMatcher PlayerMatch(*PlayerId);
 			if (Session->RegisteredPlayers.IndexOfByPredicate(PlayerMatch) == INDEX_NONE)
@@ -2563,12 +2563,12 @@ bool FOnlineSessionEOS::RegisterPlayers(FName SessionName, const TArray< TShared
 
 bool FOnlineSessionEOS::UnregisterPlayer(FName SessionName, const FUniqueNetId& PlayerId)
 {
-	TArray< TSharedRef<const FUniqueNetId> > Players;
-	Players.Add(MakeShareable(new FUniqueNetIdEOS(PlayerId)));
+	TArray< FUniqueNetIdRef > Players;
+	Players.Add(PlayerId.AsShared());
 	return UnregisterPlayers(SessionName, Players);
 }
 
-bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players)
+bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players)
 {
 	bool bSuccess = true;
 
@@ -2577,7 +2577,7 @@ bool FOnlineSessionEOS::UnregisterPlayers(FName SessionName, const TArray< TShar
 	{
 		for (int32 PlayerIdx=0; PlayerIdx < Players.Num(); PlayerIdx++)
 		{
-			const TSharedRef<const FUniqueNetId>& PlayerId = Players[PlayerIdx];
+			const FUniqueNetIdRef& PlayerId = Players[PlayerIdx];
 
 			FUniqueNetIdMatcher PlayerMatch(*PlayerId);
 			int32 RegistrantIndex = Session->RegisteredPlayers.IndexOfByPredicate(PlayerMatch);
@@ -2743,13 +2743,13 @@ void FOnlineSessionEOS::ReadSessionFromPacket(FNboSerializeFromBufferEOS& Packet
 #endif
 
 	/** Owner of the session */
-	FUniqueNetIdEOS* UniqueId = new FUniqueNetIdEOS;
-	Packet >> *UniqueId
+	FUniqueNetIdEOSRef OwningUserId = FUniqueNetIdEOS::Create();
+	Packet >> *ConstCastSharedRef<FUniqueNetIdEOS>(OwningUserId)
 		>> Session->OwningUserName
 		>> Session->NumOpenPrivateConnections
 		>> Session->NumOpenPublicConnections;
 
-	Session->OwningUserId = MakeShareable(UniqueId);
+	Session->OwningUserId = OwningUserId;
 
 	// Allocate and read the connection data
 	FOnlineSessionInfoEOS* EOSSessionInfo = new FOnlineSessionInfoEOS();
@@ -2987,16 +2987,16 @@ bool FOnlineSessionEOS::IsHost(const FNamedOnlineSession& Session) const
 		return true;
 	}
 
-	TSharedPtr<const FUniqueNetId> UserId = EOSSubsystem->UserManager->GetUniquePlayerId(Session.HostingPlayerNum);
+	FUniqueNetIdPtr UserId = EOSSubsystem->UserManager->GetUniquePlayerId(Session.HostingPlayerNum);
 	return (UserId.IsValid() && (*UserId == *Session.OwningUserId));
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineSessionEOS::CreateSessionIdFromString(const FString& SessionIdStr)
+FUniqueNetIdPtr FOnlineSessionEOS::CreateSessionIdFromString(const FString& SessionIdStr)
 {
-	TSharedPtr<const FUniqueNetId> SessionId;
+	FUniqueNetIdPtr SessionId;
 	if (!SessionIdStr.IsEmpty())
 	{
-		SessionId = MakeShared<FUniqueNetIdString>(SessionIdStr);
+		SessionId = FUniqueNetIdString::Create(SessionIdStr);
 	}
 	return SessionId;
 }

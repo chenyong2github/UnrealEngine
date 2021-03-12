@@ -11,12 +11,12 @@
 #include "OnlineStoreEOS.h"
 #include "EOSSettings.h"
 
+#include "Misc/App.h"
 #include "Misc/NetworkVersion.h"
 #include "Misc/App.h"
 #include "Misc/ConfigCacheIni.h"
 
 DECLARE_CYCLE_STAT(TEXT("Tick"), STAT_EOS_Tick, STATGROUP_EOS);
-
 
 #if WITH_EOS_SDK
 

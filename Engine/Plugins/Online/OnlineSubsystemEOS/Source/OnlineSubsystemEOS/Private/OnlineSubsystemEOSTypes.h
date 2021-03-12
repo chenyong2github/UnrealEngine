@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "OnlineSubsystemTypes.h"
 
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "Interfaces/OnlineFriendsInterface.h"
 #include "Interfaces/OnlinePresenceInterface.h"
 #include "Interfaces/OnlineUserInterface.h"
+#include "IPAddress.h"
 
 #include "OnlineSubsystemEOSPackage.h"
 
@@ -26,13 +26,14 @@
 
 class FOnlineSubsystemEOS;
 
-typedef TSharedRef<const FUniqueNetId> FUniqueNetIdRef;
-
 #define EOS_ID_SEPARATOR TEXT("|")
 #define EMPTY_EASID TEXT("00000000000000000000000000000000")
 #define EMPTY_PUID TEXT("00000000000000000000000000000000")
 #define ID_HALF_BYTE_SIZE 16
 #define EOS_ID_BYTE_SIZE (ID_HALF_BYTE_SIZE * 2)
+
+typedef TSharedPtr<const class FUniqueNetIdEOS, UNIQUENETID_ESPMODE> FUniqueNetIdEOSPtr;
+typedef TSharedRef<const class FUniqueNetIdEOS, UNIQUENETID_ESPMODE> FUniqueNetIdEOSRef;
 
 /**
  * Unique net id wrapper for a EOS account ids. The underlying string is a combination
@@ -42,36 +43,19 @@ class FUniqueNetIdEOS :
 	public FUniqueNetIdString
 {
 public:
-	FUniqueNetIdEOS()
-		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
+	template<typename... TArgs>
+	static FUniqueNetIdEOSRef Create(TArgs&&... Args)
 	{
+		return MakeShared<FUniqueNetIdEOS, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
 	}
 
-	explicit FUniqueNetIdEOS(const FString& InUniqueNetId)
-		: FUniqueNetIdString(InUniqueNetId)
-	{
-		ParseAccountIds();
-	}
+	/** Allow MakeShared to see private constructors */
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdEOS>;
 
-	explicit FUniqueNetIdEOS(FString&& InUniqueNetId)
-		: FUniqueNetIdString(MoveTemp(InUniqueNetId))
+	static const FUniqueNetIdEOS& Cast(const FUniqueNetId& NetId)
 	{
-		ParseAccountIds();
-	}
-
-	explicit FUniqueNetIdEOS(const FUniqueNetId& Src)
-		: FUniqueNetIdString(Src)
-	{
-		ParseAccountIds();
-	}
-
-	explicit FUniqueNetIdEOS(uint8* Bytes, int32 Size)
-		: FUniqueNetIdString()
-	{
-		check(Size == EOS_ID_BYTE_SIZE);
-		EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
-		ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
-		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
+		check(GetTypeStatic() == NetId.GetType());
+		return *static_cast<const FUniqueNetIdEOS*>(&NetId);
 	}
 
 	friend uint32 GetTypeHash(const FUniqueNetIdEOS& A)
@@ -80,16 +64,21 @@ public:
 	}
 
 	/** global static instance of invalid (zero) id */
-	static const TSharedRef<const FUniqueNetId>& EmptyId()
+	static const FUniqueNetIdEOSRef& EmptyId()
 	{
-		static const TSharedRef<const FUniqueNetId> EmptyId(MakeShared<FUniqueNetIdEOS>());
+		static const FUniqueNetIdEOSRef EmptyId(Create());
 		return EmptyId;
+	}
+
+	static FName GetTypeStatic()
+	{
+		static FName NAME_Eos(TEXT("EOS"));
+		return NAME_Eos;
 	}
 
 	virtual FName GetType() const override
 	{
-		static FName NAME_Eos(TEXT("EOS"));
-		return NAME_Eos;
+		return GetTypeStatic();
 	}
 
 	virtual const uint8* GetBytes() const override
@@ -148,10 +137,39 @@ PACKAGE_SCOPE:
 	FString EpicAccountIdStr;
 	FString ProductUserIdStr;
 	uint8 RawBytes[EOS_ID_BYTE_SIZE];
-};
+private:
+	FUniqueNetIdEOS()
+		: FUniqueNetIdString(EMPTY_EASID EOS_ID_SEPARATOR EMPTY_PUID)
+	{
+	}
+	
+	explicit FUniqueNetIdEOS(uint8* Bytes, int32 Size)
+		: FUniqueNetIdString()
+	{
+		check(Size == EOS_ID_BYTE_SIZE);
+		EpicAccountIdStr = BytesToHex(Bytes, ID_HALF_BYTE_SIZE);
+		ProductUserIdStr = BytesToHex(Bytes + ID_HALF_BYTE_SIZE, ID_HALF_BYTE_SIZE);
+		UniqueNetIdStr = EpicAccountIdStr + EOS_ID_SEPARATOR + ProductUserIdStr;
+	}
 
-typedef TSharedPtr<FUniqueNetIdEOS> FUniqueNetIdEOSPtr;
-typedef TSharedRef<FUniqueNetIdEOS> FUniqueNetIdEOSRef;
+	explicit FUniqueNetIdEOS(const FString& InUniqueNetId)
+		: FUniqueNetIdString(InUniqueNetId)
+	{
+		ParseAccountIds();
+	}
+
+	explicit FUniqueNetIdEOS(FString&& InUniqueNetId)
+		: FUniqueNetIdString(MoveTemp(InUniqueNetId))
+	{
+		ParseAccountIds();
+	}
+
+	explicit FUniqueNetIdEOS(const FUniqueNetId& Src)
+		: FUniqueNetIdString(Src)
+	{
+		ParseAccountIds();
+	}
+};
 
 #ifndef AUTH_ATTR_REFRESH_TOKEN
 	#define AUTH_ATTR_REFRESH_TOKEN TEXT("refresh_token")
@@ -195,7 +213,7 @@ class TOnlineUserEOS
 	, public AttributeAccessClass
 {
 public:
-	TOnlineUserEOS(FUniqueNetIdEOSRef InNetIdRef)
+	TOnlineUserEOS(const FUniqueNetIdEOSRef& InNetIdRef)
 		: UserIdRef(InNetIdRef)
 	{
 	}
@@ -205,7 +223,7 @@ public:
 	}
 
 // FOnlineUser
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override
+	virtual FUniqueNetIdRef GetUserId() const override
 	{
 		return UserIdRef;
 	}
@@ -259,7 +277,7 @@ class TUserOnlineAccountEOS :
 	public TOnlineUserEOS<BaseClass, IAttributeAccessInterface>
 {
 public:
-	TUserOnlineAccountEOS(FUniqueNetIdEOSRef InNetIdRef)
+	TUserOnlineAccountEOS(const FUniqueNetIdEOSRef& InNetIdRef)
 		: TOnlineUserEOS<BaseClass, IAttributeAccessInterface>(InNetIdRef)
 	{
 	}
@@ -315,7 +333,7 @@ class TOnlineFriendEOS :
 	public TOnlineUserEOS<BaseClass, IAttributeAccessInterface>
 {
 public:
-	TOnlineFriendEOS(FUniqueNetIdEOSRef InNetIdRef)
+	TOnlineFriendEOS(const FUniqueNetIdEOSRef& InNetIdRef)
 		: TOnlineUserEOS<BaseClass, IAttributeAccessInterface>(InNetIdRef)
 	{
 	}
@@ -362,7 +380,7 @@ class TOnlineBlockedPlayerEOS :
 	public TOnlineUserEOS<BaseClass, IAttributeAccessInterface>
 {
 public:
-	TOnlineBlockedPlayerEOS(FUniqueNetIdEOSRef InNetIdRef)
+	TOnlineBlockedPlayerEOS(const FUniqueNetIdEOSRef& InNetIdRef)
 		: TOnlineUserEOS<BaseClass, IAttributeAccessInterface>(InNetIdRef)
 	{
 	}
@@ -376,7 +394,7 @@ class TOnlineRecentPlayerEOS :
 	public TOnlineUserEOS<BaseClass, IAttributeAccessInterface>
 {
 public:
-	TOnlineRecentPlayerEOS(FUniqueNetIdEOSRef InNetIdRef)
+	TOnlineRecentPlayerEOS(const FUniqueNetIdEOSRef& InNetIdRef)
 		: TOnlineUserEOS<BaseClass, IAttributeAccessInterface>(InNetIdRef)
 	{
 	}
@@ -720,7 +738,7 @@ PACKAGE_SCOPE:
 	/** The ip & port that the host is listening on (valid for LAN/GameServer) */
 	TSharedPtr<class FInternetAddr> HostAddr;
 	/** Unique Id for this session */
-	FUniqueNetIdString SessionId;
+	FUniqueNetIdStringRef SessionId;
 	/** EOS session handle. Note: this needs to be released by the SDK */
 	EOS_HSessionDetails SessionHandle;
 	/** Whether we should delete this handle or not */
@@ -747,17 +765,17 @@ public:
 	}
 	virtual FString ToString() const override
 	{
-		return SessionId.ToString();
+		return SessionId->ToString();
 	}
 	virtual FString ToDebugString() const override
 	{
 		return FString::Printf(TEXT("HostIP: %s SessionId: %s"),
 			HostAddr.IsValid() ? *HostAddr->ToString(true) : TEXT("INVALID"),
-			*SessionId.ToDebugString());
+			*SessionId->ToDebugString());
 	}
 	virtual const FUniqueNetId& GetSessionId() const override
 	{
-		return SessionId;
+		return *SessionId;
 	}
 };
 

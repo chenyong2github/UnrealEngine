@@ -27,7 +27,7 @@ struct FStatNameBuffer
 };
 
 
-void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TSharedRef<const FUniqueNetId> StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate)
+void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const FUniqueNetIdRef StatsUser, const FOnlineStatsQueryUserStatsComplete& Delegate)
 {
 	UE_LOG_ONLINE_STATS(Warning, TEXT("QueryStats() without a list of stats names to query is not supported"));
 	Delegate.ExecuteIfBound(FOnlineError(EOnlineErrorResult::NotImplemented), TSharedPtr<const FOnlineStatsUserStats>());
@@ -87,7 +87,7 @@ typedef TSharedPtr<FStatsQueryContext> FStatsQueryContextPtr;
 // N^2 append operation
 void AppendStats(TUniqueNetIdMap<TSharedRef<FOnlineStatsUserStats>>& StatsCache, const TUniqueNetIdMap<TSharedRef<FOnlineStatsUserStats>>& StatsCacheToAppend)
 {
-	for (const TPair<TSharedRef<const FUniqueNetId>, TSharedRef<FOnlineStatsUserStats>>& StatsUser : StatsCacheToAppend)
+	for (const TPair<FUniqueNetIdRef, TSharedRef<FOnlineStatsUserStats>>& StatsUser : StatsCacheToAppend)
 	{
 		TSharedRef<FOnlineStatsUserStats>* UserCachedStats = StatsCache.Find(StatsUser.Key);
 		if (!UserCachedStats)
@@ -103,7 +103,7 @@ void AppendStats(TUniqueNetIdMap<TSharedRef<FOnlineStatsUserStats>>& StatsCache,
 	}
 }
 
-void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate)
+void FOnlineStatsEOS::QueryStats(const FUniqueNetIdRef LocalUserId, const TArray<FUniqueNetIdRef>& StatUsers, const TArray<FString>& StatNames, const FOnlineStatsQueryUsersStatsComplete& Delegate)
 {
 	if (StatNames.Num() == 0)
 	{
@@ -127,9 +127,9 @@ void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserI
 
 	int32 NumKnownUsers = 0;
 	// Validate the number of known users
-	for (TSharedRef<const FUniqueNetId> StatUserId : StatUsers)
+	for (const FUniqueNetIdRef& StatUserId : StatUsers)
 	{
-		FUniqueNetIdEOS EOSId(*StatUserId);
+		const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*StatUserId);
 		EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
 		if (UserId == nullptr)
 		{
@@ -141,10 +141,10 @@ void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserI
 	// This object will live across all calls and be freed at the end
 	FStatsQueryContextPtr StatsQueryContext = MakeShareable(new FStatsQueryContext(NumKnownUsers, StatNames, Delegate));
 	// Kick off a read for each user
-	for (TSharedRef<const FUniqueNetId> StatUserId : StatUsers)
+	for (const FUniqueNetIdRef& StatUserId : StatUsers)
 	{
-		FUniqueNetIdEOS EOSId(*StatUserId);
-		EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
+		const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*StatUserId);
+		const EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
 		if (UserId == nullptr)
 		{
 			continue;
@@ -202,7 +202,7 @@ void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserI
 				AppendStats(StatsCache, StatsQueryContext->StatsCache);
 
 				TArray<TSharedRef<const FOnlineStatsUserStats>> OutArray;
-				for (const TPair<TSharedRef<const FUniqueNetId>, TSharedRef<FOnlineStatsUserStats>>& StatsUser : StatsQueryContext->StatsCache)
+				for (const TPair<FUniqueNetIdRef, TSharedRef<FOnlineStatsUserStats>>& StatsUser : StatsQueryContext->StatsCache)
 				{
 					OutArray.Add(StatsUser.Value);
 				}
@@ -213,7 +213,7 @@ void FOnlineStatsEOS::QueryStats(const TSharedRef<const FUniqueNetId> LocalUserI
 	}
 }
 
-TSharedPtr<const FOnlineStatsUserStats> FOnlineStatsEOS::GetStats(const TSharedRef<const FUniqueNetId> StatsUserId) const
+TSharedPtr<const FOnlineStatsUserStats> FOnlineStatsEOS::GetStats(const FUniqueNetIdRef StatsUserId) const
 {
 	if (const TSharedRef<FOnlineStatsUserStats>* const FoundStats = StatsCache.Find(StatsUserId))
 	{
@@ -320,9 +320,9 @@ void FOnlineStatsEOS::WriteStats(EOS_ProductUserId LocalUserId, EOS_ProductUserI
 	EOS_Stats_IngestStat(EOSSubsystem->StatsHandle, &Options, CallbackObj, CallbackObj->GetCallbackPtr());
 }
 
-void FOnlineStatsEOS::UpdateStats(const TSharedRef<const FUniqueNetId> LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate)
+void FOnlineStatsEOS::UpdateStats(const FUniqueNetIdRef LocalUserId, const TArray<FOnlineStatsUserUpdatedStats>& UpdatedUserStats, const FOnlineStatsUpdateStatsComplete& Delegate)
 {
-	FUniqueNetIdEOS EOSId(*LocalUserId);
+	const FUniqueNetIdEOS& EOSId = FUniqueNetIdEOS::Cast(*LocalUserId);
 	EOS_ProductUserId UserId = EOS_ProductUserId_FromString(TCHAR_TO_UTF8(*EOSId.ProductUserIdStr));
 	if (UserId == nullptr)
 	{
@@ -355,7 +355,7 @@ void FOnlineStatsEOS::UpdateStats(const TSharedRef<const FUniqueNetId> LocalUser
 }
 
 #if !UE_BUILD_SHIPPING
-void FOnlineStatsEOS::ResetStats(const TSharedRef<const FUniqueNetId> StatsUserId)
+void FOnlineStatsEOS::ResetStats(const FUniqueNetIdRef StatsUserId)
 {
 	UE_LOG_ONLINE_STATS(Warning, TEXT("ResetStats() is not supported"));
 }
