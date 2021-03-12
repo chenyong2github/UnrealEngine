@@ -65,9 +65,12 @@ public:
 
 	void SetEditorGridLoadedCells(UWorld* InWorld, TArray<FName>& InEditorGridLoadedCells)
 	{
-		TArray<FName>& GridLoadedCells = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
-		GridLoadedCells = InEditorGridLoadedCells;
-		SaveConfig();
+		if (ShouldSaveSettings(InWorld))
+		{
+			TArray<FName>& GridLoadedCells = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).LoadedEditorGridCells;
+			GridLoadedCells = InEditorGridLoadedCells;
+			SaveConfig();
+		}
 	}
 
 	bool GetShowDataLayerContent() const
@@ -96,7 +99,7 @@ public:
 
 	void SetWorldDataLayersNotLoadedInEditor(UWorld* InWorld, const TArray<FName>& InDataLayersLoadedInEditor)
 	{
-		if (InWorld)
+		if (ShouldSaveSettings(InWorld))
 		{
 			TArray<FName>& DataLayersNotLoadedInEditor = PerWorldEditorSettings.FindOrAdd(TSoftObjectPtr<UWorld>(InWorld)).NotLoadedDataLayers;
 			DataLayersNotLoadedInEditor = InDataLayersLoadedInEditor;
@@ -107,6 +110,11 @@ public:
 
 private:
 #if WITH_EDITORONLY_DATA
+	bool ShouldSaveSettings(const UWorld* InWorld) const
+	{
+		return InWorld && !InWorld->IsGameWorld();
+	}
+
 	UPROPERTY(config)
 	uint32 EditorGridConfigHash;
 

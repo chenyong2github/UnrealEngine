@@ -90,20 +90,8 @@ struct FWorldPartionCellUpdateContext
 					WorldPartition->WorldPartitionEditor->Refresh();
 				}
 
-				// Save last loaded cells settings (ignore while running commandlets)
 				if (!IsRunningCommandlet())
 				{
-					TArray<FName> EditorGridLastLoadedCells;
-					WorldPartition->EditorHash->ForEachCell([this, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
-					{
-						if ((Cell != WorldPartition->EditorHash->GetAlwaysLoadedCell()) && Cell->bLoaded)
-						{
-							EditorGridLastLoadedCells.Add(Cell->GetFName());
-						}
-					});
-
-					GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(WorldPartition->GetWorld(), EditorGridLastLoadedCells);
-
 					GEditor->ResetTransaction(LOCTEXT("LoadingEditorCellsResetTrans", "Editor Cells Loading State Changed"));
 				}
 			}
@@ -367,6 +355,21 @@ void UWorldPartition::Uninitialize()
 	if (IsInitialized())
 	{
 		check(World);
+
+		if (!IsRunningCommandlet())
+		{
+			// Save last loaded cells settings
+			TArray<FName> EditorGridLastLoadedCells;
+			EditorHash->ForEachCell([this, &EditorGridLastLoadedCells](UWorldPartitionEditorCell* Cell)
+			{
+				if ((Cell != EditorHash->GetAlwaysLoadedCell()) && Cell->bLoaded)
+				{
+					EditorGridLastLoadedCells.Add(Cell->GetFName());
+				}
+			});
+
+			GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(GetWorld(), EditorGridLastLoadedCells);
+		}
 
 		InitState = EWorldPartitionInitState::Uninitializing;
 		
