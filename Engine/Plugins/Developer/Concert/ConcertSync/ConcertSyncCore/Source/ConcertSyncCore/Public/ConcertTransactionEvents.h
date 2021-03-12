@@ -9,6 +9,19 @@
 #include "IdentifierTable/ConcertIdentifierTableData.h"
 #include "ConcertTransactionEvents.generated.h"
 
+UENUM()
+enum class ETransactionFilterResult : uint8
+{
+	/** Include the object in the Concert Transaction */
+	IncludeObject,
+	/** Filter the object from the Concert Transaction */
+	ExcludeObject,
+	/** Filter the entire transaction and prevent propagation */
+	ExcludeTransaction,
+	/** Delegate the filtering decision to the default handlers. */
+	UseDefault
+};
+
 USTRUCT()
 struct FConcertObjectId
 {

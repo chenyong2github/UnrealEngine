@@ -9,6 +9,8 @@
 #include "IdentifierTable/ConcertIdentifierTable.h"
 
 struct FConcertSessionVersionInfo;
+class UObject;
+class UPackage;
 
 /**
  * Common data for a transaction.
@@ -50,6 +52,7 @@ struct FConcertClientLocalTransactionFinalizedData
 	bool bWasCanceled = false;
 };
 
+DECLARE_DELEGATE_RetVal_TwoParams(ETransactionFilterResult, FTransactionFilterDelegate, UObject*, UPackage*);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalTransactionSnapshot, const FConcertClientLocalTransactionCommonData&, const FConcertClientLocalTransactionSnapshotData&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnConcertClientLocalTransactionFinalized, const FConcertClientLocalTransactionCommonData&, const FConcertClientLocalTransactionFinalizedData&);
 
@@ -100,6 +103,11 @@ public:
 	 */
 	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot) = 0;
 
+	/** Callback to register delegate for handling transaction events */
+	virtual void RegisterTransactionFilter(FName FilterName, FTransactionFilterDelegate FilterHandle) = 0;
+
+	/** Callback to register delegate for handling transaction events */
+	virtual void UnregisterTransactionFilter(FName FilterName) = 0;
 protected:
 	/**
 	 * Function to access the internal bool controlling whether local transactions are currently being tracked.
