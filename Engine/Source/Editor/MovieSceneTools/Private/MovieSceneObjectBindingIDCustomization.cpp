@@ -116,7 +116,8 @@ FMovieSceneObjectBindingID FMovieSceneObjectBindingIDCustomization::GetCurrentVa
 	TArray<void*> Ptrs;
 	StructProperty->AccessRawData(Ptrs);
 
-	return ensure(Ptrs.Num() == 1) ? *static_cast<FMovieSceneObjectBindingID*>(Ptrs[0]) : FMovieSceneObjectBindingID();
+	// Per hotfix rules, the ensure has been removed here for 4.26.2 and fixed properly in 4.27 to allow for multiple values
+	return Ptrs.Num() == 1 ? *static_cast<FMovieSceneObjectBindingID*>(Ptrs[0]) : FMovieSceneObjectBindingID();
 }
 
 void FMovieSceneObjectBindingIDCustomization::SetCurrentValue(const FMovieSceneObjectBindingID& InObjectBinding)
