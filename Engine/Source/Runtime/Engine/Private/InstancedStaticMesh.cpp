@@ -1308,22 +1308,22 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 				{
 					const uint32 InstanceIdx = Node.Instance;
 
-						FVector InstanceLocation = Node.Center;
-						FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
-						float DistanceToInstanceCenter = VToInstanceCenter.Size();
-						float InstanceRadius = Node.Radius;
-						float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
+					FVector InstanceLocation = Node.Center;
+					FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
+					float DistanceToInstanceCenter = VToInstanceCenter.Size();
+					float InstanceRadius = Node.Radius;
+					float DistanceToInstanceStart = DistanceToInstanceCenter - InstanceRadius;
 
-						// Cull instance based on distance
-						if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
+					// Cull instance based on distance
+					if (DistanceToInstanceStart > BVHCullRadius && ApplyGeneralCulling)
+						continue;
+
+					// Special culling for small scale objects
+					if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
+					{
+						if (DistanceToInstanceStart > BVHLowScaleRadius)
 							continue;
-
-						// Special culling for small scale objects
-						if (InstanceRadius < BVHLowScaleThreshold && ApplyLowScaleCulling)
-						{
-							if (DistanceToInstanceStart > BVHLowScaleRadius)
-								continue;
-						}
+					}
 
 					FMatrix Transform;
 					InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
@@ -1363,76 +1363,74 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 					{
 						const uint32 InstanceIdx = Node.Instance;
 
-						if (InstancedRenderData.Component->PerInstanceSMData.IsValidIndex(InstanceIdx))
+						FVector InstanceLocation = Node.Center;
+						FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
+						float DistanceToInstanceCenter = VToInstanceCenter.Size();
+						float InstanceRadius = Node.Radius;
+
+						if (DistanceToInstanceCenter * Ratio <= InstanceRadius)
 						{
+							FMatrix Transform;
+							InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
+							Transform.M[3][3] = 1.0f;
+							FMatrix InstanceTransform = Transform * GetLocalToWorld();
 
-							FVector InstanceLocation = Node.Center;
-							FVector VToInstanceCenter = Context.ReferenceView->ViewLocation - InstanceLocation;
-							float DistanceToInstanceCenter = VToInstanceCenter.Size();
-							float InstanceRadius = Node.Radius;
-
-							if (DistanceToInstanceCenter * Ratio <= InstanceRadius)
+							if (bHasWorldPositionOffset)
 							{
-								FMatrix Transform;
-								InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceTransform(InstanceIdx, Transform);
-								Transform.M[3][3] = 1.0f;
-								FMatrix InstanceTransform = Transform * GetLocalToWorld();
+								FRayTracingInstance *DynamicInstance = nullptr;
 
-								if (bHasWorldPositionOffset)
+								if (ActiveInstances[Node.DynamicInstance] == -1)
 								{
-									FRayTracingInstance *DynamicInstance = nullptr;
+									// first case of this dynamic instance, setup the material and add it
+								FVector4 LocalTransform[3];
+								FVector4 LightMapUV, Origin;
+								InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(InstanceIdx, LocalTransform, LightMapUV, Origin);
+								float InstanceRandom = Origin.W;
 
-									if (ActiveInstances[Node.DynamicInstance] == -1)
-									{
-										// first case of this dynamic instance, setup the material and add it
-								const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
-										float InstanceRandom = InstanceData.Transform.M[3][3];
+									const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
 
-										const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
+									FRayTracingDynamicData &DynamicData = RayTracingDynamicData[Node.DynamicInstance];
 
-										FRayTracingDynamicData &DynamicData = RayTracingDynamicData[Node.DynamicInstance];
+									ActiveInstances[Node.DynamicInstance] = OutRayTracingInstances.Num();
+									FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.Add_GetRef(RayTracingWPOInstanceTemplate);
+									RayTracingInstance.Geometry = &DynamicData.DynamicGeometry;
+									RayTracingInstance.InstanceTransforms.Reserve(InstanceCount);
 
-										ActiveInstances[Node.DynamicInstance] = OutRayTracingInstances.Num();
-										FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.Add_GetRef(RayTracingWPOInstanceTemplate);
-										RayTracingInstance.Geometry = &DynamicData.DynamicGeometry;
-										RayTracingInstance.InstanceTransforms.Reserve(InstanceCount);
-
-										DynamicInstance = &RayTracingInstance;
+									DynamicInstance = &RayTracingInstance;
 										
-										FRayTracingInstance SimulationInstance = RayTracingWPODynamicTemplate;
+									FRayTracingInstance SimulationInstance = RayTracingWPODynamicTemplate;
 
-										// ToDo - deeper dive into ensuring better instance simulation matching
-										FMatrix Passthrough = FMatrix::Identity;
-										Passthrough.M[3][3] = InstanceRandom;
+									// ToDo - deeper dive into ensuring better instance simulation matching
+									FMatrix Passthrough = FMatrix::Identity;
+									Passthrough.M[3][3] = InstanceRandom;
 
-										Context.DynamicRayTracingGeometriesToUpdate.Add(
-											FRayTracingDynamicGeometryUpdateParams
-											{
-												SimulationInstance.Materials,
-												false,
-												(uint32)LODModel.GetNumVertices(),
-												uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
-												DynamicData.DynamicGeometry.Initializer.TotalPrimitiveCount,
-												&DynamicData.DynamicGeometry,
-												&DynamicData.DynamicGeometryVertexBuffer,
-												true,
-												Passthrough
-											}
-										);
+									Context.DynamicRayTracingGeometriesToUpdate.Add(
+										FRayTracingDynamicGeometryUpdateParams
+										{
+											SimulationInstance.Materials,
+											false,
+											(uint32)LODModel.GetNumVertices(),
+											uint32((SIZE_T)LODModel.GetNumVertices() * sizeof(FVector)),
+											DynamicData.DynamicGeometry.Initializer.TotalPrimitiveCount,
+											&DynamicData.DynamicGeometry,
+											&DynamicData.DynamicGeometryVertexBuffer,
+											true,
+											Passthrough
+										}
+									);
 
-									}
-									else
-									{
-										DynamicInstance = &OutRayTracingInstances[ActiveInstances[Node.DynamicInstance]];
-									}
-
-									DynamicInstance->InstanceTransforms.Add(InstanceTransform);
-									
 								}
 								else
 								{
-									RayTracingInstanceTemplate.InstanceTransforms.Emplace(InstanceTransform);
+									DynamicInstance = &OutRayTracingInstances[ActiveInstances[Node.DynamicInstance]];
 								}
+
+								DynamicInstance->InstanceTransforms.Add(InstanceTransform);
+									
+							}
+							else
+							{
+								RayTracingInstanceTemplate.InstanceTransforms.Emplace(InstanceTransform);
 							}
 						}
 					}
@@ -1457,8 +1455,10 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 				if (ActiveInstances[0] == -1)
 				{
 					// first case of this dynamic instance, setup the material and add it
-					const FInstancedStaticMeshInstanceData& InstanceData = InstancedRenderData.Component->PerInstanceSMData[InstanceIdx];
-					float InstanceRandom = InstanceData.Transform.M[3][3];
+					FVector4 LocalTransform[3];
+					FVector4 LightMapUV, Origin;
+					InstancedRenderData.PerInstanceRenderData->InstanceBuffer.GetInstanceShaderValues(InstanceIdx, LocalTransform, LightMapUV, Origin);
+					float InstanceRandom = Origin.W;
 
 					const FStaticMeshLODResources& LODModel = RenderData->LODResources[LOD];
 
