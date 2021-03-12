@@ -29,10 +29,13 @@ void UWorldPartitionEditorSpatialHash::Initialize()
 	AlwaysLoadedCell = NewObject<UWorldPartitionEditorCell>(this, TEXT("AlwaysLoadedCell"), RF_Transient);
 	AlwaysLoadedCell->Bounds.Init();
 
-	FHashBuilder EditorGridConfigHashBuilder;
-	static uint32 Version = 1;
-	EditorGridConfigHashBuilder << Version << CellSize;	
-	GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridConfigHash(EditorGridConfigHashBuilder.GetHash());
+	if (!IsRunningCommandlet())
+	{
+		FHashBuilder EditorGridConfigHashBuilder;
+		static uint32 Version = 1;
+		EditorGridConfigHashBuilder << Version << CellSize;
+		GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridConfigHash(EditorGridConfigHashBuilder.GetHash());
+	}
 }
 
 void UWorldPartitionEditorSpatialHash::SetDefaultValues()

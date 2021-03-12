@@ -225,6 +225,8 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 		WorldPartition->RuntimeHash->LoadConfig(*RuntimeHashClass, *LevelConfigFilename);
 		WorldPartition->DefaultHLODLayer = HLODLayers.FindRef(DefaultHLODLayerName);
 	}
+
+	WorldPartition->EditorHash->Initialize();
 	
 	WorldPartition->RuntimeHash->ImportFromWorldComposition(WorldComposition);
 
