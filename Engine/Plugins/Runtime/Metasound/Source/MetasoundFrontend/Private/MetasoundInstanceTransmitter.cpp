@@ -16,19 +16,54 @@ namespace Metasound
 		return InstanceID;
 	}
 
-	bool FMetasoundInstanceTransmitter::SetFloatParameter(const FName& InParameterName, float InValue)
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, float InValue)
 	{
 		return SetParameterWithLiteral(InParameterName, FLiteral(InValue));
 	}
 
-	bool FMetasoundInstanceTransmitter::SetIntParameter(const FName& InParameterName, int32 InValue) 
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, int32 InValue) 
 	{
 		return SetParameterWithLiteral(InParameterName, FLiteral(InValue));
 	}
 
-	bool FMetasoundInstanceTransmitter::SetBoolParameter(const FName& InParameterName, bool InValue) 
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, bool InValue) 
 	{
 		return SetParameterWithLiteral(InParameterName, FLiteral(InValue));
+	}
+
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, TArray<bool>&& InValue)
+	{
+		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
+	}
+
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, TArray<int32>&& InValue)
+	{
+		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
+	}
+
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, TArray<float>&& InValue)
+	{
+		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
+	}
+
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, FString&& InValue)
+	{
+		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
+	}
+
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, TArray<FString>&& InValue)
+	{
+		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
+	}
+
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, Audio::IProxyDataPtr&& InValue)
+	{
+		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
+	}
+
+	bool FMetasoundInstanceTransmitter::SetParameter(const FName& InParameterName, TArray<Audio::IProxyDataPtr>&& InValue)
+	{
+		return SetParameterWithLiteral(InParameterName, FLiteral(MoveTemp(InValue)));
 	}
 
 	bool FMetasoundInstanceTransmitter::SetParameterWithLiteral(const FName& InParameterName, const FLiteral& InLiteral) 

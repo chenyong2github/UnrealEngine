@@ -403,6 +403,15 @@ private:
 			return TransmitterImpl.IsValid();
 		}
 
+		IAudioInstanceTransmitter* Get()
+		{
+			return TransmitterImpl.Get();
+		}
+		const IAudioInstanceTransmitter* Get() const
+		{
+			return TransmitterImpl.Get();
+		}
+
 		IAudioInstanceTransmitter* operator->()
 		{
 			return TransmitterImpl.Get();
@@ -420,6 +429,15 @@ private:
 	FInstanceTransmitter InstanceTransmitter;
 
 public:
+	IAudioInstanceTransmitter* GetTransmitter() 
+	{
+		return InstanceTransmitter.Get();
+	}
+	const IAudioInstanceTransmitter* GetTransmitter() const
+	{
+		return InstanceTransmitter.Get();
+	}
+
 	enum class EFadeOut : uint8
 	{
 		// Sound is not currently fading out

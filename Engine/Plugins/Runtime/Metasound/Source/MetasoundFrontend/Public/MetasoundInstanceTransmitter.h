@@ -65,33 +65,6 @@ namespace Metasound
 
 		/** Returns ID of the MetaSound instance associated with this transmitter. */
 		uint64 GetInstanceID() const override;
-
-		/** Set a float parameter on the MetaSound instance by name. 
-		 *
-		 * @param InParameterName - Name of MetaSound instance parameter.
-		 * @param InValue - Value to set. 
-		 *
-		 * @return true on success, false on failure.
-		 */
-		bool SetFloatParameter(const FName& InParameterName, float InValue) override;
-
-		/** Set a int parameter on the MetaSound instance by name. 
-		 *
-		 * @param InParameterName - Name of MetaSound instance parameter.
-		 * @param InValue - Value to set. 
-		 *
-		 * @return true on success, false on failure.
-		 */
-		bool SetIntParameter(const FName& InParameterName, int32 InValue) override;
-
-		/** Set a bool parameter on the MetaSound instance by name. 
-		 *
-		 * @param InParameterName - Name of MetaSound instance parameter.
-		 * @param InValue - Value to set. 
-		 *
-		 * @return true on success, false on failure.
-		 */
-		bool SetBoolParameter(const FName& InParameterName, bool InValue) override;
 		
 		/** Set a parameter using a literal.
 		 *
@@ -105,6 +78,96 @@ namespace Metasound
 		/** Duplicate this transmitter interface. The transmitters association with
 		 * the MetaSound instance will be maintained. */
 		TUniquePtr<IAudioInstanceTransmitter> Clone() const override;
+		
+		/** Set a parameter (bool)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - bool value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, bool InValue) override;
+
+		/** Set a parameter (bool array)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - bool array r-value value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, TArray<bool>&& InValue) override;		
+
+		/** Set a parameter (int32)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - in32 value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, int32 InValue) override;
+
+		/** Set a parameter overloads (int32 array)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - int32 array r-value value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, TArray<int32>&& InValue) override;		
+
+		/** Set a parameter overloads (float)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - float value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, float InValue) override;
+
+		/** Set a parameter overloads (float array)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - float array r-value value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, TArray<float>&& InValue) override;
+		
+		/** Set a parameter overloads (string)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - string r-value value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, FString&& InValue) override;
+
+		/** Set a parameter overloads (string array)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - string array r-value value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, TArray<FString>&& InValue) override;
+		
+		/** Set a parameter overloads (Audio::IProxyData)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - Audio::IProxyData r-value value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, Audio::IProxyDataPtr&& ) override;
+
+		/** Set a parameter overloads (Audio::IProxyData array)
+		 *
+		 * @param InParameterName - Name of MetaSound instance parameter.
+		 * @param InValue - Audio::IProxyData array r-value value used to construct parameter value.
+		 *
+		 * @return true on success, false on failure.
+		 */
+		bool SetParameter(const FName& InName, TArray<Audio::IProxyDataPtr>&& InValue) override;
 
 	private:
 		// Find FSendInfo by parameter name. 

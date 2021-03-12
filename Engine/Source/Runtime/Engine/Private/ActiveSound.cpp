@@ -1287,31 +1287,20 @@ void FActiveSound::SetFloatParameter(const FName InName, const float InFloat)
 {
 	if (InName != NAME_None)
 	{		
-		if (InstanceTransmitter.IsValid())
+		// First see if an entry for this name already exists
+		for (FAudioComponentParam& P : InstanceParameters)
 		{
-			bool bSuccess = InstanceTransmitter->SetFloatParameter(InName, InFloat);
-			if (!bSuccess)
+			if (P.ParamName == InName)
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Failed to set instance float parameter [InstanceID:%d, ParameterName:%s]"), InstanceTransmitter->GetInstanceID(), *InName.ToString());
+				P.FloatParam = InFloat;
+				return;
 			}
 		}
-		else
-		{
-			// First see if an entry for this name already exists
-			for (FAudioComponentParam& P : InstanceParameters)
-			{
-				if (P.ParamName == InName)
-				{
-					P.FloatParam = InFloat;
-					return;
-				}
-			}
 
-			// We didn't find one, so create a new one.
-			const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-			InstanceParameters[NewParamIndex].ParamName = InName;
-			InstanceParameters[NewParamIndex].FloatParam = InFloat;
-		}
+		// We didn't find one, so create a new one.
+		const int32 NewParamIndex = InstanceParameters.AddDefaulted();
+		InstanceParameters[NewParamIndex].ParamName = InName;
+		InstanceParameters[NewParamIndex].FloatParam = InFloat;
 	}
 }
 
@@ -1376,31 +1365,20 @@ void FActiveSound::SetBoolParameter(const FName InName, const bool InBool)
 {
 	if (InName != NAME_None)
 	{
-		if (InstanceTransmitter.IsValid())
+		// First see if an entry for this name already exists
+		for (FAudioComponentParam& P : InstanceParameters)
 		{
-			bool bSuccess = InstanceTransmitter->SetBoolParameter(InName, InBool);
-			if (!bSuccess)
+			if (P.ParamName == InName)
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Failed to set instance bool parameter [InstanceID:%d, ParameterName:%s]"), InstanceTransmitter->GetInstanceID(), *InName.ToString());
+				P.BoolParam = InBool;
+				return;
 			}
 		}
-		else
-		{
-			// First see if an entry for this name already exists
-			for (FAudioComponentParam& P : InstanceParameters)
-			{
-				if (P.ParamName == InName)
-				{
-					P.BoolParam = InBool;
-					return;
-				}
-			}
 
-			// We didn't find one, so create a new one.
-			const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-			InstanceParameters[NewParamIndex].ParamName = InName;
-			InstanceParameters[NewParamIndex].BoolParam = InBool;
-		}
+		// We didn't find one, so create a new one.
+		const int32 NewParamIndex = InstanceParameters.AddDefaulted();
+		InstanceParameters[NewParamIndex].ParamName = InName;
+		InstanceParameters[NewParamIndex].BoolParam = InBool;
 	}
 }
 
@@ -1426,31 +1404,20 @@ void FActiveSound::SetIntParameter(const FName InName, const int32 InInt)
 {
 	if (InName != NAME_None)
 	{
-		if (InstanceTransmitter.IsValid())
+		// First see if an entry for this name already exists
+		for (FAudioComponentParam& P : InstanceParameters)
 		{
-			bool bSuccess = InstanceTransmitter->SetIntParameter(InName, InInt);
-			if (!bSuccess)
+			if (P.ParamName == InName)
 			{
-				UE_LOG(LogAudio, Warning, TEXT("Failed to set instance int parameter [InstanceID:%d, ParameterName:%s]"), InstanceTransmitter->GetInstanceID(), *InName.ToString());
+				P.IntParam = InInt;
+				return;
 			}
 		}
-		else
-		{
-			// First see if an entry for this name already exists
-			for (FAudioComponentParam& P : InstanceParameters)
-			{
-				if (P.ParamName == InName)
-				{
-					P.IntParam = InInt;
-					return;
-				}
-			}
 
-			// We didn't find one, so create a new one.
-			const int32 NewParamIndex = InstanceParameters.AddDefaulted();
-			InstanceParameters[NewParamIndex].ParamName = InName;
-			InstanceParameters[NewParamIndex].IntParam = InInt;
-		}
+		// We didn't find one, so create a new one.
+		const int32 NewParamIndex = InstanceParameters.AddDefaulted();
+		InstanceParameters[NewParamIndex].ParamName = InName;
+		InstanceParameters[NewParamIndex].IntParam = InInt;
 	}
 }
 

@@ -13,8 +13,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "Misc/App.h"
 #include "Kismet/GameplayStatics.h"
-
-
+#include "Sound/AudioComponentCommuncation.h"
 
 DECLARE_CYCLE_STAT(TEXT("AudioComponent Play"), STAT_AudioComp_Play, STATGROUP_Audio);
 
@@ -87,6 +86,10 @@ UAudioComponent::UAudioComponent(const FObjectInitializer& ObjectInitializer)
 		FScopeLock Lock(&AudioIDToComponentMapLock);
 		AudioIDToComponentMap.Add(AudioComponentID, this);
 	}
+
+	// Create communications object.
+	static const FName NAME_CommunicationSubObj{ TEXT("AudioComponentCommunication") };
+	CommunicationInterface = CreateDefaultSubobject<UAudioComponentCommunication>(NAME_CommunicationSubObj, true);
 }
 
 UAudioComponent* UAudioComponent::GetAudioComponentFromID(uint64 AudioComponentID)
@@ -1105,6 +1108,11 @@ void UAudioComponent::SetFloatParameter( const FName InName, const float InFloat
 			}
 		}
 	}
+}
+
+TScriptInterface<IAudioCommunicationInterface> UAudioComponent::GetCommunicationInterface() const
+{
+	return CommunicationInterface;
 }
 
 void UAudioComponent::SetWaveParameter( const FName InName, USoundWave* InWave )

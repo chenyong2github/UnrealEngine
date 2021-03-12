@@ -13,6 +13,7 @@
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Quartz/AudioMixerClockHandle.h"
 #include "Quartz/AudioMixerQuantizedCommands.h"
+#include "Sound/AudioCommunicationInterface.h"
 
 #include "AudioComponent.generated.h"
 
@@ -527,6 +528,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Audio|Components|Audio")
 	void SetFloatParameter(FName InName, float InFloat);
+
+	UPROPERTY(Transient)
+	TScriptInterface<IAudioCommunicationInterface> CommunicationInterface;
+
+	UFUNCTION(BlueprintCallable, Category = "Communications")
+	TScriptInterface<IAudioCommunicationInterface> GetCommunicationInterface() const;
 
 	/** Allows the designer to set the Wave Parameter on the SoundCue whose name matches the name indicated.
 	 * @param InName The name of the Wave to set. It must match the name set in SoundCue's WaveParam Node

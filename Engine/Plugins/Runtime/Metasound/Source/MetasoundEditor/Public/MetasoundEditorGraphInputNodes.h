@@ -132,7 +132,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetBoolParameter(*InParameterName, Default);
+		InInstanceTransmitter.SetParameter(*InParameterName, Default);
 	}
 };
 
@@ -161,8 +161,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		// TODO:
-		//InInstanceTransmitter.SetBoolArrayParameter(InParameterName, Default);
+		InInstanceTransmitter.SetParameter(*InParameterName, TArray<bool>{Default});
 	}
 };
 
@@ -201,7 +200,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetIntParameter(*InParameterName, Default.Value);
+		InInstanceTransmitter.SetParameter(*InParameterName, Default.Value);
 	}
 };
 
@@ -236,12 +235,10 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-
 		TArray<int32> IntArray;
 		Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphInputInt& InValue) { return InValue.Value; });
 
-		// TODO:
-		//InInstanceTransmitter.SetIntArrayParameter(*InParameterName, IntArray);
+		InInstanceTransmitter.SetParameter(*InParameterName, TArray<int32>{ IntArray });
 	}
 };
 
@@ -270,7 +267,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		InInstanceTransmitter.SetFloatParameter(*InParameterName, Default);
+		InInstanceTransmitter.SetParameter(*InParameterName, Default);
 	}
 };
 
@@ -299,8 +296,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		// TODO:
-		//InInstanceTransmitter.SetFloatArrayParameter(*InParameterName, Default);
+		InInstanceTransmitter.SetParameter(*InParameterName, TArray<float>{Default});
 	}
 };
 
@@ -327,10 +323,9 @@ public:
 		return EMetasoundFrontendLiteralType::String;
 	}
 
-	void UpdatePreviewInstance(const Metasound::FVertexKey& InParamterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		// TODO:
-		//InInstanceTransmitter.SetStringParameter(*InParameterName, Default);
+		InInstanceTransmitter.SetParameter(*InParameterName, FString{ Default });
 	}
 };
 
@@ -359,8 +354,7 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		// TODO:
-		//InInstanceTransmitter.SetStringArrayParameter(*InParameterName, Default);
+		InInstanceTransmitter.SetParameter(*InParameterName, TArray<FString>{Default});
 	}
 };
 
@@ -399,8 +393,8 @@ public:
 
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
-		// TODO:
-		//InInstanceTransmitter.SetUObjectParameter(*InParameterName, Default.Object);
+		// TODO. We need proxy object here safely.
+		//InInstanceTransmitter.SetParameter(*InParameterName, Default.Object);
 	}
 };
 
@@ -437,8 +431,8 @@ public:
 	{
 		TArray<UObject*> ObjectArray;
 		Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphInputObject& InValue) { return InValue.Object; });
-
-		// TODO:
-		//InInstanceTransmitter.SetUObjectArrayParameter(*InParameterName, Default.Object);
+		
+		// TODO. We need proxy object here safely.
+		//InInstanceTransmitter.SetParameter(*InParameterName, Default.Object);
 	}
 };
