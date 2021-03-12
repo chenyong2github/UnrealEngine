@@ -357,7 +357,7 @@ void UWorldPartition::Uninitialize()
 		check(World);
 
 #if WITH_EDITOR
-		if (!IsRunningCommandlet())
+		if (!IsRunningCommandlet() && !IsEngineExitRequested())
 		{
 			// Save last loaded cells settings
 			TArray<FName> EditorGridLastLoadedCells;
