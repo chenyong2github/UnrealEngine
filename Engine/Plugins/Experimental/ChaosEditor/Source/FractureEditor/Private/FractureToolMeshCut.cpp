@@ -88,6 +88,10 @@ int32 UFractureToolMeshCut::ExecuteFracture(const FFractureToolContext& Fracture
 		FMeshDescription* MeshDescription = LocalCutSettings->CuttingActor->GetStaticMeshComponent()->GetStaticMesh()->GetMeshDescription(0);
 		FTransform Transform(LocalCutSettings->CuttingActor->GetTransform());
 		FInternalSurfaceMaterials InternalSurfaceMaterials;
+
+		// Proximity is invalidated.
+		ClearProximity(FractureContext.GetGeometryCollection().Get());
+
 		// (Note: noise and grout not currently supported)
 		return CutWithMesh(MeshDescription, Transform, InternalSurfaceMaterials, *FractureContext.GetGeometryCollection(), FractureContext.GetSelection(), CollisionSettings->PointSpacing, FractureContext.GetTransform());
 	}

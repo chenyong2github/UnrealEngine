@@ -12,6 +12,7 @@
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
+#include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
 
@@ -168,6 +169,22 @@ void UFractureActionTool::SetOutlinerComponents(TArray<FFractureToolContext>& In
 		Components.Add(Context.GetGeometryCollectionComponent());
 	}
 	Toolkit->SetOutlinerComponents(Components);
+}
+
+void UFractureActionTool::ClearProximity(FGeometryCollection* GeometryCollection)
+{
+	if (GeometryCollection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
+	{
+		GeometryCollection->RemoveAttribute("Proximity", FGeometryCollection::GeometryGroup);
+	}
+}
+
+void UFractureActionTool::GenerateProximityIfNecessary(FGeometryCollection* GeometryCollection)
+{
+	if (!GeometryCollection->HasAttribute("Proximity", FGeometryCollection::GeometryGroup))
+	{
+		FGeometryCollectionProximityUtility::UpdateProximity(GeometryCollection);
+	}
 }
 
 TArray<FFractureToolContext> UFractureActionTool::GetFractureToolContexts() const

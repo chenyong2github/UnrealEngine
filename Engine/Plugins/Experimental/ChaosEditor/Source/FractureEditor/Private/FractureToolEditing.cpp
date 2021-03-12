@@ -86,6 +86,9 @@ void UFractureToolDeleteBranch::Execute(TWeakPtr<FFractureEditorModeToolkit> InT
 
 			Context.GetGeometryCollectionComponent()->InitializeEmbeddedGeometry();
 
+			// Proximity is invalidated.
+			ClearProximity(Context.GetGeometryCollection().Get());
+
 			Refresh(Context, Toolkit, true);
 		}
 
