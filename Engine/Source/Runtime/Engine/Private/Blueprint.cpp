@@ -984,7 +984,7 @@ void UBlueprint::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	}
 	else
 	{
-		NativeParentClassName = ParentClassName = ("None");
+		NativeParentClassName = ParentClassName = TEXT("None");
 	}
 
 

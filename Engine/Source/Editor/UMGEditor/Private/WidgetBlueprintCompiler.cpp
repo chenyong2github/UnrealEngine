@@ -703,15 +703,18 @@ void FWidgetBlueprintCompilerContext::FinishCompilingClass(UClass* Class)
 		// Make sure that we don't have dueling widget hierarchies
 		if (UWidgetBlueprintGeneratedClass* SuperBPGClass = Cast<UWidgetBlueprintGeneratedClass>(BPGClass->GetSuperClass()))
 		{
-			UWidgetBlueprint* SuperBlueprint = Cast<UWidgetBlueprint>(SuperBPGClass->ClassGeneratedBy);
-			if (SuperBlueprint->WidgetTree != nullptr)
+			if (SuperBPGClass->ClassGeneratedBy) // ClassGeneratedBy can be null for cooked widget blueprints
 			{
-				if ((SuperBlueprint->WidgetTree->RootWidget != nullptr) && (WidgetBlueprint()->WidgetTree->RootWidget != nullptr))
+				UWidgetBlueprint* SuperBlueprint = Cast<UWidgetBlueprint>(SuperBPGClass->ClassGeneratedBy);
+				if (ensure(SuperBlueprint) && SuperBlueprint->WidgetTree != nullptr)
 				{
-					// We both have a widget tree, terrible things will ensue
-					// @todo: nickd - we need to switch this back to a warning in engine, but note for games
-					MessageLog.Note(*LOCTEXT("ParentAndChildBothHaveWidgetTrees", "This widget @@ and parent class widget @@ both have a widget hierarchy, which is not supported.  Only one of them should have a widget tree.").ToString(),
-						WidgetBP, SuperBPGClass->ClassGeneratedBy);
+					if ((SuperBlueprint->WidgetTree->RootWidget != nullptr) && (WidgetBlueprint()->WidgetTree->RootWidget != nullptr))
+					{
+						// We both have a widget tree, terrible things will ensue
+						// @todo: nickd - we need to switch this back to a warning in engine, but note for games
+						MessageLog.Note(*LOCTEXT("ParentAndChildBothHaveWidgetTrees", "This widget @@ and parent class widget @@ both have a widget hierarchy, which is not supported.  Only one of them should have a widget tree.").ToString(),
+							WidgetBP, SuperBPGClass->ClassGeneratedBy);
+					}
 				}
 			}
 		}
