@@ -507,8 +507,9 @@ FGeneratedWrappedPropertyDoc::FGeneratedWrappedPropertyDoc(const FProperty* InPr
 	PythonPropName = GetPropertyPythonName(InProp);
 
 	const FString PropTooltip = GetFieldTooltip(InProp);
-	DocString = PythonizePropertyTooltip(PropTooltip, InProp, PropertyAccessUtil::RuntimeReadOnlyFlags);
-	EditorDocString = PythonizePropertyTooltip(PropTooltip, InProp, PropertyAccessUtil::EditorReadOnlyFlags);
+	const FParsedTooltip ParsedPropTooltip = ParseTooltip(PropTooltip);
+	DocString = PythonizePropertyTooltip(ParsedPropTooltip, InProp, PropertyAccessUtil::RuntimeReadOnlyFlags);
+	EditorDocString = PythonizePropertyTooltip(ParsedPropTooltip, InProp, PropertyAccessUtil::EditorReadOnlyFlags);
 }
 
 bool FGeneratedWrappedPropertyDoc::SortPredicate(const FGeneratedWrappedPropertyDoc& InOne, const FGeneratedWrappedPropertyDoc& InTwo)
@@ -541,16 +542,16 @@ void FGeneratedWrappedPropertyDoc::AppendDocString(const TArray<FGeneratedWrappe
 	OutStr += LINE_TERMINATOR TEXT("**Editor Properties:** (see get_editor_property/set_editor_property)") LINE_TERMINATOR;
 	for (const FGeneratedWrappedPropertyDoc& Doc : InDocs)
 	{
-		TArray<FString> DocStringLines;
-		Doc.EditorDocString.ParseIntoArrayLines(DocStringLines, /*bCullEmpty*/false);
-
 		OutStr += LINE_TERMINATOR TEXT("- ``");  // add as a list and code style
 		OutStr += Doc.PythonPropName;
 		OutStr += TEXT("`` ");
 
 		bool bMultipleLines = false;
 
-		for (const FString& DocStringLine : DocStringLines)
+		const FStringView EditorDocString = Doc.EditorDocString;
+		int32 EditorDocStringParseIndex = 0;
+
+		while (EditorDocStringParseIndex < EditorDocString.Len())
 		{
 			if (bMultipleLines)
 			{
@@ -558,7 +559,22 @@ void FGeneratedWrappedPropertyDoc::AppendDocString(const TArray<FGeneratedWrappe
 			}
 			bMultipleLines = true;
 
-			OutStr += DocStringLine;
+			const int32 LineStartIndex = EditorDocStringParseIndex;
+			while (EditorDocStringParseIndex < EditorDocString.Len() && !FChar::IsLinebreak(EditorDocString[EditorDocStringParseIndex]))
+			{
+				++EditorDocStringParseIndex;
+			}
+
+			OutStr += EditorDocString.Mid(LineStartIndex, EditorDocStringParseIndex - LineStartIndex);
+
+			if (EditorDocStringParseIndex + 1 < EditorDocString.Len() && EditorDocString[EditorDocStringParseIndex] == TEXT('\r') && EditorDocString[EditorDocStringParseIndex + 1] == TEXT('\n'))
+			{
+				EditorDocStringParseIndex += 2;
+			}
+			else if (EditorDocStringParseIndex < EditorDocString.Len() && FChar::IsLinebreak(EditorDocString[EditorDocStringParseIndex]))
+			{
+				++EditorDocStringParseIndex;
+			}
 		}
 	}
 }
@@ -773,7 +789,7 @@ void FGeneratedWrappedEnumType::ExtractEnumEntries(const UEnum* InEnum)
 		{
 			FGeneratedWrappedEnumEntry& EnumEntry = EnumEntries.AddDefaulted_GetRef();
 			EnumEntry.EntryName = TCHARToUTF8Buffer(*GetEnumEntryPythonName(InEnum, EnumEntryIndex));
-			EnumEntry.EntryDoc = TCHARToUTF8Buffer(*PythonizeTooltip(GetEnumEntryTooltip(InEnum, EnumEntryIndex)));
+			EnumEntry.EntryDoc = TCHARToUTF8Buffer(*PythonizeTooltip(ParseTooltip(GetEnumEntryTooltip(InEnum, EnumEntryIndex))));
 			EnumEntry.EntryValue = InEnum->GetValueByIndex(EnumEntryIndex);
 		}
 	}
@@ -1758,146 +1774,22 @@ FString PythonizePropertyName(FStringView InName, const EPythonizeNameCase InNam
 	return PythonizeName(NameOffset ? InName.RightChop(NameOffset) : InName, InNameCase);
 }
 
-FString PythonizePropertyTooltip(FStringView InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags)
+FString PythonizePropertyTooltip(const FParsedTooltip& InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags)
 {
 	return PythonizeTooltip(InTooltip, FPythonizeTooltipContext(InProp, InReadOnlyFlags));
 }
 
-FString PythonizeFunctionTooltip(FStringView InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore)
+FString PythonizeFunctionTooltip(const FParsedTooltip& InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore)
 {
 	return PythonizeTooltip(InTooltip, FPythonizeTooltipContext(InFunc, ParamsToIgnore));
 }
 
-FString PythonizeTooltip(FStringView InTooltip, const FPythonizeTooltipContext& InContext)
+FString PythonizeTooltip(const FParsedTooltip& InTooltip, const FPythonizeTooltipContext& InContext)
 {
 	// Use Google style docstrings - http://google.github.io/styleguide/pyguide.html?showone=Comments#Comments
 
-	struct FMiscToken
-	{
-		FMiscToken() = default;
-		FMiscToken(FMiscToken&&) = default;
-		FMiscToken& operator=(FMiscToken&&) = default;
-		
-		FMiscToken(FString&& InTokenName, FString&& InTokenValue)
-			: TokenName(MoveTemp(InTokenValue))
-			, TokenValue(MoveTemp(InTokenValue))
-		{
-		}
-
-		FString TokenName;
-		FString TokenValue;
-	};
-
-	struct FParamToken
-	{
-		FParamToken() = default;
-		FParamToken(FParamToken&&) = default;
-		FParamToken& operator=(FParamToken&&) = default;
-		
-		explicit FParamToken(const FProperty* InParam)
-			: ParamName(InParam->GetFName())
-			, ParamType(GetPropertyPythonType(InParam))
-			, ParamComment()
-		{
-		}
-
-		FParamToken(const FName InParamName, FString&& InParamComment)
-			: ParamName(InParamName)
-			, ParamType()
-			, ParamComment(MoveTemp(InParamComment))
-		{
-		}
-
-		FName ParamName;
-		FString ParamType;
-		FString ParamComment;
-	};
-
-	typedef TArray<FMiscToken, TInlineAllocator<4>> FMiscTokensArray;
-	typedef TArray<FParamToken, TInlineAllocator<8>> FParamTokensArray;
-
 	FString PythonizedTooltip;
-	PythonizedTooltip.Reserve(InTooltip.Len());
-
-	int32 TooltipIndex = 0;
-	const int32 TooltipLen = InTooltip.Len();
-
-	FMiscTokensArray ParsedMiscTokens;
-	FParamTokensArray ParsedInputParamTokens;
-	FParamTokensArray ParsedOutputParamTokens;
-	FParamToken ParsedReturnToken;
-	bool bIsBoolReturn = false;
-
-	// If we have a function, we pre-populate the input and output parm tokens with the names of the 
-	// params (in-order) and fill them in with the description from the tooltip later (if available)
-	if (InContext.Func)
-	{
-		if (const FProperty* ReturnProp = InContext.Func->GetReturnProperty())
-		{
-			bIsBoolReturn = ReturnProp->IsA<FBoolProperty>();
-			ParsedReturnToken = FParamToken(ReturnProp);
-		}
-
-		for (TFieldIterator<const FProperty> ParamIt(InContext.Func); ParamIt; ++ParamIt)
-		{
-			const FProperty* Param = *ParamIt;
-
-			if (PyUtil::IsInputParameter(Param))
-			{
-				ParsedInputParamTokens.Add(FParamToken(Param));
-			}
-
-			if (PyUtil::IsOutputParameter(Param))
-			{
-				ParsedOutputParamTokens.Add(FParamToken(Param));
-			}
-		}
-	}
-
-	auto SkipToNextToken = [&InTooltip, &TooltipIndex, &TooltipLen]()
-	{
-		while (TooltipIndex < TooltipLen && (FChar::IsWhitespace(InTooltip[TooltipIndex]) || InTooltip[TooltipIndex] == TEXT('-')))
-		{
-			++TooltipIndex;
-		}
-	};
-
-	auto ParseSimpleToken = [&InTooltip, &TooltipIndex, &TooltipLen](FString& OutToken)
-	{
-		while (TooltipIndex < TooltipLen && !FChar::IsWhitespace(InTooltip[TooltipIndex]))
-		{
-			OutToken += InTooltip[TooltipIndex++];
-		}
-	};
-
-	auto ParseComplexToken = [&InTooltip, &TooltipIndex, &TooltipLen](FString& OutToken)
-	{
-		while (TooltipIndex < TooltipLen && InTooltip[TooltipIndex] != TEXT('@'))
-		{
-			// Convert a new-line within a token to a space
-			if (FChar::IsLinebreak(InTooltip[TooltipIndex]))
-			{
-				while (TooltipIndex < TooltipLen && FChar::IsLinebreak(InTooltip[TooltipIndex]))
-				{
-					++TooltipIndex;
-				}
-
-				while (TooltipIndex < TooltipLen && FChar::IsWhitespace(InTooltip[TooltipIndex]))
-				{
-					++TooltipIndex;
-				}
-
-				OutToken += TEXT(' ');
-			}
-
-			// Sanity check in case the first character after the new-line is @
-			if (TooltipIndex < TooltipLen && InTooltip[TooltipIndex] != TEXT('@'))
-			{
-				OutToken += InTooltip[TooltipIndex++];
-			}
-		}
-		OutToken.TrimEndInline();
-	};
+	PythonizedTooltip.Reserve(InTooltip.SourceTooltipLen);
 
 	// Append the property type (if given)
 	if (InContext.Prop)
@@ -1909,119 +1801,8 @@ FString PythonizeTooltip(FStringView InTooltip, const FPythonizeTooltipContext& 
 		PythonizedTooltip += TEXT(' ');
 	}
 
-	// Parse the tooltip for its tokens and values (basic content goes directly into PythonizedTooltip)
-	for (; TooltipIndex < TooltipLen;)
-	{
-		if (InTooltip[TooltipIndex] == TEXT('@'))
-		{
-			++TooltipIndex; // Walk over the @
-			if (InTooltip[TooltipIndex] == TEXT('@'))
-			{
-				// Literal @ character
-				PythonizedTooltip += TEXT('@');
-				continue;
-			}
-
-			// Parse out the token name
-			FString TokenName;
-			SkipToNextToken();
-			ParseSimpleToken(TokenName);
-
-			if (TokenName == TEXT("param"))
-			{
-				// Parse out the parameter name
-				FString ParamName;
-				SkipToNextToken();
-				ParseSimpleToken(ParamName);
-
-				// Parse out the parameter comment
-				FString ParamComment;
-				SkipToNextToken();
-				ParseComplexToken(ParamComment);
-
-				const FName ParamFName = *ParamName;
-				
-				FParamToken* ExistingInputParamToken = ParsedInputParamTokens.FindByPredicate([ParamFName](const FParamToken& ParamToken)
-				{
-					return ParamToken.ParamName == ParamFName;
-				});
-				if (ExistingInputParamToken)
-				{
-					ExistingInputParamToken->ParamComment = MoveTemp(ParamComment);
-					continue;
-				}
-
-				FParamToken* ExistingOutputParamToken = ParsedOutputParamTokens.FindByPredicate([ParamFName](const FParamToken& ParamToken)
-				{
-					return ParamToken.ParamName == ParamFName;
-				});
-				if (ExistingOutputParamToken)
-				{
-					ExistingOutputParamToken->ParamComment = MoveTemp(ParamComment);
-					continue;
-				}
-
-				// We only allow new parameters to be added from parsing if we have no function, 
-				// otherwise the arrays will already contain all the params we care about
-				if (!InContext.Func)
-				{
-					ParsedInputParamTokens.Add(FParamToken(ParamFName, MoveTemp(ParamComment)));
-				}
-			}
-			else if (TokenName == TEXT("return") || TokenName == TEXT("returns"))
-			{
-				// Parse out the return value token
-				SkipToNextToken();
-				ParseComplexToken(ParsedReturnToken.ParamComment);
-
-				// Make sure it has a name set
-				if (ParsedReturnToken.ParamName.IsNone())
-				{
-					static const FName ReturnTokenName = "Return";
-					ParsedReturnToken.ParamName = ReturnTokenName;
-				}
-			}
-			else
-			{
-				// Parse out the token value
-				FString TokenValue;
-				SkipToNextToken();
-				ParseComplexToken(TokenValue);
-
-				ParsedMiscTokens.Add(FMiscToken(MoveTemp(TokenName), MoveTemp(TokenValue)));
-			}
-		}
-		else
-		{
-			// @NOTE: Conan.Reis Keep empty new lines for doc generation.
-			// Convert duplicate new-lines to a single new-line
-			//if (FChar::IsLinebreak(InTooltip[TooltipIndex]))
-			//{
-			//	while (TooltipIndex < TooltipLen && FChar::IsLinebreak(InTooltip[TooltipIndex]))
-			//	{
-			//		++TooltipIndex;
-			//	}
-			//	PythonizedTooltip += LINE_TERMINATOR;
-			//}
-			//else
-			{
-				// Normal character
-				PythonizedTooltip += InTooltip[TooltipIndex++];
-			}
-		}
-	}
-
-	// Remove any parameters we were asked to ignore
-	auto RemoveIgnoredParams = [&InContext](FParamTokensArray& ParamTokens)
-	{
-		ParamTokens.RemoveAll([&InContext](const FParamToken& ParamToken)
-		{
-			return InContext.ParamsToIgnore.Contains(ParamToken.ParamName);
-		});
-	};
-	RemoveIgnoredParams(ParsedInputParamTokens);
-	RemoveIgnoredParams(ParsedOutputParamTokens);
-
+	// Append the basic tooltip text
+	PythonizedTooltip += InTooltip.BasicTooltipText;
 	PythonizedTooltip.TrimEndInline();
 
 	// Add the deprecation message
@@ -2032,83 +1813,292 @@ FString PythonizeTooltip(FStringView InTooltip, const FPythonizeTooltipContext& 
 	}
 
 	// Process the misc tokens into PythonizedTooltip
-	for (const FMiscToken& MiscToken : ParsedMiscTokens)
+	for (const FParsedTooltip::FMiscToken& MiscToken : InTooltip.MiscTokens)
 	{
 		PythonizedTooltip += LINE_TERMINATOR;
-		PythonizedTooltip += MiscToken.TokenName;
+		PythonizedTooltip += MiscToken.TokenName.GetValue();
 		PythonizedTooltip += TEXT(": ");
-		PythonizedTooltip += MiscToken.TokenValue;
+		PythonizedTooltip += MiscToken.TokenValue.GetValue();
 	}
 
-	// Append input parameters
-	if (ParsedInputParamTokens.Num() > 0)
+	// If we have a function, we populate the input and output parm tokens from the parsed tooltip data
+	if (InContext.Func)
 	{
-		PythonizedTooltip += LINE_TERMINATOR LINE_TERMINATOR TEXT("Args:");
-
-		for (const FParamToken& ParamToken : ParsedInputParamTokens)
+		bool bIsBoolReturn = false;
+		FParsedTooltip::FParamToken ReturnToken;
+		if (const FProperty* ReturnProp = InContext.Func->GetReturnProperty())
 		{
-			// The parameters need to be indented
-			PythonizedTooltip += LINE_TERMINATOR TEXT("    ");
-			PythonizedTooltip += PythonizePropertyName(ParamToken.ParamName.ToString(), EPythonizeNameCase::Lower);
+			bIsBoolReturn = ReturnProp->IsA<FBoolProperty>();
+			ReturnToken.ParamName.SetValue(ReturnProp->GetName());
+			ReturnToken.ParamType.SetValue(GetPropertyPythonType(ReturnProp));
+			ReturnToken.ParamComment.SetValue(InTooltip.ReturnToken.ParamComment.GetValue());
+		}
 
-			if (!ParamToken.ParamType.IsEmpty())
+		FParsedTooltip::FParamTokensArray InputParamTokens;
+		FParsedTooltip::FParamTokensArray OutputParamTokens;
+		for (TFieldIterator<const FProperty> ParamIt(InContext.Func); ParamIt; ++ParamIt)
+		{
+			const FProperty* Param = *ParamIt;
+
+			if (InContext.ParamsToIgnore.Contains(Param->GetFName()))
 			{
-				PythonizedTooltip += TEXT(" (");
-				PythonizedTooltip += ParamToken.ParamType;
-				PythonizedTooltip += TEXT(')');
+				// Skip any params we were asked to ignore
+				continue;
 			}
 
-			// Add colon even if there's no comment
-			PythonizedTooltip += TEXT(": ");
-			PythonizedTooltip += ParamToken.ParamComment;
-		}
-	}
+			TStringBuilder<FName::StringBufferSize> ParamNameStrBuffer;
+			Param->GetFName().ToString(ParamNameStrBuffer);
+			FStringView ParamNameStr = ParamNameStrBuffer;
 
-	// Process return and output parameters
-	if (!ParsedReturnToken.ParamName.IsNone() || ParsedOutputParamTokens.Num() > 0)
-	{
-		// Work out the return value type
-		FString ReturnType = ParsedReturnToken.ParamType;
-		if (ParsedOutputParamTokens.Num() > 0)
-		{
-			ReturnType = ParsedOutputParamTokens.Num() == 1 ? *ParsedOutputParamTokens[0].ParamType : TEXT("tuple");
-			if (bIsBoolReturn)
+			const FParsedTooltip::FParamToken* ParsedParamToken = InTooltip.ParamTokens.FindByPredicate([ParamNameStr](const FParsedTooltip::FParamToken& InParamToken)
 			{
-				ReturnType += TEXT(" or None");
+				return InParamToken.ParamName.GetValue() == ParamNameStr;
+			});
+
+			auto PopulateFinalFuncParamToken = [ParamNameStr, ParsedParamToken](FParsedTooltip::FParamToken& InOutParamToken, const FProperty* InParam)
+			{
+				if (ParsedParamToken && ParsedParamToken->ParamName.GetValue().Equals(ParamNameStr, ESearchCase::CaseSensitive))
+				{
+					// Name is cased correctly, so reference the parsed view to avoid a string copy
+					InOutParamToken.ParamName.SetValue(ParsedParamToken->ParamName.GetValue());
+				}
+				else
+				{
+					// Name is incorrect or missing, so copy the name with the correct case
+					InOutParamToken.ParamName.SetValue(FString(ParamNameStr));
+				}
+
+				InOutParamToken.ParamType.SetValue(GetPropertyPythonType(InParam));
+
+				if (ParsedParamToken)
+				{
+					InOutParamToken.ParamComment.SetValue(ParsedParamToken->ParamComment.GetValue());
+				}
+			};
+
+			if (PyUtil::IsInputParameter(Param))
+			{
+				FParsedTooltip::FParamToken& InputParamToken = InputParamTokens.AddDefaulted_GetRef();
+				PopulateFinalFuncParamToken(InputParamToken, Param);
+			}
+
+			if (PyUtil::IsOutputParameter(Param))
+			{
+				FParsedTooltip::FParamToken& OutputParamToken = OutputParamTokens.AddDefaulted_GetRef();
+				PopulateFinalFuncParamToken(OutputParamToken, Param);
 			}
 		}
 
-		PythonizedTooltip += LINE_TERMINATOR LINE_TERMINATOR TEXT("Returns:") LINE_TERMINATOR TEXT("    ");
-		if (!ReturnType.IsEmpty())
+		// Append input parameters
+		if (InputParamTokens.Num() > 0)
 		{
-			PythonizedTooltip += ReturnType;
-			// Add colon even if there's no comment
-			PythonizedTooltip += TEXT(": ");
-		}
-		PythonizedTooltip += ParsedReturnToken.ParamComment;
+			PythonizedTooltip += LINE_TERMINATOR LINE_TERMINATOR TEXT("Args:");
 
-		for (const FParamToken& ParamToken : ParsedOutputParamTokens)
-		{
-			// The parameters need to be indented
-			PythonizedTooltip += LINE_TERMINATOR LINE_TERMINATOR TEXT("    ");
-			PythonizedTooltip += PythonizePropertyName(ParamToken.ParamName.ToString(), EPythonizeNameCase::Lower);
+			for (const FParsedTooltip::FParamToken& ParamToken : InputParamTokens)
+			{
+				// The parameters need to be indented
+				PythonizedTooltip += LINE_TERMINATOR TEXT("    ");
+				PythonizedTooltip += PythonizePropertyName(ParamToken.ParamName.GetValue(), EPythonizeNameCase::Lower);
 
-			if (!ParamToken.ParamType.IsEmpty())
-	{
-				PythonizedTooltip += TEXT(" (");
-				PythonizedTooltip += ParamToken.ParamType;
-				PythonizedTooltip += TEXT(')');
+				if (!ParamToken.ParamType.GetValue().IsEmpty())
+				{
+					PythonizedTooltip += TEXT(" (");
+					PythonizedTooltip += ParamToken.ParamType.GetValue();
+					PythonizedTooltip += TEXT(')');
+				}
+
+				// Add colon even if there's no comment
+				PythonizedTooltip += TEXT(": ");
+				PythonizedTooltip += ParamToken.ParamComment.GetValue();
 			}
+		}
 
-			// Add colon even if there's no comment
-			PythonizedTooltip += TEXT(": ");
-			PythonizedTooltip += ParamToken.ParamComment;
+		// Process return and output parameters
+		if (!ReturnToken.ParamName.GetValue().IsEmpty() || OutputParamTokens.Num() > 0)
+		{
+			// Work out the return value type
+			PythonizedTooltip += LINE_TERMINATOR LINE_TERMINATOR TEXT("Returns:") LINE_TERMINATOR TEXT("    ");
+			{
+				// Track whether we actually wrote anything below
+				const int32 PreReturnLen = PythonizedTooltip.Len();
+				{
+					if (OutputParamTokens.Num() > 0)
+					{
+						PythonizedTooltip += (OutputParamTokens.Num() == 1 ? OutputParamTokens[0].ParamType.GetValue() : TEXT("tuple"));
+						if (bIsBoolReturn)
+						{
+							PythonizedTooltip += TEXT(" or None");
+						}
+					}
+					else
+					{
+						PythonizedTooltip += ReturnToken.ParamType.GetValue();
+					}
+				}
+				if (PythonizedTooltip.Len() > PreReturnLen)
+				{
+					// Add colon even if there's no comment
+					PythonizedTooltip += TEXT(": ");
+				}
+			}
+			PythonizedTooltip += ReturnToken.ParamComment.GetValue();
+
+			for (const FParsedTooltip::FParamToken& ParamToken : OutputParamTokens)
+			{
+				// The parameters need to be indented
+				PythonizedTooltip += LINE_TERMINATOR LINE_TERMINATOR TEXT("    ");
+				PythonizedTooltip += PythonizePropertyName(ParamToken.ParamName.GetValue(), EPythonizeNameCase::Lower);
+
+				if (!ParamToken.ParamType.GetValue().IsEmpty())
+				{
+					PythonizedTooltip += TEXT(" (");
+					PythonizedTooltip += ParamToken.ParamType.GetValue();
+					PythonizedTooltip += TEXT(')');
+				}
+
+				// Add colon even if there's no comment
+				PythonizedTooltip += TEXT(": ");
+				PythonizedTooltip += ParamToken.ParamComment.GetValue();
+			}
 		}
 	}
 
 	PythonizedTooltip.TrimEndInline();
 
 	return PythonizedTooltip;
+}
+
+FParsedTooltip ParseTooltip(FStringView InTooltip)
+{
+	const FStringView SourceTooltip = InTooltip;
+	int32 SourceTooltipParseIndex = 0;
+
+	FParsedTooltip ParsedTooltip;
+	ParsedTooltip.SourceTooltipLen = InTooltip.Len();
+	ParsedTooltip.BasicTooltipText.Reserve(SourceTooltip.Len());
+
+	auto SkipToNextToken = [&SourceTooltip, &SourceTooltipParseIndex]()
+	{
+		while (SourceTooltipParseIndex < SourceTooltip.Len() && (FChar::IsWhitespace(SourceTooltip[SourceTooltipParseIndex]) || SourceTooltip[SourceTooltipParseIndex] == TEXT('-')))
+		{
+			++SourceTooltipParseIndex;
+		}
+	};
+
+	auto ParseSimpleToken = [&SourceTooltip, &SourceTooltipParseIndex](FParsedTooltip::FTokenString& OutToken)
+	{
+		const int32 TokenStartIndex = SourceTooltipParseIndex;
+		while (SourceTooltipParseIndex < SourceTooltip.Len() && !FChar::IsWhitespace(SourceTooltip[SourceTooltipParseIndex]))
+		{
+			++SourceTooltipParseIndex;
+		}
+		OutToken.SimpleValue = SourceTooltip.Mid(TokenStartIndex, SourceTooltipParseIndex - TokenStartIndex);
+	};
+
+	auto ParseComplexToken = [&SourceTooltip, &SourceTooltipParseIndex](FParsedTooltip::FTokenString& OutToken)
+	{
+		int32 TokenStartIndex = SourceTooltipParseIndex;
+		while (SourceTooltipParseIndex < SourceTooltip.Len() && SourceTooltip[SourceTooltipParseIndex] != TEXT('@'))
+		{
+			// Convert a new-line within a token to a space
+			if (FChar::IsLinebreak(SourceTooltip[SourceTooltipParseIndex]))
+			{
+				// Can no longer process this as a simple token - copy what we've parsed so far and reset...
+				if (TokenStartIndex != INDEX_NONE)
+				{
+					OutToken.ComplexValue = SourceTooltip.Mid(TokenStartIndex, SourceTooltipParseIndex - TokenStartIndex);
+					TokenStartIndex = INDEX_NONE;
+				}
+
+				while (SourceTooltipParseIndex < SourceTooltip.Len() && FChar::IsLinebreak(SourceTooltip[SourceTooltipParseIndex]))
+				{
+					++SourceTooltipParseIndex;
+				}
+
+				while (SourceTooltipParseIndex < SourceTooltip.Len() && FChar::IsWhitespace(SourceTooltip[SourceTooltipParseIndex]))
+				{
+					++SourceTooltipParseIndex;
+				}
+
+				OutToken.ComplexValue += TEXT(' ');
+			}
+
+			// Sanity check in case the first character after the new-line is @
+			if (SourceTooltipParseIndex < SourceTooltip.Len() && SourceTooltip[SourceTooltipParseIndex] != TEXT('@'))
+			{
+				if (TokenStartIndex == INDEX_NONE)
+				{
+					OutToken.ComplexValue += SourceTooltip[SourceTooltipParseIndex];
+				}
+				++SourceTooltipParseIndex;
+			}
+		}
+		if (TokenStartIndex == INDEX_NONE)
+		{
+			OutToken.ComplexValue.TrimEndInline();
+		}
+		else
+		{
+			OutToken.SimpleValue = SourceTooltip.Mid(TokenStartIndex, SourceTooltipParseIndex - TokenStartIndex);
+			OutToken.SimpleValue.TrimEndInline();
+		}
+	};
+
+	// Parse the tooltip for its tokens and values (basic content goes directly into PythonizedBaseTooltip)
+	// TODO: Can we parse BasicTooltipText as multiple FTokenString blocks? It's mostly a contiguous blob...
+	while (SourceTooltipParseIndex < SourceTooltip.Len())
+	{
+		if (SourceTooltip[SourceTooltipParseIndex] == TEXT('@'))
+		{
+			++SourceTooltipParseIndex; // Walk over the @
+			if (SourceTooltip[SourceTooltipParseIndex] == TEXT('@'))
+			{
+				// Literal @ character
+				ParsedTooltip.BasicTooltipText += TEXT('@');
+				continue;
+			}
+
+			// Parse out the token name
+			FParsedTooltip::FTokenString TokenName;
+			SkipToNextToken();
+			ParseSimpleToken(TokenName);
+
+			if (TokenName.GetValue() == TEXT("param"))
+			{
+				FParsedTooltip::FParamToken& ParamToken = ParsedTooltip.ParamTokens.AddDefaulted_GetRef();
+
+				// Parse out the parameter name
+				SkipToNextToken();
+				ParseSimpleToken(ParamToken.ParamName);
+
+				// Parse out the parameter comment
+				SkipToNextToken();
+				ParseComplexToken(ParamToken.ParamComment);
+			}
+			else if (TokenName.GetValue() == TEXT("return") || TokenName.GetValue() == TEXT("returns"))
+			{
+				// Parse out the return value token
+				SkipToNextToken();
+				ParseComplexToken(ParsedTooltip.ReturnToken.ParamComment);
+			}
+			else
+			{
+				FParsedTooltip::FMiscToken& MiscToken = ParsedTooltip.MiscTokens.AddDefaulted_GetRef();
+				MiscToken.TokenName = MoveTemp(TokenName);
+
+				// Parse out the token value
+				SkipToNextToken();
+				ParseComplexToken(MiscToken.TokenValue);
+			}
+		}
+		else
+		{
+			// Normal character
+			ParsedTooltip.BasicTooltipText += SourceTooltip[SourceTooltipParseIndex++];
+		}
+	}
+
+	return ParsedTooltip;
 }
 
 void PythonizeStructValueImpl(const UScriptStruct* InStruct, const void* InStructValue, const uint32 InFlags, FString& OutPythonDefaultValue);

@@ -909,6 +909,80 @@ namespace PyGenUtil
 		TSet<FName> ParamsToIgnore;
 	};
 
+	/** Parsed tooltip data used by PythonizeTooltip */
+	struct FParsedTooltip
+	{
+		struct FTokenString
+		{
+			FTokenString() = default;
+			FTokenString(FTokenString&&) = default;
+			FTokenString& operator=(FTokenString&&) = default;
+
+			bool operator==(const FTokenString& InOther) const
+			{
+				return GetValue() == InOther.GetValue();
+			}
+
+			bool operator!=(const FTokenString& InOther) const
+			{
+				return GetValue() != InOther.GetValue();
+			}
+
+			FStringView GetValue() const
+			{
+				return SimpleValue.Len() > 0
+					? SimpleValue
+					: FStringView(ComplexValue);
+			}
+
+			void SetValue(FStringView InValue)
+			{
+				SimpleValue = InValue;
+				ComplexValue.Reset();
+			}
+
+			void SetValue(FString&& InValue)
+			{
+				SimpleValue.Reset();
+				ComplexValue = MoveTemp(InValue);
+			}
+
+			FStringView SimpleValue;
+			FString ComplexValue;
+		};
+
+		struct FMiscToken
+		{
+			FMiscToken() = default;
+			FMiscToken(FMiscToken&&) = default;
+			FMiscToken& operator=(FMiscToken&&) = default;
+
+			FTokenString TokenName;
+			FTokenString TokenValue;
+		};
+
+		struct FParamToken
+		{
+			FParamToken() = default;
+			FParamToken(FParamToken&&) = default;
+			FParamToken& operator=(FParamToken&&) = default;
+
+			FTokenString ParamName;
+			FTokenString ParamType;
+			FTokenString ParamComment;
+		};
+
+		typedef TArray<FMiscToken, TInlineAllocator<4>> FMiscTokensArray;
+		typedef TArray<FParamToken, TInlineAllocator<8>> FParamTokensArray;
+
+		int32 SourceTooltipLen = 0;
+
+		FString BasicTooltipText;
+		FMiscTokensArray MiscTokens;
+		FParamTokensArray ParamTokens;
+		FParamToken ReturnToken;
+	};
+
 	/** Convert a TCHAR to a UTF-8 buffer */
 	FUTF8Buffer TCHARToUTF8Buffer(const TCHAR* InStr);
 
@@ -994,13 +1068,19 @@ namespace PyGenUtil
 	FString PythonizePropertyName(FStringView InName, const EPythonizeNameCase InNameCase);
 
 	/** Given a property tooltip, convert it to a doc string */
-	FString PythonizePropertyTooltip(FStringView InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
+	FString PythonizePropertyTooltip(const FParsedTooltip& InTooltip, const FProperty* InProp, const uint64 InReadOnlyFlags = PropertyAccessUtil::RuntimeReadOnlyFlags);
 
 	/** Given a function tooltip, convert it to a doc string */
-	FString PythonizeFunctionTooltip(FStringView InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore = TSet<FName>());
+	FString PythonizeFunctionTooltip(const FParsedTooltip& InTooltip, const UFunction* InFunc, const TSet<FName>& ParamsToIgnore = TSet<FName>());
 
-	/** Given a tooltip, convert it to a doc string */
-	FString PythonizeTooltip(FStringView InTooltip, const FPythonizeTooltipContext& InContext = FPythonizeTooltipContext());
+	/** Given a parsed tooltip, convert it to a doc string */
+	FString PythonizeTooltip(const FParsedTooltip& InTooltip, const FPythonizeTooltipContext& InContext = FPythonizeTooltipContext());
+
+	/**
+	 * Given a tooltip, parse it into something that can be converted into a doc string
+	 * @note The parsed result may referenced sub-strings of the given view, so InTooltip must exist as long as the result does.
+	 */
+	FParsedTooltip ParseTooltip(FStringView InTooltip);
 
 	/** Given a property and its value, convert it into something that could be used in a Python script */
 	FString PythonizeValue(const FProperty* InProp, const void* InPropValue, const uint32 InFlags = EPythonizeValueFlags::None);
