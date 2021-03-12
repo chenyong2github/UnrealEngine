@@ -100,6 +100,10 @@ namespace Metasound
 		}
 	}
 
+	// Mac Clang require linkage for constexpr
+	template<typename ValueType>
+	constexpr int32 Metasound::TRandomNodeOperator<ValueType>::DefaultSeed;
+
  	using FRandomNodeInt32 = TRandomNode<int32>;
  	METASOUND_REGISTER_NODE(FRandomNodeInt32)
  
