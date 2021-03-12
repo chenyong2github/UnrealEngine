@@ -67,7 +67,17 @@ private:
 
 protected:
 #if WITH_EDITORONLY_DATA
-	TArray<FWorldPartitionReference> AlwaysLoadedActorsForPIE;
+	struct FAlwaysLoadedActorForPIE
+	{
+		FAlwaysLoadedActorForPIE(const FWorldPartitionReference& InReference, AActor* InActor)
+			: Reference(InReference), Actor(InActor)
+		{}
+
+		FWorldPartitionReference Reference;
+		AActor* Actor;
+	};
+
+	TArray<FAlwaysLoadedActorForPIE> AlwaysLoadedActorsForPIE;
 
 	mutable FActorDescList ModifiedActorDescListForPIE;
 #endif

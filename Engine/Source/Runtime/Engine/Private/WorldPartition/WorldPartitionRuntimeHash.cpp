@@ -60,9 +60,9 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)
 {
-	for (const FWorldPartitionReference& AlwaysLoadedActor : AlwaysLoadedActorsForPIE)
+	for (const FAlwaysLoadedActorForPIE& AlwaysLoadedActor : AlwaysLoadedActorsForPIE)
 	{
-		if (AActor* Actor = (*AlwaysLoadedActor)->GetActor())
+		if (AActor* Actor = AlwaysLoadedActor.Actor)
 		{
 			Actor->SetForceExternalActorLevelReferenceForPIE(bForceExternalActorLevelReferenceForPIE);
 		}

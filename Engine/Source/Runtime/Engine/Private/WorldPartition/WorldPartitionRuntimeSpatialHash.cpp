@@ -661,7 +661,11 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 						{
 							if (ActorInstance.ContainerInstance->Container == WorldPartition)
 							{
-								AlwaysLoadedActorsForPIE.Emplace(WorldPartition, ActorInstance.Actor);
+								// This will load the actor if it isn't already loaded
+								FWorldPartitionReference Reference(WorldPartition, ActorInstance.Actor);
+								const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
+								AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString());
+								AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
 								continue;
 							}
 						}
