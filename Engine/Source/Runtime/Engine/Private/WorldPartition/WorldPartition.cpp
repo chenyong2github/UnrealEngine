@@ -356,6 +356,7 @@ void UWorldPartition::Uninitialize()
 	{
 		check(World);
 
+#if WITH_EDITOR
 		if (!IsRunningCommandlet())
 		{
 			// Save last loaded cells settings
@@ -370,6 +371,7 @@ void UWorldPartition::Uninitialize()
 
 			GetMutableDefault<UWorldPartitionEditorPerProjectUserSettings>()->SetEditorGridLoadedCells(GetWorld(), EditorGridLastLoadedCells);
 		}
+#endif
 
 		InitState = EWorldPartitionInitState::Uninitializing;
 		
