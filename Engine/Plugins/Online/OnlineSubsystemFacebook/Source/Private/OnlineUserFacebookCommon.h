@@ -20,7 +20,7 @@ public:
 
 	// FOnlineUser
 
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override;
+	virtual FUniqueNetIdRef GetUserId() const override;
 	virtual FString GetRealName() const override;
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override;
 	virtual bool GetUserAttribute(const FString& AttrName, FString& OutAttrValue) const override;
@@ -31,7 +31,7 @@ public:
 	 * Init/default constructor
 	 */
 	FOnlineUserInfoFacebook(const FString& InUserId=TEXT("")) 
-		: UserId(new FUniqueNetIdFacebook(InUserId))
+		: UserId(FUniqueNetIdFacebook::Create(InUserId))
 	{
 	}
 
@@ -62,7 +62,7 @@ public:
 	}
 
 	/** User Id represented as a FUniqueNetId */
-	TSharedRef<const FUniqueNetId> UserId;
+	FUniqueNetIdRef UserId;
 	/** Any addition account data associated with the friend */
 	TMap<FString, FString> AccountData;
 };
@@ -78,13 +78,13 @@ public:
 	
 	// IOnlineUser
 
-	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId> >& UserIds) override;
+	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef >& UserIds) override;
 	virtual bool GetAllUserInfo(int32 LocalUserNum, TArray< TSharedRef<class FOnlineUser> >& OutUsers) override;
 	virtual TSharedPtr<FOnlineUser> GetUserInfo(int32 LocalUserNum, const class FUniqueNetId& UserId) override;	
 	virtual bool QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate = FOnQueryUserMappingComplete()) override;
 	virtual bool QueryExternalIdMappings(const FUniqueNetId& LocalUserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FOnQueryExternalIdMappingsComplete& Delegate = FOnQueryExternalIdMappingsComplete()) override;
-	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds) override;
-	virtual TSharedPtr<const FUniqueNetId> GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
+	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds) override;
+	virtual FUniqueNetIdPtr GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
 
 	// FOnlineUserFacebookCommon
 

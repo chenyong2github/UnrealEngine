@@ -7,7 +7,7 @@
 
 // FOnlineUserInfoFacebook
 
-TSharedRef<const FUniqueNetId> FOnlineUserInfoFacebook::GetUserId() const
+FUniqueNetIdRef FOnlineUserInfoFacebook::GetUserId() const
 {
 	return UserId;
 }
@@ -42,7 +42,7 @@ FOnlineUserFacebookCommon::~FOnlineUserFacebookCommon()
 {
 }
 
-bool FOnlineUserFacebookCommon::QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId> >& UserIds)
+bool FOnlineUserFacebookCommon::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef >& UserIds)
 {
 	bool bTriggeredRequest = false;
 	TriggerOnQueryUserInfoCompleteDelegates(LocalUserNum, false, UserIds, TEXT("Not implemented"));
@@ -79,7 +79,7 @@ TSharedPtr<FOnlineUser> FOnlineUserFacebookCommon::GetUserInfo(int32 LocalUserNu
 
 bool FOnlineUserFacebookCommon::QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate)
 {
-	Delegate.ExecuteIfBound(false, UserId, DisplayNameOrEmail, FUniqueNetIdFacebook(), TEXT("not implemented"));
+	Delegate.ExecuteIfBound(false, UserId, DisplayNameOrEmail, *FUniqueNetIdFacebook::EmptyId(), TEXT("not implemented"));
 	return false;
 }
 
@@ -89,13 +89,13 @@ bool FOnlineUserFacebookCommon::QueryExternalIdMappings(const FUniqueNetId& Loca
 	return false;
 }
 
-void FOnlineUserFacebookCommon::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds)
+void FOnlineUserFacebookCommon::GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds)
 {
 	// Not implemented for Facebook - return an array full of empty values
 	OutIds.SetNum(ExternalIds.Num());
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineUserFacebookCommon::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
+FUniqueNetIdPtr FOnlineUserFacebookCommon::GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId)
 {
-	return TSharedPtr<FUniqueNetId>();
+	return FUniqueNetIdPtr();
 }

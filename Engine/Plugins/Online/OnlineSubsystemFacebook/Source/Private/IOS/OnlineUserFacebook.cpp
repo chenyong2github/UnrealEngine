@@ -19,7 +19,7 @@ FOnlineUserFacebook::~FOnlineUserFacebook()
 
 }
 
-bool FOnlineUserFacebook::QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId> >& UserIds)
+bool FOnlineUserFacebook::QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef >& UserIds)
 {
 	bool bTriggeredRequest = false;
 	
