@@ -24,7 +24,7 @@ public:
 	SLATE_BEGIN_ARGS(SFrameRatePicker)
 		: _ComboButtonStyle(&FCoreStyle::Get().GetWidgetStyle< FComboButtonStyle >("ComboButton"))
 		, _ButtonStyle(nullptr)
-		, _ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		, _ForegroundColor(FSlateColor::UseForeground())
 		, _ContentPadding(FMargin(2.f, 0.f))
 		, _HasMultipleValues(false)
 		, _PresetValues()

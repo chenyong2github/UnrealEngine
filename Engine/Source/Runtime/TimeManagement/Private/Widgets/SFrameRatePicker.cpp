@@ -37,7 +37,6 @@ void SFrameRatePicker::Construct(const FArguments& InArgs)
 		.ButtonStyle(InArgs._ButtonStyle)
 		.ForegroundColor(InArgs._ForegroundColor)
 		.ContentPadding(InArgs._ContentPadding)
-		.VAlign(VAlign_Fill)
 		.OnGetMenuContent(this, &SFrameRatePicker::BuildMenu)
 		.ButtonContent()
 		[
