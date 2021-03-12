@@ -26,10 +26,11 @@ public class ImageWrapper : ModuleRules
 
 		// Add LibJpegTurbo for supported platforms
 		// **** NOTE - Only Win64 has been tested - other platforms are usable at your own risk, but have not been tested
-		if ((Target.Platform == UnrealTargetPlatform.Win64))/* ||
+		/*
+		if ((Target.Platform == UnrealTargetPlatform.Win64)) ||
 			(Target.Platform == UnrealTargetPlatform.Win32) ||
 			(Target.Platform == UnrealTargetPlatform.Mac) ||
-			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")))*/
+			(Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")))
 		{
 			PublicDefinitions.Add("WITH_LIBJPEGTURBO=1");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "LibJpegTurbo");
@@ -38,6 +39,8 @@ public class ImageWrapper : ModuleRules
 		{
 			PublicDefinitions.Add("WITH_LIBJPEGTURBO=0");
 		}
+		*/
+		PublicDefinitions.Add("WITH_LIBJPEGTURBO=0");
 
 		// Add openEXR lib for windows builds.
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
