@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MovieSceneTracksComponentTypes.h"
+#include "Components/ExponentialHeightFogComponent.h"
 #include "Components/LightComponent.h"
 #include "Components/SkyLightComponent.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
@@ -15,7 +16,6 @@
 #include "Systems/MovieSceneVectorPropertySystem.h"
 #include "MovieSceneObjectBindingID.h"
 #include "GameFramework/Actor.h"
-
 #include "Misc/App.h"
 
 namespace UE
@@ -190,6 +190,42 @@ void SetSkyLightComponentLightColor(UObject* Object, EColorPropertyType InColorT
 
 	USkyLightComponent* SkyLightComponent = CastChecked<USkyLightComponent>(Object);
 	SkyLightComponent->SetLightColor(InColor.GetLinearColor());
+}
+
+float GetSecondFogDataFogDensity(const UObject* Object)
+{
+	const UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<const UExponentialHeightFogComponent>(Object);
+	return ExponentialHeightFogComponent->SecondFogData.FogDensity;
+}
+
+void SetSecondFogDataFogDensity(UObject* Object, float InFogDensity)
+{
+	UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<UExponentialHeightFogComponent>(Object);
+	ExponentialHeightFogComponent->SecondFogData.FogDensity = InFogDensity;
+}
+
+float GetSecondFogDataFogHeightFalloff(const UObject* Object)
+{
+	const UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<const UExponentialHeightFogComponent>(Object);
+	return ExponentialHeightFogComponent->SecondFogData.FogHeightFalloff;
+}
+
+void SetSecondFogDataFogHeightFalloff(UObject* Object, float InFogHeightFalloff)
+{
+	UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<UExponentialHeightFogComponent>(Object);
+	ExponentialHeightFogComponent->SecondFogData.FogHeightFalloff = InFogHeightFalloff;
+}
+
+float GetSecondFogDataFogHeightOffset(const UObject* Object)
+{
+	const UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<const UExponentialHeightFogComponent>(Object);
+	return ExponentialHeightFogComponent->SecondFogData.FogHeightOffset;
+}
+
+void SetSecondFogDataFogHeightOffset(UObject* Object, float InFogHeightOffset)
+{
+	UExponentialHeightFogComponent* ExponentialHeightFogComponent = CastChecked<UExponentialHeightFogComponent>(Object);
+	ExponentialHeightFogComponent->SecondFogData.FogHeightOffset = InFogHeightOffset;
 }
 
 void FIntermediate3DTransform::ApplyTo(USceneComponent* SceneComponent) const
@@ -472,6 +508,19 @@ FMovieSceneTracksComponentTypes::FMovieSceneTracksComponentTypes()
 			USkyLightComponent::StaticClass(), GET_MEMBER_NAME_CHECKED(USkyLightComponent, LightColor), 
 			GetSkyLightComponentLightColor, SetSkyLightComponentLightColor);
 	
+	const FString SecondFogDataFogDensityPath = FString::Printf(TEXT("%s.%s"), GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, SecondFogData), GET_MEMBER_NAME_STRING_CHECKED(FExponentialHeightFogData, FogDensity));
+	Accessors.Float.Add(
+			UExponentialHeightFogComponent::StaticClass(), *SecondFogDataFogDensityPath,
+			GetSecondFogDataFogDensity, SetSecondFogDataFogDensity);
+	const FString SecondFogDataFogHeightFalloffPath = FString::Printf(TEXT("%s.%s"), GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, SecondFogData), GET_MEMBER_NAME_STRING_CHECKED(FExponentialHeightFogData, FogHeightFalloff));
+	Accessors.Float.Add(
+			UExponentialHeightFogComponent::StaticClass(), *SecondFogDataFogHeightFalloffPath,
+			GetSecondFogDataFogHeightFalloff, SetSecondFogDataFogHeightFalloff);
+	const FString SecondFogDataFogHeightOffsetPath = FString::Printf(TEXT("%s.%s"), GET_MEMBER_NAME_STRING_CHECKED(UExponentialHeightFogComponent, SecondFogData), GET_MEMBER_NAME_STRING_CHECKED(FExponentialHeightFogData, FogHeightOffset));
+	Accessors.Float.Add(
+			UExponentialHeightFogComponent::StaticClass(), *SecondFogDataFogHeightOffsetPath,
+			GetSecondFogDataFogHeightOffset, SetSecondFogDataFogHeightOffset);
+
 	// --------------------------------------------------------------------------------------------
 	// Set up vector properties
 	BuiltInComponents->PropertyRegistry.DefineCompositeProperty(Vector)
