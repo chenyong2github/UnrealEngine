@@ -34,24 +34,24 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 		return CurveSelectionTreeNode;
 	}
 
-	static void GetWidgetsforNode(const FNiagaraCurveSelectionTreeNode& InCurveSelectionTreeNode, TSharedPtr<SWidget>& OutIconWidget, TSharedPtr<SWidget>& OutDisplayNameWidget, TSharedPtr<SWidget>& OutSecondaryIconWidget, TSharedPtr<SWidget>& OutSecondaryDisplayName)
+	static void GetWidgetsforNode(TSharedRef<FNiagaraCurveSelectionTreeNode> InCurveSelectionTreeNode, TSharedPtr<SWidget>& OutIconWidget, TSharedPtr<SWidget>& OutDisplayNameWidget, TSharedPtr<SWidget>& OutSecondaryIconWidget, TSharedPtr<SWidget>& OutSecondaryDisplayName)
 	{
-		switch (InCurveSelectionTreeNode.GetStyleMode())
+		switch (InCurveSelectionTreeNode->GetStyleMode())
 		{
 			case ENiagaraCurveSelectionNodeStyleMode::TopLevelObject:
 			{
 				OutIconWidget =
 					SNew(SImage)
-					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(InCurveSelectionTreeNode.GetExecutionSubcategory(), false)))
-					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InCurveSelectionTreeNode.GetExecutionCategory())));
+					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(InCurveSelectionTreeNode->GetExecutionSubcategory(), false)))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InCurveSelectionTreeNode->GetExecutionCategory())));
 
 				OutDisplayNameWidget = 
 					SNew(STextBlock)
-					.Text(InCurveSelectionTreeNode.GetDisplayName())
+					.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName)
 					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.TopLevelText");
 
 				OutSecondaryDisplayName = SNew(STextBlock)
-					.Text(InCurveSelectionTreeNode.GetSecondDisplayName())
+					.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetSecondDisplayName)
 					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.SecondaryText")
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground());
 
@@ -61,51 +61,63 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 			{
 				OutIconWidget = 
 					SNew(SImage)
-					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(InCurveSelectionTreeNode.GetExecutionSubcategory(), false)))
-					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InCurveSelectionTreeNode.GetExecutionCategory())));
+					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(InCurveSelectionTreeNode->GetExecutionSubcategory(), false)))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForExecutionCategory(InCurveSelectionTreeNode->GetExecutionCategory())));
 
 				OutDisplayNameWidget =
 					SNew(STextBlock)
-					.Text(InCurveSelectionTreeNode.GetDisplayName())
+					.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName)
 					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.ScriptText");
 
 				break;
 			}
 			case ENiagaraCurveSelectionNodeStyleMode::Module:
 			{
-				FText ToolTip = FText::Format(LOCTEXT("ModuleToolTipFormat", "{0} - {1}"), 
-					InCurveSelectionTreeNode.GetParent().IsValid() ? InCurveSelectionTreeNode.GetParent()->GetDisplayName() : LOCTEXT("UknownScript", "Unknown Script"),
-					InCurveSelectionTreeNode.GetDisplayName());
+				TWeakPtr<FNiagaraCurveSelectionTreeNode> CurveSelectionTreeNodeWeak = InCurveSelectionTreeNode;
+				auto ToolTipLambda = [CurveSelectionTreeNodeWeak]()
+				{
+						TSharedPtr<FNiagaraCurveSelectionTreeNode> CurveSelectionTreeNode = CurveSelectionTreeNodeWeak.Pin();
+						return CurveSelectionTreeNodeWeak.IsValid()
+							? FText::Format(LOCTEXT("ModuleToolTipFormat", "{0} - {1}"),
+								CurveSelectionTreeNode->GetParent().IsValid() ? CurveSelectionTreeNode->GetParent()->GetDisplayName() : LOCTEXT("UknownScript", "Unknown Script"),
+								CurveSelectionTreeNode->GetDisplayName())
+							: FText();
+				};
 				OutIconWidget =
 					SNew(SImage)
-					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(InCurveSelectionTreeNode.GetExecutionSubcategory(), false)))
-					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(InCurveSelectionTreeNode.GetExecutionCategory())))
-					.ToolTipText(ToolTip);
+					.Image(FNiagaraEditorWidgetsStyle::Get().GetBrush(FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(InCurveSelectionTreeNode->GetExecutionSubcategory(), false)))
+					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetColorNameForExecutionCategory(InCurveSelectionTreeNode->GetExecutionCategory())))
+					.ToolTipText_Lambda(ToolTipLambda);
 
 				OutDisplayNameWidget =
 					SNew(STextBlock)
-					.Text(InCurveSelectionTreeNode.GetDisplayName())
+					.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName)
 					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.ModuleText")
-					.ToolTipText(ToolTip);
+					.ToolTipText_Lambda(ToolTipLambda);
+
+				OutSecondaryDisplayName = SNew(STextBlock)
+					.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetSecondDisplayName)
+					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.SecondaryText")
+					.ColorAndOpacity(FSlateColor::UseSubduedForeground());
 
 				break;
 			}
 			case ENiagaraCurveSelectionNodeStyleMode::DynamicInput:
 			{
-				if (InCurveSelectionTreeNode.GetIsParameter())
+				if (InCurveSelectionTreeNode->GetIsParameter())
 				{
 					OutDisplayNameWidget =
 						SNew(SNiagaraParameterNameTextBlock)
 						.IsReadOnly(true)
 						.ReadOnlyTextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.InputText")
-						.ParameterText(InCurveSelectionTreeNode.GetDisplayName());
+						.ParameterText(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName);
 				}
 				else
 				{
 					OutDisplayNameWidget =
 						SNew(STextBlock)
 						.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.InputText")
-						.Text(InCurveSelectionTreeNode.GetDisplayName());
+						.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName);
 				}
 
 				OutSecondaryIconWidget = SNew(STextBlock)
@@ -114,7 +126,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForInputMode(UNiagaraStackFunctionInput::EValueMode::Dynamic)) * FLinearColor(1.0f, 1.0f, 1.0f, 0.5f));
 
 				OutSecondaryDisplayName = SNew(STextBlock)
-					.Text(InCurveSelectionTreeNode.GetSecondDisplayName())
+					.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetSecondDisplayName)
 					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.SecondaryText")
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground());
 
@@ -122,19 +134,19 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 			}
 			case ENiagaraCurveSelectionNodeStyleMode::DataInterface:
 			{
-				if (InCurveSelectionTreeNode.GetIsParameter())
+				if (InCurveSelectionTreeNode->GetIsParameter())
 				{
 					OutDisplayNameWidget =
 						SNew(SNiagaraParameterNameTextBlock)
 						.IsReadOnly(true)
 						.ReadOnlyTextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.InputText")
-						.ParameterText(InCurveSelectionTreeNode.GetDisplayName());
+						.ParameterText(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName);
 				}
 				else
 				{
 					OutDisplayNameWidget =
 						SNew(STextBlock)
-						.Text(InCurveSelectionTreeNode.GetDisplayName())
+						.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName)
 						.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.InputText");
 				}
 
@@ -146,7 +158,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 					.ColorAndOpacity(FNiagaraEditorWidgetsStyle::Get().GetColor(FNiagaraStackEditorWidgetsUtilities::GetIconColorNameForInputMode(UNiagaraStackFunctionInput::EValueMode::Data)) * FLinearColor(1.0f, 1.0f, 1.0f, 0.5f));
 
 				OutSecondaryDisplayName = SNew(STextBlock)
-					.Text(InCurveSelectionTreeNode.GetSecondDisplayName())
+					.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetSecondDisplayName)
 					.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.SecondaryText")
 					.ColorAndOpacity(FSlateColor::UseSubduedForeground());
 
@@ -158,7 +170,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 					SNew(STextBlock)
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.8"))
 					.Text(FEditorFontGlyphs::Circle)
-					.ColorAndOpacity(InCurveSelectionTreeNode.GetCurveColor());
+					.ColorAndOpacity(InCurveSelectionTreeNode->GetCurveColor());
 
 				OutDisplayNameWidget =
 					SNew(SBox)
@@ -166,7 +178,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 					.MinDesiredHeight(22)
 					[
 						SNew(STextBlock)
-						.Text(InCurveSelectionTreeNode.GetDisplayName())
+						.Text(InCurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetDisplayName)
 						.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.CurveOverview.CurveComponentText")
 					];
 
@@ -179,8 +191,9 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 	{
 		if (InColumnName == ColumnNames.Label)
 		{
-			TSharedRef<SHorizontalBox> LabelBox = SNew(SHorizontalBox);
-			auto AddWidgetsToLabelBox = [LabelBox](FNiagaraCurveSelectionTreeNode& InCurveSelectionTreeNode)
+			TSharedRef<SHorizontalBox> LabelBox = SNew(SHorizontalBox)
+				.IsEnabled(CurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetIsEnabledAndParentIsEnabled);
+			auto AddWidgetsToLabelBox = [LabelBox](TSharedRef<FNiagaraCurveSelectionTreeNode> InCurveSelectionTreeNode)
 			{
 				TSharedPtr<SWidget> IconWidget;
 				TSharedPtr<SWidget> DisplayNameWidget;
@@ -264,12 +277,12 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 
 				for (TSharedRef<FNiagaraCurveSelectionTreeNode> InputNode : InputNodes)
 				{
-					AddWidgetsToLabelBox(InputNode.Get());
+					AddWidgetsToLabelBox(InputNode);
 				}
 			}
 			else
 			{
-				AddWidgetsToLabelBox(CurveSelectionTreeNode.Get());
+				AddWidgetsToLabelBox(CurveSelectionTreeNode);
 			}
 
 			return LabelBox;
@@ -290,6 +303,7 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 			NewCurve->SetShortDisplayName(CurveSelectionTreeNode->GetDisplayName());
 			NewCurve->SetColor(CurveSelectionTreeNode->GetCurveColor());
 			NewCurve->OnCurveModified().AddSP(CurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::NotifyCurveChanged);
+			NewCurve->SetIsReadOnly(TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(CurveSelectionTreeNode, &FNiagaraCurveSelectionTreeNode::GetCurveIsReadOnly)));
 			OutCurveModels.Add(MoveTemp(NewCurve));
 		}
 	}

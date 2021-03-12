@@ -38,7 +38,7 @@ private:
 	int32 GetGradientCurvesSwitcherIndex() const;
 	FSlateColor GetGradientButtonColor() const;
 	FSlateColor GetCurveButtonColor() const;
-	FReply OnShowInCurveEditor() const;
+	void OnShowInCurveEditor() const;
 	void CurveToCopySelected(const FAssetData& AssetData);
 	TWeakObjectPtr<UNiagaraDataInterfaceCurveBase> CurveDataInterfaceWeak;
 	TWeakPtr<FNiagaraStackCurveEditorOptions> StackCurveEditorOptionsWeak;
@@ -52,7 +52,7 @@ public:
 
 protected:
 	virtual void GetCurveProperties(IDetailLayoutBuilder& DetailBuilder, TArray<TSharedRef<IPropertyHandle>>& OutCurveProperties) const override;
-	virtual float GetDefaultHeight() const override { return 120; }
+	virtual float GetDefaultHeight() const override { return 130; }
 	virtual FName GetSupportedAssetClassName() const override;
 	virtual void GetFloatCurvesFromAsset(UObject* SelectedAsset, TArray<FRichCurve>& FloatCurves) const override;
 };

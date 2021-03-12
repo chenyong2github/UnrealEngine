@@ -637,7 +637,7 @@ FString FNiagaraStackGraphUtilities::GenerateStackFunctionInputEditorDataKey(UNi
 
 FString FNiagaraStackGraphUtilities::GenerateStackModuleEditorDataKey(UNiagaraNodeFunctionCall& ModuleNode)
 {
-	return ModuleNode.GetFunctionName();
+	return ModuleNode.NodeGuid.ToString(EGuidFormats::DigitsWithHyphens);
 }
 
 void ExtractInputPinsFromHistory(FNiagaraParameterMapHistory& History, UEdGraph* FunctionGraph, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, TArray<const UEdGraphPin*>& OutPins)

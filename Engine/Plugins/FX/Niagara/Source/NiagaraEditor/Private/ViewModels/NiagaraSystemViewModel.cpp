@@ -1615,6 +1615,7 @@ void FNiagaraSystemViewModel::EmitterHandleNameChanged()
 {
 	GetDefault<UEdGraphSchema_NiagaraSystemOverview>()->ForceVisualizationCacheClear();
 	CompileSystem(false);
+	CurveSelectionViewModel->Refresh();
 }
 
 void FNiagaraSystemViewModel::EmitterPropertyChanged()
@@ -1642,6 +1643,7 @@ void FNiagaraSystemViewModel::EmitterScriptGraphChanged(const FEdGraphEditAction
 	// Remove from cache on graph change 
 	GuidToCachedStackModuleData.Remove(OwningEmitterHandleId);
 	InvalidateCachedCompileStatus();
+	CurveSelectionViewModel->Refresh();
 
 	bPendingAssetMessagesChanged = true;
 }
@@ -1650,6 +1652,7 @@ void FNiagaraSystemViewModel::SystemScriptGraphChanged(const FEdGraphEditAction&
 {
 	GuidToCachedStackModuleData.Empty();
 	InvalidateCachedCompileStatus();
+	CurveSelectionViewModel->Refresh();
 	bPendingAssetMessagesChanged = true;
 }
 

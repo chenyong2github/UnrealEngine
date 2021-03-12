@@ -193,6 +193,10 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorWidgetsStyle::Create()
 
 	Style->Set("NiagaraEditor.CurveDetails.TextButtonForeground", FLinearColor::White);
 
+	Style->Set("NiagaraEditor.CurveDetails.Import.Small", new IMAGE_CORE_BRUSH("Icons/GeneralTools/Import_40x", Icon20x20));
+
+	Style->Set("NiagaraEditor.CurveDetails.ShowInOverview.Small", new IMAGE_CORE_BRUSH("Common/GoToSource", Icon12x12, FLinearColor(.9f, .9f, .9f, 1.0f)));
+
 	const FTableRowStyle& NormalTableRowStyle = FEditorStyle::Get().GetWidgetStyle<FTableRowStyle>("TableView.Row");
 
 	FSlateBrush StackRowSelectionBrush = BOX_PLUGIN_BRUSH("Icons/StackSelectionBorder", FMargin(2.0f / 8.0f), GetDefault<UEditorStyleSettings>()->SelectionColor);
