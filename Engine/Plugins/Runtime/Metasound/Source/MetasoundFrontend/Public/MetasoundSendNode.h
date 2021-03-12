@@ -129,10 +129,18 @@ namespace Metasound
 
 				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
-					return MakeUnique<TSendOperator>(InParams.InputDataReferences.GetDataReadReference<TDataType>(GetSendInputName()),
-						InParams.InputDataReferences.GetDataReadReference<FSendAddress>(GetAddressInputName()),
-						InParams.OperatorSettings
-						);
+					if (InParams.InputDataReferences.ContainsDataReadReference<TDataType>(GetSendInputName()))
+					{
+						return MakeUnique<TSendOperator>(InParams.InputDataReferences.GetDataReadReference<TDataType>(GetSendInputName()),
+							InParams.InputDataReferences.GetDataReadReference<FSendAddress>(GetAddressInputName()),
+							InParams.OperatorSettings
+							);
+					}
+					else
+					{
+						// No input hook up to send, so this node can no-op
+						return MakeUnique<FNoOpOperator>();
+					}
 				}
 		};
 

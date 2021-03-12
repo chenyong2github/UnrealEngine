@@ -877,11 +877,11 @@ namespace Metasound
 	// Basic router that takes an FName address, 
 	class METASOUNDFRONTEND_API FAddressRouter
 	{
+
 	public:
-		TArray<FName> GetAvailableChannels();
+		using FDataChannelKey = FString;
 
-		FName GetDatatypeForChannel(FName InChannelName);
-
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FindDataChannel(const FName& InDataTypeName, const FName& InChannelName);
 		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> GetDataChannel(const FName& InDataTypeName, const FName& InChannelName, const FOperatorSettings& InOperatorSettings);
 
 		TUniquePtr<ISender> RegisterNewSender(const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams);
@@ -917,13 +917,12 @@ namespace Metasound
 			return MoveTemp(Sender);
 		}
 
-		bool PushLiteral(const FName& InChannelName, const FLiteral& InParam)
+		bool PushLiteral(const FName& InDataTypeName, const FName& InChannelName, const FLiteral& InParam)
 		{
-			FScopeLock ScopeLock(&DataChannelMapMutationLock);
-			if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
+			TSharedPtr<IDataChannel, ESPMode::ThreadSafe> Channel = FindDataChannel(InDataTypeName, InChannelName);
+			if (Channel.IsValid())
 			{
-				TSharedRef<IDataChannel, ESPMode::ThreadSafe>& ExistingChannel = *ExistingChannelPtr;
-				return ExistingChannel->PushLiteral(InParam);
+				return Channel->PushLiteral(InParam);
 			}
 			else
 			{
@@ -940,7 +939,10 @@ namespace Metasound
 		{}
 
 	private:
-		TMap<FName, TSharedRef<IDataChannel, ESPMode::ThreadSafe>> DataChannelMap;
+		FDataChannelKey GetDataChannelKey(const FName& InDataTypeName, const FName& InChannelName) const;
+
+
+		TMap<FDataChannelKey, TSharedRef<IDataChannel, ESPMode::ThreadSafe>> DataChannelMap;
 		FCriticalSection DataChannelMapMutationLock;
 	};
 
@@ -948,10 +950,6 @@ namespace Metasound
 	class FInstanceLocalRouter
 	{
 	public:
-
-		TArray<FName> GetAvailableChannels(uint64 InInstanceID);
-
-		FName GetDatatypeForChannel(uint64 InInstanceID, FName InChannelName);
 
 		TUniquePtr<ISender> RegisterNewSender(uint64 InInstanceID, const FName& InDataTypeName, const FName& InChannelName, const FSenderInitParams& InitParams);
 
@@ -1102,7 +1100,7 @@ namespace Metasound
 
 		// Pushes a literal parameter to a specific data channel in the global router.
 		// returns false if the literal type isn't supported.
-		bool PushLiteral(FName GlobalChannelName, const FLiteral& InParam);
+		bool PushLiteral(FName DataTypeName, FName GlobalChannelName, const FLiteral& InParam);
 
 	private:
 		// Single map of FNames to IDataChannels

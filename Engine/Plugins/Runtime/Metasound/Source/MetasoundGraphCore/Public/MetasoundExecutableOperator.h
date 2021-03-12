@@ -53,9 +53,19 @@ namespace Metasound
 		public:
 			virtual ~FNoOpOperator() {}
 
-			virtual FExecuteFunction GetExecuteFunction() override
+			FExecuteFunction GetExecuteFunction() override
 			{
 				return nullptr;
+			}
+
+			FDataReferenceCollection GetInputs() const override
+			{
+				return FDataReferenceCollection{};
+			}
+
+			FDataReferenceCollection GetOutputs() const override
+			{
+				return FDataReferenceCollection{};
 			}
 	};
 

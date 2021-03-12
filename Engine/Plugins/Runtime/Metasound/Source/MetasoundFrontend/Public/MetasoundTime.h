@@ -26,6 +26,11 @@ namespace Metasound
 			{
 			}
 
+			explicit FTime(float InTime)
+			: Time(static_cast<TimeType>(InTime))
+			{
+			}
+			
 			FTime(const FTime& InOtherTime)
 				: Time(InOtherTime.Time)
 			{

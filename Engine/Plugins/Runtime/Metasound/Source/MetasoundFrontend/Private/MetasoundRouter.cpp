@@ -7,28 +7,27 @@
 #include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
 
+
 // Convenience exec commands to push values to global params.
 static FAutoConsoleCommand GPushFloatCommand(
 	TEXT("au.metasound.SetFloat"),
-	TEXT("Use this with au.metasound.SetFloat [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
+	TEXT("Use this with au.metasound.SetFloat [type] [address] [value]. Pushes a parameter value directly to a global address, which can then be received by Metasounds using a Receive node."),
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{
-			if (Args.Num() < 2)
+			if (Args.Num() < 3)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetFloat should be called with two args- the address to send to and the value to send."));
+				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
-			FName ChannelName = FName(*Args[0]);
-			float ValueToPush = TCString<TCHAR>::Atof(*Args[1]);
+			FName DataType = FName(*Args[0]);
+			FName ChannelName = FName(*Args[1]);
+			float ValueToPush = TCString<TCHAR>::Atof(*Args[2]);
 
 			Metasound::FLiteral LiteralParam(ValueToPush);
 
-			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetFloat failed, likely because the channel did not support floats or the channel did not exist."));
-			}
+			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
 		})
 );
 
@@ -41,20 +40,19 @@ static FAutoConsoleCommand GPushBoolCommand(
 			if (Args.Num() < 2)
 			{
 				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetBool should be called with two args- the address to send to and the value to send."));
+				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
-			FName ChannelName = FName(*Args[0]);
-			int32 ValueAsInt = TCString<TCHAR>::Atoi(*Args[1]);
+			FName DataType = FName(*Args[0]);
+			FName ChannelName = FName(*Args[1]);
+			int32 ValueAsInt = TCString<TCHAR>::Atoi(*Args[2]);
 
 			bool ValueToPush = ValueAsInt != 0;
 
 			Metasound::FLiteral LiteralParam(ValueToPush);
 
-			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetBool failed, likely because the channel did not support floats or the channel did not exist."));
-			}
+			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
 		})
 );
 
@@ -66,19 +64,17 @@ static FAutoConsoleCommand GPushIntCommand(
 		{
 			if (Args.Num() < 2)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetBool should be called with two args- the address to send to and the value to send."));
+				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
-			FName ChannelName = FName(*Args[0]);
-			int32 ValueToPush = TCString<TCHAR>::Atoi(*Args[1]);
+			FName DataType = FName(*Args[0]);
+			FName ChannelName = FName(*Args[1]);
+			int32 ValueToPush = TCString<TCHAR>::Atoi(*Args[2]);
 
 			Metasound::FLiteral LiteralParam(ValueToPush);
 
-			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetInt failed, likely because the channel did not support floats or the channel did not exist."));
-			}
+			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
 		})
 );
 
@@ -88,20 +84,19 @@ static FAutoConsoleCommand GPushStringCommand(
 	FConsoleCommandWithArgsDelegate::CreateStatic(
 		[](const TArray< FString >& Args)
 		{
-			if (Args.Num() < 2)
+			if (Args.Num() < 3)
 			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetBool should be called with two args- the address to send to and the value to send."));
+				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetBool should be called with three args- the data type of the channel, the address to send to and the value to send."));
+				UE_LOG(LogTemp, Warning, TEXT("au.metasound.Set* should be called with three args- the data type of the channel, the address to send to and the value to send."));
 				return;
 			}
 
-			FName ChannelName = FName(*Args[0]);
+			FName DataType = FName(*Args[0]);
+			FName ChannelName = FName(*Args[1]);
 
-			Metasound::FLiteral LiteralParam(Args[1]);
+			Metasound::FLiteral LiteralParam(Args[2]);
 
-			if (!Metasound::FDataTransmissionCenter::Get().PushLiteral(ChannelName, LiteralParam))
-			{
-				UE_LOG(LogTemp, Warning, TEXT("au.metasound.SetString failed, likely because the channel did not support floats or the channel did not exist."));
-			}
+			Metasound::FDataTransmissionCenter::Get().PushLiteral(DataType, ChannelName, LiteralParam);
 		})
 );
 
@@ -205,9 +200,9 @@ namespace Metasound
 		return MoveTemp(Receiver);
 	}
 
-	bool FDataTransmissionCenter::PushLiteral(FName GlobalChannelName, const FLiteral& InParam)
+	bool FDataTransmissionCenter::PushLiteral(FName DataType, FName GlobalChannelName, const FLiteral& InParam)
 	{
-		return GlobalRouter.PushLiteral(GlobalChannelName, InParam);
+		return GlobalRouter.PushLiteral(DataType, GlobalChannelName, InParam);
 	}
 
 	void FDataTransmissionCenter::RegisterSubsystem(ITransmissionSubsystem* InSystem, FName InSubsytemName)
@@ -230,57 +225,48 @@ namespace Metasound
 		SubsystemRouters.Remove(InSubsystemName);
 	}
 
-	TArray<FName> FAddressRouter::GetAvailableChannels()
+	FAddressRouter::FDataChannelKey FAddressRouter::GetDataChannelKey(const FName& InDataTypeName, const FName& InChannelName) const
 	{
-		FScopeLock ScopeLock(&DataChannelMapMutationLock);
-
-		TArray<FName> AvailableChannels;
-
-		for (auto& DataChannelPair : DataChannelMap)
-		{
-			AvailableChannels.Add(DataChannelPair.Key);
-		}
-
-		return AvailableChannels;
+		return FString::Format(TEXT("{0}[{1}]"), { InChannelName.ToString(), InDataTypeName.ToString() });
 	}
 
-	FName FAddressRouter::GetDatatypeForChannel(FName InChannelName)
+	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::FindDataChannel(const FName& InDataTypeName, const FName& InChannelName)
 	{
-		FScopeLock ScopeLock(&DataChannelMapMutationLock);
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> Channel;
 
-		if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* FoundChannel = DataChannelMap.Find(InChannelName))
-		{
-			return (*FoundChannel)->GetDataType();
-		}
-		else
-		{
-			return FName();
-		}
-	}
-
-	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FName& InDataTypeName, const FName& InChannelName, const FOperatorSettings& InOperatorSettings)
-	{
-		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel; 
+		const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
 
 		{
 			FScopeLock ScopeLock(&DataChannelMapMutationLock);
 
-			if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* ExistingChannelPtr = DataChannelMap.Find(InChannelName))
+			if (TSharedRef<IDataChannel, ESPMode::ThreadSafe>* ExistingChannelPtr = DataChannelMap.Find(ChannelKey))
 			{
-				DataChannel = *ExistingChannelPtr;
+				Channel = *ExistingChannelPtr;
 			}
-			else
-			{
-				// This is the first time we're seeing this, add it to the map.
-				FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+		}
 
-				if (ensure(nullptr != Registry))
+		return Channel;
+	}
+
+	TSharedPtr<IDataChannel, ESPMode::ThreadSafe> FAddressRouter::GetDataChannel(const FName& InDataTypeName, const FName& InChannelName, const FOperatorSettings& InOperatorSettings)
+	{
+		TSharedPtr<IDataChannel, ESPMode::ThreadSafe> DataChannel = FindDataChannel(InDataTypeName, InChannelName);
+
+		if (!DataChannel.IsValid())
+		{
+			FScopeLock ScopeLock(&DataChannelMapMutationLock);
+
+			const FDataChannelKey ChannelKey = GetDataChannelKey(InDataTypeName, InChannelName);
+			
+			// This is the first time we're seeing this, add it to the map.
+			FMetasoundFrontendRegistryContainer* Registry = FMetasoundFrontendRegistryContainer::Get();
+
+			if (ensure(nullptr != Registry))
+			{
+				DataChannel = Registry->CreateDataChannelForDataType(InDataTypeName, InOperatorSettings);
+				if (DataChannel.IsValid())
 				{
-					DataChannel = Registry->CreateDataChannelForDataType(InDataTypeName, InOperatorSettings);
-					if (DataChannel.IsValid())
-					{
-						DataChannelMap.Add(InChannelName, DataChannel.ToSharedRef());
-					}
+					DataChannelMap.Add(ChannelKey, DataChannel.ToSharedRef());
 				}
 			}
 		}
@@ -315,34 +301,6 @@ namespace Metasound
 		else
 		{
 			return TUniquePtr<IReceiver>(nullptr);
-		}
-	}
-
-	TArray<FName> FInstanceLocalRouter::GetAvailableChannels(uint64 InInstanceID)
-	{
-		FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
-
-		if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
-		{
-			return AddressRouter->GetAvailableChannels();
-		}
-		else
-		{
-			return TArray<FName>();
-		}
-	}
-
-	FName FInstanceLocalRouter::GetDatatypeForChannel(uint64 InInstanceID, FName InChannelName)
-	{
-		FScopeLock ScopeLock(&InstanceRouterMapMutationLock);
-
-		if (FAddressRouter* AddressRouter = InstanceRouterMap.Find(InInstanceID))
-		{
-			return AddressRouter->GetDatatypeForChannel(InChannelName);
-		}
-		else
-		{
-			return FName();
 		}
 	}
 
