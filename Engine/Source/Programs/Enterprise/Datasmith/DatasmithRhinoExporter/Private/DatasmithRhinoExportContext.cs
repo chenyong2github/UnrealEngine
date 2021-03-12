@@ -599,6 +599,11 @@ namespace DatasmithRhino
 					throw CancelException;
 				}
 			}
+			else
+			{
+				// The scene is already parsed. We just need to update the visibility flags.
+				UpdateHiddenFlagsRecursively(SceneRoot);
+			}
 		}
 
 		private void ResetContext()
@@ -896,24 +901,6 @@ namespace DatasmithRhino
 					{
 						UpdateChildActorsMaterialIndex(ActorInfo);
 					}
-
-					// if the visibility changed, update the status of the descendants.
-					bool bIsVisible = ActorInfo.bIsVisible;
-					bool bHasHiddenFlag = (ActorInfo.DirectLinkStatus & (DirectLinkSynchronizationStatus.PendingHidding | DirectLinkSynchronizationStatus.Hidden)) != DirectLinkSynchronizationStatus.None;
-					if (bIsVisible == bHasHiddenFlag)
-					{
-						foreach (DatasmithActorInfo DescendantActor in ActorInfo.GetEnumerator())
-						{
-							if (!bIsVisible)
-							{
-								DescendantActor.ApplyHiddenStatus();
-							}
-							else
-							{
-								DescendantActor.RestorePreviousDirectLinkStatus();
-							}
-						}
-					}
 				}
 				else
 				{
@@ -928,6 +915,36 @@ namespace DatasmithRhino
 			}
 
 			ModifyMesh(InRhinoObject);
+		}
+
+		private static void UpdateHiddenFlagsRecursively(DatasmithActorInfo ActorInfo)
+		{
+			// if the visibility changed, update the status of the descendants.
+			bool bIsVisible = ActorInfo.bIsVisible;
+			bool bHasHiddenFlag = (ActorInfo.DirectLinkStatus & (DirectLinkSynchronizationStatus.PendingHidding | DirectLinkSynchronizationStatus.Hidden)) != DirectLinkSynchronizationStatus.None;
+			if (bIsVisible == bHasHiddenFlag)
+			{
+				if (!bIsVisible)
+				{
+					// If we are hiding the actor, then we know that all its children are hidden as well.
+					foreach (DatasmithActorInfo DescendantActor in ActorInfo.GetEnumerator())
+					{
+						DescendantActor.ApplyHiddenStatus();
+					}
+
+					return;
+				}
+				else
+				{
+					// If we are unhiding the actor, we must recompute the visibility of each children as it may be affected by other layers as well.
+					ActorInfo.RestorePreviousDirectLinkStatus();
+				}
+			}
+
+			foreach (DatasmithActorInfo ChildActorInfo in ActorInfo.Children)
+			{
+				UpdateHiddenFlagsRecursively(ChildActorInfo);
+			}
 		}
 
 		private void ModifyMesh(RhinoObject InRhinoObject)
@@ -1054,6 +1071,9 @@ namespace DatasmithRhino
 					RecursivelyParseLayerHierarchy(CurrentLayer, ParentNode);
 				}
 			}
+
+			// Update the hidden flags on all the actors
+			UpdateHiddenFlagsRecursively(SceneRoot);
 		}
 
 		private void RecursivelyParseLayerHierarchy(Layer CurrentLayer, DatasmithActorInfo ParentNode)
