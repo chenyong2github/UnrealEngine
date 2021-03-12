@@ -23,6 +23,7 @@ namespace UnrealBuildTool.Rules
 				    "Engine",
                     "InputCore",
 					"EditorFramework",
+                    "EditorWidgets",
 					"UnrealEd",
 					"InteractiveToolsFramework",
 					"EditorInteractiveToolsFramework",
