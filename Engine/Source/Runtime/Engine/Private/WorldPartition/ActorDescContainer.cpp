@@ -137,11 +137,34 @@ TUniquePtr<FWorldPartitionActorDesc> UActorDescContainer::GetActorDescriptor(con
 	return nullptr;
 }
 
+bool UActorDescContainer::ShouldHandleActorEvent(const AActor* Actor)
+{
+	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel))
+	{
+		// Only handle assets that belongs to our level
+		auto RemoveAfterFirstDot = [](const FString& InValue)
+		{
+			int32 DotIndex;
+			if (InValue.FindChar(TEXT('.'), DotIndex))
+			{
+				return InValue.LeftChop(InValue.Len() - DotIndex);
+			}
+			return InValue;
+		};
+
+		const FString ThisLevelPath = ContainerPackageName.ToString();
+		const FString AssetLevelPath = RemoveAfterFirstDot(Actor->GetPathName());
+		return (ThisLevelPath == AssetLevelPath);
+	}
+
+	return false;
+}
+
 void UActorDescContainer::OnObjectPreSave(UObject* Object)
 {
 	if (const AActor* Actor = Cast<AActor>(Object))
 	{
-		if (Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel))
+		if (ShouldHandleActorEvent(Actor))
 		{
 			if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(Actor->GetActorGuid()))
 			{
@@ -178,10 +201,9 @@ void UActorDescContainer::OnObjectPreSave(UObject* Object)
 void UActorDescContainer::OnPackageDeleted(UPackage* Package)
 {
 	AActor* Actor = nullptr;
-
 	ForEachObjectWithPackage(Package, [&Actor](UObject* Object)	{ Actor = Cast<AActor>(Object);	return !Actor; }, false);
 
-	if (Actor && Actor->IsPackageExternal() && (Actor->GetLevel() == World->PersistentLevel))
+	if (ShouldHandleActorEvent(Actor))
 	{
 		if (TUniquePtr<FWorldPartitionActorDesc>* ExistingActorDesc = Actors.FindRef(Actor->GetActorGuid()))
 		{

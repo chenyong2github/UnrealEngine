@@ -52,6 +52,8 @@ protected:
 	virtual void OnActorDescRegistered(const FWorldPartitionActorDesc&) {}
 	virtual void OnActorDescUnregistered(const FWorldPartitionActorDesc&) {}
 
+	bool ShouldHandleActorEvent(const AActor* Actor);
+
 	bool bContainerInitialized;
 
 	FName ContainerPackageName;
