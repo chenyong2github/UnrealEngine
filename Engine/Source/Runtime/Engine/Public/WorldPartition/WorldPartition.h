@@ -86,6 +86,8 @@ private:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FWorldPartitionChangedEvent, UWorld*);
 	static FWorldPartitionChangedEvent WorldPartitionChangedEvent;
+
+	void SavePerUserSettings();
 		
 	void FlushStreaming();
 
