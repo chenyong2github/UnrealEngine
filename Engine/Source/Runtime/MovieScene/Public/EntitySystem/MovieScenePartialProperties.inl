@@ -67,7 +67,7 @@ void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTyp
 		StorageType Storage{};
 		PropertyTraits::GetObjectPropertyValue(Objects[Index], InMetaData[Index]..., CustomAccessors[PropertyIndex.Value], Storage);
 
-		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents...);
+		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents ? &InCompositeComponents[Index] : nullptr...);
 
 		PropertyTraits::SetObjectPropertyValue(Objects[Index], InMetaData[Index]..., CustomAccessors[PropertyIndex.Value], Storage);
 	}
@@ -87,7 +87,7 @@ void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTyp
 		StorageType Storage{};
 		PropertyTraits::GetObjectPropertyValue(Objects[Index], InMetaData[Index]..., PropertyOffset, Storage);
 
-		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents...);
+		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents ? &InCompositeComponents[Index] : nullptr...);
 
 		PropertyTraits::SetObjectPropertyValue(Objects[Index], InMetaData[Index]..., PropertyOffset, Storage);
 	}
@@ -106,7 +106,7 @@ void TSetPartialPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTyp
 		StorageType Storage{};
 		PropertyTraits::GetObjectPropertyValue(Objects[Index], InMetaData[Index]..., Bindings, Storage);
 
-		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents...);
+		PatchCompositeValue(CompositeDefinitions, &Storage, InCompositeComponents ? &InCompositeComponents[Index] : nullptr...);
 
 		PropertyTraits::SetObjectPropertyValue(Objects[Index], InMetaData[Index]..., Bindings, Storage);
 	}
