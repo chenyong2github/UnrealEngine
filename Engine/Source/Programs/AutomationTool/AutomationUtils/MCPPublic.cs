@@ -585,7 +585,14 @@ namespace EpicGames.MCP.Automation
 			/// <summary>
 			/// Use local build from source of BuildPatchTool.
 			/// </summary>
-			Source
+			Source,
+			/// <summary>
+			/// BPT publicly released online versions
+			/// </summary>
+			Online_v140,
+			Online_v150,
+
+			Online_Live = Online_v150
 		}
 
 		/// <summary>
@@ -726,6 +733,298 @@ namespace EpicGames.MCP.Automation
 			/// </summary>
 			public List<KeyValuePair<string, float>> CustomFloatArgs;
 		}
+
+
+		public class UploadBinaryOptions
+		{
+			/// <summary>
+			/// By default, we will only consider data referenced from manifests modified within five days to be reusable.
+			/// </summary>
+			private const int DEFAULT_DATA_AGE_THRESHOLD = 5;
+
+			public UploadBinaryOptions()
+			{
+				DataAgeThreshold = DEFAULT_DATA_AGE_THRESHOLD;
+				ChunkWindowSize = 1048576;
+			}
+
+			/// <summary>
+			/// A unique integer for this product.
+			/// Deprecated. Can be safely left as 0.
+			/// </summary>
+			public int AppId;
+			/// <summary>
+			/// Specifies in quotes, the id of the artifact.
+			/// This will be embedded inside the generated manifest to identify the application.
+			/// </summary>
+			public string ArtifactId;
+			/// <summary>
+			/// The build version being generated.
+			/// </summary>
+			public string BuildVersion;
+			/// <summary>
+			/// Used as part of the build version string.
+			/// </summary>
+			public MCPPlatform Platform;
+			/// <summary>
+			/// The directory containing the build image to be read.
+			/// </summary>
+			public string BuildRoot;
+			/// <summary>
+			/// The directory which will receive the generated manifest and chunks.
+			/// </summary>
+			public string CloudDir;
+			/// <summary>
+			/// A path to a text file containing BuildRoot relative files to be included in the build.
+			/// </summary>
+			public string FileInputList;
+			/// <summary>
+			/// A path to a text file containing BuildRoot relative files to be excluded from the build.
+			/// </summary>
+			public string FileIgnoreList;
+			/// <summary>
+			/// A path to a text file containing quoted BuildRoot relative files followed by optional attributes such as readonly compressed executable tag:mytag, separated by \r\n line endings.
+			/// These attribute will be applied when build is installed client side.
+			/// </summary>
+			public string FileAttributeList;
+			/// <summary>
+			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientId;
+			/// <summary>
+			/// Specifies the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecret;
+			/// <summary>
+			/// Specifies the name of an environment variable containing the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecretEnvVar;
+			/// <summary>
+			/// Specifies the id of the organization that this product belongs to.
+			/// </summary>
+			public string OrganizationId;
+			/// <summary>
+			/// Specifies the id of the product being uploaded.
+			/// </summary>
+			public string ProductId;
+			/// <summary>
+			/// The path to the app executable, must be relative to, and inside of BuildRoot.
+			/// </summary>
+			public string AppLaunchCmd;
+			/// <summary>
+			/// The commandline to send to the app on launch.
+			/// </summary>
+			public string AppLaunchCmdArgs;
+			/// <summary>
+			/// The list of prerequisite Ids that this prerequisite installer satisfies.
+			/// </summary>
+			public List<string> PrereqIds;
+			/// <summary>
+			/// The prerequisites installer to launch on successful product install, must be relative to, and inside of BuildRoot.
+			/// </summary>
+			public string PrereqPath;
+			/// <summary>
+			/// The commandline to send to prerequisites installer on launch.
+			/// </summary>
+			public string PrereqArgs;
+			/// <summary>
+			/// When identifying existing patch data to reuse in this build, only
+			/// files referenced from a manifest file modified within this number of days will be considered for reuse.
+			/// IMPORTANT: This should always be smaller than the minimum age at which manifest files can be deleted by any cleanup process, to ensure
+			/// that we do not reuse any files which could be deleted by a concurrently running compactify. It is recommended that this number be at least
+			/// two days less than the cleanup data age threshold.
+			/// </summary>
+			public int DataAgeThreshold;
+			/// <summary>
+			/// Specifies in bytes, the data window size that should be used when saving new chunks. Default is 1048576 (1MiB).
+			/// </summary>
+			public int ChunkWindowSize;
+			/// <summary>
+			/// Specifies the desired output FeatureLevel of BuildPatchTool, if this is not provided BPT will warn and default to LatestJson so that project scripts can be updated.
+			/// </summary>
+			public string FeatureLevel;
+			/// <summary>
+			/// Contains a list of custom string arguments to be embedded in the generated manifest file.
+			/// </summary>
+			public List<KeyValuePair<string, string>> CustomStringArgs;
+			/// <summary>
+			/// Contains a list of custom integer arguments to be embedded in the generated manifest file.
+			/// </summary>
+			public List<KeyValuePair<string, int>> CustomIntArgs;
+			/// <summary>
+			/// Contains a list of custom float arguments to be embedded in the generated manifest file.
+			/// </summary>
+			public List<KeyValuePair<string, float>> CustomFloatArgs;
+		}
+
+		public class LabelBinaryOptions
+		{
+			public LabelBinaryOptions()
+			{
+			}
+
+			/// <summary>
+			/// Specifies in quotes, the id of the artifact.
+			/// This will be embedded inside the generated manifest to identify the application.
+			/// </summary>
+			public string ArtifactId;
+			/// <summary>
+			/// The build version that receives label
+			/// </summary>
+			public string BuildVersion;
+			/// <summary>
+			/// label name to apply to build version
+			/// </summary>
+			public string Label;
+			/// <summary>
+			/// Used as part of the build version string.
+			/// </summary>
+			public MCPPlatform Platform;
+			/// <summary>
+			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientId;
+			/// <summary>
+			/// Specifies the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecret;
+			/// <summary>
+			/// Specifies the name of an environment variable containing the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecretEnvVar;
+			/// <summary>
+			/// Specifies the id of the organization that this product belongs to.
+			/// </summary>
+			public string OrganizationId;
+			/// <summary>
+			/// Specifies the id of the product being uploaded.
+			/// </summary>
+			public string ProductId;
+		}
+
+		public class ListBinariesOptions
+		{
+			public ListBinariesOptions()
+			{
+			}
+
+			/// <summary>
+			/// Specifies in quotes, the id of the artifact.
+			/// This will be embedded inside the generated manifest to identify the application.
+			/// </summary>
+			public string ArtifactId;
+			/// <summary>
+			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientId;
+			/// <summary>
+			/// Specifies the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecret;
+			/// <summary>
+			/// Specifies the name of an environment variable containing the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecretEnvVar;
+			/// <summary>
+			/// Specifies the id of the organization that this product belongs to.
+			/// </summary>
+			public string OrganizationId;
+			/// <summary>
+			/// Specifies the id of the product being uploaded.
+			/// </summary>
+			public string ProductId;
+			/// <summary>
+			/// List only labeled binaries
+			/// </summary>
+			public bool OnlyLabeled;
+			/// <summary>
+			/// Max Number of binaries to list
+			/// </summary>
+			public int Num = -1;
+			/// <summary>
+			/// name of json formated output file to dump the binaries to
+			/// </summary>
+			public string OutputFile;
+		}
+
+		public class ListBinariesOutput
+		{ 
+			public ListBinariesOutput()
+			{ }
+
+			public class ListBinariesOutputBinary
+			{
+				public class ListBinariesOutputLabel
+				{
+					public string LabelName;
+					public MCPPlatform Platform;
+				}
+				public List<ListBinariesOutputLabel> Labels;
+				public string ArtifactId;
+				public string BuildVersion;
+				public DateTime Created;
+				public DateTime Updated;
+				public string ManifestHash;
+				public int Rvn;
+				public class ListBinariesOutputManifestLocation
+				{
+					public string Url;
+					public string HttpMethod;
+					public List<string> HttpHeaders;
+					public DateTime Expires;
+				}
+				public ListBinariesOutputManifestLocation ManifestLocation;
+				public bool IsResuable;
+			}
+			public List<ListBinariesOutputBinary> Binaries;
+		}
+
+		public class CopyBinaryOptions
+		{
+			public CopyBinaryOptions()
+			{
+			}
+
+			/// <summary>
+			/// Specifies in quotes, the id of the artifact to copy from 
+			/// </summary>
+			public string SourceArtifactId;
+
+			/// <summary>
+			/// Specifies in quotes, the id of the artifact to copy to
+			/// </summary>
+			public string DestArtifactId;
+			/// <summary>
+			/// The build version that is copied
+			/// </summary>
+			public string BuildVersion;
+			/// <summary>
+			/// Used as part of the build version string.
+			/// </summary>
+			public MCPPlatform Platform;
+			/// <summary>
+			/// Specifies the client id allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientId;
+			/// <summary>
+			/// Specifies the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecret;
+			/// <summary>
+			/// Specifies the name of an environment variable containing the client secret allocated to you by Epic for uploading binaries to Epic's services.
+			/// </summary>
+			public string ClientSecretEnvVar;
+			/// <summary>
+			/// Specifies the id of the organization that this product belongs to.
+			/// </summary>
+			public string OrganizationId;
+			/// <summary>
+			/// Specifies the id of the product being uploaded.
+			/// </summary>
+			public string ProductId;
+		}
+
+
 
 		/// <summary>
 		/// Represents the options passed to the compactify process
@@ -1067,6 +1366,39 @@ namespace EpicGames.MCP.Automation
 		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
 		/// <param name="bAllowManifestClobbering">If set to true, will allow an existing manifest file to be overwritten with this execution. Default is false.</param>
 		public abstract void Execute(PatchGenerationOptions Opts, ToolVersion Version = ToolVersion.Live, bool bAllowManifestClobbering = false);
+
+		/// <summary>
+		/// Runs the Build Patch Tool executable to generate patch data using the supplied parameters.
+		/// V2 is only available when using online version of bpt, this job encapsulates chunk, upload, and post build bpt tasks
+		/// </summary>
+		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
+		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
+		/// <param name="bAllowManifestClobbering">If set to true, will allow an existing manifest file to be overwritten with this execution. Default is false.</param>
+		public abstract void Execute(UploadBinaryOptions Opts, ToolVersion Version = ToolVersion.Online_Live, bool bAllowManifestClobbering = false);
+
+		/// <summary>
+		/// Runs the Build Patch Tool executable to label binary using the supplied parameters.
+		/// V2 is only available when using online version of bpt
+		/// </summary>
+		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
+		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
+		public abstract void Execute(ListBinariesOptions Opts, out ListBinariesOutput Output, ToolVersion Version = ToolVersion.Online_Live);
+
+		/// <summary>
+		/// Runs the Build Patch Tool executable to label binary using the supplied parameters.
+		/// V2 is only available when using online version of bpt
+		/// </summary>
+		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
+		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
+		public abstract void Execute(LabelBinaryOptions Opts, ToolVersion Version = ToolVersion.Online_Live);
+
+		/// <summary>
+		/// Runs the Build Patch Tool executable to label binary using the supplied parameters.
+		/// V2 is only available when using online version of bpt
+		/// </summary>
+		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
+		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
+		public abstract void Execute(CopyBinaryOptions Opts, ToolVersion Version = ToolVersion.Online_Live);
 
 		/// <summary>
 		/// Runs the Build Patch Tool executable to compactify a cloud directory using the supplied parameters.
