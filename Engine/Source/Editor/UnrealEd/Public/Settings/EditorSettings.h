@@ -30,7 +30,7 @@ class UNREALED_API UEditorSettings : public UObject
 	 * Adjusts the network or shared global DDC caching location.  This is one of the areas queried after Local fails.
 	 * This affects every project on your computer that uses the UE-SharedDataCachePath environment variable override.
 	 */
-	UPROPERTY(EditAnywhere, Category = DerivedDataCache, meta = (DisplayName = "Global Network DDC Path", ConfigRestartRequired = true))
+	UPROPERTY(EditAnywhere, Category = DerivedDataCache, AdvancedDisplay, meta = (DisplayName = "Global Network DDC Path", ConfigRestartRequired = true))
 	FDirectoryPath GlobalSharedDDCPath;
 
 	/**
