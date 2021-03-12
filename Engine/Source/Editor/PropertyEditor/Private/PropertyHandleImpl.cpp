@@ -206,84 +206,6 @@ void FPropertyValueImpl::GenerateArrayIndexMapToObjectNode( TMap<FString,int32>&
 	}
 }
 
-void FPropertyValueImpl::RebuildInstancedProperties(const TSharedPtr<IPropertyHandle>& RootHandle, FPropertyNode* PropertyNode)
-{
-	if (PropertyNode != nullptr)
-	{
-		// Cache expansion state and then rebuild child nodes, in case we're pasting an array of a different size. This ensures instanced properties can be rebuild properly
-		TSet<FString> ExpandedChildPropertyPaths;
-		PropertyNode->GetExpandedChildPropertyPaths(ExpandedChildPropertyPaths);
-		PropertyNode->RebuildChildren();
-		PropertyNode->SetExpandedChildPropertyNodes(ExpandedChildPropertyPaths);
-	}
-
-	TSharedPtr<IPropertyHandle> Handle = RootHandle;
-
-	TArray<TSharedPtr<IPropertyHandle>> CopiedHandles;
-	CopiedHandles.Add(Handle);
-
-	while (CopiedHandles.Num() > 0)
-	{
-		Handle = CopiedHandles.Pop();
-
-		// Add all child properties to the list so we can check them next
-		uint32 NumChildren;
-		Handle->GetNumChildren(NumChildren);
-		for (uint32 ChildIndex = 0; ChildIndex < NumChildren; ChildIndex++)
-		{
-			CopiedHandles.Add(Handle->GetChildHandle(ChildIndex));
-		}
-
-		UObject* NewValueAsObject = nullptr;
-		if (FPropertyAccess::Success != Handle->GetValue(NewValueAsObject))
-		{
-			continue;
-		}
-
-		// Skip properties that are not instanced
-		if (Handle->GetProperty() == nullptr
-			|| !Handle->GetProperty()->HasAnyPropertyFlags(CPF_InstancedReference | CPF_ContainsInstancedReference))
-		{
-			continue;
-		}
-
-		// The property is instanced so we need to do a deep copy.
-		// Update the duplicate's outer to point to this outer. 
-		// The source's outer may be some other object/asset but we want this to own the duplicate.
-		TArray<UObject*> Outers;
-		Handle->GetOuterObjects(Outers);
-		UObject* DuplicateOuter = (Outers.Num() > 0) ? Outers[0] : nullptr;
-
-		// For archetypes to continue working we must maintain the name of the object, 
-		// so an existing object that is going to be replaced must be renamed out of the way
-		TArray<FString> ObjectValueAsString;
-		Handle->GetPerObjectValues(ObjectValueAsString);
-
-		int32 Index;
-		FStringView ObjNameView = ObjectValueAsString[0];
-		ObjNameView.FindLastChar(TEXT(':'),Index);
-		ObjNameView.RightChopInline(Index+1);
-		ObjNameView.LeftChopInline(1);
-
-		const FName ObjName(ObjNameView);
-
-		if (DuplicateOuter)
-		{
-			if (UObject* ExistingObj = (UObject*)FindObjectWithOuter(DuplicateOuter, nullptr, ObjName))
-			{
-				ExistingObj->Rename(*MakeUniqueObjectName(DuplicateOuter,ExistingObj->GetClass()).ToString(), nullptr, REN_ForceNoResetLoaders|REN_DontCreateRedirectors);
-			}
-		}
-
-		// This does a deep copy of NewValueAsObject. Its subobjects and property data will be copied.
-		UObject* DuplicateOfNewValue = DuplicateObject<UObject>(NewValueAsObject, DuplicateOuter, ObjName);
-
-		ObjectValueAsString.Reset();
-		ObjectValueAsString.Add(DuplicateOfNewValue->GetPathName());
-		Handle->SetPerObjectValues(ObjectValueAsString);
-	}
-}
-
 FPropertyAccess::Result FPropertyValueImpl::ImportText( const FString& InValue, FPropertyNode* InPropertyNode, EPropertyValueSetFlags::Type Flags )
 {
 	TArray<FObjectBaseAddress> ObjectsToModify;
@@ -473,7 +395,8 @@ FPropertyAccess::Result FPropertyValueImpl::ImportText( const TArray<FObjectBase
 			}
 
 			// Set the new value.
-			FPropertyTextUtilities::TextToPropertyHelper(*NewValue, InPropertyNode, NodeProperty, Cur);
+			EPropertyPortFlags PortFlags = (Flags & EPropertyValueSetFlags::InstanceObjects) != 0 ? PPF_InstanceSubobjects : PPF_None;
+			FPropertyTextUtilities::TextToPropertyHelper(*NewValue, InPropertyNode, NodeProperty, Cur, PortFlags);
 
 			// Cache the value of the property after having modified it.
 			FString ValueAfterImport;
@@ -981,12 +904,9 @@ void FPropertyValueImpl::ResetToDefault()
 		if(KeyNode.IsValid())
 		{
 			FPropertyValueImpl(KeyNode, NotifyHook, PropertyUtilities.Pin())
-				.ImportText(KeyNode->GetDefaultValueAsString(bUseDisplayName), EPropertyValueSetFlags::DefaultFlags);
+				.ImportText(KeyNode->GetDefaultValueAsString(bUseDisplayName), EPropertyValueSetFlags::InstanceObjects);
 		}
-		ImportText(PropertyNodePin->GetDefaultValueAsString(bUseDisplayName), EPropertyValueSetFlags::DefaultFlags);
-		
-		TSharedPtr<IPropertyHandle> PropertyHandle = PropertyEditorHelpers::GetPropertyHandle(PropertyNodePin.ToSharedRef(), GetNotifyHook(), GetPropertyUtilities());
-		RebuildInstancedProperties(PropertyHandle, KeyNode.Get());
+		ImportText(PropertyNodePin->GetDefaultValueAsString(bUseDisplayName), EPropertyValueSetFlags::InstanceObjects);
 
 		PropertyNodePin->BroadcastPropertyResetToDefault();
 	}

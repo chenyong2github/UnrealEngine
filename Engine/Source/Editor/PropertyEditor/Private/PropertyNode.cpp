@@ -3075,7 +3075,7 @@ void FPropertyNode::PropagatePropertyChange( UObject* ModifiedObject, const TCHA
 				// Only import if the value matches the previous value of the property that changed
 				if (bShouldImport)
 				{
-					Prop->ImportText(NewValue, DestSimplePropAddr, PPF_None, ActualObjToChange);
+					Prop->ImportText(NewValue, DestSimplePropAddr, PPF_InstanceSubobjects, ActualObjToChange);
 				}
 			}
 		}

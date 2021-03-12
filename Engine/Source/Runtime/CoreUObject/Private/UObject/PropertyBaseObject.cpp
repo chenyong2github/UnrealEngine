@@ -5,6 +5,7 @@
 #include "Templates/Casts.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UnrealTypePrivate.h"
+#include "UObject/UObjectHash.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "UObject/PropertyHelper.h"
 #include "UObject/LinkerPlaceholderClass.h"
@@ -74,8 +75,9 @@ bool FObjectPropertyBase::Identical( const void* A, const void* B, uint32 PortFl
 	// @todo: okay, this is pretty hacky overall - we should have a PortFlag or something
 	// that is set during SavePackage. Other times, we don't want to immediately return false
 	// (instead of just this ExportDefProps case)
-	// instance testing
-	if (!bResult && ObjectA->GetClass() == ObjectB->GetClass())
+
+	// In order for a deep comparison of instanced objects to match both objects must have the same class and name
+	if (!bResult && ObjectA->GetClass() == ObjectB->GetClass() && ObjectA->GetFName() == ObjectB->GetFName())
 	{
 		bool bPerformDeepComparison = (PortFlags&PPF_DeepComparison) != 0;
 		if (((PortFlags&PPF_DeepCompareInstances) != 0) && !bPerformDeepComparison)
@@ -85,36 +87,21 @@ bool FObjectPropertyBase::Identical( const void* A, const void* B, uint32 PortFl
 
 		if (bPerformDeepComparison)
 		{
-			// In order for a deep comparison match both objects must have the same name
-			// and the two objects must have the same archetype or one object is the other's archetype
-			if (ObjectA->GetFName() == ObjectB->GetFName())
+			if ((PortFlags&PPF_DeepCompareDSOsOnly) != 0)
 			{
-				if ((PortFlags&PPF_DeepCompareDSOsOnly) != 0)
+				if (UObject* DSO = ObjectA->GetClass()->GetDefaultSubobjectByName(ObjectA->GetFName()))
 				{
-					if (UObject* DSO = ObjectA->GetClass()->GetDefaultSubobjectByName(ObjectA->GetFName()))
-					{
-						checkSlow(ObjectA->IsDefaultSubobject() && ObjectB->IsDefaultSubobject() && DSO == ObjectB->GetClass()->GetDefaultSubobjectByName(ObjectB->GetFName()));
-					}
-					else
-					{
-						bPerformDeepComparison = false;
-					}
+					checkSlow(ObjectA->IsDefaultSubobject() && ObjectB->IsDefaultSubobject() && DSO == ObjectB->GetClass()->GetDefaultSubobjectByName(ObjectB->GetFName()));
 				}
+				else
+				{
+					bPerformDeepComparison = false;
+				}
+			}
 
-				if (bPerformDeepComparison)
-				{
-					UObject* ArchetypeA = ObjectA->GetArchetype();
-					bPerformDeepComparison = (ArchetypeA == ObjectB);
-					if (!bPerformDeepComparison)
-					{
-						UObject* ArchetypeB = ObjectB->GetArchetype();
-						bPerformDeepComparison = ((ArchetypeA == ArchetypeB) || (ArchetypeB == ObjectA));
-					}
-					if (bPerformDeepComparison)
-					{
-						bResult = AreInstancedObjectsIdentical(ObjectA, ObjectB, PortFlags);
-					}
-				}
+			if (bPerformDeepComparison)
+			{
+				bResult = AreInstancedObjectsIdentical(ObjectA, ObjectB, PortFlags);
 			}
 		}
 	}
@@ -363,6 +350,18 @@ const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, vo
 	FLinkerLoad* Linker = GetLinker();
 
 	bool bOk = ParseObjectPropertyValue(this, Parent, PropertyClass, PortFlags, Buffer, Result, Linker ? Linker->GetSerializeContext() : nullptr);
+
+	if (Result && (PortFlags & PPF_InstanceSubobjects) != 0 && HasAnyPropertyFlags(CPF_InstancedReference))
+	{
+		// If an object currently exists with the same name as the imported object that is to be instanced
+		// it will be renamed out of the way
+		if (UObject* ExistingObject = static_cast<UObject*>(FindObjectWithOuter(Parent, nullptr, Result->GetFName())))
+		{
+			ExistingObject->Rename(nullptr, nullptr, REN_DontCreateRedirectors | REN_ForceNoResetLoaders);
+		}
+
+		Result = DuplicateObject<UObject>(Result, Parent, Result->GetFName());
+	}
 
 	SetObjectPropertyValue(Data, Result);
 	return Buffer;
