@@ -2129,8 +2129,10 @@ bool FShaderCompileThreadRunnable::LaunchWorkersIfNeeded()
 	return bAbandonWorkers;
 }
 
-void FShaderCompileThreadRunnable::ReadAvailableResults()
+int32 FShaderCompileThreadRunnable::ReadAvailableResults()
 {
+	int32 NumProcessed = 0;
+
 	for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
 	{
 		FShaderCompileWorkerInfo& CurrentWorkerInfo = *WorkerInfos[WorkerIndex];
@@ -2174,9 +2176,13 @@ void FShaderCompileThreadRunnable::ReadAvailableResults()
 
 					CurrentWorkerInfo.bComplete = true;
 				}
+
+				++NumProcessed;
 			}
 		}
 	}
+
+	return NumProcessed;
 }
 
 void FShaderCompileThreadRunnable::CompileDirectlyThroughDll()
@@ -2410,7 +2416,12 @@ int32 FShaderCompileThreadRunnable::CompilingLoop()
 		else
 		{
 			// Read files which are outputs from the shader compile workers
-			ReadAvailableResults();
+			int32 NumProcessedResults = ReadAvailableResults();
+			if (NumProcessedResults == 0)
+			{
+				// Reduce filesystem query rate while actively waiting for results.
+				FPlatformProcess::Sleep(0.1f);
+			}
 		}
 	}
 	else

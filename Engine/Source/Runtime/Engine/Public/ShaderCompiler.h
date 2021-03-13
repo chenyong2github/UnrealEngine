@@ -616,8 +616,8 @@ private:
 	/** Used when compiling through workers, launches worker processes if needed. */
 	bool LaunchWorkersIfNeeded();
 
-	/** Used when compiling through workers, attempts to open the worker output file if the worker is done and read the results. */
-	void ReadAvailableResults();
+	/** Used when compiling through workers, attempts to open the worker output file if the worker is done and read the results. Returns number of results processed. */
+	int32 ReadAvailableResults();
 
 	/** Used when compiling directly through the console tools dll. */
 	void CompileDirectlyThroughDll();
