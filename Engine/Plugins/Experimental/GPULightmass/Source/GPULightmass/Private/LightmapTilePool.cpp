@@ -96,6 +96,12 @@ void FLightmapTilePool::Unmap(const TArrayView<FVirtualTile> InVirtualTiles)
 	}
 }
 
+void FLightmapTilePool::UnmapAll()
+{
+	TileIndexToVirtualTileMap.Empty();
+	VirtualTileToTileIndexMap.Empty();
+}
+
 FLightmapTilePoolGPU::FLightmapTilePoolGPU(int32 NumLayers, FIntPoint InSizeInTiles, FIntPoint TileSize)
 	: FLightmapTilePool(InSizeInTiles.X * InSizeInTiles.Y)
 	, SizeInTiles(InSizeInTiles)

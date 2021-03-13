@@ -3111,6 +3111,8 @@ void FLightmapRenderer::BumpRevision()
 	}	
 
 	RecordedTileRequests.Empty();
+
+	LightmapTilePoolGPU.UnmapAll();
 }
 
 void FLightmapRenderer::DeduplicateRecordedTileRequests()

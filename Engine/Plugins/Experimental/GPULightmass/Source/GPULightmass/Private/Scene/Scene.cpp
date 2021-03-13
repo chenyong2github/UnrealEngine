@@ -544,7 +544,11 @@ void FScene::RemoveLight(LightComponentType* PointLightComponent)
 		LightTypeInfo<LightComponentType>::GetLightRenderStateArray(RenderState.LightSceneRenderState).RemoveAt(ElementId);
 	});
 
-	ENQUEUE_RENDER_COMMAND(InvalidateRevision)([&RenderState = RenderState](FRHICommandListImmediate& RHICmdList) { RenderState.LightmapRenderer->BumpRevision(); });
+	ENQUEUE_RENDER_COMMAND(InvalidateRevision)([&RenderState = RenderState](FRHICommandListImmediate& RHICmdList) {
+		RenderState.LightmapRenderer->BumpRevision();
+		RenderState.VolumetricLightmapRenderer->FrameNumber = 0;
+		RenderState.VolumetricLightmapRenderer->SamplesTaken = 0;
+	});
 }
 
 template void FScene::RemoveLight(UDirectionalLightComponent* LightComponent);
