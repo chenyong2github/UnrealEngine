@@ -34,7 +34,10 @@ public:
 
 	class URuntimeVirtualTexture* RuntimeVirtualTexture;
 	class FMaterialRenderProxy* Material;
-	class UTexture2D* MinMaxTexture;
+	
+	class UTexture2D* HeightMinMaxTexture;
+	class UTexture2D* LodBiasTexture;
+	class UTexture2D* LodBiasMinMaxTexture;
 
 	class IAllocatedVirtualTexture* AllocatedVirtualTexture;
 	bool bCallbackRegistered;
@@ -52,9 +55,9 @@ public:
 	float Lod0ScreenSize;
 	float Lod0Distribution;
 	float LodDistribution;
+	float LodBiasScale;
 	
-	int32 NumSubdivisionLODs;
-	int32 NumTailLods;
+	int32 NumForceLoadLods;
 
 	TArray<FVector2D> OcclusionData;
 	int32 NumOcclusionLods;

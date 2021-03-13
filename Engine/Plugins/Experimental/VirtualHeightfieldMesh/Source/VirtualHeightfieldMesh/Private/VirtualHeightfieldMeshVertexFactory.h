@@ -11,29 +11,40 @@
 #include "SceneManagement.h"
 
 /**
- * Uniform buffer to hold parameters specific to this vertex factory. Only set up once
+ * Uniform buffer to hold parameters specific to this vertex factory. Only set up once.
  */
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryParameters, )
-	SHADER_PARAMETER(float, LODScale)
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint4>, PageTableTexture)
+	SHADER_PARAMETER_SRV(Texture2D<float>, HeightTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, HeightSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D<float>, LodBiasTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, LodBiasSampler)
 	SHADER_PARAMETER(int32, NumQuadsPerTileSide)
+	SHADER_PARAMETER(FUintVector4, VTPackedUniform)
+	SHADER_PARAMETER(FUintVector4, VTPackedPageTableUniform0)
+	SHADER_PARAMETER(FUintVector4, VTPackedPageTableUniform1)
+	SHADER_PARAMETER(FVector4, PageTableSize)
+	SHADER_PARAMETER(FVector2D, PhysicalTextureSize)
+	SHADER_PARAMETER(FMatrix, VirtualHeightfieldToLocal)
+	SHADER_PARAMETER(FMatrix, VirtualHeightfieldToWorld)
+	SHADER_PARAMETER(float, MaxLod)
+	SHADER_PARAMETER(float, LodBiasScale)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 typedef TUniformBufferRef<FVirtualHeightfieldMeshVertexFactoryParameters> FVirtualHeightfieldMeshVertexFactoryBufferRef;
 
+/**
+ * Index buffer for a single Virtual Heightfield Mesh tile.
+ */
 struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 {
 	FRHIShaderResourceView* InstanceBufferSRV;
-	FRHITexture* HeightPhysicalTexture;
-	FVector4 PageTableSize;
-	float MaxLod;
-	FMatrix VirtualHeightfieldToLocal;
-	FMatrix VirtualHeightfieldToWorld;
 	FVector LodViewOrigin;
 	FVector4 LodDistances;
 };
 
 /**
- * 
+ * Index buffer for a single Virtual Heightfield Mesh tile.
  */
 class FVirtualHeightfieldMeshIndexBuffer : public FIndexBuffer
 {
@@ -53,15 +64,14 @@ private:
 };
 
 /**
- *
+ * Virtual Heightfield Mesh vertex factory.
  */
 class FVirtualHeightfieldMeshVertexFactory : public FVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FVirtualHeightfieldMeshVertexFactory);
 
 public:
-	FVirtualHeightfieldMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumQuadsPerSide);
-
+	FVirtualHeightfieldMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const FVirtualHeightfieldMeshVertexFactoryParameters& InParams);
 	~FVirtualHeightfieldMeshVertexFactory();
 
 	virtual void InitRHI() override;
@@ -71,15 +81,12 @@ public:
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
 
-	inline const FUniformBufferRHIRef GetVirtualHeightfieldMeshVertexFactoryUniformBuffer() const
-	{
-		return UniformBuffer;
-	}
-
-	FVirtualHeightfieldMeshIndexBuffer* IndexBuffer = nullptr;
+	FIndexBuffer const* GetIndexBuffer() const { return IndexBuffer; }
 
 private:
+	FVirtualHeightfieldMeshVertexFactoryParameters Params;
 	FVirtualHeightfieldMeshVertexFactoryBufferRef UniformBuffer;
+	FVirtualHeightfieldMeshIndexBuffer* IndexBuffer = nullptr;
 
-	const int32 NumQuadsPerSide = 0;
+	friend class FVirtualHeightfieldMeshVertexFactoryShaderParameters;
 };

@@ -13,6 +13,11 @@
 UVirtualHeightfieldMeshComponent::UVirtualHeightfieldMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	CastShadow = true;
+	bCastContactShadow = false;
+	bUseAsOccluder = true;
+	bAffectDynamicIndirectLighting = false;
+	bAffectDistanceFieldLighting = false;
 	bNeverDistanceCull = true;
 #if WITH_EDITORONLY_DATA
 	bEnableAutoLODGeneration = false;
@@ -27,6 +32,8 @@ void UVirtualHeightfieldMeshComponent::OnRegister()
 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
 	if (RuntimeVirtualTextureComponent)
 	{
+		// Bind to delegate so that we dirty render state whenever RuntimeVirtualTextureComponent is moved.
+		RuntimeVirtualTextureComponent->TransformUpdated.AddUObject(this, &UVirtualHeightfieldMeshComponent::OnVirtualTextureTransformUpdate);
 		// Bind to delegate so that RuntimeVirtualTextureComponent will pull hide flags from this object.
 		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().AddUObject(this, &UVirtualHeightfieldMeshComponent::GatherHideFlags);
 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
@@ -40,6 +47,7 @@ void UVirtualHeightfieldMeshComponent::OnUnregister()
 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTextureRef != nullptr ? VirtualTextureRef->VirtualTextureComponent : nullptr;
 	if (RuntimeVirtualTextureComponent)
 	{
+		RuntimeVirtualTextureComponent->TransformUpdated.RemoveAll(this);
 		RuntimeVirtualTextureComponent->GetHidePrimitivesDelegate().RemoveAll(this);
 		RuntimeVirtualTextureComponent->MarkRenderStateDirty();
 	}
@@ -101,6 +109,11 @@ void UVirtualHeightfieldMeshComponent::GatherHideFlags(bool& InOutHidePrimitives
 	const bool bIsEnabled = VirtualHeightfieldMesh::IsEnabled(FeatureLevel);
 	InOutHidePrimitivesInEditor |= (bIsEnabled && !bHiddenInEditor);
 	InOutHidePrimitivesInGame |= bIsEnabled;
+}
+
+void UVirtualHeightfieldMeshComponent::OnVirtualTextureTransformUpdate(USceneComponent* InRootComponent, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
+{
+	MarkRenderStateDirty();
 }
 
 #if WITH_EDITOR

@@ -10,7 +10,7 @@
 #include "ShaderParameters.h"
 #include "ShaderParameterUtils.h"
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryParameters, "VirtualHeightfieldMeshVF");
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualHeightfieldMeshVertexFactoryParameters, "VHM");
 
 namespace
 {
@@ -100,12 +100,6 @@ public:
 	void Bind(const FShaderParameterMap& ParameterMap)
 	{
 		InstanceBufferParameter.Bind(ParameterMap, TEXT("InstanceBuffer"));
-		HeightTextureParameter.Bind(ParameterMap, TEXT("HeightTexture"));
-		HeightSamplerParameter.Bind(ParameterMap, TEXT("HeightSampler"));
-		PageTableSizeParameter.Bind(ParameterMap, TEXT("PageTableSize"));
-		MaxLodParameter.Bind(ParameterMap, TEXT("MaxLod"));
-		VirtualHeightfieldToLocalParameter.Bind(ParameterMap, TEXT("VirtualHeightfieldToLocal"));
-		VirtualHeightfieldToWorldParameter.Bind(ParameterMap, TEXT("VirtualHeightfieldToWorld"));
 		LodViewOriginParameter.Bind(ParameterMap, TEXT("LodViewOrigin"));
 		LodDistancesParameter.Bind(ParameterMap, TEXT("LodDistances"));
 	}
@@ -122,55 +116,16 @@ public:
 		FVertexInputStreamArray& VertexStreams) const
 	{
 		FVirtualHeightfieldMeshVertexFactory* VertexFactory = (FVirtualHeightfieldMeshVertexFactory*)InVertexFactory;
-
-		ShaderBindings.Add(Shader->GetUniformBufferParameter<FVirtualHeightfieldMeshVertexFactoryParameters>(), VertexFactory->GetVirtualHeightfieldMeshVertexFactoryUniformBuffer());
+		ShaderBindings.Add(Shader->GetUniformBufferParameter<FVirtualHeightfieldMeshVertexFactoryParameters>(), VertexFactory->UniformBuffer);
 
 		FVirtualHeightfieldMeshUserData* UserData = (FVirtualHeightfieldMeshUserData*)BatchElement.UserData;
-		if (UserData != nullptr)
-		{
-			if (InstanceBufferParameter.IsBound())
-			{
-				ShaderBindings.Add(InstanceBufferParameter, UserData->InstanceBufferSRV);
-			}
-			if (HeightTextureParameter.IsBound() && HeightSamplerParameter.IsBound())
-			{
-				ShaderBindings.AddTexture(HeightTextureParameter, HeightSamplerParameter, TStaticSamplerState<SF_Bilinear>::GetRHI(), UserData->HeightPhysicalTexture);
-			}
-			if (PageTableSizeParameter.IsBound())
-			{
-				ShaderBindings.Add(PageTableSizeParameter, UserData->PageTableSize);
-			}
-			if (MaxLodParameter.IsBound())
-			{
-				ShaderBindings.Add(MaxLodParameter, UserData->MaxLod);
-			}
-			if (VirtualHeightfieldToLocalParameter.IsBound())
-			{
-				ShaderBindings.Add(VirtualHeightfieldToLocalParameter, UserData->VirtualHeightfieldToLocal);
-			}
-			if (VirtualHeightfieldToWorldParameter.IsBound())
-			{
-				ShaderBindings.Add(VirtualHeightfieldToWorldParameter, UserData->VirtualHeightfieldToWorld);
-			}
-			if (LodViewOriginParameter.IsBound())
-			{
-				ShaderBindings.Add(LodViewOriginParameter, UserData->LodViewOrigin);
-			}
-			if (LodDistancesParameter.IsBound())
-			{
-				ShaderBindings.Add(LodDistancesParameter, UserData->LodDistances);
-			}
-		}
+		ShaderBindings.Add(InstanceBufferParameter, UserData->InstanceBufferSRV);
+		ShaderBindings.Add(LodViewOriginParameter, UserData->LodViewOrigin);
+		ShaderBindings.Add(LodDistancesParameter, UserData->LodDistances);
 	}
 
 protected:
 	LAYOUT_FIELD(FShaderResourceParameter, InstanceBufferParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, HeightTextureParameter);
-	LAYOUT_FIELD(FShaderResourceParameter, HeightSamplerParameter);
-	LAYOUT_FIELD(FShaderParameter, PageTableSizeParameter);
-	LAYOUT_FIELD(FShaderParameter, MaxLodParameter);
-	LAYOUT_FIELD(FShaderParameter, VirtualHeightfieldToLocalParameter);
-	LAYOUT_FIELD(FShaderParameter, VirtualHeightfieldToWorldParameter);
 	LAYOUT_FIELD(FShaderParameter, LodViewOriginParameter);
 	LAYOUT_FIELD(FShaderParameter, LodDistancesParameter);
 };
@@ -179,11 +134,11 @@ IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FVirtualHeightfieldMeshVertexFactory, SF
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FVirtualHeightfieldMeshVertexFactory, SF_Pixel, FVirtualHeightfieldMeshVertexFactoryShaderParameters);
 
 
-FVirtualHeightfieldMeshVertexFactory::FVirtualHeightfieldMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, int32 InNumQuadsPerSide)
+FVirtualHeightfieldMeshVertexFactory::FVirtualHeightfieldMeshVertexFactory(ERHIFeatureLevel::Type InFeatureLevel, const FVirtualHeightfieldMeshVertexFactoryParameters& InParams)
 	: FVertexFactory(InFeatureLevel)
-	, NumQuadsPerSide(InNumQuadsPerSide)
+	, Params(InParams)
 {
-	IndexBuffer = new FVirtualHeightfieldMeshIndexBuffer(NumQuadsPerSide);
+	IndexBuffer = new FVirtualHeightfieldMeshIndexBuffer(InParams.NumQuadsPerTileSide);
 }
 
 FVirtualHeightfieldMeshVertexFactory::~FVirtualHeightfieldMeshVertexFactory()
@@ -193,10 +148,7 @@ FVirtualHeightfieldMeshVertexFactory::~FVirtualHeightfieldMeshVertexFactory()
 
 void FVirtualHeightfieldMeshVertexFactory::InitRHI()
 {
-	// Setup the uniform data
-	FVirtualHeightfieldMeshVertexFactoryParameters UniformParams;
-	UniformParams.NumQuadsPerTileSide = NumQuadsPerSide;
-	UniformBuffer = FVirtualHeightfieldMeshVertexFactoryBufferRef::CreateUniformBufferImmediate(UniformParams, UniformBuffer_MultiFrame);
+	UniformBuffer = FVirtualHeightfieldMeshVertexFactoryBufferRef::CreateUniformBufferImmediate(Params, UniformBuffer_MultiFrame);
 
 	IndexBuffer->InitResource();
 

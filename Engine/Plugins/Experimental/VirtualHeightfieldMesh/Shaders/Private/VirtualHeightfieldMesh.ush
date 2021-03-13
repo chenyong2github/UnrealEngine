@@ -87,44 +87,11 @@ QuadRenderItem UnpackQuadRenderItem(uint2 PackedItem)
 	return Item;
 }
 
-/** Description of neighbor items. We fill 4 of these for each QuadRenderItem. Packs as uint so store in Buffer declared as uint. */
-struct QuadNeighborItem
-{
-	uint PhysicalAddress;
-	bool bLerp;
-};
-
-uint Pack(QuadNeighborItem Item)
-{
-	uint PackedItem = 0;
-	PackedItem |= Item.PhysicalAddress & 0x000FFFFF;
-	PackedItem |= Item.bLerp ? 1 << 20 : 0;
-	return PackedItem;
-}
-
-QuadNeighborItem InitQuadNeighborItem(uint PhysicalAddress, bool bLerp)
-{
-	QuadNeighborItem Item;
-	Item.PhysicalAddress = PhysicalAddress;
-	Item.bLerp = bLerp;
-	return Item;
-}
-
-QuadNeighborItem UnpackQuadNeighborItem(uint PackedItem)
-{
-	QuadNeighborItem Item;
-	Item.PhysicalAddress = PackedItem & 0x000FFFFF;
-	Item.bLerp = ((PackedItem & 0x00100000) >> 20) == 1;
-	return Item;
-}
-
 /** Final render instance description used by the DrawInstancedIndirect(). */
 struct QuadRenderInstance
 {
-	// Total of 64 bytes is nice for cache alignment. Take care when modifying.
-	uint PosLevelPacked;
 	float3 UVTransform;
-	float3 NeigborUVTransform[4];
+	uint PosLevelPacked;
 };
 
 uint2 UnpackPos(QuadRenderInstance Item)
@@ -135,4 +102,20 @@ uint2 UnpackPos(QuadRenderInstance Item)
 uint UnpackLevel(QuadRenderInstance Item)
 {
 	return Item.PosLevelPacked >> 24;
+}
+
+
+/** Shared helper function to calculate a LOD based on distance from camera. */
+float CalculateDistanceLod(float InDistanceSq, float4 InLodFactors)
+{
+	float ScaledDistance = sqrt(InDistanceSq) * InLodFactors.w;
+	float LodForDistance0 = saturate(ScaledDistance / (InLodFactors.x * InLodFactors.y));
+	float LodForDistanceN = log2(1 + max((ScaledDistance / InLodFactors.x - InLodFactors.y), 0)) / log2(InLodFactors.z);
+	return LodForDistance0 + LodForDistanceN;
+}
+
+/** Shared helper function to calculate a LOD bias based on our LodBias texture value. */
+float CalculateBiasLod(float InValue, float InLodBiasScale)
+{
+	return max((InValue - 0.05f) * InLodBiasScale - 1.f, 0);
 }

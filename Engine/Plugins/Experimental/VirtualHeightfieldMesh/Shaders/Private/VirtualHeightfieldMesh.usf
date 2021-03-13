@@ -6,7 +6,6 @@
 //#include "/Engine/Private/ShaderDrawDebug.ush"	
 #include "VirtualHeightfieldMesh.ush"	
 
-
 groupshared uint NumGroupTasks;
 globallycoherent RWStructuredBuffer<WorkerQueueInfo> RWQueueInfo;
 globallycoherent RWBuffer<uint> RWQueueBuffer;
@@ -18,9 +17,6 @@ Buffer<uint2> QuadBuffer;
 RWBuffer<uint> RWIndirectArgsBuffer;
 Buffer<uint> IndirectArgsBufferSRV;
 
-RWBuffer<uint> RWQuadNeighborBuffer;
-Buffer<uint> QuadNeighborBuffer;
-
 RWStructuredBuffer<QuadRenderInstance> RWInstanceBuffer;
 StructuredBuffer<QuadRenderInstance> InstanceBuffer;
 
@@ -28,22 +24,23 @@ RWBuffer<uint> RWFeedbackBuffer;
 
 Texture2D<uint> PageTableTexture;
 
-Texture2D<float4> MinMaxTexture;
+Texture2D<float4> HeightMinMaxTexture;
+Texture2D<float4> LodBiasMinMaxTexture;
 SamplerState MinMaxTextureSampler;
 int MinMaxLevelOffset;
 
 Texture2D<float> OcclusionTexture;
 int OcclusionLevelOffset;
 
-Texture2D<float> LodTexture;
-
 uint MaxLevel;
+uint NumForceLoadLods;
 uint PageTableFeedbackId;
 uint NumPhysicalAddressBits;
 float4 PageTableSize;
 float4 PhysicalPageTransform;
 
 float4 LodDistances;
+float LodBiasScale;
 float3 ViewOrigin;
 float4 FrustumPlanes[5];
 float4x4 UVToWorld;
@@ -107,6 +104,12 @@ float2 UnPackMinMaxHeight(float4 InPacked)
 	uint2 UnPackedScaled = uint2(PackedScaled.x << 8 | PackedScaled.y, PackedScaled.z << 8 | PackedScaled.w);
 	float2 UnPacked = (float2)UnPackedScaled / 65535.f;
 	return UnPacked;
+}
+
+/** Unpack the values from the MinMaxLodBias texture from the packed 8888 format. */
+float2 UnPackMinMaxLodBias(float4 InPacked, float InLodBiasScale)
+{
+	return float2(CalculateBiasLod(InPacked.x, InLodBiasScale), CalculateBiasLod(InPacked.y, InLodBiasScale));
 }
 
 /** Return false if the AABB is completely outside one of the planes. */
@@ -181,21 +184,29 @@ void InitBuffersCS()
 
 	RWQueueBuffer[0] = Pack(InitQuadItem(0, MaxLevel));
 
-	// RenderLodMap indirect args
-	RWIndirectArgsBuffer[0] = 6;
-	RWIndirectArgsBuffer[1] = 0; // Increment this counter during CollectQuadsCS.
-	RWIndirectArgsBuffer[2] = 0;
-	RWIndirectArgsBuffer[3] = 0;
-	RWIndirectArgsBuffer[4] = 0;
+	// CullInstances indirect args
+	RWIndirectArgsBuffer[0] = 0; // Increment this wave counter during CollectQuadsCS.
+	RWIndirectArgsBuffer[1] = 1;
+	RWIndirectArgsBuffer[2] = 1;
+	RWIndirectArgsBuffer[3] = 0; // Increment this instance counter counter during CollectQuadsCS.
 
-	// ResolveNeighborLods and CullInstances indirect args
-	RWIndirectArgsBuffer[5] = 0; // Increment this counter during CollectQuadsCS.
-	RWIndirectArgsBuffer[6] = 1;
-	RWIndirectArgsBuffer[7] = 1;
-	RWIndirectArgsBuffer[8] = 0;
+	// Clear virtual texture feedback counter or prime feedback buffer with first n levels.
+	uint FeedbackCount = 0;
 
-	// Clear virtual texture feedback counter.
-	RWFeedbackBuffer[0] = 0;
+	for (uint Level = 0; Level < NumForceLoadLods; ++Level)
+	{
+		for (int Y = 0; Y < (1 << Level); ++Y)
+		{
+			for (int X = 0; X < (1 << Level); ++X)
+			{
+				uint LevelPlusOne = 1 + MaxLevel - Level;
+				uint Feedback = X | (Y << 12) | (LevelPlusOne << 24) | PageTableFeedbackId;
+				RWFeedbackBuffer[++FeedbackCount] = Feedback;
+			}
+		}
+	}
+
+	RWFeedbackBuffer[0] = FeedbackCount;
 }
 
 /**
@@ -250,13 +261,19 @@ void CollectQuadsCS(
 			float2 UV1 = ((float2)Pos + float2(1, 1)) * Scale;
 			
 			float MinMaxTextureLevel = max((float)Level + (float)MinMaxLevelOffset, 0);
-			float2 MinMaxHeight = UnPackMinMaxHeight(MinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, MinMaxTextureLevel));
+			float2 MinMaxHeight = UnPackMinMaxHeight(HeightMinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, MinMaxTextureLevel));
+			float2 MinMaxLodBias = UnPackMinMaxLodBias(LodBiasMinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, MinMaxTextureLevel), LodBiasScale);
 			
 			float3 UVMin = float3(UV0, MinMaxHeight.x);
 			float3 UVMax = float3(UV1, MinMaxHeight.y);
 
 			float3 UVCenter = (UVMax + UVMin) * 0.5f;
 			float3 UVExtent = UVMax - UVCenter;
+
+			float MinDistanceSq = SquaredMinDistanceToAABB(ViewOrigin, UVMin, UVMax, UVToWorldScale);
+			float MaxDistanceSq = SquaredMaxDistanceToAABB(ViewOrigin, UVMin, UVMax, UVToWorldScale);
+			float MinDistanceLod = CalculateDistanceLod(MinDistanceSq, LodDistances);
+			float MaxDistanceLod = CalculateDistanceLod(MaxDistanceSq, LodDistances);
 
 			// Check if frustum culled
 			bool bCull = !PlaneTestAABB(FrustumPlanes, UVCenter, UVExtent);
@@ -269,12 +286,8 @@ void CollectQuadsCS(
 			}
 			else if (Level > 0)
 			{
-				// Subdivide if any part of bbox could be inside the LOD range.
-				float DistanceSq = SquaredMinDistanceToAABB(ViewOrigin, UVMin, UVMax, UVToWorldScale) * LodDistances.w * LodDistances.w;
-				float LodDistance = LodDistances.x * (LodDistances.y - 1 + pow(LodDistances.z, Level - 1));
-				float LodDistanceSq = LodDistance * LodDistance;
-
-				bSubdivide = DistanceSq < LodDistanceSq;
+				// Subdivide if minimum continuous lod can be less than the current level.
+				bSubdivide = MinDistanceLod - MinMaxLodBias.y < (float)Level;
 			}
 
 			if (bSubdivide)
@@ -296,14 +309,30 @@ void CollectQuadsCS(
 				uint PhysicalAddress = PageTableTexture.Load(int3(Pos, Level));
 
 				uint Write;
-				InterlockedAdd(RWIndirectArgsBuffer[1], 1, Write);
-				InterlockedMax(RWIndirectArgsBuffer[5], ((Write + 1) + 63) / 64);
+				InterlockedAdd(RWIndirectArgsBuffer[3], 1, Write);
+				InterlockedMax(RWIndirectArgsBuffer[0], ((Write + 1) + 63) / 64);
 
 				RWQuadBuffer[Write] = Pack(InitQuadRenderItem(Pos, Level, PhysicalAddress, bCull || bOcclude));
 
+				// Add all possible pages that vertex shader might read to the virtual texture feedback buffer.
+				int MinFeedbackLevel = (int)floor(clamp(MinDistanceLod - MinMaxLodBias.y, Level, MaxLevel));
+				int MaxFeedbackLevel = (int)ceil(clamp(MaxDistanceLod - MinMaxLodBias.x, Level, MaxLevel));
+				uint NumFeedbackItems = (uint)max(MaxFeedbackLevel - MinFeedbackLevel + 1, 0);
+
+				uint FeedbackPos;
+				InterlockedAdd(RWFeedbackBuffer[0], NumFeedbackItems, FeedbackPos);
+				
+				for (int FeedbackLevel = MinFeedbackLevel; FeedbackLevel <= MaxFeedbackLevel; ++FeedbackLevel)
+				{
+					// Note that our general virtual texture feedback buffer convention is to write Level+1
+					uint LevelPlusOne = FeedbackLevel + 1;
+					uint LodShift = FeedbackLevel - Level;
+					RWFeedbackBuffer[FeedbackPos + FeedbackLevel] = (Pos.x >> LodShift) | ((Pos.y >> LodShift) << 12) | (LevelPlusOne << 24) | PageTableFeedbackId;
+				}
+
+				// Debug draw the bounds.
 				if (!(bCull || bOcclude))
 				{
-					// Debug draw the bounds.
 					DebugDrawUVBox(UVMin, UVMax, UVToWorld, float4(1, 0, 0, 1));
 				}
 			}
@@ -315,114 +344,6 @@ void CollectQuadsCS(
 		{
 			bExit = true;
 		}
-	}
-}
-
-/**
- * Vertex/Pixel shaders that draw the Lod info for all quads output by the Collect pass.
- */
-
-void RenderLodMapVS(
-	in uint InstanceId : SV_InstanceID,
-	in uint VertexId : SV_VertexID,
-	out float4 OutPosition : SV_POSITION,
-	out float OutLod : TEXCOORD0 )
-{
-	uint2 PackedItem = QuadBuffer[InstanceId];
-	QuadRenderItem Item = UnpackQuadRenderItem(PackedItem);
-	
-	// Calculate vertex position for this quad.
-	uint2 Pos = Item.Pos;
-	uint Level = Item.Level;
-	uint2 Offset = uint2((VertexId >> 0) & 1, (VertexId >> 1) & 1);
-	uint2 VertexPosLod0 = (Pos + Offset) << Level;
-	float2 NormalizedVertexPos = (float2)VertexPosLod0 * PageTableSize.zw;
-	
-	OutPosition.xy = NormalizedVertexPos * float2(2.f, -2.f) + float2(-1.f, 1.f);
-	OutPosition.zw = float2(0, 1);
-
-	// Calculate currently streamed level in the virtual texture for this quad.
-	uint Lod = GetVirtualLevelFromPhysicalAddress(Item.PhysicalAddress);
-	
-	// Pack along with culling state.
-	uint CullBit = Item.bCull ? 1 : 0;
-	float PackedLod = (float)(Lod | (CullBit << 7)) / 255.f;
-
-	OutLod = PackedLod;
-}
-
-void RenderLodMapPS(
-	in float4 InPosition : SV_POSITION,
-	in noperspective float InLod : TEXCOORD0,
-	out float4 OutColor : SV_Target0 )
-{
-	OutColor = float4(InLod, 0.f, 0.f, 1.f);
-}
-
-/**
- * Read the Lod info for the neighbors of each quad and resolve Lods at borders.
- */
-
-[numthreads(64, 4, 1)]
-void ResolveNeighborLodsCS( 
-	uint GroupId : SV_GroupID,
-	uint GroupIndex : SV_GroupIndex )
-{
-	// Process one neighbor per thread.
-	uint ThreadId = GroupId * 256 + GroupIndex;
-	uint QuadIndex = ThreadId >> 2;
-	uint NeighborIndex = ThreadId & 3;
-
-	if (QuadIndex >= IndirectArgsBufferSRV[1])
-		return;
-
-	uint2 PackedItem = QuadBuffer[QuadIndex];
-	QuadRenderItem Item = UnpackQuadRenderItem(PackedItem);
-	uint2 Pos = Item.Pos;
-	uint Level = Item.Level;
-	uint PhysicalAddress = Item.PhysicalAddress;
-
-	// Get sample location of neighbor in the LodTexture.
-	int2 SampleOffset = 0;
-	SampleOffset += (NeighborIndex == 0) ? int2(-1, 0) : 0;
-	SampleOffset += (NeighborIndex == 1) ? int2(0, (1 << Level)) : 0;
-	SampleOffset += (NeighborIndex == 2) ? int2((1 << Level), 0) : 0;
-	SampleOffset += (NeighborIndex == 3) ? int2(0, -1) : 0;
-
-	uint2 PosLod0 = Pos << Level;
-	int2 ClampedPosLod0 = clamp((int2)PosLod0 + SampleOffset, 0, (int2)PageTableSize.xy - 1);
-
-	// Read the neighbor Lod information.
-	float NeighborLodSample = LodTexture.Load(int3(ClampedPosLod0, 0));
-	uint NeighborLodPacked = (uint)floor(NeighborLodSample * 255.f);
-	uint NeighborLod = NeighborLodPacked & 0x7f;
-	bool bNeighborActive = (NeighborLodPacked >> 7) == 0;
-	
-	// Get the PhysicalAddress for the local location but sampling at the neighbor Lod.
-	// Note that this will be the same as the local PhysicalAddress if the Lods are the same.
-	uint LocalLod = GetVirtualLevelFromPhysicalAddress(PhysicalAddress);
-	uint LodShift = max(NeighborLod - LocalLod, 0u);
-	uint NeighborLodPhysicalAddress = PageTableTexture.Load(int3(Pos >> LodShift, Level + LodShift));
-
-	// We will need to blend if we are transitioning to an on-screen lower detail Lod.
-	bool bNeighborLerp = bNeighborActive && NeighborLod > LocalLod;
-	uint PhysicalAddressToWrite = bNeighborLerp ? NeighborLodPhysicalAddress : PhysicalAddress;
-
-	// Write the results to a flat buffer with neighbor entries per render item.
-	RWQuadNeighborBuffer[ThreadId] = Pack(InitQuadNeighborItem(PhysicalAddressToWrite, bNeighborLerp));
-
-
-	// Add requests to the virtual texture feedback buffer.
-	uint NumFeedbackItems = (NeighborIndex == 0) ? 2 : 1;
-	uint FeedbackPos;
-	InterlockedAdd(RWFeedbackBuffer[0], NumFeedbackItems, FeedbackPos);
-
-	// Note that our general virtual texture feedback buffer convention is to write Level+1
-	uint LevelPlusOne = Level + 1;
-	RWFeedbackBuffer[FeedbackPos + 1] = (Pos.x >> LodShift) | ((Pos.y >> LodShift) << 12) | ((LevelPlusOne + LodShift) << 24) | PageTableFeedbackId;
-	if (NeighborIndex == 0)
-	{
-		RWFeedbackBuffer[FeedbackPos + 2] = Pos.x | (Pos.y << 12) | (LevelPlusOne << 24) | PageTableFeedbackId;
 	}
 }
 
@@ -448,7 +369,7 @@ void InitInstanceBufferCS()
 void CullInstancesCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 {
 	uint QuadIndex = DispatchThreadId.x;
-	if (QuadIndex >= IndirectArgsBufferSRV[1])
+	if (QuadIndex >= IndirectArgsBufferSRV[3])
 		return;
 
 	uint2 PackedItem = QuadBuffer[QuadIndex];
@@ -465,7 +386,8 @@ void CullInstancesCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 	float2 UV0 = ((float2)Pos + float2(0, 0)) * Scale;
 	float2 UV1 = ((float2)Pos + float2(1, 1)) * Scale;
 
-	float2 MinMaxHeight = UnPackMinMaxHeight(MinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, (float)Level));
+	float MinMaxTextureLevel = max((float)Level + (float)MinMaxLevelOffset, 0);
+	float2 MinMaxHeight = UnPackMinMaxHeight(HeightMinMaxTexture.SampleLevel(MinMaxTextureSampler, UV0, MinMaxTextureLevel));
 
 	float3 UVMin = float3(UV0, MinMaxHeight.x);
 	float3 UVMax = float3(UV1, MinMaxHeight.y);
@@ -482,22 +404,11 @@ void CullInstancesCS( uint3 DispatchThreadId : SV_DispatchThreadID )
 		QuadRenderInstance OutInstance;
 		OutInstance.PosLevelPacked = Pos.x | (Pos.y << 12) | (Level << 24);
 
-		// Unpack physical address into full LocalToPhysicalUV here ready for use by vertex shader. 
-		// Could move unpacking to vertex shader if we want to balance memory bandwidth.
+		// Unpack physical address for first sample into full LocalToPhysicalUV here ready for use by vertex shader. 
 		OutInstance.UVTransform.xyz = GetVirtualToPhysicalUVTransform(Pos, Level, Item.PhysicalAddress, PhysicalPageTransform, NumPhysicalAddressBits);
-
-		[unroll]
-		for (int NeighborIndex = 0; NeighborIndex < 4; ++ NeighborIndex)
-		{
-			const uint PackedNeighborItem = QuadNeighborBuffer[QuadIndex * 4 + NeighborIndex];
-			const QuadNeighborItem NeighborItem = UnpackQuadNeighborItem(PackedNeighborItem);
-
-			OutInstance.NeigborUVTransform[NeighborIndex] = GetVirtualToPhysicalUVTransform(Pos, Level, NeighborItem.PhysicalAddress, PhysicalPageTransform, NumPhysicalAddressBits);
-		}
 
 		uint Write;
 		InterlockedAdd(RWIndirectArgsBuffer[1], 1, Write);
-
 		RWInstanceBuffer[Write] = OutInstance;
 	}
 }
