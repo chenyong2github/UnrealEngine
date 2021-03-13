@@ -2492,7 +2492,6 @@ const FMaterialRenderProxy* FColoredMaterialRenderProxy::GetFallback(ERHIFeature
  */
 TShaderRef<FShader> FMaterial::GetShader(FMeshMaterialShaderType* ShaderType, FVertexFactoryType* VertexFactoryType, int32 PermutationId, bool bFatalIfMissing) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::GetShader);
 #if WITH_EDITOR && DO_CHECK
 	// Attempt to get some more info for a rare crash (UE-35937)
 	FMaterialShaderMap* GameThreadShaderMapPtr = GameThreadShaderMap;
@@ -2502,6 +2501,8 @@ TShaderRef<FShader> FMaterial::GetShader(FMeshMaterialShaderType* ShaderType, FV
 	FShader* Shader = MeshShaderMap ? MeshShaderMap->GetShader(ShaderType, PermutationId) : nullptr;
 	if (!Shader)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FMaterial::GetShader);
+
 		if (bFatalIfMissing)
 		{
 			auto noinline_lambda = [&](...) FORCENOINLINE

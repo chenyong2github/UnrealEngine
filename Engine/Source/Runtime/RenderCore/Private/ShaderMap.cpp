@@ -277,7 +277,8 @@ static uint16 MakeShaderHash(const FHashedName& TypeName, int32 PermutationId)
 
 FShader* FShaderMapContent::GetShader(const FHashedName& TypeName, int32 PermutationId) const
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapContent::GetShader);
+	// TRACE_CPUPROFILER_EVENT_SCOPE(FShaderMapContent::GetShader); -- this function is called too frequently, so don't add the scope by default
+
 	const uint16 Hash = MakeShaderHash(TypeName, PermutationId);
 	const FHashedName* RESTRICT LocalShaderTypes = ShaderTypes.GetData();
 	const int32* RESTRICT LocalShaderPermutations = ShaderPermutations.GetData();
