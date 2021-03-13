@@ -100,7 +100,7 @@ public:
 	// GPU Lightmass manages a pool for calculations of visible tiles. The pool size should be set based on the size of the
 	// viewport and how many tiles will be visible on screen at once. Increasing this number increases GPU memory usage.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = System, meta = (ClampMin = "16", ClampMax = "128"))
-	int32 LightmapTilePoolSize = 40;
+	int32 LightmapTilePoolSize = 55;
 
 public:
 	void GatherSettingsFromCVars();
@@ -146,6 +146,15 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = GPULightmass)
 	void EndRecordingVisibleTiles();
+
+	UFUNCTION(BlueprintCallable, Category = GPULightmass)
+	int32 GetPercentage();
+
+	UFUNCTION(BlueprintCallable, Category = GPULightmass)
+	void SetRealtime(bool bInRealtime);
+
+	UFUNCTION(BlueprintCallable, Category = GPULightmass)
+	void Save();
 
 private:
 	AGPULightmassSettingsActor* GetSettingsActor();

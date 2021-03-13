@@ -146,6 +146,7 @@ void FGPULightmass::OnLightComponentRegistered(ULightComponentBase* InComponent)
 {
 	if (InComponent->GetWorld() != World) return;
 
+	if (!InComponent->IsRegistered()) return;
 	if (!InComponent->IsVisible()) return;
 
 	if (UDirectionalLightComponent* DirectionalLight = Cast<UDirectionalLightComponent>(InComponent))
@@ -291,6 +292,7 @@ void FGPULightmass::OnMaterialInvalidated(FMaterialRenderProxy* Material)
 void FGPULightmass::StartRecordingVisibleTiles() 
 {
 	ENQUEUE_RENDER_COMMAND(BackgroundTickRenderThread)([&RenderState = Scene.RenderState](FRHICommandListImmediate&) mutable {
+		RenderState.LightmapRenderer->RecordedTileRequests.Empty();
 		RenderState.LightmapRenderer->bIsRecordingTileRequests = true;
 	});
 }

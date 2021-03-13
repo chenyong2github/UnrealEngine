@@ -230,7 +230,7 @@ void PathTracingKernel(
 		else
 		{
 			Ray.TMin = 0.01;
-			Ray.TMax = 1e20;
+			Ray.TMax = POSITIVE_INFINITY;
 		
 			Payload = TraceMaterialRay(
 				TLAS,

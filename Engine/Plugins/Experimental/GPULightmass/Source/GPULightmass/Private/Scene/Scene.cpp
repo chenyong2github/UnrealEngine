@@ -1752,10 +1752,10 @@ void FSceneRenderState::BackgroundTick()
 		uint64 SamplesTaken = 0;
 		uint64 TotalSamples = 0;
 
-		if (!LightmapRenderer->bOnlyBakeWhatYouSee)
+		// Count work has been done
+		for (FLightmapRenderState& Lightmap : LightmapRenderStates.Elements)
 		{
-			// Count work has been done
-			for (FLightmapRenderState& Lightmap : LightmapRenderStates.Elements)
+			if (!LightmapRenderer->bOnlyBakeWhatYouSee)
 			{
 				for (int32 Y = 0; Y < Lightmap.GetPaddedSizeInTiles().Y; Y++)
 				{
@@ -1770,14 +1770,15 @@ void FSceneRenderState::BackgroundTick()
 					}
 				}
 			}
-
-			{
-				int32 NumCellsPerBrick = 5 * 5 * 5;
-				SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
-				TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples * VolumetricLightmapRenderer->GetGISamplesMultiplier();
-			}
 		}
-		else
+
+		{
+			int32 NumCellsPerBrick = 5 * 5 * 5;
+			SamplesTaken += VolumetricLightmapRenderer->SamplesTaken;
+			TotalSamples += (uint64)VolumetricLightmapRenderer->NumTotalBricks * NumCellsPerBrick * Settings->GISamples * VolumetricLightmapRenderer->GetGISamplesMultiplier();
+		}
+
+		if (LightmapRenderer->bOnlyBakeWhatYouSee)
 		{
 			if (LightmapRenderer->RecordedTileRequests.Num() > 0)
 			{
@@ -1806,7 +1807,12 @@ void FSceneRenderState::BackgroundTick()
 			}
 		}
 
-		FPlatformAtomics::InterlockedExchange(&Percentage, FMath::Max(FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples), 0));
+		int32 IntPercentage = FMath::FloorToInt(SamplesTaken * 100.0 / TotalSamples);
+		IntPercentage = FMath::Max(IntPercentage, 0);
+		// With high number of samples (like 8192) double precision isn't enough to prevent fake 100%s
+		IntPercentage = FMath::Min(IntPercentage, SamplesTaken < TotalSamples ? 99 : 100);
+
+		FPlatformAtomics::InterlockedExchange(&Percentage, IntPercentage);
 	}
 }
 
@@ -1933,6 +1939,9 @@ void GatherBuildDataResourcesToKeep(const ULevel* InLevel, ULevel* LightingScena
 
 void FScene::ApplyFinishedLightmapsToWorld()
 {
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTexturedLightmaps"));
+	const bool bUseVirtualTextures = (CVar->GetValueOnAnyThread() != 0) && UseVirtualTexturing(GMaxRHIFeatureLevel);
+
 	UWorld* World = GPULightmass->World;
 
 	{
@@ -2379,28 +2388,43 @@ void FScene::ApplyFinishedLightmapsToWorld()
 									StaticMeshComponent->MarkPackageDirty();
 								}
 
+								ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
+								const bool bHasNonZeroData = QuantizedLightmapData->HasNonZeroData();
+
+								ULevel* StorageLevel = LightingScenario ? LightingScenario : StaticMeshComponent->GetOwner()->GetLevel();
+								UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
+
 								FStaticMeshComponentLODInfo& ComponentLODInfo = StaticMeshComponent->LODData[LODIndex];
+
+								// Detect duplicated MapBuildDataId
+								if (Registry->GetMeshBuildDataDuringBuild(ComponentLODInfo.MapBuildDataId))
+								{
+									ComponentLODInfo.MapBuildDataId.Invalidate();
+
+									if (LODIndex > 0)
+									{
+										// Non-zero LODs derive their MapBuildDataId from LOD0. In this case also regenerate LOD0 GUID
+										StaticMeshComponent->LODData[0].MapBuildDataId.Invalidate();
+										check(StaticMeshComponent->LODData[0].CreateMapBuildDataId(0));
+									}
+								}
 
 								if (ComponentLODInfo.CreateMapBuildDataId(LODIndex))
 								{
 									StaticMeshComponent->MarkPackageDirty();
 								}
 
-								ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
-								const bool bHasNonZeroData = QuantizedLightmapData->HasNonZeroData();
-
-								ULevel* StorageLevel = LightingScenario ? LightingScenario : StaticMeshComponent->GetOwner()->GetLevel();
-								UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 								FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(ComponentLODInfo.MapBuildDataId, true);
 
 								const bool bNeedsLightMap = true;// bHasNonZeroData;
 								if (bNeedsLightMap)
 								{
 									// Create a light-map for the primitive.
+									TMap<ULightComponent*, FShadowMapData2D*> EmptyShadowMapData;
 									MeshBuildData.LightMap = FLightMap2D::AllocateLightMap(
 										Registry,
 										QuantizedLightmapData,
-										ShadowMaps,
+										bUseVirtualTextures ? ShadowMaps : EmptyShadowMapData,
 										StaticMeshComponent->Bounds,
 										PaddingType,
 										LMF_Streamed
@@ -2410,6 +2434,21 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								{
 									MeshBuildData.LightMap = NULL;
 									delete QuantizedLightmapData;
+								}
+
+								if (ShadowMaps.Num() > 0 && !bUseVirtualTextures)
+								{
+									MeshBuildData.ShadowMap = FShadowMap2D::AllocateShadowMap(
+										Registry,
+										ShadowMaps,
+										StaticMeshComponent->Bounds,
+										PaddingType,
+										SMF_Streamed
+									);
+								}
+								else
+								{
+									MeshBuildData.ShadowMap = NULL;
 								}
 							}
 						}
@@ -2670,15 +2709,29 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						// Ensure LODData has enough entries in it, free not required.
 						InstanceGroup.ComponentUObject->SetLODDataCount(ResolvedMesh->GetNumLODs(), ResolvedMesh->GetNumLODs());
 
+						ULevel* StorageLevel = LightingScenario ? LightingScenario : InstanceGroup.ComponentUObject->GetOwner()->GetLevel();
+						UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
+
 						FStaticMeshComponentLODInfo& ComponentLODInfo = InstanceGroup.ComponentUObject->LODData[LODIndex];
+						
+						// Detect duplicated MapBuildDataId
+						if (Registry->GetMeshBuildDataDuringBuild(ComponentLODInfo.MapBuildDataId))
+						{
+							ComponentLODInfo.MapBuildDataId.Invalidate();
+
+							if (LODIndex > 0)
+							{
+								// Non-zero LODs derive their MapBuildDataId from LOD0. In this case also regenerate LOD0 GUID
+								InstanceGroup.ComponentUObject->LODData[0].MapBuildDataId.Invalidate();
+								check(InstanceGroup.ComponentUObject->LODData[0].CreateMapBuildDataId(0));
+							}
+						}
 
 						if (ComponentLODInfo.CreateMapBuildDataId(LODIndex))
 						{
 							InstanceGroup.ComponentUObject->MarkPackageDirty();
 						}
 
-						ULevel* StorageLevel = LightingScenario ? LightingScenario : InstanceGroup.ComponentUObject->GetOwner()->GetLevel();
-						UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
 						FMeshMapBuildData& MeshBuildData = Registry->AllocateMeshBuildData(InstanceGroup.ComponentUObject->LODData[LODIndex].MapBuildDataId, true);
 
 						MeshBuildData.PerInstanceLightmapData.Empty(InstancedSourceQuantizedData.Num());
@@ -2688,12 +2741,22 @@ void FScene::ApplyFinishedLightmapsToWorld()
 						// When using VT, shadow map data is included with lightmap allocation
 						const ELightMapPaddingType PaddingType = GAllowLightmapPadding ? LMPT_NormalPadding : LMPT_NoPadding;
 
+						TArray<TMap<ULightComponent*, TUniquePtr<FShadowMapData2D>>> EmptyShadowMapData;
 						TRefCountPtr<FLightMap2D> NewLightMap = FLightMap2D::AllocateInstancedLightMap(Registry, InstanceGroup.ComponentUObject,
 							MoveTemp(InstancedSourceQuantizedData),
-							MoveTemp(InstancedShadowMapData),
+							bUseVirtualTextures ? MoveTemp(InstancedShadowMapData) : MoveTemp(EmptyShadowMapData),
 							Registry, InstanceGroup.ComponentUObject->LODData[LODIndex].MapBuildDataId, InstanceGroup.ComponentUObject->Bounds, PaddingType, LMF_Streamed);
 
 						MeshBuildData.LightMap = NewLightMap;
+
+						if (InstancedShadowMapData.Num() > 0 && !bUseVirtualTextures)
+						{
+							TRefCountPtr<FShadowMap2D> NewShadowMap = FShadowMap2D::AllocateInstancedShadowMap(Registry, InstanceGroup.ComponentUObject,
+								MoveTemp(InstancedShadowMapData),
+								Registry, InstanceGroup.ComponentUObject->LODData[LODIndex].MapBuildDataId, InstanceGroup.ComponentUObject->Bounds, PaddingType, SMF_Streamed);
+
+							MeshBuildData.ShadowMap = NewShadowMap;
+						}
 
 						FTileDataLayer::Evict();
 					}
@@ -2875,10 +2938,11 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							if (bNeedsLightMap)
 							{
 								// Create a light-map for the primitive.
+								TMap<ULightComponent*, FShadowMapData2D*> EmptyShadowMapData;
 								MeshBuildData.LightMap = FLightMap2D::AllocateLightMap(
 									Registry,
 									QuantizedLightmapData,
-									ShadowMaps,
+									bUseVirtualTextures ? ShadowMaps : EmptyShadowMapData,
 									LandscapeComponent->Bounds,
 									PaddingType,
 									LMF_Streamed
@@ -2888,6 +2952,21 @@ void FScene::ApplyFinishedLightmapsToWorld()
 							{
 								MeshBuildData.LightMap = NULL;
 								delete QuantizedLightmapData;
+							}
+
+							if (ShadowMaps.Num() > 0 && !bUseVirtualTextures)
+							{
+								MeshBuildData.ShadowMap = FShadowMap2D::AllocateShadowMap(
+									Registry,
+									ShadowMaps,
+									LandscapeComponent->Bounds,
+									PaddingType,
+									SMF_Streamed
+								);
+							}
+							else
+							{
+								MeshBuildData.ShadowMap = NULL;
 							}
 
 							if (ALandscapeProxy* Proxy = Cast<ALandscapeProxy>(LandscapeComponent->GetOuter()))
