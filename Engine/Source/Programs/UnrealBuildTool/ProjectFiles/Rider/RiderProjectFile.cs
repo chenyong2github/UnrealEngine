@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Tools.DotNETCommon;
 
 namespace UnrealBuildTool
@@ -51,6 +52,11 @@ namespace UnrealBuildTool
 			List<Tuple<FileReference, UEBuildTarget>> FileToTarget = new List<Tuple<FileReference, UEBuildTarget>>();
 			foreach (UnrealTargetPlatform Platform in InPlatforms)
 			{
+				if (!IsPlatformInHostGroup(Platform))
+				{
+					continue;
+				}
+				
 				foreach (UnrealTargetConfiguration Configuration in InConfigurations)
 				{
 					foreach (ProjectTarget ProjectTarget in ProjectTargets)
@@ -112,6 +118,21 @@ namespace UnrealBuildTool
 			}
 			
 			return true;
+		}
+
+		private bool IsPlatformInHostGroup(UnrealTargetPlatform Platform)
+		{
+			var Groups = UEBuildPlatform.GetPlatformGroups(BuildHostPlatform.Current.Platform);
+			foreach(UnrealPlatformGroup Group in Groups)
+			{
+				// Desktop includes Linux, Mac and Windows.
+				if (UEBuildPlatform.IsPlatformInGroup(Platform, Group) && Group != UnrealPlatformGroup.Desktop) 
+				{
+					return true;
+				}
+			}
+			
+			return false;
 		}
 
 		private void SerializeTarget(FileReference OutputFile, UEBuildTarget BuildTarget, JsonWriterStyle Minimize)
@@ -467,7 +488,46 @@ namespace UnrealBuildTool
 					Writer.WriteValue(Path);
 				}
 			}
-			// TODO: get corresponding includes for Linux
+			else if(UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Linux) ||
+			        UEBuildPlatform.IsPlatformInGroup(Target.Platform, UnrealPlatformGroup.Unix))
+			{
+				var EngineDirectory = UnrealBuildTool.EngineDirectory.ToString();
+
+				string UseLibcxxEnvVarOverride = Environment.GetEnvironmentVariable("UE4_LINUX_USE_LIBCXX");
+				if (string.IsNullOrEmpty(UseLibcxxEnvVarOverride) || UseLibcxxEnvVarOverride == "1")
+				{
+					if (Target.Architecture.StartsWith("x86_64") ||
+					    Target.Architecture.StartsWith("aarch64") ||
+					    Target.Architecture.StartsWith("i686"))
+					{
+						// libc++ include directories
+						Writer.WriteValue(Path.Combine(EngineDirectory, "Source/ThirdParty/Linux/LibCxx/include/"));
+						Writer.WriteValue(Path.Combine(EngineDirectory, "Source/ThirdParty/Linux/LibCxx/include/c++/v1"));
+					}
+				}
+
+				UEBuildPlatform BuildPlatform;
+
+				if (Target.Architecture.StartsWith("x86_64") || Target.Architecture.StartsWith("i686"))
+				{
+					BuildPlatform = UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.Linux);
+				}
+				else if (Target.Architecture.StartsWith("aarch64"))
+				{
+					BuildPlatform = UEBuildPlatform.GetBuildPlatform(UnrealTargetPlatform.LinuxAArch64);
+				}
+				else
+				{
+					throw new ArgumentException("Wrong Target.Architecture: {0}", Target.Architecture);
+				}
+				
+				var Version = GetLinuxToolchainVersionFromFullString(BuildPlatform.GetRequiredSDKString());
+
+				var InternalSdkPath = LinuxPlatformSDK.GetInternalSDKPath();
+				Writer.WriteValue(Path.Combine(InternalSdkPath, "include"));
+				Writer.WriteValue(Path.Combine(InternalSdkPath, "usr/include"));
+				Writer.WriteValue(Path.Combine(InternalSdkPath, "lib/clang/" + Version + "/include/"));
+			}
 			
 			Writer.WriteArrayEnd();
 	
@@ -558,6 +618,32 @@ namespace UnrealBuildTool
 			}
 				
 			return ToolchainInfo; 
+		}
+		
+		/// <summary>
+		/// Get clang toolchain version from full version string
+		/// v17_clang-10.0.1-centos7 -> 10.0.1
+		/// </summary>
+		/// <param name="FullVersion">Full clang toolchain version string. example: "v17_clang-10.0.1-centos7"</param>
+		/// <returns>clang toolchain version. example: 10.0.1</returns>
+		private string GetLinuxToolchainVersionFromFullString(string FullVersion)
+		{
+			string FullVersionPattern = @"^v[0-9]+_.*-([0-9]+\.[0-9]+\.[0-9]+)-.*$";
+			Regex Regex = new Regex(FullVersionPattern);
+			Match m = Regex.Match(FullVersion);
+			if (!m.Success)
+			{
+				throw new ArgumentException("Wrong full version string: {0}", FullVersion);
+			}
+
+			Group g = m.Groups[1]; // first and the last capture group 
+			CaptureCollection c = g.Captures;
+			if (c.Count != 1)
+			{
+				throw new ArgumentException("Multiple regex capture in full version string: {0}", FullVersion);
+			}
+
+			return c[0].Value;
 		}
 
 		private class XcrunRunner
