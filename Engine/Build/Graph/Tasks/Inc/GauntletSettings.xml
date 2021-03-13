@@ -22,10 +22,6 @@
 	<!-- How long to give Gauntlet before a test is considered timed out (some tests will time out earlier if they detect inactivity)-->
 	<Option Name="GauntletTimeout" DefaultValue="3600" Description="Max running time of a test in Gauntlet"/>
 	
-	<!-- Create the -build argument for Gauntlet based on whether builds are local or on the network-->
-	<Property Name="GauntletBuildRoot" Value="$(ProjectOutputDirectory)" />
-	<Property Name="GauntletBuildRoot" Value="$(ProjectPublishPath)" If ="'$(ProjectPublishPath)' != ''" />
-
 	<Property Name="GauntletCommonArgs" Value="-maxduration=$(GauntletTimeOut) -unattended -verbose" />
 
 	<Property Name="GauntletDeviceArgs" Value="" />

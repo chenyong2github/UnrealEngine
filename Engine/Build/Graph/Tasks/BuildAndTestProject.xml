@@ -281,8 +281,9 @@
 			<Property Name="TestPrerequisites" Value="$(PlatformEditorNodeName)" />
 			<!-- Run through all configs -->
 			<ForEach Name="TestConfiguration" Values="$(TestConfigurations)" Separator="+">
-				<!-- Location of the build for this configuration -->
-				<Property Name="GauntletBuildArg" Value="-build=&quot;$(GauntletBuildRoot)/$(TestConfiguration)&quot;" />
+				<!-- Create the -build argument for Gauntlet based on whether builds are local or on the network-->
+				<Property Name="GauntletBuildArg" Value="-build=&quot;$(ProjectOutputDirectory)/$(TestConfiguration)&quot;" />
+				<Property Name="GauntletBuildArg" Value="-build=&quot;$(ProjectPublishPath)/$(TestConfiguration)&quot;" If ="'$(ProjectPublishPath)' != ''" />
 				<!-- Declare a boot test for the target-->	
 				<Property Name="BootTestName" Value="$(DisplayTargetName) $(TargetPlatform) $(TestConfiguration) BootTest" />
 				<Node Name="$(BootTestName)" After="$(PlatformPublishNodeName) $(TestConfiguration)">
