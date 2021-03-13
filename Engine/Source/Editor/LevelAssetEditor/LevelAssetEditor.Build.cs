@@ -26,6 +26,7 @@ public class LevelAssetEditor : ModuleRules
 			new string[]
 			{
 				"Core",
+				"EditorInteractiveToolsFramework",
 				"InteractiveToolsFramework",
 				"ToolMenus",
 				"TypedElementFramework",

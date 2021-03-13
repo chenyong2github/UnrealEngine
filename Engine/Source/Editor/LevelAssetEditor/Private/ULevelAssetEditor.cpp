@@ -2,9 +2,9 @@
 
 #include "ULevelAssetEditor.h"
 
+#include "EditorModeManager.h"
 #include "LevelAssetEditorToolkit.h"
 #include "Engine/Level.h"
-#include "InteractiveToolsContext.h"
 
 void ULevelAssetEditor::GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit)
 {
@@ -13,10 +13,5 @@ void ULevelAssetEditor::GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit)
 
 TSharedPtr<FBaseAssetToolkit> ULevelAssetEditor::CreateToolkit()
 {
-	if (!InteractiveToolsContext)
-	{
-		InteractiveToolsContext = NewObject<UInteractiveToolsContext>(this);
-	}
-
-	return MakeShared<FLevelEditorAssetToolkit>(this, InteractiveToolsContext);
+	return MakeShared<FLevelEditorAssetToolkit>(this);
 }

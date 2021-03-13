@@ -2,9 +2,9 @@
 
 #include "UExampleAssetEditor.h"
 
+#include "EditorModeManager.h"
 #include "ExampleAssetToolkit.h"
 #include "Engine/Level.h"
-#include "InteractiveToolsContext.h"
 
 void UExampleAssetEditor::GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit)
 {
@@ -13,10 +13,5 @@ void UExampleAssetEditor::GetObjectsToEdit(TArray<UObject*>& InObjectsToEdit)
 
 TSharedPtr<FBaseAssetToolkit> UExampleAssetEditor::CreateToolkit()
 {
-	if (!InteractiveToolsContext)
-	{
-		InteractiveToolsContext = NewObject<UInteractiveToolsContext>(this);
-	}
-
-	return MakeShared<FExampleAssetToolkit>(this, InteractiveToolsContext);
+	return MakeShared<FExampleAssetToolkit>(this);
 }

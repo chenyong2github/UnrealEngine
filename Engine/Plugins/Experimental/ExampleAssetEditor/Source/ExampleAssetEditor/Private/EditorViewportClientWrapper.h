@@ -4,7 +4,6 @@
 
 #include "EditorViewportClient.h"
 
-class UInteractiveToolsContext;
 class FEditorModeTools;
 class FPreviewScene;
 class SEditorViewport;
@@ -16,8 +15,5 @@ class FEditorViewportClientWrapper
 	: public FEditorViewportClient
 {
 public:
-	FEditorViewportClientWrapper(UInteractiveToolsContext* InToolsContext, FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene = nullptr, const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
-
-protected:
-	UInteractiveToolsContext* ToolsContext;
+	FEditorViewportClientWrapper(FEditorModeTools* InModeTools, FPreviewScene* InPreviewScene = nullptr, const TWeakPtr<SEditorViewport>& InEditorViewportWidget = nullptr);
 };

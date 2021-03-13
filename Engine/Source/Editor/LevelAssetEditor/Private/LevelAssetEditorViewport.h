@@ -4,7 +4,6 @@
 
 #include "SLevelViewport.h"
 
-class UInputRouter;
 class FLevelEditorViewportInterfaceWrapper;
 class FEditorViewportClient;
 
@@ -21,6 +20,5 @@ public:
 	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
 
 protected:
-	UInputRouter* InputRouter;
 	TSharedPtr<FLevelEditorViewportInterfaceWrapper> SlateInputWrapper;
 };

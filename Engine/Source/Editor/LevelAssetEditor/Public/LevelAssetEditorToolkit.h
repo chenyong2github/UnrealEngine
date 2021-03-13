@@ -4,17 +4,14 @@
 #include "Tools/BaseAssetToolkit.h"
 #include "Delegates/IDelegateInstance.h"
 
-class FLevelEditorToolsContextQueriesImpl;
-class FLevelEditorContextTransactionImpl;
 class SEditorViewport;
 class FEditorViewportClient;
 class UAssetEditor;
-class UInteractiveToolsContext;
 
 class FLevelEditorAssetToolkit : public FBaseAssetToolkit
 {
 public:
-	FLevelEditorAssetToolkit(UAssetEditor* InOwningAssetEditor, UInteractiveToolsContext* InContext);
+	FLevelEditorAssetToolkit(UAssetEditor* InOwningAssetEditor);
 	virtual ~FLevelEditorAssetToolkit();
 
 
@@ -26,8 +23,4 @@ protected:
 	// End Base Asset Toolkit overrides
 
 	void AddInputBehaviorsForEditorClientViewport(TSharedPtr<FEditorViewportClient>& InViewportClient) const;
-
-	UInteractiveToolsContext* ToolsContext;
-	TSharedPtr<FLevelEditorToolsContextQueriesImpl> ToolsContextQueries;
-	TSharedPtr<FLevelEditorContextTransactionImpl> ToolsContextTransactions;
 };

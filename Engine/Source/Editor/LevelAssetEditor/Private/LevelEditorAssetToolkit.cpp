@@ -2,24 +2,13 @@
 
 #include "LevelAssetEditorToolkit.h"
 
-#include "AssetEditorModeManager.h"
-#include "Tools/UAssetEditor.h"
-#include "LevelAssetEditorViewportClient.h"
-#include "InteractiveToolsContext.h"
-#include "LevelEditorToolsContextInterfaces.h"
-#include "LevelAssetEditorViewport.h"
-#include "Viewports.h"
 #include "EditorModeManager.h"
+#include "LevelAssetEditorViewportClient.h"
+#include "LevelAssetEditorViewport.h"
 
-FLevelEditorAssetToolkit::FLevelEditorAssetToolkit(UAssetEditor* InOwningAssetEditor, UInteractiveToolsContext* InContext)
+FLevelEditorAssetToolkit::FLevelEditorAssetToolkit(UAssetEditor* InOwningAssetEditor)
     : FBaseAssetToolkit(InOwningAssetEditor)
-	, ToolsContext(InContext)
 {
-	check(ToolsContext);
-
-	ToolsContextQueries = MakeShareable(new FLevelEditorToolsContextQueriesImpl(ToolsContext));
-	ToolsContextTransactions = MakeShareable(new FLevelEditorContextTransactionImpl);
-	ToolsContext->Initialize(ToolsContextQueries.Get(), ToolsContextTransactions.Get());
 }
 
 FLevelEditorAssetToolkit::~FLevelEditorAssetToolkit()
@@ -31,8 +20,7 @@ AssetEditorViewportFactoryFunction FLevelEditorAssetToolkit::GetViewportDelegate
 	AssetEditorViewportFactoryFunction TempViewportDelegate = [this](const FAssetEditorViewportConstructionArgs InArgs)
 	{
 		return SNew(SLevelAssetEditorViewport, InArgs)
-			.EditorViewportClient(ViewportClient)
-			.InputRouter(ToolsContext->InputRouter);
+			.EditorViewportClient(ViewportClient);
 	};
 
 	return TempViewportDelegate;
@@ -41,7 +29,7 @@ AssetEditorViewportFactoryFunction FLevelEditorAssetToolkit::GetViewportDelegate
 TSharedPtr<FEditorViewportClient> FLevelEditorAssetToolkit::CreateEditorViewportClient() const
 {
 	// Leaving the preview scene to nullptr default creates us a viewport that mirrors the main level editor viewport
-	TSharedPtr<FEditorViewportClient> WrappedViewportClient = MakeShared<FLevelAssetEditorViewportClient>(ToolsContext, EditorModeManager.Get(), nullptr);
+	TSharedPtr<FEditorViewportClient> WrappedViewportClient = MakeShared<FLevelAssetEditorViewportClient>(EditorModeManager.Get(), nullptr);
 	WrappedViewportClient->SetViewLocation(EditorViewportDefs::DefaultPerspectiveViewLocation);
 	WrappedViewportClient->SetViewRotation(EditorViewportDefs::DefaultPerspectiveViewRotation);
 	return WrappedViewportClient;

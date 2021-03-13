@@ -4,7 +4,6 @@
 
 #include "SAssetEditorViewport.h"
 
-class UInputRouter;
 class FSlateViewportInterfaceWrapper;
 class FEditorViewportClient;
 
@@ -15,12 +14,10 @@ class SExampleAssetEditorViewport
 public:
 	SLATE_BEGIN_ARGS(SExampleAssetEditorViewport) {}
 		SLATE_ARGUMENT(TSharedPtr<FEditorViewportClient>, EditorViewportClient)
-		SLATE_ARGUMENT(UInputRouter*, InputRouter)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const FAssetEditorViewportConstructionArgs& InViewportConstructionArgs);
 
 protected:
-	UInputRouter* InputRouter;
 	TSharedPtr<FSlateViewportInterfaceWrapper> SlateInputWrapper;
 };

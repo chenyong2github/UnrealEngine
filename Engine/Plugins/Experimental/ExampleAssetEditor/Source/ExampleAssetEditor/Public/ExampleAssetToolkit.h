@@ -2,19 +2,14 @@
 #pragma once
 
 #include "Tools/BaseAssetToolkit.h"
-#include "Delegates/IDelegateInstance.h"
 
-class FToolsContextQueriesImpl;
-class FToolsContextTransactionImpl;
-class SEditorViewport;
 class FEditorViewportClient;
 class UAssetEditor;
-class UInteractiveToolsContext;
 
 class FExampleAssetToolkit : public FBaseAssetToolkit
 {
 public:
-	FExampleAssetToolkit(UAssetEditor* InOwningAssetEditor, UInteractiveToolsContext* InContext);
+	FExampleAssetToolkit(UAssetEditor* InOwningAssetEditor);
 	virtual ~FExampleAssetToolkit();
 
 
@@ -26,8 +21,4 @@ protected:
 	// End Base Asset Toolkit overrides
 
 	void AddInputBehaviorsForEditorClientViewport(TSharedPtr<FEditorViewportClient>& InViewportClient) const;
-
-	UInteractiveToolsContext* ToolsContext;
-	TSharedPtr<FToolsContextQueriesImpl> ToolsContextQueries;
-	TSharedPtr<FToolsContextTransactionImpl> ToolsContextTransactions;
 };
