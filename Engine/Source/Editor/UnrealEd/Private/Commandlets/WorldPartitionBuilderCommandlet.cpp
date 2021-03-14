@@ -7,6 +7,7 @@
 #include "EngineUtils.h"
 #include "Editor.h"
 #include "Logging/LogMacros.h"
+#include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
 #include "HAL/PlatformFileManager.h"
 #include "ProfilingDebugging/ScopedTimers.h"
@@ -20,6 +21,52 @@ DEFINE_LOG_CATEGORY_STATIC(LogWorldPartitionBuilderCommandlet, All, All);
 UWorldPartitionBuilderCommandlet::UWorldPartitionBuilderCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {}
+
+UWorldPartitionBuilder* UWorldPartitionBuilderCommandlet::CreateBuilder(const FString& WorldConfigFilename)
+{
+	// Parse builder class name
+	FString BuilderClassName;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("Builder="), BuilderClassName, false))
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Invalid builder name."));
+		return nullptr;
+	}
+
+	UClass* BuilderClass = FindObject<UClass>(ANY_PACKAGE, *BuilderClassName);
+
+	if (!BuilderClass)
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);
+		return nullptr;
+	}
+
+	// Create builder instance
+	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(this, BuilderClass);
+	check(Builder);
+
+	Builder->AddToRoot();
+
+	// Validate builder settings
+	if (Builder->RequiresCommandletRendering() && !IsAllowCommandletRendering())
+	{
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("The option \"-AllowCommandletRendering\" must be provided for the %s process to work"), *BuilderClassName);
+		return nullptr;
+	}
+
+	// Load configuration file
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
+	{
+		LoadConfig(GetClass(), *WorldConfigFilename);
+	}
+
+	// Load builder configuration
+	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
+	{
+		Builder->LoadConfig(BuilderClass, *WorldConfigFilename);
+	}
+
+	return Builder;
+}
 
 int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 {
@@ -49,12 +96,18 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	// Load configuration file
 	FString WorldConfigFilename = FPaths::ChangeExtension(WorldFilename, TEXT("ini"));
-	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
+
+	// Create builder instance
+	UWorldPartitionBuilder* Builder = CreateBuilder(WorldConfigFilename);
+	if (!Builder)
 	{
-		LoadConfig(GetClass(), *WorldConfigFilename);
+		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Failed to create builder, exiting."));
+		return 1;
 	}
+
+	// Perform builder pre world initialisation
+	Builder->PreWorldInitialization(*this);
 
 	// Load the map package
 	UPackage* MapPackage = LoadPackage(NULL, *Tokens[0], LOAD_None);
@@ -112,45 +165,10 @@ int32 UWorldPartitionBuilderCommandlet::Main(const FString& Params)
 	WorldContext.SetCurrentWorld(World);
 	GWorld = World;
 
-	// Parse builder class name
-	FString BuilderClassName;
-	if (!FParse::Value(*Params, TEXT("Builder="), BuilderClassName, false))
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Invalid builder name."));
-		return 1;
-	}
-
-	UClass* BuilderClass = FindObject<UClass>(ANY_PACKAGE, *BuilderClassName);
-
-	if (!BuilderClass)
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("Unknown builder %s."), *BuilderClassName);
-		return 1;
-	}
-
-	// Create builder instance
-	UWorldPartitionBuilder* Builder = NewObject<UWorldPartitionBuilder>(this, BuilderClass);
-	check(Builder);
-
-	Builder->AddToRoot();
-	
-	// Validate builder settings
-	if (Builder->RequiresCommandletRendering() && !IsAllowCommandletRendering())
-	{
-		UE_LOG(LogWorldPartitionBuilderCommandlet, Error, TEXT("The option \"-AllowCommandletRendering\" must be provided for the %s process to work"), *BuilderClassName);
-		return 1;
-	}
-
 	if (Builder->RequiresEntireWorldLoading())
 	{
 		const FBox LoadBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
 		WorldPartition->LoadEditorCells(LoadBox);
-	}
-
-	// Load builder configuration
-	if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*WorldConfigFilename))
-	{
-		Builder->LoadConfig(BuilderClass, *WorldConfigFilename);
 	}
 
 	// Run builder
