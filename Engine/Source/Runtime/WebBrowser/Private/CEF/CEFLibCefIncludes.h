@@ -1,10 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
 
 #if WITH_CEF3
-
-#ifndef OVERRIDE
-#	define OVERRIDE override
-#endif //OVERRIDE
 
 #if PLATFORM_WINDOWS
 #	include "Windows/WindowsHWrapper.h"
