@@ -260,6 +260,9 @@ namespace Metasound
 		{
 			// We need to initialize the output value to *something*
 			*OutputValue = *MinValue;
+
+			EvaluateSeedChanges();
+			RandomStream.Reset();
 		}
 
 		virtual ~TRandomNodeOperator() = default;
