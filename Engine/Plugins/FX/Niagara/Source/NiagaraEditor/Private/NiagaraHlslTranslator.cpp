@@ -7407,7 +7407,7 @@ FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctio
 	FString SigStr = Sig.GetName();
 	if (!Sig.OwnerName.IsNone() && Sig.OwnerName.IsValid())
 	{
-		SigStr += TEXT("_") + Sig.OwnerName.ToString().Replace(TEXT("."), TEXT(""));;
+		SigStr += TEXT("_") + Sig.OwnerName.ToString().Replace(TEXT("."), TEXT("_"));;
 	}
 	else
 	{
@@ -7420,7 +7420,7 @@ FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctio
 
 	for (const TTuple<FName, FName>& Specifier : Sig.FunctionSpecifiers)
 	{
-		SigStr += TEXT("_") + Specifier.Key.ToString() + Specifier.Value.ToString().Replace(TEXT("."), TEXT(""));
+		SigStr += TEXT("_") + Specifier.Key.ToString() + Specifier.Value.ToString().Replace(TEXT("."), TEXT("_"));
 	}
 	return GetSanitizedSymbolName(SigStr);
 }
