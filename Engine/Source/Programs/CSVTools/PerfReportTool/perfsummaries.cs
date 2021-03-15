@@ -605,16 +605,22 @@ namespace PerfSummaries
                     {
                         columnName = "MVP";
                     }
-					// Remove pre-existing stats with the same name
+					// Hide pre-existing stats with the same name
 					if (ColumnIsAvgValueList[i] && columnName.EndsWith(" Avg"))
 					{
-						string originalStatName = columnName.Substring(0, columnName.Length - 4);
-						metadata.RemoveSafe(originalStatName);
-
+						string originalStatName = columnName.Substring(0, columnName.Length - 4).ToLower();
+						SummaryMetadataValue smv;
+						if ( metadata.dict.TryGetValue(originalStatName, out smv) )
+						{
+							if (smv.type == SummaryMetadataValue.Type.CsvStatAverage)
+							{
+								smv.SetFlag(SummaryMetadataValue.Flags.Hidden, true);
+							}
+						}
 					}
-					metadata.Add(columnName, ColumnValues[i], ColumnColorThresholds[i]);
+					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, columnName, ColumnValues[i], ColumnColorThresholds[i]);
                 }
-                metadata.Add("TargetFPS", fps.ToString());
+                metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, "TargetFPS", fps.ToString());
             }
 
             // Output HTML
@@ -835,7 +841,7 @@ namespace PerfSummaries
                         thresholdList.Add(new ThresholdInfo(colourThresholds[i], null));
                     }
                 }
-                metadata.Add(metadataKey, eventCount.ToString(), thresholdList);
+                metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, metadataKey, eventCount.ToString(), thresholdList);
             }
         }
         public override void PostInit(ReportTypeInfo reportTypeInfo, CsvStats csvStats)
@@ -1228,9 +1234,9 @@ namespace PerfSummaries
 					}
 
 					var statValue = csvStats.Stats[statName.ToLower()];
-					metadata.Add(statName + " Avg", statValue.average.ToString("0.00"), GetStatColourThresholdList(statName));
-					metadata.Add(statName + " Max", statValue.ComputeMaxValue().ToString("0.00"), GetStatColourThresholdList(statName));
-					metadata.Add(statName + " Min", statValue.ComputeMinValue().ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, statName + " Avg", statValue.average.ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, statName + " Max", statValue.ComputeMaxValue().ToString("0.00"), GetStatColourThresholdList(statName));
+					metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, statName + " Min", statValue.ComputeMinValue().ToString("0.00"), GetStatColourThresholdList(statName));
 				}
 			}
 
@@ -1616,7 +1622,7 @@ namespace PerfSummaries
 				{
 					if ( col.metadataKey != null )
 					{
-						metadata.Add(col.metadataKey, col.value.ToString("0.00"), col.colourThresholdList);
+						metadata.Add(SummaryMetadataValue.Type.SummaryTableMetric, col.metadataKey, col.value.ToString("0.00"), col.colourThresholdList);
 					}
 				}
 			}
@@ -1889,41 +1895,59 @@ namespace PerfSummaries
 
 	class SummaryMetadataValue
     {
+		// Bump this when making changes!
+		public static int CacheVersion = 1;
+
+		public enum Type
+		{
+			CsvStatAverage,
+			CsvMetadata,
+			SummaryTableMetric,
+			ToolMetadata
+		};
+
+		public enum Flags
+		{
+			Hidden = 0x01
+		};
+
 		private SummaryMetadataValue()
 		{
 
 		}
-		public SummaryMetadataValue(string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip, bool inIsCsvStatAverage)
+		public SummaryMetadataValue(Type inType, string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip, uint inFlags = 0)
 		{
+			type = inType;
 			name = inName;
 			isNumeric = true;
 			numericValue = inValue;
 			value = inValue.ToString();
 			colorThresholdList = inColorThresholdList;
 			tooltip = inToolTip;
-			isCsvStatAverage = inIsCsvStatAverage;
+			flags = inFlags;
 		}
-		public SummaryMetadataValue(string inName, string inValue, ColourThresholdList inColorThresholdList, string inToolTip)
+		public SummaryMetadataValue(Type inType, string inName, string inValue, ColourThresholdList inColorThresholdList, string inToolTip, uint inFlags = 0)
         {
+			type = inType;
 			name = inName;
 			numericValue = 0.0;
 			isNumeric = false;
 			colorThresholdList = inColorThresholdList;
             value = inValue;
 			tooltip = inToolTip;
-			isCsvStatAverage = false;
-
+			flags = inFlags;
 		}
 
 		public static SummaryMetadataValue ReadFromCache(BinaryReader reader)
 		{
 			SummaryMetadataValue val = new SummaryMetadataValue();
+			val.type = (Type)reader.ReadUInt32();
 			val.name = reader.ReadString();
 			val.value = reader.ReadString();
 			val.tooltip = reader.ReadString();
 			val.numericValue = reader.ReadDouble();
 			val.isNumeric = reader.ReadBoolean();
-			val.isCsvStatAverage = reader.ReadBoolean();
+			val.flags = reader.ReadUInt32();
 			bool hasThresholdList = reader.ReadBoolean();
 			if (hasThresholdList)
 			{
@@ -1945,14 +1969,17 @@ namespace PerfSummaries
 			return val;
 		}
 
+
+
 		public void WriteToCache(BinaryWriter writer)
 		{
+			writer.Write((uint)type);
 			writer.Write(name);
 			writer.Write(value);
 			writer.Write(tooltip);
 			writer.Write(numericValue);
 			writer.Write(isNumeric);
-			writer.Write(isCsvStatAverage);
+			writer.Write(flags);
 			writer.Write(colorThresholdList != null);
 			if (colorThresholdList != null)
 			{
@@ -1973,13 +2000,31 @@ namespace PerfSummaries
 		{
 			return (SummaryMetadataValue)MemberwiseClone();
 		}
+
+		public void SetFlag(Flags flag, bool value)
+		{
+			if (value)
+			{
+				flags |= (uint)flag;
+			}
+			else
+			{
+				flags &= ~(uint)flag;
+			}
+		}
+		public bool GetFlag(Flags flag)
+		{
+			return (flags & (uint)flag) != 0;
+		}
+
+		public Type type;
 		public string name;
 		public string value;
 		public string tooltip;
         public ColourThresholdList colorThresholdList;
 		public double numericValue;
 		public bool isNumeric;
-		public bool isCsvStatAverage;
+		public uint flags;
     }
     class SummaryMetadata 
     {
@@ -1987,7 +2032,7 @@ namespace PerfSummaries
 		{
 		}
 
-		static int CacheVersion = 3;
+		static int CacheVersion = 6;
 
 		public static SummaryMetadata TryReadFromCache(string metadataCacheDir, string csvId)
 		{
@@ -2005,7 +2050,8 @@ namespace PerfSummaries
 				{
 					BinaryReader reader = new BinaryReader(fileStream);
 					int version = reader.ReadInt32();
-					if (version == CacheVersion)
+					int metadataValueVersion = reader.ReadInt32();
+					if (version == CacheVersion && metadataValueVersion == SummaryMetadataValue.CacheVersion)
 					{
 						metaData = new SummaryMetadata();
 						int dictEntryCount = reader.ReadInt32();
@@ -2025,10 +2071,10 @@ namespace PerfSummaries
 					reader.Close();
 				}
 			}
-			catch (Exception)
+			catch (Exception e)
 			{
 				metaData = null;
-				Console.WriteLine("Failed to read from cache file " + filename + ".");
+				Console.WriteLine("Error reading from cache file " + filename + ": "+e.Message);
 			}
 			return metaData;
 		}
@@ -2041,6 +2087,8 @@ namespace PerfSummaries
 				{
 					BinaryWriter writer = new BinaryWriter(fileStream);
 					writer.Write(CacheVersion);
+					writer.Write(SummaryMetadataValue.CacheVersion);
+
 					writer.Write(dict.Count);
 					foreach (KeyValuePair<string, SummaryMetadataValue> entry in dict)
 					{
@@ -2068,7 +2116,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public void Add(string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "", bool isCsvStatAverage = false)
+		public void Add(SummaryMetadataValue.Type type, string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "", uint flags=0)
         {
 			string key = name.ToLower();
 			double numericValue = double.MaxValue;
@@ -2081,11 +2129,11 @@ namespace PerfSummaries
             SummaryMetadataValue metadataValue = null;
             if (numericValue != double.MaxValue)
             {
-                metadataValue = new SummaryMetadataValue(name, numericValue, colorThresholdList, tooltip, isCsvStatAverage);
+                metadataValue = new SummaryMetadataValue(type, name, numericValue, colorThresholdList, tooltip, flags);
             }
             else
             {
-                metadataValue = new SummaryMetadataValue(name, value, colorThresholdList, tooltip);
+                metadataValue = new SummaryMetadataValue(type, name, value, colorThresholdList, tooltip, flags);
             }
 
 			try
@@ -2098,10 +2146,10 @@ namespace PerfSummaries
 			}
 		}
 
-        public void AddString(string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
+        public void AddString(SummaryMetadataValue.Type type, string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
         {
 			string key = name.ToLower();
-			SummaryMetadataValue metadataValue = new SummaryMetadataValue(name, value, colorThresholdList, tooltip);
+			SummaryMetadataValue metadataValue = new SummaryMetadataValue(type, name, value, colorThresholdList, tooltip);
             dict.Add(key, metadataValue);
         }
 
@@ -3109,12 +3157,16 @@ namespace PerfSummaries
 			}
 		}
 	
-		public void Add(SummaryMetadata metadata, bool bIncludeCsvStatAverages)
+		public void AddMetadata(SummaryMetadata metadata, bool bIncludeCsvStatAverages, bool bIncludeHiddenStats)
 		{
 			foreach (string key in metadata.dict.Keys)
 			{
 				SummaryMetadataValue value = metadata.dict[key];
-				if ( value.isCsvStatAverage && !bIncludeCsvStatAverages )
+				if ( value.type == SummaryMetadataValue.Type.CsvStatAverage && !bIncludeCsvStatAverages )
+				{
+					continue;
+				}
+				if ( value.GetFlag(SummaryMetadataValue.Flags.Hidden) && !bIncludeHiddenStats)
 				{
 					continue;
 				}
