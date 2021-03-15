@@ -1814,6 +1814,7 @@ TOptional<FGuid> GameProjectUtils::CreateProjectFromTemplate(const FProjectInfor
 
 	AddHardwareConfigValues(InProjectInfo, ConfigValuesToSet);
 
+	AddLumenConfigValues(InProjectInfo, ConfigValuesToSet);
 	AddRaytracingConfigValues(InProjectInfo, ConfigValuesToSet);
 
 	AddDefaultMapConfigValues(InProjectInfo, ConfigValuesToSet);
