@@ -9,7 +9,7 @@
 #include "Materials/MaterialExpression.h"
 #include "MaterialExpressionDDX.generated.h"
 
-UCLASS()
+UCLASS(MinimalAPI)
 class UMaterialExpressionDDX : public UMaterialExpression
 {
 	GENERATED_UCLASS_BODY()
@@ -26,6 +26,4 @@ class UMaterialExpressionDDX : public UMaterialExpression
 #endif
 	//~ End UMaterialExpression Interface
 };
-
-
 
