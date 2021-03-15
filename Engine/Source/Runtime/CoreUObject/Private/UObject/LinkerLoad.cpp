@@ -4159,8 +4159,6 @@ UObject* FLinkerLoad::Create( UClass* ObjectClass, FName ObjectName, UObject* Ou
 
 void FLinkerLoad::Preload( UObject* Object )
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(FLinkerLoad::Preload);
-
 	//check(IsValidLowLevel());
 	check(Object);
 
@@ -4171,6 +4169,8 @@ void FLinkerLoad::Preload( UObject* Object )
 
 		if (Object->GetLinker() == this)
 		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(FLinkerLoad::Preload);
+
 			check(!GEventDrivenLoaderEnabled || !bLockoutLegacyOperations || !EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME);
 #if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 			bool const bIsNonNativeObject = !Object->GetOutermost()->HasAnyPackageFlags(PKG_CompiledIn);

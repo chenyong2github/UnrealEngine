@@ -11,8 +11,8 @@
 // modifying ref counts if not needed; so we manage that ourselves
 FCriticalSection GD3D12SamplerStateCacheLock;
 
-DECLARE_CYCLE_STAT(TEXT("Graphics: Find or Create time"), STAT_PSOGraphicsFindOrCreateTime, STATGROUP_D3D12PipelineState);
-DECLARE_CYCLE_STAT(TEXT("Compute: Find or Create time"), STAT_PSOComputeFindOrCreateTime, STATGROUP_D3D12PipelineState);
+DECLARE_CYCLE_STAT_WITH_FLAGS(TEXT("Graphics: Find or Create time"), STAT_PSOGraphicsFindOrCreateTime, STATGROUP_D3D12PipelineState, EStatFlags::Verbose);
+DECLARE_CYCLE_STAT_WITH_FLAGS(TEXT("Compute: Find or Create time"), STAT_PSOComputeFindOrCreateTime, STATGROUP_D3D12PipelineState, EStatFlags::Verbose);
 
 static D3D12_TEXTURE_ADDRESS_MODE TranslateAddressMode(ESamplerAddressMode AddressMode)
 {
@@ -474,6 +474,9 @@ FGraphicsPipelineStateRHIRef FD3D12DynamicRHI::RHICreateGraphicsPipelineState(co
 		return Found;
 	}
 #endif
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12DynamicRHI::RHICreateGraphicsPipelineState);
+
 	// TODO: Remove the need for BoundShaderState objects. Currently they are needed for the Root Signature.
 	FBoundShaderStateRHIRef const BSS = RHICreateBoundShaderState(
 		Initializer.BoundShaderState.VertexDeclarationRHI,
@@ -530,6 +533,8 @@ TRefCountPtr<FRHIComputePipelineState> FD3D12DynamicRHI::RHICreateComputePipelin
 	{
 		return Found;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FD3D12DynamicRHI::RHICreateComputePipelineState);
 
 	// We need to actually create a PSO.
 	return PSOCache.CreateAndAdd(ComputeShader, LowLevelDesc);
