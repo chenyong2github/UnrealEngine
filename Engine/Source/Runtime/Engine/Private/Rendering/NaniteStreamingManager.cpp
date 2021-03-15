@@ -1714,7 +1714,12 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(UploadPages);
 
-			if (!AsyncState.bBuffersTransitionedToWrite)
+			if (AsyncState.bBuffersTransitionedToWrite)
+			{
+				// RHI validation fix: ClusterPageData decays to Unknown state after shader UAV access.
+				RHICmdList.Transition(FRHITransitionInfo(ClusterPageData.DataBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+			}
+			else
 			{
 				RHICmdList.Transition(
 				{
@@ -1742,7 +1747,7 @@ void FStreamingManager::EndAsyncUpdate(FRDGBuilder& GraphBuilder)
 		{
 			RHICmdList.Transition(
 			{
-				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
+				FRHITransitionInfo(ClusterPageData.DataBuffer.UAV,		ERHIAccess::Unknown, ERHIAccess::SRVMask),
 				FRHITransitionInfo(ClusterPageHeaders.DataBuffer.UAV,	ERHIAccess::UAVCompute, ERHIAccess::SRVMask),
 				FRHITransitionInfo(Hierarchy.DataBuffer.UAV,			ERHIAccess::UAVCompute, ERHIAccess::SRVMask)
 			});
