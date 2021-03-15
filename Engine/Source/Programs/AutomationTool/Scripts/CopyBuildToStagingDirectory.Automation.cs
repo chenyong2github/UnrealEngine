@@ -28,39 +28,23 @@ public partial class Project : CommandUtils
 
 	private static readonly object SyncLock = new object();
 
-	public struct OrderFile
+	public struct OrderFile : IComparable<OrderFile>
 	{
 		public enum OrderFileType
 		{
+			Custom,
 			Game,
 			Cooker,
-			Editor,
-			Invalid
+			Editor
 		}
 
-		public OrderFile(FileReference FileRef)
+		public OrderFile(FileReference FileRef, OrderFileType InType, int SpecIndex)
 		{
 			File = FileRef;
+			OrderSpecIndex = SpecIndex;
 
-			// Get the File Type from the file name
 			string FileName = FileRef.GetFileNameWithoutExtension();
-			if (FileName.Contains("GameOpenOrder"))
-			{
-				OrderType = OrderFileType.Game;
-			}
-			else if (FileName.Contains("CookerOpenOrder"))
-			{
-				OrderType = OrderFileType.Cooker;
-			}
-			else if (FileName.Contains("EditorOpenOrder"))
-			{
-				OrderType = OrderFileType.Editor;
-			}
-			else
-			{
-				OrderType = OrderFileType.Invalid;
-				CommandUtils.LogWarning("Unable to parse FileOpenOrder type \"{0}\"", FileName);
-			}
+			OrderType = InType;
 
 			//Check if we have an order number
 			AppendOrder = -1;
@@ -78,11 +62,31 @@ public partial class Project : CommandUtils
 				AppendOrder = Int32.MaxValue;
 			}
 		}
+
+		public int CompareTo(OrderFile Other)
+		{
+			int compare = (OrderSpecIndex.CompareTo(Other.OrderSpecIndex));
+			if (compare == 0)
+			{
+				return (AppendOrder.CompareTo(Other.AppendOrder));
+			}
+			return compare;
+		}
+
+		// Order files should be sorted by OrderSpecIndex and then by AppendOrder
+		// OrderType can be used for filtering
 		public int AppendOrder;
+		public int OrderSpecIndex;
 
 		public OrderFileType OrderType;
 
 		public FileReference File;
+	};
+
+	struct OrderFileSpec
+	{
+		public string FileNamePattern;
+		public OrderFile.OrderFileType OrderType;
 	};
 
 	/// <returns>The path for the BuildPatchTool executable depending on host platform.</returns>
@@ -2308,33 +2312,56 @@ public partial class Project : CommandUtils
 		// Find primary and secondary order files if they exist
 		List<FileReference> PakOrderFileLocations = new List<FileReference>();
 
-		// preferred files
-		string[] OrderFileNames = new string[] { "GameOpenOrder*.log", "CookerOpenOrder*.log", "EditorOpenOrder.log" };
+		List<OrderFileSpec> OrderFileSpecs = new List<OrderFileSpec>();
+		if (PlatformGameConfig.TryGetValues("/Script/UnrealEd.ProjectPackagingSettings", "PakOrderFileSpecs", out IReadOnlyList<string> OrderFileConfigValues))
+		{
+			foreach (string FilePattern in OrderFileConfigValues)
+			{
+				OrderFileSpecs.Add(new OrderFileSpec { FileNamePattern = FilePattern, OrderType = OrderFile.OrderFileType.Custom });
+			}
+		}
+
+		if(OrderFileSpecs.Count == 0)
+		{
+			// Default filespecs
+			OrderFileSpecs.AddRange(new OrderFileSpec[] {
+				new OrderFileSpec{ FileNamePattern = "GameOpenOrder*.log", OrderType = OrderFile.OrderFileType.Game },
+				new OrderFileSpec{ FileNamePattern = "CookerOpenOrder*.log", OrderType = OrderFile.OrderFileType.Cooker },
+				new OrderFileSpec{ FileNamePattern = "EditorOpenOrder.log", OrderType = OrderFile.OrderFileType.Editor }
+			});
+		}
 
 		// search CookPlaform (e.g. IOSClient and then regular platform (e.g. IOS).
-		string[] OrderLocations = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
+		string[] OrderPlatformNames = new string[] { SC.FinalCookPlatform, SC.StageTargetPlatform.GetTargetPlatformDescriptor().Type.ToString() };
+
+		List<DirectoryReference> OrderPathsToSearch = new List<DirectoryReference>();
+		OrderPathsToSearch.Add(DirectoryReference.Combine(SC.ProjectRoot, "Build", "FileOpenOrder")); // Search common directory first
+		foreach (string OrderLocation in OrderPlatformNames)
+		{
+			DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
+			if (!DirectoryReference.Exists(PakOrderFileLocationBase))
+			{
+				PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
+			}
+
+			OrderPathsToSearch.Add(PakOrderFileLocationBase);
+		}
 
 		List<OrderFile> OrderFiles = new List<OrderFile>();
 
-		for (int OrderFileIndex = 0; OrderFileIndex < OrderFileNames.Length; OrderFileIndex++)
+		for (int OrderFileIndex = 0; OrderFileIndex < OrderFileSpecs.Count; OrderFileIndex++)
 		{
-			string OrderFileName = OrderFileNames[OrderFileIndex];
-			foreach (string OrderLocation in OrderLocations)
+			OrderFileSpec Spec = OrderFileSpecs[OrderFileIndex];
+			foreach (DirectoryReference BaseDir in OrderPathsToSearch)
 			{
 				// Add input file to control order of file within the pak
-				DirectoryReference PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Platforms", OrderLocation, "Build", "FileOpenOrder");
-				if (!DirectoryReference.Exists(PakOrderFileLocationBase))
-				{
-					PakOrderFileLocationBase = DirectoryReference.Combine(SC.ProjectRoot, "Build", OrderLocation, "FileOpenOrder");
-				}
-
-				FileReference[] FileLocations = CommandUtils.FindFiles(OrderFileName, false, PakOrderFileLocationBase);
+				FileReference[] FileLocations = CommandUtils.FindFiles(Spec.FileNamePattern, false, BaseDir);
 
 				if (FileLocations != null)
 				{
 					foreach (var File in FileLocations)
 					{
-						OrderFile FileOrder = new OrderFile(File);
+						OrderFile FileOrder = new OrderFile(File, Spec.OrderType, OrderFileIndex);
 
 						//check if the file is alreay in the list
 						if (!OrderFiles.Any(o => o.File.FullName.Equals(File.FullName)))
@@ -2346,18 +2373,7 @@ public partial class Project : CommandUtils
 			}
 		}
 
-		// sort all file open order: GameOpenOrder.log, GameOPenOrder_1.log, GameOpenOrder_2.log, Cooker_OpenOrder_1,CookerOpenOrder.log 
-		OrderFiles.Sort(
-			delegate (OrderFile x, OrderFile y)
-			{
-				int compare = (x.OrderType.CompareTo(y.OrderType));
-				if (compare == 0)
-				{
-					return (x.AppendOrder.CompareTo(y.AppendOrder));
-				}
-				return compare;
-			}
-		);
+		OrderFiles.Sort();
 
 		//Only allow Editor open order as a primary input
 		if (OrderFiles.Count() > 1 && OrderFiles[0].OrderType != OrderFile.OrderFileType.Editor)
@@ -2470,7 +2486,7 @@ public partial class Project : CommandUtils
 				}
 				if (!bCopiedExistingPak)
 				{
-					List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType == OrderFile.OrderFileType.Game || x.OrderType == OrderFile.OrderFileType.Editor));
+					List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
 					List<OrderFile> SecondaryOrderFiles = null;
 
 					// Add a secondary order if there is one specified
@@ -2612,7 +2628,7 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType == OrderFile.OrderFileType.Game || x.OrderType == OrderFile.OrderFileType.Editor));
+			List<OrderFile> PrimaryOrderFiles = OrderFiles.FindAll(x => (x.OrderType != OrderFile.OrderFileType.Cooker));
 			List<OrderFile> SecondaryOrderFiles = null;
 
 			if (bUseSecondaryOrder && OrderFiles.Count >= 1)
