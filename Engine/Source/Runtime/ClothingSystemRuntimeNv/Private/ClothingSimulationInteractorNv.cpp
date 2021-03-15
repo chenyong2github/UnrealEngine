@@ -40,7 +40,7 @@ void UClothingSimulationInteractorNv::Sync(IClothingSimulation* InSimulation, IC
 	Commands.Reset();
 
 	// Call base class' sync 
-	UClothingSimulationInteractor::Sync(Simulation, Context);
+	UClothingSimulationInteractor::Sync(InSimulation, InContext);
 #endif
 }
 

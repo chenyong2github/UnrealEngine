@@ -321,38 +321,35 @@ namespace ChaosInterface
 			for (uint32 i = 0; i < static_cast<uint32>(InParams.Geometry->ConvexElems.Num()); ++i)
 			{
 				const FKConvexElem& CollisionBody = InParams.Geometry->ConvexElems[i];
-				const FTransform& ConvexTransform = InParams.LocalTransform;
 				if (const auto& ConvexImplicit = CollisionBody.GetChaosConvexMesh())
 				{
-					const FVector ScaledSize = (Scale.GetAbs() * CollisionBody.ElemBox.GetSize());	// Note: Scale can be negative
+					// Extract the scale from the transform - we have separate wrapper classes for scale versus translate/rotate 
+					const FVector NetScale = Scale * InParams.LocalTransform.GetScale3D();
+					FTransform ConvexTransform = FTransform(InParams.LocalTransform.GetRotation(), Scale * InParams.LocalTransform.GetLocation(), FVector(1, 1, 1));
+					const FVector ScaledSize = (NetScale.GetAbs() * CollisionBody.ElemBox.GetSize());	// Note: Scale can be negative
 					const Chaos::FReal CollisionMargin = FMath::Min(ScaledSize.GetMin() * CollisionMarginFraction, CollisionMarginMax);
 
-					if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
+					// Wrap the convex in a scaled or instanced wrapper depending on scale value, and add a margin
+					// NOTE: CollisionMargin is on the Instance/Scaled wrapper, not the inner convex (which is shared and should not have a margin).
+					TUniquePtr<Chaos::FImplicitObject> Implicit;
+					if (NetScale == FVector(1))
 					{
-						// this path is taken when objects are welded
-						//TUniquePtr<Chaos::FImplicitObject> ScaledImplicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FImplicitObject>(MakeSerializable(ConvexImplicit), Scale, CollisionMargin));
-						TUniquePtr<Chaos::FImplicitObject> Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectTransformed<Chaos::FReal, 3>(MakeSerializable(ConvexImplicit), ConvexTransform));
-						TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(Implicit), Shapes.Num(), (void*)CollisionBody.GetUserData(), CollisionBody.GetCollisionEnabled());
-						Shapes.Emplace(MoveTemp(NewShape));
-						Geoms.Add(MoveTemp(Implicit));
+						Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FConvex>(ConvexImplicit, CollisionMargin));
 					}
 					else
 					{
-						// NOTE: CollisionMargin is on the Instance/Scaled wrapper, not the inner convex (which has no margin). This means that convex shapes grow by the margion size...
-						TUniquePtr<Chaos::FImplicitObject> Implicit;
-						if (Scale == FVector(1))
-						{
-							Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectInstanced<Chaos::FConvex>(ConvexImplicit, CollisionMargin));
-						}
-						else
-						{
-							Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FConvex>(ConvexImplicit, Scale, CollisionMargin));
-						}
-
-						TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(Implicit),Shapes.Num(), (void*)CollisionBody.GetUserData(), CollisionBody.GetCollisionEnabled());
-						Shapes.Emplace(MoveTemp(NewShape));
-						Geoms.Add(MoveTemp(Implicit));
+						Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectScaled<Chaos::FConvex>(ConvexImplicit, NetScale, CollisionMargin));
 					}
+
+					// Wrap the convex in a non-scaled transform if necessary (the scale is pulled out above)
+					if (!ConvexTransform.GetTranslation().IsNearlyZero() || !ConvexTransform.GetRotation().IsIdentity())
+					{
+						Implicit = TUniquePtr<Chaos::FImplicitObject>(new Chaos::TImplicitObjectTransformed<float, 3>(MoveTemp(Implicit), ConvexTransform));
+					}
+
+					TUniquePtr<Chaos::FPerShapeData> NewShape = NewShapeHelper(MakeSerializable(Implicit), Shapes.Num(), (void*)CollisionBody.GetUserData(), CollisionBody.GetCollisionEnabled());
+					Shapes.Emplace(MoveTemp(NewShape));
+					Geoms.Add(MoveTemp(Implicit));
 				}
 			}
 		}
@@ -398,10 +395,6 @@ namespace ChaosInterface
 		const Chaos::FImplicitObject* ImplicitObject,
 		Chaos::FReal InDensityKGPerCM)
 	{
-		// WIP
-		// @todo : Support center of mass offsets.
-		// @todo : Support Mass space alignment. 
-
 		using namespace Chaos;
 
 		if (ImplicitObject)
@@ -428,7 +421,6 @@ namespace ChaosInterface
 				}
 			else*/
 
-			//todo: Still need to handle scaled
 			Chaos::Utilities::CastHelper(*ImplicitObject, FTransform::Identity, [&OutMassProperties, InDensityKGPerCM](const auto& Object, const auto& LocalTM)
 				{
 					OutMassProperties.Volume = Object.GetVolume();
@@ -437,65 +429,28 @@ namespace ChaosInterface
 					OutMassProperties.CenterOfMass = LocalTM.TransformPosition(Object.GetCenterOfMass());
 					OutMassProperties.RotationOfMass = LocalTM.GetRotation() * Object.GetRotationOfMass();
 				});
-			return true;
 		}
-		return false;
+
+		// If the implicit is null, or it is scaled to zero it will have zero volume, mass or inertia
+		return (OutMassProperties.Mass > 0);
 	}
 
-	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, Chaos::FReal InDensityKGPerCM)
+	void CalculateMassPropertiesFromShapeCollectionImp(
+		Chaos::FMassProperties& OutProperties, 
+		int32 InNumShapes, 
+		Chaos::FReal InDensityKGPerCM,
+		const TArray<bool>& bContributesToMass,
+		TFunction<Chaos::FPerShapeData* (int32 ShapeIndex)> GetShapeDelegate)
 	{
-		Chaos::FReal TotalMass = (Chaos::FReal)0.;
-		Chaos::FVec3 TotalCenterOfMass(0.f);
+		Chaos::FReal TotalMass = 0;
+		Chaos::FReal TotalVolume = 0;
+		Chaos::FVec3 TotalCenterOfMass(0);
 		TArray< Chaos::FMassProperties > MassPropertiesList;
-		for (const FPhysicsShapeHandle& ShapeHandle : InShapes)
+		for (int32 ShapeIndex = 0; ShapeIndex < InNumShapes; ++ShapeIndex)
 		{
-			if (const Chaos::FPerShapeData* Shape = ShapeHandle.Shape)
-			{
-				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
-				{
-					FTransform WorldTransform(ShapeHandle.ActorRef->GetGameThreadAPI().R(), ShapeHandle.ActorRef->GetGameThreadAPI().X());
-					Chaos::FMassProperties MassProperties;
-					if (CalculateMassPropertiesOfImplicitType(MassProperties, WorldTransform, ImplicitObject, InDensityKGPerCM))
-					{
-						MassPropertiesList.Add(MassProperties);
-						TotalMass += MassProperties.Mass;
-						TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
-					}
-				}
-			}
-		}
+			const Chaos::FPerShapeData* Shape = GetShapeDelegate(ShapeIndex);
 
-		if (TotalMass > 0.f)
-		{
-			TotalCenterOfMass /= TotalMass;
-		}
-
-		Chaos::FMatrix33 Tensor;
-		if (MassPropertiesList.Num())
-		{
-			Tensor = Chaos::CombineWorldSpace(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
-		}
-		else
-		{
-			// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
-			Tensor = Chaos::FMatrix33(5.24e5, 5.24e5, 5.24e5);
-			TotalMass = 523.f;
-		}
-
-		OutProperties.InertiaTensor = Tensor;
-		OutProperties.Mass = TotalMass;
-		OutProperties.CenterOfMass = TotalCenterOfMass;
-	}
-
-	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, Chaos::FReal InDensityKGPerCM)
-	{
-		Chaos::FReal TotalMass = (Chaos::FReal)0.;
-		Chaos::FVec3 TotalCenterOfMass(0.f);
-		TArray< Chaos::FMassProperties > MassPropertiesList;
-		for (int32 ShapeIndex = 0; ShapeIndex < InShapes.Num(); ++ShapeIndex)
-		{
-			const TUniquePtr<Chaos::FPerShapeData>& Shape = InShapes[ShapeIndex];
-			const bool bHassMass = (ShapeIndex < bContributesToMass.Num())? bContributesToMass[ShapeIndex] : true;
+			const bool bHassMass = (ShapeIndex < bContributesToMass.Num()) && bContributesToMass[ShapeIndex];
 			if (bHassMass)
 			{
 				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
@@ -505,32 +460,65 @@ namespace ChaosInterface
 					{
 						MassPropertiesList.Add(MassProperties);
 						TotalMass += MassProperties.Mass;
+						TotalVolume += MassProperties.Volume;
 						TotalCenterOfMass += MassProperties.CenterOfMass * MassProperties.Mass;
 					}
 				}
 			}
 		}
 
-		if (TotalMass > 0.f)
+		Chaos::FMatrix33 Tensor;
+		Chaos::FRotation3 RotationOfMass;
+
+		// If no shapes contribute to mass, or they are scaled to zero, we may end up with zero mass here
+		if ((TotalMass > 0.f) && (MassPropertiesList.Num() > 0))
 		{
 			TotalCenterOfMass /= TotalMass;
-		}
 
-		Chaos::FMatrix33 Tensor;
-		if (MassPropertiesList.Num())
-		{
-			Tensor = Chaos::CombineWorldSpace(MassPropertiesList, InDensityKGPerCM).InertiaTensor;
+			// NOTE: CombineWorldSpace returns a world-space inertia with zero rotation, unless there's only one item
+			// in the list, in which case it returns it as-is and it's rotation may be non-zero
+			Chaos::FMassProperties CombinedMassProperties = Chaos::CombineWorldSpace(MassPropertiesList);
+			Tensor = CombinedMassProperties.InertiaTensor;
+			RotationOfMass = CombinedMassProperties.RotationOfMass;
 		}
 		else
 		{
-			// @todo : Add support for all types, but for now just hard code a unit sphere tensor {r:50cm} if the type was not processed
+			// @todo(chaos): We should support shape-less particles as long as their mass an inertia are set directly
+			// For now hard-code a 50cm sphere with density 1g/cc
 			Tensor = Chaos::FMatrix33(5.24e5f, 5.24e5f, 5.24e5f);
+			RotationOfMass = Chaos::FRotation3::Identity;
 			TotalMass = 523.0f;
+			TotalVolume = 523000;
 		}
 
 		OutProperties.InertiaTensor = Tensor;
 		OutProperties.Mass = TotalMass;
+		OutProperties.Volume = TotalVolume;
 		OutProperties.CenterOfMass = TotalCenterOfMass;
+		OutProperties.RotationOfMass = RotationOfMass;
+	}
+
+
+	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM)
+	{
+		CalculateMassPropertiesFromShapeCollectionImp(
+			OutProperties,
+			InShapes.Num(),
+			InDensityKGPerCM,
+			TArray<bool>(),
+			[&InShapes](int32 ShapeIndex) { return InShapes[ShapeIndex].Shape; }
+		);
+	}
+
+	void CalculateMassPropertiesFromShapeCollection(Chaos::FMassProperties& OutProperties, const Chaos::FShapesArray& InShapes, const TArray<bool>& bContributesToMass, float InDensityKGPerCM)
+	{
+		CalculateMassPropertiesFromShapeCollectionImp(
+			OutProperties,
+			InShapes.Num(),
+			InDensityKGPerCM,
+			bContributesToMass,
+			[&InShapes](int32 ShapeIndex) { return InShapes[ShapeIndex].Get(); }
+		);
 	}
 
 #endif // WITH_CHAOS

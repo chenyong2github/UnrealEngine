@@ -172,14 +172,12 @@ namespace Chaos
 
 	FMassProperties Combine(const TArray<FMassProperties>& MPArray)
 	{
-		// todo(chaos) : should we be able to have different density per primitive instead of using this one default?
-		constexpr FReal DefaultDensity = (FReal)1.0;
-		FMassProperties NewMP = CombineWorldSpace(MPArray, (FReal)1.0);
+		FMassProperties NewMP = CombineWorldSpace(MPArray);
 		NewMP.RotationOfMass = TransformToLocalSpace(NewMP.InertiaTensor);
 		return NewMP;
 	}
 
-	FMassProperties CombineWorldSpace(const TArray<FMassProperties>& MPArray, FReal InDensityKGPerCM)
+	FMassProperties CombineWorldSpace(const TArray<FMassProperties>& MPArray)
 	{
 		check(MPArray.Num() > 0);
 		if (MPArray.Num() == 1)
@@ -198,7 +196,7 @@ namespace Chaos
 		NewMP.CenterOfMass /= NewMP.Mass;
 		for (const FMassProperties& Child : MPArray)
 		{
-			const FReal M = Child.Volume * InDensityKGPerCM;
+			const FReal M = Child.Mass;
 			const FVec3 ParentToChild = Child.CenterOfMass - NewMP.CenterOfMass;
 			const FReal P0 = ParentToChild[0];
 			const FReal P1 = ParentToChild[1];
