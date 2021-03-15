@@ -31,6 +31,14 @@ void FModuleAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_ModuleUnload, "Diagnostics", "ModuleUnload");
 }
 
+////////////////////////////////////////////////////////////////////////////////
+void FModuleAnalyzer::OnAnalysisEnd()
+{
+	if (Provider)
+	{
+		Provider->OnAnalysisComplete();
+	}
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)

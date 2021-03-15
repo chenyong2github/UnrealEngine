@@ -51,6 +51,7 @@ public:
 	//Analysis interface
 	void						OnModuleLoad(const FStringView& Module, uint64 Base, uint32 Size) override;
 	void 						OnModuleUnload(uint64 Base) override;
+	void						OnAnalysisComplete() override;
 
 private:
 
@@ -141,6 +142,13 @@ template<typename SymbolProvider>
 void TModuleProvider<SymbolProvider>::OnModuleUnload(uint64 Base)
 {
 	//todo: Find entry, set bLoaded to false
+}
+
+/////////////////////////////////////////////////////////////////////
+template<typename SymbolResolver>
+void TModuleProvider<SymbolResolver>::OnAnalysisComplete()
+{
+	Resolver.OnAnalysisComplete();
 }
 
 /////////////////////////////////////////////////////////////////////

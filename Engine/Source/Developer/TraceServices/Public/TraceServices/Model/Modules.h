@@ -77,7 +77,10 @@ public:
 		uint32 SymbolsFailed;
 	};
 	
-	/** Queries the name of the symbol at address */
+	/** Queries the name of the symbol at address. This function returns immedately, 
+	 * but the lookup is async. See \ref FResolvedSymbol for details. It assumed that 
+	 * all calls to this function happens before analysis has ended.
+	 */
 	virtual const FResolvedSymbol* GetSymbol(uint64 Address) = 0;
 
 	/** Gets statistics from provider */

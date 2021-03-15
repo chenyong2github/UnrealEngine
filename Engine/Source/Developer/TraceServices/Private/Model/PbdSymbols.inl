@@ -33,23 +33,12 @@ class FPdbSymbols : public FRunnable
 {
 public:
 	FPdbSymbols(IAnalysisSession& InSession)
-		: bInitialized(false)
+		: bRunWorkerThread(false)
+		, bDrainThenStop(false)
+		, bInitialized(false)
 		, Session(InSession)
 	{
-		static uint64 BaseHandle = 0x493;
-		Handle = (HANDLE)(++BaseHandle);
-
-		// Load DbgHelp interface
-		ULONG SymOpts = 0;
-		SymOpts |= SYMOPT_LOAD_LINES;
-		SymOpts |= SYMOPT_OMAP_FIND_NEAREST;
-		SymOpts |= SYMOPT_DEFERRED_LOADS;
-		SymOpts |= SYMOPT_EXACT_SYMBOLS;
-		SymOpts |= SYMOPT_IGNORE_NT_SYMPATH;
-		SymOpts |= SYMOPT_UNDNAME;
-
-		SymSetOptions(SymOpts);
-		bInitialized = SymInitialize(Handle, NULL, FALSE); 
+		bInitialized = SetupSyms();
 
 		if (bInitialized)
 		{
@@ -62,9 +51,10 @@ public:
 	~FPdbSymbols()
 	{
 		bRunWorkerThread = false;
-		Thread->WaitForCompletion();
-
-		SymCleanup(Handle);
+		if (Thread)
+		{
+			Thread->WaitForCompletion();
+		}
 	}
 
 	void QueueModuleLoad(const FStringView& ModulePath, uint64 Base, uint32 Size)
@@ -101,6 +91,13 @@ public:
 		OutStats->SymbolsResolved = SymbolsResolved.load();
 	}
 
+	void OnAnalysisComplete()
+	{
+		// At this point no more module loads or symbol requests will be queued,
+		// we drain the current queue, then release resources and file locks.
+		bDrainThenStop = true;
+	}
+
 private:
 
 	struct ModuleEntry
@@ -130,6 +127,33 @@ private:
 	};
 
 
+	bool SetupSyms() 
+	{
+		// Create a unique handle
+		static uint64 BaseHandle = 0x493;
+		Handle = (HANDLE)(++BaseHandle);
+
+		// Load DbgHelp interface
+		ULONG SymOpts = 0;
+		SymOpts |= SYMOPT_LOAD_LINES;
+		SymOpts |= SYMOPT_OMAP_FIND_NEAREST;
+		SymOpts |= SYMOPT_DEFERRED_LOADS;
+		SymOpts |= SYMOPT_EXACT_SYMBOLS;
+		SymOpts |= SYMOPT_IGNORE_NT_SYMPATH;
+		SymOpts |= SYMOPT_UNDNAME;
+
+		SymSetOptions(SymOpts);
+		return SymInitialize(Handle, NULL, FALSE);
+	}
+
+
+	void FreeSyms()
+	{
+		// This release file locks on debug files
+		SymCleanup(Handle);
+	}
+
+
 	uint32 Run() override 
 	{
 		while (bRunWorkerThread)
@@ -153,10 +177,18 @@ private:
 					ResolveSymbol(Item.Address, Item.Target);
 				}
 			}
+
+			if (bDrainThenStop && ResolveQueue.IsEmpty() && LoadSymbolsQueue.IsEmpty())
+			{
+				bRunWorkerThread = false;
+			}
 			
 			// ...and breathe...
 			FPlatformProcess::Sleep(0.2f);
 		}
+
+		// We don't need the syms library anymore
+		FreeSyms();
 		
 		return 0;
 	}
@@ -272,6 +304,7 @@ private:
 	std::atomic<uint32> SymbolsResolved;
 
 	bool bRunWorkerThread;
+	bool bDrainThenStop;
 	bool bInitialized;
 	HANDLE Handle;
 	IAnalysisSession& Session;

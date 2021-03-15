@@ -15,6 +15,7 @@ class FModuleAnalyzer
 public:
 					FModuleAnalyzer(IAnalysisSession& Session);
 	virtual void	OnAnalysisBegin(const FOnAnalysisContext& Context) override;
+	virtual void	OnAnalysisEnd() override;
 	virtual bool 	OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
