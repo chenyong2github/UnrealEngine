@@ -76,11 +76,11 @@ struct FNiagaraCurveOverviewTreeItem : public ICurveEditorTreeItem
 				TWeakPtr<FNiagaraCurveSelectionTreeNode> CurveSelectionTreeNodeWeak = InCurveSelectionTreeNode;
 				auto ToolTipLambda = [CurveSelectionTreeNodeWeak]()
 				{
-						TSharedPtr<FNiagaraCurveSelectionTreeNode> CurveSelectionTreeNode = CurveSelectionTreeNodeWeak.Pin();
+						TSharedPtr<FNiagaraCurveSelectionTreeNode> PinnedCurveSelectionTreeNode = CurveSelectionTreeNodeWeak.Pin();
 						return CurveSelectionTreeNodeWeak.IsValid()
 							? FText::Format(LOCTEXT("ModuleToolTipFormat", "{0} - {1}"),
-								CurveSelectionTreeNode->GetParent().IsValid() ? CurveSelectionTreeNode->GetParent()->GetDisplayName() : LOCTEXT("UknownScript", "Unknown Script"),
-								CurveSelectionTreeNode->GetDisplayName())
+								PinnedCurveSelectionTreeNode->GetParent().IsValid() ? PinnedCurveSelectionTreeNode->GetParent()->GetDisplayName() : LOCTEXT("UknownScript", "Unknown Script"),
+								PinnedCurveSelectionTreeNode->GetDisplayName())
 							: FText();
 				};
 				OutIconWidget =
