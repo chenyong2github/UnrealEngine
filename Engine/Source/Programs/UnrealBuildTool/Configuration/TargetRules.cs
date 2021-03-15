@@ -700,7 +700,7 @@ namespace UnrealBuildTool
 		[RequiresUniqueBuildEnvironment]
 		public bool bWithLiveCoding
 		{
-			get { return bWithLiveCodingPrivate ?? (Platform == UnrealTargetPlatform.Win64 && Configuration != UnrealTargetConfiguration.Shipping && Type != TargetType.Program); }
+			get { return bWithLiveCodingPrivate ?? (Platform == UnrealTargetPlatform.Win64 && Configuration != UnrealTargetConfiguration.Shipping && Configuration != UnrealTargetConfiguration.Test && Type != TargetType.Program); }
 			set { bWithLiveCodingPrivate = value; }
 		}
 		bool? bWithLiveCodingPrivate;

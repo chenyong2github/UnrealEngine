@@ -35,10 +35,6 @@ public:
 	void SetData( uint8* Src, int64 CountBits );
 	void SetData( TArray<uint8>&& Src, int64 CountBits );
 
-#if defined(_MSC_VER) && PLATFORM_DESKTOP
-#pragma warning( push )
-#pragma warning( disable : 4789 )	// Windows PGO (LTCG) is causing nonsensical errors in certain build environments
-#endif
 	FORCEINLINE_DEBUGGABLE void SerializeBits( void* Dest, int64 LengthBits )
 	{
 		//@TODO: FLOATPRECISION: This function/class pretends it is 64-bit aware, e.g., in the type of LengthBits and the Pos member, but it is not as appBitsCpy is only 32 bits, the inner Buffer is a 32 bit TArray, etc...
@@ -69,9 +65,6 @@ public:
 			Pos += LengthBits;
 		}
 	}
-#if defined(_MSC_VER) && PLATFORM_DESKTOP
-#pragma warning( pop )
-#endif
 
 	virtual void SerializeBitsWithOffset( void* Dest, int32 DestBit, int64 LengthBits ) override;
 
