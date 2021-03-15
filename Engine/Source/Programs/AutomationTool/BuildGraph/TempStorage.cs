@@ -1369,20 +1369,27 @@ namespace AutomationTool
 			foreach (DirectoryInfo StreamDirectory in new DirectoryInfo(TempStorageDir).EnumerateDirectories().OrderBy(x => x.Name))
 			{
 				CommandUtils.LogInformation("Scanning {0}...", StreamDirectory.FullName);
-				foreach (DirectoryInfo BuildDirectory in StreamDirectory.EnumerateDirectories())
+				try
 				{
-					try
+					foreach (DirectoryInfo BuildDirectory in StreamDirectory.EnumerateDirectories())
 					{
-						if (!BuildDirectory.EnumerateFiles("*", SearchOption.AllDirectories).Any(x => x.LastWriteTimeUtc > RetainTime))
+						try
 						{
-							BuildsToDelete.Add(BuildDirectory);
+							if (!BuildDirectory.EnumerateFiles("*", SearchOption.AllDirectories).Any(x => x.LastWriteTimeUtc > RetainTime))
+							{
+								BuildsToDelete.Add(BuildDirectory);
+							}
+							NumBuilds++;
 						}
-						NumBuilds++;
+						catch (Exception Ex)
+						{
+							Log.TraceError("Exception while trying to delete {0}: {1}", BuildDirectory, Ex);
+						}
 					}
-					catch (Exception Ex)
-					{
-						Log.TraceError("Exception while trying to delete {0}: {1}", StreamDirectory, Ex);
-					}
+				}
+				catch (Exception Ex)
+				{
+					Log.TraceError("Exception while trying to scan {0}: {1}", StreamDirectory, Ex);
 				}
 			}
 			CommandUtils.LogInformation("Found {0} builds; {1} to delete.", NumBuilds, BuildsToDelete.Count);
