@@ -795,23 +795,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 		CmdLineCultEntries += GetSwitchValueElements(TEXT("COOKCULTURES"));
 	}
 
-	// Also append any cookdirs from the project ini files; these dirs are relative to the game content directory or start with a / root
-	{
-		const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
-		for (const FDirectoryPath& DirToCook : PackagingSettings->DirectoriesToAlwaysCook)
-		{
-			FString LocalPath;
-			if (FPackageName::TryConvertGameRelativePackagePathToLocalPath(DirToCook.Path, LocalPath))
-			{
-				CmdLineDirEntries.Add(LocalPath);
-			}
-			else
-			{
-				UE_LOG(LogCook, Warning, TEXT("'ProjectSettings -> PackagingSettings -> Directories to always cook' has invalid element '%s'"), *DirToCook.Path);
-			}
-		}
-	}
-
 	CookOnTheFlyServer->Initialize(ECookMode::CookByTheBook, CookFlags, OutputDirectoryOverride);
 
 	// Add any map sections specified on command line
@@ -908,6 +891,24 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 			ECookByTheBookOptions::NoInputPackages | ECookByTheBookOptions::NoSlatePackages | ECookByTheBookOptions::SkipSoftReferences | ECookByTheBookOptions::ForceDisableSaveGlobalShaders;
 		CookOptions |= SinglePackageFlags;
 		CookOptions |= bKeepSinglePackageRefs ? ECookByTheBookOptions::None : ECookByTheBookOptions::SkipHardReferences;
+	}
+
+	// Also append any cookdirs from the project ini files; these dirs are relative to the game content directory or start with a / root
+	if (!(CookOptions & ECookByTheBookOptions::NoGameAlwaysCookPackages))
+	{
+		const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+		for (const FDirectoryPath& DirToCook : PackagingSettings->DirectoriesToAlwaysCook)
+		{
+			FString LocalPath;
+			if (FPackageName::TryConvertGameRelativePackagePathToLocalPath(DirToCook.Path, LocalPath))
+			{
+				CmdLineDirEntries.Add(LocalPath);
+			}
+			else
+			{
+				UE_LOG(LogCook, Warning, TEXT("'ProjectSettings -> PackagingSettings -> Directories to always cook' has invalid element '%s'"), *DirToCook.Path);
+			}
+		}
 	}
 
 	UCookOnTheFlyServer::FCookByTheBookStartupOptions StartupOptions;
