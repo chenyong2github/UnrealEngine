@@ -1133,7 +1133,7 @@ void FNiagaraComputeExecutionContext::ResetInternal(NiagaraEmitterInstanceBatche
 	// Release and reset readback data.
 	if (Batcher)
 	{
-		Batcher->GetGPUInstanceCounterManager().FreeEntry(EmitterInstanceReadback.GPUCountOffset);
+		Batcher->ReleaseInstanceCounts_RenderThread(this, MainDataSet);
 	}
 	else // In this case the batcher is pending kill so no need to putback entry in the pool.
 	{
