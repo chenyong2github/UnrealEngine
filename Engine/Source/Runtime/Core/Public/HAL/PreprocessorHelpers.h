@@ -25,6 +25,8 @@
 // Expands to nothing - used as a placeholder
 #define PREPROCESSOR_NOTHING
 
+#define UE_SOURCE_LOCATION TEXT(__FILE__ "(" PREPROCESSOR_TO_STRING(__LINE__) ")")
+
 // Removes a single layer of parentheses from a macro argument if they are present - used to allow
 // brackets to be optionally added when the argument contains commas, e.g.:
 //
