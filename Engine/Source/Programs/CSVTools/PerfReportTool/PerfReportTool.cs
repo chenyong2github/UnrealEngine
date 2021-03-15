@@ -21,7 +21,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.22";
+        private static string VersionString = "4.23";
 
         public static string Get() { return VersionString; }
     };
@@ -2109,9 +2109,9 @@ namespace PerfReportTool
                     eventInfo.beginName = eventPair.GetSafeAttibute<string>("begin");
                     eventInfo.endName = eventPair.GetSafeAttibute<string>("end");
 
-                    if (eventInfo.beginName == null)
+                    if (eventInfo.beginName == null && eventInfo.endName == null )
                     {
-                        throw new Exception("eventPair with no begin attribute found!");
+                        throw new Exception("eventPair with no begin or end attribute found! Need to have one or the other.");
                     }
                     csvEventsToStrip.Add(eventInfo);
                 }

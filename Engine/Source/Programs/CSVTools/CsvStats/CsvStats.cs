@@ -1119,8 +1119,17 @@ namespace CSVStats
         {
             bool startIsWild = false;
             bool endIsWild = false;
-            startString = startString.ToLower().Trim();
-            if (endString != null)
+
+			if (startString != null)
+			{
+				startString = startString.ToLower().Trim();
+				if (startString.EndsWith("*"))
+				{
+					startIsWild = true;
+					startString = startString.TrimEnd('*');
+				}
+			}
+			if (endString != null)
             {
                 endString = endString.ToLower().Trim();
                 if (endString.EndsWith("*"))
@@ -1129,60 +1138,81 @@ namespace CSVStats
                     endString = endString.TrimEnd('*');
                 }
             }
-            if (startString.EndsWith("*"))
-            {
-                startIsWild = true;
-                startString = startString.TrimEnd('*');
-            }
 
-            bool insidePair = false;
+			bool insidePair = false;
             startIndices = new List<int>();
             endIndices = new List<int>();
-            for (int i = 0; i < Events.Count; i++)
-            {
-                CsvEvent csvEvent = Events[i];
-                string evName = csvEvent.Name.ToLower();
-                string strToMatch = insidePair ? endString : startString;
-                bool isWild = insidePair ? endIsWild : startIsWild;
 
-                bool found = false;
-                if (strToMatch != null)
-                {
-                    if (isWild)
-                    {
-                        if (evName.StartsWith(strToMatch))
-                        {
-                            found = true;
-                        }
-                    }
-                    else if (evName == strToMatch)
-                    {
-                        found = true;
-                    }
-                }
+			// If we only have an endstring, we need to check if it actually appears
+			if (startString == null && endString != null)
+			{
+				// Find the frame of the last end event
+				int lastEndEventFrame = -1;
+				for (int i = 0; i < Events.Count; i++)
+				{
+					CsvEvent csvEvent = Events[i];
+					string evName = csvEvent.Name.ToLower();
+					if (endIsWild && evName.StartsWith(endString) || evName == endString)
+					{
+						lastEndEventFrame = csvEvent.Frame;
+					}
+				}
+				if (lastEndEventFrame >= 0)
+				{
+					// If we found the end event, strip everything before it
+					startIndices.Add(0);
+					endIndices.Add(lastEndEventFrame);
+				}
+			}
+			else
+			{
+				// Normal case: we have a begin event. End event is optional
+				for (int i = 0; i < Events.Count; i++)
+				{
+					CsvEvent csvEvent = Events[i];
+					string evName = csvEvent.Name.ToLower();
+					string strToMatch = insidePair ? endString : startString;
+					bool isWild = insidePair ? endIsWild : startIsWild;
 
-                if (found)
-                {
-                    if (insidePair)
-                    {
-                        endIndices.Add(csvEvent.Frame);
-                    }
-                    else
-                    {
-                        startIndices.Add(csvEvent.Frame);
-                    }
-                    insidePair = !insidePair;
-                }
-            }
+					bool found = false;
+					if (strToMatch != null)
+					{
+						if (isWild)
+						{
+							if (evName.StartsWith(strToMatch))
+							{
+								found = true;
+							}
+						}
+						else if (evName == strToMatch)
+						{
+							found = true;
+						}
+					}
 
-            // If the end event was missing, add it at the end
-            if ( endIndices.Count == startIndices.Count - 1)
-            {
-                endIndices.Add(SampleCount);
-            }
+					if (found)
+					{
+						if (insidePair)
+						{
+							endIndices.Add(csvEvent.Frame);
+						}
+						else
+						{
+							startIndices.Add(csvEvent.Frame);
+						}
+						insidePair = !insidePair;
+					}
+				}
+
+				// If the end event was missing, add it at the end
+				if (endIndices.Count == startIndices.Count - 1)
+				{
+					endIndices.Add(SampleCount);
+				}
+			}
         }
 
-		public void ComputeEventStripSampleMask(string startString, string endString, ref BitArray sampleMash)
+		public void ComputeEventStripSampleMask(string startString, string endString, ref BitArray sampleMask)
 		{
 			List<int> startIndices = null;
 			List<int> endIndices = null;
@@ -1191,10 +1221,10 @@ namespace CSVStats
 			{
 				return;
 			}
-			if (sampleMash == null)
+			if (sampleMask == null)
 			{
-				sampleMash = new BitArray(SampleCount);
-				sampleMash.SetAll(true);
+				sampleMask = new BitArray(SampleCount);
+				sampleMask.SetAll(true);
 			}
 
 			for (int i=0; i<startIndices.Count; i++)
@@ -1203,7 +1233,7 @@ namespace CSVStats
 				int endIndex = Math.Min(endIndices[i],SampleCount-1);
 				for (int j=startIndex; j<=endIndex; j++)
 				{
-					sampleMash.Set(j, false);
+					sampleMask.Set(j, false);
 				}
 			}
 		}
