@@ -1779,7 +1779,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End early occlusion queries
 
 	// Early Shadow depth rendering
-	if (bOcclusionBeforeBasePass)
+	if (bCanOverlayRayTracingOutput && bOcclusionBeforeBasePass)
 	{
 		AddUntrackedAccessPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
 		{
@@ -1795,7 +1795,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	const bool bShouldVisualizeVolumetricCloud = bShouldRenderVolumetricCloudBase && !!ViewFamily.EngineShowFlags.VisualizeVolumetricCloudConservativeDensity;
 	bool bAsyncComputeVolumetricCloud = IsVolumetricRenderTargetEnabled() && IsVolumetricRenderTargetAsyncCompute();
 	bool bHasHalfResCheckerboardMinMaxDepth = false;
-	bool bVolumetricRenderTargetRequired = bShouldRenderVolumetricCloud;
+	bool bVolumetricRenderTargetRequired = bShouldRenderVolumetricCloud && bCanOverlayRayTracingOutput;
 
 	if (bShouldRenderVolumetricCloudBase)
 	{
@@ -1846,7 +1846,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// Kick off async compute cloud eraly if all depth has been written in the prepass
-	if (bShouldRenderVolumetricCloud && bAsyncComputeVolumetricCloud && EarlyZPassMode == DDM_AllOpaque)
+	if (bShouldRenderVolumetricCloud && bAsyncComputeVolumetricCloud && EarlyZPassMode == DDM_AllOpaque && bCanOverlayRayTracingOutput)
 	{
 		UpdateHalfResDepthSurfaceCheckerboardMinMax(GraphBuilder, SceneDepthTexture.Resolve);
 		bHasHalfResCheckerboardMinMaxDepth = true;
@@ -2002,7 +2002,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// Shadow and fog after base pass
-	if (!bOcclusionBeforeBasePass)
+	if (bCanOverlayRayTracingOutput && !bOcclusionBeforeBasePass)
 	{
 		AddUntrackedAccessPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
 		{
@@ -2015,7 +2015,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// End shadow and fog after base pass
 
 	// If not all depth is written during the prepass, kick off async compute cloud after basepass
-	if (bShouldRenderVolumetricCloud && bAsyncComputeVolumetricCloud && EarlyZPassMode != DDM_AllOpaque)
+	if (bShouldRenderVolumetricCloud && bAsyncComputeVolumetricCloud && EarlyZPassMode != DDM_AllOpaque && bCanOverlayRayTracingOutput)
 	{
 		UpdateHalfResDepthSurfaceCheckerboardMinMax(GraphBuilder, SceneDepthTexture.Resolve);
 		bHasHalfResCheckerboardMinMaxDepth = true;
@@ -2243,13 +2243,13 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderDeferredReflectionsAndSkyLightingHair(GraphBuilder, HairDatas);
 	}
 
-	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled() && !bHasHalfResCheckerboardMinMaxDepth)
+	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled() && !bHasHalfResCheckerboardMinMaxDepth && bCanOverlayRayTracingOutput)
 	{
 		// The checkerboarded half resolution depth texture will be needed.
 		UpdateHalfResDepthSurfaceCheckerboardMinMax(GraphBuilder, SceneDepthTexture.Resolve);
 	}
 
-	if (bShouldRenderVolumetricCloud)
+	if (bShouldRenderVolumetricCloud && bCanOverlayRayTracingOutput)
 	{
 		if (!bAsyncComputeVolumetricCloud)
 		{
@@ -2262,7 +2262,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ReconstructVolumetricRenderTarget(GraphBuilder, bAsyncComputeVolumetricCloud);
 	}
 
-	const bool bShouldRenderTranslucency = ShouldRenderTranslucency();
+	const bool bShouldRenderTranslucency = bCanOverlayRayTracingOutput && ShouldRenderTranslucency();
 
 	// Union of all translucency view render flags.
 	ETranslucencyView TranslucencyViewsToRender = bShouldRenderTranslucency ? GetTranslucencyViews(Views) : ETranslucencyView::None;
@@ -2291,7 +2291,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FRDGTextureRef LightShaftOcclusionTexture = nullptr;
 
 	// Draw Lightshafts
-	if (ViewFamily.EngineShowFlags.LightShafts)
+	if (bCanOverlayRayTracingOutput && ViewFamily.EngineShowFlags.LightShafts)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderLightShaftOcclusion);
 		LightShaftOcclusionTexture = RenderLightShaftOcclusion(GraphBuilder, SceneTextures, SceneTextureExtent);
@@ -2305,7 +2305,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// Draw the sky atmosphere
-	if (bShouldRenderSkyAtmosphere)
+	if (bCanOverlayRayTracingOutput && bShouldRenderSkyAtmosphere)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_RenderSkyAtmosphere);
 		RenderSkyAtmosphere(GraphBuilder, SceneTextures, SceneColorTexture.Target, SceneDepthTexture.Target);
@@ -2320,7 +2320,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// After the height fog, Draw volumetric clouds (having fog applied on them already) when using per pixel tracing,
-	if (bShouldRenderVolumetricCloud)
+	if (bCanOverlayRayTracingOutput && bShouldRenderVolumetricCloud)
 	{
 		bool bSkipVolumetricRenderTarget = true;
 		bool bSkipPerPixelTracing = false;
@@ -2362,7 +2362,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		});
 	}
 
-	if (bShouldRenderSkyAtmosphere)
+	if (bCanOverlayRayTracingOutput && bShouldRenderSkyAtmosphere)
 	{
 		// Debug the sky atmosphere. Critically rendered before translucency to avoid emissive leaking over visualization by writing depth. 
 		// Alternative: render in post process chain as VisualizeHDR.
@@ -2813,11 +2813,9 @@ bool ShouldRenderRayTracingEffect(bool bEffectEnabled)
 
 bool CanOverlayRayTracingOutput(const FViewInfo& View)
 {
-	static auto CVarWiper = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PathTracing.WiperMode"));
-
-	return (
-		(View.RayTracingRenderMode != ERayTracingRenderMode::PathTracing || (View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing && CVarWiper && CVarWiper->GetInt() > 0))
-		&& (View.RayTracingRenderMode != ERayTracingRenderMode::RayTracingDebug)
-		);
+	// Return false if a full screen ray tracing pass will be displayed on top of the raster pass
+	// This can be used to skip certain calculations
+	return (View.RayTracingRenderMode != ERayTracingRenderMode::PathTracing &&
+		    View.RayTracingRenderMode != ERayTracingRenderMode::RayTracingDebug);
 }
 #endif // RHI_RAYTRACING
