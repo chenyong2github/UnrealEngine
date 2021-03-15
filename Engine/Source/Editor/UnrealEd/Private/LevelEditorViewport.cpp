@@ -3301,6 +3301,26 @@ void FLevelEditorViewportClient::GetSelectedActorsAndComponentsForMove(TArray<AA
 			continue;
 		}
 
+		// Ensure that only parent-most actor(s) are moved
+		// If both a parent and child are selected and the delta is applied to both, the child will actually move 2x delta
+		bool bParentAlsoSelected = false;
+		AActor* Parent = Actor->GetAttachParentActor();
+		while (Parent != nullptr)
+		{
+			if (Parent->IsSelected())
+			{
+				bParentAlsoSelected = true;
+				break;
+			}
+
+			Parent = Parent->GetAttachParentActor();
+		}
+
+		if (bParentAlsoSelected)
+		{
+			continue;
+		}
+
 		if (!CanMoveActorInViewport(Actor))
 		{
 			continue;
