@@ -2933,25 +2933,20 @@ void UAssetToolsImpl::RecursiveGetDependenciesAdvanced(const FName& PackageName,
 	if (OptionalAssetData.Num() > 0)
 	{
 		AssetRegistryModule.Get().GetDependencies(PackageName, Dependencies);
-		for (auto DependsIt = Dependencies.CreateConstIterator(); DependsIt; ++DependsIt)
+		for (const FName& Dep : Dependencies)
 		{
-			if (!AllDependencies.Contains(*DependsIt))
+			if (!AllDependencies.Contains(Dep) && FPackageName::IsValidLongPackageName(Dep.ToString(), false))
 			{
-				FAssetData DependencyAsset = AssetRegistry.GetAssetByObjectPath(*DependsIt);
-				if (DependencyAsset != FAssetData())
+				TArray<FAssetData> DependencyAssetData;
+				AssetRegistry.GetAssetsByPackageName(Dep, DependencyAssetData, true);
+				FARFilter ExclusionFilter = CopyCustomization->GetARFilter();
+				AssetRegistry.UseFilterToExcludeAssets(DependencyAssetData, ExclusionFilter);
+				if (DependencyAssetData.Num() > 0)
 				{
-					TArray<FAssetData> DependencyAssetData;
-					DependencyAssetData.Add(DependencyAsset);
-					FARFilter ExclusionFilter = CopyCustomization->GetARFilter();
-					AssetRegistry.UseFilterToExcludeAssets(DependencyAssetData, ExclusionFilter);
-					if (DependencyAssetData.IsValidIndex(0))
-					{
-						AllDependencies.Add(*DependsIt);
-						DependencyMap.Add(*DependsIt, PackageName);
-						RecursiveGetDependenciesAdvanced(*DependsIt, CopyParams, AllDependencies, DependencyMap, CopyCustomization, DependencyAssetData);
-					}
+					AllDependencies.Add(Dep);
+					DependencyMap.Add(Dep, PackageName);
+					RecursiveGetDependenciesAdvanced(Dep, CopyParams, AllDependencies, DependencyMap, CopyCustomization, DependencyAssetData);
 				}
-
 			}
 		}
 	}
