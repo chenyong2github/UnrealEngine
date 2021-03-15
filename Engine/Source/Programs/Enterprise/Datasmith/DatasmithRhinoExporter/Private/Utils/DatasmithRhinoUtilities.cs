@@ -3,6 +3,7 @@
 using Rhino;
 using Rhino.DocObjects;
 using Rhino.Geometry;
+using Rhino.Runtime;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -149,9 +150,9 @@ namespace DatasmithRhino.Utils
 			return Radian * (180 / Math.PI);
 		}
 
-		public static Transform GetModelComponentTransform(ModelComponent RhinoModelComponent)
+		public static Transform GetCommonObjectTransform(CommonObject InCommonObject)
 		{
-			switch (RhinoModelComponent)
+			switch (InCommonObject)
 			{
 				case InstanceObject InInstance:
 					return InInstance.InstanceXform;
@@ -245,13 +246,13 @@ namespace DatasmithRhino.Utils
 				return ValueFormula;
 			}
 
-			RhinoObject NodeObject = InNode.RhinoModelComponent as RhinoObject;
+			RhinoObject NodeObject = InNode.RhinoCommonObject as RhinoObject;
 			RhinoObject ParentObject = null;
 			DatasmithActorInfo CurrentNode = InNode;
 			while (CurrentNode.DefinitionNode != null)
 			{
 				CurrentNode = CurrentNode.DefinitionNode;
-				ParentObject = CurrentNode.RhinoModelComponent as RhinoObject;
+				ParentObject = CurrentNode.RhinoCommonObject as RhinoObject;
 			}
 
 			// In case this is an instance of a block sub-object, the ID held in the formula may not have been updated

@@ -75,10 +75,9 @@ namespace DatasmithRhino.ElementExporters
 		{
 			FDatasmithFacadeActor ExportedActor = null;
 
-			if (Node.bHasRhinoObject)
+			if (Node.RhinoCommonObject is RhinoObject CurrentObject)
 			{
 				bool bExportEmptyActor = false;
-				RhinoObject CurrentObject = Node.RhinoModelComponent as RhinoObject;
 
 				if (CurrentObject.ObjectType == ObjectType.InstanceReference
 					|| CurrentObject.ObjectType == ObjectType.Point)
@@ -131,7 +130,7 @@ namespace DatasmithRhino.ElementExporters
 					SyncLightActor(Node, LightActor);
 					break;
 				case FDatasmithFacadeActorMesh MeshActor:
-					RhinoObject CurrentObject = Node.RhinoModelComponent as RhinoObject;
+					RhinoObject CurrentObject = Node.RhinoCommonObject as RhinoObject;
 					if (ExportContext.ObjectIdToMeshInfoDictionary.TryGetValue(CurrentObject.Id, out DatasmithMeshInfo MeshInfo))
 					{
 						SyncMeshActor(MeshActor, Node, MeshInfo);
@@ -208,7 +207,7 @@ namespace DatasmithRhino.ElementExporters
 
 		private static FDatasmithFacadeActorLight CreateLightActor(DatasmithActorInfo InNode)
 		{
-			LightObject RhinoLightObject = InNode.RhinoModelComponent as LightObject;
+			LightObject RhinoLightObject = InNode.RhinoCommonObject as LightObject;
 
 			string HashedName = FDatasmithFacadeElement.GetStringHash(InNode.Name);
 			switch (RhinoLightObject.LightGeometry.LightStyle)
@@ -233,7 +232,7 @@ namespace DatasmithRhino.ElementExporters
 
 		private static void SyncLightActor(DatasmithActorInfo InNode, FDatasmithFacadeActorLight LightActor)
 		{
-			LightObject RhinoLightObject = InNode.RhinoModelComponent as LightObject;
+			LightObject RhinoLightObject = InNode.RhinoCommonObject as LightObject;
 			Light RhinoLight = RhinoLightObject.LightGeometry;
 
 			if (RhinoLight.LightStyle == LightStyle.CameraSpot || RhinoLight.LightStyle == LightStyle.WorldSpot)
@@ -345,9 +344,8 @@ namespace DatasmithRhino.ElementExporters
 			FDatasmithFacadeMetaData DatasmithMetaData = InDatasmithScene.GetMetaData(InDatasmithActor);
 			bool bHasMetaData = false;
 
-			if (InNode.bHasRhinoObject)
+			if (InNode.RhinoCommonObject is RhinoObject NodeObject)
 			{
-				RhinoObject NodeObject = InNode.RhinoModelComponent as RhinoObject;
 				NameValueCollection UserStrings = NodeObject.Attributes.GetUserStrings();
 
 				if (UserStrings != null && UserStrings.Count > 0)
@@ -402,9 +400,9 @@ namespace DatasmithRhino.ElementExporters
 		private string GetLayers(DatasmithActorInfo InNode)
 		{
 			bool bIsSameAsParentLayer =
-				!(InNode.bHasRhinoLayer
-					|| (InNode.Parent.bIsRoot && InNode.RhinoModelComponent == null) //This is a dummy document layer.
-					|| (InNode.Parent.RhinoModelComponent as RhinoObject)?.ObjectType == ObjectType.InstanceReference);
+				!(InNode.RhinoCommonObject is Layer
+					|| (InNode.Parent.bIsRoot && InNode.RhinoCommonObject == null) //This is a dummy document layer.
+					|| (InNode.Parent.RhinoCommonObject as RhinoObject)?.ObjectType == ObjectType.InstanceReference);
 
 			if (bIsSameAsParentLayer && InNode.Parent?.DatasmithActor != null)
 			{

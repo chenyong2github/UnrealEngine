@@ -172,9 +172,23 @@ namespace DatasmithRhino
 		}
 
 		public FDatasmithFacadeActor DatasmithActor { get { return ExportedElement as FDatasmithFacadeActor; } }
-		public bool bHasRhinoObject { get { return RhinoModelComponent is RhinoObject; } }
-		public bool bHasRhinoLayer { get { return RhinoModelComponent is Layer; } }
-		public ModelComponent RhinoModelComponent { get { return RhinoCommonObject as ModelComponent; } }
+		
+		public Guid RhinoObjectId 
+		{
+			get
+			{
+				if (RhinoCommonObject is ModelComponent RhinoModelComponent)
+				{
+					return RhinoModelComponent.Id;
+				}
+				else if (RhinoCommonObject is ViewportInfo RhinoViewportInfo)
+				{
+					return RhinoViewportInfo.Id;
+				}
+				return Guid.Empty;
+			}
+		}
+
 		public Transform WorldTransform { get; private set; } = Transform.Identity;
 		public int MaterialIndex { get; set; } = -1;
 		public bool bOverrideMaterial { get; private set; } = false;
@@ -200,11 +214,11 @@ namespace DatasmithRhino
 		{
 			get
 			{
-				if (bHasRhinoLayer)
+				if (RhinoCommonObject is Layer RhinoLayer)
 				{
 					// This recursion ensure that only layer actors with an actual exported object under them are considered visible.
 					// ie. Layers containing no mesh are not visible.
-					return (RhinoCommonObject as Layer).IsVisible
+					return RhinoLayer.IsVisible
 						&& ChildrenInternal.Any(Child => Child.bIsVisible);
 				}
 				else if (bIsRoot)
@@ -226,7 +240,7 @@ namespace DatasmithRhino
 		public DatasmithActorInfo(ModelComponent InModelComponent, string InName, string InUniqueLabel, string InBaseLabel, int InMaterialIndex, bool bInOverrideMaterial, Layer InVisibilityLayer, IEnumerable<int> InLayerIndices = null)
 			: base(InModelComponent, InName, InUniqueLabel, InBaseLabel)
 		{
-			bIsInstanceDefinition = RhinoModelComponent is InstanceDefinition;
+			bIsInstanceDefinition = RhinoCommonObject is InstanceDefinition;
 			MaterialIndex = InMaterialIndex;
 			bOverrideMaterial = bInOverrideMaterial;
 			VisibilityLayer = InVisibilityLayer;
@@ -237,7 +251,7 @@ namespace DatasmithRhino
 				RelativeLayerIndices.AddRange(InLayerIndices);
 			}
 
-			WorldTransform = DatasmithRhinoUtilities.GetModelComponentTransform(RhinoModelComponent);
+			WorldTransform = DatasmithRhinoUtilities.GetCommonObjectTransform(InModelComponent);
 		}
 
 		public override void ApplyDiffs(DatasmithActorInfo OtherInfo)
@@ -273,7 +287,7 @@ namespace DatasmithRhino
 					foreach (DatasmithActorInfo Descendant in GetDescendantEnumerator())
 					{
 						Descendant.ApplyModifiedStatus();
-						Descendant.WorldTransform = Transform.Multiply(Descendant.Parent.WorldTransform, DatasmithRhinoUtilities.GetModelComponentTransform(Descendant.RhinoModelComponent));		
+						Descendant.WorldTransform = Transform.Multiply(Descendant.Parent.WorldTransform, DatasmithRhinoUtilities.GetCommonObjectTransform(Descendant.RhinoCommonObject));		
 					}
 				}
 			}
@@ -283,10 +297,10 @@ namespace DatasmithRhino
 		{
 			List<string> Tags = new List<string>();
 
-			if (RhinoModelComponent != null)
+			if (RhinoCommonObject != null)
 			{
-				Tags.Add(string.Format("Rhino.ID: {0}", RhinoModelComponent.Id));
-				string ComponentTypeString = DatasmithRhinoUniqueNameGenerator.GetDefaultTypeName(RhinoModelComponent);
+				Tags.Add(string.Format("Rhino.ID: {0}", RhinoObjectId));
+				string ComponentTypeString = DatasmithRhinoUniqueNameGenerator.GetDefaultTypeName(RhinoCommonObject);
 				Tags.Add(string.Format("Rhino.Entity.Type: {0}", ComponentTypeString));
 
 				//Add the groups this object belongs to.
@@ -313,7 +327,7 @@ namespace DatasmithRhino
 			if (Parent != null)
 			{
 				// Reset the absolute transform and layer to their relative values.
-				WorldTransform = DatasmithRhinoUtilities.GetModelComponentTransform(RhinoModelComponent);
+				WorldTransform = DatasmithRhinoUtilities.GetCommonObjectTransform(RhinoCommonObject);
 				LayerIndices = new HashSet<int>(RelativeLayerIndices);
 			}
 
@@ -747,13 +761,13 @@ namespace DatasmithRhino
 
 			foreach (DatasmithActorInfo DescendantInfo in SceneRoot.GetDescendantEnumerator())
 			{
-				RhinoObject DescendantRhinoObject = DescendantInfo.RhinoModelComponent as RhinoObject;
+				RhinoObject DescendantRhinoObject = DescendantInfo.RhinoCommonObject as RhinoObject;
 				bool bIsNotInstancedObject = DescendantRhinoObject == null || DescendantInfo.DefinitionNode == null || (DescendantRhinoObject.ObjectType == ObjectType.InstanceReference && !DescendantInfo.bIsInstanceDefinition);
 				
 				if (bIsNotInstancedObject)
 				{
 					const bool bReparent = false;
-					ModifyActor(DescendantInfo.RhinoModelComponent, bReparent);
+					ModifyActor(DescendantRhinoObject, bReparent);
 				}
 			}
 		}
@@ -803,7 +817,7 @@ namespace DatasmithRhino
 				System.Diagnostics.Debug.Assert(ActorInfoValue.DirectLinkStatus == DirectLinkSynchronizationStatus.Deleted);
 				if (ActorInfoValue.RestorePreviousDirectLinkStatus())
 				{
-					if (ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfoValue.RhinoModelComponent.Id, out DatasmithMeshInfo MeshInfo))
+					if (ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfoValue.RhinoObjectId, out DatasmithMeshInfo MeshInfo))
 					{
 						MeshInfo.RestorePreviousDirectLinkStatus();
 					}
@@ -815,8 +829,11 @@ namespace DatasmithRhino
 				}
 			}
 
-			//Undelete is always used during an undo, and undo often use "undelete" to restore an actor state (instead of calling modify).
-			ModifyActor(ActorInfo.RhinoModelComponent, /*bReparent=*/false);
+			if (ActorInfo.RhinoCommonObject is ModelComponent RhinoModelComponent)
+			{
+				//Undelete is always used during an undo, and undo often use "undelete" to restore an actor state (instead of calling modify).
+				ModifyActor(RhinoModelComponent, /*bReparent=*/false);
+			}
 		}
 
 		/// <summary>
@@ -1000,7 +1017,7 @@ namespace DatasmithRhino
 					ActorInfoValue.ApplyDeletedStatus();
 
 					// If this actor is not a block instance, we can delete its associated mesh.
-					if (ActorInfoValue.DefinitionNode == null && ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfoValue.RhinoModelComponent.Id, out DatasmithMeshInfo MeshInfo))
+					if (ActorInfoValue.DefinitionNode == null && ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfoValue.RhinoObjectId, out DatasmithMeshInfo MeshInfo))
 					{
 						MeshInfo.ApplyDeletedStatus();
 					}
@@ -1018,7 +1035,7 @@ namespace DatasmithRhino
 				if (bMaterialAffectedByParent)
 				{
 					DatasmithActorInfo DefinitionInfo = ChildActorInfo.DefinitionNode != null ? ChildActorInfo.DefinitionNode : ChildActorInfo;
-					RhinoObject TargetObject = (DefinitionInfo.RhinoModelComponent) as RhinoObject;
+					RhinoObject TargetObject = DefinitionInfo.RhinoCommonObject as RhinoObject;
 
 					if (TargetObject != null)
 					{
@@ -1122,7 +1139,7 @@ namespace DatasmithRhino
 
 			if (!ParentNode.bIsRoot)
 			{
-				Layer ParentLayer = ParentNode.RhinoModelComponent as Layer;
+				Layer ParentLayer = ParentNode.RhinoCommonObject as Layer;
 				// If ParentLayer is null, then the parent node is a dummy document layer and we are in a worksession.
 				int ParentLayerIndex = ParentLayer == null ? -1 : ParentLayer.Index;
 
@@ -1155,12 +1172,12 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo CurrentInfo in ActorInfos)
 			{
-				RhinoObject CurrentRhinoObject = CurrentInfo.RhinoModelComponent as RhinoObject;
+				RhinoObject CurrentRhinoObject = CurrentInfo.RhinoCommonObject as RhinoObject;
 				bool bIsNotInstancedObject = CurrentRhinoObject == null || CurrentInfo.DefinitionNode == null || (CurrentRhinoObject.ObjectType == ObjectType.InstanceReference && !CurrentInfo.bIsInstanceDefinition);
 
 				if (CurrentInfo.DirectLinkStatus != DirectLinkSynchronizationStatus.PendingDeletion && bIsNotInstancedObject)
 				{
-					ObjectIdToHierarchyActorNodeDictionary[CurrentInfo.RhinoModelComponent.Id] = CurrentInfo;
+					ObjectIdToHierarchyActorNodeDictionary[CurrentInfo.RhinoObjectId] = CurrentInfo;
 
 					if (CurrentRhinoObject != null)
 					{
@@ -1242,7 +1259,7 @@ namespace DatasmithRhino
 
 		private DatasmithActorInfo AddChildInstance(DatasmithActorInfo ParentNode, DatasmithActorInfo ChildDefinitionNode)
 		{
-			int MaterialIndex = GetObjectMaterialIndex(ChildDefinitionNode.RhinoModelComponent as RhinoObject, ParentNode);
+			int MaterialIndex = GetObjectMaterialIndex(ChildDefinitionNode.RhinoCommonObject as RhinoObject, ParentNode);
 			DatasmithActorInfo InstanceChildNode = GenerateInstanceNodeInfo(ParentNode, ChildDefinitionNode, MaterialIndex, ParentNode.VisibilityLayer);
 			ParentNode.AddChild(InstanceChildNode);
 
@@ -1332,18 +1349,18 @@ namespace DatasmithRhino
 						{
 							if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Modified)
 							{
-								ModifyMesh(ActorInfo.RhinoModelComponent as RhinoObject);
+								ModifyMesh(ActorInfo.RhinoCommonObject as RhinoObject);
 							}
 							else if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Created)
 							{
-								if (ActorInfo.RhinoModelComponent is RhinoObject CreatedRhinoObject)
+								if (ActorInfo.RhinoCommonObject is RhinoObject CreatedRhinoObject)
 								{
 									ObjectNeedingMeshParsing.Add(CreatedRhinoObject);
 								}
 							}
 							else if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
 							{
-								if (ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfo.RhinoModelComponent.Id, out DatasmithMeshInfo MeshInfo))
+								if (ObjectIdToMeshInfoDictionary.TryGetValue(ActorInfo.RhinoObjectId, out DatasmithMeshInfo MeshInfo))
 								{
 									MeshInfo.ApplyDeletedStatus();
 								}
@@ -1384,7 +1401,7 @@ namespace DatasmithRhino
 			string UniqueLabel = ActorLabelGenerator.GenerateUniqueNameFromBaseName(DefinitionNodeInfo.UniqueLabel);
 			bool bOverrideMaterial = DefinitionNodeInfo.MaterialIndex != MaterialIndex;
 
-			return new DatasmithActorInfo(DefinitionNodeInfo.RhinoModelComponent, Name, UniqueLabel, BaseLabel, MaterialIndex, bOverrideMaterial, VisibilityLayer);
+			return new DatasmithActorInfo(DefinitionNodeInfo.RhinoCommonObject as ModelComponent, Name, UniqueLabel, BaseLabel, MaterialIndex, bOverrideMaterial, VisibilityLayer);
 		}
 
 		/// <summary>
@@ -1757,9 +1774,9 @@ namespace DatasmithRhino
 		{
 			foreach (DatasmithActorInfo HierarchyNode in InstanceDefinitionHierarchy.GetEnumerator())
 			{
-				if (!HierarchyNode.bIsRoot && HierarchyNode.bHasRhinoObject && !(HierarchyNode.RhinoModelComponent is InstanceObject))
+				if (!HierarchyNode.bIsRoot && HierarchyNode.RhinoCommonObject is RhinoObject NodeObject && !(HierarchyNode.RhinoCommonObject is InstanceObject))
 				{
-					CollectedObjects.Add(HierarchyNode.RhinoModelComponent as RhinoObject);
+					CollectedObjects.Add(NodeObject);
 				}
 			}
 		}
