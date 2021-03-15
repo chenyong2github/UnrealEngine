@@ -20,7 +20,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.18";
+        private static string VersionString = "4.19";
 
         public static string Get() { return VersionString; }
     };
@@ -387,11 +387,13 @@ namespace PerfReportTool
 			"       -spreadsheetfriendly: outputs a single quote before non-numeric entries in summary tables\n" +
 			"       -noSummaryMinMax: don't make min/max columns for each stat in a condensed summary\n" +
 			"       -reverseTable: Reverses the order of summary tables\n"+
+			"       -scrollableTable: makes the summary table scrollable, with frozen first rows and columns\n" +
+			"       -maxSummaryTableStringLength <n>: strings longer than this will get truncated\n" +			
 			"";
 			/*
 			"Note on custom tables:\n" +
 			"       The -customTable and -customTableSort args allow you to generate a custom summary table\n" +
-			"       This is an alternativee to using preset summary tables (see -summarytable)\n" +
+			"       This is an alternative to using preset summary tables (see -summarytable)\n" +
 			"       Example:\n"+
 			"               -customTableSort \"deviceprofile,buildversion\" -customTable \"deviceprofile,buildversion,memoryfreeMB*\" \n"+
 			"       This outputs a table containing deviceprofile, buildversion and memoryfree stats, sorted by deviceprofile and then buildversion\n" +
@@ -518,6 +520,9 @@ namespace PerfReportTool
 
 			string metadataFilterString = GetArg("metadataFilter", null);
 
+			// A csv hash for now can just be a filename/size. Replace with metadata later
+			// Make PerfSummaryCache from: CSV hash + reporttype hash. If the cache is enabled then always -readAllStats
+
 			CsvFileCache csvFileCache = new CsvFileCache(csvFilenames, precacheCount, precacheThreads, !GetBoolArg("disableCacheFiles"), metadataFilterString, reportXML.derivedMetadataMappings);
             SummaryMetadataTable metadataTable = new SummaryMetadataTable();
             for ( int i=0; i<csvFilenames.Length; i++)
@@ -580,11 +585,11 @@ namespace PerfReportTool
 					{
 						customSummaryTableRowSort = "buildversion,deviceprofile";
 					}
-					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable, bSpreadsheetFriendlyStrings);
+					WriteMetadataTableReport(outputDir, summaryTableFilename, metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), false, bCsvTable, bSpreadsheetFriendlyStrings, null);
 
 					if (bCollateTable)
 					{
-						WriteMetadataTableReport(outputDir, summaryTableFilename+"_Collated", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable, bSpreadsheetFriendlyStrings);
+						WriteMetadataTableReport(outputDir, summaryTableFilename+"_Collated", metadataTable, customSummaryTableFilter.Split(',').ToList(), customSummaryTableRowSort.Split(',').ToList(), true, bCsvTable, bSpreadsheetFriendlyStrings, null);
 					}
 				}
 				else
@@ -617,12 +622,13 @@ namespace PerfReportTool
 
         void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, SummaryTableInfo tableInfo, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
 		{
-			WriteMetadataTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings);
+			WriteMetadataTableReport(outputDir, filenameWithoutExtension, table, tableInfo.columnFilterList, tableInfo.rowSortList, bCollated, bToCSV, bSpreadsheetFriendlyStrings, tableInfo.sectionBoundary);
 		}
 
-		void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings)
+		void WriteMetadataTableReport(string outputDir, string filenameWithoutExtension, SummaryMetadataTable table, List<string> columnFilterList, List<string> rowSortList, bool bCollated, bool bToCSV, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo)
 		{
 			bool reverseSort = GetBoolArg("reverseTable");
+			bool bScrollableTable = GetBoolArg("scrollableTable");
 			bool addMinMaxColumns = !GetBoolArg("noSummaryMinMax");
 			if (!string.IsNullOrEmpty(outputDir))
             {
@@ -641,7 +647,7 @@ namespace PerfReportTool
 			else
 			{
 				filteredTable.ApplyDisplayNameMapping(statDisplaynameMapping);
-				filteredTable.WriteToHTML(filenameWithoutExtension+".html", Version.Get(), bSpreadsheetFriendlyStrings);
+				filteredTable.WriteToHTML(filenameWithoutExtension+".html", Version.Get(), bSpreadsheetFriendlyStrings, sectionBoundaryInfo, bScrollableTable, addMinMaxColumns, GetIntArg("maxSummaryTableStringLength", -1), reportXML.summaryTableLowIsBadStatList);
 			}
 		}
 
@@ -687,7 +693,7 @@ namespace PerfReportTool
                 if (loggingEnabled)
                 {
                     Console.WriteLine("[PerfLog] "+
-                        String.Format("{0,-25} : {1,-10}", description , elapsed.ToString("0.0") + "s"), 70);
+                        String.Format("{0,-25} : {1,-10}", description , elapsed.ToString("0.00") + "s"), 70);
                     if ( newLine )
                     {
                         Console.WriteLine();
@@ -902,7 +908,7 @@ namespace PerfReportTool
                 Uri csvFileUri = new Uri(csvFile.filename, UriKind.Absolute);
 
                 string relativeCsvPath = finalDirUri.MakeRelativeUri(csvFileUri).ToString();
-                summaryMetadata.Add("Csv File", "<a href='" + relativeCsvPath + "'>"+ shortName + ".csv" + "</a>", null, relativeCsvPath );
+				summaryMetadata.Add("Csv File", "<a href='" + relativeCsvPath + "'>" + shortName + ".csv" + "</a>", null, relativeCsvPath);
 
 				if (htmlFilename != null)
 				{
@@ -922,7 +928,8 @@ namespace PerfReportTool
 				{
 					foreach ( StatSamples stat in csvStats.Stats.Values )
 					{
-						summaryMetadata.Add( stat.Name.ToLower(), stat.average.ToString());
+						//summaryMetadata.Add( stat.Name.ToLower(), stat.average.ToString());
+						summaryMetadata.Add( stat.Name, stat.average.ToString());
 					}
 				}
 
@@ -1064,6 +1071,13 @@ namespace PerfReportTool
 				}
 				htmlFile.WriteLine("    ]]>");
 				htmlFile.WriteLine("    <title>" + titleStr + "</title>");
+				htmlFile.WriteLine("    <style type='text/css'>");
+				htmlFile.WriteLine("      table, th, td { border: 2px solid black; border-collapse: collapse; padding: 3px; vertical-align: top; font-family: 'Verdana', Times, serif; font-size: 12px;}");
+				htmlFile.WriteLine("      p {  font-family: 'Verdana', Times, serif; font-size: 12px }");
+				htmlFile.WriteLine("      h1 {  font-family: 'Verdana', Times, serif; font-size: 20px; padding-top:10px }");
+				htmlFile.WriteLine("      h2 {  font-family: 'Verdana', Times, serif; font-size: 18px; padding-top:20px }");
+				htmlFile.WriteLine("      h3 {  font-family: 'Verdana', Times, serif; font-size: 16px; padding-top:20px }");
+				htmlFile.WriteLine("    </style>");
 				htmlFile.WriteLine("  </head>");
 				htmlFile.WriteLine("  <body><font face='verdana'>");
 				htmlFile.WriteLine("  <h1>" + titleStr + "</h1>");
@@ -1081,7 +1095,7 @@ namespace PerfReportTool
 
 				htmlFile.WriteLine("  <h2>Summary</h2>");
 
-				htmlFile.WriteLine("<table border='0'  bgcolor='#000000' style='width:800'>");
+				htmlFile.WriteLine("<table style='width:800'>");
 
 				if ( reportTypeInfo.metadataToShowList != null )
 				{
@@ -1097,11 +1111,11 @@ namespace PerfReportTool
 						    {
 							    friendlyName = displayNameMapping[metadataStr];
 						    }
-						    htmlFile.WriteLine("<tr bgcolor='#ffffff'><td bgcolor='#F0F0F0'>" + friendlyName + "</td><td><b>" + value + "</b></td></tr>");
+						    htmlFile.WriteLine("<tr><td bgcolor='#F0F0F0'>" + friendlyName + "</td><td><b>" + value + "</b></td></tr>");
 					    }
 				    }
 				}
-				htmlFile.WriteLine("<tr bgcolor='#ffffff'><td bgcolor='#F0F0F0'>Frame count</td><td>" + csvStats.SampleCount + " (" + numFramesStripped + " excluded)</td></tr>");
+				htmlFile.WriteLine("<tr><td bgcolor='#F0F0F0'>Frame count</td><td>" + csvStats.SampleCount + " (" + numFramesStripped + " excluded)</td></tr>");
 				htmlFile.WriteLine("</table>");
 
 			}
@@ -1131,7 +1145,7 @@ namespace PerfReportTool
             if (htmlFile != null)
 			{
 				// Output the list of graphs
-				htmlFile.WriteLine("<br><h3>Graphs</h3>");
+				htmlFile.WriteLine("<h2>Graphs</h2>");
 
 				// If we are using a peak summary then we can separate the links into categories.
 				// To do that we piggy back off of the information in the hidePrefixes list in the peak summary.
@@ -1178,7 +1192,7 @@ namespace PerfReportTool
 					ReportGraph graph = graphs[svgFileIndex];
 
 					string svgTitle = graph.title;
-					htmlFile.WriteLine("  <br><br><a name='" + StripSpaces(svgTitle) + "'></a> <h2>" + svgTitle + "</h2>");
+					htmlFile.WriteLine("  <br><a name='" + StripSpaces(svgTitle) + "'></a> <h2>" + svgTitle + "</h2>");
 					if (graph.isExternal)
 					{
 						string outFilename = htmlFilename.Replace(".html", "_" + svgTitle.Replace(" ", "_") + ".svg");
@@ -1828,6 +1842,8 @@ namespace PerfReportTool
             }
 
 
+
+
 			XDocument reportGraphsDoc = XDocument.Load(graphsXMLFilename);
 			graphGroupsElement = reportGraphsDoc.Element("graphGroups");
 
@@ -1860,6 +1876,8 @@ namespace PerfReportTool
 				}
 			}
 
+
+
 			// Read the display name mapping
 			statDisplayNameMapping = new Dictionary<string, string>();
 			XElement displayNameElement = rootElement.Element("statDisplayNameMappings");
@@ -1875,6 +1893,12 @@ namespace PerfReportTool
 					}
 				}
 			}
+
+			XElement summaryTableLowIsBadStatListEl = rootElement.Element("summaryTableLowIsBadStats");
+			if (summaryTableLowIsBadStatListEl != null)
+			{
+				summaryTableLowIsBadStatList = summaryTableLowIsBadStatListEl.Value.Split(',');
+			}			
 
 			// Read the derived metadata mappings
 			derivedMetadataMappings = new DerivedMetadataMappings();
@@ -2110,6 +2134,7 @@ namespace PerfReportTool
 		Dictionary<string,XElement> sharedSummaries;
 		Dictionary<string, GraphSettings> graphs;
 		Dictionary<string, string> statDisplayNameMapping;
+		public string [] summaryTableLowIsBadStatList;
 		string baseXmlDirectory;
 
 		List<CsvEventStripInfo> csvEventsToStrip;

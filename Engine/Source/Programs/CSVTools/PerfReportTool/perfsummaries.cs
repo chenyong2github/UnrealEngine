@@ -21,8 +21,8 @@ namespace PerfSummaries
 			byte gb = (byte)((hexValue >> 8) & 0xff);
 			byte bb = (byte)((hexValue >> 0) & 0xff);
 			r = ((float)rb) / 255.0f;
-			g = ((float)rb) / 255.0f;
-			b = ((float)rb) / 255.0f;
+			g = ((float)gb) / 255.0f;
+			b = ((float)bb) / 255.0f;
 			alpha = 1.0f;
 		}
 		public Colour(uint hex, float alphaIn = 1.0f)
@@ -172,12 +172,44 @@ namespace PerfSummaries
 		List<ThresholdInfo> Thresholds = new List<ThresholdInfo>();
 	};
 
+	class TableUtil
+	{
+		public static string FormatStatName(string inStatName)
+		{
+			return inStatName.Replace("/", "/ ");
+		}
 
+		public static string SanitizeHtmlString(string str)
+		{
+			return str.Replace("<", "&lt;").Replace(">", "&gt;");
+		}
 
-    class Summary
+		public static string SafeTruncateHtmlTableValue(string inValue, int maxLength)
+		{
+			if (inValue.StartsWith("<a") && inValue.EndsWith("</a>"))
+			{
+				// Links require special handling. Only truncate what's inside
+				int openAnchorEndIndex = inValue.IndexOf(">");
+				int closeAnchorStartIndex = inValue.IndexOf("</a>");
+				if (openAnchorEndIndex > 2 && closeAnchorStartIndex > openAnchorEndIndex)
+				{
+					string anchor = inValue.Substring(0, openAnchorEndIndex + 1);
+					string text = inValue.Substring(openAnchorEndIndex+1, closeAnchorStartIndex - (openAnchorEndIndex+1));
+					if (text.Length>maxLength)
+					{
+						text = SanitizeHtmlString(text.Substring(0, maxLength)) + "...";
+					}
+					return anchor + text + "</a>";
+				}
+			}
+			return SanitizeHtmlString(inValue.Substring(0, maxLength))+"...";
+		}
+	}
+
+	class Summary
     {
 
-        public class CaptureRange
+		public class CaptureRange
         {
             public string name;
             public string startEvent;
@@ -523,12 +555,18 @@ namespace PerfSummaries
 				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
 			}
 
+			List<bool> ColumnIsAvgValueList = new List<bool>();
+			for ( int i=0; i<ColumnNames.Count; i++)
+			{
+				ColumnIsAvgValueList.Add(false);
+			}
 			foreach (string statName in stats)
             {
                 string[] StatTokens = statName.Split('(');
 
                 float value = 0;
                 string ValueType = " Avg";
+				bool bIsAvg = false;
                 if (!csvStats.Stats.ContainsKey(StatTokens[0].ToLower()))
                 {
                     continue;
@@ -546,8 +584,10 @@ namespace PerfSummaries
                 else
                 {
                     value = csvStats.Stats[StatTokens[0].ToLower()].average;
+					bIsAvg = true;
                 }
-                ColumnNames.Add(StatTokens[0] + ValueType);
+				ColumnIsAvgValueList.Add(bIsAvg);
+				ColumnNames.Add(StatTokens[0] + ValueType);
                 ColumnValues.Add(value.ToString("0.00"));
 				ColumnColorThresholds.Add(GetStatColourThresholdList(statName));
 				ColumnColors.Add(ColourThresholdList.GetSafeColourForValue(ColumnColorThresholds.Last(), ColumnValues.Last()));
@@ -565,7 +605,14 @@ namespace PerfSummaries
                     {
                         columnName = "MVP";
                     }
-                    metadata.Add(columnName, ColumnValues[i], ColumnColorThresholds[i]);
+					// Remove pre-existing stats with the same name
+					if (ColumnIsAvgValueList[i] && columnName.EndsWith(" Avg"))
+					{
+						string originalStatName = columnName.Substring(0, columnName.Length - 4);
+						metadata.RemoveSafe(originalStatName);
+
+					}
+					metadata.Add(columnName, ColumnValues[i], ColumnColorThresholds[i]);
                 }
                 metadata.Add("TargetFPS", fps.ToString());
             }
@@ -575,8 +622,8 @@ namespace PerfSummaries
             {
                 string HeaderRow = "";
                 string ValueRow = "";
-                HeaderRow += "<td bgcolor='#ffffff'>Section Name</td>";
-                ValueRow += "<td bgcolor='#ffffff'>Entire Run</td>";
+                HeaderRow += "<th>Section Name</th>";
+                ValueRow += "<td>Entire Run</td>";
                 for (int i = 0; i < ColumnNames.Count; i++)
                 {
                     string columnName = ColumnNames[i];
@@ -584,11 +631,11 @@ namespace PerfSummaries
                     {
                         columnName += " (ms)";
                     }
-                    HeaderRow += "<td bgcolor='#ffffff'>" + columnName + "</td>";
+                    HeaderRow += "<th>" + TableUtil.FormatStatName(columnName) + "</th>";
                     ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i] + "</td>";
                 }
-				htmlFile.WriteLine("  <h3>FPSChart</h3>");
-				htmlFile.WriteLine("<table border='0'  bgcolor='#000000' style='width:400'>");
+				htmlFile.WriteLine("  <h2>FPSChart</h2>");
+				htmlFile.WriteLine("<table border='0' style='width:400'>");
                 htmlFile.WriteLine("  <tr>" + HeaderRow + "</tr>");
                 htmlFile.WriteLine("  <tr>" + ValueRow + "</tr>");
             }
@@ -677,7 +724,7 @@ namespace PerfSummaries
 					if ( htmlFile != null )
                     {
                         string ValueRow = "";
-                        ValueRow += "<td bgcolor='#ffffff'>"+ CapRange.name + "</td>";
+                        ValueRow += "<td>"+ CapRange.name + "</td>";
                         for (int i = 0; i < ColumnNames.Count; i++)
                         {
                             ValueRow += "<td bgcolor=" + ColumnColors[i] + ">" + ColumnValues[i] + "</td>";
@@ -764,12 +811,12 @@ namespace PerfSummaries
             // Output HTML
             if (htmlFile != null && eventCountsDict.Count > 0)
             {
-                htmlFile.WriteLine("  <br><h3>"+ title + "</h3>");
-                htmlFile.WriteLine("  <table border='0' bgcolor='#000000' style='width:1200'>");
-                htmlFile.WriteLine("  <tr><td bgcolor='#ffffff'><b>Name</b></td><td bgcolor='#ffffff'><b>Count</b></td></tr>");
+                htmlFile.WriteLine("  <h2>" + title + "</h2>");
+                htmlFile.WriteLine("  <table border='0' style='width:1200'>");
+                htmlFile.WriteLine("  <tr><th>Name</th><th><b>Count</th></tr>");
                 foreach (KeyValuePair<string,int> pair in eventCountsDict.ToList() )
                 {
-                    htmlFile.WriteLine("  <tr><td bgcolor='#ffffff'>"+pair.Key+"</td><td bgcolor='#ffffff'>"+pair.Value+"</td></tr>");
+                    htmlFile.WriteLine("  <tr><td>"+pair.Key+"</td><td>"+pair.Value+"</td></tr>");
                 }
                 htmlFile.WriteLine("  </table>");
             }
@@ -822,9 +869,9 @@ namespace PerfSummaries
 				return;
 			}
 
-			htmlFile.WriteLine("  <br><h3>Hitches</h3>");
-            htmlFile.WriteLine("  <table border='0' bgcolor='#000000' style='width:800'>");
-            htmlFile.WriteLine("  <tr><td bgcolor='#ffffff'></td>");
+			htmlFile.WriteLine("  <h2>Hitches</h2>");
+            htmlFile.WriteLine("  <table border='0' style='width:800'>");
+            htmlFile.WriteLine("  <tr><td></td>");
 
             StreamWriter statsCsvFile = null;
             if (bIncludeSummaryCsv)
@@ -838,7 +885,7 @@ namespace PerfSummaries
             Thresholds.Add("Hitch Size");
             foreach (float thresh in HitchThresholds)
             {
-                htmlFile.WriteLine("  <td bgcolor='#ffffff'><b> >" + thresh.ToString("0") + "ms</b></td>");
+                htmlFile.WriteLine("  <th> >" + thresh.ToString("0") + "ms</b></td>");
                 Thresholds.Add(thresh.ToString("0"));
             }
             if (statsCsvFile != null)
@@ -857,7 +904,7 @@ namespace PerfSummaries
 				}
 
 				Hitches.Clear();
-				htmlFile.WriteLine("  <tr><td  bgcolor='#ffffff'><b>" + StatToCheck + "</b></td>");
+				htmlFile.WriteLine("  <tr><td><b>" + StatToCheck + "</b></td>");
                 Hitches.Add(StatToCheck);
                 int thresholdIndex = 0;
 
@@ -930,9 +977,9 @@ namespace PerfSummaries
 				return;
 			}
 			// Write the averages
-			htmlFile.WriteLine("  <h3>Stat unit averages</h3>");
-            htmlFile.WriteLine("  <table border='0'  bgcolor='#000000' style='width:400'>");
-            htmlFile.WriteLine("  <tr><td bgcolor='#ffffff'></td><td bgcolor='#ffffff'><b>ms</b></td></tr>");
+			htmlFile.WriteLine("  <h2>Stat unit averages</h2>");
+            htmlFile.WriteLine("  <table border='0' style='width:400'>");
+            htmlFile.WriteLine("  <tr><td></td><th>ms</b></th>");
             foreach (string stat in stats)
             {
                 string StatToCheck = stat.Split('(')[0];
@@ -942,28 +989,28 @@ namespace PerfSummaries
                 }
                 float val = csvStats.Stats[StatToCheck.ToLower()].average;
                 string colour = ColourThresholdList.GetThresholdColour(val, ColourThresholds[0], ColourThresholds[1], ColourThresholds[2], ColourThresholds[3]);
-                htmlFile.WriteLine("  <tr><td bgcolor='#ffffff'><b>" + StatToCheck + "</b></td><td bgcolor=" + colour + ">" + val.ToString("0.00") + "</td></tr>");
+                htmlFile.WriteLine("  <tr><td><b>" + StatToCheck + "</b></td><td bgcolor=" + colour + ">" + val.ToString("0.00") + "</td></tr>");
             }
             htmlFile.WriteLine("  </table>");
 
             // Hitches
             double[] thresholds = HistogramThresholds;
-            htmlFile.WriteLine("  <br><h3>Frames in budget</h3>");
-            htmlFile.WriteLine("  <table border='0' bgcolor='#000000' style='width:800'>");
+            htmlFile.WriteLine("  <h2>Frames in budget</h2>");
+            htmlFile.WriteLine("  <table border='0' style='width:800'>");
 
-            htmlFile.WriteLine("  <tr><td bgcolor='#ffffff'></td>");
+            htmlFile.WriteLine("  <tr><td></td>");
 
             // Display the override stat budget first
             bool HasBudgetOverrideStat = false;
             if (BudgetOverrideStatName != null)
             {
-                htmlFile.WriteLine("  <td bgcolor='#ffffff'><b><=" + BudgetOverrideStatBudget.ToString("0") + "ms</b></td>");
+                htmlFile.WriteLine("  <td><b><=" + BudgetOverrideStatBudget.ToString("0") + "ms</b></td>");
                 HasBudgetOverrideStat = true;
             }
 
             foreach (float thresh in thresholds)
             {
-                htmlFile.WriteLine("  <td bgcolor='#ffffff'><b><=" + thresh.ToString("0") + "ms</b></td>");
+                htmlFile.WriteLine("  <td><b><=" + thresh.ToString("0") + "ms</b></td>");
             }
             htmlFile.WriteLine("  </tr>");
 
@@ -971,7 +1018,7 @@ namespace PerfSummaries
             {
                 string StatToCheck = unitStat.Split('(')[0];
 
-                htmlFile.WriteLine("  <tr><td  bgcolor='#ffffff'><b>" + StatToCheck + "</b></td>");
+                htmlFile.WriteLine("  <tr><td><b>" + StatToCheck + "</b></td>");
                 int thresholdIndex = 0;
 
                 // Display the render thread budget column (don't display the other stats)
@@ -985,7 +1032,7 @@ namespace PerfSummaries
                     }
                     else
                     {
-                        htmlFile.WriteLine("  <td bgcolor='#ffffff'></td>");
+                        htmlFile.WriteLine("  <td></td>");
                     }
                 }
 
@@ -1003,13 +1050,13 @@ namespace PerfSummaries
 
 
             // Hitches
-            htmlFile.WriteLine("  <br><h3>Hitches - Overall</h3>");
-            htmlFile.WriteLine("  <table border='0' bgcolor='#000000' style='width:800'>");
-            htmlFile.WriteLine("  <tr><td bgcolor='#ffffff'></td>");
+            htmlFile.WriteLine("  <h2>Hitches - Overall</h2>");
+            htmlFile.WriteLine("  <table border='0' style='width:800'>");
+            htmlFile.WriteLine("  <tr><td></td>");
 
             foreach (float thresh in HitchThresholds)
             {
-                htmlFile.WriteLine("  <td bgcolor='#ffffff'><b> >" + thresh.ToString("0") + "ms</b></td>");
+                htmlFile.WriteLine("  <td><b> >" + thresh.ToString("0") + "ms</b></td>");
             }
 
             htmlFile.WriteLine("  </tr>");
@@ -1017,7 +1064,7 @@ namespace PerfSummaries
             foreach (string unitStat in stats)
             {
                 string StatToCheck = unitStat.Split('(')[0];
-                htmlFile.WriteLine("  <tr><td  bgcolor='#ffffff'><b>" + unitStat + "</b></td>");
+                htmlFile.WriteLine("  <tr><td><b>" + unitStat + "</b></td>");
                 int thresholdIndex = 0;
 
                 foreach (float threshold in HitchThresholds)
@@ -1103,11 +1150,11 @@ namespace PerfSummaries
 
             // Here we are deciding which title we have and write it to the file.
             String titlePrefix = isMainSummary ? "Main Peaks" : sectionPrefix + " Peaks";
-            htmlFile.WriteLine("<h3>" + titlePrefix + "</h3>");
-            htmlFile.WriteLine("  <table border='0'  bgcolor='#000000' style='width:400'>");
+            htmlFile.WriteLine("<h2>" + titlePrefix + "</h2>");
+            htmlFile.WriteLine("  <table border='0' style='width:400'>");
 
             //Hard-coded start of the table.
-            htmlFile.WriteLine("    <tr><td bgcolor='#ffffff' style='width:200'></td><td bgcolor='#ffffff' style='width:75'><b>Average</b></td><td bgcolor='#ffffff' style='width:75'><b>Peak</b></td><td bgcolor='#ffffff' style='width:75'><b>Budget</b></td></tr>");
+            htmlFile.WriteLine("    <tr><td style='width:200'></td><td style='width:75'><b>Average</b></td><td style='width:75'><b>Peak</b></td><td style='width:75'><b>Budget</b></td></tr>");
 			if (LLMCsvData != null)
 			{
 				LLMCsvData.WriteLine("Stat,Average,Peak,Budget");
@@ -1143,7 +1190,7 @@ namespace PerfSummaries
 
 					if (statInfo.isInMainSummary == isMainSummary) // If we are in the main summary then this stat appears ONLY in the main summary
 					{
-						htmlFile.WriteLine("    <tr><td bgcolor='#ffffff'>" + cleanStatName + "</td><td bgcolor=" + averageColour + ">" + average.ToString("0") + "</td><td bgcolor=" + peakColour + ">" + peak.ToString("0") + "</td><td bgcolor='#ffffff'>" + budget.ToString("0") + "</td></tr>");
+						htmlFile.WriteLine("    <tr><td>" + cleanStatName + "</td><td bgcolor=" + averageColour + ">" + average.ToString("0") + "</td><td bgcolor=" + peakColour + ">" + peak.ToString("0") + "</td><td>" + budget.ToString("0") + "</td></tr>");
 					}
 
 					if (LLMCsvData != null)
@@ -1540,12 +1587,12 @@ namespace PerfSummaries
 			// Output HTML
 			if (htmlFile != null)
 			{
-				htmlFile.WriteLine("  <br><h3>" + title + "</h3>");
-				htmlFile.WriteLine("  <table border='0' bgcolor='#000000' style='width:1400'>");
+				htmlFile.WriteLine("  <h2>" + title + "</h2>");
+				htmlFile.WriteLine("  <table border='0' style='width:1400'>");
 				htmlFile.WriteLine("  <tr>");
 				foreach (Column col in filteredColumns)
 				{
-					htmlFile.WriteLine("<td bgcolor='#ffffff'><b>" + col.name + "</b></td>");
+					htmlFile.WriteLine("<th>" + col.name + "</th>");
 				}
 				htmlFile.WriteLine("  </tr>");
 				htmlFile.WriteLine("  <tr>");
@@ -1697,7 +1744,7 @@ namespace PerfSummaries
 				}
 
 				// Check if the file exists in the output directory
-				htmlFile.WriteLine("  <br><h3>" + title + "</h3>");
+				htmlFile.WriteLine("  <h2>" + title + "</h2>");
 				htmlFile.WriteLine("<svg version='1.1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' width='" + imageWidth + "' height='" + imageHeight + "'>");
 				htmlFile.WriteLine("<image href='" + destImageFilename + "' width='" + imageWidth + "' height='" + imageHeight + "' />");
 
@@ -1842,16 +1889,18 @@ namespace PerfSummaries
 
 	class SummaryMetadataValue
     {
-		public SummaryMetadataValue(double inValue, ColourThresholdList inColorThresholdList, string inToolTip)
+		public SummaryMetadataValue(string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip)
 		{
+			name = inName;
 			isNumeric = true;
 			numericValue = inValue;
 			value = inValue.ToString();
 			colorThresholdList = inColorThresholdList;
 			tooltip = inToolTip;
 		}
-		public SummaryMetadataValue(string inValue, ColourThresholdList inColorThresholdList, string inToolTip)
+		public SummaryMetadataValue(string inName, string inValue, ColourThresholdList inColorThresholdList, string inToolTip)
         {
+			name = inName;
 			numericValue = 0.0;
 			isNumeric = false;
 			colorThresholdList = inColorThresholdList;
@@ -1862,6 +1911,7 @@ namespace PerfSummaries
 		{
 			return (SummaryMetadataValue)MemberwiseClone();
 		}
+		public string name;
 		public string value;
 		public string tooltip;
         public ColourThresholdList colorThresholdList;
@@ -1874,9 +1924,19 @@ namespace PerfSummaries
 		{
 		}
 
-		public void Add(string key, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
+		public void RemoveSafe(string name)
+		{
+			string key = name.ToLower();
+			if (dict.ContainsKey(key))
+			{
+				dict.Remove(key);
+			}
+		}
+
+		public void Add(string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
         {
-            double numericValue = double.MaxValue;
+			string key = name.ToLower();
+			double numericValue = double.MaxValue;
             try
             {
                 numericValue = Convert.ToDouble(value, System.Globalization.CultureInfo.InvariantCulture);
@@ -1886,11 +1946,11 @@ namespace PerfSummaries
             SummaryMetadataValue metadataValue = null;
             if (numericValue != double.MaxValue)
             {
-                metadataValue = new SummaryMetadataValue(numericValue, colorThresholdList, tooltip);
+                metadataValue = new SummaryMetadataValue(name, numericValue, colorThresholdList, tooltip);
             }
             else
             {
-                metadataValue = new SummaryMetadataValue(value, colorThresholdList, tooltip);
+                metadataValue = new SummaryMetadataValue(name, value, colorThresholdList, tooltip);
             }
 
 			try
@@ -1903,16 +1963,22 @@ namespace PerfSummaries
 			}
 		}
 
-        public void AddString(string key, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
+        public void AddString(string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
         {
-            SummaryMetadataValue metadataValue = new SummaryMetadataValue(value, colorThresholdList, tooltip);
-
+			string key = name.ToLower();
+			SummaryMetadataValue metadataValue = new SummaryMetadataValue(name, value, colorThresholdList, tooltip);
             dict.Add(key, metadataValue);
         }
 
         public Dictionary<string, SummaryMetadataValue> dict = new Dictionary<string, SummaryMetadataValue>();
-    };
+	};
 
+	class SummarySectionBoundaryInfo
+	{
+		public string startToken;
+		public string endToken;
+		public string statName;
+	};
 	class SummaryTableInfo
 	{
 		public SummaryTableInfo(XElement tableElement)
@@ -1928,6 +1994,14 @@ namespace PerfSummaries
 			{
 				columnFilterList.AddRange(filterEl.Value.Split(','));
 			}
+			XElement sectionBoundaryEl = tableElement.Element("sectionBoundary");
+			if (sectionBoundaryEl != null)
+			{
+				sectionBoundary = new SummarySectionBoundaryInfo();
+				sectionBoundary.statName = sectionBoundaryEl.Attribute("statName").Value;
+				sectionBoundary.startToken = sectionBoundaryEl.Attribute("startToken").Value;
+				sectionBoundary.endToken = sectionBoundaryEl.Attribute("endToken").Value;
+			}
 		}
 
 		public SummaryTableInfo(string filterListStr, string rowSortStr)
@@ -1938,6 +2012,7 @@ namespace PerfSummaries
 
 		public List<string> rowSortList = new List<string>();
 		public List<string> columnFilterList = new List<string>();
+		public SummarySectionBoundaryInfo sectionBoundary = null;
 	}
 
 
@@ -1949,8 +2024,9 @@ namespace PerfSummaries
 		List<float> floatValues = new List<float>();
 		List<string> stringValues = new List<string>();
 		List<string> toolTips = new List<string>();
-		List<ColourThresholdList> colourThresholds = new List<ColourThresholdList>();
 
+		List<ColourThresholdList> colourThresholds = new List<ColourThresholdList>();
+		ColourThresholdList colourThresholdOverride = null;
 		public SummaryMetadataColumn(string inName, bool inIsNumeric, string inDisplayName = null)
 		{
 			name = inName;
@@ -1971,7 +2047,7 @@ namespace PerfSummaries
 		{
 			if ( displayName==null )
 			{
-				return name;
+				return TableUtil.FormatStatName(name);
 			}
 			return displayName;
 		}
@@ -2034,17 +2110,68 @@ namespace PerfSummaries
 		public string GetColour(int index)
 		{
 			ColourThresholdList thresholds = null;
-			if (index < colourThresholds.Count)
+			float value = GetValue(index);
+			if (value==float.MaxValue)
 			{
-				thresholds = colourThresholds[index];
+				return null;
 			}
-			if ( thresholds == null )
+			if (colourThresholdOverride != null)
 			{
-				return "'#ffffff'";
+				thresholds = colourThresholdOverride;
 			}
-			return thresholds.GetColourForValue((double)GetValue(index));
+			else
+			{
+				if (index < colourThresholds.Count)
+				{
+					thresholds = colourThresholds[index];
+				}
+				if (thresholds == null)
+				{
+					return null;
+				}
+			}
+			return thresholds.GetColourForValue((double)value);
 		}
 
+		public void ComputeAutomaticColourThresholds(bool bHighIsRed)
+		{
+			colourThresholds = new List<ColourThresholdList>();
+			float maxValue = -float.MaxValue;
+			float minValue = float.MaxValue;
+			float totalValue = 0.0f;
+			float validCount = 0.0f;
+			for ( int i=0; i<floatValues.Count; i++ )
+			{
+				float val = floatValues[i];
+				if (val != float.MaxValue)
+				{
+					maxValue = Math.Max(val, maxValue);
+					minValue = Math.Min(val, minValue);
+					totalValue += val;
+					validCount += 1.0f;
+				}
+			}
+			if (minValue == maxValue)
+			{
+				return;
+			}
+
+			Colour green = new Colour(0.4f, 0.82f, 0.45f);
+			Colour yellow = new Colour(1.0f, 1.0f, 0.5f);
+			Colour red = new Colour(1.0f, 0.4f, 0.4f);
+
+			float averageValue = totalValue / validCount; // TODO: Weighted average 
+			colourThresholdOverride = new ColourThresholdList();
+			colourThresholdOverride.Add(new ThresholdInfo(minValue, bHighIsRed ? green : red));
+			colourThresholdOverride.Add(new ThresholdInfo(averageValue, yellow));
+			colourThresholdOverride.Add(new ThresholdInfo(averageValue, yellow));
+			colourThresholdOverride.Add(new ThresholdInfo(maxValue, bHighIsRed ? red : green));
+		}
+
+		public int GetCount()
+		{
+			return Math.Max(floatValues.Count, stringValues.Count);
+		}
 		public float GetValue(int index)
 		{
 			if ( index >= floatValues.Count )
@@ -2097,6 +2224,7 @@ namespace PerfSummaries
 					{
 						return val.ToString("0.00");
 					}
+					return val.ToString("0.000");
 				}
 				return val.ToString();
 			}
@@ -2449,26 +2577,218 @@ namespace PerfSummaries
 			csvFile.Close();
 		}
 
-		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings)
+		private void AutoColorizeColumns(string[] summaryTableLowIsBadStatList)
+		{
+			foreach (SummaryMetadataColumn column in columns)
+			{
+				if (column.isNumeric)
+				{
+					bool highIsRed = true;
+					if (summaryTableLowIsBadStatList != null)
+					{
+						// Determine if this is a low is red column
+						string lowerColumnName = column.name.ToLower();
+						if (lowerColumnName.StartsWith("avg ") || lowerColumnName.StartsWith("min ") || lowerColumnName.StartsWith("max "))
+						{
+							lowerColumnName = lowerColumnName.Substring(4);
+						}
+						foreach (string entry in summaryTableLowIsBadStatList)
+						{
+							string lowerEntry = entry.ToLower();
+							int wildcardIndex = lowerEntry.IndexOf('*');
+							if (wildcardIndex == -1)
+							{
+								if (lowerEntry == lowerColumnName)
+								{
+									highIsRed = false;
+									break;
+								}
+							}
+							else
+							{
+								string prefix = lowerEntry.Substring(0, wildcardIndex);
+								if (lowerColumnName.StartsWith(prefix))
+								{
+									highIsRed = false;
+									break;
+								}
+							}
+						}
+					}
+					column.ComputeAutomaticColourThresholds(highIsRed);
+				}
+			}
+		}
+
+		public void WriteToHTML(string htmlFilename, string VersionString, bool bSpreadsheetFriendlyStrings, SummarySectionBoundaryInfo sectionBoundaryInfo, bool bScrollableTable, bool bAddMinMaxColumns, int maxColumnStringLength, string [] summaryTableLowIsBadStatList)
 		{
 			System.IO.StreamWriter htmlFile = new System.IO.StreamWriter(htmlFilename, false);
 			int statColSpan = hasMinMaxColumns ? 3 : 1;
-			htmlFile.WriteLine("<html><head><title>Performance summary</title></head><body><font face='verdana'>");
 			int cellPadding = 2;
 			if (isCollated)
 			{
 				cellPadding = 4;
 			}
-			htmlFile.WriteLine("<table border='0'  bgcolor='#000000' style='font-size:11;' cellpadding='"+cellPadding+"'>");
+
+			htmlFile.WriteLine("<html>");
+			htmlFile.WriteLine("<head><title>Performance summary</title>");
+			//htmlFile.WriteLine("table, th, td { border: 0px solid black; border-collapse: separate; padding: 3px; vertical-align: top; font-family: 'Verdana', Times, serif; font-size: 12px;}");
+			htmlFile.WriteLine("<style type='text/css'>");
+			htmlFile.WriteLine("p {  font-family: 'Verdana', Times, serif; font-size: 12px }");
+			htmlFile.WriteLine("h2 {  font-family: 'Verdana', Times, serif; font-size: 16px }");
+			htmlFile.WriteLine("h1 {  font-family: 'Verdana', Times, serif; font-size: 20px }");
+			string tableCss = "";
+			int frozenColumnCount = 0;
+			if (bScrollableTable)
+			{
+				int firstColMaxStringLength = 0;
+				if (columns.Count>0)
+				{
+					for (int i=0; i<columns[0].GetCount(); i++)
+					{
+						firstColMaxStringLength = Math.Max(firstColMaxStringLength,columns[0].GetStringValue(i).Length);
+					}
+				}
+				frozenColumnCount = 1;
+				// Freeze the second column if it's the "count" column
+				if (columns.Count>1 && columns[1].name=="Count" && isCollated)
+				{
+					frozenColumnCount = 2;
+				}
+				int firstColWidth = firstColMaxStringLength * 7;
+				tableCss =
+					"table {table-layout: fixed;}"+
+					"table, th, td { border: 0px solid black; border-spacing: 0; border-collapse: separate; padding: " + cellPadding + "px; vertical-align: center; font-family: 'Verdana', Times, serif; font-size: 10px;}" +
+					"td {" +
+					"  border-right: 1px solid black;"+
+					"  max-width: 400;" +
+					"}" +
+					"tr:first-element { border-top: 2px; border-bottom: 2px }"+
+					"th {" +
+					"  width: 75px;" +
+					"  max-width: 400;" +
+					"  position: -webkit-sticky;" +
+					"  position: sticky;" +
+					"  border-right: 1px solid black;" +
+					"  border-top: 2px solid black;" +
+					"  z-index: 5;" +
+					"  background-color: #ffffff;" +
+					"  top:0;" +
+					"  font-size: 9px;" +
+					"  word-wrap: break-word;" +
+					"  overflow: hidden;" +
+					"  height: 60;" +
+					"}";
+
+				int xPos = 0;
+				for (int i=0;i< frozenColumnCount; i++)
+				{
+					int colIndex = i + 1;
+					tableCss +=
+						"th:nth-child("+colIndex+") {" +
+						"  position: -webkit-sticky;" +
+						"  position: sticky;" +
+						"  z-index: 7;" +
+						"  background-color: #ffffff;" +
+						"  border-right: 2px solid black;" +
+						"  border-top: 2px solid black;" +
+						"  font-size: 11px;" +
+						"  top:0;" +
+						"  left: " + xPos + "px;" +
+						"}";
+
+					tableCss +=
+						"td:nth-child("+colIndex+") {" +
+						"  position: -webkit-sticky;" +
+						"  position: sticky;" +
+						"  border-right: 2px solid black;" +
+						"  z-index: 6;" +
+						"  left: " + xPos + "px;" +
+						" }";
+
+					xPos += firstColWidth + 4 + cellPadding*2;
+				}
+
+				string firstChildCSS =
+				tableCss +=
+					"th:first-child, td:first-child {" +
+					"  border-left: 2px solid black;" +
+					"  width: " + firstColWidth + ";" +
+					"  min-width: " + firstColWidth + ";" +
+					"  max-width: " + firstColWidth + ";" +
+					" }" +
+
+					"tr.sectionStart td {" +
+					"  border-top: 2px solid black;" +
+					"}";
+
+				if (bAddMinMaxColumns && isCollated)
+				{
+					tableCss += "tr.lastHeaderRow th { top:60px; height:20px; }";
+				}
+				if (bAddMinMaxColumns && isCollated)
+				{
+					// Merge the first cells of the top header row
+					for (int i=0; i<firstStatColumnIndex-1; i++)
+					{
+						tableCss += "tr:first-child th:nth-child(" + (i + 1) + ") { border-right: 0px solid white;} ";
+					}
+				}
+
+				if (!isCollated)
+				{
+					tableCss += "td { max-height: 40px; height:40px } ";
+				}
+
+			}
+			else 
+			{
+				tableCss =
+					"table, th, td { border: 2px solid black; border-collapse: collapse; padding: "+ cellPadding + "px; vertical-align: center; font-family: 'Verdana', Times, serif; font-size: 11px;}";
+			}
+
+
+			bool bOddRowsGray = !(!bAddMinMaxColumns || !isCollated);
+			tableCss += "tr:nth-child("+ (bOddRowsGray ? "odd" : "even") + ") {background-color: #e2e2e2;} ";
+			tableCss += "tr:nth-child("+ (bOddRowsGray ? "even" : "odd") + ") {background-color: #ffffff;} ";
+			tableCss += "tr:first-child {background-color: #ffffff;} ";
+			tableCss += "tr.lastHeaderRow th { border-bottom: 2px solid black; }";
+
+			htmlFile.WriteLine(tableCss);
+
+			htmlFile.WriteLine("</style>");
+			htmlFile.WriteLine("</head><body>");
+			htmlFile.WriteLine("<table>");
+
+			// Automatically colourize the table
+			if (bScrollableTable)
+			{
+				AutoColorizeColumns(summaryTableLowIsBadStatList);
+			}
 
 			string HeaderRow = "";
 			if (isCollated)
 			{
 				string TopHeaderRow = "";
-				TopHeaderRow += "<td bgcolor='#ffffff' colspan='" + firstStatColumnIndex + "'/>";
+				if (bScrollableTable)
+				{
+					for (int i = 0; i < firstStatColumnIndex; i++)
+					{
+						TopHeaderRow += "<th/>";
+					}
+				}
+				else
+				{
+					TopHeaderRow += "<th colspan='"+firstStatColumnIndex+"'/>";
+				}
+
 				for (int i = 0; i < firstStatColumnIndex; i++)
 				{
-					HeaderRow += "<td bgcolor='#ffffff'><center><b>" + columns[i].GetDisplayName() + "</b></center></td>";
+					HeaderRow += "<th>" + columns[i].GetDisplayName() + "</th>";
+				}
+				if (!bAddMinMaxColumns)
+				{
+					TopHeaderRow = HeaderRow;
 				}
 
 				for (int i = firstStatColumnIndex; i < columns.Count; i++)
@@ -2478,26 +2798,72 @@ namespace PerfSummaries
 					string statName = GetStatNameWithPrefixAndSuffix(columns[i].GetDisplayName(), out prefix, out suffix);
 					if ((i - 1) % statColSpan == 0)
 					{
-						TopHeaderRow += "<td bgcolor='#ffffff' colspan='"+statColSpan+"' ><center><b>" + statName + suffix + "</center></b></td>";
+						TopHeaderRow += "<th colspan='"+statColSpan+"' >" + statName + suffix + "</th>";
 					}
-					HeaderRow += "<td bgcolor='#ffffff'><center><b>" + prefix.Trim() + "</b></center></td>";
+					HeaderRow += "<th>" + prefix.Trim() + "</th>";
 				}
-				htmlFile.WriteLine("  <tr>" + TopHeaderRow + "</tr>");
+				if (bAddMinMaxColumns)
+				{
+					htmlFile.WriteLine("  <tr>" + TopHeaderRow + "</tr>");
+					htmlFile.WriteLine("  <tr class='lastHeaderRow'>" + HeaderRow + "</tr>");
+				}
+				else
+				{
+					htmlFile.WriteLine("  <tr class='lastHeaderRow'>" + TopHeaderRow + "</tr>");
+				}
 			}
 			else
 			{
 				foreach (SummaryMetadataColumn column in columns)
 				{
-					HeaderRow += "<td bgcolor='#ffffff'><center><b>" + column.GetDisplayName() + "</b></center></td>";
+					HeaderRow += "<th>" + column.GetDisplayName() + "</th>";
 				}
+				htmlFile.WriteLine("  <tr class='lastHeaderRow'>" + HeaderRow + "</tr>");
 			}
-			htmlFile.WriteLine("  <tr>" + HeaderRow + "</tr>");
-
 			string[] stripeColors = { "'#e2e2e2'", "'#ffffff'" };
 
+			string prevSectionName = "";
 			for ( int i=0; i<rowCount; i++)
 			{
-				htmlFile.Write("<tr>");
+				bool sectionStart = false;
+				if (sectionBoundaryInfo != null)
+				{
+					// Work out the section name if we have section boundary info. When it changes, apply the sectionStart CSS class
+					string sectionName = "";
+					if (sectionBoundaryInfo != null && columnLookup.ContainsKey(sectionBoundaryInfo.statName))
+					{
+						SummaryMetadataColumn col = columnLookup[sectionBoundaryInfo.statName];
+						string currentValue = col.GetStringValue(i);
+						// Only use the start and end tokens if the table is collated
+						if (isCollated)
+						{
+							int startTokenIndex = currentValue.IndexOf(sectionBoundaryInfo.startToken);
+							int endTokenIndex = currentValue.IndexOf(sectionBoundaryInfo.endToken);
+							if (startTokenIndex >= 0 && endTokenIndex > startTokenIndex)
+							{
+								sectionName = currentValue.Substring(startTokenIndex + sectionBoundaryInfo.startToken.Length, endTokenIndex - sectionBoundaryInfo.startToken.Length);
+							}
+						}
+						else
+						{
+							sectionName = currentValue;
+						}
+					}
+					if (sectionName != prevSectionName && i>0)
+					{
+						sectionStart = true;
+					}
+					prevSectionName = sectionName;
+				}
+
+				string rowClassStr = "";
+				if (sectionStart)
+				{
+					rowClassStr = " class='sectionStart'";
+				}
+
+				htmlFile.Write("<tr"+rowClassStr+">");
+				int columnIndex = 0;
 				foreach (SummaryMetadataColumn column in columns)
 				{
 					// Add the tooltip for non-collated tables
@@ -2512,18 +2878,26 @@ namespace PerfSummaries
 						toolTipString = "title = '" + toolTip + "'";
 					}
 					string colour = column.GetColour(i);
-					if (colour == "'#ffffff'")
+
+					// Alternating row colours are normally handled by CSS, but we need to handle it explicitly if we have frozen first columns
+					if (columnIndex < frozenColumnCount && colour == null)
 					{
 						colour = stripeColors[i % 2];
 					}
-					bool bold = false;// column.name.StartsWith("Avg ");
+					string bgColorString = (colour==null ? "" : " bgcolor = " + colour);
+					bool bold = false;
 					string stringValue = column.GetStringValue(i, true);
+					if (maxColumnStringLength > 0 && stringValue.Length > maxColumnStringLength)
+					{
+						stringValue = TableUtil.SafeTruncateHtmlTableValue(stringValue, maxColumnStringLength);
+					}
 					if (bSpreadsheetFriendlyStrings && !column.isNumeric)
 					{
 						stringValue = "'" + stringValue;
 					}
-					string columnString = "<td "+ toolTipString + "bgcolor=" + colour + ">" + (bold ? "<b>" : "") + stringValue + (bold ? "</b>" : "") + "</td>";
+					string columnString = "<td "+ toolTipString + bgColorString+"> " + (bold ? "<b>" : "") + stringValue + (bold ? "</b>" : "") + "</td>";
 					htmlFile.Write(columnString);
+					columnIndex++;
 				}
 				htmlFile.WriteLine("</tr>");
 			}
@@ -2607,15 +2981,15 @@ namespace PerfSummaries
 				SummaryMetadataValue value = metadata.dict[key];
 				SummaryMetadataColumn column = null;
 
-				if (!columnLookup.ContainsKey(key.ToLower()))
+				if (!columnLookup.ContainsKey(key))
 				{
-					column = new SummaryMetadataColumn(key,value.isNumeric);
-					columnLookup.Add(key.ToLower(), column);
+					column = new SummaryMetadataColumn(value.name, value.isNumeric);
+					columnLookup.Add(key, column);
 					columns.Add(column);
 				}
 				else
 				{
-					column = columnLookup[key.ToLower()];
+					column = columnLookup[key];
 				}
 
 				if (value.isNumeric)
