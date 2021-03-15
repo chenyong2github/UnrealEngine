@@ -113,7 +113,7 @@ void FOnlineAsyncTaskSteamReadSharedFile::TriggerDelegates()
 FString FOnlineAsyncTaskSteamWriteSharedFile::ToString() const
 {
 	return FString::Printf(TEXT("FOnlineAsyncTaskSteamWriteSharedFile bWasSuccessful:%d UserId:%s FileName:%s Handle:%s"),
-								WasSuccessful(), *UserId.ToDebugString(), *FileName, *FSharedContentHandleSteam(CallbackResults.m_hFile).ToDebugString());
+								WasSuccessful(), *UserId->ToDebugString(), *FileName, *FSharedContentHandleSteam(CallbackResults.m_hFile).ToDebugString());
 }
 
 void FOnlineAsyncTaskSteamWriteSharedFile::Tick()
@@ -123,7 +123,7 @@ void FOnlineAsyncTaskSteamWriteSharedFile::Tick()
 	
 	if (!bInit)
 	{
-		if (WriteUserFile(UserId, FileName, Contents))
+		if (WriteUserFile(*UserId, FileName, Contents))
 		{
 			// Simply mark the file as shared, will trigger a delegate when upload is complete
 			CallbackHandle = SteamRemoteStorage()->FileShare(TCHAR_TO_UTF8(*FileName));
@@ -189,7 +189,7 @@ void FOnlineAsyncTaskSteamWriteSharedFile::TriggerDelegates()
 	UGCHandle_t NewHandle = bWasSuccessful ? CallbackResults.m_hFile : k_UGCHandleInvalid;
 	TSharedRef<FSharedContentHandle> SharedHandle = MakeShareable(new FSharedContentHandleSteam(NewHandle));
 
-	SharedCloudInterface->TriggerOnWriteSharedFileCompleteDelegates(bWasSuccessful, UserId, FileName, SharedHandle);
+	SharedCloudInterface->TriggerOnWriteSharedFileCompleteDelegates(bWasSuccessful, *UserId, FileName, SharedHandle);
 }
 
 FCloudFileSteam* FOnlineSharedCloudSteam::GetSharedCloudFile(const FSharedContentHandle& SharedHandle)
@@ -286,7 +286,7 @@ bool FOnlineSharedCloudSteam::ReadSharedFile(const FSharedContentHandle& SharedH
 
 bool FOnlineSharedCloudSteam::WriteSharedFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents)
 {
-	SteamSubsystem->QueueAsyncTask(new FOnlineAsyncTaskSteamWriteSharedFile(SteamSubsystem, FUniqueNetIdSteam(*(uint64*)UserId.GetBytes()), FileName, FileContents));
+	SteamSubsystem->QueueAsyncTask(new FOnlineAsyncTaskSteamWriteSharedFile(SteamSubsystem, FUniqueNetIdSteam::Cast(UserId), FileName, FileContents));
 	return true;
 }
 

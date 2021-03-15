@@ -68,7 +68,7 @@ PACKAGE_SCOPE:
 	void ExecuteResultDelegate(const FUniqueNetId& TargetId, bool bWasSuccessful, ESteamAuthResponseCode ResponseCode);
 
 private:
-	typedef TMap<FUniqueNetIdSteam, SharedAuthUserSteamPtr> SteamAuthentications;
+	typedef TUniqueNetIdMap<SharedAuthUserSteamPtr> SteamAuthentications;
 	SteamAuthentications AuthUsers;
 	TArray<uint32> SteamTicketHandles;
 

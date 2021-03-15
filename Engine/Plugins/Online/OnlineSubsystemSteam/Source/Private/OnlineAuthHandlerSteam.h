@@ -53,7 +53,7 @@ protected:
 
 	FString UserTicket;
 	uint32 TicketHandle;
-	FUniqueNetIdSteam SteamId;
+	FUniqueNetIdSteamRef SteamId;
 };
 
 UCLASS()

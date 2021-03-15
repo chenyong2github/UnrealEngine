@@ -137,15 +137,10 @@ private:
 	/** Name of session being created */
 	FName SessionName;
 	/** Lobby to join */
-	FUniqueNetIdSteam LobbyId;
+	FUniqueNetIdSteamRef LobbyId;
 
 	/** Hidden on purpose */
-	FOnlineAsyncTaskSteamJoinLobby() : 
-		bInit(false),
-		SessionName(NAME_None),
-		LobbyId(0)
-	{
-	}
+	FOnlineAsyncTaskSteamJoinLobby() = delete;
 
 PACKAGE_SCOPE:
 
@@ -159,7 +154,7 @@ public:
 		FOnlineAsyncTaskSteam(InSubsystem, k_uAPICallInvalid),
 		bInit(false),
 		SessionName(InSessionName),
-		LobbyId(InLobbyId)
+		LobbyId(InLobbyId.AsShared())
 	{
 	}
 
@@ -196,21 +191,17 @@ private:
 	/** Name of session lobby */
 	FName SessionName;
 	/** LobbyId to end */
-	FUniqueNetIdSteam LobbyId;
+	FUniqueNetIdSteamRef LobbyId;
 
 	/** Hidden on purpose */
-	FOnlineAsyncTaskSteamLeaveLobby() : 
-		SessionName(NAME_None),
-		LobbyId(uint64(0))
-	{
-	}
+	FOnlineAsyncTaskSteamLeaveLobby() = delete;
 
 public:
 
 	FOnlineAsyncTaskSteamLeaveLobby(class FOnlineSubsystemSteam* InSubsystem, FName InSessionName, const FUniqueNetIdSteam& InLobbyId) :
 		FOnlineAsyncTaskSteam(InSubsystem, k_uAPICallInvalid),
 		SessionName(InSessionName),
-		LobbyId(InLobbyId)
+		LobbyId(InLobbyId.AsShared())
 	{
 	}
 
@@ -282,7 +273,7 @@ public:
 	 *
 	 * @param LobbyId lobby to create the search result for
 	 */
-	void ParseSearchResult(FUniqueNetIdSteam& LobbyId);
+	void ParseSearchResult(const FUniqueNetIdSteam& LobbyId);
 
 	/**
 	 * Give the async task time to do its work
@@ -322,7 +313,7 @@ public:
 	virtual void TriggerDelegates() override;
 };
 
-DECLARE_MULTICAST_DELEGATE_FourParams(FOnAsyncFindLobbyCompleteWithNetId, const bool, const int32, TSharedPtr< const FUniqueNetId >, const class FOnlineSessionSearchResult&);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnAsyncFindLobbyCompleteWithNetId, const bool, const int32, FUniqueNetIdPtr, const class FOnlineSessionSearchResult&);
 typedef FOnAsyncFindLobbyCompleteWithNetId::FDelegate FOnAsyncFindLobbyCompleteDelegateWithNetId;
 
 class FOnlineAsyncTaskSteamFindLobbiesForInviteSession : public FOnlineAsyncTaskSteamFindLobbiesBase
@@ -393,25 +384,20 @@ private:
 class FOnlineAsyncEventSteamLobbyInviteAccepted : public FOnlineAsyncEvent<FOnlineSubsystemSteam>
 {
 	/** Friend that invited */
-	FUniqueNetIdSteam FriendId;
+	FUniqueNetIdSteamRef FriendId;
 	/** Lobby to go to */
-	FUniqueNetIdSteam LobbyId;
+	FUniqueNetIdSteamRef LobbyId;
 	/** User initiating the request */
 	int32 LocalUserNum;
 
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamLobbyInviteAccepted() :
-		FOnlineAsyncEvent(NULL),
-		FriendId((uint64)0),
-		LobbyId((uint64)0)
-	{
-	}
+	FOnlineAsyncEventSteamLobbyInviteAccepted() = delete;
 
 public:
 	FOnlineAsyncEventSteamLobbyInviteAccepted(FOnlineSubsystemSteam* InSubsystem, const FUniqueNetIdSteam& InFriendId, const FUniqueNetIdSteam& InLobbyId) :
 		FOnlineAsyncEvent(InSubsystem),
-		FriendId(InFriendId),
-		LobbyId(InLobbyId),
+		FriendId(InFriendId.AsShared()),
+		LobbyId(InLobbyId.AsShared()),
 		LocalUserNum(0)
 	{
 	}
@@ -452,7 +438,7 @@ ELobbyType BuildLobbyType(FOnlineSessionSettings* SessionSettings);
  *
  * @return true if successful, false otherwise
  */
-bool FillSessionFromLobbyData(FOnlineSubsystemSteam* SteamSubsystem, FUniqueNetIdSteam& LobbyId, class FOnlineSession& Session, FOnlineSessionSearchResult* SearchData = nullptr);
+bool FillSessionFromLobbyData(FOnlineSubsystemSteam* SteamSubsystem, const FUniqueNetIdSteam& LobbyId, class FOnlineSession& Session, FOnlineSessionSearchResult* SearchData = nullptr);
 
 /**
  *	Populate an FSession data structure from the data stored with the members of the lobby
@@ -462,4 +448,4 @@ bool FillSessionFromLobbyData(FOnlineSubsystemSteam* SteamSubsystem, FUniqueNetI
  *
  * @return true if successful, false otherwise
  */
-bool FillMembersFromLobbyData(FUniqueNetIdSteam& LobbyId, class FNamedOnlineSession& Session);
+bool FillMembersFromLobbyData(const FUniqueNetIdSteam& LobbyId, class FNamedOnlineSession& Session);

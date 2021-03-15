@@ -6,8 +6,8 @@
 TArray<uint8> FInternetAddrSteam::GetRawIp() const
 {
 	TArray<uint8> RawAddressArray;
-	const uint8* SteamIdWalk = SteamId.GetBytes();
-	while (RawAddressArray.Num() < SteamId.GetSize())
+	const uint8* SteamIdWalk = SteamId->GetBytes();
+	while (RawAddressArray.Num() < SteamId->GetSize())
 	{
 		RawAddressArray.Add(*SteamIdWalk);
 		++SteamIdWalk;
@@ -39,7 +39,7 @@ void FInternetAddrSteam::SetRawIp(const TArray<uint8>& RawAddr)
 		NewSteamId |= (uint64)WorkingArray[i] << (i * 8);
 	}
 
-	SteamId = FUniqueNetIdSteam(NewSteamId);
+	SteamId = FUniqueNetIdSteam::Create(NewSteamId);
 }
 
 /**
@@ -71,7 +71,7 @@ void FInternetAddrSteam::SetIp(const TCHAR* InAddr, bool& bIsValid)
 		const uint64 Id = FCString::Atoi64(*SteamIPStr);
 		if (Id != 0)
 		{
-			SteamId = FUniqueNetIdSteam(Id);
+			SteamId = FUniqueNetIdSteam::Create(Id);
 			const int32 Channel = FCString::Atoi(*SteamChannelStr);
 			if (Channel != 0 || SteamChannelStr == "0")
 			{
@@ -85,12 +85,12 @@ void FInternetAddrSteam::SetIp(const TCHAR* InAddr, bool& bIsValid)
 		const uint64 Id = FCString::Atoi64(*SteamIPAddrStr);
 		if (Id != 0)
 		{
-			SteamId = FUniqueNetIdSteam(Id);
+			SteamId = FUniqueNetIdSteam::Create(Id);
 			bIsValid = true;
 		}
 
 		SteamChannel = 0;
 	}
 
-	bIsValid = bIsValid && SteamId.IsValid();
+	bIsValid = bIsValid && SteamId->IsValid();
 }

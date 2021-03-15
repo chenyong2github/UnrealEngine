@@ -20,19 +20,16 @@ struct FUserStatsStateSteam
 {
 private:
 	/** Hidden on purpose */
-	FUserStatsStateSteam() :
-		UserId(0),
-		StatsState(EOnlineAsyncTaskState::NotStarted)
-	{}
+	FUserStatsStateSteam() = delete;
 
 public:
 	/** User Id */
-	const FUniqueNetIdSteam UserId;
+	FUniqueNetIdSteamRef UserId;
 	/** Current stats state for this user */
 	EOnlineAsyncTaskState::Type StatsState;
 
 	FUserStatsStateSteam(const FUniqueNetIdSteam& InUserId, EOnlineAsyncTaskState::Type InState) :
-		UserId(InUserId),
+		UserId(InUserId.AsShared()),
 		StatsState(InState)
 	{
 	}
@@ -139,10 +136,10 @@ public:
 	virtual ~FOnlineLeaderboardsSteam() {};
 
 	// IOnlineLeaderboards
-	virtual bool ReadLeaderboards(const TArray< TSharedRef<const FUniqueNetId> >& Players, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual bool ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject) override;
 	virtual bool ReadLeaderboardsForFriends(int32 LocalUserNum, FOnlineLeaderboardReadRef& ReadObject) override;
 	virtual bool ReadLeaderboardsAroundRank(int32 Rank, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
-	virtual bool ReadLeaderboardsAroundUser(TSharedRef<const FUniqueNetId> Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual bool ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
 	virtual void FreeStats(FOnlineLeaderboardRead& ReadObject) override;
 	virtual bool WriteLeaderboards(const FName& SessionName, const FUniqueNetId& Player, FOnlineLeaderboardWrite& WriteObject) override;
 	virtual bool FlushLeaderboards(const FName& SessionName) override;

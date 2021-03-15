@@ -756,14 +756,14 @@ FSteamUserCloudData* FOnlineSubsystemSteam::GetUserCloudEntry(const FUniqueNetId
 	for (int32 UserIdx = 0; UserIdx < UserCloudData.Num(); UserIdx++)
 	{
 		FSteamUserCloudData* UserMetadata = UserCloudData[UserIdx];
-		if (UserMetadata->UserId == UserId)
+		if (*UserMetadata->UserId == UserId)
 		{
 			return UserMetadata;
 		}
 	}
 
 	// Always create a new one if it doesn't exist
-	FUniqueNetIdSteam SteamUserId(*(uint64*)UserId.GetBytes());
+	const FUniqueNetIdSteam& SteamUserId = FUniqueNetIdSteam::Cast(UserId);
 	FSteamUserCloudData* NewItem = new FSteamUserCloudData(SteamUserId);
 	int32 UserIdx = UserCloudData.Add(NewItem);
 	return UserCloudData[UserIdx];
@@ -834,11 +834,11 @@ bool FOnlineSubsystemSteam::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevic
 	{
 		IOnlineUserCloudPtr UserCloud = GetUserCloudInterface();
 
-		FUniqueNetIdSteam SteamId(SteamUser()->GetSteamID());
+		FUniqueNetIdSteamRef SteamId = FUniqueNetIdSteam::Create(SteamUser()->GetSteamID());
 
 		FOnEnumerateUserFilesCompleteDelegate Delegate = FOnEnumerateUserFilesCompleteDelegate::CreateStatic(&DeleteFromEnumerateUserFilesComplete);
 		GPerCloudDeleteFromEnumerateUserFilesCompleteDelegateHandles.Add(UserCloud.Get(), UserCloud->AddOnEnumerateUserFilesCompleteDelegate_Handle(Delegate));
-		UserCloud->EnumerateUserFiles(SteamId);
+		UserCloud->EnumerateUserFiles(*SteamId);
 		bWasHandled = true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("SYNCLOBBIES")))

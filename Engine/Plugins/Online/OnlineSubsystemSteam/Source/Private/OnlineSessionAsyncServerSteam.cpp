@@ -618,7 +618,7 @@ bool FPendingSearchResultSteam::FillSessionFromServerRules()
 	bool bSuccess = true;
 
 	// Create the session info
-	TSharedPtr<FOnlineSessionInfoSteam> SessionInfo = MakeShareable(new FOnlineSessionInfoSteam(ESteamSession::AdvertisedSessionClient, ServerId));
+	TSharedPtr<FOnlineSessionInfoSteam> SessionInfo = MakeShareable(new FOnlineSessionInfoSteam(ESteamSession::AdvertisedSessionClient, *ServerId));
 	TSharedRef<FInternetAddrSteam> SteamP2PAddr = MakeShareable(new FInternetAddrSteam);
 
 	FOnlineSession* Session = &PendingSearchResult.Session;
@@ -660,7 +660,7 @@ bool FPendingSearchResultSteam::FillSessionFromServerRules()
 			uint64 UniqueId = FCString::Atoi64(*It.Value());
 			if (UniqueId != 0)
 			{
-				Session->OwningUserId = MakeShareable(new FUniqueNetIdSteam(UniqueId));
+				Session->OwningUserId = FUniqueNetIdSteam::Create(UniqueId);
 				KeysFound++;
 			}
 		}
@@ -696,7 +696,7 @@ bool FPendingSearchResultSteam::FillSessionFromServerRules()
 			uint64 SteamAddr = FCString::Atoi64(*KeyValue);
 			if (SteamAddr != 0)
 			{
-				SteamP2PAddr->SteamId.UniqueNetId = SteamAddr;
+				SteamP2PAddr->SteamId = FUniqueNetIdSteam::Create(SteamAddr);
 				SteamAddrKeysFound++;
 			}
 		}
@@ -1017,7 +1017,7 @@ void FOnlineAsyncTaskSteamFindServerBase::ParseSearchResult(class gameserveritem
 			// Create a new pending search result 
 			FPendingSearchResultSteam* NewPendingSearch = new FPendingSearchResultSteam(this);
 			PendingSearchResults.Add(NewPendingSearch);
-			NewPendingSearch->ServerId = FUniqueNetIdSteam(ServerDetails->m_steamID);
+			NewPendingSearch->ServerId = FUniqueNetIdSteam::Create(ServerDetails->m_steamID);
 			NewPendingSearch->HostAddr = ServerAddr;
 
 			// Fill search result members
@@ -1237,12 +1237,12 @@ void FOnlineAsyncTaskSteamFindServerForInviteSession::TriggerDelegates()
 	{
 		if (bWasSuccessful && SearchSettings->SearchResults.Num() > 0)
 		{
-			FindServerInviteCompleteWithUserIdDelegates.Broadcast(bWasSuccessful, LocalUserNum, MakeShareable<FUniqueNetId>(new FUniqueNetIdSteam(SteamUser()->GetSteamID())), SearchSettings->SearchResults[0]);
+			FindServerInviteCompleteWithUserIdDelegates.Broadcast(bWasSuccessful, LocalUserNum, FUniqueNetIdSteam::Create(SteamUser()->GetSteamID()), SearchSettings->SearchResults[0]);
 		}
 		else
 		{
 			FOnlineSessionSearchResult EmptyResult;
-			FindServerInviteCompleteWithUserIdDelegates.Broadcast(bWasSuccessful, LocalUserNum, MakeShareable<FUniqueNetId>(new FUniqueNetIdSteam(SteamUser()->GetSteamID())), EmptyResult);
+			FindServerInviteCompleteWithUserIdDelegates.Broadcast(bWasSuccessful, LocalUserNum, FUniqueNetIdSteam::Create(SteamUser()->GetSteamID()), EmptyResult);
 		}
 	}
 }

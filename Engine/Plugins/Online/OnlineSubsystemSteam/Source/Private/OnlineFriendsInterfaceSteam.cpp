@@ -7,11 +7,11 @@
 
 // FOnlineFriendSteam
 FOnlineFriendSteam::FOnlineFriendSteam(const CSteamID& InUserId)
-	: UserId(new FUniqueNetIdSteam(InUserId))
+	: UserId(FUniqueNetIdSteam::Create(InUserId))
 {
 }
 
-TSharedRef<const FUniqueNetId> FOnlineFriendSteam::GetUserId() const
+FUniqueNetIdRef FOnlineFriendSteam::GetUserId() const
 {
 	return UserId;
 }
@@ -105,7 +105,7 @@ bool FOnlineFriendsSteam::RejectInvite(int32 LocalUserNum, const FUniqueNetId& F
 
 void FOnlineFriendsSteam::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
 {
-	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	FUniqueNetIdRef FriendIdRef = FriendId.AsShared();
 	SteamSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
 	{
 		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsSteam::SetFriendAlias is not supported"));
@@ -115,7 +115,7 @@ void FOnlineFriendsSteam::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId&
 
 void FOnlineFriendsSteam::DeleteFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnDeleteFriendAliasComplete& Delegate)
 {
-	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	FUniqueNetIdRef FriendIdRef = FriendId.AsShared();
 	SteamSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
 	{
 		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsSteam::DeleteFriendAlias is not supported"));

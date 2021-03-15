@@ -14,7 +14,7 @@ class UE_DEPRECATED(4.25, "Steam Voice is now handled by the default voice imple
 PACKAGE_SCOPE:
 
 	/** The unique net id of the talker sending the data */
-	TSharedPtr<const FUniqueNetId> Sender;
+	FUniqueNetIdPtr Sender;
 	/** The data that is to be sent/processed */
 	TArray<uint8> Buffer;
 	/** The current amount of space used in the buffer for this packet */
@@ -44,7 +44,7 @@ public:
 	//~ Begin FVoicePacket interface
 	virtual uint16 GetTotalPacketSize() override;
 	virtual uint16 GetBufferSize() override;
-	virtual TSharedPtr<const FUniqueNetId> GetSender() override;
+	virtual FUniqueNetIdPtr GetSender() override;
 	virtual bool IsReliable() override { return false; }
 	virtual void Serialize(class FArchive& Ar) override;
 	//~ End FVoicePacket interface

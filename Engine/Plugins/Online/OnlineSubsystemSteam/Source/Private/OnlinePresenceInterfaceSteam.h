@@ -34,10 +34,10 @@ class FOnlinePresenceSteam : public IOnlinePresence
 	FOnlinePresenceSteam();
 
 	/** All cached presence data we ever get */
-	TMap<FUniqueNetIdSteam, TSharedRef<FOnlineUserPresenceSteam> > CachedPresence;
+	TUniqueNetIdMap<TSharedRef<FOnlineUserPresenceSteam>> CachedPresence;
 
 	/** Delegates for non-friend users that were called with QueryPresence */
-	TMap<FUniqueNetIdSteam, TSharedRef<const FOnPresenceTaskCompleteDelegate> > DelayedPresenceDelegates;
+	TUniqueNetIdMap<TSharedRef<const FOnPresenceTaskCompleteDelegate>> DelayedPresenceDelegates;
 
 PACKAGE_SCOPE:
 	FOnlinePresenceSteam(class FOnlineSubsystemSteam* InSubsystem);
