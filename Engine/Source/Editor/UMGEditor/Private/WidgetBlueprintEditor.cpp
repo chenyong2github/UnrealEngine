@@ -928,6 +928,9 @@ void FWidgetBlueprintEditor::DestroyPreview()
 	{
 		check(PreviewScene.GetWorld());
 
+		// Establish the widget as being in design time before destroying it
+		PreviewUserWidget->SetDesignerFlags(GetCurrentDesignerFlags());
+		
 		// Immediately release the preview ptr to let people know it's gone.
 		PreviewWidgetPtr.Reset();
 
