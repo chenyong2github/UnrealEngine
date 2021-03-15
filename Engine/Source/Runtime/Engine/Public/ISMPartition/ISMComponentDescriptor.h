@@ -77,6 +77,12 @@ public:
 	FLightingChannels LightingChannels;
 
 	UPROPERTY()
+	int32 RayTracingGroupId;
+
+	UPROPERTY()
+	ERayTracingGroupCullingPriority RayTracingGroupCullingPriority;
+
+	UPROPERTY()
 	TEnumAsByte<EHasCustomNavigableGeometry::Type> bHasCustomNavigableGeometry;
 
 	UPROPERTY()

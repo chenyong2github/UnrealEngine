@@ -350,6 +350,8 @@ UPrimitiveComponent::UPrimitiveComponent(const FObjectInitializer& ObjectInitial
 	ComponentId.PrimIDValue = NextComponentId.Increment();
 	CustomDepthStencilValue = 0;
 	CustomDepthStencilWriteMask = ERendererStencilMask::ERSM_Default;
+	RayTracingGroupId = -1;
+	RayTracingGroupCullingPriority = ERayTracingGroupCullingPriority::CP_4_DEFAULT;
 
 	LDMaxDrawDistance = 0.f;
 	CachedMaxDrawDistance = 0.f;

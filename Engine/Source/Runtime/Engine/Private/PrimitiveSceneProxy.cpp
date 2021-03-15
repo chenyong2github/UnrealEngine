@@ -179,6 +179,8 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	CustomDepthStencilValue(InComponent->CustomDepthStencilValue)
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
+,	RayTracingGroupId(InComponent->RayTracingGroupId)
+,	RayTracingGroupCullingPriority((uint8)InComponent->RayTracingGroupCullingPriority)
 ,	IndirectLightingCacheQuality(InComponent->IndirectLightingCacheQuality)
 ,	VirtualTextureLodBias(InComponent->VirtualTextureLodBias)
 ,	VirtualTextureCullMips(InComponent->VirtualTextureCullMips)

@@ -105,6 +105,21 @@ enum class ERendererStencilMask : uint8
 	ERSM_128 UMETA(DisplayName = "Eighth bit (128), ignore depth")
 };
 
+/** How quickly component should be culled. */
+UENUM()
+enum class ERayTracingGroupCullingPriority : uint8
+{
+	CP_0_NEVER_CULL UMETA(DisplayName = "0 - Never cull"),
+	CP_1 UMETA(DisplayName = "1"),
+	CP_2 UMETA(DisplayName = "2"),
+	CP_3 UMETA(DisplayName = "3"),
+	CP_4_DEFAULT UMETA(DisplayName = "4 - Default"),
+	CP_5 UMETA(DisplayName = "5"),
+	CP_6 UMETA(DisplayName = "6"),
+	CP_7 UMETA(DisplayName = "7"),
+	CP_8_QUICKLY_CULL UMETA(DisplayName = "8 - Quickly cull")
+};
+
 /** Converts a stencil mask from the editor's USTRUCT version to the version the renderer uses. */
 struct FRendererStencilMaskEvaluation
 {
@@ -576,6 +591,19 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Lighting)
 	FLightingChannels LightingChannels;
+
+	/**
+	 * Defines run-time groups of components. For example allows to assemble multiple parts of a building at runtime.
+	 * -1 means that component doesn't belong to any group.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
+	int32 RayTracingGroupId;
+
+	/**
+	 * Defines how quickly it should be culled. For example buildings should have a low priority, but small dressing should have a high priority.
+	 */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = RayTracing)
+	ERayTracingGroupCullingPriority RayTracingGroupCullingPriority;
 
 	/** Mask used for stencil buffer writes. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = "Rendering", meta = (editcondition = "bRenderCustomDepth"))

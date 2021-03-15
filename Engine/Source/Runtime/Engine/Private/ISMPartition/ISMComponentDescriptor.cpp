@@ -41,6 +41,8 @@ void FISMComponentDescriptor::InitFrom(const UStaticMeshComponent* Template, boo
 	VirtualTextureRenderPassType = Template->VirtualTextureRenderPassType;
 	LightmapType = Template->LightmapType;
 	LightingChannels = Template->LightingChannels;
+	RayTracingGroupId = Template->RayTracingGroupId;
+	RayTracingGroupCullingPriority = Template->RayTracingGroupCullingPriority;
 	bHasCustomNavigableGeometry = Template->bHasCustomNavigableGeometry;
 	CustomDepthStencilWriteMask = Template->CustomDepthStencilWriteMask;
 	VirtualTextureCullMips = Template->VirtualTextureCullMips;
@@ -97,6 +99,8 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	VirtualTextureRenderPassType == Other.VirtualTextureRenderPassType &&
 	LightmapType == Other.LightmapType &&
 	GetLightingChannelMaskForStruct(LightingChannels) == GetLightingChannelMaskForStruct(Other.LightingChannels) &&
+	RayTracingGroupId == Other.RayTracingGroupId &&
+	RayTracingGroupCullingPriority == Other.RayTracingGroupCullingPriority &&
 	bHasCustomNavigableGeometry == Other.bHasCustomNavigableGeometry &&
 	CustomDepthStencilWriteMask == Other.CustomDepthStencilWriteMask &&
 	InstanceStartCullDistance == Other.InstanceStartCullDistance &&
@@ -156,6 +160,8 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 	ISMComponent->VirtualTextureRenderPassType = VirtualTextureRenderPassType;
 	ISMComponent->LightmapType = LightmapType;
 	ISMComponent->LightingChannels = LightingChannels;
+	ISMComponent->RayTracingGroupId = RayTracingGroupId;
+	ISMComponent->RayTracingGroupCullingPriority = RayTracingGroupCullingPriority;
 	ISMComponent->bHasCustomNavigableGeometry = bHasCustomNavigableGeometry;
 	ISMComponent->CustomDepthStencilWriteMask = CustomDepthStencilWriteMask;
 	ISMComponent->BodyInstance.CopyBodyInstancePropertiesFrom(&BodyInstance);
