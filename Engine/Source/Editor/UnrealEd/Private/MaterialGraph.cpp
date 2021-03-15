@@ -337,7 +337,12 @@ void UMaterialGraph::LinkGraphNodesFromMaterial()
 					// Unclear why this is null sometimes outside of composite reroute, but this is safer than crashing
 					if (UMaterialGraphNode* GraphNode = Cast<UMaterialGraphNode>(ExpressionInputs[PinInfo.Index]->Expression->GraphNode))
 					{
-						Pin->MakeLinkTo(GraphNode->GetOutputPin(GetValidOutputIndex(ExpressionInputs[PinInfo.Index])));
+						// if GraphNode is a material function call for a missing material function, it may not have any output pins
+						UEdGraphPin* OutputPin = GraphNode->TryGetOutputPin(GetValidOutputIndex(ExpressionInputs[PinInfo.Index]));
+						if (LIKELY(OutputPin))
+						{
+							Pin->MakeLinkTo(OutputPin);
+						}
 					}
 					else if (UMaterialExpressionReroute* CompositeReroute = Cast<UMaterialExpressionReroute>(ExpressionInputs[PinInfo.Index]->Expression))
 					{

@@ -45,8 +45,10 @@ class UMaterialGraphNode_Base : public UEdGraphNode
 	virtual bool IsRootNode() const {return false;}
 	/** Get a single Input Pin via its index */
 	class UEdGraphPin* GetInputPin(int32 InputIndex) const { return InputPins[InputIndex]; }
-	/** Get a single Output Pin via its index */
+	/** Get a single Output Pin via its index (trusting the caller to provide a valid index) */
 	class UEdGraphPin* GetOutputPin(int32 OutputIndex) const { return OutputPins[OutputIndex]; }
+	/** Get a single Output Pin via its index (can return null if an invalid index is provided) */
+	class UEdGraphPin* TryGetOutputPin(int32 OutputIndex) const { return (OutputIndex >= 0 && OutputIndex < OutputPins.Num()) ? OutputPins[OutputIndex] : nullptr; }
 	/** Gets the exec input pin */
 	class UEdGraphPin* GetExecInputPin() const { return ExecInputPin; }
 	/** Replace a given node with this one, changing all pin links */
