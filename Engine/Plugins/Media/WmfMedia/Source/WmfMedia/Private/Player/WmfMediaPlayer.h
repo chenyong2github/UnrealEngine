@@ -64,6 +64,8 @@ public:
 	virtual void TickInput(FTimespan DeltaTime, FTimespan Timecode) override;
 	
 #if WMFMEDIA_PLAYER_VERSION >= 2
+	virtual bool FlushOnSeekStarted() const override;
+	virtual bool FlushOnSeekCompleted() const override;
 	virtual bool GetPlayerFeatureFlag(EFeatureFlag flag) const override;
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
 

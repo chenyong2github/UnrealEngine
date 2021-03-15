@@ -219,6 +219,16 @@ void FWmfMediaPlayer::TickInput(FTimespan DeltaTime, FTimespan /*Timecode*/)
 
 #if WMFMEDIA_PLAYER_VERSION >= 2
 
+bool FWmfMediaPlayer::FlushOnSeekStarted() const
+{
+	return true;
+}
+
+bool FWmfMediaPlayer::FlushOnSeekCompleted() const
+{
+	return false;
+}
+
 bool FWmfMediaPlayer::GetPlayerFeatureFlag(EFeatureFlag Flag) const
 {
 	switch (Flag)
