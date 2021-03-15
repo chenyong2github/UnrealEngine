@@ -118,8 +118,16 @@ namespace Chaos
 	CHAOS_API int32 ForceDisableAsyncPhysics = 0;
 	FAutoConsoleVariableRef CVarForceDisableAsyncPhysics(TEXT("p.ForceDisableAsyncPhysics"), ForceDisableAsyncPhysics, TEXT("Whether to force async physics off regardless of other settings"));
 
-	CHAOS_API FRealSingle AsyncInterpolationMultiplier = 4.f;
+	CHAOS_API FRealSingle AsyncInterpolationMultiplier = 2.f;
 	FAutoConsoleVariableRef CVarAsyncInterpolationMultiplier(TEXT("p.AsyncInterpolationMultiplier"), AsyncInterpolationMultiplier, TEXT("How many multiples of the fixed dt should we look behind for interpolation"));
+
+	// 0 blocks on any physics steps generated from past GT Frames, and blocks on none of the tasks from current frame.
+	// 1 blocks on everything except the single most recent task (including tasks from current frame)
+	// 1 should gurantee we will always have a future output for interpolation from 2 frames in the past
+	int32 AsyncPhysicsBlockMode = 1;
+	FAutoConsoleVariableRef CVarAsyncPhysicsBlockMode(TEXT("p.AsyncPhysicsBlockMode"), AsyncPhysicsBlockMode, TEXT("Setting to 0 blocks on any physics steps generated from past GT Frames, and blocks on none of the tasks from current frame."
+		" 1 blocks on everything except the single most recent task (including tasks from current frame). 1 should gurantee we will always have a future output for interpolation from 2 frames in the past."));
+
 
 	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner)
 		: BufferMode(BufferingModeIn)
@@ -278,8 +286,6 @@ namespace Chaos
 			}
 		}
 
-		FGraphEventRef BlockingTasks = PendingTasks;
-
 		if (InDt > 0)
 		{
 			ExternalSteps++;	//we use this to average forces. It assumes external dt is about the same. 0 dt should be ignored as it typically has nothing to do with force
@@ -291,6 +297,9 @@ namespace Chaos
 			PushPhysicsState(InternalDt, NumSteps, FMath::Max(ExternalSteps, 1));
 			ExternalSteps = 0;
 		}
+
+		// Ensures we block on any tasks generated from previous frames
+		FGraphEventRef BlockingTasks = PendingTasks;
 
 		while (FPushPhysicsData* PushData = MarshallingManager.StepInternalTime_External())
 		{
@@ -318,6 +327,12 @@ namespace Chaos
 			}
 			else
 			{
+				// If enabled, block on all but most recent physics task, even tasks generated this frame.
+				if (AsyncPhysicsBlockMode == 1)
+				{
+					BlockingTasks = PendingTasks;
+				}
+
 				FGraphEventArray Prereqs;
 				if (PendingTasks && !PendingTasks->IsComplete())
 				{
