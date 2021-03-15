@@ -125,7 +125,14 @@ FRigUnit_CollectionReplaceItems_Execute()
 
 			if (Context.Hierarchy->GetIndex(Key) != INDEX_NONE)
 			{
-				CachedCollection.AddUnique(Key);
+				if(bAllowDuplicates)
+				{
+					CachedCollection.Add(Key);
+				}
+				else
+				{
+					CachedCollection.AddUnique(Key);
+				}
 			}
 			else if(!RemoveInvalidItems)
 			{
@@ -144,7 +151,14 @@ FRigUnit_CollectionItems_Execute()
 	Collection.Reset();
 	for (const FRigElementKey& Key : Items)
 	{
-		Collection.AddUnique(Key);
+		if(bAllowDuplicates)
+		{
+			Collection.Add(Key);
+		}
+		else
+		{
+			Collection.AddUnique(Key);
+		}
 	}
 }
 
@@ -152,7 +166,7 @@ FRigUnit_CollectionUnion_Execute()
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
-	Collection = FRigElementKeyCollection::MakeUnion(A, B);
+	Collection = FRigElementKeyCollection::MakeUnion(A, B, bAllowDuplicates);
 }
 
 FRigUnit_CollectionIntersection_Execute()

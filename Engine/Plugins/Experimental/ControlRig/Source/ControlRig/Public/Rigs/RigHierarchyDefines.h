@@ -1027,7 +1027,7 @@ struct CONTROLRIG_API FRigElementKeyCollection
 		uint8 InElementTypes = (uint8)ERigElementType::All);
 
 	// returns the union between two collections
-	static FRigElementKeyCollection MakeUnion(const FRigElementKeyCollection& A, const FRigElementKeyCollection& B);
+	static FRigElementKeyCollection MakeUnion(const FRigElementKeyCollection& A, const FRigElementKeyCollection& B, bool bAllowDuplicates = false);
 
 	// returns the intersection between two collections
 	static FRigElementKeyCollection MakeIntersection(const FRigElementKeyCollection& A, const FRigElementKeyCollection& B);

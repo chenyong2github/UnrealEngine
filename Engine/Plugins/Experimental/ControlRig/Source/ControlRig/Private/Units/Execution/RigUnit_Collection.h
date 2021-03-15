@@ -147,6 +147,7 @@ struct CONTROLRIG_API FRigUnit_CollectionReplaceItems : public FRigUnit_Collecti
 		Old = New = NAME_None;
 		RemoveInvalidItems = false;
 		CachedHierarchyHash = INDEX_NONE;
+		bAllowDuplicates = false;
 	}
 
 	RIGVM_METHOD()
@@ -163,6 +164,9 @@ struct CONTROLRIG_API FRigUnit_CollectionReplaceItems : public FRigUnit_Collecti
 
 	UPROPERTY(meta = (Input))
 	bool RemoveInvalidItems;
+
+	UPROPERTY(meta = (Input))
+	bool bAllowDuplicates;
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
@@ -185,6 +189,7 @@ struct CONTROLRIG_API FRigUnit_CollectionItems : public FRigUnit_CollectionBase
 	FRigUnit_CollectionItems()
 	{
 		Items.Add(FRigElementKey(NAME_None, ERigElementType::Bone));
+		bAllowDuplicates = false;
 	}
 
 	RIGVM_METHOD()
@@ -192,6 +197,9 @@ struct CONTROLRIG_API FRigUnit_CollectionItems : public FRigUnit_CollectionBase
 
 	UPROPERTY(meta = (Input, ExpandByDefault))
 	TArray<FRigElementKey> Items;
+
+	UPROPERTY(meta = (Input))
+	bool bAllowDuplicates;
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
@@ -208,6 +216,7 @@ struct CONTROLRIG_API FRigUnit_CollectionUnion : public FRigUnit_CollectionBase
 
 	FRigUnit_CollectionUnion()
 	{
+		bAllowDuplicates = false;
 	}
 
 	RIGVM_METHOD()
@@ -218,6 +227,9 @@ struct CONTROLRIG_API FRigUnit_CollectionUnion : public FRigUnit_CollectionBase
 
 	UPROPERTY(meta = (Input))
 	FRigElementKeyCollection B;
+
+	UPROPERTY(meta = (Input))
+	bool bAllowDuplicates;
 
 	UPROPERTY(meta = (Output))
 	FRigElementKeyCollection Collection;
