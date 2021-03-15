@@ -400,9 +400,9 @@ namespace PerfReportTool
 			{
 				Console.WriteLine("  Files purged    : " + PurgeCount);
 			}
-			if (HitCount > 0 && MissCount > 0)
+			if (HitCount > 0 || MissCount > 0)
 			{
-				Console.WriteLine("  Hit percentage  : " + ((float)HitCount * 100.0f / (float)MissCount).ToString("0.0") + "%");
+				Console.WriteLine("  Hit percentage  : " + ((float)HitCount * 100.0f / ((float)MissCount+(float)HitCount)).ToString("0.0") + "%");
 			}
 		}
 	};
