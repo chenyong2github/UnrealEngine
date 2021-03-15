@@ -541,6 +541,16 @@ FObservedComponent& AChaosCacheManager::FindOrAddObservedComponent(UPrimitiveCom
 	return Found ? *Found : AddNewObservedComponent(InComponent);
 }
 
+void AChaosCacheManager::ClearObservedComponents()
+{
+	for (FObservedComponent& ObservedComponent : ObservedComponents)
+	{
+		UPrimitiveComponent* Comp = ObservedComponent.GetComponent();
+		Comp->DestroyComponent();
+	}
+	ObservedComponents.Empty();
+}
+
 void AChaosCacheManager::TickObservedComponents(const TArray<int32>& InIndices, Chaos::FReal InDt, FTickObservedFunction InCallable)
 {
 	for(int32 Index : InIndices)

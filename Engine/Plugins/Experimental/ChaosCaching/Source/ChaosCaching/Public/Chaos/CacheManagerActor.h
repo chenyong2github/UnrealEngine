@@ -210,6 +210,7 @@ protected:
 	FObservedComponent* FindObservedComponent(UPrimitiveComponent* InComponent);
 	FObservedComponent& AddNewObservedComponent(UPrimitiveComponent* InComponent);
 	FObservedComponent& FindOrAddObservedComponent(UPrimitiveComponent* InComponent);
+	void ClearObservedComponents();
 
 private:
 	friend class UActorFactoryCacheManager; // Allows the actor factory to set up the observed list. See UActorFactoryCacheManager::PostSpawnActor
