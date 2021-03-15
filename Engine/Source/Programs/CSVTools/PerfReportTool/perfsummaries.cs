@@ -2957,7 +2957,7 @@ namespace PerfSummaries
 					// Generate an automatic title
 					string title = htmlFilename.Replace("_Email.html", "").Replace(".html", "").Replace("\\","/");
 					title = title.Substring(title.LastIndexOf('/') + 1);
-					TopHeaderRow += "<th colspan='"+ firstStatColumnIndex + "'><h2>"+title+"</h2></th>";
+					TopHeaderRow += "<th colspan='"+ firstStatColumnIndex + "'><h3>"+title+"</h3></th>";
 				}
 				else
 				{
