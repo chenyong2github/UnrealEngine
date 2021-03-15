@@ -472,6 +472,7 @@ bool FWmfMediaTracks::FetchVideo(TRange<FTimespan> TimeRange, TSharedPtr<IMediaT
 
 void FWmfMediaTracks::FlushSamples()
 {
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaTracks::FlushSamples"));
 	AudioSampleQueue.RequestFlush();
 	CaptionSampleQueue.RequestFlush();
 	MetadataSampleQueue.RequestFlush();
