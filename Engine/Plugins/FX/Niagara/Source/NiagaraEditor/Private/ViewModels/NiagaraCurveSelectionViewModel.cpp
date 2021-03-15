@@ -810,10 +810,13 @@ void UNiagaraCurveSelectionViewModel::Refresh()
 
 		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 		{
-			TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterNode = CreateNodeForEmitter(OldRootChildNodes, *EmitterHandleViewModel->GetEmitterHandle());
-			if (EmitterNode.IsValid())
+			if (EmitterHandleViewModel->GetEmitterHandle())
 			{
-				NewRootChildNodes.Add(EmitterNode.ToSharedRef());
+				TSharedPtr<FNiagaraCurveSelectionTreeNode> EmitterNode = CreateNodeForEmitter(OldRootChildNodes, *EmitterHandleViewModel->GetEmitterHandle());
+				if (EmitterNode.IsValid())
+				{
+					NewRootChildNodes.Add(EmitterNode.ToSharedRef());
+				}
 			}
 		}
 	}
