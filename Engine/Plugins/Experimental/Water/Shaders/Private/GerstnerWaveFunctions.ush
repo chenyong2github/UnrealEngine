@@ -329,6 +329,12 @@ FWaveParams GetWaveDataNew(int InWaveIndex, FWaterBodyHeader InWaterBodyHeader)
 	return DecodeWaveParams(Data0, Data1);
 }
 
+FWaveParams GetWaveDataByWaveIndexNew(int InWaterBodyIndex, int InWaveIndex)
+{
+	const FWaterBodyHeader WaterBodyHeader = DecodeWaterBodyHeader(View.WaterIndirection[InWaterBodyIndex]);
+	return GetWaveDataNew(InWaveIndex, WaterBodyHeader);
+}
+
 float3 PackNormalAndWPONew(WaveOutput inWave)
 {
 	float3 packedoutput = (float3)0;
