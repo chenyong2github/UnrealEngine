@@ -3111,7 +3111,7 @@ namespace UnrealBuildTool
 						ReferencedNames.Add(Plugin.Name);
 
 						PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(Plugin.Name, null, true);
-						PluginReference.SupportedTargetPlatforms = Plugin.Descriptor.SupportedTargetPlatforms;
+						PluginReference.SupportedTargetPlatforms = Plugin.Descriptor.GetSupportedTargetPlatformNames();
 						PluginReference.bOptional = true;
 
 						AddPlugin(PluginReference, "default plugins", ExcludeFolders, NameToInstance, NameToInfo);

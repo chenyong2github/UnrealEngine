@@ -448,7 +448,7 @@ namespace UnrealBuildTool
 							{
 								if (ChildPluginReference.WhitelistPlatforms != null)
 								{
-									ParentPluginReference.WhitelistPlatforms = ParentPluginReference.WhitelistPlatforms.Union(ChildPluginReference.WhitelistPlatforms).ToList();
+									ParentPluginReference.WhitelistPlatforms = ParentPluginReference.WhitelistPlatforms.Union(ChildPluginReference.WhitelistPlatforms).ToArray();
 								}
 							}
 
@@ -461,7 +461,7 @@ namespace UnrealBuildTool
 								}
 								else
 								{
-									ParentPluginReference.BlacklistPlatforms = ParentPluginReference.BlacklistPlatforms.Union(ChildPluginReference.BlacklistPlatforms).ToList();
+									ParentPluginReference.BlacklistPlatforms = ParentPluginReference.BlacklistPlatforms.Union(ChildPluginReference.BlacklistPlatforms).ToArray();
 								}
 							}
 						}

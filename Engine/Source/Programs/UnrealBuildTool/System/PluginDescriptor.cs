@@ -443,5 +443,14 @@ namespace UnrealBuildTool
 		{
 			return SupportedTargetPlatforms == null || SupportedTargetPlatforms.Count == 0 || SupportedTargetPlatforms.Contains(Platform);
 		}
+
+		/// <summary>
+		/// Retrieve the list of supported target platforms as a string list
+		/// </summary>
+		/// <returns>String list of supported target platforms</returns>
+		public string[]? GetSupportedTargetPlatformNames()
+		{
+			return SupportedTargetPlatforms?.Select( P => P.ToString() ).ToArray();
+		}
 	}
 }

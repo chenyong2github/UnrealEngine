@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -39,7 +39,7 @@ namespace AutomationTool
 			string RootDirParam = ParseParamValue("RootDir", null);
 			if(RootDirParam == null)
 			{
-				throw new AutomationException("Missing -BaseDir=... parameter");
+				throw new AutomationException("Missing -RootDir=... parameter");
 			}
 
 			string EngineAssociation = ParseParamValue("EngineAssociation", null);
@@ -91,7 +91,7 @@ namespace AutomationTool
 							PluginInfo Info;
 							if(NameToPluginInfo.TryGetValue(Reference.Name, out Info))
 							{
-								Reference.SupportedTargetPlatforms = Info.Descriptor.SupportedTargetPlatforms;
+								Reference.SupportedTargetPlatforms = Info.Descriptor.GetSupportedTargetPlatformNames();
 							}
 						}
 						else
