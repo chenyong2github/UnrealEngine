@@ -19,7 +19,7 @@ public:
 
 	// FOnlineUser
 
-	virtual FUniqueNetIdRef GetUserId() const override { return UserIdPtr; }
+	virtual FUniqueNetIdRef GetUserId() const override { return UserId; }
 	virtual FString GetRealName() const override { return Name; }
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override { return Name; }
 	virtual bool GetUserAttribute(const FString& AttrName, FString& OutAttrValue) const override;
@@ -33,7 +33,7 @@ public:
 	// FUserOnlineAccountOculus
 
 	FUserOnlineAccountOculus(const FUniqueNetIdRef& InUserId, const FString& InName)
-		: UserIdPtr(InUserId),
+		: UserId(InUserId),
 		Name(InName)
 	{ }
 
@@ -42,7 +42,7 @@ public:
 	}
 
 	/** User Id represented as a FUniqueNetId */
-	FUniqueNetIdRef UserIdPtr;
+	FUniqueNetIdRef UserId;
 
 	/** Additional key/value pair data related to auth */
 	TMap<FString, FString> AdditionalAuthData;
@@ -108,7 +108,7 @@ private:
 	FOnlineSubsystemOculus& OculusSubsystem;
 	
 	/** Ids mapped to locally registered users */
-	TMap<int32, FUniqueNetIdPtr> UserIds;
+	TMap<int32, FUniqueNetIdRef> UserIds;
 
 	/** Ids mapped to locally registered users */
 	TUniqueNetIdMap<TSharedRef<FUserOnlineAccountOculus>> UserAccounts;

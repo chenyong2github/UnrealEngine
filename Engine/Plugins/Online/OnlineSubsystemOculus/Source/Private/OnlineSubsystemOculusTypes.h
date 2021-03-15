@@ -127,7 +127,7 @@ private:
 	*/
 	explicit FUniqueNetIdOculus(const FUniqueNetId& Src)
 	{
-		if (Src.GetSize() == sizeof(ovrID))
+		if (Src.GetType() == OCULUS_SUBSYSTEM)
 		{
 			ID = FUniqueNetIdOculus::Cast(Src).ID;
 		}

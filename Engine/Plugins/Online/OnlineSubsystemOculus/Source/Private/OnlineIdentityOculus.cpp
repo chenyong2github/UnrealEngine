@@ -46,7 +46,7 @@ bool FOnlineIdentityOculus::Login(int32 LocalUserNum, const FOnlineAccountCreden
 	}
 	else
 	{
-		FUniqueNetIdPtr* UserId = UserIds.Find(LocalUserNum);
+		FUniqueNetIdRef* UserId = UserIds.Find(LocalUserNum);
 		if (UserId == nullptr)
 		{
 			auto OculusId = ovr_GetLoggedInUserID();
@@ -66,7 +66,7 @@ bool FOnlineIdentityOculus::Login(int32 LocalUserNum, const FOnlineAccountCreden
 		}
 		else
 		{
-			TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UserId->Get(), *ErrorStr);
+			TriggerOnLoginCompleteDelegates(LocalUserNum, true, **UserId, *ErrorStr);
 		}
 	}
 
@@ -94,26 +94,20 @@ void FOnlineIdentityOculus::OnLoginComplete(ovrMessageHandle Message, bool bIsEr
 		auto Id = ovr_User_GetID(User);
 		FString Name(ovr_User_GetOculusID(User));
 
-		FUniqueNetIdPtr* NewUserId = UserIds.Find(LocalUserNum);
-		if (NewUserId == nullptr || !NewUserId->IsValid() || FUniqueNetIdOculus::Cast(**NewUserId).GetID() != Id)
-		{
-			UserIds.Add(LocalUserNum, FUniqueNetIdOculus::Create(Id));
-			NewUserId = UserIds.Find(LocalUserNum);
-		}
-		
-		if (!NewUserId->IsValid())
+		FUniqueNetIdRef LocalUserId = FUniqueNetIdOculus::Create(Id);
+		if (!LocalUserId->IsValid())
 		{
 			ErrorStr = FString(TEXT("Unable to get a valid ID"));
 		}
 		else
 		{
-			TSharedRef<FUserOnlineAccountOculus> UserAccountRef(new FUserOnlineAccountOculus(NewUserId->ToSharedRef(), Name));
+			UserIds.Add(LocalUserNum, LocalUserId);
 
 			// update/add cached entry for user
-			UserAccounts.Add(UserAccountRef->GetUserId(), UserAccountRef);
+			UserAccounts.Add(LocalUserId, TSharedRef<FUserOnlineAccountOculus>(new FUserOnlineAccountOculus(LocalUserId, Name)));
 
-			TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UserAccountRef->GetUserId(), *ErrorStr);
-			TriggerOnLoginStatusChangedDelegates(LocalUserNum, ELoginStatus::NotLoggedIn, ELoginStatus::LoggedIn, *UserAccountRef->GetUserId());
+			TriggerOnLoginCompleteDelegates(LocalUserNum, true, *LocalUserId, *ErrorStr);
+			TriggerOnLoginStatusChangedDelegates(LocalUserNum, ELoginStatus::NotLoggedIn, ELoginStatus::LoggedIn, *LocalUserId);
 			return;
 		}
 	}
@@ -178,8 +172,7 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityOculus::GetAllUserAccount
 
 FUniqueNetIdPtr FOnlineIdentityOculus::GetUniquePlayerId(int32 LocalUserNum) const
 {
-	const FUniqueNetIdPtr* FoundId = UserIds.Find(LocalUserNum);
-	if (FoundId != nullptr)
+	if (const FUniqueNetIdRef* FoundId = UserIds.Find(LocalUserNum))
 	{
 		return *FoundId;
 	}
