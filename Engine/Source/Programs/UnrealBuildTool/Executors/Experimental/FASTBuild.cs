@@ -1443,7 +1443,7 @@ namespace UnrealBuildTool
 			// Yassine: The -clean is to bypass the FASTBuild internal
 			// dependencies checks (cached in the fdb) as it could create some conflicts with UBT.
 			// Basically we want FB to stupidly compile what UBT tells it to.
-			string FBCommandLine	= $"-monitor -summary {DistArgument} {CacheArgument} {IDEArgument} -clean -config {BffFilePath} {NoStopOnErrorArgument} {ForceRemoteArgument}";
+			string FBCommandLine	= $"-monitor -summary {DistArgument} {CacheArgument} {IDEArgument} -clean -config \"{BffFilePath}\" {NoStopOnErrorArgument} {ForceRemoteArgument}";
 
 			Log.TraceInformation($"FBuild Command Line Arguments: '{FBCommandLine}");
 
