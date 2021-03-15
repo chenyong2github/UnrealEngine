@@ -165,9 +165,9 @@ void FLiveLinkFreeDSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, 
 															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ false });
 															break;
 
-					case EFreeDDefaultConfigs::Panasonic:	SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 10000.0f, false, 0x0555, 0x0fff, 0x0000ffff });
-															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 100.0f, false, 0x0555, 0x0fff, 0x0000ffff });
-															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 1.0f, false, 0x0555, 0x0fff, 0x0000ffff });
+					case EFreeDDefaultConfigs::Panasonic:	SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, 0x0555, 0x0fff, 0x0000ffff });
+															SourceSettings->FocalLengthEncoderData = FFreeDEncoderData({ true, 176.0f, false, 0x0555, 0x0fff, 0x0000ffff });
+															SourceSettings->UserDefinedEncoderData = FFreeDEncoderData({ true, 25.5f, false, 0x0555, 0x0fff, 0x0000ffff });
 															break;
 
 					case EFreeDDefaultConfigs::Sony:		SourceSettings->FocusDistanceEncoderData = FFreeDEncoderData({ true, 1000.0f, false, 0x1000, 0xf000, 0x0000ffff });
