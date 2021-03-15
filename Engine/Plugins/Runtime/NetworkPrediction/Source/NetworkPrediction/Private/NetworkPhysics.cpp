@@ -21,7 +21,7 @@ namespace UE_NETWORK_PHYSICS
 	bool bForceResim=false;
 	FAutoConsoleVariableRef CVarResim(TEXT("np2.ForceResim"), bForceResim, TEXT("Forces near constant resimming"));
 
-	bool bEnable=true;
+	bool bEnable=false;
 	FAutoConsoleVariableRef CVarEnable(TEXT("np2.bEnable"), bEnable, TEXT("Enabled rollback physics. Must be set before starting game"));
 }
 
