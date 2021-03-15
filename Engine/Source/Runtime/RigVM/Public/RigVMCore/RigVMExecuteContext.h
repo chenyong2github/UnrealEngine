@@ -172,6 +172,17 @@ struct RIGVM_API FRigVMExecuteContext
 		ExternalVariables.Reset();
 	}
 
+	FORCEINLINE void CopyFrom(const FRigVMExecuteContext& Other)
+	{
+		EventName = Other.EventName;
+		FunctionName = Other.FunctionName;
+		InstructionIndex = Other.InstructionIndex;
+		ExternalVariables = Other.ExternalVariables;
+		OpaqueArguments = Other.OpaqueArguments;
+		Slices = Other.Slices;
+		SliceOffsets = Other.SliceOffsets;
+	}
+
 	FORCEINLINE const FRigVMSlice& GetSlice() const
 	{
 		const int32 SliceOffset = (int32)SliceOffsets[InstructionIndex];
