@@ -1,0 +1,31 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+uint			WriteBufferSize_{ParameterName};
+RWBuffer<uint>	RWWriteBuffer_{ParameterName};
+
+void ExportParticleData_{ParameterName}_UEImpureCall(in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess)
+{
+	bSuccess = false;
+	if ( bStoreData && (WriteBufferSize_{ParameterName} > 0) )
+	{
+		uint StoreIndex;
+		InterlockedAdd(RWWriteBuffer_{ParameterName}[0], 1u, StoreIndex);
+		if ( StoreIndex < WriteBufferSize_{ParameterName})
+		{
+			uint StoreOffset = 1 + (StoreIndex * 7);
+			RWWriteBuffer_{ParameterName}[StoreOffset + 0] = asuint(Position.x);
+			RWWriteBuffer_{ParameterName}[StoreOffset + 1] = asuint(Position.y);
+			RWWriteBuffer_{ParameterName}[StoreOffset + 2] = asuint(Position.z);
+			RWWriteBuffer_{ParameterName}[StoreOffset + 3] = asuint(Size);
+			RWWriteBuffer_{ParameterName}[StoreOffset + 4] = asuint(Velocity.x);
+			RWWriteBuffer_{ParameterName}[StoreOffset + 5] = asuint(Velocity.y);
+			RWWriteBuffer_{ParameterName}[StoreOffset + 6] = asuint(Velocity.z);
+			bSuccess = true;
+		}
+	}
+}
+
+void StoreParticleData_{ParameterName}_UEImpureCall(in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess)
+{
+	ExportParticleData_{ParameterName}_UEImpureCall(bStoreData, Position, Size, Velocity, bSuccess);
+}
