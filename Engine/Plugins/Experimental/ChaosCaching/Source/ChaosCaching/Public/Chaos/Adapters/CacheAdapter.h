@@ -168,8 +168,8 @@ namespace Chaos
 	private:
 	};
 
-	void RegisterAdapter(FComponentCacheAdapter* InAdapter);
-	void UnregisterAdapter(FComponentCacheAdapter* InAdapter);
+	void CHAOSCACHING_API RegisterAdapter(FComponentCacheAdapter* InAdapter); 
+	void CHAOSCACHING_API UnregisterAdapter(FComponentCacheAdapter* InAdapter);
 
 	/** Helper to handle automatic global registration for adapter types - with type checking for valid adapter types */
 	template<typename AdapterType>
