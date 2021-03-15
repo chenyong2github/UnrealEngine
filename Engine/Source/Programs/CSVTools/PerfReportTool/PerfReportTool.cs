@@ -21,7 +21,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.21";
+        private static string VersionString = "4.22";
 
         public static string Get() { return VersionString; }
     };
@@ -1608,6 +1608,23 @@ namespace PerfReportTool
             return 0;
         }
 
+		bool matchesPattern(string str, string pattern)
+		{
+			string [] patternSections=pattern.ToLower().Split('*');
+			// Check the substrings appear in order
+			string remStr = str.ToLower();
+			for (int i = 0;i<patternSections.Length; i++)
+			{
+				int idx = remStr.IndexOf(patternSections[i]);
+				if (idx==-1)
+				{
+					return false;
+				}
+				remStr = remStr.Substring(idx+patternSections[i].Length);
+			}
+			return true;
+		}
+
 		System.IO.FileInfo[] GetFilesWithSearchPattern(string directory, string searchPatternStr, bool recurse)
 		{
 			List<System.IO.FileInfo> fileList = new List<FileInfo>();
@@ -1615,8 +1632,14 @@ namespace PerfReportTool
 			DirectoryInfo di = new DirectoryInfo(directory);
 			foreach (string searchPattern in searchPatterns)
 			{
-				System.IO.FileInfo[] files = di.GetFiles(searchPattern, recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
-				fileList.AddRange(files);
+				System.IO.FileInfo[] files = di.GetFiles("*.*", recurse ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly);
+				foreach (FileInfo file in files)
+				{
+					if (matchesPattern(file.FullName, searchPattern))
+					{
+						fileList.Add(file);
+					}
+				}
 			}
 			return fileList.Distinct().ToArray();
 		}

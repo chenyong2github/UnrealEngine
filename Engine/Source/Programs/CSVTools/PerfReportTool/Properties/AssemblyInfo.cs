@@ -8,11 +8,11 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following 
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("GraphicsPerfreportTool")]
+[assembly: AssemblyTitle("PerfReportTool")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("GraphicsPerfreportTool")]
+[assembly: AssemblyProduct("PerfReportTool")]
 [assembly: AssemblyCopyright("Copyright (C) Microsoft. All rights reserved.\nCopyright Epic Games, Inc. All Rights Reserved.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]

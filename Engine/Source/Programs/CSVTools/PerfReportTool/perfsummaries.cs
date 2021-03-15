@@ -2818,6 +2818,7 @@ namespace PerfSummaries
 			//htmlFile.WriteLine("table, th, td { border: 0px solid black; border-collapse: separate; padding: 3px; vertical-align: top; font-family: 'Verdana', Times, serif; font-size: 12px;}");
 			htmlFile.WriteLine("<style type='text/css'>");
 			htmlFile.WriteLine("p {  font-family: 'Verdana', Times, serif; font-size: 12px }");
+			htmlFile.WriteLine("h3 {  font-family: 'Verdana', Times, serif; font-size: 14px }");
 			htmlFile.WriteLine("h2 {  font-family: 'Verdana', Times, serif; font-size: 16px }");
 			htmlFile.WriteLine("h1 {  font-family: 'Verdana', Times, serif; font-size: 20px }");
 			string tableCss = "";
@@ -2911,17 +2912,15 @@ namespace PerfSummaries
 				}
 				if (bAddMinMaxColumns && isCollated)
 				{
-					// Merge the first cells of the top header row
-					for (int i=0; i<firstStatColumnIndex-1; i++)
-					{
-						tableCss += "tr:first-child th:nth-child(" + (i + 1) + ") { border-right: 0px solid white;} ";
-					}
+					// The top left cell is merged, so make sure the one to the right is not sticky horizontally
+					tableCss += "tr:first-child th:nth-child(2) { left:auto; z-index:5; } ";
 				}
 
 				if (!isCollated)
 				{
 					tableCss += "td { max-height: 40px; height:40px } ";
 				}
+				tableCss += "tr:last-child td{border-bottom: 2px solid black;} ";
 
 			}
 			else 
@@ -2955,10 +2954,10 @@ namespace PerfSummaries
 				string TopHeaderRow = "";
 				if (bScrollableTable)
 				{
-					for (int i = 0; i < firstStatColumnIndex; i++)
-					{
-						TopHeaderRow += "<th/>";
-					}
+					// Generate an automatic title
+					string title = htmlFilename.Replace("_Email.html", "").Replace(".html", "").Replace("\\","/");
+					title = title.Substring(title.LastIndexOf('/') + 1);
+					TopHeaderRow += "<th colspan='"+ firstStatColumnIndex + "'><h2>"+title+"</h2></th>";
 				}
 				else
 				{
