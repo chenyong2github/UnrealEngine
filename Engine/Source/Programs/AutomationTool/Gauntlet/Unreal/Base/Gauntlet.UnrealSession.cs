@@ -891,6 +891,19 @@ namespace Gauntlet
 					// create a config from the build source (this also applies the role options)
 					UnrealAppConfig AppConfig = BuildSource.CreateConfiguration(Role, OtherRoles);
 
+					//Verify the device's OS version, and update if necessary
+					if(Device.IsOSOutOfDate())
+					{
+						Log.Info("OS of target device {0} for role {1} out of date, updating...", Device, Role);
+						if(!Device.UpdateOS())
+						{
+							Log.Info("Failed to update os of device {0} for role {1}.  Will retry with new device", Device, Role);
+							MarkProblemDevice(Device);
+							InstallSuccess = false;
+							break;
+						}
+					}
+
 					// todo - should this be elsewhere?
 					AppConfig.Sandbox = Sandbox;
 

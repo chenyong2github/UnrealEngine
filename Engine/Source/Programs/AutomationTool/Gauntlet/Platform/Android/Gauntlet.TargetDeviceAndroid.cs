@@ -1184,6 +1184,18 @@ namespace Gauntlet
 			}
 			return LocalDirectoryMappings;
 		}
+
+		public bool IsOSOutOfDate()
+		{
+			//TODO: not yet implemented
+			return false;
+		}
+
+		public bool UpdateOS()
+		{
+			//TODO: not yet implemented
+			return true;
+		}
 	}
 
 	/// <summary>
