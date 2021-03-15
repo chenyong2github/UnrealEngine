@@ -461,18 +461,17 @@ bool UNiagaraDataInterfaceMeshRendererInfo::GetFunctionHLSL(const FNiagaraDataIn
 				OutSize = (float3)0;
 				if (NumMeshes_{DIName} > 0)
 				{
-					Buffer<float> Buff = MeshDataBuffer_{DIName};
 					const uint MeshDataNumFloats = 6;
 					const uint BufferOffs = clamp(MeshIndex, 0, int(NumMeshes_{DIName} - 1)) * MeshDataNumFloats;
 					OutMinBounds = float3(
-						Buff[BufferOffs + 0],
-						Buff[BufferOffs + 1],
-						Buff[BufferOffs + 2]
+						MeshDataBuffer_{DIName}[BufferOffs + 0],
+						MeshDataBuffer_{DIName}[BufferOffs + 1],
+						MeshDataBuffer_{DIName}[BufferOffs + 2]
 					);
 					OutMaxBounds = float3(
-						Buff[BufferOffs + 3],
-						Buff[BufferOffs + 4],
-						Buff[BufferOffs + 5]
+						MeshDataBuffer_{DIName}[BufferOffs + 3],
+						MeshDataBuffer_{DIName}[BufferOffs + 4],
+						MeshDataBuffer_{DIName}[BufferOffs + 5]
 					);
 					OutSize = OutMaxBounds - OutMinBounds;
 				}
