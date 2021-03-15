@@ -22,7 +22,7 @@ typedef TEOSCallbackWithNested2ForNested1Param3<EOS_PlayerDataStorage_OnWriteFil
 typedef TEOSCallbackWithNested2<EOS_PlayerDataStorage_OnReadFileCompleteCallback, EOS_PlayerDataStorage_ReadFileCallbackInfo,
 	EOS_PlayerDataStorage_OnReadFileDataCallback, EOS_PlayerDataStorage_ReadFileDataCallbackInfo, EOS_PlayerDataStorage_EReadResult,
 	EOS_PlayerDataStorage_OnFileTransferProgressCallback, EOS_PlayerDataStorage_FileTransferProgressCallbackInfo
-> FReadFileCompleteCallback;
+> FReadUserFileCompleteCallback;
 
 typedef TEOSCallback<EOS_PlayerDataStorage_OnDeleteFileCompleteCallback, EOS_PlayerDataStorage_DeleteFileCallbackInfo> FOnDeleteFileCallback;
 
@@ -314,7 +314,7 @@ bool FOnlineUserCloudEOS::ReadUserFile(const FUniqueNetId& UserId, const FString
 		ReadChunkSize = 16 * 1024;
 	}
 
-	FReadFileCompleteCallback* CallbackObj = new FReadFileCompleteCallback();
+	FReadUserFileCompleteCallback* CallbackObj = new FReadUserFileCompleteCallback();
 
 	CallbackObj->SetNested1CallbackLambda([this, SharedUserId, FileName](const EOS_PlayerDataStorage_ReadFileDataCallbackInfo* Data)
 		{

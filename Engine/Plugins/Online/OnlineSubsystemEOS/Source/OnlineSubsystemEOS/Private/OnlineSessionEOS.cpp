@@ -496,7 +496,7 @@ FNamedOnlineSession* FOnlineSessionEOS::GetNamedSessionFromLobbyId(const FUnique
 		if (Session.SessionInfo.IsValid())
 		{
 			FOnlineSessionInfoEOS* SessionInfo = (FOnlineSessionInfoEOS*)Session.SessionInfo.Get();
-			if (!Session.SessionSettings.bIsLANMatch && Session.SessionSettings.bUsesPresence && SessionInfo->SessionId == LobbyId)
+			if (!Session.SessionSettings.bIsLANMatch && Session.SessionSettings.bUsesPresence && *SessionInfo->SessionId == LobbyId)
 			{
 				Result = &Sessions[SearchIndex];
 				break;
@@ -566,8 +566,8 @@ void FOnlineSessionEOS::RegisterLobbyNotifications()
 
 void FOnlineSessionEOS::OnLobbyUpdateReceived(const EOS_LobbyId& LobbyId)
 {
-	FUniqueNetIdEOS LobbyNetId(LobbyId);
-	FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(LobbyNetId);
+	const FUniqueNetIdEOSRef LobbyNetId = FUniqueNetIdEOS::Create(LobbyId);
+	FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 	if (Session)
 	{
 		EOS_Lobby_CopyLobbyDetailsHandleOptions Options = {};
@@ -607,7 +607,7 @@ void FOnlineSessionEOS::OnLobbyUpdateReceived(const EOS_LobbyId& LobbyId)
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId.ToString());
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnLobbyUpdateReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 	}
 }
 
@@ -615,8 +615,8 @@ void FOnlineSessionEOS::OnLobbyMemberUpdateReceived(const EOS_LobbyId& LobbyId, 
 {
 	EOSSubsystem->UserManager->GetEpicAccountIdAsync(TargetUserId, [this, LobbyId](const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)
 		{
-			FUniqueNetIdEOS LobbyNetId(LobbyId);
-			FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(LobbyNetId);
+			const FUniqueNetIdEOSRef LobbyNetId = FUniqueNetIdEOS::Create(LobbyId);
+			FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 			if (Session)
 			{
 				TSharedPtr<const FUniqueNetId> UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
@@ -651,15 +651,15 @@ void FOnlineSessionEOS::OnLobbyMemberUpdateReceived(const EOS_LobbyId& LobbyId, 
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnLobbyMemberUpdateReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId.ToString());
+				UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnLobbyMemberUpdateReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 			}
 		});
 }
 
 void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const EOS_ProductUserId& TargetUserId, EOS_ELobbyMemberStatus CurrentStatus)
 {
-	FUniqueNetIdEOS LobbyNetId(LobbyId);
-	FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(LobbyNetId);
+	const FUniqueNetIdEOSRef LobbyNetId = FUniqueNetIdEOS::Create(LobbyId);
+	FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 	if (Session)
 	{
 		switch (CurrentStatus)
@@ -668,8 +668,8 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 			{
 				EOSSubsystem->UserManager->GetEpicAccountIdAsync(TargetUserId, [this, LobbyId](const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)
 					{
-						FUniqueNetIdEOS LobbyNetId(LobbyId);
-						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(LobbyNetId);
+						const FUniqueNetIdEOSRef LobbyNetId = FUniqueNetIdEOS::Create(LobbyId);
+						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 						if (Session)
 						{
 							TSharedPtr<const FUniqueNetId> UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
@@ -684,7 +684,7 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						}
 						else
 						{
-							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId.ToString());
+							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 						}
 					});
 			}
@@ -694,8 +694,8 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 			{
 				EOSSubsystem->UserManager->GetEpicAccountIdAsync(TargetUserId, [this, LobbyId](const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)
 					{
-						FUniqueNetIdEOS LobbyNetId(LobbyId);
-						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(LobbyNetId);
+						const FUniqueNetIdEOSRef LobbyNetId = FUniqueNetIdEOS::Create(LobbyId);
+						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 						if (Session)
 						{
 							TSharedPtr<const FUniqueNetId> UniqueNetId = EOSSubsystem->UserManager->CreateUniquePlayerId(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
@@ -707,7 +707,7 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						}
 						else
 						{
-							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId.ToString());
+							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 						}
 					});
 			}
@@ -719,8 +719,8 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 			{
 				EOSSubsystem->UserManager->GetEpicAccountIdAsync(TargetUserId, [this, LobbyId](const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)
 					{
-						FUniqueNetIdEOS LobbyNetId(LobbyId);
-						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(LobbyNetId);
+						const FUniqueNetIdEOSRef LobbyNetId = FUniqueNetIdEOS::Create(LobbyId);
+						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 						if (Session)
 						{
 							int32 DefaultLocalUser = EOSSubsystem->UserManager->GetDefaultLocalUser();
@@ -735,7 +735,7 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						}
 						else
 						{
-							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId.ToString());
+							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 						}
 					});
 			}
@@ -744,8 +744,8 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 			{
 				EOSSubsystem->UserManager->GetEpicAccountIdAsync(TargetUserId, [this, LobbyId](const EOS_ProductUserId& ProductUserId, EOS_EpicAccountId& EpicAccountId)
 					{
-						FUniqueNetIdEOS LobbyNetId(LobbyId);
-						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(LobbyNetId);
+						const FUniqueNetIdEOSRef LobbyNetId = FUniqueNetIdEOS::Create(LobbyId);
+						FNamedOnlineSession* Session = GetNamedSessionFromLobbyId(*LobbyNetId);
 						if (Session)
 						{
 							int32 DefaultLocalUser = EOSSubsystem->UserManager->GetDefaultLocalUser();
@@ -766,7 +766,7 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 						}
 						else
 						{
-							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId.ToString());
+							UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 						}
 					});
 			}
@@ -778,7 +778,7 @@ void FOnlineSessionEOS::OnMemberStatusReceived(const EOS_LobbyId& LobbyId, const
 	}
 	else
 	{
-		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId.ToString());
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineSessionEOS::OnMemberStatusReceived] Unable to retrieve session with LobbyId %s"), *LobbyNetId->ToString());
 	}
 }
 
@@ -3096,7 +3096,7 @@ uint32 FOnlineSessionEOS::JoinLobbySession(int32 PlayerNum, FNamedOnlineSession*
 	if (Session->SessionInfo.IsValid())
 	{
 		FOnlineSessionInfoEOS* EOSSessionInfo = (FOnlineSessionInfoEOS*)(Session->SessionInfo.Get());
-		if (EOSSessionInfo->SessionId.IsValid())
+		if (EOSSessionInfo->SessionId->IsValid())
 		{
 			const FOnlineSessionInfoEOS* SearchSessionInfo = (const FOnlineSessionInfoEOS*)(SearchSession->SessionInfo.Get());
 			EOSSessionInfo->HostAddr = SearchSessionInfo->HostAddr;
@@ -3271,12 +3271,10 @@ void FOnlineSessionEOS::SetLobbyAttributes(EOS_HLobbyModification LobbyModificat
 	}
 
 	// Add all of the member settings
-	for (TPair<TSharedRef<const FUniqueNetId>, FSessionSettings> MemberSettings : Session->SessionSettings.MemberSettings)
+	for (TPair<FUniqueNetIdRef, FSessionSettings> MemberSettings : Session->SessionSettings.MemberSettings)
 	{
-		const FUniqueNetIdEOS KeyEOS = StaticCast<const FUniqueNetIdEOS>(MemberSettings.Key.Get());
-
 		// We'll only copy our local player's attributes
-		if (*EOSSubsystem->UserManager->GetUniquePlayerId(EOSSubsystem->UserManager->GetDefaultLocalUser()) == KeyEOS)
+		if (*EOSSubsystem->UserManager->GetUniquePlayerId(EOSSubsystem->UserManager->GetDefaultLocalUser()) == *MemberSettings.Key)
 		{
 			for (FSessionSettings::TConstIterator It(MemberSettings.Value); It; ++It)
 			{
@@ -3731,7 +3729,7 @@ void FOnlineSessionEOS::CopyLobbyAttributes(EOS_HLobbyDetails LobbyDetailsHandle
 			}
 			else if (Key == TEXT("OwningNetId"))
 			{
-				OutSession.OwningUserId = MakeShareable(new FUniqueNetIdEOS(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8)));
+				OutSession.OwningUserId = FUniqueNetIdEOS::Create(ANSI_TO_TCHAR(Attribute->Data->Value.AsUtf8));
 			}
 			// Handle FSessionSettings
 			else

@@ -80,8 +80,8 @@ public:
  	{
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
-		SessionInfo.SessionId = FUniqueNetIdEOS::Create();
-		Ar >> *ConstCastSharedRef<FUniqueNetIdEOS>(SessionInfo.SessionId);
+		SessionInfo.SessionId = FUniqueNetIdString::Create();
+		Ar >> *ConstCastSharedRef<FUniqueNetIdString>(SessionInfo.SessionId);
 		Ar >> *SessionInfo.HostAddr;
 		return Ar;
  	}
