@@ -1012,7 +1012,7 @@ void UGroomComponent::ReleaseHairSimulation()
 	NiagaraComponents.Empty();
 }
 
-void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSimulation)
+void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSimulation, const bool bHasWorldReady)
 {
 	if (!GroomComponent)
 	{
@@ -1042,26 +1042,29 @@ void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSim
 			}
 		}
 	}
-	if (IsHairAdaptiveSubstepsEnabled())
+	if (bHasWorldReady)
 	{
-		if (NeedSpringsSolver)
+		if (IsHairAdaptiveSubstepsEnabled())
 		{
-			GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
+			if (NeedSpringsSolver)
+			{
+				GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleSpringsSystem.SimpleSpringsSystem"));
+			}
+			if (NeedRodsSolver)
+			{
+				GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
+			}
 		}
-		if (NeedRodsSolver)
+		else
 		{
-			GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/SimpleRodsSystem.SimpleRodsSystem"));
-		}
-	}
-	else
-	{
-		if (NeedSpringsSolver)
-		{
-			GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/StableSpringsSystem.StableSpringsSystem"));
-		}
-		if (NeedRodsSolver)
-		{
-			GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/StableRodsSystem.StableRodsSystem"));
+			if (NeedSpringsSolver)
+			{
+				GroomComponent->AngularSpringsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/StableSpringsSystem.StableSpringsSystem"));
+			}
+			if (NeedRodsSolver)
+			{
+				GroomComponent->CosseratRodsSystem = LoadObject<UNiagaraSystem>(nullptr, TEXT("/HairStrands/Emitters/StableRodsSystem.StableRodsSystem"));
+			}
 		}
 	}
 	GroomComponent->NiagaraComponents.SetNumZeroed(NumComponents);
@@ -1084,25 +1087,22 @@ void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSim
 				}
 				NiagaraComponent->SetVisibleFlag(false);
 			}
-			if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings)
+			if (bHasWorldReady)
 			{
-				NiagaraComponent->SetAsset(GroomComponent->AngularSpringsSystem);
+				if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::AngularSprings)
+				{
+					NiagaraComponent->SetAsset(GroomComponent->AngularSpringsSystem);
+				}
+				else if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods)
+				{
+					NiagaraComponent->SetAsset(GroomComponent->CosseratRodsSystem);
+				}
+				else
+				{
+					NiagaraComponent->SetAsset(GroomAsset->HairGroupsPhysics[i].SolverSettings.CustomSystem.LoadSynchronous());
+				}
 			}
-			else if (GroomAsset->HairGroupsPhysics[i].SolverSettings.NiagaraSolver == EGroomNiagaraSolvers::CosseratRods)
-			{
-				NiagaraComponent->SetAsset(GroomComponent->CosseratRodsSystem);
-			}
-			else
-			{
-				NiagaraComponent->SetAsset(GroomAsset->HairGroupsPhysics[i].SolverSettings.CustomSystem.LoadSynchronous());
-			}
-
 			NiagaraComponent->ReinitializeSystem();
-			if (NiagaraComponent->GetSystemInstance())
-			{
-				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ReInit);
-				NiagaraComponent->GetSystemInstance()->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-			}
 		}
 		else if (NiagaraComponent && !NiagaraComponent->IsBeingDestroyed())
 		{
@@ -1114,7 +1114,7 @@ void EnableHairSimulation(UGroomComponent* GroomComponent, const bool bEnableSim
 
 void UGroomComponent::UpdateHairSimulation()  
 {
-	EnableHairSimulation(this,true);
+	EnableHairSimulation(this,true,true);
 }
 
 void UGroomComponent::SetGroomAsset(UGroomAsset* Asset)
@@ -1168,7 +1168,8 @@ void UGroomComponent::SetGroomAsset(UGroomAsset* Asset, UGroomBindingAsset* InBi
 	}
 
 	UpdateHairGroupsDesc();
-	UpdateHairSimulation();
+	//UpdateHairSimulation();
+	EnableHairSimulation(this,true,false);
 	if (!GroomAsset || !GroomAsset->IsValid())
 	{
 		return;
@@ -1258,11 +1259,11 @@ void UGroomComponent::SetForcedLOD(int32 LODIndex)
 	{
 		if (bValidLODB)
 		{
-			EnableHairSimulation(this, true);
+			EnableHairSimulation(this, true, true);
 		}
 		else 
 		{
-			EnableHairSimulation(this, false);
+			EnableHairSimulation(this, false, true);
 		}
 	}
 
