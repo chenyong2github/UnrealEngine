@@ -625,9 +625,13 @@ FVirtualTextureSpace* FVirtualTextureSystem::AcquireSpace(const FVTSpaceDescript
 				FVirtualTextureSpace* Space = Spaces[SpaceIndex].Get();
 				if (Space && Space->GetDescription() == InDesc)
 				{
+					const int32 PagetableMemory = Space->GetSizeInBytes();
 					const uint32 vAddress = Space->AllocateVirtualTexture(AllocatedVT);
 					if (vAddress != ~0u)
 					{
+						const int32 NewPagetableMemory = Space->GetSizeInBytes();
+						INC_MEMORY_STAT_BY(STAT_TotalPagetableMemory, NewPagetableMemory - PagetableMemory);
+
 						AllocatedVT->AssignVirtualAddress(vAddress);
 						Space->AddRef();
 						return Space;

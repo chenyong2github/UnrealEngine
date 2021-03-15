@@ -142,6 +142,9 @@ uint32 FVirtualTextureSpace::GetSizeInBytes() const
 		const SIZE_T TextureSize = CalculateImageBytes(PageTableSize, PageTableSize, 0, TexturePixelFormat[TextureIndex]);
 		TotalSize += TextureSize;
 	}
+	
+	TotalSize += CalculateImageBytes(Description.IndirectionTextureSize, Description.IndirectionTextureSize, 0, PF_R32_UINT);
+
 	return TotalSize;
 }
 
