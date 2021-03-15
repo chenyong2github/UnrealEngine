@@ -2019,16 +2019,6 @@ namespace UnrealBuildTool
 			// Add any toolchain dependencies
 			TargetToolChain.GetExternalDependencies(Makefile.ExternalDependencies);
 
-			// Add any leaf dependencies (eg. response files) to the dependencies list
-			IEnumerable<FileItem> LeafPrerequisiteItems = Makefile.Actions.SelectMany(x => x.PrerequisiteItems).Except(Makefile.Actions.SelectMany(x => x.ProducedItems));
-			foreach (FileItem LeafPrerequisiteItem in LeafPrerequisiteItems)
-			{
-				if (LeafPrerequisiteItem.Exists)
-				{
-					Makefile.InternalDependencies.Add(LeafPrerequisiteItem);
-				}
-			}
-
 			// Write a header containing public definitions for this target
 			if (Rules.ExportPublicHeader != null)
 			{
