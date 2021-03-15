@@ -468,7 +468,7 @@ void TraceReflections(
 
 					FComputeShaderUtils::AddPass(
 						GraphBuilder,
-						RDG_EVENT_NAME("TraceCards"),
+						RDG_EVENT_NAME("TraceMeshSDFs"),
 						ComputeShader,
 						PassParameters,
 						CompactedTraceParameters.IndirectArgs,
