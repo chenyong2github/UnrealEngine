@@ -450,7 +450,7 @@ namespace ChaosInterface
 		{
 			const Chaos::FPerShapeData* Shape = GetShapeDelegate(ShapeIndex);
 
-			const bool bHassMass = (ShapeIndex < bContributesToMass.Num()) && bContributesToMass[ShapeIndex];
+			const bool bHassMass = (ShapeIndex < bContributesToMass.Num()) ? bContributesToMass[ShapeIndex] : true;
 			if (bHassMass)
 			{
 				if (const Chaos::FImplicitObject* ImplicitObject = Shape->GetGeometry().Get())
