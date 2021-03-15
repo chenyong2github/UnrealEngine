@@ -19,7 +19,7 @@ void ULeaderboardFlushCallbackProxy::TriggerFlush(APlayerController* PlayerContr
 
 	if (APlayerState* PlayerState = (PlayerController != NULL) ? PlayerController->PlayerState : NULL)
 	{
-		TSharedPtr<const FUniqueNetId> UserID = PlayerState->GetUniqueId().GetUniqueNetId();
+		FUniqueNetIdPtr UserID = PlayerState->GetUniqueId().GetUniqueNetId();
 		if (UserID.IsValid())
 		{
 			if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)

@@ -104,7 +104,7 @@ void APartyBeaconHost::Tick(float DeltaTime)
 			FNamedOnlineSession* Session = SessionInt->GetNamedSession(SessionName);
 			if (Session)
 			{
-				TArray< TSharedPtr<const FUniqueNetId> > PlayersToLogout;
+				TArray< FUniqueNetIdPtr > PlayersToLogout;
 				for (int32 ResIdx = 0; ResIdx < Reservations.Num(); ResIdx++)
 				{
 					FPartyReservation& PartyRes = Reservations[ResIdx];
@@ -200,7 +200,7 @@ void APartyBeaconHost::Tick(float DeltaTime)
 					for (int32 LogoutIdx = 0; LogoutIdx < PlayersToLogout.Num(); LogoutIdx++)
 					{
 						bool bFound = false;
-						const TSharedPtr<const FUniqueNetId>& UniqueId = PlayersToLogout[LogoutIdx];
+						const FUniqueNetIdPtr& UniqueId = PlayersToLogout[LogoutIdx];
 						float ElapsedSessionTime = 0.f;
 						for (int32 ResIdx = 0; ResIdx < Reservations.Num(); ResIdx++)
 						{

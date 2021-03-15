@@ -225,7 +225,7 @@ void FTestPresenceInterface::Test(UWorld* InWorld, const FString& RandomUser)
 	// Fetch a non-friend profile (if the platform supports it)
 	if (!RandomUser.IsEmpty())
 	{
-		TSharedPtr<const FUniqueNetId> ArbitraryId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(RandomUser);
+		FUniqueNetIdPtr ArbitraryId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(RandomUser);
 		if (ArbitraryId.IsValid())
 		{
 			PresenceInt->QueryPresence(*ArbitraryId, IOnlinePresence::FOnPresenceTaskCompleteDelegate::CreateRaw(this, &FTestPresenceInterface::OnRandomUserFetchComplete));

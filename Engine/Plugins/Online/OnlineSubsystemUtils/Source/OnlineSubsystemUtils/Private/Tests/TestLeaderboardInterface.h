@@ -27,7 +27,7 @@
 	bool bReadLeaderboardAttempted;
 
 	/** Logged in UserId */
-	TSharedPtr<const FUniqueNetId> UserId;
+	FUniqueNetIdPtr UserId;
 
 	/** Passed in UserId */
 	FString FindRankUserId;

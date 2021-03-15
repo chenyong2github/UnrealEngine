@@ -190,7 +190,7 @@ private:
 
 	TArray<FInAppPurchaseReceiptInfo2> SavedReceipts;
 
-	TSharedPtr<const FUniqueNetId> PurchasingPlayer;
+	FUniqueNetIdPtr PurchasingPlayer;
 
 	IOnlinePurchasePtr PurchaseInterface;
 

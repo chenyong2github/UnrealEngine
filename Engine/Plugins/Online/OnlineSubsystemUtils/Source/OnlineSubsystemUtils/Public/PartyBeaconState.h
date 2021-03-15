@@ -588,7 +588,7 @@ protected:
 	UPROPERTY(Transient)
 	TArray<FPartyReservation> Reservations;
 	/** Players that are expected to join shortly */
-	TArray< TSharedPtr<const FUniqueNetId> > PlayersPendingJoin;
+	TArray< FUniqueNetIdPtr > PlayersPendingJoin;
 
 	/**
 	 * Arrange reservations to make the most room available on a single team

@@ -110,7 +110,7 @@ public:
 	 *
 	 * @return unique net id in "transport" format
 	 */
-	virtual TSharedPtr<const FUniqueNetId> CreateForeignUniqueNetId(const FString& Str, FName Type) const = 0;
+	virtual FUniqueNetIdPtr CreateForeignUniqueNetId(const FString& Str, FName Type) const = 0;
 
 	/** 
 	 * Return the replication hash for a given subsystem

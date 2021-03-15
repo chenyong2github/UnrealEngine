@@ -49,7 +49,7 @@ void FTestExternalUIInterface::TestSendMessage(const FString& InMsgRecepient, co
 		return;
 	}
 
-	TSharedPtr<const FUniqueNetId> TargetUser = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InMsgRecepient);
+	FUniqueNetIdPtr TargetUser = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InMsgRecepient);
 	if (!TargetUser.IsValid())
 	{
 		UE_LOG_ONLINE_EXTERNALUI(Error, TEXT("ExternalUI TestSendMessage -- Message target user is invalid!"));
@@ -222,7 +222,7 @@ bool FTestExternalUIInterface::TestProfileUI()
 	}
 
 	// Show our own profile
-	TSharedPtr<const FUniqueNetId> UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
+	FUniqueNetIdPtr UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
 	bool bShowingUI = ExternalUI->ShowProfileUI(
 		*UserId.Get(),
 		*UserId.Get(),
@@ -251,7 +251,7 @@ void FTestExternalUIInterface::OnExternalUIChange(bool bIsOpening)
 	}
 }
 
-void FTestExternalUIInterface::OnLoginUIClosed(TSharedPtr<const FUniqueNetId> LoggedInUserId, const int LocalUserId, const FOnlineError& Error)
+void FTestExternalUIInterface::OnLoginUIClosed(FUniqueNetIdPtr LoggedInUserId, const int LocalUserId, const FOnlineError& Error)
 {
 	UE_LOG_ONLINE_EXTERNALUI(Log, TEXT("Login UI closed by local user %d. Logged-in user = %s. Error = %s"), LocalUserId, *LoggedInUserId->ToString(), *Error.ToLogString());
 }

@@ -50,9 +50,9 @@ public:
 		return Subsystem;
 	}
 
-	virtual TSharedPtr<const FUniqueNetId> CreateForeignUniqueNetId(const FString& Str, FName Type) const
+	virtual FUniqueNetIdPtr CreateForeignUniqueNetId(const FString& Str, FName Type) const
 	{
-		return MakeShared<FUniqueNetIdString>(Str, Type);
+		return FUniqueNetIdString::Create(Str, Type);
 	}
 
 	virtual uint8 GetReplicationHashForSubsystem(FName SubsystemName) const

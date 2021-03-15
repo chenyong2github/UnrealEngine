@@ -39,7 +39,7 @@ public:
 
 private:
 	// Internal callback when the login UI closes, calls out to the public success/failure callbacks
-	void OnShowLoginUICompleted(TSharedPtr<const FUniqueNetId> UniqueId, int LocalUserNum, const FOnlineError& Error);
+	void OnShowLoginUICompleted(FUniqueNetIdPtr UniqueId, int LocalUserNum, const FOnlineError& Error);
 
 	// The player controller triggering things
 	TWeakObjectPtr<APlayerController> PlayerControllerWeakPtr;

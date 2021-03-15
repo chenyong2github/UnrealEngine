@@ -72,7 +72,7 @@ void FTestMessageInterface::Test(UWorld* InWorld, const TArray<FString>& InRecip
 		// list of users to send messages to
 		for (int32 Idx=0; Idx < InRecipients.Num(); Idx++)
 		{
-			TSharedPtr<const FUniqueNetId> UserId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InRecipients[Idx]);
+			FUniqueNetIdPtr UserId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InRecipients[Idx]);
 			if (UserId.IsValid())
 			{
 				Recipients.Add(UserId.ToSharedRef());
@@ -103,7 +103,7 @@ void FTestMessageInterface::StartNextTest()
 	}
 	else if (bSendMessages && Recipients.Num() > 0)
 	{
-		TSharedPtr<const FUniqueNetId> UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
+		FUniqueNetIdPtr UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
 		if (UserId.IsValid())
 		{
 			FOnlineMessagePayload TestPayload;

@@ -22,7 +22,7 @@ void ULeaderboardQueryCallbackProxy::TriggerQuery(APlayerController* PlayerContr
 	WorldPtr = (PlayerController != NULL) ? PlayerController->GetWorld() : NULL;
 	if (APlayerState* PlayerState = (PlayerController != NULL) ? PlayerController->PlayerState : NULL)
 	{
-		TSharedPtr<const FUniqueNetId> UserID = PlayerState->GetUniqueId().GetUniqueNetId();
+		FUniqueNetIdPtr UserID = PlayerState->GetUniqueId().GetUniqueNetId();
 		if (UserID.IsValid())
 		{
 			if (IOnlineSubsystem* const OnlineSub = IOnlineSubsystem::IsLoaded() ? IOnlineSubsystem::Get() : nullptr)
@@ -42,7 +42,7 @@ void ULeaderboardQueryCallbackProxy::TriggerQuery(APlayerController* PlayerContr
 					LeaderboardReadCompleteDelegate       = FOnLeaderboardReadCompleteDelegate::CreateUObject(this, &ULeaderboardQueryCallbackProxy::OnStatsRead);
 					LeaderboardReadCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadCompleteDelegate);
 
-					TArray< TSharedRef<const FUniqueNetId> > ListOfIDs;
+					TArray< FUniqueNetIdRef > ListOfIDs;
 					ListOfIDs.Add(UserID.ToSharedRef());
 
 					FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();

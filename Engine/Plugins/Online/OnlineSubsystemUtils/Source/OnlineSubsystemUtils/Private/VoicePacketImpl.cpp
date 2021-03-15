@@ -32,7 +32,7 @@ uint16 FVoicePacketImpl::GetBufferSize()
 	return Length;
 }
 
-TSharedPtr<const FUniqueNetId> FVoicePacketImpl::GetSender()
+FUniqueNetIdPtr FVoicePacketImpl::GetSender()
 {
 	return Sender;
 }
