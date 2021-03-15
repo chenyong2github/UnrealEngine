@@ -925,7 +925,6 @@ void FControlRigParameterTrackEditor::BakeToControlRig(UClass* InClass, FGuid Ob
 					GetSequencer()->SelectSection(NewSection);
 					GetSequencer()->ThrobSectionSelection();
 					GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
-
 					ParamSection->LoadAnimSequenceIntoThisSection(TempAnimSequence, OwnerMovieScene, Skeleton,
 						BakeSettings->bReduceKeys, BakeSettings->Tolerance);
 
@@ -3114,16 +3113,17 @@ void FControlRigParameterSection::OnAnimationAssetSelectedForFK(const FAssetData
 	if (SelectedObject && SelectedObject->IsA(UAnimSequence::StaticClass()) && SequencerPtr.IsValid())
 	{
 		UAnimSequence* AnimSequence = Cast<UAnimSequence>(AssetData.GetAsset());
-		UFKControlRig* AutoRig = Cast<UFKControlRig>(Section->ControlRig);
 		UObject* BoundObject = nullptr;
 		USkeleton* Skeleton = AcquireSkeletonFromObjectGuid(ObjectBinding, &BoundObject, SequencerPtr);
 
-		if (AnimSequence && AutoRig && Skeleton && AnimSequence->GetRawAnimationData().Num() > 0)
+		if (AnimSequence && Skeleton && AnimSequence->GetRawAnimationData().Num() > 0)
 		{
+
 			FScopedTransaction Transaction(LOCTEXT("BakeAnimation_Transaction", "Bake Animation To FK Control Rig"));
 			Section->Modify();
-			UMovieScene* MovieScene = WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene();
-			if (!Section->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, Skeleton, false, 0.1f))
+			UMovieScene* MovieScene = SequencerPtr->GetFocusedMovieSceneSequence()->GetMovieScene();
+			FFrameNumber StartFrame = SequencerPtr->GetLocalTime().Time.GetFrame();
+			if (!Section->LoadAnimSequenceIntoThisSection(AnimSequence, MovieScene, Skeleton, false, 0.1f, StartFrame))
 			{
 				Transaction.Cancel();
 			}

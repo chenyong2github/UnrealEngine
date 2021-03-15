@@ -217,7 +217,7 @@ public:
 	//Function to load an Anim Sequence into this section. It will automatically reszie to the section size.
 	//Will return false if fails or is canceled
 	virtual bool LoadAnimSequenceIntoThisSection(UAnimSequence* Sequence, UMovieScene* MovieScene, USkeleton* Skeleton,
-		bool bKeyReduce, float Tolerance);
+		bool bKeyReduce, float Tolerance, FFrameNumber InStartFrame = 0);
 #endif
 	const TArray<bool>& GetControlsMask() const
 	{
