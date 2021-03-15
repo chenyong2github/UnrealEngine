@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/Core.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Rotation.h"
