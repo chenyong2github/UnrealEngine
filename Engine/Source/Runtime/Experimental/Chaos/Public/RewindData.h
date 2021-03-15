@@ -436,7 +436,7 @@ public:
 	, FramesSaved(0)
 	, DataIdxOffset(0)
 	, bNeedsSave(false)
-	, bResimOptimization(InResimOptimization)
+	, bResimOptimization(false)
 	{
 	}
 
@@ -532,7 +532,7 @@ private:
 	struct FSimWritableState
 	{
 		template <bool bResim>
-		bool SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid);
+		bool SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid, const int32 Frame);
 		void SyncToParticle(TPBDRigidParticleHandle<FReal,3>& Rigid) const;
 
 		bool IsSimWritableDesynced(const TPBDRigidParticleHandle<FReal,3>& Rigid) const;
@@ -541,6 +541,8 @@ private:
 		const FQuat& R() const { return MR; }
 		const FVec3& V() const { return MV; }
 		const FVec3& W() const { return MW; }
+
+		int32 FrameRecordedHack = INDEX_NONE;
 
 	private:
 		FVec3 MX;
