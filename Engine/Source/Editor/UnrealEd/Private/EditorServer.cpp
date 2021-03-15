@@ -2331,6 +2331,7 @@ UWorld* UEditorEngine::NewMap()
 	Factory->bInformEngineOfWorld = true;
 	Factory->FeatureLevel = DefaultWorldFeatureLevel;
 	UPackage* Pkg = CreatePackage(nullptr);
+	Pkg->SetPackageFlags(PKG_NewlyCreated);
 	EObjectFlags Flags = RF_Public | RF_Standalone;
 	UWorld* NewWorld = CastChecked<UWorld>(Factory->FactoryCreateNew(UWorld::StaticClass(), Pkg, TEXT("Untitled"), Flags, NULL, GWarn));
 	Context.SetCurrentWorld(NewWorld);

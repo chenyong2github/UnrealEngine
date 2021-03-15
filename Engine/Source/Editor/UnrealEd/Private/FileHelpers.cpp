@@ -3718,7 +3718,7 @@ bool FEditorFileUtils::SaveCurrentLevel()
 		{
 			UPackage* LevelPackage = Level->GetPackage();
 			// Save the level
-			if (!bCheckDirty || LevelPackage->IsDirty())
+			if (!bCheckDirty || LevelPackage->IsDirty() || LevelPackage->HasAnyPackageFlags(PKG_NewlyCreated))
 			{
 				bReturnCode &= FEditorFileUtils::SaveLevel(Level);
 			}
