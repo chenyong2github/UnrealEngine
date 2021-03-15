@@ -374,9 +374,13 @@ UENUM()
 enum class EProceduralStairsType
 {
 	/** Create a linear staircase */
-	Linear UMETA(DisplayName = "Linear Stairs"),
+	Linear UMETA(DisplayName = "Linear"),
+	/** Create a floating staircase */
+	Floating UMETA(DisplayName = "Floating"),
 	/** Create a curved staircase */
-	Curved UMETA(DisplayName = "Curved Stairs")
+	Curved UMETA(DisplayName = "Curved"),
+	/** Create a spiral staircase */
+	Spiral UMETA(DisplayName = "Spiral")
 };
 
 UCLASS()
@@ -401,15 +405,19 @@ public:
 	float StepHeight = 20.0f;
 
 	/** Depth of each step for linear stair shapes */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings", meta = (DisplayName = "Step Depth", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Linear", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings", meta = (DisplayName = "Step Depth", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Linear || StairsType == EProceduralStairsType::Floating", EditConditionHides))
 	float StepDepth = 30.0f;
 
 	/** Angular length of curved stair shapes */
 	UPROPERTY(EditAnywhere, Category = "ShapeSettings", meta = (DisplayName = "Curve Angle", UIMin = "-360.0", UIMax = "360.0", ClampMin = "-360.0", ClampMax = "360.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Curved", EditConditionHides))
 	float CurveAngle = 90.0f;
 
+	/** Angular length of spiral stair shapes */
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings", meta = (DisplayName = "Spiral Angle", UIMin = "-3600.0", UIMax = "3600.0", ClampMin = "-360000.0", ClampMax = "360000.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Spiral", EditConditionHides))
+	float SpiralAngle = 90.0f;
+
 	/** Inner radius for curved/spiral stair shapes */
-	UPROPERTY(EditAnywhere, Category = "ShapeSettings", meta = (DisplayName = "Inner Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Curved", EditConditionHides))
+	UPROPERTY(EditAnywhere, Category = "ShapeSettings", meta = (DisplayName = "Inner Radius", UIMin = "1.0", UIMax = "1000.0", ClampMin = "0.0001", ClampMax = "1000000.0", ProceduralShapeSetting, EditCondition = "StairsType == EProceduralStairsType::Curved || StairsType == EProceduralStairsType::Spiral", EditConditionHides))
 	float InnerRadius = 150.0f;
 };
 

@@ -651,6 +651,18 @@ void UAddStairsPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 		OutMesh->Copy(&StairGen);
 		break;
 	}
+	case EProceduralStairsType::Floating:
+	{
+		FFloatingStairGenerator StairGen;
+		StairGen.StepWidth = StairSettings->StepWidth;
+		StairGen.StepHeight = StairSettings->StepHeight;
+		StairGen.StepDepth = StairSettings->StepDepth;
+		StairGen.NumSteps = StairSettings->NumSteps;
+		StairGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
+		StairGen.Generate();
+		OutMesh->Copy(&StairGen);
+		break;
+	}
 	case EProceduralStairsType::Curved:
 	{
 		FCurvedStairGenerator StairGen;
@@ -659,6 +671,19 @@ void UAddStairsPrimitiveTool::GenerateMesh(FDynamicMesh3* OutMesh) const
 		StairGen.NumSteps = StairSettings->NumSteps;
 		StairGen.InnerRadius = StairSettings->InnerRadius;
 		StairGen.CurveAngle = StairSettings->CurveAngle;
+		StairGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
+		StairGen.Generate();
+		OutMesh->Copy(&StairGen);
+		break;
+	}
+	case EProceduralStairsType::Spiral:
+	{
+		FSpiralStairGenerator StairGen;
+		StairGen.StepWidth = StairSettings->StepWidth;
+		StairGen.StepHeight = StairSettings->StepHeight;
+		StairGen.NumSteps = StairSettings->NumSteps;
+		StairGen.InnerRadius = StairSettings->InnerRadius;
+		StairGen.CurveAngle = StairSettings->SpiralAngle;
 		StairGen.bPolygroupPerQuad = (ShapeSettings->PolygroupMode == EMakeMeshPolygroupMode::PerQuad);
 		StairGen.Generate();
 		OutMesh->Copy(&StairGen);
