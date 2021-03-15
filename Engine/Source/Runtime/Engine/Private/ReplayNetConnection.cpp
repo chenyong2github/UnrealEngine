@@ -269,12 +269,6 @@ void UReplayNetConnection::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTr
 			{
 				ReplayHelper.RecordingDeltaCheckpointData.DestroyedNetStartupActors.Add(FullName);
 			}
-
-			FNetworkGUID NetGUID = Driver->GuidCache->NetGUIDLookup.FindRef(Actor);
-			if (NetGUID.IsValid())
-			{
-				ReplayHelper.DeletedNetStartupActorGUIDs.Add(NetGUID);
-			}
 		}
 	}
 

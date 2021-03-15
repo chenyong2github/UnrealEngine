@@ -1168,8 +1168,14 @@ bool UPackageMapClient::ExportNetGUIDForReplay(FNetworkGUID& NetGUID, UObject* O
 		TArray<uint8>& GUIDMemory = ExportGUIDArchives.Emplace_GetRef();
 		GUIDMemory.Reserve(MaxReservedSize);
 
+		FNetGUIDCache::ENetworkChecksumMode RestoreMode = GuidCache->NetworkChecksumMode;
+
+		GuidCache->SetNetworkChecksumMode(FNetGUIDCache::ENetworkChecksumMode::None);
+
 		FMemoryWriter Writer(GUIDMemory);
 		InternalWriteObject(Writer, NetGUID, Object, PathName, ObjOuter);
+
+		GuidCache->SetNetworkChecksumMode(RestoreMode);
 
 		check(!Writer.IsError());
 		ensureMsgf(GUIDMemory.Num() <= MaxReservedSize, TEXT("ExportNetGUIDForReplay exceeded CVarReservedNetGuidSize. Max=%l Count=%l"), MaxReservedSize, GUIDMemory.Num());
