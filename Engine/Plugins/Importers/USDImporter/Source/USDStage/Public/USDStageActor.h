@@ -148,6 +148,8 @@ public:
 	virtual void PostLoad() override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void Destroyed() override;
+	virtual void PostActorCreated() override;
+	virtual void BeginPlay() override;
 
 	void OnLevelAddedToWorld(ULevel* Level, UWorld* World);
 	void OnLevelRemovedFromWorld(ULevel* Level, UWorld* World);
@@ -159,10 +161,13 @@ private:
 	void OpenUsdStage();
 	void LoadUsdStage();
 
+	UUsdPrimTwin* GetRootPrimTwin();
+
 #if WITH_EDITOR
 	void OnMapChanged(UWorld* World, EMapChangeType ChangeType);
 	void OnBeginPIE(bool bIsSimulating);
 	void OnPostPIEStarted(bool bIsSimulating);
+	void OnObjectsReplaced( const TMap<UObject*, UObject*>& ObjectReplacementMap );
 #endif // WITH_EDITOR
 
 	void UpdateSpawnedObjectsTransientFlag( bool bTransient );
@@ -175,20 +180,21 @@ private:
 	bool HasAuthorityOverStage() const;
 
 private:
-	UPROPERTY(Transient)
+	// Note: This cannot be instanced: Read the comment in the constructor
+	UPROPERTY( Transient )
 	UUsdPrimTwin* RootUsdTwin;
 
-	UPROPERTY(Transient)
+	UPROPERTY( Transient )
 	TSet< FString > PrimsToAnimate;
 
-	UPROPERTY(Transient)
+	UPROPERTY( Transient )
 	TMap< UObject*, FString > ObjectsToWatch;
 
-	UPROPERTY(VisibleAnywhere, Category = "USD", AdvancedDisplay)
+	UPROPERTY( VisibleAnywhere, Category = "USD", AdvancedDisplay )
 	UUsdAssetCache* AssetCache;
 
 private:
-	UPROPERTY(Transient)
+	UPROPERTY( Transient )
 	UUsdTransactor* Transactor;
 
 	/** Keep track of blend shapes so that we can map 'inbetween shapes' to their separate morph targets when animating */

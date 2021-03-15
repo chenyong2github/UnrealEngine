@@ -19,7 +19,8 @@ UUsdPrimTwin& UUsdPrimTwin::AddChild( const FString& InPrimPath )
 
 	UUsdPrimTwin*& ChildPrim = Children.Add( ChildPrimName );
 
-	ChildPrim = NewObject<UUsdPrimTwin>(this, NAME_None, RF_Transient | RF_Transactional);
+	// Needs public because this will mostly live on the transient package (c.f. AUsdStageActor::GetRootPrimTwin())
+	ChildPrim = NewObject<UUsdPrimTwin>( this, NAME_None, RF_Transient | RF_Transactional | RF_Public );
 	ChildPrim->PrimPath = InPrimPath;
 
 	return *ChildPrim;

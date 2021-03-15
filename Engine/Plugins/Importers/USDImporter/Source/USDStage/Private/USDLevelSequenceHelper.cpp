@@ -1248,7 +1248,7 @@ void FUsdLevelSequenceHelperImpl::UpdateMovieSceneTimeRanges( UMovieScene& Movie
 
 void FUsdLevelSequenceHelperImpl::OnObjectTransacted(UObject* Object, const class FTransactionObjectEvent& Event)
 {
-	if ( !MainLevelSequence || !bMonitorChanges )
+	if ( !MainLevelSequence || !bMonitorChanges || !Object || Object->IsPendingKill() )
 	{
 		return;
 	}
@@ -1317,13 +1317,16 @@ UE::FUsdAttribute FUsdLevelSequenceHelperImpl::GetXformAttribute( const UE::FUsd
 
 void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange( UMovieScene& MovieScene )
 {
-	if ( !MainLevelSequence || !UsdStage )
+	// It's possible to get this called when the actor and it's level sequences are being all destroyed in one go.
+	// We need the FScopedBlockNotices in this function, but if our StageActor is already being destroyed, we can't reliably
+	// use its listener, and so then we can't do anything. We likely don't want to write back to the stage at this point anyway.
+	AUsdStageActor* StageActorPtr = StageActor.Get();
+	if ( !MainLevelSequence || !UsdStage || !StageActorPtr || StageActorPtr->IsActorBeingDestroyed() )
 	{
 		return;
 	}
 
 	ULevelSequence* Sequence = MovieScene.GetTypedOuter< ULevelSequence >();
-
 	if ( !Sequence )
 	{
 		return;
@@ -1331,14 +1334,12 @@ void FUsdLevelSequenceHelperImpl::HandleMovieSceneChange( UMovieScene& MovieScen
 
 	const FString LayerIdentifier = LayerIdentifierByLevelSequenceName.FindRef( Sequence->GetFName() );
 	FLayerTimeInfo* LayerTimeInfo = LayerTimeInfosByLayerIdentifier.Find( LayerIdentifier );
-
 	if ( !LayerTimeInfo )
 	{
 		return;
 	}
 
 	UE::FSdfLayer Layer = UE::FSdfLayer::FindOrOpen( *LayerTimeInfo->Identifier );
-
 	if ( !Layer )
 	{
 		return;
