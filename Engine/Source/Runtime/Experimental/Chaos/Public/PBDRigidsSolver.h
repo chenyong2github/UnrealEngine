@@ -340,8 +340,6 @@ namespace Chaos
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FDirtyParticlesBuffer> MDirtyParticlesBuffer;
 		TMap<const Chaos::FGeometryParticleHandle*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
-		TUniquePtr<FRewindData> MRewindData;
-		TUniquePtr<IRewindCallback> MRewindCallback;
 
 		//
 		// Proxies
