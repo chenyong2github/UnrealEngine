@@ -41,7 +41,8 @@ enum EImportLODType
 	ILT_IndividualActors UMETA(DisplayName = "Individual Actors")
 };
 
-UCLASS(BlueprintType, config=EditorPerProjectUserSettings, MinimalAPI)
+
+UCLASS(BlueprintType, config=EditorPerProjectUserSettings, perObjectConfig, MinimalAPI)
 class USpeedTreeImportData : public UAssetImportData
 {
 	GENERATED_UCLASS_BODY()
@@ -107,10 +108,6 @@ class USpeedTreeImportData : public UAssetImportData
 	uint32 IncludeSmoothLODCheck : 1;
 
 	void CopyFrom(USpeedTreeImportData* Other);
-
-	//Save and load options to retrieve the last option that was use when importing a speedtree asset
-	void SaveOptions();
-	void LoadOptions();
 };
 
 

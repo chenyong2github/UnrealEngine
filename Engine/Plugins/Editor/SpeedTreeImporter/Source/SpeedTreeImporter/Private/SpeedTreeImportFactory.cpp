@@ -7,6 +7,7 @@
 #include "EditorFramework/AssetImportData.h"
 #include "EditorReimportHandler.h"
 #include "EditorStyleSet.h"
+#include "Engine/Engine.h"
 #include "Engine/StaticMesh.h"
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
@@ -151,8 +152,14 @@ public:
 		bImport(false)
 	{
 		DetailsView = nullptr;
-		SpeedTreeImportData = NewObject<USpeedTreeImportData>(GetTransientPackage(), NAME_None);
-		SpeedTreeImportData->LoadConfig();
+		
+		// The name options is important for the config storage
+		FName SpeedTreeImportDataName = TEXT("SpeedTreeImportData");
+		if (UObject* ObjectToMove = FindObjectFast<UObject>(GetTransientPackage(), SpeedTreeImportDataName))
+		{
+			ObjectToMove->Rename();
+		}
+		SpeedTreeImportData = NewObject<USpeedTreeImportData>(GetTransientPackage(), SpeedTreeImportDataName);
 	}
 
 	void Construct(const FArguments& InArgs)
@@ -169,7 +176,7 @@ public:
 		else
 		{
 			//When simply importing we load the local config file of the user so he rerieve the last import options
-			SpeedTreeImportData->LoadOptions();
+			SpeedTreeImportData->LoadConfig();
 		}
 
 		// set the filename now so the dialog can tell if it is SpeedTree 7 or 8
@@ -252,6 +259,8 @@ public:
 		return bImport;
 	}
 
+private:
+
 	/** Called when 'OK' button is pressed */
 	FReply OnImport()
 	{
@@ -265,7 +274,22 @@ public:
 	{
 		if (DetailsView.IsValid())
 		{
-			SpeedTreeImportData->LoadConfig();
+			// Reset values from the CDO 
+			UClass* Class = SpeedTreeImportData->GetClass();
+			UObject* CDO = Class->GetDefaultObject();
+
+			for (FProperty* Property = Class->PropertyLink; Property; Property = Property->PropertyLinkNext)
+			{
+				// Only reset the property that would have been store in the config
+				if (Property->HasAnyPropertyFlags(CPF_Config))
+				{
+					void* Dest = Property->ContainerPtrToValuePtr<void>(SpeedTreeImportData);
+					const void* Source = Property->ContainerPtrToValuePtr<void>(CDO);
+					Property->CopyCompleteValue(Dest, Source);
+				}
+			}
+
+
 			DetailsView->SetObject(SpeedTreeImportData, true);
 		}
 		return FReply::Handled();
