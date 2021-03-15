@@ -19,7 +19,7 @@ void FDatasmithExporterUIModule::StartupModule()
 	GExporterUIModule = this;
 
 #if IS_PROGRAM
-	if ( FDatasmithExporterManager::WasInitilizedWithMessaging() )
+	if ( FDatasmithExporterManager::WasInitializedWithMessaging() )
 	{
 		DirectLinkUI = MakeUnique<FDirectLinkUI>();
 	}

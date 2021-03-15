@@ -50,7 +50,7 @@ public:
 
 	void RequestExit();
 
-	bool WasInitilizedWithMessaging() const { return bUseMessaging; }
+	bool WasInitializedWithMessaging() const { return bUseMessaging; }
 
 	TQueue<FSimpleDelegate, EQueueMode::Mpsc> CommandQueue;
 
@@ -414,14 +414,19 @@ void FDatasmithExporterManager::PushCommandIntoGameThread(FSimpleDelegate&& Comm
 	}
 }
 
-bool FDatasmithExporterManager::WasInitilizedWithMessaging()
+bool FDatasmithExporterManager::WasInitializedWithMessaging()
 {
 	if( GDatasmithGameThread )
 	{
-		return GDatasmithGameThread->WasInitilizedWithMessaging();
+		return GDatasmithGameThread->WasInitializedWithMessaging();
 	}
 
 	return bUseMessaging && bEngineInitialized;
+}
+
+bool FDatasmithExporterManager::WasInitializedWithGameThread()
+{
+	return GDatasmithGameThread && bEngineInitialized;
 }
 #endif
 
