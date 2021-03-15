@@ -883,11 +883,11 @@ namespace UnrealGameSync
 
 			if (MaxResults > 0)
 			{
-				Arguments.Add(String.Format("-m {0}", MaxResults));
+				Arguments.Add(String.Format("-m{0}", MaxResults));
 			}
 			if (ByUser != null)
 			{
-				Arguments.Add(String.Format("-u \"{0}\"", ByUser));
+				Arguments.Add(String.Format("-u{0}", ByUser));
 			}
 			foreach (string Filter in Filters)
 			{
@@ -1694,22 +1694,32 @@ namespace UnrealGameSync
 			return FullCommandLine;
 		}
 
+		public string GetConnectionOptions(bool bIncludeClient = true)
+		{
+			StringBuilder BasicCommandArgs = new StringBuilder();
+			if (ServerAndPort != null)
+			{
+				BasicCommandArgs.AppendFormat("-p \"{0}\" ", ServerAndPort);
+			}
+			if (UserName != null)
+			{
+				BasicCommandArgs.AppendFormat("-u \"{0}\" ", UserName);
+			}
+			if (bIncludeClient && ClientName != null)
+			{
+				BasicCommandArgs.AppendFormat("-c \"{0}\" ", ClientName);
+			}
+
+			return BasicCommandArgs.ToString().TrimEnd();
+		}
+
 		private string GetFullCommandLine(string CommandLine, CommandOptions Options)
 		{
 			StringBuilder FullCommandLine = new StringBuilder();
-			if(ServerAndPort != null)
-			{
-				FullCommandLine.AppendFormat("-p{0} ", ServerAndPort);
-			}
-			if(UserName != null)
-			{
-				FullCommandLine.AppendFormat("-u{0} ", UserName);
-			}
-			if(!Options.HasFlag(CommandOptions.NoClient) && ClientName != null)
-			{
-				FullCommandLine.AppendFormat("-c{0} ", ClientName);
-			}
-			if(!Options.HasFlag(CommandOptions.NoChannels))
+			FullCommandLine.Append(GetConnectionOptions(bIncludeClient: !Options.HasFlag(CommandOptions.NoClient)));
+			FullCommandLine.Append(" ");
+
+			if (!Options.HasFlag(CommandOptions.NoChannels))
 			{
 				FullCommandLine.Append("-s ");
 			}

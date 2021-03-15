@@ -15,7 +15,7 @@ namespace UnrealGameSync
 
 			if (!Utility.SpawnHiddenProcess("p4v.exe", CommandLine))
 			{
-				return new UriResult() { Error = string.Format("Error spawning p4vc.exe with command line: {0}", CommandLine) };
+				return new UriResult() { Error = string.Format("Error spawning p4v.exe with command line: {0}", CommandLine) };
 			}
 
 			return new UriResult() { Success = true };
@@ -26,10 +26,7 @@ namespace UnrealGameSync
 		{
 			string CommandLine = string.Format("timelapse {0}{1}", Line == -1 ? "" : string.Format(" -l {0} ", Line), DepotPath);
 
-			if (!Utility.SpawnHiddenProcess("p4vc.exe", CommandLine))
-			{
-				return new UriResult() { Error = string.Format("Error spawning p4vc.exe with command line: {0}", CommandLine) };
-			}
+			Utility.SpawnP4VC(CommandLine);
 
 			return new UriResult() { Success = true };
 		}		

@@ -87,7 +87,14 @@ namespace UnrealGameSync
 				ChildProcess.StartInfo.RedirectStandardOutput = true;
 				ChildProcess.StartInfo.RedirectStandardError = true;
 				ChildProcess.StartInfo.CreateNoWindow = true;
-				return ChildProcess.Start();
+				try
+				{
+					return ChildProcess.Start();
+				}
+				catch
+				{
+					return false;
+				}
 			}
 		}
 
@@ -612,6 +619,55 @@ namespace UnrealGameSync
 				}
 			}
 			return NormalUserName.ToString();
+		}
+
+		public static IEnumerable<string> GetPerforcePaths()
+		{
+			string PathList = Environment.GetEnvironmentVariable("PATH");
+			if (!String.IsNullOrEmpty(PathList))
+			{
+				foreach (string PathEntry in PathList.Split(Path.PathSeparator))
+				{
+					string PerforcePath = null;
+					try
+					{
+						string TestPerforcePath = Path.Combine(PathEntry, "p4.exe");
+						if (File.Exists(TestPerforcePath))
+						{
+							PerforcePath = TestPerforcePath;
+						}
+					}
+					catch
+					{
+					}
+
+					if(PerforcePath != null)
+					{
+						yield return PerforcePath;
+					}
+				}
+			}
+		}
+
+		public static void SpawnP4VC(string Arguments)
+		{
+			string Executable = "p4vc.exe";
+
+			foreach (string PerforcePath in GetPerforcePaths())
+			{
+				string PerforceDir = Path.GetDirectoryName(PerforcePath);
+				if (File.Exists(Path.Combine(PerforceDir, "p4vc.bat")) && !File.Exists(Path.Combine(PerforceDir, "p4vc.exe")))
+				{
+					Executable = Path.Combine(PerforceDir, "p4v.exe");
+					Arguments = "-p4vc " + Arguments;
+					break;
+				}
+			}
+
+			if (!Utility.SpawnHiddenProcess(Executable, Arguments))
+			{
+				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
+			}
 		}
 	}
 }

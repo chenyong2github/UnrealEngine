@@ -93,14 +93,14 @@ namespace UnrealGameSync
 		{
 			Dictionary<Guid, bool> DefaultSyncCategories = WorkspaceSyncCategory.GetDefault(UniqueIdToCategory.Values);
 
-			Dictionary<Guid, bool> GlobalSyncCategories = GetCategorySettings(GlobalControl.CategoriesCheckList);
+			Dictionary<Guid, bool> GlobalSyncCategories = GetCategorySettings(GlobalControl.CategoriesCheckList, this.GlobalSyncCategories);
 			NewGlobalSyncCategories = WorkspaceSyncCategory.GetDelta(DefaultSyncCategories, GlobalSyncCategories);
 
-			Dictionary<Guid, bool> WorkspaceSyncCategories = GetCategorySettings(WorkspaceControl.CategoriesCheckList);
+			Dictionary<Guid, bool> WorkspaceSyncCategories = GetCategorySettings(WorkspaceControl.CategoriesCheckList, this.WorkspaceSyncCategories);
 			NewWorkspaceSyncCategories = WorkspaceSyncCategory.GetDelta(GlobalSyncCategories, WorkspaceSyncCategories);
 		}
 
-		private static Dictionary<Guid, bool> GetCategorySettings(CheckedListBox ListBox)
+		private Dictionary<Guid, bool> GetCategorySettings(CheckedListBox ListBox, IEnumerable<KeyValuePair<Guid, bool>> OriginalSettings)
 		{
 			Dictionary<Guid, bool> Result = new Dictionary<Guid, bool>();
 			for(int Idx = 0; Idx < ListBox.Items.Count; Idx++)
@@ -111,7 +111,13 @@ namespace UnrealGameSync
 					Result[UniqueId] = ListBox.GetItemCheckState(Idx) == CheckState.Checked;
 				}
 			}
-
+			foreach (KeyValuePair<Guid, bool> OriginalSetting in OriginalSettings)
+			{
+				if (!UniqueIdToCategory.ContainsKey(OriginalSetting.Key))
+				{
+					Result[OriginalSetting.Key] = OriginalSetting.Value;
+				}
+			}
 			return Result;
 		}
 

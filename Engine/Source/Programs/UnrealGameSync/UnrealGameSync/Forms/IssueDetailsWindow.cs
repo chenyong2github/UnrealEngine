@@ -1288,10 +1288,7 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
-			if(!Utility.SpawnHiddenProcess("p4vc.exe", String.Format("-p\"{0}\" change {1}", Perforce.ServerAndPort, ContextMenuChange.Number)))
-			{
-				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
-			}
+			Utility.SpawnP4VC(String.Format("{0} change {1}", Perforce.GetConnectionOptions(), ContextMenuChange.Number));
 		}
 
 		private void BuildListContextMenu_Blame_Click(object sender, EventArgs e)

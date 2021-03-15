@@ -655,7 +655,13 @@ namespace UnrealGameSync
 								string RelativePath = FullName.Substring(LocalRootPrefix.Length).Replace('\\', '/');
 								if (Filter.Matches(RelativePath))
 								{
-									SyncTree.IncludeFile(PerforceUtils.EscapePath(RelativePath), SyncRecord.FileSize);
+									long FileSize = SyncRecord.FileSize;
+									if (SyncRecord.Action == "deleted" || SyncRecord.Action == "move/delete")
+									{
+										FileSize = 0;
+									}
+
+									SyncTree.IncludeFile(PerforceUtils.EscapePath(RelativePath), FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 								}
 								else

@@ -200,6 +200,9 @@ namespace UnrealGameSync
 		public EventData LastStarReview;
 		public List<BadgeData> Badges = new List<BadgeData>();
 		public List<CommentData> Comments = new List<CommentData>();
+
+		public GetMetadataResponseV2 SharedMetadata;
+		public GetMetadataResponseV2 ProjectMetadata;
 	}
 
 	class EventMonitor : IDisposable
@@ -537,6 +540,9 @@ namespace UnrealGameSync
 
 		void ConvertMetadataToEvents(GetMetadataResponseV2 Metadata)
 		{
+			EventSummary NewSummary = new EventSummary();
+			NewSummary.ChangeNumber = Metadata.Change;
+
 			EventSummary Summary;
 			if (ChangeNumberToSummary.TryGetValue(Metadata.Change, out Summary))
 			{
@@ -544,9 +550,35 @@ namespace UnrealGameSync
 				{
 					UserNameToLastSyncEvent.Remove(CurrentUser);
 				}
-				ChangeNumberToSummary.Remove(Metadata.Change);
+
+				NewSummary.SharedMetadata = Summary.SharedMetadata;
+				NewSummary.ProjectMetadata = Summary.ProjectMetadata;
 			}
 
+			if (string.IsNullOrEmpty(Metadata.Project))
+			{
+				NewSummary.SharedMetadata = Metadata;
+			}
+			else
+			{
+				NewSummary.ProjectMetadata = Metadata;
+			}
+
+			ChangeNumberToSummary[NewSummary.ChangeNumber] = NewSummary;
+
+			if (NewSummary.SharedMetadata != null)
+			{
+				PostEvents(NewSummary.SharedMetadata);
+			}
+
+			if (NewSummary.ProjectMetadata != null)
+			{
+				PostEvents(NewSummary.ProjectMetadata);
+			}
+		}
+
+		void PostEvents(GetMetadataResponseV2 Metadata)
+		{
 			if (Metadata.Badges != null)
 			{
 				foreach (GetBadgeDataResponseV2 BadgeData in Metadata.Badges)

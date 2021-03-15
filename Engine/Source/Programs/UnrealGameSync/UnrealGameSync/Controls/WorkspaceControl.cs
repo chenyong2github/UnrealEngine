@@ -3209,7 +3209,7 @@ namespace UnrealGameSync
 			StringBuilder CommandLine = new StringBuilder();
 			if (Workspace != null && Workspace.Perforce != null)
 			{
-				CommandLine.AppendFormat("-p \"{0}\" -c \"{1}\" -u \"{2}\"", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.Perforce.ClientName, Workspace.Perforce.UserName);
+				CommandLine.Append(Workspace.Perforce.GetConnectionOptions());
 			}
 			SafeProcessStart("p4v.exe", CommandLine.ToString());
 		}
@@ -4158,7 +4158,7 @@ namespace UnrealGameSync
 			}
 
 			bool bNewHoverSync = false;
-			if (HitTest.Item != null)
+			if (HitTest.Item != null && StatusColumn.Index < HitTest.Item.SubItems.Count)
 			{
 				bNewHoverSync = GetSyncBadgeRectangle(HitTest.Item.SubItems[StatusColumn.Index].Bounds).Contains(e.Location);
 			}
@@ -4495,10 +4495,7 @@ namespace UnrealGameSync
 
 		private void BuildListContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
-			if (!Utility.SpawnHiddenProcess("p4vc.exe", String.Format("-p\"{0}\" -u\"{1}\" -c{2} change {3}", Workspace.Perforce.ServerAndPort ?? "perforce:1666", Workspace.Perforce.UserName, Workspace.ClientName, ContextMenuChange.Number)))
-			{
-				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
-			}
+			Utility.SpawnP4VC(String.Format("{0} change {1}", Workspace.Perforce.GetConnectionOptions(), ContextMenuChange.Number));
 		}
 
 		private void BuildListContextMenu_ViewInSwarm_Click(object sender, EventArgs e)
