@@ -26,6 +26,25 @@ void FActorElementLevelEditorViewportInteractionCustomization::GetElementsToMove
 		return;
 	}
 
+	// Ensure that only parent-most actor(s) are moved
+	bool bParentAlsoSelected = false;
+	AActor* Parent = Actor->GetAttachParentActor();
+	while (Parent != nullptr)
+	{
+		if (Parent->IsSelected())
+		{
+			bParentAlsoSelected = true;
+			break;
+		}
+
+		Parent = Parent->GetAttachParentActor();
+	}
+	if (bParentAlsoSelected)
+	{
+		return;
+	}
+
+
 	if (CanMoveActorInViewport(Actor, InWorldType))
 	{
 		AppendActorsToMove(Actor, InSelectionSet, OutElementsToMove, OutElementsToMoveFinalizers);
