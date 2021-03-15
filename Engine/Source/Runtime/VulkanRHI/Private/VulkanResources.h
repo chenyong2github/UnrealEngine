@@ -273,7 +273,7 @@ struct FVulkanCpuReadbackBuffer
 class FVulkanSurface : public FVulkanEvictable
 {
 	virtual void Evict(FVulkanDevice& Device);
-	virtual void Move(FVulkanDevice& Device, VulkanRHI::FVulkanAllocation& NewAllocation);
+	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation);
 	virtual bool CanEvict();
 	virtual bool CanMove();
 public:
@@ -315,8 +315,8 @@ public:
 	void InvalidateMappedMemory();
 	void* GetMappedPointer();
 
-	void MoveSurface(FVulkanDevice& InDevice, VulkanRHI::FVulkanAllocation& NewAllocation);
-	void OnFullDefrag(FVulkanDevice& InDevice, uint32 NewOffset);
+	void MoveSurface(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation);
+	void OnFullDefrag(FVulkanDevice& InDevice, FVulkanCommandListContext& Context, uint32 NewOffset);
 	void EvictSurface(FVulkanDevice& InDevice);
 
 
@@ -515,8 +515,8 @@ struct FVulkanTextureBase : public FVulkanEvictable, public IRefCountedObject
 	}
 
 	void Evict(FVulkanDevice& Device); ///evict to system memory
-	void Move(FVulkanDevice& Device, VulkanRHI::FVulkanAllocation& NewAllocation); //move to a full new allocation
-	void OnFullDefrag(FVulkanDevice& Device, uint32 NewOffset); //called when compacting an allocation. Old image can still be used as a copy source.
+	void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation); //move to a full new allocation
+	void OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset); //called when compacting an allocation. Old image can still be used as a copy source.
 	FVulkanTextureBase* GetTextureBase() { return this; }
 
 	void AttachView(VulkanRHI::FVulkanViewBase* View);
@@ -956,7 +956,7 @@ private:
 struct FVulkanRingBuffer : public FVulkanEvictable, public VulkanRHI::FDeviceChild
 {
 	virtual void Evict(FVulkanDevice& Device);
-	virtual void Move(FVulkanDevice& Device, VulkanRHI::FVulkanAllocation& NewAllocation);
+	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation);
 
 public:
 	FVulkanRingBuffer(FVulkanDevice* InDevice, uint64 TotalSize, VkFlags Usage, VkMemoryPropertyFlags MemPropertyFlags);
@@ -1054,7 +1054,7 @@ protected:
 class FVulkanResourceMultiBuffer : public FRHIBuffer, public FVulkanEvictable, public VulkanRHI::FDeviceChild
 {
 	virtual void Evict(FVulkanDevice& Device);
-	virtual void Move(FVulkanDevice& Device, VulkanRHI::FVulkanAllocation& NewAllocation);
+	virtual void Move(FVulkanDevice& Device, FVulkanCommandListContext& Context, VulkanRHI::FVulkanAllocation& NewAllocation);
 
 public:
 	FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, uint32 InSize, uint32 InUEUsage, uint32 InStride, FRHIResourceCreateInfo& CreateInfo, class FRHICommandListImmediate* InRHICmdList = nullptr);

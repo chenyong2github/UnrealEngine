@@ -956,7 +956,7 @@ void FVulkanCommandListContext::RHIEndFrame()
 	GetGPUProfiler().EndFrame();
 
 	Device->GetStagingManager().ProcessPendingFree(false, true);
-	Device->GetMemoryManager().ReleaseFreedPages();
+	Device->GetMemoryManager().ReleaseFreedPages(*this);
 
 	if (UseVulkanDescriptorCache())
 	{

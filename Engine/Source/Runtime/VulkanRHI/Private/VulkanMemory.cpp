@@ -1801,7 +1801,7 @@ namespace VulkanRHI
 		return Allocator->GetIsDefragging();
 	}
 
-	void FVulkanResourceHeap::DefragTick(FVulkanDevice& Device, uint32 Count)
+	void FVulkanResourceHeap::DefragTick(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 Count)
 	{
 		SCOPED_NAMED_EVENT(FVulkanSubresourceAllocator_DefragTick, FColor::Cyan);
 
@@ -1897,7 +1897,7 @@ namespace VulkanRHI
 			{
 				VULKAN_LOGMEMORY(TEXT("Defragging heap [%d] Max %6.2fMB Free %6.2fMB   %2d"), CurrentDefragTarget->AllocatorIndex, MaxSize / (1024.f*1024.f), FreeSpace / (1024.f * 1024.f), DefragCountDown);
 			}
-			if(CurrentDefragTarget->DefragTick(Device, this, Count) > 0)
+			if(CurrentDefragTarget->DefragTick(Device, Context, this, Count) > 0)
 			{
 				DefragCountDown = 3;
 			}
@@ -1941,7 +1941,7 @@ namespace VulkanRHI
 					uint32 Index = rand() % Allocators.Num();
 					PreferredAllocator= Allocators[Index];
 				}
-				PreferredAllocator->DefragFull(Device, this);
+				PreferredAllocator->DefragFull(Device, Context, this);
 
 			}
 		}
@@ -2369,7 +2369,7 @@ namespace VulkanRHI
 		DeviceMemoryManager->TrimMemory(bImmediately);
 	}
 
-	void FMemoryManager::ReleaseFreedPages()
+	void FMemoryManager::ReleaseFreedPages(FVulkanCommandListContext& Context)
 	{
 		auto CanDefragHeap = [](FVulkanResourceHeap* Heap)
 		{
@@ -2460,7 +2460,7 @@ namespace VulkanRHI
 			{
 				DumpMemory();
 			}
-			BestDefragHeap->DefragTick(*Device, Count);
+			BestDefragHeap->DefragTick(*Device, Context, Count);
 
 			if(GVulkanDefragOnce)
 			{
@@ -4016,7 +4016,7 @@ namespace VulkanRHI
 
 	// Fully defrag a page onto a new page
 	// This moves -all- allocations to a new page, and ensures the new page is fully defragged.
-	bool FVulkanSubresourceAllocator::DefragFull(FVulkanDevice& Device, FVulkanResourceHeap* Heap)
+	bool FVulkanSubresourceAllocator::DefragFull(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanResourceHeap* Heap)
 	{
 		TRACE_BOOKMARK(TEXT("DefragFull %d"), AllocatorIndex);
 		SCOPED_NAMED_EVENT(FVulkanSubresourceAllocator_DefragFull, FColor::Cyan);
@@ -4138,7 +4138,7 @@ namespace VulkanRHI
 			Alloc.AllocationOffset = Move.AllocatedOffset;
 			Alloc.AllocationSize = Move.AllocatedSize;
 			FVulkanEvictable* EvictableOwner = Alloc.AllocationOwner;
-			EvictableOwner->OnFullDefrag(Device, Move.AlignedOffset);
+			EvictableOwner->OnFullDefrag(Device, Context, Move.AlignedOffset);
 		}
 
 		FreeList.Empty();
@@ -4178,7 +4178,7 @@ namespace VulkanRHI
 	// One tick of incremental defrag. This will move max Count_ allocations from this suballocator to other SubAllocators on the same Heap
 	// This will eventually free up the page, which can then be released
 	// Returns # of allocations moved.
-	int32 FVulkanSubresourceAllocator::DefragTick(FVulkanDevice& Device, FVulkanResourceHeap* Heap, uint32 Count_)
+	int32 FVulkanSubresourceAllocator::DefragTick(FVulkanDevice& Device, FVulkanCommandListContext& Context, FVulkanResourceHeap* Heap, uint32 Count_)
 	{
 		LastDefragFrame = GFrameNumberRenderThread;
 		int32 DefragCount = 0;
@@ -4205,6 +4205,7 @@ namespace VulkanRHI
 		};
 
 		FScopeLock ScopeLock(&CS);
+
 		//Search for allocations to move to different pages.
 		for (FVulkanAllocationInternal& Alloc : InternalData)
 		{
@@ -4233,7 +4234,7 @@ namespace VulkanRHI
 
 							//Move the Rendertarget to the new allocation
 							//Function swaps the old allocation into the Allocation object
-							Texture->Move(Device, Allocation);
+							Texture->Move(Device, Context, Allocation);
 							DefragCount++;
 							Device.GetMemoryManager().FreeVulkanAllocation(Allocation);
 
@@ -5213,7 +5214,7 @@ void FStagingBuffer::Evict(FVulkanDevice& Device_)
 {
 	checkNoEntry(); //stagingbuffers are always in system memory so this should not happen
 }
-void FStagingBuffer::Move(FVulkanDevice& Device_, FVulkanAllocation& Allocation_)
+void FStagingBuffer::Move(FVulkanDevice& Device_, FVulkanCommandListContext& Context, FVulkanAllocation& Allocation_)
 {
 	checkNoEntry();//stagingbuffers are always in system memory so this should not happen
 }
@@ -5221,13 +5222,13 @@ void FVulkanRingBuffer::Evict(FVulkanDevice& Device_)
 {
 	checkNoEntry(); //stagingbuffers are always in system memory so this should not happen
 }
-void FVulkanRingBuffer::Move(FVulkanDevice& Device_, FVulkanAllocation& Allocation_)
+void FVulkanRingBuffer::Move(FVulkanDevice& Device_, FVulkanCommandListContext& Context, FVulkanAllocation& Allocation_)
 {
 	checkNoEntry();//stagingbuffers are always in system memory so this should not happen
 }
 
 
-void FVulkanEvictable::OnFullDefrag(FVulkanDevice& Device, uint32 NewOffset)
+void FVulkanEvictable::OnFullDefrag(FVulkanDevice& Device, FVulkanCommandListContext& Context, uint32 NewOffset)
 {
 	checkNoEntry();
 }
