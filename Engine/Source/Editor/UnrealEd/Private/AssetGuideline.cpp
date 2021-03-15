@@ -14,6 +14,7 @@
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
 #include "HAL/PlatformFilemanager.h"
+#include "HAL/IConsoleManager.h"
 #include "Application/SlateApplicationBase.h"
 
 #include "Misc/ConfigCacheIni.h"
@@ -317,20 +318,23 @@ void UAssetGuideline::PostLoad()
 	TArray<FIniStringValue> IncorrectProjectSettings;
 	for (const FIniStringValue& ProjectSetting : ProjectSettings)
 	{
-		FString CurrentIniValue;
-		FString FilenamePath = FPaths::ProjectDir() + ProjectSetting.Filename;
-		if (GConfig->GetString(*ProjectSetting.Section, *ProjectSetting.Key, CurrentIniValue, FilenamePath))
+		if (IConsoleManager::Get().FindConsoleVariable(*ProjectSetting.Key))
 		{
-			if (CurrentIniValue != ProjectSetting.Value)
+			FString CurrentIniValue;
+			FString FilenamePath = FPaths::ProjectDir() + ProjectSetting.Filename;
+			if (GConfig->GetString(*ProjectSetting.Section, *ProjectSetting.Key, CurrentIniValue, FilenamePath))
+			{
+				if (CurrentIniValue != ProjectSetting.Value)
+				{
+					NeededProjectSettings += FString::Printf(TEXT("[%s]  %s = %s\n"), *ProjectSetting.Section, *ProjectSetting.Key, *ProjectSetting.Value);
+					IncorrectProjectSettings.Add(ProjectSetting);
+				}
+			}
+			else
 			{
 				NeededProjectSettings += FString::Printf(TEXT("[%s]  %s = %s\n"), *ProjectSetting.Section, *ProjectSetting.Key, *ProjectSetting.Value);
 				IncorrectProjectSettings.Add(ProjectSetting);
 			}
-		}
-		else
-		{
-			NeededProjectSettings += FString::Printf(TEXT("[%s]  %s = %s\n"), *ProjectSetting.Section, *ProjectSetting.Key, *ProjectSetting.Value);
-			IncorrectProjectSettings.Add(ProjectSetting);
 		}
 	}
 
