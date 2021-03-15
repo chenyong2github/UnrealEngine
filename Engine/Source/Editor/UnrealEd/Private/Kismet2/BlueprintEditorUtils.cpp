@@ -9455,7 +9455,7 @@ bool FBlueprintEditorUtils::CheckIfGraphHasLatentFunctions(UEdGraph* InGraph)
 
 void FBlueprintEditorUtils::PostSetupObjectPinType(UBlueprint* InBlueprint, FBPVariableDescription& InOutVarDesc)
 {
-	if ((InOutVarDesc.VarType.PinCategory == UEdGraphSchema_K2::PC_Object) || (InOutVarDesc.VarType.PinCategory == UEdGraphSchema_K2::PC_Interface) || (InOutVarDesc.VarType.PinCategory == UEdGraphSchema_K2::PC_SoftObject))
+	if ((InOutVarDesc.VarType.PinCategory == UEdGraphSchema_K2::PC_Object) || (InOutVarDesc.VarType.PinCategory == UEdGraphSchema_K2::PC_Interface))
 	{
 		if (InOutVarDesc.VarType.PinSubCategory == UEdGraphSchema_K2::PSC_Self)
 		{
