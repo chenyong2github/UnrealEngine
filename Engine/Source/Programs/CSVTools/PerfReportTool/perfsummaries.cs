@@ -169,7 +169,7 @@ namespace PerfSummaries
 			}
 			return list.GetColourForValue(value);
 		}
-		List<ThresholdInfo> Thresholds = new List<ThresholdInfo>();
+		public List<ThresholdInfo> Thresholds = new List<ThresholdInfo>();
 	};
 
 	class TableUtil
@@ -1889,7 +1889,11 @@ namespace PerfSummaries
 
 	class SummaryMetadataValue
     {
-		public SummaryMetadataValue(string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip)
+		private SummaryMetadataValue()
+		{
+
+		}
+		public SummaryMetadataValue(string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip, bool inIsCsvStatAverage)
 		{
 			name = inName;
 			isNumeric = true;
@@ -1897,6 +1901,7 @@ namespace PerfSummaries
 			value = inValue.ToString();
 			colorThresholdList = inColorThresholdList;
 			tooltip = inToolTip;
+			isCsvStatAverage = inIsCsvStatAverage;
 		}
 		public SummaryMetadataValue(string inName, string inValue, ColourThresholdList inColorThresholdList, string inToolTip)
         {
@@ -1906,7 +1911,64 @@ namespace PerfSummaries
 			colorThresholdList = inColorThresholdList;
             value = inValue;
 			tooltip = inToolTip;
-        }
+			isCsvStatAverage = false;
+
+		}
+
+		public static SummaryMetadataValue ReadFromCache(BinaryReader reader)
+		{
+			SummaryMetadataValue val = new SummaryMetadataValue();
+			val.name = reader.ReadString();
+			val.value = reader.ReadString();
+			val.tooltip = reader.ReadString();
+			val.numericValue = reader.ReadDouble();
+			val.isNumeric = reader.ReadBoolean();
+			val.isCsvStatAverage = reader.ReadBoolean();
+			bool hasThresholdList = reader.ReadBoolean();
+			if (hasThresholdList)
+			{
+				int thresholdCount = reader.ReadInt32();
+				val.colorThresholdList = new ColourThresholdList();
+				for (int i = 0; i < thresholdCount; i++)
+				{
+					bool bHasColour = reader.ReadBoolean();
+					Colour thresholdColour = null;
+					if (bHasColour)
+					{
+						thresholdColour = new Colour(reader.ReadString());
+					}
+					double thresholdValue = reader.ReadDouble();
+					ThresholdInfo info = new ThresholdInfo(thresholdValue, thresholdColour);
+					val.colorThresholdList.Add(info);
+				}
+			}
+			return val;
+		}
+
+		public void WriteToCache(BinaryWriter writer)
+		{
+			writer.Write(name);
+			writer.Write(value);
+			writer.Write(tooltip);
+			writer.Write(numericValue);
+			writer.Write(isNumeric);
+			writer.Write(isCsvStatAverage);
+			writer.Write(colorThresholdList != null);
+			if (colorThresholdList != null)
+			{
+				writer.Write((int)colorThresholdList.Count);
+				foreach (ThresholdInfo thresholdInfo in colorThresholdList.Thresholds)
+				{
+					writer.Write(thresholdInfo.colour != null);
+					if (thresholdInfo.colour != null)
+					{
+						writer.Write(thresholdInfo.colour.ToString());
+					}
+					writer.Write(thresholdInfo.value);
+				}
+			}
+		}
+
 		public SummaryMetadataValue Clone()
 		{
 			return (SummaryMetadataValue)MemberwiseClone();
@@ -1917,11 +1979,84 @@ namespace PerfSummaries
         public ColourThresholdList colorThresholdList;
 		public double numericValue;
 		public bool isNumeric;
+		public bool isCsvStatAverage;
     }
     class SummaryMetadata 
     {
 		public SummaryMetadata()
 		{
+		}
+
+		static int CacheVersion = 3;
+
+		public static SummaryMetadata TryReadFromCache(string metadataCacheDir, string csvId)
+		{
+			SummaryMetadata metaData = null;
+			string filename = Path.Combine(metadataCacheDir, csvId + ".prc");
+
+			if ( !File.Exists(filename) )
+			{
+				return null;
+			}
+
+			try
+			{
+				using (FileStream fileStream = new FileStream(filename, FileMode.Open))
+				{
+					BinaryReader reader = new BinaryReader(fileStream);
+					int version = reader.ReadInt32();
+					if (version == CacheVersion)
+					{
+						metaData = new SummaryMetadata();
+						int dictEntryCount = reader.ReadInt32();
+						for (int i = 0; i < dictEntryCount; i++)
+						{
+							string key = reader.ReadString();
+							SummaryMetadataValue value = SummaryMetadataValue.ReadFromCache(reader);
+							metaData.dict.Add(key, value);
+						}
+						string endString = reader.ReadString();
+						if (endString != "END")
+						{
+							Console.WriteLine("Corruption detected in " + filename + ". Skipping read");
+							metaData = null;
+						}
+					}
+					reader.Close();
+				}
+			}
+			catch (Exception)
+			{
+				metaData = null;
+				Console.WriteLine("Failed to read from cache file " + filename + ".");
+			}
+			return metaData;
+		}
+		public bool WriteToCache(string metadataCacheDir, string csvId)
+		{
+			string filename = Path.Combine(metadataCacheDir, csvId + ".prc");
+			try
+			{
+				using (FileStream fileStream = new FileStream(filename, FileMode.Create))
+				{
+					BinaryWriter writer = new BinaryWriter(fileStream);
+					writer.Write(CacheVersion);
+					writer.Write(dict.Count);
+					foreach (KeyValuePair<string, SummaryMetadataValue> entry in dict)
+					{
+						writer.Write(entry.Key);
+						entry.Value.WriteToCache(writer);
+					}
+					writer.Write("END");
+					writer.Close();
+				}
+			}
+			catch (IOException)
+			{
+				Console.WriteLine("Failed to write to cache file " + filename + ".");
+				return false;
+			}
+			return true;
 		}
 
 		public void RemoveSafe(string name)
@@ -1933,7 +2068,7 @@ namespace PerfSummaries
 			}
 		}
 
-		public void Add(string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
+		public void Add(string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "", bool isCsvStatAverage = false)
         {
 			string key = name.ToLower();
 			double numericValue = double.MaxValue;
@@ -1946,7 +2081,7 @@ namespace PerfSummaries
             SummaryMetadataValue metadataValue = null;
             if (numericValue != double.MaxValue)
             {
-                metadataValue = new SummaryMetadataValue(name, numericValue, colorThresholdList, tooltip);
+                metadataValue = new SummaryMetadataValue(name, numericValue, colorThresholdList, tooltip, isCsvStatAverage);
             }
             else
             {
@@ -2974,11 +3109,15 @@ namespace PerfSummaries
 			}
 		}
 	
-		public void Add(SummaryMetadata metadata)
+		public void Add(SummaryMetadata metadata, bool bIncludeCsvStatAverages)
 		{
 			foreach (string key in metadata.dict.Keys)
 			{
 				SummaryMetadataValue value = metadata.dict[key];
+				if ( value.isCsvStatAverage && !bIncludeCsvStatAverages )
+				{
+					continue;
+				}
 				SummaryMetadataColumn column = null;
 
 				if (!columnLookup.ContainsKey(key))
