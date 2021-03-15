@@ -393,6 +393,13 @@ bool				GHitchDetected = false;
 
 /** Whether stats should emit named events for e.g. PIX.													*/
 int32					GCycleStatsShouldEmitNamedEvents = 0;
+
+/** Whether verbose stats should be also generate external profiler named events.
+* Thread sleep/wait stats or extremely high frequency cycle counting stats are disabled by default.
+* Has no effect if GCycleStatsShouldEmitNamedEvents is 0.
+*/
+bool					GShouldEmitVerboseNamedEvents = false;
+
 /** Disables some warnings and minor features that would interrupt a demo presentation						*/
 bool					GIsDemoMode						= false;
 /** Whether or not a unit test is currently being run														*/

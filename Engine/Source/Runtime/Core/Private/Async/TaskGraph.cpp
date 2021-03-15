@@ -703,7 +703,7 @@ public:
 				if (bAllowStall)
 				{
 					{
-						FScopeCycleCounter Scope(StallStatId);
+						FScopeCycleCounter Scope(StallStatId, EStatFlags::Verbose);
 						Queue(QueueIndex).StallRestartEvent->Wait(bIsRenderThreadAndPolling ? GRenderThreadPollPeriodMs : MAX_uint32, bCountAsStall);
 						if (Queue(QueueIndex).QuitForShutdown)
 						{
@@ -1055,7 +1055,7 @@ private:
 				const bool bIsMultithread = FTaskGraphInterface::IsMultithread();
 				if (bIsMultithread)
 				{
-					FScopeCycleCounter Scope(StallStatId);
+					FScopeCycleCounter Scope(StallStatId, EStatFlags::Verbose);
 					Queue.StallRestartEvent->Wait(MAX_uint32, bCountAsStall);
 					bDidStall = true;
 				}

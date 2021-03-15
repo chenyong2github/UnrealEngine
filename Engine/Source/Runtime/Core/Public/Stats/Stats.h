@@ -17,6 +17,7 @@
  */
 
 struct TStatId;
+enum class EStatFlags : uint8;
 
 // used by the profiler
 enum EStatType
@@ -58,10 +59,14 @@ public:
 	 * Pushes the specified stat onto the hierarchy for this thread. Starts
 	 * the timing of the cycles used
 	 */
-	FORCEINLINE_STATS FScopeCycleCounter( TStatId StatId, bool bAlways = false )
+	FORCEINLINE_STATS FScopeCycleCounter( TStatId StatId, EStatFlags StatFlags, bool bAlways = false )
 	{
-		Start( StatId, bAlways );
+		Start( StatId, StatFlags, bAlways );
 	}
+
+	FORCEINLINE_STATS FScopeCycleCounter(TStatId StatId, bool bAlways = false)
+		: FScopeCycleCounter(StatId, EStatFlags::None, bAlways)
+	{}
 
 	/**
 	 * Updates the stat with the time spent
@@ -144,7 +149,7 @@ public:
 class FScopeCycleCounter
 {
 public:
-	FORCEINLINE FScopeCycleCounter(TStatId InStatId, bool bAlways = false)
+	FORCEINLINE FScopeCycleCounter(TStatId InStatId, EStatFlags StatFlags, bool bAlways = false)
 		: 
 #if USE_LIGHTWEIGHT_STATS_FOR_HITCH_DETECTION && USE_HITCH_DETECTION
 		StatScope(InStatId.StatString),
@@ -157,6 +162,11 @@ public:
 			bPop = true;
 			FPlatformMisc::BeginNamedEvent(FColor(0), InStatId.StatString);
 		}
+	}
+
+	FORCEINLINE FScopeCycleCounter(TStatId InStatId, bool bAlways = false)
+		: FScopeCycleCounter(InStatId, EStatFlags::None, bAlways)
+	{
 	}
 
 	FORCEINLINE ~FScopeCycleCounter()
@@ -179,6 +189,9 @@ struct TStatId {};
 class FScopeCycleCounter
 {
 public:
+	FORCEINLINE_STATS FScopeCycleCounter(TStatId, EStatFlags, bool bAlways = false)
+	{
+	}
 	FORCEINLINE_STATS FScopeCycleCounter(TStatId, bool bAlways = false)
 	{
 	}
@@ -273,6 +286,7 @@ public:
 #define DEFINE_STAT(Stat)
 #define QUICK_USE_CYCLE_STAT(StatId,GroupId) TStatId()
 #define DECLARE_CYCLE_STAT(CounterName,StatId,GroupId)
+#define DECLARE_CYCLE_STAT_WITH_FLAGS(CounterName,StatId,GroupId,StatFlags)
 #define DECLARE_FLOAT_COUNTER_STAT(CounterName,StatId,GroupId)
 #define DECLARE_DWORD_COUNTER_STAT(CounterName,StatId,GroupId)
 #define DECLARE_FLOAT_ACCUMULATOR_STAT(CounterName,StatId,GroupId)
@@ -282,6 +296,7 @@ public:
 #define DECLARE_MEMORY_STAT(CounterName,StatId,GroupId)
 #define DECLARE_MEMORY_STAT_POOL(CounterName,StatId,GroupId,Pool)
 #define DECLARE_CYCLE_STAT_EXTERN(CounterName,StatId,GroupId, API)
+#define DECLARE_CYCLE_STAT_WITH_FLAGS_EXTERN(CounterName,StatId,GroupId,StatFlags, API)
 #define DECLARE_FLOAT_COUNTER_STAT_EXTERN(CounterName,StatId,GroupId, API)
 #define DECLARE_DWORD_COUNTER_STAT_EXTERN(CounterName,StatId,GroupId, API)
 #define DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(CounterName,StatId,GroupId, API)

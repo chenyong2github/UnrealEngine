@@ -489,6 +489,12 @@ extern CORE_API bool GHitchDetected;
 /** Whether stats should emit named events for e.g. PIX. */
 extern CORE_API int32 GCycleStatsShouldEmitNamedEvents;
 
+/** Whether verbose stats should be also generate external profiler named events.
+* Thread sleep/wait stats or extremely high frequency cycle counting stats are disabled by default.
+* Has no effect if GCycleStatsShouldEmitNamedEvents is 0.
+*/
+extern CORE_API bool GShouldEmitVerboseNamedEvents;
+
 /** Disables some warnings and minor features that would interrupt a demo presentation*/
 extern CORE_API bool GIsDemoMode;
 

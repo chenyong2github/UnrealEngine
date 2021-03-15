@@ -51,9 +51,9 @@ DECLARE_FLOAT_COUNTER_STAT_EXTERN(TEXT("Percentage CPU utilization (relative to 
 	CPU Stalls
 -----------------------------------------------------------------------------*/
 
-DECLARE_CYCLE_STAT_EXTERN(TEXT("CPU Stall - Sleep"), STAT_Sleep, STATGROUP_CPUStalls, CORE_API);
-DECLARE_CYCLE_STAT_EXTERN(TEXT("CPU Stall - Wait For Event" ), STAT_EventWait, STATGROUP_CPUStalls,);
+DECLARE_CYCLE_STAT_WITH_FLAGS_EXTERN(TEXT("CPU Stall - Sleep"), STAT_Sleep, STATGROUP_CPUStalls, EStatFlags::ClearEveryFrame | EStatFlags::Verbose, CORE_API);
+DECLARE_CYCLE_STAT_WITH_FLAGS_EXTERN(TEXT("CPU Stall - Wait For Event" ), STAT_EventWait, STATGROUP_CPUStalls, EStatFlags::ClearEveryFrame | EStatFlags::Verbose,);
 
 /** The id will be stored as uint64 in the stat message. */
-DECLARE_PTR_STAT_EXTERN( TEXT( "CPU Stall - Wait For Event with ID" ), STAT_EventWaitWithId, STATGROUP_CPUStalls, );
-DECLARE_PTR_STAT_EXTERN( TEXT( "CPU Stall - Trigger For Event with ID" ), STAT_EventTriggerWithId, STATGROUP_CPUStalls, );
+DECLARE_CYCLE_STAT_WITH_FLAGS_EXTERN( TEXT( "CPU Stall - Wait For Event with ID" ), STAT_EventWaitWithId, STATGROUP_CPUStalls, EStatFlags::ClearEveryFrame | EStatFlags::Verbose, );
+DECLARE_CYCLE_STAT_WITH_FLAGS_EXTERN( TEXT( "CPU Stall - Trigger For Event with ID" ), STAT_EventTriggerWithId, STATGROUP_CPUStalls, EStatFlags::ClearEveryFrame | EStatFlags::Verbose, );

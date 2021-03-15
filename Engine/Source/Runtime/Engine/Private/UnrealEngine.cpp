@@ -1823,6 +1823,12 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 		GCycleStatsShouldEmitNamedEvents = 1;
 	}
 
+	if (FParse::Param(FCommandLine::Get(), TEXT("verbosenamedevents")))
+	{
+		GCycleStatsShouldEmitNamedEvents = 1;
+		GShouldEmitVerboseNamedEvents = 1;
+	}
+
 #if UE_NET_TRACE_ENABLED
 	uint32 NetTraceVerbosity;
 	if(FParse::Value(FCommandLine::Get(), TEXT("NetTrace="), NetTraceVerbosity))

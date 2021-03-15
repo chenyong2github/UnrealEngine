@@ -22,6 +22,7 @@
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "StatsTrace.h"
+#include "Misc/EnumClassFlags.h"
 
 class FScopeCycleCounter;
 class FThreadStats;
@@ -110,6 +111,15 @@ struct CORE_API FStats
 	/** Current game thread stats frame. */
 	static TAtomic<int32> GameThreadStatsFrame;
 };
+
+enum class EStatFlags : uint8
+{
+	None            = 0,
+	ClearEveryFrame = 1 << 0,
+	CycleStat       = 1 << 1,
+	Verbose         = 1 << 2, // Profiling scopes for this stat will no generate a trace event by default. See GShouldEmitVerboseNamedEvents.
+};
+ENUM_CLASS_FLAGS(EStatFlags);
 
 #if STATS
 
@@ -1538,7 +1548,7 @@ public:
 	 * Pushes the specified stat onto the hierarchy for this thread. Starts
 	 * the timing of the cycles used
 	 */
-	FORCEINLINE_STATS void Start( TStatId InStatId, bool bAlways = false )
+	FORCEINLINE_STATS void Start( TStatId InStatId, EStatFlags InStatFlags, bool bAlways = false )
 	{
 		FMinimalName StatMinimalName = InStatId.GetMinimalName(EMemoryOrder::Relaxed);
 		if (StatMinimalName.IsNone())
@@ -1547,7 +1557,8 @@ public:
 		}
 
 		// Emit named event for active cycle stat.
-		if ( GCycleStatsShouldEmitNamedEvents > 0 )
+		if ( GCycleStatsShouldEmitNamedEvents > 0 
+			&& (GShouldEmitVerboseNamedEvents || !EnumHasAnyFlags(InStatFlags, EStatFlags::Verbose)))
 		{
 #if	PLATFORM_USES_ANSI_STRING_FOR_EXTERNAL_PROFILING
 			FPlatformMisc::BeginNamedEvent( FColor( 0 ), InStatId.GetStatDescriptionANSI() );
@@ -1558,7 +1569,8 @@ public:
 		}
 
 #if CPUPROFILERTRACE_ENABLED
-		if (GCycleStatsShouldEmitNamedEvents > 0 && UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel))
+		if (GCycleStatsShouldEmitNamedEvents > 0 && UE_TRACE_CHANNELEXPR_IS_ENABLED(CpuChannel)
+			&& (GShouldEmitVerboseNamedEvents || !EnumHasAnyFlags(InStatFlags, EStatFlags::Verbose)))
 		{
 			FCpuProfilerTrace::OutputBeginDynamicEvent(InStatId.GetStatDescriptionANSI()); //todo: Could we use FName index as event id?
 			EmittedEvent |= TraceEvent;
@@ -1572,6 +1584,11 @@ public:
 			FThreadStats::AddMessage( StatName, EStatOperation::CycleScopeStart );
 			EmittedEvent |= ThreadStatsEvent;
 		}
+	}
+
+	FORCEINLINE_STATS void Start(TStatId InStatId, bool bAlways = false)
+	{
+		Start(InStatId, EStatFlags::None, bAlways);
 	}
 
 	/**
@@ -1799,7 +1816,7 @@ struct FStatGroup_##StatName\
 	} \
 };
 
-#define DECLARE_STAT(Description, StatName, GroupName, StatType, bShouldClearEveryFrame, bCycleStat, MemoryRegion) \
+#define DECLARE_STAT(Description, StatName, GroupName, StatType, StatFlags, MemoryRegion) \
 struct FStat_##StatName\
 { \
 	typedef FStatGroup_##GroupName TGroup; \
@@ -1817,11 +1834,15 @@ struct FStat_##StatName\
 	} \
 	static FORCEINLINE bool IsClearEveryFrame() \
 	{ \
-		return bShouldClearEveryFrame; \
+		return EnumHasAnyFlags(GetFlags(), EStatFlags::ClearEveryFrame); \
 	} \
 	static FORCEINLINE bool IsCycleStat() \
 	{ \
-		return bCycleStat; \
+		return EnumHasAnyFlags(GetFlags(), EStatFlags::CycleStat); \
+	} \
+	static FORCEINLINE EStatFlags GetFlags() \
+	{ \
+		return StatFlags; \
 	} \
 	static FORCEINLINE FPlatformMemory::EMemoryCounterRegion GetMemoryRegion() \
 	{ \
@@ -1833,6 +1854,7 @@ struct FStat_##StatName\
 #define GET_STATFNAME(Stat) (StatPtr_##Stat.GetStatFName())
 #define GET_STATDESCRIPTION(Stat) (FStat_##Stat::GetDescription())
 #define GET_STATISEVERYFRAME(Stat) (FStat_##Stat::IsClearEveryFrame())
+#define GET_STATFLAGS(Stat) (FStat_##Stat::GetFlags())
 
 #define STAT_GROUP_TO_FStatGroup(Group) FStatGroup_##Group
 
@@ -1844,44 +1866,47 @@ struct FStat_##StatName\
 	struct FThreadSafeStaticStat<FStat_##Stat> StatPtr_##Stat;
 
 #define RETURN_QUICK_DECLARE_CYCLE_STAT(StatId,GroupId) \
-	DECLARE_STAT(TEXT(#StatId),StatId,GroupId,EStatDataType::ST_int64, true, true, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(TEXT(#StatId),StatId,GroupId,EStatDataType::ST_int64, EStatFlags::ClearEveryFrame | EStatFlags::CycleStat, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId) \
 	return GET_STATID(StatId);
 
 #define QUICK_USE_CYCLE_STAT(StatId,GroupId) [](){ RETURN_QUICK_DECLARE_CYCLE_STAT(StatId, GroupId); }()
 
 #define DECLARE_CYCLE_STAT(CounterName,StatId,GroupId) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, true, true, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::ClearEveryFrame | EStatFlags::CycleStat, FPlatformMemory::MCR_Invalid); \
+	static DEFINE_STAT(StatId)
+#define DECLARE_CYCLE_STAT_WITH_FLAGS(CounterName,StatId,GroupId,StatFlags) \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, (StatFlags) | EStatFlags::CycleStat, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId)
 #define DECLARE_FLOAT_COUNTER_STAT(CounterName,StatId,GroupId) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double, true, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double,EStatFlags::ClearEveryFrame, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId)
 #define DECLARE_DWORD_COUNTER_STAT(CounterName,StatId,GroupId) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, true, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64,EStatFlags::ClearEveryFrame, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId)
 #define DECLARE_FLOAT_ACCUMULATOR_STAT(CounterName,StatId,GroupId) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId)
 #define DECLARE_DWORD_ACCUMULATOR_STAT(CounterName,StatId,GroupId) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId)
 
 /** FName stat that allows sending a string based data. */
 #define DECLARE_FNAME_STAT(CounterName,StatId,GroupId) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_FName, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_FName, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId)
 
 /** This is a fake stat, mostly used to implement memory message or other custom stats that don't easily fit into the system. */
 #define DECLARE_PTR_STAT(CounterName,StatId,GroupId)\
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_Ptr, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_Ptr, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(StatId)
 
 #define DECLARE_MEMORY_STAT(CounterName,StatId,GroupId) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_Physical); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::None, FPlatformMemory::MCR_Physical); \
 	static DEFINE_STAT(StatId)
 
 #define DECLARE_MEMORY_STAT_POOL(CounterName,StatId,GroupId,Pool) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, Pool); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::None, Pool); \
 	static DEFINE_STAT(StatId)
 
 /*-----------------------------------------------------------------------------
@@ -1889,37 +1914,40 @@ struct FStat_##StatName\
 -----------------------------------------------------------------------------*/
 
 #define DECLARE_CYCLE_STAT_EXTERN(CounterName,StatId,GroupId, APIX) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, true, true, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::ClearEveryFrame | EStatFlags::CycleStat, FPlatformMemory::MCR_Invalid); \
+	extern APIX DEFINE_STAT(StatId);
+#define DECLARE_CYCLE_STAT_WITH_FLAGS_EXTERN(CounterName,StatId,GroupId,StatFlags, APIX) \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, (StatFlags) | EStatFlags::CycleStat, FPlatformMemory::MCR_Invalid); \
 	extern APIX DEFINE_STAT(StatId);
 #define DECLARE_FLOAT_COUNTER_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double, true, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double, EStatFlags::ClearEveryFrame, FPlatformMemory::MCR_Invalid); \
 	extern API DEFINE_STAT(StatId);
 #define DECLARE_DWORD_COUNTER_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, true, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::ClearEveryFrame, FPlatformMemory::MCR_Invalid); \
 	extern API DEFINE_STAT(StatId);
 #define DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_double, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	extern API DEFINE_STAT(StatId);
 #define DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	extern API DEFINE_STAT(StatId);
 
 /** FName stat that allows sending a string based data. */
 #define DECLARE_FNAME_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_FName, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_FName, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	extern API DEFINE_STAT(StatId);
 
 /** This is a fake stat, mostly used to implement memory message or other custom stats that don't easily fit into the system. */
 #define DECLARE_PTR_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_Ptr, false, false, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_Ptr, EStatFlags::None, FPlatformMemory::MCR_Invalid); \
 	extern API DEFINE_STAT(StatId);
 
 #define DECLARE_MEMORY_STAT_EXTERN(CounterName,StatId,GroupId, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, FPlatformMemory::MCR_Physical); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::None, FPlatformMemory::MCR_Physical); \
 	extern API DEFINE_STAT(StatId);
 
 #define DECLARE_MEMORY_STAT_POOL_EXTERN(CounterName,StatId,GroupId,Pool, API) \
-	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, false, false, Pool); \
+	DECLARE_STAT(CounterName,StatId,GroupId,EStatDataType::ST_int64, EStatFlags::None, Pool); \
 	extern API DEFINE_STAT(StatId);
 
 /** Macro for declaring group factory instances */
@@ -1936,18 +1964,18 @@ struct FStat_##StatName\
 	DECLARE_STAT_GROUP(GroupDesc, GroupId, GroupCat, false, CompileIn, false);
 
 #define DECLARE_SCOPE_CYCLE_COUNTER(CounterName,Stat,GroupId) \
-	DECLARE_STAT(CounterName,Stat,GroupId,EStatDataType::ST_int64, true, true, FPlatformMemory::MCR_Invalid); \
+	DECLARE_STAT(CounterName,Stat,GroupId,EStatDataType::ST_int64, EStatFlags::ClearEveryFrame | EStatFlags::CycleStat, FPlatformMemory::MCR_Invalid); \
 	static DEFINE_STAT(Stat) \
-	FScopeCycleCounter CycleCount_##Stat(GET_STATID(Stat));
+	FScopeCycleCounter CycleCount_##Stat(GET_STATID(Stat), GET_STATFLAGS(Stat));
 
 #define QUICK_SCOPE_CYCLE_COUNTER(Stat) \
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT(#Stat),Stat,STATGROUP_Quick)
 
 #define SCOPE_CYCLE_COUNTER(Stat) \
-	FScopeCycleCounter CycleCount_##Stat(GET_STATID(Stat));
+	FScopeCycleCounter CycleCount_##Stat(GET_STATID(Stat), GET_STATFLAGS(Stat));
 
 #define CONDITIONAL_SCOPE_CYCLE_COUNTER(Stat,bCondition) \
-	FScopeCycleCounter CycleCount_##Stat(bCondition ? GET_STATID(Stat) : TStatId());
+	FScopeCycleCounter CycleCount_##Stat(bCondition ? GET_STATID(Stat) : TStatId(), GET_STATFLAGS(Stat));
 
 #define SCOPE_SECONDS_ACCUMULATOR(Stat) \
 	FSimpleScopeSecondsStat SecondsAccum_##Stat(GET_STATID(Stat));

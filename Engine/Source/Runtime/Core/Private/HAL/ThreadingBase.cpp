@@ -1247,7 +1247,11 @@ FQueuedThread::Run()
 		{
 			while (bContinueWaiting)
 			{
-				DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FQueuedThread::Run.WaitForWork"), STAT_FQueuedThread_Run_WaitForWork, STATGROUP_ThreadPoolAsyncTasks);
+				DECLARE_CYCLE_STAT_WITH_FLAGS(TEXT("FQueuedThread::Run.WaitForWork"),
+				STAT_FQueuedThread_Run_WaitForWork, STATGROUP_ThreadPoolAsyncTasks,
+					EStatFlags::ClearEveryFrame | EStatFlags::Verbose);
+
+				SCOPE_CYCLE_COUNTER(STAT_FQueuedThread_Run_WaitForWork);
 
 				// Wait for some work to do
 
