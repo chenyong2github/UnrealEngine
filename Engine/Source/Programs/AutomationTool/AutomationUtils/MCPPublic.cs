@@ -749,12 +749,7 @@ namespace EpicGames.MCP.Automation
 			}
 
 			/// <summary>
-			/// A unique integer for this product.
-			/// Deprecated. Can be safely left as 0.
-			/// </summary>
-			public int AppId;
-			/// <summary>
-			/// Specifies in quotes, the id of the artifact.
+			///The id of the artifact.
 			/// This will be embedded inside the generated manifest to identify the application.
 			/// </summary>
 			public string ArtifactId;
@@ -864,8 +859,7 @@ namespace EpicGames.MCP.Automation
 			}
 
 			/// <summary>
-			/// Specifies in quotes, the id of the artifact.
-			/// This will be embedded inside the generated manifest to identify the application.
+			/// The id of the artifact.
 			/// </summary>
 			public string ArtifactId;
 			/// <summary>
@@ -877,7 +871,7 @@ namespace EpicGames.MCP.Automation
 			/// </summary>
 			public string Label;
 			/// <summary>
-			/// Used as part of the build version string.
+			/// Platform for which the label will be applied
 			/// </summary>
 			public MCPPlatform Platform;
 			/// <summary>
@@ -909,8 +903,7 @@ namespace EpicGames.MCP.Automation
 			}
 
 			/// <summary>
-			/// Specifies in quotes, the id of the artifact.
-			/// This will be embedded inside the generated manifest to identify the application.
+			/// The id of the artifact.
 			/// </summary>
 			public string ArtifactId;
 			/// <summary>
@@ -986,12 +979,12 @@ namespace EpicGames.MCP.Automation
 			}
 
 			/// <summary>
-			/// Specifies in quotes, the id of the artifact to copy from 
+			/// The id of the artifact to copy from 
 			/// </summary>
 			public string SourceArtifactId;
 
 			/// <summary>
-			/// Specifies in quotes, the id of the artifact to copy to
+			/// The id of the artifact to copy to
 			/// </summary>
 			public string DestArtifactId;
 			/// <summary>
@@ -1374,10 +1367,10 @@ namespace EpicGames.MCP.Automation
 		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
 		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
 		/// <param name="bAllowManifestClobbering">If set to true, will allow an existing manifest file to be overwritten with this execution. Default is false.</param>
-		public abstract void Execute(UploadBinaryOptions Opts, ToolVersion Version = ToolVersion.Online_Live, bool bAllowManifestClobbering = false);
+		public abstract void Execute(UploadBinaryOptions Opts, ToolVersion Version = ToolVersion.Online_Live);
 
 		/// <summary>
-		/// Runs the Build Patch Tool executable to label binary using the supplied parameters.
+		/// Runs the Build Patch Tool executable to list binaries using the supplied parameters.
 		/// V2 is only available when using online version of bpt
 		/// </summary>
 		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
@@ -1385,16 +1378,14 @@ namespace EpicGames.MCP.Automation
 		public abstract void Execute(ListBinariesOptions Opts, out ListBinariesOutput Output, ToolVersion Version = ToolVersion.Online_Live);
 
 		/// <summary>
-		/// Runs the Build Patch Tool executable to label binary using the supplied parameters.
-		/// V2 is only available when using online version of bpt
+		/// Runs the Build Patch Tool executable to label binary using the supplied parameters.  NOTE: This is only available when using online version of BPT
 		/// </summary>
 		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
 		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
 		public abstract void Execute(LabelBinaryOptions Opts, ToolVersion Version = ToolVersion.Online_Live);
 
 		/// <summary>
-		/// Runs the Build Patch Tool executable to label binary using the supplied parameters.
-		/// V2 is only available when using online version of bpt
+		/// Runs the Build Patch Tool executable to Copy binary using the supplied parameters. NOTE: This is only available when using online version of BPT
 		/// </summary>
 		/// <param name="Opts">Parameters which will be passed to the Build Patch Tool generation process.</param>
 		/// <param name="Version">Which version of BuildPatchTool is desired.</param>
