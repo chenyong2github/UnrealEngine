@@ -15,7 +15,7 @@ struct FMeshBoneInfo
 	// Bone's name.
 	FName Name;
 
-	// 0/NULL if this is the root bone. 
+	// INDEX_NONE if this is the root bone. 
 	int32 ParentIndex;
 
 #if WITH_EDITORONLY_DATA
