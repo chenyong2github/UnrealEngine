@@ -2185,17 +2185,8 @@ public:
 	 */
 	static constexpr uint32 MaxIndirectInstances = 1024 * 1024;
 
-	virtual void InitRHI() override
-	{
-		InstanceIdsBuffer.Initialize(TEXT("FInstanceCullingManagerResources::InstanceIds"), sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
-		PageInfoBuffer.Initialize(TEXT("FInstanceCullingManagerResources::PageInfoBuffer"), sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, BUF_Static);
-	}
-
-	virtual void ReleaseRHI() override
-	{
-		InstanceIdsBuffer.Release();
-		PageInfoBuffer.Release();
-	}
+	virtual void InitRHI() override;
+	virtual void ReleaseRHI() override;
 
 	FRHIBuffer* GetInstancesIdBuffer() const { return InstanceIdsBuffer.Buffer; }
 

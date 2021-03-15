@@ -1304,4 +1304,19 @@ void FDefaultMobileReflectionCaptureUniformBuffer::InitDynamicRHI()
 /** Global uniform buffer containing the default reflection data used in mobile renderer. */
 TGlobalResource<FDefaultMobileReflectionCaptureUniformBuffer> GDefaultMobileReflectionCaptureUniformBuffer;
 
+
+
+void FInstanceCullingManagerResources::InitRHI()
+{
+	InstanceIdsBuffer.Initialize(TEXT("InstanceCulling.InstanceIds"), sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, ERHIAccess::SRVGraphics, BUF_Static);
+	PageInfoBuffer.Initialize(TEXT("InstanceCulling.PageInfoBuffer"), sizeof(uint32), MaxIndirectInstances, EPixelFormat::PF_R32_UINT, ERHIAccess::SRVGraphics, BUF_Static);
+}
+
+void FInstanceCullingManagerResources::ReleaseRHI()
+{
+	InstanceIdsBuffer.Release();
+	PageInfoBuffer.Release();
+}
+
+
 TGlobalResource<FInstanceCullingManagerResources> GInstanceCullingManagerResources;
