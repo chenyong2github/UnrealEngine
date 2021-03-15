@@ -86,6 +86,11 @@ void* FUnixPlatformProcess::GetDllHandle( const TCHAR* Filename )
 		{
 			Handle = dlopen( TCHAR_TO_UTF8(*AbsolutePath), DlOpenMode | RTLD_NOLOAD | RTLD_GLOBAL );
 		}
+	} 
+	else if (!FString(Filename).Contains(TEXT("/")))
+	{
+		// if not found and the filename did not contain a path we search for it in the global path
+		Handle = dlopen( TCHAR_TO_UTF8(Filename), DlOpenMode | RTLD_GLOBAL );
 	}
 
 	if (!Handle)
