@@ -1340,7 +1340,8 @@ namespace CSVStats
 				{
 					return false;
 				}
-				if (metadata.Values[key].ToLower() != keyValue[1].ToLower())
+				// Check if the value actually matches (allow wildcards)
+				if ( !DoesSearchStringMatch(metadata.Values[key].ToLower(), keyValue[1].ToLower()))
 				{
 					return false;
 				}
