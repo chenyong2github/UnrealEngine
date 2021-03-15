@@ -41,6 +41,7 @@ public:
 	// Begin UObject Overrides
 	virtual void PostInitProperties() override;
 	virtual void Serialize(FArchive& Ar) override;
+	virtual void PostLoad() override;
 	// End UObject Overrides
 protected:
 	// Derived class accessors to skeleton and anim sequence 
@@ -56,6 +57,10 @@ protected:
 	/** Updating of blueprint and native GUIDs*/
 	void UpdateRevisionGuid(UClass* ModifierClass);
 	void UpdateNativeRevisionGuid();
+
+	/** Applies all instances of the provided Modifier class to its outer Animation Sequence*/
+	static void ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubClass);
+	static void LoadModifierReferencers(TSubclassOf<UAnimationModifier> ModifierSubClass);
 private:
 	UAnimSequence* CurrentAnimSequence;
 	USkeleton* CurrentSkeleton;

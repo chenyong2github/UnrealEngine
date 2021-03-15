@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimationModifier.h"
+#include "AssetViewUtils.h"
 #include "Animation/AnimSequence.h"
 #include "Animation/Skeleton.h"
 #include "ModifierOutputFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Editor/Transactor.h"
 #include "UObject/UObjectIterator.h"
 
@@ -170,13 +172,6 @@ void UAnimationModifier::PostInitProperties()
 {
 	Super::PostInitProperties();
 	UpdateNativeRevisionGuid();
-
-	// Ensure we always have a valid guid
-	if (!RevisionGuid.IsValid())
-	{
-		UpdateRevisionGuid(GetClass());
-		MarkPackageDirty();
-	}
 }
 
 void UAnimationModifier::Serialize(FArchive& Ar)
@@ -191,6 +186,17 @@ void UAnimationModifier::Serialize(FArchive& Ar)
 	}
 }
 
+void UAnimationModifier::PostLoad()
+{
+	Super::PostLoad();	
+	// Ensure we always have a valid guid
+	if (!RevisionGuid.IsValid())
+	{
+		UpdateRevisionGuid(GetClass());
+		MarkPackageDirty();
+	}
+}
+
 const USkeleton* UAnimationModifier::GetSkeleton()
 {
 	return CurrentSkeleton;
@@ -198,14 +204,19 @@ const USkeleton* UAnimationModifier::GetSkeleton()
 
 void UAnimationModifier::UpdateRevisionGuid(UClass* ModifierClass)
 {
-	RevisionGuid = FGuid::NewGuid();
-
-	// Native classes are more difficult?
-	for (TObjectIterator<UAnimationModifier> It; It; ++It)
+	if (ModifierClass)
 	{
-		if (*It != this && It->GetClass() == ModifierClass)
+		LoadModifierReferencers(ModifierClass);
+	
+		RevisionGuid = FGuid::NewGuid();
+
+		// Native classes are more difficult?
+		for (TObjectIterator<UAnimationModifier> It; It; ++It)
 		{
-			It->SetInstanceRevisionGuid(RevisionGuid);
+			if (*It != this && It->GetClass() == ModifierClass)
+			{
+				It->SetInstanceRevisionGuid(RevisionGuid);
+			}
 		}
 	}
 }
@@ -229,6 +240,49 @@ void UAnimationModifier::UpdateNativeRevisionGuid()
 			SaveConfig();
 			UpdateDefaultConfigFile();
 		}
+	}
+}
+
+void UAnimationModifier::ApplyToAll(TSubclassOf<UAnimationModifier> ModifierSubClass)
+{
+	if (UClass* ModifierClass = ModifierSubClass.Get())
+	{
+		// Make sure all packages (in this case UAnimSequences) are loaded to ensure the TObjectIterator has any instances to iterate over
+		LoadModifierReferencers(ModifierSubClass);
+		
+		const FScopedTransaction Transaction(LOCTEXT("UndoAction_ApplyModifiers", "Applying Animation Modifier to Animation Sequence(s)"));		
+		for (TObjectIterator<UAnimationModifier> It; It; ++It)
+		{
+			if (*It && It->GetClass() == ModifierClass)
+			{
+				// Go through outer chain to find AnimSequence
+				UObject* Outer = It->GetOuter();
+				while(Outer && !Outer->IsA<UAnimSequence>())
+				{
+					Outer = Outer->GetOuter();
+				}
+
+				if (UAnimSequence* AnimSequence = Cast<UAnimSequence>(Outer))
+				{
+					AnimSequence->Modify();
+					It->ApplyToAnimationSequence(AnimSequence);
+				}			
+			}
+		}
+	}	
+}
+
+void UAnimationModifier::LoadModifierReferencers(TSubclassOf<UAnimationModifier> ModifierSubClass)
+{
+	if (UClass* ModifierClass = ModifierSubClass.Get())
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		TArray<FName> PackageDependencies;
+		AssetRegistryModule.GetRegistry().GetReferencers(ModifierClass->GetPackage()->GetFName(), PackageDependencies);
+
+		TArray<FString> PackageNames;
+		Algo::Transform(PackageDependencies, PackageNames, [](FName Name) { return Name.ToString(); });
+		TArray<UPackage*> Packages = AssetViewUtils::LoadPackages(PackageNames);
 	}
 }
 

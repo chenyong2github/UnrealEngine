@@ -29,19 +29,29 @@ void FAnimationModifierDetailCustomization::CustomizeDetails(IDetailLayoutBuilde
 	// If we have found a valid modifier instance add a revision bump button to the details panel
 	if (ModifierInstance)
 	{
-		IDetailCategoryBuilder& RevisionCategory = DetailBuilder.EditCategory("Revision");
-		FDetailWidgetRow& UpdateRevisionRow = RevisionCategory.AddCustomRow(LOCTEXT("UpdateRevisionSearchLabel", "Update Revision"))
+		IDetailCategoryBuilder& RevisionCategory = DetailBuilder.EditCategory("Modifier Instances");
+		FDetailWidgetRow& UpdateRevisionRow = RevisionCategory.AddCustomRow(LOCTEXT("ModifierActionsLabel", "Modifier Actions"))
 		.WholeRowWidget
 		[
-			SAssignNew(UpdateRevisionButton, SButton)
-			.OnClicked(this, &FAnimationModifierDetailCustomization::OnUpdateRevisionButtonClicked)
-			.ContentPadding(FMargin(2))
-			.Content()
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+           .AutoWidth()
+           .Padding(2.f)
+           [
+               SNew(SButton)
+               .OnClicked(this, &FAnimationModifierDetailCustomization::OnApplyButtonClicked)
+               .ToolTipText(LOCTEXT("ApplyToolTip", "Applies any instanced modifiers of this class to their owning Animation Sequences."))
+               .Text(LOCTEXT("ApplyText", "Apply to All"))
+           ]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2.f)
 			[
-				SNew(STextBlock)
-				.Justification(ETextJustify::Center)
+				SAssignNew(UpdateRevisionButton, SButton)
+				.OnClicked(this, &FAnimationModifierDetailCustomization::OnUpdateRevisionButtonClicked)
+				.ToolTipText(LOCTEXT("UpdateRevisionToolTip", "Updates the stored revision GUID on all instances of this Modifier class, marking them out-of-date."))
 				.Text(LOCTEXT("UpdateRevisionText", "Update Revision"))
-			]
+            ]           
 		];
 	}
 }
@@ -51,6 +61,15 @@ FReply FAnimationModifierDetailCustomization::OnUpdateRevisionButtonClicked()
 	if (ModifierInstance)
 	{
 		ModifierInstance->UpdateRevisionGuid(ModifierInstance->GetClass());
+	}
+	return FReply::Handled();
+}
+
+FReply FAnimationModifierDetailCustomization::OnApplyButtonClicked()
+{
+	if (ModifierInstance)
+	{
+		UAnimationModifier::ApplyToAll(ModifierInstance->GetClass());
 	}
 	return FReply::Handled();
 }

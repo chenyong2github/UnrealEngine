@@ -16,6 +16,8 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Interfaces/IMainFrameModule.h"
 
+#include "AnimationModifiersAssetUserData.h"
+
 #define LOCTEXT_NAMESPACE "AnimationModifiersModule"
 
 IMPLEMENT_MODULE(FAnimationModifiersModule, AnimationModifiers);
@@ -93,6 +95,30 @@ void FAnimationModifiersModule::ShowAddAnimationModifierWindow(const TArray<UAni
 	}
 
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
+}
+
+void FAnimationModifiersModule::ApplyAnimationModifiers(const TArray<UAnimSequence*>& InSequences)
+{
+	const FScopedTransaction Transaction(LOCTEXT("UndoAction_ApplyModifiers", "Applying Animation Modifier(s) to Animation Sequence(s)"));
+	
+	// Iterate over each Animation Sequence and all of its contained modifiers, applying each one
+	TArray<UAnimationModifiersAssetUserData*> AssetUserData;
+	for (UAnimSequence* AnimationSequence : InSequences)
+	{
+		if (AnimationSequence)
+		{
+			UAnimationModifiersAssetUserData* UserData = AnimationSequence->GetAssetUserData<UAnimationModifiersAssetUserData>();
+			if (UserData)
+			{
+				AnimationSequence->Modify();
+				const TArray<UAnimationModifier*>& ModifierInstances = UserData->GetAnimationModifierInstances();
+				for (UAnimationModifier* Modifier : ModifierInstances)
+				{
+					Modifier->ApplyToAnimationSequence(AnimationSequence);
+				}
+			}
+		}		
+	}
 }
 
 #undef LOCTEXT_NAMESPACE // "AnimationModifiersModule"
