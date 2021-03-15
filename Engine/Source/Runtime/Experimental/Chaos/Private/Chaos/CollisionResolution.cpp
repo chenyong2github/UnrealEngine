@@ -2920,12 +2920,22 @@ namespace Chaos
 
 		void ConstructConstraints(TGeometryParticleHandle<FReal, 3>* Particle0, TGeometryParticleHandle<FReal, 3>* Particle1, const FImplicitObject* Implicit0, const FBVHParticles* Simplicial0, const FImplicitObject* Implicit1, const FBVHParticles* Simplicial1, const FRigidTransform3& LocalTransform0, const FRigidTransform3& LocalTransform1, const FReal CullDistance, const FReal dT, const FCollisionContext& Context, FCollisionConstraintsArray& NewConstraints)
 		{
-			if (Context.bDeferUpdate)
+			bool bDeferUpdate = Context.bDeferUpdate;
+			// Skip constraint update for sleeping particles
+			if(Particle0 && Particle1)
+			{
+				TPBDRigidParticleHandle<FReal, 3>* RigidParticle0 = Particle0->CastToRigidParticle(), *RigidParticle1 = Particle1->CastToRigidParticle();
+				if(RigidParticle0 && RigidParticle1)
+				{
+					bDeferUpdate |= (RigidParticle0->ObjectState() == EObjectStateType::Sleeping) || (RigidParticle0->ObjectState() == EObjectStateType::Sleeping);
+				}
+			}
+			if (bDeferUpdate)
 			{
 				using TTraits = TConstructCollisionTraits<false>;
 				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, dT, Context, NewConstraints);
 			}
-			else if (!Context.bDeferUpdate)
+			else
 			{
 				using TTraits = TConstructCollisionTraits<true>;
 				ConstructConstraints<TTraits>(Particle0, Particle1, Implicit0, Simplicial0, Implicit1, Simplicial1, LocalTransform0, LocalTransform1, CullDistance, dT, Context, NewConstraints);

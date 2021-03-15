@@ -529,21 +529,6 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 			}
 			else
 			{
-				int32 NumRigidsInNewIsland = 0;
-				if (NewIslandParticles.IsValidIndex(OtherIsland))
-				{
-					for (FGeometryParticleHandle* Particle : NewIslandParticles[OtherIsland])
-					{
-						if (Particle)
-						{
-							if (FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle())
-							{
-								NumRigidsInNewIsland++;
-							}
-						}
-					}
-				}
-
 				for (FGeometryParticleHandle* Particle : IslandToParticles[Island])
 				{
 					if (CHAOS_ENSURE(Particle))
@@ -551,13 +536,7 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 						FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle();
 						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
-							// this hack is necessary for particles in islands that have been put to sleep to continue sleeping. Without it, once the island is put to
-							// sleep, an optimization made in ProduceParticleOverlaps ignores sleeping-sleeping cases for generating constraints, so each
-							// sleeping particle goes into its own island, then immediately wakes up here.
-							if (!(NumRigidsInNewIsland == 1 && PBDRigid->Sleeping()))
-							{
-								Particles.ActivateParticle(Particle);
-							}
+							Particles.ActivateParticle(Particle);
 						}
 					}
 				}
