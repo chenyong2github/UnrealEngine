@@ -29,6 +29,8 @@ namespace DatasmithRevitExporter
 			public bool						bIsModified = true;
 			public bool						bAllowMeshInstancing = true;
 
+			public Dictionary<string, int>		MeshMaterialsMap = new Dictionary<string, int>();
+
 			public List<FBaseElementData>	ChildElements = new List<FBaseElementData>();
 
 			public FBaseElementData			Parent = null;
@@ -159,16 +161,6 @@ namespace DatasmithRevitExporter
 				FDatasmithFacadeActorMesh MeshActor = ElementActor as FDatasmithFacadeActorMesh;
 				MeshActor.SetMesh(ElementMesh.GetName());
 				bOptimizeHierarchy = false;
-			}
-
-			public void ResetMeshMaterials()
-			{
-				string HashedMeshName = ElementMesh?.GetName() ?? "";
-
-				if (DocumentData.MeshMaterialsMap.TryGetValue(HashedMeshName, out _))
-				{
-					DocumentData.MeshMaterialsMap[HashedMeshName].Clear();
-				}
 			}
 		}
 
@@ -496,7 +488,9 @@ namespace DatasmithRevitExporter
 					{
 						GeometryElement RPCInstanceGeometry = RPCGeometryInstance.GetInstanceGeometry();
 
-						int MaterialIndex = DocumentData.GetMeshMaterialIndex(RPCMesh, InRPCMaterialName);
+						int MaterialIndex = 0;
+
+						RPCMesh.AddMaterial(MaterialIndex, InRPCMaterialName);
 
 						foreach (GeometryObject RPCInstanceGeometryObject in RPCInstanceGeometry)
 						{
@@ -880,7 +874,6 @@ namespace DatasmithRevitExporter
 		public Dictionary<ElementId, FBaseElementData>	ActorMap = new Dictionary<ElementId, FDocumentData.FBaseElementData>();
 		public Dictionary<string, FMaterialData>		MaterialDataMap = null;
 		public Dictionary<string, FMaterialData>		NewMaterialsMap = new Dictionary<string, FMaterialData>();
-		public Dictionary<string, Dictionary<string, int>> MeshMaterialsMap = null;
 
 		private Stack<FElementData>						ElementDataStack = new Stack<FElementData>();
 		private string									CurrentMaterialName = null;
@@ -906,12 +899,10 @@ namespace DatasmithRevitExporter
 
 			if (DirectLink != null)
 			{
-				MeshMaterialsMap = DirectLink.MeshMaterialsMap;
 				MaterialDataMap = DirectLink.MaterialDataMap;
 			}
 			else
 			{
-				MeshMaterialsMap = new Dictionary<string, Dictionary<string, int>>();
 				MaterialDataMap = new Dictionary<string, FMaterialData>();
 			}
 
@@ -1018,7 +1009,7 @@ namespace DatasmithRevitExporter
 						ExistingActor?.ResetTags();
 						ElementData.InitializePivotPlacement(ref InWorldTransform);
 						ElementData.InitializeElement(InWorldTransform, ElementData);
-						ElementData.ResetMeshMaterials();
+						ElementData.MeshMaterialsMap.Clear();
 					}
 					else
 					{
@@ -1147,8 +1138,6 @@ namespace DatasmithRevitExporter
 
 			FElementData CurrentElementData = ElementDataStack.Peek();
 			FBaseElementData NewInstance = CurrentElementData.PushInstance(InInstanceType, InWorldTransform, !bIntersectedBySectionBox);
-
-			NewInstance.ResetMeshMaterials();
 		}
 
 		public void PopInstance()
@@ -1270,40 +1259,30 @@ namespace DatasmithRevitExporter
 			return ElementDataStack.Peek().MeshPointsTransform;
 		}
 
-		public int GetMeshMaterialIndex(FDatasmithFacadeMesh InMesh, string InMaterialName)
-		{
-			if (InMaterialName.Length == 0)
-			{
-				return 0;
-			}
-
-			string MeshName = InMesh.GetName();
-
-			if (!MeshMaterialsMap.ContainsKey(MeshName))
-			{
-				MeshMaterialsMap[MeshName] = new Dictionary<string, int>();
-			}
-
-			Dictionary<string, int> MaterialsMap = MeshMaterialsMap[MeshName];
-			if (!MaterialsMap.ContainsKey(InMaterialName))
-			{
-				int NewMaterialIndex = MaterialsMap.Count;
-				MaterialsMap[InMaterialName] = NewMaterialIndex;
-				// Add the current Datasmith master material name to the dictionary of material names utilized by the Datasmith mesh being processed.
-				InMesh.AddMaterial(NewMaterialIndex, InMaterialName);
-			}
-
-			return MaterialsMap[InMaterialName];
-		}
-
 		public int GetCurrentMaterialIndex()
 		{
-			return GetMeshMaterialIndex(GetCurrentMesh(), CurrentMaterialName);
+			FElementData ElemData = ElementDataStack.Peek();
+			FBaseElementData InstanceData = ElemData.PeekInstance();
+			FBaseElementData CurrentElement = InstanceData != null ? InstanceData : ElemData;
+
+			if (!CurrentElement.MeshMaterialsMap.ContainsKey(CurrentMaterialName))
+			{
+				int NewMaterialIndex = CurrentElement.MeshMaterialsMap.Count;
+				CurrentElement.MeshMaterialsMap[CurrentMaterialName] = NewMaterialIndex;
+				CurrentElement.ElementMesh.AddMaterial(NewMaterialIndex, CurrentMaterialName);
+			}
+
+			return CurrentElement.MeshMaterialsMap[CurrentMaterialName];
 		}
 
 		public FBaseElementData GetCurrentActor()
 		{
 			return ElementDataStack.Peek().GetCurrentActor();
+		}
+
+		public Element GetCurrentElement()
+		{
+			return ElementDataStack.Count > 0 ? ElementDataStack.Peek().CurrentElement : null;
 		}
 
 		private FBaseElementData OptimizeElementRecursive(FBaseElementData InElementData, FDatasmithFacadeScene InDatasmithScene)
@@ -1460,7 +1439,7 @@ namespace DatasmithRevitExporter
 					Document LinkedDoc = (CollectedElement as RevitLinkInstance).GetLinkDocument();
 					if (LinkedDoc != null)
 					{
-						DirectLink.OnBeginLinkedDocument(LinkedDoc);
+						DirectLink.OnBeginLinkedDocument(CollectedElement);
 						foreach (FBaseElementData CurrentChild in ActorEntry.Value.ChildElements)
 						{
 							CurrentChild.AddToScene(InDatasmithScene, ActorEntry.Value, false);

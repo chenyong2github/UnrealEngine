@@ -21,7 +21,7 @@ namespace DatasmithRevitExporter
 			public Queue<KeyValuePair<ElementId, FDocumentData.FBaseElementData>>	ElementsWithoutMetadata = new Queue<KeyValuePair<ElementId, FDocumentData.FBaseElementData>>();
 			public HashSet<ElementId>												ExportedElements = new HashSet<ElementId>();
 			public HashSet<ElementId>												ModifiedElements = new HashSet<ElementId>();
-			public Dictionary<string, FCachedDocumentData>							LinkedDocumentsCache = new Dictionary<string, FCachedDocumentData>();
+			public Dictionary<ElementId, FCachedDocumentData>						LinkedDocumentsCache = new Dictionary<ElementId, FCachedDocumentData>();
 		
 			public FCachedDocumentData(Document InDocument)
 			{
@@ -95,7 +95,7 @@ namespace DatasmithRevitExporter
 		private FCachedDocumentData										CurrentCache = null;
 		
 		private HashSet<Document>										ModifiedLinkedDocuments = new HashSet<Document>();
-		private Dictionary<string, RevitLinkInstance>					ExportedLinkedDocuments = new Dictionary<string, RevitLinkInstance>();
+		private HashSet<ElementId>										ExportedLinkedDocuments = new HashSet<ElementId>();
 		private Stack<FCachedDocumentData>								CacheStack = new Stack<FCachedDocumentData>();
 
 		// Sets of elements related to current sync.
@@ -103,7 +103,6 @@ namespace DatasmithRevitExporter
 		
 		public HashSet<string>											UniqueTextureNameSet = new HashSet<string>();
 		public Dictionary<string, FMaterialData>						MaterialDataMap = new Dictionary<string, FMaterialData>();
-		public Dictionary<string, Dictionary<string, int>>				MeshMaterialsMap = new Dictionary<string, Dictionary<string, int>>();
 
 		private FDatasmithFacadeDirectLink								DatasmithDirectLink;
 		private string													SceneName;
@@ -281,11 +280,9 @@ namespace DatasmithRevitExporter
 			{
 				// We want to track which links are exported and later removed the ones that 
 				// were deleted from root document.
-				RevitLinkInstance LinkInstance = InElement as RevitLinkInstance;
-				string LinkedDocPath = LinkInstance.GetLinkDocument()?.PathName;
-				if (LinkedDocPath != null && !ExportedLinkedDocuments.ContainsKey(LinkedDocPath))
+				if (!ExportedLinkedDocuments.Contains(InElement.Id))
 				{
-					ExportedLinkedDocuments.Add(LinkedDocPath, LinkInstance);
+					ExportedLinkedDocuments.Add(InElement.Id);
 				}
 			}
 
@@ -332,14 +329,19 @@ namespace DatasmithRevitExporter
 			return CurrentCache.ModifiedElements.Contains(InElement.Id);
 		}
 
-		public void OnBeginLinkedDocument(Document InDocument)
+		public void OnBeginLinkedDocument(Element InLinkElement)
 		{
-			if (!CurrentCache.LinkedDocumentsCache.ContainsKey(InDocument.PathName))
+			Debug.Assert(InLinkElement.GetType() == typeof(RevitLinkInstance));
+
+			Document LinkedDoc = (InLinkElement as RevitLinkInstance).GetLinkDocument();
+			Debug.Assert(LinkedDoc != null);
+
+			if (!CurrentCache.LinkedDocumentsCache.ContainsKey(InLinkElement.Id))
 			{
-				CurrentCache.LinkedDocumentsCache[InDocument.PathName] = new FCachedDocumentData(InDocument);
+				CurrentCache.LinkedDocumentsCache[InLinkElement.Id] = new FCachedDocumentData(LinkedDoc);
 			}
-			CacheStack.Push(CurrentCache.LinkedDocumentsCache[InDocument.PathName]);
-			CurrentCache = CurrentCache.LinkedDocumentsCache[InDocument.PathName];
+			CacheStack.Push(CurrentCache.LinkedDocumentsCache[InLinkElement.Id]);
+			CurrentCache = CurrentCache.LinkedDocumentsCache[InLinkElement.Id];
 		}
 
 		public void OnEndLinkedDocument()
@@ -389,16 +391,15 @@ namespace DatasmithRevitExporter
 
 		void ProcessLinkedDocuments()
 		{
-			List<string> LinkedDocumentsToRemove = new List<string>();
+			List<ElementId> LinkedDocumentsToRemove = new List<ElementId>();
 
 			// Check for modified linked documents.
 			foreach (var LinkedDocEntry in RootCache.LinkedDocumentsCache)
 			{
 				// Check if the link was removed.
-				string LinkedDocPath = LinkedDocEntry.Key;
-				if (!ExportedLinkedDocuments.ContainsKey(LinkedDocPath))
+				if (!ExportedLinkedDocuments.Contains(LinkedDocEntry.Key))
 				{
-					LinkedDocumentsToRemove.Add(LinkedDocPath);
+					LinkedDocumentsToRemove.Add(LinkedDocEntry.Key);
 					continue;
 				}
 

@@ -582,15 +582,17 @@ namespace DatasmithRevitExporter
 			bool bInAddLocationActors = true
 		)
 		{
+			if (DocumentDataStack.Count > 0 && DirectLink != null)
+			{
+				// This is a linked document, store it's root element
+				Element LinkedDocElement = DocumentDataStack.Peek().GetCurrentElement();
+				DirectLink.OnBeginLinkedDocument(LinkedDocElement);
+			}
+
 			// Check if we have cache for this document.
 			FDocumentData DocumentData = new FDocumentData(InDocument, ref MessageList, DirectLink);
 
 			DocumentDataStack.Push(DocumentData);
-
-			if (DocumentDataStack.Count > 1 && DirectLink != null)
-			{
-				DirectLink.OnBeginLinkedDocument(InDocument);
-			}
 
 			if (bInAddLocationActors)
 			{
