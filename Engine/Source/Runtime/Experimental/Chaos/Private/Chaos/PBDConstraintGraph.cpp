@@ -529,11 +529,11 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 			}
 			else
 			{
-				for (FGeometryParticleHandle* Particle : IslandToParticles[Island])
+				for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 				{
 					if (CHAOS_ENSURE(Particle))
 					{
-						FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle();
+						TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
 							Particles.ActivateParticle(Particle);
