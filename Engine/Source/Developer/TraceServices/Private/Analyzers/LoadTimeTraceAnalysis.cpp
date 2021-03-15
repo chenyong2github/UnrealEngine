@@ -114,6 +114,11 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		if (AsyncPackage)
 		{
 			FAnalysisSessionEditScope _(Session);
+			if (EventData.GetAttachmentSize())
+			{
+				const TCHAR* PackageName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
+				AsyncPackage->PackageInfo->Name = Session.StoreString(PackageName);
+			}
 			FPackageSummaryInfo& Summary = AsyncPackage->PackageInfo->Summary;
 			Summary.TotalHeaderSize = EventData.GetValue<uint32>("TotalHeaderSize");
 			Summary.ImportCount = EventData.GetValue<uint32>("ImportCount");
@@ -309,7 +314,12 @@ bool FAsyncLoadingTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOn
 		uint64 AsyncPackagePtr = EventData.GetValue<uint64>("AsyncPackage");
 		//check(!ActivePackagesMap.Contains(AsyncPackagePtr));
 		FAsyncPackageState* AsyncPackageState = new FAsyncPackageState();
-		AsyncPackageState->PackageInfo = &LoadTimeProfilerProvider.EditPackageInfo(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
+		AsyncPackageState->PackageInfo = &LoadTimeProfilerProvider.CreatePackage();
+		if (EventData.GetAttachmentSize()) // For backwards compatibility
+		{
+			const TCHAR* PackageName = reinterpret_cast<const TCHAR*>(EventData.GetAttachment());
+			AsyncPackageState->PackageInfo->Name = Session.StoreString(PackageName);
+		}
 		ActiveAsyncPackagesMap.Add(AsyncPackagePtr, AsyncPackageState);
 		break;
 	}

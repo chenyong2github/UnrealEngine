@@ -11,18 +11,16 @@ class FName;
 
 struct FLoadTimeProfilerTracePrivate
 {
-	static void Init();
 	static void OutputStartAsyncLoading();
 	static void OutputSuspendAsyncLoading();
 	static void OutputResumeAsyncLoading();
-	static void OutputNewAsyncPackage(const void* AsyncPackage, FName PackageName);
-	static void OutputNewAsyncPackage(const void* AsyncPackage, const FString& PackageName);
+	static void OutputNewAsyncPackage(const void* AsyncPackage);
 	static void OutputBeginLoadAsyncPackage(const void* AsyncPackage);
 	static void OutputEndLoadAsyncPackage(const void* AsyncPackage);
 	static void OutputDestroyAsyncPackage(const void* AsyncPackage);
 	static void OutputBeginRequest(uint64 RequestId);
 	static void OutputEndRequest(uint64 RequestId);
-	static void OutputPackageSummary(const void* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount);
+	static void OutputPackageSummary(const void* AsyncPackage, const FName& PackageName, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount);
 	static void OutputAsyncPackageImportDependency(const void* Package, const void* ImportedPackage);
 	static void OutputAsyncPackageRequestAssociation(const void* AsyncPackage, uint64 RequestId);
 	static void OutputClassInfo(const UClass* Class, const FName& Name);
@@ -66,8 +64,8 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_END_REQUEST(RequestId) \
 	FLoadTimeProfilerTracePrivate::OutputEndRequest(RequestId);
 
-#define TRACE_LOADTIME_NEW_ASYNC_PACKAGE(AsyncPackage, PackageName) \
-	FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(AsyncPackage, PackageName)
+#define TRACE_LOADTIME_NEW_ASYNC_PACKAGE(AsyncPackage) \
+	FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(AsyncPackage)
 
 #define TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(AsyncPackage) \
 	FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(AsyncPackage)
@@ -78,8 +76,8 @@ struct FLoadTimeProfilerTracePrivate
 #define TRACE_LOADTIME_DESTROY_ASYNC_PACKAGE(AsyncPackage) \
 	FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(AsyncPackage);
 
-#define TRACE_LOADTIME_PACKAGE_SUMMARY(AsyncPackage, TotalHeaderSize, ImportCount, ExportCount) \
-	FLoadTimeProfilerTracePrivate::OutputPackageSummary(AsyncPackage, TotalHeaderSize, ImportCount, ExportCount);
+#define TRACE_LOADTIME_PACKAGE_SUMMARY(AsyncPackage, PackageName, TotalHeaderSize, ImportCount, ExportCount) \
+	FLoadTimeProfilerTracePrivate::OutputPackageSummary(AsyncPackage, PackageName, TotalHeaderSize, ImportCount, ExportCount);
 
 #define TRACE_LOADTIME_ASYNC_PACKAGE_REQUEST_ASSOCIATION(AsyncPackage, RequestId) \
 	FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(AsyncPackage, RequestId);

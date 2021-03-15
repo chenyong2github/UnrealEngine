@@ -3256,7 +3256,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncLoadi
 		Package->AllExportDataPtr = PackageSummaryData + PackageSummarySize;
 		Package->CurrentExportDataPtr = Package->AllExportDataPtr;
 
-		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, PackageSummarySize, Package->ImportStore.ImportMap.Num(), Package->Data.ExportCount);
+		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, Package->Desc.DiskPackageName, PackageSummarySize, Package->ImportStore.ImportMap.Num(), Package->Data.ExportCount);
 	}
 
 	if (GIsInitialLoad)
@@ -4462,10 +4462,6 @@ FAsyncLoadingThread2::FAsyncLoadingThread2(FIoDispatcher& InIoDispatcher)
 	GEventDrivenLoaderEnabled = true;
 #endif
 
-#if LOADTIMEPROFILERTRACE_ENABLED
-	FLoadTimeProfilerTracePrivate::Init();
-#endif
-
 	AltEventQueues.Add(&EventQueue);
 	for (FAsyncLoadEventQueue2* Queue : AltEventQueues)
 	{
@@ -5062,7 +5058,7 @@ FAsyncPackage2::FAsyncPackage2(
 , GraphAllocator(InGraphAllocator)
 , ImportStore(AsyncLoadingThread.GetPackageStore(), AsyncLoadingThread.GlobalImportStore, AsyncLoadingThread.LoadedPackageStore, Desc)
 {
-	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, Desc.DiskPackageName);
+	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this);
 	AddRequestID(Desc.RequestID);
 
 	ExportBundlesSize = Desc.StoreEntry->ExportBundlesSize;

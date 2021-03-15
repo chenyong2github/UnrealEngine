@@ -106,10 +106,6 @@ UE_TRACE_EVENT_BEGIN(LoadTime, ClassInfo, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Name)
 UE_TRACE_EVENT_END()
 
-void FLoadTimeProfilerTracePrivate::Init()
-{
-}
-
 void FLoadTimeProfilerTracePrivate::OutputStartAsyncLoading()
 {
 	UE_TRACE_LOG(LoadTime, StartAsyncLoading, LoadTimeChannel)
@@ -144,21 +140,10 @@ void FLoadTimeProfilerTracePrivate::OutputEndRequest(uint64 RequestId)
 		<< EndRequest.RequestId(RequestId);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage, FName PackageName)
+void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage)
 {
-	TCHAR Buffer[FName::StringBufferSize];
-	uint16 NameSize = (PackageName.ToString(Buffer) + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(LoadTime, NewAsyncPackage, LoadTimeChannel, NameSize)
-		<< NewAsyncPackage.AsyncPackage(AsyncPackage)
-		<< NewAsyncPackage.Attachment(Buffer, NameSize);
-}
-
-void FLoadTimeProfilerTracePrivate::OutputNewAsyncPackage(const void* AsyncPackage, const FString& PackageName)
-{
-	uint16 NameSize = (PackageName.Len() + 1) * sizeof(TCHAR);
-	UE_TRACE_LOG(LoadTime, NewAsyncPackage, LoadTimeChannel, NameSize)
-		<< NewAsyncPackage.AsyncPackage(AsyncPackage)
-		<< NewAsyncPackage.Attachment(*PackageName, NameSize);
+	UE_TRACE_LOG(LoadTime, NewAsyncPackage, LoadTimeChannel)
+		<< NewAsyncPackage.AsyncPackage(AsyncPackage);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputBeginLoadAsyncPackage(const void* AsyncPackage)
@@ -181,13 +166,17 @@ void FLoadTimeProfilerTracePrivate::OutputDestroyAsyncPackage(const void* AsyncP
 		<< DestroyAsyncPackage.AsyncPackage(AsyncPackage);
 }
 
-void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const void* AsyncPackage, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount)
+void FLoadTimeProfilerTracePrivate::OutputPackageSummary(const void* AsyncPackage, const FName& PackageName, uint32 TotalHeaderSize, uint32 ImportCount, uint32 ExportCount)
 {
-	UE_TRACE_LOG(LoadTime, PackageSummary, LoadTimeChannel)
+	TCHAR Buffer[FName::StringBufferSize];
+	uint16 NameSize = (PackageName.ToString(Buffer) + 1) * sizeof(TCHAR);
+
+	UE_TRACE_LOG(LoadTime, PackageSummary, LoadTimeChannel, NameSize)
 		<< PackageSummary.AsyncPackage(AsyncPackage)
 		<< PackageSummary.TotalHeaderSize(TotalHeaderSize)
 		<< PackageSummary.ImportCount(ImportCount)
-		<< PackageSummary.ExportCount(ExportCount);
+		<< PackageSummary.ExportCount(ExportCount)
+		<< PackageSummary.Attachment(Buffer, NameSize);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputAsyncPackageRequestAssociation(const void* AsyncPackage, uint64 RequestId)

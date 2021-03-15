@@ -32,7 +32,7 @@ public:
 	virtual const ITable<FLoadRequest>& GetRequestsTable() const override { return RequestsTable; }
 	const FClassInfo& AddClassInfo(const TCHAR* ClassName);
 	FLoadRequest& CreateRequest();
-	FPackageInfo& EditPackageInfo(const TCHAR* PackageName);
+	FPackageInfo& CreatePackage();
 	uint64 BeginLoadPackage(const FPackageInfo& PackageInfo, double Time);
 	void EndLoadPackage(uint64 LoadHandle, double Time);
 	FPackageExportInfo& CreateExport();
