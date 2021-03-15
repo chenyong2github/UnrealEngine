@@ -2918,14 +2918,18 @@ void UScriptStruct::ExportText(FString& ValueStr, const void* Value, const void*
 					Count++;
 					if (Count == 1)
 					{
-						ValueStr += TEXT("(");
+						ValueStr += TCHAR('(');
+					}
+					else if ((PortFlags & PPF_BlueprintDebugView) == 0)
+					{
+						ValueStr += TCHAR(',');
 					}
 					else
 					{
-						ValueStr += TEXT(",");
+						ValueStr += TEXT(",\n");
 					}
 
-					const FString PropertyName = (PortFlags & PPF_ExternalEditor) != 0 ? *It->GetAuthoredName() : It->GetName();
+					const FString PropertyName = (PortFlags & (PPF_ExternalEditor | PPF_BlueprintDebugView)) != 0 ? It->GetAuthoredName() : It->GetName();
 
 					if (It->ArrayDim == 1)
 					{
