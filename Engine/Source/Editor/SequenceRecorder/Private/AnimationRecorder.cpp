@@ -456,6 +456,11 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 
 void FAnimationRecorder::ProcessRecordedTimes(UAnimSequence* AnimSequence, USkeletalMeshComponent* SkeletalMeshComponent, const FString& HoursName, const FString& MinutesName, const FString& SecondsName, const FString& FramesName, const FString& SubFramesName, const FString& SlateName, const FString& Slate)
 {
+	if (!AnimSequence || !SkeletalMeshComponent)
+	{
+		return;
+	}
+
 	int32 NumFrames = LastFrame  + 1;
 	if (RecordedTimes.Num() != NumFrames)
 	{
