@@ -61,7 +61,7 @@ namespace UsdToUnreal
 					}
 					else
 					{
-						UE_LOG( LogUsd, Warning, TEXT( "Failed to process a USD field notice for field '%s' and path '%s'" ),
+						UE_LOG( LogUsd, Log, TEXT( "Failed to process a USD field notice for field '%s' and path '%s'" ),
 							FieldToken,
 							FullFieldPath
 						);
@@ -70,13 +70,13 @@ namespace UsdToUnreal
 
 					if ( OutOldValues.Contains( CombinedPath ) )
 					{
-						UE_LOG( LogUsd, Warning, TEXT( "Overwriting existing old value for field '%s'!" ), *CombinedPath );
+						UE_LOG( LogUsd, Log, TEXT( "Overwriting existing old value for field '%s'!" ), *CombinedPath );
 					}
 					OutOldValues.Add( CombinedPath, UE::FVtValue{ Change.second.first } );
 
 					if ( OutNewValues.Contains( CombinedPath ) )
 					{
-						UE_LOG( LogUsd, Warning, TEXT( "Overwriting existing new value for field '%s'!" ), *CombinedPath );
+						UE_LOG( LogUsd, Log, TEXT( "Overwriting existing new value for field '%s'!" ), *CombinedPath );
 					}
 					OutNewValues.Add( CombinedPath, UE::FVtValue{ Change.second.second } );
 				}
