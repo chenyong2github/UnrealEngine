@@ -123,12 +123,31 @@ UMovieSceneSequence* FMovieSceneObjectBindingIDCustomization::GetSequence() cons
 	return nullptr;
 }
 
+bool FMovieSceneObjectBindingIDCustomization::HasMultipleValues() const
+{
+	TArray<void*> Ptrs;
+	StructProperty->AccessRawData(Ptrs);
+
+	return Ptrs.Num() > 1;
+}
+
 FMovieSceneObjectBindingID FMovieSceneObjectBindingIDCustomization::GetCurrentValue() const
 {
 	TArray<void*> Ptrs;
 	StructProperty->AccessRawData(Ptrs);
 
-	return ensure(Ptrs.Num() == 1) ? *static_cast<FMovieSceneObjectBindingID*>(Ptrs[0]) : FMovieSceneObjectBindingID();
+	FMovieSceneObjectBindingID Value = Ptrs.Num() > 0 ? *static_cast<FMovieSceneObjectBindingID*>(Ptrs[0]) : FMovieSceneObjectBindingID();
+
+	// If more than one value and not all equal, return empty
+	for (int32 Index = 1; Index < Ptrs.Num(); ++Index)
+	{
+		if (*static_cast<FMovieSceneObjectBindingID*>(Ptrs[Index]) != Value)
+		{
+			return FMovieSceneObjectBindingID();
+		}
+	}
+
+	return Value;
 }
 
 void FMovieSceneObjectBindingIDCustomization::SetCurrentValue(const FMovieSceneObjectBindingID& InObjectBinding)
@@ -147,9 +166,9 @@ void FMovieSceneObjectBindingIDCustomization::SetCurrentValue(const FMovieSceneO
 	TArray<void*> Ptrs;
 	StructProperty->AccessRawData(Ptrs);
 
-	for (void* Ptr : Ptrs)
+	for (int32 Index = 0; Index < Ptrs.Num(); ++Index)
 	{
-		*static_cast<FMovieSceneObjectBindingID*>(Ptrs[0]) = InObjectBinding;
+		*static_cast<FMovieSceneObjectBindingID*>(Ptrs[Index]) = InObjectBinding;
 	}
 	
 	StructProperty->NotifyPostChange();

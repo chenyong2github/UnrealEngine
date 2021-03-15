@@ -215,9 +215,19 @@ void FMovieSceneObjectBindingIDPicker::UpdateCachedData()
 	if (!Object.IsValid())
 	{
 		CurrentIcon = FSlateIcon();
-		CurrentText = LOCTEXT("UnresolvedBinding", "Unresolved Binding");
-		ToolTipText = LOCTEXT("UnresolvedBinding_ToolTip", "The specified binding could not be located in the sequence");
 		bIsCurrentItemSpawnable = false;
+		
+		if (HasMultipleValues())
+		{
+			CurrentText = LOCTEXT("MultipleValues", "Multiple Values");
+			ToolTipText = LOCTEXT("MultipleValues_ToolTip", "The specified binding has multiple values");
+			return;
+		}
+		else
+		{
+			CurrentText = LOCTEXT("UnresolvedBinding", "Unresolved Binding");
+			ToolTipText = LOCTEXT("UnresolvedBinding_ToolTip", "The specified binding could not be located in the sequence");
+		}
 	}
 	else
 	{
