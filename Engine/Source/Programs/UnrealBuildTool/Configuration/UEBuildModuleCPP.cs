@@ -476,11 +476,15 @@ namespace UnrealBuildTool
 					out List<FileItem> NormalFiles, out List<FileItem> AdaptiveFiles);
 				LinkInputFiles.AddRange(CompileFilesWithToolChain(Target, ToolChain, CompileEnvironment, ModuleCompileEnvironment, NormalFiles, AdaptiveFiles, Graph).ObjectFiles);
 			}
-			else
+			else if (SpecificFilesToCompile.Count == 0)
 			{
 				Unity.GetAdaptiveFiles(Target, InputFiles.CPPFiles, InputFiles.HeaderFiles, CompileEnvironment, WorkingSet, Rules.ShortName ?? Name, IntermediateDirectory, Graph,
 					out List<FileItem> NormalFiles, out List<FileItem> AdaptiveFiles);
 				LinkInputFiles.AddRange(CompileFilesWithToolChain(Target, ToolChain, CompileEnvironment, ModuleCompileEnvironment, NormalFiles, AdaptiveFiles, Graph).ObjectFiles);
+			}
+			else
+			{
+				LinkInputFiles.AddRange(CompileFilesWithToolChain(Target, ToolChain, CompileEnvironment, ModuleCompileEnvironment, InputFiles.CPPFiles, new List<FileItem>(), Graph).ObjectFiles);
 			}
 
 			// Compile all the generated CPP files
