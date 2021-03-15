@@ -425,7 +425,7 @@ public:
 	* If nothing found, return INDEX_NONE
 	*/
 	virtual int32 GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones) const override;	
-	// End UBlendSpace Overrides
+	// End IInterpolationIndexProvider Overrides
 
 	/** Returns whether or not the given additive animation type is compatible with the blendspace type */
 	ENGINE_API virtual bool IsValidAdditiveType(EAdditiveAnimationType AdditiveType) const;
@@ -657,7 +657,7 @@ public:
 	 * If set then this eases in/out the sample weight adjustments, using the speed to determine how much smoothing to apply.
 	 */
 	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName = "Sample Weight Speed Smoothing "))
-	bool bTargetWeightInterpolationEaseInOut;
+	bool bTargetWeightInterpolationEaseInOut = true;
 
 	/** The current mode used by the BlendSpace to decide which animation notifies to fire. Valid options are:
 	- AllAnimations - All notify events will fire
@@ -677,13 +677,21 @@ public:
 
 protected:
 
+#if WITH_EDITORONLY_DATA
 	/**
-	* Per bone interpolation speed settings. 
-	* These act as overrides to the global interpolation speed. 
-	* This means the global interpolation speed does not impact these bones.
+	* Per bone interpolation speed settings, which affect the specified bone and all its descendants in the skeleton.
+	* These act as overrides to the global interpolation speed, which means the global interpolation speed does not affect these bones.
+	* Note that they also override each other - so a per-bone setting on the chest will not affect the hand if there is a per-bone setting on the arm.
 	*/
 	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName="Per Bone Overrides"))
 	TArray<FPerBoneInterpolation> PerBoneBlend;
+#endif
+
+	/**
+	 * PerBoneBlend sorted so that we find the bones in the correct order, working back from leaf bones.
+	 */
+	UPROPERTY()
+	TArray<FPerBoneInterpolation> SortedPerBoneBlend;
 
 	/** Track index to get marker data from. Samples are tested for the suitability of marker based sync
 	    during load and if we can use marker based sync we cache an index to a representative sample here */

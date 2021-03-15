@@ -83,6 +83,8 @@ void UBlendSpace::Serialize(FArchive& Ar)
 	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::BlendSpaceRuntimeTriangulation))
 	{
 		ResampleData();
+		// Preserve the constant blend for old blend spaces, but allow the ease in/out default for new ones.
+		bTargetWeightInterpolationEaseInOut = false;
 	}
 #endif // WITH_EDITOR
 }
@@ -110,7 +112,9 @@ void UBlendSpace::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 	const FName MemberPropertyName = PropertyChangedEvent.MemberProperty ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
 	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 
-	if ((MemberPropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, PerBoneBlend) && PropertyName == GET_MEMBER_NAME_CHECKED(FBoneReference, BoneName)) || PropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, PerBoneBlend))
+	if ((MemberPropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, PerBoneBlend)
+		 && PropertyName == GET_MEMBER_NAME_CHECKED(FBoneReference, BoneName)) 
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UBlendSpace, PerBoneBlend))
 	{
 		InitializePerBoneBlend();
 	}
@@ -202,7 +206,7 @@ bool UBlendSpace::UpdateBlendSamples_Internal(
 	if (GetSamplesFromBlendInput(InBlendSpacePosition, NewSampleDataList, InOutCachedTriangulationIndex, true))
 	{
 		// if target weight interpolation is set
-		if (TargetWeightInterpolationSpeedPerSec > 0.f || PerBoneBlend.Num() > 0)
+		if (TargetWeightInterpolationSpeedPerSec > 0.f || SortedPerBoneBlend.Num() > 0)
 		{
 			// target weight interpolation
 			if (InterpolateWeightOfSampleData(InDeltaTime, InOutOldSampleDataList, NewSampleDataList, InOutSampleDataCache))
@@ -618,19 +622,27 @@ void UBlendSpace::RuntimeValidateMarkerData()
 
 #endif // WITH_EDITOR
 
-// @todo fixme: slow approach. If the perbone gets popular, we should change this to array of weight 
-// we should think about changing this to 
+// Note that this gets called once per bone in the skeleton - so any excessive looping in here is
+// expensive. See UE-110576
 int32 UBlendSpace::GetPerBoneInterpolationIndex(int32 BoneIndex, const FBoneContainer& RequiredBones) const
 {
-	for (int32 Iter = 0; Iter < PerBoneBlend.Num(); ++Iter)
+	for (int32 Iter = 0; Iter < SortedPerBoneBlend.Num(); ++Iter)
 	{
-		// we would like to make sure if 
-		if (PerBoneBlend[Iter].BoneReference.IsValidToEvaluate(RequiredBones) && RequiredBones.BoneIsChildOf(BoneIndex, RequiredBones.GetCompactPoseIndexFromSkeletonIndex(PerBoneBlend[Iter].BoneReference.BoneIndex).GetInt()))
+		const FBoneReference& SmoothedBone = SortedPerBoneBlend[Iter].BoneReference;
+		if (SmoothedBone.IsValidToEvaluate(RequiredBones))
 		{
-			return Iter;
+			int SmoothedBonePoseIndex = RequiredBones.GetCompactPoseIndexFromSkeletonIndex(SmoothedBone.BoneIndex).GetInt();
+			if (SmoothedBonePoseIndex == BoneIndex)
+			{
+				return Iter;
+			}
+			// Returns true if BoneIndex is a child of SmoothedBonePoseIndex. Searches up from BoneIndex
+			if (RequiredBones.BoneIsChildOf(BoneIndex, SmoothedBonePoseIndex))
+			{
+				return Iter;
+			}
 		}
 	}
-
 	return INDEX_NONE;
 }
 
@@ -756,7 +768,7 @@ void UBlendSpace::GetAnimationPose_Internal(TArray<FBlendSampleData>& BlendSampl
 
 	TArrayView<FCompactPose> ChildrenPosesView(ChildrenPoses);
 
-	if (PerBoneBlend.Num() > 0)
+	if (SortedPerBoneBlend.Num() > 0)
 	{
 		if (IsValidAdditive())
 		{
@@ -1304,12 +1316,24 @@ bool UBlendSpace::IsTooCloseToExistingSamplePoint(const FVector& SampleValue, in
 void UBlendSpace::InitializePerBoneBlend()
 {
 	const USkeleton* MySkeleton = GetSkeleton();
+#if WITH_EDITOR
 	for (FPerBoneInterpolation& BoneInterpolationData : PerBoneBlend)
 	{
 		BoneInterpolationData.Initialize(MySkeleton);
 	}
-	// Sort this by bigger to smaller, then we don't have to worry about checking the best parent
-	PerBoneBlend.Sort([](const FPerBoneInterpolation& A, const FPerBoneInterpolation& B) { return A.BoneReference.BoneIndex > B.BoneReference.BoneIndex; });
+	SortedPerBoneBlend = PerBoneBlend;
+#endif
+	for (FPerBoneInterpolation& BoneInterpolationData : SortedPerBoneBlend)
+	{
+		BoneInterpolationData.Initialize(MySkeleton);
+	}
+#if WITH_EDITOR
+	// Sort this by bigger to smaller. This is because the per-bone blends are intended to affect the
+	// children of as well as the specified bones, and we need to find them (in
+	// GetPerBoneInterpolationIndex) in order working back from the leaf bones.
+	SortedPerBoneBlend.Sort([](const FPerBoneInterpolation& A, const FPerBoneInterpolation& B) 
+		{ return A.BoneReference.BoneIndex > B.BoneReference.BoneIndex; });
+#endif
 }
 
 void UBlendSpace::TickFollowerSamples(TArray<FBlendSampleData>& SampleDataList, const int32 HighestWeightIndex, FAnimAssetTickContext& Context, bool bResetMarkerDataOnFollowers) const
@@ -1467,10 +1491,10 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 		FBlendSampleData OldSample = *OldIt;
 		bool bTargetSampleExists = false;
 
-		if (OldSample.PerBoneBlendData.Num() != PerBoneBlend.Num())
+		if (OldSample.PerBoneBlendData.Num() != SortedPerBoneBlend.Num())
 		{
-			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlend.Num());
-			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlend.Num());
+			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, SortedPerBoneBlend.Num());
+			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, SortedPerBoneBlend.Num());
 		}
 
 		for (auto NewIt = NewSampleDataList.CreateConstIterator(); NewIt; ++NewIt)
@@ -1491,7 +1515,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 					SmoothWeight(
 						InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
 						OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], NewSample.TotalWeight,
-						DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+						DeltaTime, SortedPerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 					TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 				}
 
@@ -1518,7 +1542,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 				SmoothWeight(
 					InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
 					OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], 0.0f,
-					DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+					DeltaTime, SortedPerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 				TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 			}
 
@@ -1539,10 +1563,10 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 		FBlendSampleData OldSample = *OldIt;
 		bool bOldSampleExists = false;
 
-		if (OldSample.PerBoneBlendData.Num() != PerBoneBlend.Num())
+		if (OldSample.PerBoneBlendData.Num() != SortedPerBoneBlend.Num())
 		{
-			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, PerBoneBlend.Num());
-			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, PerBoneBlend.Num());
+			OldSample.PerBoneBlendData.Init(OldSample.TotalWeight, SortedPerBoneBlend.Num());
+			OldSample.PerBoneWeightRate.Init(OldSample.WeightRate, SortedPerBoneBlend.Num());
 		}
 
 		for (auto NewIt = FinalSampleDataList.CreateConstIterator(); NewIt; ++NewIt)
@@ -1573,7 +1597,7 @@ bool UBlendSpace::InterpolateWeightOfSampleData(float DeltaTime, const TArray<FB
 				SmoothWeight(
 					InterpData.PerBoneBlendData[Iter], InterpData.PerBoneWeightRate[Iter],
 					OldSample.PerBoneBlendData[Iter], OldSample.PerBoneWeightRate[Iter], Target,
-					DeltaTime, PerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
+					DeltaTime, SortedPerBoneBlend[Iter].InterpolationSpeedPerSec, bTargetWeightInterpolationEaseInOut);
 				TotalPerBoneWeight += InterpData.PerBoneBlendData[Iter];
 			}
 			if (InterpData.TotalWeight > ZERO_ANIMWEIGHT_THRESH || TotalPerBoneWeight > ZERO_ANIMWEIGHT_THRESH)
