@@ -2988,7 +2988,7 @@ namespace UnrealGameSync
 					try
 					{
 						string Text = File.ReadAllText(ReceiptFileName);
-						ReceiptJsonObject Receipt = JsonSerializer.Deserialize<ReceiptJsonObject>(Text);
+						ReceiptJsonObject Receipt = JsonSerializer.Deserialize<ReceiptJsonObject>(Text, Program.DefaultJsonSerializerOptions);
 
 						string LaunchFileName = Receipt.Launch;
 						if (LaunchFileName != null)

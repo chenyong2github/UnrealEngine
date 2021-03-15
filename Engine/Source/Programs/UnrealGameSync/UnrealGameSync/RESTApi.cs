@@ -88,7 +88,7 @@ namespace UnrealGameSync
 
 		public static T GET<T>(string URI, string Resource, params string[] QueryParams)
 		{
-			return JsonSerializer.Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams));
+			return JsonSerializer.Deserialize<T>(SendRequestInternal(URI, Resource, "GET", null, QueryParams), Program.DefaultJsonSerializerOptions);
 		}
 
 		public static string PUT<T>(string URI, string Resource, T Object, params string[] QueryParams)

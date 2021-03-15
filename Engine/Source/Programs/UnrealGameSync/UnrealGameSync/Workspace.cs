@@ -1593,7 +1593,7 @@ namespace UnrealGameSync
 
 		string UpdateBuildVersion(string Text, int Changelist, int CodeChangelist, string BranchOrStreamName, bool bIsLicenseeVersion)
 		{
-			Dictionary<string, object> Object = JsonSerializer.Deserialize<Dictionary<string, object>>(Text);
+			Dictionary<string, object> Object = JsonSerializer.Deserialize<Dictionary<string, object>>(Text, Program.DefaultJsonSerializerOptions);
 
 			object PrevCompatibleChangelistObj;
 			int PrevCompatibleChangelist = Object.TryGetValue("CompatibleChangelist", out PrevCompatibleChangelistObj) ? (int)Convert.ChangeType(PrevCompatibleChangelistObj.ToString(), typeof(int)) : 0;

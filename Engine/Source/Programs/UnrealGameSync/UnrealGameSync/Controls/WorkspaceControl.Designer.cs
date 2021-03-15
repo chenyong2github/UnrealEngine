@@ -769,6 +769,7 @@ namespace UnrealGameSync
 			// 
 			this.OptionsButton.Anchor = System.Windows.Forms.AnchorStyles.Right;
 			this.OptionsButton.AutoSize = true;
+			this.OptionsButton.Image = global::UnrealGameSync.Properties.Resources.DropList;
 			this.OptionsButton.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
 			this.OptionsButton.Location = new System.Drawing.Point(1222, 13);
 			this.OptionsButton.Margin = new System.Windows.Forms.Padding(0);
@@ -783,6 +784,7 @@ namespace UnrealGameSync
 			// 
 			this.FilterButton.Anchor = System.Windows.Forms.AnchorStyles.Right;
 			this.FilterButton.AutoSize = true;
+			this.FilterButton.Image = global::UnrealGameSync.Properties.Resources.DropList;
 			this.FilterButton.ImageAlign = System.Drawing.ContentAlignment.MiddleRight;
 			this.FilterButton.Location = new System.Drawing.Point(0, 13);
 			this.FilterButton.Margin = new System.Windows.Forms.Padding(0);

@@ -11,6 +11,7 @@ using System.IO;
 using System.Linq;	
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 
@@ -260,7 +261,11 @@ namespace UnrealGameSync
 		{
 			try
 			{
-				ProjectJson Project = JsonSerializer.Deserialize<ProjectJson>(Text);
+				JsonSerializerOptions Options = new JsonSerializerOptions();
+				Options.PropertyNameCaseInsensitive = true;
+				Options.Converters.Add(new JsonStringEnumConverter());
+
+				ProjectJson Project = JsonSerializer.Deserialize<ProjectJson>(Text, Options);
 
 				return Project.Enterprise;
 			}
