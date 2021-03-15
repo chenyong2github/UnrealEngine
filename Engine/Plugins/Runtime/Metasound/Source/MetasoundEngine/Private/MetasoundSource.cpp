@@ -17,7 +17,7 @@
 #include "MetasoundPrimitives.h"
 #include "MetasoundReceiveNode.h"
 #include "MetasoundTrigger.h"
-
+#include "MetasoundEnvironment.h"
 
 #if WITH_EDITORONLY_DATA
 #include "EdGraph/EdGraph.h"
@@ -134,6 +134,9 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		}
 	}
 	Environment.SetValue<FAudioDeviceHandle>(GetAudioDeviceHandleVariableName(), DeviceHandle);
+
+	// Set the unique object ID as an environment variable
+	Environment.SetValue<uint32>(GetSoundUniqueIdName(), GetUniqueID());
 
 	const FMetasoundFrontendDocument* OriginalDoc = GetDocument().Get();
 	if (nullptr == OriginalDoc)
@@ -463,6 +466,13 @@ const FString& UMetasoundSource::GetAudioDeviceHandleVariableName()
 	static const FString AudioDeviceHandleVarName = TEXT("AudioDeviceHandle");
 	return AudioDeviceHandleVarName;
 }
+
+const FString& UMetasoundSource::GetSoundUniqueIdName()
+{
+	static const FString SoundUniqueIdVarName = TEXT("SoundUniqueId");
+	return SoundUniqueIdVarName;
+}
+
 
 const FMetasoundFrontendArchetype& UMetasoundSource::GetBaseArchetype()
 {

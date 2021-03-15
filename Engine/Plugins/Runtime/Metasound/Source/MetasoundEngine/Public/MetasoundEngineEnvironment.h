@@ -5,5 +5,4 @@
 #include "AudioDeviceManager.h"
 #include "MetasoundEnvironment.h"
 
-DECLARE_METASOUND_ENVIRONMENT_VARIABLE_TYPE(FAudioDeviceHandle);
-
+DECLARE_METASOUND_ENVIRONMENT_VARIABLE_TYPE(METASOUNDENGINE_API, FAudioDeviceHandle);

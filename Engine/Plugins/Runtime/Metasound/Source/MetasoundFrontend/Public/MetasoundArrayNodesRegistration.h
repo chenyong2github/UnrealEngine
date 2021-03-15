@@ -3,6 +3,8 @@
 #pragma once
 
 #include "MetasoundArrayNodes.h"
+#include "MetasoundArrayShuffleNode.h"
+#include "MetasoundArrayRandomNode.h"
 #include "MetasoundNodeRegistrationMacro.h"
 
 #include <type_traits>
@@ -41,6 +43,9 @@ namespace Metasound
 
 			// Array shuffle is supported for all types that get is supported for.
 			static constexpr bool bIsArrayShuffleSupported = bIsArrayGetSupported;
+
+			// Random get is supported for all types that get is supported for.
+			static constexpr bool bIsArrayRandomGetSupported = bIsArrayGetSupported;
 		};
 
 		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArrayGetSupported, bool>::type = true>
@@ -129,6 +134,20 @@ namespace Metasound
 			// No op if not supported
 			return true;
 		}
+
+		template<typename ArrayType, typename std::enable_if<TArrayNodeSupport<ArrayType>::bIsArrayRandomGetSupported, bool>::type = true>
+		bool RegisterArrayRandomGetNode()
+		{
+			using FNodeType = typename Metasound::TArrayRandomGetNode<ArrayType>;
+			return RegisterNodeWithFrontend<FNodeType>();
+		}
+
+		template<typename ArrayType, typename std::enable_if<!TArrayNodeSupport<ArrayType>::bIsArrayRandomGetSupported, bool>::type = true>
+		bool RegisterArrayShuffleNode()
+		{
+			// No op if not supported
+			return true;
+		}
 	}
 
 	/** Registers all available array nodes which can be instantiated for the given
@@ -146,6 +165,7 @@ namespace Metasound
 		bSuccess = bSuccess && RegisterArraySubsetNode<ArrayType>();
 		bSuccess = bSuccess && RegisterArrayConcatNode<ArrayType>();
 		bSuccess = bSuccess && RegisterArrayShuffleNode<ArrayType>();
+		bSuccess = bSuccess && RegisterArrayRandomGetNode<ArrayType>();
 		return bSuccess;
 	}
 }

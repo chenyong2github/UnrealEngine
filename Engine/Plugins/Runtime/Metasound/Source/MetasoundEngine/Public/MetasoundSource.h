@@ -159,6 +159,7 @@ private:
 	static const FString& GetAudioOutputName();
 	static const FString& GetIsFinishedOutputName();
 	static const FString& GetAudioDeviceHandleVariableName();
+	static const FString& GetSoundUniqueIdName();
 	static const FMetasoundFrontendArchetype& GetBaseArchetype();
 	static const FMetasoundFrontendArchetype& GetMonoSourceArchetype();
 	static const FMetasoundFrontendArchetype& GetStereoSourceArchetype();
