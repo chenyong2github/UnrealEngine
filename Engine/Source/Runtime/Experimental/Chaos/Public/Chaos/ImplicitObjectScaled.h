@@ -6,6 +6,7 @@
 #include "Chaos/ImplicitFwd.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Transform.h"
+#include "Chaos/Utilities.h"	// For ScaleInertia - pull that into mass utils
 #include "ChaosArchive.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/EnableIf.h"
@@ -286,6 +287,21 @@ public:
 	const FVec3 GetVertex(int32 VertexIndex) const
 	{
 		return MObject->GetVertex(VertexIndex);
+	}
+
+	const FVec3 GetCenterOfMass() const
+	{
+		return MObject->GetCenterOfMass();
+	}
+
+	FRotation3 GetRotationOfMass() const
+	{
+		return GetRotationOfMass();
+	}
+
+	const FMatrix33 GetInertiaTensor(const FReal Mass) const
+	{
+		return MObject->GetInertiaTensor(Mass);
 	}
 
 protected:
@@ -806,16 +822,24 @@ public:
 		UpdateBounds();
 	}
 
+	const FReal GetVolume() const
+	{
+		return MScale.X * MScale.Y * MScale.Z * MObject->GetVolume();
+	}
+
 	const FVec3 GetCenterOfMass() const
 	{
-		// TODO: I'm not sure this is correct in all cases
 		return MScale * MObject->GetCenterOfMass();
 	}
 
 	FRotation3 GetRotationOfMass() const
 	{
-		// TODO: use the actual underlying object ( to be consistent with current implementation of GetInertiaTensor and GetVolume )
-		return BoundingBox().GetRotationOfMass();
+		return MObject->GetRotationOfMass();
+	}
+
+	const FMatrix33 GetInertiaTensor(const FReal Mass) const
+	{
+		return Utilities::ScaleInertia(MObject->GetInertiaTensor(Mass), MScale, false);
 	}
 
 	const ObjectType Object() const { return MObject; }

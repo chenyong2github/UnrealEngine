@@ -16,7 +16,7 @@
 
 namespace Chaos
 {
-	FReal Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.01f;
+	FRealSingle Chaos_Collision_Manifold_PlaneContactNormalEpsilon = 0.01f;
 	FAutoConsoleVariableRef CVarChaos_Manifold_PlaneContactNormalEpsilon(TEXT("p.Chaos.Collision.Manifold.PlaneContactNormalEpsilon"), Chaos_Collision_Manifold_PlaneContactNormalEpsilon, TEXT("Normal tolerance used to distinguish face contacts from edge-edge contacts"));
 
 	// @todo(chaos): TEMP - use convex-convex collisio detection for box-box until TBox::GetClosestEdgePosition is implemented for that path (without plane hint)
