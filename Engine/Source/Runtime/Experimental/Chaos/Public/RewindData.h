@@ -428,9 +428,9 @@ struct FDesyncedParticleInfo
 class FRewindData
 {
 public:
-	FRewindData(int32 NumFrames, bool InResimOptimization)
+	FRewindData(int32 NumFrames, bool InResimOptimization, int32 InCurrentFrame)
 	: Managers(NumFrames+1)	//give 1 extra for saving at head
-	, CurFrame(0)
+	, CurFrame(InCurrentFrame)
 	, LatestFrame(-1)
 	, CurWave(1)
 	, FramesSaved(0)

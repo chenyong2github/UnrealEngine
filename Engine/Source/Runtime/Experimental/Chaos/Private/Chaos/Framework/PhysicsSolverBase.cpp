@@ -250,7 +250,7 @@ namespace Chaos
 	
 	void FPhysicsSolverBase::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
 	{
-		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache);
+		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
 		bUseCollisionResimCache = InUseCollisionResimCache;
 		MRewindCallback = MoveTemp(RewindCallback);
 		MarshallingManager.SetHistoryLength_Internal(NumFrames);
