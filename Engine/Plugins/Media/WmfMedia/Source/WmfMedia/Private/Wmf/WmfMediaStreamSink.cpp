@@ -202,7 +202,9 @@ HRESULT FWmfMediaStreamSink::Start()
 HRESULT FWmfMediaStreamSink::Stop()
 {
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::Stop"));
+#if WMFMEDIA_PLAYER_VERSION == 1
 	Flush();
+#endif // WMFMEDIA_PLAYER_VERSION == 1
 
 	FScopeLock Lock(&CriticalSection);
 
