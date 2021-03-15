@@ -881,6 +881,10 @@ public:
 	/**  Builds an inertialization request from the montage's group and provided duration */
 	void RequestMontageInertialization(const UAnimMontage* Montage, float Duration);
 
+	/**  Requests an inertial blend during the next anim graph update. Requires your anim graph to have a slot node belonging to the specified group name */
+	UFUNCTION(BlueprintCallable, Category = "Inertial Blend")
+	void RequestSlotGroupInertialization(FName InSlotGroupName, float Duration);
+
 	/** Queue a Montage BlendingOut Event to be triggered. */
 	void QueueMontageBlendingOutEvent(const FQueuedMontageBlendingOutEvent& MontageBlendingOutEvent);
 

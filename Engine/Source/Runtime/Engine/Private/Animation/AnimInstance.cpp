@@ -1654,6 +1654,13 @@ void UAnimInstance::Montage_Advance(float DeltaSeconds)
 	}
 }
 
+void UAnimInstance::RequestSlotGroupInertialization(FName InSlotGroupName, float Duration)
+{
+	// Must add this on both the anim instance and proxy's map, as this could called after UAnimInstance::UpdateMontageEvaluationData.
+	SlotGroupInertializationRequestMap.FindOrAdd(InSlotGroupName) = Duration;
+	GetProxyOnAnyThread<FAnimInstanceProxy>().GetSlotGroupInertializationRequestMap().FindOrAdd(InSlotGroupName) = Duration;
+}
+
 void UAnimInstance::RequestMontageInertialization(const UAnimMontage* Montage, float Duration)
 {
 	if (Montage)
