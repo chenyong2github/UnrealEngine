@@ -5136,14 +5136,16 @@ void FEngineLoop::Tick()
 		}
 		#endif
 
+		// We need to set this marker before EndFrameRenderThread is enqueued. 
+		// If multithreaded rendering is off, it can cause a bad ordering of game and rendering markers.
+		GEngine->SetGameLatencyMarkerEnd(CurrentFrameCounter);
+
 		// end of RHI frame
 		ENQUEUE_RENDER_COMMAND(EndFrame)(
 			[CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
 			{
 				EndFrameRenderThread(RHICmdList, CurrentFrameCounter);
 			});
-
-		GEngine->SetGameLatencyMarkerEnd(CurrentFrameCounter);
 
 		// Set CPU utilization stats.
 		const FCPUTime CPUTime = FPlatformTime::GetCPUTime();
