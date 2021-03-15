@@ -14,9 +14,17 @@ class FTaskGraphRelation : public ITimingEventRelation
 public:
 	enum class ETaskGraphRelationType : int32
 	{
-		Subsequent = 0,
-		Nested = 1,
+		Created,
+		Launched,
+		Prerequisite,
+		Scheduled,
+		AddedNested,
+		NestedCompleted,
+		Subsequent,
+		Completed,
+		Count
 	};
+
 	FTaskGraphRelation(double InSourceTime, int32 InSourceThreadId, double InTargetTime, int32 InTargetThreadId, ETaskGraphRelationType InType);
 
 	virtual bool IsSolved() override { return bIsSolved; }

@@ -32,8 +32,19 @@ void FTaskGraphRelation::Draw(const FDrawContext& DrawContext, const FTimingTrac
 	Points.Emplace(0, 0);
 	Points.Emplace(X2 - X1, Y2 - Y1);
 
-	FLinearColor Color = Type == ETaskGraphRelationType::Subsequent ? FLinearColor::Red : FLinearColor::Blue;
-	DrawContext.DrawLines(Helper.GetRelationLayerId(), X1, Y1, Points, ESlateDrawEffect::None, Color);
+	FLinearColor RelationColors[(int32)ETaskGraphRelationType::Count] = {
+		FLinearColor::Yellow, // Created
+		FLinearColor::Green, // Launched
+		FLinearColor::Red, // Prerequisite
+		FLinearColor::Blue, // Scheduled
+		FLinearColor::Blue, // AddedNested
+		FLinearColor::Red, // NestedCompleted
+		FLinearColor::Red, // Subsequent
+		FLinearColor::Yellow, // Completed
+	};
+
+	FLinearColor Color = RelationColors[(int32)Type];
+	DrawContext.DrawLines(Helper.GetRelationLayerId(), X1, Y1, Points, ESlateDrawEffect::None, Color, /*bAntialias=*/ true, /*Thickness=*/ 2.0);
 }
 
 } // namespace Insights

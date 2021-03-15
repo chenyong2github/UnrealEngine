@@ -36,7 +36,7 @@ namespace TraceServices
 		// ITasksProvider impl
 		virtual const FTaskInfo* TryGetTask(uint32 ThreadId, double Timestamp) const override;
 		virtual const FTaskInfo* TryGetTask(TaskTrace::FId TaskId) const;
-		virtual const FWaitingForTasks* TryGetWaiting(uint32 ThreadId, double Timestamp) const override;
+		virtual const FWaitingForTasks* TryGetWaiting(const TCHAR* TimerName, uint32 ThreadId, double Timestamp) const override;
 
 	private:
 		// initializes conversion of task id to its index in the internal container, if it's not initialized already

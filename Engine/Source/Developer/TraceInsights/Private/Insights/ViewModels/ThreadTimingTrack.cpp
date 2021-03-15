@@ -1106,27 +1106,24 @@ void FThreadTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITim
 
 		do // info about blocking
 		{
-			if (TimerName.StartsWith(TEXT("WaitUntilTasksComplete")) || TimerName.StartsWith(TEXT("GameThreadWaitForTask")))
+			const TraceServices::FWaitingForTasks* Waiting = TasksProvider->TryGetWaiting(*TimerName, ThreadId, TooltipEvent.GetStartTime());
+			if (Waiting == nullptr)
 			{
-				const TraceServices::FWaitingForTasks* Waiting = TasksProvider->TryGetWaiting(ThreadId, TooltipEvent.GetStartTime());
-				if (Waiting == nullptr)
-				{
-					break;
-				}
+				break;
+			}
 
-				InOutTooltip.AddTextLine(TEXT("-------- Wating for tasks --------"), FLinearColor::Red);
-				FString TaskIdsStr = FString::JoinBy(Waiting->Tasks, TEXT(", "), [](TaskTrace::FId TaskId) { return FString::FromInt(TaskId); });
-				InOutTooltip.AddNameValueTextLine(TEXT("Tasks:"), FString::Printf(TEXT("[%s]"), *TaskIdsStr));
-				InOutTooltip.AddNameValueTextLine(TEXT("Started waiting:"), FString::Printf(TEXT("%f"), Waiting->StartedTimestamp));
-				InOutTooltip.AddNameValueTextLine(TEXT("Finished waiting:"), FString::Printf(TEXT("%f (+%s)"), Waiting->FinishedTimestamp, *TimeUtils::FormatTimeAuto(Waiting->FinishedTimestamp - Waiting->StartedTimestamp)));
+			InOutTooltip.AddTextLine(TEXT("-------- Wating for tasks --------"), FLinearColor::Red);
+			FString TaskIdsStr = FString::JoinBy(Waiting->Tasks, TEXT(", "), [](TaskTrace::FId TaskId) { return FString::FromInt(TaskId); });
+			InOutTooltip.AddNameValueTextLine(TEXT("Tasks:"), FString::Printf(TEXT("[%s]"), *TaskIdsStr));
+			InOutTooltip.AddNameValueTextLine(TEXT("Started waiting:"), FString::Printf(TEXT("%f"), Waiting->StartedTimestamp));
+			InOutTooltip.AddNameValueTextLine(TEXT("Finished waiting:"), FString::Printf(TEXT("%f (+%s)"), Waiting->FinishedTimestamp, *TimeUtils::FormatTimeAuto(Waiting->FinishedTimestamp - Waiting->StartedTimestamp)));
 
-				for (TaskTrace::FId TaskId : Waiting->Tasks)
+			for (TaskTrace::FId TaskId : Waiting->Tasks)
+			{
+				const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(TaskId);
+				if (Task != nullptr)
 				{
-					const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(TaskId);
-					if (Task != nullptr)
-					{
-						AddTaskInfo(*Task);
-					}
+					AddTaskInfo(*Task);
 				}
 			}
 		} while (false);
@@ -1497,32 +1494,98 @@ void FThreadTimingTrack::GetEventRelations(const ITimingEvent& InSelectedEvent, 
 	const TraceServices::ITasksProvider* TasksProvider = TraceServices::ReadTasksProvider(*Session.Get());
 	if (TasksProvider)
 	{
+		auto AddRelation = [this, &InSelectedEvent, &Relations](double SourceTimestamp, uint32 SourceThreadId, double TargetTimestamp, uint32 TargetThreadId, FTaskGraphRelation::ETaskGraphRelationType Type)
+		{
+			if (SourceTimestamp == TraceServices::FTaskInfo::InvalidTimestamp || TargetTimestamp == TraceServices::FTaskInfo::InvalidTimestamp)
+			{
+				return;
+			}
+
+			FTaskGraphRelation* Relation = new FTaskGraphRelation(SourceTimestamp, SourceThreadId, TargetTimestamp, TargetThreadId, Type);
+
+			if (Relation->GetSourceThreadId() == ThreadId)
+			{
+				Relation->SetSourceTrack(SharedThis(this));
+				Relation->SetSourceDepth(InSelectedEvent.GetDepth());
+			}
+			if (Relation->GetTargetThreadId() == ThreadId)
+			{
+				Relation->SetTargetTrack(SharedThis(this));
+				Relation->SetTargetDepth(InSelectedEvent.GetDepth());
+			}
+			if (Relation->GetSourceThreadId() == ThreadId && Relation->GetTargetThreadId() == ThreadId)
+			{
+				Relation->SetIsSolved(true);
+			}
+
+			Relations.Add(Relation);
+		};
+
 		const TraceServices::FTaskInfo* Task = TasksProvider->TryGetTask(ThreadId, StartTime);
 		if (Task)
 		{
-			for (const TraceServices::FTaskInfo::FRelationInfo& RelationInfo : Task->Subsequents)
+			if (Task->CreatedTimestamp != Task->LaunchedTimestamp || Task->CreatedThreadId != Task->LaunchedThreadId)
 			{
-				const TraceServices::FTaskInfo* RelatedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
+				AddRelation(Task->CreatedTimestamp, Task->CreatedThreadId, Task->LaunchedTimestamp, Task->LaunchedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Created);
+			}
 
-				if (RelatedTask)
-				{
-					FTaskGraphRelation* NewRelation = new FTaskGraphRelation(StartTime, ThreadId, RelatedTask->StartedTimestamp, RelatedTask->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Subsequent);
-					NewRelation->SetSourceTrack(SharedThis(this));
-					NewRelation->SetSourceDepth(InSelectedEvent.GetDepth());
-					Relations.Add(NewRelation);
-				}
+			AddRelation(Task->LaunchedTimestamp, Task->LaunchedThreadId, Task->ScheduledTimestamp, Task->ScheduledThreadId, FTaskGraphRelation::ETaskGraphRelationType::Launched);
+
+			for (const TraceServices::FTaskInfo::FRelationInfo& RelationInfo : Task->Prerequisites)
+			{
+				const TraceServices::FTaskInfo* Prerequisite = TasksProvider->TryGetTask(RelationInfo.RelativeId);
+				check(Prerequisite != nullptr);
+				AddRelation(Prerequisite->CompletedTimestamp, Prerequisite->CompletedThreadId, Task->StartedTimestamp, Task->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Prerequisite);
+			}
+
+			if (Task->LaunchedTimestamp != Task->ScheduledTimestamp || Task->LaunchedThreadId != Task->ScheduledThreadId)
+			{
+				AddRelation(Task->ScheduledTimestamp, Task->ScheduledThreadId, Task->StartedTimestamp, Task->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Scheduled);
 			}
 
 			for (const TraceServices::FTaskInfo::FRelationInfo& RelationInfo : Task->NestedTasks)
 			{
-				const TraceServices::FTaskInfo* RelatedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
+				const TraceServices::FTaskInfo* NestedTask = TasksProvider->TryGetTask(RelationInfo.RelativeId);
+				check(NestedTask != nullptr);
 
-				if (RelatedTask)
+				AddRelation(RelationInfo.Timestamp, ThreadId, NestedTask->StartedTimestamp, NestedTask->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::AddedNested);
+
+				AddRelation(NestedTask->CompletedTimestamp, NestedTask->CompletedThreadId, NestedTask->CompletedTimestamp, Task->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::NestedCompleted);
+			}
+
+			for (const TraceServices::FTaskInfo::FRelationInfo& RelationInfo : Task->Subsequents)
+			{
+				const TraceServices::FTaskInfo* Subsequent = TasksProvider->TryGetTask(RelationInfo.RelativeId);
+				check(Subsequent != nullptr);
+				AddRelation(Task->CompletedTimestamp, ThreadId, Subsequent->StartedTimestamp, Subsequent->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Subsequent);
+			}
+
+			if (Task->FinishedTimestamp != Task->CompletedTimestamp || Task->CompletedThreadId != ThreadId)
+			{
+				AddRelation(Task->FinishedTimestamp, ThreadId, Task->CompletedTimestamp, ThreadId, FTaskGraphRelation::ETaskGraphRelationType::Completed);
+			}
+		}
+
+		// if it's an event waiting for tasks completeness, add relations to these tasks
+		const TraceServices::ITimingProfilerProvider& TimingProfilerProvider = *TraceServices::ReadTimingProfilerProvider(*Session.Get());
+		const TraceServices::ITimingProfilerTimerReader* TimerReader;
+		TraceServices::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
+		TimingProfilerProvider.ReadTimers([&TimerReader](const TraceServices::ITimingProfilerTimerReader& Out) { TimerReader = &Out; });
+
+		const FThreadTrackEvent& ThreadTrackEvent = *static_cast<const FThreadTrackEvent*>(&InSelectedEvent);
+		const TraceServices::FTimingProfilerTimer* Timer = TimerReader->GetTimer(ThreadTrackEvent.GetTimerIndex());
+		check(Timer != nullptr);
+
+		const TraceServices::FWaitingForTasks* Waiting = TasksProvider->TryGetWaiting(Timer->Name, ThreadId, StartTime);
+		if (Waiting != nullptr)
+		{
+			for (TaskTrace::FId TaskId : Waiting->Tasks)
+			{
+				const TraceServices::FTaskInfo* WaitedTask = TasksProvider->TryGetTask(TaskId);
+				if (WaitedTask != nullptr)
 				{
-					FTaskGraphRelation* NewRelation = new FTaskGraphRelation(StartTime, ThreadId, RelatedTask->StartedTimestamp, RelatedTask->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::Nested);
-					NewRelation->SetSourceTrack(SharedThis(this));
-					NewRelation->SetSourceDepth(InSelectedEvent.GetDepth());
-					Relations.Add(NewRelation);
+					AddRelation(StartTime, ThreadId, WaitedTask->StartedTimestamp, WaitedTask->StartedThreadId, FTaskGraphRelation::ETaskGraphRelationType::AddedNested);
+					AddRelation(WaitedTask->CompletedTimestamp, WaitedTask->CompletedThreadId, WaitedTask->CompletedTimestamp, ThreadId, FTaskGraphRelation::ETaskGraphRelationType::NestedCompleted);
 				}
 			}
 		}
@@ -1539,10 +1602,21 @@ void FThreadTimingTrack::SolveEventRelations(const TArray<ITimingEventRelation*>
 		{
 			// A check that we have the correct type will need to be added
 			FTaskGraphRelation* TaskRelation = static_cast<FTaskGraphRelation*>(Relation);
-			if (TaskRelation->GetTargetThreadId() == ThreadId)
+
+			if (TaskRelation->GetSourceThreadId() == ThreadId && !TaskRelation->GetSourceTrack())
+			{
+				TaskRelation->SetSourceTrack(StaticCastSharedRef<const FBaseTimingTrack>(SharedThis(this)));
+				TaskRelation->SetSourceDepth(GetDepthAt(TaskRelation->GetSourceTime()) - 1);
+			}
+
+			if (TaskRelation->GetTargetThreadId() == ThreadId && !TaskRelation->GetTargetTrack())
 			{
 				TaskRelation->SetTargetTrack(StaticCastSharedRef<const FBaseTimingTrack>(SharedThis(this)));
 				TaskRelation->SetTargetDepth(GetDepthAt(TaskRelation->GetTargetTime()) - 1);
+			}
+
+			if (TaskRelation->GetSourceTrack() && TaskRelation->GetTargetTrack())
+			{
 				TaskRelation->SetIsSolved(true);
 			}
 		}

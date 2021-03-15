@@ -57,6 +57,8 @@ namespace TraceServices
 			uint32 ThreadId;
 		};
 
+		// other tasks that must complete before this taks can be scheduled
+		TArray<FRelationInfo> Prerequisites;
 		// other tasks that wait for this task completion before they'll start execution
 		TArray<FRelationInfo> Subsequents;
 		// the task is completed only after all nested tasks are completed
@@ -82,7 +84,7 @@ namespace TraceServices
 		virtual const FTaskInfo* TryGetTask(TaskTrace::FId TaskId) const = 0;
 
 		// returns an info about waiting for tasks completion for given thread and timestamp, if any, otherwise `nullptr`
-		virtual const FWaitingForTasks* TryGetWaiting(uint32 ThreadId, double Timestamp) const = 0;
+		virtual const FWaitingForTasks* TryGetWaiting(const TCHAR* TimerName, uint32 ThreadId, double Timestamp) const = 0;
 	};
 
 	TRACESERVICES_API const ITasksProvider* ReadTasksProvider(const IAnalysisSession& Session);

@@ -197,6 +197,9 @@ namespace TraceServices
 		Task->Id = TaskId;
 
 		AddRelative(TEXT("Subsequent"), TaskId, &FTaskInfo::Subsequents, SubsequentId, Timestamp, ThreadId);
+
+		// make a backward link from the subsequent task to this task (prerequisite)
+		AddRelative(TEXT("Prerequisite"), SubsequentId, &FTaskInfo::Prerequisites, TaskId, Timestamp, ThreadId);
 	}
 
 	void FTasksProvider::TaskStarted(TaskTrace::FId TaskId, double Timestamp, uint32 ThreadId)
@@ -347,7 +350,7 @@ namespace TraceServices
 			return false;
 		}
 
-		checkf(Task->*TimestampPtr == FTaskInfo::InvalidTimestamp, TEXT("TaskId %d, old TS %.6f, new TS %.6f"), TaskId, Task->*TimestampPtr, TimestampValue);
+		checkf(Task->*TimestampPtr == FTaskInfo::InvalidTimestamp, TEXT("%s: TaskId %d, old TS %.6f, new TS %.6f"), EventName, TaskId, Task->*TimestampPtr, TimestampValue);
 		Task->*TimestampPtr = TimestampValue;
 		if (ThreadIdPtr != nullptr)
 		{
@@ -400,8 +403,13 @@ namespace TraceServices
 		return Task != nullptr && Task->FinishedTimestamp > Timestamp ? Task : nullptr;
 	}
 
-	const FWaitingForTasks* FTasksProvider::TryGetWaiting(uint32 ThreadId, double Timestamp) const
+	const FWaitingForTasks* FTasksProvider::TryGetWaiting(const TCHAR* TimerName, uint32 ThreadId, double Timestamp) const
 	{
+		if (FCString::Strcmp(TimerName, TEXT("WaitUntilTasksComplete")) != 0 && FCString::Strcmp(TimerName, TEXT("GameThreadWaitForTask")) != 0)
+		{
+			return nullptr;
+		}
+
 		const TArray64<FWaitingForTasks>* Thread = WaitingThreads.Find(ThreadId);
 		if (Thread == nullptr)
 		{

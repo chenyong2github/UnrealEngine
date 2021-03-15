@@ -629,5 +629,5 @@ protected:
 	TSharedPtr<FUICommandList> CommandList;
 
 	TArray<ITimingEventRelation*> CurrentRelations;
-	bool bShowEventRelations = false;
+	bool bShowEventRelations = true;
 };
