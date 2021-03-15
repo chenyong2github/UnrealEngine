@@ -32,6 +32,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDisabledParticles"), STAT_ChaosCounter_NumDisabledParticles, STATGROUP_ChaosCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumParticles"), STAT_ChaosCounter_NumParticles, STATGROUP_ChaosCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumDynamicParticles"), STAT_ChaosCounter_NumDynamicParticles, STATGROUP_ChaosCounters);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumActiveDynamicParticles"), STAT_ChaosCounter_NumActiveDynamicParticles, STATGROUP_ChaosCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumKinematicParticles"), STAT_ChaosCounter_NumKinematicParticles, STATGROUP_ChaosCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumStaticParticles"), STAT_ChaosCounter_NumStaticParticles, STATGROUP_ChaosCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumGeomCollParticles"), STAT_ChaosCounter_NumGeometryCollectionParticles, STATGROUP_ChaosCounters);
@@ -269,6 +270,7 @@ namespace Chaos
 				SET_DWORD_STAT(STAT_ChaosCounter_NumDisabledParticles, MSolver->GetEvolution()->GetParticles().GetAllParticlesView().Num() - MSolver->GetEvolution()->GetParticles().GetNonDisabledView().Num());
 				SET_DWORD_STAT(STAT_ChaosCounter_NumParticles, MSolver->GetEvolution()->GetParticles().GetNonDisabledView().Num());
 				SET_DWORD_STAT(STAT_ChaosCounter_NumDynamicParticles, MSolver->GetEvolution()->GetParticles().GetNonDisabledDynamicView().Num());
+				SET_DWORD_STAT(STAT_ChaosCounter_NumActiveDynamicParticles, MSolver->GetEvolution()->GetParticles().GetActiveParticlesView().Num());
 				SET_DWORD_STAT(STAT_ChaosCounter_NumKinematicParticles, MSolver->GetEvolution()->GetParticles().GetActiveKinematicParticlesView().Num());
 				SET_DWORD_STAT(STAT_ChaosCounter_NumStaticParticles, MSolver->GetEvolution()->GetParticles().GetActiveStaticParticlesView().Num());
 				SET_DWORD_STAT(STAT_ChaosCounter_NumGeometryCollectionParticles, MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles().Size());
