@@ -199,25 +199,8 @@ public:
 
 	// Explicitly non-virtual.  Must cast to derived types to target their implementation.
 	FVec3 Normal(const FVec3& x) const;
-
-	// Find the closest point on the surface, and return the separating distance and axis
 	virtual FReal PhiWithNormal(const FVec3& x, FVec3& Normal) const = 0;
-
-	// Find the closest point on the surface, and return the separating distance and axis
-	virtual FReal PhiWithNormalScaled(const FVec3& Pos, const FVec3& Scale, FVec3& Normal) const
-	{
-		// @todo(chaos): implement for all derived types - this is not a valid solution
-		const FVec3 UnscaledX = Pos / Scale;
-		FVec3 UnscaledNormal;
-		const FReal UnscaledPhi = PhiWithNormal(UnscaledX, UnscaledNormal);
-		Normal = Scale * UnscaledNormal;
-		const FReal ScaleFactor = Normal.SafeNormalize();
-		const FReal ScaledPhi = UnscaledPhi * ScaleFactor;
-		return ScaledPhi;
-	}
-
-	virtual const FAABB3 BoundingBox() const;
-
+	virtual const class TAABB<FReal, 3> BoundingBox() const;
 	bool HasBoundingBox() const { return bHasBoundingBox; }
 
 	bool IsConvex() const { return bIsConvex; }

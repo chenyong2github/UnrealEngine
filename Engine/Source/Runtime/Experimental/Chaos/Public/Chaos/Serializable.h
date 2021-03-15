@@ -64,12 +64,6 @@ TSerializablePtr<Ret> MakeSerializable(const TUniquePtr<T>& Unique)
 }
 
 template <typename T>
-TSerializablePtr<T> MakeSerializable(const TSerializablePtr<T>& P)
-{
-	return P;
-}
-
-template <typename T>
 TSerializablePtr<T> MakeSerializable(const TUniquePtr<T>&& Unique) = delete;
 
 template <typename Ret, typename T>

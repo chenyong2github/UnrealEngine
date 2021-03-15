@@ -702,46 +702,38 @@ namespace ChaosTest {
 		}
 	}
 
-	TArray<FVec3> MakeBoxVerts(const FVec3& Center, const FVec3& HalfSize)
+	TArray<FVec3> MakeBoxVerts(const FVec3& HalfSize)
 	{
 		return
 		{
-			Center + FVec3(-HalfSize.X, -HalfSize.Y, -HalfSize.Z),
-			Center + FVec3(-HalfSize.X,  HalfSize.Y, -HalfSize.Z),
-			Center + FVec3(HalfSize.X,  HalfSize.Y, -HalfSize.Z),
-			Center + FVec3(HalfSize.X, -HalfSize.Y, -HalfSize.Z),
-			Center + FVec3(-HalfSize.X, -HalfSize.Y,  HalfSize.Z),
-			Center + FVec3(-HalfSize.X,  HalfSize.Y,  HalfSize.Z),
-			Center + FVec3(HalfSize.X,  HalfSize.Y,  HalfSize.Z),
-			Center + FVec3(HalfSize.X, -HalfSize.Y,  HalfSize.Z),
+			FVec3(-HalfSize.X, -HalfSize.Y, -HalfSize.Z),
+			FVec3(-HalfSize.X,  HalfSize.Y, -HalfSize.Z),
+			FVec3(HalfSize.X,  HalfSize.Y, -HalfSize.Z),
+			FVec3(HalfSize.X, -HalfSize.Y, -HalfSize.Z),
+			FVec3(-HalfSize.X, -HalfSize.Y,  HalfSize.Z),
+			FVec3(-HalfSize.X,  HalfSize.Y,  HalfSize.Z),
+			FVec3(HalfSize.X,  HalfSize.Y,  HalfSize.Z),
+			FVec3(HalfSize.X, -HalfSize.Y,  HalfSize.Z),
 		};
 	}
 
 	FImplicitConvex3 CreateConvexBox(const FVec3& BoxSize, const FReal Margin)
 	{
 		const FVec3 HalfSize = 0.5f * BoxSize;
-		return FImplicitConvex3(MakeBoxVerts(FVec3(0), HalfSize), Margin);
+		return FImplicitConvex3(MakeBoxVerts(HalfSize), Margin);
 	}
-
-	FImplicitConvex3 CreateConvexBox(const FVec3& BoxMin, const FVec3& BoxMax, const FReal Margin)
-	{
-		const FVec3 Center = 0.5f * (BoxMin + BoxMax);
-		const FVec3 HalfSize = 0.5f * (BoxMax - BoxMin);
-		return FImplicitConvex3(MakeBoxVerts(Center, HalfSize), Margin);
-	}
-
 
 	TImplicitObjectInstanced<FImplicitConvex3> CreateInstancedConvexBox(const FVec3& BoxSize, const FReal Margin)
 	{
 		const FVec3 HalfSize = 0.5f * BoxSize;
-		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(MakeBoxVerts(FVec3(0), HalfSize), 0.0f);
+		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(MakeBoxVerts(HalfSize), 0.0f);
 		return TImplicitObjectInstanced<FImplicitConvex3>(BoxConvex, Margin);
 	}
 
 	TImplicitObjectScaled<FImplicitConvex3> CreateScaledConvexBox(const FVec3& BoxSize, const FVec3 BoxScale, const FReal Margin)
 	{
 		const FVec3 HalfSize = 0.5f * BoxSize;
-		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(MakeBoxVerts(FVec3(0), HalfSize), 0.0f);
+		TSharedPtr<FImplicitConvex3, ESPMode::ThreadSafe> BoxConvex = MakeShared<FImplicitConvex3, ESPMode::ThreadSafe>(MakeBoxVerts(HalfSize), 0.0f);
 		return TImplicitObjectScaled<FImplicitConvex3>(BoxConvex, BoxScale, Margin);
 	}
 

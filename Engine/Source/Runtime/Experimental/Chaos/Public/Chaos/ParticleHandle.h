@@ -1484,10 +1484,8 @@ class CHAOS_API FConstGenericParticleHandle
 {
 public:
 	FConstGenericParticleHandle(const FGeometryParticleHandle* InHandle) : Imp(const_cast<FGeometryParticleHandle*>(InHandle)) {}
-	FConstGenericParticleHandle(const FGenericParticleHandle InHandle) : Imp(InHandle->Handle()) {}
 
 	const FGenericParticleHandleHandleImp* operator->() const { return &Imp; }
-	const FGenericParticleHandleHandleImp* Get() const { return &Imp; }
 
 private:
 	const FGenericParticleHandleHandleImp Imp;

@@ -153,42 +153,6 @@ namespace Chaos
 		return ClosestEdgePosition;
 	}
 
-	bool FConvex::GetClosestEdgeVertices(int32 PlaneIndex, const FVec3& Position, int32& OutVertexIndex0, int32& OutVertexIndex1) const
-	{
-		OutVertexIndex0 = INDEX_NONE;
-		OutVertexIndex1 = INDEX_NONE;
-
-		FReal ClosestDistanceSq = FLT_MAX;
-		const int32 PlaneVerticesNum = NumPlaneVertices(PlaneIndex);
-		if (PlaneVerticesNum > 0)
-		{
-			int32 VertexIndex0 = GetPlaneVertex(PlaneIndex, PlaneVerticesNum - 1);
-			FVec3 P0 = GetVertex(VertexIndex0);
-
-			for (int32 PlaneVertexIndex = 0; PlaneVertexIndex < PlaneVerticesNum; ++PlaneVertexIndex)
-			{
-				const int32 VertexIndex1 = GetPlaneVertex(PlaneIndex, PlaneVertexIndex);
-				const FVec3 P1 = GetVertex(VertexIndex1);
-
-				const FVec3 EdgePosition = FMath::ClosestPointOnLine(P0, P1, Position);
-				const FReal EdgeDistanceSq = (EdgePosition - Position).SizeSquared();
-
-				if (EdgeDistanceSq < ClosestDistanceSq)
-				{
-					OutVertexIndex0 = VertexIndex0;
-					OutVertexIndex1 = VertexIndex1;
-					ClosestDistanceSq = EdgeDistanceSq;
-				}
-
-				VertexIndex0 = VertexIndex1;
-				P0 = P1;
-			}
-			return true;
-		}
-		return false;
-	}
-
-
 	int32 FConvex::NumVertexPlanes(int32 VertexIndex) const
 	{
 		if (StructureData.IsValid())

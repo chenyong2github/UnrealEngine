@@ -3104,8 +3104,7 @@ void FBodyInstance::UpdateMassProperties()
 						FTransform RelTM;
 					};
 
-					// If we have welded children we must compute the mass properties of each individual body first and then combine them 
-					// all together because each welded body may have different density etc
+					//If we have welded children we must compute the mass properties of each individual body first and then combine them all together
 					TMap<FBodyInstance*, FWeldedBatch> BodyToShapes;
 
 					for (const FPhysicsShapeHandle& Shape : Shapes) //sort all welded children by their original bodies
@@ -3141,23 +3140,14 @@ void FBodyInstance::UpdateMassProperties()
 					{
 						const FBodyInstance* OwningBI = BodyShapesItr.Key;
 						const FWeldedBatch& WeldedBatch = BodyShapesItr.Value;
-
-						// The component scale is already built into the geometry, but if the user has set up a CoM
-						// modifier, it will need to be transformed by the component scale and the welded child's relative transform.
 						FTransform MassModifierTransform = WeldedBatch.RelTM;
-						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);
+						MassModifierTransform.SetScale3D(MassModifierTransform.GetScale3D() * Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 
 						Chaos::FMassProperties BodyMassProperties = BodyUtils::ComputeMassProperties(OwningBI, WeldedBatch.Shapes, MassModifierTransform);
 						SubMassProperties.Add(BodyMassProperties);
 					}
 
-					// Combine all the child inertias
-					// NOTE: These leaves the inertia in diagonal form with a rotation of mass
-					if (SubMassProperties.Num() > 0)
-					{
-						TotalMassProperties = Chaos::Combine(SubMassProperties);
-					}
-
+					TotalMassProperties = Chaos::Combine(SubMassProperties);
 #elif PHYSICS_INTERFACE_PHYSX
 					TArray<PxMassProperties> SubMassProperties;
 					TArray<PxTransform> MassTMs;
@@ -3179,32 +3169,27 @@ void FBodyInstance::UpdateMassProperties()
 				else
 				{
 					// If we have no shapes that affect mass we cannot compute the mass properties in a meaningful way.
-					if (Shapes.Num() > 0)
+					if (Shapes.Num())
 					{
-						// The component scale is already built into the geometry, but if the user has set up a CoM
-						// modifier, it will need to be transformed by the component scale.
-						FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);
+						//No children welded so just get this body's mass properties
+						FTransform MassModifierTransform(FQuat::Identity, FVector(0.f, 0.f, 0.f), Scale3D);	//Ensure that any scaling that is done on the component is passed into the mass frame modifiers
 						TotalMassProperties = BodyUtils::ComputeMassProperties(this, Shapes, MassModifierTransform);
-
-						// Make the inertia diagonal and calculate the rotation of mass
-						TotalMassProperties.RotationOfMass = Chaos::TransformToLocalSpace(TotalMassProperties.InertiaTensor);
 					}
 				}
 
 				// #PHYS2 Refactor out PxMassProperties (Our own impl?)
 #if WITH_CHAOS
-				// Note: We expect the inertia to be diagonal at this point
 				// Only set mass properties if inertia tensor is valid. TODO Remove this once we track down cause of empty tensors.
-				// (This can happen if all shapes have bContributeToMass set to false which gives an empty Shapes array. There may be other ways).
 				const float InertiaTensorTrace = (TotalMassProperties.InertiaTensor.M[0][0] + TotalMassProperties.InertiaTensor.M[1][1] + TotalMassProperties.InertiaTensor.M[2][2]) / 3;
 				if (CHAOS_ENSURE(InertiaTensorTrace > SMALL_NUMBER))
 				{
+					const Chaos::TRotation<float, 3> Rotation = Chaos::TransformToLocalSpace(TotalMassProperties.InertiaTensor);
 					const FVector MassSpaceInertiaTensor(TotalMassProperties.InertiaTensor.M[0][0], TotalMassProperties.InertiaTensor.M[1][1], TotalMassProperties.InertiaTensor.M[2][2]);
 					FPhysicsInterface::SetMassSpaceInertiaTensor_AssumesLocked(Actor, MassSpaceInertiaTensor);
 
 					FPhysicsInterface::SetMass_AssumesLocked(Actor, TotalMassProperties.Mass);
 
-					FTransform Com(TotalMassProperties.RotationOfMass, TotalMassProperties.CenterOfMass);
+					FTransform Com(Rotation, TotalMassProperties.CenterOfMass);
 					FPhysicsInterface::SetComLocalPose_AssumesLocked(Actor, Com);
 				}
 #else

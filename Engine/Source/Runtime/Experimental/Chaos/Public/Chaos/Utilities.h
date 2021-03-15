@@ -490,7 +490,7 @@ namespace Chaos
 			const FReal EpsilonSq = Epsilon * Epsilon;
 			const FVec3 D1 = Q1 - P1;
 			const FVec3 D2 = Q2 - P2;
-			const FVec3 R = P1 - P2;
+			const FVec3 R = P2 - Q2;
 			const FReal A = FVec3::DotProduct(D1, D1);
 			const FReal B = FVec3::DotProduct(D1, D2);
 			const FReal C = FVec3::DotProduct(D1, R);
@@ -516,7 +516,6 @@ namespace Chaos
 			}
 			else
 			{
-				// Non-degenrate case - we have two lines
 				const FReal Denom = A * E - B * B;
 				if (Denom != 0.0f)
 				{

@@ -14,13 +14,13 @@ namespace Chaos
 {
 	class FImplicitObject;
 	class FPBDCollisionConstraintHandle;
-	class FConstGenericParticleHandle;
 
 	class CHAOS_API FManifoldPoint
 	{
 	public:
 		FManifoldPoint() 
 			: CoMContactPoints{ FVec3(0), FVec3(0) }
+			, PrevCoMContactPoints{ FVec3(0), FVec3(0) }
 			, CoMContactNormal(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
@@ -37,6 +37,7 @@ namespace Chaos
 		FManifoldPoint(const FContactPoint& InContactPoint) 
 			: ContactPoint(InContactPoint)
 			, CoMContactPoints{ FVec3(0), FVec3(0) }
+			, PrevCoMContactPoints{ FVec3(0), FVec3(0) }
 			, CoMContactNormal(0)
 			, NetImpulse(0)
 			, NetPushOut(0)
@@ -53,6 +54,7 @@ namespace Chaos
 		// @todo(chaos): Normal and plane owner should be per manifold, not per manifold-point when we are not using incremental manifolds any more
 		FContactPoint ContactPoint;			// Shape-space data from low-level collision detection
 		FVec3 CoMContactPoints[2];			// CoM-space contact points on the two bodies core shapes (not including margin)
+		FVec3 PrevCoMContactPoints[2];		// CoM-space contact points on the two bodies core shapes at previous transforms (used for static friction)
 		FVec3 CoMContactNormal;				// CoM-space contact normal relative to ContactNormalOwner body	
 		FVec3 NetImpulse;					// Total impulse applied by this contact point
 		FVec3 NetPushOut;					// Total pushout applied at this contact point
@@ -281,13 +283,12 @@ namespace Chaos
 			const FRotation3& Q0,
 			const FVec3& P1,
 			const FRotation3& Q1);
-		void CalculatePrevCoMContactPoints(
-			const FConstGenericParticleHandle Particle0,
-			const FConstGenericParticleHandle Particle1,
+		void UpdatePrevCoMContactPoints(
 			FManifoldPoint& ManifoldPoint,
-			FReal Dt,
-			FVec3& OutPrevCoMContactPoint0,
-			FVec3& OutPrevCoMContactPoint1) const;
+			const FVec3& XCoM0,
+			const FRotation3& RCoM0,
+			const FVec3& XCoM1,
+			const FRotation3& RCoM1);
 
 		void AddIncrementalManifoldContact(const FContactPoint& ContactPoint, const FReal Dt);
 		void AddOneshotManifoldContact(const FContactPoint& ContactPoint, const FReal Dt);
@@ -320,8 +321,7 @@ namespace Chaos
 		void UpdateManifoldPoint(int32 ManifoldPointIndex, const FContactPoint& ContactPoint, const FReal Dt);
 		void SetActiveContactPoint(const FContactPoint& ContactPoint);
 
-		// @todo(chaos): Switching this to inline allocator does not help, but maybe a physics scratchpad would
-		//TArray<FManifoldPoint, TInlineAllocator<4>> ManifoldPoints;
+		// @todo(chaos): inline array
 		TArray<FManifoldPoint> ManifoldPoints;
 		bool bUseManifold;
 	};
