@@ -388,8 +388,11 @@ bool FPhysicsReplication::ApplyRigidBodyState(float DeltaSeconds, FBodyInstance*
 
 	if (bShouldSleep)
 	{
-		//question: should this be here in async mode?
-		BI->PutInstanceToSleep();
+		// In the async case, we apply sleep state in ApplyAsyncDesiredState
+		if (AsyncCallback == nullptr)
+		{
+			BI->PutInstanceToSleep();
+		}
 	}
 
 	PhysicsTarget.PrevPosTarget = TargetPos;
