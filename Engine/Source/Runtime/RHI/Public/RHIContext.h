@@ -751,6 +751,8 @@ public:
 	}
 #endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
 
+	virtual void RHIFlushValidationOps() {}
+
 	protected:
 		FRHIRenderPassInfo RenderPassInfo;
 };

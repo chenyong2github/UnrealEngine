@@ -2239,6 +2239,15 @@ FRHICOMMAND_MACRO(FRHICommandSetRayTracingBindings)
 };
 #endif // RHI_RAYTRACING
 
+#if ENABLE_RHI_VALIDATION
+
+FRHICOMMAND_MACRO(FRHICommandFlushValidationOps)
+{
+	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+#endif
+
 // Using variadic macro because some types are fancy template<A,B> stuff, which gets broken off at the comma and interpreted as multiple arguments. 
 #define ALLOC_COMMAND(...) new ( AllocCommand(sizeof(__VA_ARGS__), alignof(__VA_ARGS__)) ) __VA_ARGS__
 #define ALLOC_COMMAND_CL(RHICmdList, ...) new ( (RHICmdList).AllocCommand(sizeof(__VA_ARGS__), alignof(__VA_ARGS__)) ) __VA_ARGS__
@@ -4490,7 +4499,19 @@ public:
 		 
 		return GDynamicRHI->RHIFlushResources();
 	}
-	
+
+	FORCEINLINE_DEBUGGABLE void FlushValidationOps()
+	{
+#if ENABLE_RHI_VALIDATION
+		if (Bypass())
+		{
+			GetContext().RHIFlushValidationOps();
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandFlushValidationOps)();
+#endif
+	}
+
 	FORCEINLINE uint32 GetGPUFrameCycles()
 	{
 		return RHIGetGPUFrameCycles(GetGPUMask().ToIndex());

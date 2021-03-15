@@ -968,6 +968,11 @@ public:
 		RHIContext->RHISetRayTracingMissShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData);
 	}
 
+	virtual void RHIFlushValidationOps() override final
+	{
+		RHIValidation::FTracker::ReplayOpQueue(ERHIPipeline::Graphics, Tracker->Finalize());
+	}
+
 	void SetupDrawing()
 	{
 		// nothing to validate right now
