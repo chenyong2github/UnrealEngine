@@ -164,35 +164,35 @@ bool FWorldPartitionLevelHelper::LoadActors(ULevel* InDestLevel, TArrayView<FWor
 		FName ActorName = *FPaths::GetExtension(PackageObjectMapping.Path.ToString());
 
 		FLoadPackageAsyncDelegate CompletionCallback = FLoadPackageAsyncDelegate::CreateLambda([LoadProgress, ActorName, bLoadForPlay, InDestLevel, InCompletionCallback](const FName& LoadedPackageName, UPackage* LoadedPackage, EAsyncLoadingResult::Type Result)
+		{
+			check(LoadProgress->NumPendingLoadRequests);
+			LoadProgress->NumPendingLoadRequests--;
+
+			AActor* Actor = LoadedPackage ? FindObject<AActor>(LoadedPackage, *ActorName.ToString()) : nullptr;
+
+			if (Actor)
 			{
-				check(LoadProgress->NumPendingLoadRequests);
-				LoadProgress->NumPendingLoadRequests--;
-				if (LoadedPackage)
+				if (bLoadForPlay)
 				{
-					AActor* Actor = FindObject<AActor>(LoadedPackage, *ActorName.ToString());
-
-					check(Actor);
-					if (bLoadForPlay)
-					{
-						check(Actor->IsPackageExternal());
-						InDestLevel->Actors.Add(Actor);
-						check(Actor->GetLevel() == InDestLevel);
-					}
+					check(Actor->IsPackageExternal());
+					InDestLevel->Actors.Add(Actor);
+					check(Actor->GetLevel() == InDestLevel);
+				}
 								
-					UE_LOG(LogEngine, Verbose, TEXT(" ==> Loaded %s (remaining: %d)"), *Actor->GetFullName(), LoadProgress->NumPendingLoadRequests);
-				}
-				else
-				{
-					UE_LOG(LogEngine, Warning, TEXT("Failed to load %s"), *LoadedPackageName.ToString());
-					//@todo_ow: cumulate and process when NumPendingActorRequests == 0
-					LoadProgress->NumFailedLoadedRequests++;
-				}
+				UE_LOG(LogEngine, Verbose, TEXT(" ==> Loaded %s (remaining: %d)"), *Actor->GetFullName(), LoadProgress->NumPendingLoadRequests);
+			}
+			else
+			{
+				UE_LOG(LogEngine, Warning, TEXT("Failed to load %s"), *LoadedPackageName.ToString());
+				//@todo_ow: cumulate and process when NumPendingActorRequests == 0
+				LoadProgress->NumFailedLoadedRequests++;
+			}
 
-				if (!LoadProgress->NumPendingLoadRequests)
-				{
-					InCompletionCallback(!LoadProgress->NumFailedLoadedRequests);
-				}
-			});
+			if (!LoadProgress->NumPendingLoadRequests)
+			{
+				InCompletionCallback(!LoadProgress->NumFailedLoadedRequests);
+			}
+		});
 
 
 		FPackagePath PackagePath = FPackagePath::FromPackageNameChecked(*ActorPackageName);
