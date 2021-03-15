@@ -39,12 +39,9 @@ bool UWorldPartitionRuntimeHash::GenerateRuntimeStreaming(EWorldPartitionStreami
 
 void UWorldPartitionRuntimeHash::OnBeginPlay(EWorldPartitionStreamingMode Mode)
 {
-	if (Mode == EWorldPartitionStreamingMode::PIE)
-	{
-		// Mark always loaded actors so that the Level will force reference to these actors for PIE.
-		// These actor will then be duplicated for PIE during the PIE world duplication process
-		ForceExternalActorLevelReference(/*bForceExternalActorLevelReferenceForPIE*/true);
-	}
+	// Mark always loaded actors so that the Level will force reference to these actors for PIE.
+	// These actor will then be duplicated for PIE during the PIE world duplication process
+	ForceExternalActorLevelReference(/*bForceExternalActorLevelReferenceForPIE*/true);
 }
 
 void UWorldPartitionRuntimeHash::OnEndPlay()
@@ -60,11 +57,14 @@ void UWorldPartitionRuntimeHash::OnEndPlay()
 
 void UWorldPartitionRuntimeHash::ForceExternalActorLevelReference(bool bForceExternalActorLevelReferenceForPIE)
 {
-	for (const FAlwaysLoadedActorForPIE& AlwaysLoadedActor : AlwaysLoadedActorsForPIE)
+	if (!IsRunningGame())
 	{
-		if (AActor* Actor = AlwaysLoadedActor.Actor)
+		for (const FAlwaysLoadedActorForPIE& AlwaysLoadedActor : AlwaysLoadedActorsForPIE)
 		{
-			Actor->SetForceExternalActorLevelReferenceForPIE(bForceExternalActorLevelReferenceForPIE);
+			if (AActor* Actor = AlwaysLoadedActor.Actor)
+			{
+				Actor->SetForceExternalActorLevelReferenceForPIE(bForceExternalActorLevelReferenceForPIE);
+			}
 		}
 	}
 }

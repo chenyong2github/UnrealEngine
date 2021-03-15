@@ -456,20 +456,30 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 		return false;
 	}
 
+	// Fix case where StreamingGrids might have been persisted.
+	StreamingGrids.Empty();
+
+	// Create actor clusters
+	FActorClusterContext Context(WorldPartition, this);
+
+	// Append grids from ASpatialHashRuntimeGridInfo actors to runtime spatial hash grids
 	TArray<FSpatialHashRuntimeGrid> AllGrids;
 	AllGrids.Append(Grids);
 
-	// Append grids from runtime grid actors
-	for (AActor* Actor : GetWorld()->PersistentLevel->Actors)
+	FActorContainerInstance* ContainerInstance = Context.GetClusterInstance(WorldPartition);
+	check(ContainerInstance);
+	for (auto& ActorDescViewPair : ContainerInstance->ActorDescViewMap)
 	{
-		if (ASpatialHashRuntimeGridInfo* RuntimeGridActor = Cast<ASpatialHashRuntimeGridInfo>(Actor))
+		FWorldPartitionActorDescView& ActorDescView = ActorDescViewPair.Value;
+		if (ActorDescView.GetActorClass()->IsChildOf<ASpatialHashRuntimeGridInfo>())
 		{
-			AllGrids.Add(RuntimeGridActor->GridSettings);
+			FWorldPartitionReference Ref(WorldPartition, ActorDescView.GetGuid());
+			if (ASpatialHashRuntimeGridInfo* RuntimeGridActor = Cast<ASpatialHashRuntimeGridInfo>(Ref->GetActor()))
+			{
+				AllGrids.Add(RuntimeGridActor->GridSettings);
+			}
 		}
 	}
-
-	// Fix case where StreamingGrids might have been persisted.
-	StreamingGrids.Empty();
 
 	TMap<FName, int32> GridsMapping;
 	GridsMapping.Add(NAME_None, 0);
@@ -479,9 +489,6 @@ bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreami
 		check(!GridsMapping.Contains(Grid.GridName));
 		GridsMapping.Add(Grid.GridName, i);
 	}
-
-	// Create actor clusters
-	FActorClusterContext Context(WorldPartition, this);
 
 	TArray<TArray<const FActorClusterInstance*>> GridActors;
 	GridActors.InsertDefaulted(0, AllGrids.Num());
