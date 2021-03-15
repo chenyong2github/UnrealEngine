@@ -17,7 +17,7 @@ public:
 
 	UFracturePlaneCutSettings(const FObjectInitializer& ObjInit)
 		: Super(ObjInit)
-		, NumberPlanarCuts(3) {}
+		, NumberPlanarCuts(1) {}
 
 	/** Number of Clusters - Cluster Voronoi Method */
 	UPROPERTY(EditAnywhere, Category = PlaneCut, meta = (DisplayName = "Number of Cuts", UIMin = "1", UIMax = "20", ClampMin = "1"))
