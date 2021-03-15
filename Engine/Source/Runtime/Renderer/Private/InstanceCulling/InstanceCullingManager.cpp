@@ -109,7 +109,7 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 	TArray<uint32> NullArray;
 	NullArray.AddZeroed(1);
 
-	CullingIntermediate.InstanceIdOutOffsetBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("OutputOffsetBufferOut"), NullArray);
+	CullingIntermediate.InstanceIdOutOffsetBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.OutputOffsetBufferOut"), NullArray);
 
 	int32 NumViews = CullingViews.Num();
 	int32 NumInstances = GPUScene.InstanceDataAllocator.GetMaxSize();
@@ -121,7 +121,7 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 	if (NumInstances && NumViews)
 	{
 		// Create a buffer to record one bit for each instance per view
-		CullingIntermediate.VisibleInstanceFlags = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumInstanceFlagWords * NumViews), TEXT("VisibleInstanceFlags"));
+		CullingIntermediate.VisibleInstanceFlags = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumInstanceFlagWords * NumViews), TEXT("InstanceCulling.VisibleInstanceFlags"));
 		FRDGBufferUAVRef VisibleInstanceFlagsUAV = GraphBuilder.CreateUAV(CullingIntermediate.VisibleInstanceFlags);
 
 		if (CVarCullInstances.GetValueOnRenderThread() != 0)
@@ -136,7 +136,7 @@ void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene
 			PassParameters->NumInstances = NumInstances;
 			PassParameters->NumInstanceFlagWords = NumInstanceFlagWords;
 
-			PassParameters->InViews = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("CullingViews"), CullingViews));
+			PassParameters->InViews = GraphBuilder.CreateSRV(CreateStructuredBuffer(GraphBuilder, TEXT("InstanceCulling.CullingViews"), CullingViews));
 			PassParameters->NumViews = NumViews;
 
 
