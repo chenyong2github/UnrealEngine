@@ -15,22 +15,8 @@
 bool FSocketBSD::Shutdown(ESocketShutdownMode Mode)
 {
 	int InternalMode = 0;
-
-#if PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS
 	// Windows uses different constants than POSIX
-	switch (Mode)
-	{
-		case ESocketShutdownMode::Read:
-			InternalMode = SD_RECEIVE;
-			break;
-		case ESocketShutdownMode::Write:
-			InternalMode = SD_SEND;
-			break;
-		case ESocketShutdownMode::ReadWrite:
-			InternalMode = SD_BOTH;
-			break;
-	}
-#else
+#if !PLATFORM_HAS_BSD_SOCKET_FEATURE_WINSOCKETS
 	switch (Mode)
 	{
 		case ESocketShutdownMode::Read:
@@ -44,7 +30,6 @@ bool FSocketBSD::Shutdown(ESocketShutdownMode Mode)
 			break;
 	}
 #endif
-
 	return shutdown(Socket, InternalMode) == 0;
 }
 
@@ -236,6 +221,11 @@ bool FSocketBSD::RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FInte
 	}
 
 	return bSuccess;
+}
+
+bool FSocketBSD::RecvFromWithPktInfo(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, FInternetAddr& Destination, ESocketReceiveFlags::Type Flags)
+{
+	return false;
 }
 
 bool FSocketBSD::Recv(uint8* Data, int32 BufferSize, int32& BytesRead, ESocketReceiveFlags::Type Flags)
@@ -586,6 +576,17 @@ int32 FSocketBSD::GetPortNo(void)
 
 	// Convert big endian port to native endian port.
 	return ntohs(((sockaddr_in&)Addr).sin_port);
+}
+
+bool FSocketBSD::SetIpPktInfo(bool bEnable)
+{
+	int Opt = bEnable ? 1 : 0;
+	if (setsockopt(Socket, IPPROTO_IP, IP_PKTINFO, (char*)&Opt, sizeof(Opt)) != 0)
+	{
+		UE_LOG(LogSockets, Error, TEXT("Failed to set sock IP_PKTINFO for socket (%s)"), SocketSubsystem->GetSocketError());
+		return false;
+	}
+	return true;
 }
 
 bool FSocketBSD::SetIPv6Only(bool bIPv6Only)

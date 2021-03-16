@@ -132,6 +132,8 @@ public:
 	virtual bool SetSendBufferSize(int32 Size,int32& NewSize) override;
 	virtual bool SetReceiveBufferSize(int32 Size,int32& NewSize) override;
 	virtual int32 GetPortNo() override;
+	virtual bool SetIpPktInfo(bool bEnable) override;
+	virtual bool RecvFromWithPktInfo(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, FInternetAddr& Destination, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None) override;
 
 	bool SetIPv6Only(bool bIPv6Only);
 

@@ -73,7 +73,7 @@ void FSocketSubsystemWindows::Destroy()
 
 FSocket* FSocketSubsystemWindows::CreateSocket(const FName& SocketType, const FString& SocketDescription, const FName& ProtocolType)
 {
-	FSocketBSD* NewSocket = (FSocketBSD*)FSocketSubsystemBSD::CreateSocket(SocketType, SocketDescription, ProtocolType);
+	FSocketWindows* NewSocket = (FSocketWindows*)FSocketSubsystemBSD::CreateSocket(SocketType, SocketDescription, ProtocolType);
 
 	if (NewSocket != nullptr)
 	{
@@ -267,4 +267,10 @@ bool FSocketSubsystemWindows::HasNetworkDevice()
 const TCHAR* FSocketSubsystemWindows::GetSocketAPIName() const
 {
 	return TEXT("WinSock");
+}
+
+FSocketBSD* FSocketSubsystemWindows::InternalBSDSocketFactory(SOCKET Socket, ESocketType SocketType, const FString& SocketDescription, const FName& SocketProtocol)
+{
+	// return a new socket object
+	return new FSocketWindows(Socket, SocketType, SocketDescription, SocketProtocol, this);
 }

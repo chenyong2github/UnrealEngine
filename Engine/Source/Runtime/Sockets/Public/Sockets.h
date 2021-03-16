@@ -421,6 +421,31 @@ public:
 	virtual int32 GetPortNo() = 0;
 
 	/**
+	 * Sets whether to enable IP_PKTINFO support
+	 *
+	 * @param bEnable	Whether to enable/disable
+	 * @return True if the call succeeded, false otherwise.
+	 */
+	virtual bool SetIpPktInfo(bool bEnable);
+
+	/**
+	 * Reads a chunk of data from the socket and gathers the source address and the destination using IP_PKTINFO
+	 *
+	 * A return value of 'true' does not necessarily mean that data was returned.
+	 * Callers must check the 'BytesRead' parameter for the actual amount of data
+	 * returned. A value of zero indicates that there was no data available for reading.
+	 *
+	 * @param Data The buffer to read into.
+	 * @param BufferSize The max size of the buffer.
+	 * @param BytesRead Will indicate how many bytes were read from the socket.
+	 * @param Source Will contain the receiving the address of the sender of the data.
+	 * @param Destination Will contain the destination address used by the sender of the data.
+	 * @param Flags The receive flags.
+	 * @return true on success, false in case of a closed socket or an unrecoverable error.
+	 */
+	virtual bool RecvFromWithPktInfo(uint8* Data, int32 BufferSize, int32& BytesRead, FInternetAddr& Source, FInternetAddr& Destination, ESocketReceiveFlags::Type Flags = ESocketReceiveFlags::None);
+
+	/**
 	 * Get the type of protocol the socket is bound to
 	 *
 	 * @return Socket type.
