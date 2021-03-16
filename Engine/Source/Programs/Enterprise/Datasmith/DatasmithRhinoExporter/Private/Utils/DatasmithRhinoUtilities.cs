@@ -14,6 +14,11 @@ namespace DatasmithRhino.Utils
 {
 	public static class DatasmithRhinoUtilities
 	{
+		public static string GetNamedViewHash(ViewInfo NamedView)
+		{
+			return ComputeHashStringFromBytes(SerializeNamedView(NamedView));
+		}
+		
 		public static string GetMaterialHash(Material RhinoMaterial)
 		{
 			return ComputeHashStringFromBytes(SerializeMaterial(RhinoMaterial));
@@ -51,6 +56,25 @@ namespace DatasmithRhino.Utils
 			}
 
 			return Builder.ToString();
+		}
+
+		private static byte[] SerializeNamedView(ViewInfo NamedView)
+		{
+			using (MemoryStream Stream = new MemoryStream())
+			{
+				using (BinaryWriter Writer = new BinaryWriter(Stream))
+				{
+					Writer.Write(NamedView.Name);
+
+					ViewportInfo Viewport = NamedView.Viewport;
+					Writer.Write(Viewport.FrustumAspect);
+					SerializeVector3d(Writer, new Vector3d(Viewport.CameraLocation));
+					SerializeVector3d(Writer, Viewport.CameraDirection);
+					SerializeVector3d(Writer, Viewport.CameraUp);
+					Writer.Write(Viewport.Camera35mmLensLength);
+				}
+				return Stream.ToArray();
+			}
 		}
 
 		private static byte[] SerializeMaterial(Material RhinoMaterial)
@@ -125,6 +149,13 @@ namespace DatasmithRhino.Utils
 			SerializeTransform(Writer, RhinoTexture.UvwTransform);
 		}
 
+		private static void SerializeVector3d(BinaryWriter Writer, Vector3d Vector)
+		{
+			Writer.Write(Vector.X);
+			Writer.Write(Vector.Y);
+			Writer.Write(Vector.Z);
+		}
+
 		private static void SerializeTransform(BinaryWriter Writer, Rhino.Geometry.Transform RhinoTransform)
 		{
 			Writer.Write(RhinoTransform.M00);
@@ -163,6 +194,9 @@ namespace DatasmithRhino.Utils
 
 				case LightObject InLightObject:
 					return GetLightTransform(InLightObject.LightGeometry);
+
+				case ViewportInfo InViewportInfo:
+					return Transform.Translation(new Vector3d(InViewportInfo.CameraLocation));
 
 				default:
 					return Transform.Identity;

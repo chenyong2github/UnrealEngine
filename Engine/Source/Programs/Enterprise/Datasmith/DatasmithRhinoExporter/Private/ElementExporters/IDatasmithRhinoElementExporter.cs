@@ -16,7 +16,7 @@ namespace DatasmithRhino.ElementExporters
 	/// <typeparam name="T">The type of the DatasmithInfoBase for the element we are exporting</typeparam>
 	public abstract class IDatasmithRhinoElementExporter<S, T>
 		where S : IDatasmithRhinoElementExporter<S, T>
-		where T : DatasmithInfoBase<T>
+		where T : DatasmithInfoBase
 	{
 		private static S Singleton = null;
 
