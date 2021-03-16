@@ -228,7 +228,7 @@ void FImportProgressive3D::ImportAsset(TSharedPtr<FJsonObject> AssetImportJson, 
 
 void FImportProgressive3D::HandlePreviewTextureLoad(FAssetData TextureData, FString AssetID,  FString Type)
 {
-	if (PreviewDetails[AssetID]->PreviewInstance == nullptr || !IsValid(PreviewDetails[AssetID]->PreviewInstance))
+	if (!IsValid(PreviewDetails[AssetID]->PreviewInstance))
 	{
 		return;
 	}
