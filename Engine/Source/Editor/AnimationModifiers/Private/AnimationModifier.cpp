@@ -188,12 +188,25 @@ void UAnimationModifier::Serialize(FArchive& Ar)
 
 void UAnimationModifier::PostLoad()
 {
-	Super::PostLoad();	
-	// Ensure we always have a valid guid
-	if (!RevisionGuid.IsValid())
+	Super::PostLoad();
+
+	UClass* Class = GetClass();
+	UObject* DefaultObject = Class->GetDefaultObject();
+
+	// CDO, set GUID if invalid
+	if(DefaultObject == this)
 	{
-		UpdateRevisionGuid(GetClass());
-		MarkPackageDirty();
+		// Ensure we always have a valid guid
+		if (!RevisionGuid.IsValid())
+		{
+			UpdateRevisionGuid(GetClass());
+			MarkPackageDirty();
+		}
+	}
+	// Non CDO, update revision GUID
+	else if(UAnimationModifier* TypedDefaultObject = Cast<UAnimationModifier>(DefaultObject))
+	{
+		RevisionGuid = TypedDefaultObject->RevisionGuid;
 	}
 }
 
@@ -206,11 +219,9 @@ void UAnimationModifier::UpdateRevisionGuid(UClass* ModifierClass)
 {
 	if (ModifierClass)
 	{
-		LoadModifierReferencers(ModifierClass);
-	
 		RevisionGuid = FGuid::NewGuid();
 
-		// Native classes are more difficult?
+		// Apply to any currently loaded instances of this class
 		for (TObjectIterator<UAnimationModifier> It; It; ++It)
 		{
 			if (*It != this && It->GetClass() == ModifierClass)
