@@ -361,6 +361,9 @@ RENDERCORE_API bool ResizeResourceIfNeeded<FRWBufferStructured>(FRHICommandList&
 		FRWBufferStructured NewBuffer;
 		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
 
+		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
 		// Copy data to new buffer
 		uint32 CopyBytes = FMath::Min(NumBytes, Buffer.NumBytes);
 		MemcpyResource(RHICmdList, NewBuffer, Buffer, CopyBytes);
@@ -419,15 +422,20 @@ RENDERCORE_API bool ResizeResourceSOAIfNeeded<FRWBufferStructured>(FRHICommandLi
 		FRWBufferStructured NewBuffer;
 		NewBuffer.Initialize(DebugName, 16, NumBytes / 16, 0);
 
+		RHICmdList.Transition(FRHITransitionInfo(Buffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
+		RHICmdList.Transition(FRHITransitionInfo(NewBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute));
+
 		// Copy data to new buffer
 		uint32 OldArraySize = Buffer.NumBytes / NumArrays;
 		uint32 NewArraySize = NumBytes / NumArrays;
-		
+
+		RHICmdList.BeginUAVOverlap(NewBuffer.UAV);
 		uint32 CopyBytes = FMath::Min(NewArraySize, OldArraySize);
 		for( uint32 i = 0; i < NumArrays; i++ )
 		{
 			MemcpyResource( RHICmdList, NewBuffer, Buffer, CopyBytes, i * NewArraySize, i * OldArraySize );
 		}
+		RHICmdList.EndUAVOverlap(NewBuffer.UAV);
 
 		Buffer = NewBuffer;
 		return true;
