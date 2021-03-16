@@ -39,7 +39,7 @@ struct FLuminComponentSubElement
 	{}
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Component sub-node type"))
-	ELuminComponentSubElementType ElementType;
+	ELuminComponentSubElementType ElementType = ELuminComponentSubElementType::FileExtension;
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Component sub-node value"))
 	FString Value;
@@ -65,7 +65,7 @@ struct FLuminComponentElement
 	FString ExecutableName;
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Component type"))
-	ELuminComponentType ComponentType;
+	ELuminComponentType ComponentType = ELuminComponentType::Universe;
 
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = "Runtime", Meta = (DisplayName = "Extra sub-elements"))
 	TArray<FLuminComponentSubElement> ExtraComponentSubElements;

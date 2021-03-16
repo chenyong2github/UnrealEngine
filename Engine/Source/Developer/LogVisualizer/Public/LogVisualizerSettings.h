@@ -20,15 +20,19 @@ struct FVisualLoggerDBRow;
 USTRUCT()
 struct FCategoryFilter
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	FCategoryFilter() : Enabled(0) {}
+	FCategoryFilter()
+		: LogVerbosity(ELogVerbosity::Type::NoLogging)
+		, Enabled(0)
+		, bIsInUse(0)
+	{}
 
 	UPROPERTY(config)
 	FString CategoryName;
 
 	UPROPERTY(config)
-	int32 LogVerbosity = ELogVerbosity::Type::NoLogging;
+	int32 LogVerbosity;
 
 	UPROPERTY(config)
 	uint32 Enabled : 1;
