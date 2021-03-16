@@ -19,52 +19,6 @@ FSoftObjectPath::FSoftObjectPath(const UObject* InObject)
 	}
 }
 
-void FSoftObjectPath::InitializeFromObjectHandle(FObjectHandle InObjectHandle)
-{
-	if (!IsObjectHandleNull(InObjectHandle))
-	{
-		if (IsObjectHandleResolved(InObjectHandle))
-		{
-			if (UObject* ResolvedObject = ResolveObjectHandle(InObjectHandle))
-			{
-				SetPath(ResolvedObject->GetPathName());
-			}
-		}
-		else
-		{
-			//Try to compose the path without forcing the referenced data to be loaded
-			FObjectRef Ref = MakeObjectRef(InObjectHandle);
-			FObjectPathId::ResolvedNameContainerType ResolvedNames;
-			Ref.ObjectPath.Resolve(ResolvedNames);
-			TStringBuilder<128> CompletePath;
-			CompletePath.Append(Ref.PackageName.ToString());
-			CompletePath.Append(TEXT('.'));
-			for (int32 ResolvedNameIndex = 0; ResolvedNameIndex < ResolvedNames.Num(); ++ResolvedNameIndex)
-			{
-				switch (ResolvedNameIndex)
-				{
-				case 0:
-				{
-					break;
-				}
-				case 1:
-				{
-					CompletePath << SUBOBJECT_DELIMITER_CHAR;
-					break;
-				}
-				default:
-				{
-					CompletePath << '.';
-					break;
-				}
-				}
-				CompletePath << ResolvedNames[ResolvedNameIndex];
-			}
-			SetPath(CompletePath.ToString());
-		}
-	}
-}
-
 FString FSoftObjectPath::ToString() const
 {
 	// Most of the time there is no sub path so we can do a single string allocation

@@ -135,8 +135,15 @@ public:
 
 	// Forcing resolve for null check.  Non null unresolved pointers can become null resolved pointers.
 	FORCEINLINE bool IsNull() const { return ResolveObjectHandle(Handle) == nullptr; }
+	FORCEINLINE bool IsNullNoResolve() const { return IsObjectHandleNull(Handle); }
+
 	FORCEINLINE bool operator!() const { return IsNull(); }
 	explicit FORCEINLINE operator bool() const { return !IsNull(); }
+
+	FORCEINLINE bool IsResolved() const { return IsObjectHandleResolved(Handle); }
+
+	COREUOBJECT_API FString GetPath() const;
+
 	FORCEINLINE FObjectHandle GetHandle() const { return Handle; }
 	FORCEINLINE FObjectHandle& GetHandleRef() const { return Handle; }
 
@@ -294,8 +301,11 @@ public:
 	explicit FORCEINLINE operator T*& () { return GetInternalRef(); }
 
 	using FObjectPtr::IsNull;
+	using FObjectPtr::IsNullNoResolve;
 	using FObjectPtr::operator!;
 	using FObjectPtr::operator bool;
+	using FObjectPtr::IsResolved;
+	using FObjectPtr::GetPath;
 	using FObjectPtr::GetHandle;
 
 	using FObjectPtr::IsA;
