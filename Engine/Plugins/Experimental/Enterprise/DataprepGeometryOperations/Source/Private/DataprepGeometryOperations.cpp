@@ -3,6 +3,7 @@
 #include "DataprepGeometryOperations.h"
 
 #include "DataprepOperationsLibraryUtil.h"
+#include "DataprepAssetUserData.h"
 #include "DynamicMeshAABBTree3.h"
 #include "DynamicMeshToMeshDescription.h"
 #include "DynamicMeshEditor.h"
@@ -659,7 +660,7 @@ void UDataprepPlaneCutOperation::PerformCutting(
 							AStaticMeshActor* NewActor = Cast<AStaticMeshActor>(CreateActor(AStaticMeshActor::StaticClass(), FString()));
 							check(NewActor);
 
-							const AActor* OriginalActor = ComponentTarget->GetOwner<AActor>();
+							AActor* OriginalActor = ComponentTarget->GetOwner<AActor>();
 							check(OriginalActor);
 
 							NewActor->SetActorLabel(OriginalActor->GetActorLabel() + "_Below");
@@ -668,6 +669,37 @@ void UDataprepPlaneCutOperation::PerformCutting(
 
 							// Create new mesh component and set as root of NewActor.
 							UStaticMeshComponent* NewMeshComponent = FinalizeStaticMeshActor(NewActor, NewMeshName, MeshDescription.Get(), Materials.Num(), StaticMesh);
+							
+							NewMeshComponent->SetMobility(ComponentTarget->Mobility);
+							NewMeshComponent->SetVisibility(ComponentTarget->IsVisible());
+							NewMeshComponent->ComponentTags = ComponentTarget->ComponentTags;
+							
+							// Add dataprep user data
+							if (ComponentTarget->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()) && 
+								NewMeshComponent->GetClass()->ImplementsInterface(UInterface_AssetUserData::StaticClass()))
+							{
+								IInterface_AssetUserData* OriginalAssetUserDataInterface = Cast< IInterface_AssetUserData >(ComponentTarget);
+								IInterface_AssetUserData* NewAssetUserDataInterface = Cast< IInterface_AssetUserData >(NewMeshComponent);
+
+								if (OriginalAssetUserDataInterface && NewAssetUserDataInterface)
+								{
+									if (const TArray<UAssetUserData*>* UserDataArray = OriginalAssetUserDataInterface->GetAssetUserDataArray())
+									{
+										for ( UAssetUserData* UserData : *UserDataArray )
+										{
+											if (UserData)
+											{
+												UObject* NewUserDataOuter = (UserData->GetOuter() == ComponentTarget) ? NewMeshComponent : UserData->GetOuter();
+												UAssetUserData* NewUserData = DuplicateObject<UAssetUserData>(UserData, NewUserDataOuter);
+												NewAssetUserDataInterface->AddAssetUserData(NewUserData);
+											}
+										}
+									}
+								}
+							}
+
+							NewActor->Tags = OriginalActor->Tags;
+							NewActor->Layers = OriginalActor->Layers;
 
 							// Keep the newly created actor at the same level in hierarchy as the original one
 							AActor* Parent = OriginalActor->GetAttachParentActor();
