@@ -282,6 +282,10 @@ void FLiveCodingModule::AttemptSyncLivePatching()
 		{
 			LppPendingTokens.RemoveAt(0);
 		}
+		else
+		{
+			return;
+		}
 	}
 
 	// Needs to happen after updating modules, since "Quick Restart" functionality may try to install patch immediately
