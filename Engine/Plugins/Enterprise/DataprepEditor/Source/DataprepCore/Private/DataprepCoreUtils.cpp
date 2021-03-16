@@ -667,7 +667,7 @@ void FDataprepCoreUtils::BuildAssets(const TArray<TWeakObjectPtr<UObject>>& Asse
 	});
 }
 
-bool FDataprepCoreUtils::RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex)
+bool FDataprepCoreUtils::RemoveSteps(UDataprepActionAsset* ActionAsset, const TArray<int32>& Indices, int32& ActionIndex, bool bDiscardParametrization)
 {
 	ActionIndex = INDEX_NONE;
 
@@ -680,10 +680,10 @@ bool FDataprepCoreUtils::RemoveSteps(UDataprepActionAsset* ActionAsset, const TA
 		ActionIndex = DataprepAsset->GetActionIndex(ActionAsset);
 		ensure(ActionIndex != INDEX_NONE);
 
-		return DataprepAsset->RemoveAction(ActionIndex);
+		return DataprepAsset->RemoveAction(ActionIndex, bDiscardParametrization);
 	}
 
-	return ActionAsset->RemoveSteps( Indices );
+	return ActionAsset->RemoveSteps( Indices, bDiscardParametrization );
 }
 
 void FDataprepCoreUtils::GetActorsFromWorld(const UWorld* World, TArray<UObject*>& OutActors)

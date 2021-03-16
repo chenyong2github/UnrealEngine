@@ -1238,6 +1238,20 @@ void UDataprepParameterization::GetExistingParameterNamesForType(FProperty* Prop
 	}
 }
 
+void UDataprepParameterization::DuplicateObjectParamaterization(const UDataprepParameterizableObject* InObject, UDataprepParameterizableObject* OutObject)
+{
+	if (const UDataprepParameterizationBindings::FSetOfBinding* BindingsSet = BindingsContainer->GetBindingsFromObject(InObject))
+	{
+		TArray<TSharedRef<FDataprepParameterizationBinding>> OriginalBindings = BindingsSet->Array();
+
+		for (TSharedRef<FDataprepParameterizationBinding> Binding : OriginalBindings)
+		{
+			const FName ParamName = BindingsContainer->GetParameterNameForBinding(Binding);
+			BindObjectProperty(OutObject, Binding->PropertyChain, ParamName);
+		}
+	}
+}
+
 void UDataprepParameterization::GenerateClass()
 {
 	if ( !CustomContainerClass )

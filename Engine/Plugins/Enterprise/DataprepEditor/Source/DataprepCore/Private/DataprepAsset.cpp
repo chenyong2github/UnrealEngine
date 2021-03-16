@@ -633,14 +633,14 @@ bool UDataprepAsset::SwapActions(int32 FirstActionIndex, int32 SecondActionIndex
 	return true;
 }
 
-bool UDataprepAsset::RemoveAction(int32 Index)
+bool UDataprepAsset::RemoveAction(int32 Index, bool bDiscardParametrization)
 {
 	if ( ActionAssets.IsValidIndex( Index ) )
 	{
 		Modify();
 
 		UDataprepActionAsset* ActionAsset = ActionAssets[Index];
-		if(ActionAsset)
+		if(ActionAsset && bDiscardParametrization)
 		{
 			ActionAsset->NotifyDataprepSystemsOfRemoval();
 		}
@@ -658,7 +658,7 @@ bool UDataprepAsset::RemoveAction(int32 Index)
 	return false;
 }
 
-bool UDataprepAsset::RemoveActions(const TArray<int32>& Indices)
+bool UDataprepAsset::RemoveActions(const TArray<int32>& Indices, bool bDiscardParametrization)
 {
 	bool bHasValidIndices = false;
 	for(int32 Index : Indices)
@@ -687,7 +687,7 @@ bool UDataprepAsset::RemoveActions(const TArray<int32>& Indices)
 			if(ActionAssets.IsValidIndex( Index ))
 			{
 				ActionAsset = ActionAssets[Index];
-				if(ActionAsset)
+				if(ActionAsset && bDiscardParametrization)
 				{
 					ActionAsset->NotifyDataprepSystemsOfRemoval();
 				}

@@ -151,16 +151,18 @@ public:
 	/**
 	 * Remove an action from the Dataprep asset
 	 * @param Index The index of the action to remove
+	 * @param bDiscardParametrization If true, remove parameterization associated with action steps
 	 * @return True if the action was removed
 	 */
-	bool RemoveAction(int32 Index);
+	bool RemoveAction(int32 Index, bool bDiscardParametrization = true);
 
 	/**
 	 * Remove a set of actions from the Dataprep asset
 	 * @param Index The index of the action to remove
+	 * @param bDiscardParametrization If true, remove parameterization associated with action steps
 	 * @return True if the action was removed
 	 */
-	bool RemoveActions(const TArray<int32>& Indices);
+	bool RemoveActions(const TArray<int32>& Indices, bool bDiscardParametrization = true);
 
 	/**
 	 * Allow an observer to be notified of an change in the pipeline
