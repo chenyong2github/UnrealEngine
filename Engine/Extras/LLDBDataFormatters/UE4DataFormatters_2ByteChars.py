@@ -39,6 +39,30 @@ def UE4TCharSummaryProvider(valobj,dict):
         Expr = '(char16_t&)(%s)' % Data
         ValRef = valobj.CreateValueFromExpression('string', Expr)
         Val = ValRef.GetSummary()
+    elif Type.IsArrayType():
+        print "Array"
+        DataVal = valobj.GetChildAtIndex(0).GetValueAsUnsigned(0)
+        print DataVal
+        if DataVal == 0:
+            Val = 'NULL'
+        else:
+            Expr = '(char16_t*)(%s)' % valobj.GetAddress()
+            ValRef = valobj.CreateValueFromExpression('string', Expr)
+            Val = ValRef.GetSummary()
+            print Val
+    return Val
+	
+def UE4SignedCharSummaryProvider(valobj,dict):
+    Data = valobj.GetValue()
+    Val = valobj.GetSummary()
+    Type = valobj.GetType().GetUnqualifiedType()
+    DataVal = valobj.GetValueAsUnsigned(0)
+    if DataVal == 0:
+        Val = 'NULL'
+    else:
+        Expr = '(char*)(%s)' % Data
+        ValRef = valobj.CreateValueFromExpression('string', Expr)
+        Val = ValRef.GetSummary()
     return Val
 
 def UE4FStringSummaryProvider(valobj,dict):
@@ -652,7 +676,8 @@ def UE4MapSummaryProvider(valobj,dict):
     return 'size=%s' % valobj.GetNumChildren()
 
 def __lldb_init_module(debugger,dict):
-    debugger.HandleCommand('type summary add -F UE4DataFormatters_2ByteChars.UE4TCharSummaryProvider -e TCHAR -w UE4DataFormatters')
+    debugger.HandleCommand('type summary add -F UE4DataFormatters_2ByteChars.UE4TCharSummaryProvider -e -x TCHAR -w UE4DataFormatters')
+    debugger.HandleCommand('type summary add -F UE4DataFormatters_2ByteChars.UE4SignedCharSummaryProvider -e "signed char *" -w UE4DataFormatters')
     debugger.HandleCommand('type summary add -F UE4DataFormatters_2ByteChars.UE4FStringSummaryProvider -e -x "FString$" -w UE4DataFormatters')
     debugger.HandleCommand('type summary add -F UE4DataFormatters_2ByteChars.UE4FNameEntrySummaryProvider -e -x "FNameEntry$" -w UE4DataFormatters')
     debugger.HandleCommand('type summary add -F UE4DataFormatters_2ByteChars.UE4FNameSummaryProvider -e -x "FName$" -w UE4DataFormatters')
