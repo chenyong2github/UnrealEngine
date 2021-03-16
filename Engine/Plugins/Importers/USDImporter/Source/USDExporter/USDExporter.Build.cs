@@ -17,30 +17,32 @@ namespace UnrealBuildTool.Rules
 					"Engine",
 					"UnrealUSDWrapper"
 				}
-				);
+			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
                     "EditorStyle",
                     "GeometryCache",
+                    "PropertyEditor",
+                    "RawMesh",
+                    "RenderCore",
+                    "RHI",
 					"InputCore",
 					"JsonUtilities",
+					"LevelSequence",
 					"MaterialBaking", // So that we can use some of the export option properties
 					"MeshDescription",
 					"MeshUtilities",
 					"MessageLog",
-                    "PropertyEditor",
 					"PythonScriptPlugin",
-                    "RawMesh",
-                    "RenderCore",
-                    "RHI",
 					"Slate",
 					"SlateCore",
 					"UnrealEd",
+					"USDClasses",
 					"USDUtilities",
                 }
-				);
+			);
 		}
 	}
 }

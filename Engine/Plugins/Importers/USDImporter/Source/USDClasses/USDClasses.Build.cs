@@ -14,16 +14,20 @@ namespace UnrealBuildTool.Rules
 				{
 					"Core",
 					"CoreUObject",
-					"Engine"
+					"Engine",
+					"Slate",
+					"SlateCore"
 				}
-				);
+			);
 
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"DeveloperSettings"
+					"DeveloperSettings",
+					"InputCore",
+					"MainFrame",
 				}
-				);
+			);
 		}
 	}
 }

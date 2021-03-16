@@ -63,7 +63,7 @@ bool UMaterialExporterUsd::ExportBinary( UObject* Object, const TCHAR* Type, FAr
 			ExportOptions->TexturesDir.Path = FPaths::Combine( FPaths::GetPath( UExporter::CurrentFilename ), TEXT( "Textures" ) );
 		}
 
-		if ( !ExportTask || ( ExportTask && !ExportTask->bAutomated ) )
+		if ( !ExportTask || !ExportTask->bAutomated )
 		{
 			// Use the baking module's options window because it has some useful customizations for FPropertyEntry properties.
 			IMaterialBakingModule& Module = FModuleManager::Get().LoadModuleChecked<IMaterialBakingModule>( TEXT( "MaterialBaking" ) );

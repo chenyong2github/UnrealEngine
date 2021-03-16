@@ -5,6 +5,7 @@
 #include "UnrealUSDWrapper.h"
 #include "USDLevelSequenceHelper.h"
 #include "USDMemory.h"
+#include "USDStageOptions.h"
 
 #include "UsdWrappers/UsdStage.h"
 
@@ -40,7 +41,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 
 	UPROPERTY()
 	UUsdStageImportOptions* ImportOptions;
-	
+
 	/** Keep track of the last imported object so that we have something valid to return to upstream code that calls the import factories */
 	UPROPERTY()
 	UObject* ImportedAsset;
@@ -76,6 +77,7 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 
 	/** We modify the stage with our meters per unit import option on import. If the stage was already open, we use this to undo the changes after import */
 	float OriginalMetersPerUnit;
+	EUsdUpAxis OriginalUpAxis;
 
 public:
 	FUsdStageImportContext();

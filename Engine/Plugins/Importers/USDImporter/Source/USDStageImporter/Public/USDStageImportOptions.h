@@ -3,6 +3,7 @@
 #pragma once
 
 #include "UnrealUSDWrapper.h"
+#include "USDStageOptions.h"
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
@@ -73,8 +74,13 @@ public:
 	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category= "USD options", meta = (DisplayName = "Time"))
 	float ImportTime;
 
-	UPROPERTY(BlueprintReadWrite, config, EditAnywhere, Category = "USD options", meta = (ClampMin = 0.001f, ClampMax = 1000.0f, DisplayName = "Meters per unit"))
-	float MetersPerUnit;
+	/** Whether to use the specified StageOptions instead of the stage's own settings */
+	UPROPERTY( BlueprintReadWrite, config, EditAnywhere, Category = "USD options" )
+	bool bOverrideStageOptions;
+
+	/** Custom StageOptions to use for the stage */
+	UPROPERTY( EditAnywhere, config, BlueprintReadWrite, Category = "USD options", meta = ( EditCondition = bOverrideStageOptions ) )
+	FUsdStageOptions StageOptions;
 
 
 

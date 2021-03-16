@@ -5,8 +5,8 @@
 #include "USDAssetCache.h"
 #include "USDLog.h"
 #include "USDMemory.h"
+#include "USDOptionsWindow.h"
 #include "USDStageImportOptions.h"
-#include "USDStageImportOptionsWindow.h"
 
 #include "Dialogs/DlgPickPath.h"
 #include "Editor.h"
@@ -63,7 +63,7 @@ bool FUsdStageImportContext::Init(const FString& InName, const FString& InFilePa
 		ImportOptions->EnableActorImport( bAllowActorImport );
 
 		// Show dialog for import options
-		bool bProceedWithImport = SUsdOptionsWindow::ShowImportOptions(*ImportOptions);
+		bool bProceedWithImport = SUsdOptionsWindow::ShowOptions( *ImportOptions );
 		if (!bProceedWithImport)
 		{
 			return false;

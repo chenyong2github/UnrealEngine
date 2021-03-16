@@ -12,7 +12,6 @@
 #include "USDSchemaTranslator.h"
 #include "USDStageImportContext.h"
 #include "USDStageImportOptions.h"
-#include "USDStageImportOptionsWindow.h"
 #include "USDTypesConversion.h"
 
 #include "UsdWrappers/SdfLayer.h"
@@ -212,8 +211,14 @@ namespace UsdStageImporterImpl
 	void SetupStageForImport( FUsdStageImportContext& ImportContext )
 	{
 #if USE_USD_SDK
-		ImportContext.OriginalMetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( ImportContext.Stage );
-		UsdUtils::SetUsdStageMetersPerUnit( ImportContext.Stage, ImportContext.ImportOptions->MetersPerUnit );
+		if ( ImportContext.ImportOptions->bOverrideStageOptions && ImportContext.bStageWasOriginallyOpen )
+		{
+			ImportContext.OriginalMetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( ImportContext.Stage );
+			ImportContext.OriginalUpAxis = UsdUtils::GetUsdStageUpAxisAsEnum( ImportContext.Stage );
+
+			UsdUtils::SetUsdStageMetersPerUnit( ImportContext.Stage, ImportContext.ImportOptions->StageOptions.MetersPerUnit );
+			UsdUtils::SetUsdStageUpAxis( ImportContext.Stage, ImportContext.ImportOptions->StageOptions.UpAxis );
+		}
 #endif // #if USE_USD_SDK
 	}
 
@@ -1040,9 +1045,10 @@ namespace UsdStageImporterImpl
 		}
 
 		// Restore original meters per unit if the stage was already loaded
-		if ( ImportContext.bStageWasOriginallyOpen )
+		if ( ImportContext.ImportOptions->bOverrideStageOptions && ImportContext.bStageWasOriginallyOpen )
 		{
 			UsdUtils::SetUsdStageMetersPerUnit( ImportContext.Stage, ImportContext.OriginalMetersPerUnit );
+			UsdUtils::SetUsdStageUpAxis( ImportContext.Stage, ImportContext.OriginalUpAxis );
 		}
 #endif // #if USE_USD_SDK
 	}
@@ -1114,6 +1120,10 @@ namespace UsdStageImporterImpl
 				AssetQueue.Add( AnimSequence->GetPreviewMesh() );
 
 				OutAssetsAndDependencies.Add( AnimSequence->GetSkeleton() );
+			}
+			else if ( UTexture* Texture = Cast<UTexture>( Asset ) )
+			{
+				// Do nothing. Textures have no additional dependencies
 			}
 			else
 			{
