@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#if USING_FLITE
 #include "CoreMinimal.h"
 
 struct FFliteSynthesizedSpeechData
@@ -20,4 +21,4 @@ struct FFliteSynthesizedSpeechData
 	int32 NumChannels;
 	bool bIsLastChunk;
 };
-
+#endif

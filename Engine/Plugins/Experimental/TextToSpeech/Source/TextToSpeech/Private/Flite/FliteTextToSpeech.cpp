@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if USING_FLITE
 #include "Flite/FliteTextToSpeech.h"
 #include "Flite/FliteAdapter.h"
 #include "Flite/FliteTextToSpeechSubmixListener.h"
@@ -172,3 +173,4 @@ void FFliteTextToSpeech::OnSynthesizedSpeechChunk_AnyThread(FFliteSynthesizedSpe
 }
 }
 
+#endif

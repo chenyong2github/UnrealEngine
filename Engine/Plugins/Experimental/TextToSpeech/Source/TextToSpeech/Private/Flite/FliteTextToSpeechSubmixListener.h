@@ -3,6 +3,7 @@
 #pragma once
 #if USING_FLITE
 #include "CoreMinimal.h"
+#include "Containers/CircularBuffer.h"
 #include "Flite/FliteSynthesizedSpeechData.h"
 #include "AudioMixerDevice.h"
 #include "AudioResampler.h"

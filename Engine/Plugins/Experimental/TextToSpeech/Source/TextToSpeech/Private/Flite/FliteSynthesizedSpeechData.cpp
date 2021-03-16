@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#if USING_FLITE
 #include "Flite/FliteSynthesizedSpeechData.h"
 
 FFliteSynthesizedSpeechData::FFliteSynthesizedSpeechData()
@@ -33,3 +34,4 @@ void FFliteSynthesizedSpeechData::Reset()
 	NumChannels = INDEX_NONE;
 }
 
+#endif
