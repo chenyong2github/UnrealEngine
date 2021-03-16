@@ -7,6 +7,7 @@
 struct FStrataLightIntegrationContext
 {
 	float3 IncidentRadianceNoShadow;
+	float3 IncidentTransmittedRadianceNoShadow;
 	float3 IncidentIrradianceNoShadow;	// Modified incident irradiance, based on custom are light integrator
 	float3 OutgoingRadianceNoShadow;	// Continue the outgoing radiance if the BSDF evaluation/integration has been done with the custom area light integrator
 	float3 IncidentIrradianceNoShadowHaze;
@@ -21,6 +22,7 @@ FStrataLightIntegrationContext StrataIniLightIntegrationContext()
 	Out.IncidentIrradianceNoShadow = 0;
 	Out.IncidentIrradianceNoShadowHaze = 0;
 	Out.IncidentRadianceNoShadow = 0;
+	Out.IncidentTransmittedRadianceNoShadow = 0;
 	return Out;
 }
 
@@ -117,11 +119,17 @@ void StrataPreprocessAreaLightIntegration(
 
 				// Update incident irradiance to add the energy rescaling to due MRP integration
 				// The a2 override stored the overriden roughness, which will be used during the BSDF evaluation
-				BSDFContext.a2Override = Pow4(SafeRoughnessX);
-				Out.IncidentIrradianceNoShadow =
-					Out.IncidentRadianceNoShadow *
-					EnergyNormalization(BSDFContext.a2Override, BSDFContext.Context.VoH, LightContext.AreaLight) *
-					LightContext.AreaLight.FalloffColor * (LightContext.Falloff * LightContext.NoL);
+				{
+					BSDFContext.a2Override = Pow4(SafeRoughnessX);
+
+					const float3 IncidentRadiance = 
+						Out.IncidentRadianceNoShadow *
+						EnergyNormalization(BSDFContext.a2Override, BSDFContext.Context.VoH, LightContext.AreaLight) *
+						LightContext.AreaLight.FalloffColor * LightContext.Falloff;
+
+					Out.IncidentTransmittedRadianceNoShadow = IncidentRadiance;
+					Out.IncidentIrradianceNoShadow = IncidentRadiance * LightContext.NoL;
+				}
 
 				if (bHaziness)
 				{
@@ -137,6 +145,7 @@ void StrataPreprocessAreaLightIntegration(
 			}
 		}
 	}
+
 }
 
 #ifndef STRATA_FASTPATH 
@@ -185,10 +194,10 @@ float4 StrataDeferredLighting(
 		FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V, L);
 
 		// Evaluate incident lighting & (optionally) precompute area light integration
-		FStrataLightIntegrationContext IntegrationContext = StrataIniLightIntegrationContext();
-		IntegrationContext.IncidentRadianceNoShadow   = LightData.Color * LightMask;
-		IntegrationContext.IncidentIrradianceNoShadow = PreintegratedIndicentIrradiance * IntegrationContext.IncidentRadianceNoShadow * StrataBSDFProjectedSolidAngleFactor(BSDFContext);
-		IntegrationContext.IncidentIrradianceNoShadowHaze = IntegrationContext.IncidentIrradianceNoShadow;
+		FStrataLightIntegrationContext IntegrationContext	= StrataIniLightIntegrationContext();
+		IntegrationContext.IncidentRadianceNoShadow			= LightData.Color * LightMask;
+		IntegrationContext.IncidentIrradianceNoShadow		= PreintegratedIndicentIrradiance * IntegrationContext.IncidentRadianceNoShadow * StrataBSDFProjectedSolidAngleFactor(BSDFContext);
+		IntegrationContext.IncidentIrradianceNoShadowHaze	= IntegrationContext.IncidentIrradianceNoShadow;
 		StrataPreprocessAreaLightIntegration(ToLight, LightData, RectTexture, BSDFContext, IntegrationContext);
 
 		// Evaluate BSDF
@@ -203,9 +212,9 @@ float4 StrataDeferredLighting(
 
 			const bool bNeedsSeparateSubsurfaceLightAccumulation = BSDFEvaluate.bSubsurface;
 
-			LightAccumulator_AddSplit(Out, DiffusePathWeight,		SpecularPathWeight,		DiffusePathWeight,		IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.SurfaceShadow,		bNeedsSeparateSubsurfaceLightAccumulation);
-			LightAccumulator_AddSplit(Out, 0.0,						SpecularHazePathWeight, 0.0,					IntegrationContext.IncidentIrradianceNoShadowHaze * ShadowTerms.SurfaceShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
-			LightAccumulator_AddSplit(Out, TransmissionPathWeight,	0.0f,					TransmissionPathWeight,	IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.TransmissionShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, DiffusePathWeight,		SpecularPathWeight,		DiffusePathWeight,		IntegrationContext.IncidentIrradianceNoShadow * ShadowTerms.SurfaceShadow,					bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, 0.0,						SpecularHazePathWeight, 0.0,					IntegrationContext.IncidentIrradianceNoShadowHaze * ShadowTerms.SurfaceShadow,				bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(Out, TransmissionPathWeight,	0.0f,					TransmissionPathWeight, IntegrationContext.IncidentTransmittedRadianceNoShadow * ShadowTerms.TransmissionShadow,	bNeedsSeparateSubsurfaceLightAccumulation);
 		}
 		else
 		{

@@ -257,22 +257,22 @@ void Main(
 
 	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && !FORWARD_SHADING && !APPLY_TRANSLUCENCY_SHADOWS && !SUBPIXEL_SHADOW
 
-		bool bHasSubsurface			= false;
-		bool bHasSubsurfaceProfile	= false;
-		bool bIsEyeOrHair 			= false;
+		bool bHasSubsurface				= false;
+		bool bHasSubsurfaceTransmission	= false;
+		bool bIsEyeOrHair 				= false;
 	#if STRATA_ENABLED
 		const FStrataClassification StrataData = StrataUnpackClassificationData(Strata.ClassificationTexture.Load(PixelCoord));
 		if (StrataData.bIsStrataMaterial)
 		{
-			bIsEyeOrHair			= StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_HAIR);
-			bHasSubsurface			= StrataData.bHasSubsurface || bIsEyeOrHair;
-			bHasSubsurfaceProfile	= StrataData.bHasSubsurfaceProfile;
+			bIsEyeOrHair				= StrataHasShadingModel(StrataData.ShadingModels, STRATA_BSDF_TYPE_HAIR);
+			bHasSubsurface				= StrataData.bHasSubsurface || bIsEyeOrHair;
+			bHasSubsurfaceTransmission	= StrataData.bHasSubsurface;
 		}
 	#else // STRATA_ENABLED
 		FGBufferData GBufferData = GetGBufferData(ScreenUV);
 		{
 			bHasSubsurface = IsSubsurfaceModel(GBufferData.ShadingModelID);
-			bHasSubsurfaceProfile = GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
+			bHasSubsurfaceTransmission = GBufferData.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
 			bIsEyeOrHair = GBufferData.ShadingModelID == SHADINGMODELID_HAIR || GBufferData.ShadingModelID == SHADINGMODELID_EYE;
 		}
 	#endif // STRATA_ENABLED
@@ -285,9 +285,9 @@ void Main(
 
 			float Opacity = 1;
 			float Density = 1;
-			if (!bIsEyeOrHair && SSSData.bIsProfile)
+			if (!bIsEyeOrHair && SSSData.bIsValid)
 			{
-				Opacity = SSSData.ProfileRadiusScale;
+				Opacity = SSSData.bIsProfile ? SSSData.ProfileRadiusScale : 1.0f;
 				Density = SubsurfaceDensityFromOpacity(Opacity);
 			}
 		#else // STRATA_ENABLED
@@ -326,12 +326,18 @@ void Main(
 				Settings.ProjectionDepthBiasParameters = ProjectionDepthBiasParameters.xw;
 
 			  #if USE_TRANSMISSION
-				if (bHasSubsurfaceProfile)
+				if (bHasSubsurfaceTransmission)
 				{
 				#if STRATA_ENABLED
 					const FStrataTopLayerData TopLayerData = StrataUnpackTopLayerData(Strata.TopLayerNormalTexture.Load(uint3(SVPos.xy, 0)));
 					const float3 WorldNormal = TopLayerData.WorldNormal;
-					const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
+
+					// For non-profile version, use default transmission parameters (only NormalScale & ExtinctionScale are used)
+					FTransmissionProfileParams TransmissionParams = InitTransmissionProfileParams();
+					if (StrataData.bHasSubsurfaceProfile)
+					{
+						TransmissionParams = GetTransmissionProfileParams(SSSData.ProfileId);
+					}
 				#else // STRATA_ENABLED
 					float3 WorldNormal = GBufferData.WorldNormal;
 					FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(GBufferData);

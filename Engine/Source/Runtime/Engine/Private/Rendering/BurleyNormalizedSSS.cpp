@@ -27,18 +27,18 @@ inline float Burley_TransmissionProfile(float r, float A, float S, float L)
 }
 
 
-inline FVector Burley_ScatteringProfile(float r, FLinearColor SurfaceAlbedo, FVector ScalingFactor, FLinearColor DiffuseMeanFreePath)
+inline FVector Burley_ScatteringProfile(float RadiusInMm, FLinearColor SurfaceAlbedo, FVector ScalingFactor, FLinearColor DiffuseMeanFreePathInMm)
 {  
-	return FVector(Burley_ScatteringProfile(r, SurfaceAlbedo.R, ScalingFactor.X, DiffuseMeanFreePath.R) ,
-						Burley_ScatteringProfile(r, SurfaceAlbedo.G, ScalingFactor.Y, DiffuseMeanFreePath.G) ,
-						Burley_ScatteringProfile(r, SurfaceAlbedo.B, ScalingFactor.Z, DiffuseMeanFreePath.B));
+	return FVector(	Burley_ScatteringProfile(RadiusInMm, SurfaceAlbedo.R, ScalingFactor.X, DiffuseMeanFreePathInMm.R) ,
+					Burley_ScatteringProfile(RadiusInMm, SurfaceAlbedo.G, ScalingFactor.Y, DiffuseMeanFreePathInMm.G) ,
+					Burley_ScatteringProfile(RadiusInMm, SurfaceAlbedo.B, ScalingFactor.Z, DiffuseMeanFreePathInMm.B));
 }
 
-inline FLinearColor Burley_TransmissionProfile(float r, FLinearColor SurfaceAlbedo, FVector ScalingFactor, FLinearColor DiffuseMeanFreePath)
+inline FLinearColor Burley_TransmissionProfile(float RadiusInMm, FLinearColor SurfaceAlbedo, FVector ScalingFactor, FLinearColor DiffuseMeanFreePathInMm)
 {
-	return FLinearColor(Burley_TransmissionProfile(r, SurfaceAlbedo.R, ScalingFactor.X, DiffuseMeanFreePath.R),
-						Burley_TransmissionProfile(r, SurfaceAlbedo.G, ScalingFactor.Y, DiffuseMeanFreePath.G),
-						Burley_TransmissionProfile(r, SurfaceAlbedo.B, ScalingFactor.Z, DiffuseMeanFreePath.B));
+	return FLinearColor(Burley_TransmissionProfile(RadiusInMm, SurfaceAlbedo.R, ScalingFactor.X, DiffuseMeanFreePathInMm.R),
+						Burley_TransmissionProfile(RadiusInMm, SurfaceAlbedo.G, ScalingFactor.Y, DiffuseMeanFreePathInMm.G),
+						Burley_TransmissionProfile(RadiusInMm, SurfaceAlbedo.B, ScalingFactor.Z, DiffuseMeanFreePathInMm.B));
 }
 
 //--------------------------------------------------------------------------
@@ -225,13 +225,26 @@ void ComputeMirroredBSSSKernel(FLinearColor* TargetBuffer, uint32 TargetBufferSi
 
 void ComputeTransmissionProfileBurley(FLinearColor* TargetBuffer, uint32 TargetBufferSize, FLinearColor SubsurfaceColor, 
 																		FLinearColor FalloffColor, float ExtinctionScale, 
-																		FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePath,
-																		float WorldUnitScale, FLinearColor TransmissionTintColor)
+																		FLinearColor SurfaceAlbedo, FLinearColor DiffuseMeanFreePathInMm,
+																		float InUnitToMm, FLinearColor TransmissionTintColor)
 {
 	check(TargetBuffer);
 	check(TargetBufferSize > 0);
 
-	static float MaxTransmissionProfileDistance = 5.0f; // See MAX_TRANSMISSION_PROFILE_DISTANCE in TransmissionCommon.ush
+
+	// Example of scaling
+	// ----------------------------------------
+	// DistanceCm * UnitScale * CmToMm = Value (mm)
+	// ----------------------------------------
+	//   1          0.1         10     =   1mm
+	//   1          1.0         10     =  10mm
+	//   1         10.0         10     = 100mm
+
+	// It seems there is an inconsistency here: either InUnitToMm should in fact be MmToUnit or the division need to be converted to a multiply
+	// This should be corrected as this makes the transmission scaling incorrect
+	const float UnitToMm = 1.f / InUnitToMm;
+
+	static float MaxTransmissionProfileDistance = 5.0f; // See SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE in TransmissionCommon.ush
 
 	//assuming that the volume albedo is the same to the surface albedo for transmission.
 	FVector ScalingFactor = GetSearchLightDiffuseScalingFactor(SurfaceAlbedo);
@@ -240,13 +253,14 @@ void ComputeTransmissionProfileBurley(FLinearColor* TargetBuffer, uint32 TargetB
 
 	for (uint32 i = 0; i < TargetBufferSize; ++i)
 	{
+		const float DistanceInMm = i * InvSize * MaxTransmissionProfileDistance * UnitToMm;
+		const float OffsetInMm = ProfileRadiusOffset * UnitToMm;
 
-		float Distance = i * InvSize * MaxTransmissionProfileDistance/WorldUnitScale;
 
-		FLinearColor TransmissionProfile = Burley_TransmissionProfile(Distance + ProfileRadiusOffset / WorldUnitScale, SurfaceAlbedo,ScalingFactor, DiffuseMeanFreePath);
+		FLinearColor TransmissionProfile = Burley_TransmissionProfile(DistanceInMm + OffsetInMm, SurfaceAlbedo, ScalingFactor, DiffuseMeanFreePathInMm);
 		TargetBuffer[i] = TransmissionProfile * TransmissionTintColor; // Apply tint to the profile
 		//Use Luminance of scattering as SSSS shadow.
-		TargetBuffer[i].A = exp(-Distance * ExtinctionScale);
+		TargetBuffer[i].A = exp(-DistanceInMm * ExtinctionScale);
 	}
 
 	// Do this is because 5mm is not enough cool down the scattering to zero, although which is small number but after tone mapping still noticeable

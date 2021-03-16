@@ -167,3 +167,43 @@ float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
 	return Output;
 }
 #endif
+
+float3 InternalGetBurleyTransmissionProfile(
+	float3 SubsurfaceAlebdo, 
+	float3 MeanFreePathInCm,
+	float ThicknessInCm)
+{
+	// Assuming that the volume albedo is the same to the surface albedo for transmission;
+	const float3 ScalingFactor = GetSearchLightDiffuseScalingFactor3D(SubsurfaceAlebdo);
+	const float3 r = ThicknessInCm / MeanFreePathInCm.xyz;
+	const float3 Output = 0.25 * SubsurfaceAlebdo * (exp(-ScalingFactor * r) + 3 * exp(-ScalingFactor * r / 3));
+
+	return Output;
+}
+
+float3 GetBurleyTransmissionProfile(
+	float3 SubsurfaceAlebdo,
+	float3 MeanFreePathInCm,
+	float ThicknessInCm)
+{
+	const float  TransmissionMFPScaleFactor = 100.f; // This factor compensate a mistake in SSS profile transmission computation. See BurleyNormalizedSSS.cpp for more details
+	const float3 TransmissionThroughput = InternalGetBurleyTransmissionProfile(SubsurfaceAlebdo, MeanFreePathInCm * TransmissionMFPScaleFactor, ThicknessInCm).xyz;
+
+	// Replicate SSS profile distance fade out, by fading the tail of the curve to black.
+	//  * SSS Profile stores transmittance into a discrete set of samples: SSSS_TRANSMISSION_PROFILE_SIZE(=32)
+	//  * The transmission distance is set to a max of SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE(=5) (in scaled cm, depend on the WorldToUnitScale, cm by default)
+	//
+	// This code fades the last value to black.
+	//  FadeDistance = Distance * SampleCount - MaxDistance * (SampleCount-0.5f)
+	//  FadeDistance = Distance * 32.f - 5.f * 31.5f
+	//
+	// Transmission
+	// 1 ___________
+	//				\
+	// 0             \ _______
+	// ----------------------->
+	// .. 29  30  31  32  Sample Index / Distance
+	const float FadeDistance = 1.0f - saturate(ThicknessInCm * SSSS_TRANSMISSION_PROFILE_SIZE - SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (SSSS_TRANSMISSION_PROFILE_SIZE - 0.5f));
+
+	return TransmissionThroughput * FadeDistance;
+}

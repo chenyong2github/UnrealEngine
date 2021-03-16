@@ -5,6 +5,7 @@
 
 #define STRATA_INLINE_SHADING 0
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
+#define STRATA_SSS_TRANSMISSION 0  // Disable for now, as the SSS profile texture need to be bound
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 
 #include "/Engine/Private/MiniFontCommon.ush"

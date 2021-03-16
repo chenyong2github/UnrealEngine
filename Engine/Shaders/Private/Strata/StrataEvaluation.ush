@@ -25,6 +25,10 @@
 #define STRATA_MICROFACET_MULTIPLESCATTERING 0
 #endif
 
+#ifndef STRATA_SSS_TRANSMISSION
+#define STRATA_SSS_TRANSMISSION 0
+#endif
+
 // STRATA_TODO put in a common file
 // Point lobe in off-specular peak direction
 float3 StrataGetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
@@ -346,6 +350,42 @@ FStrataEvaluateResult StrataEvaluateBSDF(FStrataBSDFContext BSDFContext, FShadow
 			Sample.EmissivePathValue = BSDF_GETEMISSIVE(BSDFContext.BSDF);
 
 			Sample.Throughput = OpaqueBSDFThroughput;
+
+			#if STRATA_FASTPATH==0 && STRATA_SSS_TRANSMISSION
+			const bool bHasProfile = BSDF_GETHASSSSPROFILE(BSDFContext.BSDF);
+			if (BSDF_GETHASSSS(BSDFContext.BSDF))
+			{
+				const float ThicknessInCm = DecodeThickness(ShadowTerms.TransmissionThickness) * SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE;
+
+				float OneOverIOR = 1.0f;
+				float PhaseFunctionAnisotropy = 0.0f;
+				float3 TransmissionThroughput = 1.0f;
+				if (bHasProfile)
+				{
+					const uint ProfileId = StrataSubsurfaceProfileIdTo8bits(SLAB_SSSPROFILEID(BSDFContext.BSDF)); // TODO move this into the PackStrataOut( function, to avoid this decode here
+					const FTransmissionProfileParams TransmissionParams = GetTransmissionProfileParams(ProfileId);
+					TransmissionThroughput	= GetTransmissionProfile(ProfileId, ThicknessInCm).rgb;
+					PhaseFunctionAnisotropy = TransmissionParams.ScatteringDistribution;
+					OneOverIOR				= TransmissionParams.OneOverIOR;
+
+				}
+				else
+				{
+					const float3 SubsurfaceAlebdo = SLAB_BASECOLOR(BSDFContext.BSDF);
+					const float3 MeanFreePathInCm = SLAB_SSSDMFP(BSDFContext.BSDF);
+					TransmissionThroughput	= GetBurleyTransmissionProfile(SubsurfaceAlebdo, MeanFreePathInCm, ThicknessInCm);
+					PhaseFunctionAnisotropy = 0.93f; // STRATA_TODO: expose phase function eccentricity. For now, forward scattering matching default SSS profile value
+					OneOverIOR				= 1.f / DielectricF0ToIor(F0.y);
+				}
+
+				const float3 RefracV = refract(BSDFContext.V, -BSDFContext.N, OneOverIOR);
+				const float PhaseFunction = ApproximateHG(dot(-BSDFContext.L, RefracV), PhaseFunctionAnisotropy);
+
+				Sample.Throughput				= TransmissionThroughput * PhaseFunction;
+				Sample.TransmissionPathValue	= TransmissionThroughput * PhaseFunction;
+				Sample.TransmissionPDF			= 1.0f / (4.0f * PI);		// STRATA_TODO this currently match the uniform sphere sampling from StrataImportanceSampleBSDF
+			}
+			#endif
 
 			#if STRATA_FASTPATH==0
 			BRANCH

@@ -19,6 +19,16 @@ struct FTransmissionProfileParams
 	float OneOverIOR;
 };
 
+FTransmissionProfileParams InitTransmissionProfileParams()
+{
+	FTransmissionProfileParams Out;
+	Out.ExtinctionScale			= 1.0f;
+	Out.NormalScale				= 0.08f;
+	Out.ScatteringDistribution	= 0.0f;
+	Out.OneOverIOR				= 1.0f;
+	return Out;
+}
+
 FTransmissionProfileParams GetTransmissionProfileParams(uint SubsurfaceProfileInt)
 {
 	FTransmissionProfileParams Result;

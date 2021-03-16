@@ -29,6 +29,7 @@
 #if STRATA_ENABLED
 #define STRATA_INLINE_SHADING 0
 #define STRATA_MICROFACET_MULTIPLESCATTERING 1
+#define STRATA_SSS_TRANSMISSION USE_TRANSMISSION
 #include "/Engine/Private/Strata/StrataEvaluation.ush"
 #include "/Engine/Private/Strata/StrataDeferredLighting.ush"
 #endif
