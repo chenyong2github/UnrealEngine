@@ -390,7 +390,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 					RDG_EVENT_NAME("TiledDeferredLighting"),
 					PassParameters,
 					ERDGPassFlags::Compute,
-					[&View, ViewIndex, ViewCount, &SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, &SimpleLights, StartIndex, NumThisPass, SceneColorTexture, SceneColorOutputTexture](FRHIComputeCommandList& RHICmdList)
+					[&View, ViewIndex, ViewCount, &SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, &SimpleLights, StartIndex, NumThisPass, SceneColorTexture, SceneColorOutputTexture](FRHICommandList& RHICmdList)
 				{
 					if (View.Family->EngineShowFlags.VisualizeLightCulling)
 					{
@@ -400,6 +400,10 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 					{
 						SetShaderTemplTiledLighting<0>(RHICmdList, View, ViewIndex, ViewCount, SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, SimpleLights, StartIndex, NumThisPass, *SceneColorTexture->GetPooledRenderTarget(), *SceneColorOutputTexture->GetPooledRenderTarget());
 					}
+
+#if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
+					RHICmdList.RHIFlushTextureCacheBOP(SceneColorOutputTexture->GetRHI());
+#endif // #if PLATFORM_REQUIRES_UAV_TO_RTV_TEXTURE_CACHE_FLUSH_WORKAROUND
 				});
 			}
 
