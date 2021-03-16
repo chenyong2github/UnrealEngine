@@ -60,7 +60,7 @@ public:
 
 				PackagingSettings->DirectoriesToAlwaysCook.Add( MaterialsDirectory );
 
-				UE_LOG(LogDatasmithRuntime, Warning, TEXT("Adding %s to the list of directories to always package otherwise we cannot create dynamic material instances at runtime"), MaterialsPath);
+				UE_LOG(LogDatasmithRuntime, Log, TEXT("Adding %s to the list of directories to always package otherwise we cannot create dynamic material instances at runtime"), MaterialsPath);
 			}
 		}
 #endif // WITH_EDITOR
