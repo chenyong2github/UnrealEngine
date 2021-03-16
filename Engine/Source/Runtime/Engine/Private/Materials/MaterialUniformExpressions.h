@@ -64,7 +64,7 @@ public:
 	virtual bool IsConstant() const { return false; }
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const { return false; }
 
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const;
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const;
 
 	virtual void GetNumberValue(const struct FMaterialRenderContext& Context, FLinearColor& OutValue) const;
 };
@@ -190,10 +190,20 @@ public:
 		return OtherConstant->ValueType == ValueType && OtherConstant->Value == Value;
 	}
 
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Constant);
-		OutData.Write(Value);
+		UE::Shader::FValue ConstantValue(Value);
+		switch (ValueType)
+		{
+		case MCT_Float:
+		case MCT_Float1: ConstantValue.NumComponents = 1; break;
+		case MCT_Float2: ConstantValue.NumComponents = 2; break;
+		case MCT_Float3: ConstantValue.NumComponents = 3; break;
+		case MCT_Float4: ConstantValue.NumComponents = 4; break;
+		default: checkNoEntry(); break;
+		}
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Constant);
+		OutData.Write(ConstantValue);
 	}
 
 	virtual void GetNumberValue(const FMaterialRenderContext& Context, FLinearColor& OutValue) const override
@@ -222,9 +232,9 @@ public:
 	}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::VectorParameter);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::VectorParameter);
 		OutData.Write((uint16)ParameterIndex);
 	}
 
@@ -274,9 +284,9 @@ public:
 	}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::ScalarParameter);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::ScalarParameter);
 		OutData.Write((uint16)ParameterIndex);
 	}
 
@@ -452,10 +462,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(bIsCosine ? EMaterialPreshaderOpcode::Cos : EMaterialPreshaderOpcode::Sin);
+		OutData.WriteOpcode(bIsCosine ? UE::Shader::EPreshaderOpcode::Cos : UE::Shader::EPreshaderOpcode::Sin);
 	}
 	virtual bool IsConstant() const
 	{
@@ -510,7 +520,7 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
 		if (Op == TMO_Atan2)
@@ -519,13 +529,13 @@ public:
 		}
 		switch (Op)
 		{
-		case TMO_Sin: OutData.WriteOpcode(EMaterialPreshaderOpcode::Sin); break;
-		case TMO_Cos: OutData.WriteOpcode(EMaterialPreshaderOpcode::Cos); break;
-		case TMO_Tan: OutData.WriteOpcode(EMaterialPreshaderOpcode::Tan); break;
-		case TMO_Asin: OutData.WriteOpcode(EMaterialPreshaderOpcode::Asin); break;
-		case TMO_Acos: OutData.WriteOpcode(EMaterialPreshaderOpcode::Acos); break;
-		case TMO_Atan: OutData.WriteOpcode(EMaterialPreshaderOpcode::Atan); break;
-		case TMO_Atan2: OutData.WriteOpcode(EMaterialPreshaderOpcode::Atan2); break;
+		case TMO_Sin: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Sin); break;
+		case TMO_Cos: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Cos); break;
+		case TMO_Tan: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Tan); break;
+		case TMO_Asin: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Asin); break;
+		case TMO_Acos: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Acos); break;
+		case TMO_Atan: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Atan); break;
+		case TMO_Atan2: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Atan2); break;
 		default: checkNoEntry(); break;
 		}
 	}
@@ -563,10 +573,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Sqrt);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Sqrt);
 	}
 	virtual bool IsConstant() const
 	{
@@ -600,10 +610,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Length).Write((uint8)ValueType);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Length).Write((uint8)ValueType);
 	}
 	virtual bool IsConstant() const
 	{
@@ -637,10 +647,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Log2);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Log2);
 	}
 	bool IsConstant() const override
 	{
@@ -674,10 +684,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Log10);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Log10);
 	}
 	bool IsConstant() const override
 	{
@@ -724,19 +734,19 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		A->WriteNumberOpcodes(OutData);
 		B->WriteNumberOpcodes(OutData);
 
 		switch (Op)
 		{
-		case FMO_Add: OutData.WriteOpcode(EMaterialPreshaderOpcode::Add); break;
-		case FMO_Sub: OutData.WriteOpcode(EMaterialPreshaderOpcode::Sub); break;
-		case FMO_Mul: OutData.WriteOpcode(EMaterialPreshaderOpcode::Mul); break;
-		case FMO_Div: OutData.WriteOpcode(EMaterialPreshaderOpcode::Div); break;
-		case FMO_Dot: OutData.WriteOpcode(EMaterialPreshaderOpcode::Dot).Write((uint8)ValueType); break;
-		case FMO_Cross: OutData.WriteOpcode(EMaterialPreshaderOpcode::Cross).Write((uint8)ValueType); break;
+		case FMO_Add: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Add); break;
+		case FMO_Sub: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Sub); break;
+		case FMO_Mul: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Mul); break;
+		case FMO_Div: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Div); break;
+		case FMO_Dot: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Dot); break;
+		case FMO_Cross: OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Cross); break;
 		default: checkNoEntry(); break;
 		}
 	}
@@ -776,10 +786,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Fractional);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Fractional);
 	}
 	virtual bool IsConstant() const
 	{
@@ -814,11 +824,11 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		A->WriteNumberOpcodes(OutData);
 		B->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::AppendVector).Write((uint8)NumComponentsA);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::AppendVector);// .Write((uint8)NumComponentsA);
 	}
 	virtual bool IsConstant() const
 	{
@@ -854,11 +864,11 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		A->WriteNumberOpcodes(OutData);
 		B->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Min);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Min);
 	}
 	virtual bool IsConstant() const
 	{
@@ -893,11 +903,11 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		A->WriteNumberOpcodes(OutData);
 		B->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Max);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Max);
 	}
 	virtual bool IsConstant() const
 	{
@@ -933,12 +943,12 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		Input->WriteNumberOpcodes(OutData);
 		Min->WriteNumberOpcodes(OutData);
 		Max->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Clamp);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Clamp);
 	}
 	virtual bool IsConstant() const
 	{
@@ -973,10 +983,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		Input->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Saturate);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Saturate);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1036,10 +1046,10 @@ public:
 	}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::ComponentSwizzle).Write((uint8)NumElements).Write((uint8)IndexR).Write((uint8)IndexG).Write((uint8)IndexB).Write((uint8)IndexA);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::ComponentSwizzle).Write((uint8)NumElements).Write((uint8)IndexR).Write((uint8)IndexG).Write((uint8)IndexB).Write((uint8)IndexA);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1082,10 +1092,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Floor);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Floor);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1118,10 +1128,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Ceil);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Ceil);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1154,10 +1164,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Round);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Round);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1190,10 +1200,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Trunc);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Trunc);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1226,10 +1236,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Sign);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Sign);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1262,10 +1272,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Frac);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Frac);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1299,11 +1309,11 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		A->WriteNumberOpcodes(OutData);
 		B->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Fmod);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Fmod);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1338,10 +1348,10 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Abs);
+		OutData.WriteOpcode(UE::Shader::EPreshaderOpcode::Abs);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1375,16 +1385,16 @@ public:
 	{}
 
 	// FMaterialUniformExpression interface.
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override
 	{
 		FMaterialTextureParameterInfo TextureParameter;
 		TextureExpression->GetTextureParameterInfo(TextureParameter);
 
-		EMaterialPreshaderOpcode Op = EMaterialPreshaderOpcode::Nop;
+		UE::Shader::EPreshaderOpcode Op = UE::Shader::EPreshaderOpcode::Nop;
 		switch (TextureProperty)
 		{
-		case TMTM_TextureSize: Op = EMaterialPreshaderOpcode::TextureSize; break;
-		case TMTM_TexelSize: Op = EMaterialPreshaderOpcode::TexelSize; break;
+		case TMTM_TextureSize: Op = UE::Shader::EPreshaderOpcode::TextureSize; break;
+		case TMTM_TexelSize: Op = UE::Shader::EPreshaderOpcode::TexelSize; break;
 		default: checkNoEntry(); break;
 		}
 		OutData.WriteOpcode(Op).Write(TextureParameter.ParameterInfo).Write((int32)TextureParameter.TextureIndex);
@@ -1425,7 +1435,7 @@ public:
 	FMaterialUniformExpressionExternalTextureCoordinateScaleRotation(int32 InSourceTextureIndex, TOptional<FName> InParameterName) : FMaterialUniformExpressionExternalTextureBase(InSourceTextureIndex), ParameterName(InParameterName) {}
 
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const override;
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override;
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override;
 
 protected:
 	typedef FMaterialUniformExpressionExternalTextureBase Super;
@@ -1447,7 +1457,7 @@ public:
 	FMaterialUniformExpressionExternalTextureCoordinateOffset(int32 InSourceTextureIndex, TOptional<FName> InParameterName) : FMaterialUniformExpressionExternalTextureBase(InSourceTextureIndex), ParameterName(InParameterName) {}
 
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const override;
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override;
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override;
 
 protected:
 	typedef FMaterialUniformExpressionExternalTextureBase Super;
@@ -1473,7 +1483,7 @@ public:
 	//~ Begin FMaterialUniformExpression Interface.
 	virtual bool IsConstant() const override { return false; }
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const override;
-	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override;
+	virtual void WriteNumberOpcodes(UE::Shader::FPreshaderData& OutData) const override;
 	//~ End FMaterialUniformExpression Interface.
 
 protected:

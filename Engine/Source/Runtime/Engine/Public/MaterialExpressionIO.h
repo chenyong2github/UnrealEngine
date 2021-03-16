@@ -12,10 +12,13 @@ namespace UE
 {
 namespace HLSLTree
 {
-enum class EExpressionType : uint8;
 class FScope;
 class FExpression;
 class FTextureParameterDeclaration;
+}
+namespace Shader
+{
+enum class EValueType : uint8;
 }
 }
 
@@ -75,7 +78,7 @@ struct FExpressionInput
 #if WITH_EDITOR
 	ENGINE_API int32 Compile(class FMaterialCompiler* Compiler);
 	ENGINE_API UE::HLSLTree::FExpression* AcquireHLSLExpression(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
-	ENGINE_API UE::HLSLTree::FExpression* AcquireHLSLExpressionWithCast(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::EExpressionType Type) const;
+	ENGINE_API UE::HLSLTree::FExpression* AcquireHLSLExpressionWithCast(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type) const;
 	ENGINE_API UE::HLSLTree::FTextureParameterDeclaration* AcquireHLSLTexture(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope) const;
 #endif // WITH_EDITOR
 

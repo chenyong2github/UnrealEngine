@@ -62,38 +62,53 @@ UE::HLSLTree::FSwizzleParameters UE::HLSLTree::MakeSwizzleMask(bool bInR, bool b
 void UE::HLSLTree::FExpressionConstant::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
 	OutResult.EvaluationType = EExpressionEvaluationType::Constant;
-	OutResult.Preshader.WriteOpcode(EMaterialPreshaderOpcode::Constant);
-	OutResult.Preshader.Write(Value.ToLinearColor());
+	OutResult.Type = Value.GetType();
+	OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant);
+	OutResult.Preshader.Write(Value);
 }
 
 void UE::HLSLTree::FExpressionLocalVariable::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const FEmitValue&DeclarationRef = Context.AcquireValue(Declaration);
+	const FEmitValue& DeclarationRef = Context.AcquireValue(Declaration);
 	
+	OutResult.Type = DeclarationRef.GetExpressionType();
 	OutResult.bInline = true;
 	OutResult.Writer.Writef(TEXT("%s"), Context.GetCode(DeclarationRef));
 }
 
 void UE::HLSLTree::FExpressionParameter::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	OutResult.EvaluationType = EExpressionEvaluationType::Preshader;
+	OutResult.Type = Declaration->DefaultValue.GetType();
 
-	EMaterialPreshaderOpcode Opcode = EMaterialPreshaderOpcode::Nop;
-	int32 ParameterIndex = INDEX_NONE;
-	if (Declaration->DefaultValue.Type == UE::HLSLTree::EExpressionType::Float1)
+	if (OutResult.Type == Shader::EValueType::Bool1)
 	{
-		ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddScalarParameter(Declaration->Name, Declaration->DefaultValue.Float[0]);
-		Opcode = EMaterialPreshaderOpcode::ScalarParameter;
+		const FMaterialParameterInfo ParameterInfo(Declaration->Name);
+		bool bValue = Declaration->DefaultValue.Component[0].Bool;
+		for (const FStaticSwitchParameter& Parameter : Context.StaticParameters->StaticSwitchParameters)
+		{
+			if (Parameter.ParameterInfo == ParameterInfo)
+			{
+				bValue = Parameter.Value;
+				break;
+			}
+		}
+		OutResult.EvaluationType = EExpressionEvaluationType::Constant;
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::Constant).Write(Shader::FValue(bValue));
+	}
+	else if (OutResult.Type == Shader::EValueType::Float1)
+	{
+		const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddScalarParameter(Declaration->Name, Declaration->DefaultValue.Component[0].Float);
+		check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
+		OutResult.EvaluationType = EExpressionEvaluationType::Preshader;
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ScalarParameter).Write((uint16)ParameterIndex);
 	}
 	else
 	{
-		ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddVectorParameter(Declaration->Name, Declaration->DefaultValue.ToLinearColor());
-		Opcode = EMaterialPreshaderOpcode::VectorParameter;
+		const int32 ParameterIndex = Context.MaterialCompilationOutput->UniformExpressionSet.FindOrAddVectorParameter(Declaration->Name, Declaration->DefaultValue.AsLinearColor());
+		check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
+		OutResult.EvaluationType = EExpressionEvaluationType::Preshader;
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::VectorParameter).Write((uint16)ParameterIndex);
 	}
-
-	check(ParameterIndex >= 0 && ParameterIndex <= 0xffff);
-	OutResult.Preshader.WriteOpcode(Opcode);
-	OutResult.Preshader.Write((uint16)ParameterIndex);
 }
 
 void UE::HLSLTree::FExpressionExternalInput::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FExpressionEmitResult& OutResult) const
@@ -101,6 +116,7 @@ void UE::HLSLTree::FExpressionExternalInput::EmitHLSL(UE::HLSLTree::FEmitContext
 	const int32 TypeIndex = (int32)InputType;
 	const int32 TexCoordIndex = TypeIndex - (int32)UE::HLSLTree::EExternalInputType::TexCoord0;
 
+	OutResult.Type = GetInputExpressionType(InputType);
 	OutResult.bInline = true;
 	if (TexCoordIndex >= 0 && TexCoordIndex < 8)
 	{
@@ -240,11 +256,13 @@ void UE::HLSLTree::FExpressionTextureSample::EmitHLSL(UE::HLSLTree::FEmitContext
 	}
 
 	const FEmitValue& TexCoordRef = Context.AcquireValue(TexCoordExpression);
+	OutResult.Type = Shader::EValueType::Float4;
 	OutResult.Writer.Writef(TEXT("%s(%s(%s, %s, %s))"), SamplerTypeFunction, SampleFunctionName, *TextureName, *SamplerStateCode, Context.GetCode(TexCoordRef));
 }
 
 void UE::HLSLTree::FExpressionDefaultMaterialAttributes::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
+	OutResult.Type = Shader::EValueType::MaterialAttributes;
 	OutResult.bInline = true;
 	OutResult.Writer.Write(TEXT("DefaultMaterialAttributes"));
 }
@@ -259,7 +277,38 @@ void UE::HLSLTree::FExpressionSetMaterialAttribute::EmitHLSL(UE::HLSLTree::FEmit
 	const FEmitValue&AttributresRef = Context.AcquireValue(AttributesExpression);
 	const FEmitValue&ValueRef = Context.AcquireValue(ValueExpression);
 
+	OutResult.Type = Shader::EValueType::MaterialAttributes;
 	OutResult.Writer.Writef(TEXT("FMaterialAttributes_Set%s(%s, %s)"), *PropertyName, Context.GetCode(AttributresRef), Context.GetCode(ValueRef));
+}
+
+void UE::HLSLTree::FExpressionSelect::EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const
+{
+	const FEmitValue& ConditionValue = Context.AcquireValue(ConditionExpression);
+	if (ConditionValue.GetEvaluationType() == EExpressionEvaluationType::Constant)
+	{
+		const bool bCondition = ConditionValue.GetConstantValue().AsBoolScalar();
+		if (!bCondition)
+		{
+			const FEmitValue& Value = Context.AcquireValue(FalseExpression);
+			OutResult.ForwardValue(Context, Value);
+		}
+		else
+		{
+			const FEmitValue& Value = Context.AcquireValue(TrueExpression);
+			OutResult.ForwardValue(Context, Value);
+		}
+	}
+	else
+	{
+		// TODO - preshader
+		const FEmitValue& TrueValue = Context.AcquireValue(TrueExpression);
+		const FEmitValue& FalseValue = Context.AcquireValue(FalseExpression);
+		OutResult.Type = TrueValue.GetExpressionType(); // TODO - FalseValue?
+		OutResult.Writer.Writef(TEXT("(%s ? %s : %s)"),
+			Context.GetCode(ConditionValue),
+			Context.GetCode(TrueValue),
+			Context.GetCode(FalseValue));
+	}
 }
 
 void UE::HLSLTree::FExpressionBinaryOp::EmitHLSL(UE::HLSLTree::FEmitContext& Context, FExpressionEmitResult& OutResult) const
@@ -267,17 +316,20 @@ void UE::HLSLTree::FExpressionBinaryOp::EmitHLSL(UE::HLSLTree::FEmitContext& Con
 	const FEmitValue& LhsRef = Context.AcquireValue(Lhs);
 	const FEmitValue& RhsRef = Context.AcquireValue(Rhs);
 
+	FString ErrorMessage;
+
 	OutResult.EvaluationType = CombineEvaluationTypes(LhsRef.GetEvaluationType(), RhsRef.GetEvaluationType());
+	OutResult.Type = MakeArithmeticResultType(LhsRef.GetExpressionType(), RhsRef.GetExpressionType(), ErrorMessage);
 	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
 	{
 		OutResult.Writer.Writef(TEXT("(%s + %s)"), Context.GetCode(LhsRef), Context.GetCode(RhsRef));
 	}
 	else
 	{
-		EMaterialPreshaderOpcode Opcode = EMaterialPreshaderOpcode::Nop;
+		Shader::EPreshaderOpcode Opcode = Shader::EPreshaderOpcode::Nop;
 		switch (Op)
 		{
-		case UE::HLSLTree::EBinaryOp::Add: Opcode = EMaterialPreshaderOpcode::Add; break;
+		case UE::HLSLTree::EBinaryOp::Add: Opcode = Shader::EPreshaderOpcode::Add; break;
 		default: checkNoEntry(); break;
 		}
 
@@ -302,6 +354,7 @@ void UE::HLSLTree::FExpressionSwizzle::EmitHLSL(FEmitContext& Context, FExpressi
 
 	OutResult.bInline = true;
 	OutResult.EvaluationType = InputRef.GetEvaluationType();
+	OutResult.Type = Shader::MakeValueType(InputRef.GetExpressionType(), Parameters.NumComponents);
 	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
 	{
 		OutResult.Writer.Writef(TEXT("%s.%s"), Context.GetCode(InputRef), Swizzle);
@@ -309,7 +362,7 @@ void UE::HLSLTree::FExpressionSwizzle::EmitHLSL(FEmitContext& Context, FExpressi
 	else
 	{
 		Context.AppendPreshader(InputRef, OutResult.Preshader);
-		OutResult.Preshader.WriteOpcode(EMaterialPreshaderOpcode::ComponentSwizzle)
+		OutResult.Preshader.WriteOpcode(Shader::EPreshaderOpcode::ComponentSwizzle)
 			.Write((uint8)Parameters.NumComponents)
 			.Write((uint8)Parameters.ComponentIndex[0])
 			.Write((uint8)Parameters.ComponentIndex[1])
@@ -320,21 +373,23 @@ void UE::HLSLTree::FExpressionSwizzle::EmitHLSL(FEmitContext& Context, FExpressi
 
 void UE::HLSLTree::FExpressionCast::EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const EExpressionType InputType = Input->Type;
 	const FEmitValue& InputRef = Context.AcquireValue(Input);
+	const Shader::EValueType InputType = InputRef.GetExpressionType();
 	const TCHAR* InputCode = Context.GetCode(InputRef);
 
 	OutResult.bInline = true;
+	OutResult.Type = Type;
 	// TODO - preshader
 
 	if (InputType == Type)
 	{
 		// No cast required (nop)
 		OutResult.Writer.Writef(TEXT("%s"), InputCode);
+		return;
 	}
 
-	const FExpressionTypeDescription OutputTypeDesc = GetExpressionTypeDescription(Type);
-	const FExpressionTypeDescription InputTypeDesc = GetExpressionTypeDescription(InputType);
+	const Shader::FValueTypeDescription OutputTypeDesc = Shader::GetValueTypeDescription(Type);
+	const Shader::FValueTypeDescription InputTypeDesc = Shader::GetValueTypeDescription(InputType);
 	if (InputTypeDesc.NumComponents == OutputTypeDesc.NumComponents)
 	{
 		// Cast between different underlying types with the same number of components, use a C-style cast
@@ -384,34 +439,14 @@ void UE::HLSLTree::FExpressionFunctionInput::EmitHLSL(FEmitContext& Context, FEx
 
 	check(InputIndex >= 0 && InputIndex < StackEntry.FunctionCall->NumInputs);
 	FExpression* InputExpression = StackEntry.FunctionCall->Inputs[InputIndex];
-	const FEmitValue& Ref = Context.AcquireValue(InputExpression);
-
-	OutResult.bInline = true;
-	OutResult.EvaluationType = Ref.GetEvaluationType();
-	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
-	{
-		OutResult.Writer.Writef(TEXT("%s"), Context.GetCode(Ref));
-	}
-	else
-	{
-		Context.AppendPreshader(Ref, OutResult.Preshader);
-	}
+	const FEmitValue& Value = Context.AcquireValue(InputExpression);
+	OutResult.ForwardValue(Context, Value);
 }
 
 void UE::HLSLTree::FExpressionFunctionOutput::EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const
 {
-	const FEmitValue& Ref = Context.AcquireValue(FunctionCall, OutputIndex);
-	
-	OutResult.bInline = true;
-	OutResult.EvaluationType = Ref.GetEvaluationType();
-	if (OutResult.EvaluationType == EExpressionEvaluationType::Shader)
-	{
-		OutResult.Writer.Writef(TEXT("%s"), Context.GetCode(Ref));
-	}
-	else
-	{
-		Context.AppendPreshader(Ref, OutResult.Preshader);
-	}
+	const FEmitValue& Value = Context.AcquireValue(FunctionCall, OutputIndex);
+	OutResult.ForwardValue(Context, Value);
 }
 
 void UE::HLSLTree::FStatementReturn::EmitHLSL(UE::HLSLTree::FEmitContext& Context, UE::HLSLTree::FCodeWriter& OutWriter) const

@@ -28,6 +28,8 @@
 #include "MaterialSceneTextureId.h"
 #include "VirtualTexturing.h"
 
+#include "Shader/Preshader.h"
+
 #include <atomic>
 
 struct FExpressionInput;
@@ -241,95 +243,10 @@ struct ENGINE_API FMaterialRenderContext
 		const FMaterialRenderProxy* InMaterialRenderProxy,
 		const FMaterial& InMaterial,
 		const FSceneView* InView);
-};
 
-enum class EMaterialPreshaderOpcode : uint8
-{
-	Nop,
-	ConstantZero,
-	Constant,
-	ScalarParameter,
-	VectorParameter,
-	Add,
-	Sub,
-	Mul,
-	Div,
-	Fmod,
-	Min,
-	Max,
-	Clamp,
-	Sin,
-	Cos,
-	Tan,
-	Asin,
-	Acos,
-	Atan,
-	Atan2,
-	Dot,
-	Cross,
-	Sqrt,
-	Length,
-	Saturate,
-	Abs,
-	Floor,
-	Ceil,
-	Round,
-	Trunc,
-	Sign,
-	Frac,
-	Fractional,
-	Log2,
-	Log10,
-	ComponentSwizzle,
-	AppendVector,
-	TextureSize,
-	TexelSize,
-	ExternalTextureCoordinateScaleRotation,
-	ExternalTextureCoordinateOffset,
-	RuntimeVirtualTextureUniform,
-};
-
-class FMaterialPreshaderData
-{
-	DECLARE_TYPE_LAYOUT(FMaterialPreshaderData, NonVirtual);
-public:
-	friend inline bool operator==(const FMaterialPreshaderData& Lhs, const FMaterialPreshaderData& Rhs)
-	{
-		return Lhs.Data == Rhs.Data;
-	}
-
-	friend inline bool operator!=(const FMaterialPreshaderData& Lhs, const FMaterialPreshaderData& Rhs)
-	{
-		return !operator==(Lhs, Rhs);
-	}
-
-	void Evaluate(FUniformExpressionSet* UniformExpressionSet, const struct FMaterialRenderContext& Context, FLinearColor& OutValue);
-
-	void Append(const FMaterialPreshaderData& InPreshader);
-
-	const int32 Num() const { return Data.Num(); }
-
-	void WriteData(const void* Value, uint32 Size);
-	void WriteName(const FScriptName& Name);
-
-	template<typename T>
-	FMaterialPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
-
-	template<>
-	FMaterialPreshaderData& Write<FScriptName>(const FScriptName& Value) { WriteName(Value); return *this; }
-
-	/** Can't write FName, use FScriptName instead */
-	template<>
-	FMaterialPreshaderData& Write<FName>(const FName& Value) = delete;
-
-	template<>
-	FMaterialPreshaderData& Write<FHashedMaterialParameterInfo>(const FHashedMaterialParameterInfo& Value) { return Write(Value.Name).Write(Value.Index).Write(Value.Association); }
-
-	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
-
-	LAYOUT_FIELD(TMemoryImageArray<FScriptName>, Names);
-	LAYOUT_FIELD(TMemoryImageArray<uint32>, NameOffsets);
-	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
+	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const UTexture*& OutValue) const;
+	void GetTextureParameterValue(const FHashedMaterialParameterInfo& ParameterInfo, int32 TextureIndex, const URuntimeVirtualTexture*& OutValue) const;
+	FGuid GetExternalTextureGuid(const FGuid& ExternalTextureGuid, const FName& ParameterName, int32 SourceTextureIndex) const;
 };
 
 class FMaterialVirtualTextureStack
@@ -611,7 +528,7 @@ protected:
 	LAYOUT_ARRAY(TMemoryImageArray<FMaterialTextureParameterInfo>, UniformTextureParameters, NumMaterialTextureParameterTypes);
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialExternalTextureParameterInfo>, UniformExternalTextureParameters);
 
-	LAYOUT_FIELD(FMaterialPreshaderData, UniformPreshaderData);
+	LAYOUT_FIELD(UE::Shader::FPreshaderData, UniformPreshaderData);
 
 	/** Virtual texture stacks found during compilation */
 	LAYOUT_FIELD(TMemoryImageArray<FMaterialVirtualTextureStack>, VTStacks);

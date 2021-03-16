@@ -67,7 +67,7 @@ EMaterialGenerateHLSLStatus FMaterialHLSLGenerator::Error(const FString& Message
 	return EMaterialGenerateHLSLStatus::Error;
 }
 
-UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(UE::HLSLTree::FScope& Scope, const UE::HLSLTree::FConstant& Value)
+UE::HLSLTree::FExpressionConstant* FMaterialHLSLGenerator::NewConstant(UE::HLSLTree::FScope& Scope, const UE::Shader::FValue& Value)
 {
 	UE::HLSLTree::FExpressionConstant* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionConstant>(Scope, Value);
 	return Expression;
@@ -85,26 +85,21 @@ UE::HLSLTree::FExpressionSwizzle* FMaterialHLSLGenerator::NewSwizzle(UE::HLSLTre
 	return Expression;
 }
 
-UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewCast(UE::HLSLTree::FScope& Scope, UE::HLSLTree::EExpressionType Type, UE::HLSLTree::FExpression* Input, UE::HLSLTree::ECastFlags Flags)
+UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewCast(UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type, UE::HLSLTree::FExpression* Input, UE::HLSLTree::ECastFlags Flags)
 {
-	// Only generate the cast expression if the types don't match
-	if (Input && Type != Input->Type)
-	{
-		UE::HLSLTree::FExpressionCast* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionCast>(Scope, Type, Input, Flags);
-		return Expression;
-	}
-	return Input;
+	UE::HLSLTree::FExpressionCast* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionCast>(Scope, Type, Input, Flags);
+	return Expression;
 }
 
 UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewFunctionInput(UE::HLSLTree::FScope& Scope, int32 InputIndex, UMaterialExpressionFunctionInput* MaterialFunctionInput)
 {
-	UE::HLSLTree::EExpressionType ExpressionType = UE::HLSLTree::EExpressionType::Void;
+	UE::Shader::EValueType ExpressionType = UE::Shader::EValueType::Void;
 	switch (MaterialFunctionInput->InputType)
 	{
-	case FunctionInput_Scalar: ExpressionType = UE::HLSLTree::EExpressionType::Float1; break;
-	case FunctionInput_Vector2: ExpressionType = UE::HLSLTree::EExpressionType::Float2; break;
-	case FunctionInput_Vector3: ExpressionType = UE::HLSLTree::EExpressionType::Float3; break;
-	case FunctionInput_Vector4: ExpressionType = UE::HLSLTree::EExpressionType::Float4; break;
+	case FunctionInput_Scalar: ExpressionType = UE::Shader::EValueType::Float1; break;
+	case FunctionInput_Vector2: ExpressionType = UE::Shader::EValueType::Float2; break;
+	case FunctionInput_Vector3: ExpressionType = UE::Shader::EValueType::Float3; break;
+	case FunctionInput_Vector4: ExpressionType = UE::Shader::EValueType::Float4; break;
 	case FunctionInput_Texture2D:
 	case FunctionInput_TextureCube:
 	case FunctionInput_Texture2DArray:
@@ -115,7 +110,7 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewFunctionInput(UE::HLSLTree
 		// TODO
 		break;
 	}
-	check(ExpressionType != UE::HLSLTree::EExpressionType::Void);
+	check(ExpressionType != UE::Shader::EValueType::Void);
 
 	UE::HLSLTree::FExpressionFunctionInput* Expression = HLSLTree->NewExpression<UE::HLSLTree::FExpressionFunctionInput>(Scope, MaterialFunctionInput->InputName, ExpressionType, InputIndex);
 	const FExpressionKey Key(MaterialFunctionInput, 0);
@@ -124,7 +119,7 @@ UE::HLSLTree::FExpression* FMaterialHLSLGenerator::NewFunctionInput(UE::HLSLTree
 	return Expression;
 }
 
-UE::HLSLTree::FLocalDeclaration* FMaterialHLSLGenerator::AcquireLocalDeclaration(UE::HLSLTree::FScope& Scope, UE::HLSLTree::EExpressionType Type, const FName& Name)
+UE::HLSLTree::FLocalDeclaration* FMaterialHLSLGenerator::AcquireLocalDeclaration(UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type, const FName& Name)
 {
 	UE::HLSLTree::FLocalDeclaration*& Declaration = LocalDeclarationMap.FindOrAdd(Name);
 	if (!Declaration)
@@ -140,15 +135,15 @@ UE::HLSLTree::FLocalDeclaration* FMaterialHLSLGenerator::AcquireLocalDeclaration
 		else
 		{
 			Errorf(TEXT("Local %s first accessed as type %s, now type %s"), *Name.ToString(),
-				UE::HLSLTree::GetExpressionTypeDescription(Declaration->Type).Name,
-				UE::HLSLTree::GetExpressionTypeDescription(Type).Name);
+				UE::Shader::GetValueTypeDescription(Declaration->Type).Name,
+				UE::Shader::GetValueTypeDescription(Type).Name);
 			return nullptr;
 		}
 	}
 	return Declaration;
 }
 
-UE::HLSLTree::FParameterDeclaration* FMaterialHLSLGenerator::AcquireParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::HLSLTree::FConstant& DefaultValue)
+UE::HLSLTree::FParameterDeclaration* FMaterialHLSLGenerator::AcquireParameterDeclaration(UE::HLSLTree::FScope& Scope, const FName& Name, const UE::Shader::FValue& DefaultValue)
 {
 	UE::HLSLTree::FParameterDeclaration*& Declaration = ParameterDeclarationMap.FindOrAdd(Name);
 	if (!Declaration)

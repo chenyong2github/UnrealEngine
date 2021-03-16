@@ -67,7 +67,6 @@ IMPLEMENT_TYPE_LAYOUT(FMaterialCompilationOutput);
 IMPLEMENT_TYPE_LAYOUT(FMeshMaterialShaderMap);
 IMPLEMENT_TYPE_LAYOUT(FMaterialProcessedSource);
 IMPLEMENT_TYPE_LAYOUT(FMaterialShaderMapContent);
-IMPLEMENT_TYPE_LAYOUT(FMaterialPreshaderData);
 IMPLEMENT_TYPE_LAYOUT(FMaterialUniformPreshaderHeader);
 IMPLEMENT_TYPE_LAYOUT(FMaterialScalarParameterInfo);
 IMPLEMENT_TYPE_LAYOUT(FMaterialVectorParameterInfo);
@@ -279,7 +278,7 @@ UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpression(FMaterialHLSL
 	return Result;
 }
 
-UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionWithCast(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::HLSLTree::EExpressionType Type) const
+UE::HLSLTree::FExpression* FExpressionInput::AcquireHLSLExpressionWithCast(FMaterialHLSLGenerator& Generator, UE::HLSLTree::FScope& Scope, UE::Shader::EValueType Type) const
 {
 	UE::HLSLTree::FExpression* Result = AcquireHLSLExpression(Generator, Scope);
 	return Generator.NewCast(Scope, Type, Result);
@@ -2315,7 +2314,7 @@ bool FMaterial::Translate_New(const FMaterialShaderMapId& ShaderMapId,
 	FMaterialHLSLTree Tree;
 	Tree.InitializeForMaterial(TargetParams, *this);
 
-	return MaterialEmitHLSL(TargetParams, *this, Tree.GetTree(), OutCompilationOutput, OutMaterialEnvironment);
+	return MaterialEmitHLSL(TargetParams, *this, InStaticParameters, Tree.GetTree(), OutCompilationOutput, OutMaterialEnvironment);
 #else
 	checkNoEntry();
 	return false;

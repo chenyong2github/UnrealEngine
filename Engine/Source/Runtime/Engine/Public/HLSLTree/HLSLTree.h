@@ -9,15 +9,21 @@
 
 class FMaterial;
 class FMaterialCompilationOutput;
-class FMaterialPreshaderData;
+struct FStaticParameterSet;
+
+namespace UE
+{
+
+namespace Shader
+{
+class FPreshaderData;
+}
 
 /**
  * The HLSLTree module contains classes to build an HLSL AST (abstract syntax tree)
  * This allows C++ to procedurally define an HLSL program.  The structure of the tree is designed to be flexible, to facilitate incremental generation from a material node graph
  * Once the tree is complete, HLSL source code may be generated
  */
-namespace UE
-{
 namespace HLSLTree
 {
 
@@ -62,6 +68,8 @@ public:
 		StringBuilder->Append('\n');
 	}
 
+	void WriteConstant(const Shader::FValue& Value);
+
 	explicit FCodeWriter(FStringBuilderBase* InStringBuilder)
 		: StringBuilder(InStringBuilder)
 		, IndentLevel(0)
@@ -81,14 +89,15 @@ class FEmitValue
 {
 public:
 	EExpressionEvaluationType GetEvaluationType() const { return EvaluationType; }
-	const FConstant& GetConstantValue() const { return ConstantValue; }
+	Shader::EValueType GetExpressionType() const { return ExpressionType; }
+	const Shader::FValue& GetConstantValue() const { return ConstantValue; }
 
 private:
 	mutable const TCHAR* Code = nullptr;
-	const FMaterialPreshaderData* Preshader = nullptr;
+	const Shader::FPreshaderData* Preshader = nullptr;
 	EExpressionEvaluationType EvaluationType = EExpressionEvaluationType::None;
-	EExpressionType ExpressionType = EExpressionType::Void;
-	FConstant ConstantValue;
+	Shader::EValueType ExpressionType = Shader::EValueType::Void;
+	Shader::FValue ConstantValue;
 
 	friend class FEmitContext;
 };
@@ -113,7 +122,7 @@ public:
 	const TCHAR* GetCode(const FEmitValue& Value) const;
 
 	/** Append preshader bytecode that represents the given value */
-	void AppendPreshader(const FEmitValue& Value, FMaterialPreshaderData& InOutPreshader) const;
+	void AppendPreshader(const FEmitValue& Value, Shader::FPreshaderData& InOutPreshader) const;
 
 	struct FScopeEntry
 	{
@@ -146,9 +155,10 @@ public:
 
 	TArray<FScopeEntry> ScopeStack;
 	TArray<FFunctionStackEntry> FunctionStack;
-	TArray<FMaterialPreshaderData*> TempPreshaders;
+	TArray<Shader::FPreshaderData*> TempPreshaders;
 	FMemStackBase* Allocator = nullptr;
 	const FMaterial* Material = nullptr; // TODO - remove preshader material dependency
+	const FStaticParameterSet* StaticParameters = nullptr;
 	FMaterialCompilationOutput* MaterialCompilationOutput = nullptr;
 	int32 NumExpressionLocals = 0;
 	int32 NumTexCoords = 0;
@@ -156,16 +166,20 @@ public:
 
 struct FExpressionEmitResult
 {
-	FExpressionEmitResult(FCodeWriter& InWriter, FMaterialPreshaderData& InPreshader)
+	FExpressionEmitResult(FCodeWriter& InWriter, Shader::FPreshaderData& InPreshader)
 		: Writer(InWriter)
 		, Preshader(InPreshader)
 		, EvaluationType(EExpressionEvaluationType::Shader)
+		, Type(Shader::EValueType::Void)
 		, bInline(false)
 	{}
 
+	void ForwardValue(FEmitContext& Context, const FEmitValue& InValue);
+
 	FCodeWriter& Writer;
-	FMaterialPreshaderData& Preshader;
+	Shader::FPreshaderData& Preshader;
 	EExpressionEvaluationType EvaluationType;
+	Shader::EValueType Type;
 	bool bInline;
 };
 
@@ -236,14 +250,6 @@ public:
 
 	/* Emits HLSL code for the expression. The code should NOT include any newlines or semi-colons. The returned string may be assigned to a temporary variable, or embedded in another HLSL string */
 	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
-
-	/** The HLSL type of the expression (float, int, etc) */
-	EExpressionType Type;
-
-protected:
-	explicit FExpression(EExpressionType InType)
-		: Type(InType)
-	{}
 };
 
 /**
@@ -252,12 +258,12 @@ protected:
 class FLocalDeclaration final : public FNode
 {
 public:
-	FLocalDeclaration(const FName& InName, EExpressionType InType) : Name(InName), Type(InType) {}
+	FLocalDeclaration(const FName& InName, Shader::EValueType InType) : Name(InName), Type(InType) {}
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	FName Name;
-	EExpressionType Type;
+	Shader::EValueType Type;
 };
 
 /**
@@ -266,12 +272,12 @@ public:
 class FParameterDeclaration final : public FNode
 {
 public:
-	FParameterDeclaration(const FName& InName, const FConstant& InDefaultValue) : Name(InName), DefaultValue(InDefaultValue) {}
+	FParameterDeclaration(const FName& InName, const Shader::FValue& InDefaultValue) : Name(InName), DefaultValue(InDefaultValue) {}
 
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
 	FName Name;
-	FConstant DefaultValue;
+	Shader::FValue DefaultValue;
 };
 
 /**
@@ -295,12 +301,6 @@ class FFunctionCall final : public FNode
 {
 public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
-
-	inline EExpressionType GetOutputType(int32 Index) const
-	{
-		check(Index >= 0 && Index < NumOutputs);
-		return Outputs[Index] ? Outputs[Index]->Type : EExpressionType::Float1;
-	}
 
 	/** Root scope of the function to call. Note that this scope will be from a separate (external) tree */
 	const FScope* FunctionScope;
@@ -390,8 +390,8 @@ public:
 	 */
 	FScope* NewLinkedScope(FScope& Scope);
 	
-	FLocalDeclaration* NewLocalDeclaration(FScope& Scope, EExpressionType Type, const FName& Name);
-	FParameterDeclaration* NewParameterDeclaration(FScope& Scope, const FName& Name, const FConstant& DefaultValue);
+	FLocalDeclaration* NewLocalDeclaration(FScope& Scope, Shader::EValueType Type, const FName& Name);
+	FParameterDeclaration* NewParameterDeclaration(FScope& Scope, const FName& Name, const Shader::FValue& DefaultValue);
 	FTextureParameterDeclaration* NewTextureParameterDeclaration(FScope& Scope, const FName& Name, const FTextureDescription& DefaultValue);
 
 	FFunctionCall* NewFunctionCall(FScope& Scope,

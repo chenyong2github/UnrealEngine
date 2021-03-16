@@ -20,11 +20,11 @@ enum class EBinaryOp
 class FExpressionConstant : public FExpression
 {
 public:
-	explicit FExpressionConstant(const FConstant& InValue)
-		: FExpression(InValue.Type), Value(InValue)
+	explicit FExpressionConstant(const Shader::FValue& InValue)
+		: Value(InValue)
 	{}
 
-	FConstant Value;
+	Shader::FValue Value;
 
 	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
@@ -32,7 +32,7 @@ public:
 class FExpressionLocalVariable : public FExpression
 {
 public:
-	explicit FExpressionLocalVariable(FLocalDeclaration* InDeclaration) : FExpression(InDeclaration->Type), Declaration(InDeclaration) {}
+	explicit FExpressionLocalVariable(FLocalDeclaration* InDeclaration) : Declaration(InDeclaration) {}
 
 	FLocalDeclaration* Declaration;
 
@@ -53,8 +53,7 @@ class FExpressionParameter : public FExpression
 {
 public:
 	FExpressionParameter(FParameterDeclaration* InDeclaration)
-		: FExpression(InDeclaration->DefaultValue.Type)
-		, Declaration(InDeclaration)
+		: Declaration(InDeclaration)
 	{}
 
 	FParameterDeclaration* Declaration;
@@ -83,9 +82,9 @@ enum class EExternalInputType
 	TexCoord6,
 	TexCoord7,
 };
-inline EExpressionType GetInputExpressionType(EExternalInputType Type)
+inline Shader::EValueType GetInputExpressionType(EExternalInputType Type)
 {
-	return EExpressionType::Float2;
+	return Shader::EValueType::Float2;
 }
 inline EExternalInputType MakeInputTexCoord(int32 Index)
 {
@@ -96,7 +95,7 @@ inline EExternalInputType MakeInputTexCoord(int32 Index)
 class FExpressionExternalInput : public FExpression
 {
 public:
-	FExpressionExternalInput(EExternalInputType InInputType) : FExpression(GetInputExpressionType(InInputType)), InputType(InInputType) {}
+	FExpressionExternalInput(EExternalInputType InInputType) : InputType(InInputType) {}
 
 	EExternalInputType InputType;
 
@@ -107,8 +106,7 @@ class FExpressionTextureSample : public FExpression
 {
 public:
 	FExpressionTextureSample(FTextureParameterDeclaration* InDeclaration, FExpression* InTexCoordExpression)
-		: FExpression(EExpressionType::Float4)
-		, Declaration(InDeclaration)
+		: Declaration(InDeclaration)
 		, TexCoordExpression(InTexCoordExpression)
 		, SamplerSource(SSM_FromTextureAsset)
 		, MipValueMode(TMVM_None)
@@ -136,7 +134,7 @@ public:
 class FExpressionDefaultMaterialAttributes : public FExpression
 {
 public:
-	FExpressionDefaultMaterialAttributes() : FExpression(EExpressionType::MaterialAttributes) {}
+	FExpressionDefaultMaterialAttributes() {}
 
 	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
@@ -144,7 +142,7 @@ public:
 class FExpressionSetMaterialAttribute : public FExpression
 {
 public:
-	FExpressionSetMaterialAttribute() : FExpression(EExpressionType::MaterialAttributes) {}
+	FExpressionSetMaterialAttribute() {}
 
 	FGuid AttributeID;
 	FExpression* AttributesExpression;
@@ -164,12 +162,39 @@ public:
 	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 };
 
+class FExpressionSelect : public FExpression
+{
+public:
+	FExpressionSelect(FExpression* InCondition, FExpression* InTrue, FExpression* InFalse)
+		: ConditionExpression(InCondition)
+		, TrueExpression(InTrue)
+		, FalseExpression(InFalse)
+	{}
+
+	FExpression* ConditionExpression;
+	FExpression* TrueExpression;
+	FExpression* FalseExpression;
+
+	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override
+	{
+		const ENodeVisitResult Result = FExpression::Visit(Visitor);
+		if (ShouldVisitDependentNodes(Result))
+		{
+			Visitor.VisitNode(ConditionExpression);
+			Visitor.VisitNode(TrueExpression);
+			Visitor.VisitNode(FalseExpression);
+		}
+		return Result;
+	}
+
+	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
+};
+
 class FExpressionBinaryOp : public FExpression
 {
 public:
-	FExpressionBinaryOp(EExpressionType ResultType, EBinaryOp InOp, FExpression* InLhs, FExpression* InRhs)
-		: FExpression(ResultType)
-		, Op(InOp)
+	FExpressionBinaryOp(EBinaryOp InOp, FExpression* InLhs, FExpression* InRhs)
+		: Op(InOp)
 		, Lhs(InLhs)
 		, Rhs(InRhs)
 	{}
@@ -206,8 +231,7 @@ class FExpressionSwizzle : public FExpression
 {
 public:
 	FExpressionSwizzle(const FSwizzleParameters& InParams, FExpression* InInput)
-		: FExpression(MakeExpressionType(InInput->Type, InParams.NumComponents))
-		, Parameters(InParams)
+		: Parameters(InParams)
 		, Input(InInput)
 	{}
 
@@ -230,12 +254,13 @@ public:
 class FExpressionCast : public FExpression
 {
 public:
-	FExpressionCast(EExpressionType InType, FExpression* InInput, ECastFlags InFlags = ECastFlags::None)
-		: FExpression(InType)
+	FExpressionCast(Shader::EValueType InType, FExpression* InInput, ECastFlags InFlags = ECastFlags::None)
+		: Type(InType)
 		, Input(InInput)
 		, Flags(InFlags)
 	{}
 
+	Shader::EValueType Type;
 	FExpression* Input;
 	ECastFlags Flags;
 
@@ -255,13 +280,14 @@ public:
 class FExpressionFunctionInput : public FExpression
 {
 public:
-	FExpressionFunctionInput(const FName& InName, EExpressionType InType, int32 InIndex)
-		: FExpression(InType), Name(InName), InputIndex(InIndex)
+	FExpressionFunctionInput(const FName& InName, Shader::EValueType InType, int32 InIndex)
+		: Name(InName), Type(InType), InputIndex(InIndex)
 	{}
 
 	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const override;
 
 	FName Name;
+	Shader::EValueType Type;
 	int32 InputIndex;
 };
 
@@ -269,8 +295,7 @@ class FExpressionFunctionOutput : public FExpression
 {
 public:
 	FExpressionFunctionOutput(FFunctionCall* InFunctionCall, int32 InIndex)
-		: FExpression(InFunctionCall->GetOutputType(InIndex))
-		, FunctionCall(InFunctionCall)
+		: FunctionCall(InFunctionCall)
 		, OutputIndex(InIndex)
 	{
 		check(InIndex >= 0 && InIndex < InFunctionCall->NumOutputs);

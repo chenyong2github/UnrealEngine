@@ -648,6 +648,7 @@ static void GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	const FMaterial& InMaterial,
+	const FStaticParameterSet& InStaticParameters,
 	const UE::HLSLTree::FTree& InTree,
 	FMaterialCompilationOutput& OutCompilationOutput,
 	TRefCountPtr<FSharedShaderCompilerEnvironment>& OutMaterialEnvironment)
@@ -678,6 +679,7 @@ bool MaterialEmitHLSL(const FMaterialCompileTargetParameters& InCompilerTarget,
 	UE::HLSLTree::FEmitContext EmitContext;
 	EmitContext.Allocator = &Allocator;
 	EmitContext.Material = &InMaterial;
+	EmitContext.StaticParameters = &InStaticParameters;
 	EmitContext.MaterialCompilationOutput = &OutCompilationOutput;
 	InTree.EmitHLSL(EmitContext, *CodeWriter);
 
