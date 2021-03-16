@@ -390,7 +390,7 @@ FRDGTextureRef FDeferredShadingSceneRenderer::RenderTiledDeferredLighting(
 					RDG_EVENT_NAME("TiledDeferredLighting"),
 					PassParameters,
 					ERDGPassFlags::Compute,
-					[&View, ViewIndex, ViewCount, &SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, &SimpleLights, StartIndex, NumThisPass, SceneColorTexture, SceneColorOutputTexture](FRHIComputeCommandList& RHICmdList)
+					[&View, ViewIndex, ViewCount, &SortedLights, TiledDeferredLightsStart, TiledDeferredLightsEnd, &SimpleLights, StartIndex, NumThisPass, SceneColorTexture, SceneColorOutputTexture](FRHICommandList& RHICmdList)
 				{
 					if (View.Family->EngineShowFlags.VisualizeLightCulling)
 					{
