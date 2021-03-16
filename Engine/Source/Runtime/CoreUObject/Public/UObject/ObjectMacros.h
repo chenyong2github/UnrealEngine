@@ -112,12 +112,12 @@ enum EPackageFlags
 	PKG_Developer					= 0x00000080,	///< Developer module
 	PKG_UncookedOnly				= 0x00000100,	///< Loaded only in uncooked builds (i.e. runtime in editor)
 	PKG_Cooked						= 0x00000200,	///< Package is cooked
-//	PKG_Unused						= 0x00000400,
+	PKG_ContainsNoAsset				= 0x00000400,	///< Package doesn't contain any asset object (although asset tags can be present)
 //	PKG_Unused						= 0x00000800,
 //	PKG_Unused						= 0x00001000,
 	PKG_UnversionedProperties		= 0x00002000,   ///< Uses unversioned property serialization instead of versioned tagged property serialization
 	PKG_ContainsMapData				= 0x00004000,   ///< Contains map data (UObjects only referenced by a single ULevel) but is stored in a different package
-	PKG_ContainsNoAsset 			= 0x00008000,	///< Package doesn't contain any asset object (although asset tags can be present)
+//	PKG_Unused						= 0x00008000,
 	PKG_Compiling					= 0x00010000,	///< package is currently being compiled
 	PKG_ContainsMap					= 0x00020000,	///< Set if the package contains a ULevel/ UWorld object
 	PKG_RequiresLocalizationGather	= 0x00040000,	///< Set if the package contains any data to be gathered by localization
