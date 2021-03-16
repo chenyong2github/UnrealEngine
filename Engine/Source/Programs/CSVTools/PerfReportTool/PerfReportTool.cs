@@ -21,7 +21,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.24";
+        private static string VersionString = "4.25";
 
         public static string Get() { return VersionString; }
     };
@@ -427,6 +427,7 @@ namespace PerfReportTool
 			"       -maxy <value> - forces all graphs to use this value\n" +
 			"       -writeSummaryCsv : if specified, a csv file containing summary information will be generated. Not available in bulk mode.\n" +
 			"       -nocommandlineEmbed : don't embed the commandline in reports"+
+			"       -cleanCsvOut <filename> : write a standard format CSV after event stripping with metadata stripped out. Non-bulk mode only\n"+
 			"\n"+
 			"Performance args:\n" +
 			"       -perfLog : output performance logging information\n" +
@@ -667,6 +668,12 @@ namespace PerfReportTool
 			bool bMetadataCacheReadonly = GetBoolArg("metadataCacheReadOnly");
 			bool bMetadataCacheInvalidate = GetBoolArg("metadataCacheInvalidate");
 
+			string cleanCsvOutputFilename = GetArg("cleanCsvOut", null);
+			if (cleanCsvOutputFilename != null && bBulkMode)
+			{
+				throw new Exception("-cleanCsvOut is not compatible with bulk mode. Pass one csv with -csv <filename>");
+			}
+
 			string summaryMetadataCacheDirForRead = summaryMetadataCacheDir;
 			if ( bMetadataCacheInvalidate || writeDetailedReports )
 			{
@@ -707,15 +714,22 @@ namespace PerfReportTool
 							{
 								metadata = new SummaryMetadata();
 							}
-							GenerateReport(cachedCsvFile, outputDir, bBulkMode, metadata, bBatchedGraphs, writeDetailedReports, bReadAllStats || bWriteToMetadataCache, cachedCsvFile.reportTypeInfo);
-							perfLog.LogTiming("  GenerateReport");
-							if (metadata != null && bWriteToMetadataCache)
+							if (cleanCsvOutputFilename != null)
 							{
-								if (metadata.WriteToCache(summaryMetadataCacheDir, cachedCsvFile.summaryTableCacheId) )
+								WriteCleanCsv(cachedCsvFile, cleanCsvOutputFilename, cachedCsvFile.reportTypeInfo);
+							}
+							else
+							{
+								GenerateReport(cachedCsvFile, outputDir, bBulkMode, metadata, bBatchedGraphs, writeDetailedReports, bReadAllStats || bWriteToMetadataCache, cachedCsvFile.reportTypeInfo);
+								perfLog.LogTiming("  GenerateReport");
+								if (metadata != null && bWriteToMetadataCache)
 								{
-									Console.WriteLine("Cached summary metadata for CSV: " + csvFilenames[i]);
-									metadataCacheStats.WriteCount++;
-									perfLog.LogTiming("  WriteMetadataCache");
+									if (metadata.WriteToCache(summaryMetadataCacheDir, cachedCsvFile.summaryTableCacheId))
+									{
+										Console.WriteLine("Cached summary metadata for CSV: " + csvFilenames[i]);
+										metadataCacheStats.WriteCount++;
+										perfLog.LogTiming("  WriteMetadataCache");
+									}
 								}
 							}
 						}
@@ -902,6 +916,43 @@ namespace PerfReportTool
             bool loggingEnabled;
         }
 
+		void WriteCleanCsv(CachedCsvFile csvFile, string outCsvFilename, ReportTypeInfo reportTypeInfo)
+		{
+			if ( File.Exists(outCsvFilename) )
+			{
+				throw new Exception("Clean csv file " + outCsvFilename + " already exists!");
+			}
+			Console.WriteLine("Writing clean (standard format, event stripped) csv file to " + outCsvFilename);
+			int minX = GetIntArg("minx", 0);
+			int maxX = GetIntArg("maxx", Int32.MaxValue);
+			int numFramesStripped;
+			CsvStats unstrippedCsvStats;
+			CsvStats csvStats = ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX);
+			csvStats.WriteToCSV(outCsvFilename, true);
+		}
+
+		CsvStats ProcessCsv(CachedCsvFile csvFile, out int numFramesStripped, out CsvStats unstrippedCsvStats, int minX=0, int maxX=Int32.MaxValue, PerfLog perfLog=null)
+		{
+			numFramesStripped = 0;
+			CsvStats csvStats = ReadCsvStats(csvFile, minX, maxX);
+			unstrippedCsvStats = csvStats;
+			if (perfLog != null)
+			{
+				perfLog.LogTiming("    ReadCsvStats");
+			}
+
+			if (!GetBoolArg("noStripEvents"))
+			{
+				CsvStats strippedCsvStats = StripCsvStatsByEvents(unstrippedCsvStats, out numFramesStripped);
+				csvStats = strippedCsvStats;
+			}
+			if (perfLog != null)
+			{
+				perfLog.LogTiming("    FilterStats");
+			}
+			return csvStats;
+		}
+
 		void GenerateReport(CachedCsvFile csvFile, string outputDir, bool bBulkMode, SummaryMetadata summaryMetadata, bool bBatchedGraphs, bool writeDetailedReport, bool bReadAllStats, ReportTypeInfo reportTypeInfo)
         {
             PerfLog perfLog = new PerfLog(GetBoolArg("perfLog"));
@@ -997,19 +1048,10 @@ namespace PerfReportTool
 			}
             perfLog.LogTiming("    Initial Processing");
 
-            // Read the csv stats while we wait for the graphs to complete
-            int numFramesStripped = 0;
-            CsvStats csvStats = ReadCsvStats(csvFile, minX, maxX);
-			CsvStats unstrippedCsvStats = csvStats;
-			perfLog.LogTiming("    ReadCsvStats");
-
-			if (!GetBoolArg("noStripEvents"))
-			{
-				CsvStats strippedCsvStats = StripCsvStatsByEvents(unstrippedCsvStats, out numFramesStripped);
-				csvStats = strippedCsvStats;
-			}
-
-			perfLog.LogTiming("    FilterStats");
+			// Read the full csv while we wait for the graph processes to complete
+			int numFramesStripped;
+			CsvStats unstrippedCsvStats;
+			CsvStats csvStats=ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX, perfLog);
 
             if ( writeDetailedReport )
             { 

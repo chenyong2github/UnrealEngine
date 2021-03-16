@@ -804,7 +804,7 @@ namespace CSVStats
 			return csvStatsOut;
 		}
 
-		public void WriteToCSV(string filename)
+		public void WriteToCSV(string filename, bool bWriteMetadataRow = true)
         {
             System.IO.StreamWriter csvOutFile;
             csvOutFile = new System.IO.StreamWriter(filename);
@@ -896,7 +896,7 @@ namespace CSVStats
                 sb.Clear();
             }
 
-            if (metaData != null)
+            if (metaData != null && bWriteMetadataRow )
             {
                 int index = 0;
                 foreach (System.Collections.Generic.KeyValuePair<string, string> pair in metaData.Values)
