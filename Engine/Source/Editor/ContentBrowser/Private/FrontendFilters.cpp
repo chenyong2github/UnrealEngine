@@ -1223,10 +1223,9 @@ void FFrontendFilter_InUseByLoadedLevels::OnAssetPostCompile(const TArray<FAsset
 {
 	if (bIsCurrentlyActive && !bIsDirty)
 	{
-		// Only StaticMesh requires that this filter be refreshed for now
 		for (const FAssetCompileData& CompileData : CompiledAssets)
 		{
-			if (CompileData.Asset.IsValid() && CompileData.Asset->IsA<UStaticMesh>())
+			if (CompileData.Asset.IsValid())
 			{
 				bIsDirty = true;
 				break;

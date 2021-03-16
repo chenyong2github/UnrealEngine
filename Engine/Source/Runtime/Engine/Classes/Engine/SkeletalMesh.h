@@ -131,7 +131,7 @@ public:
 class FSkeletalMeshBuildContext
 {
 public:
-	TOptional<FSkinnedMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
+	TUniquePtr<FSkinnedMeshComponentRecreateRenderStateContext> RecreateRenderStateContext;
 };
 
 #if WITH_EDITOR
