@@ -526,7 +526,6 @@ public:
 	*/
 	virtual bool GetParameterSortPriority(const FHashedMaterialParameterInfo& ParameterInfo, int32& OutSortPriority, const TArray<struct FStaticMaterialLayersParameter>* MaterialLayersParameters = nullptr) const
 		PURE_VIRTUAL(UMaterialInterface::GetParameterSortPriority, return false;);
-#endif
 
 	/**
 	* Get the sort priority index of the given parameter group
@@ -537,6 +536,7 @@ public:
 	*/
 	virtual bool GetGroupSortPriority(const FString& InGroupName, int32& OutSortPriority) const
 		PURE_VIRTUAL(UMaterialInterface::GetGroupSortPriority, return false;);
+#endif // WITH_EDITOR
 
 	virtual void GetAllScalarParameterInfo(TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 		PURE_VIRTUAL(UMaterialInterface::GetAllScalarParameterInfo,return;);

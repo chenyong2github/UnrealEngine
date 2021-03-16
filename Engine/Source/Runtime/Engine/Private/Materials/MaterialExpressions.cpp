@@ -12487,7 +12487,6 @@ void UMaterialFunctionInstance::OverrideMaterialInstanceParameterValues(UMateria
 	StaticParametersOverride.StaticComponentMaskParameters = StaticComponentMaskParameterValues;
 	Instance->UpdateStaticPermutation(StaticParametersOverride);
 }
-#endif // WITH_EDITOR
 
 void UMaterialFunctionInstance::UpdateFromFunctionResource()
 {
@@ -12504,6 +12503,7 @@ void UMaterialFunctionInstance::GetInputsAndOutputs(TArray<struct FFunctionExpre
 		Parent->GetInputsAndOutputs(OutInputs, OutOutputs);
 	}
 }
+#endif // WITH_EDITOR
 
 bool UMaterialFunctionInstance::ValidateFunctionUsage(class FMaterialCompiler* Compiler, const FFunctionExpressionOutput& Output)
 {
@@ -12541,14 +12541,14 @@ void UMaterialFunctionInstance::UnlinkFromCaller()
 		Parent->UnlinkFromCaller();
 	}
 }
-#endif
+#endif // WITH_EDITOR
 
+#if WITH_EDITORONLY_DATA
 bool UMaterialFunctionInstance::IsDependent(UMaterialFunctionInterface* OtherFunction)
 {
 	return Parent ? Parent->IsDependent(OtherFunction) : false;
 }
 
-#if WITH_EDITORONLY_DATA
 bool UMaterialFunctionInstance::IterateDependentFunctions(TFunctionRef<bool(UMaterialFunctionInterface*)> Predicate) const
 {
 	if (Parent)
