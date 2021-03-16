@@ -196,6 +196,7 @@ public:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, EditFixedSize, Instanced, Category = Config)
 	TMap<FName, UClothConfigBase*> ClothConfigs;
 
+#if WITH_EDITORONLY_DATA
 	// Shared by all cloth instances in a skeletal mesh
 	// Only supported with Chaos Cloth for now
 	// This may not be editable on unused cloth assets
@@ -217,6 +218,7 @@ public:
 	// Deprecated. Use LodData instead
 	UPROPERTY()
 	TArray<UClothLODDataCommon_Legacy*> ClothLodData_DEPRECATED;
+#endif
 
 	// The actual asset data, listed by LOD.
 	UPROPERTY()
@@ -242,12 +244,14 @@ public:
 	UPROPERTY()
 	UClothingAssetCustomData* CustomData;
 
+#if WITH_EDITORONLY_DATA
 	/** 
 	 * Deprecated property for transitioning the \c FClothConfig struct to the 
 	 * \c UClothConfigBase array, in a new property called \c ClothConfigs.
 	 */
 	UPROPERTY()
 	FClothConfig_Legacy ClothConfig_DEPRECATED;
+#endif
 
 private:
 

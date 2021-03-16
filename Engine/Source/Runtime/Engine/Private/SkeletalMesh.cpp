@@ -2865,15 +2865,19 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 #endif
 
+#if WITH_EDITOR
 	// If inverse masses have never been cached, invalidate data so it will be recalculated
 	if(GetLinkerCustomVersion(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::CachedClothInverseMasses)
 	{
 		for(UClothingAssetBase* ClothingAsset : GetMeshClothingAssets())
 		{
 			if(ClothingAsset) 
-			ClothingAsset->InvalidateCachedData();
+			{
+				ClothingAsset->InvalidateCachedData();
+			}
 		}
 	}
+#endif
 
 	SetHasActiveClothingAssets(ComputeActiveClothingAssets());
 
