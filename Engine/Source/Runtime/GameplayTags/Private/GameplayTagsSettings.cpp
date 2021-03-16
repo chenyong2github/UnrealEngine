@@ -61,6 +61,7 @@ UGameplayTagsSettings::UGameplayTagsSettings(const FObjectInitializer& ObjectIni
 	ConfigFileName = GetDefaultConfigFilename();
 	ImportTagsFromConfig = true;
 	WarnOnInvalidTags = true;
+	ClearInvalidTags = false;
 	FastReplication = false;
 	InvalidTagCharacters = ("\"',");
 	NumBitsForContainerSize = 6;
