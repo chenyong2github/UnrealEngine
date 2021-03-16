@@ -296,20 +296,30 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 		ActorContainerDup->MarkPendingKill();
 	}
 
-	// Load saved actors
-	FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackagesToLoad, PackageCache, [this](bool bSucceeded)
+	auto FinalizeLoading = [this]()
 	{
-		if (bSucceeded)
+		check(bLoadRequestInProgress);
+		bLoadRequestInProgress = false;
+		FinalizeRuntimeLevel();
+	};
+
+	// Load saved actors
+	if (ChildPackagesToLoad.Num())
+	{
+		FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackagesToLoad, PackageCache, [this, FinalizeLoading](bool bSucceeded)
 		{
-			check(bLoadRequestInProgress);
-			bLoadRequestInProgress = false;
-			FinalizeRuntimeLevel();
-		}
-		else
-		{
-			UE_LOG(LogLevelStreaming, Fatal, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
-		}
-	}, /*bLoadForPlay=*/true, /*bLoadAsync=*/true, &InstancingContext);
+			if (!bSucceeded)
+			{
+				UE_LOG(LogLevelStreaming, Warning, TEXT("UWorldPartitionLevelStreamingDynamic::IssueLoadRequests failed %s"), *GetWorldAssetPackageName());
+			}
+
+			FinalizeLoading();
+		},/*bLoadForPlay=*/true, /*bLoadAsync=*/true, &InstancingContext);
+	}
+	else
+	{
+		FinalizeLoading();
+	}
 
 	return bLoadRequestInProgress;
 }
