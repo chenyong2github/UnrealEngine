@@ -70,6 +70,11 @@ struct FCacheSpawnableTemplate
 {
 	GENERATED_BODY()
 
+	FCacheSpawnableTemplate()
+		: DuplicatedTemplate(nullptr)
+		, InitialTransform(FTransform::Identity)
+	{}
+
 	UPROPERTY(VisibleAnywhere, Category = "Caching")
 	UObject* DuplicatedTemplate;
 
