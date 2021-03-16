@@ -928,7 +928,7 @@ namespace PerfReportTool
 			int numFramesStripped;
 			CsvStats unstrippedCsvStats;
 			CsvStats csvStats = ProcessCsv(csvFile, out numFramesStripped, out unstrippedCsvStats, minX, maxX);
-			csvStats.WriteToCSV(outCsvFilename, true);
+			csvStats.WriteToCSV(outCsvFilename, false);
 		}
 
 		CsvStats ProcessCsv(CachedCsvFile csvFile, out int numFramesStripped, out CsvStats unstrippedCsvStats, int minX=0, int maxX=Int32.MaxValue, PerfLog perfLog=null)
