@@ -1157,7 +1157,7 @@ bool FOnlineSessionSteam::SendSessionInviteToFriends(int32 LocalUserNum, FName S
 
 				// Outside game accept -> +connect_lobby <64-bit lobby id> on client commandline
 				// Inside game accept -> GameLobbyJoinRequested_t callback on client
-				if (SteamMatchmaking()->InviteUserToLobby(CSteamID(*SessionInfo->SessionId), CSteamID(FriendId)))
+				if (SteamMatchmaking()->InviteUserToLobby(*SessionInfo->SessionId, FriendId))
 				{
 					bSuccess = true;
 				}

@@ -544,7 +544,7 @@ void FOnlineAsyncTaskSteamCreateLobby::Finalize()
 			for (FSteamSessionKeyValuePairs::TConstIterator It(KeyValuePairs); It; ++It)
 			{
 				UE_LOG_ONLINE_SESSION(Verbose, TEXT("Lobby Data (%s, %s)"), *It.Key(), *It.Value());
-				if (!SteamMatchMakingPtr->SetLobbyData(CSteamID(*LobbyId), TCHAR_TO_UTF8(*It.Key()), TCHAR_TO_UTF8(*It.Value())))
+				if (!SteamMatchMakingPtr->SetLobbyData(*LobbyId, TCHAR_TO_UTF8(*It.Key()), TCHAR_TO_UTF8(*It.Value())))
 				{
 					bWasSuccessful = false;
 					break;
@@ -554,7 +554,7 @@ void FOnlineAsyncTaskSteamCreateLobby::Finalize()
 			if (!bWasSuccessful)
 			{
 				bWasSuccessful = false;
-				SteamMatchMakingPtr->LeaveLobby(CSteamID(*LobbyId));
+				SteamMatchMakingPtr->LeaveLobby(*LobbyId);
 				SessionInt->RemoveNamedSession(SessionName);
 				UE_LOG_ONLINE_SESSION(Warning, TEXT("Failed to set lobby data for session %s, cleaning up."), *SessionName.ToString());
 			}
@@ -1003,7 +1003,7 @@ void FOnlineAsyncTaskSteamFindLobbiesBase::Tick()
 						FUniqueNetIdSteamRef LobbyID = FUniqueNetIdSteam::Create(SteamMatchmakingPtr->GetLobbyByIndex(LobbyIdx));
 						if (!SessionInt->IsMemberOfLobby(*LobbyID))
 						{
-							LobbyIDs.Add(*LobbyID);
+							LobbyIDs.Add(**LobbyID);
 						}
 					}
 					FindLobbiesState = EFindLobbiesState::RequestLobbyData;
@@ -1085,9 +1085,9 @@ void FOnlineAsyncTaskSteamFindLobbiesBase::Finalize()
 		{
 			const FUniqueNetIdSteam& LobbyId = *SessionInt->PendingSearchLobbyIds[LobbyIdx];
 			UE_LOG_ONLINE_SESSION(Log, TEXT("Search result %d: LobbyId=%s, LobbyId.IsValid()=%s, CSteamID(LobbyId).IsLobby()=%s"),
-				LobbyIdx, *LobbyId.ToDebugString(), LobbyId.IsValid() ? TEXT("true") : TEXT("false"), CSteamID(LobbyId).IsLobby() ? TEXT("true") : TEXT("false")
+				LobbyIdx, *LobbyId.ToDebugString(), LobbyId.IsValid() ? TEXT("true") : TEXT("false"), (*LobbyId).IsLobby() ? TEXT("true") : TEXT("false")
 				);
-			if (LobbyId.IsValid() && CSteamID(LobbyId).IsLobby())
+			if (LobbyId.IsValid() && (*LobbyId).IsLobby())
 			{
 				ParseSearchResult(LobbyId);
 			}

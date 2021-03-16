@@ -187,7 +187,7 @@ bool FOnlineAuthSteam::AuthenticateUser(const FUniqueNetId& InUserId)
 
 		uint8 AuthTokenRaw[STEAM_AUTH_MAX_TICKET_LENGTH_IN_BYTES];
 		int32 TicketSize = HexToBytes(TargetUser->RecvTicket, AuthTokenRaw);
-		CSteamID UserCSteamId = CSteamID(SteamUserId);
+		CSteamID UserCSteamId = SteamUserId;
 
 		if (IsRunningDedicatedServer())
 		{

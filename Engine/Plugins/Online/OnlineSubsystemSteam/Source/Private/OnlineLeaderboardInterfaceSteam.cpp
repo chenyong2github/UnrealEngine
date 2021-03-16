@@ -164,7 +164,7 @@ public:
 			const CGameID GameID(Subsystem->GetSteamAppId());
 			if (GameID.ToUint64() == CallbackResults.m_nGameID)
 			{
-				check(CSteamID(*UserId) == CallbackResults.m_steamIDUser);
+				check(CallbackResults.m_steamIDUser == *UserId);
 				if (CallbackResults.m_eResult != k_EResultOK)
 				{
 					if (CallbackResults.m_eResult == k_EResultFail)
@@ -429,7 +429,7 @@ public:
 					case EOnlineKeyValuePairDataType::Int32:
 						{
 							int32 Value;
-							bSuccess = SteamUserStatsPtr->GetUserStat(CSteamID(*UserId), TCHAR_TO_UTF8(*StatName), &Value) ? true : false;
+							bSuccess = SteamUserStatsPtr->GetUserStat(*UserId, TCHAR_TO_UTF8(*StatName), &Value) ? true : false;
 							LastColumn = &(UserRow->Columns.Add(ColumnMeta.ColumnName, FVariantData(Value)));
 							break;
 						}
@@ -437,7 +437,7 @@ public:
 					case EOnlineKeyValuePairDataType::Float:
 						{
 							float Value;
-							bSuccess = SteamUserStatsPtr->GetUserStat(CSteamID(*UserId), TCHAR_TO_UTF8(*StatName), &Value) ? true : false;
+							bSuccess = SteamUserStatsPtr->GetUserStat(*UserId, TCHAR_TO_UTF8(*StatName), &Value) ? true : false;
 							LastColumn = &(UserRow->Columns.Add(ColumnMeta.ColumnName, FVariantData(Value)));
 							break;
 						}

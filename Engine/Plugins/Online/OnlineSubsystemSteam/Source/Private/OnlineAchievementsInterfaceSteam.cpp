@@ -40,8 +40,9 @@ void FOnlineAchievementsSteam::WriteAchievements(const FUniqueNetId& PlayerId, F
 	}
 
 	const FUniqueNetIdSteam& SteamId = FUniqueNetIdSteam::Cast(PlayerId);
+	const CSteamID CSID = SteamId;
 	// check if this is our player (cannot report for someone else)
-	if (SteamUser() == NULL || SteamUser()->GetSteamID() != CSteamID(SteamId))
+	if (SteamUser() == NULL || SteamUser()->GetSteamID() != CSID)
 	{
 		// we don't have achievements
 		UE_LOG_ONLINE_ACHIEVEMENTS(Warning, TEXT("Cannot report Steam achievements for non-local player %s"), *PlayerId.ToString());

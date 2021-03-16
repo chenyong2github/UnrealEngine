@@ -411,7 +411,7 @@ void FOnlineAsyncTaskSteamDeleteUserFile::Tick()
 
 	if (SteamRemoteStorage() && FileName.Len() > 0)
 	{
-		if (SteamUser()->BLoggedOn() && SteamUser()->GetSteamID() == CSteamID(*UserId))
+		if (SteamUser()->BLoggedOn() && SteamUser()->GetSteamID() == *UserId)
 		{
 			bool bCloudDeleteSuccess = true;
 			if (bShouldCloudDelete)
