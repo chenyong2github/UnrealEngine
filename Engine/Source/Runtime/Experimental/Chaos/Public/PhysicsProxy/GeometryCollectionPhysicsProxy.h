@@ -171,7 +171,7 @@ public:
 	void FieldForcesUpdateCallback(Chaos::TPBDRigidsSolver<Traits>* RigidSolver);
 
 	template <typename Traits>
-	void FieldParameterUpdateCallback(Chaos::TPBDRigidsSolver<Traits>* RigidSolver);
+	void FieldParameterUpdateCallback(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const bool bUpdateViews = true);
 
 	void UpdateKinematicBodiesCallback(const FParticlesType& InParticles, const float InDt, const float InTime, FKinematicProxy& InKinematicProxy) {}
 	void StartFrameCallback(const float InDt, const float InTime) {}
@@ -351,7 +351,7 @@ private:
 	typename Chaos::TPBDRigidsSolver<Chaos::Traits>::FParticlesType& Particles);\
 	extern template void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::TPBDRigidsSolver<Chaos::Traits> *RBDSolver);\
 	extern template void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::TPBDRigidsSolver<Chaos::Traits>* CurrentSolver,Chaos::FDirtyGeometryCollectionData& BufferData);\
-	extern template void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver);\
+	extern template void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver, const bool bUpdateViews);\
 	extern template void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver);\
 	extern template void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(\
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
