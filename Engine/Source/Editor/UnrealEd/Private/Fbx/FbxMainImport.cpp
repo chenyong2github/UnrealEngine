@@ -165,30 +165,6 @@ FBXImportOptions* GetImportOptions( UnFbx::FFbxImporter* FbxImporter, UFbxImport
 			ImportUI->FileUnits = FbxImporter->GetFileUnitSystem();
 
 			ImportUI->FileAxisDirection = FbxImporter->GetFileAxisDirection();
-
-			//Set the info original file frame rate
-			ImportUI->FileSampleRate = FString::Printf(TEXT("%.2f"), FbxImporter->GetOriginalFbxFramerate());
-
-			//Set the info start time and the end time
-			ImportUI->AnimStartFrame = TEXT("0");
-			ImportUI->AnimEndFrame = TEXT("0");
-			FbxTimeSpan AnimTimeSpan(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
-			int32 AnimStackCount = FbxImporter->Scene->GetSrcObjectCount<FbxAnimStack>();
-			for (int32 AnimStackIndex = 0; AnimStackIndex < AnimStackCount; AnimStackIndex++)
-			{
-				FbxAnimStack* CurAnimStack = FbxImporter->Scene->GetSrcObject<FbxAnimStack>(AnimStackIndex);
-				FbxTimeSpan AnimatedInterval(FBXSDK_TIME_INFINITE, FBXSDK_TIME_MINUS_INFINITE);
-				FbxImporter->Scene->GetRootNode()->GetAnimationInterval(AnimatedInterval, CurAnimStack);
-				// find the most range that covers by both method, that'll be used for clamping
-				AnimTimeSpan.SetStart(FMath::Min<FbxTime>(AnimTimeSpan.GetStart(), AnimatedInterval.GetStart()));
-				AnimTimeSpan.SetStop(FMath::Max<FbxTime>(AnimTimeSpan.GetStop(), AnimatedInterval.GetStop()));
-			}
-			if (AnimTimeSpan.GetStart() != FBXSDK_TIME_INFINITE)
-			{
-				FbxTime EachFrame = FBXSDK_TIME_ONE_SECOND / FbxImporter->GetOriginalFbxFramerate();
-				ImportUI->AnimStartFrame = FString::FromInt(AnimTimeSpan.GetStart().Get() / EachFrame.Get());
-				ImportUI->AnimEndFrame = FString::FromInt(AnimTimeSpan.GetStop().Get() / EachFrame.Get());
-			}
 		}
 
 		if (ImportUI->MeshTypeToImport != FBXIT_Animation && ImportUI->ReimportMesh != nullptr)
