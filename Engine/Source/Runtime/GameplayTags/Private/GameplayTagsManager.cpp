@@ -30,10 +30,80 @@
 FSimpleMulticastDelegate UGameplayTagsManager::OnEditorRefreshGameplayTagTree;
 #endif
 
+#include "HAL/Runnable.h"
+#include "HAL/RunnableThread.h"
+#include "Containers/Queue.h"
+#include "Templates/Function.h"
+#include "UObject/StrongObjectPtr.h"
+#include "Async/Async.h"
+
 const FName UGameplayTagsManager::NAME_Categories("Categories");
 const FName UGameplayTagsManager::NAME_GameplayTagFilter("GameplayTagFilter");
 
 #define LOCTEXT_NAMESPACE "GameplayTagManager"
+
+DECLARE_CYCLE_STAT(TEXT("Load Gameplay Tags"), STAT_GameplayTags_LoadGameplayTags, STATGROUP_GameplayTags);
+DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Add Tag *.ini Search Path"), STAT_GameplayTags_AddTagIniSearchPath, STATGROUP_GameplayTags);
+
+#if !(UE_BUILD_SHIPPING)
+
+static FAutoConsoleCommand PrintReplicationIndicesCommand(
+	TEXT("GameplayTags.PrintReplicationIndicies"),
+	TEXT("Prints the index assigned to each tag for fast network replication."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		UGameplayTagsManager::Get().PrintReplicationIndices();
+	})
+);
+
+#endif
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+static FAutoConsoleCommand PrintReplicationFrequencyReportCommand(
+	TEXT("GameplayTags.PrintReplicationFrequencyReport"),
+	TEXT("Prints the frequency each tag is replicated."),
+	FConsoleCommandDelegate::CreateLambda([]()
+	{
+		UGameplayTagsManager::Get().PrintReplicationFrequencyReport();
+	})
+);
+
+#endif
+
+struct FCompareFGameplayTagNodeByTag
+{
+	FORCEINLINE bool operator()(const TSharedPtr<FGameplayTagNode>& A, const TSharedPtr<FGameplayTagNode>& B) const
+	{
+		// Note: GetSimpleTagName() is not good enough here. The individual tag nodes are share frequently (E.g, Dog.Tail, Cat.Tail have sub nodes with the same simple tag name)
+		// Compare with equal FNames will look at the backing number/indices to the FName. For FNames used elsewhere, like "A" for example, this can cause non determinism in platforms
+		// (For example if static order initialization differs on two platforms, the "version" of the "A" FName that two places get could be different, causing this comparison to also be)
+		return (A->GetCompleteTagName().Compare(B->GetCompleteTagName())) < 0;
+	}
+};
+
+namespace GameplayTagUtil
+{
+	static void GetRestrictedConfigsFromIni(const FString& IniFilePath, TArray<FRestrictedConfigInfo>& OutRestrictedConfigs)
+	{
+		FConfigFile ConfigFile;
+		ConfigFile.Read(IniFilePath);
+
+		TArray<FString> IniConfigStrings;
+		if (ConfigFile.GetArray(TEXT("/Script/GameplayTags.GameplayTagsSettings"), TEXT("RestrictedConfigFiles"), IniConfigStrings))
+		{
+			for (const FString& ConfigString : IniConfigStrings)
+			{
+				FRestrictedConfigInfo Config;
+				if (FRestrictedConfigInfo::StaticStruct()->ImportText(*ConfigString, &Config, nullptr, PPF_None, nullptr, FRestrictedConfigInfo::StaticStruct()->GetName()))
+				{
+					OutRestrictedConfigs.Add(Config);
+				}
+			}
+		}
+	}
+}
+
 
 //////////////////////////////////////////////////////////////////////
 // FGameplayTagSource
@@ -109,6 +179,8 @@ UGameplayTagsManager::UGameplayTagsManager(const FObjectInitializer& ObjectIniti
 
 void UGameplayTagsManager::LoadGameplayTagTables(bool bAllowAsyncLoad)
 {
+	SCOPE_CYCLE_COUNTER(STAT_GameplayTags_LoadGameplayTags);
+
 	UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
 	GameplayTagTables.Empty();
 
@@ -145,39 +217,36 @@ void UGameplayTagsManager::LoadGameplayTagTables(bool bAllowAsyncLoad)
 	}
 }
 
-struct FCompareFGameplayTagNodeByTag
-{
-	FORCEINLINE bool operator()( const TSharedPtr<FGameplayTagNode>& A, const TSharedPtr<FGameplayTagNode>& B ) const
-	{
-		// Note: GetSimpleTagName() is not good enough here. The individual tag nodes are share frequently (E.g, Dog.Tail, Cat.Tail have sub nodes with the same simple tag name)
-		// Compare with equal FNames will look at the backing number/indice to the FName. For FNames used elsewhere, like "A" for example, this can cause non determinism in platforms
-		// (For example if static order initialization differs on two platforms, the "version" of the "A" FName that two places get could be different, causing this comparison to also be)
-		return (A->GetCompleteTagName().Compare(B->GetCompleteTagName())) < 0;
-	}
-};
-
 void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 {
-	// Read all tags from the ini
-	TArray<FString> FilesInDirectory;
-	IFileManager::Get().FindFilesRecursive(FilesInDirectory, *RootDir, TEXT("*.ini"), true, false);
-	if (FilesInDirectory.Num() > 0)
-	{
-		FilesInDirectory.Sort();
-		for (const FString& IniFilePath : FilesInDirectory)
-		{
-			ExtraTagIniList.AddUnique(IniFilePath);
-		}
+	SCOPE_SECONDS_ACCUMULATOR(STAT_GameplayTags_AddTagIniSearchPath);
 
-		if (!bIsConstructingGameplayTagTree)
+	TArray<FName>* SourcesInPathPtr = RegisteredSearchPaths.Find(RootDir);
+
+	if (SourcesInPathPtr == nullptr)
+	{
+		TArray<FName>& SourcesInPath = RegisteredSearchPaths.FindOrAdd(RootDir);
+		
+		// Read all tags from the ini
+		TArray<FString> FilesInDirectory;
+		IFileManager::Get().FindFilesRecursive(FilesInDirectory, *RootDir, TEXT("*.ini"), true, false);
+
+		if (FilesInDirectory.Num() > 0)
 		{
-#if WITH_EDITOR
-			EditorRefreshGameplayTagTree();
-#else
+			FilesInDirectory.Sort();
+
+			for (const FString& IniFilePath : FilesInDirectory)
+			{
+				const FName TagSource = FName(*FPaths::GetCleanFilename(IniFilePath));
+				SourcesInPath.AddUnique(TagSource);
+
+				ExtraTagIniList.AddUnique(IniFilePath);
+			}
+
 			for (const FString& IniFilePath : FilesInDirectory)
 			{
 				TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
-				GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+				GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
 				const FString IniDirectory = FPaths::GetPath(IniFilePath);
 				for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
 				{
@@ -191,8 +260,11 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 			InvalidateNetworkIndex();
 
 			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
-#endif
 		}
+	}
+	else
+	{
+		UE_LOG(LogGameplayTags, Warning, TEXT("Why are we trying to add the '%s' ini path again?"), *RootDir);
 	}
 }
 
@@ -309,7 +381,7 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Add native tags"));
 			// Add native tags before other tags
-			for (FName TagToAdd : NativeTagsToAdd)
+			for (FName TagToAdd : LegacyNativeTags)
 			{
 				AddTagTableRow(FGameplayTagTableRow(TagToAdd), FGameplayTagSource::GetNativeName());
 			}
@@ -392,6 +464,8 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 			CommonlyReplicatedTags.Empty();
 			for (FName TagName : MutableDefault->CommonlyReplicatedTags)
 			{
+				CommonlyReplicatedTags.Add(FGameplayTag(TagName));
+
 				FGameplayTag Tag = RequestGameplayTag(TagName);
 				if (Tag.IsValid())
 				{
@@ -418,112 +492,6 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 		{
 			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: GameplayTagTreeChangedEvent.Broadcast"));
 			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
-		}
-
-		{
-			SCOPE_LOG_GAMEPLAYTAGS(TEXT("UGameplayTagsManager::ConstructGameplayTagTree: Load redirects"));
-			// Update the TagRedirects map
-			TagRedirects.Empty();
-
-			// Check the deprecated location
-			bool bFoundDeprecated = false;
-			FConfigSection* PackageRedirects = GConfig->GetSectionPrivate(TEXT("/Script/Engine.Engine"), false, true, GEngineIni);
-
-			if (PackageRedirects)
-			{
-				for (FConfigSection::TIterator It(*PackageRedirects); It; ++It)
-				{
-					if (It.Key() == TEXT("+GameplayTagRedirects"))
-					{
-						FName OldTagName = NAME_None;
-						FName NewTagName;
-
-						if (FParse::Value(*It.Value().GetValue(), TEXT("OldTagName="), OldTagName))
-						{
-							if (FParse::Value(*It.Value().GetValue(), TEXT("NewTagName="), NewTagName))
-							{
-								FGameplayTagRedirect Redirect;
-								Redirect.OldTagName = OldTagName;
-								Redirect.NewTagName = NewTagName;
-
-								MutableDefault->GameplayTagRedirects.AddUnique(Redirect);
-
-								bFoundDeprecated = true;
-							}
-						}
-					}
-				}
-			}
-
-			if (bFoundDeprecated)
-			{
-				UE_LOG(LogGameplayTags, Log, TEXT("GameplayTagRedirects is in a deprecated location, after editing GameplayTags developer settings you must remove these manually"));
-			}
-
-			// Check settings object
-			for (const FGameplayTagRedirect& Redirect : MutableDefault->GameplayTagRedirects)
-			{
-				FName OldTagName = Redirect.OldTagName;
-				FName NewTagName = Redirect.NewTagName;
-
-				if (ensureMsgf(!TagRedirects.Contains(OldTagName), TEXT("Old tag %s is being redirected to more than one tag. Please remove all the redirections except for one."), *OldTagName.ToString()))
-				{
-					FGameplayTag OldTag = RequestGameplayTag(OldTagName, false); //< This only succeeds if OldTag is in the Table!
-					if (OldTag.IsValid())
-					{
-						FGameplayTagContainer MatchingChildren = RequestGameplayTagChildren(OldTag);
-
-						FString Msg = FString::Printf(TEXT("Old tag (%s) which is being redirected still exists in the table!  Generally you should "
-							TEXT("remove the old tags from the table when you are redirecting to new tags, or else users will ")
-							TEXT("still be able to add the old tags to containers.")), *OldTagName.ToString());
-
-						if (MatchingChildren.Num() == 0)
-						{
-							UE_LOG(LogGameplayTags, Warning, TEXT("%s"), *Msg);
-						}
-						else
-						{
-							Msg += TEXT("\nSuppressed warning due to redirected tag being a single component that matched other hierarchy elements.");
-							UE_LOG(LogGameplayTags, Log, TEXT("%s"), *Msg);
-						}
-					}
-
-					FGameplayTag NewTag = (NewTagName != NAME_None) ? RequestGameplayTag(NewTagName, false) : FGameplayTag();
-
-					// Basic infinite recursion guard
-					int32 IterationsLeft = 10;
-					while (!NewTag.IsValid() && NewTagName != NAME_None)
-					{
-						bool bFoundRedirect = false;
-
-						// See if it got redirected again
-						for (const FGameplayTagRedirect& SecondRedirect : MutableDefault->GameplayTagRedirects)
-						{
-							if (SecondRedirect.OldTagName == NewTagName)
-							{
-								NewTagName = SecondRedirect.NewTagName;
-								NewTag = RequestGameplayTag(NewTagName, false);
-								bFoundRedirect = true;
-								break;
-							}
-						}
-						IterationsLeft--;
-
-						if (!bFoundRedirect || IterationsLeft <= 0)
-						{
-							UE_LOG(LogGameplayTags, Warning, TEXT("Invalid new tag %s!  Cannot replace old tag %s."),
-								*Redirect.NewTagName.ToString(), *Redirect.OldTagName.ToString());
-							break;
-						}
-					}
-
-					if (NewTag.IsValid())
-					{
-						// Populate the map
-						TagRedirects.Add(OldTagName, NewTag);
-					}
-				}
-			}
 		}
 	}
 }
@@ -646,22 +614,6 @@ bool UGameplayTagsManager::ShouldImportTagsFromINI() const
 	return MutableDefault->ImportTagsFromConfig;
 }
 
-void UGameplayTagsManager::GetRestrictedConfigsFromIni(const FString& IniFilePath, TArray<FRestrictedConfigInfo>& OutRestrictedConfigs) const
-{
-	TArray<FString> IniConfigStrings;
-	if (GConfig->GetArray(TEXT("/Script/GameplayTags.GameplayTagsSettings"), TEXT("RestrictedConfigFiles"), IniConfigStrings, IniFilePath))
-	{
-		for (const FString& ConfigString : IniConfigStrings)
-		{
-			FRestrictedConfigInfo Config;
-			if (FRestrictedConfigInfo::StaticStruct()->ImportText(*ConfigString, &Config, nullptr, PPF_None, nullptr, FRestrictedConfigInfo::StaticStruct()->GetName()))
-			{
-				OutRestrictedConfigs.Add(Config);
-			}
-		}
-	}
-}
-
 void UGameplayTagsManager::GetRestrictedTagConfigFiles(TArray<FString>& RestrictedConfigFiles) const
 {
 	UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
@@ -677,7 +629,7 @@ void UGameplayTagsManager::GetRestrictedTagConfigFiles(TArray<FString>& Restrict
 	for (const FString& IniFilePath : ExtraTagIniList)
 	{
 		TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
-		GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+		GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
 		for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
 		{
 			RestrictedConfigFiles.Add(FString::Printf(TEXT("%s/%s"), *FPaths::GetPath(IniFilePath), *Config.RestrictedConfigName));
@@ -704,7 +656,7 @@ void UGameplayTagsManager::GetRestrictedTagSources(TArray<const FGameplayTagSour
 	for (const FString& IniFilePath : ExtraTagIniList)
 	{
 		TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
-		GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+		GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
 		for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
 		{
 			const FGameplayTagSource* Source = FindTagSource(*Config.RestrictedConfigName);
@@ -755,14 +707,14 @@ void UGameplayTagsManager::SingleGameplayTagLoaded(FGameplayTag& Tag, FProperty*
 
 void UGameplayTagsManager::RedirectTagsForContainer(FGameplayTagContainer& Container, FProperty* SerializingProperty) const
 {
-	TSet<FName> NamesToRemove;
-	TSet<const FGameplayTag*> TagsToAdd;
+	TArray<FName> NamesToRemove;
+	TArray<const FGameplayTag*> TagsToAdd;
 
 	// First populate the NamesToRemove and TagsToAdd sets by finding tags in the container that have redirects
 	for (auto TagIt = Container.CreateConstIterator(); TagIt; ++TagIt)
 	{
 		const FName TagName = TagIt->GetTagName();
-		const FGameplayTag* NewTag = TagRedirects.Find(TagName);
+		const FGameplayTag* NewTag = FGameplayTagRedirectors::Get().RedirectTag(TagName);
 		if (NewTag)
 		{
 			NamesToRemove.Add(TagName);
@@ -789,28 +741,12 @@ void UGameplayTagsManager::RedirectTagsForContainer(FGameplayTagContainer& Conta
 	// Remove all tags from the NamesToRemove set
 	for (FName RemoveName : NamesToRemove)
 	{
-		bool bRemoveByExplicitName = true;
-		// Do not call RequestGameplayTag outside the game thread
-		if (IsInGameThread())
-		{
-			FGameplayTag OldTag = RequestGameplayTag(RemoveName, false);
-			if (OldTag.IsValid())
-			{
-				Container.RemoveTag(OldTag);
-				bRemoveByExplicitName = false;
-			}
-		}
-		
-		if (bRemoveByExplicitName)
-		{
-			Container.RemoveTagByExplicitName(RemoveName);
-		}
+		Container.RemoveTag(FGameplayTag(RemoveName));
 	}
 
 	// Add all tags from the TagsToAdd set
 	for (const FGameplayTag* AddTag : TagsToAdd)
 	{
-		check(AddTag);
 		Container.AddTag(*AddTag);
 	}
 }
@@ -818,8 +754,7 @@ void UGameplayTagsManager::RedirectTagsForContainer(FGameplayTagContainer& Conta
 void UGameplayTagsManager::RedirectSingleGameplayTag(FGameplayTag& Tag, FProperty* SerializingProperty) const
 {
 	const FName TagName = Tag.GetTagName();
-	const FGameplayTag* NewTag = TagRedirects.Find(TagName);
-	if (NewTag)
+	if (const FGameplayTag* NewTag = FGameplayTagRedirectors::Get().RedirectTag(TagName))
 	{
 		if (NewTag->IsValid())
 		{
@@ -843,8 +778,14 @@ void UGameplayTagsManager::RedirectSingleGameplayTag(FGameplayTag& Tag, FPropert
 
 bool UGameplayTagsManager::ImportSingleGameplayTag(FGameplayTag& Tag, FName ImportedTagName) const
 {
+	// None is always valid, no need to do any real work.
+	if (ImportedTagName == NAME_None)
+	{
+		return true;
+	}
+
 	bool bRetVal = false;
-	if (const FGameplayTag* RedirectedTag = TagRedirects.Find(ImportedTagName))
+	if (const FGameplayTag* RedirectedTag = FGameplayTagRedirectors::Get().RedirectTag(ImportedTagName))
 	{
 		Tag = *RedirectedTag;
 		bRetVal = true;
@@ -890,11 +831,11 @@ void UGameplayTagsManager::InitializeManager()
 		TArray<FString> GameplayTagTablePaths;
 		GConfig->GetArray(TEXT("GameplayTags"), TEXT("+GameplayTagTableList"), GameplayTagTablePaths, GEngineIni);
 
-	// Report deprecation
-	if (GameplayTagTablePaths.Num() > 0)
-	{
+		// Report deprecation
+		if (GameplayTagTablePaths.Num() > 0)
+		{
 			UE_LOG(LogGameplayTags, Log, TEXT("GameplayTagTableList is in a deprecated location, open and save GameplayTag settings to fix"));
-				for (const FString& DataTable : GameplayTagTablePaths)
+			for (const FString& DataTable : GameplayTagTablePaths)
 			{
 				MutableDefault->GameplayTagTableList.AddUnique(DataTable);
 			}
@@ -1099,10 +1040,10 @@ int32 UGameplayTagsManager::InsertTagIntoNodeArray(FName Tag, FName FullTag, TSh
 				// If we are explicitly adding this tag then overwrite the existing children restrictions with whatever is in the ini
 				// If we restrict children in the input data, make sure we restrict them in the existing node. This applies to explicit and implicitly defined nodes
 				if (bAllowNonRestrictedChildren == false || bIsExplicitTag)
-		{
+				{
 					// check if the tag is explicitly being created in more than one place.
 					if (CurrNode->bIsExplicitTag && bIsExplicitTag)
-			{
+					{
 						// restricted tags always get added first
 						// 
 						// There are two possibilities if we're adding a restricted tag. 
@@ -1537,9 +1478,12 @@ bool UGameplayTagsManager::GetTagEditorData(FName TagName, FString& OutComment, 
 
 void UGameplayTagsManager::EditorRefreshGameplayTagTree()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UGameplayTagsManager::EditorRefreshGameplayTagTree)
+
 	DestroyGameplayTagTree();
 	LoadGameplayTagTables(false);
 	ConstructGameplayTagTree();
+
 	OnEditorRefreshGameplayTagTree.Broadcast();
 }
 
@@ -1704,6 +1648,7 @@ void UGameplayTagsManager::RequestGameplayTagContainer(const TArray<FString>& Ta
 FGameplayTag UGameplayTagsManager::RequestGameplayTag(FName TagName, bool ErrorIfNotFound) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_UGameplayTagsManager_RequestGameplayTag);
+
 #if WITH_EDITOR
 	// This critical section is to handle and editor-only issue where tag requests come from another thread when async loading from a background thread in FGameplayTagContainer::Serialize.
 	// This function is not generically threadsafe.
@@ -1725,6 +1670,7 @@ FGameplayTag UGameplayTagsManager::RequestGameplayTag(FName TagName, bool ErrorI
 			MissingTagName.Add(TagName);
 		}
 	}
+
 	return FGameplayTag();
 }
 
@@ -1846,9 +1792,9 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 	{
 		FGameplayTag NewTag = FGameplayTag(TagName);
 
-		if (!NativeTagsToAdd.Contains(TagName))
+		if (!LegacyNativeTags.Contains(TagName))
 		{
-			NativeTagsToAdd.Add(TagName);
+			LegacyNativeTags.Add(TagName);
 		}
 
 		AddTagTableRow(FGameplayTagTableRow(TagName, TagDevComment), FGameplayTagSource::GetNativeName());
@@ -1861,16 +1807,9 @@ FGameplayTag UGameplayTagsManager::AddNativeGameplayTag(FName TagName, const FSt
 
 void UGameplayTagsManager::AddNativeGameplayTag(FNativeGameplayTag* TagSource)
 {
-	// TODO This is awful, need to invalidate the tag tree, not rebuild it.
-	{
-#if WITH_EDITOR
-		EditorRefreshGameplayTagTree();
-#else
-		AddTagTableRow(TagSource->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
-		InvalidateNetworkIndex();
-		IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
-#endif
-	}
+	AddTagTableRow(TagSource->GetGameplayTagTableRow(), FGameplayTagSource::GetNativeName());
+	InvalidateNetworkIndex();
+	IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 }
 
 void UGameplayTagsManager::RemoveNativeGameplayTag(const FNativeGameplayTag* TagSource)

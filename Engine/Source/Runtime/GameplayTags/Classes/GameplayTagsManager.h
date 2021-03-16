@@ -9,6 +9,7 @@
 #include "UObject/ScriptMacros.h"
 #include "GameplayTagContainer.h"
 #include "Engine/DataTable.h"
+#include "Templates/UniquePtr.h"
 
 #include "GameplayTagsManager.generated.h"
 
@@ -257,7 +258,6 @@ private:
 	friend class UGameplayTagsManager;
 	friend class SGameplayTagWidget;
 };
-
 
 /** Holds data about the tag dictionary, is in a singleton UObject */
 UCLASS(config=Engine)
@@ -729,9 +729,6 @@ private:
 	/** Constructs the net indices for each tag */
 	void ConstructNetIndex();
 
-	/** Reads the restricted config info from the specified ini */
-	void GetRestrictedConfigsFromIni(const FString& IniFilePath, TArray<struct FRestrictedConfigInfo>& OutRestrictedConfigs) const;
-
 	/** Marks all of the nodes that descend from CurNode as having an ancestor node that has a source conflict. */
 	void MarkChildrenOfNodeConflict(TSharedPtr<FGameplayTagNode> CurNode);
 
@@ -744,6 +741,16 @@ private:
 	}
 
 	void InvalidateNetworkIndex() { bNetworkIndexInvalidated = true; }
+
+	// Tag Sources
+	///////////////////////////////////////////////////////
+
+	/** These are the old native tags that use to be resisted via a function call with no specific site/ownership. */
+	TSet<FName> LegacyNativeTags;
+
+	TMap<FString, TArray<FName>> RegisteredSearchPaths;
+
+
 
 	/** Roots of gameplay tag nodes */
 	TSharedPtr<FGameplayTagNode> GameplayRootTag;
@@ -758,12 +765,7 @@ private:
 	UPROPERTY()
 	TMap<FName, FGameplayTagSource> TagSources;
 
-	/** List of native tags to add when reconstructing tree */
-	TSet<FName> NativeTagsToAdd;
-
 	TSet<FName> RestrictedGameplayTagSourceNames;
-
-	TArray<FString> ExtraTagIniList;
 
 	bool bIsConstructingGameplayTagTree = false;
 
@@ -799,9 +801,10 @@ private:
 	UPROPERTY()
 	TArray<UDataTable*> GameplayTagTables;
 
-	/** The map of ini-configured tag redirectors */
-	TMap<FName, FGameplayTag> TagRedirects;
-
 	const static FName NAME_Categories;
 	const static FName NAME_GameplayTagFilter;
+
+
+	// TODELETE
+	TArray<FString> ExtraTagIniList;
 };

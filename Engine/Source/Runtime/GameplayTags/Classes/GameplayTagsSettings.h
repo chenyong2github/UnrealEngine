@@ -8,31 +8,8 @@
 #include "UObject/SoftObjectPath.h"
 #include "GameplayTagsManager.h"
 #include "Engine/DeveloperSettings.h"
+#include "GameplayTagRedirectors.h"
 #include "GameplayTagsSettings.generated.h"
-
-/** A single redirect from a deleted tag to the new tag that should replace it */
-USTRUCT()
-struct GAMEPLAYTAGS_API FGameplayTagRedirect
-{
-	GENERATED_USTRUCT_BODY()
-
-	UPROPERTY(EditAnywhere, Category = GameplayTags)
-	FName OldTagName;
-
-	UPROPERTY(EditAnywhere, Category = GameplayTags)
-	FName NewTagName;
-
-	friend inline bool operator==(const FGameplayTagRedirect& A, const FGameplayTagRedirect& B)
-	{
-		return A.OldTagName == B.OldTagName && A.NewTagName == B.NewTagName;
-	}
-
-	// This enables lookups by old tag name via FindByKey
-	bool operator==(FName OtherOldTagName) const
-	{
-		return OldTagName == OtherOldTagName;
-	}
-};
 
 /** Category remapping. This allows base engine tag category meta data to remap to multiple project-specific categories. */
 USTRUCT()

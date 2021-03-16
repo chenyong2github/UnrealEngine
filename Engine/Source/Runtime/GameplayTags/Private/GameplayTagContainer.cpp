@@ -567,6 +567,7 @@ bool FGameplayTagContainer::RemoveTagByExplicitName(const FName& TagName)
 {
 	SCOPE_CYCLE_COUNTER(STAT_FGameplayTagContainer_RemoveTagByExplicitName);
 
+	// TODO NDarnell Why are we doing this instead of just return RemoveTag(FGameplayTag(TagName));
 	for (auto GameplayTag : this->GameplayTags)
 	{
 		if (GameplayTag.GetTagName() == TagName)

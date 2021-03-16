@@ -35,8 +35,9 @@ public:
 	FNativeGameplayTag(FName PluginName, FName ModuleName, FName TagName, const FString& TagDevComment, ENativeGameplayTagToken);
 	~FNativeGameplayTag();
 
-	operator const FGameplayTag& () const { return InternalTag; }
 	operator FGameplayTag() const { return InternalTag; }
+
+	FGameplayTag GetTag() const { return InternalTag; }
 
 	FGameplayTagTableRow GetGameplayTagTableRow() const
 	{
