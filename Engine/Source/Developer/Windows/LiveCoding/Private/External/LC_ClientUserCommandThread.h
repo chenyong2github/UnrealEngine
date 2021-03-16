@@ -58,6 +58,10 @@ public:
 	void* DisableModules(const wchar_t* namesOfExeOrDll[], unsigned int count);
 	void* DisableAllModules(const wchar_t* nameOfExeOrDll);
 
+	// BEGIN EPIC MOD - Adding TryWaitForToken
+	bool TryWaitForToken(void* token);
+	// END EPIC MOD
+
 	void WaitForToken(void* token);
 	void TriggerRecompile(void);
 	void LogMessage(const wchar_t* message);

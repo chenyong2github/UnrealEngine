@@ -214,6 +214,21 @@ void* ClientStartupThread::DisableAllModules(const wchar_t* nameOfExeOrDll)
 	return nullptr;
 }
 
+// BEGIN EPIC MOD - Adding TryWaitForToken
+bool ClientStartupThread::TryWaitForToken(void* token)
+{
+	// wait for the startup thread to finish initialization
+	Join();
+
+	if (m_userCommandThread)
+	{
+		return m_userCommandThread->TryWaitForToken(token);
+	}
+
+	// If the command thread doesn't exist yet, return it's not ready yet.
+	return false;
+}
+// END EPIC MOD
 
 void ClientStartupThread::WaitForToken(void* token)
 {

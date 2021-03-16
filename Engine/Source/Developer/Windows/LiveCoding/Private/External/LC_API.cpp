@@ -136,6 +136,26 @@ LPP_DLL_API(void) LppWaitForToken(void* token)
 }
 
 
+// BEGIN EPIC MOD - Adding LppTryWaitForToken
+LPP_DLL_API(bool) LppTryWaitForToken(void* token)
+{
+	if (!CheckForStartup())
+	{
+		return false;
+	}
+
+	if (!token)
+	{
+		// nullptr tokens are returned by Live++ when trying to enable modules which are not loaded into the host process.
+		// therefore, we need to handle this case gracefully.
+		return true;
+	}
+
+	return g_startupThread->TryWaitForToken(token);
+}
+// END EPIC MOD
+
+
 LPP_DLL_API(void) LppTriggerRecompile(void)
 {
 	if (!CheckForStartup())

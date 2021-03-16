@@ -271,6 +271,19 @@ void FLiveCodingModule::Tick()
 		bUpdateModulesInTick = false;
 	}
 
+	AttemptSyncLivePatching();
+}
+
+void FLiveCodingModule::AttemptSyncLivePatching()
+{
+	while (LppPendingTokens.Num() > 0)
+	{
+		if (LppTryWaitForToken(LppPendingTokens[0]))
+		{
+			LppPendingTokens.RemoveAt(0);
+		}
+	}
+
 	// Needs to happen after updating modules, since "Quick Restart" functionality may try to install patch immediately
 	extern void LppSyncPoint();
 	LppSyncPoint();
@@ -405,7 +418,9 @@ void FLiveCodingModule::UpdateModules()
 					}
 					else
 					{
-						LppWaitForToken(LppEnableLazyLoadedModule(*FullFilePath));
+						TRACE_CPUPROFILER_EVENT_SCOPE(LppEnableLazyLoadedModule);
+						void* LppEnableLazyLoadedModuleToken = LppEnableLazyLoadedModule(*FullFilePath);
+						LppPendingTokens.Add(LppEnableLazyLoadedModuleToken);
 					}
 					ConfiguredModules.Add(ModuleName);
 				}
@@ -419,7 +434,12 @@ void FLiveCodingModule::UpdateModules()
 			{
 				EnableModuleFileNames.Add(*EnableModule);
 			}
-			LppWaitForToken(LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num()));
+
+			{
+				TRACE_CPUPROFILER_EVENT_SCOPE(LppEnableModules);
+				void* LppEnableModulesToken = LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num());
+				LppPendingTokens.Add(LppEnableModulesToken);
+			}
 		}
 #endif
 	}

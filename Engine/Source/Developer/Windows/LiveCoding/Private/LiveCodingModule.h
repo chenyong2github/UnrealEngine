@@ -36,6 +36,8 @@ public:
 
 	static void PreCompileHook();
 	static void PostCompileHook();
+private:
+	void AttemptSyncLivePatching();
 
 private:
 	ULiveCodingSettings* Settings;
@@ -45,6 +47,7 @@ private:
 	bool bStarted;
 	bool bUpdateModulesInTick;
 	TSet<FName> ConfiguredModules;
+	TArray<void*> LppPendingTokens;
 
 	const FString FullEnginePluginsDir;
 	const FString FullProjectDir;

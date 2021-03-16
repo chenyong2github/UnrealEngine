@@ -20,6 +20,9 @@ LPP_DLL_API(int) LppCheckVersion(const char* apiVersion);
 LPP_DLL_API(void) LppRegisterProcessGroup(const char* groupName);
 LPP_DLL_API(void) LppSyncPoint(void);
 LPP_DLL_API(void) LppWaitForToken(void* token);
+// BEGIN EPIC MOD - Adding LppTryWaitForToken
+LPP_DLL_API(bool) LppTryWaitForToken(void* token);
+// END EPIC MOD
 LPP_DLL_API(void) LppTriggerRecompile(void);
 LPP_DLL_API(void) LppLogMessage(const wchar_t* message);
 LPP_DLL_API(void) LppBuildPatch(const wchar_t* moduleNames[], const wchar_t* objPaths[], const wchar_t* amalgamatedObjPaths[], unsigned int count);

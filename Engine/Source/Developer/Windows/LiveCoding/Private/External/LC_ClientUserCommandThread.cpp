@@ -338,6 +338,24 @@ void* ClientUserCommandThread::DisableAllModules(const wchar_t* nameOfExeOrDll)
 	return proxy->m_command.token;
 }
 
+// BEGIN EPIC MOD - Adding TryWaitForToken
+bool ClientUserCommandThread::TryWaitForToken(void* token)
+{
+	Event* event = static_cast<Event*>(token);
+
+	if (m_thread != INVALID_HANDLE_VALUE)
+	{
+		// thread was successfully initialized, try waiting until the command has been executed in the queue, non-blocking.
+		if (event->TryWait())
+		{
+			delete event;
+			return true;
+		}
+	}
+
+	return false;
+}
+// END EPIC MOD
 
 void ClientUserCommandThread::WaitForToken(void* token)
 {
