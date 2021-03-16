@@ -25,7 +25,7 @@ UGameplayCueInterface::UGameplayCueInterface(const FObjectInitializer& ObjectIni
 {
 }
 
-void IGameplayCueInterface::DispatchBlueprintCustomHandler(UObject* Object, UFunction* Func, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+void IGameplayCueInterface::DispatchBlueprintCustomHandler(UObject* Object, UFunction* Func, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	GameplayCueInterface_eventBlueprintCustomHandler_Parms Params;
 	Params.EventType = EventType;
@@ -39,12 +39,12 @@ void IGameplayCueInterface::ClearTagToFunctionMap()
 	GameplayCueInterfacePrivate::PerClassGameplayTagToFunctionMap.Empty();
 }
 
-void IGameplayCueInterface::HandleGameplayCues(AActor *Self, const FGameplayTagContainer& GameplayCueTags, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+void IGameplayCueInterface::HandleGameplayCues(AActor *Self, const FGameplayTagContainer& GameplayCueTags, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	HandleGameplayCues((UObject*)Self, GameplayCueTags, EventType, Parameters);
 }
 
-void IGameplayCueInterface::HandleGameplayCues(UObject* Self, const FGameplayTagContainer& GameplayCueTags, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+void IGameplayCueInterface::HandleGameplayCues(UObject* Self, const FGameplayTagContainer& GameplayCueTags, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	for (FGameplayTag CueTag : GameplayCueTags)
 	{
@@ -52,22 +52,22 @@ void IGameplayCueInterface::HandleGameplayCues(UObject* Self, const FGameplayTag
 	}
 }
 
-bool IGameplayCueInterface::ShouldAcceptGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+bool IGameplayCueInterface::ShouldAcceptGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	return ShouldAcceptGameplayCue((UObject*)Self, GameplayCueTag, EventType, Parameters);
 }
 
-bool IGameplayCueInterface::ShouldAcceptGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+bool IGameplayCueInterface::ShouldAcceptGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	return true;
 }
 
-void IGameplayCueInterface::HandleGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+void IGameplayCueInterface::HandleGameplayCue(AActor *Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	HandleGameplayCue((UObject*)Self, GameplayCueTag, EventType, Parameters);
 }
 
-void IGameplayCueInterface::HandleGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+void IGameplayCueInterface::HandleGameplayCue(UObject* Self, FGameplayTag GameplayCueTag, EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	SCOPE_CYCLE_COUNTER(STAT_GameplayCueInterface_HandleGameplayCue);
 
@@ -165,7 +165,7 @@ void IGameplayCueInterface::HandleGameplayCue(UObject* Self, FGameplayTag Gamepl
 	}
 }
 
-void IGameplayCueInterface::GameplayCueDefaultHandler(EGameplayCueEvent::Type EventType, FGameplayCueParameters Parameters)
+void IGameplayCueInterface::GameplayCueDefaultHandler(EGameplayCueEvent::Type EventType, const FGameplayCueParameters& Parameters)
 {
 	// No default handler, subclasses can implement
 }

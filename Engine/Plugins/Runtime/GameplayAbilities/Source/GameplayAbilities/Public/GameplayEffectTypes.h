@@ -950,11 +950,11 @@ struct GAMEPLAYABILITIES_API FGameplayCueParameters
 
 	/** The tag name that matched this specific gameplay cue handler */
 	UPROPERTY(BlueprintReadWrite, Category=GameplayCue, NotReplicated)
-	FGameplayTag MatchedTagName;
+	mutable FGameplayTag MatchedTagName;
 
 	/** The original tag of the gameplay cue */
 	UPROPERTY(BlueprintReadWrite, Category=GameplayCue, NotReplicated)
-	FGameplayTag OriginalTag;
+	mutable FGameplayTag OriginalTag;
 
 	/** The aggregated source tags taken from the effect spec */
 	UPROPERTY(BlueprintReadWrite, Category=GameplayCue)
