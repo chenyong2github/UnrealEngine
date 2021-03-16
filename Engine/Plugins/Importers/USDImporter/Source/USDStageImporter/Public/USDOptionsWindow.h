@@ -8,7 +8,7 @@
 /**
  * Slate window used to show import/export options for the USDImporter plugin
  */
-class USDCLASSES_API SUsdOptionsWindow : public SCompoundWidget
+class USDSTAGEIMPORTER_API SUsdOptionsWindow : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SUsdOptionsWindow ) : _OptionsObject( nullptr ) {}

@@ -8,7 +8,7 @@ namespace UnrealBuildTool.Rules
 	public class USDExporter : ModuleRules
 	{
 		public USDExporter(ReadOnlyTargetRules Target) : base(Target)
-        {
+		{
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -22,12 +22,12 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-                    "EditorStyle",
-                    "GeometryCache",
-                    "PropertyEditor",
-                    "RawMesh",
-                    "RenderCore",
-                    "RHI",
+					"EditorStyle",
+					"GeometryCache",
+					"PropertyEditor",
+					"RawMesh",
+					"RenderCore",
+					"RHI",
 					"InputCore",
 					"JsonUtilities",
 					"LevelSequence",
@@ -40,6 +40,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"UnrealEd",
 					"USDClasses",
+					"USDStageImporter", // For USDOptionsWindow
 					"USDUtilities",
                 }
 			);
