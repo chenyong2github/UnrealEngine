@@ -438,6 +438,7 @@ void FConcertLocalEndpoint::SendMessage(const TSharedRef<IConcertMessage>& Messa
 		return;
 	}
 
+	SCOPED_CONCERT_TRACE(FConcertLocalEndpoint_SendMessage);
 	// Update the last sent message time to this endpoint
 	RemoteEndpoint->SetLastSentMessageTime(UtcNow);
 

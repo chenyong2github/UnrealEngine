@@ -654,7 +654,26 @@ public:
 	 */
 	bool UpdatePackageEvent(const int64 InPackageEventId, FConcertSyncPackageEventData& PackageEvent);
 
+	/**
+	 * Check Asynchronous Tasks Status
+	 */
+	void UpdateAsynchronousTasks();
+
 private:
+	/**
+	 * Schedule an asynchronous write for the given Package Stream.  The stream must be in-memory. File sharing
+	 * asynchronous write is not supported.
+	 *
+	 * @param InDstPackageBlobPathName  Full path of the destination package.
+	 * @param InPackageDataStream       The package data stream.
+	 **/
+	void ScheduleAsyncWrite(const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream);
+
+	/**
+	 * Flush any ongoing asynchronous tasks.
+	 */
+	void FlushAsynchronousTasks();
+
 	/**
 	 * Set the active ignored state for the given activity.
 	 *
@@ -887,7 +906,7 @@ private:
 	 *
 	 * @return True if the package data was saved, false otherwise.
 	 */
-	bool SavePackage(const FString& InDstPackageBlobPathname, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream) const;
+	bool SavePackage(const FString& InDstPackageBlobPathname, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream);
 
 	/**
 	 * Load the package data for the given filename.
@@ -898,20 +917,6 @@ private:
 	 * @return True if the package data was loaded, false otherwise.
 	 */
 	bool LoadPackage(const FString& InPackageBlobFilename, const TFunctionRef<void(FConcertPackageDataStream&)>& PackageDataStreamFn) const;
-	
-	/**
-	 * Returns true if a package blob should be cached in memory, according to its size.
-	 * @param PackageBlobSize The blob size (containing package data (possibly compressed) and some meta data).
-	 * @return true if the pacage should be cached, false otherwise.
-	 */
-	bool ShouldCachePackageBlob(uint64 PackageBlobSize) const;
-
-	/**
-	 * Returns true if the package data should be compressed in the blob, according to its size.
-	 * @param PackageDataSize The uncompressed package data size.
-	 * @return true if the package data should be compressed, false otherwise.
-	 */
-	bool ShouldCompressPackageData(uint64 PackageDataSize) const;
 
 	/** Root path to store all session data under */
 	FString SessionPath;
@@ -928,11 +933,7 @@ private:
 	/** Internal SQLite database */
 	TUniquePtr<FSQLiteDatabase> Database;
 
-	/** Threshold used to avoid caching very large packages (3GB for example) in memory. */
-	uint64 MaxPackageBlobSizeForCaching;
-
-	/** Threshold used to decide when a package should be compressed or not. */
-	uint64 MaxPackageDataSizeForCompression;
+	TMap<FString,TSharedPtr<struct FConcertPackageAsyncDataStream>> DeferredLargePackageIO;
 };
 
 namespace ConcertSyncSessionDatabaseFilterUtil

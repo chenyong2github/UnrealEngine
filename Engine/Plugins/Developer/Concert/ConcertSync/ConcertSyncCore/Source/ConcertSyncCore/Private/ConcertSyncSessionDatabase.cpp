@@ -4,13 +4,47 @@
 #include "ConcertFileCache.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertMessageData.h"
+#include "ConcertSyncSessionTypes.h"
 #include "ConcertUtil.h"
 
 #include "SQLiteDatabase.h"
 #include "HAL/FileManager.h"
+#include "Templates/SharedPointer.h"
+#include "Templates/UniquePtr.h"
+#include "UObject/ObjectMacros.h"
 #include "UObject/StructOnScope.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Async/Async.h"
+
+
+/** Contains an asynchronous representation of the FConcertPackageDataStream */
+namespace PackageDataUtil
+{
+	struct WritePackageResult
+	{
+		TArray<uint8> CacheData;
+		bool		  bShouldCache{false};
+	};
+}
+
+struct FConcertPackageAsyncDataStream
+{
+	FConcertPackageAsyncDataStream(const FConcertPackageDataStream& InStream, const FString& InPackageName)
+		:
+		CachedPackageName(InPackageName),
+		PackageData(InStream.DataBlob->GetData(),InStream.DataBlob->Num())
+	{
+		PackageStream = {nullptr, InStream.DataSize, &PackageData};
+	}
+
+	FString								CachedPackageName;
+	TFuture<bool>						AsyncTask;
+	PackageDataUtil::WritePackageResult Result;
+
+	FConcertPackageDataStream   PackageStream;
+	TArray<uint8>			    PackageData;
+};
 
 namespace TransactionDataUtil
 {
@@ -167,6 +201,35 @@ const uint8 DataVersion = 2;
 const uint64 MaxFileSizeBytesToCache = 200 * 1024 * 1024;
 const FGuid EntryFooter = FGuid(0x2EFC8CDD, 0x748E46C0, 0xA5485769, 0x13A3C354);
 
+/** Threshold used to avoid caching very large packages (3GB for example) in memory. */
+constexpr const uint64 MaxPackageBlobSizeForCaching = FMath::Max(
+	PackageDataUtil::MaxFileSizeBytesToCache / PackageDataUtil::MinFilesToCache, 16ull * 1024 * 1024);
+
+// Bigger files will not be compressed to avoid performance hit to decompress them when requested.
+// (Streaming compression is not supported yet, so it is done in memory only)
+//
+constexpr const uint64 MaxPackageDataSizeForCompression = 32ull * 1024 * 1024;
+
+/**
+ * Returns true if a package blob should be cached in memory, according to its size.
+ * @param PackageBlobSize The blob size (containing package data (possibly compressed) and some meta data).
+ * @return true if the pacage should be cached, false otherwise.
+ */
+bool ShouldCachePackageBlob(uint64 PackageBlobSize)
+{
+	return PackageBlobSize <= MaxPackageBlobSizeForCaching;
+}
+
+/**
+ * Returns true if the package data should be compressed in the blob, according to its size.
+ * @param PackageDataSize The uncompressed package data size.
+ * @return true if the package data should be compressed, false otherwise.
+ */
+bool ShouldCompressPackageData(uint64 PackageDataSize)
+{
+	return PackageDataSize > 0 && PackageDataSize <= MaxPackageDataSizeForCompression;
+}
+
 /**
  * Defines how the package data file written. The 8 LSB are reserved for FileFormatVersion which control how 24 MSB are interpreted.
  */
@@ -179,6 +242,16 @@ enum class EPackageDataFormat : uint8
 	PackageDataUncompressed = 1 << 1,
 };
 ENUM_CLASS_FLAGS(EPackageDataFormat)
+
+
+PackageDataUtil::EPackageDataFormat GetPackageDataFormat(int64 DataSize)
+{
+	if (ShouldCompressPackageData(DataSize))
+	{
+		return PackageDataUtil::EPackageDataFormat::PackageDataCompressed;
+	}
+	return PackageDataUtil::EPackageDataFormat::PackageDataUncompressed;
+}
 
 /** Write the version/format information in the first 4 bytes of the blob, enabling the reader to parse the blob. */
 void WritePackageBlobVersionInfo(FArchive& Ar, EPackageDataFormat PackageDataFormat)
@@ -281,69 +354,84 @@ int64 EstimatePackageBlobMetaDataSize()
 	return sizeof(uint32) + sizeof(int64) + sizeof(FGuid);
 }
 
-/**
- * Store the package data, possibly compressed, along with some meta data.
- * @param PackageDataStream The source stream containing the package data.
- * @param PackageDataFormat How the package data should be stored in the blob.
- * @param DstAr The archive used to write the blob data.
- */
-bool WritePackageBlob(FConcertPackageDataStream& PackageDataStream, EPackageDataFormat PackageDataFormat, FArchive& DstAr)
+bool WillUseMemoryWriter(int64 DataSize)
 {
-	check(DstAr.IsSaving() && DstAr.Tell() == 0);
-	check(PackageDataStream.DataAr == nullptr || PackageDataStream.DataAr->IsLoading()); // The package data stream may be null to write an 'empty' package.
-	check(PackageDataStream.DataAr != nullptr || (PackageDataStream.DataAr == nullptr && PackageDataStream.DataSize == 0 && PackageDataStream.DataBlob == nullptr)); // If the package data archive is null, the size must be zero.
+	return DataSize > 0 && (GetPackageDataFormat(DataSize) == EPackageDataFormat::PackageDataCompressed ||
+							ShouldCachePackageBlob(DataSize + PackageDataUtil::EstimatePackageBlobMetaDataSize()));
+}
 
-	// Write blob version and format.
-	WritePackageHeader(DstAr, PackageDataFormat);
+void WritePackageCompressed(FConcertPackageDataStream& PackageDataStream, FArchive& DstAr)
+{
+	check(PackageDataStream.DataSize > 0);
 
-	if (PackageDataFormat == EPackageDataFormat::PackageDataCompressed)
+	// Write the package data size.
+	uint32 UncompressedPackageSize = PackageDataStream.DataSize;
+	DstAr.SerializeIntPacked(UncompressedPackageSize);
+	check(static_cast<uint64>(UncompressedPackageSize) <= TNumericLimits<TArray<uint8>::SizeType>::Max());
+
+	if (PackageDataStream.DataBlob) // Optimization to avoid transfering from the archive to a temporary buffer.
 	{
-		// Write the package data size.
-		uint32 UncompressedPackageSize = PackageDataStream.DataSize;
-		DstAr.SerializeIntPacked(UncompressedPackageSize);
-		check(static_cast<uint64>(UncompressedPackageSize) <= TNumericLimits<TArray<uint8>::SizeType>::Max());
-
-		// Compress and write the package data.
-		if (UncompressedPackageSize > 0)
-		{
-			if (PackageDataStream.DataBlob) // Optimization to avoid transfering from the archive to a temporary buffer.
-			{
-				DstAr.SerializeCompressed(const_cast<uint8*>(PackageDataStream.DataBlob->GetData()), UncompressedPackageSize, NAME_Zlib); // Write
-			}
-			else
-			{
-				TArray<uint8> UncompressedPackageData;
-				UncompressedPackageData.AddUninitialized(UncompressedPackageSize);
-				PackageDataStream.DataAr->Serialize(UncompressedPackageData.GetData(), UncompressedPackageSize); // Read.
-				DstAr.SerializeCompressed(const_cast<uint8*>(UncompressedPackageData.GetData()), UncompressedPackageSize, NAME_Zlib); // Write.
-			}
-		}
+		DstAr.SerializeCompressed(const_cast<uint8*>(PackageDataStream.DataBlob->GetData()), UncompressedPackageSize, NAME_Zlib); // Write
 	}
 	else
 	{
-		check(PackageDataFormat == EPackageDataFormat::PackageDataUncompressed);
-
-		// Write the package size.
-		DstAr << PackageDataStream.DataSize;
-
-		// Copy the package data in the destination.
-		if (PackageDataStream.DataSize > 0 && PackageDataStream.DataAr != nullptr)
-		{
-			ConcertUtil::Copy(DstAr, *PackageDataStream.DataAr, PackageDataStream.DataSize);
-		}
+		TArray<uint8> UncompressedPackageData;
+		UncompressedPackageData.AddUninitialized(UncompressedPackageSize);
+		PackageDataStream.DataAr->Serialize(UncompressedPackageData.GetData(), UncompressedPackageSize); // Read.
+		DstAr.SerializeCompressed(const_cast<uint8*>(UncompressedPackageData.GetData()), UncompressedPackageSize, NAME_Zlib); // Write.
 	}
-
-	// Write a footer as proof that the operation did not crash mid-write.
-	WritePackageFooter(DstAr);
-
-	return !DstAr.IsError();
 }
 
-bool WritePackageBlob(FConcertPackageDataStream& PackageDataStream, EPackageDataFormat InPackageDataFormat, TArray<uint8>& OutPackageBlob)
+void WritePackageUncompressed(FConcertPackageDataStream& PackageDataStream, FArchive& DstAr)
 {
-	SCOPED_CONCERT_TRACE(ConcertSyncSessionDatabase_WritePackageBlob);
-	FMemoryWriter DstAr(OutPackageBlob);
-	return WritePackageBlob(PackageDataStream, InPackageDataFormat, DstAr);
+	// Write the package size.
+	DstAr << PackageDataStream.DataSize;
+
+	if (PackageDataStream.DataSize > 0)
+	{
+		// Copy the package data in the destination.
+		if (!ConcertUtil::Copy(DstAr, *PackageDataStream.DataAr, PackageDataStream.DataSize))
+		{
+			UE_LOG(LogConcert, Error, TEXT("Failed copy package data stream to destination."));
+		}
+	}
+}
+
+WritePackageResult WritePackage(FConcertPackageDataStream& PackageDataStream, FArchive& DstAr)
+{
+	SCOPED_CONCERT_TRACE(ConcertSyncSessionDatabase_WritePackage);
+
+	WritePackageResult OutResult;
+	FMemoryWriter MemWriter(OutResult.CacheData);
+
+	EPackageDataFormat PackageDataFormat = GetPackageDataFormat(PackageDataStream.DataSize);
+	if (WillUseMemoryWriter(PackageDataStream.DataSize))
+	{
+		DstAr = MemWriter;
+	}
+
+	check(DstAr.IsSaving() && DstAr.Tell() == 0);
+
+	// The package data stream may be null to write an 'empty' package.
+	check(PackageDataStream.DataAr == nullptr || PackageDataStream.DataAr->IsLoading());
+
+	 // If the package data archive is null, the size must be zero.
+	check(PackageDataStream.DataAr != nullptr || (PackageDataStream.DataAr == nullptr && PackageDataStream.DataSize == 0 && PackageDataStream.DataBlob == nullptr));
+
+	WritePackageHeader(DstAr, PackageDataFormat);
+	if (PackageDataFormat == EPackageDataFormat::PackageDataCompressed)
+	{
+		WritePackageCompressed(PackageDataStream, DstAr);
+		OutResult.bShouldCache = ShouldCachePackageBlob(OutResult.CacheData.Num());
+	}
+	else
+	{
+		WritePackageUncompressed(PackageDataStream, DstAr);
+		OutResult.bShouldCache = ShouldCachePackageBlob(PackageDataStream.DataSize);
+	}
+	WritePackageFooter(DstAr);
+
+	return OutResult;
 }
 
 /** Extract the package data in OutPackageData if the data is smaller than the streaming threshold, otherwise, stream the data using the streaming function.*/
@@ -1421,8 +1509,6 @@ private:
 /** Defined here where TUniquePtr can see the definition of FConcertFileCache and FConcertSyncSessionDatabaseStatements as the TUniquePtr constructor/destructor cannot work with a forward declared type */
 FConcertSyncSessionDatabase::FConcertSyncSessionDatabase()
 	: Database(MakeUnique<FSQLiteDatabase>())
-	, MaxPackageBlobSizeForCaching(FMath::Max(PackageDataUtil::MaxFileSizeBytesToCache / PackageDataUtil::MinFilesToCache, 16ull * 1024 * 1024)) // Prevent caching very large files.
-	, MaxPackageDataSizeForCompression(32ull * 1024 * 1024) // Bigger files will not be compressed to avoid performance hit to decompress them when requested. (Streaming compression is not supported yet, so it is done in memory only)
 {
 }
 
@@ -1553,7 +1639,8 @@ bool FConcertSyncSessionDatabase::Close(const bool InDeleteDatabase)
 		UE_LOG(LogConcert, Error, TEXT("Failed to close session database for '%s': %s"), *SessionPath, *GetLastError());
 		return false;
 	}
-	
+
+	FlushAsynchronousTasks();
 	TransactionFileCache.Reset();
 	PackageFileCache.Reset();
 
@@ -2607,44 +2694,58 @@ bool FConcertSyncSessionDatabase::LoadTransaction(const FString& InTransactionFi
 	return false;
 }
 
-bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPathname, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream) const
+bool HandleWritePackageResult(const FString& InDstPackageBlobPathname, TUniquePtr<FConcertFileCache>& Cache, PackageDataUtil::WritePackageResult&& Result)
+{
+	if (Result.CacheData.Num()>0)
+	{
+		if (Result.bShouldCache)
+		{
+			return Cache->SaveAndCacheFile(InDstPackageBlobPathname, MoveTemp(Result.CacheData));
+		}
+		TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
+		if (DstAr)
+		{
+			DstAr->Serialize(Result.CacheData.GetData(), Result.CacheData.Num());
+			return !DstAr->IsError();
+		}
+		return false;
+	}
+	return true;
+}
+
+bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPathname, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream)
 {
 	SCOPED_CONCERT_TRACE(FConcertSyncSessionDatabase_SavePackage);
 
-	// Decide if the package data should be stored compressed.
-	PackageDataUtil::EPackageDataFormat PackageDataFormat = ShouldCompressPackageData(InPackageDataStream.DataSize) ? PackageDataUtil::EPackageDataFormat::PackageDataCompressed : PackageDataUtil::EPackageDataFormat::PackageDataUncompressed;
-	if (PackageDataFormat == PackageDataUtil::EPackageDataFormat::PackageDataCompressed)
+	// There are a few different cases that affect how SavePackage works.
+	//  1. In memory binary data:  We have received a package of data from that is in memory.  In this case the archive
+	//     provided is Null and we can simply copy that data into a temporary buffer and perform an asynchronous write
+	//     to disk.
+	//  2. No in memory: We have received a handle to a file on disk via InPackageDataStream.DstAr.  We cannot guarantee the lifetime
+	//     of this object and thus we cannot perform asynchronous work (Unless the raw data via DataBlob has already
+	//     been provided) in which case we ignore the DstAr and do asynchronous path.
+	//
+	if (InPackageDataStream.DataBlob && InPackageDataStream.DataBlob->Num() > 0)
 	{
-		TArray<uint8> PackageBlob;
-		if (PackageDataUtil::WritePackageBlob(InPackageDataStream, PackageDataFormat, PackageBlob))
-		{
-			if (ShouldCachePackageBlob(PackageBlob.Num()))
-			{
-				return PackageFileCache->SaveAndCacheFile(InDstPackageBlobPathname, MoveTemp(PackageBlob));
-			}
-
-			TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
-			if (DstAr)
-			{
-				DstAr->Serialize(PackageBlob.GetData(), PackageBlob.Num());
-				return !DstAr->IsError();
-			}
-		}
+		ScheduleAsyncWrite(InDstPackageBlobPathname, InPackageDataStream);
+		return true;
 	}
 	else
 	{
-		check(PackageDataFormat == PackageDataUtil::EPackageDataFormat::PackageDataUncompressed);
-
-		int64 EstimatedPackageBlobSize = InPackageDataStream.DataSize + PackageDataUtil::EstimatePackageBlobMetaDataSize();
-		if (ShouldCachePackageBlob(EstimatedPackageBlobSize))
+		if (PackageDataUtil::WillUseMemoryWriter(InPackageDataStream.DataSize))
 		{
-			TArray<uint8> PackageBlob;
-			return PackageDataUtil::WritePackageBlob(InPackageDataStream, PackageDataFormat, PackageBlob) && PackageFileCache->SaveAndCacheFile(InDstPackageBlobPathname, MoveTemp(PackageBlob));
+			FArchive NullArchive;
+			PackageDataUtil::WritePackageResult Result = PackageDataUtil::WritePackage(InPackageDataStream, NullArchive);
+			return HandleWritePackageResult(InDstPackageBlobPathname, PackageFileCache, MoveTemp(Result));
 		}
 		else
 		{
 			TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
-			return DstAr && PackageDataUtil::WritePackageBlob(InPackageDataStream, PackageDataFormat, *DstAr);
+			if (DstAr)
+			{
+				PackageDataUtil::WritePackage(InPackageDataStream, *DstAr);
+				return !DstAr->IsError();
+			}
 		}
 	}
 
@@ -2653,6 +2754,18 @@ bool FConcertSyncSessionDatabase::SavePackage(const FString& InDstPackageBlobPat
 
 bool FConcertSyncSessionDatabase::LoadPackage(const FString& InPackageBlobFilename, const TFunctionRef<void(FConcertPackageDataStream&)>& PackageDataStreamFn) const
 {
+	// First check the deferred file IO buffer before looking on disk.
+	using FAsyncPtr = TSharedPtr<FConcertPackageAsyncDataStream>;
+	if(FAsyncPtr const* Found = DeferredLargePackageIO.Find(InPackageBlobFilename))
+	{
+		FAsyncPtr Owned = *Found;
+		FConcertPackageDataStream Stream = Owned->PackageStream;
+		FMemoryReader PackageBlobAr(Owned->PackageData);
+		Stream.DataAr = &PackageBlobAr;
+		PackageDataStreamFn(Stream);
+		return true;
+	}
+
 	int64 PackageBlobSize = IFileManager::Get().FileSize(*InPackageBlobFilename);
 	if (PackageBlobSize < 0) // Possible if the file doesn't exist.
 	{
@@ -2660,7 +2773,8 @@ bool FConcertSyncSessionDatabase::LoadPackage(const FString& InPackageBlobFilena
 		return false;
 	}
 
-	if (ShouldCachePackageBlob(static_cast<uint64>(PackageBlobSize))) // Try the cache if the blob is small enough to be found or stored.
+	 // Try the cache if the blob is small enough to be found or stored.
+	if (PackageDataUtil::ShouldCachePackageBlob(static_cast<uint64>(PackageBlobSize)))
 	{
 		TArray<uint8> PackageBlob;
 		return PackageFileCache->FindOrCacheFile(InPackageBlobFilename, PackageBlob) && PackageDataUtil::ExtractPackageData(PackageBlob, PackageDataStreamFn);
@@ -2669,14 +2783,54 @@ bool FConcertSyncSessionDatabase::LoadPackage(const FString& InPackageBlobFilena
 	return PackageDataUtil::ExtractPackageData(InPackageBlobFilename, PackageDataStreamFn);
 }
 
-bool FConcertSyncSessionDatabase::ShouldCachePackageBlob(uint64 PackageBlobSize) const
+void FConcertSyncSessionDatabase::FlushAsynchronousTasks()
 {
-	return PackageBlobSize <= MaxPackageBlobSizeForCaching;
+	for (const auto& Item : DeferredLargePackageIO)
+	{
+		if(!Item.Value->AsyncTask.Get())
+		{
+			UE_LOG(LogConcert, Error, TEXT("Async task failed to write package %s"), *Item.Value->CachedPackageName);
+		}
+	}
+	DeferredLargePackageIO = {};
 }
 
-bool FConcertSyncSessionDatabase::ShouldCompressPackageData(uint64 PackageDataSize) const
+void FConcertSyncSessionDatabase::UpdateAsynchronousTasks()
 {
-	return PackageDataSize <= MaxPackageDataSizeForCompression;
+	for (auto It = DeferredLargePackageIO.CreateIterator(); It; ++It)
+	{
+		if (It->Value->AsyncTask.IsReady())
+		{
+			if (HandleWritePackageResult(It->Key, PackageFileCache,MoveTemp(It->Value->Result)) == false)
+			{
+				UE_LOG(LogConcert, Warning, TEXT("Failed to handle package write result of file '%s'."), *It->Key);
+			}
+			It.RemoveCurrent();
+		}
+	}
+}
+
+void FConcertSyncSessionDatabase::ScheduleAsyncWrite(const FString& InDstPackageBlobPathname, FConcertPackageDataStream& InPackageDataStream)
+{
+	check(InPackageDataStream.DataBlob && InPackageDataStream.DataBlob->Num() > 0);
+
+	using FAsyncPtr = TSharedPtr<FConcertPackageAsyncDataStream>;
+	FAsyncPtr SharedStream = MakeShared<FConcertPackageAsyncDataStream>(InPackageDataStream, InDstPackageBlobPathname);
+	if(FAsyncPtr* Item = DeferredLargePackageIO.Find(InDstPackageBlobPathname))
+	{
+		(*Item)->AsyncTask.Get();
+		HandleWritePackageResult(InDstPackageBlobPathname, PackageFileCache, MoveTemp((*Item)->Result));
+	}
+	DeferredLargePackageIO.FindOrAdd(InDstPackageBlobPathname) = SharedStream;
+	SharedStream->AsyncTask = Async(EAsyncExecution::TaskGraph, [InDstPackageBlobPathname,SharedStream]()
+	{
+		TUniquePtr<FArchive> DstAr(IFileManager::Get().CreateFileWriter(*InDstPackageBlobPathname));
+		FConcertPackageDataStream& InPackageDataStream = SharedStream->PackageStream;
+		FMemoryReader PackageBlobAr(SharedStream->PackageData);
+		InPackageDataStream.DataAr = &PackageBlobAr;
+		SharedStream->Result = PackageDataUtil::WritePackage(InPackageDataStream, *DstAr);
+		return !DstAr->IsError();
+	});
 }
 
 bool ConcertSyncSessionDatabaseFilterUtil::TransactionEventPassesFilter(const int64 InTransactionEventId, const FConcertSessionFilter& InSessionFilter, const FConcertSyncSessionDatabase& InDatabase)

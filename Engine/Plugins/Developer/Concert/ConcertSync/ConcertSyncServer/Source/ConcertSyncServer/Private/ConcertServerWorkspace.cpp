@@ -112,6 +112,8 @@ void FConcertServerWorkspace::HandleTick(IConcertServerSession& InSession, float
 			ManualSyncEndpointIter.RemoveCurrent();
 		}
 	}
+
+	LiveSession->GetSessionDatabase().UpdateAsynchronousTasks();
 }
 
 void FConcertServerWorkspace::HandleSessionClientChanged(IConcertServerSession& InSession, EConcertClientStatus InClientStatus, const FConcertSessionClientInfo& InClientInfo)
