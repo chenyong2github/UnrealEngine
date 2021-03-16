@@ -75,7 +75,7 @@ void UK2Node_ComponentBoundEvent::InitializeComponentBoundEventParams(FObjectPro
 
 		EventReference.SetFromField<UFunction>(InDelegateProperty->SignatureFunction, /*bIsConsideredSelfContext =*/false);
 
-		CustomFunctionName = FName(*FString::Printf(TEXT("BndEvt__%s_%s_%s"), *InComponentProperty->GetName(), *GetName(), *EventReference.GetMemberName().ToString()));
+		CustomFunctionName = FName(*FString::Printf(TEXT("BndEvt__%s_%s_%s_%s"), *GetBlueprint()->GetName(), *InComponentProperty->GetName(), *GetName(), *EventReference.GetMemberName().ToString()));
 		bOverrideFunction = false;
 		bInternalEvent = true;
 		CachedNodeTitle.MarkDirty();
