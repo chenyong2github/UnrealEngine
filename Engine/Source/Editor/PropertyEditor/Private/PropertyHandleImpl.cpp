@@ -3290,13 +3290,12 @@ void FPropertyHandleBase::ExecuteCustomResetToDefault(const FResetToDefaultOverr
 	TSharedPtr<IPropertyUtilities> PropertyUtilities = Implementation->GetPropertyUtilities();
 	if (PropertyUtilities.IsValid())
 	{
-		TWeakPtr<FPropertyHandleBase> ThisWeak = SharedThis(this);
-		PropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateLambda([ThisWeak, InOnCustomResetToDefault]()
+		TSharedPtr<FPropertyHandleBase> ThisShared = SharedThis(this);
+		PropertyUtilities->EnqueueDeferredAction(FSimpleDelegate::CreateLambda([ThisShared, InOnCustomResetToDefault]()
 			{
-				TSharedPtr<FPropertyHandleBase> ThisPinned = ThisWeak.Pin();
-				if (ThisPinned.IsValid())
+				if (ThisShared.IsValid())
 				{
-					ThisPinned->OnCustomResetToDefault(InOnCustomResetToDefault);
+					ThisShared->OnCustomResetToDefault(InOnCustomResetToDefault);
 				}
 			}));
 	}
