@@ -278,6 +278,8 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 	// Read the scan filters for global asset scanning
 	InitializeBlacklistScanFiltersFromIni();
 
+	IPluginManager& PluginManager = IPluginManager::Get();
+
 	// If in the editor, we scan all content right now
 	// If in the game, we expect user to make explicit sync queries using ScanPathsSynchronous
 	// If in a commandlet, we expect the commandlet to decide when to perform a synchronous scan
@@ -309,7 +311,7 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 		}
 #endif // ASSETREGISTRY_ENABLE_PREMADE_REGISTRY_IN_EDITOR 
 
-		TArray<TSharedRef<IPlugin>> ContentPlugins = IPluginManager::Get().GetEnabledPluginsWithContent();
+		TArray<TSharedRef<IPlugin>> ContentPlugins = PluginManager.GetEnabledPluginsWithContent();
 		for (TSharedRef<IPlugin> ContentPlugin : ContentPlugins)
 		{
 			if (ContentPlugin->CanContainContent())
@@ -406,6 +408,12 @@ UAssetRegistryImpl::UAssetRegistryImpl(const FObjectInitializer& ObjectInitializ
 		check(UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton == nullptr && IAssetRegistryInterface::Default == nullptr);
 		UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton = this;
 		IAssetRegistryInterface::Default = &GAssetRegistryInterface;
+	}
+
+	ELoadingPhase::Type LoadingPhase = PluginManager.GetLastCompletedLoadingPhase();
+	if (LoadingPhase == ELoadingPhase::None || LoadingPhase < ELoadingPhase::PostEngineInit)
+	{
+		PluginManager.OnLoadingPhaseComplete().AddUObject(this, &UAssetRegistryImpl::OnPluginLoadingPhaseComplete);
 	}
 }
 
@@ -510,6 +518,22 @@ void UAssetRegistryImpl::InitRedirectors()
 		FCoreRedirects::AddRedirectList(PackageRedirects, Plugin->GetName() );
 #endif
 	}
+}
+
+
+void UAssetRegistryImpl::OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful)
+{
+	if (LoadingPhase != ELoadingPhase::PostEngineInit)
+	{
+		return;
+	}
+
+	// Reparse the skip classes the next time ShouldSkipAsset is called, since available classes
+	// for the search over all classes may have changed
+#if WITH_EDITOR
+	bInitializedSkipClasses = false;
+#endif
+	IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
 }
 
 void UAssetRegistryImpl::InitializeSerializationOptions(FAssetRegistrySerializationOptions& Options, const FString& PlatformIniName) const
@@ -2780,6 +2804,7 @@ bool UAssetRegistryImpl::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) 
 		// be replaced eventually, so leaving it for now.
 		if (GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet()))
 		{
+			SkipClasses.Reset();
 			static const FName NAME_BlueprintGeneratedClass("BlueprintGeneratedClass");
 			static const FName NAME_EnginePackage("/Script/Engine");
 			UClass* BlueprintGeneratedClass = nullptr;

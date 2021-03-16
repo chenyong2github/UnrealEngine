@@ -7,6 +7,7 @@
 #include "AssetRegistry/IAssetRegistry.h"
 #include "AssetRegistry/AssetRegistryState.h"
 #include "PathTree.h"
+#include "ModuleDescriptor.h"
 #include "PackageDependencyData.h"
 #include "AssetDataGatherer.h"
 #include "BackgroundGatherResults.h"
@@ -154,6 +155,7 @@ protected:
 private:
 
 	void InitRedirectors();
+	void OnPluginLoadingPhaseComplete(ELoadingPhase::Type LoadingPhase, bool bPhaseSuccessful);
 
 	/** Internal handler for ScanPathsSynchronous */
 	void ScanPathsAndFilesSynchronous(const TArray<FString>& InPaths, const TArray<FString>& InSpecificFiles, const TArray<FString>& InBlacklistScanFilters, bool bForceRescan, EAssetDataCacheMode AssetDataCacheMode);
