@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MetasoundDebugLogNode.h"
 
 #include "MetasoundNodeRegistrationMacro.h"
