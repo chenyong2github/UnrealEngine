@@ -250,6 +250,7 @@ FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPe
 	//	* Additive ref pose GUID or hardcoded string if not available
 	//	* Compression Settings
 	//	* Curve compression settings
+	//  * Target frames per second
 
 	bool bIsValidAdditive = Seq.IsValidAdditive();
 	char AdditiveType = bIsValidAdditive ? NibbleToTChar(Seq.AdditiveAnimType) : '0';
@@ -262,7 +263,7 @@ FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPe
 	Seq.BoneCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
 	Seq.CurveCompressionSettings->PopulateDDCKey(ArcToHexString.Ar);
 
-	FString Ret = FString::Printf(TEXT("%i_%s%s%s_%c%c%i_%s_%s"),
+	FString Ret = FString::Printf(TEXT("%i_%s%s%s_%c%c%i_%s_%s_%i"),
 		Seq.CompressCommandletVersion,
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		*Seq.GetRawDataGuid().ToString(),
@@ -275,7 +276,8 @@ FString GetAnimSequenceSpecificCacheKeySuffix(const UAnimSequence& Seq, bool bPe
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		(bIsValidAdditive && Seq.RefPoseSeq) ? *Seq.RefPoseSeq->GetRawDataGuid().ToString() : TEXT("NoAdditiveGuid"),
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		*ArcToHexString.MakeString()
+		*ArcToHexString.MakeString(),
+		Seq.GetSamplingFrameRate().Numerator / Seq.GetSamplingFrameRate().Denominator
 	);
 
 	return Ret;
@@ -5736,18 +5738,18 @@ void UAnimSequence::ResampleAnimationTrackData()
 {
 	ValidateModel();
 
+	// Make a copy, deals with bone name and index
+	ResampledAnimationTrackData = DataModel->GetBoneAnimationTracks();
+
 	if (TargetFrameRate == DataModel->GetFrameRate())
 	{
 		// Can directly copy
-		ResampledAnimationTrackData = DataModel->GetBoneAnimationTracks();
 		NumberOfSampledKeys = DataModel->GetNumberOfKeys();
 		NumberOfSampledFrames = DataModel->GetNumberOfFrames();
 	}
 	else
 	{
-		// We actually need to resample
-		ResampledAnimationTrackData.SetNum(DataModel->GetBoneAnimationTracks().Num());
-
+		// We actually need to resample bone transforms
 		NumberOfSampledFrames = TargetFrameRate.AsFrameNumber(DataModel->GetPlayLength()).Value;
 		NumberOfSampledKeys = NumberOfSampledFrames + 1;
 				
