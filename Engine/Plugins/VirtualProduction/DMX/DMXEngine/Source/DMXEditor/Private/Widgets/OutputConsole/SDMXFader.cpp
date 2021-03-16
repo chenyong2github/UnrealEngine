@@ -33,7 +33,7 @@ void SDMXFader::Construct(const FArguments& InArgs)
 {
 	OnRequestDelete = InArgs._OnRequestDelete;
 	OnRequestSelect = InArgs._OnRequestSelect;
-	FaderName = InArgs._FaderName;
+	FaderName = InArgs._FaderName.ToString();
 
 	// Init args and test them for general DMX validity, no protocol specifics
 	check(InArgs._UniverseID >= 0 && InArgs._UniverseID < DMX_MAX_UNIVERSE);
@@ -494,7 +494,8 @@ void SDMXFader::OnFaderNameCommitted(const FText& NewFaderName, ETextCommit::Typ
 	check(FaderNameTextBox.IsValid());
 
 	FaderNameTextBox->SetText(FaderName);
-	FaderName = NewFaderName;
+
+	FaderName = NewFaderName.ToString();
 }
 
 FReply SDMXFader::OnUniverseIDBorderDoubleClicked(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)

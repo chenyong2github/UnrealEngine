@@ -126,7 +126,7 @@ private:
 
 public:
 	/** Returns the name of the fader */
-	FString GetFaderName() const { return FaderName.ToString(); };
+	FString GetFaderName() const { return FaderName; };
 
 	/** Returns the universe ID to which to should send DMX to */
 	int32 GetUniverseID() const { return UniverseID; }
@@ -151,7 +151,7 @@ public:
 
 private:
 	/** Cached Name of the Fader */
-	FText FaderName;
+	FString FaderName;
 
 	/** The universe the should send to fader */
 	int32 UniverseID;

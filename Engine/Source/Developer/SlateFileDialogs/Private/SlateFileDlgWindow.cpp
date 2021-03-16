@@ -1456,7 +1456,7 @@ void SSlateFileOpenDlg::SetDefaultFile(FString DefaultFile)
 		SaveFilename = FileList;
 	}
 
-	SaveFilenameEditBox->SetText(FText::FromString(SaveFilename));
+	SaveFilenameEditBox->SetText(SaveFilename);
 }
 
 
@@ -1630,7 +1630,7 @@ FReply SSlateFileOpenDlg::OnNewDirectoryClick()
 {
 	NewDirectorySizeBox->SetVisibility(EVisibility::Visible);
 	NewDirCancelButton->SetVisibility(EVisibility::Visible);
-	NewDirectoryEditBox->SetText(FText::GetEmpty());
+	NewDirectoryEditBox->SetText(FString(""));
 	
 	FSlateApplication::Get().SetKeyboardFocus(NewDirectoryEditBox);	
 	NewDirectoryEditBox->EnterEditingMode();
@@ -1673,7 +1673,7 @@ FReply SSlateFileOpenDlg::OnNewDirectoryAcceptCancelClick(FSlateFileDlgWindow::E
 	NewDirCancelButton->SetVisibility(EVisibility::Hidden);
 	DirErrorMsg->SetVisibility(EVisibility::Collapsed);
 
-	NewDirectoryEditBox->SetText(FText::GetEmpty());
+	NewDirectoryEditBox->SetText(FString(""));
 
 	return FReply::Handled();
 }

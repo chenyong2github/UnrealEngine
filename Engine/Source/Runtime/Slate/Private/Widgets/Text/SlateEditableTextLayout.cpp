@@ -3428,17 +3428,9 @@ FVector2D FSlateEditableTextLayout::ComputeDesiredSize(float LayoutScaleMultipli
 		MarginValue.Right += CaretWidth;
 
 		const FVector2D HintTextSize = HintTextLayout->ComputeDesiredSize(
-			FSlateTextBlockLayout::FWidgetDesiredSizeArgs(
-				HintText.Get(FText::GetEmpty()),
-				FText::GetEmpty(),
-				WrapTextAt.Get(0.f),
-				AutoWrapText.Get(false),
-				WrappingPolicy.Get(),
-				ETextTransformPolicy::None,
-				MarginValue,
-				LineHeightPercentage.Get(),
-				Justification.Get()),
-			LayoutScaleMultiplier, HintTextStyle);
+			FSlateTextBlockLayout::FWidgetArgs(HintText, FText::GetEmpty(), WrapTextAt, AutoWrapText, WrappingPolicy, ETextTransformPolicy::None, MarginValue, LineHeightPercentage, Justification),
+			LayoutScaleMultiplier, HintTextStyle
+			);
 
 		// If a wrapping width has been provided, then we need to report that as the desired width
 		DesiredWidth = WrappingWidth > 0 ? WrappingWidth : HintTextSize.X;

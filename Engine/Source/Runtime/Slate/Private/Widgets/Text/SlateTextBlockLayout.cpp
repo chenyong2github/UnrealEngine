@@ -25,80 +25,6 @@ FSlateTextBlockLayout::FSlateTextBlockLayout(SWidget* InOwner, FTextBlockStyle I
 	TextLayout->SetLineBreakIterator(MoveTemp(InLineBreakPolicy));
 }
 
-FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle)
-{
-	// Cache the wrapping rules so that we can recompute the wrap at width in paint.
-	CachedWrapTextAt = InWidgetArgs.WrapTextAt;
-	bCachedAutoWrapText = InWidgetArgs.AutoWrapText;
-
-	const ETextTransformPolicy PreviousTransformPolicy = TextLayout->GetTransformPolicy();
-
-	// Set the text layout information
-	TextLayout->SetScale(InScale);
-	TextLayout->SetWrappingWidth(CalculateWrappingWidth());
-	TextLayout->SetWrappingPolicy(InWidgetArgs.WrappingPolicy);
-	TextLayout->SetTransformPolicy(InWidgetArgs.TransformPolicy);
-	TextLayout->SetMargin(InWidgetArgs.Margin);
-	TextLayout->SetJustification(InWidgetArgs.Justification);
-	TextLayout->SetLineHeightPercentage(InWidgetArgs.LineHeightPercentage);
-
-	// Has the transform policy changed? If so we need a full refresh as that is destructive to the model text
-	if (PreviousTransformPolicy != TextLayout->GetTransformPolicy())
-	{
-		Marshaller->MakeDirty();
-	}
-
-	// Has the style used for this text block changed?
-	if (!IsStyleUpToDate(InTextStyle))
-	{
-		TextLayout->SetDefaultTextStyle(InTextStyle);
-		Marshaller->MakeDirty(); // will regenerate the text using the new default style
-	}
-
-	{
-		bool bRequiresTextUpdate = false;
-		const FText& TextToSet = InWidgetArgs.Text;
-		if (!TextLastUpdate.IdenticalTo(TextToSet))
-		{
-			// The pointer used by the bound text has changed, however the text may still be the same - check that now
-			if (!TextLastUpdate.IsDisplayStringEqualTo(TextToSet))
-			{
-				// The source text has changed, so update the internal text
-				bRequiresTextUpdate = true;
-			}
-
-			// Update this even if the text is lexically identical, as it will update the pointer compared by IdenticalTo for the next Tick
-			TextLastUpdate = FTextSnapshot(TextToSet);
-		}
-
-		if (bRequiresTextUpdate || Marshaller->IsDirty())
-		{
-			UpdateTextLayout(TextToSet);
-		}
-	}
-
-	{
-		const FText& HighlightTextToSet = InWidgetArgs.HighlightText;
-		if (!HighlightTextLastUpdate.IdenticalTo(HighlightTextToSet))
-		{
-			// The pointer used by the bound text has changed, however the text may still be the same - check that now
-			if (!HighlightTextLastUpdate.IsDisplayStringEqualTo(HighlightTextToSet))
-			{
-				UpdateTextHighlights(HighlightTextToSet);
-			}
-
-			// Update this even if the text is lexically identical, as it will update the pointer compared by IdenticalTo for the next Tick
-			HighlightTextLastUpdate = FTextSnapshot(HighlightTextToSet);
-		}
-	}
-
-	// We need to update our size if the text layout has become dirty
-	TextLayout->UpdateIfNeeded();
-
-	return TextLayout->GetSize();
-}
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle)
 {
 	// Cache the wrapping rules so that we can recompute the wrap at width in paint.
@@ -171,7 +97,6 @@ FVector2D FSlateTextBlockLayout::ComputeDesiredSize(const FWidgetArgs& InWidgetA
 
 	return TextLayout->GetSize();
 }
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 FVector2D FSlateTextBlockLayout::GetDesiredSize() const
 {
