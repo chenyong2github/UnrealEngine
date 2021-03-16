@@ -112,6 +112,8 @@ void UMIDIDeviceInputController::ProcessIncomingMIDIEvents()
 				const int32 RawEventType = PMType;
 				const int32 Timestamp = PMTimestamp;
 
+				this->OnMIDIRawEvent.Broadcast(this, Timestamp, RawEventType, Channel, PMMessageData1, PMMessageData2);
+
 				EMIDIEventType EventType = EMIDIEventType::Unknown;
 				EMIDIEventType PossibleEventType = (EMIDIEventType)PMType;
 				switch(PossibleEventType)
