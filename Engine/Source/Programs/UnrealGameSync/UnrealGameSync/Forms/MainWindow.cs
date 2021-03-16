@@ -177,7 +177,7 @@ namespace UnrealGameSync
 
 			if(bUnstable)
 			{
-				Text += $"{Program.GetVersionString()} (UNSTABLE)";
+				Text += $" {Program.GetVersionString()} (UNSTABLE)";
 			}
 
 			AutomationLog = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "Automation.log")));
