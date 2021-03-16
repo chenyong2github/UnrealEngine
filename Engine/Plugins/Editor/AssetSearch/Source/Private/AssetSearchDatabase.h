@@ -10,6 +10,8 @@ enum class ESQLiteDatabaseOpenMode : uint8;
 class FAssetSearchDatabaseStatements;
 struct FAssetData;
 
+DECLARE_LOG_CATEGORY_EXTERN(LogAssetSearch, Log, All);
+
 class FAssetSearchDatabase
 {
 public:

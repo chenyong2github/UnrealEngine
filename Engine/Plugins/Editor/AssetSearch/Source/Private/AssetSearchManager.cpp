@@ -345,6 +345,7 @@ FSearchStats FAssetSearchManager::GetStats() const
 	Stats.Updating = PendingDatabaseUpdates;
 	Stats.TotalRecords = TotalSearchRecords;
 	Stats.AssetsMissingIndex = FailedDDCRequests.Num();
+
 	return Stats;
 }
 
@@ -430,7 +431,7 @@ void FAssetSearchManager::OnAssetScanFinished()
 	AssetRegistry.OnAssetAdded().AddRaw(this, &FAssetSearchManager::OnAssetAdded);
 	AssetRegistry.OnAssetRemoved().AddRaw(this, &FAssetSearchManager::OnAssetRemoved);
 
-	AssetRegistry.GetAllAssets(AllAssets, false);
+	AssetRegistry.GetAllAssets(AllAssets, true);
 
 	for (const FAssetData& Data : AllAssets)
 	{
@@ -494,7 +495,12 @@ bool FAssetSearchManager::RequestIndexAsset(UObject* InAsset)
 		TWeakObjectPtr<UObject> AssetWeakPtr = InAsset;
 		FAssetData AssetData(InAsset);
 
-		return AsyncGetDerivedDataKey(AssetData, [this, AssetData, AssetWeakPtr](FString InDDCKey) {
+		return AsyncGetDerivedDataKey(AssetData, [this, AssetData, AssetWeakPtr](bool bSuccess, FString InDDCKey) {
+			if (!bSuccess)
+			{
+				return;
+			}
+
 			UpdateOperations.Enqueue([this, AssetData, AssetWeakPtr, InDDCKey]() {
 				FScopeLock ScopedLock(&SearchDatabaseCS);
 				if (!SearchDatabase.IsAssetUpToDate(AssetData, InDDCKey))
@@ -534,7 +540,13 @@ bool FAssetSearchManager::IsAssetIndexable(UObject* InAsset)
 
 bool FAssetSearchManager::TryLoadIndexForAsset(const FAssetData& InAssetData)
 {
-	const bool bSuccess = AsyncGetDerivedDataKey(InAssetData, [this, InAssetData](FString InDDCKey) {
+	bool bSuccess = AsyncGetDerivedDataKey(InAssetData, [this, InAssetData](bool bSuccess, FString InDDCKey) {
+		if (!bSuccess)
+		{
+			IsAssetUpToDateCount--;
+			return;
+		}
+		
 		FeedOperations.Enqueue([this, InAssetData, InDDCKey]() {
 			FScopeLock ScopedLock(&SearchDatabaseCS);
 			if (!SearchDatabase.IsAssetUpToDate(InAssetData, InDDCKey))
@@ -564,7 +576,7 @@ void FAssetSearchManager::AsyncRequestDownlaod(const FAssetData& InAssetData, co
 	DownloadQueue.Enqueue(DDCRequest);
 }
 
-bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, TFunction<void(FString)> DDCKeyCallback)
+bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, TFunction<void(bool, FString)> DDCKeyCallback)
 {
 	check(IsInGameThread());
 
@@ -606,7 +618,12 @@ bool FAssetSearchManager::AsyncGetDerivedDataKey(const FAssetData& InAssetData, 
 
 			const FString DDCKeyString = DDCKey.ToString();
 
-			DDCKeyCallback(DDCKeyString);
+			DDCKeyCallback(true, DDCKeyString);
+		}
+		else
+		{
+			UE_LOG(LogAssetSearch, Warning, TEXT("%s unable to hash file."), *InAssetData.PackageName.ToString());
+			DDCKeyCallback(false, TEXT(""));
 		}
 	});
 
@@ -676,7 +693,12 @@ void FAssetSearchManager::StoreIndexForAsset(UObject* InAsset)
 
 		if (bWasIndexed && !IndexedJson.IsEmpty())
 		{
-			AsyncGetDerivedDataKey(InAssetData, [this, InAssetData, IndexedJson](FString InDDCKey) {
+			AsyncGetDerivedDataKey(InAssetData, [this, InAssetData, IndexedJson](bool bSuccess, FString InDDCKey) {
+				if (!bSuccess)
+				{
+					return;
+				}
+
 				AsyncMainThreadTask([this, InAssetData, IndexedJson, InDDCKey]() {
 					check(IsInGameThread());
 
