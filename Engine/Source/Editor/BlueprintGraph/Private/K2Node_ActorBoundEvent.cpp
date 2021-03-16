@@ -222,7 +222,7 @@ void UK2Node_ActorBoundEvent::InitializeActorBoundEventParams(AActor* InEventOwn
 		DelegatePropertyName = InDelegateProperty->GetFName();
 		DelegateOwnerClass = CastChecked<UClass>(InDelegateProperty->GetOwner<UObject>())->GetAuthoritativeClass();
 		EventReference.SetFromField<UFunction>(InDelegateProperty->SignatureFunction, false);
-		CustomFunctionName = FName(*FString::Printf(TEXT("BndEvt__%s_%s_%s"), *InEventOwner->GetName(), *GetName(), *EventReference.GetMemberName().ToString()));
+		CustomFunctionName = FName(*FString::Printf(TEXT("BndEvt__%s_%s_%s_%s"), *GetBlueprint()->GetName(), *InEventOwner->GetName(), *GetName(), *EventReference.GetMemberName().ToString()));
 		bOverrideFunction = false;
 		bInternalEvent = true;
 		CachedNodeTitle.MarkDirty();
