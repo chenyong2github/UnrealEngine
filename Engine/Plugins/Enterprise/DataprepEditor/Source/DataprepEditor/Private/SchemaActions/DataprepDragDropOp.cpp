@@ -311,7 +311,7 @@ FText FDataprepDragDropOp::GetMessageText()
 	}
 	else
 	{
-		LastMessageText = LOCTEXT("DataprepActionStepNode_NotImplemented", "Operation not implemented yet");
+		LastMessageText = LOCTEXT("DataprepActionStepNode_NotImplemented", "Operation not allowed");
 	}
 
 	return LastMessageText;
