@@ -858,8 +858,6 @@ namespace Chaos
 				GetEvolution()->CreateParticle(Handle);
 				Proxy->SetInitialized(true);
 			}
-
-			Dirty.Clear(*Manager,DataIdx,ShapeDirtyData);
 		};
 
 		if(RewindData)

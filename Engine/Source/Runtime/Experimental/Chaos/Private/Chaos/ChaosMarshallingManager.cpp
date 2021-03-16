@@ -119,6 +119,16 @@ FPushPhysicsData* FChaosMarshallingManager::StepInternalTime_External()
 
 void FChaosMarshallingManager::FreeData_Internal(FPushPhysicsData* PushData)
 {
+	//TODO: we know entire manager is cleared, so we can probably just iterate over its pools and reset
+	//instead of going through dirty proxies. If perf matters fix this
+	FDirtyPropertiesManager* Manager = &PushData->DirtyPropertiesManager;
+	FShapeDirtyData* ShapeDirtyData = PushData->DirtyProxiesDataBuffer.GetShapesDirtyData();
+
+	PushData->DirtyProxiesDataBuffer.ForEachProxy([Manager, ShapeDirtyData](int32 DataIdx, FDirtyProxy& Dirty)
+	{
+		Dirty.Clear(*Manager, DataIdx, ShapeDirtyData);
+	});
+
 	PushData->Reset();
 	PushDataPool.Enqueue(PushData);
 }
@@ -142,6 +152,7 @@ void FPushPhysicsData::Reset()
 		delete CallbackToRemove;
 	}
 
+	DirtyProxiesDataBuffer.Reset();
 	SimCallbackInputs.Reset();
 	SimCallbackObjectsToRemove.Reset();
 	ResetForHistory();
@@ -149,7 +160,6 @@ void FPushPhysicsData::Reset()
 
 void FPushPhysicsData::ResetForHistory()
 {
-	DirtyProxiesDataBuffer.Reset();
 	SimCommands.Reset();
 	SimCallbackObjectsToAdd.Reset();
 }

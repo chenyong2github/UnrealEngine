@@ -172,6 +172,87 @@ namespace ChaosTest {
 		});
 	}
 
+	struct FRewindCallbackTestHelper : public IRewindCallback
+	{
+		FRewindCallbackTestHelper(const int32 InNumPhysicsSteps, const int32 InRewindToStep = 0)
+			: NumPhysicsSteps(InNumPhysicsSteps)
+			, RewindToStep(InRewindToStep)
+		{
+		}
+
+		virtual int32 TriggerRewindIfNeeded_Internal(int32 LatestStepCompleted) override
+		{
+			if (LatestStepCompleted + 1 == NumPhysicsSteps && bRewound == false)
+			{
+				return RewindToStep;
+			}
+
+			return INDEX_NONE;
+		}
+
+		virtual void PreResimStep_Internal(int32 Step, bool bFirst) override
+		{
+			bRewound = true;
+			PreFunc(Step);
+		}
+
+		virtual void PostResimStep_Internal(int32 Step) override
+		{
+			PostFunc(Step);
+		}
+
+		int32 NumPhysicsSteps;
+		int32 RewindToStep;
+		bool bRewound = false;
+		TFunction<void(int32)> PreFunc = [](int32) {};
+		TFunction<void(int32)> PostFunc = [](int32) {};
+	};
+
+	template <typename TSolver>
+	FRewindCallbackTestHelper* RegisterCallbackHelper(TSolver* Solver, const int32 NumPhysicsSteps, const int32 RewindTo = 0)
+	{
+		auto Callback = MakeUnique<FRewindCallbackTestHelper>(NumPhysicsSteps, RewindTo);
+		FRewindCallbackTestHelper* Result = Callback.Get();
+		Solver->SetRewindCallback(MoveTemp(Callback));
+		return Result;
+	}
+
+	GTEST_TEST(AllTraits, RewindTest_AddImpulseFromGT)
+	{
+		//We expect anything that came from GT to automatically be reapplied during rewind
+		//This is for things that come outside of the net prediction system, like a teleport
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+		{
+			const int32 LastGameStep = 20;
+			FRewindCallbackTestHelper* Helper = RegisterCallbackHelper(Solver, FMath::TruncToInt(LastGameStep / SimDt));
+			Helper->PostFunc = [Proxy, SimDt](int32 Step)
+			{
+				const int32 GameStep = SimDt <= 1 ? Step * SimDt : (Step + 1) * SimDt;
+				if (GameStep < 5)
+				{
+					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->V()[2], 0);
+				}
+				else
+				{
+					EXPECT_EQ(Proxy->GetPhysicsThreadAPI()->V()[2], 100);
+				}
+			};
+
+			auto& Particle = Proxy->GetGameThreadAPI();
+			Particle.SetGravityEnabled(false);
+
+
+			for (int Step = 0; Step <= LastGameStep; ++Step)
+			{
+				if (Step == 5)
+				{
+					Particle.SetLinearImpulse(FVec3(0, 0, 100));
+				}
+
+				TickSolverHelper(Solver);
+			}
+		});
+	}
 
 	GTEST_TEST(AllTraits, RewindTest_AddForce)
 	{
@@ -394,51 +475,6 @@ namespace ChaosTest {
 				ExpectedXZ += ExpectedVZ * SimDt;
 			}
 		});
-	}
-
-	struct FRewindCallbackTestHelper : public IRewindCallback
-	{
-		FRewindCallbackTestHelper(const int32 InNumPhysicsSteps, const int32 InRewindToStep = 0)
-			: NumPhysicsSteps(InNumPhysicsSteps)
-			, RewindToStep(InRewindToStep)
-		{
-		}
-
-		virtual int32 TriggerRewindIfNeeded_Internal(int32 LatestStepCompleted) override
-		{
-			if (LatestStepCompleted + 1 == NumPhysicsSteps && bRewound == false)
-			{
-				return RewindToStep;
-			}
-
-			return INDEX_NONE;
-		}
-
-		virtual void PreResimStep_Internal(int32 Step, bool bFirst) override
-		{
-			bRewound = true;
-			PreFunc(Step);
-		}
-
-		virtual void PostResimStep_Internal(int32 Step) override
-		{
-			PostFunc(Step);
-		}
-
-		int32 NumPhysicsSteps;
-		int32 RewindToStep;
-		bool bRewound = false;
-		TFunction<void (int32)> PreFunc;
-		TFunction<void(int32)> PostFunc;
-	};
-
-	template <typename TSolver>
-	FRewindCallbackTestHelper* RegisterCallbackHelper(TSolver* Solver, const int32 NumPhysicsSteps, const int32 RewindTo = 0)
-	{
-		auto Callback = MakeUnique<FRewindCallbackTestHelper>(NumPhysicsSteps, RewindTo);
-		FRewindCallbackTestHelper* Result = Callback.Get();
-		Solver->SetRewindCallback(MoveTemp(Callback));
-		return Result;
 	}
 
 	struct FSimCallbackHelperInput : FSimCallbackInput
