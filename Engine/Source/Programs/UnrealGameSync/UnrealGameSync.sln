@@ -18,8 +18,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealGameSyncLauncher", "U
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "UnrealGameSyncAutomation", "UnrealGameSyncAutomation\UnrealGameSyncAutomation.csproj", "{7C9D0A33-C2A8-4415-B9ED-9F40337DBEC6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DotNETUtilities", "..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj", "{5D7D66E8-8C76-4AF9-B3EC-2EF03421D730}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{86C488DC-E003-4A1E-919E-A04960D03479}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "EpicGames.Core", "..\Shared\EpicGames.Core\EpicGames.Core.csproj", "{B4E411AB-849C-46C2-A19D-95CE7AA09C9B}"
@@ -63,12 +61,6 @@ Global
 		{7C9D0A33-C2A8-4415-B9ED-9F40337DBEC6}.Development|Any CPU.Build.0 = Debug|Any CPU
 		{7C9D0A33-C2A8-4415-B9ED-9F40337DBEC6}.Release|Any CPU.ActiveCfg = Debug|Any CPU
 		{7C9D0A33-C2A8-4415-B9ED-9F40337DBEC6}.Release|Any CPU.Build.0 = Debug|Any CPU
-		{5D7D66E8-8C76-4AF9-B3EC-2EF03421D730}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5D7D66E8-8C76-4AF9-B3EC-2EF03421D730}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5D7D66E8-8C76-4AF9-B3EC-2EF03421D730}.Development|Any CPU.ActiveCfg = Development|Any CPU
-		{5D7D66E8-8C76-4AF9-B3EC-2EF03421D730}.Development|Any CPU.Build.0 = Development|Any CPU
-		{5D7D66E8-8C76-4AF9-B3EC-2EF03421D730}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5D7D66E8-8C76-4AF9-B3EC-2EF03421D730}.Release|Any CPU.Build.0 = Release|Any CPU
 		{B4E411AB-849C-46C2-A19D-95CE7AA09C9B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{B4E411AB-849C-46C2-A19D-95CE7AA09C9B}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B4E411AB-849C-46C2-A19D-95CE7AA09C9B}.Development|Any CPU.ActiveCfg = Development|Any CPU
