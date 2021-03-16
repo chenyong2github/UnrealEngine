@@ -34,7 +34,7 @@ protected:
 	ERHIFeatureLevel::Type FeatureLevel;
 	FMeshPassProcessorRenderState PassDrawRenderState;
 
-	virtual void Process(
+	virtual bool Process(
 		const FMeshBatch& RESTRICT MeshBatch,
 		uint64 BatchElementMask,
 		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
@@ -100,6 +100,17 @@ protected:
 			}
 		}
 	}
+
+private:
+
+	bool TryAddMeshBatch(
+		const FMeshBatch& RESTRICT MeshBatch,
+		uint64 BatchElementMask,
+		const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+		int32 StaticMeshId,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material
+	);
 };
 
 class RENDERER_API FHiddenMaterialHitGroup : public FGlobalShader

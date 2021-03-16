@@ -2635,14 +2635,16 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 #endif
 				if (CompilingShaderMapId != 0u)
 				{
-					check(!bShaderMapComplete);
-					if (InVertexFactoryType)
+					if (!bShaderMapComplete)
 					{
-						FMeshMaterialShaderType::BeginCompileShaderPipeline(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, kUniqueShaderPermutationId, ShaderPlatform, PermutationFlags, this, RenderingThreadPendingCompilerEnvironment, InVertexFactoryType, InTypes.PipelineType, CompileJobs, nullptr, nullptr);
-					}
-					else
-					{
-						FMaterialShaderType::BeginCompileShaderPipeline(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, ShaderPlatform, PermutationFlags, this, RenderingThreadPendingCompilerEnvironment, InTypes.PipelineType, CompileJobs, nullptr, nullptr);
+						if (InVertexFactoryType)
+						{
+							FMeshMaterialShaderType::BeginCompileShaderPipeline(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, kUniqueShaderPermutationId, ShaderPlatform, PermutationFlags, this, RenderingThreadPendingCompilerEnvironment, InVertexFactoryType, InTypes.PipelineType, CompileJobs, nullptr, nullptr);
+						}
+						else
+						{
+							FMaterialShaderType::BeginCompileShaderPipeline(EShaderCompileJobPriority::ForceLocal, CompilingShaderMapId, ShaderPlatform, PermutationFlags, this, RenderingThreadPendingCompilerEnvironment, InTypes.PipelineType, CompileJobs, nullptr, nullptr);
+						}
 					}
 				}
 			}
@@ -2650,7 +2652,7 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 	}
 	else
 	{
-		for (int32 FrequencyIndex = 0; FrequencyIndex < SF_NumGraphicsFrequencies; ++FrequencyIndex)
+		for (int32 FrequencyIndex = 0; FrequencyIndex < SF_NumFrequencies; ++FrequencyIndex)
 		{
 			const FShaderType* ShaderType = InTypes.ShaderType[FrequencyIndex];
 			if (ShaderType)
@@ -2663,10 +2665,11 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 				}
 				else
 				{
+					bMissingShader = true;
+
 #if WITH_ODSC
 					if (FPlatformProperties::RequiresCookedData())
 					{
-						bMissingShader = true;
 
 						const FString MaterialName = GetFullPath();
 						const FString VFTypeName(InVertexFactoryType ? InVertexFactoryType->GetName() : TEXT(""));
@@ -2678,10 +2681,9 @@ bool FMaterial::TryGetShaders(const FMaterialShaderTypes& InTypes, const FVertex
 					}
 					else
 #endif
+					if (CompilingShaderMapId != 0u)
 					{
-						check(!bShaderMapComplete);
-						bMissingShader = true;
-						if (CompilingShaderMapId != 0u)
+						if (!bShaderMapComplete)
 						{
 							if (InVertexFactoryType)
 							{

@@ -217,36 +217,46 @@ IMPLEMENT_GLOBAL_SHADER(FHiddenMaterialHitGroup, "/Engine/Private/RayTracing/Ray
 IMPLEMENT_GLOBAL_SHADER(FOpaqueShadowHitGroup, "/Engine/Private/RayTracing/RayTracingMaterialDefaultHitShaders.usf", "closesthit=OpaqueShadowCHS", SF_RayHitGroup);
 
 template<typename LightMapPolicyType>
-static TShaderRef<FMaterialCHS> GetMaterialHitShader(const FMaterial& RESTRICT MaterialResource, const FVertexFactory* VertexFactory, bool UseTextureLod)
+static bool GetMaterialHitShader(const FMaterial& RESTRICT MaterialResource, const FVertexFactory* VertexFactory, bool UseTextureLod, TShaderRef<FMaterialCHS>& OutShader)
 {
 	const bool bMaterialsCompiled = GCompileRayTracingMaterialAHS || GCompileRayTracingMaterialCHS;
 	checkf(bMaterialsCompiled, TEXT(""));
 
+	FMaterialShaderTypes ShaderTypes;
 	if ((MaterialResource.IsMasked() || MaterialResource.GetBlendMode() != BLEND_Opaque) && GCompileRayTracingMaterialAHS)
 	{
 		if(UseTextureLod)
 		{ 
-			return MaterialResource.GetShader<TMaterialCHS<LightMapPolicyType, true, true>>(VertexFactory->GetType());
+			ShaderTypes.AddShaderType<TMaterialCHS<LightMapPolicyType, true, true>>();
 		}
 		else
 		{
-			return MaterialResource.GetShader<TMaterialCHS<LightMapPolicyType, true, false>>(VertexFactory->GetType());
+			ShaderTypes.AddShaderType<TMaterialCHS<LightMapPolicyType, true, false>>();
 		}
 	}
 	else
 	{
 		if (UseTextureLod)
 		{
-			return MaterialResource.GetShader<TMaterialCHS<LightMapPolicyType, false, true>>(VertexFactory->GetType());
+			ShaderTypes.AddShaderType<TMaterialCHS<LightMapPolicyType, false, true>>();
 		}
 		else
 		{
-			return MaterialResource.GetShader<TMaterialCHS<LightMapPolicyType, false, false>>(VertexFactory->GetType());
+			ShaderTypes.AddShaderType<TMaterialCHS<LightMapPolicyType, false, false>>();
 		}
 	}
+
+	FMaterialShaders Shaders;
+	if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
+	{
+		return false;
+	}
+
+	Shaders.TryGetShader(SF_RayHitGroup, OutShader);
+	return true;
 }
 
-void FRayTracingMeshProcessor::Process(
+bool FRayTracingMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
@@ -274,19 +284,34 @@ void FRayTracingMeshProcessor::Process(
 		switch (LightMapPolicy.GetIndirectPolicy())
 		{
 		case LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING:
-			RayTracingShaders.RayHitGroupShader = GetMaterialHitShader<TUniformLightMapPolicy<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>>(MaterialResource, VertexFactory, bUseTextureLOD);
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			{
+				return false;
+			}
 			break;
 		case LMP_LQ_LIGHTMAP:
-			RayTracingShaders.RayHitGroupShader = GetMaterialHitShader<TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD);
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_LQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			{
+				return false;
+			}
 			break;
 		case LMP_HQ_LIGHTMAP:
-			RayTracingShaders.RayHitGroupShader = GetMaterialHitShader<TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD);
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			{
+				return false;
+			}
 			break;
 		case LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP:
-			RayTracingShaders.RayHitGroupShader = GetMaterialHitShader<TUniformLightMapPolicy<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD);
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			{
+				return false;
+			}
 			break;
 		case LMP_NO_LIGHTMAP:
-			RayTracingShaders.RayHitGroupShader = GetMaterialHitShader<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD);
+			if (!GetMaterialHitShader<TUniformLightMapPolicy<LMP_NO_LIGHTMAP>>(MaterialResource, VertexFactory, bUseTextureLOD, RayTracingShaders.RayHitGroupShader))
+			{
+				return false;
+			}
 			break;
 		default:
 			check(false);
@@ -294,7 +319,16 @@ void FRayTracingMeshProcessor::Process(
 	}
 	else
 	{
-		RayTracingShaders.RayHitGroupShader = MaterialResource.GetShader<FTrivialMaterialCHS>(VertexFactory->GetType());
+		FMaterialShaderTypes ShaderTypes;
+		ShaderTypes.AddShaderType<FTrivialMaterialCHS>();
+
+		FMaterialShaders Shaders;
+		if (!MaterialResource.TryGetShaders(ShaderTypes, VertexFactory->GetType(), Shaders))
+		{
+			return false;
+		}
+
+		Shaders.TryGetShader(SF_RayHitGroup, RayTracingShaders.RayHitGroupShader);
 	}
 
 	PassDrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_Zero, BF_One>::GetRHI());
@@ -312,143 +346,163 @@ void FRayTracingMeshProcessor::Process(
 		PassDrawRenderState,
 		RayTracingShaders,
 		ShaderElementData);
+
+	return true;
 }
 
 void FRayTracingMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy)
 {
-	// Caveat: there are also branches not emitting any MDC
-	// Mesh Batches can "null" when they have zero triangles.  Check the MaterialRenderProxy before accessing.
-	if (MeshBatch.bUseForMaterial && MeshBatch.MaterialRenderProxy && IsSupportedVertexFactoryType(MeshBatch.VertexFactory->GetType()))
+	if (!MeshBatch.bUseForMaterial || !IsSupportedVertexFactoryType(MeshBatch.VertexFactory->GetType()))
 	{
-		// Determine the mesh's material and blend mode.
-		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-		const FMaterial& Material = MeshBatch.MaterialRenderProxy->GetMaterialWithFallback(FeatureLevel, FallbackMaterialRenderProxyPtr);
+		return;
+	}
 
-		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MeshBatch.MaterialRenderProxy;
-
-		const EBlendMode BlendMode = Material.GetBlendMode();
-		const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
-
-		// Only draw opaque materials.
-		if ((!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+	const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = MeshBatch.MaterialRenderProxy;
+	while (FallbackMaterialRenderProxyPtr)
+	{
+		const FMaterial* Material = FallbackMaterialRenderProxyPtr->GetMaterialNoFallback(FeatureLevel);
+		if (TryAddMeshBatch(MeshBatch, BatchElementMask, PrimitiveSceneProxy, -1, *FallbackMaterialRenderProxyPtr, *Material))
 		{
-			// Check for a cached light-map.
-			const bool bIsLitMaterial = ShadingModels.IsLit();
-			static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
-			const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
+			break;
+		}
+		FallbackMaterialRenderProxyPtr = FallbackMaterialRenderProxyPtr->GetFallback(FeatureLevel);
+	}
+}
 
-			const FLightMapInteraction LightMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
-				? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel)
-				: FLightMapInteraction();
+bool FRayTracingMeshProcessor::TryAddMeshBatch(
+	const FMeshBatch& RESTRICT MeshBatch,
+	uint64 BatchElementMask,
+	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
+	int32 StaticMeshId,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const FMaterial& Material
+)
+{
+	// Determine the mesh's material and blend mode.
+	const EBlendMode BlendMode = Material.GetBlendMode();
+	const FMaterialShadingModelField ShadingModels = Material.GetShadingModels();
 
-			// force LQ lightmaps based on system settings
-			const bool bPlatformAllowsHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
-			const bool bAllowHighQualityLightMaps = bPlatformAllowsHighQualityLightMaps && LightMapInteraction.AllowsHighQualityLightmaps();
+	// Only draw opaque materials.
+	if ((!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInMainPass())
+		&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+	{
+		// Check for a cached light-map.
+		const bool bIsLitMaterial = ShadingModels.IsLit();
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+		const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
 
-			const bool bAllowIndirectLightingCache = Scene && Scene->PrecomputedLightVolumes.Num() > 0;
-			const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
+		const FLightMapInteraction LightMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
+			? MeshBatch.LCI->GetLightMapInteraction(FeatureLevel)
+			: FLightMapInteraction();
 
+		// force LQ lightmaps based on system settings
+		const bool bPlatformAllowsHighQualityLightMaps = AllowHighQualityLightmaps(FeatureLevel);
+		const bool bAllowHighQualityLightMaps = bPlatformAllowsHighQualityLightMaps && LightMapInteraction.AllowsHighQualityLightmaps();
+
+		const bool bAllowIndirectLightingCache = Scene && Scene->PrecomputedLightVolumes.Num() > 0;
+		const bool bUseVolumetricLightmap = Scene && Scene->VolumetricLightmapSceneData.HasData();
+
+		{
+			static const auto CVarSupportLowQualityLightmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
+			const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
+
+			switch (LightMapInteraction.GetType())
 			{
-				static const auto CVarSupportLowQualityLightmap = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SupportLowQualityLightmaps"));
-				const bool bAllowLowQualityLightMaps = (!CVarSupportLowQualityLightmap) || (CVarSupportLowQualityLightmap->GetValueOnAnyThread() != 0);
-
-				switch (LightMapInteraction.GetType())
+			case LMIT_Texture:
+				if (bAllowHighQualityLightMaps)
 				{
-				case LMIT_Texture:
-					if (bAllowHighQualityLightMaps)
-					{
-						const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
-							? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
-							: FShadowMapInteraction();
+					const FShadowMapInteraction ShadowMapInteraction = (bAllowStaticLighting && MeshBatch.LCI && bIsLitMaterial)
+						? MeshBatch.LCI->GetShadowMapInteraction(FeatureLevel)
+						: FShadowMapInteraction();
 
-						if (ShadowMapInteraction.GetType() == SMIT_Texture)
-						{
-							Process(
-								MeshBatch,
-								BatchElementMask,
-								PrimitiveSceneProxy,
-								MaterialRenderProxy,
-								Material,
-								ShadingModels,
-								FUniformLightMapPolicy(LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP),
-								MeshBatch.LCI);
-						}
-						else
-						{
-							Process(
-								MeshBatch,
-								BatchElementMask,
-								PrimitiveSceneProxy,
-								MaterialRenderProxy,
-								Material,
-								ShadingModels,
-								FUniformLightMapPolicy(LMP_HQ_LIGHTMAP),
-								MeshBatch.LCI);
-						}
-					}
-					else if (bAllowLowQualityLightMaps)
+					if (ShadowMapInteraction.GetType() == SMIT_Texture)
 					{
-						Process(
+						return Process(
 							MeshBatch,
 							BatchElementMask,
 							PrimitiveSceneProxy,
 							MaterialRenderProxy,
 							Material,
 							ShadingModels,
-							FUniformLightMapPolicy(LMP_LQ_LIGHTMAP),
+							FUniformLightMapPolicy(LMP_DISTANCE_FIELD_SHADOWS_AND_HQ_LIGHTMAP),
 							MeshBatch.LCI);
 					}
 					else
 					{
-						Process(
+						return Process(
 							MeshBatch,
 							BatchElementMask,
 							PrimitiveSceneProxy,
 							MaterialRenderProxy,
 							Material,
 							ShadingModels,
-							FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
+							FUniformLightMapPolicy(LMP_HQ_LIGHTMAP),
 							MeshBatch.LCI);
 					}
-					break;
-				default:
-					if (bIsLitMaterial
-						&& bAllowStaticLighting
-						&& Scene
-						&& Scene->VolumetricLightmapSceneData.HasData()
-						&& PrimitiveSceneProxy
-						&& (PrimitiveSceneProxy->IsMovable()
-							|| PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting()
-							|| PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
-					{
-						Process(
-							MeshBatch,
-							BatchElementMask,
-							PrimitiveSceneProxy,
-							MaterialRenderProxy,
-							Material,
-							ShadingModels,
-							FUniformLightMapPolicy(LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING),
-							MeshBatch.LCI);
-					}
-					else
-					{
-						Process(
-							MeshBatch,
-							BatchElementMask,
-							PrimitiveSceneProxy,
-							MaterialRenderProxy,
-							Material,
-							ShadingModels,
-							FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
-							MeshBatch.LCI);
-					}
-					break;
-				};
-			}
+				}
+				else if (bAllowLowQualityLightMaps)
+				{
+					return Process(
+						MeshBatch,
+						BatchElementMask,
+						PrimitiveSceneProxy,
+						MaterialRenderProxy,
+						Material,
+						ShadingModels,
+						FUniformLightMapPolicy(LMP_LQ_LIGHTMAP),
+						MeshBatch.LCI);
+				}
+				else
+				{
+					return Process(
+						MeshBatch,
+						BatchElementMask,
+						PrimitiveSceneProxy,
+						MaterialRenderProxy,
+						Material,
+						ShadingModels,
+						FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
+						MeshBatch.LCI);
+				}
+				break;
+			default:
+				if (bIsLitMaterial
+					&& bAllowStaticLighting
+					&& Scene
+					&& Scene->VolumetricLightmapSceneData.HasData()
+					&& PrimitiveSceneProxy
+					&& (PrimitiveSceneProxy->IsMovable()
+						|| PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting()
+						|| PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
+				{
+					return Process(
+						MeshBatch,
+						BatchElementMask,
+						PrimitiveSceneProxy,
+						MaterialRenderProxy,
+						Material,
+						ShadingModels,
+						FUniformLightMapPolicy(LMP_PRECOMPUTED_IRRADIANCE_VOLUME_INDIRECT_LIGHTING),
+						MeshBatch.LCI);
+				}
+				else
+				{
+					return Process(
+						MeshBatch,
+						BatchElementMask,
+						PrimitiveSceneProxy,
+						MaterialRenderProxy,
+						Material,
+						ShadingModels,
+						FUniformLightMapPolicy(LMP_NO_LIGHTMAP),
+						MeshBatch.LCI);
+				}
+				break;
+			};
 		}
 	}
+
+	return true;
 }
 
 static bool IsCompatibleFallbackPipelineSignature(FRayTracingPipelineStateSignature& B, FRayTracingPipelineStateSignature& A)

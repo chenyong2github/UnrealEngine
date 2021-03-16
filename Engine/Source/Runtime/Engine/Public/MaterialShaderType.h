@@ -182,8 +182,8 @@ public:
 struct FMaterialShaderTypes
 {
 	const FShaderPipelineType* PipelineType;
-	const FShaderType* ShaderType[SF_NumGraphicsFrequencies];
-	int32 PermutationId[SF_NumGraphicsFrequencies];
+	const FShaderType* ShaderType[SF_NumFrequencies];
+	int32 PermutationId[SF_NumFrequencies];
 
 	inline FMaterialShaderTypes() : PipelineType(nullptr) { FMemory::Memzero(ShaderType); FMemory::Memzero(PermutationId); }
 
@@ -207,7 +207,7 @@ struct FMaterialShaders
 {
 	const FShaderMapBase* ShaderMap;
 	FShaderPipeline* Pipeline;
-	FShader* Shaders[SF_NumGraphicsFrequencies];
+	FShader* Shaders[SF_NumFrequencies];
 
 	inline FMaterialShaders() : ShaderMap(nullptr), Pipeline(nullptr) { FMemory::Memzero(Shaders); }
 

@@ -144,7 +144,7 @@ static TShaderRef<FLightmapMaterialCHS> GetLightmapMaterialHitShader(const FMate
 	}
 }
 
-void FLightmapRayTracingMeshProcessor::Process(
+bool FLightmapRayTracingMeshProcessor::Process(
 	const FMeshBatch& RESTRICT MeshBatch,
 	uint64 BatchElementMask,
 	const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy,
@@ -180,6 +180,8 @@ void FLightmapRayTracingMeshProcessor::Process(
 		PassDrawRenderState,
 		RayTracingShaders,
 		ShaderElementData);
+
+	return true;
 }
 
 #endif
