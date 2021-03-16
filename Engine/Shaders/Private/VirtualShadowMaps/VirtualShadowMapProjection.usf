@@ -167,9 +167,6 @@ int SMRTRayCount;					// 0 = off
 int SMRTSamplesPerRay;
 float SMRTRayLengthScale;			// Directional lights
 float SMRTCotMaxRayAngleFromLight;	// Spot/point lights
-// HAIR_TODO: move all data into a HairStrands UB
-uint bUseHairData;
-Texture2D<uint4> HairCategorizationTexture;
 
 // One pass projection
 StructuredBuffer< int > VirtualShadowMapIdRemap;
@@ -180,6 +177,11 @@ RWTexture2D< uint > RWShadowMaskBits;
 // Light parameters loaded via GetRootLightShaderParameters();
 int LightUniformVirtualShadowMapId;
 RWTexture2D< float4 > RWSignal;
+
+// Type of input data consume by the page allocation (i.e., data read from the source buffer: Gbuffer, HairStrands data, ...)
+#define INPUT_TYPE_GBUFFER 0
+#define INPUT_TYPE_HAIRSTRANDS 1
+uint InputType;
 
 struct FProjectLightResult
 {
@@ -226,7 +228,8 @@ FProjectLightResult ProjectLight(
 	BRANCH
 	if (bInLightRegion)
 	{
-		const half3 EstimatedGeoWorldNormal = bUseHairData > 0 ? L : GBufferNormal;
+		const bool bIsHair = InputType == INPUT_TYPE_HAIRSTRANDS;
+		const half3 EstimatedGeoWorldNormal = bIsHair ? L : GBufferNormal;
 
 		float3 OffsetTranslatedWorldPosition = TranslatedWorldPosition + EstimatedGeoWorldNormal * NormalOffsetWorld;
 
@@ -298,6 +301,7 @@ void VirtualShadowMapProjection(
 	uint3	DispatchThreadId	: SV_DispatchThreadID )
 {
 	// Morton order within a group so page access/atomics are more coherent and wave-swizzled gradients are possible.
+	uint2 PixelCoord = DispatchThreadId.xy;
 	uint2 LocalPixelPos = 8 * GroupId.xy + MortonDecode( GroupIndex );
 	uint2 PixelPos = LocalPixelPos + uint2( ProjectionRect.xy );
 	if ( any( PixelPos >= uint2( ProjectionRect.zw ) ) )
@@ -306,10 +310,14 @@ void VirtualShadowMapProjection(
 	}
 	
 	float DeviceZ = SceneTexturesStruct.SceneDepthTexture.Load( int3( PixelPos, 0 ) ).r;
-	if (bUseHairData > 0)
+	if (InputType == INPUT_TYPE_HAIRSTRANDS)
 	{
-		FCategorizationData CatData = DecodeCategorizationData( HairCategorizationTexture.Load( int3( PixelPos, 0 ) ) );
+		FCategorizationData CatData = DecodeCategorizationData(HairStrands.HairCategorizationTexture.Load( int3(PixelPos, 0 ) ) );
 		DeviceZ = CatData.ClosestDepth;
+		if (CatData.PixelCoverage < 0)
+		{
+			return;
+		}
 	}
 	const float SceneDepth = ConvertFromDeviceZ( DeviceZ );
 

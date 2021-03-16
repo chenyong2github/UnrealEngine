@@ -23,6 +23,7 @@
 #include "ShadowRendering.h"
 #include "SceneRendering.h"
 #include "VirtualShadowMapClipmap.h"
+#include "HairStrands/HairStrandsData.h"
 
 static TAutoConsoleVariable<float> CVarContactShadowLength(
 	TEXT( "r.Shadow.Virtual.ContactShadowLength" ),
@@ -180,6 +181,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)		
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ContactShadowLength)
@@ -189,8 +191,7 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
 		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
 		SHADER_PARAMETER(int32, DebugOutputType)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, HairCategorizationTexture)
-		SHADER_PARAMETER(uint32, bUseHairData)
+		SHADER_PARAMETER(uint32, InputType)
 		// One pass projection parameters
 		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)	// TODO: Move to VSM UB?
@@ -243,7 +244,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ProjectionRect,
-	FRDGTextureRef HairCategorization,
+	EVirtualShadowMapProjectionInputType InputType,
 	FRDGTextureRef OutputTexture,
 	const FLightSceneProxy* LightProxy = nullptr,
 	int32 VirtualShadowMapId = INDEX_NONE)
@@ -256,8 +257,8 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
 	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
-	PassParameters->bUseHairData = HairCategorization != nullptr ? 1 : 0;
-	PassParameters->HairCategorizationTexture = HairCategorization ? HairCategorization : GSystemTextures.GetBlackDummy(GraphBuilder);
+	PassParameters->InputType = uint32(InputType);
+	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
 
 	bool bDirectionalLight = false;
 	bool bOnePassProjection = LightProxy == nullptr;
@@ -338,7 +339,7 @@ FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
 		View,
 		VirtualShadowMapArray,
 		ProjectionRect,
-		nullptr,		// TODO: Hair
+		EVirtualShadowMapProjectionInputType::GBuffer, // TODO: Hair
 		ShadowMaskBits);
 
 	return ShadowMaskBits;
@@ -365,7 +366,7 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
-	FRDGTextureRef HairCategorization,
+	EVirtualShadowMapProjectionInputType InputType,
 	FProjectedShadowInfo* ShadowInfo)
 {	
 	FRDGTextureRef SignalTexture = CreateSignalTexture(GraphBuilder, SceneTextures.Config.Extent);
@@ -375,7 +376,7 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 		View,
 		VirtualShadowMapArray,
 		ScissorRect,
-		HairCategorization,
+		InputType,
 		SignalTexture,
 		ShadowInfo->GetLightSceneInfo().Proxy,
 		ShadowInfo->VirtualShadowMaps[0]->ID);
@@ -388,7 +389,7 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
-	FRDGTextureRef HairCategorization,
+	EVirtualShadowMapProjectionInputType InputType,
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap)
 {
 	FRDGTextureRef SignalTexture = CreateSignalTexture(GraphBuilder, SceneTextures.Config.Extent);
@@ -398,7 +399,7 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 		View,
 		VirtualShadowMapArray,		
 		ScissorRect,
-		HairCategorization,
+		InputType,
 		SignalTexture,
 		Clipmap->GetLightSceneInfo().Proxy,
 		Clipmap->GetVirtualShadowMap()->ID);

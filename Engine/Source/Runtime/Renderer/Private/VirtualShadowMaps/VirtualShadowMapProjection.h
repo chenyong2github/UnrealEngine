@@ -13,13 +13,19 @@
 
 class FVirtualShadowMapClipmap;
 
+enum class EVirtualShadowMapProjectionInputType
+{
+	GBuffer = 0,
+	HairStrands = 1
+};
+
 FRDGTextureRef RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
-	FRDGTextureRef HairCategorization,
+	EVirtualShadowMapProjectionInputType InputType,
 	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap);
 
 FRDGTextureRef RenderVirtualShadowMapProjection(
@@ -28,7 +34,7 @@ FRDGTextureRef RenderVirtualShadowMapProjection(
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
-	FRDGTextureRef HairCategorization,
+	EVirtualShadowMapProjectionInputType InputType,
 	FProjectedShadowInfo* ShadowInfo);
 
 FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
