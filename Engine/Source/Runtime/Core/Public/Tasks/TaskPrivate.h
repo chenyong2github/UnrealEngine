@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Async/Fundamental/Task.h"
+#include "Async/Fundamental/Scheduler.h"
 #include "Templates/Invoke.h"
 #include "Templates/TypeCompatibleBytes.h"
 #include "Misc/Timeout.h"
