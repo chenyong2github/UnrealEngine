@@ -968,11 +968,6 @@ public:
 		RHIContext->RHISetRayTracingMissShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData);
 	}
 
-	virtual void RHIFlushValidationOps() override final
-	{
-		RHIValidation::FTracker::ReplayOpQueue(ERHIPipeline::Graphics, Tracker->Finalize());
-	}
-
 	void SetupDrawing()
 	{
 		// nothing to validate right now
@@ -1055,6 +1050,14 @@ public:
 	{
 		using namespace RHIValidation;
 		check(CurrentContext == nullptr);
+
+		if (Index == 0)
+		{
+			// The RHIs are expected to close the main command list before calling the parallel command lists. For the validator,
+			// this means replaying the operations now, before executing the commands from the parallel lists.
+			FValidationContext* DefaultContext = (FValidationContext*)RHIGetDefaultContext();
+			FTracker::ReplayOpQueue(ERHIPipeline::Graphics, DefaultContext->Tracker->Finalize());
+		}
 
 		InnerContainer->SubmitAndFreeContextContainer(Index, Num);
 

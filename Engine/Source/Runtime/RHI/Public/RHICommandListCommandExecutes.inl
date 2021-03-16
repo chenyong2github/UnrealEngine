@@ -594,15 +594,6 @@ void FRHICommandSetRayTracingBindings::Execute(FRHICommandListBase& CmdList)
 
 #endif // RHI_RAYTRACING
 
-#if ENABLE_RHI_VALIDATION
-
-void FRHICommandFlushValidationOps::Execute(FRHICommandListBase& CmdList)
-{
-	INTERNAL_DECORATOR(RHIFlushValidationOps)();
-}
-
-#endif
-
 void FRHIResourceUpdateInfo::ReleaseRefs()
 {
 	switch (Type)

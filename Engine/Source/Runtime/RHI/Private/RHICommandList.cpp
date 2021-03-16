@@ -705,9 +705,6 @@ void FRHICommandListExecutor::ExecuteList(FRHICommandListImmediate& CmdList)
 		}
 	}
 #endif
-
-	CmdList.FlushValidationOps();
-
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ImmedCmdListExecuteTime);
 		ExecuteInner(CmdList);
