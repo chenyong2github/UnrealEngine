@@ -21,7 +21,7 @@
 
 FUsdStageInfo::FUsdStageInfo( const pxr::UsdStageRefPtr& Stage )
 {
-	pxr::TfToken UsdStageAxis = UsdUtils::GetUsdStageAxis( Stage );
+	pxr::TfToken UsdStageAxis = UsdUtils::GetUsdStageUpAxis( Stage );
 
 	if ( UsdStageAxis == pxr::UsdGeomTokens->y )
 	{
@@ -181,10 +181,8 @@ namespace UsdToUnreal
 		return Transform;
 	}
 
-	float ConvertDistance( const FUsdStageInfo& StageInfo, const float InValue )
+	float ConvertDistance( const FUsdStageInfo& StageInfo, float Value )
 	{
-		float Value = InValue;
-
 		const float UEMetersPerUnit = 0.01f;
 		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
 		{
@@ -224,7 +222,7 @@ namespace UnrealToUsd
 
 	pxr::GfVec4f ConvertColor( const FColor& InValue )
 	{
-		return ConvertColor( InValue.ReinterpretAsLinear() );
+		return ConvertColor( FLinearColor( InValue ) );
 	}
 
 	pxr::GfVec2f ConvertVector( const FVector2D& InValue )
@@ -242,9 +240,9 @@ namespace UnrealToUsd
 		pxr::GfVec3f Value = ConvertVector( InValue );
 
 		const float UEMetersPerUnit = 0.01f;
-		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
+		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) && !FMath::IsNearlyZero( StageInfo.MetersPerUnit ) )
 		{
-			Value *= StageInfo.MetersPerUnit * UEMetersPerUnit;
+			Value *= UEMetersPerUnit / StageInfo.MetersPerUnit;
 		}
 
 		const bool bIsZUp = ( StageInfo.UpAxis == EUsdUpAxis::ZAxis );
@@ -287,20 +285,18 @@ namespace UnrealToUsd
 		const float UEMetersPerUnit = 0.01f;
 		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
 		{
-			TransformInUsdSpace.ScaleTranslation( StageInfo.MetersPerUnit * UEMetersPerUnit );
+			TransformInUsdSpace.ScaleTranslation( UEMetersPerUnit / StageInfo.MetersPerUnit );
 		}
 
 		return ConvertMatrix( TransformInUsdSpace.ToMatrixWithScale() );
 	}
 
-	float ConvertDistance( const FUsdStageInfo& StageInfo, const float& InValue )
+	float ConvertDistance( const FUsdStageInfo& StageInfo, float Value )
 	{
-		float Value = InValue;
-
 		const float UEMetersPerUnit = 0.01f;
 		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
 		{
-			Value *= StageInfo.MetersPerUnit * UEMetersPerUnit;
+			Value *= UEMetersPerUnit / StageInfo.MetersPerUnit;
 		}
 
 		return Value;
