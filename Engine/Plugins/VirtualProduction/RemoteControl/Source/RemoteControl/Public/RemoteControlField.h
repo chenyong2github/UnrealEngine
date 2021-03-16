@@ -77,7 +77,7 @@ public:
 
 
 protected:
-	FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo FieldPathInfo);
+	FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*> InBindings);
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -96,6 +96,7 @@ private:
 USTRUCT(BlueprintType)
 struct REMOTECONTROL_API FRemoteControlProperty : public FRemoteControlField
 {
+public:
 	GENERATED_BODY()
 
 	FRemoteControlProperty() = default;
@@ -103,7 +104,7 @@ struct REMOTECONTROL_API FRemoteControlProperty : public FRemoteControlField
 	UE_DEPRECATED(4.27, "This constructor is deprecated. Use the other constructor.")
 	FRemoteControlProperty(FName InLabel, FRCFieldPathInfo FieldPathInfo, TArray<FString> InComponentHierarchy);
 
-	FRemoteControlProperty(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo FieldPathInfo);
+	FRemoteControlProperty(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*>& InBindings);
 
 	/**
 	 * Get the underlying property.
@@ -111,6 +112,19 @@ struct REMOTECONTROL_API FRemoteControlProperty : public FRemoteControlField
 	 * @note This field's binding must be valid to get the property.
 	 */
 	FProperty* GetProperty() const;
+	
+	/** Handle metadata initialization. */
+	void PostSerialize(FArchive& Ar);
+	
+public:
+	/** Key for the metadata's Min entry. */
+	static FName MetadataKey_Min;
+	/** Key for the metadata's Max entry. */
+	static FName MetadataKey_Max;
+	
+private:
+	/** Assign the default metadata for this exposed property. (ie. Min, Max...) */
+	void InitializeMetadata();
 };
 
 /**
@@ -126,7 +140,7 @@ struct REMOTECONTROL_API FRemoteControlFunction : public FRemoteControlField
 	UE_DEPRECATED(4.27, "This constructor is deprecated. Use the other constructor.")
 	FRemoteControlFunction(FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction);
 
-	FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction);
+	FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, UFunction* InFunction, const TArray<URemoteControlBinding*>& InBindings);
 	 
 	/**
 	 * The exposed function.
@@ -154,4 +168,12 @@ template<> struct TStructOpsTypeTraits<FRemoteControlFunction> : public TStructO
 	{
 		WithSerializer = true
 	};
+};
+
+template<> struct TStructOpsTypeTraits<FRemoteControlProperty> : public TStructOpsTypeTraitsBase2<FRemoteControlProperty>
+{
+	enum
+	{
+		WithPostSerializer = true
+    };
 };

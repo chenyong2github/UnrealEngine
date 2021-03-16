@@ -166,6 +166,7 @@ void SRCPanelExposedEntitiesList::RefreshGroups()
 
 TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCPanelTreeNode> Node, const TSharedRef<STableViewBase>& OwnerTable)
 {
+	constexpr float LeftPadding = 3.f;
 	if (Node->GetType() == SRCPanelTreeNode::Group)
 	{
 		return SNew(SFieldGroup, OwnerTable, Node->AsGroup(), Preset.Get())
@@ -202,7 +203,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 			.OnDragEnter_Lambda([Field = Node->AsField()](const FDragDropEvent& Event) { Field->SetIsHovered(true); })
 			.OnDragLeave_Lambda([Field = Node->AsField()](const FDragDropEvent& Event) { Field->SetIsHovered(false); })
 			.OnDrop_Lambda(OnDropLambda)
-			.Padding(FMargin(20.f, 0.f, 0.f, 0.f))
+			.Padding(FMargin(LeftPadding, 0.f, 0.f, 0.f))
 			[
 				Node->AsField().ToSharedRef()
 			];
@@ -210,7 +211,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	else if (Node->GetType() == SRCPanelTreeNode::FieldChild)
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-			.Padding(FMargin(30.f, 0.f, 0.f, 0.f))
+			.Padding(FMargin(LeftPadding + 10.f, 0.f, 0.f, 0.f))
 			[
 				Node->AsFieldChild().ToSharedRef()
 			];
@@ -218,7 +219,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	else
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-			.Padding(FMargin(30.f, 0.f, 0.f, 0.f))
+			.Padding(FMargin(LeftPadding, 0.f, 0.f, 0.f))
 			[
 				Node->AsActor().ToSharedRef()
 			];

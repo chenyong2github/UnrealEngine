@@ -127,7 +127,7 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnPan
 	}
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("RemoteControlPanelMainTitle", "Remote Control Panel"))
+		.Label(LOCTEXT("ControlPanelLabel", "Control Panel"))
 		.TabColorScale(GetTabColorScale())	
 		[
 			PanelTab.ToSharedRef()
@@ -147,7 +147,7 @@ TSharedRef<SDockTab> FRemoteControlPresetEditorToolkit::HandleTabManagerSpawnInp
 	}
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("RemoteControlPanelMainTitle", "Remote Control Panel"))
+		.Label(LOCTEXT("ProtocolsLabel", "Protocols"))
 		.TabColorScale(GetTabColorScale())
 		[
 			InputBindingsTab.ToSharedRef()

@@ -408,7 +408,7 @@ void SRemoteControlPanel::OnExposeActor(const FAssetData& AssetData)
 	{
 		FScopedTransaction Transaction(LOCTEXT("ExposeActor", "Expose Actor"));
 		Preset->Modify();
-		Preset->Expose(Actor);
+		Preset->ExposeActor(Actor);
 	}
 }
 

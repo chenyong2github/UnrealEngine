@@ -53,7 +53,7 @@ public:
 	 * User specified metadata for this entity.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
-	TMap<FString, FString> Metadata;
+	TMap<FName, FString> UserMetadata;
 
 	/**
 	 * The bound objects that are exposed or that hold the exposed entity.
@@ -63,7 +63,7 @@ public:
 	
 
 protected:
-	FRemoteControlEntity(URemoteControlPreset* InPreset, FName InLabel);
+	FRemoteControlEntity(URemoteControlPreset* InPreset, FName InLabel, const TArray<URemoteControlBinding*>& InBindings);
 	
 	/** The preset that owns this entity. */
 	UPROPERTY(BlueprintReadOnly, Category = "RemoteControlEntity")

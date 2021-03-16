@@ -1,23 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlUIModule.h"
+
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
+#include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "PropertyHandle.h"
+#include "RemoteControlActor.h"
+#include "RemoteControlField.h"
+#include "RemoteControlPreset.h"
+#include "Textures/SlateIcon.h"
+#include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelInputBindings.h"
-#include "Widgets/SWidget.h"
-#include "PropertyHandle.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
-#include "Widgets/Images/SImage.h"
-#include "Textures/SlateIcon.h"
-#include "HAL/PlatformApplicationMisc.h"
 #include "UI/SRemoteControlPanel.h"
-#include "RemoteControlPreset.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlUI"
+
+namespace RemoteControlUIModule
+{
+	const TArray<FName> CustomizedStructNames = {
+		FRemoteControlProperty::StaticStruct()->GetFName(),
+        FRemoteControlFunction::StaticStruct()->GetFName(),
+        FRemoteControlActor::StaticStruct()->GetFName()
+    };
+}
 
 void FRemoteControlUIModule::StartupModule()
 {
@@ -25,10 +38,12 @@ void FRemoteControlUIModule::StartupModule()
 	RegisterAssetTools();
 	RegisterDetailRowExtension();
 	RegisterContextMenuExtender();
+	RegisterStructCustomizations();
 }
 
 void FRemoteControlUIModule::ShutdownModule()
 {
+	UnregisterStructCustomizations();
 	UnregisterContextMenuExtender();
 	UnregisterDetailRowExtension();
 	UnregisterAssetTools();
@@ -293,6 +308,27 @@ bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyH
 	}
 
 	return true;
+}
+
+void FRemoteControlUIModule::RegisterStructCustomizations()
+{
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	
+	for (FName Name : RemoteControlUIModule::CustomizedStructNames)
+	{
+		PropertyEditorModule.RegisterCustomClassLayout(Name, FOnGetDetailCustomizationInstance::CreateStatic(&FRemoteControlEntityCustomization::MakeInstance));
+	}
+}
+
+void FRemoteControlUIModule::UnregisterStructCustomizations()
+{
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	
+	// Unregister delegates in reverse order.
+	for (int8 NameIndex = RemoteControlUIModule::CustomizedStructNames.Num() - 1; NameIndex >= 0; NameIndex--)
+	{
+		PropertyEditorModule.UnregisterCustomClassLayout(RemoteControlUIModule::CustomizedStructNames[NameIndex]);
+	}
 }
 
 IMPLEMENT_MODULE(FRemoteControlUIModule, RemoteControlUI);

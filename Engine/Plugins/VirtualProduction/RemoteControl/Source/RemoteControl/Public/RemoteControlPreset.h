@@ -490,7 +490,7 @@ public:
 	 * @param Args The arguments used to expose the actor.
 	 * @return The exposed actor.
 	 */
-	TWeakPtr<FRemoteControlActor> Expose(AActor* Actor, FRemoteControlPresetExposeArgs Args = FRemoteControlPresetExposeArgs());
+	TWeakPtr<FRemoteControlActor> ExposeActor(AActor* Actor, FRemoteControlPresetExposeArgs Args = FRemoteControlPresetExposeArgs());
 
 	/**
 	 * Expose a property on this preset.

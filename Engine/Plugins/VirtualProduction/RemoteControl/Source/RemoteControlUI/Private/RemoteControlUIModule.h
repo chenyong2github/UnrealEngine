@@ -106,6 +106,10 @@ private:
 
 	/** Returns whether a given property should have an exposed icon. */
 	bool ShouldDisplayExposeIcon(const TSharedRef<IPropertyHandle>& PropertyHandle) const;
+
+	//~ Handle struct details customizations for common RC types.
+	void RegisterStructCustomizations();
+	void UnregisterStructCustomizations();
 private:
 	/** The custom actions added to the actor context menu. */
 	TSharedPtr<class FRemoteControlPresetActions> RemoteControlPresetActions;

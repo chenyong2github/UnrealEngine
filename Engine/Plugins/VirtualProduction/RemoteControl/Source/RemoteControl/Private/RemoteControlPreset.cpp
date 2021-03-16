@@ -341,7 +341,7 @@ FRemoteControlPresetGroup& FRemoteControlPresetLayout::CreateGroupInternal(FName
 TOptional<FRemoteControlProperty> FRemoteControlTarget::ExposeProperty(FRCFieldPathInfo FieldPathInfo, const FString& DesiredDisplayName, FGuid GroupId, bool bAppendAliasToLabel)
 {
 	FName FieldLabel = Owner->GenerateUniqueFieldLabel(Alias, DesiredDisplayName, bAppendAliasToLabel);
-	FRemoteControlProperty RCField(Owner.Get(), FieldLabel, MoveTemp(FieldPathInfo));
+	FRemoteControlProperty RCField(Owner.Get(), FieldLabel, MoveTemp(FieldPathInfo), {});
 	ExposedProperties.Add(RCField);
 
 	URemoteControlPreset::FExposeInfo ExposeInfo;
@@ -366,7 +366,7 @@ TOptional<FRemoteControlFunction> FRemoteControlTarget::ExposeFunction(FString R
 	if (UFunction* Function = Class->FindFunctionByName(Path.GetFieldName()))
 	{
 		FName FieldLabel = Owner->GenerateUniqueFieldLabel(Alias, DesiredDisplayName, bAppendAliasToLabel);
-		RCFunction = FRemoteControlFunction{ Owner.Get(), FieldLabel, MoveTemp(Path), Function };
+		RCFunction = FRemoteControlFunction{ Owner.Get(), FieldLabel, MoveTemp(Path), Function, {}};
 		ExposedFunctions.Add(*RCFunction);
 
 		URemoteControlPreset::FExposeInfo ExposeInfo;
@@ -673,7 +673,7 @@ FGuid URemoteControlPreset::GetFieldId(FName FieldLabel) const
 	return FGuid();
 }
 
-TWeakPtr<FRemoteControlActor> URemoteControlPreset::Expose(AActor* Actor, FRemoteControlPresetExposeArgs Args)
+TWeakPtr<FRemoteControlActor> URemoteControlPreset::ExposeActor(AActor* Actor, FRemoteControlPresetExposeArgs Args)
 {
 	check(Actor);
 
@@ -683,8 +683,7 @@ TWeakPtr<FRemoteControlActor> URemoteControlPreset::Expose(AActor* Actor, FRemot
 	const TCHAR* DesiredName = Args.Label.IsEmpty() ? *Actor->GetName() : *Args.Label;
 #endif
 
-	FRemoteControlActor RCActor{this, Actor, Registry->GenerateUniqueLabel(DesiredName) };
-	RCActor.Bindings.Add(FindOrAddBinding(Actor));
+	FRemoteControlActor RCActor{this, Registry->GenerateUniqueLabel(DesiredName), { FindOrAddBinding(Actor)} };
 	return StaticCastSharedPtr<FRemoteControlActor>(Expose(MoveTemp(RCActor), FRemoteControlActor::StaticStruct(), Args.GroupId));
 }
 
@@ -723,9 +722,7 @@ TWeakPtr<FRemoteControlProperty> URemoteControlPreset::ExposeProperty(UObject* O
 		DesiredName = *FString::Printf(TEXT("%s (%s)"), *FieldPath.GetFieldName().ToString(), *ObjectName);
 	}
 
-	FRemoteControlProperty RCProperty{ this, Registry->GenerateUniqueLabel(DesiredName), MoveTemp(FieldPath) };
-	RCProperty.Bindings.Add(FindOrAddBinding(Object));
-	
+	FRemoteControlProperty RCProperty{ this, Registry->GenerateUniqueLabel(DesiredName), MoveTemp(FieldPath), { FindOrAddBinding(Object) } };
 	return StaticCastSharedPtr<FRemoteControlProperty>(Expose(MoveTemp(RCProperty), FRemoteControlProperty::StaticStruct(), Args.GroupId));
 }
 
@@ -737,9 +734,7 @@ TWeakPtr<FRemoteControlFunction> URemoteControlPreset::ExposeFunction(UObject* O
 	}
 
 	FName DesiredName = Args.Label.IsEmpty() ? Function->GetFName() : *Args.Label;
-	FRemoteControlFunction RCFunction{ this, Registry->GenerateUniqueLabel(DesiredName), Function->GetName(), Function };
-	RCFunction.Bindings.Add(FindOrAddBinding(Object));
-
+	FRemoteControlFunction RCFunction{ this, Registry->GenerateUniqueLabel(DesiredName), Function->GetName(), Function, { FindOrAddBinding(Object) } };
 	return StaticCastSharedPtr<FRemoteControlFunction>(Expose(MoveTemp(RCFunction), FRemoteControlFunction::StaticStruct(), Args.GroupId));
 }
 

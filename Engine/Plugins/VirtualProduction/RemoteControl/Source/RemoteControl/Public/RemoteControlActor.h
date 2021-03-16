@@ -23,10 +23,13 @@ struct REMOTECONTROL_API FRemoteControlActor : public FRemoteControlEntity
 
 	FRemoteControlActor() = default;
 
-	FRemoteControlActor(URemoteControlPreset* InOwner, AActor* Actor, FName Label)
-		: FRemoteControlEntity(InOwner, Label)
-		, Path(Actor)
+	FRemoteControlActor(URemoteControlPreset* InOwner, FName InLabel, const TArray<URemoteControlBinding*>& InBindings)
+		: FRemoteControlEntity(InOwner, InLabel, InBindings)
 	{
+		if (InBindings.Num())
+		{
+			Path = InBindings[0]->Resolve();
+		}
 	}
 
 	AActor* GetActor() const
