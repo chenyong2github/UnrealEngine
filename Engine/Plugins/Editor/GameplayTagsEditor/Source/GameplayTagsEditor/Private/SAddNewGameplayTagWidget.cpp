@@ -117,6 +117,7 @@ void SAddNewGameplayTagWidget::Construct(const FArguments& InArgs)
 				SAssignNew(TagSourcesComboBox, SComboBox<TSharedPtr<FName> >)
 				.OptionsSource(&TagSources)
 				.OnGenerateWidget(this, &SAddNewGameplayTagWidget::OnGenerateTagSourcesComboBox)
+				.ToolTipText(this, &SAddNewGameplayTagWidget::CreateTagSourcesComboBoxToolTip)
 				.ContentPadding(2.0f)
 				.Content()
 				[
@@ -343,6 +344,29 @@ FText SAddNewGameplayTagWidget::CreateTagSourcesComboBoxContent() const
 	const bool bHasSelectedItem = TagSourcesComboBox.IsValid() && TagSourcesComboBox->GetSelectedItem().IsValid();
 
 	return bHasSelectedItem ? FText::FromName(*TagSourcesComboBox->GetSelectedItem().Get()) : LOCTEXT("NewTagLocationNotSelected", "Not selected");
+}
+
+FText SAddNewGameplayTagWidget::CreateTagSourcesComboBoxToolTip() const
+{
+	const bool bHasSelectedItem = TagSourcesComboBox.IsValid() && TagSourcesComboBox->GetSelectedItem().IsValid();
+
+	if (bHasSelectedItem)
+	{
+		UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+		const FGameplayTagSource* Source = Manager.FindTagSource(*TagSourcesComboBox->GetSelectedItem().Get());
+		if (Source)
+		{
+			FString FilePath = Source->GetConfigFileName();
+
+			if (FPaths::IsUnderDirectory(FilePath, FPaths::ProjectDir()))
+			{
+				FPaths::MakePathRelativeTo(FilePath, *FPaths::ProjectDir());
+			}
+			return FText::FromString(FilePath);
+		}
+	}
+
+	return FText();
 }
 
 #undef LOCTEXT_NAMESPACE

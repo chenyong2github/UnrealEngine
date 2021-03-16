@@ -111,6 +111,20 @@ namespace GameplayTagUtil
 static const FName NAME_Native = FName(TEXT("Native"));
 static const FName NAME_DefaultGameplayTagsIni("DefaultGameplayTags.ini");
 
+FString FGameplayTagSource::GetConfigFileName() const
+{
+	if (SourceTagList)
+	{
+		return SourceTagList->ConfigFileName;
+	}
+	if (SourceRestrictedTagList)
+	{
+		return SourceRestrictedTagList->ConfigFileName;
+	}
+
+	return FString();
+}
+
 FName FGameplayTagSource::GetNativeName()
 {
 	return NAME_Native;
@@ -221,6 +235,10 @@ void UGameplayTagsManager::LoadGameplayTagTables(bool bAllowAsyncLoad)
 void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_GameplayTags_AddTagIniSearchPath);
+
+#if WITH_EDITOR
+	TagIniSearchPaths.AddUnique(RootDir);
+#endif
 
 	TArray<FName>* SourcesInPathPtr = RegisteredSearchPaths.Find(RootDir);
 
@@ -1529,6 +1547,11 @@ void UGameplayTagsManager::EditorRefreshGameplayTagTree()
 	OnEditorRefreshGameplayTagTree.Broadcast();
 }
 
+void UGameplayTagsManager::GetTagSourceSearchPaths(TArray<FString>& OutPaths)
+{
+	OutPaths = TagIniSearchPaths;
+}
+
 FGameplayTagContainer UGameplayTagsManager::RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const
 {
 	// Note this purposefully does not include the passed in GameplayTag in the container.
@@ -1630,7 +1653,7 @@ void UGameplayTagsManager::FindTagSourcesWithType(EGameplayTagSourceType TagSour
 	}
 }
 
-FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName, EGameplayTagSourceType SourceType)
+FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName, EGameplayTagSourceType SourceType, const FString& RootDirToUse)
 {
 	FGameplayTagSource* FoundSource = FindTagSource(TagSourceName);
 	if (FoundSource)
@@ -1654,7 +1677,16 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 	else if (SourceType == EGameplayTagSourceType::TagList)
 	{
 		NewSource->SourceTagList = NewObject<UGameplayTagsList>(this, TagSourceName, RF_Transient);
-		NewSource->SourceTagList->ConfigFileName = FString::Printf(TEXT("%sTags/%s"), *FPaths::SourceConfigDir(), *TagSourceName.ToString());
+		if (RootDirToUse.IsEmpty())
+		{
+			NewSource->SourceTagList->ConfigFileName = FString::Printf(TEXT("%sTags/%s"), *FPaths::SourceConfigDir(), *TagSourceName.ToString());
+		}
+		else
+		{
+			// Use custom root and make sure it gets added to the ini list for later refresh
+			NewSource->SourceTagList->ConfigFileName = RootDirToUse / *TagSourceName.ToString();
+			ExtraTagIniList.AddUnique(NewSource->SourceTagList->ConfigFileName);
+		}
 		if (GUObjectArray.IsDisregardForGC(this))
 		{
 			NewSource->SourceTagList->AddToRoot();
@@ -1663,7 +1695,16 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 	else if (SourceType == EGameplayTagSourceType::RestrictedTagList)
 	{
 		NewSource->SourceRestrictedTagList = NewObject<URestrictedGameplayTagsList>(this, TagSourceName, RF_Transient);
-		NewSource->SourceRestrictedTagList->ConfigFileName = FString::Printf(TEXT("%sTags/%s"), *FPaths::SourceConfigDir(), *TagSourceName.ToString());
+		if (RootDirToUse.IsEmpty())
+		{
+			NewSource->SourceRestrictedTagList->ConfigFileName = FString::Printf(TEXT("%sTags/%s"), *FPaths::SourceConfigDir(), *TagSourceName.ToString());
+		}
+		else
+		{
+			// Use custom root and make sure it gets added to the ini list for later refresh
+			NewSource->SourceRestrictedTagList->ConfigFileName = RootDirToUse / *TagSourceName.ToString();
+			ExtraTagIniList.AddUnique(NewSource->SourceTagList->ConfigFileName);
+		}
 		if (GUObjectArray.IsDisregardForGC(this))
 		{
 			NewSource->SourceRestrictedTagList->AddToRoot();

@@ -78,6 +78,9 @@ private:
 	/** Creates the text displayed by the combo box when an option is selected */
 	FText CreateTagSourcesComboBoxContent() const;
 
+	/** Creates the text displayed by the combo box tooltip when an option is selected */
+	FText CreateTagSourcesComboBoxToolTip() const;
+
 	EVisibility OnGetTagSourceFavoritesVisibility() const;
 	FReply OnToggleTagSourceFavoriteClicked();
 	const FSlateBrush* OnGetTagSourceFavoriteImage() const;
