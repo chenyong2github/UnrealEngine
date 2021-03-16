@@ -957,7 +957,11 @@ public:
 	/** Return a const version of the streaming levels array */
 	const TArray<ULevelStreaming*>& GetStreamingLevels() const { return StreamingLevels; }
 
+	/** Returns true if StreamingLevel is part of the levels being considered for update */
 	bool IsStreamingLevelBeingConsidered(ULevelStreaming* StreamingLevel) const { return StreamingLevelsToConsider.Contains(StreamingLevel); }
+	
+	/** Returns true if there is at least one level being considered for update */
+	bool HasStreamingLevelsToConsider() const { return StreamingLevelsToConsider.GetStreamingLevels().Num() > 0; }
 
 	/** Returns the level, if any, in the process of being made visible */
 	ULevel* GetCurrentLevelPendingVisibility() const { return CurrentLevelPendingVisibility; }
