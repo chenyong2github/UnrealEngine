@@ -90,6 +90,14 @@ static FAutoConsoleVariableRef CVarMinDriverVersionForRayTracingAMD(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+int32 GAllowAsyncCompute = 1;
+static FAutoConsoleVariableRef CVarAllowAsyncCompute(
+	TEXT("r.D3D12.AllowAsyncCompute"),
+	GAllowAsyncCompute,
+	TEXT("Allow usage of async compute"),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 
 static inline int D3D12RHI_PreferAdapterVendor()
 {
@@ -825,7 +833,7 @@ void FD3D12DynamicRHI::Init()
 		UE_LOG(LogD3D12RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
 	}
 
-	GSupportsEfficientAsyncCompute = FParse::Param(FCommandLine::Get(), TEXT("ForceAsyncCompute")) || (GRHISupportsParallelRHIExecute && IsRHIDeviceAMD());
+	GSupportsEfficientAsyncCompute = GAllowAsyncCompute && (FParse::Param(FCommandLine::Get(), TEXT("ForceAsyncCompute")) || (GRHISupportsParallelRHIExecute && IsRHIDeviceAMD()));
 
 	GSupportsDepthBoundsTest = SupportsDepthBoundsTest(this);
 
