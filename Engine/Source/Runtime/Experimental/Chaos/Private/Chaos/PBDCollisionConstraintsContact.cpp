@@ -266,13 +266,14 @@ namespace Chaos
 			FGenericParticleHandle Particle0 = FGenericParticleHandle(Constraint.Particle[0]);
 			FGenericParticleHandle Particle1 = FGenericParticleHandle(Constraint.Particle[1]);
 
-			Collisions::UpdateSwept(Constraint, ParticleParameters.CullDistance, IterationParameters.Dt);
-
+			const FReal ExpandedCullDistance = ParticleParameters.CullDistance + IterationParameters.Dt * Particle0->V().Size() * 2.0f; // Particle will move at most by this much during PBD solve
+			Collisions::UpdateSwept(Constraint, ExpandedCullDistance, IterationParameters.Dt);
+			
+			const FContactParticleParameters CCDParticleParamaters{ ExpandedCullDistance, ParticleParameters.RestitutionVelocityThreshold, true, ParticleParameters.Collided };
 			if (Constraint.TimeOfImpact == 1)
 			{
-				const FContactParticleParameters CCDParticleParamatersNoContactCulling{ ParticleParameters.CullDistance, ParticleParameters.RestitutionVelocityThreshold, false, ParticleParameters.Collided };
 				// If TOI = 1 (normal constraint) we don't want to split timestep at TOI.
-				ApplyImpl(Constraint, IterationParameters, CCDParticleParamatersNoContactCulling);
+				ApplyImpl(Constraint, IterationParameters, CCDParticleParamaters);
 				return;
 			}
 
@@ -284,7 +285,6 @@ namespace Chaos
 			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations // @todo: Do we still need this?
 			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance, ParticleParameters.RestitutionVelocityThreshold, false, ParticleParameters.Collided };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
