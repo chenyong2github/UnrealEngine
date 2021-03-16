@@ -281,10 +281,6 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 		}
 	}
-	else
-	{
-		UE_LOG(LogGameplayTags, Warning, TEXT("Why are we trying to add the '%s' ini path again?"), *RootDir);
-	}
 }
 
 void UGameplayTagsManager::AddRestrictedGameplayTagSource(const FString& FileName)
