@@ -989,7 +989,7 @@ void FWmfMediaStreamSink::SetMediaSamplePoolAndQueue(
 
 void FWmfMediaStreamSink::ScheduleWaitForNextSample(IMFSample* pSample)
 {
-	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::ScheduleWaitForNextSample VideoSampleQueue:%d Rate:%d ThreadId:%x"),
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::ScheduleWaitForNextSample VideoSampleQueue:%d Rate:%f ThreadId:%x"),
 		VideoSampleQueue->Num(), ClockRate, FPlatformTLS::GetCurrentThreadId());
 
 #if WMFMEDIA_PLAYER_VERSION >= 2
