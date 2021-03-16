@@ -776,11 +776,6 @@ namespace UsdGeomMeshTranslatorImpl
 	/** Warning: This function will temporarily switch the active LOD variant if one exists, so it's *not* thread safe! */
 	void SetMaterialOverrides( const pxr::UsdPrim& Prim, const TArray<UMaterialInterface*>& ExistingAssignments, UMeshComponent& MeshComponent, UUsdAssetCache& AssetCache, float Time, EObjectFlags Flags, bool bInterpretLODs, const FName& RenderContext )
 	{
-		if ( !Prim )
-		{
-			return;
-		}
-
 		FScopedUsdAllocs Allocs;
 
 		pxr::UsdGeomMesh Mesh{ Prim };
@@ -788,6 +783,8 @@ namespace UsdGeomMeshTranslatorImpl
 		{
 			return;
 		}
+		pxr::SdfPath PrimPath = Prim.GetPath();
+		pxr::UsdStageRefPtr Stage = Prim.GetStage();
 
 		pxr::TfToken RenderContextToken = pxr::UsdShadeTokens->universalRenderContext;
 
@@ -824,14 +821,23 @@ namespace UsdGeomMeshTranslatorImpl
 			}
 		}
 
+		// Refresh reference to Prim because variant switching potentially invalidated it
+		pxr::UsdPrim ValidPrim = Stage->GetPrimAtPath( PrimPath );
+
 		// Extract material assignment info from prim if its *not* a LOD mesh, or if we failed to parse LODs
 		if ( !bInterpretedLODs )
 		{
-			LODIndexToAssignments = { UsdUtils::GetPrimMaterialAssignments( Prim, pxr::UsdTimeCode( Time ), bProvideMaterialIndices, RenderContextToken ) };
+			LODIndexToAssignments = { UsdUtils::GetPrimMaterialAssignments( ValidPrim, pxr::UsdTimeCode( Time ), bProvideMaterialIndices, RenderContextToken ) };
 		}
 
-		// Resolve all material assignment info
-		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo( Prim, LODIndexToAssignments, ExistingAssignments, AssetCache, Time, Flags );
+		TMap<const UsdUtils::FUsdPrimMaterialSlot*, UMaterialInterface*> ResolvedMaterials = MeshTranslationImpl::ResolveMaterialAssignmentInfo(
+			ValidPrim,
+			LODIndexToAssignments,
+			ExistingAssignments,
+			AssetCache,
+			Time,
+			Flags
+		);
 
 		// Compare resolved materials with existing assignments, and create overrides if we need to
 		uint32 StaticMeshSlotIndex = 0;
