@@ -885,6 +885,7 @@ public:
 	{
 		FVulkanCmdBuffer* CmdBuffer;
 		uint64 FenceCounter;
+		uint64 FrameCount = UINT64_MAX;
 	};
 	TArray<FCmdBufferFence> TimestampListHandles;
 

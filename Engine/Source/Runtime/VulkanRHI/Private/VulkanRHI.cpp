@@ -713,6 +713,7 @@ void FVulkanDynamicRHI::InitInstance()
 		// Initialize the RHI capabilities.
 		GRHISupportsFirstInstance = true;
 		GRHISupportsDynamicResolution = FVulkanPlatform::SupportsDynamicResolution();
+		GRHISupportsFrameCyclesBubblesRemoval = true;
 		GSupportsDepthBoundsTest = Device->GetPhysicalFeatures().depthBounds != 0;
 		GSupportsRenderTargetFormat_PF_G8 = false;	// #todo-rco
 		GRHISupportsTextureStreaming = true;
@@ -933,7 +934,6 @@ void FVulkanCommandListContext::RHIEndDrawingViewport(FRHIViewport* ViewportRHI,
 
 	RHI->DrawingViewport = nullptr;
 
-	ReadAndCalculateGPUFrameTime();
 	WriteBeginTimestamp(CommandBufferManager->GetActiveCmdBuffer());
 }
 
@@ -941,8 +941,9 @@ void FVulkanCommandListContext::RHIEndFrame()
 {
 	check(IsImmediate());
 	//FRCLog::Printf(FString::Printf(TEXT("FVulkanCommandListContext::RHIEndFrame()")));
-
 	
+	ReadAndCalculateGPUFrameTime();
+
 	GetGPUProfiler().EndFrame();
 
 	Device->GetStagingManager().ProcessPendingFree(false, true);

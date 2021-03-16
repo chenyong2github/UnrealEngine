@@ -18,11 +18,19 @@ static FAutoConsoleVariableRef CVarVulkanUseSingleQueue(
 	ECVF_Default
 );
 
-static int32 GVulkanProfileCmdBuffers = 0;
+int32 GVulkanProfileCmdBuffers = 0;
 static FAutoConsoleVariableRef CVarVulkanProfileCmdBuffers(
 	TEXT("r.Vulkan.ProfileCmdBuffers"),
 	GVulkanProfileCmdBuffers,
 	TEXT("Insert GPU timing queries in every cmd buffer\n"),
+	ECVF_Default
+);
+
+int32 GVulkanUseCmdBufferTimingForGPUTime = 0;
+static FAutoConsoleVariableRef CVarVulkanUseCmdBufferTimingForGPUTime(
+	TEXT("r.Vulkan.UseCmdBufferTimingForGPUTime"),
+	GVulkanUseCmdBufferTimingForGPUTime,
+	TEXT("Use the profile command buffers for GPU time\n"),
 	ECVF_Default
 );
 
@@ -208,34 +216,22 @@ void FVulkanCmdBuffer::BeginRenderPass(const FVulkanRenderTargetLayout& Layout, 
 }
 
 
-void FVulkanCmdBuffer::AddPendingTimestampQuery(uint64 Index, uint64 Count, VkQueryPool PoolHandle, VkBuffer BufferHandle)
+void FVulkanCmdBuffer::AddPendingTimestampQuery(uint64 Index, uint64 Count, VkQueryPool PoolHandle, VkBuffer BufferHandle, bool bBlocking)
 {
 	PendingQuery PQ;
 	PQ.Index = Index;
 	PQ.Count = Count;
 	PQ.PoolHandle = PoolHandle;
 	PQ.BufferHandle = BufferHandle;
+	PQ.bBlocking = bBlocking;
 	PendingTimestampQueries.Add(PQ);
 }
-
 
 void FVulkanCmdBuffer::End()
 {
 	checkf(IsOutsideRenderPass(), TEXT("Can't End as we're inside a render pass! CmdBuffer 0x%p State=%d"), CommandBufferHandle, (int32)State);
 
-
-	for (PendingQuery& Query : PendingTimestampQueries)
-	{
-		uint64 Index = Query.Index;
-		VkBuffer BufferHandle = Query.BufferHandle;
-		VkQueryPool PoolHandle = Query.PoolHandle;
-		VulkanRHI::vkCmdCopyQueryPoolResults(GetHandle(), PoolHandle, Index, Query.Count, BufferHandle, sizeof(uint64) * Index, sizeof(uint64), VK_QUERY_RESULT_64_BIT|VK_QUERY_RESULT_WAIT_BIT);
-		VulkanRHI::vkCmdResetQueryPool(GetHandle(), PoolHandle, Index, Query.Count);
-	}
-
-	PendingTimestampQueries.Reset();
-
-	if (GVulkanProfileCmdBuffers)
+	if (GVulkanProfileCmdBuffers || GVulkanUseCmdBufferTimingForGPUTime)
 	{
 		if (Timing)
 		{
@@ -244,18 +240,37 @@ void FVulkanCmdBuffer::End()
 		}
 	}
 
+	for (PendingQuery& Query : PendingTimestampQueries)
+	{
+		uint64 Index = Query.Index;
+		VkBuffer BufferHandle = Query.BufferHandle;
+		VkQueryPool PoolHandle = Query.PoolHandle;
+		VkQueryResultFlags BlockingFlags = Query.bBlocking ?  VK_QUERY_RESULT_WAIT_BIT : VK_QUERY_RESULT_WITH_AVAILABILITY_BIT;
+		uint32 Width = (Query.bBlocking ? 1 : 2);
+		uint32 Stride = sizeof(uint64) * Width;
+
+		VulkanRHI::vkCmdCopyQueryPoolResults(GetHandle(), PoolHandle, Index, Query.Count, BufferHandle, Stride * Index, Stride, VK_QUERY_RESULT_64_BIT | BlockingFlags);
+		VulkanRHI::vkCmdResetQueryPool(GetHandle(), PoolHandle, Index, Query.Count);
+	}
+
+	PendingTimestampQueries.Reset();
+
 	VERIFYVULKANRESULT(VulkanRHI::vkEndCommandBuffer(GetHandle()));
 	State = EState::HasEnded;
 }
 
 inline void FVulkanCmdBuffer::InitializeTimings(FVulkanCommandListContext* InContext)
 {
-	if (GVulkanProfileCmdBuffers && !Timing)
+	if ((GVulkanProfileCmdBuffers || GVulkanUseCmdBufferTimingForGPUTime) && !Timing)
 	{
 		if (InContext)
 		{
 			Timing = new FVulkanGPUTiming(InContext, Device);
-			Timing->Initialize();
+
+			// Upload cb's can be submitted multiple times in a single frame, so we use an expanded pool to catch timings
+			// Any overflow will wrap
+			uint32 PoolSize = bIsUploadOnly ? 256 : 32;
+			Timing->Initialize(PoolSize);
 		}
 	}
 }
@@ -289,7 +304,7 @@ void FVulkanCmdBuffer::Begin()
 
 	VERIFYVULKANRESULT(VulkanRHI::vkBeginCommandBuffer(CommandBufferHandle, &CmdBufBeginInfo));
 
-	if (GVulkanProfileCmdBuffers)
+	if (GVulkanProfileCmdBuffers || GVulkanUseCmdBufferTimingForGPUTime)
 	{
 		InitializeTimings(&Device->GetImmediateContext());
 		if (Timing)

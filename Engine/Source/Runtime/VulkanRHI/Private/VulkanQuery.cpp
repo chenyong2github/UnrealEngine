@@ -47,7 +47,7 @@ FVulkanQueryPool::FVulkanQueryPool(FVulkanDevice* InDevice, FVulkanCommandBuffer
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateQueryPool(Device->GetInstanceHandle(), &PoolCreateInfo, VULKAN_CPU_ALLOCATOR, &QueryPool));
 	
-	if (bInShouldAddReset)
+	if (bInShouldAddReset && CommandBufferManager)
 	{
 		CommandBufferManager->AddQueryPoolForReset(QueryPool, InMaxQueries);
 	}
@@ -393,7 +393,18 @@ void FVulkanCommandListContext::ReadAndCalculateGPUFrameTime()
 
 	if (FVulkanPlatform::SupportsTimestampRenderQueries() && FrameTiming)
 	{
-		const uint64 Delta = FrameTiming->GetTiming(false);
+		uint64 Delta = 0;
+		
+		// If we support profile command buffers then use this timing for GPU
+		if (GVulkanUseCmdBufferTimingForGPUTime)
+		{
+			Delta = CommandBufferManager->CalculateGPUTime();
+		}
+		else
+		{
+			Delta = FrameTiming->GetTiming(false);
+		}
+	
 		const double SecondsPerCycle = FPlatformTime::GetSecondsPerCycle();
 		const double Frequency = double(FVulkanGPUTiming::GetTimingFrequency());
 		GGPUFrameTime = FMath::TruncToInt(double(Delta) / Frequency / SecondsPerCycle);
@@ -595,9 +606,10 @@ void FVulkanCommandListContext::RHIEndRenderQuery(FRHIRenderQuery* QueryRHI)
 		const uint32 QueryEndIndex = Query->Pool->CurrentTimestamp;
 		FVulkanCmdBuffer* CmdBuffer = CommandBufferManager->GetActiveCmdBuffer();
 		VulkanRHI::vkCmdWriteTimestamp(CmdBuffer->GetHandle(), VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, Query->Pool->GetHandle(), QueryEndIndex);
-		CmdBuffer->AddPendingTimestampQuery(QueryEndIndex, 1, Query->Pool->GetHandle(), Query->Pool->ResultsBuffer->GetHandle());
+		CmdBuffer->AddPendingTimestampQuery(QueryEndIndex, 1, Query->Pool->GetHandle(), Query->Pool->ResultsBuffer->GetHandle(), true);
 		Query->Pool->TimestampListHandles[QueryEndIndex].CmdBuffer = CmdBuffer;
 		Query->Pool->TimestampListHandles[QueryEndIndex].FenceCounter = CmdBuffer->GetFenceSignaledCounter();
+		Query->Pool->TimestampListHandles[QueryEndIndex].FrameCount = GetFrameCounter();
 		Query->Pool->NumIssuedTimestamps = FMath::Min<uint32>(Query->Pool->NumIssuedTimestamps + 1, Query->Pool->BufferSize);
 	}
 }
