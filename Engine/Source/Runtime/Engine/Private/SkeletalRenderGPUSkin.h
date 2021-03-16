@@ -154,10 +154,11 @@ public:
 	* @param	InSkelMeshRenderData	- render data containing the data for each LOD
 	* @param	InLODIdx				- index of LOD model to use from the parent mesh
 	*/
-	FMorphVertexBuffer(FSkeletalMeshRenderData* InSkelMeshRenderData, int32 InLODIdx)
+	FMorphVertexBuffer(FSkeletalMeshRenderData* InSkelMeshRenderData, int32 InLODIdx, ERHIFeatureLevel::Type InFeatureLevel)
 		:	bHasBeenUpdated(false)	
 		,	bNeedsInitialClear(true)
 		,	LODIdx(InLODIdx)
+		,	FeatureLevel(InFeatureLevel)
 		,	SkelMeshRenderData(InSkelMeshRenderData)
 	{
 		check(SkelMeshRenderData);
@@ -263,6 +264,9 @@ protected:
 private:
 	/** index to the SkelMeshResource.LODModels */
 	int32	LODIdx;
+
+	ERHIFeatureLevel::Type FeatureLevel;
+
 	// parent mesh containing the source data, never 0
 	FSkeletalMeshRenderData* SkelMeshRenderData;
 
@@ -538,10 +542,11 @@ private:
 	/** vertex data for rendering a single LOD */
 	struct FSkeletalMeshObjectLOD
 	{
-		FSkeletalMeshObjectLOD(FSkeletalMeshRenderData* InSkelMeshRenderData,int32 InLOD)
+		FSkeletalMeshObjectLOD(FSkeletalMeshRenderData* InSkelMeshRenderData,int32 InLOD, ERHIFeatureLevel::Type InFeatureLevel)
 			: SkelMeshRenderData(InSkelMeshRenderData)
 			, LODIndex(InLOD)
-			, MorphVertexBuffer(InSkelMeshRenderData,LODIndex)
+			, FeatureLevel(InFeatureLevel)
+			, MorphVertexBuffer(InSkelMeshRenderData,LODIndex, FeatureLevel)
 			, MeshObjectWeightBuffer(nullptr)
 			, MeshObjectColorBuffer(nullptr)
 		{
@@ -584,6 +589,8 @@ private:
 		FSkeletalMeshRenderData* SkelMeshRenderData;
 		// index into FSkeletalMeshRenderData::LODRenderData[]
 		int32 LODIndex;
+
+		ERHIFeatureLevel::Type FeatureLevel;
 
 		/** Vertex buffer that stores the morph target vertex deltas. Updated on the CPU */
 		FMorphVertexBuffer MorphVertexBuffer;
