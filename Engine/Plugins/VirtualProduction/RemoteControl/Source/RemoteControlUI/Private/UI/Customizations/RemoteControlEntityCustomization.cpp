@@ -10,6 +10,7 @@
 #include "RemoteControlEntity.h"
 #include "RemoteControlField.h"
 #include "RemoteControlPreset.h"
+#include "ScopedTransaction.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "UObject/UnrealType.h"
