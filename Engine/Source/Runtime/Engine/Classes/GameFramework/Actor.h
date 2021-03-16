@@ -530,6 +530,13 @@ private:
 	UPROPERTY(ReplicatedUsing=OnRep_Owner)
 	AActor* Owner;
 
+#if WITH_EDITOR
+	/**
+	 * Used to track changes to Owner during Undo events.
+	 */
+	TWeakObjectPtr<AActor> IntermediateOwner = nullptr;
+#endif
+
 protected:
 	/** Used to specify the net driver to replicate on (NAME_None || NAME_GameNetDriver is the default net driver) */
 	UPROPERTY()
@@ -2195,7 +2202,7 @@ protected:
 	void SyncReplicatedPhysicsSimulation();
 
 public:
-	/** 
+	/**
 	 * Set the owner of this Actor, used primarily for network replication. 
 	 * @param NewOwner	The Actor who takes over ownership of this Actor
 	 */
