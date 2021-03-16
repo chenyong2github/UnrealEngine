@@ -30,6 +30,9 @@ DECLARE_DELEGATE_OneParam(FOnBeginTextEdit, const FText&)
  */
 class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 {
+	SLATE_DECLARE_WIDGET(SInlineEditableTextBlock, SCompoundWidget)
+
+public:
 	SLATE_BEGIN_ARGS( SInlineEditableTextBlock )
 		: _Text()
 		, _Style( &FCoreStyle::Get().GetWidgetStyle<FInlineEditableTextBlockStyle>("InlineEditableTextBlockStyle") )
@@ -105,6 +108,7 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 		SLATE_EVENT( FOnVerifyTextChanged, OnVerifyTextChanged )
 	SLATE_END_ARGS()
 
+	SInlineEditableTextBlock();
 	~SInlineEditableTextBlock();
 
 	/**
@@ -143,11 +147,13 @@ class SLATE_API SInlineEditableTextBlock: public SCompoundWidget
 
 	void SetReadOnly(bool bInIsReadOnly);
 
-	void SetText( const TAttribute< FText >& InText );
+	void SetText(TAttribute<FText> InText);
+
+	UE_DEPRECATED(5.0, "SetText taking FString is deprecated. Use the FText version instead")
 	void SetText( const FString& InText );
 
 	/** Sets the wrap text at attribute.  See WrapTextAt attribute */
-	void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
+	void SetWrapTextAt(TAttribute<float> InWrapTextAt);
 
 protected:
 	/** Callback for the text box's OnTextChanged event */
@@ -158,6 +164,12 @@ protected:
 
 	/** Cancels the edit mode and switches back to label mode */
 	void CancelEditMode();
+
+	/** @return an attribute reference of Text */
+	TSlateAttributeRef<FText> GetTextAttribute() const { return TSlateAttributeRef<FText>(*this, TextAttribute); }
+
+	/** @return an attribute reference of ColorAndOpacity */
+	TSlateAttributeRef<bool> GetIsReadOnlyAttribute() const { return TSlateAttributeRef<bool>(*this, bIsReadOnlyAttribute); }
 
 protected:
 	/** The widget used when in label mode */
@@ -191,14 +203,24 @@ protected:
 	/** Callback to verify text when changed. Will return an error message to denote problems. */
 	FOnVerifyTextChanged OnVerifyTextChanged;
 
-	/** Attribute for the text to use for the widget */
-	TAttribute<FText> Text;
-
-	/** Attribute to look up if the widget is read-only */
-	TAttribute< bool > bIsReadOnly;
-
 	/** Widget to focus when we finish editing */
 	TWeakPtr<SWidget> WidgetToFocus;
+
+	/**
+	 * When selection of widget is managed by another widget, this delays the "double select" from
+	 * occurring immediately, offering a chance for double clicking to take action.
+	 */
+	float DoubleSelectDelay;
+
+	/** Attribute to look up if the widget is multiline */
+	bool bIsMultiLine;
+
+//#if WITH_EDITORONLY_DATA
+//	UE_DEPRECATED(5.0, "Direct access to Text is now deprecated. Use the setter or getter.")
+//	FSlateDeprecatedTAttribute<FText> Text;
+//	UE_DEPRECATED(5.0, "Direct access to bIsReadOnly is now deprecated. Use the setter or getter.")
+//	FSlateDeprecatedTAttribute<bool> bIsReadOnly;
+//#endif
 
 private:
 
@@ -206,23 +228,20 @@ private:
 	TSharedPtr<SWidget> GetEditableTextWidget() const;
 
 	/** Set editable text */
-	void SetEditableText( const TAttribute< FText >& InNewText );
+	void SetEditableText(TAttribute<FText> InNewText);
 
 	/** Set textbox error */
-	void SetTextBoxError( const FText& ErrorText );
+	void SetTextBoxError(const FText& ErrorText);
 
 	/** Active timer to trigger entry into edit mode after a delay */
 	EActiveTimerReturnType TriggerEditMode(double InCurrentTime, float InDeltaTime);
 
+	/** Attribute for the text to use for the widget */
+	TSlateAttribute<FText> TextAttribute;
+
 	/** The handle to the active timer */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 
-protected:
-	/** When selection of widget is managed by another widget, this delays the "double select" from 
-	occurring immediately, offering a chance for double clicking to take action. */
-	float DoubleSelectDelay;
-
-	/** Attribute to look up if the widget is multiline */
-	uint8 bIsMultiLine:1;
-
+	/** Attribute to look up if the widget is read-only */
+	TSlateAttribute<bool> bIsReadOnlyAttribute;
 };

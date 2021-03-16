@@ -7,6 +7,17 @@
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
+SLATE_IMPLEMENT_WIDGET(SInlineEditableTextBlock)
+void SInlineEditableTextBlock::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "Text", TextAttribute, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "bIsReadOnly", bIsReadOnlyAttribute, EInvalidateWidgetReason::None);
+}
+
+SInlineEditableTextBlock::SInlineEditableTextBlock()
+	: TextAttribute(*this)
+	, bIsReadOnlyAttribute(*this)
+{}
 
 void SInlineEditableTextBlock::Construct( const FArguments& InArgs )
 {
@@ -16,8 +27,8 @@ void SInlineEditableTextBlock::Construct( const FArguments& InArgs )
 	OnTextCommittedDelegate = InArgs._OnTextCommitted;
 	IsSelected = InArgs._IsSelected;
 	OnVerifyTextChanged= InArgs._OnVerifyTextChanged;
-	Text = InArgs._Text;
-	bIsReadOnly = InArgs._IsReadOnly;
+	TextAttribute.Assign(*this, InArgs._Text);
+	bIsReadOnlyAttribute.Assign(*this, InArgs._IsReadOnly);
 	bIsMultiLine = InArgs._MultiLine;
 	DoubleSelectDelay = 0.0f;
 
@@ -32,7 +43,7 @@ void SInlineEditableTextBlock::Construct( const FArguments& InArgs )
 		.VAlign(VAlign_Center)
 		[
 			SAssignNew(TextBlock, STextBlock)
-			.Text(Text)
+			.Text(InArgs._Text)
 			.TextStyle( &InArgs._Style->TextStyle )
 			.Font(InArgs._Font)
 			.ColorAndOpacity( InArgs._ColorAndOpacity )
@@ -92,7 +103,7 @@ void SInlineEditableTextBlock::CancelEditMode()
 	ExitEditingMode();
 
 	// Get the text from source again.
-	SetEditableText(Text);
+	SetEditableText(TextAttribute.Get());
 }
 
 bool SInlineEditableTextBlock::SupportsKeyboardFocus() const
@@ -103,7 +114,7 @@ bool SInlineEditableTextBlock::SupportsKeyboardFocus() const
 
 void SInlineEditableTextBlock::EnterEditingMode()
 {
-	if(!bIsReadOnly.Get() && FSlateApplication::Get().HasAnyMouseCaptor() == false)
+	if(!bIsReadOnlyAttribute.Get() && FSlateApplication::Get().HasAnyMouseCaptor() == false)
 	{
 		if(TextBlock->GetVisibility() == EVisibility::Visible)
 		{
@@ -156,26 +167,26 @@ bool SInlineEditableTextBlock::IsInEditMode() const
 
 void SInlineEditableTextBlock::SetReadOnly(bool bInIsReadOnly)
 {
-	bIsReadOnly = bInIsReadOnly;
+	bIsReadOnlyAttribute.Set(*this, bInIsReadOnly);
 }
 
-void SInlineEditableTextBlock::SetText( const TAttribute< FText >& InText )
+void SInlineEditableTextBlock::SetText( TAttribute<FText> InText )
 {
-	Text = InText;
-	TextBlock->SetText( Text );
-	SetEditableText( Text );
+	TextBlock->SetText( InText );
+	SetEditableText( InText );
+	TextAttribute.Assign(*this, MoveTemp(InText));
 }
 
 void SInlineEditableTextBlock::SetText( const FString& InText )
 {
-	Text = FText::FromString( InText );
-	TextBlock->SetText( Text );
-	SetEditableText( Text );
+	TextAttribute.Set(*this, FText::FromString( InText ));
+	TextBlock->SetText( TextAttribute.Get() );
+	SetEditableText( TextAttribute.Get() );
 }
 
-void SInlineEditableTextBlock::SetWrapTextAt( const TAttribute<float>& InWrapTextAt )
+void SInlineEditableTextBlock::SetWrapTextAt( TAttribute<float> InWrapTextAt )
 {
-	TextBlock->SetWrapTextAt( InWrapTextAt );
+	TextBlock->SetWrapTextAt( MoveTemp(InWrapTextAt) );
 }
 
 FReply SInlineEditableTextBlock::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
@@ -187,7 +198,7 @@ FReply SInlineEditableTextBlock::OnMouseButtonDown( const FGeometry& MyGeometry,
 
 	if (IsSelected.IsBound())
 	{
-		if (IsSelected.Execute() && !bIsReadOnly.Get() && !ActiveTimerHandle.IsValid())
+		if (IsSelected.Execute() && !bIsReadOnlyAttribute.Get() && !ActiveTimerHandle.IsValid())
 		{
 			ActiveTimerHandle = RegisterActiveTimer(0.5f, FWidgetActiveTimerDelegate::CreateSP(this, &SInlineEditableTextBlock::TriggerEditMode));
 		}
@@ -195,7 +206,7 @@ FReply SInlineEditableTextBlock::OnMouseButtonDown( const FGeometry& MyGeometry,
 	else
 	{
 		// The widget is not managed by another widget, so handle the mouse input and enter edit mode if ready.
-		if (HasKeyboardFocus() && !bIsReadOnly.Get())
+		if (HasKeyboardFocus() && !bIsReadOnlyAttribute.Get())
 		{
 			EnterEditingMode();
 			return FReply::Handled();
@@ -274,7 +285,7 @@ void SInlineEditableTextBlock::OnTextBoxCommitted(const FText& InText, ETextComm
 {
 	if(InCommitType == ETextCommit::OnCleared)
 	{
-		FText SourceTextInEditMode = Text.Get();
+		FText SourceTextInEditMode = TextAttribute.Get();
 		CancelEditMode();
 		// Commit the name, certain actions might need to be taken by the bound function
 		OnTextCommittedDelegate.ExecuteIfBound(SourceTextInEditMode, InCommitType);
@@ -301,7 +312,7 @@ void SInlineEditableTextBlock::OnTextBoxCommitted(const FText& InText, ETextComm
 					CancelEditMode();
 
 					// Commit the name, certain actions might need to be taken by the bound function
-					OnTextCommittedDelegate.ExecuteIfBound(Text.Get(), InCommitType);
+					OnTextCommittedDelegate.ExecuteIfBound(TextAttribute.Get(), InCommitType);
 				
 					return;
 				}
@@ -311,7 +322,7 @@ void SInlineEditableTextBlock::OnTextBoxCommitted(const FText& InText, ETextComm
 				CancelEditMode();
 
 				// Commit the name, certain actions might need to be taken by the bound function
-				OnTextCommittedDelegate.ExecuteIfBound(Text.Get(), InCommitType);
+				OnTextCommittedDelegate.ExecuteIfBound(TextAttribute.Get(), InCommitType);
 				return;
 			}
 		}
@@ -320,9 +331,9 @@ void SInlineEditableTextBlock::OnTextBoxCommitted(const FText& InText, ETextComm
 
 		OnTextCommittedDelegate.ExecuteIfBound(InText, InCommitType);
 
-		if ( !Text.IsBound() )
+		if ( !TextAttribute.IsBound(*this) )
 		{
-			TextBlock->SetText( Text );
+			TextBlock->SetText( TextAttribute.Get() );
 		}
 	}
 }
@@ -341,12 +352,12 @@ TSharedPtr<SWidget> SInlineEditableTextBlock::GetEditableTextWidget() const
 	}
 }
 
-void SInlineEditableTextBlock::SetEditableText( const TAttribute< FText >& InNewText )
+void SInlineEditableTextBlock::SetEditableText( TAttribute<FText> InNewText )
 {
 #if WITH_FANCY_TEXT
-	bIsMultiLine ? MultiLineTextBox->SetText( Text ) :
+	bIsMultiLine ? MultiLineTextBox->SetText( MoveTemp(InNewText) ) :
 #endif //WITH_FANCY_TEXT
-				 TextBox->SetText( Text );
+				 TextBox->SetText( MoveTemp(InNewText) );
 }
 
 void SInlineEditableTextBlock::SetTextBoxError( const FText& ErrorText )

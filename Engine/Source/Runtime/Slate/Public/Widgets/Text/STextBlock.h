@@ -38,6 +38,7 @@ namespace ETextRole
  */
 class SLATE_API STextBlock : public SLeafWidget
 {
+	SLATE_DECLARE_WIDGET(STextBlock, SLeafWidget)
 
 public:
 
@@ -92,7 +93,7 @@ public:
 		/** The color used to highlight the specified text */
 		SLATE_ATTRIBUTE( FLinearColor, HighlightColor )
 
-		/** The brush used to highlight the specified text*/
+		/** The brush used to highlight the specified text */
 		SLATE_ATTRIBUTE( const FSlateBrush*, HighlightShape )
 
 		/** Highlight this text in the text block */
@@ -169,38 +170,20 @@ public:
 	}
 	
 public:
-	UE_DEPRECATED(4.24, "SetText taking FString is deprecated. Use the FText version instead")
-	void SetText( const TAttribute< FString >& InText );
-	UE_DEPRECATED(4.24, "SetText taking FString is deprecated. Use the FText version instead")
-	void SetText( const FString& InText );
+	/** Sets the text for this text block */
+	void SetText(TAttribute<FText> InText);
 
-	/**
-	 * Sets the text for this text block
-	 *
-	 * @param	InText	The new text to display
-	 */
-	void SetText( const TAttribute< FText >& InText );
-	void SetText( const FText& InText );
-
-	/**
-	* Sets the highlight text for this text block 
-	*
-	* @param	InText	The new text to highlight
-	*/
+	/** Sets the highlight text for this text block */
 	void SetHighlightText(TAttribute<FText> InText);
 
-	/**
-	 * Sets the font used to draw the text
-	 *
-	 * @param	InFont	The new font to use
-	 */
-	void SetFont(const TAttribute< FSlateFontInfo >& InFont);
+	/** Sets the font used to draw the text	*/
+	void SetFont(TAttribute<FSlateFontInfo> InFont);
 
 	/** Sets the brush used to strike through the text */
-	void SetStrikeBrush(const TAttribute<const FSlateBrush*>& InStrikeBrush);
+	void SetStrikeBrush(TAttribute<const FSlateBrush*> InStrikeBrush);
 
 	/** See ColorAndOpacity attribute */
-	void SetColorAndOpacity(const TAttribute<FSlateColor>& InColorAndOpacity);
+	void SetColorAndOpacity(TAttribute<FSlateColor> InColorAndOpacity);
 
 	/** See TextStyle argument */
 	void SetTextStyle(const FTextBlockStyle* InTextStyle);
@@ -212,35 +195,44 @@ public:
 	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/** See WrapTextAt attribute */
-	void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
+	void SetWrapTextAt(TAttribute<float> InWrapTextAt);
 
 	/** See AutoWrapText attribute */
-	void SetAutoWrapText(const TAttribute<bool>& InAutoWrapText);
+	void SetAutoWrapText(TAttribute<bool> InAutoWrapText);
 
 	/** Set WrappingPolicy attribute */
-	void SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
+	void SetWrappingPolicy(TAttribute<ETextWrappingPolicy> InWrappingPolicy);
 
 	/** Set TransformPolicy attribute */
-	void SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTransformPolicy);
-	ETextTransformPolicy GetTransformPolicy() const;
+	void SetTransformPolicy(TAttribute<ETextTransformPolicy> InTransformPolicy);
+
+	/** Get TransformPolicy attribute */
+	UE_DEPRECATED(5.0, "GetTransformPolicy is not accessible anymore since it's attribute value may not have been updated yet.")
+	ETextTransformPolicy GetTransformPolicy() const { return GetTransformPolicyImpl(); }
 
 	/** See ShadowOffset attribute */
-	void SetShadowOffset(const TAttribute<FVector2D>& InShadowOffset);
+	void SetShadowOffset(TAttribute<FVector2D> InShadowOffset);
 
 	/** See ShadowColorAndOpacity attribute */
-	void SetShadowColorAndOpacity(const TAttribute<FLinearColor>& InShadowColorAndOpacity);
+	void SetShadowColorAndOpacity(TAttribute<FLinearColor> InShadowColorAndOpacity);
+
+	/** See HighlightColor attribute */
+	void SetHighlightColor(TAttribute<FLinearColor> InHighlightColor);
+	
+	/** See HighlightShape attribute */
+	void SetHighlightShape(TAttribute<const FSlateBrush*> InHighlightShape);
 
 	/** See MinDesiredWidth attribute */
-	void SetMinDesiredWidth(const TAttribute<float>& InMinDesiredWidth);
+	void SetMinDesiredWidth(TAttribute<float> InMinDesiredWidth);
 
 	/** See LineHeightPercentage attribute */
-	void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
+	void SetLineHeightPercentage(TAttribute<float> InLineHeightPercentage);
 
 	/** See Margin attribute */
-	void SetMargin(const TAttribute<FMargin>& InMargin);
+	void SetMargin(TAttribute<FMargin> InMargin);
 
 	/** See Justification attribute */
-	void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
+	void SetJustification(TAttribute<ETextJustify::Type> InJustification);
 
 	// SWidget interface
 	virtual int32 OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const override;
@@ -249,11 +241,6 @@ public:
 	virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override;
 	virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType = EAccessibleType::Main) const override;
 #endif
-	// End of SWidget interface
-
-protected:
-	// Begin SWidget overrides.
-	virtual bool ComputeVolatility() const override;
 	// End of SWidget interface
 
 private:
@@ -268,6 +255,9 @@ private:
 
 	/** Gets the current strike brush */
 	const FSlateBrush* GetStrikeBrush() const;
+
+	/** Get TransformPolicy attribute */
+	ETextTransformPolicy GetTransformPolicyImpl() const;
 	
 	/** Gets the current shadow offset */
 	FVector2D GetShadowOffset() const;
@@ -282,11 +272,14 @@ private:
 	const FSlateBrush* GetHighlightShape() const;
 
 	/** Call to invalidate this text block */
-	void InvalidateText(EInvalidateWidget InvalidateReason);
+	void InvalidateText(EInvalidateWidgetReason InvalidateReason);
+
+private:
+
 
 private:
 	/** The text displayed in this text block */
-	TAttribute< FText > BoundText;
+	TSlateAttribute<FText> BoundText;
 
 	/** The wrapped layout for this text block */
 	TUniquePtr< FSlateTextBlockLayout > TextLayoutCache;
@@ -295,52 +288,73 @@ private:
 	FTextBlockStyle TextStyle;
 
 	/** Sets the font used to draw the text */
-	TAttribute< FSlateFontInfo > Font;
+	TSlateAttribute<FSlateFontInfo> Font;
 
 	/** Sets the brush used to strike through the text */
-	TAttribute< const FSlateBrush* > StrikeBrush;
+	TSlateAttribute<const FSlateBrush*> StrikeBrush;
 
 	/** Text color and opacity */
-	TAttribute<FSlateColor> ColorAndOpacity;
+	TSlateAttribute<FSlateColor> ColorAndOpacity;
 
 	/** Drop shadow offset in pixels */
-	TAttribute< FVector2D > ShadowOffset;
+	TSlateAttribute<FVector2D> ShadowOffset;
 
 	/** Shadow color and opacity */
-	TAttribute<FLinearColor> ShadowColorAndOpacity;
+	TSlateAttribute<FLinearColor> ShadowColorAndOpacity;
 
-	TAttribute<FLinearColor> HighlightColor;
+	/** The color used to highlight the specified text */
+	TSlateAttribute<FLinearColor> HighlightColor;
 
-	TAttribute< const FSlateBrush* > HighlightShape;
+	/** The brush used to highlight the specified text */
+	TSlateAttribute<const FSlateBrush*> HighlightShape;
 
-	/** Highlight this text in the textblock */
-	TAttribute<FText> HighlightText;
+	/** Highlight this text in the TextBlock */
+	TSlateAttribute<FText> HighlightText;
 
 	/** Whether text wraps onto a new line when it's length exceeds this width; if this value is zero or negative, no wrapping occurs. */
-	TAttribute<float> WrapTextAt;
+	TSlateAttribute<float> WrapTextAt;
 
 	/** True if we're wrapping text automatically based on the computed horizontal space for this widget */
-	TAttribute<bool> AutoWrapText;
+	TSlateAttribute<bool> AutoWrapText;
 
 	/** The wrapping policy we're using */
-	TAttribute<ETextWrappingPolicy> WrappingPolicy;
+	TSlateAttribute<ETextWrappingPolicy> WrappingPolicy;
 
 	/** The transform policy we're using */
-	TAttribute<ETextTransformPolicy> TransformPolicy;
+	TSlateAttribute<ETextTransformPolicy> TransformPolicy;
 
 	/** The amount of blank space left around the edges of text area. */
-	TAttribute< FMargin > Margin;
+	TSlateAttribute<FMargin> Margin;
 
 	/** The amount to scale each lines height by. */
-	TAttribute< ETextJustify::Type > Justification; 
+	TSlateAttribute<ETextJustify::Type> Justification;
 
 	/** How the text should be aligned with the margin. */
-	TAttribute< float > LineHeightPercentage;
+	TSlateAttribute<float> LineHeightPercentage;
 
 	/** Prevents the text block from being smaller than desired in certain cases (e.g. when it is empty) */
-	TAttribute<float> MinDesiredWidth;
+	TSlateAttribute<float> MinDesiredWidth;
 
 	/** If this is enabled, text shaping, wrapping, justification are disabled in favor of much faster text layout and measurement. */
 	mutable TOptional<FVector2D> CachedSimpleDesiredSize;
+
+	/** Flags used to check if the SlateAttribute is set. */
+	union
+	{
+		struct 
+		{
+			uint16 bIsAttributeFontSet : 1;
+			uint16 bIsAttributeStrikeBrushSet : 1;
+			uint16 bIsAttributeColorAndOpacitySet : 1;
+			uint16 bIsAttributeShadowOffsetSet : 1;
+			uint16 bIsAttributeShadowColorAndOpacitySet : 1;
+			uint16 bIsAttributeHighlightColorSet : 1;
+			uint16 bIsAttributeHighlightShapeSet : 1;
+			uint16 bIsAttributeWrapTextAtSet : 1;
+			uint16 bIsAttributeTransformPolicySet : 1;
+		};
+		uint16 Union_IsAttributeSet;
+	};
+
 	bool bSimpleTextMode;
 };

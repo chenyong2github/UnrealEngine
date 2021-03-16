@@ -9,7 +9,32 @@
 #include "Framework/Text/RichTextLayoutMarshaller.h"
 #include "Types/ReflectionMetadata.h"
 
+SLATE_IMPLEMENT_WIDGET(SRichTextBlock)
+void SRichTextBlock::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, BoundText, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, HighlightText, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, WrapTextAt, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, WrappingPolicy, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, TransformPolicy, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, Justification, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, AutoWrapText, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, Margin, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, LineHeightPercentage, EInvalidateWidgetReason::Layout);
+	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION(AttributeInitializer, MinDesiredWidth, EInvalidateWidgetReason::Layout);
+}
+
 SRichTextBlock::SRichTextBlock()
+	: BoundText(*this)
+	, HighlightText(*this)
+	, WrapTextAt(*this)
+	, WrappingPolicy(*this)
+	, TransformPolicy(*this)
+	, Justification(*this)
+	, AutoWrapText(*this)
+	, Margin(*this)
+	, LineHeightPercentage(*this)
+	, MinDesiredWidth(*this)
 {
 }
 
@@ -20,18 +45,18 @@ SRichTextBlock::~SRichTextBlock()
 
 void SRichTextBlock::Construct( const FArguments& InArgs )
 {
-	BoundText = InArgs._Text;
-	HighlightText = InArgs._HighlightText;
+	SetText(InArgs._Text);
+	SetHighlightText(InArgs._HighlightText);
 
-	TextStyle = *InArgs._TextStyle;
-	WrapTextAt = InArgs._WrapTextAt;
-	AutoWrapText = InArgs._AutoWrapText;
-	WrappingPolicy = InArgs._WrappingPolicy;
-	TransformPolicy = InArgs._TransformPolicy;
-	Margin = InArgs._Margin;
-	LineHeightPercentage = InArgs._LineHeightPercentage;
-	Justification = InArgs._Justification;
-	MinDesiredWidth = InArgs._MinDesiredWidth;
+	SetTextStyle(*InArgs._TextStyle);
+	SetWrapTextAt(InArgs._WrapTextAt);
+	SetAutoWrapText(InArgs._AutoWrapText);
+	SetWrappingPolicy(InArgs._WrappingPolicy);
+	SetTransformPolicy(InArgs._TransformPolicy);
+	SetMargin(InArgs._Margin);
+	SetLineHeightPercentage(InArgs._LineHeightPercentage);
+	SetJustification(InArgs._Justification);
+	SetMinDesiredWidth(InArgs._MinDesiredWidth);
 
 	{
 		TSharedPtr<IRichTextMarkupParser> Parser = InArgs._Parser;
@@ -72,7 +97,7 @@ int32 SRichTextBlock::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedG
 	// HACK: Due to the nature of wrapping and layout, we may have been arranged in a different box than what we were cached with.  Which
 	// might update wrapping, so make sure we always set the desired size to the current size of the text layout, which may have changed
 	// during paint.
-	bool bCanWrap = WrapTextAt.Get() > 0 || AutoWrapText.Get();
+	bool bCanWrap = WrapTextAt.Get() > 0.f || AutoWrapText.Get();
 
 	if (bCanWrap && !NewDesiredSize.Equals(LastDesiredSize))
 	{
@@ -86,7 +111,16 @@ FVector2D SRichTextBlock::ComputeDesiredSize(float LayoutScaleMultiplier) const
 {
 	// ComputeDesiredSize will also update the text layout cache if required
 	const FVector2D TextSize = TextLayoutCache->ComputeDesiredSize(
-		FSlateTextBlockLayout::FWidgetArgs(BoundText, HighlightText, WrapTextAt, AutoWrapText, WrappingPolicy, TransformPolicy, Margin, LineHeightPercentage, Justification),
+		FSlateTextBlockLayout::FWidgetDesiredSizeArgs(
+			BoundText.Get(),
+			HighlightText.Get(),
+			WrapTextAt.Get(),
+			AutoWrapText.Get(),
+			WrappingPolicy.Get(),
+			TransformPolicy.Get(),
+			Margin.Get(),
+			LineHeightPercentage.Get(),
+			Justification.Get()),
 		LayoutScaleMultiplier * TextBlockScale, TextStyle) * TextBlockScale;
 
 	return FVector2D(FMath::Max(TextSize.X, MinDesiredWidth.Get()), TextSize.Y);
@@ -104,17 +138,15 @@ void SRichTextBlock::OnArrangeChildren(const FGeometry& AllottedGeometry, FArran
 	TextLayoutCache->ArrangeChildren(TextBlockScaledGeometry, ArrangedChildren);
 }
 
-void SRichTextBlock::SetText( const TAttribute<FText>& InTextAttr )
+void SRichTextBlock::SetText(TAttribute<FText> InTextAttr)
 {
-	BoundText = InTextAttr;
-	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	BoundText.Assign(*this, MoveTemp(InTextAttr), FText::GetEmpty());
 	InvalidatePrepass();
 }
 
-void SRichTextBlock::SetHighlightText( const TAttribute<FText>& InHighlightText )
+void SRichTextBlock::SetHighlightText(TAttribute<FText> InHighlightText)
 {
-	HighlightText = InHighlightText;
-	Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	HighlightText.Assign(*this, MoveTemp(InHighlightText), FText::GetEmpty());
 }
 
 void SRichTextBlock::SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod)
@@ -129,40 +161,40 @@ void SRichTextBlock::SetTextFlowDirection(const TOptional<ETextFlowDirection>& I
 	Invalidate(EInvalidateWidget::Layout);
 }
 
-void SRichTextBlock::SetWrapTextAt(const TAttribute<float>& InWrapTextAt)
+void SRichTextBlock::SetWrapTextAt(TAttribute<float> InWrapTextAt)
 {
-	SetAttribute(WrapTextAt, InWrapTextAt, EInvalidateWidgetReason::Layout);
+	WrapTextAt.Assign(*this, MoveTemp(InWrapTextAt), 0.f);
 }
 
-void SRichTextBlock::SetAutoWrapText(const TAttribute<bool>& InAutoWrapText)
+void SRichTextBlock::SetAutoWrapText(TAttribute<bool> InAutoWrapText)
 {
-	SetAttribute(AutoWrapText, InAutoWrapText, EInvalidateWidgetReason::Layout);
+	AutoWrapText.Assign(*this, MoveTemp(InAutoWrapText), false);
 	InvalidatePrepass();
 }
 
-void SRichTextBlock::SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy)
+void SRichTextBlock::SetWrappingPolicy(TAttribute<ETextWrappingPolicy> InWrappingPolicy)
 {
-	SetAttribute(WrappingPolicy, InWrappingPolicy, EInvalidateWidgetReason::Layout);
+	WrappingPolicy.Assign(*this, MoveTemp(InWrappingPolicy));
 }
 
-void SRichTextBlock::SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTransformPolicy)
+void SRichTextBlock::SetTransformPolicy(TAttribute<ETextTransformPolicy> InTransformPolicy)
 {
-	SetAttribute(TransformPolicy, InTransformPolicy, EInvalidateWidgetReason::Layout);
+	TransformPolicy.Assign(*this, MoveTemp(InTransformPolicy));
 }
 
-void SRichTextBlock::SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage)
+void SRichTextBlock::SetLineHeightPercentage(TAttribute<float> InLineHeightPercentage)
 {
-	SetAttribute(LineHeightPercentage, InLineHeightPercentage, EInvalidateWidgetReason::Layout);
+	LineHeightPercentage.Assign(*this, MoveTemp(InLineHeightPercentage));
 }
 
-void SRichTextBlock::SetMargin(const TAttribute<FMargin>& InMargin)
+void SRichTextBlock::SetMargin(TAttribute<FMargin> InMargin)
 {
-	SetAttribute(Margin, InMargin, EInvalidateWidgetReason::Layout);
+	Margin.Assign(*this, MoveTemp(InMargin));
 }
 
-void SRichTextBlock::SetJustification(const TAttribute<ETextJustify::Type>& InJustification)
+void SRichTextBlock::SetJustification(TAttribute<ETextJustify::Type> InJustification)
 {
-	SetAttribute(Justification, InJustification, EInvalidateWidgetReason::Layout);
+	Justification.Assign(*this, MoveTemp(InJustification));
 }
 
 void SRichTextBlock::SetTextStyle(const FTextBlockStyle& InTextStyle)
@@ -171,9 +203,9 @@ void SRichTextBlock::SetTextStyle(const FTextBlockStyle& InTextStyle)
 	Invalidate(EInvalidateWidget::Layout);
 }
 
-void SRichTextBlock::SetMinDesiredWidth(const TAttribute<float>& InMinDesiredWidth)
+void SRichTextBlock::SetMinDesiredWidth(TAttribute<float> InMinDesiredWidth)
 {
-	SetAttribute(MinDesiredWidth, InMinDesiredWidth, EInvalidateWidgetReason::Layout);
+	MinDesiredWidth.Assign(*this, MoveTemp(InMinDesiredWidth));
 }
 
 void SRichTextBlock::SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSet)
@@ -196,21 +228,6 @@ void SRichTextBlock::Refresh()
 {
 	TextLayoutCache->DirtyContent();
 	Invalidate(EInvalidateWidget::Layout);
-}
-
-bool SRichTextBlock::ComputeVolatility() const
-{
-	return SWidget::ComputeVolatility() 
-		|| BoundText.IsBound()
-		|| HighlightText.IsBound()
-		|| WrapTextAt.IsBound()
-		|| AutoWrapText.IsBound()
-		|| WrappingPolicy.IsBound()
-		|| TransformPolicy.IsBound()
-		|| Margin.IsBound()
-		|| Justification.IsBound()
-		|| LineHeightPercentage.IsBound()
-		|| MinDesiredWidth.IsBound();
 }
 
 #endif //WITH_FANCY_TEXT

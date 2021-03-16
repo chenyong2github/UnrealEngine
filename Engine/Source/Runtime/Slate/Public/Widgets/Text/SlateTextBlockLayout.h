@@ -20,7 +20,45 @@ enum class ETextShapingMethod : uint8;
 class SLATE_API FSlateTextBlockLayout
 {
 public:
-	struct FWidgetArgs
+	struct FWidgetDesiredSizeArgs
+	{
+		FORCEINLINE FWidgetDesiredSizeArgs(
+			const FText& InText,
+			const FText& InHighlightText,
+			const float InWrapTextAt,
+			const bool InAutoWrapText,
+			const ETextWrappingPolicy InWrappingPolicy,
+			const ETextTransformPolicy InTransformPolicy,
+			const FMargin& InMargin,
+			const float InLineHeightPercentage,
+			const ETextJustify::Type InJustification
+		)
+			: Text(InText)
+			, HighlightText(InHighlightText)
+			, Margin(InMargin)
+			, WrapTextAt(InWrapTextAt)
+			, LineHeightPercentage(InLineHeightPercentage)
+			, WrappingPolicy(InWrappingPolicy)
+			, TransformPolicy(InTransformPolicy)
+			, Justification(InJustification)
+			, AutoWrapText(InAutoWrapText)
+		{
+		}
+
+		const FText Text = FText::GetEmpty();
+		const FText HighlightText = FText::GetEmpty();
+		const FMargin Margin;
+		const float WrapTextAt = 0.f;
+		const float LineHeightPercentage;
+		const ETextWrappingPolicy WrappingPolicy;
+		const ETextTransformPolicy TransformPolicy;
+		const ETextJustify::Type Justification;
+		const bool AutoWrapText = false;
+	};
+
+	struct
+		UE_DEPRECATED(5.0, "FWidgetArgs is deprecated. Upgrade to FWidgetDesiredSizeArgs instead.")
+		FWidgetArgs
 	{
 		FORCEINLINE FWidgetArgs(
 			const TAttribute<FText>& InText, 
@@ -64,7 +102,15 @@ public:
 	/**
 	 * Get the computed desired size for this layout, updating the internal cache as required
 	 */
+	FVector2D ComputeDesiredSize(const FWidgetDesiredSizeArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	/**
+	 * Get the computed desired size for this layout, updating the internal cache as required
+	 */
+	UE_DEPRECATED(5.0, "FWidgetArgs is deprecated. Upgrade to FWidgetDesiredSizeArgs instead.")
 	FVector2D ComputeDesiredSize(const FWidgetArgs& InWidgetArgs, const float InScale, const FTextBlockStyle& InTextStyle);
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 
 	/**
 	 * Gets the last computed desired size.

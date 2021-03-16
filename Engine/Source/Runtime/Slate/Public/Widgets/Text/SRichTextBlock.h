@@ -7,7 +7,7 @@
 #include "Layout/Margin.h"
 #include "Styling/SlateWidgetStyleAsset.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SWidget.h"
+#include "Widgets/SLeafWidget.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Text/TextLayout.h"
@@ -30,8 +30,9 @@ enum class ETextShapingMethod : uint8;
  * A rich static text widget. 
  * Through the use of markup and text decorators, text with different styles, embedded image and widgets can be achieved.
  */
-class SLATE_API SRichTextBlock : public SWidget
+class SLATE_API SRichTextBlock : public SLeafWidget
 {
+	SLATE_DECLARE_WIDGET(SRichTextBlock, SLeafWidget)
 public:
 
 	SLATE_BEGIN_ARGS( SRichTextBlock )
@@ -171,16 +172,16 @@ public:
 	 */
 	const FText& GetText() const
 	{
-		return BoundText.Get(FText::GetEmpty());
+		return BoundText.Get();
 	}
 
 	/**
 	 * Sets the text for this text block
 	 */
-	void SetText( const TAttribute<FText>& InTextAttr );
+	void SetText(TAttribute<FText> InTextAttr );
 
 	/** See HighlightText attribute */
-	void SetHighlightText( const TAttribute<FText>& InHighlightText );
+	void SetHighlightText(TAttribute<FText> InHighlightText);
 
 	/** See TextShapingMethod attribute */
 	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
@@ -189,31 +190,31 @@ public:
 	void SetTextFlowDirection(const TOptional<ETextFlowDirection>& InTextFlowDirection);
 
 	/** See WrapTextAt attribute */
-	void SetWrapTextAt(const TAttribute<float>& InWrapTextAt);
+	void SetWrapTextAt(TAttribute<float> InWrapTextAt);
 
 	/** See AutoWrapText attribute */
-	void SetAutoWrapText(const TAttribute<bool>& InAutoWrapText);
+	void SetAutoWrapText(TAttribute<bool> InAutoWrapText);
 
 	/** Set WrappingPolicy attribute */
-	void SetWrappingPolicy(const TAttribute<ETextWrappingPolicy>& InWrappingPolicy);
+	void SetWrappingPolicy(TAttribute<ETextWrappingPolicy> InWrappingPolicy);
 
 	/** Set TransformPolicy attribute */
-	void SetTransformPolicy(const TAttribute<ETextTransformPolicy>& InTransformPolicy);
+	void SetTransformPolicy(TAttribute<ETextTransformPolicy> InTransformPolicy);
 
 	/** See LineHeightPercentage attribute */
-	void SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage);
+	void SetLineHeightPercentage(TAttribute<float> InLineHeightPercentage);
 
 	/** See Margin attribute */
-	void SetMargin(const TAttribute<FMargin>& InMargin);
+	void SetMargin(TAttribute<FMargin> InMargin);
 
 	/** See Justification attribute */
-	void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);
+	void SetJustification(TAttribute<ETextJustify::Type> InJustification);
 
 	/** See TextStyle argument */
 	void SetTextStyle(const FTextBlockStyle& InTextStyle);
 
 	/** See MinDesiredWidth attribute */
-	void SetMinDesiredWidth(const TAttribute<float>& InMinDesiredWidth);
+	void SetMinDesiredWidth(TAttribute<float> InMinDesiredWidth);
 
 	/**  */
 	void SetDecoratorStyleSet(const ISlateStyle* NewDecoratorStyleSet);
@@ -229,48 +230,47 @@ public:
 protected:
 	//~ SWidget interface
 	virtual FVector2D ComputeDesiredSize(float) const override;
-	virtual bool ComputeVolatility() const override;
 	//~ End of SWidget interface
 
 private:
 
 	/** The text displayed in this text block */
-	TAttribute< FText > BoundText;
+	TSlateAttribute<FText> BoundText;
 
 	/** The wrapped layout for this text block */
-	TUniquePtr< FSlateTextBlockLayout > TextLayoutCache;
+	TUniquePtr<FSlateTextBlockLayout> TextLayoutCache;
 
 	/** Default style used by the TextLayout */
 	FTextBlockStyle TextStyle;
 
-	/** Highlight this text in the textblock */
-	TAttribute<FText> HighlightText;
+	/** Highlight this text in the text block */
+	TSlateAttribute<FText> HighlightText;
 
 	/** Whether text wraps onto a new line when it's length exceeds this width; if this value is zero or negative, no wrapping occurs. */
-	TAttribute<float> WrapTextAt;
-	
-	/** True if we're wrapping text automatically based on the computed horizontal space for this widget */
-	TAttribute<bool> AutoWrapText;
+	TSlateAttribute<float> WrapTextAt;
 
 	/** The wrapping policy we're using */
-	TAttribute<ETextWrappingPolicy> WrappingPolicy;
+	TSlateAttribute<ETextWrappingPolicy> WrappingPolicy;
 
 	/** The transform policy we're using */
-	TAttribute<ETextTransformPolicy> TransformPolicy;
-
-	/** The amount of blank space left around the edges of text area. */
-	TAttribute< FMargin > Margin;
+	TSlateAttribute<ETextTransformPolicy> TransformPolicy;
 
 	/** The amount to scale each lines height by. */
-	TAttribute< ETextJustify::Type > Justification; 
+	TSlateAttribute<ETextJustify::Type> Justification;
+
+	/** True if we're wrapping text automatically based on the computed horizontal space for this widget */
+	TSlateAttribute<bool> AutoWrapText;
+
+	/** The amount of blank space left around the edges of text area. */
+	TSlateAttribute<FMargin> Margin;
 
 	/** How the text should be aligned with the margin. */
-	TAttribute< float > LineHeightPercentage;
+	TSlateAttribute<float> LineHeightPercentage;
 
 	/** Prevents the text block from being smaller than desired in certain cases (e.g. when it is empty) */
-	TAttribute<float> MinDesiredWidth;
+	TSlateAttribute<float> MinDesiredWidth;
 
-	/** Use to Scale the entire Text Block*/
+	/** Use to Scale the entire text block */
 	float TextBlockScale = 1.0f;
 
 	/**  */
