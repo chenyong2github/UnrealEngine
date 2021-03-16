@@ -171,6 +171,7 @@
 
 <Do If="'$(TargetConfigurations)' == ''" >
 	<Property Name="TargetConfigurations" Value="$(DefaultTargetConfigurations)" />
+	<Property Name="TargetConfigurations" Value="Development" If="'$(TargetConfigurations)' == ''" />
 </Do>
 
 <Do If="'$(PackageConfigurations)' == ''" >	
