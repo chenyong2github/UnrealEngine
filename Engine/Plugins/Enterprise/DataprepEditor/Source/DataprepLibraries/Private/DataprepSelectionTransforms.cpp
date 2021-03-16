@@ -37,6 +37,41 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 {
 	TSet<UObject*> Assets;
 
+	TFunction<void(UMaterialInterface*)> AddMaterialReferenced = [&Assets](UMaterialInterface* InMaterial)
+	{
+		if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(InMaterial))
+		{
+			if (MaterialInstance->Parent)
+			{
+				Assets.Add(MaterialInstance->Parent);
+			}
+		}
+
+		// Collect textures
+		TArray<UTexture*> Textures;
+		InMaterial->GetUsedTextures(Textures, EMaterialQualityLevel::Num, true, ERHIFeatureLevel::Num, true);
+		for (UTexture* Texture : Textures)
+		{
+			Assets.Add(Texture);
+		}
+	};
+
+	TFunction<void(UStaticMesh*)> AddMeshReferenced = [&Assets, &AddMaterialReferenced, this](UStaticMesh* InMesh)
+	{
+		for (FStaticMaterial& StaticMaterial : InMesh->GetStaticMaterials())
+		{
+			if (UMaterialInterface* MaterialInterface = StaticMaterial.MaterialInterface)
+			{
+				Assets.Add(MaterialInterface);
+
+				if (bAllowIndirectReferences)
+				{
+					AddMaterialReferenced(MaterialInterface);
+				}
+			}
+		}
+	};
+
 	for (UObject* Object : InObjects)
 	{
 		if (!ensure(Object) || Object->IsPendingKill())
@@ -56,6 +91,11 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 					if (UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh())
 					{
 						Assets.Add(StaticMesh);
+
+						if (bAllowIndirectReferences)
+						{
+							AddMeshReferenced(StaticMesh);
+						}
 					}
 
 					for (UMaterialInterface* MaterialInterface : MeshComponent->OverrideMaterials)
@@ -63,16 +103,26 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 						if (MaterialInterface != nullptr)
 						{
 							Assets.Add(MaterialInterface);
+
+							if (bAllowIndirectReferences)
+							{
+								AddMaterialReferenced(MaterialInterface);
+							}
 						}
 					}
 				}
 			}
 		}
-		if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(Object))
+		else if (UStaticMeshComponent* MeshComponent = Cast< UStaticMeshComponent >(Object))
 		{
 			if (UStaticMesh* StaticMesh = MeshComponent->GetStaticMesh())
 			{
 				Assets.Add(StaticMesh);
+
+				if (bAllowIndirectReferences)
+				{
+					AddMeshReferenced(StaticMesh);
+				}
 			}
 
 			for (UMaterialInterface* MaterialInterface : MeshComponent->OverrideMaterials)
@@ -80,48 +130,27 @@ void UDataprepReferenceSelectionTransform::OnExecution_Implementation(const TArr
 				if (MaterialInterface != nullptr)
 				{
 					Assets.Add(MaterialInterface);
+
+					if (bAllowIndirectReferences)
+					{
+						AddMaterialReferenced(MaterialInterface);
+					}
 				}
 			}
 		}
 		else if (UStaticMesh* StaticMesh = Cast< UStaticMesh >(Object))
 		{
-			for (FStaticMaterial& StaticMaterial : StaticMesh->GetStaticMaterials())
-			{
-				if (UMaterialInterface* MaterialInterface = StaticMaterial.MaterialInterface)
-				{
-					Assets.Add(MaterialInterface);
-				}
-			}
+			AddMeshReferenced(StaticMesh);
 
-			if (bOutputCanIncludeInput)
-			{
-				Assets.Add(Object);
-			}
 		}
 		else if (UMaterialInterface* MaterialInterface = Cast< UMaterialInterface >(Object))
 		{
-			Assets.Add(MaterialInterface);
+			AddMaterialReferenced(MaterialInterface);
+		}
 
-			if (UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(MaterialInterface))
-			{
-				if (MaterialInstance->Parent)
-				{
-					Assets.Add(MaterialInstance->Parent);
-				}
-			}
-
-			// Collect textures
-			TArray<UTexture*> Textures;
-			MaterialInterface->GetUsedTextures(Textures, EMaterialQualityLevel::Num, true, ERHIFeatureLevel::Num, true);
-			for (UTexture* Texture : Textures)
-			{
-				Assets.Add(Texture);
-			}
-
-			if (bOutputCanIncludeInput)
-			{
-				Assets.Add(Object);
-			}
+		if (bOutputCanIncludeInput)
+		{
+			Assets.Add(Object);
 		}
 	}
 
