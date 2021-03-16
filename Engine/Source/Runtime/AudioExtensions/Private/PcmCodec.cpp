@@ -170,7 +170,7 @@ namespace Audio
 				return bHasError;
 			}	
 
-			FDecodeReturn Decode() override
+			FDecodeReturn Decode(bool bIsLooping = true) override
 			{
 				// Reject bad input
 				if( !audio_ensure(Src) || !audio_ensure(Dst) || !audio_ensure(Header.NumChannels > 0))

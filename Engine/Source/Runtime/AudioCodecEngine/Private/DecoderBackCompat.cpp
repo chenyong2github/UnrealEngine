@@ -49,7 +49,7 @@ namespace Audio
 		ResidualBuffer.SetNum(Reqs.NumSampleFramesWanted * Desc.NumChannels);
 	}
 
-	Audio::IDecoder::FDecodeReturn FBackCompat::Decode()
+	Audio::IDecoder::FDecodeReturn FBackCompat::Decode(bool bLoop)
 	{
 		uint32 NumFramesRemaining = Reqs.NumSampleFramesWanted;
 		FBackCompatInput& BackCompatSrc = static_cast<FBackCompatInput&>(*Src);
@@ -71,11 +71,11 @@ namespace Audio
 			int32 NumBytesStreamed = BuffSizeInBytes;
 			if (BackCompatSrc.Wave->IsStreaming())
 			{
-				bFinished = Info->StreamCompressedData(Buff, false, BuffSizeInBytes, NumBytesStreamed);
+				bFinished = Info->StreamCompressedData(Buff, bLoop, BuffSizeInBytes, NumBytesStreamed);
 			}
 			else
 			{
-				bFinished = Info->ReadCompressedData(Buff, false, BuffSizeInBytes);
+				bFinished = Info->ReadCompressedData(Buff, bLoop, BuffSizeInBytes);
 			}						
 			PushedDetails.SampleFramesStartOffset = FrameOffset;
 			ResidualBuffer.SetNum(NumBytesStreamed / sizeof(int16));
@@ -89,11 +89,18 @@ namespace Audio
 			NumFramesRemaining -= BuffSizeInFrames;
 		}
 		
-		if( bFinished )
+		if(!bFinished)
+		{
+			return EDecodeResult::MoreDataRemaining;
+		}
+		else if (bLoop) // (bFinished is true)
+		{
+			return EDecodeResult::Looped;
+		}
+		else // (bFinished is true and we aren't looping)
 		{
 			return EDecodeResult::Finished;
 		}
-		return EDecodeResult::MoreDataRemaining;
 	}
 
 }

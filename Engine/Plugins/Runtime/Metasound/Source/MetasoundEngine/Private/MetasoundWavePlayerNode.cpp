@@ -52,14 +52,24 @@ namespace Metasound
 		FWavePlayerOperator(
 			const FOperatorSettings& InSettings,
 			const FWaveAssetReadRef& InWave,
-			const FTriggerReadRef& InTrigger,
-			const FFloatReadRef InPitchShiftCents)
+			const FTriggerReadRef& InPlayTrigger,
+			const FTriggerReadRef& InStopTrigger,
+			const FTriggerReadRef& InSeekTrigger,
+			const FFloatReadRef& InSeekTimeSeconds,
+			const FFloatReadRef& InPitchShiftSemiTones,
+			const FBoolReadRef& InLoop
+		)
 			: OperatorSettings(InSettings)
-			, TrigIn(InTrigger)
+			, PlayTrig(InPlayTrigger)
+			, StopTrig(InStopTrigger)
+			, SeekTrig(InSeekTrigger)
 			, Wave(InWave)
-			, PitchShiftCents(InPitchShiftCents)
+			, SeekTimeSeconds(InSeekTimeSeconds)
+			, PitchShiftSemiTones(InPitchShiftSemiTones)
+			, IsLooping(InLoop)
 			, AudioBufferL(FAudioBufferWriteRef::CreateNew(InSettings))
 			, AudioBufferR(FAudioBufferWriteRef::CreateNew(InSettings))
+			, TrigggerOnLooped(FTriggerWriteRef::CreateNew(InSettings))
 			, TrigggerOnDone(FTriggerWriteRef::CreateNew(InSettings))
 			, OutputSampleRate(InSettings.GetSampleRate())
 			, OutputBlockSizeInFrames(InSettings.GetNumFramesPerBlock())
@@ -77,8 +87,12 @@ namespace Metasound
 		{
 			FDataReferenceCollection InputDataReferences;
 			InputDataReferences.AddDataReadReference(TEXT("Audio"), FWaveAssetReadRef(Wave));
-			InputDataReferences.AddDataReadReference(TEXT("TrigIn"), FTriggerReadRef(TrigIn));
-			InputDataReferences.AddDataReadReference(TEXT("PitchShiftCents"), FFloatReadRef(PitchShiftCents));
+			InputDataReferences.AddDataReadReference(TEXT("Play"), FTriggerReadRef(PlayTrig));
+			InputDataReferences.AddDataReadReference(TEXT("Stop"), FTriggerReadRef(StopTrig));
+			InputDataReferences.AddDataReadReference(TEXT("Seek"), FTriggerReadRef(SeekTrig));
+			InputDataReferences.AddDataReadReference(TEXT("SeekTime"), FFloatReadRef(SeekTimeSeconds));
+			InputDataReferences.AddDataReadReference(TEXT("PitchShift"), FFloatReadRef(PitchShiftSemiTones));
+			InputDataReferences.AddDataReadReference(TEXT("Loop"), FBoolReadRef(IsLooping));
 			return InputDataReferences;
 		}
 
@@ -87,6 +101,7 @@ namespace Metasound
 			FDataReferenceCollection OutputDataReferences;
 			OutputDataReferences.AddDataReadReference(TEXT("AudioLeft"), FAudioBufferReadRef(AudioBufferL));
 			OutputDataReferences.AddDataReadReference(TEXT("AudioRight"), FAudioBufferReadRef(AudioBufferR));
+			OutputDataReferences.AddDataReadReference(TEXT("Looped"), FTriggerReadRef(TrigggerOnLooped));
 			OutputDataReferences.AddDataReadReference(TEXT("Done"), FTriggerReadRef(TrigggerOnDone));
 			return OutputDataReferences;
 		}
@@ -95,6 +110,7 @@ namespace Metasound
 		void Execute()
 		{
 			TrigggerOnDone->AdvanceBlock();
+			TrigggerOnLooped->AdvanceBlock();
 
 			// see if we have a new soundwave input
 			FName NewSoundWaveName = FName();
@@ -113,28 +129,123 @@ namespace Metasound
 			FMemory::Memzero(AudioBufferL->GetData(), OutputBlockSizeInFrames * sizeof(float));
 			FMemory::Memzero(AudioBufferR->GetData(), OutputBlockSizeInFrames * sizeof(float));
 
-			TrigIn->ExecuteBlock(
-				// OnPreTrigger
-				[&](int32 StartFrame, int32 EndFrame)
-				{
- 					if (bIsPlaying)
- 					{
-						ExecuteInternal(StartFrame, EndFrame);
-					}
-				},
-				// OnTrigger
-				[&](int32 StartFrame, int32 EndFrame)
-				{
-					ResetDecoder();
+			// Parse triggers and render audio
+			int32 PlayTrigIndex = 0;
+			int32 NextPlayFrame = 0;
+			const int32 NumPlayTrigs = PlayTrig->NumTriggeredInBlock();
 
-					if (!bIsPlaying)
-					{
-						bIsPlaying = Decoder.CanGenerateAudio();
-					}
+			int32 StopTrigIndex = 0;
+			int32 NextStopFrame = 0;
+			const int32 NumStopTrigs = StopTrig->NumTriggeredInBlock();
 
-					ExecuteInternal(StartFrame, EndFrame);
+			int32 SeekTrigIndex = 0;
+			int32 NextSeekFrame = 0;
+			const int32 NumSeekTrigs = SeekTrig->NumTriggeredInBlock();
+
+			int32 CurrAudioFrame = 0;
+			int32 NextAudioFrame = 0;
+
+			while (NextAudioFrame < (OutputBlockSizeInFrames -1))
+			{
+				const int32 NoTrigger = (OutputBlockSizeInFrames << 1);
+
+				// get the next Play and Seek indicies
+				// (play)
+				if (PlayTrigIndex < NumPlayTrigs)
+				{
+					NextPlayFrame = (*PlayTrig)[PlayTrigIndex];
 				}
-			);
+				else
+				{
+					NextPlayFrame = NoTrigger;
+				}
+
+				// (stop)
+				if (StopTrigIndex < NumStopTrigs)
+				{
+					NextStopFrame = (*StopTrig)[StopTrigIndex];
+				}
+				else
+				{
+					NextStopFrame = NoTrigger;
+				}
+
+				// (seek)
+				if (SeekTrigIndex < NumSeekTrigs)
+				{
+					NextSeekFrame = (*SeekTrig)[SeekTrigIndex];
+				}
+				else
+				{
+					NextSeekFrame = NoTrigger;
+				}
+
+				// determine the next audio frame we are going to render up to
+				NextAudioFrame = FMath::Min(NextPlayFrame, NextStopFrame);
+				NextAudioFrame = FMath::Min(NextAudioFrame, NextSeekFrame);
+
+				// no more triggers, rendering to the end of the block
+				if (NextAudioFrame == NoTrigger)
+				{
+					NextAudioFrame = OutputBlockSizeInFrames;
+				}
+
+				// render audio (while loop handles looping audio)
+				while (CurrAudioFrame != NextAudioFrame)
+				{
+					if (bIsPlaying)
+					{
+						CurrAudioFrame += ExecuteInternal(CurrAudioFrame, NextAudioFrame);
+					}
+					else
+					{
+						CurrAudioFrame = NextAudioFrame;
+					}
+				}
+
+				// execute the next trigger
+				if (CurrAudioFrame == NextSeekFrame)
+				{
+					ExecuteSeekRequest();
+
+					++SeekTrigIndex;
+				}
+
+				if (CurrAudioFrame == NextPlayFrame)
+				{
+					StartPlaying();
+					++PlayTrigIndex;
+				}
+
+				if (CurrAudioFrame == NextStopFrame)
+				{
+					bIsPlaying = false;
+					ResetDecoder();
+					++StopTrigIndex;
+				}
+			}
+		}
+
+		void StartPlaying()
+		{
+			ResetDecoder();
+
+			if (!bIsPlaying)
+			{
+				bIsPlaying = Decoder.CanGenerateAudio();
+			}
+		}
+
+		void ExecuteSeekRequest()
+		{
+			// TODO: get this to work w/o full decoder reset
+			// Decoder.SeekToTime(FMath::Max(0.f, *SeekTimeSeconds));
+
+			// in the mean time, using this instead:
+			if (!bIsPlaying)
+			{
+				StartPlaying();
+			}
 		}
 
 		bool ResetDecoder()
@@ -143,6 +254,7 @@ namespace Metasound
 			Params.OutputBlockSizeInFrames = OutputBlockSizeInFrames;
 			Params.OutputSampleRate = OutputSampleRate;
 			Params.MaxPitchShiftMagnitudeAllowedInOctaves = 4.f;
+			Params.StartTimeSeconds = FMath::Max(0.f, *SeekTimeSeconds);
 
 			if (false == Wave->IsSoundWaveValid())
 			{
@@ -153,7 +265,7 @@ namespace Metasound
 		}
 
 
-		void ExecuteInternal(int32 StartFrame, int32 EndFrame)
+		int32 ExecuteInternal(int32 StartFrame, int32 EndFrame)
 		{
 			bool bCanDecodeWave = Wave->IsSoundWaveValid() && ((*Wave)->GetNumChannels() <= 2); // only support mono or stereo inputs
 
@@ -161,11 +273,11 @@ namespace Metasound
 			float* FinalOutputLeft = AudioBufferL->GetData() + StartFrame;
 			float* FinalOutputRight = AudioBufferR->GetData() + StartFrame;
 			const int32 NumOutputFrames = (EndFrame - StartFrame);
+			int32 NumFramesDecoded = 0;
 
 			if (bCanDecodeWave)
 			{
 				ensure(Decoder.CanGenerateAudio());
-
 
 				const int32 NumInputChannels = (*Wave)->GetNumChannels();
 				const bool bNeedsUpmix = (NumInputChannels == 1);
@@ -177,13 +289,19 @@ namespace Metasound
 				PostSrcBuffer.AddZeroed(NumSamplesToGenerate);
 				float* PostSrcBufferPtr = PostSrcBuffer.GetData();
 
-				int32 NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, *PitchShiftCents) / NumInputChannels;
+				bool bIsLooping = *IsLooping;
+				NumFramesDecoded = Decoder.GenerateAudio(PostSrcBufferPtr, NumOutputFrames, (*PitchShiftSemiTones * 100.f), bIsLooping) / NumInputChannels;
 
 				// handle decoder having completed during it's decode
-				if (!Decoder.CanGenerateAudio() ||  (NumFramesDecoded < NumOutputFrames))
+				const bool bReachedEOF = !Decoder.CanGenerateAudio() || (NumFramesDecoded < NumOutputFrames);
+				if (bReachedEOF && !bIsLooping)
 				{
 					bIsPlaying = false;
 					TrigggerOnDone->TriggerFrame(StartFrame + NumFramesDecoded);
+				}
+				else if (bReachedEOF && bIsLooping)
+				{
+					TrigggerOnLooped->TriggerFrame(StartFrame + NumFramesDecoded);
 				}
 
 				if (bNeedsUpmix)
@@ -208,18 +326,25 @@ namespace Metasound
 				FMemory::Memzero(FinalOutputLeft, sizeof(float) * NumOutputFrames);
 				FMemory::Memzero(FinalOutputRight, sizeof(float) * NumOutputFrames);
 			}
+
+			return NumFramesDecoded;
 		}
 
 	private:
 		const FOperatorSettings OperatorSettings;
 
 		// i/o
-		FTriggerReadRef TrigIn;
+		FTriggerReadRef PlayTrig;
+		FTriggerReadRef StopTrig;
+		FTriggerReadRef SeekTrig;
 		FWaveAssetReadRef Wave;
-		FFloatReadRef PitchShiftCents;
+		FFloatReadRef SeekTimeSeconds;
+		FFloatReadRef PitchShiftSemiTones;
+		FBoolReadRef IsLooping;
 
 		FAudioBufferWriteRef AudioBufferL;
 		FAudioBufferWriteRef AudioBufferR;
+		FTriggerWriteRef TrigggerOnLooped;
 		FTriggerWriteRef TrigggerOnDone;
 
 		// source decode
@@ -244,10 +369,14 @@ namespace Metasound
 
 		const FDataReferenceCollection& InputDataRefs = InParams.InputDataReferences;
 
-		FTriggerReadRef TriggerPlay = InputDataRefs.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("TrigIn"), InParams.OperatorSettings);
+		FTriggerReadRef TriggerPlay = InputDataRefs.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Play"), InParams.OperatorSettings);
+		FTriggerReadRef TriggerStop = InputDataRefs.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Stop"), InParams.OperatorSettings);
+		FTriggerReadRef TriggerSeek = InputDataRefs.GetDataReadReferenceOrConstruct<FTrigger>(TEXT("Seek"), InParams.OperatorSettings);
 		FWaveAssetReadRef Wave = InputDataRefs.GetDataReadReferenceOrConstruct<FWaveAsset>(TEXT("Wave"));
-		FFloatReadRef PitchShiftCents = InputDataRefs.GetDataReadReferenceOrConstruct<float>(TEXT("PitchShiftCents"));
-		
+		FFloatReadRef SeekTimeSeconds = InputDataRefs.GetDataReadReferenceOrConstruct<float>(TEXT("SeekTime"), 0.f);
+		FFloatReadRef PitchShiftSemiTones = InputDataRefs.GetDataReadReferenceOrConstruct<float>(TEXT("PitchShift"));
+		FBoolReadRef IsLooping = InputDataRefs.GetDataReadReferenceOrConstruct<bool>(TEXT("Loop"), false);
+
 		if (!Wave->IsSoundWaveValid())
 		{
 			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("NoSoundWave", "No Sound Wave"));
@@ -255,14 +384,18 @@ namespace Metasound
 		}
 		else if ((*Wave)->GetNumChannels() > 2)
 		{
-			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("WavePlayerCurrentlyOnlySuportsMonoAssets", "Wave Player Currently Only Supports Mono Or Stereo Assets"));
+			AddBuildError<FWavePlayerError>(OutErrors, WaveNode, LOCTEXT("WavePlayerCurrentlyOnlySuportsMonoOrStereoAssets", "Wave Player Currently Only Supports Mono Or Stereo Assets"));
 		}
 
 		return MakeUnique<FWavePlayerOperator>(
 			  InParams.OperatorSettings
 			, Wave
 			, TriggerPlay
-			, PitchShiftCents
+			, TriggerStop
+			, TriggerSeek
+			, SeekTimeSeconds
+			, PitchShiftSemiTones
+			, IsLooping
 			);
 	}
 
@@ -271,12 +404,17 @@ namespace Metasound
 		return FVertexInterface(
 			FInputVertexInterface(
 				TInputDataVertexModel<FWaveAsset>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded")),
-				TInputDataVertexModel<FTrigger>(TEXT("TrigIn"), LOCTEXT("TrigInTooltip", "Trigger the playing of the input wave.")),
-				TInputDataVertexModel<float>(TEXT("PitchShiftCents"), LOCTEXT("PitchShiftCentsTooltip", "Pitch Shift in cents."))
+				TInputDataVertexModel<FTrigger>(TEXT("Play"), LOCTEXT("PlayTooltip", "Play the input wave.")),
+				TInputDataVertexModel<FTrigger>(TEXT("Stop"), LOCTEXT("StopTooltip", "Stop the input wave.")),
+				TInputDataVertexModel<FTrigger>(TEXT("Seek"), LOCTEXT("PlayTooltip", "Trigger the playing of the input wave.")),
+				TInputDataVertexModel<float>(TEXT("SeekTime"), LOCTEXT("SeekTimeTooltip", "Seek time in seconds.")),
+				TInputDataVertexModel<float>(TEXT("PitchShift"), LOCTEXT("PitchShiftTooltip", "Pitch Shift in semi-tones.")),
+				TInputDataVertexModel<bool>(TEXT("Loop"), LOCTEXT("LoopTooltip", "Wave will loop if true"))
 			),
 			FOutputVertexInterface(
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("AudioLeft"), LOCTEXT("AudioTooltip", "The output audio")),
 				TOutputDataVertexModel<FAudioBuffer>(TEXT("AudioRight"), LOCTEXT("AudioTooltip", "The output audio")),
+				TOutputDataVertexModel<FTrigger>(TEXT("Looped"), LOCTEXT("TriggerToolTip", "Trigger that notifies when the sound is has looped")),
 				TOutputDataVertexModel<FTrigger>(TEXT("Done"), LOCTEXT("TriggerToolTip", "Trigger that notifies when the sound is done playing"))
 			)
 		);
@@ -320,8 +458,6 @@ namespace Metasound
 	{
 		return Factory;
 	}
-
-
 
 	const FVertexInterface& FWavePlayerNode::GetVertexInterface() const
 	{

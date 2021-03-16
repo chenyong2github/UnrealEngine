@@ -40,6 +40,6 @@ namespace Audio
 			return false;
 		}
 
-		FDecodeReturn Decode() override;
+		FDecodeReturn Decode(bool bLoop = false) override;
 	};
 }

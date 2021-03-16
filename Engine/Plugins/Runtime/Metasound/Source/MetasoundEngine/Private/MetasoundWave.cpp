@@ -32,6 +32,8 @@ namespace Audio
 		FsOutToInRatio = (OutputSampleRate / InputSampleRate);
 		MaxPitchShiftRatio = FMath::Pow(2.f, InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves);
 		MaxPitchShiftCents = InInitParams.MaxPitchShiftMagnitudeAllowedInOctaves * 1200.f;
+		StartTimeSeconds = InInitParams.StartTimeSeconds;
+
 
 		NumChannels = InWave->GetNumChannels();
 		DecodeBlockSizeInFrames = 64;
@@ -53,7 +55,7 @@ namespace Audio
 		return bSuccessful;
 	}
 
-	uint32 FSimpleDecoderWrapper::GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents)
+	uint32 FSimpleDecoderWrapper::GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents, bool bIsLooping)
 	{
 		const uint32 NumOutputSamples = NumOutputFrames * NumChannels;
 
@@ -75,16 +77,19 @@ namespace Audio
 			Resampler.SetSampleRateRatio(SampleRateRatio);
 
 			// perform SRC and push to circular buffer until we have enough frames for the output
-			while (Decoder && !bDecoderIsDone && (OutputCircularBuffer.Num() < NumOutputSamples))
+			while (Decoder && !(bDecoderIsDone || bDecoderHasLooped) && (OutputCircularBuffer.Num() < NumOutputSamples))
 			{
 				// get more audio from the decoder
 				Audio::IDecoderOutput::FPushedAudioDetails Details;
-				bDecoderIsDone = (Decoder->Decode() == Audio::IDecoder::EDecodeResult::Finished);
+				const Audio::IDecoder::EDecodeResult  DecodeResult = Decoder->Decode(bIsLooping);
 				const int32 NumFramesDecoded = Output->PopAudio(PreSrcBuffer, Details) / NumChannels;
 				int32 NumResamplerOutputFrames = 0;
 				int32 Error = Resampler.ProcessAudio(PreSrcBuffer.GetData(), NumFramesDecoded, bDecoderIsDone, PostSrcBuffer.GetData(), MaxNumResamplerOutputFramesPerBlock, NumResamplerOutputFrames);
 				ensure(Error == 0);
 				OutputCircularBuffer.Push(PostSrcBuffer.GetData(), NumResamplerOutputFrames * NumChannels);
+
+				bDecoderIsDone = DecodeResult == Audio::IDecoder::EDecodeResult::Finished;
+				bDecoderHasLooped = DecodeResult == Audio::IDecoder::EDecodeResult::Looped;
 			}
 		}
 
@@ -92,8 +97,10 @@ namespace Audio
 		{
 			OutputCircularBuffer.Pop(OutputDest, NumOutputSamples);
 		}
-		else if (ensure(bDecoderIsDone))
+		else if (ensure(bDecoderHasLooped || bDecoderIsDone))
 		{
+			bDecoderHasLooped = false;
+
 			const int32 NumSamplesToPop = OutputCircularBuffer.Num();
 			const int32 NumSamplesRemaining = NumOutputSamples - NumSamplesToPop;
 			OutputCircularBuffer.Pop(OutputDest, OutputCircularBuffer.Num());
@@ -110,6 +117,14 @@ namespace Audio
 		return NumOutputSamples; // update once we are aware of partial decode on last buffer
 	}
 
+	void FSimpleDecoderWrapper::SeekToTime(const float InSeconds)
+	{
+		if (Input.IsValid())
+		{
+			Input->SeekToTime(InSeconds);
+		}
+	}
+
 	bool FSimpleDecoderWrapper::InitializeDecodersInternal(const FSoundWaveProxyPtr& Wave)
 	{
 		if (!ensure(Wave.IsValid()))
@@ -120,6 +135,7 @@ namespace Audio
 		// Input:
 		FName OldFormat = Wave->GetRuntimeFormat();
 		Input = MakeShareable(Audio::CreateBackCompatDecoderInput(OldFormat, Wave).Release());
+		Input->SeekToTime(StartTimeSeconds);
 
 		if (!Input)
 		{
@@ -146,6 +162,9 @@ namespace Audio
 
 		// Decoder:
 		Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
+
+		// TODO: Delete this
+		// END: Delete this
 
 		// return true if all the components were successfully create
 		return Input.IsValid() && Output.IsValid() && Decoder.IsValid();

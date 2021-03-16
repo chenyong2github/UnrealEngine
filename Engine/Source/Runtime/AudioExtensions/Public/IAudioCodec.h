@@ -116,6 +116,8 @@ namespace Audio
 
 		virtual int64 Tell() const = 0;
 
+		virtual void SeekToTime(const float InSeconds) { }
+
 		virtual TArrayView<const uint8> PeekNextPacket(
 			int32 InMaxPacketLength) const = 0;
 				
@@ -254,7 +256,7 @@ namespace Audio
 		virtual bool HasError() const = 0;
 
 		// Do the decode.
-		virtual FDecodeReturn Decode() = 0;	
+		virtual FDecodeReturn Decode(bool bIsLooping = false) = 0;	
 	};
 
 	struct AUDIOEXTENSIONS_API FEncodedSectionBase

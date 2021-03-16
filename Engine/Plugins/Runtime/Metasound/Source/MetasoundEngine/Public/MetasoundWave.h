@@ -81,6 +81,7 @@ namespace Audio
 			float OutputSampleRate;
 			uint32 OutputBlockSizeInFrames;
 			float MaxPitchShiftMagnitudeAllowedInOctaves = 4.f;
+			float StartTimeSeconds = 0.f;
 		};
 
 		bool CanGenerateAudio() const
@@ -91,7 +92,9 @@ namespace Audio
 		bool Initialize(const InitParams& InInitParams, const FSoundWaveProxyPtr& InWave);
 
 		// returns number of samples written.   
-		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.f);
+		uint32 GenerateAudio(float* OutputDest, int32 NumOutputFrames, float PitchShiftInCents = 0.f, bool bIsLooping = false);
+
+		void SeekToTime(const float InSeconds);
 
 	private:
 		float GetSampleRateRatio(float PitchShiftInCents) const;
@@ -124,11 +127,13 @@ namespace Audio
 		uint32 DecodeBlockSizeInSamples;
 		
 		// cached values
+		float StartTimeSeconds{ 0.f };
 		float LastPitchShiftCents{ 0.f };
 		int32 TotalNumFramesOutput{ 0 };
 		int32 TotalNumFramesDecoded{ 0 };
 
 		bool bDecoderIsDone{ true };
+		bool bDecoderHasLooped{ false };
 
 	}; // class FSimpleDecoderWrapper
 

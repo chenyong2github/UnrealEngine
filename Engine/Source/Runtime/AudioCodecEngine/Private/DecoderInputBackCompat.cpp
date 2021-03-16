@@ -82,6 +82,14 @@ namespace Audio
 		return -1;
 	}
 
+	void FBackCompatInput::SeekToTime(const float InSeconds)
+	{
+		ICompressedAudioInfo* Info = GetInfo();
+		ensure(Info);
+
+		Info->SeekToTime(InSeconds);
+	}
+
 	bool FBackCompatInput::IsEndOfStream() const
 	{
 		// Not implemented.
