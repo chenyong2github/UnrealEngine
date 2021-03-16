@@ -14,6 +14,7 @@
 #include "UObject/UnrealNames.h"
 #include "Templates/Atomic.h"
 #include "Serialization/MemoryLayout.h"
+#include "Misc/StringBuilder.h"
 
 /*----------------------------------------------------------------------------
 	Definitions.
@@ -1268,3 +1269,19 @@ public:
 	CORE_API friend bool operator==(const FLazyName& A, const FLazyName& B);
 
 };
+
+/**
+ * A string builder with inline storage for FNames.
+ */
+class FNameBuilder : public TStringBuilder<FName::StringBufferSize>
+{
+public:
+	FNameBuilder() = default;
+
+	inline explicit FNameBuilder(const FName InName)
+	{
+		InName.AppendString(*this);
+	}
+};
+
+template <> struct TIsContiguousContainer<FNameBuilder> { static constexpr bool Value = true; };
