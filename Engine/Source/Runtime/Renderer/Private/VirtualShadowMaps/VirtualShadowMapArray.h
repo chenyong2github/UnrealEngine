@@ -116,6 +116,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FVirtualShadowMapUniformParameters, )
 	SHADER_PARAMETER(uint32, PageTableSize)
 	SHADER_PARAMETER(uint32, HPageTableSize)
 	SHADER_PARAMETER(uint32, NumShadowMaps)
+	SHADER_PARAMETER(uint32, NumDirectionalLights)
 	SHADER_PARAMETER(uint32, MaxPhysicalPages)
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
@@ -270,8 +271,6 @@ public:
 	FRDGBufferRef AllocatedPageRectBoundsRDG = nullptr;
 	FRDGBufferRef ShadowMapProjectionDataRDG = nullptr;
 	TArray< FRDGBufferRef, SceneRenderingAllocator > VirtualShadowMapIdRemapRDG;
-
-	int32 NumDirectionalLights = 0;
 
 	// These are not created or managed by this class - references are copied from the cache manager
 	// when needed as they come from the previous frame.

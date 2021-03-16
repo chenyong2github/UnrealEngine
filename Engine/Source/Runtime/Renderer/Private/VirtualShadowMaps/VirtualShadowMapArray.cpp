@@ -262,6 +262,7 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, bool bInEnabl
 	bEnabled = bInEnabled;
 
 	UniformParameters.NumShadowMaps = 0;
+	UniformParameters.NumDirectionalLights = 0;
 
 	// Reference dummy data in the UB initially
 	TArray<uint32, SceneRenderingAllocator> DummyPageTable;
@@ -761,15 +762,11 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			for (const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap : VisibleLightInfo.VirtualShadowMapClipmaps)
 			{
 				// NOTE: Shader assumes all levels from a given clipmap are contiguous in both the remap and projection arrays
+				int32 ClipmapID = Clipmap->GetVirtualShadowMap()->ID;
+				DirectionalLightSmInds.Add(ClipmapID);
 				for (int32 ClipmapLevel = 0; ClipmapLevel < Clipmap->GetLevelCount(); ++ClipmapLevel)
 				{
-					int32 ID = Clipmap->GetVirtualShadowMap(ClipmapLevel)->ID;
-					ShadowMapProjectionData[ID] = Clipmap->GetProjectionShaderData(ClipmapLevel);
-
-					if( ClipmapLevel == 0 )
-					{
-						DirectionalLightSmInds.Add(ID);
-					}
+					ShadowMapProjectionData[ClipmapID + ClipmapLevel] = Clipmap->GetProjectionShaderData(ClipmapLevel);
 				}
 			}
 
@@ -812,6 +809,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			}
 		}
 
+		UniformParameters.NumShadowMaps = ShadowMaps.Num();
+		UniformParameters.NumDirectionalLights = DirectionalLightSmInds.Num();
+
 		ShadowMapProjectionDataRDG = CreateProjectionDataBuffer(GraphBuilder, TEXT("Shadow.Virtual.ProjectionData"), ShadowMapProjectionData);
 		UniformParameters.ProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
 
@@ -820,8 +820,7 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 			StatsBufferRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumStats), TEXT("Shadow.Virtual.StatsBuffer"));
 			AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(StatsBufferRDG), 0);
 		}
-
-		UniformParameters.NumShadowMaps = ShadowMaps.Num();
+		
 		// Create and clear the requested page flags
 		const uint32 NumPageFlags = ShadowMaps.Num() * UniformParameters.PageTableSize;
 		FRDGBufferRef PageRequestFlagsRDG = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), NumPageFlags), TEXT("Shadow.Virtual.PageRequestFlags"));

@@ -22,7 +22,7 @@ static TAutoConsoleVariable<int32> CVarAccumulateStats(
 
 static TAutoConsoleVariable<int32> CVarCacheVirtualSMs(
 	TEXT("r.Shadow.Virtual.Cache"),
-	0,
+	1,
 	TEXT("Turn on to enable caching"),
 	ECVF_RenderThreadSafe
 );

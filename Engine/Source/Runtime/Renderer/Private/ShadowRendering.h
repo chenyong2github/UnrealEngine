@@ -155,21 +155,6 @@ inline bool IsShadowCacheModeOcclusionQueryable(EShadowDepthCacheMode CacheMode)
 	return CacheMode != SDCM_StaticPrimitivesOnly;
 }
 
-// Matches logic in VirtualShadowMapProjection.usf
-enum class EVirtualShadowMapProjectionOutputType
-{
-	/** Output signal for consumption by virtual shadow denoiser */
-	Denoiser = 0,
-
-	/** Output values for blending into screen shadow mask */
-	ScreenShadowMask,
-
-	/** Output debug visualization */
-	Debug,
-
-	MAX
-};
-
 class FShadowMapRenderTargets
 {
 public:

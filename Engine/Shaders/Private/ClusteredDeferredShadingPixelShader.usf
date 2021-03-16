@@ -112,7 +112,12 @@ float4 GetLightGridLocalLighting(const FCulledLightsGridData InLightGridData, fl
 		float4 LightAttenuation = 1.0f;
 
 		LightData.ShadowedBits = 1;
-		LightAttenuation = ( ( ShadowMask >> (LocalLightListIndex * 3) ) & 7 ) / 7.0;
+		// Be careful with the shift here as the shift amount is mod 32, so >>32 is a noop rather than zero
+		// We treat lights past the 10th as unshadowed
+		if (LocalLightListIndex < 10)
+		{
+			LightAttenuation = ( ( ShadowMask >> (LocalLightListIndex * 3) ) & 7 ) / 7.0;
+		}
 
 #if 1
 		FRectTexture RectTexture = InitRectTexture(ForwardLightData.DummyRectLightSourceTexture);

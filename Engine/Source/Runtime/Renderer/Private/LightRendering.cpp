@@ -1293,22 +1293,14 @@ void FDeferredShadingSceneRenderer::RenderLights(
 				FRDGTextureRef ShadowMaskBits = nullptr;
 				if( VirtualShadowMapArray.IsAllocated() && CVarVirtualShadowOnePassProjection.GetValueOnRenderThread() )
 				{
-					const FRDGTextureDesc ShadowMaskDesc = FRDGTextureDesc::Create2D(
-						SceneTextures.Config.Extent,
-						PF_R32_UINT,
-						FClearValueBinding::None,
-						TexCreate_ShaderResource | TexCreate_UAV );
-
-					ShadowMaskBits = GraphBuilder.CreateTexture( ShadowMaskDesc, TEXT("ShadowMaskBits") );
-
+					// TODO: This needs to move into the view loop in clustered deferred shading pass
 					for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
 					{
-						RenderVirtualShadowMapProjection(
+						ShadowMaskBits = RenderVirtualShadowMapProjectionOnePass(
 							GraphBuilder,
 							SceneTextures,
 							Views[ ViewIndex ],
-							VirtualShadowMapArray,
-							ShadowMaskBits );
+							VirtualShadowMapArray );
 					}
 				}
 				else

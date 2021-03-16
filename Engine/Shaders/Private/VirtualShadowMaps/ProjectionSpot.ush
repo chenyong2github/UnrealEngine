@@ -185,7 +185,7 @@ FSMRTResult ShadowRayCastPointLight(
 float4 SobolSampler(uint SampleIndex, inout uint Seed, uint MaxBits)
 {
 	// first scramble the index to decorelate from other 4-tuples
-	uint SobolIndex = FastOwenScrambling(SampleIndex, EvolveSobolSeed(Seed)) & ( (1 << MaxBits) - 1 );
+	uint SobolIndex = FastOwenScrambling(SampleIndex, EvolveSobolSeed(Seed)) & ( (1U << MaxBits) - 1U );
 	// now get Sobol' point from this index
 	uint4 Result = uint4(SobolIndex, 0, 0, 0);
 	UNROLL for (uint b = 0, v = 1; b < MaxBits; b++)
@@ -213,19 +213,16 @@ float TraceLocalLight(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
 	uint LightType,
-	float4 SvPosition,
+	uint2 PixelPos,
 	const float SceneDepth,
 	float3 TranslatedWorldPosition,
 	float RayStartOffset,
-	int RayCount,
-	int SamplesPerRay,
+	uint RayCount,
+	uint SamplesPerRay,
 	float CotMaxRayAngleFromLight,
-	int DebugOutputType,
-	inout float3 DebugOutput,
+	const half Noise,
 	inout float InOutHitDistance)
 {
-	uint2 PixelPos = uint2( SvPosition.xy );
-
 	const half3 N = GetGBufferDataUint( PixelPos, true ).WorldNormal;
 	const float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
 
@@ -243,10 +240,9 @@ float TraceLocalLight(
 	bool bBackFace = dot( N, ConeAxis ) < -SinAlpha;
 
 	half RayMissFactor = 0;
-	uint SampleCount = 0;
 	if (!bBackFace)
 	{
-		float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+		float StepOffset = Noise;
 
 		half ConeSin = Light.SourceRadius * InvDist;
 		half ConeCos = sqrt( 1 - Pow2( ConeSin ) );
@@ -254,7 +250,7 @@ float TraceLocalLight(
 		uint TileID = MortonEncode( PixelPos );
 
 		uint i = 0;
-		for( ; i < uint(RayCount); i++ )
+		for( ; i < RayCount; i++ )
 		{
 			RandomSequence RandSequence;
 #if 0
@@ -310,15 +306,6 @@ float TraceLocalLight(
 					StepOffset);
 			}
 
-			float OutputDebugSignal = Result.bValidHit ? 0.0f : 1.0f;
-			if (DebugOutputType == 1)	// Invalid page
-			{
-				DebugOutput = lerp(	
-					OutputDebugSignal.xxx,
-					lerp( float3( 0, 1, 0 ), float3( 1, 0, 1 ), Result.SampleMissCount / 4.0f ),
-					0.75f );
-			}
-
 			if ( Result.bValidHit )
 			{
 				// TODO: Min over all the rays with > 1 spp?
@@ -364,14 +351,8 @@ float TraceLocalLight(
 			uint Seed = asuint( StepOffset );
 			StepOffset = ( EvolveSobolSeed( Seed ) >> 8 ) * 5.96046447754e-08; // * 2^-24;
 		}
-		SampleCount = min(i + 1, uint(RayCount));		// break vs regular for loop exit
+		uint SampleCount = min(i + 1, RayCount);		// break vs regular for loop exit
 		RayMissFactor /= float(SampleCount);
-	}
-
-	if (DebugOutputType == 2)	// Sample count
-	{
-		float Ratio = float(SampleCount) / float(RayCount);
-		DebugOutput = lerp(RayMissFactor.xxx, lerp(float3(0, 1, 0), float3(1, 0, 0), Ratio), 1.0f);
 	}
 
 	return RayMissFactor;

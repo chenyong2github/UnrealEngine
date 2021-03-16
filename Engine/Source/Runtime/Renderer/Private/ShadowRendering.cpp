@@ -188,7 +188,18 @@ static TAutoConsoleVariable<float> CVarShadowMaxSlopeScaleDepthBias(
 	TEXT("Higher values give better self-shadowing, but increase self-shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserDirectional(
+	TEXT("r.Shadow.Virtual.Denoiser.EnableDirectional"),
+	1,
+	TEXT("Apply denoiser to directional light virtual shadow maps."),
+	ECVF_RenderThreadSafe);
 FForwardScreenSpaceShadowMaskTextureMobileOutputs GScreenSpaceShadowMaskTextureMobileOutputs;
+
+static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserLocal(
+	TEXT("r.Shadow.Virtual.Denoiser.EnableLocal"),
+	0,
+	TEXT("Apply denoiser to local light virtual shadow maps."),
+	ECVF_RenderThreadSafe);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Hair
@@ -196,18 +207,6 @@ static TAutoConsoleVariable<int32> CVarHairStrandsCullPerObjectShadowCaster(
 	TEXT("r.HairStrands.Shadow.CullPerObjectShadowCaster"),
 	1,
 	TEXT("Enable CPU culling of object casting per-object shadow (stationnary object)"),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarVirtualSmDenoiser(
-	TEXT("r.Shadow.Virtual.Denoiser"),
-	1,
-	TEXT("Apply denoiser on virtual shadow map masks."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarVirtualSmDenoiserTemporal(
-	TEXT("r.Shadow.Virtual.Denoiser.Temporal"),
-	0,
-	TEXT("Use temporal reprojection (when applicable)."),
 	ECVF_RenderThreadSafe);
 
 DEFINE_GPU_DRAWCALL_STAT(ShadowProjection);
@@ -1993,133 +1992,92 @@ void FDeferredShadingSceneRenderer::RenderShadowProjections(
 
 				if (ScissorRect.Area() > 0)
 				{
-					if (CVarVirtualSmDenoiser.GetValueOnRenderThread() != 0)
+					// Project virtual shadow maps
+					FRDGTextureRef SignalTexture;
+					bool bUseDenoiser = false;
+					if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 					{
-						const IScreenSpaceDenoiser* Denoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
-
-
-						// Virtual SMs draw into a texture formatted for the denoiser. See VirtualShadowMapProjection.usf
-						FRDGTextureRef SignalTexture;
-						const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
-						{
-							FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
-								SceneTextures.Config.Extent,
-								PF_FloatRGBA,
-								FClearValueBinding(ClearColor),
-								TexCreate_ShaderResource | TexCreate_RenderTargetable);
-
-							SignalTexture = GraphBuilder.CreateTexture(Desc, TEXT("VirtualShadowMap_Signal"));
-						}
-
-						// Project virtual shadow maps
-						bool bUseTemporal = false;
-						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
-						{
-							RenderVirtualShadowMapProjectionForDenoising(
-								VisibleLightInfo.FindShadowClipmapForView(&View),
-								GraphBuilder,
-								View,
-								VirtualShadowMapArray,
-								ScissorRect,
-								SignalTexture,
-								bUseTemporal);
-						}
-						else
-						{
-							check(VirtualShadowMaps.Num() == 1);
-							RenderVirtualShadowMapProjectionForDenoising(
-								VirtualShadowMaps[0],
-								GraphBuilder,
-								View,
-								VirtualShadowMapArray,
-								ScissorRect,
-								SignalTexture,
-								bUseTemporal);
-						}
-
-						bUseTemporal = bUseTemporal && (CVarVirtualSmDenoiserTemporal.GetValueOnRenderThread() != 0);
-
-						// Shadow filtering via denoiser
-						FSSDSignalTextures DenoisedSignal;
-						{
-							RDG_EVENT_SCOPE(GraphBuilder, "%s %dx%d",
-								Denoiser->GetDebugName(),
-								View.ViewRect.Width(), View.ViewRect.Height());
-
-							IScreenSpaceDenoiser::FVirtualShadowMapMaskInputs Inputs;
-							Inputs.Signal = SignalTexture;
-
-							DenoisedSignal = Denoiser->DenoiseVirtualShadowMapMask(
-								GraphBuilder,
-								View,
-								&View.PrevViewInfo,
-								SceneTextureParameters,
-								LightSceneInfo,
-								ScissorRect,
-								Inputs,
-								bUseTemporal);
-						}
-
-						// Composite into light's screen shadow mask
-						CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, DenoisedSignal, ScreenShadowMaskTexture);
+						bUseDenoiser = CVarVirtualSmDenoiserDirectional.GetValueOnRenderThread() != 0;
+						SignalTexture = RenderVirtualShadowMapProjection(
+							GraphBuilder,
+							SceneTextures,
+							View,
+							VirtualShadowMapArray,
+							ScissorRect,
+							nullptr,	// Hair
+							VisibleLightInfo.FindShadowClipmapForView(&View));
 					}
 					else
 					{
-						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
-						{
-							RenderVirtualShadowMapProjection(
-								VisibleLightInfo.FindShadowClipmapForView(&View),
-								GraphBuilder,
-								View,
-								VirtualShadowMapArray,
-								ScissorRect,
-								ScreenShadowMaskTexture,
-								EVirtualShadowMapProjectionInputType::GBuffer,
-								bProjectingForForwardShading);
-						}
-						else
-						{
-							check(VirtualShadowMaps.Num() == 1);
-							RenderVirtualShadowMapProjection(
-								VirtualShadowMaps[0],
-								GraphBuilder,
-								View,
-								VirtualShadowMapArray,
-								ScissorRect,
-								ScreenShadowMaskTexture,
-								EVirtualShadowMapProjectionInputType::GBuffer,
-								bProjectingForForwardShading);
-						}
+						bUseDenoiser = CVarVirtualSmDenoiserLocal.GetValueOnRenderThread() != 0;
+						check(VirtualShadowMaps.Num() == 1);
+						SignalTexture = RenderVirtualShadowMapProjection(
+							GraphBuilder,
+							SceneTextures,
+							View,
+							VirtualShadowMapArray,
+							ScissorRect,
+							nullptr,	// Hair
+							VirtualShadowMaps[0]);
 					}
 
-					// Sub-pixel shadow (no filtering for hair)
+					// Shadow filtering via denoiser
+					if (bUseDenoiser)
+					{
+						const IScreenSpaceDenoiser* Denoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
+
+						RDG_EVENT_SCOPE(GraphBuilder, "%s %dx%d",
+							Denoiser->GetDebugName(),
+							View.ViewRect.Width(), View.ViewRect.Height());
+
+						IScreenSpaceDenoiser::FVirtualShadowMapMaskInputs Inputs;
+						Inputs.Signal = SignalTexture;
+
+						FSSDSignalTextures DenoisedSignal = Denoiser->DenoiseVirtualShadowMapMask(
+							GraphBuilder,
+							View,
+							SceneTextureParameters,
+							LightSceneInfo,
+							ScissorRect,
+							Inputs);
+
+						SignalTexture = DenoisedSignal.Textures[0];
+					}
+
+					// Composite into screen shadow mask
+					CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, SignalTexture, ScreenShadowMaskTexture);
+
+					// Sub-pixel shadow (no denoising for hair)
 					if (HairStrands::HasViewHairStrandsData(View) && ScreenShadowMaskSubPixelTexture)
 					{
+						// TODO: This is ugly, but just a temporary workaround for branch divergence!
+						FRDGTextureRef HairCategorizationTexture = (*View.HairStrandsViewData.UniformBuffer)->HairCategorizationTexture;
 						if (VisibleLightInfo.VirtualShadowMapClipmaps.Num() > 0)
 						{
-							RenderVirtualShadowMapProjection(
-								VisibleLightInfo.FindShadowClipmapForView(&View),
+							SignalTexture = RenderVirtualShadowMapProjection(
 								GraphBuilder,
+								SceneTextures,
 								View,
 								VirtualShadowMapArray,
 								ScissorRect,
-								ScreenShadowMaskSubPixelTexture,
-								EVirtualShadowMapProjectionInputType::HairStrands,
-								bProjectingForForwardShading);
+								HairCategorizationTexture,
+								VisibleLightInfo.FindShadowClipmapForView(&View));
 						}
 						else
 						{
 							check(VirtualShadowMaps.Num() == 1);
-							RenderVirtualShadowMapProjection(
-								VirtualShadowMaps[0],
+							SignalTexture = RenderVirtualShadowMapProjection(
 								GraphBuilder,
+								SceneTextures,
 								View,
 								VirtualShadowMapArray,
 								ScissorRect,
-								ScreenShadowMaskSubPixelTexture,
-								EVirtualShadowMapProjectionInputType::HairStrands,
-								bProjectingForForwardShading);
+								HairCategorizationTexture,
+								VirtualShadowMaps[0]);
 						}
+
+						// Composite into sub pixel mask
+						CompositeVirtualShadowMapMask(GraphBuilder, ScissorRect, SignalTexture, ScreenShadowMaskSubPixelTexture);
 					}
 				}
 			}

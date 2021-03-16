@@ -151,15 +151,14 @@ float3 GetRandomDirectionalLightRayDir(FLightShaderParameters Light, float2 E)
 float TraceDirectional(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
-	float4 SvPosition,
+	uint2 PixelPos,
 	const float SceneDepth,
 	float3 TranslatedWorldPosition,
 	float RayStartOffset,
-	int RayCount,
-	int SamplesPerRay,
+	uint RayCount,
+	uint SamplesPerRay,
 	float RayLengthScale,
-	int DebugOutputType,
-	inout float3 DebugOutput,
+	const half Noise,
 	inout float InOutHitDistance)
 {
 	float3 WorldPosition = TranslatedWorldPosition - View.PreViewTranslation;
@@ -173,13 +172,14 @@ float TraceDirectional(
 	// Too low values will greatly restrict how large penumbras can be in screen space.
 	float RayLength = RayLengthScale * DistanceFromViewOrigin;
 
-	float StepOffset = InterleavedGradientNoise(SvPosition.xy, View.StateFrameIndexMod8);
+	float StepOffset = Noise;
 
-	float RayMissFactor = 0;
-	for (int i = 0; i < RayCount; ++i)
+	uint RayMissCount = 0;
+	uint i = 0;
+	for ( ; i < RayCount; i++)
 	{
 		RandomSequence RandSequence;
-		RandomSequence_Initialize(RandSequence, uint2(SvPosition.xy), i, View.StateFrameIndexMod8, RayCount);
+		RandomSequence_Initialize(RandSequence, PixelPos, i, View.StateFrameIndexMod8, RayCount);
 #if 1
 		float2 E = RandomSequence_GenerateSample2D(RandSequence);
 #else
@@ -198,24 +198,43 @@ float TraceDirectional(
 			SamplesPerRay,
 			StepOffset);
 
-		float OutputDebugSignal = Result.bValidHit ? 0.0f : 1.0f;
-		if (DebugOutputType == 1)	// Invalid page
-		{
-			DebugOutput = lerp(
-				OutputDebugSignal.xxx,
-				lerp( float3( 0, 1, 0 ), float3( 1, 0, 1 ), Result.SampleMissCount / 4.0f ),
-				0.75f );
-		}
-
 		if (Result.bValidHit)
 		{
 			// TODO: min over all the rays if we keep denoiser with > 1 spp?
 			InOutHitDistance = Result.OccluderDistance;
 		}
 
-		RayMissFactor += Result.bValidHit ? 0 : 1;
-	}
-	RayMissFactor /= float(RayCount);
+		RayMissCount += Result.bValidHit ? 0 : 1;
 
+#if SMRT_ADAPTIVE_RAY_COUNT && COMPILER_SUPPORTS_WAVE_VOTE
+		if( i == 0 )
+		{
+			bool bHit = Result.bValidHit;
+			if( bHit )
+			{
+				// TODO: Some simple heuristic for directional lights
+				//bHit = Result.OccluderDistance * Light.SourceRadius * ( 0.25 * View.ViewSizeAndInvSize.y / ( SceneDepth * View.ClipToView[1][1] ) ) > max( DistToLight - Result.OccluderDistance, 0.001 );
+			}
+
+			// All lanes miss or hit something close enough to not be noisy.
+			bool bAllLanesMiss = WaveActiveAllTrue( !bHit );
+			if( bAllLanesMiss )
+			{
+				break;
+			}
+		}
+		else if( i == 1 )
+		{
+			// After 2 iterations and all have hit, must be in umbra.
+			bool bAllLanesHit = WaveActiveAllTrue( RayMissCount == 0 );
+			if( bAllLanesHit )
+			{
+				break;
+			}
+		}
+#endif
+	}
+	uint SampleCount = min(i + 1, RayCount);		// break vs regular for loop exit
+	float RayMissFactor = float(RayMissCount) / float(SampleCount);
 	return RayMissFactor;
 }

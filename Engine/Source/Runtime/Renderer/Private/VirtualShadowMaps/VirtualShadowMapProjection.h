@@ -13,59 +13,32 @@
 
 class FVirtualShadowMapClipmap;
 
-enum class EVirtualShadowMapProjectionInputType
-{
-	GBuffer = 0,
-	HairStrands = 1
-};
-
-void RenderVirtualShadowMapProjectionForDenoising(
-	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef SignalTexture,
-	bool& bOutUseTemporalDenoising);
-
-void RenderVirtualShadowMapProjectionForDenoising(
-	FProjectedShadowInfo* ShadowInfo,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef SignalTexture,
-	bool& bOutUseTemporalDenoising);
-
-void RenderVirtualShadowMapProjection(
-	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef ScreenShadowMaskTexture,
-	EVirtualShadowMapProjectionInputType InputType,
-	bool bProjectingForForwardShading);
-
-void RenderVirtualShadowMapProjection(
-	FProjectedShadowInfo* ShadowInfo,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef ScreenShadowMaskTexture,
-	EVirtualShadowMapProjectionInputType InputType,
-	bool bProjectingForForwardShading);
-
-void RenderVirtualShadowMapProjection(
+FRDGTextureRef RenderVirtualShadowMapProjection(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
-	FRDGTextureRef ShadowMaskBits );
+	const FIntRect ScissorRect,
+	FRDGTextureRef HairCategorization,
+	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap);
+
+FRDGTextureRef RenderVirtualShadowMapProjection(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	const FIntRect ScissorRect,
+	FRDGTextureRef HairCategorization,
+	FProjectedShadowInfo* ShadowInfo);
+
+FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	FVirtualShadowMapArray& VirtualShadowMapArray );
 
 void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,
 	const FIntRect ScissorRect,
-	const FSSDSignalTextures& InputSignal,
+	const FRDGTextureRef Input,
 	FRDGTextureRef OutputShadowMaskTexture);

@@ -344,12 +344,10 @@ public:
 	static FSSDSignalTextures DenoiseVirtualShadowMapMask(
 		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
-		FPreviousViewInfo* PreviousViewInfos,
 		const FSceneTextureParameters& SceneTextures,
 		const FLightSceneInfo* LightSceneInfo,
 		FIntRect LightScissorRect,
-		const FVirtualShadowMapMaskInputs& InputParameters,
-		bool bUseTemporal);
+		const FVirtualShadowMapMaskInputs& InputParameters);
 
 	/** Returns the interface of the default denoiser of the renderer. */
 	static const IScreenSpaceDenoiser* GetDefaultDenoiser();

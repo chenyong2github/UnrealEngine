@@ -23,7 +23,6 @@
 #include "ShadowRendering.h"
 #include "SceneRendering.h"
 #include "VirtualShadowMapClipmap.h"
-#include "HairStrands/HairStrandsData.h"
 
 static TAutoConsoleVariable<float> CVarContactShadowLength(
 	TEXT( "r.Shadow.Virtual.ContactShadowLength" ),
@@ -56,14 +55,14 @@ TAutoConsoleVariable<int32> CVarVirtualShadowOnePassProjection(
 
 static TAutoConsoleVariable<int32> CVarSMRTRayCountLocal(
 	TEXT( "r.Shadow.Virtual.SMRT.RayCountLocal" ),
-	0,
+	7,
 	TEXT( "Ray count for shadow map tracing of local lights. 0 = disabled." ),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayLocal(
 	TEXT( "r.Shadow.Virtual.SMRT.SamplesPerRayLocal" ),
-	16,
+	8,
 	TEXT( "Shadow map samples per ray for local lights" ),
 	ECVF_RenderThreadSafe
 );
@@ -86,14 +85,14 @@ static TAutoConsoleVariable<int32> CVarSMRTRayCountDirectional(
 
 static TAutoConsoleVariable<int32> CVarSMRTSamplesPerRayDirectional(
 	TEXT( "r.Shadow.Virtual.SMRT.SamplesPerRayDirectional" ),
-	12,
+	8,
 	TEXT( "Shadow map samples per ray for directional lights" ),
 	ECVF_RenderThreadSafe
 );
 
 static TAutoConsoleVariable<float> CVarSMRTRayLengthScaleDirectional(
 	TEXT( "r.Shadow.Virtual.SMRT.RayLengthScaleDirectional" ),
-	1.0f,
+	1.5f,
 	TEXT( "Length of ray to shoot for directional lights, scaled by distance to camera." )
 	TEXT( "Shorter rays limit the screen space size of shadow penumbra. " )
 	TEXT( "Longer rays require more samples to avoid shadows disconnecting from contact points. " ),
@@ -107,74 +106,6 @@ static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
 	ECVF_RenderThreadSafe
 );
 
-BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
-	SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER(int32, VirtualShadowMapId)
-	SHADER_PARAMETER(float, ContactShadowLength)
-	SHADER_PARAMETER(float, NormalOffsetWorld)
-	SHADER_PARAMETER(int32, DebugOutputType)
-	SHADER_PARAMETER(int32, SMRTRayCount)
-	SHADER_PARAMETER(int32, SMRTSamplesPerRay)
-	SHADER_PARAMETER(float, SMRTRayLengthScale)
-	SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
-	SHADER_PARAMETER(uint32, InputType)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
-class FVirtualShadowMapProjectionSpotPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionSpotPS);
-	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionSpotPS, FGlobalShader);
-	
-	class FOutputTypeDim : SHADER_PERMUTATION_ENUM_CLASS("OUTPUT_TYPE", EVirtualShadowMapProjectionOutputType);
-	using FPermutationDomain = TShaderPermutationDomain<FOutputTypeDim>;
-
-	using FParameters = FProjectionParameters;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionSpotPS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapProjectionSpotPS", SF_Pixel);
-
-class FVirtualShadowMapProjectionDirectionalPS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionDirectionalPS);
-	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionDirectionalPS, FGlobalShader);
-
-	class FOutputTypeDim : SHADER_PERMUTATION_ENUM_CLASS("OUTPUT_TYPE", EVirtualShadowMapProjectionOutputType);
-	using FPermutationDomain = TShaderPermutationDomain<FOutputTypeDim>;
-
-	using FParameters = FProjectionParameters;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportNanite(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
-	}
-};
-IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionDirectionalPS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapProjectionDirectionalPS", SF_Pixel);
-
-
-
-BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapProjectionCompositeParameters, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, InputSignal)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
 
 // Composite denoised shadow projection mask onto the light's shadow mask
 // Basically just a copy shader with a special blend mode
@@ -182,8 +113,11 @@ class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS);
 	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCompositePS, FGlobalShader);
-		
-	using FParameters = FVirtualShadowMapProjectionCompositeParameters;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, InputSignal)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -198,262 +132,16 @@ class FVirtualShadowMapProjectionCompositePS : public FGlobalShader
 };
 IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS, "/Engine/Private/VirtualShadowMaps/VirtualShadowMapProjection.usf", "VirtualShadowMapCompositePS", SF_Pixel);
 
-// Returns true if temporal denoising should be used
-static bool AddPass_RenderVirtualShadowMapProjection(
-	const FLightSceneProxy* LightProxy,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View, 
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	int VirtualShadowMapId,
-	const FIntRect ScissorRect,
-	EVirtualShadowMapProjectionInputType InputType,
-	EVirtualShadowMapProjectionOutputType OutputType,
-	const FRenderTargetBinding& RenderTargetBinding,
-	FRHIBlendState* BlendState)
-{
-	check(ScissorRect.Area() > 0);
-		
-	FGlobalShaderMap* ShaderMap = View.ShaderMap;
-
-	FProjectionParameters* PassParameters = GraphBuilder.AllocParameters<FProjectionParameters>();
-	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
-	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBuffer(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth);
-	PassParameters->View = View.ViewUniformBuffer;
-		
-	FLightShaderParameters LightParameters;
-	LightProxy->GetLightShaderParameters(LightParameters);
-	PassParameters->Light = LightParameters;
-	PassParameters->VirtualShadowMapId = VirtualShadowMapId;
-	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
-	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
-	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
-	PassParameters->InputType = uint32(InputType);
-	PassParameters->HairStrands = HairStrands::BindHairStrandsViewUniformParameters(View);
-	PassParameters->RenderTargets[0] = RenderTargetBinding;
-
-	if (LightProxy->GetLightType() == LightType_Directional)
-	{
-		PassParameters->SMRTRayCount = CVarSMRTRayCountDirectional.GetValueOnRenderThread();
-		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayDirectional.GetValueOnRenderThread();
-		PassParameters->SMRTRayLengthScale = CVarSMRTRayLengthScaleDirectional.GetValueOnRenderThread();
-		PassParameters->SMRTCotMaxRayAngleFromLight = 0.0f;	// unused in this path
-
-		FVirtualShadowMapProjectionDirectionalPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FVirtualShadowMapProjectionDirectionalPS::FOutputTypeDim>(OutputType);
-		auto PixelShader = ShaderMap->GetShader<FVirtualShadowMapProjectionDirectionalPS>(PermutationVector);
-		ValidateShaderParameters(PixelShader, *PassParameters);
-
-		// NOTE: We use SV_Position in the shader, so we don't need separate scissor/view rect
-		FPixelShaderUtils::AddFullscreenPass(GraphBuilder,
-			ShaderMap,
-			(OutputType == EVirtualShadowMapProjectionOutputType::Debug) ? RDG_EVENT_NAME("Debug Directional Projection") : RDG_EVENT_NAME("Directional Projection"),
-			PixelShader,
-			PassParameters,
-			ScissorRect,
-			BlendState);
-
-		// Use temporal denoising with SMRT
-		return PassParameters->SMRTRayCount > 0;
-	}
-	else
-	{
-		PassParameters->SMRTRayCount = CVarSMRTRayCountLocal.GetValueOnRenderThread();
-		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayLocal.GetValueOnRenderThread();
-		PassParameters->SMRTRayLengthScale = 0.0f;		// unused in this path
-		PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
-
-		FVirtualShadowMapProjectionSpotPS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FVirtualShadowMapProjectionSpotPS::FOutputTypeDim>(OutputType);
-		auto PixelShader = ShaderMap->GetShader<FVirtualShadowMapProjectionSpotPS>(PermutationVector);
-		ValidateShaderParameters(PixelShader, *PassParameters);
-
-		// NOTE: We use SV_Position in the shader, so we don't need separate scissor/view rect
-		FPixelShaderUtils::AddFullscreenPass(GraphBuilder,
-			ShaderMap,
-			(OutputType == EVirtualShadowMapProjectionOutputType::Debug) ? RDG_EVENT_NAME("Debug Spot Projection") : RDG_EVENT_NAME("Spot Projection"),
-			PixelShader,
-			PassParameters,
-			ScissorRect,
-			BlendState);
-
-		// Use temporal denoising with SMRT
-		return PassParameters->SMRTRayCount > 0;
-	}
-
-	return false;
-}
-
-static FRDGTextureRef CreateDebugOutput(FRDGBuilder& GraphBuilder, FIntPoint Extent)
-{
-	FRDGTextureDesc DebugOutputDesc = FRDGTextureDesc::Create2D(
-		Extent,
-		PF_A32B32G32R32F,
-		FClearValueBinding::Transparent,
-		TexCreate_ShaderResource | TexCreate_RenderTargetable
-	);
-
-	return GraphBuilder.CreateTexture(DebugOutputDesc, TEXT("Shadow.Virtual.DebugProjection"));
-}
-
-// Returns true if temporal denoising should be used
-static bool RenderVirtualShadowMapProjectionCommon(
-	const FLightSceneProxy* LightProxy,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View, 
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	int32 VirtualShadowMapId,
-	const FIntRect ScissorRect,
-	EVirtualShadowMapProjectionInputType InputType,
-	EVirtualShadowMapProjectionOutputType OutputType,
-	const FRenderTargetBinding& RenderTargetBinding,
-	FRHIBlendState* BlendState)
-{
-	// Main Pass
-	bool bOutUseTemporalDenoising = AddPass_RenderVirtualShadowMapProjection(
-		LightProxy,
-		GraphBuilder,
-		View,
-		VirtualShadowMapArray,
-		VirtualShadowMapId,
-		ScissorRect,
-		InputType,
-		OutputType,
-		RenderTargetBinding,
-		BlendState);
-
-	// Debug visualization
-	const int32 DebugVisualize = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
-	if (DebugVisualize > 0)
-	{
-		FRDGTextureRef DebugOutput = CreateDebugOutput(GraphBuilder, View.ViewRect.Max);
-		FRenderTargetBinding DebugRenderTargetBinding(DebugOutput, ERenderTargetLoadAction::EClear);
-
-		AddPass_RenderVirtualShadowMapProjection(
-			LightProxy,
-			GraphBuilder,
-			View,
-			VirtualShadowMapArray,
-			VirtualShadowMapId,
-			ScissorRect,
-			InputType,
-			EVirtualShadowMapProjectionOutputType::Debug,
-			DebugRenderTargetBinding,
-			nullptr);
-
-		GraphBuilder.QueueTextureExtraction(DebugOutput, &VirtualShadowMapArray.DebugVisualizationProjectionOutput);
-	}
-
-	return bOutUseTemporalDenoising;
-}
-
-void RenderVirtualShadowMapProjectionForDenoising(
-	FProjectedShadowInfo* ShadowInfo,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef SignalTexture,
-	bool& bOutUseTemporalDenoising)
-{
-	FRenderTargetBinding RenderTargetBinding(SignalTexture, ERenderTargetLoadAction::EClear);
-	bOutUseTemporalDenoising = RenderVirtualShadowMapProjectionCommon(
-		ShadowInfo->GetLightSceneInfo().Proxy,
-		GraphBuilder,
-		View,
-		VirtualShadowMapArray,
-		ShadowInfo->VirtualShadowMaps[0]->ID,
-		ScissorRect,
-		EVirtualShadowMapProjectionInputType::GBuffer,
-		EVirtualShadowMapProjectionOutputType::Denoiser,
-		RenderTargetBinding,
-		nullptr);
-}
-
-void RenderVirtualShadowMapProjectionForDenoising(
-	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef SignalTexture,
-	bool& bOutUseTemporalDenoising)
-{	
-	FRenderTargetBinding RenderTargetBinding(SignalTexture, ERenderTargetLoadAction::EClear);
-	bOutUseTemporalDenoising = RenderVirtualShadowMapProjectionCommon(
-		Clipmap->GetLightSceneInfo().Proxy,
-		GraphBuilder,
-		View,
-		VirtualShadowMapArray,
-		Clipmap->GetVirtualShadowMap()->ID,
-		ScissorRect,
-		EVirtualShadowMapProjectionInputType::GBuffer,
-		EVirtualShadowMapProjectionOutputType::Denoiser,
-		RenderTargetBinding,
-		nullptr);
-}
-
-void RenderVirtualShadowMapProjection(
-	FProjectedShadowInfo* ShadowInfo,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef ScreenShadowMaskTexture,
-	EVirtualShadowMapProjectionInputType InputType,
-	bool bProjectingForForwardShading)
-{
-	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);
-	FRHIBlendState* BlendState = ShadowInfo->GetBlendStateForProjection(bProjectingForForwardShading, false);
-	RenderVirtualShadowMapProjectionCommon(
-		ShadowInfo->GetLightSceneInfo().Proxy,
-		GraphBuilder,
-		View,
-		VirtualShadowMapArray,
-		ShadowInfo->VirtualShadowMaps[0]->ID,
-		ScissorRect,
-		InputType,
-		EVirtualShadowMapProjectionOutputType::ScreenShadowMask,
-		RenderTargetBinding,
-		BlendState);
-}
-
-void RenderVirtualShadowMapProjection(
-	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
-	FRDGBuilder& GraphBuilder,
-	const FViewInfo& View,
-	FVirtualShadowMapArray& VirtualShadowMapArray,
-	const FIntRect ScissorRect,
-	FRDGTextureRef ScreenShadowMaskTexture,
-	EVirtualShadowMapProjectionInputType InputType,
-	bool bProjectingForForwardShading)
-{
-	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);	
-	// See FProjectedShadowInfo::GetBlendStateForProjection. TODO: Support other modes in this path?
-	FRHIBlendState* BlendState = TStaticBlendState<CW_BA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI();
-	RenderVirtualShadowMapProjectionCommon(
-		Clipmap->GetLightSceneInfo().Proxy,
-		GraphBuilder,
-		View,
-		VirtualShadowMapArray,
-		Clipmap->GetVirtualShadowMap()->ID,
-		ScissorRect,
-		InputType,
-		EVirtualShadowMapProjectionOutputType::ScreenShadowMask,
-		RenderTargetBinding,
-		BlendState);
-}
-
-
 void CompositeVirtualShadowMapMask(
 	FRDGBuilder& GraphBuilder,
 	const FIntRect ScissorRect,
-	const FSSDSignalTextures& InputSignal,
+	const FRDGTextureRef Input,
 	FRDGTextureRef OutputShadowMaskTexture)
 {
 	auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
 
-	FVirtualShadowMapProjectionCompositeParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositeParameters>();
-	PassParameters->InputSignal = InputSignal.Textures[0];
+	FVirtualShadowMapProjectionCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionCompositePS::FParameters>();
+	PassParameters->InputSignal = Input;
 
 	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputShadowMaskTexture, ERenderTargetLoadAction::ELoad);
 
@@ -472,33 +160,45 @@ void CompositeVirtualShadowMapMask(
 		BlendState);
 }
 
+
 class FVirtualShadowMapProjectionCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVirtualShadowMapProjectionCS);
 	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCS, FGlobalShader)
 	
+	class FDirectionalLightDim		: SHADER_PERMUTATION_BOOL("DIRECTIONAL_LIGHT");
 	class FSMRTAdaptiveRayCountDim	: SHADER_PERMUTATION_BOOL("SMRT_ADAPTIVE_RAY_COUNT");
 	class FTwoPhysicalTexturesDim	: SHADER_PERMUTATION_BOOL("TWO_PHYSICAL_TEXTURES");
+	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
+
 	using FPermutationDomain = TShaderPermutationDomain<
+		FDirectionalLightDim,
+		FOnePassProjectionDim,
 		FSMRTAdaptiveRayCountDim,
-		FTwoPhysicalTexturesDim >;
+		FTwoPhysicalTexturesDim	>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTexturesStruct)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, ShadowMapProjectionData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D< uint >, RWShadowMaskBits)
-		SHADER_PARAMETER(uint32, NumDirectionalLightSmInds)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)		
+		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ContactShadowLength)
 		SHADER_PARAMETER(float, NormalOffsetWorld)
-		SHADER_PARAMETER(int32, DebugOutputType)
-		SHADER_PARAMETER(int32, SMRTRayCount)
-		SHADER_PARAMETER(int32, SMRTSamplesPerRay)
+		SHADER_PARAMETER(uint32, SMRTRayCount)
+		SHADER_PARAMETER(uint32, SMRTSamplesPerRay)
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
 		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
+		SHADER_PARAMETER(int32, DebugOutputType)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint4>, HairCategorizationTexture)
+		SHADER_PARAMETER(uint32, bUseHairData)
+		// One pass projection parameters
+		SHADER_PARAMETER_STRUCT_REF(FForwardLightData, ForwardLightData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, VirtualShadowMapIdRemap)	// TODO: Move to VSM UB?
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D< uint >, RWShadowMaskBits)
+		// Pass per light parameters
+		SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
+		SHADER_PARAMETER(int32, LightUniformVirtualShadowMapId)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSignal)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static void ModifyCompilationEnvironment( const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment )
@@ -521,6 +221,15 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
+		FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+		// Directional lights are always in separate passes as forward light data structure currently
+		// only contains a single single directional light.
+		if( PermutationVector.Get< FDirectionalLightDim >() && PermutationVector.Get< FOnePassProjectionDim >() )
+		{
+			return false;
+		}
+		
 		return DoesPlatformSupportNanite(Parameters.Platform);
 	}
 };
@@ -528,48 +237,170 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCS, "/Engine/Private/VirtualS
 
 extern int32 GVirtualShadowMapAtomicWrites;
 
-void RenderVirtualShadowMapProjection(
+static void RenderVirtualShadowMapProjectionCommon(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	const FViewInfo& View,
 	FVirtualShadowMapArray& VirtualShadowMapArray,
-	FRDGTextureRef ShadowMaskBits )
+	const FIntRect ProjectionRect,
+	FRDGTextureRef HairCategorization,
+	FRDGTextureRef OutputTexture,
+	const FLightSceneProxy* LightProxy = nullptr,
+	int32 VirtualShadowMapId = INDEX_NONE)
 {
 	FVirtualShadowMapProjectionCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FVirtualShadowMapProjectionCS::FParameters >();
 	PassParameters->SamplingParameters = VirtualShadowMapArray.GetSamplingParameters(GraphBuilder);
-
 	PassParameters->SceneTexturesStruct = SceneTextures.UniformBuffer;
 	PassParameters->View = View.ViewUniformBuffer;
-	PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
-	PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV( VirtualShadowMapArray.VirtualShadowMapIdRemapRDG[0] );	// FIXME Index proper view
-	PassParameters->NumDirectionalLightSmInds = VirtualShadowMapArray.NumDirectionalLights;
-
+	PassParameters->ProjectionRect = FIntVector4(ProjectionRect.Min.X, ProjectionRect.Min.Y, ProjectionRect.Max.X, ProjectionRect.Max.Y);
 	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
 	PassParameters->NormalOffsetWorld = CVarNormalOffsetWorld.GetValueOnRenderThread();
+	PassParameters->bUseHairData = HairCategorization != nullptr ? 1 : 0;
+	PassParameters->HairCategorizationTexture = HairCategorization ? HairCategorization : GSystemTextures.GetBlackDummy(GraphBuilder);
 
-	PassParameters->SMRTRayCount = CVarSMRTRayCountLocal.GetValueOnRenderThread();
-	PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayLocal.GetValueOnRenderThread();
-	PassParameters->SMRTRayLengthScale = 0.0f;		// Currently unused in this path
-	PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
-
-	PassParameters->RWShadowMaskBits = GraphBuilder.CreateUAV( ShadowMaskBits );
+	bool bDirectionalLight = false;
+	bool bOnePassProjection = LightProxy == nullptr;
+	if (bOnePassProjection)
+	{
+		// One pass projection
+		PassParameters->ForwardLightData = View.ForwardLightingResources->ForwardLightDataUniformBuffer;
+		PassParameters->VirtualShadowMapIdRemap = GraphBuilder.CreateSRV( VirtualShadowMapArray.VirtualShadowMapIdRemapRDG[0] );	// FIXME Index proper view
+		PassParameters->RWShadowMaskBits = GraphBuilder.CreateUAV( OutputTexture );	
+	}
+	else
+	{
+		// Pass per light
+		bDirectionalLight = LightProxy->GetLightType() == LightType_Directional;
+		FLightShaderParameters LightParameters;
+		LightProxy->GetLightShaderParameters(LightParameters);
+		PassParameters->Light = LightParameters;
+		PassParameters->LightUniformVirtualShadowMapId = VirtualShadowMapId;
+		PassParameters->RWSignal = GraphBuilder.CreateUAV( OutputTexture );
+	}
+ 
+	if (bDirectionalLight)
+	{
+		PassParameters->SMRTRayCount = CVarSMRTRayCountDirectional.GetValueOnRenderThread();
+		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayDirectional.GetValueOnRenderThread();
+		PassParameters->SMRTRayLengthScale = CVarSMRTRayLengthScaleDirectional.GetValueOnRenderThread();
+		PassParameters->SMRTCotMaxRayAngleFromLight = 0.0f;	// unused in this path
+	}
+	else
+	{
+		PassParameters->SMRTRayCount = CVarSMRTRayCountLocal.GetValueOnRenderThread();
+		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayLocal.GetValueOnRenderThread();
+		PassParameters->SMRTRayLengthScale = 0.0f;		// unused in this path
+		PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
+	}
 	
 	bool bAdaptiveRayCount = GRHISupportsWaveOperations && CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0;
 
 	FVirtualShadowMapProjectionCS::FPermutationDomain PermutationVector;
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDirectionalLightDim >( bDirectionalLight );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTAdaptiveRayCountDim >( bAdaptiveRayCount );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FTwoPhysicalTexturesDim >( GVirtualShadowMapAtomicWrites == 0 );
 
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
+	ClearUnusedGraphResources( ComputeShader, PassParameters );
+	ValidateShaderParameters( ComputeShader, *PassParameters );
 
-	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( View.ViewRect.Size(), 8 );
-
+	const FIntPoint GroupCount = FIntPoint::DivideAndRoundUp( ProjectionRect.Size(), 8 );
 	FComputeShaderUtils::AddPass(
 		GraphBuilder,
-		bAdaptiveRayCount ? RDG_EVENT_NAME("VirtualShadowMapProjection") : RDG_EVENT_NAME("VirtualShadowMapProjection (StaticRayCount)"),
+		bAdaptiveRayCount ? RDG_EVENT_NAME("VirtualShadowMapProjection") : RDG_EVENT_NAME("VirtualShadowMapProjection_StaticRayCount"),
 		ComputeShader,
 		PassParameters,
 		FIntVector( GroupCount.X, GroupCount.Y, 1 )
 	);
+}
+
+FRDGTextureRef RenderVirtualShadowMapProjectionOnePass(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	FVirtualShadowMapArray& VirtualShadowMapArray )
+{
+	FIntRect ProjectionRect = View.ViewRect;
+
+	const FRDGTextureDesc ShadowMaskDesc = FRDGTextureDesc::Create2D(
+		SceneTextures.Config.Extent,
+		PF_R32_UINT,
+		FClearValueBinding::None,
+		TexCreate_ShaderResource | TexCreate_UAV );
+
+	FRDGTextureRef ShadowMaskBits = GraphBuilder.CreateTexture( ShadowMaskDesc, TEXT("ShadowMaskBits") );
+	
+	RenderVirtualShadowMapProjectionCommon(
+		GraphBuilder,
+		SceneTextures,
+		View,
+		VirtualShadowMapArray,
+		ProjectionRect,
+		nullptr,		// TODO: Hair
+		ShadowMaskBits);
+
+	return ShadowMaskBits;
+}
+
+static FRDGTextureRef CreateSignalTexture(FRDGBuilder& GraphBuilder, FIntPoint Extent)
+{
+	const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+
+	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
+		Extent,
+		PF_FloatRGBA,
+		FClearValueBinding(ClearColor),
+		TexCreate_ShaderResource | TexCreate_UAV);
+
+	FRDGTextureRef Texture = GraphBuilder.CreateTexture(Desc, TEXT("Shadow.Virtual.Signal"));
+	AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(Texture), ClearColor);
+	return Texture;
+}
+
+FRDGTextureRef RenderVirtualShadowMapProjection(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	const FIntRect ScissorRect,
+	FRDGTextureRef HairCategorization,
+	FProjectedShadowInfo* ShadowInfo)
+{	
+	FRDGTextureRef SignalTexture = CreateSignalTexture(GraphBuilder, SceneTextures.Config.Extent);
+	RenderVirtualShadowMapProjectionCommon(
+		GraphBuilder,
+		SceneTextures,
+		View,
+		VirtualShadowMapArray,
+		ScissorRect,
+		HairCategorization,
+		SignalTexture,
+		ShadowInfo->GetLightSceneInfo().Proxy,
+		ShadowInfo->VirtualShadowMaps[0]->ID);
+	return SignalTexture;
+}
+
+FRDGTextureRef RenderVirtualShadowMapProjection(
+	FRDGBuilder& GraphBuilder,
+	const FMinimalSceneTextures& SceneTextures,
+	const FViewInfo& View,
+	FVirtualShadowMapArray& VirtualShadowMapArray,
+	const FIntRect ScissorRect,
+	FRDGTextureRef HairCategorization,
+	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap)
+{
+	FRDGTextureRef SignalTexture = CreateSignalTexture(GraphBuilder, SceneTextures.Config.Extent);
+	RenderVirtualShadowMapProjectionCommon(
+		GraphBuilder,
+		SceneTextures,
+		View,
+		VirtualShadowMapArray,		
+		ScissorRect,
+		HairCategorization,
+		SignalTexture,
+		Clipmap->GetLightSceneInfo().Proxy,
+		Clipmap->GetVirtualShadowMap()->ID);
+	return SignalTexture;
 }

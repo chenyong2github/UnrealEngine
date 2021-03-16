@@ -216,8 +216,6 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 	// Directional lights
 	for (uint Index = 0; Index < NumDirectionalLightSmInds; ++Index)
 	{
-		// Mark one page per directional light. Lights can have varying numbers of clipmap levels allocated which
-		// will all be contiguous in the array, so we hop between them using the counts.
 		int ClipmapStartId = VirtualShadowMapIdRemap[Index];
 		FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(ClipmapStartId);
 
