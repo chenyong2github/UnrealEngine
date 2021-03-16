@@ -23,7 +23,8 @@ void UDMXLibrary::PostLoad()
 		// Clean out controllers that were in the entity array before 4.27
 		if (UDMXEntityController* VoidController = Cast<UDMXEntityController>(Entity))
 		{
-			UE_LOG(LogDMXRuntime, Warning, TEXT("UE4.27: Removed obsolete Controllers from DMXLibrary %s. Please setup ports for the library and resave the asset."), *GetName());
+			// TODO: Upgrade path to 4.27
+			UE_LOG(LogDMXRuntime, Log, TEXT("UE4.27: Removed obsolete Controllers from DMXLibrary %s. Please setup ports for the library and resave the asset."), *GetName());
 			Modify();
 			Entities.Remove(VoidController);
 		}

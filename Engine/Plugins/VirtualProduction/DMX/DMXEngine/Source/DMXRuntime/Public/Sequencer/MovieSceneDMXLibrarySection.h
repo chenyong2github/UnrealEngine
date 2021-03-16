@@ -58,7 +58,7 @@ struct FDMXFixturePatchChannel
 
 	/** Points to the Fixture Patch */
 	UPROPERTY()
-	FDMXEntityFixturePatchRef FixturePatchReference;
+	FDMXEntityFixturePatchRef Reference;
 
 	/** Fixture function float channels */
 	UPROPERTY()

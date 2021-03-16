@@ -174,7 +174,7 @@ FDMXFixtureFunctionChannel* FDMXFunctionChannelData::TryGetFunctionChannel(const
 	{
 		// Find the patch channel that is using the same patch
 		const FDMXFixturePatchChannel* EqualPatchChannelPtr = MovieSceneDMXLibrarySection->GetFixturePatchChannels().FindByPredicate([this](const FDMXFixturePatchChannel& FixturePatchChannel) {
-			return FixturePatchChannel.FixturePatchReference.GetFixturePatch() == FixturePatch;
+			return FixturePatchChannel.Reference.GetFixturePatch() == FixturePatch;
 		});
 
 		if (EqualPatchChannelPtr)
@@ -213,7 +213,7 @@ FDMXAsyncDMXRecorder::FDMXAsyncDMXRecorder(UDMXLibrary* InDMXLibrary, UMovieScen
 	{
 		for (FDMXFixturePatchChannel& FixturePatchChannel : MovieSceneDMXLibrarySection->GetMutableFixturePatchChannels())
 		{
-			UDMXEntityFixturePatch* FixturePatch = FixturePatchChannel.FixturePatchReference.GetFixturePatch();
+			UDMXEntityFixturePatch* FixturePatch = FixturePatchChannel.Reference.GetFixturePatch();
 			
 			// Only valid patches
 			if (IsValid(FixturePatch))
