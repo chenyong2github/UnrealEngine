@@ -64,7 +64,7 @@ struct FBlendParameter
 	float Max;
 
 	/** The number of grid divisions for this parameter (axis). */
-	UPROPERTY(EditAnywhere, DisplayName = "Number of Grid Divisions", Category=BlendParameter, meta=(UIMin="1", ClampMin="1"))
+	UPROPERTY(EditAnywhere, DisplayName = "Grid Divisions", Category=BlendParameter, meta=(UIMin="1", ClampMin="1"))
 	int32 GridNum;
 
 	/** If true then samples will always be snapped to the grid on this axis when added, moved, or the axes are changed. */
