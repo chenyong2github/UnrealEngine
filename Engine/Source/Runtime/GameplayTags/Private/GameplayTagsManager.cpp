@@ -236,15 +236,16 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 {
 	SCOPE_SECONDS_ACCUMULATOR(STAT_GameplayTags_AddTagIniSearchPath);
 
-#if WITH_EDITOR
-	TagIniSearchPaths.AddUnique(RootDir);
-#endif
+	FGameplayTagSearchPathInfo* PathInfo = RegisteredSearchPaths.Find(RootDir);
 
-	TArray<FName>* SourcesInPathPtr = RegisteredSearchPaths.Find(RootDir);
-
-	if (SourcesInPathPtr == nullptr)
+	if (!PathInfo)
 	{
-		TArray<FName>& SourcesInPath = RegisteredSearchPaths.FindOrAdd(RootDir);
+		PathInfo = &RegisteredSearchPaths.FindOrAdd(RootDir);
+	}
+
+	if (!PathInfo->bWasSearched)
+	{
+		PathInfo->Reset();
 		
 		// Read all tags from the ini
 		TArray<FString> FilesInDirectory;
@@ -257,30 +258,44 @@ void UGameplayTagsManager::AddTagIniSearchPath(const FString& RootDir)
 			for (const FString& IniFilePath : FilesInDirectory)
 			{
 				const FName TagSource = FName(*FPaths::GetCleanFilename(IniFilePath));
-				SourcesInPath.AddUnique(TagSource);
-
-				ExtraTagIniList.AddUnique(IniFilePath);
+				PathInfo->SourcesInPath.Add(TagSource);
+				PathInfo->TagIniList.Add(IniFilePath);
 			}
+		}
+		
+		PathInfo->bWasSearched = true;
+	}
 
-			for (const FString& IniFilePath : FilesInDirectory)
+	if (!PathInfo->bWasAddedToTree)
+	{
+		for (const FString& IniFilePath : PathInfo->TagIniList)
+		{
+			TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
+			GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+			const FString IniDirectory = FPaths::GetPath(IniFilePath);
+			for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
 			{
-				TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
-				GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
-				const FString IniDirectory = FPaths::GetPath(IniFilePath);
-				for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
-				{
-					const FString RestrictedFileName = FString::Printf(TEXT("%s/%s"), *IniDirectory, *Config.RestrictedConfigName);
-					AddRestrictedGameplayTagSource(RestrictedFileName);
-				}
+				const FString RestrictedFileName = FString::Printf(TEXT("%s/%s"), *IniDirectory, *Config.RestrictedConfigName);
+				AddRestrictedGameplayTagSource(RestrictedFileName);
 			}
+		}
 
-			AddTagsFromAdditionalLooseIniFiles(FilesInDirectory);
+		AddTagsFromAdditionalLooseIniFiles(PathInfo->TagIniList);
 
+		PathInfo->bWasAddedToTree = true;
+
+		if (!bIsConstructingGameplayTagTree)
+		{
 			InvalidateNetworkIndex();
-
 			IGameplayTagsModule::OnGameplayTagTreeChanged.Broadcast();
 		}
 	}
+}
+
+void UGameplayTagsManager::GetTagSourceSearchPaths(TArray<FString>& OutPaths)
+{
+	OutPaths.Reset();
+	RegisteredSearchPaths.GenerateKeyArray(OutPaths);
 }
 
 void UGameplayTagsManager::AddRestrictedGameplayTagSource(const FString& FileName)
@@ -461,9 +476,18 @@ void UGameplayTagsManager::ConstructGameplayTagTree()
 				AddTagTableRow(TableRow, TagSource);
 			}
 
-			// Extra tags
-			AddTagIniSearchPath(FPaths::ProjectConfigDir() / TEXT("Tags"));
-			AddTagsFromAdditionalLooseIniFiles(ExtraTagIniList);
+			// Make sure default config list is added
+			FString DefaultPath = FPaths::ProjectConfigDir() / TEXT("Tags");
+			AddTagIniSearchPath(DefaultPath);
+
+			// Refresh any other search paths that need it
+			for (TPair<FString, FGameplayTagSearchPathInfo>& Pair : RegisteredSearchPaths)
+			{
+				if (!Pair.Value.IsValid())
+				{
+					AddTagIniSearchPath(Pair.Key);
+				}
+			}
 		}
 
 #if WITH_EDITOR
@@ -642,44 +666,27 @@ void UGameplayTagsManager::GetRestrictedTagConfigFiles(TArray<FString>& Restrict
 		}
 	}
 
-	for (const FString& IniFilePath : ExtraTagIniList)
+	for (const TPair<FString, FGameplayTagSearchPathInfo>& Pair : RegisteredSearchPaths)
 	{
-		TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
-		GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
-		for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
+		for (const FString& IniFilePath : Pair.Value.TagIniList)
 		{
-			RestrictedConfigFiles.Add(FString::Printf(TEXT("%s/%s"), *FPaths::GetPath(IniFilePath), *Config.RestrictedConfigName));
+			TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
+			GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
+			for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
+			{
+				RestrictedConfigFiles.Add(FString::Printf(TEXT("%s/%s"), *FPaths::GetPath(IniFilePath), *Config.RestrictedConfigName));
+			}
 		}
 	}
 }
 
 void UGameplayTagsManager::GetRestrictedTagSources(TArray<const FGameplayTagSource*>& Sources) const
 {
-	UGameplayTagsSettings* MutableDefault = GetMutableDefault<UGameplayTagsSettings>();
-
-	if (MutableDefault)
+	for (const TPair<FName, FGameplayTagSource>& Pair : TagSources)
 	{
-		for (const FRestrictedConfigInfo& Config : MutableDefault->RestrictedConfigFiles)
+		if (Pair.Value.SourceType == EGameplayTagSourceType::RestrictedTagList)
 		{
-			const FGameplayTagSource* Source = FindTagSource(*Config.RestrictedConfigName);
-			if (Source)
-			{
-				Sources.Add(Source);
-			}
-		}
-	}
-
-	for (const FString& IniFilePath : ExtraTagIniList)
-	{
-		TArray<FRestrictedConfigInfo> IniRestrictedConfigs;
-		GameplayTagUtil::GetRestrictedConfigsFromIni(IniFilePath, IniRestrictedConfigs);
-		for (const FRestrictedConfigInfo& Config : IniRestrictedConfigs)
-		{
-			const FGameplayTagSource* Source = FindTagSource(*Config.RestrictedConfigName);
-			if (Source)
-			{
-				Sources.Add(Source);
-			}
+			Sources.Add(&Pair.Value);
 		}
 	}
 }
@@ -1536,16 +1543,18 @@ void UGameplayTagsManager::EditorRefreshGameplayTagTree()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UGameplayTagsManager::EditorRefreshGameplayTagTree)
 
+	// Clear out source path info so it will reload off disk
+	for (TPair<FString, FGameplayTagSearchPathInfo>& Pair : RegisteredSearchPaths)
+	{
+		Pair.Value.bWasSearched = false;
+		Pair.Value.bWasAddedToTree = false;
+	}
+
 	DestroyGameplayTagTree();
 	LoadGameplayTagTables(false);
 	ConstructGameplayTagTree();
 
 	OnEditorRefreshGameplayTagTree.Broadcast();
-}
-
-void UGameplayTagsManager::GetTagSourceSearchPaths(TArray<FString>& OutPaths)
-{
-	OutPaths = TagIniSearchPaths;
 }
 
 FGameplayTagContainer UGameplayTagsManager::RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const
@@ -1681,7 +1690,7 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 		{
 			// Use custom root and make sure it gets added to the ini list for later refresh
 			NewSource->SourceTagList->ConfigFileName = RootDirToUse / *TagSourceName.ToString();
-			ExtraTagIniList.AddUnique(NewSource->SourceTagList->ConfigFileName);
+			RegisteredSearchPaths.FindOrAdd(NewSource->SourceTagList->ConfigFileName);
 		}
 		if (GUObjectArray.IsDisregardForGC(this))
 		{
@@ -1699,7 +1708,7 @@ FGameplayTagSource* UGameplayTagsManager::FindOrAddTagSource(FName TagSourceName
 		{
 			// Use custom root and make sure it gets added to the ini list for later refresh
 			NewSource->SourceRestrictedTagList->ConfigFileName = RootDirToUse / *TagSourceName.ToString();
-			ExtraTagIniList.AddUnique(NewSource->SourceTagList->ConfigFileName);
+			RegisteredSearchPaths.FindOrAdd(NewSource->SourceTagList->ConfigFileName);
 		}
 		if (GUObjectArray.IsDisregardForGC(this))
 		{

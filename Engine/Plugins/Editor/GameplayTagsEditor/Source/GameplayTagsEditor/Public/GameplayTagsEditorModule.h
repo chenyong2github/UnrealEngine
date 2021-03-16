@@ -57,6 +57,9 @@ public:
 	/** Adds a transient gameplay tag (only valid for the current editor session) */
 	GAMEPLAYTAGSEDITOR_API virtual bool AddTransientEditorGameplayTag(const FString& NewTransientTag) = 0;
 
+	/** Adds a new tag source, well use project config directory if not specified. This will not save anything until a tag is added */
+	GAMEPLAYTAGSEDITOR_API virtual bool AddNewGameplayTagSource(const FString& NewTagSource, const FString& RootDirToUse = FString()) = 0;
+
 	/**
 	 * Creates a simple version of a tag container widget that has a default value and will call a custom callback
 	 * @param OnSetTag			Delegate called when container is changed

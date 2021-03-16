@@ -132,6 +132,35 @@ struct GAMEPLAYTAGS_API FGameplayTagSource
 #endif
 };
 
+/** Struct describing the places to look for ini search paths */
+struct FGameplayTagSearchPathInfo
+{
+	/** Which sources should be loaded from this path */
+	TArray<FName> SourcesInPath;
+
+	/** Config files to load from, will normally correspond to FoundSources */
+	TArray<FString> TagIniList;
+
+	/** True if this path has already been searched */
+	bool bWasSearched = false;
+
+	/** True if the tags in sources have been added to the current tree */
+	bool bWasAddedToTree = false;
+
+	FORCEINLINE void Reset()
+	{
+		SourcesInPath.Reset();
+		TagIniList.Reset();
+		bWasSearched = false;
+		bWasAddedToTree = false;
+	}
+
+	FORCEINLINE bool IsValid()
+	{
+		return bWasSearched && bWasAddedToTree;
+	}
+};
+
 /** Simple tree node for gameplay tags, this stores metadata about specific tags */
 USTRUCT()
 struct FGameplayTagNode
@@ -433,6 +462,9 @@ public:
 	/** Loads tag inis contained in the specified path */
 	void AddTagIniSearchPath(const FString& RootDir);
 
+	/** Gets all the current directories to look for tag sources in */
+	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
+
 	/** Helper function to construct the gameplay tag tree */
 	void ConstructGameplayTagTree();
 
@@ -594,9 +626,6 @@ public:
 
 	/** Refresh the gameplaytag tree due to an editor change */
 	void EditorRefreshGameplayTagTree();
-
-	/** Gets all the current directories to look for tag sources in */
-	void GetTagSourceSearchPaths(TArray<FString>& OutPaths);
 
 	/** Gets a Tag Container containing all of the tags in the hierarchy that are children of this tag, and were explicitly added to the dictionary */
 	FGameplayTagContainer RequestGameplayTagChildrenInDictionary(const FGameplayTag& GameplayTag) const;
@@ -760,7 +789,8 @@ private:
 	/** These are the old native tags that use to be resisted via a function call with no specific site/ownership. */
 	TSet<FName> LegacyNativeTags;
 
-	TMap<FString, TArray<FName>> RegisteredSearchPaths;
+	/** Map of all config directories to load tag inis from */
+	TMap<FString, FGameplayTagSearchPathInfo> RegisteredSearchPaths;
 
 
 
@@ -803,9 +833,6 @@ private:
 
 	// Transient editor-only tags to support quick-iteration PIE workflows
 	TSet<FName> TransientEditorTags;
-
-	/** List of additional tag config root directories to search */
-	TArray<FString> TagIniSearchPaths;
 #endif
 
 	/** Sorted list of nodes, used for network replication */
@@ -821,8 +848,4 @@ private:
 
 	const static FName NAME_Categories;
 	const static FName NAME_GameplayTagFilter;
-
-
-	// TODELETE
-	TArray<FString> ExtraTagIniList;
 };

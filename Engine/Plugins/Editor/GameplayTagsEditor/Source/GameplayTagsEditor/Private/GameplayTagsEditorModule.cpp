@@ -811,6 +811,22 @@ public:
 		return true;
 	}
 
+	virtual bool AddNewGameplayTagSource(const FString& NewTagSource, const FString& RootDirToUse = FString()) override
+	{
+		UGameplayTagsManager& Manager = UGameplayTagsManager::Get();
+
+		if (NewTagSource.IsEmpty())
+		{
+			return false;
+		}
+
+		Manager.FindOrAddTagSource(FName(*NewTagSource), EGameplayTagSourceType::TagList, RootDirToUse);
+
+		IGameplayTagsModule::OnTagSettingsChanged.Broadcast();
+
+		return true;
+	}
+
 	TSharedRef<SWidget> MakeGameplayTagContainerWidget(FOnSetGameplayTagContainer OnSetTag, TSharedPtr<FGameplayTagContainer> GameplayTagContainer, const FString& FilterString) override
 	{
 		if (!GameplayTagContainer.IsValid())
