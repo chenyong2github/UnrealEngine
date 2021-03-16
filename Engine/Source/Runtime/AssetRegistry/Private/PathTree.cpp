@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PathTree.h"
+#include <UObject/NameTypes.h>
 
 bool FPathTree::CachePath(FName Path, TFunctionRef<void(FName)> OnPathAdded)
 {
@@ -233,10 +234,10 @@ bool FPathTree::EnumerateSubPaths(FName BasePath, TFunctionRef<bool(FName)> Call
 	{
 		// Paths are cached without their trailing slash, so if the given path has a trailing slash, test it again now as it may already be cached
 		// We do this after the initial map test as: a) Most paths are well formed, b) This avoids string allocations until we know we need them
-		FString BasePathStr = BasePath.ToString();
-		if (BasePathStr[BasePathStr.Len() - 1] == '/')
+		FNameBuilder BasePathStr(BasePath);
+		if (BasePathStr.LastChar() == TEXT('/'))
 		{
-			BasePathStr.RemoveAt(BasePathStr.Len() - 1, 1, /*bAllowShrinking*/false);
+			BasePathStr.RemoveSuffix(1);
 			BasePath = *BasePathStr;
 
 			ChildPathsPtr = ParentPathToChildPaths.Find(BasePath);

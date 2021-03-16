@@ -31,6 +31,7 @@
 
 #include "Application/SlateApplicationBase.h"
 #include "ToolMenus.h"
+#include <Misc/PathViews.h>
 
 #define LOCTEXT_NAMESPACE "ContentBrowser"
 
@@ -501,14 +502,15 @@ TSharedPtr<FTreeItem> SPathView::AddFolderItem(FContentBrowserItemData&& InItem,
 	TSharedPtr<FTreeItem> ParentTreeItem;
 	TArray<TSharedPtr<FTreeItem>>* CurrentTreeItems = &TreeRootItems;
 
-	FString CurrentPathStr = TEXT("/");
+	TStringBuilder<512> CurrentPathStr;
+	CurrentPathStr.Append(TEXT("/"));
 	for (int32 PathItemIndex = 0; PathItemIndex < PathItemList.Num(); ++PathItemIndex)
 	{
 		const bool bIsLeafmostItem = PathItemIndex == PathItemList.Num() - 1;
 
 		const FString FolderNameStr = PathItemList[PathItemIndex];
 		const FName FolderName = *FolderNameStr;
-		CurrentPathStr /= FolderNameStr;
+		FPathViews::Append(CurrentPathStr, FolderNameStr);
 
 		// Try and find an existing tree item
 		TSharedPtr<FTreeItem> CurrentTreeItem;

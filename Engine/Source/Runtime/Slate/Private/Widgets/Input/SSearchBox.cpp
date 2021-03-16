@@ -7,8 +7,6 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SThrobber.h"
 
-const double SSearchBox::FilterDelayAfterTyping = 0.25f;
-
 void SSearchBox::Construct( const FArguments& InArgs )
 {
 	check(InArgs._Style);
@@ -19,6 +17,7 @@ void SSearchBox::Construct( const FArguments& InArgs )
 	OnTextChangedDelegate = InArgs._OnTextChanged;
 	OnTextCommittedDelegate = InArgs._OnTextCommitted;
 	DelayChangeNotificationsWhileTyping = InArgs._DelayChangeNotificationsWhileTyping;
+	DelayChangeNotificationsWhileTypingSeconds = InArgs._DelayChangeNotificationsWhileTypingSeconds;
 
 	InactiveFont = InArgs._Style->TextBoxStyle.Font;
 	ActiveFont = InArgs._Style->ActiveFontInfo;
@@ -174,7 +173,7 @@ void SSearchBox::HandleTextChanged(const FText& NewText)
 
 	if ( DelayChangeNotificationsWhileTyping.Get() && HasKeyboardFocus() )
 	{
-		ActiveTimerHandle = RegisterActiveTimer( FilterDelayAfterTyping, FWidgetActiveTimerDelegate::CreateSP( this, &SSearchBox::TriggerOnTextChanged, NewText ) );
+		ActiveTimerHandle = RegisterActiveTimer( DelayChangeNotificationsWhileTypingSeconds.Get(), FWidgetActiveTimerDelegate::CreateSP( this, &SSearchBox::TriggerOnTextChanged, NewText ) );
 	}
 	else
 	{
