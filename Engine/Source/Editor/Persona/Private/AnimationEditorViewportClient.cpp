@@ -387,7 +387,6 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 			{
 				UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene()->GetPreviewMeshComponent();
 				// let's make sure nothing is simulating and that all necessary state are in proper order
-				PreviewMeshComponent->ClearAnimScriptInstance();
 				PreviewMeshComponent->SetPhysicsBlendWeight(0.f);
 				PreviewMeshComponent->SetSimulatePhysics(false);
 				PreviewMeshComponent->DisableAllBodiesSimulatePhysics();
