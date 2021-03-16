@@ -282,7 +282,8 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 	const ANSICHAR* InFileName,
 	const int32 InFileLine,
 	uint32 InSize,
-	const TArray<FMember>& InMembers)
+	const TArray<FMember>& InMembers,
+	bool bForceCompleteInitialization)
 	: StructTypeName(InStructTypeName)
 	, ShaderVariableName(InShaderVariableName)
 	, StaticSlotName(InStaticSlotName)
@@ -311,7 +312,7 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 		check(ShaderVariableName);
 	}
 
-	if (UseCase == EUseCase::UniformBuffer)
+	if (UseCase == EUseCase::UniformBuffer && !bForceCompleteInitialization)
 	{
 		// Register this uniform buffer struct in global list.
 		GlobalListLink.LinkHead(GetStructList());
@@ -352,8 +353,9 @@ FShaderParametersMetadata::FShaderParametersMetadata(
 
 FShaderParametersMetadata::~FShaderParametersMetadata()
 {
-	if (UseCase == EUseCase::UniformBuffer)
+	if (GlobalListLink.IsLinked())
 	{
+		check(UseCase == EUseCase::UniformBuffer);
 		GlobalListLink.Unlink();
 		GetNameStructMap().Remove(ShaderVariableHashedName);
 

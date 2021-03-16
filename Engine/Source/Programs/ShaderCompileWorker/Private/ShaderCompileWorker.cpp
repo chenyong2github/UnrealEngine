@@ -375,10 +375,29 @@ private:
 		// Initialize shader hash cache before reading any includes.
 		InitializeShaderHashCache();
 
-		TMap<FString, FThreadSafeSharedStringPtr> ExternalIncludes;
-		TArray<FShaderCompilerEnvironment> SharedEnvironments;
+		// Array of string used as const TCHAR* during compilation process.
+		TArray<TUniquePtr<FString>> AllocatedStrings;
+		auto DeserializeConstTCHAR = [&AllocatedStrings](FArchive& Archive)
+		{
+			FString Name;
+			Archive << Name;
+
+			const TCHAR* CharName = nullptr;
+			if (Name.Len() != 0)
+			{
+				if (AllocatedStrings.GetSlack() == 0)
+				{
+					AllocatedStrings.Reserve(AllocatedStrings.Num() + 1024);
+				}
+
+				AllocatedStrings.Add(MakeUnique<FString>(Name));
+				CharName = **AllocatedStrings.Last();
+			}
+			return CharName;
+		};
 
 		// Shared inputs
+		TMap<FString, FThreadSafeSharedStringPtr> ExternalIncludes;
 		{
 			int32 NumExternalIncludes = 0;
 			InputFile << NumExternalIncludes;
@@ -392,7 +411,11 @@ private:
 				InputFile << (*NewIncludeContents);
 				ExternalIncludes.Add(NewIncludeName, MakeShareable(NewIncludeContents));
 			}
+		}
 
+		// Shared environments
+		TArray<FShaderCompilerEnvironment> SharedEnvironments;
+		{
 			int32 NumSharedEnvironments = 0;
 			InputFile << NumSharedEnvironments;
 			SharedEnvironments.Empty(NumSharedEnvironments);
@@ -401,6 +424,97 @@ private:
 			for (int32 EnvironmentIndex = 0; EnvironmentIndex < NumSharedEnvironments; EnvironmentIndex++)
 			{
 				InputFile << SharedEnvironments[EnvironmentIndex];
+			}
+		}
+
+		// All the shader parameter structures
+		// Note: this is a bit more complicated, purposefully to avoid switch const TCHAR* to FString in runtime FShaderParametersMetadata.
+		TArray<TUniquePtr<FShaderParametersMetadata>> ParameterStructures;
+		{
+			int32 NumParameterStructures = 0;
+			InputFile << NumParameterStructures;
+			ParameterStructures.Reserve(NumParameterStructures);
+
+			for (int32 StructIndex = 0; StructIndex < NumParameterStructures; StructIndex++)
+			{
+				const TCHAR* LayoutName;
+				const TCHAR* StructTypeName;
+				const TCHAR* ShaderVariableName;
+				FShaderParametersMetadata::EUseCase UseCase;
+				int32 StructFileLine;
+				uint32 Size;
+				int32 MemberCount;
+
+				LayoutName = DeserializeConstTCHAR(InputFile);
+				StructTypeName = DeserializeConstTCHAR(InputFile);
+				ShaderVariableName = DeserializeConstTCHAR(InputFile);
+				InputFile << UseCase;
+				InputFile << StructFileLine;
+				InputFile << Size;
+				InputFile << MemberCount;
+
+				TArray<FShaderParametersMetadata::FMember> Members;
+				Members.Reserve(MemberCount);
+
+				for (int32 MemberIndex = 0; MemberIndex < MemberCount; MemberIndex++)
+				{
+					const TCHAR* Name;
+					const TCHAR* ShaderType;
+					int32 FileLine;
+					uint32 Offset;
+					uint8 BaseType;
+					uint8 PrecisionModifier;
+					uint32 NumRows;
+					uint32 NumColumns;
+					uint32 NumElements;
+					int32 StructMetadataIndex;
+
+					static_assert(sizeof(BaseType) == sizeof(EUniformBufferBaseType), "Cast failure.");
+					static_assert(sizeof(PrecisionModifier) == sizeof(EShaderPrecisionModifier::Type), "Cast failure.");
+
+					Name = DeserializeConstTCHAR(InputFile);
+					ShaderType = DeserializeConstTCHAR(InputFile);
+					InputFile << FileLine;
+					InputFile << Offset;
+					InputFile << BaseType;
+					InputFile << PrecisionModifier;
+					InputFile << NumRows;
+					InputFile << NumColumns;
+					InputFile << NumElements;
+					InputFile << StructMetadataIndex;
+
+					const FShaderParametersMetadata* StructMetadata = nullptr;
+					if (StructMetadataIndex != INDEX_NONE)
+					{
+						StructMetadata = ParameterStructures[StructMetadataIndex].Get();
+					}
+
+					FShaderParametersMetadata::FMember Member(
+						Name,
+						ShaderType,
+						FileLine,
+						Offset,
+						EUniformBufferBaseType(BaseType),
+						EShaderPrecisionModifier::Type(PrecisionModifier),
+						NumRows,
+						NumColumns,
+						NumElements,
+						StructMetadata);
+					Members.Add(Member);
+				}
+
+				ParameterStructures.Add(MakeUnique<FShaderParametersMetadata>(
+					UseCase,
+					EUniformBufferBindingFlags::Shader,
+					/* InLayoutName = */ LayoutName,
+					/* InStructTypeName = */ StructTypeName,
+					/* InShaderVariableName = */ ShaderVariableName,
+					/* InStaticSlotName = */ nullptr,
+					/* InFileName = */ nullptr,
+					StructFileLine,
+					Size,
+					Members,
+					/* bCompleteInitialization = */ true));
 			}
 		}
 
@@ -427,7 +541,7 @@ private:
 				// Deserialize the job's inputs.
 				FShaderCompilerInput CompilerInput;
 				InputFile << CompilerInput;
-				CompilerInput.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments);
+				CompilerInput.DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
 				if (IsValidRef(CompilerInput.SharedEnvironment))
 				{
@@ -473,7 +587,7 @@ private:
 				{
 					// Deserialize the job's inputs.
 					InputFile << CompilerInputs[StageIndex];
-					CompilerInputs[StageIndex].DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments);
+					CompilerInputs[StageIndex].DeserializeSharedInputs(InputFile, ExternalIncludes, SharedEnvironments, ParameterStructures);
 
 					if (IsValidRef(CompilerInputs[StageIndex].SharedEnvironment))
 					{

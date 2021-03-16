@@ -9,12 +9,14 @@
 #include "CoreMinimal.h"
 #include "Containers/List.h"
 #include "Containers/StaticArray.h"
+#include "Containers/StringFwd.h"
+#include "Misc/StringBuilder.h"
 #include "RHI.h"
 #include "Serialization/MemoryLayout.h"
 
 namespace EShaderPrecisionModifier
 {
-	enum Type
+	enum Type : uint8
 	{
 		Float,
 		Half,
@@ -109,7 +111,7 @@ class RENDERCORE_API FShaderParametersMetadata
 {
 public:
 	/** The use case of the uniform buffer structures. */
-	enum class EUseCase
+	enum class EUseCase : uint8
 	{
 		/** Stand alone shader parameter struct used for render passes and shader parameters. */
 		ShaderParameterStruct,
@@ -214,7 +216,13 @@ public:
 		const FShaderParametersMetadata* Struct;
 	};
 
-	/** Initialization constructor. */
+	/** Initialization constructor.
+	 *
+	 * EUseCase::UniformBuffer are listed in the global GetStructList() that will be visited at engine startup to know all the global uniform buffer
+	 * that can generate code in /Engine/Generated/GeneratedUniformBuffers.ush. Their initialization will be finished during the this list
+	 * traversal. bForceCompleteInitialization force to ignore the list for EUseCase::UniformBuffer and instead handle it like a standalone non
+	 * globally listed EUseCase::ShaderParameterStruct. This is required for the ShaderCompileWorker to deserialize them without side global effects.
+	 */
 	FShaderParametersMetadata(
 		EUseCase UseCase,
 		EUniformBufferBindingFlags InBindingFlags,
@@ -225,7 +233,8 @@ public:
 		const ANSICHAR* InFileName,
 		const int32 InFileLine,
 		uint32 InSize,
-		const TArray<FMember>& InMembers);
+		const TArray<FMember>& InMembers,
+		bool bForceCompleteInitialization = false);
 
 	virtual ~FShaderParametersMetadata();
 
@@ -290,6 +299,38 @@ public:
 		return LayoutHash;	
 	}
 
+	/** Iterate recursively over all shader parameter members. */
+	template<typename TParameterFunction>
+	void IterateShaderParameterMembers(TParameterFunction Lambda) const
+	{
+		TStringBuilder<1024> ShaderBindingNameBuilder;
+		if (UseCase == EUseCase::UniformBuffer || UseCase == EUseCase::DataDrivenUniformBuffer)
+		{
+			ShaderBindingNameBuilder.Append(ShaderVariableName);
+			ShaderBindingNameBuilder.Append(TEXT("_"));
+		}
+
+		FShaderParametersMetadata::IterateShaderParameterMembersInternal(
+			*this, /* ByteOffset = */ 0, ShaderBindingNameBuilder, Lambda);
+	}
+
+	/** Iterate recursively over all FShaderParametersMetadata. */
+	template<typename TParameterFunction>
+	void IterateStructureMetadataDependencies(TParameterFunction Lambda) const
+	{
+		for (const FShaderParametersMetadata::FMember& Member : Members)
+		{
+			const FShaderParametersMetadata* NewParametersMetadata = Member.GetStructMetadata();
+
+			if (NewParametersMetadata)
+			{
+				NewParametersMetadata->IterateStructureMetadataDependencies(Lambda);
+			}
+		}
+
+		Lambda(this);
+	}
+
 private:
 	/** Name of the structure type in C++ and shader code. */
 	const TCHAR* const StructTypeName;
@@ -336,4 +377,70 @@ private:
 	void InitializeLayout();
 
 	void AddResourceTableEntriesRecursive(const TCHAR* UniformBufferName, const TCHAR* Prefix, uint16& ResourceIndex, TMap<FString, FResourceTableEntry>& ResourceTableMap) const;
+
+	template<typename TParameterFunction>
+	static inline void IterateShaderParameterMembersInternal(
+		const FShaderParametersMetadata& ParametersMetadata,
+		uint16 ByteOffset,
+		TStringBuilder<1024>& ShaderBindingNameBuilder,
+		TParameterFunction Lambda)
+	{
+		for (const FShaderParametersMetadata::FMember& Member : ParametersMetadata.GetMembers())
+		{
+			EUniformBufferBaseType BaseType = Member.GetBaseType();
+			uint16 MemberOffset = ByteOffset + uint16(Member.GetOffset());
+			uint32 NumElements = Member.GetNumElements();
+
+			int32 MemberNameLength = FCString::Strlen(Member.GetName());
+
+			if (BaseType == UBMT_INCLUDED_STRUCT)
+			{
+				check(NumElements == 0);
+				const FShaderParametersMetadata& NewParametersMetadata = *Member.GetStructMetadata();
+				IterateShaderParameterMembersInternal(NewParametersMetadata, MemberOffset, ShaderBindingNameBuilder, Lambda);
+			}
+			else if (BaseType == UBMT_NESTED_STRUCT && NumElements == 0)
+			{
+				ShaderBindingNameBuilder.Append(Member.GetName());
+				ShaderBindingNameBuilder.Append(TEXT("_"));
+
+				const FShaderParametersMetadata& NewParametersMetadata = *Member.GetStructMetadata();
+				IterateShaderParameterMembersInternal(NewParametersMetadata, MemberOffset, ShaderBindingNameBuilder, Lambda);
+
+				ShaderBindingNameBuilder.RemoveSuffix(MemberNameLength + 1);
+			}
+			else if (BaseType == UBMT_NESTED_STRUCT && NumElements > 0)
+			{
+				ShaderBindingNameBuilder.Append(Member.GetName());
+				ShaderBindingNameBuilder.Append(TEXT("_"));
+
+				const FShaderParametersMetadata& NewParametersMetadata = *Member.GetStructMetadata();
+				for (uint32 ArrayElementId = 0; ArrayElementId < NumElements; ArrayElementId++)
+				{
+					FString ArrayElementIdString;
+					ArrayElementIdString.AppendInt(ArrayElementId);
+					int32 ArrayElementIdLength = ArrayElementIdString.Len();
+
+					ShaderBindingNameBuilder.Append(ArrayElementIdString);
+					ShaderBindingNameBuilder.Append(TEXT("_"));
+
+					uint16 NewStructOffset = MemberOffset + ArrayElementId * NewParametersMetadata.GetSize();
+					IterateShaderParameterMembersInternal(NewParametersMetadata, NewStructOffset, ShaderBindingNameBuilder, Lambda);
+
+					ShaderBindingNameBuilder.RemoveSuffix(ArrayElementIdLength + 1);
+				}
+
+				ShaderBindingNameBuilder.RemoveSuffix(MemberNameLength + 1);
+			}
+			else
+			{
+				ShaderBindingNameBuilder.Append(Member.GetName());
+
+				const TCHAR* ShaderBindingName = ShaderBindingNameBuilder.ToString();
+				Lambda(ParametersMetadata, Member, ShaderBindingName, MemberOffset);
+
+				ShaderBindingNameBuilder.RemoveSuffix(MemberNameLength);
+			}
+		}
+	}
 };

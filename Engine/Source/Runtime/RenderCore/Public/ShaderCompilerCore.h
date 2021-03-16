@@ -16,7 +16,7 @@
 class Error;
 
 // this is for the protocol, not the data, bump if FShaderCompilerInput or ProcessInputFromArchive changes.
-const int32 ShaderCompileWorkerInputVersion = 13;
+const int32 ShaderCompileWorkerInputVersion = 14;
 // this is for the protocol, not the data, bump if FShaderCompilerOutput or WriteToOutputArchive changes.
 const int32 ShaderCompileWorkerOutputVersion = 6;
 // this is for the protocol, not the data.
@@ -176,28 +176,9 @@ struct FShaderCompilerInput
 	FShaderCompilerEnvironment Environment;
 	TRefCountPtr<FSharedShaderCompilerEnvironment> SharedEnvironment;
 
-
-	struct FRootParameterBinding
-	{
-		/** Name of the constant buffer stored parameter. */
-		FString Name;
-
-		/** Type expected in the shader code to ensure the binding is bug free. */
-		FString ExpectedShaderType;
-
-		/** The offset of the parameter in the root shader parameter struct. */
-		uint16 ByteOffset;
-
-		friend FArchive& operator<<(FArchive& Ar, FRootParameterBinding& RootParameterBinding)
-		{
-			Ar << RootParameterBinding.Name;
-			Ar << RootParameterBinding.ExpectedShaderType;
-			Ar << RootParameterBinding.ByteOffset;
-			return Ar;
-		}
-	};
-
-	TArray<FRootParameterBinding> RootParameterBindings;
+	// The root of the shader parameter structures / uniform buffers bound to this shader to generate shader resource table from.
+	// This only set if a shader class is defining the 
+	const FShaderParametersMetadata* RootParametersStructure = nullptr;
 
 
 	// Additional compilation settings that can be filled by FMaterial::SetupExtaCompilationSettings
@@ -236,7 +217,10 @@ struct FShaderCompilerInput
 		return FPaths::GetCleanFilename(VirtualSourceFilePath);
 	}
 
-	void GatherSharedInputs(TMap<FString,FString>& ExternalIncludes, TArray<TRefCountPtr<FSharedShaderCompilerEnvironment>>& SharedEnvironments)
+	void GatherSharedInputs(
+		TMap<FString, FString>& ExternalIncludes,
+		TArray<TRefCountPtr<FSharedShaderCompilerEnvironment>>& SharedEnvironments,
+		TArray<const FShaderParametersMetadata*>& ParametersStructures)
 	{
 		check(!SharedEnvironment || SharedEnvironment->IncludeVirtualPathToExternalContentsMap.Num() == 0);
 
@@ -254,9 +238,14 @@ struct FShaderCompilerInput
 		{
 			SharedEnvironments.AddUnique(SharedEnvironment);
 		}
+
+		if (RootParametersStructure)
+		{
+			ParametersStructures.AddUnique(RootParametersStructure);
+		}
 	}
 
-	void SerializeSharedInputs(FArchive& Ar, const TArray<TRefCountPtr<FSharedShaderCompilerEnvironment>>& SharedEnvironments)
+	void SerializeSharedInputs(FArchive& Ar, const TArray<TRefCountPtr<FSharedShaderCompilerEnvironment>>& SharedEnvironments, const TArray<const FShaderParametersMetadata*>& ParametersStructures)
 	{
 		check(Ar.IsSaving());
 
@@ -272,9 +261,21 @@ struct FShaderCompilerInput
 
 		int32 SharedEnvironmentIndex = SharedEnvironments.Find(SharedEnvironment);
 		Ar << SharedEnvironmentIndex;
+
+		int32 ShaderParameterStructureIndex = INDEX_NONE;
+		if (RootParametersStructure)
+		{
+			ShaderParameterStructureIndex = ParametersStructures.Find(RootParametersStructure);
+			check(ShaderParameterStructureIndex != INDEX_NONE);
+		}
+		Ar << ShaderParameterStructureIndex;
 	}
 
-	void DeserializeSharedInputs(FArchive& Ar, const TMap<FString, FThreadSafeSharedStringPtr>& ExternalIncludes, const TArray<FShaderCompilerEnvironment>& SharedEnvironments)
+	void DeserializeSharedInputs(
+		FArchive& Ar,
+		const TMap<FString, FThreadSafeSharedStringPtr>& ExternalIncludes,
+		const TArray<FShaderCompilerEnvironment>& SharedEnvironments,
+		const TArray<TUniquePtr<FShaderParametersMetadata>>& ShaderParameterStructures)
 	{
 		check(Ar.IsLoading());
 
@@ -294,6 +295,13 @@ struct FShaderCompilerInput
 		if (SharedEnvironments.IsValidIndex(SharedEnvironmentIndex))
 		{
 			Environment.Merge(SharedEnvironments[SharedEnvironmentIndex]);
+		}
+
+		int32 ShaderParameterStructureIndex;
+		Ar << ShaderParameterStructureIndex;
+		if (ShaderParameterStructureIndex != INDEX_NONE)
+		{
+			RootParametersStructure = ShaderParameterStructures[ShaderParameterStructureIndex].Get();
 		}
 	}
 

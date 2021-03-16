@@ -1443,7 +1443,6 @@ FArchive& operator<<(FArchive& Ar, FShaderCompilerInput& Input)
 	Ar << Input.DebugDescription;
 	Ar << Input.Environment;
 	Ar << Input.ExtraSettings;
-	Ar << Input.RootParameterBindings;
 
 	// Note: skipping Input.SharedEnvironment, which is handled by FShaderCompileUtilities::DoWriteTasks in order to maintain sharing
 

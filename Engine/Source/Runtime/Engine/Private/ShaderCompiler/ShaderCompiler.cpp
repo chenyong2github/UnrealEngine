@@ -1098,6 +1098,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 	SplitJobsByType(QueuedJobs, QueuedSingleJobs, QueuedPipelineJobs);
 
 	TArray<TRefCountPtr<FSharedShaderCompilerEnvironment>> SharedEnvironments;
+	TArray<const FShaderParametersMetadata*> RequestShaderParameterStructures;
 
 	// Gather External Includes and serialize separately, these are largely shared between jobs
 	{
@@ -1106,7 +1107,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 
 		for (int32 JobIndex = 0; JobIndex < QueuedSingleJobs.Num(); JobIndex++)
 		{
-			QueuedSingleJobs[JobIndex]->Input.GatherSharedInputs(ExternalIncludes, SharedEnvironments);
+			QueuedSingleJobs[JobIndex]->Input.GatherSharedInputs(ExternalIncludes, SharedEnvironments, RequestShaderParameterStructures);
 		}
 
 		for (int32 JobIndex = 0; JobIndex < QueuedPipelineJobs.Num(); JobIndex++)
@@ -1116,7 +1117,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 
 			for (int32 Index = 0; Index < NumStageJobs; Index++)
 			{
-				PipelineJob->StageJobs[Index]->Input.GatherSharedInputs(ExternalIncludes, SharedEnvironments);
+				PipelineJob->StageJobs[Index]->Input.GatherSharedInputs(ExternalIncludes, SharedEnvironments, RequestShaderParameterStructures);
 			}
 		}
 
@@ -1138,6 +1139,77 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 		}
 	}
 
+	// Write shader parameter structures
+	TArray<const FShaderParametersMetadata*> AllShaderParameterStructures;
+	{
+		// List all dependencies.
+		for (int32 StructId = 0; StructId < RequestShaderParameterStructures.Num(); StructId++)
+		{
+			RequestShaderParameterStructures[StructId]->IterateStructureMetadataDependencies(
+				[&](const FShaderParametersMetadata* Struct)
+			{
+				AllShaderParameterStructures.AddUnique(Struct);
+			});
+		}
+
+		// Write all shader parameter structure.
+		int32 NumParameterStructures = AllShaderParameterStructures.Num();
+		TransferFile << NumParameterStructures;
+		for (const FShaderParametersMetadata* Struct : AllShaderParameterStructures)
+		{
+			FString LayoutName = Struct->GetLayout().GetDebugName();
+			FString StructTypeName = Struct->GetStructTypeName();
+			FString ShaderVariableName = Struct->GetShaderVariableName();
+			uint8 UseCase = uint8(Struct->GetUseCase());
+			int32 StructFileLine = Struct->GetFileLine();
+			uint32 Size = Struct->GetSize();
+			int32 MemberCount = Struct->GetMembers().Num();
+
+			static_assert(sizeof(UseCase) == sizeof(FShaderParametersMetadata::EUseCase), "Cast failure.");
+
+			TransferFile << LayoutName;
+			TransferFile << StructTypeName;
+			TransferFile << ShaderVariableName;
+			TransferFile << UseCase;
+			TransferFile << StructFileLine;
+			TransferFile << Size;
+			TransferFile << MemberCount;
+
+			for (const FShaderParametersMetadata::FMember& Member : Struct->GetMembers())
+			{
+				FString Name = Member.GetName();
+				FString ShaderType = Member.GetShaderType();
+				int32 FileLine = Member.GetFileLine();
+				uint32 Offset = Member.GetOffset();
+				uint8 BaseType = uint8(Member.GetBaseType());
+				uint8 PrecisionModifier = uint8(Member.GetPrecision());
+				uint32 NumRows = Member.GetNumRows();
+				uint32 NumColumns = Member.GetNumColumns();
+				uint32 NumElements = Member.GetNumElements();
+				int32 StructMetadataIndex = INDEX_NONE;
+				if (Member.GetStructMetadata())
+				{
+					StructMetadataIndex = AllShaderParameterStructures.Find(Member.GetStructMetadata());
+					check(StructMetadataIndex != INDEX_NONE);
+				}
+
+				static_assert(sizeof(BaseType) == sizeof(EUniformBufferBaseType), "Cast failure.");
+				static_assert(sizeof(PrecisionModifier) == sizeof(EShaderPrecisionModifier::Type), "Cast failure.");
+
+				TransferFile << Name;
+				TransferFile << ShaderType;
+				TransferFile << FileLine;
+				TransferFile << Offset;
+				TransferFile << BaseType;
+				TransferFile << PrecisionModifier;
+				TransferFile << NumRows;
+				TransferFile << NumColumns;
+				TransferFile << NumElements;
+				TransferFile << StructMetadataIndex;
+			}
+		}
+	}
+
 	// Write individual shader jobs
 	{
 		int32 SingleJobHeader = ShaderCompileWorkerSingleJobHeader;
@@ -1150,7 +1222,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 		for (int32 JobIndex = 0; JobIndex < QueuedSingleJobs.Num(); JobIndex++)
 		{
 			TransferFile << QueuedSingleJobs[JobIndex]->Input;
-			QueuedSingleJobs[JobIndex]->Input.SerializeSharedInputs(TransferFile, SharedEnvironments);
+			QueuedSingleJobs[JobIndex]->Input.SerializeSharedInputs(TransferFile, SharedEnvironments, AllShaderParameterStructures);
 		}
 	}
 
@@ -1171,7 +1243,7 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 			for (int32 Index = 0; Index < NumStageJobs; Index++)
 			{
 				TransferFile << PipelineJob->StageJobs[Index]->GetSingleShaderJob()->Input;
-				PipelineJob->StageJobs[Index]->Input.SerializeSharedInputs(TransferFile, SharedEnvironments);
+				PipelineJob->StageJobs[Index]->Input.SerializeSharedInputs(TransferFile, SharedEnvironments, AllShaderParameterStructures);
 			}
 		}
 	}
@@ -4354,72 +4426,6 @@ void ValidateShaderFilePath(const FString& VirtualShaderFilePath, const FString&
 		*VirtualShaderFilePath);
 }
 
-static void PullRootShaderParametersLayout(FShaderCompilerInput& CompileInput, EShaderPlatform ShaderPlatform, const FShaderParametersMetadata& ParametersMetadata, uint16 ByteOffset, const FString& Prefix)
-{
-	for (const FShaderParametersMetadata::FMember& Member : ParametersMetadata.GetMembers())
-	{
-		EUniformBufferBaseType BaseType = Member.GetBaseType();
-		uint16 MemberOffset = ByteOffset + uint16(Member.GetOffset());
-		uint32 NumElements = Member.GetNumElements();
-
-		if (BaseType == UBMT_INCLUDED_STRUCT)
-		{
-			check(NumElements == 0);
-			PullRootShaderParametersLayout(CompileInput, ShaderPlatform, *Member.GetStructMetadata(), MemberOffset, Prefix);
-		}
-		else if (BaseType == UBMT_NESTED_STRUCT && NumElements == 0)
-		{
-			FString NewPrefix = FString::Printf(TEXT("%s%s_"), *Prefix, Member.GetName());
-			PullRootShaderParametersLayout(CompileInput, ShaderPlatform, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
-		}
-		else if (BaseType == UBMT_NESTED_STRUCT && NumElements > 0)
-		{
-			for (uint32 ArrayElementId = 0; ArrayElementId < NumElements; ArrayElementId++)
-			{
-				FString NewPrefix = FString::Printf(TEXT("%s%s_%u_"), *Prefix, Member.GetName(), ArrayElementId);
-				PullRootShaderParametersLayout(CompileInput, ShaderPlatform, *Member.GetStructMetadata(), MemberOffset, NewPrefix);
-			}
-		}
-		else if (
-			BaseType == UBMT_INT32 ||
-			BaseType == UBMT_UINT32 ||
-			BaseType == UBMT_FLOAT32)
-		{
-			FShaderCompilerInput::FRootParameterBinding RootParameterBinding;
-			RootParameterBinding.Name = FString::Printf(TEXT("%s%s"), *Prefix, Member.GetName());
-			Member.GenerateShaderParameterType(RootParameterBinding.ExpectedShaderType, ShaderPlatform);
-			RootParameterBinding.ByteOffset = MemberOffset;
-			CompileInput.RootParameterBindings.Add(RootParameterBinding);
-		}
-		continue;
-
-		if (BaseType == UBMT_REFERENCED_STRUCT)
-		{
-			// Referenced structured are manually passed to the RHI.
-		}
-		else if (BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
-		{
-			// RHI don't need to care about render target bindings slot anyway.
-		}
-		else if (
-			BaseType == UBMT_RDG_BUFFER_ACCESS ||
-			BaseType == UBMT_RDG_TEXTURE_ACCESS)
-		{
-			// Shaders don't care about RDG access parameters.
-		}
-		else if (
-			BaseType == UBMT_RDG_BUFFER_UAV ||
-			BaseType == UBMT_RDG_TEXTURE_UAV)
-		{
-			// UAV are ignored on purpose because not supported in uniform buffers.
-		}
-		else
-		{
-			check(0);
-		}
-	}
-}
-
 FThreadSafeSharedStringPtr GCachedGeneratedInstancedStereoCode = MakeShareable(new FString());
 
 void GlobalBeginCompileShader(
@@ -4491,11 +4497,7 @@ void GlobalBeginCompileShader(
 	Input.DebugGroupName = DebugGroupName;
 	Input.DebugDescription = DebugDescription;
 	Input.DebugExtension = DebugExtension;
-
-	if (ShaderType->GetRootParametersMetadata())
-	{
-		PullRootShaderParametersLayout(Input, ShaderPlatform, *ShaderType->GetRootParametersMetadata(), /* ByteOffset = */ 0, FString());
-	}
+	Input.RootParametersStructure = ShaderType->GetRootParametersMetadata();
 
 	// Verify FShaderCompilerInput's file paths are consistent. 
 	#if DO_CHECK

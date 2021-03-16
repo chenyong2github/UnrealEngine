@@ -474,20 +474,30 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 	const TCHAR* ConstantBufferType)
 {
 	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
-	if (CompilerInput.RootParameterBindings.Num() == 0)
+	if (!CompilerInput.RootParametersStructure)
 	{
 		return true;
 	}
 
 	const bool bMoveToRootConstantBuffer = ConstantBufferType != nullptr;
 	OriginalParsedShader = PreprocessedShaderSource;
-	ParsedParameters.Reserve(CompilerInput.RootParameterBindings.Num());
 
-	// Prepare the set of parameter to look for during parsing.
-	for (const FShaderCompilerInput::FRootParameterBinding& Member : CompilerInput.RootParameterBindings)
+	CompilerInput.RootParametersStructure->IterateShaderParameterMembers(
+		[&](const FShaderParametersMetadata& ParametersMetadata,
+			const FShaderParametersMetadata::FMember& Member,
+			const TCHAR* ShaderBindingName,
+			uint16 ByteOffset)
 	{
-		ParsedParameters.Add(Member.Name, FParsedShaderParameter());
-	}
+		if (
+			Member.GetBaseType() != UBMT_INT32 &&
+			Member.GetBaseType() != UBMT_UINT32 &&
+			Member.GetBaseType() != UBMT_FLOAT32)
+		{
+			return;
+		}
+
+		ParsedParameters.Add(ShaderBindingName, FParsedShaderParameter());
+	});
 
 	bool bSuccess = true;
 
@@ -886,41 +896,52 @@ bool FShaderParameterParser::ParseAndMoveShaderParametersToRootConstantBuffer(
 	if (bMoveToRootConstantBuffer)
 	{
 		FString RootCBufferContent;
-		for (const auto& Member : CompilerInput.RootParameterBindings)
+
+		CompilerInput.RootParametersStructure->IterateShaderParameterMembers(
+			[&](const FShaderParametersMetadata& ParametersMetadata,
+				const FShaderParametersMetadata::FMember& Member,
+				const TCHAR* ShaderBindingName,
+				uint16 ByteOffset)
 		{
-			const FParsedShaderParameter& ParsedParameter = ParsedParameters[Member.Name];
-			if (!ParsedParameter.IsFound())
+			if (
+				Member.GetBaseType() != UBMT_INT32 &&
+				Member.GetBaseType() != UBMT_UINT32 &&
+				Member.GetBaseType() != UBMT_FLOAT32)
 			{
-				continue;
+				return;
 			}
 
-			FString HLSLOffset;
+			const FParsedShaderParameter& ParsedParameter = ParsedParameters[ShaderBindingName];
+
+			if (ParsedParameter.IsFound())
 			{
-				int32 ByteOffset = int32(Member.ByteOffset);
-				HLSLOffset = FString::FromInt(ByteOffset / 16);
-			
-				switch (ByteOffset % 16)
+				FString HLSLOffset;
 				{
-				case 0:
-					break;
-				case 4:
-					HLSLOffset.Append(TEXT(".y"));
-					break;
-				case 8:
-					HLSLOffset.Append(TEXT(".z"));
-					break;
-				case 12:
-					HLSLOffset.Append(TEXT(".w"));
-					break;
-				}
-			}
+					HLSLOffset = FString::FromInt(ByteOffset / 16);
 
-			RootCBufferContent.Append(FString::Printf(
-				TEXT("%s %s : packoffset(c%s);\r\n"),
-				*ParsedParameter.Type,
-				*Member.Name,
-				*HLSLOffset));
-		}
+					switch (ByteOffset % 16)
+					{
+					case 0:
+						break;
+					case 4:
+						HLSLOffset.Append(TEXT(".y"));
+						break;
+					case 8:
+						HLSLOffset.Append(TEXT(".z"));
+						break;
+					case 12:
+						HLSLOffset.Append(TEXT(".w"));
+						break;
+					}
+				}
+
+				RootCBufferContent.Append(FString::Printf(
+					TEXT("%s %s : packoffset(c%s);\r\n"),
+					*ParsedParameter.Type,
+					ShaderBindingName,
+					*HLSLOffset));
+			}
+		});
 
 		FString NewShaderCode = FString::Printf(
 			TEXT("%s %s\r\n")
@@ -943,7 +964,7 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 	FShaderCompilerOutput& CompilerOutput) const
 {
 	// The shader doesn't have any parameter binding through shader structure, therefore don't do anything.
-	if (CompilerInput.RootParameterBindings.Num() == 0)
+	if (!CompilerInput.RootParametersStructure)
 	{
 		return;
 	}
@@ -953,42 +974,59 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 		return;
 	}
 
+	EShaderPlatform ShaderPlatform = EShaderPlatform(CompilerInput.Target.Platform);
+
 	const TMap<FString, FParameterAllocation>& ParametersFoundByCompiler = CompilerOutput.ParameterMap.GetParameterMap();
 
 	bool bSuccess = true;
-	for (const FShaderCompilerInput::FRootParameterBinding& Member : CompilerInput.RootParameterBindings)
+	CompilerInput.RootParametersStructure->IterateShaderParameterMembers(
+		[&](const FShaderParametersMetadata& ParametersMetadata,
+			const FShaderParametersMetadata::FMember& Member,
+			const TCHAR* ShaderBindingName,
+			uint16 ByteOffset)
 	{
-		const FParsedShaderParameter& ParsedParameter = ParsedParameters[Member.Name];
+		if (
+			Member.GetBaseType() != UBMT_INT32 &&
+			Member.GetBaseType() != UBMT_UINT32 &&
+			Member.GetBaseType() != UBMT_FLOAT32)
+		{
+			return;
+		}
+
+		const FParsedShaderParameter& ParsedParameter = ParsedParameters[ShaderBindingName];
 
 		// Did not find shader parameter in code.
 		if (!ParsedParameter.IsFound())
 		{
 			// Verify the shader compiler also did not find this parameter to make sure there is no bug in the parser.
 			checkf(
-				!ParametersFoundByCompiler.Contains(Member.Name),
+				!ParametersFoundByCompiler.Contains(ShaderBindingName),
 				TEXT("Looks like there is a bug in FShaderParameterParser ParameterName=%s DumpDebugInfoPath=%s"),
-				*Member.Name,
+				ShaderBindingName,
 				*CompilerInput.DumpDebugInfoPath);
-			continue;
+			return;
 		}
 
-		const bool bShouldBeInt = Member.ExpectedShaderType.StartsWith(TEXT("int"));
-		const bool bShouldBeUint = Member.ExpectedShaderType.StartsWith(TEXT("uint"));
+		FString ExpectedShaderType;
+		Member.GenerateShaderParameterType(ExpectedShaderType, ShaderPlatform);
+
+		const bool bShouldBeInt = Member.GetBaseType() == UBMT_INT32;
+		const bool bShouldBeUint = Member.GetBaseType() == UBMT_UINT32;
 
 		// Match parsed type with expected shader type
-		bool bIsTypeCorrect = ParsedParameter.Type == Member.ExpectedShaderType;
+		bool bIsTypeCorrect = ParsedParameter.Type == ExpectedShaderType;
 		
 		if (!bIsTypeCorrect)
 		{
 			// Accept half-precision floats when single-precision was requested
-			if (ParsedParameter.Type.StartsWith(TEXT("half")) && Member.ExpectedShaderType.StartsWith(TEXT("float")))
+			if (ParsedParameter.Type.StartsWith(TEXT("half")) && Member.GetBaseType() == UBMT_FLOAT32)
 			{
-				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.Type + 4, *Member.ExpectedShaderType + 5) == 0);
+				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.Type + 4, *ExpectedShaderType + 5) == 0);
 			}
 			// Accept single-precision floats when half-precision was expected
-			else if (ParsedParameter.Type.StartsWith(TEXT("float")) && Member.ExpectedShaderType.StartsWith(TEXT("half")))
+			else if (ParsedParameter.Type.StartsWith(TEXT("float")) && ExpectedShaderType.StartsWith(TEXT("half")))
 			{
-				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.Type + 5, *Member.ExpectedShaderType + 4) == 0);
+				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.Type + 5, *ExpectedShaderType + 4) == 0);
 			}
 		}
 
@@ -999,12 +1037,12 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 			if (bShouldBeInt)
 			{
 				// tries up with an uint.
-				NewExpectedShaderType = TEXT("u") + Member.ExpectedShaderType;
+				NewExpectedShaderType = TEXT("u") + ExpectedShaderType;
 			}
 			else
 			{
 				// tries up with an int.
-				NewExpectedShaderType = Member.ExpectedShaderType;
+				NewExpectedShaderType = ExpectedShaderType;
 				NewExpectedShaderType.RemoveAt(0);
 			}
 
@@ -1017,14 +1055,14 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 			Error.StrippedErrorMessage = FString::Printf(
 				TEXT("Type %s of shader parameter %s in shader mismatch the shader parameter structure: it expects a %s"),
 				*ParsedParameter.Type,
-				*Member.Name,
-				*Member.ExpectedShaderType);
+				ShaderBindingName,
+				*ExpectedShaderType);
 			ExtractFileAndLine(ParsedParameter.PragamLineoffset, ParsedParameter.LineOffset, Error.ErrorVirtualFilePath, Error.ErrorLineString);
 
 			CompilerOutput.Errors.Add(Error);
 			bSuccess = false;
 		}
-	} // for (const auto& Member : CompilerInput.RootParameterBindings)
+	});
 
 	CompilerOutput.bSucceeded = bSuccess;
 }
