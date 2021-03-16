@@ -203,8 +203,11 @@ namespace Gauntlet
 
 			string OutBuildPath = InBuildPath;
 
+			string BuildVolume = GetVolumeName(OutBuildPath);
+			string LocalRoot = GetVolumeName(Environment.CurrentDirectory);
+
 			// Must be on our volume to run
-			if (Utils.SystemHelpers.IsNetworkPath(InBuildPath))
+			if (BuildVolume.Equals(LocalRoot, StringComparison.OrdinalIgnoreCase) == false)
 			{
 				string SubDir = string.IsNullOrEmpty(AppConfig.Sandbox) ? AppConfig.ProjectName : AppConfig.Sandbox;
 				string DestPath = Path.Combine(this.TempDir, SubDir, AppConfig.ProcessType.ToString());
