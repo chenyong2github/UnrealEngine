@@ -4722,10 +4722,23 @@ void UStaticMesh::Serialize(FArchive& Ar)
 
 	SCOPE_MS_ACCUMULATOR(STAT_StaticMesh_SerializeFull);
 
-	// Skip serialization for static mesh being compiled if told to do so.
-	if (Ar.ShouldSkipCompilingAssets() && IsCompiling())
+	if (IsCompiling())
 	{
-		return;
+		// Skip serialization during compilation if told to do so.
+		if (Ar.ShouldSkipCompilingAssets())
+		{
+			return;
+		}
+#if WITH_EDITOR
+		// Since UPROPERTY are accessed directly by offset during serialization instead of using accessors, 
+		// the protection put in place to automatically finish compilation if a locked property is accessed will not work. 
+		// We have no choice but to force finish the compilation here to avoid potential race conditions between 
+		// async compilation and the serialization.
+		else
+		{
+			FStaticMeshCompilingManager::Get().FinishCompilation({this});
+		}
+#endif
 	}
 
 	{
