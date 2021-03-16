@@ -139,12 +139,9 @@ void FUniqueBuffer::Reset()
 	Owner.Reset();
 }
 
-void FUniqueBuffer::MakeOwned()
+FUniqueBuffer FUniqueBuffer::MakeOwned() &&
 {
-	if (!IsOwned())
-	{
-		*this = Clone(GetView());
-	}
+	return IsOwned() ? MoveTemp(*this) : Clone(GetView());
 }
 
 void FUniqueBuffer::Materialize() const
@@ -211,12 +208,14 @@ void FSharedBuffer::Reset()
 	Owner.Reset();
 }
 
-void FSharedBuffer::MakeOwned()
+FSharedBuffer FSharedBuffer::MakeOwned() const &
 {
-	if (!IsOwned())
-	{
-		*this = FSharedBuffer::Clone(GetView());
-	}
+	return IsOwned() ? *this : Clone(GetView());
+}
+
+FSharedBuffer FSharedBuffer::MakeOwned() &&
+{
+	return IsOwned() ? MoveTemp(*this) : Clone(GetView());
 }
 
 void FSharedBuffer::Materialize() const

@@ -411,8 +411,7 @@ void FVirtualizedUntypedBulkData::UpdatePayload(const FSharedBuffer& InPayload)
 	UnloadData();
 
 	// Make sure that we own the memory in the shared buffer
-	Payload = InPayload;
-	Payload.MakeOwned();
+	Payload = InPayload.MakeOwned();
 	PayloadLength = (int64)Payload.GetSize();
 
 	bIsVirtualized = false;

@@ -40,9 +40,8 @@ FCbAttachment::FCbAttachment(FCbFieldIterator InValue, const FIoHash* const InHa
 }
 
 FCbAttachment::FCbAttachment(FSharedBuffer InBuffer, const FIoHash* const InHash)
-	: Buffer(MoveTemp(InBuffer))
+	: Buffer(MoveTemp(InBuffer).MakeOwned())
 {
-	Buffer.MakeOwned();
 	if (InHash)
 	{
 		Hash = *InHash;
@@ -92,8 +91,7 @@ void FCbAttachment::Load(FCbFieldIterator& Fields)
 	const FMemoryView View = Fields.AsBinaryView();
 	if (View.GetSize() > 0)
 	{
-		Buffer = FSharedBuffer::MakeView(View, Fields.GetOuterBuffer());
-		Buffer.MakeOwned();
+		Buffer = FSharedBuffer::MakeView(View, Fields.GetOuterBuffer()).MakeOwned();
 		++Fields;
 		Hash = Fields.AsAttachment();
 		checkf(!Fields.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));
@@ -119,8 +117,7 @@ void FCbAttachment::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 	const FMemoryView View = BufferField.AsBinaryView();
 	if (View.GetSize() > 0)
 	{
-		Buffer = FSharedBuffer::MakeView(View, BufferField.GetOuterBuffer());
-		Buffer.MakeOwned();
+		Buffer = FSharedBuffer::MakeView(View, BufferField.GetOuterBuffer()).MakeOwned();
 		CompactBinary = FCbFieldViewIterator();
 
 		TArray<uint8, TInlineAllocator<64>> HashBuffer;
@@ -330,8 +327,7 @@ void FCbPackage::Load(FArchive& Ar, FCbBufferAllocator Allocator)
 			const FMemoryView View = ValueField.AsBinaryView();
 			if (View.GetSize() > 0)
 			{
-				FSharedBuffer Buffer = FSharedBuffer::MakeView(View, ValueField.GetOuterBuffer());
-				Buffer.MakeOwned();
+				FSharedBuffer Buffer = FSharedBuffer::MakeView(View, ValueField.GetOuterBuffer()).MakeOwned();
 				FCbField HashField = LoadCompactBinary(Ar, StackAllocator);
 				const FIoHash& Hash = HashField.AsAttachment();
 				checkf(!HashField.HasError(), TEXT("Attachments must be a non-empty binary value with a content hash."));

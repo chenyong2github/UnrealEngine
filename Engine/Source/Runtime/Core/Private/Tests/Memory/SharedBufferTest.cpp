@@ -226,13 +226,12 @@ bool FUniqueBufferTest::RunTest(const FString& Parameters)
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
-		FUniqueBuffer Buffer = FUniqueBuffer::MakeView(Data, Size);
-		Buffer.MakeOwned();
+		FUniqueBuffer Buffer = FUniqueBuffer::MakeView(Data, Size).MakeOwned();
 		TestTrue(TEXT("FUniqueBuffer::MakeOwned(View).IsOwned()"), Buffer.IsOwned());
 		TestEqual(TEXT("FUniqueBuffer::MakeOwned(View).GetSize()"), Buffer.GetSize(), Size);
 		TestFalse(TEXT("FUniqueBuffer::MakeOwned(View).GetData()"), Buffer.GetData() == Data);
 		void* const OwnedData = Buffer.GetData();
-		Buffer.MakeOwned();
+		Buffer = MoveTemp(Buffer).MakeOwned();
 		TestTrue(TEXT("FUniqueBuffer::MakeOwned(Owned).IsOwned()"), Buffer.IsOwned());
 		TestEqual(TEXT("FUniqueBuffer::MakeOwned(Owned).GetSize()"), Buffer.GetSize(), Size);
 		TestEqual(TEXT("FUniqueBuffer::MakeOwned(Owned).GetData()"), Buffer.GetData(), OwnedData);
@@ -336,13 +335,11 @@ bool FSharedBufferTest::RunTest(const FString& Parameters)
 	{
 		constexpr uint64 Size = 64;
 		uint8 Data[Size]{};
-		FSharedBuffer Buffer = FSharedBuffer::MakeView(Data, Size);
-		Buffer.MakeOwned();
+		FSharedBuffer Buffer = FSharedBuffer::MakeView(Data, Size).MakeOwned();
 		TestTrue(TEXT("FSharedBuffer::MakeOwned(View).IsOwned()"), Buffer.IsOwned());
 		TestEqual(TEXT("FSharedBuffer::MakeOwned(View).GetSize()"), Buffer.GetSize(), Size);
 		TestFalse(TEXT("FSharedBuffer::MakeOwned(View).GetData()"), Buffer.GetData() == Data);
-		FSharedBuffer BufferCopy = Buffer;
-		BufferCopy.MakeOwned();
+		FSharedBuffer BufferCopy = Buffer.MakeOwned();
 		TestTrue(TEXT("FSharedBuffer::MakeOwned(Owned).IsOwned()"), BufferCopy.IsOwned());
 		TestEqual(TEXT("FSharedBuffer::MakeOwned(Owned).GetSize()"), BufferCopy.GetSize(), Size);
 		TestEqual(TEXT("FSharedBuffer::MakeOwned(Owned).GetData()"), BufferCopy.GetData(), Buffer.GetData());
@@ -396,10 +393,10 @@ bool FBufferOwnerTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("FSharedBuffer(BufferOwner)->!Freed"), bFreed);
 	TestFalse(TEXT("FSharedBuffer(BufferOwner)->!Deleted"), bDeleted);
 
-	Buffer.GetData();
+	(void)Buffer.GetData();
 	TestTrue(TEXT("FSharedBuffer(BufferOwner)->GetData()->Materialized"), bMaterialized);
 	bMaterialized = false;
-	Buffer.GetData();
+	(void)Buffer.GetData();
 	TestFalse(TEXT("FSharedBuffer(BufferOwner)->GetData()->!Materialized"), bMaterialized);
 	bMaterialized = false;
 
@@ -410,10 +407,10 @@ bool FBufferOwnerTest::RunTest(const FString& Parameters)
 	bFreed = false;
 	bDeleted = false;
 
-	Buffer.GetSize();
+	(void)Buffer.GetSize();
 	TestTrue(TEXT("FSharedBuffer(BufferOwner)->GetSize()->Materialized"), bMaterialized);
 	bMaterialized = false;
-	Buffer.GetSize();
+	(void)Buffer.GetSize();
 	TestFalse(TEXT("FSharedBuffer(BufferOwner)->GetSize()->!Materialized"), bMaterialized);
 	bMaterialized = false;
 
