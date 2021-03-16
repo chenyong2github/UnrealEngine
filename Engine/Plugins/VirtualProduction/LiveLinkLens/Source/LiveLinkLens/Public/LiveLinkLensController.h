@@ -6,6 +6,7 @@
 
 #include "CineCameraComponent.h"
 #include "LensDistortionDataHandler.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 #include "LiveLinkLensController.generated.h"
 
@@ -25,6 +26,7 @@ public:
 	virtual bool IsRoleSupported(const TSubclassOf<ULiveLinkRole>& RoleToSupport) override;
 	virtual TSubclassOf<UActorComponent> GetDesiredComponentClass() const override;
 	virtual void SetAttachedComponent(UActorComponent* ActorComponent) override;
+	virtual void Cleanup() override;
 	//~ End ULiveLinkControllerBase interface
 
 	//~ Begin UObject Interface
@@ -34,15 +36,37 @@ public:
 	//~ End UObject Interface
 
 protected:
+
+	/** Refresh distortion handler's, in case user deletes it  */
+	void UpdateDistortionHandler(UCineCameraComponent* CineCameraComponent);
+
+	/** Update cached filmback in case it was changed */
+	void UpdateCachedFilmback(UCineCameraComponent* CineCameraComponent);
+
+	/** Cleanup distortion objects we could have added to camera */
+	void CleanupDistortion();
+
+protected:
+
 	/** Whether or not to apply a post-process distortion effect directly to the attached CineCamera */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion")
 	bool bApplyDistortion = false;
 
+	/** Cached distortion handler associated with attached camera component */
 	UPROPERTY(EditAnywhere, Category = "Lens Distortion", Transient)
 	ULensDistortionDataHandler* LensDistortionHandler = nullptr;
 
-private:
-	/** Cached camera filmback settings used to restore the camera to its default state after disabling distortion */
+	/** Cached distortion MID the handler produced. Used to clean up old one in case it changes */
+	UPROPERTY(Transient)
+	UMaterialInstanceDynamic* LastDistortionMID = nullptr;
+
+	/** Original filmback settings of the attached cinecamera component to reapply when distortion isn't applied anymore */
+	UPROPERTY()
 	FCameraFilmbackSettings OriginalCameraFilmback;
+
+	/** Keep track of what needs to be setup to apply distortion */
 	bool bIsDistortionSetup = false;
+
+	//Last values used to detect changes made by the user and update our original caches
+	FCameraFilmbackSettings LastCameraFilmback;
 };
