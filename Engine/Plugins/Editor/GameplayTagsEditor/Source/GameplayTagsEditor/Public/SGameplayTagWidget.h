@@ -103,6 +103,9 @@ public:
 
 private:
 
+	/** Verify the tags are all valid and if not prompt the user. */
+	void VerifyAssetTagValidity();
+
 	/* Filters the tree view based on the current filter text. */
 	void FilterTagTree();
 
