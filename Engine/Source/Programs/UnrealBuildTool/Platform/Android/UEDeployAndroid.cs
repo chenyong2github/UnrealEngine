@@ -3854,6 +3854,7 @@ namespace UnrealBuildTool
 			// make up a dictionary of strings to replace in xml files (strings.xml)
 			Dictionary<string, string> Replacements = new Dictionary<string, string>();
 			Replacements.Add("${EXECUTABLE_NAME}", ApplicationDisplayName);
+			Replacements.Add("${PY_VISUALIZER_PATH}", Path.GetFullPath(Path.Combine(EngineDirectory, "Extras", "LLDBDataFormatters", "UE4DataFormatters_2ByteChars.py")));
 
 			// steps run for each build combination (note: there should only be one GPU in future)
 			foreach (Tuple<string, string, string> build in BuildList)
