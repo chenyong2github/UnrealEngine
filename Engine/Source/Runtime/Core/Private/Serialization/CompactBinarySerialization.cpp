@@ -181,9 +181,7 @@ FCbField LoadCompactBinary(FArchive& Ar, FCbBufferAllocator Allocator)
 	checkf(Buffer.GetSize() == FieldSize,
 		TEXT("Allocator returned a buffer of size %" UINT64_FMT " bytes when %" UINT64_FMT " bytes were requested."),
 		Buffer.GetSize(), FieldSize);
-	FMutableMemoryView View = Buffer.GetView();
-	FMemory::Memcpy(View.GetData(), HeaderBytes.GetData(), HeaderBytes.Num());
-	View += HeaderBytes.Num();
+	FMutableMemoryView View = Buffer.GetView().CopyFrom(MakeMemoryView(HeaderBytes));
 	if (!View.IsEmpty())
 	{
 		Ar.Serialize(View.GetData(), static_cast<int64>(View.GetSize()));

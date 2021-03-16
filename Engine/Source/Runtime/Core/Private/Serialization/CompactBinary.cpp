@@ -572,11 +572,10 @@ void FCbFieldView::CopyTo(FMutableMemoryView Buffer) const
 {
 	const FMemoryView Source = GetViewNoType();
 	checkf(Buffer.GetSize() == sizeof(ECbFieldType) + Source.GetSize(),
-		TEXT("A buffer of %" UINT64_FMT " bytes was provided when %" UINT64_FMT " bytes are required"),
+		TEXT("Buffer is %" UINT64_FMT " bytes but %" UINT64_FMT " is required."),
 		Buffer.GetSize(), sizeof(ECbFieldType) + Source.GetSize());
-	*static_cast<ECbFieldType*>(Buffer.GetData()) = FCbFieldType::GetSerializedType(Type);
-	Buffer.RightChopInline(sizeof(ECbFieldType));
-	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), Source.GetSize());
+	const ECbFieldType SerializedType = FCbFieldType::GetSerializedType(Type);
+	Buffer.CopyFrom(MakeMemoryView(&SerializedType, 1)).CopyFrom(Source);
 }
 
 void FCbFieldView::CopyTo(FArchive& Ar) const
@@ -679,15 +678,14 @@ bool FCbArrayView::Equals(const FCbArrayView& Other) const
 		GetPayloadView().EqualBytes(Other.GetPayloadView());
 }
 
-void FCbArrayView::CopyTo(FMutableMemoryView Buffer) const
+void FCbArrayView::CopyTo(const FMutableMemoryView Buffer) const
 {
 	const FMemoryView Source = GetPayloadView();
 	checkf(Buffer.GetSize() == sizeof(ECbFieldType) + Source.GetSize(),
 		TEXT("Buffer is %" UINT64_FMT " bytes but %" UINT64_FMT " is required."),
 		Buffer.GetSize(), sizeof(ECbFieldType) + Source.GetSize());
-	*static_cast<ECbFieldType*>(Buffer.GetData()) = FCbFieldType::GetType(GetType());
-	Buffer.RightChopInline(sizeof(ECbFieldType));
-	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), Source.GetSize());
+	const ECbFieldType SerializedType = FCbFieldType::GetType(GetType());
+	Buffer.CopyFrom(MakeMemoryView(&SerializedType, 1)).CopyFrom(Source);
 }
 
 void FCbArrayView::CopyTo(FArchive& Ar) const
@@ -771,15 +769,14 @@ bool FCbObjectView::Equals(const FCbObjectView& Other) const
 		GetPayloadView().EqualBytes(Other.GetPayloadView());
 }
 
-void FCbObjectView::CopyTo(FMutableMemoryView Buffer) const
+void FCbObjectView::CopyTo(const FMutableMemoryView Buffer) const
 {
 	const FMemoryView Source = GetPayloadView();
 	checkf(Buffer.GetSize() == sizeof(ECbFieldType) + Source.GetSize(),
 		TEXT("Buffer is %" UINT64_FMT " bytes but %" UINT64_FMT " is required."),
 		Buffer.GetSize(), sizeof(ECbFieldType) + Source.GetSize());
-	*static_cast<ECbFieldType*>(Buffer.GetData()) = FCbFieldType::GetType(GetType());
-	Buffer.RightChopInline(sizeof(ECbFieldType));
-	FMemory::Memcpy(Buffer.GetData(), Source.GetData(), Source.GetSize());
+	const ECbFieldType SerializedType = FCbFieldType::GetType(GetType());
+	Buffer.CopyFrom(MakeMemoryView(&SerializedType, 1)).CopyFrom(Source);
 }
 
 void FCbObjectView::CopyTo(FArchive& Ar) const
@@ -846,7 +843,7 @@ void TCbFieldIterator<FieldType>::CopyRangeTo(FMutableMemoryView InBuffer) const
 		checkf(InBuffer.GetSize() == Source.GetSize(),
 			TEXT("Buffer is %" UINT64_FMT " bytes but %" UINT64_FMT " is required."),
 			InBuffer.GetSize(), Source.GetSize());
-		FMemory::Memcpy(InBuffer.GetData(), Source.GetData(), Source.GetSize());
+		InBuffer.CopyFrom(Source);
 	}
 	else
 	{

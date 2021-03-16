@@ -59,7 +59,7 @@ static inline ECbFieldType AppendCompactBinary(const FCbFieldView& Value, TArray
 	const FCopy& ValueCopy = static_cast<const FCopy&>(Value);
 	const FMemoryView SourceView = ValueCopy.GetPayloadView();
 	const int64 TargetOffset = OutData.AddUninitialized(SourceView.GetSize());
-	FMemory::Memcpy(OutData.GetData() + TargetOffset, SourceView.GetData(), SourceView.GetSize());
+	MakeMemoryView(OutData).RightChop(TargetOffset).CopyFrom(SourceView);
 	return FCbFieldType::GetType(ValueCopy.GetType());
 }
 
@@ -100,7 +100,7 @@ FCbFieldViewIterator FCbWriter::Save(const FMutableMemoryView Buffer) const
 	checkf(Data.Num() > 0, TEXT("It is invalid to save when nothing has been written."));
 	checkf(Buffer.GetSize() == Data.Num(),
 		TEXT("Buffer is %" UINT64_FMT " bytes but %" INT64_FMT " is required."), Buffer.GetSize(), Data.Num());
-	FMemory::Memcpy(Buffer.GetData(), Data.GetData(), Data.Num());
+	Buffer.CopyFrom(MakeMemoryView(Data));
 	return FCbFieldViewIterator::MakeRange(Buffer);
 }
 

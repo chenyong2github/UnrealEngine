@@ -96,14 +96,14 @@ FUniqueBuffer FUniqueBuffer::Alloc(uint64 InSize)
 
 FUniqueBuffer FUniqueBuffer::Clone(FMemoryView View)
 {
-	return Clone(View.GetData(), View.GetSize());
+	FUniqueBuffer Buffer = Alloc(View.GetSize());
+	Buffer.GetView().CopyFrom(View);
+	return Buffer;
 }
 
 FUniqueBuffer FUniqueBuffer::Clone(const void* Data, uint64 Size)
 {
-	FUniqueBuffer Buffer = Alloc(Size);
-	FMemory::Memcpy(Buffer.GetData(), Data, Size);
-	return Buffer;
+	return Clone(MakeMemoryView(Data, Size));
 }
 
 FUniqueBuffer FUniqueBuffer::MakeView(FMutableMemoryView View)
