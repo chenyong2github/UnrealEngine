@@ -20,6 +20,12 @@ namespace UnrealGameSync
 {
 	static class Program
 	{
+		public static string GetVersionString()
+		{
+			Version Version = Assembly.GetExecutingAssembly().GetName().Version;
+			return $"{Version.Major}.{Version.Minor} (Core)";
+		}
+
 		static JsonSerializerOptions GetDefaultJsonSerializerOptions()
 		{
 			JsonSerializerOptions Options = new JsonSerializerOptions();

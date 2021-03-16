@@ -5218,7 +5218,7 @@ namespace UnrealGameSync
 		private void OptionsContextMenu_Diagnostics_Click(object sender, EventArgs e)
 		{
 			StringBuilder DiagnosticsText = new StringBuilder();
-			DiagnosticsText.AppendFormat("Application version: {0}\n", Assembly.GetExecutingAssembly().GetName().Version);
+			DiagnosticsText.AppendFormat("Application version: {0}\n", Program.GetVersionString());
 			DiagnosticsText.AppendFormat("Synced from: {0}\n", Program.SyncVersion ?? "(unknown)");
 			DiagnosticsText.AppendFormat("Selected file: {0}\n", (SelectedFileName == null) ? "(none)" : SelectedFileName);
 			if (Workspace != null)
