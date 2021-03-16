@@ -86,6 +86,7 @@
 #include "Materials/MaterialExpressionDesaturation.h"
 #include "Materials/MaterialExpressionDistance.h"
 #include "Materials/MaterialExpressionDistanceCullFade.h"
+#include "Materials/MaterialExpressionDistanceFieldsRenderingSwitch.h"
 #include "Materials/MaterialExpressionDivide.h"
 #include "Materials/MaterialExpressionDotProduct.h"
 #include "Materials/MaterialExpressionDynamicParameter.h"
@@ -10925,6 +10926,70 @@ void UMaterialExpressionDistanceCullFade::GetCaption(TArray<FString>& OutCaption
 {
 	OutCaptions.Add(TEXT("Distance Cull Fade"));
 }
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionDistanceFieldsRenderingSwitch
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionDistanceFieldsRenderingSwitch::UMaterialExpressionDistanceFieldsRenderingSwitch(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_DistanceFieldsRendering;
+		FConstructorStatics()
+			: NAME_DistanceFieldsRendering(LOCTEXT("DistanceFieldsRendering", "DistanceFieldsRendering"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_DistanceFieldsRendering);
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionDistanceFieldsRenderingSwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (!Yes.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing DistanceFieldsRenderingSwitch input 'Yes'"));
+	}
+
+	if (!No.GetTracedInput().Expression)
+	{
+		return Compiler->Errorf(TEXT("Missing DistanceFieldsRenderingSwitch input 'No'"));
+	}
+
+	if (IsUsingDistanceFields(Compiler->GetShaderPlatform()))
+	{
+		return Yes.Compile(Compiler);
+	}
+
+	return No.Compile(Compiler);
+}
+
+bool UMaterialExpressionDistanceFieldsRenderingSwitch::IsResultMaterialAttributes(int32 OutputIndex)
+{
+	for (FExpressionInput* ExpressionInput : GetInputs())
+	{
+		if (ExpressionInput->GetTracedInput().Expression && !ExpressionInput->Expression->ContainsInputLoop() && ExpressionInput->Expression->IsResultMaterialAttributes(ExpressionInput->OutputIndex))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+void UMaterialExpressionDistanceFieldsRenderingSwitch::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("DistanceFieldsRenderingSwitch"));
+}
+
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
