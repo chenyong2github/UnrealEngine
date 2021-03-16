@@ -520,6 +520,7 @@ public:
 			}
 		}
 
+		if (!EnvPathOverride.IsEmpty())
 		{
 			FString DDCPath;
 			if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *EnvPathOverride, DDCPath))
@@ -693,6 +694,7 @@ public:
 				}
 			}
 
+			if (!EnvPathOverride.IsEmpty())
 			{
 				FString DDCPath;
 				if (FPlatformMisc::GetStoredValue(TEXT("Epic Games"), TEXT("GlobalDataCachePath"), *EnvPathOverride, DDCPath))
