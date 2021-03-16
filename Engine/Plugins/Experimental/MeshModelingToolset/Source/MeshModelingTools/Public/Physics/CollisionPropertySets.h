@@ -32,7 +32,7 @@ struct MESHMODELINGTOOLS_API FPhysicsSphereData
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
-	float Radius;
+	float Radius = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
 	FTransform Transform;
@@ -62,10 +62,10 @@ struct MESHMODELINGTOOLS_API FPhysicsCapsuleData
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
-	float Radius;
+	float Radius = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
-	float Length;
+	float Length = 0.0f;
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
 	FTransform Transform;
@@ -80,10 +80,10 @@ struct MESHMODELINGTOOLS_API FPhysicsConvexData
 	GENERATED_BODY()
 
 	UPROPERTY(VisibleAnywhere, Category = Convex)
-	int32 NumVertices;
+	int32 NumVertices = 0;
 
 	UPROPERTY(VisibleAnywhere, Category = Convex)
-	int32 NumFaces;
+	int32 NumFaces = 0;
 
 	UPROPERTY(VisibleAnywhere, Category = Sphere)
 	FKShapeElem Element;

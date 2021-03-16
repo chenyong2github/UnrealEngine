@@ -46,15 +46,15 @@ struct MESHMODELINGTOOLSEDITORONLY_API FLODLevelGenerateSettings
 
 	/** Simplification Target Type  */
 	UPROPERTY(EditAnywhere, Category = Options)
-	ESimplifyTargetType TargetMode;
+	ESimplifyTargetType TargetMode = ESimplifyTargetType::Percentage;
 
 	/** Target percentage */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "100", EditConditionHides, EditCondition = "TargetMode == ESimplifyTargetType::Percentage"))
-	int32 TargetPercentage;
+	int32 TargetPercentage = 100;
 
 	/** Target vertex/triangle count */
 	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "4", UIMax = "10000", ClampMin = "1", ClampMax = "9999999999", EditConditionHides, EditCondition = "TargetMode == ESimplifyTargetType::TriangleCount || TargetMode == ESimplifyTargetType::VertexCount"))
-	int32 TargetCount;
+	int32 TargetCount = 500;
 
 	/** Target vertex/triangle count */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = Options)

@@ -532,5 +532,5 @@ public:
 
 	/* The cached random seed */
 	UPROPERTY()
-	int32 InstancingRandomSeed;
+	int32 InstancingRandomSeed = 0;
 };
