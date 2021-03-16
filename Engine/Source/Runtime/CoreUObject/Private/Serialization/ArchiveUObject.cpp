@@ -60,6 +60,11 @@ FArchive& FArchiveUObject::SerializeLazyObjectPtr(FArchive& Ar, FLazyObjectPtr& 
 
 FArchive& FArchiveUObject::SerializeObjectPtr(FArchive& Ar, FObjectPtr& Value)
 {
+	if (Ar.IsCountingMemory() && !(Ar.IsLoading() || Ar.IsSaving()) && !Value.IsResolved())
+	{
+		return Ar;
+	}
+
 	// Default behavior is to fully resolve the reference (if we're not loading) and send it through
 	// the raw UObject* serialization codepath and ensure that the result is saved back into
 	// the FObjectPtr afterwards.  There will be many use cases where this is
