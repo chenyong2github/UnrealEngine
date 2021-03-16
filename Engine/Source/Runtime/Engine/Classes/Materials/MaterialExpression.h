@@ -17,7 +17,7 @@ class UMaterial;
 class UTexture;
 struct FPropertyChangedEvent;
 
-//@warning: FExpressionInput is mirrored in MaterialShared.h and manually "subclassed" in Material.h (FMaterialInput)
+//@warning: FExpressionInput is mirrored in MaterialExpressionIO.h and manually "subclassed" in Material.h (FMaterialInput)
 #if !CPP      //noexport struct
 USTRUCT(noexport)
 struct FExpressionInput
@@ -32,7 +32,6 @@ struct FExpressionInput
 	UPROPERTY()
 	int32 OutputIndex;
 
-#if WITH_EDITORONLY_DATA
 	/** 
 	 * optional FName of the input.  
 	 * Note that this is the only member which is not derived from the output currently connected. 
@@ -40,6 +39,7 @@ struct FExpressionInput
 	UPROPERTY()
 	FName InputName;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 Mask;
 

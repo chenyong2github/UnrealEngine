@@ -151,7 +151,7 @@ enum EMaterialDecalResponse
 };
 
 // Material input structs.
-//@warning: manually mirrored in MaterialShared.h
+//@warning: manually mirrored in MaterialExpressionIO.h
 #if !CPP      //noexport struct
 USTRUCT(noexport)
 struct FMaterialInput
@@ -166,7 +166,6 @@ struct FMaterialInput
 	UPROPERTY()
 	int32 OutputIndex;
 
-#if WITH_EDITORONLY_DATA
 	/** 
 	 * Optional name of the input.  
 	 * Note that this is the only member which is not derived from the output currently connected. 
@@ -174,6 +173,7 @@ struct FMaterialInput
 	UPROPERTY()
 	FName InputName;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	int32 Mask;
 
