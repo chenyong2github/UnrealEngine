@@ -293,6 +293,12 @@ bool USourceControlHelpers::SyncFile(const FString& InFile, bool bSilent)
 
 bool USourceControlHelpers::SyncFiles(const TArray<FString>& InFiles, bool bSilent)
 {
+	// If we have nothing to process, exit immediately 
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
 
 	if (!Provider)
@@ -397,6 +403,12 @@ bool USourceControlHelpers::CheckOutFile(const FString& InFile, bool bSilent)
 
 bool USourceControlHelpers::CheckOutFiles(const TArray<FString>& InFiles, bool bSilent)
 {
+	// If we have nothing to process, exit immediately
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	// Determine file type and ensure it is in form source control wants
 	// Even if some files were skipped, still apply to the others
 	TArray<FString> SCFiles;
@@ -543,6 +555,12 @@ bool USourceControlHelpers::CheckOutOrAddFile(const FString& InFile, bool bSilen
 
 bool USourceControlHelpers::CheckOutOrAddFiles(const TArray<FString>& InFiles, bool bSilent)
 {
+	// If we have nothing to process, exit immediately
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	// Determine file type and ensure it is in form source control wants
 	// Even if some files were skipped, still apply to the others
 	TArray<FString> SCFiles;
@@ -664,6 +682,12 @@ bool USourceControlHelpers::MarkFileForAdd(const FString& InFile, bool bSilent)
 
 bool USourceControlHelpers::MarkFilesForAdd(const TArray<FString>& InFiles, bool bSilent)
 {
+	// If we have nothing to process, exit immediately
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
 
 	if (!Provider)
@@ -767,6 +791,12 @@ bool USourceControlHelpers::MarkFileForDelete(const FString& InFile, bool bSilen
 
 bool USourceControlHelpers::MarkFilesForDelete(const TArray<FString>& InFiles, bool bSilent)
 {
+	// If we have nothing to process, exit immediately
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	// Determine file type and ensure it is in form source control wants
 	// Even if some files were skipped, still apply to the others
 	TArray<FString> SCFiles;
@@ -871,6 +901,12 @@ bool USourceControlHelpers::RevertFile(const FString& InFile, bool bSilent)
 
 bool USourceControlHelpers::RevertFiles(const TArray<FString>& InFiles,	bool bSilent)
 {
+	// If we have nothing to process, exit immediately
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	// Determine file type and ensure they are in form source control wants
 	// Even if some files were skipped, still apply to the others
 	TArray<FString> SCFiles;
@@ -945,6 +981,12 @@ bool USourceControlHelpers::RevertUnchangedFile(const FString& InFile, bool bSil
 
 bool USourceControlHelpers::RevertUnchangedFiles(const TArray<FString>& InFiles, bool bSilent)
 {
+	// If we have nothing to process, exit immediately
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	// Determine file types and ensure they are in form source control wants
 	TArray<FString> FilePaths;
 	SourceControlHelpersInternal::ConvertFilesToQualifiedPaths(InFiles, FilePaths, bSilent);
@@ -996,6 +1038,12 @@ bool USourceControlHelpers::CheckInFile(const FString& InFile, const FString& In
 
 bool USourceControlHelpers::CheckInFiles(const TArray<FString>& InFiles, const FString& InDescription, bool bSilent)
 {
+	// If we have nothing to process, exit immediately
+	if (InFiles.IsEmpty())
+	{
+		return true;
+	}
+
 	ISourceControlProvider* Provider = SourceControlHelpersInternal::VerifySourceControl(bSilent);
 
 	if (!Provider)

@@ -542,6 +542,12 @@ FName FPerforceMarkForAddWorker::GetName() const
 
 bool FPerforceMarkForAddWorker::Execute(FPerforceSourceControlCommand& InCommand)
 {
+	// Avoid invalid p4 syntax if there's no file to process
+	if (InCommand.Files.IsEmpty())
+	{
+		return true;
+	}
+
 	// Perforce will allow you to mark files for add that don't currently exist on disk
 	// This goes against the workflow of our other SCC providers (such as SVN and Git),
 	// so we manually check that the files exist before allowing this command to continue

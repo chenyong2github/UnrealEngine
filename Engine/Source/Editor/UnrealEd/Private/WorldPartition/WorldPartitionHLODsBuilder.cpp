@@ -884,45 +884,57 @@ bool UWorldPartitionHLODsBuilder::CopyFilesFromWorkingDir(const FString& SourceD
 		}
 	}
 
-	TArray<FString> FilesToEdit;
-	FilesToCopy.GetKeys(FilesToEdit);
-
-	bRet = USourceControlHelpers::MarkFilesForAdd(FilesToAdd);
-	if (!bRet)
+	// Add
+	if (!FilesToAdd.IsEmpty())
 	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Adding files to source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
-		while (!FPlatformMisc::IsDebuggerPresent())
-		{
-			FPlatformProcess::Sleep(0.1f);
-		}
-		return false;
-	}
-	ModifiedFiles.Append(FilesToAdd);
-
-	bRet = USourceControlHelpers::MarkFilesForDelete(FilesToDelete);
-	if (!bRet)
-	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Deleting files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
-		return false;
-	}
-	ModifiedFiles.Append(FilesToDelete);
-
-	bRet = USourceControlHelpers::CheckOutFiles(FilesToEdit);
-	if (!bRet)
-	{
-		UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Checking out files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
-		return false;
-	}
-
-	for(const auto& Pair : FilesToCopy)
-	{
-		bRet = IFileManager::Get().Copy(*Pair.Key, *Pair.Value) == COPY_OK;
+		bRet = USourceControlHelpers::MarkFilesForAdd(FilesToAdd);
 		if (!bRet)
 		{
-			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to copy file from \"%s\" to \"%s\""), *Pair.Value, *Pair.Key);
+			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Adding files to source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+			while (!FPlatformMisc::IsDebuggerPresent())
+			{
+				FPlatformProcess::Sleep(0.1f);
+			}
 			return false;
 		}
-		ModifiedFiles.Add(Pair.Key);
+		ModifiedFiles.Append(FilesToAdd);
+	}
+
+	// Delete
+	if (!FilesToDelete.IsEmpty())
+	{
+		bRet = USourceControlHelpers::MarkFilesForDelete(FilesToDelete);
+		if (!bRet)
+		{
+			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Deleting files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+			return false;
+		}
+		ModifiedFiles.Append(FilesToDelete);
+	}
+
+	// Edit
+	if (!FilesToCopy.IsEmpty())
+	{
+		TArray<FString> FilesToEdit;
+		FilesToCopy.GetKeys(FilesToEdit);
+
+		bRet = USourceControlHelpers::CheckOutFiles(FilesToEdit);
+		if (!bRet)
+		{
+			UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Checking out files from source control failed: %s"), *USourceControlHelpers::LastErrorMsg().ToString());
+			return false;
+		}
+		ModifiedFiles.Append(FilesToEdit);
+
+		for (const auto& Pair : FilesToCopy)
+		{
+			bRet = IFileManager::Get().Copy(*Pair.Key, *Pair.Value) == COPY_OK;
+			if (!bRet)
+			{
+				UE_LOG(LogWorldPartitionHLODsBuilder, Error, TEXT("Failed to copy file from \"%s\" to \"%s\""), *Pair.Value, *Pair.Key);
+				return false;
+			}
+		}
 	}
 
 	return true;
