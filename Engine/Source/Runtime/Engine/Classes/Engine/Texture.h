@@ -40,7 +40,7 @@ enum TextureCompressionSettings
 	TC_HDR_Compressed			UMETA(DisplayName="HDRCompressed (RGB, BC6H, DX11)"),
 	TC_BC7						UMETA(DisplayName="BC7 (DX11, optional A)"),
 	TC_HalfFloat				UMETA(DisplayName="Half Float (R16F)"),
-	TC_ReflectionCapture		UMETA(DisplayName="Default (DXT5)"),
+	TC_ReflectionCapture		UMETA(Hidden),
 	TC_MAX,
 };
 
