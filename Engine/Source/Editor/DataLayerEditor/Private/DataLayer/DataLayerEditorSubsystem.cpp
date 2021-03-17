@@ -206,6 +206,7 @@ void UDataLayerEditorSubsystem::EditorMapChange()
 		World->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddLambda([this](AActor& InActor) { InitializeNewActorDataLayers(&InActor); });
 	}
 	DataLayerChanged.Broadcast(EDataLayerAction::Reset, NULL, NAME_None);
+	UpdateAllActorsVisibility(true, true);
 }
 
 void UDataLayerEditorSubsystem::EditorRefreshDataLayerBrowser()
@@ -920,7 +921,7 @@ void UDataLayerEditorSubsystem::SetDataLayersVisibility(const TArray<UDataLayer*
 
 		if (DataLayer->IsVisible() != bIsVisible)
 		{
-			DataLayer->Modify();
+			DataLayer->Modify(/*bAlswaysMarkDirty*/false);
 			DataLayer->SetVisible(bIsVisible);
 			DataLayerChanged.Broadcast(EDataLayerAction::Modify, DataLayer, "bIsVisible");
 			bChangeOccurred = true;

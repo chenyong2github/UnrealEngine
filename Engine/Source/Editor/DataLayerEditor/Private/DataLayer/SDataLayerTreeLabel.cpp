@@ -90,15 +90,15 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 {
 	const UDataLayer* DataLayer = DataLayerPtr.Get();
 	bool bIsDataLayerActive = false;
-	EDataLayerState DataLayerState = EDataLayerState::Unloaded;
+	FText DataLayerStateText = FText::GetEmpty();
 	if (DataLayer && DataLayer->IsDynamicallyLoaded() && DataLayer->GetWorld()->IsPlayInEditor())
 	{
 		const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-		DataLayerState = DataLayerSubsystem->GetDataLayerState(DataLayer);
+		DataLayerStateText = FText::Format(LOCTEXT("DataLayerActive", " ({0})"), StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)DataLayerSubsystem->GetDataLayerState(DataLayer)));
 	}
-	const FText DataLayerStateText = FText::Format(LOCTEXT("DataLayerActive", "({0})"), StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)DataLayerState));
+	
 	static const FText DataLayerDeleted = LOCTEXT("DataLayerLabelForMissingDataLayer", "(Deleted Data Layer)");
-	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0} {1}"), FText::FromName(DataLayer->GetDataLayerLabel()), DataLayerStateText) : DataLayerDeleted;
+	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0}{1}"), FText::FromName(DataLayer->GetDataLayerLabel()), DataLayerStateText) : DataLayerDeleted;
 }
 
 FText SDataLayerTreeLabel::GetTooltipText() const
@@ -182,14 +182,14 @@ bool SDataLayerTreeLabel::OnVerifyItemLabelChanged(const FText& InLabel, FText& 
 {
 	if (InLabel.IsEmptyOrWhitespace())
 	{
-		OutErrorMessage = LOCTEXT("EmptyDataLayerLabel", "DataLayer must be given a name");
+		OutErrorMessage = LOCTEXT("EmptyDataLayerLabel", "Data Layer must be given a name");
 		return false;
 	}
 
 	UDataLayer* FoundDataLayer;
 	if (UDataLayerEditorSubsystem::Get()->TryGetDataLayerFromLabel(*InLabel.ToString(), FoundDataLayer) && FoundDataLayer != DataLayerPtr.Get())
 	{
-		OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This DataLayer already exists");
+		OutErrorMessage = LOCTEXT("RenameFailed_AlreadyExists", "This Data Layer already exists");
 		return false;
 	}
 

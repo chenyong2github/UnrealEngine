@@ -56,7 +56,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 			.FillWidth(1.0f)
 			[
 				SNew(SComboButton)
-				.ToolTipText(LOCTEXT("ComboButtonTip", "Drag and drop a DataLayer onto this property, or choose one from the drop down."))
+				.ToolTipText(LOCTEXT("ComboButtonTip", "Drag and drop a Data Layer onto this property, or choose one from the drop down."))
 				.OnGetMenuContent(this, &FDataLayerPropertyTypeCustomization::OnGetDataLayerMenu)
 				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
 				.ForegroundColor(FSlateColor::UseForeground())
@@ -75,7 +75,7 @@ void FDataLayerPropertyTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHa
 			[
 				SNew(SButton)
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.ToolTipText(LOCTEXT("SelectTip", "Select all actors in this DataLayer"))
+				.ToolTipText(LOCTEXT("SelectTip", "Select all actors in this Data Layer"))
 				.OnClicked(this, &FDataLayerPropertyTypeCustomization::OnSelectDataLayer)
 				.Visibility(this, &FDataLayerPropertyTypeCustomization::GetSelectDataLayerVisibility)
 				.ForegroundColor(FSlateColor::UseForeground())

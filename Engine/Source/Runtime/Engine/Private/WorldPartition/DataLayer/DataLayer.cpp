@@ -11,15 +11,17 @@
 UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
-, DataLayerLabel(GetFName())
-, InitialState(EDataLayerState::Unloaded)
-, bIsVisible(true)
-, bIsDynamicallyLoaded(false)
 , bIsInitiallyActive_DEPRECATED(false)
+, bIsVisible(true)
+, bIsInitiallyVisible(true)
 , bIsDynamicallyLoadedInEditor(true)
+, bIsLocked(false)
 , bGeneratesHLODs(false)
 , DefaultHLODLayer()
 #endif
+, DataLayerLabel(GetFName())
+, InitialState(EDataLayerState::Unloaded)
+, bIsDynamicallyLoaded(false)
 {
 }
 
@@ -32,6 +34,27 @@ void UDataLayer::PostLoad()
 	{
 		InitialState = EDataLayerState::Activated;
 	}
+
+	// Initialize bIsVisible with persistent flag bIsInitiallyVisible
+	bIsVisible = bIsInitiallyVisible;
+#endif
+}
+
+bool UDataLayer::IsInitiallyVisible() const
+{
+#if WITH_EDITOR
+	return bIsInitiallyVisible;
+#else
+	return false;
+#endif
+}
+
+bool UDataLayer::IsVisible() const
+{
+#if WITH_EDITOR
+	return bIsVisible;
+#else
+	return false;
 #endif
 }
 
@@ -51,8 +74,17 @@ void UDataLayer::SetVisible(bool bInIsVisible)
 {
 	if (bIsVisible != bInIsVisible)
 	{
-		Modify();
+		Modify(/*bAlwaysMarkDirty*/false);
 		bIsVisible = bInIsVisible;
+	}
+}
+
+void UDataLayer::SetIsInitiallyVisible(bool bInIsInitiallyVisible)
+{
+	if (bIsInitiallyVisible != bInIsInitiallyVisible)
+	{
+		Modify();
+		bIsInitiallyVisible = bInIsInitiallyVisible;
 	}
 }
 
@@ -67,7 +99,7 @@ void UDataLayer::SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded)
 
 void UDataLayer::SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor)
 {
-	if (bIsDynamicallyLoadedInEditor != bInIsDynamicallyLoadedInEditor && (!bInIsDynamicallyLoadedInEditor || bIsDynamicallyLoaded))
+	if (bIsDynamicallyLoadedInEditor != bInIsDynamicallyLoadedInEditor)
 	{
 		Modify(false);
 		bIsDynamicallyLoadedInEditor = bInIsDynamicallyLoadedInEditor;

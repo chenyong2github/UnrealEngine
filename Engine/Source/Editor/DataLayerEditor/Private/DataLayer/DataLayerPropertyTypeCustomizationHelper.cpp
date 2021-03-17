@@ -14,7 +14,7 @@ TSharedRef<SWidget> FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMe
 	FMenuBuilder MenuBuilder(true, nullptr);
 
 	MenuBuilder.AddMenuEntry(
-		LOCTEXT("OpenDataLayersBrowser", "Browse DataLayers..."),
+		LOCTEXT("OpenDataLayersBrowser", "Browse Data Layers..."),
 		FText(),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.DataLayers"),
 		FUIAction(
@@ -26,7 +26,7 @@ TSharedRef<SWidget> FDataLayerPropertyTypeCustomizationHelper::CreateDataLayerMe
 		)
 	);
 
-	MenuBuilder.BeginSection(FName(), LOCTEXT("ExistingDataLayers", "Existing DataLayers"));
+	MenuBuilder.BeginSection(FName(), LOCTEXT("ExistingDataLayers", "Existing Data Layers"));
 	{
 		TArray<TWeakObjectPtr<UDataLayer>> AllDataLayers;
 		AllDataLayers.Add(nullptr); // This allows to show the "<None>" option

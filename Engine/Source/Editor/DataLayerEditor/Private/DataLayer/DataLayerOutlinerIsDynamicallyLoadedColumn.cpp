@@ -43,69 +43,21 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsDynamicallyLoadedColumn::Construct
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
-				SNew(SButton)
-				.ContentPadding(0)
-				.ButtonStyle(FEditorStyle::Get(), "NoBorder")
-				.OnClicked_Lambda([this, TreeItem]()
+				SNew(SImage)
+				.ToolTipText(LOCTEXT("IsDynamicallyLoadedButtonToolTip", "Whether the Data Layer affects actor runtime loading"))
+				.Image_Lambda([this, TreeItem]()
 				{
 					FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
-					if (UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer())
+					const UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer();
+					if (DataLayer && DataLayer->IsDynamicallyLoaded())
 					{
-						bool bSuccess = false;
-						UDataLayerEditorSubsystem* DataLayerEditorSubsystem = UDataLayerEditorSubsystem::Get();
-						const auto& Tree = WeakSceneOutliner.Pin()->GetTree();
-						if (Tree.IsItemSelected(TreeItem))
-						{
-							// Toggle IsDynamicallyLoaded flag of selected DataLayers to the same state as the given DataLayer
-							bool bIsDynamicallyLoaded = DataLayer->IsDynamicallyLoaded();
-
-							TArray<UDataLayer*> AllSelectedDataLayers;
-							for (auto& SelectedItem : Tree.GetSelectedItems())
-							{
-								FDataLayerTreeItem* SelectedDataLayerTreeItem = SelectedItem->CastTo<FDataLayerTreeItem>();
-								UDataLayer* SelectedDataLayer = SelectedDataLayerTreeItem ? SelectedDataLayerTreeItem->GetDataLayer() : nullptr;
-								if (SelectedDataLayer && SelectedDataLayer->IsDynamicallyLoaded() == bIsDynamicallyLoaded)
-								{
-									AllSelectedDataLayers.Add(SelectedDataLayer);
-								}
-							}
-
-							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayersIsDynamicallyLoaded", "Toggle DataLayers Runtime Dynamically Loaded Flag"));
-							bSuccess = DataLayerEditorSubsystem->ToggleDataLayersIsDynamicallyLoaded(AllSelectedDataLayers);
-						}
-						else
-						{
-							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayerIsDynamicallyLoaded", "Toggle DataLayer Runtime Dynamically Loaded Flag"));
-							bSuccess = DataLayerEditorSubsystem->ToggleDataLayerIsDynamicallyLoaded(DataLayer);
-						}
-						if (!bSuccess)
-						{
-							// Cancelled : Undo last transaction
-							GEditor->Trans->Undo();
-						}
+						return FEditorStyle::GetBrush("DataLayer.DynamicallyLoaded");
 					}
-					return FReply::Handled();
-				})
-				.ToolTipText(LOCTEXT("IsDynamicallyLoadedButtonToolTip", "Toggle DataLayer Runtime Dynamically Loaded Flag"))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.Content()
-				[
-					SNew(SImage)
-					.Image_Lambda([this, TreeItem]()
+					else
 					{
-						FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
-						const UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer();
-						if (DataLayer && DataLayer->IsDynamicallyLoaded())
-						{
-							return FEditorStyle::GetBrush("DataLayer.DynamicallyLoaded");
-						}
-						else
-						{
-							return FEditorStyle::GetBrush("DataLayer.NotDynamicallyLoaded");
-						}
-					})
-				]
+						return FEditorStyle::GetBrush("DataLayer.NotDynamicallyLoaded");
+					}
+				})
 			]
 			+ SHorizontalBox::Slot()
 			.Padding(2, 0, 0, 0)
@@ -113,12 +65,6 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsDynamicallyLoadedColumn::Construct
 			.VAlign(VAlign_Center)
 			[
 				SNew(SCheckBox)
-				.IsEnabled_Lambda([this, TreeItem]()
-				{
-					FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
-					UDataLayer* DataLayer = DataLayerTreeItem->GetDataLayer();
-					return DataLayer && DataLayer->IsDynamicallyLoaded();
-				})
 				.IsChecked_Lambda([this, TreeItem]()
 				{
 					FDataLayerTreeItem* DataLayerTreeItem = TreeItem->CastTo<FDataLayerTreeItem>();
@@ -150,12 +96,12 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsDynamicallyLoadedColumn::Construct
 								}
 							}
 
-							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayersIsDynamicallyLoadedInEditor", "Toggle DataLayers Editor Dynamically Loaded Flag"));
+							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayersIsDynamicallyLoadedInEditor", "Toggle Data Layers Dynamically Loaded In Editor Flag"));
 							bSuccess = DataLayerEditorSubsystem->ToggleDataLayersIsDynamicallyLoadedInEditor(AllSelectedDataLayers);
 						}
 						else
 						{
-							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayerIsDynamicallyLoadedInEditor", "Toggle DataLayer Editor Dynamically Loaded Flag"));
+							const FScopedTransaction Transaction(LOCTEXT("ToggleDataLayerIsDynamicallyLoadedInEditor", "Toggle Data Layer Dynamically Loaded In Editor Flag"));
 							bSuccess = DataLayerEditorSubsystem->ToggleDataLayerIsDynamicallyLoadedInEditor(DataLayer);
 						}
 						if (!bSuccess)
@@ -165,7 +111,7 @@ const TSharedRef<SWidget> FDataLayerOutlinerIsDynamicallyLoadedColumn::Construct
 						}
 					}
 				})
-				.ToolTipText(LOCTEXT("IsDynamicallyLoadedInEditorCheckBoxToolTip", "Toggle DataLayer Editor Dynamically Loaded Flag"))
+				.ToolTipText(LOCTEXT("IsDynamicallyLoadedInEditorCheckBoxToolTip", "Toggle Data Layer Dynamically Loaded In Editor Flag"))
 				.HAlign(HAlign_Center)
 			];
 	}

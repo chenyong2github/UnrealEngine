@@ -121,7 +121,7 @@ void FDataLayerMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 	{
 		if (UDataLayer* DataLayer = DataLayerItem->GetDataLayer())
 		{
-			const FScopedTransaction Transaction(LOCTEXT("SelectActorsInDataLayer", "Select Actors in DataLayer"));
+			const FScopedTransaction Transaction(LOCTEXT("SelectActorsInDataLayer", "Select Actors in Data Layer"));
 			GEditor->SelectNone(/*bNoteSelectionChange*/false, true);
 			DataLayerEditorSubsystem->SelectActorsInDataLayer(DataLayer, /*bSelect*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
 		}
@@ -130,7 +130,7 @@ void FDataLayerMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 	{
 		if (AActor * Actor = DataLayerActorItem->GetActor())
 		{
-			const FScopedTransaction Transaction(LOCTEXT("ClickingOnActor", "Clicking on Actor in DataLayer"));
+			const FScopedTransaction Transaction(LOCTEXT("ClickingOnActor", "Clicking on Actor in Data Layer"));
 			GEditor->GetSelectedActors()->Modify();
 			GEditor->SelectNone(/*bNoteSelectionChange*/false, true);
 			GEditor->SelectActor(Actor, /*bSelected*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
@@ -185,7 +185,7 @@ void FDataLayerMode::DeleteItems(const TArray<TWeakPtr<ISceneOutlinerTreeItem>>&
 		}
 		
 		{
-			const FScopedTransaction Transaction(LOCTEXT("DeleteDataLayers", "Delete DataLayers"));
+			const FScopedTransaction Transaction(LOCTEXT("DeleteDataLayers", "Delete Data Layers"));
 			DataLayerEditorSubsystem->DeleteDataLayers(DataLayersToDelete);
 		}
 
@@ -384,13 +384,13 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 				TArray<UDataLayer*> AllSelectedDataLayers = GetSelectedDataLayers(SceneOutliner);
 				if (AllSelectedDataLayers.Num() > 1)
 				{
-					const FScopedTransaction Transaction(LOCTEXT("DataLayerOutlinerAddActorsToDataLayers", "Add Actors to DataLayers"));
+					const FScopedTransaction Transaction(LOCTEXT("DataLayerOutlinerAddActorsToDataLayers", "Add Actors to Data Layers"));
 					DataLayerEditorSubsystem->AddActorsToDataLayers(ActorsToAdd, AllSelectedDataLayers);
 					return;
 				}
 			}
 
-			const FScopedTransaction Transaction(LOCTEXT("DataLayerOutlinerAddActorsToDataLayer", "Add Actors to DataLayer"));
+			const FScopedTransaction Transaction(LOCTEXT("DataLayerOutlinerAddActorsToDataLayer", "Add Actors to Data Layer"));
 			DataLayerEditorSubsystem->AddActorsToDataLayer(ActorsToAdd, DataLayer);
 		}
 	}
@@ -399,7 +399,7 @@ void FDataLayerMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FSceneOutl
 		if (!ActorsToAdd[0]->HasDataLayers())
 		{
 			// Only allow actors not coming from the DataLayerBrowser
-			const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Actors to New DataLayer"));
+			const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Actors to New Data Layer"));
 			if (UDataLayer* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
 			{
 				DataLayerEditorSubsystem->AddActorsToDataLayer(ActorsToAdd, NewDataLayer);
@@ -521,19 +521,19 @@ void FDataLayerMode::RegisterContextMenu()
 			}
 
 			{
-				FToolMenuSection& Section = InMenu->AddSection("DataLayers", LOCTEXT("DataLayers", "DataLayers"));
-				Section.AddMenuEntry("CreateEmptyDataLayer", LOCTEXT("CreateEmptyDataLayer", "Create Empty DataLayer"), FText(), FSlateIcon(),
+				FToolMenuSection& Section = InMenu->AddSection("DataLayers", LOCTEXT("DataLayers", "Data Layers"));
+				Section.AddMenuEntry("CreateEmptyDataLayer", LOCTEXT("CreateEmptyDataLayer", "Create Empty Data Layer"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
-							const FScopedTransaction Transaction(LOCTEXT("CreateEmptyDataLayer", "Create Empty DataLayer"));
+							const FScopedTransaction Transaction(LOCTEXT("CreateEmptyDataLayer", "Create Empty Data Layer"));
 							DataLayerEditorSubsystem->CreateDataLayer();
 							})
 					));
 
-				Section.AddMenuEntry("AddSelectedActorsToNewDataLayer", LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New DataLayer"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("AddSelectedActorsToNewDataLayer", LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
-							const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New DataLayer"));
+							const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"));
 							if (UDataLayer* NewDataLayer = DataLayerEditorSubsystem->CreateDataLayer())
 							{
 								DataLayerEditorSubsystem->AddSelectedActorsToDataLayer(NewDataLayer);
@@ -541,12 +541,12 @@ void FDataLayerMode::RegisterContextMenu()
 						FCanExecuteAction::CreateLambda([=] { return GEditor->GetSelectedActorCount() > 0; })
 					));
 
-				Section.AddMenuEntry("AddSelectedActorsToSelectedDataLayers", LOCTEXT("AddSelectedActorsToSelectedDataLayers", "Add Selected Actors to Selected DataLayers"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("AddSelectedActorsToSelectedDataLayers", LOCTEXT("AddSelectedActorsToSelectedDataLayers", "Add Selected Actors to Selected Data Layers"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							check(!SelectedDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToSelectedDataLayers", "Add Selected Actors to Selected DataLayers"));
+								const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToSelectedDataLayers", "Add Selected Actors to Selected Data Layers"));
 								DataLayerEditorSubsystem->AddSelectedActorsToDataLayers(SelectedDataLayers);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty() && GEditor->GetSelectedActorCount() > 0; })
@@ -554,23 +554,23 @@ void FDataLayerMode::RegisterContextMenu()
 
 				Section.AddSeparator("SectionsSeparator");
 
-				Section.AddMenuEntry("RemoveSelectedActorsFromSelectedDataLayers", LOCTEXT("RemoveSelectedActorsFromSelectedDataLayers", "Remove Selected Actors from Selected DataLayers"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("RemoveSelectedActorsFromSelectedDataLayers", LOCTEXT("RemoveSelectedActorsFromSelectedDataLayers", "Remove Selected Actors from Selected Data Layers"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							check(!SelectedDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("RemoveSelectedActorsFromSelectedDataLayers", "Remove Selected Actors from Selected DataLayers"));
+								const FScopedTransaction Transaction(LOCTEXT("RemoveSelectedActorsFromSelectedDataLayers", "Remove Selected Actors from Selected Data Layers"));
 								DataLayerEditorSubsystem->RemoveSelectedActorsFromDataLayers(SelectedDataLayers);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty() && GEditor->GetSelectedActorCount() > 0; })
 					));
 
-				Section.AddMenuEntry("DeleteSelectedDataLayers", LOCTEXT("DeleteSelectedDataLayers", "Delete Selected DataLayers"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("DeleteSelectedDataLayers", LOCTEXT("DeleteSelectedDataLayers", "Delete Selected Data Layers"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							check(!SelectedDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("DeleteSelectedDataLayers", "Delete Selected DataLayers"));
+								const FScopedTransaction Transaction(LOCTEXT("DeleteSelectedDataLayers", "Delete Selected Data Layers"));
 								DataLayerEditorSubsystem->DeleteDataLayers(SelectedDataLayers);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { 
@@ -585,7 +585,7 @@ void FDataLayerMode::RegisterContextMenu()
 						})
 					));
 
-				Section.AddMenuEntry("RenameSelectedDataLayer", LOCTEXT("RenameSelectedDataLayer", "Rename Selected DataLayer"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("RenameSelectedDataLayer", LOCTEXT("RenameSelectedDataLayer", "Rename Selected Data Layer"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							if (SelectedDataLayers.Num() == 1)
@@ -606,35 +606,35 @@ void FDataLayerMode::RegisterContextMenu()
 			{
 				FToolMenuSection& Section = InMenu->AddSection("DataLayerSelection", LOCTEXT("DataLayerSelection", "Selection"));
 
-				Section.AddMenuEntry("SelectActorsInDataLayers", LOCTEXT("SelectActorsInDataLayers", "Select Actors in DataLayers"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("SelectActorsInDataLayers", LOCTEXT("SelectActorsInDataLayers", "Select Actors in Data Layers"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							check(!SelectedDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("SelectActorsInDataLayers", "Select Actors in DataLayers"));
+								const FScopedTransaction Transaction(LOCTEXT("SelectActorsInDataLayers", "Select Actors in Data Layers"));
 								GEditor->SelectNone(/*bNoteSelectionChange*/false, /*bDeselectBSPSurfs*/true);
 								DataLayerEditorSubsystem->SelectActorsInDataLayers(SelectedDataLayers, /*bSelect*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
 					));
 
-				Section.AddMenuEntry("AppendActorsToSelection", LOCTEXT("AppendActorsToSelection", "Append Actors in DataLayer to Selection"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("AppendActorsToSelection", LOCTEXT("AppendActorsToSelection", "Append Actors in Data Layer to Selection"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							check(!SelectedDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("AppendActorsToSelection", "Append Actors in DataLayer to Selection"));
+								const FScopedTransaction Transaction(LOCTEXT("AppendActorsToSelection", "Append Actors in Data Layer to Selection"));
 								DataLayerEditorSubsystem->SelectActorsInDataLayers(SelectedDataLayers, /*bSelect*/true, /*bNotify*/true, /*bSelectEvenIfHidden*/true);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
 					));
 
-				Section.AddMenuEntry("DeselectActors", LOCTEXT("DeselectActors", "Deselect Actors in DataLayer"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("DeselectActors", LOCTEXT("DeselectActors", "Deselect Actors in Data Layer"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							check(!SelectedDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("DeselectActors", "Deselect Actors in DataLayer"));
+								const FScopedTransaction Transaction(LOCTEXT("DeselectActors", "Deselect Actors in Data Layer"));
 								DataLayerEditorSubsystem->SelectActorsInDataLayers(SelectedDataLayers, /*bSelect*/false, /*bNotifySelectActors*/true);
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !SelectedDataLayers.IsEmpty(); })
@@ -644,12 +644,12 @@ void FDataLayerMode::RegisterContextMenu()
 			{
 				FToolMenuSection& Section = InMenu->AddSection("DataLayerVisibility", LOCTEXT("DataLayerVisibility", "Visibility"));
 
-				Section.AddMenuEntry("MakeAllDataLayersVisible", LOCTEXT("MakeAllDataLayersVisible", "Make All DataLayers Visible"), FText(), FSlateIcon(),
+				Section.AddMenuEntry("MakeAllDataLayersVisible", LOCTEXT("MakeAllDataLayersVisible", "Make All Data Layers Visible"), FText(), FSlateIcon(),
 					FUIAction(
 						FExecuteAction::CreateLambda([=]() {
 							check(!AllDataLayers.IsEmpty());
 							{
-								const FScopedTransaction Transaction(LOCTEXT("MakeAllDataLayersVisible", "Make All DataLayers Visible"));
+								const FScopedTransaction Transaction(LOCTEXT("MakeAllDataLayersVisible", "Make All Data Layers Visible"));
 								DataLayerEditorSubsystem->MakeAllDataLayersVisible();
 							}}),
 						FCanExecuteAction::CreateLambda([=] { return !AllDataLayers.IsEmpty(); })

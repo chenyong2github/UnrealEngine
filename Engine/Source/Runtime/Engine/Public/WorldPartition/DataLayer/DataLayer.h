@@ -28,11 +28,12 @@ public:
 #if WITH_EDITOR
 	void SetDataLayerLabel(FName InDataLayerLabel);
 	void SetVisible(bool bInIsVisible);
+	void SetIsInitiallyVisible(bool bInIsInitiallyVisible);
 	void SetIsDynamicallyLoaded(bool bInIsDynamicallyLoaded);
 	void SetIsDynamicallyLoadedInEditor(bool bInIsDynamicallyLoadedInEditor);
 	void SetIsLocked(bool bInIsLocked) { bIsLocked = bInIsLocked; }
 
-	bool IsDynamicallyLoadedInEditor() const { return !IsDynamicallyLoaded() || bIsDynamicallyLoadedInEditor; }
+	bool IsDynamicallyLoadedInEditor() const { return bIsDynamicallyLoadedInEditor; }
 	bool ShouldGenerateHLODs() const { return IsDynamicallyLoaded() && bGeneratesHLODs; }
 	class UHLODLayer* GetDefaultHLODLayer() const { return ShouldGenerateHLODs() ? DefaultHLODLayer : nullptr; }
 
@@ -42,46 +43,41 @@ public:
 #endif
 	virtual void PostLoad() override;
 
-	UFUNCTION(Category = DataLayer, BlueprintCallable)
+	UFUNCTION(Category = "Data Layer", BlueprintCallable)
 	bool Equals(const FActorDataLayer& ActorDataLayer) const { return ActorDataLayer.Name == GetFName(); }
 	
-	UFUNCTION(Category = DataLayer, BlueprintCallable)
+	UFUNCTION(Category = "Data Layer", BlueprintCallable)
 	FName GetDataLayerLabel() const  { return DataLayerLabel; }
 
-	UFUNCTION(Category = DataLayer, BlueprintCallable)
-	bool IsVisible() const { return bIsVisible; }
+	UFUNCTION(Category = "Data Layer - Editor", BlueprintCallable)
+	bool IsInitiallyVisible() const;
 
-	UFUNCTION(Category = DataLayer, BlueprintCallable)
+	UFUNCTION(Category = "Data Layer - Editor", BlueprintCallable)
+	bool IsVisible() const;
+
+	UFUNCTION(Category = "Data Layer - Runtime", BlueprintCallable)
 	bool IsDynamicallyLoaded() const { return bIsDynamicallyLoaded; }
 
-	UFUNCTION(Category = DataLayer, BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use GetInitialState instead"))
+	UFUNCTION(Category = "Data Layer - Runtime", BlueprintCallable, meta = (DeprecatedFunction, DeprecationMessage = "Use GetInitialState instead"))
 	bool IsInitiallyActive() const { return IsDynamicallyLoaded() && GetInitialState() == EDataLayerState::Activated; }	
 
-	UFUNCTION(Category = DataLayer, BlueprintCallable)
+	UFUNCTION(Category = "Data Layer - Runtime", BlueprintCallable)
 	EDataLayerState GetInitialState() const { return IsDynamicallyLoaded() ? InitialState : EDataLayerState::Unloaded; }
 
 private:
-	/** The display name of the DataLayer */
-	UPROPERTY()
-	FName DataLayerLabel;
-
-	UPROPERTY(Category = DataLayer, EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsDynamicallyLoaded"))
-	EDataLayerState InitialState;
-
-	/** Whether actors associated with the DataLayer are visible in the viewport */
-	UPROPERTY(Category = DataLayer, EditAnywhere)
-	uint32 bIsVisible : 1;
-
-	/** Whether the DataLayer affects actor runtime loading */
-	UPROPERTY(Category = DataLayer, EditAnywhere)
-	uint32 bIsDynamicallyLoaded : 1;
-
 #if WITH_EDITORONLY_DATA
-	/** Whether a dynamically loaded DataLayer should be initially active at runtime */
 	UPROPERTY()
 	uint32 bIsInitiallyActive_DEPRECATED : 1;
-	
-	/** Whether the DataLayer affects actor editor loading */
+
+	/** Whether actors associated with the DataLayer are visible in the viewport */
+	UPROPERTY(Transient)
+	uint32 bIsVisible : 1;
+
+	/** Whether actors associated with the Data Layer should be initially visible in the viewport when loading the map */
+	UPROPERTY(Category = "Data Layer - Editor", EditAnywhere)
+	uint32 bIsInitiallyVisible : 1;
+
+	/** Whether the Data Layer affects actor editor loading */
 	UPROPERTY(Transient)
 	uint32 bIsDynamicallyLoadedInEditor : 1;
 
@@ -90,11 +86,22 @@ private:
 	uint32 bIsLocked : 1;
 
 	/** Whether HLODs should be generated for actors in this layer */
-	UPROPERTY(Category = DataLayer, EditAnywhere, meta=(EditConditionHides, EditCondition="bIsDynamicallyLoaded"))
+	UPROPERTY(Category = "Data Layer - HLODs", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsDynamicallyLoaded"))
 	uint32 bGeneratesHLODs : 1;
 
 	// Default HLOD layer
-	UPROPERTY(Category = DataLayer, EditAnywhere, meta=(EditConditionHides, EditCondition="bIsDynamicallyLoaded && bGeneratesHLODs"))
+	UPROPERTY(Category = "Data Layer - HLODs", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsDynamicallyLoaded && bGeneratesHLODs"))
 	TObjectPtr<class UHLODLayer> DefaultHLODLayer;
 #endif
+
+	/** The display name of the Data Layer */
+	UPROPERTY()
+	FName DataLayerLabel;
+
+	UPROPERTY(Category = "Data Layer - Runtime", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsDynamicallyLoaded"))
+	EDataLayerState InitialState;
+
+	/** Whether the Data Layer affects actor runtime loading */
+	UPROPERTY(Category = "Data Layer - Runtime", EditAnywhere)
+	uint32 bIsDynamicallyLoaded : 1;
 };

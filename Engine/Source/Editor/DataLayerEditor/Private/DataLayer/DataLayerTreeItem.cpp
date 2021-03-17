@@ -22,7 +22,7 @@ FDataLayerTreeItem::FDataLayerTreeItem(UDataLayer* InDataLayer)
 FString FDataLayerTreeItem::GetDisplayString() const
 {
 	const UDataLayer* DataLayerPtr = DataLayer.Get();
-	return DataLayerPtr ? DataLayerPtr->GetDataLayerLabel().ToString() : LOCTEXT("DataLayerForMissingDataLayer", "(Deleted DataLayer)").ToString();
+	return DataLayerPtr ? DataLayerPtr->GetDataLayerLabel().ToString() : LOCTEXT("DataLayerForMissingDataLayer", "(Deleted Data Layer)").ToString();
 }
 
 bool FDataLayerTreeItem::GetVisibility() const

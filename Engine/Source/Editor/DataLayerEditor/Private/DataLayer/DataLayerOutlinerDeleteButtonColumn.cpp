@@ -71,7 +71,7 @@ const TSharedRef<SWidget> FDataLayerOutlinerDeleteButtonColumn::ConstructRowWidg
 				}
 				return FReply::Handled();
 			})
-			.ToolTipText(LOCTEXT("RemoveFromDataLayerButtonText", "Remove from DataLayer"))
+			.ToolTipText(LOCTEXT("RemoveFromDataLayerButtonText", "Remove from Data Layer"))
 			[
 				SNew(SImage)
 				.Image(FEditorStyle::GetBrush(TEXT("DataLayerBrowser.Actor.RemoveFromDataLayer")))
