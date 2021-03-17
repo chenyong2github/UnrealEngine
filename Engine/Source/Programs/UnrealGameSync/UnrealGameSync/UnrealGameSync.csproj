@@ -25,9 +25,6 @@
     <ProjectReference Include="..\..\Shared\EpicGames.Jupiter\EpicGames.Jupiter.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <Reference Include="Ionic.Zip.Reduced">
-      <HintPath>ThirdParty\Ionic.Zip.Reduced.dll</HintPath>
-    </Reference>
     <Reference Include="Microsoft.VisualStudio.Setup.Configuration.Interop">
       <HintPath>..\..\..\..\Binaries\ThirdParty\VisualStudio\Microsoft.VisualStudio.Setup.Configuration.Interop.dll</HintPath>
       <EmbedInteropTypes>true</EmbedInteropTypes>

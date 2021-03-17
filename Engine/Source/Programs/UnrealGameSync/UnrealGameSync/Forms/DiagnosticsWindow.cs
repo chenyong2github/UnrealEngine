@@ -3,7 +3,6 @@
 using System;
 using System.Diagnostics;
 using System.Windows.Forms;
-using Ionic.Zip;
 using System.IO;
 using System.IO.Compression;
 

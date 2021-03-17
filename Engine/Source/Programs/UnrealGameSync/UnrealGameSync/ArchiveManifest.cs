@@ -4,7 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using Ionic.Zip;
+using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -82,7 +82,7 @@ namespace UnrealGameSync
 		public static void ExtractFiles(string ArchiveFileName, string BaseDirectoryName, string ManifestFileName, ProgressValue Progress, TextWriter LogWriter)
 		{
 			DateTime TimeStamp = DateTime.UtcNow;
-			using(ZipFile Zip = new ZipFile(ArchiveFileName))
+			using (ZipArchive Zip = new ZipArchive(File.OpenRead(ArchiveFileName)))
 			{
 				if (ManifestFileName != null)
 				{
@@ -90,11 +90,11 @@ namespace UnrealGameSync
 
 					// Create the manifest
 					ArchiveManifest Manifest = new ArchiveManifest();
-					foreach (ZipEntry Entry in Zip.Entries)
+					foreach (ZipArchiveEntry Entry in Zip.Entries)
 					{
-						if (!Entry.FileName.EndsWith("/") && !Entry.FileName.EndsWith("\\"))
+						if (!Entry.FullName.EndsWith("/") && !Entry.FullName.EndsWith("\\"))
 						{
-							Manifest.Files.Add(new ArchiveManifestFile(Entry.FileName, Entry.UncompressedSize, TimeStamp));
+							Manifest.Files.Add(new ArchiveManifestFile(Entry.FullName, Entry.Length, TimeStamp));
 						}
 					}
 
@@ -109,11 +109,11 @@ namespace UnrealGameSync
 
 				// Extract all the files
 				int EntryIdx = 0;
-				foreach(ZipEntry Entry in Zip.Entries)
+				foreach(ZipArchiveEntry Entry in Zip.Entries)
 				{
-					if(!Entry.FileName.EndsWith("/") && !Entry.FileName.EndsWith("\\"))
+					if(!Entry.FullName.EndsWith("/") && !Entry.FullName.EndsWith("\\"))
 					{
-						string FileName = Path.Combine(BaseDirectoryName, Entry.FileName);
+						string FileName = Path.Combine(BaseDirectoryName, Entry.FullName);
 						Directory.CreateDirectory(Path.GetDirectoryName(FileName));
 
 						lock(LogWriter)
@@ -121,10 +121,7 @@ namespace UnrealGameSync
 							LogWriter.WriteLine("Writing {0}", FileName);
 						}
 
-						using(FileStream OutputStream = new FileStream(FileName, FileMode.Create, FileAccess.Write))
-						{
-							Entry.Extract(OutputStream);
-						}
+						Entry.ExtractToFile(FileName, true);
 						File.SetLastWriteTimeUtc(FileName, TimeStamp);
 					}
 					Progress.Set((float)++EntryIdx / (float)Zip.Entries.Count);
