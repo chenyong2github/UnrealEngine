@@ -9,12 +9,16 @@
 
 extern FVehicleDebugParams GVehicleDebugParams;
 
+DECLARE_CYCLE_STAT(TEXT("AsyncCallback:OnPreSimulate_Internal"), STAT_AsyncCallback_OnPreSimulate, STATGROUP_ChaosVehicleManager);
+
 /**
  * Callback from Physics thread
  */
 void FChaosVehicleManagerAsyncCallback::OnPreSimulate_Internal()
 {
 	using namespace Chaos;
+
+	SCOPE_CYCLE_COUNTER(STAT_AsyncCallback_OnPreSimulate);
 
 	float DeltaTime = GetDeltaTime_Internal();
 	float SimTime = GetSimTime_Internal();

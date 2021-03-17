@@ -120,6 +120,10 @@ namespace Chaos
 			ConstraintSettings[ConstraintIndex] = Settings;
 		}
 
+		void SetTarget(int32 ConstraintIndex, const FVector& TargetPos)
+		{
+			ConstraintSettings[ConstraintIndex].Target = TargetPos;
+		}
 
 		FHandles& GetConstraintHandles()
 		{

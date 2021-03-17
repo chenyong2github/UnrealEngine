@@ -11,6 +11,8 @@
 
 class UChaosVehicleMovementComponent;
 
+DECLARE_STATS_GROUP(TEXT("ChaosVehicleManager"), STATGROUP_ChaosVehicleManager, STATGROUP_Advanced);
+
 enum EChaosAsyncVehicleDataType : int8
 {
 	AsyncInvalid,

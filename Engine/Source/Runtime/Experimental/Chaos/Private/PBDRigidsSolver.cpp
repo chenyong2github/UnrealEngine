@@ -629,6 +629,15 @@ namespace Chaos
 			});
 	}
 
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::SetSuspensionTargetOnPhysicsThread(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, bool Enabled)
+	{
+		ensure(IsInPhysicsThreadContext());
+		FSuspensionConstraintPhysicsProxy* SuspensionProxy = GTConstraint->GetProxy<FSuspensionConstraintPhysicsProxy>();
+		check(SuspensionProxy);
+		SuspensionProxy->UpdateTargetOnPhysicsThread(this, TargetPos, Enabled);
+	}
+
 	CHAOS_API int32 RewindCaptureNumFrames = -1;
 	FAutoConsoleVariableRef CVarRewindCaptureNumFrames(TEXT("p.RewindCaptureNumFrames"),RewindCaptureNumFrames,TEXT("The number of frames to capture rewind for. Requires restart of solver"));
 

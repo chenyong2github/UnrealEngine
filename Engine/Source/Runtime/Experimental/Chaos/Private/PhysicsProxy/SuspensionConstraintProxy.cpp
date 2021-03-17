@@ -231,6 +231,17 @@ void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::DestroyOnPhysicsT
 	}
 }
 
+template < >
+template < class Trait >
+void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::UpdateTargetOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* RBDSolver, const FVector& TargetPos, bool Enabled)
+{
+	if (Handle)
+	{
+		auto& SuspensionConstraints = RBDSolver->GetSuspensionConstraints();
+		SuspensionConstraints.GetSettings(Handle->GetConstraintIndex()).Target = TargetPos;
+		SuspensionConstraints.GetSettings(Handle->GetConstraintIndex()).Enabled = Enabled;
+	}
+}
 
 template class TSuspensionConstraintProxy< Chaos::FSuspensionConstraint >;
 
@@ -239,6 +250,7 @@ template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::Initiali
 template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
 template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
+template void TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::UpdateTargetOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver, const FVector& TargetPos, bool Enabled);\
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

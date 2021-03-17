@@ -34,6 +34,9 @@ struct FWheeledVehicleDebugParams
 
 	bool ResetPerformanceMeasurements = false;
 
+	float OverlapTestExpansionXY = 100.f;
+	float OverlapTestExpansionZ = 50.f;
+
 	//bool DisableSuspensionConstraint = false;
 };
 
@@ -521,9 +524,9 @@ class UChaosWheeledVehicleSimulation : public UChaosVehicleSimulation
 public:
 
 	UChaosWheeledVehicleSimulation(TArray<class UChaosVehicleWheel*>& WheelsIn)
-		: Wheels(WheelsIn)
+		: Wheels(WheelsIn), bOverlapHit(false)
 	{
-
+		QueryBox.Init();
 	}
 
 	virtual ~UChaosWheeledVehicleSimulation()
@@ -569,6 +572,7 @@ public:
 	virtual void ApplySuspensionForces(float DeltaTime);
 
 	bool IsWheelSpinning() const;
+	bool ContainsTraces(const FBox& Box, const TArray<struct Chaos::FSuspensionTrace>& SuspensionTrace);
 
 
 	/** Draw 3D debug lines and things along side the 3D model */
@@ -580,6 +584,11 @@ public:
 	FWheelState WheelState;	/** Cached state that holds wheel data for this frame */
 
 	TArray<FPhysicsConstraintHandle> ConstraintHandles;
+
+	// cache trace overlap query
+	TArray<FOverlapResult> OverlapResults;
+	bool bOverlapHit;
+	FBox QueryBox;
 
 };
 

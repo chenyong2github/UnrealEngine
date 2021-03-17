@@ -71,6 +71,9 @@ public:
 	template <typename Traits>
 	void CHAOS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
+	template <typename Traits>
+	void CHAOS_API UpdateTargetOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver, const FVector& TargetPos, bool Enabled);
+
 	void SyncBeforeDestroy() {}
 	void OnRemoveFromScene() {}
 

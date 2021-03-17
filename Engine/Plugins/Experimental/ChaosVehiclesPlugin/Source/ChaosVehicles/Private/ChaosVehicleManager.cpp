@@ -11,13 +11,10 @@
 #include "PBDRigidsSolver.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 
+DECLARE_CYCLE_STAT(TEXT("VehicleManager:ParallelUpdateVehicles"), STAT_ChaosVehicleManager_ParallelUpdateVehicles, STATGROUP_ChaosVehicleManager);
+DECLARE_CYCLE_STAT(TEXT("VehicleManager:Update"), STAT_ChaosVehicleManager_Update, STATGROUP_ChaosVehicleManager);
+DECLARE_CYCLE_STAT(TEXT("VehicleManager:ScenePreTick"), STAT_ChaosVehicleManager_ScenePreTick, STATGROUP_ChaosVehicleManager);
 
-DECLARE_STATS_GROUP(TEXT("ChaosVehicleManager"), STATGROUP_ChaosVehicleManager, STATGROUP_Advanced);
-DECLARE_CYCLE_STAT(TEXT("VehicleSuspensionRaycasts"), STAT_ChaosVehicleManager_VehicleSuspensionRaycasts, STATGROUP_ChaosVehicleManager);
-DECLARE_CYCLE_STAT(TEXT("UpdatePhysicsVehicles"), STAT_ChaosVehicleManager_UpdatePhysicsVehicles, STATGROUP_ChaosVehicleManager);
-DECLARE_CYCLE_STAT(TEXT("TickVehicles"), STAT_ChaosVehicleManager_TickVehicles, STATGROUP_ChaosVehicleManager);
-DECLARE_CYCLE_STAT(TEXT("VehicleManagerUpdate"), STAT_ChaosVehicleManager_Update, STATGROUP_ChaosVehicleManager);
-DECLARE_CYCLE_STAT(TEXT("PretickVehicles"), STAT_ChaosVehicleManager_PretickVehicles, STATGROUP_Physics);
 
 extern FVehicleDebugParams GVehicleDebugParams;
 
@@ -155,7 +152,7 @@ void FChaosVehicleManager::RemoveVehicle(TWeakObjectPtr<UChaosVehicleMovementCom
 void FChaosVehicleManager::ScenePreTick(FPhysScene* PhysScene, float DeltaTime)
 {
 	// inputs being set via back door, i.e. accessing PVehicle directly is a no go now, needs to go through async input system
-	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_PretickVehicles);
+	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_ScenePreTick);
 
 	for (int32 i = 0; i < Vehicles.Num(); ++i)
 	{
@@ -166,6 +163,8 @@ void FChaosVehicleManager::ScenePreTick(FPhysScene* PhysScene, float DeltaTime)
 
 void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_Update);
+
 	UWorld* World = Scene.GetOwningWorld();
 
 	SubStepCount = 0;
@@ -187,23 +186,24 @@ void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 
 void FChaosVehicleManager::SubStep(FPhysScene* PhysScene, float DeltaTime)
 {
-	if (SubStepCount++ > 0)	//ignore first substep
-	{
-		ParallelUpdateVehicles(DeltaTime);
-		//if (UWorld* World = GetWorld())
-		//{
-		//	for (TWeakObjectPtr<UChaosVehicleMovementComponent> Vehicle : Vehicles)
-		//	{
-		//		if (UPrimitiveComponent* RootPrim = Cast<UPrimitiveComponent>(Vehicle->GetRootComponent()))
-		//		{
-		//			if (RootPrim->GetBodyInstance() && !Vehicle->IsAsleep())
-		//			{
-		//				Vehicle->Substep(DeltaTime);
-		//			}
-		//		}
-		//	}
-		//}
-	}
+// #TODO: needs a callback from the physics thread during sub-step
+	//if (SubStepCount++ > 0)	//ignore first substep
+	//{
+	//	ParallelUpdateVehicles(DeltaTime);
+	//	//if (UWorld* World = GetWorld())
+	//	//{
+	//	//	for (TWeakObjectPtr<UChaosVehicleMovementComponent> Vehicle : Vehicles)
+	//	//	{
+	//	//		if (UPrimitiveComponent* RootPrim = Cast<UPrimitiveComponent>(Vehicle->GetRootComponent()))
+	//	//		{
+	//	//			if (RootPrim->GetBodyInstance() && !Vehicle->IsAsleep())
+	//	//			{
+	//	//				Vehicle->Substep(DeltaTime);
+	//	//			}
+	//	//		}
+	//	//	}
+	//	//}
+	//}
 }
 
 void FChaosVehicleManager::PostUpdate(FChaosScene* PhysScene)
@@ -213,6 +213,8 @@ void FChaosVehicleManager::PostUpdate(FChaosScene* PhysScene)
 
 void FChaosVehicleManager::ParallelUpdateVehicles(float DeltaSeconds)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_ParallelUpdateVehicles);
+
 	FChaosVehicleManagerAsyncInput* AsyncInput = AsyncCallback->GetProducerInputData_External();
 
 	AsyncInput->Reset();	//only want latest frame's data
@@ -279,10 +281,11 @@ void FChaosVehicleManager::ParallelUpdateVehicles(float DeltaSeconds)
 	{
 		AsyncOutput = MoveTemp(AsyncOutputLatest);
 
-		for (TWeakObjectPtr<UChaosVehicleMovementComponent> Vehicle : Vehicles)
-		{
-			//Vehicle->GameThread_ProcessIntermediateAsyncOutput(*AsyncOutput);
-		}
+		// Note: not used - left as a reminder
+		//for (TWeakObjectPtr<UChaosVehicleMovementComponent> Vehicle : Vehicles)
+		//{
+		//	//Vehicle->GameThread_ProcessIntermediateAsyncOutput(*AsyncOutput);
+		//}
 	}
 
 	if (UWorld* World = Scene.GetOwningWorld())

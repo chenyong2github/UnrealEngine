@@ -18,6 +18,8 @@
 #include "Chaos/PBDSuspensionConstraintData.h"
 #include "Chaos/DebugDrawQueue.h"
 
+#include "PhysicsProxy/SuspensionConstraintProxy.h"
+#include "PBDRigidsSolver.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "CanvasItem.h"
@@ -30,6 +32,14 @@ using namespace Chaos;
 #if VEHICLE_DEBUGGING_ENABLED
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
+
+DECLARE_STATS_GROUP(TEXT("ChaosVehicle"), STATGROUP_ChaosVehicle, STATGROUP_Advanced);
+
+DECLARE_CYCLE_STAT(TEXT("Vehicle:SuspensionRaycasts"), STAT_ChaosVehicle_SuspensionRaycasts, STATGROUP_ChaosVehicle);
+DECLARE_CYCLE_STAT(TEXT("Vehicle:SuspensionOverlapTest"), STAT_ChaosVehicle_SuspensionOverlapTest, STATGROUP_ChaosVehicle);
+DECLARE_CYCLE_STAT(TEXT("Vehicle:SuspensionTraces"), STAT_ChaosVehicle_SuspensionTraces, STATGROUP_ChaosVehicle);
+DECLARE_CYCLE_STAT(TEXT("Vehicle:TickVehicle"), STAT_ChaosVehicle_TickVehicle, STATGROUP_ChaosVehicle);
+DECLARE_CYCLE_STAT(TEXT("Vehicle:UpdateSimulation"), STAT_ChaosVehicle_UpdateSimulation, STATGROUP_ChaosVehicle);
 
 
 FWheeledVehicleDebugParams GWheeledVehicleDebugParams;
@@ -52,6 +62,9 @@ FAutoConsoleVariableRef CVarChaosVehiclesThrottleOverride(TEXT("p.Vehicle.Thrott
 FAutoConsoleVariableRef CVarChaosVehiclesSteeringOverride(TEXT("p.Vehicle.SteeringOverride"), GWheeledVehicleDebugParams.SteeringOverride, TEXT("Hard code steering input on."));
 
 FAutoConsoleVariableRef CVarChaosVehiclesResetMeasurements(TEXT("p.Vehicle.ResetMeasurements"), GWheeledVehicleDebugParams.ResetPerformanceMeasurements, TEXT("Reset Vehicle Performance Measurements."));
+
+FAutoConsoleVariableRef CVarChaosVehiclesOverlapTestExpansionXY(TEXT("p.Vehicle.OverlapTestExpansionXY"), GWheeledVehicleDebugParams.OverlapTestExpansionXY, TEXT("Raycast Overlap Test Expansion of Bounding Box in X/Y axes."));
+FAutoConsoleVariableRef CVarChaosVehiclesOverlapTestExpansionXZ(TEXT("p.Vehicle.OverlapTestExpansionZ"), GWheeledVehicleDebugParams.OverlapTestExpansionZ, TEXT("Raycast Overlap Test Expansion of Bounding Box in Z axis"));
 
 //FAutoConsoleVariableRef CVarChaosVehiclesDisableSuspensionConstraints(TEXT("p.Vehicle.DisableSuspensionConstraint"), GWheeledVehicleDebugParams.DisableSuspensionConstraint, TEXT("Enable/Disable Suspension Constraints."));
 
@@ -150,11 +163,15 @@ bool UChaosWheeledVehicleSimulation::CanSimulate() const
 
 void UChaosWheeledVehicleSimulation::TickVehicle(UWorld* WorldIn, float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, FChaosVehicleAsyncOutput& OutputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_TickVehicle);
+
 	UChaosVehicleSimulation::TickVehicle(WorldIn, DeltaTime, InputData, OutputData, Handle);
 }
 
 void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FChaosVehicleDefaultAsyncInput& InputData, Chaos::FRigidBodyHandle_Internal* Handle)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_UpdateSimulation);
+
 	// Inherit common vehicle simulation stages ApplyAerodynamics, ApplyTorqueControl, etc
 	UChaosVehicleSimulation::UpdateSimulation(DeltaTime, InputData, Handle);
 
@@ -275,8 +292,25 @@ void UChaosWheeledVehicleSimulation::UpdateSimulation(float DeltaTime, const FCh
 
 }
 
+bool UChaosWheeledVehicleSimulation::ContainsTraces(const FBox& Box, const TArray<FSuspensionTrace>& SuspensionTrace)
+{
+	const FAABB3 Aabb(Box.Min, Box.Max);
+
+	for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
+	{
+		if (!Aabb.Contains(SuspensionTrace[WheelIdx].Start) || !Aabb.Contains(SuspensionTrace[WheelIdx].End))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspensionTrace>& SuspensionTrace, FCollisionQueryParams& TraceParams, FCollisionResponseContainer& CollisionResponse)
 {
+	SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_SuspensionRaycasts);
+
 	ECollisionChannel SpringCollisionChannel = ECollisionChannel::ECC_WorldDynamic;
 	FCollisionResponseParams ResponseParams;
 	ResponseParams.CollisionResponse = CollisionResponse;
@@ -284,41 +318,47 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 	// batching is about 0.5ms (25%) faster when there's 100 vehicles on a flat terrain
 	if (GVehicleDebugParams.BatchQueries)
 	{
-		FBox QueryBox;
-		for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
+		if (!GVehicleDebugParams.CacheTraceOverlap || !ContainsTraces(QueryBox, SuspensionTrace))
 		{
+			SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_SuspensionOverlapTest);
 
-			FVector TraceStart = SuspensionTrace[WheelIdx].Start;
-			FVector TraceEnd = SuspensionTrace[WheelIdx].End;
+			bOverlapHit = false;
+			OverlapResults.Empty();
+			QueryBox.Init();
 
-			if (WheelIdx == 0)
+			//FBox QueryBox;
+			for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
 			{
-				QueryBox = FBox(TraceStart, TraceEnd);
+				const FVector& TraceStart = SuspensionTrace[WheelIdx].Start;
+				const FVector& TraceEnd = SuspensionTrace[WheelIdx].End;
+
+				if (WheelIdx == 0)
+				{
+					QueryBox = FBox(TraceStart, TraceEnd);
+				}
+				else
+				{
+					QueryBox.Min = QueryBox.Min.ComponentMin(TraceStart);
+					QueryBox.Min = QueryBox.Min.ComponentMin(TraceEnd);
+					QueryBox.Max = QueryBox.Max.ComponentMax(TraceStart);
+					QueryBox.Max = QueryBox.Max.ComponentMax(TraceEnd);
+				}
 			}
-			else
-			{
-				QueryBox.Min = QueryBox.Min.ComponentMin(TraceStart);
-				QueryBox.Min = QueryBox.Min.ComponentMin(TraceEnd);
-				QueryBox.Max = QueryBox.Max.ComponentMax(TraceStart);
-				QueryBox.Max = QueryBox.Max.ComponentMax(TraceEnd);
-			}
+			QueryBox = QueryBox.ExpandBy(FVector(GWheeledVehicleDebugParams.OverlapTestExpansionXY, GWheeledVehicleDebugParams.OverlapTestExpansionXY, GWheeledVehicleDebugParams.OverlapTestExpansionZ));
+			FCollisionShape CollisionBox;
+			CollisionBox.SetBox(QueryBox.GetExtent());
+
+			bOverlapHit = World->OverlapMultiByChannel(OverlapResults, QueryBox.GetCenter(), FQuat::Identity, SpringCollisionChannel, CollisionBox, TraceParams, ResponseParams);
 		}
-		float OneWheelRadius = PVehicle->Wheels[0].GetEffectiveRadius(); // or wheel width
-
-		QueryBox.ExpandBy(FVector(OneWheelRadius, OneWheelRadius, OneWheelRadius)); // little extra just to be on the safe side consider 1 or 2 wheel vehicle
-		TArray<FOverlapResult> OverlapResults;
-		FCollisionShape CollisionBox;
-		CollisionBox.SetBox(QueryBox.GetExtent());
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		
+	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (GWheeledVehicleDebugParams.ShowBatchQueryExtents)
 		{
 			Chaos::FDebugDrawQueue::GetInstance().DrawDebugBox(QueryBox.GetCenter(), QueryBox.GetExtent(), FQuat::Identity, FColor::Yellow, false, -1.0f, 0, 2.0f);
 		}
-#endif
+	#endif
 
-		const bool bOverlapHit = World->OverlapMultiByChannel(OverlapResults, QueryBox.GetCenter(), FQuat::Identity, SpringCollisionChannel, CollisionBox, TraceParams, ResponseParams);
-
+		SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_SuspensionTraces);
 		for (int32 WheelIdx = 0; WheelIdx < Wheels.Num(); ++WheelIdx)
 		{
 			FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
@@ -382,6 +422,7 @@ void UChaosWheeledVehicleSimulation::PerformSuspensionTraces(const TArray<FSuspe
 	}
 	else
 	{
+		SCOPE_CYCLE_COUNTER(STAT_ChaosVehicle_SuspensionTraces);
 		for (int WheelIdx = 0; WheelIdx < Wheels.Num(); WheelIdx++)
 		{
 			FHitResult& HitResult = Wheels[WheelIdx]->HitResult;
@@ -524,14 +565,16 @@ void UChaosWheeledVehicleSimulation::ApplySuspensionForces(float DeltaTime)
 				{
 					if (Chaos::FSuspensionConstraint* Constraint = static_cast<Chaos::FSuspensionConstraint*>(ConstraintHandle.Constraint))
 					{
-						FVec3 P = HitResult.ImpactPoint + (PWheel.GetEffectiveRadius() * VehicleState.VehicleUpAxis);
-						
-						// This isn't threadsafe because of FDirtySet ProxiesData.Add(Base);
-						Constraint->SetTarget(P);
-						Constraint->SetEnabled(PWheel.InContact());
+						if (FSuspensionConstraintPhysicsProxy* Proxy = Constraint->GetProxy<FSuspensionConstraintPhysicsProxy>())
+						{
+							const FVec3 TargetPos = HitResult.ImpactPoint + (PWheel.GetEffectiveRadius() * VehicleState.VehicleUpAxis);
+
+							Chaos::FPhysicsSolver* Solver = Proxy->GetSolver<Chaos::FPhysicsSolver>();
+
+							Solver->SetSuspensionTargetOnPhysicsThread(Constraint, TargetPos, PWheel.InContact());
+						}
 					}
 				}
-
 			}
 #endif // WITH_CHAOS
 		}

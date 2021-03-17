@@ -90,10 +90,11 @@ struct FVehicleDebugParams
 	bool DisableAerofoils = false;
 	bool DisableThrusters = false;
 	bool BatchQueries = true;
+	bool CacheTraceOverlap = false;
 	float ForceDebugScaling = 0.0006f;
 	float SleepCounterThreshold = 15;
 	bool DisableVehicleSleep = false;
-	bool EnableMultithreading = false; // possibly not all entirely thread safe at present
+	bool EnableMultithreading = true;
 	float SetMaxMPH = 0.0f;
 };
 
