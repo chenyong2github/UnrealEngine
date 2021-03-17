@@ -318,6 +318,12 @@ void FAVPlayerMovieStreamer::Cleanup()
 		
 		SlateTexture.Reset();
 	}
+
+	if (MetalTextureCache != nullptr)
+	{
+		CFRelease(MetalTextureCache);
+		MetalTextureCache = nullptr;
+	}
 }
 
 bool FAVPlayerMovieStreamer::StartNextMovie()
