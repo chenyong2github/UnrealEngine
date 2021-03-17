@@ -285,7 +285,7 @@ bool FOnlineExternalUIApple::ShowLoginUI(const int ControllerIndex, bool bShowOn
 		{
 			Delegate.ExecuteIfBound(nullptr, ControllerIndex, Error);
 		});
-	}
+    }
 	return bStarted;
 }
 
