@@ -4765,6 +4765,7 @@ namespace UnrealGameSync
 			else
 			{
 				ProcessStartInfo StartInfo = new ProcessStartInfo(SolutionFileName);
+				StartInfo.UseShellExecute = true;
 				StartInfo.WorkingDirectory = BranchDirectoryName;
 				SafeProcessStart(StartInfo);
 			}
