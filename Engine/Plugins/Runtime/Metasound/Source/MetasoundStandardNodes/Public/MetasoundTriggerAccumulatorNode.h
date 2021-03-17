@@ -145,11 +145,16 @@ namespace Metasound
 				ResetTriggerState();
 			}
 
-			OutputTrigger->TriggerFrame(InStartFrame);
+			if (!bOutputTriggered)
+			{
+				OutputTrigger->TriggerFrame(InStartFrame);
+				bOutputTriggered = true;
+			}
 		}
 
 		void ResetTriggerState()
 		{
+			bOutputTriggered = false;
 			bInputWasTriggered.Reset();
 			bInputWasTriggered.AddDefaulted(InputTriggers.Num());
 		}
@@ -157,6 +162,11 @@ namespace Metasound
 		void Execute()
 		{
 			OutputTrigger->AdvanceBlock();
+
+			if (bOutputTriggered && !*bAutoReset)
+			{
+				return;
+			}
 
 			for (uint32 i = 0; i < NumInputs; ++i)
 			{
@@ -180,6 +190,7 @@ namespace Metasound
 		FTriggerWriteRef OutputTrigger;
 
 		TArray<bool> bInputWasTriggered;
+		bool bOutputTriggered = false;
 	};
 
 	/** TTriggerAccumulatorNode
