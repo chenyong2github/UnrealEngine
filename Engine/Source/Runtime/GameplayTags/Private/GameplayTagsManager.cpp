@@ -305,6 +305,13 @@ void UGameplayTagsManager::AddRestrictedGameplayTagSource(const FString& FileNam
 	{
 		return;
 	}
+
+	if (RestrictedGameplayTagSourceNames.Contains(TagSource))
+	{
+		// Was already added on this pass
+		return;
+	}
+
 	RestrictedGameplayTagSourceNames.Add(TagSource);
 	FGameplayTagSource* FoundSource = FindOrAddTagSource(TagSource, EGameplayTagSourceType::RestrictedTagList);
 
@@ -1082,6 +1089,11 @@ void UGameplayTagsManager::DestroyGameplayTagTree()
 		GameplayTagNodeMap.Reset();
 	}
 	RestrictedGameplayTagSourceNames.Reset();
+
+	for (TPair<FString, FGameplayTagSearchPathInfo>& Pair : RegisteredSearchPaths)
+	{
+		Pair.Value.bWasAddedToTree = false;
+	}
 }
 
 int32 UGameplayTagsManager::InsertTagIntoNodeArray(FName Tag, FName FullTag, TSharedPtr<FGameplayTagNode> ParentNode, TArray< TSharedPtr<FGameplayTagNode> >& NodeArray, FName SourceName, const FString& DevComment, bool bIsExplicitTag, bool bIsRestrictedTag, bool bAllowNonRestrictedChildren)
@@ -1547,7 +1559,6 @@ void UGameplayTagsManager::EditorRefreshGameplayTagTree()
 	for (TPair<FString, FGameplayTagSearchPathInfo>& Pair : RegisteredSearchPaths)
 	{
 		Pair.Value.bWasSearched = false;
-		Pair.Value.bWasAddedToTree = false;
 	}
 
 	DestroyGameplayTagTree();
