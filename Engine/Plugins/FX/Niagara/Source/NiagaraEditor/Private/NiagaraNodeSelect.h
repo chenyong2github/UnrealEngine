@@ -7,6 +7,7 @@
 #include "NiagaraNodeUsageSelector.h"
 #include "Kismet2/EnumEditorUtils.h"
 #include "Layout/Visibility.h"
+#include "ToolMenu.h"
 
 #include "NiagaraNodeSelect.generated.h"
 
@@ -47,6 +48,8 @@ private:
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FSlateIcon GetIconAndTint(FLinearColor& OutColor) const override;
 	virtual void GetPinHoverText(const UEdGraphPin& Pin, FString& HoverTextOut) const override;
+	virtual void PostLoad() override;
+	virtual void GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const override;
 
 	/** UNiagaraNode interface */
 	virtual void Compile(FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs) override;
@@ -56,7 +59,6 @@ private:
 	virtual void PinTypeChanged(UEdGraphPin* InGraphPin) override;
 	virtual void AddWidgetsToOutputBox(TSharedPtr<SVerticalBox> OutputBox) override;
 	virtual void AddWidgetsToInputBox(TSharedPtr<SVerticalBox> InputBox) override;
-	virtual bool RefreshFromExternalChanges() override;
 	virtual void GetWildcardPinHoverConnectionTextAddition(const UEdGraphPin* WildcardPin, const UEdGraphPin* OtherPin, ECanCreateConnectionResponse ConnectionResponse, FString& OutString) const override;
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive, bool bFilterForCompilation) const override;
 

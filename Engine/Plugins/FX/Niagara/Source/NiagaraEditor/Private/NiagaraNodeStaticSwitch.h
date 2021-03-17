@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "NiagaraNodeUsageSelector.h"
+#include "Kismet2/EnumEditorUtils.h"
+#include "ToolMenu.h"
 #include "NiagaraNodeStaticSwitch.generated.h"
 
 UENUM()
@@ -31,12 +33,16 @@ struct FStaticSwitchTypeData
 	UPROPERTY()
 	FName SwitchConstant;
 
+	/** If true, a node in enum mode will, if loaded, refresh as the enum changes, or if unloaded, refresh on post load */
+	UPROPERTY()
+	bool bAutoRefreshForEnums = false;
+
 	FStaticSwitchTypeData() : SwitchType(ENiagaraStaticSwitchType::Bool), Enum(nullptr)
 	{ }
 };
 
 UCLASS(MinimalAPI)
-class UNiagaraNodeStaticSwitch : public UNiagaraNodeUsageSelector
+class UNiagaraNodeStaticSwitch : public UNiagaraNodeUsageSelector, public FEnumEditorUtils::INotifyOnEnumChanged
 {
 	GENERATED_UCLASS_BODY()
 
@@ -58,6 +64,9 @@ public:
 	void ClearSwitchValue();
 	/** If true then the value of this static switch is not set by the user but directly by the compiler via one of the engine constants (e.g. Emitter.Determinism). */
 	bool IsSetByCompiler() const;
+
+	/** This is a hack used in the translator to check for inconsistencies with old static switches before auto refresh was a thing */
+	void CheckForOutdatedEnum(FHlslNiagaraTranslator* Translator);
 
 	void UpdateCompilerConstantValue(class FHlslNiagaraTranslator* Translator);
 
@@ -90,6 +99,10 @@ protected:
 	//~ End UNiagaraNodeUsageSelector Interface
 
 private:
+	/** INotifyOnEnumChanged interface */
+	virtual void PreChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;
+	virtual void PostChange(const UUserDefinedEnum* Changed, FEnumEditorUtils::EEnumEditorChangeInfo ChangedType) override;
+	
 	/** This finds the first valid input pin index for the current switch value, returns false if no value can be found */
 	bool GetVarIndex(class FHlslNiagaraTranslator* Translator, int32 InputPinCount, int32& VarIndexOut) const;
 

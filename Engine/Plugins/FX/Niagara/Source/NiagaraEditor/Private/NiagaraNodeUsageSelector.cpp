@@ -39,7 +39,15 @@ void UNiagaraNodeUsageSelector::PostLoad()
 			return Pin->bOrphanedPin == true || Pin->PersistentGuid.IsValid();
 		});
 
-		NumOptionsPerVariable = InputPins.Num() / OutputVars.Num();
+		TArray<int32> OptionValues = GetOptionValues();
+		int32 TargetNumOptionsPerVariable = InputPins.Num() / OutputVars.Num();
+
+		if(OptionValues.Num() != TargetNumOptionsPerVariable)
+		{
+			UE_LOG(LogNiagaraEditor, Log, TEXT("Mismatch in option values and pin count detected. Please refresh script %s. Setting to current values in the meantime."), *this->GetNiagaraGraph()->GetSource()->GetName());
+		}
+		
+		NumOptionsPerVariable = TargetNumOptionsPerVariable;	
 	}
 }
 

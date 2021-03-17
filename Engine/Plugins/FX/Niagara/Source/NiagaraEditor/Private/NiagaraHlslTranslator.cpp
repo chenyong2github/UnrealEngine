@@ -4194,6 +4194,8 @@ void FHlslNiagaraTranslator::UpdateStaticSwitchConstants(UEdGraphNode* Node)
 {
 	if (UNiagaraNodeStaticSwitch* SwitchNode = Cast<UNiagaraNodeStaticSwitch>(Node))
 	{
+		SwitchNode->CheckForOutdatedEnum(this);
+		
 		TArray<UNiagaraNodeStaticSwitch*> NodesToUpdate;
 		NodesToUpdate.Add(SwitchNode);
 
