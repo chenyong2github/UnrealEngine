@@ -267,13 +267,13 @@ void UReplaySubsystem::StopReplay()
 {
 	if (UWorld* CurrentWorld = GetWorld())
 	{
-		const bool bLoadDefaultMap = CurrentWorld->IsPlayingReplay();
+		const bool bWasReplaying = CurrentWorld->IsPlayingReplay();
 
 		StopExistingReplays(CurrentWorld);
 
 		if (UGameInstance* GameInstance = GetGameInstance())
 		{
-			if (bLoadDefaultMap)
+			if (bWasReplaying && bLoadDefaultMapOnStop)
 			{
 				GEngine->BrowseToDefaultMap(*GameInstance->GetWorldContext());
 			}
