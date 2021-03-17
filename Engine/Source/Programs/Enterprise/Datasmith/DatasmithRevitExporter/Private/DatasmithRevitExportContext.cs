@@ -558,7 +558,7 @@ namespace DatasmithRevitExporter
 
 									foreach (string TexturePath in TexturePaths)
 									{
-										ExtraTexturePaths.Add(TexturePath);
+										ExtraTexturePaths.Add(Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, TexturePath)));
 									}
 
 									break;
