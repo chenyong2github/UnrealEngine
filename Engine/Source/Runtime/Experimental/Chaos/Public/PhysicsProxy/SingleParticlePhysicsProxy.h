@@ -92,9 +92,6 @@ public:
 		return GetHandle_LowLevel() == nullptr ? nullptr : (const Chaos::FRigidBodyHandle_Internal*)this;
 	}
 
-	/**/
-	const FInitialState& GetInitialState() const;
-
 	//Returns the underlying physics thread particle. Note this should only be needed for internal book keeping type tasks. API may change, use GetPhysicsThreadAPI instead
 	FParticleHandle* GetHandle_LowLevel()
 	{
@@ -136,8 +133,9 @@ public:
 	/**/
 	bool IsDirty();
 
-	bool IsInitialized() const { return bInitialized; }
-	void SetInitialized(bool InInitialized) { bInitialized = InInitialized; }
+	bool IsInitialized() const { return InitializedOnStep != INDEX_NONE; }
+	void SetInitialized(const int32 InitializeStep) { InitializedOnStep = InitializeStep; }
+	int32 GetInitializedStep() const { return InitializedOnStep; }
 
 	/**/
 	Chaos::EWakeEventEntry GetWakeEvent() const;
@@ -171,11 +169,7 @@ public:
 	virtual UObject* GetOwner() const override { return Owner; }
 	
 private:
-	bool bInitialized;
-	TArray<int32> InitializedIndices;
-
-private:
-	FInitialState InitialState;
+	int32 InitializedOnStep = INDEX_NONE;
 
 protected:
 	TUniquePtr<PARTICLE_TYPE> Particle;
@@ -189,7 +183,7 @@ private:
 	int32 PullDataInterpIdx_External;
 
 	//use static Create
-	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr, FInitialState InitialState = FInitialState());
+	FSingleParticlePhysicsProxy(TUniquePtr<PARTICLE_TYPE>&& InParticle, FParticleHandle* InHandle, UObject* InOwner = nullptr);
 };
 
 namespace Chaos

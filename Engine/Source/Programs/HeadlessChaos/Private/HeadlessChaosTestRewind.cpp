@@ -254,6 +254,34 @@ namespace ChaosTest {
 		});
 	}
 
+	GTEST_TEST(AllTraits, RewindTest_DeleteFromGT)
+	{
+		//GT writes of a deleted particle should be ignored during a resim (not crash)
+		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)
+			{
+				const int32 LastGameStep = 20;
+				RegisterCallbackHelper(Solver, FMath::TruncToInt(LastGameStep / SimDt));
+				auto& Particle = Proxy->GetGameThreadAPI();
+				Particle.SetGravityEnabled(false);
+
+
+				for (int Step = 0; Step <= LastGameStep; ++Step)
+				{
+					if (Step == 5)
+					{
+						Particle.SetLinearImpulse(FVec3(0, 0, 100));
+					}
+
+					if(Step == 15)
+					{
+						Solver->UnregisterObject(Proxy);
+					}
+
+					TickSolverHelper(Solver);
+				}
+			});
+	}
+
 	GTEST_TEST(AllTraits, RewindTest_AddForce)
 	{
 		TRewindHelper::TestDynamicSphere([](auto* Solver, FReal SimDt, int32 Optimization, auto Proxy, auto Sphere)

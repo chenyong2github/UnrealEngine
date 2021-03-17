@@ -518,7 +518,6 @@ FGeometryParticleState FRewindData::GetPastStateAtFrame(const FGeometryParticleH
 EFutureQueryResult FRewindData::GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const
 {
 	ensure(IsResim());
-	ensure(IsInGameThread());
 	const FGeometryParticleHandle& Handle = OutState.GetHandle();
 
 	if(const FDirtyParticleInfo* Info = FindParticle(Handle.UniqueIdx()))
