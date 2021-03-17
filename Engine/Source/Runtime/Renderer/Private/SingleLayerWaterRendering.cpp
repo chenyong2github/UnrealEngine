@@ -358,7 +358,7 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 BEGIN_SHADER_PARAMETER_STRUCT(FWaterCompositeParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FWaterTileVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSingleLayerWaterCompositePS::FParameters, PS)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectDrawParameter)
+	RDG_BUFFER_ACCESS(IndirectDrawParameter, ERHIAccess::IndirectArgs)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
