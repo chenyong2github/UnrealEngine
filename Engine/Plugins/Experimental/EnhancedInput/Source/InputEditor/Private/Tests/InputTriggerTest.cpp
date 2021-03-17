@@ -357,101 +357,14 @@ bool FInputTriggerTapTest::RunTest(const FString& Parameters)
 }
 
 
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerChordedActionsTest, "Input.Triggers.ChordedActions", BasicTriggerTestFlags)
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerChordsMultiContextTest, "Input.Triggers.Chords.MultiContext", BasicTriggerTestFlags)
 
-bool FInputTriggerChordedActionsTest::RunTest(const FString& Parameters)
+bool FInputTriggerChordsMultiContextTest::RunTest(const FString& Parameters)
 {
-	// Test chording changing the triggered action
-
+	// Test chords work when the chord action is in a higher priority context
 	FKey ChordKey = TestKey2;
-	FName BaseAction = TEXT("BaseAction");				// Base action e.g. Jump
-	FName ChordedAction = TEXT("ChordedAction");		// Special case action  e.g. Back flip
-	FName ChordingAction = TEXT("ChordingAction");		// Chording action driving special case e.g. ShiftDown/AcrobaticModifier
-
-	UWorld* World =
-	GIVEN(AnEmptyWorld());
-
-	// Initialise
-	UControllablePlayer& Data =
-	AND(AControllablePlayer(World));
-
-	FName BaseContext = TEXT("BaseContext"), ChordContext = TEXT("ChordContext");
-	AND(AnInputContextIsAppliedToAPlayer(Data, BaseContext, 1));
-	AND(AnInputContextIsAppliedToAPlayer(Data, ChordContext, 100));
-
-	// Set up actions
-	AND(AnInputAction(Data, BaseAction, EInputActionValueType::Boolean));
-	AND(AnInputAction(Data, ChordedAction, EInputActionValueType::Boolean));
-
-	// Set up the chording action (modifier key action)
-	AND(UInputAction * ChordingActionPtr = AnInputAction(Data, ChordingAction, EInputActionValueType::Boolean));
-
-	// Apply a chord action trigger to the chorded action
-	UInputTriggerChordAction* Trigger = NewObject<UInputTriggerChordAction>();
-	Trigger->ChordAction = ChordingActionPtr;
-	AND(ATriggerIsAppliedToAnAction(Data, Trigger, ChordedAction));
-
-	// Bind the chording modifier
-	AND(AnActionIsMappedToAKey(Data, ChordContext, ChordingAction, ChordKey));
-
-	// Bind both actions to the same key
-	AND(AnActionIsMappedToAKey(Data, BaseContext, BaseAction, TestKey));
-	AND(AnActionIsMappedToAKey(Data, ChordContext, ChordedAction, TestKey));
-
-	// With chord key pressed no main actions trigger, but chording action does
-	WHEN(AKeyIsActuated(Data, ChordKey));
-	AND(InputIsTicked(Data));
-	THEN(PressingKeyDoesNotTrigger(Data, BaseAction));
-	ANDALSO(PressingKeyTriggersAction(Data, ChordingAction));
-	ANDALSO(PressingKeyDoesNotTrigger(Data, ChordedAction));
-
-	// Switching to test key the base action only triggers
-	WHEN(AKeyIsReleased(Data, ChordKey));
-	AND(AKeyIsActuated(Data, TestKey));
-	AND(InputIsTicked(Data));
-	THEN(PressingKeyTriggersAction(Data, BaseAction));
-	ANDALSO(ReleasingKeyTriggersCompleted(Data, ChordingAction));
-	ANDALSO(ReleasingKeyDoesNotTrigger(Data, ChordedAction));
-
-	// Depressing chord key triggers chorded action, and ends base action
-	WHEN(AKeyIsActuated(Data, ChordKey));
-	AND(InputIsTicked(Data));
-	THEN(PressingKeyTriggersCompleted(Data, BaseAction));
-	ANDALSO(PressingKeyTriggersAction(Data, ChordingAction));
-	ANDALSO(PressingKeyTriggersAction(Data, ChordedAction));
-
-	// Releasing chord key returns to to base only
-	WHEN(AKeyIsReleased(Data, ChordKey));
-	AND(InputIsTicked(Data));
-	THEN(ReleasingKeyTriggersAction(Data, BaseAction));
-	ANDALSO(ReleasingKeyTriggersCompleted(Data, ChordingAction));
-	ANDALSO(ReleasingKeyTriggersCompleted(Data, ChordedAction));
-
-	WHEN(AKeyIsReleased(Data, TestKey));
-	AND(InputIsTicked(Data));
-	THEN(ReleasingKeyTriggersCompleted(Data, BaseAction));
-	ANDALSO(ReleasingKeyDoesNotTrigger(Data, ChordingAction));
-	ANDALSO(ReleasingKeyDoesNotTrigger(Data, ChordedAction));
-
-
-	return true;
-}
-
-IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerChordedModifiersTest, "Input.Triggers.ChordedModifiers", BasicTriggerTestFlags)
-
-bool FInputTriggerChordedModifiersTest::RunTest(const FString& Parameters)
-{
-	// Test applying a different set of modifiers to an action based on chords
-	// Unchorded mapping with no modifier
-	// Chorded mapping with negate modifiers
-
-	auto GetActionValue = [](UControllablePlayer & Data, FName ActionName)
-	{
-		return FInputTestHelper::GetActionData(Data, ActionName).GetValue().Get<float>();
-	};
-
-	FKey ChordKey = TestKey;
 	FName BaseAction = TEXT("BaseAction");				// Base action
+	FName ChordedAction = TEXT("ChordedAction");			// Chord triggered action
 	FName ChordingAction = TEXT("ChordingAction");		// Chording action driving special case e.g. ShiftDown/AcrobaticModifier
 
 	UWorld* World =
@@ -467,6 +380,7 @@ bool FInputTriggerChordedModifiersTest::RunTest(const FString& Parameters)
 
 	// Set up action
 	AND(AnInputAction(Data, BaseAction, EInputActionValueType::Axis1D));
+	AND(AnInputAction(Data, ChordedAction, EInputActionValueType::Axis1D));
 
 	// Set up the chording action (modifier key action)
 	AND(UInputAction * ChordingActionPtr = AnInputAction(Data, ChordingAction, EInputActionValueType::Boolean));
@@ -476,45 +390,212 @@ bool FInputTriggerChordedModifiersTest::RunTest(const FString& Parameters)
 
 	// Bind the action to the same key in both contexts
 	AND(AnActionIsMappedToAKey(Data, BaseContext, BaseAction, TestAxis));
-	AND(AnActionIsMappedToAKey(Data, ChordContext, BaseAction, TestAxis));
+	AND(AnActionIsMappedToAKey(Data, ChordContext, ChordedAction, TestAxis));
 
 	// But the chorded version inverts the result
-	AND(AModifierIsAppliedToAnActionMapping(Data, NewObject<UInputModifierNegate>(), ChordContext, BaseAction, TestAxis));
+	AND(AModifierIsAppliedToAnActionMapping(Data, NewObject<UInputModifierNegate>(), ChordContext, ChordedAction, TestAxis));
 
 	// Apply a chord action trigger to the chorded mapping
 	UInputTriggerChordAction* Trigger = NewObject<UInputTriggerChordAction>();
 	Trigger->ChordAction = ChordingActionPtr;
-	AND(ATriggerIsAppliedToAnActionMapping(Data, Trigger, ChordContext, BaseAction, TestAxis));
+	AND(ATriggerIsAppliedToAnActionMapping(Data, Trigger, ChordContext, ChordedAction, TestAxis));
 
 
-	// With chord key pressed main action does not trigger, but chording action does
-	WHEN(AKeyIsActuated(Data, ChordKey));
-	AND(InputIsTicked(Data));
-	THEN(PressingKeyDoesNotTrigger(Data, BaseAction));
-	ANDALSO(PressingKeyTriggersAction(Data, ChordingAction));
+	TRIGGER_SUBTEST("With chord key pressed neither main action triggers, but chording action does")
+	{
+		WHEN(AKeyIsActuated(Data, ChordKey));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyDoesNotTrigger(Data, BaseAction));
+		ANDALSO(PressingKeyDoesNotTrigger(Data, ChordedAction));
+		ANDALSO(PressingKeyTriggersAction(Data, ChordingAction));
+	}
 
 	const float AxisValue = 0.5f;
 
-	// Switching to test key the action supplies the unmodified value
-	WHEN(AKeyIsReleased(Data, ChordKey));
-	AND(AKeyIsActuated(Data, TestAxis, AxisValue));
-	AND(InputIsTicked(Data));
-	THEN(PressingKeyTriggersAction(Data, BaseAction));
-	ANDALSO(ReleasingKeyTriggersCompleted(Data, ChordingAction));
-	AND(TestEqual(TEXT("BaseAction"), FInputTestHelper::GetTriggered<float>(Data, BaseAction), AxisValue));
+	TRIGGER_SUBTEST("Switching to test key the action supplies the unmodified value")
+	{
+		WHEN(AKeyIsReleased(Data, ChordKey));
+		AND(AKeyIsActuated(Data, TestAxis, AxisValue));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyTriggersAction(Data, BaseAction));
+		ANDALSO(ReleasingKeyTriggersCompleted(Data, ChordingAction));
+		AND(TestEqual(TEXT("BaseAction"), FInputTestHelper::GetTriggered<float>(Data, BaseAction), AxisValue));
+	}
 
-	// Depressing chord key triggers chorded action modified value
-	WHEN(AKeyIsActuated(Data, ChordKey));
-	AND(InputIsTicked(Data));
-	THEN(PressingKeyTriggersAction(Data, BaseAction));
-	ANDALSO(PressingKeyTriggersAction(Data, ChordingAction));
-	AND(TestEqual(TEXT("BaseAction"), FInputTestHelper::GetTriggered<float>(Data, BaseAction), -AxisValue));
+	TRIGGER_SUBTEST("Depressing chord key triggers chorded action modified value")
+	{
+		WHEN(AKeyIsActuated(Data, ChordKey));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyTriggersAction(Data, ChordedAction));
+		ANDALSO(ReleasingKeyTriggersCompleted(Data, BaseAction));
+		AND(TestEqual(TEXT("BaseAction"), FInputTestHelper::GetTriggered<float>(Data, ChordedAction), -AxisValue));
+	}
 
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerChordsSingleContextTest, "Input.Triggers.Chords.SingleContext", BasicTriggerTestFlags)
+
+bool FInputTriggerChordsSingleContextTest::RunTest(const FString& Parameters)
+{
+	// Test chords work when all base, chorded, and chording actions are in the same context (they are processed in the correct order)
+	FKey ChordKey = TestKey2;
+	FName BaseAction = TEXT("BaseAction");				// Base action
+	FName ChordedAction = TEXT("ChordedAction");			// Chord triggered action
+	FName ChordingAction = TEXT("ChordingAction");		// Chording action driving special case e.g. ShiftDown/AcrobaticModifier
+
+	UWorld* World =
+		GIVEN(AnEmptyWorld());
+
+	// Initialise
+	UControllablePlayer& Data =
+		AND(AControllablePlayer(World));
+
+	FName SingleContext = TEXT("Context");
+	AND(AnInputContextIsAppliedToAPlayer(Data, SingleContext, 1));
+
+	// Set up action
+	AND(AnInputAction(Data, BaseAction, EInputActionValueType::Axis1D));
+	AND(AnInputAction(Data, ChordedAction, EInputActionValueType::Axis1D));
+
+	// Set up the chording action (modifier key action)
+	AND(UInputAction * ChordingActionPtr = AnInputAction(Data, ChordingAction, EInputActionValueType::Boolean));
+
+	// Bind the chording modifier
+	AND(AnActionIsMappedToAKey(Data, SingleContext, ChordingAction, ChordKey));
+
+	// Bind the actions to the same key
+	AND(AnActionIsMappedToAKey(Data, SingleContext, BaseAction, TestAxis));
+	AND(AnActionIsMappedToAKey(Data, SingleContext, ChordedAction, TestAxis));
+
+	// But the chorded version inverts the result
+	AND(AModifierIsAppliedToAnActionMapping(Data, NewObject<UInputModifierNegate>(), SingleContext, ChordedAction, TestAxis));
+
+	// Apply a chord action trigger to the chorded mapping
+	UInputTriggerChordAction* Trigger = NewObject<UInputTriggerChordAction>();
+	Trigger->ChordAction = ChordingActionPtr;
+	AND(ATriggerIsAppliedToAnActionMapping(Data, Trigger, SingleContext, ChordedAction, TestAxis));
 
 
+	TRIGGER_SUBTEST("With chord key pressed neither main action triggers, but chording action does")
+	{
+		WHEN(AKeyIsActuated(Data, ChordKey));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyDoesNotTrigger(Data, BaseAction));
+		ANDALSO(PressingKeyDoesNotTrigger(Data, ChordedAction));
+		ANDALSO(PressingKeyTriggersAction(Data, ChordingAction));
+	}
+
+	const float AxisValue = 0.5f;
+
+	TRIGGER_SUBTEST("Switching to test key the action supplies the unmodified value")
+	{
+		WHEN(AKeyIsReleased(Data, ChordKey));
+		AND(AKeyIsActuated(Data, TestAxis, AxisValue));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyTriggersAction(Data, BaseAction));
+		ANDALSO(ReleasingKeyTriggersCompleted(Data, ChordingAction));
+		AND(TestEqual(TEXT("BaseAction"), FInputTestHelper::GetTriggered<float>(Data, BaseAction), AxisValue));
+	}
+
+	TRIGGER_SUBTEST("Depressing chord key triggers chorded action modified value")
+	{
+		WHEN(AKeyIsActuated(Data, ChordKey));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyTriggersAction(Data, ChordedAction));
+		ANDALSO(ReleasingKeyTriggersCompleted(Data, BaseAction));
+		AND(TestEqual(TEXT("BaseAction"), FInputTestHelper::GetTriggered<float>(Data, ChordedAction), -AxisValue));
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FInputTriggerChordsPressedTriggersTest, "Input.Triggers.Chords.WithPressedTriggers", BasicTriggerTestFlags)
+
+bool FInputTriggerChordsPressedTriggersTest::RunTest(const FString& Parameters)
+{
+	// Test chord behavior with pressed triggers
+	// Expected: Main key trigger state should be retained by both base and chorded action, across any chord key state transitions.
+	// Pressing or releasing the chord key shouldn't cause any action to trigger by itself (Note: triggering would continue to occur for a down trigger).
+
+	FKey ChordKey = TestKey2;
+	FName BaseAction = TEXT("BaseAction");				// Base action
+	FName ChordedAction = TEXT("ChordedAction");			// Chord triggered action
+	FName ChordingAction = TEXT("ChordingAction");		// Chording action driving special case e.g. ShiftDown/AcrobaticModifier
+
+	UWorld* World =
+		GIVEN(AnEmptyWorld());
+
+	// Initialise
+	UControllablePlayer& Data =
+		AND(AControllablePlayer(World));
+
+	FName BaseContext = TEXT("BaseContext"), ChordContext = TEXT("ChordContext");
+	AND(AnInputContextIsAppliedToAPlayer(Data, BaseContext, 1));
+	AND(AnInputContextIsAppliedToAPlayer(Data, ChordContext, 100));
+
+	// Set up action
+	AND(AnInputAction(Data, BaseAction, EInputActionValueType::Boolean));
+	AND(AnInputAction(Data, ChordedAction, EInputActionValueType::Boolean));
+
+	// Set up the chording action (modifier key action)
+	AND(UInputAction * ChordingActionPtr = AnInputAction(Data, ChordingAction, EInputActionValueType::Boolean));
+
+	// Bind the chording modifier in the high priority context
+	AND(AnActionIsMappedToAKey(Data, ChordContext, ChordingAction, ChordKey));
+
+	// Bind the actions to the same key in both contexts
+	AND(AnActionIsMappedToAKey(Data, BaseContext, BaseAction, TestKey));
+	AND(AnActionIsMappedToAKey(Data, ChordContext, ChordedAction, TestKey));
+
+	// Apply pressed triggers to both actions
+	AND(ATriggerIsAppliedToAnAction(Data, NewObject<UInputTriggerPressed>(), BaseAction));
+	AND(ATriggerIsAppliedToAnAction(Data, NewObject<UInputTriggerPressed>(), ChordedAction));
+
+	// Apply a chord action trigger to the chorded mapping
+	UInputTriggerChordAction* Trigger = NewObject<UInputTriggerChordAction>();
+	Trigger->ChordAction = ChordingActionPtr;
+	AND(ATriggerIsAppliedToAnAction(Data, Trigger, ChordedAction));
+
+	TRIGGER_SUBTEST("Pressing key triggers base action")
+	{
+		WHEN(AKeyIsActuated(Data, TestKey));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyTriggersAction(Data, BaseAction));
+		ANDALSO(PressingKeyDoesNotTrigger(Data, ChordedAction));
+	}
+
+	TRIGGER_SUBTEST("Pressing chord key does not trigger chorded action, but stops base")
+	{
+		WHEN(AKeyIsActuated(Data, ChordKey));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyTriggersStarted(Data, ChordedAction));	// Begins tracking trigger...	// TODO: Started -> Permanent Ongoing. The implicit chord action is true, but explict Pressed blocks. Make chord action a 4th type? ImplicitBlocker?
+		THEN(!PressingKeyTriggersAction(Data, ChordedAction));	// but does not fire
+		ANDALSO(PressingKeyTriggersCompleted(Data, BaseAction));
+	}
+
+	// Release main key
+	AKeyIsReleased(Data, TestKey);
+	InputIsTicked(Data);
+
+	TRIGGER_SUBTEST("Pressing key again triggers chorded action only")
+	{
+		WHEN(AKeyIsActuated(Data, TestKey));
+		AND(InputIsTicked(Data));
+		THEN(PressingKeyTriggersAction(Data, ChordedAction));
+		ANDALSO(PressingKeyDoesNotTrigger(Data, BaseAction));
+	}
+
+	TRIGGER_SUBTEST("Releasing chord key stops chorded action but does not trigger base action")
+	{
+		WHEN(AKeyIsReleased(Data, ChordKey));
+		AND(InputIsTicked(Data));
+		THEN(ReleasingKeyTriggersCompleted(Data, ChordedAction));
+		ANDALSO(ReleasingKeyDoesNotTrigger(Data, BaseAction));
+	}
+
+	return true;
+}
 
 // TODO: Action level triggers (simple repeat of device level tests)
 // TODO: Variable frame delta tests

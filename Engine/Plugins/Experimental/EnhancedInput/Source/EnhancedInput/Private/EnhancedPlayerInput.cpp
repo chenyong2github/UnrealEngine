@@ -114,7 +114,7 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(const UInputAction* Action,
 	{
 		if (bResetActionData)
 		{
-			ActionsWithEventsThisTick.Add(Action);			
+			ActionsWithEventsThisTick.Add(Action);
 			ActionData.Value.Reset();	// TODO: what if default value isn't 0 (e.g. bool value with negate modifier). Move reset out to a pre-pass? This may be confusing as triggering requires key interaction for value processing for performance reasons.
 		}
 
@@ -128,7 +128,7 @@ void UEnhancedPlayerInput::ProcessActionMappingEvent(const UInputAction* Action,
 		ActionData.bMappingTriggerApplied |= Triggers.Num() > 0;
 
 		// Combine values for active events only, selecting the input with the greatest magnitude for each component in each tick.
-		if (TriggerState != ETriggerState::None)
+		if(ModifiedValue.GetMagnitudeSq())
 		{
 			const int32 NumComponents = FMath::Max(1, int32(ValueType));
 			FVector Modified = ModifiedValue.Get<FVector>();
@@ -170,6 +170,7 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 			const FKeyState& KeyState = KeyPair.Value;
 			// TODO: Can't just use bDownPrevious as paired axis event edges may not fire due to axial deadzoning/missing axis properties. Need to change how this is detected in PlayerInput.cpp.
 			bool bWasDown = KeyState.bDownPrevious || KeyState.EventCounts[IE_Pressed].Num() || KeyState.EventCounts[IE_Repeat].Num();
+			bWasDown |= KeyPair.Key.IsAnalog() && KeyState.RawValue.SizeSquared() != 0;	// Analog inputs should pulse every (non-zero) tick to retain compatibility with UE4.
 			KeyDownPrevious.Emplace(KeyPair.Key, bWasDown);
 		}
 	}
@@ -199,6 +200,9 @@ void UEnhancedPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& Inp
 		bool bDownLastTick = KeyDownPrevious.FindRef(Mapping.Key);
 		// TODO: Can't just use bDown as paired axis event edges may not fire due to axial deadzoning/missing axis properties. Need to change how this is detected in PlayerInput.cpp.
 		bool bKeyIsDown = KeyState && (KeyState->bDown || KeyState->EventCounts[IE_Pressed].Num() || KeyState->EventCounts[IE_Repeat].Num());
+		// Analog inputs should pulse every (non-zero) tick to retain compatibility with UE4. TODO: This would be better handled at the device level.
+		bKeyIsDown |= Mapping.Key.IsAnalog() && RawKeyValue.SizeSquared() > 0;
+
 		bool bKeyIsReleased = !bKeyIsDown && bDownLastTick;
 		bool bKeyIsHeld = bKeyIsDown && bDownLastTick;
 

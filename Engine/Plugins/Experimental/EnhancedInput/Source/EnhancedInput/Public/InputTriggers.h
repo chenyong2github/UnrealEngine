@@ -180,6 +180,7 @@ class UInputTriggerPressed final : public UInputTrigger
 protected:
 
 	virtual ETriggerState UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime) override;
+	virtual FString GetDebugState() const { return IsActuated(LastValue) ? FString(TEXT("Pressed:Held")) : FString(); }
 };
 
 
@@ -195,6 +196,7 @@ class UInputTriggerReleased final : public UInputTrigger
 protected:
 
 	virtual ETriggerState UpdateState_Implementation(const UEnhancedPlayerInput* PlayerInput, FInputActionValue ModifiedValue, float DeltaTime) override;
+	virtual FString GetDebugState() const { return IsActuated(LastValue) ? FString(TEXT("Released:Held")) : FString(); }
 };
 
 
@@ -297,7 +299,6 @@ class UInputTriggerChordBlocker final : public UInputTriggerChordAction
 
 protected:
 	virtual ETriggerType GetTriggerType_Implementation() const override { return ETriggerType::Blocker; }
-
 };
 
 

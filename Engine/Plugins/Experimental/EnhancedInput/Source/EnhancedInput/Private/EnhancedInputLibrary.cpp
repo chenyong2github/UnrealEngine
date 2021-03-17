@@ -44,6 +44,19 @@ FInputActionValue UEnhancedInputLibrary::GetBoundActionValue(AActor* Actor, cons
 }
 
 
+void UEnhancedInputLibrary::BreakInputActionValue(FInputActionValue InActionValue, float& X, float& Y, float& Z)
+{
+	FVector AsAxis3D = InActionValue.Get<FInputActionValue::Axis3D>();
+	X = AsAxis3D.X;
+	Y = AsAxis3D.Y;
+	Z = AsAxis3D.Z;
+}
+
+FInputActionValue UEnhancedInputLibrary::MakeInputActionValue(float X, float Y, float Z, const FInputActionValue& MatchValueType)
+{
+	return FInputActionValue(MatchValueType.GetValueType(), FVector(X, Y, Z));
+}
+
 // FInputActionValue type conversions
 
 bool UEnhancedInputLibrary::Conv_InputActionValueToBool(FInputActionValue InValue)
