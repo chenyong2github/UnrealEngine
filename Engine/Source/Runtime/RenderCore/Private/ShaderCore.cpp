@@ -418,6 +418,9 @@ void FShaderCompilerOutput::GenerateOutputHash()
 	// we don't hash the optional attachments as they would prevent sharing (e.g. many materials share the same VS)
 	uint32 ShaderCodeSize = ShaderCode.GetShaderCodeSize();
 
+	// make sure we are not generating the hash on compressed data
+	checkf(!ShaderCode.IsCompressed(), TEXT("Attempting to generate the output hash of a compressed code"));
+
 	HashState.Update(Code.GetData(), ShaderCodeSize * Code.GetTypeSize());
 	ParameterMap.UpdateHash(HashState);
 	HashState.Final();
