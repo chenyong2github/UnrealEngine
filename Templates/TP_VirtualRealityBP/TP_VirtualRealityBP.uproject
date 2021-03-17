@@ -6,7 +6,7 @@
 	"Plugins": [
 		{
 			"Name": "XRVisualization",
-			"Enabled": true
+			"Enabled": false
 		},
 		{
 			"Name": "ResonanceAudio",
