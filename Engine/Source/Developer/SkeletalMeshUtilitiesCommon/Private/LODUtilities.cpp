@@ -1176,8 +1176,13 @@ void FLODUtilities::SimplifySkeletalMeshLOD( USkeletalMesh* SkeletalMesh, int32 
 {
 	IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 	IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
+	if (!MeshReduction)
+	{
+		UE_ASSET_LOG(LogLODUtilities, Warning, SkeletalMesh, TEXT("Cannot reduce skeletalmesh LOD because there is no active reduction plugin."));
+		return;
+	}
 
-	check (MeshReduction && MeshReduction->IsSupported());
+	check (MeshReduction->IsSupported());
 
 
 	if (DesiredLOD == 0
@@ -2301,7 +2306,12 @@ void FLODUtilities::RegenerateDependentLODs(USkeletalMesh* SkeletalMesh, int32 L
 		IMeshReductionModule& ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionModule>("MeshReductionInterface");
 		//This will load all necessary module before kicking the multi threaded reduction
 		IMeshReduction* MeshReduction = ReductionModule.GetSkeletalMeshReductionInterface();
-		check(MeshReduction && MeshReduction->IsSupported());
+		if (!MeshReduction)
+		{
+			UE_ASSET_LOG(LogLODUtilities, Warning, SkeletalMesh, TEXT("Cannot reduce skeletalmesh LOD because there is no active reduction plugin."));
+			return;
+		}
+		check(MeshReduction->IsSupported());
 
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(SkeletalMesh);
 		{

@@ -2756,13 +2756,13 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 					&& !bIsReductionDataPresent
 					&& !bIsbuildAvailable);
 
-				bool bShowGenerateButtons = IsAutoMeshReductionAvailable() && !LodCannotRegenerate;
+				bool bShowGenerateButtons = !LodCannotRegenerate;
 				//LOD 0 never show Reimport and remove buttons
 				bool bShowReimportButtons = LODIndex != 0;
 				bool bShowRemoveButtons = LODIndex != 0;
 
 				// Add reduction settings
-				if (bShowGenerateButtons)
+				if (IsAutoMeshReductionAvailable() && bShowGenerateButtons)
 				{
 					//Create the build setting UI Layout
 					ReductionSettingsWidgetsPerLOD.Add(LODIndex, MakeShareable(new FSkeletalMeshReductionSettingsLayout(SkelMesh->GetLODInfo(LODIndex)->ReductionSettings
