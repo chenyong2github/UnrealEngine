@@ -190,21 +190,21 @@ const FWorldPartitionActorDescView& FActorInstance::GetActorDescView() const
 
 void CreateActorCluster(const FWorldPartitionActorDescView& ActorDescView, EActorGridPlacement GridPlacement, TMap<FGuid, FActorCluster*>& ActorToActorCluster, TSet<FActorCluster*>& ActorClustersSet, const FActorContainerInstance& ContainerInstance)
 {
-	const UActorDescContainer* ActorDescContainer = ContainerInstance.Container;
-	UWorld* World = ActorDescContainer->GetWorld();
-	const FGuid& ActorGuid = ActorDescView.GetGuid();
-
-	FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
-	if (!ActorCluster)
-	{
-		ActorCluster = new FActorCluster(World, ActorDescView, GridPlacement);
-		ActorClustersSet.Add(ActorCluster);
-		ActorToActorCluster.Add(ActorGuid, ActorCluster);
-	}
-
 	// Don't include references from editor-only actors
 	if (!ActorDescView.GetActorIsEditorOnly())
 	{
+		const UActorDescContainer* ActorDescContainer = ContainerInstance.Container;
+		UWorld* World = ActorDescContainer->GetWorld();
+		const FGuid& ActorGuid = ActorDescView.GetGuid();
+
+		FActorCluster* ActorCluster = ActorToActorCluster.FindRef(ActorGuid);
+		if (!ActorCluster)
+		{
+			ActorCluster = new FActorCluster(World, ActorDescView, GridPlacement);
+			ActorClustersSet.Add(ActorCluster);
+			ActorToActorCluster.Add(ActorGuid, ActorCluster);
+		}
+
 		for (const FGuid& ReferenceGuid : ActorDescView.GetReferences())
 		{
 			if (const FWorldPartitionActorDescView* ReferenceActorDescView = ContainerInstance.ActorDescViewMap.Find(ReferenceGuid))
