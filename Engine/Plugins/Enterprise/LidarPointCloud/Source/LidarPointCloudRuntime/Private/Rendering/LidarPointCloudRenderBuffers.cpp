@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////// Base Buffer
 
 TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
-TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;
+TGlobalResource<FLidarPointCloudSharedVertexFactory> GLidarPointCloudSharedVertexFactory;
 
 //////////////////////////////////////////////////////////// Index Buffer
 
@@ -162,6 +162,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::Bind(const FShaderParameterM
 	BINDPARAM(ViewUpVector);
 	BINDPARAM(bUseCameraFacing);
 	BINDPARAM(bUseScreenSizeScaling);
+	BINDPARAM(bUseStaticBuffers);
 	BINDPARAM(BoundsSize);
 	BINDPARAM(ElevationColorBottom);
 	BINDPARAM(ElevationColorTop);
@@ -199,6 +200,7 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(ViewUpVector);
 	SETPARAM(bUseCameraFacing);
 	SETPARAM(bUseScreenSizeScaling);
+	SETPARAM(bUseStaticBuffers);
 	SETPARAM(BoundsSize);
 	SETPARAM(ElevationColorBottom);
 	SETPARAM(ElevationColorTop);
@@ -218,10 +220,42 @@ void FLidarPointCloudVertexFactoryShaderParameters::GetElementShaderBindings(con
 	SETPARAM(bStartClipped);
 }
 
-bool FLidarPointCloudVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
+bool FLidarPointCloudVertexFactoryBase::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
 	return (IsPCPlatform(Parameters.Platform) && IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) &&
 		Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithLidarPointCloud) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
+}
+
+void FLidarPointCloudVertexFactory::Initialize(FLidarPointCloudPoint* Data, int32 NumPoints)
+{
+	if (IsInitialized())
+	{
+		ReleaseResource();
+	}
+
+	VertexBuffer.Data = Data;
+	VertexBuffer.NumPoints = NumPoints;
+
+	InitResource();
+}
+
+void FLidarPointCloudVertexFactory::FPointCloudVertexBuffer::InitRHI()
+{
+	FRHIResourceCreateInfo CreateInfo;
+	void* Buffer = nullptr;
+	VertexBufferRHI = RHICreateAndLockVertexBuffer(NumPoints * 4 * sizeof(FLidarPointCloudPoint), BUF_Static, CreateInfo, Buffer);
+
+	uint8* Dest = (uint8*)Buffer;
+	for (int32 i = 0; i < NumPoints; ++i, ++Data)
+	{
+		FMemory::Memcpy(Dest, Data, sizeof(FLidarPointCloudPoint)); Dest += sizeof(FLidarPointCloudPoint);
+		FMemory::Memcpy(Dest, Data, sizeof(FLidarPointCloudPoint)); Dest += sizeof(FLidarPointCloudPoint);
+		FMemory::Memcpy(Dest, Data, sizeof(FLidarPointCloudPoint)); Dest += sizeof(FLidarPointCloudPoint);
+		FMemory::Memcpy(Dest, Data, sizeof(FLidarPointCloudPoint)); Dest += sizeof(FLidarPointCloudPoint);
+	}
+
+	RHIUnlockVertexBuffer(VertexBufferRHI);
+	Buffer = nullptr;
 }
 
 void FLidarPointCloudVertexFactory::InitRHI()
@@ -229,7 +263,9 @@ void FLidarPointCloudVertexFactory::InitRHI()
 	VertexBuffer.InitResource();
 
 	FVertexDeclarationElementList Elements;
-	Elements.Add(AccessStreamComponent(FVertexStreamComponent(&VertexBuffer, 0, 0, VET_Float3), 0));
+	Elements.Add(AccessStreamComponent(FVertexStreamComponent(&VertexBuffer, 0, sizeof(FLidarPointCloudPoint), VET_Float3), 0));
+	Elements.Add(AccessStreamComponent(FVertexStreamComponent(&VertexBuffer, 12, sizeof(FLidarPointCloudPoint), VET_Color), 1));
+	Elements.Add(AccessStreamComponent(FVertexStreamComponent(&VertexBuffer, 16, sizeof(FLidarPointCloudPoint), VET_UInt), 2));
 	InitDeclaration(Elements);
 }
 
@@ -239,9 +275,35 @@ void FLidarPointCloudVertexFactory::ReleaseRHI()
 	VertexBuffer.ReleaseResource();
 }
 
-IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLidarPointCloudVertexFactory, SF_Vertex, FLidarPointCloudVertexFactoryShaderParameters);
+void FLidarPointCloudSharedVertexFactory::FPointCloudVertexBuffer::InitRHI()
+{
+	FRHIResourceCreateInfo CreateInfo;
+	void* Buffer = nullptr;
+	VertexBufferRHI = RHICreateAndLockVertexBuffer(sizeof(FVector), BUF_Static | BUF_ZeroStride, CreateInfo, Buffer);
+	FMemory::Memzero(Buffer, sizeof(FVector));
+	RHIUnlockVertexBuffer(VertexBufferRHI);
+	Buffer = nullptr;
+}
 
-IMPLEMENT_VERTEX_FACTORY_TYPE(FLidarPointCloudVertexFactory, "/Plugin/LidarPointCloud/Private/LidarPointCloudVertexFactory.ush", /* bUsedWithMaterials */ true, /* bSupportsStaticLighting */ false, /* bSupportsDynamicLighting */ true, /* bPrecisePrevWorldPos */ false, /* bSupportsPositionOnly */ true);
+void FLidarPointCloudSharedVertexFactory::InitRHI()
+{
+	VertexBuffer.InitResource();
+
+	FVertexDeclarationElementList Elements;
+	Elements.Add(AccessStreamComponent(FVertexStreamComponent(&VertexBuffer, 0, 0, VET_Float3), 0));
+	Elements.Add(AccessStreamComponent(FVertexStreamComponent(&VertexBuffer, 0, 0, VET_Color), 1));
+	Elements.Add(AccessStreamComponent(FVertexStreamComponent(&VertexBuffer, 0, 0, VET_Color), 2));
+	InitDeclaration(Elements);
+}
+
+void FLidarPointCloudSharedVertexFactory::ReleaseRHI()
+{
+	FVertexFactory::ReleaseRHI();
+	VertexBuffer.ReleaseResource();
+}
+
+IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FLidarPointCloudVertexFactoryBase, SF_Vertex, FLidarPointCloudVertexFactoryShaderParameters);
+IMPLEMENT_VERTEX_FACTORY_TYPE(FLidarPointCloudVertexFactoryBase, "/Plugin/LidarPointCloud/Private/LidarPointCloudVertexFactory.ush", /* bUsedWithMaterials */ true, /* bSupportsStaticLighting */ false, /* bSupportsDynamicLighting */ true, /* bPrecisePrevWorldPos */ false, /* bSupportsPositionOnly */ true);
 
 #undef BINDPARAM
 #undef SETPARAM

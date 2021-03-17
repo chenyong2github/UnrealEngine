@@ -93,6 +93,7 @@ private:
 
 	/** Holds render data for this node */
 	class FLidarPointCloudRenderBuffer* DataCache;
+	class FLidarPointCloudVertexFactory* VertexFactory;
 
 	bool bRenderDataDirty;
 
@@ -120,7 +121,14 @@ public:
 	/** Returns a pointer to the point data */
 	FORCEINLINE FLidarPointCloudRenderBuffer* GetDataCache() { return DataCache; }
 
-	bool BuildDataCache();
+	/** Return a pointer to the vertex factory containing pre-cached geometry */
+	FORCEINLINE FLidarPointCloudVertexFactory* GetVertexFactory() { return VertexFactory; }
+
+	/**
+	 * Builds and updates the necessary render data buffers
+	 * Returns true if successful
+	 */
+	bool BuildDataCache(bool bUseStaticBuffers);
 
 	/** Returns the sum of grid and padding points allocated to this node. */
 	FORCEINLINE uint32 GetNumPoints() const { return NumPoints; }
@@ -160,6 +168,9 @@ public:
 	 * If forced, the node will be released even if persistent
 	 */
 	void ReleaseData(bool bForce = false);
+	
+	/** Releases and removes the render data cache */
+	void ReleaseDataCache();
 
 	/** Convenience function, to add point statistics to the Tree table. */
 	void AddPointCount(int32 PointCount);

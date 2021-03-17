@@ -201,13 +201,13 @@ public:
 
 					for (const FLidarPointCloudProxyUpdateDataNode& Node : RenderData.SelectedNodes)
 					{
-						if (Node.DataNode && Node.DataNode->GetDataCache())
+						if (Node.DataNode && ((RenderData.bUseStaticBuffers && Node.DataNode->GetVertexFactory()) || (!RenderData.bUseStaticBuffers && Node.DataNode->GetDataCache())))
 						{
 							FMeshBatch& MeshBatch = Collector.AllocateMesh();
 
 							MeshBatch.Type = bUsesSprites ? PT_TriangleList : PT_PointList;
 							MeshBatch.LODIndex = 0;
-							MeshBatch.VertexFactory = &GLidarPointCloudVertexFactory;
+							MeshBatch.VertexFactory = RenderData.bUseStaticBuffers ? Node.DataNode->GetVertexFactory() : (FVertexFactory*)&GLidarPointCloudSharedVertexFactory;
 							MeshBatch.bWireframe = false;
 							MeshBatch.MaterialRenderProxy = Component->GetMaterial(0)->GetRenderProxy();
 							MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
@@ -313,6 +313,7 @@ public:
 		UserDataElement.SpriteSize = RenderData.RootCellSize / FMath::Pow(2.0f, UserDataElement.VirtualDepth);
 		UserDataElement.SpriteSizeMultiplier = Component->PointSize * Component->GetComponentScale().GetAbsMax();
 		UserDataElement.bUseScreenSizeScaling = Component->bUseScreenSizeScaling;
+		UserDataElement.bUseStaticBuffers = RenderData.bUseStaticBuffers;
 
 		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
 		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();		
@@ -349,7 +350,7 @@ public:
 			UserDataElement.bStartClipped = UserDataElement.bStartClipped || ClippingVolume->Mode == ELidarClippingVolumeMode::ClipOutside;
 		}
 
-		UserDataElement.DataBuffer = Node.DataNode->GetDataCache()->SRV;
+		UserDataElement.DataBuffer = Node.DataNode->GetDataCache() ? Node.DataNode->GetDataCache()->SRV : nullptr;
 
 		return UserDataElement;
 	}

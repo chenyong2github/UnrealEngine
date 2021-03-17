@@ -125,6 +125,7 @@ FLidarPointCloudOctreeNode::FLidarPointCloudOctreeNode(FLidarPointCloudOctree* T
 	, NumPoints(0)
 	, bHasData(false)
 	, DataCache(nullptr)
+	, VertexFactory(nullptr)
 	, bRenderDataDirty(true)
 	, bHasDataPending(false)
 	, bCanReleaseData(true)
@@ -143,17 +144,7 @@ FLidarPointCloudOctreeNode::~FLidarPointCloudOctreeNode()
 		Children[i] = nullptr;
 	}
 
-	if (DataCache)
-	{
-		FLidarPointCloudRenderBuffer* Tmp = DataCache;
-		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([Tmp](FRHICommandListImmediate& RHICmdList)
-			{
-				Tmp->ReleaseResource();
-				delete Tmp;
-			});
-
-		DataCache = nullptr;
-	}
+	ReleaseDataCache();
 }
 
 void FLidarPointCloudOctreeNode::UpdateNumVisiblePoints()
@@ -198,28 +189,64 @@ FLidarPointCloudPoint* FLidarPointCloudOctreeNode::GetPersistentData() const
 	return GetData();
 }
 
-bool FLidarPointCloudOctreeNode::BuildDataCache()
+bool FLidarPointCloudOctreeNode::BuildDataCache(bool bUseStaticBuffers)
 {
-	// Only inlcude nodes with available data
+	// Only include nodes with available data
 	if (HasData() && GetNumVisiblePoints())
 	{
-		if (!DataCache)
+		// Make sure to release the unnecessary buffer
+		if (bUseStaticBuffers)
 		{
-			DataCache = new FLidarPointCloudRenderBuffer();
-			bRenderDataDirty = true;
+			if (DataCache)
+			{
+				DataCache->ReleaseResource();
+				delete DataCache;
+				DataCache = nullptr;
+				bRenderDataDirty = true;
+			}
+
+			if (!VertexFactory)
+			{
+				VertexFactory = new FLidarPointCloudVertexFactory();
+				bRenderDataDirty = true;
+			}
+		}
+		else
+		{
+			if (VertexFactory)
+			{
+				VertexFactory->ReleaseResource();
+				delete VertexFactory;
+				VertexFactory = nullptr;
+				bRenderDataDirty = true;
+			}
+
+			if (!DataCache)
+			{
+				DataCache = new FLidarPointCloudRenderBuffer();
+				bRenderDataDirty = true;
+			}
 		}
 
 		if (bRenderDataDirty)
 		{
-			DataCache->Resize(GetNumVisiblePoints() * 5);
-
-			uint8* StructuredBuffer = (uint8*)RHILockVertexBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * 20, RLM_WriteOnly);
-			for (FLidarPointCloudPoint* P = GetData(), *DataEnd = P + GetNumVisiblePoints(); P != DataEnd; ++P)
+			if (DataCache)
 			{
-				FMemory::Memcpy(StructuredBuffer, P, 20);
-				StructuredBuffer += 20;
+				DataCache->Resize(GetNumVisiblePoints() * 5);
+
+				uint8* StructuredBuffer = (uint8*)RHILockVertexBuffer(DataCache->Buffer, 0, GetNumVisiblePoints() * sizeof(FLidarPointCloudPoint), RLM_WriteOnly);
+				for (FLidarPointCloudPoint* P = GetData(), *DataEnd = P + GetNumVisiblePoints(); P != DataEnd; ++P)
+				{
+					FMemory::Memcpy(StructuredBuffer, P, sizeof(FLidarPointCloudPoint));
+					StructuredBuffer += sizeof(FLidarPointCloudPoint);
+				}
+				RHIUnlockVertexBuffer(DataCache->Buffer);
 			}
-			RHIUnlockVertexBuffer(DataCache->Buffer);
+
+			if (VertexFactory)
+			{
+				VertexFactory->Initialize(GetData(), GetNumVisiblePoints());
+			}
 
 			bRenderDataDirty = false;
 		}
@@ -704,16 +731,30 @@ void FLidarPointCloudOctreeNode::ReleaseData(bool bForce)
 		}
 	}
 
-	if (DataCache)
+	ReleaseDataCache();
+}
+
+void FLidarPointCloudOctreeNode::ReleaseDataCache()
+{
+	if (VertexFactory || DataCache)
 	{
-		FLidarPointCloudRenderBuffer* Tmp = DataCache;
-		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([Tmp](FRHICommandListImmediate& RHICmdList)
+		ENQUEUE_RENDER_COMMAND(LidarPointCloudOctreeNode_ReleaseDataCache)([DataCache = DataCache, VertexFactory = VertexFactory](FRHICommandListImmediate& RHICmdList)
 			{
-				Tmp->ReleaseResource();
-				delete Tmp;
+				if (DataCache)
+				{
+					DataCache->ReleaseResource();
+					delete DataCache;
+				}
+
+				if (VertexFactory)
+				{
+					VertexFactory->ReleaseResource();
+					delete VertexFactory;
+				}
 			});
 
 		DataCache = nullptr;
+		VertexFactory = nullptr;
 	}
 }
 

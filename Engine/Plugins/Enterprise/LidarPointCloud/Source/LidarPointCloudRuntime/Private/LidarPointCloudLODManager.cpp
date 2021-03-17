@@ -542,6 +542,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 
 		// Set when to release the BulkData, if no longer visible
 		const float BulkDataLifetime = CurrentTime + GetDefault<ULidarPointCloudSettings>()->CachedNodeLifetime;
+		const bool bUseStaticBuffers = GetDefault<ULidarPointCloudSettings>()->bUseStaticBuffers;
 
 		for (int32 i = 0; i < SelectedNodesData.Num(); ++i)
 		{
@@ -553,6 +554,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 			UpdateData.VDMultiplier = RegisteredProxy.TraversalOctree->ReversedVirtualDepthMultiplier;
 			UpdateData.RootCellSize = RegisteredProxy.PointCloud->Octree.GetRootCellSize();
 			UpdateData.ClippingVolumes = ClippingVolumes;
+			UpdateData.bUseStaticBuffers = bUseStaticBuffers;
 
 			const bool bUseNormals = RegisteredProxy.Component->ShouldRenderFacingNormals();
 
@@ -642,7 +644,7 @@ int64 FLidarPointCloudLODManager::ProcessLOD(const TArray<FLidarPointCloudLODMan
 					{
 						for (const FLidarPointCloudProxyUpdateDataNode& Node : UpdateData.SelectedNodes)
 						{
-							if (Node.DataNode->BuildDataCache())
+							if (Node.DataNode->BuildDataCache(UpdateData.bUseStaticBuffers))
 							{
 								MaxPointsPerNode = FMath::Max(MaxPointsPerNode, Node.DataNode->GetNumVisiblePoints());
 							}

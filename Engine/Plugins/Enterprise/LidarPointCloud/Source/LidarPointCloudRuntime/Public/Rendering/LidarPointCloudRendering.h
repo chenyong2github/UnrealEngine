@@ -40,6 +40,8 @@ struct FLidarPointCloudProxyUpdateData
 
 	float VDMultiplier;
 	float RootCellSize;
+	
+	bool bUseStaticBuffers;
 
 #if !(UE_BUILD_SHIPPING)
 	/** Stores bounds of selected nodes, used for debugging */
