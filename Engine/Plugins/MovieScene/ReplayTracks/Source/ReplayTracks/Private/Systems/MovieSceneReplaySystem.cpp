@@ -19,6 +19,7 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "ReplaySubsystem.h"
+#include "TimerManager.h"
 
 namespace UE
 {
