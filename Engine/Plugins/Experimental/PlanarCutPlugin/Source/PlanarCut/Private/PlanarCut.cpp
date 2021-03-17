@@ -281,13 +281,22 @@ struct FCellMeshes
 		// TODO: compute spatial in advance?  (only useful if we rework mesh booleans to support it)
 		//FDynamicMeshAABBTree3 Spatial;
 	};
-	TArray<FCellInfo> CellMeshes;
+	TIndirectArray<FCellInfo> CellMeshes;
 	int32 OutsideCellIndex = -1;
 
 	// Noise Offsets, to randomize where perlin noise is sampled
 	FVector NoiseOffsetX;
 	FVector NoiseOffsetY;
 	FVector NoiseOffsetZ;
+
+	void SetNumCells(int32 NumMeshes)
+	{
+		CellMeshes.Reset();
+		for (int32 Idx = 0; Idx < NumMeshes; Idx++)
+		{
+			CellMeshes.Add(new FCellInfo);
+		}
+	}
 
 	FCellMeshes()
 	{
@@ -301,8 +310,7 @@ struct FCellMeshes
 
 	FCellMeshes(FDynamicMesh3& SingleCutter, const FInternalSurfaceMaterials& Materials, TOptional<FTransform> Transform)
 	{
-		CellMeshes.Reset();
-		CellMeshes.SetNum(2);
+		SetNumCells(2);
 
 		if (Transform.IsSet())
 		{
@@ -341,7 +349,7 @@ struct FCellMeshes
 			GlobalUVScale = 1;
 		}
 
-		CellMeshes.SetNum(1);
+		SetNumCells(1);
 
 		bool bNoise = Cells.InternalSurfaceMaterials.NoiseSettings.IsSet();
 
@@ -478,8 +486,7 @@ struct FCellMeshes
 			NumCells++;
 		}
 
-		CellMeshes.Reset();
-		CellMeshes.SetNum(NumCells);
+		SetNumCells(NumCells);
 
 		bool bNoise = Cells.InternalSurfaceMaterials.NoiseSettings.IsSet();
 		if (bNoise)
@@ -1245,7 +1252,7 @@ struct FDynamicMeshCollection
 		FMeshData(const FDynamicMesh3& Mesh, int32 TransformIndex, FTransform ToCollection) : AugMesh(Mesh), TransformIndex(TransformIndex), ToCollection(ToCollection)
 		{}
 	};
-	TArray<FMeshData> Meshes;
+	TIndirectArray<FMeshData> Meshes;
 	FAxisAlignedBox3d Bounds;
 
 	FDynamicMeshCollection(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection)
@@ -1268,7 +1275,8 @@ struct FDynamicMeshCollection
 
 			FTransform3d CollectionToLocal = FTransform3d(GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, TransformIdx) * TransformCollection);
 
-			FMeshData& MeshData = Meshes.Emplace_GetRef();
+			int32 AddedMeshIdx = Meshes.Add(new FMeshData);
+			FMeshData& MeshData = Meshes[AddedMeshIdx];
 			MeshData.TransformIndex = TransformIdx;
 			MeshData.ToCollection = FTransform(CollectionToLocal.Inverse());
 			FDynamicMesh3& Mesh = MeshData.AugMesh;
@@ -1373,7 +1381,7 @@ struct FDynamicMeshCollection
 			//    (Note the outside cell mesh is subtracted, not intersected)
 			//    (Note this relies on island splitting to separate all the pieces afterwards.)
 			FCellMeshes GroutCells;
-			GroutCells.CellMeshes.SetNum(2);
+			GroutCells.SetNumCells(2);
 			FDynamicMesh3& GroutMesh = GroutCells.CellMeshes[0].AugMesh;
 			FDynamicMeshEditor GroutAppender(&GroutMesh);
 			FMeshIndexMappings IndexMaps;
@@ -1979,6 +1987,77 @@ struct FDynamicMeshCollection
 		return Output.BoneName[TransformParent] + "_" + FString::FromInt(SubPartIndex);
 	}
 
+	void AddCollisionSamples(double CollisionSampleSpacing)
+	{
+		for (int32 MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
+		{
+			UE::PlanarCutInternals::AugmentDynamicMesh::AddCollisionSamplesPerComponent(Meshes[MeshIdx].AugMesh, CollisionSampleSpacing);
+		}
+	}
+
+	// Update an existing geometry in a collection w/ a new mesh (w/ the same number of faces and vertices!)
+	static bool UpdateCollection(const FTransform& ToCollection, FDynamicMesh3& Mesh, int32 GeometryIdx, FGeometryCollection& Output, int32 InternalMaterialID)
+	{
+		if (!Mesh.IsCompact())
+		{
+			Mesh.CompactInPlace(nullptr);
+		}
+
+		int32 OldVertexCount = Output.VertexCount[GeometryIdx];
+		int32 OldTriangleCount = Output.FaceCount[GeometryIdx];
+
+		int32 NewVertexCount = Mesh.VertexCount();
+		int32 NewTriangleCount = Mesh.TriangleCount();
+
+		if (!ensure(OldVertexCount == NewVertexCount) || !ensure(OldTriangleCount == NewTriangleCount))
+		{
+			return false;
+		}
+
+		int32 VerticesStart = Output.VertexStart[GeometryIdx];
+		int32 FacesStart = Output.FaceStart[GeometryIdx];
+		int32 TransformIdx = Output.TransformIndex[GeometryIdx];
+
+		for (int32 VID = 0; VID < Mesh.MaxVertexID(); VID++)
+		{
+			checkSlow(Mesh.IsVertex(VID)); // mesh is compact
+			int32 CopyToIdx = VerticesStart + VID;
+			Output.Vertex[CopyToIdx] = ToCollection.TransformPosition(FVector(Mesh.GetVertex(VID)));
+			Output.Normal[CopyToIdx] = ToCollection.TransformVectorNoScale(FVector(Mesh.GetVertexNormal(VID)));
+			Output.UV[CopyToIdx] = FVector2D(Mesh.GetVertexUV(VID));
+			FVector3f TangentU, TangentV;
+			UE::PlanarCutInternals::AugmentDynamicMesh::GetTangent(Mesh, VID, TangentU, TangentV);
+			Output.TangentU[CopyToIdx] = ToCollection.TransformVectorNoScale(FVector(TangentU));
+			Output.TangentV[CopyToIdx] = ToCollection.TransformVectorNoScale(FVector(TangentV));
+			Output.Color[CopyToIdx] = FVector(Mesh.GetVertexColor(VID));
+
+			// Bone map is set based on the transform of the new geometry
+			Output.BoneMap[CopyToIdx] = TransformIdx;
+		}
+
+		FIntVector VertexStartOffset(VerticesStart);
+		for (int32 TID = 0; TID < Mesh.MaxTriangleID(); TID++)
+		{
+			checkSlow(Mesh.IsTriangle(TID));
+			int32 CopyToIdx = FacesStart + TID;
+			Output.Visible[CopyToIdx] = UE::PlanarCutInternals::AugmentDynamicMesh::GetVisibility(Mesh, TID);
+			int MaterialID = Mesh.Attributes()->GetMaterialID()->GetValue(TID);
+			Output.MaterialID[CopyToIdx] = MaterialID < 0 ? InternalMaterialID : MaterialID;
+			Output.Indices[CopyToIdx] = FIntVector(Mesh.GetTriangle(TID)) + VertexStartOffset;
+		}
+
+		if (Output.BoundingBox.Num())
+		{
+			Output.BoundingBox[GeometryIdx].Init();
+			for (int32 Idx = VerticesStart; Idx < VerticesStart + Output.VertexCount[GeometryIdx]; ++Idx)
+			{
+				Output.BoundingBox[GeometryIdx] += Output.Vertex[Idx];
+			}
+		}
+
+		return true;
+	}
+
 	static int32 AppendToCollection(const FTransform& ToCollection, FDynamicMesh3& Mesh, double CollisionSampleSpacing, int32 TransformParent, FString BoneName, FGeometryCollection& Output, int32 InternalMaterialID)
 	{
 		if (Mesh.TriangleCount() == 0)
@@ -2047,7 +2126,7 @@ struct FDynamicMeshCollection
 		FIntVector VertexStartOffset(VerticesStart);
 		for (int32 TID = 0; TID < Mesh.MaxTriangleID(); TID++)
 		{
-			check(Mesh.IsTriangle(TID));
+			checkSlow(Mesh.IsTriangle(TID));
 			int32 CopyToIdx = FacesStart + TID;
 			Output.Visible[CopyToIdx] = UE::PlanarCutInternals::AugmentDynamicMesh::GetVisibility(Mesh, TID);
 			int MaterialID = Mesh.Attributes()->GetMaterialID()->GetValue(TID);
@@ -2763,35 +2842,38 @@ int32 AddCollisionSampleVertices(double CollisionSampleSpacing, FGeometryCollect
 	FTransform CellsToWorld = FTransform::Identity;
 
 	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CellsToWorld);
-	struct FLocalInfo
-	{
-		FString BoneName;
-		int Parent = -1;
-	};
-	TArray<FLocalInfo> LocalInfo; LocalInfo.SetNum(TransformIndices.Num());
-	for (int Idx = 0; Idx < TransformIndices.Num(); Idx++)
-	{
-		LocalInfo[Idx].BoneName = Collection.BoneName[TransformIndices[Idx]];
-		LocalInfo[Idx].Parent = Collection.Parent[TransformIndices[Idx]];
-	}
 
-	TArray<int32> ToDelete(TransformIndices);
-	ToDelete.Sort();
-	Collection.RemoveElements(FGeometryCollection::TransformGroup, ToDelete);
-	int32 FirstAppended = -1;
+	MeshCollection.AddCollisionSamples(CollisionSampleSpacing);
+
+	int32 NumGeometry = Collection.NumElements(FGeometryCollection::GeometryGroup);
+	TArray<int32> NewFaceCounts, NewVertexCounts;
+	NewFaceCounts.SetNumUninitialized(NumGeometry);
+	NewVertexCounts.SetNumUninitialized(NumGeometry);
+	for (int32 GeomIdx = 0; GeomIdx < Collection.FaceCount.Num(); GeomIdx++)
+	{
+		NewFaceCounts[GeomIdx] = Collection.FaceCount[GeomIdx];
+		NewVertexCounts[GeomIdx] = Collection.VertexCount[GeomIdx];
+	}
+	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
+	{
+		FDynamicMeshCollection::FMeshData& MeshData = MeshCollection.Meshes[MeshIdx];
+		int32 GeomIdx = Collection.TransformToGeometryIndex[MeshData.TransformIndex];
+		NewFaceCounts[GeomIdx] = MeshData.AugMesh.TriangleCount();
+		NewVertexCounts[GeomIdx] = MeshData.AugMesh.VertexCount();
+	}
+	GeometryCollectionAlgo::ResizeGeometries(&Collection, NewFaceCounts, NewVertexCounts);
+
 	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
 	{
 		FDynamicMeshCollection::FMeshData& MeshData = MeshCollection.Meshes[MeshIdx];
 		FDynamicMesh3& Mesh = MeshData.AugMesh;
-		int32 ResultIdx = MeshCollection.AppendToCollection(MeshData.ToCollection, Mesh, CollisionSampleSpacing, LocalInfo[MeshIdx].Parent, LocalInfo[MeshIdx].BoneName, Collection, -1);
-		if (FirstAppended == -1)
-		{
-			FirstAppended = ResultIdx;
-		}
+		int32 GeometryIdx = Collection.TransformToGeometryIndex[MeshData.TransformIndex];
+		ensure(MeshCollection.UpdateCollection(MeshData.ToCollection, Mesh, GeometryIdx, Collection, -1));
 	}
 
 	Collection.ReindexMaterials();
 
-	return FirstAppended;
+	// TODO: This function does not create any new bones, so we could change it to not return anything
+	return INDEX_NONE;
 }
 
