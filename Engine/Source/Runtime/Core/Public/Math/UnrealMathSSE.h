@@ -339,7 +339,32 @@ FORCEINLINE VectorRegister VectorMultiply( const VectorRegister& Vec1, const Vec
  * @param Vec3	3rd vector
  * @return		VectorRegister( Vec1.x*Vec2.x + Vec3.x, Vec1.y*Vec2.y + Vec3.y, Vec1.z*Vec2.z + Vec3.z, Vec1.w*Vec2.w + Vec3.w )
  */
-#define VectorMultiplyAdd( Vec1, Vec2, Vec3 )	_mm_add_ps( _mm_mul_ps(Vec1, Vec2), Vec3 )
+FORCEINLINE VectorRegister VectorMultiplyAdd(const VectorRegister& Vec1, const VectorRegister& Vec2, const VectorRegister& Vec3)
+{
+#if PLATFORM_ALWAYS_HAS_FMA3
+	return _mm_fmadd_ps(Vec1, Vec2, Vec3);
+#else
+	return _mm_add_ps(_mm_mul_ps(Vec1, Vec2), Vec3);
+#endif
+}
+
+/**
+ * Multiplies two vectors (component-wise), negates the results and adds it to the third vector i.e. -AB + C = C - AB
+ *
+ * @param Vec1	1st vector
+ * @param Vec2	2nd vector
+ * @param Vec3	3rd vector
+ * @return		VectorRegister( Vec3.x - Vec1.x*Vec2.x, Vec3.y - Vec1.y*Vec2.y, Vec3.z - Vec1.z*Vec2.z, Vec3.w - Vec1.w*Vec2.w )
+ */
+FORCEINLINE VectorRegister VectorNegateMultiplyAdd(VectorRegister Vec1, VectorRegister Vec2, VectorRegister Vec3)
+{
+#if PLATFORM_ALWAYS_HAS_FMA3
+	return _mm_fnmadd_ps(Vec1, Vec2, Vec3);
+#else
+	return _mm_sub_ps(Vec3, _mm_mul_ps(Vec1, Vec2));
+#endif
+}
+
 
 /**
  * Calculates the dot3 product of two vectors and returns a vector with the result in all 4 components.
@@ -480,11 +505,10 @@ FORCEINLINE VectorRegister VectorSelect(const VectorRegister& Mask, const Vector
  */
 FORCEINLINE VectorRegister VectorCross( const VectorRegister& Vec1, const VectorRegister& Vec2 )
 {
-	VectorRegister A_YZXW = _mm_shuffle_ps( Vec1, Vec1, SHUFFLEMASK(1,2,0,3) );
-	VectorRegister B_ZXYW = _mm_shuffle_ps( Vec2, Vec2, SHUFFLEMASK(2,0,1,3) );
-	VectorRegister A_ZXYW = _mm_shuffle_ps( Vec1, Vec1, SHUFFLEMASK(2,0,1,3) );
-	VectorRegister B_YZXW = _mm_shuffle_ps( Vec2, Vec2, SHUFFLEMASK(1,2,0,3) );
-	return VectorSubtract( VectorMultiply(A_YZXW,B_ZXYW), VectorMultiply(A_ZXYW, B_YZXW) );
+	VectorRegister C = VectorMultiply(Vec1, _mm_shuffle_ps(Vec2, Vec2, SHUFFLEMASK(1, 2, 0, 3)));
+	C = VectorNegateMultiplyAdd(_mm_shuffle_ps(Vec1, Vec1, SHUFFLEMASK(1, 2, 0, 3)), Vec2, C);
+	C = _mm_shuffle_ps(C, C, SHUFFLEMASK(1, 2, 0, 3));
+	return C;
 }
 
 /**
@@ -600,12 +624,12 @@ FORCEINLINE VectorRegister VectorReciprocalAccurate(const VectorRegister& Vec)
 	// First iteration
 	const VectorRegister x0Squared = VectorMultiply(x0, x0);
 	const VectorRegister x0Times2 = VectorAdd(x0, x0);
-	const VectorRegister x1 = VectorSubtract(x0Times2, VectorMultiply(Vec, x0Squared));
+	const VectorRegister x1 = VectorNegateMultiplyAdd(Vec, x0Squared, x0Times2);
 
 	// Second iteration
 	const VectorRegister x1Squared = VectorMultiply(x1, x1);
 	const VectorRegister x1Times2 = VectorAdd(x1, x1);
-	const VectorRegister x2 = VectorSubtract(x1Times2, VectorMultiply(Vec, x1Squared));
+	const VectorRegister x2 = VectorNegateMultiplyAdd(Vec, x1Squared, x1Times2);
 
 	return x2;
 }
@@ -656,7 +680,7 @@ FORCEINLINE void VectorMatrixMultiply( void *Result, const void* Matrix1, const 
 	const VectorRegister *A	= (const VectorRegister *) Matrix1;
 	const VectorRegister *B	= (const VectorRegister *) Matrix2;
 	VectorRegister *R		= (VectorRegister *) Result;
-	VectorRegister Temp, R0, R1, R2, R3;
+	VectorRegister Temp, R0, R1, R2;
 
 	// First row of result (Matrix1[0] * Matrix2).
 	Temp	= VectorMultiply( VectorReplicate( A[0], 0 ), B[0] );
@@ -680,13 +704,13 @@ FORCEINLINE void VectorMatrixMultiply( void *Result, const void* Matrix1, const 
 	Temp	= VectorMultiply( VectorReplicate( A[3], 0 ), B[0] );
 	Temp	= VectorMultiplyAdd( VectorReplicate( A[3], 1 ), B[1], Temp );
 	Temp	= VectorMultiplyAdd( VectorReplicate( A[3], 2 ), B[2], Temp );
-	R3		= VectorMultiplyAdd( VectorReplicate( A[3], 3 ), B[3], Temp );
+	Temp	= VectorMultiplyAdd( VectorReplicate( A[3], 3 ), B[3], Temp );
 
 	// Store result
 	R[0] = R0;
 	R[1] = R1;
 	R[2] = R2;
-	R[3] = R3;
+	R[3] = Temp;
 }
 
 /**
@@ -799,13 +823,9 @@ FORCEINLINE VectorRegister VectorTransformVector(const VectorRegister&  VecP,  c
 	VTempW = VectorReplicate(VecP, 3);
 	// Mul by the matrix
 	VTempX = VectorMultiply(VTempX, M[0]);
-	VTempY = VectorMultiply(VTempY, M[1]);
-	VTempZ = VectorMultiply(VTempZ, M[2]);
-	VTempW = VectorMultiply(VTempW, M[3]);
-	// Add them all together
-	VTempX = VectorAdd(VTempX, VTempY);
-	VTempZ = VectorAdd(VTempZ, VTempW);
-	VTempX = VectorAdd(VTempX, VTempZ);
+	VTempX = VectorMultiplyAdd(VTempY, M[1], VTempX);
+	VTempX = VectorMultiplyAdd(VTempZ, M[2], VTempX);
+	VTempX = VectorMultiplyAdd(VTempW, M[3], VTempX);
 
 	return VTempX;
 }
@@ -1212,7 +1232,7 @@ FORCEINLINE VectorRegister VectorMod(const VectorRegister& X, const VectorRegist
 	// Floats where abs(f) >= 2^23 have no fractional portion, and larger values would overflow VectorTruncate.
 	VectorRegister NoFractionMask = VectorCompareGE(VectorAbs(Div), GlobalVectorConstants::FloatNonFractional);
 	VectorRegister Temp = VectorSelect(NoFractionMask, Div, VectorTruncate(Div));
-	VectorRegister Result = VectorSubtract(X, VectorMultiply(Y, Temp));
+	VectorRegister Result = VectorNegateMultiplyAdd(Y, Temp, X);
 	// Clamp to [-AbsY, AbsY] because of possible failures for very large numbers (>1e10) due to precision loss.
 	VectorRegister AbsY = VectorAbs(Y);
 	return VectorMax(VectorNegate(AbsY), VectorMin(Result, AbsY));
@@ -1307,7 +1327,7 @@ FORCEINLINE void VectorSinCos(VectorRegister* RESTRICT VSinAngles, VectorRegiste
 	VectorRegister Quotient = VectorMultiply(*VAngles, GlobalVectorConstants::OneOverTwoPi);
 	Quotient = _mm_cvtepi32_ps(_mm_cvtps_epi32(Quotient)); // round to nearest even is the default rounding mode but that's fine here.
 	// X = A - 2pi * Quotient
-	VectorRegister X = VectorSubtract(*VAngles, VectorMultiply(GlobalVectorConstants::TwoPi, Quotient));
+	VectorRegister X = VectorNegateMultiplyAdd(GlobalVectorConstants::TwoPi, Quotient, *VAngles);
 
 	// Map in [-pi/2,pi/2]
 	VectorRegister sign = VectorBitwiseAnd(X, GlobalVectorConstants::SignBit);

@@ -108,6 +108,9 @@ typedef FUnixPlatformTypes FPlatformTypes;
 #ifndef PLATFORM_ALWAYS_HAS_SSE4_1 // May be set from UnrealBuildTool
 	#define PLATFORM_ALWAYS_HAS_SSE4_1							0
 #endif
+#ifndef PLATFORM_ALWAYS_HAS_FMA3
+	#define PLATFORM_ALWAYS_HAS_FMA3							0
+#endif
 
 
 // Function type macros.

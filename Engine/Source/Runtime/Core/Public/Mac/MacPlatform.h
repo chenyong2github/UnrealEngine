@@ -61,6 +61,10 @@ typedef FMacPlatformTypes FPlatformTypes;
 #ifndef PLATFORM_ALWAYS_HAS_SSE4_1 // May be set from UnrealBuildTool
 	#define PLATFORM_ALWAYS_HAS_SSE4_1				0
 #endif
+// FMA3 support was added starting from Intel Haswell
+#ifndef PLATFORM_ALWAYS_HAS_FMA3
+	#define PLATFORM_ALWAYS_HAS_FMA3				0
+#endif
 //#define PLATFORM_USE_LS_SPEC_FOR_WIDECHAR			1
 #define PLATFORM_USE_SYSTEM_VSWPRINTF				0
 #define PLATFORM_COMPILER_DISTINGUISHES_INT_AND_LONG			1
