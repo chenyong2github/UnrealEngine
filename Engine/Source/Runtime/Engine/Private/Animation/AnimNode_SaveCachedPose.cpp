@@ -34,6 +34,9 @@ void FAnimNode_SaveCachedPose::CacheBones_AnyThread(const FAnimationCacheBonesCo
 	{
 		CachedBonesCounter.SynchronizeWith(Context.AnimInstanceProxy->GetCachedBonesCounter());
 
+		// Pose will be out of date, so reset the evaluation counter
+		EvaluationCounter.Reset();
+		
 		// Cache bones in the subgraph
 		Pose.CacheBones(Context);
 	}
