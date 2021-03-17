@@ -388,7 +388,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 			const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
 			const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize();
 
-			if (Lumen::ShouldVisualizeHardwareRayTracing())
+			if (Lumen::ShouldVisualizeHardwareRayTracing() && MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 			{
 				FLumenIndirectTracingParameters IndirectTracingParameters;
 				IndirectTracingParameters.CardInterpolateInfluenceRadius = VisualizeParameters.CardInterpolateInfluenceRadius;
