@@ -364,7 +364,7 @@ UEditorEngine::UEditorEngine(const FObjectInitializer& ObjectInitializer)
 					return;
 				}
 				
-				SetPreviewPlatform(FPreviewPlatformInfo(ERHIFeatureLevel::SM5), false);
+				SetPreviewPlatform(FPreviewPlatformInfo(GMaxRHIFeatureLevel), false);
 			}
 		});
 		
@@ -7407,7 +7407,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 #if RHI_RAYTRACING
 	if (IsRayTracingEnabled())
 	{
-		if (PreviewPlatform.PreviewFeatureLevel != ERHIFeatureLevel::SM5)
+		if (PreviewPlatform.PreviewFeatureLevel < ERHIFeatureLevel::SM5)
 		{
 			UE_LOG(LogEditor, Warning, TEXT("Preview feature level is incompatible with ray tracing, defaulting to Shader Model 5"));
 			PreviewPlatform.PreviewFeatureLevel = ERHIFeatureLevel::SM5;
@@ -7589,6 +7589,7 @@ void UEditorEngine::SaveEditorFeatureLevel()
 	Settings->PreviewPlatformName = PreviewPlatform.PreviewPlatformName;
 	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderFormatName;
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
+	Settings->bPreviewFeatureLevelWasDefault = (PreviewPlatform.PreviewFeatureLevel == GMaxRHIFeatureLevel);
 	Settings->PreviewDeviceProfileName = PreviewPlatform.DeviceProfileName;
 	Settings->PostEditChange();
 }

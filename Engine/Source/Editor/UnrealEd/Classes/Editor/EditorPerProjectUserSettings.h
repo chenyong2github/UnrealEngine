@@ -174,6 +174,9 @@ public:
 	bool bPreviewFeatureLevelActive;
 
 	UPROPERTY(config)
+	bool bPreviewFeatureLevelWasDefault;
+
+	UPROPERTY(config)
 	FName PreviewDeviceProfileName;
 
 public:

@@ -1345,7 +1345,11 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 				{
 					const FText& RenderingAsPlatformName = GetFriendlyShaderPlatformName(GEditor->PreviewPlatform.bPreviewFeatureLevelActive ? PreviewShaderPlatform : MaxRHIFeatureLevelPlatform);
                     const FText& SwitchToPlatformName = GetFriendlyShaderPlatformName(GEditor->PreviewPlatform.bPreviewFeatureLevelActive ? MaxRHIFeatureLevelPlatform : PreviewShaderPlatform);
-                    if (GWorld->FeatureLevel == GMaxRHIFeatureLevel)
+					if (PreviewShaderPlatform == MaxRHIFeatureLevelPlatform)
+					{
+						return FText::Format(LOCTEXT("PreviewModeViewingAs", "Viewing {0}."), RenderingAsPlatformName);
+					}
+                    else if (GWorld->FeatureLevel == GMaxRHIFeatureLevel)
                     {
                         return FText::Format(LOCTEXT("PreviewModeViewingAsSwitchTo", "Viewing {0}. Click to preview {1}."), RenderingAsPlatformName, SwitchToPlatformName);
                     }
@@ -1513,9 +1517,6 @@ static void MakeShaderModelPreviewMenu( UToolMenu* InMenu )
 #define LOCTEXT_NAMESPACE "LevelToolBarViewMenu"
 
 	FToolMenuSection& Section = InMenu->AddSection("EditorPreviewMode", LOCTEXT("EditorPreviewModeDevices", "Preview Devices"));
-
-	// SM5
-	Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_SM5);
 
 	// Preview platforms discovered from ITargetPlatforms.
 	for (auto It = FLevelEditorCommands::Get().PreviewPlatformOverrides.CreateConstIterator(); It; ++It)

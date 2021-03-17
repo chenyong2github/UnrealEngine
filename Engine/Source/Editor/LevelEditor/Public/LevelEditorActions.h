@@ -588,8 +588,6 @@ public:
 
 	TSharedPtr< FUICommandInfo > ToggleFeatureLevelPreview;
 
-	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM5;
-
 	TMap <FName, TSharedPtr<FUICommandInfo>> PreviewPlatformOverrides;
 	
 	///**
@@ -803,6 +801,7 @@ public:
 	static bool IsFeatureLevelPreviewActive();
 	static bool IsPreviewModeButtonVisible();
 	static void SetPreviewPlatform(FPreviewPlatformInfo NewPreviewPlatform);
+	static bool CanExecutePreviewPlatform(FPreviewPlatformInfo NewPreviewPlatform);
 	static bool IsPreviewPlatformChecked(FPreviewPlatformInfo NewPreviewPlatform);
 	static void GeometryCollection_SelectAllGeometry();
 	static void GeometryCollection_SelectNone();

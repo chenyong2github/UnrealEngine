@@ -607,16 +607,16 @@ bool FLevelEditorActionCallbacks::IsFeatureLevelPreviewEnabled()
 	{
 		return false;
 	}
-	if (GEditor->PreviewPlatform.PreviewFeatureLevel == ERHIFeatureLevel::SM5)
+	if (GEditor->PreviewPlatform.PreviewFeatureLevel == GMaxRHIFeatureLevel)
 	{
-		return true;
+		return false;
 	}
 	return GEditor->IsFeatureLevelPreviewEnabled();
 }
 
 bool FLevelEditorActionCallbacks::IsFeatureLevelPreviewActive()
 {
-	if (GEditor->PreviewPlatform.PreviewFeatureLevel == ERHIFeatureLevel::SM5)
+	if (GEditor->PreviewPlatform.PreviewFeatureLevel == GMaxRHIFeatureLevel)
 	{
 		return false;
 	}
@@ -637,6 +637,11 @@ void FLevelEditorActionCallbacks::SetPreviewPlatform(FPreviewPlatformInfo NewPre
 	FSlateApplication::Get().DismissAllMenus();
 
 	GEditor->SetPreviewPlatform(NewPreviewPlatform, true);
+}
+
+bool FLevelEditorActionCallbacks::CanExecutePreviewPlatform(FPreviewPlatformInfo NewPreviewPlatform)
+{
+	return NewPreviewPlatform.PreviewFeatureLevel <= GMaxRHIFeatureLevel;
 }
 
 bool FLevelEditorActionCallbacks::IsPreviewPlatformChecked(FPreviewPlatformInfo PreviewPlatform)
@@ -3461,8 +3466,6 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND(MaterialQualityLevel_Epic, "Epic", "Sets material quality in the scene to Epic.", EUserInterfaceActionType::RadioButton, FInputChord());
 
 	UI_COMMAND(ToggleFeatureLevelPreview, "Preview Mode Toggle", "Toggles the Preview Mode on or off for the currently selected Preview target", EUserInterfaceActionType::ToggleButton, FInputChord());
-
-	UI_COMMAND(PreviewPlatformOverride_SM5, "Shader Model 5", "DirectX 11, OpenGL 4.3+, PS4, XB1", EUserInterfaceActionType::Check, FInputChord());
 
 	// Add preview platforms
 	for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)

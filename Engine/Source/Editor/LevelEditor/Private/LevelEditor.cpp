@@ -1725,22 +1725,20 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsFeatureLevelPreviewActive),
 		FIsActionButtonVisible::CreateStatic(FLevelEditorActionCallbacks::IsPreviewModeButtonVisible));
 
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_SM5,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None, NAME_None, NAME_None, false)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
-
 	for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)
 	{
 		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(It.Value().ShaderFormat);
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+		const bool IsMaxFL = FeatureLevel == GMaxRHIFeatureLevel;
+
+		bool AllowSetOnSwitch = FeatureLevel != GMaxRHIFeatureLevel;
+		FPreviewPlatformInfo PreviewFeatureLevelInfo(FeatureLevel, IsMaxFL ? NAME_None : It.Value().PlatformName, IsMaxFL ? NAME_None : It.Value().ShaderFormat, IsMaxFL ? NAME_None : It.Value().DeviceProfileName, AllowSetOnSwitch);
 
 		ActionList.MapAction(
 			*Commands.PreviewPlatformOverrides.Find(It.Key()),
-			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(FeatureLevel, It.Value().PlatformName, It.Value().ShaderFormat, It.Value().DeviceProfileName, true)),
-			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(FeatureLevel, It.Value().PlatformName, It.Value().ShaderFormat, It.Value().DeviceProfileName)));
+			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, PreviewFeatureLevelInfo),
+			FCanExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::CanExecutePreviewPlatform, PreviewFeatureLevelInfo),
+			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, PreviewFeatureLevelInfo));
 	}
 
 	ActionList.MapAction(

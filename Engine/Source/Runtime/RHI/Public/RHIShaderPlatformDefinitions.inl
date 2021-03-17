@@ -95,7 +95,7 @@ static FText GetFriendlyShaderPlatformName(const EShaderPlatform InShaderPlatfor
 	break;
 
 	default:
-		if (FStaticShaderPlatformNames::IsStaticPlatform(InShaderPlatform))
+		if (FDataDrivenShaderPlatformInfo::IsValid(InShaderPlatform))
 		{
 			return FDataDrivenShaderPlatformInfo::GetFriendlyName(InShaderPlatform);
 		}
