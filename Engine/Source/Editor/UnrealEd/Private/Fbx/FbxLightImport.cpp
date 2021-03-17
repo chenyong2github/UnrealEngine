@@ -26,7 +26,7 @@ using namespace UnFbx;
 ALight* FFbxImporter::CreateLight(FbxLight* InLight, UWorld* InWorld)
 {
 	ALight* UnrealLight = NULL;
-	FString ActorName = UTF8_TO_TCHAR(MakeName(InLight->GetName()));
+	FString ActorName = MakeName(InLight->GetName());
 
 	// Create the light actor.
 	UClass* LightClass = NULL;
@@ -139,7 +139,7 @@ bool FFbxImporter::FillLightComponent(FbxLight* Light, ULightComponent* UnrealLi
 ACameraActor* FFbxImporter::CreateCamera(FbxCamera* InCamera, UWorld* InWorld)
 {
 	ACameraActor* UnrealCamera = NULL;
-	FString ActorName = UTF8_TO_TCHAR(MakeName(InCamera->GetName()));
+	FString ActorName = MakeName(InCamera->GetName());
 	FActorSpawnParameters SpawnInfo;
 	SpawnInfo.Name = *ActorName;
 	UnrealCamera = InWorld->SpawnActor<ACameraActor>( SpawnInfo );
