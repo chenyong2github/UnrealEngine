@@ -161,8 +161,8 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)		
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, RayTraceDispatchIndirectArgs)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)
+		RDG_BUFFER_ACCESS(RayTraceDispatchIndirectArgs, ERHIAccess::IndirectArgs)
 
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)
@@ -193,7 +193,7 @@ class FLumenReflectionHardwareRayTracingDeferredMaterialRGS : public FLumenHardw
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingDeferredMaterialRGS::FDeferredMaterialParameters, DeferredMaterialParameters)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FCompactedReflectionTraceParameters, CompactedTraceParameters)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, RayTraceDispatchIndirectArgs)
+		RDG_BUFFER_ACCESS(RayTraceDispatchIndirectArgs, ERHIAccess::IndirectArgs)
 
 		// Constants
 		SHADER_PARAMETER(float, MaxTraceDistance)

@@ -13,7 +13,7 @@
 #include "Lumen.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardScatterParameters, )
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, CardIndirectArgs)
+	RDG_BUFFER_ACCESS(CardIndirectArgs, ERHIAccess::IndirectArgs)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadData)
 	SHADER_PARAMETER(uint32, MaxQuadsPerScatterInstance)

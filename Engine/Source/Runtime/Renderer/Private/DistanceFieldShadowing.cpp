@@ -219,7 +219,7 @@ class FShadowObjectCullPS : public FGlobalShader
 BEGIN_SHADER_PARAMETER_STRUCT(FShadowMeshSDFObjectCull, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FShadowObjectCullVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FShadowObjectCullPS::FParameters, PS)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, MeshSDFIndirectArgs)
+	RDG_BUFFER_ACCESS(MeshSDFIndirectArgs, ERHIAccess::IndirectArgs)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 

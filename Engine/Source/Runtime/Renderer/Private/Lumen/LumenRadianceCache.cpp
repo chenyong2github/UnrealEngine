@@ -424,7 +424,7 @@ class FComputeProbeWorldOffsetsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -456,7 +456,7 @@ class FClearProbePDFs : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWRadianceProbeSH_PDF)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, ClearProbePDFsIndirectArgs)
+		RDG_BUFFER_ACCESS(ClearProbePDFsIndirectArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -536,7 +536,7 @@ class FGenerateProbeTraceTilesCS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, GenerateProbeTraceTilesIndirectArgs)
+		RDG_BUFFER_ACCESS(GenerateProbeTraceTilesIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -616,7 +616,7 @@ class FRadianceCacheTraceFromProbesCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, ProbeTraceTileData)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ProbeTraceTileAllocator)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, TraceProbesIndirectArgs)
+		RDG_BUFFER_ACCESS(TraceProbesIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
@@ -664,7 +664,7 @@ class FFilterProbeRadianceWithGatherCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, FilterProbesIndirectArgs)
+		RDG_BUFFER_ACCESS(FilterProbesIndirectArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER(float, SpatialFilterMaxRadianceHitAngle)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -708,7 +708,7 @@ class FCalculateProbeIrradianceCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FOctahedralSolidAngleParameters, OctahedralSolidAngleParameters)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, CalculateProbeIrradianceIndirectArgs)
+		RDG_BUFFER_ACCESS(CalculateProbeIrradianceIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -743,7 +743,7 @@ class FPrepareProbeOcclusionCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthProbeAtlasTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, PrepareProbeOcclusionIndirectArgs)
+		RDG_BUFFER_ACCESS(PrepareProbeOcclusionIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -778,7 +778,7 @@ class FCopyProbesAndFixupBordersCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadianceProbeAtlasTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheInterpolationParameters, RadianceCacheParameters)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, FixupProbeBordersIndirectArgs)
+		RDG_BUFFER_ACCESS(FixupProbeBordersIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -815,7 +815,7 @@ class FGenerateMipLevelCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
 		SHADER_PARAMETER(uint32, MipLevel)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, FixupProbeBordersIndirectArgs)
+		RDG_BUFFER_ACCESS(FixupProbeBordersIndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:

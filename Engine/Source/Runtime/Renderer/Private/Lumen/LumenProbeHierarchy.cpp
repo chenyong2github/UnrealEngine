@@ -303,7 +303,7 @@ class FSelectParentProbeCS : public FGlobalShader
 		SHADER_PARAMETER(int32, ParentHierarchyId)
 		SHADER_PARAMETER(int32, LevelId)
 
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, DispatchParameters)
+		RDG_BUFFER_ACCESS(DispatchParameters, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, ProbePerResolveTiles)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, ProbeArrayInout)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4>, ProbeParentListOutput)
@@ -410,7 +410,7 @@ class FComposeProbeAtlasCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenProbeHierarchy::FHierarchyLevelParameters, LevelParameters)
 		SHADER_PARAMETER(float, InvSampleCountPerCubemapTexel)
 
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, DispatchParameters)
+		RDG_BUFFER_ACCESS(DispatchParameters, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<float4>, ProbeParentList)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float3>, ProbeAtlasColor)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, ProbeAtlasSampleMask)

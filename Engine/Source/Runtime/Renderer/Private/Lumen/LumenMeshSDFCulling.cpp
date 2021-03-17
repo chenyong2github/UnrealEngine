@@ -166,14 +166,14 @@ IMPLEMENT_GLOBAL_SHADER(FMeshSDFObjectCullForProbesPS, "/Engine/Private/Lumen/Lu
 BEGIN_SHADER_PARAMETER_STRUCT(FMeshSDFObjectCull, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FMeshSDFObjectCullVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FMeshSDFObjectCullPS::FParameters, PS)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, MeshSDFIndirectArgs)
+	RDG_BUFFER_ACCESS(MeshSDFIndirectArgs, ERHIAccess::IndirectArgs)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FMeshSDFObjectCullForProbes, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FMeshSDFObjectCullVS::FParameters, VS)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FMeshSDFObjectCullForProbesPS::FParameters, PS)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, MeshSDFIndirectArgs)
+	RDG_BUFFER_ACCESS(MeshSDFIndirectArgs, ERHIAccess::IndirectArgs)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -189,7 +189,7 @@ class FMeshSDFObjectCompactCulledObjectsCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumCulledObjectsToCompact)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledObjectsToCompactArray)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, CompactCulledObjectsIndirectArguments)
+		RDG_BUFFER_ACCESS(CompactCulledObjectsIndirectArguments, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER(uint32, MaxNumberOfCulledObjects)
 	END_SHADER_PARAMETER_STRUCT()
 

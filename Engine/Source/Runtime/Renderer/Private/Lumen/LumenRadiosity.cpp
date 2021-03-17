@@ -300,7 +300,7 @@ class FSetupCardTraceBlocksCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadData)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBuffer)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -363,7 +363,7 @@ class FMarkRadianceProbesUsedByRadiosityCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
 		SHADER_PARAMETER(FIntPoint, RadiosityAtlasSize)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -448,7 +448,7 @@ class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CardTraceBlockAllocator)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint4>, CardTraceBlockData)
 		SHADER_PARAMETER(float, ProbeOcclusionNormalBias)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");

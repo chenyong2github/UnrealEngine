@@ -75,7 +75,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FOctahedralSolidAngleParameters, OctahedralSolidAngleParameters)
 	SHADER_PARAMETER_STRUCT_REF(FBlueNoise, BlueNoise)
 
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, ProbeIndirectArgs)
+	RDG_BUFFER_ACCESS(ProbeIndirectArgs, ERHIAccess::IndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FScreenProbeGatherParameters, )
@@ -89,7 +89,7 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FCompactedTraceParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CompactedTraceTexelAllocator)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, CompactedTraceTexelData)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+	RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 END_SHADER_PARAMETER_STRUCT()
 
 extern void GenerateBRDF_PDF(
