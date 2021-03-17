@@ -446,38 +446,38 @@ static uint32 PackMaterialFastPath(uint32 Material0Length, uint32 Material0Index
 {
 	uint32 Packed = 0x00000000;
 	// Material Packed Range - Fast Path (32 bits)
-	// uint Material0Length : 7;   // max 128 triangles (num minus one)
 	// uint Material0Index  : 6;   // max  64 materials (0:Material0Length)
-	// uint Material1Length : 7;   // max 128 triangles (num minus one)
 	// uint Material1Index  : 6;   // max  64 materials (Material0Length:Material1Length)
 	// uint Material2Index  : 6;   // max  64 materials (remainder)
-	check(Material0Length >    1); // ensure minus one encoding is valid
+	// uint Material0Length : 7;   // max 128 triangles (num minus one)
+	// uint Material1Length : 7;   // max  64 triangles (materials are sorted, so at most 128/2)
+	check(Material0Index  <  64);
+	check(Material1Index  <  64);
+	check(Material2Index  <  64);
+	check(Material0Length >= 1);
 	check(Material0Length <= 128);
-	check(Material1Length <= 128);
-	check(Material0Index  <   64);
-	check(Material1Index  <   64);
-	check(Material2Index  <   64);
-	Material1Length = Material1Length > 0 ? Material1Length - 1 : 0;
-	Packed |= (Material0Length   - 1);
-	Packed |= (Material0Index  <<  7);
-	Packed |= (Material1Length << 13);
-	Packed |= (Material1Index  << 20);
-	Packed |= (Material2Index  << 26);
+	check(Material1Length <= 64);
+	check(Material1Length <= Material0Length);
+	Packed |= Material0Index;
+	Packed |= Material1Index << 6;
+	Packed |= Material2Index << 12;
+	Packed |= (Material0Length - 1u) << 18;
+	Packed |= Material1Length << 25;
 	return Packed;
 }
 
 static uint32 PackMaterialSlowPath(uint32 MaterialTableOffset, uint32 MaterialTableLength)
 {
-	uint32 Packed = 0x00000000;
 	// Material Packed Range - Slow Path (32 bits)
-	// uint Padding         : 7;  // always 0 in slow path
 	// uint BufferIndex     : 19; // 2^19 max value (tons, it's per prim)
-	// uint BufferLength    : 6;  // max 127 ranges (num)
+	// uint BufferLength	: 6;  // max 64 materials, so also at most 64 ranges (num minus one)
+	// uint Padding			: 7;  // always 127 for slow path. corresponds to Material1Length=127 in fast path
 	check(MaterialTableOffset < 524288); // 2^19 - 1
 	check(MaterialTableLength > 0); // clusters with 0 materials use fast path
-	check(MaterialTableLength < 128);
-	Packed |= (MaterialTableOffset  <<  7);
-	Packed |= (MaterialTableLength << 26);
+	check(MaterialTableLength <= 64);
+	uint32 Packed = MaterialTableOffset;
+	Packed |= (MaterialTableLength - 1u) << 19;
+	Packed |= (0xFE000000u);
 	return Packed;
 }
 

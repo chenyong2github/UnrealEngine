@@ -470,44 +470,38 @@ FCluster GetCluster(ByteAddressBuffer InputBuffer, uint SrcBaseOffset, uint Clus
 	// uint Padding         : 10;
 
 	// Material Packed Range - Fast Path (32 bits)
-	// uint Material0Length : 7;  // max 128 triangles (num minus one)
 	// uint Material0Index  : 6;  // max  64 materials (0:Material0Length)
-	// uint Material1Length : 7;  // max 128 triangles (num minus one)
 	// uint Material1Index  : 6;  // max  64 materials (Material0Length:Material1Length)
 	// uint Material2Index  : 6;  // max  64 materials (remainder)
+	// uint Material0Length : 7;  // max 128 triangles (num minus one)
+	// uint Material1Length : 7;  // max  64 triangles (materials are sorted, so at most 128/2)
 
 	// Material Packed Range - Slow Path (32 bits)
-	// uint Padding         : 7;  // always 0 in slow path
 	// uint BufferIndex     : 19; // 2^19 max value (tons, it's per prim)
-	// uint BufferLength    : 6;  // max 127 ranges (num)
+	// uint BufferLength    : 6;  // max 64 ranges (num minus one)
+	// uint Padding         : 7;  // always 127 for slow path. corresponds to Material1Length=127 in fast path
 
-	Cluster.Material0Length = MaterialEncoding & 0x0000007F;
-	if (Cluster.Material0Length > 0)
+	if (MaterialEncoding < 0xFE000000u)
 	{
 		// Fast inline path
 		Cluster.MaterialTableOffset	= 0;
-		Cluster.MaterialTableLength	= 0;
-		Cluster.Material0Index		= (MaterialEncoding & 0x00001F80) >> 7;
-		Cluster.Material1Length		= (MaterialEncoding & 0x000FE000) >> 13;
-		Cluster.Material1Index		= (MaterialEncoding & 0x03F00000) >> 20;
-		Cluster.Material2Index		= (MaterialEncoding & 0xFC000000) >> 26;
-
-		Cluster.Material0Length++;
-		if (Cluster.Material0Length < 128)
-		{
-			Cluster.Material1Length++;
-		}
+		Cluster.MaterialTableLength	= 0;		
+		Cluster.Material0Index		= BitFieldExtractU32(MaterialEncoding, 6, 0);
+		Cluster.Material1Index		= BitFieldExtractU32(MaterialEncoding, 6, 6);
+		Cluster.Material2Index		= BitFieldExtractU32(MaterialEncoding, 6, 12);
+		Cluster.Material0Length		= BitFieldExtractU32(MaterialEncoding, 7, 18) + 1;
+		Cluster.Material1Length		= BitFieldExtractU32(MaterialEncoding, 7, 25);
 	}
 	else
 	{
 		// Slow global search path
-		Cluster.MaterialTableOffset	= (MaterialEncoding & 0x03FFFF80) >> 7;
-		Cluster.MaterialTableLength	= (MaterialEncoding & 0xFC000000) >> 26;
-		Cluster.Material0Length		= 0;
+		Cluster.MaterialTableOffset = BitFieldExtractU32(MaterialEncoding, 19, 0);
+		Cluster.MaterialTableLength	= BitFieldExtractU32(MaterialEncoding, 6, 19) + 1;
 		Cluster.Material0Index		= 0;
-		Cluster.Material1Length		= 0;
 		Cluster.Material1Index		= 0;
 		Cluster.Material2Index		= 0;
+		Cluster.Material0Length		= 0;
+		Cluster.Material1Length		= 0;
 	}
 
 	return Cluster;
