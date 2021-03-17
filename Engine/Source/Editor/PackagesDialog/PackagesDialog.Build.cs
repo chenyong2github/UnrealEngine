@@ -20,7 +20,8 @@ public class PackagesDialog : ModuleRules
                 "EditorStyle",
 				"UnrealEd",
 				"SourceControl",
-				"EditorWidgets"
+				"EditorWidgets",
+				"AssetRegistry"
 			}
 		);
 

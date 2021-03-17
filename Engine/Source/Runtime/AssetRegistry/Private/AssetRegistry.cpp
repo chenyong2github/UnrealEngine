@@ -232,6 +232,133 @@ EChunkProgressReportingType::Type GetChunkAvailabilityProgressType(EAssetAvailab
 	return ChunkReportType;
 }
 
+
+namespace UE
+{
+namespace AssetRegistry
+{
+#if WITH_ENGINE && WITH_EDITOR
+	TSet<FName> SkipUncookedClasses;
+	TSet<FName> SkipCookedClasses;
+	bool bInitializedSkipClasses = false;
+#endif //if WITH_ENGINE && WITH_EDITOR
+
+	// TODO: replace with a function in CoreGlobals
+	static bool IsRunningCookCommandlet()
+	{
+		FString Commandline = FCommandLine::Get();
+		const bool bIsCookCommandlet = IsRunningCommandlet() && Commandline.Contains(TEXT("run=cook"));
+		return bIsCookCommandlet;
+	}
+
+	bool FFiltering::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags)
+	{
+#if WITH_ENGINE && WITH_EDITOR
+
+		TRACE_CPUPROFILER_EVENT_SCOPE(AssetRegistry::FFiltering::ShouldSkipAsset)
+
+		// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
+		// an asset; the content browser does not handle the multiple assets correctly and displays this
+		// class asset as if it is in a separate package. Revisit when we have removed the UBlueprint as an asset
+		// or when we support multiple assets.
+		if (!bInitializedSkipClasses)
+		{
+			// Since we only collect these the first on-demand time, it is possible we will miss subclasses
+			// from plugins that load later. This flaw is a rare edge case, though, and this solution will
+			// be replaced eventually, so leaving it for now.
+			if (GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet()))
+			{
+				static const FName NAME_EnginePackage("/Script/Engine");
+				UPackage* EnginePackage = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, NAME_EnginePackage));
+
+				{
+					SkipUncookedClasses.Reset();
+
+					static const FName NAME_BlueprintGeneratedClass("BlueprintGeneratedClass");
+					UClass* BlueprintGeneratedClass = nullptr;
+					if (EnginePackage)
+					{
+						BlueprintGeneratedClass = Cast<UClass>(StaticFindObjectFast(UClass::StaticClass(), EnginePackage, NAME_BlueprintGeneratedClass));
+					}
+					if (!BlueprintGeneratedClass)
+					{
+						UE_LOG(LogAssetRegistry, Warning, TEXT("Could not find BlueprintGeneratedClass; will not be able to filter uncooked BPGC"));
+					}
+					else
+					{
+						SkipUncookedClasses.Add(NAME_BlueprintGeneratedClass);
+						for (TObjectIterator<UClass> It; It; ++It)
+						{
+							if (It->IsChildOf(BlueprintGeneratedClass) && !It->HasAnyClassFlags(CLASS_Abstract))
+							{
+								SkipUncookedClasses.Add(It->GetFName());
+							}
+						}
+					}
+				}
+				{
+					SkipCookedClasses.Reset();
+
+					static const FName NAME_Blueprint("Blueprint");
+					UClass* BlueprintClass = nullptr;
+					if (EnginePackage)
+					{
+						BlueprintClass = Cast<UClass>(StaticFindObjectFast(UClass::StaticClass(), EnginePackage, NAME_Blueprint));
+					}
+					if (!BlueprintClass)
+					{
+						UE_LOG(LogAssetRegistry, Warning, TEXT("Could not find BlueprintClass; will not be able to filter cooked BP"));
+					}
+					else
+					{
+						SkipCookedClasses.Add(NAME_Blueprint);
+						for (TObjectIterator<UClass> It; It; ++It)
+						{
+							if (It->IsChildOf(BlueprintClass) && !It->HasAnyClassFlags(CLASS_Abstract))
+							{
+								SkipCookedClasses.Add(It->GetFName());
+							}
+						}
+					}
+				}
+			}
+
+			bInitializedSkipClasses = true;
+		}
+
+		if (PackageFlags & PKG_ContainsNoAsset)
+		{
+			return true;
+		}
+
+		const bool bIsCooked = (PackageFlags & PKG_FilterEditorOnly);
+
+		if ((bIsCooked && SkipCookedClasses.Contains(AssetClass)) ||
+			(!bIsCooked && SkipUncookedClasses.Contains(AssetClass)))
+		{
+			return true;
+		}
+#endif //if WITH_ENGINE && WITH_EDITOR
+
+		return false;
+	}
+
+	bool FFiltering::ShouldSkipAsset(const UObject* InAsset)
+	{
+		if (!InAsset)
+		{
+			return false;
+		}
+		UPackage* Package = InAsset->GetPackage();
+		if (!Package)
+		{
+			return false;
+		}
+		return ShouldSkipAsset(InAsset->GetClass()->GetFName(), Package->GetPackageFlags());
+	}
+}
+}
+
 UAssetRegistry::UAssetRegistry(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -546,7 +673,7 @@ void UAssetRegistryImpl::OnPluginLoadingPhaseComplete(ELoadingPhase::Type Loadin
 	// Reparse the skip classes the next time ShouldSkipAsset is called, since available classes
 	// for the search over all classes may have changed
 #if WITH_EDITOR
-	bInitializedSkipClasses = false;
+	UE::AssetRegistry::bInitializedSkipClasses = false;
 #endif
 	IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
 }
@@ -906,13 +1033,13 @@ void UAssetRegistryImpl::WaitForPackage(const FString& PackageName)
 
 bool UAssetRegistryImpl::HasAssets(const FName PackagePath, const bool bRecursive) const
 {
-	bool bHasAssets = State.HasAssets(PackagePath);
+	bool bHasAssets = State.HasAssets(PackagePath, true /*bARFiltering*/);
 
 	if (!bHasAssets && bRecursive)
 	{
 		CachedPathTree.EnumerateSubPaths(PackagePath, [this, &bHasAssets](FName SubPath)
 		{
-			bHasAssets = State.HasAssets(SubPath);
+			bHasAssets = State.HasAssets(SubPath, true /*bARFiltering*/);
 			return !bHasAssets;
 		});
 	}
@@ -1033,7 +1160,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 				}
 
 				// Skip classes that report themselves as assets but that the editor AssetRegistry is currently not counting as assets
-				if (ShouldSkipAsset(Obj))
+				if (UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
 				{
 					return;
 				}
@@ -1137,7 +1264,7 @@ bool UAssetRegistryImpl::EnumerateAssets(const FARCompiledFilter& InFilter, TFun
 		}
 	}
 
-	State.EnumerateAssets(InFilter, PackagesToSkip, Callback);
+	State.EnumerateAssets(InFilter, PackagesToSkip, Callback, true /*bARFiltering*/);
 
 	return true;
 }
@@ -1148,19 +1275,15 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool
 	{
 		UObject* Asset = FindObject<UObject>(nullptr, *ObjectPath.ToString());
 
-		if (Asset != nullptr)
+		if (Asset)
 		{
-			return FAssetData(Asset);
+			return !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Asset) ? FAssetData(Asset) : FAssetData();
 		}
 	}
 
 	const FAssetData* FoundData = State.GetAssetByObjectPath(ObjectPath);
 
-	if (FoundData)
-	{
-		return *FoundData;
-	}
-	return FAssetData();
+	return (FoundData && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(FoundData->AssetClass, FoundData->PackageFlags)) ? *FoundData : FAssetData();
 }
 
 bool UAssetRegistryImpl::GetAllAssets(TArray<FAssetData>& OutAssetData, bool bIncludeOnlyOnDiskAssets) const
@@ -1190,16 +1313,19 @@ bool UAssetRegistryImpl::EnumerateAllAssets(TFunctionRef<bool(const FAssetData&)
 			if (ObjIt->IsAsset())
 			{
 				const FAssetData AssetData(*ObjIt);
-				if (!Callback(AssetData))
+				if (!UE::AssetRegistry::FFiltering::ShouldSkipAsset(*ObjIt))
 				{
-					return true;
+					if (!Callback(AssetData))
+					{
+						return true;
+					}
 				}
 				PackageNamesToSkip.Add(AssetData.PackageName);
 			}
 		}
 	}
 
-	State.EnumerateAllAssets(PackageNamesToSkip, Callback);
+	State.EnumerateAllAssets(PackageNamesToSkip, Callback, true /*bARFiltering*/);
 
 	return true;
 }
@@ -1831,7 +1957,7 @@ void UAssetRegistryImpl::PrioritizeSearchPath(const FString& PathToPrioritize)
 
 void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 {
-	if (ensure(NewAsset) && NewAsset->IsAsset() && !ShouldSkipAsset(NewAsset))
+	if (ensure(NewAsset) && NewAsset->IsAsset())
 	{
 		// Add the newly created object to the package file cache because its filename can already be
 		// determined by its long package name.
@@ -1849,18 +1975,21 @@ void UAssetRegistryImpl::AssetCreated(UObject* NewAsset)
 		// Add the path to the Path Tree, in case it wasn't already there
 		AddAssetPath(*FPackageName::GetLongPackagePath(NewPackageName));
 
-		// Let subscribers know that the new asset was added to the registry
-		AssetAddedEvent.Broadcast(FAssetData(NewAsset, true /* bAllowBlueprintClass */));
+		if (!UE::AssetRegistry::FFiltering::ShouldSkipAsset(NewAsset))
+		{
+			// Let subscribers know that the new asset was added to the registry
+			AssetAddedEvent.Broadcast(FAssetData(NewAsset, true /* bAllowBlueprintClass */));
 
-		// Notify listeners that an asset was just created
-		InMemoryAssetCreatedEvent.Broadcast(NewAsset);
+			// Notify listeners that an asset was just created
+			InMemoryAssetCreatedEvent.Broadcast(NewAsset);
+		}
 	}
 }
 
 void UAssetRegistryImpl::AssetDeleted(UObject* DeletedAsset)
 {
 	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
-	if (ensure(DeletedAsset) && DeletedAsset->IsAsset() && !ShouldSkipAsset(DeletedAsset))
+	if (ensure(DeletedAsset) && DeletedAsset->IsAsset())
 	{
 		UPackage* DeletedObjectPackage = DeletedAsset->GetOutermost();
 		if (DeletedObjectPackage != nullptr)
@@ -1893,18 +2022,21 @@ void UAssetRegistryImpl::AssetDeleted(UObject* DeletedAsset)
 		}
 #endif
 
-		// Let subscribers know that the asset was removed from the registry
-		AssetRemovedEvent.Broadcast(AssetDataDeleted);
+		if (!UE::AssetRegistry::FFiltering::ShouldSkipAsset(DeletedAsset))
+		{
+			// Let subscribers know that the asset was removed from the registry
+			AssetRemovedEvent.Broadcast(AssetDataDeleted);
 
-		// Notify listeners that an in-memory asset was just deleted
-		InMemoryAssetDeletedEvent.Broadcast(DeletedAsset);
+			// Notify listeners that an in-memory asset was just deleted
+			InMemoryAssetDeletedEvent.Broadcast(DeletedAsset);
+		}
 	}
 }
 
 void UAssetRegistryImpl::AssetRenamed(const UObject* RenamedAsset, const FString& OldObjectPath)
 {
 	checkf(GIsEditor, TEXT("Updating the AssetRegistry is only available in editor"));
-	if (ensure(RenamedAsset) && RenamedAsset->IsAsset() && !ShouldSkipAsset(RenamedAsset))
+	if (ensure(RenamedAsset) && RenamedAsset->IsAsset())
 	{
 		// Add the renamed object to the package file cache because its filename can already be
 		// determined by its long package name.
@@ -1931,7 +2063,10 @@ void UAssetRegistryImpl::AssetRenamed(const UObject* RenamedAsset, const FString
 		// Add the path to the Path Tree, in case it wasn't already there
 		AddAssetPath(*FPackageName::GetLongPackagePath(NewPackageName));
 
-		AssetRenamedEvent.Broadcast(FAssetData(RenamedAsset, true /* bAllowBlueprintClass */), OldObjectPath);
+		if (!UE::AssetRegistry::FFiltering::ShouldSkipAsset(RenamedAsset))
+		{
+			AssetRenamedEvent.Broadcast(FAssetData(RenamedAsset, true /* bAllowBlueprintClass */), OldObjectPath);
+		}
 	}
 }
 
@@ -2505,12 +2640,6 @@ void UAssetRegistryImpl::AssetSearchDataGathered(const double TickStartTime, TRi
 		TUniquePtr<FAssetData> BackgroundResult(AssetResults.PopFrontValue());
 		CA_ASSUME(BackgroundResult.Get() != nullptr);
 
-		// Skip Assets that we filter out
-		if (ShouldSkipAsset(BackgroundResult->AssetClass, BackgroundResult->PackageFlags))
-		{
-			continue;
-		}
-
 		// Try to update any asset data that may already exist
 		FAssetData* AssetData = State.CachedAssetsByObjectPath.FindRef(BackgroundResult->ObjectPath);
 
@@ -2958,71 +3087,6 @@ void UAssetRegistryImpl::RemovePackageData(const FName PackageName)
 	}
 }
 
-bool UAssetRegistryImpl::ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const
-{
-#if WITH_ENGINE && WITH_EDITOR
-	// We do not yet support having UBlueprintGeneratedClasses be assets when the UBlueprint is also
-	// an asset; the content browser does not handle the multiple assets correctly and displays this
-	// class asset as if it is in a separate package. Revisit when we have removed the UBlueprint as an asset
-	// or when we support multiple assets.
-	if (!bInitializedSkipClasses)
-	{
-		// Since we only collect these the first on-demand time, it is possible we will miss subclasses
-		// from plugins that load later. This flaw is a rare edge case, though, and this solution will
-		// be replaced eventually, so leaving it for now.
-		if (GIsEditor && (!IsRunningCommandlet() || IsRunningCookCommandlet()))
-		{
-			SkipClasses.Reset();
-			static const FName NAME_BlueprintGeneratedClass("BlueprintGeneratedClass");
-			static const FName NAME_EnginePackage("/Script/Engine");
-			UClass* BlueprintGeneratedClass = nullptr;
-			UPackage* EnginePackage = Cast<UPackage>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, NAME_EnginePackage));
-			if (EnginePackage)
-			{
-				BlueprintGeneratedClass = Cast<UClass>(StaticFindObjectFast(UClass::StaticClass(), EnginePackage, NAME_BlueprintGeneratedClass));
-			}
-			if (!BlueprintGeneratedClass)
-			{
-				UE_LOG(LogAssetRegistry, Warning, TEXT("Could not find BlueprintGeneratedClass; will not be able to filter BPGC from the Content Browser."));
-			}
-			else
-			{
-				SkipClasses.Add(NAME_BlueprintGeneratedClass);
-				for (TObjectIterator<UClass> It; It; ++It)
-				{
-					if (It->IsChildOf(BlueprintGeneratedClass) && !It->HasAnyClassFlags(CLASS_Abstract))
-					{
-						SkipClasses.Add(It->GetFName());
-					}
-				}
-			}
-		}
-		bInitializedSkipClasses = true;
-	}
-
-	bool bIsCooked = (PackageFlags & PKG_FilterEditorOnly) != 0;
-	if (!bIsCooked && SkipClasses.Contains(AssetClass))
-	{
-		return true;
-	}
-#endif
-	return false;
-}
-
-bool UAssetRegistryImpl::ShouldSkipAsset(const UObject* InAsset) const
-{
-	if (!InAsset)
-	{
-		return false;
-	}
-	UPackage* Package = InAsset->GetPackage();
-	if (!Package)
-	{
-		return false;
-	}
-	return ShouldSkipAsset(InAsset->GetClass()->GetFName(), Package->GetPackageFlags());
-}
-
 #if WITH_EDITOR
 
 void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileChanges)
@@ -3137,12 +3201,6 @@ void UAssetRegistryImpl::OnDirectoryChanged(const TArray<FFileChangeData>& FileC
 
 void UAssetRegistryImpl::OnAssetLoaded(UObject *AssetLoaded)
 {
-	UPackage* Package = AssetLoaded->GetPackage();
-	if (Package && ShouldSkipAsset(AssetLoaded->GetClass()->GetFName(), Package->GetPackageFlags()))
-	{
-		return;
-	}
-
 	LoadedAssetsToProcess.Add(AssetLoaded);
 }
 

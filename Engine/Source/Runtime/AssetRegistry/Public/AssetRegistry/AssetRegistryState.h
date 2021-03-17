@@ -106,9 +106,10 @@ public:
 
 	/**
 	 * Does the given path contain assets?
+	 * @param bARFiltering Whether to apply filtering from UE::AssetRegistry::FFiltering (false by default)
 	 * @note This function doesn't recurse into sub-paths.
 	 */
-	bool HasAssets(const FName PackagePath) const;
+	bool HasAssets(const FName PackagePath, bool bARFiltering=false) const;
 
 	/**
 	 * Gets asset data for all assets that match the filter.
@@ -118,8 +119,9 @@ public:
 	 * @param Filter filter to apply to the assets in the AssetRegistry
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param OutAssetData the list of assets in this path
+	 * @param bARFiltering Whether to apply filtering from UE::AssetRegistry::FFiltering (false by default)
 	 */
-	bool GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const;
+	bool GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData, bool bARFiltering = false) const;
 
 	/**
 	 * Enumerate asset data for all assets that match the filter.
@@ -129,24 +131,27 @@ public:
 	 * @param Filter filter to apply to the assets in the AssetRegistry
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param Callback function to call for each asset data enumerated
+	 * @param bARFiltering Whether to apply filtering from UE::AssetRegistry::FFiltering (false by default)
 	 */
-	bool EnumerateAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
+	bool EnumerateAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback, bool bARFiltering = false) const;
 
 	/**
 	 * Gets asset data for all assets in the registry state.
 	 *
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param OutAssetData the list of assets
+	 * @param bARFiltering Whether to apply filtering from UE::AssetRegistry::FFiltering (false by default)
 	 */
-	bool GetAllAssets(const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const;
+	bool GetAllAssets(const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData, bool bARFiltering = false) const;
 
 	/**
 	 * Enumerates asset data for all assets in the registry state.
 	 *
 	 * @param PackageNamesToSkip explicit list of packages to skip, because they were already added
 	 * @param Callback function to call for each asset data enumerated
+	 * @param bARFiltering Whether to apply filtering from UE::AssetRegistry::FFiltering (false by default)
 	 */
-	bool EnumerateAllAssets(const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const;
+	bool EnumerateAllAssets(const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback, bool bARFiltering = false) const;
 
 	UE_DEPRECATED(4.26, "Use GetDependencies that takes a UE::AssetRegistry::EDependencyCategory instead")
 	bool GetDependencies(const FAssetIdentifier& AssetIdentifier, TArray<FAssetIdentifier>& OutDependencies, EAssetRegistryDependencyType::Type InDependencyType) const;

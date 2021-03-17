@@ -556,19 +556,34 @@ void FAssetRegistryState::PruneAssetData(const TSet<FName>& RequiredPackages, co
 	}
 }
 
-bool FAssetRegistryState::HasAssets(const FName PackagePath) const
+bool FAssetRegistryState::HasAssets(const FName PackagePath, bool bARFiltering) const
 {
 	const TArray<FAssetData*>* FoundAssetArray = CachedAssetsByPath.Find(PackagePath);
-	return FoundAssetArray && FoundAssetArray->Num() > 0;
+	if (FoundAssetArray)
+	{
+		if (bARFiltering)
+		{
+			return FoundAssetArray->ContainsByPredicate([](FAssetData* AssetData)
+			{
+				return AssetData && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(AssetData->AssetClass, AssetData->PackageFlags);
+			});
+		}
+		else
+		{
+			return FoundAssetArray->Num() > 0;
+		}
+	}
+	return false;
 }
 
-bool FAssetRegistryState::GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const
+bool FAssetRegistryState::GetAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData, bool bARFiltering) const
 {
 	return EnumerateAssets(Filter, PackageNamesToSkip, [&OutAssetData](const FAssetData& AssetData)
 	{
 		OutAssetData.Emplace(AssetData);
 		return true;
-	});
+	},
+	bARFiltering);
 }
 
 template<class ArrayType>
@@ -597,7 +612,7 @@ TArray<FAssetData*> FindAssets(const TMap<FName, ArrayType>& Map, const TSet<FNa
 	return Out;
 }
 
-bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const
+bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback, bool bARFiltering) const
 {
 	// Verify filter input. If all assets are needed, use EnumerateAllAssets() instead.
 	if (Filter.IsEmpty() || !IsFilterValid(Filter))
@@ -686,9 +701,14 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 	{
 		auto SkipAssetData = [&](const FAssetData* AssetData) 
 		{ 
-			return	PackageNamesToSkip.Contains(AssetData->PackageName) |			//-V792
-					AssetData->HasAnyPackageFlags(FilterWithoutPackageFlags) |		//-V792
-					!AssetData->HasAllPackageFlags(FilterWithPackageFlags);			//-V792
+			if (PackageNamesToSkip.Contains(AssetData->PackageName) |			//-V792
+				AssetData->HasAnyPackageFlags(FilterWithoutPackageFlags) |		//-V792
+				!AssetData->HasAllPackageFlags(FilterWithPackageFlags))			//-V792
+			{
+				return true;
+			}
+
+			return bARFiltering && UE::AssetRegistry::FFiltering::ShouldSkipAsset(AssetData->AssetClass, AssetData->PackageFlags);
 		};
 
 		if (FilterResults.Num() > 1)
@@ -739,31 +759,30 @@ bool FAssetRegistryState::EnumerateAssets(const FARCompiledFilter& Filter, const
 	return true;
 }
 
-bool FAssetRegistryState::GetAllAssets(const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData) const
+bool FAssetRegistryState::GetAllAssets(const TSet<FName>& PackageNamesToSkip, TArray<FAssetData>& OutAssetData, bool bARFiltering) const
 {
 	return EnumerateAllAssets(PackageNamesToSkip, [&OutAssetData](const FAssetData& AssetData)
 	{
 		OutAssetData.Emplace(AssetData);
 		return true;
-	});
+	},
+	bARFiltering);
 }
 
-bool FAssetRegistryState::EnumerateAllAssets(const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback) const
+bool FAssetRegistryState::EnumerateAllAssets(const TSet<FName>& PackageNamesToSkip, TFunctionRef<bool(const FAssetData&)> Callback, bool bARFiltering) const
 {
 	// All unloaded disk assets
 	for (const TPair<FName, FAssetData*>& AssetDataPair : CachedAssetsByObjectPath)
 	{
 		const FAssetData* AssetData = AssetDataPair.Value;
 
-		if (AssetData != nullptr)
+		if (AssetData &&
+			!PackageNamesToSkip.Contains(AssetData->PackageName) &&
+			(!bARFiltering || !UE::AssetRegistry::FFiltering::ShouldSkipAsset(AssetData->AssetClass, AssetData->PackageFlags)))
 		{
-			// Make sure the asset's package was not loaded then the object was deleted/renamed
-			if (!PackageNamesToSkip.Contains(AssetData->PackageName))
+			if (!Callback(*AssetData))
 			{
-				if (!Callback(*AssetData))
-				{
-					return true;
-				}
+				return true;
 			}
 		}
 	}
