@@ -11,6 +11,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Sound/AudioSettings.h"
 #include "Sound/SoundModulationDestination.h"
+#include "Misc/ScopeRWLock.h"
 
 // Link to "Audio" profiling category
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(AUDIOMIXERCORE_API, Audio);
@@ -492,6 +493,7 @@ namespace Audio
 				FMixerSubmixPtr SubmixPtr = Send.Submix.Pin();
 				if (SubmixPtr.IsValid())
 				{
+					FRWScopeLock Lock(ChannelMapLock, SLT_Write);
 					ChannelMap.Reset();
 				}
 			}
@@ -1137,6 +1139,7 @@ namespace Audio
 		}
 
 		// Reset the source's channel maps
+		FRWScopeLock Lock(ChannelMapLock, SLT_Write);
 		ChannelMap.Reset();
 
 		InitializationState = EMixerSourceInitializationState::NotInitialized;
@@ -1491,8 +1494,14 @@ namespace Audio
 
 		// Compute a new speaker map for each possible output channel mapping for the source
 		const uint32 NumChannels = Buffer->NumChannels;
-		if (ComputeChannelMap(Buffer->NumChannels, ChannelMap))
+		bool bShouldSetMap = false;
 		{
+			FRWScopeLock Lock(ChannelMapLock, SLT_Write);
+			bShouldSetMap = ComputeChannelMap(Buffer->NumChannels, ChannelMap);
+		}
+		if(bShouldSetMap)
+		{			
+			FRWScopeLock Lock(ChannelMapLock, SLT_ReadOnly);
 			MixerSourceVoice->SetChannelMap(NumChannels, ChannelMap, bIs3D, WaveInstance->bCenterChannelOnly);
 		}
 
