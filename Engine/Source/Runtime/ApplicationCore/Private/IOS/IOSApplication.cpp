@@ -141,73 +141,63 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 	OutDisplayMetrics.PrimaryDisplayWorkAreaRect = FIOSWindow::GetScreenRect();
 	OutDisplayMetrics.VirtualDisplayRect = OutDisplayMetrics.PrimaryDisplayWorkAreaRect;
 
-	// Total screen size of the primary monitor
-	OutDisplayMetrics.PrimaryDisplayWidth = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left;
-	OutDisplayMetrics.PrimaryDisplayHeight = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top;
-
-	// Get ui window rect
-	OutDisplayMetrics.IosUiWindowAreaRect = FIOSWindow::GetUIWindowRect();
-
+    // Total screen size of the primary monitor
+    OutDisplayMetrics.PrimaryDisplayWidth = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left;
+    OutDisplayMetrics.PrimaryDisplayHeight = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top;
+    
+    // Get ui window rect
+    OutDisplayMetrics.IosUiWindowAreaRect = FIOSWindow::GetUIWindowRect();
+    
 #if !PLATFORM_TVOS
-	if (@available(iOS 11, *))
-	{
-		const float RequestedContentScaleFactor = [[IOSAppDelegate GetDelegate].IOSView contentScaleFactor];
-
-		//we need to set these according to the orientation
-		TAutoConsoleVariable<float>* CVar_Left = nullptr;
-		TAutoConsoleVariable<float>* CVar_Top = nullptr;
-		TAutoConsoleVariable<float>* CVar_Right = nullptr;
-		TAutoConsoleVariable<float>* CVar_Bottom = nullptr;
-
-		//making an assumption that the "normal" landscape mode is Landscape right
-		if (FIOSApplication::CachedOrientation == UIInterfaceOrientationLandscapeLeft)
-		{
-			CVar_Left = &CVarSafeZone_Landscape_Left;
-			CVar_Right = &CVarSafeZone_Landscape_Right;
-            CVar_Top = &CVarSafeZone_Landscape_Top;
-            CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
-		}
-		else if (FIOSApplication::CachedOrientation == UIInterfaceOrientationLandscapeRight)
-		{
-			CVar_Left = &CVarSafeZone_Landscape_Right;
-			CVar_Right = &CVarSafeZone_Landscape_Left;
-            CVar_Top = &CVarSafeZone_Landscape_Top;
-            CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
-		}
-        
-		// of the CVars are set, use their values. If not, use what comes from iOS
-		const float Inset_Left = (!CVar_Left || CVar_Left->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.left : CVar_Left->AsVariable()->GetFloat();
-		const float Inset_Top = (!CVar_Top || CVar_Top->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.top : CVar_Top->AsVariable()->GetFloat();
-		const float Inset_Right = (!CVar_Right || CVar_Right->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.right : CVar_Right->AsVariable()->GetFloat();
-		const float Inset_Bottom = (!CVar_Bottom || CVar_Bottom->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.bottom : CVar_Bottom->AsVariable()->GetFloat();
-
-		//setup the asymmetrical padding
-		OutDisplayMetrics.TitleSafePaddingSize.X = Inset_Left;
-		OutDisplayMetrics.TitleSafePaddingSize.Y = Inset_Top;
-		OutDisplayMetrics.TitleSafePaddingSize.Z = Inset_Right;
-		OutDisplayMetrics.TitleSafePaddingSize.W = Inset_Bottom;
-
-		//scale the thing
-		OutDisplayMetrics.TitleSafePaddingSize *= RequestedContentScaleFactor;
-
-		OutDisplayMetrics.ActionSafePaddingSize = OutDisplayMetrics.TitleSafePaddingSize;
-	}
-	else
+    const float RequestedContentScaleFactor = [[IOSAppDelegate GetDelegate].IOSView contentScaleFactor];
+    
+    //we need to set these according to the orientation
+    TAutoConsoleVariable<float>* CVar_Left = nullptr;
+    TAutoConsoleVariable<float>* CVar_Top = nullptr;
+    TAutoConsoleVariable<float>* CVar_Right = nullptr;
+    TAutoConsoleVariable<float>* CVar_Bottom = nullptr;
+    
+    //making an assumption that the "normal" landscape mode is Landscape right
+    if (FIOSApplication::CachedOrientation == UIInterfaceOrientationLandscapeLeft)
+    {
+        CVar_Left = &CVarSafeZone_Landscape_Left;
+        CVar_Right = &CVarSafeZone_Landscape_Right;
+        CVar_Top = &CVarSafeZone_Landscape_Top;
+        CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
+    }
+    else if (FIOSApplication::CachedOrientation == UIInterfaceOrientationLandscapeRight)
+    {
+        CVar_Left = &CVarSafeZone_Landscape_Right;
+        CVar_Right = &CVarSafeZone_Landscape_Left;
+        CVar_Top = &CVarSafeZone_Landscape_Top;
+        CVar_Bottom = &CVarSafeZone_Landscape_Bottom;
+    }
+    
+    // of the CVars are set, use their values. If not, use what comes from iOS
+    const float Inset_Left = (!CVar_Left || CVar_Left->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.left : CVar_Left->AsVariable()->GetFloat();
+    const float Inset_Top = (!CVar_Top || CVar_Top->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.top : CVar_Top->AsVariable()->GetFloat();
+    const float Inset_Right = (!CVar_Right || CVar_Right->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.right : CVar_Right->AsVariable()->GetFloat();
+    const float Inset_Bottom = (!CVar_Bottom || CVar_Bottom->AsVariable()->GetFloat() < 0.0f) ? CachedInsets.bottom : CVar_Bottom->AsVariable()->GetFloat();
+    
+    //setup the asymmetrical padding
+    OutDisplayMetrics.TitleSafePaddingSize.X = Inset_Left;
+    OutDisplayMetrics.TitleSafePaddingSize.Y = Inset_Top;
+    OutDisplayMetrics.TitleSafePaddingSize.Z = Inset_Right;
+    OutDisplayMetrics.TitleSafePaddingSize.W = Inset_Bottom;
+    
+    //scale the thing
+    OutDisplayMetrics.TitleSafePaddingSize *= RequestedContentScaleFactor;
+    
+    OutDisplayMetrics.ActionSafePaddingSize = OutDisplayMetrics.TitleSafePaddingSize;
 #endif
-	{
-		OutDisplayMetrics.ApplyDefaultSafeZones();
-	}
+    
 }
 
 void FIOSApplication::CacheDisplayMetrics()
-	{
-
+{
 #if !PLATFORM_TVOS
-	if (@available(iOS 11, *))
-	{
-		CachedInsets = [[[[UIApplication sharedApplication] delegate] window] safeAreaInsets];
-		CachedOrientation = [[UIApplication sharedApplication] statusBarOrientation];
-	}
+    CachedInsets = [[[[UIApplication sharedApplication] delegate] window] safeAreaInsets];
+    CachedOrientation = [[[[[UIApplication sharedApplication] delegate] window] windowScene] interfaceOrientation];
 #endif
 }
 

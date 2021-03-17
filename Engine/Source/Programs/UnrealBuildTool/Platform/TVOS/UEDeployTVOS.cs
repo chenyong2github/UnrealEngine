@@ -73,20 +73,9 @@ namespace UnrealBuildTool
 			string RequiredCaps = "\t\t<string>arm64</string>\n";
 
 			// minimum iOS version
-			string MinVersion;
-			if (Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumTVOSVersion", out MinVersion))
-			{
-				switch (MinVersion)
-				{
-					case "TVOS_9":
-						MinVersion = "9.0";
-						break;
-				}
-			}
-			else
-			{
-				MinVersion = "9.0";
-			}
+			string MinVersionSetting = "";
+			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumiOSVersion", out MinVersionSetting);
+			string MinVersion = GetMinimumOSVersion(MinVersionSetting);
 
 			// extra plist data
 			string ExtraData = "";

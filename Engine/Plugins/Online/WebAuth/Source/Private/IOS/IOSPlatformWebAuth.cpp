@@ -72,12 +72,8 @@ bool FIOSWebAuth::AuthSessionWithURL(const FString &UrlStr, const FString &Schem
     }];
 
 #ifdef WEBAUTH_PLATFORM_IOS_13
-    // If we are using iOS 13+ ensure we supply the context provider
-    if (@available(iOS 13.0, *))
-    {
-        check(PresentationContextProvider);
-        ((ASWebAuthenticationSession*)SavedAuthSession).presentationContextProvider = PresentationContextProvider;
-    }
+    check(PresentationContextProvider);
+    ((ASWebAuthenticationSession*)SavedAuthSession).presentationContextProvider = PresentationContextProvider;
 #endif
 
     [(ASWebAuthenticationSession*)SavedAuthSession start];

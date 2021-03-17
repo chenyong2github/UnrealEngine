@@ -263,16 +263,13 @@ bool FIOSPlatformMisc::IsRunningOnBattery()
 float FIOSPlatformMisc::GetDeviceTemperatureLevel()
 {
 #if !PLATFORM_TVOS
-	if (@available(iOS 11, *))
-	{
-		switch ([[IOSAppDelegate GetDelegate] GetThermalState])
-		{
-		case NSProcessInfoThermalStateNominal:	return (float)FCoreDelegates::ETemperatureSeverity::Good; break;
-		case NSProcessInfoThermalStateFair:		return (float)FCoreDelegates::ETemperatureSeverity::Bad; break;
-		case NSProcessInfoThermalStateSerious:	return (float)FCoreDelegates::ETemperatureSeverity::Serious; break;
-		case NSProcessInfoThermalStateCritical:	return (float)FCoreDelegates::ETemperatureSeverity::Critical; break;
-		}
-	}
+    switch ([[IOSAppDelegate GetDelegate] GetThermalState])
+    {
+        case NSProcessInfoThermalStateNominal:	return (float)FCoreDelegates::ETemperatureSeverity::Good; break;
+        case NSProcessInfoThermalStateFair:		return (float)FCoreDelegates::ETemperatureSeverity::Bad; break;
+        case NSProcessInfoThermalStateSerious:	return (float)FCoreDelegates::ETemperatureSeverity::Serious; break;
+        case NSProcessInfoThermalStateCritical:	return (float)FCoreDelegates::ETemperatureSeverity::Critical; break;
+    }
 #endif
 	return -1.0f;
 }
@@ -280,11 +277,8 @@ float FIOSPlatformMisc::GetDeviceTemperatureLevel()
 bool FIOSPlatformMisc::IsInLowPowerMode()
 {
 #if !PLATFORM_TVOS
-    if (@available(iOS 11, *))
-    {
-        bool bInLowPowerMode = [[NSProcessInfo processInfo] isLowPowerModeEnabled];
-        return bInLowPowerMode;
-    }
+    bool bInLowPowerMode = [[NSProcessInfo processInfo] isLowPowerModeEnabled];
+    return bInLowPowerMode;
 #endif
     return false;
 }
@@ -314,7 +308,7 @@ EDeviceScreenOrientation FIOSPlatformMisc::GetDeviceOrientation()
 #if !PLATFORM_TVOS
 	if (GInterfaceOrientation == UIInterfaceOrientationUnknown)
 	{
-		GInterfaceOrientation = [[UIApplication sharedApplication] statusBarOrientation];
+		GInterfaceOrientation = [[[[[UIApplication sharedApplication] delegate] window] windowScene] interfaceOrientation];
 	}
 
 	return ConvertFromUIInterfaceOrientation(GInterfaceOrientation);
@@ -818,31 +812,28 @@ bool FIOSPlatformMisc::GetDiskTotalAndFreeSpace(const FString& InPath, uint64& T
 {
     //On iOS 11 use new method to return disk space available for important usages
 #if !PLATFORM_TVOS
-    if (@available(iOS 11, *))
+    bool GetValueSuccess = false;
+    
+    NSNumber *FreeBytes = nil;
+    NSURL *URL = [NSURL fileURLWithPath : NSHomeDirectory()];
+    GetValueSuccess = [URL getResourceValue : &FreeBytes forKey : NSURLVolumeAvailableCapacityForImportantUsageKey error : nil];
+    if (FreeBytes)
     {
-	    bool GetValueSuccess = false;
-
-	    NSNumber *FreeBytes = nil;
-	    NSURL *URL = [NSURL fileURLWithPath : NSHomeDirectory()];
-	    GetValueSuccess = [URL getResourceValue : &FreeBytes forKey : NSURLVolumeAvailableCapacityForImportantUsageKey error : nil];
-	    if (FreeBytes)
-	    {
-	        NumberOfFreeBytes = [FreeBytes longLongValue];
-	    }
-
-	    NSNumber *TotalBytes = nil;
-	    GetValueSuccess = GetValueSuccess &&[URL getResourceValue : &TotalBytes forKey : NSURLVolumeTotalCapacityKey error : nil];
-	    if (TotalBytes)
-	    {
-	        TotalNumberOfBytes = [TotalBytes longLongValue];
-	    }
-
-	    if (GetValueSuccess
-	        && (NumberOfFreeBytes > 0)
-	        && (TotalNumberOfBytes > 0))
-	    {
-	        return true;
-	    }
+        NumberOfFreeBytes = [FreeBytes longLongValue];
+    }
+    
+    NSNumber *TotalBytes = nil;
+    GetValueSuccess = GetValueSuccess &&[URL getResourceValue : &TotalBytes forKey : NSURLVolumeTotalCapacityKey error : nil];
+    if (TotalBytes)
+    {
+        TotalNumberOfBytes = [TotalBytes longLongValue];
+    }
+    
+    if (GetValueSuccess
+        && (NumberOfFreeBytes > 0)
+        && (TotalNumberOfBytes > 0))
+    {
+        return true;
     }
 #endif
 
@@ -865,10 +856,7 @@ bool FIOSPlatformMisc::GetDiskTotalAndFreeSpace(const FString& InPath, uint64& T
 void FIOSPlatformMisc::RequestStoreReview()
 {
 #if !PLATFORM_TVOS
-	if (@available(iOS 10, *))
-	{
-		[SKStoreReviewController requestReview];
-	}
+	[SKStoreReviewController requestReview];
 #endif
 }
 

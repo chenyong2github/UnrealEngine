@@ -37,10 +37,7 @@ public:
 		{
 			bSupportChecked = true;
 			// This call is slow, so cache the result
-			if (@available(iOS 11.0, *))
-			{
-				bSupportsAppleVision10 = true;
-			}
+			bSupportsAppleVision10 = true;
 		}
 #endif
 		return bSupportsAppleVision10;

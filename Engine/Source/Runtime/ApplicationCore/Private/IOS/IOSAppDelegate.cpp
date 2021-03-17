@@ -934,7 +934,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	self.bDeviceInPortraitMode = false;
 #else
 	// use the status bar orientation to properly determine landscape vs portrait
-	self.bDeviceInPortraitMode = UIInterfaceOrientationIsPortrait([[UIApplication sharedApplication] statusBarOrientation]);
+	self.bDeviceInPortraitMode = UIInterfaceOrientationIsPortrait([self.Window.windowScene interfaceOrientation]);
 	printf("========= This app is in %s mode\n", self.bDeviceInPortraitMode ? "PORTRAIT" : "LANDSCAPE");
 #endif
 
@@ -953,7 +953,6 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
     
     CGRect MainFrame = [[UIScreen mainScreen] bounds];
     self.Window = [[UIWindow alloc] initWithFrame:MainFrame];
-    self.Window.screen = [UIScreen mainScreen];
     
     // get the native scale
     const float NativeScale = [[UIScreen mainScreen] scale];
@@ -970,7 +969,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
         [self.Window addSubview: viewController.view];
         GShowSplashScreen = true;
     }
-    
+
 
     timer = [NSTimer scheduledTimerWithTimeInterval: 0.05f target:self selector:@selector(timerForSplashScreen) userInfo:nil repeats:YES];
 
@@ -985,7 +984,7 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	Center.delegate = self;
 	// Register for device orientation changes
 	[[UIDevice currentDevice] beginGeneratingDeviceOrientationNotifications];
-	[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didRotate:) name:UIApplicationDidChangeStatusBarOrientationNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(didRotate:) name:UIDeviceOrientationDidChangeNotification object:nil];
 
 #if !UE_BUILD_SHIPPING
 	// make a history buffer
@@ -999,59 +998,52 @@ static FAutoConsoleVariableRef CVarGEnableThermalsReport(
 	}
 	self.ConsoleHistoryValuesIndex = -1;
 
-	if (@available(iOS 11, *))
-	{
-		FCoreDelegates::OnGetOnScreenMessages.AddLambda(
-			[&EnableThermalsReport = GEnableThermalsReport](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText >& OutMessages)
-			{
-				if (EnableThermalsReport)
-				{
-					switch ([[NSProcessInfo processInfo] thermalState])
-					{
-						case NSProcessInfoThermalStateNominal:	OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Info, FText::FromString(TEXT("Thermals are Nominal"))); break;
-						case NSProcessInfoThermalStateFair:		OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Info, FText::FromString(TEXT("Thermals are Fair"))); break;
-						case NSProcessInfoThermalStateSerious:	OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(TEXT("Thermals are Serious"))); break;
-						case NSProcessInfoThermalStateCritical:	OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Error, FText::FromString(TEXT("Thermals are Critical"))); break;
-					}
-				}
-
-				// Uncomment to view the state of the AVAudioSession category, mode, and options.
-//#define VIEW_AVAUDIOSESSION_INFO
+    FCoreDelegates::OnGetOnScreenMessages.AddLambda([&EnableThermalsReport = GEnableThermalsReport](TMultiMap<FCoreDelegates::EOnScreenMessageSeverity, FText >& OutMessages)
+    {
+        if (EnableThermalsReport)
+        {
+            switch ([[NSProcessInfo processInfo] thermalState])
+            {
+                case NSProcessInfoThermalStateNominal:	OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Info, FText::FromString(TEXT("Thermals are Nominal"))); break;
+                case NSProcessInfoThermalStateFair:		OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Info, FText::FromString(TEXT("Thermals are Fair"))); break;
+                case NSProcessInfoThermalStateSerious:	OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Warning, FText::FromString(TEXT("Thermals are Serious"))); break;
+                case NSProcessInfoThermalStateCritical:	OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Error, FText::FromString(TEXT("Thermals are Critical"))); break;
+            }
+        }
+        
+        // Uncomment to view the state of the AVAudioSession category, mode, and options.
+        //#define VIEW_AVAUDIOSESSION_INFO
 #if defined(VIEW_AVAUDIOSESSION_INFO)
-				FString Message = FString::Printf(
-					TEXT("Session Category: %s, Mode: %s, Options: %x"),
-					UTF8_TO_TCHAR([[AVAudioSession sharedInstance].category UTF8String]),
-					UTF8_TO_TCHAR([[AVAudioSession sharedInstance].mode UTF8String]),
-					[AVAudioSession sharedInstance].categoryOptions);
-				OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Info, FText::FromString(Message));
+        FString Message = FString::Printf(
+                                          TEXT("Session Category: %s, Mode: %s, Options: %x"),
+                                          UTF8_TO_TCHAR([[AVAudioSession sharedInstance].category UTF8String]),
+                                          UTF8_TO_TCHAR([[AVAudioSession sharedInstance].mode UTF8String]),
+                                          [AVAudioSession sharedInstance].categoryOptions);
+        OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Info, FText::FromString(Message));
 #endif // defined(VIEW_AVAUDIOSESSION_INFO)
-			});
-	}
-
+    });
+    
 
 #endif // UE_BUILD_SHIPPING
 #endif // !TVOS
 
 #if !PLATFORM_TVOS
-	if (@available(iOS 11, *))
-	{
-        UIDevice* UiDevice = [UIDevice currentDevice];
-        UiDevice.batteryMonitoringEnabled = YES;
-        
-        // Battery level is from 0.0 to 1.0, get it in terms of 0-100
-        self.BatteryLevel = ((int)([UiDevice batteryLevel] * 100));
-        UIDeviceBatteryState State = UiDevice.batteryState;
-        self.bBatteryState = State == UIDeviceBatteryStateUnplugged || State == UIDeviceBatteryStateUnknown;
-        self.ThermalState = [[NSProcessInfo processInfo] thermalState];
-
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(temperatureChanged:) name:NSProcessInfoThermalStateDidChangeNotification object:nil];
-		[[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(lowPowerModeChanged:) name:NSProcessInfoPowerStateDidChangeNotification object:nil];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(batteryChanged:) name:UIDeviceBatteryLevelDidChangeNotification object:nil];
-        [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(batteryStateChanged:) name:UIDeviceBatteryStateDidChangeNotification object:nil];
-	}
+    UIDevice* UiDevice = [UIDevice currentDevice];
+    UiDevice.batteryMonitoringEnabled = YES;
+    
+    // Battery level is from 0.0 to 1.0, get it in terms of 0-100
+    self.BatteryLevel = ((int)([UiDevice batteryLevel] * 100));
+    UIDeviceBatteryState State = UiDevice.batteryState;
+    self.bBatteryState = State == UIDeviceBatteryStateUnplugged || State == UIDeviceBatteryStateUnknown;
+    self.ThermalState = [[NSProcessInfo processInfo] thermalState];
+    
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(temperatureChanged:) name:NSProcessInfoThermalStateDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(lowPowerModeChanged:) name:NSProcessInfoPowerStateDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(batteryChanged:) name:UIDeviceBatteryLevelDidChangeNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(batteryStateChanged:) name:UIDeviceBatteryStateDidChangeNotification object:nil];
 #endif
-	
-	self.bAudioSessionInitialized = false;
+    
+    self.bAudioSessionInitialized = false;
 	
 	// InitializeAudioSession is now called from FEngineLoop::AppInit after the config system is initialized
 //	[self InitializeAudioSession];
@@ -1210,12 +1202,10 @@ extern EDeviceScreenOrientation ConvertFromUIInterfaceOrientation(UIInterfaceOri
 {   
 #if !PLATFORM_TVOS
 	// get the interfaec orientation
-	NSNumber* OrientationNumber = [notification.userInfo objectForKey:UIApplicationStatusBarOrientationUserInfoKey];
-	UIInterfaceOrientation Orientation = (UIInterfaceOrientation)[OrientationNumber intValue];
 	
-	NSLog(@"didRotate orientation = %d, statusBar = %d", (int)Orientation, (int)[[UIApplication sharedApplication] statusBarOrientation]);
+	NSLog(@"didRotate orientation = %d", (int)[self.Window.windowScene interfaceOrientation]);
 	
-	Orientation = [[UIApplication sharedApplication] statusBarOrientation];
+    UIInterfaceOrientation Orientation = [self.Window.windowScene interfaceOrientation];
 	
 	extern UIInterfaceOrientation GInterfaceOrientation;
 	GInterfaceOrientation = Orientation;
@@ -1722,10 +1712,7 @@ didReceiveNotificationResponse:(UNNotificationResponse *)response
 #if !PLATFORM_TVOS
 	// create the leaderboard display object 
 	GKGameCenterViewController* GameCenterDisplay = [[[GKGameCenterViewController alloc] init] autorelease];
-    if (@available(iOS 7, tvOS 999, *))
-    {
 	GameCenterDisplay.viewState = GKGameCenterViewControllerStateAchievements;
-    }
 	GameCenterDisplay.gameCenterDelegate = self;
 
 	// show it 
@@ -1824,43 +1811,37 @@ CORE_API bool IOSShowDashboardUI()
 -(void)temperatureChanged:(NSNotification *)notification
 {
 #if !PLATFORM_TVOS
-	if (@available(iOS 11, *))
-	{
-		// send game callback with new temperature severity
-		FCoreDelegates::ETemperatureSeverity Severity;
-        FString Level = TEXT("Unknown");
-        self.ThermalState = [[NSProcessInfo processInfo] thermalState];
-		switch (self.ThermalState)
-		{
-			case NSProcessInfoThermalStateNominal:	Severity = FCoreDelegates::ETemperatureSeverity::Good; Level = TEXT("Good"); break;
-			case NSProcessInfoThermalStateFair:		Severity = FCoreDelegates::ETemperatureSeverity::Bad; Level = TEXT("Bad"); break;
-			case NSProcessInfoThermalStateSerious:	Severity = FCoreDelegates::ETemperatureSeverity::Serious; Level = TEXT("Serious"); break;
-			case NSProcessInfoThermalStateCritical:	Severity = FCoreDelegates::ETemperatureSeverity::Critical; Level = TEXT("Critical"); break;
-		}
-
-		[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-		{
-			UE_LOG(LogIOS, Display, TEXT("Temperature Changed: %s"), *Level);
-			FCoreDelegates::OnTemperatureChange.Broadcast(Severity);
-			return true;
-		}];
-	}
+    // send game callback with new temperature severity
+    FCoreDelegates::ETemperatureSeverity Severity;
+    FString Level = TEXT("Unknown");
+    self.ThermalState = [[NSProcessInfo processInfo] thermalState];
+    switch (self.ThermalState)
+    {
+        case NSProcessInfoThermalStateNominal:	Severity = FCoreDelegates::ETemperatureSeverity::Good; Level = TEXT("Good"); break;
+        case NSProcessInfoThermalStateFair:		Severity = FCoreDelegates::ETemperatureSeverity::Bad; Level = TEXT("Bad"); break;
+        case NSProcessInfoThermalStateSerious:	Severity = FCoreDelegates::ETemperatureSeverity::Serious; Level = TEXT("Serious"); break;
+        case NSProcessInfoThermalStateCritical:	Severity = FCoreDelegates::ETemperatureSeverity::Critical; Level = TEXT("Critical"); break;
+    }
+    
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+     {
+        UE_LOG(LogIOS, Display, TEXT("Temperature Changed: %s"), *Level);
+        FCoreDelegates::OnTemperatureChange.Broadcast(Severity);
+        return true;
+    }];
 #endif
 }
 
 -(void)lowPowerModeChanged:(NSNotification *)notification
 {
 #if !PLATFORM_TVOS
-	if (@available(iOS 11, *))
-	{	
-		[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-        {
-            bool bInLowPowerMode = [[NSProcessInfo processInfo] isLowPowerModeEnabled];
-            UE_LOG(LogIOS, Display, TEXT("Low Power Mode Changed: %d"), bInLowPowerMode);
-            FCoreDelegates::OnLowPowerMode.Broadcast(bInLowPowerMode);
-            return true;
-        }];
-	}
+    [FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
+     {
+        bool bInLowPowerMode = [[NSProcessInfo processInfo] isLowPowerModeEnabled];
+        UE_LOG(LogIOS, Display, TEXT("Low Power Mode Changed: %d"), bInLowPowerMode);
+        FCoreDelegates::OnLowPowerMode.Broadcast(bInLowPowerMode);
+        return true;
+    }];
 #endif
 }
 

@@ -105,89 +105,86 @@ bool FOnlineIdentityApple::Login(int32 LocalUserNum, const FOnlineAccountCredent
 	UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("FOnlineIdentityApple::Login"));
 
 #if SIWA_SUPPORTED
-	if (@available(iOS 13, tvOS 13, macOS 10.15, *))
-	{
-		ELoginStatus::Type LoginStatus = GetLoginStatus(LocalUserNum);
-
-		if (LoginStatus != ELoginStatus::NotLoggedIn)
-		{
-			Subsystem->ExecuteNextTick([this, LocalUserNum]()
-			{
-				TriggerOnLoginCompleteDelegates(LocalUserNum, true, *GetUniquePlayerId(LocalUserNum), TEXT("Already logged in"));
-			});
-			return false;
-		}
-
-		ensure(LoginStatus == ELoginStatus::NotLoggedIn);
-		if (!AccountCredentials.Id.IsEmpty())
-		{
-			FString PlayerId = AccountCredentials.Id;
-
-			FTCHARToUTF8 UserIdStr(*PlayerId);
-			NSString *UserId = [NSString stringWithUTF8String:UserIdStr.Get()];
-
-			// Attempt to login with existing credentials, we only validate the Id, no full account details are created or need storing
-			ASAuthorizationAppleIDProvider *Provider = [ASAuthorizationAppleIDProvider new];
-			[Provider getCredentialStateForUserID:UserId completion:^(ASAuthorizationAppleIDProviderCredentialState credentialState, NSError *error)
-			{
-				bool bWasSuccessful = false;
-				FString ErrorStr;
-
-				switch (credentialState) {
-					case ASAuthorizationAppleIDProviderCredentialAuthorized:
-						{
-							// We receive no additional information or updated token, only that the supplied Id is still valid, or not on this device/application
-							TSharedRef<FUserOnlineAccountApple> User = MakeShared<FUserOnlineAccountApple>(PlayerId, FString());
-
-							// update/add cached entry for user
-							UserAccounts.Add(User->GetUserId()->ToString(), User);
-							// keep track of user ids for local users
-							UserIds.Add(LocalUserNum, User->GetUserId());
-
-							bWasSuccessful = true;
-
-							UE_LOG_ONLINE_IDENTITY(Display, TEXT("Apple login with credentials was successful"));
-						}
-						break;
-
-					case ASAuthorizationAppleIDProviderCredentialRevoked:
-						ErrorStr = TEXT("Credentials have been revoked");
-						break;
-
-					case ASAuthorizationAppleIDProviderCredentialNotFound:
-					default:
-						ErrorStr = TEXT("Credentials not found");
-						break;
-				}
-
-				if (error)
-				{
-					NSString* errstr = [error localizedDescription];
-					ErrorStr = FString::Printf(TEXT("Login failure %s"), *FString(errstr));
-				}
-
-				OnLoginAttemptComplete(LocalUserNum, ErrorStr);
-			}];
-
-			return true;
-		}
-		else
-		{
-			IOnlineExternalUIPtr OnlineExternalUI = Subsystem->GetExternalUIInterface();
-			if (OnlineExternalUI.IsValid())
-			{
-				FOnLoginUIClosedDelegate CompletionDelegate = FOnLoginUIClosedDelegate::CreateRaw(this, &FOnlineIdentityApple::OnExternalUILoginComplete);
- 				OnlineExternalUI->ShowLoginUI(LocalUserNum, true, false, CompletionDelegate);
-				return true;
-			}
-			else
-			{
-				const FString ErrorStr = TEXT("External interface missing");
-				OnLoginAttemptComplete(LocalUserNum, ErrorStr);
-				return false;
-			}
-		}
-	}
+    ELoginStatus::Type LoginStatus = GetLoginStatus(LocalUserNum);
+    
+    if (LoginStatus != ELoginStatus::NotLoggedIn)
+    {
+        Subsystem->ExecuteNextTick([this, LocalUserNum]()
+                                   {
+            TriggerOnLoginCompleteDelegates(LocalUserNum, true, *GetUniquePlayerId(LocalUserNum), TEXT("Already logged in"));
+        });
+        return false;
+    }
+    
+    ensure(LoginStatus == ELoginStatus::NotLoggedIn);
+    if (!AccountCredentials.Id.IsEmpty())
+    {
+        FString PlayerId = AccountCredentials.Id;
+        
+        FTCHARToUTF8 UserIdStr(*PlayerId);
+        NSString *UserId = [NSString stringWithUTF8String:UserIdStr.Get()];
+        
+        // Attempt to login with existing credentials, we only validate the Id, no full account details are created or need storing
+        ASAuthorizationAppleIDProvider *Provider = [ASAuthorizationAppleIDProvider new];
+        [Provider getCredentialStateForUserID:UserId completion:^(ASAuthorizationAppleIDProviderCredentialState credentialState, NSError *error)
+         {
+            bool bWasSuccessful = false;
+            FString ErrorStr;
+            
+            switch (credentialState) {
+                case ASAuthorizationAppleIDProviderCredentialAuthorized:
+                {
+                    // We receive no additional information or updated token, only that the supplied Id is still valid, or not on this device/application
+                    TSharedRef<FUserOnlineAccountApple> User = MakeShared<FUserOnlineAccountApple>(PlayerId, FString());
+                    
+                    // update/add cached entry for user
+                    UserAccounts.Add(User->GetUserId()->ToString(), User);
+                    // keep track of user ids for local users
+                    UserIds.Add(LocalUserNum, User->GetUserId());
+                    
+                    bWasSuccessful = true;
+                    
+                    UE_LOG_ONLINE_IDENTITY(Display, TEXT("Apple login with credentials was successful"));
+                }
+                    break;
+                    
+                case ASAuthorizationAppleIDProviderCredentialRevoked:
+                    ErrorStr = TEXT("Credentials have been revoked");
+                    break;
+                    
+                case ASAuthorizationAppleIDProviderCredentialNotFound:
+                default:
+                    ErrorStr = TEXT("Credentials not found");
+                    break;
+            }
+            
+            if (error)
+            {
+                NSString* errstr = [error localizedDescription];
+                ErrorStr = FString::Printf(TEXT("Login failure %s"), *FString(errstr));
+            }
+            
+            OnLoginAttemptComplete(LocalUserNum, ErrorStr);
+        }];
+        
+        return true;
+    }
+    else
+    {
+        IOnlineExternalUIPtr OnlineExternalUI = Subsystem->GetExternalUIInterface();
+        if (OnlineExternalUI.IsValid())
+        {
+            FOnLoginUIClosedDelegate CompletionDelegate = FOnLoginUIClosedDelegate::CreateRaw(this, &FOnlineIdentityApple::OnExternalUILoginComplete);
+            OnlineExternalUI->ShowLoginUI(LocalUserNum, true, false, CompletionDelegate);
+            return true;
+        }
+        else
+        {
+            const FString ErrorStr = TEXT("External interface missing");
+            OnLoginAttemptComplete(LocalUserNum, ErrorStr);
+            return false;
+        }
+    }
 #endif
 
 	Subsystem->ExecuteNextTick([this, LocalUserNum]()

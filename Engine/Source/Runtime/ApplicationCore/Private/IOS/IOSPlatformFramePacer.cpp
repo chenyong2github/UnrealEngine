@@ -76,10 +76,7 @@ namespace IOSDisplayConstants
 		FScopeLock Lock(&HandlersMutex);
 		CADisplayLink* displayLink = (CADisplayLink*)param;
 		double OutputSeconds = displayLink.duration + displayLink.timestamp;
-		if (@available(iOS 10.0, tvOS 10.0, *))
-		{
-			OutputSeconds = displayLink.targetTimestamp;
-		}
+		OutputSeconds = displayLink.targetTimestamp;
 		double OutputDuration = displayLink.duration;
 		for (FIOSFramePacerHandler Handler in Handlers)
 		{

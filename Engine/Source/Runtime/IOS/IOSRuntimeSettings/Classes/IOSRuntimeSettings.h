@@ -30,9 +30,6 @@ enum class EPowerUsageFrameRateLock : uint8
 UENUM()
 	enum class EIOSVersion : uint8
 {
-    /** iOS 12 */
-	IOS_12 = 12 UMETA(DisplayName = "12.0"),
-
 	/** iOS 13 */
 	IOS_13 = 13 UMETA(DisplayName = "13.0"),
 
@@ -43,20 +40,11 @@ UENUM()
 UENUM()
 enum class EIOSMetalShaderStandard : uint8
 {
-	/** Metal Shaders Compatible With iOS 10.0/tvOS 10.0 or later (std=ios-metal1.2) */
-	IOSMetalSLStandard_1_2 = 2 UMETA(DisplayName="Metal v1.2 (iOS 10.0/tvOS 10.0)", Hidden),
-	
-    /** Metal Shaders Compatible With iOS 11.0/tvOS 11.0 or later (std=ios-metal2.0) */
-	IOSMetalSLStandard_2_0 = 3 UMETA(DisplayName="Metal v2.0 (iOS 11.0/tvOS 11.0)"),
-    
-    /** Metal Shaders Compatible With iOS 12.0/tvOS 12.0 or later (std=ios-metal2.1) */
-    IOSMetalSLStandard_2_1 = 4 UMETA(DisplayName="Metal v2.1 (iOS 12.0/tvOS 12.0)"),
+    /** Metal Shaders Compatible With iOS 13.0/tvOS 13.0 or later (std=ios-metal2.2) */
+    IOSMetalSLStandard_2_2 = 5 UMETA(DisplayName="Metal v2.2 (iOS 13.0/tvOS 13.0)"),
+    /** Metal Shaders Compatible With iOS 14.0/tvOS 14.0 or later (std=ios-metal2.3) */
+    IOSMetalSLStandard_2_3 = 6 UMETA(DisplayName="Metal v2.3 (iOS 14.0/tvOS 14.0)"),
 
-	/** Metal Shaders Compatible With iOS 13.0/tvOS 13.0  or later (std=ios-metal2.2) */
-	IOSMetalSLStandard_2_2 = 5 UMETA(DisplayName="Metal v2.2 (iOS 13.0/tvOS 13.0)"),
-
-	/** Metal Shaders Compatible With iOS 14.0/tvOS 14.0  or later (std=ios-metal2.3) */
-	IOSMetalSLStandard_2_3 = 6 UMETA(DisplayName="Metal v2.3 (iOS 14.0/tvOS 14.0)"),
 };
 
 UENUM()

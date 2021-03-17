@@ -23,8 +23,17 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 {
 	OwningApplication = Application;
 	Definition = InDefinition;
-
-	Window = [[UIApplication sharedApplication] keyWindow];
+    
+    UIWindow        *foundKeyWindow = nil;
+    NSArray         *allWindows = [[UIApplication sharedApplication]windows];
+    for (UIWindow   *currentWindow in allWindows)
+    {
+        if (currentWindow.isKeyWindow)
+        {
+            Window = foundKeyWindow;
+            break;
+        }
+    }
 
 #if !PLATFORM_TVOS
 	if(InParent.Get() != NULL)

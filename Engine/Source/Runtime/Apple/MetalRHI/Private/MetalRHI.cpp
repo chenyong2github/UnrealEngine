@@ -602,14 +602,11 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	GRHISupportsFirstInstance = GRHISupportsBaseVertexIndex;
 	
 	// TODO: Move this into IOSPlatform
-	if (@available(iOS 11.0, *))
-	{
-		@autoreleasepool {
-			UIScreen* mainScreen = [UIScreen mainScreen];
-			UIDisplayGamut gamut = mainScreen.traitCollection.displayGamut;
-			GRHISupportsHDROutput = FPlatformMisc::IOSVersionCompare(10, 0, 0) && gamut == UIDisplayGamutP3;
-		}
-	}
+    @autoreleasepool {
+        UIScreen* mainScreen = [UIScreen mainScreen];
+        UIDisplayGamut gamut = mainScreen.traitCollection.displayGamut;
+        GRHISupportsHDROutput = FPlatformMisc::IOSVersionCompare(10, 0, 0) && gamut == UIDisplayGamutP3;
+    }
 	
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
 	// Based on the spec below, the maxTotalThreadsPerThreadgroup is not a fixed number but calculated according to the device current ability, so the available threads could less than the maximum number.

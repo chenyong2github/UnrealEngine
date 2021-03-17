@@ -197,6 +197,25 @@ namespace UnrealBuildTool
 			return result;
 		}
 
+		public static string GetMinimumOSVersion(string MinVersion)
+		{
+			string MinVersionToReturn = "";
+			switch (MinVersion)
+			{
+				case "IOS_13":
+					MinVersionToReturn = "13.0";
+					break;
+				case "IOS_14":
+					MinVersionToReturn = "14.0";
+					break;
+				default:
+					Log.TraceWarning("MinimumiOSVersion {0} specified in ini file is no longer supported, defaulting to 13.0", MinVersion);
+					MinVersionToReturn = "13.0";
+					break;
+			}
+			return MinVersionToReturn;
+		}
+
 		public static bool GenerateIOSPList(FileReference ProjectFile, UnrealTargetConfiguration Config, string ProjectDirectory, bool bIsUnrealGame, string GameName, bool bIsClient, string ProjectName, string InEngineDir, string AppDirectory, VersionNumber SdkVersion, UnrealPluginLanguage UPL, string BundleID, bool bBuildAsFramework, out bool bSupportsPortrait, out bool bSupportsLandscape, out bool bSkipIcons)
 		{
 			// generate the Info.plist for future use
@@ -310,30 +329,9 @@ namespace UnrealBuildTool
 			RequiredCaps += bSupported ? "\t\t<string>metal</string>\n" : "";
 
 			// minimum iOS version
-			string MinVersion;
-			if (Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumiOSVersion", out MinVersion))
-			{
-				switch (MinVersion)
-				{
-				case "IOS_12":
-					MinVersion = "12.0";
-					break;
-				case "IOS_13":
-					MinVersion = "13.0";
-					break;
-				case "IOS_14":
-					MinVersion = "14.0";
-					break;
-				default:
-					Log.TraceWarning("MinimumiOSVersion {0} specified in ini file is no longer supported, defaulting to 12.0", MinVersion);
-					MinVersion = "12.0";
-					break;
-				}
-			}
-			else
-			{
-				MinVersion = "12.0";
-			}
+			string MinVersionSetting = "";
+			Ini.GetString("/Script/IOSRuntimeSettings.IOSRuntimeSettings", "MinimumiOSVersion", out MinVersionSetting);
+			string MinVersion  = GetMinimumOSVersion(MinVersionSetting);
 
 			// Get Facebook Support details
 			bool bEnableFacebookSupport = true;

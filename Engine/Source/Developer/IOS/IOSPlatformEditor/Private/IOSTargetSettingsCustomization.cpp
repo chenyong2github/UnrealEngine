@@ -1754,7 +1754,7 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 	{
 		FText Message;
 		
-		uint8 EnumValue = (uint8)EIOSVersion::IOS_12;
+		uint8 EnumValue = (uint8)EIOSVersion::IOS_13;
 		if (MinOSPropertyHandle.IsValid())
 		{
 			MinOSPropertyHandle->GetValue(EnumValue);
@@ -1767,9 +1767,9 @@ void FIOSTargetSettingsCustomization::SetShaderStandard(int32 Value)
 		}
 		
 		// make sure we never set the min version to less than current supported
-		if (((EIOSVersion)EnumValue < EIOSVersion::IOS_12))
+		if (((EIOSVersion)EnumValue < EIOSVersion::IOS_13))
 		{
-			SetMinVersion((int32)EIOSVersion::IOS_12);
+			SetMinVersion((int32)EIOSVersion::IOS_13);
 		}
 
 		
@@ -1800,9 +1800,9 @@ void FIOSTargetSettingsCustomization::UpdateOSVersionWarning()
 		{
 			uint8 EnumValue;
 			MinOSPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSVersion::IOS_12)
+			if (EnumValue < (uint8)EIOSVersion::IOS_13)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_12);
+				SetMinVersion((int32)EIOSVersion::IOS_13);
 				
 				FText Message;
 				Message = LOCTEXT("MetalMRTStandardv1.2","Enabling the Desktop Forward Renderer Metal requires Shader Standard v2.0 which increases the minimum operating system requirement for Metal from iOS 10.0 or later to iOS 11.0 or later.");
@@ -1828,9 +1828,9 @@ void FIOSTargetSettingsCustomization::UpdateMetalMRTWarning()
 		{
 			uint8 EnumValue;
 			MinOSPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSVersion::IOS_12)
+			if (EnumValue < (uint8)EIOSVersion::IOS_13)
 			{
-				SetMinVersion((int32)EIOSVersion::IOS_12);
+				SetMinVersion((int32)EIOSVersion::IOS_13);
 				
 				FText Message;
 				Message = LOCTEXT("MetalMRTStandardv1.2","Enabling the Desktop Forward Renderer Metal requires Shader Standard v2.0 which increases the minimum operating system requirement for Metal from iOS 10.0 or later to iOS 11.0 or later.");
@@ -1838,9 +1838,9 @@ void FIOSTargetSettingsCustomization::UpdateMetalMRTWarning()
 			}
 			
 			ShaderVersionPropertyHandle->GetValue(EnumValue);
-			if (EnumValue < (uint8)EIOSMetalShaderStandard::IOSMetalSLStandard_2_0)
+			if (EnumValue < (uint8)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2)
 			{
-				SetShaderStandard((int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_0);
+				SetShaderStandard((int32)EIOSMetalShaderStandard::IOSMetalSLStandard_2_2);
 				
 				FText Message;
 				Message = LOCTEXT("MetalMRTStandardv1.2","Enabling the Desktop Forward Renderer Metal requires Shader Standard v2.0 which increases the minimum operating system requirement for Metal from iOS 10.0 or later to iOS 11.0 or later.");

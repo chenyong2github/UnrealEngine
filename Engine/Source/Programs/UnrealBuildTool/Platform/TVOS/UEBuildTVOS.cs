@@ -11,14 +11,6 @@ namespace UnrealBuildTool
 	class TVOSProjectSettings : IOSProjectSettings
 	{
 		/// <summary>
-		/// Which version of the iOS to allow at run time
-		/// </summary>
-		public override string RuntimeVersion
-		{
-			get { return "10.0"; }
-		}
-
-		/// <summary>
 		/// which devices the game is allowed to run on
 		/// </summary>
 		public override string RuntimeDevices

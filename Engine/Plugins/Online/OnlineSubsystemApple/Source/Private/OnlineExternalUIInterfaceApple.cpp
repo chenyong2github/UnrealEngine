@@ -199,87 +199,85 @@ FOnlineExternalUIApple::~FOnlineExternalUIApple()
 
 bool FOnlineExternalUIApple::ShowLoginUI(const int ControllerIndex, bool bShowOnlineOnly, bool bShowSkipButton, const FOnLoginUIClosedDelegate& Delegate)
 {
-	bool bStarted = false;
-	FString ErrorStr;
-
+    bool bStarted = false;
+    FString ErrorStr;
+    
 #if SIWA_SUPPORTED
-	if (@available(iOS 13, tvOS 13, macOS 10.15, *))
-	{
-		if (ControllerIndex >= 0 && ControllerIndex < MAX_LOCAL_PLAYERS)
-		{
-			FOnlineIdentityApplePtr IdentityInterface = StaticCastSharedPtr<FOnlineIdentityApple>(Subsystem->GetIdentityInterface());
-			if (IdentityInterface.IsValid())
-			{
-				// Is the user already logged in?
-				if (IdentityInterface->GetLoginStatus(ControllerIndex)!= ELoginStatus::NotLoggedIn)
-				{
-					Subsystem->ExecuteNextTick([IdentityInterface, ControllerIndex, Delegate]()
-					{
-						Delegate.ExecuteIfBound(IdentityInterface->GetUniquePlayerId(ControllerIndex), ControllerIndex, FOnlineError::Success());
-					});
-					bStarted = true;
-				}
-				else
-				{
-					LoginUIClosedDelegate = Delegate;
-
-					// Show the Sign in with Apple login UI
-					OnSignInCompleteHandle = SignInBridge->AddOnSignInCompleteDelegate_Handle(FOnSignInCompleteDelegate::CreateRaw(this, &FOnlineExternalUIApple::OnSignInComplete, ControllerIndex));
-
-					ASAuthorizationAppleIDProvider *Provider = [ASAuthorizationAppleIDProvider new];
-					ASAuthorizationAppleIDRequest *Request = Provider.createRequest;
-
-					if (ScopeFields.Num() > 0)
-					{
-						// Define any requested scopes
-						// NOTE: We will only receieve scopes for the initial login only, once the app is authorised extended details are no longer available
-						NSMutableArray* Permissions = [NSMutableArray array];
-						for (int32 ScopeIdx = 0; ScopeIdx < ScopeFields.Num(); ScopeIdx++)
-						{
-							if (ScopeFields[ScopeIdx].Equals(TEXT(APPLE_PERM_EMAIL), ESearchCase::CaseSensitive))
-							{
-								[Permissions addObject: ASAuthorizationScopeEmail];
-							}
-							else if (ScopeFields[ScopeIdx].Equals(TEXT(APPLE_PERM_FULLNAME), ESearchCase::CaseSensitive))
-							{
-								[Permissions addObject: ASAuthorizationScopeFullName];
-							}
-							else
-							{
-								UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Login invalid scope. %s"), *ScopeFields[ScopeIdx]);
-							}
-						}
-
-						Request.requestedScopes = Permissions;
-					}
-
-					ASAuthorizationController *Controller = [[ASAuthorizationController alloc] initWithAuthorizationRequests:@[Request]];
-
-					SignInController* SignInController = SignInBridge->GetSignInController();
-					Controller.delegate = SignInController;
-					Controller.presentationContextProvider = SignInController;
-					[Controller performRequests];
-
-					bStarted = true;
-				}
-			}
-			else
-			{
-				ErrorStr = TEXT("ShowLoginUI: Missing identity interface");
-			}
-		}
-		else
-		{
-			ErrorStr = FString::Printf(TEXT("ShowLoginUI: Invalid controller index (%d)"), ControllerIndex);
-		}
-	}
+    if (ControllerIndex >= 0 && ControllerIndex < MAX_LOCAL_PLAYERS)
+    {
+        FOnlineIdentityApplePtr IdentityInterface = StaticCastSharedPtr<FOnlineIdentityApple>(Subsystem->GetIdentityInterface());
+        if (IdentityInterface.IsValid())
+        {
+            // Is the user already logged in?
+            if (IdentityInterface->GetLoginStatus(ControllerIndex)!= ELoginStatus::NotLoggedIn)
+            {
+                Subsystem->ExecuteNextTick([IdentityInterface, ControllerIndex, Delegate]()
+                                           {
+                    Delegate.ExecuteIfBound(IdentityInterface->GetUniquePlayerId(ControllerIndex), ControllerIndex, FOnlineError::Success());
+                });
+                bStarted = true;
+            }
+            else
+            {
+                LoginUIClosedDelegate = Delegate;
+                
+                // Show the Sign in with Apple login UI
+                OnSignInCompleteHandle = SignInBridge->AddOnSignInCompleteDelegate_Handle(FOnSignInCompleteDelegate::CreateRaw(this, &FOnlineExternalUIApple::OnSignInComplete, ControllerIndex));
+                
+                ASAuthorizationAppleIDProvider *Provider = [ASAuthorizationAppleIDProvider new];
+                ASAuthorizationAppleIDRequest *Request = Provider.createRequest;
+                
+                if (ScopeFields.Num() > 0)
+                {
+                    // Define any requested scopes
+                    // NOTE: We will only receieve scopes for the initial login only, once the app is authorised extended details are no longer available
+                    NSMutableArray* Permissions = [NSMutableArray array];
+                    for (int32 ScopeIdx = 0; ScopeIdx < ScopeFields.Num(); ScopeIdx++)
+                    {
+                        if (ScopeFields[ScopeIdx].Equals(TEXT(APPLE_PERM_EMAIL), ESearchCase::CaseSensitive))
+                        {
+                            [Permissions addObject: ASAuthorizationScopeEmail];
+                        }
+                        else if (ScopeFields[ScopeIdx].Equals(TEXT(APPLE_PERM_FULLNAME), ESearchCase::CaseSensitive))
+                        {
+                            [Permissions addObject: ASAuthorizationScopeFullName];
+                        }
+                        else
+                        {
+                            UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Login invalid scope. %s"), *ScopeFields[ScopeIdx]);
+                        }
+                    }
+                    
+                    Request.requestedScopes = Permissions;
+                }
+                
+                ASAuthorizationController *Controller = [[ASAuthorizationController alloc] initWithAuthorizationRequests:@[Request]];
+                
+                SignInController* SignInController = SignInBridge->GetSignInController();
+                Controller.delegate = SignInController;
+                Controller.presentationContextProvider = SignInController;
+                [Controller performRequests];
+                
+                bStarted = true;
+            }
+        }
+        else
+        {
+            ErrorStr = TEXT("ShowLoginUI: Missing identity interface");
+        }
+    }
+    else
+    {
+        ErrorStr = FString::Printf(TEXT("ShowLoginUI: Invalid controller index (%d)"), ControllerIndex);
+    }
+    
 #else
-	ErrorStr = TEXT("Sign in with Apple is not available");
+    ErrorStr = TEXT("Sign in with Apple is not available");
 #endif
-
-	if (!bStarted)
-	{
-		UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("%s"), *ErrorStr);
+    
+    if (!bStarted)
+    {
+        UE_LOG_ONLINE_EXTERNALUI(Warning, TEXT("%s"), *ErrorStr);
 
 		FOnlineError Error(false);
 		Error.SetFromErrorCode(MoveTemp(ErrorStr));
@@ -288,7 +286,6 @@ bool FOnlineExternalUIApple::ShowLoginUI(const int ControllerIndex, bool bShowOn
 			Delegate.ExecuteIfBound(nullptr, ControllerIndex, Error);
 		});
 	}
-
 	return bStarted;
 }
 
