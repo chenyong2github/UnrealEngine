@@ -683,9 +683,9 @@ bool UEdGraphPin::HasAnyConnections() const
 
 FString UEdGraphPin::GetDefaultAsString() const
 {
-	if(DefaultObject)
+	if(!DefaultObject.IsNullNoResolve())
 	{
-		return DefaultObject->GetPathName();
+		return DefaultObject.GetPath();
 	}
 	else if(!DefaultTextValue.IsEmpty())
 	{
