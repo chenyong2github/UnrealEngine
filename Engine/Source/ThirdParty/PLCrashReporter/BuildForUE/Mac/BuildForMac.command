@@ -1,4 +1,5 @@
 #!/bin/bash
+# Copyright Epic Games, Inc. All rights reserved.
 
 LIB_NAME="PLCrashReporter"
 
