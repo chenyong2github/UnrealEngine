@@ -465,7 +465,7 @@ protected:
 	void SetAnimLocalClean(const int32 TransformIndex)
 	{ AnimDirty[TransformIndex] &= 0b1110; }
 protected:
-	friend class USkeletalMeshSimulationComponent;
+	//friend class USkeletalMeshSimulationComponent;
 
 	// Owner of all implicit shape groups.
 	TArray<TUniquePtr<FAnalyticImplicitGroup> > ImplicitGroups;
