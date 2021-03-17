@@ -3101,6 +3101,19 @@ int32 FindValidTransformParentTrack(const URig* Rig, int32 NodeIndex, bool bTran
 
 void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConvertSpaces )
 {
+	// Verifying that bone (names) for attribute data exist on new skeleton
+	if(PerBoneCustomAttributeData.Num())
+	{
+		USkeleton* OldSkeleton = GetSkeleton();
+		for (FCustomAttributePerBoneData& AttributeData : PerBoneCustomAttributeData)
+		{
+			const FName BoneName = OldSkeleton ? OldSkeleton->GetReferenceSkeleton().GetBoneName(AttributeData.BoneTreeIndex) : NAME_None;
+			AttributeData.BoneTreeIndex = NewSkeleton ? NewSkeleton->GetReferenceSkeleton().FindBoneIndex(BoneName) : INDEX_NONE;
+		}
+		PerBoneCustomAttributeData.RemoveAll([](FCustomAttributePerBoneData& AttributeData) { return AttributeData.BoneTreeIndex == INDEX_NONE; });
+		CustomAttributesGuid = FGuid::NewGuid();
+	}
+	
 	// this is not cheap, so make sure it only happens in editor
 
 	// @Todo : currently additive will work fine since we don't bake anything except when we extract
@@ -3580,7 +3593,7 @@ void UAnimSequence::RemapTracksToNewSkeleton( USkeleton* NewSkeleton, bool bConv
 	else
 	{
 		VerifyTrackMap(NewSkeleton);
-	}
+	}	
 
 	Super::RemapTracksToNewSkeleton(NewSkeleton, bConvertSpaces);
 }
