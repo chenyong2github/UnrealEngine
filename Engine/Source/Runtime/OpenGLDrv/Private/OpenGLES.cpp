@@ -131,6 +131,9 @@ GLint FOpenGLES::MaxComputeUAVUnits = -1;
 GLint FOpenGLES::MaxPixelUAVUnits = -1;
 GLint FOpenGLES::MaxCombinedUAVUnits = 0;
 
+/** GL_EXT_texture_compression_astc_decode_mode */
+bool FOpenGLES::bSupportsASTCDecodeMode = false;
+
 FOpenGLES::EFeatureLevelSupport FOpenGLES::CurrentFeatureLevelSupport = FOpenGLES::EFeatureLevelSupport::ES31;
 
 bool FOpenGLES::SupportsDisjointTimeQueries()
@@ -206,6 +209,7 @@ void FOpenGLES::ProcessExtensions(const FString& ExtensionsString)
 	bSupportsDXT = ExtensionsString.Contains(TEXT("GL_NV_texture_compression_s3tc")) || ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_s3tc"));
 	bSupportsNVFrameBufferBlit = ExtensionsString.Contains(TEXT("GL_NV_framebuffer_blit"));
 	bSupportsBufferStorage = ExtensionsString.Contains(TEXT("GL_EXT_buffer_storage"));
+	bSupportsASTCDecodeMode = ExtensionsString.Contains(TEXT("GL_EXT_texture_compression_astc_decode_mode"));
 
 	// Report shader precision
 	int Range[2];
