@@ -997,7 +997,7 @@ public:
 	* @param	Component				Target component
 	* @param	bActiveViewportOnly		If true, move/reorient only the active viewport.
 	*/
-	void MoveViewportCamerasToComponent(USceneComponent* Component, bool bActiveViewportOnly);
+	void MoveViewportCamerasToComponent(const USceneComponent* Component, bool bActiveViewportOnly);
 
 	/**
 	 * Moves all viewport cameras to focus on the provided bounding box.

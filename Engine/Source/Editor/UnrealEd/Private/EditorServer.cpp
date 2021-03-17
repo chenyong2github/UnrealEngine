@@ -4921,7 +4921,7 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 	FEditorDelegates::OnFocusViewportOnActors.Broadcast(Actors);
 }
 
-void UEditorEngine::MoveViewportCamerasToComponent(USceneComponent* Component, bool bActiveViewportOnly)
+void UEditorEngine::MoveViewportCamerasToComponent(const USceneComponent* Component, bool bActiveViewportOnly)
 {
 	if (Component != nullptr)
 	{
