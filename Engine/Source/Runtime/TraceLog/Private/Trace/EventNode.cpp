@@ -192,6 +192,7 @@ void FEventNode::OnConnect()
 		FEventNode* Node = AtomicLoadRelaxed(&GNewEventList);
 		if (AtomicCompareExchangeRelaxed(&GNewEventList, GEventListHead, Node))
 		{
+			GEventListTail->Next = Node;
 			break;
 		}
 	}
