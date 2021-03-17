@@ -240,17 +240,107 @@ private:
 		ERDGPassFlags Flags,
 		ExecuteLambdaType&& ExecuteLambda);
 
-	ERDGPassFlags OverridePassFlags(const TCHAR* PassName, ERDGPassFlags Flags, bool bAsyncComputeSupported);
+	static ERDGPassFlags OverridePassFlags(const TCHAR* PassName, ERDGPassFlags Flags, bool bAsyncComputeSupported);
 
+	/** Returns the graph prologue pass handle. */
 	FORCEINLINE FRDGPassHandle GetProloguePassHandle() const
 	{
 		return Passes.Begin();
 	}
 
+	/** Returns the graph epilogue pass handle. */
 	FORCEINLINE FRDGPassHandle GetEpiloguePassHandle() const
 	{
 		checkf(EpiloguePass, TEXT("The handle is not valid until the epilogue has been added to the graph during execution."));
 		return Passes.Last();
+	}
+
+	/** Barrier location controls where the barrier is 'Ended' relative to the pass lambda being executed.
+	 *  Most barrier locations are done in the prologue prior to the executing lambda. But certain cases
+	 *  like an aliasing discard operation need to be done *after* the pass being invoked. Therefore, when
+	 *  adding a transition the user can specify where to place the barrier.
+	 */
+	enum class EBarrierLocation
+	{
+		/** The barrier occurs in the prologue of the pass (before execution). */
+		Prologue,
+
+		/** The barrier occurs in the epilogue of the pass (after execution). */
+		Epilogue
+	};
+
+	/** Prologue and Epilogue barrier passes are used to plan transitions around RHI render pass merging,
+	 *  as it is illegal to issue a barrier during a render pass. If passes [A, B, C] are merged together,
+	 *  'A' becomes 'B's prologue pass and 'C' becomes 'A's epilogue pass. This way, any transitions that
+	 *  need to happen before the merged pass (i.e. in the prologue) are done in A. Any transitions after
+	 *  the render pass merge are done in C.
+	 */
+	FRDGPassHandle GetEpilogueBarrierPassHandle(FRDGPassHandle Handle)
+	{
+		return Passes[Handle]->EpilogueBarrierPass;
+	}
+
+	FRDGPassHandle GetPrologueBarrierPassHandle(FRDGPassHandle Handle)
+	{
+		return Passes[Handle]->PrologueBarrierPass;
+	}
+
+	FRDGPass* GetEpilogueBarrierPass(FRDGPassHandle Handle)
+	{
+		return Passes[GetEpilogueBarrierPassHandle(Handle)];
+	}
+
+	FRDGPass* GetPrologueBarrierPass(FRDGPassHandle Handle)
+	{
+		return Passes[GetPrologueBarrierPassHandle(Handle)];
+	}
+
+	/** Ends the barrier batch in the prologue of the provided pass. */
+	void AddToPrologueBarriersToEnd(FRDGPassHandle Handle, FRDGBarrierBatchBegin& BarriersToBegin)
+	{
+		FRDGPass* Pass = GetPrologueBarrierPass(Handle);
+		Pass->GetPrologueBarriersToEnd(Allocator).AddDependency(&BarriersToBegin);
+	}
+
+	/** Ends the barrier batch in the epilogue of the provided pass. */
+	void AddToEpilogueBarriersToEnd(FRDGPassHandle Handle, FRDGBarrierBatchBegin& BarriersToBegin)
+	{
+		FRDGPass* Pass = GetEpilogueBarrierPass(Handle);
+		Pass->GetEpilogueBarriersToEnd(Allocator).AddDependency(&BarriersToBegin);
+	}
+
+	/** Utility function to add an immediate barrier dependency in the prologue of the provided pass. */
+	template <typename FunctionType>
+	void AddToPrologueBarriers(FRDGPassHandle PassHandle, FunctionType Function)
+	{
+		FRDGPass* Pass = GetPrologueBarrierPass(PassHandle);
+		FRDGBarrierBatchBegin& BarriersToBegin = Pass->GetPrologueBarriersToBegin(Allocator);
+		Function(BarriersToBegin);
+		Pass->GetPrologueBarriersToEnd(Allocator).AddDependency(&BarriersToBegin);
+	}
+
+	/** Utility function to add an immediate barrier dependency in the epilogue of the provided pass. */
+	template <typename FunctionType>
+	void AddToEpilogueBarriers(FRDGPassHandle PassHandle, FunctionType Function)
+	{
+		FRDGPass* Pass = GetEpilogueBarrierPass(PassHandle);
+		FRDGBarrierBatchBegin& BarriersToBegin = Pass->GetEpilogueBarriersToBeginFor(Allocator, Pass->GetPipeline());
+		Function(BarriersToBegin);
+		Pass->GetEpilogueBarriersToEnd(Allocator).AddDependency(&BarriersToBegin);
+	}
+
+	/** Utility function to add an immediate barrier dependency in either the prologue or epilogue of the provided pass, depending on BarrierLocation. */
+	template <typename FunctionType>
+	void AddToBarriers(FRDGPassHandle PassHandle, EBarrierLocation BarrierLocation, FunctionType Function)
+	{
+		if (BarrierLocation == EBarrierLocation::Prologue)
+		{
+			AddToPrologueBarriers(PassHandle, Function);
+		}
+		else
+		{
+			AddToEpilogueBarriers(PassHandle, Function);
+		}
 	}
 
 	/** Registry of graph objects. */
@@ -314,21 +404,43 @@ private:
 	bool bWaitedForTemporalEffect = false;
 #endif
 
+	/** Tracks whether all passes / resources have been added to the graph. */
+	bool bSetupComplete = false;
+
 	IF_RDG_CMDLIST_STATS(TStatId CommandListStat);
+
+	class FTransientResourceAllocator
+	{
+	public:
+		FTransientResourceAllocator(FRHICommandListImmediate& InRHICmdList)
+			: RHICmdList(InRHICmdList)
+		{}
+
+		~FTransientResourceAllocator();
+
+		IRHITransientResourceAllocator* GetOrCreate();
+		IRHITransientResourceAllocator* Get() const { return Allocator; }
+		IRHITransientResourceAllocator* operator->() const { check(Allocator);  return Allocator; }
+		operator bool() const { return Allocator != nullptr; }
+
+	private:
+		FRHICommandListImmediate& RHICmdList;
+		IRHITransientResourceAllocator* Allocator = nullptr;
+	};
 
 	void Compile();
 	void Clear();
 
 	void BeginResourceRHI(FRDGUniformBuffer* UniformBuffer);
-	void BeginResourceRHI(FRDGPassHandle, FRDGTexture* Texture);
-	void BeginResourceRHI(FRDGPassHandle, FRDGTextureSRV* SRV);
-	void BeginResourceRHI(FRDGPassHandle, FRDGTextureUAV* UAV);
-	void BeginResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer);
-	void BeginResourceRHI(FRDGPassHandle, FRDGBufferSRV* SRV);
-	void BeginResourceRHI(FRDGPassHandle, FRDGBufferUAV* UAV);
+	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGTexture* Texture);
+	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGTextureSRV* SRV);
+	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGTextureUAV* UAV);
+	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGBuffer* Buffer);
+	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGBufferSRV* SRV);
+	void BeginResourceRHI(FTransientResourceAllocator*, FRDGPassHandle, FRDGBufferUAV* UAV);
 
-	void EndResourceRHI(FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
-	void EndResourceRHI(FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);
+	void EndResourceRHI(FTransientResourceAllocator&, FRDGPassHandle, FRDGTexture* Texture, uint32 ReferenceCount);
+	void EndResourceRHI(FTransientResourceAllocator&, FRDGPassHandle, FRDGBuffer* Buffer, uint32 ReferenceCount);
 
 	void SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, ERHIPipeline PassPipeline);
 	void SetupPass(FRDGPass* Pass);
@@ -338,7 +450,7 @@ private:
 	void ExecutePassPrologue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass);
 	void ExecutePassEpilogue(FRHIComputeCommandList& RHICmdListPass, FRDGPass* Pass);
 
-	void CollectPassResources(FRDGPassHandle PassHandle);
+	void CollectPassResources(FTransientResourceAllocator&, FRDGPassHandle PassHandle);
 	void CollectPassBarriers(FRDGPassHandle PassHandle);
 
 	void AddPassDependency(FRDGPassHandle ProducerHandle, FRDGPassHandle ConsumerHandle);
@@ -346,14 +458,33 @@ private:
 	void AddEpilogueTransition(FRDGTextureRef Texture);
 	void AddEpilogueTransition(FRDGBufferRef Buffer);
 
-	void AddTransition(FRDGPassHandle PassHandle, FRDGTextureRef Texture, const FRDGTextureTransientSubresourceStateIndirect& StateAfter);
-	void AddTransition(FRDGPassHandle PassHandle, FRDGBufferRef Buffer, FRDGSubresourceState StateAfter);
+	void AddTransition(
+		FRDGPassHandle PassHandle,
+		FRDGTextureRef Texture,
+		const FRDGTextureTransientSubresourceStateIndirect& StateAfter,
+		EBarrierLocation BarrierLocation = EBarrierLocation::Prologue);
 
-	void AddTransitionInternal(
+	void AddTransition(
+		FRDGPassHandle PassHandle,
+		FRDGBufferRef Buffer,
+		FRDGSubresourceState StateAfter,
+		EBarrierLocation BarrierLocation = EBarrierLocation::Prologue);
+
+	void AddTransition(
 		FRDGParentResource* Resource,
 		FRDGSubresourceState StateBefore,
 		FRDGSubresourceState StateAfter,
+		EBarrierLocation BarrierLocation,
 		const FRHITransitionInfo& TransitionInfo);
+
+	bool IsTransient(FRDGTextureRef Texture) const;
+	bool IsTransient(FRDGBufferRef Buffer) const;
+	bool IsTransientInternal(FRDGParentResourceRef Resource) const;
+
+	void AddAcquireResourceRHI(FRDGTexture* Texture, FRDGPassHandle PassHandle);
+	void AddAcquireResourceRHI(FRDGBuffer* Buffer, FRDGPassHandle PassHandle);
+	void AddDiscardResourceRHI(FRDGTexture* Texture, FRDGPassHandle PassHandle);
+	void AddDiscardResourceRHI(FRDGBuffer* Buffer, FRDGPassHandle PassHandle);
 
 	FRHIRenderPassInfo GetRenderPassInfo(const FRDGPass* Pass) const;
 

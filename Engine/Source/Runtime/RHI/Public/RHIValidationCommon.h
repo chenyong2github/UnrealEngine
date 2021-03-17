@@ -15,6 +15,7 @@ const bool GRHIValidationEnabled = false;
 #if ENABLE_RHI_VALIDATION
 
 class FRHIUniformBuffer;
+class FValidationRHI;
 
 // Forward declaration of function defined in RHIUtilities.h
 static inline bool IsStencilFormat(EPixelFormat Format);
@@ -175,7 +176,6 @@ namespace RHIValidation
 		void EndTransition     (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, ERHIPipeline Pipeline, void* CreateTrace);
 		void Assert            (FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& RequiredState, bool bAllowAllUAVsOverlap);
 		void SpecificUAVOverlap(FResource* Resource, FSubresourceIndex const& SubresourceIndex, ERHIPipeline Pipeline, bool bAllow);
-		void* Log              (FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* TracePrefix, const TCHAR* Type, const TCHAR* LogStr);
 	};
 
 	struct FSubresourceRange
@@ -232,6 +232,36 @@ namespace RHIValidation
 		}
 	};
 
+	struct FTransientState
+	{
+		FTransientState() = default;
+
+		enum class EStatus : uint8
+		{
+			None,
+			Acquired,
+			Discarded
+		};
+
+		FTransientState(ERHIAccess InitialAccess)
+			: bTransient(InitialAccess == ERHIAccess::Discard)
+		{}
+
+		void* AcquireBacktrace = nullptr;
+		void* DiscardBacktrace = nullptr;
+
+		bool bTransient = false;
+		EStatus Status = EStatus::None;
+
+		bool IsAcquired() const
+		{
+			return Status == EStatus::Acquired;
+		}
+
+		void Acquire(FResource* Resource, void* CreateTrace);
+		void Discard(FResource* Resource, void* CreateTrace);
+	};
+
 	class FResource
 	{
 		friend FTracker;
@@ -239,11 +269,13 @@ namespace RHIValidation
 		friend FOperation;
 		friend FSubresourceState;
 		friend FSubresourceRange;
+		friend FValidationRHI;
 
 	protected:
 		uint32 NumMips = 0;
 		uint32 NumArraySlices = 0;
 		uint32 NumPlanes = 0;
+		FTransientState TransientState;
 
 	private:
 		FString DebugName;
@@ -282,25 +314,23 @@ namespace RHIValidation
 	protected:
 		inline void InitBarrierTracking(int32 InNumMips, int32 InNumArraySlices, int32 InNumPlanes, ERHIAccess InResourceState, const TCHAR* InDebugName)
 		{
-			if (!IsBarrierTrackingInitialized())
+			checkSlow(InNumMips > 0 && InNumArraySlices > 0 && InNumPlanes > 0);
+			check(InResourceState != ERHIAccess::Unknown);
+
+			NumMips = InNumMips;
+			NumArraySlices = InNumArraySlices;
+			NumPlanes = InNumPlanes;
+			TransientState = FTransientState(InResourceState);
+
+			for (auto& State : WholeResourceState.States)
 			{
-				checkSlow(InNumMips > 0 && InNumArraySlices > 0 && InNumPlanes > 0);
-				check(InResourceState != ERHIAccess::Unknown);
+				State.Current.Access = InResourceState;
+				State.Previous = State.Current;
+			}
 
-				NumMips = InNumMips;
-				NumArraySlices = InNumArraySlices;
-				NumPlanes = InNumPlanes;
-
-				for (auto& State : WholeResourceState.States)
-				{
-					State.Current.Access = InResourceState;
-					State.Previous = State.Current;
-				}
-
-				if (InDebugName != nullptr)
-				{
-					SetDebugName(InDebugName);
-				}
+			if (InDebugName != nullptr)
+			{
+				SetDebugName(InDebugName);
 			}
 		}
 	};
@@ -507,6 +537,8 @@ namespace RHIValidation
 	{
 		BeginTransition,
 		EndTransition,
+		AcquireTransient,
+		DiscardTransient,
 		Assert,
 		Rename,
 		Signal,
@@ -548,6 +580,18 @@ namespace RHIValidation
 				FState NextState;
 				void* CreateBacktrace;
 			} Data_EndTransition;
+
+			struct
+			{
+				FResource* Resource;
+				void* CreateBacktrace;
+			} Data_AcquireTransient;
+
+			struct
+			{
+				FResource* Resource;
+				void* CreateBacktrace;
+			} Data_DiscardTransient;
 
 			struct
 			{
@@ -624,6 +668,28 @@ namespace RHIValidation
 			Op.Data_EndTransition.PreviousState = PreviousState;
 			Op.Data_EndTransition.NextState = NextState;
 			Op.Data_EndTransition.CreateBacktrace = CreateBacktrace;
+			return MoveTemp(Op);
+		}
+
+		static inline FOperation AcquireTransientResource(FResource* Resource, void* CreateBacktrace)
+		{
+			Resource->AddOpRef();
+
+			FOperation Op;
+			Op.Type = EOpType::AcquireTransient;
+			Op.Data_AcquireTransient.Resource = Resource;
+			Op.Data_AcquireTransient.CreateBacktrace = CreateBacktrace;
+			return MoveTemp(Op);
+		}
+
+		static inline FOperation DiscardTransientResource(FResource* Resource, void* CreateBacktrace)
+		{
+			Resource->AddOpRef();
+
+			FOperation Op;
+			Op.Type = EOpType::DiscardTransient;
+			Op.Data_DiscardTransient.Resource = Resource;
+			Op.Data_DiscardTransient.CreateBacktrace = CreateBacktrace;
 			return MoveTemp(Op);
 		}
 

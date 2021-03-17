@@ -82,6 +82,7 @@ public:
 	bool bExternal{};
 	bool bExtracted{};
 	bool bCulled{};
+	bool bTransient{};
 
 	FResourcePacket(const UE::Trace::IAnalyzer::FOnEventContext& Context);
 };

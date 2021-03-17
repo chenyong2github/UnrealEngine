@@ -263,15 +263,14 @@ TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementForRDG(
 	const FRDGTextureDesc& Desc,
 	const TCHAR* Name)
 {
-	const bool bDoAcquireTransientTexture = false;
-	return FindFreeElementInternal(RHICmdList, Translate(Desc), Name, bDoAcquireTransientTexture);
+	checkf(!EnumHasAnyFlags(Desc.Flags, TexCreate_Transient), TEXT("RDG does not support the render target pool transient API"));
+	return FindFreeElementInternal(RHICmdList, Translate(Desc), Name);
 }
 
 TRefCountPtr<FPooledRenderTarget> FRenderTargetPool::FindFreeElementInternal(
 	FRHICommandList& RHICmdList,
 	const FPooledRenderTargetDesc& Desc,
-	const TCHAR* InDebugName,
-	bool bDoAcquireTransientTexture)
+	const TCHAR* InDebugName)
 {
 	const int32 AliasingMode = CVarRtPoolTransientMode.GetValueOnRenderThread();
 	FPooledRenderTarget* Found = 0;
@@ -525,13 +524,10 @@ Done:
 
 	check(!Found->IsFree());
 
-	if (bDoAcquireTransientTexture)
+	// Only referenced by the pool, map the physical pages
+	if (Found->IsTransient() && OriginalNumRefs == 1 && Found->GetRenderTargetItem().TargetableTexture != nullptr)
 	{
-		// Only referenced by the pool, map the physical pages
-		if (Found->IsTransient() && OriginalNumRefs == 1 && Found->GetRenderTargetItem().TargetableTexture != nullptr)
-		{
-			RHIAcquireTransientResource(Found->GetRenderTargetItem().TargetableTexture);
-		}
+		RHIAcquireTransientResource(Found->GetRenderTargetItem().TargetableTexture);
 	}
 
 	// Transient RTs have to be targettable
@@ -621,8 +617,7 @@ bool FRenderTargetPool::FindFreeElement(
 		}
 	}
 
-	const bool bDoAcquireTransientResource = true;
-	TRefCountPtr<FPooledRenderTarget> Result = FindFreeElementInternal(RHICmdList, Desc, InDebugName, bDoAcquireTransientResource);
+	TRefCountPtr<FPooledRenderTarget> Result = FindFreeElementInternal(RHICmdList, Desc, InDebugName);
 
 	// Reset RDG state back to an unknown default. The resource is being handed off to a user outside of RDG, so the state is no longer valid.
 	{
@@ -1202,12 +1197,12 @@ void FPooledRenderTarget::InitRDG()
 
 	if (RenderTargetItem.TargetableTexture)
 	{
-		TargetableTexture = new FRDGPooledTexture(RenderTargetItem.TargetableTexture, Translate(Desc, ERenderTargetTexture::Targetable), RenderTargetItem.UAV);
+		TargetableTexture = FRDGPooledTexture::CreateCommitted(RenderTargetItem.TargetableTexture, Translate(Desc, ERenderTargetTexture::Targetable), RenderTargetItem.UAV);
 	}
 
 	if (RenderTargetItem.ShaderResourceTexture != RenderTargetItem.TargetableTexture)
 	{
-		ShaderResourceTexture = new FRDGPooledTexture(RenderTargetItem.ShaderResourceTexture, Translate(Desc, ERenderTargetTexture::ShaderResource), nullptr);
+		ShaderResourceTexture = FRDGPooledTexture::CreateCommitted(RenderTargetItem.ShaderResourceTexture, Translate(Desc, ERenderTargetTexture::ShaderResource), nullptr);
 	}
 	else
 	{
@@ -1232,12 +1227,11 @@ uint32 FPooledRenderTarget::Release()
 	}
 	else if (Refs == 1 && RenderTargetPool && IsTransient())
 	{
-		if (bAutoDiscard && RenderTargetItem.TargetableTexture)
+		if (RenderTargetItem.TargetableTexture)
 		{
 			RHIDiscardTransientResource(RenderTargetItem.TargetableTexture);
 		}
 		FrameNumberLastDiscard = GFrameNumberRenderThread;
-		bAutoDiscard = true;
 	}
 	return Refs;
 }

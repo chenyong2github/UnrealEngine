@@ -65,6 +65,7 @@ FResourcePacket::FResourcePacket(const UE::Trace::IAnalyzer::FOnEventContext& Co
 	, bExternal(Context.EventData.GetValue<bool>("IsExternal"))
 	, bExtracted(Context.EventData.GetValue<bool>("IsExtracted"))
 	, bCulled(Context.EventData.GetValue<bool>("IsCulled"))
+	, bTransient(Context.EventData.GetValue<bool>("IsTransient"))
 {
 	if (Passes.Num())
 	{

@@ -25,7 +25,7 @@ class FMetalTransitionData
 public:
 	explicit FMetalTransitionData(ERHIPipeline                         InSrcPipelines,
 								  ERHIPipeline                         InDstPipelines,
-								  ERHICreateTransitionFlags            InCreateFlags,
+								  ERHITransitionCreateFlags            InCreateFlags,
 								  TArrayView<const FRHITransitionInfo> InInfos);
 
 	// The default destructor is sufficient.
@@ -45,7 +45,7 @@ public:
 private:
 	ERHIPipeline              SrcPipelines   = ERHIPipeline::Num;
 	ERHIPipeline              DstPipelines   = ERHIPipeline::Num;
-	ERHICreateTransitionFlags CreateFlags    = ERHICreateTransitionFlags::None;
+	ERHITransitionCreateFlags CreateFlags    = ERHITransitionCreateFlags::None;
 	bool                      bCrossPipeline = false;
 	FMetalTransitionInfoArray Infos          = {};
 	TRefCountPtr<FMetalFence> Fence          = nullptr;

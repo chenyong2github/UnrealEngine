@@ -290,85 +290,196 @@ void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& In
 	}
 }
 
-void ProcessDiscardState(FD3D12CommandContext& Context, const FRHITransitionInfo& Info)
+static bool ProcessTransitionDuringBegin(const FD3D12TransitionData* Data)
 {
-	// No discard before or after state, then done
-	if (!EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::Discard) && !EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::Discard))
-	{
-		return;
-	}
+	// Pipe changes which are not ending with graphics or targeting all pipelines are handle during begin
+	return ((Data->SrcPipelines != Data->DstPipelines && Data->DstPipelines != ERHIPipeline::Graphics) || EnumHasAllFlags(Data->DstPipelines, ERHIPipeline::All));
+}
 
-	FD3D12BaseShaderResource* BaseShaderResource = nullptr;
-	switch (Info.Type)
-	{
-	case FRHITransitionInfo::EType::Buffer:
-	{
-		FD3D12Buffer* Buffer = Context.RetrieveObject<FD3D12Buffer>(Info.Buffer);
-		check(Buffer);
-		BaseShaderResource = Buffer;
-		break;
-	}
-	case FRHITransitionInfo::EType::Texture:
-	{
-		FD3D12TextureBase* Texture = Context.RetrieveTextureBase(Info.Texture);
-		check(Texture);
-		BaseShaderResource = Texture;
-		break;
-	}
-	default:
-		checkNoEntry();
-		break;
-	}
+struct FD3D12DiscardResource
+{
+	FD3D12DiscardResource(FD3D12Resource* InResource, EResourceTransitionFlags InFlags, uint32 InSubresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+		: Resource(InResource)
+		, Flags(InFlags)
+		, Subresource(InSubresource)
+	{}
 
-	if (EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::Discard))
+	FD3D12Resource* Resource;
+	EResourceTransitionFlags Flags;
+	uint32 Subresource;
+};
+
+using FD3D12DiscardResourceArray = TArray<FD3D12DiscardResource>;
+
+static void HandleResourceDiscardTransitions(
+	FD3D12CommandContext& Context,
+	const FD3D12TransitionData* TransitionData,
+	D3D12_RESOURCE_STATES SkipFastClearEliminateState,
+	FD3D12DiscardResourceArray& ResourcesToDiscard)
+{
+	for (const FRHITransitionInfo& Info : TransitionData->TransitionInfos)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AcquireTransient);
-
-		FD3D12Resource* Resource = BaseShaderResource->ResourceLocation.GetResource();
-
-		// Try and see if the resource has overlapping resources
-		if (BaseShaderResource->ResourceLocation.IsTransient() && BaseShaderResource->ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+		if (Info.AccessBefore != ERHIAccess::Discard || Info.Type != FRHITransitionInfo::EType::Texture || !EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::Clear | EResourceTransitionFlags::Discard))
 		{
-			// We know it's a transient resource allocator
-			FD3D12TransientResourceAllocator* Allocator = (FD3D12TransientResourceAllocator*) BaseShaderResource->ResourceLocation.GetPoolAllocator();
+			continue;
+		}
 
-			// Get the overlapping resources and append aliasing barriers for each of them
-			TArrayView<FD3D12Resource*> OverlappingResources = Allocator->GetOverlappingResources(BaseShaderResource);
-			for (FD3D12Resource* OverlappingResource : OverlappingResources)
+		ProcessResource(Context, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource)
+		{
+			if (!Resource->RequiresResourceStateTracking())
 			{
-				Context.CommandListHandle.AddAliasingBarrier(OverlappingResource, Resource);
+				return;
 			}
-		}		
 
-		bool bIsAsyncCompute = false;
-		D3D12_RESOURCE_STATES AfterState = GetD3D12ResourceState(Info.AccessAfter, bIsAsyncCompute);
-		FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, AfterState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply);
-		Context.CommandListHandle.FlushResourceBarriers();
-		
-		// Add clear or discard operation depending on flag
-		if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::Clear))
+			const D3D12_RESOURCE_FLAGS ResourceFlags = Resource->GetDesc().Flags;
+
+			D3D12_RESOURCE_STATES DiscardState;
+
+			if (EnumHasAnyFlags(ResourceFlags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET))
+			{
+				DiscardState = D3D12_RESOURCE_STATE_RENDER_TARGET;
+			}
+			else if (EnumHasAnyFlags(ResourceFlags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+			{
+				DiscardState = D3D12_RESOURCE_STATE_DEPTH_WRITE;
+			}
+			else if (EnumHasAnyFlags(ResourceFlags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+			{
+				DiscardState = D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+			}
+			else
+			{
+				return;
+			}
+
+			if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
+			{
+				DiscardState |= SkipFastClearEliminateState;
+			}
+
+			if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
+			{
+				if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, DiscardState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply))
+				{
+					ResourcesToDiscard.Emplace(Resource, Info.Flags, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+				}
+			}
+			else
+			{
+				EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
+				{
+					if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, D3D12_RESOURCE_STATE_TBD, DiscardState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply))
+					{
+						ResourcesToDiscard.Emplace(Resource, Info.Flags, Subresource);
+					}
+				});
+			}
+		});
+	}
+}
+
+static void HandleDiscardResources(
+	FD3D12CommandContext& Context,
+	D3D12_RESOURCE_STATES SkipFastClearEliminateState,
+	TArrayView<const FRHITransition*> Transitions)
+{
+	FD3D12DiscardResourceArray ResourcesToDiscard;
+
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+
+		HandleResourceDiscardTransitions(Context, Data, SkipFastClearEliminateState, ResourcesToDiscard);
+	}
+
+	Context.CommandListHandle.FlushResourceBarriers();
+
+	for (const FD3D12DiscardResource& DiscardResource : ResourcesToDiscard)
+	{
+		if (EnumHasAnyFlags(DiscardResource.Flags, EResourceTransitionFlags::Clear))
 		{
 			// add correct ops for clear
 			check(false);
 		}
-		else
+		else if (EnumHasAnyFlags(DiscardResource.Flags, EResourceTransitionFlags::Discard))
 		{
-			check(Info.Flags & EResourceTransitionFlags::Discard);
-			Context.CommandListHandle->DiscardResource(Resource->GetResource(), nullptr);
+			if (DiscardResource.Subresource == D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES)
+			{
+				Context.CommandListHandle->DiscardResource(DiscardResource.Resource->GetResource(), nullptr);
+			}
+			else
+			{
+				D3D12_DISCARD_REGION Region;
+				Region.NumRects = 0;
+				Region.pRects = nullptr;
+				Region.FirstSubresource = DiscardResource.Subresource;
+				Region.NumSubresources = 1;
+
+				Context.CommandListHandle->DiscardResource(DiscardResource.Resource->GetResource(), &Region);
+			}
 		}
 	}
-	else
+}
+
+static void HandleTransientAliasing(FD3D12CommandContext& Context, const FD3D12TransitionData* TransitionData)
+{
+	for (const FRHITransientAliasingInfo& Info : TransitionData->AliasingInfos)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::DiscardTransient);
+		FD3D12BaseShaderResource* BaseShaderResource = nullptr;
+		switch (Info.Type)
+		{
+		case FRHITransientAliasingInfo::EType::Buffer:
+		{
+			FD3D12Buffer* Buffer = Context.RetrieveObject<FD3D12Buffer>(Info.Buffer);
+			check(Buffer);
+			BaseShaderResource = Buffer;
+			break;
+		}
+		case FRHITransientAliasingInfo::EType::Texture:
+		{
+			FD3D12TextureBase* Texture = Context.RetrieveTextureBase(Info.Texture);
+			check(Texture);
+			BaseShaderResource = Texture;
+			break;
+		}
+		default:
+			checkNoEntry();
+			break;
+		}
 
-		// Remove from caches
-		Context.ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);
+		if (Info.Action == FRHITransientAliasingInfo::EAction::Acquire)
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::AcquireTransient);
 
-		// Release the resource location - transient allocator internally will take care of correct caching
-		BaseShaderResource->ResourceLocation.Clear();
+			FD3D12Resource* Resource = BaseShaderResource->ResourceLocation.GetResource();
 
-		// Release the views after clearing resource location
-		BaseShaderResource->ResourceRenamed(&BaseShaderResource->ResourceLocation);
+			// Try and see if the resource has overlapping resources
+			if (BaseShaderResource->ResourceLocation.IsTransient() && BaseShaderResource->ResourceLocation.GetAllocatorType() == FD3D12ResourceLocation::AT_Pool)
+			{
+				// We know it's a transient resource allocator
+				FD3D12TransientResourceAllocator* Allocator = (FD3D12TransientResourceAllocator*)BaseShaderResource->ResourceLocation.GetPoolAllocator();
+
+				// Get the overlapping resources and append aliasing barriers for each of them
+				TArrayView<FD3D12Resource*> OverlappingResources = Allocator->GetOverlappingResources(BaseShaderResource);
+				for (FD3D12Resource* OverlappingResource : OverlappingResources)
+				{
+					Context.CommandListHandle.AddAliasingBarrier(OverlappingResource, Resource);
+				}
+			}
+		}
+		else
+		{
+			TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::DiscardTransient);
+
+			// Remove from caches
+			Context.ConditionalClearShaderResource(&BaseShaderResource->ResourceLocation);
+
+			// Release the resource location - transient allocator internally will take care of correct caching
+			BaseShaderResource->ResourceLocation.Clear();
+
+			// Release the views after clearing resource location
+			BaseShaderResource->ResourceRenamed(&BaseShaderResource->ResourceLocation);
+		}
 	}
 }
 
@@ -376,10 +487,13 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 {
 	const bool bDstAllPipelines = EnumHasAllFlags(TransitionData->DstPipelines, ERHIPipeline::All);
 
-	for (const FRHITransitionInfo& Info : TransitionData->Infos)
+	for (const FRHITransitionInfo& Info : TransitionData->TransitionInfos)
 	{
-		// Process the discard state
-		ProcessDiscardState(Context, Info);
+		// A transition back to discard is a no-op.
+		if (Info.AccessAfter == ERHIAccess::Discard)
+		{
+			continue;
+		}
 
 		const bool bUAVAccess = EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
 
@@ -406,53 +520,47 @@ static void HandleResourceTransitions(FD3D12CommandContext& Context, const FD3D1
 			else
 			{
 				ProcessResource(Context, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource)
+				{
+					if (!Resource->RequiresResourceStateTracking())
 					{
-						if (!Resource->RequiresResourceStateTracking())
+						return;
+					}
+
+					const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
+					const bool bKnownBeforeState = (Info.AccessBefore != ERHIAccess::Unknown && Info.AccessBefore != ERHIAccess::Discard);
+
+					// Derive or get the correct before & after state
+					D3D12_RESOURCE_STATES BeforeState = bKnownBeforeState ? GetD3D12ResourceState(Info.AccessBefore, bIsAsyncCompute) : D3D12_RESOURCE_STATE_TBD;
+					D3D12_RESOURCE_STATES AfterState = GetD3D12ResourceState(Info.AccessAfter, bIsAsyncCompute);
+
+					// Add the compression flags if needed
+					if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
+					{
+						AfterState |= SkipFastClearEliminateState;
+					}
+
+					// enqueue the correct transitions
+					if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
+					{
+						if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply))
 						{
-							return;
+							bUAVBarrier = true;
 						}
-
-						const bool bIsAsyncCompute = EnumHasAnyFlags(TransitionData->DstPipelines, ERHIPipeline::AsyncCompute);
-
-						// Derive or get the correct before & after state
-						D3D12_RESOURCE_STATES BeforeState = (Info.AccessBefore != ERHIAccess::Unknown) ? GetD3D12ResourceState(Info.AccessBefore, bIsAsyncCompute) : D3D12_RESOURCE_STATE_TBD;
-						D3D12_RESOURCE_STATES AfterState = GetD3D12ResourceState(Info.AccessAfter, bIsAsyncCompute);
-
-						// Add the compression flags if needed
-						if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
+					}
+					else
+					{
+						EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
 						{
-							AfterState |= SkipFastClearEliminateState;
-						}
-
-						// enqueue the correct transitions
-						if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
-						{
-							if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Apply))
+							if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply))
 							{
 								bUAVBarrier = true;
 							}
-
-						}
-						else
-						{
-							EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
-								{
-									if (FD3D12DynamicRHI::TransitionResource(Context.CommandListHandle, Resource, BeforeState, AfterState, Subresource, FD3D12DynamicRHI::ETransitionMode::Apply))
-									{
-										bUAVBarrier = true;
-									}
-								});
-						}
-					});
+						});
+					}
+				});
 			}
 		}
 	}
-}
-
-static bool ProcessTransitionDuringBegin(const FD3D12TransitionData* Data)
-{
-	// Pipe changes which are not ending with graphics or targeting all pipelines are handle during begin
-	return ((Data->SrcPipelines != Data->DstPipelines && Data->DstPipelines != ERHIPipeline::Graphics) || EnumHasAllFlags(Data->DstPipelines, ERHIPipeline::All));
 }
 
 void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions)
@@ -460,6 +568,15 @@ void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FR
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
 	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHIBeginTransitions, bShowTransitionEvents, TEXT("RHIBeginTransitions"));
+
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+
+		HandleTransientAliasing(*this, Data);
+	}
+
+	HandleDiscardResources(*this, SkipFastClearEliminateState, Transitions);
 
 	bool bUAVBarrier = false;
 

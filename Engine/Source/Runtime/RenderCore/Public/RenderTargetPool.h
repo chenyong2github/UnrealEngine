@@ -96,9 +96,6 @@ private:
 	/** Keeps track of the last frame we unmapped physical memory for this resource. We can't map again in the same frame if we did that */
 	uint32 FrameNumberLastDiscard = -1;
 
-	/** The transient resource discard will happen automatically on free. */
-	bool bAutoDiscard = true;
-
 	/** Pooled textures for use with RDG. */
 	TRefCountPtr<FRDGPooledTexture> TargetableTexture;
 	TRefCountPtr<FRDGPooledTexture> ShaderResourceTexture;
@@ -288,8 +285,7 @@ private:
 	TRefCountPtr<FPooledRenderTarget> FindFreeElementInternal(
 		FRHICommandList& RHICmdList,
 		const FPooledRenderTargetDesc& InputDesc,
-		const TCHAR* InDebugName,
-		bool bDoAcquireTransientResource);
+		const TCHAR* InDebugName);
 
 	static bool DoesTargetNeedTransienceOverride(ETextureCreateFlags Flags, ERenderTargetTransience TransienceHint);
 

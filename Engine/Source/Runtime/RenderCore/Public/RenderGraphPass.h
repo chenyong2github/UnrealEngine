@@ -12,13 +12,12 @@ public:
 	FRDGTransitionQueue() = default;
 	FRDGTransitionQueue(uint32 ReservedCount);
 
-	void Insert(const FRHITransition* Transition, ERHICreateTransitionFlags TransitionFlags);
+	void Insert(const FRHITransition* Transition, ERHITransitionCreateFlags TransitionFlags);
 	void Begin(FRHIComputeCommandList& RHICmdList);
 	void End(FRHIComputeCommandList& RHICmdList);
 
 private:
 	TArray<const FRHITransition*, TInlineAllocator<1, FRDGArrayAllocator>> Queue;
-	TArray<const FRHITransition*, TInlineAllocator<1, FRDGArrayAllocator>> QueueWithFences;
 };
 
 struct FRDGBarrierBatchBeginId
@@ -49,9 +48,11 @@ public:
 
 	void AddTransition(FRDGParentResourceRef Resource, const FRHITransitionInfo& Info);
 
+	void AddAlias(FRDGParentResourceRef Resource, const FRHITransientAliasingInfo& Info);
+
 	void SetUseCrossPipelineFence()
 	{
-		TransitionFlags = ERHICreateTransitionFlags::None;
+		TransitionFlags = ERHITransitionCreateFlags::None;
 		bTransitionNeeded = true;
 	}
 
@@ -61,7 +62,8 @@ public:
 private:
 	const FRHITransition* Transition = nullptr;
 	TArray<FRHITransitionInfo, TInlineAllocator<1, FRDGArrayAllocator>> Transitions;
-	ERHICreateTransitionFlags TransitionFlags = ERHICreateTransitionFlags::NoFence;
+	TArray<FRHITransientAliasingInfo, FRDGArrayAllocator> Aliases;
+	ERHITransitionCreateFlags TransitionFlags = ERHITransitionCreateFlags::NoFence;
 	bool bTransitionNeeded = false;
 
 	/** These pipelines masks are set at creation time and reset with each submission. */
@@ -70,12 +72,14 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	FRDGPassHandlesByPipeline DebugPasses;
-	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugResources;
+	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugTransitionResources;
+	TArray<FRDGParentResource*, FRDGArrayAllocator> DebugAliasingResources;
 	const TCHAR* DebugName;
 	ERHIPipeline DebugPipelinesToBegin;
 	ERHIPipeline DebugPipelinesToEnd;
 #endif
 
+	friend class FRDGBarrierBatchBegin;
 	friend class FRDGBarrierBatchEnd;
 	friend class FRDGBarrierValidation;
 };
@@ -299,8 +303,8 @@ protected:
 			uint32 bGraphicsFork : 1;
 			uint32 bGraphicsJoin : 1;
 
-			/** Whether the pass writes to a UAV. */
-			uint32 bUAVAccess : 1;
+			/** Whether the pass only writes to resources in its render pass. */
+			uint32 bRenderPassOnlyWrites : 1;
 
 			/** Whether the pass uses the immediate command list. */
 			uint32 bImmediateCommandList : 1;
@@ -352,15 +356,6 @@ protected:
 	/** Lists of pass parameters scheduled for begin during execution of this pass. */
 	TArray<FRDGPass*, TInlineAllocator<1, FRDGArrayAllocator>> ResourcesToBegin;
 	TArray<FRDGPass*, TInlineAllocator<1, FRDGArrayAllocator>> ResourcesToEnd;
-
-	/** List of textures to acquire *after* the pass completes, *before* discards. Acquires apply to all allocated textures. */
-	TArray<FRHITexture*, FRDGArrayAllocator> TexturesToAcquire;
-
-	/** List of textures to discard *after* the pass completes, *after* acquires. Discards only apply to textures marked as
-	 *  transient and the last alias of the texture uses the automatic discard behavior (in order to support cleaner hand-off
-	 *  to the user or back to the pool.
-	 */
-	TArray<FRHITexture*, FRDGArrayAllocator> TexturesToDiscard;
 
 	/** Split-barrier batches at various points of execution of the pass. */
 	FRDGBarrierBatchBegin* PrologueBarriersToBegin = nullptr;

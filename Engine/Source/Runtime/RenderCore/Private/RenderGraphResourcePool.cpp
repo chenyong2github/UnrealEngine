@@ -52,29 +52,30 @@ TRefCountPtr<FRDGPooledBuffer> FRenderGraphResourcePool::FindFreeBufferInternal(
 
 	// Allocate new one
 	{
-		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = new FRDGPooledBuffer(Desc);
-		AllocatedBuffers.Add(PooledBuffer);
-		check(PooledBuffer->GetRefCount() == 2);
-
-		PooledBuffer->Name = InDebugName;
-		PooledBuffer->LastUsedFrame = FrameCounter;
-
 		uint32 NumBytes = Desc.GetTotalNumBytes();
 
 		FRHIResourceCreateInfo CreateInfo(InDebugName);
+		TRefCountPtr<FRHIBuffer> BufferRHI;
 
 		if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
 		{
-			PooledBuffer->Buffer = RHICreateVertexBuffer(NumBytes, Desc.Usage, CreateInfo);
+			BufferRHI = RHICreateVertexBuffer(NumBytes, Desc.Usage, CreateInfo);
 		}
 		else if (Desc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
 		{
-			PooledBuffer->Buffer = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Desc.Usage, CreateInfo);
+			BufferRHI = RHICreateStructuredBuffer(Desc.BytesPerElement, NumBytes, Desc.Usage, CreateInfo);
 		}
 		else
 		{
 			check(0);
 		}
+
+		TRefCountPtr<FRDGPooledBuffer> PooledBuffer = FRDGPooledBuffer::CreateCommitted(MoveTemp(BufferRHI), Desc);
+		AllocatedBuffers.Add(PooledBuffer);
+		check(PooledBuffer->GetRefCount() == 2);
+
+		PooledBuffer->Name = InDebugName;
+		PooledBuffer->LastUsedFrame = FrameCounter;
 
 		return PooledBuffer;
 	}

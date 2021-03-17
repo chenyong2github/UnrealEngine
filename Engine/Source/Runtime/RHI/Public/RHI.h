@@ -1805,7 +1805,7 @@ inline constexpr bool IsValidAccess(ERHIAccess Access)
 	return !IsInvalidAccess(Access);
 }
 
-enum class ERHICreateTransitionFlags
+enum class ERHITransitionCreateFlags
 {
 	None = 0,
 
@@ -1816,7 +1816,7 @@ enum class ERHICreateTransitionFlags
 	// so should use a partial flush rather than a fence as this is more optimal.
 	NoSplit = 1 << 1
 };
-ENUM_CLASS_FLAGS(ERHICreateTransitionFlags);
+ENUM_CLASS_FLAGS(ERHITransitionCreateFlags);
 
 enum class EResourceTransitionFlags
 {
@@ -1830,16 +1830,6 @@ enum class EResourceTransitionFlags
 	Mask = (Last << 1) - 1
 };
 ENUM_CLASS_FLAGS(EResourceTransitionFlags);
-
-enum class ERHICreateTransientAllocationFlags
-{
-	// Discard data on acquire
-	Discard,
-
-	// Clear data on acquire
-	Clear,
-};
-ENUM_CLASS_FLAGS(ERHICreateTransientAllocationFlags);
 
 RHI_API FString GetRHIAccessName(ERHIAccess Access);
 RHI_API FString GetResourceTransitionFlagsName(EResourceTransitionFlags Flags);
@@ -1985,6 +1975,122 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 	}
 };
 
+struct FRHITransientAliasingInfo
+{
+	union
+	{
+		class FRHIResource* Resource = nullptr;
+		class FRHITexture* Texture;
+		class FRHIBuffer* Buffer;
+	};
+
+	enum class EType : uint8
+	{
+		Texture,
+		Buffer
+	} Type = EType::Texture;
+
+	enum class EAction : uint8
+	{
+		Acquire,
+		Discard
+	} Action = EAction::Acquire;
+
+	FRHITransientAliasingInfo() = default;
+
+	static FRHITransientAliasingInfo Acquire(class FRHITexture* Texture)
+	{
+		FRHITransientAliasingInfo Info;
+		Info.Texture = Texture;
+		Info.Type = EType::Texture;
+		Info.Action = EAction::Acquire;
+		return Info;
+	}
+
+	static FRHITransientAliasingInfo Acquire(class FRHIBuffer* Buffer)
+	{
+		FRHITransientAliasingInfo Info;
+		Info.Buffer = Buffer;
+		Info.Type = EType::Buffer;
+		Info.Action = EAction::Acquire;
+		return Info;
+	}
+
+	static FRHITransientAliasingInfo Discard(class FRHITexture* Texture)
+	{
+		FRHITransientAliasingInfo Info;
+		Info.Texture = Texture;
+		Info.Type = EType::Texture;
+		Info.Action = EAction::Discard;
+		return Info;
+	}
+
+	static FRHITransientAliasingInfo Discard(class FRHIBuffer* Buffer)
+	{
+		FRHITransientAliasingInfo Info;
+		Info.Buffer = Buffer;
+		Info.Type = EType::Buffer;
+		Info.Action = EAction::Discard;
+		return Info;
+	}
+
+	bool IsAcquire() const
+	{
+		return Action == EAction::Acquire;
+	}
+
+	bool IsDiscard() const
+	{
+		return Action == EAction::Discard;
+	}
+
+	bool IsTexture() const
+	{
+		return Type == EType::Texture;
+	}
+
+	bool IsBuffer() const
+	{
+		return Type == EType::Buffer;
+	}
+
+	inline bool operator == (const FRHITransientAliasingInfo& RHS) const
+	{
+		return Resource == RHS.Resource
+			&& Type == RHS.Type
+			&& Action == RHS.Action;
+	}
+
+	inline bool operator != (const FRHITransientAliasingInfo& RHS) const
+	{
+		return !(*this == RHS);
+	}
+};
+
+struct FRHITransitionCreateInfo
+{
+	FRHITransitionCreateInfo() = default;
+
+	FRHITransitionCreateInfo(
+		ERHIPipeline InSrcPipelines,
+		ERHIPipeline InDstPipelines,
+		ERHITransitionCreateFlags InFlags = ERHITransitionCreateFlags::None,
+		TArrayView<const FRHITransitionInfo> InTransitionInfos = {},
+		TArrayView<const FRHITransientAliasingInfo> InAliasingInfos = {})
+		: SrcPipelines(InSrcPipelines)
+		, DstPipelines(InDstPipelines)
+		, Flags(InFlags)
+		, TransitionInfos(InTransitionInfos)
+		, AliasingInfos(InAliasingInfos)
+	{}
+
+	ERHIPipeline SrcPipelines = ERHIPipeline::None;
+	ERHIPipeline DstPipelines = ERHIPipeline::None;
+	ERHITransitionCreateFlags Flags = ERHITransitionCreateFlags::None;
+	TArrayView<const FRHITransitionInfo> TransitionInfos;
+	TArrayView<const FRHITransientAliasingInfo> AliasingInfos;
+};
+
 #include "RHIValidationCommon.h"
 
 // Opaque data structure used to represent a pending resource transition in the RHI.
@@ -2024,7 +2130,7 @@ private:
 	{}
 
 	// Give private access to specific functions/RHI commands that need to allocate or control transitions.
-	friend const FRHITransition* RHICreateTransition(ERHIPipeline, ERHIPipeline, ERHICreateTransitionFlags, TArrayView<const struct FRHITransitionInfo>);
+	friend const FRHITransition* RHICreateTransition(const FRHITransitionCreateInfo&);
 	friend class FRHIComputeCommandList;
 	friend struct FRHICommandBeginTransitions;
 	friend struct FRHICommandEndTransitions;
@@ -2084,6 +2190,10 @@ private:
 	friend class FValidationComputeContext;
 	friend class FValidationContext;
 
+	RHIValidation::FOperationsList PendingSignals;
+	RHIValidation::FOperationsList PendingWaits;
+	RHIValidation::FOperationsList PendingAcquires;
+	RHIValidation::FOperationsList PendingDiscards;
 	RHIValidation::FOperationsList PendingOperationsBegin;
 	RHIValidation::FOperationsList PendingOperationsEnd;
 #endif

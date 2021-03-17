@@ -878,9 +878,10 @@ private:
 struct FD3D12TransitionData
 {
 	ERHIPipeline SrcPipelines, DstPipelines;
-	ERHICreateTransitionFlags CreateFlags = ERHICreateTransitionFlags::None;
+	ERHITransitionCreateFlags CreateFlags = ERHITransitionCreateFlags::None;
 
-	TArray<FRHITransitionInfo, TInlineAllocator<4>> Infos;
+	TArray<FRHITransitionInfo, TInlineAllocator<4>> TransitionInfos;
+	TArray<FRHITransientAliasingInfo, TInlineAllocator<4>> AliasingInfos;
 	TRefCountPtr<FD3D12Fence> Fence;
 
 	bool bCrossPipeline = false;

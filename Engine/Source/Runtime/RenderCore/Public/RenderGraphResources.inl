@@ -107,6 +107,28 @@ inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc)
 	return OutDesc;
 }
 
+inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc)
+{
+	FRHIBufferCreateInfo CreateInfo;
+	CreateInfo.Size = InDesc.GetTotalNumBytes();
+	if (InDesc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::VertexBuffer)
+	{
+		CreateInfo.Stride = 0;
+		CreateInfo.Usage = InDesc.Usage | BUF_VertexBuffer;
+	}
+	else if (InDesc.UnderlyingType == FRDGBufferDesc::EUnderlyingType::StructuredBuffer)
+	{
+		CreateInfo.Stride = InDesc.BytesPerElement;
+		CreateInfo.Usage = InDesc.Usage | BUF_StructuredBuffer;
+	}
+	else
+	{
+		check(0);
+	}
+
+	return CreateInfo;
+}
+
 FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTexture InTexture)
 {
 	check(InDesc.IsValid());

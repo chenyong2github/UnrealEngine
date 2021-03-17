@@ -35,7 +35,7 @@ FRDGParentResource::FRDGParentResource(const TCHAR* InName, const ERDGParentReso
 
 FRDGParentResource::~FRDGParentResource()
 {
-	check(GRDGImmediateMode || ReferenceCount == 0);
+	check(IsImmediateMode() || ReferenceCount == 0);
 }
 
 void FRDGParentResource::SetPassthroughRHI(FRHIResource* InResourceRHI)
@@ -162,48 +162,19 @@ bool FRDGSubresourceState::IsTransitionRequired(const FRDGSubresourceState& Prev
 	return false;
 }
 
-bool FRDGTextureDesc::IsValid() const
-{
-	if (Extent.X <= 0 || Extent.Y <= 0 || Depth == 0 || ArraySize == 0 || NumMips == 0 || NumSamples < 1 || NumSamples > 8)
-	{
-		return false;
-	}
-
-	if (NumSamples > 1 && !(Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray))
-	{
-		return false;
-	}
-
-	if (Dimension == ETextureDimension::Texture3D)
-	{
-		if (ArraySize > 1)
-		{
-			return false;
-		}
-	}
-	else if (Depth > 1)
-	{
-		return false;
-	}
-
-	if (Format == PF_Unknown)
-	{
-		return false;
-	}
-
-	return true;
-}
-
 void FRDGPooledTexture::InitViews(const FUnorderedAccessViewRHIRef& FirstMipUAV)
 {
-	if (EnumHasAnyFlags(Desc.Flags, TexCreate_ShaderResource))
+	const ETextureCreateFlags Flags = Texture->GetFlags();
+	const uint32 NumMips = Texture->GetNumMips();
+
+	if (EnumHasAnyFlags(Flags, TexCreate_ShaderResource))
 	{
-		SRVs.Empty(Desc.NumMips);
+		SRVs.Empty();
 	}
 
-	if (EnumHasAnyFlags(Desc.Flags, TexCreate_UAV))
+	if (EnumHasAnyFlags(Flags, TexCreate_UAV))
 	{
-		MipUAVs.Empty(Desc.NumMips);
+		MipUAVs.Empty(NumMips);
 
 		uint32 MipLevel = 0;
 
@@ -213,11 +184,26 @@ void FRDGPooledTexture::InitViews(const FUnorderedAccessViewRHIRef& FirstMipUAV)
 			MipLevel++;
 		}
 
-		for (; MipLevel < Desc.NumMips; MipLevel++)
+		for (; MipLevel < NumMips; MipLevel++)
 		{
 			MipUAVs.Add(RHICreateUnorderedAccessView(Texture, MipLevel));
 		}
 	}
+}
+
+void FRDGPooledTexture::Finalize()
+{
+	for (FRDGSubresourceState& SubresourceState : State)
+	{
+		SubresourceState.Finalize();
+	}
+	Owner = nullptr;
+}
+
+void FRDGPooledTexture::Reset()
+{
+	InitAsWholeResource(State);
+	Owner = nullptr;
 }
 
 FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
@@ -232,32 +218,37 @@ FRDGTextureSubresourceRange FRDGTexture::GetSubresourceRangeSRV() const
 	return Range;
 }
 
-void FRDGTexture::SetRHI(FPooledRenderTarget* InPooledRenderTarget, FRDGTextureRef& OutPreviousOwner)
+void FRDGTexture::SetRHI(FPooledRenderTarget* InPooledRenderTarget)
 {
 	check(InPooledRenderTarget);
+	Allocation = InPooledRenderTarget;
+	PooledRenderTarget = InPooledRenderTarget;
 
 	if (!InPooledRenderTarget->HasRDG())
 	{
 		InPooledRenderTarget->InitRDG();
 	}
-	PooledTexture = InPooledRenderTarget->GetRDG(RenderTargetTexture);
-	check(PooledTexture);
 
+	SetRHI(InPooledRenderTarget->GetRDG(RenderTargetTexture));
+}
+
+void FRDGTexture::SetRHI(FRDGPooledTexture* InPooledTexture)
+{
+	check(InPooledTexture);
+	PooledTexture = InPooledTexture;
 	State = &PooledTexture->State;
 
 	// Return the previous owner and assign this texture as the new one.
-	OutPreviousOwner = PooledTexture->Owner;
+	FRDGTextureRef PreviousOwner = PooledTexture->Owner;
 	PooledTexture->Owner = this;
 
 	// Link the previous alias to this one.
-	if (OutPreviousOwner)
+	if (PreviousOwner)
 	{
-		OutPreviousOwner->NextOwner = Handle;
-		OutPreviousOwner->bLastOwner = false;
+		PreviousOwner->NextOwner = Handle;
+		PreviousOwner->bLastOwner = false;
 	}
 
-	Allocation = InPooledRenderTarget;
-	PooledRenderTarget = InPooledRenderTarget;
 	ResourceRHI = PooledTexture->GetRHI();
 	check(ResourceRHI);
 }
@@ -279,24 +270,27 @@ void FRDGTexture::Finalize()
 			PooledTexture->Finalize();
 		}
 
-		// Restore the reference to the last owner in the aliasing chain.
-		Allocation = PooledRenderTarget;
+		// Restore the reference to the last owner in the aliasing chain; not necessary for the transient resource allocator.
+		if (PooledRenderTarget)
+		{
+			Allocation = PooledRenderTarget;
+		}
 	}
 }
 
-void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer, FRDGBufferRef& OutPreviousOwner)
+void FRDGBuffer::SetRHI(FRDGPooledBuffer* InPooledBuffer)
 {
 	check(InPooledBuffer);
 
 	// Return the previous owner and assign this buffer as the new one.
-	OutPreviousOwner = InPooledBuffer->Owner;
+	FRDGBuffer* PreviousOwner = InPooledBuffer->Owner;
 	InPooledBuffer->Owner = this;
 
 	// Link the previous owner to this one.
-	if (OutPreviousOwner)
+	if (PreviousOwner)
 	{
-		OutPreviousOwner->NextOwner = Handle;
-		OutPreviousOwner->bLastOwner = false;
+		PreviousOwner->NextOwner = Handle;
+		PreviousOwner->bLastOwner = false;
 	}
 
 	PooledBuffer = InPooledBuffer;
@@ -323,7 +317,7 @@ void FRDGBuffer::Finalize()
 			PooledBuffer->Finalize();
 		}
 
-		// Restore the reference to the last owner in the chain and sanitize all graph state.
+		// Restore the reference to the last owner in the aliasing chain.
 		Allocation = PooledBuffer;
 	}
 }

@@ -77,6 +77,10 @@ struct FRDGTextureSubresourceLayout
 		, NumArraySlices(InNumArraySlices)
 	{}
 
+	FRDGTextureSubresourceLayout(const FRHITextureCreateInfo& CreateInfo)
+		: FRDGTextureSubresourceLayout(CreateInfo.NumMips, CreateInfo.ArraySize * (CreateInfo.IsTextureCube() ? 6 : 1), IsStencilFormat(CreateInfo.Format) ? 2 : 1)
+	{}
+
 	inline uint32 GetSubresourceCount() const
 	{
 		return NumMips * NumArraySlices * NumPlaneSlices;

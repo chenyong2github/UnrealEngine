@@ -180,9 +180,12 @@ void FValidationRHI::ValidatePipeline(const FGraphicsPipelineStateInitializer& P
 	}
 }
 
-void FValidationRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo)
 {
 	using namespace RHIValidation;
+
+	const ERHIPipeline SrcPipelines = CreateInfo.SrcPipelines;
+	const ERHIPipeline DstPipelines = CreateInfo.DstPipelines;
 
 	struct FFenceEdge
 	{
@@ -218,20 +221,61 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipelin
 		}
 	}
 
-	TArray<FOperation> BeginOps, EndOps;
-	BeginOps.Reserve(Infos.Num() + Fences.Num());
-	EndOps  .Reserve(Infos.Num() + Fences.Num());
+	TArray<FOperation> SignalOps, WaitOps, AcquireOps, DiscardOps, BeginOps, EndOps;
+	SignalOps .Reserve(Fences.Num());
+	WaitOps   .Reserve(Fences.Num());
+	AcquireOps.Reserve(CreateInfo.AliasingInfos.Num());
+	DiscardOps.Reserve(CreateInfo.AliasingInfos.Num());
+	BeginOps  .Reserve(CreateInfo.TransitionInfos.Num());
+	EndOps    .Reserve(CreateInfo.TransitionInfos.Num());
 
 	for (const FFenceEdge& FenceEdge : Fences)
 	{
-		EndOps.Emplace(FOperation::Wait(FenceEdge.Fence, FenceEdge.DstPipe));
+		WaitOps.Emplace(FOperation::Wait(FenceEdge.Fence, FenceEdge.DstPipe));
 	}
 
+	// Take a backtrace of this transition creation if any of the resources it contains have logging enabled.
 	bool bDoTrace = false;
 
-	for (int32 Index = 0; Index < Infos.Num(); ++Index)
+	for (const FRHITransientAliasingInfo& Info : CreateInfo.AliasingInfos)
 	{
-		const FRHITransitionInfo& Info = Infos[Index];
+		if (!Info.Resource)
+		{
+			continue;
+		}
+
+		FResource* Resource = nullptr;
+
+		if (Info.Type == FRHITransientAliasingInfo::EType::Texture)
+		{
+			Resource = Info.Texture->GetTrackerResource();
+		}
+		else
+		{
+			Resource = Info.Buffer;
+		}
+
+		bDoTrace |= (Resource->LoggingMode != RHIValidation::ELoggingMode::None);
+
+		if (Info.IsAcquire())
+		{
+			checkf(Resource->TransientState.bTransient, TEXT("Acquiring resource %s which is not transient. Only transient resources can be acquired."), Resource->GetDebugName());
+			checkf(SrcPipelines == ERHIPipeline::Graphics, TEXT("Acquiring a transient resource (%s) must begin on the graphics pipe."), Resource->GetDebugName());
+
+			AcquireOps.Emplace(FOperation::AcquireTransientResource(Resource, nullptr));
+		}
+		else
+		{
+			checkf(Resource->TransientState.bTransient, TEXT("Discarding resource %s which is not transient. Only transient resources can be discarded."), Resource->GetDebugName());
+			checkf(DstPipelines == ERHIPipeline::Graphics, TEXT("Discarding a transient resource (%s) must end on the graphics pipe."), Resource->GetDebugName());
+
+			DiscardOps.Emplace(FOperation::DiscardTransientResource(Resource, nullptr));
+		}
+	}
+
+	for (int32 Index = 0; Index < CreateInfo.TransitionInfos.Num(); ++Index)
+	{
+		const FRHITransitionInfo& Info = CreateInfo.TransitionInfos[Index];
 		if (!Info.Resource)
 			continue;
 
@@ -255,7 +299,6 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipelin
 			break;
 		}
 
-		// Take a backtrace of this transition creation if any of the resources it contains have logging enabled.
 		bDoTrace |= (Identity.Resource->LoggingMode != RHIValidation::ELoggingMode::None);
 
 		FState PreviousState = FState(Info.AccessBefore, SrcPipelines);
@@ -268,19 +311,25 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipelin
 	if (bDoTrace)
 	{
 		void* Backtrace = CaptureBacktrace();
+		for (FOperation& Op : AcquireOps) { Op.Data_AcquireTransient.CreateBacktrace = Backtrace; }
+		for (FOperation& Op : DiscardOps) { Op.Data_DiscardTransient.CreateBacktrace = Backtrace; }
 		for (FOperation& Op : BeginOps) { Op.Data_BeginTransition.CreateBacktrace = Backtrace; }
 		for (FOperation& Op : EndOps) { Op.Data_EndTransition.CreateBacktrace = Backtrace; }
 	}
 
 	for (const FFenceEdge& FenceEdge : Fences)
 	{
-		BeginOps.Emplace(FOperation::Signal(FenceEdge.Fence, FenceEdge.SrcPipe));
+		SignalOps.Emplace(FOperation::Signal(FenceEdge.Fence, FenceEdge.SrcPipe));
 	}
 
+	Transition->PendingSignals.Operations = MoveTemp(SignalOps);
+	Transition->PendingWaits.Operations = MoveTemp(WaitOps);
+	Transition->PendingAcquires.Operations = MoveTemp(AcquireOps);
+	Transition->PendingDiscards.Operations = MoveTemp(DiscardOps);
 	Transition->PendingOperationsBegin.Operations = MoveTemp(BeginOps);
 	Transition->PendingOperationsEnd.Operations = MoveTemp(EndOps);
 
-	return RHI->RHICreateTransition(Transition, SrcPipelines, DstPipelines, CreateFlags, Infos);
+	return RHI->RHICreateTransition(Transition, CreateInfo);
 }
 
 void FValidationRHI::ReportValidationFailure(const TCHAR* InMessage)
@@ -449,6 +498,10 @@ namespace RHIValidation
 	TEXT("--------------------------------------------------------------------\n")\
 	TEXT("\n\n")
 
+#define BARRIER_TRACKER_LOG_ENABLE_TRANSITION_BACKTRACE \
+	TEXT("    --- Enable barrier logging for this resource to see a callstack backtrace for the RHIBeginTransitions() call ") \
+	TEXT("which has not been completed. Use -RHIValidationLog=X,Y,Z to enable backtrace logging for individual resources.\n\n")
+
 	static inline FString GetResourceDebugName(FResource const* Resource, FSubresourceIndex const& SubresourceIndex)
 	{
 		const TCHAR* DebugName = Resource->GetDebugName();
@@ -511,7 +564,38 @@ namespace RHIValidation
 		}
 		else
 		{
-			return TEXT("    --- Enable barrier logging for this resource to see a callstack backtrace for the RHIBeginTransitions() call which has not been completed. See RHIValidation.cpp.\n\n");
+			return BARRIER_TRACKER_LOG_ENABLE_TRANSITION_BACKTRACE;
+		}
+	}
+
+	static inline FString GetReasonString_Backtrace(const TCHAR* OperationPrefix, const TCHAR* TracePrefix, void* Trace)
+	{
+		if (Trace)
+		{
+			return FString::Printf(
+				TEXT("    --- Callstack backtrace for %s operation (resolve in the Watch window):\n")
+				TEXT("        %s: (void**)0x%p,32\n"),
+				OperationPrefix,
+				TracePrefix,
+				Trace);
+		}
+		else
+		{
+			return FString(BARRIER_TRACKER_LOG_ENABLE_TRANSITION_BACKTRACE);
+		}
+	}
+
+	static inline FString GetReasonString_DuplicateBackTrace(void* PreviousTrace, void* CurrentTrace)
+	{
+		if (PreviousTrace || CurrentTrace)
+		{
+			return
+				GetReasonString_Backtrace(TEXT("previous"), TEXT("RHICreateTransition"), PreviousTrace) +
+				GetReasonString_Backtrace(TEXT("current"), TEXT("RHICreateTransition"), CurrentTrace);
+		}
+		else
+		{
+			return BARRIER_TRACKER_LOG_ENABLE_TRANSITION_BACKTRACE;
 		}
 	}
 
@@ -538,6 +622,78 @@ namespace RHIValidation
 			*GetRHIPipelineName(PendingState.Pipelines),
 			*GetRHIPipelineName(AttemptedState.Pipelines),
 			*GetReasonString_BeginBacktrace(CreateTrace, BeginTrace));
+	}
+
+	static inline FString GetReasonString_TransitionWithoutAcquire(FResource* Resource)
+	{
+		FString DebugName = GetResourceDebugName(Resource, {});
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("Attempted a resource transition for transient resource %s without acquiring it. Transient resources must be acquired before any transitions are begun and discarded after all transitions are complete.\n")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*DebugName);
+	}
+
+	static inline FString GetReasonString_AcquireNonTransient(FResource* Resource)
+	{
+		FString DebugName = GetResourceDebugName(Resource, {});
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("Attempted to acquire non-transient resource %s. Only transient resources may be acquired with the transient aliasing API.\n")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*DebugName);
+	}
+
+	static inline FString GetReasonString_DiscardNonTransient(FResource* Resource)
+	{
+		FString DebugName = GetResourceDebugName(Resource, {});
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("Attempted to discard non-transient resource %s. Only transient resources may be discarded with the transient aliasing API.\n")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*DebugName);
+	}
+
+	static inline FString GetReasonString_DuplicateAcquireTransient(FResource* Resource, void* PreviousAcquireTrace, void* CurrentAcquireTrace)
+	{
+		FString DebugName = GetResourceDebugName(Resource, {});
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("Mismatched acquire of transient resource %s. A transient resource may only be acquired once in its lifetime.\n")
+			TEXT("%s")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*DebugName,
+			*GetReasonString_DuplicateBackTrace(PreviousAcquireTrace, CurrentAcquireTrace));
+	}
+
+	static inline FString GetReasonString_DuplicateDiscardTransient(FResource* Resource, void* PreviousDiscardTrace, void* CurrentDiscardTrace)
+	{
+		FString DebugName = GetResourceDebugName(Resource, {});
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("Mismatched discard of transient resource %s. A transient resource may only be discarded once in its lifetime.\n")
+			TEXT("%s")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*DebugName,
+			*GetReasonString_DuplicateBackTrace(PreviousDiscardTrace, CurrentDiscardTrace));
+	}
+
+	static inline FString GetReasonString_DiscardWithoutAcquireTransient(FResource* Resource, void* DiscardTrace)
+	{
+		FString DebugName = GetResourceDebugName(Resource, {});
+		return FString::Printf(
+			BARRIER_TRACKER_LOG_PREFIX_RESNAME
+			TEXT("Attempted to discard transient resource %s, but it was never acquired.\n")
+			TEXT("%s")
+			BARRIER_TRACKER_LOG_SUFFIX,
+			*DebugName,
+			*DebugName,
+			*GetReasonString_Backtrace(TEXT("acquire"), TEXT("RHICreateTransition"), DiscardTrace));
 	}
 
 	static inline FString GetReasonString_DuplicateBeginTransition(
@@ -691,6 +847,68 @@ namespace RHIValidation
 			*GetRHIPipelineName(RequiredState.Pipelines));
 	}
 
+	static inline void* Log(FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* TracePrefix, const TCHAR* Type, const TCHAR* LogStr)
+	{
+		void* Trace = CaptureBacktrace();
+
+		if (CreateTrace)
+		{
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, CreateTrace: 0x%p, %sTrace: 0x%p\n"),
+				*GetResourceDebugName(Resource, SubresourceIndex),
+				Type,
+				LogStr,
+				CreateTrace,
+				TracePrefix,
+				Trace);
+		}
+		else
+		{
+			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, Trace: 0x%p\n"),
+				*GetResourceDebugName(Resource, SubresourceIndex),
+				Type,
+				LogStr,
+				Trace);
+		}
+
+		return Trace;
+	}
+
+	void FTransientState::Acquire(FResource* Resource, void* CreateTrace)
+	{
+		RHI_VALIDATION_CHECK(bTransient, *GetReasonString_AcquireNonTransient(Resource));
+		RHI_VALIDATION_CHECK(Status == EStatus::None, *GetReasonString_DuplicateAcquireTransient(Resource, AcquireBacktrace, CreateTrace));
+		Status = EStatus::Acquired;
+
+		if (!AcquireBacktrace)
+		{
+			AcquireBacktrace = CreateTrace;
+		}
+
+		if (Resource->LoggingMode != ELoggingMode::None)
+		{
+			Log(Resource, {}, CreateTrace, TEXT("Acquire"), TEXT("Acquire"), TEXT("Transient Acquire"));
+		}
+	}
+
+	void FTransientState::Discard(FResource* Resource, void* CreateTrace)
+	{
+		RHI_VALIDATION_CHECK(bTransient, *GetReasonString_DiscardNonTransient(Resource));
+
+		RHI_VALIDATION_CHECK(Status != EStatus::None, *GetReasonString_DiscardWithoutAcquireTransient(Resource, CreateTrace));
+		RHI_VALIDATION_CHECK(Status != EStatus::Discarded, *GetReasonString_DuplicateDiscardTransient(Resource, DiscardBacktrace, CreateTrace));
+		Status = EStatus::Discarded;
+
+		if (!DiscardBacktrace)
+		{
+			DiscardBacktrace = CreateTrace;
+		}
+
+		if (Resource->LoggingMode != ELoggingMode::None)
+		{
+			Log(Resource, {}, CreateTrace, TEXT("Discard"), TEXT("Discard"), TEXT("Transient Discard"));
+		}
+	}
+
 	void FResource::SetDebugName(const TCHAR* Name, const TCHAR* Suffix)
 	{
 		DebugName = Suffix
@@ -717,32 +935,6 @@ namespace RHIValidation
 		}
 	}
 
-	void* FSubresourceState::Log(FResource* Resource, FSubresourceIndex const& SubresourceIndex, void* CreateTrace, const TCHAR* TracePrefix, const TCHAR* Type, const TCHAR* LogStr)
-	{
-		void* Trace = CaptureBacktrace();
-
-		if (CreateTrace)
-		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, CreateTrace: 0x%p, %sTrace: 0x%p\n"),
-				*GetResourceDebugName(Resource, SubresourceIndex),
-				Type,
-				LogStr,
-				CreateTrace,
-				TracePrefix,
-				Trace);
-		}
-		else
-		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("\n%s: Type: %s, %s, Trace: 0x%p\n"),
-				*GetResourceDebugName(Resource, SubresourceIndex),
-				Type,
-				LogStr,
-				Trace);
-		}
-
-		return Trace;
-	}
-
 	void FSubresourceState::BeginTransition(FResource* Resource, FSubresourceIndex const& SubresourceIndex, const FState& CurrentStateFromRHI, const FState& TargetState, EResourceTransitionFlags NewFlags, ERHIPipeline ExecutingPipeline, void* CreateTrace)
 	{
 		FPipelineState& State = States[ExecutingPipeline];
@@ -760,6 +952,11 @@ namespace RHIValidation
 				*GetResourceTransitionFlagsName(NewFlags),
 				*GetRHIPipelineName(ExecutingPipeline)
 			));
+		}
+
+		if (Resource->TransientState.bTransient)
+		{
+			RHI_VALIDATION_CHECK(Resource->TransientState.IsAcquired(), *GetReasonString_TransitionWithoutAcquire(Resource));
 		}
 
 		// Check we're not already transitioning
@@ -820,6 +1017,11 @@ namespace RHIValidation
 		RHI_VALIDATION_CHECK(State.bTransitioning, TEXT("Unsolicited resource end transition call."));
 		State.bTransitioning = false;
 		State.BeginTransitionBacktrace = nullptr;
+
+		if (Resource->TransientState.bTransient)
+		{
+			RHI_VALIDATION_CHECK(Resource->TransientState.IsAcquired(), *GetReasonString_TransitionWithoutAcquire(Resource));
+		}
 
 		// Check that the end matches the begin.
 		RHI_VALIDATION_CHECK(TargetState == State.Current, *GetReasonString_MismatchedEndTransition(Resource, SubresourceIndex, State.Current, TargetState));
@@ -970,6 +1172,16 @@ namespace RHIValidation
 					Data_EndTransition.CreateBacktrace);
 			});
 			Data_EndTransition.Identity.Resource->ReleaseOpRef();
+			break;
+
+		case EOpType::AcquireTransient:
+			Data_AcquireTransient.Resource->TransientState.Acquire(Data_AcquireTransient.Resource, Data_AcquireTransient.CreateBacktrace);
+			Data_AcquireTransient.Resource->ReleaseOpRef();
+			break;
+
+		case EOpType::DiscardTransient:
+			Data_DiscardTransient.Resource->TransientState.Discard(Data_DiscardTransient.Resource, Data_DiscardTransient.CreateBacktrace);
+			Data_AcquireTransient.Resource->ReleaseOpRef();
 			break;
 
 		case EOpType::Assert:
@@ -1205,6 +1417,7 @@ FValidationTransientResourceAllocator::~FValidationTransientResourceAllocator()
 FRHITexture* FValidationTransientResourceAllocator::CreateTexture(const FRHITextureCreateInfo& InCreateInfo, const TCHAR* InDebugName)
 {
 	check(!bFrozen);
+	checkf(!EnumHasAnyFlags(InCreateInfo.Flags, TexCreate_Transient), TEXT("Attempted to create transient texture %s using legacy TexCreate_Transient flag."), InDebugName);
 
 	FRHITexture* RHITexture = RHIAllocator->CreateTexture(InCreateInfo, InDebugName);
 
@@ -1224,6 +1437,7 @@ FRHITexture* FValidationTransientResourceAllocator::CreateTexture(const FRHIText
 FRHIBuffer* FValidationTransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName)
 {
 	check(!bFrozen);
+	checkf(!EnumHasAnyFlags(InCreateInfo.Usage, BUF_Transient), TEXT("Attempted to create transient buffer %s using legacy BUF_Transient flag."), InDebugName);
 
 	FRHIBuffer* RHIBuffer = RHIAllocator->CreateBuffer(InCreateInfo, InDebugName);
 
@@ -1296,6 +1510,8 @@ void FValidationTransientResourceAllocator::Freeze()
 	}
 
 	bFrozen = true;
+
+	RHIAllocator->Freeze();
 }
 
 #endif	// ENABLE_RHI_VALIDATION

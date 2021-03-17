@@ -290,13 +290,17 @@ public:
 	DerivedType* Allocate(FRDGAllocator& Allocator, TArgs&&... Args)
 	{
 		static_assert(TIsDerivedFrom<DerivedType, ObjectType>::Value, "You must specify a type that derives from ObjectType");
-		DerivedType* Object = Allocator.Alloc<DerivedType>(Forward<TArgs>(Args)...);
+		DerivedType* Object = Allocator.AllocNoDestruct<DerivedType>(Forward<TArgs>(Args)...);
 		Insert(Object);
 		return Object;
 	}
 
 	void Clear()
 	{
+		for (int32 Index = Array.Num() - 1; Index >= 0; --Index)
+		{
+			Array[Index]->~ObjectType();
+		}
 		Array.Empty();
 	}
 
@@ -415,7 +419,7 @@ const TRDGHandle<ObjectType, IndexType> TRDGHandle<ObjectType, IndexType>::Null;
 
 /** FORWARD DECLARATIONS */
 
-struct FRDGTextureDesc;
+using FRDGTextureDesc = FRHITextureCreateInfo;
 
 class FRDGBlackboard;
 

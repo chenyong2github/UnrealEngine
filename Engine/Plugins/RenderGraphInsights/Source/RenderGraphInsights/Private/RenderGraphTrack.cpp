@@ -1397,6 +1397,11 @@ void FRenderGraphTrack::InitTooltip(FTooltipDrawState& Tooltip, const ITimingEve
 			{
 				Tooltip.AddTextLine(TEXT("External"), FLinearColor::Red);
 			}
+
+			if (Resource.bTransient)
+			{
+				Tooltip.AddTextLine(TEXT("Transient"), FLinearColor::Red);
+			}
 		};
 
 		if (InTooltipEvent.Is<FVisibleScopeEvent>())

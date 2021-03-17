@@ -50,6 +50,7 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, BufferMessage)
 	UE_TRACE_EVENT_FIELD(bool, IsExternal)
 	UE_TRACE_EVENT_FIELD(bool, IsExtracted)
 	UE_TRACE_EVENT_FIELD(bool, IsCulled)
+	UE_TRACE_EVENT_FIELD(bool, IsTransient)
 UE_TRACE_EVENT_END()
  
 UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
@@ -73,6 +74,7 @@ UE_TRACE_EVENT_BEGIN(RDGTrace, TextureMessage)
 	UE_TRACE_EVENT_FIELD(bool, IsExternal)
 	UE_TRACE_EVENT_FIELD(bool, IsExtracted)
 	UE_TRACE_EVENT_FIELD(bool, IsCulled)
+	UE_TRACE_EVENT_FIELD(bool, IsTransient)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(RDGTrace, ScopeMessage)
@@ -88,7 +90,7 @@ static_assert(sizeof(FRDGBufferHandle) == sizeof(uint16), "Expected 16 bit buffe
 
 bool IsTraceEnabled()
 {
-	return UE_TRACE_CHANNELEXPR_IS_ENABLED(RDGChannel) && !GRDGImmediateMode;
+	return UE_TRACE_CHANNELEXPR_IS_ENABLED(RDGChannel) && !IsImmediateMode();
 }
 
 void FRDGTrace::OutputGraphBegin()
@@ -239,7 +241,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< TextureMessage.NumSamples(Texture->Desc.NumSamples)
 			<< TextureMessage.IsExternal(bool(Texture->bExternal))
 			<< TextureMessage.IsExtracted(bool(Texture->bExtracted))
-			<< TextureMessage.IsCulled(bool(Texture->bCulled));
+			<< TextureMessage.IsCulled(bool(Texture->bCulled))
+			<< TextureMessage.IsTransient(bool(Texture->bTransient));
 	}
 
 	for (FRDGBufferHandle Handle = Buffers.Begin(); Handle != Buffers.End(); ++Handle)
@@ -257,7 +260,8 @@ void FRDGTrace::OutputGraphEnd(const FRDGBuilder& GraphBuilder)
 			<< BufferMessage.NumElements(Buffer->Desc.NumElements)
 			<< BufferMessage.IsExternal(bool(Buffer->bExternal))
 			<< BufferMessage.IsExtracted(bool(Buffer->bExtracted))
-			<< BufferMessage.IsCulled(bool(Buffer->bCulled));
+			<< BufferMessage.IsCulled(bool(Buffer->bCulled))
+			<< BufferMessage.IsTransient(bool(Buffer->bTransient));
 	}
 
 	UE_TRACE_LOG(RDGTrace, GraphEndMessage, RDGChannel);

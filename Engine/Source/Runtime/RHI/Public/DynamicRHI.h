@@ -427,7 +427,7 @@ public:
 		return new FGenericRHIGPUFence(Name);
 	}
 
-	virtual void RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+	virtual void RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo)
 	{
 	}
 
@@ -1621,12 +1621,18 @@ FORCEINLINE class IRHICommandContextContainer* RHIGetCommandContextContainer(int
 
 RHI_API FRenderQueryPoolRHIRef RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 NumQueries = UINT32_MAX);
 
-FORCEINLINE const FRHITransition* RHICreateTransition(ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+FORCEINLINE const FRHITransition* RHICreateTransition(const FRHITransitionCreateInfo& CreateInfo)
 {
 	// Placement create the transition on the heap.
-	FRHITransition* Transition = new (FMemory::Malloc(FRHITransition::GetTotalAllocationSize(), FRHITransition::GetAlignment())) FRHITransition(SrcPipelines, DstPipelines);
-	GDynamicRHI->RHICreateTransition(Transition, SrcPipelines, DstPipelines, CreateFlags, Infos);
+	FRHITransition* Transition = new (FMemory::Malloc(FRHITransition::GetTotalAllocationSize(), FRHITransition::GetAlignment())) FRHITransition(CreateInfo.SrcPipelines, CreateInfo.DstPipelines);
+	GDynamicRHI->RHICreateTransition(Transition, CreateInfo);
 	return Transition;
+}
+
+UE_DEPRECATED(5.0, "Use the FRHITransitionCreateInfo version of RHICreateTransition instead.")
+FORCEINLINE const FRHITransition* RHICreateTransition(ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHITransitionCreateFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+{
+	return RHICreateTransition(FRHITransitionCreateInfo(SrcPipelines, DstPipelines, CreateFlags, Infos));
 }
 
 FORCEINLINE void RHIReleaseTransition(FRHITransition* Transition)

@@ -86,12 +86,6 @@ FAutoConsoleVariableRef CVarRDGOverlapUAVs(
 	TEXT("RDG will overlap UAV work when requested; if disabled, UAV barriers are always inserted."),
 	ECVF_RenderThreadSafe);
 
-int32 GRDGExtendResourceLifetimes = 0;
-FAutoConsoleVariableRef CVarRDGExtendResourceLifetimes(
-	TEXT("r.RDG.ExtendResourceLifetimes"), GRDGExtendResourceLifetimes,
-	TEXT("RDG will extend resource lifetimes to the full length of the graph. Increases memory usage."),
-	ECVF_RenderThreadSafe);
-
 int32 GRDGTransitionLog = 0;
 FAutoConsoleVariableRef CVarRDGTransitionLog(
 	TEXT("r.RDG.TransitionLog"), GRDGTransitionLog,
@@ -277,6 +271,12 @@ FAutoConsoleVariableRef CVarRDGMergeRenderPasses(
 	TEXT(" 1:on(default);\n"),
 	ECVF_RenderThreadSafe);
 
+int32 GRDGTransientAllocator = 0;
+FAutoConsoleVariableRef CVarRDGUseTransientAllocator(
+	TEXT("r.RDG.TransientAllocator"), GRDGTransientAllocator,
+	TEXT("RDG will use the RHITransientResourceAllocator to allocate all transient resources."),
+	ECVF_RenderThreadSafe);
+
 #if CSV_PROFILER
 int32 GRDGVerboseCSVStats = 0;
 FAutoConsoleVariableRef CVarRDGVerboseCSVStats(
@@ -296,7 +296,10 @@ int32 GRDGStatPassDependencyCount = 0;
 int32 GRDGStatRenderPassMergeCount = 0;
 int32 GRDGStatTextureCount = 0;
 int32 GRDGStatBufferCount = 0;
+int32 GRDGStatTransientTextureCount = 0;
+int32 GRDGStatTransientBufferCount = 0;
 int32 GRDGStatTransitionCount = 0;
+int32 GRDGStatAliasingCount = 0;
 int32 GRDGStatTransitionBatchCount = 0;
 int32 GRDGStatMemoryWatermark = 0;
 
@@ -307,7 +310,10 @@ DEFINE_STAT(STAT_RDG_RenderPassMergeCount);
 DEFINE_STAT(STAT_RDG_PassDependencyCount);
 DEFINE_STAT(STAT_RDG_TextureCount);
 DEFINE_STAT(STAT_RDG_BufferCount);
+DEFINE_STAT(STAT_RDG_TransientTextureCount);
+DEFINE_STAT(STAT_RDG_TransientBufferCount);
 DEFINE_STAT(STAT_RDG_TransitionCount);
+DEFINE_STAT(STAT_RDG_AliasingCount);
 DEFINE_STAT(STAT_RDG_TransitionBatchCount);
 DEFINE_STAT(STAT_RDG_CompileTime);
 DEFINE_STAT(STAT_RDG_CollectResourcesTime);
@@ -336,7 +342,7 @@ void InitRenderGraph()
 	}
 
 	int32 BreakpointValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgbreakpoint"), BreakpointValue))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgbreakpoint="), BreakpointValue))
 	{
 		GRDGBreakpoint = BreakpointValue;
 	}
@@ -347,54 +353,49 @@ void InitRenderGraph()
 	}
 
 	int32 CullPassesValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgcullpasses"), CullPassesValue))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgcullpasses="), CullPassesValue))
 	{
 		GRDGCullPasses = CullPassesValue;
 	}
 
 	int32 MergeRenderPassesValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgmergerenderpasses"), MergeRenderPassesValue))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgmergerenderpasses="), MergeRenderPassesValue))
 	{
 		GRDGMergeRenderPasses = MergeRenderPassesValue;
 	}
 
 	int32 OverlapUAVsValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgoverlapuavs"), OverlapUAVsValue))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgoverlapuavs="), OverlapUAVsValue))
 	{
 		GRDGOverlapUAVs = OverlapUAVsValue;
 	}
 
-	if (FParse::Param(FCommandLine::Get(), TEXT("rdgextendresourcelifetimes")))
-	{
-		GRDGExtendResourceLifetimes = 1;
-	}
-
 	int32 DumpGraphValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdumpgraph"), DumpGraphValue))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdumpgraph="), DumpGraphValue))
 	{
 		CVarDumpGraph->Set(DumpGraphValue);
 	}
 
 	int32 AsyncComputeValue = 0;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgasynccompute"), AsyncComputeValue))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgasynccompute="), AsyncComputeValue))
 	{
 		CVarRDGAsyncCompute->Set(AsyncComputeValue);
 	}
 
 	FString GraphFilter;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebuggraphfilter"), GraphFilter))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebuggraphfilter="), GraphFilter))
 	{
 		CVarRDGDebugGraphFilter->Set(*GraphFilter);
 	}
 
 	FString PassFilter;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugpassfilter"), PassFilter))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugpassfilter="), PassFilter))
 	{
 		CVarRDGDebugPassFilter->Set(*PassFilter);
 	}
 
 	FString ResourceFilter;
-	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugresourcefilter"), ResourceFilter))
+	if (FParse::Value(FCommandLine::Get(), TEXT("rdgdebugresourcefilter="), ResourceFilter))
 	{
 		CVarRDGDebugResourceFilter->Set(*ResourceFilter);
 	}

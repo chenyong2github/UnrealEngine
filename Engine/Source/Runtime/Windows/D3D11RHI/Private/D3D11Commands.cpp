@@ -2069,15 +2069,15 @@ void FD3D11DynamicRHI::DisableUAVOverlap()
 	bUAVOverlapEnabled = false;
 }
 
-void FD3D11DynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+void FD3D11DynamicRHI::RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo)
 {
-	checkf(FMath::IsPowerOfTwo(uint32(SrcPipelines)) && FMath::IsPowerOfTwo(uint32(DstPipelines)), TEXT("Support for multi-pipe resources is not yet implemented."));
+	checkf(FMath::IsPowerOfTwo(uint32(CreateInfo.SrcPipelines)) && FMath::IsPowerOfTwo(uint32(CreateInfo.DstPipelines)), TEXT("Support for multi-pipe resources is not yet implemented."));
 
 	FD3D11TransitionData* Data = new (Transition->GetPrivateData<FD3D11TransitionData>()) FD3D11TransitionData;
 	Data->bUAVBarrier = false;
 
 	// If we have any transitions to UAVCompute or UAVGraphics, we need to break up the current overlap group.
-	for (const FRHITransitionInfo& Info : Infos)
+	for (const FRHITransitionInfo& Info : CreateInfo.TransitionInfos)
 	{
 		if (Info.Resource && EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask))
 		{

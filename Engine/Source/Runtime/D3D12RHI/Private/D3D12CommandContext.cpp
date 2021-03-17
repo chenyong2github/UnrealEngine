@@ -930,27 +930,28 @@ IRHICommandContextContainer* FD3D12DynamicRHI::RHIGetCommandContextContainer(int
 
 #endif // D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
 
-void FD3D12DynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+void FD3D12DynamicRHI::RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo)
 {
 	// Construct the data in-place on the transition instance
 	FD3D12TransitionData* Data = new (Transition->GetPrivateData<FD3D12TransitionData>()) FD3D12TransitionData;
 
-	Data->SrcPipelines = SrcPipelines;
-	Data->DstPipelines = DstPipelines;
-	Data->CreateFlags = CreateFlags;
+	Data->SrcPipelines = CreateInfo.SrcPipelines;
+	Data->DstPipelines = CreateInfo.DstPipelines;
+	Data->CreateFlags = CreateInfo.Flags;
 
-	const bool bCrossPipeline = SrcPipelines != DstPipelines;
+	const bool bCrossPipeline = CreateInfo.SrcPipelines != CreateInfo.DstPipelines;
 
-	if (bCrossPipeline && !EnumHasAnyFlags(Data->CreateFlags, ERHICreateTransitionFlags::NoFence))
+	if (bCrossPipeline && !EnumHasAnyFlags(Data->CreateFlags, ERHITransitionCreateFlags::NoFence))
 	{
-		const FName Name = SrcPipelines == ERHIPipeline::Graphics ? L"<Graphics To AsyncCompute>" : L"<AsyncCompute To Graphics>";
+		const FName Name = CreateInfo.SrcPipelines == ERHIPipeline::Graphics ? L"<Graphics To AsyncCompute>" : L"<AsyncCompute To Graphics>";
 
 		Data->Fence = new FD3D12Fence(&GetAdapter(), FRHIGPUMask::All(), Name);
 		Data->Fence->CreateFence();
 	}
 
 	Data->bCrossPipeline = bCrossPipeline;
-	Data->Infos.Append(Infos.GetData(), Infos.Num());
+	Data->TransitionInfos = CreateInfo.TransitionInfos;
+	Data->AliasingInfos = CreateInfo.AliasingInfos;
 }
 
 void FD3D12DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)

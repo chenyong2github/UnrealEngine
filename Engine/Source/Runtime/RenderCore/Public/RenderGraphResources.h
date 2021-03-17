@@ -129,6 +129,7 @@ private:
 
 	friend FRDGBuilder;
 	friend FRDGUserValidation;
+	friend FRDGBarrierValidation;
 };
 
 class FRDGUniformBuffer
@@ -319,207 +320,16 @@ private:
 	friend FRDGAllocator;
 };
 
-/** Descriptor used to create a render graph texture. */
-struct RENDERCORE_API FRDGTextureDesc
-{
-	static FRDGTextureDesc Create2D(
-		FIntPoint InExtent,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRDGTextureDesc(InClearValue, ETextureDimension::Texture2D, InFlags, InFormat, InExtent, 1, 1, InNumMips, InNumSamples);
-	}
-
-	static FRDGTextureDesc Create2DArray(
-		FIntPoint InExtent,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint32 InArraySize,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRDGTextureDesc(InClearValue, ETextureDimension::Texture2DArray, InFlags, InFormat, InExtent, 1, InArraySize, InNumMips, InNumSamples);
-	}
-
-	static FRDGTextureDesc Create3D(
-		FIntVector InSize,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRDGTextureDesc(InClearValue, ETextureDimension::Texture3D, InFlags, InFormat, FIntPoint(InSize.X, InSize.Y), InSize.Z, 1, InNumMips, InNumSamples);
-	}
-
-	static FRDGTextureDesc CreateCube(
-		uint32 InSizeInPixels,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRDGTextureDesc(InClearValue, ETextureDimension::TextureCube, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), 1, 1, InNumMips, InNumSamples);
-	}
-
-	static FRDGTextureDesc CreateCubeArray(
-		uint32 InSizeInPixels,
-		EPixelFormat InFormat,
-		FClearValueBinding InClearValue,
-		ETextureCreateFlags InFlags,
-		uint32 InArraySize,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-	{
-		return FRDGTextureDesc(InClearValue, ETextureDimension::TextureCubeArray, InFlags, InFormat, FIntPoint(InSizeInPixels, InSizeInPixels), 1, InArraySize, InNumMips, InNumSamples);
-	}
-
-	FRDGTextureDesc() = default;
-	FRDGTextureDesc(
-		FClearValueBinding InClearValue,
-		ETextureDimension InDimension,
-		ETextureCreateFlags InFlags,
-		EPixelFormat InFormat,
-		FIntPoint InExtent,
-		uint16 InDepth = 1,
-		uint16 InArraySize = 1,
-		uint8 InNumMips = 1,
-		uint8 InNumSamples = 1)
-		: ClearValue(InClearValue)
-		, Dimension(InDimension)
-		, Flags(InFlags)
-		, Format(InFormat)
-		, Extent(InExtent)
-		, Depth(InDepth)
-		, ArraySize(InArraySize)
-		, NumMips(InNumMips)
-		, NumSamples(InNumSamples)
-	{}
-
-	bool operator == (const FRDGTextureDesc& Other) const
-	{
-		return ClearValue == Other.ClearValue
-			&& Dimension == Other.Dimension
-			&& Flags == Other.Flags
-			&& Format == Other.Format
-			&& Extent == Other.Extent
-			&& Depth == Other.Depth
-			&& ArraySize == Other.ArraySize
-			&& NumMips == Other.NumMips
-			&& NumSamples == Other.NumSamples;
-	}
-
-	bool operator != (const FRDGTextureDesc& Other) const
-	{
-		return !(*this == Other);
-	}
-
-	void Reset()
-	{
-		// Usually we don't want to propagate MSAA samples.
-		NumSamples = 1;
-
-		// Remove UAV flag for textures that don't need it (some formats are incompatible).
-		Flags |= TexCreate_RenderTargetable;
-		Flags &= ~(TexCreate_UAV | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget);
-	}
-
-	bool IsTexture2D() const
-	{
-		return Dimension == ETextureDimension::Texture2D || Dimension == ETextureDimension::Texture2DArray;
-	}
-
-	bool IsTexture3D() const
-	{
-		return Dimension == ETextureDimension::Texture3D;
-	}
-
-	bool IsTextureCube() const
-	{
-		return Dimension == ETextureDimension::TextureCube || Dimension == ETextureDimension::TextureCubeArray;
-	}
-
-	bool IsTextureArray() const
-	{
-		return Dimension == ETextureDimension::Texture2DArray || Dimension == ETextureDimension::TextureCubeArray;
-	}
-
-	bool IsMipChain() const
-	{
-		return NumMips > 1;
-	}
-
-	bool IsMultisample() const
-	{
-		return NumSamples > 1;
-	}
-
-	FIntVector GetSize() const
-	{
-		return FIntVector(Extent.X, Extent.Y, Depth);
-	}
-
-	FRDGTextureSubresourceLayout GetSubresourceLayout() const
-	{
-		return FRDGTextureSubresourceLayout(NumMips, ArraySize * (IsTextureCube() ? 6 : 1), IsStencilFormat(Format) ? 2 : 1);
-	}
-
-	/** Returns whether this descriptor conforms to requirements. */
-	bool IsValid() const;
-
-	/** Clear value to use when fast-clearing the texture. */
-	FClearValueBinding ClearValue;
-
-	/** Texture dimension to use when creating the RHI texture. */
-	ETextureDimension Dimension = ETextureDimension::Texture2D;
-
-	/** Texture flags passed on to RHI texture. */
-	ETextureCreateFlags Flags = TexCreate_None;
-
-	/** Pixel format used to create RHI texture. */
-	EPixelFormat Format = PF_Unknown;
-
-	/** Extent of the texture in x and y. */
-	FIntPoint Extent = FIntPoint(1, 1);
-
-	/** Depth of the texture if the dimension is 3D. */
-	uint16 Depth = 1;
-
-	/** The number of array elements in the texture. (Keep at 1 if dimension is 3D). */
-	uint16 ArraySize = 1;
-
-	/** Number of mips in the texture mip-map chain. */
-	uint8 NumMips = 1;
-
-	/** Number of samples in the texture. >1 for MSAA. */
-	uint8 NumSamples = 1;
-};
-
 /** Translates from a pooled render target descriptor to an RDG texture descriptor. */
 inline FRDGTextureDesc Translate(const FPooledRenderTargetDesc& InDesc, ERenderTargetTexture InTexture = ERenderTargetTexture::Targetable);
 
 /** Translates from an RDG texture descriptor to a pooled render target descriptor. */
 inline FPooledRenderTargetDesc Translate(const FRDGTextureDesc& InDesc);
 
-class RENDERCORE_API FRDGPooledTexture
+class FRDGPooledResource
 {
 public:
-	const FRDGTextureDesc Desc;
-
-	FRHITexture* GetRHI() const
-	{
-		return Texture;
-	}
-
-	FRDGTexture* GetOwner() const
-	{
-		return Owner;
-	}
+	virtual ~FRDGPooledResource() = default;
 
 	uint32 GetRefCount() const
 	{
@@ -534,19 +344,71 @@ public:
 	uint32 Release() const
 	{
 		check(RefCount > 0);
-		if (--RefCount == 0)
+		uint32 LocalRefCount = --RefCount;
+		if (LocalRefCount == 0)
 		{
-			delete this;
-			return 0;
+			if (Allocator == EAllocator::Default)
+			{
+				delete this;
+			}
+			else
+			{
+				this->~FRDGPooledResource();
+			}
 		}
-		return RefCount;
+		return LocalRefCount;
+	}
+
+protected:
+	enum class EAllocator
+	{
+		/** Allocated with the default allocator (new / delete). */
+		Default,
+
+		/** Allocated with the RDG allocator. */
+		RDG
+	};
+
+	FRDGPooledResource(EAllocator InAllocator)
+		: Allocator(InAllocator)
+	{}
+
+	EAllocator Allocator;
+
+	mutable uint32 RefCount = 0;
+};
+
+class RENDERCORE_API FRDGPooledTexture final
+	: public FRDGPooledResource
+{
+public:
+	/** Creates a pooled texture using the default allocator. Ref-counting determines deletion of the memory. Safe to be persistently cached. */
+	static TRefCountPtr<FRDGPooledTexture> CreateCommitted(TRefCountPtr<FRHITexture> Texture, const FRDGTextureSubresourceLayout& Layout, const FUnorderedAccessViewRHIRef& FirstMipUAV = nullptr)
+	{
+		return TRefCountPtr<FRDGPooledTexture>(new FRDGPooledTexture(MoveTemp(Texture), Layout, FirstMipUAV, EAllocator::Default));
+	}
+
+	/** Creates a pooled texture using the RDG allocator. All references should be released before the allocator is freed. */
+	static TRefCountPtr<FRDGPooledTexture> CreateTransient(FRDGAllocator& Allocator, const FRDGTextureSubresourceLayout& Layout, TRefCountPtr<FRHITexture> Texture, const FUnorderedAccessViewRHIRef& FirstMipUAV = nullptr)
+	{
+		return TRefCountPtr<FRDGPooledTexture>(Allocator.AllocNoDestruct<FRDGPooledTexture>(MoveTemp(Texture), Layout, FirstMipUAV, EAllocator::RDG));
+	}
+
+	FRHITexture* GetRHI() const
+	{
+		return Texture;
+	}
+
+	FRDGTexture* GetOwner() const
+	{
+		return Owner;
 	}
 
 private:
-	FRDGPooledTexture(FRHITexture* InTexture, const FRDGTextureDesc& InDesc, const FUnorderedAccessViewRHIRef& FirstMipUAV)
-		: Desc(InDesc)
-		, Texture(InTexture)
-		, Layout(InDesc.GetSubresourceLayout())
+	FRDGPooledTexture(TRefCountPtr<FRHITexture> InTexture, const FRDGTextureSubresourceLayout& InLayout, const FUnorderedAccessViewRHIRef& FirstMipUAV, EAllocator InAllocator)
+		: FRDGPooledResource(InAllocator)
+		, Texture(MoveTemp(InTexture))
+		, Layout(InLayout)
 	{
 		InitViews(FirstMipUAV);
 		Reset();
@@ -555,22 +417,13 @@ private:
 	/** Initializes cached views. Safe to call multiple times; each call will recreate. */
 	void InitViews(const FUnorderedAccessViewRHIRef& FirstMipUAV);
 
-	void Finalize()
-	{
-		for (FRDGSubresourceState& SubresourceState : State)
-		{
-			SubresourceState.Finalize();
-		}
-		Owner = nullptr;
-	}
+	/** Prepares the pooled texture state for re-use across RDG builder instances. */
+	void Finalize();
 
-	void Reset()
-	{
-		InitAsWholeResource(State);
-		Owner = nullptr;
-	}
+	/** Resets the pooled texture state back an unknown value. */
+	void Reset();
 
-	FRHITexture* Texture = nullptr;
+	TRefCountPtr<FRHITexture> Texture;
 	FRDGTexture* Owner = nullptr;
 	FRDGTextureSubresourceLayout Layout;
 	FRDGTextureSubresourceState State;
@@ -584,12 +437,10 @@ private:
 	FShaderResourceViewRHIRef  FMaskSRV;
 	FShaderResourceViewRHIRef  CMaskSRV;
 
-	mutable uint32 RefCount = 0;
-
 	friend FRDGTexture;
 	friend FRDGBuilder;
-	friend FPooledRenderTarget;
 	friend FRenderTargetPool;
+	friend FRDGAllocator;
 };
 
 /** Render graph tracked Texture. */
@@ -642,14 +493,15 @@ private:
 		, Desc(InDesc)
 		, Flags(InFlags)
 		, RenderTargetTexture(InRenderTargetTexture)
-		, Layout(InDesc.GetSubresourceLayout())
+		, Layout(InDesc)
 	{
 		InitAsWholeResource(MergeState);
 		InitAsWholeResource(LastProducers);
 	}
 
 	/** Assigns the pooled texture to this texture; returns the previous texture to own the allocation. */
-	void SetRHI(FPooledRenderTarget* PooledRenderTarget, FRDGTextureRef& OutPreviousOwner);
+	void SetRHI(FPooledRenderTarget* PooledRenderTarget);
+	void SetRHI(FRDGPooledTexture* PooledTexture);
 
 	/** Finalizes the texture for execution; no other transitions are allowed after calling this. */
 	void Finalize();
@@ -1042,9 +894,25 @@ struct FRDGBufferUAVDesc
 	bool bSupportsAppendBuffer = false;
 };
 
-class RENDERCORE_API FRDGPooledBuffer
+/** Translates from a RDG buffer descriptor to a RHI buffer creation info */
+inline FRHIBufferCreateInfo Translate(const FRDGBufferDesc& InDesc);
+
+class RENDERCORE_API FRDGPooledBuffer final
+	: public FRDGPooledResource
 {
 public:
+	/** Creates a pooled texture using the default allocator. Ref-counting determines deletion of the memory. Safe to be persistently cached. */
+	static TRefCountPtr<FRDGPooledBuffer> CreateCommitted(TRefCountPtr<FRHIBuffer> Buffer, const FRDGBufferDesc& Desc)
+	{
+		return TRefCountPtr<FRDGPooledBuffer>(new FRDGPooledBuffer(MoveTemp(Buffer), Desc, EAllocator::Default));
+	}
+
+	/** Creates a pooled texture using the RDG allocator. All references should be released before the allocator is freed. */
+	static TRefCountPtr<FRDGPooledBuffer> CreateTransient(FRDGAllocator& Allocator, TRefCountPtr<FRHIBuffer> Buffer, const FRDGBufferDesc& Desc)
+	{
+		return TRefCountPtr<FRDGPooledBuffer>(Allocator.AllocNoDestruct<FRDGPooledBuffer>(MoveTemp(Buffer), Desc, EAllocator::RDG));
+	}
+
 	const FRDGBufferDesc Desc;
 
 	/** Finds a UAV matching the descriptor in the cache or creates a new one and updates the cache. */
@@ -1069,26 +937,6 @@ public:
 	FRHIBuffer* GetStructuredBufferRHI() const
 	{
 		return Buffer;
-	}
-
-	uint32 GetRefCount() const
-	{
-		return RefCount;
-	}
-
-	uint32 AddRef() const
-	{
-		return ++RefCount;
-	}
-
-	uint32 Release() const
-	{
-		const uint32 LocalRefCount = --RefCount;
-		if (LocalRefCount == 0)
-		{
-			delete this;
-		}
-		return LocalRefCount;
 	}
 
 	template<typename KeyType, typename ValueType>
@@ -1132,8 +980,10 @@ public:
 	};
 
 private:
-	FRDGPooledBuffer(const FRDGBufferDesc& InDesc)
-		: Desc(InDesc)
+	FRDGPooledBuffer(TRefCountPtr<FRHIBuffer> InBuffer, const FRDGBufferDesc& InDesc, EAllocator InAllocator)
+		: FRDGPooledResource(InAllocator)
+		, Desc(InDesc)
+		, Buffer(MoveTemp(InBuffer))
 	{}
 
 	TRefCountPtr<FRHIBuffer> Buffer;
@@ -1153,7 +1003,6 @@ private:
 	}
 
 	const TCHAR* Name = nullptr;
-
 	FRDGBufferRef Owner = nullptr;
 	FRDGSubresourceState State;
 
@@ -1163,6 +1012,7 @@ private:
 	friend FRenderGraphResourcePool;
 	friend FRDGBuilder;
 	friend FRDGBuffer;
+	friend FRDGAllocator;
 };
 
 /** A render graph tracked buffer. */
@@ -1218,7 +1068,7 @@ private:
 	{}
 
 	/** Assigns the pooled buffer to this buffer; returns the previous buffer to own the allocation. */
-	void SetRHI(FRDGPooledBuffer* InPooledBuffer, FRDGBufferRef& OutPreviousOwner);
+	void SetRHI(FRDGPooledBuffer* InPooledBuffer);
 
 	/** Returns RHI buffer without access checks. */
 	FRHIBuffer* GetRHIUnchecked() const

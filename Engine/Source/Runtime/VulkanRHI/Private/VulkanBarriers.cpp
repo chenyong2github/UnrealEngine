@@ -493,8 +493,11 @@ static void AddMemoryBarrier(VkMemoryBarrier& MemoryBarrier, VkAccessFlags SrcAc
 	}
 }
 
-void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo)
 {
+	const ERHIPipeline SrcPipelines = CreateInfo.SrcPipelines;
+	const ERHIPipeline DstPipelines = CreateInfo.DstPipelines;
+
 	checkf(FMath::IsPowerOfTwo((uint32)SrcPipelines) && FMath::IsPowerOfTwo((uint32)DstPipelines), TEXT("Support for multi-pipe resources is not yet implemented."));
 
 	FVulkanPipelineBarrier* Data = new (Transition->GetPrivateData<FVulkanPipelineBarrier>()) FVulkanPipelineBarrier;
@@ -528,7 +531,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 
 	// Count the images and buffers to be able to pre-allocate the arrays.
 	int32 NumTextures = 0, NumBuffers = 0;
-	for (const FRHITransitionInfo& Info : Infos)
+	for (const FRHITransitionInfo& Info : CreateInfo.TransitionInfos)
 	{
 		if (!Info.Resource)
 		{
@@ -565,7 +568,7 @@ void FVulkanDynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipe
 
 	TArray<FDepthStencilSubresTransition, TInlineAllocator<4>> DSSubresTransitions;
 
-	for (const FRHITransitionInfo& Info : Infos)
+	for (const FRHITransitionInfo& Info : CreateInfo.TransitionInfos)
 	{
 		if (!Info.Resource)
 		{

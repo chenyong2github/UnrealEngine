@@ -203,7 +203,7 @@ public:
 		return RHI->RHICreateGPUFence(Name);
 	}
 
-	virtual void RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos);
+	virtual void RHICreateTransition(FRHITransition* Transition, const FRHITransitionCreateInfo& CreateInfo);
 
 	virtual void RHIReleaseTransition(FRHITransition* Transition)
 	{

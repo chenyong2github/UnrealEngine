@@ -132,6 +132,7 @@ private:
 	{
 		TMap<FRDGTextureRef, TArray<FRHITransitionInfo>> Textures;
 		TMap<FRDGBufferRef, FRHITransitionInfo> Buffers;
+		TMap<FRDGParentResourceRef, FRHITransientAliasingInfo> Aliases;
 	};
 
 	using FBarrierBatchMap = TMap<const FRDGBarrierBatchBegin*, FResourceMap>;

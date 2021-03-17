@@ -484,9 +484,6 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreateTransientTexture);
 
-	// Should be marked transient
-	check((InCreateInfo.Flags & TexCreate_Transient) == TexCreate_Transient);
-
 	// Try and get a pooled texture from the manager
 	FD3D12TransientMemoryPoolManager& PoolManager = GetParentDevice()->GetTransientMemoryPoolManager();
 	FD3D12PooledTextureData TextureData = PoolManager.GetPooledTexture(InCreateInfo, InDebugName);
@@ -551,7 +548,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 			TextureData.ResourceDesc = Texture3D->GetResource()->GetDesc();
 			TextureData.ClearValue = Texture3D->GetResource()->GetClearValue();
 			TextureData.CreateInfo = InCreateInfo;
-			
+
 			BaseShaderResource = Texture3D;
 			break;
 		}
@@ -563,7 +560,7 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 		}
 		}
 	}
-	
+
 	SetupAllocatedResource(BaseShaderResource, TextureMemoryStats);
 
 	// keep track of all allocated textures
@@ -576,9 +573,6 @@ FRHITexture* FD3D12TransientResourceAllocator::CreateTexture(const FRHITextureCr
 FRHIBuffer* FD3D12TransientResourceAllocator::CreateBuffer(const FRHIBufferCreateInfo& InCreateInfo, const TCHAR* InDebugName)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(D3D12RHI::CreateTransientBuffer);
-
-	// Should be marked transient
-	check((InCreateInfo.Usage & BUF_Transient) == BUF_Transient);
 
 	// Try and get a pooled texture from the manager
 	FD3D12TransientMemoryPoolManager& PoolManager = GetParentDevice()->GetTransientMemoryPoolManager();

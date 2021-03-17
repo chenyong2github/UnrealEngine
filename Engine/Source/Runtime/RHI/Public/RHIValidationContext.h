@@ -60,7 +60,17 @@ public:
 	{
 		for (const FRHITransition* Transition : Transitions)
 		{
+			Tracker->AddOps(Transition->PendingAcquires);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
 			Tracker->AddOps(Transition->PendingOperationsBegin);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
+			Tracker->AddOps(Transition->PendingSignals);
 		}
 
 		RHIContext->RHIBeginTransitions(Transitions);
@@ -70,7 +80,17 @@ public:
 	{
 		for (const FRHITransition* Transition : Transitions)
 		{
+			Tracker->AddOps(Transition->PendingWaits);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
 			Tracker->AddOps(Transition->PendingOperationsEnd);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
+			Tracker->AddOps(Transition->PendingDiscards);
 		}
 
 		RHIContext->RHIEndTransitions(Transitions);
@@ -358,7 +378,17 @@ public:
 
 		for (const FRHITransition* Transition : Transitions)
 		{
+			Tracker->AddOps(Transition->PendingAcquires);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
 			Tracker->AddOps(Transition->PendingOperationsBegin);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
+			Tracker->AddOps(Transition->PendingSignals);
 		}
 
 		RHIContext->RHIBeginTransitions(Transitions);
@@ -370,7 +400,17 @@ public:
 
 		for (const FRHITransition* Transition : Transitions)
 		{
+			Tracker->AddOps(Transition->PendingWaits);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
 			Tracker->AddOps(Transition->PendingOperationsEnd);
+		}
+
+		for (const FRHITransition* Transition : Transitions)
+		{
+			Tracker->AddOps(Transition->PendingDiscards);
 		}
 
 		RHIContext->RHIEndTransitions(Transitions);

@@ -936,7 +936,7 @@ void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 				if (FRDGTextureRef Texture = RenderTargets.ShadingRateTexture)
 				{
 					Texture->MarkResourceAsUsed();
-				}			
+				}
 			}
 			break;
 			}
@@ -1063,7 +1063,7 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 
 		for (int32 Index = 0; Index < Batch.Transitions.Num(); ++Index)
 		{
-			FRDGParentResourceRef Resource = Batch.DebugResources[Index];
+			FRDGParentResourceRef Resource = Batch.DebugTransitionResources[Index];
 			const FRHITransitionInfo& Transition = Batch.Transitions[Index];
 
 			if (Resource->Type == ERDGParentResourceType::Texture)
@@ -1076,12 +1076,14 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 				ResourceMap->Buffers.Emplace(static_cast<FRDGBufferRef>(Resource), Transition);
 			}
 		}
+
+		for (int32 Index = 0; Index < Batch.Aliases.Num(); ++Index)
+		{
+			ResourceMap->Aliases.Emplace(Batch.DebugAliasingResources[Index], Batch.Aliases[Index]);
+		}
 	}
 
-	const bool bAllowedForPass = IsDebugAllowedForGraph(GraphName) && IsDebugAllowedForPass(Pass->GetName());
-
-	// Debug mode will report errors regardless of logging filter.
-	if (!bAllowedForPass && !GRDGDebug)
+	if (!IsDebugAllowedForGraph(GraphName) || !IsDebugAllowedForPass(Pass->GetName()))
 	{
 		return;
 	}
@@ -1093,21 +1095,39 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 		if (!bFoundFirst)
 		{
 			bFoundFirst = true;
-			UE_CLOG(bAllowedForPass, LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s): %s] (Begin):"), Pass->GetName(), Pass->GetHandle().GetIndex(), *GetRHIPipelineName(Pass->GetPipeline()), Batch.DebugName);
+			UE_LOG(LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s): %s] (Begin):"), Pass->GetName(), Pass->GetHandle().GetIndex(), *GetRHIPipelineName(Pass->GetPipeline()), Batch.DebugName);
 		}
 	};
+
+	for (const auto& KeyValue : ResourceMap->Aliases)
+	{
+		const FRHITransientAliasingInfo& Info = KeyValue.Value;
+		if (Info.IsAcquire())
+		{
+			FRDGParentResourceRef Resource = KeyValue.Key;
+
+			if (IsDebugAllowedForResource(Resource->Name))
+			{
+				LogHeader();
+				UE_LOG(LogRDG, Display, TEXT("\tRDG(%p) RHI(%p) %s - Acquire"), Resource, Resource->GetRHIUnchecked(), Resource->Name);
+			}
+		}
+	}
 
 	for (const auto& Pair : ResourceMap->Textures)
 	{
 		FRDGTextureRef Texture = Pair.Key;
-		
-		const bool bAllowedForResource = bAllowedForPass && IsDebugAllowedForResource(Texture->Name);
+
+		if (!IsDebugAllowedForResource(Texture->Name))
+		{
+			continue;
+		}
 
 		const auto& Transitions = Pair.Value;
-		if (bAllowedForResource && Transitions.Num())
+		if (Transitions.Num())
 		{
 			LogHeader();
-			UE_LOG(LogRDG, Display, TEXT("\t(%p) %s:"), Texture, Texture->Name);
+			UE_LOG(LogRDG, Display, TEXT("\tRDG(%p) RHI(%p) %s:"), Texture, Texture->GetRHIUnchecked(), Texture->Name);
 		}
 
 		const FRDGTextureSubresourceLayout SubresourceLayout = Texture->GetSubresourceLayout();
@@ -1121,7 +1141,7 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 			{
 				const int32 SubresourceIndex = SubresourceLayout.GetSubresourceIndex(Subresource);
 
-				UE_CLOG(bAllowedForResource, LogRDG, Display, TEXT("\t\tMip(%d), Array(%d), Slice(%d): [%s, %s] -> [%s, %s]"),
+				UE_LOG(LogRDG, Display, TEXT("\t\tMip(%d), Array(%d), Slice(%d): [%s, %s] -> [%s, %s]"),
 					Subresource.MipIndex, Subresource.ArraySlice, Subresource.PlaneSlice,
 					*GetRHIAccessName(Transition.AccessBefore),
 					*GetRHIPipelineName(Batch.DebugPipelinesToBegin),
@@ -1131,28 +1151,26 @@ void FRDGBarrierValidation::ValidateBarrierBatchBegin(const FRDGPass* Pass, cons
 		}
 	}
 
-	if (bAllowedForPass)
+	for (const auto& Pair : ResourceMap->Buffers)
 	{
-		for (const auto& Pair : ResourceMap->Buffers)
+		FRDGBufferRef Buffer = Pair.Key;
+		const FRHITransitionInfo& Transition = Pair.Value;
+
+		if (!IsDebugAllowedForResource(Buffer->Name))
 		{
-			FRDGBufferRef Buffer = Pair.Key;
-			const FRHITransitionInfo& Transition = Pair.Value;
-
-			if (!IsDebugAllowedForResource(Buffer->Name))
-			{
-				continue;
-			}
-
-			LogHeader();
-
-			UE_LOG(LogRDG, Display, TEXT("\t(%p) %s: [%s, %s] -> [%s, %s]"),
-				Buffer,
-				Buffer->Name,
-				*GetRHIAccessName(Transition.AccessBefore),
-				*GetRHIPipelineName(Batch.DebugPipelinesToBegin),
-				*GetRHIAccessName(Transition.AccessAfter),
-				*GetRHIPipelineName(Batch.DebugPipelinesToEnd));
+			continue;
 		}
+
+		LogHeader();
+
+		UE_LOG(LogRDG, Display, TEXT("\tRDG(%p) RHI(%p) %s: [%s, %s] -> [%s, %s]"),
+			Buffer,
+			Buffer->GetRHIUnchecked(),
+			Buffer->Name,
+			*GetRHIAccessName(Transition.AccessBefore),
+			*GetRHIPipelineName(Batch.DebugPipelinesToBegin),
+			*GetRHIAccessName(Transition.AccessAfter),
+			*GetRHIPipelineName(Batch.DebugPipelinesToEnd));
 	}
 }
 
@@ -1163,7 +1181,9 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 		return;
 	}
 
-	bool bFoundFirstBatch = false;
+	const bool bAllowedForPass = IsDebugAllowedForGraph(GraphName) && IsDebugAllowedForPass(Pass->GetName());
+
+	bool bFoundFirst = false;
 
 	for (const FRDGBarrierBatchBegin* Dependent : Batch.Dependencies)
 	{
@@ -1186,20 +1206,21 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 			ResourceMap.Buffers.GetKeys(Buffers);
 		}
 
-		if (Textures.Num() || Buffers.Num())
+		const auto LogHeader = [&]()
 		{
-			if (!bFoundFirstBatch)
+			if (!bFoundFirst)
 			{
+				bFoundFirst = true;
 				UE_LOG(LogRDG, Display, TEXT("[%s(Index: %d, Pipeline: %s) %s] (End):"), Pass->GetName(), Pass->GetHandle().GetIndex(), Dependent->DebugName, *GetRHIPipelineName(Pass->GetPipeline()));
-				bFoundFirstBatch = true;
 			}
-		}
+		};
 
 		for (FRDGTextureRef Texture : Textures)
 		{
 			if (IsDebugAllowedForResource(Texture->Name))
 			{
-				UE_LOG(LogRDG, Display, TEXT("\t(%p) %s"), Texture, Texture->Name);
+				LogHeader();
+				UE_LOG(LogRDG, Display, TEXT("\tRDG(%p) RHI(%p) %s - End:"), Texture, Texture->GetRHIUnchecked(), Texture->Name);
 			}
 		}
 
@@ -1207,7 +1228,23 @@ void FRDGBarrierValidation::ValidateBarrierBatchEnd(const FRDGPass* Pass, const 
 		{
 			if (IsDebugAllowedForResource(Buffer->Name))
 			{
-				UE_LOG(LogRDG, Display, TEXT("\t(%p) %s"), Buffer, Buffer->Name);
+				LogHeader();
+				UE_LOG(LogRDG, Display, TEXT("\tRDG(%p) RHI(%p) %s - End"), Buffer, Buffer->GetRHIUnchecked(), Buffer->Name);
+			}
+		}
+
+		for (const auto& KeyValue : ResourceMap.Aliases)
+		{
+			const FRHITransientAliasingInfo& Info = KeyValue.Value;
+			if (Info.IsDiscard())
+			{
+				FRDGParentResourceRef Resource = KeyValue.Key;
+
+				if (IsDebugAllowedForResource(Resource->Name))
+				{
+					LogHeader();
+					UE_LOG(LogRDG, Display, TEXT("\tRDG(%p) RHI(%p) %s - Discard"), Resource, Resource->GetRHIUnchecked(), Resource->Name);
+				}
 			}
 		}
 	}
@@ -1335,7 +1372,7 @@ void FRDGLogFile::Begin(
 {
 	if (GRDGDumpGraph)
 	{
-		if (GRDGImmediateMode)
+		if (IsImmediateMode())
 		{
 			UE_LOG(LogRDG, Warning, TEXT("Dump graph (%d) requested, but immediate mode is enabled. Skipping."), GRDGDumpGraph);
 			return;
@@ -1596,7 +1633,7 @@ bool FRDGLogFile::IncludeTransitionEdgeInGraph(FRDGPassHandle PassBefore, FRDGPa
 
 void FRDGLogFile::AddFirstEdge(const FRDGTextureRef Texture, FRDGPassHandle FirstPass)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(FirstPass))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(FirstPass) && IsDebugAllowedForResource(Texture->Name))
 	{
 		AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s]"),
 			*GetNodeName(Texture),
@@ -1607,7 +1644,7 @@ void FRDGLogFile::AddFirstEdge(const FRDGTextureRef Texture, FRDGPassHandle Firs
 
 void FRDGLogFile::AddFirstEdge(const FRDGBufferRef Buffer, FRDGPassHandle FirstPass)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(FirstPass))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(FirstPass) && IsDebugAllowedForResource(Buffer->Name))
 	{
 		AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s]"),
 			*GetNodeName(Buffer),
@@ -1619,7 +1656,7 @@ void FRDGLogFile::AddFirstEdge(const FRDGBufferRef Buffer, FRDGPassHandle FirstP
 
 void FRDGLogFile::AddAliasEdge(const FRDGTextureRef TextureBefore, FRDGPassHandle BeforePass, const FRDGTextureRef TextureAfter, FRDGPassHandle AfterPass)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(BeforePass, AfterPass))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(BeforePass, AfterPass) && IsDebugAllowedForResource(TextureBefore->Name) && IsDebugAllowedForResource(TextureAfter->Name))
 	{
 		AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<Alias: <b>%s -&gt; %s</b>>]"),
 			*GetProducerName(BeforePass),
@@ -1632,7 +1669,7 @@ void FRDGLogFile::AddAliasEdge(const FRDGTextureRef TextureBefore, FRDGPassHandl
 
 void FRDGLogFile::AddAliasEdge(const FRDGBufferRef BufferBefore, FRDGPassHandle BeforePass, const FRDGBufferRef BufferAfter, FRDGPassHandle AfterPass)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(BeforePass, AfterPass))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(BeforePass, AfterPass) && IsDebugAllowedForResource(BufferBefore->Name) && IsDebugAllowedForResource(BufferAfter->Name))
 	{
 		AddLine(FString::Printf(TEXT("\"%s\" -> \"%s\" [%s, label=<Alias: <b>%s -&gt; %s</b>>]"),
 			*GetProducerName(BeforePass),
@@ -1645,7 +1682,7 @@ void FRDGLogFile::AddAliasEdge(const FRDGBufferRef BufferBefore, FRDGPassHandle 
 
 void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle) && IsDebugAllowedForResource(Texture->Name))
 	{
 		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
@@ -1671,7 +1708,7 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 
 void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGTextureRef Texture, FRDGTextureSubresource Subresource)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle) && IsDebugAllowedForResource(Texture->Name))
 	{
 		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{
@@ -1699,7 +1736,7 @@ void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceSt
 
 void FRDGLogFile::AddTransitionEdge(FRDGPassHandle PassHandle, FRDGSubresourceState StateBefore, FRDGSubresourceState StateAfter, const FRDGBufferRef Buffer)
 {
-	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle))
+	if (GRDGDumpGraph == RDG_DUMP_GRAPH_RESOURCES && bOpen && IncludeTransitionEdgeInGraph(StateBefore.GetFirstPass(), PassHandle) && IsDebugAllowedForResource(Buffer->Name))
 	{
 		if (FRDGSubresourceState::IsTransitionRequired(StateBefore, StateAfter))
 		{

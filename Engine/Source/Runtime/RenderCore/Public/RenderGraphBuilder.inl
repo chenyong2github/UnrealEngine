@@ -20,13 +20,33 @@ inline FRDGTextureRef FRDGBuilder::FindExternalTexture(IPooledRenderTarget* Exte
 	return nullptr;
 }
 
+inline FRDGTextureRef FRDGBuilder::CreateTexture(
+	const FRDGTextureDesc& Desc,
+	const TCHAR* Name,
+	ERDGTextureFlags Flags)
+{
+	// RDG no longer supports the legacy transient resource API.
+	FRDGTextureDesc OverrideDesc = Desc;
+	EnumRemoveFlags(OverrideDesc.Flags, TexCreate_Transient);
+
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(OverrideDesc, Name, Flags));
+	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, OverrideDesc, Flags, ERenderTargetTexture::ShaderResource);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));
+	IF_RDG_ENABLE_TRACE(Trace.AddResource(Texture));
+	return Texture;
+}
+
 inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* Name,
 	ERDGBufferFlags Flags)
 {
+	// RDG no longer supports the legacy transient resource API.
+	FRDGBufferDesc OverrideDesc = Desc;
+	EnumRemoveFlags(OverrideDesc.Usage, BUF_Transient);
+
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Desc, Name, Flags));
-	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, Desc, Flags);
+	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, OverrideDesc, Flags);
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Buffer));
 	IF_RDG_ENABLE_TRACE(Trace.AddResource(Buffer));
 	return Buffer;
@@ -130,7 +150,7 @@ FRDGPassRef FRDGBuilder::AddPassInternal(
 
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateAddPass(ParameterStruct, ParametersMetadata, Name, Flags));
 
-	FRDGPass* Pass = Allocator.Alloc<LambdaPassType>(
+	FRDGPass* Pass = Allocator.AllocNoDestruct<LambdaPassType>(
 		MoveTemp(Name),
 		ParametersMetadata,
 		ParameterStruct,

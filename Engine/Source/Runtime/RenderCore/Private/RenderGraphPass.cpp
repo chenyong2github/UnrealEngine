@@ -120,40 +120,21 @@ FRDGTransitionQueue::FRDGTransitionQueue(uint32 ReservedCount)
 	Queue.Reserve(ReservedCount);
 }
 
-void FRDGTransitionQueue::Insert(const FRHITransition* Transition, ERHICreateTransitionFlags TransitionFlags)
+void FRDGTransitionQueue::Insert(const FRHITransition* Transition, ERHITransitionCreateFlags TransitionFlags)
 {
-	if (!EnumHasAnyFlags(TransitionFlags, ERHICreateTransitionFlags::NoFence))
-	{
-		QueueWithFences.Add(Transition);
-	}
-	else
-	{
-		Queue.Add(Transition);
-	}
+	Queue.Add(Transition);
 }
 
 void FRDGTransitionQueue::Begin(FRHIComputeCommandList& RHICmdList)
 {
-	if (Queue.Num() || QueueWithFences.Num())
-	{
-		// Fence signals happen last.
-		Queue.Append(QueueWithFences);
-		RHICmdList.BeginTransitions(Queue);
-		Queue.Empty();
-		QueueWithFences.Empty();
-	}
+	RHICmdList.BeginTransitions(Queue);
+	Queue.Empty();
 }
 
 void FRDGTransitionQueue::End(FRHIComputeCommandList& RHICmdList)
 {
-	if (Queue.Num() || QueueWithFences.Num())
-	{
-		// Fence waits happen first.
-		Queue.Insert(QueueWithFences, 0);
-		RHICmdList.EndTransitions(Queue);
-		Queue.Empty();
-		QueueWithFences.Empty();
-	}
+	RHICmdList.EndTransitions(Queue);
+	Queue.Empty();
 }
 
 FRDGBarrierBatchBegin::FRDGBarrierBatchBegin(ERHIPipeline InPipelinesToBegin, ERHIPipeline InPipelinesToEnd, const TCHAR* InDebugName, const FRDGPass* InDebugPass)
@@ -189,7 +170,21 @@ void FRDGBarrierBatchBegin::AddTransition(FRDGParentResourceRef Resource, const 
 #endif
 
 #if RDG_ENABLE_DEBUG
-	DebugResources.Add(Resource);
+	DebugTransitionResources.Add(Resource);
+#endif
+}
+
+void FRDGBarrierBatchBegin::AddAlias(FRDGParentResourceRef Resource, const FRHITransientAliasingInfo& Info)
+{
+	Aliases.Add(Info);
+	bTransitionNeeded = true;
+
+#if STATS
+	GRDGStatAliasingCount++;
+#endif
+
+#if RDG_ENABLE_DEBUG
+	DebugAliasingResources.Add(Resource);
 #endif
 }
 
@@ -198,7 +193,7 @@ void FRDGBarrierBatchBegin::Submit(FRHIComputeCommandList& RHICmdList, ERHIPipel
 	// Submit may be called once for each pipe. The first to submit creates the transition.
 	if (!Transition && bTransitionNeeded)
 	{
-		Transition = RHICreateTransition(PipelinesToBegin, PipelinesToEnd, TransitionFlags, Transitions);
+		Transition = RHICreateTransition(FRHITransitionCreateInfo(PipelinesToBegin, PipelinesToEnd, TransitionFlags, Transitions, Aliases));
 	}
 
 	if (Transition)

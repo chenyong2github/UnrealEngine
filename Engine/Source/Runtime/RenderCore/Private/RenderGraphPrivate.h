@@ -31,7 +31,6 @@ extern int32 GRDGBreakpoint;
 extern int32 GRDGTransitionLog;
 extern int32 GRDGImmediateMode;
 extern int32 GRDGOverlapUAVs;
-extern int32 GRDGExtendResourceLifetimes;
 extern bool  GRDGAllowRHIAccess;
 
 class FRDGAllowRHIAccessScope
@@ -93,7 +92,6 @@ const int32 GRDGBreakpoint = 0;
 const int32 GRDGTransitionLog = 0;
 const int32 GRDGImmediateMode = 0;
 const int32 GRDGOverlapUAVs = 1;
-const int32 GRDGExtendResourceLifetimes = 0;
 
 #define RDG_ALLOW_RHI_ACCESS_SCOPE()
 
@@ -101,14 +99,10 @@ const int32 GRDGExtendResourceLifetimes = 0;
 
 #endif
 
-inline bool IsResourceLifetimeExtended()
-{
-	return (GRDGImmediateMode != 0) || (GRDGExtendResourceLifetimes != 0);
-}
-
 extern int32 GRDGAsyncCompute;
 extern int32 GRDGCullPasses;
 extern int32 GRDGMergeRenderPasses;
+extern int32 GRDGTransientAllocator;
 
 #if CSV_PROFILER
 extern int32 GRDGVerboseCSVStats;
@@ -124,7 +118,10 @@ extern int32 GRDGStatRenderPassMergeCount;
 extern int32 GRDGStatPassDependencyCount;
 extern int32 GRDGStatTextureCount;
 extern int32 GRDGStatBufferCount;
+extern int32 GRDGStatTransientTextureCount;
+extern int32 GRDGStatTransientBufferCount;
 extern int32 GRDGStatTransitionCount;
+extern int32 GRDGStatAliasingCount;
 extern int32 GRDGStatTransitionBatchCount;
 extern int32 GRDGStatMemoryWatermark;
 
@@ -135,7 +132,10 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Render Passes Merged"), STAT_RDG_RenderP
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Pass Dependencies"), STAT_RDG_PassDependencyCount, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Textures"), STAT_RDG_TextureCount, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Buffers"), STAT_RDG_BufferCount, STATGROUP_RDG, RENDERCORE_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Transient Textures"), STAT_RDG_TransientTextureCount, STATGROUP_RDG, RENDERCORE_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Transient Buffers"), STAT_RDG_TransientBufferCount, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Resource Transitions"), STAT_RDG_TransitionCount, STATGROUP_RDG, RENDERCORE_API);
+DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Resource Acquires and Discards"), STAT_RDG_AliasingCount, STATGROUP_RDG, RENDERCORE_API);
 DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Resource Transition Batches"), STAT_RDG_TransitionBatchCount, STATGROUP_RDG, RENDERCORE_API);
 
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Compile"), STAT_RDG_CompileTime, STATGROUP_RDG, RENDERCORE_API);
@@ -160,4 +160,9 @@ inline const TCHAR* GetEpilogueBarriersToBeginDebugName(ERHIPipeline Pipelines)
 	}
 #endif
 	return TEXT("");
+}
+
+inline bool IsImmediateMode()
+{
+	return GRDGImmediateMode != 0;
 }
