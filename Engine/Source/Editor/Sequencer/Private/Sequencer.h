@@ -1024,6 +1024,10 @@ protected:
 	/** Expand or collapse selected nodes and descendants*/
 	void ToggleExpandCollapseNodesAndDescendants();
 
+	/** Expand or collapse all nodes and descendants*/
+	void ExpandAllNodes();
+	void CollapseAllNodes();
+
 	/** Sort all nodes and their descendants by category then alphabetically */
 	void SortAllNodesAndDescendants();
 

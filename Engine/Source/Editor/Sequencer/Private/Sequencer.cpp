@@ -11144,6 +11144,19 @@ void FSequencer::ToggleExpandCollapseNodesAndDescendants()
 	SequencerWidget->GetTreeView()->ToggleExpandCollapseNodes(ETreeRecursion::Recursive);
 }
 
+void FSequencer::ExpandAllNodes()
+{
+	const bool bExpandAll = true;
+	const bool bCollapseAll = false;
+	SequencerWidget->GetTreeView()->ToggleExpandCollapseNodes(ETreeRecursion::Recursive, bExpandAll, bCollapseAll);
+}
+
+void FSequencer::CollapseAllNodes()
+{
+	const bool bExpandAll = false;
+	const bool bCollapseAll = true;
+	SequencerWidget->GetTreeView()->ToggleExpandCollapseNodes(ETreeRecursion::Recursive, bExpandAll, bCollapseAll);
+}
 
 void FSequencer::AddSelectedActors()
 {
@@ -12439,6 +12452,14 @@ void FSequencer::BindCommands()
 	SequencerCommandBindings->MapAction(
 		Commands.ToggleExpandCollapseNodesAndDescendants,
 		FExecuteAction::CreateSP(this, &FSequencer::ToggleExpandCollapseNodesAndDescendants));
+
+	SequencerCommandBindings->MapAction(
+		Commands.ExpandAllNodes,
+		FExecuteAction::CreateSP(this, &FSequencer::ExpandAllNodes));
+
+	SequencerCommandBindings->MapAction(
+		Commands.CollapseAllNodes,
+		FExecuteAction::CreateSP(this, &FSequencer::CollapseAllNodes));
 
 	SequencerCommandBindings->MapAction(
 		Commands.AddActorsToSequencer,
