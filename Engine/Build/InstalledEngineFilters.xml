@@ -475,7 +475,7 @@
 		Engine/Binaries/ThirdParty/IOS/*
 		Engine/Build/BatchFiles/MakeAndInstallSSHKey.bat
 		Engine/Build/Rsync/...
-		Engine/Extras/ThirdPartyNotUE/DeltaCopy/...
+		Engine/Extras/ThirdPartyNotUE/cwrsync/...
 	</Property>
 
 	<Property Name="CopyIOSExceptions">
@@ -496,7 +496,7 @@
 		Engine/Binaries/DotNET/IOS/openssl.exe
 		Engine/Binaries/ThirdParty/IOS/*
 		Engine/Build/BatchFiles/MakeAndInstallSSHKey.bat
-		Engine/Extras/ThirdPartyNotUE/DeltaCopy/...
+		Engine/Extras/ThirdPartyNotUE/cwrsync/...
 	</Property>
 
 	<Property Name="CopyTVOSExceptions">
