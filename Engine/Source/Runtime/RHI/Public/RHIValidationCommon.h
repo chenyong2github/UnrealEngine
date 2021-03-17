@@ -369,6 +369,11 @@ namespace RHIValidation
 		}
 	};
 
+	class FAccelerationStructureResource : public FBufferResource
+	{
+	public:
+	};
+
 	class FTextureResource
 	{
 	private:

@@ -1176,6 +1176,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRDGBuilder& 
 #endif // DO_CHECK
 
 		FRayTracingSceneInitializer SceneInitializer;
+		SceneInitializer.DebugName = FName(TEXT("FDeferredShadingSceneRenderer.Views[].RayTracingScene"));
 		SceneInitializer.Instances = View.RayTracingGeometryInstances;
 		SceneInitializer.ShaderSlotsPerGeometrySegment = RAY_TRACING_NUM_SHADER_SLOTS;
 		SceneInitializer.NumMissShaderSlots = RAY_TRACING_NUM_MISS_SHADER_SLOTS;
@@ -1430,6 +1431,12 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		{
 			RHICmdList.EndTransition(RayTracingDynamicGeometryUpdateEndTransition);
 			RayTracingDynamicGeometryUpdateEndTransition = nullptr;
+		}
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+		{
+			FRHIRayTracingScene* RayTracingScene = Views[ViewIndex].RayTracingScene.RayTracingSceneRHI.GetReference();
+			RHICmdList.Transition(FRHITransitionInfo(RayTracingScene, ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
 		}
 	});
 }

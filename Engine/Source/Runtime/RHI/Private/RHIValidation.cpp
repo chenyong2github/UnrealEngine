@@ -297,6 +297,10 @@ void FValidationRHI::RHICreateTransition(FRHITransition* Transition, const FRHIT
 		case FRHITransitionInfo::EType::UAV:
 			Identity = Info.UAV->ViewIdentity;
 			break;
+
+		case FRHITransitionInfo::EType::BVH:
+			Identity = Info.BVH->GetWholeResourceIdentity();
+			break;
 		}
 
 		bDoTrace |= (Identity.Resource->LoggingMode != RHIValidation::ELoggingMode::None);
@@ -444,7 +448,7 @@ namespace RHIValidation
 		using T = __underlying_type(ERHIAccess);
 		checkf((T(RequiredAccess) & (T(RequiredAccess) - 1)) == 0, TEXT("Only one required access bit may be set at once."));
 		
-		if (EnumHasAnyFlags(RequiredAccess, ERHIAccess::UAVMask))
+		if (EnumHasAnyFlags(RequiredAccess, ERHIAccess::UAVMask | ERHIAccess::BVHWrite))
 		{
 			// UAV writes decay to no allowed resource access when overlaps are disabled. A barrier is always required after the dispatch/draw.
 			// Otherwise keep the same accessmask and don't touch or decay the state
@@ -1062,7 +1066,7 @@ namespace RHIValidation
 
 		State.Previous = State.Current;
 
-		if (EnumHasAnyFlags(RequiredState.Access, ERHIAccess::UAVMask))
+		if (EnumHasAnyFlags(RequiredState.Access, ERHIAccess::UAVMask | ERHIAccess::BVHWrite))
 		{
 			if (bAllowAllUAVsOverlap) { State.bUsedWithAllUAVsOverlap = true; }
 			if (State.bExplicitAllowUAVOverlap) { State.bUsedWithExplicitUAVsOverlap = true; }

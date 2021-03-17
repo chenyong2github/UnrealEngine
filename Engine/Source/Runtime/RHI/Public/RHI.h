@@ -857,10 +857,16 @@ enum class ERHIAccess
 	CopyDest            	= 1 << 12,
 	ResolveDst          	= 1 << 13,
 	DSVWrite            	= 1 << 14,
-	RTAccelerationStructure = 1 << 15,
+
+	// Ray tracing acceleration structure states.
+	// Buffer that contains an AS must always be in either of these states.
+	// BVHRead -- required for AS inputs to build/update/copy/trace commands.
+	// BVHWrite -- required for AS outputs of build/update/copy commands.
+	BVHRead                  = 1 << 15,
+	BVHWrite                 = 1 << 16,
 
 	// Invalid released state (transient resources)
-	Discard					= 1 << 16,
+	Discard					= 1 << 17,
 
 	Last = Discard,
 	None = Unknown,
@@ -888,7 +894,7 @@ enum class ERHIAccess
 	WriteOnlyMask = WriteOnlyExclusiveMask | DSVWrite,
 
 	// A mask of all bits representing writable states which may also include readable states.
-	WritableMask = WriteOnlyMask | UAVMask | RTAccelerationStructure
+	WritableMask = WriteOnlyMask | UAVMask | BVHWrite
 };
 ENUM_CLASS_FLAGS(ERHIAccess)
 
@@ -1911,6 +1917,7 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 		class FRHITexture* Texture;
 		class FRHIBuffer* Buffer;
 		class FRHIUnorderedAccessView* UAV;
+		class FRHIRayTracingAccelerationStructure* BVH;
 	};
 
 	enum class EType : uint8
@@ -1918,7 +1925,8 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 		Unknown,
 		Texture,
 		Buffer,
-		UAV
+		UAV,
+		BVH,
 	} Type = EType::Unknown;
 
 	ERHIAccess AccessBefore = ERHIAccess::Unknown;
@@ -1954,6 +1962,14 @@ struct FRHITransitionInfo : public FRHISubresourceRange
 	FRHITransitionInfo(class FRHIBuffer* InRHIBuffer, ERHIAccess InPreviousState, ERHIAccess InNewState, EResourceTransitionFlags InFlags = EResourceTransitionFlags::None)
 		: Buffer(InRHIBuffer)
 		, Type(EType::Buffer)
+		, AccessBefore(InPreviousState)
+		, AccessAfter(InNewState)
+		, Flags(InFlags)
+	{}
+
+	FRHITransitionInfo(class FRHIRayTracingAccelerationStructure* InBVH, ERHIAccess InPreviousState, ERHIAccess InNewState, EResourceTransitionFlags InFlags = EResourceTransitionFlags::None)
+		: BVH(InBVH)
+		, Type(EType::BVH)
 		, AccessBefore(InPreviousState)
 		, AccessAfter(InNewState)
 		, Flags(InFlags)

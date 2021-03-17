@@ -2408,7 +2408,7 @@ static TRefCountPtr<FD3D12Buffer> CreateRayTracingBuffer(FD3D12Adapter* Adapter,
 		Result = Adapter->CreateRHIBuffer(
 			nullptr, BufferDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BYTE_ALIGNMENT,
 			0, BufferDesc.Width, BUF_AccelerationStructure,
-			ED3D12ResourceStateMode::SingleState, ERHIAccess::RTAccelerationStructure,
+			ED3D12ResourceStateMode::SingleState, ERHIAccess::BVHWrite,
 			CreateInfo, ResourceAllocator);
 	}
 	else if (Type == ERayTracingBufferType::Scratch)

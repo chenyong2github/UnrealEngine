@@ -133,6 +133,8 @@ FString GetRHIAccessName(ERHIAccess Access)
 			case ERHIAccess::CopyDest:            return TEXT("CopyDest");
 			case ERHIAccess::ResolveDst:          return TEXT("ResolveDst");
 			case ERHIAccess::DSVWrite:            return TEXT("DSVWrite");
+			case ERHIAccess::BVHRead:             return TEXT("BVHRead");
+			case ERHIAccess::BVHWrite:            return TEXT("BVHWrite");
 			case ERHIAccess::Discard:             return TEXT("Discard");
 			}
 		});

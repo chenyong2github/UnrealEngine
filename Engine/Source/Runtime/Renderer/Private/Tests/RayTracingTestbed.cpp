@@ -120,7 +120,13 @@ bool RunRayTracingTestbed_RenderThread(const FString& Parameters)
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 	RHICmdList.BuildAccelerationStructure(Geometry);
+
+	// #yuriy_todo: explicit transitions and state validation for BLAS
+	// RHICmdList.Transition(FRHITransitionInfo(Geometry.GetReference(), ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
+
 	RHICmdList.BuildAccelerationStructure(Scene);
+
+	RHICmdList.Transition(FRHITransitionInfo(Scene.GetReference(), ERHIAccess::BVHWrite, ERHIAccess::BVHRead));
 
 	RHICmdList.RayTraceOcclusion(Scene, RayBufferView, OcclusionResultBufferView, NumRays);
 	RHICmdList.RayTraceIntersection(Scene, RayBufferView, IntersectionResultBufferView, NumRays);

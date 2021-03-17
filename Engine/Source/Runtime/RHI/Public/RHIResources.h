@@ -1533,13 +1533,21 @@ typedef TRefCountPtr<FRHIRayTracingPipelineState> FRayTracingPipelineStateRHIRef
 // Ray tracing resources
 //
 
+class FRHIRayTracingAccelerationStructure
+	: public FRHIResource
+#if ENABLE_RHI_VALIDATION
+	, public RHIValidation::FAccelerationStructureResource
+#endif
+{
+};
+
 /** Bottom level ray tracing acceleration structure (contains triangles). */
-class FRHIRayTracingGeometry : public FRHIResource {};
+class FRHIRayTracingGeometry : public FRHIRayTracingAccelerationStructure {};
 
 typedef TRefCountPtr<FRHIRayTracingGeometry>     FRayTracingGeometryRHIRef;
 
 /** Top level ray tracing acceleration structure (contains instances of meshes). */
-class FRHIRayTracingScene : public FRHIResource
+class FRHIRayTracingScene : public FRHIRayTracingAccelerationStructure
 {
 public:
 	FRHIShaderResourceView* GetShaderResourceView() { return ShaderResourceView; }

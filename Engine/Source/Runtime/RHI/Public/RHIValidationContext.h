@@ -932,11 +932,14 @@ public:
 
 	virtual void RHIBuildAccelerationStructures(const TArrayView<const FAccelerationStructureBuildParams> Params) override final
 	{
+		// #yuriy_todo: explicit transitions and state validation for BLAS
 		RHIContext->RHIBuildAccelerationStructures(Params);
 	}
 
 	virtual void RHIBuildAccelerationStructure(FRHIRayTracingScene* Scene) override final
 	{
+		// #yuriy_todo: validate all referenced BLAS states
+		Tracker->Assert(Scene->GetWholeResourceIdentity(), ERHIAccess::BVHWrite);
 		RHIContext->RHIBuildAccelerationStructure(Scene);
 	}
 
@@ -945,6 +948,8 @@ public:
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays) override final
 	{
+		// #yuriy_todo: validate all referenced BLAS states
+		Tracker->Assert(Scene->GetWholeResourceIdentity(), ERHIAccess::BVHRead);
 		RHIContext->RHIRayTraceOcclusion(Scene, Rays, Output, NumRays);
 	}
 
@@ -953,6 +958,8 @@ public:
 		FRHIUnorderedAccessView* Output,
 		uint32 NumRays) override final
 	{
+		// #yuriy_todo: validate all referenced BLAS states
+		Tracker->Assert(Scene->GetWholeResourceIdentity(), ERHIAccess::BVHRead);
 		RHIContext->RHIRayTraceIntersection(Scene, Rays, Output, NumRays);
 	}
 
@@ -961,6 +968,8 @@ public:
 		const FRayTracingShaderBindings& GlobalResourceBindings,
 		uint32 Width, uint32 Height) override final
 	{
+		// #yuriy_todo: validate all referenced BLAS states
+		Tracker->Assert(Scene->GetWholeResourceIdentity(), ERHIAccess::BVHRead);
 		RHIContext->RHIRayTraceDispatch(RayTracingPipelineState, RayGenShader, Scene, GlobalResourceBindings, Width, Height);
 	}
 
@@ -969,8 +978,10 @@ public:
 		const FRayTracingShaderBindings& GlobalResourceBindings,
 		FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) override final
 	{
+		// #yuriy_todo: validate all referenced BLAS states
 		Tracker->Assert(ArgumentBuffer->GetWholeResourceIdentity(), ERHIAccess::IndirectArgs);
 		Tracker->Assert(ArgumentBuffer->GetWholeResourceIdentity(), ERHIAccess::SRVCompute);
+		Tracker->Assert(Scene->GetWholeResourceIdentity(), ERHIAccess::BVHRead);
 
 		RHIContext->RHIRayTraceDispatchIndirect(RayTracingPipelineState, RayGenShader, Scene, GlobalResourceBindings, ArgumentBuffer, ArgumentOffset);
 	}
