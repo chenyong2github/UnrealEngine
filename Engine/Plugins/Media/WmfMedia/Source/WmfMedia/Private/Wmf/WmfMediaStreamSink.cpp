@@ -908,7 +908,7 @@ void FWmfMediaStreamSink::CopyTextureAndEnqueueSample(IMFSample* pSample)
 		SrcBox.bottom = DimY;
 		SrcBox.back = 1;
 
-		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("CopySubresourceRegion() ViewIndex:%d"), dwViewIndex);
+		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("CopySubresourceRegion() ViewIndex:%d Time:%f"), dwViewIndex, FTimespan::FromMicroseconds(SampleTime / 10).GetTotalSeconds());
 
 		TComPtr<IDXGIKeyedMutex> KeyedMutex;
 		SharedTexture->QueryInterface(_uuidof(IDXGIKeyedMutex), (void**)&KeyedMutex);
@@ -987,6 +987,7 @@ void FWmfMediaStreamSink::SetPresentationClock(IMFPresentationClock* InPresentat
 
 void FWmfMediaStreamSink::SetClockRate(float InClockRate)
 {
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink %p:SetClockRate %f"), this, InClockRate);
 	ClockRate = InClockRate;
 }
 
