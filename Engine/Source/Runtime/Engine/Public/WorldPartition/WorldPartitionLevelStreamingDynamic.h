@@ -25,6 +25,8 @@ class ENGINE_API UWorldPartitionLevelStreamingDynamic : public ULevelStreamingDy
 {
 	GENERATED_UCLASS_BODY()
 
+	void Load();
+	void Unload();
 	void Activate();
 	void Deactivate();
 	virtual bool ShouldBeAlwaysLoaded() const { return bShouldBeAlwaysLoaded; }
@@ -57,8 +59,6 @@ private:
 	bool bLoadRequestInProgress;
 	FWorldPartitionPackageCache PackageCache;
 #endif
-
-	bool bIsActivated;
 
 	UPROPERTY()
 	bool bShouldBeAlwaysLoaded;

@@ -14,15 +14,16 @@
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartitionLevelStreamingPolicy.generated.h"
 
+enum class EWorldPartitionRuntimeCellState : uint8;
+
 UCLASS()
 class UWorldPartitionLevelStreamingPolicy : public UWorldPartitionStreamingPolicy
 {
 	GENERATED_BODY()
 
 public:
-	virtual void LoadCells(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells) override;
-	virtual void LoadCell(const UWorldPartitionRuntimeCell* Cell) override;
-	virtual void UnloadCell(const UWorldPartitionRuntimeCell* Cell) override;
+	virtual void SetTargetStateForCells(EWorldPartitionRuntimeCellState TargetState, const TSet<const UWorldPartitionRuntimeCell*>& Cells) override;
+	virtual EWorldPartitionRuntimeCellState GetCurrentStateForCell(const UWorldPartitionRuntimeCell* Cell) const override;
 	virtual class ULevel* GetPreferredLoadedLevelToAddToWorld() const override;
 
 #if WITH_EDITOR
@@ -34,6 +35,9 @@ public:
 #endif
 
 private:
+	void SetCellsStateToLoaded(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells);
+	void SetCellsStateToActivated(const TSet<const UWorldPartitionRuntimeCell*>& ToActivateCells);
+	void SetCellsStateToUnloaded(const TSet<const UWorldPartitionRuntimeCell*>& ToUnloadCells);
 	int32 GetCellLoadingCount() const;
 
 #if WITH_EDITOR

@@ -12,7 +12,10 @@
  * UDataLayerSubsystem
  */
 
+// Deprecate
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerActivationStateChanged, const UDataLayer*, DataLayer, bool, bIsActive);
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerStateChanged, const UDataLayer*, DataLayer, EDataLayerState, State);
 
 UCLASS()
 class ENGINE_API UDataLayerSubsystem : public UWorldSubsystem
@@ -33,30 +36,46 @@ public:
 	//~ End UWorldSubsystem Interface.
 
 	//~ Begin Blueprint callable functions
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta=(DeprecatedFunction, DeprecationMessage="Use SetDataLayerState instead"))
 	void ActivateDataLayer(const FActorDataLayer& InDataLayer, bool bInActivate);
 	
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use SetDataLayerStateByLabel instead"))
 	void ActivateDataLayerByLabel(const FName& InDataLayerLabel, bool bInActivate);
 
-	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use GetDataLayerState instead"))
 	bool IsDataLayerActive(const FActorDataLayer& InDataLayer) const;
 
+	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "Use GetDataLayerStateByLabel instead"))
+	bool IsDataLayerActiveByLabel(const FName& InDataLayerLabel) const;
+
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
-	bool IsDataLayerActiveByLabel(const FName& InDataLayerName) const;
+	void SetDataLayerState(const FActorDataLayer& InDataLayer, EDataLayerState InState);
+
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	void SetDataLayerStateByLabel(const FName& InDataLayerLabel, EDataLayerState InState);
+		
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	EDataLayerState GetDataLayerState(const FActorDataLayer& InDataLayer) const;
+
+	UFUNCTION(BlueprintCallable, Category = DataLayers)
+	EDataLayerState GetDataLayerStateByLabel(const FName& InDataLayerLabel) const;
 
 	UPROPERTY(BlueprintAssignable)
 	FOnDataLayerActivationStateChanged OnDataLayerActivationStateChanged;
+
+	UPROPERTY(BlueprintAssignable)
+	FOnDataLayerStateChanged OnDataLayerStateChanged;
 	//~ End Blueprint callable functions
 
 	UDataLayer* GetDataLayerFromLabel(const FName& InDataLayerLabel) const;
 	UDataLayer* GetDataLayerFromName(const FName& InDataLayerName) const;
-	void ActivateDataLayer(const UDataLayer* InDataLayer, bool bInActivate);
-	void ActivateDataLayerByName(const FName& InDataLayerName, bool bInActivate);
-	bool IsDataLayerActive(const UDataLayer* InDataLayer) const;
-	bool IsDataLayerActiveByName(const FName& InDataLayerName) const;
-	bool IsAnyDataLayerActive(const TArray<FName>& InDataLayerNames) const;
-
+	void SetDataLayerState(const UDataLayer* InDataLayer, EDataLayerState InState);
+	void SetDataLayerStateByName(const FName& InDataLayerName, EDataLayerState InState);
+	EDataLayerState GetDataLayerState(const UDataLayer* InDataLayer) const;
+	EDataLayerState GetDataLayerStateByName(const FName& InDataLayerName) const;
+	
+	bool IsAnyDataLayerInState(const TArray<FName>& InDataLayerNames, EDataLayerState InState) const;
+	
 	void Draw(class UCanvas* Canvas, class APlayerController* PC);
 
 #if WITH_EDITOR
@@ -74,6 +93,7 @@ private:
 	static class FAutoConsoleCommand ToggleDataLayerActivation;
 
 	TSet<FName> ActiveDataLayerNames;
+	TSet<FName> LoadedDataLayerNames;
 
 	FDelegateHandle	DrawHandle;
 };

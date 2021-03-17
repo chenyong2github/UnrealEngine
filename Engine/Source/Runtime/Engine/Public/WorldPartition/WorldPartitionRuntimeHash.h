@@ -40,7 +40,8 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 	// Streaming interface
 	virtual int32 GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells, bool bIncludeDataLayers = false) const { return 0; }
-	virtual int32 GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& Cells) const { return 0; };
+	virtual bool GetStreamingCells(const TArray<FWorldPartitionStreamingQuerySource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const { return false; }
+	virtual bool GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const { return false; };
 	virtual void SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>>& OutSortedCells) const {}
 
 	/* Returns desired footprint that Draw2D should take relative to given Canvas size (the value can exceed the given size).

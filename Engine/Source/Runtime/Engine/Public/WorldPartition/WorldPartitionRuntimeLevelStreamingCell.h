@@ -10,11 +10,14 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 {
 	GENERATED_UCLASS_BODY()
 
+	void Load() const;
+	void Unload() const;
 	void Activate() const;
 	void Deactivate() const;
 	int32 GetStreamingPriority() const { return Level; }
 	class UWorldPartitionLevelStreamingDynamic* GetLevelStreaming() const;
 	virtual FLinearColor GetDebugColor() const override;
+	EWorldPartitionRuntimeCellState GetCurrentState() const;
 
 #if WITH_EDITOR
 	virtual void AddActorToCell(const FWorldPartitionActorDescView& ActorDescView, uint32 InContainerID, const FTransform& InContainerTransform, const UActorDescContainer* InContainer) override;
@@ -36,6 +39,8 @@ private:
 	void OnLevelHidden();
 
 	EStreamingStatus GetLevelStreamingStatus() const;
+
+	class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
 
 #if WITH_EDITOR
 	void LoadActorsForCook();

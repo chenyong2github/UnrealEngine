@@ -2,11 +2,13 @@
 
 #include "Components/WorldPartitionStreamingSourceComponent.h"
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "Engine/World.h"
 
 UWorldPartitionStreamingSourceComponent::UWorldPartitionStreamingSourceComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bStreamingSourceEnabled(true)
+	, TargetState(EStreamingSourceTargetState::Activated)
 {
 	PrimaryComponentTick.bCanEverTick = false;
 }
@@ -67,6 +69,7 @@ bool UWorldPartitionStreamingSourceComponent::GetStreamingSource(FWorldPartition
 		OutStreamingSource.Name = SourceName;
 		OutStreamingSource.Location = Actor->GetActorLocation();
 		OutStreamingSource.Rotation = Actor->GetActorRotation();
+		OutStreamingSource.TargetState = TargetState;
 		return true;
 	}
 	return false;

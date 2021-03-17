@@ -55,7 +55,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 		const FVector ViewLocationLocal = WorldToLocal.TransformPosition(ViewLocation);
 		const FRotator ViewRotationLocal = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
 		static const FName NAME_SIE(TEXT("SIE"));
-		StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal));
+		StreamingSources.Add(FWorldPartitionStreamingSource(NAME_SIE, ViewLocationLocal, ViewRotationLocal, EStreamingSourceTargetState::Activated));
 	}
 	else
 #endif
@@ -80,7 +80,7 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 						// Transform to Local
 						ViewLocation = WorldToLocal.TransformPosition(ViewLocation);
 						ViewRotation = WorldToLocal.TransformRotation(ViewRotation.Quaternion()).Rotator();
-						StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation));
+						StreamingSources.Add(FWorldPartitionStreamingSource(Player->GetFName(), ViewLocation, ViewRotation, EStreamingSourceTargetState::Activated));
 					}
 				}
 			}
@@ -103,7 +103,8 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingSources()
 
 void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 {
-	TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
+	TSet<const UWorldPartitionRuntimeCell*> LoadStreamingCells;
+	TSet<const UWorldPartitionRuntimeCell*> ActivateStreamingCells;
 	UWorld* World = WorldPartition->GetWorld();
 	check(World && World->IsGameWorld());
 	
@@ -115,24 +116,24 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		// Load all cells on server (do this once)
 		if (!bIsServerLoadingDone)
 		{
-			WorldPartition->RuntimeHash->GetAllStreamingCells(StreamingCells);
-			TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = StreamingCells.Difference(LoadedCells);
+			WorldPartition->RuntimeHash->GetAllStreamingCells(ActivateStreamingCells);
+			TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = ActivateStreamingCells.Difference(ActivatedCells);
 
 			// Mark Runtime Cells to be Always Loaded
-			for (const UWorldPartitionRuntimeCell* Cell : ToLoadCells)
+			for (const UWorldPartitionRuntimeCell* Cell : ToActivateCells)
 			{
 				UWorldPartitionRuntimeCell* MutableCell = const_cast<UWorldPartitionRuntimeCell*>(Cell);
 				MutableCell->SetIsAlwaysLoaded(true);
 			}
 
-			LoadCells(ToLoadCells);
+			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Activated, ToActivateCells);
 			bIsServerLoadingDone = true;
 		}
 	}
 	else
 	{
 		// Early out if nothing loaded and no streaming source
-		if ((StreamingSources.Num() == 0) && (LoadedCells.Num() == 0))
+		if ((StreamingSources.Num() == 0) && (ActivatedCells.Num() == 0) && (LoadedCells.Num() == 0))
 		{
 			return;
 		}
@@ -140,18 +141,21 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		// When uninitializing, UpdateStreamingState is called, but we don't want any cells to be loaded
 		if (WorldPartition->IsInitialized())
 		{
-			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, StreamingCells);
+			WorldPartition->RuntimeHash->GetStreamingCells(StreamingSources, ActivateStreamingCells, LoadStreamingCells);
+			// Activation superseeds Loading
+			LoadStreamingCells = LoadStreamingCells.Difference(ActivateStreamingCells);
 		}
 
 		// Determine cells to load/unload
-		TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = StreamingCells.Difference(LoadedCells);
-		TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = LoadedCells.Difference(StreamingCells);
+		TSet<const UWorldPartitionRuntimeCell*> ToActivateCells = ActivateStreamingCells.Difference(ActivatedCells);
+		TSet<const UWorldPartitionRuntimeCell*> ToLoadCells = LoadStreamingCells.Difference(LoadedCells);
+		TSet<const UWorldPartitionRuntimeCell*> ToUnloadCells = ActivatedCells.Union(LoadedCells).Difference(ActivateStreamingCells.Union(LoadStreamingCells));
 
 		UE_SUPPRESS(LogWorldPartition, Verbose,
 		{
-			if (ToLoadCells.Num() > 0 || ToUnloadCells.Num() > 0)
+			if (ToActivateCells.Num() > 0 || ToUnloadCells.Num() > 0)
 			{
-				UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: CellsToLoad(%d), CellsToUnload(%d)"), ToLoadCells.Num(), ToUnloadCells.Num());
+				UE_LOG(LogWorldPartition, Verbose, TEXT("UWorldPartitionStreamingPolicy: CellsToLoad(%d), CellsToUnload(%d)"), ToActivateCells.Num(), ToUnloadCells.Num());
 				
 				FTransform LocalToWorld = WorldPartition->GetInstanceTransform();
 				for (int i = 0; i < StreamingSources.Num(); ++i)
@@ -166,14 +170,40 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 		// Process unload first, so that LoadedCells is up-to-date when calling LoadCells
 		if (ToUnloadCells.Num() > 0)
 		{
-			UnloadCells(ToUnloadCells);
+			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Unloaded, ToUnloadCells);
+		}
+
+		// Do Activation State first as it is higher prio than Load State (if we have a limited number of loading cells per frame)
+		if (ToActivateCells.Num() > 0)
+		{
+			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Activated, ToActivateCells);
 		}
 
 		if (ToLoadCells.Num() > 0)
 		{
-			LoadCells(ToLoadCells);
+			SetTargetStateForCells(EWorldPartitionRuntimeCellState::Loaded, ToLoadCells);
 		}
 	}
+}
+
+bool UWorldPartitionStreamingPolicy::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
+{
+	TSet<const UWorldPartitionRuntimeCell*> Cells;
+	WorldPartition->RuntimeHash->GetStreamingCells(QuerySources, Cells);
+	
+	for (const UWorldPartitionRuntimeCell* Cell : Cells)
+	{
+		EWorldPartitionRuntimeCellState CellState = GetCurrentStateForCell(Cell);
+		if (CellState != QueryState)
+		{
+			if (bExactState || CellState < QueryState)
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
 }
 
 FVector2D UWorldPartitionStreamingPolicy::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
@@ -195,23 +225,5 @@ void UWorldPartitionStreamingPolicy::DrawRuntimeHash3D()
 	if (World->GetNetMode() != NM_DedicatedServer && WorldPartition->IsInitialized())
 	{
 		WorldPartition->RuntimeHash->Draw3D(StreamingSources);
-	}
-}
-
-void UWorldPartitionStreamingPolicy::LoadCells(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells)
-{
-	for (const UWorldPartitionRuntimeCell* ToLoadCell : ToLoadCells)
-	{
-		LoadCell(ToLoadCell);
-		LoadedCells.Add(ToLoadCell);
-	}
-}
-
-void UWorldPartitionStreamingPolicy::UnloadCells(const TSet<const UWorldPartitionRuntimeCell*>& ToUnloadCells)
-{
-	for (const UWorldPartitionRuntimeCell* ToUnloadCell : ToUnloadCells)
-	{
-		UnloadCell(ToUnloadCell);
-		LoadedCells.Remove(ToUnloadCell);
 	}
 }

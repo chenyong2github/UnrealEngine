@@ -21,6 +21,24 @@ UWorldPartitionRuntimeLevelStreamingCell::UWorldPartitionRuntimeLevelStreamingCe
 {
 }
 
+EWorldPartitionRuntimeCellState UWorldPartitionRuntimeLevelStreamingCell::GetCurrentState() const
+{
+	if (LevelStreaming)
+	{
+		ULevelStreaming::ECurrentState CurrentStreamingState = LevelStreaming->GetCurrentState();
+		if (CurrentStreamingState == ULevelStreaming::ECurrentState::LoadedVisible)
+		{
+			return EWorldPartitionRuntimeCellState::Activated;
+		}
+		else if (CurrentStreamingState >= ULevelStreaming::ECurrentState::LoadedNotVisible)
+		{
+			return EWorldPartitionRuntimeCellState::Loaded;
+		}
+	}
+	
+	return EWorldPartitionRuntimeCellState::Unloaded;
+}
+
 UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::GetLevelStreaming() const
 {
 	return LevelStreaming;
@@ -152,12 +170,12 @@ FString UWorldPartitionRuntimeLevelStreamingCell::GetPackageNameToCreate() const
 
 #endif
 
-void UWorldPartitionRuntimeLevelStreamingCell::Activate() const
+UWorldPartitionLevelStreamingDynamic* UWorldPartitionRuntimeLevelStreamingCell::GetOrCreateLevelStreaming() const
 {
 #if WITH_EDITOR
 	if (GetActorCount() == 0)
 	{
-		return;
+		return nullptr;
 	}
 
 	if (!LevelStreaming)
@@ -203,8 +221,43 @@ void UWorldPartitionRuntimeLevelStreamingCell::Activate() const
 			LevelStreaming->OnLevelShown.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelShown);
 			LevelStreaming->OnLevelHidden.AddUniqueDynamic(this, &UWorldPartitionRuntimeLevelStreamingCell::OnLevelHidden);
 		}
+	}
 
-		LevelStreaming->Activate();
+	return LevelStreaming;
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::Load() const
+{
+	if (UWorldPartitionLevelStreamingDynamic* LocalLevelStreaming = GetOrCreateLevelStreaming())
+	{
+		LocalLevelStreaming->Load();
+	}
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::Activate() const
+{
+	if (UWorldPartitionLevelStreamingDynamic* LocalLevelStreaming = GetOrCreateLevelStreaming())
+	{
+		LocalLevelStreaming->Activate();
+	}
+}
+
+void UWorldPartitionRuntimeLevelStreamingCell::Unload() const
+{
+#if WITH_EDITOR
+	if (GetActorCount() == 0)
+	{
+		return;
+	}
+	check(LevelStreaming);
+#else
+	// In Runtime, always loaded cell level is handled by World directly
+	check(LevelStreaming || IsAlwaysLoaded());
+#endif
+
+	if (LevelStreaming)
+	{
+		LevelStreaming->Unload();
 	}
 }
 

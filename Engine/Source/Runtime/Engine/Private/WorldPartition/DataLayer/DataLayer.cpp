@@ -12,14 +12,27 @@ UDataLayer::UDataLayer(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 , DataLayerLabel(GetFName())
+, InitialState(EDataLayerState::Unloaded)
 , bIsVisible(true)
 , bIsDynamicallyLoaded(false)
-, bIsInitiallyActive(false)
+, bIsInitiallyActive_DEPRECATED(false)
 , bIsDynamicallyLoadedInEditor(true)
 , bGeneratesHLODs(false)
 , DefaultHLODLayer()
 #endif
 {
+}
+
+void UDataLayer::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITORONLY_DATA
+	if (bIsInitiallyActive_DEPRECATED)
+	{
+		InitialState = EDataLayerState::Activated;
+	}
+#endif
 }
 
 #if WITH_EDITOR

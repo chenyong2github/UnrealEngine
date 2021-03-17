@@ -90,14 +90,15 @@ FText SDataLayerTreeLabel::GetDisplayText() const
 {
 	const UDataLayer* DataLayer = DataLayerPtr.Get();
 	bool bIsDataLayerActive = false;
+	EDataLayerState DataLayerState = EDataLayerState::Unloaded;
 	if (DataLayer && DataLayer->IsDynamicallyLoaded() && DataLayer->GetWorld()->IsPlayInEditor())
 	{
 		const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-		bIsDataLayerActive = DataLayerSubsystem->IsDataLayerActive(DataLayer);
+		DataLayerState = DataLayerSubsystem->GetDataLayerState(DataLayer);
 	}
-	static const FText DataLayerActive = LOCTEXT("DataLayerActive", "(Active)");
+	const FText DataLayerStateText = FText::Format(LOCTEXT("DataLayerActive", "({0})"), StaticEnum<EDataLayerState>()->GetDisplayNameTextByValue((int64)DataLayerState));
 	static const FText DataLayerDeleted = LOCTEXT("DataLayerLabelForMissingDataLayer", "(Deleted Data Layer)");
-	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0} {1}"), FText::FromName(DataLayer->GetDataLayerLabel()), bIsDataLayerActive ? DataLayerActive : FText::GetEmpty()) : DataLayerDeleted;
+	return DataLayer ? FText::Format(LOCTEXT("DataLayerDisplayText", "{0} {1}"), FText::FromName(DataLayer->GetDataLayerLabel()), DataLayerStateText) : DataLayerDeleted;
 }
 
 FText SDataLayerTreeLabel::GetTooltipText() const
@@ -163,9 +164,14 @@ FSlateColor SDataLayerTreeLabel::GetForegroundColor() const
 		else if (DataLayer->IsDynamicallyLoaded() && DataLayer->GetWorld()->IsPlayInEditor())
 		{
 			const UDataLayerSubsystem* DataLayerSubsystem = DataLayer->GetWorld()->GetSubsystem<UDataLayerSubsystem>();
-			if (DataLayerSubsystem->IsDataLayerActive(DataLayer))
+			EDataLayerState DataLayerState = DataLayerSubsystem->GetDataLayerState(DataLayer);
+			if (DataLayerState == EDataLayerState::Activated)
 			{
 				return FColorList::LimeGreen;
+			}
+			else if (DataLayerState == EDataLayerState::Loaded)
+			{
+				return FColorList::NeonBlue;
 			}
 		}
 	}

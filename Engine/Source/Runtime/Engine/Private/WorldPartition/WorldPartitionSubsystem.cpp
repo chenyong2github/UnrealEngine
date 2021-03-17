@@ -170,6 +170,19 @@ TStatId UWorldPartitionSubsystem::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UWorldPartitionSubsystem, STATGROUP_Tickables);
 }
 
+bool UWorldPartitionSubsystem::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
+{
+	for (UWorldPartition* Partition : RegisteredWorldPartitions)
+	{
+		if (!Partition->IsStreamingCompleted(QueryState, QuerySources, bExactState))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 void UWorldPartitionSubsystem::UpdateStreamingState()
 {
 #if WITH_EDITOR

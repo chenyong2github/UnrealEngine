@@ -35,4 +35,7 @@ private:
 	/** Whether this component is enabled or not */
 	UPROPERTY(EditAnywhere, Category = "Streaming")
 	bool bStreamingSourceEnabled;
+
+	UPROPERTY(EditAnywhere, Category = "Streaming")
+	EStreamingSourceTargetState TargetState;
 };

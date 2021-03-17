@@ -34,7 +34,6 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
 	, RuntimeLevel(nullptr)
 	, bLoadRequestInProgress(false)
 #endif
-	, bIsActivated(false)
 	, bShouldBeAlwaysLoaded(false)
 {
 }
@@ -47,7 +46,6 @@ UWorldPartitionLevelStreamingDynamic::UWorldPartitionLevelStreamingDynamic(const
 void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRuntimeLevelStreamingCell& InCell)
 {
 	UWorld* World = GetWorld();
-	check(!bIsActivated);
 	check(!ShouldBeLoaded());
 	check((World->IsGameWorld() && !ShouldBeVisible()) || (!World->IsGameWorld() && !GetShouldBeVisibleFlag()));
 	check(ChildPackages.Num() == 0);
@@ -217,7 +215,6 @@ bool UWorldPartitionLevelStreamingDynamic::RequestLevel(UWorld* InPersistentWorl
 bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 {
 	check(ShouldBeLoaded());
-	check(ShouldBeVisible());
 	check(!HasLoadedLevel());
 	check(RuntimeLevel);
 	check(!bLoadRequestInProgress);
@@ -448,6 +445,38 @@ void UWorldPartitionLevelStreamingDynamic::OnCleanupLevel()
 
 #endif
 
+/*
+ * Load StreamingLevel without adding it to world 
+ */
+void UWorldPartitionLevelStreamingDynamic::Load()
+{
+	UE_LOG(LogLevelStreaming, Verbose, TEXT("UWorldPartitionLevelStreamingDynamic::Loading %s"), *GetWorldAssetPackageName());
+
+	check(!ShouldBeLoaded());
+	
+	SetShouldBeLoaded(true);
+	SetShouldBeVisible(false);
+	SetIsRequestingUnloadAndRemoval(false);
+
+	UWorld* PlayWorld = GetWorld();
+	check(PlayWorld && PlayWorld->IsGameWorld());
+	PlayWorld->AddUniqueStreamingLevel(this);
+}
+
+/*
+ * Unload StreamingLevel
+ */
+void UWorldPartitionLevelStreamingDynamic::Unload()
+{
+	UE_LOG(LogLevelStreaming, Verbose, TEXT("UWorldPartitionLevelStreamingDynamic::Unloading %s"), *GetWorldAssetPackageName());
+
+	check(ShouldBeLoaded());
+
+	SetShouldBeLoaded(false);
+	SetShouldBeVisible(false);
+	SetIsRequestingUnloadAndRemoval(true);
+}
+
 /**
   * Activates StreamingLevel by making sure it's in the World's StreamingLevels and that it should be loaded & visible
   */
@@ -455,8 +484,6 @@ void UWorldPartitionLevelStreamingDynamic::Activate()
 {
 	UE_LOG(LogLevelStreaming, Verbose, TEXT("UWorldPartitionLevelStreamingDynamic::Activating %s"), *GetWorldAssetPackageName());
 
-	check(!bIsActivated);
-	check(!ShouldBeLoaded());
 	check(!ShouldBeVisible());
 
 	// Make sure we are in the correct state
@@ -468,26 +495,19 @@ void UWorldPartitionLevelStreamingDynamic::Activate()
 	UWorld* PlayWorld = GetWorld();
 	check(PlayWorld && PlayWorld->IsGameWorld());
 	PlayWorld->AddUniqueStreamingLevel(this);
-
-	bIsActivated = true;
 }
 
 /**
- * Deactivates StreamingLevel
+ * Deactivates StreamingLevel (Remove from world, keep loaded)
  */
 void UWorldPartitionLevelStreamingDynamic::Deactivate()
 {
 	UE_LOG(LogLevelStreaming, Verbose, TEXT("UWorldPartitionLevelStreamingDynamic::Deactivating %s"), *GetWorldAssetPackageName());
 
-	check(bIsActivated);
 	check(ShouldBeLoaded());
 	check(ShouldBeVisible());
 
-	SetShouldBeLoaded(false);
 	SetShouldBeVisible(false);
-	SetIsRequestingUnloadAndRemoval(true);
-
-	bIsActivated = false;
 }
 
 UWorld* UWorldPartitionLevelStreamingDynamic::GetOuterWorld() const

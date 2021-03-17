@@ -946,6 +946,16 @@ class ULevel* UWorldPartition::GetPreferredLoadedLevelToAddToWorld() const
 	return nullptr;
 }
 
+bool UWorldPartition::IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		return GetStreamingPolicy()->IsStreamingCompleted(QueryState, QuerySources, bExactState);
+	}
+
+	return false;
+}
+
 bool UWorldPartition::CanDrawRuntimeHash() const
 {
 	return GetWorld()->IsGameWorld() || UWorldPartition::IsSimulating();

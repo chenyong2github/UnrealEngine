@@ -90,6 +90,17 @@ class UWorldPartitionRuntimeCellData : public UObject
 class UActorDescContainer;
 
 /**
+ * Cell State
+ */
+UENUM(BlueprintType)
+enum class EWorldPartitionRuntimeCellState : uint8
+{
+	Unloaded,
+	Loaded,
+	Activated
+};
+
+/**
  * Represents a PIE/Game streaming cell which points to external actor/data chunk packages
  */
 UCLASS()

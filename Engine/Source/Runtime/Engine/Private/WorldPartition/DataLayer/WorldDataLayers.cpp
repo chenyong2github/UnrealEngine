@@ -259,9 +259,9 @@ void AWorldDataLayers::BeginPlay()
 	{
 		for (const UDataLayer* DataLayer : WorldDataLayers)
 		{
-			if (DataLayer && DataLayer->IsInitiallyActive())
+			if (DataLayer && DataLayer->IsDynamicallyLoaded())
 			{
-				DataLayerSubsystem->ActivateDataLayer(DataLayer, true);
+				DataLayerSubsystem->SetDataLayerState(DataLayer, DataLayer->GetInitialState());
 			}
 		}
 	}

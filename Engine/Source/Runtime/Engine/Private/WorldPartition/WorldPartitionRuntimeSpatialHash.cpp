@@ -103,7 +103,64 @@ const FSquare2DGridHelper& FSpatialHashStreamingGrid::GetGridHelper() const
 	return *GridHelper;
 }
 
-void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& Cells) const
+void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const
+{
+	auto ShouldAddCell = [](const UWorldPartitionRuntimeCell* Cell, const FWorldPartitionStreamingQuerySource& QuerySource)
+	{
+		if (Cell->HasDataLayers())
+		{
+			if (Cell->GetDataLayers().FindByPredicate([&](const FName& DataLayerName) { return QuerySource.DataLayers.Contains(DataLayerName); }))
+			{
+				return true;
+			}
+		}
+		else if (!QuerySource.bDataLayersOnly)
+		{
+			return true;
+		}
+
+		return false;
+	};
+
+	const FSquare2DGridHelper& Helper = GetGridHelper();
+	for (const FWorldPartitionStreamingQuerySource& QuerySource : QuerySources)
+	{
+		// Spatial Query
+		if (QuerySource.bSpatialQuery)
+		{
+			const FSphere GridSphere(QuerySource.Location, QuerySource.bUseLoadingRangeRadius? GetLoadingRange() : QuerySource.Radius);
+			Helper.ForEachIntersectingCells(GridSphere, [&](const FIntVector& Coords)
+				{
+					if (const int32* LayerCellIndexPtr = GridLevels[Coords.Z].LayerCellsMapping.Find(Coords.Y * Helper.Levels[Coords.Z].GridSize + Coords.X))
+					{
+						const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
+						for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+						{
+							if (ShouldAddCell(Cell, QuerySource))
+							{
+								OutCells.Add(Cell);
+							}
+						}
+					}
+				});
+		}
+
+		// Non Spatial (always included)
+		const int32 TopLevel = GridLevels.Num() - 1;
+		for (const FSpatialHashStreamingGridLayerCell& LayerCell : GridLevels[TopLevel].LayerCells)
+		{
+			for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
+			{
+				if (ShouldAddCell(Cell, QuerySource))
+				{
+					OutCells.Add(Cell);
+				}
+			}
+		}
+	}
+}
+
+void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSource>& Sources, const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
 {
 	const FSquare2DGridHelper& Helper = GetGridHelper();
 	for (const FWorldPartitionStreamingSource& Source : Sources)
@@ -116,19 +173,31 @@ void FSpatialHashStreamingGrid::GetCells(const TArray<FWorldPartitionStreamingSo
 				const FSpatialHashStreamingGridLayerCell& LayerCell = GridLevels[Coords.Z].LayerCells[*LayerCellIndexPtr];
 				for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
 				{
-					if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerActive(Cell->GetDataLayers())))
+					if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Activated)))
 					{
-						Cells.Add(Cell);
+						if (Source.TargetState == EStreamingSourceTargetState::Loaded)
+						{
+							OutLoadCells.Add(Cell);
+						}
+						else
+						{
+							check(Source.TargetState == EStreamingSourceTargetState::Activated);
+							OutActivateCells.Add(Cell);
+						}
+					}
+					else if (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Loaded))
+					{
+						OutLoadCells.Add(Cell);
 					}
 				}
 			}
 		});
 	}
 
-	GetAlwaysLoadedCells(DataLayerSubsystem, Cells);
+	GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells, OutLoadCells);
 }
 
-void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& Cells) const
+void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* DataLayerSubsystem, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
 {
 	if (GridLevels.Num() > 0)
 	{
@@ -137,10 +206,15 @@ void FSpatialHashStreamingGrid::GetAlwaysLoadedCells(const UDataLayerSubsystem* 
 		{
 			for (const UWorldPartitionRuntimeCell* Cell : LayerCell.GridCells)
 			{
-				if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerActive(Cell->GetDataLayers())))
+				if (!Cell->HasDataLayers() || (DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Activated)))
 				{
 					check(Cell->IsAlwaysLoaded() || Cell->HasDataLayers());
-					Cells.Add(Cell);
+					OutActivateCells.Add(Cell);
+				}
+				else if(DataLayerSubsystem && DataLayerSubsystem->IsAnyDataLayerInState(Cell->GetDataLayers(), EDataLayerState::Loaded))
+				{
+					check(Cell->HasDataLayers());
+					OutLoadCells.Add(Cell);
 				}
 			}
 		}
@@ -858,7 +932,17 @@ int32 UWorldPartitionRuntimeSpatialHash::GetAllStreamingCells(TSet<const UWorldP
 	return Cells.Num();
 }
 
-int32 UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& Cells) const
+bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPartitionStreamingQuerySource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& OutCells) const 
+{
+	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+	{
+		StreamingGrid.GetCells(Sources, OutCells);
+	}
+
+	return !!OutCells.Num();
+}
+
+bool UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& OutActivateCells, TSet<const UWorldPartitionRuntimeCell*>& OutLoadCells) const
 {
 	UDataLayerSubsystem* DataLayerSubsystem = GetWorld()->GetSubsystem<UDataLayerSubsystem>();
 
@@ -867,7 +951,7 @@ int32 UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPa
 		// Get always loaded cells
 		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 		{
-			StreamingGrid.GetAlwaysLoadedCells(DataLayerSubsystem, Cells);
+			StreamingGrid.GetAlwaysLoadedCells(DataLayerSubsystem, OutActivateCells, OutLoadCells);
 		}
 	}
 	else
@@ -875,11 +959,11 @@ int32 UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPa
 		// Get cells based on streaming sources
 		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
 		{
-			StreamingGrid.GetCells(Sources, DataLayerSubsystem, Cells);
+			StreamingGrid.GetCells(Sources, DataLayerSubsystem, OutActivateCells, OutLoadCells);
 		}
 	}
 
-	return Cells.Num();
+	return !!(OutActivateCells.Num() + OutLoadCells.Num());
 }
 
 void UWorldPartitionRuntimeSpatialHash::SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>>& OutSortedCells) const

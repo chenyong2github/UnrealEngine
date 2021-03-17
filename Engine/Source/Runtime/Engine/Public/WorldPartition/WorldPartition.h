@@ -27,6 +27,8 @@ class FHLODActorDesc;
 
 struct IWorldPartitionStreamingSourceProvider;
 
+enum class EWorldPartitionRuntimeCellState : uint8;
+
 DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartition, Log, All);
 
 enum class EWorldPartitionStreamingMode
@@ -170,6 +172,7 @@ public:
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();
 	class ULevel* GetPreferredLoadedLevelToAddToWorld() const;
+	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
 	bool CanDrawRuntimeHash() const;
 	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);

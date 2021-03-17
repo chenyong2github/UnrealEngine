@@ -5,11 +5,14 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Templates/SubclassOf.h"
 #include "Misc/Optional.h"
+#include "WorldPartition/WorldPartitionStreamingSource.h"
 #include "WorldPartitionSubsystem.generated.h"
 
 class UWorldPartition;
 class UWorldPartitionEditorCell;
 class FWorldPartitionActorDesc;
+
+enum class EWorldPartitionRuntimeCellState : uint8;
 
 /**
  * UWorldPartitionSubsystem
@@ -39,6 +42,9 @@ public:
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
 	//~End FTickableGameObject
+
+	UFUNCTION(BlueprintCallable, Category = Streaming)
+	bool IsStreamingCompleted(EWorldPartitionRuntimeCellState QueryState, const TArray<FWorldPartitionStreamingQuerySource>& QuerySources, bool bExactState) const;
 
 #if WITH_EDITOR
 	void ForEachIntersectingActorDesc(const FBox& Box, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(const FWorldPartitionActorDesc*)> Predicate) const;
