@@ -1743,6 +1743,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		
 		// read the configuration file (configrules.bin.png)
 		int configRulesVersion = 0;
+		variables.put("configRulesVersion", Integer.toString(configRulesVersion));
 		BufferedReader reader = null;
 		InputStream stream = getConfigRulesStream(ProjectName);
 		if (stream != null)
@@ -1783,6 +1784,8 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 						if (line.startsWith("// version:"))
 						{
 							configRulesVersion = Integer.parseInt(line.substring(11));
+							variables.put("configRulesVersion", Integer.toString(configRulesVersion));
+							Log.debug("ConfigRules version: " + configRulesVersion);
 						}
 						continue;
 					}
