@@ -59,6 +59,7 @@
 #include "Dialogs/Dialogs.h"
 #include "BlendSpaceGraph.h"
 #include "AnimationBlendSpaceSampleGraph.h"
+#include "BlueprintNamespaceHelper.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintPalette"
 
@@ -724,6 +725,12 @@ public:
 		BlueprintEditorPtr = InBlueprintEditor;
 		VariableProperty = InVariableProperty;
 
+		TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
+		if (BlueprintEditorPtr.IsValid() && GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+		{
+			CustomPinTypeFilter = BlueprintEditorPtr.Pin()->GetOrCreateNamespaceHelperForBlueprint(BlueprintObj)->GetPinTypeSelectorFilter();
+		}
+
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 		this->ChildSlot
 		[
@@ -734,6 +741,7 @@ public:
 			.OnPinTypeChanged(this, &SPinTypeSelectorHelper::OnVarTypeChanged)
 			.TypeTreeFilter(ETypeTreeFilter::None)
 			.SelectorType(BlueprintEditorPtr.IsValid() ? SPinTypeSelector::ESelectorType::Partial : SPinTypeSelector::ESelectorType::None)
+			.CustomFilter(CustomPinTypeFilter)
 		];
 	}
 

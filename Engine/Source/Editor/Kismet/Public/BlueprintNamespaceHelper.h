@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+class IPinTypeSelectorFilter;
+
 // Utility class for extracting namespace info from a specified Blueprint context.
 class KISMET_API FBlueprintNamespaceHelper
 {
@@ -37,7 +39,15 @@ public:
 	bool IsImportedObject(const UObject* InObject) const;
 	bool IsImportedObject(const FSoftObjectPath& InObjectPath) const;
 
+	TSharedPtr<IPinTypeSelectorFilter> GetPinTypeSelectorFilter() const
+	{
+		return PinTypeSelectorFilter;
+	}
+
 private:
 	// Complete list of all fully-qualified namespace path identifiers for the associated Blueprint.
 	TSet<FString> FullyQualifiedListOfNamespaces;
+
+	// For use with the pin type selector widget in order to filter pin type items by namespace.
+	TSharedPtr<IPinTypeSelectorFilter> PinTypeSelectorFilter;
 };

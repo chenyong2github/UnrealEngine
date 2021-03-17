@@ -1879,7 +1879,7 @@ TSharedRef<FBlueprintNamespaceHelper> FBlueprintEditor::GetOrCreateNamespaceHelp
 	}
 
 	TSharedPtr<FBlueprintNamespaceHelper> NewValue = MakeShared<FBlueprintNamespaceHelper>(InBlueprint);
-	return CachedNamespaceHelpers.Add(Key, NewValue.ToSharedRef());
+	return GetEditingObjects().Contains(InBlueprint) ? CachedNamespaceHelpers.Add(Key, NewValue.ToSharedRef()) : NewValue.ToSharedRef();
 }
 
 void FBlueprintEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)

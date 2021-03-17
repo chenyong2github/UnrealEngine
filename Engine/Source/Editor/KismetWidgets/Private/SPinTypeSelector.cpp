@@ -72,6 +72,52 @@ namespace PinTypeSelectorStatics
 }
 
 
+/** Wraps a custom pin type filter provided at construction time. */
+class FPinTypeSelectorCustomFilterProxy : public IPinTypeSelectorFilter
+{
+public:
+	FPinTypeSelectorCustomFilterProxy(TSharedRef<IPinTypeSelectorFilter> InFilter, FSimpleDelegate InOnFilterChanged)
+		:Filter(InFilter)
+	{
+		// Auto-register the given delegate to respond to any filter change event and refresh the filtered item list, etc.
+		OnFilterChanged_DelegateHandle = Filter->RegisterOnFilterChanged(InOnFilterChanged);
+	}
+
+	virtual ~FPinTypeSelectorCustomFilterProxy()
+	{
+		// Auto-unregister the delegate that was previously registered at construction time.
+		Filter->UnregisterOnFilterChanged(OnFilterChanged_DelegateHandle);
+	}
+
+	virtual FDelegateHandle RegisterOnFilterChanged(FSimpleDelegate InOnFilterChanged)
+	{
+		return Filter->RegisterOnFilterChanged(InOnFilterChanged);
+	}
+
+	virtual void UnregisterOnFilterChanged(FDelegateHandle InDelegateHandle)
+	{
+		Filter->UnregisterOnFilterChanged(InDelegateHandle);
+	}
+
+	virtual TSharedPtr<SWidget> GetFilterOptionsWidget()
+	{
+		return Filter->GetFilterOptionsWidget();
+	}
+
+	virtual bool ShouldShowPinTypeTreeItem(FPinTypeTreeItem InItem) const
+	{
+		return Filter->ShouldShowPinTypeTreeItem(InItem);
+	}
+
+private:
+	/** The underlying filter for which we're acting as a proxy. */
+	TSharedRef<IPinTypeSelectorFilter> Filter;
+
+	/** A handle to a delegate that gets called whenever the custom filter changes. Will be unregistered automatically when the proxy is destroyed. */
+	FDelegateHandle OnFilterChanged_DelegateHandle;
+};
+
+
 class SPinTypeRow : public SComboRow<FPinTypeTreeItem>
 {
 public:
@@ -234,6 +280,12 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 
 	TargetPinType = InArgs._TargetPinType;
 	SelectorType = InArgs._SelectorType;
+
+	NumFilteredPinTypeItems = 0;
+	if (InArgs._CustomFilter.IsValid())
+	{
+		CustomFilter = MakeShared<FPinTypeSelectorCustomFilterProxy>(InArgs._CustomFilter.ToSharedRef(), FSimpleDelegate::CreateSP(this, &SPinTypeSelector::OnCustomFilterChanged));
+	}
 
 	bIsRightMousePressed = false;
 
@@ -886,7 +938,17 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 		}
 	}
 
-	FilteredTypeTreeRoot = TypeTreeRoot;
+	if (CustomFilter.IsValid())
+	{
+		NumFilteredPinTypeItems = 0;
+		FilteredTypeTreeRoot.Empty();
+
+		GetChildrenMatchingSearch(FText::GetEmpty(), TypeTreeRoot, FilteredTypeTreeRoot);
+	}
+	else
+	{
+		FilteredTypeTreeRoot = TypeTreeRoot;
+	}
 
 	if( !MenuContent.IsValid() || (bForSecondaryType != bMenuContentIsSecondary) )
 	{
@@ -902,6 +964,12 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 		SAssignNew(FilterTextBox, SSearchBox)
 			.OnTextChanged( this, &SPinTypeSelector::OnFilterTextChanged )
 			.OnTextCommitted( this, &SPinTypeSelector::OnFilterTextCommitted );
+
+		TSharedPtr<SWidget> CustomFilterOptionsWidget;
+		if (CustomFilter.IsValid())
+		{
+			CustomFilterOptionsWidget = CustomFilter->GetFilterOptionsWidget();
+		}
 
 		MenuContent = SAssignNew(PinTypeSelectorMenuOwner, SMenuOwner)
 			[
@@ -925,6 +993,29 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 								TypeTreeView.ToSharedRef()
 							]
 						]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.Padding(8.f, 0.f, 8.f, 4.f)
+					[
+						SNew(SBox)
+						.Visibility(CustomFilter.IsValid() ? EVisibility::Visible : EVisibility::Collapsed)
+						[
+							SNew(SHorizontalBox)
+							+SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.FillWidth(1.f)
+							[
+								SNew(STextBlock)
+								.Text(this, &SPinTypeSelector::GetPinTypeItemCountText)
+							]
+							+SHorizontalBox::Slot()
+							.VAlign(VAlign_Center)
+							.AutoWidth()
+							[
+								CustomFilterOptionsWidget.IsValid() ? CustomFilterOptionsWidget.ToSharedRef() : SNullWidget::NullWidget
+							]
+						]
+					]
 				]
 			];
 			
@@ -1007,6 +1098,7 @@ TSharedRef<SWidget> SPinTypeSelector::GetPinContainerTypeMenuContent()
 void SPinTypeSelector::OnFilterTextChanged(const FText& NewText)
 {
 	SearchText = NewText;
+	NumFilteredPinTypeItems = 0;
 	FilteredTypeTreeRoot.Empty();
 
 	GetChildrenMatchingSearch(NewText, TypeTreeRoot, FilteredTypeTreeRoot);
@@ -1042,23 +1134,29 @@ void SPinTypeSelector::OnFilterTextCommitted(const FText& NewText, ETextCommit::
 
 bool SPinTypeSelector::GetChildrenMatchingSearch(const FText& InSearchText, const TArray<FPinTypeTreeItem>& UnfilteredList, TArray<FPinTypeTreeItem>& OutFilteredList)
 {
-	// Trim and sanitized the filter text (so that it more likely matches the action descriptions)
-	FString TrimmedFilterString = FText::TrimPrecedingAndTrailing(InSearchText).ToString();
-
-	// Tokenize the search box text into a set of terms; all of them must be present to pass the filter
 	TArray<FString> FilterTerms;
-	TrimmedFilterString.ParseIntoArray(FilterTerms, TEXT(" "), true);
-
-	// Generate a list of sanitized versions of the strings
 	TArray<FString> SanitizedFilterTerms;
-	for (int32 iFilters = 0; iFilters < FilterTerms.Num() ; iFilters++)
+
+	const bool bIsEmptySearch = InSearchText.IsEmpty();
+	if (!bIsEmptySearch)
 	{
-		FString EachString = FName::NameToDisplayString( FilterTerms[iFilters], false );
-		EachString = EachString.Replace( TEXT( " " ), TEXT( "" ) );
-		SanitizedFilterTerms.Add( EachString );
+		// Trim and sanitized the filter text (so that it more likely matches the action descriptions)
+		FString TrimmedFilterString = FText::TrimPrecedingAndTrailing(InSearchText).ToString();
+
+		// Tokenize the search box text into a set of terms; all of them must be present to pass the filter
+		TrimmedFilterString.ParseIntoArray(FilterTerms, TEXT(" "), true);
+
+		// Generate a list of sanitized versions of the strings
+		for (int32 iFilters = 0; iFilters < FilterTerms.Num(); iFilters++)
+		{
+			FString EachString = FName::NameToDisplayString(FilterTerms[iFilters], false);
+			EachString = EachString.Replace(TEXT(" "), TEXT(""));
+			SanitizedFilterTerms.Add(EachString);
+		}
+
+		// Both of these should match!
+		ensure(SanitizedFilterTerms.Num() == FilterTerms.Num());
 	}
-	// Both of these should match!
-	ensure( SanitizedFilterTerms.Num() == FilterTerms.Num() );
 
 	bool bReturnVal = false;
 
@@ -1069,35 +1167,52 @@ bool SPinTypeSelector::GetChildrenMatchingSearch(const FText& InSearchText, cons
 		TArray<FPinTypeTreeItem> ValidChildren;
 
 		const bool bHasChildrenMatchingSearch = GetChildrenMatchingSearch(InSearchText, Item->Children, ValidChildren);
-		const bool bIsEmptySearch = InSearchText.IsEmpty();
-		bool bFilterTextMatches = true;
+		bool bFilterMatches = true;
 
-		// If children match the search filter or it's an empty search, let's not do any checks against the FilterTerms
-		if ( !bHasChildrenMatchingSearch && !bIsEmptySearch)
+		// If children match the search filter, there's no need to do any additional checks
+		if (!bHasChildrenMatchingSearch)
 		{
-			const FText LocalizedDescription = Item->GetDescription();
-			const FString LocalizedDescriptionString = LocalizedDescription.ToString();
-			const FString* SourceDescriptionStringPtr = FTextInspector::GetSourceString(LocalizedDescription);
-
-			// Test both the localized and source strings for a match
-			const FString MangledLocalizedDescriptionString = LocalizedDescriptionString.Replace(TEXT(" "), TEXT(""));
-			const FString MangledSourceDescriptionString = (SourceDescriptionStringPtr && *SourceDescriptionStringPtr != LocalizedDescriptionString) ? SourceDescriptionStringPtr->Replace(TEXT(" "), TEXT("")) : FString();
-
-			for (int32 FilterIndex = 0; FilterIndex < FilterTerms.Num() && bFilterTextMatches; ++FilterIndex)
+			// If valid, attempt to match the custom filter
+			if (CustomFilter.IsValid())
 			{
-				const bool bMatchesLocalizedTerm = MangledLocalizedDescriptionString.Contains(FilterTerms[FilterIndex]) || MangledLocalizedDescriptionString.Contains(SanitizedFilterTerms[FilterIndex]);
-				const bool bMatchesSourceTerm = !MangledSourceDescriptionString.IsEmpty() && (MangledSourceDescriptionString.Contains(FilterTerms[FilterIndex]) || MangledSourceDescriptionString.Contains(SanitizedFilterTerms[FilterIndex]));
-				bFilterTextMatches = bFilterTextMatches && (bMatchesLocalizedTerm || bMatchesSourceTerm);
+				bFilterMatches &= CustomFilter->ShouldShowPinTypeTreeItem(Item);
+			}
+
+			// If we didn't match the custom filter, or it's an empty search, let's not do any checks against the FilterTerms
+			if (bFilterMatches && !bIsEmptySearch)
+			{
+				const FText LocalizedDescription = Item->GetDescription();
+				const FString LocalizedDescriptionString = LocalizedDescription.ToString();
+				const FString* SourceDescriptionStringPtr = FTextInspector::GetSourceString(LocalizedDescription);
+
+				// Test both the localized and source strings for a match
+				const FString MangledLocalizedDescriptionString = LocalizedDescriptionString.Replace(TEXT(" "), TEXT(""));
+				const FString MangledSourceDescriptionString = (SourceDescriptionStringPtr && *SourceDescriptionStringPtr != LocalizedDescriptionString) ? SourceDescriptionStringPtr->Replace(TEXT(" "), TEXT("")) : FString();
+
+				for (int32 FilterIndex = 0; FilterIndex < FilterTerms.Num() && bFilterMatches; ++FilterIndex)
+				{
+					const bool bMatchesLocalizedTerm = MangledLocalizedDescriptionString.Contains(FilterTerms[FilterIndex]) || MangledLocalizedDescriptionString.Contains(SanitizedFilterTerms[FilterIndex]);
+					const bool bMatchesSourceTerm = !MangledSourceDescriptionString.IsEmpty() && (MangledSourceDescriptionString.Contains(FilterTerms[FilterIndex]) || MangledSourceDescriptionString.Contains(SanitizedFilterTerms[FilterIndex]));
+					bFilterMatches = bFilterMatches && (bMatchesLocalizedTerm || bMatchesSourceTerm);
+				}
 			}
 		}
 		if( bHasChildrenMatchingSearch
 			|| bIsEmptySearch
-			|| bFilterTextMatches )
+			|| bFilterMatches )
 		{
 			NewInfo->Children = ValidChildren;
 			OutFilteredList.Add(NewInfo);
 
-			TypeTreeView->SetItemExpansion(NewInfo, !InSearchText.IsEmpty());
+			if (TypeTreeView.IsValid())
+			{
+				TypeTreeView->SetItemExpansion(NewInfo, !bIsEmptySearch);
+			}
+
+			if (!NewInfo->bReadOnly)
+			{
+				++NumFilteredPinTypeItems;
+			}
 
 			bReturnVal = true;
 		}
@@ -1194,6 +1309,18 @@ FText SPinTypeSelector::GetToolTipForContainerWidget() const
 	}
 }
 
+FText SPinTypeSelector::GetPinTypeItemCountText() const
+{
+	if (NumFilteredPinTypeItems == 1)
+	{
+		return FText::Format(LOCTEXT("PinTypeItemCount_Single", "{0} item"), FText::AsNumber(NumFilteredPinTypeItems));
+	}
+	else
+	{
+		return FText::Format(LOCTEXT("PinTypeItemCount_Plural", "{0} items"), FText::AsNumber(NumFilteredPinTypeItems));
+	}
+}
+
 FReply SPinTypeSelector::OnMouseButtonDown( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
 {
 	if (SelectorType == ESelectorType::Compact && MouseEvent.GetEffectingButton() == EKeys::RightMouseButton)
@@ -1223,6 +1350,18 @@ void SPinTypeSelector::OnMouseLeave( const FPointerEvent& MouseEvent )
 {
 	SCompoundWidget::OnMouseLeave(MouseEvent);
 	bIsRightMousePressed = false;
+}
+
+void SPinTypeSelector::OnCustomFilterChanged()
+{
+	NumFilteredPinTypeItems = 0;
+	FilteredTypeTreeRoot.Empty();
+	GetChildrenMatchingSearch(SearchText, TypeTreeRoot, FilteredTypeTreeRoot);
+
+	if (TypeTreeView.IsValid())
+	{
+		TypeTreeView->RequestTreeRefresh();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

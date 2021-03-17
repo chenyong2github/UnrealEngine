@@ -466,6 +466,11 @@ public:
 			return PossibleObjectReferenceTypes;
 		}
 
+		const FSoftObjectPath& GetSubCategoryObjectAsset() const
+		{
+			return SubCategoryObjectAssetReference;
+		}
+
 	private:
 
 		FPinTypeTreeInfo()

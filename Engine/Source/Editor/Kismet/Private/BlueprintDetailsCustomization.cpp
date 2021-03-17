@@ -287,6 +287,12 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 
 	TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
 
+	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
+	if (BlueprintEditor.IsValid() && GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+	{
+		CustomPinTypeFilter = BlueprintEditor.Pin()->GetOrCreateNamespaceHelperForBlueprint(GetBlueprintObj())->GetPinTypeSelectorFilter();
+	}
+
 	Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
 		.NameContent()
 		[
@@ -306,6 +312,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 			.TypeTreeFilter(ETypeTreeFilter::None)
 			.Font(DetailFontInfo)
 			.ToolTip(VarTypeTooltip)
+			.CustomFilter(CustomPinTypeFilter)
 		];
 
 	TSharedPtr<SToolTip> EditableTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarEditableTooltip", "Whether this variable is publicly editable on instances of this Blueprint."), NULL, DocLink, TEXT("Editable"));
@@ -2801,6 +2808,20 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 		TypeTreeFilter |= ETypeTreeFilter::AllowWildcard;
 	}
 
+	TSharedPtr<IPinTypeSelectorFilter> CustomPinTypeFilter;
+	if (GraphActionDetailsPtr.IsValid())
+	{
+		TSharedPtr<SMyBlueprint> MyBlueprintPtr = GraphActionDetailsPtr.Pin()->GetMyBlueprint().Pin();
+		if (MyBlueprintPtr.IsValid())
+		{
+			TSharedPtr<FBlueprintEditor> BlueprintEditorPtr = MyBlueprintPtr->GetBlueprintEditor().Pin();
+			if (BlueprintEditorPtr.IsValid() && GetDefault<UBlueprintEditorSettings>()->bEnableNamespaceFilteringFeatures)
+			{
+				CustomPinTypeFilter = BlueprintEditorPtr->GetOrCreateNamespaceHelperForBlueprint(MyBlueprintPtr->GetBlueprintObj())->GetPinTypeSelectorFilter();
+			}
+		}
+	}
+
 	NodeRow
 	.NameContent()
 	[
@@ -2840,6 +2861,7 @@ void FBlueprintGraphArgumentLayout::GenerateHeaderRowContent( FDetailWidgetRow& 
 				.bAllowArrays(!ShouldPinBeReadOnly())
 				.IsEnabled(!ShouldPinBeReadOnly(true))
 				.Font( IDetailLayoutBuilder::GetDetailFont() )
+				.CustomFilter(CustomPinTypeFilter)
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()

@@ -9,6 +9,9 @@
 #include "EdGraph/EdGraphPin.h"
 #include "EdGraphSchema_K2.h"
 #include "AssetRegistryModule.h"
+#include "SPinTypeSelector.h"
+
+#define LOCTEXT_NAMESPACE "BlueprintNamespaceHelper"
 
 // ---
 // @todo_namespaces - Remove CVar flags/sink below after converting to editable 'config' properties
@@ -86,6 +89,101 @@ static FAutoConsoleVariableSink CVarUpdateNamespaceFeatureSettingsSink(
 
 // ---
 
+class FPinTypeSelectorNamespaceFilter : public IPinTypeSelectorFilter, public TSharedFromThis<FPinTypeSelectorNamespaceFilter>
+{
+	DECLARE_MULTICAST_DELEGATE(FOnFilterChanged);
+
+public:
+	FPinTypeSelectorNamespaceFilter(const FBlueprintNamespaceHelper* InNamespaceHelper)
+		: CachedNamespaceHelper(InNamespaceHelper)
+		, bIsFilterEnabled(true)
+	{
+	}
+
+	virtual FDelegateHandle RegisterOnFilterChanged(FSimpleDelegate InOnFilterChanged) override
+	{
+		return OnFilterChanged.Add(InOnFilterChanged);
+	}
+
+	virtual void UnregisterOnFilterChanged(FDelegateHandle InDelegateHandle) override
+	{
+		OnFilterChanged.Remove(InDelegateHandle);
+	}
+
+	virtual TSharedPtr<SWidget> GetFilterOptionsWidget() override
+	{
+		if (!FilterOptionsWidget.IsValid())
+		{
+			SAssignNew(FilterOptionsWidget, SCheckBox)
+			.IsChecked(this, &FPinTypeSelectorNamespaceFilter::IsFilterToggleChecked)
+			.OnCheckStateChanged(this, &FPinTypeSelectorNamespaceFilter::OnToggleFilter)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("PinTypeNamespaceFilterToggleOptionLabel", "Hide Non-Imported Types"))
+			];
+		}
+
+		return FilterOptionsWidget;
+	}
+
+	virtual bool ShouldShowPinTypeTreeItem(FPinTypeTreeItem InItem) const override
+	{
+		if (!CachedNamespaceHelper || !InItem.IsValid() || !bIsFilterEnabled)
+		{
+			return true;
+		}
+
+		const bool bForceLoadSubCategoryObject = false;
+		const FEdGraphPinType& PinType = InItem->GetPinType(bForceLoadSubCategoryObject);
+
+		if (PinType.PinSubCategoryObject.IsValid() && !CachedNamespaceHelper->IsImportedObject(PinType.PinSubCategoryObject.Get()))
+		{
+			// A pin type whose underlying object is loaded, but not imported.
+			return false;
+		}
+		else
+		{
+			const FSoftObjectPath& AssetRef = InItem->GetSubCategoryObjectAsset();
+			if (AssetRef.IsValid() && !CachedNamespaceHelper->IsImportedObject(AssetRef))
+			{
+				// A pin type whose underlying asset may be either loaded or unloaded, but is not imported.
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+protected:
+	ECheckBoxState IsFilterToggleChecked() const
+	{
+		return bIsFilterEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	void OnToggleFilter(ECheckBoxState NewState)
+	{
+		bIsFilterEnabled = (NewState == ECheckBoxState::Checked);
+
+		// Notify any listeners that the filter has been changed.
+		OnFilterChanged.Broadcast();
+	}
+
+private:
+	/** Associated namespace helper object. */
+	const FBlueprintNamespaceHelper* CachedNamespaceHelper;
+
+	/** Cached filter options widget. */
+	TSharedPtr<SWidget> FilterOptionsWidget;
+
+	/** Delegate that's called whenever filter options are changed. */
+	FOnFilterChanged OnFilterChanged;
+
+	/** Whether or not the filter is enabled. */
+	bool bIsFilterEnabled;
+};
+
+// ---
+
 FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBlueprint)
 {
 	// Default namespace paths implicitly imported by every Blueprint.
@@ -117,6 +215,8 @@ FBlueprintNamespaceHelper::FBlueprintNamespaceHelper(const UBlueprint* InBluepri
 			}
 		}
 	}
+
+	PinTypeSelectorFilter = MakeShared<FPinTypeSelectorNamespaceFilter>(this);
 }
 
 bool FBlueprintNamespaceHelper::IsIncludedInNamespaceList(const FString& TestNamespace) const
@@ -157,6 +257,7 @@ bool FBlueprintNamespaceHelper::IsImportedType(const UField* InType) const
 		}
 	}
 
+	// Types exist in the global scope if we can't determine otherwise, which means it's always imported.
 	return true;
 }
 
@@ -198,5 +299,8 @@ bool FBlueprintNamespaceHelper::IsImportedObject(const FSoftObjectPath& InObject
 		}
 	}
 
+	// Objects exist in the global scope if we can't determine otherwise, which means it's always imported.
 	return true;
 }
+
+#undef LOCTEXT_NAMESPACE

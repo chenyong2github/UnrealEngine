@@ -79,7 +79,8 @@ public:
 		SLATE_EVENT( FOnPinTypeChanged, OnPinTypeChanged )
 		SLATE_ATTRIBUTE( FSlateFontInfo, Font )
 		SLATE_ARGUMENT( ESelectorType, SelectorType )
-		SLATE_ATTRIBUTE(bool, ReadOnly);
+		SLATE_ATTRIBUTE(bool, ReadOnly)
+		SLATE_ARGUMENT(TSharedPtr<class IPinTypeSelectorFilter>, CustomFilter)
 	SLATE_END_ARGS()
 public:
 	void Construct(const FArguments& InArgs, FGetPinTypeTree GetPinTypeTreeFunc);
@@ -148,10 +149,16 @@ protected:
 	/** Whether or not the type is read only and not editable (implies a different style) */
 	TAttribute<bool> ReadOnly;
 
+	/** Total number of filtered pin type items. This count excludes category items and reference subtypes. */
+	int32 NumFilteredPinTypeItems;
+
 	/** Holds a cache of the allowed Object Reference types for the last sub-menu opened. */
 	TArray<FObjectReferenceListItem> AllowedObjectReferenceTypes;
 	TWeakPtr<SListView<FObjectReferenceListItem>> WeakListView;
 	TWeakPtr<SMenuOwner> PinTypeSelectorMenuOwner;
+
+	/** An interface to optionally apply a custom filter to the available pin type items for display. */
+	TSharedPtr<class IPinTypeSelectorFilter> CustomFilter;
 
 	/** Array checkbox support functions */
 	ECheckBoxState IsArrayChecked() const;
@@ -202,6 +209,9 @@ protected:
 	/** Callback to get the tooltip for the container type dropdown widget */
 	FText GetToolTipForContainerWidget() const;
 
+	/** Callback to get the display text for the total pin type item count */
+	FText GetPinTypeItemCountText() const;
+
 	/**
 	 * Helper function to create widget for the sub-menu
 	 *
@@ -222,4 +232,30 @@ protected:
 	 * @param InPinCategory			This is the PinType's category, must be provided separately as the PinType in the tree item is always Object Types for any object related type.
 	 */
 	void OnSelectPinType(FPinTypeTreeItem InItem, FName InPinCategory, bool bForSecondaryType);
+
+	/** Called whenever the custom filter options are changed. */
+	void OnCustomFilterChanged();
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+// IPinTypeSelectorFilter
+
+/** An interface for implementing a custom pin type filter for the selector widget. */
+class KISMETWIDGETS_API IPinTypeSelectorFilter
+{
+public:
+	virtual ~IPinTypeSelectorFilter() {}
+
+	/** (Required) - Implement this method to filter the given pin type item and determine whether or not it should be displayed. */
+	virtual bool ShouldShowPinTypeTreeItem(FPinTypeTreeItem InItem) const = 0;
+
+	/** (Optional) - Override this method to bind a delegate to call when the filter changes. */
+	virtual FDelegateHandle RegisterOnFilterChanged(FSimpleDelegate InOnFilterChanged) { return FDelegateHandle(); }
+
+	/** (Optional) - Override this method to unbind a delegate that was previously bound to a filter change event. */
+	virtual void UnregisterOnFilterChanged(FDelegateHandle InDelegateHandle) {}
+
+	/** (Optional) - Override this method to return a widget that allows the user to toggle filter options on/off, etc. */
+	virtual TSharedPtr<SWidget> GetFilterOptionsWidget() { return TSharedPtr<SWidget>(); }
 };
