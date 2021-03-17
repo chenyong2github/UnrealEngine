@@ -20,4 +20,5 @@ private:
 	void OnLevelSelectionChanged(UObject* Obj);
 	void OnActorLabelChanged(AActor* ChangedActor);
 	void OnLevelActorRequestsRename(const AActor* Actor);
+	void OnPostLoadMapWithWorld(UWorld* World);
 };

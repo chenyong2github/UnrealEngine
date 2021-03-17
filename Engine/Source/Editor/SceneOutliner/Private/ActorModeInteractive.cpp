@@ -15,6 +15,7 @@ FActorModeInteractive::FActorModeInteractive(const FActorModeParams& Params)
 	FEditorDelegates::NewCurrentLevel.AddRaw(this, &FActorModeInteractive::OnNewCurrentLevel);
 
 	FCoreDelegates::OnActorLabelChanged.AddRaw(this, &FActorModeInteractive::OnActorLabelChanged);
+	FCoreUObjectDelegates::PostLoadMapWithWorld.AddRaw(this, &FActorModeInteractive::OnPostLoadMapWithWorld);
 	GEngine->OnLevelActorRequestRename().AddRaw(this, &FActorModeInteractive::OnLevelActorRequestsRename);
 }
 
@@ -27,6 +28,7 @@ FActorModeInteractive::~FActorModeInteractive()
 	FEditorDelegates::NewCurrentLevel.RemoveAll(this);
 
 	FCoreDelegates::OnActorLabelChanged.RemoveAll(this);
+	FCoreUObjectDelegates::PostLoadMapWithWorld.RemoveAll(this);
 	GEngine->OnLevelActorRequestRename().RemoveAll(this);
 }
 
@@ -85,6 +87,11 @@ void FActorModeInteractive::OnLevelActorRequestsRename(const AActor* Actor)
 			SceneOutliner->ScrollItemIntoView(ItemToRename);
 		}
 	}
+}
+
+void FActorModeInteractive::OnPostLoadMapWithWorld(UWorld* World)
+{
+	SceneOutliner->FullRefresh();
 }
 
 void FActorModeInteractive::OnActorLabelChanged(AActor* ChangedActor)
