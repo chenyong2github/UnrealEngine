@@ -1914,7 +1914,11 @@ bool FFbxExporter::ExportLevelSequenceTracks(UMovieScene* MovieScene, IMovieScen
 		}
 	}
 
-	USkeletalMeshComponent* SkeletalMeshComp = Actor ? Cast<USkeletalMeshComponent>(Actor->GetComponentByClass(USkeletalMeshComponent::StaticClass())) : nullptr;
+	USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(BoundObject);
+	if (!SkeletalMeshComp)
+	{
+		SkeletalMeshComp = Actor ? Cast<USkeletalMeshComponent>(Actor->GetComponentByClass(USkeletalMeshComponent::StaticClass())) : nullptr;	
+	}
 
 	FFrameRate DisplayRate = MovieScene->GetDisplayRate();
 
