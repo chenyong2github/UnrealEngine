@@ -580,6 +580,7 @@ int32 FSocketBSD::GetPortNo(void)
 
 bool FSocketBSD::SetIpPktInfo(bool bEnable)
 {
+#ifdef IP_PKTINFO
 	int Opt = bEnable ? 1 : 0;
 	if (setsockopt(Socket, IPPROTO_IP, IP_PKTINFO, (char*)&Opt, sizeof(Opt)) != 0)
 	{
@@ -587,6 +588,9 @@ bool FSocketBSD::SetIpPktInfo(bool bEnable)
 		return false;
 	}
 	return true;
+#else
+	return false;
+#endif
 }
 
 bool FSocketBSD::SetIPv6Only(bool bIPv6Only)
