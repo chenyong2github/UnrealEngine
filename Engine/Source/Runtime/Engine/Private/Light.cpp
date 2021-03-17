@@ -71,6 +71,8 @@ void ALight::Destroyed()
 			LightComponent->InvalidateLightingCache();
 		}
 	}
+
+	Super::Destroyed();
 }
 
 void ALight::GetLifetimeReplicatedProps( TArray< FLifetimeProperty > & OutLifetimeProps ) const

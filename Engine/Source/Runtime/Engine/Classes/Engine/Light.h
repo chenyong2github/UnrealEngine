@@ -73,7 +73,7 @@ public:
 	bool IsToggleable() const;
 
 	//~ Begin AActor Interface.
-	void Destroyed() override;
+	virtual void Destroyed() override;
 	virtual bool IsLevelBoundsRelevant() const override { return false; }
 	//~ End AActor Interface.
 
