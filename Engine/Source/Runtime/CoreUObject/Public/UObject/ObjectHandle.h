@@ -97,6 +97,7 @@ inline UObject* ReadObjectHandlePointerNoCheck(FObjectHandle Handle);
 inline FPackedObjectRef ReadObjectHandlePackedObjectRefNoCheck(FObjectHandle Handle);
 
 inline UObject* ResolveObjectHandle(FObjectHandle& Handle);
+inline UObject* ResolveObjectHandleNoRead(FObjectHandle& Handle);
 inline UClass* ResolveObjectHandleClass(FObjectHandle Handle);
 
 /** Read the handle as a pointer if resolved, and otherwise return null. */
@@ -324,13 +325,12 @@ inline FObjectHandle MakeObjectHandle(UObject* Object) { return Object; }
 
 #endif
 
-inline UObject* ResolveObjectHandle(FObjectHandle& Handle)
+inline UObject* ResolveObjectHandleNoRead(FObjectHandle& Handle)
 {
 	FObjectHandle LocalHandle = Handle;
 	if (IsObjectHandleResolved(LocalHandle))
 	{
 		UObject* ResolvedObject = ReadObjectHandlePointerNoCheck(LocalHandle);
-		ObjectHandle_Private::OnHandleRead(ResolvedObject);
 		return ResolvedObject;
 	}
 	else
@@ -338,9 +338,15 @@ inline UObject* ResolveObjectHandle(FObjectHandle& Handle)
 		LocalHandle = MakeObjectHandle(ResolvePackedObjectRef(ReadObjectHandlePackedObjectRefNoCheck(LocalHandle)));
 		UObject* ResolvedObject = ReadObjectHandlePointerNoCheck(LocalHandle);
 		Handle = LocalHandle;
-		ObjectHandle_Private::OnHandleRead(ResolvedObject);
 		return ResolvedObject;
 	}
+}
+
+inline UObject* ResolveObjectHandle(FObjectHandle& Handle)
+{
+	UObject* ResolvedObject = ResolveObjectHandleNoRead(Handle);
+	ObjectHandle_Private::OnHandleRead(ResolvedObject);
+	return ResolvedObject;
 }
 
 inline UClass* ResolveObjectHandleClass(FObjectHandle Handle)

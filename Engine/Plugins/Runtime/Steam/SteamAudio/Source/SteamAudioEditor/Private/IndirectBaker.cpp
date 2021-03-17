@@ -258,7 +258,7 @@ namespace SteamAudio
 							//UE_LOG(LogTemp, Warning, TEXT("Audio Component [%s] UserID is now set to [%s]"), *AudioComponent->GetFullName(), *AudioComponent->AudioComponentUserID.ToString());
 
 							// Check if there's a phonon source child for this audio component
-							for (auto* ChildComp : AudioComponent->GetAttachChildren())
+							for (auto ChildComp : AudioComponent->GetAttachChildren())
 							{
 								auto* ChildPhononComponent = Cast<UPhononSourceComponent>(ChildComp);
 

@@ -134,7 +134,7 @@ public:
 	FORCEINLINE UObject& operator*() const { return *Get(); }
 
 	// Forcing resolve for null check.  Non null unresolved pointers can become null resolved pointers.
-	FORCEINLINE bool IsNull() const { return ResolveObjectHandle(Handle) == nullptr; }
+	FORCEINLINE bool IsNull() const { return ResolveObjectHandleNoRead(Handle) == nullptr; }
 	FORCEINLINE bool IsNullNoResolve() const { return IsObjectHandleNull(Handle); }
 
 	FORCEINLINE bool operator!() const { return IsNull(); }
@@ -163,6 +163,12 @@ public:
 		return IsA(T::StaticClass());
 	}
 
+protected:
+	FORCEINLINE UObject* GetNoRead() const
+	{
+		return ResolveObjectHandleNoRead(Handle);
+	}
+
 private:
 	friend FORCEINLINE uint32 GetTypeHash(const FObjectPtr& Object)
 	{
@@ -181,6 +187,12 @@ template <typename T>
 struct TIsTObjectPtr
 {
 	enum { Value = false };
+};
+
+namespace ObjectPtr_Private
+{
+	template <typename T, typename U>
+	FORCEINLINE bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other);
 };
 
 template <typename T>
@@ -328,7 +340,11 @@ public:
 
 	friend struct FObjectPtr;
 	template <typename U> friend struct TObjectPtr;
+	template <typename U, typename V> friend bool ObjectPtr_Private::IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<U>& Ptr, const V* Other);
 private:
+
+	FORCEINLINE T* GetNoRead() const { return (T*)(FObjectPtr::GetNoRead()); }
+
 	// @TODO: OBJPTR: There is a risk of a gap in access tracking here.  The caller may get a mutable pointer, write to it, then
 	//			read from it.  That last read would happen without an access being recorded.  Not sure if there is a good way
 	//			to handle this case without forcing the calling code to be modified.
@@ -412,6 +428,12 @@ namespace ObjectPtr_Private
 		return Other.Get();
 	}
 
+	template <typename T, typename U>
+	FORCEINLINE bool IsObjectPtrEqualToRawPtrOfRelatedType(const TObjectPtr<T>& Ptr, const U* Other)
+	{
+		return Ptr.GetNoRead() == Other;
+	}
+
 	/** Perform shallow equality check between a TObjectPtr and another (non TObjectPtr) type that we can coerce to a pointer. */
 	template <
 		typename T,
@@ -423,8 +445,9 @@ namespace ObjectPtr_Private
 	>
 	FORCEINLINE bool IsObjectPtrEqual(const TObjectPtr<T>& Ptr, U&& Other)
 	{
-		auto OtherPtr = ObjectPtr_Private::CoerceToPointer<T>(Other);
-		return (Ptr.IsNull() == (OtherPtr == nullptr)) && (Ptr.Get() == OtherPtr);
+		// This function deliberately avoids the tracking code path as we are only doing
+		// a shallow pointer comparison.
+		return IsObjectPtrEqualToRawPtrOfRelatedType<T>(Ptr, ObjectPtr_Private::CoerceToPointer<T>(Other));
 	}
 }
 

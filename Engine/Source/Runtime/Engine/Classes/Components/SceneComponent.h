@@ -631,7 +631,7 @@ public:
 	virtual bool IsAnySimulatingPhysics() const;
 
 	/** Get the SceneComponents that are attached to this component. */
-	const TArray<USceneComponent*>& GetAttachChildren() const;
+	const TArray<TObjectPtr<USceneComponent>>& GetAttachChildren() const;
 
 	/** Get the SceneComponent we are attached to. */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Transformation")
@@ -1564,7 +1564,7 @@ private:
 //////////////////////////////////////////////////////////////////////////
 // USceneComponent inlines
 
-FORCEINLINE const TArray<USceneComponent*>& USceneComponent::GetAttachChildren() const
+FORCEINLINE const TArray<TObjectPtr<USceneComponent>>& USceneComponent::GetAttachChildren() const
 {
 	return AttachChildren;
 }
