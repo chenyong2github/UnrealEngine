@@ -44,9 +44,7 @@ struct FInstanceCullingResult
 	{
 		// GPUCULL_TODO: Maybe get dummy buffers?
 		OutParams.DrawIndirectArgsBuffer = DrawIndirectArgsBuffer;
-		OutParams.DrawIndirectArgsBufferAccess = DrawIndirectArgsBuffer;
 		OutParams.InstanceIdOffsetBuffer = InstanceIdOffsetBuffer;
-		OutParams.InstanceIdOffsetBufferAccess = InstanceIdOffsetBuffer;
 	}
 
 	static void CondGetDrawParameters(const FInstanceCullingResult* InstanceCullingResult, FInstanceCullingDrawParams& OutParams)
@@ -58,9 +56,7 @@ struct FInstanceCullingResult
 		else
 		{
 			OutParams.DrawIndirectArgsBuffer = nullptr;
-			OutParams.DrawIndirectArgsBufferAccess = nullptr;
 			OutParams.InstanceIdOffsetBuffer = nullptr;
-			OutParams.InstanceIdOffsetBufferAccess = nullptr;
 		}
 	}
 };

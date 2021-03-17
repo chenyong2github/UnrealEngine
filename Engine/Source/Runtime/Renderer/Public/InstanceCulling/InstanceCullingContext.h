@@ -52,10 +52,8 @@ struct FInstanceCullingRdgParams
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FInstanceCullingDrawParams, )
-	RDG_BUFFER_ACCESS(DrawIndirectArgsBufferAccess, ERHIAccess::IndirectArgs)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint32>, DrawIndirectArgsBuffer)
-	RDG_BUFFER_ACCESS(InstanceIdOffsetBufferAccess, ERHIAccess::VertexOrIndexBuffer)
-	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint32>, InstanceIdOffsetBuffer)
+	RDG_BUFFER_ACCESS(DrawIndirectArgsBuffer, ERHIAccess::IndirectArgs)
+	RDG_BUFFER_ACCESS(InstanceIdOffsetBuffer, ERHIAccess::VertexOrIndexBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
 /**

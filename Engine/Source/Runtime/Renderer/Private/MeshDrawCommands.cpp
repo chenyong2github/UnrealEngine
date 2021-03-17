@@ -1478,9 +1478,7 @@ void FParallelMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuil
 		}
 	}
 	OutInstanceCullingDrawParams.DrawIndirectArgsBuffer = nullptr;
-	OutInstanceCullingDrawParams.DrawIndirectArgsBufferAccess = nullptr;
 	OutInstanceCullingDrawParams.InstanceIdOffsetBuffer = nullptr;
-	OutInstanceCullingDrawParams.InstanceIdOffsetBufferAccess = nullptr;
 
 #endif
 }
