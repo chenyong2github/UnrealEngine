@@ -311,7 +311,7 @@ public:
 		UserDataElement.bEditorView = Component->IsOwnedByEditor();
 		UserDataElement.VirtualDepth = RenderData.VDMultiplier * Node.VirtualDepth;
 		UserDataElement.SpriteSize = RenderData.RootCellSize / FMath::Pow(2.0f, UserDataElement.VirtualDepth);
-		UserDataElement.SpriteSizeMultiplier = Component->PointSize * Component->GetComponentScale().GetAbsMax();
+		UserDataElement.SpriteSizeMultiplier = (Component->PointSize + Component->GapFillingStrength * 0.005f) * Component->GetComponentScale().GetAbsMax();
 		UserDataElement.bUseScreenSizeScaling = Component->bUseScreenSizeScaling;
 		UserDataElement.bUseStaticBuffers = RenderData.bUseStaticBuffers;
 

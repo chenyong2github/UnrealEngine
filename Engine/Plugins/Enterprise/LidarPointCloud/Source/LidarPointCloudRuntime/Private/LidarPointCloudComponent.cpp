@@ -23,6 +23,7 @@ ULidarPointCloudComponent::ULidarPointCloudComponent()
 	, bUseFrustumCulling(true)
 	, PointSize(1.0f)
 	, bUseScreenSizeScaling(false)
+	, GapFillingStrength(0)
 	, ColorSource(ELidarPointCloudColorationMode::Data)
 	, PointShape(ELidarPointCloudSpriteShape::Square)
 	, PointOrientation(ELidarPointCloudSpriteOrientation::PreferFacingCamera)
@@ -157,6 +158,7 @@ void ULidarPointCloudComponent::ApplyRenderingParameters()
 	if (UMaterialInstanceDynamic* DynMaterial = Cast<UMaterialInstanceDynamic>(Material))
 	{
 		DynMaterial->SetVectorParameterValue("PC__Gain", FVector(Gain.X, Gain.Y, Gain.Z) * Gain.W);
+		DynMaterial->SetScalarParameterValue("PC__GapFillerFactor", GapFillingStrength);
 	}
 }
 
@@ -222,6 +224,11 @@ void ULidarPointCloudComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 		}
 
 		if (IS_PROPERTY(Gain))
+		{
+			ApplyRenderingParameters();
+		}
+
+		if (IS_PROPERTY(GapFillingStrength))
 		{
 			ApplyRenderingParameters();
 		}
