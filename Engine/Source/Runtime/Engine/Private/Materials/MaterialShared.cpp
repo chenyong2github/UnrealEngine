@@ -2945,7 +2945,13 @@ IAllocatedVirtualTexture* FMaterialRenderProxy::AllocateVTStack(const FMaterialR
 	const UTexture2D* LayerTextures[VIRTUALTEXTURE_SPACE_MAXLAYERS] = { nullptr };
 	VTStack.GetTextureValues(Context, UniformExpressionSet, LayerTextures);
 
+	const UMaterialInterface* MaterialInterface = GetMaterialInterface();
+
 	FAllocatedVTDescription VTDesc;
+	if (MaterialInterface)
+	{
+		VTDesc.Name = MaterialInterface->GetFName();
+	}
 	VTDesc.Dimensions = 2;
 	VTDesc.NumTextureLayers = NumLayers;
 	bool bFoundValidLayer = false;

@@ -49,6 +49,8 @@ inline bool operator!=(const FVirtualTextureProducerHandle& Lhs, const FVirtualT
  */
 struct FAllocatedVTDescription
 {
+	FName Name;
+
 	uint32 TileSize = 0u;
 	uint32 TileBorderSize = 0u;
 	uint8 Dimensions = 0u;
@@ -107,6 +109,21 @@ inline bool operator==(const FAllocatedVTDescription& Lhs, const FAllocatedVTDes
 inline bool operator!=(const FAllocatedVTDescription& Lhs, const FAllocatedVTDescription& Rhs)
 {
 	return !operator==(Lhs, Rhs);
+}
+
+inline uint32 GetTypeHash(const FAllocatedVTDescription& Description)
+{
+	uint32 Hash = GetTypeHash(Description.TileSize);
+	Hash = HashCombine(Hash, GetTypeHash(Description.TileBorderSize));
+	Hash = HashCombine(Hash, GetTypeHash(Description.Dimensions));
+	Hash = HashCombine(Hash, GetTypeHash(Description.NumTextureLayers));
+	Hash = HashCombine(Hash, GetTypeHash(Description.PackedFlags));
+	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumTextureLayers; ++LayerIndex)
+	{
+		Hash = HashCombine(Hash, GetTypeHash(Description.ProducerHandle[LayerIndex].PackedValue));
+		Hash = HashCombine(Hash, GetTypeHash(Description.ProducerLayerIndex[LayerIndex]));
+	}
+	return Hash;
 }
 
 struct FVTProducerDescription

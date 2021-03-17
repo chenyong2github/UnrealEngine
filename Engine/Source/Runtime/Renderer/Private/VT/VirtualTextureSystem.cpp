@@ -389,11 +389,6 @@ void FVirtualTextureSystem::ListPhysicalPoolsFromConsole()
 	}
 }
 
-uint32 GetTypeHash(const FAllocatedVTDescription& Description)
-{
-	return FCrc::MemCrc32(&Description, sizeof(Description));
-}
-
 IAllocatedVirtualTexture* FVirtualTextureSystem::AllocateVirtualTexture(const FAllocatedVTDescription& Desc)
 {
 	check(Desc.NumTextureLayers <= VIRTUALTEXTURE_SPACE_MAXLAYERS);
