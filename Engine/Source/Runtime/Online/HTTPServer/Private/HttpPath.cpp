@@ -50,7 +50,7 @@ bool FHttpPath::IsValidPath() const
 			(C == TEXT('\\'));
 	}; 
 
-	return (INDEX_NONE == Path.FindLastCharByPredicate(IsInvalidUriChar, 0));
+	return (INDEX_NONE == Path.FindLastCharByPredicate(IsInvalidUriChar));
 }
 
 bool FHttpPath::IsRoot() const
