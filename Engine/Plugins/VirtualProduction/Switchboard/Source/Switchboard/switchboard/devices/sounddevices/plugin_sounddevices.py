@@ -76,7 +76,7 @@ class DeviceSoundDevices(Device):
         # Start a new recording
         self.device_recording = recording.DeviceRecording()
         self.device_recording.device_name = self.name
-        self.device_recording.device_type = self.type
+        self.device_recording.device_type = self.device_type
 
         if self.repeat_function:
             self.repeat_function.stop()
