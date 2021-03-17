@@ -107,7 +107,7 @@ bool TraceLumenMinimalRay(
 {
 	Payload = (FLumenMinimalPayload)0;
 
-	uint RayFlags = RAY_FLAG_FORCE_OPAQUE;
+	uint RayFlags = RAY_FLAG_FORCE_OPAQUE | RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
 	uint InstanceMask = RAY_TRACING_MASK_OPAQUE;
 	TraceLumenRay(Context.TLAS, RayFlags, InstanceMask, RAY_TRACING_SHADER_SLOT_MATERIAL, RAY_TRACING_NUM_SHADER_SLOTS, 0, Ray, Payload);
 
