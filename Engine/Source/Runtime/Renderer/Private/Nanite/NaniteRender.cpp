@@ -602,7 +602,7 @@ class FInstanceCull_CS : public FNaniteShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
 
-		SHADER_PARAMETER_RDG_BUFFER( Buffer< uint >, IndirectArgs )
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -649,7 +649,7 @@ class FInstanceCullVSM_CS : public FNaniteShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FInstanceDraw >, InOccludedInstances )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InOccludedInstancesArgs )
 
-		SHADER_PARAMETER_RDG_BUFFER( Buffer< uint >, IndirectArgs )
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE( FVirtualTargetParameters, VirtualShadowMap )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,	ShadowHZBPageTable )
@@ -818,7 +818,7 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InClusterOffsetSWHW )
 
-	SHADER_PARAMETER_RDG_BUFFER( Buffer< uint >, IndirectArgs )
+	RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualTargetParameters, VirtualShadowMap)
 END_SHADER_PARAMETER_STRUCT()
@@ -1649,7 +1649,7 @@ class FCalculateClusterStatsCS : public FNaniteShader
 
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, MainPassRasterizeArgsSWHW )
 		SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, PostPassRasterizeArgsSWHW )
-		SHADER_PARAMETER_RDG_BUFFER( Buffer< uint >, StatsArgs )
+		RDG_BUFFER_ACCESS(StatsArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCalculateClusterStatsCS, "/Engine/Private/Nanite/PrintStats.usf", "CalculateClusterStats", SF_Compute);

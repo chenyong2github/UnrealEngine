@@ -490,7 +490,7 @@ class FClearPhysicalPagesCS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, PhysicalPagesTexture)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D< uint >, CachedPhysicalPagesTexture)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FCachedPageInfo >, CachedPageInfos)
@@ -1445,7 +1445,7 @@ public:
 		SHADER_PARAMETER(int32, bInstancePerPage)
 
 		// Needed reference for make RDG happy somehow
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FCullPerPageDrawCommandsCs, "/Engine/Private/VirtualShadowMaps/BuildPerPageDrawCommands.usf", "CullPerPageDrawCommandsCs", SF_Compute);
@@ -1522,7 +1522,7 @@ public:
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VisibleInstanceCountBuffer)
 
 		// Needed reference for make RDG happy somehow
-		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
+		RDG_BUFFER_ACCESS(IndirectArgs, ERHIAccess::IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FOutputCommandInstanceListsCs, "/Engine/Private/VirtualShadowMaps/BuildPerPageDrawCommands.usf", "OutputCommandInstanceListsCs", SF_Compute);
@@ -1926,7 +1926,7 @@ class FInitializePhysicalPagesPS : public FVirtualPageManagementShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FVirtualShadowMapUniformParameters, VirtualShadowMap)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D< float >, PrevPhysicalPagePoolHw)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FCachedPageInfo >, CachedPageInfos)
-		SHADER_PARAMETER_RDG_BUFFER(Buffer, IndirectArgsBuffer)
+		RDG_BUFFER_ACCESS(IndirectArgsBuffer, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER(int32, bCacheDataAvailable)
 		SHADER_PARAMETER(int32, bRectPrimitive)
 		RENDER_TARGET_BINDING_SLOTS()
