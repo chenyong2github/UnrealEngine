@@ -1452,7 +1452,7 @@ namespace Chaos
 				}
 			}
 
-			Parent->SetObjectState(ObjectState);
+			Parent->SetObjectStateLowLevel(ObjectState);
 		}
 	}
 

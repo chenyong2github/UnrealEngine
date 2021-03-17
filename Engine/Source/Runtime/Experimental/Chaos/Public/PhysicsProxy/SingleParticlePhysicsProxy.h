@@ -744,7 +744,7 @@ public:
 					}
 				}
 
-				Rigid->SetObjectState(InState, bAllowEvents, bInvalidate);
+				SetObjectStateHelper(*this, *Rigid, InState, bAllowEvents, bInvalidate);
 			}
 		});
 	}

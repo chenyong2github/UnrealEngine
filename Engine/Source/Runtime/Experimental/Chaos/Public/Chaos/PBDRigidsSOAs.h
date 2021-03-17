@@ -165,12 +165,12 @@ public:
 		{
 			if (Params.bStartSleeping)
 			{
-				Handle->SetObjectState(Chaos::EObjectStateType::Sleeping);
+				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Sleeping);
 				Handle->SetSleeping(true);
 			}
 			else
 			{
-				Handle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
 				Handle->SetSleeping(false);
 			}
 		}
@@ -385,7 +385,7 @@ public:
 				{
 					// Sleeping state is currently expressed in 2 places...
 					PBDRigid->SetSleeping(false);
-					PBDRigid->SetObjectState(EObjectStateType::Dynamic);
+					PBDRigid->SetObjectStateLowLevel(EObjectStateType::Dynamic);
 		
 					bool bUpdateGeometryCollection = false;
 					if (auto PBDRigidClustered = Particle->CastToClustered())
@@ -455,7 +455,7 @@ public:
 				{
 					// Sleeping state is currently expressed in 2 places...
 					PBDRigid->SetSleeping(true);
-					PBDRigid->SetObjectState(EObjectStateType::Sleeping);
+					PBDRigid->SetObjectStateLowLevel(EObjectStateType::Sleeping);
 
 					InsertToMapAndArray(PBDRigid,TransientDirtyToIndex,TransientDirtyArray);
 

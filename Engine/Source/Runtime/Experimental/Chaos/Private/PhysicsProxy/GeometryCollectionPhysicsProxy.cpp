@@ -236,7 +236,7 @@ void PopulateSimulatedParticle(
 	// Setup Mass
 	//
 	{
-		Handle->SetObjectState(Chaos::EObjectStateType::Uninitialized);
+		Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Uninitialized);
 
 		if (!CHAOS_ENSURE_MSG(FMath::IsWithinInclusive(MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp),
 			TEXT("Clamped mass[%3.5f] to range [%3.5f,%3.5f]"), MassIn, SharedParams.MinimumMassClamp, SharedParams.MaximumMassClamp))
@@ -1341,7 +1341,7 @@ void FGeometryCollectionPhysicsProxy::PushKinematicStateToSolver()
 				&& (Handle->ObjectState() == Chaos::EObjectStateType::Kinematic || Handle->ObjectState() == Chaos::EObjectStateType::Static)
 				&& FLT_EPSILON < Handle->M())
 			{
-				Handle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
 				if (Parameters.InitialVelocityType == EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
 				{
 					Handle->SetV(Collection.InitialLinearVelocity[TransformIndex]);
@@ -1352,23 +1352,23 @@ void FGeometryCollectionPhysicsProxy::PushKinematicStateToSolver()
 				&& (Handle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 				&& FLT_EPSILON < Handle->M())
 			{
-				Handle->SetObjectState(Chaos::EObjectStateType::Kinematic);
+				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Kinematic);
 			}
 			else if ((DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Static)
 				&& (Handle->ObjectState() == Chaos::EObjectStateType::Dynamic)
 				&& FLT_EPSILON < Handle->M())
 			{
-				Handle->SetObjectState(Chaos::EObjectStateType::Static);
+				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Static);
 			}
 			else if ((DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Sleeping)
 				&& (Handle->ObjectState() == Chaos::EObjectStateType::Dynamic))
 			{
-				Handle->SetObjectState(Chaos::EObjectStateType::Sleeping);
+				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Sleeping);
 			}
 			else if ((DynamicState[TransformIndex] == (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic)
 				&& (Handle->ObjectState() == Chaos::EObjectStateType::Sleeping))
 			{
-				Handle->SetObjectState(Chaos::EObjectStateType::Dynamic);
+				Handle->SetObjectStateLowLevel(Chaos::EObjectStateType::Dynamic);
 			}
 		}
 	}

@@ -12,6 +12,19 @@
 
 namespace Chaos
 {
+	void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticleHandle& Rigid, EObjectStateType InState, bool bAllowEvents, bool bInvalidate)
+	{
+		if (auto PhysicsSolver = Proxy.GetSolver<Chaos::FPBDRigidsSolver>())
+		{
+			PhysicsSolver->GetEvolution()->SetParticleObjectState(&Rigid, InState);
+		}
+		else
+		{
+			//not in solver so just set it directly (can this possibly happen?)
+			Rigid.SetObjectStateLowLevel(InState);
+		}
+	}
+
 	template <typename T, int d>
 	void Chaos::TGeometryParticle<T, d>::MapImplicitShapes()
 	{

@@ -852,7 +852,7 @@ public:
 	void SetToBeRemovedOnFracture(const bool bToBeRemovedOnFracture) { PBDRigidParticles->ToBeRemovedOnFracture(ParticleIdx) = bToBeRemovedOnFracture; }
 
 	EObjectStateType ObjectState() const { return PBDRigidParticles->ObjectState(ParticleIdx); }
-	void SetObjectState(EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = false) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
+
 	void SetObjectStateLowLevel(EObjectStateType InState) { PBDRigidParticles->SetObjectState(ParticleIdx, InState); }
 	
 	bool Sleeping() const { return PBDRigidParticles->Sleeping(ParticleIdx); }
@@ -2602,6 +2602,14 @@ FORCEINLINE_DEBUGGABLE void FAccelerationStructureHandle::DebugDraw(const bool b
 	}
 }
 #endif
+
+inline void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticle& Rigid, EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true)
+{
+	Rigid.SetObjectState(InState, bAllowEvents, bInvalidate);
+}
+
+CHAOS_API void SetObjectStateHelper(IPhysicsProxyBase& Proxy, FPBDRigidParticleHandle& Rigid, EObjectStateType InState, bool bAllowEvents = false, bool bInvalidate = true);
+
 
 #if PLATFORM_MAC || PLATFORM_LINUX
 extern template class CHAOS_API TGeometryParticle<FReal, 3>;
