@@ -5,10 +5,12 @@
 #include "Trace/Config.h"
 #include "Containers/Array.h"
 
+#if !defined(UE_TASK_TRACE_ENABLED)
 #if UE_TRACE_ENABLED && !IS_PROGRAM && !UE_BUILD_SHIPPING
 #define UE_TASK_TRACE_ENABLED 1
 #else
 #define UE_TASK_TRACE_ENABLED 0
+#endif
 #endif
 
 namespace ENamedThreads
