@@ -1478,40 +1478,6 @@ FORCEINLINE VectorRegister VectorLog2(const VectorRegister& X)
 	return MakeVectorRegister(FMath::Log2(Val[0]), FMath::Log2(Val[1]), FMath::Log2(Val[2]), FMath::Log2(Val[3]));
 }
 
-namespace VectorSinConstantsNEON
-{
-	static const float p = 0.225f;
-	static const float a = (16 * sqrtf(p));
-	static const float b = ((1 - p) / sqrtf(p));
-	static const VectorRegister A = MakeVectorRegister(a, a, a, a);
-	static const VectorRegister B = MakeVectorRegister(b, b, b, b);
-}
-
-FORCEINLINE VectorRegister VectorSin(const VectorRegister& X)
-{
-	//Sine approximation using a squared parabola restrained to f(0) = 0, f(PI) = 0, f(PI/2) = 1.
-	//based on a good discussion here http://forum.devmaster.net/t/fast-and-accurate-sine-cosine/9648
-	//After approx 2.5 million tests comparing to sin(): 
-	//Average error of 0.000128
-	//Max error of 0.001091
-	//
-	// Error clarification - the *relative* error rises above 1.2% near
-	// 0 and PI (as the result nears 0). This is enough to introduce 
-	// harmonic distortion when used as an oscillator - VectorSinCos
-	// doesn't cost that much more and is significantly more accurate.
-	// (though don't use either for an oscillator if you care about perf)
-
-	VectorRegister Y = VectorMultiply(X, GlobalVectorConstants::OneOverTwoPi);
-	Y = VectorSubtract(Y, VectorFloor(VectorAdd(Y, GlobalVectorConstants::FloatOneHalf)));
-	Y = VectorMultiply(VectorSinConstantsNEON::A, VectorMultiply(Y, VectorSubtract(GlobalVectorConstants::FloatOneHalf, VectorAbs(Y))));
-	return VectorMultiply(Y, VectorAdd(VectorSinConstantsNEON::B, VectorAbs(Y)));
-}
-
-FORCEINLINE VectorRegister VectorCos(const VectorRegister& X)
-{
-	return VectorSin(VectorAdd(X, GlobalVectorConstants::PiByTwo));
-}
-
 //TODO: Vectorize
 FORCEINLINE VectorRegister VectorTan(const VectorRegister& X)
 {
@@ -1600,6 +1566,40 @@ FORCEINLINE VectorRegister VectorStep(const VectorRegister& X)
 {
 	VectorRegister Mask = VectorCompareGE(X, (GlobalVectorConstants::FloatZero));
 	return VectorSelect(Mask, (GlobalVectorConstants::FloatOne), (GlobalVectorConstants::FloatZero));
+}
+
+namespace VectorSinConstantsNEON
+{
+	static const float p = 0.225f;
+	static const float a = (16 * sqrtf(p));
+	static const float b = ((1 - p) / sqrtf(p));
+	static const VectorRegister A = MakeVectorRegister(a, a, a, a);
+	static const VectorRegister B = MakeVectorRegister(b, b, b, b);
+}
+
+FORCEINLINE VectorRegister VectorSin(const VectorRegister& X)
+{
+	//Sine approximation using a squared parabola restrained to f(0) = 0, f(PI) = 0, f(PI/2) = 1.
+	//based on a good discussion here http://forum.devmaster.net/t/fast-and-accurate-sine-cosine/9648
+	//After approx 2.5 million tests comparing to sin(): 
+	//Average error of 0.000128
+	//Max error of 0.001091
+	//
+	// Error clarification - the *relative* error rises above 1.2% near
+	// 0 and PI (as the result nears 0). This is enough to introduce 
+	// harmonic distortion when used as an oscillator - VectorSinCos
+	// doesn't cost that much more and is significantly more accurate.
+	// (though don't use either for an oscillator if you care about perf)
+
+	VectorRegister Y = VectorMultiply(X, GlobalVectorConstants::OneOverTwoPi);
+	Y = VectorSubtract(Y, VectorFloor(VectorAdd(Y, GlobalVectorConstants::FloatOneHalf)));
+	Y = VectorMultiply(VectorSinConstantsNEON::A, VectorMultiply(Y, VectorSubtract(GlobalVectorConstants::FloatOneHalf, VectorAbs(Y))));
+	return VectorMultiply(Y, VectorAdd(VectorSinConstantsNEON::B, VectorAbs(Y)));
+}
+
+FORCEINLINE VectorRegister VectorCos(const VectorRegister& X)
+{
+	return VectorSin(VectorAdd(X, GlobalVectorConstants::PiByTwo));
 }
 
 /**
