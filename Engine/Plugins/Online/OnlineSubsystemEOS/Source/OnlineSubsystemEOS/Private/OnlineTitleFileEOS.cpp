@@ -133,9 +133,12 @@ bool FOnlineTitleFileEOS::EnumerateFiles(const FPagedQuery& Page)
 
 	if (!bStarted)
 	{
-		UE_LOG_ONLINE_TITLEFILE(Error, TEXT("EnumerateFiles() %s"), *ErrorStr);
-		TriggerOnEnumerateFilesCompleteDelegates(false, *ErrorStr);
-		return false;
+		EOSSubsystem->ExecuteNextTick([this, ErrorStr]()
+		{
+			UE_LOG_ONLINE_TITLEFILE(Error, TEXT("EnumerateFiles() %s"), *ErrorStr);
+			TriggerOnEnumerateFilesCompleteDelegates(false, *ErrorStr);
+		});
+		return true;
 	}
 
 	// Find all tags defined for the start page
@@ -229,9 +232,12 @@ bool FOnlineTitleFileEOS::ReadFile(const FString& FileName)
 	FEOSTitleFile *ExistingTitleFile = FileSet.Find(FileName);
 	if (ExistingTitleFile != nullptr && ExistingTitleFile->bInProgress)
 	{
-		UE_LOG_ONLINE_TITLEFILE(Warning, TEXT("ReadFile() already being read (%s)"), *FileName);
-		TriggerOnReadFileCompleteDelegates(false, FileName);
-		return false;
+		EOSSubsystem->ExecuteNextTick([this, FileName]()
+		{
+			UE_LOG_ONLINE_TITLEFILE(Warning, TEXT("ReadFile() already being read (%s)"), *FileName);
+			TriggerOnReadFileCompleteDelegates(false, FileName);
+		});
+		return true;
 	}
 
 	FReadTitleFileCompleteCallback* CallbackObj = new FReadTitleFileCompleteCallback();
@@ -353,11 +359,14 @@ bool FOnlineTitleFileEOS::ReadFile(const FString& FileName)
 	}
 	else
 	{
-		UE_LOG_ONLINE_TITLEFILE(Error, TEXT("ReadFile() failed to create a transfer request (%s)"), *FileName);
-		TriggerOnReadFileCompleteDelegates(false, FileName);
+		EOSSubsystem->ExecuteNextTick([this, FileName]()
+		{
+			UE_LOG_ONLINE_TITLEFILE(Error, TEXT("ReadFile() failed to create a transfer request (%s)"), *FileName);
+			TriggerOnReadFileCompleteDelegates(false, FileName);
+		});
 	}
 
-	return bStarted;
+	return true;
 }
 
 FDelegateHandle OnEnumerateFilesCompleteDelegateHandle;
