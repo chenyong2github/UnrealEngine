@@ -496,6 +496,32 @@ bool FTriangleMeshImplicitObject::Overlap(const FVec3& Point, const FReal Thickn
 	}
 }
 
+void FTriangleMeshImplicitObject::VisitTriangles(const FAABB3& QueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const
+{
+	const TArray<int32> PotentialIntersections = BVH.FindAllIntersections(QueryBounds);
+
+	auto TriangleProducer = [&](const auto& Elements)
+	{
+		for (int32 TriIdx : PotentialIntersections)
+		{
+			TVec3<FReal> A, B, C;
+			TransformVertsHelper(FVec3(1), TriIdx, MParticles, Elements, A, B, C);
+
+			Visitor(FTriangle(A, B, C));
+		}
+	};
+
+	if (MElements.RequiresLargeIndices())
+	{
+		return TriangleProducer(MElements.GetLargeIndexBuffer());
+	}
+	else
+	{
+		return TriangleProducer(MElements.GetSmallIndexBuffer());
+	}
+}
+
+
 template <typename QueryGeomType>
 bool FTriangleMeshImplicitObject::OverlapGeomImp(const QueryGeomType& QueryGeom, const FRigidTransform3& QueryTM, const FReal Thickness, FMTDInfo* OutMTD, FVec3 TriMeshScale) const
 {

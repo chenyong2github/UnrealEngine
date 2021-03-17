@@ -250,6 +250,24 @@ TAABB<T, d> TAABB<T, d>::TransformedAABB(const FTransform& SpaceTransform) const
 		return TransformedAABBHelper<T, d>(*this, SpaceTransform);
 	}
 }
+
+template<typename T, int d>
+inline TAABB<T, d> TAABB<T, d>::InverseTransformedAABB(const TRigidTransform<T, 3>& SpaceTransform) const
+{
+	TVector<T, d> CurrentExtents = Extents();
+	int32 Idx = 0;
+	const TVector<T, d> MinToNewSpace = SpaceTransform.InverseTransformPosition(Min());
+	TAABB<T, d> NewAABB(MinToNewSpace, MinToNewSpace);
+	NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(Max()));
+
+	for (int32 j = 0; j < d; ++j)
+	{
+		NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(Min() + TVector<T, d>::AxisVector(j) * CurrentExtents));
+		NewAABB.GrowToInclude(SpaceTransform.InverseTransformPosition(Max() - TVector<T, d>::AxisVector(j) * CurrentExtents));
+	}
+
+	return NewAABB;
+}
 }
 
 template class Chaos::TAABB<Chaos::FReal, 3>;

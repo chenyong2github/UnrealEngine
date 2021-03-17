@@ -3,6 +3,8 @@
 #include "Chaos/Box.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/Convex.h"
+#include "Chaos/HeightField.h"
+#include "Chaos/Triangle.h"
 #include "Chaos/TriangleMesh.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/Evolution/SimulationSpace.h"
@@ -42,24 +44,27 @@ namespace Chaos
 		// if the user does not specify settings in the debug draw call.
 		// See PBDRigidsColver.cpp and ImmediatePhysicsSimulation_Chaos.cpp for example.
 		FChaosDebugDrawSettings ChaosDefaultDebugDebugDrawSettings(
-			/* ArrowSize =			*/ 1.5f,
-			/* BodyAxisLen =		*/ 4.0f,
-			/* ContactLen =			*/ 4.0f,
-			/* ContactWidth =		*/ 2.0f,
-			/* ContactPhiWidth =	*/ 0.0f,
-			/* ContactOwnerWidth =	*/ 0.0f,
-			/* ConstraintAxisLen =	*/ 5.0f,
-			/* JointComSize =		*/ 2.0f,
-			/* LineThickness =		*/ 0.15f,
-			/* DrawScale =			*/ 1.0f,
-			/* FontHeight =			*/ 10.0f,
-			/* FontScale =			*/ 1.5f,
-			/* ShapeThicknesScale = */ 1.0f,
-			/* PointSize =			*/ 2.0f,
-			/* VelScale =			*/ 0.0f,
-			/* AngVelScale =		*/ 0.0f,
-			/* ImpulseScale =		*/ 0.0f,
-			/* DrawPriority =		*/ 10.0f
+			/* ArrowSize =					*/ 1.5f,
+			/* BodyAxisLen =				*/ 4.0f,
+			/* ContactLen =					*/ 4.0f,
+			/* ContactWidth =				*/ 2.0f,
+			/* ContactPhiWidth =			*/ 0.0f,
+			/* ContactOwnerWidth =			*/ 0.0f,
+			/* ConstraintAxisLen =			*/ 5.0f,
+			/* JointComSize =				*/ 2.0f,
+			/* LineThickness =				*/ 0.15f,
+			/* DrawScale =					*/ 1.0f,
+			/* FontHeight =					*/ 10.0f,
+			/* FontScale =					*/ 1.5f,
+			/* ShapeThicknesScale =			*/ 1.0f,
+			/* PointSize =					*/ 2.0f,
+			/* VelScale =					*/ 0.0f,
+			/* AngVelScale =				*/ 0.0f,
+			/* ImpulseScale =				*/ 0.0f,
+			/* DrawPriority =				*/ 10.0f,
+			/* bShowSimple =				*/ true,
+			/* bShowComplex =				*/ false,
+			/* bInShowLevelSetCollision =	*/ false
 		);
 
 		const FChaosDebugDrawSettings& GetChaosDebugDrawSettings(const FChaosDebugDrawSettings* InSettings)
@@ -80,6 +85,63 @@ namespace Chaos
 		void DrawShape(const FRigidTransform3& ShapeTransform, const FImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings* Settings)
 		{
 			DrawShapesImpl(nullptr, ShapeTransform, Shape, Color, GetChaosDebugDrawSettings(Settings));
+		}
+
+		void DrawShapesHeightFieldImpl(const TGeometryParticleHandle<FReal, 3>* Particle, const FRigidTransform3& ShapeTransform, const FHeightField* Shape, const FColor& Color, const FChaosDebugDrawSettings& Settings)
+		{
+			const FVec3& WorldQueryCenter = FDebugDrawQueue::GetInstance().GetCenterOfInterest();
+			const FReal WorldQueryRadius = FDebugDrawQueue::GetInstance().GetRadiusOfInterest();
+			const FAABB3 WorldQueryBounds = FAABB3(WorldQueryCenter - FVec3(WorldQueryRadius), WorldQueryCenter + FVec3(WorldQueryRadius));
+			const FAABB3 LocalQueryBounds = WorldQueryBounds.InverseTransformedAABB(ShapeTransform);
+
+			Shape->VisitTriangles(LocalQueryBounds, [&](const FTriangle& Tri)
+				{
+					FVec3 A = ShapeTransform.TransformPosition(Tri[0]);
+					FVec3 B = ShapeTransform.TransformPosition(Tri[1]);
+					FVec3 C = ShapeTransform.TransformPosition(Tri[2]);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(A, B, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(B, C, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+					FDebugDrawQueue::GetInstance().DrawDebugLine(C, A, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+				});
+		}
+
+		void DrawShapesTriangleMeshImpl(const TGeometryParticleHandle<FReal, 3>* Particle, const FRigidTransform3& ShapeTransform, const FTriangleMeshImplicitObject* Shape, const FColor& Color, const FChaosDebugDrawSettings& Settings)
+		{
+			const FVec3& WorldQueryCenter = FDebugDrawQueue::GetInstance().GetCenterOfInterest();
+			const FReal WorldQueryRadius = FDebugDrawQueue::GetInstance().GetRadiusOfInterest();
+			const FAABB3 WorldQueryBounds = FAABB3(WorldQueryCenter - FVec3(WorldQueryRadius), WorldQueryCenter + FVec3(WorldQueryRadius));
+			const FAABB3 LocalQueryBounds = WorldQueryBounds.InverseTransformedAABB(ShapeTransform);
+
+			Shape->VisitTriangles(LocalQueryBounds, [&](const FTriangle& Tri)
+			{
+				FVec3 A = ShapeTransform.TransformPosition(Tri[0]);
+				FVec3 B = ShapeTransform.TransformPosition(Tri[1]);
+				FVec3 C = ShapeTransform.TransformPosition(Tri[2]);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(A, B, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(B, C, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugLine(C, A, Color, false, -1.f, 0, Settings.ShapeThicknesScale * Settings.LineThickness);
+			});
+		}
+
+		void DrawShapesLevelSetImpl(const TGeometryParticleHandle<FReal, 3>* Particle, const FRigidTransform3& ShapeTransform, const FLevelSet* Shape, const FColor& Color, const FChaosDebugDrawSettings& Settings)
+		{
+			if (!Settings.bShowLevelSetCollision)
+			{
+				return;
+			}
+
+			if (const TPBDRigidParticleHandle<FReal, 3>* Rigid = Particle->CastToRigidParticle())
+			{
+				const TUniquePtr<TBVHParticles<FReal, 3>>& CollisionParticles = Rigid->CollisionParticles();
+				if (CollisionParticles != nullptr)
+				{
+					for (int32 ParticleIndex = 0; ParticleIndex < (int32)CollisionParticles->Size(); ++ParticleIndex)
+					{
+						const FVec3 P = ShapeTransform.TransformPosition(CollisionParticles->X(ParticleIndex));
+						FDebugDrawQueue::GetInstance().DrawDebugPoint(P, Color, false, -1.f, 0, Settings.PointSize);
+					}
+				}
+			}
 		}
 
 		template <bool bInstanced>
@@ -121,9 +183,19 @@ namespace Chaos
 			case ImplicitObjectType::Cylinder:
 				break;
 			case ImplicitObjectType::TriangleMesh:
+			{
+				const TImplicitObjectScaled<FTriangleMeshImplicitObject, bInstanced>* Scaled = Shape->template GetObject<TImplicitObjectScaled<FTriangleMeshImplicitObject, bInstanced>>();
+				ScaleTM.SetScale3D(Scaled->GetScale());
+				DrawShapesImpl(Particle, ScaleTM * ShapeTransform, Scaled->GetUnscaledObject(), Color, Settings);
 				break;
+			}
 			case ImplicitObjectType::HeightField:
+			{
+				const TImplicitObjectScaled<FHeightField, bInstanced>* Scaled = Shape->template GetObject<TImplicitObjectScaled<FHeightField, bInstanced>>();
+				ScaleTM.SetScale3D(Scaled->GetScale());
+				DrawShapesImpl(Particle, ScaleTM * ShapeTransform, Scaled->GetUnscaledObject(), Color, Settings);
 				break;
+			}
 			default:
 				break;
 			}
@@ -165,9 +237,17 @@ namespace Chaos
 			case ImplicitObjectType::Cylinder:
 				break;
 			case ImplicitObjectType::TriangleMesh:
+			{
+				const TImplicitObjectInstanced<FTriangleMeshImplicitObject>* Scaled = Shape->template GetObject<TImplicitObjectInstanced<FTriangleMeshImplicitObject>>();
+				DrawShapesImpl(Particle, ShapeTransform, Scaled->GetInstancedObject(), Color, Settings);
 				break;
+			}
 			case ImplicitObjectType::HeightField:
+			{
+				const TImplicitObjectInstanced<FHeightField>* Scaled = Shape->template GetObject<TImplicitObjectInstanced<FHeightField>>();
+				DrawShapesImpl(Particle, ShapeTransform, Scaled->GetInstancedObject(), Color, Settings);
 				break;
+			}
 			default:
 				break;
 			}
@@ -178,7 +258,7 @@ namespace Chaos
 			const EImplicitObjectType PackedType = Shape->GetType(); // Type includes scaling and instancing data
 			const EImplicitObjectType InnerType = GetInnerType(Shape->GetType());
 
-			// For scaled shapes, we must unpack the scaled type first
+			// Unwrap the wrapper/aggregating shapes
 			if (IsScaled(PackedType))
 			{
 				if (IsInstanced(PackedType))
@@ -196,15 +276,64 @@ namespace Chaos
 				DrawShapesInstancedImpl(Particle, ShapeTransform, Shape, Color, Settings);
 				return;
 			}
+			else if (InnerType == ImplicitObjectType::Transformed)
+			{
+				const TImplicitObjectTransformed<FReal, 3>* Transformed = Shape->template GetObject<TImplicitObjectTransformed<FReal, 3>>();
+				FRigidTransform3 TransformedTransform = FRigidTransform3(ShapeTransform.TransformPosition(Transformed->GetTransform().GetLocation()), ShapeTransform.GetRotation() * Transformed->GetTransform().GetRotation());
+				DrawShapesImpl(Particle, TransformedTransform, Transformed->GetTransformedObject(), Color, Settings);
+				return;
+			}
+			else if (InnerType == ImplicitObjectType::Union)
+			{
+				const FImplicitObjectUnion* Union = Shape->template GetObject<FImplicitObjectUnion>();
+				for (auto& UnionShape : Union->GetObjects())
+				{
+					DrawShapesImpl(Particle, ShapeTransform, UnionShape.Get(), Color, Settings);
+				}
+				return;
+			}
+			else if (InnerType == ImplicitObjectType::UnionClustered)
+			{
+				const FImplicitObjectUnionClustered* Union = Shape->template GetObject<FImplicitObjectUnionClustered>();
+				for (auto& UnionShape : Union->GetObjects())
+				{
+					DrawShapesImpl(Particle, ShapeTransform, UnionShape.Get(), Color, Settings);
+				}
+				return;
+			}
 
-			// @todo(ccaulfield): handle scale throughout
+
+			// Whether we should show meshes and non-mesh shapes
+			bool bShowMeshes = Settings.bShowComplexCollision;
+			bool bShowNonMeshes = Settings.bShowSimpleCollision;
+			const FPerShapeData* ShapeData = Particle->GetImplicitShape(Shape);
+			if (ShapeData != nullptr)
+			{
+				bShowMeshes = (Settings.bShowComplexCollision && (ShapeData->GetCollisionTraceType() != EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAsComplex))
+					|| (Settings.bShowSimpleCollision && (ShapeData->GetCollisionTraceType() == EChaosCollisionTraceFlag::Chaos_CTF_UseComplexAsSimple));
+				bShowNonMeshes = (Settings.bShowSimpleCollision && (ShapeData->GetCollisionTraceType() != EChaosCollisionTraceFlag::Chaos_CTF_UseComplexAsSimple))
+					|| (Settings.bShowComplexCollision && (ShapeData->GetCollisionTraceType() == EChaosCollisionTraceFlag::Chaos_CTF_UseSimpleAsComplex));
+			}
+
+			// Quit if we don't want to show this shape
+			const bool bIsMesh = (InnerType == ImplicitObjectType::TriangleMesh);
+			if (bIsMesh && !bShowMeshes)
+			{
+				return;
+			}
+			else if (!bIsMesh && !bShowNonMeshes)
+			{
+				return;
+			}
+
+			// If we get here, we have an actual shape to render
 			switch (InnerType)
 			{
 			case ImplicitObjectType::Sphere:
 			{
 				const TSphere<FReal, 3>* Sphere = Shape->template GetObject<TSphere<FReal, 3>>();
 				const FVec3 P = ShapeTransform.TransformPosition(Sphere->GetCenter());
-				FDebugDrawQueue::GetInstance().DrawDebugSphere(P, Sphere->GetRadius(), 20, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.ShapeThicknesScale * Settings.LineThickness);
+				FDebugDrawQueue::GetInstance().DrawDebugSphere(P, Sphere->GetRadius(), 8, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.ShapeThicknesScale * Settings.LineThickness);
 				break;
 			}
 			case ImplicitObjectType::Box:
@@ -224,26 +353,13 @@ namespace Chaos
 				FDebugDrawQueue::GetInstance().DrawDebugCapsule(P, (FReal)0.5 * Capsule->GetHeight() + Capsule->GetRadius(), Capsule->GetRadius(), Q, Color, false, KINDA_SMALL_NUMBER, Settings.DrawPriority, Settings.ShapeThicknesScale * Settings.LineThickness);
 				break;
 			}
-			case ImplicitObjectType::Transformed:
-			{
-				const TImplicitObjectTransformed<FReal, 3>* Transformed = Shape->template GetObject<TImplicitObjectTransformed<FReal, 3>>();
-				FRigidTransform3 TransformedTransform = FRigidTransform3(ShapeTransform.TransformPosition(Transformed->GetTransform().GetLocation()), ShapeTransform.GetRotation() * Transformed->GetTransform().GetRotation());
-				DrawShapesImpl(Particle, TransformedTransform, Transformed->GetTransformedObject(), Color, Settings);
-				break;
-			}
-			case ImplicitObjectType::Union:
-			{
-				const FImplicitObjectUnion* Union = Shape->template GetObject<FImplicitObjectUnion>();
-				for (auto& UnionShape : Union->GetObjects())
-				{
-					DrawShapesImpl(Particle, ShapeTransform, UnionShape.Get(), Color, Settings);
-				}
-				break;
-			}
 			case ImplicitObjectType::LevelSet:
+			{
+				const FLevelSet* LevelSet = Shape->template GetObject<FLevelSet>();
+				DrawShapesLevelSetImpl(Particle, ShapeTransform, LevelSet, Color, Settings);
 				break;
-			case ImplicitObjectType::Unknown:
-				break;
+			}
+			break;
 			case ImplicitObjectType::Convex:
 			{
 				if (const FConvex* Convex = Shape->template GetObject<FConvex>())
@@ -271,9 +387,17 @@ namespace Chaos
 			case ImplicitObjectType::Cylinder:
 				break;
 			case ImplicitObjectType::TriangleMesh:
+			{
+				const FTriangleMeshImplicitObject* TriangleMesh = Shape->template GetObject<FTriangleMeshImplicitObject>();
+				DrawShapesTriangleMeshImpl(Particle, ShapeTransform, TriangleMesh, Color, Settings);
 				break;
+			}
 			case ImplicitObjectType::HeightField:
+			{
+				const FHeightField* HeightField = Shape->template GetObject<FHeightField>();
+				DrawShapesHeightFieldImpl(Particle, ShapeTransform, HeightField, Color, Settings);
 				break;
+			}
 			default:
 				break;
 			}
@@ -721,7 +845,7 @@ namespace Chaos
 									{
 										IslandAABB.GrowToInclude(CollisionHandle->GetConstrainedParticles()[1]->WorldSpaceInflatedBounds());
 									}
-									DrawGraphCollision(SpaceTransform, *CollisionHandle, IslandIndex, LevelIndex, ColorIndex, Settings);
+									//DrawGraphCollision(SpaceTransform, *CollisionHandle, IslandIndex, LevelIndex, ColorIndex, Settings);
 								}
 							}
 

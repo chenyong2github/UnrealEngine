@@ -90,6 +90,8 @@ namespace Chaos
 		CHAOS_API TAABB<T, d> TransformedAABB(const FMatrix&) const;
 		CHAOS_API TAABB<T, d> TransformedAABB(const Chaos::PMatrix<FReal, 4, 4>&) const;
 
+		CHAOS_API TAABB<T, d> InverseTransformedAABB(const Chaos::TRigidTransform<T, 3>&) const;
+
 		FORCEINLINE bool Intersects(const TAABB<T, d>& Other) const
 		{
 			for (int32 i = 0; i < d; ++i)
