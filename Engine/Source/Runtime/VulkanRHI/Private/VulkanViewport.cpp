@@ -1032,15 +1032,6 @@ void FVulkanDynamicRHI::RHIResizeViewport(FRHIViewport* ViewportRHI, uint32 Size
 	}
 }
 
-int32 GAlwaysFreeUnusedCmdBuffers = PLATFORM_ANDROID;
-static FAutoConsoleVariableRef CVarVulkanAlwaysFreeUnusedCmdBuffers(
-	TEXT("r.Vulkan.AlwaysFreeUnusedCmdBuffers"),
-	GAlwaysFreeUnusedCmdBuffers,
-	TEXT(" 0: Don't\n")
-	TEXT(" 1: Do"),
-	ECVF_Default
-);
-
 void FVulkanDynamicRHI::RHITick(float DeltaTime)
 {
 	check(IsInGameThread());
@@ -1057,12 +1048,6 @@ void FVulkanDynamicRHI::RHITick(float DeltaTime)
 			}
 
 			VulkanDevice->GetImmediateContext().GetTempFrameAllocationBuffer().Reset();
-
-			// Destroy command buffers here when using Delay; when not delaying we'll delete after Acquire
-			if (GAlwaysFreeUnusedCmdBuffers || GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire)
-			{
-				VulkanDevice->GetImmediateContext().GetCommandBufferManager()->FreeUnusedCmdBuffers();
-			}
 		});
 
 	if (bRequestNULLPixelShader)
