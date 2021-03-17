@@ -29,8 +29,11 @@
 #include "QueueRemesher.h"
 #include "DynamicVertexAttribute.h"
 #include "MeshNormals.h"
+#include "MeshTangents.h"
 #include "ConstrainedDelaunay2.h"
 
+#include "Engine/EngineTypes.h"
+#include "StaticMeshOperations.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
 #include "Algo/Rotate.h"
@@ -146,6 +149,68 @@ namespace UE
 				FVector3f Normal = Mesh.GetVertexNormal(VID);
 				Us->GetValue(VID, U);
 				Vs->GetValue(VID, V);
+			}
+
+			void ComputeTangents(FDynamicMesh3& Mesh, bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials, bool bRecomputeNormals = true)
+			{
+				FDynamicMeshNormalOverlay* Normals = Mesh.Attributes()->PrimaryNormals();
+				FMeshNormals::InitializeOverlayToPerVertexNormals(Normals, !bRecomputeNormals);
+				if (bRecomputeNormals)
+				{
+					FMeshNormals::QuickRecomputeOverlayNormals(Mesh);
+				}
+
+				// Copy per-vertex UVs to a UV overlay, because that's what the tangents code uses
+				// (TODO: consider making a tangent computation path that uses vertex normals / UVs)
+				FDynamicMeshUVOverlay* UVs = Mesh.Attributes()->PrimaryUV();
+				UVs->ClearElements();
+				TArray<int> VertToUVMap;
+				VertToUVMap.SetNumUninitialized(Mesh.MaxVertexID());
+				for (int VID : Mesh.VertexIndicesItr())
+				{
+					FVector2f UV = Mesh.GetVertexUV(VID);
+					int UVID = UVs->AppendElement(UV);
+					VertToUVMap[VID] = UVID;
+				}
+				for (int TID : Mesh.TriangleIndicesItr())
+				{
+					FIndex3i Tri = Mesh.GetTriangle(TID);
+					Tri.A = VertToUVMap[Tri.A];
+					Tri.B = VertToUVMap[Tri.B];
+					Tri.C = VertToUVMap[Tri.C];
+					UVs->SetTriangle(TID, Tri);
+				}
+
+				FComputeTangentsOptions Options;
+				Options.bAngleWeighted = true;
+				Options.bAveraged = true;
+				FMeshTangentsf Tangents(&Mesh);
+				Tangents.ComputeTriVertexTangents(Normals, UVs, Options);
+
+				const TArray<FVector3f>& TanU = Tangents.GetTangents();
+				const TArray<FVector3f>& TanV = Tangents.GetBitangents();
+				FDynamicMeshMaterialAttribute* MaterialIDs = Mesh.Attributes()->GetMaterialID();
+				for (int TID : Mesh.TriangleIndicesItr())
+				{
+					int MaterialID = MaterialIDs->GetValue(TID);
+					if (bOnlyOddMaterials && (MaterialID % 2) == 0)
+					{
+						continue;
+					}
+					else if (WhichMaterials.Contains(MaterialID))
+					{
+						continue;
+					}
+					
+					int TanIdxBase = TID * 3;
+					FIndex3i Tri = Mesh.GetTriangle(TID);
+					for (int Idx = 0; Idx < 3; Idx++)
+					{
+						int VID = Tri[Idx];
+						int TanIdx = TanIdxBase + Idx;
+						UE::PlanarCutInternals::AugmentDynamicMesh::SetTangent(Mesh, VID, Mesh.GetVertexNormal(VID), TanU[TanIdx], TanV[TanIdx]);
+					}
+				}
 			}
 
 			// per component sampling is a rough heuristic to avoid doing geodesic distance but still get points on a 'thin' slice
@@ -1255,12 +1320,12 @@ struct FDynamicMeshCollection
 	TIndirectArray<FMeshData> Meshes;
 	FAxisAlignedBox3d Bounds;
 
-	FDynamicMeshCollection(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection)
+	FDynamicMeshCollection(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices = false)
 	{
-		Init(Collection, TransformIndices, TransformCollection);
+		Init(Collection, TransformIndices, TransformCollection, bSaveIsolatedVertices);
 	}
 
-	void Init(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection)
+	void Init(const FGeometryCollection* Collection, const TArrayView<const int32>& TransformIndices, FTransform TransformCollection, bool bSaveIsolatedVertices = false)
 	{
 		Meshes.Reset();
 		Bounds = FAxisAlignedBox3d::Empty();
@@ -1334,8 +1399,11 @@ struct FDynamicMeshCollection
 				// note: material index doesn't need to be passed through; will be rebuilt by a call to reindex materials once the cut mesh is returned back to geometry collection format
 			}
 
-			FDynamicMeshEditor Editor(&Mesh);
-			Editor.RemoveIsolatedVertices();
+			if (!bSaveIsolatedVertices)
+			{
+				FDynamicMeshEditor Editor(&Mesh);
+				Editor.RemoveIsolatedVertices();
+			}
 
 			Bounds.Contain(Mesh.GetCachedBounds());
 
@@ -1993,6 +2061,42 @@ struct FDynamicMeshCollection
 		{
 			UE::PlanarCutInternals::AugmentDynamicMesh::AddCollisionSamplesPerComponent(Meshes[MeshIdx].AugMesh, CollisionSampleSpacing);
 		}
+	}
+
+	// Update all geometry in a GeometryCollection w/ the meshes in the MeshCollection
+	// Resizes the GeometryCollection as needed
+	bool UpdateAllCollections(FGeometryCollection& Collection)
+	{
+		bool bAllSucceeded = true;
+
+		int32 NumGeometry = Collection.NumElements(FGeometryCollection::GeometryGroup);
+		TArray<int32> NewFaceCounts, NewVertexCounts;
+		NewFaceCounts.SetNumUninitialized(NumGeometry);
+		NewVertexCounts.SetNumUninitialized(NumGeometry);
+		for (int32 GeomIdx = 0; GeomIdx < Collection.FaceCount.Num(); GeomIdx++)
+		{
+			NewFaceCounts[GeomIdx] = Collection.FaceCount[GeomIdx];
+			NewVertexCounts[GeomIdx] = Collection.VertexCount[GeomIdx];
+		}
+		for (int MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
+		{
+			FDynamicMeshCollection::FMeshData& MeshData = Meshes[MeshIdx];
+			int32 GeomIdx = Collection.TransformToGeometryIndex[MeshData.TransformIndex];
+			NewFaceCounts[GeomIdx] = MeshData.AugMesh.TriangleCount();
+			NewVertexCounts[GeomIdx] = MeshData.AugMesh.VertexCount();
+		}
+		GeometryCollectionAlgo::ResizeGeometries(&Collection, NewFaceCounts, NewVertexCounts);
+
+		for (int MeshIdx = 0; MeshIdx < Meshes.Num(); MeshIdx++)
+		{
+			FDynamicMeshCollection::FMeshData& MeshData = Meshes[MeshIdx];
+			FDynamicMesh3& Mesh = MeshData.AugMesh;
+			int32 GeometryIdx = Collection.TransformToGeometryIndex[MeshData.TransformIndex];
+			bool bSucceeded = UpdateCollection(MeshData.ToCollection, Mesh, GeometryIdx, Collection, -1);
+			bAllSucceeded &= bSucceeded;
+		}
+
+		return bAllSucceeded;
 	}
 
 	// Update an existing geometry in a collection w/ a new mesh (w/ the same number of faces and vertices!)
@@ -2741,6 +2845,21 @@ int32 CutWithMesh(
 	FMeshDescriptionToDynamicMesh Converter;
 	FDynamicMesh3 FullMesh; // full-featured conversion of the source mesh
 	Converter.Convert(CuttingMesh, FullMesh, true);
+	bool bHasInvalidNormals, bHasInvalidTangents;
+	FStaticMeshOperations::AreNormalsAndTangentsValid(*CuttingMesh, bHasInvalidNormals, bHasInvalidTangents);
+	if (bHasInvalidNormals || bHasInvalidTangents)
+	{
+		FDynamicMeshAttributeSet& Attribs = *FullMesh.Attributes();
+		FDynamicMeshNormalOverlay* NTB[3]{ Attribs.PrimaryNormals(), Attribs.PrimaryTangents(), Attribs.PrimaryBiTangents() };
+		if (bHasInvalidNormals)
+		{
+			FMeshNormals::InitializeOverlayToPerVertexNormals(NTB[0], false);
+		}
+		FMeshTangentsf Tangents(&FullMesh);
+		Tangents.ComputeTriVertexTangents(NTB[0], Attribs.PrimaryUV(), { true, true });
+		Tangents.CopyToOverlays(FullMesh);
+	}
+
 	FDynamicMesh3 DynamicCuttingMesh; // version of mesh that is split apart at seams to be compatible w/ geometry collection, with corresponding attributes set
 	UE::PlanarCutInternals::AugmentDynamicMesh::Augment(DynamicCuttingMesh);
 	// Note: This conversion will likely go away, b/c I plan to switch over to doing the boolean operations on the fuller rep, but the code can be adapted
@@ -2836,6 +2955,25 @@ int32 CutWithMesh(
 }
 
 
+void RecomputeNormalsAndTangents(bool bOnlyTangents, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices,
+								 bool bOnlyOddMaterials, const TArrayView<const int32>& WhichMaterials)
+{
+	FTransform CellsToWorld = FTransform::Identity;
+
+	FDynamicMeshCollection MeshCollection(&Collection, TransformIndices, CellsToWorld, true);
+
+	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
+	{
+		FDynamicMesh3& Mesh = MeshCollection.Meshes[MeshIdx].AugMesh;
+		UE::PlanarCutInternals::AugmentDynamicMesh::ComputeTangents(Mesh, bOnlyOddMaterials, WhichMaterials, !bOnlyTangents);
+	}
+
+	MeshCollection.UpdateAllCollections(Collection);
+
+	Collection.ReindexMaterials();
+}
+
+
 
 int32 AddCollisionSampleVertices(double CollisionSampleSpacing, FGeometryCollection& Collection, const TArrayView<const int32>& TransformIndices)
 {
@@ -2845,31 +2983,7 @@ int32 AddCollisionSampleVertices(double CollisionSampleSpacing, FGeometryCollect
 
 	MeshCollection.AddCollisionSamples(CollisionSampleSpacing);
 
-	int32 NumGeometry = Collection.NumElements(FGeometryCollection::GeometryGroup);
-	TArray<int32> NewFaceCounts, NewVertexCounts;
-	NewFaceCounts.SetNumUninitialized(NumGeometry);
-	NewVertexCounts.SetNumUninitialized(NumGeometry);
-	for (int32 GeomIdx = 0; GeomIdx < Collection.FaceCount.Num(); GeomIdx++)
-	{
-		NewFaceCounts[GeomIdx] = Collection.FaceCount[GeomIdx];
-		NewVertexCounts[GeomIdx] = Collection.VertexCount[GeomIdx];
-	}
-	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
-	{
-		FDynamicMeshCollection::FMeshData& MeshData = MeshCollection.Meshes[MeshIdx];
-		int32 GeomIdx = Collection.TransformToGeometryIndex[MeshData.TransformIndex];
-		NewFaceCounts[GeomIdx] = MeshData.AugMesh.TriangleCount();
-		NewVertexCounts[GeomIdx] = MeshData.AugMesh.VertexCount();
-	}
-	GeometryCollectionAlgo::ResizeGeometries(&Collection, NewFaceCounts, NewVertexCounts);
-
-	for (int MeshIdx = 0; MeshIdx < MeshCollection.Meshes.Num(); MeshIdx++)
-	{
-		FDynamicMeshCollection::FMeshData& MeshData = MeshCollection.Meshes[MeshIdx];
-		FDynamicMesh3& Mesh = MeshData.AugMesh;
-		int32 GeometryIdx = Collection.TransformToGeometryIndex[MeshData.TransformIndex];
-		ensure(MeshCollection.UpdateCollection(MeshData.ToCollection, Mesh, GeometryIdx, Collection, -1));
-	}
+	MeshCollection.UpdateAllCollections(Collection);
 
 	Collection.ReindexMaterials();
 

@@ -8,7 +8,14 @@ namespace UnrealBuildTool.Rules
 		{
 			PrivateIncludePaths.Add("PlanarCut/Private");
             PublicIncludePaths.Add(ModuleDirectory + "/Public");
-            PrivateDependencyModuleNames.Add("MeshUtilitiesCommon");
+            PrivateDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"MeshUtilitiesCommon",
+					"StaticMeshDescription",
+					"MeshConversion",
+				}
+				);
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -20,7 +27,6 @@ namespace UnrealBuildTool.Rules
 					"Chaos",
 					"GeometryAlgorithms",
 					"MeshDescription",
-					"MeshConversion",
                 }
                 );
 		}

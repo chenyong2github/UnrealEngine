@@ -178,6 +178,11 @@ public:
 	void ComputeTriangleTangents(const FDynamicMeshUVOverlay* UVOverlay, bool bOrthogonalize = true);
 
 
+	/**
+	 * Set Tangents on mesh overlays
+	 * @param MeshToSet Mesh to copy overlays to; does not need to be the same as the Mesh member of this class
+	 */
+	bool CopyToOverlays(FDynamicMesh3& MeshToSet);
 
 protected:
 	/**
