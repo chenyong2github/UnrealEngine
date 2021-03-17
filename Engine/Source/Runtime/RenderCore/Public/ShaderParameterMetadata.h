@@ -154,7 +154,9 @@ public:
 		,	NumColumns(InNumColumns)
 		,	NumElements(InNumElements)
 		,	Struct(InStruct)
-		{}
+		{
+			check(InShaderType);
+		}
 
 		/** Returns the string of the name of the element or name of the array of elements. */
 		const TCHAR* GetName() const { return Name; }

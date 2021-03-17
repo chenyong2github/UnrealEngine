@@ -483,6 +483,11 @@ private:
 					InputFile << NumElements;
 					InputFile << StructMetadataIndex;
 
+					if (ShaderType == nullptr)
+					{
+						ShaderType = TEXT("");
+					}
+
 					const FShaderParametersMetadata* StructMetadata = nullptr;
 					if (StructMetadataIndex != INDEX_NONE)
 					{
