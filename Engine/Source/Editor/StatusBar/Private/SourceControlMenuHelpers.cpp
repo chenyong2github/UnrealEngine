@@ -38,7 +38,6 @@ void FSourceControlCommands::RegisterCommands()
 	UI_COMMAND(ChangeSourceControlSettings, "Change Source Control Settings...", "Opens a dialog to change source control settings.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(ViewChangelists, "View Changelists...", "Open the Source Control Changelist tab.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CheckOutModifiedFiles, "Check Out Modified Files...", "Opens a dialog to check out any assets which have been modified.", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(SubmitToSourceControl, "Submit to Source Control...", "Opens a dialog with check in options for content and levels.",   EUserInterfaceActionType::Button, FInputChord());
 
 	ActionList->MapAction(
 		ConnectToSourceControl,
@@ -61,13 +60,6 @@ void FSourceControlCommands::RegisterCommands()
 		FExecuteAction::CreateStatic(&FSourceControlCommands::CheckOutModifiedFiles_Clicked),
 		FCanExecuteAction::CreateStatic(&FSourceControlCommands::CheckOutModifiedFiles_CanExecute)
 	);
-
-	ActionList->MapAction(
-		SubmitToSourceControl,
-		FExecuteAction::CreateStatic(&FSourceControlCommands::SubmitToSourceControl_Clicked),
-		FCanExecuteAction::CreateStatic(&FSourceControlCommands::SubmitToSourceControl_CanExecute)
-	);
-
 }
 
 void FSourceControlCommands::ConnectToSourceControl_Clicked()
@@ -79,14 +71,7 @@ void FSourceControlCommands::ConnectToSourceControl_Clicked()
 
 bool FSourceControlCommands::ViewChangelists_CanExecute()
 {
-	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	if (ISourceControlModule::Get().IsEnabled() &&
-		ISourceControlModule::Get().GetProvider().IsAvailable())
-	{
-		return true;
-	}
-
-	return false;
+	return ISourceControlWindowsModule::Get().CanShowChangelistsTab();
 }
 
 void FSourceControlCommands::ViewChangelists_Clicked()
@@ -120,20 +105,6 @@ void FSourceControlCommands::CheckOutModifiedFiles_Clicked()
 	const bool bPromptUserToSave = false;
 	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirty, bPromptUserToSave);
 }
-
-bool FSourceControlCommands::SubmitToSourceControl_CanExecute()
-{
-	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
-	return ISourceControlModule::Get().IsEnabled() &&
-		ISourceControlModule::Get().GetProvider().IsAvailable() &&
-		FSourceControlWindows::CanChoosePackagesToCheckIn();
-}
-
-void FSourceControlCommands::SubmitToSourceControl_Clicked()
-{
-	FSourceControlWindows::ChoosePackagesToCheckIn();
-}
-
 
 FSourceControlMenuHelpers::EQueryState FSourceControlMenuHelpers::QueryState = FSourceControlMenuHelpers::EQueryState::NotQueried;
 
@@ -197,14 +168,6 @@ TSharedRef<SWidget> FSourceControlMenuHelpers::GenerateSourceControlMenuContent(
 		TAttribute<FText>(),
 		TAttribute<FText>(),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.CheckOut")
-	);
-
-
-	Section.AddMenuEntry(
-		FSourceControlCommands::Get().SubmitToSourceControl,
-		TAttribute<FText>(),
-		TAttribute<FText>(),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Submit")
 	);
 
 	return UToolMenus::Get()->GenerateWidget("StatusBar.ToolBar.SourceControl", FToolMenuContext(FSourceControlCommands::ActionList));

@@ -26,8 +26,6 @@ private:
 	static void ViewChangelists_Clicked();
 	static bool CheckOutModifiedFiles_CanExecute();
 	static void CheckOutModifiedFiles_Clicked();
-	static bool SubmitToSourceControl_CanExecute();
-	static void SubmitToSourceControl_Clicked();
 
 public:
 	/**
@@ -37,7 +35,6 @@ public:
 	TSharedPtr< FUICommandInfo > ChangeSourceControlSettings;
 	TSharedPtr< FUICommandInfo > ViewChangelists;
 	TSharedPtr< FUICommandInfo > CheckOutModifiedFiles;
-	TSharedPtr< FUICommandInfo > SubmitToSourceControl;
 
 	static TSharedRef<FUICommandList> ActionList;
 };

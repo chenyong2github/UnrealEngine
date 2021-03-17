@@ -56,11 +56,17 @@ void FMainMenu::RegisterFileMenu()
 			if (ISourceControlModule::Get().IsEnabled() && ISourceControlModule::Get().GetProvider().IsAvailable())
 			{
 				// Choose specific files to submit
-				InSection.AddMenuEntry(FMainFrameCommands::Get().ChooseFilesToCheckIn);
+				InSection.AddMenuEntry(FMainFrameCommands::Get().ViewChangelists, 
+					TAttribute<FText>(),
+					TAttribute<FText>(),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.ChangelistsTab"));
 			}
 			else
 			{
-				InSection.AddMenuEntry(FMainFrameCommands::Get().ConnectToSourceControl);
+				InSection.AddMenuEntry(FMainFrameCommands::Get().ConnectToSourceControl, 
+					TAttribute<FText>(),
+					TAttribute<FText>(),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.Actions.Connect"));
 			}
 		}));
 	}

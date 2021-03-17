@@ -18,12 +18,12 @@
 #include "CreditsScreen.h"
 #include "DesktopPlatformModule.h"
 #include "ISourceControlModule.h"
+#include "ISourceControlWindowsModule.h"
 #include "GameProjectGenerationModule.h"
 #include "Toolkits/GlobalEditorCommonCommands.h"
 #include "Logging/TokenizedMessage.h"
 #include "Logging/MessageLog.h"
 #include "SourceCodeNavigation.h"
-#include "SourceControlWindows.h"
 #include "ISettingsModule.h"
 #include "Interfaces/IProjectManager.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -99,8 +99,8 @@ void FMainFrameCommands::RegisterCommands()
 	UI_COMMAND( ChooseFilesToSave, "Choose Files to Save...", "Opens a dialog with save options for content and levels", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction( ChooseFilesToSave, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::ChoosePackagesToSave ), FCanExecuteAction::CreateStatic( &FMainFrameActionCallbacks::CanSaveWorld ) );
 
-	UI_COMMAND( ChooseFilesToCheckIn, "Submit to Source Control...", "Opens a dialog with check in options for content and levels", EUserInterfaceActionType::Button, FInputChord() );
-	ActionList->MapAction( ChooseFilesToCheckIn, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::ChoosePackagesToCheckIn ), FCanExecuteAction::CreateStatic( &FMainFrameActionCallbacks::CanChoosePackagesToCheckIn ) );
+	UI_COMMAND( ViewChangelists, "View Changelists...", "Opens a dialog with check in options for content and levels", EUserInterfaceActionType::Button, FInputChord() );
+	ActionList->MapAction(ViewChangelists, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::ViewChangelists ), FCanExecuteAction::CreateStatic( &FMainFrameActionCallbacks::CanViewChangelists ) );
 
 	UI_COMMAND( ConnectToSourceControl, "Connect To Source Control...", "Connect to source control to allow source control operations to be performed on content and levels.", EUserInterfaceActionType::Button, FInputChord() );
 	ActionList->MapAction( ConnectToSourceControl, FExecuteAction::CreateStatic( &FMainFrameActionCallbacks::ConnectToSourceControl ), DefaultExecuteAction );
@@ -266,14 +266,14 @@ void FMainFrameActionCallbacks::ChoosePackagesToSave()
 	FEditorFileUtils::SaveDirtyPackages( bPromptUserToSave, bSaveMapPackages, bSaveContentPackages, bFastSave, bNotifyNoPackagesSaved, bCanBeDeclined );
 }
 
-void FMainFrameActionCallbacks::ChoosePackagesToCheckIn()
+void FMainFrameActionCallbacks::ViewChangelists()
 {
-	FSourceControlWindows::ChoosePackagesToCheckIn();
+	ISourceControlWindowsModule::Get().ShowChangelistsTab();
 }
 
-bool FMainFrameActionCallbacks::CanChoosePackagesToCheckIn()
+bool FMainFrameActionCallbacks::CanViewChangelists()
 {
-	return FSourceControlWindows::CanChoosePackagesToCheckIn();
+	return ISourceControlWindowsModule::Get().CanShowChangelistsTab();
 }
 
 void FMainFrameActionCallbacks::ConnectToSourceControl()

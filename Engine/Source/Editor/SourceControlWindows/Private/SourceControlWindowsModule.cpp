@@ -3,6 +3,7 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
 #include "ISourceControlWindowsModule.h"
+#include "ISourceControlModule.h"
 
 #include "Widgets/Docking/SDockTab.h"
 #include "Textures/SlateIcon.h"
@@ -34,6 +35,7 @@ public:
 	virtual void ShutdownModule() override;
 
 	virtual void ShowChangelistsTab() override;
+	virtual bool CanShowChangelistsTab() const override;
 
 private:
 	TSharedRef<SDockTab> CreateChangelistsTab(const FSpawnTabArgs& Args);
@@ -117,6 +119,18 @@ TSharedPtr<SWidget> FSourceControlWindowsModule::CreateChangelistsUI()
 void FSourceControlWindowsModule::ShowChangelistsTab()
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(FTabId(SourceControlChangelistsTabName));
+}
+
+bool FSourceControlWindowsModule::CanShowChangelistsTab() const
+{
+	ISourceControlModule& SourceControlModule = ISourceControlModule::Get();
+	if (ISourceControlModule::Get().IsEnabled() &&
+		ISourceControlModule::Get().GetProvider().IsAvailable())
+	{
+		return true;
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

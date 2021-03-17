@@ -20,4 +20,5 @@ public:
 	}
 
 	virtual void ShowChangelistsTab() = 0;
+	virtual bool CanShowChangelistsTab() const = 0;
 };

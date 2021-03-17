@@ -26,7 +26,7 @@ public:
 	TSharedPtr< FUICommandInfo > SaveAll;
 	TSharedPtr< FUICommandInfo > Exit;
 	TSharedPtr< FUICommandInfo > ChooseFilesToSave;
-	TSharedPtr< FUICommandInfo > ChooseFilesToCheckIn;
+	TSharedPtr< FUICommandInfo > ViewChangelists;
 	TSharedPtr< FUICommandInfo > ConnectToSourceControl;
 	TSharedPtr< FUICommandInfo > NewProject;
 	TSharedPtr< FUICommandInfo > OpenProject;
@@ -106,11 +106,11 @@ public:
 	/** Opens a dialog to choose packages to save */
 	static void ChoosePackagesToSave();
 
-	/** Opens a dialog to choose packages to submit */
-	static void ChoosePackagesToCheckIn();
+	/** Opens a dialog to view the pending changelists */
+	static void ViewChangelists();
 
-	/** Determines whether we can choose packages to check in (we cant if an operation is already in progress) */
-	static bool CanChoosePackagesToCheckIn();
+	/** Determines whether we can show the changelist view */
+	static bool CanViewChangelists();
 
 	/** Enable source control features */
 	static void ConnectToSourceControl();
