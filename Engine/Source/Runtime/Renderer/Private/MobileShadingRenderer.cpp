@@ -667,14 +667,11 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && ViewFamily.EngineShowFlags.Particles)
 	{
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
+		FXSystem->PreRender(GraphBuilder, Views[0].ViewUniformBuffer, NULL, !Views[0].bIsPlanarReflection);
+		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
-			FXSystem->PreRender(InRHICmdList, Views[0].ViewUniformBuffer, NULL, !Views[0].bIsPlanarReflection);
-			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
-			{
-				GPUSortManager->OnPreRender(InRHICmdList);
-			}
-		});
+			GPUSortManager->OnPreRender(GraphBuilder);
+		}
 	}
 
 	auto PollOcclusionQueriesAndDispatchToRHIThreadPass = [](FRHICommandListImmediate& InRHICmdList)
@@ -731,31 +728,25 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	if (FXSystem && Views.IsValidIndex(0))
 	{
-		auto* PassParameters = GraphBuilder.AllocParameters<FMobileRenderOpaqueFXPassParameters>();
-		PassParameters->SceneTextures = SceneTextures.MobileUniformBuffer;
-
-		// Cascade uses pixel shaders for compute stuff in PostRenderOpaque so ERDGPassFlags::Raster is needed
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("OpaqueFX"),
-			PassParameters,
-			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[this](FRHICommandListImmediate& InRHICmdList)
+		FXSystem->PostRenderOpaque(
+			GraphBuilder,
+			Views[0].ViewUniformBuffer,
+			nullptr,
+			nullptr,
+			Views[0].AllowGPUParticleUpdate()
+		);
+		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
-			check(InRHICmdList.IsOutsideRenderPass());
-
-			FXSystem->PostRenderOpaque(
-				InRHICmdList,
-				Views[0].ViewUniformBuffer,
-				nullptr,
-				nullptr,
-				Views[0].AllowGPUParticleUpdate()
-			);
-			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
+			GPUSortManager->OnPostRenderOpaque(GraphBuilder);
+		}
+		AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("DispatchRHICmdList"),
+			[](FRHICommandListImmediate& RHICmdList)
 			{
-				GPUSortManager->OnPostRenderOpaque(InRHICmdList);
+				RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
 			}
-			InRHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-		});
+		);
 	}
 
 	// Flush / submit cmdbuffer

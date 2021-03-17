@@ -435,7 +435,7 @@ public:
 	 *
 	 * @param RHICmdList - The command list to be used.
 	 */
-	void OnPreRender(FRHICommandListImmediate& RHICmdList);
+	void OnPreRender(class FRDGBuilder& GraphBuilder);
 
 	/**
 	 * Callback that needs to be called in the rendering loop, after calls to FFXSystemInterface::PostRenderOpaque() are issued.
@@ -444,7 +444,7 @@ public:
 	 *
 	 * @param RHICmdList - The command list to be used.
 	 */
-	void OnPostRenderOpaque(FRHICommandListImmediate& RHICmdList);
+	void OnPostRenderOpaque(class FRDGBuilder& GraphBuilder);
 
 	/**
 	 * Event to register and receive post-prerender notification.

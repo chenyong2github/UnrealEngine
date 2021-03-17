@@ -650,22 +650,19 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && Views.IsValidIndex(0))
 	{
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& RHICmdList)
+		FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager();
+		FXSystem->PreRender(GraphBuilder, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, false);
+		if (GPUSortManager)
 		{
-			FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager();
-			FXSystem->PreRender(RHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, false);
-			if (GPUSortManager)
-			{
-				GPUSortManager->OnPreRender(RHICmdList);
-			}
-			// Call PostRenderOpaque now as this is irrelevant for when rendering hit proxies.
-			// because we don't tick the particles in the render loop (see last param being "false").
-			FXSystem->PostRenderOpaque(RHICmdList, Views[0].ViewUniformBuffer, nullptr, nullptr, false);
-			if (GPUSortManager)
-			{
-				GPUSortManager->OnPostRenderOpaque(RHICmdList);
-			}
-		});
+			GPUSortManager->OnPreRender(GraphBuilder);
+		}
+		// Call PostRenderOpaque now as this is irrelevant for when rendering hit proxies.
+		// because we don't tick the particles in the render loop (see last param being "false").
+		FXSystem->PostRenderOpaque(GraphBuilder, Views[0].ViewUniformBuffer, nullptr, nullptr, false);
+		if (GPUSortManager)
+		{
+			GPUSortManager->OnPostRenderOpaque(GraphBuilder);
+		}
 	}
 
 	TArray<Nanite::FRasterResults, TInlineAllocator<2>> NaniteRasterResults;

@@ -12,6 +12,9 @@
 #include "ProfilingDebugging/RealtimeGPUProfiler.h"
 #include "FXSystem.h" // FXConsoleVariables::bAllowGPUSorting
 
+#include "RenderGraphBuilder.h"
+#include "RenderGraphUtils.h"
+
 //*****************************************************************************
 
 int32 GGPUSortFrameCountBeforeBufferShrinking = 100;
@@ -722,7 +725,7 @@ void FGPUSortManager::UpdateSortBuffersPool()
 	}
 }
 
-void FGPUSortManager::OnPreRender(FRHICommandListImmediate& RHICmdList)
+void FGPUSortManager::OnPreRender(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE(ELLMTag::GPUSort);
 
@@ -732,79 +735,92 @@ void FGPUSortManager::OnPreRender(FRHICommandListImmediate& RHICmdList)
 	// Sort batches so that the next batch to handle is at the end of the array.
 	SortBatches.Sort([](const FSortBatch& A, const FSortBatch& B) { return (uint32)A.ProcessingOrder > (uint32)B.ProcessingOrder; });
 
-	if (SortBatches.Num())
-	{
-		SCOPED_GPU_STAT(RHICmdList, GPUKeyGenAndSort);
-		while (SortBatches.Num() && SortBatches.Last().ProcessingOrder == ESortBatchProcessingOrder::KeyGenAndSortAfterPreRender)
+	AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FGPUSortManager::OnPreRender"),
+		[this](FRHICommandListImmediate& RHICmdList)
 		{
-			// Remove the SortBatch but don't remove the SortBuffers from the pool since it can be reused immediately.
-			FSortBatch SortBatch = SortBatches.Pop();
-			FParticleSortBuffers* SortBuffers = SortBuffersPool.Last();
-			SortBatch.SortBuffers = SortBuffers;
-			checkSlow(SortBuffers && SortBatch.GetUsedValueCount() <= SortBuffers->GetSize());
+			if (SortBatches.Num())
+			{
+				SCOPED_GPU_STAT(RHICmdList, GPUKeyGenAndSort);
+				while (SortBatches.Num() && SortBatches.Last().ProcessingOrder == ESortBatchProcessingOrder::KeyGenAndSortAfterPreRender)
+				{
+					// Remove the SortBatch but don't remove the SortBuffers from the pool since it can be reused immediately.
+					FSortBatch SortBatch = SortBatches.Pop();
+					FParticleSortBuffers* SortBuffers = SortBuffersPool.Last();
+					SortBatch.SortBuffers = SortBuffers;
+					checkSlow(SortBuffers && SortBatch.GetUsedValueCount() <= SortBuffers->GetSize());
 
-			SCOPED_DRAW_EVENTF(RHICmdList, GPUSortBatch, TEXT("GPUSort_Batch%d(%s)"), SortBatch.Id, GetPrecisionString(SortBatch.Flags));
+					SCOPED_DRAW_EVENTF(RHICmdList, GPUSortBatch, TEXT("GPUSort_Batch%d(%s)"), SortBatch.Id, GetPrecisionString(SortBatch.Flags));
 
-			SortBatch.GenerateKeys(RHICmdList, Callbacks, EGPUSortFlags::KeyGenAfterPreRender);
-			SortBatch.SortAndResolve(RHICmdList, FeatureLevel);
+					SortBatch.GenerateKeys(RHICmdList, Callbacks, EGPUSortFlags::KeyGenAfterPreRender);
+					SortBatch.SortAndResolve(RHICmdList, FeatureLevel);
 
-			// Release the sort batch.
-			checkSlow(SortBatch.DynamicValueBuffer && SortBatch.DynamicValueBuffer->CurrentSortBatchId == SortBatch.Id);
-			SortBatch.DynamicValueBuffer->CurrentSortBatchId = INDEX_NONE;
-			SortBatch.SortBuffers = nullptr;
+					// Release the sort batch.
+					checkSlow(SortBatch.DynamicValueBuffer && SortBatch.DynamicValueBuffer->CurrentSortBatchId == SortBatch.Id);
+					SortBatch.DynamicValueBuffer->CurrentSortBatchId = INDEX_NONE;
+					SortBatch.SortBuffers = nullptr;
+				}
+
+				for (int32 BatchIndex = SortBatches.Num() - 1; BatchIndex >= 0 && SortBatches[BatchIndex].ProcessingOrder == ESortBatchProcessingOrder::KeyGenAfterPreRenderAndSortAfterPostRenderOpaque; --BatchIndex)
+				{
+					// Those sort batches will be processed again after PostRenderOpaque(). Because of this, the particle sort buffers can not be reused.
+					FSortBatch& SortBatch = SortBatches[BatchIndex];
+					FParticleSortBuffers* SortBuffers = SortBuffersPool.Pop();
+					SortBatch.SortBuffers = SortBuffers;
+					checkSlow(SortBuffers && SortBatch.GetUsedValueCount() <= SortBuffers->GetSize());
+
+					SCOPED_DRAW_EVENTF(RHICmdList, GPUSortBatchPreStep, TEXT("GPUSort_Batch%d(PreStep,%s)"), SortBatch.Id, GetPrecisionString(SortBatch.Flags));
+
+					SortBatch.GenerateKeys(RHICmdList, Callbacks, EGPUSortFlags::KeyGenAfterPreRender);
+				}
+			}
+			PostPreRenderEvent.Broadcast(RHICmdList);
 		}
-
-		for (int32 BatchIndex = SortBatches.Num() - 1; BatchIndex >= 0 && SortBatches[BatchIndex].ProcessingOrder == ESortBatchProcessingOrder::KeyGenAfterPreRenderAndSortAfterPostRenderOpaque; --BatchIndex)
-		{
-			// Those sort batches will be processed again after PostRenderOpaque(). Because of this, the particle sort buffers can not be reused.
-			FSortBatch& SortBatch = SortBatches[BatchIndex];
-			FParticleSortBuffers* SortBuffers = SortBuffersPool.Pop();
-			SortBatch.SortBuffers = SortBuffers;
-			checkSlow(SortBuffers && SortBatch.GetUsedValueCount() <= SortBuffers->GetSize());
-
-			SCOPED_DRAW_EVENTF(RHICmdList, GPUSortBatchPreStep, TEXT("GPUSort_Batch%d(PreStep,%s)"), SortBatch.Id, GetPrecisionString(SortBatch.Flags));
-
-			SortBatch.GenerateKeys(RHICmdList, Callbacks, EGPUSortFlags::KeyGenAfterPreRender);
-		}
-	}
-
-	PostPreRenderEvent.Broadcast(RHICmdList);
+	);
 }
 
-void FGPUSortManager::OnPostRenderOpaque(FRHICommandListImmediate& RHICmdList)
+void FGPUSortManager::OnPostRenderOpaque(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE(ELLMTag::GPUSort);
 
-	if (SortBatches.Num())
-	{
-		SCOPED_GPU_STAT(RHICmdList, GPUKeyGenAndSort);
-		while (SortBatches.Num())
+	AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("FGPUSortManager::OnPostRenderOpaque"),
+		[this](FRHICommandListImmediate& RHICmdList)
 		{
-			// Remove the SortBatch but don't remove the SortBuffers from the pool since it can be reused immediately.
-			FSortBatch SortBatch = SortBatches.Pop();
-			checkSlow((SortBatch.SortBuffers != nullptr) == (SortBatch.ProcessingOrder == ESortBatchProcessingOrder::KeyGenAfterPreRenderAndSortAfterPostRenderOpaque));
-
-			SCOPED_DRAW_EVENTF(RHICmdList, GPUSortBatch, TEXT("GPUSort_Batch%d(%s)"), SortBatch.Id, GetPrecisionString(SortBatch.Flags));
-
-			if (!SortBatch.SortBuffers)
+			if (SortBatches.Num())
 			{
-				FParticleSortBuffers* SortBuffers = SortBuffersPool.Pop();
-				SortBatch.SortBuffers = SortBuffers;
-				checkSlow(SortBuffers && SortBatch.GetUsedValueCount() <= SortBuffers->GetSize());
+				SCOPED_GPU_STAT(RHICmdList, GPUKeyGenAndSort);
+				while (SortBatches.Num())
+				{
+					// Remove the SortBatch but don't remove the SortBuffers from the pool since it can be reused immediately.
+					FSortBatch SortBatch = SortBatches.Pop();
+					checkSlow((SortBatch.SortBuffers != nullptr) == (SortBatch.ProcessingOrder == ESortBatchProcessingOrder::KeyGenAfterPreRenderAndSortAfterPostRenderOpaque));
+
+					SCOPED_DRAW_EVENTF(RHICmdList, GPUSortBatch, TEXT("GPUSort_Batch%d(%s)"), SortBatch.Id, GetPrecisionString(SortBatch.Flags));
+
+					if (!SortBatch.SortBuffers)
+					{
+						FParticleSortBuffers* SortBuffers = SortBuffersPool.Pop();
+						SortBatch.SortBuffers = SortBuffers;
+						checkSlow(SortBuffers && SortBatch.GetUsedValueCount() <= SortBuffers->GetSize());
+					}
+
+					SortBatch.GenerateKeys(RHICmdList, Callbacks, EGPUSortFlags::KeyGenAfterPostRenderOpaque);
+					SortBatch.SortAndResolve(RHICmdList, FeatureLevel);
+
+					// Release the sort batch.
+					checkSlow(SortBatch.DynamicValueBuffer && SortBatch.DynamicValueBuffer->CurrentSortBatchId == SortBatch.Id);
+					SortBatch.DynamicValueBuffer->CurrentSortBatchId = INDEX_NONE;
+					SortBuffersPool.Push(SortBatch.SortBuffers);
+					SortBatch.SortBuffers = nullptr;
+				}
 			}
 
-			SortBatch.GenerateKeys(RHICmdList, Callbacks, EGPUSortFlags::KeyGenAfterPostRenderOpaque);
-			SortBatch.SortAndResolve(RHICmdList, FeatureLevel);
-
-			// Release the sort batch.
-			checkSlow(SortBatch.DynamicValueBuffer && SortBatch.DynamicValueBuffer->CurrentSortBatchId == SortBatch.Id);
-			SortBatch.DynamicValueBuffer->CurrentSortBatchId = INDEX_NONE;
-			SortBuffersPool.Push(SortBatch.SortBuffers);
-			SortBatch.SortBuffers = nullptr;
+			ResetDynamicValuesBuffers();
 		}
-	}
-
-	ResetDynamicValuesBuffers();
+	);
 }
 
 FGPUSortManager::FDynamicValueBuffer* FGPUSortManager::GetDynamicValueBufferFromPool(EGPUSortFlags TaskFlags, int32 SortBatchId)

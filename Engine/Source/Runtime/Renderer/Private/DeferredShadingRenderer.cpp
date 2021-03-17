@@ -427,33 +427,20 @@ static void RenderOpaqueFX(
 		RDG_GPU_STAT_SCOPE(GraphBuilder, PostRenderOpsFX);
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderOpaqueFX);
 
-		auto* PassParameters = GraphBuilder.AllocParameters<FRenderOpaqueFXPassParameters>();
-		PassParameters->SceneTextures = SceneTexturesUniformBuffer;
+		FXSystem->PostRenderOpaque(
+			GraphBuilder,
+			Views[0].ViewUniformBuffer,
+			&FSceneTextureUniformParameters::StaticStructMetadata,
+			nullptr,
+			Views[0].AllowGPUParticleUpdate()
+		);
 
-		// Cascade uses pixel shaders for compute stuff in PostRenderOpaque so ERDGPassFlags::Raster is needed
-		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("OpaqueFX"),
-			PassParameters,
-			ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-			[FXSystem, Views](FRHICommandListImmediate& RHICmdList)
+		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
-			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PostRenderOpaque);
+			GPUSortManager->OnPostRenderOpaque(GraphBuilder);
+		}
 
-			FXSystem->PostRenderOpaque(
-				RHICmdList,
-				Views[0].ViewUniformBuffer,
-				&FSceneTextureUniformParameters::StaticStructMetadata,
-				nullptr,
-				Views[0].AllowGPUParticleUpdate()
-			);
-
-			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
-			{
-				GPUSortManager->OnPostRenderOpaque(RHICmdList);
-			}
-
-			ServiceLocalQueue();
-		});
+		ServiceLocalQueue();
 	}
 }
 
@@ -1808,14 +1795,11 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FXSystem_PreRender);
 		GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_FXPreRender));
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
+		FXSystem->PreRender(GraphBuilder, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
+		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{
-			FXSystem->PreRender(InRHICmdList, Views[0].ViewUniformBuffer, &Views[0].GlobalDistanceFieldInfo.ParameterData, Views[0].AllowGPUParticleUpdate());
-			if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
-			{
-				GPUSortManager->OnPreRender(InRHICmdList);
-			}
-		});
+			GPUSortManager->OnPreRender(GraphBuilder);
+		}
 	}
 
 	AddPass(GraphBuilder, [this](FRHICommandList& InRHICmdList)

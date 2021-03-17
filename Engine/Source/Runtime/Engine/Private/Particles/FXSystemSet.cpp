@@ -124,21 +124,21 @@ void FFXSystemSet::UpdateVectorField(UVectorFieldComponent* VectorFieldComponent
 	}
 }
 
-void FFXSystemSet::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
+void FFXSystemSet::PreInitViews(class FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreInitViews(RHICmdList, bAllowGPUParticleUpdate);
+		FXSystem->PreInitViews(GraphBuilder, bAllowGPUParticleUpdate);
 	}
 }
 
-void FFXSystemSet::PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
+void FFXSystemSet::PostInitViews(class FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PostInitViews(RHICmdList, ViewUniformBuffer, bAllowGPUParticleUpdate);
+		FXSystem->PostInitViews(GraphBuilder, ViewUniformBuffer, bAllowGPUParticleUpdate);
 	}
 }
 
@@ -181,17 +181,17 @@ bool FFXSystemSet::RequiresEarlyViewUniformBuffer() const
 	return false;
 }
 
-void FFXSystemSet::PreRender(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
+void FFXSystemSet::PreRender(class FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleSceneUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
 	{
 		check(FXSystem);
-		FXSystem->PreRender(RHICmdList, ViewUniformBuffer, GlobalDistanceFieldParameterData, bAllowGPUParticleSceneUpdate);
+		FXSystem->PreRender(GraphBuilder, ViewUniformBuffer, GlobalDistanceFieldParameterData, bAllowGPUParticleSceneUpdate);
 	}
 }
 
 void FFXSystemSet::PostRenderOpaque(
-	FRHICommandListImmediate& RHICmdList,
+	class FRDGBuilder& GraphBuilder,
 	FRHIUniformBuffer* ViewUniformBuffer,
 	const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
 	FRHIUniformBuffer* SceneTexturesUniformBuffer,
@@ -201,7 +201,7 @@ void FFXSystemSet::PostRenderOpaque(
 	{
 		check(FXSystem);
 		FXSystem->PostRenderOpaque(
-			RHICmdList,
+			GraphBuilder,
 			ViewUniformBuffer,
 			SceneTexturesUniformBufferStruct,
 			SceneTexturesUniformBuffer,

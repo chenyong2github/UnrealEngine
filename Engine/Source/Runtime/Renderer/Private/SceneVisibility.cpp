@@ -3156,10 +3156,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRDGBuilder& GraphBuilder, const FS
 
 	if (FXSystem && Views.IsValidIndex(0))
 	{
-		AddPass(GraphBuilder, [this](FRHICommandListImmediate& InRHICmdList)
-		{
-			FXSystem->PreInitViews(InRHICmdList, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
-		});
+		FXSystem->PreInitViews(GraphBuilder, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 	}
 
 	// Draw lines to lights affecting this mesh if its selected.
@@ -4531,7 +4528,7 @@ bool FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 		if (FXSystem && FXSystem->RequiresEarlyViewUniformBuffer() && Views.IsValidIndex(0))
 		{
 			Views[0].InitRHIResources();
-			FXSystem->PostInitViews(RHICmdList, Views[0].ViewUniformBuffer, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
+			FXSystem->PostInitViews(GraphBuilder, Views[0].ViewUniformBuffer, Views[0].AllowGPUParticleUpdate() && !ViewFamily.EngineShowFlags.HitProxies);
 		}
 	}
 

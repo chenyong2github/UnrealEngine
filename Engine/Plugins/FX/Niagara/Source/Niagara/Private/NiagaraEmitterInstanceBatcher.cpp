@@ -480,9 +480,11 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 			View.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*View.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
 			// Execute all ticks that we can support without invalid simulations
-			PreInitViews(RHICmdList, true);
-			PostInitViews(RHICmdList, View.ViewUniformBuffer, true);
-			PostRenderOpaque(RHICmdList, View.ViewUniformBuffer, nullptr, nullptr, true);
+			FRDGBuilder GraphBuilder(RHICmdList);
+			PreInitViews(GraphBuilder, true);
+			PostInitViews(GraphBuilder, View.ViewUniformBuffer, true);
+			PostRenderOpaque(GraphBuilder, View.ViewUniformBuffer, nullptr, nullptr, true);
+			GraphBuilder.Execute();
 			break;
 		}
 
@@ -1401,7 +1403,7 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 	CountsToRelease[int(TickStage)].Reset();
 }
 
-void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate)
 {
 	FramesBeforeTickFlush = 0;
 
@@ -1409,7 +1411,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 #if NIAGARA_COMPUTEDEBUG_ENABLED
 	if ( FNiagaraGpuComputeDebug* GpuComputeDebug = GetGpuComputeDebug() )
 	{
-		GpuComputeDebug->Tick(RHICmdList);
+		GpuComputeDebug->Tick(GraphBuilder.RHICmdList);
 	}
 #endif
 
@@ -1418,7 +1420,7 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	if (GPUProfiler.IsProfilingEnabled())
 	{
 		TArray<FNiagaraGPUTimingResult, TInlineAllocator<16>> ProfilingResults;
-		GPUProfiler.QueryTimingResults(RHICmdList, ProfilingResults);
+		GPUProfiler.QueryTimingResults(GraphBuilder.RHICmdList, ProfilingResults);
 		TMap<TWeakObjectPtr<UNiagaraEmitter>, TMap<TStatIdData const*, float>> CapturedStats;
 		for (const FNiagaraGPUTimingResult& Result : ProfilingResults)
 		{
@@ -1461,55 +1463,76 @@ void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICm
 	// Update draw indirect buffer to max possible size.
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
-		UpdateInstanceCountManager(RHICmdList);
-		BuildTickStagePasses(RHICmdList, ETickStage::PreInitViews);
+		UpdateInstanceCountManager(GraphBuilder.RHICmdList);
 
 		if (GNiagaraAllowTickBeforeRender)
 		{
-			ExecuteAll(RHICmdList, nullptr, ETickStage::PreInitViews);
+			AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Niagara::PreInitViews"),
+				[this](FRHICommandListImmediate& RHICmdList)
+				{
+					BuildTickStagePasses(RHICmdList, ETickStage::PreInitViews);
+					ExecuteAll(RHICmdList, nullptr, ETickStage::PreInitViews);
+				}
+			);
 		}
 	}
 	else
 	{
-		GPUInstanceCounterManager.ResizeBuffers(RHICmdList, FeatureLevel,  0);
+		GPUInstanceCounterManager.ResizeBuffers(GraphBuilder.RHICmdList, FeatureLevel,  0);
 		FinishDispatches();
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::PostInitViews(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PostInitViews(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
-		BuildTickStagePasses(RHICmdList, ETickStage::PostInitViews);
-		ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostInitViews);
+		AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Niagara::PostInitViews"),
+			[this, ViewUniformBuffer](FRHICommandListImmediate& RHICmdList)
+			{
+				BuildTickStagePasses(RHICmdList, ETickStage::PostInitViews);
+				ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostInitViews);
+			}
+		);
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
-	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
-	{
-		BuildTickStagePasses(RHICmdList, ETickStage::PostOpaqueRender);
+	AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("Niagara::PostRenderOpaque"),
+		[this, ViewUniformBuffer, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
+		{
+			if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
+			{
+				BuildTickStagePasses(RHICmdList, ETickStage::PostOpaqueRender);
 
-		// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
-		ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostOpaqueRender);
+				// Setup new readback since if there is no pending request, there is no risk of having invalid data read (offset being allocated after the readback was sent).
+				ExecuteAll(RHICmdList, ViewUniformBuffer, ETickStage::PostOpaqueRender);
 
-		UpdateFreeIDBuffers(RHICmdList, DeferredIDBufferUpdates);
-		DeferredIDBufferUpdates.SetNum(0, false);
+				UpdateFreeIDBuffers(RHICmdList, DeferredIDBufferUpdates);
+				DeferredIDBufferUpdates.SetNum(0, false);
 
-		FinishDispatches();
+				FinishDispatches();
 
-		ProcessDebugReadbacks(RHICmdList, false);
-	}
+				ProcessDebugReadbacks(RHICmdList, false);
+			}
 
-	if (!GPUInstanceCounterManager.HasPendingGPUReadback())
-	{
-		GPUInstanceCounterManager.EnqueueGPUReadback(RHICmdList);
-	}
+			if (!GPUInstanceCounterManager.HasPendingGPUReadback())
+			{
+				GPUInstanceCounterManager.EnqueueGPUReadback(RHICmdList);
+			}
+		}
+	);
 }
 
 void NiagaraEmitterInstanceBatcher::ProcessDebugReadbacks(FRHICommandListImmediate& RHICmdList, bool bWaitCompletion)
@@ -1594,7 +1617,7 @@ bool NiagaraEmitterInstanceBatcher::RequiresEarlyViewUniformBuffer() const
 	return NumTicksThatRequireEarlyViewData > 0;
 }
 
-void NiagaraEmitterInstanceBatcher::PreRender(FRHICommandListImmediate& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PreRender(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, const class FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData, bool bAllowGPUParticleUpdate)
 {
 	if (!FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
