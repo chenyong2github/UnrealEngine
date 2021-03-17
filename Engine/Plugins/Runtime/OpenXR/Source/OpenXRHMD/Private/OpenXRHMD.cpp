@@ -2067,7 +2067,9 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		// Apply the base HMD pose to each eye pose, we will late update this pose for late update in another callback
 		FTransform BasePose(ViewFamily.Views[ViewIndex]->BaseHmdOrientation, ViewFamily.Views[ViewIndex]->BaseHmdLocation);
 		XrCompositionLayerProjectionView& Projection = LayerState.ProjectionLayers[ViewIndex];
-		Projection.pose = ToXrPose(EyePose * BasePose, GetWorldToMetersScale());
+		FTransform BasePoseTransform = EyePose * BasePose;
+		BasePoseTransform.NormalizeRotation();
+		Projection.pose = ToXrPose(BasePoseTransform, GetWorldToMetersScale());
 		Projection.fov = View.fov;
 	}
 
@@ -2131,7 +2133,9 @@ void FOpenXRHMD::OnLateUpdateApplied_RenderThread(FRHICommandListImmediate& RHIC
 
 		// Apply the new HMD orientation to each eye pose for the final pose
 		FTransform EyePose = ToFTransform(View.pose, GetWorldToMetersScale());
-		Projection.pose = ToXrPose(EyePose * NewRelativeTransform, GetWorldToMetersScale());
+		FTransform NewRelativePoseTransform = EyePose * NewRelativeTransform;
+		NewRelativePoseTransform.NormalizeRotation();
+		Projection.pose = ToXrPose(NewRelativePoseTransform, GetWorldToMetersScale());
 	}
 
 	RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& InRHICmdList)
