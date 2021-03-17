@@ -66,14 +66,23 @@ public:
 	virtual void RegisterCommands() override;
 
 public:
-	/** Toggles visibility for GPU thread track. */
-	TSharedPtr<FUICommandInfo> ShowAllGpuTracks;
+	/** Toggles visibility of empty tracks. */
+	TSharedPtr<FUICommandInfo> AutoHideEmptyTracks;
 
-	/** Toggles visibility for all CPU thread tracks at once. */
-	TSharedPtr<FUICommandInfo> ShowAllCpuTracks;
+	/** Toggles 'compact mode' for timing tracks. */
+	TSharedPtr<FUICommandInfo> ToggleCompactMode;
+
+	/** Toggles visibility for Main Graph track. */
+	TSharedPtr<FUICommandInfo> ShowMainGraphTrack;
 
 	/** Toggles visibility for task graph dependency relations */
 	TSharedPtr<FUICommandInfo> ShowTaskDependencies;
+
+	/** Toggles visibility for GPU thread track. */
+	//TSharedPtr<FUICommandInfo> ShowAllGpuTracks;
+
+	/** Toggles visibility for all CPU thread tracks at once. */
+	//TSharedPtr<FUICommandInfo> ShowAllCpuTracks;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

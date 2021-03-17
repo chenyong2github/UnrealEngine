@@ -907,7 +907,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		UpdateTracksStopwatch.Stop();
 		UpdateTracksDurationHistory.AddValue(UpdateTracksStopwatch.AccumulatedTime);
 	}
-	//////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Post-Update.
 	{
 		FStopwatch PostUpdateTracksStopwatch;
@@ -948,7 +948,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		PostUpdateTracksStopwatch.Stop();
 		PostUpdateTracksDurationHistory.AddValue(PostUpdateTracksStopwatch.AccumulatedTime);
 	}
-	//////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	Tooltip.Update();
 	if (!MousePosition.IsZero())
@@ -956,10 +956,36 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		Tooltip.SetPosition(MousePosition, 0.0f, Viewport.GetWidth() - 12.0f, 0.0f, Viewport.GetHeight() - 12.0f); // -12.0f is to avoid overlaping the scrollbars
 	}
 
-	//////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Update "hovered" and "selected" flags for all visible tracks.
+	//TODO: Move this before PreUpdate (so a track could adjust its size based on hovered/selected flags).
 
 	// Reset hovered/selected flags for all tracks.
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : TopDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			TrackPtr->SetHoveredState(false);
+			TrackPtr->SetSelectedFlag(false);
+		}
+	}
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : BottomDockedTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			TrackPtr->SetHoveredState(false);
+			TrackPtr->SetSelectedFlag(false);
+		}
+	}
 	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
+	{
+		if (TrackPtr->IsVisible())
+		{
+			TrackPtr->SetHoveredState(false);
+			TrackPtr->SetSelectedFlag(false);
+		}
+	}
+	for (TSharedPtr<FBaseTimingTrack>& TrackPtr : ForegroundTracks)
 	{
 		if (TrackPtr->IsVisible())
 		{
@@ -980,7 +1006,7 @@ void STimingView::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 		SelectedTrack->SetSelectedFlag(true);
 	}
 
-	//////////////////////////////////////////////////
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	Viewport.ResetDirtyFlags();
 
@@ -1970,7 +1996,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (TimeRulerTrack->IsScrubbing())
 			{
-				RaiseTimeMarkerChanged();
+				RaiseTimeMarkerChanged(TimeRulerTrack->GetScrubbingTimeMarker());
 				TimeRulerTrack->StopScrubbing();
 			}
 
@@ -2015,7 +2041,7 @@ FReply STimingView::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			}
 			else if (TimeRulerTrack->IsScrubbing())
 			{
-				RaiseTimeMarkerChanged();
+				RaiseTimeMarkerChanged(TimeRulerTrack->GetScrubbingTimeMarker());
 				TimeRulerTrack->StopScrubbing();
 			}
 
@@ -2186,7 +2212,7 @@ FReply STimingView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 				TSharedRef<Insights::FTimeMarker> ScrubbingTimeMarker = TimeRulerTrack->GetScrubbingTimeMarker();
 				ScrubbingTimeMarker->SetTime(Viewport.SlateUnitsToTime(MousePosition.X));
-				RaiseTimeMarkerChanging();
+				RaiseTimeMarkerChanging(ScrubbingTimeMarker);
 			}
 		}
 		else
@@ -2442,17 +2468,8 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 			{
 				SelectedEvent->GetTrack()->OnClipboardCopyEvent(*SelectedEvent);
 			}
-		}
-		else
-		{
-			Viewport.SwitchLayoutCompactMode();
 			return FReply::Handled();
 		}
-	}
-	else if (InKeyEvent.GetKey() == EKeys::V)
-	{
-		ToggleAutoHideEmptyTracks();
-		return FReply::Handled();
 	}
 	else if (InKeyEvent.GetKey() == EKeys::Equals ||
 			 InKeyEvent.GetKey() == EKeys::Add)
@@ -2553,11 +2570,6 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 		Viewport.AddDirtyFlags(ETimingTrackViewportDirtyFlags::HInvalidated);
 		return FReply::Handled();
 	}
-	else if (InKeyEvent.GetKey() == EKeys::G)
-	{
-		ShowHideGraphTrack_Execute();
-		return FReply::Handled();
-	}
 	else if (InKeyEvent.GetKey() == EKeys::R)
 	{
 		FrameSharedState->ShowHideAllFrameTracks();
@@ -2618,12 +2630,17 @@ FReply STimingView::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKe
 	}
 #if ACTIVATE_BENCHMARK
 	else if (InKeyEvent.GetKey() == EKeys::Z)
-		{
-			FTimingProfilerTests::FCheckValues CheckValues;
-			FTimingProfilerTests::RunEnumerateBenchmark(FTimingProfilerTests::FEnumerateTestParams(), CheckValues);
-			return FReply::Handled();
-		}
+	{
+		FTimingProfilerTests::FCheckValues CheckValues;
+		FTimingProfilerTests::RunEnumerateBenchmark(FTimingProfilerTests::FEnumerateTestParams(), CheckValues);
+		return FReply::Handled();
+	}
 #endif
+
+	if (CommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
 
 	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
 }
@@ -2646,12 +2663,10 @@ FReply STimingView::OnKeyUp(const FGeometry& MyGeometry, const FKeyEvent& InKeyE
 
 void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 {
-	//TSharedPtr<FUICommandList> ProfilerCommandList = FTimingProfilerManager::Get()->GetCommandList();
-	//const FTimingProfilerCommands& ProfilerCommands = FTimingProfilerManager::GetCommands();
-	//const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	//FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, ProfilerCommandList);
+
 	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
 
 	if (HoveredTrack.IsValid())
@@ -2668,7 +2683,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 		{
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("ContextMenu_NA", "N/A"),
-				LOCTEXT("ContextMenu_NA_Desc", "No actions available."),
+				LOCTEXT("ContextMenu_NA_Desc", "No action available."),
 				FSlateIcon(),
 				FUIAction(FExecuteAction(), FCanExecuteAction::CreateLambda([](){ return false; })),
 				NAME_None,
@@ -2683,7 +2698,7 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 
 		MenuBuilder.AddMenuEntry
 		(
-			FTimingViewCommands::Get().ShowTaskDependencies,
+			Commands.ShowTaskDependencies,
 			NAME_None,
 			TAttribute<FText>(),
 			TAttribute<FText>(),
@@ -2692,15 +2707,6 @@ void STimingView::ShowContextMenu(const FPointerEvent& MouseEvent)
 
 		MenuBuilder.EndSection();
 	}
-
-	//MenuBuilder.BeginSection(TEXT("Misc"), LOCTEXT("Miscellaneous", "Miscellaneous"));
-	//{
-	//	MenuBuilder.AddMenuEntry(Commands.ShowAllGpuTracks);
-	//	MenuBuilder.AddMenuEntry(Commands.ShowAllCpuTracks);
-	//	MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleTimersViewVisibility);
-	//	MenuBuilder.AddMenuEntry(ProfilerCommands.ToggleStatsCountersViewVisibility);
-	//}
-	//MenuBuilder.EndSection();
 
 	TSharedRef<SWidget> MenuWidget = MenuBuilder.MakeWidget();
 
@@ -2882,16 +2888,37 @@ bool STimingView::CanChangeTrackLocation(TSharedRef<FBaseTimingTrack> Track, ETi
 void STimingView::BindCommands()
 {
 	FTimingViewCommands::Register();
+
+	const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+
 	CommandList = MakeShared<FUICommandList>();
 
 	CommandList->MapAction(
-		FTimingViewCommands::Get().ShowTaskDependencies, 
-		FExecuteAction::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_Execute), 
+		Commands.AutoHideEmptyTracks,
+		FExecuteAction::CreateSP(this, &STimingView::ToggleAutoHideEmptyTracks),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &STimingView::IsAutoHideEmptyTracksEnabled));
+
+	CommandList->MapAction(
+		Commands.ToggleCompactMode,
+		FExecuteAction::CreateSP(this, &STimingView::ToggleCompactMode),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &STimingView::IsCompactModeEnabled));
+
+	CommandList->MapAction(
+		Commands.ShowMainGraphTrack,
+		FExecuteAction::CreateSP(this, &STimingView::ShowHideGraphTrack_Execute),
+		//FCanExecuteAction(),
+		FCanExecuteAction::CreateLambda([] { return true; }),
+		FIsActionChecked::CreateSP(this, &STimingView::ShowHideGraphTrack_IsChecked));
+
+	CommandList->MapAction(
+		Commands.ShowTaskDependencies,
+		FExecuteAction::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_Execute),
 		FCanExecuteAction::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_CanExecute),
 		FIsActionChecked::CreateSP(this, &STimingView::ContextMenu_ShowTaskDependecies_IsChecked));
 
-	//
-	//TSharedPtr<FUICommandList> CommandList = FTimingProfilerManager::Get()->GetCommandList();
+	//TODO: let extenders to bind other commands
 
 	//CommandList->MapAction(
 	//	Commands.ShowAllGpuTracks,
@@ -3155,18 +3182,24 @@ void STimingView::RaiseSelectionChanged()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::RaiseTimeMarkerChanging()
+void STimingView::RaiseTimeMarkerChanging(TSharedRef<Insights::FTimeMarker> InTimeMarker)
 {
-	const double TimeMarker = GetTimeMarker();
-	OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::Interactive, TimeMarker);
+	if (InTimeMarker == DefaultTimeMarker)
+	{
+		const double Time = DefaultTimeMarker->GetTime();
+		OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::Interactive, Time);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STimingView::RaiseTimeMarkerChanged()
+void STimingView::RaiseTimeMarkerChanged(TSharedRef<Insights::FTimeMarker> InTimeMarker)
 {
-	const double TimeMarker = GetTimeMarker();
-	OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, TimeMarker);
+	if (InTimeMarker == DefaultTimeMarker)
+	{
+		const double Time = DefaultTimeMarker->GetTime();
+		OnTimeMarkerChangedDelegate.Broadcast(Insights::ETimeChangedFlags::None, Time);
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3181,7 +3214,7 @@ double STimingView::GetTimeMarker() const
 void STimingView::SetTimeMarker(double InMarkerTime)
 {
 	DefaultTimeMarker->SetTime(InMarkerTime);
-	RaiseTimeMarkerChanged();
+	RaiseTimeMarkerChanged(DefaultTimeMarker);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -3411,7 +3444,7 @@ void STimingView::UpdateHoveredTimingEvent(float InMousePosX, float InMousePosY)
 			const double T3 = Stopwatch.GetAccumulatedTime();
 			if (T3 > 0.001)
 			{
-				UE_LOG(TimingProfiler, Verbose, TEXT("HoveredTrack [%g, %g] Tooltip: %.1f ms (%.1f + %.1f + %.1f)"),
+				UE_LOG(TimingProfiler, Log, TEXT("HoveredTrack [%g, %g] Tooltip: %.1f ms (%.1f + %.1f + %.1f)"),
 					InMousePosX, InMousePosY, T3 * 1000.0, T1 * 1000.0, (T2 - T1) * 1000.0, (T3 - T2) * 1000.0);
 			}
 		}
@@ -3711,7 +3744,7 @@ bool STimingView::IsFilterByEventType(const uint64 EventType) const
 
 TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 {
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
 
 	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("AutoScrollHeading", "Auto Scroll Options"));
 	{
@@ -3837,39 +3870,18 @@ TSharedRef<SWidget> STimingView::MakeAutoScrollOptionsMenu()
 
 TSharedRef<SWidget> STimingView::MakeTracksFilterMenu()
 {
-	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, nullptr);
+	FMenuBuilder MenuBuilder(/*bInShouldCloseWindowAfterMenuSelection=*/true, CommandList);
 
 	CreateAllTracksMenu(MenuBuilder);
 
 	MenuBuilder.BeginSection("QuickFilter", LOCTEXT("TracksFilterHeading", "Quick Filter"));
 	{
-		//const FTimingViewCommands& Commands = FTimingViewCommands::Get();
+		const FTimingViewCommands& Commands = FTimingViewCommands::Get();
 
-		//TODO: MenuBuilder.AddMenuEntry(Commands.AutoHideGraphTrack);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowGraphTrack", "Graph Track - G"),
-			LOCTEXT("ShowGraphTrack_Tooltip", "Show/hide the Graph track"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ShowHideGraphTrack_Execute),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &STimingView::ShowHideGraphTrack_IsChecked)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuSeparator("QuickFilterSeparator");
-
-		//TODO: MenuBuilder.AddMenuEntry(Commands.AutoHideEmptyTracks);
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("AutoHideEmptyTracks", "Auto Hide Empty Tracks - V"),
-			LOCTEXT("AutoHideEmptyTracks_Tooltip", "Auto hide empty tracks (ones without timing events in current viewport)"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &STimingView::ToggleAutoHideEmptyTracks),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &STimingView::IsAutoHideEmptyTracksEnabled)),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+		MenuBuilder.AddMenuEntry(Commands.ShowMainGraphTrack);
+		MenuBuilder.AddMenuEntry(Commands.ShowTaskDependencies);
+		MenuBuilder.AddMenuEntry(Commands.ToggleCompactMode);
+		MenuBuilder.AddMenuEntry(Commands.AutoHideEmptyTracks);
 	}
 	MenuBuilder.EndSection();
 
@@ -3987,6 +3999,20 @@ void STimingView::ShowHideGraphTrack_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool STimingView::IsCompactModeEnabled() const
+{
+	return Viewport.IsLayoutCompactModeEnabled();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STimingView::ToggleCompactMode()
+{
+	Viewport.SwitchLayoutCompactMode();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool STimingView::IsAutoHideEmptyTracksEnabled() const
 {
 	return (Viewport.GetLayout().TargetMinTimelineH == 0.0f);
@@ -4000,10 +4026,11 @@ void STimingView::ToggleAutoHideEmptyTracks()
 
 	for (const TSharedPtr<FBaseTimingTrack>& TrackPtr : ScrollableTracks)
 	{
-		TrackPtr->SetHeight(0.0f);
+		if (TrackPtr->Is<FTimingEventsTrack>())
+		{
+			TrackPtr->SetHeight(0.0f);
+		}
 	}
-
-	ScrollAtPosY(0.0f);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

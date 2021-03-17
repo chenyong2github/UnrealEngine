@@ -204,6 +204,8 @@ public:
 	const FTimingViewLayout& GetLayout() const { return Layout; }
 	void UpdateLayout();
 
+	bool IsLayoutCompactModeEnabled() const { return Layout.bIsCompactMode; }
+
 	void SwitchLayoutCompactMode()
 	{
 		Layout.bIsCompactMode = !Layout.bIsCompactMode;

@@ -5,6 +5,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Rendering/DrawElements.h"
 #include "Styling/CoreStyle.h"
 #include <limits>
@@ -28,6 +29,7 @@ FTimeRulerTrack::FTimeRulerTrack()
 	: FBaseTimingTrack(TEXT("Time Ruler"))
 	, WhiteBrush(FInsightsStyle::Get().GetBrush("WhiteBrush"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+	, CrtMousePosTime(0.0)
 	, CrtMousePosTextWidth(0.0f)
 {
 	SetValidLocations(ETimingTrackLocation::TopDocked);
@@ -249,6 +251,8 @@ void FTimeRulerTrack::PostDraw(const ITimingTrackDrawContext& Context) const
 		// Time at current mouse position.
 		FString MousePosText;
 		const double MousePosTime = Viewport.SlateUnitsToTime(MousePosition.X);
+		CrtMousePosTime = MousePosTime;
+
 		const double DT = 100.0 / Viewport.GetScaleX();
 		const double MousePosPrecision = FMath::Max(DT / 100.0, TimeUtils::Nanosecond);
 		if (bIsMouseOver)
@@ -343,7 +347,7 @@ void FTimeRulerTrack::DrawTimeMarker(const ITimingTrackDrawContext& Context, con
 
 	FDrawContext& DrawContext = Context.GetDrawContext();
 
-	// Draw the orange vertical line.
+	// Draw the vertical line.
 	DrawContext.DrawBox(TimeMarkerX, TimeMarkerY, 1.0f, Viewport.GetHeight() - TimeMarkerY, WhiteBrush, TimeMarker.GetColor());
 	DrawContext.LayerId++;
 
@@ -416,6 +420,57 @@ void FTimeRulerTrack::DrawTimeMarker(const ITimingTrackDrawContext& Context, con
 	// Draw time marker text.
 	DrawContext.DrawText(TimeMarkerX - TextWidth / 2, TimeMarkerY, TimeMarkerText, Font, TextForegroundColor);
 	DrawContext.LayerId++;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimeRulerTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
+{
+	TArray<TSharedRef<Insights::FTimeMarker>> VisibleTimeMarkers;
+	for (TSharedRef<Insights::FTimeMarker>& TimeMarker : TimeMarkers)
+	{
+		if (TimeMarker->IsVisible())
+		{
+			VisibleTimeMarkers.Add(TimeMarker);
+		}
+	}
+
+	if (VisibleTimeMarkers.Num() > 0)
+	{
+		// Sort TimeMarkers by name.
+		VisibleTimeMarkers.Sort([](const TSharedRef<Insights::FTimeMarker>& A, const TSharedRef<Insights::FTimeMarker>& B) -> bool { return A->GetName().Compare(B->GetName()) <= 0; });
+
+		MenuBuilder.BeginSection("TimeMarkers", LOCTEXT("TimeMarkersSection", "Time Markers"));
+
+		for (TSharedRef<Insights::FTimeMarker>& TimeMarker : VisibleTimeMarkers)
+		{
+			FUIAction Action_MoveTimeMarker
+			(
+				FExecuteAction::CreateSP(this, &FTimeRulerTrack::ContextMenu_MoveTimeMarker_Execute, TimeMarker),
+				FCanExecuteAction()
+			);
+			const FString& MarkerNameString = TimeMarker->GetName();
+			const FText MarkerNameText = FText::FromString((MarkerNameString.Len() > 0) ? MarkerNameString : TEXT("T"));
+			MenuBuilder.AddMenuEntry
+			(
+				FText::Format(LOCTEXT("ContextMenu_MoveTimeMerker", "Move Time Marker '{0}' Here"), MarkerNameText),
+				FText::Format(LOCTEXT("ContextMenu_MoveTimeMerker_Desc", "Move the time marker '{0}' at the current mouse position."), MarkerNameText),
+				FSlateIcon(),
+				Action_MoveTimeMarker,
+				NAME_None,
+				EUserInterfaceActionType::Button
+			);
+		}
+
+		MenuBuilder.EndSection();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimeRulerTrack::ContextMenu_MoveTimeMarker_Execute(TSharedRef<Insights::FTimeMarker> InTimeMarker)
+{
+	InTimeMarker->SetTime(CrtMousePosTime);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

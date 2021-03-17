@@ -74,6 +74,9 @@ public:
 	bool ShowHideGraphTrack_IsChecked() const;
 	void ShowHideGraphTrack_Execute();
 
+	bool IsCompactModeEnabled() const;
+	void ToggleCompactMode();
+
 	bool IsAutoHideEmptyTracksEnabled() const;
 	void ToggleAutoHideEmptyTracks();
 
@@ -404,8 +407,8 @@ protected:
 	void RaiseSelectionChanging();
 	void RaiseSelectionChanged();
 
-	void RaiseTimeMarkerChanging();
-	void RaiseTimeMarkerChanged();
+	void RaiseTimeMarkerChanging(TSharedRef<Insights::FTimeMarker> InTimeMarker);
+	void RaiseTimeMarkerChanged(TSharedRef<Insights::FTimeMarker> InTimeMarker);
 
 	void UpdateAggregatedStats();
 

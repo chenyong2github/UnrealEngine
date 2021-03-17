@@ -9,6 +9,7 @@
 #include "Insights/ViewModels/BaseTimingTrack.h"
 
 struct FDrawContext;
+class FMenuBuilder;
 struct FSlateBrush;
 class FTimingTrackViewport;
 
@@ -92,21 +93,26 @@ public:
 	void Draw(const ITimingTrackDrawContext& Context) const override;
 	void PostDraw(const ITimingTrackDrawContext& Context) const override;
 
+	virtual void BuildContextMenu(FMenuBuilder& MenuBuilder) override;
+
 private:
 	void DrawTimeMarker(const ITimingTrackDrawContext& Context, const Insights::FTimeMarker& TimeMarker) const;
+	void ContextMenu_MoveTimeMarker_Execute(TSharedRef<Insights::FTimeMarker> InTimeMarker);
 
-public:
+private:
 	// Slate resources
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo Font;
 
-	// Smoothed mouse pos text width to avoid flickering
-	mutable float CrtMousePosTextWidth;
-
-private:
 	bool bIsSelecting;
 	double SelectionStartTime;
 	double SelectionEndTime;
+
+	// The last time value at mouse postion. Updated in PostDraw.
+	mutable double CrtMousePosTime;
+
+	// The smoothed width of "the text at mouse position" to avoid flickering. Updated in PostDraw.
+	mutable float CrtMousePosTextWidth;
 
 	/**
 	 * The sorted list of all registered time markers. It defines the draw order of time markers.
