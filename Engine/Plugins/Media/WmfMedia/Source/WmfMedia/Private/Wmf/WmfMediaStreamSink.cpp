@@ -130,6 +130,20 @@ HRESULT FWmfMediaStreamSink::Preroll()
 
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink %p:Preroll Request Sample"), this);
 
+#if WMFMEDIA_PLAYER_VERSION >= 2
+
+	// Flush out old samples before we get new ones.
+	while (VideoSampleQueue->Num())
+	{
+		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
+		VideoSampleQueue->Dequeue(Sample);
+		FTimespan SampleStartTime = Sample->GetTime().Time;
+		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::Preroll dump SampleTime:%f"),
+			SampleStartTime.GetTotalSeconds());
+	}
+
+#endif // WMFMEDIA_PLAYER_VERSION >= 2
+
 	return QueueEvent(MEStreamSinkRequestSample, GUID_NULL, S_OK, NULL);
 }
 
