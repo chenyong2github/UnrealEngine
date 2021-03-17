@@ -252,7 +252,7 @@ namespace UnrealGameSync
 			{
 				try
 				{
-					System.Diagnostics.Process.Start(Url);
+					Utility.OpenUrl(Url);
 				}
 				catch (Exception Ex)
 				{

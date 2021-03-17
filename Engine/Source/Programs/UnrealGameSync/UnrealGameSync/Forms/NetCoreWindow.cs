@@ -38,7 +38,7 @@ namespace UnrealGameSync.Forms
 
 		private void linkLabel1_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			System.Diagnostics.Process.Start("https://dotnet.microsoft.com/download/dotnet-core/current/runtime");
+			Utility.OpenUrl("https://dotnet.microsoft.com/download/dotnet-core/current/runtime");
 		}
 	}
 }

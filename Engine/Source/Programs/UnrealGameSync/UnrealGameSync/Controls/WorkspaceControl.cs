@@ -4511,7 +4511,7 @@ namespace UnrealGameSync
 			string SwarmURL;
 			if (TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "SwarmURL", out SwarmURL))
 			{
-				Process.Start(String.Format("{0}/changes/{1}", SwarmURL, ContextMenuChange.Number));
+				Utility.OpenUrl(String.Format("{0}/changes/{1}", SwarmURL, ContextMenuChange.Number));
 			}
 			else
 			{

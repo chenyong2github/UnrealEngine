@@ -674,5 +674,13 @@ namespace UnrealGameSync
 				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
 			}
 		}
+
+		public static void OpenUrl(string Url)
+		{
+			ProcessStartInfo StartInfo = new ProcessStartInfo();
+			StartInfo.FileName = Url;
+			StartInfo.UseShellExecute = true;
+			using Process _ = Process.Start(StartInfo);
+		}
 	}
 }
