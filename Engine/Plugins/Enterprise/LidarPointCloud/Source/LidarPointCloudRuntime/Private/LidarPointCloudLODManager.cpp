@@ -88,8 +88,14 @@ FLidarPointCloudViewData::FLidarPointCloudViewData(bool bCompute)
 
 void FLidarPointCloudViewData::Compute()
 {
+	bool bForceSkipLocalPlayer = false;
+
+#if WITH_EDITOR
+	bForceSkipLocalPlayer = GIsEditor && GEditor && GEditor->bIsSimulatingInEditor;
+#endif
+
 	// Attempt to get the first local player's viewport
-	if (GEngine)
+	if (GEngine && !bForceSkipLocalPlayer)
 	{
 		ULocalPlayer* const LP = GEngine->FindFirstLocalPlayerFromControllerId(0);
 		if (LP && LP->ViewportClient)
