@@ -76,9 +76,10 @@ namespace SceneOutliner
 
 FActorMode::FActorMode(const FActorModeParams& Params)
 	: ISceneOutlinerMode(Params.SceneOutliner)
+	, SpecifiedWorldToDisplay(Params.SpecifiedWorldToDisplay)
 	, bHideComponents(Params.bHideComponents)
 	, bHideLevelInstanceHierarchy(Params.bHideLevelInstanceHierarchy)
-	, SpecifiedWorldToDisplay(Params.SpecifiedWorldToDisplay)
+	, bHideUnloadedActors(Params.bHideUnloadedActors)
 {
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
 		{
@@ -95,6 +96,7 @@ TUniquePtr<ISceneOutlinerHierarchy> FActorMode::CreateHierarchy()
 	TUniquePtr<FActorHierarchy> ActorHierarchy = FActorHierarchy::Create(this, RepresentingWorld);
 	ActorHierarchy->SetShowingComponents(!bHideComponents);
 	ActorHierarchy->SetShowingLevelInstances(!bHideLevelInstanceHierarchy);
+	ActorHierarchy->SetShowingUnloadedActors(!bHideUnloadedActors);
 
 	return ActorHierarchy;
 }

@@ -65,6 +65,7 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateActorPicker(const FSceneO
 			Params.SpecifiedWorldToDisplay = SpecifiedWorld;
 			Params.bHideComponents = true;
 			Params.bHideLevelInstanceHierarchy = true;
+			Params.bHideUnloadedActors = true;
 			return new FActorPickingMode(Params, OnItemPicked);
 		});
 
@@ -100,6 +101,7 @@ TSharedRef<ISceneOutliner> FSceneOutlinerModule::CreateComponentPicker(const FSc
 			Params.SpecifiedWorldToDisplay = SpecifiedWorld;
 			Params.bHideComponents = false;
 			Params.bHideLevelInstanceHierarchy = true;
+			Params.bHideUnloadedActors = true;
 			return new FActorPickingMode(Params, OnItemPicked);
 		});
 

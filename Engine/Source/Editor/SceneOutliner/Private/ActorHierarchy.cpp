@@ -254,21 +254,24 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 		}
 	}
 
-	if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+	if (bShowingUnloadedActors)
 	{
-		UWorldPartition* WorldPartition = World->GetWorldPartition();
-		check(WorldPartition);
-		WorldPartitionSubsystem->ForEachActorDesc(AActor::StaticClass(), [this, WorldPartition, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
-			{
-				if (ActorDesc != nullptr && !ActorDesc->IsLoaded())
-				{
-					if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc, WorldPartition)))
-					{
-						OutItems.Add(ActorDescItem);
-					}
-				}
-				return true;
-			});
+		if (UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>())
+		{
+			UWorldPartition* WorldPartition = World->GetWorldPartition();
+			check(WorldPartition);
+			WorldPartitionSubsystem->ForEachActorDesc(AActor::StaticClass(), [this, WorldPartition, &OutItems](const FWorldPartitionActorDesc* ActorDesc)
+                {
+                    if (ActorDesc != nullptr && !ActorDesc->IsLoaded())
+                    {
+                        if (const FSceneOutlinerTreeItemPtr ActorDescItem = Mode->CreateItemFor<FActorDescTreeItem>(FActorDescTreeItem(ActorDesc, WorldPartition)))
+                        {
+                            OutItems.Add(ActorDescItem);
+                        }
+                    }
+                    return true;
+                });
+		}
 	}
 }
 

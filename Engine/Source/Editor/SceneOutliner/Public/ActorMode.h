@@ -23,17 +23,19 @@ struct SCENEOUTLINER_API FActorModeParams
 {
 	FActorModeParams() {}
 
-	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideLevelInstanceHierarchy = true)
+	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideLevelInstanceHierarchy = true, bool bInHideUnloadedActors = true)
 		: SpecifiedWorldToDisplay(InSpecifiedWorldToDisplay)
 		, SceneOutliner(InSceneOutliner)
 		, bHideComponents(bInHideComponents)
 		, bHideLevelInstanceHierarchy(bInHideLevelInstanceHierarchy)
+		, bHideUnloadedActors(bInHideUnloadedActors)
 	{}
 
 	TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay = nullptr;
-	SSceneOutliner* SceneOutliner;
-	bool bHideComponents;
-	bool bHideLevelInstanceHierarchy;
+	SSceneOutliner* SceneOutliner = nullptr;
+	bool bHideComponents = true;
+	bool bHideLevelInstanceHierarchy = true;
+	bool bHideUnloadedActors = true;
 };
 
 class SCENEOUTLINER_API FActorMode : public ISceneOutlinerMode
@@ -72,10 +74,6 @@ protected:
 
 	virtual TUniquePtr<ISceneOutlinerHierarchy> CreateHierarchy() override;
 protected:
-	// Should the hide components filter be enabled
-	bool bHideComponents;
-	// Are LevelInstances being hidden
-	bool bHideLevelInstanceHierarchy;
 	/** The world which we are currently representing */
 	TWeakObjectPtr<UWorld> RepresentingWorld;
 	/** The world which the user manually selected */
@@ -83,4 +81,11 @@ protected:
 
 	/** If this mode was created to display a specific world, don't allow it to be reassigned */
 	const TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay;
+
+	/** Should components be hidden */
+	bool bHideComponents;
+	/** Should the level instance hierarchy be hidden */
+	bool bHideLevelInstanceHierarchy;
+	/** Should unloaded actors be hidden */
+	bool bHideUnloadedActors;
 };

@@ -24,6 +24,7 @@ public:
 
 	void SetShowingComponents(bool bInShowingComponents) { bShowingComponents = bInShowingComponents; }
 	void SetShowingLevelInstances(bool bInShowingLevelInstances) { bShowingLevelInstances = bInShowingLevelInstances; }
+	void SetShowingUnloadedActors(bool bInShowingUnloadedActors) { bShowingUnloadedActors = bInShowingUnloadedActors; }
 private:
 	/** Adds all the direct and indirect children of a world to OutItems */
 	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
@@ -60,10 +61,11 @@ private:
 	/** Send a an event indicating a full refresh of the hierarchy is required */
 	void FullRefreshEvent();
 
+	TWeakObjectPtr<UWorld> RepresentingWorld;
+	
 	bool bShowingComponents = false;
 	bool bShowingLevelInstances = false;
-
-	TWeakObjectPtr<UWorld> RepresentingWorld;
+	bool bShowingUnloadedActors = false;
 private:
 	FActorHierarchy(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& Worlds);
 
