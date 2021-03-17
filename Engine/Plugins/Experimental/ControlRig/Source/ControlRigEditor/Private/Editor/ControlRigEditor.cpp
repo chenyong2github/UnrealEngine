@@ -3573,6 +3573,23 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 				CacheNameLists();
 				break;
 			}
+			case ERigHierarchyNotification::ControlSettingChanged:
+			{
+				if(Key == RigElementInDetailPanel)
+				{
+					UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+					check(RigBlueprint);
+
+					const FRigControlElement* SourceControlElement = Cast<FRigControlElement>(Element);
+					FRigControlElement* TargetControlElement = RigBlueprint->Hierarchy->Find<FRigControlElement>(Key);
+
+					if(SourceControlElement && TargetControlElement)
+					{
+						TargetControlElement->Settings = SourceControlElement->Settings;
+					}
+				}
+				break;
+			}
 			default:
 			{
 				break;
