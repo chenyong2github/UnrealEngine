@@ -1185,7 +1185,7 @@ bool UnFbx::FFbxImporter::ImportBones(TArray<FbxNode*>& NodeArray, FSkeletalMesh
 		
 		// set bone
 		SkeletalMeshImportData::FBone& Bone = ImportData.RefBonesBinary[LinkIndex];
-		FString BoneName = UTF8_TO_TCHAR( MakeName( Link->GetName() ) );
+		FString BoneName = MakeName( Link->GetName() );
 		Bone.Name = BoneName;
 
 		//Check for nan and for zero scale
@@ -1346,7 +1346,7 @@ bool UnFbx::FFbxImporter::FillSkeletalMeshImportData(TArray<FbxNode*>& NodeArray
 
 				SkeletalMeshImportData::FMaterial NewMaterial;
 
-				NewMaterial.MaterialImportName = UTF8_TO_TCHAR(MakeName(FbxMaterial->GetName()));
+				NewMaterial.MaterialImportName = MakeName(FbxMaterial->GetName());
 				// Add an entry for each unique material
 				SkelMeshImportDataPtr->Materials.Add(NewMaterial);
 			}
@@ -4263,7 +4263,7 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 				FbxBlendShape* BlendShape = (FbxBlendShape*)Geometry->GetDeformer(BlendShapeIndex, FbxDeformer::eBlendShape);
 				const int32 BlendShapeChannelCount = BlendShape->GetBlendShapeChannelCount();
 
-				FString BlendShapeName = UTF8_TO_TCHAR(MakeName(BlendShape->GetName()));
+				FString BlendShapeName = MakeName(BlendShape->GetName());
 
 				// see below where this is used for explanation...
 				const bool bMightBeBadMAXFile = (BlendShapeName == FString("Morpher"));
@@ -4276,7 +4276,7 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 						//Find which shape should we use according to the weight.
 						const int32 CurrentChannelShapeCount = Channel->GetTargetShapeCount();
 						
-						FString ChannelName = UTF8_TO_TCHAR(MakeName(Channel->GetName()));
+						FString ChannelName = MakeName(Channel->GetName());
 
 						// Maya adds the name of the blendshape and an underscore to the front of the channel name, so remove it
 						if(ChannelName.StartsWith(BlendShapeName))
@@ -4291,13 +4291,13 @@ void UnFbx::FFbxImporter::ImportMorphTargetsInternal( TArray<FbxNode*>& SkelMesh
 							FString ShapeName;
 							if( CurrentChannelShapeCount > 1 )
 							{
-								ShapeName = UTF8_TO_TCHAR(MakeName(Shape->GetName() ) );
+								ShapeName = MakeName(Shape->GetName());
 							}
 							else
 							{
 								if (bMightBeBadMAXFile)
 								{
-									ShapeName = UTF8_TO_TCHAR(MakeName(Shape->GetName()));
+									ShapeName = MakeName(Shape->GetName());
 								}
 								else
 								{

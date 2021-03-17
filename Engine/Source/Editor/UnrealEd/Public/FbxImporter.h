@@ -428,17 +428,17 @@ struct FbxMeshInfo
 //Node use to store the scene hierarchy transform will be relative to the parent
 struct FbxNodeInfo
 {
-	const char* ObjectName;
+	FString ObjectName;
 	uint64 UniqueId;
 	FbxAMatrix Transform;
 	FbxVector4 RotationPivot;
 	FbxVector4 ScalePivot;
 	
-	const char* AttributeName;
+	FString AttributeName;
 	uint64 AttributeUniqueId;
-	const char* AttributeType;
+	FString AttributeType;
 
-	const char* ParentName;
+	FString ParentName;
 	uint64 ParentUniqueId;
 };
 
@@ -963,8 +963,8 @@ public:
 	bool ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& NodeName);
 
 	//help
-	ANSICHAR* MakeName(const ANSICHAR* name) const;
-	FString MakeString(const ANSICHAR* Name) const;
+	static FString MakeName(const ANSICHAR* name);
+	static FString MakeString(const ANSICHAR* Name);
 	FName MakeNameForMesh(FString InName, FbxObject* FbxObject);
 
 	// meshes

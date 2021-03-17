@@ -37,6 +37,7 @@
 #include "Engine/StaticMesh.h"
 #include "IMeshReductionInterfaces.h"
 #include "ObjectTools.h"
+#include "Misc/AutomationTest.h"
 
 DEFINE_LOG_CATEGORY(LogFbx);
 
@@ -1172,7 +1173,7 @@ void FFbxImporter::FixMaterialClashName()
 	for (int32 MaterialIndex = 0; MaterialIndex < MaterialArray.Size(); ++MaterialIndex)
 	{
 		FbxSurfaceMaterial *Material = MaterialArray[MaterialIndex];
-		FString MaterialName = UTF8_TO_TCHAR(MakeName(Material->GetName()));
+		FString MaterialName = MakeName(Material->GetName());
 		MaterialTextures.Append(GetFbxMaterialTextures(*Material));
 
 		if (!bKeepNamespace)
@@ -1749,43 +1750,32 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 	return Result;
 }
 
-ANSICHAR* FFbxImporter::MakeName(const ANSICHAR* Name) const
+FString FFbxImporter::MakeName(const ANSICHAR* Name)
 {
-	const int SpecialChars[] = {'.', ',', '/', '`', '%'};
+	const TCHAR SpecialChars[] = {TEXT('.'), TEXT(','), TEXT('/'), TEXT('`'), TEXT('%')};
 
-	const int len = FCStringAnsi::Strlen(Name);
-	ANSICHAR* TmpName = new ANSICHAR[len+1];
+	FString TmpName = MakeString(Name);
 	
-	FCStringAnsi::Strcpy(TmpName, len + 1, Name);
+	// Remove namespaces
+	int32 LastNamespaceTokenIndex = INDEX_NONE;
+	if (TmpName.FindLastChar(TEXT(':'), LastNamespaceTokenIndex))
+	{
+		const bool bAllowShrinking = true;
+		//+1 to remove the ':' character we found
+		TmpName.RightChopInline(LastNamespaceTokenIndex + 1, bAllowShrinking);
+	}
 
+	//Remove the special chars
 	for ( int32 i = 0; i < UE_ARRAY_COUNT(SpecialChars); i++ )
 	{
-		ANSICHAR* CharPtr = TmpName;
-		while ( (CharPtr = FCStringAnsi::Strchr(CharPtr,SpecialChars[i])) != NULL )
-		{
-			CharPtr[0] = '_';
-		}
+		TmpName.ReplaceCharInline(SpecialChars[i], TEXT('_'), ESearchCase::CaseSensitive);
 	}
 
-	// Remove namespaces
-	ANSICHAR* NewName;
-	NewName = FCStringAnsi::Strchr(TmpName, ':');
-	  
-	// there may be multiple namespace, so find the last ':'
-	while (NewName && FCStringAnsi::Strchr(NewName + 1, ':'))
-	{
-		NewName = FCStringAnsi::Strchr(NewName + 1, ':');
-	}
-
-	if (NewName)
-	{
-		return NewName + 1;
-	}
-
+	
 	return TmpName;
 }
 
-FString FFbxImporter::MakeString(const ANSICHAR* Name) const
+FString FFbxImporter::MakeString(const ANSICHAR* Name)
 {
 	return FString(ANSI_TO_TCHAR(Name));
 }
@@ -2996,14 +2986,11 @@ FbxNode* FFbxImporter::FindFBXMeshesByBone(const FName& RootBoneName, bool bExpa
 	// names of the nodes before checking them against the name of the Unreal bone
 	if (!SkeletonRoot)
 	{
-		ANSICHAR TmpBoneName[64];
-
 		for (int32 NodeIndex = 0; NodeIndex < Scene->GetNodeCount(); NodeIndex++)
 		{
 			FbxNode* FbxNode = Scene->GetNode(NodeIndex);
 
-			FCStringAnsi::Strcpy(TmpBoneName, 64, MakeName(FbxNode->GetName()));
-			FString FbxBoneName = FSkeletalMeshImportData::FixupBoneName(TmpBoneName);
+			FString FbxBoneName = FSkeletalMeshImportData::FixupBoneName(MakeName(FbxNode->GetName()));
 
 			if (FbxBoneName == BoneNameString)
 			{
@@ -3319,5 +3306,77 @@ void FFbxImporter::ImportNodeCustomProperties(UObject* Object, FbxNode* Node, bo
 }
 
 } // namespace UnFbx
+
+#if WITH_DEV_AUTOMATION_TESTS
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FFbxUnitTest, "Editor.Import.Fbx.UnitTests", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FFbxUnitTest::RunTest(const FString& Parameters)
+{
+	const ANSICHAR TestData[][64] = { "SimpleTest"
+									, "SimpleTest_1"
+									, "SimpleTest.1"
+									, "SimpleTest,1"
+									, "SimpleTest/1"
+									, "SimpleTest`1"
+									, "SimpleTest%1"
+									, "One:SimpleTest"
+									, "One::SimpleTest"
+									, "One:Two:SimpleTest"
+									, "One::Two::SimpleTest"
+									, "O.n,e::/Two:%:Si`mpleTest" };
+
+	const FString Results[3] = { FString(TEXT("SimpleTest"))
+								, FString(TEXT("SimpleTest_1"))
+								, FString(TEXT("Si_mpleTest")) };
+
+	auto RunOneTest = [&TestData, &Results, this](int32 DataIndex, int32 ResultIndex)
+	{
+		FString ResultInternal = UnFbx::FFbxImporter::MakeName(TestData[DataIndex]);
+		if (!ResultInternal.Equals(Results[ResultIndex]))
+		{
+			FStringFormatOrderedArguments OrderedArguments;
+			OrderedArguments.Add(FStringFormatArg(UnFbx::FFbxImporter::MakeString(TestData[DataIndex])));
+			OrderedArguments.Add(FStringFormatArg(ResultInternal));
+			OrderedArguments.Add(FStringFormatArg(Results[ResultIndex]));
+			FString ErrorMessage = FString::Format(TEXT("Fbx importer MakeName function transform name [{0}] into [{1}], but expected [{2}]."), OrderedArguments);
+			AddError(ErrorMessage);
+		}
+	};
+
+	//////////////////////////////////////////////////////////////////////////
+	// String with no change test
+
+	RunOneTest(0, 0);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Special character tests return all TestData_2
+
+	RunOneTest(1, 1);
+	RunOneTest(2, 1);
+	RunOneTest(3, 1);
+	RunOneTest(4, 1);
+	RunOneTest(5, 1);
+	RunOneTest(6, 1);
+
+	//////////////////////////////////////////////////////////////////////////
+	//namespace tests return all TestData_1
+
+	RunOneTest(7, 0);
+	RunOneTest(8, 0);
+	RunOneTest(9, 0);
+	RunOneTest(10, 0);
+
+	//////////////////////////////////////////////////////////////////////////
+	// Mix test
+
+	RunOneTest(11, 2);
+
+	return true;
+}
+
+
+#endif //WITH_DEV_AUTOMATION_TESTS
+
 
 #undef LOCTEXT_NAMESPACE
