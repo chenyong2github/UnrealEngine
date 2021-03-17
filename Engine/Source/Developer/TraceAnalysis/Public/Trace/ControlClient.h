@@ -44,6 +44,9 @@ public:
 	 * @param Path File system path that the runtime should write events to. */
     void SendWriteTo(const TCHAR* Path);
 
+	/** Tells the runtime to stop tracing. */
+    void SendStop();
+
 	/**
 	 * Toggles one or more channels on and off. A channel or a comma separated list
 	 * of channels can be controlled.

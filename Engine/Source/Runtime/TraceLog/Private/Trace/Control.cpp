@@ -16,6 +16,7 @@ namespace Private {
 ////////////////////////////////////////////////////////////////////////////////
 bool	Writer_SendTo(const ANSICHAR*, uint32);
 bool	Writer_WriteTo(const ANSICHAR*);
+bool	Writer_Stop();
 
 
 
@@ -298,6 +299,13 @@ void Writer_InitializeControl()
 			{
 				Writer_WriteTo(ArgV[0]);
 			}
+		}
+	);
+
+	Writer_ControlAddCommand("Stop", nullptr,
+		[] (void*, uint32 ArgC, ANSICHAR const* const* ArgV)
+		{
+			Writer_Stop();
 		}
 	);
 
