@@ -383,12 +383,17 @@ namespace UnrealGameSync
 					Log.WriteLine("{0}", StatusMessage);
 				}
 			}
-			catch(ThreadAbortException)
+			catch (ThreadAbortException)
 			{
 				StatusMessage = "Canceled.";
 				Log.WriteLine("Canceled.");
 			}
-			catch(Exception Ex)
+			catch (ThreadInterruptedException)
+			{
+				StatusMessage = "Canceled.";
+				Log.WriteLine("Canceled.");
+			}
+			catch (Exception Ex)
 			{
 				StatusMessage = "Failed with exception - " + Ex.ToString();
 				Log.WriteException(Ex, "Failed with exception");
