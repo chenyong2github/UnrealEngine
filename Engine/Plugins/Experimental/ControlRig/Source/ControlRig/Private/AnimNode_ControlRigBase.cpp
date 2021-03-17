@@ -127,7 +127,7 @@ void FAnimNode_ControlRigBase::UpdateInput(UControlRig* ControlRig, const FPoseC
 		{
 			const FName& Name = Iter.Key();
 			const uint16 Index = Iter.Value();
-			const FRigElementKey Key(Name, ERigElementType::Bone);
+			const FRigElementKey Key(Name, ERigElementType::Curve);
 
 			ControlRig->GetHierarchy()->SetCurveValue(Key, InOutput.Curve.Get(Index));
 		}
@@ -174,7 +174,7 @@ void FAnimNode_ControlRigBase::UpdateOutput(UControlRig* ControlRig, FPoseContex
 		{
 			const FName& Name = Iter.Key();
 			const uint16 Index = Iter.Value();
-			const FRigElementKey Key(Name, ERigElementType::Bone);
+			const FRigElementKey Key(Name, ERigElementType::Curve);
 
 			const float Value = ControlRig->GetHierarchy()->GetCurveValue(Key);
 			InOutput.Curve.Set(Index, Value);
