@@ -229,8 +229,9 @@ const UE::HLSLTree::FEmitValue& UE::HLSLTree::FEmitContext::AcquireValue(UE::HLS
 		FLocalHLSLCodeWriter LocalWriter;
 		Shader::FPreshaderData LocalPreshader;
 		FExpressionEmitResult EmitResult(LocalWriter, LocalPreshader);
-		Expression->EmitHLSL(*this, EmitResult);
+		Expression->EmitCode(*this, EmitResult);
 
+		check(EmitResult.EvaluationType != EExpressionEvaluationType::None);
 		check(EmitResult.Type != Shader::EValueType::Void);
 
 		Entry = new(*Allocator) FDeclarationEntry();

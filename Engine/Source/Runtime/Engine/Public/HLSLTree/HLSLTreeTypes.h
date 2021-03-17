@@ -29,13 +29,13 @@ enum class EExpressionEvaluationType
 	/** Invalid/uninitialized */
 	None,
 
-	/** The expression needs to generate HLSL code (EmitHLSL will be called) */
+	/** The expression outputs HLSL code (via FExpressionEmitResult::Writer) */
 	Shader,
 
-	/** The expression can generate a preshader (EmitPreshader will be called) */
+	/** The expression outputs preshader code evaluated at runtime (via FExpressionEmitResult::Preshader) */
 	Preshader,
 
-	/** The expression is constant (EmitPreshader will be called, generated preshader will be evaluated and cached at compile-time) */
+	/** The expression outputs constant preshader code evaluated at compile time (via FExpressionEmitResult::Preshader) */
 	Constant,
 };
 

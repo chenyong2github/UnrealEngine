@@ -169,7 +169,7 @@ struct FExpressionEmitResult
 	FExpressionEmitResult(FCodeWriter& InWriter, Shader::FPreshaderData& InPreshader)
 		: Writer(InWriter)
 		, Preshader(InPreshader)
-		, EvaluationType(EExpressionEvaluationType::Shader)
+		, EvaluationType(EExpressionEvaluationType::None)
 		, Type(Shader::EValueType::Void)
 		, bInline(false)
 	{}
@@ -248,8 +248,8 @@ class FExpression : public FNode
 public:
 	virtual ENodeVisitResult Visit(FNodeVisitor& Visitor) override;
 
-	/* Emits HLSL code for the expression. The code should NOT include any newlines or semi-colons. The returned string may be assigned to a temporary variable, or embedded in another HLSL string */
-	virtual void EmitHLSL(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
+	/** Emits code for the given expression, either HLSL code or preshader bytecode */
+	virtual void EmitCode(FEmitContext& Context, FExpressionEmitResult& OutResult) const = 0;
 };
 
 /**
