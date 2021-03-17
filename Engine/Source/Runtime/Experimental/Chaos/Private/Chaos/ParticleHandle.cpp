@@ -9,6 +9,7 @@
 #include "Chaos/Framework/PhysicsSolverBase.h"
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "Chaos/CastingUtilities.h"
+#include "PBDRigidsSolver.h"
 
 namespace Chaos
 {
