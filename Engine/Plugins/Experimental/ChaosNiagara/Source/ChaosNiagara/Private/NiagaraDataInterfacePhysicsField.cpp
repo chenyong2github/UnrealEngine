@@ -32,9 +32,7 @@ const FString UNiagaraDataInterfacePhysicsField::ClipmapResolutionName(TEXT("Cli
 const FString UNiagaraDataInterfacePhysicsField::ClipmapExponentName(TEXT("ClipmapExponent_"));
 const FString UNiagaraDataInterfacePhysicsField::ClipmapCountName(TEXT("ClipmapCount_"));
 const FString UNiagaraDataInterfacePhysicsField::TargetCountName(TEXT("TargetCount_"));
-const FString UNiagaraDataInterfacePhysicsField::VectorTargetsName(TEXT("VectorTargets_"));
-const FString UNiagaraDataInterfacePhysicsField::ScalarTargetsName(TEXT("ScalarTargets_"));
-const FString UNiagaraDataInterfacePhysicsField::IntegerTargetsName(TEXT("IntegerTargets_"));
+const FString UNiagaraDataInterfacePhysicsField::FieldTargetsName(TEXT("FieldTargets_"));
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -49,9 +47,7 @@ struct FNDIPhysicsFieldParametersName
 		ClipmapExponentName = UNiagaraDataInterfacePhysicsField::ClipmapExponentName + Suffix;
 		ClipmapCountName = UNiagaraDataInterfacePhysicsField::ClipmapCountName + Suffix;
 		TargetCountName = UNiagaraDataInterfacePhysicsField::TargetCountName + Suffix;
-		VectorTargetsName = UNiagaraDataInterfacePhysicsField::VectorTargetsName + Suffix;
-		ScalarTargetsName = UNiagaraDataInterfacePhysicsField::ScalarTargetsName + Suffix;
-		IntegerTargetsName = UNiagaraDataInterfacePhysicsField::IntegerTargetsName + Suffix;
+		FieldTargetsName = UNiagaraDataInterfacePhysicsField::FieldTargetsName + Suffix;
 	}
 
 	FString ClipmapBufferName;
@@ -61,10 +57,7 @@ struct FNDIPhysicsFieldParametersName
 	FString ClipmapExponentName;
 	FString ClipmapCountName;
 	FString TargetCountName;
-	FString VectorTargetsName;
-	FString ScalarTargetsName;
-	FString IntegerTargetsName;
-
+	FString FieldTargetsName;
 };
 
 //------------------------------------------------------------------------------------------------------------
@@ -129,9 +122,7 @@ public:
 		ClipmapExponent.Bind(ParameterMap, *ParamNames.ClipmapExponentName);
 		ClipmapCount.Bind(ParameterMap, *ParamNames.ClipmapCountName);
 		TargetCount.Bind(ParameterMap, *ParamNames.TargetCountName);
-		VectorTargets.Bind(ParameterMap, *ParamNames.VectorTargetsName);
-		ScalarTargets.Bind(ParameterMap, *ParamNames.ScalarTargetsName);
-		IntegerTargets.Bind(ParameterMap, *ParamNames.IntegerTargetsName);
+		FieldTargets.Bind(ParameterMap, *ParamNames.FieldTargetsName);
 	}
 
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
@@ -145,10 +136,18 @@ public:
 		FNDIPhysicsFieldData* ProxyData =
 			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
+		TStaticArray<FIntVector4, MAX_PHYSICS_FIELD_TARGETS,16> LocalTargets;
 		if (ProxyData != nullptr && ProxyData->FieldResource)
 		{
 			FPhysicsFieldResource* FieldResource = ProxyData->FieldResource;
 
+			for (int32 Index = 0; Index < MAX_PHYSICS_FIELD_TARGETS; ++Index)
+			{
+				LocalTargets[Index].X = FieldResource->FieldInfos.VectorTargets[Index];
+				LocalTargets[Index].Y = FieldResource->FieldInfos.ScalarTargets[Index];
+				LocalTargets[Index].Z = FieldResource->FieldInfos.IntegerTargets[Index];
+				LocalTargets[Index].W = 0; // Padding
+			}
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FieldResource->ClipmapBuffer.SRV);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FieldResource->FieldInfos.ClipmapCenter);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, FieldResource->FieldInfos.ClipmapDistance);
@@ -157,13 +156,10 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCount, FieldResource->FieldInfos.ClipmapCount);
 
 			SetShaderValue(RHICmdList, ComputeShaderRHI, TargetCount, FieldResource->FieldInfos.TargetCount);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, VectorTargets, FieldResource->FieldInfos.VectorTargets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ScalarTargets, FieldResource->FieldInfos.ScalarTargets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, IntegerTargets, FieldResource->FieldInfos.IntegerTargets);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, FieldTargets, LocalTargets);
 		}
 		else
 		{
-			TStaticArray<int32, MAX_PHYSICS_FIELD_TARGETS> EmptyTargets;
 			SetSRVParameter(RHICmdList, ComputeShaderRHI, ClipmapBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCenter, FVector::ZeroVector);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapDistance, 1);
@@ -171,9 +167,7 @@ public:
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapExponent, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, ClipmapCount, 1);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, TargetCount, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, VectorTargets, EmptyTargets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ScalarTargets, EmptyTargets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, IntegerTargets, EmptyTargets);
+			SetShaderValue(RHICmdList, ComputeShaderRHI, FieldTargets, LocalTargets);
 		}
 	}
 
@@ -190,9 +184,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ClipmapExponent);
 	LAYOUT_FIELD(FShaderParameter, ClipmapCount);
 	LAYOUT_FIELD(FShaderParameter, TargetCount);
-	LAYOUT_FIELD(FShaderParameter, VectorTargets);
-	LAYOUT_FIELD(FShaderParameter, ScalarTargets);
-	LAYOUT_FIELD(FShaderParameter, IntegerTargets);
+	LAYOUT_FIELD(FShaderParameter, FieldTargets);
 };
 
 IMPLEMENT_TYPE_LAYOUT(FNDIPhysicsFieldParametersCS);

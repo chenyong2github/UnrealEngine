@@ -86,9 +86,7 @@ public:
 	static const FString ClipmapExponentName;
 	static const FString ClipmapCountName;
 	static const FString TargetCountName;
-	static const FString VectorTargetsName;
-	static const FString ScalarTargetsName;
-	static const FString IntegerTargetsName;
+	static const FString FieldTargetsName;
 
 protected:
 	/** Copy one niagara DI to this */
