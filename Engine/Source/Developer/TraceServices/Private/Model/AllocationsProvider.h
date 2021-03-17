@@ -44,7 +44,7 @@ private:
 	struct ThreadState
 	{
 		TArray<uint32> TagStack;
-		TArray<uint64> ReallocPtr;
+		bool bReallocTagActive;
 	};
 
 	struct TagEntry
@@ -60,15 +60,14 @@ public:
 	uint32 GetCurrentTag(uint32 ThreadId, uint8 Tracker) const;
 	const TCHAR* GetTagString(uint32 Tag) const;
 
-	void PushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr);
+	void PushRealloc(uint32 ThreadId, uint8 Tracker, uint32 Tag);
 	void PopRealloc(uint32 ThreadId, uint8 Tracker);
 	bool HasReallocScope(uint32 ThreadId, uint8 Tracker) const;
-	bool IsReallocScope(uint64 SourcePtr, uint32 ThreadId, uint8 Tracker) const;
 
 private:
 	inline uint32 GetTrackerThreadId(uint32 ThreadId, uint8 Tracker) const
 	{
-		return (Tracker << TrackerIdShift) & (~TrackerIdMask & ThreadId);
+		return (Tracker << TrackerIdShift) | (~TrackerIdMask & ThreadId);
 	}
 
 	TMap<uint32, ThreadState> TrackerThreadStates;
@@ -183,8 +182,8 @@ public:
 	void EditPushTag(uint32 ThreadId, uint8 Tracker, uint32 Tag)           { EditAccessCheck(); TagTracker.PushTag(ThreadId, Tracker, Tag); }
 	void EditPopTag(uint32 ThreadId, uint8 Tracker)                        { EditAccessCheck(); TagTracker.PopTag(ThreadId, Tracker); }
 
-	void EditPushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr)       { EditAccessCheck(); TagTracker.PushRealloc(ThreadId, Tracker, Ptr); }
-	void EditPopRealloc(uint32 ThreadId, uint8 Tracker)                    { EditAccessCheck(); TagTracker.PopRealloc(ThreadId, Tracker); }
+	void EditPushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr);
+	void EditPopRealloc(uint32 ThreadId, uint8 Tracker);
 
 	void EditOnAnalysisCompleted(double Time);
 

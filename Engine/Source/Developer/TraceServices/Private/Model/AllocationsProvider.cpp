@@ -150,11 +150,12 @@ const TCHAR* FTagTracker::GetTagString(uint32 InTag) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FTagTracker::PushRealloc(uint32 InThreadId, uint8 InTracker, uint64 InPtr)
+void FTagTracker::PushRealloc(uint32 InThreadId, uint8 InTracker, uint32 InTag)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	ThreadState& State = TrackerThreadStates.FindOrAdd(TrackerThreadId);
-	State.ReallocPtr.Push(InPtr);
+	State.TagStack.Push(InTag);
+	State.bReallocTagActive = true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,9 +164,10 @@ void FTagTracker::PopRealloc(uint32 InThreadId, uint8 InTracker)
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
-	if (ensure(State && !State->ReallocPtr.IsEmpty()))
+	if (ensure(State && !State->TagStack.IsEmpty() && State->bReallocTagActive))
 	{
-		State->ReallocPtr.Pop();
+		State->TagStack.Pop();
+		State->bReallocTagActive = false;
 	}
 	else
 	{
@@ -183,16 +185,7 @@ bool FTagTracker::HasReallocScope(uint32 InThreadId, uint8 InTracker) const
 {
 	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
 	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
-	return State && !State->ReallocPtr.IsEmpty();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FTagTracker::IsReallocScope(uint64 InSourcePtr, uint32 InThreadId, uint8 InTracker) const
-{
-	const uint32 TrackerThreadId = GetTrackerThreadId(InThreadId, InTracker);
-	const ThreadState* State = TrackerThreadStates.Find(TrackerThreadId);
-	return State && !State->ReallocPtr.IsEmpty() && State->ReallocPtr.Contains(InSourcePtr);
+	return State && State->bReallocTagActive;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -634,6 +627,23 @@ void FAllocationsProvider::AdvanceTimelines(double Time)
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAllocationsProvider::EditPushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr) 
+{ 
+	EditAccessCheck(); 
+	int32 Tag(0); // If ptr is not found use "Untagged"
+	if (FAllocationItem* Alloc = LiveAllocs.Find(Ptr))
+	{
+		Tag = Alloc->Tag;
+	}
+	TagTracker.PushRealloc(ThreadId, Tracker, Tag);
+}
+
+void FAllocationsProvider::EditPopRealloc(uint32 ThreadId, uint8 Tracker) 
+{ 
+	EditAccessCheck(); 
+	TagTracker.PopRealloc(ThreadId, Tracker); 
+}
 
 void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 {

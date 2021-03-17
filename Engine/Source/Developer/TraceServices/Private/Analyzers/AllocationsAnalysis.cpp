@@ -187,7 +187,7 @@ bool FAllocationsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventC
 				}
 				else // "MemoryScopeRealloc"
 				{
-					const uint64 Ptr = Context.EventData.GetValue<int32>("Ptr");
+					const uint64 Ptr = Context.EventData.GetValue<uint64>("Ptr");
 					FAllocationsProvider::FEditScopeLock _(AllocationsProvider);
 					AllocationsProvider.EditPushRealloc(ThreadId, Tracker, Ptr);
 				}
