@@ -568,10 +568,13 @@ void FTextureCacheDerivedDataWorker::DoWork()
 		if (bAllowAsyncLoading && !bHasTextureSourceMips)
 		{
 			TextureData.GetAsyncSourceMips(ImageWrapper);
+			TextureData.AsyncSource.RemoveBulkData();
 		}
+
 		if (bAllowAsyncLoading && !bHasCompositeTextureSourceMips)
 		{
 			CompositeTextureData.GetAsyncSourceMips(ImageWrapper);
+			CompositeTextureData.AsyncSource.RemoveBulkData();
 		}
 
 		if (TextureData.Blocks.Num() && TextureData.Blocks[0].MipsPerLayer.Num() && TextureData.Blocks[0].MipsPerLayer[0].Num() && 
