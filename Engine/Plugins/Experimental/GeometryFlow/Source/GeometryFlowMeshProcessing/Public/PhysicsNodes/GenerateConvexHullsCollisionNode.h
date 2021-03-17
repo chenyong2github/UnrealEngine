@@ -23,7 +23,7 @@ struct GEOMETRYFLOWMESHPROCESSING_API FGenerateConvexHullsCollisionSettings
 	DECLARE_GEOMETRYFLOW_DATA_TYPE_IDENTIFIER(EMeshProcessingDataTypes::GenerateCollisionConvexHullsSettings);
 
 	int32 SimplifyToTriangleCount = 50;
-	bool bPrefilterVertices = false;
+	bool bPrefilterVertices = true;
 	int PrefilterGridResolution = 10;
 	
 };

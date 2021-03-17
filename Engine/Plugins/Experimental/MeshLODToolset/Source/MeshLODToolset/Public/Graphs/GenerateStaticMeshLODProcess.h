@@ -33,18 +33,19 @@ enum class EGenerateStaticMeshLODBakeResolution
 	Resolution8192 = 8192 UMETA(DisplayName = "8192 x 8192")
 };
 
-// NOTE: This must be kept in sync with ESimpleCollisionGeometryType in GenerateSimpleCollisionNode.h
-
 UENUM()
 enum class EGenerateStaticMeshLODSimpleCollisionGeometryType : uint8
 {
+	// NOTE: This must be kept in sync with ESimpleCollisionGeometryType in GenerateSimpleCollisionNode.h
+
 	AlignedBoxes,
 	OrientedBoxes,
 	MinimalSpheres,
 	Capsules,
 	ConvexHulls,
 	SweptHulls,
-	MinVolume
+	MinVolume,
+	None
 };
 
 // NOTE: This must be kept in sync with FMeshSimpleShapeApproximation::EProjectedHullAxisMode in MeshSimpleShapeApproximation.h

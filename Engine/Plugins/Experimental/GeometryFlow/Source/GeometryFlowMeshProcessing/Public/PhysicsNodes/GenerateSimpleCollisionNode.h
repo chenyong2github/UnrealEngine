@@ -28,7 +28,8 @@ enum class ESimpleCollisionGeometryType : uint8
 	Capsules,
 	ConvexHulls,
 	SweptHulls,
-	MinVolume
+	MinVolume,
+	None
 };
 
 
@@ -41,7 +42,7 @@ struct GEOMETRYFLOWMESHPROCESSING_API FGenerateSimpleCollisionSettings
 	struct FGenerateConvexHullSettings
 	{
 		int32 SimplifyToTriangleCount = 50;
-		bool bPrefilterVertices = false;
+		bool bPrefilterVertices = true;
 		int PrefilterGridResolution = 10;
 	} ConvexHullSettings;
 
