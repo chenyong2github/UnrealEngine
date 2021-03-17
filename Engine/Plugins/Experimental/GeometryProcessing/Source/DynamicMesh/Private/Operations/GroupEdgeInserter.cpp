@@ -412,7 +412,7 @@ void InsertNewVertexEndpoints(
 			bool bVertexIsOriginal = (CurrentVid == SpanVids[NextIndex - 1]);
 			if (!bVertexIsOriginal)
 			{
-				SplitPoint.Tangent = (Params.Mesh->GetVertex(SpanVids[NextIndex]) - Params.Mesh->GetVertex(CurrentVid)).Normalized();
+				SplitPoint.Tangent = Normalized(Params.Mesh->GetVertex(SpanVids[NextIndex]) - Params.Mesh->GetVertex(CurrentVid));
 			}
 			else
 			{
@@ -420,13 +420,13 @@ void InsertNewVertexEndpoints(
 				SplitPoint.Tangent = FVector3d::Zero();
 				if (NextIndex > 1)
 				{
-					SplitPoint.Tangent += (VertexPosition - Params.Mesh->GetVertex(SpanVids[NextIndex - 2])).Normalized();
+					SplitPoint.Tangent += Normalized(VertexPosition - Params.Mesh->GetVertex(SpanVids[NextIndex - 2]));
 				}
 				if (NextIndex < SpanVids.Num())
 				{
-					SplitPoint.Tangent += (Params.Mesh->GetVertex(SpanVids[NextIndex]) - VertexPosition).Normalized();
+					SplitPoint.Tangent += Normalized(Params.Mesh->GetVertex(SpanVids[NextIndex]) - VertexPosition);
 				}
-				SplitPoint.Tangent.Normalize();
+				Normalize(SplitPoint.Tangent);
 			}
 		}
 		else
@@ -453,7 +453,7 @@ void InsertNewVertexEndpoints(
 			// Assemble the actual output
 			SplitPoint.ElementID = CurrentVid;
 			SplitPoint.bIsVertex = true; // we made the vertex that is this target
-			SplitPoint.Tangent = (Params.Mesh->GetVertex(SpanVids[NextIndex]) - Params.Mesh->GetVertex(CurrentVid)).Normalized();
+			SplitPoint.Tangent = Normalized(Params.Mesh->GetVertex(SpanVids[NextIndex]) - Params.Mesh->GetVertex(CurrentVid));
 		}
 
 		EndPointsOut.Add(SplitPoint);
@@ -1134,11 +1134,11 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 	FVector3d EndPosition = EndPoint.bIsVertex ? Mesh.GetVertex(EndPoint.ElementID)
 		: Mesh.GetEdgePoint(EndPoint.ElementID, EndPoint.EdgeTValue);
 
-	FVector3d InPlaneVector = (EndPosition - StartPosition).Normalized();
+	FVector3d InPlaneVector = Normalized(EndPosition - StartPosition);
 
 	// Get components of the two tangents that are orthogonal to the vector between the points.
-	FVector3d NormalA = (StartPoint.Tangent - StartPoint.Tangent.Dot(InPlaneVector) * InPlaneVector).Normalized();
-	FVector3d NormalB = (StartPoint.Tangent - StartPoint.Tangent.Dot(InPlaneVector) * InPlaneVector).Normalized();
+	FVector3d NormalA = Normalized(StartPoint.Tangent - StartPoint.Tangent.Dot(InPlaneVector) * InPlaneVector);
+	FVector3d NormalB = Normalized(StartPoint.Tangent - StartPoint.Tangent.Dot(InPlaneVector) * InPlaneVector);
 
 	// Make the vectors be in the same half space so that their average represents the closer average of the
 	// corresponding lines.
@@ -1148,7 +1148,7 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 	}
 
 	// Do the averaging
-	FVector CutPlaneNormal = (FVector)(NormalA + NormalB).Normalized();
+	FVector CutPlaneNormal = (FVector)Normalized(NormalA + NormalB);
 	if (CutPlaneNormal.IsZero())
 	{
 		// This likely shouldn't happen, since it means that the two endpoint tangents are colinear

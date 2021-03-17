@@ -98,7 +98,7 @@ void UPlaneDistanceFromHitMechanic::UpdateCurrentDistance(const FRay& WorldRay)
 		FDistLine3Ray3d Distance(FLine3d(PreviewHeightFrame.Origin, PreviewHeightFrame.Z()), FRay3d(WorldRay));
 		float DistSqr = Distance.GetSquared();
 		float WorldHitDist = WorldRay.GetParameter( (FVector)Distance.RayClosestPoint );
-		NearestHitFrameWorld = FFrame3d(Distance.RayClosestPoint, (Distance.RayClosestPoint - Distance.LineClosestPoint).Normalized());
+		NearestHitFrameWorld = FFrame3d(Distance.RayClosestPoint, UE::Geometry::Normalized(Distance.RayClosestPoint - Distance.LineClosestPoint) );
 		FVector3d HitPosLocal = PreviewHeightFrame.ToFramePoint(Distance.RayClosestPoint);
 		NearestHitHeight = HitPosLocal.Z;
 		NearestHitDist = WorldHitDist;

@@ -113,7 +113,7 @@ public:
 					
 					for (int EdgeVert = 1; EdgeVert + 1 < EdgeLen; EdgeVert++)
 					{
-						Vertices[CurrentVertIndex] = FVector3d::Lerp(Corners[0], Corners[1], EdgeVert * Nscale[Dim]);
+						Vertices[CurrentVertIndex] = Lerp(Corners[0], Corners[1], EdgeVert * Nscale[Dim]);
 						for (int WhichFace = 0; WhichFace < 2; WhichFace++) // each edge is shared by two faces (w/ major axes of subdim 0 and subdim 1 respectively)
 						{
 							int FaceInd = FaceInds[WhichFace];
@@ -156,7 +156,7 @@ public:
 					};
 					for (int D1 = 1; D1 + 1 < N[D[1][Dim]]; D1++)
 					{
-						Vertices[CurrentVertIndex] = FVector3d::Lerp(Edges[0], Edges[1], D1 * Nscale[D[1][Dim]]);
+						Vertices[CurrentVertIndex] = Lerp(Edges[0], Edges[1], D1 * Nscale[D[1][Dim]]);
 						FaceVertIndices[MajorFaceInd][ToFaceV(Dim, D0, D1)] = CurrentVertIndex;
 						CurrentVertIndex++;
 					}
@@ -164,7 +164,7 @@ public:
 			}
 		}
 
-		double MaxDimension = 2.0*Box.Extents.MaxAbsElement();
+		double MaxDimension = MaxAbsElement(2.0*Box.Extents);
 		float UVScale = (bScaleUVByAspectRatio) ? (1.0f / (float)MaxDimension) : 1.0f;
 
 		// create the face triangles and UVs+normals

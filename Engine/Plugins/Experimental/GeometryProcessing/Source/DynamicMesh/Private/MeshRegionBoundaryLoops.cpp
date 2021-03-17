@@ -349,7 +349,7 @@ FVector3d FMeshRegionBoundaryLoops::GetVertexNormal(int vid)
 	{
 		n += Mesh->GetTriNormal(ti);
 	}
-	n.Normalize();
+	Normalize(n);
 	return n;
 }
 

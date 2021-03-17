@@ -146,7 +146,7 @@ public:
 
 		// if either segment direction is not a normalized vector, 
 		//   results are garbage, so fail query
-		if (Segment1.Direction.IsNormalized() == false || Segment2.Direction.IsNormalized() == false)
+		if (IsNormalized(Segment1.Direction) == false || IsNormalized(Segment2.Direction) == false)
 		{
 			Type = EIntersectionType::Empty;
 			Result = EIntersectionResult::InvalidQuery;

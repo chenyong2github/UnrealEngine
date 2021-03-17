@@ -123,7 +123,7 @@ struct TPlane3
 		}
 
 		FVector3<RealType> DirectionVec = Point1 - Point0;
-		FVector3<RealType> Direction = DirectionVec.Normalized();
+		FVector3<RealType> Direction = Normalized(DirectionVec);
 		RealType Length = DirectionVec.Dot(Direction);
 
 		// test if segment is parallel to plane, if so, no intersection

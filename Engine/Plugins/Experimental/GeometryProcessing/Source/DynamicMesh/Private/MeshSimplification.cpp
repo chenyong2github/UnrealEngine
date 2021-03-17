@@ -835,7 +835,7 @@ static bool IsCollapsableDevelopableEdge(const FDynamicMesh3& Mesh, int32 Collap
 	// if we are not planar, we need to find the 'other' developable edge at RemoveV.
 	// This edge must be aligned w/ our collapse edge and have the same normals
 	FVector3d A = Mesh.GetVertex(RemoveV), B = Mesh.GetVertex(KeepV);
-	FVector3d EdgeDir(B - A); EdgeDir.Normalize();
+	FVector3d EdgeDir(B - A); Normalize(EdgeDir);
 	int32 FoldEdges = 0, FlatEdges = 0, OtherEdges = 0;
 	for (int32 eid : Mesh.VtxEdgesItr(RemoveV))
 	{
@@ -852,7 +852,7 @@ static bool IsCollapsableDevelopableEdge(const FDynamicMesh3& Mesh, int32 Collap
 			FIndex2i OtherEdgeV = Mesh.GetEdgeV(eid);
 			int32 OtherV = IndexUtil::FindEdgeOtherVertex(OtherEdgeV, RemoveV);
 			FVector3d C = Mesh.GetVertex(OtherV);
-			if ((A-C).Normalized().Dot(EdgeDir) > DotTolerance)
+			if ( Normalized(A-C).Dot(EdgeDir) > DotTolerance)
 			{
 				if ((Normal3.Dot(Normal1) > DotTolerance && Normal4.Dot(Normal2) > DotTolerance) ||
 					(Normal3.Dot(Normal2) > DotTolerance && Normal4.Dot(Normal1) > DotTolerance))
@@ -1568,7 +1568,7 @@ void TMeshSimplification<FAttrBasedQuadricErrord>::OnEdgeCollapse(int edgeID, in
 	Quadric.ComputeAttributes(collapse_pt, UpdatedNormald);
 
 	FVector3f UpdatedNormal(UpdatedNormald.X, UpdatedNormald.Y, UpdatedNormald.Z);
-	UpdatedNormal.Normalize();
+	Normalize(UpdatedNormal);
 
 	if (NormalOverlay != nullptr)
 	{

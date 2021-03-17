@@ -1077,7 +1077,7 @@ FVector3f FCurvedStairGenerator::GenerateNormal(ESide Side, int VertexId)
 		float X = FMathf::Cos((Col % (NumSteps + 1)) * CurveRadiansPerStep);
 		float Y = FMathf::Sin((Col % (NumSteps + 1)) * CurveRadiansPerStep);
 		N = (Side == ESide::Right ? FVector3f(-X, -Y, 0.0f) : FVector3f(X, Y, 0.0f));
-		N.Normalize();
+		Normalize(N);
 		break;
 	}
 	case ESide::Front:
@@ -1085,7 +1085,7 @@ FVector3f FCurvedStairGenerator::GenerateNormal(ESide Side, int VertexId)
 		float X = FMathf::Cos((Col % (NumSteps + 1)) * CurveRadiansPerStep);
 		float Y = FMathf::Sin((Col % (NumSteps + 1)) * CurveRadiansPerStep);
 		N = FVector3f(Y, -X, 0.0f);
-		N.Normalize();
+		Normalize(N);
 		break;
 	}
 	case ESide::Top:

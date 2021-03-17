@@ -459,9 +459,9 @@ FFrame3d FUVGroupTopology::GetIslandFrame(int32 GroupID, FDynamicMeshAABBTree3& 
 		UVOverlay->GetTriElements(TriangleID, fi, fj, fk);
 
 		FVector3d GradX = VectorUtil::TriGradient<double>(A, B, C, fi.X, fj.X, fk.X);
-		AccumX += GradX.Normalized();
+		AccumX += UE::Geometry::Normalized(GradX);
 	}
-	AccumX.Normalize();
+	UE::Geometry::Normalize(AccumX);
 	Frame.AlignAxis(0, AccumX);
 
 	return Frame;

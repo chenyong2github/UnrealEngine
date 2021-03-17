@@ -64,7 +64,7 @@ FVector3d TMeanValueCentroid(const FDynamicMesh3& mesh, int32 v_i, GetPositionFu
 
 		FVector3d Vj = GetPositionFunc(v_j);
 		FVector3d vVj = (Vj - Vi);
-		double len_vVj = vVj.Normalize();
+		double len_vVj = Normalize(vVj);
 		// TODO: is this the right thing to do? if vertices are coincident,
 		//   weight of this vertex should be very high!
 		if (len_vVj < FMathf::ZeroTolerance)
@@ -74,12 +74,12 @@ FVector3d TMeanValueCentroid(const FDynamicMesh3& mesh, int32 v_i, GetPositionFu
 			wSum += w_ij;
 			continue;
 		}
-		FVector3d vVdelta = (GetPositionFunc(opp_v1) - Vi).Normalized();
+		FVector3d vVdelta = Normalized(GetPositionFunc(opp_v1) - Vi);
 		double w_ij = VectorUtil::VectorTanHalfAngle(vVj, vVdelta);
 
 		if (opp_v2 != FDynamicMesh3::InvalidID)
 		{
-			FVector3d vVgamma = (GetPositionFunc(opp_v2) - Vi).Normalized();
+			FVector3d vVgamma = Normalized(GetPositionFunc(opp_v2) - Vi);
 			w_ij += VectorUtil::VectorTanHalfAngle(vVj, vVgamma);
 		}
 
@@ -266,8 +266,8 @@ double TVoronoiArea(const FDynamicMesh3& mesh, int32 v_i, GetPositionFuncType Ge
 			FVector3d Vik = Vk - Vi;
 			double Dot = Vij.Dot(Vik);
 			double areaT = 0.5 * FMathd::Sqrt(Vij.SquaredLength() * Vik.SquaredLength() - Dot * Dot);
-			Vij.Normalize(); Vik.Normalize();
-			areaSum += (Vij.AngleR(Vik) > FMathd::HalfPi) ?    // obtuse at v_i ?
+			Normalize(Vij); Normalize(Vik);
+			areaSum += (AngleR(Vij, Vik) > FMathd::HalfPi) ?    // obtuse at v_i ?
 				(areaT * 0.5) : (areaT * 0.25);
 		}
 		else

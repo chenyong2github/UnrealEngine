@@ -28,7 +28,7 @@ void FMeshOcclusionMapBaker::Bake()
 		FVector3d P = Points[k];
 		if (P.Z > 0)
 		{
-			RayDirections.Add(P.Normalized());
+			RayDirections.Add( Normalized(P) );
 		}
 	}
 
@@ -52,7 +52,7 @@ void FMeshOcclusionMapBaker::Bake()
 			//FVector3d DetailTriNormal = DetailMesh.GetTriNormal(DetailTriID);
 			FVector3d DetailTriNormal;
 			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailTriNormal.X);
-			DetailTriNormal.Normalize();
+			Normalize(DetailTriNormal);
 
 			FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
 			FVector3d DetailPos = DetailMesh->GetTriBaryPoint(DetailTriID, DetailBaryCoords.X, DetailBaryCoords.Y, DetailBaryCoords.Z);

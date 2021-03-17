@@ -208,7 +208,7 @@ void UBakeTransformTool::UpdateAssets()
 				RemainingUniformScale = AbsScales[BestSubIdx];
 				if (RemainingUniformScale <= FLT_MIN)
 				{
-					RemainingUniformScale = AbsScales.MaxAbsElement();
+					RemainingUniformScale = MaxAbsElement(AbsScales);
 				}
 			}
 			switch (BasicProperties->BakeScale)

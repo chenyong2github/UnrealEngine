@@ -146,7 +146,7 @@ bool WalkMeshPlanar(const FDynamicMesh3* Mesh, int StartTri, FVector3d StartPt, 
 	auto PtTriPlaneSignedDist = [](FVector3d Pt, const FTriangle3d& Tri)
 	{
 		FVector3d Normal = Tri.Normal();
-		Normal.Normalize(FMathd::Epsilon);
+		Normalize(Normal,FMathd::Epsilon);
 		return (Pt - Tri.V[0]).Dot(Normal);
 	};
 

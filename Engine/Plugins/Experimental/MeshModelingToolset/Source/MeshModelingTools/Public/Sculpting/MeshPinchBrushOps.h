@@ -55,13 +55,13 @@ public:
 	virtual void ApplyStamp(const FDynamicMesh3* Mesh, const FSculptBrushStamp& Stamp, const TArray<int32>& Vertices, TArray<FVector3d>& NewPositionsOut) override
 	{
 		// hardcoded LazyBrush
-		FVector3d NewSmoothBrushPosLocal = FVector3d::Lerp(LastSmoothBrushPosLocal, Stamp.LocalFrame.Origin, 0.75f);
-		FVector3d NewSmoothBrushNormal = FVector3d::Lerp(LastSmoothBrushNormalLocal, Stamp.LocalFrame.Z(), 0.75f);
-		NewSmoothBrushNormal.Normalize();
+		FVector3d NewSmoothBrushPosLocal = UE::Geometry::Lerp(LastSmoothBrushPosLocal, Stamp.LocalFrame.Origin, 0.75);
+		FVector3d NewSmoothBrushNormal = UE::Geometry::Lerp(LastSmoothBrushNormalLocal, Stamp.LocalFrame.Z(), 0.75);
+		UE::Geometry::Normalize(NewSmoothBrushNormal);
 
 		FVector3d MotionVec = NewSmoothBrushPosLocal - LastSmoothBrushPosLocal;
 		bool bHaveMotion = (MotionVec.Length() > FMathd::ZeroTolerance);
-		MotionVec.Normalize();
+		UE::Geometry::Normalize(MotionVec);
 		UE::Geometry::FLine3d MoveLine(LastSmoothBrushPosLocal, MotionVec);
 
 		FVector3d DepthPosLocal = NewSmoothBrushPosLocal - (Stamp.Depth * Stamp.Radius * NewSmoothBrushNormal);
@@ -77,7 +77,7 @@ public:
 			FVector3d OrigPos = Mesh->GetVertex(VertIdx);
 
 			FVector3d Delta = DepthPosLocal - OrigPos;
-			Delta.Normalize();
+			UE::Geometry::Normalize(Delta);
 			FVector3d MoveVec = Delta;
 
 			// pinch uses 1/x falloff
@@ -89,7 +89,7 @@ public:
 
 			if (bLimitDrag && bHaveMotion && UseFalloff < 0.7f)
 			{
-				double AnglePower = 1.0 - FMathd::Abs(MoveVec.Normalized().Dot(MotionVec));
+				double AnglePower = 1.0 - FMathd::Abs( UE::Geometry::Normalized(MoveVec).Dot(MotionVec));
 				UseFalloff *= AnglePower;
 			}
 

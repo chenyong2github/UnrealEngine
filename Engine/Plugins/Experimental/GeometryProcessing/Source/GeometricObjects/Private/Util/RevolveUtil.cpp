@@ -113,7 +113,7 @@ void RevolveUtil::MakeProfileCurveMidpointOfFirstStep(TArray<FVector3d>& Profile
 	for (FVector3d& Point : ProfileCurve)
 	{
 		FVector3d PointWrtAxisOrigin = Point - RevolutionAxisOrigin;
-		FVector3d AdjustmentDirection = -RevolutionAxisDirection.Cross(PointWrtAxisOrigin).Normalized();
+		FVector3d AdjustmentDirection = -Normalized(RevolutionAxisDirection.Cross(PointWrtAxisOrigin));
 		double DistToAxis = PointWrtAxisOrigin.Distance(PointWrtAxisOrigin.Dot(RevolutionAxisDirection)* RevolutionAxisDirection);
 		
 		Point += AdjustmentScale * DistToAxis * AdjustmentDirection;

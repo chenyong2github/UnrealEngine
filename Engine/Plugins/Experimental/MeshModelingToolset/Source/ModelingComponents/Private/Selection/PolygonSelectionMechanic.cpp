@@ -277,7 +277,7 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 {
 	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
 		TargetTransform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 
 	FVector3d LocalPosition, LocalNormal;
 	int32 EdgeSegmentId; // Only used if hit is an edge
@@ -361,7 +361,7 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 
 	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
 		TargetTransform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 
 	HilightSelection.Clear();
 	FVector3d LocalPosition, LocalNormal;
@@ -414,9 +414,9 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 
 					FIndex3i VertIndices = Mesh->GetTriangle(Tid);
 					DrawnTriangleSetComponent->AddTriangle(FRenderableTriangle(HighlightedFaceMaterial,
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)TriangleNormal, (FColor)Mesh->GetVertexColor(VertIndices.A)),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)TriangleNormal, (FColor)Mesh->GetVertexColor(VertIndices.B)),
-						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)TriangleNormal, (FColor)Mesh->GetVertexColor(VertIndices.C))));
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.A), (FVector2D)Mesh->GetVertexUV(VertIndices.A), (FVector)TriangleNormal, UE::Geometry::ToFColor(Mesh->GetVertexColor(VertIndices.A))),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.B), (FVector2D)Mesh->GetVertexUV(VertIndices.B), (FVector)TriangleNormal, UE::Geometry::ToFColor(Mesh->GetVertexColor(VertIndices.B))),
+						FRenderableTriangleVertex((FVector)Mesh->GetVertex(VertIndices.C), (FVector2D)Mesh->GetVertexUV(VertIndices.C), (FVector)TriangleNormal, UE::Geometry::ToFColor(Mesh->GetVertexColor(VertIndices.C))) ));
 				}
 
 				CurrentlyHighlightedGroups.Add(Gid);
@@ -440,7 +440,7 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 {
 	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
 		TargetTransform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 
 	bool bSelectionModified = false;
 	FVector3d LocalPosition, LocalNormal;

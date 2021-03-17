@@ -86,7 +86,7 @@ void FQuickAxisTranslater::UpdateActiveFrameOrigin(const FVector3d& NewOrigin)
 bool ProjectToCameraPlanePos(const FVector3d& ScenePos, const FFrame3d& CameraPlaneFrame, const FVector3d& CameraPos, FVector2d& CamPlanePos)
 {
 	FVector3d HitPos;
-	if (CameraPlaneFrame.RayPlaneIntersection(CameraPos, (ScenePos - CameraPos).Normalized(), 2, HitPos) == false)
+	if (CameraPlaneFrame.RayPlaneIntersection(CameraPos, UE::Geometry::Normalized(ScenePos - CameraPos), 2, HitPos) == false)
 	{
 		return false;
 	}
@@ -115,7 +115,7 @@ void FQuickAxisTranslater::UpdateSnapAxes()
 	bool IgnoreAxis[3] = { false, false, false };
 
 	// LocalForward is vector from eye to target position, use this as "forward"
-	FVector3d LocalForward = (AxisFrameWorld.Origin - CameraPosition).Normalized();
+	FVector3d LocalForward = UE::Geometry::Normalized(AxisFrameWorld.Origin - CameraPosition);
 	double DirectionDotX = AxisX.Dot(LocalForward);
 	double DirectionDotY = AxisY.Dot(LocalForward);
 	double DirectionDotZ = AxisZ.Dot(LocalForward);
@@ -146,9 +146,9 @@ void FQuickAxisTranslater::UpdateSnapAxes()
 	{
 		return;		// abort for now...
 	}
-	FVector2d PlaneAxisX = (CamPosAxisX - CamPosCenter).Normalized();
-	FVector2d PlaneAxisY = (CamPosAxisY - CamPosCenter).Normalized();
-	FVector2d PlaneAxisZ = (CamPosAxisZ - CamPosCenter).Normalized();
+	FVector2d PlaneAxisX = UE::Geometry::Normalized(CamPosAxisX - CamPosCenter);
+	FVector2d PlaneAxisY = UE::Geometry::Normalized(CamPosAxisY - CamPosCenter);
+	FVector2d PlaneAxisZ = UE::Geometry::Normalized(CamPosAxisZ - CamPosCenter);
 
 	// if angle between these 2D projections of axes is too small, then axes are visually overlapping
 	// from this view position, and snapping will be unstable. So only keep the one pointing "towards" camera.

@@ -343,7 +343,7 @@ namespace MeshCut
 				FMeshSurfacePath SurfacePath(Mesh);
 				int StartTID = Mesh->GetVtxSingleTriangle(PtA.ElemID); // TODO: would be faster to have a PlanarWalk call that takes a start vertex ID !
 				FVector3d WalkPlaneNormal = BaseFaceNormals[Seg.BaseTID].Cross(PtB.Pos - PtA.Pos);
-				if (ensure(WalkPlaneNormal.Normalize() > 0))
+				if (ensure(Normalize(WalkPlaneNormal) > 0))
 				{
 					bool bWalkSuccess = SurfacePath.AddViaPlanarWalk(StartTID,
 						Mesh->GetVertex(PtA.ElemID), -1, PtB.ElemID,

@@ -352,8 +352,8 @@ void TQuaternion<RealType>::SetFromTo(const FVector3<RealType>& From, const FVec
 	// [RMS] not ideal to explicitly normalize here, but if we don't,
 	//   output TQuaternion is not normalized and this causes problems,
 	//   eg like drift if we do repeated SetFromTo()
-	FVector3<RealType> from = From.Normalized(), to = To.Normalized();
-	FVector3<RealType> bisector = (from + to).Normalized();
+	FVector3<RealType> from = UE::Geometry::Normalized(From), to = UE::Geometry::Normalized(To);
+	FVector3<RealType> bisector = UE::Geometry::Normalized(from + to);
 	W = from.Dot(bisector);
 	if (W != 0) 
 	{

@@ -141,7 +141,7 @@ void FFindPolygonsAlgorithm::SetGroupsFromPolygons()
 		PolygonTags[PolyIdx] = (PolyIdx + 1);
 
 		// find a normal if the average failed
-		AccumNormal.Normalize();
+		UE::Geometry::Normalize(AccumNormal);
 		int SubIdx = 0;
 		while (AccumNormal.Length() < 0.9 && SubIdx < NumTriangles)
 		{

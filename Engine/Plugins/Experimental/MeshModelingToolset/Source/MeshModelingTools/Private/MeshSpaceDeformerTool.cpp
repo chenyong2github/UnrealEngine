@@ -495,7 +495,7 @@ void UMeshSpaceDeformerTool::SetGizmoFrameFromWorldPos(const FVector& Position, 
 		// the user would want the axis to lie along the object on the side they clicked, not pierce inwards.
 		// Still, it's hard to come up with a clean alternative.
 		FVector3d FrameZ(Normal);
-		FVector3d FrameY = FrameZ.Cross(FVector3d::UnitZ()).Normalized(); // orthogonal to world Z and frame Z 
+		FVector3d FrameY = UE::Geometry::Normalized(FrameZ.Cross(FVector3d::UnitZ())); // orthogonal to world Z and frame Z 
 		FVector3d FrameX = FrameY.Cross(Normal); // safe to not normalize because already orthogonal
 		GizmoFrame = FFrame3d(Position, FrameX, FrameY, Normal);
 	}

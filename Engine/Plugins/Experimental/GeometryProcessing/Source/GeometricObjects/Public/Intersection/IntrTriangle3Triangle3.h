@@ -256,7 +256,7 @@ public:
 		E0[2] = Triangle0.V[0] - Triangle0.V[2];
 
 		// Get normal vector of Triangle0.
-		FVector3<Real> N0 = E0[0].UnitCross(E0[1]);
+		FVector3<Real> N0 = UnitCross(E0[0], E0[1]);
 
 		// Project Triangle1 onto normal line of Triangle0, test for separation.
 		double N0dT0V0 = N0.Dot(Triangle0.V[0]);
@@ -274,13 +274,13 @@ public:
 		E1[2] = Triangle1.V[0] - Triangle1.V[2];
 
 		// Get normal vector of Triangle1.
-		FVector3<Real> N1 = E1[0].UnitCross(E1[1]);
+		FVector3<Real> N1 = UnitCross(E1[0], E1[1]);
 
 		FVector3<Real> dir;
 		double min0, max0;
 		int i0, i1;
 
-		FVector3<Real> N0xN1 = N0.UnitCross(N1);
+		FVector3<Real> N0xN1 = UnitCross(N0, N1);
 		if (N0xN1.Dot(N0xN1) >= Tolerance)
 		{
 			// Triangles are not parallel.
@@ -299,7 +299,7 @@ public:
 			{
 				for (i0 = 0; i0 < 3; ++i0)
 				{
-					dir = E0[i0].UnitCross(E1[i1]);
+					dir = UnitCross(E0[i0], E1[i1]);
 					ProjectOntoAxis(Triangle0, dir, min0, max0);
 					ProjectOntoAxis(Triangle1, dir, min1, max1);
 					if (max0 < min1 - Tolerance || max1 < min0 - Tolerance)
@@ -322,7 +322,7 @@ public:
 			// Directions N0xE0[i0].
 			for (i0 = 0; i0 < 3; ++i0)
 			{
-				dir = N0.UnitCross(E0[i0]);
+				dir = UnitCross(N0, E0[i0]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
 				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance)
@@ -334,7 +334,7 @@ public:
 			// Directions N1xE1[i1].
 			for (i1 = 0; i1 < 3; ++i1)
 			{
-				dir = N1.UnitCross(E1[i1]);
+				dir = UnitCross(N1, E1[i1]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
 				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance)
@@ -361,7 +361,7 @@ public:
 		E0[2] = Triangle0.V[0] - Triangle0.V[2];
 
 		// Get normal vector of Triangle0.
-		FVector3<Real> N0 = E0[0].UnitCross(E0[1]);
+		FVector3<Real> N0 = UnitCross(E0[0], E0[1]);
 
 		// Project Triangle1 onto normal line of Triangle0, test for separation.
 		double N0dT0V0 = N0.Dot(Triangle0.V[0]);
@@ -378,13 +378,13 @@ public:
 		E1[2] = Triangle1.V[0] - Triangle1.V[2];
 
 		// Get normal vector of Triangle1.
-		FVector3<Real> N1 = E1[0].UnitCross(E1[1]);
+		FVector3<Real> N1 = UnitCross(E1[0], E1[1]);
 
 		FVector3<Real> dir;
 		double min0, max0;
 		int i0, i1;
 
-		FVector3<Real> N0xN1 = N0.UnitCross(N1);
+		FVector3<Real> N0xN1 = UnitCross(N0, N1);
 		if (N0xN1.Dot(N0xN1) >= Tolerance) {
 			// Triangles are not parallel.
 
@@ -399,7 +399,7 @@ public:
 			// Directions E0[i0]xE1[i1].
 			for (i1 = 0; i1 < 3; ++i1) {
 				for (i0 = 0; i0 < 3; ++i0) {
-					dir = E0[i0].UnitCross(E1[i1]);
+					dir = UnitCross(E0[i0], E1[i1]);
 					ProjectOntoAxis(Triangle0, dir, min0, max0);
 					ProjectOntoAxis(Triangle1, dir, min1, max1);
 					if (max0 < min1 - Tolerance || max1 < min0 - Tolerance) {
@@ -412,7 +412,7 @@ public:
 		else { // Triangles are parallel (and, in fact, coplanar).
 		 // Directions N0xE0[i0].
 			for (i0 = 0; i0 < 3; ++i0) {
-				dir = N0.UnitCross(E0[i0]);
+				dir = UnitCross(N0, E0[i0]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
 				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance) {
@@ -422,7 +422,7 @@ public:
 
 			// Directions N1xE1[i1].
 			for (i1 = 0; i1 < 3; ++i1) {
-				dir = N1.UnitCross(E1[i1]);
+				dir = UnitCross(N1, E1[i1]);
 				ProjectOntoAxis(Triangle0, dir, min0, max0);
 				ProjectOntoAxis(Triangle1, dir, min1, max1);
 				if (max0 < min1 - Tolerance || max1 < min0 - Tolerance) {
@@ -543,7 +543,7 @@ public:
 			// Project onto yz-plane.
 			for (i = 0; i < 3; ++i)
 			{
-				projTri.V[i] = triangle.V[i].YZ();
+				projTri.V[i] = GetYZ(triangle.V[i]);
 				projEnd0.X = end0.Y;
 				projEnd0.Y = end0.Z;
 				projEnd1.X = end1.Y;
@@ -555,7 +555,7 @@ public:
 			// Project onto xz-plane.
 			for (i = 0; i < 3; ++i)
 			{
-				projTri.V[i] = triangle.V[i].XZ();
+				projTri.V[i] = GetXZ(triangle.V[i]);
 				projEnd0.X = end0.X;
 				projEnd0.Y = end0.Z;
 				projEnd1.X = end1.X;
@@ -567,7 +567,7 @@ public:
 			// Project onto xy-plane.
 			for (i = 0; i < 3; ++i)
 			{
-				projTri.V[i] = triangle.V[i].XY();
+				projTri.V[i] = GetXY(triangle.V[i]);
 				projEnd0.X = end0.X;
 				projEnd0.Y = end0.Y;
 				projEnd1.X = end1.X;
@@ -728,8 +728,8 @@ protected:
 			// Project onto yz-plane.
 			for (i = 0; i < 3; ++i)
 			{
-				projTri0.V[i] = tri0.V[i].YZ();
-				projTri1.V[i] = tri1.V[i].YZ();
+				projTri0.V[i] = GetYZ(tri0.V[i]);
+				projTri1.V[i] = GetYZ(tri1.V[i]);
 			}
 		}
 		else if (maxNormal == 1)
@@ -737,8 +737,8 @@ protected:
 			// Project onto xz-plane.
 			for (i = 0; i < 3; ++i)
 			{
-				projTri0.V[i] = tri0.V[i].XZ();
-				projTri1.V[i] = tri1.V[i].XZ();
+				projTri0.V[i] = GetXZ(tri0.V[i]);
+				projTri1.V[i] = GetXZ(tri1.V[i]);
 			}
 		}
 		else
@@ -746,8 +746,8 @@ protected:
 			// Project onto xy-plane.
 			for (i = 0; i < 3; ++i)
 			{
-				projTri0.V[i] = tri0.V[i].XY();
-				projTri1.V[i] = tri1.V[i].XY();
+				projTri0.V[i] = GetXY(tri0.V[i]);
+				projTri1.V[i] = GetXY(tri1.V[i]);
 			}
 		}
 

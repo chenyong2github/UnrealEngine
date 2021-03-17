@@ -538,7 +538,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		FVector3d StartNormal = Mesh->GetTriNormal(StartROI[0]);
 		int AngleTol = SelectionProps->AngleTolerance;
 		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
-			[Mesh, AngleTol, StartNormal](int t1, int t2) { return Mesh->GetTriNormal(t2).AngleD(StartNormal) < AngleTol; });
+			[Mesh, AngleTol, StartNormal](int t1, int t2) { return UE::Geometry::AngleD(Mesh->GetTriNormal(t2), StartNormal) < AngleTol; });
 
 		UseROI = &LocalROI;
 	}
@@ -550,7 +550,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		FVector3d StartNormal = Mesh->GetTriNormal(StartROI[0]);
 		int AngleTol = SelectionProps->AngleTolerance;
 		FMeshConnectedComponents::GrowToConnectedTriangles(Mesh, StartROI, LocalROI, &TemporaryBuffer, &TemporarySet,
-			[Mesh, AngleTol, StartNormal, &BrushROI](int t1, int t2) { return BrushROI.Contains(t2) && Mesh->GetTriNormal(t2).AngleD(StartNormal) < AngleTol; });
+			[Mesh, AngleTol, StartNormal, &BrushROI](int t1, int t2) { return BrushROI.Contains(t2) && UE::Geometry::AngleD(Mesh->GetTriNormal(t2), StartNormal) < AngleTol; });
 		UseROI = &LocalROI;
 	}
 	else if (SelectionProps->SelectionMode == EMeshSelectionToolPrimaryMode::Visible)
@@ -562,7 +562,7 @@ void UMeshSelectionTool::UpdateFaceSelection(const FBrushStampData& Stamp, const
 		for (int tid : TriangleROI)
 		{
 			FVector3d Centroid = Mesh->GetTriCentroid(tid);
-			int HitTID = GetOctree()->FindNearestHitObject(FRay3d(LocalEyePosition, (Centroid - LocalEyePosition).Normalized()));
+			int HitTID = GetOctree()->FindNearestHitObject(FRay3d(LocalEyePosition, UE::Geometry::Normalized(Centroid - LocalEyePosition)));
 			if (HitTID == tid)
 			{
 				LocalROI.Add(HitTID);

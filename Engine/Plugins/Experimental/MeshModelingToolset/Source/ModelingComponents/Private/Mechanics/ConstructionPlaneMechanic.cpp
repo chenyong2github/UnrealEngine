@@ -95,7 +95,7 @@ void UConstructionPlaneMechanic::SetDrawPlaneFromWorldPos(const FVector3d& Posit
 		{
 			// Otherwise, let's place one of the other axes into the XY plane so that the frame is more
 			// useful for translation. We somewhat arbitrarily choose Y for this. 
-			FVector3d FrameY = Normal.Cross(FVector3d::UnitZ()).Normalized(); // orthogonal to world Z and frame Z 
+			FVector3d FrameY = UE::Geometry::Normalized( Normal.Cross(FVector3d::UnitZ()) ); // orthogonal to world Z and frame Z 
 			FVector3d FrameX = FrameY.Cross(Normal); // safe to not normalize because already orthogonal
 			Plane = FFrame3d(Position, FrameX, FrameY, Normal);
 		}

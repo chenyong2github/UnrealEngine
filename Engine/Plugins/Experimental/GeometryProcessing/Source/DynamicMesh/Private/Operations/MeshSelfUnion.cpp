@@ -557,7 +557,7 @@ void FMeshSelfUnion::SimplifyAlongNewEdges(TArray<int>& CutBoundaryEdges, TMap<i
 				FVector3d RemoveVPos = Mesh->GetVertex(Edge.Vert[RemoveVIdx]);
 				FVector3d KeepVPos = Mesh->GetVertex(Edge.Vert[KeepVIdx]);
 				FVector3d EdgeDir = KeepVPos - RemoveVPos;
-				if (EdgeDir.Normalize() == 0) // 0 is returned as a special case when the edge was too short to normalize
+				if (Normalize(EdgeDir) == 0) // 0 is returned as a special case when the edge was too short to normalize
 				{
 					// collapsing degenerate edges above should prevent this
 					ensure(!bCollapseDegenerateEdgesOnCut);

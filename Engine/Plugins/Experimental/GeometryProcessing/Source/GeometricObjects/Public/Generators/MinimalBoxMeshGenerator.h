@@ -37,7 +37,7 @@ public:
 			Vertices[i] = Box.GetCorner(i);
 		}
 
-		double MaxDimension = 2.0*Box.Extents.MaxAbsElement();
+		double MaxDimension = MaxAbsElement(2.0*Box.Extents);
 		float UVScale = (bScaleUVByAspectRatio) ? (1.0f / (float)MaxDimension) : 1.0f;
 
 		int TriIndex = 0;

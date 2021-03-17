@@ -59,7 +59,7 @@ bool FPointSetHashtable::FindPointsInBall(const FVector3d& QueryPt, double Query
 	// if we are close enough to cell border we need to check nbrs
 	// [TODO] could iterate over fewer cells here, if r is bounded by CellSize,
 	// then we should only ever need to look at 3, depending on which octant we are in.
-	if ((QueryPt - QueryCellCenter).MaxAbsElement() + QueryRadius > HalfCellSize)
+	if (MaxAbsElement(QueryPt - QueryCellCenter) + QueryRadius > HalfCellSize)
 	{
 		for (int ci = 0; ci < 26; ++ci)
 		{
@@ -70,7 +70,7 @@ bool FPointSetHashtable::FindPointsInBall(const FVector3d& QueryPt, double Query
 				QueryCellCenter.X + HalfCellSize*NbrOffset.X - QueryPt.X,
 				QueryCellCenter.Y + HalfCellSize*NbrOffset.Y - QueryPt.Y,
 				QueryCellCenter.Z + HalfCellSize*NbrOffset.Z - QueryPt.Z);
-			if (PtToFaceCenter.MinAbsElement() > QueryRadius)
+			if (MinAbsElement(PtToFaceCenter) > QueryRadius)
 			{
 				continue;
 			}

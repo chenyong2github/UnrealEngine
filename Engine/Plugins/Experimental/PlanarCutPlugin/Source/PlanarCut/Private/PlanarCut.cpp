@@ -302,7 +302,7 @@ namespace UE
 								for (int DivJ = 0; DivJ < DivisionsAcross; DivJ++)
 								{
 									double AlongAcross = (DivJ + 1) * FactorAcross;
-									FVector3d Bary = FVector3d::Lerp(E1Bary, E2Bary, AlongAcross);
+									FVector3d Bary = UE::Geometry::Lerp(E1Bary, E2Bary, AlongAcross);
 									FVector3d SamplePos = Triangle.BarycentricPoint(Bary);
 									if (!KnownSamples[ComponentIdx].IsCellEmptyUnsafe(SamplePos)) // fast early out; def. have pt within radius
 									{
@@ -1011,7 +1011,7 @@ private:
 					FVector3d OrigPos, NoisePos;
 					OriginalPosns->GetValue(VID, OrigPos);
 					NoisePos = Mesh.GetVertex(VID);
-					return FVector3d::Lerp(OrigPos, NoisePos, t);
+					return UE::Geometry::Lerp(OrigPos, NoisePos, t);
 				};
 				auto InterpTri = [&Mesh, &InterpVert](int TID, double t)
 				{
@@ -1067,7 +1067,7 @@ private:
 								static_cast<TDynamicMeshVertexAttribute<double, 3>*>(OtherMesh.Attributes()->GetAttachedAttribute(OriginalPositionAttribute));
 							FVector3d OrigPos;
 							OtherOriginalPosns->GetValue(IDs.B, OrigPos);
-							NewPos = FVector3d::Lerp(OrigPos, OldPos, tsafe);
+							NewPos = UE::Geometry::Lerp(OrigPos, OldPos, tsafe);
 							OtherMesh.SetVertex(IDs.B, NewPos);
 						}
 						MeshesVertices.UpdatePoint(IDs, OldPos, NewPos);

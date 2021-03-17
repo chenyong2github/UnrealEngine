@@ -223,71 +223,6 @@ struct FVector2
 		return *this;
 	}
 
-	constexpr bool IsNormalized()
-	{
-		return TMathUtil<T>::Abs((X * X + Y * Y) - 1) < TMathUtil<T>::ZeroTolerance;
-	}
-
-	// Angle in Degrees
-	T AngleD(const FVector2<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		return (T)(acos(ClampedDot) * (T)(180.0 / 3.14159265358979323846));
-	}
-
-	// Angle in Radians
-	T AngleR(const FVector2<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		return (T)acos(ClampedDot);
-	}
-
-	// Angle in Radians
-	T SignedAngleR(const FVector2<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		T Direction = Cross(V2);
-		if (Direction*Direction < TMathUtil<T>::ZeroTolerance)
-		{
-			return (DotVal < 0) ? TMathUtil<T>::Pi : (T)0;
-		}
-		else
-		{
-			T Sign = Direction < 0 ? (T)-1 : (T)1;
-			return Sign * TMathUtil<T>::ACos(ClampedDot);
-		}
-	}
-
-	T Normalize(const T Epsilon = 0)
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			X *= invLength;
-			Y *= invLength;
-			return length;
-		}
-		X = Y = (T)0;
-		return 0;
-	}
-
-	constexpr FVector2<T> Normalized(const T Epsilon = 0) const
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			return FVector2<T>(X * invLength, Y * invLength);
-		}
-		return FVector2<T>((T)0, (T)0);
-	}
-
-
-
 	constexpr bool operator==(const FVector2<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y;
@@ -299,13 +234,6 @@ struct FVector2
 	}
 
 
-	static FVector2<T> Lerp(const FVector2<T>& A, const FVector2<T>& B, T Alpha)
-	{
-		T OneMinusAlpha = (T)1 - Alpha;
-		return FVector2<T>(OneMinusAlpha * A.X + Alpha * B.X,
-			OneMinusAlpha * A.Y + Alpha * B.Y);
-	}
-
 	// Note: This was called "IsLeft" in the Geometry3Sharp code (where it also went through Math.Sign)
 	// Returns >0 if C is to the left of the A->B Line, <0 if to the right, 0 if on the line
 	static T Orient(const FVector2<T>& A, const FVector2<T>& B, const FVector2<T>& C)
@@ -313,6 +241,85 @@ struct FVector2
 		return (B - A).DotPerp(C - A);
 	}
 };
+
+
+template <typename T>
+constexpr bool IsNormalized(const FVector2<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
+{
+	return TMathUtil<T>::Abs((Vector.X*Vector.X + Vector.Y*Vector.Y) - 1) < Tolerance;
+}
+
+template <typename T>
+T Normalize(FVector2<T>& Vector, const T Epsilon = 0)
+{
+	 T length = Vector.Length();
+	 if (length > Epsilon)
+	 {
+		 T invLength = ((T)1) / length;
+		 Vector.X *= invLength;
+		 Vector.Y *= invLength;
+		 return length;
+	 }
+	 Vector.X = Vector.Y = (T)0;
+	 return (T)0;
+}
+
+template <typename T>
+FVector2<T> Normalized(const FVector2<T>& Vector, const T Epsilon = 0)
+{
+	T length = Vector.Length();
+	if (length > Epsilon)
+	{
+		T invLength = ((T)1) / length;
+		return FVector2<T>(Vector.X*invLength, Vector.Y*invLength);
+	}
+	return FVector2<T>((T)0, (T)0);
+}
+
+
+// Angle in Degrees
+template <typename T>
+T AngleD(const FVector2<T>& V1, const FVector2<T>& V2)
+{
+	T DotVal = V1.Dot(V2);
+	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+	return TMathUtil<T>::ACos(ClampedDot) * TMathUtil<T>::RadToDeg;
+}
+
+// Angle in Radians
+template <typename T>
+T AngleR(const FVector2<T>& V1, const FVector2<T>& V2)
+{
+	T DotVal = V1.Dot(V2);
+	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+	return TMathUtil<T>::ACos(ClampedDot);
+}
+
+// Angle in Radians
+template <typename T>
+T SignedAngleR(const FVector2<T>& V1, const FVector2<T>& V2)
+{
+	T DotVal = V1.Dot(V2);
+	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+	T Direction = V1.Cross(V2);
+	if (Direction * Direction < TMathUtil<T>::ZeroTolerance)
+	{
+		return (DotVal < 0) ? TMathUtil<T>::Pi : (T)0;
+	}
+	else
+	{
+		T Sign = Direction < 0 ? (T)-1 : (T)1;
+		return Sign * TMathUtil<T>::ACos(ClampedDot);
+	}
+}
+
+template <typename T>
+FVector2<T> Lerp(const FVector2<T>& A, const FVector2<T>& B, T Alpha)
+{
+	T OneMinusAlpha = (T)1 - Alpha;
+	return FVector2<T>(OneMinusAlpha * A.X + Alpha * B.X,
+		OneMinusAlpha * A.Y + Alpha * B.Y);
+}
 
 
 /**
@@ -387,15 +394,6 @@ struct FVector3
 	{
 	}
 
-	explicit constexpr operator FColor() const
-	{
-		return FColor(
-			FMathf::Clamp((int)((float)X*255.0f), 0, 255),
-			FMathf::Clamp((int)((float)Y*255.0f), 0, 255),
-			FMathf::Clamp((int)((float)Z*255.0f), 0, 255));
-	}
-
-
 	static FVector3<T> Zero()
 	{
 		return FVector3<T>((T)0, (T)0, (T)0);
@@ -421,14 +419,6 @@ struct FVector3
 		return FVector3<T>(TNumericLimits<T>::Max(), TNumericLimits<T>::Max(), TNumericLimits<T>::Max());
 	}
 	
-	/** @return unit vector along axis X=0, Y=1, Z=2 */
-	constexpr static FVector3<T> MakeUnit(int32 Axis)
-	{
-		FVector3<T> UnitVec((T)0, (T)0, (T)0);
-		UnitVec[FMath::Clamp(Axis, 0, 2)] = (T)1;
-		return UnitVec;
-	}
-
 	FVector3<T>& operator=(const FVector3<T>& V2)
 	{
 		X = V2.X;
@@ -566,153 +556,6 @@ struct FVector3
 			X * V2.Y - Y * V2.X);
 	}
 
-	FVector3<T> UnitCross(const FVector3<T>& V2) const
-	{
-		FVector3<T> N = Cross(V2);
-		return N.Normalized();
-	}
-
-	/**
-	 * Assumes this vector and V2 are both already normalized
-	 * @return the angle to vector V2 in degrees
-	 */
-	T AngleD(const FVector3<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		return (T)(acos(ClampedDot) * (T)(180.0 / 3.14159265358979323846));
-	}
-
-	/**
-	 * Assumes this vector and V2 are both already normalized
-	 * @return the angle to vector V2 in radians
-	 */
-	T AngleR(const FVector3<T>& V2) const
-	{
-		T DotVal = Dot(V2);
-		T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-		return (T)acos(ClampedDot);
-	}
-
-	constexpr bool IsNormalized()
-	{
-		return TMathUtil<T>::Abs((X * X + Y * Y + Z * Z) - 1) < TMathUtil<T>::ZeroTolerance;
-	}
-
-	T Normalize(const T Epsilon = 0)
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			X *= invLength;
-			Y *= invLength;
-			Z *= invLength;
-			return length;
-		}
-		X = Y = Z = (T)0;
-		return 0;
-	}
-
-	constexpr FVector3<T> Normalized(const T Epsilon = 0) const
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			return FVector3<T>(X * invLength, Y * invLength, Z * invLength);
-		}
-		return FVector3<T>((T)0, (T)0, (T)0);
-	}
-
-	constexpr T MaxElement() const
-	{
-		return TMathUtil<T>::Max3(X,Y,Z);
-	}
-
-	/** @return 0/1/2 index of maximum element */
-	constexpr int32 MaxElementIndex() const
-	{
-		return TMathUtil<T>::Max3Index(X, Y, Z);
-	}
-
-	constexpr T MinElement() const
-	{
-		return TMathUtil<T>::Min3(X,Y,Z);
-	}
-
-	/** @return 0/1/2 index of minimum element */
-	constexpr int32 MinElementIndex() const
-	{
-		return TMathUtil<T>::Min3Index(X, Y, Z);
-	}
-
-	constexpr friend FVector3 Min( const FVector3& V0, const FVector3& V1 )
-	{
-		return FVector3(TMathUtil<T>::Min(V0.X, V1.X),
-						TMathUtil<T>::Min(V0.Y, V1.Y),
-						TMathUtil<T>::Min(V0.Z, V1.Z));
-	}
-
-	constexpr friend FVector3 Max( const FVector3& V0, const FVector3& V1 )
-	{
-		return FVector3(TMathUtil<T>::Max(V0.X, V1.X),
-						TMathUtil<T>::Max(V0.Y, V1.Y),
-						TMathUtil<T>::Max(V0.Z, V1.Z));
-	}
-
-	constexpr T MaxAbsElement() const
-	{
-		return TMathUtil<T>::Max3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
-	}
-
-	/** @return 0/1/2 index of maximum absolute-value element */
-	constexpr T MaxAbsElementIndex() const
-	{
-		return TMathUtil<T>::Max3Index(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
-	}
-
-	constexpr T MinAbsElement() const
-	{
-		return TMathUtil<T>::Min3(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
-	}
-
-	/** @return 0/1/2 index of minimum absolute-value element */
-	constexpr T MinAbsElementIndex() const
-	{
-		return TMathUtil<T>::Min3Index(TMathUtil<T>::Abs(X), TMathUtil<T>::Abs(Y), TMathUtil<T>::Abs(Z));
-	}
-
-	constexpr FVector2<T> XY() const
-	{
-		return FVector2<T>(X, Y);
-	}
-	constexpr FVector2<T> XZ() const
-	{
-		return FVector2<T>(X, Z);
-	}
-	constexpr FVector2<T> YZ() const
-	{
-		return FVector2<T>(Y, Z);
-	}
-
-	static FVector3<T> Lerp(const FVector3<T>& A, const FVector3<T>& B, T Alpha)
-	{
-		T OneMinusAlpha = (T)1 - Alpha;
-		return FVector3<T>(OneMinusAlpha * A.X + Alpha * B.X,
-						   OneMinusAlpha * A.Y + Alpha * B.Y,
-						   OneMinusAlpha * A.Z + Alpha * B.Z);
-	}
-
-	static FVector3<T> Blend3(const FVector3<T>& A, const FVector3<T>& B, const FVector3<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
-	{
-		return FVector3<T>(
-			WeightA*A.X + WeightB*B.X + WeightC*C.X,
-			WeightA*A.Y + WeightB*B.Y + WeightC*C.Y,
-			WeightA*A.Z + WeightB*B.Z + WeightC*C.Z);
-	}
-
-
 	constexpr bool operator==(const FVector3<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z;
@@ -723,6 +566,200 @@ struct FVector3
 		return X != Other.X || Y != Other.Y || Z != Other.Z;
 	}
 };
+
+
+
+/** @return unit vector along axis X=0, Y=1, Z=2 */
+template <typename T>
+constexpr FVector3<T> MakeUnitVector3(int32 Axis)
+{
+	FVector3<T> UnitVec((T)0, (T)0, (T)0);
+	UnitVec[FMath::Clamp(Axis, 0, 2)] = (T)1;
+	return UnitVec;
+}
+
+
+template <typename T>
+constexpr bool IsNormalized(const FVector3<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
+{
+	return TMathUtil<T>::Abs((Vector.X*Vector.X + Vector.Y*Vector.Y + Vector.Z*Vector.Z) - 1) < Tolerance;
+}
+
+
+template<typename T>
+T Normalize(FVector3<T>& Vector, const T Epsilon = 0)
+{
+	T length = Vector.Length();
+	if (length > Epsilon)
+	{
+		T invLength = ((T)1) / length;
+		Vector.X *= invLength;
+		Vector.Y *= invLength;
+		Vector.Z *= invLength;
+		return length;
+	}
+	Vector.X = Vector.Y = Vector.Z = (T)0;
+	return (T)0;
+}
+
+template<typename T>
+constexpr FVector3<T> Normalized(const FVector3<T>& Vector, const T Epsilon = 0)
+{
+	T length = Vector.Length();
+	if (length > Epsilon)
+	{
+		T invLength = ((T)1) / length;
+		return FVector3<T>(Vector.X*invLength, Vector.Y*invLength, Vector.Z*invLength);
+	}
+	return FVector3<T>((T)0, (T)0, (T)0);
+}
+
+
+template<typename T>
+FVector3<T> UnitCross(const FVector3<T>& V1, const FVector3<T>& V2)
+{
+	FVector3<T> N = V1.Cross(V2);
+	return Normalized(N);
+}
+
+/**
+ * Computes the Angle between V1 and V2, assuming they are already normalized
+ * @return the (positive) angle between V1 and V2 in degrees
+ */
+template <typename T>
+T AngleD(const FVector3<T>& V1, const FVector3<T>& V2)
+{
+	T DotVal = V1.Dot(V2);
+	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+	return TMathUtil<T>::ACos(ClampedDot) * TMathUtil<T>::RadToDeg;
+}
+
+/**
+ * Computes the Angle between V1 and V2, assuming they are already normalized
+ * @return the (positive) angle between V1 and V2 in radians
+ */
+template <typename T>
+T AngleR(const FVector3<T>& V1, const FVector3<T>& V2)
+{
+	T DotVal = V1.Dot(V2);
+	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
+	return TMathUtil<T>::ACos(ClampedDot);
+}
+
+template <typename T>
+constexpr FVector2<T> GetXY(const FVector3<T>& V)
+{
+	return FVector2<T>(V.X, V.Y);
+}
+
+template <typename T>
+constexpr FVector2<T> GetXZ(const FVector3<T>& V)
+{
+	return FVector2<T>(V.X, V.Z);
+}
+
+template <typename T>
+constexpr FVector2<T> GetYZ(const FVector3<T>& V)
+{
+	return FVector2<T>(V.Y, V.Z);
+}
+
+
+template<typename T>
+constexpr FVector3<T> Min(const FVector3<T>& V0, const FVector3<T>& V1)
+{
+	return FVector3<T>(TMathUtil<T>::Min(V0.X, V1.X),
+		TMathUtil<T>::Min(V0.Y, V1.Y),
+		TMathUtil<T>::Min(V0.Z, V1.Z));
+}
+
+template<typename T>
+constexpr FVector3<T> Max(const FVector3<T>& V0, const FVector3<T>& V1)
+{
+	return FVector3<T>(TMathUtil<T>::Max(V0.X, V1.X),
+		TMathUtil<T>::Max(V0.Y, V1.Y),
+		TMathUtil<T>::Max(V0.Z, V1.Z));
+}
+
+
+template<typename T>
+constexpr T MaxElement(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Max3(Vector.X, Vector.Y, Vector.Z);
+}
+
+/** @return 0/1/2 index of maximum element */
+template<typename T>
+constexpr int32 MaxElementIndex(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Max3Index(Vector.X, Vector.Y, Vector.Z);
+}
+
+template<typename T>
+constexpr T MinElement(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Min3(Vector.X, Vector.Y, Vector.Z);
+}
+
+/** @return 0/1/2 index of minimum element */
+template<typename T>
+constexpr int32 MinElementIndex(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Min3Index(Vector.X, Vector.Y, Vector.Z);
+}
+
+template<typename T>
+constexpr T MaxAbsElement(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Max3(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
+}
+
+/** @return 0/1/2 index of maximum absolute-value element */
+template<typename T>
+constexpr T MaxAbsElementIndex(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Max3Index(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
+}
+
+template<typename T>
+constexpr T MinAbsElement(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Min3(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
+}
+
+/** @return 0/1/2 index of minimum absolute-value element */
+template<typename T>
+constexpr T MinAbsElementIndex(const FVector3<T>& Vector)
+{
+	return TMathUtil<T>::Min3Index(TMathUtil<T>::Abs(Vector.X), TMathUtil<T>::Abs(Vector.Y), TMathUtil<T>::Abs(Vector.Z));
+}
+
+template<typename T>
+constexpr FColor ToFColor(const FVector3<T>& Vector)
+{
+	return FColor(
+		FMathf::Clamp((int)((float)Vector.X * 255.0f), 0, 255),
+		FMathf::Clamp((int)((float)Vector.Y * 255.0f), 0, 255),
+		FMathf::Clamp((int)((float)Vector.Z * 255.0f), 0, 255));
+}
+
+template<typename T>
+FVector3<T> Lerp(const FVector3<T>& A, const FVector3<T>& B, T Alpha)
+{
+	T OneMinusAlpha = (T)1 - Alpha;
+	return FVector3<T>(OneMinusAlpha * A.X + Alpha * B.X,
+		OneMinusAlpha * A.Y + Alpha * B.Y,
+		OneMinusAlpha * A.Z + Alpha * B.Z);
+}
+
+template<typename T>
+FVector3<T> Blend3(const FVector3<T>& A, const FVector3<T>& B, const FVector3<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
+{
+	return FVector3<T>(
+		WeightA * A.X + WeightB * B.X + WeightC * C.X,
+		WeightA * A.Y + WeightB * B.Y + WeightC * C.Y,
+		WeightA * A.Z + WeightB * B.Z + WeightC * C.Z);
+}
 
 template <typename RealType>
 inline FVector3<RealType> operator*(RealType Scalar, const FVector3<RealType>& V)
@@ -987,64 +1024,6 @@ struct TVector4
 		return X * V2.X + Y * V2.Y + Z * V2.Z + W * V2.W;
 	}
 
-
-	constexpr bool IsNormalized()
-	{
-		return TMathUtil<T>::Abs((X * X + Y * Y + Z * Z + W * W) - 1) < TMathUtil<T>::ZeroTolerance;
-	}
-
-	T Normalize(const T Epsilon = 0)
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			X *= invLength;
-			Y *= invLength;
-			Z *= invLength;
-			W *= invLength;
-			return length;
-		}
-		X = Y = Z = (T)0;
-		return 0;
-	}
-
-	constexpr TVector4<T> Normalized(const T Epsilon = 0) const
-	{
-		T length = Length();
-		if (length > Epsilon)
-		{
-			T invLength = ((T)1) / length;
-			return TVector4<T>(X * invLength, Y * invLength, Z * invLength, W * invLength);
-		}
-		return TVector4<T>::Zero();
-	}
-
-
-	constexpr FVector3<T> XYZ() const
-	{
-		return FVector3<T>(X, Y, Z);
-	}
-
-	static TVector4<T> Lerp(const TVector4<T>& A, const TVector4<T>& B, T Alpha)
-	{
-		T OneMinusAlpha = (T)1 - Alpha;
-		return TVector4<T>(OneMinusAlpha * A.X + Alpha * B.X,
-						   OneMinusAlpha * A.Y + Alpha * B.Y,
-						   OneMinusAlpha * A.Z + Alpha * B.Z,
-						   OneMinusAlpha * A.W + Alpha * B.W );
-	}
-
-	static TVector4<T> Blend3(const TVector4<T>& A, const TVector4<T>& B, const TVector4<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
-	{
-		return TVector4<T>(
-			WeightA*A.X + WeightB*B.X + WeightC*C.X,
-			WeightA*A.Y + WeightB*B.Y + WeightC*C.Y,
-			WeightA*A.Z + WeightB*B.Z + WeightC*C.Z,
-			WeightA*A.W + WeightB*B.W + WeightC*C.W);
-	}
-
-
 	constexpr bool operator==(const TVector4<T>& Other) const
 	{
 		return X == Other.X && Y == Other.Y && Z == Other.Z && W == Other.W;
@@ -1055,6 +1034,67 @@ struct TVector4
 		return X != Other.X || Y != Other.Y || Z != Other.Z || Z == Other.Z;
 	}
 };
+
+template <typename T>
+constexpr bool IsNormalized(const TVector4<T>& Vector, const T Tolerance = TMathUtil<T>::ZeroTolerance)
+{
+	return TMathUtil<T>::Abs((Vector.X*Vector.X + Vector.Y*Vector.Y + Vector.Z*Vector.Z + Vector.W*Vector.W) - 1) < Tolerance;
+}
+
+template<typename T>
+T Normalize(TVector4<T>& Vector, const T Epsilon = 0)
+{
+	T length = Vector.Length();
+	if (length > Epsilon)
+	{
+		T invLength = ((T)1) / length;
+		Vector.X *= invLength;
+		Vector.Y *= invLength;
+		Vector.Z *= invLength;
+		Vector.W *= invLength;
+		return length;
+	}
+	Vector.X = Vector.Y = Vector.Z = Vector.W = (T)0;
+	return (T)0;
+}
+
+template<typename T>
+TVector4<T> Normalized(const TVector4<T>& Vector, const T Epsilon = 0)
+{
+	T length = Vector.Length();
+	if (length > Epsilon)
+	{
+		T invLength = ((T)1) / length;
+		return TVector4<T>(Vector.X*invLength, Vector.Y*invLength, Vector.Z*invLength, Vector.W*invLength);
+	}
+	return TVector4<T>::Zero();
+}
+
+template<typename T>
+constexpr FVector3<T> GetXYZ(const TVector4<T>& V)
+{
+	return FVector3<T>(V.X, V.Y, V.Z);
+}
+
+template<typename T>
+TVector4<T> Lerp(const TVector4<T>& A, const TVector4<T>& B, T Alpha)
+{
+	T OneMinusAlpha = (T)1 - Alpha;
+	return TVector4<T>(OneMinusAlpha * A.X + Alpha * B.X,
+		OneMinusAlpha * A.Y + Alpha * B.Y,
+		OneMinusAlpha * A.Z + Alpha * B.Z,
+		OneMinusAlpha * A.W + Alpha * B.W);
+}
+
+template<typename T>
+TVector4<T> Blend3(const TVector4<T>& A, const TVector4<T>& B, const TVector4<T>& C, const T& WeightA, const T& WeightB, const T& WeightC)
+{
+	return TVector4<T>(
+		WeightA * A.X + WeightB * B.X + WeightC * C.X,
+		WeightA * A.Y + WeightB * B.Y + WeightC * C.Y,
+		WeightA * A.Z + WeightB * B.Z + WeightC * C.Z,
+		WeightA * A.W + WeightB * B.W + WeightC * C.W);
+}
 
 template <typename RealType>
 inline TVector4<RealType> operator*(RealType Scalar, const TVector4<RealType>& V)

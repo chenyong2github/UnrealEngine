@@ -152,7 +152,7 @@ void UShapeSprayTool::OnUpdateDrag(const FRay& Ray)
 		FVector3f PlanePt(Rad*FMathf::Cos(Angle), Rad*FMathf::Sin(Angle), 0);
 		FVector3f WorldPt = WorldFrame.PointAt(PlanePt);
 		FVector3f SampleRayDir = WorldPt - (FVector3f)Ray.Origin; 
-		SampleRayDir.Normalize();
+		UE::Geometry::Normalize(SampleRayDir);
 		FRay WorldRay((FVector)Ray.Origin, (FVector)SampleRayDir);
 		FHitResult Hit;
 		if (HitTest(WorldRay, Hit))
@@ -213,7 +213,7 @@ void UShapeSprayTool::UpdateShapeMesh()
 	for (int vid : ShapeMesh.VertexIndicesItr())
 	{
 		FVector3d Pos = ShapeMesh.GetVertex(vid);
-		Pos.Normalize();
+		UE::Geometry::Normalize(Pos);
 		ShapeMesh.SetVertexNormal(vid, (FVector3f)Pos);
 	}
 }

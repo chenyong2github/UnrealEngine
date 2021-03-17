@@ -168,7 +168,8 @@ void FPointPlanarSnapSolver::GenerateLineIntersectionTargets()
 			FVector3d DirectionInPlane = Plane.ToFrameVector(Line.Line.Direction);
 			if (DirectionInPlane.Z < IN_PLANE_THRESHOLD)
 			{
-				LinesInPlane.Add(FLine2d(OriginInPlane.XY(), DirectionInPlane.XY()));
+				LinesInPlane.Add(FLine2d(
+					FVector2d(OriginInPlane.X, OriginInPlane.Y), FVector2d(DirectionInPlane.X, DirectionInPlane.Y)));
 				OriginalLinePointers.Add(&Line);
 			}
 		}
@@ -181,7 +182,8 @@ void FPointPlanarSnapSolver::GenerateLineIntersectionTargets()
 			FVector3d DirectionInPlane = Plane.ToFrameVector(Line.Line.Direction);
 			if (DirectionInPlane.Z < IN_PLANE_THRESHOLD)
 			{
-				LinesInPlane.Add(FLine2d(OriginInPlane.XY(), DirectionInPlane.XY()));
+				LinesInPlane.Add(FLine2d(
+					FVector2d(OriginInPlane.X, OriginInPlane.Y), FVector2d(DirectionInPlane.X, DirectionInPlane.Y)));
 				OriginalLinePointers.Add(&Line);
 			}
 		}

@@ -24,7 +24,7 @@ FFFDLattice::FFFDLattice(const FVector3i& InDims, const FDynamicMesh3& Mesh, flo
 	FVector3d Extents = InitialBounds.Extents();
 
 	// Compute padding based on maximum component of the diagonal. Avoids problems when one or more component is zero.
-	double MaxDiagonal = InitialBounds.Diagonal().MaxElement();
+	double MaxDiagonal = MaxElement(InitialBounds.Diagonal());
 	Extents = Extents + (0.5 * ClampedPadding * MaxDiagonal);
 
 	InitialBounds.Min = Center - Extents;
@@ -208,7 +208,7 @@ void FFFDLattice::GetRotatedOverlayNormals(const TArray<FVector3d>& LatticeContr
 		// resulting normal will be flipped. So we instead multiply by det(J)*transpose(inv(J)) to get the sign right.
 		FMatrix3d InvJacobian = Jacobian.DeterminantTimesInverseTranspose();
 		OutNormals[OverlayElementID] = FMatrix3f(InvJacobian) * NormalOverlay->GetElement(OverlayElementID);
-		OutNormals[OverlayElementID].Normalize();
+		Normalize(OutNormals[OverlayElementID]);
 	};
 
 	ParallelFor(ElementCount, InterpolationJob, ParallelForFlags);
@@ -254,7 +254,7 @@ void FFFDLattice::GetRotatedMeshVertexNormals(const TArray<FVector3d>& LatticeCo
 		// resulting normal will be flipped. So we instead multiply by det(J)*transpose(inv(J)) to get the sign right.
 		FMatrix3d InvJacobian = Jacobian.DeterminantTimesInverseTranspose();
 		OutNormals[VertexID] = FMatrix3f( InvJacobian ) * OriginalNormals[VertexID];
-		OutNormals[VertexID].Normalize();
+		Normalize(OutNormals[VertexID]);
 	};
 
 	ParallelFor(MaxVertexID, InterpolationJob, ParallelForFlags);

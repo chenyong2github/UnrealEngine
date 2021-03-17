@@ -654,9 +654,9 @@ bool ApproxSelfClipPolyline(TArray<FVector2f>& Polyline)
 	}
 
 
-	FVector2f StartDirOut = (Polyline[0] - Polyline[1]).Normalized();
+	FVector2f StartDirOut = UE::Geometry::Normalized(Polyline[0] - Polyline[1]);
 	FLine2f StartLine(Polyline[0], StartDirOut);
-	FVector2f EndDirOut = (Polyline[N - 1] - Polyline[N - 2]).Normalized();
+	FVector2f EndDirOut = UE::Geometry::Normalized(Polyline[N - 1] - Polyline[N - 2]);
 	FLine2f EndLine(Polyline[N - 1], EndDirOut);
 	FIntrLine2Line2f LineIntr(StartLine, EndLine);
 	bool bIntersects = false;
@@ -732,9 +732,9 @@ void UMeshGroupPaintTool::OnPolyLassoFinished(const FCameraPolyLasso& Lasso, boo
 	// outwards from the endpoints and then try to create a closed very large polygon
 	if (ApproxSelfClipPolyline(Polyline) == false)
 	{
-		FVector2f StartDirOut = (Polyline[0] - Polyline[1]).Normalized();
+		FVector2f StartDirOut = UE::Geometry::Normalized(Polyline[0] - Polyline[1]);
 		FLine2f StartLine(Polyline[0], StartDirOut);
-		FVector2f EndDirOut = (Polyline[N-1] - Polyline[N-2]).Normalized();
+		FVector2f EndDirOut = UE::Geometry::Normalized(Polyline[N-1] - Polyline[N-2]);
 		FLine2f EndLine(Polyline[N-1], EndDirOut);
 
 		// if we did not intersect, we are in ambiguous territory. Check if a segment along either end-direction
@@ -897,7 +897,7 @@ void UMeshGroupPaintTool::ApplyVisibilityFilter(const TArray<int32>& Triangles, 
 		}
 		if (FilterProperties->VisibilityFilter == EMeshGroupPaintVisibilityType::Unoccluded)
 		{
-			int32 HitTID = Octree.FindNearestHitObject(FRay3d(LocalEyePosition, (Centroid - LocalEyePosition).Normalized()));
+			int32 HitTID = Octree.FindNearestHitObject(FRay3d(LocalEyePosition, UE::Geometry::Normalized(Centroid - LocalEyePosition)));
 			if (HitTID != Triangles[idx])
 			{
 				VisibilityFilterBuffer[idx] = false;

@@ -52,7 +52,7 @@ int32 GetPolygonGroup(EProfileSweepPolygonGrouping PolygonGroupingMode, int32 Sw
 void FProfileSweepGenerator::AdjustNormalsForTriangle(int32 TriIndex, int32 FirstIndex, int32 SecondIndex, int32 ThirdIndex,
 	TArray<FVector3d> &WeightedNormals)
 {
-	FVector3d AbNormalized = (Vertices[SecondIndex] - Vertices[FirstIndex]).Normalized();
+	FVector3d AbNormalized = Normalized(Vertices[SecondIndex] - Vertices[FirstIndex]);
 	AdjustNormalsForTriangle(TriIndex, FirstIndex, SecondIndex, ThirdIndex, WeightedNormals, AbNormalized);
 }
 
@@ -73,14 +73,14 @@ void FProfileSweepGenerator::AdjustNormalsForTriangle(int32 TriIndex, int32 Firs
 	// per vertex later- we avoid adding the result into the per-vertex sums as we go along to avoid
 	// concurrent writes since this is done in parallel.
 
-	FVector3d Bc = (Vertices[ThirdIndex] - Vertices[SecondIndex]).Normalized();
-	FVector3d Ac = (Vertices[ThirdIndex] - Vertices[FirstIndex]).Normalized();
-	FVector3d TriangleNormal = Ac.Cross(AbNormalized).Normalized();
+	FVector3d Bc = Normalized(Vertices[ThirdIndex] - Vertices[SecondIndex]);
+	FVector3d Ac = Normalized(Vertices[ThirdIndex] - Vertices[FirstIndex]);
+	FVector3d TriangleNormal = Normalized(Ac.Cross(AbNormalized));
 
 	// Note that AngleR requires normalized inputs
-	WeightedNormals[TriIndex * 3] = TriangleNormal * AbNormalized.AngleR(Ac);
-	WeightedNormals[TriIndex * 3 + 1] = TriangleNormal * Bc.AngleR(-AbNormalized);
-	WeightedNormals[TriIndex * 3 + 2] = TriangleNormal * Ac.AngleR(Bc);
+	WeightedNormals[TriIndex * 3] = TriangleNormal * AngleR(AbNormalized,Ac);
+	WeightedNormals[TriIndex * 3 + 1] = TriangleNormal * AngleR(Bc, -AbNormalized);
+	WeightedNormals[TriIndex * 3 + 2] = TriangleNormal * AngleR(Ac, Bc);
 
 	// We can safely hook the triangle normals up, even though their calculation is incomplete.
 	SetTriangleNormals(TriIndex, FirstIndex, SecondIndex, ThirdIndex);
@@ -322,7 +322,7 @@ FMeshShapeGenerator& FProfileSweepGenerator::Generate()
 						|| Vertices[CurrentVert].DistanceSquared(Vertices[BottomRightVert])
 							/ Vertices[BottomVert].DistanceSquared(Vertices[RightVert]) <= (1 + DiagonalTolerance)*(1 + DiagonalTolerance))
 					{
-						FVector3d DiagonalDown = (Vertices[BottomRightVert] - Vertices[CurrentVert]).Normalized();
+						FVector3d DiagonalDown = Normalized(Vertices[BottomRightVert] - Vertices[CurrentVert]);
 
 						SetTriangle(TriIndex, CurrentVert, BottomRightVert, RightVert);
 						AdjustNormalsForTriangle(TriIndex, CurrentVert, BottomRightVert, RightVert, WeightedNormals, DiagonalDown);
@@ -344,7 +344,7 @@ FMeshShapeGenerator& FProfileSweepGenerator::Generate()
 					}
 					else
 					{
-						FVector3d DiagonalUp = (Vertices[RightVert] - Vertices[BottomVert]).Normalized();
+						FVector3d DiagonalUp = Normalized(Vertices[RightVert] - Vertices[BottomVert]);
 						SetTriangle(TriIndex, BottomVert, RightVert, CurrentVert);
 						AdjustNormalsForTriangle(TriIndex, BottomVert, RightVert, CurrentVert, WeightedNormals, DiagonalUp);
 						SetTriangleUVs(TriIndex,
@@ -391,7 +391,7 @@ FMeshShapeGenerator& FProfileSweepGenerator::Generate()
 	// Normalize and set them
 	ParallelFor(NumVerts, [this, &NormalSums](int VertIndex)
 	{
-		SetNormal(VertIndex, (FVector3f)(NormalSums[VertIndex].Normalized()), VertIndex);
+		SetNormal(VertIndex, (FVector3f)(Normalized(NormalSums[VertIndex])), VertIndex);
 	});
 
 	if (Progress && Progress->Cancelled())

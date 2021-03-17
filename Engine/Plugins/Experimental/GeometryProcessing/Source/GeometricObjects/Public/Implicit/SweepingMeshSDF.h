@@ -200,7 +200,7 @@ public:
 			ExactBandWidth = FMath::Max(ApproxMaxCellsPerDimension/2-1, 1);
 		}
 
-		float MaxDim = (Bounds.Max - Bounds.Min + ExpandBounds * 2).MaxElement();
+		float MaxDim = MaxElement(Bounds.Max - Bounds.Min + ExpandBounds * 2);
 		if (!ensureMsgf(MaxDim / CellSize <= ApproxMaxCellsPerDimension - 2 * ExactBandWidth, TEXT("SDF resolution clamped to avoid excessive memory use")))
 		{
 			CellSize = MaxDim / (ApproxMaxCellsPerDimension - 2 * ExactBandWidth);

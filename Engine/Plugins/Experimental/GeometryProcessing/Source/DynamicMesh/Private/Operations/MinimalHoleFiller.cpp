@@ -85,7 +85,7 @@ namespace
 
 	double EdgeFlipMetric(FVector3d Normal0, FVector3d Normal1, double FlipDotTol)
 	{
-		return (FlipDotTol == 0) ? Normal0.Dot(Normal1) : Normal0.Normalized().Dot(Normal1.Normalized());
+		return (FlipDotTol == 0) ? Normal0.Dot(Normal1) : Normalized(Normal0).Dot(Normalized(Normal1));
 	}
 
 	void GetEdgeFlipTris(const FDynamicMesh3& Mesh, int EdgeID,

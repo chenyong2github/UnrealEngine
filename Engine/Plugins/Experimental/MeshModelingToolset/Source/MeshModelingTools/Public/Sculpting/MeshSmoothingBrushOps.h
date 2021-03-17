@@ -95,7 +95,7 @@ public:
 				SmoothedPos = UE::Geometry::FMeshWeights::UniformCentroid(*Mesh, VertIdx);
 			}
 
-			FVector3d NewPos = FVector3d::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
+			FVector3d NewPos = UE::Geometry::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
 
 			NewPositionsOut[k] = NewPos;
 		});
@@ -160,7 +160,7 @@ public:
 				SmoothedPos = UE::Geometry::FMeshWeights::UniformCentroid(*Mesh, VertIdx);
 			}
 
-			FVector3d NewPos = FVector3d::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
+			FVector3d NewPos = UE::Geometry::Lerp(OrigPos, SmoothedPos, Falloff * Stamp.Power);
 
 			if ((NewPos - OrigPos).Dot(Normal) * Direction < 0)
 			{
@@ -236,7 +236,7 @@ public:
 			{
 				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 				FVector3d MoveVec = Falloff * UseSpeed * MoveDelta;
-				double MaxDist = MoveDelta.Normalize();
+				double MaxDist = UE::Geometry::Normalize(MoveDelta);
 				NewPos = (MoveVec.SquaredLength() > MaxDist * MaxDist) ?
 					PlanePos : (OrigPos + Falloff * MoveVec);
 			}
@@ -321,7 +321,7 @@ public:
 				}
 				else
 				{
-					MoveVec.Normalize();
+					UE::Geometry::Normalize(MoveVec);
 					NewPositionsOut[k] = OrigPos + MoveDist * MoveVec;
 				}
 			}

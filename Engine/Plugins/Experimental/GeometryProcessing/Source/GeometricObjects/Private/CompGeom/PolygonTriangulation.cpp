@@ -194,7 +194,7 @@ void PolygonTriangulation::ComputePolygonPlane(const TArray<FVector3<T>>& Vertex
 		PlaneNormalOut.Y += (PositionJ.Z - PositionI.Z) * (PositionI.X + PositionJ.X);
 		PlaneNormalOut.Z += (PositionJ.X - PositionI.X) * (PositionI.Y + PositionJ.Y);
 	}
-	PlaneNormalOut.Normalize();
+	Normalize(PlaneNormalOut);
 	PlanePointOut /= (T)NumVertices;
 }
 

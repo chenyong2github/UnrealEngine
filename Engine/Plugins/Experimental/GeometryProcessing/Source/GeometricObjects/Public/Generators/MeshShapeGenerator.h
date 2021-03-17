@@ -240,29 +240,29 @@ public:
 
 	static FVector3d BilinearInterp(const FVector3d &v00, const FVector3d &v10, const FVector3d &v11, const FVector3d &v01, double tx, double ty)
 	{
-		FVector3d a = FVector3d::Lerp(v00, v01, ty);
-		FVector3d b = FVector3d::Lerp(v10, v11, ty);
-		return FVector3d::Lerp(a, b, tx);
+		FVector3d a = Lerp(v00, v01, ty);
+		FVector3d b = Lerp(v10, v11, ty);
+		return Lerp(a, b, tx);
 	}
 
 	static FVector2d BilinearInterp(const FVector2d &v00, const FVector2d &v10, const FVector2d &v11, const FVector2d &v01, double tx, double ty)
 	{
-		FVector2d a = FVector2d::Lerp(v00, v01, ty);
-		FVector2d b = FVector2d::Lerp(v10, v11, ty);
-		return FVector2d::Lerp(a, b, tx);
+		FVector2d a = Lerp(v00, v01, ty);
+		FVector2d b = Lerp(v10, v11, ty);
+		return Lerp(a, b, tx);
 	}
 
 	static FVector2f BilinearInterp(const FVector2f &v00, const FVector2f &v10, const FVector2f &v11, const FVector2f &v01, float tx, float ty)
 	{
-		FVector2f a = FVector2f::Lerp(v00, v01, ty);
-		FVector2f b = FVector2f::Lerp(v10, v11, ty);
-		return FVector2f::Lerp(a, b, tx);
+		FVector2f a = Lerp(v00, v01, ty);
+		FVector2f b = Lerp(v10, v11, ty);
+		return Lerp(a, b, tx);
 	}
 
 
 	static FVector3i LinearInterp(const FVector3i &a, const FVector3i &b, double t)
 	{
-		FVector3d c = FVector3d::Lerp((FVector3d)a, (FVector3d)b, t);
+		FVector3d c = Lerp((FVector3d)a, (FVector3d)b, t);
 		return FVector3i((int)round(c.X), (int)round(c.Y), (int)round(c.Z));
 	}
 

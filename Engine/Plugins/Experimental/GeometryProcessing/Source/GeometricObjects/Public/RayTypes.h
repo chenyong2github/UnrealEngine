@@ -44,7 +44,7 @@ public:
 		this->Direction = Direction;
 		if (bIsNormalized == false)
 		{
-			this->Direction.Normalize();
+			Normalize(this->Direction);
 		}
 	}
 

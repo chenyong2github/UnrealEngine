@@ -896,19 +896,19 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 	if (IsBoundaryEdge(eab))
 	{
 		// create vertex
-		FVector3d vNew = FVector3d::Lerp(GetVertex(a), GetVertex(b), split_t);
+		FVector3d vNew = Lerp(GetVertex(a), GetVertex(b), split_t);
 		int f = AppendVertex(vNew);
 		if (HasVertexNormals())
 		{
-			SetVertexNormal(f, FVector3f::Lerp(GetVertexNormal(a), GetVertexNormal(b), (float)split_t).Normalized());
+			SetVertexNormal(f, Normalized(Lerp(GetVertexNormal(a), GetVertexNormal(b), (float)split_t)) );
 		}
 		if (HasVertexColors())
 		{
-			SetVertexColor(f, FVector3f::Lerp(GetVertexColor(a), GetVertexColor(b), (float)split_t));
+			SetVertexColor(f, Lerp(GetVertexColor(a), GetVertexColor(b), (float)split_t));
 		}
 		if (HasVertexUVs())
 		{
-			SetVertexUV(f, FVector2f::Lerp(GetVertexUV(a), GetVertexUV(b), (float)split_t));
+			SetVertexUV(f, Lerp(GetVertexUV(a), GetVertexUV(b), (float)split_t));
 		}
 
 		// look up edge bc, which needs to be modified
@@ -973,19 +973,19 @@ EMeshResult FDynamicMesh3::SplitEdge(int eab, FEdgeSplitInfo& SplitInfo, double 
 		}
 
 		// create vertex
-		FVector3d vNew = FVector3d::Lerp(GetVertex(a), GetVertex(b), split_t);
+		FVector3d vNew = Lerp(GetVertex(a), GetVertex(b), split_t);
 		int f = AppendVertex(vNew);
 		if (HasVertexNormals())
 		{
-			SetVertexNormal(f, FVector3f::Lerp(GetVertexNormal(a), GetVertexNormal(b), (float)split_t).Normalized());
+			SetVertexNormal(f, Normalized(Lerp(GetVertexNormal(a), GetVertexNormal(b), (float)split_t)) );
 		}
 		if (HasVertexColors())
 		{
-			SetVertexColor(f, FVector3f::Lerp(GetVertexColor(a), GetVertexColor(b), (float)split_t));
+			SetVertexColor(f, Lerp(GetVertexColor(a), GetVertexColor(b), (float)split_t));
 		}
 		if (HasVertexUVs())
 		{
-			SetVertexUV(f, FVector2f::Lerp(GetVertexUV(a), GetVertexUV(b), (float)split_t));
+			SetVertexUV(f, Lerp(GetVertexUV(a), GetVertexUV(b), (float)split_t));
 		}
 
 		// look up edges that we are going to need to update
@@ -1582,18 +1582,18 @@ EMeshResult FDynamicMesh3::CollapseEdge(int vKeep, int vRemove, double collapse_
 	}
 
 	// set kept vertex to interpolated collapse position
-	SetVertex(vKeep, FVector3d::Lerp(KeptPos, RemovedPos, collapse_t));
+	SetVertex(vKeep, Lerp(KeptPos, RemovedPos, collapse_t));
 	if (HasVertexUVs())
 	{
-		SetVertexUV(vKeep, FVector2f::Lerp(GetVertexUV(vKeep), RemovedUV, collapse_t));
+		SetVertexUV(vKeep, Lerp(GetVertexUV(vKeep), RemovedUV, (float)collapse_t));
 	}
 	if (HasVertexNormals())
 	{
-		SetVertexNormal(vKeep, FVector3f::Lerp(GetVertexNormal(vKeep), RemovedNormal, collapse_t).Normalized());
+		SetVertexNormal(vKeep, Normalized(Lerp(GetVertexNormal(vKeep), RemovedNormal, (float)collapse_t)) );
 	}
 	if (HasVertexColors())
 	{
-		SetVertexColor(vKeep, FVector3f::Lerp(GetVertexColor(vKeep), RemovedColor, collapse_t));
+		SetVertexColor(vKeep, Lerp(GetVertexColor(vKeep), RemovedColor, (float)collapse_t));
 	}
 
 	CollapseInfo.KeptVertex = vKeep;

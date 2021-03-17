@@ -288,7 +288,7 @@ bool FOffsetMeshRegion::ApplyOffset(FOffsetInfo& Region, FMeshNormals* UseNormal
 				if (k == 0)
 				{
 					FVector3d FirstEdge = Mesh->GetVertex(BaseLoopV[1]) - Mesh->GetVertex(BaseLoopV[0]);
-					FirstEdge.Normalize();
+					Normalize(FirstEdge);
 					FirstProjectFrame = FFrame3d(FVector3d::Zero(), (FVector3d)Normal);
 					FirstProjectFrame.ConstrainedAlignAxis(0, FirstEdge, (FVector3d)Normal);
 					FrameUp = FirstProjectFrame.GetAxis(1);

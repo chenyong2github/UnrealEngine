@@ -1037,7 +1037,7 @@ bool UDeformMeshPolygonsTool::HitTest(const FRay& WorldRay, FHitResult& OutHit)
 	FTransform3d Transform(ComponentTarget->GetWorldTransform());
 	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
 	                Transform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 
 	FGroupTopologySelection Selection;
 	FVector3d LocalPosition, LocalNormal;
@@ -1083,7 +1083,7 @@ void UDeformMeshPolygonsTool::OnBeginDrag(const FRay& WorldRay)
 	FTransform3d Transform(ComponentTarget->GetWorldTransform());
 	FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
 	                Transform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 
 	HilightSelection.Clear();
 
@@ -1298,7 +1298,7 @@ bool UDeformMeshPolygonsTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 		FTransform3d Transform(ComponentTarget->GetWorldTransform());
 		FRay3d LocalRay(Transform.InverseTransformPosition(DevicePos.WorldRay.Origin),
 		                Transform.InverseTransformVector(DevicePos.WorldRay.Direction));
-		LocalRay.Direction.Normalize();
+		UE::Geometry::Normalize(LocalRay.Direction);
 
 		HilightSelection.Clear();
 		FVector3d LocalPosition, LocalNormal;
@@ -1445,10 +1445,10 @@ void UDeformMeshPolygonsTool::ComputeUpdate_Rotate()
 	}
 
 	FVector2d RotateStartVec = RotationStartFrame.ToPlaneUV(RotationStartPointWorld, 2);
-	RotateStartVec.Normalize();
+	UE::Geometry::Normalize(RotateStartVec);
 	FVector2d RotateToVec = RotationStartFrame.ToPlaneUV(NewHitPosWorld, 2);
-	RotateToVec.Normalize();
-	double AngleRad = RotateStartVec.SignedAngleR(RotateToVec);
+	UE::Geometry::Normalize(RotateToVec);
+	double AngleRad = UE::Geometry::SignedAngleR(RotateStartVec, RotateToVec);
 	FQuaterniond Rotation(Transform.InverseTransformVectorNoScale(RotationStartFrame.Z()), AngleRad, false);
 	FVector3d LocalOrigin = Transform.InverseTransformPosition(RotationStartFrame.Origin);
 

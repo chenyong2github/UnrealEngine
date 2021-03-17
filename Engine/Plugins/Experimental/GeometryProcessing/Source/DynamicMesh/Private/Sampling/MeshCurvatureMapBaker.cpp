@@ -151,11 +151,10 @@ void FMeshCurvatureMapBaker::Bake_Single()
 		double Curvature = CurvatureSampleFunction(Sample);
 
 		double Sign = FMathd::Sign(Curvature);
-		double T = ClampRange.GetT(FMathd::Abs(Curvature));
+		float T = (float)ClampRange.GetT(FMathd::Abs(Curvature));
 
 		FVector3f CurvatureColor = (Sign < 0) ?
-			FVector3f::Lerp(ZeroColor, NegativeColor, T)
-			: FVector3f::Lerp(ZeroColor, PositiveColor, T);
+			Lerp(ZeroColor, NegativeColor, T) : Lerp(ZeroColor, PositiveColor, T);
 
 		ResultBuilder->SetPixel(Coords, CurvatureColor);
 	});

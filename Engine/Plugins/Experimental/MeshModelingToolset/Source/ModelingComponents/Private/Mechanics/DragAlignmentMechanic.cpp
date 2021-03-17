@@ -201,7 +201,7 @@ void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMes
 		// Transform ray into local space
 		FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
 			TargetTransform.InverseTransformVector(WorldRay.Direction));
-		LocalRay.Direction.Normalize();
+		UE::Geometry::Normalize(LocalRay.Direction);
 
 		FDynamicMeshAABBTree3* Spatial = GetSpatialIn();
 		const FDynamicMesh3* Mesh = Spatial->GetMesh();

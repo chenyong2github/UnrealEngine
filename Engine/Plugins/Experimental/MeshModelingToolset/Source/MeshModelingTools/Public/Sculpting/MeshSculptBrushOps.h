@@ -255,7 +255,7 @@ public:
 				FVector3d DeltaPos = NewPos - BasePos;
 				if (DeltaPos.SquaredLength() > MaxOffset * MaxOffset)
 				{
-					DeltaPos.Normalize();
+					UE::Geometry::Normalize(DeltaPos);
 					NewPos = BasePos + MaxOffset * DeltaPos;
 				}
 

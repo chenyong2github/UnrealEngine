@@ -726,7 +726,7 @@ FVector3f FDynamicMeshEditor::ComputeAndSetQuadNormal(const FIndex2i& QuadTris, 
 	{
 		Normal = (FVector3f)Mesh->GetTriNormal(QuadTris.A);
 		Normal += (FVector3f)Mesh->GetTriNormal(QuadTris.B);
-		Normal.Normalize();
+		Normalize(Normal);
 	}
 	SetQuadNormals(QuadTris, Normal);
 	return Normal;
@@ -870,8 +870,8 @@ void FDynamicMeshEditor::SetTubeNormals(const TArray<int>& Triangles, const TArr
 		FVector3f Corners[4]{ (FVector3f)Mesh->GetVertex(VertexIDs1[M1[0]]), (FVector3f)Mesh->GetVertex(VertexIDs1[M1[1]]), (FVector3f)Mesh->GetVertex(VertexIDs2[M2[0]]), (FVector3f)Mesh->GetVertex(VertexIDs2[M2[1]]) };
 		FVector3f Edges[2]{ Corners[1] - Corners[0], Corners[3] - Corners[2] };
 		FVector3f Across = Corners[2] - Corners[0];
-		MatchedEdgeNormals[0][LastMatchedIdx] = Edges[0].Cross(Across).Normalized();
-		MatchedEdgeNormals[1][LastMatchedIdx] = Edges[1].Cross(Across).Normalized();
+		MatchedEdgeNormals[0][LastMatchedIdx] = Normalized(Edges[0].Cross(Across));
+		MatchedEdgeNormals[1][LastMatchedIdx] = Normalized(Edges[1].Cross(Across));
 	}
 
 	TArray<FVector3f> MatchedVertNormals[2];
@@ -882,8 +882,8 @@ void FDynamicMeshEditor::SetTubeNormals(const TArray<int>& Triangles, const TArr
 	VertNormals[1].SetNum(VertexIDs2.Num());
 	for (int LastMatchedIdx = NumMatched - 1, Idx = 0; Idx < NumMatched; LastMatchedIdx = Idx++)
 	{
-		MatchedVertNormals[0][Idx] = (MatchedEdgeNormals[0][LastMatchedIdx] + MatchedEdgeNormals[0][Idx]).Normalized();
-		MatchedVertNormals[1][Idx] = (MatchedEdgeNormals[1][LastMatchedIdx] + MatchedEdgeNormals[1][Idx]).Normalized();
+		MatchedVertNormals[0][Idx] = Normalized(MatchedEdgeNormals[0][LastMatchedIdx] + MatchedEdgeNormals[0][Idx]);
+		MatchedVertNormals[1][Idx] = Normalized(MatchedEdgeNormals[1][LastMatchedIdx] + MatchedEdgeNormals[1][Idx]);
 	}
 
 	TMap<int, int> VertToElID;

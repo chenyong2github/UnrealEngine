@@ -313,13 +313,14 @@ void UMeshTangentsTool::OnTangentsUpdated(const TUniquePtr<FMeshTangentsd>& NewR
 				{
 					FVector3d TangentMikkt, BitangentMikkt;
 					MikktTangents->GetPerTriangleTangent(Index, j, TangentMikkt, BitangentMikkt);
-					TangentMikkt.Normalize(); BitangentMikkt.Normalize();
+					UE::Geometry::Normalize(TangentMikkt); UE::Geometry::Normalize(BitangentMikkt);
 					FVector3d TangentNew, BitangentNew;
 					NewTangents->GetPerTriangleTangent(Index, j, TangentNew, BitangentNew);
-					TangentNew.Normalize(); BitangentNew.Normalize();
-					ensure(TangentMikkt.IsNormalized() && BitangentMikkt.IsNormalized());
-					ensure(TangentNew.IsNormalized() && BitangentNew.IsNormalized());
-					double MaxAngleDeg = FMathd::Max(TangentMikkt.AngleD(TangentNew), BitangentMikkt.AngleD(BitangentNew));
+					UE::Geometry::Normalize(TangentNew); 
+					UE::Geometry::Normalize(BitangentNew);
+					ensure(UE::Geometry::IsNormalized(TangentMikkt) && UE::Geometry::IsNormalized(BitangentMikkt));
+					ensure(UE::Geometry::IsNormalized(TangentNew) && UE::Geometry::IsNormalized(BitangentNew));
+					double MaxAngleDeg = FMathd::Max(UE::Geometry::AngleD(TangentMikkt, TangentNew), UE::Geometry::AngleD(BitangentMikkt, BitangentNew));
 					if (MaxAngleDeg > 0.5)
 					{
 						FMikktDeviation Deviation{ static_cast<float>(MaxAngleDeg), Index, j, Verts[j], TangentMikkt, BitangentMikkt, TangentNew, BitangentNew };

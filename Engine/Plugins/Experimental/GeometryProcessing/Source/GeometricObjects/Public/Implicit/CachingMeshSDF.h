@@ -139,7 +139,7 @@ public:
 		// figure out Origin & dimensions
 		FAxisAlignedBox3d Bounds = Spatial->GetBoundingBox();
 		
-		float MaxDim = (Bounds.Max - Bounds.Min + ExpandBounds * 2).MaxElement() + 4 * MaxOffsetDistance;
+		float MaxDim = MaxElement(Bounds.Max - Bounds.Min + ExpandBounds * 2) + 4 * MaxOffsetDistance;
 		if (!ensureMsgf(MaxDim / CellSize <= ApproxMaxCellsPerDimension - 4, TEXT("SDF resolution clamped to avoid excessive memory use")))
 		{
 			CellSize = MaxDim / (ApproxMaxCellsPerDimension - 4);

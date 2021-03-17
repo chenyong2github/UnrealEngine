@@ -250,7 +250,7 @@ void DrawEdgeTicks(FPrimitiveDrawInterface* PDI,
 	FVector3d Center = Segment.Center;
 	FVector3d X = Segment.Direction;
 	FVector3d Y = X.Cross(PlaneNormal);
-	Y.Normalize();
+	UE::Geometry::Normalize(Y);
 	FVector3d A = Center - Height * 0.25*X - Height * Y;
 	FVector3d B = Center + Height * 0.25*X + Height * Y;
 	PDI->DrawLine((FVector)A, (FVector)B, Color, DepthPriorityGroup, LineThickness, 0.0f, bIsScreenSpace);

@@ -331,7 +331,7 @@ bool UDynamicMeshSculptTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
 	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(Ray.Origin),
 		CurTargetTransform.InverseTransformVector(Ray.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
 
 	int HitTID = FindHitSculptMeshTriangle(LocalRay);
@@ -666,7 +666,7 @@ bool UDynamicMeshSculptTool::ApplySmoothBrush(const FRay& WorldRay)
 		FVector3d SmoothedPos = (SculptProperties->bPreserveUVFlow) ?
 			FMeshWeights::CotanCentroidSafe(*Mesh, VertIdx, 10.0) : FMeshWeights::UniformCentroid(*Mesh, VertIdx);
 
-		FVector3d NewPos = FVector3d::Lerp(OrigPos, SmoothedPos, Falloff*SculptProperties->SmoothBrushSpeed);
+		FVector3d NewPos = UE::Geometry::Lerp(OrigPos, SmoothedPos, Falloff*SculptProperties->SmoothBrushSpeed);
 
 		ROIPositionBuffer[k] = NewPos;
 	});
@@ -795,7 +795,7 @@ bool UDynamicMeshSculptTool::ApplySculptMaxBrush(const FRay& WorldRay)
 			FVector3d DeltaPos = NewPos - BasePos;
 			if (DeltaPos.SquaredLength() > MaxOffset*MaxOffset)
 			{
-				DeltaPos.Normalize();
+				UE::Geometry::Normalize(DeltaPos);
 				NewPos = BasePos + MaxOffset * DeltaPos;
 			}
 			ROIPositionBuffer[k] = NewPos;
@@ -822,7 +822,7 @@ bool UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 
 	FVector3d MotionVec = NewSmoothBrushPosLocal - LastSmoothBrushPosLocal;
 	bool bHaveMotion = (MotionVec.Length() > FMathf::ZeroTolerance);
-	MotionVec.Normalize();
+	UE::Geometry::Normalize(MotionVec);
 	FLine3d MoveLine(LastSmoothBrushPosLocal, MotionVec);
 
 	FDynamicMesh3* Mesh = DynamicMeshComponent->GetMesh();
@@ -845,7 +845,7 @@ bool UDynamicMeshSculptTool::ApplyPinchBrush(const FRay& WorldRay)
 
 		if (bHaveMotion && Falloff < 0.8f)
 		{
-			double AnglePower = 1.0 - FMathd::Abs(MoveVec.Normalized().Dot(MotionVec));
+			double AnglePower = 1.0 - FMathd::Abs(UE::Geometry::Normalized(MoveVec).Dot(MotionVec));
 			Falloff *= AnglePower;
 		}
 
@@ -874,7 +874,7 @@ FFrame3d UDynamicMeshSculptTool::ComputeROIBrushPlane(const FVector3d& BrushCent
 		AveragePos += Weight * Centroid;
 		WeightSum += Weight;
 	}
-	AverageNormal.Normalize();
+	UE::Geometry::Normalize(AverageNormal);
 	AveragePos /= WeightSum;
 
 	if (bViewAligned)
@@ -965,7 +965,7 @@ bool UDynamicMeshSculptTool::ApplyFixedPlaneBrush(const FRay& WorldRay)
 		FVector3d NewPos = OrigPos;
 		if (Dot * PlaneSign >= 0)
 		{
-			double MaxDist = Delta.Normalize();
+			double MaxDist = UE::Geometry::Normalize(Delta);
 			double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
 			FVector3d MoveVec = Falloff * UseSpeed * Delta;
 			NewPos = (MoveVec.SquaredLength() > MaxDist* MaxDist) ?
@@ -1012,7 +1012,7 @@ bool UDynamicMeshSculptTool::ApplyFlattenBrush(const FRay& WorldRay)
 		FVector3d NewPos = OrigPos;
 		if (Dot * PlaneSign >= 0)
 		{
-			double MaxDist = Delta.Normalize();
+			double MaxDist = UE::Geometry::Normalize(Delta);
 			double Falloff = CalculateBrushFalloff(OrigPos.Distance(NewBrushPosLocal));
 			FVector3d MoveVec = Falloff * UseSpeed * Delta;
 			NewPos = (MoveVec.SquaredLength() > MaxDist*MaxDist) ?
@@ -1276,7 +1276,7 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnTargetMesh(const FRay& WorldRa
 
 	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(WorldRay.Origin),
 		CurTargetTransform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 
 	const FDynamicMesh3* TargetMesh = BrushTargetMeshSpatial.GetMesh();
 
@@ -1310,7 +1310,7 @@ bool UDynamicMeshSculptTool::UpdateBrushPositionOnSculptMesh(const FRay& WorldRa
 {
 	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(WorldRay.Origin),
 		CurTargetTransform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 
 	int HitTID = FindHitSculptMeshTriangle(LocalRay);
 	if (HitTID != IndexConstants::InvalidID)
@@ -1515,7 +1515,7 @@ void UDynamicMeshSculptTool::OnTick(float DeltaTime)
 		FHitResult Result;
 		bool bWorldHit = ToolSceneQueriesUtil::FindNearestVisibleObjectHit(TargetWorld, Result, CursorWorldRay);
 		FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(CursorWorldRay.Origin), CurTargetTransform.InverseTransformVector(CursorWorldRay.Direction));
-		LocalRay.Direction.Normalize();
+		UE::Geometry::Normalize(LocalRay.Direction);
 		bool bObjectHit = (FindHitSculptMeshTriangle(LocalRay) != IndexConstants::InvalidID);
 		if (bWorldHit &&
 			(bObjectHit == false || (CursorWorldRay.GetParameter(Result.ImpactPoint) < CursorWorldRay.GetParameter((FVector)LastBrushPosWorld))))
@@ -2138,7 +2138,7 @@ bool UDynamicMeshSculptTool::GetTargetMeshNearest(const FVector3d& Position, dou
 		Query.TriangleBaryCoords.X*BrushTargetNormals[Tri.A]
 		+ Query.TriangleBaryCoords.Y*BrushTargetNormals[Tri.B]
 		+ Query.TriangleBaryCoords.Z*BrushTargetNormals[Tri.C];
-	TargetNormalOut.Normalize();
+	UE::Geometry::Normalize(TargetNormalOut);
 	TargetPosOut = Query.ClosestTrianglePoint;
 	return true;
 }

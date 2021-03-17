@@ -199,7 +199,7 @@ namespace MeshAdapterTransforms
 				{
 					FVector3f Normal = Mesh.GetNormal(elemid);
 					Normal = NormalTransform(Normal);
-					Mesh.SetNormal(elemid, Normal.Normalized());
+					Mesh.SetNormal(elemid, UE::Geometry::Normalized(Normal));
 				}
 			});
 		}

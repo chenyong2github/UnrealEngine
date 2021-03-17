@@ -767,9 +767,9 @@ bool FMeshBoolean::CollapseWouldHurtTriangleQuality(
 			FVector3d Edge2(Verts[2] - Verts[0]);
 			FVector3d VCross(Edge2.Cross(Edge1));
 
-			// TODO: does this tolerance make a difference?  if not, set to zero and remove the VCross.Normalize()
+			// TODO: does this tolerance make a difference?  if not, set to zero and remove the Normalize(VCross)
 			double EdgeFlipTolerance = 1.e-5;
-			double Area2 = VCross.Normalize();
+			double Area2 = Normalize(VCross);
 			if (TryToImproveTriQualityThreshold > 0)
 			{
 				FVector3d Edge3(Verts[2] - Verts[1]);
@@ -849,7 +849,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 				int OtherV = IndexUtil::FindEdgeOtherVertex(OtherEdgeV, RemoveV);
 				FVector3d OtherVPos = Mesh.GetVertex(OtherV);
 				FVector3d OtherEdgeDir = OtherVPos - RemoveVPos;
-				if (OtherEdgeDir.Normalize() == 0)
+				if (Normalize(OtherEdgeDir) == 0)
 				{
 					// collapsing degenerate edges above should prevent this
 					bHasBadEdge = true;
@@ -876,7 +876,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 					FVector2f OtherUV = Mesh.GetVertexUV(OtherV);
 					FVector2f RemoveUV = Mesh.GetVertexUV(RemoveV);
 					FVector2f KeepUV = Mesh.GetVertexUV(KeepV);
-					if (FVector2f::Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
+					if (Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
 					{
 						bHasBadEdge = true;
 						return;
@@ -934,7 +934,7 @@ bool FMeshBoolean::CollapseWouldChangeShapeOrUVs(
 						FVector2f OtherUV = UVs->GetElement(OtherE);
 						FVector2f RemoveUV = UVs->GetElement(RemoveE);
 						FVector2f KeepUV = UVs->GetElement(KeepE);
-						if (FVector2f::Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
+						if (Lerp(OtherUV, KeepUV, LerpT).DistanceSquared(RemoveUV) > UVEqualThresholdSq)
 						{
 							bHasBadEdge = true;
 							return;
@@ -1054,7 +1054,7 @@ void FMeshBoolean::SimplifyAlongNewEdges(int NumMeshesToProcess, FDynamicMesh3* 
 				FVector3d RemoveVPos = CutMesh[0]->GetVertex(Edge.Vert[RemoveVIdx]);
 				FVector3d KeepVPos = CutMesh[0]->GetVertex(Edge.Vert[KeepVIdx]);
 				FVector3d EdgeDir = KeepVPos - RemoveVPos;
-				if (EdgeDir.Normalize() == 0) // 0 is returned as a special case when the edge was too short to normalize
+				if (Normalize(EdgeDir) == 0) // 0 is returned as a special case when the edge was too short to normalize
 				{
 					// collapsing degenerate edges above should prevent this
 					ensure(!bCollapseDegenerateEdgesOnCut);

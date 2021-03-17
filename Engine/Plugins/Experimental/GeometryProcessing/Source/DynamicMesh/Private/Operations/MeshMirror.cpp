@@ -24,7 +24,7 @@ void FMeshMirror::Mirror(FProgressCancel* Progress)
 	}
 
 	// We assume the normal is unit length everywhere, so it's worth forcing it to be just in case.
-	PlaneNormal.Normalize();
+	Normalize(PlaneNormal);
 
 	// Change the existing vertex positions and normals to be mirrored.
 	for (int32 Vid : Mesh->VertexIndicesItr())
@@ -86,7 +86,7 @@ void FMeshMirror::MirrorAndAppend(FProgressCancel* Progress)
 	}
 
 	// We assume the normal is unit length everywhere, so it's worth forcing it to be just in case.
-	PlaneNormal.Normalize();
+	Normalize(PlaneNormal);
 
 	// Start by creating and appending mirrored vertices. VidToMirrorMap will map each original
 	// vertex to the id of its mirror (which may be itself if it is not duplicated due to welding).
@@ -354,7 +354,7 @@ void MirrorAndAppendVerticesWithWelding(FDynamicMesh3& Mesh, const FVector3d& Pl
 
 				// For bowtie vertices, the projection of the normal onto the plane might be 0. The normal here is nonsensical anyway,
 				// so it doesn't matter what we do. Let's just leave it as is if we didn't get a projection.
-				if (NewNormal.Normalize() != 0)
+				if (Normalize(NewNormal) != 0)
 				{
 					// Projection worked
 					Mesh.SetVertexNormal(Vid, NewNormal);

@@ -263,7 +263,7 @@ public:
 						return;
 					}
 					FVector3d Centroid = FMeshWeights::UniformCentroid(*ResultMesh, vid, [&](int32 nbrvid) { return PositionBuffer[nbrvid]; });
-					SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, SmoothAlpha);
+					SmoothedBuffer[vid] = UE::Geometry::Lerp(PositionBuffer[vid], Centroid, SmoothAlpha);
 					if (bReprojectSmooth)
 					{
 						SmoothedBuffer[vid] = Spatial.FindNearestPoint(SmoothedBuffer[vid]);
@@ -278,7 +278,7 @@ public:
 						FVector3d Centroid = FMeshWeights::FilteredUniformCentroid(*ResultMesh, vid,
 							[&](int32 nbrvid) { return PositionBuffer[nbrvid]; },
 							[&](int32 nbrvid) { return BoundaryCache.bIsBoundary[nbrvid]; });
-						SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, BoundaryAlpha);
+						SmoothedBuffer[vid] = UE::Geometry::Lerp(PositionBuffer[vid], Centroid, BoundaryAlpha);
 					});
 				}
 

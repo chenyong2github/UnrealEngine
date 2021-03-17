@@ -37,7 +37,7 @@ public:
 		// set from endpoints 
 		Center = T(.5) * (Point0 + Point1);
 		Direction = Point1 - Point0;
-		Extent = T(.5) * Direction.Normalize();
+		Extent = T(.5) * Normalize(Direction);
 	}
 
 	/**
@@ -229,7 +229,7 @@ public:
 		}
 
 		// Lines are parallel.
-		diff.Normalize();
+		Normalize(diff);
 		T diffNDotPerpD1 = diff.DotPerp(OtherSegment.Direction);
 		if (TMathUtil<T>::Abs(diffNDotPerpD1) <= DotThresh)
 		{
@@ -312,7 +312,7 @@ protected:
 	{
 		Center = 0.5 * (p0 + p1);
 		Direction = p1 - p0;
-		Extent = 0.5 * Direction.Normalize();
+		Extent = 0.5 * Normalize(Direction);
 	}
 
 };
@@ -350,7 +350,7 @@ public:
 		// set from endpoints 
 		Center = T(.5) * (Point0 + Point1);
 		Direction = Point1 - Point0;
-		Extent = T(.5) * Direction.Normalize();
+		Extent = T(.5) * Normalize(Direction);
 	}
 
 	/**
@@ -533,7 +533,7 @@ protected:
 	{
 		Center = 0.5 * (p0 + p1);
 		Direction = p1 - p0;
-		Extent = 0.5 * Direction.Normalize();
+		Extent = 0.5 * Normalize(Direction);
 	}
 
 };

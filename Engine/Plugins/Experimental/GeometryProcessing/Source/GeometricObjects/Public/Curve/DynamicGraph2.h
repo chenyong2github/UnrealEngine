@@ -210,16 +210,16 @@ public:
 		FVector2<T> A = vertices.AsVector2(nbra);
 		FVector2<T> B = vertices.AsVector2(nbrb);
 		A -= V;
-		if (A.Normalize() == 0)
+		if (Normalize(A) == 0)
 		{
 			return InvalidValue;
 		}
 		B -= V;
-		if (B.Normalize() == 0)
+		if (Normalize(B) == 0)
 		{
 			return InvalidValue;
 		}
-		return A.AngleD(B);
+		return AngleD(A, B);
 	}
 
 protected:

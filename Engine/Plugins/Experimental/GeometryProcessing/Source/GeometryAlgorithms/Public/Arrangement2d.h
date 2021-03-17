@@ -484,7 +484,7 @@ protected:
 		int num_hits = 0;
 		FVector2d x = FVector2d::Zero(), y = FVector2d::Zero();
 		FVector2d EPerp = (B - A).Perp();
-		EPerp.Normalize();
+		Normalize(EPerp);
 		for (int EID : Graph.EdgeIndices())
 		{
 			Graph.GetEdgeV(EID, x, y);

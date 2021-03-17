@@ -763,7 +763,8 @@ static void CopyTangents_Internal(const FMeshDescription* SourceMesh, const FDyn
 			FVector Tangent = InstanceTangents[InstanceTri[j]];
 			float BitangentSign = InstanceSigns[InstanceTri[j]];
 			FVector3<RealType> Bitangent = VectorUtil::Bitangent((FVector3<RealType>)Normal, (FVector3<RealType>)Tangent, (RealType)BitangentSign);
-			Tangent.Normalize(); Bitangent.Normalize();
+			Tangent.Normalize();
+			UE::Geometry::Normalize(Bitangent);
 			TangentsOut->SetPerTriangleTangent(TriID, j, Tangent, Bitangent);
 		}
 	}

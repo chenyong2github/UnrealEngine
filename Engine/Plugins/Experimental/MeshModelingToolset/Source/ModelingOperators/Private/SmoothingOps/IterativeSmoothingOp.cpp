@@ -135,7 +135,7 @@ void FIterativeSmoothingOp::Smooth_Forward(bool bUniform)
 			}
 
 			double UseAlpha = GetSmoothAlpha(vid, false);
-			SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, UseAlpha);
+			SmoothedBuffer[vid] = Lerp(PositionBuffer[vid], Centroid, UseAlpha);
 
 		} /*, EParallelForFlags::ForceSingleThread*/ );
 
@@ -149,7 +149,7 @@ void FIterativeSmoothingOp::Smooth_Forward(bool bUniform)
 					[&](int32 nbrvid) { return PositionBuffer[nbrvid]; },
 					[&](int32 nbrvid) { return bIsBoundary[nbrvid]; });
 				double UseAlpha = GetSmoothAlpha(vid, true);
-				SmoothedBuffer[vid] = FVector3d::Lerp(PositionBuffer[vid], Centroid, UseAlpha);
+				SmoothedBuffer[vid] = Lerp(PositionBuffer[vid], Centroid, UseAlpha);
 			});
 		}
 

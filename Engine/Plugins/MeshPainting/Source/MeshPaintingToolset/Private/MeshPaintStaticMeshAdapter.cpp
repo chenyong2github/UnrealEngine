@@ -218,7 +218,8 @@ bool FMeshPaintStaticMeshComponentAdapter::LineTraceComponent(struct FHitResult&
 		//check collinearity of A,B,C
 		if (TriNormal.SquaredLength() > (double)SMALL_NUMBER)
 		{
-			UE::Geometry::FRay3d LocalRay((UE::Geometry::FVector3d)LocalStart, ((UE::Geometry::FVector3d)LocalEnd - (UE::Geometry::FVector3d)LocalStart).Normalized());
+			UE::Geometry::FVector3d RayDirection = ((UE::Geometry::FVector3d)LocalEnd - (UE::Geometry::FVector3d)LocalStart);
+			UE::Geometry::FRay3d LocalRay((UE::Geometry::FVector3d)LocalStart, UE::Geometry::Normalized(RayDirection));
 			UE::Geometry::FIntrRay3Triangle3d RayTriIntersection(LocalRay, Triangle);
 			if (RayTriIntersection.Find())
 			{

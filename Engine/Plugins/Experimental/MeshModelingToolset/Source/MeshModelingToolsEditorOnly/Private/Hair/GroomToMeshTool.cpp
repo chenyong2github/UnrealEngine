@@ -774,7 +774,7 @@ public:
 			if (bApplySmoothingPerPass)
 			{
 				FVector3d Centroid = (NextPos + PrevPos) * 0.5;
-				Pos = FVector3d::Lerp(Pos, Centroid, SmoothingAlpha);
+				Pos = UE::Geometry::Lerp(Pos, Centroid, SmoothingAlpha);
 			}
 
 			Pos = UpdatePositionFunc(vid, Pos);
@@ -847,13 +847,13 @@ TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> UGroomToMeshTool::UpdateClipMesh(
 				Processor.ApplyPasses(10, [&](int32 vid, const FVector3d& Pos)
 				{
 					FVector3d NearestPos = BVTree.FindNearestPoint(EditMesh->GetVertex(vid));
-					return FVector3d::Lerp(Pos, NearestPos, ProjectionSpeed);
+					return UE::Geometry::Lerp(Pos, NearestPos, ProjectionSpeed);
 				});
 
 				Processor.ApplyPasses(10, [&](int32 vid, const FVector3d& Pos)
 				{
 					FVector3d NearestPos = BVTree.FindNearestPoint(EditMesh->GetVertex(vid));
-					return FVector3d::Lerp(Pos, NearestPos, TuneSpeed);
+					return UE::Geometry::Lerp(Pos, NearestPos, TuneSpeed);
 				});
 			}
 

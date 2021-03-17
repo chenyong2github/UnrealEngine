@@ -86,7 +86,7 @@ public:
 
 		// if either line direction is not a normalized vector, 
 		//   results are garbage, so fail query
-		if (Segment.Direction.IsNormalized() == false)
+		if (IsNormalized(Segment.Direction) == false)
 		{
 			Type = EIntersectionType::Empty;
 			Result = EIntersectionResult::InvalidQuery;

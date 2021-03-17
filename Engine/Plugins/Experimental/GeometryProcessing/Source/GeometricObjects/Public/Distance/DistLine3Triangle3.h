@@ -56,7 +56,7 @@ public:
 		FVector3<Real> edge0 = Triangle.V[1] - Triangle.V[0];
 		FVector3<Real> edge1 = Triangle.V[2] - Triangle.V[0];
 		FVector3<Real> normal = edge0.Cross(edge1);
-		normal.Normalize();
+		Normalize(normal);
 		Real NdD = normal.Dot(Line.Direction);
 		if (TMathUtil<Real>::Abs(NdD) > TMathUtil<Real>::ZeroTolerance)
 		{

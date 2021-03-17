@@ -158,7 +158,7 @@ bool FExtrudeMesh::ApplyExtrude(FExtrusionInfo& Region, FMeshNormals* UseNormals
 					if (k == 0)
 					{
 						FVector3d FirstEdge = Mesh->GetVertex(BaseLoop.Vertices[1]) - Mesh->GetVertex(BaseLoop.Vertices[0]);
-						FirstEdge.Normalize();
+						Normalize(FirstEdge);
 						FirstProjectFrame = FFrame3d(FVector3d::Zero(), (FVector3d)Normal);
 						FirstProjectFrame.ConstrainedAlignAxis(0, FirstEdge, (FVector3d)Normal);
 						FrameUp = FirstProjectFrame.GetAxis(1);

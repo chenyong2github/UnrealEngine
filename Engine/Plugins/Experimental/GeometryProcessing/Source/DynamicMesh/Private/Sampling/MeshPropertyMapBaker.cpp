@@ -90,7 +90,7 @@ void FMeshPropertyMapBaker::Bake()
 						{
 							FVector3d DetailNormal;
 							DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailNormal.X);
-							DetailNormal.Normalize();
+							Normalize(DetailNormal);
 							Color = NormalToColor(DetailNormal);
 						}
 					}

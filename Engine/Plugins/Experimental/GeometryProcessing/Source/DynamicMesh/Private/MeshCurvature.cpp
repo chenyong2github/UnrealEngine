@@ -85,15 +85,15 @@ double TGaussianCurvature(const FDynamicMesh3& mesh, int32 v_i, GetPositionFuncT
 
 		FVector3d Vij = Vj - Vi;
 		FVector3d Nij(Vij);
-		double LenSqrVij = Nij.Normalize();
+		double LenSqrVij = Normalize(Nij);
 		LenSqrVij *= LenSqrVij;
 
 		FVector3d Vik = Vk - Vi;
 		FVector3d Nik(Vik);
-		double LenSqrVik = Nik.Normalize();
+		double LenSqrVik = Normalize(Nik);
 		LenSqrVik *= LenSqrVik;
 
-		double OpeningAngle = Nij.AngleR(Nik);
+		double OpeningAngle = AngleR(Nij, Nik);
 		AngleSum += OpeningAngle;
 
 		if (VectorUtil::IsObtuse(Vi, Vj, Vk))

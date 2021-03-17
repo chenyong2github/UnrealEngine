@@ -134,10 +134,10 @@ public:
 		int32 k = TriangleID * 3;
 		if (k >= 0 && (k+2) < Tangents.Num())
 		{
-			TangentOut = FVector3<RealType>::Blend3(Tangents[k], Tangents[k+1], Tangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
-			TangentOut.Normalize();
-			BitangentOut = FVector3<RealType>::Blend3(Bitangents[k], Bitangents[k+1], Bitangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
-			BitangentOut.Normalize();
+			TangentOut = Blend3(Tangents[k], Tangents[k+1], Tangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
+			Normalize(TangentOut);
+			BitangentOut = Blend3(Bitangents[k], Bitangents[k+1], Bitangents[k+2], BaryCoords.X, BaryCoords.Y, BaryCoords.Z);
+			Normalize(BitangentOut);
 		}
 		else
 		{

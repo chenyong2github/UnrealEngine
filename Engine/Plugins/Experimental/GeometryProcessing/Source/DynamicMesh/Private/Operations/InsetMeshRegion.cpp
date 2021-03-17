@@ -110,7 +110,7 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 			const FDynamicMesh3::FEdge EdgeVT = Mesh->GetEdge(LoopPair.InnerEdges[k]);
 			FVector3d A = Mesh->GetVertex(EdgeVT.Vert[0]);
 			FVector3d B = Mesh->GetVertex(EdgeVT.Vert[1]);
-			FVector3d EdgeDir = (A - B).Normalized();
+			FVector3d EdgeDir = Normalized(A - B);
 			FVector3d Midpoint = (A + B) * 0.5;
 			int32 EdgeTri = EdgeVT.Tri[0];
 			FVector3d Normal, Centroid; double Area;
@@ -340,7 +340,7 @@ bool FInsetMeshRegion::ApplyInset(FInsetInfo& Region, FMeshNormals* UseNormals)
 				if (k == 0)
 				{
 					FVector3d FirstEdge = Mesh->GetVertex(BaseLoopV[1]) - Mesh->GetVertex(BaseLoopV[0]);
-					FirstEdge.Normalize();
+					Normalize(FirstEdge);
 					FirstProjectFrame = FFrame3d(FVector3d::Zero(), (FVector3d)Normal);
 					FirstProjectFrame.ConstrainedAlignAxis(0, FirstEdge, (FVector3d)Normal);
 					FrameUp = FirstProjectFrame.GetAxis(1);

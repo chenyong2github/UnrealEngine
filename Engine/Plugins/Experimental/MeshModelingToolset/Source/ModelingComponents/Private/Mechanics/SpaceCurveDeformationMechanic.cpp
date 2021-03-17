@@ -375,7 +375,7 @@ void USpaceCurveDeformationMechanic::GizmoTransformChanged(UTransformProxy* Prox
 				t = 1.0 - t;		// linear
 			}
 
-			NewFrame.Origin = FVector3d::Lerp(InitialFrame.Origin, NewFrame.Origin, t);
+			NewFrame.Origin = UE::Geometry::Lerp(InitialFrame.Origin, NewFrame.Origin, t);
 			NewFrame.Rotation.SetToSlerp(InitialFrame.Rotation, NewFrame.Rotation, t);
 			//NewFrame.Rotation = SafeSlerp(InitialFrame.Rotation, NewFrame.Rotation, t);
 		}

@@ -329,7 +329,7 @@ static void TransformCapsuleShape(FCapsuleShape3d& CapsuleShape, const FTransfor
 
 	CapsuleShape.Capsule.Segment.Center = 0.5 * (P0 + P1);
 	CapsuleShape.Capsule.Segment.Direction = (P1 - P0);
-	CapsuleShape.Capsule.Segment.Extent = CapsuleShape.Capsule.Segment.Direction.Normalize() * 0.5;
+	CapsuleShape.Capsule.Segment.Extent = Normalize(CapsuleShape.Capsule.Segment.Direction) * 0.5;
 
 	double CurRadius = CapsuleShape.Capsule.Radius;
 	FFrame3d CapsuleFrame(CapsuleShape.Capsule.Segment.Center, CapsuleShape.Capsule.Segment.Direction);
@@ -382,7 +382,7 @@ static void TransformCapsuleShape(FCapsuleShape3d& CapsuleShape, const TArray<FT
 
 	CapsuleShape.Capsule.Segment.Center = 0.5 * (P0 + P1);
 	CapsuleShape.Capsule.Segment.Direction = (P1 - P0);
-	CapsuleShape.Capsule.Segment.Extent = CapsuleShape.Capsule.Segment.Direction.Normalize() * 0.5;
+	CapsuleShape.Capsule.Segment.Extent = Normalize(CapsuleShape.Capsule.Segment.Direction) * 0.5;
 	double RadiusScale = NewSideVec.Length() / InitialSideVec.Length();
 	CapsuleShape.Capsule.Radius *= RadiusScale;
 }

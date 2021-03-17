@@ -492,7 +492,7 @@ FRay3d UMeshSculptToolBase::GetLocalRay(const FRay& WorldRay) const
 {
 	FRay3d LocalRay(CurTargetTransform.InverseTransformPosition(WorldRay.Origin),
 		CurTargetTransform.InverseTransformVector(WorldRay.Direction));
-	LocalRay.Direction.Normalize();
+	UE::Geometry::Normalize(LocalRay.Direction);
 	return LocalRay;
 }
 
@@ -527,7 +527,7 @@ retry_frame_update:
 	if (InStroke() && BrushProperties->Lazyness > 0)
 	{
 		double t = FMathd::Lerp(1.0, 0.1, BrushProperties->Lazyness);
-		LastBrushFrameWorld.Origin = FVector3d::Lerp(LastBrushFrameWorld.Origin, NewFrame.Origin, t);
+		LastBrushFrameWorld.Origin = UE::Geometry::Lerp(LastBrushFrameWorld.Origin, NewFrame.Origin, t);
 		LastBrushFrameWorld.Rotation = FQuaterniond(LastBrushFrameWorld.Rotation, NewFrame.Rotation, t);
 	}
 	else
@@ -754,7 +754,7 @@ FFrame3d UMeshSculptToolBase::ComputeStampRegionPlane(const FFrame3d& StampFrame
 		AveragePos += Weight * Centroid;
 		WeightSum += Weight;
 	}
-	AverageNormal.Normalize();
+	UE::Geometry::Normalize(AverageNormal);
 	AveragePos /= WeightSum;
 
 	if (bViewAligned)

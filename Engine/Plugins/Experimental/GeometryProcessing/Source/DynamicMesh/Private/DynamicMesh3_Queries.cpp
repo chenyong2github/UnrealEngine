@@ -686,7 +686,7 @@ FVector3d FDynamicMesh3::GetEdgeNormal(int eID) const
 		if (Tris[1] != InvalidID)
 		{
 			n += GetTriNormal(Tris[1]);
-			n.Normalize();
+			Normalize(n);
 		}
 		return n;
 	}
@@ -741,7 +741,7 @@ FFrame3d FDynamicMesh3::GetVertexFrame(int vID, bool bFrameNormalY) const
 	int ovi = GetOtherEdgeVertex(eid, vID);
 	FVector3d ov = Vertices[ovi];
 	FVector3d edge = (ov - v);
-	edge.Normalize();
+	Normalize(edge);
 
 	FVector3d other = normal.Cross(edge);
 	edge = other.Cross(normal);
@@ -797,7 +797,7 @@ FVector3d FDynamicMesh3::GetTriBaryNormal(int tID, double bary0, double bary1, d
 	const FIndex3i& tIDs = Triangles[tID];
 	const TDynamicVector<FVector3f>& normalsR = VertexNormals.GetValue();
 	FVector3d n = FVector3d(bary0 * normalsR[tIDs[0]] + bary1 * normalsR[tIDs[1]] + bary2 * normalsR[tIDs[2]]);
-	n.Normalize();
+	Normalize(n);
 	return n;
 }
 
@@ -819,7 +819,7 @@ void FDynamicMesh3::GetTriBaryPoint(int tID, double bary0, double bary1, double 
 		const TDynamicVector<FVector3f>& normalsR = this->VertexNormals.GetValue();
 		vinfo.Normal =
 		    (float)bary0 * normalsR[tIDs[0]] + (float)bary1 * normalsR[tIDs[1]] + (float)bary2 * normalsR[tIDs[2]];
-		vinfo.Normal.Normalize();
+		Normalize(vinfo.Normal);
 	}
 	vinfo.bHaveC = HasVertexColors();
 	if (vinfo.bHaveC)
@@ -853,11 +853,11 @@ FFrame3d FDynamicMesh3::GetTriFrame(int tID, int nEdge) const
 	                               Vertices[tIDs[(nEdge + 2) % 3]]};
 
 	FVector3d edge1 = TriVerts[1] - TriVerts[0];
-	edge1.Normalize();
+	Normalize(edge1);
 	FVector3d edge2 = TriVerts[2] - TriVerts[1];
-	edge2.Normalize();
+	Normalize(edge2);
 	FVector3d normal = edge2.Cross(edge1);
-	normal.Normalize();
+	Normalize(normal);
 	FVector3d other  = normal.Cross(edge1);
 	FVector3d center = (TriVerts[0] + TriVerts[1] + TriVerts[2]) / 3;
 
@@ -884,15 +884,15 @@ double FDynamicMesh3::GetTriInternalAngleR(int tID, int i) const
 	const FVector3d TV[3] = {Vertices[Triangle[0]], Vertices[Triangle[1]], Vertices[Triangle[2]]};
 	if (i == 0)
 	{
-		return (TV[1] - TV[0]).Normalized().AngleR((TV[2] - TV[0]).Normalized());
+		return AngleR( Normalized(TV[1] - TV[0]), Normalized(TV[2] - TV[0]) );
 	}
 	else if (i == 1)
 	{
-		return (TV[0] - TV[1]).Normalized().AngleR((TV[2] - TV[1]).Normalized());
+		return AngleR( Normalized(TV[0] - TV[1]), Normalized(TV[2] - TV[1]) );
 	}
 	else
 	{
-		return (TV[0] - TV[2]).Normalized().AngleR((TV[1] - TV[2]).Normalized());
+		return AngleR( Normalized(TV[0] - TV[2]), Normalized(TV[1] - TV[2]) );
 	}
 }
 
@@ -900,13 +900,13 @@ FVector3d FDynamicMesh3::GetTriInternalAnglesR(int tID) const
 {
 	const FIndex3i& Triangle = Triangles[tID];
 	const FVector3d TV[3] = {Vertices[Triangle[0]], Vertices[Triangle[1]], Vertices[Triangle[2]]};
-	FVector3d ABhat = (TV[1] - TV[0]).Normalized();
-	FVector3d BChat = (TV[2] - TV[1]).Normalized();
-	FVector3d AChat = (TV[2] - TV[0]).Normalized();
+	FVector3d ABhat = Normalized(TV[1] - TV[0]);
+	FVector3d BChat = Normalized(TV[2] - TV[1]);
+	FVector3d AChat = Normalized(TV[2] - TV[0]);
 	return FVector3d(
-		ABhat.AngleR(AChat),	// AB vs AC angle
-		(-ABhat).AngleR(BChat), // BA vs BC angle
-		(AChat).AngleR(BChat) // AC vs BC angle (same as CA vs CB, so don't need to negate both)
+		AngleR(ABhat, AChat),	// AB vs AC angle
+		AngleR(-ABhat, BChat), // BA vs BC angle
+		AngleR(AChat, BChat) // AC vs BC angle (same as CA vs CB, so don't need to negate both)
 		);
 }
 

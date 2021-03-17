@@ -319,7 +319,7 @@ bool UPreviewMesh::FindRayIntersection(const FRay3d& WorldRay, FHitResult& HitOu
 		FTransform3d Transform(TemporaryParentActor->GetActorTransform());
 		FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
 			Transform.InverseTransformVector(WorldRay.Direction));
-		LocalRay.Direction.Normalize();
+		UE::Geometry::Normalize(LocalRay.Direction);
 		int HitTriID = MeshAABBTree.FindNearestHitTriangle(LocalRay);
 		if (HitTriID != FDynamicMesh3::InvalidID)
 		{

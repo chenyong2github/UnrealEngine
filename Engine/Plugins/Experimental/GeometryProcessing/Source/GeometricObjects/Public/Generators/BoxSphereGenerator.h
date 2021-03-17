@@ -55,7 +55,7 @@ public:
 				double sz = z * FMathd::Sqrt(1.0 - x2*0.5 - y2*0.5 + x2*y2/3.0);
 				V = sx*AxX + sy*AxY + sz*AxZ;
 			}
-			V.Normalize();
+			Normalize(V);
 			Vertices[VertIdx] = V;
 		}
 

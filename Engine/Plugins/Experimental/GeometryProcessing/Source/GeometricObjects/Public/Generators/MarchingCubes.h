@@ -848,7 +848,7 @@ protected:
 					b = PIso; fb = mid_f;
 				}
 			}
-			PIso = FVector3<double>::Lerp(a, b, 0.5);
+			PIso = Lerp(a, b, 0.5);
 
 		}
 		else

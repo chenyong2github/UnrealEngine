@@ -97,7 +97,7 @@ struct TExtremePoints3
 
 		Origin = GetPointFunc(Extreme[0]);
 		Basis[0] = GetPointFunc(Extreme[1]) - Origin;
-		Basis[0].Normalize();
+		Normalize(Basis[0]);
 
 		// find point furthest from the line formed by the first two extreme points
 		{
@@ -130,7 +130,7 @@ struct TExtremePoints3
 		Basis[1] = GetPointFunc(Extreme[2]) - Origin;
 		// project Basis[1] to be orthogonal to Basis[0]
 		Basis[1] -= (Basis[0].Dot(Basis[1])) * Basis[0];
-		Basis[1].Normalize();
+		Normalize(Basis[1]);
 		Basis[2] = Basis[0].Cross(Basis[1]);
 
 		{

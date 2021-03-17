@@ -510,7 +510,7 @@ public:
 				}
 
 				RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
-					(FColor)Mesh->GetVertexColor(Tri[j]) : TriColor;
+					UE::Geometry::ToFColor(Mesh->GetVertexColor(Tri[j])) : TriColor;
 
 				RenderBuffers->IndexBuffer.Indices[TriIdx++] = VertIdx;		// currently TriIdx == VertIdx so we don't really need both...
 				VertIdx++;
@@ -689,7 +689,7 @@ public:
 				if (bUpdateColors)
 				{
 					RenderBuffers->ColorVertexBuffer.VertexColor(VertIdx) = (bHaveColors) ?
-						(FColor)Mesh->GetVertexColor(Tri[j]) : TriColor;
+						UE::Geometry::ToFColor(Mesh->GetVertexColor(Tri[j])) : TriColor;
 				}
 
 				VertIdx++;

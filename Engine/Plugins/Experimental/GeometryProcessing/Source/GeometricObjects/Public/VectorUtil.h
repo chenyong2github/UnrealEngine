@@ -68,12 +68,12 @@ namespace VectorUtil
 	{
 		FVector3<RealType> edge1(V1 - V0);
 		FVector3<RealType> edge2(V2 - V0);
-		edge1.Normalize();
-		edge2.Normalize();
+		Normalize(edge1);
+		Normalize(edge2);
 		// Unreal has Left-Hand Coordinate System so we need to reverse this cross-product to get proper triangle normal
 		FVector3<RealType> vCross(edge2.Cross(edge1));
 		//FVector3<RealType> vCross(edge1.Cross(edge2));
-		return vCross.Normalized();
+		return Normalized(vCross);
 	}
 
 	/**
@@ -135,7 +135,7 @@ namespace VectorUtil
 		// Unreal has Left-Hand Coordinate System so we need to reverse this cross-product to get proper triangle normal
 		FVector3d vCross = edge2.Cross(edge1);
 		//FVector3d vCross = edge1.Cross(edge2);
-		AreaOut = RealType(0.5) * vCross.Normalize();
+		AreaOut = RealType(0.5) * Normalize(vCross);
 		return vCross;
 	}
 
@@ -242,15 +242,15 @@ namespace VectorUtil
 	{
 		FVector3<RealType> vFrom = VFrom - VFrom.Dot(PlaneN) * PlaneN;
 		FVector3<RealType> vTo = VTo - VTo.Dot(PlaneN) * PlaneN;
-		vFrom.Normalize();
-		vTo.Normalize();
+		Normalize(vFrom);
+		Normalize(vTo);
 		FVector3<RealType> C = vFrom.Cross(vTo);
 		if (C.SquaredLength() < TMathUtil<RealType>::ZeroTolerance)
 		{ // vectors are parallel
 			return vFrom.Dot(vTo) < 0 ? (RealType)180 : (RealType)0;
 		}
 		RealType fSign = C.Dot(PlaneN) < 0 ? (RealType)-1 : (RealType)1;
-		return (RealType)(fSign * vFrom.AngleD(vTo));
+		return (RealType)(fSign * AngleD(vFrom, vTo));
 	}
 
 	/**
@@ -392,10 +392,10 @@ namespace VectorUtil
 	inline RealType OpeningAngleD(FVector3<RealType> A, FVector3<RealType> B, const FVector3<RealType>& P)
 	{
 		A -= P; 
-		A.Normalize();
+		Normalize(A);
 		B -= P;
-		B.Normalize();
-		return A.AngleD(B);
+		Normalize(B);
+		return AngleD(A, B);
 	}
 
 

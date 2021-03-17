@@ -151,7 +151,7 @@ void FFlareMeshOp::CalculateResult(FProgressCancel* Progress)
 
 			}
 
-			Normals->SetElement(ElID, FVector3f(RotatedNormal.Normalized()));
+			Normals->SetElement(ElID, FVector3f(Normalized(RotatedNormal)));
 		});
 	}
 

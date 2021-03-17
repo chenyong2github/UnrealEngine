@@ -319,9 +319,9 @@ void FMeshSimpleShapeApproximation::Generate_ProjectedHulls(FSimpleShapeSet3d& S
 		if (AxisMode == EProjectedHullAxisMode::SmallestBoxDimension)
 		{
 			FAxisAlignedBox3d Bounds = Mesh.GetBounds();
-			int32 AxisIndex = Bounds.Diagonal().MinAbsElementIndex();
-			check(Bounds.Diagonal().MinAbsElement() == Bounds.Diagonal()[AxisIndex]);
-			ProjectionPlane = FFrame3d(FVector3d::Zero(), FVector3d::MakeUnit(AxisIndex));
+			int32 AxisIndex = MinAbsElementIndex(Bounds.Diagonal());
+			check(MinAbsElement(Bounds.Diagonal()) == Bounds.Diagonal()[AxisIndex]);
+			ProjectionPlane = FFrame3d(FVector3d::Zero(), MakeUnitVector3<double>(AxisIndex));
 		}
 		else if (AxisMode == EProjectedHullAxisMode::SmallestVolume)
 		{
@@ -345,7 +345,7 @@ void FMeshSimpleShapeApproximation::Generate_ProjectedHulls(FSimpleShapeSet3d& S
 		}
 		else
 		{
-			ProjectionPlane = FFrame3d(FVector3d::Zero(), FVector3d::MakeUnit((int32)AxisMode));
+			ProjectionPlane = FFrame3d(FVector3d::Zero(), MakeUnitVector3<double>((int32)AxisMode));
 		}
 
 		FMeshProjectionHull Hull(&Mesh);

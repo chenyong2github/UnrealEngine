@@ -1392,21 +1392,21 @@ void UEditMeshPolygonsTool::ApplyCutFaces()
 	FVector3d PlaneNormal;
 	if (CutProperties->Orientation == EPolyEditCutPlaneOrientation::ViewDirection)
 	{
-		FVector3d Direction0 = (Point0.Origin - CameraState.Position).Normalized();
-		FVector3d Direction1 = (Point1.Origin - CameraState.Position).Normalized();
+		FVector3d Direction0 = UE::Geometry::Normalized(Point0.Origin - CameraState.Position);
+		FVector3d Direction1 = UE::Geometry::Normalized(Point1.Origin - CameraState.Position);
 		PlaneNormal = Direction1.Cross(Direction0);
 	}
 	else
 	{
-		FVector3d LineDirection = (Point1.Origin - Point0.Origin).Normalized();
-		FVector3d UpVector = (Point0.Z() + Point1.Z()).Normalized();
+		FVector3d LineDirection = UE::Geometry::Normalized(Point1.Origin - Point0.Origin);
+		FVector3d UpVector = UE::Geometry::Normalized(Point0.Z() + Point1.Z());
 		PlaneNormal = LineDirection.Cross(UpVector);
 	}
 	FVector3d PlaneOrigin = 0.5 * (Point0.Origin + Point1.Origin);
 	// map into local space of target mesh
 	PlaneOrigin = WorldTransform.InverseTransformPosition(PlaneOrigin);
 	PlaneNormal = WorldTransform.InverseTransformNormal(PlaneNormal);
-	PlaneNormal.Normalize();
+	UE::Geometry::Normalize(PlaneNormal);
 
 	// track changes
 	FDynamicMeshChangeTracker ChangeTracker(Mesh);
@@ -1485,7 +1485,7 @@ void UEditMeshPolygonsTool::UpdateSetUVS()
 		SurfacePathMechanic->InitializePlaneSurface(PlanarFrame);
 
 		FVector3d Delta = PlanarFrame.Origin - SurfacePathMechanic->HitPath[0].Origin;
-		double Dist = Delta.Normalize();
+		double Dist = UE::Geometry::Normalize(Delta);
 		UVScale *= FMathd::Lerp(1.0, 25.0, Dist / ActiveSelectionBounds.MaxDim());
 		PlanarFrame = SurfacePathMechanic->HitPath[0];
 		PlanarFrame.ConstrainedAlignAxis(0, Delta, PlanarFrame.Z());
@@ -1514,7 +1514,7 @@ void UEditMeshPolygonsTool::ApplySetUVs()
 	FFrame3d PlanarFrame = SurfacePathMechanic->HitPath[0];
 	double UVScale = 1.0 / ActiveSelectionBounds.MaxDim();
 	FVector3d Delta = SurfacePathMechanic->HitPath[1].Origin - PlanarFrame.Origin;
-	double Dist = Delta.Normalize();
+	double Dist = UE::Geometry::Normalize(Delta);
 	UVScale *= FMathd::Lerp(1.0, 25.0, Dist / ActiveSelectionBounds.MaxDim());
 	PlanarFrame.ConstrainedAlignAxis(0, Delta, PlanarFrame.Z());
 
@@ -1914,7 +1914,7 @@ void UEditMeshPolygonsTool::ApplyStraightenEdges()
 			for (int k = 1; k < NumV-1; ++k)
 			{
 				double t = VtxArcLengths[k] / EdgeArcLen;
-				Mesh->SetVertex(EdgeVerts[k], FVector3d::Lerp(A, B, t));
+				Mesh->SetVertex(EdgeVerts[k], UE::Geometry::Lerp(A, B, t));
 			}
 		}
 	}

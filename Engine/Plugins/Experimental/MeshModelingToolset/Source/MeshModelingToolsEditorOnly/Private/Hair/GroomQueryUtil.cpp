@@ -448,24 +448,24 @@ void UE::GroomQueries::ExtractCardCurves(
 			FVector3d Center = CardStrip.CardCurve[k];
 
 			FFrame3d CardFrame(Center);
-			CardFrame.AlignAxis(0, (Right - Center).Normalized());
+			CardFrame.AlignAxis(0, UE::Geometry::Normalized(Right - Center));
 
 			FVector3d Y;
 			if (k == 0)
 			{
 				FVector3d Forward = CardStrip.CardCurve[k + 1];
-				Y = (Forward - Center).Normalized();
+				Y = UE::Geometry::Normalized(Forward - Center);
 			}
 			else if (k == NumVertices - 1)
 			{
 				FVector3d Back = CardStrip.CardCurve[k-1];
-				Y = (Center - Back).Normalized();
+				Y = UE::Geometry::Normalized(Center - Back);
 			}
 			else
 			{
 				FVector3d Forward = CardStrip.CardCurve[k + 1];
 				FVector3d Back = CardStrip.CardCurve[k - 1];
-				Y = (Forward - Back).Normalized();
+				Y = UE::Geometry::Normalized(Forward - Back);
 			}
 
 			CardFrame.ConstrainedAlignAxis(1, Y, CardFrame.X());

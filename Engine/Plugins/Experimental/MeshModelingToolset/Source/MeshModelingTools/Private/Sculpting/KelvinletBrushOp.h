@@ -651,7 +651,7 @@ public:
 		case EKelvinletBrushMode::LaplacianTwistPullKelvinlet:
 		{
 			FVector3d TwistAxis = Properties.Direction;
-			TwistAxis.Normalize();
+			UE::Geometry::Normalize(TwistAxis);
 			TwistAxis *= Properties.Speed;
 			FTwistKelvinlet TwistKelvinlet(TwistAxis, Properties.Size, Properties.Mu, Properties.Nu);
 

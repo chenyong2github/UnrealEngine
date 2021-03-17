@@ -182,7 +182,7 @@ public:
 	{
 		FVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
 		FVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
-		return (next - prev).Normalized();
+		return Normalized(next - prev);
 	}
 
 
@@ -205,14 +205,14 @@ public:
 	{
 		FVector2<T> next = Vertices[(VertexIndex + 1) % Vertices.Num()];
 		FVector2<T> prev = Vertices[VertexIndex == 0 ? Vertices.Num() - 1 : VertexIndex - 1];
-		next -= Vertices[VertexIndex]; next.Normalize();
-		prev -= Vertices[VertexIndex]; prev.Normalize();
+		next -= Vertices[VertexIndex]; Normalize(next);
+		prev -= Vertices[VertexIndex]; Normalize(prev);
 
 		FVector2<T> n = (next.Perp() - prev.Perp());
-		T len = n.Normalize();
+		T len = Normalize(n);
 		if (len == 0) 
 		{
-			return (next + prev).Normalized();   // this gives right direction for degenerate angle
+			return Normalized(next + prev);   // this gives right direction for degenerate angle
 		}
 		else 
 		{
@@ -368,8 +368,8 @@ public:
 		ToNextOut = Vertices[(iVertex + 1) % N] - Vertices[iVertex];
 		if (bNormalize) 
 		{
-			ToPrevOut.Normalize();
-			ToNextOut.Normalize();
+			Normalize(ToPrevOut);
+			Normalize(ToNextOut);
 		}
 	}
 
@@ -381,7 +381,7 @@ public:
 	{
 		FVector2<T> e0, e1;
 		NeighbourVectors(iVertex, e0, e1, true);
-		return e0.AngleD(e1);
+		return AngleD(e0, e1);
 	}
 
 
@@ -658,7 +658,7 @@ public:
 
 		FVector2<T> n0 = GetNormal(iSeg);
 		FVector2<T> n1 = GetNormal((iSeg + 1) % Vertices.Num());
-		return ((T(1) - t) * n0 + t * n1).Normalized();
+		return Normalized((T(1) - t) * n0 + t * n1);
 	}
 
 
@@ -827,8 +827,8 @@ public:
 			FVector2<T> v = Vertices[k];
 			FVector2<T> next = Vertices[(k + 1) % Vertices.Num()];
 			FVector2<T> prev = Vertices[k == 0 ? Vertices.Num() - 1 : k - 1];
-			FVector2<T> dn = (next - v).Normalized();
-			FVector2<T> dp = (prev - v).Normalized();
+			FVector2<T> dn = Normalized(next - v);
+			FVector2<T> dp = Normalized(prev - v);
 			TLine2<T> ln(v + OffsetDistance * dn.Perp(), dn);
 			TLine2<T> lp(v - OffsetDistance * dp.Perp(), dp);
 
@@ -1031,9 +1031,9 @@ public:
 			FVector2<T> next = OldV[iNext];
 
 			FVector2<T> cp = prev - center;
-			T cpdist = cp.Normalize();
+			T cpdist = Normalize(cp);
 			FVector2<T> cn = next - center;
-			T cndist = cn.Normalize();
+			T cndist = Normalize(cn);
 
 			// if degenerate, skip this vert
 			if (cpdist < TMathUtil<T>::ZeroTolerance || cndist < TMathUtil<T>::ZeroTolerance) 
@@ -1042,7 +1042,7 @@ public:
 				continue;
 			}
 
-			T angle = cp.AngleD(cn);
+			T angle = AngleD(cp, cn);
 			// TODO document what this means sign-wise
 			// TODO re-test post Unreal port that this DotPerp is doing the right thing
 			T sign = cn.DotPerp(cp);

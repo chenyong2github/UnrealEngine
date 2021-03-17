@@ -140,7 +140,7 @@ public:
 			{
 				double Falloff = GetFalloff().Evaluate(Stamp, OrigPos);
 				FVector3d MoveVec = Falloff * UseSpeed * Delta;
-				double MaxDist = Delta.Normalize();
+				double MaxDist = UE::Geometry::Normalize(Delta);
 				NewPos = (MoveVec.SquaredLength() > MaxDist * MaxDist) ?
 					PlanePos : (OrigPos + Falloff * MoveVec);
 			}

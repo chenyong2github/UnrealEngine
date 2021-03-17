@@ -36,7 +36,7 @@ struct TCurveUtil
 			EndIdx = FMath::Min(NV - 1, EndIdx);
 			StartIdx = FMath::Max(0, StartIdx);
 		}
-		return (Vertices[EndIdx] - Vertices[StartIdx]).Normalized();
+		return Normalized(Vertices[EndIdx] - Vertices[StartIdx]);
 	}
 
 

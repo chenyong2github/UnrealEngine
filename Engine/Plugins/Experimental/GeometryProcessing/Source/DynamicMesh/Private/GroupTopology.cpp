@@ -365,7 +365,7 @@ FVector3d FGroupTopology::GetEdgeMidpoint(int32 GroupEdgeID, double* ArcLengthOu
 		double a = (*PerVertexLengthsOut)[k-1], b = (*PerVertexLengthsOut)[k];
 		double t = (Len - a) / (b - a);
 		FVector3d A(Mesh->GetVertex(Vertices[k-1])), B(Mesh->GetVertex(Vertices[k]));
-		return FVector3d::Lerp(A, B, t);
+		return Lerp(A, B, t);
 	}
 
 	// compute arclen and then walk forward until we get halfway
@@ -383,7 +383,7 @@ FVector3d FGroupTopology::GetEdgeMidpoint(int32 GroupEdgeID, double* ArcLengthOu
 		{
 			double t = (Len - AccumLength) / (NewLen - AccumLength);
 			FVector3d A(Mesh->GetVertex(Vertices[k - 1])), B(Mesh->GetVertex(Vertices[k]));
-			return FVector3d::Lerp(A, B, t);
+			return Lerp(A, B, t);
 		}
 		AccumLength = NewLen;
 	}
@@ -627,7 +627,7 @@ bool FGroupTopology::GetGroupEdgeTangent(int GroupEdgeID, FVector3d& TangentOut)
 	FVector3d EndPos = Mesh->GetVertex(Edge.Span.Vertices[Edge.Span.Vertices.Num()-1]);
 	if (StartPos.DistanceSquared(EndPos) > 100 * FMathd::ZeroTolerance)
 	{
-		TangentOut = (EndPos - StartPos).Normalized();
+		TangentOut = Normalized(EndPos - StartPos);
 		return true;
 	}
 	else
@@ -650,7 +650,7 @@ FFrame3d FGroupTopology::GetGroupFrame(int32 GroupID) const
 		Normal += Mesh->GetTriNormal(tid);
 	}
 	Centroid /= (double)Face.Triangles.Num();
-	Normal.Normalize();
+	Normalize(Normal);
 	return FFrame3d(Centroid, Normal);
 }
 
@@ -715,7 +715,7 @@ FFrame3d FGroupTopology::GetSelectionFrame(const FGroupTopologySelection& Select
 	if (AccumCount > 0)
 	{
 		AccumulatedOrigin /= (double)AccumCount;
-		AccumulatedNormal.Normalize();
+		Normalize(AccumulatedNormal);
 
 		// We set our frame Z to be accumulated normal, and the other two axes are unconstrained, so
 		// we want to set them to something that will make our frame generally more useful. If the normal
@@ -728,7 +728,7 @@ FFrame3d FGroupTopology::GetSelectionFrame(const FGroupTopologySelection& Select
 		{
 			// Otherwise, let's place one of the other axes into the XY plane so that the frame is more
 			// useful for translation. We somewhat arbitrarily choose Y for this. 
-			FVector3d FrameY = AccumulatedNormal.Cross(FVector3d::UnitZ()).Normalized(); // orthogonal to world Z and frame Z 
+			FVector3d FrameY = Normalized(AccumulatedNormal.Cross(FVector3d::UnitZ())); // orthogonal to world Z and frame Z 
 			FVector3d FrameX = FrameY.Cross(AccumulatedNormal); // safe to not normalize because already orthogonal
 			AccumulatedFrame = FFrame3d(AccumulatedOrigin, FrameX, FrameY, AccumulatedNormal);
 		}

@@ -630,8 +630,8 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 			if (EdgeSegmentID > 0)
 			{
 				// Average with previous normalized edge vector
-				PointOut.Tangent += (StartVert - CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID - 1])).Normalized();
-				PointOut.Tangent.Normalize();
+				PointOut.Tangent += UE::Geometry::Normalized(StartVert - CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID - 1]));
+				UE::Geometry::Normalize(PointOut.Tangent);
 			}
 		}
 		else if (abs(DistDownEdge - EdgeLength) <= Settings->VertexTolerance)
@@ -640,8 +640,8 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 			PointOut.ElementID = EndVid;
 			if (EdgeSegmentID + 2 < GroupEdge.Span.Vertices.Num())
 			{
-				PointOut.Tangent += (CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID + 2]) - EndVert).Normalized();
-				PointOut.Tangent.Normalize();
+				PointOut.Tangent += UE::Geometry::Normalized(CurrentMesh->GetVertex(GroupEdge.Span.Vertices[EdgeSegmentID + 2]) - EndVert);
+				UE::Geometry::Normalize(PointOut.Tangent);
 			}
 		}
 		else
@@ -686,9 +686,9 @@ void UGroupEdgeInsertionTool::GetCornerTangent(int32 CornerID, int32 GroupID, in
 	check(AdjacentPoints.Num() == 2);
 
 	FVector3d CornerPosition = CurrentMesh->GetVertex(CornerVid);
-	TangentOut = (CornerPosition - AdjacentPoints[0]).Normalized();
-	TangentOut += (AdjacentPoints[1] - CornerPosition).Normalized();
-	TangentOut.Normalize();
+	TangentOut = UE::Geometry::Normalized(CornerPosition - AdjacentPoints[0]);
+	TangentOut += UE::Geometry::Normalized(AdjacentPoints[1] - CornerPosition);
+	UE::Geometry::Normalize(TangentOut);
 }
 
 bool GetSharedBoundary(const FGroupTopology& Topology,

@@ -127,7 +127,7 @@ void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransform3d& Tra
 		{
 			FVector3f Normal = Mesh.GetVertexNormal(vid);
 			Normal = (FVector3f)Transform.TransformNormal((FVector3d)Normal);
-			Mesh.SetVertexNormal(vid, Normal.Normalized());
+			Mesh.SetVertexNormal(vid, Normalized(Normal));
 		}
 	}
 	if (Mesh.HasAttributes())
@@ -137,7 +137,7 @@ void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh, const FTransform3d& Tra
 		{
 			FVector3f Normal = Normals->GetElement(elemid);
 			Normal = (FVector3f)Transform.TransformNormal((FVector3d)Normal);
-			Normals->SetElement(elemid, Normal.Normalized());
+			Normals->SetElement(elemid, Normalized(Normal));
 		}
 	}
 }
@@ -161,7 +161,7 @@ void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransform
 			{
 				FVector3f Normal = Mesh.GetVertexNormal(vid);
 				Normal = (FVector3f)Transform.InverseTransformNormal((FVector3d)Normal);
-				Mesh.SetVertexNormal(vid, Normal.Normalized());
+				Mesh.SetVertexNormal(vid, Normalized(Normal));
 			}
 		}
 	});
@@ -178,7 +178,7 @@ void MeshTransforms::ApplyTransformInverse(FDynamicMesh3& Mesh, const FTransform
 				{
 					FVector3f Normal = Normals->GetElement(elemid);
 					Normal = (FVector3f)Transform.InverseTransformNormal((FVector3d)Normal);
-					Normals->SetElement(elemid, Normal.Normalized());
+					Normals->SetElement(elemid, Normalized(Normal));
 				}
 			});
 		}
@@ -206,7 +206,7 @@ void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh,
 			{
 				FVector3f Normal = Mesh.GetVertexNormal(vid);
 				Normal = NormalTransform(Normal);
-				Mesh.SetVertexNormal(vid, Normal.Normalized());
+				Mesh.SetVertexNormal(vid, Normalized(Normal));
 			}
 		}
 	});
@@ -223,7 +223,7 @@ void MeshTransforms::ApplyTransform(FDynamicMesh3& Mesh,
 				{
 					FVector3f Normal = Normals->GetElement(elemid);
 					Normal = NormalTransform(Normal);
-					Normals->SetElement(elemid, Normal.Normalized());
+					Normals->SetElement(elemid, Normalized(Normal));
 				}
 			});
 		}

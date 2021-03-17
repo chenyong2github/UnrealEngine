@@ -48,7 +48,7 @@ struct TLine2
 	 */
 	static TLine2<T> FromPoints(const FVector2<T>& Point0, const FVector2<T>& Point1)
 	{
-		return TLine2<T>(Point0, (Point1 - Point0).Normalized());
+		return TLine2<T>(Point0, Normalized(Point1 - Point0) );
 	}
 
 
@@ -173,7 +173,7 @@ struct TLine3
 	 */
 	static TLine3<T> FromPoints(const FVector3<T>& Point0, const FVector3<T>& Point1)
 	{
-		return TLine3<T>(Point0, (Point1 - Point0).Normalized());
+		return TLine3<T>(Point0, Normalized(Point1 - Point0) );
 	}
 
 

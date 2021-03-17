@@ -131,7 +131,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 		if (DoCornerBasedSelection(Settings, Ray, Spatial, TopoSpatial, CornerResults, CornerPosition, &CornerSegmentEdgeID))
 		{
 			bHaveCornerHit = true;
-			CornerAngle = Ray.Direction.AngleD((CornerPosition - Ray.Origin).Normalized());
+			CornerAngle = UE::Geometry::AngleD(Ray.Direction, UE::Geometry::Normalized(CornerPosition - Ray.Origin) );
 		}
 	}
 
@@ -146,7 +146,7 @@ bool FGroupTopologySelector::FindSelectedElement(const FSelectionSettings& Setti
 		if (DoEdgeBasedSelection(Settings, Ray, Spatial, TopoSpatial, EdgeResults, EdgePosition, &EdgeSegmentEdgeID))
 		{
 			bHaveEdgeHit = true;
-			EdgeAngle = Ray.Direction.AngleD((EdgePosition - Ray.Origin).Normalized());
+			EdgeAngle = UE::Geometry::AngleD(Ray.Direction, UE::Geometry::Normalized(EdgePosition - Ray.Origin) );
 		}
 	}
 
@@ -276,7 +276,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FSelectionSettings& Se
 			}
 
 			// Make sure that closest corner to current element is parallel with view ray
-			FVector3d ClosestTowardElement = (Element.NearestGeoPoint - ClosestElement->NearestGeoPoint).Normalized();
+			FVector3d ClosestTowardElement = UE::Geometry::Normalized(Element.NearestGeoPoint - ClosestElement->NearestGeoPoint);
 			// There would usually be one more abs() in here, but we know that other elements are down ray direction
 			if (abs(ClosestTowardElement.Dot(Ray.Direction) - 1.0) < KINDA_SMALL_NUMBER)
 			{
@@ -298,7 +298,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FSelectionSettings& Se
 		{
 			FDynamicMesh3::FEdge Edge = Mesh->GetEdge(Eid);
 			int32 OtherVid = (Edge.Vert.A == ClosestVid) ? Edge.Vert.B : Edge.Vert.A;
-			FVector3d EdgeVector = (Mesh->GetVertex(OtherVid) - Mesh->GetVertex(ClosestVid)).Normalized();
+			FVector3d EdgeVector = UE::Geometry::Normalized(Mesh->GetVertex(OtherVid) - Mesh->GetVertex(ClosestVid));
 			if (abs(EdgeVector.Dot(Ray.Direction) - 1.0) < KINDA_SMALL_NUMBER)
 			{
 				int TopologyEdgeIndex = Topology->FindGroupEdgeID(Eid);
@@ -326,7 +326,7 @@ bool FGroupTopologySelector::DoCornerBasedSelection(const FSelectionSettings& Se
 				for (int32 Eid : Mesh->VtxEdgesItr(Topology->GetCornerVertexID(DownRayElements[i])))
 				{
 					FDynamicMesh3::FEdge Edge = Mesh->GetEdge(Eid);
-					FVector3d EdgeVector = (Mesh->GetVertex(Edge.Vert.A) - Mesh->GetVertex(Edge.Vert.B)).Normalized();
+					FVector3d EdgeVector = UE::Geometry::Normalized(Mesh->GetVertex(Edge.Vert.A) - Mesh->GetVertex(Edge.Vert.B));
 
 					// Compare absolute value of dot product to 1. We already made sure that one of the vertices is in line
 					// with the closest vertex earlier.
@@ -578,7 +578,7 @@ bool IsOccluded(const FGeometrySet3::FNearest& ClosestElement, const FVector3d& 
 bool IsOccluded(const FVector3d& Point, const FVector3d& ViewOrigin, const FDynamicMeshAABBTree3* Spatial)
 {
 	// Shoot ray backwards to see if we hit something. 
-	FRay3d ToEyeRay(Point, (ViewOrigin - Point).Normalized(), true);
+	FRay3d ToEyeRay(Point, UE::Geometry::Normalized(ViewOrigin - Point), true);
 	ToEyeRay.Origin += (double)(100 * FMathf::ZeroTolerance) * ToEyeRay.Direction;
 	if (Spatial->FindNearestHitTriangle(ToEyeRay) >= 0)
 	{

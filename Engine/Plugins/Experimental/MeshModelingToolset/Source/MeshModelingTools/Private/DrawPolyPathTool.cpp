@@ -451,8 +451,8 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 	int NumPoints = CurPathPoints.Num();
 	// align frames
 	FVector3d PlaneNormal = DrawPlaneWorld.Z();
-	CurPathPoints[0].ConstrainedAlignAxis(0, (CurPathPoints[1].Origin - CurPathPoints[0].Origin).Normalized(), PlaneNormal);
-	CurPathPoints[NumPoints-1].ConstrainedAlignAxis(0, (CurPathPoints[NumPoints-1].Origin - CurPathPoints[NumPoints-2].Origin).Normalized(), PlaneNormal);
+	CurPathPoints[0].ConstrainedAlignAxis(0, UE::Geometry::Normalized(CurPathPoints[1].Origin - CurPathPoints[0].Origin), PlaneNormal);
+	CurPathPoints[NumPoints-1].ConstrainedAlignAxis(0, UE::Geometry::Normalized(CurPathPoints[NumPoints-1].Origin - CurPathPoints[NumPoints-2].Origin), PlaneNormal);
 	double DistOffsetDelta = 0.01;
 	OffsetScaleFactors.SetNum(NumPoints);
 	OffsetScaleFactors[0] = OffsetScaleFactors[NumPoints-1] = 1.0;
@@ -475,7 +475,7 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 
 		if (Line1.Direction.Dot(Line2.Direction) > 0.999 )
 		{
-			CurPathPoints[j].ConstrainedAlignAxis(0, (Next-Prev).Normalized(), PlaneNormal);
+			CurPathPoints[j].ConstrainedAlignAxis(0, UE::Geometry::Normalized(Next-Prev), PlaneNormal);
 			OffsetScaleFactors[j] = 1.0;
 		}
 		else
@@ -484,7 +484,7 @@ void UDrawPolyPathTool::OnCompleteSurfacePath()
 			Distance.GetSquared();
 			FVector3d OffsetPoint = 0.5 * (Distance.Line1ClosestPoint + Distance.Line2ClosestPoint);
 			OffsetScaleFactors[j] = OffsetPoint.Distance(Cur) / DistOffsetDelta;
-			FVector3d TangentDir = (OffsetPoint - Cur).Normalized().Cross(PlaneNormal);
+			FVector3d TangentDir = UE::Geometry::Normalized(OffsetPoint - Cur).Cross(PlaneNormal);
 			CurPathPoints[j].ConstrainedAlignAxis(0, TangentDir, PlaneNormal);
 		}
 	}

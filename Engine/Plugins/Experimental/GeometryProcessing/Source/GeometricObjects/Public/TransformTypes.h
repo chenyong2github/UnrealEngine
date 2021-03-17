@@ -178,7 +178,7 @@ public:
 		const FVector3<RealType>& S = Scale3D;
 		RealType DetSign = FMathd::SignNonZero(S.X * S.Y * S.Z); // we only need to multiply by the sign of the determinant, rather than divide by it, since we normalize later anyway
 		FVector3<RealType> SafeInvS(S.Y*S.Z*DetSign, S.X*S.Z*DetSign, S.X*S.Y*DetSign);
-		return TransformVectorNoScale( (SafeInvS*Normal).Normalized() );
+		return TransformVectorNoScale( Normalized(SafeInvS*Normal) );
 	}
 
 
@@ -214,7 +214,7 @@ public:
 	 */
 	FVector3<RealType> InverseTransformNormal(const FVector3<RealType>& Normal) const
 	{
-		return InverseTransformVectorNoScale( (Scale3D*Normal).Normalized() );
+		return InverseTransformVectorNoScale( Normalized(Scale3D*Normal) );
 	}
 
 

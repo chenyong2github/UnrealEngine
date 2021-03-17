@@ -32,7 +32,7 @@ void FMeshNormalMapBaker::Bake()
 			// sample normal on detail mesh
 			FVector3d DetailNormal;
 			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailNormal.X);
-			DetailNormal.Normalize();
+			Normalize(DetailNormal);
 
 			// compute normal in tangent space
 			double dx = DetailNormal.Dot(BaseTangentX);

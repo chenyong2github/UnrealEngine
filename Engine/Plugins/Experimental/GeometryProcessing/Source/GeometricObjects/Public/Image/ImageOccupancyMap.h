@@ -106,7 +106,7 @@ public:
 			{
 				FVector3d A, B, C;
 				UVSpaceMesh.GetTriVertices(NearestTriID, A, B, C);
-				FTriangle2d UVTriangle(A.XY(), B.XY(), C.XY());
+				FTriangle2d UVTriangle(GetXY(A), GetXY(B), GetXY(C));
 
 				if (UVTriangle.IsInsideOrOn(UVPoint))
 				{
@@ -118,9 +118,9 @@ public:
 				else if (NearDistSqr < TexelDiag * TexelDiag)
 				{
 					FDistPoint3Triangle3d DistQuery = TMeshQueries<MeshType>::TriangleDistance(UVSpaceMesh, NearestTriID, UVPoint3d);
-					FVector2d NearestUV = DistQuery.ClosestTrianglePoint.XY();
+					FVector2d NearestUV = GetXY(DistQuery.ClosestTrianglePoint);
 					// nudge point into triangle to improve numerical behavior of things like barycentric coord calculation
-					NearestUV += (10.0 * FMathf::ZeroTolerance) * (NearestUV - UVPoint).Normalized();
+					NearestUV += (10.0 * FMathf::ZeroTolerance) * Normalized(NearestUV - UVPoint);
 
 					TexelType[LinearIdx] = InteriorTexel;
 					TexelQueryUV[LinearIdx] = (FVector2f)NearestUV;
@@ -130,7 +130,7 @@ public:
 				{
 					TexelType[LinearIdx] = GutterTexel;
 					FDistPoint3Triangle3d DistQuery = TMeshQueries<MeshType>::TriangleDistance(UVSpaceMesh, NearestTriID, UVPoint3d);
-					FVector2d NearestUV = DistQuery.ClosestTrianglePoint.XY();
+					FVector2d NearestUV = GetXY(DistQuery.ClosestTrianglePoint);
 					FVector2i NearestCoords = Dimensions.UVToCoords(NearestUV);
 					int64 NearestLinearIdx = Dimensions.GetIndex(NearestCoords);
 

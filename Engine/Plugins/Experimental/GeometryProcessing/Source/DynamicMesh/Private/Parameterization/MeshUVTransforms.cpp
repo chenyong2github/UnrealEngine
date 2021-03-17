@@ -113,7 +113,7 @@ void UE::MeshUVTransforms::MakeSeamsDisjoint(FDynamicMeshUVOverlay* UVOverlay)
 			Result.Y = Random.GetFraction() * 2.0f - 1.0f;
 			Magnitude = Result.SquaredLength();
 		} while (Magnitude > 1.0f || Magnitude < FMathf::ZeroTolerance);
-		Result.Normalize();
+		Normalize(Result);
 		return JitterScale * Result;
 	};
 

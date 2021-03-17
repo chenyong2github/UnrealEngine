@@ -319,7 +319,7 @@ void UDataprepBakeTransformOperation::OnExecution_Implementation(const FDataprep
 				RemainingUniformScale = AbsScales[BestSubIdx];
 				if (RemainingUniformScale <= FLT_MIN)
 				{
-					RemainingUniformScale = AbsScales.MaxAbsElement();
+					RemainingUniformScale = UE::Geometry::MaxAbsElement(AbsScales);
 				}
 			}
 			switch (BakeScale)

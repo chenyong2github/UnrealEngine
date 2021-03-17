@@ -141,7 +141,7 @@ void TMeshTangents<RealType>::ComputeTriangleTangents(const FDynamicMeshUVOverla
 		{
 			double BitangentSign = VectorUtil::BitangentSign(TriNormal, Tangent, Bitangent);
 			Bitangent = VectorUtil::Bitangent(TriNormal, Tangent, BitangentSign);
-			Bitangent.Normalize();
+			Normalize(Bitangent);
 		}
 
 		Tangents[TriangleID] = (FVector3<RealType>)Tangent;
@@ -195,7 +195,7 @@ bool TMeshTangents<RealType>::CopyToOverlays(FDynamicMesh3& MeshToSet)
 
 static FVector3d PlaneProjectionNormalized(const FVector3d& Vector, const FVector3d& PlaneNormal)
 {
-	return (Vector - Vector.Dot(PlaneNormal) * PlaneNormal).Normalized();
+	return Normalized(Vector - Vector.Dot(PlaneNormal) * PlaneNormal);
 }
 
 
@@ -236,8 +236,8 @@ void TMeshTangents<RealType>::ComputeSeparatePerTriangleTangents(const FDynamicM
 			FVector3d ReconsBitangent = VectorUtil::Bitangent(VtxNormal, ProjectedTangent, BitangentSign);
 
 			SetPerTriangleTangent(TriangleID, j, 
-				((FVector3<RealType>)ProjectedTangent).Normalized(),
-				((FVector3<RealType>)ReconsBitangent).Normalized() );
+				Normalized((FVector3<RealType>)ProjectedTangent),
+				Normalized((FVector3<RealType>)ReconsBitangent) );
 		}
 
 	} /*, EParallelForFlags::ForceSingleThread */);
@@ -350,7 +350,7 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 				Mesh->GetTriVertices(TriangleID, TriVerts[0], TriVerts[1], TriVerts[2]);
 				FVector3d EdgeV1 = TriVerts[(Idx+1)%3] - TriVerts[Idx];
 				FVector3d EdgeV2 = TriVerts[(Idx+2)%3] - TriVerts[Idx];
-				Angle = EdgeV1.Normalized().AngleR(EdgeV2.Normalized());
+				Angle = AngleR(Normalized(EdgeV1), Normalized(EdgeV2));
 
 				// weight by angle
 				ProjTangent *= Angle;
@@ -373,8 +373,8 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 			}
 			else
 			{
-				double DotTangent = AccumTangent[FoundIndex].Normalized().Dot(ProjTangent);
-				double DotBitangent = AccumBitangent[FoundIndex].Normalized().Dot(ProjBitangent);
+				double DotTangent = Normalized(AccumTangent[FoundIndex]).Dot(ProjTangent);
+				double DotBitangent = Normalized(AccumBitangent[FoundIndex]).Dot(ProjBitangent);
 				if (DotTangent <= HardcodedSplitDotThresh || DotBitangent <= HardcodedSplitDotThresh )
 				{
 					// If angle between new and existing tangents is too large, we split into a new tangent group.
@@ -402,8 +402,8 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 		int32 NumTangents = AccumTangent.Num();
 		for (int32 k = 0; k < NumTangents; ++k)
 		{
-			AccumTangent[k].Normalize();
-			AccumBitangent[k].Normalize();
+			Normalize(AccumTangent[k]);
+			Normalize(AccumBitangent[k]);
 			if (AccumMagnitudeAngle[k].Z > 0)
 			{
 				AccumMagnitudeAngle[k].X /= AccumMagnitudeAngle[k].Z;
@@ -423,7 +423,7 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 
 			// todo: catch failures here?
 
-			Tangents[TriVertIndex] = ((FVector3<RealType>)Tangent).Normalized();
+			Tangents[TriVertIndex] = Normalized((FVector3<RealType>)Tangent);
 
 			FIndex3i NormTriangle = NormalOverlay->GetTriangle(TriangleID);
 			FVector3d TriVertNormal = NormalOverlay->IsSetTriangle(TriangleID) ?
@@ -432,7 +432,7 @@ void TMeshTangents<RealType>::ComputeMikkTStyleTangents(const FDynamicMeshNormal
 			// convert bitangent
 			double BinormalSign = VectorUtil::BitangentSign(TriVertNormal, Tangent, Bitangent);
 			FVector3d ReconsBitangent = VectorUtil::Bitangent(TriVertNormal, Tangent, BinormalSign);
-			Bitangents[TriVertIndex] = ((FVector3<RealType>)ReconsBitangent).Normalized();
+			Bitangents[TriVertIndex] = Normalized((FVector3<RealType>)ReconsBitangent);
 
 			//FVector3d OrigBitangent = AccumBitangent[UniqueIndex];
 			//FVector3<RealType> BTResult = Bitangents[3 * TriangleID + TriIndex];

@@ -85,7 +85,7 @@ public:
 
 		// if either Line Direction is not a normalized vector, 
 		//   results are garbage, so fail query
-		if (Line.Direction.IsNormalized() == false)
+		if (IsNormalized(Line.Direction) == false)
 		{
 			Type = EIntersectionType::Empty;
 			Result = EIntersectionResult::InvalidQuery;

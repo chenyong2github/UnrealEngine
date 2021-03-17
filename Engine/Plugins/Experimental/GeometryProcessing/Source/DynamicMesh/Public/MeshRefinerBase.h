@@ -159,7 +159,7 @@ protected:
 		else
 		{
 			double ZeroTolerance = FMathd::ZeroTolerance;
-			return Direction0.Normalized(ZeroTolerance).Dot(Direction1.Normalized(ZeroTolerance));
+			return Normalized(Direction0, ZeroTolerance).Dot(Normalized(Direction1, ZeroTolerance));
 		}
 	}
 
