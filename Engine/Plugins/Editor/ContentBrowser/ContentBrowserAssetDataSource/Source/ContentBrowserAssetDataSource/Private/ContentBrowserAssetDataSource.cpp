@@ -1551,7 +1551,7 @@ void UContentBrowserAssetDataSource::OnAssetUpdated(const FAssetData& InAssetDat
 void UContentBrowserAssetDataSource::OnAssetLoaded(UObject* InAsset)
 {
 	if (InAsset && !InAsset->GetOutermost()->HasAnyPackageFlags(PKG_ForDiffing) &&
-		!AssetRegistry->ShouldSkipAsset(InAsset))
+		!UE::AssetRegistry::FFiltering::ShouldSkipAsset(InAsset))
 	{
 		FAssetData AssetData(InAsset);
 		if (ContentBrowserAssetData::IsPrimaryAsset(AssetData))

@@ -144,9 +144,6 @@ public:
 	UE_DEPRECATED(4.17, "IsUsingWorldAssets is now always true, remove any code that assumes it could be false")
 	static bool IsUsingWorldAssets() { return true; }
 
-	virtual bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags) const override;
-	virtual bool ShouldSkipAsset(const UObject* InAsset) const override;
-
 protected:
 	virtual void SetManageReferences(const TMultiMap<FAssetIdentifier, FAssetIdentifier>& ManagerMap, bool bClearExisting, UE::AssetRegistry::EDependencyCategory RecurseType, TSet<FDependsNode*>& ExistingManagedNodes, ShouldSetManagerPredicate ShouldSetManager = nullptr) override;
 	virtual bool SetPrimaryAssetIdForObjectPath(const FName ObjectPath, FPrimaryAssetId PrimaryAssetId) override;
@@ -437,9 +434,6 @@ private:
 
 	/** The set of object paths that have had their disk cache updated from the in memory version */
 	TSet<FName> AssetDataObjectPathsUpdatedOnLoad;
-
-	mutable TSet<FName> SkipClasses;
-	mutable bool bInitializedSkipClasses = false;
 #endif
 
 };

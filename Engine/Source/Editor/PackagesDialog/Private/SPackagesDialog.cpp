@@ -42,7 +42,7 @@ UObject* FPackageItem::GetPackageObject() const
 		GetObjectsWithPackage(Package, ObjectsInPackage, false);
 		for (UObject* Obj : ObjectsInPackage)
 		{
-			if (Obj->IsAsset() && !IAssetRegistry::Get()->ShouldSkipAsset(Obj))
+			if (Obj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
 			{
 				return Obj;
 			}
@@ -61,7 +61,7 @@ bool FPackageItem::HasMultipleAssets() const
 		UObject* FirstObj = nullptr;
 		for (UObject* Obj : ObjectsInPackage)
 		{
-			if (Obj->IsAsset() && !IAssetRegistry::Get()->ShouldSkipAsset(Obj))
+			if (Obj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Obj))
 			{
 				if(FirstObj == nullptr)
 				{
