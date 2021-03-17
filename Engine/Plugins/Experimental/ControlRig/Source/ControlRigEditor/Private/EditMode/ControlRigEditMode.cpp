@@ -1903,6 +1903,7 @@ void FControlRigEditMode::OnHierarchyModified(ERigHierarchyNotification InNotif,
 		case ERigHierarchyNotification::ElementRenamed:
 		case ERigHierarchyNotification::HierarchyReset:
 		case ERigHierarchyNotification::ControlSettingChanged:
+		case ERigHierarchyNotification::ControlGizmoTransformChanged:
 		{
 			RequestToRecreateGizmoActors();
 			break;

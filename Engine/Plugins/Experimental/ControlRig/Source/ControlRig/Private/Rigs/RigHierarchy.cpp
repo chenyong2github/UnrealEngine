@@ -1337,7 +1337,10 @@ void URigHierarchy::SetControlGizmoTransform(FRigControlElement* InControlElemen
 	}
 #endif
 
-	Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
+	if(IsLocal(InTransformType))
+	{
+		Notify(ERigHierarchyNotification::ControlGizmoTransformChanged, InControlElement);
+	}
 }
 
 FTransform URigHierarchy::GetParentTransform(FRigBaseElement* InElement, const ERigTransformType::Type InTransformType) const

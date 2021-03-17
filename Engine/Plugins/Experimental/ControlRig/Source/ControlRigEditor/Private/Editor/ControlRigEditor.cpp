@@ -3146,13 +3146,14 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 			TransformType = ERigTransformType::MakeLocal(TransformType); 
 		}
 
-		URigHierarchy* Hierarchy = DebuggedControlRig->GetHierarchy();
+		URigHierarchy* DebuggedHierarchy = DebuggedControlRig->GetHierarchy();
+		URigHierarchy* Hierarchy = DebuggedHierarchy;
 		if(bSetupModeEnabled || bIsInitial)
 		{
 			Hierarchy = ControlRigBP->Hierarchy;
 		}
 
-		FRigBaseElement* SourceElement = DebuggedControlRig->GetHierarchy()->Find(RigElementInDetailPanel);
+		FRigBaseElement* SourceElement = DebuggedHierarchy->Find(RigElementInDetailPanel);
 		if(SourceElement == nullptr)
 		{
 			SourceElement = Hierarchy->Find(RigElementInDetailPanel);;
@@ -3219,8 +3220,9 @@ void FControlRigEditor::OnBlueprintPropertyChainEvent(FPropertyChangedChainEvent
 				if(FRigControlElement* TargetControlElement = Cast<FRigControlElement>(TargetElement))
 				{
 					const FTransform Transform = SourceControlElement->Gizmo.Get(TransformType);
-					Hierarchy->SetControlGizmoTransform(TargetControlElement, Transform, TransformType, true, true);
-					Hierarchy->SetControlGizmoTransform(TargetControlElement, Transform, ERigTransformType::MakeCurrent(TransformType), true, true);
+					DebuggedHierarchy->SetControlGizmoTransform(SourceControlElement, Transform, TransformType, false, true);
+					DebuggedHierarchy->SetControlGizmoTransform(SourceControlElement, Transform, ERigTransformType::MakeCurrent(TransformType), false, true);
+					return;
 				}
 			}
 		}
@@ -3560,7 +3562,7 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
     		return;
     	}
 
-        const FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
+        FRigBaseElement* Element = WeakHierarchy.Get()->Find(Key);
 
 		switch(InNotif)
 		{
@@ -3586,6 +3588,22 @@ void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification 
 					if(SourceControlElement && TargetControlElement)
 					{
 						TargetControlElement->Settings = SourceControlElement->Settings;
+					}
+				}
+				break;
+			}
+			case ERigHierarchyNotification::ControlGizmoTransformChanged:
+			{
+				if(Key == RigElementInDetailPanel)
+				{
+					UControlRigBlueprint* RigBlueprint = GetControlRigBlueprint();
+					check(RigBlueprint);
+
+					FRigControlElement* SourceControlElement = Cast<FRigControlElement>(Element);
+					if(SourceControlElement)
+					{
+						RigBlueprint->Hierarchy->SetControlGizmoTransform(Key, WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::InitialLocal), true);
+						RigBlueprint->Hierarchy->SetControlGizmoTransform(Key, WeakHierarchy.Get()->GetControlGizmoTransform(SourceControlElement, ERigTransformType::CurrentLocal), false);
 					}
 				}
 				break;

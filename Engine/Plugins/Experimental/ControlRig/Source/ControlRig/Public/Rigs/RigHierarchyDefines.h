@@ -45,6 +45,7 @@ enum class ERigHierarchyNotification : uint8
 	HierarchyReset,
 	ControlSettingChanged,
 	ControlVisibilityChanged,
+	ControlGizmoTransformChanged,
 
 	/** MAX - invalid */
 	Max UMETA(Hidden),

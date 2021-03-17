@@ -1311,6 +1311,7 @@ void UControlRig::HandleHierarchyModified(ERigHierarchyNotification InNotificati
 			break;
 		}
 		case ERigHierarchyNotification::ControlSettingChanged:
+		case ERigHierarchyNotification::ControlGizmoTransformChanged:
 		{
 			if(FRigControlElement* ControlElement = Cast<FRigControlElement>((FRigBaseElement*)InElement))
 			{
