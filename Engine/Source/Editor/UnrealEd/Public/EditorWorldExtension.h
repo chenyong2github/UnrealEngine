@@ -35,7 +35,7 @@ struct FEditorWorldExtensionActorData
 	TObjectPtr<AActor> Actor = nullptr;
 
 	UPROPERTY()
-	bool bValidForPIE;
+	bool bValidForPIE = false;
 };
 
 UCLASS()
