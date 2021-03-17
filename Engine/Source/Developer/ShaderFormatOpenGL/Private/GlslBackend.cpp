@@ -2936,6 +2936,71 @@ class ir_gen_glsl_visitor : public ir_visitor
 		}
 	}
 
+	int count_total_components(_mesa_glsl_parse_state* State, exec_list* extern_vars)
+	{
+		int total_components = 0;
+
+		foreach_iter(exec_list_iterator, iter, *extern_vars)
+		{
+			ir_variable* var = ((extern_var*)iter.get())->var;
+			const glsl_type* type = var->type;
+			if (!strcmp(var->name, "gl_in"))
+			{
+				// Ignore it, as we can't properly frame this information in current format, and it's not used anyway for geometry shaders
+				continue;
+			}
+			if (!strncmp(var->name, "in_", 3) || !strncmp(var->name, "out_", 4))
+			{
+				if (type->is_record())
+				{
+					// This is the specific case for GLSL >= 150, as we generate a struct with a member for each interpolator (which we still want to count)
+					if (type->length != 1)
+					{
+						_mesa_glsl_warning(State, "Found a complex structure as in/out, counting is not implemented yet...\n");
+						continue;
+					}
+
+					type = type->fields.structure->type;
+				}
+				check(type);
+				bool is_array = type->is_array();
+				total_components += (is_array ? type->length * type->vector_elements : type->vector_elements) * type->matrix_columns;
+			}
+		}
+		return total_components;
+	}
+
+	void check_inout_limits(_mesa_glsl_parse_state* state)
+	{
+		if (CompileTarget == HCT_FeatureLevelES3_1)
+		{
+			// check the number of varying in/out varyings are within the minimum GLES 3.0 spec.
+			const int GLES31_FragmentInComponentCountLimit = 60; // GL_MAX_FRAGMENT_INPUT_COMPONENTS
+			const int GLES31_VertexOutComponentCountLimit = 64; // GL_MAX_VERTEX_OUTPUT_COMPONENTS
+
+			int ins = 0;
+			int outs = 0;
+			if (ShaderTarget == fragment_shader && !input_variables.is_empty())
+			{
+				ins = count_total_components(state, &input_variables);
+			}
+			if (ShaderTarget == vertex_shader && !output_variables.is_empty())
+			{
+				outs = count_total_components(state, &output_variables);
+			}
+
+			if (ins > GLES31_FragmentInComponentCountLimit)
+			{
+				_mesa_glsl_error(state, "GLES 3.1 fragment input varying component count exceeded: %d used, max allowed %d\n", ins, GLES31_FragmentInComponentCountLimit);
+			}
+
+			if (outs > GLES31_VertexOutComponentCountLimit)
+			{
+				_mesa_glsl_error(state, "GLES 3.1 vertex output varying component count exceeded: %d used, max allowed %d\n", outs, GLES31_VertexOutComponentCountLimit);
+			}
+		}
+	}
+
 	/**
 	 * Print the input/output signature for this shader.
 	 */
@@ -3316,6 +3381,8 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 			do_visit(inst);
 		}
 		buffer = 0;
+
+		check_inout_limits(state);
 
 		char* code_footer = ralloc_asprintf(mem_ctx, "");
 		buffer = &code_footer;
