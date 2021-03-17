@@ -121,16 +121,16 @@ const FSlateBrush* SDetailCategoryTableRow::GetBackgroundImage() const
 	{
 		if (bIsInnerCategory)
 		{
-			return FEditorStyle::GetBrush("DetailsView.CategoryMiddle");
+			return FAppStyle::Get().GetBrush("DetailsView.CategoryMiddle");
 		}
 
 		if (IsHovered())
 		{
-			return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop_Hovered") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory_Hovered");
+			return FAppStyle::Get().GetBrush("DetailsView.CategoryTop_Hovered");
 		}
 		else
 		{
-			return IsItemExpanded() ? FEditorStyle::GetBrush("DetailsView.CategoryTop") : FEditorStyle::GetBrush("DetailsView.CollapsedCategory");
+			return FAppStyle::Get().GetBrush("DetailsView.CategoryTop");
 		}
 	}
 
