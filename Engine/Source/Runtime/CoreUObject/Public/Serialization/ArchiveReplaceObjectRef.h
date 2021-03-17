@@ -32,6 +32,64 @@ public:
 	virtual FString GetArchiveName() const { return TEXT("ReplaceObjectRef"); }
 	
 protected:
+
+	template <typename ContainerType, typename ElementToObjectType>
+	bool ShouldSkipReplacementCheckForObjectPtr(FObjectPtr& Obj, const ContainerType& ReplacementContainer, const ElementToObjectType& ElementToObject)
+	{
+		if (Obj.IsResolved())
+		{
+			return false;
+		}
+
+		if (!CanIgnoreUnresolvedImports.IsSet())
+		{
+			bool bCanIgnoreUnresolvedImportsLocal = ReplacementContainer.Num() == 0;
+			if (!bCanIgnoreUnresolvedImportsLocal)
+			{
+				bCanIgnoreUnresolvedImportsLocal = true; // Will be set to false if any of the criteria in the loop below are met.
+				for (const auto& ReplacementElem : ReplacementContainer)
+				{
+					if (const UObject* ReplacementObject = ElementToObject(ReplacementElem))
+					{
+						if (ReplacementObject->GetOutermost() != GetTransientPackage())
+						{
+							bCanIgnoreUnresolvedImportsLocal = false;
+							break;
+						}
+					}
+				}
+			}
+			CanIgnoreUnresolvedImports = bCanIgnoreUnresolvedImportsLocal;
+		}
+
+		if (CanIgnoreUnresolvedImports.GetValue())
+		{
+			return true;
+		}
+
+		if (UClass* ReferenceClass = Obj.GetClass())
+		{
+			bool bReferenceTypeIsRelatedToReplacementType = false;
+			for (const auto& ReplacementElem : ReplacementContainer)
+			{
+				if (const UObject* ReplacementObject = ElementToObject(ReplacementElem))
+				{
+					if (ReplacementObject->IsA(ReferenceClass) || Obj.IsA(ReplacementObject->GetClass()))
+					{
+						bReferenceTypeIsRelatedToReplacementType = true;
+						break;
+					}
+				}
+			}
+			if (!bReferenceTypeIsRelatedToReplacementType)
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+
 	/**
 	* Serializes a single object
 	*/
@@ -57,6 +115,11 @@ protected:
 	* should be set to null
 	*/
 	bool bNullPrivateReferences;
+
+	/**
+	* Whether unresolved references to objects in other packages can be ignored when searching
+	*/
+	TOptional<bool> CanIgnoreUnresolvedImports;
 };
 
 /*----------------------------------------------------------------------------
@@ -174,6 +237,23 @@ public:
 			}
 		}
 		return *this;
+	}
+
+	/**
+	 * Serializes a resolved or unresolved object reference
+	 */
+	FArchive& operator<<( FObjectPtr& Obj )
+	{
+		if (ShouldSkipReplacementCheckForObjectPtr(Obj, ReplacementMap, [] (const TPair<T*, T*>& ReplacementPair) -> const UObject*
+			{
+				return ReplacementPair.Key;
+			}))
+		{
+			return *this;
+		}
+
+		// Allow object references to go through the normal code path of resolving and running the raw pointer code path
+		return FArchiveReplaceObjectRefBase::operator<<(Obj);
 	}
 
 protected:

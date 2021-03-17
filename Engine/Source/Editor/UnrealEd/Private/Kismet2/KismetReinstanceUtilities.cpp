@@ -947,6 +947,28 @@ public:
 		}
 		return *this;
 	}
+
+	/**
+	 * Serializes a resolved or unresolved object reference
+	 */
+	FArchive& operator<<( FObjectPtr& Obj )
+	{
+		if (ShouldSkipReplacementCheckForObjectPtr(Obj, ReplacementMap, [] (const TPair<FFieldVariant, FFieldVariant>& ReplacementPair) -> const UObject*
+			{
+				if (ReplacementPair.Key.IsValid() && ReplacementPair.Key.IsUObject())
+				{
+					return ReplacementPair.Key.ToUObject();
+				}
+				return nullptr;
+			}))
+		{
+			return *this;
+		}
+
+		// Allow object references to go through the normal code path of resolving and running the raw pointer code path
+		return FArchiveReplaceObjectRefBase::operator<<(Obj);
+	}
+
 protected:
 	/** Map of objects to find references to -> object to replace references with */
 	const TMap<FFieldVariant, FFieldVariant>& ReplacementMap;
@@ -1378,6 +1400,19 @@ namespace InstancedPropertyUtils
 		}
 
 		//----------------------------------------------------------------------
+		FArchive& operator<<(FObjectPtr& Obj)
+		{
+			// Avoid resolving an FObjectPtr if it is not an instanced property
+			FProperty* SerializingProperty = GetSerializedProperty();
+			const bool bHasInstancedValue = SerializingProperty && SerializingProperty->HasAnyPropertyFlags(CPF_PersistentInstance);
+			if (!bHasInstancedValue)
+			{
+				return *this;
+			}
+
+			return FArchiveUObject::operator<<(Obj);
+		}
+
 		FArchive& operator<<(UObject*& Obj)
 		{
 			if (Obj != nullptr)
@@ -1446,6 +1481,19 @@ namespace InstancedPropertyUtils
 		}
 
 		//----------------------------------------------------------------------
+		FArchive& operator<<(FObjectPtr& Obj)
+		{
+			// Avoid resolving an FObjectPtr if it is not an instanced property
+			FProperty* SerializingProperty = GetSerializedProperty();
+			const bool bHasInstancedValue = SerializingProperty && SerializingProperty->HasAnyPropertyFlags(CPF_PersistentInstance);
+			if (!bHasInstancedValue)
+			{
+				return *this;
+			}
+
+			return FArchiveUObject::operator<<(Obj);
+		}
+
 		FArchive& operator<<(UObject*& Obj)
 		{
 			if (Obj == nullptr)
