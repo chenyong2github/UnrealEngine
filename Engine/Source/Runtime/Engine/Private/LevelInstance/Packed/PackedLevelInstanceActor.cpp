@@ -9,6 +9,7 @@ APackedLevelInstance::APackedLevelInstance(const FObjectInitializer& ObjectIniti
 	: Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, ISMComponentClass(UInstancedStaticMeshComponent::StaticClass())
+	, bRerunConstructionScripts(false)
 	, bEditing(false)
 	, ChildEditing(0)
 	, bChildChanged(false)
@@ -169,6 +170,14 @@ void APackedLevelInstance::DestroyPackedComponents()
 	{
 		PackedComponent->Modify();
 		PackedComponent->DestroyComponent();
+	}
+}
+
+void APackedLevelInstance::RerunConstructionScripts()
+{
+	if (bRerunConstructionScripts)
+	{
+		Super::RerunConstructionScripts();
 	}
 }
 #endif

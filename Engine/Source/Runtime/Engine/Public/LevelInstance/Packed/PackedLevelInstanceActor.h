@@ -61,6 +61,8 @@ public:
 		NewComponent->ComponentTags.Add(GetPackedComponentTag());
 		return NewComponent;
 	}
+
+	virtual void RerunConstructionScripts() override;
 #endif
 
 #if WITH_EDITORONLY_DATA
@@ -69,6 +71,9 @@ public:
 
 	UPROPERTY(VisibleAnywhere, Category = Pack)
 	TSoftObjectPtr<UBlueprint> BlueprintAsset;
+
+	UPROPERTY(VisibleAnywhere, Category = Pack)
+	bool bRerunConstructionScripts;
 
 	UPROPERTY()
 	TArray<TSoftObjectPtr<UWorld>> PackDependencies;
