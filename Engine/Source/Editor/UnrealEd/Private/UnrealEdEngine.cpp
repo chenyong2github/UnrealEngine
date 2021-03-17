@@ -1457,7 +1457,7 @@ bool UUnrealEdEngine::VerifyMountPointWritePermission(FName MountPoint)
 	}
 
 	// Get a unique temp filename under the mount point
-	FString WriteCheckPath = FPackageName::LongPackageNameToFilename(MountPoint.ToString()) + FGuid::NewGuid().ToString();
+	FString WriteCheckPath = FPackageName::LongPackageNameToFilename(MountPoint.ToString()) + TEXT("WritePermissions.") + FGuid::NewGuid().ToString() + TEXT(".temp");
 
 	// Check if we could successfully write to a file
 	bool bHasWritePermission = FFileHelper::SaveStringToFile(TEXT("Write"), *WriteCheckPath);
