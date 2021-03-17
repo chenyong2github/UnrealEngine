@@ -62,8 +62,16 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 {
 	Super::Start(InJob);
 
-	// Start capturing logging messages
-	ValidationMessageGatherer.StartGathering();
+	// Check for null sequence
+	ULevelSequence* LevelSequence = Cast<ULevelSequence>(InJob->Sequence.TryLoad());
+	if (!LevelSequence)
+	{
+		FText FailureReason = LOCTEXT("InvalidSequenceFailureDialog", "One or more jobs in the queue has an invalid/null sequence.");
+		FMessageDialog::Open(EAppMsgType::Ok, FailureReason);
+
+		OnExecutorFinishedImpl();
+		return;
+	}
 
 	// Check for unsaved maps. It's pretty rare that someone actually wants to execute on an unsaved map,
 	// and it catches the much more common case of adding the job to an unsaved map and then trying to render
@@ -77,6 +85,9 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 		OnExecutorFinishedImpl();
 		return;
 	}
+
+	// Start capturing logging messages
+	ValidationMessageGatherer.StartGathering();
 
 	// Create a Slate window to hold our preview.
 	TSharedRef<SWindow> CustomWindow = SNew(SWindow)
@@ -127,12 +138,8 @@ void UMoviePipelinePIEExecutor::Start(const UMoviePipelineExecutorJob* InJob)
 	// Force the engine into fixed timestep mode. It's going to get overridden on the first frame by the movie pipeline,
 	// and everything controlled by Sequencer will use the correct timestep for renders but non-controlled things (such
 	// as pawns) use an uncontrolled DT on the first frame which lowers determinism.
-	ULevelSequence* LevelSequence = CastChecked<ULevelSequence>(InJob->Sequence.TryLoad());
-	if (LevelSequence)
-	{
-		FApp::SetUseFixedTimeStep(true);
-		FApp::SetFixedDeltaTime(InJob->GetConfiguration()->GetEffectiveFrameRate(LevelSequence).AsInterval());
-	}
+	FApp::SetUseFixedTimeStep(true);
+	FApp::SetFixedDeltaTime(InJob->GetConfiguration()->GetEffectiveFrameRate(LevelSequence).AsInterval());
 
 	// Kick off an async request to start a play session. This won't happen until the next frame.
 	GEditor->RequestPlaySession(Params);
