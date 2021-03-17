@@ -8,11 +8,11 @@ public class PLCrashReporter : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		string PLVersion = "plcrashreporter-master-5ae3b0a";
+		string PLGitRepoRoot = "PLCrashReporter";
 		string[] PLDefines = new string[] {};
 
-		string PLCrashReporterPath = Path.Combine(Target.UEThirdPartySourceDirectory,"PLCrashReporter",PLVersion);
-		string PLSourcePath = Path.Combine(PLCrashReporterPath, "Source");
+		string PLCrashReporterPath = Path.Combine(Target.UEThirdPartySourceDirectory,"PLCrashReporter");
+		string PLSourcePath = Path.Combine(PLCrashReporterPath,PLGitRepoRoot,"Source");
 		string PLLibPath = Path.Combine(PLCrashReporterPath, "lib");
 		string LibConfig = "Release";
 
@@ -33,11 +33,6 @@ public class PLCrashReporter : ModuleRules
 			PublicAdditionalLibraries.Add(Lib);		
 
 			PublicDefinitions.AddRange(PLDefines);	
-		}
-		if (Target.Platform == UnrealTargetPlatform.Mac)
-		{
-			string Lib = Path.Combine(PLLibPath, Target.Platform.ToString(), LibConfig, "libprotobuf-c.a");
-			PublicAdditionalLibraries.Add(Lib);
 		}
     }
 }
