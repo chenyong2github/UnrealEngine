@@ -695,14 +695,6 @@ protected:
 	// Constructor.
 	explicit FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& InModule);
 
-	virtual ~FHeaderParser()
-	{
-		if ( FScriptLocation::Compiler == this )
-		{
-			FScriptLocation::Compiler = NULL;
-		}
-	}
-
 	// Returns true if the token is a dynamic delegate declaration
 	bool IsValidDelegateDeclaration(const FToken& Token) const;
 

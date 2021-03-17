@@ -6361,6 +6361,7 @@ void FNativeClassHeaderGenerator::DeleteUnusedGeneratedHeaders(TSet<FString>&& P
  * exceptions. Needs to be fixed in future versions of UHT.
  */
 ECompilationResult::Type GCompilationResult = ECompilationResult::OtherCompilationError;
+FCriticalSection TestCommandLineCS;
 
 bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutReferenceGatherers, const FPreloadHeaderFileInfo& FileInfo, FString&& InNewHeaderContents, FGraphEventRef& OutSaveTaskRef) const
 {
@@ -6373,30 +6374,33 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 	static bool bTestedCmdLine = false;
 	if (!bTestedCmdLine)
 	{
-		bTestedCmdLine = true;
-
-		const FString& ProjectSavedDir = FPaths::ProjectSavedDir();
-
-		if (FParse::Param(FCommandLine::Get(), TEXT("WRITEREF")))
+		FScopeLock Lock(&TestCommandLineCS);
+		if (!bTestedCmdLine)
 		{
-			const FString ReferenceGeneratedCodePath = ProjectSavedDir / TEXT("ReferenceGeneratedCode/");
+			const FString& ProjectSavedDir = FPaths::ProjectSavedDir();
 
-			bWriteContents = true;
-			UE_LOG(LogCompile, Log, TEXT("********************************* Writing reference generated code to %s."), *ReferenceGeneratedCodePath);
-			UE_LOG(LogCompile, Log, TEXT("********************************* Deleting all files in ReferenceGeneratedCode."));
-			IFileManager::Get().DeleteDirectory(*ReferenceGeneratedCodePath, false, true);
-			IFileManager::Get().MakeDirectory(*ReferenceGeneratedCodePath);
-		}
-		else if (FParse::Param( FCommandLine::Get(), TEXT("VERIFYREF")))
-		{
-			const FString ReferenceGeneratedCodePath = ProjectSavedDir / TEXT("ReferenceGeneratedCode/");
-			const FString VerifyGeneratedCodePath = ProjectSavedDir / TEXT("VerifyGeneratedCode/");
+			if (FParse::Param(FCommandLine::Get(), TEXT("WRITEREF")))
+			{
+				const FString ReferenceGeneratedCodePath = ProjectSavedDir / TEXT("ReferenceGeneratedCode/");
 
-			bVerifyContents = true;
-			UE_LOG(LogCompile, Log, TEXT("********************************* Writing generated code to %s and comparing to %s"), *VerifyGeneratedCodePath, *ReferenceGeneratedCodePath);
-			UE_LOG(LogCompile, Log, TEXT("********************************* Deleting all files in VerifyGeneratedCode."));
-			IFileManager::Get().DeleteDirectory(*VerifyGeneratedCodePath, false, true);
-			IFileManager::Get().MakeDirectory(*VerifyGeneratedCodePath);
+				bWriteContents = true;
+				UE_LOG(LogCompile, Log, TEXT("********************************* Writing reference generated code to %s."), *ReferenceGeneratedCodePath);
+				UE_LOG(LogCompile, Log, TEXT("********************************* Deleting all files in ReferenceGeneratedCode."));
+				IFileManager::Get().DeleteDirectory(*ReferenceGeneratedCodePath, false, true);
+				IFileManager::Get().MakeDirectory(*ReferenceGeneratedCodePath);
+			}
+			else if (FParse::Param(FCommandLine::Get(), TEXT("VERIFYREF")))
+			{
+				const FString ReferenceGeneratedCodePath = ProjectSavedDir / TEXT("ReferenceGeneratedCode/");
+				const FString VerifyGeneratedCodePath = ProjectSavedDir / TEXT("VerifyGeneratedCode/");
+
+				bVerifyContents = true;
+				UE_LOG(LogCompile, Log, TEXT("********************************* Writing generated code to %s and comparing to %s"), *VerifyGeneratedCodePath, *ReferenceGeneratedCodePath);
+				UE_LOG(LogCompile, Log, TEXT("********************************* Deleting all files in VerifyGeneratedCode."));
+				IFileManager::Get().DeleteDirectory(*VerifyGeneratedCodePath, false, true);
+				IFileManager::Get().MakeDirectory(*VerifyGeneratedCodePath);
+			}
+			bTestedCmdLine = true;
 		}
 	}
 
@@ -6408,31 +6412,15 @@ bool FNativeClassHeaderGenerator::SaveHeaderIfChanged(FReferenceGatherers& OutRe
 
 		if (bWriteContents)
 		{
-			int32 i;
-			for (i = 0 ;i < 10; i++)
-			{
-				if (FFileHelper::SaveStringToFile(InNewHeaderContents, *Ref))
-				{
-					break;
-				}
-				FPlatformProcess::Sleep(1.0f); // I don't know why this fails after we delete the directory
-			}
-			check(i<10);
+			bool Written = FFileHelper::SaveStringToFile(InNewHeaderContents, *Ref);
+			check(Written);
 		}
 		else
 		{
 			const FString Verify = ProjectSavedDir / TEXT("VerifyGeneratedCode") / CleanFilename;
+			bool Written = FFileHelper::SaveStringToFile(InNewHeaderContents, *Verify);
+			check(Written);
 
-			int32 i;
-			for (i = 0 ;i < 10; i++)
-			{
-				if (FFileHelper::SaveStringToFile(InNewHeaderContents, *Verify))
-				{
-					break;
-				}
-				FPlatformProcess::Sleep(1.0f); // I don't know why this fails after we delete the directory
-			}
-			check(i<10);
 			FString RefHeader;
 			FString Message;
 			{

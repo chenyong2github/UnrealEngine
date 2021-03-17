@@ -1354,19 +1354,6 @@ namespace
 }
 
 /////////////////////////////////////////////////////
-// FScriptLocation
-
-FHeaderParser* FScriptLocation::Compiler = NULL;
-
-FScriptLocation::FScriptLocation()
-{
-	if ( Compiler != NULL )
-	{
-		Compiler->InitScriptLocation(*this);
-	}
-}
-
-/////////////////////////////////////////////////////
 // FHeaderParser
 
 FString FHeaderParser::GetSourceFileContext() const
@@ -1631,8 +1618,6 @@ UEnum* FHeaderParser::CompileEnum()
 	FToken                     EnumToken;
 	TArray<FPropertySpecifier> SpecifiersFound;
 	ReadSpecifierSetInsideMacro(SpecifiersFound, TEXT("Enum"), EnumToken.MetaData);
-
-	FScriptLocation DeclarationPosition;
 
 	// Check enum type. This can be global 'enum', 'namespace' or 'enum class' enums.
 	bool            bReadEnumName = false;
@@ -2416,8 +2401,6 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses)
 
 	// Make sure structs can be declared here.
 	CheckAllow( TEXT("'struct'"), ENestAllowFlags::TypeDecl );
-
-	FScriptLocation StructDeclaration;
 
 	bool IsNative = false;
 	bool IsExport = false;
@@ -9001,8 +8984,6 @@ FHeaderParser::FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& In
 		bIsCurrentModulePartOfEngine = true;
 		check(false);
 	}
-
-	FScriptLocation::Compiler = this;
 
 	static bool bConfigOptionsInitialized = false;
 

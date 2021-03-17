@@ -1861,8 +1861,6 @@ private:
  */
 struct FScriptLocation
 {
-	static class FHeaderParser* Compiler;
-
 	/** the text buffer for the class associated with this retry point */
 	const TCHAR* Input;
 
@@ -1871,9 +1869,6 @@ struct FScriptLocation
 
 	/** the LineNumber of the compiler when this retry point was created */
 	int32 InputLine;
-
-	/** Constructor */
-	FScriptLocation();
 };
 
 /////////////////////////////////////////////////////
