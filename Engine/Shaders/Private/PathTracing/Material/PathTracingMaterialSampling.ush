@@ -19,6 +19,8 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingClearCoat.ush"
 #include "PathTracingTwoSidedFoliage.ush"
 #include "PathTracingCloth.ush"
+#include "PathTracingSubsurfaceProfile.ush"
+#include "../../BurleyNormalizedSSSCommon.ush"
 
 #ifndef FORCE_ALL_MATERIALS_DIFFUSE
 	#define FORCE_ALL_MATERIALS_DIFFUSE 0
@@ -71,9 +73,6 @@ float3 GetMaterialTransparency(FMaterialClosestHitPayload Payload, float3 RayDir
 				return 0;
 			}
 		}
-		case SHADINGMODELID_SUBSURFACE:
-		case SHADINGMODELID_PREINTEGRATED_SKIN:
-			return 0;
 		default:
 			// other shading models support blend modes
 			break;
@@ -133,6 +132,7 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 			break;
 	}
 
+	// FIXME: could make this more accurate by estimating the directional albedo
 	float3 Albedo = 0;
 	switch (Payload.ShadingModelID)
 	{
@@ -140,18 +140,18 @@ float3 EstimateMaterialAlbedo(FMaterialClosestHitPayload Payload)
 			// this object does not scatter light
 			return 0;
 		case SHADINGMODELID_TWOSIDED_FOLIAGE:
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
+		case SHADINGMODELID_SUBSURFACE_PROFILE:
 			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + GetSubsurfaceColor(Payload));
 			break;
 		case SHADINGMODELID_DEFAULT_LIT:
 		case SHADINGMODELID_CLEAR_COAT:
-			// FIXME: could make this more accurate by estimating the directional albedo
+			// TODO: include clearcoat albedo as well
 			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor);
+			break;
 		case SHADINGMODELID_CLOTH:
 			Albedo = BrdfWeight * (Payload.DiffuseColor + lerp(Payload.SpecularColor, Payload.CustomData.xyz, Payload.CustomData.w));
-			break;
-		case SHADINGMODELID_SUBSURFACE:
-		case SHADINGMODELID_PREINTEGRATED_SKIN:
-			Albedo = BrdfWeight * (Payload.DiffuseColor + Payload.SpecularColor + Payload.CustomData.xyz);
 			break;
 		default:
 			Albedo = BrdfWeight * Payload.BaseColor;
@@ -188,6 +188,14 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 			Payload.Roughness = max(Payload.Roughness, PathRoughness);
 			break;
+		case SHADINGMODELID_SUBSURFACE_PROFILE:
+		{
+			// Clamp both specular lobes
+			float3 DualRoughnessData = GetDualRoughnessSpecular(Payload);
+			DualRoughnessData = max(DualRoughnessData, float3(PathRoughness, PathRoughness, 0.0));
+			SetDualRoughnessSpecular(Payload, DualRoughnessData);
+			break;
+		}
 		default:
 			// fallback is diffuse
 			Payload.Roughness = 1.0;
@@ -197,6 +205,83 @@ void AdjustPathAndMaterialRoughness(inout FMaterialClosestHitPayload Payload, in
 	const float GlassPercent = (Payload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT && Payload.Ior != 1.0) ? 1 - Payload.Opacity : 0.0;
 	PathRoughness = lerp(1.0 /* diffuse lobe */, max(CoatRoughness, Payload.Roughness), Payload.Metallic);
 	PathRoughness = lerp(PathRoughness, Payload.Roughness, GlassPercent);
+}
+
+FMaterialClosestHitPayload UnpackPathTracingPayload(FPackedMaterialClosestHitPayload PackedInput, RayDesc Ray)
+{
+	// the path tracer has a few more requirements compared to the ray-tracing path.
+	// Long term, we should reoranize the payload for the path tracer, but for now, just
+	// do a bit of post-processing and re-use fields to encode extracted information
+
+	// This function can also do a bit of per-material post-processing to simplify the rest of the code
+	FMaterialClosestHitPayload HitPayload = UnpackRayTracingPayload(PackedInput, Ray);
+
+	switch (HitPayload.ShadingModelID)
+	{
+		case SHADINGMODELID_SUBSURFACE:
+		case SHADINGMODELID_PREINTEGRATED_SKIN:
+		{
+			// TODO: is this accurate enough? hard to measure exactly since the raster path uses a very different approach
+			float SSSRadius = (1 - HitPayload.Opacity) * 10.0; // simple formula, up to 10cm radius
+			SetSubsurfaceRadius(HitPayload, SSSRadius);
+
+			// Reset opacity to avoid special cases elsewhere
+			HitPayload.Opacity = 1;
+			break;
+		}
+		case SHADINGMODELID_SUBSURFACE_PROFILE:
+		{
+			uint ProfileId = uint(HitPayload.CustomData.a * 255.0 + 0.5);
+			if (GetSubsurfaceProfileUseBurley(ProfileId))
+			{
+				// NOTE: would be better to just precompute all this on the CPU and just have a single value to lookup
+
+				// Burley parameterization
+				float3 SurfaceAlbedo = ActualSSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, ProfileId, 0)).xyz;
+				float3 DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(ActualSSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, ProfileId, 0))).xyz;
+				float WorldUnitScale = DecodeWorldUnitScale(ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, ProfileId, 0)).a) * BURLEY_MM_2_CM;
+
+				// Opacity acts as a per-pixel radius multiplier
+				// NOTE: this seems backwards? Opacity=0 acts like default-lit while Opacity=1 acts like SSS?
+				float3 SSSRadius = HitPayload.Opacity * WorldUnitScale * DiffuseMeanFreePath * GetDiffuseSurfaceScalingFactor3D(SurfaceAlbedo);
+
+				SetSubsurfaceRadius(HitPayload, SSSRadius);
+
+				// burley mode doesn't have any diffuse component
+				SetSubsurfaceColor(HitPayload, HitPayload.DiffuseColor);
+				HitPayload.DiffuseColor = 0;
+			}
+			else
+			{
+				// How to handle this case? a diffusion kernel is tabulated into the texture but I don't see a way to extract the original
+				// radius/color controls
+				SetSubsurfaceRadius(HitPayload, 0);
+				SetSubsurfaceColor(HitPayload, 0);
+				// TODO: non-burley profile allows a blend of diffuse and SSS which should be accounted for here
+			}
+			// Decode dual roughness info
+
+			// See logic in ShadingModels.ush
+			float4 Data = ActualSSProfilesTexture.Load(int3(SSSS_DUAL_SPECULAR_OFFSET, ProfileId, 0));
+			float AverageToRoughness0 = Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
+			float AverageToRoughness1 = Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS;
+			float LobeMix = Data.z;
+			float AverageRoughness = HitPayload.Roughness;
+			float Lobe0Roughness = max(saturate(AverageRoughness * AverageToRoughness0), 0.02f);
+			float Lobe1Roughness = saturate(AverageRoughness * AverageToRoughness1);
+
+			Lobe0Roughness = lerp(1.0f, Lobe0Roughness, saturate(HitPayload.Opacity * 10.0f));
+			Lobe1Roughness = lerp(1.0f, Lobe1Roughness, saturate(HitPayload.Opacity * 10.0f));
+
+			SetDualRoughnessSpecular(HitPayload, float3(Lobe0Roughness, Lobe1Roughness, LobeMix));
+			
+			// Reset opacity to avoid special cases elsewhere
+			HitPayload.Opacity = 1;
+			break;
+		}
+	}
+
+	return HitPayload;
 }
 
 FMaterialSample SampleMaterial(
@@ -292,6 +377,9 @@ FMaterialSample SampleMaterial(
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 			Result = DefaultLit_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
+		case SHADINGMODELID_SUBSURFACE_PROFILE:
+			Result = SubsurfaceProfile_SampleMaterial(RayDirection, Payload, RandSample);
+			break;
 		case SHADINGMODELID_CLOTH:
 			Result = Cloth_SampleMaterial(RayDirection, Payload, RandSample);
 			break;
@@ -380,6 +468,9 @@ FMaterialEval EvalMaterial(
 		case SHADINGMODELID_SUBSURFACE:
 		case SHADINGMODELID_PREINTEGRATED_SKIN:
 			Result = DefaultLit_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
+			break;
+		case SHADINGMODELID_SUBSURFACE_PROFILE:
+			Result = SubsurfaceProfile_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);
 			break;
 		case SHADINGMODELID_CLOTH:
 			Result = Cloth_EvalMaterial(IncomingDirection, OutgoingDirection, Payload);

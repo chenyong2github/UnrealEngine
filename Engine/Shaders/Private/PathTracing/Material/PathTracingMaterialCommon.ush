@@ -75,6 +75,36 @@ float3 GetSubsurfaceColor(FMaterialClosestHitPayload HitInfo)
 	return HitInfo.CustomData.xyz;
 }
 
+void SetSubsurfaceColor(inout FMaterialClosestHitPayload HitInfo, float3 SSSColor)
+{
+	HitInfo.CustomData.xyz = SSSColor;
+}
+
+// Steal an unused field for storing this information
+float3 GetSubsurfaceRadius(FMaterialClosestHitPayload HitInfo)
+{
+	return HitInfo.IndirectIrradiance;
+}
+
+void SetSubsurfaceRadius(inout FMaterialClosestHitPayload HitInfo, float3 SSSRadius)
+{
+	HitInfo.IndirectIrradiance = SSSRadius;
+}
+
+// Steal an unused float3 (the only material with dual specular does not support anisotropy)
+// Data is encoded as (x: roughness 0, y: roughness 1, z: roughness mix)
+float3 GetDualRoughnessSpecular(FMaterialClosestHitPayload HitInfo)
+{
+	return float3(HitInfo.WorldTangent);
+}
+
+void SetDualRoughnessSpecular(inout FMaterialClosestHitPayload HitInfo, float3 RoughnessData)
+{
+	// store data in unused field and compute average roughness
+	HitInfo.WorldTangent = RoughnessData;
+	HitInfo.Roughness = lerp(RoughnessData.x, RoughnessData.y, RoughnessData.z);
+}
+
 float3 GetWorldNormal(FMaterialClosestHitPayload HitInfo)
 {
 	return HitInfo.WorldNormal;
@@ -118,7 +148,9 @@ bool IsMaterialTransmissive(FMaterialClosestHitPayload HitInfo)
 
 bool IsSubsurfaceMaterial(FMaterialClosestHitPayload HitInfo)
 {
-	return HitInfo.ShadingModelID == SHADINGMODELID_SUBSURFACE || HitInfo.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN;
+	return HitInfo.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
+		   HitInfo.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN ||
+		   HitInfo.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE;
 }
 
 // Given two lobes that will roughly contribute colors A and B to the total (estimated for example using directional albedo)

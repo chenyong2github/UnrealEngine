@@ -384,7 +384,11 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 
 	// Store the results in local variables and reuse instead of calling the functions multiple times.
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
+#if REFRACTION_USE_INDEX_OF_REFRACTION
 	half2 Refraction = GetMaterialRefraction(PixelMaterialInputs);
+#else
+	half2 Refraction = 1;
+#endif
 	half  Metallic = GetMaterialMetallic(PixelMaterialInputs);
 	half  Specular = GetMaterialSpecular(PixelMaterialInputs);
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
@@ -413,6 +417,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	Payload.Ior = Refraction.x;
 	Payload.CustomData = float4(GetMaterialCustomData0(MaterialParameters), GetMaterialCustomData1(MaterialParameters), 0, 0);
 	
+#if MATERIAL_SHADINGMODEL_CLEAR_COAT
 	#if CLEAR_COAT_BOTTOM_NORMAL
 	if (Payload.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
@@ -435,19 +440,26 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		#endif
 	}
 	#endif
+#endif
 
 	// Override custom data if sub-surface material
+#if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_EYE
 	if (Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE ||
 		Payload.ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE ||
-		Payload.ShadingModelID == SHADINGMODELID_CLOTH)
+		Payload.ShadingModelID == SHADINGMODELID_CLOTH ||
+		Payload.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE |
+		Payload.ShadingModelID == SHADINGMODELID_EYE)
 	{
 		Payload.CustomData = GetMaterialSubsurfaceData(PixelMaterialInputs);
 	}
+#endif
 
+#if MATERIAL_SHADINGMODEL_CLOTH
 	if (Payload.ShadingModelID == SHADINGMODELID_CLOTH)
 	{
 		Payload.CustomData.a = saturate(GetMaterialCustomData0(MaterialParameters));
 	}
+#endif
 
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	if (Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT)
@@ -639,7 +651,11 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 	// Assume Payload.ShadingModelID == SHADINGMODELID_THIN_TRANSLUCENT
 	float3 Transmission = GetThinTranslucentMaterialOutput0(MaterialParameters);
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
+#if REFRACTION_USE_INDEX_OF_REFRACTION
 	float Ior = GetMaterialRefraction(PixelMaterialInputs).x;
+#else
+	float Ior = 1.0;
+#endif
 	float3 Transparency = 1 - Opacity;
 	float3 V = WorldRayDirection();
 	float3 N = normalize(MaterialParameters.WorldNormal);

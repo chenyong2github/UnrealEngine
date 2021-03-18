@@ -91,7 +91,7 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 		}
 
 		// Unpack the payload
-		FMaterialClosestHitPayload HitPayload = UnpackRayTracingPayload(PackedPayload, Ray);
+		FMaterialClosestHitPayload HitPayload = UnpackPathTracingPayload(PackedPayload, Ray);
 
 		if (HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_ADDITIVE ||
 			HitPayload.BlendingMode == RAY_TRACING_BLEND_MODE_TRANSLUCENT)
@@ -115,7 +115,6 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 			float SelectionWeight = max3(Contrib.x, Contrib.y, Contrib.z);
 			SelectionWeightSum += SelectionWeight;
 			bool AcceptHit = false;
-			float PickWeight = 1;
 
 			// weighted reservoir sampling
 			if (SelectionWeight > 0)
@@ -126,7 +125,6 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 					// generate a random number to see if we should accept this hit
 					float RandValue = RandomSequence_GenerateSample1D(RandSequence);
 					AcceptHit = RandValue * SelectionWeightSum < SelectionWeight;
-					PickWeight = SelectionWeightSum / SelectionWeight;
 				}
 				else
 				{
@@ -139,7 +137,7 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 			{
 				// stash this hit for next time
 				Payload = HitPayload;
-				PayloadThroughput = PathThroughput * PickWeight;
+				PayloadThroughput = PathThroughput / SelectionWeight;
 			}
 		}
 
@@ -157,7 +155,7 @@ FMaterialClosestHitPayload TraceTransparentRay(RayDesc Ray, FRayCone RayCone, bo
 	if (SelectionWeightSum > 0)
 	{
 		// if we stored a valid hit in the payload, reset the path throughput to this point
-		PathThroughput = PayloadThroughput;
+		PathThroughput = PayloadThroughput * SelectionWeightSum;
 	}
 	else
 	{
@@ -248,25 +246,28 @@ FProbeResult TraceProbeRay(RayDesc Ray, uint2 PixelCoord)
 
 bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout float3 PathThroughput, inout RandomSequence RandSequence, uint2 PixelCoord, bool SimplifySSS)
 {
-	if (!IsSubsurfaceMaterial(Payload) || PathTracingData.MaxBounces == 0)
+	if (!IsSubsurfaceMaterial(Payload))
 	{
-		// material doesn't have SSS or we don't have any bounces configured
+		// material doesn't have SSS
 		// just return so we can process the rest of the payload's shading
 		return true;
 	}
 
-	// TODO: support RGB extinction as well (SHADINGMODELID_SUBSURFACE_PROFILE)
-	// TODO: figure out the right multiplier between the 0-1 Opacity control and world space radius
-	float3 SSSColor = Payload.CustomData.xyz;
-	float SSSRadius = (1 - Payload.Opacity) * 10.0;
+	float3 SSSColor = GetSubsurfaceColor(Payload);
+	float3 SSSRadius = GetSubsurfaceRadius(Payload);
 
-	if (SimplifySSS || SSSRadius == 0)
+	if (SimplifySSS || all(SSSRadius == 0) || all(SSSColor == 0) || PathTracingData.MaxSSSBounces == 0)
 	{
 		// if we are running in a context that won't see the SSS directly -- just turn it into diffuse and skip the random walk
+		// we can also skip random walk if the radius or color is 0
+		// or if the user decided not to perform any SSS bounces
 		Payload.DiffuseColor += SSSColor;
 		Payload.DiffuseColor = saturate(Payload.DiffuseColor);
+		SetSubsurfaceColor(Payload, 0.0);
 		return true;
 	}
+	SSSRadius = max(SSSRadius, 0.1); // 1mm minimum to make sure random walk can move forward and to keep SigmaT finite
+
 	// decide randomly to evaluate the SSS part of the material, or keep shading the current part
 	float SSSProb = LobeSelectionProb(SSSColor, Payload.DiffuseColor + Payload.SpecularColor);
 	float3 RandSample = RandomSequence_GenerateSample3D(RandSequence);
@@ -297,22 +298,49 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 
 #if SSS_USE_TIR
 	const float3 Albedo = 1 - exp(SSSColor * (-11.43 + SSSColor * (15.38 - 13.91 * SSSColor)));
-	SSSRadius *= 0.5; // roughly match parameterization below
 #else
 	// Van de-Hulst inverse mapping
 	// https://blog.selfshadow.com/publications/s2017-shading-course/imageworks/s2017_pbs_imageworks_slides_v2.pdf (Slide 44)
 	// http://www.eugenedeon.com/project/a-hitchhikers-guide-to-multiple-scattering/ (Section 7.5.3 of v0.1.3)
 	const float3 Albedo = 1 - Pow2(4.09712 + 4.20863 * SSSColor - sqrt(9.59217 + SSSColor * (41.6808 + 17.7126 * SSSColor)));
+	SSSRadius *= 2.0; // roughly match parameterization above
 #endif
 	const int MAX_SSS_BOUNCES = PathTracingData.MaxSSSBounces;
+	const float3 SigmaT = 1.0 / SSSRadius;
+	const float3 SigmaS = Albedo * SigmaT;
 	for (int i = 0; i < MAX_SSS_BOUNCES; i++)
 	{
-		// Using an analog random walk - transmittance and scattering probabilities cancel out so only the albedo
-		// at each bounce needs to be accounted for in the throughput. This will get more complicated once we add
-		// proper support for RGB transmittance and fancier escape strategies like Dwivedi sampling.
+		// TODO: add Dwivedi sampling for faster escape in low albedo media ...
 
+		// Pick a color channel for transmittance sampling:
+		float3 ColorChannelWeight = PathThroughput * Albedo;
+		float3 ColorChannelCdf = float3(ColorChannelWeight.x,
+										ColorChannelWeight.x + ColorChannelWeight.y,
+										ColorChannelWeight.x + ColorChannelWeight.y + ColorChannelWeight.z);
+		if (ColorChannelCdf.z == 0)
+		{
+			// no more energy left in the path
+			break;
+		}
+		ColorChannelCdf.xy /= ColorChannelCdf.z;
+		float3 ColorChannelPdf = float3(ColorChannelCdf.x, ColorChannelCdf.y - ColorChannelCdf.x, 1 - ColorChannelCdf.y);
 		// pick a maximum distance to scatter
-		Ray.TMax = -log(1 - RandSample.z) * SSSRadius;
+		const float OneMinusEpsilon = 0.99999994; // 32-bit float just before 1.0
+		if (RandSample.z < ColorChannelCdf.x)
+		{
+			float RescaleRand = min(RandSample.z / ColorChannelPdf.x, OneMinusEpsilon);
+			Ray.TMax = -log(1 - RescaleRand) * SSSRadius.x;
+		}
+		else if (RandSample.z < ColorChannelCdf.y)
+		{
+			float RescaleRand = min((RandSample.z - ColorChannelCdf.x) / ColorChannelPdf.y, OneMinusEpsilon);
+			Ray.TMax = -log(1 - RescaleRand) * SSSRadius.y;
+		}
+		else
+		{
+			float RescaleRand = min((RandSample.z - ColorChannelCdf.y) / ColorChannelPdf.z, OneMinusEpsilon);
+			Ray.TMax = -log(1 - RescaleRand) * SSSRadius.z;
+		}
 
 		FProbeResult ProbeResult = TraceProbeRay(Ray, PixelCoord);
 		if (ProbeResult.IsMiss())
@@ -321,10 +349,24 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 			RandSample = RandomSequence_GenerateSample3D(RandSequence);
 			Ray.Origin += Ray.TMax * Ray.Direction;
 			Ray.Direction = UniformSampleSphere(RandSample.xy).xyz;
-			PathThroughput *= Albedo;
+			// account for transmittance and scattering up to this point
+			float3 Transmittance = exp(-Ray.TMax * SigmaT);
+			PathThroughput *= SigmaS * Transmittance;
+			// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
+			float3 TransmittancePdf = SigmaT * Transmittance;
+			PathThroughput /= dot(TransmittancePdf, ColorChannelPdf);
+
+			// NOTE: phase function cancels out since it is being perfectly importance sampled
 		}
 		else
 		{
+			// account for transmittance and scattering up to this point
+			float3 Transmittance = exp(-ProbeResult.HitT * SigmaT);
+			PathThroughput *= Transmittance;
+			// account for transmittance pdf (which is the balance heuristic combination of transmittance sampling in each color channel)
+			float3 TransmittancePdf = Transmittance; // integral of pdf from HitT to infinity
+			PathThroughput /= dot(Transmittance, ColorChannelPdf);
+
 			// our short ray hit the geomtry - decide if we should exit or not
 #if SSS_USE_TIR
 			RandSample = RandomSequence_GenerateSample2D(RandSequence).xxy;
