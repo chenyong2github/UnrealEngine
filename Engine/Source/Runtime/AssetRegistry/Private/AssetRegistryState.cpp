@@ -1152,7 +1152,9 @@ void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version
 				if (Version < FAssetRegistryVersion::AddedCookedMD5Hash)
 				{
 					Ar << NewPackageData.DiskSize;
+					PRAGMA_DISABLE_DEPRECATION_WARNINGS
 					Ar << NewPackageData.PackageGuid;
+					PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 				else
 				{
@@ -2244,7 +2246,9 @@ void FAssetRegistryState::Dump(const TArray<FString>& Arguments, TArray<FString>
 			PageBuffer.Append(TEXT("	"));
 			Key.AppendString(PageBuffer);
 			PageBuffer.Append(TEXT(" : "));
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			PageBuffer.Append(PackageData->PackageGuid.ToString()); // TODO: Add AppendString for Guid
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			PageBuffer.Appendf(TEXT(" : %d bytes"), PackageData->DiskSize);
 			AddLine();
 		}

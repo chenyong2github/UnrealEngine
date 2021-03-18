@@ -9310,7 +9310,9 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	{
 		if (InLinker != nullptr && InLinker->LinkerRoot != nullptr)
 		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			Result = InLinker->LinkerRoot->GetGuid();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			PackageToReset = InLinker->LinkerRoot;
 		}
 	});

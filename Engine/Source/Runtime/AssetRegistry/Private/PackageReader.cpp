@@ -344,7 +344,9 @@ bool FPackageReader::ReadDependencyData(FPackageDependencyData& OutDependencyDat
 
 	OutDependencyData.PackageName = FName(*PackageNameString);
 	OutDependencyData.PackageData.DiskSize = PackageFileSize;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	OutDependencyData.PackageData.PackageGuid = PackageFileSummary.Guid;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	if (!SerializeNameMap())
 	{

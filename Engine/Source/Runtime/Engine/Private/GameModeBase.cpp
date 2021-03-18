@@ -382,7 +382,9 @@ APlayerController* AGameModeBase::ProcessClientTravel(FString& FURL, FGuid NextM
 			if (Cast<UNetConnection>(PlayerController->Player) != nullptr)
 			{
 				// Remote player
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				PlayerController->ClientTravel(FURL, TRAVEL_Relative, bSeamless, NextMapGuid);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 			else
 			{
@@ -460,11 +462,15 @@ void AGameModeBase::ProcessServerTravel(const FString& URL, bool bAbsolute)
 	// Compute the next URL, and pull the map out of it. This handles short->long package name conversion
 	FURL NextURL = FURL(&WorldContext.LastURL, *URL, bAbsolute ? TRAVEL_Absolute : TRAVEL_Relative);
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FGuid NextMapGuid = UEngine::GetPackageGuid(FName(*NextURL.Map), GetWorld()->IsPlayInEditor());
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	// Notify clients we're switching level and give them time to receive.
 	FString URLMod = NextURL.ToString();
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	APlayerController* LocalPlayer = ProcessClientTravel(URLMod, NextMapGuid, bSeamless, bAbsolute);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	World->NextURL = URLMod;
 	ENetMode NetMode = GetNetMode();

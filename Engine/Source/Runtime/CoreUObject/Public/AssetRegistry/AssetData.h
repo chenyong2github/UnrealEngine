@@ -547,6 +547,7 @@ public:
 	int64 DiskSize;
 
 	/** Guid of the source package, uniquely identifies an asset package */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and FAssetPackageData::PackageGuid will be removed.")
 	FGuid PackageGuid;
 
 	/** MD5 of the cooked package on disk, for tracking nondeterministic changes */
@@ -564,7 +565,9 @@ public:
 	void SerializeForCache(FArchive& Ar)
 	{
 		Ar << DiskSize;
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Ar << PackageGuid;
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		Ar << CookedHash;
 	}
 };

@@ -2611,7 +2611,9 @@ void UAssetRegistryImpl::DependencyDataGathered(const double TickStartTime, TBac
 						if (Package)
 						{
 							FAssetPackageData* ScriptPackageData = State.CreateOrGetAssetPackageData(Identifier.PackageName);
+							PRAGMA_DISABLE_DEPRECATION_WARNINGS
 							ScriptPackageData->PackageGuid = Package->GetGuid();
+							PRAGMA_ENABLE_DEPRECATION_WARNINGS
 						}
 					}
 				}

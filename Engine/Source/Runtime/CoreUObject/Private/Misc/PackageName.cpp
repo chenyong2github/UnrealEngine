@@ -1065,7 +1065,9 @@ bool FPackageName::DoesPackageExist(const FString& LongPackageName, const FGuid*
 		*PackageReader << Summary;
 
 		// Compare Guids
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (Summary.Guid != *Guid)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			bFoundFile = false;
 		}

@@ -2198,7 +2198,9 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	PlayWorldPackage->SetPackageFlags(PKG_PlayInEditor);
 	PlayWorldPackage->PIEInstanceID = WorldContext.PIEInstance;
 	PlayWorldPackage->FileName = InPackage->FileName;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PlayWorldPackage->SetGuid( InPackage->GetGuid() );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	PlayWorldPackage->MarkAsFullyLoaded();
 
 	// check(GPlayInEditorID == -1 || GPlayInEditorID == WorldContext.PIEInstance);

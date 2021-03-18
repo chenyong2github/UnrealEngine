@@ -1460,7 +1460,9 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::UpdateFromPackageFileSummary()
 		LinkerRootPackage->FileSize = Loader ? Loader->TotalSize() : 0;
 
 		// Propagate package Guids
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		LinkerRootPackage->SetGuid( Summary.Guid );
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 		LinkerRootPackage->SetPersistentGuid( Summary.PersistentGuid );

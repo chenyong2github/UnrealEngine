@@ -149,6 +149,7 @@ public:
 	/**
 	* Current id for this package
 	*/
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and FPackageFileSummary::Guid will be removed.")
 	FGuid	Guid;
 
 #if WITH_EDITORONLY_DATA

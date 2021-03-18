@@ -849,7 +849,9 @@ void FAssetRegistryGenerator::UpdateKeptPackagesDiskData(const TArray<FName>& In
 			continue;
 		}
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (PackageData->PackageGuid != PreviousPackageData->PackageGuid)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			continue;
 		}
@@ -981,7 +983,9 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 		{
 			NewPackages.Add(PackageName);
 		}
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		else if (CurrentPackageData->PackageGuid == PreviousPackageData->PackageGuid)
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			if (PreviousPackageData->DiskSize < 0)
 			{

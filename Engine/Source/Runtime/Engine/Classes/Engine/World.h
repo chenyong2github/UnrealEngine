@@ -288,7 +288,14 @@ public:
 	 * @param InGuid the GUID of the destination map package
 	 * @return whether or not we succeeded in starting the travel
 	 */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use StartTravel without a InGuid.")
 	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL, const FGuid& InGuid);
+	bool StartTravel(UWorld* InCurrentWorld, const FURL& InURL)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		return StartTravel(InCurrentWorld, InURL, FGuid());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** @return whether a transition is already in progress */
 	FORCEINLINE bool IsInTransition() const
@@ -3573,7 +3580,14 @@ public:
 	 * @param MapPackageGuid (opt) - the GUID of the map package to travel to - this is used to find the file when it has been auto-downloaded,
 	 * 				so it is only needed for clients
 	 */
-	void SeamlessTravel(const FString& InURL, bool bAbsolute = false, FGuid MapPackageGuid = FGuid());
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time. Please use SeamlessTravel without a NextMapGuid.")
+	void SeamlessTravel(const FString& InURL, bool bAbsolute, FGuid MapPackageGuid);
+	void SeamlessTravel(const FString& InURL, bool bAbsolute = false)
+	{
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		SeamlessTravel(InURL, bAbsolute, FGuid());
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	}
 
 	/** @return whether we're currently in a seamless transition */
 	bool IsInSeamlessTravel();

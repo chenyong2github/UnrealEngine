@@ -335,6 +335,7 @@ struct FObjectExport : public FObjectResource
 	 * this is the GUID for the original package file
 	 * Serialized
 	 */
+	UE_DEPRECATED(4.27, "UPackage::Guid has not been used by the engine for a long time and FObjectExport::PackageGuid will be removed.")
 	FGuid			PackageGuid;
 
 	/** If this object is a top level package (which must have been forced into the export table via OBJECTMARK_ForceTagExp)

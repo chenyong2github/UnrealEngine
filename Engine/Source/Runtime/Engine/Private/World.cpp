@@ -3215,7 +3215,9 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 	PIELevelPackage->PIEInstanceID = PIEInstanceID;
 	PIELevelPackage->FileName = PackageFName;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	PIELevelPackage->SetGuid( EditorLevelPackage->GetGuid() );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	PIELevelPackage->MarkAsFullyLoaded();
 
 	ULevel::StreamedLevelsOwningWorld.Add(PIELevelPackage->GetFName(), OwningWorld);
@@ -6770,7 +6772,9 @@ void UWorld::SeamlessTravel(const FString& SeamlessTravelURL, bool bAbsolute, FG
 		}
 		// tell the handler to start the transition
 		FSeamlessTravelHandler &SeamlessTravelHandler = GEngine->SeamlessTravelHandlerForWorld( this );
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (!SeamlessTravelHandler.StartTravel(this, NewURL, MapPackageGuid) && !SeamlessTravelHandler.IsInTransition())
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		{
 			const FString Error = FText::Format( NSLOCTEXT("Engine", "InvalidUrl", "Invalid URL: {0}"), FText::FromString( SeamlessTravelURL ) ).ToString();
 			GEngine->BroadcastTravelFailure(this, ETravelFailure::InvalidURL, Error);
@@ -7550,7 +7554,9 @@ static ULevel* DuplicateLevelWithPrefix(ULevel* InLevel, int32 InstanceID )
 	NewPackage->SetPackageFlags( PKG_PlayInEditor );
 	NewPackage->PIEInstanceID = InstanceID;
 	NewPackage->FileName = OriginalPackage->FileName;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	NewPackage->SetGuid( OriginalPackage->GetGuid() );
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	NewPackage->MarkAsFullyLoaded();
 
 	FSoftObjectPath::AddPIEPackageName(NewPackage->GetFName());

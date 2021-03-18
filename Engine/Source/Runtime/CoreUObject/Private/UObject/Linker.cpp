@@ -852,7 +852,9 @@ FLinkerLoad* GetPackageLinker
 	}
 
 	// Verify compatibility.
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (Result && CompatibleGuid && Result->Summary.Guid != *CompatibleGuid)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		// This should never fire, because FindPackageFile should never return an incompatible file
 		LogGetPackageLinkerError(Result, InExistingContext, InLongPackageName, LOCTEXT("PackageVersionShort", "Asset version mismatch"), InOuter, LoadFlags);

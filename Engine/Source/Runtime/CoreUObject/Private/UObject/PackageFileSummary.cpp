@@ -226,7 +226,9 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 
 		Record << SA_VALUE(TEXT("ThumbnailTableOffset"), Sum.ThumbnailTableOffset);
 
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Record << SA_VALUE(TEXT("Guid"), Sum.Guid);
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_EDITORONLY_DATA
 		if (!BaseArchive.IsFilterEditorOnly())
@@ -238,7 +240,9 @@ void operator<<(FStructuredArchive::FSlot Slot, FPackageFileSummary& Sum)
 			else
 			{
 				// By assigning the current package guid, we maintain a stable persistent guid, so we can reference this package even if it wasn't resaved.
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				Sum.PersistentGuid = Sum.Guid;
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 
 			// The owner persistent guid was added in VER_UE4_ADDED_PACKAGE_OWNER but removed in the next version VER_UE4_NON_OUTER_PACKAGE_IMPORT
