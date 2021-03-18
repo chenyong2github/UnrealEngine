@@ -19,6 +19,7 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/TaperedCylinder.h"
 #include "Chaos/Capsule.h"
+#include "Chaos/TaperedCapsule.h"
 #include "Chaos/Convex.h"
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
@@ -1395,7 +1396,7 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 						DrawCapsule(PDI, Object->GetObjectChecked<FCapsule>(), Rotation, Position, Color);
 						break;
 
-					case ImplicitObjectType::Union:  // Union only used as collision tapered capsules
+					case ImplicitObjectType::Union:  // Union only used as old style tapered capsules
 						for (const TUniquePtr<FImplicitObject>& SubObjectPtr : Object->GetObjectChecked<FImplicitObjectUnion>().GetObjects())
 						{
 							if (const FImplicitObject* const SubObject = SubObjectPtr.Get())
@@ -1414,6 +1415,19 @@ void FClothingSimulation::DebugDrawCollision(FPrimitiveDrawInterface* PDI) const
 									break;
 								}
 							}
+						}
+						break;
+
+					case ImplicitObjectType::TaperedCapsule:  // New collision tapered capsules implicit type that replaces the union
+						{
+							const FTaperedCapsule& TaperedCapsule = Object->GetObjectChecked<FTaperedCapsule>();
+							const FVec3 X1 = TaperedCapsule.GetX1();
+							const FVec3 X2 = TaperedCapsule.GetX2();
+							const FReal Radius1 = TaperedCapsule.GetRadius1();
+							const FReal Radius2 = TaperedCapsule.GetRadius2();
+							DrawSphere(PDI, TSphere<FReal, 3>(X1, Radius1), Rotation, Position, Color);
+							DrawSphere(PDI, TSphere<FReal, 3>(X2, Radius2), Rotation, Position, Color);
+							DrawTaperedCylinder(PDI, FTaperedCylinder(X1, X2, Radius1, Radius2), Rotation, Position, Color);
 						}
 						break;
 

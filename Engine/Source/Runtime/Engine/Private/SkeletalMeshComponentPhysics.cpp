@@ -2743,6 +2743,29 @@ void USkeletalMeshComponent::ExtractCollisionsForCloth(
 
 						ClothCollisionSource.CachedSphereConnections.Add(Connection);
 					}
+
+					for(const FKTaperedCapsuleElem& TaperedCapsuleElems : SkeletalBodySetup->AggGeom.TaperedCapsuleElems)
+					{
+						FClothCollisionPrim_Sphere Sphere0;
+						FClothCollisionPrim_Sphere Sphere1;
+						FVector OrientedDirection = TaperedCapsuleElems.Rotation.RotateVector(FVector(0.0f, 0.0f, 1.0f));
+						FVector HalfDim = OrientedDirection * (TaperedCapsuleElems.Length / 2.0f);
+						Sphere0.LocalPosition = TaperedCapsuleElems.Center + HalfDim;
+						Sphere1.LocalPosition = TaperedCapsuleElems.Center - HalfDim;
+						Sphere0.Radius = TaperedCapsuleElems.Radius0;
+						Sphere1.Radius = TaperedCapsuleElems.Radius1;
+						Sphere0.BoneIndex = MeshBoneIndex;
+						Sphere1.BoneIndex = MeshBoneIndex;
+
+						ClothCollisionSource.CachedSpheres.Add(Sphere0);
+						ClothCollisionSource.CachedSpheres.Add(Sphere1);
+
+						FClothCollisionPrim_SphereConnection Connection;
+						Connection.SphereIndices[0] = ClothCollisionSource.CachedSpheres.Num() - 2;
+						Connection.SphereIndices[1] = ClothCollisionSource.CachedSpheres.Num() - 1;
+
+						ClothCollisionSource.CachedSphereConnections.Add(Connection);
+					}
 				}
 			}
 
