@@ -604,9 +604,8 @@ FPendingDelete::FPendingDelete(UObject* InObject)
 		}
 	}
 
-	FAssetData InAssetData(InObject);
 	// Filter out any non assets
-	if ( !InAssetData.IsUAsset() )
+	if ( !FAssetData::IsUAsset(InObject) )
 	{
 		bIsInternal = true;
 	}

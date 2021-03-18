@@ -107,6 +107,24 @@ FAssetData::FAssetData(const UObject* InAsset, bool bAllowBlueprintClass)
 	}
 }
 
+bool FAssetData::IsUAsset(UObject* InAsset)
+{
+	if (InAsset == nullptr)
+	{
+		return false;
+	}
+
+	const UPackage* Package = InAsset->GetPackage();
+
+	TStringBuilder<FName::StringBufferSize> AssetNameStrBuilder;
+	InAsset->GetPathName(Package, AssetNameStrBuilder);
+
+	TStringBuilder<FName::StringBufferSize> PackageNameStrBuilder;
+	Package->GetFName().AppendString(PackageNameStrBuilder);
+
+	return DetectIsUAssetByNames(PackageNameStrBuilder, AssetNameStrBuilder);
+}
+
 void FAssetData::SetTagsAndAssetBundles(FAssetDataTagMap&& Tags)
 {
 	using namespace UE::AssetData::Private;

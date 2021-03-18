@@ -151,19 +151,11 @@ public:
 
 		TStringBuilder<FName::StringBufferSize> PackageNameStrBuilder;
 		PackageName.ToString(PackageNameStrBuilder);
-
-		FStringView PackageAssetNameStr;
-		{
-			// Get everything after the last slash
-			FStringView PackageNameStr(PackageNameStrBuilder);
-			int32 IndexOfLastSlash = INDEX_NONE;
-			PackageNameStr.FindLastChar(TEXT('/'), IndexOfLastSlash);
-			PackageAssetNameStr = PackageNameStr.Mid(IndexOfLastSlash + 1);
-		}
-
-		FStringView AssetNameStr(AssetNameStrBuilder);
-		return PackageAssetNameStr == AssetNameStr;
+		return DetectIsUAssetByNames(PackageNameStrBuilder, AssetNameStrBuilder);
 	}
+
+	/** Returns true if the given UObject is the primary asset in a package, true for maps and assets but false for secondary objects like class redirectors */
+	COREUOBJECT_API static bool IsUAsset(UObject* Object);
 
 	void Shrink()
 	{
@@ -428,6 +420,20 @@ public:
 
 		Ar << ChunkIDs;
 		Ar << PackageFlags;
+	}
+
+private:
+	static bool DetectIsUAssetByNames(FStringView PackageName, FStringView ObjectPathName)
+	{
+		FStringView PackageBaseName;
+		{
+			// Get everything after the last slash
+			int32 IndexOfLastSlash = INDEX_NONE;
+			PackageName.FindLastChar(TEXT('/'), IndexOfLastSlash);
+			PackageBaseName = PackageName.Mid(IndexOfLastSlash + 1);
+		}
+
+		return PackageBaseName.Equals(ObjectPathName, ESearchCase::IgnoreCase);
 	}
 };
 
