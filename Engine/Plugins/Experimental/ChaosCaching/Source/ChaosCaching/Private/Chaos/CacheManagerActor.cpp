@@ -114,6 +114,14 @@ void AChaosCacheManager::SetAllMode(ECacheMode InMode)
 	}
 }
 
+void AChaosCacheManager::SetAllStartMode(EStartMode InMode)
+{
+	for (FObservedComponent& Observed : ObservedComponents)
+	{
+		Observed.StartMode = InMode;
+	}
+}
+
 void AChaosCacheManager::ResetAllComponentTransforms()
 {
 	if(!CacheCollection)

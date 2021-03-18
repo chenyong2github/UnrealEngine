@@ -147,6 +147,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Caching")
 	void SetAllMode(ECacheMode InMode);
 
+	/**
+	 * Sets the start mode of every observed component to the specified mode
+	 * @param InMode Mode to set
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Caching")
+	void SetAllStartMode(EStartMode InMode);
+
 	/** 
 	 * Resets all components back to the world space transform they had when the cache for them was originally recorded
 	 * if one is available

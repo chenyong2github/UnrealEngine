@@ -22,4 +22,6 @@ public:
 	TSharedPtr<FUICommandInfo> CreateCacheManager;
 	TSharedPtr<FUICommandInfo> SetManagerRecordAll;
 	TSharedPtr<FUICommandInfo> SetManagerPlayAll;
+	TSharedPtr<FUICommandInfo> SetManagerTriggerAll;
+	TSharedPtr<FUICommandInfo> SetManagerTimedAll;
 };

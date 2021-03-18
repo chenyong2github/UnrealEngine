@@ -25,6 +25,19 @@ FReply OnClickSetAllButton(TArray<AChaosCacheManager*> Managers, ECacheMode NewM
 	return FReply::Handled();
 }
 
+FReply OnClickSetAllStartButton(TArray<AChaosCacheManager*> Managers, EStartMode NewMode)
+{
+	for (AChaosCacheManager* Manager : Managers)
+	{
+		if (Manager)
+		{
+			Manager->SetAllStartMode(NewMode);
+		}
+	}
+
+	return FReply::Handled();
+}
+
 FReply OnClickResetTransforms(TArray<AChaosCacheManager*> Managers)
 {
 	for(AChaosCacheManager* Manager : Managers)
@@ -109,6 +122,44 @@ void FCacheManagerDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("SetAllNone", "None"))
+			]
+		]
+	];
+
+	FDetailWidgetRow& SetTriggerRow = CachingCategory.AddCustomRow(FText::GetEmpty());
+	SetTriggerRow.NameContent()
+	[
+		SNew(STextBlock)
+		.Font(DetailBuilder.GetDetailFont())
+		.Text(LOCTEXT("SetTriggerLabel", "Set Triggers"))
+	];
+
+	SetTriggerRow.ValueContent()
+	.MinDesiredWidth(300.0f)
+	[
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Static(&OnClickSetAllStartButton, CacheManagersInSelection, EStartMode::Triggered)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SetAllTriggered", "Triggered"))
+			]
+		]
+		+ SHorizontalBox::Slot()
+		.Padding(0.0f, 0.0f, 3.0f, 0.0f)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.OnClicked_Static(&OnClickSetAllStartButton, CacheManagersInSelection, EStartMode::Timed)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("SetAllTimed", "Timed"))
 			]
 		]
 	];
