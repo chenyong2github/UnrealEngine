@@ -1452,19 +1452,25 @@ PassProcessorCreateFunction FPassProcessorManager::JumpTable[(int32)EShadingPath
 EMeshPassFlags FPassProcessorManager::Flags[(int32)EShadingPath::Num][EMeshPass::Num] = {};
 
 
-FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, uint32 InstanceFactorIn) :
+FSimpleMeshDrawCommandPass::FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, bool bEnableStereo) :
 	DynamicPassMeshDrawListContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, GraphicsMinimalPipelineStateSet, bNeedsInitialization)
 {
 	check(View.bIsViewInfo);
 	const FViewInfo* ViewInfo = static_cast<const FViewInfo*>(&View);
-	// GPUCULL_TODO: Non-Instanced stereo?
-	InstanceCullingContext = FInstanceCullingContext(InstanceCullingManager, TArrayView<const int32>(&ViewInfo->GPUSceneViewId, 1));
+	
+	TArray<int32, TFixedAllocator<2> > ViewIds;
+	ViewIds.Add(ViewInfo->GPUSceneViewId);
+	bUsingStereo = bEnableStereo && ViewInfo->bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View);
+	if (bUsingStereo)
+	{
+		check(ViewInfo->GetInstancedView() != nullptr);
+		ViewIds.Add(ViewInfo->GetInstancedView()->GPUSceneViewId);
+	}
+
+	InstanceCullingContext = FInstanceCullingContext(InstanceCullingManager, ViewIds, bUsingStereo ? EInstanceCullingMode::Stereo : EInstanceCullingMode::Normal);
 	bDynamicInstancing = IsDynamicInstancingEnabled(ViewInfo->GetFeatureLevel());
 
-#if GPUCULL_TODO
-	// GPUCULL_TODO: Instanced stereo?
-	InstanceFactor = InstanceFactorIn;
-#endif // GPUCULL_TODO
+	InstanceFactor = static_cast<uint32>(ViewIds.Num());
 }
 
 void FSimpleMeshDrawCommandPass::BuildRenderingCommands(FRDGBuilder& GraphBuilder, const FSceneView& View, const FGPUScene& GPUScene, FInstanceCullingDrawParams& OutInstanceCullingDrawParams)
@@ -1528,6 +1534,7 @@ void FSimpleMeshDrawCommandPass::SubmitDraw(FRHICommandListImmediate& RHICmdList
 				GraphicsMinimalPipelineStateSet,
 				0,
 				VisibleMeshDrawCommands.Num(),
+				InstanceFactor,
 				InstanceIdOffsetBuffer,
 				DrawIndirectArgsBuffer,
 				RHICmdList);

@@ -232,6 +232,7 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	int32 StartIndex,
 	int32 NumMeshDrawCommands,
+	uint32 InstanceFactor,
 	FRHIBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
 	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
 	FRHICommandList& RHICmdList);

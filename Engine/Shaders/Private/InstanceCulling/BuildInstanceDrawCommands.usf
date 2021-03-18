@@ -475,6 +475,20 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			}
 
 			uint OutId = InstanceDataOffset >= 0 ? uint(InstanceDataOffset) + OutputIndex1 - CurrentRangeStart : 0U;
+
+			// In stereo mode we need to output all the instances in pairs, one for each eye
+#if STEREO_CULLING_MODE
+			if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
+			{
+				uint OutputOffset = 0;
+				InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
+
+				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+				{
+					WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
+				}
+			}
+#else // !STEREO_CULLING_MODE
 			for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
 			{
 				if (InstanceDataOffset < 0 || TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
@@ -484,6 +498,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 					WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
 				}
 			}
+#endif // STEREO_CULLING_MODE
 		}
 		// repeat process for the runs
 		CurrentRangeStart = 0;
@@ -505,6 +520,20 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 			}
 
 			uint OutId = uint(InstanceDataOffset) + Run.Start + OutputIndex2 - CurrentRangeStart;
+
+			// In stereo mode we need to output all the instances in pairs, one for each eye, thus they must be atomically allocated in pairs also
+#if STEREO_CULLING_MODE
+			if (TestInstanceVisibilityBit(OutId, ViewIds[0]) || TestInstanceVisibilityBit(OutId, ViewIds[1]))
+			{
+				uint OutputOffset = 0;
+				InterlockedAdd(FinalInstanceCountGroupShared, 2, OutputOffset);
+				for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
+				{
+					WriteInstanceId(InstanceIdOutputOffset + OutputOffset + ViewIdIndex, OutId, ViewIdIndex, CommandSlotIndex);
+				}
+			}
+
+#else // !STEREO_CULLING_MODE
 			for (uint ViewIdIndex = 0; ViewIdIndex < NumViewIds; ++ViewIdIndex)
 			{
 				if (TestInstanceVisibilityBit(OutId, ViewIds[ViewIdIndex]))
@@ -514,6 +543,7 @@ void BuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs(uint GroupThreadIndex : 
 					WriteInstanceId(InstanceIdOutputOffset + OutputOffset, OutId, ViewIdIndex, CommandSlotIndex);
 				}
 			}
+#endif // STEREO_CULLING_MODE
 		}
 	}
 	GroupMemoryBarrierWithGroupSync();

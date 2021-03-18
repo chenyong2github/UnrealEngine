@@ -1122,6 +1122,7 @@ void FInstancedStaticMeshSceneProxy::SetupProxy(UInstancedStaticMeshComponent* I
 			Instance.LocalToWorld.SetIdentity();
 			Instance.RenderBounds = InComponent->GetStaticMesh()->GetBounds();
 			Instance.LocalBounds = Instance.RenderBounds.TransformBy(Instance.InstanceToLocal);
+			// GPUCULL_TODO: Set up Per-Instance Random and LightMapAndShadowMapUVBias  - fix LocalVertexFactory.ush			
 		}
 	}
 #endif

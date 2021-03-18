@@ -2086,7 +2086,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 	const EShadingPath ShadingPath = FSceneInterface::GetShadingPath(Renderer.FeatureLevel);
 	static const auto EnableModulatedSelfShadowCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Shadow.EnableModulatedSelfShadow"));
 	const bool bMobileModulatedShadowsAllowSelfShadow = !bSelfShadowOnly && (ShadingPath == EShadingPath::Mobile && !EnableModulatedSelfShadowCVar->GetValueOnRenderThread() && LightSceneInfo->Proxy && LightSceneInfo->Proxy->CastsModulatedShadows());
-	if (bPreShadow || bSelfShadowOnly || bMobileModulatedShadowsAllowSelfShadow )
+	if (bPreShadow || bSelfShadowOnly || bMobileModulatedShadowsAllowSelfShadow)
 	{
 		ProjectionStencilingPasses.Empty(Renderer.Views.Num());
 
@@ -2094,99 +2094,102 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForProjectionStenciling(FSceneRe
 		{
 			const FViewInfo& View = Renderer.Views[ViewIndex];
 
-			const uint32 InstanceFactor = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View) ? 2 : 1;
-			// Note: not using FMemstack as the data is not cleared in the right order.
-			ProjectionStencilingPasses.Add(new FSimpleMeshDrawCommandPass(View, &InstanceCullingManager, InstanceFactor));
-			FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *ProjectionStencilingPasses[ViewIndex];
-
-			FMeshPassProcessorRenderState DrawRenderState;
-			DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
-
-			if (bMobileModulatedShadowsAllowSelfShadow)
+			// Skip stereo pair RHs
+			if (View.ShouldRenderView())
 			{
-				checkf(bPreShadow == false, TEXT("The mobile renderer does not support preshadows."));
+				// Note: not using FMemstack as the data is not cleared in the right order.
+				ProjectionStencilingPasses.Add(new FSimpleMeshDrawCommandPass(View, &InstanceCullingManager, true));
+				FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *ProjectionStencilingPasses[ViewIndex];
 
-				DrawRenderState.SetDepthStencilState(
-					TStaticDepthStencilState<
-					false, CF_DepthNearOrEqual,
-					true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-					true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-					0xff, 0xff
-					>::GetRHI());
-				DrawRenderState.SetStencilRef(0);
-			}
-			else
-			{
-				// Set stencil to one.
-				DrawRenderState.SetDepthStencilState(
-					TStaticDepthStencilState<
-					false, CF_DepthNearOrEqual,
-					true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-					0xff, 0xff
-					>::GetRHI());
+				FMeshPassProcessorRenderState DrawRenderState;
+				DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
 
-				DrawRenderState.SetStencilRef(1);
-			}
-
-			FDepthPassMeshProcessor DepthPassMeshProcessor(
-				Renderer.Scene,
-				&View,
-				DrawRenderState,
-				false,
-				DDM_AllOccluders,
-				false,
-				false,
-				ProjectionStencilingPass.GetDynamicPassMeshDrawListContext());
-
-			// Pre-shadows mask by receiver elements, self-shadow mask by subject elements.
-			// Note that self-shadow pre-shadows still mask by receiver elements.
-			const PrimitiveArrayType& MaskPrimitives = bPreShadow ? ReceiverPrimitives : DynamicSubjectPrimitives;
-
-			for (int32 PrimitiveIndex = 0, PrimitiveCount = MaskPrimitives.Num(); PrimitiveIndex < PrimitiveCount; PrimitiveIndex++)
-			{
-				const FPrimitiveSceneInfo* ReceiverPrimitiveSceneInfo = MaskPrimitives[PrimitiveIndex];
-
-				if (View.PrimitiveVisibilityMap[ReceiverPrimitiveSceneInfo->GetIndex()])
+				if (bMobileModulatedShadowsAllowSelfShadow)
 				{
-					const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[ReceiverPrimitiveSceneInfo->GetIndex()];
+					checkf(bPreShadow == false, TEXT("The mobile renderer does not support preshadows."));
 
-					if (ViewRelevance.bRenderInMainPass && ViewRelevance.bStaticRelevance)
+					DrawRenderState.SetDepthStencilState(
+						TStaticDepthStencilState<
+						false, CF_DepthNearOrEqual,
+						true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+						true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+						0xff, 0xff
+						>::GetRHI());
+					DrawRenderState.SetStencilRef(0);
+				}
+				else
+				{
+					// Set stencil to one.
+					DrawRenderState.SetDepthStencilState(
+						TStaticDepthStencilState<
+						false, CF_DepthNearOrEqual,
+						true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+						false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+						0xff, 0xff
+						>::GetRHI());
+
+					DrawRenderState.SetStencilRef(1);
+				}
+
+				FDepthPassMeshProcessor DepthPassMeshProcessor(
+					Renderer.Scene,
+					&View,
+					DrawRenderState,
+					false,
+					DDM_AllOccluders,
+					false,
+					false,
+					ProjectionStencilingPass.GetDynamicPassMeshDrawListContext());
+
+				// Pre-shadows mask by receiver elements, self-shadow mask by subject elements.
+				// Note that self-shadow pre-shadows still mask by receiver elements.
+				const PrimitiveArrayType& MaskPrimitives = bPreShadow ? ReceiverPrimitives : DynamicSubjectPrimitives;
+
+				for (int32 PrimitiveIndex = 0, PrimitiveCount = MaskPrimitives.Num(); PrimitiveIndex < PrimitiveCount; PrimitiveIndex++)
+				{
+					const FPrimitiveSceneInfo* ReceiverPrimitiveSceneInfo = MaskPrimitives[PrimitiveIndex];
+
+					if (View.PrimitiveVisibilityMap[ReceiverPrimitiveSceneInfo->GetIndex()])
 					{
-						for (int32 StaticMeshIdx = 0; StaticMeshIdx < ReceiverPrimitiveSceneInfo->StaticMeshes.Num(); StaticMeshIdx++)
-						{
-							const FStaticMeshBatch& StaticMesh = ReceiverPrimitiveSceneInfo->StaticMeshes[StaticMeshIdx];
+						const FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[ReceiverPrimitiveSceneInfo->GetIndex()];
 
-							if (View.StaticMeshVisibilityMap[StaticMesh.Id])
+						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bStaticRelevance)
+						{
+							for (int32 StaticMeshIdx = 0; StaticMeshIdx < ReceiverPrimitiveSceneInfo->StaticMeshes.Num(); StaticMeshIdx++)
 							{
-								const uint64 DefaultBatchElementMask = ~0ul;
-								DepthPassMeshProcessor.AddMeshBatch(StaticMesh, DefaultBatchElementMask, StaticMesh.PrimitiveSceneInfo->Proxy);
+								const FStaticMeshBatch& StaticMesh = ReceiverPrimitiveSceneInfo->StaticMeshes[StaticMeshIdx];
+
+								if (View.StaticMeshVisibilityMap[StaticMesh.Id])
+								{
+									const uint64 DefaultBatchElementMask = ~0ul;
+									DepthPassMeshProcessor.AddMeshBatch(StaticMesh, DefaultBatchElementMask, StaticMesh.PrimitiveSceneInfo->Proxy);
+								}
+							}
+						}
+
+						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDynamicRelevance)
+						{
+							const FInt32Range MeshBatchRange = View.GetDynamicMeshElementRange(ReceiverPrimitiveSceneInfo->GetIndex());
+
+							for (int32 MeshBatchIndex = MeshBatchRange.GetLowerBoundValue(); MeshBatchIndex < MeshBatchRange.GetUpperBoundValue(); ++MeshBatchIndex)
+							{
+								const FMeshBatchAndRelevance& MeshAndRelevance = View.DynamicMeshElements[MeshBatchIndex];
+								const uint64 BatchElementMask = ~0ull;
+
+								DepthPassMeshProcessor.AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
 							}
 						}
 					}
-
-					if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDynamicRelevance)
-					{
-						const FInt32Range MeshBatchRange = View.GetDynamicMeshElementRange(ReceiverPrimitiveSceneInfo->GetIndex());
-
-						for (int32 MeshBatchIndex = MeshBatchRange.GetLowerBoundValue(); MeshBatchIndex < MeshBatchRange.GetUpperBoundValue(); ++MeshBatchIndex)
-						{
-							const FMeshBatchAndRelevance& MeshAndRelevance = View.DynamicMeshElements[MeshBatchIndex];
-							const uint64 BatchElementMask = ~0ull;
-
-							DepthPassMeshProcessor.AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
-						}
-					}
 				}
-			}
 
-			if (bSelfShadowOnly && !bPreShadow && !bMobileModulatedShadowsAllowSelfShadow)
-			{
-				for (int32 MeshBatchIndex = 0; MeshBatchIndex < SubjectMeshCommandBuildRequests.Num(); ++MeshBatchIndex)
+				if (bSelfShadowOnly && !bPreShadow && !bMobileModulatedShadowsAllowSelfShadow)
 				{
-					const FStaticMeshBatch& StaticMesh = *SubjectMeshCommandBuildRequests[MeshBatchIndex];
-					const uint64 DefaultBatchElementMask = ~0ul;
-					DepthPassMeshProcessor.AddMeshBatch(StaticMesh, DefaultBatchElementMask, StaticMesh.PrimitiveSceneInfo->Proxy);
+					for (int32 MeshBatchIndex = 0; MeshBatchIndex < SubjectMeshCommandBuildRequests.Num(); ++MeshBatchIndex)
+					{
+						const FStaticMeshBatch& StaticMesh = *SubjectMeshCommandBuildRequests[MeshBatchIndex];
+						const uint64 DefaultBatchElementMask = ~0ul;
+						DepthPassMeshProcessor.AddMeshBatch(StaticMesh, DefaultBatchElementMask, StaticMesh.PrimitiveSceneInfo->Proxy);
+					}
 				}
 			}
 		}

@@ -15,11 +15,20 @@
 #define ENABLE_DETERMINISTIC_INSTANCE_CULLING 0
 
 
-FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds) :
+FInstanceCullingContext::FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, enum EInstanceCullingMode InInstanceCullingMode) :
 	InstanceCullingManager(InInstanceCullingManager),
 	ViewIds(InViewIds),
-	bIsEnabled(InInstanceCullingManager == nullptr || InInstanceCullingManager->IsEnabled())
+	bIsEnabled(InInstanceCullingManager == nullptr || InInstanceCullingManager->IsEnabled()),
+	InstanceCullingMode(InInstanceCullingMode)
 {
+}
+
+
+void FInstanceCullingContext::ResetCommands(int32 MaxNumCommands)
+{
+	CullingCommands.Empty(MaxNumCommands);
+	InstanceRuns.Reset();
+	PrimitiveIds.Reset();
 }
 
 void FInstanceCullingContext::BeginCullingCommand(EPrimitiveType BatchType, uint32 BaseVertexIndex, uint32 FirstIndex, uint32 NumPrimitives, bool bInMaterialMayModifyPosition)
@@ -241,7 +250,9 @@ public:
 	// GPUCULL_TODO: remove once buffer is somehow unified
 	class FOutputCommandIdDim : SHADER_PERMUTATION_BOOL("OUTPUT_COMMAND_IDS");
 	class FCullInstancesDim : SHADER_PERMUTATION_BOOL("CULL_INSTANCES");
-	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FCullInstancesDim>;
+	class FStereoModeDim : SHADER_PERMUTATION_BOOL("STEREO_CULLING_MODE");
+
+	using FPermutationDomain = TShaderPermutationDomain<FOutputCommandIdDim, FCullInstancesDim, FStereoModeDim>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -299,6 +310,8 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		return;
 	}
 
+	ensure(InstanceCullingMode == EInstanceCullingMode::Normal || ViewIds.Num() == 2);
+
 	RDG_EVENT_SCOPE(GraphBuilder, "BuildRenderingCommands");
 
 	const ERHIFeatureLevel::Type FeatureLevel = GPUScene.GetFeatureLevel();
@@ -353,6 +366,7 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 
 		FComputeInstanceIdOutputSizeCs::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FComputeInstanceIdOutputSizeCs::FCullInstancesDim>(bCullInstances);
+		PermutationVector.Set<FComputeInstanceIdOutputSizeCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
 		auto ComputeShader = ShaderMap->GetShader<FComputeInstanceIdOutputSizeCs>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -429,6 +443,7 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 		// NOTE: this also switches between legacy buffer and RDG for Id output
 		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FOutputCommandIdDim>(0);
 		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FCullInstancesDim>(bCullInstances);
+		PermutationVector.Set<FOutputInstanceIdsAtOffsetCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
 		auto ComputeShader = ShaderMap->GetShader<FOutputInstanceIdsAtOffsetCs>(PermutationVector);
 
 		FComputeShaderUtils::AddPass(
@@ -491,6 +506,7 @@ void FInstanceCullingContext::BuildRenderingCommands(FRDGBuilder& GraphBuilder, 
 	// NOTE: this also switches between legacy buffer and RDG for Id output
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FOutputCommandIdDim>(0);
 	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FCullInstancesDim>(bCullInstances);
+	PermutationVector.Set<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs::FStereoModeDim>(InstanceCullingMode == EInstanceCullingMode::Stereo);
 
 	auto ComputeShader = ShaderMap->GetShader<FBuildInstanceIdBufferAndCommandsFromPrimitiveIdsCs>(PermutationVector);
 

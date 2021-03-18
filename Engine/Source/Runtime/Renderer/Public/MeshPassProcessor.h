@@ -1958,7 +1958,10 @@ private:
 class FSimpleMeshDrawCommandPass
 {
 public:
-	RENDERER_API FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, uint32 InstanceFactorIn = 1);
+	/**
+	 * bEnableStereo - if true will extract the stereo information from the View and set up two ViewIds for the instance culling, as well as use InstanceFactor = 2 for legacy drawing.
+	 */
+	RENDERER_API FSimpleMeshDrawCommandPass(const FSceneView& View, FInstanceCullingManager* InstanceCullingManager, bool bEnableStereo = false);
 
 	/**
 	 * Run post-instance culling job to create the render commands and instance ID lists and optionally vertex instance data.
@@ -1969,6 +1972,8 @@ public:
 	RENDERER_API void SubmitDraw(FRHICommandListImmediate& RHICmdList, const FInstanceCullingDrawParams& InstanceCullingDrawParams) const;
 
 	FDynamicPassMeshDrawListContext* GetDynamicPassMeshDrawListContext() { return &DynamicPassMeshDrawListContext; }
+
+	EInstanceCullingMode GetInstanceCullingMode() const { return InstanceCullingContext.GetInstanceCullingMode(); }
 
 private:
 	FSimpleMeshDrawCommandPass() = delete;
@@ -1984,6 +1989,7 @@ private:
 	// Is used to check that we don't submit any draw commands that require a GPU scene without supplying one.
 	bool bSupportsScenePrimitives = false;
 
+	bool bUsingStereo = false;
 	bool bDynamicInstancing = false;
 	uint32 InstanceFactor = 1;
 

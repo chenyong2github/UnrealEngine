@@ -815,40 +815,33 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 	DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_DepthNearOrEqual>::GetRHI());
 	DrawRenderState.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
 
-#if GPUCULL_TODO
-	// GPUCULL_TODO: workaround for the fact that DrawDynamicMeshPassPrivate et al. don't work with GPU-Scene instancing
-	//               we don't support dynamic instancing for this path since we require one primitive per draw command
-	//               This is because the stride on the instance data buffer is set to 0 so only the first will ever be fetched.
-	const bool bDynamicInstancing = false;
-#else
-	const bool bDynamicInstancing = IsDynamicInstancingEnabled(View->FeatureLevel);
-#endif
-
 	// If this is a preshadow, mask the projection by the receiver primitives.
 	if (bPreShadow || bSelfShadowOnly)
 	{
 		SCOPED_DRAW_EVENTF(RHICmdList, EventMaskSubjects, TEXT("Stencil Mask Subjects"));
 
-		// If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
+		// NOTE: If instanced stereo is enabled, we need to render each view of the stereo pair using the instanced stereo transform to avoid bias issues.
+		//       This means doing 2x renders, but letting the scissor rect kill the undersired half. Drawing the full mask once is easy, but since the outer
+		//       loop is over each view, the stencil mask is not retained when the right view comes around.
 		// TODO: Support instanced stereo properly in the projection stenciling pass.
 		const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(*View);
 		if (bIsInstancedStereoEmulated)
 		{
+			ensure(ProjectionStencilingPasses[0]->GetInstanceCullingMode() == EInstanceCullingMode::Stereo);
+
 			RHICmdList.SetViewport(0, 0, 0, SceneRender->InstancedStereoWidth, View->ViewRect.Max.Y, 1);
 			RHICmdList.SetScissorRect(true, View->ViewRect.Min.X, View->ViewRect.Min.Y, View->ViewRect.Max.X, View->ViewRect.Max.Y);
-		}
+			// Submit the first (and only pass - we share that at least) as the pass is set up for stereo.
+			ProjectionStencilingPasses[0]->SubmitDraw(RHICmdList, InstanceCullingDrawParams);
 
-		if (ViewIndex < ProjectionStencilingPasses.Num())
+			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+			RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
+		}
+		else if (ViewIndex < ProjectionStencilingPasses.Num())
 		{
 			ProjectionStencilingPasses[ViewIndex]->SubmitDraw(RHICmdList, InstanceCullingDrawParams);
 		}
 
-		// Restore viewport
-		if (bIsInstancedStereoEmulated)
-		{
-			RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
-			RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
-		}
 		
 	}
 	else if (IsWholeSceneDirectionalShadow())
@@ -987,7 +980,7 @@ void FProjectedShadowInfo::SetupProjectionStencilMask(
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FShadowProjectionPassParameters, )
-	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FViewShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FInstanceCullingDrawParams, InstanceCullingDrawParams)
 	RDG_TEXTURE_ACCESS(HairCategorizationTexture, ERHIAccess::SRVGraphics)
@@ -1090,7 +1083,7 @@ void FProjectedShadowInfo::RenderProjection(
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FShadowProjectionPassParameters>();
 	*PassParameters = CommonPassParameters;
-	PassParameters->View = View->ViewUniformBuffer;
+	PassParameters->View = View->GetShaderParameters();
 
 	if (RenderTargets.DepthTarget)
 	{
@@ -1102,11 +1095,24 @@ void FProjectedShadowInfo::RenderProjection(
 		PassParameters->ShadowTexture1 = GraphBuilder.RegisterExternalTexture(RenderTargets.ColorTargets[1]);
 	}
 
+	const bool bIsInstancedStereoEmulated = View->bIsInstancedStereoEnabled && !View->bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(*View);
 	if (ViewIndex < ProjectionStencilingPasses.Num())
 	{
 		// GPUCULL_TODO: get rid of const cast
 		FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *const_cast<FSimpleMeshDrawCommandPass*>(ProjectionStencilingPasses[ViewIndex]);
 		ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, *View, *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
+	}
+	else if (bIsInstancedStereoEmulated && (bPreShadow || bSelfShadowOnly))
+	{
+		// NOTE: This here is a hack that must match up to the use inside SetupProjectionStencilMask, where we use the Stereo setup but draw each eye independently
+		//       by scissoring the undersired half (while setting the full viewport to get the scaling to match the stereo pathfor base/pre-pass 1:1).
+		ensure(View->StereoPass == eSSP_RIGHT_EYE);
+
+		// GPUCULL_TODO: get rid of const cast
+		FSimpleMeshDrawCommandPass& ProjectionStencilingPass = *const_cast<FSimpleMeshDrawCommandPass*>(ProjectionStencilingPasses[0]);
+		ensure(ProjectionStencilingPass.GetInstanceCullingMode() == EInstanceCullingMode::Stereo);
+		const FViewInfo &PrimaryView = static_cast<const FViewInfo&>(View->Family->GetStereoEyeView(eSSP_LEFT_EYE));
+		ProjectionStencilingPass.BuildRenderingCommands(GraphBuilder, PrimaryView, *SceneRender->Scene, PassParameters->InstanceCullingDrawParams);
 	}
 
 	const FInstanceCullingDrawParams& InstanceCullingDrawParams = PassParameters->InstanceCullingDrawParams;
@@ -1349,7 +1355,7 @@ void FProjectedShadowInfo::RenderOnePassPointLightProjection(
 
 	auto* PassParameters = GraphBuilder.AllocParameters<FShadowProjectionPassParameters>();
 	*PassParameters = CommonPassParameters;
-	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->View = View.GetShaderParameters();
 
 	if (RenderTargets.DepthTarget)
 	{

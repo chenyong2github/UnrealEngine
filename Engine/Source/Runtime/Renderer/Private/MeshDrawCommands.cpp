@@ -546,6 +546,8 @@ void SetupGPUInstancedDraws(
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_DynamicInstancingOfVisibleMeshDrawCommands);
 
+	InstanceCullingContext.ResetCommands(VisibleMeshDrawCommandsInOut.Num());
+
 	int32 CurrentStateBucketId = -1;
 	MaxInstances = 1;
 	// Only used to supply stats
@@ -1184,16 +1186,10 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 	TaskContext.NumDynamicMeshCommandBuildRequestElements = NumDynamicMeshCommandBuildRequestElements;
 
 	// Only apply instancing for ISR to main view passes
-#if GPUCULL_TODO
-	//const bool bIsMainViewPass = PassType != EMeshPass::Num && (FPassProcessorManager::GetPassFlags(TaskContext.ShadingPath, TaskContext.PassType) & EMeshPassFlags::MainView) != EMeshPassFlags::None;
 
-	// GPUCULL_TODO: Instance Factor should always be 1 when using GPU-side culling. Instead we'll make that stereo-aware (or something like that) - all that means is that the culling pass duplicates the 
-	// primitives (instances really) and culls them against the per-eye view etc. Some routing info must be passed along also to tell them the eye. Can probably borrow a bit somewhere.
-	TaskContext.InstanceFactor = 1;//(bIsMainViewPass && View.IsInstancedStereoPass()) ? 2 : 1;
-#else //!GPUCULL_TODO
 	const bool bIsMainViewPass = PassType != EMeshPass::Num && (FPassProcessorManager::GetPassFlags(TaskContext.ShadingPath, TaskContext.PassType) & EMeshPassFlags::MainView) != EMeshPassFlags::None;
+	// GPUCULL_TODO: Note the InstanceFactor is ignored by the GPU-Scene supported instances, but is used for legacy primitives.
 	TaskContext.InstanceFactor = (bIsMainViewPass && View.IsInstancedStereoPass()) ? 2 : 1;
-#endif // GPUCULL_TODO
 
 	TaskContext.InstanceCullingContext = MoveTemp(InstanceCullingContext); 
 
@@ -1354,6 +1350,7 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet,
 	int32 StartIndex,
 	int32 NumMeshDrawCommands,
+	uint32 InstanceFactor,
 	FRHIBuffer* InstanceIdsOffsetBuffer, // Bound to a vertex stream to fetch a start offset for all instances, need to be 0-stepping
 	FRHIBuffer* IndirectArgsBuffer, // Overrides the args for the draw call
 	FRHICommandList& RHICmdList)
@@ -1369,7 +1366,7 @@ void SubmitGPUInstancedMeshDrawCommandsRange(
 		const FVisibleMeshDrawCommand& VisibleMeshDrawCommand = VisibleMeshDrawCommands[DrawCommandIndex];
 		const uint32 IndirectArgsByteOffset = uint32(DrawCommandIndex) * FInstanceCullingContext::IndirectArgsNumWords * sizeof(uint32);
 		const int32 InstanceIdsOffsetBufferByteOffset = DrawCommandIndex * sizeof(int32);
-		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, GraphicsMinimalPipelineStateSet, InstanceIdsOffsetBuffer, InstanceIdsOffsetBufferByteOffset, 1, RHICmdList, StateCache, IndirectArgsBuffer, IndirectArgsByteOffset);
+		FMeshDrawCommand::SubmitDraw(*VisibleMeshDrawCommand.MeshDrawCommand, GraphicsMinimalPipelineStateSet, InstanceIdsOffsetBuffer, InstanceIdsOffsetBufferByteOffset, InstanceFactor, RHICmdList, StateCache, IndirectArgsBuffer, IndirectArgsByteOffset);
 	}
 #endif // GPUCULL_TODO
 }
@@ -1379,6 +1376,7 @@ class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
 	FRHICommandList& RHICmdList;
 	const FMeshCommandOneFrameArray& VisibleMeshDrawCommands;
 	const FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet;
+	uint32 InstanceFactor;
 #if GPUCULL_TODO
 	FRHIBuffer* InstanceIdOffsetBuffer;
 	FRHIBuffer* DrawIndirectArgsBuffer;
@@ -1386,7 +1384,6 @@ class FDrawVisibleMeshCommandsAnyThreadTask : public FRenderTask
 	FRHIBuffer* PrimitiveIdsBuffer;
 	int32 BasePrimitiveIdsOffset;
 	bool bDynamicInstancing;
-	uint32 InstanceFactor;
 #endif // GPUCULL_TODO
 	int32 TaskIndex;
 	int32 TaskNum;
@@ -1397,6 +1394,7 @@ public:
 		FRHICommandList& InRHICmdList,
 		const FMeshCommandOneFrameArray& InVisibleMeshDrawCommands,
 		const FGraphicsMinimalPipelineStateSet& InGraphicsMinimalPipelineStateSet,
+		uint32 InInstanceFactor,
 #if GPUCULL_TODO
 		FRHIBuffer* InInstanceIdOffsetBuffer,
 		FRHIBuffer* InDrawIndirectArgsBuffer,
@@ -1404,7 +1402,6 @@ public:
 		FRHIBuffer* InPrimitiveIdsBuffer,
 		int32 InBasePrimitiveIdsOffset,
 		bool bInDynamicInstancing,
-		uint32 InInstanceFactor,
 #endif // GPUCULL_TODO
 		int32 InTaskIndex,
 		int32 InTaskNum
@@ -1412,6 +1409,7 @@ public:
 		: RHICmdList(InRHICmdList)
 		, VisibleMeshDrawCommands(InVisibleMeshDrawCommands)
 		, GraphicsMinimalPipelineStateSet(InGraphicsMinimalPipelineStateSet)
+		, InstanceFactor(InInstanceFactor)
 #if GPUCULL_TODO
 		, InstanceIdOffsetBuffer(InInstanceIdOffsetBuffer)
 		, DrawIndirectArgsBuffer(InDrawIndirectArgsBuffer)
@@ -1419,7 +1417,6 @@ public:
 		, PrimitiveIdsBuffer(InPrimitiveIdsBuffer)
 		, BasePrimitiveIdsOffset(InBasePrimitiveIdsOffset)
 		, bDynamicInstancing(bInDynamicInstancing)
-		, InstanceFactor(InInstanceFactor)
 #endif // GPUCULL_TODO
 		, TaskIndex(InTaskIndex)
 		, TaskNum(InTaskNum)
@@ -1452,6 +1449,7 @@ public:
 			GraphicsMinimalPipelineStateSet,
 			StartIndex,
 			NumDraws,
+			InstanceFactor,
 			InstanceIdOffsetBuffer,
 			DrawIndirectArgsBuffer,
 			RHICmdList);
@@ -1600,11 +1598,12 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 			FGraphEventRef AnyThreadCompletionEvent = TGraphTask<FDrawVisibleMeshCommandsAnyThreadTask>::CreateTask(&Prereqs, RenderThread)
 #if GPUCULL_TODO
 				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, 
+					TaskContext.InstanceFactor,
 					InstanceIdOffsetBuffer,
 					DrawIndirectArgsBuffer,
 					TaskIndex, NumTasks);
 #else //!GPUCULL_TODO
-				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, TaskContext.bDynamicInstancing, TaskContext.InstanceFactor, TaskIndex, NumTasks);
+				.ConstructAndDispatchWhenReady(*CmdList, TaskContext.MeshDrawCommands, TaskContext.MinimalPipelineStatePassSet, TaskContext.InstanceFactor, PrimitiveIdsBuffer, BasePrimitiveIdsOffset, TaskContext.bDynamicInstancing, TaskIndex, NumTasks);
 #endif // GPUCULL_TODO
 			ParallelCommandListSet->AddParallelCommandList(CmdList, AnyThreadCompletionEvent, NumDraws);
 		}
@@ -1625,6 +1624,7 @@ void FParallelMeshDrawCommandPass::DispatchDraw(FParallelCommandListSet* Paralle
 					TaskContext.MinimalPipelineStatePassSet,
 					0,
 					TaskContext.MeshDrawCommands.Num(),
+					TaskContext.InstanceFactor,
 					InstanceIdOffsetBuffer,
 					DrawIndirectArgsBuffer,
 					RHICmdList);

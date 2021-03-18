@@ -3304,20 +3304,22 @@ void FSceneRenderer::SetupMeshPass(FViewInfo& View, FExclusiveDepthStencil::Type
 				Pass.SetDumpInstancingStats(GetMeshPassName(PassType));
 			}
 
+			TArray<int32, TInlineAllocator<2> > ViewIds;
+			ViewIds.Add(View.GPUSceneViewId);
 			// Only apply instancing for ISR to main view passes
 			const bool bIsMainViewPass = PassType != EMeshPass::Num && (FPassProcessorManager::GetPassFlags(Scene->GetShadingPath(), PassType) & EMeshPassFlags::MainView) != EMeshPassFlags::None;
-			int32 NumViews = bIsMainViewPass && View.IsInstancedStereoPass() ? 2 : 1;
-			int32 ViewIds[2] =
+
+			EInstanceCullingMode InstanceCullingMode = bIsMainViewPass && View.IsInstancedStereoPass() ? EInstanceCullingMode::Stereo : EInstanceCullingMode::Normal;
+			if (InstanceCullingMode == EInstanceCullingMode::Stereo)
 			{
-				View.GPUSceneViewId,
-				// GPUCULL_TODO: This is a total hack! Fix fix fix (somehow retrieve the other view or pass in)
-				View.GPUSceneViewId + 1,
-			};
+				check(View.GetInstancedView() != nullptr);
+				ViewIds.Add(View.GetInstancedView()->GPUSceneViewId);
+			}
 
 			Pass.DispatchPassSetup(
 				Scene,
 				View,
-				FInstanceCullingContext(&InstanceCullingManager, TArrayView<int32>(ViewIds, NumViews)),
+				FInstanceCullingContext(&InstanceCullingManager, ViewIds, InstanceCullingMode),
 				PassType,
 				BasePassDepthStencilAccess,
 				MeshPassProcessor,

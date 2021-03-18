@@ -56,6 +56,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FInstanceCullingDrawParams, )
 	RDG_BUFFER_ACCESS(InstanceIdOffsetBuffer, ERHIAccess::VertexOrIndexBuffer)
 END_SHADER_PARAMETER_STRUCT()
 
+
+enum class EInstanceCullingMode
+{
+	Normal,
+	Stereo,
+};
+
 /**
  * Thread-safe context for managing culling for a render pass.
  */
@@ -66,7 +73,7 @@ public:
 
 	FInstanceCullingContext() {}
 
-	FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds);
+	FInstanceCullingContext(FInstanceCullingManager* InInstanceCullingManager, TArrayView<const int32> InViewIds, EInstanceCullingMode InInstanceCullingMode = EInstanceCullingMode::Normal);
 
 	struct FPrimCullingCommand
 	{
@@ -77,6 +84,11 @@ public:
 		uint32 FirstInstanceRunOffset;
 		uint32 bMaterialMayModifyPosition;
 	};
+
+	/**
+	 * Call to empty out the culling commands & other culling data.
+	 */
+	void ResetCommands(int32 MaxNumCommands);
 
 	bool IsEnabled() const { return bIsEnabled; }
 
@@ -107,6 +119,8 @@ public:
 
 	inline bool HasCullingCommands() const { return CullingCommands.Num() > 0; 	}
 
+	EInstanceCullingMode GetInstanceCullingMode() const { return InstanceCullingMode; }
+
 	// GPUCULL_TODO: These should not be dynamically heap-allocated, all except instance runs are easy to pre-size on memstack.
 	//           Must be presized as populated from task threads.
 	TArray<FPrimCullingCommand/*, SceneRenderingAllocator*/> CullingCommands;
@@ -123,5 +137,6 @@ public:
 	TArray<FInstanceRun/*, SceneRenderingAllocator*/> InstanceRuns;
 	TArray<int32/*, SceneRenderingAllocator*/> ViewIds;
 	bool bIsEnabled = false;
+	EInstanceCullingMode InstanceCullingMode = EInstanceCullingMode::Normal;
 };
 

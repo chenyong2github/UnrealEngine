@@ -2016,6 +2016,7 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 										GraphicsMinimalPipelineStateSet,
 										CardRenderData.StartMeshDrawCommandIndex,
 										CardRenderData.NumMeshDrawCommands,
+										1,
 										InstanceIdOffsetBuffer,
 										DrawIndirectArgsBuffer,
 										RHICmdList);
