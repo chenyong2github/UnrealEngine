@@ -406,6 +406,9 @@ struct ENGINE_API ICompressedAnimData
 	FAnimationErrorStats BoneCompressionErrorStats;
 #endif
 
+	ICompressedAnimData() = default;
+	ICompressedAnimData(const ICompressedAnimData&);
+
 	/* Virtual interface codecs must implement */
 	virtual ~ICompressedAnimData() {}
 
