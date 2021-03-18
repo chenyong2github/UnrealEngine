@@ -56,7 +56,8 @@ void UMoviePipelineConsoleVariableSetting::ApplyCVarSettings(const bool bOverrid
 	for(const TPair<FString, float>& KVP : ConsoleVariables)
 	{
 		// We don't use the shared macro here because we want to soft-warn the user instead of tripping an ensure over missing cvar values.
-		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*KVP.Key); 
+		const FString TrimmedCvar = KVP.Key.TrimStartAndEnd();
+		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(*TrimmedCvar); 
 		if (CVar)
 		{
 			if (bOverrideValues)
