@@ -202,9 +202,6 @@ bool UDatasmithFileProducer::Initialize()
 
 	TSharedPtr<IDatasmithTranslator> TranslatorPtr = TranslatableSourcePtr->GetTranslator();
 
-	TArray<TStrongObjectPtr<UDatasmithOptionsBase>> Options = GetTranslatorImportOptions();
-	TranslatorPtr->SetSceneImportOptions(Options);
-
 	const FDatasmithSceneSource& Source = TranslatorPtr->GetSource();
 
 	// Create and initialize context
@@ -212,6 +209,7 @@ bool UDatasmithFileProducer::Initialize()
 
 	// Set import options to default
 	ImportContextPtr->Options->BaseOptions = DefaultImportOptions;
+	ImportContextPtr->AdditionalImportOptions = GetTranslatorImportOptions();
 
 	ImportContextPtr->SceneAsset = DatasmithScene;
 	ImportContextPtr->ActorsContext.ImportWorld = Context.WorldPtr.Get();
@@ -824,8 +822,6 @@ void UDatasmithFileProducer::OnChangeImportSettings()
 	);
 
 	FSlateApplication::Get().AddModalWindow(Window, ParentWindow, false);
-
-	TranslatorPtr->SetSceneImportOptions(Options);
 }
 
 void UDatasmithFileProducer::UpdateName()
