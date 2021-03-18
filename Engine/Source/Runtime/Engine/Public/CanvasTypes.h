@@ -1054,19 +1054,6 @@ private:
 		const FStaticMeshVertexBuffers* VertexBuffers;
 	};
 
-	class FTileMesh : public FRenderResource
-	{
-	public:
-		FTileMesh(const FRawIndexBuffer* IndexBuffer, const FTileVertexFactory* VertexFactory);
-
-		FMeshBatch MeshElement;
-
-		void InitRHI() override;
-	private:
-		const FRawIndexBuffer* IndexBuffer;
-		const FTileVertexFactory* VertexFactory;
-	};
-
 	class FRenderData
 	{
 	public:
@@ -1092,14 +1079,17 @@ private:
 			return Tiles.Add(NewTile);
 		};
 
+		uint32 GetNumVertices() const;
+		uint32 GetNumIndices() const;
+
 	private:
+		FMeshBatch* AllocTileMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId);
 		void InitTileMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
 		void ReleaseTileMesh();
 
-		FRawIndexBuffer IndexBuffer;
+		FRawIndexBuffer16or32 IndexBuffer;
 		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
 		FTileVertexFactory VertexFactory;
-		FTileMesh TileMesh;
 
 		struct FTileInst
 		{
@@ -1223,18 +1213,6 @@ private:
 		const FStaticMeshVertexBuffers* VertexBuffers;
 	};
 
-	class FTriangleMesh : public FRenderResource
-	{
-	public:
-		FTriangleMesh(const FRawIndexBuffer* IndexBuffer, const FTriangleVertexFactory* VertexFactory);
-
-		FMeshBatch MeshBatch;
-		virtual void InitRHI() override;
-	private:
-		const FRawIndexBuffer* IndexBuffer;
-		const FTriangleVertexFactory* VertexFactory;
-	};
-
 	class FRenderData
 	{
 	public:
@@ -1244,7 +1222,6 @@ private:
 			: MaterialRenderProxy(InMaterialRenderProxy)
 			, Transform(InTransform)
 			, VertexFactory(&StaticMeshVertexBuffers, InFeatureLevel)
-			, TriMesh(&IndexBuffer, &VertexFactory)
 		{}
 
 		FORCEINLINE int32 AddTriangle(const FCanvasUVTri& Tri, FHitProxyId HitProxyId)
@@ -1273,14 +1250,17 @@ private:
 		const FMaterialRenderProxy* const MaterialRenderProxy;
 		const FCanvas::FTransformEntry Transform;
 
+		uint32 GetNumVertices() const;
+		uint32 GetNumIndices() const; 
+
 	private:
+		FMeshBatch* AllocTriangleMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId);
 		void InitTriangleMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
 		void ReleaseTriangleMesh();
 
-		FRawIndexBuffer IndexBuffer;
+		FRawIndexBuffer16or32 IndexBuffer;
 		FStaticMeshVertexBuffers StaticMeshVertexBuffers;
 		FTriangleVertexFactory VertexFactory;
-		FTriangleMesh TriMesh;
 
 		struct FTriangleInst
 		{

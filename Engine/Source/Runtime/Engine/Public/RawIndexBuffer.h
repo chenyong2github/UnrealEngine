@@ -51,6 +51,12 @@ public:
 	 */
 	void ComputeIndexWidth();
 
+	/**
+	 * Forces (or not) usage of 32 bits indices. No validation is made as to whether Indices can all be stored in 16 bits indices (if bIn32Bit == false) or not : 
+	 *  use only if you know the max value in Indices, otherwise, use ComputeIndexWidth
+	 */
+	void ForceUse32Bit(bool bIn32Bit) { b32Bit = bIn32Bit; }
+
 	// FRenderResource interface.
 	virtual void InitRHI() override;
 

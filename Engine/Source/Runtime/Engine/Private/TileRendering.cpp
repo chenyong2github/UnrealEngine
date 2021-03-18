@@ -19,7 +19,7 @@
 #include "EngineModule.h"
 #include "MeshPassProcessor.h"
 
-DECLARE_GPU_STAT_NAMED(CanvasDrawTile, TEXT("CanvasDrawTile"));
+DECLARE_GPU_STAT_NAMED(CanvasDrawTiles, TEXT("CanvasDrawTiles"));
 
 static const uint32 CanvasTileVertexCount = 4;
 static const uint32 CanvasTileIndexCount = 6;
@@ -44,27 +44,26 @@ void FCanvasTileRendererItem::FTileVertexFactory::InitResource()
 	FLocalVertexFactory::InitResource();
 }
 
-FCanvasTileRendererItem::FTileMesh::FTileMesh(
-	const FRawIndexBuffer* InIndexBuffer,
-	const FCanvasTileRendererItem::FTileVertexFactory* InVertexFactory)
-	: IndexBuffer(InIndexBuffer)
-	, VertexFactory(InVertexFactory)
-{}
-
-void FCanvasTileRendererItem::FTileMesh::InitRHI()
+FMeshBatch* FCanvasTileRendererItem::FRenderData::AllocTileMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId)
 {
-	MeshElement.VertexFactory = VertexFactory;
-	MeshElement.ReverseCulling = false;
-	MeshElement.Type = PT_TriangleList;
-	MeshElement.DepthPriorityGroup = SDPG_Foreground;
+	FMeshBatch* MeshBatch = InRenderContext.Alloc<FMeshBatch>();
 
-	FMeshBatchElement& BatchElement = MeshElement.Elements[0];
-	BatchElement.IndexBuffer = IndexBuffer;
-	BatchElement.FirstIndex = 0;
-	BatchElement.NumPrimitives = 2;
-	BatchElement.MinVertexIndex = 0;
-	BatchElement.MaxVertexIndex = CanvasTileVertexCount - 1;
-	BatchElement.PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
+	MeshBatch->VertexFactory = &VertexFactory;
+	MeshBatch->MaterialRenderProxy = MaterialRenderProxy;
+	MeshBatch->ReverseCulling = false;
+	MeshBatch->Type = PT_TriangleList;
+	MeshBatch->DepthPriorityGroup = SDPG_Foreground;
+	MeshBatch->BatchHitProxyId = InHitProxyId;
+
+	FMeshBatchElement& MeshBatchElement = MeshBatch->Elements[0];
+	MeshBatchElement.IndexBuffer = &IndexBuffer;
+	MeshBatchElement.FirstIndex = 0;
+	MeshBatchElement.NumPrimitives = 0;
+	MeshBatchElement.MinVertexIndex = 0;
+	MeshBatchElement.MaxVertexIndex = GetNumVertices() - 1;
+	MeshBatchElement.PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
+
+	return MeshBatch;
 }
 
 FCanvasTileRendererItem::FRenderData::FRenderData(
@@ -74,21 +73,33 @@ FCanvasTileRendererItem::FRenderData::FRenderData(
 	: MaterialRenderProxy(InMaterialRenderProxy)
 	, Transform(InTransform)
 	, VertexFactory(&StaticMeshVertexBuffers, InFeatureLevel)
-	, TileMesh(&IndexBuffer, &VertexFactory)
 {}
+
+uint32 FCanvasTileRendererItem::FRenderData::GetNumVertices() const
+{
+	return Tiles.Num() * CanvasTileVertexCount;
+}
+
+uint32 FCanvasTileRendererItem::FRenderData::GetNumIndices() const
+{
+	return Tiles.Num() * CanvasTileIndexCount;
+}
 
 void FCanvasTileRendererItem::FRenderData::InitTileMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis)
 {
 	static_assert(CanvasTileVertexCount == 4, "Invalid tile tri-list size.");
 	static_assert(CanvasTileIndexCount == 6, "Invalid tile tri-list size.");
 
-	const uint32 TotalVertexCount = Tiles.Num() * CanvasTileVertexCount;
-	const uint32 TotalIndexCount = Tiles.Num() * CanvasTileIndexCount;
+	const uint32 TotalVertexCount = GetNumVertices();
+	const uint32 TotalIndexCount = GetNumIndices();
 
 	StaticMeshVertexBuffers.PositionVertexBuffer.Init(TotalVertexCount);
 	StaticMeshVertexBuffers.StaticMeshVertexBuffer.Init(TotalVertexCount, 1);
 	StaticMeshVertexBuffers.ColorVertexBuffer.Init(TotalVertexCount);
+	
 	IndexBuffer.Indices.SetNum(TotalIndexCount);
+	// Make sure the index buffer is using the appropriate size :
+	IndexBuffer.ForceUse32Bit(TotalVertexCount > MAX_uint16);
 
 	for (int32 i = 0; i < Tiles.Num(); i++)
 	{
@@ -149,12 +160,10 @@ void FCanvasTileRendererItem::FRenderData::InitTileMesh(const FSceneView& View, 
 	StaticMeshVertexBuffers.ColorVertexBuffer.InitResource();
 	IndexBuffer.InitResource();
 	VertexFactory.InitResource();
-	TileMesh.InitResource();
 }
 
 void FCanvasTileRendererItem::FRenderData::ReleaseTileMesh()
 {
-	TileMesh.ReleaseResource();
 	VertexFactory.ReleaseResource();
 	IndexBuffer.ReleaseResource();
 	StaticMeshVertexBuffers.PositionVertexBuffer.ReleaseResource();
@@ -172,25 +181,45 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 {
 	check(IsInRenderingThread());
 
-	RDG_GPU_STAT_SCOPE(RenderContext.GraphBuilder, CanvasDrawTile);
+	if (Tiles.Num() == 0)
+	{
+		return;
+	}
+
+	RDG_GPU_STAT_SCOPE(RenderContext.GraphBuilder, CanvasDrawTiles);
 	RDG_EVENT_SCOPE(RenderContext.GraphBuilder, "%s", *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
-	TRACE_CPUPROFILER_EVENT_SCOPE(CanvasDrawTile);
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTile)
+	TRACE_CPUPROFILER_EVENT_SCOPE(CanvasDrawTiles);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTiles)
 
 	IRendererModule& RendererModule = GetRendererModule();
 
 	InitTileMesh(View, bNeedsToSwitchVerticalAxis);
 
+	// We know we have at least 1 tile so prep up a new batch right away : 
+	FMeshBatch* CurrentMeshBatch = AllocTileMeshBatch(RenderContext, Tiles[0].HitProxyId);
+	check(CurrentMeshBatch->Elements[0].FirstIndex == 0); // The first batch should always start at the first index 
+
 	for (int32 TileIdx = 0; TileIdx < Tiles.Num(); TileIdx++)
 	{
-		FRenderData::FTileInst& Tile = Tiles[TileIdx];
+		const FTileInst& Tile = Tiles[TileIdx];
 
-		FMeshBatch& Mesh = TileMesh.MeshElement;
-		Mesh.MaterialRenderProxy = MaterialRenderProxy;
-		Mesh.Elements[0].FirstIndex = CanvasTileIndexCount * TileIdx;
+		// We only need a new batch when the hit proxy id changes : 
+		if (CurrentMeshBatch->BatchHitProxyId != Tile.HitProxyId)
+		{
+			// Flush the current batch before allocating a new one: 
+			GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, *CurrentMeshBatch, bIsHitTesting, CurrentMeshBatch->BatchHitProxyId);
 
-		RendererModule.DrawTileMesh(RenderContext, DrawRenderState, View, Mesh, bIsHitTesting, Tile.HitProxyId, bUse128bitRT);
+			CurrentMeshBatch = AllocTileMeshBatch(RenderContext, Tile.HitProxyId);
+			CurrentMeshBatch->Elements[0].FirstIndex = CanvasTileIndexCount * TileIdx;
+		}
+
+		// Add 2 triangles to the batch per tile : 
+		CurrentMeshBatch->Elements[0].NumPrimitives += 2;
 	}
+
+	// Flush the final batch: 
+	check(CurrentMeshBatch != nullptr);
+	GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, *CurrentMeshBatch, bIsHitTesting, CurrentMeshBatch->BatchHitProxyId);
 
 	AddPass(RenderContext.GraphBuilder, [this](FRHICommandList&)
 	{

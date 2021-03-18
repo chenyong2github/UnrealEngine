@@ -19,18 +19,13 @@
 #include "EngineModule.h"
 #include "MeshPassProcessor.h"
 
+DECLARE_GPU_STAT_NAMED(CanvasDrawTriangles, TEXT("CanvasDrawTriangles"));
+
 FCanvasTriangleRendererItem::FTriangleVertexFactory::FTriangleVertexFactory(
 	const FStaticMeshVertexBuffers* InVertexBuffers,
 	ERHIFeatureLevel::Type InFeatureLevel)
 	: FLocalVertexFactory(InFeatureLevel, "FTriangleVertexFactory")
 	, VertexBuffers(InVertexBuffers)
-{}
-
-FCanvasTriangleRendererItem::FTriangleMesh::FTriangleMesh(
-	const FRawIndexBuffer* InIndexBuffer,
-	const FTriangleVertexFactory* InVertexFactory)
-	: IndexBuffer(InIndexBuffer)
-	, VertexFactory(InVertexFactory)
 {}
 
 void FCanvasTriangleRendererItem::FTriangleVertexFactory::InitResource()
@@ -46,30 +41,50 @@ void FCanvasTriangleRendererItem::FTriangleVertexFactory::InitResource()
 	FLocalVertexFactory::InitResource();
 }
 
-void FCanvasTriangleRendererItem::FTriangleMesh::InitRHI()
+FMeshBatch* FCanvasTriangleRendererItem::FRenderData::AllocTriangleMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId)
 {
-	MeshBatch.VertexFactory = VertexFactory;
-	MeshBatch.ReverseCulling = false;
-	MeshBatch.bDisableBackfaceCulling = true;
-	MeshBatch.Type = PT_TriangleList;
-	MeshBatch.DepthPriorityGroup = SDPG_Foreground;
+	FMeshBatch* MeshBatch = InRenderContext.Alloc<FMeshBatch>();
 
-	FMeshBatchElement& MeshBatchElement = MeshBatch.Elements[0];
-	MeshBatchElement.IndexBuffer = IndexBuffer;
+	MeshBatch->VertexFactory = &VertexFactory;
+	MeshBatch->MaterialRenderProxy = MaterialRenderProxy;
+	MeshBatch->ReverseCulling = false;
+	MeshBatch->bDisableBackfaceCulling = true;
+	MeshBatch->Type = PT_TriangleList;
+	MeshBatch->DepthPriorityGroup = SDPG_Foreground;
+	MeshBatch->BatchHitProxyId = InHitProxyId;
+
+	FMeshBatchElement& MeshBatchElement = MeshBatch->Elements[0];
+	MeshBatchElement.IndexBuffer = &IndexBuffer;
 	MeshBatchElement.FirstIndex = 0;
-	MeshBatchElement.NumPrimitives = 1;
+	MeshBatchElement.NumPrimitives = 0;
 	MeshBatchElement.MinVertexIndex = 0;
-	MeshBatchElement.MaxVertexIndex = 2;
+	MeshBatchElement.MaxVertexIndex = GetNumVertices() - 1;
 	MeshBatchElement.PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
+
+	return MeshBatch;
+}
+
+uint32 FCanvasTriangleRendererItem::FRenderData::GetNumVertices() const
+{
+	return Triangles.Num() * 3;
+}
+
+uint32 FCanvasTriangleRendererItem::FRenderData::GetNumIndices() const
+{
+	return Triangles.Num() * 3;
 }
 
 void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis)
 {
-	StaticMeshVertexBuffers.PositionVertexBuffer.Init(Triangles.Num() * 3);
-	StaticMeshVertexBuffers.StaticMeshVertexBuffer.Init(Triangles.Num() * 3, 1);
-	StaticMeshVertexBuffers.ColorVertexBuffer.Init(Triangles.Num() * 3);
+	const uint32 NumIndices = GetNumIndices();
+	const uint32 NumVertices = GetNumIndices();
+	StaticMeshVertexBuffers.PositionVertexBuffer.Init(NumVertices);
+	StaticMeshVertexBuffers.StaticMeshVertexBuffer.Init(NumVertices, 1);
+	StaticMeshVertexBuffers.ColorVertexBuffer.Init(NumVertices);
 
-	IndexBuffer.Indices.SetNum(Triangles.Num() * 3);
+	IndexBuffer.Indices.SetNum(NumIndices);
+	// Make sure the index buffer is using the appropriate size :
+	IndexBuffer.ForceUse32Bit(NumVertices > MAX_uint16);
 
 	for (int32 i = 0; i < Triangles.Num(); i++)
 	{
@@ -116,12 +131,10 @@ void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(const FSceneView
 	StaticMeshVertexBuffers.ColorVertexBuffer.InitResource();
 	IndexBuffer.InitResource();
 	VertexFactory.InitResource();
-	TriMesh.InitResource();
 };
 
 void FCanvasTriangleRendererItem::FRenderData::ReleaseTriangleMesh()
 {
-	TriMesh.ReleaseResource();
 	VertexFactory.ReleaseResource();
 	IndexBuffer.ReleaseResource();
 	StaticMeshVertexBuffers.PositionVertexBuffer.ReleaseResource();
@@ -138,23 +151,46 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 {
 	check(IsInRenderingThread());
 
+	if (Triangles.Num() == 0)
+	{
+		return;
+	}
+
+	RDG_GPU_STAT_SCOPE(RenderContext.GraphBuilder, CanvasDrawTriangles);
+	RDG_EVENT_SCOPE(RenderContext.GraphBuilder, "%s", *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
+	TRACE_CPUPROFILER_EVENT_SCOPE(CanvasDrawTriangles);
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_CanvasDrawTriangles)
+
 	IRendererModule& RendererModule = GetRendererModule();
 
 	InitTriangleMesh(View, bNeedsToSwitchVerticalAxis);
 
-	RDG_EVENT_SCOPE(RenderContext.GraphBuilder, "%s", *MaterialRenderProxy->GetIncompleteMaterialWithFallback(GMaxRHIFeatureLevel).GetFriendlyName());
+
+	// We know we have at least 1 triangle so prep up a new batch right away : 
+	FMeshBatch* CurrentMeshBatch = AllocTriangleMeshBatch(RenderContext, Triangles[0].HitProxyId);
+	check (CurrentMeshBatch->Elements[0].FirstIndex == 0); // The first batch should always start at the first index 
 
 	for (int32 TriIdx = 0; TriIdx < Triangles.Num(); TriIdx++)
 	{
 		const FTriangleInst& Tri = Triangles[TriIdx];
 
-		FMeshBatch& MeshBatch = *RenderContext.Alloc<FMeshBatch>(TriMesh.MeshBatch);
-		MeshBatch.VertexFactory = &VertexFactory;
-		MeshBatch.MaterialRenderProxy = MaterialRenderProxy;
-		MeshBatch.Elements[0].FirstIndex = 3 * TriIdx;
+		// We only need a new batch when the hit proxy id changes : 
+		if (CurrentMeshBatch->BatchHitProxyId != Tri.HitProxyId)
+		{
+			// Flush the current batch before allocating a new one: 
+			GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, *CurrentMeshBatch, bIsHitTesting, CurrentMeshBatch->BatchHitProxyId);
 
-		GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, MeshBatch, bIsHitTesting, Tri.HitProxyId);
+			CurrentMeshBatch = AllocTriangleMeshBatch(RenderContext, Tri.HitProxyId);
+			CurrentMeshBatch->Elements[0].FirstIndex = 3 * TriIdx;
+		}
+
+		// Add 1 triangle to the batch :
+		++CurrentMeshBatch->Elements[0].NumPrimitives;
 	}
+
+	// Flush the final batch: 
+	check(CurrentMeshBatch != nullptr);
+	GetRendererModule().DrawTileMesh(RenderContext, DrawRenderState, View, *CurrentMeshBatch, bIsHitTesting, CurrentMeshBatch->BatchHitProxyId);
 
 	AddPass(RenderContext.GraphBuilder, [this](FRHICommandList&)
 	{
