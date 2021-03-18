@@ -1598,7 +1598,7 @@ void FStreamingManager::AsyncUpdate()
 						LastPendingPage = &PendingPage;
 						FIoChunkId ChunkID = BulkData.CreateChunkId();
 						FIoReadOptions ReadOptions;
-						ReadOptions.SetRange(PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
+						ReadOptions.SetRange(BulkData.GetBulkDataOffsetInFile() + PageStreamingState.BulkOffset, PageStreamingState.BulkSize);
 						ReadOptions.SetTargetVa(PendingPage.MemoryPtr);
 						PendingPage.Request = Batch.Read(ChunkID, ReadOptions, IoDispatcherPriority_Low);
 						PendingPage.AsyncHandle = nullptr;
