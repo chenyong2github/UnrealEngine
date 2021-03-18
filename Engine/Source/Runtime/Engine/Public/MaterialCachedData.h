@@ -271,9 +271,4 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	uint32 bHasSceneColor : 1;
-
-	FMaterialCachedExpressionData() :
-		bHasRuntimeVirtualTextureOutput(false),
-		bHasSceneColor(false)
-	{}
 };
