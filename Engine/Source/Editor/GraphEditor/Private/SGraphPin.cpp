@@ -337,7 +337,7 @@ FReply SGraphPin::OnPinMouseDown( const FGeometry& SenderGeometry, const FPointe
 {
 	bIsMovingLinks = false;
 
-	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && ensure(!bGraphDataInvalid))
 	{
 		if (IsEditingEnabled())
 		{
@@ -738,9 +738,13 @@ bool SGraphPin::TryHandlePinConnection(SGraphPin& OtherSPin)
 {
 	UEdGraphPin* PinA = GetPinObj();
 	UEdGraphPin* PinB = OtherSPin.GetPinObj();
-	UEdGraph* MyGraphObj = PinA->GetOwningNode()->GetGraph();
-
-	return MyGraphObj->GetSchema()->TryCreateConnection(PinA, PinB);
+	if (PinA && PinB)
+	{
+		UEdGraph* MyGraphObj = PinA->GetOwningNode()->GetGraph();
+		check(MyGraphObj);
+		return MyGraphObj->GetSchema()->TryCreateConnection(PinA, PinB);
+	}
+	return false;
 }
 
 FReply SGraphPin::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
@@ -814,7 +818,8 @@ void SGraphPin::Tick( const FGeometry& AllottedGeometry, const double InCurrentT
 
 UEdGraphPin* SGraphPin::GetPinObj() const
 {
-	return GraphPinObj;
+	ensureMsgf(!bGraphDataInvalid, TEXT("The Graph Pin Object has been invalidate. Someone is keeping a hard ref on the SGraphPin. See InvalidateGraphData for more info"));
+	return !bGraphDataInvalid ? GraphPinObj : nullptr;
 }
 
 /** @param OwnerNode  The SGraphNode that this pin belongs to */
@@ -836,7 +841,8 @@ EVisibility SGraphPin::IsPinVisibleAsAdvanced() const
 		}
 	}
 
-	const bool bIsAdvancedPin = GraphPinObj && !GraphPinObj->IsPendingKill() && GraphPinObj->bAdvancedView;
+	UEdGraphPin* GraphPin = GetPinObj();
+	const bool bIsAdvancedPin = GraphPin && !GraphPin->IsPendingKill() && GraphPin->bAdvancedView;
 	const bool bCanBeHidden = !IsConnected();
 	return (bIsAdvancedPin && bHideAdvancedPin && bCanBeHidden) ? EVisibility::Collapsed : EVisibility::Visible;
 }
@@ -848,7 +854,8 @@ FVector2D SGraphPin::GetNodeOffset() const
 
 FText SGraphPin::GetPinLabel() const
 {
-	if (UEdGraphNode* GraphNode = GetPinObj()->GetOwningNodeUnchecked())
+	UEdGraphPin* GraphPin = GetPinObj();
+	if (UEdGraphNode* GraphNode = GraphPin ? GraphPin->GetOwningNodeUnchecked() : nullptr)
 	{
 		return GraphNode->GetPinDisplayName(GetPinObj());
 	}
@@ -858,44 +865,57 @@ FText SGraphPin::GetPinLabel() const
 /** @return whether this pin is incoming or outgoing */
 EEdGraphPinDirection SGraphPin::GetDirection() const
 {
-	return static_cast<EEdGraphPinDirection>(GraphPinObj->Direction);
+	UEdGraphPin* GraphPin = GetPinObj();
+	return GraphPin ? static_cast<EEdGraphPinDirection>(GraphPinObj->Direction) : EEdGraphPinDirection::EGPD_MAX;
 }
 
 bool SGraphPin::IsArray() const
 {
-	return GraphPinObj->PinType.IsArray();
+	UEdGraphPin* GraphPin = GetPinObj();
+	return GraphPin ? GraphPin->PinType.IsArray() : false;
 }
 
 bool SGraphPin::IsSet() const
 {
-	return GraphPinObj->PinType.IsSet();
+	UEdGraphPin* GraphPin = GetPinObj();
+	return GraphPin ? GraphPinObj->PinType.IsSet() : false;
 }
 
 bool SGraphPin::IsMap() const
 {
-	return GraphPinObj->PinType.IsMap();
+	UEdGraphPin* GraphPin = GetPinObj();
+	return GraphPin ? GraphPin->PinType.IsMap() : false;
 }
 
 bool SGraphPin::IsByMutableRef() const
 {
-	return GraphPinObj->PinType.bIsReference && !GraphPinObj->PinType.bIsConst;
+	UEdGraphPin* GraphPin = GetPinObj();
+	return GraphPin ? (GraphPin->PinType.bIsReference && !GraphPin->PinType.bIsConst) : false;
 }
 
 bool SGraphPin::IsDelegate() const
 {
-	const UEdGraphSchema* Schema = GraphPinObj->GetSchema();
-	return Schema && Schema->IsDelegateCategory(GraphPinObj->PinType.PinCategory);
+	UEdGraphPin* GraphPin = GetPinObj();
+	const UEdGraphSchema* Schema = GraphPin ? GraphPin->GetSchema() : nullptr;
+	return Schema && Schema->IsDelegateCategory(GraphPin->PinType.PinCategory);
 }
 
 /** @return whether this pin is connected to another pin */
 bool SGraphPin::IsConnected() const
 {
-	return GraphPinObj->LinkedTo.Num() > 0;
+	UEdGraphPin* GraphPin = GetPinObj();
+	return GraphPin? GraphPin->LinkedTo.Num() > 0 : false;
 }
 
 /** @return The brush with which to pain this graph pin's incoming/outgoing bullet point */
 const FSlateBrush* SGraphPin::GetPinIcon() const
 {
+	UEdGraphPin* GraphPin = GetPinObj();
+	if (GraphPin == nullptr)
+	{
+		return CachedImg_Pin_Disconnected;
+	}
+
 	if (Custom_Brush_Connected && Custom_Brush_Disconnected)
 	{
 		if (IsConnected())
@@ -930,7 +950,7 @@ const FSlateBrush* SGraphPin::GetPinIcon() const
 			return CachedImg_DelegatePin_Disconnected;
 		}
 	}
-	else if (GraphPinObj->bDisplayAsMutableRef || IsByMutableRef())
+	else if (GraphPin->bDisplayAsMutableRef || IsByMutableRef())
 	{
 		if (IsConnected())
 		{
@@ -950,7 +970,7 @@ const FSlateBrush* SGraphPin::GetPinIcon() const
 	{
 		return CachedImg_MapPinKey;
 	}
-	else if (GraphPinObj->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && ((GraphPinObj->PinType.PinSubCategoryObject == FPoseLink::StaticStruct()) || (GraphPinObj->PinType.PinSubCategoryObject == FComponentSpacePoseLink::StaticStruct())))
+	else if (GraphPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && ((GraphPin->PinType.PinSubCategoryObject == FPoseLink::StaticStruct()) || (GraphPin->PinType.PinSubCategoryObject == FComponentSpacePoseLink::StaticStruct())))
 	{
 		if (IsConnected())
 		{
@@ -976,7 +996,8 @@ const FSlateBrush* SGraphPin::GetPinIcon() const
 
 const FSlateBrush* SGraphPin::GetSecondaryPinIcon() const
 {
-	if( !GraphPinObj->IsPendingKill() && GraphPinObj->PinType.IsMap() )
+	UEdGraphPin* GraphPin = GetPinObj();
+	if( GraphPin && !GraphPin->IsPendingKill() && GraphPin->PinType.IsMap() )
 	{
 		return CachedImg_MapPinValue;
 	}
@@ -992,31 +1013,32 @@ const FSlateBrush* SGraphPin::GetPinBorder() const
 	{
 		bIsMarkedPin = (OwnerPanelPtr->MarkedPin.Pin() == SharedThis(this));
 	}
-
-	return (IsHovered() || bIsMarkedPin || GraphPinObj->bIsDiffing || bOnlyShowDefaultValue) ? CachedImg_Pin_BackgroundHovered : CachedImg_Pin_Background;
+	UEdGraphPin* GraphPin = GetPinObj();
+	return (IsHovered() || bIsMarkedPin || (GraphPin && GraphPin->bIsDiffing) || bOnlyShowDefaultValue) ? CachedImg_Pin_BackgroundHovered : CachedImg_Pin_Background;
 }
 
 
 FSlateColor SGraphPin::GetPinColor() const
 {
-	if (!GraphPinObj->IsPendingKill())
+	UEdGraphPin* GraphPin = GetPinObj();
+	if (GraphPin && !GraphPin->IsPendingKill())
 	{
-		if (GraphPinObj->bIsDiffing)
+		if (GraphPin->bIsDiffing)
 		{
 			return FSlateColor(FLinearColor(0.9f, 0.2f, 0.15f));
 		}
-		if (GraphPinObj->bOrphanedPin)
+		if (GraphPin->bOrphanedPin)
 		{
 			return FSlateColor(FLinearColor::Red);
 		}
-		if (const UEdGraphSchema* Schema = GraphPinObj->GetSchema())
+		if (const UEdGraphSchema* Schema = GraphPin->GetSchema())
 		{
 			if (!GetPinObj()->GetOwningNode()->IsNodeEnabled() || GetPinObj()->GetOwningNode()->IsDisplayAsDisabledForced() || !IsEditingEnabled() || GetPinObj()->GetOwningNode()->IsNodeUnrelated())
 			{
-				return Schema->GetPinTypeColor(GraphPinObj->PinType) * FLinearColor(1.0f, 1.0f, 1.0f, 0.5f);
+				return Schema->GetPinTypeColor(GraphPin->PinType) * FLinearColor(1.0f, 1.0f, 1.0f, 0.5f);
 			}
 
-			return Schema->GetPinTypeColor(GraphPinObj->PinType) * PinColorModifier;
+			return Schema->GetPinTypeColor(GraphPin->PinType) * PinColorModifier;
 		}
 	}
 
@@ -1025,17 +1047,19 @@ FSlateColor SGraphPin::GetPinColor() const
 
 FSlateColor SGraphPin::GetSecondaryPinColor() const
 {
-	const UEdGraphSchema_K2* Schema = Cast<UEdGraphSchema_K2>(!GraphPinObj->IsPendingKill() ? GraphPinObj->GetSchema() : nullptr);
-	return Schema ? Schema->GetSecondaryPinTypeColor(GraphPinObj->PinType) : FLinearColor::White;
+	UEdGraphPin* GraphPin = GetPinObj();
+	const UEdGraphSchema_K2* Schema = Cast<UEdGraphSchema_K2>((GraphPin && !GraphPin->IsPendingKill()) ? GraphPin->GetSchema() : nullptr);
+	return Schema ? Schema->GetSecondaryPinTypeColor(GraphPin->PinType) : FLinearColor::White;
 }
 
 FSlateColor SGraphPin::GetPinTextColor() const
 {
+	UEdGraphPin* GraphPin = GetPinObj();
 	// If there is no schema there is no owning node (or basically this is a deleted node)
-	if (UEdGraphNode* GraphNode = GraphPinObj->GetOwningNodeUnchecked())
+	if (UEdGraphNode* GraphNode = GraphPin ? GraphPin->GetOwningNodeUnchecked() : nullptr)
 	{
 		const bool bDisabled = (!GraphNode->IsNodeEnabled() || GraphNode->IsDisplayAsDisabledForced() || !IsEditingEnabled() || GraphNode->IsNodeUnrelated());
-		if (GraphPinObj->bOrphanedPin)
+		if (GraphPin->bOrphanedPin)
 		{
 			FLinearColor PinColor = FLinearColor::Red;
 			if (bDisabled)
@@ -1059,9 +1083,10 @@ FSlateColor SGraphPin::GetPinTextColor() const
 
 const FSlateBrush* SGraphPin::GetPinStatusIcon() const
 {
-	if (!GraphPinObj->IsPendingKill())
+	UEdGraphPin* GraphPin = GetPinObj();
+	if (GraphPin && !GraphPin->IsPendingKill())
 	{
-		UEdGraphPin* WatchedPin = ((GraphPinObj->Direction == EGPD_Input) && (GraphPinObj->LinkedTo.Num() > 0)) ? GraphPinObj->LinkedTo[0] : GraphPinObj;
+		UEdGraphPin* WatchedPin = ((GraphPin->Direction == EGPD_Input) && (GraphPin->LinkedTo.Num() > 0)) ? GraphPin->LinkedTo[0] : GraphPin;
 
 		if (UEdGraphNode* GraphNode = WatchedPin->GetOwningNodeUnchecked())
 		{
@@ -1079,27 +1104,29 @@ const FSlateBrush* SGraphPin::GetPinStatusIcon() const
 
 EVisibility SGraphPin::GetPinStatusIconVisibility() const
 {
-	if (GraphPinObj->IsPendingKill())
+	UEdGraphPin* GraphPin = GetPinObj();
+	if (GraphPin == nullptr || GraphPinObj->IsPendingKill())
 	{
 		return EVisibility::Collapsed;
 	}
 
-	UEdGraphPin const* WatchedPin = ((GraphPinObj->Direction == EGPD_Input) && (GraphPinObj->LinkedTo.Num() > 0)) ? GraphPinObj->LinkedTo[0] : GraphPinObj;
+	UEdGraphPin const* WatchedPin = ((GraphPin->Direction == EGPD_Input) && (GraphPin->LinkedTo.Num() > 0)) ? GraphPin->LinkedTo[0] : GraphPin;
 
-	UEdGraphSchema const* Schema = GraphPinObj->GetSchema();
+	UEdGraphSchema const* Schema = GraphPin->GetSchema();
 	return Schema && Schema->IsPinBeingWatched(WatchedPin) ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 FReply SGraphPin::ClickedOnPinStatusIcon()
 {
-	if (GraphPinObj->IsPendingKill())
+	UEdGraphPin* GraphPin = GetPinObj();
+	if (GraphPin == nullptr || GraphPinObj->IsPendingKill())
 	{
 		return FReply::Handled();
 	}
 
-	UEdGraphPin* WatchedPin = ((GraphPinObj->Direction == EGPD_Input) && (GraphPinObj->LinkedTo.Num() > 0)) ? GraphPinObj->LinkedTo[0] : GraphPinObj;
+	UEdGraphPin* WatchedPin = ((GraphPin->Direction == EGPD_Input) && (GraphPin->LinkedTo.Num() > 0)) ? GraphPin->LinkedTo[0] : GraphPin;
 
-	UEdGraphSchema const* Schema = GraphPinObj->GetSchema();
+	UEdGraphSchema const* Schema = GraphPin->GetSchema();
 	Schema->ClearPinWatch(WatchedPin);
 
 	return FReply::Handled();
@@ -1114,19 +1141,20 @@ EVisibility SGraphPin::GetDefaultValueVisibility() const
 	}
 
 	// First ask schema
-	const UEdGraphSchema* Schema = !GraphPinObj->IsPendingKill() ? GraphPinObj->GetSchema() : nullptr;
-	if (Schema == nullptr || Schema->ShouldHidePinDefaultValue(GraphPinObj))
+	UEdGraphPin* GraphPin = GetPinObj();
+	const UEdGraphSchema* Schema = (GraphPin && !GraphPin->IsPendingKill()) ? GraphPin->GetSchema() : nullptr;
+	if (Schema == nullptr || Schema->ShouldHidePinDefaultValue(GraphPin))
 	{
 		return EVisibility::Collapsed;
 	}
 
-	if (GraphPinObj->bNotConnectable && !GraphPinObj->bOrphanedPin)
+	if (GraphPin->bNotConnectable && !GraphPin->bOrphanedPin)
 	{
 		// The only reason this pin exists is to show something, so do so
 		return EVisibility::Visible;
 	}
 
-	if (GraphPinObj->Direction == EGPD_Output)
+	if (GraphPin->Direction == EGPD_Output)
 	{
 		//@TODO: Should probably be a bLiteralOutput flag or a Schema call
 		return EVisibility::Collapsed;
@@ -1156,11 +1184,12 @@ FText SGraphPin::GetTooltipText() const
 
 	FText HoverText = FText::GetEmpty();
 
-	UEdGraphNode* GraphNode = GraphPinObj && !GraphPinObj->IsPendingKill() ? GraphPinObj->GetOwningNodeUnchecked() : nullptr;
+	UEdGraphPin* GraphPin = GetPinObj();
+	UEdGraphNode* GraphNode = (GraphPin && !GraphPin->IsPendingKill()) ? GraphPin->GetOwningNodeUnchecked() : nullptr;
 	if (GraphNode != nullptr)
 	{
 		FString HoverStr;
-		GraphNode->GetPinHoverText(*GraphPinObj, /*out*/HoverStr);
+		GraphNode->GetPinHoverText(*GraphPin, /*out*/HoverStr);
 		if (!HoverStr.IsEmpty())
 		{
 			HoverText = FText::FromString(HoverStr);
@@ -1210,6 +1239,6 @@ void SGraphPin::SetCustomPinIcon(const FSlateBrush* InConnectedBrush, const FSla
 
 bool SGraphPin::GetIsConnectable() const
 {
-	const bool bCanConnectToPin = !GraphPinObj->bNotConnectable;
-	return bCanConnectToPin;
+	UEdGraphPin* GraphPin = GetPinObj();
+	return GraphPin ? !GraphPin->bNotConnectable : false;
 }

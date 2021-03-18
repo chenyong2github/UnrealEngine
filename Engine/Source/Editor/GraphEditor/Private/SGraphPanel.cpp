@@ -326,7 +326,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 		for (const FGraphPinHandle& Handle : PreviewConnectorFromPins)
 		{
 			TSharedPtr<SGraphPin> Pin = Handle.FindInGraphPanel(*this);
-			if (Pin.IsValid())
+			if (Pin.IsValid() && Pin->GetPinObj())
 			{
 				OverridePins.Add(Pin);
 			}
@@ -354,10 +354,13 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 				for (TArray< TSharedRef<SWidget> >::TConstIterator NodePinIterator(NodePins); NodePinIterator; ++NodePinIterator)
 				{
 					const SGraphPin& PinWidget = static_cast<const SGraphPin&>((*NodePinIterator).Get());
-					FVector2D PinLoc = NodeLoc + PinWidget.GetNodeOffset();
+					if (PinWidget.GetPinObj())
+					{
+						FVector2D PinLoc = NodeLoc + PinWidget.GetNodeOffset();
 
-					const FGeometry SynthesizedPinGeometry(GraphCoordToPanelCoord(PinLoc) * AllottedGeometry.Scale, AllottedGeometry.AbsolutePosition, FVector2D::ZeroVector, 1.f);
-					PinGeometries.Add(*NodePinIterator, FArrangedWidget(*NodePinIterator, SynthesizedPinGeometry));
+						const FGeometry SynthesizedPinGeometry(GraphCoordToPanelCoord(PinLoc) * AllottedGeometry.Scale, AllottedGeometry.AbsolutePosition, FVector2D::ZeroVector, 1.f);
+						PinGeometries.Add(*NodePinIterator, FArrangedWidget(*NodePinIterator, SynthesizedPinGeometry));
+					}
 				}
 
 				// Also add synthesized geometries for culled nodes
@@ -382,7 +385,7 @@ int32 SGraphPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeo
 			for (const FGraphPinHandle& Handle : PreviewConnectorFromPins)
 			{
 				TSharedPtr< SGraphPin > CurrentStartPin = Handle.FindInGraphPanel(*this);
-				if (!CurrentStartPin.IsValid())
+				if (!CurrentStartPin.IsValid() || !CurrentStartPin->GetPinObj())
 				{
 					continue;
 				}
