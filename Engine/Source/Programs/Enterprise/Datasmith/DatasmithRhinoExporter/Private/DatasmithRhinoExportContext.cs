@@ -693,7 +693,11 @@ namespace DatasmithRhino
 			else
 			{
 				// The scene is already parsed. We just need to update the visibility flags.
-				UpdateHiddenFlagsRecursively(SceneRoot);
+				HashSet<RhinoObject> OutNewObjects = new HashSet<RhinoObject>();
+				UpdateHiddenFlagsRecursively(SceneRoot, OutNewObjects);
+				
+				// Parse the meshes of unhidden actors being exported for the first time.
+				ParseRhinoMeshesFromRhinoObjects(OutNewObjects);
 
 				if (bDocumentPropertiesChanged)
 				{
@@ -1017,7 +1021,7 @@ namespace DatasmithRhino
 			ModifyMesh(InRhinoObject);
 		}
 
-		private static void UpdateHiddenFlagsRecursively(DatasmithActorInfo ActorInfo)
+		private void UpdateHiddenFlagsRecursively(DatasmithActorInfo ActorInfo, HashSet<RhinoObject> OutNewObjects)
 		{
 			// if the visibility changed, update the status of the descendants.
 			bool bIsVisible = ActorInfo.bIsVisible;
@@ -1038,12 +1042,20 @@ namespace DatasmithRhino
 				{
 					// If we are unhiding the actor, we must recompute the visibility of each children as it may be affected by other layers as well.
 					ActorInfo.RestorePreviousDirectLinkStatus();
+
+					// If we are unhidding an actor which previous status was "Created" that means we never synced it and must generate its associated mesh.
+					if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Created 
+						&& ActorInfo.RhinoCommonObject is RhinoObject NewRhinoObject
+						&& NewRhinoObject.ObjectType != ObjectType.InstanceReference)
+					{
+						OutNewObjects.Add(NewRhinoObject);
+					}
 				}
 			}
 
 			foreach (DatasmithActorInfo ChildActorInfo in ActorInfo.Children)
 			{
-				UpdateHiddenFlagsRecursively(ChildActorInfo);
+				UpdateHiddenFlagsRecursively(ChildActorInfo, OutNewObjects);
 			}
 		}
 
@@ -1173,7 +1185,8 @@ namespace DatasmithRhino
 			}
 
 			// Update the hidden flags on all the actors
-			UpdateHiddenFlagsRecursively(SceneRoot);
+			HashSet<RhinoObject> OutNewObjects = new HashSet<RhinoObject>();
+			UpdateHiddenFlagsRecursively(SceneRoot, OutNewObjects);
 		}
 
 		private void RecursivelyParseLayerHierarchy(Layer CurrentLayer, DatasmithActorInfo ParentNode)
