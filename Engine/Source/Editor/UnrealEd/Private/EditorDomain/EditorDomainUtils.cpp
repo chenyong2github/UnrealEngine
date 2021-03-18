@@ -29,7 +29,9 @@ FPackageDigest GetPackageDigest(const FAssetPackageData& PackageData, FName Pack
 	int32 CurrentFileVersionUE4 = GPackageFileUE4Version;
 	int32 CurrentFileVersionLicenseeUE4 = GPackageFileLicenseeUE4Version;
 	Writer << EditorDomainVersion;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Writer << const_cast<FGuid&>(PackageData.PackageGuid);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Writer << CurrentFileVersionUE4;
 	Writer << CurrentFileVersionLicenseeUE4;
 	check(Algo::IsSorted(PackageData.GetCustomVersions()));
