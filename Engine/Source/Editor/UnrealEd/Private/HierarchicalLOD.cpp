@@ -884,7 +884,7 @@ void FHierarchicalLODBuilder::BuildMeshesForLODActors(bool bForceAll)
 
 						for (ALODActor* LODActor : LODLevelActors[LODIndex])
 						{
-							UStaticMesh* StaticMesh = LODActor->GetStaticMeshComponent() ? LODActor->GetStaticMeshComponent()->GetStaticMesh() : nullptr;
+							UStaticMesh* StaticMesh = LODActor->GetStaticMeshComponent() ? ToRawPtr(LODActor->GetStaticMeshComponent()->GetStaticMesh()) : nullptr;
 							if (StaticMesh == nullptr)
 							{
 								continue;

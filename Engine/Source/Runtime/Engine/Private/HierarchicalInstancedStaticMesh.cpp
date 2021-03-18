@@ -2879,7 +2879,7 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyEmpty()
 	SortedInstances.Empty();
 	UnbuiltInstanceBoundsList.Empty();
 	BuiltInstanceBounds.Init();
-	CacheMeshExtendedBounds = GetStaticMesh() && (GetStaticMesh()->IsCompiling() || GetStaticMesh()->HasValidRenderData()) ? GetStaticMesh()->GetBounds() : FBoxSphereBounds(ForceInitToZero);
+	CacheMeshExtendedBounds = (GetStaticMesh() && (GetStaticMesh()->IsCompiling() || GetStaticMesh()->HasValidRenderData())) ? GetStaticMesh()->GetBounds() : FBoxSphereBounds(ForceInitToZero);
 	InstanceUpdateCmdBuffer.Reset();
 	if (PerInstanceRenderData.IsValid())
 	{

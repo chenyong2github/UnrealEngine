@@ -154,7 +154,7 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 		return true;
 	}
 
-	UStaticMesh* LocalStaticMesh = InLODActor->StaticMeshComponent ? InLODActor->StaticMeshComponent->GetStaticMesh() : nullptr;
+	UStaticMesh* LocalStaticMesh = InLODActor->StaticMeshComponent ? ToRawPtr(InLODActor->StaticMeshComponent->GetStaticMesh()) : nullptr;
 	if (StaticMesh != LocalStaticMesh)
 	{
 		return true;

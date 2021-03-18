@@ -225,14 +225,14 @@ bool SStaticMeshEditorViewport::IsShowNaniteProxyChecked() const
 
 bool SStaticMeshEditorViewport::IsShowNaniteProxyVisible() const
 {
-	const UStaticMesh* PreviewStaticMesh = PreviewMeshComponent ? PreviewMeshComponent->GetStaticMesh() : nullptr;
+	const UStaticMesh* PreviewStaticMesh = PreviewMeshComponent ? ToRawPtr(PreviewMeshComponent->GetStaticMesh()) : nullptr;
 
 	return PreviewStaticMesh && PreviewStaticMesh->NaniteSettings.bEnabled ? true : false;
 }
 
 void SStaticMeshEditorViewport::UpdatePreviewSocketMeshes()
 {
-	UStaticMesh* const PreviewStaticMesh = PreviewMeshComponent ? PreviewMeshComponent->GetStaticMesh() : nullptr;
+	UStaticMesh* const PreviewStaticMesh = PreviewMeshComponent ? ToRawPtr(PreviewMeshComponent->GetStaticMesh()) : nullptr;
 
 	if( PreviewStaticMesh )
 	{

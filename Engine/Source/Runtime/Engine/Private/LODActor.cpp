@@ -828,7 +828,7 @@ void ALODActor::AddSubActors(const TArray<AActor*>& InActors)
 
 			for (UStaticMeshComponent* Component : StaticMeshComponents)
 			{
-				const UStaticMesh* StaticMesh = (Component) ? Component->GetStaticMesh() : nullptr;
+				const UStaticMesh* StaticMesh = (Component) ? ToRawPtr(Component->GetStaticMesh()) : nullptr;
 				if (StaticMesh && StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->LODResources.Num() > 0)
 				{
 					NumTrianglesInSubActors += StaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
@@ -860,7 +860,7 @@ const bool ALODActor::RemoveSubActor(AActor* InActor)
 			InActor->GetComponents<UStaticMeshComponent>(StaticMeshComponents);
 			for (UStaticMeshComponent* Component : StaticMeshComponents)
 			{
-				const UStaticMesh* StaticMesh = (Component) ? Component->GetStaticMesh() : nullptr;
+				const UStaticMesh* StaticMesh = (Component) ? ToRawPtr(Component->GetStaticMesh()) : nullptr;
 				if (StaticMesh && StaticMesh->GetRenderData() && StaticMesh->GetRenderData()->LODResources.Num() > 0)
 				{
 					NumTrianglesInSubActors -= StaticMesh->GetRenderData()->LODResources[0].GetNumTriangles();
