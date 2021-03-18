@@ -74,9 +74,15 @@ FORCEINLINE D3D12_SHADER_VISIBILITY GetD3D12ShaderVisibility(EShaderVisibility V
 	case SV_Domain:
 		return D3D12_SHADER_VISIBILITY_DOMAIN;
 	case SV_Geometry:
-return D3D12_SHADER_VISIBILITY_GEOMETRY;
+		return D3D12_SHADER_VISIBILITY_GEOMETRY;
 	case SV_Pixel:
 		return D3D12_SHADER_VISIBILITY_PIXEL;
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	case SV_Mesh:
+		return D3D12_SHADER_VISIBILITY_MESH;
+	case SV_Amplification:
+		return D3D12_SHADER_VISIBILITY_AMPLIFICATION;
+#endif
 	case SV_All:
 		return D3D12_SHADER_VISIBILITY_ALL;
 
@@ -100,6 +106,12 @@ FORCEINLINE D3D12_ROOT_SIGNATURE_FLAGS GetD3D12RootSignatureDenyFlag(EShaderVisi
 		return D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
 	case SV_Pixel:
 		return D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS;
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	case SV_Mesh:
+		return D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS;
+	case SV_Amplification:
+		return D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS;
+#endif
 	case SV_All:
 		return D3D12_ROOT_SIGNATURE_FLAG_NONE;
 
@@ -113,7 +125,7 @@ FORCEINLINE D3D12_ROOT_SIGNATURE_FLAGS GetD3D12RootSignatureDenyFlag(EShaderVisi
 FD3D12RootSignatureDesc::FD3D12RootSignatureDesc(const FD3D12QuantizedBoundShaderState& QBSS, const D3D12_RESOURCE_BINDING_TIER ResourceBindingTier)
 	: RootParametersSize(0)
 {
-	const EShaderVisibility ShaderVisibilityPriorityOrder[] = { SV_Pixel, SV_Vertex, SV_Geometry, SV_Hull, SV_Domain, SV_All };
+	const EShaderVisibility ShaderVisibilityPriorityOrder[] = { SV_Pixel, SV_Vertex, SV_Geometry, SV_Hull, SV_Domain, SV_Mesh, SV_Amplification, SV_All };
 	const D3D12_ROOT_PARAMETER_TYPE RootParameterTypePriorityOrder[] = { D3D12_ROOT_PARAMETER_TYPE_DESCRIPTOR_TABLE, D3D12_ROOT_PARAMETER_TYPE_CBV };
 	uint32 RootParameterCount = 0;
 
@@ -403,6 +415,57 @@ const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticGra
 	return RootDesc;
 }
 
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticMeshRootSignatureDesc()
+{
+	// TODO: Support vendor extensions for static root signatures?
+
+	static const uint32 DescriptorTableCount = 16;
+	static struct
+	{
+		D3D12_SHADER_VISIBILITY Vis;
+		D3D12_DESCRIPTOR_RANGE_TYPE Type;
+		uint32 Count;
+		uint32 BaseShaderReg;
+		D3D12_DESCRIPTOR_RANGE_FLAGS Flags;
+	} RangeDesc[DescriptorTableCount] =
+	{
+		{ D3D12_SHADER_VISIBILITY_PIXEL, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRVS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::SRVDescriptorRangeFlags },
+		{ D3D12_SHADER_VISIBILITY_PIXEL, D3D12_DESCRIPTOR_RANGE_TYPE_CBV, MAX_CBS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::CBVDescriptorRangeFlags },
+		{ D3D12_SHADER_VISIBILITY_PIXEL, D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, MAX_SAMPLERS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::SamplerDescriptorRangeFlags },
+
+		{ D3D12_SHADER_VISIBILITY_MESH, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRVS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::SRVDescriptorRangeFlags },
+		{ D3D12_SHADER_VISIBILITY_MESH, D3D12_DESCRIPTOR_RANGE_TYPE_CBV, MAX_CBS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::CBVDescriptorRangeFlags },
+		{ D3D12_SHADER_VISIBILITY_MESH, D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, MAX_SAMPLERS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::SamplerDescriptorRangeFlags },
+
+		{ D3D12_SHADER_VISIBILITY_AMPLIFICATION, D3D12_DESCRIPTOR_RANGE_TYPE_SRV, MAX_SRVS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::SRVDescriptorRangeFlags },
+		{ D3D12_SHADER_VISIBILITY_AMPLIFICATION, D3D12_DESCRIPTOR_RANGE_TYPE_CBV, MAX_CBS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::CBVDescriptorRangeFlags },
+		{ D3D12_SHADER_VISIBILITY_AMPLIFICATION, D3D12_DESCRIPTOR_RANGE_TYPE_SAMPLER, MAX_SAMPLERS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::SamplerDescriptorRangeFlags },
+
+		{ D3D12_SHADER_VISIBILITY_ALL, D3D12_DESCRIPTOR_RANGE_TYPE_UAV, MAX_UAVS, 0, D3D12ShaderUtils::StaticRootSignatureConstants::UAVDescriptorRangeFlags },
+	};
+
+	static CD3DX12_ROOT_PARAMETER1 TableSlots[DescriptorTableCount];
+	static CD3DX12_DESCRIPTOR_RANGE1 DescriptorRanges[DescriptorTableCount];
+
+	for (uint32 i = 0; i < DescriptorTableCount; i++)
+	{
+		DescriptorRanges[i].Init(
+			RangeDesc[i].Type,
+			RangeDesc[i].Count,
+			RangeDesc[i].BaseShaderReg,
+			0u,
+			RangeDesc[i].Flags
+		);
+
+		TableSlots[i].InitAsDescriptorTable(1, &DescriptorRanges[i], RangeDesc[i].Vis);
+	}
+
+	static CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC RootDesc(DescriptorTableCount, TableSlots, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+	return RootDesc;
+}
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
+
 const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc()
 {
 	// TODO: Support vendor extensions for static root signatures?
@@ -556,6 +619,10 @@ void FD3D12RootSignature::InternalAnalyzeSignature(const RootSignatureDescType& 
 	const bool bDenyDS = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS) != 0;
 	const bool bDenyGS = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS) != 0;
 	const bool bDenyPS = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_DENY_PIXEL_SHADER_ROOT_ACCESS) != 0;
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	const bool bDenyMS = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_DENY_MESH_SHADER_ROOT_ACCESS) != 0;
+	const bool bDenyAS = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_DENY_AMPLIFICATION_SHADER_ROOT_ACCESS) != 0;
+#endif
 
 #if D3D12_RHI_RAYTRACING
 	const uint32 RootDescriptorTableCost = (Desc.Flags & D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE) ? RootDescriptorTableCostLocal : RootDescriptorTableCostGlobal;
@@ -624,6 +691,15 @@ void FD3D12RootSignature::InternalAnalyzeSignature(const RootSignatureDescType& 
 			CurrentVisibleSF = SF_Pixel;
 			break;
 
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		case D3D12_SHADER_VISIBILITY_MESH:
+			CurrentVisibleSF = SF_Mesh;
+			break;
+		case D3D12_SHADER_VISIBILITY_AMPLIFICATION:
+			CurrentVisibleSF = SF_Amplification;
+			break;
+#endif
+
 		default:
 			check(false);
 			break;
@@ -636,6 +712,11 @@ void FD3D12RootSignature::InternalAnalyzeSignature(const RootSignatureDescType& 
 			Stage[SF_Domain].bVisible = Stage[SF_Domain].bVisible || (!bDenyDS && HasVisibility(CurrentParameter.ShaderVisibility, D3D12_SHADER_VISIBILITY_DOMAIN));
 			Stage[SF_Geometry].bVisible = Stage[SF_Geometry].bVisible || (!bDenyGS && HasVisibility(CurrentParameter.ShaderVisibility, D3D12_SHADER_VISIBILITY_GEOMETRY));
 			Stage[SF_Pixel].bVisible = Stage[SF_Pixel].bVisible || (!bDenyPS && HasVisibility(CurrentParameter.ShaderVisibility, D3D12_SHADER_VISIBILITY_PIXEL));
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+			Stage[SF_Mesh].bVisible = Stage[SF_Mesh].bVisible || (!bDenyMS && HasVisibility(CurrentParameter.ShaderVisibility, D3D12_SHADER_VISIBILITY_MESH));
+			Stage[SF_Amplification].bVisible = Stage[SF_Amplification].bVisible || (!bDenyAS && HasVisibility(CurrentParameter.ShaderVisibility, D3D12_SHADER_VISIBILITY_AMPLIFICATION));
+#endif
 
 			// Compute is a special case, it must have visibility all.
 			Stage[SF_Compute].bVisible = Stage[SF_Compute].bVisible || (CurrentParameter.ShaderVisibility == D3D12_SHADER_VISIBILITY_ALL);

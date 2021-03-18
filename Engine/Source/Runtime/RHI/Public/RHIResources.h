@@ -491,6 +491,18 @@ public:
 	FRHIVertexShader() : FRHIGraphicsShader(SF_Vertex) {}
 };
 
+class FRHIMeshShader : public FRHIGraphicsShader
+{
+public:
+	FRHIMeshShader() : FRHIGraphicsShader(SF_Mesh) {}
+};
+
+class FRHIAmplificationShader : public FRHIGraphicsShader
+{
+public:
+	FRHIAmplificationShader() : FRHIGraphicsShader(SF_Amplification) {}
+};
+
 class FRHIHullShader : public FRHIGraphicsShader
 {
 public:
@@ -1499,6 +1511,8 @@ typedef TRefCountPtr<FRHIDepthStencilState> FDepthStencilStateRHIRef;
 typedef TRefCountPtr<FRHIBlendState> FBlendStateRHIRef;
 typedef TRefCountPtr<FRHIVertexDeclaration> FVertexDeclarationRHIRef;
 typedef TRefCountPtr<FRHIVertexShader> FVertexShaderRHIRef;
+typedef TRefCountPtr<FRHIMeshShader> FMeshShaderRHIRef;
+typedef TRefCountPtr<FRHIAmplificationShader> FAmplificationShaderRHIRef;
 typedef TRefCountPtr<FRHIHullShader> FHullShaderRHIRef;
 typedef TRefCountPtr<FRHIDomainShader> FDomainShaderRHIRef;
 typedef TRefCountPtr<FRHIPixelShader> FPixelShaderRHIRef;
@@ -1918,18 +1932,24 @@ typedef TRefCountPtr<FRHICustomPresent> FCustomPresentRHIRef;
 // Template magic to convert an FRHI*Shader to its enum
 template<typename TRHIShader> struct TRHIShaderToEnum {};
 template<> struct TRHIShaderToEnum<FRHIVertexShader>		{ enum { ShaderFrequency = SF_Vertex }; };
+template<> struct TRHIShaderToEnum<FRHIMeshShader>			{ enum { ShaderFrequency = SF_Mesh}; };
+template<> struct TRHIShaderToEnum<FRHIAmplificationShader>	{ enum { ShaderFrequency = SF_Amplification}; };
 template<> struct TRHIShaderToEnum<FRHIHullShader>			{ enum { ShaderFrequency = SF_Hull }; };
 template<> struct TRHIShaderToEnum<FRHIDomainShader>		{ enum { ShaderFrequency = SF_Domain }; };
 template<> struct TRHIShaderToEnum<FRHIPixelShader>			{ enum { ShaderFrequency = SF_Pixel }; };
 template<> struct TRHIShaderToEnum<FRHIGeometryShader>		{ enum { ShaderFrequency = SF_Geometry }; };
 template<> struct TRHIShaderToEnum<FRHIComputeShader>		{ enum { ShaderFrequency = SF_Compute }; };
 template<> struct TRHIShaderToEnum<FRHIVertexShader*>		{ enum { ShaderFrequency = SF_Vertex }; };
+template<> struct TRHIShaderToEnum<FRHIMeshShader*>			{ enum { ShaderFrequency = SF_Mesh }; };
+template<> struct TRHIShaderToEnum<FRHIAmplificationShader*>{ enum { ShaderFrequency = SF_Amplification }; };
 template<> struct TRHIShaderToEnum<FRHIHullShader*>			{ enum { ShaderFrequency = SF_Hull }; };
 template<> struct TRHIShaderToEnum<FRHIDomainShader*>		{ enum { ShaderFrequency = SF_Domain }; };
 template<> struct TRHIShaderToEnum<FRHIPixelShader*>		{ enum { ShaderFrequency = SF_Pixel }; };
 template<> struct TRHIShaderToEnum<FRHIGeometryShader*>		{ enum { ShaderFrequency = SF_Geometry }; };
 template<> struct TRHIShaderToEnum<FRHIComputeShader*>		{ enum { ShaderFrequency = SF_Compute }; };
 template<> struct TRHIShaderToEnum<FVertexShaderRHIRef>		{ enum { ShaderFrequency = SF_Vertex }; };
+template<> struct TRHIShaderToEnum<FMeshShaderRHIRef>		{ enum { ShaderFrequency = SF_Mesh }; };
+template<> struct TRHIShaderToEnum<FAmplificationShaderRHIRef>{ enum { ShaderFrequency = SF_Amplification }; };
 template<> struct TRHIShaderToEnum<FHullShaderRHIRef>		{ enum { ShaderFrequency = SF_Hull }; };
 template<> struct TRHIShaderToEnum<FDomainShaderRHIRef>		{ enum { ShaderFrequency = SF_Domain }; };
 template<> struct TRHIShaderToEnum<FPixelShaderRHIRef>		{ enum { ShaderFrequency = SF_Pixel }; };
@@ -1958,13 +1978,41 @@ struct FBoundShaderStateInput
 	{
 	}
 
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	inline FBoundShaderStateInput(
+		FRHIMeshShader* InMeshShaderRHI,
+		FRHIAmplificationShader* InAmplificationShader,
+		FRHIPixelShader* InPixelShaderRHI)
+		: MeshShaderRHI(InMeshShaderRHI)
+		, AmplificationShaderRHI(InAmplificationShader)
+		, PixelShaderRHI(InPixelShaderRHI)
+	{
+	}
+#endif
+
 	void AddRefResources()
 	{
-		check(VertexDeclarationRHI);
-		VertexDeclarationRHI->AddRef();
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		if (MeshShaderRHI)
+		{
+			check(VertexDeclarationRHI == nullptr);
+			check(VertexShaderRHI == nullptr);
+			MeshShaderRHI->AddRef();
 
-		check(VertexShaderRHI);
-		VertexShaderRHI->AddRef();
+			if (AmplificationShaderRHI)
+			{
+				AmplificationShaderRHI->AddRef();
+			}
+		}
+		else
+#endif
+		{
+			check(VertexDeclarationRHI);
+			VertexDeclarationRHI->AddRef();
+
+			check(VertexShaderRHI);
+			VertexShaderRHI->AddRef();
+		}
 
 		if (HullShaderRHI)
 		{
@@ -1989,11 +2037,27 @@ struct FBoundShaderStateInput
 
 	void ReleaseResources()
 	{
-		check(VertexDeclarationRHI);
-		VertexDeclarationRHI->Release();
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		if (MeshShaderRHI)
+		{
+			check(VertexDeclarationRHI == nullptr);
+			check(VertexShaderRHI == nullptr);
+			MeshShaderRHI->Release();
 
-		check(VertexShaderRHI);
-		VertexShaderRHI->Release();
+			if (AmplificationShaderRHI)
+			{
+				AmplificationShaderRHI->Release();
+			}
+		}
+		else
+#endif
+		{
+			check(VertexDeclarationRHI);
+			VertexDeclarationRHI->Release();
+
+			check(VertexShaderRHI);
+			VertexShaderRHI->Release();
+		}
 
 		if (HullShaderRHI)
 		{
@@ -2018,6 +2082,8 @@ struct FBoundShaderStateInput
 
 	FRHIVertexDeclaration* VertexDeclarationRHI = nullptr;
 	FRHIVertexShader* VertexShaderRHI = nullptr;
+	FRHIMeshShader* MeshShaderRHI = nullptr;
+	FRHIAmplificationShader* AmplificationShaderRHI = nullptr;
 	FRHIHullShader* HullShaderRHI = nullptr;
 	FRHIDomainShader* DomainShaderRHI = nullptr;
 	FRHIPixelShader* PixelShaderRHI = nullptr;
@@ -2168,6 +2234,10 @@ public:
 		if (BoundShaderState.VertexDeclarationRHI != rhs.BoundShaderState.VertexDeclarationRHI ||
 			BoundShaderState.VertexShaderRHI != rhs.BoundShaderState.VertexShaderRHI ||
 			BoundShaderState.PixelShaderRHI != rhs.BoundShaderState.PixelShaderRHI ||
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+			BoundShaderState.MeshShaderRHI != rhs.BoundShaderState.MeshShaderRHI ||
+			BoundShaderState.AmplificationShaderRHI != rhs.BoundShaderState.AmplificationShaderRHI ||
+#endif
 #if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
 			BoundShaderState.GeometryShaderRHI != rhs.BoundShaderState.GeometryShaderRHI ||
 #endif

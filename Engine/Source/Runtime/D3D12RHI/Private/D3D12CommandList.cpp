@@ -68,21 +68,31 @@ FD3D12CommandListHandle::FD3D12CommandListData::FD3D12CommandListData(FD3D12Devi
 	VERIFYD3D12RESULT(ParentDevice->GetDevice()->CreateCommandList(GetGPUMask().GetNative(), CommandListType, CommandAllocator, nullptr, IID_PPV_ARGS(CommandList.GetInitReference())));
 	INC_DWORD_STAT(STAT_D3D12NumCommandLists);
 
-#if PLATFORM_WINDOWS
 	// Optionally obtain the ID3D12GraphicsCommandList1 & ID3D12GraphicsCommandList2 interface, we don't check the HRESULT.
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1
 	CommandList->QueryInterface(IID_PPV_ARGS(CommandList1.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2
 	CommandList->QueryInterface(IID_PPV_ARGS(CommandList2.GetInitReference()));
 #endif
-
-#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3
+	CommandList->QueryInterface(IID_PPV_ARGS(CommandList3.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4
+	CommandList->QueryInterface(IID_PPV_ARGS(CommandList4.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5
 	CommandList->QueryInterface(IID_PPV_ARGS(CommandList5.GetInitReference()));
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
+	CommandList->QueryInterface(IID_PPV_ARGS(CommandList6.GetInitReference()));
 #endif
 
 #if D3D12_RHI_RAYTRACING
 	// Obtain ID3D12CommandListRaytracingPrototype if parent device supports ray tracing and this is a compatible command list type (compute or graphics).
 	if (ParentDevice->GetDevice5() && (InCommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || InCommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE))
 	{
-		VERIFYD3D12RESULT(CommandList->QueryInterface(IID_PPV_ARGS(RayTracingCommandList.GetInitReference())));
+		VERIFYD3D12RESULT(CommandList->QueryInterface(IID_PPV_ARGS(CommandList4.GetInitReference())));
 	}
 #endif // D3D12_RHI_RAYTRACING
 

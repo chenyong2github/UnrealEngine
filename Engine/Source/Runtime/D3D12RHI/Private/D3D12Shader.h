@@ -64,6 +64,38 @@ public:
 	FShaderCodePackedResourceCounts ResourceCounts;
 };
 
+class FD3D12MeshShader : public FRHIMeshShader, public FD3D12ShaderData
+{
+public:
+	enum { StaticFrequency = SF_Mesh };
+
+	/** The shader's bytecode. */
+	FD3D12ShaderBytecode ShaderBytecode;
+
+	FD3D12ShaderResourceTable ShaderResourceTable;
+
+	/** The mesh shader's bytecode, with custom data in the last byte. */
+	TArray<uint8> Code;
+
+	FShaderCodePackedResourceCounts ResourceCounts;
+};
+
+class FD3D12AmplificationShader : public FRHIAmplificationShader, public FD3D12ShaderData
+{
+public:
+	enum { StaticFrequency = SF_Amplification };
+
+	/** The shader's bytecode. */
+	FD3D12ShaderBytecode ShaderBytecode;
+
+	FD3D12ShaderResourceTable ShaderResourceTable;
+
+	/** The amplification shader's bytecode, with custom data in the last byte. */
+	TArray<uint8> Code;
+
+	FShaderCodePackedResourceCounts ResourceCounts;
+};
+
 class FD3D12GeometryShader : public FRHIGeometryShader, public FD3D12ShaderData
 {
 public:
@@ -170,19 +202,31 @@ public:
 		FRHIDomainShader* InDomainShaderRHI,
 		FRHIGeometryShader* InGeometryShaderRHI,
 		FD3D12Adapter* InAdapter
-		);
+	);
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	/** Initialization constructor. */
+	FD3D12BoundShaderState(
+		FRHIMeshShader* InMeshShaderRHI,
+		FRHIAmplificationShader* InAmplificationShaderRHI,
+		FRHIPixelShader* InPixelShaderRHI,
+		FD3D12Adapter* InAdapter
+	);
+#endif
 
 	virtual ~FD3D12BoundShaderState();
 
 	/**
 	* Get the shader for the given frequency.
 	*/
-	FORCEINLINE FD3D12VertexDeclaration* GetVertexDeclaration() const { return (FD3D12VertexDeclaration*) CacheLink.GetVertexDeclaration(); }
-	FORCEINLINE FD3D12VertexShader*      GetVertexShader()      const { return (FD3D12VertexShader*)      CacheLink.GetVertexShader();      }
-	FORCEINLINE FD3D12PixelShader*       GetPixelShader()       const { return (FD3D12PixelShader*)       CacheLink.GetPixelShader();       }
-	FORCEINLINE FD3D12HullShader*        GetHullShader()        const { return (FD3D12HullShader*)        CacheLink.GetHullShader();        }
-	FORCEINLINE FD3D12DomainShader*      GetDomainShader()      const { return (FD3D12DomainShader*)      CacheLink.GetDomainShader();      }
-	FORCEINLINE FD3D12GeometryShader*    GetGeometryShader()    const { return (FD3D12GeometryShader*)    CacheLink.GetGeometryShader();    }
+	FORCEINLINE FD3D12VertexDeclaration*   GetVertexDeclaration()   const { return (FD3D12VertexDeclaration*)   CacheLink.GetVertexDeclaration();   }
+	FORCEINLINE FD3D12VertexShader*        GetVertexShader()        const { return (FD3D12VertexShader*)        CacheLink.GetVertexShader();        }
+	FORCEINLINE FD3D12MeshShader*          GetMeshShader()          const { return (FD3D12MeshShader*)          CacheLink.GetMeshShader();          }
+	FORCEINLINE FD3D12AmplificationShader* GetAmplificationShader() const { return (FD3D12AmplificationShader*) CacheLink.GetAmplificationShader(); }
+	FORCEINLINE FD3D12PixelShader*         GetPixelShader()         const { return (FD3D12PixelShader*)         CacheLink.GetPixelShader();         }
+	FORCEINLINE FD3D12HullShader*          GetHullShader()          const { return (FD3D12HullShader*)          CacheLink.GetHullShader();          }
+	FORCEINLINE FD3D12DomainShader*        GetDomainShader()        const { return (FD3D12DomainShader*)        CacheLink.GetDomainShader();        }
+	FORCEINLINE FD3D12GeometryShader*      GetGeometryShader()      const { return (FD3D12GeometryShader*)      CacheLink.GetGeometryShader();      }
 };
 
 #if D3D12_RHI_RAYTRACING
@@ -217,6 +261,16 @@ template<>
 struct TD3D12ResourceTraits<FRHIVertexShader>
 {
 	typedef FD3D12VertexShader TConcreteType;
+};
+template<>
+struct TD3D12ResourceTraits<FRHIMeshShader>
+{
+	typedef FD3D12MeshShader TConcreteType;
+};
+template<>
+struct TD3D12ResourceTraits<FRHIAmplificationShader>
+{
+	typedef FD3D12AmplificationShader TConcreteType;
 };
 template<>
 struct TD3D12ResourceTraits<FRHIGeometryShader>

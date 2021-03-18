@@ -453,6 +453,10 @@ protected:
 		static FD3D12##Name##Shader* GetShader(FD3D12GraphicsPipelineState* PSO) { return PSO ? (FD3D12##Name##Shader*)PSO->PipelineStateInitializer.BoundShaderState.##Name##ShaderRHI : nullptr; } \
 	}
 	DECLARE_SHADER_TRAITS(Vertex);
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	DECLARE_SHADER_TRAITS(Mesh);
+	DECLARE_SHADER_TRAITS(Amplification);
+#endif
 	DECLARE_SHADER_TRAITS(Pixel);
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	DECLARE_SHADER_TRAITS(Domain);
@@ -742,6 +746,24 @@ public:
 		GetShader(Shader);
 	}
 
+	D3D12_STATE_CACHE_INLINE void GetMeshShader(FD3D12MeshShader** Shader)
+	{
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		GetShader(Shader);
+#else
+		* Shader = nullptr;
+#endif
+	}
+
+	D3D12_STATE_CACHE_INLINE void GetAmplificationShader(FD3D12AmplificationShader** Shader)
+	{
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		GetShader(Shader);
+#else
+		* Shader = nullptr;
+#endif
+	}
+
 	D3D12_STATE_CACHE_INLINE void GetHullShader(FD3D12HullShader** Shader)
 	{
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
@@ -781,6 +803,10 @@ public:
 		{
 			SetStreamStrides(GraphicsPipelineState->StreamStrides);
 			SetShader(GraphicsPipelineState->GetVertexShader());
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+			SetShader(GraphicsPipelineState->GetMeshShader());
+			SetShader(GraphicsPipelineState->GetAmplificationShader());
+#endif
 			SetShader(GraphicsPipelineState->GetPixelShader());
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 			SetShader(GraphicsPipelineState->GetDomainShader());

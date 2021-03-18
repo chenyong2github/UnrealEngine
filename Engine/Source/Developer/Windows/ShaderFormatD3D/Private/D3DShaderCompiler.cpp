@@ -95,6 +95,10 @@ static const TCHAR* GetShaderProfileName(FShaderTarget Target, bool bForceSM6)
 			return TEXT("ps_6_5");
 		case SF_Vertex:
 			return TEXT("vs_6_5");
+		case SF_Mesh:
+			return TEXT("ms_6_5");
+		case SF_Amplification:
+			return TEXT("as_6_5");
 		case SF_Hull:
 			return TEXT("hs_6_5");
 		case SF_Domain:

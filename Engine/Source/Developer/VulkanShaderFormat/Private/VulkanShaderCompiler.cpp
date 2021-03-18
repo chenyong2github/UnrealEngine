@@ -2584,12 +2584,15 @@ void DoCompileVulkanShader(const FShaderCompilerInput& Input, FShaderCompilerOut
 	const EHlslShaderFrequency FrequencyTable[] =
 	{
 		HSF_VertexShader,
+		HSF_InvalidFrequency,
+		HSF_InvalidFrequency,
 		bIsSM5 ? HSF_HullShader : HSF_InvalidFrequency,
 		bIsSM5 ? HSF_DomainShader : HSF_InvalidFrequency,
 		HSF_PixelShader,
 		bIsSM5 ? HSF_GeometryShader : HSF_InvalidFrequency,
 		HSF_ComputeShader
 	};
+	static_assert(SF_NumStandardFrequencies == UE_ARRAY_COUNT(FrequencyTable), "NumFrequencies changed. Please update tables.");
 
 	const EHlslShaderFrequency Frequency = FrequencyTable[Input.Target.Frequency];
 	if (Frequency == HSF_InvalidFrequency)

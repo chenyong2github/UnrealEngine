@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ShaderFormatD3D.h"
+#include "ShaderCompilerCommon.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IShaderFormat.h"
@@ -56,6 +57,7 @@ public:
 		checkf(0, TEXT("Unknown Format %s"), *Format.ToString());
 		return 0;
 	}
+
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const
 	{
 		OutFormats.Add(NAME_PCD3D_SM6);
@@ -83,6 +85,35 @@ public:
 			checkf(0, TEXT("Unknown format %s"), *Format.ToString());
 		}
 	}
+
+	void ModifyShaderCompilerInput(FShaderCompilerInput& Input) const final
+	{
+		CheckFormat(Input.ShaderFormat);
+		if (Input.ShaderFormat == NAME_PCD3D_SM6)
+		{
+			Input.Environment.SetDefine(TEXT("SM6_PROFILE"), 1);
+			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 1);
+		}
+		else if (Input.ShaderFormat == NAME_PCD3D_SM5)
+		{
+			Input.Environment.SetDefine(TEXT("SM5_PROFILE"), 1);
+			const bool bUseDXC =
+				Input.IsRayTracingShader()
+				|| Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations)
+				|| Input.Environment.CompilerFlags.Contains(CFLAG_ForceDXC);
+			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), bUseDXC);
+		}
+		else if (Input.ShaderFormat == NAME_PCD3D_ES3_1)
+		{
+			Input.Environment.SetDefine(TEXT("ES3_1_PROFILE"), 1);
+			Input.Environment.SetDefine(TEXT("COMPILER_DXC"), 0);
+		}
+		else
+		{
+			checkf(0, TEXT("Unknown format %s"), *Input.ShaderFormat.ToString());
+		}
+	}
+
 	virtual const TCHAR* GetPlatformIncludeDirectory() const
 	{
 		return TEXT("D3D");

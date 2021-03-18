@@ -23,23 +23,25 @@
 enum EShaderFrequency : uint8
 {
 	SF_Vertex			= 0,
-	SF_Hull				= 1,
-	SF_Domain			= 2,
-	SF_Pixel			= 3,
-	SF_Geometry			= 4,
-	SF_Compute			= 5,
-	SF_RayGen			= 6,
-	SF_RayMiss			= 7,
-	SF_RayHitGroup		= 8,
-	SF_RayCallable		= 9,
+	SF_Mesh				= 1,
+	SF_Amplification	= 2,
+	SF_Hull				= 3,
+	SF_Domain			= 4,
+	SF_Pixel			= 5,
+	SF_Geometry			= 6,
+	SF_Compute			= 7,
+	SF_RayGen			= 8,
+	SF_RayMiss			= 9,
+	SF_RayHitGroup		= 10,
+	SF_RayCallable		= 11,
 
-	SF_NumFrequencies	= 10,
+	SF_NumFrequencies	= 12,
 
-	// Number of standard SM5-style shader frequencies for graphics pipeline (excluding compute)
-	SF_NumGraphicsFrequencies = 5,
+	// Number of standard shader frequencies for graphics pipeline (excluding compute)
+	SF_NumGraphicsFrequencies = 7,
 
-	// Number of standard SM5-style shader frequencies (including compute)
-	SF_NumStandardFrequencies = 6,
+	// Number of standard shader frequencies (including compute)
+	SF_NumStandardFrequencies = 8,
 
 	SF_NumBits			= 4,
 };
@@ -364,6 +366,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bRequiresDisableForwardLocalLights : 1;
 	uint32 bCompileSignalProcessingPipeline : 1;
 	uint32 bSupportsTessellation : 1;
+	uint32 bSupportsMeshShaders : 1;
 	uint32 bSupportsPerPixelDBufferMask : 1;
 	uint32 bIsHlslcc : 1;
 	uint32 NumberOfComputeThreads : 10;
@@ -647,6 +650,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsTessellation(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsTessellation;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsMeshShaders(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsMeshShaders;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsPerPixelDBufferMask(const FStaticShaderPlatform Platform)
@@ -1973,6 +1981,8 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	switch (Frequency)
 	{
 	case SF_Vertex:			String = TEXT("SF_Vertex"); break;
+	case SF_Mesh:			String = TEXT("SF_Mesh"); break;
+	case SF_Amplification:	String = TEXT("SF_Amplification"); break;
 	case SF_Hull:			String = TEXT("SF_Hull"); break;
 	case SF_Domain:			String = TEXT("SF_Domain"); break;
 	case SF_Geometry:		String = TEXT("SF_Geometry"); break;
@@ -1993,6 +2003,11 @@ inline const TCHAR* GetShaderFrequencyString(EShaderFrequency Frequency, bool bI
 	String += Index;
 	return String;
 };
+
+inline bool IsGeometryPipelineShaderFrequency(EShaderFrequency Frequency)
+{
+	return Frequency == SF_Mesh || Frequency == SF_Amplification;
+}
 
 inline bool IsRayTracingShaderFrequency(EShaderFrequency Frequency)
 {

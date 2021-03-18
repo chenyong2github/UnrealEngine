@@ -89,6 +89,8 @@ enum EShaderVisibility
 	SV_Hull,
 	SV_Domain,
 	SV_Geometry,
+	SV_Mesh,
+	SV_Amplification,
 	SV_All,
 	SV_ShaderVisibilityCount
 };

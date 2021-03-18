@@ -456,6 +456,8 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 	switch (Frequency)
 	{
 	case SF_Vertex: RHIShader = RHICreateVertexShader(ShaderCodeView, ShaderHash); break;
+	case SF_Mesh: RHIShader = RHICreateMeshShader(ShaderCodeView, ShaderHash); break;
+	case SF_Amplification: RHIShader = RHICreateAmplificationShader(ShaderCodeView, ShaderHash); break;
 	case SF_Pixel: RHIShader = RHICreatePixelShader(ShaderCodeView, ShaderHash); break;
 	case SF_Hull: RHIShader = RHICreateHullShader(ShaderCodeView, ShaderHash); break;
 	case SF_Domain: RHIShader = RHICreateDomainShader(ShaderCodeView, ShaderHash); break;

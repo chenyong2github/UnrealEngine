@@ -63,13 +63,14 @@ enum class EPipelineCacheFileFormatVersions : uint32
 	EngineFlags = 16,
 	Subpass = 17,
 	PatchSizeReduction_NoDuplicatedGuid = 18,
-	AlphaToCoverage = 19
+	AlphaToCoverage = 19,
+	AddingMeshShaders = 20,
 };
 
 const uint64 FPipelineCacheFileFormatMagic = 0x5049504543414348; // PIPECACH
 const uint64 FPipelineCacheTOCFileFormatMagic = 0x544F435354415232; // TOCSTAR2
 const uint64 FPipelineCacheEOFFileFormatMagic = 0x454F462D4D41524B; // EOF-MARK
-const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::AlphaToCoverage;
+const uint32 FPipelineCacheFileFormatCurrentVersion = (uint32)EPipelineCacheFileFormatVersions::AddingMeshShaders;
 const int32  FPipelineCacheGraphicsDescPartsNum = 63; // parser will expect this number of parts in a description string
 
 /**
@@ -327,12 +328,14 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShadersToString() const
 {
 	FString Result;
 
-	Result += FString::Printf(TEXT("%s,%s,%s,%s,%s")
+	Result += FString::Printf(TEXT("%s,%s,%s,%s,%s,%s,%s")
 		, *VertexShader.ToString()
 		, *FragmentShader.ToString()
 		, *GeometryShader.ToString()
 		, *HullShader.ToString()
 		, *DomainShader.ToString()
+		, *MeshShader.ToString()
+		, *AmplificationShader.ToString()
 	);
 
 	return Result;
@@ -340,7 +343,7 @@ FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShadersToString() const
 
 void FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShadersFromString(const FStringView& Src)
 {
-	constexpr int32 PartCount = 5;
+	constexpr int32 PartCount = 7;
 
 	TArray<FStringView, TInlineAllocator<PartCount>> Parts;
 	UE::String::ParseTokens(Src.TrimStartAndEnd(), TEXT(','), [&Parts](FStringView Part) { Parts.Add(Part); });
@@ -353,13 +356,15 @@ void FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShadersFromString(const FS
 	GeometryShader.FromString(*PartIt++);
 	HullShader.FromString(*PartIt++);
 	DomainShader.FromString(*PartIt++);
+	MeshShader.FromString(*PartIt++);
+	AmplificationShader.FromString(*PartIt++);
 
 	check(Parts.GetData() + PartCount == PartIt);
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::ShaderHeaderLine()
 {
-	return FString(TEXT("VertexShader,FragmentShader,GeometryShader,HullShader,DomainShader"));
+	return FString(TEXT("VertexShader,FragmentShader,GeometryShader,HullShader,DomainShader,MeshShader,AmplificationShader"));
 }
 
 FString FPipelineCacheFileFormatPSO::GraphicsDescriptor::StateToString() const
@@ -655,11 +660,25 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 	}
 	else if(Type == DescriptorType::Graphics)
 	{
-		if(GraphicsDesc.VertexShader == FSHAHash())
+		if (GraphicsDesc.VertexShader == FSHAHash() && GraphicsDesc.MeshShader == FSHAHash())
 		{
-			// No vertex shader - no graphics - nothing else matters
+			// No vertex or mesh shader - no graphics - nothing else matters
 			return false;
 		}
+
+#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
+		if (GraphicsDesc.VertexShader != FSHAHash() && GraphicsDesc.MeshShader != FSHAHash())
+		{
+			// Vertex shader and mesh shader are mutually exclusive
+			return false;
+		}
+
+		if (GraphicsDesc.MeshShader != FSHAHash() && GraphicsDesc.VertexDescriptor.Num() > 0)
+		{
+			// mesh shader should not have descriptors
+			return false;
+		}
+#endif
 		
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		if( GraphicsDesc.HullShader == FSHAHash() && GraphicsDesc.DomainShader == FSHAHash() && GraphicsDesc.PrimitiveType >= PT_1_ControlPointPatchList && GraphicsDesc.PrimitiveType <= PT_32_ControlPointPatchList)
@@ -793,7 +812,9 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.GeometryShader.Hash, sizeof(Key.GraphicsDesc.GeometryShader.Hash), KeyHash);
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.HullShader.Hash, sizeof(Key.GraphicsDesc.HullShader.Hash), KeyHash);
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.DomainShader.Hash, sizeof(Key.GraphicsDesc.DomainShader.Hash), KeyHash);
-				
+				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.MeshShader.Hash, sizeof(Key.GraphicsDesc.MeshShader.Hash), KeyHash);
+				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.AmplificationShader.Hash, sizeof(Key.GraphicsDesc.AmplificationShader.Hash), KeyHash);
+
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.DepthStencilFormat, sizeof(Key.GraphicsDesc.DepthStencilFormat), KeyHash);
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.DepthStencilFlags, sizeof(Key.GraphicsDesc.DepthStencilFlags), KeyHash);
 				KeyHash = FCrc::MemCrc32(&Key.GraphicsDesc.DepthLoad, sizeof(Key.GraphicsDesc.DepthLoad), KeyHash);
@@ -891,6 +912,11 @@ bool FPipelineCacheFileFormatPSO::Verify() const
 			Ar << Info.GraphicsDesc.GeometryShader;
 			Ar << Info.GraphicsDesc.HullShader;
 			Ar << Info.GraphicsDesc.DomainShader;
+			if (Ar.GameNetVer() >= (uint32)EPipelineCacheFileFormatVersions::AddingMeshShaders)
+			{
+				Ar << Info.GraphicsDesc.MeshShader;
+				Ar << Info.GraphicsDesc.AmplificationShader;
+			}
             if (Ar.GameNetVer() == (uint32)EPipelineCacheFileFormatVersions::LibraryID)
             {
 				for (uint32 i = 0; i < SF_Compute; i++)
@@ -1092,6 +1118,17 @@ FPipelineCacheFileFormatPSO::FPipelineCacheFileFormatPSO()
 	{
 		PSO.GraphicsDesc.VertexShader = Init.BoundShaderState.VertexShaderRHI->GetHash();
 	}
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	if (Init.BoundShaderState.MeshShaderRHI)
+	{
+		PSO.GraphicsDesc.MeshShader = Init.BoundShaderState.MeshShaderRHI->GetHash();
+	}
+	if (Init.BoundShaderState.AmplificationShaderRHI)
+	{
+		PSO.GraphicsDesc.AmplificationShader = Init.BoundShaderState.AmplificationShaderRHI->GetHash();
+	}
+#endif
 	
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	if (Init.BoundShaderState.HullShaderRHI)
@@ -1200,11 +1237,20 @@ bool FPipelineCacheFileFormatPSO::operator==(const FPipelineCacheFileFormatPSO& 
 					{
 						bSame &= (FMemory::Memcmp(&GraphicsDesc.VertexDescriptor[i], &Other.GraphicsDesc.VertexDescriptor[i], sizeof(FVertexElement)) == 0);
 					}
-					bSame &= GraphicsDesc.PrimitiveType == Other.GraphicsDesc.PrimitiveType && GraphicsDesc.VertexShader == Other.GraphicsDesc.VertexShader && GraphicsDesc.FragmentShader == Other.GraphicsDesc.FragmentShader && GraphicsDesc.GeometryShader == Other.GraphicsDesc.GeometryShader && GraphicsDesc.HullShader == Other.GraphicsDesc.HullShader && GraphicsDesc.DomainShader == Other.GraphicsDesc.DomainShader && GraphicsDesc.RenderTargetsActive == Other.GraphicsDesc.RenderTargetsActive &&
-					GraphicsDesc.MSAASamples == Other.GraphicsDesc.MSAASamples && GraphicsDesc.DepthStencilFormat == Other.GraphicsDesc.DepthStencilFormat &&
-					GraphicsDesc.DepthStencilFlags == Other.GraphicsDesc.DepthStencilFlags && GraphicsDesc.DepthLoad == Other.GraphicsDesc.DepthLoad &&
-					GraphicsDesc.DepthStore == Other.GraphicsDesc.DepthStore && GraphicsDesc.StencilLoad == Other.GraphicsDesc.StencilLoad && GraphicsDesc.StencilStore == Other.GraphicsDesc.StencilStore &&
-					GraphicsDesc.SubpassHint == Other.GraphicsDesc.SubpassHint && GraphicsDesc.SubpassIndex == Other.GraphicsDesc.SubpassIndex &&
+					bSame &=
+						GraphicsDesc.PrimitiveType == Other.GraphicsDesc.PrimitiveType &&
+						GraphicsDesc.VertexShader == Other.GraphicsDesc.VertexShader &&
+						GraphicsDesc.FragmentShader == Other.GraphicsDesc.FragmentShader &&
+						GraphicsDesc.GeometryShader == Other.GraphicsDesc.GeometryShader &&
+						GraphicsDesc.HullShader == Other.GraphicsDesc.HullShader &&
+						GraphicsDesc.DomainShader == Other.GraphicsDesc.DomainShader &&
+						GraphicsDesc.MeshShader == Other.GraphicsDesc.MeshShader &&
+						GraphicsDesc.AmplificationShader == Other.GraphicsDesc.MeshShader &&
+						GraphicsDesc.RenderTargetsActive == Other.GraphicsDesc.RenderTargetsActive &&
+						GraphicsDesc.MSAASamples == Other.GraphicsDesc.MSAASamples && GraphicsDesc.DepthStencilFormat == Other.GraphicsDesc.DepthStencilFormat &&
+						GraphicsDesc.DepthStencilFlags == Other.GraphicsDesc.DepthStencilFlags && GraphicsDesc.DepthLoad == Other.GraphicsDesc.DepthLoad &&
+						GraphicsDesc.DepthStore == Other.GraphicsDesc.DepthStore && GraphicsDesc.StencilLoad == Other.GraphicsDesc.StencilLoad && GraphicsDesc.StencilStore == Other.GraphicsDesc.StencilStore &&
+						GraphicsDesc.SubpassHint == Other.GraphicsDesc.SubpassHint && GraphicsDesc.SubpassIndex == Other.GraphicsDesc.SubpassIndex &&
 					FMemory::Memcmp(&GraphicsDesc.BlendState, &Other.GraphicsDesc.BlendState, sizeof(FBlendStateInitializerRHI)) == 0 &&
 					FMemory::Memcmp(&GraphicsDesc.RasterizerState, &Other.GraphicsDesc.RasterizerState, sizeof(FPipelineFileCacheRasterizerState)) == 0 &&
 					FMemory::Memcmp(&GraphicsDesc.DepthStencilState, &Other.GraphicsDesc.DepthStencilState, sizeof(FDepthStencilStateInitializerRHI)) == 0 &&
@@ -1872,7 +1918,13 @@ public:
 											
 											if (NewEntry.GraphicsDesc.GeometryShader != FSHAHash())
 												Meta.Shaders.Add(NewEntry.GraphicsDesc.GeometryShader);
-											
+
+											if (NewEntry.GraphicsDesc.MeshShader != FSHAHash())
+												Meta.Shaders.Add(NewEntry.GraphicsDesc.MeshShader);
+
+											if (NewEntry.GraphicsDesc.AmplificationShader != FSHAHash())
+												Meta.Shaders.Add(NewEntry.GraphicsDesc.AmplificationShader);
+
 											break;
 										}
 										case FPipelineCacheFileFormatPSO::DescriptorType::RayTracing:
@@ -1976,7 +2028,13 @@ public:
                                             Meta.Shaders.Add(Entry.GraphicsDesc.DomainShader);
                                         
                                         if (Entry.GraphicsDesc.GeometryShader != FSHAHash())
-                                            Meta.Shaders.Add(Entry.GraphicsDesc.GeometryShader);
+											Meta.Shaders.Add(Entry.GraphicsDesc.GeometryShader);
+
+										if (Entry.GraphicsDesc.MeshShader != FSHAHash())
+											Meta.Shaders.Add(Entry.GraphicsDesc.MeshShader);
+
+										if (Entry.GraphicsDesc.AmplificationShader != FSHAHash())
+											Meta.Shaders.Add(Entry.GraphicsDesc.AmplificationShader);
                                         
                                         break;
                                     }
@@ -2163,7 +2221,13 @@ public:
                                             Meta.Shaders.Add(Entry.GraphicsDesc.DomainShader);
                                         
                                         if (Entry.GraphicsDesc.GeometryShader != FSHAHash())
-                                            Meta.Shaders.Add(Entry.GraphicsDesc.GeometryShader);
+											Meta.Shaders.Add(Entry.GraphicsDesc.GeometryShader);
+
+										if (Entry.GraphicsDesc.MeshShader != FSHAHash())
+											Meta.Shaders.Add(Entry.GraphicsDesc.MeshShader);
+
+										if (Entry.GraphicsDesc.AmplificationShader != FSHAHash())
+											Meta.Shaders.Add(Entry.GraphicsDesc.AmplificationShader);
                                         
                                         break;
                                     }
@@ -2403,6 +2467,14 @@ public:
 			if (NewEntry.GraphicsDesc.DomainShader != FSHAHash())
 			{
 				TempShaders.Add(NewEntry.GraphicsDesc.DomainShader);
+			}
+			if (NewEntry.GraphicsDesc.MeshShader != FSHAHash())
+			{
+				TempShaders.Add(NewEntry.GraphicsDesc.MeshShader);
+			}
+			if (NewEntry.GraphicsDesc.AmplificationShader != FSHAHash())
+			{
+				TempShaders.Add(NewEntry.GraphicsDesc.AmplificationShader);
 			}
 
 			for (auto const& Hash : TOC.MetaData)
@@ -3481,6 +3553,12 @@ bool FPipelineFileCache::SavePipelineFileCacheFrom(uint32 GameVersion, EShaderPl
 
 				if (Item.GraphicsDesc.GeometryShader != FSHAHash())
 					Meta.Shaders.Add(Item.GraphicsDesc.GeometryShader);
+
+				if (Item.GraphicsDesc.MeshShader != FSHAHash())
+					Meta.Shaders.Add(Item.GraphicsDesc.MeshShader);
+
+				if (Item.GraphicsDesc.AmplificationShader != FSHAHash())
+					Meta.Shaders.Add(Item.GraphicsDesc.AmplificationShader);
 
 				break;
 			}

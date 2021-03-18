@@ -471,6 +471,8 @@ static void PlatformReleaseOpenGL(void* ContextPtr, void* PrevContextPtr)
 GLenum GLFrequencyTable[] =
 {
 	GL_VERTEX_SHADER,	// SF_Vertex
+	GLenum(0), // SF_Mesh
+	GLenum(0), // SF_Amplification
 	GL_TESS_CONTROL_SHADER,	 // SF_Hull
 	GL_TESS_EVALUATION_SHADER, // SF_Domain
 	GL_FRAGMENT_SHADER, // SF_Pixel
@@ -2347,12 +2349,15 @@ void FOpenGLFrontend::CompileShader(const FShaderCompilerInput& Input, FShaderCo
 	const EHlslShaderFrequency FrequencyTable[] =
 	{
 		HSF_VertexShader,
+		HSF_InvalidFrequency,
+		HSF_InvalidFrequency,
 		bIsSM5 ? HSF_HullShader : HSF_InvalidFrequency,
 		bIsSM5 ? HSF_DomainShader : HSF_InvalidFrequency,
 		HSF_PixelShader,
 		HSF_GeometryShader,
 		RHISupportsComputeShaders(Input.Target.GetPlatform()) ? HSF_ComputeShader : HSF_InvalidFrequency
 	};
+	static_assert(SF_NumStandardFrequencies == UE_ARRAY_COUNT(FrequencyTable), "NumFrequencies changed. Please update tables.");
 
 	const EHlslShaderFrequency Frequency = FrequencyTable[Input.Target.Frequency];
 	if (Frequency == HSF_InvalidFrequency)

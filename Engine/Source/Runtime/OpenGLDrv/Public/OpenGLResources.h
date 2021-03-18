@@ -1177,7 +1177,7 @@ public:
 
 	const TBitArray<>& GetTextureNeeds(int32& OutMaxTextureStageUsed);
 	const TBitArray<>& GetUAVNeeds(int32& OutMaxUAVUnitUsed) const;
-	void GetNumUniformBuffers(int32 NumVertexUniformBuffers[SF_Compute]);
+	void GetNumUniformBuffers(int32 NumVertexUniformBuffers[SF_NumGraphicsFrequencies]);
 
 	bool NeedsTextureStage(int32 TextureStageIndex);
 	int32 MaxTextureStageUsed();

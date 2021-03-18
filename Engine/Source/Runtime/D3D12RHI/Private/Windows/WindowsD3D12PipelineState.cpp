@@ -77,6 +77,27 @@ FD3D12_GRAPHICS_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Pipel
 	return Stream;
 }
 
+FD3D12_MESH_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::MeshPipelineStateStream() const
+{
+	FD3D12_MESH_PIPELINE_STATE_STREAM Stream{};
+	check(this->Flags == D3D12_PIPELINE_STATE_FLAG_NONE);	//Stream.Flags = this->Flags;
+	Stream.NodeMask = this->NodeMask;
+	Stream.pRootSignature = this->pRootSignature;
+	Stream.PrimitiveTopologyType = this->PrimitiveTopologyType;
+	Stream.MS = this->MS;
+	Stream.AS = this->AS;
+	Stream.PS = this->PS;
+	Stream.BlendState = CD3DX12_BLEND_DESC(this->BlendState);
+	Stream.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC1(this->DepthStencilState);
+	Stream.DSVFormat = this->DSVFormat;
+	Stream.RasterizerState = CD3DX12_RASTERIZER_DESC(this->RasterizerState);
+	Stream.RTVFormats = this->RTFormatArray;
+	Stream.SampleDesc = this->SampleDesc;
+	Stream.SampleMask = this->SampleMask;
+	Stream.CachedPSO = this->CachedPSO;
+	return Stream;
+}
+
 D3D12_GRAPHICS_PIPELINE_STATE_DESC FD3D12_GRAPHICS_PIPELINE_STATE_DESC::GraphicsDescV0() const
 {
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC D = {};
@@ -725,6 +746,8 @@ static void DumpGraphicsPSO(const FD3D12_GRAPHICS_PIPELINE_STATE_DESC& Desc, con
 		String.Appendf(TEXT("Flags = 0x%X\n"), Desc.Flags);
 
 		DumpShaderAsm(String, Desc.VS);
+		DumpShaderAsm(String, Desc.MS);
+		DumpShaderAsm(String, Desc.AS);
 		DumpShaderAsm(String, Desc.GS);
 		DumpShaderAsm(String, Desc.HS);
 		DumpShaderAsm(String, Desc.DS);
@@ -854,7 +877,28 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 
 	// Use pipeline streams if the system supports it.
 	ID3D12Device2* const pDevice2 = Adapter->GetD3DDevice2();
-	if (pDevice2 && bUseStream)
+	if (CreationArgs->Desc.UsesMeshShaders())
+	{
+		check(pDevice2);
+		checkf(bUseStream, TEXT("Mesh shader was misconfigured, make sure it is not using extensions that force stream creation off"));
+
+		FD3D12_MESH_PIPELINE_STATE_STREAM Stream = CreationArgs->Desc.Desc.MeshPipelineStateStream();
+		const D3D12_PIPELINE_STATE_STREAM_DESC StreamDesc = { sizeof(Stream), &Stream };
+		HRESULT hr = CreatePipelineStateFromStream(*PSO, pDevice2, &StreamDesc, static_cast<ID3D12PipelineLibrary1*>(CreationArgs->Library), Name);	// Static cast to ID3D12PipelineLibrary1 since we already checked for ID3D12Device2.
+		if (FAILED(hr))
+		{
+			// First check if D3D device removed, hung or out of memory and handle that seperatly 
+			if (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_HUNG || hr == E_OUTOFMEMORY)
+			{
+				VERIFYD3D12RESULT_EX(hr, pDevice2);
+			}
+			else
+			{
+				DumpGraphicsPSO(CreationArgs->Desc.Desc, Name);
+			}
+		}
+	}
+	else if (pDevice2 && bUseStream)
 	{
 		FD3D12_GRAPHICS_PIPELINE_STATE_STREAM Stream = CreationArgs->Desc.Desc.PipelineStateStream();
 		const D3D12_PIPELINE_STATE_STREAM_DESC StreamDesc = { sizeof(Stream), &Stream };
@@ -962,6 +1006,8 @@ static void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter
 		}
 
 		MERGE_EXT(V);
+		MERGE_EXT(M);
+		MERGE_EXT(A);
 		MERGE_EXT(P);
 		MERGE_EXT(D);
 		MERGE_EXT(H);

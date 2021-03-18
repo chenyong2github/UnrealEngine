@@ -126,6 +126,9 @@ public:
 	FORCEINLINE ID3D12CommandSignature* GetDrawIndexedIndirectCommandSignature() { return DrawIndexedIndirectCommandSignature; }
 	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectGraphicsCommandSignature() { return DispatchIndirectGraphicsCommandSignature; }
 	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectComputeCommandSignature() { return DispatchIndirectComputeCommandSignature; }
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	FORCEINLINE ID3D12CommandSignature* GetDispatchIndirectMeshCommandSignature() { return DispatchIndirectMeshCommandSignature; }
+#endif
 	FORCEINLINE ID3D12CommandSignature* GetDispatchRaysIndirectCommandSignature() { return DispatchRaysIndirectCommandSignature; }
 
 	FORCEINLINE FD3D12PipelineStateCache& GetPSOCache() { return PipelineStateCache; }
@@ -138,6 +141,13 @@ public:
 		static const FD3D12RootSignature StaticGraphicsRootSignature(this, FD3D12RootSignatureDesc::GetStaticGraphicsRootSignatureDesc());
 		return &StaticGraphicsRootSignature;
 	}
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	FORCEINLINE const FD3D12RootSignature* GetStaticMeshRootSignature()
+	{
+		static const FD3D12RootSignature StaticMeshRootSignature(this, FD3D12RootSignatureDesc::GetStaticMeshRootSignatureDesc());
+		return &StaticMeshRootSignature;
+	}
+#endif
 	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature()
 	{
 		static const FD3D12RootSignature StaticComputeRootSignature(this, FD3D12RootSignatureDesc::GetStaticComputeRootSignatureDesc());
@@ -154,7 +164,10 @@ public:
 		return &StaticRootSignature;
 	}
 #else // USE_STATIC_ROOT_SIGNATURE
-	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature(){ return nullptr; }
+	FORCEINLINE const FD3D12RootSignature* GetStaticGraphicsRootSignature() { return nullptr; }
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	FORCEINLINE const FD3D12RootSignature* GetStaticMeshRootSignature() { return nullptr; }
+#endif
 	FORCEINLINE const FD3D12RootSignature* GetStaticComputeRootSignature() { return nullptr; }
 	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingGlobalRootSignature() { return nullptr; }
 	FORCEINLINE const FD3D12RootSignature* GetStaticRayTracingLocalRootSignature() { return nullptr; }
@@ -383,6 +396,9 @@ protected:
 	TRefCountPtr<ID3D12CommandSignature> DrawIndexedIndirectCommandSignature;
 	TRefCountPtr<ID3D12CommandSignature> DispatchIndirectGraphicsCommandSignature;
 	TRefCountPtr<ID3D12CommandSignature> DispatchIndirectComputeCommandSignature;
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	TRefCountPtr<ID3D12CommandSignature> DispatchIndirectMeshCommandSignature;
+#endif
 	TRefCountPtr<ID3D12CommandSignature> DispatchRaysIndirectCommandSignature;
 
 	FD3D12FenceCorePool FenceCorePool;

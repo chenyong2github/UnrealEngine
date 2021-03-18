@@ -118,6 +118,70 @@ FVertexShaderRHIRef FD3D12DynamicRHI::RHICreateVertexShader(TArrayView<const uin
 	return Shader;
 }
 
+FMeshShaderRHIRef FD3D12DynamicRHI::RHICreateMeshShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	FShaderCodeReader ShaderCode(Code);
+	FD3D12MeshShader* Shader = new FD3D12MeshShader;
+
+	FMemoryReaderView Ar(Code, true);
+	Ar << Shader->ShaderResourceTable;
+	int32 Offset = Ar.Tell();
+	const uint8* CodePtr = Code.GetData() + Offset;
+	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
+	{
+		return nullptr;
+	}
+
+	Shader->Code = Code;
+	InitUniformBufferStaticSlots(Shader);
+
+	D3D12_SHADER_BYTECODE ShaderBytecode;
+	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
+	ShaderBytecode.BytecodeLength = CodeSize;
+	Shader->ShaderBytecode.SetShaderBytecode(ShaderBytecode);
+
+	return Shader;
+}
+
+FAmplificationShaderRHIRef FD3D12DynamicRHI::RHICreateAmplificationShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	FShaderCodeReader ShaderCode(Code);
+	FD3D12AmplificationShader* Shader = new FD3D12AmplificationShader;
+
+	FMemoryReaderView Ar(Code, true);
+	Ar << Shader->ShaderResourceTable;
+	int32 Offset = Ar.Tell();
+	const uint8* CodePtr = Code.GetData() + Offset;
+	const SIZE_T CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
+	bool bFoundCodeFeatures;
+	FShaderCodeFeatures CodeFeatures;
+	if (!ReadShaderOptionalData(ShaderCode, *Shader, bFoundCodeFeatures, CodeFeatures))
+	{
+		return nullptr;
+	}
+	if (bFoundCodeFeatures && CodeFeatures.bUsesWaveOps && !GRHISupportsWaveOperations)
+	{
+		return nullptr;
+	}
+
+	Shader->Code = Code;
+	InitUniformBufferStaticSlots(Shader);
+
+	D3D12_SHADER_BYTECODE ShaderBytecode;
+	ShaderBytecode.pShaderBytecode = Shader->Code.GetData() + Offset;
+	ShaderBytecode.BytecodeLength = CodeSize;
+	Shader->ShaderBytecode.SetShaderBytecode(ShaderBytecode);
+
+	return Shader;
+}
+
 FPixelShaderRHIRef FD3D12DynamicRHI::RHICreatePixelShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	FShaderCodeReader ShaderCode(Code);
@@ -397,12 +461,108 @@ FD3D12BoundShaderState::FD3D12BoundShaderState(
 #endif
 }
 
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+FD3D12BoundShaderState::FD3D12BoundShaderState(
+	FRHIMeshShader* InMeshShaderRHI,
+	FRHIAmplificationShader* InAmplificationShaderRHI,
+	FRHIPixelShader* InPixelShaderRHI,
+	FD3D12Adapter* InAdapter
+) :
+	CacheLink(InMeshShaderRHI, InAmplificationShaderRHI, InPixelShaderRHI, this)
+{
+	INC_DWORD_STAT(STAT_D3D12NumBoundShaderState);
+
+#if USE_STATIC_ROOT_SIGNATURE
+	pRootSignature = InAdapter->GetStaticMeshRootSignature();
+#else
+	const D3D12_RESOURCE_BINDING_TIER Tier = InAdapter->GetResourceBindingTier();
+	FD3D12QuantizedBoundShaderState QuantizedBoundShaderState;
+	QuantizeBoundShaderState(Tier, this, QuantizedBoundShaderState);
+	pRootSignature = InAdapter->GetRootSignature(QuantizedBoundShaderState);
+#endif
+
+#if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
+	CacheLink.AddToCache();
+#endif
+}
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
+
 FD3D12BoundShaderState::~FD3D12BoundShaderState()
 {
 	DEC_DWORD_STAT(STAT_D3D12NumBoundShaderState);
 #if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
 	CacheLink.RemoveFromCache();
 #endif
+}
+
+FBoundShaderStateRHIRef FD3D12DynamicRHI::DX12CreateBoundShaderState(const FBoundShaderStateInput& BoundShaderStateInput)
+{
+	//SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBoundShaderStateTime);
+
+	checkf(GIsRHIInitialized && GetRHIDevice(0)->GetCommandListManager().IsReady(), (TEXT("Bound shader state RHI resource was created without initializing Direct3D first")));
+
+#if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
+	// Check for an existing bound shader state which matches the parameters
+	FBoundShaderStateRHIRef CachedBoundShaderState = GetCachedBoundShaderState_Threadsafe(
+		BoundShaderStateInput.VertexDeclarationRHI,
+		BoundShaderStateInput.VertexShaderRHI,
+		BoundShaderStateInput.PixelShaderRHI,
+		BoundShaderStateInput.HullShaderRHI,
+		BoundShaderStateInput.DomainShaderRHI,
+		BoundShaderStateInput.GeometryShaderRHI,
+		BoundShaderStateInput.MeshShaderRHI,
+		BoundShaderStateInput.AmplificationShaderRHI
+	);
+	if (CachedBoundShaderState.GetReference())
+	{
+		// If we've already created a bound shader state with these parameters, reuse it.
+		return CachedBoundShaderState;
+	}
+#else
+	check(IsInRenderingThread() || IsInRHIThread());
+	// Check for an existing bound shader state which matches the parameters
+	FCachedBoundShaderStateLink* CachedBoundShaderStateLink = GetCachedBoundShaderState(
+		BoundShaderStateInput.VertexDeclarationRHI,
+		BoundShaderStateInput.VertexShaderRHI,
+		BoundShaderStateInput.PixelShaderRHI,
+		BoundShaderStateInput.HullShaderRHI,
+		BoundShaderStateInput.DomainShaderRHI,
+		BoundShaderStateInput.GeometryShaderRHI,
+		BoundShaderStateInput.MeshShaderRHI,
+		BoundShaderStateInput.AmplificationShaderRHI
+	);
+	if (CachedBoundShaderStateLink)
+	{
+		// If we've already created a bound shader state with these parameters, reuse it.
+		return CachedBoundShaderStateLink->BoundShaderState;
+	}
+#endif
+	else
+	{
+		SCOPE_CYCLE_COUNTER(STAT_D3D12NewBoundShaderStateTime);
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		if (BoundShaderStateInput.MeshShaderRHI)
+		{
+			return new FD3D12BoundShaderState(
+				BoundShaderStateInput.MeshShaderRHI,
+				BoundShaderStateInput.AmplificationShaderRHI,
+				BoundShaderStateInput.PixelShaderRHI,
+				&GetAdapter());
+		}
+		else
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
+		{
+			return new FD3D12BoundShaderState(
+				BoundShaderStateInput.VertexDeclarationRHI,
+				BoundShaderStateInput.VertexShaderRHI,
+				BoundShaderStateInput.PixelShaderRHI,
+				BoundShaderStateInput.HullShaderRHI,
+				BoundShaderStateInput.DomainShaderRHI,
+				BoundShaderStateInput.GeometryShaderRHI,
+				&GetAdapter());
+		}
+	}
 }
 
 /**
@@ -424,46 +584,12 @@ FBoundShaderStateRHIRef FD3D12DynamicRHI::RHICreateBoundShaderState(
 	FRHIGeometryShader* GeometryShaderRHI
 	)
 {
-	//SCOPE_CYCLE_COUNTER(STAT_D3D12CreateBoundShaderStateTime);
-
-	checkf(GIsRHIInitialized && GetRHIDevice(0)->GetCommandListManager().IsReady(), (TEXT("Bound shader state RHI resource was created without initializing Direct3D first")));
-
-#if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
-	// Check for an existing bound shader state which matches the parameters
-	FBoundShaderStateRHIRef CachedBoundShaderState = GetCachedBoundShaderState_Threadsafe(
-		VertexDeclarationRHI,
-		VertexShaderRHI,
-		PixelShaderRHI,
-		HullShaderRHI,
-		DomainShaderRHI,
-		GeometryShaderRHI
-		);
-	if (CachedBoundShaderState.GetReference())
-	{
-		// If we've already created a bound shader state with these parameters, reuse it.
-		return CachedBoundShaderState;
-	}
-#else
-	check(IsInRenderingThread() || IsInRHIThread());
-	// Check for an existing bound shader state which matches the parameters
-	FCachedBoundShaderStateLink* CachedBoundShaderStateLink = GetCachedBoundShaderState(
-		VertexDeclarationRHI,
-		VertexShaderRHI,
-		PixelShaderRHI,
-		HullShaderRHI,
-		DomainShaderRHI,
-		GeometryShaderRHI
-		);
-	if (CachedBoundShaderStateLink)
-	{
-		// If we've already created a bound shader state with these parameters, reuse it.
-		return CachedBoundShaderStateLink->BoundShaderState;
-	}
+	FBoundShaderStateInput Inputs(VertexDeclarationRHI, VertexShaderRHI, PixelShaderRHI
+#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
+		, GeometryShaderRHI
 #endif
-	else
-	{
-		SCOPE_CYCLE_COUNTER(STAT_D3D12NewBoundShaderStateTime);
-
-		return new FD3D12BoundShaderState(VertexDeclarationRHI, VertexShaderRHI, PixelShaderRHI, HullShaderRHI, DomainShaderRHI, GeometryShaderRHI, &GetAdapter());
-	}
+	);
+	Inputs.HullShaderRHI = HullShaderRHI;
+	Inputs.DomainShaderRHI = DomainShaderRHI;
+	return DX12CreateBoundShaderState(Inputs);
 }

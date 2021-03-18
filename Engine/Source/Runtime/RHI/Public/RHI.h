@@ -220,6 +220,14 @@ inline RHI_API bool RHISupportsRayTracingShaders(const FStaticShaderPlatform Pla
 	return FDataDrivenShaderPlatformInfo::GetSupportsRayTracing(Platform);
 }
 
+/** Can this platform compile mesh shaders.
+ *  To use at runtime, also check GRHISupportsMeshShaders.
+ **/
+inline bool RHISupportsMeshShaders(const FStaticShaderPlatform Platform)
+{
+	return FDataDrivenShaderPlatformInfo::GetSupportsMeshShaders(Platform);
+}
+
 /** Can this platform compile shaders that use shader model 6.0 wave intrinsics.
  *  To use such shaders at runtime, also check GRHISupportsWaveOperations.
  **/
@@ -661,6 +669,9 @@ extern RHI_API bool GRHISupportsStencilRefFromPixelShader;
 
 /** Whether current RHI supports overestimated conservative rasterization. */
 extern RHI_API bool GRHISupportsConservativeRasterization;
+
+/** true if the RHI supports Mesh and Amplification shaders */
+extern RHI_API bool GRHISupportsMeshShaders;
 
 /** Tables of all MSAA sample offset for all MSAA supported. Use GetMSAASampleOffsets() to read it. */
 extern RHI_API FVector2D GRHIDefaultMSAASampleOffsets[1 + 2 + 4 + 8 + 16];

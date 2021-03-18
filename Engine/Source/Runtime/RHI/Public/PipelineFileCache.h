@@ -156,7 +156,9 @@ struct RHI_API FPipelineCacheFileFormatPSO
 		FSHAHash GeometryShader;
 		FSHAHash HullShader;
 		FSHAHash DomainShader;
-		
+		FSHAHash MeshShader;
+		FSHAHash AmplificationShader;
+
 		FVertexDeclarationElementList VertexDescriptor;
 		FBlendStateInitializerRHI BlendState;
 		FPipelineFileCacheRasterizerState RasterizerState;

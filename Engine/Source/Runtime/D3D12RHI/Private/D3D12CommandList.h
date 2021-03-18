@@ -194,18 +194,25 @@ private:
 		FD3D12CommandContext*					CurrentOwningContext;
 		const D3D12_COMMAND_LIST_TYPE			CommandListType;
 		TRefCountPtr<ID3D12GraphicsCommandList>	CommandList;		// Raw D3D command list pointer
-#if PLATFORM_WINDOWS
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1
 		TRefCountPtr<ID3D12GraphicsCommandList1> CommandList1;
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2
 		TRefCountPtr<ID3D12GraphicsCommandList2> CommandList2;
 #endif
-
-#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3
+		TRefCountPtr<ID3D12GraphicsCommandList3> CommandList3;
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4
+		TRefCountPtr<ID3D12GraphicsCommandList4> CommandList4;
+#endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5
 		TRefCountPtr<ID3D12GraphicsCommandList5> CommandList5;
 #endif
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
+		TRefCountPtr<ID3D12GraphicsCommandList6> CommandList6;
+#endif
 
-#if D3D12_RHI_RAYTRACING
-		TRefCountPtr<ID3D12GraphicsCommandList4> RayTracingCommandList;
-#endif // D3D12_RHI_RAYTRACING
 #if NV_AFTERMATH
 		GFSDK_Aftermath_ContextHandle			AftermathHandle;
 #endif
@@ -399,26 +406,39 @@ public:
 		return reinterpret_cast<ID3D12GraphicsCommandList*>(CommandListData->CommandList.GetReference());
 	}
 
-#if PLATFORM_WINDOWS
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 1
 	ID3D12GraphicsCommandList1* GraphicsCommandList1() const
 	{
 		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
 		return CommandListData->CommandList1.GetReference();
 	}
+#endif
 
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 2
 	ID3D12GraphicsCommandList2* GraphicsCommandList2() const
 	{
 		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
 		return CommandListData->CommandList2.GetReference();
 	}
+#endif
 
-	FD3D12CommandListManager* GetCommandListManager() const
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 3
+	ID3D12GraphicsCommandList3* GraphicsCommandList3() const
 	{
-		return CommandListData->CommandListManager;
+		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
+		return CommandListData->CommandList3.GetReference();
 	}
 #endif
 
-#if PLATFORM_SUPPORTS_VARIABLE_RATE_SHADING
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 4
+	ID3D12GraphicsCommandList4* GraphicsCommandList4() const
+	{
+		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
+		return CommandListData->CommandList4.GetReference();
+	}
+#endif
+
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 5
 	ID3D12GraphicsCommandList5* GraphicsCommandList5() const
 	{
 		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT));
@@ -426,13 +446,27 @@ public:
 	}
 #endif
 
+#if D3D12_MAX_COMMANDLIST_INTERFACE >= 6
+	ID3D12GraphicsCommandList6* GraphicsCommandList6() const
+	{
+		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT));
+		return CommandListData->CommandList6.GetReference();
+	}
+#endif
+
 #if D3D12_RHI_RAYTRACING
 	ID3D12GraphicsCommandList4* RayTracingCommandList() const
 	{
-		check(CommandListData && (CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT || CommandListData->CommandListType == D3D12_COMMAND_LIST_TYPE_COMPUTE));
-		return CommandListData->RayTracingCommandList.GetReference();
+		return GraphicsCommandList4();
 	}
 #endif // D3D12_RHI_RAYTRACING
+
+#if PLATFORM_WINDOWS
+	FD3D12CommandListManager* GetCommandListManager() const
+	{
+		return CommandListData->CommandListManager;
+	}
+#endif
 
 #if NV_AFTERMATH
 	GFSDK_Aftermath_ContextHandle AftermathCommandContext() const

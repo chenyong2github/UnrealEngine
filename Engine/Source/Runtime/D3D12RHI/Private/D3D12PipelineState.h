@@ -49,6 +49,8 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_DESC
 {
 	ID3D12RootSignature *pRootSignature;
 	D3D12_SHADER_BYTECODE VS;
+	D3D12_SHADER_BYTECODE MS;
+	D3D12_SHADER_BYTECODE AS;
 	D3D12_SHADER_BYTECODE PS;
 	D3D12_SHADER_BYTECODE DS;
 	D3D12_SHADER_BYTECODE HS;
@@ -57,7 +59,7 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_DESC
 	D3D12_BLEND_DESC BlendState;
 #endif // #if !D3D12_USE_DERIVED_PSO || D3D12_USE_DERIVED_PSO_SHADER_EXPORTS
 #if !D3D12_USE_DERIVED_PSO
-	uint32 SampleMask;
+	uint32 SampleMask;;
 	D3D12_RASTERIZER_DESC RasterizerState;
 	D3D12_DEPTH_STENCIL_DESC1 DepthStencilState;
 #endif // #if !D3D12_USE_DERIVED_PSO
@@ -72,7 +74,9 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_DESC
 	D3D12_PIPELINE_STATE_FLAGS Flags;
 
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+	inline bool RequiresStream() const { return MS.BytecodeLength > 0; }
 	FD3D12_GRAPHICS_PIPELINE_STATE_STREAM PipelineStateStream() const;
+	FD3D12_MESH_PIPELINE_STATE_STREAM MeshPipelineStateStream() const;
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC GraphicsDescV0() const;
 #endif // PLATFORM_WINDOWS
 };
@@ -82,6 +86,8 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 	const FD3D12RootSignature *pRootSignature;
 	FD3D12_GRAPHICS_PIPELINE_STATE_DESC Desc;
 	ShaderBytecodeHash VSHash;
+	ShaderBytecodeHash MSHash;
+	ShaderBytecodeHash ASHash;
 	ShaderBytecodeHash HSHash;
 	ShaderBytecodeHash DSHash;
 	ShaderBytecodeHash GSHash;
@@ -91,11 +97,18 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 
 	SIZE_T CombinedHash;
 
+	FORCEINLINE bool UsesMeshShaders() const
+	{
+		return Desc.MS.BytecodeLength > 0;
+	}
+
 #if PLATFORM_WINDOWS
 	// TODO: Replace with a global hash lookup to reduce overall footprint?
 	// Very few permutations, so a single > 0 u32 hash code would be lower
 	// memory usage, and very rarely cause a look up.
 	const TArray<FShaderCodeVendorExtension>* VSExtensions;
+	const TArray<FShaderCodeVendorExtension>* MSExtensions;
+	const TArray<FShaderCodeVendorExtension>* ASExtensions;
 	const TArray<FShaderCodeVendorExtension>* HSExtensions;
 	const TArray<FShaderCodeVendorExtension>* DSExtensions;
 	const TArray<FShaderCodeVendorExtension>* GSExtensions;
@@ -105,6 +118,8 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 	{
 		return (
 			VSExtensions != nullptr ||
+			MSExtensions != nullptr ||
+			ASExtensions != nullptr ||
 			PSExtensions != nullptr ||
 			GSExtensions != nullptr ||
 			HSExtensions != nullptr ||
@@ -367,6 +382,13 @@ struct FD3D12GraphicsPipelineState : public FRHIGraphicsPipelineState
 
 	FORCEINLINE class FD3D12VertexShader*   GetVertexShader() const { return (FD3D12VertexShader*)PipelineStateInitializer.BoundShaderState.VertexShaderRHI; }
 	FORCEINLINE class FD3D12PixelShader*    GetPixelShader() const { return (FD3D12PixelShader*)PipelineStateInitializer.BoundShaderState.PixelShaderRHI; }
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	FORCEINLINE class FD3D12MeshShader*				GetMeshShader() const { return (FD3D12MeshShader*)PipelineStateInitializer.BoundShaderState.MeshShaderRHI; }
+	FORCEINLINE class FD3D12AmplificationShader*	GetAmplificationShader() const { return (FD3D12AmplificationShader*)PipelineStateInitializer.BoundShaderState.AmplificationShaderRHI; }
+#else
+	FORCEINLINE class FD3D12MeshShader*				GetMeshShader() const { return nullptr; }
+	FORCEINLINE class FD3D12AmplificationShader*	GetAmplificationShader() const { return nullptr; }
+#endif
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	FORCEINLINE class FD3D12HullShader*     GetHullShader() const { return (FD3D12HullShader*)PipelineStateInitializer.BoundShaderState.HullShaderRHI; }
 	FORCEINLINE class FD3D12DomainShader*   GetDomainShader() const { return (FD3D12DomainShader*)PipelineStateInitializer.BoundShaderState.DomainShaderRHI; }

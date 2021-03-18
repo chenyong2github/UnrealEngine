@@ -29,6 +29,10 @@ static inline uint32 GetTypeHash(const FBoundShaderStateInput& Input)
 	return GetTypeHash(Input.VertexDeclarationRHI)
 		^ GetTypeHash(Input.VertexShaderRHI)
 		^ GetTypeHash(Input.PixelShaderRHI)
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+		^ GetTypeHash(Input.MeshShaderRHI)
+		^ GetTypeHash(Input.AmplificationShaderRHI)
+#endif
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 		^ GetTypeHash(Input.HullShaderRHI)
 		^ GetTypeHash(Input.DomainShaderRHI)
@@ -97,6 +101,16 @@ static void HandlePipelineCreationFailure(const FGraphicsPipelineStateInitialize
 	{
 		UE_LOG(LogRHI, Error, TEXT("Vertex: %s"), *Init.BoundShaderState.VertexShaderRHI->ShaderName);
 	}
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	if (Init.BoundShaderState.MeshShaderRHI)
+	{
+		UE_LOG(LogRHI, Error, TEXT("Mesh: %s"), *Init.BoundShaderState.MeshShaderRHI->ShaderName);
+	}
+	if (Init.BoundShaderState.AmplificationShaderRHI)
+	{
+		UE_LOG(LogRHI, Error, TEXT("Amplification: %s"), *Init.BoundShaderState.AmplificationShaderRHI->ShaderName);
+	}
+#endif
 #if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
 	if(Init.BoundShaderState.HullShaderRHI)
 	{
@@ -855,22 +869,8 @@ public:
 		: Pipeline(InPipeline)
 		, Initializer(InInitializer)
 	{
-		if (Initializer.BoundShaderState.VertexDeclarationRHI)
-			Initializer.BoundShaderState.VertexDeclarationRHI->AddRef();
-		if (Initializer.BoundShaderState.VertexShaderRHI)
-			Initializer.BoundShaderState.VertexShaderRHI->AddRef();
-		if (Initializer.BoundShaderState.PixelShaderRHI)
-			Initializer.BoundShaderState.PixelShaderRHI->AddRef();
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-		if (Initializer.BoundShaderState.GeometryShaderRHI)
-			Initializer.BoundShaderState.GeometryShaderRHI->AddRef();
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-		if (Initializer.BoundShaderState.DomainShaderRHI)
-			Initializer.BoundShaderState.DomainShaderRHI->AddRef();
-		if (Initializer.BoundShaderState.HullShaderRHI)
-			Initializer.BoundShaderState.HullShaderRHI->AddRef();
-#endif
+		Initializer.BoundShaderState.AddRefResources();
+
 		if (Initializer.BlendState)
 			Initializer.BlendState->AddRef();
 		if (Initializer.RasterizerState)
@@ -893,9 +893,19 @@ public:
 		}
 		else
 		{
-			if (!Initializer.BoundShaderState.VertexShaderRHI)
+			if (GRHISupportsMeshShaders)
 			{
-				UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex Shader"));
+				if (!Initializer.BoundShaderState.VertexShaderRHI && !Initializer.BoundShaderState.MeshShaderRHI)
+				{
+					UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex or Mesh Shader"));
+				}
+			}
+			else
+			{
+				if (!Initializer.BoundShaderState.VertexShaderRHI)
+				{
+					UE_LOG(LogRHI, Fatal, TEXT("Tried to create a Gfx Pipeline State without Vertex Shader"));
+				}
 			}
 
 			FGraphicsPipelineState* GfxPipeline = static_cast<FGraphicsPipelineState*>(Pipeline);
@@ -909,23 +919,9 @@ public:
 			{
 				HandlePipelineCreationFailure(Initializer);
 			}
+
+			Initializer.BoundShaderState.ReleaseResources();
 			
-			if (Initializer.BoundShaderState.VertexDeclarationRHI)
-				Initializer.BoundShaderState.VertexDeclarationRHI->Release();
-			if (Initializer.BoundShaderState.VertexShaderRHI)
-				Initializer.BoundShaderState.VertexShaderRHI->Release();
-			if (Initializer.BoundShaderState.PixelShaderRHI)
-				Initializer.BoundShaderState.PixelShaderRHI->Release();
-#if PLATFORM_SUPPORTS_GEOMETRY_SHADERS
-			if (Initializer.BoundShaderState.GeometryShaderRHI)
-				Initializer.BoundShaderState.GeometryShaderRHI->Release();
-#endif
-#if PLATFORM_SUPPORTS_TESSELLATION_SHADERS
-			if (Initializer.BoundShaderState.DomainShaderRHI)
-				Initializer.BoundShaderState.DomainShaderRHI->Release();
-			if (Initializer.BoundShaderState.HullShaderRHI)
-				Initializer.BoundShaderState.HullShaderRHI->Release();
-#endif
 			if (Initializer.BlendState)
 				Initializer.BlendState->Release();
 			if (Initializer.RasterizerState)
@@ -1345,7 +1341,17 @@ FGraphicsPipelineState* PipelineStateCache::GetAndOrCreateGraphicsPipelineState(
 {
 	LLM_SCOPE(ELLMTag::PSO);
 
-	checkf(OriginalInitializer.BoundShaderState.VertexShaderRHI, TEXT("GraphicsPipelineState must include a vertex shader"));
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	if (GRHISupportsMeshShaders)
+	{
+		checkf(OriginalInitializer.BoundShaderState.VertexShaderRHI || OriginalInitializer.BoundShaderState.MeshShaderRHI, TEXT("GraphicsPipelineState must include a vertex or mesh shader"));
+	}
+	else
+#endif
+	{
+		checkf(OriginalInitializer.BoundShaderState.VertexShaderRHI, TEXT("GraphicsPipelineState must include a vertex shader"));
+
+	}
 
 	FGraphicsPipelineStateInitializer NewInitializer;
 	const FGraphicsPipelineStateInitializer* Initializer = &OriginalInitializer;

@@ -11,6 +11,7 @@ enum ERootParameterKeys
 	PS_CBVs,
 	PS_RootCBVs,
 	PS_Samplers,
+	PS_UAVs,
 	VS_SRVs,
 	VS_CBVs,
 	VS_RootCBVs,
@@ -27,6 +28,16 @@ enum ERootParameterKeys
 	DS_CBVs,
 	DS_RootCBVs,
 	DS_Samplers,
+	MS_SRVs,
+	MS_CBVs,
+	MS_RootCBVs,
+	MS_Samplers,
+	MS_UAVs,
+	AS_SRVs,
+	AS_CBVs,
+	AS_RootCBVs,
+	AS_Samplers,
+	AS_UAVs,
 	ALL_SRVs,
 	ALL_CBVs,
 	ALL_RootCBVs,
@@ -43,6 +54,9 @@ public:
 	inline const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetDesc() const { return RootDesc; }
 
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticGraphicsRootSignatureDesc();
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticMeshRootSignatureDesc();
+#endif
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticComputeRootSignatureDesc();
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticRayTracingGlobalRootSignatureDesc();
 	static const D3D12_VERSIONED_ROOT_SIGNATURE_DESC& GetStaticRayTracingLocalRootSignatureDesc();
@@ -114,6 +128,8 @@ public:
 		switch (ShaderStage)
 		{
 		case SF_Vertex: return BindSlotMap[VS_Samplers];
+		case SF_Mesh: return BindSlotMap[MS_Samplers];
+		case SF_Amplification: return BindSlotMap[AS_Samplers];
 		case SF_Pixel: return BindSlotMap[PS_Samplers];
 		case SF_Geometry: return BindSlotMap[GS_Samplers];
 		case SF_Hull: return BindSlotMap[HS_Samplers];
@@ -130,6 +146,8 @@ public:
 		switch (ShaderStage)
 		{
 		case SF_Vertex: return BindSlotMap[VS_SRVs];
+		case SF_Mesh: return BindSlotMap[MS_SRVs];
+		case SF_Amplification: return BindSlotMap[AS_SRVs];
 		case SF_Pixel: return BindSlotMap[PS_SRVs];
 		case SF_Geometry: return BindSlotMap[GS_SRVs];
 		case SF_Hull: return BindSlotMap[HS_SRVs];
@@ -146,6 +164,8 @@ public:
 		switch (ShaderStage)
 		{
 		case SF_Vertex: return BindSlotMap[VS_CBVs];
+		case SF_Mesh: return BindSlotMap[MS_CBVs];
+		case SF_Amplification: return BindSlotMap[AS_CBVs];
 		case SF_Pixel: return BindSlotMap[PS_CBVs];
 		case SF_Geometry: return BindSlotMap[GS_CBVs];
 		case SF_Hull: return BindSlotMap[HS_CBVs];
@@ -162,6 +182,8 @@ public:
 		switch (ShaderStage)
 		{
 		case SF_Vertex: return BindSlotMap[VS_RootCBVs];
+		case SF_Mesh: return BindSlotMap[MS_RootCBVs];
+		case SF_Amplification: return BindSlotMap[AS_RootCBVs];
 		case SF_Pixel: return BindSlotMap[PS_RootCBVs];
 		case SF_Geometry: return BindSlotMap[GS_RootCBVs];
 		case SF_Hull: return BindSlotMap[HS_RootCBVs];
@@ -183,8 +205,20 @@ public:
 
 	inline uint32 UAVRDTBindSlot(EShaderFrequency ShaderStage) const
 	{
-		check(ShaderStage == SF_Pixel || ShaderStage == SF_Compute);
-		return BindSlotMap[ALL_UAVs];
+		check(ShaderStage == SF_Pixel || ShaderStage == SF_Mesh || ShaderStage == SF_Amplification || ShaderStage == SF_Compute);
+
+		switch (ShaderStage)
+		{
+		case SF_Pixel: return BindSlotMap[PS_UAVs];
+		case SF_Mesh: return BindSlotMap[MS_UAVs];
+		case SF_Amplification: return BindSlotMap[AS_UAVs];
+
+		case SF_Compute:
+		case SF_NumFrequencies: return BindSlotMap[ALL_UAVs];
+
+		default: check(false);
+			return UINT_MAX;
+		}
 	}
 
 	inline bool HasUAVs() const { return bHasUAVs; }
@@ -192,6 +226,8 @@ public:
 	inline bool HasCBVs() const { return bHasCBVs; }
 	inline bool HasSamplers() const { return bHasSamplers; }
 	inline bool HasVS() const { return Stage[SF_Vertex].bVisible; }
+	inline bool HasMS() const { return Stage[SF_Mesh].bVisible; }
+	inline bool HasAS() const { return Stage[SF_Amplification].bVisible; }
 	inline bool HasHS() const { return Stage[SF_Hull].bVisible; }
 	inline bool HasDS() const { return Stage[SF_Domain].bVisible; }
 	inline bool HasGS() const { return Stage[SF_Geometry].bVisible; }
@@ -223,6 +259,8 @@ private:
 		switch (SF)
 		{
 		case SF_Vertex: pBindSlot = &BindSlotMap[VS_Samplers]; break;
+		case SF_Mesh: pBindSlot = &BindSlotMap[MS_Samplers]; break;
+		case SF_Amplification: pBindSlot = &BindSlotMap[AS_Samplers]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_Samplers]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_Samplers]; break;
 		case SF_Hull: pBindSlot = &BindSlotMap[HS_Samplers]; break;
@@ -247,6 +285,8 @@ private:
 		switch (SF)
 		{
 		case SF_Vertex: pBindSlot = &BindSlotMap[VS_SRVs]; break;
+		case SF_Mesh: pBindSlot = &BindSlotMap[MS_SRVs]; break;
+		case SF_Amplification: pBindSlot = &BindSlotMap[AS_SRVs]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_SRVs]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_SRVs]; break;
 		case SF_Hull: pBindSlot = &BindSlotMap[HS_SRVs]; break;
@@ -271,6 +311,8 @@ private:
 		switch (SF)
 		{
 		case SF_Vertex: pBindSlot = &BindSlotMap[VS_CBVs]; break;
+		case SF_Mesh: pBindSlot = &BindSlotMap[MS_CBVs]; break;
+		case SF_Amplification: pBindSlot = &BindSlotMap[AS_CBVs]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_CBVs]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_CBVs]; break;
 		case SF_Hull: pBindSlot = &BindSlotMap[HS_CBVs]; break;
@@ -296,6 +338,8 @@ private:
 		switch (SF)
 		{
 		case SF_Vertex: pBindSlot = &BindSlotMap[VS_RootCBVs]; break;
+		case SF_Mesh: pBindSlot = &BindSlotMap[MS_RootCBVs]; break;
+		case SF_Amplification: pBindSlot = &BindSlotMap[AS_RootCBVs]; break;
 		case SF_Pixel: pBindSlot = &BindSlotMap[PS_RootCBVs]; break;
 		case SF_Geometry: pBindSlot = &BindSlotMap[GS_RootCBVs]; break;
 		case SF_Hull: pBindSlot = &BindSlotMap[HS_RootCBVs]; break;
@@ -317,8 +361,21 @@ private:
 
 	inline void SetUAVRDTBindSlot(EShaderFrequency SF, uint8 RootParameterIndex)
 	{
-		check(SF == SF_Pixel || SF == SF_Compute || SF == SF_NumFrequencies);
-		uint8* pBindSlot = &BindSlotMap[ALL_UAVs];
+		check(SF == SF_Pixel || SF == SF_Mesh || SF == SF_Amplification || SF == SF_Compute || SF == SF_NumFrequencies);
+
+		uint8* pBindSlot = nullptr;
+		switch (SF)
+		{
+		case SF_Pixel: pBindSlot = &BindSlotMap[PS_UAVs]; break;
+		case SF_Mesh: pBindSlot = &BindSlotMap[MS_UAVs]; break;
+		case SF_Amplification: pBindSlot = &BindSlotMap[AS_UAVs]; break;
+
+		case SF_Compute:
+		case SF_NumFrequencies: pBindSlot = &BindSlotMap[ALL_UAVs]; break;
+
+		default: check(false);
+			return;
+		}
 
 		check(*pBindSlot == 0xFF);
 		*pBindSlot = RootParameterIndex;

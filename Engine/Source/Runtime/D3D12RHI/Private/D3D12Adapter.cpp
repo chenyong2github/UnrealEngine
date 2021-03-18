@@ -447,6 +447,8 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &Features, sizeof(Features))))
 		{
 			bHeapNotZeroedSupported = true;
+
+			GRHISupportsMeshShaders = (Features.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED);
 		}
 	}
 #endif

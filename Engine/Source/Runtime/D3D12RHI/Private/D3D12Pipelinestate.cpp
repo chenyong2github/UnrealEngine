@@ -63,6 +63,8 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 		Desc.Initial##SHash = Shader->ShaderBytecode.GetHash(); \
 	}
 	COPY_SHADER(V, Vertex);
+	COPY_SHADER(M, Mesh);
+	COPY_SHADER(A, Amplification);
 	COPY_SHADER(P, Pixel);
 	COPY_SHADER(D, Domain);
 	COPY_SHADER(H, Hull);
@@ -79,6 +81,8 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 		} \
 	}
 	EXT_SHADER(V, Vertex);
+	EXT_SHADER(M, Mesh);
+	EXT_SHADER(A, Amplification);
 	EXT_SHADER(P, Pixel);
 	EXT_SHADER(D, Domain);
 	EXT_SHADER(H, Hull);
@@ -333,6 +337,8 @@ FD3D12GraphicsPipelineState::FD3D12GraphicsPipelineState(
 	else
 		FMemory::Memzero(StreamStrides, sizeof(StreamStrides));
 	bShaderNeedsGlobalConstantBuffer[SF_Vertex] = GetVertexShader() && GetVertexShader()->ResourceCounts.bGlobalUniformBufferUsed;
+	bShaderNeedsGlobalConstantBuffer[SF_Mesh] = GetMeshShader() && GetMeshShader()->ResourceCounts.bGlobalUniformBufferUsed;
+	bShaderNeedsGlobalConstantBuffer[SF_Amplification] = GetAmplificationShader() && GetAmplificationShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Pixel] = GetPixelShader() && GetPixelShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Hull] = GetHullShader() && GetHullShader()->ResourceCounts.bGlobalUniformBufferUsed;
 	bShaderNeedsGlobalConstantBuffer[SF_Domain] = GetDomainShader() && GetDomainShader()->ResourceCounts.bGlobalUniformBufferUsed;

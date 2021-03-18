@@ -908,6 +908,16 @@ public:
 	{
 		return static_cast<FRHIVertexShader*>(GetRHIShaderBase(SF_Vertex));
 	}
+	/** @return the shader's mesh shader */
+	inline FRHIMeshShader* GetMeshShader() const
+	{
+		return static_cast<FRHIMeshShader*>(GetRHIShaderBase(SF_Mesh));
+	}
+	/** @return the shader's aplification shader */
+	inline FRHIAmplificationShader* GetAmplificationShader() const
+	{
+		return static_cast<FRHIAmplificationShader*>(GetRHIShaderBase(SF_Amplification));
+	}
 	/** @return the shader's pixel shader */
 	inline FRHIPixelShader* GetPixelShader() const
 	{

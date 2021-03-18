@@ -580,6 +580,16 @@ public:
 
 	virtual void RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuffer, FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) = 0;
 
+	virtual void RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
+	{
+		/* empty default implementation */
+	}
+
+	virtual void RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	{
+		/* empty default implementation */
+	}
+
 	/**
 	* Sets Depth Bounds range with the given min/max depth.
 	* @param MinDepth	The minimum depth for depth bounds test

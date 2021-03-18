@@ -45,6 +45,8 @@ inline bool operator!=(D3D12_CPU_DESCRIPTOR_HANDLE lhs, D3D12_CPU_DESCRIPTOR_HAN
 
 // Define template functions that are only declared in the header.
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Vertex>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
+template void FD3D12StateCacheBase::SetShaderResourceView<SF_Mesh>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
+template void FD3D12StateCacheBase::SetShaderResourceView<SF_Amplification>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Hull>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Domain>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
 template void FD3D12StateCacheBase::SetShaderResourceView<SF_Geometry>(FD3D12ShaderResourceView* SRV, uint32 ResourceIndex);
@@ -97,8 +99,10 @@ void FD3D12StateCacheBase::Init(FD3D12Device* InParent, FD3D12CommandContext* In
 	ResourceBindingTier = GetParentDevice()->GetParentAdapter()->GetResourceBindingTier();
 
 	// Init the descriptor heaps
-	const uint32 MaxDescriptorsForTier = (ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_1) ? NUM_VIEW_DESCRIPTORS_TIER_1 :
-		NUM_VIEW_DESCRIPTORS_TIER_2;
+	const uint32 MaxDescriptorsForTier =
+		ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_3 ? INT_MAX :
+		ResourceBindingTier == D3D12_RESOURCE_BINDING_TIER_2 ? NUM_VIEW_DESCRIPTORS_TIER_2 :
+		NUM_VIEW_DESCRIPTORS_TIER_1;
 
 	check(GLocalViewHeapSize <= (int32)MaxDescriptorsForTier);
 	check(GGlobalViewHeapSize <= (int32)MaxDescriptorsForTier);
@@ -596,6 +600,8 @@ void FD3D12StateCacheBase::ApplyState()
 		if (PipelineType == D3D12PT_Graphics)
 		{
 			CONDITIONAL_SET_SRVS(SF_Vertex);
+			CONDITIONAL_SET_SRVS(SF_Mesh);
+			CONDITIONAL_SET_SRVS(SF_Amplification);
 			CONDITIONAL_SET_SRVS(SF_Hull);
 			CONDITIONAL_SET_SRVS(SF_Domain);
 			CONDITIONAL_SET_SRVS(SF_Geometry);
@@ -631,6 +637,8 @@ void FD3D12StateCacheBase::ApplyState()
 		if (PipelineType == D3D12PT_Graphics)
 		{
 			CONDITIONAL_SET_CBVS(SF_Vertex);
+			CONDITIONAL_SET_CBVS(SF_Mesh);
+			CONDITIONAL_SET_CBVS(SF_Amplification);
 			CONDITIONAL_SET_CBVS(SF_Hull);
 			CONDITIONAL_SET_CBVS(SF_Domain);
 			CONDITIONAL_SET_CBVS(SF_Geometry);
@@ -791,6 +799,8 @@ void FD3D12StateCacheBase::ApplySamplers(const FD3D12RootSignature* const pRootS
 	else
 	{
 		CONDITIONAL_SET_SAMPLERS(SF_Vertex);
+		CONDITIONAL_SET_SAMPLERS(SF_Mesh);
+		CONDITIONAL_SET_SAMPLERS(SF_Amplification);
 		CONDITIONAL_SET_SAMPLERS(SF_Hull);
 		CONDITIONAL_SET_SAMPLERS(SF_Domain);
 		CONDITIONAL_SET_SAMPLERS(SF_Geometry);

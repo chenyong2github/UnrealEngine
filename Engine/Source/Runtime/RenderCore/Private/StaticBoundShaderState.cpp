@@ -47,61 +47,6 @@ FGlobalBoundShaderStateResource::~FGlobalBoundShaderStateResource()
 	GlobalListLink.Unlink();
 }
 
-/**
- * Initializes a global bound shader state with a vanilla bound shader state and required information.
- */
-FRHIBoundShaderState* FGlobalBoundShaderStateResource::GetInitializedRHI(
-	FRHIVertexDeclaration* VertexDeclaration,
-	FRHIVertexShader* VertexShader,
-	FRHIPixelShader* PixelShader,
-	FRHIGeometryShader* GeometryShader
-	)
-{
-	check(IsInitialized());
-
-	// This should only be called in the rendering thread after the RHI has been initialized.
-	check(GIsRHIInitialized);
-	check(IsInRenderingThread());
-
-	// Create the bound shader state if it hasn't been cached yet.
-	if(!IsValidRef(BoundShaderState))
-	{
-#if DO_CHECK
-		BoundVertexDeclaration = VertexDeclaration;
-		BoundVertexShader = VertexShader;
-		BoundPixelShader = PixelShader;
-		BoundGeometryShader = GeometryShader;
-#endif 
-		BoundShaderState = 
-			RHICreateBoundShaderState(
-			VertexDeclaration,
-			VertexShader,
-			FHullShaderRHIRef(), 
-			FDomainShaderRHIRef(),
-			PixelShader,
-			GeometryShader);
-	}
-#if DO_CHECK
-	// Verify that the passed in shaders will actually be used
-	// This will catch cases where one bound shader state is being used with more than one combination of shaders
-	// Otherwise setting the shader will just silently fail once the bound shader state has been initialized with a different shader 
-	check(BoundVertexDeclaration == VertexDeclaration &&
-		BoundVertexShader == VertexShader &&
-		BoundPixelShader == PixelShader &&
-		BoundGeometryShader == GeometryShader);
-#endif 
-
-	return BoundShaderState;
-}
-
-FRHIBoundShaderState* FGlobalBoundShaderStateResource::GetPreinitializedRHI()
-{
-	check(IsInitialized());
-	check(GIsRHIInitialized);
-	check(IsInParallelRenderingThread());
-	return BoundShaderState;
-}
-
 void FGlobalBoundShaderStateResource::ReleaseRHI()
 {
 	// Release the cached bound shader state.

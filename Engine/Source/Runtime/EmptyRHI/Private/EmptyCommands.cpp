@@ -254,6 +254,18 @@ void FEmptyDynamicRHI::RHIDrawIndexedPrimitiveIndirect(uint32 PrimitiveType, FRH
 }
 
 
+void FEmptyDynamicRHI::RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
+{
+
+}
+
+void FEmptyDynamicRHI::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+{
+	FEmptyBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
+	FEmptyBuffer* ArgumentBuffer = ResourceCast(ArgumentBufferRHI);
+}
+
+
 void FEmptyDynamicRHI::RHIClearMRT(bool bClearColor,int32 NumClearColors,const FLinearColor* ClearColorArray,bool bClearDepth,float Depth,bool bClearStencil,uint32 Stencil)
 {
 

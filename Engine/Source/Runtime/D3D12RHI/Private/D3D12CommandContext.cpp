@@ -123,6 +123,8 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, ED3D12Command
 	bNeedFlushTextureCache(false),
 #endif
 	VSConstantBuffer(InParent, ConstantsAllocator),
+	MSConstantBuffer(InParent, ConstantsAllocator),
+	ASConstantBuffer(InParent, ConstantsAllocator),
 	HSConstantBuffer(InParent, ConstantsAllocator),
 	DSConstantBuffer(InParent, ConstantsAllocator),
 	PSConstantBuffer(InParent, ConstantsAllocator),

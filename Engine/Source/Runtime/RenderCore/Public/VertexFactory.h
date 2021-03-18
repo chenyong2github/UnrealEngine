@@ -241,6 +241,8 @@ static const FTypeLayoutDesc* GetVertexFactoryParametersLayout(EShaderFrequency 
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex: return TVertexFactoryParameterTraits<SF_Vertex, VertexFactoryType>::GetLayout();
+	case SF_Mesh: return TVertexFactoryParameterTraits<SF_Mesh, VertexFactoryType>::GetLayout();
+	case SF_Amplification: return TVertexFactoryParameterTraits<SF_Amplification, VertexFactoryType>::GetLayout();
 	case SF_Hull: return TVertexFactoryParameterTraits<SF_Hull, VertexFactoryType>::GetLayout();
 	case SF_Domain: return TVertexFactoryParameterTraits<SF_Domain, VertexFactoryType>::GetLayout();
 	case SF_Pixel: return TVertexFactoryParameterTraits<SF_Pixel, VertexFactoryType>::GetLayout();
@@ -260,6 +262,8 @@ static FVertexFactoryShaderParameters* ConstructVertexFactoryParameters(EShaderF
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex: return TVertexFactoryParameterTraits<SF_Vertex, VertexFactoryType>::Create(ParameterMap);
+	case SF_Mesh: return TVertexFactoryParameterTraits<SF_Mesh, VertexFactoryType>::Create(ParameterMap);
+	case SF_Amplification: return TVertexFactoryParameterTraits<SF_Amplification, VertexFactoryType>::Create(ParameterMap);
 	case SF_Hull: return TVertexFactoryParameterTraits<SF_Hull, VertexFactoryType>::Create(ParameterMap);
 	case SF_Domain: return TVertexFactoryParameterTraits<SF_Domain, VertexFactoryType>::Create(ParameterMap);
 	case SF_Pixel: return TVertexFactoryParameterTraits<SF_Pixel, VertexFactoryType>::Create(ParameterMap);
@@ -289,6 +293,8 @@ static void GetVertexFactoryParametersElementShaderBindings(EShaderFrequency Sha
 	switch (ShaderFrequency)
 	{
 	case SF_Vertex: TVertexFactoryParameterTraits<SF_Vertex, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_Mesh: TVertexFactoryParameterTraits<SF_Mesh, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
+	case SF_Amplification: TVertexFactoryParameterTraits<SF_Amplification, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
 	case SF_Hull: TVertexFactoryParameterTraits<SF_Hull, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
 	case SF_Domain: TVertexFactoryParameterTraits<SF_Domain, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;
 	case SF_Pixel: TVertexFactoryParameterTraits<SF_Pixel, VertexFactoryType>::GetElementShaderBindings(Parameters, Scene, View, Shader, InputStreamType, FeatureLevel, VertexFactory, BatchElement, ShaderBindings, VertexStreams); break;

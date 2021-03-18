@@ -55,6 +55,9 @@ public class DX12 : ModuleRules
 		{
 			PublicDefinitions.Add("D3D12_CORE_ENABLED=1");
 
+			PublicDefinitions.Add("D3D12_MAX_DEVICE_INTERFACE=9");
+			PublicDefinitions.Add("D3D12_MAX_COMMANDLIST_INTERFACE=6");
+
 			// Copy D3D12Core binaries to the target directory, so it can be found by D3D12.dll loader.
 			// D3D redistributable search path is configured in LaunchWindows.cpp like so:			
 			// 		extern "C" { _declspec(dllexport) extern const UINT D3D12SDKVersion = 4; }

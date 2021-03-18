@@ -1760,6 +1760,8 @@ namespace CrossCompiler
 	static const TCHAR* FrequencyStringTable[] =
 	{
 		TEXT("Vertex"),
+		TEXT("Mesh"),
+		TEXT("Amplification"),
 		TEXT("Hull"),
 		TEXT("Domain"),
 		TEXT("Pixel"),

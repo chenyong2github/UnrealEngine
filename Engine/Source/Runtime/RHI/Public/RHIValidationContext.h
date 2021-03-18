@@ -777,6 +777,23 @@ public:
 		Tracker->Draw();
 	}
 
+	virtual void RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) final override
+	{
+		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to draw!"));
+		SetupDrawing();
+		RHIContext->RHIDispatchMeshShader(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+		Tracker->Draw();
+	}
+
+	virtual void RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override
+	{
+		checkf(State.bGfxPSOSet, TEXT("A Graphics PSO has to be set to draw!"));
+		SetupDrawing();
+		Tracker->Assert(ArgumentBuffer->GetWholeResourceIdentity(), ERHIAccess::IndirectArgs);
+		RHIContext->RHIDispatchIndirectMeshShader(ArgumentBuffer, ArgumentOffset);
+		Tracker->Draw();
+	}
+
 	/**
 	* Sets Depth Bounds range with the given min/max depth.
 	* @param MinDepth	The minimum depth for depth bounds test

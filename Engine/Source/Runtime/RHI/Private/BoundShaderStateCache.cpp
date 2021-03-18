@@ -33,15 +33,11 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
 	FRHIPixelShader* PixelShader,
-	FRHIHullShader* HullShader,
-	FRHIDomainShader* DomainShader,
-	FRHIGeometryShader* GeometryShader,
 	FRHIBoundShaderState* InBoundShaderState,
-	bool bAddToSingleThreadedCache
-	):
-	BoundShaderState(InBoundShaderState),
-	Key(VertexDeclaration,VertexShader,PixelShader,HullShader,DomainShader,GeometryShader),
-	bAddedToSingleThreadedCache(bAddToSingleThreadedCache)
+	bool bAddToSingleThreadedCache)
+	: BoundShaderState(InBoundShaderState)
+	, Key(VertexDeclaration,VertexShader,PixelShader)
+	, bAddedToSingleThreadedCache(bAddToSingleThreadedCache)
 {
 	if (bAddToSingleThreadedCache)
 	{
@@ -53,16 +49,34 @@ FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
 	FRHIVertexDeclaration* VertexDeclaration,
 	FRHIVertexShader* VertexShader,
 	FRHIPixelShader* PixelShader,
+	FRHIHullShader* HullShader,
+	FRHIDomainShader* DomainShader,
+	FRHIGeometryShader* GeometryShader,
 	FRHIBoundShaderState* InBoundShaderState,
-	bool bAddToSingleThreadedCache
-	):
-	BoundShaderState(InBoundShaderState),
-	Key(VertexDeclaration,VertexShader,PixelShader),
-	bAddedToSingleThreadedCache(bAddToSingleThreadedCache)
+	bool bAddToSingleThreadedCache)
+	: BoundShaderState(InBoundShaderState)
+	, Key(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader)
+	, bAddedToSingleThreadedCache(bAddToSingleThreadedCache)
 {
 	if (bAddToSingleThreadedCache)
 	{
-		GetBoundShaderStateCache().Add(Key,this);
+		GetBoundShaderStateCache().Add(Key, this);
+	}
+}
+
+FCachedBoundShaderStateLink::FCachedBoundShaderStateLink(
+	FRHIMeshShader* MeshShader,
+	FRHIAmplificationShader* AmplificationShader,
+	FRHIPixelShader* PixelShader,
+	FRHIBoundShaderState* InBoundShaderState,
+	bool bAddToSingleThreadedCache)
+	: BoundShaderState(InBoundShaderState)
+	, Key(MeshShader, AmplificationShader, PixelShader)
+	, bAddedToSingleThreadedCache(bAddToSingleThreadedCache)
+{
+	if (bAddToSingleThreadedCache)
+	{
+		GetBoundShaderStateCache().Add(Key, this);
 	}
 }
 
@@ -81,13 +95,25 @@ FCachedBoundShaderStateLink* GetCachedBoundShaderState(
 	FRHIPixelShader* PixelShader,
 	FRHIHullShader* HullShader,
 	FRHIDomainShader* DomainShader,
-	FRHIGeometryShader* GeometryShader
+	FRHIGeometryShader* GeometryShader,
+	FRHIMeshShader* MeshShader,
+	FRHIAmplificationShader* AmplificationShader
 	)
 {
-	// Find the existing bound shader state in the cache.
-	return GetBoundShaderStateCache().FindRef(
-		FBoundShaderStateLookupKey(VertexDeclaration,VertexShader,PixelShader,HullShader,DomainShader,GeometryShader)
+	if (MeshShader)
+	{
+		// Find the existing bound shader state in the cache.
+		return GetBoundShaderStateCache().FindRef(
+			FBoundShaderStateLookupKey(MeshShader, AmplificationShader, PixelShader)
 		);
+	}
+	else
+	{
+		// Find the existing bound shader state in the cache.
+		return GetBoundShaderStateCache().FindRef(
+			FBoundShaderStateLookupKey(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader)
+		);
+	}
 }
 
 
@@ -109,14 +135,28 @@ FBoundShaderStateRHIRef GetCachedBoundShaderState_Threadsafe(
 	FRHIPixelShader* PixelShader,
 	FRHIHullShader* HullShader,
 	FRHIDomainShader* DomainShader,
-	FRHIGeometryShader* GeometryShader
+	FRHIGeometryShader* GeometryShader,
+	FRHIMeshShader* MeshShader,
+	FRHIAmplificationShader* AmplificationShader
 	)
 {
 	FScopeLock Lock(&BoundShaderStateCacheLock);
+
 	// Find the existing bound shader state in the cache.
-	FCachedBoundShaderStateLink_Threadsafe* CachedBoundShaderStateLink = GetBoundShaderStateCache_Threadsafe().FindRef(
-		FBoundShaderStateLookupKey(VertexDeclaration,VertexShader,PixelShader,HullShader,DomainShader,GeometryShader)
+	FCachedBoundShaderStateLink_Threadsafe* CachedBoundShaderStateLink;
+	if (MeshShader)
+	{
+		CachedBoundShaderStateLink = GetBoundShaderStateCache_Threadsafe().FindRef(
+			FBoundShaderStateLookupKey(MeshShader, AmplificationShader, PixelShader)
 		);
+	}
+	else
+	{
+		CachedBoundShaderStateLink = GetBoundShaderStateCache_Threadsafe().FindRef(
+			FBoundShaderStateLookupKey(VertexDeclaration, VertexShader, PixelShader, HullShader, DomainShader, GeometryShader)
+		);
+	}
+	
 	if(CachedBoundShaderStateLink)
 	{
 		// If we've already created a bound shader state with these parameters, reuse it.

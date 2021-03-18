@@ -816,6 +816,18 @@ void QuantizeBoundShaderState(
 		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*VertexShader);
 	}
 
+	if (const FD3D12MeshShader* const MeshShader = BSS->GetMeshShader())
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, MeshShader->ResourceCounts, QBSS.RegisterCounts[SV_Mesh], true);
+		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*MeshShader);
+	}
+
+	if (const FD3D12AmplificationShader* const AmplificationShader = BSS->GetAmplificationShader())
+	{
+		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, AmplificationShader->ResourceCounts, QBSS.RegisterCounts[SV_Amplification], true);
+		QBSS.bUseVendorExtension |= UsesVendorExtensionSpace(*AmplificationShader);
+	}
+
 	if (const FD3D12PixelShader* const PixelShader = BSS->GetPixelShader())
 	{
 		FD3D12QuantizedBoundShaderState::InitShaderRegisterCounts(ResourceBindingTier, PixelShader->ResourceCounts, QBSS.RegisterCounts[SV_Pixel], true);

@@ -332,6 +332,18 @@ void FRHICommandDrawIndexedPrimitiveIndirect::Execute(FRHICommandListBase& CmdLi
 	INTERNAL_DECORATOR(RHIDrawIndexedPrimitiveIndirect)(IndexBuffer, ArgumentsBuffer, ArgumentOffset);
 }
 
+void FRHICommandDispatchMeshShader::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(DispatchMeshShader);
+	INTERNAL_DECORATOR(RHIDispatchMeshShader)(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+}
+
+void FRHICommandDispatchIndirectMeshShader::Execute(FRHICommandListBase& CmdList)
+{
+	RHISTAT(DispatchIndirectMeshShader);
+	INTERNAL_DECORATOR(RHIDispatchIndirectMeshShader)(ArgumentBuffer, ArgumentOffset);
+}
+
 void FRHICommandSetShadingRate::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(SetShadingRate);

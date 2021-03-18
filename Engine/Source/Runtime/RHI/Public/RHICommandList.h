@@ -624,6 +624,8 @@ protected:
 	FORCEINLINE void ValidateBoundShader(FRHIHullShader* ShaderRHI) { checkSlow(BoundShaderInput.HullShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIDomainShader* ShaderRHI) { checkSlow(BoundShaderInput.DomainShaderRHI == ShaderRHI); }
 	FORCEINLINE void ValidateBoundShader(FRHIComputeShader* ShaderRHI) { checkSlow(BoundComputeShaderRHI == ShaderRHI); }
+	FORCEINLINE void ValidateBoundShader(FRHIMeshShader* ShaderRHI) { checkSlow(BoundShaderInput.MeshShaderRHI == ShaderRHI); }
+	FORCEINLINE void ValidateBoundShader(FRHIAmplificationShader* ShaderRHI) { checkSlow(BoundShaderInput.AmplificationShaderRHI == ShaderRHI); }
 
 	FORCEINLINE void ValidateBoundShader(FRHIGraphicsShader* ShaderRHI)
 	{
@@ -631,6 +633,8 @@ protected:
 		switch (ShaderRHI->GetFrequency())
 		{
 		case SF_Vertex: checkSlow(BoundShaderInput.VertexShaderRHI == ShaderRHI); break;
+		case SF_Mesh: checkSlow(BoundShaderInput.MeshShaderRHI == ShaderRHI); break;
+		case SF_Amplification: checkSlow(BoundShaderInput.AmplificationShaderRHI == ShaderRHI); break;
 		case SF_Hull: checkSlow(BoundShaderInput.HullShaderRHI == ShaderRHI); break;
 		case SF_Domain: checkSlow(BoundShaderInput.DomainShaderRHI == ShaderRHI); break;
 		case SF_Pixel: checkSlow(BoundShaderInput.PixelShaderRHI == ShaderRHI); break;
@@ -1361,6 +1365,34 @@ FRHICOMMAND_MACRO(FRHICommandDrawIndexedPrimitiveIndirect)
 	{
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandDispatchMeshShader)
+{
+	uint32 ThreadGroupCountX;
+	uint32 ThreadGroupCountY;
+	uint32 ThreadGroupCountZ;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandDispatchMeshShader(uint32 InThreadGroupCountX, uint32 InThreadGroupCountY, uint32 InThreadGroupCountZ)
+		: ThreadGroupCountX(InThreadGroupCountX)
+		, ThreadGroupCountY(InThreadGroupCountY)
+		, ThreadGroupCountZ(InThreadGroupCountZ)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase & CmdList);
+};
+
+FRHICOMMAND_MACRO(FRHICommandDispatchIndirectMeshShader)
+{
+	FRHIBuffer* ArgumentBuffer;
+	uint32 ArgumentOffset;
+
+	FORCEINLINE_DEBUGGABLE FRHICommandDispatchIndirectMeshShader(FRHIBuffer * InArgumentBuffer, uint32 InArgumentOffset)
+		: ArgumentBuffer(InArgumentBuffer)
+		, ArgumentOffset(InArgumentOffset)
+	{
+	}
+	RHI_API void Execute(FRHICommandListBase & CmdList);
 };
 
 FRHICOMMAND_MACRO(FRHICommandSetDepthBounds)
@@ -2821,6 +2853,8 @@ public:
 	void operator delete(void *RawMemory);
 	
 	inline FRHIVertexShader* GetBoundVertexShader() const { return BoundShaderInput.VertexShaderRHI; }
+	inline FRHIMeshShader* GetBoundMeshShader() const { return BoundShaderInput.MeshShaderRHI; }
+	inline FRHIAmplificationShader* GetBoundAmplificationShader() const { return BoundShaderInput.AmplificationShaderRHI; }
 	inline FRHIHullShader* GetBoundHullShader() const { return BoundShaderInput.HullShaderRHI; }
 	inline FRHIDomainShader* GetBoundDomainShader() const { return BoundShaderInput.DomainShaderRHI; }
 	inline FRHIPixelShader* GetBoundPixelShader() const { return BoundShaderInput.PixelShaderRHI; }
@@ -3256,6 +3290,26 @@ public:
 			return;
 		}
 		ALLOC_COMMAND(FRHICommandDrawIndexedPrimitiveIndirect)(IndexBuffer, ArgumentsBuffer, ArgumentOffset);
+	}
+
+	FORCEINLINE_DEBUGGABLE void DispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIDispatchMeshShader(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandDispatchMeshShader)(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+	}
+
+	FORCEINLINE_DEBUGGABLE void DispatchIndirectMeshShader(FRHIBuffer* ArgumentBuffer, uint32 ArgumentOffset)
+	{
+		if (Bypass())
+		{
+			GetContext().RHIDispatchIndirectMeshShader(ArgumentBuffer, ArgumentOffset);
+			return;
+		}
+		ALLOC_COMMAND(FRHICommandDispatchIndirectMeshShader)(ArgumentBuffer, ArgumentOffset);
 	}
 
 	FORCEINLINE_DEBUGGABLE void SetDepthBounds(float MinDepth, float MaxDepth)
@@ -3914,11 +3968,22 @@ public:
 		return GDynamicRHI->CreatePixelShader_RenderThread(*this, Code, Hash);
 	}
 	
-	
 	FORCEINLINE FVertexShaderRHIRef CreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 	{
 		LLM_SCOPE(ELLMTag::Shaders);
 		return GDynamicRHI->CreateVertexShader_RenderThread(*this, Code, Hash);
+	}
+
+	FORCEINLINE FMeshShaderRHIRef CreateMeshShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+	{
+		LLM_SCOPE(ELLMTag::Shaders);
+		return GDynamicRHI->CreateMeshShader_RenderThread(*this, Code, Hash);
+	}
+
+	FORCEINLINE FAmplificationShaderRHIRef CreateAmplificationShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+	{
+		LLM_SCOPE(ELLMTag::Shaders);
+		return GDynamicRHI->CreateAmplificationShader_RenderThread(*this, Code, Hash);
 	}
 	
 	FORCEINLINE FHullShaderRHIRef CreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
@@ -4950,6 +5015,16 @@ FORCEINLINE FPixelShaderRHIRef RHICreatePixelShader(TArrayView<const uint8> Code
 FORCEINLINE FVertexShaderRHIRef RHICreateVertexShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().CreateVertexShader(Code, Hash);
+}
+
+FORCEINLINE FMeshShaderRHIRef RHICreateMeshShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateMeshShader(Code, Hash);
+}
+
+FORCEINLINE FAmplificationShaderRHIRef RHICreateAmplificationShader(TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().CreateAmplificationShader(Code, Hash);
 }
 
 FORCEINLINE FHullShaderRHIRef RHICreateHullShader(TArrayView<const uint8> Code, const FSHAHash& Hash)

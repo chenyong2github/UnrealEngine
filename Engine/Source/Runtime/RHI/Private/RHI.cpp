@@ -977,6 +977,8 @@ bool GTriggerGPUHitchProfile = false;
 
 bool GRHISupportsPixelShaderUAVs = true;
 
+bool GRHISupportsMeshShaders = false;
+
 FVertexElementTypeSupportInfo GVertexElementTypeSupport;
 
 RHI_API int32 volatile GCurrentTextureMemorySize = 0;
@@ -1758,6 +1760,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bRequiresDisableForwardLocalLights = GetSectionBool(Section, "bRequiresDisableForwardLocalLights");
 	Info.bCompileSignalProcessingPipeline = GetSectionBool(Section, "bCompileSignalProcessingPipeline");
 	Info.bSupportsTessellation = GetSectionBool(Section, "bSupportsTessellation");
+	Info.bSupportsMeshShaders = GetSectionBool(Section, "bSupportsMeshShaders");
 	Info.bSupportsPerPixelDBufferMask = GetSectionBool(Section, "bSupportsPerPixelDBufferMask");
 	Info.bIsHlslcc = GetSectionBool(Section, "bIsHlslcc");
 	Info.NumberOfComputeThreads = GetSectionUint(Section, "NumberOfComputeThreads");

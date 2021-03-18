@@ -36,6 +36,8 @@ using namespace D3D12RHI;
 }
 
 DECLARE_ISBOUNDSHADER(VertexShader)
+DECLARE_ISBOUNDSHADER(MeshShader)
+DECLARE_ISBOUNDSHADER(AmplificationShader)
 DECLARE_ISBOUNDSHADER(PixelShader)
 DECLARE_ISBOUNDSHADER(GeometryShader)
 DECLARE_ISBOUNDSHADER(HullShader)
@@ -54,6 +56,8 @@ DECLARE_ISBOUNDSHADER(ComputeShader)
 }
 
 DECLARE_ISVALIDUNIFORMBUFFERHASH(VertexShader)
+DECLARE_ISVALIDUNIFORMBUFFERHASH(MeshShader)
+DECLARE_ISVALIDUNIFORMBUFFERHASH(AmplificationShader)
 DECLARE_ISVALIDUNIFORMBUFFERHASH(PixelShader)
 DECLARE_ISVALIDUNIFORMBUFFERHASH(GeometryShader)
 DECLARE_ISVALIDUNIFORMBUFFERHASH(HullShader)
@@ -754,6 +758,8 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 	bUsingTessellation = GraphicsPipelineState->GetHullShader() && GraphicsPipelineState->GetDomainShader();
 	// Ensure the command buffers are reset to reduce the amount of data that needs to be versioned.
 	VSConstantBuffer.Reset();
+	MSConstantBuffer.Reset();
+	ASConstantBuffer.Reset();
 	PSConstantBuffer.Reset();
 	HSConstantBuffer.Reset();
 	DSConstantBuffer.Reset();
@@ -778,6 +784,8 @@ void FD3D12CommandContext::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState
 	if (bApplyAdditionalState)
 	{
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetVertexShader());
+		ApplyStaticUniformBuffers(GraphicsPipelineState->GetMeshShader());
+		ApplyStaticUniformBuffers(GraphicsPipelineState->GetAmplificationShader());
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetHullShader());
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetDomainShader());
 		ApplyStaticUniformBuffers(GraphicsPipelineState->GetGeometryShader());
@@ -816,6 +824,20 @@ void FD3D12CommandContext::RHISetShaderTexture(FRHIGraphicsShader* ShaderRHI, ui
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
 		StateCache.SetShaderResourceView<SF_Vertex>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
+	}
+	break;
+	case SF_Mesh:
+	{
+		FRHIMeshShader* MeshShaderRHI = static_cast<FRHIMeshShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(MeshShaderRHI);
+		StateCache.SetShaderResourceView<SF_Mesh>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
+	}
+	break;
+	case SF_Amplification:
+	{
+		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
+		StateCache.SetShaderResourceView<SF_Amplification>(NewTexture ? NewTexture->GetShaderResourceView() : nullptr, TextureIndex);
 	}
 	break;
 	case SF_Hull:
@@ -917,6 +939,20 @@ void FD3D12CommandContext::RHISetShaderResourceViewParameter(FRHIGraphicsShader*
 		StateCache.SetShaderResourceView<SF_Vertex>(SRV, TextureIndex);
 	}
 	break;
+	case SF_Mesh:
+	{
+		FRHIMeshShader* MeshShaderRHI = static_cast<FRHIMeshShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(MeshShaderRHI);
+		StateCache.SetShaderResourceView<SF_Mesh>(SRV, TextureIndex);
+	}
+	break;
+	case SF_Amplification:
+	{
+		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
+		StateCache.SetShaderResourceView<SF_Amplification>(SRV, TextureIndex);
+	}
+	break;
 	case SF_Hull:
 	{
 		FRHIHullShader* HullShaderRHI = static_cast<FRHIHullShader*>(ShaderRHI);
@@ -968,6 +1004,20 @@ void FD3D12CommandContext::RHISetShaderSampler(FRHIGraphicsShader* ShaderRHI, ui
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
 		StateCache.SetSamplerState<SF_Vertex>(NewState, SamplerIndex);
+	}
+	break;
+	case SF_Mesh:
+	{
+		FRHIMeshShader* MeshShaderRHI = static_cast<FRHIMeshShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(MeshShaderRHI);
+		StateCache.SetSamplerState<SF_Mesh>(NewState, SamplerIndex);
+	}
+	break;
+	case SF_Amplification:
+	{
+		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
+		StateCache.SetSamplerState<SF_Amplification>(NewState, SamplerIndex);
 	}
 	break;
 	case SF_Hull:
@@ -1024,6 +1074,24 @@ void FD3D12CommandContext::RHISetShaderUniformBuffer(FRHIGraphicsShader* ShaderR
 		VALIDATE_BOUND_UNIFORMBUFFER_HASH(Buffer, VertexShaderRHI, BufferIndex);
 		StateCache.SetConstantsFromUniformBuffer<SF_Vertex>(BufferIndex, Buffer);
 		Stage = SF_Vertex;
+	}
+	break;
+	case SF_Mesh:
+	{
+		FRHIMeshShader* MeshShaderRHI = static_cast<FRHIMeshShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(MeshShaderRHI);
+		VALIDATE_BOUND_UNIFORMBUFFER_HASH(Buffer, MeshShaderRHI, BufferIndex);
+		StateCache.SetConstantsFromUniformBuffer<SF_Mesh>(BufferIndex, Buffer);
+		Stage = SF_Mesh;
+	}
+	break;
+	case SF_Amplification:
+	{
+		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
+		VALIDATE_BOUND_UNIFORMBUFFER_HASH(Buffer, AmplificationShaderRHI, BufferIndex);
+		StateCache.SetConstantsFromUniformBuffer<SF_Amplification>(BufferIndex, Buffer);
+		Stage = SF_Amplification;
 	}
 	break;
 	case SF_Hull:
@@ -1104,6 +1172,20 @@ void FD3D12CommandContext::RHISetShaderParameter(FRHIGraphicsShader* ShaderRHI, 
 		FRHIVertexShader* VertexShaderRHI = static_cast<FRHIVertexShader*>(ShaderRHI);
 		VALIDATE_BOUND_SHADER(VertexShaderRHI);
 		VSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+	}
+	break;
+	case SF_Mesh:
+	{
+		FRHIMeshShader* MeshShaderRHI = static_cast<FRHIMeshShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(MeshShaderRHI);
+		MSConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
+	}
+	break;
+	case SF_Amplification:
+	{
+		FRHIAmplificationShader* AmplificationShaderRHI = static_cast<FRHIAmplificationShader*>(ShaderRHI);
+		VALIDATE_BOUND_SHADER(AmplificationShaderRHI);
+		ASConstantBuffer.UpdateConstant((const uint8*)NewValue, BaseIndex, NumBytes);
 	}
 	break;
 	case SF_Hull:
@@ -1523,6 +1605,16 @@ void FD3D12CommandContext::CommitNonComputeShaderConstants()
 		StateCache.SetConstantBuffer<SF_Vertex>(VSConstantBuffer, bDiscardSharedGraphicsConstants);
 	}
 
+	if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Mesh])
+	{
+		StateCache.SetConstantBuffer<SF_Mesh>(MSConstantBuffer, bDiscardSharedGraphicsConstants);
+	}
+
+	if (GraphicPSO->bShaderNeedsGlobalConstantBuffer[SF_Amplification])
+	{
+		StateCache.SetConstantBuffer<SF_Amplification>(ASConstantBuffer, bDiscardSharedGraphicsConstants);
+	}
+
 	// Skip HS/DS CB updates in cases where tessellation isn't being used
 	// Note that this is *potentially* unsafe because bDiscardSharedGraphicsConstants is cleared at the
 	// end of the function, however we're OK for now because bDiscardSharedGraphicsConstants
@@ -1813,6 +1905,14 @@ void FD3D12CommandContext::CommitGraphicsResourceTables()
 	{
 		SetResourcesFromTables(Shader);
 	}
+	if (auto* Shader = GraphicPSO->GetMeshShader())
+	{
+		SetResourcesFromTables(Shader);
+	}
+	if (auto* Shader = GraphicPSO->GetAmplificationShader())
+	{
+		SetResourcesFromTables(Shader);
+	}
 	if (PixelShader)
 	{
 		SetResourcesFromTables(PixelShader);
@@ -2036,6 +2136,69 @@ void FD3D12CommandContext::RHIDrawIndexedPrimitiveIndirect(FRHIBuffer* IndexBuff
 #endif
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
+
+#if PLATFORM_SUPPORTS_MESH_SHADERS
+void FD3D12CommandContext::RHIDispatchMeshShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
+{
+	numDraws++;
+	if (bTrackingEvents)
+	{
+		GetParentDevice()->RegisterGPUDispatch(FIntVector(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ));
+	}
+
+	CommitGraphicsResourceTables();
+	CommitNonComputeShaderConstants();
+
+	StateCache.ApplyState<D3D12PT_Graphics>();
+
+	CommandListHandle.GraphicsCommandList6()->DispatchMesh(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
+
+#if UE_BUILD_DEBUG	
+	OwningRHI.DrawCount++;
+#endif
+	DEBUG_EXECUTE_COMMAND_LIST(this);
+}
+
+void FD3D12CommandContext::RHIDispatchIndirectMeshShader(FRHIBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
+{
+	FD3D12Buffer* ArgumentBuffer = RetrieveObject<FD3D12Buffer>(ArgumentBufferRHI);
+
+	numDraws++;
+	RHI_DRAW_CALL_INC_MGPU(GetGPUIndex());
+	if (bTrackingEvents)
+	{
+		GetParentDevice()->RegisterGPUWork(0);
+	}
+
+	CommitGraphicsResourceTables();
+	CommitNonComputeShaderConstants();
+
+	FD3D12ResourceLocation& Location = ArgumentBuffer->ResourceLocation;
+
+	StateCache.ApplyState<D3D12PT_Graphics>();
+
+	// Indirect args buffer can be a previously pending UAV, which becomes PS\Non-PS read. ApplyState will flush pending transitions, so enqueue the indirect
+	// arg transition and flush here.
+	FD3D12DynamicRHI::TransitionResource(CommandListHandle, Location.GetResource(), D3D12_RESOURCE_STATE_TBD, D3D12_RESOURCE_STATE_INDIRECT_ARGUMENT, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES, FD3D12DynamicRHI::ETransitionMode::Validate);
+	CommandListHandle.FlushResourceBarriers();	// Must flush so the desired state is actually set.
+
+	CommandListHandle->ExecuteIndirect(
+		GetParentDevice()->GetParentAdapter()->GetDispatchIndirectMeshCommandSignature(),
+		1,
+		Location.GetResource()->GetResource(),
+		Location.GetOffsetFromBaseOfResource() + ArgumentOffset,
+		NULL,
+		0
+	);
+
+	CommandListHandle.UpdateResidency(Location.GetResource());
+
+#if UE_BUILD_DEBUG	
+	OwningRHI.DrawCount++;
+#endif
+	DEBUG_EXECUTE_COMMAND_LIST(this);
+}
+#endif // PLATFORM_SUPPORTS_MESH_SHADERS
 
 // Raster operations.
 void FD3D12CommandContext::RHIClearMRT(bool bClearColor, int32 NumClearColors, const FLinearColor* ClearColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil)

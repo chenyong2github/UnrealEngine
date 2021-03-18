@@ -2170,6 +2170,20 @@ FVertexShaderRHIRef FDynamicRHI::CreateVertexShader_RenderThread(class FRHIComma
 	return GDynamicRHI->RHICreateVertexShader(Code, Hash);
 }
 
+FMeshShaderRHIRef FDynamicRHI::CreateMeshShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateMeshShader_RenderThread);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+	return GDynamicRHI->RHICreateMeshShader(Code, Hash);
+}
+
+FAmplificationShaderRHIRef FDynamicRHI::CreateAmplificationShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
+{
+	CSV_SCOPED_TIMING_STAT(RHITStalls, CreateAmplificationShader_RenderThread);
+	FScopedRHIThreadStaller StallRHIThread(RHICmdList);
+	return GDynamicRHI->RHICreateAmplificationShader(Code, Hash);
+}
+
 FPixelShaderRHIRef FDynamicRHI::CreatePixelShader_RenderThread(class FRHICommandListImmediate& RHICmdList, TArrayView<const uint8> Code, const FSHAHash& Hash)
 {
 	CSV_SCOPED_TIMING_STAT(RHITStalls, CreatePixelShader_RenderThread);
