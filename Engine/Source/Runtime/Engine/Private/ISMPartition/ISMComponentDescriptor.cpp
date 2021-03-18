@@ -63,6 +63,7 @@ void FISMComponentDescriptor::InitFrom(const UStaticMeshComponent* Template, boo
 	bIncludeInHLOD = Template->bEnableAutoLODGeneration;
 	bHiddenInGame = Template->bHiddenInGame;
 	bIsEditorOnly = Template->bIsEditorOnly;
+	bVisible = Template->GetVisibleFlag();
 	bVisibleInRayTracing = Template->bVisibleInRayTracing;
 
 	if (const UInstancedStaticMeshComponent* ISMTemplate = Cast<UInstancedStaticMeshComponent>(Template))
@@ -124,6 +125,7 @@ bool FISMComponentDescriptor::operator==(const FISMComponentDescriptor& Other) c
 	bEnableDiscardOnLoad == Other.bEnableDiscardOnLoad &&
 	bHiddenInGame == Other.bHiddenInGame &&
 	bIsEditorOnly == Other.bIsEditorOnly &&
+	bVisible == Other.bVisible &&
 	bVisibleInRayTracing == Other.bVisibleInRayTracing &&
 	BodyInstance.GetCollisionEnabled() == Other.BodyInstance.GetCollisionEnabled() && 
 	BodyInstance.GetCollisionResponse() == Other.BodyInstance.GetCollisionResponse() &&
@@ -185,6 +187,7 @@ void FISMComponentDescriptor::InitComponent(UInstancedStaticMeshComponent* ISMCo
 	ISMComponent->bEnableAutoLODGeneration = bIncludeInHLOD;;
 	ISMComponent->bHiddenInGame = bHiddenInGame;
 	ISMComponent->bIsEditorOnly = bIsEditorOnly;
+	ISMComponent->SetVisibleFlag(bVisible);
 	ISMComponent->bVisibleInRayTracing = bVisibleInRayTracing;
 
 	// HISM Specific

@@ -159,5 +159,8 @@ public:
 
 	UPROPERTY()
 	uint8 bIsEditorOnly : 1;
+
+	UPROPERTY()
+	uint8 bVisible : 1;
 #endif
 };
