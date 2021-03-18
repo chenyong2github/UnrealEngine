@@ -29,6 +29,7 @@
 #include "SPinTypeSelector.h"
 #include "Kismet2/StructureEditorUtils.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/Images/SLayeredImage.h"
 
 #define LOCTEXT_NAMESPACE "StructureEditor"
 
@@ -469,16 +470,16 @@ public:
 				switch(Struct->Status.GetValue())
 				{
 				case EUserDefinedStructureStatus::UDSS_Error:
-					return FEditorStyle::GetBrush("Kismet.Status.Error.Small");
+					return FEditorStyle::GetBrush("Blueprint.CompileStatus.Overlay.Error");
 				case EUserDefinedStructureStatus::UDSS_UpToDate:
-					return FEditorStyle::GetBrush("Kismet.Status.Good.Small");
+					return FEditorStyle::GetBrush("Blueprint.CompileStatus.Overlay.Good");
 				default:
-					return FEditorStyle::GetBrush("Kismet.Status.Unknown.Small");
+					return FEditorStyle::GetBrush("Blueprint.CompileStatus.Overlay.Unknown");
 				}
 				
 			}
 		}
-		return NULL;
+		return nullptr;
 	}
 
 	FText GetStatusTooltip() const
@@ -1067,6 +1068,7 @@ void FUserDefinedStructureLayout::GenerateChildContent( IDetailChildrenBuilder& 
 	const float NameWidth = 80.0f;
 	const float ContentWidth = 130.0f;
 
+	TSharedPtr<SLayeredImage> StatusImage;
 	ChildrenBuilder.AddCustomRow(FText::GetEmpty())
 	[
 		SNew(SHorizontalBox)
@@ -1075,9 +1077,10 @@ void FUserDefinedStructureLayout::GenerateChildContent( IDetailChildrenBuilder& 
 		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SImage)
-			.Image(this, &FUserDefinedStructureLayout::OnGetStructureStatus)
+			SAssignNew(StatusImage, SLayeredImage)
+			.Image(FAppStyle::Get().GetBrush("Blueprint.CompileStatus.Background"))
 			.ToolTipText(this, &FUserDefinedStructureLayout::GetStatusTooltip)
+			.DesiredSizeOverride(FVector2D(16,16))
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -1119,6 +1122,8 @@ void FUserDefinedStructureLayout::GenerateChildContent( IDetailChildrenBuilder& 
 			]
 		]
 	];
+
+	StatusImage->AddLayer(MakeAttributeSP(this, &FUserDefinedStructureLayout::OnGetStructureStatus));
 
 	auto StructureDetailsSP = StructureDetails.Pin();
 	if(StructureDetailsSP.IsValid())
