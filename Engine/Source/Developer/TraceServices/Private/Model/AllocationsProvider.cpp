@@ -11,10 +11,39 @@
 
 #include <limits>
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+#define INSIGHTS_SLOW_CHECK(expr) //check(expr)
+
+#define INSIGHTS_DEBUG_WATCH 0
+
+// Use optimized path for the short living allocations.
+// If enabled, caches the short living allocations, as there is a very high chance to be freed in the next few "free" events.
+// ~66% of all allocs are expected to have an "event distance" < 64 events
+// ~70% of all allocs are expected to have an "event distance" < 512 events
+#define INSIGHTS_USE_SHORT_LIVING_ALLOCS 1
+
+// Use optimized path for the last alloc.
+// If enabled, caches the last added alloc, as there is a high chance to be freed in the next "free" event.
+// ~10% to ~30% of all allocs are expected to have an "event distance" == 1 event ("free" event follows the "alloc" event imediatelly)
+#define INSIGHTS_USE_LAST_ALLOC 1
+
+#define INSIGHTS_VALIDATE_ALLOC_EVENTS 0
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 namespace TraceServices
 {
 
 constexpr uint32 MaxLogMessagesPerErrorType = 100;
+
+#if INSIGHTS_DEBUG_WATCH
+static uint64 GWatchAddresses[] =
+{
+	// add here addresses to watch
+	0x0,
+};
+#endif // INSIGHTS_DEBUG_WATCH
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAllocationsProviderLock
@@ -292,6 +321,331 @@ IAllocationsProvider::FQueryResult IAllocationsProvider::FQueryStatus::NextResul
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+// FShortLivingAllocs
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FShortLivingAllocs::FShortLivingAllocs()
+{
+	AllNodes = new FNode[MaxAllocCount];
+
+	// Build the "unused" simple linked list.
+	FirstUnusedNode = AllNodes;
+	for (int32 Index = 0; Index < MaxAllocCount - 1; ++Index)
+	{
+		AllNodes[Index].Next = &AllNodes[Index + 1];
+	}
+	AllNodes[MaxAllocCount - 1].Next = nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FShortLivingAllocs::~FShortLivingAllocs()
+{
+	FNode* Node = LastAddedAllocNode;
+	while (Node != nullptr)
+	{
+		delete Node->Alloc;
+		Node = Node->Prev;
+	}
+	delete[] AllNodes;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAllocationItem* FShortLivingAllocs::FindRef(uint64 Address)
+{
+#if 1
+	FNode** NodePtr = AddressMap.Find(Address);
+	return NodePtr ? (*NodePtr)->Alloc : nullptr;
+#else
+	// Search linearly the list of allocations, backward, starting with most recent one.
+	// As the probability of finding a match for a "free" event is higher for the recent allocs,
+	// this could actually be faster than doing a O(log n) search in AddressMap.
+	// TODO: This needs to be tested for various MaxAllocCount values.
+	FNode* Node = LastAddedAllocNode;
+	while (Node != nullptr)
+	{
+		if (Node->Alloc->Address == Address)
+		{
+			return Node->Alloc;
+		}
+		Node = Node->Prev;
+	}
+	return nullptr;
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAllocationItem* FShortLivingAllocs::AddChecked(FAllocationItem* Alloc)
+{
+	if (FirstUnusedNode == nullptr)
+	{
+		// Collection is already full.
+		INSIGHTS_SLOW_CHECK(AllocCount == MaxAllocCount);
+		INSIGHTS_SLOW_CHECK(OldestAllocNode != nullptr);
+		INSIGHTS_SLOW_CHECK(LastAddedAllocNode != nullptr);
+
+		// Reuse the node of the oldest allocation for the new allocation.
+		FNode* NewNode = OldestAllocNode;
+
+		// Remove the oldest allocation.
+		FAllocationItem* RemovedAlloc = OldestAllocNode->Alloc;
+		AddressMap.Remove(RemovedAlloc->Address);
+		OldestAllocNode = OldestAllocNode->Next;
+		INSIGHTS_SLOW_CHECK(OldestAllocNode != nullptr);
+		OldestAllocNode->Prev = nullptr;
+
+		// Add the new node.
+		AddressMap.Add(Alloc->Address, NewNode);
+		NewNode->Alloc = Alloc;
+		NewNode->Next = nullptr;
+		NewNode->Prev = LastAddedAllocNode;
+		LastAddedAllocNode->Next = NewNode;
+		LastAddedAllocNode = NewNode;
+
+		return RemovedAlloc;
+	}
+	else
+	{
+		INSIGHTS_SLOW_CHECK(AllocCount < MaxAllocCount);
+		++AllocCount;
+
+		FNode* NewNode = FirstUnusedNode;
+		FirstUnusedNode = FirstUnusedNode->Next;
+
+		// Add the new node.
+		AddressMap.Add(Alloc->Address, NewNode);
+		NewNode->Alloc = Alloc;
+		NewNode->Next = nullptr;
+		NewNode->Prev = LastAddedAllocNode;
+		if (LastAddedAllocNode)
+		{
+			LastAddedAllocNode->Next = NewNode;
+		}
+		else
+		{
+			OldestAllocNode = NewNode;
+		}
+		LastAddedAllocNode = NewNode;
+
+		return nullptr;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAllocationItem* FShortLivingAllocs::Remove(uint64 Address)
+{
+	FNode* RemovedNode;
+	if (AddressMap.RemoveAndCopyValue(Address, RemovedNode))
+	{
+		INSIGHTS_SLOW_CHECK(AllocCount > 0);
+		--AllocCount;
+
+		FAllocationItem* RemovedAlloc = RemovedNode->Alloc;
+		INSIGHTS_SLOW_CHECK(RemovedAlloc->Address == Address);
+
+		// Remove node.
+		if (RemovedNode == OldestAllocNode)
+		{
+			OldestAllocNode = OldestAllocNode->Next;
+		}
+		if (RemovedNode == LastAddedAllocNode)
+		{
+			LastAddedAllocNode = LastAddedAllocNode->Prev;
+		}
+		if (RemovedNode->Prev)
+		{
+			RemovedNode->Prev->Next = RemovedNode->Next;
+		}
+		if (RemovedNode->Next)
+		{
+			RemovedNode->Next->Prev = RemovedNode->Prev;
+		}
+
+		// Add the removed node to the "unused" list.
+		RemovedNode->Next = FirstUnusedNode;
+		FirstUnusedNode = RemovedNode;
+
+		return RemovedAlloc;
+	}
+
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FShortLivingAllocs::Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const
+{
+	FNode* Node = LastAddedAllocNode;
+	while (Node != nullptr)
+	{
+		Callback(*(Node->Alloc));
+		Node = Node->Prev;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+// FLiveAllocCollection
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLiveAllocCollection::FLiveAllocCollection()
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FLiveAllocCollection::~FLiveAllocCollection()
+{
+	for (const auto& KV : LongLivingAllocs)
+	{
+		const FAllocationItem* Allocation = KV.Value;
+		delete Allocation;
+	}
+
+#if INSIGHTS_USE_LAST_ALLOC
+	if (LastAlloc)
+	{
+		delete LastAlloc;
+	}
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAllocationItem* FLiveAllocCollection::FindRef(uint64 Address)
+{
+#if INSIGHTS_USE_LAST_ALLOC
+	if (LastAlloc && LastAlloc->Address == Address)
+	{
+		return LastAlloc;
+	}
+#endif
+
+#if INSIGHTS_USE_SHORT_LIVING_ALLOCS
+	FAllocationItem* FoundShortLivingAlloc = ShortLivingAllocs.FindRef(Address);
+	if (FoundShortLivingAlloc)
+	{
+		INSIGHTS_SLOW_CHECK(FoundShortLivingAlloc->Address == Address);
+		return FoundShortLivingAlloc;
+	}
+#endif
+
+	FAllocationItem* FoundLongLivingAlloc = LongLivingAllocs.FindRef(Address);
+	if (FoundLongLivingAlloc)
+	{
+		INSIGHTS_SLOW_CHECK(FoundLongLivingAlloc->Address == Address);
+		return FoundLongLivingAlloc;
+	}
+
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAllocationItem* FLiveAllocCollection::AddNewChecked(uint64 Address)
+{
+	++TotalAllocCount;
+	if (TotalAllocCount > MaxAllocCount)
+	{
+		MaxAllocCount = TotalAllocCount;
+	}
+
+	FAllocationItem* NewAlloc = new FAllocationItem();
+	NewAlloc->Address = Address;
+
+	// The allocation that is further moved from "last" to "short living" to "long living".
+	FAllocationItem* Allocation = NewAlloc;
+
+#if INSIGHTS_USE_LAST_ALLOC
+	if (LastAlloc)
+	{
+		// We have a new "last allocation".
+		// The previous one will be moved to the short living allocations.
+		Allocation = LastAlloc;
+		LastAlloc = NewAlloc;
+	}
+	else
+	{
+		LastAlloc = NewAlloc;
+		return NewAlloc;
+	}
+#endif
+
+#if INSIGHTS_USE_SHORT_LIVING_ALLOCS
+	Allocation = ShortLivingAllocs.AddChecked(Allocation);
+	if (Allocation == nullptr)
+	{
+		return NewAlloc;
+	}
+#endif
+
+	LongLivingAllocs.Add(Allocation->Address, Allocation);
+	return NewAlloc;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FAllocationItem* FLiveAllocCollection::Remove(uint64 Address)
+{
+#if INSIGHTS_USE_LAST_ALLOC
+	if (LastAlloc && LastAlloc->Address == Address)
+	{
+		FAllocationItem* RemovedAlloc = LastAlloc;
+		LastAlloc = nullptr;
+		INSIGHTS_SLOW_CHECK(TotalAllocCount > 0);
+		--TotalAllocCount;
+		return RemovedAlloc;
+	}
+#endif
+
+#if INSIGHTS_USE_SHORT_LIVING_ALLOCS
+	FAllocationItem* RemovedShortLivingAlloc = ShortLivingAllocs.Remove(Address);
+	if (RemovedShortLivingAlloc)
+	{
+		INSIGHTS_SLOW_CHECK(RemovedShortLivingAlloc->Address == Address);
+		INSIGHTS_SLOW_CHECK(TotalAllocCount > 0);
+		--TotalAllocCount;
+		return RemovedShortLivingAlloc;
+	}
+#endif
+
+	FAllocationItem* RemovedLongLivingAlloc;
+	if (LongLivingAllocs.RemoveAndCopyValue(Address, RemovedLongLivingAlloc))
+	{
+		INSIGHTS_SLOW_CHECK(RemovedLongLivingAlloc->Address == Address);
+		INSIGHTS_SLOW_CHECK(TotalAllocCount > 0);
+		--TotalAllocCount;
+		return RemovedLongLivingAlloc;
+	}
+
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FLiveAllocCollection::Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const
+{
+#if INSIGHTS_USE_LAST_ALLOC
+	if (LastAlloc)
+	{
+		Callback(*LastAlloc);
+	}
+#endif
+
+#if INSIGHTS_USE_SHORT_LIVING_ALLOCS
+	ShortLivingAllocs.Enumerate(Callback);
+#endif
+
+	for (const auto& KV : LongLivingAllocs)
+	{
+		const FAllocationItem* Allocation = KV.Value;
+		Callback(*Allocation);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 // FAllocationsProvider
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -381,17 +735,6 @@ void FAllocationsProvider::EditRemoveCore(double Time, uint64 Owner, uint64 Base
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define MEMALLOC_DEBUG_WATCH 0
-
-#if MEMALLOC_DEBUG_WATCH
-static uint64 GWatchAddresses[] =
-{
-	0x0, // add here the addresses to watch
-};
-#endif // MEMALLOC_DEBUG_WATCH
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, uint32 InSize, uint8 InAlignmentAndSizeLower, uint32 ThreadId, uint8 Tracker)
 {
 	Lock.WriteAccessCheck();
@@ -408,14 +751,59 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 
 	SbTree->SetTimeForEvent(EventIndex, Time);
 
+	AdvanceTimelines(Time);
+
 	const uint8 SizeLowerMask = ((1 << SizeShift) - 1);
 	const uint8 AlignmentMask = ~SizeLowerMask;
 	const uint64 Size = (static_cast<uint64>(InSize) << SizeShift) | static_cast<uint64>(InAlignmentAndSizeLower & SizeLowerMask);
 
 	const uint32 Tag = TagTracker.GetCurrentTag(ThreadId, Tracker);
 
-	FAllocationItem* AllocationPtr = LiveAllocs.Find(Address);
-	if (AllocationPtr)
+#if INSIGHTS_DEBUG_WATCH
+	for (int32 AddrIndex = 0; AddrIndex < UE_ARRAY_COUNT(GWatchAddresses); ++AddrIndex)
+	{
+		if (GWatchAddresses[AddrIndex] == Address)
+		{
+			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Alloc 0x%llX : Size=%llu, Tag=%u, Time=%f"), Address, Size, Tag, Time);
+			break;
+		}
+	}
+#endif // INSIGHTS_DEBUG_WATCH
+
+#if INSIGHTS_VALIDATE_ALLOC_EVENTS
+	FAllocationItem* AllocationPtr = LiveAllocs.FindRef(Address);
+	if (!AllocationPtr)
+	{
+#else
+		FAllocationItem* AllocationPtr;
+#endif
+
+		AllocationPtr = LiveAllocs.AddNewChecked(Address);
+		INSIGHTS_SLOW_CHECK(Allocation.Address == Address)
+
+		FAllocationItem& Allocation = *AllocationPtr;
+		Allocation.StartEventIndex = EventIndex;
+		Allocation.EndEventIndex = (uint32)-1;
+		Allocation.StartTime = Time;
+		Allocation.EndTime = std::numeric_limits<double>::infinity();
+		Allocation.Owner = Owner;
+		//Allocation.Address = Address;
+		Allocation.SizeAndAlignment = FAllocationItem::PackSizeAndAlignment(Size, InAlignmentAndSizeLower & AlignmentMask);
+		Allocation.Callstack = nullptr;
+		Allocation.Tag = Tag;
+		Allocation.Reserved1 = 0;
+
+		UpdateHistogramByAllocSize(Size);
+
+		// Update stats for the current timeline sample.
+		TotalAllocatedMemory += Size;
+		SampleMaxTotalAllocatedMemory = FMath::Max(SampleMaxTotalAllocatedMemory, TotalAllocatedMemory);
+		SampleMaxLiveAllocations = FMath::Max(SampleMaxLiveAllocations, (uint32)LiveAllocs.Num());
+		++SampleAllocEvents;
+
+#if INSIGHTS_VALIDATE_ALLOC_EVENTS
+	}
+	else
 	{
 		++AllocErrors;
 		if (AllocErrors <= MaxLogMessagesPerErrorType)
@@ -423,52 +811,7 @@ void FAllocationsProvider::EditAlloc(double Time, uint64 Owner, uint64 Address, 
 			UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Invalid ALLOC event (Address=0x%llX, Size=%llu, Tag=%u, Time=%f)!"), Address, Size, Tag, Time);
 		}
 	}
-	else
-	{
-#if MEMALLOC_DEBUG_WATCH
-		for (int32 AddrIndex = 0; AddrIndex < UE_ARRAY_COUNT(GWatchAddresses); ++AddrIndex)
-		{
-			if (GWatchAddresses[AddrIndex] == Address)
-			{
-				UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Alloc 0x%llX : Size=%llu, Tag=%u, Time=%f"), Address, Size, Tag, Time);
-				break;
-			}
-		}
-#endif // MEMALLOC_DEBUG_WATCH
-
-		AdvanceTimelines(Time);
-
-		FAllocationItem Allocation =
-		{
-			EventIndex,
-			(uint32)-1,
-			Time,
-			std::numeric_limits<double>::infinity(),
-			Owner,
-			Address,
-			FAllocationItem::PackSizeAndAlignment(Size, InAlignmentAndSizeLower & AlignmentMask),
-			nullptr,
-			Tag,
-			0, // Reserverd1
-		};
-		LiveAllocs.Add(Address, Allocation);
-
-		//TODO: Cache the last added alloc, as there is ~10% chance to be freed in the next event.
-
-		const uint32 CurrentLiveAllocCount = static_cast<uint32>(LiveAllocs.Num());
-		if (CurrentLiveAllocCount > MaxLiveAllocCount)
-		{
-			MaxLiveAllocCount = CurrentLiveAllocCount;
-		}
-
-		UpdateHistogramByAllocSize(Size);
-
-		// Update stats for current timeline sample.
-		TotalAllocatedMemory += Size;
-		SampleMaxTotalAllocatedMemory = FMath::Max(SampleMaxTotalAllocatedMemory, TotalAllocatedMemory);
-		SampleMaxLiveAllocations = FMath::Max(SampleMaxLiveAllocations, (uint32)LiveAllocs.Num());
-		++SampleAllocEvents;
-	}
+#endif
 
 	++AllocCount;
 	++EventIndex;
@@ -492,8 +835,40 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address)
 
 	SbTree->SetTimeForEvent(EventIndex, Time);
 
-	FAllocationItem* AllocationPtr = LiveAllocs.Find(Address);
-	if (!AllocationPtr)
+	AdvanceTimelines(Time);
+
+#if INSIGHTS_DEBUG_WATCH
+	for (int32 AddrIndex = 0; AddrIndex < UE_ARRAY_COUNT(GWatchAddresses); ++AddrIndex)
+	{
+		if (GWatchAddresses[AddrIndex] == Address)
+		{
+			UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Free 0x%llX : Time=%f"), Address, Time);
+			break;
+		}
+	}
+#endif // INSIGHTS_DEBUG_WATCH
+
+	FAllocationItem* AllocationPtr = LiveAllocs.Remove(Address); // we take ownership of AllocationPtr
+	if (AllocationPtr)
+	{
+		check(EventIndex > AllocationPtr->StartEventIndex);
+		AllocationPtr->EndEventIndex = EventIndex;
+		AllocationPtr->EndTime = Time;
+
+		const uint64 OldSize = AllocationPtr->GetSize();
+
+		SbTree->AddAlloc(AllocationPtr); // SbTree takes ownership of AllocationPtr
+
+		uint32 EventDistance = AllocationPtr->EndEventIndex - AllocationPtr->StartEventIndex;
+		UpdateHistogramByEventDistance(EventDistance);
+
+		// Update stats for the current timeline sample.
+		TotalAllocatedMemory -= OldSize;
+		SampleMinTotalAllocatedMemory = FMath::Min(SampleMinTotalAllocatedMemory, TotalAllocatedMemory);
+		SampleMinLiveAllocations = FMath::Min(SampleMinLiveAllocations, (uint32)LiveAllocs.Num());
+		++SampleFreeEvents;
+	}
+	else
 	{
 		++FreeErrors;
 		if (FreeErrors <= MaxLogMessagesPerErrorType)
@@ -501,41 +876,8 @@ void FAllocationsProvider::EditFree(double Time, uint64 Address)
 			UE_LOG(LogTraceServices, Error, TEXT("[MemAlloc] Invalid FREE event (Address=0x%llX, Time=%f)!"), Address, Time);
 		}
 	}
-	else
-	{
-#if MEMALLOC_DEBUG_WATCH
-		for (int32 AddrIndex = 0; AddrIndex < UE_ARRAY_COUNT(GWatchAddresses); ++AddrIndex)
-		{
-			if (GWatchAddresses[AddrIndex] == Address)
-			{
-				UE_LOG(LogTraceServices, Warning, TEXT("[MemAlloc] Free 0x%llX : Time=%f"), Address, Time);
-				break;
-			}
-		}
-#endif // MEMALLOC_DEBUG_WATCH
 
-		AdvanceTimelines(Time);
-
-		check(EventIndex > AllocationPtr->StartEventIndex);
-		AllocationPtr->EndEventIndex = EventIndex;
-		AllocationPtr->EndTime = Time;
-
-		const uint64 OldSize = AllocationPtr->GetSize();
-
-		SbTree->AddAlloc(AllocationPtr);
-
-		uint32 EventDistance = AllocationPtr->EndEventIndex - AllocationPtr->StartEventIndex;
-		UpdateHistogramByEventDistance(EventDistance);
-
-		LiveAllocs.Remove(Address);
-
-		// Update stats for current timeline sample.
-		TotalAllocatedMemory -= OldSize;
-		SampleMinTotalAllocatedMemory = FMath::Min(SampleMinTotalAllocatedMemory, TotalAllocatedMemory);
-		SampleMinLiveAllocations = FMath::Min(SampleMinLiveAllocations, (uint32)LiveAllocs.Num());
-		++SampleFreeEvents;
-	}
-
+	++FreeCount;
 	++EventIndex;
 }
 
@@ -628,22 +970,26 @@ void FAllocationsProvider::AdvanceTimelines(double Time)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FAllocationsProvider::EditPushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr) 
-{ 
-	EditAccessCheck(); 
+void FAllocationsProvider::EditPushRealloc(uint32 ThreadId, uint8 Tracker, uint64 Ptr)
+{
+	EditAccessCheck();
 	int32 Tag(0); // If ptr is not found use "Untagged"
-	if (FAllocationItem* Alloc = LiveAllocs.Find(Ptr))
+	if (FAllocationItem* Alloc = LiveAllocs.FindRef(Ptr))
 	{
 		Tag = Alloc->Tag;
 	}
 	TagTracker.PushRealloc(ThreadId, Tracker, Tag);
 }
 
-void FAllocationsProvider::EditPopRealloc(uint32 ThreadId, uint8 Tracker) 
-{ 
-	EditAccessCheck(); 
-	TagTracker.PopRealloc(ThreadId, Tracker); 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FAllocationsProvider::EditPopRealloc(uint32 ThreadId, uint8 Tracker)
+{
+	EditAccessCheck();
+	TagTracker.PopRealloc(ThreadId, Tracker);
 }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 {
@@ -659,9 +1005,9 @@ void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 
 	// Add all live allocs to SbTree (with infinite end time).
 	uint64 LiveAllocsTotalSize = 0;
-	for (TPair<uint64, FAllocationItem>& KV : LiveAllocs)
+	LiveAllocs.Enumerate([](const FAllocationItem& Alloc)
 	{
-		FAllocationItem* AllocationPtr = &KV.Value;
+		FAllocationItem* AllocationPtr = const_cast<FAllocationItem*>(&Alloc);
 
 		LiveAllocsTotalSize += AllocationPtr->GetSize();
 
@@ -672,7 +1018,8 @@ void FAllocationsProvider::EditOnAnalysisCompleted(double Time)
 
 		uint32 EventDistance = AllocationPtr->EndEventIndex - AllocationPtr->StartEventIndex;
 		UpdateHistogramByEventDistance(EventDistance);
-	}
+	});
+	//TODO: LiveAllocs.RemoveAll();
 	check(TotalAllocatedMemory == LiveAllocsTotalSize);
 
 	if (bResetTimelineAtEnd)
@@ -997,3 +1344,9 @@ const IAllocationsProvider* ReadAllocationsProvider(const IAnalysisSession& Sess
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 } // namespace TraceServices
+
+#undef INSIGHTS_SLOW_CHECK
+#undef INSIGHTS_DEBUG_WATCH
+#undef INSIGHTS_USE_SHORT_LIVING_ALLOCS
+#undef INSIGHTS_USE_LAST_ALLOC
+#undef INSIGHTS_VALIDATE_ALLOC_EVENTS

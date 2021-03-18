@@ -62,9 +62,19 @@ FSbTreeCell::FSbTreeCell(ILinearAllocator& InAllocator)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+FSbTreeCell::~FSbTreeCell()
+{
+	for (const FAllocationItem* Alloc : Allocs)
+	{
+		delete Alloc;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FSbTreeCell::AddAlloc(const FAllocationItem* Alloc)
 {
-	Allocs.Add(*Alloc);
+	Allocs.Add(Alloc);
 
 	if (Alloc->StartEventIndex < MinStartEventIndex)
 	{
@@ -94,11 +104,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	case IAllocationsProvider::EQueryRule::aAf: // active allocs at A
 	{
 		const double Time = Params.TimeA;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime <= Time && Time <= Alloc.EndTime)
+			if (Alloc->StartTime <= Time && Time <= Alloc->EndTime)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -107,11 +117,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	case IAllocationsProvider::EQueryRule::afA: // before
 	{
 		const double Time = Params.TimeA;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.EndTime <= Time)
+			if (Alloc->EndTime <= Time)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -120,11 +130,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	case IAllocationsProvider::EQueryRule::Aaf: // after
 	{
 		const double Time = Params.TimeA;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime >= Time)
+			if (Alloc->StartTime >= Time)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -134,11 +144,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
+			if (Alloc->StartTime <= TimeA && Alloc->EndTime >= TimeA && Alloc->EndTime <= TimeB)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -148,11 +158,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeB)
+			if (Alloc->StartTime >= TimeA && Alloc->StartTime <= TimeB && Alloc->EndTime >= TimeB)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -162,11 +172,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
+			if (Alloc->EndTime >= TimeA && Alloc->EndTime <= TimeB)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -176,11 +186,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB)
+			if (Alloc->StartTime >= TimeA && Alloc->StartTime <= TimeB)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -190,11 +200,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime >= TimeA && Alloc.EndTime <= TimeB)
+			if (Alloc->StartTime >= TimeA && Alloc->EndTime <= TimeB)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -204,11 +214,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeB)
+			if (Alloc->StartTime <= TimeA && Alloc->EndTime >= TimeB)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -219,11 +229,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeC)
+			if (Alloc->StartTime >= TimeA && Alloc->StartTime <= TimeB && Alloc->EndTime >= TimeC)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -234,11 +244,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeB && Alloc.EndTime <= TimeC)
+			if (Alloc->StartTime >= TimeA && Alloc->StartTime <= TimeB && Alloc->EndTime >= TimeB && Alloc->EndTime <= TimeC)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -249,11 +259,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeB && Alloc.EndTime <= TimeC)
+			if (Alloc->StartTime <= TimeA && Alloc->EndTime >= TimeB && Alloc->EndTime <= TimeC)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}
@@ -265,11 +275,11 @@ void FSbTreeCell::Query(TArray<const FAllocationItem*>& OutAllocs, const IAlloca
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
 		const double TimeD = Params.TimeD;
-		for (const FAllocationItem& Alloc : Allocs)
+		for (const FAllocationItem* Alloc : Allocs)
 		{
-			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeC && Alloc.EndTime <= TimeD)
+			if (Alloc->StartTime >= TimeA && Alloc->StartTime <= TimeB && Alloc->EndTime >= TimeC && Alloc->EndTime <= TimeD)
 			{
-				OutAllocs.Add(&Alloc);
+				OutAllocs.Add(Alloc);
 			}
 		}
 	}

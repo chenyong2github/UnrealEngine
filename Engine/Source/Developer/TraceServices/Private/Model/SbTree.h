@@ -27,9 +27,11 @@ class FSbTreeCell
 {
 public:
 	FSbTreeCell(ILinearAllocator& InAllocator);
+	~FSbTreeCell();
 
 	uint32 GetAllocCount() const { return Allocs.Num(); }
-	void AddAlloc(const FAllocationItem* Alloc);
+
+	void AddAlloc(const FAllocationItem* Alloc); // takes ownership of memory allocated by Alloc pointer
 
 	uint32 GetMinStartEventIndex() const { return MinStartEventIndex; }
 	uint32 GetMaxEndEventIndex() const { return MaxEndEventIndex; }
@@ -43,7 +45,7 @@ private:
 	ILinearAllocator& Allocator;
 
 	//TODO: TPagedArray<FAllocationItem> Allocs;
-	TArray<FAllocationItem> Allocs;
+	TArray<const FAllocationItem*> Allocs;
 
 	uint32 MinStartEventIndex;
 	uint32 MaxEndEventIndex;
@@ -61,7 +63,7 @@ public:
 
 	void SetTimeForEvent(uint32 EventIndex, double Time);
 
-	void AddAlloc(const FAllocationItem* Alloc);
+	void AddAlloc(const FAllocationItem* Alloc); // takes ownership of memory allocated by Alloc pointer
 
 	uint32 GetColumnWidth() const { return 1 << ColumnShift; }
 	uint32 GetCurrentColumn() const { return CurrentColumn; }

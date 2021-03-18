@@ -122,7 +122,6 @@ void FAllocationsQuery::Run()
 			TotalAllocationCount += NumLiveAllocs;
 
 			QueryCallstacks(LiveAllocsResult);
-
 			Results.Enqueue(LiveAllocsResult);
 		}
 		else
@@ -159,10 +158,10 @@ void FAllocationsQuery::Run()
 			const uint32 NumAllocs = static_cast<uint32>(CellResult->Items.Num());
 			if (NumAllocs != 0)
 			{
-				QueryCallstacks(CellResult);
-
 				UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Enqueue %u allocs..."), NumAllocs);
 				TotalAllocationCount += NumAllocs;
+
+				QueryCallstacks(CellResult);
 				Results.Enqueue(CellResult);
 			}
 			else
@@ -191,8 +190,6 @@ void FAllocationsQuery::Run()
 
 void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAllocs) const
 {
-	const TMap<uint64, FAllocationItem>& LiveAllocs = AllocationsProvider.GetLiveAllocs();
-
 	// TODO: Live allocs have the end time set to std::numeric_limits<double>::infinity(),
 	//       so the conditions below could be simplified to remove the end time checks.
 	//       For now, the code remains "unoptimized" for debugging purposes.
@@ -202,42 +199,39 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	case IAllocationsProvider::EQueryRule::aAf: // active allocs at A
 	{
 		const double Time = Params.TimeA;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([Time, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime <= Time && Time <= Alloc.EndTime)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
 	case IAllocationsProvider::EQueryRule::afA: // before
 	{
 		const double Time = Params.TimeA;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([Time, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.EndTime <= Time)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
 	case IAllocationsProvider::EQueryRule::Aaf: // after
 	{
 		const double Time = Params.TimeA;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([Time, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime >= Time)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -245,14 +239,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -260,14 +253,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -275,14 +267,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.EndTime >= TimeA && Alloc.EndTime <= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -290,14 +281,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -305,14 +295,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime >= TimeA && Alloc.EndTime <= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -320,14 +309,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 	{
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeB)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -336,14 +324,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, TimeC, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeC)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -352,14 +339,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, TimeC, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeB && Alloc.EndTime <= TimeC)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -368,14 +354,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 		const double TimeA = Params.TimeA;
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, TimeC, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime <= TimeA && Alloc.EndTime >= TimeB && Alloc.EndTime <= TimeC)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 
@@ -385,14 +370,13 @@ void FAllocationsQuery::QueryLiveAllocs(TArray<const FAllocationItem*>& OutAlloc
 		const double TimeB = Params.TimeB;
 		const double TimeC = Params.TimeC;
 		const double TimeD = Params.TimeD;
-		for (const auto& KV : LiveAllocs)
+		AllocationsProvider.EnumerateLiveAllocs([TimeA, TimeB, TimeC, TimeD, &OutAllocs](const FAllocationItem& Alloc)
 		{
-			const FAllocationItem& Alloc = KV.Value;
 			if (Alloc.StartTime >= TimeA && Alloc.StartTime <= TimeB && Alloc.EndTime >= TimeC && Alloc.EndTime <= TimeD)
 			{
 				OutAllocs.Add(&Alloc);
 			}
-		}
+		});
 	}
 	break;
 	}
@@ -404,11 +388,12 @@ void FAllocationsQuery::QueryCallstacks(FAllocationsImpl* Result) const
 {
 	for (auto Item : Result->Items)
 	{
-		// Callstacks could have been resolved in previous queries, 
+		// Callstacks could have been resolved in previous queries,
 		// check before querying again
 		if (!Item->Callstack)
 		{
 			Item->Callstack = CallstacksProvider.GetCallstack(Item->Owner);
+			check(Item->Callstack != nullptr);
 		}
 	}
 }

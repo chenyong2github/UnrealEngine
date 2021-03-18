@@ -119,6 +119,80 @@ struct FAllocationCoreItem
 #endif
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+class FShortLivingAllocs
+{
+private:
+	struct FNode
+	{
+		FAllocationItem* Alloc;
+		FNode* Next;
+		FNode* Prev;
+	};
+
+	static const int32 MaxAllocCount = 8 * 1024; // max number of short living allocations
+
+public:
+	FShortLivingAllocs();
+	~FShortLivingAllocs();
+
+	bool IsFull() const { return AllocCount == MaxAllocCount; }
+	int32 Num() const { return AllocCount; }
+
+	FORCEINLINE FAllocationItem* FindRef(uint64 Address);
+
+	// The collection keeps ownership of FAllocationItem* until Remove is called or until the oldest allocation is removed.
+	// Returns the removed oldest allocation if collection is already full; nullptr otherwise.
+	// The caller receives ownership of the removed oldest allocation, if a valid pointer is returned.
+	FORCEINLINE FAllocationItem* AddChecked(FAllocationItem* Alloc);
+
+	// The caller takes ownership of FAllocationItem*. Returns nullptr if Address is not found.
+	FORCEINLINE FAllocationItem* Remove(uint64 Address);
+
+	void Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
+
+private:
+	TMap<uint64, FNode*> AddressMap; // map for short living allocations: Address -> FNode*
+	FNode* AllNodes = nullptr; // preallocated array of nodes
+	FNode* LastAddedAllocNode = nullptr; // the last added alloc; double linked list: Prev -> .. -> OldestAlloc
+	FNode* OldestAllocNode = nullptr; // the oldest alloc; double linked list: Next -> .. -> LastAddedAlloc
+	FNode* FirstUnusedNode = nullptr; // simple linked list with unused nodes (uses Next)
+	int32 AllocCount = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class FLiveAllocCollection
+{
+public:
+	FLiveAllocCollection();
+	~FLiveAllocCollection();
+
+	int32 Num() const { return TotalAllocCount; }
+	int32 PeakCount() const { return MaxAllocCount; }
+
+	FORCEINLINE FAllocationItem* FindRef(uint64 Address);
+
+	// The collection keeps ownership of FAllocationItem* until Remove is called.
+	// Returns the new added allocation.
+	FORCEINLINE FAllocationItem* AddNewChecked(uint64 Address);
+
+	// The caller takes ownership of FAllocationItem*.
+	// Returns nullptr if Address is not found.
+	FORCEINLINE FAllocationItem* Remove(uint64 Address);
+
+	void Enumerate(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const;
+
+private:
+	FAllocationItem* LastAlloc = nullptr; // last allocation
+	FShortLivingAllocs ShortLivingAllocs; // short living allocs
+	TMap<uint64, FAllocationItem*> LongLivingAllocs; // long living allocations
+
+	int32 TotalAllocCount = 0;
+	int32 MaxAllocCount = 0; // debug stats
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FAllocationsProvider : public IAllocationsProvider
 {
 private:
@@ -158,7 +232,7 @@ public:
 
 	const FSbTree* GetSbTree() const { ReadAccessCheck(); return SbTree; }
 
-	const TMap<uint64, FAllocationItem>& GetLiveAllocs()  const { ReadAccessCheck(); return LiveAllocs; }
+	void EnumerateLiveAllocs(TFunctionRef<void(const FAllocationItem& Alloc)> Callback) const { ReadAccessCheck(); return LiveAllocs.Enumerate(Callback); }
 	uint32 GetNumLiveAllocs() const { ReadAccessCheck(); return LiveAllocs.Num(); }
 
 	bool HasReallocScope(uint32 ThreadId, uint8 Tracker) const { ReadAccessCheck(); return TagTracker.HasReallocScope(ThreadId, Tracker); }
@@ -212,8 +286,7 @@ private:
 	uint64 AllocCount = 0;
 	uint64 FreeCount = 0;
 
-	uint32 MaxLiveAllocCount = 0;
-	TMap<uint64, FAllocationItem> LiveAllocs;
+	FLiveAllocCollection LiveAllocs;
 
 	uint64 AllocErrors = 0;
 	uint64 FreeErrors = 0;
