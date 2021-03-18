@@ -32,7 +32,7 @@ if errorlevel 1 goto Error_NoVisualStudioEnvironment
 rem ## Compile UBT if the project file exists
 
 set ProjectFile="Programs\UnrealBuildTool\UnrealBuildTool.csproj"
-set UBTPath="..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe"
+set UBTPath="..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.dll"
 if not exist %ProjectFile% goto NoProjectFile
 dotnet build Programs\UnrealBuildTool\UnrealBuildTool.csproj -c Development -v quiet
 if errorlevel 1 goto Error_UBTCompileFailed
@@ -42,7 +42,7 @@ if errorlevel 1 goto Error_UBTCompileFailed
 rem ## Execute UBT
 :ReadyToClean
 if not exist %UBTPath% goto Error_UBTMissing
-%UBTPath% %* -clean
+dotnet %UBTPath% %* -clean
 goto Exit
 
 
@@ -62,7 +62,7 @@ pause
 goto Exit
 
 :Error_UBTMissing
-echo Clean ERROR: UnrealBuildTool.exe not found in ..\..\Engine\Binaries\DotNET\UnrealBuildTool\UnrealBuildTool.exe 
+echo Clean ERROR: UnrealBuildTool.dll not found in %UBTPath%
 pause
 goto Exit
 
