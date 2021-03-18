@@ -32,8 +32,7 @@ void SNewWorldLayerPopup::Construct(const FArguments& InArgs)
 		}
 	}
 	
-	SBorder::Construct(SBorder::FArguments()
-	.Content()
+	ChildSlot
 	[
 		SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
@@ -114,7 +113,7 @@ void SNewWorldLayerPopup::Construct(const FArguments& InArgs)
 			]
 
 		]
-	]);
+	];
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 

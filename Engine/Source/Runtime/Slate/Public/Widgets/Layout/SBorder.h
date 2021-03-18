@@ -144,9 +144,4 @@ protected:
 
 	/** Flips the image if the localization's flow direction is RightToLeft */
 	bool bFlipForRightToLeftFlowDirection;
-
-#if WITH_SLATE_DEBUGGING
-	/** Debug flag to detect if the SBorder::Construct was called. */
-	bool bSBorderConstructWasCalled;
-#endif
  };

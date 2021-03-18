@@ -365,94 +365,95 @@ void SConsolidateToolWidget::Construct( const FArguments& InArgs )
 	SelectedListItem = NULL;
 	bSavePackagesChecked = ISourceControlModule::Get().IsEnabled();
 
-	SBorder::Construct(SBorder::FArguments()
-		.BorderImage(FEditorStyle::GetBrush("NoBorder"))
-		.Content()
-		[
-			SNew(SVerticalBox)
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(5)
-			[
-				SNew( STextBlock )
-				.AutoWrapText(true)
-				.Text( LOCTEXT("Consolidate_Select", "Select an asset to serve as the asset to consolidate the non-selected assets to. This will replace all uses of the non-selected assets below with the selected asset.") )
-			]
+	this->BorderImage = FInvalidatableBrushAttribute(FEditorStyle::GetBrush("NoBorder"));
 
-			+SVerticalBox::Slot()
-			.FillHeight(1.f)
+	ChildSlot
+	[
+		
+		SNew(SVerticalBox)
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(5)
+		[
+			SNew( STextBlock )
+			.AutoWrapText(true)
+			.Text( LOCTEXT("Consolidate_Select", "Select an asset to serve as the asset to consolidate the non-selected assets to. This will replace all uses of the non-selected assets below with the selected asset.") )
+		]
+
+		+SVerticalBox::Slot()
+		.FillHeight(1.f)
+		.Padding(5)
+		[
+			SNew( SBorder )
 			.Padding(5)
 			[
-				SNew( SBorder )
-				.Padding(5)
-				[
-					SAssignNew( ListView, SListType)
-					.ItemHeight(24)
-					.ListItemsSource( &ListViewItems )
-					.OnGenerateRow( this, &SConsolidateToolWidget::OnGenerateRowForList )
-				]
+				SAssignNew( ListView, SListType)
+				.ItemHeight(24)
+				.ListItemsSource( &ListViewItems )
+				.OnGenerateRow( this, &SConsolidateToolWidget::OnGenerateRowForList )
 			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			.Padding(5)
-			[
-				SNew( SHorizontalBox )
-				.Visibility(this, &SConsolidateToolWidget::IsErrorPanelVisible)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Fill)
-				[
-					SAssignNew( ErrorPanel, SErrorText )
-					.Visibility(EVisibility::Hidden)
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.HAlign(HAlign_Right)
-				[
-					SNew(SButton)
-					.ButtonStyle( FEditorStyle::Get(), "Window.Buttons.Close" )
-					.OnClicked(this, &SConsolidateToolWidget::OnDismissErrorPanelButtonClicked)
-				]
-			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.Padding(5)
+		[
+			SNew( SHorizontalBox )
+			.Visibility(this, &SConsolidateToolWidget::IsErrorPanelVisible)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
 			.HAlign(HAlign_Fill)
 			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(5)
-				.HAlign(HAlign_Left)
+				SAssignNew( ErrorPanel, SErrorText )
+				.Visibility(EVisibility::Hidden)
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.HAlign(HAlign_Right)
+			[
+				SNew(SButton)
+				.ButtonStyle( FEditorStyle::Get(), "Window.Buttons.Close" )
+				.OnClicked(this, &SConsolidateToolWidget::OnDismissErrorPanelButtonClicked)
+			]
+		]
+		+SVerticalBox::Slot()
+		.AutoHeight()
+		.HAlign(HAlign_Fill)
+		[
+			SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(5)
+			.HAlign(HAlign_Left)
+			[
+				SNew(SCheckBox)
+				.IsChecked( this, &SConsolidateToolWidget::IsSavePackagesChecked )
+				.OnCheckStateChanged( this, &SConsolidateToolWidget::OnSavePackagesCheckStateChanged )
 				[
-					SNew(SCheckBox)
-					.IsChecked( this, &SConsolidateToolWidget::IsSavePackagesChecked )
-					.OnCheckStateChanged( this, &SConsolidateToolWidget::OnSavePackagesCheckStateChanged )
-					[
-						SNew( STextBlock )
-						.Text( LOCTEXT("Consolidate_SaveDirtyAssets", "Save dirtied assets") )
-					]
-				]
-				+SHorizontalBox::Slot()
-				.Padding(5)
-				.HAlign(HAlign_Right)
-				.FillWidth(1)
-				[
-					SNew(SButton) 
-					.Text( LOCTEXT("ConsolidateAssetsButton", "Consolidate Assets") )
-					.IsEnabled(this, &SConsolidateToolWidget::IsConsolidateButtonEnabled)
-					.OnClicked(this, &SConsolidateToolWidget::OnConsolidateButtonClicked)
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(5)
-				.HAlign(HAlign_Right)
-				[
-					SNew(SButton)
-					.Text( LOCTEXT("CancelConsolidateButton", "Cancel"))
-					.OnClicked(this, &SConsolidateToolWidget::OnCancelButtonClicked)
+					SNew( STextBlock )
+					.Text( LOCTEXT("Consolidate_SaveDirtyAssets", "Save dirtied assets") )
 				]
 			]
-		]);
+			+SHorizontalBox::Slot()
+			.Padding(5)
+			.HAlign(HAlign_Right)
+			.FillWidth(1)
+			[
+				SNew(SButton) 
+				.Text( LOCTEXT("ConsolidateAssetsButton", "Consolidate Assets") )
+				.IsEnabled(this, &SConsolidateToolWidget::IsConsolidateButtonEnabled)
+				.OnClicked(this, &SConsolidateToolWidget::OnConsolidateButtonClicked)
+			]
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(5)
+			.HAlign(HAlign_Right)
+			[
+				SNew(SButton)
+				.Text( LOCTEXT("CancelConsolidateButton", "Cancel"))
+				.OnClicked(this, &SConsolidateToolWidget::OnCancelButtonClicked)
+			]
+		]
+	];
 }
 
 TSharedRef<ITableRow> SConsolidateToolWidget::OnGenerateRowForList( TSharedPtr<FListItem> ListItemPtr, const TSharedRef<STableViewBase>& OwnerTable )
