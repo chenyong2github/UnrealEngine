@@ -2814,7 +2814,7 @@ void FScene::ApplyFinishedLightmapsToWorld()
 								check(Light.ShadowMapChannel != INDEX_NONE);
 								FQuantizedShadowSignedDistanceFieldData2D* ShadowMap = new FQuantizedShadowSignedDistanceFieldData2D(Lightmap.GetSize().X, Lightmap.GetSize().Y);
 
-								int32 SrcRowPitchInPixels = Lightmap.GetPaddedSize().X;
+								int32 SrcRowPitchInPixels = GPreviewLightmapVirtualTileSize;
 								int32 DstRowPitchInPixels = Lightmap.GetSize().X;
 
 								CopyRectTiled(
