@@ -162,25 +162,29 @@ FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawJointFeatures(TEXT("p.Chaos.Imm
 FAutoConsoleVariableRef CVarChaosImmPhysDebugDrawSimulationSpace(TEXT("p.Chaos.ImmPhys.DebugDrawSimulationSpace"), ChaosImmediate_DebugDrawSimulationSpace, TEXT("Draw the simulation frame of reference, acceleration and velocity."));
 
 Chaos::DebugDraw::FChaosDebugDrawSettings ChaosImmPhysDebugDebugDrawSettings(
-	/* ArrowSize =			*/ 1.5f,
-	/* BodyAxisLen =		*/ 4.0f,
-	/* ContactLen =			*/ 4.0f,
-	/* ContactWidth =		*/ 2.0f,
-	/* ContactPhiWidth =	*/ 0.0f,
-	/* ContactOwnerWidth =	*/ 0.0f,
-	/* ConstraintAxisLen =	*/ 5.0f,
-	/* JointComSize =		*/ 2.0f,
-	/* LineThickness =		*/ 0.15f,
-	/* DrawScale =			*/ 1.0f,
-	/* FontHeight =			*/ 10.0f,
-	/* FontScale =			*/ 1.5f,
-	/* ShapeThicknesScale = */ 1.0f,
-	/* PointSize =			*/ 2.0f,
-	/* VelScale =			*/ 0.0f,
-	/* AngVelScale =		*/ 0.0f,
-	/* ImpulseScale =		*/ 0.0f,
-	/* DrawPriority =		*/ 10.0f
-);
+	/* ArrowSize =					*/ 1.5f,
+	/* BodyAxisLen =				*/ 4.0f,
+	/* ContactLen =					*/ 4.0f,
+	/* ContactWidth =				*/ 2.0f,
+	/* ContactPhiWidth =			*/ 0.0f,
+	/* ContactOwnerWidth =			*/ 0.0f,
+	/* ConstraintAxisLen =			*/ 5.0f,
+	/* JointComSize =				*/ 2.0f,
+	/* LineThickness =				*/ 0.15f,
+	/* DrawScale =					*/ 1.0f,
+	/* FontHeight =					*/ 10.0f,
+	/* FontScale =					*/ 1.5f,
+	/* ShapeThicknesScale =			*/ 1.0f,
+	/* PointSize =					*/ 2.0f,
+	/* VelScale =					*/ 0.0f,
+	/* AngVelScale =				*/ 0.0f,
+	/* ImpulseScale =				*/ 0.0f,
+	/* InertiaScale =				*/ 0.0f,
+	/* DrawPriority =				*/ 10.0f,
+	/* bShowSimple =				*/ true,
+	/* bShowComplex =				*/ false,
+	/* bInShowLevelSetCollision =	*/ false
+	);
 
 FAutoConsoleVariableRef CVarChaosImmPhysArrowSize(TEXT("p.Chaos.ImmPhys.DebugDraw.ArrowSize"), ChaosImmPhysDebugDebugDrawSettings.ArrowSize, TEXT("ArrowSize."));
 FAutoConsoleVariableRef CVarChaosImmPhysBodyAxisLen(TEXT("p.Chaos.ImmPhys.DebugDraw.BodyAxisLen"), ChaosImmPhysDebugDebugDrawSettings.BodyAxisLen, TEXT("BodyAxisLen."));

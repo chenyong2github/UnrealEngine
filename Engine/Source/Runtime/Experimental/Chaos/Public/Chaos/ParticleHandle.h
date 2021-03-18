@@ -518,7 +518,7 @@ public:
 		GeometryParticles->SetHandle(ParticleIdx, this);
 	}
 
-	const FPerShapeData* GetImplicitShape(const FImplicitObject* InObject)
+	const FPerShapeData* GetImplicitShape(const FImplicitObject* InObject) const
 	{
 		return GeometryParticles->GetImplicitShape(ParticleIdx, InObject);
 	}

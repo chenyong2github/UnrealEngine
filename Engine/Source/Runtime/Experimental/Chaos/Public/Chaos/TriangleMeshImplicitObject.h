@@ -21,8 +21,8 @@ namespace Chaos
 	extern CHAOS_API bool TriMeshPerPolySupport;
 
 	class FCapsule;
-
 	class FConvex;
+	class FTriangle;
 	struct FMTDInfo;
 
 	class CHAOS_API FTrimeshIndexBuffer
@@ -289,6 +289,8 @@ namespace Chaos
 		const FTrimeshIndexBuffer& Elements() const;
 
 		void UpdateVertices(const TArray<FVector>& Positions);
+
+		void VisitTriangles(const FAABB3& InQueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const;
 
 	private:
 		void RebuildBV();

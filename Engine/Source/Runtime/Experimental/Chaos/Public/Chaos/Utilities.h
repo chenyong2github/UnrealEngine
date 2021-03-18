@@ -463,6 +463,23 @@ namespace Chaos
 			return ScaledInertia;
 		}
 
+		// Compute the box size that would generate the given (diagonal) inertia
+		inline FVec3 BoxSizeFromInertia(const FVec3& Inertia, const FReal Mass)
+		{
+			// System of 3 equations in X^2, Y^2, Z^2
+			// Inertia.X = 1/12 M (Size.Y^2 + Size.Z^2)
+			// Inertia.Y = 1/12 M (Size.Z^2 + Size.X^2)
+			// Inertia.Z = 1/12 M (Size.X^2 + Size.Y^2)
+			if (Mass > 0)
+			{
+				const FVec3 S = Inertia * 12.0f / Mass;
+				const FMatrix33 R = FMatrix33(-0.5f, 0.5f, 0.5f, 0.5f, -0.5f, 0.5f, 0.5f, 0.5f, -0.5f);
+				const FVec3 XYZSq = R * S;
+				return FVec3(FMath::Sqrt(XYZSq.X), FMath::Sqrt(XYZSq.Y), FMath::Sqrt(XYZSq.Z));
+			}
+			return FVec3(0);
+		}
+
 		// Replacement for FMath::Wrap that works for integers and returns a value in [Begin, End).
 		// Note: this implementation uses a loop to bring the value into range - it should not be used if the value is much larger than the range.
 		inline int32 WrapIndex(int32 V, int32 Begin, int32 End)

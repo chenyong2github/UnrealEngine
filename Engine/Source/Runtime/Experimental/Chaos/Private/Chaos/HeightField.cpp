@@ -1569,6 +1569,28 @@ namespace Chaos
 		return SweepGeomImp(QueryGeom, StartTM, Dir, Length, OutTime, OutPosition, OutNormal, OutFaceIndex, Thickness, bComputeMTD);
 	}
 
+	void FHeightField::VisitTriangles(const FAABB3& QueryBounds, const TFunction<void(const FTriangle& Triangle)>& Visitor) const
+	{
+		FBounds2D FlatQueryBounds;
+		FlatQueryBounds.Min = TVector<FReal, 2>(QueryBounds.Min()[0], QueryBounds.Min()[1]);
+		FlatQueryBounds.Max = TVector<FReal, 2>(QueryBounds.Max()[0], QueryBounds.Max()[1]);
+
+		TArray<TVector<int32, 2>> Intersections;
+		FVec3 Points[4];
+
+		GetGridIntersections(FlatQueryBounds, Intersections);
+
+		bool bOverlaps = false;
+		for (const TVector<int32, 2>&Cell : Intersections)
+		{
+			const int32 SingleIndex = Cell[1] * (GeomData.NumCols) + Cell[0];
+			GeomData.GetPointsScaled(SingleIndex, Points);
+
+			Visitor(FTriangle(Points[0], Points[1], Points[3]));
+			Visitor(FTriangle(Points[0], Points[3], Points[2]));
+		}
+	}
+
 	int32 FHeightField::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 	{
 		const FReal SearchDist2 = SearchDist * SearchDist;

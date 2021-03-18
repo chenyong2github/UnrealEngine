@@ -24,6 +24,8 @@
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/PhysicsSolverBaseImpl.h"
 
+#include "ProfilingDebugging/CsvProfiler.h"
+
 //PRAGMA_DISABLE_OPTIMIZATION
 
 DEFINE_LOG_CATEGORY_STATIC(LogPBDRigidsSolver, Log, All);
@@ -40,6 +42,8 @@ DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumIslands"), STAT_ChaosCounter_NumIslands,
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumContacts"), STAT_ChaosCounter_NumContacts, STATGROUP_ChaosCounters);
 DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("NumJoints"), STAT_ChaosCounter_NumJoints, STATGROUP_ChaosCounters);
 
+CSV_DEFINE_CATEGORY(ChaosCounters, true);
+
 
 // DebugDraw CVars
 #if CHAOS_DEBUG_DRAW
@@ -52,31 +56,41 @@ int32 ChaosSolverDebugDrawCollisions = CHAOS_SOLVER_ENABLE_DEBUG_DRAW;
 int32 ChaosSolverDebugDrawBounds = 0;
 int32 ChaosSolverDrawTransforms = 0;
 int32 ChaosSolverDrawIslands = 0;
+int32 ChaosSolverDrawShapesShowStatic = 1;
+int32 ChaosSolverDrawShapesShowKinematic = 1;
+int32 ChaosSolverDrawShapesShowDynamic = 1;
 FAutoConsoleVariableRef CVarChaosSolverDrawShapes(TEXT("p.Chaos.Solver.DebugDrawShapes"), ChaosSolverDebugDrawShapes, TEXT("Draw Shapes (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawCollisions(TEXT("p.Chaos.Solver.DebugDrawCollisions"), ChaosSolverDebugDrawCollisions, TEXT("Draw Collisions (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawBounds(TEXT("p.Chaos.Solver.DebugDrawBounds"), ChaosSolverDebugDrawBounds, TEXT("Draw bounding volumes inside the broadphase (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawTransforms(TEXT("p.Chaos.Solver.DebugDrawTransforms"), ChaosSolverDrawTransforms, TEXT("Draw particle transforms (0 = never; 1 = end of frame)."));
 FAutoConsoleVariableRef CVarChaosSolverDrawIslands(TEXT("p.Chaos.Solver.DebugDrawIslands"), ChaosSolverDrawIslands, TEXT("Draw solver islands (0 = never; 1 = end of frame)."));
+FAutoConsoleVariableRef CVarChaosSolverDrawShapesShapesStatic(TEXT("p.Chaos.Solver.DebugDraw.ShowStatics"), ChaosSolverDrawShapesShowStatic, TEXT("If DebugDrawShapes is enabled, whether to show static objects"));
+FAutoConsoleVariableRef CVarChaosSolverDrawShapesShapesKinematic(TEXT("p.Chaos.Solver.DebugDraw.ShowKinematics"), ChaosSolverDrawShapesShowKinematic, TEXT("If DebugDrawShapes is enabled, whether to show kinematic objects"));
+FAutoConsoleVariableRef CVarChaosSolverDrawShapesShapesDynamic(TEXT("p.Chaos.Solver.DebugDraw.ShowDynamics"), ChaosSolverDrawShapesShowDynamic, TEXT("If DebugDrawShapes is enabled, whether to show dynamic objects"));
 
 Chaos::DebugDraw::FChaosDebugDrawSettings ChaosSolverDebugDebugDrawSettings(
-	/* ArrowSize =			*/ 10.0f,
-	/* BodyAxisLen =		*/ 30.0f,
-	/* ContactLen =			*/ 30.0f,
-	/* ContactWidth =		*/ 6.0f,
-	/* ContactPhiWidth =	*/ 0.0f,
-	/* ContactOwnerWidth =	*/ 0.0f,
-	/* ConstraintAxisLen =	*/ 30.0f,
-	/* JointComSize =		*/ 2.0f,
-	/* LineThickness =		*/ 1.0f,
-	/* DrawScale =			*/ 1.0f,
-	/* FontHeight =			*/ 10.0f,
-	/* FontScale =			*/ 1.5f,
-	/* ShapeThicknesScale = */ 1.0f,
-	/* PointSize =			*/ 5.0f,
-	/* VelScale =			*/ 0.0f,
-	/* AngVelScale =		*/ 0.0f,
-	/* ImpulseScale =		*/ 0.0f,
-	/* DrawPriority =		*/ 10.0f
+	/* ArrowSize =					*/ 10.0f,
+	/* BodyAxisLen =				*/ 30.0f,
+	/* ContactLen =					*/ 30.0f,
+	/* ContactWidth =				*/ 6.0f,
+	/* ContactPhiWidth =			*/ 0.0f,
+	/* ContactOwnerWidth =			*/ 0.0f,
+	/* ConstraintAxisLen =			*/ 30.0f,
+	/* JointComSize =				*/ 2.0f,
+	/* LineThickness =				*/ 1.0f,
+	/* DrawScale =					*/ 1.0f,
+	/* FontHeight =					*/ 10.0f,
+	/* FontScale =					*/ 1.5f,
+	/* ShapeThicknesScale =			*/ 1.0f,
+	/* PointSize =					*/ 5.0f,
+	/* VelScale =					*/ 0.0f,
+	/* AngVelScale =				*/ 0.0f,
+	/* ImpulseScale =				*/ 0.0f,
+	/* InertiaScale =				*/ 1.0f,
+	/* DrawPriority =				*/ 10.0f,
+	/* bShowSimple =				*/ true,
+	/* bShowComplex =				*/ false,
+	/* bInShowLevelSetCollision =	*/ true
 );
 FAutoConsoleVariableRef CVarChaosSolverArrowSize(TEXT("p.Chaos.Solver.DebugDraw.ArrowSize"), ChaosSolverDebugDebugDrawSettings.ArrowSize, TEXT("ArrowSize."));
 FAutoConsoleVariableRef CVarChaosSolverBodyAxisLen(TEXT("p.Chaos.Solver.DebugDraw.BodyAxisLen"), ChaosSolverDebugDebugDrawSettings.BodyAxisLen, TEXT("BodyAxisLen."));
@@ -91,7 +105,11 @@ FAutoConsoleVariableRef CVarChaosSolverPointSize(TEXT("p.Chaos.Solver.DebugDraw.
 FAutoConsoleVariableRef CVarChaosSolverVelScale(TEXT("p.Chaos.Solver.DebugDraw.VelScale"), ChaosSolverDebugDebugDrawSettings.VelScale, TEXT("If >0 show velocity when drawing particle transforms."));
 FAutoConsoleVariableRef CVarChaosSolverAngVelScale(TEXT("p.Chaos.Solver.DebugDraw.AngVelScale"), ChaosSolverDebugDebugDrawSettings.AngVelScale, TEXT("If >0 show angular velocity when drawing particle transforms."));
 FAutoConsoleVariableRef CVarChaosSolverImpulseScale(TEXT("p.Chaos.Solver.DebugDraw.ImpulseScale"), ChaosSolverDebugDebugDrawSettings.ImpulseScale, TEXT("If >0 show impulses when drawing collisions."));
+FAutoConsoleVariableRef CVarChaosSolverInertiaScale(TEXT("p.Chaos.Solver.DebugDraw.InertiaScale"), ChaosSolverDebugDebugDrawSettings.InertiaScale, TEXT("When DebugDrawTransforms is enabled, show the mass-normalized inertia matrix scaled by this amount."));
 FAutoConsoleVariableRef CVarChaosSolverScale(TEXT("p.Chaos.Solver.DebugDraw.Scale"), ChaosSolverDebugDebugDrawSettings.DrawScale, TEXT("Scale applied to all Chaos Debug Draw line lengths etc."));
+FAutoConsoleVariableRef CVarChaosSolverShowSimple(TEXT("p.Chaos.Solver.DebugDraw.ShowSimple"), ChaosSolverDebugDebugDrawSettings.bShowSimpleCollision, TEXT("Whether to show simple collision is shape drawing is enabled"));
+FAutoConsoleVariableRef CVarChaosSolverShowComplex(TEXT("p.Chaos.Solver.DebugDraw.ShowComplex"), ChaosSolverDebugDebugDrawSettings.bShowComplexCollision, TEXT("Whether to show complex collision is shape drawing is enabled"));
+FAutoConsoleVariableRef CVarChaosSolverShowLevelSet(TEXT("p.Chaos.Solver.DebugDraw.ShowLevelSet"), ChaosSolverDebugDebugDrawSettings.bShowLevelSetCollision, TEXT("Whether to show levelset collision is shape drawing is enabled"));
 
 #endif
 
@@ -280,6 +298,21 @@ namespace Chaos
 				SET_DWORD_STAT(STAT_ChaosCounter_NumIslands, MSolver->GetEvolution()->GetConstraintGraph().NumIslands());
 				SET_DWORD_STAT(STAT_ChaosCounter_NumContacts, MSolver->NumCollisionConstraints());
 				SET_DWORD_STAT(STAT_ChaosCounter_NumJoints, MSolver->NumJointConstraints());
+
+#if CSV_PROFILER
+				// Particle counts
+				CSV_CUSTOM_STAT(ChaosCounters, NumDisabledParticles, MSolver->GetEvolution()->GetParticles().GetAllParticlesView().Num() - MSolver->GetEvolution()->GetParticles().GetNonDisabledView().Num(), ECsvCustomStatOp::Accumulate);
+				CSV_CUSTOM_STAT(ChaosCounters, NumParticles, MSolver->GetEvolution()->GetParticles().GetNonDisabledView().Num(), ECsvCustomStatOp::Accumulate);
+				CSV_CUSTOM_STAT(ChaosCounters, NumDynamicParticles, MSolver->GetEvolution()->GetParticles().GetNonDisabledDynamicView().Num(), ECsvCustomStatOp::Accumulate);
+				CSV_CUSTOM_STAT(ChaosCounters, NumKinematicParticles, MSolver->GetEvolution()->GetParticles().GetActiveKinematicParticlesView().Num(), ECsvCustomStatOp::Accumulate);
+				CSV_CUSTOM_STAT(ChaosCounters, NumStaticParticles, MSolver->GetEvolution()->GetParticles().GetActiveStaticParticlesView().Num(), ECsvCustomStatOp::Accumulate);
+				CSV_CUSTOM_STAT(ChaosCounters, NumGeometryCollectionParticles, (int)MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles().Size(), ECsvCustomStatOp::Accumulate);
+
+				// Constraint counts
+				CSV_CUSTOM_STAT(ChaosCounters, NumIslands, MSolver->GetEvolution()->GetConstraintGraph().NumIslands(), ECsvCustomStatOp::Accumulate);
+				CSV_CUSTOM_STAT(ChaosCounters, NumContacts, MSolver->NumCollisionConstraints(), ECsvCustomStatOp::Accumulate);
+				CSV_CUSTOM_STAT(ChaosCounters, NumJoints, MSolver->NumJointConstraints(), ECsvCustomStatOp::Accumulate);
+#endif
 			}
 
 
@@ -1185,9 +1218,18 @@ namespace Chaos
 		QUICK_SCOPE_CYCLE_COUNTER(SolverDebugDraw);
 		if (ChaosSolverDebugDrawShapes == 1)
 		{
-			DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveStaticParticlesView(), FColor(128, 0, 0), &ChaosSolverDebugDebugDrawSettings);
-			DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveKinematicParticlesView(), FColor(64, 32, 0), &ChaosSolverDebugDebugDrawSettings);
-			DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetNonDisabledDynamicView(), FColor(255, 255, 0), &ChaosSolverDebugDebugDrawSettings);
+			if (ChaosSolverDrawShapesShowStatic)
+			{
+				DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveStaticParticlesView(), FColor(128, 0, 0), &ChaosSolverDebugDebugDrawSettings);
+			}
+			if (ChaosSolverDrawShapesShowKinematic)
+			{
+				DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetActiveKinematicParticlesView(), FColor(64, 32, 0), &ChaosSolverDebugDebugDrawSettings);
+			}
+			if (ChaosSolverDrawShapesShowDynamic)
+			{
+				DebugDraw::DrawParticleShapes(FRigidTransform3(), Particles.GetNonDisabledDynamicView(), FColor(255, 255, 0), &ChaosSolverDebugDebugDrawSettings);
+			}
 		}
 		if (ChaosSolverDebugDrawCollisions == 1) 
 		{

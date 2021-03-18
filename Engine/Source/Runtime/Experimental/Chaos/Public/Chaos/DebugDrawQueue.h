@@ -388,6 +388,16 @@ public:
 		RadiusOfInterest = InRadius;
 	}
 
+	const FVector& GetCenterOfInterest() const
+	{
+		return CenterOfInterest;
+	}
+
+	FReal GetRadiusOfInterest() const
+	{
+		return RadiusOfInterest;
+	}
+
 	void SetConsumerActive(void* Consumer, bool bConsumerActive);
 
 	static FDebugDrawQueue& GetInstance()
