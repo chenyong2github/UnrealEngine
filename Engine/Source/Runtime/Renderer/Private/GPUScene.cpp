@@ -134,7 +134,6 @@ void FGPUScenePrimitiveCollector::Commit()
 	bCommitted = true;
 }
 
-
 FGPUScenePrimitiveCollector::FUploadData* FGPUScenePrimitiveCollector::AllocateUploadData()
 {
 	return GPUSceneDynamicContext->AllocateDynamicPrimitiveData();
@@ -146,7 +145,6 @@ struct FBVHNode
 	FVector4	ChildMin[3];
 	FVector4	ChildMax[3];
 };
-
 
 /**
  * Info needed by the uploader to update a primitive.
@@ -1000,7 +998,7 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 
 	FORCEINLINE int32 NumPrimitivesToUpload() const
 	{ 
-		return PrimitiveShaderData.Num(); 
+		return PrimitiveShaderData.Num();
 	}
 
 	FORCEINLINE bool GetPrimitiveInfo(int32 ItemIndex, FPrimitiveUploadInfo& PrimitiveUploadInfo) const
@@ -1008,9 +1006,10 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 		PrimitiveUploadInfo.LightmapUploadCount = 0;
 		PrimitiveUploadInfo.NaniteSceneProxy = nullptr;
 		PrimitiveUploadInfo.PrimitiveSceneInfo = nullptr;
+
 		if (ItemIndex < PrimitiveShaderData.Num())
 		{
-			// Needed to ensure the link back to instace list is up to date
+			// Needed to ensure the link back to instance list is up to date
 			FPrimitiveUniformShaderParameters Tmp = PrimitiveShaderData[ItemIndex];
 #if GPUCULL_TODO
 			Tmp.InstanceDataOffset = InstanceIDStartOffset + ItemIndex;
@@ -1018,15 +1017,16 @@ struct FUploadDataSourceAdapterDynamicPrimitives
 
 			PrimitiveUploadInfo.InstanceDataOffset = InstanceIDStartOffset + ItemIndex;
 			PrimitiveUploadInfo.InstanceUploadCount = 1;
-#else // !GPUCULL_TODO
+#else
 			PrimitiveUploadInfo.InstanceDataOffset = INDEX_NONE;
 			PrimitiveUploadInfo.InstanceUploadCount = 0;
-#endif // GPUCULL_TODO
+#endif
 			PrimitiveUploadInfo.PrimitiveID = PrimitiveIDStartOffset + ItemIndex;
 			PrimitiveUploadInfo.PrimitiveSceneData = FPrimitiveSceneShaderData(Tmp);
 
 			return true;
 		}
+
 		return false;
 	}
 

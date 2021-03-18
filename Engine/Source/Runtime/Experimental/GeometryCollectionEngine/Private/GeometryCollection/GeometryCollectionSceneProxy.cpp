@@ -110,15 +110,16 @@ FGeometryCollectionSceneProxy::FGeometryCollectionSceneProxy(UGeometryCollection
 			Sections.Add(Section);
 		}
 	}
+
 #if GPUCULL_TODO
 	const auto FeatureLevel = GetScene().GetFeatureLevel();
 	bVFRequiresPrimitiveUniformBuffer = !UseGPUScene(GMaxRHIShaderPlatform, FeatureLevel);
-#endif // GPUCULL_TODO
+#endif
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	// Init HitProxy array with the maximum number of subsections
 	SubSectionHitProxies.SetNumZeroed(Sections.Num() * Component->GetTransformArray().Num());
-#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+#endif
 
 	// #todo(dmp): This flag means that when motion blur is turned on, it will always render geometry collections into the
 	// velocity buffer.  Note that the way around this is to loop through the global matrices and test whether they have
@@ -651,7 +652,7 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_GeometryCollectionSceneProxy_GetDynamicMeshElements);
 	if (GetRequiredVertexCount())
 	{
-		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;		
+		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -659,28 +660,28 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 
 			// Render Batches
 						
-			// render original mesh if it isn't dynamic and there is an unfractured mesh			
+			// render original mesh if it isn't dynamic and there is an unfractured mesh
 			// #todo(dmp): refactor this to share more code later
-			if (!DynamicData->IsDynamic)			
+			if (!DynamicData->IsDynamic)
 			{
-#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			#if GEOMETRYCOLLECTION_EDITOR_SELECTION
 				const TArray<FGeometryCollectionSection>& SectionArray = bUsesSubSections && SubSections.Num() ? SubSections: ConstantData->OriginalMeshSections;
 				UE_LOG(FGeometryCollectionSceneProxyLogging, VeryVerbose, TEXT("GetDynamicMeshElements, bUseSubSections=%d, NumSections=%d for %p."), bUsesSubSections, SectionArray.Num(), this);
-
-#else  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			#else
 				const TArray<FGeometryCollectionSection>& SectionArray = ConstantData->OriginalMeshSections;
-#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION #else
+			#endif
 
-				//Grab the material proxies we'll be using for each section
+				// Grab the material proxies we'll be using for each section
 				TArray<FMaterialRenderProxy*, TInlineAllocator<32>> MaterialProxies;
-				for (int SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
+
+				for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
 				{
 					const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
 					FMaterialRenderProxy* MaterialProxy = GetMaterial(Collector, Section.MaterialID);
 					MaterialProxies.Add(MaterialProxy);
 				}
 
-				for (int SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
+				for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
 				{
 					const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
 
@@ -713,35 +714,36 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 					Mesh.Type = PT_TriangleList;
 					Mesh.DepthPriorityGroup = SDPG_World;
 					Mesh.bCanApplyViewModeOverrides = true;
-#if WITH_EDITOR
+				#if WITH_EDITOR
 					if (GIsEditor)
 					{
 						Mesh.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
 					}
-#endif // WITH_EDITOR
+				#endif
 					Collector.AddMesh(ViewIndex, Mesh);
 				}
 			}
 			else
 			{
-#if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			#if GEOMETRYCOLLECTION_EDITOR_SELECTION
 				const TArray<FGeometryCollectionSection>& SectionArray = bUsesSubSections && SubSections.Num() ? SubSections: Sections;
 				UE_LOG(FGeometryCollectionSceneProxyLogging, VeryVerbose, TEXT("GetDynamicMeshElements, bUseSubSections=%d, NumSections=%d for %p."), bUsesSubSections, SectionArray.Num(), this);
-
-#else  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION
+			#else
 				const TArray<FGeometryCollectionSection>& SectionArray = Sections;
-#endif  // #if GEOMETRYCOLLECTION_EDITOR_SELECTION #else
+			#endif
 
-				//Grab the material proxies we'll be using for each section
+				// Grab the material proxies we'll be using for each section
 				TArray<FMaterialRenderProxy*, TInlineAllocator<32>> MaterialProxies;
-				for (int SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
+
+				for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); ++SectionIndex)
 				{
 					const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
 
 					FMaterialRenderProxy* MaterialProxy = GetMaterial(Collector, Section.MaterialID);
 					MaterialProxies.Add(MaterialProxy);
 				}
-				for (int SectionIndex = 0; SectionIndex < SectionArray.Num(); SectionIndex++)
+
+				for (int32 SectionIndex = 0; SectionIndex < SectionArray.Num(); ++SectionIndex)
 				{
 					const FGeometryCollectionSection& Section = SectionArray[SectionIndex];
 
@@ -761,12 +763,12 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 					Mesh.Type = PT_TriangleList;
 					Mesh.DepthPriorityGroup = SDPG_World;
 					Mesh.bCanApplyViewModeOverrides = true;
-#if WITH_EDITOR
+				#if WITH_EDITOR
 					if (GIsEditor)
 					{
 						Mesh.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
 					}
-#endif // WITH_EDITOR
+				#endif
 					Collector.AddMesh(ViewIndex, Mesh);
 				}
 			}
@@ -775,7 +777,7 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 			// bone selection is already contained in the rendered colors
 			// #note: This renders the geometry again but with the bone selection material.  Ideally we'd have one render pass and one
 			// material.
-			if (bShowBoneColors||bEnableBoneSelection)
+			if (bShowBoneColors || bEnableBoneSelection)
 			{
 				FMaterialRenderProxy* MaterialRenderProxy = Materials[BoneSelectionMaterialID]->GetRenderProxy();
 
@@ -797,9 +799,9 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 				Collector.AddMesh(ViewIndex, Mesh);
 			}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			RenderBounds(Collector.GetPDI(ViewIndex), ViewFamily.EngineShowFlags, GetBounds(), IsSelected());
-#endif
+		#endif
 		}
 	}
 }
@@ -819,7 +821,6 @@ FPrimitiveViewRelevance FGeometryCollectionSceneProxy::GetViewRelevance(const FS
 	Result.bVelocityRelevance = DrawsVelocity() && Result.bOpaque && Result.bRenderInMainPass;
 
 	return Result;
-
 }
 
 #if WITH_EDITOR
