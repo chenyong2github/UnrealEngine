@@ -1627,6 +1627,8 @@ void UAbilitySystemComponent::RemoteEndOrCancelAbility(FGameplayAbilitySpecHandl
 
 			for (auto Instance : Instances)
 			{
+				UE_CLOG(Instance == nullptr, LogAbilitySystem, Fatal, TEXT("UAbilitySystemComponent::RemoteEndOrCancelAbility null instance for %s"), *GetNameSafe(AbilitySpec->Ability));
+
 				// Check if the ability is the same prediction key (can both by 0) and has been confirmed. If so cancel it.
 				if (Instance->GetCurrentActivationInfoRef().GetActivationPredictionKey() == ActivationInfo.GetActivationPredictionKey())
 				{
