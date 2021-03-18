@@ -322,6 +322,10 @@ DEFINE_STAT(STAT_RDG_ClearTime);
 DEFINE_STAT(STAT_RDG_MemoryWatermark);
 #endif
 
+#if RDG_EVENTS != RDG_EVENTS_NONE
+int32 GRDGEmitEvents = 0;
+#endif
+
 void InitRenderGraph()
 {
 #if RDG_ENABLE_DEBUG_WITH_ENGINE

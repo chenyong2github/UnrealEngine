@@ -13,7 +13,7 @@ RENDERCORE_API bool GetEmitRDGEvents()
 #if RDG_ENABLE_TRACE
 	bRDGChannelEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(RDGChannel);
 #endif // RDG_ENABLE_TRACE
-	return GetEmitDrawEvents() || GRDGDebug || bRDGChannelEnabled;
+	return GRDGEmitEvents || GRDGDebug || bRDGChannelEnabled;
 #else
 	return false;
 #endif

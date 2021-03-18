@@ -442,6 +442,11 @@ void FRDGBuilder::TickPoolElements()
 	GRDGStatTransitionBatchCount = 0;
 	GRDGStatMemoryWatermark = 0;
 #endif
+
+#if RDG_EVENTS != RDG_EVENTS_NONE
+	// This is polled once per frame as the underlying global variable changes on the main thread.
+	GRDGEmitEvents = GetEmitDrawEvents();
+#endif
 }
 
 ERDGPassFlags FRDGBuilder::OverridePassFlags(const TCHAR* PassName, ERDGPassFlags PassFlags, bool bAsyncComputeSupported)

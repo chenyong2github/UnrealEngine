@@ -146,6 +146,10 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Clear"), STAT_RDG_ClearTime, STATGROUP_RDG, REND
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Builder Watermark"), STAT_RDG_MemoryWatermark, STATGROUP_RDG, RENDERCORE_API);
 #endif
 
+#if RDG_EVENTS != RDG_EVENTS_NONE
+extern int32 GRDGEmitEvents;
+#endif
+
 inline const TCHAR* GetEpilogueBarriersToBeginDebugName(ERHIPipeline Pipelines)
 {
 #if RDG_ENABLE_DEBUG
