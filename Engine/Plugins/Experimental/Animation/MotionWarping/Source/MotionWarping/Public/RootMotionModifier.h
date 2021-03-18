@@ -28,7 +28,7 @@ enum class ERootMotionModifierState : uint8
 
 /** Handle to identify a RootMotionModifier */
 USTRUCT(BlueprintType)
-struct FRootMotionModifierHandle
+struct MOTIONWARPING_API FRootMotionModifierHandle
 {
 	GENERATED_BODY()
 
