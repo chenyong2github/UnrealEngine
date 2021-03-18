@@ -1050,12 +1050,6 @@ void FVulkanDynamicRHI::RHITick(float DeltaTime)
 			}
 
 			VulkanDevice->GetImmediateContext().GetTempFrameAllocationBuffer().Reset();
-
-			// Destroy command buffers here when using Delay; when not delaying we'll delete after Acquire
-			if (GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire)
-			{
-				VulkanDevice->GetImmediateContext().GetCommandBufferManager()->FreeUnusedCmdBuffers();
-			}
 		});
 
 	if (bRequestNULLPixelShader)
