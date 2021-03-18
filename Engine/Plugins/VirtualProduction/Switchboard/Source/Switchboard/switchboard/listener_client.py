@@ -2,13 +2,27 @@
 from . import message_protocol
 from .switchboard_logging import LOGGER
 
-import datetime, select, socket, uuid, traceback
+import datetime, select, socket, uuid, traceback, typing
 
 from collections import deque
 from threading import Thread
 
 
 class ListenerClient(object):
+    '''Connects to a server running SwitchboardListener.
+
+    Runs a thread to service its socket, and upon receiving complete messages,
+    invokes a handler callback from that thread (`handle_connection()`).
+
+    `disconnect_delegate` is invoked on `disconnect()` or on socket errors.
+
+    Handlers in the `delegates` map are passed a dict containing the entire
+    JSON response from the listener, routed according to the "command" field
+    string value. All new messages and handlers should follow this pattern.
+
+    The other, legacy (VCS/file) delegates are each passed different (or no)
+    arguments; for details, see `route_message()`.
+    '''
     def __init__(self, ip_address, port, buffer_size=1024):
         self.ip_address = ip_address
         self.port = port
@@ -38,9 +52,8 @@ class ListenerClient(object):
         self.send_file_failed_delegate = None
         self.receive_file_completed_delegate = None
         self.receive_file_failed_delegate = None
-        self.get_sync_status_delegate = None
 
-        self.delegates = {
+        self.delegates: typing.Dict[ str, typing.Optional[ typing.Callable[[typing.Dict], None] ] ] = {
             "state" : None,
             "get sync status" : None,
         }
@@ -66,7 +79,6 @@ class ListenerClient(object):
         return False
 
     def connect(self, ip_address=None):
-
         self.disconnect()
 
         if ip_address:
@@ -89,7 +101,7 @@ class ListenerClient(object):
             self.handle_connection_thread.start()
 
         except OSError:
-            LOGGER.error(f"Socket Error: {self.ip_address}:{self.port}")
+            LOGGER.error(f"Socket error: {self.ip_address}:{self.port}")
             self.socket = None
             return False
 
@@ -104,12 +116,10 @@ class ListenerClient(object):
             self.handle_connection_thread.join()
 
     def handle_connection(self):
-
         buffer = []
         keepalive_timeout = 1.0
 
         while self.is_connected:
-
             try:
                 rlist = [self.socket]
                 wlist = []
@@ -144,7 +154,6 @@ class ListenerClient(object):
                     break
 
             except ConnectionResetError as e:
-
                 self.socket.shutdown(socket.SHUT_RDWR)
                 self.socket.close()
                 self.socket = None
@@ -155,7 +164,6 @@ class ListenerClient(object):
                 return # todo: this needs to send a signal back to the main thread so the thread can be joined
 
             except OSError as e: # likely a socket error, so self.socket is not useable any longer
-
                 self.socket = None
 
                 if self.disconnect_delegate:
@@ -164,11 +172,8 @@ class ListenerClient(object):
                 return
 
     def route_message(self, message):
-        ''' Routes the received message to its delegate
-        '''
-
+        ''' Routes the received message to its delegate '''
         delegate = self.delegates.get(message['command'], None)
-
         if delegate:
             delegate(message)
             return
@@ -226,13 +231,10 @@ class ListenerClient(object):
             raise ValueError
 
     def process_received_data(self, buffer, received_data):
-
         for symbol in received_data:
-
             buffer.append(symbol)
 
             if symbol == '\x00': # found message end
-
                 buffer.pop() # remove terminator
                 message = message_protocol.decode_message(buffer)
                 buffer.clear()
@@ -242,7 +244,6 @@ class ListenerClient(object):
                     self.route_message(message)
                 except:
                     LOGGER.error(f"Error while parsing message: \n\n=== Traceback BEGIN ===\n{traceback.format_exc()}=== Traceback END ===\n")
-
 
     def send_message(self, message_bytes):
         if self.is_connected:

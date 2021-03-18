@@ -192,8 +192,14 @@ struct FSyncStatus
 	TArray<int8> CpuUtilization;
 
 	UPROPERTY()
+	uint64 AvailablePhysicalMemory;
+
+	UPROPERTY()
 	TArray<int8> GpuUtilization;
 
 	UPROPERTY()
 	TArray<int32> GpuCoreClocksKhz;
+
+	UPROPERTY()
+	TArray<int32> GpuTemperature;
 };

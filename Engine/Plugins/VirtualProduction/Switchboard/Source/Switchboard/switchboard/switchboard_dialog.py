@@ -129,9 +129,6 @@ class SwitchboardDialog(QtCore.QObject):
         self.osc_server = switchboard_application.OscServer()
         self.osc_server.launch(SETTINGS.IP_ADDRESS, CONFIG.OSC_SERVER_PORT.get_value())
 
-        # Setup the MU server
-        self.mu_server = switchboard_application.MultiUserApplication()
-
         # Register with OSC server
         self.osc_server.dispatcher_map(osc.TAKE, self.osc_take)
         self.osc_server.dispatcher_map(osc.SLATE, self.osc_slate)
@@ -380,6 +377,7 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_config_name(config_name)
         settings_dialog.set_ip_address(SETTINGS.IP_ADDRESS)
         settings_dialog.set_transport_path(SETTINGS.TRANSPORT_PATH)
+        settings_dialog.set_listener_exe(CONFIG.LISTENER_EXE)
         settings_dialog.set_project_name(CONFIG.PROJECT_NAME)
         settings_dialog.set_uproject(CONFIG.UPROJECT_PATH.get_value())
         settings_dialog.set_engine_dir(CONFIG.ENGINE_DIR.get_value())
@@ -397,6 +395,8 @@ class SwitchboardDialog(QtCore.QObject):
         settings_dialog.set_mu_clean_history(CONFIG.MUSERVER_CLEAN_HISTORY)
         settings_dialog.set_mu_auto_launch(CONFIG.MUSERVER_AUTO_LAUNCH)
         settings_dialog.set_mu_auto_join(CONFIG.MUSERVER_AUTO_JOIN)
+        settings_dialog.set_mu_server_exe(CONFIG.MULTIUSER_SERVER_EXE)
+        settings_dialog.set_mu_server_auto_build(CONFIG.MUSERVER_AUTO_BUILD)
 
         for plugin_name in sorted(self.device_manager.available_device_plugins(), key=str.lower):
             device_instances = self.device_manager.devices_of_type(plugin_name)
@@ -443,6 +443,10 @@ class SwitchboardDialog(QtCore.QObject):
         if project_name != CONFIG.PROJECT_NAME:
             CONFIG.PROJECT_NAME = project_name
 
+        listener_exe = settings_dialog.listener_exe()
+        if listener_exe != CONFIG.LISTENER_EXE:
+            CONFIG.LISTENER_EXE = listener_exe
+
         # Multi User Settings
         mu_server_name = settings_dialog.mu_server_name()
         if mu_server_name != CONFIG.MUSERVER_SERVER_NAME:
@@ -463,7 +467,15 @@ class SwitchboardDialog(QtCore.QObject):
         mu_auto_join = settings_dialog.mu_auto_join()
         if mu_auto_join != CONFIG.MUSERVER_AUTO_JOIN:
             CONFIG.MUSERVER_AUTO_JOIN = mu_auto_join
-        
+
+        mu_server_exe = settings_dialog.mu_server_exe()
+        if mu_server_exe != CONFIG.MULTIUSER_SERVER_EXE:
+            CONFIG.MULTIUSER_SERVER_EXE = mu_server_exe
+
+        mu_auto_build = settings_dialog.mu_server_auto_build()
+        if mu_auto_build != CONFIG.MUSERVER_AUTO_BUILD:
+            CONFIG.MUSERVER_AUTO_BUILD = mu_auto_build
+
         CONFIG.P4_ENABLED.update_value(settings_dialog.p4_enabled())
 
         CONFIG.save()
@@ -898,10 +910,6 @@ class SwitchboardDialog(QtCore.QObject):
         device = self.device_manager.device_with_hash(device_widget.device_hash)
 
         device.launch(self.level)
-
-        # Launch the MU server
-        if CONFIG.MUSERVER_AUTO_LAUNCH:
-            self.mu_server.launch()
 
     @QtCore.Slot(object)
     def device_widget_close(self, device_widget):

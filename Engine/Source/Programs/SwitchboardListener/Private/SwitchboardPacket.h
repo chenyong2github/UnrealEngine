@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "SwitchboardListenerVersion.h"
+
 #include "SwitchboardPacket.generated.h"
 
 
@@ -55,9 +57,9 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 		Command = TEXT("state");
 		bAck = true;
 
-		const uint32 Major = 1;
-		const uint32 Minor = 3;
-		const uint32 Patch = 0;
+		const uint32 Major = SBLISTENER_VERSION_MAJOR;
+		const uint32 Minor = SBLISTENER_VERSION_MINOR;
+		const uint32 Patch = SBLISTENER_VERSION_PATCH;
 
 		Version = (Major << 16) | (Minor << 8) | (Patch);
 	}
@@ -76,6 +78,9 @@ struct FSwitchboardStatePacket : public FSwitchboardPacket
 
 	UPROPERTY()
 	FString OsVersionNumber;
+
+	UPROPERTY()
+	uint64 TotalPhysicalMemory;
 };
 
 USTRUCT()

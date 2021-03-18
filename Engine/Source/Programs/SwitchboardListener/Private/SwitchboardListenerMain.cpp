@@ -2,59 +2,15 @@
 
 #include "SwitchboardListener.h"
 #include "SwitchboardListenerApp.h"
+#include "SwitchboardListenerVersion.h"
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Misc/ScopeExit.h"
 #include "RequiredProgramMainCPPInclude.h"
 
 IMPLEMENT_APPLICATION(SwitchboardListener, "SwitchboardListener");
 DEFINE_LOG_CATEGORY(LogSwitchboard);
 
-namespace
-{
-	struct FCommandLineOptions
-	{
-		FIPv4Address Address;
-		uint16 Port;
-	};
-
-	bool ParseCommandLine(int ArgC, TCHAR* ArgV[], FCommandLineOptions& OutOptions)
-	{
-		const FString CommandLine = FCommandLine::BuildFromArgV(nullptr, ArgC, ArgV, nullptr);
-		TArray<FString> Tokens;
-		TArray<FString> Switches;
-		FCommandLine::Parse(*CommandLine, Tokens, Switches);
-		TMap<FString, FString> SwitchPairs;
-		for (int32 SwitchIdx = Switches.Num() - 1; SwitchIdx >= 0; --SwitchIdx)
-		{
-			FString& Switch = Switches[SwitchIdx];
-			TArray<FString> SplitSwitch;
-			if (2 == Switch.ParseIntoArray(SplitSwitch, TEXT("="), true))
-			{
-				SwitchPairs.Add(SplitSwitch[0], SplitSwitch[1].TrimQuotes());
-				Switches.RemoveAt(SwitchIdx);
-			}
-		}
-
-		if (!SwitchPairs.Contains(TEXT("ip")))
-		{
-			return false;
-		}
-		if (!SwitchPairs.Contains(TEXT("port")))
-		{
-			return false;
-		}
-
-		if (!FIPv4Address::Parse(SwitchPairs[TEXT("ip")], OutOptions.Address))
-		{
-			return false;
-		}
-
-		TCHAR* End = nullptr;
-		OutOptions.Port = FCString::Strtoi(*SwitchPairs[TEXT("port")], &End, 10);
-
-		return true;
-	}
-}
 
 int32 InitEngine(const FString& InCommandLine)
 {
@@ -86,27 +42,140 @@ bool InitSocketSystem()
 	return LoadResult == EModuleLoadResult::Success;
 }
 
-void UninitEngine()
-{
-	RequestEngineExit(TEXT("SwitchboardListener Shutdown"));
-}
 
-bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
+// There's a subtle potential race condition with the parent PID being recycled
+// after the parent listener has actually exited. We open a handle first, then
+// ensure we have the right process by enumerating processes to check that it's
+// actually our parent process. At that point, the open handle is unambiguous.
+FProcHandle CheckRedeploy(const FSwitchboardCommandLineOptions& Options)
 {
-	FCommandLineOptions Options;
-
-	if (!ParseCommandLine(ArgC, ArgV, Options))
+	if (!Options.RedeployFromPid.IsSet())
 	{
-		UE_LOG(LogSwitchboard, Warning, TEXT("No ip/port passed on command line!"));
-		UE_LOG(LogSwitchboard, Warning, TEXT("Defaulting to: -ip=0.0.0.0 -port=2980"));
-		Options.Address = FIPv4Address(0, 0, 0, 0);
-		Options.Port = 2980;
+		return FProcHandle();
 	}
 
-	FSwitchboardListener Listener({ Options.Address, Options.Port });
+	const uint32 ExpectedParentPid = Options.RedeployFromPid.GetValue();
+	const FProcHandle ExpectedParentProc = FPlatformProcess::OpenProcess(ExpectedParentPid);
+	if (!ExpectedParentProc.IsValid())
+	{
+		UE_LOG(LogSwitchboard, Error, TEXT("Couldn't get handle to redeploy parent process; you'll need to remove the old executable manually"));
+		return FProcHandle();
+	}
+
+	const uint32 CurrentPid = FPlatformProcess::GetCurrentProcessId();
+	FPlatformProcess::FProcEnumerator ProcessEnumerator;
+	while (ProcessEnumerator.MoveNext())
+	{
+		FPlatformProcess::FProcEnumInfo CurrentProcInfo = ProcessEnumerator.GetCurrent();
+		const bool bIsCurrentProc = CurrentProcInfo.GetPID() == CurrentPid;
+		const bool bHasExpectedParent = CurrentProcInfo.GetParentPID() == ExpectedParentPid;
+		if (bIsCurrentProc)
+		{
+			if (bHasExpectedParent)
+			{
+				return ExpectedParentProc;
+			}
+			else
+			{
+				UE_LOG(LogSwitchboard, Error, TEXT("Redeploy expected parent PID of %u, but found %u; you'll need to remove the old executable manually"),
+					ExpectedParentPid, CurrentProcInfo.GetParentPID());
+
+				return FProcHandle();
+			}
+		}
+	}
+
+	// Shouldn't be possible.
+	check(false);
+	UE_LOG(LogSwitchboard, Error, TEXT("Failed to enumerate our own PID!"));
+
+	return FProcHandle();
+}
+
+// Wait for the old listener parent process to exit and delete its executable.
+bool HandleRedeploy(FProcHandle& RedeployParentProc, uint32 RedeployParentPid)
+{
+#if PLATFORM_WINDOWS
+	// NOTE: FPlatformProcess::ExecutablePath() is stale if moved while running!
+	const FString CurrentExePath = FPlatformProcess::GetApplicationName(FPlatformProcess::GetCurrentProcessId());
+
+	// Otherwise, the window title remains the temporary (pre-rename) filename.
+	::SetConsoleTitle(*CurrentExePath);
+#endif
+
+	const FString& OldLauncherPath = FPlatformProcess::GetApplicationName(RedeployParentPid);
+
+	// Get handle to existing IPC semaphore.
+	const FString IpcSemaphoreName = FSwitchboardListener::GetIpcSemaphoreName(RedeployParentPid);
+	FPlatformProcess::FSemaphore* IpcSemaphore = FPlatformProcess::NewInterprocessSynchObject(IpcSemaphoreName, false);
+	ON_SCOPE_EXIT
+	{
+		if (IpcSemaphore)
+		{
+			FPlatformProcess::DeleteInterprocessSynchObject(IpcSemaphore);
+		}
+	};
+
+	if (IpcSemaphore == nullptr)
+	{
+		UE_LOG(LogSwitchboard, Fatal, TEXT("Error opening redeploy IPC semaphore"));
+		return false;
+	}
+
+	// This release signals the old parent launcher that we're initialized and it can shut down.
+	IpcSemaphore->Unlock();
+
+	if (FPlatformProcess::IsProcRunning(RedeployParentProc))
+	{
+		UE_LOG(LogSwitchboard, Display, TEXT("Waiting for previous listener to shut down..."));
+		int8 SecondsToWait = 5;
+		bool bStillRunning = true;
+		do
+		{
+			FPlatformProcess::Sleep(1.0f);
+			--SecondsToWait;
+			bStillRunning = FPlatformProcess::IsProcRunning(RedeployParentProc);
+		} while (bStillRunning && SecondsToWait > 0);
+
+		if (bStillRunning)
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("Forcibly terminating previous listener"));
+			if (RedeployParentProc.IsValid())
+			{
+				FPlatformProcess::TerminateProc(RedeployParentProc);
+				FPlatformProcess::CloseProc(RedeployParentProc);
+			}
+			bStillRunning = FPlatformProcess::IsApplicationRunning(RedeployParentPid);
+		}
+
+		if (bStillRunning)
+		{
+			UE_LOG(LogSwitchboard, Error,
+				TEXT("Unable to shut down previous listener at %s; you'll need to remove the old executable manually"),
+				*OldLauncherPath);
+			return false;
+		}
+	}
+
+	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+	if (!PlatformFile.DeleteFile(*OldLauncherPath))
+	{
+		UE_LOG(LogSwitchboard, Error,
+			TEXT("Unable to remove previous listener at %s; you may need to remove the old executable manually"),
+			*OldLauncherPath);
+		return false;
+	}
+
+	return true;
+}
+
+bool RunSwitchboardListener(const FSwitchboardCommandLineOptions& Options)
+{
+	FSwitchboardListener Listener(Options);
 
 	if (!Listener.Init())
 	{
+		RequestEngineExit(TEXT("FSwitchboardListener init failure"));
 		return false;
 	}
 
@@ -144,11 +213,52 @@ bool RunSwitchboardListener(int ArgC, TCHAR* ArgV[])
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
-	const int32 InitResult = InitEngine(TEXT(""));
+	const FString CommandLine = FCommandLine::BuildFromArgV(nullptr, ArgC, ArgV, nullptr);
+	FCommandLine::Set(*CommandLine);
+
+	const FSwitchboardCommandLineOptions Options = FSwitchboardCommandLineOptions::FromString(*CommandLine);
+
+	if (Options.OutputVersion)
+	{
+		printf("SwitchboardListener %u.%u.%u", SBLISTENER_VERSION_MAJOR, SBLISTENER_VERSION_MINOR, SBLISTENER_VERSION_PATCH);
+		RequestEngineExit(TEXT("Output -version"));
+		return 0;
+	}
+
+#if PLATFORM_WINDOWS
+	// If we were launched detached, detect and spawn a new console.
+	// TODO: Command line switch to suppress this behavior? Or explicitly opt-in for redeploy?
+	{
+		bool bIsStdoutAttachedToConsole = false;
+		HANDLE StdoutHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+		if (StdoutHandle != INVALID_HANDLE_VALUE)
+		{
+			if (GetFileType(StdoutHandle) == FILE_TYPE_CHAR)
+			{
+				bIsStdoutAttachedToConsole = true;
+			}
+		}
+
+		if (!bIsStdoutAttachedToConsole)
+		{
+			AllocConsole();
+
+			FILE* OutIgnoredNewStreamPtr = nullptr;
+			freopen_s(&OutIgnoredNewStreamPtr, "CONIN$", "r", stdin);
+			freopen_s(&OutIgnoredNewStreamPtr, "CONOUT$", "w", stdout);
+			freopen_s(&OutIgnoredNewStreamPtr, "CONOUT$", "w", stderr);
+		}
+	}
+#endif
+
+	const int32 InitResult = InitEngine(CommandLine);
+
+	UE_LOG(LogSwitchboard, Display, TEXT("SwitchboardListener %u.%u.%u"), SBLISTENER_VERSION_MAJOR, SBLISTENER_VERSION_MINOR, SBLISTENER_VERSION_PATCH);
 
 	if (InitResult != 0)
 	{
 		UE_LOG(LogSwitchboard, Fatal, TEXT("Could not initialize engine, Error code: %d"), InitResult);
+		RequestEngineExit(TEXT("Engine init failure"));
 		return InitResult;
 	}
 
@@ -157,16 +267,23 @@ INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 	if (!InitSocketSystem())
 	{
 		UE_LOG(LogSwitchboard, Fatal, TEXT("Could not initialize socket system!"));
+		RequestEngineExit(TEXT("Socket init failure"));
 		return 1;
 	}
 
 	UE_LOG(LogSwitchboard, Display, TEXT("Successfully initialized socket system."));
 
+	FProcHandle RedeployParentProc = CheckRedeploy(Options);
+	if (RedeployParentProc.IsValid())
+	{
+		UE_LOG(LogSwitchboard, Display, TEXT("Performing redeploy"));
+		HandleRedeploy(RedeployParentProc, Options.RedeployFromPid.GetValue());
+	}
+
 #if PLATFORM_WINDOWS
 	ShowWindow(GetConsoleWindow(), SW_MINIMIZE);
 #endif
 
-	const bool bListenerResult = RunSwitchboardListener(ArgC, ArgV);
-	UninitEngine();
+	const bool bListenerResult = RunSwitchboardListener(Options);
 	return bListenerResult ? 0 : 1;
 }
