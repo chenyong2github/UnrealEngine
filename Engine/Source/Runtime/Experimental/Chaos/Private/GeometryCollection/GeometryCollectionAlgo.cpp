@@ -745,7 +745,6 @@ namespace GeometryCollectionAlgo
 				NewSpaceIdx++;
 			}
 			GeometryCollection->FaceCount[GeometryIdx] += NumToAdd;
-			GeometryCollection->FaceStart[GeometryIdx] = NewStart;
 		}
 		GeometryCollection->ReorderElements(FGeometryCollection::FacesGroup, ShiftedOrder);
 	}
