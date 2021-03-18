@@ -105,6 +105,9 @@ protected:
 		bool bNeedsReferenceAttitude;
 		bool bHasReferenceAttitude;
 #endif
+
+		// Workaround for unreliable buttonMenu behavior in iOS/tvOS 14
+        bool bPauseWasPressed;
 	};
 	
     // there is a hardcoded limit of 4 controllers in the API

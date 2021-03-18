@@ -136,6 +136,15 @@ void FAppleControllerInterface::HandleConnection(GCController* Controller)
         Controllers[ControllerIndex].Controller = Controller;
         SetControllerType(ControllerIndex);
         
+        // Deprecated but buttonMenu behavior is unreliable in iOS/tvOS 14
+		Controllers[ControllerIndex].bPauseWasPressed = false;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		Controller.controllerPausedHandler = ^(GCController* Cont)
+		{
+			Controllers[ControllerIndex].bPauseWasPressed = true;
+		};
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+        
         bFoundSlot = true;
         
         UE_LOG(LogAppleController, Log, TEXT("New %s controller inserted, assigned to playerIndex %d"),
@@ -184,6 +193,15 @@ void FAppleControllerInterface::SendControllerEvents()
 		// Assumes iOS13, tvOS 13 & macOS 10.15
         GCExtendedGamepad* ExtendedGamepad = [Cont capture].extendedGamepad;
 		GCMotion* Motion = Cont.motion;
+		
+		// Workaround for unreliable buttonMenu behavior in iOS/tvOS 14
+		if (Controller.bPauseWasPressed)
+        {
+            MessageHandler->OnControllerButtonPressed(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
+            MessageHandler->OnControllerButtonReleased(FGamepadKeyNames::SpecialRight, Controllers[i].PlayerIndex, false);
+
+            Controller.bPauseWasPressed = false;
+        }
         
 		if (ExtendedGamepad != nil)
 		{
