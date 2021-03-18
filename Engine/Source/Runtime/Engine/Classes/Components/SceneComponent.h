@@ -1208,7 +1208,7 @@ public:
 	 * Called to see if it's possible to attach another scene component as a child.
 	 * Note: This can be called on template component as well!
 	 */
-	virtual bool CanAttachAsChild(USceneComponent* ChildComponent, FName SocketName) const { return true; }
+	virtual bool CanAttachAsChild(const USceneComponent* ChildComponent, FName SocketName) const { return true; }
 
 	/** Get the extent used when placing this component in the editor, used for 'pulling back' hit. */
 	virtual FBoxSphereBounds GetPlacementExtent() const;
