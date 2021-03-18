@@ -367,9 +367,11 @@ class FPathTracingRG : public FGlobalShader
 		SHADER_PARAMETER(int32, SkylightMipCount)
 		// IES Profiles
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2DArray, IESTexture)
-		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler)
-		// Shared sampler for all IES profiles
-		SHADER_PARAMETER(FIntVector, TileOffset)	// Used by multi-GPU rendering
+		SHADER_PARAMETER_SAMPLER(SamplerState, IESTextureSampler) // Shared sampler for all IES profiles
+		// Subsurface data
+		SHADER_PARAMETER_TEXTURE(Texture2D, SSProfilesTexture)
+		// Used by multi-GPU rendering
+		SHADER_PARAMETER(FIntVector, TileOffset)	
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FPathTracingRG, "/Engine/Private/PathTracing/PathTracing.usf", "PathTracingMainRG", SF_RayGen);
@@ -844,6 +846,8 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 		SetLightParameters(GraphBuilder, PassParameters, Scene, View, UseMISCompensation);
 		PassParameters->IESTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->RadianceTexture = GraphBuilder.CreateUAV(RadianceTexture);
+
+		PassParameters->SSProfilesTexture = GetSubsufaceProfileTexture_RT(GraphBuilder.RHICmdList)->GetShaderResourceRHI();
 
 		// TODO: in multi-gpu case, split image into tiles
 		PassParameters->TileOffset.X = 0;
