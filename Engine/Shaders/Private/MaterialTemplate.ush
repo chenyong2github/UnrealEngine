@@ -1873,8 +1873,21 @@ float2 PostProcessVelocityLookup(float Depth, float2 UV)
 float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 {
 #if SCENE_TEXTURES_DISABLED
-	return float4(0.0f, 0.0f, 0.0f, 0.0f);
-#endif
+
+	// When scene textures are disabled, the output is matched to the dummy scene texture defaults.
+	switch(SceneTextureIndex)
+	{
+	case PPI_SceneDepth:
+	case PPI_CustomDepth:
+		return ConvertFromDeviceZ(0.0f);
+	case PPI_MaterialAO:
+	case PPI_CustomStencil:
+		return 1.0f;
+	default:
+		return 0.0f;
+	}
+
+#else // !SCENE_TEXTURES_DISABLED
 
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV, false);
 	switch(SceneTextureIndex)
@@ -1946,6 +1959,7 @@ float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
 		default:
 			return float4(0, 0, 0, 0);
 	}
+#endif // SCENE_TEXTURES_DISABLED
 }
 
 #endif // SHADING_PATH_DEFERRED
