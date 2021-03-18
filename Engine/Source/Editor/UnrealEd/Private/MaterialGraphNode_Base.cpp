@@ -215,12 +215,15 @@ void UMaterialGraphNode_Base::ReconstructNode()
 	// Recreate the new pins
 	AllocateDefaultPins();
 
-	for (UEdGraphPin* OldPin : OldPins)
+	for (int32 PinIndex = 0; PinIndex < OldPins.Num(); ++PinIndex)
 	{
-		// Transfer data to new pin
-		UEdGraphPin* NewPin = FindPin(OldPin->PinName, OldPin->Direction);
-		if (NewPin)
+		UEdGraphPin* OldPin = OldPins[PinIndex];
+		if (PinIndex < Pins.Num())
 		{
+			// Transfer data to new pin
+			UEdGraphPin* NewPin = Pins[PinIndex];
+			ensure(OldPin->Direction == NewPin->Direction);
+			ensure(OldPin->PinType.PinCategory == NewPin->PinType.PinCategory);
 			NewPin->MovePersistentDataFromOldPin(*OldPin);
 		}
 
