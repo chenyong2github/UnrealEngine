@@ -544,11 +544,6 @@ protected:
 	int32 MinPriorityIndex;
 	int32 MaxPriorityIndex;
 	
-	/** If the thread has been terminated by an unhandled exception, this contains the error message. */
-	FString ErrorMessage;
-	/** true if the thread has been terminated by an unhandled exception. */
-	bool bTerminatedByError;
-
 	TAtomic<bool> bForceFinish;
 
 public:
@@ -575,9 +570,6 @@ public:
 			Thread->WaitForCompletion();
 		}
 	}
-
-	/** Checks the thread's health, and passes on any errors that have occured.  Called by the main thread. */
-	void CheckHealth() const;
 
 	/** Main work loop. */
 	virtual int32 CompilingLoop() = 0;
