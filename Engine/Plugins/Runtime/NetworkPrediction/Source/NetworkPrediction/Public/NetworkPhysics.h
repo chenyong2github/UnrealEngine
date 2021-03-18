@@ -4,8 +4,11 @@
 #include "Subsystems/WorldSubsystem.h"
 #include "Engine/World.h"
 #include "Chaos/Core.h"
+#include "Chaos/Particles.h"
 
 #include "NetworkPhysics.generated.h"
+
+NETWORKPREDICTION_API DECLARE_LOG_CATEGORY_EXTERN(LogNetworkPhysics, Log, All);
 
 struct FNetworkPhysicsRewindCallback;
 
@@ -22,6 +25,7 @@ struct FNetworkPhysicsState
 	int32 LocalManagedHandle;
 
 	// Physics State
+	Chaos::EObjectStateType ObjectState = Chaos::EObjectStateType::Uninitialized;
 	Chaos::FVec3 Location;
 	Chaos::FRotation3 Rotation;
 	Chaos::FVec3 LinearVelocity;
@@ -41,12 +45,16 @@ struct FNetworkPhysicsState
 
 	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess)
 	{
+		uint8 ObjStateByte = (uint8)ObjectState;
+		Ar << ObjStateByte;
+		ObjectState = (Chaos::EObjectStateType)ObjStateByte;
+
+		// Fixme: quantize
 		Ar << Frame;
 		Ar << Location;
 		Ar << Rotation;
 		Ar << LinearVelocity;
 		Ar << AngularVelocity;
-
 		return true;
 	}
 };
