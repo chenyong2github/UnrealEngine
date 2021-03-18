@@ -258,7 +258,6 @@ private:
 	bool bSamplePreviewing;
 	FVector2D LastPreviewingMousePosition;
 	FVector PreviewPosition;
-	bool bPreviewPositionSet;
 	bool bAdvancedPreview;
 	TArray<FBlendSampleData> PreviewedSamples;
 	/** Previous position in the triangulation/segmentation */
@@ -356,16 +355,10 @@ private:
 	float TextMargin;
 	bool bShowTriangulation;
 	bool bShowAnimationNames;
-
 	bool bStretchToFit;
 	FMargin GridRatioMargin;
-
-	bool bPreviewToolTipHidden;
-
 	bool bReadOnly;
-
 	bool bShowAxisLabels;
-
 	bool bShowSettingsButtons;
 
 	FStatusBarMessageHandle StatusBarMessageHandle;
