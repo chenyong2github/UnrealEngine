@@ -712,6 +712,25 @@ public:
 			}
 		}
 
+		FDerivedDataBackendInterface::ESpeedClass ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Unknown;
+		FString ForceSpeedClassValue;
+		if (FParse::Value(FCommandLine::Get(), TEXT("HttpForceSpeedClass="), ForceSpeedClassValue))
+		{
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("Jupiter speed class overridden due to HttpForceSpeedClass=%s"), *ForceSpeedClassValue);
+			if (ForceSpeedClassValue == TEXT("Slow"))
+			{
+				ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Slow;
+			}
+			else if (ForceSpeedClassValue == TEXT("Fast"))
+			{
+				ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Fast;
+			}
+			else if (ForceSpeedClassValue == TEXT("Local"))
+			{
+				ForceSpeedClass = FDerivedDataBackendInterface::ESpeedClass::Local;
+			}
+		}
+		
 		FString Namespace;
 		if (!FParse::Value(Entry, TEXT("Namespace="), Namespace))
 		{
@@ -741,6 +760,12 @@ public:
 		}
 
 		FHttpDerivedDataBackend* backend = new FHttpDerivedDataBackend(*ServiceUrl, *Namespace, *OAuthProvider, *OAuthClientId, *OAuthSecret);
+
+		if (ForceSpeedClass != FDerivedDataBackendInterface::ESpeedClass::Unknown)
+		{
+			backend->SetSpeedClass(ForceSpeedClass);
+		}
+
 		if (!backend->IsUsable())
 		{
 			UE_LOG(LogDerivedDataCache, Warning, TEXT("%s could not contact the service (%s), will not use it."), NodeName, *ServiceUrl);

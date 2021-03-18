@@ -1679,6 +1679,7 @@ FHttpDerivedDataBackend::FHttpDerivedDataBackend(
 	, Access(nullptr)
 	, bIsUsable(false)
 	, FailedLoginAttempts(0)
+	, SpeedClass(ESpeedClass::Slow)
 {
 #if WITH_DATAREQUEST_HELPER
 	FDataRequestHelper::StaticInitialize();
@@ -1714,7 +1715,7 @@ bool FHttpDerivedDataBackend::WouldCache(const TCHAR* CacheKey, TArrayView<const
 
 FHttpDerivedDataBackend::ESpeedClass FHttpDerivedDataBackend::GetSpeedClass()
 {
-	return ESpeedClass::Slow;
+	return SpeedClass;
 }
 
 bool FHttpDerivedDataBackend::ApplyDebugOptions(FBackendDebugOptions& InOptions)

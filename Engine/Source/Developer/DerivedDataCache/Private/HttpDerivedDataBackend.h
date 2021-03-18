@@ -63,6 +63,8 @@ public:
 	virtual ESpeedClass GetSpeedClass() override;
 	virtual bool ApplyDebugOptions(FBackendDebugOptions& InOptions) override;
 
+	void SetSpeedClass(ESpeedClass InSpeedClass) { SpeedClass = InSpeedClass; }
+
 private:
 	
 	FString Domain;
@@ -78,6 +80,7 @@ private:
 	TUniquePtr<struct FHttpAccessToken> Access;
 	bool bIsUsable;
 	uint32 FailedLoginAttempts;
+	ESpeedClass SpeedClass;
 
 	bool IsServiceReady();
 	bool AcquireAccessToken();
