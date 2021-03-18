@@ -1218,6 +1218,7 @@ void FWmfMediaSession::HandleError(HRESULT EventStatus)
 
 void FWmfMediaSession::HandleSessionEnded()
 {
+	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FWmfMediaSession::HandleSessionEnded ShouldLoop:%d"), ShouldLoop);
 	DeferredEvents.Enqueue(EMediaEvent::PlaybackEndReached);
 
 	SessionState = EMediaState::Stopped;
