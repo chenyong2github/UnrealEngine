@@ -142,9 +142,7 @@ HRESULT FWmfMediaStreamSink::Preroll()
 	{
 		TSharedPtr<IMediaTextureSample, ESPMode::ThreadSafe> Sample;
 		VideoSampleQueue->Dequeue(Sample);
-		FTimespan SampleStartTime = Sample->GetTime().Time;
-		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::Preroll dump SampleTime:%f"),
-			SampleStartTime.GetTotalSeconds());
+		UE_LOG(LogWmfMedia, VeryVerbose, TEXT("StreamSink::Preroll dump SampleTime:%f"), Sample.IsValid() ? Sample->GetTime().Time.GetTotalSeconds() : -1.0);
 	}
 
 #endif // WMFMEDIA_PLAYER_VERSION >= 2
