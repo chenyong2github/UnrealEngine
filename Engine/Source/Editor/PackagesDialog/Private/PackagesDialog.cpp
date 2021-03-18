@@ -208,9 +208,10 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 	{
 		if (InnerObject->IsAsset())
 		{
-			if (FAssetData(InnerObject).IsUAsset())
+			if (FAssetData::IsUAsset(InnerObject))
 			{
 				// If we found the primary asset, use it
+				FoundAsset = InnerObject;
 				return false;
 			}
 			// Otherwise, keep the first found asset but keep looking for a primary asset
