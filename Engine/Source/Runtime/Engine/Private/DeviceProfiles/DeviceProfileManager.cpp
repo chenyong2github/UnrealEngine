@@ -594,7 +594,9 @@ void UDeviceProfileManager::LoadProfiles()
 				ITargetPlatform* Platform = TargetPlatforms[PlatformIndex];
 
 				// Set TextureLODSettings
-				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(Platform->IniPlatformName(), false);
+				static FName NameDesktop(TEXT("Desktop"));
+				FString CookingDevicePlatformName = Platform->GetPlatformInfo().PlatformGroupName == NameDesktop ? Platform->PlatformName() : Platform->IniPlatformName();
+				const UTextureLODSettings* TextureLODSettingsObj = FindProfile(CookingDevicePlatformName, false);
 				Platform->RegisterTextureLODSettings(TextureLODSettingsObj);
 			}
 		}
