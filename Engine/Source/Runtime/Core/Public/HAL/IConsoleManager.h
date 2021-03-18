@@ -422,6 +422,10 @@ public:
 	{
 		OutIntValue = GetInt();
 	}
+	void GetValue(bool& OutBoolValue)
+	{
+		OutBoolValue = GetBool();
+	}
 	void GetValue(float& OutFloatValue)
 	{
 		OutFloatValue = GetFloat();
