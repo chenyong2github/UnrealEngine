@@ -308,18 +308,18 @@ class SSequencerDebugComponentSlot : public SBorder
 
 		ComponentBitIndex = InComponentBitIndex;
 
-		SetVAlign(EVerticalAlignment::VAlign_Center);
-		SetHAlign(EHorizontalAlignment::HAlign_Center);
-		SetBorderImage(SectionBackgroundBrush);
-		SetBorderBackgroundColor(GetComponentColor(InComponentBitIndex));
-		SetColorAndOpacity(GetComponentColor(InComponentBitIndex));
-
-		ChildSlot
-		[
-			SNew(STextBlock)
-				.Margin(FMargin(2.f, 4.f))
-				.Text(InComponentName)
-		];
+		SBorder::Construct(SBorder::FArguments()
+			.VAlign(EVerticalAlignment::VAlign_Center)
+			.HAlign(EHorizontalAlignment::HAlign_Center)
+			.BorderImage(SectionBackgroundBrush)
+			.BorderBackgroundColor(GetComponentColor(InComponentBitIndex))
+			.ColorAndOpacity(GetComponentColor(InComponentBitIndex))
+			.Content()
+			[
+				SNew(STextBlock)
+					.Margin(FMargin(2.f, 4.f))
+					.Text(InComponentName)
+			]);
 	}
 
 	int32 GetComponentBitIndex() const { return ComponentBitIndex; }

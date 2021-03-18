@@ -2,13 +2,14 @@
 
 #include "Widgets/Layout/SBorder.h"
 #include "Rendering/DrawElements.h"
+#include "Types/ReflectionMetadata.h"
 
 static FName SBorderTypeName("SBorder");
 
 SBorder::SBorder()
-	: BorderImage( FCoreStyle::Get().GetBrush( "Border" ) )
-	, BorderBackgroundColor( FLinearColor::White )
-	, DesiredSizeScale(FVector2D(1,1))
+#if WITH_SLATE_DEBUGGING
+	: bSBorderConstructWasCalled(false)
+#endif
 {
 }
 
@@ -60,6 +61,10 @@ void SBorder::Construct( const SBorder::FArguments& InArgs )
 	[
 		InArgs._Content.Widget
 	];
+
+#if WITH_SLATE_DEBUGGING
+	bSBorderConstructWasCalled = true;
+#endif
 }
 
 void SBorder::SetContent( TSharedRef< SWidget > InContent )
@@ -82,6 +87,10 @@ void SBorder::ClearContent()
 
 int32 SBorder::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled ) const
 {
+#if WITH_SLATE_DEBUGGING
+	checkf(bSBorderConstructWasCalled, TEXT("SBoder::Construct was not called for widget '%s'. This lead to uninitialized variables. Did you missed a Super::Construct? Did you use SNew/SAssignNew?"), *FReflectionMetaData::GetWidgetPath(this));
+#endif
+
 	const FSlateBrush* BrushResource = BorderImage.Get();
 		
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);

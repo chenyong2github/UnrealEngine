@@ -1135,9 +1135,9 @@ protected:
 		check(InArgs._ExpanderStyleSet);
 		ExpanderStyleSet = InArgs._ExpanderStyleSet;
 
-		this->BorderImage = FInvalidatableBrushAttribute(TAttribute<const FSlateBrush*>(this, &STableRow::GetBorder));
-
-		this->ForegroundColor = TAttribute<FSlateColor>( this, &STableRow::GetForegroundBasedOnSelection );
+		SBorder::Construct(SBorder::FArguments()
+			.BorderImage(this, &STableRow::GetBorder)
+			.ForegroundColor(this, &STableRow::GetForegroundBasedOnSelection));
 
 		this->OnCanAcceptDrop = InArgs._OnCanAcceptDrop;
 		this->OnAcceptDrop = InArgs._OnAcceptDrop;

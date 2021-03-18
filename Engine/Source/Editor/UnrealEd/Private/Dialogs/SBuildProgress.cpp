@@ -20,98 +20,98 @@ SBuildProgressWidget::~SBuildProgressWidget()
 
 void SBuildProgressWidget::Construct( const FArguments& InArgs )
 {
-	BorderImage = FInvalidatableBrushAttribute(FEditorStyle::GetBrush("Menu.Background"));
-
-	this->ChildSlot
-	.VAlign(VAlign_Center)
-	[
-		SNew( SVerticalBox )
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Fill)
-		.Padding( 10.0f, 4.0f )
+	SBorder::Construct(SBorder::FArguments()
+		.BorderImage(FEditorStyle::GetBrush("Menu.Background"))
+		.VAlign(VAlign_Center)
+		.Content()
 		[
-			SNew(SBorder)
+			SNew( SVerticalBox )
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.Padding( 10.0f, 4.0f )
 			[
-				SNew( SVerticalBox )
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Fill)
-				.Padding( 10.0f, 4.0f )
+				SNew(SBorder)
 				[
-					SNew( STextBlock )
-					.Text( NSLOCTEXT("BuildProgress", "BuildStatusLabel", "Build Status") )
-					.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
-				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Fill)
-				.Padding( 10.0f, 4.0f )
-				[
-					SNew( SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding( 0, 7.0f )
+					SNew( SVerticalBox )
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Fill)
+					.Padding( 10.0f, 4.0f )
 					[
 						SNew( STextBlock )
-						.Text( this, &SBuildProgressWidget::OnGetBuildTimeText )
+						.Text( NSLOCTEXT("BuildProgress", "BuildStatusLabel", "Build Status") )
 						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(10.0f, 7.0f, 10.0f, 7.0f)
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Fill)
+					.Padding( 10.0f, 4.0f )
+					[
+						SNew( SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding( 0, 7.0f )
+						[
+							SNew( STextBlock )
+							.Text( this, &SBuildProgressWidget::OnGetBuildTimeText )
+							.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
+						]
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(10.0f, 7.0f, 10.0f, 7.0f)
+						[
+							SNew( STextBlock )
+							.Text( this, &SBuildProgressWidget::OnGetProgressText )
+							.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
+						]
+					]
+				]
+			]
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Fill)
+			.Padding(10.0f, 1.0f)
+			[
+				SNew(SBorder)
+				[
+					SNew( SVerticalBox )
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Fill)
+					.Padding( 10.0f, 4.0f )
 					[
 						SNew( STextBlock )
-						.Text( this, &SBuildProgressWidget::OnGetProgressText )
+						.Text( NSLOCTEXT("BuildProgress", "BuildProgressLabel", "Build Progress") )
 						.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
 					]
+					+SVerticalBox::Slot()
+					.AutoHeight()
+					.HAlign(HAlign_Fill)
+					.Padding( 10.0f, 7.0f, 10.0f, 7.0f )
+					[
+						SNew(SProgressBar)
+						.Percent( this, &SBuildProgressWidget::OnGetProgressFraction )	
+					]
 				]
-			]
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.HAlign(HAlign_Fill)
-		.Padding(10.0f, 1.0f)
-		[
-			SNew(SBorder)
-			[
-				SNew( SVerticalBox )
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Fill)
-				.Padding( 10.0f, 4.0f )
-				[
-					SNew( STextBlock )
-					.Text( NSLOCTEXT("BuildProgress", "BuildProgressLabel", "Build Progress") )
-					.ShadowOffset( FVector2D( 1.0f, 1.0f ) )
-				]
-				+SVerticalBox::Slot()
-				.AutoHeight()
-				.HAlign(HAlign_Fill)
-				.Padding( 10.0f, 7.0f, 10.0f, 7.0f )
-				[
-					SNew(SProgressBar)
-					.Percent( this, &SBuildProgressWidget::OnGetProgressFraction )	
-				]
-			]
 
-		]
-		+SVerticalBox::Slot()
-		.AutoHeight()
-		.Padding(15.0f, 4.0f)
-		.HAlign(HAlign_Center)
-		[
-			SNew(SHorizontalBox)
-			+SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.Text( NSLOCTEXT("BuildProgress", "StopBuildButtonLabel", "Stop Build") )
-				.ContentPadding( 5 )
-				.OnClicked( this, &SBuildProgressWidget::OnStopBuild )
 			]
-		]
-	];
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(15.0f, 4.0f)
+			.HAlign(HAlign_Center)
+			[
+				SNew(SHorizontalBox)
+				+SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SButton)
+					.Text( NSLOCTEXT("BuildProgress", "StopBuildButtonLabel", "Stop Build") )
+					.ContentPadding( 5 )
+					.OnClicked( this, &SBuildProgressWidget::OnStopBuild )
+				]
+			]
+		]);
 
 	// Reset progress indicators
 	BuildStartTime = -1;
