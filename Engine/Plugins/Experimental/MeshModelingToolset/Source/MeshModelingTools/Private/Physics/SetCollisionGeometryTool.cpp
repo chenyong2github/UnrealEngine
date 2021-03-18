@@ -414,8 +414,8 @@ TArray<const T*> MakeRawPointerList(const TArray<TSharedPtr<T, ESPMode::ThreadSa
 void USetCollisionGeometryTool::PrecomputeInputMeshes()
 {
 	IPrimitiveComponentBackedTarget* CollisionTarget = TargetComponentInterface(Targets.Num()-1);
-	FTransform3d TargetTransform(CollisionTarget->GetWorldTransform());
-	FTransform3d TargetTransformInv = TargetTransform.Inverse();
+	UE::Geometry::FTransform3d TargetTransform(CollisionTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d TargetTransformInv = TargetTransform.Inverse();
 
 	InputMeshes.Reset();
 	InputMeshes.SetNum(SourceObjectIndices.Num());
@@ -428,7 +428,7 @@ void USetCollisionGeometryTool::PrecomputeInputMeshes()
 		Converter.Convert(TargetMeshProviderInterface(k)->GetMeshDescription(), SourceMesh);
 		if (Settings->bUseWorldSpace)
 		{
-			FTransform3d ToWorld(TargetComponentInterface(k)->GetWorldTransform());
+			UE::Geometry::FTransform3d ToWorld(TargetComponentInterface(k)->GetWorldTransform());
 			MeshTransforms::ApplyTransform(SourceMesh, ToWorld);
 			MeshTransforms::ApplyTransform(SourceMesh, TargetTransformInv);
 		}

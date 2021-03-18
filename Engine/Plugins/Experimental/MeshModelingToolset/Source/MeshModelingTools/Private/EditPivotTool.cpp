@@ -173,7 +173,7 @@ void UEditPivotTool::Precompute()
 	int NumComponents = Targets.Num();
 	if (NumComponents == 1)
 	{
-		Transform = FTransform3d(TargetComponentInterface(0)->GetWorldTransform());
+		Transform = UE::Geometry::FTransform3d(TargetComponentInterface(0)->GetWorldTransform());
 
 		FMeshDescription* Mesh = TargetMeshProviderInterface(0)->GetMeshDescription();
 		VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
@@ -183,12 +183,12 @@ void UEditPivotTool::Precompute()
 	}
 	else
 	{
-		Transform = FTransform3d::Identity();
+		Transform = UE::Geometry::FTransform3d::Identity();
 		for (int k = 0; k < NumComponents; ++k)
 		{
 			IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(k);
 			IMeshDescriptionProvider* TargetMeshProvider = TargetMeshProviderInterface(k);
-			FTransform3d CurTransform(TargetComponent->GetWorldTransform());
+			UE::Geometry::FTransform3d CurTransform(TargetComponent->GetWorldTransform());
 			FMeshDescription* Mesh = TargetMeshProvider->GetMeshDescription();
 			VertexIteration(Mesh, [&](int32 VertexID, const FVector& Position) {
 				ObjectBounds.Contain(CurTransform.TransformPosition(Position));
@@ -423,7 +423,7 @@ void UEditPivotTool::UpdateAssets(const FFrame3d& NewPivotWorldFrame)
 		IPrimitiveComponentBackedTarget* TargetComponent = TargetComponentInterface(ComponentIdx);
 		if (MapToFirstOccurrences[ComponentIdx] == ComponentIdx)
 		{
-			FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
+			UE::Geometry::FTransform3d ToBake(OriginalTransforms[ComponentIdx] * NewWorldInverse);
 
 			UPrimitiveComponent* Component = TargetComponent->GetOwnerComponent();
 			Component->Modify();

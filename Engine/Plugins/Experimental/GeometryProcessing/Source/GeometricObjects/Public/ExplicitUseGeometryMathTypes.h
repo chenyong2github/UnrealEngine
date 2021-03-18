@@ -80,8 +80,8 @@ using UE::Geometry::FAxisAlignedBox3i;
 using UE::Geometry::FHalfspace3d;
 using UE::Geometry::FHalfspace3f;
 
-using UE::Geometry::FPlane3d;
-using UE::Geometry::FPlane3f;
+//using UE::Geometry::FPlane3d;
+//using UE::Geometry::FPlane3f;
 
 using UE::Geometry::FLine2f;
 using UE::Geometry::FLine2d;
@@ -115,8 +115,8 @@ using UE::Geometry::FCircle2f;
 using UE::Geometry::FCircle3d;
 using UE::Geometry::FCircle3f;
 
-using UE::Geometry::FTransform3d;
-using UE::Geometry::FTransform3f;
+//using UE::Geometry::FTransform3d;
+//using UE::Geometry::FTransform3f;
 
 using UE::Geometry::FFrame3d;
 using UE::Geometry::FFrame3f;

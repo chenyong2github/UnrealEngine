@@ -121,7 +121,7 @@ namespace GenerateStaticMeshLODAssetLocals
 
 	public:
 
-		FGenerateStaticMeshLODAssetOperatorFactory(UGenerateStaticMeshLODAssetTool* AutoLODTool, FTransform3d ResultTransform) : 
+		FGenerateStaticMeshLODAssetOperatorFactory(UGenerateStaticMeshLODAssetTool* AutoLODTool, UE::Geometry::FTransform3d ResultTransform) :
 			AutoLODTool(AutoLODTool), 
 			ResultTransform(ResultTransform) 
 		{}
@@ -139,7 +139,7 @@ namespace GenerateStaticMeshLODAssetLocals
 		}
 
 		UGenerateStaticMeshLODAssetTool* AutoLODTool = nullptr;
-		FTransform3d ResultTransform;
+		UE::Geometry::FTransform3d ResultTransform;
 	};
 
 }
@@ -245,7 +245,7 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 	FTransform PreviewTransform = SourceComponent->GetWorldTransform();
 	PreviewTransform.AddToTranslation(FVector(0, 2.5f*Bounds.BoxExtent.Y, 0));
 
-	this->OpFactory = MakeUnique<FGenerateStaticMeshLODAssetOperatorFactory>(this, (FTransform3d)PreviewTransform);
+	this->OpFactory = MakeUnique<FGenerateStaticMeshLODAssetOperatorFactory>(this, (UE::Geometry::FTransform3d)PreviewTransform);
 	PreviewWithBackgroundCompute = NewObject<UMeshOpPreviewWithBackgroundCompute>(this, "Preview");
 	PreviewWithBackgroundCompute->Setup(this->TargetWorld, this->OpFactory.Get());
 

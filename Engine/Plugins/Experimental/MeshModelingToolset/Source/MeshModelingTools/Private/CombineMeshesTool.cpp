@@ -254,7 +254,7 @@ void UCombineMeshesTool::CreateNewAsset()
 			const FMeshDescription* MeshDescription = MeshDescriptions[ComponentIdx];
 			Converter.Convert(MeshDescription, ComponentDMesh);
 
-			FTransform3d XF = (FTransform3d)(TargetComponentInterface(ComponentIdx)->GetWorldTransform() * ToAccum);
+			UE::Geometry::FTransform3d XF = (UE::Geometry::FTransform3d)(TargetComponentInterface(ComponentIdx)->GetWorldTransform() * ToAccum);
 			if (XF.GetDeterminant() < 0)
 			{
 				ComponentDMesh.ReverseOrientation(false);
@@ -273,7 +273,7 @@ void UCombineMeshesTool::CreateNewAsset()
 			{
 				Editor.AppendMesh(&ComponentDMesh, IndexMapping);
 				CollisionSettings = UE::Geometry::GetCollisionSettings(TargetComponent->GetOwnerComponent());
-				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, FTransform3d::Identity());
+				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, UE::Geometry::FTransform3d::Identity());
 			}
 			else
 			{
@@ -303,7 +303,7 @@ void UCombineMeshesTool::CreateNewAsset()
 		}
 		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 			AssetAPI, TargetWorld,
-			&AccumulateDMesh, (FTransform3d)AccumToWorld, UseBaseName, AllMaterials);
+			&AccumulateDMesh, (UE::Geometry::FTransform3d)AccumToWorld, UseBaseName, AllMaterials);
 		if (NewActor != nullptr)
 		{
 			// copy the component materials onto the new static mesh asset too
@@ -405,12 +405,12 @@ void UCombineMeshesTool::UpdateExistingAsset()
 	IMaterialProvider* UpdateTargetMaterial = TargetMaterialInterface(SkipIndex);
 	SkipActor = UpdateTarget->GetOwnerActor();
 
-	FTransform3d TargetToWorld = (FTransform3d)UpdateTarget->GetWorldTransform();
-	FTransform3d WorldToTarget = TargetToWorld.Inverse();
+	UE::Geometry::FTransform3d TargetToWorld = (UE::Geometry::FTransform3d)UpdateTarget->GetWorldTransform();
+	UE::Geometry::FTransform3d WorldToTarget = TargetToWorld.Inverse();
 
 	FSimpleShapeSet3d SimpleCollision;
 	UE::Geometry::FComponentCollisionSettings CollisionSettings = UE::Geometry::GetCollisionSettings(UpdateTarget->GetOwnerComponent());
-	TArray<FTransform3d> Transforms;
+	TArray<UE::Geometry::FTransform3d> Transforms;
 	Transforms.SetNum(2);
 
 	{
@@ -442,7 +442,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 
 			if (ComponentIdx != SkipIndex)
 			{
-				FTransform3d ComponentToWorld = (FTransform3d)TargetComponent->GetWorldTransform();
+				UE::Geometry::FTransform3d ComponentToWorld = (UE::Geometry::FTransform3d)TargetComponent->GetWorldTransform();
 				MeshTransforms::ApplyTransform(ComponentDMesh, ComponentToWorld);
 				if (ComponentToWorld.GetDeterminant() < 0)
 				{
@@ -459,7 +459,7 @@ void UCombineMeshesTool::UpdateExistingAsset()
 			}
 			else
 			{
-				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, FTransform3d::Identity());
+				UE::Geometry::AppendSimpleCollision(TargetComponent->GetOwnerComponent(), &SimpleCollision, UE::Geometry::FTransform3d::Identity());
 			}
 
 			FDynamicMeshEditor Editor(&AccumulateDMesh);

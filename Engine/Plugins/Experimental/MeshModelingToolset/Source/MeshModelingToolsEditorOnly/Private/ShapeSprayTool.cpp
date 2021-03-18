@@ -232,7 +232,7 @@ bool UShapeSprayTool::CanAccept() const
 void UShapeSprayTool::EmitResult()
 {
 	const FDynamicMesh3* Mesh = AccumMeshComponent->GetMesh();
-	FTransform3d UseTransform = FTransform3d(ComponentTarget->GetOwnerActor()->GetTransform());
+	UE::Geometry::FTransform3d UseTransform(ComponentTarget->GetOwnerActor()->GetTransform());
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EmitShapeSpray", "Create ShapeSpray"));
 

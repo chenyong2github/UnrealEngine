@@ -114,7 +114,7 @@ void UExtractCollisionGeometryTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	VizSettings->SaveProperties(this);
 
-	FTransform3d Transform(PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
 
 	PreviewElements->Disconnect();
 	PreviewMesh->SetVisible(false);
@@ -236,7 +236,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh()
 
 		MeshTransforms::Translate(CapsuleMesh, FVector3d(0,0,-0.5*Capsule.Length) );
 
-		FTransform3d Transform(Capsule.GetTransform());
+		UE::Geometry::FTransform3d Transform(Capsule.GetTransform());
 		MeshTransforms::ApplyTransform(CapsuleMesh, Transform);
 
 		FMeshIndexMappings Mappings;
@@ -246,7 +246,7 @@ void UExtractCollisionGeometryTool::RecalculateMesh()
 
 	for (const FKConvexElem& Convex : AggGeom.ConvexElems)
 	{
-		FTransform3d ElemTransform(Convex.GetTransform());
+		UE::Geometry::FTransform3d ElemTransform(Convex.GetTransform());
 		FDynamicMesh3 ConvexMesh(EMeshComponents::None);
 		int32 NumVertices = Convex.VertexData.Num();
 		for (int32 k = 0; k < NumVertices; ++k)

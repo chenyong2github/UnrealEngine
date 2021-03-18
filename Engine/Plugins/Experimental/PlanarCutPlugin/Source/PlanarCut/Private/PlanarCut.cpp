@@ -379,7 +379,7 @@ struct FCellMeshes
 
 		if (Transform.IsSet())
 		{
-			MeshTransforms::ApplyTransform(SingleCutter, FTransform3d(Transform.GetValue()));
+			MeshTransforms::ApplyTransform(SingleCutter, UE::Geometry::FTransform3d(Transform.GetValue()));
 		}
 
 		// Mesh should already be augmented
@@ -1338,7 +1338,7 @@ struct FDynamicMeshCollection
 				continue;
 			}
 
-			FTransform3d CollectionToLocal = FTransform3d(GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, TransformIdx) * TransformCollection);
+			UE::Geometry::FTransform3d CollectionToLocal = UE::Geometry::FTransform3d(GeometryCollectionAlgo::GlobalMatrix(Collection->Transform, Collection->Parent, TransformIdx) * TransformCollection);
 
 			int32 AddedMeshIdx = Meshes.Add(new FMeshData);
 			FMeshData& MeshData = Meshes[AddedMeshIdx];

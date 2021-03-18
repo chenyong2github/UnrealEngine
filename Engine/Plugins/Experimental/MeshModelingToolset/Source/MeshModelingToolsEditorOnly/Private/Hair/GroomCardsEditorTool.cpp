@@ -560,7 +560,7 @@ void UGroomCardsEditorTool::BeginCardEdit(int32 CardGroupID)
 {
 	const UE::GroomQueries::FMeshCardStrip& CardStrip = EditableCardSet->CardStrips->FindStripForGroup(CardGroupID);
 
-	FTransform3d Transform(PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
 	check(FMathd::Abs(Transform.TransformVector(UE::Geometry::Normalized(FVector3d(1,1,1))).SquaredLength() - 1.0) < FMathd::ZeroTolerance);
 	FFrame3d TransformFrame(Transform.GetTranslation(), Transform.GetRotation());
 
@@ -595,7 +595,7 @@ void UGroomCardsEditorTool::BeginCardEdit(int32 CardGroupID)
 void UGroomCardsEditorTool::RestoreCardEdit(const FGroomCardEdit* RestoreEdit)
 {
 	// this should probably be cached once...
-	FTransform3d Transform(PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
 	check(FMathd::Abs(Transform.TransformVector(UE::Geometry::Normalized(FVector3d(1, 1, 1))).SquaredLength() - 1.0) < FMathd::ZeroTolerance);
 	FFrame3d TransformFrame(Transform.GetTranslation(), Transform.GetRotation());
 
@@ -643,7 +643,7 @@ void UGroomCardsEditorTool::UpdateOnCurveEdit()
 		//BeginMoveChange();
 	}
 
-	FTransform3d Transform(PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
 	check( FMathd::Abs(Transform.TransformVector(UE::Geometry::Normalized(FVector3d(1,1,1))).SquaredLength() - 1.0) < FMathd::ZeroTolerance );
 	FFrame3d TransformFrame(Transform.GetTranslation(), Transform.GetRotation());
 

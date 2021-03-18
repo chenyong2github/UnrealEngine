@@ -513,7 +513,7 @@ void UDrawPolyPathTool::BeginInteractiveOffsetDistance()
 	// begin setting offset distance
 	CurveDistMechanic = NewObject<USpatialCurveDistanceMechanic>(this);
 	CurveDistMechanic->Setup(this);
-	CurveDistMechanic->InitializePolyCurve(CurPolyLine, FTransform3d::Identity());
+	CurveDistMechanic->InitializePolyCurve(CurPolyLine, UE::Geometry::FTransform3d::Identity());
 
 	InitializePreviewMesh();
 

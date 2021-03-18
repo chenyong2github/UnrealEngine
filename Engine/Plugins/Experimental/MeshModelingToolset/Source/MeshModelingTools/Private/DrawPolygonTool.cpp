@@ -352,7 +352,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 			FVector3d P0(DrawSnapLine.PointAt(-9999)), P1(DrawSnapLine.PointAt(9999));		// should be smarter here...
 			if (RenderCameraState.bIsOrthographic == false)
 			{
-				FPlane3d CameraPlane(RenderCameraState.Forward(), RenderCameraState.Position + 1.0*RenderCameraState.Forward());
+				UE::Geometry::FPlane3d CameraPlane(RenderCameraState.Forward(), RenderCameraState.Position + 1.0*RenderCameraState.Forward());
 				CameraPlane.ClipSegment(P0, P1);
 			}
 			PDI->DrawLine((FVector)P0, (FVector)P1, SnapLineColor, SDPG_Foreground, 0.5 * PDIScale, 0.0f, true);

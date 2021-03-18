@@ -217,7 +217,7 @@ void UUVLayoutPreview::RecalculatePosition()
 
 	CurrentWorldFrame = ObjFrame;
 
-	FTransform3d Transform(ObjFrame.Rotation, ObjFrame.Origin);
+	UE::Geometry::FTransform3d Transform(ObjFrame.Rotation, ObjFrame.Origin);
 	Transform.SetScale(UseScale * FVector3d::One());
 
 	SetTransform((FTransform)Transform);

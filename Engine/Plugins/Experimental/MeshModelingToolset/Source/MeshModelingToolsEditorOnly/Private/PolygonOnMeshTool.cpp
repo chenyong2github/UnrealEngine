@@ -84,7 +84,7 @@ void UPolygonOnMeshTool::Setup()
 	HoverBehavior->Initialize(this);
 	AddInputBehavior(HoverBehavior);
 
-	WorldTransform = FTransform3d(ComponentTarget->GetWorldTransform());
+	WorldTransform = UE::Geometry::FTransform3d(ComponentTarget->GetWorldTransform());
 
 	// hide input StaticMeshComponent
 	ComponentTarget->SetOwnerVisibility(false);
@@ -264,7 +264,7 @@ TUniquePtr<FDynamicMeshOperator> UPolygonOnMeshTool::MakeNewOperator()
 	EmbedOp->bAttemptFixHolesOnBoolean = BasicProperties->bAttemptFixHoles;
 
 	FFrame3d LocalFrame = DrawPlaneWorld;
-	FTransform3d ToLocal = WorldTransform.Inverse();
+	UE::Geometry::FTransform3d ToLocal = WorldTransform.Inverse();
 	LocalFrame.Transform(ToLocal);
 	EmbedOp->PolygonFrame = LocalFrame;
 	

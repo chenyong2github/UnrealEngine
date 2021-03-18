@@ -438,7 +438,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 		// to do this for perspective mode, we would have picked a plane through the edge and the camera origin.
 		int32 ClosestEid = Topology->GetGroupEdgeEdges(ClosestElement->ID)[ClosestElement->PolySegmentIdx];
 		FDynamicMesh3::FEdge ClosestEdge = Mesh->GetEdge(ClosestEid);
-		FPlane3d PlaneThroughClosestEdge(Mesh->GetVertex(ClosestEdge.Vert.A), Mesh->GetVertex(ClosestEdge.Vert.B), 
+		UE::Geometry::FPlane3d PlaneThroughClosestEdge(Mesh->GetVertex(ClosestEdge.Vert.A), Mesh->GetVertex(ClosestEdge.Vert.B), 
 			Mesh->GetVertex(ClosestEdge.Vert.A) + Ray.Direction);
 
 		for (const FGeometrySet3::FNearest& Element : ElementsWithinTolerance)
@@ -473,7 +473,7 @@ bool FGroupTopologySelector::DoEdgeBasedSelection(const FSelectionSettings& Sett
 
 		// Grab a plane through the two verts that contains the ray direction (again, this is assuming that we'd
 		// only do this in ortho mode, otherwise the plane would go through the ray origin.
-		FPlane3d PlaneThroughClosestEdge(VertA, VertB, VertA + Ray.Direction);
+		UE::Geometry::FPlane3d PlaneThroughClosestEdge(VertA, VertB, VertA + Ray.Direction);
 
 		// Checking that the face is coplanar simply entails checking that the opposite vert is in the plane. However,
 		// it is possible even for the closest edge to have multiple coplanar faces if a group going towards

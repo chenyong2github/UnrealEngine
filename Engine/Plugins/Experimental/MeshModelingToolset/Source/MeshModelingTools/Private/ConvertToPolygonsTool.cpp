@@ -120,7 +120,7 @@ public:
 
 	void SetTransform(const FTransform& Transform)
 	{
-		ResultTransform = (FTransform3d)Transform;
+		ResultTransform = (UE::Geometry::FTransform3d)Transform;
 	}
 
 	

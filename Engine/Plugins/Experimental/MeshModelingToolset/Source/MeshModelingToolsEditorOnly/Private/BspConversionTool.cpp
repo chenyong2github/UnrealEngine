@@ -33,9 +33,9 @@ using namespace UE::Geometry;
 void ConvertBrushesToDynamicMesh(TArray<ABrush*>& BrushesToConvert, FDynamicMesh3& OutputMesh, 
 	TArray<UMaterialInterface*>& OutputMaterials);
 void ApplyStaticMeshBooleanOperation(
-	FDynamicMesh3& MeshA, const FTransform3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
-	FDynamicMesh3& MeshB, const FTransform3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
-	FDynamicMesh3& OutputMesh, FTransform3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
+	FDynamicMesh3& MeshA, const UE::Geometry::FTransform3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
+	FDynamicMesh3& MeshB, const UE::Geometry::FTransform3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
+	FDynamicMesh3& OutputMesh, UE::Geometry::FTransform3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
 	FMeshBoolean::EBooleanOp Operation);
 FText GetBrushGeometryErrorMessage(ABrush* Brush);
 
@@ -215,7 +215,7 @@ void UBspConversionTool::Shutdown(EToolShutdownType ShutdownType)
 			// Create the final actor
 			AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 				AssetAPI, TargetWorld,
-				PreviewMesh->GetMesh(), (FTransform3d)PreviewMesh->GetTransform(),
+				PreviewMesh->GetMesh(), (UE::Geometry::FTransform3d)PreviewMesh->GetTransform(),
 				TEXT("BspConvertedToStaticMesh"), Materials);
 
 			if (NewActor)
@@ -362,7 +362,7 @@ bool UBspConversionTool::CombineThenConvert(FText*)
 	}
 
 	MeshTransforms::Translate(OutputMesh, -NewPivot);
-	FTransform3d Transform = FTransform3d::Identity();
+	UE::Geometry::FTransform3d Transform = UE::Geometry::FTransform3d::Identity();
 	Transform.SetTranslation(NewPivot);
 
 	PreviewMesh->UpdatePreview(&OutputMesh);
@@ -392,14 +392,14 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 	// We'll need temporary space to store meshes as we build them up. The input and output meshes,
 	// transforms, and material arrays will swap after we merge in each new mesh.
 	FDynamicMesh3 MeshStorage[2];
-	FTransform3d TransformStorage[2];
+	UE::Geometry::FTransform3d TransformStorage[2];
 	TArray<UMaterialInterface*> MaterialArraysStorage[2];
 
 	FDynamicMesh3* InputMesh = &MeshStorage[0];
 	FDynamicMesh3* OutputMesh = &MeshStorage[1];
 	
-	FTransform3d* InputTransform = &TransformStorage[0];
-	FTransform3d* OutputTransform = &TransformStorage[1];
+	UE::Geometry::FTransform3d* InputTransform = &TransformStorage[0];
+	UE::Geometry::FTransform3d* OutputTransform = &TransformStorage[1];
 
 	TArray<UMaterialInterface*>* InputMaterials = &MaterialArraysStorage[0];
 	TArray<UMaterialInterface*>* OutputMaterials = &MaterialArraysStorage[1];
@@ -411,7 +411,7 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 	FDynamicMesh3 NextMesh;
 
 	// The transform when a brush is first converted is always the same
-	FTransform3d NextTransform = FTransform3d::Identity();
+	UE::Geometry::FTransform3d NextTransform = UE::Geometry::FTransform3d::Identity();
 
 	// We could actually point to cached materials since we don't change these, but for consistency,
 	// we'll have a local copy.
@@ -444,7 +444,7 @@ bool UBspConversionTool::ConvertThenCombine(FText *ErrorMessage)
 					MakeShared<const TArray<UMaterialInterface*>>(*OutputMaterials)));
 			}
 		}
-		*OutputTransform = FTransform3d::Identity(); // Always identity when first converted
+		*OutputTransform = UE::Geometry::FTransform3d::Identity(); // Always identity when first converted
 
 		// Check validity for the purposes of boolean operations. We'll do this after each brush conversion.
 		if (!OutputMesh->CheckValidity(FDynamicMesh3::FValidityOptions(), EValidityCheckFailMode::ReturnOnly))
@@ -584,9 +584,9 @@ void ConvertBrushesToDynamicMesh(TArray<ABrush*>& BrushesToConvert, FDynamicMesh
 }
 
 void ApplyStaticMeshBooleanOperation(
-	FDynamicMesh3& MeshA, const FTransform3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
-	FDynamicMesh3& MeshB, const FTransform3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
-	FDynamicMesh3& OutputMesh, FTransform3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
+	FDynamicMesh3& MeshA, const UE::Geometry::FTransform3d& TransformA, const TArray<UMaterialInterface*>& MaterialsA,
+	FDynamicMesh3& MeshB, const UE::Geometry::FTransform3d& TransformB, const TArray<UMaterialInterface*>& MaterialsB,
+	FDynamicMesh3& OutputMesh, UE::Geometry::FTransform3d& OutputTransform, TArray<UMaterialInterface*>& OutputMaterials,
 	FMeshBoolean::EBooleanOp Operation)
 {
 	// These need to be enabled on both meshes to deal with materials properly. This is relevant, for

@@ -411,7 +411,7 @@ void UGenerateLODMeshesTool::GenerateAssets()
 
 		AActor* NewActor = AssetGenerationUtil::GenerateStaticMeshActor(
 			AssetAPI, TargetWorld,
-			Result.Mesh.Get(), FTransform3d(Transform), Name, MaterialSet.Materials);
+			Result.Mesh.Get(), UE::Geometry::FTransform3d(Transform), Name, MaterialSet.Materials);
 	}
 
 	GetToolManager()->EndUndoTransaction();

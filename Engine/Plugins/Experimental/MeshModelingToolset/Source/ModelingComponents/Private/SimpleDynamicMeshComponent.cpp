@@ -162,7 +162,7 @@ void USimpleDynamicMeshComponent::InitializeNewMesh()
 }
 
 
-void USimpleDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, bool bInvert)
+void USimpleDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
 {
 	if (bInvert)
 	{

@@ -178,7 +178,7 @@ void UDragAlignmentMechanic::OnGizmoTransformChanged(FTransform NewTransform)
 }
 
 void UDragAlignmentMechanic::InitializeDeformedMeshRayCast(TFunction<FDynamicMeshAABBTree3* ()> GetSpatialIn, 
-	const FTransform3d &TargetTransform, const FGroupTopologyDeformer* LinearDeformer)
+	const UE::Geometry::FTransform3d &TargetTransform, const FGroupTopologyDeformer* LinearDeformer)
 {
 	// Use the deformer to create a way to filter out triangles we don't want to be hitting (the ones we're manipulating)
 	const FDynamicMesh3* Mesh = LinearDeformer->GetMesh();

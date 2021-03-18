@@ -89,7 +89,7 @@ void ULatticeDeformerTool::InitializeLattice(TArray<FVector3d>& OutLatticePoints
 	Lattice->GenerateInitialLatticePositions(OutLatticePoints);
 
 	// Put the lattice in world space
-	FTransform3d LocalToWorld = FTransform3d(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
 	Algo::ForEach(OutLatticePoints, [&LocalToWorld](FVector3d& Point) {
 		Point = LocalToWorld.TransformPosition(Point);
 	});
@@ -144,7 +144,7 @@ void ULatticeDeformerTool::Setup()
 	ControlPointsMechanic = NewObject<ULatticeControlPointsMechanic>(this);
 	ControlPointsMechanic->Setup(this);
 	ControlPointsMechanic->SetWorld(TargetWorld);
-	FTransform3d LocalToWorld = FTransform3d(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
 	ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges, LocalToWorld);
 
 	auto OnPointsChangedLambda = [this]()
@@ -180,7 +180,7 @@ void ULatticeDeformerTool::Shutdown(EToolShutdownType ShutdownType)
 
 			// The lattice and its output mesh are in world space, so get them in local space.
 			// TODO: Would it make more sense to do all the lattice computation in local space?
-			FTransform3d LocalToWorld = FTransform3d(ComponentTarget->GetWorldTransform());
+			UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
 			MeshTransforms::ApplyTransformInverse(*DynamicMeshResult, LocalToWorld);
 
 			ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
@@ -235,7 +235,7 @@ void ULatticeDeformerTool::OnTick(float DeltaTime)
 			TArray<FVector3d> LatticePoints;
 			TArray<FVector2i> LatticeEdges;
 			InitializeLattice(LatticePoints, LatticeEdges);
-			FTransform3d LocalToWorld = FTransform3d(ComponentTarget->GetWorldTransform());
+			UE::Geometry::FTransform3d LocalToWorld(ComponentTarget->GetWorldTransform());
 			ControlPointsMechanic->Initialize(LatticePoints, LatticeEdges, LocalToWorld);
 			Preview->InvalidateResult();
 			bShouldRebuild = false;

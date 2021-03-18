@@ -316,7 +316,7 @@ bool UPreviewMesh::FindRayIntersection(const FRay3d& WorldRay, FHitResult& HitOu
 {
 	if (IsVisible() && TemporaryParentActor != nullptr && bBuildSpatialDataStructure)
 	{
-		FTransform3d Transform(TemporaryParentActor->GetActorTransform());
+		UE::Geometry::FTransform3d Transform(TemporaryParentActor->GetActorTransform());
 		FRay3d LocalRay(Transform.InverseTransformPosition(WorldRay.Origin),
 			Transform.InverseTransformVector(WorldRay.Direction));
 		UE::Geometry::Normalize(LocalRay.Direction);
@@ -343,7 +343,7 @@ bool UPreviewMesh::FindRayIntersection(const FRay3d& WorldRay, FHitResult& HitOu
 
 FVector3d UPreviewMesh::FindNearestPoint(const FVector3d& WorldPoint, bool bLinearSearch)
 {
-	FTransform3d Transform(TemporaryParentActor->GetActorTransform());
+	UE::Geometry::FTransform3d Transform(TemporaryParentActor->GetActorTransform());
 	FVector3d LocalPoint = Transform.TransformPosition(WorldPoint);
 	const FDynamicMesh3* UseMesh = GetMesh();
 	if (bLinearSearch)

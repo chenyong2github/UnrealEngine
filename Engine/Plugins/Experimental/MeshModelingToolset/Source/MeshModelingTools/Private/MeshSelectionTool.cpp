@@ -404,7 +404,7 @@ void UMeshSelectionTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray
 
 void UMeshSelectionTool::CalculateTriangleROI(const FBrushStampData& Stamp, TArray<int>& TriangleROI)
 {
-	FTransform3d Transform(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d Transform(ComponentTarget->GetWorldTransform());
 	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
 
 	// always select first triangle
@@ -1348,7 +1348,7 @@ void UMeshSelectionTool::SeparateSelectedTriangles()
 	Editor.AppendTriangles(SourceMesh, SelectedFaces, Mappings, EditResult);
 
 	// emit new asset
-	FTransform3d Transform(PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d Transform(PreviewMesh->GetTransform());
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelectionToolSeparate", "Separate"));
 
 	// build array of materials from the original

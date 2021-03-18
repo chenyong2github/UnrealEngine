@@ -323,7 +323,7 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 		FActorSpawnParameters SpawnParameters;
 		SpawnParameters.Template = LastGenerated->Actor;
-		FTransform3d CurTransform(PreviewMesh->GetTransform());
+		UE::Geometry::FTransform3d CurTransform(PreviewMesh->GetTransform());
 		FRotator Rotation(0.0f, 0.0f, 0.0f);
 		AStaticMeshActor* CloneActor = TargetWorld->SpawnActor<AStaticMeshActor>(FVector::ZeroVector, Rotation, SpawnParameters);
 		// some properties must be manually set on the component because they will not persist reliably through the spawn template (especially if the actor creation was undone)
@@ -339,7 +339,7 @@ void UAddPrimitiveTool::OnClicked(const FInputDeviceRay& DeviceClickPos)
 	}
 
 	const FDynamicMesh3* CurMesh = PreviewMesh->GetPreviewDynamicMesh();
-	FTransform3d CurTransform(PreviewMesh->GetTransform());
+	UE::Geometry::FTransform3d CurTransform(PreviewMesh->GetTransform());
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("AddPrimitiveToolTransactionName", "Add Primitive Mesh"));
 

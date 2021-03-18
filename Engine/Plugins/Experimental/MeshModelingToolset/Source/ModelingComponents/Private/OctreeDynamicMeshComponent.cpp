@@ -94,7 +94,7 @@ void UOctreeDynamicMeshComponent::InitializeNewMesh()
 
 
 
-void UOctreeDynamicMeshComponent::ApplyTransform(const FTransform3d& Transform, bool bInvert)
+void UOctreeDynamicMeshComponent::ApplyTransform(const UE::Geometry::FTransform3d& Transform, bool bInvert)
 {
 	if (bInvert)
 	{

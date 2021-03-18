@@ -275,7 +275,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 
 			OccluderTrees[TargetIdx] = MakeShared<FDynamicMeshAABBTree3, ESPMode::ThreadSafe>(OriginalDynamicMeshes[PreviewIdx].Get());
 			OccluderWindings[TargetIdx] = MakeShared<TFastWindingTree<FDynamicMesh3>, ESPMode::ThreadSafe>(OccluderTrees[TargetIdx].Get());
-			OccluderTransforms[TargetIdx] = (FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
+			OccluderTransforms[TargetIdx] = (UE::Geometry::FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
 
 			// configure secondary render material
 			Preview->SecondaryMaterial = OccludedMaterial;
@@ -309,7 +309,7 @@ void URemoveOccludedTrianglesTool::SetupPreviews()
 
 			OccluderTrees[TargetIdx] = OccluderTrees[PreviewToTargetIdx[PreviewIdx]];
 			OccluderWindings[TargetIdx] = OccluderWindings[PreviewToTargetIdx[PreviewIdx]];
-			OccluderTransforms[TargetIdx] = (FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
+			OccluderTransforms[TargetIdx] = (UE::Geometry::FTransform3d)TargetComponentInterface(TargetIdx)->GetWorldTransform();
 
 			PreviewMesh->SetSecondaryRenderMaterial(OccludedMaterial);
 			PreviewMesh->EnableSecondaryTriangleBuffers(MoveTemp(IsOccludedGroupFn));
@@ -407,7 +407,7 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 		int32 TargetIdx = Tool->PreviewToTargetIdx[PreviewIdx];
 		Op->OccluderTrees.Add(Tool->OccluderTrees[TargetIdx]);
 		Op->OccluderWindings.Add(Tool->OccluderWindings[TargetIdx]);
-		Op->OccluderTransforms.Add(FTransform3d::Identity());
+		Op->OccluderTransforms.Add(UE::Geometry::FTransform3d::Identity());
 	}
 	else
 	{
@@ -428,10 +428,10 @@ TUniquePtr<FDynamicMeshOperator> URemoveOccludedTrianglesOperatorFactory::MakeNe
 	
 	Op->SetTransform(LocalToWorld);
 
-	Op->MeshTransforms.Add((FTransform3d)LocalToWorld);
+	Op->MeshTransforms.Add((UE::Geometry::FTransform3d)LocalToWorld);
 	for (int32 CopyIdx : Tool->PreviewToCopyIdx[PreviewIdx])
 	{
-		Op->MeshTransforms.Add((FTransform3d)Tool->PreviewCopies[CopyIdx]->GetTransform());
+		Op->MeshTransforms.Add((UE::Geometry::FTransform3d)Tool->PreviewCopies[CopyIdx]->GetTransform());
 	}
 
 	return Op;

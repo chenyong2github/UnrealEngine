@@ -34,7 +34,7 @@ void FTransformTypesSpec::Define()
 				FVector Translation = MakeRandomVector();
 				FVector Scale = FVector(1.1f,1.1f,1.1f) + MakeRandomVector();		// need to stay away from zero scale or floats will explode and precision is too low
 				FTransform UETransform(Rotation, Translation, Scale);
-				FTransform3f GPTransform(UETransform);
+				UE::Geometry::FTransform3f GPTransform(UETransform);
 
 				float tol = 0.001f;		// float precision is very bad...some float comparisons will fail at 0.0001f
 				for (int j = 0; j < 1000; ++j)

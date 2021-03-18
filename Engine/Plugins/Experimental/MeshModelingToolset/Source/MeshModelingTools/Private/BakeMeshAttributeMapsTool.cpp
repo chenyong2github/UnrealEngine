@@ -346,9 +346,9 @@ void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 	Converter.Convert(DetailMeshProvider->GetMeshDescription(), *DetailMesh);
 	if (Settings->bUseWorldSpace && bIsBakeToSelf == false)
 	{
-		FTransform3d DetailToWorld(DetailComponent->GetWorldTransform());
+		UE::Geometry::FTransform3d DetailToWorld(DetailComponent->GetWorldTransform());
 		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
-		FTransform3d WorldToBase(TargetComponent->GetWorldTransform());
+		UE::Geometry::FTransform3d WorldToBase(TargetComponent->GetWorldTransform());
 		MeshTransforms::ApplyTransform(*DetailMesh, WorldToBase.Inverse());
 	}
 	

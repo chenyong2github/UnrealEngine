@@ -98,7 +98,7 @@ FPointSetAdapterd MeshAdapterUtil::MakeBoundaryEdgeMidpointsAdapter(const FDynam
 FTriangleMeshAdapterd MeshAdapterUtil::MakeTransformedDynamicMeshAdapter(const FDynamicMesh3* Mesh, FTransform Transform)
 {
 	FTriangleMeshAdapterd Adapter = MakeDynamicMeshAdapter(Mesh);
-	FTransform3d Transformd(Transform);
+	UE::Geometry::FTransform3d Transformd(Transform);
 	Adapter.GetVertex = [Mesh, Transformd](int32 Idx)
 	{
 		return FVector3d(Transformd.TransformPosition(Mesh->GetVertex(Idx)));

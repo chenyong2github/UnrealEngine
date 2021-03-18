@@ -87,7 +87,7 @@ TUniquePtr<FDynamicMeshOperator> UMirrorOperatorFactory::MakeNewOperator()
 		}
 	}
 	LocalToWorld.SetScale3D(LocalToWorldScale);
-	FTransform3d WorldToLocal = FTransform3d(LocalToWorld).Inverse();
+	UE::Geometry::FTransform3d WorldToLocal = UE::Geometry::FTransform3d(LocalToWorld).Inverse();
 
 	// Now we can get the plane parameters in local space.
 	MirrorOp->LocalPlaneOrigin = WorldToLocal.TransformPosition(MirrorTool->MirrorPlaneOrigin);;

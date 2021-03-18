@@ -13,6 +13,7 @@
 namespace MeshTransforms
 {
 	using namespace UE::Geometry;
+	using UE::Geometry::FTransform3d;
 
 	/**
 	 * Apply Translation to vertex positions of Mesh. Does not modify any other attributes.
