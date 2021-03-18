@@ -134,7 +134,7 @@ void Linux_PlatformCreateDummyGLWindow( FPlatformOpenGLContext *OutContext )
 	}
 	else
 	{
-		SDL_SetWindowTitle(DummyWindow, "UE4 Dummy GL window");
+		SDL_SetWindowTitle(DummyWindow, "UnrealEditor Dummy GL window");
 	}
 
 	OutContext->hWnd					= DummyWindow;

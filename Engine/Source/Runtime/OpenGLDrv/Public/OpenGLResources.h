@@ -616,7 +616,7 @@ public:
 				// we can stick with the STATIC_DRAW hint workaround for glBufferData().
 				//
 				// We haven't seen the buffer mapping/unmapping issue show up elsewhere in the pipeline in our test scenes. 
-				// However, depending on the UE4 features that are used, this issue might pop up elsewhere that we're yet to see.
+				// However, depending on the UnrealEditor features that are used, this issue might pop up elsewhere that we're yet to see.
 				// As there are concerns for maximum number of bone matrices, going for the GL_STATIC_DRAW hint should be safer, 
 				// given the fact that it won't constrain the actual usage of the data store as per the OpenGL4 spec.
 #if PLATFORM_LUMINGL4

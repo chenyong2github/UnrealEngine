@@ -766,7 +766,7 @@ void FOpenGLDynamicRHI::SetupTexturesForDraw( FOpenGLContextState& ContextState,
 	{
 		if (!NeededBits[TextureStageIndex])
 		{
-			// Current program doesn't make use of this texture stage. No matter what UE4 wants to have on in,
+			// Current program doesn't make use of this texture stage. No matter what UnrealEditor wants to have on in,
 			// it won't be useful for this draw, so telling OpenGL we don't really need it to give the driver
 			// more leeway in memory management, and avoid false alarms about same texture being set on
 			// texture stage and in framebuffer.

@@ -154,7 +154,7 @@ void FOpenGLES::ProcessQueryGLInt()
 	if (MaxVertexAttribs < 16)
 	{
 		UE_LOG(LogRHI, Error,
-			TEXT("Device reports support for %d vertex attributes, UE4 requires 16. Rendering artifacts may occur."),
+			TEXT("Device reports support for %d vertex attributes, UnrealEditor requires 16. Rendering artifacts may occur."),
 			MaxVertexAttribs
 		);
 	}
@@ -180,7 +180,7 @@ void FOpenGLES::ProcessQueryGLInt()
 	if (MaxVertexUniformComponents < RequiredMaxVertexUniformComponents)
 	{
 		UE_LOG(LogRHI, Warning,
-			TEXT("Device reports support for %d vertex uniform vectors, UE4 requires %d. Rendering artifacts may occur, especially with skeletal meshes. Some drivers, e.g. iOS, report a smaller number than is actually supported."),
+			TEXT("Device reports support for %d vertex uniform vectors, UnrealEditor requires %d. Rendering artifacts may occur, especially with skeletal meshes. Some drivers, e.g. iOS, report a smaller number than is actually supported."),
 			MaxVertexUniformComponents,
 			RequiredMaxVertexUniformComponents
 		);
