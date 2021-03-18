@@ -38,13 +38,13 @@ namespace UE_NETWORK_PHYSICS
 
 struct FNetworkPhysicsRewindCallback : public Chaos::IRewindCallback
 {
-	bool CompareVec(const FVector& A, const FVector& B, const float D, TCHAR* Str)
+	bool CompareVec(const FVector& A, const FVector& B, const float D, const TCHAR* Str)
 	{
 		const bool b = FVector::DistSquared(A, B) > D * D;
 		UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections && b, LogNetworkPhysics, Log, TEXT("%s correction. Local: %s. Server: %s. Delta: %s (%d)"), Str, *A.ToString(), *B.ToString(), *(A-B).ToString(), (A-B).Size());
 		return  b;
 	}
-	bool CompareQuat(const FQuat& A, const FQuat& B, const float D, TCHAR* Str)
+	bool CompareQuat(const FQuat& A, const FQuat& B, const float D, const TCHAR* Str)
 	{
 		const bool b = FQuat::ErrorAutoNormalize(A, B) > D;
 		UE_CLOG(UE_NETWORK_PHYSICS::bLogCorrections && b, LogNetworkPhysics, Log, TEXT("%s correction. Local: %s. Server: %s. Delta: %f"), Str, *A.ToString(), *B.ToString(), FQuat::ErrorAutoNormalize(A, B));
