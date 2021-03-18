@@ -15,7 +15,6 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "HairStrandsEditor.h"
 #include "GroomEditorCommands.h"
-#include "GroomEditorMode.h"
 #include "GroomEditorStyle.h"
 #include "GroomAssetDetails.h"
 #include "GroomMaterialDetails.h"
@@ -106,12 +105,6 @@ void FGroomCustomAssetEditorToolkit::UnregisterTabSpawners(const TSharedRef<clas
 #if GROOMEDITOR_ENABLE_COMPONENT_PANEL
 	InTabManager->UnregisterTabSpawner(TabId_PreviewGroomComponent);
 #endif
-}
-
-FEdMode* FGroomCustomAssetEditorToolkit::GetEditorMode() const 
-{
-	static FGroomEditorMode *Mode = new FGroomEditorMode;
-	return Mode;
 }
 
 static uint32 GOpenedGroomEditorCount = 0;

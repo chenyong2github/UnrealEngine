@@ -60,7 +60,6 @@ public:
 	virtual FString GetWorldCentricTabPrefix() const override;
 	virtual FLinearColor GetWorldCentricTabColorScale() const override;
 	virtual bool IsPrimaryEditor() const override { return true; }
-	FEdMode* GetEditorMode() const override;
 	virtual bool OnRequestClose() override;
 	/** End IToolkit interface */
 

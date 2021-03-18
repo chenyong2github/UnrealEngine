@@ -14,7 +14,6 @@
 #include "FbxHairTranslator.h"
 
 #include "GroomEditorCommands.h"
-#include "GroomEditorMode.h"
 #include "GroomAsset.h"
 #include "GroomComponentDetailsCustomization.h"
 
@@ -107,11 +106,6 @@ void FGroomEditor::StartupModule()
 	}
 
 	FGroomEditorCommands::Register();
-	FEditorModeRegistry::Get().RegisterMode<FGroomEditorMode>(
-		FGroomEditorMode::EM_GroomEditorModeId,
-		LOCTEXT("GroomEditorMode", "Groom Editor"),
-		FSlateIcon(),
-		false);
 
 	// Asset create/edition helper/wrapper for creating/edition asset withn the HairStrandsCore 
 	// project without any editor dependencies
@@ -124,8 +118,6 @@ void FGroomEditor::StartupModule()
 
 void FGroomEditor::ShutdownModule()
 {
-	FEditorModeRegistry::Get().UnregisterMode(FGroomEditorMode::EM_GroomEditorModeId);
-
 	// #ueent_todo: Unregister the translators
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
 
