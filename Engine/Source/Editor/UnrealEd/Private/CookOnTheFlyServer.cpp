@@ -3115,7 +3115,10 @@ void UCookOnTheFlyServer::TickPrecacheObjectsForPlatforms(const float TimeSlice,
 			{
 				continue;
 			}
-			Texture->BeginCacheForCookedPlatformData(TargetPlatform);
+			if (!Texture->IsCachedCookedPlatformDataLoaded(TargetPlatform))
+			{
+				Texture->BeginCacheForCookedPlatformData(TargetPlatform);
+			}
 		}
 		if (Timer.IsTimeUp())
 		{
