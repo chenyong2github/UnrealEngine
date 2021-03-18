@@ -189,7 +189,7 @@ const FSlateBrush* SPropertyEditorTableRow::OnGetFavoriteImage() const
 {
 	if( PropertyEditor->IsFavorite() )
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Favorites_Enabled"));
+		return FEditorStyle::GetBrush(TEXT("Icons.Star"));
 	}
 
 	return FEditorStyle::GetBrush(TEXT("PropertyWindow.Favorites_Disabled"));

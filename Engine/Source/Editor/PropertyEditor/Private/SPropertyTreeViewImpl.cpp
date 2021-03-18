@@ -381,7 +381,7 @@ const FSlateBrush* SPropertyTreeViewImpl::OnGetFavoriteButtonImageResource() con
 {
 	if( bFavoritesEnabled )
 	{
-		return FEditorStyle::GetBrush(TEXT("PropertyWindow.Favorites_Enabled"));
+		return FEditorStyle::GetBrush(TEXT("Icons.Star"));
 	}
 	else
 	{

@@ -262,7 +262,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 				[
 					SNew(SImage)
 					.ColorAndOpacity(this, &SDetailsView::GetToggleFavoritesColor)
-					.Image(FAppStyle::Get().GetBrush("PropertyWindow.Favorites_Enabled"))
+					.Image(FAppStyle::Get().GetBrush("Icons.Star"))
 				]
 			];
 	}

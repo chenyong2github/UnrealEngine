@@ -289,7 +289,7 @@ void SBlueprintFavoritesPalette::Construct(FArguments const& InArgs, TWeakPtr<FB
 {
 	SBlueprintSubPalette::FArguments SuperArgs;
 	SuperArgs._Title       = LOCTEXT("PaletteTitle", "Favorites");
-	SuperArgs._Icon        = FEditorStyle::GetBrush("Kismet.Palette.Favorites");
+	SuperArgs._Icon        = FEditorStyle::GetBrush("Icons.Star");
 	SuperArgs._ToolTipText = LOCTEXT("PaletteToolTip", "A listing of your favorite and most used nodes.");
 
 	static FString const ShowFreqUsedConfigKey("bShowFrequentlyUsed");

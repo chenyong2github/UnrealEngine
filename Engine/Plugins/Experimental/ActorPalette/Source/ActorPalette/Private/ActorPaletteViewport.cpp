@@ -66,7 +66,7 @@ public:
 						.Image_Lambda([this]()
 						{
 							return FEditorStyle::GetBrush(GetDefault<UActorPaletteSettings>()->FavoritesList.Contains(AssetData.ObjectPath.ToString()) ?
-								TEXT("PropertyWindow.Favorites_Enabled") :
+								TEXT("Icons.Star") :
 								TEXT("PropertyWindow.Favorites_Disabled"));
 						})
 					]

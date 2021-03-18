@@ -3118,7 +3118,6 @@ void FStarshipEditorStyle::FStyle::SetupPropertyEditorStyles()
 
 		Set( "PropertyWindow.FilterSearch", new IMAGE_BRUSH( "Old/FilterSearch", Icon16x16 ) );
 		Set( "PropertyWindow.FilterCancel", new IMAGE_BRUSH( "Old/FilterCancel", Icon16x16 ) );
-		Set( "PropertyWindow.Favorites_Enabled", new IMAGE_BRUSH( "Icons/Star_16x", Icon16x16 ) );
 		Set( "PropertyWindow.Favorites_Disabled", new IMAGE_BRUSH( "Icons/EmptyStar_16x", Icon16x16 ) );
 		Set( "PropertyWindow.Locked", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/lock", Icon16x16 ) );
 		Set( "PropertyWindow.Unlocked", new CORE_IMAGE_BRUSH_SVG( "Starship/Common/lock-unlocked", Icon16x16 ) );
@@ -5173,9 +5172,6 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 			Set( "Kismet.Tabs.Components", new IMAGE_BRUSH_SVG( "Starship/Common/Component", Icon16x16 ) );
 			Set( "Kismet.Tabs.BlueprintDefaults", new IMAGE_BRUSH( "Icons/icon_BlueprintEditor_Defaults_40x", Icon16x16 ) );
 		}
-
-		// this should be moved to a generic icon in the core style. Icons.Star
-		Set("Kismet.Palette.Favorites", new IMAGE_BRUSH_SVG("Starship/Common/Favorite", Icon16x16));
 
 		const FCheckBoxStyle KismetFavoriteToggleStyle = FCheckBoxStyle()
 			.SetCheckBoxType(ESlateCheckBoxType::CheckBox)

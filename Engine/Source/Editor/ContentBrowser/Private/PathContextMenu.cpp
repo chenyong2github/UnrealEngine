@@ -198,7 +198,7 @@ void FPathContextMenu::MakePathViewContextMenu(UToolMenu* Menu)
 					"AddToFavorites",
 					LOCTEXT("AddToFavorites", "Add To Favorites"),
 					LOCTEXT("AddToFavoritesTooltip", "Adds this folder to the favorites section for easy access."),
-					FSlateIcon(FEditorStyle::GetStyleSetName(), "PropertyWindow.Favorites_Enabled"),
+					FSlateIcon(FEditorStyle::GetStyleSetName(), "Icons.Star"),
 					FUIAction(FExecuteAction::CreateSP(this, &FPathContextMenu::ExecuteFavorite))
 				);
 			}

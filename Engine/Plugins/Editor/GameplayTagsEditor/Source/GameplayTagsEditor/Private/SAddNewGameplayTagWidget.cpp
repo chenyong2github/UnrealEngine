@@ -185,7 +185,7 @@ const FSlateBrush* SAddNewGameplayTagWidget::OnGetTagSourceFavoriteImage() const
 	const FName ActiveTagSource = *TagSourcesComboBox->GetSelectedItem().Get();
 	const bool bIsFavoriteTagSource = FGameplayTagSource::GetFavoriteName() == ActiveTagSource;
 
-	return FEditorStyle::GetBrush(bIsFavoriteTagSource ? TEXT("PropertyWindow.Favorites_Enabled") : TEXT("PropertyWindow.Favorites_Disabled"));
+	return FEditorStyle::GetBrush(bIsFavoriteTagSource ? TEXT("Icons.Star") : TEXT("PropertyWindow.Favorites_Disabled"));
 }
 
 void SAddNewGameplayTagWidget::Tick( const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime )
