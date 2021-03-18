@@ -617,7 +617,7 @@ public:
 
 	/** Used for precomputed visibility */
 	UPROPERTY()
-	int32 VisibilityId;
+	int32 VisibilityId=0;
 
 	/** 
 	 * Array of runtime virtual textures into which we draw the mesh for this actor. 

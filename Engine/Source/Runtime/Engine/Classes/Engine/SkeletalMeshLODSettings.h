@@ -41,7 +41,7 @@ struct FBoneFilter
 	 * You can't remove joint without children removed, and you can't keep without your parents 
 	 */
 	UPROPERTY(EditAnywhere, Category = FBoneFilter)
-	bool bExcludeSelf;
+	bool bExcludeSelf=false;
 
 	/* Name of Bone Name */
 	UPROPERTY(EditAnywhere, Category = FBoneFilter)
