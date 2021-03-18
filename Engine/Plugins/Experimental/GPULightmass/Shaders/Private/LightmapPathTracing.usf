@@ -35,6 +35,7 @@ RWTexture2D<uint> RayGuidingLuminance;
 Texture2D<float> RayGuidingCDFX;
 Texture2D<float> RayGuidingCDFY;
 
+#include "/Engine/Private/ShadingModels.ush"
 #include "/Engine/Private/PathTracing/Utilities/PathTracingRandomSequence.ush"
 #include "/Engine/Private/PathTracing/Light/PathTracingLightSampling.ush"
 #include "/Engine/Private/PathTracing/Material/PathTracingMaterialSampling.ush"
