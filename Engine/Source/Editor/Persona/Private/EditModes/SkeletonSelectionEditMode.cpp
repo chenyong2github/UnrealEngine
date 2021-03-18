@@ -37,26 +37,29 @@ bool FSkeletonSelectionEditMode::GetCameraTarget(FSphere& OutTarget) const
 
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
 
-	if (GetAnimPreviewScene().GetSelectedBoneIndex() != INDEX_NONE)
+	if(PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh)
 	{
-		const int32 FocusBoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
-		if (FocusBoneIndex != INDEX_NONE)
+		if (GetAnimPreviewScene().GetSelectedBoneIndex() != INDEX_NONE)
 		{
-			const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(FocusBoneIndex);
-			OutTarget.Center = PreviewMeshComponent->GetBoneLocation(BoneName);
-			OutTarget.W = 30.0f;
-			bHandled = true;
+			const int32 FocusBoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
+			if (FocusBoneIndex != INDEX_NONE && PreviewMeshComponent->SkeletalMesh->RefSkeleton.IsValidIndex(FocusBoneIndex))
+			{
+				const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(FocusBoneIndex);
+				OutTarget.Center = PreviewMeshComponent->GetBoneLocation(BoneName);
+				OutTarget.W = 30.0f;
+				bHandled = true;
+			}
 		}
-	}
 
-	if (!bHandled && GetAnimPreviewScene().GetSelectedSocket().IsValid())
-	{
-		USkeletalMeshSocket * Socket = GetAnimPreviewScene().GetSelectedSocket().Socket;
-		if (Socket)
+		if (!bHandled && GetAnimPreviewScene().GetSelectedSocket().IsValid())
 		{
-			OutTarget.Center = Socket->GetSocketLocation(PreviewMeshComponent);
-			OutTarget.W = 30.0f;
-			bHandled = true;
+			USkeletalMeshSocket * Socket = GetAnimPreviewScene().GetSelectedSocket().Socket;
+			if (Socket)
+			{
+				OutTarget.Center = Socket->GetSocketLocation(PreviewMeshComponent);
+				OutTarget.W = 30.0f;
+				bHandled = true;
+			}
 		}
 	}
 
@@ -90,77 +93,80 @@ bool FSkeletonSelectionEditMode::StartTracking(FEditorViewportClient* InViewport
 	EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
 	FWidget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
 
-	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
-	USkeletalMeshSocket* SelectedSocket = GetAnimPreviewScene().GetSelectedSocket().Socket;
-	AActor* SelectedActor = GetAnimPreviewScene().GetSelectedActor();
-
-	if (BoneIndex >= 0 || SelectedSocket != nullptr || SelectedActor != nullptr)
+	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
+	if(PreviewMeshComponent != nullptr && PreviewMeshComponent->SkeletalMesh != nullptr)
 	{
-		bool bValidAxis = false;
-		FVector WorldAxisDir;
+		int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
+		USkeletalMeshSocket* SelectedSocket = GetAnimPreviewScene().GetSelectedSocket().Socket;
+		AActor* SelectedActor = GetAnimPreviewScene().GetSelectedActor();
 
-		if ( ((CurrentAxis & EAxisList::XYZ) | (CurrentAxis & EAxisList::Screen)) != 0)
+		if ((BoneIndex >= 0 && PreviewMeshComponent->SkeletalMesh->RefSkeleton.IsValidIndex(BoneIndex)) || SelectedSocket != nullptr || SelectedActor != nullptr)
 		{
-			UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-			FSelectedSocketInfo SelectedSocketInfo = GetAnimPreviewScene().GetSelectedSocket();
-			if (SelectedSocketInfo.IsValid())
+			bool bValidAxis = false;
+			FVector WorldAxisDir;
+
+			if ( ((CurrentAxis & EAxisList::XYZ) | (CurrentAxis & EAxisList::Screen)) != 0)
 			{
-				const bool bAltDown = InViewportClient->IsAltPressed();
-
-				if (bAltDown)
+				FSelectedSocketInfo SelectedSocketInfo = GetAnimPreviewScene().GetSelectedSocket();
+				if (SelectedSocketInfo.IsValid())
 				{
-					// Rather than moving/rotating the selected socket, copy it and move the copy instead
-					SelectedSocketInfo = DuplicateAndSelectSocket(SelectedSocketInfo);
+					const bool bAltDown = InViewportClient->IsAltPressed();
+
+					if (bAltDown)
+					{
+						// Rather than moving/rotating the selected socket, copy it and move the copy instead
+						SelectedSocketInfo = DuplicateAndSelectSocket(SelectedSocketInfo);
+					}
+
+					// Socket movement is transactional - we want undo/redo and saving of it
+					USkeletalMeshSocket* Socket = SelectedSocketInfo.Socket;
+
+					if (Socket && bInTransaction == false)
+					{
+						if (WidgetMode == FWidget::WM_Rotate)
+						{
+							GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_RotateSocket", "Rotate Socket"));
+						}
+						else
+						{
+							GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_TranslateSocket", "Translate Socket"));
+						}
+
+						Socket->SetFlags(RF_Transactional);	// Undo doesn't work without this!
+						Socket->Modify();
+						bInTransaction = true;
+					}
 				}
-
-				// Socket movement is transactional - we want undo/redo and saving of it
-				USkeletalMeshSocket* Socket = SelectedSocketInfo.Socket;
-
-				if (Socket && bInTransaction == false)
+				else if (BoneIndex >= 0)
 				{
-					if (WidgetMode == FWidget::WM_Rotate)
+					if (bInTransaction == false)
 					{
-						GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_RotateSocket", "Rotate Socket"));
-					}
-					else
-					{
-						GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_TranslateSocket", "Translate Socket"));
-					}
+						// we also allow undo/redo of bone manipulations
+						if (WidgetMode == FWidget::WM_Rotate)
+						{
+							GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_RotateBone", "Rotate Bone"));
+						}
+						else
+						{
+							GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_TranslateBone", "Translate Bone"));
+						}
 
-					Socket->SetFlags(RF_Transactional);	// Undo doesn't work without this!
-					Socket->Modify();
-					bInTransaction = true;
+						PreviewMeshComponent->PreviewInstance->SetFlags(RF_Transactional);	// Undo doesn't work without this!
+						PreviewMeshComponent->PreviewInstance->Modify();
+						bInTransaction = true;
+
+						// now modify the bone array
+						const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
+						PreviewMeshComponent->PreviewInstance->ModifyBone(BoneName);
+					}
 				}
 			}
-			else if (BoneIndex >= 0)
-			{
-				if (bInTransaction == false)
-				{
-					// we also allow undo/redo of bone manipulations
-					if (WidgetMode == FWidget::WM_Rotate)
-					{
-						GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_RotateBone", "Rotate Bone"));
-					}
-					else
-					{
-						GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_TranslateBone", "Translate Bone"));
-					}
 
-					PreviewMeshComponent->PreviewInstance->SetFlags(RF_Transactional);	// Undo doesn't work without this!
-					PreviewMeshComponent->PreviewInstance->Modify();
-					bInTransaction = true;
-
-					// now modify the bone array
-					const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
-					PreviewMeshComponent->PreviewInstance->ModifyBone(BoneName);
-				}
-			}
+			bManipulating = true;
+			return true;
 		}
-
-		bManipulating = true;
-		return true;
 	}
-
+	
 	return false;
 }
 
@@ -405,11 +411,14 @@ bool FSkeletonSelectionEditMode::IsSelectedBoneRequired() const
 	{
 		//Get current LOD
 		FSkeletalMeshRenderData* SkelMeshRenderData = PreviewMeshComponent->GetSkeletalMeshRenderData();
-		const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshRenderData->LODRenderData.Num() - 1);
-		FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
+		if(SkelMeshRenderData->LODRenderData.Num() > 0)
+		{
+			const int32 LODIndex = FMath::Clamp(PreviewMeshComponent->PredictedLODLevel, 0, SkelMeshRenderData->LODRenderData.Num() - 1);
+			FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
 
-		//Check whether the bone is vertex weighted
-		return LODData.RequiredBones.Find(SelectedBoneIndex) != INDEX_NONE;
+			//Check whether the bone is vertex weighted
+			return LODData.RequiredBones.Find(SelectedBoneIndex) != INDEX_NONE;
+		}
 	}
 
 	return false;
@@ -439,30 +448,32 @@ bool FSkeletonSelectionEditMode::UsesTransformWidget(FWidget::EWidgetMode CheckM
 bool FSkeletonSelectionEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)
 {
 	UDebugSkelMeshComponent* PreviewMeshComponent = GetAnimPreviewScene().GetPreviewMeshComponent();
-
-	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
-	if (BoneIndex != INDEX_NONE)
+	if(PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh)
 	{
-		FTransform BoneMatrix = PreviewMeshComponent->GetBoneTransform(BoneIndex);
+		int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
+		if (BoneIndex != INDEX_NONE && PreviewMeshComponent->SkeletalMesh->RefSkeleton.IsValidIndex(BoneIndex))
+		{
+			FTransform BoneMatrix = PreviewMeshComponent->GetBoneTransform(BoneIndex);
 
-		InMatrix = BoneMatrix.ToMatrixNoScale().RemoveTranslation();
-		return true;
+			InMatrix = BoneMatrix.ToMatrixNoScale().RemoveTranslation();
+			return true;
+		}
+		else if (GetAnimPreviewScene().GetSelectedSocket().IsValid())
+		{
+			USkeletalMeshSocket* Socket = GetAnimPreviewScene().GetSelectedSocket().Socket;
+
+			FTransform SocketMatrix = Socket->GetSocketTransform(PreviewMeshComponent);
+
+			InMatrix = SocketMatrix.ToMatrixNoScale().RemoveTranslation();
+			return true;
+		}
+		else if (AActor* SelectedActor = GetAnimPreviewScene().GetSelectedActor())
+		{
+			InMatrix = SelectedActor->GetTransform().ToMatrixNoScale().RemoveTranslation();
+			return true;
+		}
 	}
-	else if (GetAnimPreviewScene().GetSelectedSocket().IsValid())
-	{
-		USkeletalMeshSocket* Socket = GetAnimPreviewScene().GetSelectedSocket().Socket;
-
-		FTransform SocketMatrix = Socket->GetSocketTransform(PreviewMeshComponent);
-
-		InMatrix = SocketMatrix.ToMatrixNoScale().RemoveTranslation();
-		return true;
-	}
-	else if (AActor* SelectedActor = GetAnimPreviewScene().GetSelectedActor())
-	{
-		InMatrix = SelectedActor->GetTransform().ToMatrixNoScale().RemoveTranslation();
-		return true;
-	}
-
+	
 	return false;
 }
 
@@ -478,7 +489,7 @@ FVector FSkeletonSelectionEditMode::GetWidgetLocation() const
 	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 	if (BoneIndex != INDEX_NONE)
 	{
-		if (PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh)
+		if (PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh && PreviewMeshComponent->SkeletalMesh->RefSkeleton.IsValidIndex(BoneIndex))
 		{
 			const FName BoneName = PreviewMeshComponent->SkeletalMesh->RefSkeleton.GetBoneName(BoneIndex);
 
