@@ -73,7 +73,7 @@ protected:
 	// UMoviePipelineVideoOutputBase Interface
 	virtual TUniquePtr<MovieRenderPipeline::IVideoCodecWriter> Initialize_GameThread(const FString& InFileName, FIntPoint InResolution, EImagePixelType InPixelType, ERGBFormat InPixelFormat, uint8 InBitDepth, uint8 InNumChannels)  PURE_VIRTUAL(UMoviePipelineVideoOutputBase::Initialize_GameThread, return nullptr; );
 	virtual void Initialize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter) PURE_VIRTUAL(UMoviePipelineVideoOutputBase::Initialize_EncodeThread);
-	virtual void WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData) PURE_VIRTUAL(UMoviePipelineVideoOutputBase::WriteFrame_EncodeThread);
+	virtual void WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData, TArray<MoviePipeline::FCompositePassInfo>&& InCompositePasses) PURE_VIRTUAL(UMoviePipelineVideoOutputBase::WriteFrame_EncodeThread);
 	virtual void BeginFinalize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter) PURE_VIRTUAL(UMoviePipelineVideoOutputBase::BeginFinalize_EncodeThread);
 	virtual void Finalize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter) PURE_VIRTUAL(UMoviePipelineVideoOutputBase::Finalize_EncodeThread);
 	virtual const TCHAR* GetFilenameExtension() const PURE_VIRTUAL(UMoviePipelineVideoOutputBase::GetFilenameExtension, return TEXT(""););

@@ -4,6 +4,7 @@
 #include "CoreMinimal.h"
 #include "Engine/Scene.h"
 #include "Engine/Engine.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 // Forward Declare
 class UClass;
@@ -34,6 +35,9 @@ static UWorld* FindCurrentWorld()
 
 	return World;
 }
+
+MOVIERENDERPIPELINECORE_API void GetPassCompositeData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame, TArray<MoviePipeline::FCompositePassInfo>& OutCompositedPasses);
+
 }
 
 #define MOVIEPIPELINE_STORE_AND_OVERRIDE_CVAR_INT(InOutVariable, CVarName, OverrideValue, bUseOverride) \

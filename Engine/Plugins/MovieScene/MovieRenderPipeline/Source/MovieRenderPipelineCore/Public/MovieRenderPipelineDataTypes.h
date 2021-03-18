@@ -9,6 +9,7 @@
 #include "DSP/BufferVectorOperations.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
 #include "OpenColorIOColorSpace.h"
+#include "Async/ParallelFor.h"
 #include "MovieRenderPipelineDataTypes.generated.h"
 
 class UMovieSceneCinematicShotSection;
@@ -787,10 +788,12 @@ struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<F
 	bool bRequireTransparentOutput;
 
 	int32 SortingOrder;
+	bool bCompositeToFinalImage;
 
 	FImagePixelDataPayload()
 		: bRequireTransparentOutput(false)
 		, SortingOrder(TNumericLimits<int32>::Max())
+		, bCompositeToFinalImage(false)
 	{}
 
 	/** Is this the first tile of an image and we should start accumulating? */
@@ -888,4 +891,148 @@ namespace MoviePipeline
 		/** An array of active submixes we are recording for this shot. Gets cleared when recording stops on a shot. */
 		TArray<TWeakPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>> ActiveSubmixes;
 	};
+
+	struct FCompositePassInfo
+	{
+		FCompositePassInfo() {}
+
+		FMoviePipelinePassIdentifier PassIdentifier;
+		TUniquePtr<FImagePixelData> PixelData;
+	};
 }
+
+/**
+ * A pixel preprocessor for use with FImageWriteTask::PixelPreProcessor that does a simple alpha blend of the provided image onto the
+ * target pixel data. This isn't very general purpose.
+ */
+template<typename PixelType> struct TAsyncCompositeImage;
+
+template<>
+struct TAsyncCompositeImage<FColor>
+{
+	TAsyncCompositeImage(TUniquePtr<FImagePixelData>&& InPixelData)
+		: ImageToComposite(MoveTemp(InPixelData))
+	{}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Color);
+		check(ImageToComposite && ImageToComposite->GetType() == EImagePixelType::Color);
+		if (!ensureMsgf(ImageToComposite->GetSize() == PixelData->GetSize(), TEXT("Cannot composite images of different sizes! Source: (%d,%d) Target: (%d,%d)"),
+			ImageToComposite->GetSize().X, ImageToComposite->GetSize().Y, PixelData->GetSize().X, PixelData->GetSize().Y))
+		{
+			return;
+		}
+
+
+		TImagePixelData<FColor>* DestColorData = static_cast<TImagePixelData<FColor>*>(PixelData);
+		TImagePixelData<FColor>* SrcColorData = static_cast<TImagePixelData<FColor>*>(ImageToComposite.Get());
+
+		ParallelFor(DestColorData->GetSize().Y,
+			[&](int32 ScanlineIndex = 0)
+			{
+				for (int64 ColumnIndex = 0; ColumnIndex < DestColorData->GetSize().X; ColumnIndex++)
+				{
+					int64 DstIndex = int64(ScanlineIndex) * int64(DestColorData->GetSize().X) + int64(ColumnIndex);
+
+					FColor& Dst = DestColorData->Pixels[DstIndex];
+					FColor& Src = SrcColorData->Pixels[DstIndex];
+
+					float SourceAlpha = Src.A / 255.f;
+					FColor Out;
+					Out.A = FMath::Clamp(Src.A + FMath::RoundToInt(Dst.A * (1.f - SourceAlpha)), 0, 255);
+					Out.R = FMath::Clamp(Src.R + FMath::RoundToInt(Dst.R * (1.f - SourceAlpha)), 0, 255);
+					Out.G = FMath::Clamp(Src.G + FMath::RoundToInt(Dst.G * (1.f - SourceAlpha)), 0, 255);
+					Out.B = FMath::Clamp(Src.B + FMath::RoundToInt(Dst.B * (1.f - SourceAlpha)), 0, 255);
+					Dst = Out;
+				}
+			});
+	}
+
+	TUniquePtr<FImagePixelData> ImageToComposite;
+};
+
+template<>
+struct TAsyncCompositeImage<FFloat16Color>
+{
+	TAsyncCompositeImage(TUniquePtr<FImagePixelData>&& InPixelData)
+		: ImageToComposite(MoveTemp(InPixelData))
+	{}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Float16);
+		check(ImageToComposite && ImageToComposite->GetType() == EImagePixelType::Color);
+		if (!ensureMsgf(ImageToComposite->GetSize() == PixelData->GetSize(), TEXT("Cannot composite images of different sizes! Source: (%d,%d) Target: (%d,%d)"),
+			ImageToComposite->GetSize().X, ImageToComposite->GetSize().Y, PixelData->GetSize().X, PixelData->GetSize().Y))
+		{
+			return;
+		}
+
+		TImagePixelData<FFloat16Color>* DestColorData = static_cast<TImagePixelData<FFloat16Color>*>(PixelData);
+		TImagePixelData<FColor>* SrcColorData = static_cast<TImagePixelData<FColor>*>(ImageToComposite.Get());
+		ParallelFor(DestColorData->GetSize().Y,
+			[&](int32 ScanlineIndex = 0)
+			{
+				for (int64 ColumnIndex = 0; ColumnIndex < DestColorData->GetSize().X; ColumnIndex++)
+				{
+					int64 DstIndex = int64(ScanlineIndex) * int64(DestColorData->GetSize().X) + int64(ColumnIndex);
+					FFloat16Color& Dst = DestColorData->Pixels[DstIndex];
+					FColor& Src = SrcColorData->Pixels[DstIndex];
+
+					float SourceAlpha = Src.A / 255.f;
+					FFloat16Color Out;
+					Out.A = (Src.A / 255.f) + (Dst.A * (1.f - SourceAlpha));
+					Out.R = (Src.R / 255.f) + (Dst.R * (1.f - SourceAlpha));
+					Out.G = (Src.G / 255.f) + (Dst.G * (1.f - SourceAlpha));
+					Out.B = (Src.B / 255.f) + (Dst.B * (1.f - SourceAlpha));
+					Dst = Out;
+				}
+			});
+	}
+
+	TUniquePtr<FImagePixelData> ImageToComposite;
+};
+
+template<>
+struct TAsyncCompositeImage<FLinearColor>
+{
+	TAsyncCompositeImage(TUniquePtr<FImagePixelData>&& InPixelData)
+		: ImageToComposite(MoveTemp(InPixelData))
+	{}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Float32);
+		check(ImageToComposite && ImageToComposite->GetType() == EImagePixelType::Color);
+		if (!ensureMsgf(ImageToComposite->GetSize() == PixelData->GetSize(), TEXT("Cannot composite images of different sizes! Source: (%d,%d) Target: (%d,%d)"),
+			ImageToComposite->GetSize().X, ImageToComposite->GetSize().Y, PixelData->GetSize().X, PixelData->GetSize().Y))
+		{
+			return;
+		}
+
+		TImagePixelData<FLinearColor>* DestColorData = static_cast<TImagePixelData<FLinearColor>*>(PixelData);
+		TImagePixelData<FColor>* SrcColorData = static_cast<TImagePixelData<FColor>*>(ImageToComposite.Get());
+
+		ParallelFor(DestColorData->GetSize().Y,
+			[&](int32 ScanlineIndex = 0)
+			{
+				for (int64 ColumnIndex = 0; ColumnIndex < DestColorData->GetSize().X; ColumnIndex++)
+				{
+					int64 DstIndex = int64(ScanlineIndex) * int64(DestColorData->GetSize().X) + int64(ColumnIndex);
+					FLinearColor& Dst = DestColorData->Pixels[DstIndex];
+					FColor& Src = SrcColorData->Pixels[DstIndex];
+
+					float SourceAlpha = Src.A / 255.f;
+					FLinearColor Out;
+					Out.A = (Src.A / 255.f) + (Dst.A * (1.f - SourceAlpha));
+					Out.R = (Src.R / 255.f) + (Dst.R * (1.f - SourceAlpha));
+					Out.G = (Src.G / 255.f) + (Dst.G * (1.f - SourceAlpha));
+					Out.B = (Src.B / 255.f) + (Dst.B * (1.f - SourceAlpha));
+					Dst = Out;
+				}
+			});
+	}
+
+	TUniquePtr<FImagePixelData> ImageToComposite;
+};

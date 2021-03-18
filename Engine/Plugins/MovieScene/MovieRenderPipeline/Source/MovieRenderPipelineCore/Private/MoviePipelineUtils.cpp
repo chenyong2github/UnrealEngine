@@ -78,5 +78,24 @@ namespace UE
 			return AntiAliasingMethod;
 		}
 	}
+}
 
+namespace MoviePipeline
+{
+	void GetPassCompositeData(FMoviePipelineMergerOutputFrame* InMergedOutputFrame, TArray<MoviePipeline::FCompositePassInfo>& OutCompositedPasses)
+	{
+		for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
+		{
+			FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
+			if (Payload->bCompositeToFinalImage)
+			{
+				// Burn in data should always be 8 bit values, this is assumed later when we composite.
+				check(RenderPassData.Value->GetType() == EImagePixelType::Color);
+
+				FCompositePassInfo& Info = OutCompositedPasses.AddDefaulted_GetRef();
+				Info.PassIdentifier = RenderPassData.Key;
+				Info.PixelData = RenderPassData.Value->CopyImageData();
+			}
+		}
+	}
 }

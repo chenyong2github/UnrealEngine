@@ -8,6 +8,8 @@
 #include "MoviePipelineImageQuantization.h"
 #include "SampleBuffer.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "ImageWriteTask.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 // For logs
 #include "MovieRenderPipelineCoreModule.h"
@@ -49,7 +51,7 @@ void UMoviePipelineAppleProResOutput::Initialize_EncodeThread(MovieRenderPipelin
 	}
 }
 
-void UMoviePipelineAppleProResOutput::WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData)
+void UMoviePipelineAppleProResOutput::WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData, TArray<MoviePipeline::FCompositePassInfo>&& InCompositePasses)
 {
 	FProResWriter* CodecWriter = static_cast<FProResWriter*>(InWriter);
 	FImagePixelDataPayload* PipelinePayload = InPixelData->GetPayload<FImagePixelDataPayload>();
@@ -61,8 +63,37 @@ void UMoviePipelineAppleProResOutput::WriteFrame_EncodeThread(MovieRenderPipelin
 	ProResPayload->MasterFrameNumber = PipelinePayload->SampleState.OutputState.SourceFrameNumber;
 
 	// ProRes can handle quantization internally but expects sRGB to be applied to the incoming data.
-	TUniquePtr<FImagePixelData> sRGBData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(InPixelData, 16, ProResPayload, InWriter->bConvertToSrgb);
-	CodecWriter->Writer->WriteFrame(sRGBData.Get());
+	TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(InPixelData, 16, ProResPayload, InWriter->bConvertToSrgb);
+
+	// Do a quick composite of renders/burn-ins.
+	TArray<FPixelPreProcessor> PixelPreProcessors;
+	for (const MoviePipeline::FCompositePassInfo& CompositePass : InCompositePasses)
+	{
+		// We don't need to copy the data here (even though it's being passed to a async system) because we already made a unique copy of the
+		// burn in/widget data when we decided to composite it.
+		switch (QuantizedPixelData->GetType())
+		{
+		case EImagePixelType::Color:
+			PixelPreProcessors.Add(TAsyncCompositeImage<FColor>(CompositePass.PixelData->MoveImageDataToNew()));
+			break;
+		case EImagePixelType::Float16:
+			PixelPreProcessors.Add(TAsyncCompositeImage<FFloat16Color>(CompositePass.PixelData->MoveImageDataToNew()));
+			break;
+		case EImagePixelType::Float32:
+			PixelPreProcessors.Add(TAsyncCompositeImage<FLinearColor>(CompositePass.PixelData->MoveImageDataToNew()));
+			break;
+		}
+	}
+
+	// This is done on the main thread for simplicity but the composite itself is parallaleized.
+	FImagePixelData* PixelData = QuantizedPixelData.Get();
+	for (const FPixelPreProcessor& PreProcessor : PixelPreProcessors)
+	{
+		// PreProcessors are assumed to be valid.
+		PreProcessor(PixelData);
+	}
+
+	CodecWriter->Writer->WriteFrame(QuantizedPixelData.Get());
 }
 
 void UMoviePipelineAppleProResOutput::BeginFinalize_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter)

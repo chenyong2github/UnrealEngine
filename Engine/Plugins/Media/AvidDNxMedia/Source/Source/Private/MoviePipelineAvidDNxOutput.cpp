@@ -8,6 +8,8 @@
 #include "MoviePipelineImageQuantization.h"
 #include "SampleBuffer.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "ImageWriteTask.h"
+#include "MovieRenderPipelineDataTypes.h"
 
 // For logs
 #include "MovieRenderPipelineCoreModule.h"
@@ -47,13 +49,41 @@ void UMoviePipelineAvidDNxOutput::Initialize_EncodeThread(MovieRenderPipeline::I
 	}
 }
 
-void UMoviePipelineAvidDNxOutput::WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData)
+void UMoviePipelineAvidDNxOutput::WriteFrame_EncodeThread(MovieRenderPipeline::IVideoCodecWriter* InWriter, FImagePixelData* InPixelData, TArray<MoviePipeline::FCompositePassInfo>&& InCompositePasses)
 {
 	FAvidWriter* CodecWriter = static_cast<FAvidWriter*>(InWriter);
 	
 	// Quantize our 16 bit float data to 8 bit and apply sRGB
 	TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(InPixelData, 8, nullptr, InWriter->bConvertToSrgb);
-	 
+
+	// Do a quick composite of renders/burn-ins.
+	TArray<FPixelPreProcessor> PixelPreProcessors;
+	for (const MoviePipeline::FCompositePassInfo& CompositePass : InCompositePasses)
+	{
+		// We don't need to copy the data here (even though it's being passed to a async system) because we already made a unique copy of the
+		// burn in/widget data when we decided to composite it.
+		switch (QuantizedPixelData->GetType())
+		{
+		case EImagePixelType::Color:
+			PixelPreProcessors.Add(TAsyncCompositeImage<FColor>(CompositePass.PixelData->MoveImageDataToNew()));
+			break;
+		case EImagePixelType::Float16:
+			PixelPreProcessors.Add(TAsyncCompositeImage<FFloat16Color>(CompositePass.PixelData->MoveImageDataToNew()));
+			break;
+		case EImagePixelType::Float32:
+			PixelPreProcessors.Add(TAsyncCompositeImage<FLinearColor>(CompositePass.PixelData->MoveImageDataToNew()));
+			break;
+		}
+	}
+
+	// This is done on the main thread for simplicity but the composite itself is parallaleized.
+	FImagePixelData* PixelData = QuantizedPixelData.Get();
+	for (const FPixelPreProcessor& PreProcessor : PixelPreProcessors)
+	{
+		// PreProcessors are assumed to be valid.
+		PreProcessor(PixelData);
+	}
+
 	const void* Data = nullptr;
 	int64 DataSize;
 	QuantizedPixelData->GetRawData(Data, DataSize);

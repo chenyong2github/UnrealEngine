@@ -5,6 +5,9 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "MoviePipelineUtils.h"
+#include "ImageWriteTask.h"
+
 
 void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
@@ -13,8 +16,28 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 	FString OutputDirectory = OutputSettings->OutputDirectory.Path;
 
+	// Special case for extracting Burn Ins and Widget Renderer 
+	TArray<MoviePipeline::FCompositePassInfo> CompositedPasses;
+	MoviePipeline::GetPassCompositeData(InMergedOutputFrame, CompositedPasses);
+
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
+		// Don't write out a composited pass in this loop, as it will be merged with the Final Image and not written separately. 
+		bool bSkip = false;
+		for (const MoviePipeline::FCompositePassInfo& CompositePass : CompositedPasses)
+		{
+			if (CompositePass.PassIdentifier == RenderPassData.Key)
+			{
+				bSkip = true;
+				break;
+			}
+		}
+
+		if (bSkip)
+		{
+			continue;
+		}
+
 		FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 
 		// We need to resolve the filename format string. We combine the folder and file name into one long string first
@@ -27,7 +50,7 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 			// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
-			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() > 1;
+			const bool bIncludeRenderPass = InMergedOutputFrame->ImageOutputData.Num() - CompositedPasses.Num() > 1;
 			const bool bTestFrameNumber = false;
 
 			UE::MoviePipeline::ValidateOutputFormatString(FileNameFormatString, bIncludeRenderPass, bTestFrameNumber);
@@ -94,8 +117,16 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 
 		//FGraphEventRef Event = Task.Execute([this, OutputWriter, RawRenderPassData]
 		//	{
+			if (RenderPassData.Key == FMoviePipelinePassIdentifier(TEXT("FinalImage")))
+			{
 				// Enqueue a encode for this frame onto our worker thread.
-				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData);
+				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData, MoveTemp(CompositedPasses));
+			}
+			else
+			{
+				TArray<MoviePipeline::FCompositePassInfo> Dummy;
+				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData, MoveTemp(Dummy));
+			}
 		//	});
 		//OutstandingTasks.Add(Event);
 		
