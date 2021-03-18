@@ -225,7 +225,7 @@ void UGatherTextFromAssetsCommandlet::ProcessGatherableTextDataArray(const TArra
 
 				FLocItem Source(GatherableTextData.SourceData.SourceString);
 
-				GatherManifestHelper->AddSourceText(GatherableTextData.NamespaceName, Source, Context, &TextSourceSiteContext.SiteDescription);
+				GatherManifestHelper->AddSourceText(GatherableTextData.NamespaceName, Source, Context);
 			}
 		}
 	}

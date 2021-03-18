@@ -298,7 +298,8 @@ class Localize : BuildCommand
 			{
 				EditorArguments += " -BuildMachine";
 			}
-			EditorArguments += " -Unattended -LogLocalizationConflicts";
+			EditorArguments += " -Unattended";
+			//EditorArguments += " -LogLocalizationConflicts";
 			if (EnableParallelGather)
 			{
 				EditorArguments += " -multiprocess";

@@ -813,7 +813,8 @@ public:
 	/**
 	 * Sanitize any output from the given string that may cause the build machine to generate erroneous errors.
 	 */
-	static FString SanitizeLogOutput(const FString& InString);
+	static FString SanitizeLogOutput(FStringView InString);
+	static FString SanitizeLogOutput(FString&& InString);
 
 	/**
 	 * Given a culture, try and find all the keys that the source string should use by checking the manifest.

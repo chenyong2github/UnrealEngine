@@ -82,9 +82,6 @@ namespace PortableObjectPipeline
 	/** Given the field of a PO file, condition it back to a clean string */
 	LOCALIZATION_API FString ConditionPOStringForArchive(const FString& InStr);
 
-	/** Given a source location string, clean it up for use in PO file fields */
-	LOCALIZATION_API FString ConvertSrcLocationToPORef(const FString& InSrcLocation);
-
 	/** Given a key string, condition it so it can be written as the extracted comment field of a PO file */
 	LOCALIZATION_API FString GetConditionedKeyForExtractedComment(const FString& Key);
 

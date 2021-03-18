@@ -926,11 +926,10 @@ bool FTranslationDataManager::SaveSelectedTranslations(TArray<UTranslationUnit*>
 										PortableObjectPipeline::PopulateBasicPOFileEntry(*PoEntry, Translation->Namespace, ContextInfo.Key, nullptr, Translation->Source, Translation->Translation, LocalizationTarget->Settings.ExportSettings.CollapseMode, LocalizationTarget->Settings.ExportSettings.POFormat);
 
 										//@TODO: We support additional metadata entries that can be translated.  How do those fit in the PO file format?  Ex: isMature
-										const FString PORefString = PortableObjectPipeline::ConvertSrcLocationToPORef(ContextInfo.Context);
-										PoEntry->AddReference(PORefString); // Source location.
+										PoEntry->AddReference(ContextInfo.Context); // Source location.
 
 										PoEntry->AddExtractedComment(PortableObjectPipeline::GetConditionedKeyForExtractedComment(ContextInfo.Key)); // "Notes from Programmer" in the form of the Key.
-										PoEntry->AddExtractedComment(PortableObjectPipeline::GetConditionedReferenceForExtractedComment(PORefString)); // "Notes from Programmer" in the form of the Source Location, since this comes in handy too and OneSky doesn't properly show references, only comments.
+										PoEntry->AddExtractedComment(PortableObjectPipeline::GetConditionedReferenceForExtractedComment(ContextInfo.Context)); // "Notes from Programmer" in the form of the Source Location, since this comes in handy too and OneSky doesn't properly show references, only comments.
 
 										PortableObjectDom.AddEntry(PoEntry);
 									}
