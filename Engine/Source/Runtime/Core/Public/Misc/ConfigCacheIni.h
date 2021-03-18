@@ -886,6 +886,32 @@ public:
 		const FString&	Filename
 	);
 
+	/* Generic versions for use with templates */
+	bool GetValue(const TCHAR* Section, const TCHAR* Key, FString& Value, const FString& Filename)
+	{
+		return GetString(Section, Key, Value, Filename);
+	}
+	bool GetValue(const TCHAR* Section, const TCHAR* Key, FText& Value, const FString& Filename)
+	{
+		return GetText(Section, Key, Value, Filename);
+	}
+	bool GetValue(const TCHAR* Section, const TCHAR* Key, int32& Value, const FString& Filename)
+	{
+		return GetInt(Section, Key, Value, Filename);
+	}
+	bool GetValue(const TCHAR* Section, const TCHAR* Key, float& Value, const FString& Filename)
+	{
+		return GetFloat(Section, Key, Value, Filename);
+	}
+	bool GetValue(const TCHAR* Section, const TCHAR* Key, bool& Value, const FString& Filename)
+	{
+		return GetBool(Section, Key, Value, Filename);
+	}
+	int32 GetValue(const TCHAR* Section, const TCHAR* Key, TArray<FString>& Value, const FString& Filename)
+	{
+		return GetArray(Section, Key, Value, Filename);
+	}
+
 	void SetInt
 	(
 		const TCHAR*		Section,

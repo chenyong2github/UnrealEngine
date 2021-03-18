@@ -1178,9 +1178,8 @@ Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
 	if (!bTestedIni)
 	{
 		bTestedIni = true;
-		FConfigFile PlatformEngineIni;
-		FConfigCacheIni::LoadLocalIniFile(PlatformEngineIni, TEXT("Engine"), true, *ShaderPlatformToPlatformName(ShaderPlatform).ToString());
-		if (PlatformEngineIni.GetValue(Section, Key, Value))
+		FConfigCacheIni* PlatformIni = FConfigCacheIni::ForPlatform(ShaderPlatformToPlatformName(ShaderPlatform));
+		if (PlatformIni != nullptr && PlatformIni->GetValue(Section, Key, Value, TEXT("Engine")))
 		{
 			CachedValues.Add(ShaderPlatform, Value);
 			return Value;
