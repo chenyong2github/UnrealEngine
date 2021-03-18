@@ -3,6 +3,7 @@
 #include "ReplayTracksEditorModule.h"
 #include "Camera/CameraComponent.h"
 #include "Camera/PlayerCameraManager.h"
+#include "Engine/World.h"
 #include "GameFramework/PlayerController.h"
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCommonHelpers.h"
