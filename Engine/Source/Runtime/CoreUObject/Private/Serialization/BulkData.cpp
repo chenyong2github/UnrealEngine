@@ -609,6 +609,7 @@ void* FUntypedBulkData::Lock( uint32 LockFlags )
 			check( AttachedAr == NULL );
 		}
 #endif // WITH_EDITOR
+		ClearBulkDataFlags(BULKDATA_LazyLoadable);
 	}
 	// Only read operations are allowed on returned memory.
 	else if( LockFlags & LOCK_READ_ONLY )
@@ -696,6 +697,7 @@ void FUntypedBulkData::RemoveBulkData()
 	// Resize to 0 elements.
 	ElementCount	= 0;
 	BulkData.Deallocate();
+	ClearBulkDataFlags(BULKDATA_LazyLoadable);
 }
 
 /**
