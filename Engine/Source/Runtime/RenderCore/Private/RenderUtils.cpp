@@ -1201,6 +1201,7 @@ Type FShaderPlatformCachedIniValue<Type>::Get(EShaderPlatform ShaderPlatform)
 template struct FShaderPlatformCachedIniValue<FString>;
 template struct FShaderPlatformCachedIniValue<int32>;
 template struct FShaderPlatformCachedIniValue<float>;
+template struct FShaderPlatformCachedIniValue<bool>;
 
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
