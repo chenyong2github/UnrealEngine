@@ -302,16 +302,6 @@ void UGenerateStaticMeshLODAssetTool::Setup()
 
 	CollisionPreview = NewObject<UPreviewGeometry>(this);
 	CollisionPreview->CreateInWorld(TargetWorld, PreviewTransform);
-
-	// Recompute if we switch between parallel and serial
-	int32 WatcherIndex = BasicProperties->WatchProperty(BasicProperties->bParallelExecution, [this](bool bNewParallelExec)
-	{
-		GenerateProcess->bUseParallelExecutor = BasicProperties->bParallelExecution;
-		OnSettingsModified();
-	});
-
-	BasicProperties->SilentUpdateWatcherAtIndex(WatcherIndex);
-
 }
 
 void UGenerateStaticMeshLODAssetTool::OnSettingsModified()

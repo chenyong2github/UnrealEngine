@@ -71,14 +71,10 @@ public:
 		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
 		FProgressCancel* Progress);
 
-	void EvaluateResultParallel(FDynamicMesh3& ResultMesh,
 								UE::Geometry::FMeshTangentsd& ResultTangents,
 								UE::Geometry::FSimpleShapeSet3d& ResultCollision,
-								UE::GeometryFlow::FNormalMapImage& NormalMap,
-								TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
-								FProgressCancel* Progress);
-
 protected:
+
 	TUniquePtr<UE::GeometryFlow::FGraph> Graph;
 
 

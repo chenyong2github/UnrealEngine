@@ -76,10 +76,6 @@ public:
 	UPROPERTY(EditAnywhere, Category = AssetOptions, meta = (EditCondition = "OutputMode == EGenerateLODAssetOutputMode::UpdateExistingAsset"))
 	bool bSaveAsHDSource = true;
 
-
-	UPROPERTY(EditAnywhere, Category = Settings)
-	bool bParallelExecution = false;
-
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FGenerateStaticMeshLODProcessSettings GeneratorSettings;
 

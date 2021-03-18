@@ -515,26 +515,14 @@ void UGenerateStaticMeshLODProcess::UpdateSettings(const FGenerateStaticMeshLODP
 bool UGenerateStaticMeshLODProcess::ComputeDerivedSourceData(FProgressCancel* Progress)
 {
 	DerivedTextureImages.Reset();
-	if (bUseParallelExecutor)
-	{
-		Generator->EvaluateResultParallel(
-			this->DerivedLODMesh,
-			this->DerivedLODMeshTangents,
-			this->DerivedCollision,
-			this->DerivedNormalMapImage,
-			this->DerivedTextureImages,
-			Progress);
-	}
-	else
-	{
-		Generator->EvaluateResult(
-			this->DerivedLODMesh,
-			this->DerivedLODMeshTangents,
-			this->DerivedCollision,
-			this->DerivedNormalMapImage,
-			this->DerivedTextureImages,
-			Progress);
-	}
+
+	Generator->EvaluateResult(
+		this->DerivedLODMesh,
+		this->DerivedLODMeshTangents,
+		this->DerivedCollision,
+		this->DerivedNormalMapImage,
+		this->DerivedTextureImages,
+		Progress);
 
 	if (Progress && Progress->Cancelled())
 	{
