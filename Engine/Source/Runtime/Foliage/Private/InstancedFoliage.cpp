@@ -48,6 +48,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "LevelUtils.h"
 #include "FoliageHelper.h"
 #include "Algo/Transform.h"
+#include "Misc/CoreMisc.h"
 
 #define LOCTEXT_NAMESPACE "InstancedFoliage"
 
@@ -1556,7 +1557,8 @@ void FFoliageStaticMesh::ReapplyInstancesToComponent(const TArray<FFoliageInstan
 FFoliageInfo::FFoliageInfo()
 	: Type(EFoliageImplType::StaticMesh)
 #if WITH_EDITOR
-	, InstanceHash(GIsEditor ? new FFoliageInstanceHash() : nullptr)
+	  // This will cover cases of running in editor or as editor with -game.  We do not want this during cooking.
+	, InstanceHash(GIsEditor || IsRunningGame() ? new FFoliageInstanceHash() : nullptr)
 	, bMovingInstances(false)
 #endif
 { }
