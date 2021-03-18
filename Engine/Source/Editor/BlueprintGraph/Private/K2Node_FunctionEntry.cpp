@@ -289,7 +289,7 @@ void UK2Node_FunctionEntry::Serialize(FArchive& Ar)
 			for (FBPVariableDescription& LocalVar : LocalVariables)
 			{
 				FString UseDefaultValue;
-				TObjectPtr<UObject> UseDefaultObject = nullptr;
+				UObject* UseDefaultObject = nullptr;
 				FText UseDefaultText;
 
 				if (!LocalVar.DefaultValue.IsEmpty())
