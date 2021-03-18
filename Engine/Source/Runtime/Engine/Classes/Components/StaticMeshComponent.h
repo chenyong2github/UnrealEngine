@@ -383,7 +383,7 @@ public:
 	virtual bool SetStaticMesh(class UStaticMesh* NewMesh);
 
 	/** Get the StaticMesh used by this instance. */
-	UStaticMesh* GetStaticMesh() const 
+	TObjectPtr<UStaticMesh> GetStaticMesh() const 
 	{ 
 #if WITH_EDITOR
 		// This should never happen and is a last resort, we should have catched the property overwrite well before we reach this code

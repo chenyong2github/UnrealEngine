@@ -111,8 +111,12 @@ public:
 	FORCEINLINE TObjectKey() = default;
 
 	/** Construct from an object pointer */
-	FORCEINLINE TObjectKey(const ElementType* Object)
-		: ObjectKey(Object)
+	template <
+		typename U,
+		decltype(ImplicitConv<const InElementType*>(std::declval<U>()))* = nullptr
+	>
+	FORCEINLINE TObjectKey(U Object)
+		: ObjectKey(ImplicitConv<const InElementType*>(Object))
 	{
 	}
 
