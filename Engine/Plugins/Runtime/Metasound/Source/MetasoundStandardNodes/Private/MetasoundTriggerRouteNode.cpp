@@ -49,6 +49,18 @@ namespace Metasound
 
 	namespace TriggerRouteVertexNames
 	{
+		const FString& GetInputInitValueName()
+		{
+			static const FString Name = TEXT("Init");
+			return Name;
+		}
+
+		const FText& GetInputInitValueDescription()
+		{
+			static const FText Desc = LOCTEXT("TriggerRouteInputInitValueDesc", "The value to initialize the output to before any inputs are triggered.");
+			return Desc;
+		}
+		
 		const FString GetInputTriggerName(uint32 InIndex)
 		{
 			return FText::Format(LOCTEXT("TriggerRouteTriggerInputName", "Set {0}"), InIndex).ToString();

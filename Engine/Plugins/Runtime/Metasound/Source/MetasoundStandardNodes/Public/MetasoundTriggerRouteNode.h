@@ -22,6 +22,8 @@ namespace Metasound
 
 	namespace TriggerRouteVertexNames
 	{
+		METASOUNDSTANDARDNODES_API const FString& GetInputInitValueName();
+		METASOUNDSTANDARDNODES_API const FText& GetInputInitValueDescription();
 		METASOUNDSTANDARDNODES_API const FString GetInputTriggerName(uint32 InIndex);
 		METASOUNDSTANDARDNODES_API const FText GetInputTriggerDescription(uint32 InIndex);
 		METASOUNDSTANDARDNODES_API const FString GetInputValueName(uint32 InIndex);
@@ -44,6 +46,8 @@ namespace Metasound
 			auto CreateDefaultInterface = []() -> FVertexInterface
 			{
 				FInputVertexInterface InputInterface;
+				InputInterface.Add(TInputDataVertexModel<ValueType>(GetInputInitValueName(), GetInputInitValueDescription()));
+
 				for (uint32 i = 0; i < NumInputs; ++i)
 				{
 					InputInterface.Add(TInputDataVertexModel<FTrigger>(GetInputTriggerName(i), GetInputTriggerDescription(i)));
@@ -84,6 +88,8 @@ namespace Metasound
 			const FInputVertexInterface& InputInterface = InParams.Node.GetVertexInterface().GetInputInterface();
 			const FDataReferenceCollection& InputCollection = InParams.InputDataReferences;
 
+			TDataReadReference<ValueType> InputInitValue = InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputInitValueName());
+
 			TArray<FTriggerReadRef> InputTriggers;
 			TArray<TDataReadReference<ValueType>> InputValues;
 
@@ -93,16 +99,17 @@ namespace Metasound
 				InputValues.Add(InputCollection.GetDataReadReferenceOrConstructWithVertexDefault<ValueType>(InputInterface, GetInputValueName(i)));
 			}
 
-			return MakeUnique<TTriggerRouteOperator<ValueType, NumInputs>>(InParams.OperatorSettings, MoveTemp(InputTriggers), MoveTemp(InputValues));
+			return MakeUnique<TTriggerRouteOperator<ValueType, NumInputs>>(InParams.OperatorSettings, InputInitValue, MoveTemp(InputTriggers), MoveTemp(InputValues));
 		}
 
-		TTriggerRouteOperator(const FOperatorSettings& InSettings, const TArray<FTriggerReadRef>&& InInputTriggers, TArray<TDataReadReference<ValueType>>&& InInputValues)
-			: InputTriggers(InInputTriggers)
+		TTriggerRouteOperator(const FOperatorSettings& InSettings, const TDataReadReference<ValueType>& InInputInitValue, const TArray<FTriggerReadRef>&& InInputTriggers, const TArray<TDataReadReference<ValueType>>&& InInputValues)
+			: InputInitValue(InInputInitValue)
+			, InputTriggers(InInputTriggers)
 			, InputValues(InInputValues)
 			, OutputTrigger(FTriggerWriteRef::CreateNew(InSettings))
 			, OutputValue(TDataWriteReferenceFactory<ValueType>::CreateAny(InSettings))
 		{
-			*OutputValue = *InputValues[0];
+			*OutputValue = *InputInitValue;
 		}
 
 		virtual ~TTriggerRouteOperator() = default;
@@ -154,6 +161,7 @@ namespace Metasound
 
 	private:
 
+		TDataReadReference<ValueType> InputInitValue;
 		TArray<FTriggerReadRef> InputTriggers;
 		TArray<TDataReadReference<ValueType>> InputValues;
 

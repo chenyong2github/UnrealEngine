@@ -16,12 +16,12 @@
 
 namespace Metasound
 {
-	class METASOUNDSTANDARDNODES_API FPeriodicTriggerNode : public FNodeFacade
+	class METASOUNDSTANDARDNODES_API FTriggerRepeatNode : public FNodeFacade
 	{
 		public:
-			FPeriodicTriggerNode(const FNodeInitData& InInitData);
+			FTriggerRepeatNode(const FNodeInitData& InInitData);
 
-			virtual ~FPeriodicTriggerNode() = default;
+			virtual ~FTriggerRepeatNode() = default;
 
 		private:
 			float DefaultPeriod = 1.0f;
