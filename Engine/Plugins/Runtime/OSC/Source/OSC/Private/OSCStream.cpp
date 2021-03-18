@@ -370,6 +370,7 @@ FString FOSCStream::ReadString()
 	// location, and consume pad until next 4-byte boundary.
 	const int32 EndPosition = Position;
 
+	// Count includes the null terminator.
 	const int32 Count = EndPosition - InitPosition;
 	check(Count > 0);
 
@@ -379,7 +380,8 @@ FString FOSCStream::ReadString()
 		Position += 4 - UnboundByteCount;
 	}
 
-	return FString(Count, (ANSICHAR*)(&Data[InitPosition]));
+	// Exclude null terminator here; this constructor appends one.
+	return FString(Count - 1, (ANSICHAR*)(&Data[InitPosition]));
 }
 
 void FOSCStream::WriteString(const FString& InString)
