@@ -1508,11 +1508,12 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 		if (SerialShadowPasses.Num() > 0)
 		{
+			bool bShadowDepthCleared = ParallelShadowPasses.Num() > 0;
 			bool bForceSingleRenderPass = CVarShadowForceSerialSingleRenderPass.GetValueOnAnyThread() != 0;
 			if (bForceSingleRenderPass)
 			{
 				SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
-				BeginShadowRenderPass(RHICmdList, true);
+				BeginShadowRenderPass(RHICmdList, !bShadowDepthCleared);
 			}
 
 
@@ -1556,7 +1557,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 				if (!bForceSingleRenderPass)
 				{
 					SCOPED_GPU_MASK(RHICmdList, GPUMaskForRenderPass);
-					BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
+					BeginShadowRenderPass(RHICmdList, ShadowIndex == 0 && !bShadowDepthCleared);
 				}
 				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
 				if (!bForceSingleRenderPass)
