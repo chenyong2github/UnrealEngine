@@ -1,10 +1,13 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from switchboard.config import CONFIG, SETTINGS, list_config_files
-import switchboard.switchboard_widgets as sb_widgets
+
+import os
+from pathlib import Path
 
 from PySide2 import QtCore, QtGui, QtUiTools, QtWidgets
 
-import os
+from switchboard.config import CONFIG, SETTINGS, list_config_files
+import switchboard.switchboard_widgets as sb_widgets
+
 
 RELATIVE_PATH = os.path.dirname(__file__)
 
@@ -104,6 +107,12 @@ class SettingsDialog(QtCore.QObject):
     def set_transport_path(self, value):
         self.ui.transport_path_line_edit.setText(value)
 
+    def listener_exe(self):
+        return self.ui.listener_exe_line_edit.text()
+
+    def set_listener_exe(self, value):
+        self.ui.listener_exe_line_edit.setText(value)
+
     def project_name(self):
         return self.ui.project_name_line_edit.text()
 
@@ -171,33 +180,45 @@ class SettingsDialog(QtCore.QObject):
     # MU SERVER Settings
     def mu_server_name(self):
         return self.ui.mu_server_name_line_edit.text()
-    
+
     def set_mu_server_name(self, value):
         self.ui.mu_server_name_line_edit.setText(value)
-    
+
     def mu_cmd_line_args(self):
         return self.ui.mu_cmd_line_args_line_edit.text()
-    
+
     def set_mu_cmd_line_args(self, value):
         self.ui.mu_cmd_line_args_line_edit.setText(value)
-    
+
     def mu_auto_launch(self):
         return self.ui.mu_auto_launch_check_box.isChecked()
-    
+
     def set_mu_auto_launch(self, value):
         self.ui.mu_auto_launch_check_box.setChecked(value)
-    
+
     def mu_auto_join(self):
         return self.ui.mu_auto_join_check_box.isChecked()
-    
+
     def set_mu_auto_join(self, value):
         self.ui.mu_auto_join_check_box.setChecked(value)
     
     def mu_clean_history(self):
         return self.ui.mu_clean_history_check_box.isChecked()
-    
+
     def set_mu_clean_history(self, value):
         self.ui.mu_clean_history_check_box.setChecked(value)
+
+    def mu_server_exe(self):
+        return self.ui.muserver_exe_line_edit.text()
+
+    def set_mu_server_exe(self, value):
+        self.ui.muserver_exe_line_edit.setText(value)
+
+    def mu_server_auto_build(self) -> bool:
+        return self.ui.muserver_auto_build_check_box.isChecked()
+
+    def set_mu_server_auto_build(self, value: bool):
+        self.ui.muserver_auto_build_check_box.setChecked(value)
 
     # Devices
     def add_section_for_plugin(self, plugin_name, plugin_settings, device_settings):
@@ -217,7 +238,6 @@ class SettingsDialog(QtCore.QObject):
 
         # add widgets for settings shared by all devices of a plugin
         for setting in plugin_settings:
-
             if not setting.show_ui:
                 continue
 
@@ -245,7 +265,6 @@ class SettingsDialog(QtCore.QObject):
 
             # regular "instance" settings
             for setting in settings:
-
                 if not setting.show_ui:
                     continue
 
@@ -261,10 +280,9 @@ class SettingsDialog(QtCore.QObject):
                     self.create_device_setting_checkbox(setting, layout)
 
             for setting in overrides:
-
                 if not setting.show_ui:
                     continue
-                
+
                 value_type = type(setting.get_value(device_name))
 
                 if value_type in [str, int]:
@@ -315,10 +333,31 @@ class SettingsDialog(QtCore.QObject):
 
         combo.currentTextChanged.connect(lambda text, setting=setting: setting.update_value(text))
 
+    _str_attr_path_filters = { 'ndisplay_cfg_file': 'nDisplay Config (*.cfg;*.ndisplay)' }
+    def path_filter_for_setting(self, setting):
+        return self._str_attr_path_filters[setting.attr_name] if setting.attr_name in self._str_attr_path_filters else None
+
+    def add_browse_button(self, layout, setting, filter_str):
+        browse_btn = QtWidgets.QPushButton('Browse')
+        layout.addWidget(browse_btn)
+
+        def browse_clicked():
+            start_path = str(Path.home())
+            if SETTINGS.LAST_BROWSED_PATH and os.path.exists(SETTINGS.LAST_BROWSED_PATH):
+                start_path = SETTINGS.LAST_BROWSED_PATH
+
+            file_path, _ = QtWidgets.QFileDialog.getOpenFileName(parent=self.ui, dir=start_path, filter=filter_str)
+            if len(file_path) > 0 and os.path.exists(file_path):
+                file_path = os.path.normpath(file_path)
+                setting.update_value(file_path)
+                SETTINGS.LAST_BROWSED_PATH = os.path.dirname(file_path)
+                SETTINGS.save()
+
+        browse_btn.clicked.connect(browse_clicked)
+
     def create_device_setting_line_edit(self, setting, layout):
-        
-        label = QtWidgets.QLabel()
-        label.setText(setting.nice_name)
+        edit_layout = QtWidgets.QHBoxLayout()
+        label = QtWidgets.QLabel(setting.nice_name)
         line_edit = QtWidgets.QLineEdit()
 
         value = setting.get_value()
@@ -329,7 +368,8 @@ class SettingsDialog(QtCore.QObject):
 
         line_edit.setText(value)
         line_edit.setCursorPosition(0)
-        layout.addRow(label, line_edit)
+        edit_layout.addWidget(line_edit)
+        layout.addRow(label, edit_layout)
 
         if setting.tool_tip:
             label.setToolTip(setting.tool_tip)
@@ -338,8 +378,12 @@ class SettingsDialog(QtCore.QObject):
         if value_type == str:
             line_edit.editingFinished.connect(lambda field=line_edit, setting=setting: setting.update_value(field.text()))
 
-        elif value_type == int:
+            # If this setting is recognized as a path, add a "Browse" button.
+            path_filter = self.path_filter_for_setting(setting)
+            if path_filter:
+                self.add_browse_button(edit_layout, setting, path_filter)
 
+        elif value_type == int:
             def le_int_editingFinished(field, setting):
                 try:
                     text = field.text()
@@ -398,7 +442,6 @@ class SettingsDialog(QtCore.QObject):
         setting.signal_setting_changed.connect(lambda old, new, setting=setting, device_name=device_name, widget=line_edit: on_base_value_changed(setting, device_name, widget))
 
     def _on_line_edit_override_editingFinished(self, widget, setting, device_name):
-
         old_value = setting.get_value(device_name)
         new_value = widget.text()
 

@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "Misc/SecureHash.h"
 #include "Templates/TypeHash.h"
 
 enum class ESwitchboardTaskType : uint8
@@ -16,8 +17,8 @@ enum class ESwitchboardTaskType : uint8
 	KeepAlive,
 	GetSyncStatus,
 	GetFlipMode,
-	ForceFocus,
-	FixExeFlags
+	FixExeFlags,
+	RedeployListener,
 };
 
 struct FSwitchboardTask
@@ -73,7 +74,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		const FString& InCaller, 
 		const FString& InWorkingDir,
 		bool bInUpdateClientsWithStdout,
-		bool bInForceWindowFocus
+		int32 InPriorityModifier
 	)
 		: FSwitchboardTask{ ESwitchboardTaskType::Start, TEXT("start"), InTaskId, InEndpoint }
 		, Command(InCommand)
@@ -82,7 +83,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 		, Caller(InCaller)
 		, WorkingDir(InWorkingDir)
 		, bUpdateClientsWithStdout(bInUpdateClientsWithStdout)
-		, bForceWindowFocus(bInForceWindowFocus)
+		, PriorityModifier(InPriorityModifier)
 	{
 	}
 
@@ -92,7 +93,7 @@ struct FSwitchboardStartTask : public FSwitchboardTask
 	FString Caller;
 	FString WorkingDir;
 	bool bUpdateClientsWithStdout;
-	bool bForceWindowFocus;
+	int32 PriorityModifier;
 
 	//~ Begin FSwitchboardTask interface
 	virtual uint32 GetEquivalenceHash() const override
@@ -141,6 +142,27 @@ struct FSwitchboardReceiveFileFromClientTask : public FSwitchboardTask
 	//~ End FSwitchboardTask interface
 };
 
+struct FSwitchboardRedeployListenerTask : public FSwitchboardTask
+{
+	FSwitchboardRedeployListenerTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, const FString& InExpectedHashHexDigest, const FString& InContent)
+		: FSwitchboardTask{ ESwitchboardTaskType::RedeployListener, TEXT("deploy new listener executable from client"), InTaskID, InEndpoint }
+		, FileContent(InContent)
+	{
+		ExpectedHash.FromString(InExpectedHashHexDigest);
+	}
+
+	FSHAHash ExpectedHash;
+	FString FileContent;
+
+	//~ Begin FSwitchboardTask interface
+	virtual uint32 GetEquivalenceHash() const override
+	{
+		uint32 Hash = HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(ExpectedHash));
+		return HashCombine(Hash, GetTypeHash(FileContent));
+	}
+	//~ End FSwitchboardTask interface
+};
+
 struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
 {
 	FSwitchboardSendFileToClientTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, const FString& InSource)
@@ -154,23 +176,6 @@ struct FSwitchboardSendFileToClientTask : public FSwitchboardTask
 	virtual uint32 GetEquivalenceHash() const override
 	{
 		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(Source));
-	}
-	//~ End FSwitchboardTask interface
-};
-
-struct FSwitchboardForceFocusTask : public FSwitchboardTask
-{
-	FSwitchboardForceFocusTask(const FGuid& InTaskID, const FIPv4Endpoint& InEndpoint, uint32 InPID)
-		: FSwitchboardTask{ ESwitchboardTaskType::ForceFocus, TEXT("forcefocus"), InTaskID, InEndpoint }
-		, PID(InPID)
-	{}
-
-	uint32 PID;
-
-	//~ Begin FSwitchboardTask interface
-	virtual uint32 GetEquivalenceHash() const override
-	{
-		return HashCombine(FSwitchboardTask::GetEquivalenceHash(), GetTypeHash(PID));
 	}
 	//~ End FSwitchboardTask interface
 };

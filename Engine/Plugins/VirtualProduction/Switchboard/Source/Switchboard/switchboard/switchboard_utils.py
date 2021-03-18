@@ -1,12 +1,31 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 from .switchboard_logging import LOGGER
 
+from enum import Enum
 import datetime
-import re
-import socket
 import subprocess
+import os
 import threading
 import sys
+
+
+class PriorityModifier(Enum):
+    ''' Corresponds to `int32 PriorityModifier` parameter to `FPlatformProcess::CreateProc`. '''
+    Low = -2
+    Below_Normal = -1
+    Normal = 0
+    Above_Normal = 1
+    High = 2
+
+
+def get_hidden_sp_startupinfo():
+    ''' Returns subprocess.startupinfo and avoids extra cmd line window in Windows. '''
+    startupinfo = subprocess.STARTUPINFO()
+
+    if sys.platform.startswith("win"):
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+
+    return startupinfo
 
 
 class RepeatFunction(object):
@@ -86,27 +105,18 @@ class PollProcess(object):
     Have the same signature as a popen object as a backup if a ue4 process is already running
     on the machine
     '''
-    def __init__(self, task_name):
+    def __init__(self, task_name: str):
         self.task_name = task_name
 
-    def get_sp_startupinfo(self):
-        ''' Returns subprocess.startupinfo and avoids extra cmd line window in windows.
-        '''
-        startupinfo = subprocess.STARTUPINFO()
-
-        if sys.platform.startswith("win"):
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-
-        return startupinfo
-
     def poll(self):
-        tasklist_cmd = f"tasklist /FI \"IMAGENAME eq {self.task_name}\""
+        # 'list' output format because default 'table' truncates imagename to 25 characters
+        tasklist_cmd = f"tasklist /FI \"IMAGENAME eq {self.task_name}\" /FO list"
         try: # Figure out what is happening here OSError: [WinError 6] The handle is invalid
-            tasklist_output = subprocess.check_output(tasklist_cmd, startupinfo=self.get_sp_startupinfo()).decode()
+            tasklist_output = subprocess.check_output(tasklist_cmd, startupinfo=get_hidden_sp_startupinfo()).decode()
 
             #p = re.compile(f"{self.task_name} (.*?) Console")
             # Some process do not always list the .exe in the name
-            if self.task_name.replace('.exe', '') in tasklist_output:
+            if os.path.splitext(self.task_name)[0].lower() in tasklist_output.lower():
                 return None
             return True
         except:

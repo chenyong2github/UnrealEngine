@@ -1,16 +1,13 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+
 from .config import CONFIG, SETTINGS
 from .switchboard_logging import LOGGER
-from . import switchboard_utils
+from . import switchboard_utils as sb_utils
 
 import pythonosc.dispatcher
 import pythonosc.osc_server
 
-import os
-import re
-import subprocess
-import threading
-import sys
+import os, subprocess, threading, typing
 
 
 class ApplicationAbstract(object):
@@ -90,47 +87,55 @@ class MultiUserApplication(ApplicationAbstract):
     def __init__(self):
         super().__init__()
         self.name = 'Multi User Server'
-        self.process = switchboard_utils.PollProcess(CONFIG.MULTIUSER_SERVER_EXE)
+
+        self.lock = threading.Lock()
+        self.process: typing.Optional[subprocess.Popen] = None
 
         # Application Options
         self.concert_ignore_cl = False
 
-    def get_sp_startupinfo(self):
-        ''' Returns subprocess.startupinfo and avoids extra cmd line window in windows.
-        '''
-        startupinfo = subprocess.STARTUPINFO()
+    def exe_path(self):
+        return CONFIG.multiuser_server_path()
 
-        if sys.platform.startswith("win"):
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+    def exe_name(self):
+        return os.path.split(self.exe_path())[1]
 
-        return startupinfo
+    def poll_process(self):
+        # Aside from this task_name, PollProcess is stateless, and we'd like to pick up on name changes.
+        return sb_utils.PollProcess(self.exe_name())
 
     def launch(self):
-        if self.is_running():
-            return False
+        with self.lock:
+            if self.is_running():
+                return False
 
-        if not os.path.exists(CONFIG.multiuser_server_path()):
-            LOGGER.error(f"Could not find MultiUserServer at {CONFIG.multiuser_server_path()}. Has it been built?")
-            return
+            if not os.path.exists(self.exe_path()):
+                LOGGER.error(f"Could not find multi-user server at {self.exe_path()}. Has it been built?")
+                return
 
-        cmdline = f'start "Multi User Server" "{CONFIG.multiuser_server_path()}" -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS}'
+            cmdline = f'start "Multi User Server" "{self.exe_path()}" -CONCERTSERVER={CONFIG.MUSERVER_SERVER_NAME} {CONFIG.MUSERVER_COMMAND_LINE_ARGUMENTS}'
 
-        if self.concert_ignore_cl:
-            cmdline += " -ConcertIgnore"
+            if self.concert_ignore_cl:
+                cmdline += " -ConcertIgnore"
 
-        if CONFIG.MUSERVER_CLEAN_HISTORY:
-            cmdline += " -ConcertClean"
+            if CONFIG.MUSERVER_CLEAN_HISTORY:
+                cmdline += " -ConcertClean"
 
-        LOGGER.debug(cmdline)
-        subprocess.Popen(cmdline, shell=True, startupinfo=self.get_sp_startupinfo())
+            LOGGER.debug(cmdline)
+            self.process = subprocess.Popen(cmdline, shell=True, startupinfo=sb_utils.get_hidden_sp_startupinfo())
 
-        return True
+            return True
 
-    def kill(self):
-        self.process.kill()
+    def terminate(self):
+        if self.process:
+            self.process.terminate()
+        else:
+            self.poll_process().kill()
 
     def is_running(self):
-        if self.process.poll() is None:
+        if self.process and (self.process.poll() is None):
+            return True
+        elif self.poll_process().poll() is None:
             return True
 
         return False

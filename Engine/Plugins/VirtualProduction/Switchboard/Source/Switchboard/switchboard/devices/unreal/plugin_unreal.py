@@ -1,22 +1,26 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+from switchboard import message_protocol, p4_utils, switchboard_application
 from switchboard import config_osc as osc
-from switchboard import message_protocol, p4_utils
+from switchboard import switchboard_utils as sb_utils
 from switchboard.config import CONFIG, Setting, SETTINGS, DEFAULT_MAP_TEXT
 from switchboard.devices.device_base import Device, DeviceStatus, PluginHeaderWidgets
 from switchboard.devices.device_widget_base import DeviceWidget
 from switchboard.listener_client import ListenerClient
 from switchboard.switchboard_logging import LOGGER
 
+from .listener_watcher import ListenerWatcher
+from .redeploy_dialog import RedeployListenerDialog
+from . import version_helpers
+
 from PySide2 import QtWidgets, QtGui, QtCore
 
-import os, sys, base64, uuid, threading
-from pathlib import Path
+import base64, ipaddress, os, re, sys, threading, typing, uuid
 from collections import OrderedDict
 
+
 class ProgramStartQueueItem(object):
-    ''' Item that holds the information for a program to start in the future
-    '''
+    ''' Item that holds the information for a program to start in the future '''
     def __init__(self, name, puuid_dependency, puuid, msg_to_unreal_client, pid=0, launch_fn=lambda:None):
         self.puuid_dependency = puuid_dependency         # so that it can check wait_for_previous_to_end against the correct program
         self.puuid = puuid                               # id of the program.
@@ -27,7 +31,6 @@ class ProgramStartQueueItem(object):
 
     @classmethod
     def from_listener_process(cls, process):
-
         return cls(
             puuid_dependency = None,
             puuid = uuid.UUID(process['uuid']),
@@ -37,9 +40,9 @@ class ProgramStartQueueItem(object):
             launch_fn = None,
         )
 
+
 def use_lock(func):
-    ''' Decorator to ensure the decorated function is executed by a single thread at a time
-    '''
+    ''' Decorator to ensure the decorated function is executed by a single thread at a time '''
     def _use_lock(self, *args, **kwargs):
         self.lock.acquire()
         try:
@@ -49,12 +52,11 @@ def use_lock(func):
             
     return _use_lock
 
+
 class ProgramStartQueue(object):
-    ''' Queue of programs to launch that may have dependencies
-    '''
+    ''' Queue of programs to launch that may have dependencies '''
 
     def __init__(self):
-
         self.lock = threading.Lock() # Needed because these functions will be called from listener thread and main thread
 
         self.queued_programs = [] # ProgramStartQueueItem
@@ -63,15 +65,13 @@ class ProgramStartQueue(object):
 
     @use_lock
     def reset(self):
-        ''' Clears the list and any internal state
-        '''
+        ''' Clears the list and any internal state '''
         self.queued_programs = []
         self.starting_programs = OrderedDict()
         self.running_programs = OrderedDict()
 
     def _name_from_puuid(self, puuid):
-        ''' Returns the name of the specified program id
-        '''
+        ''' Returns the name of the specified program id '''
         for prog in self.queued_programs:
             if prog.puuid == puuid:
                 return prog.name
@@ -121,7 +121,6 @@ class ProgramStartQueue(object):
         Removes the program from starting_programs or running_programs.
         '''
         # remove from lists
-        #
         prog = None
 
         if puuid is not None:
@@ -158,7 +157,6 @@ class ProgramStartQueue(object):
         Do not call externally because it does not use the thread lock.
         '''
         # see if we need to launch any dependencies
-
         progs_launched = []
 
         for prog in self.queued_programs:            
@@ -196,14 +194,12 @@ class ProgramStartQueue(object):
 
     @use_lock
     def running_programs_named(self, name):
-        ''' Returns the program ids of running programs named as specified
-        '''
+        ''' Returns the program ids of running programs named as specified '''
         return [prog for puuid, prog in self.running_programs.items() if prog.name == name]
 
     @use_lock
     def running_puuids_named(self, name):
-        ''' Returns the program ids of running programs named as specified
-        '''
+        ''' Returns the program ids of running programs named as specified '''
         return [puuid for puuid, prog in self.running_programs.items() if prog.name == name]
 
     @use_lock
@@ -213,6 +209,7 @@ class ProgramStartQueue(object):
     @use_lock
     def clear_running_programs(self):
         self.running_programs.clear()
+
 
 class DeviceUnreal(Device):
 
@@ -271,9 +268,60 @@ class DeviceUnreal(Device):
             possible_values=list(range(1, 17)),
             tool_tip="If you have multiple GPUs in the PC, you can specify how many to use.",
         ),
+        'priority_modifier': Setting(
+            attr_name='priority_modifier',
+            nice_name="Process Priority",
+            value=sb_utils.PriorityModifier.Normal.name,
+            possible_values=[p.name for p in sb_utils.PriorityModifier],
+            tool_tip="Used to override the priority of the process.",
+        )
     }
 
     unreal_started_signal = QtCore.Signal()
+
+    mu_server = switchboard_application.MultiUserApplication()
+
+    # Monitors the local listener executable and notifies when the file is changed.
+    listener_watcher = ListenerWatcher()
+
+    # Every DeviceUnreal (and derived class, e.g. DevicenDisplay) instance; used for listener updates.
+    active_unreal_devices: typing.Set['DeviceUnreal'] = set()
+
+    # Flag used to batch together multiple rapid calls to `_queue_notify_redeploy`.
+    _pending_notify_redeploy = False
+
+    @classmethod
+    def get_designated_local_builder(cls) -> typing.Optional['DeviceUnreal']:
+        ''' Returns first (by IP) loopback `DeviceUnreal` (or derived class) device.
+            This is the device tasked with building the multiuser server and listener executables.
+        '''
+        ip_device_pairs = [ (ipaddress.ip_address(d.ip_address), d) for d in cls.active_unreal_devices ]
+
+        # Only local devices (loopback addresses)
+        ip_device_pairs = filter(lambda pair: pair[0].is_loopback, ip_device_pairs)
+        ip_device_pairs = sorted(ip_device_pairs, key=lambda pair: pair[0])
+
+        return ip_device_pairs[0][1] if len(ip_device_pairs) > 0 else None
+
+    def is_designated_local_builder(self) -> bool:
+        return self is DeviceUnreal.get_designated_local_builder()
+
+    @QtCore.Slot()
+    def _queue_notify_redeploy(self):
+        # Ensure this code is run from the main thread
+        if threading.current_thread().name != 'MainThread':
+            QtCore.QMetaObject.invokeMethod(self, '_queue_notify_redeploy', QtCore.Qt.QueuedConnection)
+            return
+
+        # Brief debounce in case we're still connecting multiple clients in quick succession
+        if not DeviceUnreal._pending_notify_redeploy:
+            QtCore.QTimer.singleShot(100, self._notify_redeploy)
+            DeviceUnreal._pending_notify_redeploy = True
+
+    def _notify_redeploy(self):
+        dlg = RedeployListenerDialog(DeviceUnreal.active_unreal_devices, DeviceUnreal.listener_watcher)
+        dlg.exec()
+        DeviceUnreal._pending_notify_redeploy = False
 
     def __init__(self, name, ip_address, **kwargs):
         super().__init__(name, ip_address, **kwargs)
@@ -331,6 +379,19 @@ class DeviceUnreal(Device):
         self.force_clobber = False
 
     @classmethod
+    def added_device(cls, device):
+        ''' Implementation of base class function. Called when one of our plugin devices has been added. '''
+        assert device not in cls.active_unreal_devices
+        cls.active_unreal_devices.add(device)
+        cls.listener_watcher.update_listener_path(CONFIG.listener_path())
+
+    @classmethod
+    def removed_device(cls, device):
+        ''' Implementation of base class function. Called when one of our plugin devices has been removed. '''
+        assert device in cls.active_unreal_devices
+        cls.active_unreal_devices.remove(device)
+
+    @classmethod
     def plugin_settings(cls):
         return Device.plugin_settings() + list(DeviceUnreal.csettings.values())
 
@@ -341,6 +402,7 @@ class DeviceUnreal(Device):
             DeviceUnreal.csettings['exec_cmds'],
             DeviceUnreal.csettings['dp_cvars'],
             DeviceUnreal.csettings['max_gpu_count'],
+            DeviceUnreal.csettings['priority_modifier'],
             CONFIG.ENGINE_DIR,
             CONFIG.SOURCE_CONTROL_WORKSPACE,
             CONFIG.UPROJECT_PATH,
@@ -397,7 +459,6 @@ class DeviceUnreal(Device):
         self.unreal_client.send_message(msg)
 
     def _request_project_changelist_number(self):
-
         if not CONFIG.P4_ENABLED.get_value():
             return
 
@@ -440,7 +501,6 @@ class DeviceUnreal(Device):
         )
 
     def _request_engine_changelist_number(self):
-
         if not CONFIG.P4_ENABLED.get_value():
             return
 
@@ -484,8 +544,7 @@ class DeviceUnreal(Device):
 
     @QtCore.Slot()
     def connect_listener(self):
-        ''' Connects to the listener
-        '''
+        ''' Connects to the listener '''
         # Ensure this code is run from the main thread
         if threading.current_thread().name != 'MainThread':
             QtCore.QMetaObject.invokeMethod(self, 'connect_listener', QtCore.Qt.QueuedConnection)
@@ -501,8 +560,7 @@ class DeviceUnreal(Device):
 
     @QtCore.Slot()
     def disconnect_listener(self):
-        ''' Disconnects from the listener
-        '''
+        ''' Disconnects from the listener '''
         # Ensure this code is run from the main thread
         if threading.current_thread().name != 'MainThread':
             QtCore.QMetaObject.invokeMethod(self, 'disconnect_listener', QtCore.Qt.QueuedConnection)
@@ -526,7 +584,6 @@ class DeviceUnreal(Device):
                 self.status = DeviceStatus.SYNCING
 
     def _sync_engine(self, engine_cl):
-
         program_name = "sync_engine"
 
         # check if it is already on its way:
@@ -574,7 +631,6 @@ class DeviceUnreal(Device):
 
 
     def _sync_project(self, project_cl):
-
         sync_project_prog_name = "sync_project"
 
         # check if it is already on its way:
@@ -618,7 +674,6 @@ class DeviceUnreal(Device):
             sync_engine_puuid = None
 
         # find out if it is noclobber
-        #
         program_name = "isclobber"
 
         working_dir = os.path.dirname(CONFIG.UPROJECT_PATH.get_value(self.name))
@@ -644,9 +699,7 @@ class DeviceUnreal(Device):
         )
 
         # allow clobbering
-        #
         if self.force_clobber and sys.platform.startswith('win'):
-
             program_name = "clobber"
 
             puuid_clobber, msg = message_protocol.create_start_process_message(
@@ -672,8 +725,6 @@ class DeviceUnreal(Device):
             puuid_clobber = puuid_isclobber # transfer puuid dependency to clobber puuid
 
         # start sync
-        #
-
         puuid_sync, msg = message_protocol.create_start_process_message(
             prog_path=sync_tool, 
             prog_args=sync_args, 
@@ -694,7 +745,6 @@ class DeviceUnreal(Device):
         )
 
         # disallow clobbering
-        
         if self.force_clobber and sys.platform.startswith('win'):
 
             program_name = "noclobber"
@@ -722,8 +772,7 @@ class DeviceUnreal(Device):
             pass
 
     def build(self):
-
-        program_name = "build"
+        program_name = 'build_project'
 
         # check if it is already on its way:
         try:
@@ -734,7 +783,6 @@ class DeviceUnreal(Device):
             pass
 
         # check for any sync dependencies
-        #
         sync_puuid = None
         sync_name = ''
         for sync_program_name in ['sync_engine', 'sync_project']: # order matters, as we sync the engine before the project.
@@ -745,43 +793,81 @@ class DeviceUnreal(Device):
                 pass
 
         if sync_puuid:
-            LOGGER.debug(f"{self.name} Queued build after {sync_name} with puuid {sync_puuid}")
+            LOGGER.debug(f"{self.name} Queuing build after {sync_name} with puuid {sync_puuid}")
 
-        # Generate build command
-        #
+        # Build dependency chain
+        puuid_dependency = sync_puuid
+
+        if self.is_designated_local_builder() and CONFIG.BUILD_ENGINE.get_value():
+            # Build multi-user server
+            if CONFIG.MUSERVER_AUTO_BUILD:
+                if DeviceUnreal.mu_server.is_running():
+                    mb_ret = QtWidgets.QMessageBox.question(
+                        None, 'Terminate multi-user server?',
+                        'The multi-user server is currently running. ' \
+                        'Would you like to terminate it so that it can be updated by the build?',
+                        QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No)
+
+                    if mb_ret == QtWidgets.QMessageBox.Yes:
+                        DeviceUnreal.mu_server.terminate()
+
+                puuid_dependency = self._build_mu_server(puuid_dependency=puuid_dependency)
+
+            # TODO: Build listener
+            # - Handle the running listener's exe being locked
+            # - Parse SwitchboardListenerVersion.h, skip if unchanged?
+
+            #if CONFIG.LISTENER_AUTO_BUILD:
+            #    puuid_dependency = self._build_listener(puuid_dependency=puuid_dependency)
+
+        puuid_dependency = self._build_project(puuid_dependency=puuid_dependency)
+
+    def _build_project(self, puuid_dependency: typing.Optional[uuid.UUID] = None):
+        ubt_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoHotReloadFromIDE'
+        return self._queue_build('project', ubt_args=ubt_args, puuid_dependency=puuid_dependency)
+
+    def _build_mu_server(self, puuid_dependency: typing.Optional[uuid.UUID] = None):
+        ubt_args = 'UnrealMultiUserServer Win64 Development -Progress'
+        return self._queue_build('mu_server', ubt_args=ubt_args, puuid_dependency=puuid_dependency)
+
+    def _build_listener(self, puuid_dependency: typing.Optional[uuid.UUID] = None):
+        ubt_args = 'SwitchboardListener Win64 Development -Progress'
+        return self._queue_build('listener', ubt_args=ubt_args, puuid_dependency=puuid_dependency)
+
+    def _queue_build(self, program_name_suffix: str, ubt_args: str, puuid_dependency: typing.Optional[uuid.UUID] = None):
+        program_name = f"build_{program_name_suffix}"
+
         engine_path = CONFIG.ENGINE_DIR.get_value(self.name)
-        build_tool = os.path.join(engine_path, "Binaries", "DotNET", "UnrealBuildTool")
-        build_args = f'Win64 Development -project="{CONFIG.UPROJECT_PATH.get_value(self.name)}" -TargetType=Editor -Progress -NoHotReloadFromIDE' 
+        ubt_path = os.path.join(engine_path, 'Binaries', 'DotNET', 'UnrealBuildTool')
 
         puuid, msg = message_protocol.create_start_process_message(
-            prog_path=build_tool, 
-            prog_args=build_args, 
+            prog_path=ubt_path, 
+            prog_args=ubt_args, 
             prog_name=program_name, 
             caller=self.name,
             update_clients_with_stdout=True,
         )
 
         def launch_fn():
-            LOGGER.info(f"{self.name}: Sending build command: {build_tool} {build_args}")
+            LOGGER.info(f"{self.name}: Sending {program_name} command: {ubt_path} {ubt_args}")
             self.status = DeviceStatus.BUILDING
 
         # Queue the build command
-        #
         self.program_start_queue.add(
             ProgramStartQueueItem(
                 name = program_name,
-                puuid_dependency = sync_puuid,
+                puuid_dependency = puuid_dependency,
                 puuid = puuid,
                 msg_to_unreal_client = msg,
-                launch_fn=launch_fn,
+                launch_fn = launch_fn,
             ),
             unreal_client = self.unreal_client,
         )
 
+        return puuid
+
     def close(self, force=False):
-
         # This call only refers to "unreal" programs.
-
         unreal_puuids = self.program_start_queue.running_puuids_named('unreal')
 
         for unreal_puuid in unreal_puuids:
@@ -791,25 +877,8 @@ class DeviceUnreal(Device):
         if not len(unreal_puuids):
             self.status = DeviceStatus.CLOSED
 
-    def force_focus(self):
-        ''' Asks the listener to force focus on the 'unreal' window
-        '''
-        unreals = self.program_start_queue.running_programs_named('unreal')
-
-        if not len(unreals):
-            return
-
-        pid = unreals[0].pid
-
-        if not pid:
-            return
-        
-        _, msg = message_protocol.create_forcefocus_message(pid)
-        self.unreal_client.send_message(msg)
-    
     def fix_exe_flags(self):
-        ''' Tries to force the correct UE4Editor.exe flags
-        '''
+        ''' Tries to force the correct UE4Editor.exe flags '''
         unreals = self.program_start_queue.running_programs_named('unreal')
 
         if not len(unreals):
@@ -824,7 +893,7 @@ class DeviceUnreal(Device):
         self.unreal_client.send_message(msg)
 
     def generate_unreal_exe_path(self):
-        return CONFIG.engine_path(CONFIG.ENGINE_DIR.get_value(self.name), DeviceUnreal.csettings["ue4_exe"].get_value())
+        return CONFIG.engine_exe_path(CONFIG.ENGINE_DIR.get_value(self.name), DeviceUnreal.csettings["ue4_exe"].get_value())
 
     def get_vproles(self):
         ''' Gets selected vp roles that are also present in the ini file
@@ -859,7 +928,6 @@ class DeviceUnreal(Device):
             LOGGER.error(f"{self.name}: Omitted unsupported roles: {'|'.join(unsupported_roles)}")
 
         # Session ID
-        #
         session_id = DeviceUnreal.csettings["stage_session_id"].get_value()
         if session_id > 0:
             command_line_args += f" -StageSessionId={session_id}"
@@ -867,7 +935,6 @@ class DeviceUnreal(Device):
         command_line_args += f" -StageFriendlyName={self.name}"
 
         # Max GPU Count (mGPU)
-        #
         max_gpu_count = DeviceUnreal.csettings["max_gpu_count"].get_value(self.name)
         try:
             if int(max_gpu_count) > 1:
@@ -888,12 +955,25 @@ class DeviceUnreal(Device):
         return self.generate_unreal_exe_path(), self.generate_unreal_command_line_args(map_name)
 
     def launch(self, map_name, program_name="unreal"):
-
         if map_name == DEFAULT_MAP_TEXT:
             map_name = ''
 
+        # Launch the MU server
+        if CONFIG.MUSERVER_AUTO_LAUNCH:
+            DeviceUnreal.mu_server.launch()
+
         engine_path, args = self.generate_unreal_command_line(map_name)
         LOGGER.info(f"Launching UE4: {engine_path} {args}")
+
+        priority_modifier_str = self.csettings['priority_modifier'].get_value(self.name)
+        try:
+            priority_modifier = sb_utils.PriorityModifier[priority_modifier_str].value
+        except KeyError:
+            LOGGER.warning(f"Invalid priority_modifier '{priority_modifier_str}', defaulting to Normal")
+            priority_modifier = sb_utils.PriorityModifier.Normal.value
+
+        # TODO: Sanitize these on Qt input? Deserialization?
+        args = args.replace('\r', ' ').replace('\n', ' ')
 
         puuid, msg = message_protocol.create_start_process_message(
             prog_path=engine_path, 
@@ -901,6 +981,7 @@ class DeviceUnreal(Device):
             prog_name=program_name, 
             caller=self.name, 
             update_clients_with_stdout=False,
+            priority_modifier=priority_modifier
         )
 
         self.program_start_queue.add(
@@ -920,20 +1001,18 @@ class DeviceUnreal(Device):
             self.osc_connection_timer.stop()
 
     def on_listener_disconnect(self, unexpected=False, exception=None):
-
         self.program_start_queue.reset()
 
         if unexpected:
             self.device_qt_handler.signal_device_client_disconnected.emit(self)
 
     def do_program_running_update(self, prog):
-
-        if prog.name == "unreal":
+        if prog.name == 'unreal':
             self.status = DeviceStatus.OPEN
             self.unreal_started_signal.emit()
-        elif prog.name == "build":
+        elif prog.name.startswith('build_'):
             self.status = DeviceStatus.BUILDING
-        elif 'sync' in prog.name:
+        elif prog.name.startswith('sync_'):
             self.sync_progress = 0
             self.status = DeviceStatus.SYNCING
 
@@ -952,7 +1031,7 @@ class DeviceUnreal(Device):
             # log this
             LOGGER.error(f"Could not start {program_name}: {message['error']}")
 
-            if program_name in ["sync", "build"]:
+            if program_name.startswith('sync_') or program_name.startswith('build_'):
                 self.status = DeviceStatus.CLOSED
                 self.project_changelist = self.project_changelist # force to show existing project_changelist to hide building/syncing
             elif program_name == 'unreal':
@@ -981,13 +1060,11 @@ class DeviceUnreal(Device):
         self.do_program_running_update(prog=prog)
 
     def on_unreal_started(self):
-
         if self.is_recording_device:
             sleep_time_in_ms = 1000
             self.osc_connection_timer.start(sleep_time_in_ms)
 
     def on_program_ended(self, message):
-
         try:
             process = message['process']
         except KeyError:
@@ -1017,10 +1094,8 @@ class DeviceUnreal(Device):
         if program_name == "unreal" and not len(remaining_homonyms):
             self.status = DeviceStatus.CLOSED
 
-        elif "sync" in program_name:
-            
+        elif program_name.startswith('sync_'):
             if "sync_engine" == program_name:
-
                 if returncode == 0:
                     LOGGER.info(f"{self.name}: Engine was synced successfully")
                 else:
@@ -1042,7 +1117,6 @@ class DeviceUnreal(Device):
                 self.project_changelist = self.project_changelist
 
             elif "sync_project" == program_name:
-
                 if returncode == 0:
                     LOGGER.info(f"{self.name}: Project was synced successfully")
                 else:
@@ -1069,23 +1143,25 @@ class DeviceUnreal(Device):
                 # everything is done syncing
                 self.status = DeviceStatus.CLOSED
 
-        elif program_name == "build":
+        elif program_name.startswith('build_'):
             if returncode == 0:
-                LOGGER.info(f"{self.name}: Project was built successfully!")
+                LOGGER.info(f"{self.name}: {program_name} successful!")
             else:
-                LOGGER.error(f"{self.name}: Project was not built successfully!")
+                LOGGER.error(f"{self.name}: {program_name} failed!")
+
+                # MSVC build tools error codes, e.g. 'error C4430' or 'error LNK1104'
+                error_pattern = re.compile(r"error [A-Z]{1,3}[0-9]{4}")
                 for line in output.splitlines():
-                    # error lines from UBT usually look like this: $SourceFile: error C4430: missing type specifier - int assumed...
-                    if ": error " in line:
+                    if error_pattern.search(line):
                         LOGGER.error(f"{self.name}: {line}")
 
-            self.status = DeviceStatus.CLOSED
-            self.project_changelist = self.project_changelist # forces an update to the changelist field (to hide the Building state)
-            if CONFIG.BUILD_ENGINE.get_value():
-                self.engine_changelist = self.engine_changelist
+            if 'build_project' == program_name:
+                self.status = DeviceStatus.CLOSED
+                self.project_changelist = self.project_changelist # forces an update to the changelist field (to hide the Building state)
+                if CONFIG.BUILD_ENGINE.get_value():
+                    self.engine_changelist = self.engine_changelist
 
         elif "cstat" in program_name:
-
             changelists = [line.strip() for line in output.split()]
 
             try:
@@ -1114,7 +1190,6 @@ class DeviceUnreal(Device):
                 if line.startswith('Options:'):
                     self.force_clobber = True if 'noclobber' in line else False
                     break
-
 
     def on_program_killed(self, message):
         ''' Handler of killed program. Expect on_program_ended for anything other than a fail. '''
@@ -1148,7 +1223,6 @@ class DeviceUnreal(Device):
         ''' Handles updates to stdout of programs
         Particularly useful to update build progress
         '''
-
         process = message['process']
 
         if process['caller'] != self.name:
@@ -1167,7 +1241,7 @@ class DeviceUnreal(Device):
         #    @progress 'Generating code...' 100% 
         #    @progress pop 
         #
-        if process['name'] == 'build':
+        if process['name'].startswith('build_'):
             for line in lines:
                 if '@progress' in line:
                     stepparts = line.split("'")
@@ -1182,7 +1256,7 @@ class DeviceUnreal(Device):
                     if '%' == percent[-1]:
                         self.device_qt_handler.signal_device_build_update.emit(self, step, percent)
 
-        elif 'sync' in process['name']:
+        elif process['name'].startswith('sync_'):
             self.sync_progress += len(lines)
             self.device_qt_handler.signal_device_sync_update.emit(self, self.sync_progress)
 
@@ -1193,38 +1267,35 @@ class DeviceUnreal(Device):
         ''' Message expected to be received upon connection with the listener.
         It contains the state of the listener. Particularly useful when Switchboard reconnects.
         '''
-
         self.program_start_queue.clear_running_programs()
 
-        try:
-            version = int(message['version'])
-        except (KeyError, ValueError):
-            LOGGER.error(f"Unable to parse listener version. Disconnecting...")
+        server_version = version_helpers.listener_ver_from_state_message(message)
+        if not server_version:
+            LOGGER.error('Unable to parse listener version. Disconnecting...')
             self.disconnect_listener()
             return
 
-        major = (version >> 16) & 0xFF
-        minor = (version >>  8) & 0xFF
-        patch = (version >>  0) & 0xFF
+        redeploy_version = self.listener_watcher.listener_ver
 
-        LOGGER.info(f"{self.name} Connected to listener version {major}.{minor}.{patch}")
+        # If incompatible or newer patch release available, prompt to redeploy.
+        if not version_helpers.listener_is_compatible(server_version):
+            self._queue_notify_redeploy()
+        elif redeploy_version != None and server_version < redeploy_version:
+            self._queue_notify_redeploy()
 
-        desired_major = 0x01
-        min_minor = 0x03
-
-        if not((major == desired_major) and (minor >= min_minor)):
-            LOGGER.error(f"This version of the listener is incompatible with Switchboard. "\
-                         f"We expected {desired_major}.>={min_minor}.xx. Disconnecting...")
+        if not version_helpers.listener_is_compatible(server_version):
+            LOGGER.error(f"{self.name}: Listener version {version_helpers.version_str(server_version)} not compatible "\
+                         f"({version_helpers.version_str(version_helpers.LISTENER_COMPATIBLE_VERSION)}.x required)")
             self.disconnect_listener()
+            return
 
         self.os_version_label = message.get('osVersionLabel', '')
         self.os_version_label_sub = message.get('osVersionLabelSub', '')
         self.os_version_number = message.get('osVersionNumber', '')
+        self.total_phys_mem = message.get('totalPhysicalMemory', 0)
 
         # update list of running processes
-        #
         for process in message['runningProcesses']:
-
             prog = ProgramStartQueueItem.from_listener_process(process)
 
             if process['caller'] == self.name:
@@ -1232,7 +1303,6 @@ class DeviceUnreal(Device):
                 self.do_program_running_update(prog=prog)        
 
         # request roles and changelists
-        #
         self._request_roles_file()
         self._request_project_changelist_number()
 
@@ -1240,9 +1310,7 @@ class DeviceUnreal(Device):
             self._request_engine_changelist_number()
 
     def transport_paths(self, device_recording):
-        """
-        Do not transport UE4 paths as they will be checked into source control
-        """
+        ''' Do not transport UE4 paths as they will be checked into source control '''
         return []
 
 
@@ -1355,16 +1423,14 @@ class DeviceWidgetUnreal(DeviceWidget):
         self.signal_device_widget_connect.emit(self)
 
     def _disconnect(self):
-        ''' Called when user disconnects
-        '''
+        ''' Called when user disconnects '''
         self._update_disconnected_ui()
 
         # Emit Signal to Switchboard
         self.signal_device_widget_disconnect.emit(self)
 
     def _update_disconnected_ui(self):
-        ''' Updates the UI of the device to reflect disconnected status
-        '''
+        ''' Updates the UI of the device to reflect disconnected status '''
         # Make sure the button is in the correct state
         self.connect_button.setChecked(False)
         self.connect_button.setToolTip("Connect to listener")

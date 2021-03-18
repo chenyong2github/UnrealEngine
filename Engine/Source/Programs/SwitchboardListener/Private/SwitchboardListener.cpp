@@ -10,6 +10,7 @@
 #include "SwitchboardTasks.h"
 #include "SyncStatus.h"
 
+#include "Algo/Find.h"
 #include "Async/Async.h"
 #include "Async/AsyncWork.h"
 #include "Common/TcpListener.h"
@@ -19,8 +20,10 @@
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "IPAddress.h"
 #include "Misc/Base64.h"
+#include "Misc/CommandLine.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "Misc/ScopeExit.h"
 #include <atomic>
 
 #if PLATFORM_WINDOWS
@@ -47,7 +50,7 @@ namespace
 	{
 		// Try to parse message that could not be parsed regularly and look for the message ID.
 		// This way we can at least tell Switchboard which message was broken.
-		const int32 IdIdx = InMessage.Find(TEXT("'id'"));
+		const int32 IdIdx = InMessage.Find(TEXT("\"id\""));
 		if (IdIdx > 0)
 		{
 			const FString Chopped = InMessage.RightChop(IdIdx);
@@ -119,10 +122,81 @@ struct FRunningProcess
 	}
 };
 
-FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
-	: Endpoint(MakeUnique<FIPv4Endpoint>(InEndpoint))
+FSwitchboardCommandLineOptions FSwitchboardCommandLineOptions::FromString(const TCHAR* CommandLine)
+{
+	FSwitchboardCommandLineOptions OutOptions;
+
+	TArray<FString> Tokens;
+	TArray<FString> Switches;
+	FCommandLine::Parse(CommandLine, Tokens, Switches);
+	TMap<FString, FString> SwitchPairs;
+	for (int32 SwitchIdx = Switches.Num() - 1; SwitchIdx >= 0; --SwitchIdx)
+	{
+		FString& Switch = Switches[SwitchIdx];
+		TArray<FString> SplitSwitch;
+		if (2 == Switch.ParseIntoArray(SplitSwitch, TEXT("="), true))
+		{
+			SwitchPairs.Add(SplitSwitch[0], SplitSwitch[1].TrimQuotes());
+			Switches.RemoveAt(SwitchIdx);
+		}
+	}
+
+	if (Switches.Contains(TEXT("version")))
+	{
+		OutOptions.OutputVersion = true;
+	}
+
+	if (SwitchPairs.Contains(TEXT("ip")))
+	{
+		FIPv4Address ParseAddr;
+		if (FIPv4Address::Parse(SwitchPairs[TEXT("ip")], ParseAddr))
+		{
+			OutOptions.Address = ParseAddr;
+		}
+	}
+
+	if (SwitchPairs.Contains(TEXT("port")))
+	{
+		OutOptions.Port = FCString::Atoi(*SwitchPairs[TEXT("port")]);
+	}
+
+	if (SwitchPairs.Contains(TEXT("RedeployFromPid")))
+	{
+		OutOptions.RedeployFromPid = FCString::Atoi64(*SwitchPairs[TEXT("RedeployFromPid")]);
+	}
+
+	return OutOptions;
+}
+
+FString FSwitchboardCommandLineOptions::ToString(bool bIncludeRedeploy /* = false */) const
+{
+	TArray<FString> Args;
+
+	if (Address.IsSet())
+	{
+		Args.Add(FString::Printf(TEXT("-ip=%s"), *Address.GetValue().ToString()));
+	}
+
+	if (Port.IsSet())
+	{
+		Args.Add(FString::Printf(TEXT("-port=%u"), Port.GetValue()));
+	}
+
+	if (bIncludeRedeploy)
+	{
+		if (RedeployFromPid.IsSet())
+		{
+			Args.Add(FString::Printf(TEXT("-RedeployFromPid=%u"), RedeployFromPid.GetValue()));
+		}
+	}
+
+	return FString::Join(Args, TEXT(" "));
+}
+
+FSwitchboardListener::FSwitchboardListener(const FSwitchboardCommandLineOptions& InOptions)
+	: Options(InOptions)
 	, SocketListener(nullptr)
-	, CpuMonitor(MakeUnique<FCpuUtilizationMonitor>())
+	, CpuMonitor(MakeShared<FCpuUtilizationMonitor, ESPMode::ThreadSafe>())
 {
 #if PLATFORM_WINDOWS
 	// initialize NvAPI
@@ -134,6 +208,20 @@ FSwitchboardListener::FSwitchboardListener(const FIPv4Endpoint& InEndpoint)
 		}
 	}
 #endif // PLATFORM_WINDOWS
+
+	const FIPv4Address DefaultIp = FIPv4Address(0, 0, 0, 0);
+	if (!Options.Address.IsSet())
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("Defaulting to: -ip=%s"), *DefaultIp.ToString());
+	}
+
+	const uint16 DefaultPort = 2980;
+	if (!Options.Port.IsSet())
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("Defaulting to: -port=%u"), DefaultPort);
+	}
+
+	Endpoint = MakeUnique<FIPv4Endpoint>(Options.Address.Get(DefaultIp), Options.Port.Get(DefaultPort));
 }
 
 FSwitchboardListener::~FSwitchboardListener()
@@ -142,6 +230,13 @@ FSwitchboardListener::~FSwitchboardListener()
 
 bool FSwitchboardListener::Init()
 {
+	return StartListening();
+}
+
+bool FSwitchboardListener::StartListening()
+{
+	check(!SocketListener);
+
 	SocketListener = MakeUnique<FTcpListener>(*Endpoint, FTimespan::FromSeconds(1), false);
 	if (SocketListener->IsActive())
 	{
@@ -152,6 +247,14 @@ bool FSwitchboardListener::Init()
 	
 	UE_LOG(LogSwitchboard, Error, TEXT("Could not create Tcp Listener!"));
 	return false;
+}
+
+bool FSwitchboardListener::StopListening()
+{
+	check(SocketListener.IsValid());
+	UE_LOG(LogSwitchboard, Display, TEXT("No longer listening on %s:%d"), *SocketListener->GetLocalEndpoint().Address.ToString(), SocketListener->GetLocalEndpoint().Port);
+	SocketListener.Reset();
+	return true;
 }
 
 bool FSwitchboardListener::Tick()
@@ -172,6 +275,8 @@ bool FSwitchboardListener::Tick()
 
 				FPlatformMisc::GetOSVersions(StatePacket.OsVersionLabel, StatePacket.OsVersionLabelSub);
 				StatePacket.OsVersionNumber = FPlatformMisc::GetOSVersion();
+
+				StatePacket.TotalPhysicalMemory = FPlatformMemory::GetConstants().TotalPhysical;
 
 				for (const auto& RunningProcess : RunningProcesses)
 				{
@@ -239,6 +344,11 @@ bool FSwitchboardListener::Tick()
 	HandleRunningProcesses(FlipModeMonitors, false);
 	SendMessageFutures();
 
+	if (IsEngineExitRequested())
+	{
+		return false;
+	}
+
 	return true;
 }
 
@@ -295,22 +405,32 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		case ESwitchboardTaskType::Start:
 		{
 			const FSwitchboardStartTask& StartTask = static_cast<const FSwitchboardStartTask&>(InTask);
-			return StartProcess(StartTask);
+			return Task_StartProcess(StartTask);
 		}
 		case ESwitchboardTaskType::Kill:
 		{
 			const FSwitchboardKillTask& KillTask = static_cast<const FSwitchboardKillTask&>(InTask);
-			return KillProcess(KillTask);
+			return Task_KillProcess(KillTask);
 		}
 		case ESwitchboardTaskType::ReceiveFileFromClient:
 		{
 			const FSwitchboardReceiveFileFromClientTask& ReceiveFileFromClientTask = static_cast<const FSwitchboardReceiveFileFromClientTask&>(InTask);
-			return ReceiveFileFromClient(ReceiveFileFromClientTask);
+			return Task_ReceiveFileFromClient(ReceiveFileFromClientTask);
+		}
+		case ESwitchboardTaskType::RedeployListener:
+		{
+			const FSwitchboardRedeployListenerTask& RedeployListenerTask = static_cast<const FSwitchboardRedeployListenerTask&>(InTask);
+			const bool bRedeployOk = Task_RedeployListener(RedeployListenerTask);
+			if (!bRedeployOk)
+			{
+				RollbackRedeploy();
+			}
+			return bRedeployOk;
 		}
 		case ESwitchboardTaskType::SendFileToClient:
 		{
 			const FSwitchboardSendFileToClientTask& SendFileToClientTask = static_cast<const FSwitchboardSendFileToClientTask&>(InTask);
-			return SendFileToClient(SendFileToClientTask);
+			return Task_SendFileToClient(SendFileToClientTask);
 		}
 		case ESwitchboardTaskType::KeepAlive:
 		{
@@ -319,17 +439,12 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 		case ESwitchboardTaskType::GetSyncStatus:
 		{
 			const FSwitchboardGetSyncStatusTask& GetSyncStatusTask = static_cast<const FSwitchboardGetSyncStatusTask&>(InTask);
-			return GetSyncStatus(GetSyncStatusTask);
-		}
-		case ESwitchboardTaskType::ForceFocus:
-		{
-			const FSwitchboardForceFocusTask& Task = static_cast<const FSwitchboardForceFocusTask&>(InTask);
-			return ForceFocus(Task);
+			return Task_GetSyncStatus(GetSyncStatusTask);
 		}
 		case ESwitchboardTaskType::FixExeFlags:
 		{
 			const FSwitchboardFixExeFlagsTask& Task = static_cast<const FSwitchboardFixExeFlagsTask&>(InTask);
-			return FixExeFlags(Task);
+			return Task_FixExeFlags(Task);
 		}
 		default:
 		{
@@ -338,70 +453,6 @@ bool FSwitchboardListener::RunScheduledTask(const FSwitchboardTask& InTask)
 			return false;
 		}
 	}
-	return false;
-}
-
-#if PLATFORM_WINDOWS
-static bool SimulateMouseClick(HWND WindowHandle)
-{
-	RECT WindowRect; // Window rect in screen coordinates
-
-	if (!GetWindowRect(WindowHandle, &WindowRect))
-	{
-		return false;
-	}
-
-	const double ScreenWidthM1 = double(::GetSystemMetrics(SM_CXSCREEN) - 1);
-	const double ScreenHeightM1 = double(::GetSystemMetrics(SM_CYSCREEN) - 1);
-
-	check(ScreenWidthM1 > 0.5);
-	check(ScreenHeightM1 > 0.5);
-
-	INPUT Inputs[3] = { 0 };
-
-	Inputs[0].type = INPUT_MOUSE;
-	Inputs[0].mi.dx = LONG((double(WindowRect.left) + 0.25) * (65535.0 / ScreenWidthM1));
-	Inputs[0].mi.dy = LONG((double(WindowRect.right) + 0.25) * (65535.0 / ScreenHeightM1));
-	Inputs[0].mi.dwFlags = MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE;
-
-	Inputs[1].type = INPUT_MOUSE;
-	Inputs[1].mi.dwFlags = MOUSEEVENTF_LEFTDOWN;
-
-	Inputs[2].type = INPUT_MOUSE;
-	Inputs[2].mi.dwFlags = MOUSEEVENTF_LEFTUP;
-
-	return !!::SendInput(3, Inputs, sizeof(INPUT));
-}
-#endif //PLATFORM_WINDOWS
-
-static bool SetFocusWindowByPID(uint32 ProcessId)
-{
-#if PLATFORM_WINDOWS
-	BOOL bResult = false;
-	HWND WindowHandle = GetTopWindow(0);
-
-	while (WindowHandle)
-	{
-		DWORD PID = 0;
-		DWORD ThreadId = GetWindowThreadProcessId(WindowHandle, &PID);
-
-		if (ThreadId != 0)
-		{
-			if (PID == ProcessId)
-			{
-				bResult = SetWindowPos(WindowHandle, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
-				bResult &= SetForegroundWindow(WindowHandle);
-				bResult &= !!SetFocus(WindowHandle);
-				bResult &= !!SetActiveWindow(WindowHandle);
-				bResult &= !!SimulateMouseClick(WindowHandle);
-				return bResult;
-			}
-		}
-
-		WindowHandle = GetNextWindow(WindowHandle, GW_HWNDNEXT);
-	}
-#endif // PLATFORM_WINDOWS
-
 	return false;
 }
 
@@ -424,24 +475,6 @@ static uint32 FindPidInFocus()
 
 	return 0;
 }
-
-#if PLATFORM_WINDOWS
-static TArray<FString> RegistryGetSubkeys(const HKEY Key)
-{
-	TArray<FString> Subkeys;
-	const uint32 MaxKeyLength = 1024;
-	TCHAR SubkeyName[MaxKeyLength];
-	DWORD KeyLength = MaxKeyLength;
-
-	while (!RegEnumKeyEx(Key, Subkeys.Num(), SubkeyName, &KeyLength, nullptr, nullptr, nullptr, nullptr))
-	{
-		Subkeys.Add(SubkeyName);
-		KeyLength = MaxKeyLength;
-	}
-
-	return Subkeys;
-}
-#endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
 static TArray<FString> RegistryGetValueNames(const HKEY Key)
@@ -488,107 +521,64 @@ static bool RegistrySetStringValueData(const HKEY Key, const FString& ValueName,
 
 static bool DisableFullscreenOptimizationForProcess(const FRunningProcess* Process)
 {
+#if !PLATFORM_WINDOWS
+	return false;
+#else
 	// No point in continuing if there is no process to set the flags for.
 	if (!Process)
 	{
 		return false;
 	}
 
-	bool bDone = false;
-
-#if PLATFORM_WINDOWS
-
 	// This is the absolute path of the program we'll be looking for in the registry
 	const FString ProcessAbsolutePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Process->Path);
+	const FString DisableFsOptLayer = TEXT("DISABLEDXMAXIMIZEDWINDOWEDMODE");
+	const FString LayersKeyPath = TEXT("Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers");
 
-	// We expect program layers to be in a location like the following:
-	//   Computer\HKEY_USERS\S-1-5-21-4092791292-903758629-2457117007-1001\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers
-	// But the guid looking number above may vary.
-
-	// So we try all the keys immediately under HKEY_USERS
-	TArray<FString> KeyPaths = RegistryGetSubkeys(HKEY_USERS);
-
-	for (const FString& KeyPath : KeyPaths)
+	// Check if the key exists
+	HKEY LayersKey;
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, *LayersKeyPath, 0, KEY_ALL_ACCESS, &LayersKey))
 	{
-		const FString LayersKeyPath = KeyPath + TEXT("\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers");
+		return false;
+	}
 
-		HKEY LayersKey;
-
-		// Check if the key exists
-		if (RegOpenKeyExW(HKEY_USERS, *LayersKeyPath, 0, KEY_ALL_ACCESS, &LayersKey))
-		{
-			continue;
-		}
-
-		// If the key exists, the Value Names are the paths to the programs
-
-		const TArray<FString> ProgramPaths = RegistryGetValueNames(LayersKey);
-
-		for (const FString& ProgramPath : ProgramPaths)
-		{
-			const FString ProgramAbsPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProgramPath);
-
-			// Check if this is the program we're looking for
-			if (ProcessAbsolutePath != ProgramAbsPath)
-			{
-				continue;
-			}
-
-			// If so, get the layers from the Value Data.
-
-			bDone = true;
-
-			FString ProgramLayers = RegistryGetStringValueData(LayersKey, ProgramPath);
-
-			TArray<FString> ProgramLayersArray;
-			ProgramLayers.ParseIntoArray(ProgramLayersArray, TEXT(" "));
-
-			// check if it is missing or not
-			bool bAlreadyDisabled = false;
-			for (const FString& ProgLayer : ProgramLayersArray)
-			{
-				if (ProgLayer == "DISABLEDXMAXIMIZEDWINDOWEDMODE")
-				{
-					bAlreadyDisabled = true;
-					break;
-				}
-			}
-
-			// if not already disabled, then let's disable it
-			if (!bAlreadyDisabled)
-			{
-				ProgramLayers = ProgramLayers + TEXT(" DISABLEDXMAXIMIZEDWINDOWEDMODE");
-				RegistrySetStringValueData(LayersKey, ProgramPath, ProgramLayers);
-				bDone = true;
-			}
-
-			// No need to look further.
-			break;
-		}
-
-		// If we're not done, the path to our executable does not exist as one of the regkey values, so we need to create it.
-		if (!bDone)
-		{
-			const FString ProgramLayers = TEXT("~ DISABLEDXMAXIMIZEDWINDOWEDMODE");
-			const FString ProgramAbsPath = ProcessAbsolutePath.Replace(TEXT("/"), TEXT("\\"));
-			RegistrySetStringValueData(LayersKey, ProgramAbsPath, ProgramLayers);
-			bDone = true;
-		}
-
+	ON_SCOPE_EXIT
+	{
 		RegCloseKey(LayersKey);
+	};
 
-		// If the already have done the deed, no need to iterate further
-		if (bDone)
+	// If the key exists, the Value Names are the paths to the programs
+	const TArray<FString> ProgramPaths = RegistryGetValueNames(LayersKey);
+	const FString* ExistingPath = Algo::FindBy(ProgramPaths, ProcessAbsolutePath, [](const FString& ProgPath) { return IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProgPath); });
+	if (ExistingPath)
+	{
+		// If the program already has an entry, get the layers from the Value Data.
+		FString ProgramLayers = RegistryGetStringValueData(LayersKey, *ExistingPath);
+
+		TArray<FString> ProgramLayersArray;
+		ProgramLayers.ParseIntoArray(ProgramLayersArray, TEXT(" "));
+
+		if (ProgramLayersArray.Contains(DisableFsOptLayer))
 		{
-			break;
+			// Layer already present, nothing to do.
+			return true;
 		}
+
+		// Append the desired layer.
+		ProgramLayers = FString::Printf(TEXT("%s %s"), *ProgramLayers, *DisableFsOptLayer);
+		return RegistrySetStringValueData(LayersKey, *ExistingPath, ProgramLayers);
+	}
+	else
+	{
+		// The path to our executable does not exist as one of the regkey values, so we need to create it.
+		const FString ProgramLayers = FString::Printf(TEXT("~ %s"), *DisableFsOptLayer);
+		const FString ProgramAbsPath = ProcessAbsolutePath.Replace(TEXT("/"), TEXT("\\"));
+		return RegistrySetStringValueData(LayersKey, ProgramAbsPath, ProgramLayers);
 	}
 #endif // PLATFORM_WINDOWS
-
-	return bDone;
 }
 
-bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
+bool FSwitchboardListener::Task_StartProcess(const FSwitchboardStartTask& InRunTask)
 {
 	auto NewProcess = MakeShared<FRunningProcess, ESPMode::ThreadSafe>();
 
@@ -609,7 +599,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	const bool bLaunchDetached = false;
 	const bool bLaunchHidden = false;
 	const bool bLaunchReallyHidden = false;
-	const int32 PriorityModifier = 0;
+	const int32 PriorityModifier = InRunTask.PriorityModifier;
 	const TCHAR* WorkingDirectory = InRunTask.WorkingDir.IsEmpty() ? nullptr : *InRunTask.WorkingDir;
 
 	NewProcess->Handle = FPlatformProcess::CreateProc(
@@ -652,17 +642,6 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 		return false;
 	}
 
-	if (InRunTask.bForceWindowFocus)
-	{
-		Async(EAsyncExecution::Thread, [=]() {
-			// Wait an (unguaranteed) reasonable time for the window to be created
-			FPlatformProcess::Sleep(5);
-
-			// Set focus to it
-			SetFocusWindowByPID(NewProcess->PID);
-		});
-	}
-
 	UE_LOG(LogSwitchboard, Display, TEXT("Started process %d: %s %s"), NewProcess->PID, *InRunTask.Command, *InRunTask.Arguments);
 
 	RunningProcesses.Add(NewProcess);
@@ -687,7 +666,7 @@ bool FSwitchboardListener::StartProcess(const FSwitchboardStartTask& InRunTask)
 	return true;
 }
 
-bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
+bool FSwitchboardListener::Task_KillProcess(const FSwitchboardKillTask& KillTask)
 {
 	if (EquivalentTaskFutureExists(KillTask.GetEquivalenceHash()))
 	{
@@ -706,7 +685,6 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 	}
 
 	// Look in RunningProcesses
-
 	TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> Process;
 	{
 		auto* ProcessPtr = RunningProcesses.FindByPredicate([&KillTask](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& InProcess)
@@ -723,7 +701,6 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 	}
 
 	// Look in FlipModeMonitors
-
 	TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> FlipModeMonitor;
 	{
 		auto* FlipModeMonitorPtr = FlipModeMonitors.FindByPredicate([&](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& FlipMonitor)
@@ -740,7 +717,6 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 	}
 
 	// Create our future message
-
 	FSwitchboardMessageFuture MessageFuture;
 
 	MessageFuture.TaskType = KillTask.Type;
@@ -749,15 +725,13 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 
 	const FGuid UUID = KillTask.ProgramID;
 
-	MessageFuture.Future = Async(EAsyncExecution::Thread, [=]() {
-
+	MessageFuture.Future = Async(EAsyncExecution::ThreadPool, [=]() {
 		const float SoftKillTimeout = 2.0f;
 
 		const bool bKilledProcess = KillProcessNow(Process.Get(), SoftKillTimeout);
 		KillProcessNow(FlipModeMonitor.Get(), SoftKillTimeout);
 
 		// Clear bPendingKill
-
 		if (Process)
 		{
 			Process->bPendingKill = false;
@@ -769,7 +743,6 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 		}
 
 		// Return message
-
 		const FString ProgramID = UUID.ToString();
 
 		if (!bKilledProcess)
@@ -805,7 +778,7 @@ bool FSwitchboardListener::KillProcess(const FSwitchboardKillTask& KillTask)
 	return true;
 }
 
-bool FSwitchboardListener::FixExeFlags(const FSwitchboardFixExeFlagsTask& Task)
+bool FSwitchboardListener::Task_FixExeFlags(const FSwitchboardFixExeFlagsTask& Task)
 {
 	if (EquivalentTaskFutureExists(Task.GetEquivalenceHash()))
 	{
@@ -824,7 +797,6 @@ bool FSwitchboardListener::FixExeFlags(const FSwitchboardFixExeFlagsTask& Task)
 	}
 
 	// Look in RunningProcesses
-
 	TSharedPtr<FRunningProcess, ESPMode::ThreadSafe> Process;
 	{
 		auto* ProcessPtr = RunningProcesses.FindByPredicate([&Task](const TSharedPtr<FRunningProcess, ESPMode::ThreadSafe>& InProcess)
@@ -898,7 +870,7 @@ bool FSwitchboardListener::KillProcessNow(FRunningProcess* InProcess, float Soft
 	return false;
 }
 
-bool FSwitchboardListener::ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask)
+bool FSwitchboardListener::Task_ReceiveFileFromClient(const FSwitchboardReceiveFileFromClientTask& InReceiveFileFromClientTask)
 {
 	FString Destination = InReceiveFileFromClientTask.Destination;
 
@@ -940,7 +912,197 @@ bool FSwitchboardListener::ReceiveFileFromClient(const FSwitchboardReceiveFileFr
 	return false;
 }
 
-bool FSwitchboardListener::SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask)
+bool FSwitchboardListener::Task_RedeployListener(const FSwitchboardRedeployListenerTask& InRedeployListenerTask)
+{
+	if (RedeployStatus.State != FRedeployStatus::EState::None)
+	{
+		const FString ErrorMsg(TEXT("Redeploy already in progress"));
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	RedeployStatus.RequestingClient = InRedeployListenerTask.Recipient;
+	RedeployStatus.State = FRedeployStatus::EState::RequestReceived;
+
+	TArray<uint8> DecodedFileContent;
+	FBase64::Decode(InRedeployListenerTask.FileContent, DecodedFileContent);
+
+	FSHAHash Hash;
+	FSHA1::HashBuffer(DecodedFileContent.GetData(), DecodedFileContent.Num(), Hash.Hash);
+	if (Hash != InRedeployListenerTask.ExpectedHash)
+	{
+		const FString ErrorMsg = FString::Printf(TEXT("Incorrect checksum %s; expected %s"),
+			*Hash.ToString(), *InRedeployListenerTask.ExpectedHash.ToString());
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	UE_LOG(LogSwitchboard, Display, TEXT("Successfully validated new listener checksum"));
+
+	const uint32 CurrentPid = FPlatformProcess::GetCurrentProcessId();
+
+	// NOTE: FPlatformProcess::ExecutablePath() is stale if we were moved while running.
+	const FString OriginalThisExePath = FPlatformProcess::GetApplicationName(CurrentPid);
+	const FString ThisExeDir = FPaths::GetPath(OriginalThisExePath);
+	const FString ThisExeExt = FPaths::GetExtension(OriginalThisExePath, true);
+
+	const FString TempNewListenerPath = FPaths::CreateTempFilename(*ThisExeDir, TEXT("SwitchboardListener-New"), *ThisExeExt);
+
+	UE_LOG(LogSwitchboard, Display, TEXT("Writing new listener to \"%s\" (%d bytes)"), *TempNewListenerPath, DecodedFileContent.Num());
+	if (!FFileHelper::SaveArrayToFile(DecodedFileContent, *TempNewListenerPath))
+	{
+		const FString ErrorMsg = FString::Printf(TEXT("Unable to write new listener to \"%s\""), *TempNewListenerPath);
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	// Unbind the port so the redeployed child process can claim it.
+	StopListening();
+
+	// Create IPC semaphore.
+	const FString IpcSemaphoreName = GetIpcSemaphoreName(CurrentPid);
+	FPlatformProcess::FSemaphore* IpcSemaphore = FPlatformProcess::NewInterprocessSynchObject(IpcSemaphoreName, true);
+	ON_SCOPE_EXIT
+	{
+		if (IpcSemaphore)
+		{
+			FPlatformProcess::DeleteInterprocessSynchObject(IpcSemaphore);
+		}
+	};
+
+	if (IpcSemaphore == nullptr)
+	{
+		const FString ErrorMsg(TEXT("Unable to create IPC semaphore"));
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	// We acquire to zero immediately; the child process will release/increment when initialized,
+	// and we can await that indication by trying to acquire a second time.
+	IpcSemaphore->Lock();
+
+	RedeployStatus.OriginalThisExePath = OriginalThisExePath;
+	RedeployStatus.TempNewListenerPath = TempNewListenerPath;
+	RedeployStatus.State = FRedeployStatus::EState::NewListenerWrittenTemp;
+
+	const FString RedeployArgs = Options.ToString() + FString::Printf(TEXT(" -RedeployFromPid=%u"), CurrentPid);
+	const bool bLaunchDetached = true;
+	const bool bLaunchHidden = false;
+	const bool bLaunchReallyHidden = false;
+	uint32* OutProcessId = nullptr;
+	const int32 PriorityModifier = 0;
+	const TCHAR* WorkingDirectory = nullptr;
+	void* PipeWriteChild = nullptr;
+	FProcHandle RedeployedProcHandle = FPlatformProcess::CreateProc(*TempNewListenerPath, *RedeployArgs, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, OutProcessId, PriorityModifier, WorkingDirectory, PipeWriteChild);
+	if (!RedeployedProcHandle.IsValid())
+	{
+		const FString ErrorMsg(TEXT("Unable to launch new listener"));
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	RedeployStatus.ListenerProc = RedeployedProcHandle;
+	RedeployStatus.State = FRedeployStatus::EState::NewListenerStarted;
+
+	const FString TempThisListenerPath = FPaths::CreateTempFilename(*ThisExeDir, TEXT("SwitchboardListener-Old"), *ThisExeExt);
+	if (!IFileManager::Get().Move(*TempThisListenerPath, *OriginalThisExePath, false))
+	{
+		const uint32 LastError = FPlatformMisc::GetLastError();
+		const FString ErrorMsg = FString::Printf(TEXT("Unable to move old listener to \"%s\" (error code %u)"), *TempThisListenerPath, LastError);
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	RedeployStatus.TempThisListenerPath = TempThisListenerPath;
+	RedeployStatus.State = FRedeployStatus::EState::ThisListenerRenamed;
+
+	if (!IFileManager::Get().Move(*OriginalThisExePath, *TempNewListenerPath, false))
+	{
+		const uint32 LastError = FPlatformMisc::GetLastError();
+		const FString ErrorMsg = FString::Printf(TEXT("Unable to move new listener to \"%s\" (error code %u)"), *TempThisListenerPath, LastError);
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	RedeployStatus.State = FRedeployStatus::EState::NewListenerRenamed;
+
+	const uint64 IpcReadyWaitSeconds = 5;
+	const bool IpcAcquired = IpcSemaphore->TryLock(IpcReadyWaitSeconds * 1'000'000'000ULL);
+	if (IpcAcquired == false)
+	{
+		const FString ErrorMsg(TEXT("Timed out waiting for child process to sync"));
+		UE_LOG(LogSwitchboard, Error, TEXT("Redeploy listener: %s"), *ErrorMsg);
+		SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, false, ErrorMsg), InRedeployListenerTask.Recipient);
+		return false;
+	}
+
+	UE_LOG(LogSwitchboard, Display, TEXT("Redeploy complete; shutting down"));
+	SendMessage(CreateRedeployStatusMessage(InRedeployListenerTask.TaskID, true, FString(TEXT("Redeployed instance is ready"))), InRedeployListenerTask.Recipient);
+
+	RedeployStatus.State = FRedeployStatus::EState::Complete;
+	RequestEngineExit(TEXT("Redeploy complete"));
+
+	return true;
+}
+
+void FSwitchboardListener::RollbackRedeploy()
+{
+	// Unwind redeploy actions, in reverse order of corresponding state transitions.
+	UE_LOG(LogSwitchboard, Warning, TEXT("Rolling back redeploy..."));
+
+	if ((uint8)RedeployStatus.State >= (uint8)FRedeployStatus::EState::NewListenerRenamed)
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("Moving new listener back to temporary location"));
+		IFileManager::Get().Move(*RedeployStatus.TempNewListenerPath, *RedeployStatus.OriginalThisExePath, false);
+	}
+
+	if ((uint8)RedeployStatus.State >= (uint8)FRedeployStatus::EState::ThisListenerRenamed)
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("Moving this listener back to original location"));
+		IFileManager::Get().Move(*RedeployStatus.OriginalThisExePath, *RedeployStatus.TempThisListenerPath, false);
+		RedeployStatus.TempThisListenerPath.Reset();
+	}
+
+	if ((uint8)RedeployStatus.State >= (uint8)FRedeployStatus::EState::NewListenerStarted)
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("Terminating temporary listener"));
+		FPlatformProcess::TerminateProc(RedeployStatus.ListenerProc);
+		FPlatformProcess::WaitForProc(RedeployStatus.ListenerProc);
+		FPlatformProcess::CloseProc(RedeployStatus.ListenerProc);
+	}
+
+	if ((uint8)RedeployStatus.State >= (uint8)FRedeployStatus::EState::NewListenerWrittenTemp)
+	{
+		UE_LOG(LogSwitchboard, Warning, TEXT("Removing temporary listener"));
+		IFileManager::Get().Delete(*RedeployStatus.TempNewListenerPath, true);
+		RedeployStatus.OriginalThisExePath.Reset();
+		RedeployStatus.TempNewListenerPath.Reset();
+
+		// Resume listening on this instance.
+		StartListening();
+	}
+
+	if ((uint8)RedeployStatus.State >= (uint8)FRedeployStatus::EState::RequestReceived)
+	{
+		RedeployStatus.RequestingClient = FIPv4Endpoint::Any;
+		RedeployStatus.State = FRedeployStatus::EState::None;
+	}
+}
+
+//static
+FString FSwitchboardListener::GetIpcSemaphoreName(uint32 ParentPid)
+{
+	return FString::Printf(TEXT("SwitchboardListenerIpc_Redeploy_%u"), ParentPid);
+}
+
+bool FSwitchboardListener::Task_SendFileToClient(const FSwitchboardSendFileToClientTask& InSendFileToClientTask)
 {
 	FString SourceFilePath = InSendFileToClientTask.Source;
 	FPlatformMisc::NormalizePath(SourceFilePath);
@@ -1403,61 +1565,31 @@ static void FillOutDisableFullscreenOptimizationForProcess(FSyncStatus& SyncStat
 	// This is the absolute path of the program we'll be looking for in the registry
 	const FString ProcessAbsolutePath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*Process->Path);
 
-	// We expect program layers to be in a location like the following:
-	//   Computer\HKEY_USERS\S-1-5-21-4092791292-903758629-2457117007-1001\Software\Microsoft\Windows NT\CurrentVersion\AppCompatFlags\Layers
-	// But the guid looking number above may vary.
+	const FString LayersKeyPath = TEXT("Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers");
 
-	// So we try all the keys immediately under HKEY_USERS
-	TArray<FString> KeyPaths = RegistryGetSubkeys(HKEY_USERS);
-
-	for (const FString& KeyPath : KeyPaths)
+	// Check if the key exists
+	HKEY LayersKey;
+	if (RegOpenKeyExW(HKEY_CURRENT_USER, *LayersKeyPath, 0, KEY_READ, &LayersKey))
 	{
-		const FString LayersKeyPath = KeyPath + TEXT("\\Software\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers");
-
-		HKEY LayersKey;
-		
-		// Check if the key exists
-		if (RegOpenKeyExW(HKEY_USERS, *LayersKeyPath, 0, KEY_READ, &LayersKey))
-		{
-			continue;
-		}
-
-		// If the key exists, the Value Names are the paths to the programs
-
-		const TArray<FString> ProgramPaths = RegistryGetValueNames(LayersKey);
-
-		for (const FString& ProgramPath : ProgramPaths)
-		{
-			const FString ProgramAbsPath = IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProgramPath);
-		
-			// Check if this is the program we're looking for
-			if (ProcessAbsolutePath != ProgramAbsPath)
-			{
-				continue;
-			}
-
-			// If so, get the layers from the Value Data.
-
-			const FString ProgramLayers = RegistryGetStringValueData(LayersKey, ProgramPath);
-			ProgramLayers.ParseIntoArray(SyncStatus.ProgramLayers, TEXT(" "));
-
-			// No need to look further.
-			break;
-		}
-
-		RegCloseKey(LayersKey);
-
-		// If the already have the data we need, we can break.
-		if (SyncStatus.ProgramLayers.Num())
-		{
-			break;
-		}
+		return;
 	}
+
+	// If the key exists, the Value Names are the paths to the programs
+	const TArray<FString> ProgramPaths = RegistryGetValueNames(LayersKey);
+	const FString* ExistingPath = Algo::FindBy(ProgramPaths, ProcessAbsolutePath, [](const FString& ProgPath) { return IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProgPath); });
+	if (ExistingPath)
+	{
+		// If so, get the layers from the Value Data.
+		const FString ProgramLayers = RegistryGetStringValueData(LayersKey, *ExistingPath);
+		ProgramLayers.ParseIntoArray(SyncStatus.ProgramLayers, TEXT(" "));
+	}
+
+	RegCloseKey(LayersKey);
 }
 #endif // PLATFORM_WINDOWS
 
 #if PLATFORM_WINDOWS
-static void FillOutGpuUtilization(FSyncStatus& SyncStatus)
+static void FillOutPhysicalGpuStats(FSyncStatus& SyncStatus)
 {
 	// TODO: Can we somehow use the GPU engine "engtype_3D" perf counters for this instead?
 
@@ -1505,11 +1637,13 @@ static void FillOutGpuUtilization(FSyncStatus& SyncStatus)
 
 	SyncStatus.GpuUtilization.SetNumUninitialized(PhysicalGpuCount);
 	SyncStatus.GpuCoreClocksKhz.SetNumUninitialized(PhysicalGpuCount);
+	SyncStatus.GpuTemperature.SetNumUninitialized(PhysicalGpuCount);
 
 	for (NvU32 PhysicalGpuIdx = 0; PhysicalGpuIdx < PhysicalGpuCount; ++PhysicalGpuIdx)
 	{
 		SyncStatus.GpuUtilization[PhysicalGpuIdx] = -1;
 		SyncStatus.GpuCoreClocksKhz[PhysicalGpuIdx] = -1;
+		SyncStatus.GpuTemperature[PhysicalGpuIdx] = MIN_int32;
 
 		const NvPhysicalGpuHandle& PhysicalGpu = PhysicalGpuHandles[PhysicalGpuIdx];
 
@@ -1546,6 +1680,26 @@ static void FillOutGpuUtilization(FSyncStatus& SyncStatus)
 		{
 			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetAllClockFrequencies failed. Error code: %d"), NvResult);
 		}
+
+		NV_GPU_THERMAL_SETTINGS ThermalSettings;
+		ThermalSettings.version = NV_GPU_THERMAL_SETTINGS_VER;
+		NvResult = NvAPI_GPU_GetThermalSettings(PhysicalGpu, NVAPI_THERMAL_TARGET_ALL, &ThermalSettings);
+		if (NvResult == NVAPI_OK)
+		{
+			// Report max temp across all sensors for this GPU.
+			for (NvU32 SensorIdx = 0; SensorIdx < ThermalSettings.count; ++SensorIdx)
+			{
+				const NvS32 SensorTemp = ThermalSettings.sensor[SensorIdx].currentTemp;
+				if (SensorTemp > SyncStatus.GpuTemperature[PhysicalGpuIdx])
+				{
+					SyncStatus.GpuTemperature[PhysicalGpuIdx] = SensorTemp;
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("NvAPI_GPU_GetThermalSettings failed. Error code: %d"), NvResult);
+		}
 	}
 }
 #endif
@@ -1558,7 +1712,7 @@ bool FSwitchboardListener::EquivalentTaskFutureExists(uint32 TaskEquivalenceHash
 	});
 }
 
-bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask)
+bool FSwitchboardListener::Task_GetSyncStatus(const FSwitchboardGetSyncStatusTask& InGetSyncStatusTask)
 {
 #if PLATFORM_WINDOWS
 	// Reject request if an equivalent one is already in our future
@@ -1596,21 +1750,31 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 	}
 
 	// Create our future message
-
 	FSwitchboardMessageFuture MessageFuture;
 
 	MessageFuture.TaskType = InGetSyncStatusTask.Type;
 	MessageFuture.InEndpoint = InGetSyncStatusTask.Recipient;
 	MessageFuture.EquivalenceHash = InGetSyncStatusTask.GetEquivalenceHash();
 
-	MessageFuture.Future = Async(EAsyncExecution::Thread, [=]() {
+	TSharedPtr<FCpuUtilizationMonitor, ESPMode::ThreadSafe> CpuMon = CpuMonitor;
+	MessageFuture.Future = Async(EAsyncExecution::ThreadPool, [SyncStatus, CpuMon]() {
 		FillOutDriverVersion(SyncStatus.Get());
 		FillOutTaskbarAutoHide(SyncStatus.Get());
 		FillOutSyncTopologies(SyncStatus.Get());
 		FillOutMosaicTopologies(SyncStatus.Get());
+
 		SyncStatus->PidInFocus = FindPidInFocus();
-		CpuMonitor->GetPerCoreUtilization(SyncStatus->CpuUtilization);
-		FillOutGpuUtilization(SyncStatus.Get());
+
+		if (CpuMon)
+		{
+			CpuMon->GetPerCoreUtilization(SyncStatus->CpuUtilization);
+		}
+
+		const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
+		SyncStatus->AvailablePhysicalMemory = MemStats.AvailablePhysical;
+
+		FillOutPhysicalGpuStats(SyncStatus.Get());
+
 		return CreateSyncStatusMessage(SyncStatus.Get());
 	});
 
@@ -1623,12 +1787,6 @@ bool FSwitchboardListener::GetSyncStatus(const FSwitchboardGetSyncStatusTask& In
 	return false;
 #endif // PLATFORM_WINDOWS
 }
-
-bool FSwitchboardListener::ForceFocus(const FSwitchboardForceFocusTask& ForceFocusTask)
-{
-	return SetFocusWindowByPID(ForceFocusTask.PID);
-}
-
 
 void FSwitchboardListener::CleanUpDisconnectedSockets()
 {
@@ -1649,7 +1807,15 @@ void FSwitchboardListener::CleanUpDisconnectedSockets()
 		TUniquePtr<FSwitchboardTask> Task;
 		DisconnectTasks.Dequeue(Task);
 		const FSwitchboardDisconnectTask& DisconnectTask = static_cast<const FSwitchboardDisconnectTask&>(*Task);
-		DisconnectClient(DisconnectTask.Recipient);
+		const FIPv4Endpoint& Client = DisconnectTask.Recipient;
+
+		if (RedeployStatus.InProgress() && Client == RedeployStatus.RequestingClient)
+		{
+			UE_LOG(LogSwitchboard, Warning, TEXT("Client %s disconnected before redeploy completed"), *Client.ToString());
+			RollbackRedeploy();
+		}
+
+		DisconnectClient(Client);
 	}
 }
 
@@ -1693,7 +1859,6 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 			}
 
 			// If there was a new stdout, update the clients
-			//
 			if (Output.Num() && Process->bUpdateClientsWithStdout)
 			{
 				FSwitchboardProgramStdout Packet;
@@ -1757,7 +1922,7 @@ void FSwitchboardListener::HandleRunningProcesses(TArray<TSharedPtr<FRunningProc
 							check((*FlipModeMonitorPtr).IsValid());
 
 							FSwitchboardKillTask Task(FGuid(), (*FlipModeMonitorPtr)->Recipient, (*FlipModeMonitorPtr)->UUID);
-							KillProcess(Task);
+							Task_KillProcess(Task);
 						}
 					}
 				}

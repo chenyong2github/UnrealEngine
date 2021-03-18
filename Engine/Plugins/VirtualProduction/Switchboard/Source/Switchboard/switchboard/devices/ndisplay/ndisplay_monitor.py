@@ -19,6 +19,7 @@ class nDisplayMonitor(QAbstractTableModel):
     ColorWarning = QColor(0x70, 0x40, 0x00)
     ColorNormal  = QColor(0x3d, 0x3d, 0x3d)
     CoreOverloadThresh = 90 # percent utilization
+    DataMissingStr = 'n/a' # Sometimes treated specially from listener (PresentMode); also used for display.
 
     console_exec_issued = Signal()
 
@@ -48,16 +49,16 @@ class nDisplayMonitor(QAbstractTableModel):
             ('ExeFlags'       , 'It is recommended to disable fullscreen opimizations on the unreal executable. Only available once the render node process is running. Expects "DISABLEDXMAXIMIZEDWINDOWEDMODE"'),
             ('OsVer'          , 'Operating system version'),
             ('CpuUtilization' , f"CPU utilization average. The number of overloaded cores (> {self.CoreOverloadThresh}% load) will be displayed in parentheses."),
+            ('MemUtilization' , 'Physical memory, utilized / total.'),
             ('GpuUtilization' , 'GPU utilization. The GPU clock speed is displayed in parentheses.'),
+            ('GpuTemperature' , 'GPU temperature in degrees celsius. (Max across all sensors.)'),
         ]
 
         self.colnames = [hd[0] for hd in headerdata]
         self.tooltips = [hd[1] for hd in headerdata]
 
     def color_for_column(self, colname, value, data):
-        ''' Returns the background color for the given cell
-        '''
-
+        ''' Returns the background color for the given cell '''
         if data['Connected'].lower() == 'no':
             if colname == 'Connected':
                 return self.ColorWarning
@@ -88,9 +89,7 @@ class nDisplayMonitor(QAbstractTableModel):
         return self.ColorNormal
 
     def friendly_osver(self, device):
-        ''' Returns a display-friendly string for the device OS version
-        '''
-
+        ''' Returns a display-friendly string for the device OS version '''
         if device.os_version_label.startswith('Windows'):
             try:
                 # Destructuring according to FWindowsPlatformMisc::GetOSVersion, ex: "10.0.19041.1.256.64bit"
@@ -126,15 +125,16 @@ class nDisplayMonitor(QAbstractTableModel):
         if device.os_version_number != '':
             friendly += " " + device.os_version_number
 
+        if friendly == '':
+            friendly = self.DataMissingStr
+
         return friendly
 
 
     def reset_device_data(self, device, data):
-        ''' Sets device data to unconnected state
-        '''
-
+        ''' Sets device data to unconnected state '''
         for colname in self.colnames:
-            data[colname] = 'n/a'
+            data[colname] = self.DataMissingStr
 
         data['Host'] = str(device.ip_address)
         data['Node'] = device.name
@@ -144,9 +144,7 @@ class nDisplayMonitor(QAbstractTableModel):
         data['TimeLastFlipGlitch'] = time.time()
 
     def added_device(self, device):
-        ''' Called by the plugin when a new nDisplay device has been added.
-        '''
-
+        ''' Called by the plugin when a new nDisplay device has been added. '''
         data = {}
 
         self.reset_device_data(device, data)
@@ -160,9 +158,7 @@ class nDisplayMonitor(QAbstractTableModel):
             self.timer.start(self.polling_period_ms)
 
     def removed_device(self, device):
-        ''' Called by the plugin when an nDisplay device has been removed.
-        '''
-
+        ''' Called by the plugin when an nDisplay device has been removed. '''
         self.devicedatas.pop(device.device_hash)
 
         # notify the UI of the change
@@ -173,9 +169,7 @@ class nDisplayMonitor(QAbstractTableModel):
             self.timer.stop()
 
     def handle_stale_device(self, devicedata, deviceIdx):
-        '''Detects if the device is stale, and resets the data if so as to not mislead the user
-        '''
-
+        ''' Detects if the device is stale, and resets the data if so as to not mislead the user '''
         # if already flagged as stale, no need to do anything
         if devicedata['stale']:
             return
@@ -197,9 +191,7 @@ class nDisplayMonitor(QAbstractTableModel):
         self.dataChanged.emit(self.createIndex(row,1), self.createIndex(row,len(self.colnames))) # [Qt.EditRole]
 
     def handle_connection_change(self, devicedata, deviceIdx):
-        ''' Detects if device connection changed and notifies the UI if a disconnection happens.
-        '''
-
+        ''' Detects if device connection changed and notifies the UI if a disconnection happens. '''
         device = devicedata['device']
         data = devicedata['data']
 
@@ -209,7 +201,6 @@ class nDisplayMonitor(QAbstractTableModel):
         data['Connected'] = 'yes' if is_connected else 'no'
 
         if was_connected != is_connected:
-
             if not is_connected:
                 self.reset_device_data(device, data)
 
@@ -217,9 +208,7 @@ class nDisplayMonitor(QAbstractTableModel):
             self.dataChanged.emit(self.createIndex(row,1), self.createIndex(row,len(self.colnames)))
 
     def poll_sync_status(self):
-        ''' Polls sync status for all nDisplay devices
-        '''
-
+        ''' Polls sync status for all nDisplay devices '''
         for deviceIdx, devicedata in enumerate(self.devicedatas.values()):
             device = devicedata['device']
 
@@ -234,7 +223,6 @@ class nDisplayMonitor(QAbstractTableModel):
                 continue
 
             # create message
-
             try:
                 program_id = device.program_start_queue.running_puuids_named('unreal')[-1]
             except IndexError:
@@ -246,8 +234,7 @@ class nDisplayMonitor(QAbstractTableModel):
             device.unreal_client.send_message(msg)
 
     def devicedata_from_device(self, device):
-        ''' Retrieves the devicedata and index for given device
-        '''
+        ''' Retrieves the devicedata and index for given device '''
         for deviceIdx, hash_devicedata in enumerate(self.devicedatas.items()):
             device_hash, devicedata = hash_devicedata[0], hash_devicedata[1]
             if device_hash == device.device_hash:
@@ -256,21 +243,17 @@ class nDisplayMonitor(QAbstractTableModel):
         raise KeyError
 
     def populate_sync_data(self, devicedata, message):
-        ''' Populates model data with message contents, which comes from 'get sync data' command.
-        '''
-
+        ''' Populates model data with message contents, which comes from 'get sync data' command. '''
         data = devicedata['data']
         device = devicedata['device']
 
         #
         # Sync Topology
         #
-
         syncStatus = message['syncStatus']
         syncTopos = syncStatus['syncTopos']
 
         # Build Gpus, informing which Gpus in each Sync group are in sync
-
         Gpus = []
 
         for syncTopo in syncTopos:
@@ -278,10 +261,9 @@ class nDisplayMonitor(QAbstractTableModel):
             gpu_sync_yesno = map(lambda x: "Synced" if x else 'Free', gpu_sync_oks)
             Gpus.append('%s' % (', '.join(gpu_sync_yesno)))
 
-        data['Gpus'] = '\n'.join(Gpus)
+        data['Gpus'] = '\n'.join(Gpus) if len(Gpus) > 0 else self.DataMissingStr
 
         # Build Displays, informing which Display in each Sync group are in sync.
-
         Displays = []
 
         bpc_strings = {1:6, 2:8, 3:10, 4:12, 5:16}
@@ -290,17 +272,17 @@ class nDisplayMonitor(QAbstractTableModel):
             display_sync_states = [f"{syncDisplay['syncState']}({bpc_strings.get(syncDisplay['bpc'], '??')}bpc)" for syncDisplay in syncTopo['syncDisplays']]
             Displays.append(', '.join(display_sync_states))
 
-        data['Displays'] = '\n'.join(Displays)
+        data['Displays'] = '\n'.join(Displays) if len(Displays) > 0 else self.DataMissingStr
 
         # Build Fps
         refreshRates = [f"{syncTopo['syncStatusParams']['refreshRate']*1e-4:.3f}" for syncTopo in syncTopos]
-        data['Fps'] = '\n'.join(refreshRates)
+        data['Fps'] = '\n'.join(refreshRates) if len(refreshRates) > 0 else self.DataMissingStr
 
         # Build House Sync
         house_fpss = [syncTopo['syncStatusParams']['houseSyncIncoming']*1e-4 for syncTopo in syncTopos]
         house_syncs = [syncTopo['syncStatusParams']['bHouseSync'] for syncTopo in syncTopos]
-        house_sync_fpss = map(lambda x: f"{x[1]:.3f}" if x[0] else 'no', zip(house_syncs, house_fpss))
-        data['HouseSync'] = '\n'.join(house_sync_fpss)
+        house_sync_fpss = list(map(lambda x: f"{x[1]:.3f}" if x[0] else 'no', zip(house_syncs, house_fpss)))
+        data['HouseSync'] = '\n'.join(house_sync_fpss) if len(house_sync_fpss) > 0 else self.DataMissingStr
 
         # Build Sync Source
         source_str = {0:'Vsync', 1:'House'}
@@ -316,12 +298,9 @@ class nDisplayMonitor(QAbstractTableModel):
             else:
                 sync_slaves.append(sync_sources[i])
 
-        data['SyncSource'] = '\n'.join(sync_slaves)
+        data['SyncSource'] = '\n'.join(sync_slaves) if len(sync_slaves) > 0 else self.DataMissingStr
 
-        #
         # Mosaic Topology
-        #
-
         mosaicTopos = syncStatus['mosaicTopos']
 
         mosaicTopoLines = []
@@ -341,7 +320,6 @@ class nDisplayMonitor(QAbstractTableModel):
         data['Mosaics'] = '\n'.join(mosaicTopoLines)
 
         # Build PresentMode.
-        #
         flip_history = syncStatus['flipModeHistory']
 
         if len(flip_history) > 0:
@@ -353,7 +331,7 @@ class nDisplayMonitor(QAbstractTableModel):
             data['TimeLastFlipGlitch'] = time.time()
 
         # Write time since last glitch
-        if data['PresentMode'] != 'n/a':
+        if data['PresentMode'] != self.DataMissingStr:
             time_since_flip_glitch = time.time() - data['TimeLastFlipGlitch']
 
             # Let the user know for 1 minute that there was a glitch in the flip mode
@@ -371,37 +349,59 @@ class nDisplayMonitor(QAbstractTableModel):
         data['ExeFlags'] = '\n'.join([layer for layer in syncStatus['programLayers'][1:]])
 
         # Driver version
-        driver = syncStatus['driverVersion']
-        data['Driver'] = f'{int(driver/100)}.{driver % 100}'
+        try:
+            driver = syncStatus['driverVersion']
+            data['Driver'] = f'{int(driver/100)}.{driver % 100}'
+        except (KeyError, TypeError):
+            data['Driver'] = self.DataMissingStr
 
         # Taskbar visibility
-        data['Taskbar'] = syncStatus['taskbar']
+        data['Taskbar'] = syncStatus.get('taskbar', self.DataMissingStr)
 
         # Operating system version
         data['OsVer'] = self.friendly_osver(device)
 
         # CPU utilization
-        num_cores = len(syncStatus['cpuUtilization'])
-        num_overloaded_cores = 0
-        cpu_load_avg = 0.0
-        for core_load in syncStatus['cpuUtilization']:
-            cpu_load_avg += float(core_load) * (1.0 / num_cores)
-            if core_load > self.CoreOverloadThresh:
-                num_overloaded_cores += 1
+        try:
+            num_cores = len(syncStatus['cpuUtilization'])
+            num_overloaded_cores = 0
+            cpu_load_avg = 0.0
+            for core_load in syncStatus['cpuUtilization']:
+                cpu_load_avg += float(core_load) * (1.0 / num_cores)
+                if core_load > self.CoreOverloadThresh:
+                    num_overloaded_cores += 1
 
-        data['CpuUtilization'] = f"{cpu_load_avg:.0f}%"
-        if num_overloaded_cores > 0:
-            data['CpuUtilization'] += f" ({num_overloaded_cores} cores > {self.CoreOverloadThresh}%)"
+            data['CpuUtilization'] = f"{cpu_load_avg:.0f}%"
+            if num_overloaded_cores > 0:
+                data['CpuUtilization'] += f" ({num_overloaded_cores} cores > {self.CoreOverloadThresh}%)"
+        except (KeyError, ValueError):
+            data['CpuUtilization'] = self.DataMissingStr
+
+        # Memory utilization
+        try:
+            gb = 1024 * 1024 * 1024
+            mem_utilized = device.total_phys_mem - syncStatus.get('availablePhysicalMemory', 0)
+            data['MemUtilization'] = f"{mem_utilized / gb:.1f} / {device.total_phys_mem / gb:.0f} GB"
+        except TypeError:
+            data['MemUtilization'] = self.DataMissingStr
 
         # GPU utilization + clocks
-        gpu_stats = map(lambda x: f"#{x[0]}: {x[1]:.0f}% ({x[2] / 1000:.0f} MHz)", zip(count(), syncStatus['gpuUtilization'], syncStatus['gpuCoreClocksKhz']))
-        data['GpuUtilization'] = '\n'.join(gpu_stats)
+        try:
+            gpu_stats = list(map(lambda x: f"#{x[0]}: {x[1]:.0f}% ({x[2] / 1000:.0f} MHz)", zip(count(), syncStatus['gpuUtilization'], syncStatus['gpuCoreClocksKhz'])))
+            data['GpuUtilization'] = '\n'.join(gpu_stats) if len(gpu_stats) > 0 else self.DataMissingStr
+        except (KeyError, TypeError):
+            data['GpuUtilization'] = self.DataMissingStr
+
+        # GPU temperature
+        try:
+            temps = [t if t != -2147483648 else self.DataMissingStr for t in syncStatus['gpuTemperature']]
+            data['GpuTemperature'] = '\n'.join(map(lambda x: f"#{x[0]}: {x[1]}° C", zip(count(), temps))) if len(temps) > 0 else self.DataMissingStr
+        except (KeyError, TypeError):
+            data['GpuTemperature'] = self.DataMissingStr
 
 
     def on_get_sync_status(self, device, message):
-        ''' Called when the listener has sent a message with the sync status
-        '''
-
+        ''' Called when the listener has sent a message with the sync status '''
         # check ack
         try:
             if message['bAck'] == False:
@@ -411,7 +411,6 @@ class nDisplayMonitor(QAbstractTableModel):
             return
 
         # ok, we expect this to be a valid message, let's parse and update the model.
-
         deviceIdx, devicedata = self.devicedata_from_device(device)
         devicedata['time_last_update'] = time.time()
         devicedata['stale'] = False
@@ -427,8 +426,7 @@ class nDisplayMonitor(QAbstractTableModel):
 
 
     def do_console_exec(self, exec_str, executor=''):
-        ''' Issues a console exec to the cluster
-        '''
+        ''' Issues a console exec to the cluster '''
         devices = [devicedata['device'] for devicedata in self.devicedatas.values()]
         if len(devices):
             try:
@@ -447,7 +445,6 @@ class nDisplayMonitor(QAbstractTableModel):
         return len(self.colnames)
 
     def headerData(self, section, orientation, role):
-
         if role == Qt.DisplayRole:
             if orientation == Qt.Horizontal:
                 return self.colnames[section]
@@ -460,7 +457,6 @@ class nDisplayMonitor(QAbstractTableModel):
         return None
 
     def data(self, index, role=Qt.DisplayRole):
-
         column = index.column()
         row = index.row()
 
@@ -479,25 +475,15 @@ class nDisplayMonitor(QAbstractTableModel):
             return self.color_for_column(colname=colname, value=value, data=data)
 
         elif role == Qt.TextAlignmentRole:
+            if colname in ('CpuUtilization', 'GpuUtilization'):
+                return Qt.AlignLeft
             return Qt.AlignRight
 
         return None
 
     @QtCore.Slot()
-    def btnForceFocus_clicked(self):
-        ''' Forces focus on the nDisplay window if not already in focus
-        '''
-        for devicedata in self.devicedatas.values():
-            device = devicedata['device']
-            data = devicedata['data']
-
-            if data['InFocus'] != 'yes':
-                device.force_focus()
-
-    @QtCore.Slot()
     def btnFixExeFlags_clicked(self):
-        ''' Tries to force the correct UE4Editor.exe flags
-        '''
+        ''' Tries to force the correct UE4Editor.exe flags '''
         for devicedata in self.devicedatas.values():
             device = devicedata['device']
             data = devicedata['data']
@@ -509,8 +495,7 @@ class nDisplayMonitor(QAbstractTableModel):
 
     @QtCore.Slot()
     def btnSoftKill_clicked(self):
-        ''' Kills the cluster by sending a message to the master.
-        '''
+        ''' Kills the cluster by sending a message to the master. '''
         devices = [devicedata['device'] for devicedata in self.devicedatas.values()]
         if len(devices):
             try:

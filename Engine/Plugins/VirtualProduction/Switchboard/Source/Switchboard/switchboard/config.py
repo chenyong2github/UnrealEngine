@@ -1,15 +1,13 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-import getpass
 import os
 import os.path
 import json
 import socket
 from .switchboard_logging import LOGGER
 import switchboard.switchboard_utils as sb_utils
-import threading
-#from . import p4_utils
 import shutil
 import fnmatch
+import sys
 
 from PySide2 import QtCore
 
@@ -73,7 +71,6 @@ class Setting(QtCore.QObject):
         self._overrides.pop(device_name, None)
 
     def update_value(self, new_value):
-
         if self.filtervalueset_fn:
             new_value = self.filtervalueset_fn(new_value)
 
@@ -86,7 +83,6 @@ class Setting(QtCore.QObject):
         self.signal_setting_changed.emit(old_value, self._value)
 
     def override_value(self, device_name, override):
-
         if self.filtervalueset_fn:
             override = self.filtervalueset_fn(override)
 
@@ -180,12 +176,15 @@ class Config(object):
         self.OSC_CLIENT_PORT = Setting("osc_client_port", "OSC Client Port", 8000)
 
         # MU Settings
-        self.MULTIUSER_SERVER_EXE = 'UnrealMultiUserServer.exe'
+        self.MULTIUSER_SERVER_EXE = 'UnrealMultiUserServer'
         self.MUSERVER_COMMAND_LINE_ARGUMENTS = ""
         self.MUSERVER_SERVER_NAME = f'{self.PROJECT_NAME}_MU_Server'
         self.MUSERVER_AUTO_LAUNCH = True
         self.MUSERVER_AUTO_JOIN = False
         self.MUSERVER_CLEAN_HISTORY = True
+        self.MUSERVER_AUTO_BUILD = True
+
+        self.LISTENER_EXE = 'SwitchboardListener'
 
         self._device_data_from_config = {}
         self._plugin_data_from_config = {}
@@ -200,7 +199,6 @@ class Config(object):
         CONFIG.save()
 
     def init_with_file_name(self, file_name):
-
         if file_name:
             self.file_path = os.path.normpath(os.path.join(CONFIG_DIR, file_name))
 
@@ -262,14 +260,16 @@ class Config(object):
         project_settings.extend([self.P4_ENABLED, self.SOURCE_CONTROL_WORKSPACE, self.P4_PROJECT_PATH, self.P4_ENGINE_PATH])
 
         # EXE names
-        self.MULTIUSER_SERVER_EXE = data.get('multiuser_exe', 'UnrealMultiUserServer.exe')
+        self.MULTIUSER_SERVER_EXE = data.get('multiuser_exe', 'UnrealMultiUserServer')
+        self.LISTENER_EXE = data.get('listener_exe', 'SwitchboardListener')
 
         # MU Settings
         self.MUSERVER_COMMAND_LINE_ARGUMENTS = data.get('muserver_command_line_arguments', '')
         self.MUSERVER_SERVER_NAME = data.get('muserver_server_name', f'{self.PROJECT_NAME}_MU_Server')
         self.MUSERVER_AUTO_LAUNCH = data.get('muserver_auto_launch', True)
-        self.MUSERVER_AUTO_JOIN = data.get('muserver_auto_join', True)
+        self.MUSERVER_AUTO_JOIN = data.get('muserver_auto_join', False)
         self.MUSERVER_CLEAN_HISTORY = data.get('muserver_clean_history', True)
+        self.MUSERVER_AUTO_BUILD = data.get('muserver_auto_build', True)
 
         # MISC SETTINGS
         self.CURRENT_LEVEL = data.get('current_level', DEFAULT_MAP_TEXT)
@@ -351,48 +351,43 @@ class Config(object):
         self.save()
 
     def save(self):
-
         if not self.saving_allowed:
             return
 
         data = {}
 
         # General settings
-        #
         data['project_name'] = self.PROJECT_NAME
         data['uproject'] = self.UPROJECT_PATH.get_value()
         data['engine_dir'] = self.ENGINE_DIR.get_value()
         data['build_engine'] = self.BUILD_ENGINE.get_value()
         data["maps_path"] = self.MAPS_PATH.get_value()
         data["maps_filter"] = self.MAPS_FILTER.get_value()
+        data["listener_exe"] = self.LISTENER_EXE
         
 		# OSC settings
-		#
         data["osc_server_port"] = self.OSC_SERVER_PORT.get_value()
         data["osc_client_port"] = self.OSC_CLIENT_PORT.get_value()
 
         # Source Control Settings
-        #
         data["p4_enabled"] = self.P4_ENABLED.get_value()
         data["p4_sync_path"] = self.P4_PROJECT_PATH.get_value()
         data["p4_engine_path"] = self.P4_ENGINE_PATH.get_value()
         data["source_control_workspace"] = self.SOURCE_CONTROL_WORKSPACE.get_value()
         
         # MU Settings
-        #
         data["multiuser_exe"] = self.MULTIUSER_SERVER_EXE
         data["muserver_command_line_arguments"] = self.MUSERVER_COMMAND_LINE_ARGUMENTS
         data["muserver_server_name"] = self.MUSERVER_SERVER_NAME
         data["muserver_auto_launch"] = self.MUSERVER_AUTO_LAUNCH
         data["muserver_auto_join"] = self.MUSERVER_AUTO_JOIN
         data["muserver_clean_history"] = self.MUSERVER_CLEAN_HISTORY
+        data["muserver_auto_build"] = self.MUSERVER_AUTO_BUILD
 
         # Current Level
-        #
         data["current_level"] = self.CURRENT_LEVEL
 
         # Devices
-        #
         data["devices"] = {}
 
         # Plugin settings
@@ -451,7 +446,6 @@ class Config(object):
         self.save()
 
     def on_device_removed(self, _, device_type, device_name, update_config):
-
         if not update_config:
             return
 
@@ -475,7 +469,10 @@ class Config(object):
         return maps
 
     def multiuser_server_path(self):
-        return os.path.normpath(os.path.join(self.ENGINE_DIR.get_value(), 'Binaries/Win64', self.MULTIUSER_SERVER_EXE))
+        return self.engine_exe_path(self.ENGINE_DIR.get_value(), self.MULTIUSER_SERVER_EXE)
+
+    def listener_path(self):
+        return self.engine_exe_path(self.ENGINE_DIR.get_value(), self.LISTENER_EXE)
 
     # todo-dara: find a way to do this directly in the LiveLinkFace plugin code
     def unreal_device_ip_addresses(self):
@@ -488,8 +485,34 @@ class Config(object):
         return unreal_ips
 
     @staticmethod
-    def engine_path(engine_dir, engine_exe):
-        return os.path.normpath(os.path.join(engine_dir, 'Binaries/Win64', engine_exe))
+    def engine_exe_path(engine_dir: str, exe_basename: str):
+        ''' Returns platform-dependent path to the specified engine executable. '''
+        exe_name = exe_basename
+        platform_bin_subdir = ''
+
+        if sys.platform.startswith('win'):
+            platform_bin_subdir = 'Win64'
+            platform_bin_path = os.path.normpath(os.path.join(engine_dir, 'Binaries', platform_bin_subdir))
+            given_path = os.path.join(platform_bin_path, exe_basename)
+            if os.path.exists(given_path):
+                return given_path
+
+            # Use %PATHEXT% to resolve executable extension ambiguity.
+            pathexts = os.environ.get('PATHEXT', '.COM;.EXE;.BAT;.CMD').split(';')
+            for ext in pathexts:
+                testpath = os.path.join(platform_bin_path, f'{exe_basename}{ext}')
+                if os.path.isfile(testpath):
+                    return testpath
+
+            # Fallback despite non-existence.
+            return given_path
+        else:
+            if sys.platform.startswith('linux'):
+                platform_bin_subdir = 'Linux'
+            elif sys.platform.startswith('darwin'):
+                platform_bin_subdir = 'Mac'
+
+            return os.path.normpath(os.path.join(engine_dir, 'Binaries', platform_bin_subdir, exe_name))
 
     @staticmethod
     def name_to_config_file_name(name, unique=False):

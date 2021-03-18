@@ -93,6 +93,11 @@ FString CreateSendFileToClientFailedMessage(const FString& InSourcePath, const F
 	return CreateMessage(TEXT("receive file complete"), false, { { TEXT("source"), InSourcePath }, { TEXT("error"), InError } });
 }
 
+FString CreateRedeployStatusMessage(const FGuid& InMessageID, bool bAck, const FString& Status)
+{
+	return CreateMessage(TEXT("redeploy server status"), bAck, { { TEXT("id"), InMessageID.ToString() }, { TEXT("status"), Status } });
+}
+
 bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndpoint, TUniquePtr<FSwitchboardTask>& OutTask, bool& bOutEcho)
 {
 	TSharedRef<TJsonReader<TCHAR>> Reader = FJsonStringReader::Create(InCommand);
@@ -134,7 +139,7 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 		TSharedPtr<FJsonValue> CallerField = JsonData->TryGetField(TEXT("caller"));
 		TSharedPtr<FJsonValue> WorkingDirField = JsonData->TryGetField(TEXT("working_dir"));
 		TSharedPtr<FJsonValue> UpdateClientsWithStdoutField = JsonData->TryGetField(TEXT("bUpdateClientsWithStdout"));
-		TSharedPtr<FJsonValue> ForceWindowFocusField = JsonData->TryGetField(TEXT("bForceWindowFocus"));
+		TSharedPtr<FJsonValue> PriorityModifierField = JsonData->TryGetField(TEXT("priority_modifier"));
 
 		OutTask = MakeUnique<FSwitchboardStartTask>(
 			MessageID,
@@ -145,7 +150,7 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			CallerField->AsString(),
 			WorkingDirField->AsString(),
 			UpdateClientsWithStdoutField->AsBool(),
-			ForceWindowFocusField->AsBool()
+			PriorityModifierField->AsNumber()
 		);
 
 		return true;
@@ -204,15 +209,14 @@ bool CreateTaskFromCommand(const FString& InCommand, const FIPv4Endpoint& InEndp
 			return true;
 		}
 	}
-	else if (CommandName == TEXT("forcefocus"))
+	else if (CommandName == TEXT("redeploy listener"))
 	{
-		TSharedPtr<FJsonValue> PidField = JsonData->TryGetField(TEXT("pid"));
+		TSharedPtr<FJsonValue> Sha1Field = JsonData->TryGetField(TEXT("sha1"));
+		TSharedPtr<FJsonValue> FileContentField = JsonData->TryGetField(TEXT("content"));
 
-		uint32 Pid;
-
-		if (PidField.IsValid() && PidField->TryGetNumber(Pid))
+		if (Sha1Field.IsValid() && FileContentField.IsValid())
 		{
-			OutTask = MakeUnique<FSwitchboardForceFocusTask>(MessageID, InEndpoint, Pid);
+			OutTask = MakeUnique<FSwitchboardRedeployListenerTask>(MessageID, InEndpoint, Sha1Field->AsString(), FileContentField->AsString());
 			return true;
 		}
 	}

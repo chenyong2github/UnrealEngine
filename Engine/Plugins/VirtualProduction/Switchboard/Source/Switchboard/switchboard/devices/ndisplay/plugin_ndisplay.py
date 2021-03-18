@@ -1,6 +1,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
 from switchboard import message_protocol
+from switchboard import switchboard_utils as sb_utils
 from switchboard.config import CONFIG, Setting, SETTINGS
 from switchboard.devices.device_base import Device
 from switchboard.devices.device_widget_base import AddDeviceDialog
@@ -136,6 +137,13 @@ class DevicenDisplay(DeviceUnreal):
             possible_values=list(range(1, 17)),
             tool_tip="If you have multiple GPUs in the PC, you can specify how many to use.",
         ),
+        'priority_modifier': Setting(
+            attr_name='priority_modifier',
+            nice_name="Process Priority",
+            value=sb_utils.PriorityModifier.Normal.name,
+            possible_values=[p.name for p in sb_utils.PriorityModifier],
+            tool_tip="Used to override the priority of the process.",
+        )
     }
 
     ndisplay_monitor_ui = None
@@ -240,6 +248,7 @@ class DevicenDisplay(DeviceUnreal):
             DevicenDisplay.csettings['ndisplay_exec_cmds'],
             DevicenDisplay.csettings['ndisplay_dp_cvars'],
             DevicenDisplay.csettings['max_gpu_count'],
+            DevicenDisplay.csettings['priority_modifier'],
             CONFIG.ENGINE_DIR, 
             CONFIG.SOURCE_CONTROL_WORKSPACE, 
             CONFIG.UPROJECT_PATH,
@@ -592,6 +601,8 @@ class DevicenDisplay(DeviceUnreal):
     @classmethod
     def added_device(cls, device):
         ''' Implementation of base class function. Called when one of our plugin devices has been added. '''
+        super().added_device(device)
+
         if not cls.ndisplay_monitor:
             return
 
@@ -600,6 +611,8 @@ class DevicenDisplay(DeviceUnreal):
     @classmethod
     def removed_device(cls, device):
         ''' Implementation of base class function. Called when one of our plugin devices has been removed. '''
+        super().removed_device(device)
+
         if not cls.ndisplay_monitor:
             return
 
