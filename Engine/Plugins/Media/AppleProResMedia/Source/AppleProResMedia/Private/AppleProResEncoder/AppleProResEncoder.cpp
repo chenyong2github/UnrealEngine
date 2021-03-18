@@ -205,7 +205,7 @@ namespace AppleProRes
 			// Output takes 16 bit, we write into the high order bits of each int16.
 			for (int64 Index = 0; Index < NumPixels; Index++)
 			{
-				DestinationBuffer[0] = 255 - SourceBuffer[3] * AlphaMultiplier;	// A
+				DestinationBuffer[0] = SourceBuffer[3] * AlphaMultiplier;	// A
 				DestinationBuffer[2] = SourceBuffer[2];	// R
 				DestinationBuffer[4] = SourceBuffer[1]; // G
 				DestinationBuffer[6] = SourceBuffer[0]; // B
@@ -230,7 +230,7 @@ namespace AppleProRes
 			// Output takes 16 bit, we write into the high order bits of each int16.
 			for (int64 Index = 0; Index < NumPixels; Index++)
 			{
-				uint16 A = FMath::Clamp((int32)((1.0f - ColorData[Index].A) * AlphaMultiplier * 65535), 0, 65535);
+				uint16 A = FMath::Clamp((int32)((ColorData[Index].A) * AlphaMultiplier * 65535), 0, 65535);
 				uint16 R = FMath::Clamp((int32)(ColorData[Index].R * 65535), 0, 65535);
 				uint16 G = FMath::Clamp((int32)(ColorData[Index].G * 65535), 0, 65535);
 				uint16 B = FMath::Clamp((int32)(ColorData[Index].B * 65535), 0, 65535);
