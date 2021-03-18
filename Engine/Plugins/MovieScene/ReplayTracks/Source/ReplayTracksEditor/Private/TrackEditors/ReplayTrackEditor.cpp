@@ -7,6 +7,7 @@
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/SpectatorPawn.h"
 #include "LevelEditorViewport.h"
+#include "Modules/ModuleManager.h"
 #include "MovieSceneCommonHelpers.h"
 #include "ReplayTracksEditorModule.h"
 #include "Sections/MovieSceneReplaySection.h"
