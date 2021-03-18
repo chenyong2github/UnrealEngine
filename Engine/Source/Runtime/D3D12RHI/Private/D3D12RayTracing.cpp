@@ -2396,7 +2396,8 @@ static TRefCountPtr<FD3D12Buffer> CreateRayTracingBuffer(FD3D12Adapter* Adapter,
 
 	TRefCountPtr<FD3D12Buffer> Result;
 
-	FRHIResourceCreateInfo CreateInfo(*DebugName.ToString());
+	FString DebugNameString = DebugName.ToString();
+	FRHIResourceCreateInfo CreateInfo(*DebugNameString);
 	CreateInfo.GPUMask = FRHIGPUMask::FromIndex(GPUIndex);
 
 	ID3D12ResourceAllocator* ResourceAllocator = nullptr;
