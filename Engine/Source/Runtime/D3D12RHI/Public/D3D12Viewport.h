@@ -146,6 +146,9 @@ public:
 	}
 #endif // WITH_MGPU
 
+	void OnResumeRendering();
+	void OnSuspendRendering();
+
 private:
 
 	/**
