@@ -7,23 +7,21 @@
 #include "InteractiveTool.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/InputBehaviorModifierStates.h"
-#include "KeyAsModifierInputBehavior.generated.h"
+#include "SingleKeyCaptureBehavior.generated.h"
 
 
 /**
- * UKeyAsModifierInputBehavior converts a specific key press/release into
- * a "Modifier" toggle via the IModifierToggleBehaviorTarget interface. It does
- * not capture the key press; rather, it updates the modifier its WantsCapture call.
- * This means that the modifier won't be updated if another behavior captures the
- * keyboard.
+ * USingleKeyCaptureBehavior captures a key press and routes it to target via
+ * the IModifierToggleBehaviorTarget interface. If you want similar behavior
+ * without actually capturing the key, you should use UKeyAsModifierInputBehavior.
  */
 UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API UKeyAsModifierInputBehavior : public UInputBehavior
+class INTERACTIVETOOLSFRAMEWORK_API USingleKeyCaptureBehavior : public UInputBehavior
 {
 	GENERATED_BODY()
 
 public:
-	UKeyAsModifierInputBehavior();
+	USingleKeyCaptureBehavior();
 
 	virtual EInputDevices GetSupportedDevices() override
 	{
@@ -31,22 +29,24 @@ public:
 	}
 
 	/**
-	 * Initialize this behavior with the given Target
-	 * @param Target implementor of modifier-toggle behavior
+	 * Initialize this behavior with the given Target. Note that though it interacts through the
+	 * IModifierToggleBehaviorTarget interface, the modifier here captures keyboard input, unlike
+	 * the modifiers in UKeyAsMOdifierInputBehavior and other places.
+	 * 
+	 * @param Target implementor of IModifierToggleBehaviorTarget
 	 * @param ModifierID integer ID that identifiers the modifier toggle
 	 * @param ModifierKey the key that will be used as the modifier toggle
 	 */
 	virtual void Initialize(IModifierToggleBehaviorTarget* Target, int ModifierID, const FKey& ModifierKey);
 
 	/**
-	 * Initialize this behavior with the given Target
-	 * @param Target implementor of modifier-toggle behavior
-	 * @param ModifierID integer ID that identifiers the modifier toggle
-	 * @param ModifierCheckFunc the function that will be checked to set the the modifier.
+	 * WantsCapture() will only return capture request if this function returns true (or is null)
+	 * Intended to be used for alt/ctrl/cmd/shift modifiers on the main key
 	 */
-	void Initialize(IModifierToggleBehaviorTarget* TargetIn, int ModifierID, TFunction<bool(const FInputDeviceState&)> ModifierCheckFunc);
+	TFunction<bool(const FInputDeviceState&)> ModifierCheckFunc = nullptr;
 
 	// UInputBehavior implementation
+
 	virtual FInputCaptureRequest WantsCapture(const FInputDeviceState& Input) override;
 	virtual FInputCaptureUpdate BeginCapture(const FInputDeviceState& Input, EInputCaptureSide Side) override;
 	virtual FInputCaptureUpdate UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data) override;
@@ -57,6 +57,12 @@ protected:
 	/** Modifier Target object */
 	IModifierToggleBehaviorTarget* Target;
 
+	/** Key that is used as modifier */
+	FKey ModifierKey;
+
 	/** Modifier set for this behavior, internally initialized with check on ModifierKey */
 	FInputBehaviorModifierStates Modifiers;
+
+	/** The key that was pressed to activate capture */
+	FKey PressedButton;
 };

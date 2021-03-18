@@ -2786,8 +2786,15 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 		return true;
 	}
 
-	// Let the current mode have a look at the input before reacting to it.
-	if (ModeTools->InputKey(this, Viewport, Key, Event))
+	// Let the current mode have a look at the input before reacting to it. 
+	// Note that bIsTracking tells us whether the viewport client is capturing mouse behavior to fly around,
+	// move objects, etc. In this case we don't want to pass the input the input router, because it is already
+	// captured. One may reasonably say that we don't want to pass the input to the modes in this case either, 
+	// but unfortunately the legacy behavior is that modes do get this input behavior, which we have to keep
+	// for now. In the long term, only old FEdModes will get this input, while the new UEdModes won't, but
+	// this is not yet split apart. Also in the long term, the viewport behaviors will be inside the
+	// input router and we won't need this bIsTracking flag to begin with.
+	if (ModeTools->InputKey(this, Viewport, Key, Event, /*bRouteToToolsContext*/ !bIsTracking))
 	{
 		return true;
 	}
@@ -2928,12 +2935,6 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 		//mark "externally moved" so context menu doesn't come up
 		MouseDeltaTracker->SetExternalMovement();
 		bHandled |= true;
-	}
-
-	// Give the interactive tools context a shot at input if it hasn't been handled already.
-	if (!bHandled)
-	{
-		ModeTools->GetInteractiveToolsContext()->InputKey(this, Viewport, Key, Event);
 	}
 
 	//apply the visibility and set the cursor positions

@@ -22,8 +22,7 @@ void UDragAlignmentMechanic::Setup(UInteractiveTool* ParentToolIn)
 
 	// Register modifier listeners.
 	UKeyAsModifierInputBehavior* AlignmentToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
-	AlignmentToggleBehavior->ModifierCheckFunc = FInputDeviceState::IsCtrlKeyDown;
-	AlignmentToggleBehavior->Initialize(this, AlignmentModifierID, EKeys::AnyKey);
+	AlignmentToggleBehavior->Initialize(this, AlignmentModifierID, FInputDeviceState::IsCtrlKeyDown);
 	ParentTool->AddInputBehavior(AlignmentToggleBehavior);
 
 	// Set up the function that casts rays into the world.

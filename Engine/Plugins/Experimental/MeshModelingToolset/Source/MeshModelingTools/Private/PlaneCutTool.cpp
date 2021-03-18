@@ -107,8 +107,7 @@ void UPlaneCutTool::Setup()
 
 	// add modifier button for snapping
 	UKeyAsModifierInputBehavior* SnapToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
-	SnapToggleBehavior->ModifierCheckFunc = FInputDeviceState::IsShiftKeyDown;
-	SnapToggleBehavior->Initialize(this, IgnoreSnappingModifier, EKeys::AnyKey);
+	SnapToggleBehavior->Initialize(this, IgnoreSnappingModifier, FInputDeviceState::IsShiftKeyDown);
 	AddInputBehavior(SnapToggleBehavior);
 
 	// hide input StaticMeshComponents

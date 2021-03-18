@@ -286,8 +286,7 @@ void UMirrorTool::Setup()
 
 	// Add modifier button for snapping
 	UKeyAsModifierInputBehavior* SnapToggleBehavior = NewObject<UKeyAsModifierInputBehavior>();
-	SnapToggleBehavior->ModifierCheckFunc = FInputDeviceState::IsShiftKeyDown;
-	SnapToggleBehavior->Initialize(this, SnappingToggleModifierId, EKeys::AnyKey);
+	SnapToggleBehavior->Initialize(this, SnappingToggleModifierId, FInputDeviceState::IsShiftKeyDown);
 	AddInputBehavior(SnapToggleBehavior);
 
 	// Start the preview calculations

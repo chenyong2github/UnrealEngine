@@ -249,8 +249,14 @@ public:
 	/** Notifies all active modes of all captured mouse movement */	
 	bool ProcessCapturedMouseMoves( FEditorViewportClient* InViewportClient, FViewport* InViewport, const TArrayView<FIntPoint>& CapturedMouseMoves );
 
-	/** Notifies all active modes of keyboard input */
-	bool InputKey( FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event);
+	/** 
+	 * Notifies all active modes of keyboard input 
+	 * @param bRouteToToolsContext If true, routes to the tools context and its input router before routing
+	 *  to modes (and does not route to modes if tools context handles it). We currently need the ability to
+	 *  set this to false due to some behaviors being routed in different conditions to legacy modes compared
+	 *  to the input router (see its use in EditorViewportClient.cpp).
+	 */
+	bool InputKey( FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event, bool bRouteToToolsContext = true);
 
 	/** Notifies all active modes of axis movement */
 	bool InputAxis( FEditorViewportClient* InViewportClient, FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime);

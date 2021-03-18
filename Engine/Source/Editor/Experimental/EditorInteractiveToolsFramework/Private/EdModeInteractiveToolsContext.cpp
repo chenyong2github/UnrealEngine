@@ -926,7 +926,43 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 
 	if (Event == IE_Pressed || Event == IE_Released)
 	{
-		if (Key.IsGamepadKey())
+		if (Key.IsMouseButton())
+		{
+			bool bIsLeftMouse = (Key == EKeys::LeftMouseButton);
+			bool bIsMiddleMouse = (Key == EKeys::MiddleMouseButton);
+			bool bIsRightMouse = (Key == EKeys::RightMouseButton);
+			if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
+			{
+				FInputDeviceState InputState = CurrentMouseState;
+				InputState.InputDevice = EInputDevices::Mouse;
+				InputState.SetModifierKeyStates(
+					ViewportClient->IsShiftPressed(), ViewportClient->IsAltPressed(),
+					ViewportClient->IsCtrlPressed(), ViewportClient->IsCmdPressed());
+				if (bIsLeftMouse)
+				{
+					InputState.Mouse.Left.SetStates(
+						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
+					CurrentMouseState.Mouse.Left.bDown = (Event == IE_Pressed);
+				}
+				else if (bIsMiddleMouse)
+				{
+					InputState.Mouse.Middle.SetStates(
+						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
+					CurrentMouseState.Mouse.Middle.bDown = (Event == IE_Pressed);
+				}
+				else
+				{
+					InputState.Mouse.Right.SetStates(
+						(Event == IE_Pressed), (Event == IE_Pressed), (Event == IE_Released));
+					CurrentMouseState.Mouse.Right.bDown = (Event == IE_Pressed);
+				}
+				if (InputRouter->PostInputEvent(InputState))
+				{
+					return true;
+				}
+			}
+		}
+		else if (Key.IsGamepadKey())
 		{
 			// not supported yet
 		}
@@ -1013,41 +1049,8 @@ bool UEdModeInteractiveToolsContext::MouseLeave(FEditorViewportClient* ViewportC
 
 bool UEdModeInteractiveToolsContext::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	bool bIsLeftMouse = InViewport->KeyState(EKeys::LeftMouseButton);
-	bool bIsMiddleMouse = InViewport->KeyState(EKeys::MiddleMouseButton);
-	bool bIsRightMouse = InViewport->KeyState(EKeys::RightMouseButton);
-
-	if (bIsLeftMouse || bIsMiddleMouse || bIsRightMouse)
-	{
-		FInputDeviceState InputState = CurrentMouseState;
-		InputState.InputDevice = EInputDevices::Mouse;
-		InputState.SetModifierKeyStates(
-			InViewportClient->IsShiftPressed(), InViewportClient->IsAltPressed(),
-			InViewportClient->IsCtrlPressed(), InViewportClient->IsCmdPressed());
-
-		if (bIsLeftMouse)
-		{
-			InputState.Mouse.Left.SetStates(true, true, false);
-			CurrentMouseState.Mouse.Left.bDown = true;
-		}
-		else if (bIsMiddleMouse)
-		{
-			InputState.Mouse.Middle.SetStates(true, true, false);
-			CurrentMouseState.Mouse.Middle.bDown = true;
-		}
-		else
-		{
-			InputState.Mouse.Right.SetStates(true, true, false);
-			CurrentMouseState.Mouse.Right.bDown = true;
-		}
-
-		if (InputRouter->PostInputEvent(InputState))
-		{
-			InViewportClient->bLockFlightCamera = true;
-			return true;
-		}
-	}
-	return false;
+	bIsTrackingMouse = InputRouter->HasActiveMouseCapture();
+	return bIsTrackingMouse;
 }
 
 bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* InViewportClient, FViewport* InViewport, int32 InMouseX, int32 InMouseY)
@@ -1077,34 +1080,9 @@ bool UEdModeInteractiveToolsContext::CapturedMouseMove(FEditorViewportClient* In
 
 bool UEdModeInteractiveToolsContext::EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
-	// unlock flight camera
-	InViewportClient->bLockFlightCamera = false;
-
-	FInputDeviceState InputState = CurrentMouseState;
-	InputState.InputDevice = EInputDevices::Mouse;
-	InputState.SetModifierKeyStates(
-		InViewportClient->IsShiftPressed(), InViewportClient->IsAltPressed(),
-		InViewportClient->IsCtrlPressed(), InViewportClient->IsCmdPressed());
-
-	// Clear the current mouse state button down
-	if (CurrentMouseState.Mouse.Left.bDown)
+	if (bIsTrackingMouse)
 	{
-		CurrentMouseState.Mouse.Left.bDown = false;
-		InputState.Mouse.Left.SetStates(false, false, true);
-	}
-	if (CurrentMouseState.Mouse.Middle.bDown)
-	{
-		CurrentMouseState.Mouse.Middle.bDown = false;
-		InputState.Mouse.Middle.SetStates(false, false, true);
-	}
-	if (CurrentMouseState.Mouse.Right.bDown)
-	{
-		CurrentMouseState.Mouse.Right.bDown = false;
-		InputState.Mouse.Right.SetStates(false, false, true);
-	}
-
-	if (InputRouter->PostInputEvent(InputState))
-	{
+		bIsTrackingMouse = false;
 		return true;
 	}
 

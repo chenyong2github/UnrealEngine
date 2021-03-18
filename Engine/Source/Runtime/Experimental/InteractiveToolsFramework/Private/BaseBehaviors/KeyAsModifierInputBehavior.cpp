@@ -8,51 +8,34 @@ UKeyAsModifierInputBehavior::UKeyAsModifierInputBehavior()
 
 void UKeyAsModifierInputBehavior::Initialize(IModifierToggleBehaviorTarget* TargetIn, int ModifierID, const FKey& ModifierKeyIn)
 {
-	this->Target = TargetIn;
-	ModifierKey = ModifierKeyIn;
-	FKey TempKey = ModifierKeyIn;
-	Modifiers.RegisterModifier(ModifierID, [TempKey](const FInputDeviceState& Input)
+	Initialize(TargetIn, ModifierID, [ModifierKeyIn](const FInputDeviceState& Input)
 	{
-		return (TempKey == EKeys::AnyKey || Input.Keyboard.ActiveKey.Button == TempKey) && Input.Keyboard.ActiveKey.bPressed;
+		return (ModifierKeyIn == EKeys::AnyKey || Input.Keyboard.ActiveKey.Button == ModifierKeyIn) && Input.Keyboard.ActiveKey.bPressed;
 	});
+}
+
+void UKeyAsModifierInputBehavior::Initialize(IModifierToggleBehaviorTarget* TargetIn, int ModifierID, TFunction<bool(const FInputDeviceState&)> ModifierCheckFunc)
+{
+	this->Target = TargetIn;
+	Modifiers.RegisterModifier(ModifierID, ModifierCheckFunc);
 }
 
 FInputCaptureRequest UKeyAsModifierInputBehavior::WantsCapture(const FInputDeviceState& Input)
 {
-	if ((ModifierCheckFunc == nullptr || ModifierCheckFunc(Input)))
-	{
-		if ((ModifierKey == EKeys::AnyKey || Input.Keyboard.ActiveKey.Button == ModifierKey) && Input.Keyboard.ActiveKey.bPressed)
-		{
-			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any);
-		}
-	}
+	Modifiers.UpdateModifiers(Input, Target);
 	return FInputCaptureRequest::Ignore();
 }
 
 
 FInputCaptureUpdate UKeyAsModifierInputBehavior::BeginCapture(const FInputDeviceState& Input, EInputCaptureSide Side)
 {
-	PressedButton = Input.Keyboard.ActiveKey.Button;
-	Modifiers.UpdateModifiers(Input, Target);
-	return FInputCaptureUpdate::Begin(this, EInputCaptureSide::Any);
+	return FInputCaptureUpdate::End();
 }
 
 
 FInputCaptureUpdate UKeyAsModifierInputBehavior::UpdateCapture(const FInputDeviceState& Input, const FInputCaptureData& Data)
 {
-	if (Input.Keyboard.ActiveKey.Button != PressedButton)
-	{
-		return FInputCaptureUpdate::Continue();
-	}
-
-	Modifiers.UpdateModifiers(Input, Target);
-
-	if (Input.Keyboard.ActiveKey.bReleased)
-	{
-		return FInputCaptureUpdate::End();
-	}
-
-	return FInputCaptureUpdate::Continue();
+	return FInputCaptureUpdate::End();
 }
 
 
