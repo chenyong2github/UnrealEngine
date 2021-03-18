@@ -20,6 +20,7 @@ public:
 	#if WITH_EDITOR
 		HHitProxy* HitProxy = nullptr;
 	#endif
+		int32 MaterialIndex = INDEX_NONE;
 	};
 
 public:
@@ -62,6 +63,11 @@ public:
 		return MaterialSections;
 	}
 
+	inline int32 GetMaterialMaxIndex() const
+	{
+		return MaterialMaxIndex;
+	}
+
 	virtual const TArray<FPrimitiveInstance>* GetPrimitiveInstances() const
 	{
 		return &Instances;
@@ -76,8 +82,12 @@ public:
 	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const override { return 0; }
 
 protected:
+	ENGINE_API void DrawStaticElementsInternal(FStaticPrimitiveDrawInterface* PDI, const FLightCacheInterface* LCI);
+
+protected:
 	TArray<FMaterialSection> MaterialSections;
 	TArray<FPrimitiveInstance> Instances;
+	int32 MaterialMaxIndex = INDEX_NONE;
 };
 
 class FSceneProxy : public FSceneProxyBase
@@ -123,6 +133,11 @@ public:
 	virtual int32 GetLightMapCoordinateIndex() const override;
 
 	virtual void OnTransformChanged() override;
+
+	const UStaticMesh* GetStaticMesh() const
+	{
+		return StaticMesh;
+	}
 
 protected:
 	virtual void CreateRenderThreadResources() override;

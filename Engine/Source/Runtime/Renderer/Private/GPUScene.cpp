@@ -625,16 +625,20 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 						{
 							FNaniteMaterialTables& PassMaterialTables = Scene->MaterialTables[NaniteMeshPass];
 							const TArray<uint32>& PassMaterialIds = PrimitiveSceneInfo->NaniteMaterialIds[NaniteMeshPass];
-							check(NaniteSceneProxy->GetMaterialSections().Num() == PassMaterialIds.Num());
+							const TArray<Nanite::FSceneProxyBase::FMaterialSection>& PassMaterials = NaniteSceneProxy->GetMaterialSections();
+							check(PassMaterials.Num() == PassMaterialIds.Num());
 
 							if (bThreaded)
 							{
 								MaterialTableUploadCS.Lock();
 							}
 
-							void* DepthTable = PassMaterialTables.GetDepthTablePtr(UploadInfo.PrimitiveID, PassMaterialIds.Num());
+							const uint32 TableEntryCount = uint32(NaniteSceneProxy->GetMaterialMaxIndex() + 1);
+							check(TableEntryCount >= uint32(PassMaterials.Num()));
+
+							void* DepthTable = PassMaterialTables.GetDepthTablePtr(UploadInfo.PrimitiveID, TableEntryCount);
 						#if WITH_EDITOR
-							const uint32 HitProxyEntryCount = (NaniteMeshPass == ENaniteMeshPass::BasePass) ? PrimitiveSceneInfo->NaniteHitProxyIds.Num() : NANITE_MAX_MATERIALS;
+							const uint32 HitProxyEntryCount = (NaniteMeshPass == ENaniteMeshPass::BasePass) ? TableEntryCount : NANITE_MAX_MATERIALS;
 							void* HitProxyTable = PassMaterialTables.GetHitProxyTablePtr(UploadInfo.PrimitiveID, HitProxyEntryCount);
 						#endif
 
@@ -646,23 +650,25 @@ void FGPUScene::UploadGeneral(FRHICommandListImmediate& RHICmdList, FScene *Scen
 							uint32* DepthEntry = static_cast<uint32*>(DepthTable);
 							for (int32 Entry = 0; Entry < PassMaterialIds.Num(); ++Entry)
 							{
-								DepthEntry[Entry] = PassMaterialIds[Entry];
+								DepthEntry[PassMaterials[Entry].MaterialIndex] = PassMaterialIds[Entry];
 							}
 
 						#if WITH_EDITOR
 							if (NaniteMeshPass == ENaniteMeshPass::BasePass)
 							{
+								const TArray<uint32>& PassHitProxyIds = PrimitiveSceneInfo->NaniteHitProxyIds;
+
 								uint32* HitProxyEntry = static_cast<uint32*>(HitProxyTable);
-								for (uint32 Entry = 0; Entry < HitProxyEntryCount; ++Entry)
+								for (int32 Entry = 0; Entry < PassHitProxyIds.Num(); ++Entry)
 								{
-									HitProxyEntry[Entry] = PrimitiveSceneInfo->NaniteHitProxyIds[Entry];
+									HitProxyEntry[PassMaterials[Entry].MaterialIndex] = PassHitProxyIds[Entry];
 								}
 							}
 							else
 							{
 								// Other passes don't use hit proxies. TODO: Shouldn't even need to do this.
 								uint64* DualHitProxyEntry = static_cast<uint64*>(HitProxyTable);
-								for (uint32 DualEntry = 0; DualEntry < HitProxyEntryCount >> 1; ++DualEntry)
+								for (uint32 DualEntry = 0; DualEntry < NANITE_MAX_MATERIALS >> 1; ++DualEntry)
 								{
 									DualHitProxyEntry[DualEntry] = 0;
 								}

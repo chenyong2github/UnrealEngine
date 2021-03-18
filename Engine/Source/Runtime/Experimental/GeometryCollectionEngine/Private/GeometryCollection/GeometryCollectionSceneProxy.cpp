@@ -1042,7 +1042,8 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	LLM_SCOPE_BYTAG(Nanite);
 
 	// Nanite requires GPUScene
-	check(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
+	checkSlow(UseGPUScene(GMaxRHIShaderPlatform, GetScene().GetFeatureLevel()));
+	checkSlow(DoesPlatformSupportNanite(GMaxRHIShaderPlatform));
 
 	MaterialRelevance = Component->GetMaterialRelevance(Component->GetScene()->GetFeatureLevel());
 
@@ -1072,44 +1073,36 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 	}
 
 	const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> Collection = GeometryCollection->GetGeometryCollection();
+	const TManagedArray<FGeometryCollectionSection>& SectionsArray = Component->GetSectionsArray();
 
-	const auto& SectionsArray = Component->GetSectionsArray();
-	const int32 MeshSectionCount = SectionsArray.Num();
+	MaterialSections.SetNumZeroed(SectionsArray.Num());
 
-	MaterialSections.Reserve(MeshSectionCount);
-
-	for (const auto& MeshSection : SectionsArray)
+	for (int32 SectionIndex = 0; SectionIndex < SectionsArray.Num(); ++SectionIndex)
 	{
-		if (MeshSection.MaterialID == INDEX_NONE)
+		const FGeometryCollectionSection& MeshSection = SectionsArray[SectionIndex];
+		const bool bValidMeshSection = MeshSection.MaterialID != INDEX_NONE;
+
+		if (MeshSection.MaterialID > MaterialMaxIndex)
 		{
-			continue;
+			// Keep track of highest observed material index.
+			MaterialMaxIndex = MeshSection.MaterialID;
 		}
 
-		if (!MaterialSections.IsValidIndex(MeshSection.MaterialID))
-		{
-			MaterialSections.SetNumZeroed(MeshSection.MaterialID + 1);
-		}
+		UMaterialInterface* MaterialInterface = bValidMeshSection ? Component->GetMaterial(MeshSection.MaterialID) : nullptr;
 
-		FMaterialSection& Section = MaterialSections[MeshSection.MaterialID];
-		if (!Section.Material)
-		{
-			UMaterialInterface* Material = Component->GetMaterial(MeshSection.MaterialID);
-			Section.Material = Material;
-		}
-
-		const bool bInvalidMaterial = !Section.Material || Section.Material->GetBlendMode() != BLEND_Opaque;
+		const bool bInvalidMaterial = !MaterialInterface || MaterialInterface->GetBlendMode() != BLEND_Opaque;
 		if (bInvalidMaterial)
 		{
 			bHasMaterialErrors = true;
-			if (Section.Material)
+			if (MaterialInterface)
 			{
 				UE_LOG
 				(
 					LogStaticMesh, Warning,
 					TEXT("Invalid material [%s] used on Nanite geometry collection [%s] - forcing default material instead. Only opaque blend mode is currently supported, [%s] blend mode was specified."),
-					*Section.Material->GetName(),
+					*MaterialInterface->GetName(),
 					*GeometryCollection->GetName(),
-					*GetBlendModeString(Section.Material->GetBlendMode())
+					*GetBlendModeString(MaterialInterface->GetBlendMode())
 				);
 			}
 		}
@@ -1117,14 +1110,17 @@ FNaniteGeometryCollectionSceneProxy::FNaniteGeometryCollectionSceneProxy(UGeomet
 		const bool bForceDefaultMaterial = /*!!FORCE_NANITE_DEFAULT_MATERIAL ||*/ bHasMaterialErrors;
 		if (bForceDefaultMaterial)
 		{
-			Section.Material = UMaterial::GetDefaultMaterial(MD_Surface);
+			MaterialInterface = UMaterial::GetDefaultMaterial(MD_Surface);
 		}
 
 		// Should never be null here
-		check(Section.Material != nullptr);
+		check(MaterialInterface != nullptr);
 
 		// Should always be opaque blend mode here.
-		check(Section.Material->GetBlendMode() == BLEND_Opaque);
+		check(MaterialInterface->GetBlendMode() == BLEND_Opaque);
+
+		MaterialSections[SectionIndex].Material = MaterialInterface;
+		MaterialSections[SectionIndex].MaterialIndex = MeshSection.MaterialID;
 	}
 
 	const TManagedArray<FBox>& BoundingBoxes = Collection->BoundingBox;
@@ -1212,57 +1208,8 @@ HHitProxy* FNaniteGeometryCollectionSceneProxy::CreateHitProxies(UPrimitiveCompo
 
 void FNaniteGeometryCollectionSceneProxy::DrawStaticElements(FStaticPrimitiveDrawInterface* PDI)
 {
-	LLM_SCOPE_BYTAG(Nanite);
-
-	for (int32 SectionIndex = 0; SectionIndex < MaterialSections.Num(); ++SectionIndex)
-	{
-		const FMaterialSection& Section = MaterialSections[SectionIndex];
-		const UMaterialInterface* Material = Section.Material;
-		if (!Material)
-		{
-			continue;
-		}
-
-		FMaterialRenderProxy* MaterialProxy = Material->GetRenderProxy();
-		check(MaterialProxy);
-
-		FMeshBatch MeshBatch;
-		MeshBatch.SegmentIndex = SectionIndex;
-		MeshBatch.VertexFactory = Nanite::GGlobalResources.GetVertexFactory();
-		MeshBatch.Type = GRHISupportsRectTopology ? PT_RectList : PT_TriangleList;
-		MeshBatch.ReverseCulling = false;
-		MeshBatch.bDisableBackfaceCulling = true;
-		MeshBatch.DepthPriorityGroup = SDPG_World;
-		MeshBatch.LODIndex = -1;
-		MeshBatch.MaterialRenderProxy = MaterialProxy;
-		MeshBatch.bWireframe = false;
-		MeshBatch.bCanApplyViewModeOverrides = false;
-		MeshBatch.LCI = nullptr;// &MeshInfo;
-		MeshBatch.Elements[0].IndexBuffer = &GScreenRectangleIndexBuffer;
-		if (GRHISupportsRectTopology)
-		{
-			MeshBatch.Elements[0].FirstIndex = 9;
-			MeshBatch.Elements[0].NumPrimitives = 1;
-			MeshBatch.Elements[0].MinVertexIndex = 1;
-			MeshBatch.Elements[0].MaxVertexIndex = 3;
-		}
-		else
-		{
-			MeshBatch.Elements[0].FirstIndex = 0;
-			MeshBatch.Elements[0].NumPrimitives = 2;
-			MeshBatch.Elements[0].MinVertexIndex = 0;
-			MeshBatch.Elements[0].MaxVertexIndex = 3;
-		}
-		MeshBatch.Elements[0].NumInstances = 1;
-		MeshBatch.Elements[0].PrimitiveIdMode = PrimID_ForceZero;
-		MeshBatch.Elements[0].PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
-
-#if WITH_EDITOR
-		HHitProxy* HitProxy = Section.HitProxy;
-		PDI->SetHitProxy(HitProxy);
-#endif
-		PDI->DrawMesh(MeshBatch, FLT_MAX);
-	}
+	const FLightCacheInterface* LCI = nullptr;
+	DrawStaticElementsInternal(PDI, LCI);
 }
 
 uint32 FNaniteGeometryCollectionSceneProxy::GetMemoryFootprint() const
