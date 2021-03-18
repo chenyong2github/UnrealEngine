@@ -117,6 +117,7 @@ uint GetHWClusterCounterIndex(uint InRenderFlags)
 #define VISUALIZE_LIGHTMAP_UVS						22
 #define VISUALIZE_LIGHTMAP_UV_INDEX					23
 #define VISUALIZE_LIGHTMAP_DATA_INDEX				24
+#define VISUALIZE_INSTANCES							25
 
 struct FStats
 {

@@ -29,15 +29,74 @@ uint MurmurMix(uint Hash)
 
 float3 IntToColor(uint Index)
 {
-	uint Hash = MurmurMix( Index );
+	uint Hash = MurmurMix(Index);
 
-	float3 Color = float3(
+	float3 Color = float3
+	(
 		(Hash >>  0) & 255,
 		(Hash >>  8) & 255,
 		(Hash >> 16) & 255
-	    );
+	);
 		
 	return Color * (1.0f / 255.0f);
+}
+
+float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color)
+{
+	// Sobel edge detect depth
+	static int SobelX[] =
+	{
+		1, 0, -1,
+		2, 0, -2,
+		1, 0, -1
+	};
+
+	static int SobelY[] =
+	{
+		 1,  2,  1,
+		 0,  0,  0,
+		-1, -2, -1
+	};
+
+	static uint2 UVSample[] =
+	{
+		{-1,  1},  {0,  1},  {1,  1},
+		{-1,  0},  {0,  0},  {1,  0},
+		{-1, -1},  {0, -1},  {1, -1}
+	};
+
+	float3 DepthGradX = float3(0.0f, 0.0f, 0.0f);
+	float3 DepthGradY = float3(0.0f, 0.0f, 0.0f);
+
+	uint DepthIntCurrent;
+	uint VisibleClusterIndexCurrent;
+	uint TriIndexCurrent;
+
+	for (uint Tap = 0; Tap < 9; ++Tap)
+	{
+		const UlongType VisPixelCurrent = VisBuffer64[PixelPosXY + UVSample[Tap]];
+		UnpackVisPixel(VisPixelCurrent, DepthIntCurrent, VisibleClusterIndexCurrent, TriIndexCurrent);
+
+		float SampleDensityDepth = 20.0f * pow(1.0f / pow(2.718f, ConvertFromDeviceZ(asfloat(DepthIntCurrent)) * 0.0005f), 1.0f);
+
+		DepthGradX += SobelX[Tap] * SampleDensityDepth;
+		DepthGradY += SobelY[Tap] * SampleDensityDepth;
+	}
+
+	// Build outline from depth
+	float3 DepthOutline = max(abs(DepthGradX), abs(DepthGradY));
+
+	// Convert depth to density
+	float DensityDepth = 1.0f / pow(2.718f, ConvertFromDeviceZ(asfloat(DepthInt)) * 0.0004f);
+
+	// Saturate visualization colors
+	float3 CombineColor =  1.4f * (1.0f - DepthOutline) * lerp(1.0f, Color, 0.75f);
+	CombineColor = lerp(Luminance(CombineColor), CombineColor, 1.2f);
+
+	// Depth blue tint
+	CombineColor = lerp(float3(0.0f, 0.15f, 0.5f) * CombineColor, CombineColor, saturate(DensityDepth + 0.33));
+
+	return saturate(CombineColor);
 }
 
 uint GetVisualizeMode()
@@ -53,6 +112,11 @@ float GetOverdrawScale()
 bool GetCompositeWithSceneDepth()
 {
 	return VisualizeConfig.z != 0;
+}
+
+bool ShouldApplySobelFilter()
+{
+	return VisualizeConfig.w != 0;
 }
 
 [numthreads(8, 8, 1)]
@@ -118,59 +182,7 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 
 		if (VisualizeMode == VISUALIZE_TRIANGLES)
 		{
-			// Sobel edge detect depth
-			static int SobelX[] =
-			{
-				1, 0, -1,
-				2, 0, -2,
-				1, 0, -1
-			};
-
-			static int SobelY[] =
-			{
-				 1,  2,  1,
-				 0,  0,  0,
-				-1, -2, -1
-			};
-
-			static uint2 UVSample[] =
-			{
-				{-1,  1},  {0,  1},  {1,  1},
-				{-1,  0},  {0,  0},  {1,  0},
-				{-1, -1},  {0, -1},  {1, -1}
-			};
-
-			float3 DepthGradX = float3(0, 0, 0);
-			float3 DepthGradY = float3(0, 0, 0);
-	
-			uint DepthIntCurrent;
-			uint VisibleClusterIndexCurrent;
-			uint TriIndexCurrent;
-
-			for (uint Tap = 0; Tap < 9; ++Tap)
-			{ 
-				const UlongType VisPixelCurrent = VisBuffer64[PixelPos.xy + UVSample[Tap]];
-				UnpackVisPixel(VisPixelCurrent, DepthIntCurrent, VisibleClusterIndexCurrent, TriIndexCurrent);
-
-				float SampleDensityDepth = 20.0 * pow(1 / pow(2.718, ConvertFromDeviceZ(asfloat(DepthIntCurrent)) * 0.0005), 1.0);
-		
-				DepthGradX += SobelX[Tap] * SampleDensityDepth;
-				DepthGradY += SobelY[Tap] * SampleDensityDepth;
-			}	
-
-			// Build outline from depth
-			float3 DepthOutline = max(abs(DepthGradX), abs(DepthGradY));
-		
-			float DensityDepth = 1.0 / pow(2.718, ConvertFromDeviceZ(asfloat(DepthInt)) * 0.0004); // Convert depth to density
-			float3 VisTri = lerp(1.0, IntToColor(TriIndex), 0.75);
-			//float3 VisPrimitives = lerp(1.0, IntToColor(VisibleCluster.InstanceId), 0.2);
-			//float3 VisCluster = lerp(1.0, IntToColor(VisibleCluster.ClusterIndex), 0.2);
-			float3 CombineColor =  1.4 * (1.0 - DepthOutline) * VisTri;
-			CombineColor = lerp(Luminance(CombineColor),CombineColor,1.2); // Saturate visualization colors
-			CombineColor = lerp(float3(0.0, 0.15, 0.5) * CombineColor, CombineColor, saturate(DensityDepth + 0.33)); // Depth blue tint
-			Result = saturate(CombineColor);
-		
-			Result = IntToColor(TriIndex); // previous visualization
+			Result = IntToColor(TriIndex);
 		}
 		else if (VisualizeMode == VISUALIZE_CLUSTERS)
 		{
@@ -185,6 +197,10 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 			Result = IntToColor(VisibleCluster.PageIndex);
 		}
 		else if (VisualizeMode == VISUALIZE_PRIMITIVES)
+		{
+			Result = IntToColor(InstanceData.PrimitiveId) * 0.8;
+		}
+		else if (VisualizeMode == VISUALIZE_INSTANCES)
 		{
 			Result = IntToColor(VisibleCluster.InstanceId) * 0.8;
 		}
@@ -248,6 +264,11 @@ void DebugVisualize(uint3 PixelPos : SV_DispatchThreadID)
 				Result = float4(1, 0, 0, 0);
 			}
 		}
+	}
+
+	if (ShouldApplySobelFilter())
+	{
+		Result = ApplySobelFilter(PixelPos.xy, DepthInt, Result);
 	}
 
 	DebugOutput[PixelPos.xy] = float4(Result, 0);;

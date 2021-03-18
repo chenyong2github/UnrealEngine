@@ -143,6 +143,13 @@ FAutoConsoleVariableRef CVarNaniteDebugSceneComposite(
 	TEXT("")
 );
 
+int32 GNaniteDebugSobelFilter = 0;
+static FAutoConsoleVariableRef CVarNaniteDebugSobelFilter(
+	TEXT("r.Nanite.DebugSobelFilter"),
+	GNaniteDebugSobelFilter,
+	TEXT("")
+);
+
 int32 GNaniteResummarizeHTile = 1;
 static FAutoConsoleVariableRef CVarNaniteResummarizeHTile(
 	TEXT("r.Nanite.ResummarizeHTile"),
@@ -349,36 +356,38 @@ static bool UsePrimitiveShader()
 #define VISUALIZE_LIGHTMAP_UVS						22
 #define VISUALIZE_LIGHTMAP_UV_INDEX					23
 #define VISUALIZE_LIGHTMAP_DATA_INDEX				24
+#define VISUALIZE_INSTANCES							25
 
 int32 GNaniteDebugVisualize = 0;
 FAutoConsoleVariableRef CVarNaniteDebugVisualize(
 	TEXT("r.Nanite.DebugVisualize"),
 	GNaniteDebugVisualize,
-	TEXT("0 disables (default)\n")
+	TEXT("0 Disabled (Default)\n")
 	TEXT("1 for Triangle ID\n")
 	TEXT("2 for Cluster ID\n")
 	TEXT("3 for Group ID\n")
 	TEXT("4 for Page ID\n")
 	TEXT("5 for Primitive ID\n")
-	TEXT("6 for HW vs SW raster\n")
+	TEXT("6 for HW vs SW Raster\n")
 	TEXT("7 for Overdraw\n")
-	TEXT("8 for Hierarchy offset\n")
-	TEXT("9 for Scene min Z\n")
-	TEXT("10 for Scene max Z\n")
-	TEXT("11 for Scene delta Z\n")
-	TEXT("12 for Scene Z mask\n")
-	TEXT("13 for Material min Z\n")
-	TEXT("14 for Material max Z\n")
-	TEXT("15 for Material delta Z\n")
-	TEXT("16 for Material Z mask\n")
-	TEXT("17 for Material fast vs slow path\n")
-	TEXT("18 for Material index\n")
+	TEXT("8 for Hierarchy Offset\n")
+	TEXT("9 for Scene Min Z\n")
+	TEXT("10 for Scene Max Z\n")
+	TEXT("11 for Scene Delta Z\n")
+	TEXT("12 for Scene Z Mask\n")
+	TEXT("13 for Material Min Z\n")
+	TEXT("14 for Material Max Z\n")
+	TEXT("15 for Material Delta Z\n")
+	TEXT("16 for Material Z Mask\n")
+	TEXT("17 for Material Fast vs Slow Path\n")
+	TEXT("18 for Material Index\n")
 	TEXT("19 for Material ID\n")
-	TEXT("20 for Hit proxy ID\n")
-	TEXT("21 for Nanite mask\n")
+	TEXT("20 for Hit Proxy ID\n")
+	TEXT("21 for Nanite Mask\n")
 	TEXT("22 for Lightmap UVs\n")
-	TEXT("23 for Lightmap UV index\n")
-	TEXT("24 for Lightmap Data index\n")
+	TEXT("23 for Lightmap UV Index\n")
+	TEXT("24 for Lightmap Data Index\n")
+	TEXT("25 for Instance ID\n")
 );
 
 static bool IsVisualizingHTile()
@@ -411,7 +420,7 @@ static bool ShouldExportDebugBuffers()
 
 static FIntVector4 GetVisualizeConfig()
 {
-	return FIntVector4(GNaniteDebugVisualize, GNaniteDebugOverdrawScale, GNaniteDebugSceneComposite, 0);
+	return FIntVector4(GNaniteDebugVisualize, GNaniteDebugOverdrawScale, GNaniteDebugSceneComposite, GNaniteDebugSobelFilter);
 }
 
 // Must match FStats in NaniteDataDecode.ush
