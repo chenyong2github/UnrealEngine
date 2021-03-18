@@ -125,16 +125,16 @@ struct FStaticComponentMaskValue
 	FStaticComponentMaskValue(bool InR, bool InG, bool InB, bool InA) : R(InR), G(InG), B(InB), A(InA) {}
 
 	UPROPERTY()
-	bool R;
+	bool R = false;
 	
 	UPROPERTY()
-	bool G;
+	bool G = false;
 
 	UPROPERTY()
-	bool B;
+	bool B = false;
 
 	UPROPERTY()
-	bool A; 
+	bool A = false;
 };
 
 USTRUCT()
@@ -271,4 +271,9 @@ struct FMaterialCachedExpressionData
 
 	UPROPERTY()
 	uint32 bHasSceneColor : 1;
+
+	FMaterialCachedExpressionData() :
+		bHasRuntimeVirtualTextureOutput(false),
+		bHasSceneColor(false)
+	{}
 };

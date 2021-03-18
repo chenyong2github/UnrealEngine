@@ -35,7 +35,7 @@ struct FEditorWorldExtensionActorData
 	AActor* Actor = nullptr;
 
 	UPROPERTY()
-	bool bValidForPIE;
+	bool bValidForPIE=false;
 };
 
 UCLASS()

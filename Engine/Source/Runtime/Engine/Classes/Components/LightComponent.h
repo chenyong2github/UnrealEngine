@@ -65,7 +65,7 @@ class ENGINE_API ULightComponent : public ULightComponentBase
 	int32 ShadowMapChannel_DEPRECATED;
 
 	/** Transient shadowmap channel used to preview the results of stationary light shadowmap packing. */
-	int32 PreviewShadowMapChannel;
+	int32 PreviewShadowMapChannel=0;
 	
 	/** Min roughness effective for this light. Used for softening specular highlights. */
 	UPROPERTY()

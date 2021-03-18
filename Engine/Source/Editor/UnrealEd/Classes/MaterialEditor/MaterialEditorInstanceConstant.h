@@ -35,13 +35,13 @@ struct FEditorParameterGroup
 	FName GroupName;
 
 	UPROPERTY()
-	TEnumAsByte<EMaterialParameterAssociation> GroupAssociation;
+	TEnumAsByte<EMaterialParameterAssociation> GroupAssociation= EMaterialParameterAssociation::LayerParameter;
 
 	UPROPERTY(EditAnywhere, editfixedsize, Instanced, Category=EditorParameterGroup)
 	TArray<class UDEditorParameterValue*> Parameters;
 
 	UPROPERTY()
-	int32 GroupSortPriority;
+	int32 GroupSortPriority=0;
 };
 
 USTRUCT()

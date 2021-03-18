@@ -32,7 +32,7 @@ struct FAutoReimportWildcard
 	
 	/** When true, files that match this wildcard will be included (if it doesn't fail any other filters), when false, matches will be excluded from the reimporter */
 	UPROPERTY(EditAnywhere, config, Category=AutoReimport)
-	bool bInclude;
+	bool bInclude=false;
 };
 
 
