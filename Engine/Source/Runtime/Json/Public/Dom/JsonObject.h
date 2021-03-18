@@ -198,7 +198,7 @@ public:
 	/**
 	 * Gets the field with the specified name as a Json object.
 	 *
-	 * Ensures that the field is present and is of type Json number.
+	 * Ensures that the field is present and is of type Json object.
 	 *
 	 * @param FieldName The name of the field to get.
 	 * @return The field's value as a Json object.
