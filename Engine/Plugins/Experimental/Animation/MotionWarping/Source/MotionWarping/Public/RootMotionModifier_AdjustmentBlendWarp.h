@@ -58,7 +58,7 @@ public:
 	virtual ~FRootMotionModifier_AdjustmentBlendWarp() {}
 
 	virtual UScriptStruct* GetScriptStruct() const { return FRootMotionModifier_AdjustmentBlendWarp::StaticStruct(); }
-	virtual void OnSyncPointChanged(UMotionWarpingComponent& OwnerComp) override;
+	virtual void OnTargetTransformChanged() override;
 	virtual FTransform ProcessRootMotion(UMotionWarpingComponent& OwnerComp, const FTransform& InRootMotion, float DeltaSeconds) override;
 
 	void GetIKBoneTransformAndAlpha(FName BoneName, FTransform& OutTransform, float& OutAlpha) const;
@@ -80,7 +80,7 @@ protected:
 	UPROPERTY()
 	float ActualStartTime = 0.f;
 
-	void PrecomputeWarpedTracks(UMotionWarpingComponent& OwnerComp);
+	void PrecomputeWarpedTracks();
 
 	FTransform ExtractWarpedRootMotion() const;
 
@@ -89,7 +89,7 @@ protected:
 	void ExtractBoneTransformAtFrame(FTransform& OutTransform, int32 TrackIndex, int32 Frame) const;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	void DrawDebugWarpedTracks(UMotionWarpingComponent& OwnerComp, float DrawDuration) const;
+	void DrawDebugWarpedTracks(float DrawDuration) const;
 #endif
 
 	static void ExtractMotionDeltaFromRange(const FBoneContainer& BoneContainer, const UAnimSequenceBase* Animation, float StartTime, float EndTime, float SampleRate, FMotionDeltaTrackContainer& OutMotionDeltaTracks);
@@ -113,13 +113,17 @@ public:
 	URootMotionModifierConfig_AdjustmentBlendWarp(const FObjectInitializer& ObjectInitializer)
 		: Super(ObjectInitializer) {}
 
-	virtual void AddRootMotionModifier(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
+	virtual FRootMotionModifierHandle AddRootMotionModifierNew(UMotionWarpingComponent* MotionWarpingComp, const UAnimSequenceBase* Animation, float StartTime, float EndTime) const override
 	{
-		URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp(MotionWarpingComp, Animation, StartTime, EndTime, SyncPointName, bWarpTranslation, bIgnoreZAxis, bWarpRotation, bWarpIKBones, IKBones);
+		return URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp(MotionWarpingComp, Animation, StartTime, EndTime, 
+			SyncPointName, WarpPointAnimProvider, WarpPointAnimTransform, WarpPointAnimBoneName,
+			bWarpTranslation, bIgnoreZAxis, bWarpRotation, bWarpIKBones, IKBones);
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
-	static void AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones);
+	static FRootMotionModifierHandle AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, 
+		FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
+		bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones);
 
 	UFUNCTION(BlueprintPure, Category = "Motion Warping")
 	static void GetIKBoneTransformAndAlpha(ACharacter* Character, FName BoneName, FTransform& OutTransform, float& OutAlpha);

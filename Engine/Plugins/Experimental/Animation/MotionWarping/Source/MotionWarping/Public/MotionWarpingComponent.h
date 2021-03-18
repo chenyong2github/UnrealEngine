@@ -65,6 +65,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	static FTransform ExtractRootMotionFromAnimation(const UAnimSequenceBase* Animation, float StartTime, float EndTime);
 
+	/** Extract root bone transform at a given time */
+	static FTransform ExtractRootTransformFromAnimation(const UAnimSequenceBase* Animation, float Time);
+
 	/** @return All the MotionWarping windows within the supplied animation */
 	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
 	static void GetMotionWarpingWindowsFromAnimation(const UAnimSequenceBase* Animation, TArray<FMotionWarpingWindowData>& OutWindows);
@@ -116,10 +119,13 @@ public:
 	bool ContainsModifier(const UAnimSequenceBase* Animation, float StartTime, float EndTime) const;
 
 	/** Add a new modifier */
-	void AddRootMotionModifier(TSharedPtr<FRootMotionModifier> Modifier);
+	FRootMotionModifierHandle AddRootMotionModifier(TSharedPtr<FRootMotionModifier> Modifier);
 
 	/** Mark all the modifiers as Disable */
 	void DisableAllRootMotionModifiers();
+
+	/** Finds a RootMotionModifier that matches the supplied Handle */
+	TSharedPtr<FRootMotionModifier> GetRootMotionModifierByHandle(const FRootMotionModifierHandle& Handle) const;
 
 protected:
 
@@ -143,4 +149,12 @@ protected:
 	FTransform ProcessRootMotionPreConvertToWorld(const FTransform& InRootMotion, class UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds);
 	
 	FTransform ProcessRootMotionPostConvertToWorld(const FTransform& InRootMotion, class UCharacterMovementComponent* CharacterMovementComponent, float DeltaSeconds);
+
+public:
+
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	bool SetRootMotionModifierDelegatesByHandle(FRootMotionModifierHandle Handle, FOnRootMotionModifierDelegate OnActivate, FOnRootMotionModifierDelegate OnUpdate, FOnRootMotionModifierDelegate OnDeactivate);
+
+	UFUNCTION(BlueprintCallable, Category = "Motion Warping")
+	bool GetAnimationAndTimeRangeForRootMotionModifierByHandle(FRootMotionModifierHandle Handle, UAnimSequenceBase*& OutAnimation, float& OutStartTime, float& OutEndTime) const;
 };

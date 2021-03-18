@@ -51,26 +51,29 @@ void FRootMotionModifier_AdjustmentBlendWarp::ExtractBoneTransformAtFrame(FTrans
 	FAnimationUtils::ExtractTransformForFrameFromTrack(Result.AnimationTracks[TrackIndex], Frame, OutTransform);
 }
 
-void FRootMotionModifier_AdjustmentBlendWarp::OnSyncPointChanged(UMotionWarpingComponent& OwnerComp)
+void FRootMotionModifier_AdjustmentBlendWarp::OnTargetTransformChanged()
 {
-	const ACharacter* CharacterOwner = OwnerComp.GetCharacterOwner();
-	const USkeletalMeshComponent* SkelMeshComp = CharacterOwner->GetMesh();
+	const ACharacter* CharacterOwner = GetCharacterOwner();
+	const USkeletalMeshComponent* SkelMeshComp = CharacterOwner ? CharacterOwner->GetMesh() : nullptr;
 
-	ActualStartTime = PreviousPosition;
-	CachedRootMotion = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), ActualStartTime, EndTime);
-	CachedMeshRelativeTransform = SkelMeshComp->GetRelativeTransform();
-	CachedMeshTransform = SkelMeshComp->GetComponentTransform();
+	if(SkelMeshComp)
+	{
+		ActualStartTime = PreviousPosition;
+		CachedRootMotion = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), ActualStartTime, EndTime);
+		CachedMeshRelativeTransform = SkelMeshComp->GetRelativeTransform();
+		CachedMeshTransform = SkelMeshComp->GetComponentTransform();
 
-	Result.AnimationTracks.Reset();
-	Result.TrackNames.Reset();
+		Result.AnimationTracks.Reset();
+		Result.TrackNames.Reset();
+	}
 }
 
-FTransform FRootMotionModifier_AdjustmentBlendWarp::ProcessRootMotion(UMotionWarpingComponent& OwnerComp, const FTransform& InRootMotion, float DeltaSeconds)
+FTransform FRootMotionModifier_AdjustmentBlendWarp::ProcessRootMotion(UMotionWarpingComponent& OwnerComp_DEPRECATED, const FTransform& InRootMotion, float DeltaSeconds)
 {
 	// If warped tracks has not been generated yet, do it now
 	if (Result.GetNum() == 0)
 	{
-		PrecomputeWarpedTracks(OwnerComp);
+		PrecomputeWarpedTracks();
 	}
 
 	// Extract root motion from warped tracks
@@ -80,12 +83,12 @@ FTransform FRootMotionModifier_AdjustmentBlendWarp::ProcessRootMotion(UMotionWar
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	if (FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() > 0)
 	{
-		PrintLog(OwnerComp, TEXT("FRootMotionModifier_AdjustmentBlend"), InRootMotion, FinalRootMotion);
+		PrintLog(TEXT("FRootMotionModifier_AdjustmentBlend"), InRootMotion, FinalRootMotion);
 
 		if(FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread() >= 2)
 		{
 			const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
-			DrawDebugWarpedTracks(OwnerComp, DrawDebugDuration);
+			DrawDebugWarpedTracks(DrawDebugDuration);
 		}
 	}
 #endif
@@ -93,13 +96,18 @@ FTransform FRootMotionModifier_AdjustmentBlendWarp::ProcessRootMotion(UMotionWar
 	return FinalRootMotion;
 }
 
-void FRootMotionModifier_AdjustmentBlendWarp::PrecomputeWarpedTracks(UMotionWarpingComponent& OwnerComp)
+void FRootMotionModifier_AdjustmentBlendWarp::PrecomputeWarpedTracks()
 {
 	SCOPE_CYCLE_COUNTER(STAT_MotionWarping_PrecomputeWarpedTracks);
 
 	// First, extract pose at the end of the window for the bones we are going to warp
 
-	const ACharacter* CharacterOwner = OwnerComp.GetCharacterOwner();
+	const ACharacter* CharacterOwner = GetCharacterOwner();
+	if(CharacterOwner == nullptr)
+	{
+		return;
+	}
+
 	const FBoneContainer& BoneContainer = CharacterOwner->GetMesh()->GetAnimInstance()->GetRequiredBones();
 
 	// Init FBoneContainer with only the bones that we are interested in
@@ -131,7 +139,7 @@ void FRootMotionModifier_AdjustmentBlendWarp::PrecomputeWarpedTracks(UMotionWarp
 	// Second, calculate additive pose
 
 	//Calculate additive translation for root bone
-	FVector RootTargetLocation = CachedMeshTransform.InverseTransformPositionNoScale(CachedSyncPoint.GetLocation());
+	FVector RootTargetLocation = CachedMeshTransform.InverseTransformPositionNoScale(GetTargetLocation());
 
 	FVector RootTotalAdditiveTranslation = FVector::ZeroVector;
 	if (bWarpTranslation)
@@ -148,7 +156,7 @@ void FRootMotionModifier_AdjustmentBlendWarp::PrecomputeWarpedTracks(UMotionWarp
 	FQuat RootTotalAdditiveRotation = FQuat::Identity;
 	if (bWarpRotation)
 	{
-		const FQuat TargetRotation = GetTargetRotation(OwnerComp);
+		const FQuat TargetRotation = GetTargetRotation();
 		const FQuat OriginalRotation = CachedMeshRelativeTransform.GetRotation().Inverse() * (CachedRootMotion * CachedMeshTransform).GetRotation();
 		RootTotalAdditiveRotation = FQuat::FindBetweenNormals(OriginalRotation.GetForwardVector(), TargetRotation.GetForwardVector());
 	}
@@ -341,9 +349,10 @@ FTransform FRootMotionModifier_AdjustmentBlendWarp::ExtractWarpedRootMotion() co
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-void FRootMotionModifier_AdjustmentBlendWarp::DrawDebugWarpedTracks(UMotionWarpingComponent& OwnerComp, float DrawDuration) const
+void FRootMotionModifier_AdjustmentBlendWarp::DrawDebugWarpedTracks(float DrawDuration) const
 {
-	const UWorld* World = OwnerComp.GetWorld();
+	const ACharacter* CharacterOwner = GetCharacterOwner();
+	const UWorld* World = CharacterOwner ? CharacterOwner->GetWorld() : nullptr;
 	if (World && Result.GetNum() > 0 && PreviousPosition <= EndTime)
 	{
 		FTransform RootStartTransform;
@@ -369,10 +378,10 @@ void FRootMotionModifier_AdjustmentBlendWarp::DrawDebugWarpedTracks(UMotionWarpi
 			}
 		}
 
-		const FTransform& MeshTransform = OwnerComp.GetCharacterOwner()->GetMesh()->GetComponentTransform();
+		const FTransform& MeshTransform = CharacterOwner->GetMesh()->GetComponentTransform();
 		DrawDebugCoordinateSystem(World, CachedMeshTransform.GetLocation(), CachedMeshTransform.Rotator(), 20.f, false, DrawDuration, 0, 1.f);
 		DrawDebugCoordinateSystem(World, MeshTransform.GetLocation(), MeshTransform.Rotator(), 20.f, false, DrawDuration, 0, 1.f);
-		DrawDebugCoordinateSystem(World, CachedSyncPoint.GetLocation(), CachedSyncPoint.Rotator(), 50.f, false, DrawDuration, 0, 1.f);
+		DrawDebugCoordinateSystem(World, GetTargetLocation(), GetTargetRotator(), 50.f, false, DrawDuration, 0, 1.f);
 		DrawDebugCoordinateSystem(World, (CachedRootMotion * CachedMeshTransform).GetLocation(), (CachedRootMotion * CachedMeshTransform).Rotator(), 50.f, false, DrawDuration, 0, 1.f);
 	}
 }
@@ -426,7 +435,9 @@ void URootMotionModifierConfig_AdjustmentBlendWarp::GetIKBoneTransformAndAlpha(A
 // URootMotionModifierConfig_AdjustmentBlendWarp
 ///////////////////////////////////////////////////////////////
 
-void URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones)
+FRootMotionModifierHandle URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustmentBlendWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, 
+	FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
+	bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, bool bInWarpIKBones, const TArray<FName>& InIKBones)
 {
 	if (ensureAlways(InMotionWarpingComp))
 	{
@@ -435,11 +446,16 @@ void URootMotionModifierConfig_AdjustmentBlendWarp::AddRootMotionModifierAdjustm
 		NewModifier->StartTime = InStartTime;
 		NewModifier->EndTime = InEndTime;
 		NewModifier->SyncPointName = InSyncPointName;
+		NewModifier->WarpPointAnimProvider = InWarpPointAnimProvider;
+		NewModifier->WarpPointAnimTransform = InWarpPointAnimTransform;
+		NewModifier->WarpPointAnimBoneName = InWarpPointAnimBoneName;
 		NewModifier->bWarpTranslation = bInWarpTranslation;
 		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
 		NewModifier->bWarpRotation = bInWarpRotation;
 		NewModifier->bWarpIKBones = bInWarpIKBones;
 		NewModifier->IKBones = InIKBones;
-		InMotionWarpingComp->AddRootMotionModifier(NewModifier);
+		return InMotionWarpingComp->AddRootMotionModifier(NewModifier);
 	}
+
+	return FRootMotionModifierHandle::InvalidHandle;
 }

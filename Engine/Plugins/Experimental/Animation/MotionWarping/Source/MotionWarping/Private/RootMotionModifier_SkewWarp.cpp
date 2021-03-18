@@ -7,10 +7,13 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "MotionWarpingComponent.h"
 
-FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingComponent& OwnerComp, const FTransform& InRootMotion, float DeltaSeconds)
+FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingComponent& OwnerComp_DEPRECATED, const FTransform& InRootMotion, float DeltaSeconds)
 {
-	const ACharacter* CharacterOwner = OwnerComp.GetCharacterOwner(); 
-	check(CharacterOwner);
+	const ACharacter* CharacterOwner = GetCharacterOwner();
+	if(CharacterOwner == nullptr)
+	{
+		return InRootMotion;
+	}
 
 	FTransform FinalRootMotion = InRootMotion;
 
@@ -32,7 +35,7 @@ FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingCompone
 		const FVector CurrentLocation = CurrentTransform.GetLocation();
 		const FQuat CurrentRotation = CurrentTransform.GetRotation();
 		
-		FVector TargetLocation = CachedSyncPoint.GetLocation();
+		FVector TargetLocation = GetTargetLocation();
 		if(bIgnoreZAxis)
 		{
 			TargetLocation.Z = CurrentLocation.Z;
@@ -138,7 +141,7 @@ FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingCompone
 
 	if(bWarpRotation)
 	{
-		const FQuat WarpedRotation = WarpRotation(OwnerComp, InRootMotion, RootMotionTotal, DeltaSeconds);
+		const FQuat WarpedRotation = WarpRotation(InRootMotion, RootMotionTotal, DeltaSeconds);
 		FinalRootMotion.SetRotation(WarpedRotation);
 	}
 
@@ -147,12 +150,12 @@ FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingCompone
 	const int32 DebugLevel = FMotionWarpingCVars::CVarMotionWarpingDebug.GetValueOnGameThread();
 	if (DebugLevel > 0)
 	{
-		PrintLog(OwnerComp, TEXT("FRootMotionModifier_Skew"), InRootMotion, FinalRootMotion);
+		PrintLog(TEXT("FRootMotionModifier_Skew"), InRootMotion, FinalRootMotion);
 
 		if (DebugLevel >= 2)
 		{
 			const float DrawDebugDuration = FMotionWarpingCVars::CVarMotionWarpingDrawDebugDuration.GetValueOnGameThread();
-			DrawDebugCoordinateSystem(OwnerComp.GetWorld(), CachedSyncPoint.GetLocation(), CachedSyncPoint.Rotator(), 50.f, false, DrawDebugDuration, 0, 1.f);
+			DrawDebugCoordinateSystem(CharacterOwner->GetWorld(), GetTargetLocation(), GetTargetRotator(), 50.f, false, DrawDebugDuration, 0, 1.f);
 		}
 	}
 #endif
@@ -163,7 +166,9 @@ FTransform FRootMotionModifier_SkewWarp::ProcessRootMotion(UMotionWarpingCompone
 // URootMotionModifierConfig_SkewWarp
 ///////////////////////////////////////////////////////////////
 
-void URootMotionModifierConfig_SkewWarp::AddRootMotionModifierSkewWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, FName InSyncPointName, bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier)
+FRootMotionModifierHandle URootMotionModifierConfig_SkewWarp::AddRootMotionModifierSkewWarp(UMotionWarpingComponent* InMotionWarpingComp, const UAnimSequenceBase* InAnimation, float InStartTime, float InEndTime, 
+	FName InSyncPointName, EWarpPointAnimProvider InWarpPointAnimProvider, FTransform InWarpPointAnimTransform, FName InWarpPointAnimBoneName,
+	bool bInWarpTranslation, bool bInIgnoreZAxis, bool bInWarpRotation, EMotionWarpRotationType InRotationType, float InWarpRotationTimeMultiplier)
 {
 	if (ensureAlways(InMotionWarpingComp))
 	{
@@ -172,11 +177,16 @@ void URootMotionModifierConfig_SkewWarp::AddRootMotionModifierSkewWarp(UMotionWa
 		NewModifier->StartTime = InStartTime;
 		NewModifier->EndTime = InEndTime;
 		NewModifier->SyncPointName = InSyncPointName;
+		NewModifier->WarpPointAnimProvider = InWarpPointAnimProvider;
+		NewModifier->WarpPointAnimTransform = InWarpPointAnimTransform;
+		NewModifier->WarpPointAnimBoneName = InWarpPointAnimBoneName;
 		NewModifier->bWarpTranslation = bInWarpTranslation;
 		NewModifier->bIgnoreZAxis = bInIgnoreZAxis;
 		NewModifier->bWarpRotation = bInWarpRotation;
 		NewModifier->RotationType = InRotationType;
 		NewModifier->WarpRotationTimeMultiplier = InWarpRotationTimeMultiplier;
-		InMotionWarpingComp->AddRootMotionModifier(NewModifier);
+		return InMotionWarpingComp->AddRootMotionModifier(NewModifier);
 	}
+
+	return FRootMotionModifierHandle::InvalidHandle;
 }
