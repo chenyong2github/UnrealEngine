@@ -79,9 +79,9 @@ bool FRigUnit_RigLogic_Data::IsRigLogicInitialized()
 
 void FRigUnit_RigLogic_Data::InitializeRigLogic(const FRigBoneHierarchy* BoneHierarchy, const FRigCurveContainer* CurveContainer)
 {
-	if (!SharedRigRuntimeContext->BehaviorReader.IsValid() || SharedRigRuntimeContext->BehaviorReader->GetJointCount() == 0u)
+	if ((SharedRigRuntimeContext == nullptr) || !SharedRigRuntimeContext->BehaviorReader.IsValid() || SharedRigRuntimeContext->BehaviorReader->GetJointCount() == 0u)
 	{
-		UE_LOG(LogRigLogicUnit, Warning, TEXT("Empty DNA file detected, abort initialization."));
+		UE_LOG(LogRigLogicUnit, Warning, TEXT("No valid DNA file found, abort initialization."));
 		return;
 	}
 
