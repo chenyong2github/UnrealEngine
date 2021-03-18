@@ -10,6 +10,7 @@
 #include "GroomCreateBindingOptions.h"
 
 IMPLEMENT_MODULE(FHairStrandsCore, HairStrandsCore);
+DEFINE_LOG_CATEGORY(LogHairStrands);
 
 void ProcessHairStrandsBookmark(
 	FRDGBuilder& GraphBuilder,

@@ -8,7 +8,7 @@
 #include "PackedNormal.h"
 #include "RenderGraphResources.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogHairStrands, Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogHairStrands, Log, All);
 
 struct FPackedHairVertex
 {
