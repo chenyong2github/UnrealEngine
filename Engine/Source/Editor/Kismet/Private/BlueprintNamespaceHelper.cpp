@@ -10,6 +10,8 @@
 #include "EdGraphSchema_K2.h"
 #include "AssetRegistryModule.h"
 #include "SPinTypeSelector.h"
+#include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintNamespaceHelper"
 
