@@ -51,6 +51,7 @@ namespace Chaos
 		// @todo(chaos): Keep track of invalid state and ensure on volume or COM access?
 		// @todo(chaos): Add plane vertex indices in the constructor and call CreateStructureData
 		// @todo(chaos): Merge planes? Or assume the input is a good convex hull?
+		UE_DEPRECATED(4.27, "Use the constructor version with the face indices.")
 		FConvex(TArray<TPlaneConcrete<FReal, 3>>&& InPlanes, TArray<FVec3>&& InVertices)
 		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
 			, Planes(MoveTemp(InPlanes))
@@ -65,6 +66,24 @@ namespace Chaos
 			// For now we approximate COM and volume with the bounding box
 			CenterOfMass = LocalBoundingBox.GetCenterOfMass();
 			Volume = LocalBoundingBox.GetVolume();
+		}
+
+		FConvex(TArray<TPlaneConcrete<FReal, 3>>&& InPlanes, TArray<TArray<int32>>&& InFaceIndices, TArray<FVec3>&& InVertices)
+		    : FImplicitObject(EImplicitObject::IsConvex | EImplicitObject::HasBoundingBox, ImplicitObjectType::Convex)
+			, Planes(MoveTemp(InPlanes))
+		    , Vertices(MoveTemp(InVertices))
+		    , LocalBoundingBox(TAABB<FReal, 3>::EmptyAABB())
+		{
+			for (int32 ParticleIndex = 0; ParticleIndex < Vertices.Num(); ++ParticleIndex)
+			{
+				LocalBoundingBox.GrowToInclude(Vertices[ParticleIndex]);
+			}
+
+			// For now we approximate COM and volume with the bounding box
+			CenterOfMass = LocalBoundingBox.GetCenterOfMass();
+			Volume = LocalBoundingBox.GetVolume();
+
+			CreateStructureData(MoveTemp(InFaceIndices));
 		}
 
 		FConvex(const TArray<FVec3>& InVertices, const FReal InMargin)

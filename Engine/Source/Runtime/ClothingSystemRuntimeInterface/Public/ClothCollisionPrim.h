@@ -48,6 +48,21 @@ struct FClothCollisionPrim_SphereConnection
 	int32 SphereIndices[2];
 };
 
+/** Data for a convex face. */
+USTRUCT()
+struct FClothCollisionPrim_ConvexFace
+{
+	GENERATED_BODY()
+
+	FClothCollisionPrim_ConvexFace(): Plane(ForceInit) {}
+
+	UPROPERTY()
+	FPlane Plane;
+
+	UPROPERTY()
+	TArray<int32> Indices;
+};
+
 /**
  *	Data for a single convex element
  *	A convex is a collection of planes, in which the clothing will attempt to stay outside of the
@@ -65,10 +80,16 @@ struct CLOTHINGSYSTEMRUNTIMEINTERFACE_API FClothCollisionPrim_Convex
 	/** Rebuild the surface point array from the existing planes.
 	 *  This is an expensive function (O(n^4) per number of planes).
 	 */
+	UE_DEPRECATED(4.27, "RebuildSurfacePoints is now deprecated as it doesn't provide enough data to regenerate the indices required by FKConvexElem and FConvex.")
 	void RebuildSurfacePoints();
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY()
-	TArray<FPlane> Planes;
+	TArray<FPlane> Planes_DEPRECATED;
+#endif
+
+	UPROPERTY()
+	TArray<FClothCollisionPrim_ConvexFace> Faces;
 
 	UPROPERTY()
 	TArray<FVector> SurfacePoints;  // Surface points, used by Chaos and also for visualization
