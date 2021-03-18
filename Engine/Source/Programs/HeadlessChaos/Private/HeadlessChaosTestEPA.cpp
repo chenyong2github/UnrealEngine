@@ -674,7 +674,8 @@ namespace ChaosTest
 					{576.000000, -256.000000, 8.00000000}
 				});
 
-			TUniquePtr<FConvex> Convex = MakeUnique<FConvex>(MoveTemp(ConvexPlanes), MoveTemp(SurfaceParticles));
+			// Test used to pass the planes to FConvex, but this is not supported any more. Planes are derived from points.
+			TUniquePtr<FConvex> Convex = MakeUnique<FConvex>(SurfaceParticles, 0.0f);
 			TImplicitObjectScaled<FConvex> ScaledConvex(MakeSerializable(Convex), FVec3(1.0f), 0.0f);
 
 			TSphere<FReal, 3> Sphere(FVec3(0.0f), 34.2120171);
@@ -767,8 +768,10 @@ namespace ChaosTest
 					{512.000000,0.000000000,0.000000000}
 					});
 
+				// Test used to pass planes and verts to FConvex but this is not suported an more. 
+				// Planes will derived from the points now, and also faces are merged (not triangles any more)
 				FVec3 ConvexScale ={25,25,1};
-				TUniquePtr<FConvex> Convex = MakeUnique<FConvex>(MoveTemp(ConvexPlanes),MoveTemp(SurfaceParticles));
+				TUniquePtr<FConvex> Convex = MakeUnique<FConvex>(SurfaceParticles, 0.0f);
 				TImplicitObjectScaled<FConvex> ScaledConvex(MakeSerializable(Convex),ConvexScale,0.0f);
 
 				TBox<FReal,3> Box({-50.0000000,-60.0000000,-30.0000000},{50.0000000,60.0000000,30.0000000});
@@ -1032,15 +1035,16 @@ namespace ChaosTest
 
 
 
+			// Test used to pass planes and verts to FConvex but this is not suported an more. 
+			// Planes will derived from the points now, and also faces are merged (not triangles any more)
 			FVec3 GroundConvexScale = { 25,25,1 };
-			TUniquePtr<FConvex> GroundConvex = MakeUnique<FConvex>(MoveTemp(GroundConvexPlanes), MoveTemp(GroundSurfaceParticles));
+			TUniquePtr<FConvex> GroundConvex = MakeUnique<FConvex>(GroundSurfaceParticles, 0.0f);
 			TImplicitObjectScaled<FConvex> ScaledGroundConvex(MakeSerializable(GroundConvex), GroundConvexScale, 0.0f);
 
 
-
-			auto BoatConvexPlanesCopy = BoatConvexPlanes;
-			TArray<Chaos::FVec3> BoatSurfaceVerticesCopy = TArray<Chaos::FVec3>(CopyTemp(BoatSurfaceVertices));
-			FConvex BoatConvex = FConvex(MoveTemp(BoatConvexPlanesCopy), MoveTemp(BoatSurfaceVerticesCopy));
+			// Test used to pass planes and verts to FConvex but this is not suported an more. 
+			// Planes will derived from the points now, and also faces are merged (not triangles any more)
+			FConvex BoatConvex = FConvex(BoatSurfaceVertices, 0.0f);
 
 
 			TRigidTransform<FReal, 3> BoatTransform(FVec3(-5421.507324, 2335.360840, 6.972876), FQuat(-0.016646, -0.008459, 0.915564, -0.401738), FVec3(1.0f));
@@ -1070,9 +1074,9 @@ namespace ChaosTest
 			FVec3 ExpectedNormal = FVec3::CrossProduct(Triangle[1] - Triangle[0], Triangle[2] - Triangle[0]);
 			ExpectedNormal.Normalize();
 
-			auto BoatConvexPlanesCopy = BoatConvexPlanes;
-			TArray<Chaos::FVec3> BoatSurfaceVerticesCopy = TArray<Chaos::FVec3>(CopyTemp(BoatSurfaceVertices));
-			FConvex BoatConvex = FConvex(MoveTemp(BoatConvexPlanesCopy), MoveTemp(BoatSurfaceVerticesCopy));
+			// Test used to pass planes and verts to FConvex but this is not suported an more. 
+			// Planes will derived from the points now, and also faces are merged (not triangles any more)
+			FConvex BoatConvex = FConvex(BoatSurfaceVertices, 0.0f);
 
 			TRigidTransform<FReal, 3> QueryTM(FVec3(-10831.1875, -11206.3750, -6140.38135), FQuat(-0.524916053, -0.0370868668, -0.126528814, 0.840879321), FVec3(1.0f));
 
