@@ -4120,6 +4120,11 @@ void FConfigCacheIni::LoadConsoleVariablesFromINI()
 	// We also apply from Engine.ini [ConsoleVariables] section
 	ApplyCVarSettingsFromIni(TEXT("ConsoleVariables"), *GEngineIni, ECVF_SetBySystemSettingsIni);
 
+#if WITH_EDITOR
+	// We also apply from DefaultEditor.ini [ConsoleVariables] section
+	ApplyCVarSettingsFromIni(TEXT("ConsoleVariables"), *GEditorIni, ECVF_SetBySystemSettingsIni);
+#endif	//WITH_EDITOR
+
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
 }
 
