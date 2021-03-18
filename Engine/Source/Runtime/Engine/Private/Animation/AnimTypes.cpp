@@ -5,6 +5,7 @@
 #include "AnimationUtils.h"
 #include "Animation/AnimNotifies/AnimNotify.h"
 #include "Animation/AnimNotifies/AnimNotifyState.h"
+#include "Animation/MirrorDataTable.h"
 #include "UObject/AnimObjectVersion.h"
 
 #define NOTIFY_TRIGGER_OFFSET KINDA_SMALL_NUMBER;
@@ -209,7 +210,7 @@ void FMarkerSyncData::GetMarkerIndicesForTime(float CurrentTime, bool bLooping, 
 	}
 }
 
-FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength) const
+FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionfromMarkerIndicies(int32 PrevMarker, int32 NextMarker, float CurrentTime, float SequenceLength, const UMirrorDataTable* MirrorTable) const
 {
 	FMarkerSyncAnimPosition SyncPosition;
 	float PrevTime, NextTime;
@@ -218,6 +219,14 @@ FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionfromMarkerIndicies
 	{
 		PrevTime = AuthoredSyncMarkers[PrevMarker].Time;
 		SyncPosition.PreviousMarkerName = AuthoredSyncMarkers[PrevMarker].MarkerName;
+		if (MirrorTable)
+		{
+			const FName* MirroredName = MirrorTable->SyncToMirrorSyncMap.Find(SyncPosition.PreviousMarkerName);
+			if (MirroredName)
+			{
+				SyncPosition.PreviousMarkerName = *MirroredName;
+			}
+		}
 	}
 	else
 	{
@@ -228,6 +237,14 @@ FMarkerSyncAnimPosition FMarkerSyncData::GetMarkerSyncPositionfromMarkerIndicies
 	{
 		NextTime = AuthoredSyncMarkers[NextMarker].Time;
 		SyncPosition.NextMarkerName = AuthoredSyncMarkers[NextMarker].MarkerName;
+		if (MirrorTable)
+		{
+			const FName* MirroredName = MirrorTable->SyncToMirrorSyncMap.Find(SyncPosition.NextMarkerName);
+			if (MirroredName)
+			{
+				SyncPosition.NextMarkerName = *MirroredName;
+			}
+		}
 	}
 	else
 	{

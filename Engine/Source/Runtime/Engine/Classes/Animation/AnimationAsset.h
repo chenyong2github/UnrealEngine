@@ -26,6 +26,7 @@ class USkeleton;
 class UAnimSequenceBase;
 class UBlendSpace;
 class UPoseAsset;
+class UMirrorDataTable; 
 
 namespace MarkerIndexSpecialValues
 {
@@ -304,6 +305,7 @@ struct FAnimTickRecord
 	float RootMotionWeightModifier = 1.0f;
 
 	bool bLooping = false;
+	const UMirrorDataTable* MirrorDataTable = nullptr;
 
 	union
 	{

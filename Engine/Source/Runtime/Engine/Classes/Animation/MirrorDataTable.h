@@ -11,8 +11,9 @@ UENUM()
 enum EMirrorRowType
 {
 	Bone,
-	Notify,
-	Curve
+	AnimationNotify,
+	Curve,
+	SyncMarker
 };
 
 /** Find and Replace Method for FMirrorFindReplaceExpression. */
@@ -190,8 +191,11 @@ public:
 	// Array with the target UIDs of curves that should be mirrored. 
 	TArray<SmartName::UID_Type> CurveMirrorTargetUIDArray;
 
-	// Map from notify to mirror notify
-	TMap<FName, FName> NotifyToMirrorNotifyMap;
+	// Map from animation notify to mirrored animation notify
+	TMap<FName, FName> AnimNotifyToMirrorAnimNotifyMap;
+	
+	// Map from sync marker to mirrored sync marker 
+	TMap<FName, FName> SyncToMirrorSyncMap;
 
 protected: 
 

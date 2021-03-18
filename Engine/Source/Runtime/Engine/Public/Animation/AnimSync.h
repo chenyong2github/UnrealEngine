@@ -8,6 +8,7 @@
 
 struct FAnimationBaseContext;
 struct FAnimInstanceProxy;
+class UMirrorDataTable; 
 
 namespace UE { namespace Anim {
 
@@ -37,6 +38,8 @@ struct ENGINE_API FAnimSync
 
 	// Adds a tick record in the list for the correct group or the ungrouped array.
 	void AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSyncParams& InSyncParams = FAnimSyncParams());
+
+	void SetMirror(const UMirrorDataTable* MirrorTable);
 
 	// Tick all of the asset player tick records that are registered with us
 	void TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDeltaSeconds);
@@ -96,6 +99,9 @@ private:
 
 	/** The set of tick groups for this anim instance */
 	FSyncGroupMap SyncGroupMaps[2];
+		
+	/** If not null, the sync markers will be mirrored based on the data in the table **/ 
+	const UMirrorDataTable* MirrorDataTable = nullptr; 
 
 	/** Current sync group buffer index */
 	int32 SyncGroupWriteIndex = 0;

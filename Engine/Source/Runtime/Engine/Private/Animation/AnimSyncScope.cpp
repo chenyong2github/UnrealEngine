@@ -71,4 +71,19 @@ void FAnimSyncGroupScope::AddTickRecord(const FAnimTickRecord& InTickRecord, con
 	}
 }
 
+void FAnimSyncGroupScope::SetMirror(const UMirrorDataTable* MirrorDataTable)
+{
+	// Forward to outer instance if we have one
+	if (OuterProxy)
+	{
+		OuterProxy->SetSyncMirror(MirrorDataTable);
+	}
+	else
+	{
+		Proxy.SetSyncMirror(MirrorDataTable);
+	}
+}
+
+
+
 }}	// namespace UE::Anim

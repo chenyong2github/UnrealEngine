@@ -28,12 +28,18 @@ void FAnimSync::AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSy
 		FSyncGroupMap& SyncGroupMap = SyncGroupMaps[GetSyncGroupWriteIndex()];
 		FAnimGroupInstance& SyncGroupInstance = SyncGroupMap.FindOrAdd(InSyncParams.GroupName);
 		SyncGroupInstance.ActivePlayers.Add(InTickRecord);
+		SyncGroupInstance.ActivePlayers.Top().MirrorDataTable = MirrorDataTable;
 		SyncGroupInstance.TestTickRecordForLeadership(InSyncParams.Role);
 	}
 	else
 	{
 		UngroupedActivePlayerArrays[GetSyncGroupWriteIndex()].Add(InTickRecord);
 	}
+}
+
+void FAnimSync::SetMirror(const UMirrorDataTable* MirrorTable)
+{
+	MirrorDataTable = MirrorTable;
 }
 
 void FAnimSync::TickAssetPlayerInstances(FAnimInstanceProxy& InProxy, float InDeltaSeconds)

@@ -4,6 +4,7 @@
 #include "Animation/AnimInstanceProxy.h"
 #include "Animation/AnimNode_Inertialization.h"
 #include "AnimationRuntime.h"
+#include "Animation/MirrorSyncScope.h"
 
 #define LOCTEXT_NAMESPACE "AnimNode_Mirror"
 
@@ -104,6 +105,8 @@ void FAnimNode_Mirror::Update_AnyThread(const FAnimationUpdateContext& Context)
 		}
 	}
 
+	UE::Anim::TOptionalScopedGraphMessage<UE::Anim::FMirrorSyncScope> Message(bMirror, Context, Context, MirrorDataTable);
+	
 	bMirrorState = bMirror;
 	bMirrorStateIsValid = true;
 

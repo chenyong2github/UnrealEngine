@@ -39,6 +39,9 @@ public:
 	// Adds a tick record in the list for the correct group or the ungrouped array.
 	void AddTickRecord(const FAnimTickRecord& InTickRecord, const FAnimSyncParams& InSyncParams = FAnimSyncParams(), const FAnimSyncDebugInfo& InDebugInfo = FAnimSyncDebugInfo());
 
+	// Set a mirror table that any tick records added to the group will use
+	void SetMirror(const UMirrorDataTable* MirrorDataTable);
+
 private:
 	// The node ID that was used when this scope was entered
 	int32 NodeId;

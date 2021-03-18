@@ -19,7 +19,7 @@
 #include "Logging/TokenizedMessage.h"
 #include "Animation/AnimTrace.h"
 #include "Animation/AnimSync.h"
-
+#include "Animation/AnimSyncScope.h"
 #include "AnimInstanceProxy.generated.h"
 
 class UBlendSpace;
@@ -550,6 +550,7 @@ public:
 	friend struct FAnimationBaseContext;
 	friend struct FAnimTrace;
 	friend struct UE::Anim::FAnimSync;
+	friend class UE::Anim::FAnimSyncGroupScope;
 
 protected:
 	/** Called when our anim instance is being initialized */
@@ -714,6 +715,12 @@ protected:
 
 	FMarkerSyncAnimPosition GetSyncGroupPosition(FName InSyncGroupName) const;
 
+	// Set the mirror data table to sync animations
+	void SetSyncMirror(const UMirrorDataTable* MirrorDataTable)
+	{
+		Sync.SetMirror(MirrorDataTable);
+	}
+	
 	// slot node run-time functions
 	void ReinitializeSlotNodes();
 

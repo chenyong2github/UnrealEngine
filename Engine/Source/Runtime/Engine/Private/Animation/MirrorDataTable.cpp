@@ -275,7 +275,7 @@ void UMirrorDataTable::FindReplaceMirroredNames()
 		FName MirroredName = FindReplace(Notify);
 		if (!MirroredName.IsNone() && Skeleton->AnimationNotifies.Contains(MirroredName))
 		{
-			AddMirrorRow(Notify, MirroredName, EMirrorRowType::Notify);
+			AddMirrorRow(Notify, MirroredName, EMirrorRowType::AnimationNotify);
 		}
 	}
 
@@ -394,7 +394,8 @@ void UMirrorDataTable::FillMirrorBoneIndexes(const FReferenceSkeleton& Reference
 
 void UMirrorDataTable::FillMirrorArrays()
 {
-	NotifyToMirrorNotifyMap.Empty();
+	SyncToMirrorSyncMap.Empty();
+	AnimNotifyToMirrorAnimNotifyMap.Empty();
 	if (!Skeleton)
 	{
 		BoneToMirrorBoneIndex.Empty();
@@ -409,13 +410,25 @@ void UMirrorDataTable::FillMirrorArrays()
 	
 	ForeachRow<FMirrorTableRow>(TEXT("UMirrorDataTable::FillMirrorArrays"), [this, &CurveToMirrorCurveMap](const FName& Key, const FMirrorTableRow& Value) mutable
 		{
-			if (Value.MirrorEntryType == EMirrorRowType::Curve)
+			switch (Value.MirrorEntryType)
+			{
+			case  EMirrorRowType::Curve:
 			{
 				CurveToMirrorCurveMap.Add(Value.Name, Value.MirroredName);
+				break;
 			}
-			else if (Value.MirrorEntryType == EMirrorRowType::Notify)
+			case EMirrorRowType::SyncMarker:
 			{
-				NotifyToMirrorNotifyMap.Add(Value.Name, Value.MirroredName);
+                SyncToMirrorSyncMap.Add(Value.Name, Value.MirroredName);
+				break;
+            }
+			case EMirrorRowType::AnimationNotify:
+			{
+                AnimNotifyToMirrorAnimNotifyMap.Add(Value.Name, Value.MirroredName);
+				break;
+            }
+			default:
+				break;
 			}
 		}
 	);
