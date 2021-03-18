@@ -43,10 +43,9 @@ bool FHttpPath::IsValidPath() const
 		return 
 			(C <= 32) || (C >= 127) ||
 			(C == TEXT(' ')) ||	(C == TEXT('.')) ||	(C == TEXT(',')) ||
-			(C == TEXT(';')) ||	(C == TEXT(':')) || (C == TEXT('<')) ||
-			(C == TEXT('>')) ||	(C == TEXT(']')) ||	(C == TEXT('[')) ||
-			(C == TEXT('}')) ||	(C == TEXT('{')) ||	(C == TEXT('#')) ||
-			(C == TEXT('|')) ||	(C == TEXT('^')) ||	(C == TEXT('~')) ||
+			(C == TEXT('<')) || (C == TEXT('>')) ||	(C == TEXT(']')) ||
+			(C == TEXT('[')) || (C == TEXT('}')) ||	(C == TEXT('{')) ||
+			(C == TEXT('#')) || (C == TEXT('|')) ||	(C == TEXT('^')) ||
 			(C == TEXT('\\'));
 	}; 
 
