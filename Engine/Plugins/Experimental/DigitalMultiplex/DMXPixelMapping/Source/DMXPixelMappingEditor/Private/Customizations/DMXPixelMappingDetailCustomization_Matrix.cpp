@@ -219,7 +219,6 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_Matrix::GenerateExpose
 
 	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
 		.Padding(2.0f)
-		.Style(FEditorStyle::Get(), "UMGEditor.PaletteItem")
 		.ShowSelection(false)
 		[
 			SNew(SBox)

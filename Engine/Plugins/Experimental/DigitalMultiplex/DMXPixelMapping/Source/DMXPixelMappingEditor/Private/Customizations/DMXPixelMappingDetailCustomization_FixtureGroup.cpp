@@ -54,7 +54,6 @@ TSharedRef<ITableRow> FDMXPixelMappingDetailCustomization_FixtureGroup::Generate
 			return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
 				.Padding(2.0f)
 				.OnDragDetected(FOnDragDetected::CreateSP(this, &FDMXPixelMappingDetailCustomization_FixtureGroup::OnFixturePatchDragDetected, InFixturePatchRef))
-				.Style(FEditorStyle::Get(), "UMGEditor.PaletteItem")
 				.ShowSelection(true)
 				[
 					SNew(SBox)
