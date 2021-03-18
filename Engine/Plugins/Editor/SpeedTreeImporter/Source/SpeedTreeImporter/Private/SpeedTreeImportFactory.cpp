@@ -3,6 +3,7 @@
 #include "SpeedTreeImportFactory.h"
 
 #include "AssetImportTask.h"
+#include "CoreGlobals.h"
 #include "Editor.h"
 #include "EditorFramework/AssetImportData.h"
 #include "EditorReimportHandler.h"
@@ -266,7 +267,7 @@ private:
 	{
 		bImport = true;
 		WidgetWindow->RequestDestroyWindow();
-		SpeedTreeImportData->SaveConfig();
+		SpeedTreeImportData->SaveConfig(CPF_Config, nullptr, GConfig, false);
 		return FReply::Handled();
 	}
 
