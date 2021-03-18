@@ -40,6 +40,11 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Components/BrushComponent.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -165,15 +170,16 @@ void UEditMeshPolygonsTool::Setup()
 	AddInputBehavior(ClickBehavior);
 
 	// create dynamic mesh component to use for live preview
-	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "DynamicMesh");
-	DynamicMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	DynamicMeshComponent = NewObject<USimpleDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "DynamicMesh");
+	DynamicMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
 	DynamicMeshComponent->RegisterComponent();
-	DynamicMeshComponent->SetWorldTransform(ComponentTarget->GetWorldTransform());
+	DynamicMeshComponent->SetWorldTransform(TargetComponent->GetWorldTransform());
 	WorldTransform = FTransform3d(DynamicMeshComponent->GetComponentTransform());
 
 	// set materials
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	for (int k = 0; k < MaterialSet.Materials.Num(); ++k)
 	{
 		DynamicMeshComponent->SetMaterial(k, MaterialSet.Materials[k]);
@@ -196,7 +202,7 @@ void UEditMeshPolygonsTool::Setup()
 
 	// dynamic mesh configuration settings
 	DynamicMeshComponent->TangentsType = EDynamicMeshTangentCalcType::AutoCalculated;
-	DynamicMeshComponent->InitializeMesh(ComponentTarget->GetMesh());
+	DynamicMeshComponent->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
 	FMeshNormals::QuickComputeVertexNormals(*DynamicMeshComponent->GetMesh());
 	OnDynamicMeshComponentChangedHandle = DynamicMeshComponent->OnMeshChanged.Add(
 		FSimpleMulticastDelegate::FDelegate::CreateUObject(this, &UEditMeshPolygonsTool::OnDynamicMeshComponentChanged));
@@ -249,7 +255,7 @@ void UEditMeshPolygonsTool::Setup()
 	}
 
 	// hide input StaticMeshComponent
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 
 	// init state flags flags
 	bInDrag = false;
@@ -369,13 +375,13 @@ bool UEditMeshPolygonsTool::IsStoredToolSelectionUsable(const UGroupTopologyStor
 	// same vids unrecoverable. Once we have persistence of dynamic meshes, this will
 	// hopefully not become a problem, and this function (along with stored selection
 	// identifying info) will change.
-	return !Cast<UBrushComponent>(ComponentTarget->GetOwnerComponent())
+	return !Cast<UBrushComponent>(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerComponent())
 
 		&& StoredSelection
 		&& StoredSelection->IdentifyingInfo.TopologyType == (bTriangleMode ? 
 			UGroupTopologyStorableSelection::ETopologyType::FTriangleGroupTopology
 			: UGroupTopologyStorableSelection::ETopologyType::FGroupTopology)
-		&& StoredSelection->IdentifyingInfo.ComponentTarget == ComponentTarget->GetOwnerComponent()
+		&& StoredSelection->IdentifyingInfo.ComponentTarget == Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerComponent()
 		&& !StoredSelection->IsEmpty();
 }
 
@@ -403,7 +409,8 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 	{
 		DynamicMeshComponent->OnMeshChanged.Remove(OnDynamicMeshComponentChangedHandle);
 
-		ComponentTarget->SetOwnerVisibility(true);
+		IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+		TargetComponent->SetOwnerVisibility(true);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
@@ -413,10 +420,10 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 			// Prep if we have a selection to store. We don't support storing selections for volumes
 			// because the conversion will change vids.
 			if (!SelectionMechanic->GetActiveSelection().IsEmpty()
-				&& !Cast<UBrushComponent>(ComponentTarget->GetOwnerComponent()))
+				&& !Cast<UBrushComponent>(TargetComponent->GetOwnerComponent()))
 			{
 				NewStoredToolSelection = NewObject<UGroupTopologyStorableSelection>();
-				NewStoredToolSelection->IdentifyingInfo.ComponentTarget = ComponentTarget->GetOwnerComponent();
+				NewStoredToolSelection->IdentifyingInfo.ComponentTarget = TargetComponent->GetOwnerComponent();
 				NewStoredToolSelection->IdentifyingInfo.TopologyType = (bTriangleMode ?
 					UGroupTopologyStorableSelection::ETopologyType::FTriangleGroupTopology
 					: UGroupTopologyStorableSelection::ETopologyType::FGroupTopology);
@@ -437,12 +444,12 @@ void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 
 			// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 			GetToolManager()->BeginUndoTransaction(LOCTEXT("EditMeshPolygonsToolTransactionName", "Deform Mesh"));
-			ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+			Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 			{
 				FConversionToMeshDescriptionOptions ConversionOptions;
 				bool bModifiedTopology = (ModifiedTopologyCounter > 0);
 				ConversionOptions.bSetPolyGroups = bModifiedTopology;
-				DynamicMeshComponent->Bake(CommitParams.MeshDescription, bModifiedTopology, ConversionOptions);
+				DynamicMeshComponent->Bake(CommitParams.MeshDescriptionOut, bModifiedTopology, ConversionOptions);
 			});
 
 			// The stored selection change should go into this transaction as well.
@@ -2168,7 +2175,7 @@ bool UEditMeshPolygonsTool::BeginMeshFaceEditChangeWithPreview()
 	if (bOK)
 	{
 		EditPreview = NewObject<UPolyEditPreviewMesh>(this);
-		EditPreview->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), FTransform::Identity);
+		EditPreview->CreateInWorld(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor()->GetWorld(), FTransform::Identity);
 		UpdateEditPreviewMaterials(EPreviewMaterialType::PreviewMaterial);
 		EditPreview->EnableWireframe(true);
 

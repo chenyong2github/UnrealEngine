@@ -22,6 +22,9 @@
 #include "DynamicMeshChangeTracker.h"
 #include "DynamicMeshToMeshDescription.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -60,7 +63,8 @@ void USeamSculptTool::Setup()
 	BrushProperties->bShowStrength = BrushProperties->bShowFalloff = false;
 	BrushProperties->RestoreProperties(this);
 
-	MeshTransform = UE::Geometry::FTransform3d(ComponentTarget->GetWorldTransform());
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	MeshTransform = UE::Geometry::FTransform3d(TargetComponent->GetWorldTransform());
 	InputMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>(*PreviewMesh->GetMesh());
 	FMeshNormals::QuickComputeVertexNormals(*InputMesh);
 	NormalOffset = InputMesh->GetCachedBounds().MinDim() * 0.001;
@@ -80,7 +84,7 @@ void USeamSculptTool::Setup()
 	RecalculateBrushRadius();
 
 	PreviewGeom = NewObject<UPreviewGeometry>(this);
-	PreviewGeom->CreateInWorld(ComponentTarget->GetOwnerActor()->GetWorld(), ComponentTarget->GetWorldTransform());
+	PreviewGeom->CreateInWorld(TargetComponent->GetOwnerActor()->GetWorld(), TargetComponent->GetWorldTransform());
 	InitPreviewGeometry();
 
 	// regenerate preview geo if mesh changes due to undo/redo/etc
@@ -110,10 +114,10 @@ void USeamSculptTool::OnShutdown(EToolShutdownType ShutdownType)
 
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("SeamSculptTransactionName", "UV Seam Edit"));
 
-		ComponentTarget->CommitMesh([&ResultMesh](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([&ResultMesh](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
 			FDynamicMeshToMeshDescription Converter;
-			Converter.Convert(&ResultMesh, *CommitParams.MeshDescription);
+			Converter.Convert(&ResultMesh, *CommitParams.MeshDescriptionOut);
 		});
 
 		GetToolManager()->EndUndoTransaction();

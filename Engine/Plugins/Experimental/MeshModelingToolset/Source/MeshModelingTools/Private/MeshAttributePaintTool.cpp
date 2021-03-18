@@ -9,6 +9,10 @@
 
 #include "MeshDescription.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -194,7 +198,7 @@ void UMeshAttributePaintTool::Setup()
 	ColorMapper = MakeUnique<FFloatAttributeColorMapper>();
 
 	EditedMesh = MakeUnique<FMeshDescription>();
-	*EditedMesh = *ComponentTarget->GetMesh();
+	*EditedMesh = *Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription();
 
 	AttributeSource = MakeUnique<FMeshDescriptionVertexAttributeSource>(EditedMesh.Get());
 	AttribProps->Attributes = AttributeSource->GetAttributeList();
@@ -341,7 +345,7 @@ bool UMeshAttributePaintTool::OnUpdateHover(const FInputDeviceRay& DevicePos)
 
 void UMeshAttributePaintTool::CalculateVertexROI(const FBrushStampData& Stamp, TArray<int>& VertexROI)
 {
-	UE::Geometry::FTransform3d Transform(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
 
 	float Radius = GetCurrentBrushRadiusLocal();
@@ -499,7 +503,7 @@ void UMeshAttributePaintTool::ApplyStamp(const FBrushStampData& Stamp)
 
 void UMeshAttributePaintTool::ApplyStamp_Paint(const FBrushStampData& Stamp, FStampActionData& ActionData)
 {
-	UE::Geometry::FTransform3d Transform(ComponentTarget->GetWorldTransform());
+	UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 	FVector3d StampPosLocal = Transform.InverseTransformPosition(Stamp.WorldPosition);
 
 	int32 NumVertices = ActionData.ROIVertices.Num();
@@ -640,9 +644,9 @@ void UMeshAttributePaintTool::OnShutdown(EToolShutdownType ShutdownType)
 		// this block bakes the modified DynamicMeshComponent back into the StaticMeshComponent inside an undo transaction
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshAttributePaintTool", "Edit Attributes"));
 
-		ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			*CommitParams.MeshDescription = *EditedMesh;
+			*CommitParams.MeshDescriptionOut = *EditedMesh;
 		});
 		GetToolManager()->EndUndoTransaction();
 	}

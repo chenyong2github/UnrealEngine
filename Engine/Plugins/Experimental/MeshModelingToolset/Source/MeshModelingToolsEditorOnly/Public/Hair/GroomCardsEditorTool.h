@@ -29,14 +29,13 @@ class FMeshVertexChangeBuilder;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLSEDITORONLY_API UGroomCardsEditorToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLSEDITORONLY_API UGroomCardsEditorToolBuilder : public UMeshSurfacePointToolBuilder
 {
 	GENERATED_BODY()
 public:
 	IToolsContextAssetAPI* AssetAPI = nullptr;
 
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 

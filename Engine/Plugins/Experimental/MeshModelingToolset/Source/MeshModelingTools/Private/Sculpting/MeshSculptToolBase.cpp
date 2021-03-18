@@ -15,6 +15,10 @@
 
 #include "Generators/SphereGenerator.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -128,7 +132,7 @@ void UMeshSculptToolBase::Shutdown(EToolShutdownType ShutdownType)
 	UBaseDynamicMeshComponent* DynamicMeshComponent = GetSculptMeshComponent();
 	if (DynamicMeshComponent != nullptr)
 	{
-		ComponentTarget->SetOwnerVisibility(true);
+		Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
@@ -152,10 +156,10 @@ void UMeshSculptToolBase::Shutdown(EToolShutdownType ShutdownType)
 
 void UMeshSculptToolBase::CommitResult(UBaseDynamicMeshComponent* Component)
 {
-	ComponentTarget->CommitMesh([=](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([=](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
 		FConversionToMeshDescriptionOptions ConversionOptions;
-		Component->Bake(CommitParams.MeshDescription, false, ConversionOptions);
+		Component->Bake(CommitParams.MeshDescriptionOut, false, ConversionOptions);
 	});
 }
 
@@ -225,16 +229,17 @@ void UMeshSculptToolBase::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponent* Component)
 {
-	Component->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	Component->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
 	Component->RegisterComponent();
 
 	// initialize from LOD-0 MeshDescription
-	Component->InitializeMesh(ComponentTarget->GetMesh());
+	Component->InitializeMesh(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
 	double MaxDimension = Component->GetMesh()->GetCachedBounds().MaxDim();
 
 	// bake rotation and scaling into mesh because handling these inside sculpting is a mess
 	// Note: this transform does not include translation ( so only the 3x3 transform)
-	InitialTargetTransform = FTransform3d(ComponentTarget->GetWorldTransform());
+	InitialTargetTransform = FTransform3d(TargetComponent->GetWorldTransform());
 	// clamp scaling because if we allow zero-scale we cannot invert this transform on Accept
 	InitialTargetTransform.ClampMinimumScale(0.01);
 	FVector3d Translation = InitialTargetTransform.GetTranslation();
@@ -244,7 +249,7 @@ void UMeshSculptToolBase::InitializeSculptMeshComponent(UBaseDynamicMeshComponen
 	Component->SetWorldTransform((FTransform)CurTargetTransform);
 
 	// hide input Component
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 }
 
 
@@ -906,7 +911,7 @@ void UMeshSculptToolBase::UpdateMaterialMode(EMeshEditingMaterialModes MaterialM
 	if (MaterialMode == EMeshEditingMaterialModes::ExistingMaterial)
 	{
 		GetSculptMeshComponent()->ClearOverrideRenderMaterial();
-		GetSculptMeshComponent()->bCastDynamicShadow = ComponentTarget->GetOwnerComponent()->bCastDynamicShadow;
+		GetSculptMeshComponent()->bCastDynamicShadow = Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerComponent()->bCastDynamicShadow;
 		ActiveOverrideMaterial = nullptr;
 	}
 	else

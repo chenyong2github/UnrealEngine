@@ -30,6 +30,10 @@
 #include "Engine/Classes/Engine/StaticMeshActor.h"
 #include "MeshDescriptionToDynamicMesh.h"
 
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #define LOCTEXT_NAMESPACE "UGroomCardsEditorTool"
 
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
@@ -39,27 +43,13 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-bool UGroomCardsEditorToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
-{
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* UGroomCardsEditorToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
+UMeshSurfacePointTool* UGroomCardsEditorToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
 	UGroomCardsEditorTool* NewTool = NewObject<UGroomCardsEditorTool>(SceneState.ToolManager);
-
 	NewTool->SetWorld(SceneState.World);
 	NewTool->SetAssetAPI(AssetAPI);
-
-	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
-	check(Components.Num() > 0);
-	TUniquePtr<FPrimitiveComponentTarget> MeshTarget = MakeComponentTarget(Cast<UPrimitiveComponent>(Components[0]));
-	NewTool->SetSelection(MoveTemp(MeshTarget));
-
 	return NewTool;
 }
-
-
 
 
 void UEditGroomCardsToolActionPropertySet::PostAction(EEditGroomCardsToolActions Action)
@@ -87,10 +77,11 @@ void UGroomCardsEditorTool::Setup()
 {
 	UMeshSurfacePointTool::Setup();
 
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	PreviewMesh = NewObject<UPreviewMesh>(this);
 	PreviewMesh->bBuildSpatialDataStructure = true;
 	PreviewMesh->CreateInWorld(TargetWorld, FTransform::Identity);
-	PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 
 	MeshMaterial = ToolSetupUtil::GetDefaultSculptMaterial(GetToolManager());
 	UVMaterial = ToolSetupUtil::GetUVCheckerboardMaterial(50.0);
@@ -123,9 +114,9 @@ void UGroomCardsEditorTool::Setup()
 
 	PreviewGeom = NewObject<UPreviewGeometry>(this);
 	PreviewGeom->CreateInWorld(TargetWorld, FTransform::Identity);
-	PreviewGeom->GetActor()->SetActorTransform(ComponentTarget->GetWorldTransform());
+	PreviewGeom->GetActor()->SetActorTransform(TargetComponent->GetWorldTransform());
 
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 
 
 
@@ -195,9 +186,9 @@ void UGroomCardsEditorTool::Shutdown(EToolShutdownType ShutdownType)
 	if (ShutdownType == EToolShutdownType::Accept)
 	{
 		GetToolManager()->BeginUndoTransaction(LOCTEXT("CardsMeshApplyEditChange", "Update Cards Mesh"));
-		ComponentTarget->CommitMesh([this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+		Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 		{
-			PreviewMesh->Bake(CommitParams.MeshDescription, false);
+			PreviewMesh->Bake(CommitParams.MeshDescriptionOut, false);
 		});
 		GetToolManager()->EndUndoTransaction();
 	}
@@ -208,7 +199,7 @@ void UGroomCardsEditorTool::Shutdown(EToolShutdownType ShutdownType)
 	PreviewGeom->Disconnect();
 	PreviewGeom = nullptr;
 
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 }
 
 
@@ -773,7 +764,7 @@ void UGroomCardsEditorTool::UpdateLineSet()
 void UGroomCardsEditorTool::InitializeMesh()
 {
 	EditableCardSet = MakePimpl<FEditableGroomCardSet>();
-	EditableCardSet->Initialize(ComponentTarget->GetMesh());
+	EditableCardSet->Initialize(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription());
 	const FDynamicMesh3* CardsMesh = EditableCardSet->FullCardMesh.Get();
 
 	PreviewMesh->UpdatePreview(CardsMesh);

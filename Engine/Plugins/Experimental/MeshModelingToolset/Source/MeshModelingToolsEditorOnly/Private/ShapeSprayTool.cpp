@@ -8,6 +8,8 @@
 #include "AssetGenerationUtil.h"
 #include "MeshNormals.h"
 
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -72,8 +74,9 @@ void UShapeSprayTool::Setup()
 	Random.Initialize(31337);
 
 	// create dynamic mesh component to use for live preview
-	AccumMeshComponent = NewObject<USimpleDynamicMeshComponent>(ComponentTarget->GetOwnerActor(), "SprayMesh");
-		AccumMeshComponent->SetupAttachment(ComponentTarget->GetOwnerActor()->GetRootComponent());
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+	AccumMeshComponent = NewObject<USimpleDynamicMeshComponent>(TargetComponent->GetOwnerActor(), "SprayMesh");
+		AccumMeshComponent->SetupAttachment(TargetComponent->GetOwnerActor()->GetRootComponent());
 	AccumMeshComponent->RegisterComponent();
 
 	UMaterialInterface* VtxColorMaterial = GetToolManager()->GetContextQueriesAPI()->GetStandardMaterial(EStandardToolContextMaterials::VertexColorMaterial);
@@ -132,7 +135,7 @@ void UShapeSprayTool::OnUpdateDrag(const FRay& Ray)
 	UDynamicMeshBrushTool::OnUpdateDrag(Ray);
 
 	FFrame3f WorldFrame(LastBrushStamp.WorldPosition, LastBrushStamp.WorldNormal);
-	FTransform Transform = ComponentTarget->GetWorldTransform();
+	FTransform Transform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 
 
 	FDynamicMesh3* Mesh = AccumMeshComponent->GetMesh();
@@ -232,7 +235,7 @@ bool UShapeSprayTool::CanAccept() const
 void UShapeSprayTool::EmitResult()
 {
 	const FDynamicMesh3* Mesh = AccumMeshComponent->GetMesh();
-	UE::Geometry::FTransform3d UseTransform(ComponentTarget->GetOwnerActor()->GetTransform());
+	UE::Geometry::FTransform3d UseTransform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetOwnerActor()->GetTransform());
 
 	GetToolManager()->BeginUndoTransaction(LOCTEXT("EmitShapeSpray", "Create ShapeSpray"));
 
