@@ -46,7 +46,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomBindingBuilder, Log, All);
 #define LOCTEXT_NAMESPACE "GroomBindingBuilder"
 
 static int32 GHairStrandsBindingBuilderWarningEnable = 1;
-static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("r.HairStrands.LogBindingBuilderWarning"), GHairStrandsBindingBuilderWarningEnable, TEXT("Enable/disable warning during groom binding builder"));
+static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("r.HairStrands.Log.BindingBuilderWarning"), GHairStrandsBindingBuilderWarningEnable, TEXT("Enable/disable warning during groom binding builder"));
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
