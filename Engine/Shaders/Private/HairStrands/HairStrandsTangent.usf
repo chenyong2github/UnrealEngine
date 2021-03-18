@@ -43,8 +43,8 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
 	{
-		const uint FetchIndex = DispatchThreadId.x + DispatchThreadId.y * GROUP_SIZE * GROUP_COUNT_X;
-		const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
+		const int FetchIndex = DispatchThreadId.x + DispatchThreadId.y * GROUP_SIZE * GROUP_COUNT_X;
+		const int VertexCountAfterCulling = clamp(HairStrandsVF_CullingIndirectBuffer[3], 0, MaxVertexCount);
 		bValid = false;
 		if (FetchIndex < VertexCountAfterCulling)
 		{
