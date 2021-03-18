@@ -269,6 +269,12 @@ public:
 		return INDEX_NONE;
 	}
 
+	virtual int32 FindMostOpposingFaceScaled(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const
+	{
+		//Many objects have no concept of a face
+		return INDEX_NONE;
+	}
+
 
 	/** Finds the first intersecting face at given position
 	@param Position - local position to search around (for example a point on the surface of a convex hull)

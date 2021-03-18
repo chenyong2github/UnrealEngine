@@ -18,8 +18,6 @@ namespace Chaos
 
 	int32 FConvex::FindMostOpposingFace(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist) const
 	{
-		//NOTE: this approach assumes we never have conincident planes, which at the moment is not true.
-		//Need to make sure convex hull is cleaned up so that there are n-gon faces so this is unique
 		SearchDist = FMath::Max(SearchDist,FMath::Abs(BoundingBox().Extents().GetAbsMax()) * 1e-4f);
 		//todo: use hill climbing
 		int32 MostOpposingIdx = INDEX_NONE;
@@ -42,6 +40,35 @@ namespace Chaos
 		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
 		return MostOpposingIdx;
 	}
+
+	// @todo(chaos): dedupe from above. Only difference is use of TPlaneConcrete<FReal, 3>::MakeScaledUnsafe
+	int32 FConvex::FindMostOpposingFaceScaled(const FVec3& Position, const FVec3& UnitDir, int32 HintFaceIndex, FReal SearchDist, const FVec3& Scale) const
+	{
+		// Use of Scale.Max() is a bit dodgy, but the whole thing is fuzzy anyway
+		SearchDist = FMath::Max(Scale.Max() * SearchDist, FMath::Abs(BoundingBox().Extents().GetAbsMax()) * 1e-4f);
+
+		//todo: use hill climbing
+		int32 MostOpposingIdx = INDEX_NONE;
+		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
+		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
+		{
+			const TPlaneConcrete<FReal, 3> Plane = TPlaneConcrete<FReal, 3>::MakeScaledUnsafe(Planes[Idx], Scale);
+			const FReal Distance = Plane.SignedDistance(Position);
+			if (FMath::Abs(Distance) < SearchDist)
+			{
+				// TPlane has an override for Normal() that doesn't call PhiWithNormal().
+				const FReal Dot = FVec3::DotProduct(Plane.Normal(), UnitDir);
+				if (Dot < MostOpposingDot)
+				{
+					MostOpposingDot = Dot;
+					MostOpposingIdx = Idx;
+				}
+			}
+		}
+		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
+		return MostOpposingIdx;
+	}
+
 
 	int32 FConvex::FindClosestFaceAndVertices(const FVec3& Position, TArray<FVec3>& FaceVertices, FReal SearchDist) const
 	{
@@ -79,8 +106,6 @@ namespace Chaos
 
 	int32 FConvex::GetMostOpposingPlane(const FVec3& Normal) const
 	{
-		// @todo(chaos): this approach assumes we never have conincident planes, which at the moment is not true.
-		// Need to make sure convex hull is cleaned up so that there are n-gon faces so this is unique
 		// @todo(chaos): use hill climbing
 		int32 MostOpposingIdx = INDEX_NONE;
 		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
@@ -97,6 +122,29 @@ namespace Chaos
 		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
 		return MostOpposingIdx;
 	}
+
+	int32 FConvex::GetMostOpposingPlaneScaled(const FVec3& Normal, const FVec3& Scale) const
+	{
+		// NOTE: We cannot just call the scale-less version like we can for box, even if we unscale the normal
+		// @todo(chaos): use hill climbing
+		int32 MostOpposingIdx = INDEX_NONE;
+		FReal MostOpposingDot = TNumericLimits<FReal>::Max();
+		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
+		{
+			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
+			const FVec3 ScaledNormal = (Plane.Normal() / Scale).GetSafeNormal();
+			const FReal Dot = FVec3::DotProduct(ScaledNormal, Normal);
+			if (Dot < MostOpposingDot)
+			{
+				MostOpposingDot = Dot;
+				MostOpposingIdx = Idx;
+			}
+		}
+		CHAOS_ENSURE(MostOpposingIdx != INDEX_NONE);
+		return MostOpposingIdx;
+	}
+
+
 
 	int32 FConvex::GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
 	{

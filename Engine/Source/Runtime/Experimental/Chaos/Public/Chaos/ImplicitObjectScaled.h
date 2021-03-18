@@ -624,7 +624,7 @@ public:
 	// Get the index of the plane that most opposes the normal
 	int32 GetMostOpposingPlane(const FVec3& Normal) const
 	{
-		return MObject->GetMostOpposingPlane(GetUnscaledNormal(Normal));
+		return MObject->GetMostOpposingPlaneScaled(Normal, MScale);
 	}
 
 	// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
@@ -695,18 +695,8 @@ public:
 
 	virtual int32 FindMostOpposingFace(const TVector<T, d>& Position, const TVector<T, d>& UnitDir, int32 HintFaceIndex, T SearchDist) const override
 	{
-		//ensure(OuterMargin == 0);	//not supported: do we care?
 		ensure(FMath::IsNearlyEqual(UnitDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
-
-		const TVector<T, d> UnscaledPosition = MInvScale * Position;
-		const TVector<T, d> UnscaledDirDenorm = MInvScale * UnitDir;
-		const T LengthScale = UnscaledDirDenorm.Size();
-		const TVector<T, d> UnscaledDir
-			= ensure(LengthScale > TNumericLimits<T>::Min())
-			? UnscaledDirDenorm / LengthScale
-			: TVector<T, d>(0.f, 0.f, 1.f);
-		const T UnscaledSearchDist = SearchDist * MScale.Max();	//this is not quite right since it's no longer a sphere, but the whole thing is fuzzy anyway
-		return MObject->FindMostOpposingFace(UnscaledPosition, UnscaledDir, HintFaceIndex, UnscaledSearchDist);
+		return MObject->FindMostOpposingFaceScaled(Position, UnitDir, HintFaceIndex, SearchDist, MScale);
 	}
 
 	virtual TVector<T, 3> FindGeometryOpposingNormal(const TVector<T, d>& DenormDir, int32 HintFaceIndex, const TVector<T, d>& OriginalNormal) const override
@@ -715,8 +705,8 @@ public:
 		ensure(FMath::IsNearlyEqual(OriginalNormal.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
 		// Get unscaled dir and normal
-		const TVector<T, 3> LocalDenormDir = DenormDir * MInvScale;
-		const TVector<T, 3> LocalOriginalNormalDenorm = OriginalNormal * MInvScale;
+		const TVector<T, 3> LocalDenormDir = DenormDir * MScale;
+		const TVector<T, 3> LocalOriginalNormalDenorm = OriginalNormal * MScale;
 		const T NormalLengthScale = LocalOriginalNormalDenorm.Size();
 		const TVector<T, 3> LocalOriginalNormal
 			= ensure(NormalLengthScale > SMALL_NUMBER)
@@ -725,7 +715,7 @@ public:
 
 		// Compute final normal
 		const TVector<T, d> LocalNormal = MObject->FindGeometryOpposingNormal(LocalDenormDir, HintFaceIndex, LocalOriginalNormal);
-		TVector<T, d> Normal = LocalNormal;
+		TVector<T, d> Normal = LocalNormal * MInvScale;
 		if (CHAOS_ENSURE(Normal.SafeNormalize(TNumericLimits<T>::Min())) == 0)
 		{
 			Normal = TVector<T,3>(0,0,1);

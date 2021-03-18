@@ -3,6 +3,7 @@
 #include "HeadlessChaosTestMostOpposing.h"
 
 #include "HeadlessChaos.h"
+#include "HeadlessChaosTestUtility.h"
 #include "Chaos/TriangleMeshImplicitObject.h"
 #include "Chaos/ImplicitObjectScaled.h"
 #include "Chaos/Convex.h"
@@ -211,5 +212,55 @@ namespace ChaosTest
 			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(1, 0, 0), FaceIndex, 0.01), 3);
 			EXPECT_EQ(Scaled.FindMostOpposingFace(Position, FVec3(-1, 0, 0), FaceIndex, 0.01), 3);	//too far to care about other face
 		}
+	}
+
+
+	// Unscaled test to accompany TestConvexBox_Scaled. See comments on that function
+	// This test has always passed whereas TestConvexBox_Scaled used to fail.
+	GTEST_TEST(FindMostOpposingFaceTests, TestConvexBox_Unsccaled)
+	{
+		const FVec3 BoxScale = FVec3(10, 5, 1);
+		const FVec3 BoxSize = FVec3(100, 100, 100);
+		const FReal Margin = 0;
+		FImplicitConvex3 Box = CreateConvexBox(BoxSize * BoxScale, Margin);
+
+		// Position is not important in this test as all faces are within TestDistance of TestPosition
+		const FVec3 TestPos = FVec3(0, 0, 0);
+		const FReal TestDistance = 10000.0f;
+
+		// Pointing mostly left to select the right-facing face. If we transform this normal into unscaled space and
+		// call FindMostOpposingFace on the core convex, it would incorrectly select the up-facing face.
+		const FVec3 TestDir = FVec3(-1.0, 0, -0.5).GetSafeNormal();
+		int32 FaceIndex = Box.FindMostOpposingFace(TestPos, TestDir, INDEX_NONE, TestDistance);
+		const FVec3 FaceNormal = Box.GetPlane(FaceIndex).Normal();
+
+		EXPECT_NEAR(FaceNormal.X, 1.0f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(FaceNormal.Z, 0.0f, KINDA_SMALL_NUMBER);
+	}
+
+	// FindMostOpposingFace on Scaled Convex Box
+	// NOTE: Box faces normals are not affected by scale though the face positions are
+	// This tests for a specific bug: TImplicitObjectScaled::FindMostOpposingFace was calling
+	// onto FConvex::FindMostOpposingFace with a corrected normal, but this does not work - we
+	// actually need to perform the most-opposing test in scaled space.
+	GTEST_TEST(FindMostOpposingFaceTests, TestConvexBox_Scaled)
+	{
+		const FVec3 BoxScale = FVec3(10, 5, 1);
+		const FVec3 BoxSize = FVec3(100, 100, 100);
+		const FReal Margin = 0;
+		TImplicitObjectScaled<FImplicitConvex3> Box = CreateScaledConvexBox(BoxSize, BoxScale, Margin);
+
+		// Position is not important in this test as all faces are within TestDistance of TestPosition
+		const FVec3 TestPos = FVec3(0, 0, 0);
+		const FReal TestDistance = 10000.0f;
+
+		// Pointing mostly left to select the right-facing face. If we transform this normal into unscaled space and
+		// call FindMostOpposingFace on the core convex, it would incorrectly select the up-facing face.
+		const FVec3 TestDir = FVec3(-1.0, 0, -0.5).GetSafeNormal();
+		int32 FaceIndex = Box.FindMostOpposingFace(TestPos, TestDir, INDEX_NONE, TestDistance);
+		const FVec3 FaceNormal = Box.GetPlane(FaceIndex).Normal();
+
+		EXPECT_NEAR(FaceNormal.X, 1.0f, KINDA_SMALL_NUMBER);
+		EXPECT_NEAR(FaceNormal.Z, 0.0f, KINDA_SMALL_NUMBER);
 	}
 }

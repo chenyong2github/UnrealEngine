@@ -201,6 +201,12 @@ namespace Chaos
 			return AxisIndex;
 		}
 
+		int32 GetMostOpposingPlaneScaled(const TVector<T, d>& Normal, const TVector<T, d>& Scale) const
+		{
+			// Scale does not affect the face normals of a box
+			return GetMostOpposingPlane(Normal);
+		}
+
 		// Get the index of the plane that most opposes the normal (VertexIndex is ignored)
 		int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const TVector<T, d>& Normal) const
 		{
