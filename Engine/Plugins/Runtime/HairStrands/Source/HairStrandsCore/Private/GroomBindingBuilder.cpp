@@ -47,6 +47,9 @@ DEFINE_LOG_CATEGORY_STATIC(LogGroomBindingBuilder, Log, All);
 
 #define LOCTEXT_NAMESPACE "GroomBindingBuilder"
 
+static int32 GHairStrandsBindingBuilderWarningEnable = 1;
+static FAutoConsoleVariableRef CVarHairStrandsBindingBuilderWarningEnable(TEXT("r.HairStrands.LogBindingBuilderWarning"), GHairStrandsBindingBuilderWarningEnable, TEXT("Enable/disable warning during groom binding builder"));
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 FString FGroomBindingBuilder::GetVersion()
@@ -1648,7 +1651,7 @@ namespace GroomBinding_Transfer
 		const IMeshLODData& SourceMeshLODData = InSourceMeshData->GetMeshLODData(SourceLODIndex);
 		const bool bIsMatchingSectionValid = MatchingSection < SourceMeshLODData.GetNumSections();
 		const int32 SourceSectionId = bIsMatchingSectionValid ? MatchingSection : 0;
-		if (!bIsMatchingSectionValid)
+		if (!bIsMatchingSectionValid && GHairStrandsBindingBuilderWarningEnable > 0)
 		{
 			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Binding asset will not respect the requested 'Matching section' %d. The source skeletal mesh does not have such a section. Instead 'Matching Section' 0 will be used."), MatchingSection);
 		}
@@ -1676,7 +1679,10 @@ namespace GroomBinding_Transfer
 			const IMeshLODData& TargetMeshLODData = InTargetMeshData->GetMeshLODData(TargetLODIndex);
 			if (LocalTargetSectionId >= TargetMeshLODData.GetNumSections())
 			{
-				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Binding asset will not respect the requested 'Matching section' %d for LOD %d. The target skeletal mesh does not have such a section for this LOD. Instead section 0 will be used for this given LOD."), TargetSectionId, TargetLODIndex);
+				if (GHairStrandsBindingBuilderWarningEnable > 0)
+				{
+					UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Binding asset will not respect the requested 'Matching section' %d for LOD %d. The target skeletal mesh does not have such a section for this LOD. Instead section 0 will be used for this given LOD."), TargetSectionId, TargetLODIndex);
+				}
 
 				LocalTargetSectionId = 0;
 				LocalSourceSectionId = 0;
@@ -2193,7 +2199,10 @@ static void InternalBuildBinding_GPU(FRDGBuilder& GraphBuilder, UGroomBindingAss
 		!BindingAsset->TargetSkeletalMesh ||
 		BindingAsset->Groom->GetNumHairGroups() == 0)
 	{
-		UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Error - Binding asset can be created/rebuilt."));
+		if (GHairStrandsBindingBuilderWarningEnable > 0)
+		{
+			UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Error - Binding asset can be created/rebuilt."));
+		}
 		return;
 	}
 
