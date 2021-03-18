@@ -192,7 +192,7 @@ public:
 	 */
 	FVector2<T> GetNormal(int VertexIndex) const
 	{
-		return GetTangent(VertexIndex).Perp();
+		return PerpCW(GetTangent(VertexIndex));
 	}
 
 
@@ -208,7 +208,7 @@ public:
 		next -= Vertices[VertexIndex]; Normalize(next);
 		prev -= Vertices[VertexIndex]; Normalize(prev);
 
-		FVector2<T> n = (next.Perp() - prev.Perp());
+		FVector2<T> n = (PerpCW(next) - PerpCW(prev));
 		T len = Normalize(n);
 		if (len == 0) 
 		{
@@ -420,7 +420,7 @@ public:
 			{
 				if (b.Y > QueryPoint.Y)									// an upward crossing
 				{
-					if (FVector2<T>::Orient(a, b, QueryPoint) > 0)  // P left of edge
+					if (Orient(a, b, QueryPoint) > 0)  // P left of edge
 						++nWindingNumber;                       // have a valid up intersect
 				}
 			}
@@ -428,7 +428,7 @@ public:
 			{
 				if (b.Y <= QueryPoint.Y)									// a downward crossing
 				{
-					if (FVector2<T>::Orient(a, b, QueryPoint) < 0)  // P right of edge
+					if (Orient(a, b, QueryPoint) < 0)  // P right of edge
 					{
 						--nWindingNumber;						// have a valid down intersect
 					}
@@ -829,8 +829,8 @@ public:
 			FVector2<T> prev = Vertices[k == 0 ? Vertices.Num() - 1 : k - 1];
 			FVector2<T> dn = Normalized(next - v);
 			FVector2<T> dp = Normalized(prev - v);
-			TLine2<T> ln(v + OffsetDistance * dn.Perp(), dn);
-			TLine2<T> lp(v - OffsetDistance * dp.Perp(), dp);
+			TLine2<T> ln(v + OffsetDistance * PerpCW(dn), dn);
+			TLine2<T> lp(v - OffsetDistance * PerpCW(dp), dp);
 
 			bool bIntersectsAtPoint = ln.IntersectionPoint(lp, NewVertices[k]);
 			if (!bIntersectsAtPoint)  // lines were parallel
@@ -1045,7 +1045,7 @@ public:
 			T angle = AngleD(cp, cn);
 			// TODO document what this means sign-wise
 			// TODO re-test post Unreal port that this DotPerp is doing the right thing
-			T sign = cn.DotPerp(cp);
+			T sign = DotPerp(cn, cp);
 			bool bConcave = (sign > 0);
 
 			T thresh = (bConcave) ? MinConcaveAngleDeg : MinConvexAngleDeg;

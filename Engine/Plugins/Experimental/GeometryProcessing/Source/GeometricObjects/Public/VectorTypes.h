@@ -129,21 +129,6 @@ struct FVector2
 		return X * V2.X + Y * V2.Y;
 	}
 
-	// Note: DotPerp and FVector2's version of Cross are the same function
-	constexpr T DotPerp(const FVector2<T>& V2) const
-	{
-		return X * V2.Y - Y * V2.X;
-	}
-	constexpr T Cross(const FVector2<T>& V2) const
-	{
-		return X * V2.Y - Y * V2.X;
-	}
-
-	constexpr FVector2<T> Perp() const
-	{
-		return FVector2<T>(Y, -X);
-	}
-
 	constexpr  FVector2 operator-() const
 	{
 		return FVector2(-X, -Y);
@@ -233,14 +218,28 @@ struct FVector2
 		return X != Other.X || Y != Other.Y;
 	}
 
-
-	// Note: This was called "IsLeft" in the Geometry3Sharp code (where it also went through Math.Sign)
-	// Returns >0 if C is to the left of the A->B Line, <0 if to the right, 0 if on the line
-	static T Orient(const FVector2<T>& A, const FVector2<T>& B, const FVector2<T>& C)
-	{
-		return (B - A).DotPerp(C - A);
-	}
 };
+
+/** @return dot product of V1 with PerpCW(V2), ie V2 rotated 90 degrees clockwise */
+template <typename T>
+constexpr T DotPerp(const FVector2<T>& V1, const FVector2<T>& V2)
+{
+	return V1.X * V2.Y - V1.Y * V2.X;
+}
+
+/** @return right-Perpendicular vector to V, ie V rotated 90 degrees clockwise */
+template <typename T>
+constexpr FVector2<T> PerpCW(const FVector2<T>& V)
+{
+	return FVector2<T>(V.Y, -V.X);
+}
+
+/** @return > 0 if C is to the left of the line from A to B, < 0 if to the right, 0 if on the line */
+template<typename T>
+T Orient(const FVector2<T>& A, const FVector2<T>& B, const FVector2<T>& C)
+{
+	return DotPerp((B - A), (C - A));
+}
 
 
 template <typename T>
@@ -301,7 +300,7 @@ T SignedAngleR(const FVector2<T>& V1, const FVector2<T>& V2)
 {
 	T DotVal = V1.Dot(V2);
 	T ClampedDot = (DotVal < (T)-1) ? (T)-1 : ((DotVal > (T)1) ? (T)1 : DotVal);
-	T Direction = V1.Cross(V2);
+	T Direction = DotPerp(V1, V2);
 	if (Direction * Direction < TMathUtil<T>::ZeroTolerance)
 	{
 		return (DotVal < 0) ? TMathUtil<T>::Pi : (T)0;

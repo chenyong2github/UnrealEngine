@@ -422,7 +422,8 @@ public:
 		TArray<FVector2d> NormalSides; NormalSides.SetNum(NumX - 1);
 		for (int XIdx = 0; XIdx+1 < NumX; XIdx++)
 		{
-			NormalSides[XIdx] = Normalized( (FVector2d(Radii[XIdx+1], Heights[XIdx+1]) - FVector2d(Radii[XIdx], Heights[XIdx])).Perp() );
+			FVector2d Vec = FVector2d(Radii[XIdx + 1], Heights[XIdx + 1]) - FVector2d(Radii[XIdx], Heights[XIdx]);
+			NormalSides[XIdx] = Normalized(PerpCW(Vec));
 		}
 		TArray<FVector2d> SmoothedNormalSides; SmoothedNormalSides.SetNum(NumX);
 		// smooth internal normals

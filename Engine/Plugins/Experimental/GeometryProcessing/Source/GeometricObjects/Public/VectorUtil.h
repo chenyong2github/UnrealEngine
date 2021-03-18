@@ -375,7 +375,7 @@ namespace VectorUtil
 		FVector2<RealType> vj(Vj.Dot(Perp0), Vj.Dot(Perp1));
 		FVector2<RealType> vk(Vk.Dot(Perp0), Vk.Dot(Perp1));
 		// calculate gradient
-		FVector2<RealType> GradX = (fj-fi)*(vi-vk).Perp() + (fk-fi)*(vj-vi).Perp();
+		FVector2<RealType> GradX = (fj-fi)*PerpCW(vi-vk) + (fk-fi)*PerpCW(vj-vi);
 		// map back to 3D vector in triangle plane
 		RealType AreaScale = (RealType)1 / ((RealType)2 * VectorUtil::Area<RealType>(Vi, Vj, Vk));
 		return AreaScale * (GradX.X * Perp0 + GradX.Y * Perp1);

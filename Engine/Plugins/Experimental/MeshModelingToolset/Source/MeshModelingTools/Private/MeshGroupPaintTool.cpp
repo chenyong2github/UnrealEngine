@@ -744,10 +744,10 @@ void UMeshGroupPaintTool::OnPolyLassoFinished(const FCameraPolyLasso& Lasso, boo
 		float PerpSign = Polygon.IsClockwise() ? -1.0 : 1.0;
 
 		Polyline.Insert(StartLine.PointAt(10000.0f), 0);
-		Polyline.Insert(Polyline[0] + 1000 * PerpSign * StartDirOut.Perp(), 0);
+		Polyline.Insert(Polyline[0] + 1000 * PerpSign * UE::Geometry::PerpCW(StartDirOut), 0);
 
 		Polyline.Add(EndLine.PointAt(10000.0f));
-		Polyline.Add(Polyline.Last() + 1000 * PerpSign * EndDirOut.Perp());
+		Polyline.Add(Polyline.Last() + 1000 * PerpSign * UE::Geometry::PerpCW(EndDirOut));
 		FVector2f StartPos = Polyline[0];
 		Polyline.Add(StartPos);		// close polyline (cannot use Polyline[0] in case Add resizes!)
 	}

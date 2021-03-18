@@ -483,7 +483,7 @@ protected:
 	{
 		int num_hits = 0;
 		FVector2d x = FVector2d::Zero(), y = FVector2d::Zero();
-		FVector2d EPerp = (B - A).Perp();
+		FVector2d EPerp = PerpCW(B - A);
 		Normalize(EPerp);
 		for (int EID : Graph.EdgeIndices())
 		{

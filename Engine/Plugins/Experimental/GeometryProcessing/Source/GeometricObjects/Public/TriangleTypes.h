@@ -93,9 +93,9 @@ struct TTriangle2
 	 */
 	static bool IsInside(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
 	{
-		RealType Sign1 = FVector2<RealType>::Orient(A, B, QueryPoint);
-		RealType Sign2 = FVector2<RealType>::Orient(B, C, QueryPoint);
-		RealType Sign3 = FVector2<RealType>::Orient(C, A, QueryPoint);
+		RealType Sign1 = Orient(A, B, QueryPoint);
+		RealType Sign2 = Orient(B, C, QueryPoint);
+		RealType Sign3 = Orient(C, A, QueryPoint);
 		return (Sign1*Sign2 > 0) && (Sign2*Sign3 > 0) && (Sign3*Sign1 > 0);
 	}
 
@@ -109,9 +109,9 @@ struct TTriangle2
 	/** @return true if QueryPoint is inside triangle or on edge */
 	static bool IsInsideOrOn(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
 	{
-		RealType Sign1 = FVector2<RealType>::Orient(A, B, QueryPoint);
-		RealType Sign2 = FVector2<RealType>::Orient(B, C, QueryPoint);
-		RealType Sign3 = FVector2<RealType>::Orient(C, A, QueryPoint);
+		RealType Sign1 = Orient(A, B, QueryPoint);
+		RealType Sign2 = Orient(B, C, QueryPoint);
+		RealType Sign3 = Orient(C, A, QueryPoint);
 		return (Sign1*Sign2 >= 0) && (Sign2*Sign3 >= 0) && (Sign3*Sign1 >= 0);
 	}
 
@@ -139,21 +139,21 @@ struct TTriangle2
 	 */
 	static int IsInsideOrOn_Oriented(const FVector2<RealType>& A, const FVector2<RealType>& B, const FVector2<RealType>& C, const FVector2<RealType>& QueryPoint)
 	{
-		checkSlow(FVector2<RealType>::Orient(A, B, C) <= 0); // TODO: remove this checkSlow; it's just to make sure the orientation is as expected
+		checkSlow(Orient(A, B, C) <= 0); // TODO: remove this checkSlow; it's just to make sure the orientation is as expected
 
-		RealType Sign1 = FVector2<RealType>::Orient(A, B, QueryPoint);
+		RealType Sign1 = Orient(A, B, QueryPoint);
 		if (Sign1 > 0)
 		{
 			return 1;
 		}
 		
-		RealType Sign2 = FVector2<RealType>::Orient(B, C, QueryPoint);
+		RealType Sign2 = Orient(B, C, QueryPoint);
 		if (Sign2 > 0)
 		{
 			return 1;
 		}
 		
-		RealType Sign3 = FVector2<RealType>::Orient(A, C, QueryPoint);
+		RealType Sign3 = Orient(A, C, QueryPoint);
 		if (Sign3 < 0) // note this edge is queried backwards so the sign test is also backwards
 		{
 			return 1;

@@ -755,7 +755,7 @@ protected:
 		FVector2<Real> save;
 		FVector2<Real> edge0 = projTri0.V[1] - projTri0.V[0];
 		FVector2<Real> edge1 = projTri0.V[2] - projTri0.V[0];
-		if (edge0.DotPerp(edge1) < (double)0)
+		if (DotPerp(edge0, edge1) < (double)0)
 		{
 			// Triangle is clockwise, reorder it.
 			save = projTri0.V[1];
@@ -765,7 +765,7 @@ protected:
 
 		edge0 = projTri1.V[1] - projTri1.V[0];
 		edge1 = projTri1.V[2] - projTri1.V[0];
-		if (edge0.DotPerp(edge1) < (double)0)
+		if (DotPerp(edge0, edge1) < (double)0)
 		{
 			// Triangle is clockwise, reorder it.
 			save = projTri1.V[1];

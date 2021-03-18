@@ -830,7 +830,7 @@ void UDrawPolygonTool::GetPolygonParametersFromFixedPoints(const TArray<FVector3
 
 	double Radius = Delta.Length();
 	FVector2d AxisX = Delta / Radius;
-	FVector2d AxisY = -AxisX.Perp();
+	FVector2d AxisY = -UE::Geometry::PerpCW(AxisX);
 	FVector2d HeightPt = DrawFrame.ToPlaneUV((FixedPoints.Num() == 3) ? FixedPoints[2] : FixedPoints[1], 2);
 	FVector2d HeightDelta = HeightPt - FirstReferencePt;
 	YSign = FMathd::Sign(HeightDelta.Dot(AxisY));

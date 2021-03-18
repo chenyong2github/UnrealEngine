@@ -152,7 +152,7 @@ public:
 		for (int i = 0; i < 3; ++i)
 		{
 			FVector2<Real> diff = Tri.V[i] - Origin;
-			Dist[i] = diff.DotPerp(Direction);
+			Dist[i] = DotPerp(diff, Direction);
 			if (Dist[i] > Tolerance)
 			{
 				Sign[i] = 1;

@@ -103,7 +103,7 @@ bool RevolveUtil::ProfileIsCCWRelativeRevolve(TArray<FVector3d>& ProfileCurve, c
 	double NextDistance = NextWrtAxis.Distance(NextAlongAxis * RevolutionAxisDirection);
 	FVector2d Next(NextDistance, NextAlongAxis);
 	
-	return (Previous - Point).Cross(Next - Point) > 0;
+	return DotPerp((Previous - Point), (Next - Point)) > 0;
 }
 
 void RevolveUtil::MakeProfileCurveMidpointOfFirstStep(TArray<FVector3d>& ProfileCurve, double DegreesPerStep,

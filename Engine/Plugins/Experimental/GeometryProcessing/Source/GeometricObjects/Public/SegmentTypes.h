@@ -199,7 +199,7 @@ public:
 		// [TODO] subtract Center from test?
 		FVector2<T> EndPt = Center + Extent * Direction;
 		FVector2<T> StartPt = Center - Extent * Direction;
-		T det = -FVector2<T>::Orient(EndPt, StartPt, QueryPoint);
+		T det = -Orient(EndPt, StartPt, QueryPoint);
 		return (det > Tolerance ? +1 : (det < -Tolerance ? -1 : 0));
 	}
 
@@ -216,12 +216,12 @@ public:
 		// see IntrLine2Line2 and IntrSegment2Segment2 for details on this code
 
 		FVector2<T> diff = OtherSegment.Center - Center;
-		T D0DotPerpD1 = Direction.DotPerp(OtherSegment.Direction);
+		T D0DotPerpD1 = DotPerp(Direction, OtherSegment.Direction);
 		if (TMathUtil<T>::Abs(D0DotPerpD1) > DotThresh)      // Lines intersect in a single point.
 		{
 			T invD0DotPerpD1 = ((T)1) / D0DotPerpD1;
-			T diffDotPerpD0 = diff.DotPerp(Direction);
-			T diffDotPerpD1 = diff.DotPerp(OtherSegment.Direction);
+			T diffDotPerpD0 = DotPerp(diff, Direction);
+			T diffDotPerpD1 = DotPerp(diff, OtherSegment.Direction);
 			T s = diffDotPerpD1 * invD0DotPerpD1;
 			T s2 = diffDotPerpD0 * invD0DotPerpD1;
 			return TMathUtil<T>::Abs(s) <= (Extent + IntervalThresh)
@@ -230,7 +230,7 @@ public:
 
 		// Lines are parallel.
 		Normalize(diff);
-		T diffNDotPerpD1 = diff.DotPerp(OtherSegment.Direction);
+		T diffNDotPerpD1 = DotPerp(diff, OtherSegment.Direction);
 		if (TMathUtil<T>::Abs(diffNDotPerpD1) <= DotThresh)
 		{
 			// Compute the location of OtherSegment endpoints relative to our Segment
@@ -297,7 +297,7 @@ public:
 	 */
 	static int WhichSide(const FVector2<T>& StartPt, const FVector2<T>& EndPt, const FVector2<T>& QueryPt, T Tolerance = (T)0)
 	{
-		T det = -FVector2<T>::Orient(StartPt, EndPt, QueryPt);
+		T det = -Orient(StartPt, EndPt, QueryPt);
 		return (det > Tolerance ? +1 : (det < -Tolerance ? -1 : 0));
 	}
 

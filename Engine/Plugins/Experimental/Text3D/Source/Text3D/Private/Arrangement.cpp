@@ -262,7 +262,7 @@ bool FArrangement::find_intersecting_edges(FVector2d A, FVector2d B, TArray<FInt
 {
     int num_hits = 0;
     FVector2d x = FVector2d::Zero(), y = FVector2d::Zero();
-    FVector2d EPerp = (B - A).Perp();
+    FVector2d EPerp = UE::Geometry::PerpCW(B - A);
     UE::Geometry::Normalize(EPerp);
     for (int EID : Graph.EdgeIndices())
     {

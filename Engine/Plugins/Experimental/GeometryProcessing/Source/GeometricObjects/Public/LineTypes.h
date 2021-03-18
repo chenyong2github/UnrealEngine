@@ -114,11 +114,11 @@ struct TLine2
 	{
 		// see IntrTLine2TLine2 for more detailed explanation
 		FVector2<T> diff = OtherLine.Origin - Origin;
-		T D0DotPerpD1 = Direction.DotPerp(OtherLine.Direction);
+		T D0DotPerpD1 = DotPerp(Direction, OtherLine.Direction);
 		if (TMathUtil<T>::Abs(D0DotPerpD1) > ParallelDotTolerance)                     // TLines intersect in a single point.
 		{
 			T invD0DotPerpD1 = ((T)1) / D0DotPerpD1;
-			T diffDotPerpD1 = diff.DotPerp(OtherLine.Direction);
+			T diffDotPerpD1 = DotPerp(diff, OtherLine.Direction);
 			T s = diffDotPerpD1 * invD0DotPerpD1;
 			IntersectionPointOut = Origin + s * Direction;
 			return true;

@@ -162,20 +162,20 @@ public:
 		//   s1 = Q.Dot(Perp(D0))/D0.Dot(Perp(D1))
 
 		FVector2<RealType> diff = P1 - P0;
-		RealType D0DotPerpD1 = D0.DotPerp(D1);
+		RealType D0DotPerpD1 = DotPerp(D0, D1);
 		if (FMath::Abs(D0DotPerpD1) > DotThreshold) 
 		{
 			// Lines intersect in a single point.
 			RealType invD0DotPerpD1 = 1.0 / D0DotPerpD1;
-			RealType diffDotPerpD0 = diff.DotPerp(D0);
-			RealType diffDotPerpD1 = diff.DotPerp(D1);
+			RealType diffDotPerpD0 = DotPerp(diff, D0);
+			RealType diffDotPerpD1 = DotPerp(diff, D1);
 			s[0] = diffDotPerpD1 * invD0DotPerpD1;
 			s[1] = diffDotPerpD0 * invD0DotPerpD1;
 			return EIntersectionType::Point;
 		}
 
 		// Lines are parallel; check if they are within DistThresh apart
-		RealType diffNDotPerpD1 = diff.DotPerp(D1);
+		RealType diffNDotPerpD1 = DotPerp(diff, D1);
 		if (FMath::Abs(diffNDotPerpD1) <= DistThreshold) 
 		{
 			// Lines are collinear.
