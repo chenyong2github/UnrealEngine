@@ -195,7 +195,6 @@ namespace CSVTools
         int maxHierarchyDepth = -1;
         char hierarchySeparator = '/';
         int colourOffset = 0;
-        int frameOffset = 0;
 
 		static string formatString =
             "Format: \n" +
