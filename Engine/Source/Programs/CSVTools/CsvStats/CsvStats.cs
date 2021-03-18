@@ -186,15 +186,18 @@ namespace CSVStats
             List<string> valuesDontMatchKeys = new List<string>();
             foreach (KeyValuePair<string, string> pair in Values)
             {
-                bool bMatch = false;
-                if ( comparisonMetadata.Values.ContainsKey(pair.Key))
-                {
-                    if ( comparisonMetadata.Values[pair.Key] == pair.Value )
-                    {
-                        bMatch = true; 
-                    }
-                }
-                if ( !bMatch )
+				bool bMatch = false;
+				if (comparisonMetadata != null)
+				{
+					if (comparisonMetadata.Values.ContainsKey(pair.Key))
+					{
+						if (comparisonMetadata.Values[pair.Key] == pair.Value)
+						{
+							bMatch = true;
+						}
+					}
+				}
+				if ( !bMatch )
                 {
                     valuesDontMatchKeys.Add(pair.Key);
                     break;
