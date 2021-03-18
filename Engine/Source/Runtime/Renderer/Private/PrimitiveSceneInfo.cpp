@@ -1191,30 +1191,6 @@ bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
 	return Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex];
 }
 
-bool FPrimitiveSceneInfo::HasLumenCaptureMeshPass() const
-{
-	if (NaniteCommandInfos[ENaniteMeshPass::LumenCardCapture].Num() > 0)
-	{
-		return true;
-	}
-
-	for (int32 MeshIndex = 0; MeshIndex < StaticMeshRelevances.Num(); MeshIndex++)
-	{
-		const FStaticMeshBatchRelevance& StaticMeshRelevance = StaticMeshRelevances[MeshIndex];
-
-		if (StaticMeshRelevance.bUseForMaterial)
-		{
-			const int32 StaticMeshCommandInfoIndex = StaticMeshRelevance.GetStaticMeshCommandInfoIndex(EMeshPass::LumenCardCapture);
-			if (StaticMeshCommandInfoIndex >= 0)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 void FPrimitiveSceneInfo::UpdateStaticMeshes(FRHICommandListImmediate& RHICmdList, FScene* Scene, const TArrayView<FPrimitiveSceneInfo*>& SceneInfos, bool bReAddToDrawLists)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FPrimitiveSceneInfo_UpdateStaticMeshes);

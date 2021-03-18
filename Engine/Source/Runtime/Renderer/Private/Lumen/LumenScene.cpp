@@ -251,8 +251,6 @@ void UpdateLumenScenePrimitives(FScene* Scene)
 			}
 
 			bool bAnyInstanceValid = false;
-
-			if (PrimitiveSceneInfo->HasLumenCaptureMeshPass())
 			{
 				const FMatrix& LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 

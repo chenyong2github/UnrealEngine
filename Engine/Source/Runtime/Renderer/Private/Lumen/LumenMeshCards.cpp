@@ -461,7 +461,7 @@ void FLumenSceneData::AddMeshCards(int32 LumenPrimitiveIndex, int32 LumenInstanc
 	const FPrimitiveSceneInfo* PrimitiveSceneInfo = LumenPrimitive.Primitive;
 	const FCardRepresentationData* CardRepresentationData = PrimitiveSceneInfo->Proxy->GetMeshCardRepresentation();
 
-	if (LumenPrimitiveInstance.MeshCardsIndex < 0 && CardRepresentationData && PrimitiveSceneInfo->HasLumenCaptureMeshPass())
+	if (LumenPrimitiveInstance.MeshCardsIndex < 0 && CardRepresentationData)
 	{
 		FMatrix LocalToWorld = PrimitiveSceneInfo->Proxy->GetLocalToWorld();
 

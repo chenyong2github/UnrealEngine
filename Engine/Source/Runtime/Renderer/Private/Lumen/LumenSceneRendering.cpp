@@ -874,8 +874,7 @@ void AddCardCaptureDraws(const FScene* Scene,
 	FRHICommandListImmediate& RHICmdList,
 	FCardRenderData& CardRenderData, 
 	FMeshCommandOneFrameArray& VisibleMeshCommands,
-	TArray<int32, SceneRenderingAllocator>& PrimitiveIds,
-	TSet<FPrimitiveSceneInfo*>& PrimitivesToUpdateStaticMeshes)
+	TArray<int32, SceneRenderingAllocator>& PrimitiveIds)
 {
 	LLM_SCOPE_BYTAG(Lumen);
 
@@ -885,16 +884,6 @@ void AddCardCaptureDraws(const FScene* Scene,
 
 	if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
 	{
-		if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
-		{
-			PrimitiveSceneInfo->UpdateUniformBuffer(RHICmdList);
-		}
-
-		if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
-		{
-			PrimitivesToUpdateStaticMeshes.Add(PrimitiveSceneInfo);
-		}
-
 		if (PrimitiveSceneInfo->Proxy->IsNaniteMesh())
 		{
 			if (CardRenderData.PrimitiveInstanceIndexOrMergedFlag >= 0)
@@ -1519,8 +1508,43 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 			{
 				QUICK_SCOPE_CYCLE_COUNTER(MeshPassSetup);
 
-				// Set of unique primitives requiring static mesh update
-				TSet<FPrimitiveSceneInfo*> PrimitivesToUpdateStaticMeshes;
+				// Make sure all mesh rendering data is prepared before we render
+				{
+					QUICK_SCOPE_CYCLE_COUNTER(PrepareStaticMeshData);
+
+					// Set of unique primitives requiring static mesh update
+					TSet<FPrimitiveSceneInfo*> PrimitivesToUpdateStaticMeshes;
+
+					for (FCardRenderData& CardRenderData : CardsToRender)
+					{
+						FPrimitiveSceneInfo* PrimitiveSceneInfo = CardRenderData.PrimitiveSceneInfo;
+
+						if (PrimitiveSceneInfo && PrimitiveSceneInfo->Proxy->AffectsDynamicIndirectLighting())
+						{
+							if (PrimitiveSceneInfo->NeedsUniformBufferUpdate())
+							{
+								PrimitiveSceneInfo->UpdateUniformBuffer(GraphBuilder.RHICmdList);
+							}
+
+							if (PrimitiveSceneInfo->NeedsUpdateStaticMeshes())
+							{
+								PrimitivesToUpdateStaticMeshes.Add(PrimitiveSceneInfo);
+							}
+						}
+					}
+
+					if (PrimitivesToUpdateStaticMeshes.Num() > 0)
+					{
+						TArray<FPrimitiveSceneInfo*> UpdatedSceneInfos;
+						UpdatedSceneInfos.Reserve(PrimitivesToUpdateStaticMeshes.Num());
+						for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitivesToUpdateStaticMeshes)
+						{
+							UpdatedSceneInfos.Add(PrimitiveSceneInfo);
+						}
+
+						FPrimitiveSceneInfo::UpdateStaticMeshes(GraphBuilder.RHICmdList, Scene, UpdatedSceneInfos, true);
+					}
+				}
 
 				for (FCardRenderData& CardRenderData : CardsToRender)
 				{
@@ -1535,22 +1559,9 @@ void FDeferredShadingSceneRenderer::BeginUpdateLumenSceneTasks(FRDGBuilder& Grap
 						GraphBuilder.RHICmdList, 
 						CardRenderData, 
 						LumenCardRenderer.MeshDrawCommands, 
-						LumenCardRenderer.MeshDrawPrimitiveIds, 
-						PrimitivesToUpdateStaticMeshes);
+						LumenCardRenderer.MeshDrawPrimitiveIds);
 
 					CardRenderData.NumMeshDrawCommands = LumenCardRenderer.MeshDrawCommands.Num() - CardRenderData.StartMeshDrawCommandIndex;
-				}
-
-				if (PrimitivesToUpdateStaticMeshes.Num() > 0)
-				{
-					TArray<FPrimitiveSceneInfo*> UpdatedSceneInfos;
-					UpdatedSceneInfos.Reserve(PrimitivesToUpdateStaticMeshes.Num());
-					for (FPrimitiveSceneInfo* PrimitiveSceneInfo : PrimitivesToUpdateStaticMeshes)
-					{
-						UpdatedSceneInfos.Add(PrimitiveSceneInfo);
-					}
-
-					FPrimitiveSceneInfo::UpdateStaticMeshes(GraphBuilder.RHICmdList, Scene, UpdatedSceneInfos, true);
 				}
 			}
 
