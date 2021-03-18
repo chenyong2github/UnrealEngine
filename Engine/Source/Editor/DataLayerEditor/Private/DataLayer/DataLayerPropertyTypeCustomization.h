@@ -9,6 +9,7 @@ struct EVisibility;
 class FReply;
 class SWidget;
 class FDragDropOperation;
+class FDataLayerDragDropOp;
 class UDataLayer;
 
 struct FDataLayerPropertyTypeCustomization : public IPropertyTypeCustomization
@@ -28,6 +29,7 @@ private:
 	FReply OnSelectDataLayer();
 	FReply OnDrop(TSharedPtr<FDragDropOperation> InDragDrop);
 	bool OnVerifyDrag(TSharedPtr<FDragDropOperation> InDragDrop);
+	TSharedPtr<const FDataLayerDragDropOp> GetDataLayerDragDropOp(TSharedPtr<FDragDropOperation> InDragDrop);
 
 	TSharedPtr<IPropertyHandle> PropertyHandle;
 };
