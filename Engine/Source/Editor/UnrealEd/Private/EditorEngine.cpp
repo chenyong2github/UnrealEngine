@@ -757,7 +757,7 @@ void UEditorEngine::InitEditor(IEngineLoop* InEngineLoop)
 			}
 		}
 
-		FCoreUObjectDelegates::RegisterHotReloadAddedClassesDelegate.AddUObject(this, &UEditorEngine::CreateVolumeFactoriesForNewClasses);
+		FCoreUObjectDelegates::ReloadAddedClassesDelegate.AddUObject(this, &UEditorEngine::CreateVolumeFactoriesForNewClasses);
 	}
 
 	// Used for sorting ActorFactory classes.

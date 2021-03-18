@@ -2174,6 +2174,66 @@ namespace symbols
 	}
 
 
+	// BEGIN EPIC MOD
+	template <typename T, size_t N>
+	static inline const char* StartsWithPatternsEx(const char* name, const T(&patterns)[N])
+	{
+		for (size_t i = 0u; i < N; ++i)
+		{
+			const char* out = string::StartsWithEx(name, patterns[i]);
+			if (out != nullptr)
+			{
+				return out;
+			}
+		}
+
+		return nullptr;
+	}
+
+
+	template <typename T, size_t N>
+	static inline const char* StartsWithPatternsEx(const char* name, const char*& outName, size_t& outNameLength, const T(&patterns)[N])
+	{
+		name = StartsWithPatternsEx(name, patterns);
+		if (name == nullptr)
+		{
+			return nullptr;
+		}
+
+		outName = name;
+		for (;;)
+		{
+			char c = *name++;
+			if (c == 0)
+			{
+				return nullptr;
+			}
+			if (c == '$' || c == '@')
+			{
+				break;
+			}
+		}
+
+		outNameLength = name - outName - 1;
+		return name;
+	}
+
+	template <typename T, size_t N>
+	static inline bool MatchWildcardPatterns(const char* name, const T(&patterns)[N])
+	{
+		for (size_t i = 0u; i < N; ++i)
+		{
+			if (string::MatchWildcard(name, patterns[i]))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+	// END EPIC MOD
+
+
 	bool IsPchSymbol(const ImmutableString& symbolName)
 	{
 		return ContainsPatterns(symbolName.c_str(), symbolPatterns::PCH_SYMBOL_PATTERNS);
@@ -2299,6 +2359,42 @@ namespace symbols
 	{
 		return symbolName.c_str()[0] == '.';
 	}
+
+	// BEGIN EPIC MOD
+	bool IsUERegisterSymbol(const ImmutableString& symbolName, const char*& name, size_t& nameLength)
+	{
+		const char* remaining = StartsWithPatternsEx(symbolName.c_str(), name, nameLength, symbolPatterns::UE_REGISTER_PATTERNS);
+		return remaining != nullptr && string::StartsWith(remaining, "initializer$");
+	}
+
+	bool IsUERegisterSymbol(const ImmutableString& symbolName)
+	{
+		const char* name;
+		size_t nameLength;
+		return IsUERegisterSymbol(symbolName, name, nameLength);
+	}
+
+	bool IsUENoStripSymbol(const ImmutableString& symbolName)
+	{
+		return IsUEStaticsSymbol(symbolName);
+	}
+
+	bool IsUEInitializerSymbol(const ImmutableString& symbolName)
+	{
+		return IsUERegisterSymbol(symbolName) || IsUEStaticsSymbol(symbolName);
+	}
+
+	bool IsUEReversePatchSymbol(const ImmutableString& symbolName)
+	{
+		return IsUEStaticsSymbol(symbolName);
+	}
+
+	bool IsUEStaticsSymbol(const ImmutableString& symbolName)
+	{
+		return MatchWildcardPatterns(symbolName.c_str(), symbolPatterns::UE_STATICS_BLOCK_PATTERNS);
+	}
+	// END EPIC MOD
+
 }
 
 // BEGIN EPIC MOD

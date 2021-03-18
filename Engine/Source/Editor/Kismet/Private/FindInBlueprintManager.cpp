@@ -46,7 +46,6 @@
 #include "ImaginaryBlueprintData.h"
 #include "FiBSearchInstance.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/HotReloadInterface.h"
 #include "BlueprintAssetHandler.h"
 
 #include "JsonObjectConverter.h"
@@ -1996,12 +1995,7 @@ FFindInBlueprintSearchManager::~FFindInBlueprintSearchManager()
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
 	FCoreUObjectDelegates::GetPostGarbageCollect().RemoveAll(this);
 	FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
-
-	if(FModuleManager::Get().IsModuleLoaded("HotReload"))
-	{
-		IHotReloadInterface& HotReloadSupport = FModuleManager::GetModuleChecked<IHotReloadInterface>("HotReload");
-		HotReloadSupport.OnHotReload().RemoveAll(this);
-	}
+	FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll(this);
 
 	// Shut down the global find results tab feature.
 	EnableGlobalFindResults(false);
@@ -2054,9 +2048,8 @@ void FFindInBlueprintSearchManager::Initialize()
 	FCoreUObjectDelegates::GetPostGarbageCollect().AddRaw(this, &FFindInBlueprintSearchManager::UnpauseFindInBlueprintSearch);
 	FCoreUObjectDelegates::OnAssetLoaded.AddRaw(this, &FFindInBlueprintSearchManager::OnAssetLoaded);
 	
-	// Register to be notified of hot reloads
-	IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	HotReloadSupport.OnHotReload().AddRaw(this, &FFindInBlueprintSearchManager::OnHotReload);
+	// Register to be notified of reloads
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FFindInBlueprintSearchManager::OnReloadComplete);
 
 	if(!GIsSavingPackage && AssetRegistryModule)
 	{
@@ -2436,7 +2429,7 @@ void FFindInBlueprintSearchManager::OnBlueprintUnloaded(UBlueprint* InBlueprint)
 	}
 }
 
-void FFindInBlueprintSearchManager::OnHotReload(bool bWasTriggeredAutomatically)
+void FFindInBlueprintSearchManager::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	CachedAssetClasses.Reset();
 }

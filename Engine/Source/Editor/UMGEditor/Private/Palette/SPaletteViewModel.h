@@ -177,7 +177,7 @@ private:
 	void OnFavoritesUpdated();
 
 	/** Requests a rebuild of the widget list */
-	void HandleOnHotReload(bool bWasTriggeredAutomatically);
+	void OnReloadComplete(EReloadCompleteReason Reason);
 
 	/** Requests a rebuild of the widget list if a widget blueprint was deleted */
 	void HandleOnAssetsDeleted(const TArray<UClass*>& DeletedAssetClasses);

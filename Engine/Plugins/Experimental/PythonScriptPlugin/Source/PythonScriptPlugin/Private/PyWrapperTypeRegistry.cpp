@@ -27,6 +27,9 @@
 #include "UObject/Package.h"
 #include "UObject/EnumProperty.h"
 #include "UObject/StructOnScope.h"
+#if WITH_EDITOR
+#include "Kismet2/ReloadUtilities.h"
+#endif
 
 #if WITH_PYTHON
 
@@ -366,10 +369,10 @@ void FPyWrapperTypeReinstancer::AddPendingStruct(UPythonGeneratedStruct* OldStru
 
 void FPyWrapperTypeReinstancer::ProcessPending()
 {
-	const bool bRunGC = ClassesToReinstance.Num() > 0 || StructsToReinstance.Num() > 0;
-
-	if (ClassesToReinstance.Num() > 0)
+	if (ClassesToReinstance.Num() > 0 || StructsToReinstance.Num() > 0)
 	{
+		TUniquePtr<FReload> Reload(new FReload(EActiveReloadType::Reinstancing, TEXT(""), *GLog));
+
 		for (const auto& ClassToReinstancePair : ClassesToReinstance)
 		{
 			if (ClassToReinstancePair.Key && ClassToReinstancePair.Value)
@@ -377,20 +380,26 @@ void FPyWrapperTypeReinstancer::ProcessPending()
 				if (!ClassToReinstancePair.Value->HasAnyClassFlags(CLASS_NewerVersionExists))
 				{
 					// Assume the classes have changed
-					FCoreUObjectDelegates::RegisterClassForHotReloadReinstancingDelegate.Broadcast(ClassToReinstancePair.Key, ClassToReinstancePair.Value, EHotReloadedClassFlags::Changed);
+					Reload->NotifyChange(ClassToReinstancePair.Value, ClassToReinstancePair.Key);
 				}
 			}
 		}
-		FCoreUObjectDelegates::ReinstanceHotReloadedClassesDelegate.Broadcast();
+
+		// This doesn't do anything ATM
+		for (const auto& StructToReinstancePair : StructsToReinstance)
+		{
+			if (StructToReinstancePair.Key && StructToReinstancePair.Value)
+			{
+				// Assume the structures have changed
+				Reload->NotifyChange(StructToReinstancePair.Value, StructToReinstancePair.Key);
+			}
+		}
+
+		Reload->Reinstance();
 
 		ClassesToReinstance.Reset();
-	}
+		StructsToReinstance.Reset();
 
-	// todo: need support for re-instancing structs
-	StructsToReinstance.Reset();
-
-	if (bRunGC)
-	{
 		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 	}
 }

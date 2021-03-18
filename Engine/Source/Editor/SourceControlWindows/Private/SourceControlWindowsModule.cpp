@@ -72,13 +72,13 @@ void FSourceControlWindowsModule::StartupModule()
 		.SetGroup(SourceControlGroup)
 		.SetIcon(SourceControlIcon);
 
-#if WITH_HOT_RELOAD
-	// This code attempts to relaunch the GameplayCueEditor tab when you hotreload this module
-	if (GIsHotReload && FSlateApplication::IsInitialized())
+#if WITH_RELOAD
+	// This code attempts to relaunch the GameplayCueEditor tab when you reload this module
+	if (IsReloadActive() && FSlateApplication::IsInitialized())
 	{
 		ShowChangelistsTab();
 	}
-#endif // WITH_HOT_RELOAD
+#endif // WITH_RELOAD
 }
 
 void FSourceControlWindowsModule::ShutdownModule()

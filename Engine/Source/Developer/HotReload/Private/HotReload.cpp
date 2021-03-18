@@ -35,9 +35,10 @@
 #include "DesktopPlatformModule.h"
 #if WITH_ENGINE
 #include "Engine/Engine.h"
-#include "Kismet2/KismetReinstanceUtilities.h"
-#include "HotReloadClassReinstancer.h"
 #include "EngineAnalytics.h"
+#endif
+#if WITH_EDITOR
+#include "Kismet2/ReloadUtilities.h"
 #endif
 #include "Misc/ScopeExit.h"
 #include "Algo/Transform.h"
@@ -84,6 +85,30 @@ namespace EThreeStateBool
 	}
 };
 
+class FScopedHotReload
+{
+public:
+	FScopedHotReload(TUniquePtr<FReload>& InUniquePtr, const TArray<UPackage*>& InPackages)
+		: UniquePtr(InUniquePtr)
+	{
+		UniquePtr.Reset(new FReload(EActiveReloadType::HotReload, TEXT("HOTRELOAD"), InPackages, *GLog));
+	}
+
+	FScopedHotReload(TUniquePtr<FReload>& InUniquePtr)
+		: UniquePtr(InUniquePtr)
+	{
+		UniquePtr.Reset(new FReload(EActiveReloadType::HotReload, TEXT("HOTRELOAD"), *GLog));
+	}
+
+	~FScopedHotReload()
+	{
+		UniquePtr.Reset();
+	}
+
+private:
+	TUniquePtr<FReload>& UniquePtr;
+};
+
 /**
  * Module for HotReload support
  */
@@ -111,10 +136,14 @@ public:
 	virtual bool RecompileModule(const FName InModuleName, FOutputDevice &Ar, ERecompileModuleFlags Flags) override;
 	virtual bool IsCurrentlyCompiling() const override { return ModuleCompileProcessHandle.IsValid(); }
 	virtual void RequestStopCompilation() override { bRequestCancelCompilation = true; }
-	virtual void AddHotReloadFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer) override;	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	virtual void AddHotReloadFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer) override;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual ECompilationResult::Type RebindPackages(const TArray<UPackage*>& Packages, EHotReloadFlags Flags, FOutputDevice &Ar) override;
 	virtual ECompilationResult::Type DoHotReloadFromEditor(EHotReloadFlags Flags) override;
-	virtual FHotReloadEvent& OnHotReload() override { return HotReloadEvent; }	
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	virtual FHotReloadEvent& OnHotReload() override { return HotReloadEvent; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual FModuleCompilerStartedEvent& OnModuleCompilerStarted() override { return ModuleCompilerStartedEvent; }
 	virtual FModuleCompilerFinishedEvent& OnModuleCompilerFinished() override { return ModuleCompilerFinishedEvent; }
 	virtual FString GetModuleCompileMethod(FName InModuleName) override;
@@ -196,21 +225,9 @@ private:
 	 */
 	ECompilationResult::Type DoHotReloadInternal(const TMap<FName, FString>& ChangedModuleNames, const TArray<UPackage*>& Packages, const TArray<FName>& InDependentModules, FOutputDevice& HotReloadAr);
 
-	/**
-	 * Finds all references to old CDOs and replaces them with the new ones.
-	 * Skipping UBlueprintGeneratedClass::OverridenArchetypeForCDO as it's the
-	 * only one needed.
-	 */
-	void ReplaceReferencesToReconstructedCDOs();
-
 #if WITH_ENGINE
 	void RegisterForReinstancing(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags);
 	void ReinstanceClasses();
-
-	/**
-	 * Called from CoreUObject to re-instance hot-reloaded classes
-	 */
-	void ReinstanceClass(UClass* OldClass, UClass* NewClass, const TMap<UClass*, UClass*>& OldToNewClassesMap);
 #endif
 
 	/**
@@ -348,11 +365,11 @@ private:
 	/** True if the directory watcher has been successfully initialized */
 	bool bDirectoryWatcherInitialized;
 
-	/** Reconstructed CDOs map during hot-reload. */
-	TMap<UObject*, UObject*> ReconstructedCDOsMap;
-
 	/** Keeps record of hot-reload session starting time. */
 	double HotReloadStartTime;
+
+	/** Current reload object */
+	TUniquePtr<FReload> Reload;
 };
 
 namespace HotReloadDefs
@@ -519,8 +536,10 @@ void FHotReloadModule::StartupModule()
 
 #if WITH_ENGINE
 	// Register re-instancing delegate (Core)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	FCoreUObjectDelegates::RegisterClassForHotReloadReinstancingDelegate.AddRaw(this, &FHotReloadModule::RegisterForReinstancing);
 	FCoreUObjectDelegates::ReinstanceHotReloadedClassesDelegate.AddRaw(this, &FHotReloadModule::ReinstanceClasses);
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 	// Register directory watcher delegate
@@ -694,7 +713,8 @@ bool FHotReloadModule::RecompileModule(const FName InModuleName, FOutputDevice &
 	// Reload the module if it was loaded before we recompiled
 	if ((bWasModuleLoaded || !!(Flags & ERecompileModuleFlags::ForceCodeProject)) && !!(Flags & ERecompileModuleFlags::ReloadAfterRecompile))
 	{
-		TGuardValue<bool> GuardIsHotReload(GIsHotReload, true);
+		FScopedHotReload Guard(Reload);
+		Reload->SetSendReloadCompleteNotification(false);
 		Ar.Logf( TEXT( "Reloading module %s after successful compile." ), *InModuleName.ToString() );
 		if (!ModuleManager.LoadModuleWithCallback( InModuleName, Ar ))
 		{
@@ -707,6 +727,7 @@ bool FHotReloadModule::RecompileModule(const FName InModuleName, FOutputDevice &
 	if (!!(Flags & ERecompileModuleFlags::ForceCodeProject))
 	{
 		HotReloadEvent.Broadcast( false );
+		FCoreUObjectDelegates::ReloadCompleteDelegate.Broadcast(EReloadCompleteReason::HotReloadManual);
 	}
 
 	return true;
@@ -715,26 +736,10 @@ bool FHotReloadModule::RecompileModule(const FName InModuleName, FOutputDevice &
 #endif // WITH_HOT_RELOAD
 }
 
-/** Type hash for a UObject Function Pointer, maybe not a great choice, but it should be sufficient for the needs here. **/
-inline uint32 GetTypeHash(FNativeFuncPtr A)
-{
-	return *(uint32*)&A;
-}
-
-/** Map from old function pointer to new function pointer for hot reload. */
-static TMap<FNativeFuncPtr, FNativeFuncPtr> HotReloadFunctionRemap;
-
-static TSet<UBlueprint*> HotReloadBPSetToRecompile;
-static TSet<UBlueprint*> HotReloadBPSetToRecompileBytecodeOnly;
-
 /** Adds and entry for the UFunction native pointer remap table */
 void FHotReloadModule::AddHotReloadFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer)
 {
-	FNativeFuncPtr OtherNewFunction = HotReloadFunctionRemap.FindRef(OldFunctionPointer);
-	check(!OtherNewFunction || OtherNewFunction == NewFunctionPointer);
-	check(NewFunctionPointer);
-	check(OldFunctionPointer);
-	HotReloadFunctionRemap.Add(OldFunctionPointer, NewFunctionPointer);
+	ReloadNotifyFunctionRemap(NewFunctionPointer, OldFunctionPointer);
 }
 
 ECompilationResult::Type FHotReloadModule::DoHotReloadFromEditor(EHotReloadFlags Flags)
@@ -772,9 +777,9 @@ ECompilationResult::Type FHotReloadModule::DoHotReloadInternal(const TMap<FName,
 	ErrorsFC.ClearWarningsAndErrors();
 
 	// Rebind the hot reload DLL 
-	TGuardValue<bool> GuardIsHotReload(GIsHotReload, true);
+	FScopedHotReload Guard(Reload, Packages);
+	Reload->SetSendReloadCompleteNotification(false);
 	TGuardValue<bool> GuardIsInitialLoad(GIsInitialLoad, true);
-	HotReloadFunctionRemap.Empty(); // redundant
 
 	CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS); // we create a new CDO in the transient package...this needs to go away before we try again.
 
@@ -837,55 +842,14 @@ ECompilationResult::Type FHotReloadModule::DoHotReloadInternal(const TMap<FName,
 
 	if (bReloadSucceeded)
 	{
-		int32 NumFunctionsRemapped = 0;
-		// Remap all native functions (and gather scriptstructs)
-		TArray<UScriptStruct*> ScriptStructs;
-		for (FRawObjectIterator It; It; ++It)
-		{
-			if (UFunction* Function = Cast<UFunction>(static_cast<UObject*>(It->Object)))
-			{
-				if (FNativeFuncPtr NewFunction = HotReloadFunctionRemap.FindRef(Function->GetNativeFunc()))
-				{
-					++NumFunctionsRemapped;
-					Function->SetNativeFunc(NewFunction);
-				}
-			}
-
-			if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(static_cast<UObject*>(It->Object)))
-			{
-				if (!ScriptStruct->HasAnyFlags(RF_ClassDefaultObject) && ScriptStruct->GetCppStructOps() && Packages.ContainsByPredicate([=](UPackage* Package) { return ScriptStruct->IsIn(Package); }))
-				{
-					ScriptStructs.Add(ScriptStruct);
-				}
-			}
-		}
-		// now let's set up the script structs...this relies on super behavior, so null them all, then set them all up. Internally this sets them up hierarchically.
-		for (UScriptStruct* Script : ScriptStructs)
-		{
-			Script->ClearCppStructOps();
-		}
-		for (UScriptStruct* Script : ScriptStructs)
-		{
-			Script->PrepareCppStructOps();
-			check(Script->GetCppStructOps());
-		}
-		// Make sure new classes have the token stream assembled
-		UClass::AssembleReferenceTokenStreams();
-
-		HotReloadAr.Logf(ELogVerbosity::Display, TEXT("HotReload successful (%d functions remapped  %d scriptstructs remapped)"), NumFunctionsRemapped, ScriptStructs.Num());
-
-		HotReloadFunctionRemap.Empty();
-
-		ReplaceReferencesToReconstructedCDOs();
-
-		// Force GC to collect reinstanced objects
-		CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS, true);
+		Reload->Finalize();
 
 		Result = ECompilationResult::Succeeded;
 	}
 
 
-	HotReloadEvent.Broadcast( !bIsHotReloadingFromEditor );
+	HotReloadEvent.Broadcast( !bIsHotReloadingFromEditor);
+	FCoreUObjectDelegates::ReloadCompleteDelegate.Broadcast(bIsHotReloadingFromEditor ? EReloadCompleteReason::HotReloadManual : EReloadCompleteReason::HotReloadAutomatic);
 
 	HotReloadAr.Logf(ELogVerbosity::Display, TEXT("HotReload took %4.1fs."), FPlatformTime::Seconds() - HotReloadStartTime);
 
@@ -898,144 +862,6 @@ ECompilationResult::Type FHotReloadModule::DoHotReloadInternal(const TMap<FName,
 	return ECompilationResult::Unsupported;
 
 #endif
-}
-
-void FHotReloadModule::ReplaceReferencesToReconstructedCDOs()
-{
-	if (ReconstructedCDOsMap.Num() == 0)
-	{
-		return;
-	}
-
-	// Thread pool manager. We need new thread pool with increased
-	// amount of stack size. Standard GThreadPool was encountering
-	// stack overflow error during serialization.
-	static struct FReplaceReferencesThreadPool
-	{
-		FReplaceReferencesThreadPool()
-		{
-			Pool = FQueuedThreadPool::Allocate();
-			int32 NumThreadsInThreadPool = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
-			verify(Pool->Create(NumThreadsInThreadPool, 256 * 1024));
-		}
-
-		~FReplaceReferencesThreadPool()
-		{
-			Pool->Destroy();
-		}
-
-		FQueuedThreadPool* GetPool() { return Pool; }
-
-	private:
-		FQueuedThreadPool* Pool;
-	} ThreadPoolManager;
-
-	// Async task to enable multithreaded CDOs reference search.
-	class FFindRefTask : public FNonAbandonableTask
-	{
-	public:
-		explicit FFindRefTask(const TMap<UObject*, UObject*>& InReconstructedCDOsMap, int32 ReserveElements)
-			: ReconstructedCDOsMap(InReconstructedCDOsMap)
-		{
-			ObjectsArray.Reserve(ReserveElements);
-		}
-
-		void DoWork()
-		{
-			for (UObject* Object : ObjectsArray)
-			{
-				class FReplaceCDOReferencesArchive : public FArchiveUObject
-				{
-				public:
-					FReplaceCDOReferencesArchive(UObject* InPotentialReferencer, const TMap<UObject*, UObject*>& InReconstructedCDOsMap)
-						: ReconstructedCDOsMap(InReconstructedCDOsMap)
-						, PotentialReferencer(InPotentialReferencer)
-					{
-						ArIsObjectReferenceCollector = true;
-						ArIgnoreOuterRef = true;
-					}
-
-					virtual FString GetArchiveName() const override
-					{
-						return TEXT("FReplaceCDOReferencesArchive");
-					}
-
-					FArchive& operator<<(UObject*& ObjRef)
-					{
-						UObject* Obj = ObjRef;
-
-						if (Obj && Obj != PotentialReferencer)
-						{
-							if (UObject* const* FoundObj = ReconstructedCDOsMap.Find(Obj))
-							{
-								ObjRef = *FoundObj;
-							}
-						}
-
-						return *this;
-					}
-
-					const TMap<UObject*, UObject*>& ReconstructedCDOsMap;
-					UObject* PotentialReferencer;
-				};
-
-				FReplaceCDOReferencesArchive FindRefsArchive(Object, ReconstructedCDOsMap);
-				Object->Serialize(FindRefsArchive);
-			}
-		}
-
-		FORCEINLINE TStatId GetStatId() const
-		{
-			RETURN_QUICK_DECLARE_CYCLE_STAT(FFindRefTask, STATGROUP_ThreadPoolAsyncTasks);
-		}
-
-		TArray<UObject*> ObjectsArray;
-
-	private:
-		const TMap<UObject*, UObject*>& ReconstructedCDOsMap;
-	};
-
-	const int32 NumberOfThreads = FPlatformMisc::NumberOfWorkerThreadsToSpawn();
-	const int32 NumObjects = GUObjectArray.GetObjectArrayNum();
-	const int32 ObjectsPerTask = FMath::CeilToInt((float)NumObjects / NumberOfThreads);
-
-	// Create tasks.
-	TArray<FAsyncTask<FFindRefTask>> Tasks;
-	Tasks.Reserve(NumberOfThreads);
-
-	for (int32 TaskId = 0; TaskId < NumberOfThreads; ++TaskId)
-	{
-		Tasks.Emplace(ReconstructedCDOsMap, ObjectsPerTask);
-	}
-
-	// Distribute objects uniformly between tasks.
-	int32 CurrentTaskId = 0;
-	for (FThreadSafeObjectIterator ObjIter; ObjIter; ++ObjIter)
-	{
-		UObject* CurObject = *ObjIter;
-
-		if (CurObject->IsPendingKill())
-		{
-			continue;
-		}
-
-		Tasks[CurrentTaskId].GetTask().ObjectsArray.Add(CurObject);
-		CurrentTaskId = (CurrentTaskId + 1) % NumberOfThreads;
-	}
-
-	// Run async tasks in worker threads.
-	for (FAsyncTask<FFindRefTask>& Task : Tasks)
-	{
-		Task.StartBackgroundTask(ThreadPoolManager.GetPool());
-	}
-
-	// Wait until tasks are finished
-	for (FAsyncTask<FFindRefTask>& AsyncTask : Tasks)
-	{
-		AsyncTask.EnsureCompletion();
-	}
-
-	ReconstructedCDOsMap.Empty();
 }
 
 ECompilationResult::Type FHotReloadModule::RebindPackages(const TArray<UPackage*>& InPackages, EHotReloadFlags Flags, FOutputDevice &Ar)
@@ -1208,54 +1034,32 @@ ECompilationResult::Type FHotReloadModule::RebindPackagesInternal(const TArray<U
 #if WITH_ENGINE
 void FHotReloadModule::RegisterForReinstancing(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags)
 {
-	// Don't allow reinstancing of UEngine classes
-	if (!OldClass->IsChildOf(UEngine::StaticClass()))
+	
+	// For compatibility, monitor this broadcast.  If we don't have an active reload then we create one assuming
+	// the broadcaster wanted to reinstance (i.e. python wrapper).  
+	IReload* TempReload = GetActiveReloadInterface();
+	if (TempReload == nullptr)
 	{
-		TMap<UClass*, UClass*>& ClassesToReinstance = GetClassesToReinstanceForHotReload();
-		checkf(!ClassesToReinstance.Contains(OldClass) || ClassesToReinstance[OldClass] == NewClass, TEXT("Attempting to hot reload a class which is already being hot reloaded as a different class"));
-		ClassesToReinstance.Add(OldClass, NewClass);
+		Reload.Reset(new FReload(EActiveReloadType::Reinstancing, TEXT(""), *GLog));
+		BeginReload(Reload->GetType(), *Reload);
+		TempReload = Reload.Get();
 	}
-	else if (EnumHasAnyFlags(Flags, EHotReloadedClassFlags::Changed))
+
+	// Only invoke the notification if we own the reload object and it is the temporary reinstancing object.
+	if (TempReload == Reload.Get() && TempReload->GetType() == EActiveReloadType::Reinstancing)
 	{
-		UE_LOG(LogHotReload, Warning, TEXT("Engine class '%s' has changed but will be ignored for hot reload"), *NewClass->GetName());
+		TempReload->NotifyChange(EnumHasAnyFlags(Flags, EHotReloadedClassFlags::Changed) ? NewClass : OldClass, OldClass);
 	}
 }
 
 void FHotReloadModule::ReinstanceClasses()
 {
-#if WITH_HOT_RELOAD
-	if (GIsHotReload)
+	// Only invoke the notification if we own the reload object and it is the temporary reinstancing object.
+	IReload* TempReload = GetActiveReloadInterface();
+	if (TempReload == Reload.Get() && TempReload->GetType() == EActiveReloadType::Reinstancing)
 	{
-		UClass::AssembleReferenceTokenStreams();
-	}
-#endif // WITH_HOT_RELOAD
-
-	TMap<UClass*, UClass*>& ClassesToReinstance = GetClassesToReinstanceForHotReload();
-
-	TMap<UClass*, UClass*> OldToNewClassesMap;
-	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)
-	{
-		if (Pair.Value != nullptr)
-		{
-			OldToNewClassesMap.Add(Pair.Key, Pair.Value);
-		}
-	}
-
-	for (const TPair<UClass*, UClass*>& Pair : ClassesToReinstance)
-	{
-		ReinstanceClass(Pair.Key, Pair.Value, OldToNewClassesMap);
-	}
-
-	ClassesToReinstance.Empty();
-}
-
-void FHotReloadModule::ReinstanceClass(UClass* OldClass, UClass* NewClass, const TMap<UClass*, UClass*>& OldToNewClassesMap)
-{	
-	TSharedPtr<FHotReloadClassReinstancer> ReinstanceHelper = FHotReloadClassReinstancer::Create(NewClass, OldClass, OldToNewClassesMap, ReconstructedCDOsMap, HotReloadBPSetToRecompile, HotReloadBPSetToRecompileBytecodeOnly);
-	if (ReinstanceHelper->ClassNeedsReinstancing())
-	{
-		UE_LOG(LogHotReload, Log, TEXT("Re-instancing %s after hot-reload."), NewClass ? *NewClass->GetName() : *OldClass->GetName());
-		ReinstanceHelper->ReinstanceObjectsAndUpdateDefaults();
+		TempReload->Reinstance();
+		Reload.Reset();
 	}
 }
 #endif

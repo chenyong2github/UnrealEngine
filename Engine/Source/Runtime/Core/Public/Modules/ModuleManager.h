@@ -20,6 +20,7 @@
 
 #if WITH_HOT_RELOAD
 	/** If true, we are reloading a class for HotReload */
+	UE_DEPRECATED(5.0, "GIsHotReload has been deprecated, use IsReloadActive to test to see if a reload is in progress.")
 	extern CORE_API bool GIsHotReload;
 #endif
 
@@ -945,4 +946,55 @@ class FDefaultGameModuleImpl
 		IMPLEMENT_GAME_MODULE( ModuleImplClass, ModuleName )
 #endif	//IS_MONOLITHIC
 
+#endif
+
+/**
+* Enumerates the type of reload in progress
+*/
+enum class EActiveReloadType
+{
+	None,
+	Reinstancing,
+#if WITH_HOT_RELOAD
+	HotReload,
+#endif
+#if WITH_LIVE_CODING
+	LiveCoding,
+#endif
+};
+
+class IReload;
+
+#if WITH_RELOAD
+/**
+* Return the currently active reload.  Check for None to see if reloading is not active.
+* This method respects the GIsHotReload setting.
+*/
+CORE_API EActiveReloadType GetActiveReloadType();
+/**
+* Get the currently active reload interface.
+*/
+CORE_API IReload* GetActiveReloadInterface();
+
+/**
+* Helper method to check to see if reloading is active.
+* This method respects the GIsHotReload setting.
+*/
+CORE_API bool IsReloadActive();
+
+/**
+* Begins the reload process.
+*/
+CORE_API void BeginReload(EActiveReloadType ActiveReloadType, IReload& Interface);
+
+/**
+* Ends the reload process
+*/
+CORE_API void EndReload();
+#else
+inline EActiveReloadType GetActiveReloadType() { return EActiveReloadType::None; }
+
+inline bool IsReloadActive() { return false; }
+
+inline IReload* GetActiveReloadInterface() { return nullptr; }
 #endif

@@ -73,6 +73,11 @@ public:
 	// tries finding a symbol by name, starting from the first module, walking to the latest, excluding the module with the given token
 	FindSymbolData FindSymbolByName(size_t ignoreToken, const ImmutableString& symbolName) const;
 
+	// BEGIN EPIC MOD
+	// tries finding a symbol by name, starting from the last module, walking to the first, excluding the module with the given token
+	FindSymbolData FindSymbolByNameBackwards(size_t ignoreToken, const ImmutableString& symbolName) const;
+	// END EPIC MOD
+
 	// tries finding the first and last hook in a given section, starting from the newest module, walking to the first, excluding the module with the given token
 	FindHookData FindHooksInSectionBackwards(size_t ignoreToken, const ImmutableString& sectionName) const;
 

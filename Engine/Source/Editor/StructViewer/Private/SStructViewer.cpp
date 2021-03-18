@@ -9,7 +9,6 @@
 #include "Misc/ScopedSlowTask.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UObjectIterator.h"
-#include "Misc/HotReloadInterface.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 
 #include "Editor.h"
@@ -183,8 +182,8 @@ private:
 	/** Callback registered to the Asset Registry to be notified when an asset is removed. */
 	void RemoveAsset(const FAssetData& InRemovedAssetData);
 
-	/** Called when hot reload has finished */
-	void OnHotReload(bool bWasTriggeredAutomatically);
+	/** Called when reload has finished */
+	void OnReloadComplete(EReloadCompleteReason Reason);
 
 	/** Called when modules are loaded or unloaded */
 	void OnModulesChanged(FName ModuleThatChanged, EModuleChangeReason ReasonForChange);
@@ -794,9 +793,8 @@ FStructHierarchy::FStructHierarchy()
 	AssetRegistryModule.Get().OnAssetAdded().AddRaw(this, &FStructHierarchy::AddAsset);
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FStructHierarchy::RemoveAsset);
 
-	// Register to have Populate called when doing a Hot Reload.
-	IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	HotReloadSupport.OnHotReload().AddRaw(this, &FStructHierarchy::OnHotReload);
+	// Register to have Populate called when doing a Reload.
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FStructHierarchy::OnReloadComplete);
 
 	FModuleManager::Get().OnModulesChanged().AddRaw(this, &FStructHierarchy::OnModulesChanged);
 
@@ -813,12 +811,8 @@ FStructHierarchy::~FStructHierarchy()
 		AssetRegistryModule.Get().OnAssetAdded().RemoveAll(this);
 		AssetRegistryModule.Get().OnAssetRemoved().RemoveAll(this);
 
-		// Unregister to have Populate called when doing a Hot Reload.
-		if (FModuleManager::Get().IsModuleLoaded("HotReload"))
-		{
-			IHotReloadInterface& HotReloadSupport = FModuleManager::GetModuleChecked<IHotReloadInterface>("HotReload");
-			HotReloadSupport.OnHotReload().RemoveAll(this);
-		}
+		// Unregister to have Populate called when doing a Reload.
+		FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll(this);
 	}
 
 	FModuleManager::Get().OnModulesChanged().RemoveAll(this);
@@ -1004,7 +998,7 @@ void FStructHierarchy::RemoveAsset(const FAssetData& InRemovedAssetData)
 	}
 }
 
-void FStructHierarchy::OnHotReload(bool bWasTriggeredAutomatically)
+void FStructHierarchy::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	DirtyStructHierarchy();
 }

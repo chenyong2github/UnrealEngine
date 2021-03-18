@@ -2430,7 +2430,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 		GeneratedClassRegisterFunctionText.Logf(TEXT("\t{\r\n"));
 		if (!bIsDynamic)
 		{
-			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tstatic UClass* OuterClass = nullptr;\r\n"));
+			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tstatic UClass*& OuterClass = %s::StaticRegistrationInfo().OuterSingleton;\r\n"), *ClassNameCPP);
 			GeneratedClassRegisterFunctionText.Logf(TEXT("\t\tif (!OuterClass)\r\n"));
 		}
 		else
@@ -2551,27 +2551,16 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 	if (bIsDynamic)
 	{
 		const FString& ClassPackageName = FClass::GetTypePackageName(Class);
-		Out.Logf(TEXT("\tstatic FCompiledInDefer Z_CompiledInDefer_UClass_%s(%s, &%s::StaticClass, TEXT(\"%s\"), TEXT(\"%s\"), true, %s, %s, %s);\r\n"),
+		Out.Logf(TEXT("\tstatic FRegisterCompiledInInfo Z_CompiledInDefer_UClass_%s(%s, &%s::StaticClass, TEXT(\"%s\"), TEXT(\"%s\"), %s, %s, %s);\r\n"),
 			*ClassNameCPP,
 			*SingletonName,
-			*ClassNameCPP,
 			*ClassPackageName,
+			*ClassNameCPP,
 			*OverriddenClassName,
 			*AsTEXT(ClassPackageName),
 			*AsTEXT(FNativeClassHeaderGenerator::GetOverriddenPathName(Class)),
 			*InitSearchableValuesFunctionParam);
 	}
-	else
-	{
-		Out.Logf(TEXT("\tstatic FCompiledInDefer Z_CompiledInDefer_UClass_%s(%s, &%s::StaticClass, TEXT(\"%s\"), TEXT(\"%s\"), false, nullptr, nullptr, %s);\r\n"),
-			*ClassNameCPP,
-			*SingletonName,
-			*ClassNameCPP,
-			*Class->GetOutermost()->GetName(),
-			*ClassNameCPP,
-			*InitSearchableValuesFunctionParam);
-	}
-
 
 	if (ClassHasReplicatedProperties(Class))
 	{
@@ -2637,7 +2626,8 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 	CurrentFunctionText.Logf(TEXT("\tstruct %s\r\n"), *StaticsStructName);
 	CurrentFunctionText.Log (TEXT("\t{\r\n"));
 
-	if (bIsNoExport || !(Function->FunctionFlags&FUNC_Event))  // non-events do not export a params struct, so lets do that locally for offset determination
+	bool bParamsInStatic = bIsNoExport || !(Function->FunctionFlags & FUNC_Event); // non-events do not export a params struct, so lets do that locally for offset determination
+	if (bParamsInStatic)
 	{
 		TArray<UScriptStruct*> Structs = FindNoExportStructs(Function);
 		for (UScriptStruct* Struct : Structs)
@@ -2678,7 +2668,14 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 			FunctionName.LeftChopInline(HEADER_GENERATED_DELEGATE_SIGNATURE_SUFFIX_LENGTH, false);
 		}
 
-		StructureSize = FString::Printf(TEXT("sizeof(%s)"), *GetEventStructParamsName(TempFunction->GetOuter(), *FunctionName));
+		if (bParamsInStatic)
+		{
+			StructureSize = FString::Printf(TEXT("sizeof(%s::%s)"), *StaticsStructName, *GetEventStructParamsName(TempFunction->GetOuter(), *FunctionName));
+		}
+		else
+		{
+			StructureSize = FString::Printf(TEXT("sizeof(%s)"), *GetEventStructParamsName(TempFunction->GetOuter(), *FunctionName));
+		}
 	}
 	else
 	{
@@ -2735,7 +2732,7 @@ void FNativeClassHeaderGenerator::ExportFunction(FOutputDevice& Out, FReferenceG
 
 	CurrentFunctionText.Logf(TEXT("\t\tif (!ReturnFunction)\r\n"));
 	CurrentFunctionText.Logf(TEXT("\t\t{\r\n"));
-	CurrentFunctionText.Logf(TEXT("\t\t\tUE4CodeGen_Private::ConstructUFunction(ReturnFunction, %s::FuncParams);\r\n"), *StaticsStructName);
+	CurrentFunctionText.Logf(TEXT("\t\t\tUE4CodeGen_Private::ConstructUFunction(ReturnFunction, %s::FuncParams, &ReturnFunction);\r\n"), *StaticsStructName);
 	CurrentFunctionText.Log (TEXT("\t\t}\r\n"));
 	CurrentFunctionText.Log (TEXT("\t\treturn ReturnFunction;\r\n"));
 	CurrentFunctionText.Log (TEXT("\t}\r\n"));
@@ -3873,6 +3870,17 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		FString GetHashName = FString::Printf(TEXT("Get_%s_Hash"), *ChoppedSingletonName);
 
+		if (!bIsDynamic)
+		{
+			Out.Logf(TEXT("\tstatic FStructRegistrationInfo& Z_Registration_Info_UScriptStruct_%s()\r\n"), *Struct->GetName());
+			Out.Logf(TEXT("\t{\r\n"));
+			Out.Logf(TEXT("\t\tstatic FStructRegistrationInfo info;\r\n"));
+			Out.Logf(TEXT("\t\treturn info;\r\n"));
+			Out.Logf(TEXT("\t}\r\n"));
+		}
+
+		Out.Logf(TEXT("\textern %suint32 %s();\r\n"), *FriendApiString, *GetHashName);
+
 		Out.Logf(TEXT("class UScriptStruct* %s::StaticStruct()\r\n"), *StructNameCPP);
 		Out.Logf(TEXT("{\r\n"));
 
@@ -3880,7 +3888,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		const FString& OuterName (bIsDynamic ? STRING_StructPackage : GetPackageSingletonName(CastChecked<UPackage>(Struct->GetOuter()), OutReferenceGatherers.UniqueCrossModuleReferences));
 		if (!bIsDynamic)
 		{
-			Out.Logf(TEXT("\tstatic class UScriptStruct* Singleton = NULL;\r\n"));
+			Out.Logf(TEXT("\tstatic class UScriptStruct*& Singleton = Z_Registration_Info_UScriptStruct_%s().OuterSingleton;\r\n"), *Struct->GetName());
 		}
 		else
 		{
@@ -3890,10 +3898,9 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 
 		Out.Logf(TEXT("\tif (!Singleton)\r\n"));
 		Out.Logf(TEXT("\t{\r\n"));
-		Out.Logf(TEXT("\t\textern %suint32 %s();\r\n"), *FriendApiString, *GetHashName);
 
-		Out.Logf(TEXT("\t\tSingleton = GetStaticStruct(%s, %s, TEXT(\"%s\"), sizeof(%s), %s());\r\n"),
-			*ChoppedSingletonName, *OuterName, *ActualStructName, *StructNameCPP, *GetHashName);
+		Out.Logf(TEXT("\t\tSingleton = GetStaticStruct(%s, %s, TEXT(\"%s\"));\r\n"),
+			*ChoppedSingletonName, *OuterName, *ActualStructName);
 
 		// if this struct has RigVM methods - we need to register the method to our central
 		// registry on construction of the static struct
@@ -3922,7 +3929,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		if (bIsDynamic)
 		{
 			const FString& StructPackageName = FClass::GetTypePackageName(Struct);
-			Out.Logf(TEXT("static FCompiledInDeferStruct Z_CompiledInDeferStruct_UScriptStruct_%s(%s::StaticStruct, TEXT(\"%s\"), TEXT(\"%s\"), true, %s, %s);\r\n"),
+			Out.Logf(TEXT("static FRegisterCompiledInInfo Z_CompiledInDeferStruct_UScriptStruct_%s(%s::StaticStruct, TEXT(\"%s\"), TEXT(\"%s\"),  %s, %s);\r\n"),
 				*StructNameCPP,
 				*StructNameCPP,
 				*StructPackageName,
@@ -3932,16 +3939,22 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 		}
 		else
 		{
-			Out.Logf(TEXT("static FCompiledInDeferStruct Z_CompiledInDeferStruct_UScriptStruct_%s(%s::StaticStruct, TEXT(\"%s\"), TEXT(\"%s\"), false, nullptr, nullptr);\r\n"),
+			// Do not change the Z_CompiledInDeferStruct_UScriptStruct_ without changing LC_SymbolPatterns
+			Out.Logf(TEXT("static FRegisterCompiledInInfo Z_CompiledInDeferStruct_UScriptStruct_%s(%s::StaticStruct, TEXT(\"%s\"), TEXT(\"%s\"), Z_Registration_Info_UScriptStruct_%s(), CONSTUCT_RELOAD_VERSION_INFO(FStructReloadVersionInfo, sizeof(%s), %s()));\r\n"),
 				*StructNameCPP,
 				*StructNameCPP,
 				*Struct->GetOutermost()->GetName(),
-				*ActualStructName);
+				*ActualStructName,
+				*Struct->GetName(),
+				*StructNameCPP, 
+				*GetHashName
+			);
 		}
 
 		// Generate StaticRegisterNatives equivalent for structs without classes.
 		if (!Struct->GetOuter()->IsA(UStruct::StaticClass()))
 		{
+			// Do not change the Z_CompiledInDeferCppStructOps_UScriptStruct_ without changing LC_SymbolPatterns
 			const FString ShortPackageName = FPackageName::GetShortName(Struct->GetOuter()->GetName());
 			Out.Logf(TEXT("static struct FScriptStruct_%s_StaticRegisterNatives%s\r\n"), *ShortPackageName, *StructNameCPP);
 			Out.Logf(TEXT("{\r\n"));
@@ -3949,7 +3962,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			Out.Logf(TEXT("\t{\r\n"));
 			Out.Logf(TEXT("\t\tUScriptStruct::DeferCppStructOps<%s>(FName(TEXT(\"%s\")));\r\n"), *StructNameCPP, *ActualStructName);
 			Out.Logf(TEXT("\t}\r\n"));
-			Out.Logf(TEXT("} ScriptStruct_%s_StaticRegisterNatives%s;\r\n"), *ShortPackageName, *StructNameCPP);
+			Out.Logf(TEXT("} Z_CompiledInDeferCppStructOps_UScriptStruct_%s;\r\n"), *StructNameCPP);
 		}
 	}
 
@@ -4054,17 +4067,17 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 	// Structs can either have a UClass or UPackage as outer (if declared in non-UClass header).
 	if (!bIsDynamic)
 	{
-		GeneratedStructRegisterFunctionText.Log (TEXT("#if WITH_HOT_RELOAD\r\n"));
-		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\textern uint32 %s();\r\n"), *HashFuncName);
-		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tUPackage* Outer = %s;\r\n"), *GetPackageSingletonName(CastChecked<UPackage>(Struct->GetOuter()), OutReferenceGatherers.UniqueCrossModuleReferences));
-		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tstatic UScriptStruct* ReturnStruct = FindExistingStructIfHotReloadOrDynamic(Outer, TEXT(\"%s\"), sizeof(%s), %s(), false);\r\n"), *ActualStructName, *NoExportStructNameCPP, *HashFuncName);
-		GeneratedStructRegisterFunctionText.Log (TEXT("#else\r\n"));
-		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tstatic UScriptStruct* ReturnStruct = nullptr;\r\n"));
-		GeneratedStructRegisterFunctionText.Log (TEXT("#endif\r\n"));
+		if (Struct->StructFlags & STRUCT_Native)
+		{
+			GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tstatic UScriptStruct*& ReturnStruct = Z_Registration_Info_UScriptStruct_%s().InnerSingleton;\r\n"), *Struct->GetName());
+		}
+		else
+		{
+			GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tstatic UScriptStruct* ReturnStruct = nullptr;\r\n"));
+		}
 	}
 	else
 	{
-		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\textern uint32 %s();\r\n"), *HashFuncName);
 		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tUPackage* Outer = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));\r\n"), *FClass::GetTypePackageName(Struct));
 		GeneratedStructRegisterFunctionText.Logf(TEXT("\t\tUScriptStruct* ReturnStruct = FindExistingStructIfHotReloadOrDynamic(Outer, TEXT(\"%s\"), sizeof(%s), %s(), true);\r\n"), *ActualStructName, *NoExportStructNameCPP, *HashFuncName);
 	}
@@ -4164,6 +4177,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	const FString SingletonName         = GetSingletonNameFuncAddr(Enum, OutReferenceGatherers.UniqueCrossModuleReferences);
 	const FString EnumNameCpp           = Enum->GetName(); //UserDefinedEnum should already have a valid cpp name.
 	const FString OverriddenEnumNameCpp = FNativeClassHeaderGenerator::GetOverriddenName(Enum);
+	const FString StaticsStructName     = SingletonName/*.LeftChop(2)*/ + TEXT("_Statics");
 
 	const bool bIsEditorOnlyDataType = GEditorOnlyDataTypes.Contains(Enum);
 
@@ -4172,43 +4186,149 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 
 	const FString& PackageSingletonName = (bIsDynamic ? FClass::GetTypePackageName(static_cast<UField*>(Enum)) : GetPackageSingletonName(CastChecked<UPackage>(Enum->GetOuter()), OutReferenceGatherers.UniqueCrossModuleReferences));
 
+	if (!bIsDynamic)
+	{
+		Out.Logf(TEXT("\tstatic FEnumRegistrationInfo& Z_Registration_Info_UEnum_%s()\r\n"), *Enum->GetName());
+		Out.Logf(TEXT("\t{\r\n"));
+		Out.Logf(TEXT("\t\tstatic FEnumRegistrationInfo info;\r\n"));
+		Out.Logf(TEXT("\t\treturn info;\r\n"));
+		Out.Logf(TEXT("\t}\r\n"));
+	}
+
 	Out.Logf(TEXT("\tstatic UEnum* %s_StaticEnum()\r\n"), *Enum->GetName());
 	Out.Logf(TEXT("\t{\r\n"));
 
 	if (!bIsDynamic)
 	{
-		Out.Logf(TEXT("\t\tstatic UEnum* Singleton = nullptr;\r\n"));
+		Out.Logf(TEXT("\t\tstatic UEnum*& OuterSingleton = Z_Registration_Info_UEnum_%s().OuterSingleton;\r\n"), *Enum->GetName());
+		Out.Logf(TEXT("\t\tif (!OuterSingleton)\r\n"));
+		Out.Logf(TEXT("\t\t{\r\n"));
+		Out.Logf(TEXT("\t\t\tOuterSingleton = GetStaticEnum(%s, %s, TEXT(\"%s\"));\r\n"), *SingletonName, *PackageSingletonName, *Enum->GetName());
+		Out.Logf(TEXT("\t\t}\r\n"));
+		Out.Logf(TEXT("\t\treturn OuterSingleton;\r\n"));
 	}
 	else
 	{
 		Out.Logf(TEXT("\t\tclass UPackage* EnumPackage = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));\r\n"), *PackageSingletonName);
 		Out.Logf(TEXT("\t\tclass UEnum* Singleton = Cast<UEnum>(StaticFindObjectFast(UEnum::StaticClass(), EnumPackage, TEXT(\"%s\")));\r\n"), *OverriddenEnumNameCpp);
-	}
-	Out.Logf(TEXT("\t\tif (!Singleton)\r\n"));
-	Out.Logf(TEXT("\t\t{\r\n"));
-	if (!bIsDynamic)
-	{
-		Out.Logf(TEXT("\t\t\tSingleton = GetStaticEnum(%s, %s, TEXT(\"%s\"));\r\n"), *SingletonName, *PackageSingletonName, *Enum->GetName());
-	}
-	else
-	{
+		Out.Logf(TEXT("\t\tif (!Singleton)\r\n"));
+		Out.Logf(TEXT("\t\t{\r\n"));
 		Out.Logf(TEXT("\t\t\tSingleton = GetStaticEnum(%s, EnumPackage, TEXT(\"%s\"));\r\n"), *SingletonName, *OverriddenEnumNameCpp);
+		Out.Logf(TEXT("\t\t}\r\n"));
+		Out.Logf(TEXT("\t\treturn Singleton;\r\n"));
 	}
 
-	Out.Logf(TEXT("\t\t}\r\n"));
-	Out.Logf(TEXT("\t\treturn Singleton;\r\n"));
 	Out.Logf(TEXT("\t}\r\n"));
+
+	const FString& EnumSingletonName = GetSingletonName(Enum, OutReferenceGatherers.UniqueCrossModuleReferences);
+	const FString HashFuncName = FString::Printf(TEXT("Get_%s_Hash"), *SingletonName);
 
 	Out.Logf(TEXT("\ttemplate<> %sUEnum* StaticEnum<%s>()\r\n"), *GetAPIString(), *Enum->CppType);
 	Out.Logf(TEXT("\t{\r\n"));
 	Out.Logf(TEXT("\t\treturn %s_StaticEnum();\r\n"), *Enum->GetName());
 	Out.Logf(TEXT("\t}\r\n"));
 
+	FUHTStringBuilder StaticDefinitions;
+	FUHTStringBuilder StaticDeclarations;
+
+	// Generate the static declarations and definitions
+	{
+
+		// Enums can either have a UClass or UPackage as outer (if declared in non-UClass header).
+		FString OuterString;
+		if (!bIsDynamic)
+		{
+			OuterString = PackageSingletonName;
+		}
+		else
+		{
+			OuterString = FString::Printf(TEXT("[](){ return (UObject*)FindOrConstructDynamicTypePackage(TEXT(\"%s\")); }()"), *PackageSingletonName);
+		}
+
+		const TCHAR* UEnumObjectFlags = bIsDynamic ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
+		const TCHAR* EnumFlags = Enum->HasAnyEnumFlags(EEnumFlags::Flags) ? TEXT("EEnumFlags::Flags") : TEXT("EEnumFlags::None");
+
+		const TCHAR* EnumFormStr = TEXT("");
+		switch (Enum->GetCppForm())
+		{
+		case UEnum::ECppForm::Regular:    EnumFormStr = TEXT("UEnum::ECppForm::Regular");    break;
+		case UEnum::ECppForm::Namespaced: EnumFormStr = TEXT("UEnum::ECppForm::Namespaced"); break;
+		case UEnum::ECppForm::EnumClass:  EnumFormStr = TEXT("UEnum::ECppForm::EnumClass");  break;
+		}
+
+		const FString& EnumDisplayNameFn = Enum->GetMetaData(TEXT("EnumDisplayNameFn"));
+
+		StaticDeclarations.Logf(TEXT("\tstruct %s\r\n"), *StaticsStructName);
+		StaticDeclarations.Logf(TEXT("\t{\r\n"));
+
+		StaticDeclarations.Logf(TEXT("\t\tstatic const UE4CodeGen_Private::FEnumeratorParam Enumerators[];\r\n"));
+		StaticDefinitions.Logf(TEXT("\tconst UE4CodeGen_Private::FEnumeratorParam %s::Enumerators[] = {\r\n"), *StaticsStructName);
+		for (int32 Index = 0; Index != Enum->NumEnums(); ++Index)
+		{
+			const TCHAR* OverridenNameMetaDatakey = TEXT("OverrideName");
+			const FString KeyName = Enum->HasMetaData(OverridenNameMetaDatakey, Index) ? Enum->GetMetaData(OverridenNameMetaDatakey, Index) : Enum->GetNameByIndex(Index).ToString();
+			StaticDefinitions.Logf(TEXT("\t\t{ %s, (int64)%s },\r\n"), *CreateUTF8LiteralString(KeyName), *Enum->GetNameByIndex(Index).ToString());
+		}
+		StaticDefinitions.Logf(TEXT("\t};\r\n"));
+
+		FString MetaDataParamsName = StaticsStructName + TEXT("::Enum_MetaDataParams");
+		FString MetaDataParams = OutputMetaDataCodeForObject(StaticDeclarations, StaticDefinitions, Enum, *MetaDataParamsName, TEXT("\t\t"), TEXT("\t"));
+
+		StaticDeclarations.Logf(TEXT("\t\tstatic const UE4CodeGen_Private::FEnumParams EnumParams;\r\n"));
+		StaticDefinitions.Logf(TEXT("\tconst UE4CodeGen_Private::FEnumParams %s::EnumParams = {\r\n"), *StaticsStructName);
+		StaticDefinitions.Logf(TEXT("\t\t(UObject*(*)())%s,\r\n"), *OuterString.LeftChop(2));
+		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), EnumDisplayNameFn.IsEmpty() ? TEXT("nullptr") : *EnumDisplayNameFn);
+		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *CreateUTF8LiteralString(OverriddenEnumNameCpp));
+		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), *CreateUTF8LiteralString(Enum->CppType));
+		StaticDefinitions.Logf(TEXT("\t\t%s::Enumerators,\r\n"), *StaticsStructName);
+		StaticDefinitions.Logf(TEXT("\t\tUE_ARRAY_COUNT(%s::Enumerators),\r\n"), *StaticsStructName);
+		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), UEnumObjectFlags);
+		StaticDefinitions.Logf(TEXT("\t\t%s,\r\n"), EnumFlags);
+		StaticDefinitions.Logf(TEXT("\t\tUE4CodeGen_Private::EDynamicType::%s,\r\n"), bIsDynamic ? TEXT("Dynamic") : TEXT("NotDynamic"));
+		StaticDefinitions.Logf(TEXT("\t\t(uint8)%s,\r\n"), EnumFormStr);
+		StaticDefinitions.Logf(TEXT("\t\t%s\r\n"), *MetaDataParams);
+		StaticDefinitions.Logf(TEXT("\t};\r\n"));
+
+		StaticDeclarations.Logf(TEXT("\t};\r\n"));
+	}
+
+	//////////////////////////////////////
+
+	FUHTStringBuilder GeneratedEnumRegisterFunctionText;
+
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("%s"), *StaticDeclarations);
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("%s"), *StaticDefinitions);
+
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\tUEnum* %s\r\n"), *EnumSingletonName);
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t{\r\n"));
+
+	// Enums can either have a UClass or UPackage as outer (if declared in non-UClass header).
+	if (!bIsDynamic)
+	{
+		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tstatic UEnum*& ReturnEnum = Z_Registration_Info_UEnum_%s().InnerSingleton;\r\n"), *Enum->GetName());
+	}
+	else
+	{
+		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tUPackage* Outer = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));"), *PackageSingletonName);
+		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tUEnum* ReturnEnum = FindExistingEnumIfHotReloadOrDynamic(Outer, TEXT(\"%s\"), 0, %s(), true);\r\n"), *OverriddenEnumNameCpp, *HashFuncName);
+	}
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tif (!ReturnEnum)\r\n"));
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t{\r\n"));
+
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\tUE4CodeGen_Private::ConstructUEnum(ReturnEnum, %s::EnumParams);\r\n"), *StaticsStructName);
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t}\r\n"));
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\treturn ReturnEnum;\r\n"));
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t}\r\n"));
+
+	uint32 EnumHash = GenerateTextHash(*GeneratedEnumRegisterFunctionText);
+
+	Out.Logf(TEXT("\tuint32 %s() { return %uU; }\r\n"), *HashFuncName, EnumHash);
+
 	if (bIsDynamic)
 	{
 		const FString& EnumPackageName = FClass::GetTypePackageName(static_cast<UField*>(Enum));
 		Out.Logf(
-			TEXT("\tstatic FCompiledInDeferEnum Z_CompiledInDeferEnum_UEnum_%s(%s_StaticEnum, TEXT(\"%s\"), TEXT(\"%s\"), true, %s, %s);\r\n"),
+			TEXT("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferEnum_UEnum_%s(%s_StaticEnum, TEXT(\"%s\"), TEXT(\"%s\"), %s, %s);\r\n"),
 			*EnumNameCpp,
 			*EnumNameCpp,
 			*EnumPackageName,
@@ -4219,89 +4339,18 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	}
 	else
 	{
+		// Do not change the Z_CompiledInDeferEnum_UEnum_ without changing LC_SymbolPatterns
 		Out.Logf(
-			TEXT("\tstatic FCompiledInDeferEnum Z_CompiledInDeferEnum_UEnum_%s(%s_StaticEnum, TEXT(\"%s\"), TEXT(\"%s\"), false, nullptr, nullptr);\r\n"),
+			TEXT("\tstatic FRegisterCompiledInInfo Z_CompiledInDeferEnum_UEnum_%s(%s_StaticEnum, TEXT(\"%s\"), TEXT(\"%s\"), Z_Registration_Info_UEnum_%s(), CONSTUCT_RELOAD_VERSION_INFO(FEnumReloadVersionInfo, %s()));\r\n"),
 			*EnumNameCpp,
 			*EnumNameCpp,
 			*Enum->GetOutermost()->GetName(),
-			*OverriddenEnumNameCpp
+			*OverriddenEnumNameCpp,
+			*EnumNameCpp,
+			*HashFuncName
 		);
 	}
 
-	const FString& EnumSingletonName = GetSingletonName(Enum, OutReferenceGatherers.UniqueCrossModuleReferences);
-	const FString HashFuncName       = FString::Printf(TEXT("Get_%s_Hash"), *SingletonName);
-
-	FUHTStringBuilder GeneratedEnumRegisterFunctionText;
-
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\tUEnum* %s\r\n"), *EnumSingletonName);
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t{\r\n"));
-
-	// Enums can either have a UClass or UPackage as outer (if declared in non-UClass header).
-	FString OuterString;
-	if (!bIsDynamic)
-	{
-		OuterString = PackageSingletonName;
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("#if WITH_HOT_RELOAD\r\n"));
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tUPackage* Outer = %s;\r\n"), *OuterString);
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tstatic UEnum* ReturnEnum = FindExistingEnumIfHotReloadOrDynamic(Outer, TEXT(\"%s\"), 0, %s(), false);\r\n"), *EnumNameCpp, *HashFuncName);
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("#else\r\n"));
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tstatic UEnum* ReturnEnum = nullptr;\r\n"));
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("#endif // WITH_HOT_RELOAD\r\n"));
-	}
-	else
-	{
-		OuterString = FString::Printf(TEXT("[](){ return (UObject*)FindOrConstructDynamicTypePackage(TEXT(\"%s\")); }()"), *PackageSingletonName);
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tUPackage* Outer = FindOrConstructDynamicTypePackage(TEXT(\"%s\"));"), *PackageSingletonName);
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tUEnum* ReturnEnum = FindExistingEnumIfHotReloadOrDynamic(Outer, TEXT(\"%s\"), 0, %s(), true);\r\n"), *OverriddenEnumNameCpp, *HashFuncName);
-	}
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\tif (!ReturnEnum)\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t{\r\n"));
-
-	const TCHAR* UEnumObjectFlags = bIsDynamic ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
-	const TCHAR* EnumFlags        = Enum->HasAnyEnumFlags(EEnumFlags::Flags) ? TEXT("EEnumFlags::Flags") : TEXT("EEnumFlags::None");
-
-	const TCHAR* EnumFormStr = TEXT("");
-	switch (Enum->GetCppForm())
-	{
-		case UEnum::ECppForm::Regular:    EnumFormStr = TEXT("UEnum::ECppForm::Regular");    break;
-		case UEnum::ECppForm::Namespaced: EnumFormStr = TEXT("UEnum::ECppForm::Namespaced"); break;
-		case UEnum::ECppForm::EnumClass:  EnumFormStr = TEXT("UEnum::ECppForm::EnumClass");  break;
-	}
-
-	const FString& EnumDisplayNameFn = Enum->GetMetaData(TEXT("EnumDisplayNameFn"));
-
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\tstatic const UE4CodeGen_Private::FEnumeratorParam Enumerators[] = {\r\n"));
-	for (int32 Index = 0; Index != Enum->NumEnums(); ++Index)
-	{
-		const TCHAR* OverridenNameMetaDatakey = TEXT("OverrideName");
-		const FString KeyName = Enum->HasMetaData(OverridenNameMetaDatakey, Index) ? Enum->GetMetaData(OverridenNameMetaDatakey, Index) : Enum->GetNameByIndex(Index).ToString();
-		GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t{ %s, (int64)%s },\r\n"), *CreateUTF8LiteralString(KeyName), *Enum->GetNameByIndex(Index).ToString());
-	}
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t};\r\n"));
-
-	FOutputDeviceNull OutputDeviceNull;
-	FString MetaDataParams = OutputMetaDataCodeForObject(OutputDeviceNull, GeneratedEnumRegisterFunctionText, Enum, TEXT("Enum_MetaDataParams"), TEXT(""), TEXT("\t\t\t"));
-
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\tstatic const UE4CodeGen_Private::FEnumParams EnumParams = {\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t(UObject*(*)())%s,\r\n"), *OuterString.LeftChop(2));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), EnumDisplayNameFn.IsEmpty() ? TEXT("nullptr") : *EnumDisplayNameFn);
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(OverriddenEnumNameCpp));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(Enum->CppType));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tEnumerators,\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE_ARRAY_COUNT(Enumerators),\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), UEnumObjectFlags);
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), EnumFlags);
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE4CodeGen_Private::EDynamicType::%s,\r\n"), bIsDynamic ? TEXT("Dynamic") : TEXT("NotDynamic"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t(uint8)%s,\r\n"), EnumFormStr);
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s\r\n"), *MetaDataParams);
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t};\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\tUE4CodeGen_Private::ConstructUEnum(ReturnEnum, EnumParams);\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t}\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\treturn ReturnEnum;\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t}\r\n"));
-
-	uint32 EnumHash = GenerateTextHash(*GeneratedEnumRegisterFunctionText);
-	Out.Logf(TEXT("\tuint32 %s() { return %uU; }\r\n"), *HashFuncName, EnumHash);
 	Out.Log(GeneratedEnumRegisterFunctionText);
 }
 

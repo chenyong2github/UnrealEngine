@@ -1512,8 +1512,8 @@ IConsoleObject* FConsoleManager::AddConsoleObject(const TCHAR* Name, IConsoleObj
 		// An existing console object was found that has the same name as the object being registered.
 		// In most cases this is not allowed, but if there is a variable with the same name and is
 		// in an 'unregistered' state or we're hot reloading dlls, we may be able to replace or update that variable.
-#if WITH_HOT_RELOAD
-		const bool bCanUpdateOrReplaceObj = (ExistingObj->AsVariable()||ExistingObj->AsCommand()) && (GIsHotReload || ExistingObj->TestFlags(ECVF_Unregistered));
+#if WITH_RELOAD
+		const bool bCanUpdateOrReplaceObj = (ExistingObj->AsVariable()||ExistingObj->AsCommand()) && (IsReloadActive() || ExistingObj->TestFlags(ECVF_Unregistered));
 #else
 		const bool bCanUpdateOrReplaceObj = ExistingObj->AsVariable() && ExistingObj->TestFlags(ECVF_Unregistered);
 #endif
@@ -1521,7 +1521,7 @@ IConsoleObject* FConsoleManager::AddConsoleObject(const TCHAR* Name, IConsoleObj
 		{
 			// NOTE: The reason we don't assert here is because when using HotReload, locally-initialized static console variables will be
 			//       re-registered, and it's desirable for the new variables to clobber the old ones.  Because this happen outside of the
-			//       hot reload stack frame (GIsHotReload=true), we can't detect and handle only those cases, so we opt to warn instead.
+			//       reload stack frame (IsActiveReload()=true), we can't detect and handle only those cases, so we opt to warn instead.
 			UE_LOG(LogConsoleManager, Warning, TEXT( "Console object named '%s' already exists but is being registered again, but we weren't expected it to be! (FConsoleManager::AddConsoleObject)"), Name );
 		}
 
@@ -1558,8 +1558,8 @@ IConsoleObject* FConsoleManager::AddConsoleObject(const TCHAR* Name, IConsoleObj
 				ConsoleObjects.Add(Name, Var);
 				return Var;
 			}
-#if WITH_HOT_RELOAD
-			else if (GIsHotReload)
+#if WITH_RELOAD
+			else if (IsReloadActive())
 			{
 				// Variable is being replaced due to a hot reload - copy state across to new variable, but only if the type hasn't changed
 				{

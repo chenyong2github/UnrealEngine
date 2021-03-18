@@ -16,8 +16,6 @@
 #include "Templates/WidgetTemplateClass.h"
 #include "Templates/WidgetTemplateBlueprintClass.h"
 
-#include "Developer/HotReload/Public/IHotReload.h"
-
 #include "AssetRegistryModule.h"
 #include "WidgetBlueprintEditorUtils.h"
 
@@ -114,7 +112,7 @@ void FPaletteViewModel::RegisterToEvents()
 	// Register for events that can trigger a palette rebuild
 	GEditor->OnBlueprintReinstanced().AddRaw(this, &FPaletteViewModel::OnBlueprintReinstanced);
 	FEditorDelegates::OnAssetsDeleted.AddSP(this, &FPaletteViewModel::HandleOnAssetsDeleted);
-	IHotReloadModule::Get().OnHotReload().AddSP(this, &FPaletteViewModel::HandleOnHotReload);
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddSP(this, &FPaletteViewModel::OnReloadComplete);
 
 	// register for any objects replaced
 	FCoreUObjectDelegates::OnObjectsReplaced.AddRaw(this, &FPaletteViewModel::OnObjectsReplaced);
@@ -128,7 +126,7 @@ FPaletteViewModel::~FPaletteViewModel()
 {
 	GEditor->OnBlueprintReinstanced().RemoveAll(this);
 	FEditorDelegates::OnAssetsDeleted.RemoveAll(this);
-	IHotReloadModule::Get().OnHotReload().RemoveAll(this);
+	FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll(this);
 	FCoreUObjectDelegates::OnObjectsReplaced.RemoveAll(this);
 
 	UWidgetPaletteFavorites* Favorites = GetDefault<UWidgetDesignerSettings>()->Favorites;
@@ -479,7 +477,7 @@ void FPaletteViewModel::OnFavoritesUpdated()
 	bRebuildRequested = true;
 }
 
-void FPaletteViewModel::HandleOnHotReload(bool bWasTriggeredAutomatically)
+void FPaletteViewModel::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	bRebuildRequested = true;
 }

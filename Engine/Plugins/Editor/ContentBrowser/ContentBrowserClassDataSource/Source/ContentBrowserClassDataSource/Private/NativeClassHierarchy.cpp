@@ -10,7 +10,6 @@
 #include "Misc/PackageName.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "GameProjectGenerationModule.h"
-#include "Misc/HotReloadInterface.h"
 #include "SourceCodeNavigation.h"
 #include "Interfaces/IPluginManager.h"
 #include "Interfaces/IProjectManager.h"
@@ -53,20 +52,15 @@ FNativeClassHierarchy::FNativeClassHierarchy()
 	// Register to be notified of module changes
 	FModuleManager::Get().OnModulesChanged().AddRaw(this, &FNativeClassHierarchy::OnModulesChanged);
 
-	// Register to be notified of hot reloads
-	IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	HotReloadSupport.OnHotReload().AddRaw(this, &FNativeClassHierarchy::OnHotReload);
+	// Register to be notified of reloads
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FNativeClassHierarchy::OnReloadComplete);
 }
 
 FNativeClassHierarchy::~FNativeClassHierarchy()
 {
 	FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 
-	if(FModuleManager::Get().IsModuleLoaded("HotReload"))
-	{
-		IHotReloadInterface& HotReloadSupport = FModuleManager::GetModuleChecked<IHotReloadInterface>("HotReload");
-		HotReloadSupport.OnHotReload().RemoveAll(this);
-	}
+	FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll(this);
 }
 
 TSharedPtr<const FNativeClassHierarchyNode> FNativeClassHierarchy::FindNode(const FName InClassPath, const ENativeClassHierarchyNodeType InType) const
@@ -543,7 +537,7 @@ void FNativeClassHierarchy::OnModulesChanged(FName InModuleName, EModuleChangeRe
 	}
 }
 
-void FNativeClassHierarchy::OnHotReload(bool bWasTriggeredAutomatically)
+void FNativeClassHierarchy::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	PopulateHierarchy();
 }

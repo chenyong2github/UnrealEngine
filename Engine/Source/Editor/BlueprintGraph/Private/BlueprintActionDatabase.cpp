@@ -66,8 +66,6 @@
 // used below in BlueprintActionDatabaseImpl::GetNodeSpectificActions()
 #include "EdGraph/EdGraphNode_Documentation.h"
 
-#include "Misc/HotReloadInterface.h"
-
 #include "BlueprintTypePromotion.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintActionDatabase"
@@ -518,7 +516,7 @@ namespace BlueprintActionDatabaseImpl
 	/**
 	 * Refreshes database after project was hot-reloaded.
 	 */
-	static void OnProjectHotReloaded(bool bWasTriggeredAutomatically);
+	static void OnReloadComplete(EReloadCompleteReason Reason);
 
 	/** 
 	 * Assets that we cleared from the database (to remove references, and make 
@@ -544,7 +542,7 @@ static void BlueprintActionDatabaseImpl::OnModulesChanged(FName InModuleName, EM
 }
 
 //------------------------------------------------------------------------------
-static void BlueprintActionDatabaseImpl::OnProjectHotReloaded(bool bWasTriggeredAutomatically)
+static void BlueprintActionDatabaseImpl::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	BlueprintActionDatabaseImpl::bRefreshAllRequested = true;
 }
@@ -1169,8 +1167,7 @@ FBlueprintActionDatabase::FBlueprintActionDatabase()
 
 	OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddStatic(&BlueprintActionDatabaseImpl::OnModulesChanged);
 
-	IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	OnHotReloadDelegateHandle = HotReloadSupport.OnHotReload().AddStatic(&BlueprintActionDatabaseImpl::OnProjectHotReloaded);
+	OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddStatic(&BlueprintActionDatabaseImpl::OnReloadComplete);
 }
 
 //------------------------------------------------------------------------------
@@ -1198,10 +1195,8 @@ FBlueprintActionDatabase::~FBlueprintActionDatabase()
 	FWorldDelegates::RefreshLevelScriptActions.Remove(RefreshLevelScriptActionsDelegateHandle);
 	FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle);
 
-	if (IHotReloadInterface* HotReloadSupport = FModuleManager::GetModulePtr<IHotReloadInterface>("HotReload"))
-	{
-		HotReloadSupport->OnHotReload().Remove(OnHotReloadDelegateHandle);
-	}
+
+	FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
 }
 
 //------------------------------------------------------------------------------

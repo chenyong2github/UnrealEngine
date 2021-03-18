@@ -68,7 +68,6 @@
 #include "GameProjectGenerationModule.h"
 
 #include "SourceCodeNavigation.h"
-#include "Misc/HotReloadInterface.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Misc/TextFilterExpressionEvaluator.h"
 
@@ -158,8 +157,8 @@ private:
 	 */	
 	void AddChildren_NoFilter( TSharedPtr< FClassViewerNode >& InOutRootNode, TMap<FName, TSharedPtr< FClassViewerNode >>& InOutClassPathToNode );
 
-	/** Called when hot reload has finished */
-	void OnHotReload( bool bWasTriggeredAutomatically );
+	/** Called when reload has finished */
+	void OnReloadComplete( EReloadCompleteReason Reason );
 
 	/** 
 	 * Loads the tag data for an unloaded blueprint asset.
@@ -1012,9 +1011,8 @@ FClassHierarchy::FClassHierarchy()
 	AssetRegistryModule.Get().OnAssetAdded().AddRaw( this, &FClassHierarchy::AddAsset);
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw( this, &FClassHierarchy::RemoveAsset );
 
-	// Register to have Populate called when doing a Hot Reload.
-	IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	HotReloadSupport.OnHotReload().AddRaw( this, &FClassHierarchy::OnHotReload );
+	// Register to have Populate called when doing a Reload.
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw( this, &FClassHierarchy::OnReloadComplete );
 
 	// Register to have Populate called when a Blueprint is compiled.
 	OnBlueprintCompiledRequestPopulateClassHierarchyDelegateHandle            = GEditor->OnBlueprintCompiled().AddStatic(ClassViewer::Helpers::RequestPopulateClassHierarchy);
@@ -1033,12 +1031,8 @@ FClassHierarchy::~FClassHierarchy()
 		AssetRegistryModule.Get().OnAssetAdded().RemoveAll( this );
 		AssetRegistryModule.Get().OnAssetRemoved().RemoveAll( this );
 
-		// Unregister to have Populate called when doing a Hot Reload.
-		if(FModuleManager::Get().IsModuleLoaded("HotReload"))
-		{
-			IHotReloadInterface& HotReloadSupport = FModuleManager::GetModuleChecked<IHotReloadInterface>("HotReload");
-			HotReloadSupport.OnHotReload().RemoveAll(this);
-		}
+		// Unregister to have Populate called when doing a Reload.
+		FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll(this);
 
 		if (GEditor)
 		{
@@ -1051,7 +1045,7 @@ FClassHierarchy::~FClassHierarchy()
 	FModuleManager::Get().OnModulesChanged().RemoveAll(this);
 }
 
-void FClassHierarchy::OnHotReload(bool bWasTriggeredAutomatically)
+void FClassHierarchy::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	ClassViewer::Helpers::RequestPopulateClassHierarchy();
 }

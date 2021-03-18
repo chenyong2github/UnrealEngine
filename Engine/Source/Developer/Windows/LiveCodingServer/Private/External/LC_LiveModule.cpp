@@ -2473,6 +2473,12 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 					*/
 					continue;
 				}
+				// BEGIN EPIC MOD
+				else if (symbols::IsUENoStripSymbol(symbolName))
+				{
+					continue;
+				}
+				// END EPIC MOD
 
 				LC_LOG_DEV("Considering symbol %s for stripping", symbolName.c_str());
 				LC_LOG_INDENT_DEV;
@@ -3931,6 +3937,15 @@ LiveModule::ErrorType::Enum LiveModule::Update(FileAttributeCache* fileCache, Di
 		{
 			const symbols::Symbol* initializerSymbol = initializerDb.dynamicInitializers[i];
 			const ImmutableString& name = initializerSymbol->name;
+
+			// BEGIN EPIC MOD
+			if (symbols::IsUEInitializerSymbol(name))
+			{
+				LC_LOG_DEV("Skipping dynamic initializer symbol %s", name.c_str());
+				continue;
+			}
+			// END EPIC MOD
+
 			const ModuleCache::FindSymbolData& originalData = m_moduleCache->FindSymbolByName(token, name);
 			if (originalData.symbol)
 			{

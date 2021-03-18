@@ -28,12 +28,12 @@
 #include "UObject/PropertyTag.h"
 #include "UObject/UnrealType.h"
 #include "UObject/UnrealTypePrivate.h"
+#include "UObject/Reload.h"
 #include "UObject/Stack.h"
 #include "Misc/PackageName.h"
 #include "UObject/ObjectResource.h"
 #include "UObject/LinkerSave.h"
 #include "UObject/Interface.h"
-#include "Misc/HotReloadInterface.h"
 #include "UObject/LinkerPlaceholderClass.h"
 #include "UObject/LinkerPlaceholderFunction.h"
 #include "UObject/StructScriptLoader.h"
@@ -2512,9 +2512,7 @@ void UScriptStruct::DeferCppStructOps(FName Target, ICppStructOps* InCppStructOp
 
 	if (UScriptStruct::ICppStructOps* ExistingOps = DeferredStructOps.FindRef(Target))
 	{
-#if WITH_HOT_RELOAD
-		if (!GIsHotReload) // in hot reload, we will just leak these...they may be in use.
-#endif
+		if (!IsReloadActive()) // in reload, we will just leak these...they may be in use.
 		{
 			check(ExistingOps != InCppStructOps); // if it was equal, then we would be re-adding a now stale pointer to the map
 			delete ExistingOps;
@@ -2549,11 +2547,7 @@ void UScriptStruct::PrepareCppStructOps()
 		
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		// test that the constructor is initializing everything
-		if (!CppStructOps->HasZeroConstructor()
-#if WITH_HOT_RELOAD
-			&& !GIsHotReload // in hot reload, these produce bogus warnings
-#endif
-			)
+		if (!CppStructOps->HasZeroConstructor() && !IsReloadActive()) // when reloading, we get bogus warnings
 		{
 			int32 Size = CppStructOps->GetSize();
 			uint8* TestData00 = (uint8*)FMemory::Malloc(Size);
@@ -5052,12 +5046,12 @@ void UClass::SetSparseClassDataStruct(UScriptStruct* InSparseClassDataStruct)
 	{
 		SparseClassDataStruct = InSparseClassDataStruct;
 
-		// the old type and new type may not match when we do a hot reload so get rid of the old data
+		// the old type and new type may not match when we do a reload so get rid of the old data
 		CleanupSparseClassData();
 	}
 }
 
-#if WITH_HOT_RELOAD
+#if WITH_RELOAD
 
 bool UClass::HotReloadPrivateStaticClass(
 	uint32			InSize,
@@ -5129,7 +5123,7 @@ bool UClass::HotReloadPrivateStaticClass(
 	}
 	else
 	{
-		UE_LOG(LogClass, Warning, TEXT("Hot Reload:  Was not expecting temporary object '%s' for class '%s' to become rooted during construction.  This object cannot be marked pending kill." ), *TempObjectForVTable->GetFName().ToString(), *this->GetName() );
+		UE_LOG(LogClass, Warning, TEXT("Reload:  Was not expecting temporary object '%s' for class '%s' to become rooted during construction.  This object cannot be marked pending kill." ), *TempObjectForVTable->GetFName().ToString(), *this->GetName() );
 	}
 
 	ClassWithin = TClass_WithinClass_StaticClass;
@@ -5171,13 +5165,6 @@ bool UClass::HotReloadPrivateStaticClass(
 
 bool UClass::ReplaceNativeFunction(FName InFName, FNativeFuncPtr InPointer, bool bAddToFunctionRemapTable)
 {
-	IHotReloadInterface* HotReloadSupport = nullptr;
-
-	if(bAddToFunctionRemapTable)
-	{
-		HotReloadSupport = &FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	}
-
 	// Find the function in the class's native function lookup table.
 	for (int32 FunctionIndex = 0; FunctionIndex < NativeFunctionLookupTable.Num(); ++FunctionIndex)
 	{
@@ -5186,7 +5173,7 @@ bool UClass::ReplaceNativeFunction(FName InFName, FNativeFuncPtr InPointer, bool
 		{
 			if (bAddToFunctionRemapTable)
 			{
-				HotReloadSupport->AddHotReloadFunctionRemap(InPointer, NativeFunctionLookup.Pointer);
+				ReloadNotifyFunctionRemap(InPointer, NativeFunctionLookup.Pointer);
 			}
 			NativeFunctionLookup.Pointer = InPointer;
 			return true;
@@ -5199,8 +5186,8 @@ bool UClass::ReplaceNativeFunction(FName InFName, FNativeFuncPtr InPointer, bool
 
 UClass* UClass::GetAuthoritativeClass()
 {
-#if WITH_HOT_RELOAD && WITH_ENGINE
-	if (GIsHotReload)
+#if WITH_RELOAD && WITH_ENGINE
+	if (IsReloadActive())
 	{
 		const TMap<UClass*, UClass*>& ReinstancedClasses = GetClassesToReinstanceForHotReload();
 		if (UClass* const* FoundMapping = ReinstancedClasses.Find(this))
@@ -5216,8 +5203,8 @@ UClass* UClass::GetAuthoritativeClass()
 void UClass::AddNativeFunction(const ANSICHAR* InName, FNativeFuncPtr InPointer)
 {
 	FName InFName(InName);
-#if WITH_HOT_RELOAD
-	if (GIsHotReload)
+#if WITH_RELOAD
+	if (IsReloadActive())
 	{
 		// Find the function in the class's native function lookup table.
 		if (ReplaceNativeFunction(InFName, InPointer, true))
@@ -5227,7 +5214,7 @@ void UClass::AddNativeFunction(const ANSICHAR* InName, FNativeFuncPtr InPointer)
 		else
 		{
 			// function was not found, so it's new
-			UE_LOG(LogClass, Log, TEXT("Function %s is new."), *InFName.ToString());
+			UE_LOG(LogClass, Log, TEXT("Function %s is new or belongs to a modified class."), *InFName.ToString());
 		}
 	}
 #endif
@@ -5237,8 +5224,8 @@ void UClass::AddNativeFunction(const ANSICHAR* InName, FNativeFuncPtr InPointer)
 void UClass::AddNativeFunction(const WIDECHAR* InName, FNativeFuncPtr InPointer)
 {
 	FName InFName(InName);
-#if WITH_HOT_RELOAD
-	if (GIsHotReload)
+#if WITH_RELOAD
+	if (IsReloadActive())
 	{
 		// Find the function in the class's native function lookup table.
 		if (ReplaceNativeFunction(InFName, InPointer, true))
@@ -5248,7 +5235,7 @@ void UClass::AddNativeFunction(const WIDECHAR* InName, FNativeFuncPtr InPointer)
 		else
 		{
 			// function was not found, so it's new
-			UE_LOG(LogClass, Log, TEXT("Function %s is new."), *InFName.ToString());
+			UE_LOG(LogClass, Log, TEXT("Function %s is new or belongs to a modified."), *InFName.ToString());
 		}
 	}
 #endif
@@ -5494,8 +5481,8 @@ void GetPrivateStaticClassBody(
 	UDynamicClass::DynamicClassInitializerType InDynamicClassInitializerFn /*= nullptr*/
 	)
 {
-#if WITH_HOT_RELOAD
-	if (GIsHotReload)
+#if WITH_RELOAD
+	if (IsReloadActive() && GetActiveReloadType() != EActiveReloadType::Reinstancing)
 	{
 		check(!bIsDynamic);
 		UPackage* Package = FindPackage(NULL, PackageName);
@@ -5523,12 +5510,12 @@ void GetPrivateStaticClassBody(
 			}
 			else
 			{
-				UE_LOG(LogClass, Log, TEXT("Could not find existing class %s in package %s for HotReload, assuming new class"), Name, PackageName);
+				UE_LOG(LogClass, Log, TEXT("Could not find existing class %s in package %s for reload, assuming new or modified class"), Name, PackageName);
 			}
 		}
 		else
 		{
-			UE_LOG(LogClass, Log, TEXT("Could not find existing package %s for HotReload of class %s, assuming a new package."), PackageName, Name);
+			UE_LOG(LogClass, Log, TEXT("Could not find existing package %s for reload of class %s, assuming a new package."), PackageName, Name);
 		}
 	}
 #endif
@@ -5600,6 +5587,9 @@ UFunction::UFunction(const FObjectInitializer& ObjectInitializer, UFunction* InS
 , EventGraphFunction(nullptr)
 , EventGraphCallOffset(0)
 #endif
+#if WITH_LIVE_CODING
+, SingletonPtr(nullptr)
+#endif
 {
 }
 
@@ -5609,6 +5599,9 @@ UFunction::UFunction(UFunction* InSuperFunction, EFunctionFlags InFunctionFlags,
 	, RPCId(0)
 	, RPCResponseId(0)
 	, FirstPropertyToInit(NULL)
+#if WITH_LIVE_CODING
+	, SingletonPtr(nullptr)
+#endif
 {
 }
 

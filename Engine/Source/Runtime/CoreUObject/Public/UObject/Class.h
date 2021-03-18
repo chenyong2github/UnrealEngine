@@ -1826,6 +1826,11 @@ public:
 	int32 EventGraphCallOffset;
 #endif
 
+#if WITH_LIVE_CODING
+	/** Pointer to the cached singleton pointer to this instance */
+	UFunction** SingletonPtr;
+#endif
+
 private:
 	/** C++ function this is bound to */
 	FNativeFuncPtr Func;
@@ -2799,7 +2804,7 @@ public:
 		ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
 		ClassAddReferencedObjectsType InClassAddReferencedObjects);
 
-#if WITH_HOT_RELOAD
+#if WITH_RELOAD
 	/**
 	 * Called when a class is reloading from a DLL...updates various information in-place.
 	 * @param	InSize							sizeof the class

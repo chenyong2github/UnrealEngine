@@ -8,12 +8,12 @@
 TArray<FString> UGameplayTaskResource::ResourceDescriptions;
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-#if WITH_HOT_RELOAD
+#if WITH_RELOAD
 namespace
 {
 	TMap<FName, int8> ClassNameToIDMap;
 }
-#endif // WITH_HOT_RELOAD
+#endif // WITH_RELOAD
 
 UGameplayTaskResource::UGameplayTaskResource(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -29,8 +29,8 @@ void UGameplayTaskResource::PostInitProperties()
 
 	if (HasAnyFlags(RF_ClassDefaultObject) && (GetClass()->HasAnyClassFlags(CLASS_Abstract) == false))
 	{
-#if WITH_HOT_RELOAD
-		if (GIsHotReload)
+#if WITH_RELOAD
+		if (IsReloadActive())
 		{
 			if ((bManuallySetID == false || ManualResourceID == INDEX_NONE))
 			{
@@ -43,7 +43,7 @@ void UGameplayTaskResource::PostInitProperties()
 			}
 		}
 		else
-#endif // WITH_HOT_RELOAD
+#endif // WITH_RELOAD
 		{
 			if (bManuallySetID == false || ManualResourceID == INDEX_NONE)
 			{
@@ -56,9 +56,9 @@ void UGameplayTaskResource::PostInitProperties()
 			ResourceDescriptions[DebugId] = GenerateDebugDescription();
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
-#if WITH_HOT_RELOAD
+#if WITH_RELOAD
 			ClassNameToIDMap.Add(GetFName(), DebugId);
-#endif // WITH_HOT_RELOAD
+#endif // WITH_RELOAD
 		}
 	}
 }

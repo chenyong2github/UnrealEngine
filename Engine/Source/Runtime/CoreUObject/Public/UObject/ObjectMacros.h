@@ -11,9 +11,8 @@
 #include "UObject/Script.h"
 
 class FObjectInitializer;
-struct FCompiledInDefer;
 struct FFrame;
-template <typename TClass> struct TClassCompiledInDefer;
+struct FClassReloadVersionInfo;
 
 /** Represents a serializable object pointer in blueprint bytecode. This is always 64-bits, even on 32-bit platforms. */
 typedef	uint64 ScriptPointerType;
@@ -1554,6 +1553,12 @@ namespace UM
 #define DECLARE_FARCHIVE_SERIALIZER( TClass, API ) virtual API void Serialize(FArchive& Ar) override;
 #define DECLARE_FSTRUCTUREDARCHIVE_SERIALIZER( TClass, API ) virtual API void Serialize(FStructuredArchive::FRecord Record) override;
 
+#if WITH_RELOAD
+#define CONSTUCT_RELOAD_VERSION_INFO(VersionInfo, ...) VersionInfo { __VA_ARGS__ }
+#else
+#define CONSTUCT_RELOAD_VERSION_INFO(VersionInfo, ...) VersionInfo()
+#endif
+
 /*-----------------------------------------------------------------------------
 	Class declaration macros.
 -----------------------------------------------------------------------------*/
@@ -1585,6 +1590,8 @@ public: \
 	{ \
 		return TStaticCastFlags; \
 	} \
+	/** Returns the static registration structure for the class */ \
+	static FClassRegistrationInfo& StaticRegistrationInfo(); \
 	/** For internal use only; use StaticConstructObject() to create new objects. */ \
 	inline void* operator new(const size_t InSize, EInternal InInternalOnly, UObject* InOuter = (UObject*)GetTransientPackage(), FName InName = NAME_None, EObjectFlags InSetFlags = RF_NoFlags) \
 	{ \
@@ -1637,16 +1644,16 @@ public: \
 		return nullptr; \
 	}
 
-#if WITH_HOT_RELOAD && !CHECK_PUREVIRTUALS
+#if WITH_RELOAD && !CHECK_PUREVIRTUALS
 	#define DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER(TClass) \
 		static UObject* __VTableCtorCaller(FVTableHelper& Helper) \
 		{ \
 			return new (EC_InternalUseOnlyConstructor, (UObject*)GetTransientPackage(), NAME_None, RF_NeedLoad | RF_ClassDefaultObject | RF_TagGarbageTemp) TClass(Helper); \
 		}
-#else // WITH_HOT_RELOAD && !CHECK_PUREVIRTUALS
+#else // WITH_RELOAD && !CHECK_PUREVIRTUALS
 	#define DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER(TClass) \
 		DEFINE_VTABLE_PTR_HELPER_CTOR_CALLER_DUMMY()
-#endif // WITH_HOT_RELOAD && !CHECK_PUREVIRTUALS
+#endif // WITH_RELOAD && !CHECK_PUREVIRTUALS
 
 #define DECLARE_CLASS_INTRINSIC_NO_CTOR(TClass,TSuperClass,TStaticFlags,TPackage) \
 	DECLARE_CLASS(TClass, TSuperClass, TStaticFlags | CLASS_Intrinsic, CASTCLASS_None, TPackage, NO_API) \
@@ -1727,10 +1734,16 @@ public: \
 
 // Register a class at startup time.
 #define IMPLEMENT_CLASS(TClass, TClassCrc) \
-	static TClassCompiledInDefer<TClass> AutoInitialize##TClass(TEXT(#TClass), sizeof(TClass), TClassCrc); \
+	FClassRegistrationInfo& TClass::StaticRegistrationInfo() \
+	{ \
+		static FClassRegistrationInfo info; \
+		return info; \
+	} \
+	/* Do not change the AutoInitialize_ without changing LC_SymbolPatterns */ \
+	static FRegisterCompiledInInfo AutoInitialize_##TClass(&Z_Construct_UClass_##TClass, TClass::StaticClass, TClass::StaticPackage(), TEXT(#TClass), TClass::StaticRegistrationInfo(), CONSTUCT_RELOAD_VERSION_INFO(FClassReloadVersionInfo, sizeof(TClass), TClassCrc)); \
 	UClass* TClass::GetPrivateStaticClass() \
 	{ \
-		static UClass* PrivateStaticClass = NULL; \
+		static UClass*& PrivateStaticClass = StaticRegistrationInfo().InnerSingleton; \
 		if (!PrivateStaticClass) \
 		{ \
 			/* this could be handled with templates, but we want it external to avoid code bloat */ \
@@ -1756,7 +1769,6 @@ public: \
 
 // Used for intrinsics, this sets up the boiler plate, plus an initialization singleton, which can create properties and GC tokens
 #define IMPLEMENT_INTRINSIC_CLASS(TClass, TRequiredAPI, TSuperClass, TSuperRequiredAPI, TPackage, InitCode) \
-	IMPLEMENT_CLASS(TClass, 0) \
 	TRequiredAPI UClass* Z_Construct_UClass_##TClass(); \
 	struct Z_Construct_UClass_##TClass##_Statics \
 	{ \
@@ -1774,7 +1786,7 @@ public: \
 	}; \
 	UClass* Z_Construct_UClass_##TClass() \
 	{ \
-		static UClass* Class = NULL; \
+		static UClass* Class = TClass::StaticRegistrationInfo().OuterSingleton; \
 		if (!Class) \
 		{ \
 			Class = Z_Construct_UClass_##TClass##_Statics::Construct();\
@@ -1782,7 +1794,7 @@ public: \
 		check(Class->GetClass()); \
 		return Class; \
 	} \
-	static FCompiledInDefer Z_CompiledInDefer_UClass_##TClass(Z_Construct_UClass_##TClass, &TClass::StaticClass, TEXT(TPackage), TEXT(#TClass), false);
+	IMPLEMENT_CLASS(TClass, 0)
 
 #define IMPLEMENT_CORE_INTRINSIC_CLASS(TClass, TSuperClass, InitCode) \
 	IMPLEMENT_INTRINSIC_CLASS(TClass, COREUOBJECT_API, TSuperClass, COREUOBJECT_API, "/Script/CoreUObject" ,InitCode)

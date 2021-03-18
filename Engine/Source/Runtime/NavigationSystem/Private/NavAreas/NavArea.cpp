@@ -18,11 +18,7 @@ UNavArea::UNavArea(const FObjectInitializer& ObjectInitializer)
 
 void UNavArea::FinishDestroy()
 {
-	if (HasAnyFlags(RF_ClassDefaultObject)
-#if WITH_HOT_RELOAD
-		&& !GIsHotReload
-#endif // WITH_HOT_RELOAD
-		)
+	if (HasAnyFlags(RF_ClassDefaultObject) && !IsReloadActive())
 	{
 		UNavigationSystemV1::RequestAreaUnregistering(GetClass());
 	}
@@ -46,9 +42,7 @@ void UNavArea::RegisterArea()
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) && 
 		!HasAnyFlags(RF_NeedInitialization)  // Don't register BP Area that has still not finished loaded their properties, it was also try again to register later via UNavArea::PostLoad()
-#if WITH_HOT_RELOAD
-		&& !GIsHotReload
-#endif // WITH_HOT_RELOAD
+		&& !IsReloadActive()
 		)
 	{
 		UNavigationSystemV1::RequestAreaRegistering(GetClass());
@@ -114,11 +108,7 @@ void UNavArea::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	if (HasAnyFlags(RF_ClassDefaultObject)
-#if WITH_HOT_RELOAD
-		&& !GIsHotReload
-#endif // WITH_HOT_RELOAD
-		)
+	if (HasAnyFlags(RF_ClassDefaultObject) && !IsReloadActive())
 	{
 		const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
 		if (PropertyName == NAME_DefaultCost

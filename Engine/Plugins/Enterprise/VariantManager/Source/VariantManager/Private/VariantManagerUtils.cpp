@@ -26,12 +26,12 @@ FDelegateHandle FVariantManagerUtils::OnHotReloadHandle;
 
 void FVariantManagerUtils::RegisterForHotReload()
 {
-	OnHotReloadHandle = FCoreUObjectDelegates::RegisterClassForHotReloadReinstancingDelegate.AddStatic(&FVariantManagerUtils::InvalidateCache);
+	OnHotReloadHandle = FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.AddStatic(&FVariantManagerUtils::InvalidateCache);
 }
 
 void FVariantManagerUtils::UnregisterForHotReload()
 {
-	FCoreUObjectDelegates::RegisterClassForHotReloadReinstancingDelegate.Remove(OnHotReloadHandle);
+	FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate.Remove(OnHotReloadHandle);
 	OnHotReloadHandle.Reset();
 }
 
@@ -155,7 +155,7 @@ FStructProperty* FVariantManagerUtils::GetDefaultLightColorProperty()
 	return DefaultLightColorProperty;
 }
 
-void FVariantManagerUtils::InvalidateCache(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags)
+void FVariantManagerUtils::InvalidateCache()
 {
 	OverrideMaterialsProperty = nullptr;
 	RelativeLocationProperty = nullptr;

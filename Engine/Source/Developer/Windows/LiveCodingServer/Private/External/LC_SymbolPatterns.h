@@ -41,4 +41,9 @@ namespace symbolPatterns
 	extern const char* const TLS_STATICS_PATTERNS[1];
 
 	extern const char* const ANONYMOUS_NAMESPACE_PATTERN;
+
+	// BEGIN EPIC MOD
+	extern const char* const UE_STATICS_BLOCK_PATTERNS[5];
+	extern const char* const UE_REGISTER_PATTERNS[4];
+	// END EPIC MOD
 }

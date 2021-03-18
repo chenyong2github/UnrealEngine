@@ -348,11 +348,11 @@ private:
 	void OnModulesChanged(FName InModuleName, EModuleChangeReason InModuleChangeReason);
 
 	/**
-	 * Called when we're notified that a module has been hot-reloaded
+	 * Called when we're notified that a module has been reloaded
 	 *
-	 * @param bWasTriggeredAutomatically - True if the hot-reload was automatically triggered, or false if it was from a user action
+	 * @param Reason - The reason why the module was reloaded
 	 */
-	void OnHotReload(bool bWasTriggeredAutomatically);
+	void OnReloadComplete(EReloadCompleteReason Reason);
 
 	/**
 	 * Given a class, work out which module it belongs to

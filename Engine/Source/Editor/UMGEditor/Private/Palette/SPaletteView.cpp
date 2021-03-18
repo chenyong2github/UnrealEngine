@@ -21,8 +21,6 @@
 #include "Templates/WidgetTemplateClass.h"
 #include "Templates/WidgetTemplateBlueprintClass.h"
 
-#include "Developer/HotReload/Public/IHotReload.h"
-
 #include "AssetRegistryModule.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Input/SCheckBox.h"

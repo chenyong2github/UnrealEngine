@@ -82,7 +82,7 @@ struct AIGRAPH_API FGraphNodeClassHelper
 	void OnAssetAdded(const struct FAssetData& AssetData);
 	void OnAssetRemoved(const struct FAssetData& AssetData);
 	void InvalidateCache();
-	void OnHotReload(bool bWasTriggeredAutomatically);
+	void OnReloadComplete(EReloadCompleteReason Reason);
 
 	static void AddUnknownClass(const FGraphNodeClassData& ClassData);
 	static bool IsClassKnown(const FGraphNodeClassData& ClassData);

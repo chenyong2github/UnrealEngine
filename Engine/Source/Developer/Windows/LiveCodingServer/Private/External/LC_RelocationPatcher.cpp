@@ -192,9 +192,15 @@ relocations::Record relocations::PatchRelocation
 		}
 	}
 
+	// BEGIN EPIC MOD
+	bool backwards = symbols::IsUEReversePatchSymbol(dstSymbolName) || symbols::IsUEReversePatchSymbol(srcSymbolName);
+	// END EPIC MOD
+
 	// find the relocation's destination symbol in the original .exe, and patch the relocation
 	// to point to this symbol.
-	const ModuleCache::FindSymbolData& originalData = moduleCache->FindSymbolByName(newModuleIndex, dstSymbolName);
+	// BEGIN EPIC MOD
+	const ModuleCache::FindSymbolData originalData = backwards ? moduleCache->FindSymbolByNameBackwards(ModuleCache::SEARCH_ALL_MODULES, dstSymbolName) : moduleCache->FindSymbolByName(newModuleIndex, dstSymbolName);
+	// END EPIC MOD
 	const symbols::Symbol* originalSymbol = originalData.symbol;
 	if (!originalSymbol)
 	{

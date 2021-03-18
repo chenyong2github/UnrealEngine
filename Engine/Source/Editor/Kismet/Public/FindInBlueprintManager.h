@@ -681,8 +681,8 @@ private:
 	/** Callback from Kismet when a Blueprint is unloaded */
 	void OnBlueprintUnloaded(class UBlueprint* InBlueprint);
 
-	/** Callback hook from the Hot Reload manager that indicates that a module has been hot-reloaded */
-	void OnHotReload(bool bWasTriggeredAutomatically);
+	/** Callback hook from the Reload manager that indicates that a module has been reloaded */
+	void OnReloadComplete(EReloadCompleteReason Reason);
 
 	/** Returns a copy of the search data that's cached at the given index. Will return invalid (empty) search data if the index is out of range */
 	FSearchData GetSearchDataForIndex(int32 CacheIndex);

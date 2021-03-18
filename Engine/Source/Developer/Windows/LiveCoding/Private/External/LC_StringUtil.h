@@ -37,6 +37,14 @@ namespace string
 	bool StartsWith(const char* str, const char* subString);
 	bool StartsWith(const wchar_t* str, const wchar_t* subString);
 
+	// BEGIN EPIC MOD
+	const char* StartsWithEx(const char* str, const char* subString);
+	const wchar_t* StartsWithEx(const wchar_t* str, const wchar_t* subString);
+
+	bool MatchWildcard(const char* target, const char* wildcard);
+	bool MatchWildcard(const wchar_t* target, const wchar_t* wildcard);
+	// END EPIC MOD
+
 	inline char ToLower(char c)
 	{
 		return static_cast<char>(::tolower(c));

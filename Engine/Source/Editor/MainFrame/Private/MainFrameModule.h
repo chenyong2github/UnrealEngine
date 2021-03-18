@@ -204,8 +204,8 @@ private:
 	// Handles the level editor module finishing to recompile.
 	void HandleLevelEditorModuleCompileFinished( const FString& LogDump, ECompilationResult::Type CompilationResult, bool bShowLog );
 
-	/** Called when Hot Reload completes */
-	void HandleHotReloadFinished( bool bWasTriggeredAutomatically );
+	/** Called when Reload completes */
+	void HandleReloadFinished( EReloadCompleteReason Reason );
 
 	// Handles the code accessor having finished launching its editor
 	void HandleCodeAccessorLaunched( const bool WasSuccessful );

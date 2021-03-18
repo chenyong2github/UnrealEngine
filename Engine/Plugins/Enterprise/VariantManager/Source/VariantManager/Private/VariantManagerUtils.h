@@ -45,7 +45,7 @@ public:
 
 private:
 	// Invalidates all of our cached FProperty pointers
-	static void InvalidateCache(UClass* OldClass, UClass* NewClass, EHotReloadedClassFlags Flags);
+	static void InvalidateCache();
 
 	static FArrayProperty* OverrideMaterialsProperty;
 	static FStructProperty* RelativeLocationProperty;

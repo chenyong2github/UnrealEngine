@@ -205,7 +205,7 @@ private:
 	FDelegateHandle OnWorldDestroyedDelegateHandle;
 	FDelegateHandle RefreshLevelScriptActionsDelegateHandle;
 	FDelegateHandle OnModulesChangedDelegateHandle;
-	FDelegateHandle OnHotReloadDelegateHandle;
+	FDelegateHandle OnReloadCompleteDelegateHandle;
 
 	/** Pointer to the shared list of currently existing component types */
 	const TArray<struct FComponentTypeEntry>* ComponentTypes;

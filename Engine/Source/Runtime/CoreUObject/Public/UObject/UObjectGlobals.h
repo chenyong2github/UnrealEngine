@@ -2314,6 +2314,13 @@ enum class EHotReloadedClassFlags
 
 ENUM_CLASS_FLAGS(EHotReloadedClassFlags)
 
+enum class EReloadCompleteReason
+{
+	None,
+	HotReloadAutomatic,
+	HotReloadManual,
+};
+
 /**
  * Global CoreUObject delegates
  */
@@ -2379,16 +2386,31 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FIsPackageOKToSaveDelegate, UPackage*, const FString&, FOutputDevice*);
 	static FIsPackageOKToSaveDelegate IsPackageOKToSaveDelegate;
 
+	/** Delegate for reloaded classes that have been added. */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FReloadAddedClassesDelegate, const TArray<UClass*>&);
+	static FReloadAddedClassesDelegate ReloadAddedClassesDelegate;
+
+	/** Delegate for reload re-instancing complete */
+	DECLARE_MULTICAST_DELEGATE(FReloadReinstancingCompleteDelegate);
+	static FReloadReinstancingCompleteDelegate ReloadReinstancingCompleteDelegate;
+
+	/** Delegate for reload re-instancing complete */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FReloadCompleteDelegate, EReloadCompleteReason);
+	static FReloadCompleteDelegate ReloadCompleteDelegate;
+
 	/** Delegate for registering hot-reloaded classes that have been added  */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FRegisterHotReloadAddedClassesDelegate, const TArray<UClass*>&);
+	UE_DEPRECATED(5.0, "RegisterHotReloadAddedClassesDelegate has been deprecated, use ReloadAddedClassesDelegate.")
 	static FRegisterHotReloadAddedClassesDelegate RegisterHotReloadAddedClassesDelegate;
 
 	/** Delegate for registering hot-reloaded classes that changed after hot-reload for reinstancing */
 	DECLARE_MULTICAST_DELEGATE_ThreeParams(FRegisterClassForHotReloadReinstancingDelegate, UClass*, UClass*, EHotReloadedClassFlags);
+	UE_DEPRECATED(5.0, "RegisterClassForHotReloadReinstancingDelegate has been deprecated, use FReload for class re-instancing.")
 	static FRegisterClassForHotReloadReinstancingDelegate RegisterClassForHotReloadReinstancingDelegate;
 
 	/** Delegate for reinstancing hot-reloaded classes */
 	DECLARE_MULTICAST_DELEGATE(FReinstanceHotReloadedClassesDelegate);
+	UE_DEPRECATED(5.0, "ReinstanceHotReloadedClassesDelegate has been deprecated, use FReload for class re-instancing or ReloadReinstancingCompleteDelegate for notification")
 	static FReinstanceHotReloadedClassesDelegate ReinstanceHotReloadedClassesDelegate;
 
 	/** Delegate for catching when UClasses/UStructs/UEnums would be available via FindObject<>(), but before their CDOs would be constructed. */
@@ -2993,7 +3015,7 @@ namespace UE4CodeGen_Private
 #endif
 	};
 
-	COREUOBJECT_API void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params);
+	COREUOBJECT_API void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params, UFunction** SingletonPtr = nullptr);
 	COREUOBJECT_API void ConstructUEnum(UEnum*& OutEnum, const FEnumParams& Params);
 	COREUOBJECT_API void ConstructUScriptStruct(UScriptStruct*& OutStruct, const FStructParams& Params);
 	COREUOBJECT_API void ConstructUPackage(UPackage*& OutPackage, const FPackageParams& Params);

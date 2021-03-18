@@ -148,6 +148,18 @@
 #endif
 
 /**
+* Make sure that live coding define is available.  Normally this is supplied by UBT
+*/
+#ifndef WITH_LIVE_CODING
+	#define WITH_LIVE_CODING 0
+#endif
+
+/**
+* Whether we support any type of live reloading
+*/
+#define WITH_RELOAD (WITH_HOT_RELOAD || WITH_LIVE_CODING)
+
+/**
 * Whether we include support for text archive formats. Disabling support allows de-virtualizing archive calls
 * and eliminating string constants for field names.
 */

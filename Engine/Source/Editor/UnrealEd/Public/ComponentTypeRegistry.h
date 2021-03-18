@@ -43,7 +43,7 @@ struct UNREALED_API FComponentTypeRegistry
 	 */
 	void InvalidateClass(TSubclassOf<UActorComponent> ClassToUpdate);
 private:
-	void OnProjectHotReloaded( bool bWasTriggeredAutomatically );
+	void OnReloadComplete(EReloadCompleteReason Reason);
 
 private:
 	FComponentTypeRegistry();

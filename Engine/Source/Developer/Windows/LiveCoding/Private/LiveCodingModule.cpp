@@ -16,6 +16,14 @@
 #include "ISettingsModule.h"
 #include "ISettingsSection.h"
 #include "Windows/WindowsHWrapper.h"
+#if WITH_EDITOR
+	#include "Kismet2/ReloadUtilities.h"
+#else
+	#include "UObject/Reload.h"
+#endif
+#if WITH_ENGINE
+	#include "Engine/Engine.h"
+#endif
 
 IMPLEMENT_MODULE(FLiveCodingModule, LiveCoding)
 
@@ -25,6 +33,7 @@ bool GIsCompileActive = false;
 bool GHasLoadedPatch = false;
 FString GLiveCodingConsolePath;
 FString GLiveCodingConsoleArguments;
+FLiveCodingModule* GLiveCodingModule = nullptr;
 
 #if IS_MONOLITHIC
 extern const TCHAR* GLiveCodingEngineDir;
@@ -43,6 +52,71 @@ LPP_POSTCOMPILE_HOOK(FLiveCodingModule::PostCompileHook);
 #pragma clang diagnostic pop
 #endif
 
+#if !WITH_EDITOR
+class FNullReload : public IReload
+{
+public:
+	FNullReload(FLiveCodingModule& InLiveCodingModule)
+		: LiveCodingModule(InLiveCodingModule)
+	{
+		BeginReload(EActiveReloadType::LiveCoding, *this);
+	}
+
+	~FNullReload()
+	{
+		EndReload();
+	}
+
+	virtual EActiveReloadType GetType() const
+	{
+		return EActiveReloadType::LiveCoding;
+	}
+
+
+	virtual const TCHAR* GetPrefix() const
+	{
+		return TEXT("LIVECODING");
+	}
+
+	virtual void NotifyFunctionRemap(FNativeFuncPtr NewFunctionPointer, FNativeFuncPtr OldFunctionPointer)
+	{
+	}
+
+	virtual void NotifyChange(UClass* New, UClass* Old) override
+	{
+		bGotClassChange |= Old != nullptr && Old != New;
+	}
+
+	virtual void NotifyChange(UEnum* New, UEnum* Old) override
+	{
+	}
+
+	virtual void NotifyChange(UScriptStruct* New, UScriptStruct* Old) override
+	{
+		bGotClassChange |= Old != nullptr && Old != New;
+	}
+
+	virtual void Reinstance()
+	{
+		if (bGotClassChange)
+		{
+			static const TCHAR* Message = TEXT("Object structure changes detected.  LiveCoding re-instancing isn't supported in builds without the editor");
+			UE_LOG(LogLiveCoding, Error, TEXT("%s"), Message);
+#if WITH_ENGINE
+			if (GEngine)
+			{
+				GEngine->AddOnScreenDebugMessage(uint64(uintptr_t(&LiveCodingModule)), 5.f, FColor::Red, Message);
+			}
+#endif
+		}
+	}
+
+private:
+	FLiveCodingModule& LiveCodingModule;
+	bool bGotClassChange = false;
+};
+#endif
+
 FLiveCodingModule::FLiveCodingModule()
 	: bEnabledLastTick(false)
 	, bEnabledForSession(false)
@@ -52,6 +126,12 @@ FLiveCodingModule::FLiveCodingModule()
 	, FullProjectDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectDir()))
 	, FullProjectPluginsDir(FPaths::ConvertRelativePathToFull(FPaths::ProjectPluginsDir()))
 {
+	GLiveCodingModule = this;
+}
+
+FLiveCodingModule::~FLiveCodingModule()
+{
+	GLiveCodingModule = nullptr;
 }
 
 void FLiveCodingModule::StartupModule()
@@ -275,11 +355,32 @@ void FLiveCodingModule::Tick()
 	extern void LppSyncPoint();
 	LppSyncPoint();
 
-	if (GHasLoadedPatch)
+	if (!GIsCompileActive && Reload.IsValid())
 	{
-		OnPatchCompleteDelegate.Broadcast();
-		GHasLoadedPatch = false;
+		if (GHasLoadedPatch)
+		{
+			CheckForClassChanges();
+			OnPatchCompleteDelegate.Broadcast();
+			GHasLoadedPatch = false;
+		}
+		Reload.Reset();
 	}
+}
+
+void FLiveCodingModule::CheckForClassChanges()
+{
+#if WITH_COREUOBJECT && WITH_ENGINE
+
+	// During the module loading process, the list of changed classes will be recorded.  Invoking this method will 
+	// result in the RegisterForReinstancing method being invoked which in turn records the classes in the ClassesToReinstance
+	// member variable being populated.
+	ProcessNewlyLoadedUObjects();
+
+#if WITH_EDITOR
+	Reload->Finalize();
+#endif
+
+#endif
 }
 
 ILiveCodingModule::FOnPatchCompleteDelegate& FLiveCodingModule::GetOnPatchCompleteDelegate()
@@ -499,11 +600,41 @@ void FLiveCodingModule::PreCompileHook()
 {
 	UE_LOG(LogLiveCoding, Display, TEXT("Starting Live Coding compile."));
 	GIsCompileActive = true;
+	BeginReload();
 }
 
 void FLiveCodingModule::PostCompileHook()
 {
 	UE_LOG(LogLiveCoding, Display, TEXT("Live Coding compile done.  See Live Coding console for more information."));
+	GIsCompileActive = false;
+}
+
+void FLiveCodingModule::BeginReload()
+{
+	if (GLiveCodingModule != nullptr)
+	{
+		if (!GLiveCodingModule->Reload.IsValid())
+		{
+#if WITH_EDITOR
+			GLiveCodingModule->Reload.Reset(new FReload(EActiveReloadType::LiveCoding, TEXT("LIVECODING"), *GLog));
+#else
+			GLiveCodingModule->Reload.Reset(new FNullReload(*GLiveCodingModule));
+#endif
+		}
+	}
+}
+
+// Invoked from LC_ClientCommandActions
+void LiveCodingBeginPatch()
+{
+	GHasLoadedPatch = true;
+	// If we are beginning a patch from a restart from the console, we need to create the reload object
+	FLiveCodingModule::BeginReload();
+}
+
+// Invoked from LC_ClientCommandActions
+void LiveCodingEndCompile()
+{
 	GIsCompileActive = false;
 }
 

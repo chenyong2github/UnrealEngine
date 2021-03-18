@@ -2166,11 +2166,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 			UClass* OldClass = OldToNewClass.Key;
 			UClass* NewClass = OldToNewClass.Value;
 			check(OldClass && NewClass);
-#if WITH_HOT_RELOAD
-			check(OldClass != NewClass || GIsHotReload);
-#else
-			check(OldClass != NewClass);
-#endif
+			check(OldClass != NewClass || IsReloadActive());
 			{
 				const bool bIsComponent = NewClass->IsChildOf<UActorComponent>();
 
@@ -2328,11 +2324,7 @@ void FBlueprintCompileReinstancer::ReplaceInstancesOfClass_Inner(TMap<UClass*, U
 			UClass* OldClass = OldToNewClass.Key;
 			UClass* NewClass = OldToNewClass.Value;
 			check(OldClass && NewClass);
-#if WITH_HOT_RELOAD
-			check(OldClass != NewClass || GIsHotReload);
-#else
-			check(OldClass != NewClass);
-#endif
+			check(OldClass != NewClass || IsReloadActive());
 
 			FReplaceReferenceHelper::IncludeCDO(OldClass, NewClass, OldToNewInstanceMap, SourceObjects, InOriginalCDO);
 

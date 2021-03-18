@@ -35,10 +35,6 @@
 #include "Editor/LevelEditor/Public/LevelEditor.h"
 #endif
 
-#if WITH_HOT_RELOAD
-#include "Misc/HotReloadInterface.h"
-#endif
-
 #include "NavAreas/NavArea_Null.h"
 #include "NavAreas/NavArea_Obstacle.h"
 #include "NavAreas/NavArea_Default.h"
@@ -700,10 +696,7 @@ void UNavigationSystemV1::PostInitProperties()
 		FCoreUObjectDelegates::PostLoadMapWithWorld.AddUObject(this, &UNavigationSystemV1::OnPostLoadMap);
 		UNavigationSystemV1::NavigationDirtyEvent.AddUObject(this, &UNavigationSystemV1::OnNavigationDirtied);
 
-#if WITH_HOT_RELOAD
-		IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-		HotReloadDelegateHandle = HotReloadSupport.OnHotReload().AddUObject(this, &UNavigationSystemV1::OnHotReload);
-#endif
+		ReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddUObject(this, &UNavigationSystemV1::OnReloadComplete);
 	}
 }
 
@@ -3943,8 +3936,7 @@ void UNavigationSystemV1::OnNavigationDirtied(const FBox& Bounds)
 	AddDirtyArea(Bounds, ENavigationDirtyFlag::All);
 }
 
-#if WITH_HOT_RELOAD
-void UNavigationSystemV1::OnHotReload(bool bWasTriggeredAutomatically)
+void UNavigationSystemV1::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	if (RequiresNavOctree() && DefaultOctreeController.NavOctree.IsValid() == false)
 	{
@@ -3956,7 +3948,6 @@ void UNavigationSystemV1::OnHotReload(bool bWasTriggeredAutomatically)
 		}
 	}
 }
-#endif // WITH_HOT_RELOAD
 
 void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 {
@@ -3980,12 +3971,7 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
 	FWorldDelegates::OnWorldBeginTearDown.RemoveAll(this);
 
-#if WITH_HOT_RELOAD
-	if (IHotReloadInterface* HotReloadSupport = FModuleManager::GetModulePtr<IHotReloadInterface>("HotReload"))
-	{
-		HotReloadSupport->OnHotReload().Remove(HotReloadDelegateHandle);
-	}
-#endif
+	FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(ReloadCompleteDelegateHandle);
 
 	DestroyNavOctree();
 	

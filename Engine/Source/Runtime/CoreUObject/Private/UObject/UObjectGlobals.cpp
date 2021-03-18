@@ -119,9 +119,14 @@ namespace LoadPackageStats
 #endif
 
 /** CoreUObject delegates */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 FCoreUObjectDelegates::FRegisterHotReloadAddedClassesDelegate FCoreUObjectDelegates::RegisterHotReloadAddedClassesDelegate;
 FCoreUObjectDelegates::FRegisterClassForHotReloadReinstancingDelegate FCoreUObjectDelegates::RegisterClassForHotReloadReinstancingDelegate;
 FCoreUObjectDelegates::FReinstanceHotReloadedClassesDelegate FCoreUObjectDelegates::ReinstanceHotReloadedClassesDelegate;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+FCoreUObjectDelegates::FReloadReinstancingCompleteDelegate FCoreUObjectDelegates::ReloadReinstancingCompleteDelegate;
+FCoreUObjectDelegates::FReloadCompleteDelegate FCoreUObjectDelegates::ReloadCompleteDelegate;
+FCoreUObjectDelegates::FReloadAddedClassesDelegate FCoreUObjectDelegates::ReloadAddedClassesDelegate;
 FCoreUObjectDelegates::FCompiledInUObjectsRegisteredDelegate FCoreUObjectDelegates::CompiledInUObjectsRegisteredDelegate;
 FCoreUObjectDelegates::FIsPackageOKToSaveDelegate FCoreUObjectDelegates::IsPackageOKToSaveDelegate;
 FCoreUObjectDelegates::FOnPackageReloaded FCoreUObjectDelegates::OnPackageReloaded;
@@ -3385,12 +3390,9 @@ UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& 
 			!InTemplate || 
 			(InName != NAME_None && (Params.bAssumeTemplateIsArchetype || InTemplate == UObject::GetArchetypeFromRequiredInfo(InClass, InOuter, InName, InFlags)))
 			);
-	const bool bCanRecycleSubobjects = bIsNativeFromCDO && (!(InFlags & RF_DefaultSubObject) || !FUObjectThreadContext::Get().IsInConstructor)
-#if WITH_HOT_RELOAD
+
 	// Do not recycle subobjects when performing hot-reload as they may contain old property values.
-	&& !GIsHotReload
-#endif
-		;
+	const bool bCanRecycleSubobjects = bIsNativeFromCDO && (!(InFlags & RF_DefaultSubObject) || !FUObjectThreadContext::Get().IsInConstructor) && !IsReloadActive();
 
 	bool bRecycledSubobject = false;	
 	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, Params.InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, Params.ExternalPackage);
@@ -4696,7 +4698,7 @@ namespace UE4CodeGen_Private
 	}
 #endif
 
-	void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params)
+	void ConstructUFunction(UFunction*& OutFunction, const FFunctionParams& Params, UFunction** SingletonPtr)
 	{
 		UObject*   (*OuterFunc)() = Params.OuterFunc;
 		UFunction* (*SuperFunc)() = Params.SuperFunc;
@@ -4744,6 +4746,10 @@ namespace UE4CodeGen_Private
 			);
 		}
 		OutFunction = NewFunction;
+
+#if WITH_LIVE_CODING
+		NewFunction->SingletonPtr = SingletonPtr;
+#endif
 
 #if WITH_METADATA
 		AddMetaData(NewFunction, Params.MetaDataArray, Params.NumMetaData);

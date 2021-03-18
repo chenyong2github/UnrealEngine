@@ -25,9 +25,9 @@
 #include "UObject/PropertyPortFlags.h"
 #include "UObject/UnrealType.h"
 #include "UObject/Stack.h"
+#include "UObject/Reload.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "UObject/ScriptMacros.h"
-#include "Misc/HotReloadInterface.h"
 #include "UObject/UObjectThreadContext.h"
 #include "HAL/IConsoleManager.h"
 
@@ -711,17 +711,9 @@ COREUOBJECT_API uint8 GRegisterNative( int32 NativeBytecodeIndex, const FNativeF
 	{
 		if( NativeBytecodeIndex<0 || (uint32)NativeBytecodeIndex>UE_ARRAY_COUNT(GNatives) || GNatives[NativeBytecodeIndex]!=&UObject::execUndefined) 
 		{
-#if WITH_HOT_RELOAD
-			if (GIsHotReload)
+			if (!ReloadNotifyFunctionRemap(Func, GNatives[NativeBytecodeIndex]))
 			{
-				IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-				CA_SUPPRESS(6385)				
-				HotReloadSupport.AddHotReloadFunctionRemap(Func, GNatives[NativeBytecodeIndex]);
-			}
-			else
-#endif
-			{
-			GNativeDuplicate = NativeBytecodeIndex;
+				GNativeDuplicate = NativeBytecodeIndex;
 			}
 		}
 		CA_SUPPRESS(6386)
@@ -748,11 +740,7 @@ COREUOBJECT_API uint8 GRegisterCast( int32 CastCode, const FNativeFuncPtr& Func 
 
 	if (CastCode != INDEX_NONE)
 	{
-		if(  
-#if WITH_HOT_RELOAD
-			!GIsHotReload && 
-#endif
-			(CastCode<0 || (uint32)CastCode>UE_ARRAY_COUNT(GCasts) || GCasts[CastCode]!=&UObject::execUndefined) ) 
+		if(!IsReloadActive() && (CastCode<0 || (uint32)CastCode>UE_ARRAY_COUNT(GCasts) || GCasts[CastCode]!=&UObject::execUndefined) ) 
 		{
 			GCastDuplicate = CastCode;
 		}

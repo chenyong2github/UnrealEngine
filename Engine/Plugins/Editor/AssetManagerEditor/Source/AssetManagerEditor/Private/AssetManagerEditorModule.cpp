@@ -61,7 +61,6 @@
 #include "Misc/FileHelper.h"
 #include "Misc/MessageDialog.h"
 #include "UObject/ConstructorHelpers.h"
-#include "Misc/HotReloadInterface.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Editor/StatsViewer/Public/IStatsViewer.h"
 #include "Editor/StatsViewer/Public/StatsViewerModule.h"
@@ -384,7 +383,7 @@ private:
 	TSharedRef<FExtender> OnExtendAssetEditor(const TSharedRef<FUICommandList> CommandList, const TArray<UObject*> ContextSensitiveObjects);
 	void ExtendAssetEditorMenu();
 	void ExtendLevelEditorActorContextMenu();
-	void OnHotReload(bool bWasTriggeredAutomatically);
+	void OnReloadComplete(EReloadCompleteReason Reason);
 	void OnMarkPackageDirty(UPackage* Pkg, bool bWasDirty);
 	void OnEditAssetIdentifiers(TArray<FAssetIdentifier> AssetIdentifiers);
 
@@ -511,8 +510,7 @@ void FAssetManagerEditorModule::StartupModule()
 			.SetMenuType(ETabSpawnerMenuType::Hidden);
 
 		// Register for hot reload and package dirty to invalidate data
-		IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-		HotReloadSupport.OnHotReload().AddRaw(this, &FAssetManagerEditorModule::OnHotReload);
+		FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FAssetManagerEditorModule::OnReloadComplete);
 
 		UPackage::PackageMarkedDirtyEvent.AddRaw(this, &FAssetManagerEditorModule::OnMarkPackageDirty);
 
@@ -585,11 +583,7 @@ void FAssetManagerEditorModule::ShutdownModule()
 			SizeMapTab.Pin()->RequestCloseTab();
 		}
 
-		if (FModuleManager::Get().IsModuleLoaded("HotReload"))
-		{
-			IHotReloadInterface& HotReloadSupport = FModuleManager::GetModuleChecked<IHotReloadInterface>("HotReload");
-			HotReloadSupport.OnHotReload().RemoveAll(this);
-		}
+		FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll(this);
 
 		UPackage::PackageMarkedDirtyEvent.RemoveAll(this);
 		FEditorDelegates::OnOpenReferenceViewer.RemoveAll(this);
@@ -985,7 +979,7 @@ void FAssetManagerEditorModule::ExtendLevelEditorActorContextMenu()
 	}));
 }
 
-void FAssetManagerEditorModule::OnHotReload(bool bWasTriggeredAutomatically)
+void FAssetManagerEditorModule::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	UAssetManager* AssetManager = UAssetManager::GetIfValid();
 

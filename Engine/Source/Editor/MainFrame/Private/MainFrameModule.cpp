@@ -563,7 +563,7 @@ void FMainFrameModule::StartupModule( )
 	IHotReloadModule& HotReloadModule = IHotReloadModule::Get();
 	HotReloadModule.OnModuleCompilerStarted().AddRaw( this, &FMainFrameModule::HandleLevelEditorModuleCompileStarted );
 	HotReloadModule.OnModuleCompilerFinished().AddRaw( this, &FMainFrameModule::HandleLevelEditorModuleCompileFinished );
-	HotReloadModule.OnHotReload().AddRaw( this, &FMainFrameModule::HandleHotReloadFinished );
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw( this, &FMainFrameModule::HandleReloadFinished );
 
 #if WITH_EDITOR
 	ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
@@ -597,7 +597,7 @@ void FMainFrameModule::ShutdownModule( )
 	if( IHotReloadModule::IsAvailable() )
 	{
 		IHotReloadModule& HotReloadModule = IHotReloadModule::Get();
-		HotReloadModule.OnHotReload().RemoveAll( this );
+		FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll( this );
 		HotReloadModule.OnModuleCompilerStarted().RemoveAll( this );
 		HotReloadModule.OnModuleCompilerFinished().RemoveAll( this );
 	}
@@ -752,11 +752,11 @@ void FMainFrameModule::HandleLevelEditorModuleCompileFinished(const FString& Log
 }
 
 
-void FMainFrameModule::HandleHotReloadFinished( bool bWasTriggeredAutomatically )
+void FMainFrameModule::HandleReloadFinished( EReloadCompleteReason Reason )
 {
 	// Only play the notification for hot reloads that were triggered automatically.  If the user triggered the hot reload, they'll
 	// have a different visual cue for that, such as the "Compiling Complete!" notification
-	if( bWasTriggeredAutomatically )
+	if( Reason == EReloadCompleteReason::HotReloadAutomatic )
 	{
 		FNotificationInfo Info( LOCTEXT("HotReloadFinished", "Hot Reload Complete!") );
 		Info.Image = FEditorStyle::GetBrush(TEXT("LevelEditor.RecompileGameCode"));

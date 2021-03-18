@@ -14,10 +14,6 @@
 #include "LC_Logging.h"
 // END EPIC MOD
 
-// BEGIN EPIC MOD - Support for object reinstancing. We need to call a global post-patch handler, rather than just getting individual callbacks for modified modules.
-extern bool GHasLoadedPatch;
-// END EPIC MOD
-
 bool actions::RegisterProcessFinished::Execute(const CommandType* command, const DuplexPipe* pipe, void* context, const void*, size_t)
 {
 	bool* successfullyRegisteredProcess = static_cast<bool*>(context);
@@ -139,7 +135,8 @@ bool actions::LoadPatch::Execute(const CommandType* command, const DuplexPipe* p
 	}
 	// END EPIC MOD
 	// BEGIN EPIC MOD - Support for object reinstancing. We need to call a global post-patch handler, rather than just getting individual callbacks for modified modules.
-	GHasLoadedPatch = true;
+	extern void LiveCodingBeginPatch();
+	LiveCodingBeginPatch();
 	// END EPIC MOD
 
 	pipe->SendAck();
@@ -180,16 +177,13 @@ bool actions::LogOutput::Execute(const CommandType*, const DuplexPipe* pipe, voi
 	return true;
 }
 
-// BEGIN EPIC MOD - Notification that compilation has finished
-extern bool GIsCompileActive;
-// END EPIC MOD
-
 bool actions::CompilationFinished::Execute(const CommandType*, const DuplexPipe* pipe, void*, const void*, size_t)
 {
 	pipe->SendAck();
 
 	// BEGIN EPIC MOD - Notification that compilation has finished
-	GIsCompileActive = false;
+	extern void LiveCodingEndCompile();
+	LiveCodingEndCompile();
 	// END EPIC MOD
 
 	// don't continue execution

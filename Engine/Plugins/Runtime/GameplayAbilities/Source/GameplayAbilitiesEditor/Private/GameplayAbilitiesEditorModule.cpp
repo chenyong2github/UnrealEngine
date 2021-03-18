@@ -180,15 +180,15 @@ void FGameplayAbilitiesEditorModule::StartupModule()
 		
 	ApplyGameplayModEvaluationChannelAliasesToEnumMetadata();
 
-#if WITH_HOT_RELOAD
+#if WITH_RELOAD
 	// This code attempts to relaunch the GameplayCueEditor tab when you hotreload this module
-	if (GIsHotReload && FSlateApplication::IsInitialized())
+	if (IsReloadActive() && FSlateApplication::IsInitialized())
 	{
 		FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>( TEXT("LevelEditor") );
 		TSharedPtr<FTabManager> LevelEditorTabManager = LevelEditorModule.GetLevelEditorTabManager();
 		LevelEditorTabManager->TryInvokeTab(FName("GameplayCueApp"));
 	}
-#endif // WITH_HOT_RELOAD
+#endif // WITH_RELOAD
 
 	IGameplayAbilitiesModule::Get().CallOrRegister_OnAbilitySystemGlobalsReady(FSimpleMulticastDelegate::FDelegate::CreateLambda([] {
 		FGameplayAbilitiesEditorModule::RegisterDebuggingCallbacks();

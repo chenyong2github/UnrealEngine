@@ -1317,3 +1317,60 @@ int32 FModuleManager::GetModuleCount() const
 	// if it wants to rely on the returned value.
 	return Modules.Num();
 }
+
+namespace
+{
+	EActiveReloadType GActiveReloadType = EActiveReloadType::None;
+	IReload* GActiveReloadInterface = nullptr;
+}
+
+#if WITH_RELOAD
+EActiveReloadType GetActiveReloadType()
+{
+#if WITH_HOT_RELOAD
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (GIsHotReload)
+	{
+		check(GActiveReloadInterface);
+		return EActiveReloadType::HotReload;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+
+	return GActiveReloadType;
+}
+
+void BeginReload(EActiveReloadType ActiveReloadType, IReload& Interface)
+{
+	check(GActiveReloadInterface == nullptr);
+#if WITH_HOT_RELOAD
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GIsHotReload = ActiveReloadType == EActiveReloadType::HotReload;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+
+	GActiveReloadType = ActiveReloadType;
+	GActiveReloadInterface = &Interface;
+}
+
+void EndReload()
+{
+#if WITH_HOT_RELOAD
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	GIsHotReload = false;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif
+	GActiveReloadType = EActiveReloadType::None;
+	GActiveReloadInterface = nullptr;
+}
+
+IReload* GetActiveReloadInterface()
+{
+	return GActiveReloadInterface;
+}
+
+bool IsReloadActive()
+{
+	return GetActiveReloadType() != EActiveReloadType::None;
+}
+#endif

@@ -87,7 +87,6 @@
 #include "BlueprintNodeBinder.h"
 #include "BlueprintComponentNodeSpawner.h"
 #include "AssetRegistryModule.h"
-#include "Misc/HotReloadInterface.h"
 
 #include "K2Node_CastByteToEnum.h"
 #include "K2Node_ClassDynamicCast.h"
@@ -2234,7 +2233,7 @@ private:
 	static FAutocastFunctionMap* AutocastFunctionMap;
 
 	TMap<FString, TWeakObjectPtr<UFunction>> InnerMap;
-	FDelegateHandle OnHotReloadDelegateHandle;
+	FDelegateHandle OnReloadCompleteDelegateHandle;
 	FDelegateHandle OnModulesChangedDelegateHandle;
 
 	static FString GenerateTypeData(const FEdGraphPinType& PinType)
@@ -2370,7 +2369,7 @@ public:
 		AutocastFunctionMap = nullptr;
 	}
 
-	static void OnProjectHotReloaded(bool bWasTriggeredAutomatically)
+	static void OnReloadComplete(EReloadCompleteReason Reaosn)
 	{
 		if (AutocastFunctionMap)
 		{
@@ -2390,18 +2389,14 @@ public:
 	{
 		Refresh();
 
-		IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-		OnHotReloadDelegateHandle = HotReloadSupport.OnHotReload().AddStatic(&FAutocastFunctionMap::OnProjectHotReloaded);
+		OnReloadCompleteDelegateHandle = FCoreUObjectDelegates::ReloadCompleteDelegate.AddStatic(&FAutocastFunctionMap::OnReloadComplete);
 
 		OnModulesChangedDelegateHandle = FModuleManager::Get().OnModulesChanged().AddStatic(&OnModulesChanged);
 	}
 
 	~FAutocastFunctionMap()
 	{
-		if (IHotReloadInterface* HotReloadSupport = FModuleManager::GetModulePtr<IHotReloadInterface>("HotReload"))
-		{
-			HotReloadSupport->OnHotReload().Remove(OnHotReloadDelegateHandle);
-		}
+		FCoreUObjectDelegates::ReloadCompleteDelegate.Remove(OnReloadCompleteDelegateHandle);
 
 		FModuleManager::Get().OnModulesChanged().Remove(OnModulesChangedDelegateHandle); 
 	}

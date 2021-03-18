@@ -412,4 +412,13 @@ namespace symbols
 	bool IsTlsStaticsRelatedSymbol(const ImmutableString& symbolName);
 
 	bool IsSectionSymbol(const ImmutableString& symbolName);
+
+	// BEGIN EPIC MOD
+	bool IsUERegisterSymbol(const ImmutableString& symbolName, const char*& name, size_t& nameLength);
+	bool IsUERegisterSymbol(const ImmutableString& symbolName);
+	bool IsUENoStripSymbol(const ImmutableString& symbolName);
+	bool IsUEInitializerSymbol(const ImmutableString& symbolName);
+	bool IsUEReversePatchSymbol(const ImmutableString& symbolName);
+	bool IsUEStaticsSymbol(const ImmutableString& symbolName);
+	// END EPIC MOD
 }

@@ -12,10 +12,17 @@ class IConsoleVariable;
 class ISettingsSection;
 class ULiveCodingSettings;
 
+#if WITH_EDITOR
+class FReload;
+#else
+class IReload;
+#endif
+
 class FLiveCodingModule final : public ILiveCodingModule
 {
 public:
 	FLiveCodingModule();
+	~FLiveCodingModule();
 
 	// IModuleInterface implementation
 	virtual void StartupModule() override;
@@ -34,8 +41,11 @@ public:
 	virtual void Tick() override;
 	virtual FOnPatchCompleteDelegate& GetOnPatchCompleteDelegate() override;
 
+	// Methods invoked by the LiveCodingConsole
 	static void PreCompileHook();
 	static void PostCompileHook();
+
+	static void BeginReload();
 
 private:
 	ULiveCodingSettings* Settings;
@@ -57,6 +67,14 @@ private:
 	FDelegateHandle EndFrameDelegateHandle;
 	FDelegateHandle ModulesChangedDelegateHandle;
 	FOnPatchCompleteDelegate OnPatchCompleteDelegate;
+
+#if WITH_EDITOR
+	TUniquePtr<FReload> Reload;
+#else
+	TUniquePtr<IReload> Reload;
+#endif
+
+	void CheckForClassChanges();
 
 	bool StartLiveCoding();
 

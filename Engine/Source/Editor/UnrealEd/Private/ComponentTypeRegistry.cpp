@@ -17,7 +17,6 @@
 #include "ClassIconFinder.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/KismetEditorUtilities.h"
-#include "Misc/HotReloadInterface.h"
 #include "SComponentClassCombo.h"
 #include "Settings/ClassViewerSettings.h"
 
@@ -498,20 +497,15 @@ FComponentTypeRegistry::FComponentTypeRegistry()
 	// This will load the assets on next tick. It's not safe to do right now because we could be deep in a stack
 	Data->Invalidate();
 
-	IHotReloadInterface& HotReloadSupport = FModuleManager::LoadModuleChecked<IHotReloadInterface>("HotReload");
-	HotReloadSupport.OnHotReload().AddRaw(this, &FComponentTypeRegistry::OnProjectHotReloaded);
+	FCoreUObjectDelegates::ReloadCompleteDelegate.AddRaw(this, &FComponentTypeRegistry::OnReloadComplete);
 }
 
 FComponentTypeRegistry::~FComponentTypeRegistry()
 {
-	if( FModuleManager::Get().IsModuleLoaded("HotReload") )
-	{
-		IHotReloadInterface& HotReloadSupport = FModuleManager::GetModuleChecked<IHotReloadInterface>("HotReload");
-		HotReloadSupport.OnHotReload().RemoveAll(this);
-	}
+	FCoreUObjectDelegates::ReloadCompleteDelegate.RemoveAll(this);
 }
 
-void FComponentTypeRegistry::OnProjectHotReloaded( bool bWasTriggeredAutomatically )
+void FComponentTypeRegistry::OnReloadComplete(EReloadCompleteReason Reason)
 {
 	Data->ForceRefreshComponentList();
 }

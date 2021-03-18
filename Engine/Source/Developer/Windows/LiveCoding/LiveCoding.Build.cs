@@ -11,6 +11,16 @@ public class LiveCoding : ModuleRules
 		PrivateDependencyModuleNames.Add("CoreUObject");
 		PrivateDependencyModuleNames.Add("Settings");
 
+		if (Target.bCompileAgainstEngine)
+		{
+			PrivateDependencyModuleNames.Add("Engine");
+		}
+
+		if (Target.bBuildEditor == true)
+        {
+            PrivateDependencyModuleNames.Add("UnrealEd");
+        }        
+
 		if(Target.bUseDebugLiveCodingConsole)
         {
             PrivateDefinitions.Add("USE_DEBUG_LIVE_CODING_CONSOLE=1");

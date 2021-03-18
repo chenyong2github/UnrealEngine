@@ -83,6 +83,33 @@ ModuleCache::FindSymbolData ModuleCache::FindSymbolByName(size_t ignoreToken, co
 }
 
 
+// BEGIN EPIC MOD
+ModuleCache::FindSymbolData ModuleCache::FindSymbolByNameBackwards(size_t ignoreToken, const ImmutableString& symbolName) const
+{
+	CriticalSection::ScopedLock lock(&m_cs);
+
+	const size_t count = m_cache.size();
+	for (size_t i = 0u; i < count; ++i)
+	{
+		const size_t index = count - 1u - i;
+		if (index == ignoreToken)
+		{
+			continue;
+		}
+
+		const Data& data = m_cache[index];
+		const symbols::Symbol* symbol = symbols::FindSymbolByName(data.symbolDb, symbolName);
+		if (symbol)
+		{
+			return FindSymbolData{ &data, symbol };
+		}
+	}
+
+	return FindSymbolData{};
+}
+// END EPIC MOD
+
+
 ModuleCache::FindHookData ModuleCache::FindHooksInSectionBackwards(size_t ignoreToken, const ImmutableString& sectionName) const
 {
 	CriticalSection::ScopedLock lock(&m_cs);

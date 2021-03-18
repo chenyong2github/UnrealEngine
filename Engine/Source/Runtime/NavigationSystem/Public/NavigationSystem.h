@@ -1059,12 +1059,10 @@ protected:
 	/** delegate handler called when navigation is dirtied*/
 	void OnNavigationDirtied(const FBox& Bounds);
 
-#if WITH_HOT_RELOAD
-	FDelegateHandle HotReloadDelegateHandle;
+	FDelegateHandle ReloadCompleteDelegateHandle;
 
-	/** called to notify NavigaitonSystem about finished hot reload */
-	virtual void OnHotReload(bool bWasTriggeredAutomatically);
-#endif // WITH_HOT_RELOAD
+	/** called to notify NavigaitonSystem about finished reload */
+	virtual void OnReloadComplete(EReloadCompleteReason Reason);
 
 	/** Registers given navigation data with this Navigation System.
 	 *	@return RegistrationSuccessful if registration was successful, other results mean it failed
