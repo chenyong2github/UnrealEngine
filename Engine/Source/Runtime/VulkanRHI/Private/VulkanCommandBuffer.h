@@ -358,6 +358,11 @@ public:
 
 	void FreeUnusedCmdBuffers();
 
+	FVulkanCommandListContext* GetCommandListContext()
+	{
+		return Context;
+	}
+
 private:
 	struct FQueryPoolReset
 	{
@@ -366,6 +371,7 @@ private:
 	};
 	
 	FVulkanDevice* Device;
+	FVulkanCommandListContext* Context;
 	FVulkanCommandBufferPool Pool;
 	FVulkanQueue* Queue;
 	FVulkanCmdBuffer* ActiveCmdBuffer;

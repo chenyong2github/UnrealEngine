@@ -306,7 +306,7 @@ void FVulkanCmdBuffer::Begin()
 
 	if (GVulkanProfileCmdBuffers || GVulkanUseCmdBufferTimingForGPUTime)
 	{
-		InitializeTimings(&Device->GetImmediateContext());
+		InitializeTimings(CommandBufferPool->GetMgr().GetCommandListContext());
 		if (Timing)
 		{
 			Timing->StartTiming(this);
@@ -440,6 +440,7 @@ void FVulkanCommandBufferPool::Create(uint32 QueueFamilyIndex)
 
 FVulkanCommandBufferManager::FVulkanCommandBufferManager(FVulkanDevice* InDevice, FVulkanCommandListContext* InContext)
 	: Device(InDevice)
+	, Context(InContext)
 	, Pool(InDevice, *this)
 	, Queue(InContext->GetQueue())
 	, ActiveCmdBuffer(nullptr)
