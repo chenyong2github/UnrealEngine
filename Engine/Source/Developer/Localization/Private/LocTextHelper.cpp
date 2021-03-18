@@ -1309,14 +1309,14 @@ FString FLocTextHelper::SanitizeLogOutput(FString&& ResultStr)
 {
 	if (ResultStr.IsEmpty())
 	{
-		return ResultStr;
+		return MoveTemp(ResultStr);
 	}
 
 	ResultStr.ReplaceCharWithEscapedCharInline();
 
 	if (!GIsBuildMachine)
 	{
-		return ResultStr;
+		return MoveTemp(ResultStr);
 	}
 
 	static const TCHAR* ErrorStrs[] = {
@@ -1372,7 +1372,7 @@ FString FLocTextHelper::SanitizeLogOutput(FString&& ResultStr)
 		ResultStr.ReplaceInline(ErrorStrs[ErrorIndex], *ReplacementStrings[ErrorIndex]);
 	}
 
-	return ResultStr;
+	return MoveTemp(ResultStr);
 }
 
 bool FLocTextHelper::FindKeysForLegacyTranslation(const FString& InCulture, const FLocKey& InNamespace, const FString& InSource, const TSharedPtr<FLocMetadataObject> InKeyMetadataObj, TArray<FLocKey>& OutKeys) const
