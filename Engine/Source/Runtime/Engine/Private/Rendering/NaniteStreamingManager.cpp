@@ -1660,7 +1660,7 @@ void FStreamingManager::AsyncUpdate()
 			FIORequestTask& Task = RequestTasks[i];
 			TRACE_CPUPROFILER_EVENT_SCOPE(Nanite_RequestTask);
 			Task.PendingPage->AsyncHandle = Task.BulkData->OpenAsyncReadHandle();
-			Task.PendingPage->AsyncRequest = Task.PendingPage->AsyncHandle->ReadRequest(Task.BulkOffset, Task.BulkSize, AIOP_Normal, nullptr, Task.PendingPage->MemoryPtr);
+			Task.PendingPage->AsyncRequest = Task.PendingPage->AsyncHandle->ReadRequest(Task.BulkData->GetBulkDataOffsetInFile() + Task.BulkOffset, Task.BulkSize, AIOP_Normal, nullptr, Task.PendingPage->MemoryPtr);
 		});
 	}
 #endif
