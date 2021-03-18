@@ -274,7 +274,7 @@ void UDataprepReferencedSelectionTransform::OnExecution_Implementation(const TAr
 
 void UDataprepHierarchySelectionTransform::OnExecution_Implementation(const TArray<UObject*>& InObjects, TArray<UObject*>& OutObjects)
 {
-	TArray<AActor*> ActorsToVisit;
+	TArray<UObject*> ObjectsToVisit;
 
 	for (UObject* Object : InObjects)
 	{
@@ -288,29 +288,40 @@ void UDataprepHierarchySelectionTransform::OnExecution_Implementation(const TArr
 			TArray<AActor*> Children;
 			Actor->GetAttachedActors( Children );
 
-			ActorsToVisit.Append( Children );
+			ObjectsToVisit.Append( Children );
+		}
+		else if (USceneComponent* SceneComponent = Cast< USceneComponent >(Object))
+		{
+			ObjectsToVisit.Append( SceneComponent->GetAttachChildren() );
 		}
 	}
 
 	TSet<UObject*> NewSelection;
 
-	while ( ActorsToVisit.Num() > 0)
+	while ( ObjectsToVisit.Num() > 0)
 	{
-		AActor* VisitedActor = ActorsToVisit.Pop();
-		if (VisitedActor == nullptr)
+		UObject* VisitedObject = ObjectsToVisit.Pop();
+
+		if (VisitedObject == nullptr)
 		{
 			continue;
 		}
 
-		NewSelection.Add(VisitedActor);
+		NewSelection.Add(VisitedObject);
 
 		if(SelectionPolicy == EDataprepHierarchySelectionPolicy::AllDescendants)
 		{
 			// Continue with children
-			TArray<AActor*> Children;
-			VisitedActor->GetAttachedActors( Children );
-
-			ActorsToVisit.Append( Children );
+			if (AActor* Actor = Cast< AActor >(VisitedObject))
+			{
+				TArray<AActor*> Children;
+				Actor->GetAttachedActors( Children );
+				ObjectsToVisit.Append( Children );
+			}
+			else if (USceneComponent* SceneComponent = Cast< USceneComponent >(VisitedObject))
+			{
+				ObjectsToVisit.Append( SceneComponent->GetAttachChildren() );
+			}
 		}
 	}
 
@@ -328,6 +339,10 @@ void UDataprepHierarchySelectionTransform::OnExecution_Implementation(const TArr
 			}
 
 			if (AActor* Actor = Cast< AActor >(Object))
+			{
+				OutObjects.Add(Object);
+			}
+			else if (USceneComponent* SceneComponent = Cast< USceneComponent >(Object))
 			{
 				OutObjects.Add(Object);
 			}
