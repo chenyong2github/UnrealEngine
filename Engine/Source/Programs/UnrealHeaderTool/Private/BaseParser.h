@@ -187,4 +187,7 @@ public:
 	static void InsertMetaDataPair(TMap<FName, FString>& MetaData, FName InKey, FString InValue);
 
 	//////////////
+
+	// Initialize the metadata keywords prior to parsing
+	static void InitMetadataKeywords();
 };

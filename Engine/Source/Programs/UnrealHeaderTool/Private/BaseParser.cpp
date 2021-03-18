@@ -79,56 +79,62 @@ namespace
 		EMetadataValueArgument::Type ValueArgument;
 	};
 
-	FMetadataKeyword* GetMetadataKeyword(const TCHAR* Keyword)
+	TMap<FString, FMetadataKeyword> MetadataDictionary;
+
+	void InitMetadataKeyswordsInternal()
 	{
-		static TMap<FString, FMetadataKeyword> Dictionary;
-		if (!Dictionary.Num())
+		check(MetadataDictionary.Num() == 0);
+		if (!MetadataDictionary.Num())
 		{
-			FMetadataKeyword& DisplayName = Dictionary.Add(TEXT("DisplayName"), EMetadataValueArgument::Required);
+			FMetadataKeyword& DisplayName = MetadataDictionary.Add(TEXT("DisplayName"), EMetadataValueArgument::Required);
 			DisplayName.InsertAddAction(TEXT("DisplayName"), TEXT(""));
 
-			FMetadataKeyword& FriendlyName = Dictionary.Add(TEXT("FriendlyName"), EMetadataValueArgument::Required);
+			FMetadataKeyword& FriendlyName = MetadataDictionary.Add(TEXT("FriendlyName"), EMetadataValueArgument::Required);
 			FriendlyName.InsertAddAction(TEXT("FriendlyName"), TEXT(""));
 
-			FMetadataKeyword& BlueprintInternalUseOnly = Dictionary.Add(TEXT("BlueprintInternalUseOnly"), EMetadataValueArgument::None);
+			FMetadataKeyword& BlueprintInternalUseOnly = MetadataDictionary.Add(TEXT("BlueprintInternalUseOnly"), EMetadataValueArgument::None);
 			BlueprintInternalUseOnly.InsertAddAction(TEXT("BlueprintInternalUseOnly"), TEXT("true"));
 			BlueprintInternalUseOnly.InsertAddAction(TEXT("BlueprintType"), TEXT("true"));
 
-			FMetadataKeyword& BlueprintType = Dictionary.Add(TEXT("BlueprintType"), EMetadataValueArgument::None);
+			FMetadataKeyword& BlueprintType = MetadataDictionary.Add(TEXT("BlueprintType"), EMetadataValueArgument::None);
 			BlueprintType.InsertAddAction(TEXT("BlueprintType"), TEXT("true"));
 
-			FMetadataKeyword& NotBlueprintType = Dictionary.Add(TEXT("NotBlueprintType"), EMetadataValueArgument::None);
+			FMetadataKeyword& NotBlueprintType = MetadataDictionary.Add(TEXT("NotBlueprintType"), EMetadataValueArgument::None);
 			NotBlueprintType.InsertAddAction(TEXT("NotBlueprintType"), TEXT("true"));
 			NotBlueprintType.InsertRemoveAction(TEXT("BlueprintType"));
 
-			FMetadataKeyword& Blueprintable = Dictionary.Add(TEXT("Blueprintable"), EMetadataValueArgument::None);
+			FMetadataKeyword& Blueprintable = MetadataDictionary.Add(TEXT("Blueprintable"), EMetadataValueArgument::None);
 			Blueprintable.InsertAddAction(TEXT("IsBlueprintBase"), TEXT("true"));
-			Blueprintable.InsertAddAction(TEXT("BlueprintType"),   TEXT("true"));
+			Blueprintable.InsertAddAction(TEXT("BlueprintType"), TEXT("true"));
 
-			FMetadataKeyword& CallInEditor = Dictionary.Add(TEXT("CallInEditor"), EMetadataValueArgument::None);
+			FMetadataKeyword& CallInEditor = MetadataDictionary.Add(TEXT("CallInEditor"), EMetadataValueArgument::None);
 			CallInEditor.InsertAddAction(TEXT("CallInEditor"), TEXT("true"));
 
-			FMetadataKeyword& NotBlueprintable = Dictionary.Add(TEXT("NotBlueprintable"), EMetadataValueArgument::None);
-			NotBlueprintable.InsertAddAction   (TEXT("IsBlueprintBase"), TEXT("false"));
+			FMetadataKeyword& NotBlueprintable = MetadataDictionary.Add(TEXT("NotBlueprintable"), EMetadataValueArgument::None);
+			NotBlueprintable.InsertAddAction(TEXT("IsBlueprintBase"), TEXT("false"));
 			NotBlueprintable.InsertRemoveAction(TEXT("BlueprintType"));
 
-			FMetadataKeyword& Category = Dictionary.Add(TEXT("Category"), EMetadataValueArgument::Required);
+			FMetadataKeyword& Category = MetadataDictionary.Add(TEXT("Category"), EMetadataValueArgument::Required);
 			Category.InsertAddAction(TEXT("Category"), TEXT(""));
 
-			FMetadataKeyword& ExperimentalFeature = Dictionary.Add(TEXT("Experimental"), EMetadataValueArgument::None);
+			FMetadataKeyword& ExperimentalFeature = MetadataDictionary.Add(TEXT("Experimental"), EMetadataValueArgument::None);
 			ExperimentalFeature.InsertAddAction(TEXT("DevelopmentStatus"), TEXT("Experimental"));
 
-			FMetadataKeyword& EarlyAccessFeature = Dictionary.Add(TEXT("EarlyAccessPreview"), EMetadataValueArgument::None);
+			FMetadataKeyword& EarlyAccessFeature = MetadataDictionary.Add(TEXT("EarlyAccessPreview"), EMetadataValueArgument::None);
 			EarlyAccessFeature.InsertAddAction(TEXT("DevelopmentStatus"), TEXT("EarlyAccess"));
 
-			FMetadataKeyword& DocumentationPolicy = Dictionary.Add(TEXT("DocumentationPolicy"), EMetadataValueArgument::None);
+			FMetadataKeyword& DocumentationPolicy = MetadataDictionary.Add(TEXT("DocumentationPolicy"), EMetadataValueArgument::None);
 			DocumentationPolicy.InsertAddAction(TEXT("DocumentationPolicy"), TEXT("Strict"));
 
-			FMetadataKeyword& SparseClassDataType = Dictionary.Add(TEXT("SparseClassDataType"), EMetadataValueArgument::Required);
+			FMetadataKeyword& SparseClassDataType = MetadataDictionary.Add(TEXT("SparseClassDataType"), EMetadataValueArgument::Required);
 			SparseClassDataType.InsertAddAction(TEXT("SparseClassDataType"), TEXT(""));
 		}
+	}
 
-		return Dictionary.Find(Keyword);
+	FMetadataKeyword* GetMetadataKeyword(const TCHAR* Keyword)
+	{
+		check(MetadataDictionary.Num() > 0);
+		return MetadataDictionary.Find(Keyword);
 	}
 }
 
@@ -1217,4 +1223,7 @@ void FBaseParser::InsertMetaDataPair(TMap<FName, FString>& MetaData, FName KeyNa
 	MetaData.Add(KeyName, MoveTemp(Value));
 }
 
-
+void FBaseParser::InitMetadataKeywords()
+{
+	InitMetadataKeyswordsInternal();
+}
