@@ -360,6 +360,14 @@ struct FObjectExport : public FObjectResource
 	COREUOBJECT_API FObjectExport();
 	FObjectExport(UObject* InObject, bool bInNotAlwaysLoadedForEditorGame = true);
 
+	// Workaround for clang deprecation warnings for deprecated PackageGuid member in implicit constructors
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FObjectExport(FObjectExport&&) = default;
+	FObjectExport(const FObjectExport&) = default;
+	FObjectExport& operator=(FObjectExport&&) = default;
+	FObjectExport& operator=(const FObjectExport&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Resets the stored Object and any transient flags */
 	COREUOBJECT_API void ResetObject();
 	

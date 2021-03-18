@@ -558,6 +558,14 @@ public:
 	{
 	}
 
+	// Workaround for clang deprecation warnings for deprecated PackageGuid member in implicit constructors
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAssetPackageData(FAssetPackageData&&) = default;
+	FAssetPackageData(const FAssetPackageData&) = default;
+	FAssetPackageData& operator=(FAssetPackageData&&) = default;
+	FAssetPackageData& operator=(const FAssetPackageData&) = default;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/**
 	 * Serialize as part of the registry cache. This is not meant to be serialized as part of a package so  it does not handle versions normally
 	 * To version this data change FAssetRegistryVersion
