@@ -19,7 +19,6 @@
  * FChildren is intended to be returned by the GetChildren() method.
  * 
  */
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
 class SLATECORE_API FChildren
 {
 public:
@@ -44,14 +43,9 @@ protected:
 protected:
 	virtual ~FChildren(){}
 
-	SWidget* GetOwner() { return Owner; }
-	const SWidget* GetOwner() const { return Owner; }
-
 protected:
-	UE_DEPRECATED(5.0, "Direct access to Owner is now deprecated. Use the getter.")
 	SWidget* Owner;
 };
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 
 /**
@@ -224,13 +218,13 @@ public:
 	void AttachWidget(const TSharedPtr<SWidget>& InWidget)
 	{
 		WidgetPtr = InWidget;
-		if (GetOwner()) 
+		if (Owner) 
 		{ 
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 
 			if (InWidget.IsValid() && InWidget != SNullWidget::NullWidget)
 			{
-				InWidget->AssignParentWidget(GetOwner()->AsShared());
+				InWidget->AssignParentWidget(Owner->AsShared());
 			}
 		}
 	}
@@ -243,7 +237,7 @@ public:
 
 			if (Widget != SNullWidget::NullWidget)
 			{
-				Widget->ConditionallyDetatchParentWidget(GetOwner());
+				Widget->ConditionallyDetatchParentWidget(Owner);
 			}
 
 			WidgetPtr.Reset();
@@ -389,9 +383,9 @@ public:
 
 		int32 Index = TIndirectArray< SlotType >::Add(Slot);
 
-		if (GetOwner())
+		if (Owner)
 		{
-			Slot->AttachWidgetParent(GetOwner());
+			Slot->AttachWidgetParent(Owner);
 		}
 
 		return Index;
@@ -436,9 +430,9 @@ public:
 			TIndirectArray< SlotType >::Insert(Slot, Index);
 
 			// Don't do parent manipulation if this panel has no owner.
-			if (GetOwner())
+			if (Owner)
 			{
-				Slot->AttachWidgetParent(GetOwner());
+				Slot->AttachWidgetParent(Owner);
 			}
 		}
 	}
@@ -461,9 +455,9 @@ public:
 			TIndirectArray< SlotType >::RemoveAt(IndexToMove);
 		}
 
-		if (GetOwner())
+		if (Owner)
 		{
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -484,9 +478,9 @@ public:
 	void Sort( const PREDICATE_CLASS& Predicate )
 	{
 		::Sort(TIndirectArray< SlotType >::GetData(), TIndirectArray<SlotType>::Num(), Predicate);
-		if (GetOwner())
+		if (Owner)
 		{
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -494,18 +488,18 @@ public:
 	void StableSort(const PREDICATE_CLASS& Predicate)
 	{
 		::StableSort(TIndirectArray< SlotType >::GetData(), TIndirectArray< SlotType >::Num(), Predicate);
-		if (GetOwner())
+		if (Owner)
 		{
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
 	void Swap( int32 IndexA, int32 IndexB )
 	{
 		TIndirectArray< SlotType >::Swap(IndexA, IndexB);
-		if (GetOwner())
+		if (Owner)
 		{
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
@@ -670,18 +664,18 @@ public:
 
 	int32 Add( const TSharedRef<ChildType>& Child )
 	{
-		if (GetOwner() && bChangesInvalidatePrepass)
+		if (Owner && bChangesInvalidatePrepass)
 		{ 
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 
 		int32 Index = TArray< TSharedRef<ChildType> >::Add(Child);
 
-		if (GetOwner())
+		if (Owner)
 		{
 			if (Child != SNullWidget::NullWidget)
 			{
-				Child->AssignParentWidget(GetOwner()->AsShared());
+				Child->AssignParentWidget(Owner->AsShared());
 			}
 		}
 
@@ -696,7 +690,7 @@ public:
 			TSharedRef<SWidget> Child = GetChildAt(ChildIndex);
 			if (Child != SNullWidget::NullWidget)
 			{
-				Child->ConditionallyDetatchParentWidget(GetOwner());
+				Child->ConditionallyDetatchParentWidget(Owner);
 			}
 		}
 
@@ -710,7 +704,7 @@ public:
 			TSharedRef<SWidget> Child = GetChildAt(ChildIndex);
 			if (Child != SNullWidget::NullWidget)
 			{
-				Child->ConditionallyDetatchParentWidget(GetOwner());
+				Child->ConditionallyDetatchParentWidget(Owner);
 			}
 		}
 
@@ -719,18 +713,18 @@ public:
 
 	void Insert(const TSharedRef<ChildType>& Child, int32 Index)
 	{
-		if (GetOwner() && bChangesInvalidatePrepass) 
+		if (Owner && bChangesInvalidatePrepass) 
 		{
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 
 		TArray< TSharedRef<ChildType> >::Insert(Child, Index);
 
-		if (GetOwner())
+		if (Owner)
 		{
 			if (Child != SNullWidget::NullWidget)
 			{
-				Child->AssignParentWidget(GetOwner()->AsShared());
+				Child->AssignParentWidget(Owner->AsShared());
 			}
 		}
 	}
@@ -739,7 +733,7 @@ public:
 	{
 		if (Child != SNullWidget::NullWidget)
 		{
-			Child->ConditionallyDetatchParentWidget(GetOwner());
+			Child->ConditionallyDetatchParentWidget(Owner);
 		}
 
 		const int32 NumFoundAndRemoved = TArray< TSharedRef<ChildType> >::Remove( Child );
@@ -751,7 +745,7 @@ public:
 		TSharedRef<SWidget> Child = GetChildAt(Index);
 		if (Child != SNullWidget::NullWidget)
 		{
-			Child->ConditionallyDetatchParentWidget(GetOwner());
+			Child->ConditionallyDetatchParentWidget(Owner);
 		}
 
 		TArray< TSharedRef<ChildType> >::RemoveAt( Index );
@@ -776,73 +770,23 @@ public:
 	void Sort( const PREDICATE_CLASS& Predicate )
 	{
 		TArray< TSharedRef<ChildType> >::Sort( Predicate );
-		if (GetOwner() && bChangesInvalidatePrepass)
+		if (Owner && bChangesInvalidatePrepass)
 		{
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
 	void Swap( int32 IndexA, int32 IndexB )
 	{
 		TIndirectArray< ChildType >::Swap(IndexA, IndexB);
-		if (GetOwner() && bChangesInvalidatePrepass)
+		if (Owner && bChangesInvalidatePrepass)
 		{
-			GetOwner()->Invalidate(EInvalidateWidgetReason::ChildOrder);
+			Owner->Invalidate(EInvalidateWidgetReason::ChildOrder);
 		}
 	}
 
 private:
 	bool bChangesInvalidatePrepass;
-};
-
-
-/** A FChildren that support only one slot and alignment of content and padding */
-class FOneSimpleMemberChild : public TSupportsOneChildMixin<FOneSimpleMemberChild>, public TSupportsContentAlignmentMixin<FOneSimpleMemberChild>
-{
-public:
-	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-	FOneSimpleMemberChild(WidgetType& InParent)
-		: TSupportsOneChildMixin<FOneSimpleMemberChild>(&InParent)
-		, TSupportsContentAlignmentMixin<FOneSimpleMemberChild>(HAlign_Fill, VAlign_Fill)
-		, SlotPadding(InParent)
-	{
-	}
-
-	FOneSimpleMemberChild& Padding(TAttribute<FMargin> InPadding)
-	{
-		SlotPadding.Assign(*FChildren::GetOwner(), MoveTemp(InPadding));
-		return *this;
-	}
-
-	FOneSimpleMemberChild& Padding(float Uniform)
-	{
-		SlotPadding.Set(*FChildren::GetOwner(), FMargin(Uniform));
-		return *this;
-	}
-
-	FOneSimpleMemberChild& Padding(float Horizontal, float Vertical)
-	{
-		SlotPadding.Set(*FChildren::GetOwner(), FMargin(Horizontal, Vertical));
-		return *this;
-	}
-
-	FOneSimpleMemberChild& Padding(float Left, float Top, float Right, float Bottom)
-	{
-		SlotPadding.Set(*FChildren::GetOwner(), FMargin(Left, Top, Right, Bottom));
-		return *this;
-	}
-
-	const FMargin& GetSlotPadding() const { return SlotPadding.Get(); }
-
-public:
-	using SlotPaddingAttributeType = SlateAttributePrivate::TSlateMemberAttribute<FMargin, TSlateAttributeInvalidationReason<EInvalidateWidgetReason::Layout>>;
-	using SlotPaddingAttributeRefType = SlateAttributePrivate::TSlateMemberAttributeRef<SlotPaddingAttributeType>;
-
-	template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-	SlotPaddingAttributeRefType GetSlotPaddingAttribute() const { return SlotPaddingAttributeRefType(*(static_cast<const WidgetType*>(FChildren::GetOwner())), SlotPadding); }
-
-private:
-	SlotPaddingAttributeType SlotPadding;
 };
 
 

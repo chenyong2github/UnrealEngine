@@ -443,11 +443,8 @@ namespace SlateAttributePrivate
 		}
 
 	public:
-		/**
-		 * Unbind the SlateAttribute and set its value. It may invalidate the Widget if the value is different.
-		 * @return true if the value is considered different and an invalidation occurred.
-		 */
-		bool Set(SWidget& Widget, const ObjectType& NewValue)
+		/** Unbind the SlateAttribute and set its value. It may invalidate the Widget if the value is different. */
+		void Set(SWidget& Widget, const ObjectType& NewValue)
 		{
 			VerifyOwningWidget(Widget);
 			ProtectedUnregisterAttribute(Widget, InAttributeType);
@@ -458,14 +455,10 @@ namespace SlateAttributePrivate
 				Value = NewValue;
 				ProtectedInvalidateWidget(Widget, InAttributeType, GetInvalidationReason(Widget));
 			}
-			return !bIsIdentical;
 		}
 
-		/**
-		 * Unbind the SlateAttribute and set its value. It may invalidate the Widget if the value is different.
-		 * @return true if the value is considered different and an invalidation occurred.
-		 */
-		bool Set(SWidget& Widget, ObjectType&& NewValue)
+		/** Unbind the SlateAttribute and set its value. It may invalidate the Widget if the value is different. */
+		void Set(SWidget& Widget, ObjectType&& NewValue)
 		{
 			VerifyOwningWidget(Widget);
 			ProtectedUnregisterAttribute(Widget, InAttributeType);
@@ -476,7 +469,6 @@ namespace SlateAttributePrivate
 				Value = MoveTemp(NewValue);
 				ProtectedInvalidateWidget(Widget, InAttributeType, GetInvalidationReason(Widget));
 			}
-			return !bIsIdentical;
 		}
 
 	public:
@@ -538,109 +530,106 @@ namespace SlateAttributePrivate
 		 * Or
 		 * Unbind the SlateAttribute if the Attribute is not bound and not set.
 		 * @see Set
-		 * @return true if the getter was assigned or if the value is considered different and an invalidation occurred.
 		 */
-		bool Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute)
+		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				return AssignBinding(Widget, OtherAttribute.GetBinding());
+				AssignBinding(Widget, OtherAttribute.GetBinding());
 			}
 			else if (OtherAttribute.IsSet())
 			{
-				return Set(Widget, OtherAttribute.Get());
+				Set(Widget, OtherAttribute.Get());
 			}
 			else
 			{
 				ProtectedUnregisterAttribute(Widget, InAttributeType);
-				return false;
 			}
 		}
 
-		bool Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute)
+		void Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				return AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
+				AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
 			}
 			else if (OtherAttribute.IsSet())
 			{
-				return Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
+				Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
 			}
 			else
 			{
 				ProtectedUnregisterAttribute(Widget, InAttributeType);
-				return false;
 			}
 		}
 
-		bool Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, const ObjectType& DefaultValue)
+		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, const ObjectType& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				return AssignBinding(Widget, OtherAttribute.GetBinding());
+				AssignBinding(Widget, OtherAttribute.GetBinding());
 			}
 			else if (OtherAttribute.IsSet())
 			{
-				return Set(Widget, OtherAttribute.Get());
+				Set(Widget, OtherAttribute.Get());
 			}
 			else
 			{
-				return Set(Widget, DefaultValue);
+				Set(Widget, DefaultValue);
 			}
 		}
 
-		bool Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, const ObjectType& DefaultValue)
+		void Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, const ObjectType& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				return AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
+				AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
 			}
 			else if (OtherAttribute.IsSet())
 			{
-				return Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
+				Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
 			}
 			else
 			{
-				return Set(Widget, DefaultValue);
+				Set(Widget, DefaultValue);
 			}
 		}
 
-		bool Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, ObjectType&& DefaultValue)
+		void Assign(SWidget& Widget, const TAttribute<ObjectType>& OtherAttribute, ObjectType&& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				return AssignBinding(Widget, OtherAttribute.GetBinding());
+				AssignBinding(Widget, OtherAttribute.GetBinding());
 			}
 			else if (OtherAttribute.IsSet())
 			{
-				return Set(Widget, OtherAttribute.Get());
+				Set(Widget, OtherAttribute.Get());
 			}
 			else
 			{
-				return Set(Widget, MoveTemp(DefaultValue));
+				Set(Widget, MoveTemp(DefaultValue));
 			}
 		}
 
-		bool Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, ObjectType&& DefaultValue)
+		void Assign(SWidget& Widget, TAttribute<ObjectType>&& OtherAttribute, ObjectType&& DefaultValue)
 		{
 			VerifyOwningWidget(Widget);
 			if (OtherAttribute.IsBound())
 			{
-				return AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
+				AssignBinding(Widget, MoveTemp(OtherAttribute.Steal().template Get<FGetter>()));
 			}
 			else if (OtherAttribute.IsSet())
 			{
-				return Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
+				Set(Widget, MoveTemp(OtherAttribute.Steal().template Get<ObjectType>()));
 			}
 			else
 			{
-				return Set(Widget, MoveTemp(DefaultValue));
+				Set(Widget, MoveTemp(DefaultValue));
 			}
 		}
 
@@ -716,26 +705,22 @@ namespace SlateAttributePrivate
 			UpdateNowOnBind(Widget);
 		}
 
-		bool AssignBinding(SWidget& Widget, const FGetter& Getter)
+		void AssignBinding(SWidget& Widget, const FGetter& Getter)
 		{
 			const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
 			if (PreviousGetterHandle != Getter.GetHandle())
 			{
 				ConstructWrapper(Widget, Getter);
-				return true;
 			}
-			return false;
 		}
 
-		bool AssignBinding(SWidget& Widget, FGetter&& Getter)
+		void AssignBinding(SWidget& Widget, FGetter&& Getter)
 		{
 			const FDelegateHandle PreviousGetterHandle = ProtectedFindGetterHandle(Widget, InAttributeType);
 			if (PreviousGetterHandle != Getter.GetHandle())
 			{
-				return true;
 				ConstructWrapper(Widget, MoveTemp(Getter));
 			}
-			return false;
 		}
 
 	private:
@@ -1148,7 +1133,7 @@ namespace SlateAttributePrivate
 
 	private:
 		template<typename WidgetType>
-		static void VerifyAttributeAddress(const WidgetType& InWidget, const AttributeMemberType& InAttribute)
+		static void VerifyAttributeAddress(WidgetType const& InWidget, AttributeMemberType const& InAttribute)
 		{
 			checkf((UPTRINT)&InAttribute >= (UPTRINT)&InWidget && (UPTRINT)&InAttribute < (UPTRINT)&InWidget + sizeof(WidgetType),
 				TEXT("The attribute is not a member of the widget."));
@@ -1157,10 +1142,12 @@ namespace SlateAttributePrivate
 
 	public:
 		/** Constructor */
+		TSlateMemberAttributeRef() = default;
+
 		template<typename WidgetType, typename V = typename std::enable_if<std::is_base_of<SWidget, WidgetType>::value>::type>
-		explicit TSlateMemberAttributeRef(const WidgetType& InOwner, const AttributeMemberType& InAttribute)
+		explicit TSlateMemberAttributeRef(WidgetType const& InOwner, AttributeMemberType const& InAttribute)
 			: Owner(InOwner.AsShared())
-			, Attribute(InAttribute)
+			, Attribute(&InAttribute)
 		{
 			VerifyAttributeAddress(InOwner, InAttribute);
 		}
@@ -1177,7 +1164,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				return Attribute.Get();
+				return Attribute->Get();
 			}
 			checkf(false, TEXT("It is an error to call GetValue() on an unset TSlateMemberAttributeRef. Please either check IsValid() or use Get(DefaultValue) instead."));
 			static ObjectType Tmp;
@@ -1189,7 +1176,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				return Attribute.Get();
+				return Attribute->Get();
 			}
 			return DefaultValue;
 		}
@@ -1199,7 +1186,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				const_cast<AttributeMemberType>(Attribute).UpdateNow(*Pin.Get());
+				const_cast<AttributeMemberType*>(Attribute)->UpdateNow(*Pin.Get());
 			}
 		}
 
@@ -1211,8 +1198,8 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				const_cast<AttributeMemberType>(Attribute)->UpdateNow(*Pin.Get());
-				return Attribute.Get();
+				const_cast<AttributeMemberType*>(Attribute)->UpdateNow(*Pin.Get());
+				return Attribute->Get();
 			}
 			checkf(false, TEXT("It is an error to call GetValue() on an unset TSlateMemberAttributeRef. Please either check IsValid() or use Get(DefaultValue) instead."));
 		}
@@ -1225,8 +1212,8 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				const_cast<AttributeMemberType>(Attribute)->UpdateNow(*Pin.Get());
-				return Attribute.Get();
+				const_cast<AttributeMemberType*>(Attribute)->UpdateNow(*Pin.Get());
+				return Attribute->Get();
 			}
 			return DefaultValue;
 		}
@@ -1236,7 +1223,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				return Attribute.ToAttribute(*Pin.Get());
+				return Attribute->ToAttribute(*Pin.Get());
 			}
 			return TAttribute<ObjectType>();
 		}
@@ -1246,7 +1233,7 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				return Attribute.IsBound(*Pin.Get());
+				return Attribute->IsBound(*Pin.Get());
 			}
 			return false;
 		}
@@ -1258,7 +1245,7 @@ namespace SlateAttributePrivate
 			TSharedPtr<const SWidget> OtherPin = Other.Owner.Pin();
 			if (SelfPin == OtherPin && SelfPin)
 			{
-				return Attribute.IsIdenticalTo(*SelfPin.Get(), Other.Attribute);
+				return Attribute->IsIdenticalTo(*SelfPin.Get(), *Other.Attribute);
 			}
 			return SelfPin == OtherPin;
 		}
@@ -1268,14 +1255,14 @@ namespace SlateAttributePrivate
 		{
 			if (TSharedPtr<const SWidget> Pin = Owner.Pin())
 			{
-				return Attribute.IsIdenticalTo(*Pin.Get(), Other);
+				return Attribute->IsIdenticalTo(*Pin.Get(), Other);
 			}
 			return !Other.IsSet(); // if the other is not set, then both are invalid.
 		}
 
 	private:
 		TWeakPtr<const SWidget> Owner;
-		const AttributeMemberType& Attribute;
+		AttributeMemberType const* Attribute = nullptr;
 	 };
 
 

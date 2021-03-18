@@ -3,15 +3,8 @@
 #include "Widgets/Layout/SDPIScaler.h"
 #include "Layout/ArrangedChildren.h"
 
-SLATE_IMPLEMENT_WIDGET(SDPIScaler)
-void SDPIScaler::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
-{
-	SLATE_ADD_MEMBER_ATTRIBUTE_DEFINITION_WITH_NAME(AttributeInitializer, "DPIScale", DPIScaleAttribute, EInvalidateWidgetReason::Layout);
-}
-
 SDPIScaler::SDPIScaler()
-	: ChildSlot(*this)
-	, DPIScaleAttribute(*this)
+	: ChildSlot(this)
 {
 	SetCanTick(false);
 	bCanSupportFocus = false;
@@ -20,7 +13,7 @@ SDPIScaler::SDPIScaler()
 
 void SDPIScaler::Construct( const FArguments& InArgs )
 {
-	SetDPIScale(InArgs._DPIScale);
+	DPIScale = InArgs._DPIScale;
 
 	ChildSlot
 	[
@@ -33,7 +26,7 @@ void SDPIScaler::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 	const EVisibility MyVisibility = this->GetVisibility();
 	if ( ArrangedChildren.Accepts( MyVisibility ) )
 	{
-		const float MyDPIScale = DPIScaleAttribute.Get();
+		const float MyDPIScale = DPIScale.Get();
 
 		ArrangedChildren.AddWidget( AllottedGeometry.MakeChild(
 			this->ChildSlot.GetWidget(),
@@ -46,7 +39,7 @@ void SDPIScaler::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 	
 FVector2D SDPIScaler::ComputeDesiredSize( float ) const
 {
-	return DPIScaleAttribute.Get() * ChildSlot.GetWidget()->GetDesiredSize();
+	return DPIScale.Get() * ChildSlot.GetWidget()->GetDesiredSize();
 }
 
 FChildren* SDPIScaler::GetChildren()
@@ -64,7 +57,7 @@ void SDPIScaler::SetContent(TSharedRef<SWidget> InContent)
 
 void SDPIScaler::SetDPIScale(TAttribute<float> InDPIScale)
 {
-	if (DPIScaleAttribute.Assign(*this, MoveTemp(InDPIScale)))
+	if (SetAttribute(DPIScale, InDPIScale, EInvalidateWidgetReason::Layout))
 	{
 		InvalidatePrepass();
 	}
@@ -72,5 +65,5 @@ void SDPIScaler::SetDPIScale(TAttribute<float> InDPIScale)
 
 float SDPIScaler::GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const
 {
-	return DPIScaleAttribute.Get();
+	return DPIScale.Get();
 }
