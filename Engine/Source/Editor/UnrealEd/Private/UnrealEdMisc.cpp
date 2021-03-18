@@ -331,12 +331,10 @@ void FUnrealEdMisc::OnInit()
 			 // If it's not a parameter
 			 ParsedMapName.StartsWith( TEXT("-") ) == false )
 		{
-			FString InitialMapName;
-				
+			FString InitialMapLongPackageName = FindMapFileFromPartialName(ParsedMapName);
+			
 			// If the specified package exists
-			if ( FPackageName::SearchForPackageOnDisk(ParsedMapName, NULL, &InitialMapName) &&
-				// and it's a valid map file
-				FPaths::GetExtension(InitialMapName, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension() )
+			if (!InitialMapLongPackageName.IsEmpty())
 			{
 				// Never show loading progress when loading a map at startup.  Loading status will instead
 				// be reflected in the splash screen status
@@ -344,7 +342,7 @@ void FUnrealEdMisc::OnInit()
 				const bool bLoadAsTemplate = false;
 
 				// Load the map
-				FEditorFileUtils::LoadMap(InitialMapName, bLoadAsTemplate, bShowProgress);
+				FEditorFileUtils::LoadMap(InitialMapLongPackageName, bLoadAsTemplate, bShowProgress);
 				bMapLoaded = true;
 			}
 		}
@@ -534,6 +532,73 @@ void FUnrealEdMisc::OnInit()
 	UE_LOG(LogUnrealEdMisc, Log, TEXT("Total Editor Startup Time, took %.3f"), TotalEditorStartupTime);
 
 	FStudioAnalytics::FireEvent_Loading(TEXT("TotalEditorStartup"), TotalEditorStartupTime);
+}
+
+FString FUnrealEdMisc::FindMapFileFromPartialName(const FString& PartialMapName)
+{
+	TArray<FString> CommandLineMapCache;
+	GConfig->GetArray(TEXT("EditorMapCache"), TEXT("CommandLineMapCache"), CommandLineMapCache, GEditorPerProjectIni);
+	bool CommandLineMapCacheDirty = false;
+
+	FString FoundMapFile;
+
+	for (int32 Index = 0; Index < CommandLineMapCache.Num(); Index++)
+	{
+		bool bRemoveEntry = false;
+		FString CurrentCacheEntry = CommandLineMapCache[Index];
+
+		TArray<FString> Tokens;
+		CurrentCacheEntry.ParseIntoArray(Tokens, TEXT(","));
+		if (Tokens.Num() == 2)
+		{
+			FString ShortMapName = Tokens[0];
+			FString RelativeFileName = Tokens[1];
+		
+			if (ShortMapName == PartialMapName)
+			{
+				if (FPaths::FileExists(RelativeFileName))
+				{
+					FoundMapFile = RelativeFileName;
+					break;
+				}
+				else
+				{
+					bRemoveEntry = true;
+				}
+			}
+		}
+		else
+		{
+			bRemoveEntry = true;
+		}
+
+		if (bRemoveEntry)
+		{
+			CommandLineMapCacheDirty = true;
+			CommandLineMapCache.RemoveAt(Index);
+			Index--;
+		}
+	}
+
+	if (FoundMapFile.IsEmpty())
+	{
+		// If the specified package exists
+		if (FPackageName::SearchForPackageOnDisk(PartialMapName, NULL, &FoundMapFile) &&
+			// and it's a valid map file
+			FPaths::GetExtension(FoundMapFile, /*bIncludeDot=*/true) == FPackageName::GetMapPackageExtension())
+		{
+			CommandLineMapCache.Add(PartialMapName + TEXT(",") + FoundMapFile);
+			CommandLineMapCacheDirty = true;
+		}
+	}
+
+	if (CommandLineMapCacheDirty)
+	{
+		GConfig->SetArray(TEXT("EditorMapCache"), TEXT("CommandLineMapCache"), CommandLineMapCache, GEditorPerProjectIni);
+		GConfig->Flush(false, GEditorPerProjectIni);
+	}
+
+	return FoundMapFile;
 }
 
 void FUnrealEdMisc::InitEngineAnalytics()
