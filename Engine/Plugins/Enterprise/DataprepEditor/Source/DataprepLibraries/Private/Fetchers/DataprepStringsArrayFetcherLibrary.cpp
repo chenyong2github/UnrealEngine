@@ -22,6 +22,17 @@ TArray<FString> UDataprepStringActorTagsFetcher::Fetch_Implementation(const UObj
 		}
 		return MoveTemp(Tags);
 	}
+	else if (const UActorComponent* Component = Cast<const UActorComponent>(Object))
+	{
+		bOutFetchSucceded = true;
+		TArray<FString> Tags;
+		Tags.Reserve(Component->ComponentTags.Num());
+		for (int TagIndex = 0; TagIndex < Component->ComponentTags.Num(); ++TagIndex)
+		{
+			Tags.Add(Component->ComponentTags[TagIndex].ToString());
+		}
+		return MoveTemp(Tags);
+	}
 
 	bOutFetchSucceded = false;
 	return {};
