@@ -273,7 +273,7 @@ protected:
 
 	// Button click support
 	EMeshSpaceDeformerToolAction PendingAction;
-	UE::Geometry::FVector3d MeshCenter;
+	FVector3d MeshCenter;
 
 	UE::Geometry::FFrame3d GizmoFrame;
 
@@ -283,7 +283,7 @@ protected:
 
 	TPimplPtr<FSelectClickedAction> SetPointInWorldConnector;
 
-	TArray<UE::Geometry::FVector3d> VisualizationPoints;
+	TArray<FVector3d> VisualizationPoints;
 	FToolDataVisualizer VisualizationRenderer;
 
 	void TransformProxyChanged(UTransformProxy* Proxy, FTransform Transform);

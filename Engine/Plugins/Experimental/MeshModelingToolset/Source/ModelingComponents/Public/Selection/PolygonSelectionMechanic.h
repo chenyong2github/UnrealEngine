@@ -82,7 +82,6 @@ class MODELINGCOMPONENTS_API UPolygonSelectionMechanic : public UInteractionMech
 {
 	GENERATED_BODY()
 	using FFrame3d = UE::Geometry::FFrame3d;
-	using FVector3d = UE::Geometry::FVector3d;
 	using FTransform3d = UE::Geometry::FTransform3d;	
 public:
 

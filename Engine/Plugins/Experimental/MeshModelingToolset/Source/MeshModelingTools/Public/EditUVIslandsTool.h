@@ -124,7 +124,7 @@ protected:
 
 	double UVTranslateScale;
 	UE::Geometry::FFrame3d InitialGizmoFrame;
-	UE::Geometry::FVector3d InitialGizmoScale;
+	FVector3d InitialGizmoScale;
 	void ComputeUpdate_Gizmo();
 
 	FUVGroupTopology Topology;
@@ -144,8 +144,8 @@ protected:
 		TArray<int32> Triangles;
 		TArray<int32> UVs;
 		UE::Geometry::FAxisAlignedBox2d UVBounds;
-		UE::Geometry::FVector2d UVOrigin;
-		TArray<UE::Geometry::FVector2f> InitialPositions;
+		FVector2d UVOrigin;
+		TArray<FVector2f> InitialPositions;
 	};
 	TArray<FEditIsland> ActiveIslands;
 	void UpdateUVTransformFromSelection(const FGroupTopologySelection& Selection);

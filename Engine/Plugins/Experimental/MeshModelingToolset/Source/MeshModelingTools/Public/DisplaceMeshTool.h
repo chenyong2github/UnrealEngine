@@ -240,7 +240,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDisplaceMeshTool : public USingleSelectionTool
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	void Setup() final;
 	void Shutdown(EToolShutdownType ShutdownType) final;

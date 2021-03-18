@@ -47,7 +47,7 @@ public:
 
 	void Initialize(UWorld* TargetWorld, const UE::Geometry::FFrame3d& InitialPlane);
 
-	void SetDrawPlaneFromWorldPos(const UE::Geometry::FVector3d& Position, const UE::Geometry::FVector3d& Normal, bool bIgnoreNormal);
+	void SetDrawPlaneFromWorldPos(const FVector3d& Position, const FVector3d& Normal, bool bIgnoreNormal);
 
 	/** 
 	 * Sets the plane without broadcasting OnPlaneChanged. Useful when the user of the tool wants to change

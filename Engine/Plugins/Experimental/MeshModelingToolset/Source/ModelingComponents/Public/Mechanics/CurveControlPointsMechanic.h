@@ -45,7 +45,6 @@ class MODELINGCOMPONENTS_API UCurveControlPointsMechanic : public UInteractionMe
 	GENERATED_BODY()
 
 protected:
-	using FVector3d = UE::Geometry::FVector3d;
 
 	// We want some way to store the control point sequence that lets us easily associate points with their renderable and hit-testable
 	// representations, since we need to alter all of these together as points get moved or added. We use FOrderedPoints for this, until
@@ -457,7 +456,6 @@ protected:
 
 class MODELINGCOMPONENTS_API FCurveControlPointsMechanicInsertionChange : public FToolCommandChange
 {
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	FCurveControlPointsMechanicInsertionChange(int32 SequencePositionIn, int32 PointID, 
 		const FVector3d& CoordinatesIn, bool AddedIn, int32 ChangeStampIn);
@@ -499,7 +497,6 @@ protected:
 
 class MODELINGCOMPONENTS_API FCurveControlPointsMechanicMovementChange : public FToolCommandChange
 {
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	FCurveControlPointsMechanicMovementChange(int32 PointIDIn, const FVector3d& OriginalPositionIn, 
 		const FVector3d& NewPositionIn, int32 ChangeStampIn);

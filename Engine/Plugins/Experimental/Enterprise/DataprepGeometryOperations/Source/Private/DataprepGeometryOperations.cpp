@@ -296,12 +296,12 @@ void UDataprepBakeTransformOperation::OnExecution_Implementation(const FDataprep
 				ToBakePart.SetRotation(ComponentToWorld.GetRotation());
 				NewWorldPart.SetRotation(UE::Geometry::FQuaterniond::Identity());
 			}
-			UE::Geometry::FVector3d ScaleVec = ComponentToWorld.GetScale();
+			FVector3d ScaleVec = ComponentToWorld.GetScale();
 
-			UE::Geometry::FVector3d AbsScales(FMathd::Abs(ScaleVec.X), FMathd::Abs(ScaleVec.Y), FMathd::Abs(ScaleVec.Z));
+			FVector3d AbsScales(FMathd::Abs(ScaleVec.X), FMathd::Abs(ScaleVec.Y), FMathd::Abs(ScaleVec.Z));
 			double RemainingUniformScale = AbsScales.X;
 			{
-				UE::Geometry::FVector3d Dists;
+				FVector3d Dists;
 				for (int SubIdx = 0; SubIdx < 3; SubIdx++)
 				{
 					int OtherA = (SubIdx + 1) % 3;
@@ -326,12 +326,12 @@ void UDataprepBakeTransformOperation::OnExecution_Implementation(const FDataprep
 			{
 			case EBakeScaleMethod::BakeFullScale:
 				ToBakePart.SetScale(ScaleVec);
-				NewWorldPart.SetScale(UE::Geometry::FVector3d::One());
+				NewWorldPart.SetScale(FVector3d::One());
 				break;
 			case EBakeScaleMethod::BakeNonuniformScale:
 				check(RemainingUniformScale > FLT_MIN); // avoid baking a ~zero scale
 				ToBakePart.SetScale(ScaleVec / RemainingUniformScale);
-				NewWorldPart.SetScale(UE::Geometry::FVector3d(RemainingUniformScale, RemainingUniformScale, RemainingUniformScale));
+				NewWorldPart.SetScale(FVector3d(RemainingUniformScale, RemainingUniformScale, RemainingUniformScale));
 				break;
 			case EBakeScaleMethod::DoNotBakeScale:
 				break;
@@ -351,7 +351,7 @@ void UDataprepBakeTransformOperation::OnExecution_Implementation(const FDataprep
 			if (bRecenterPivot)
 			{
 				FBox BBox = MeshDescription->ComputeBoundingBox();
-				UE::Geometry::FVector3d Center(BBox.GetCenter());
+				FVector3d Center(BBox.GetCenter());
 				UE::Geometry::FFrame3d LocalFrame(Center);
 				ToBakePart.SetTranslation(ToBakePart.GetTranslation() - Center);
 				NewWorldPart.SetTranslation(NewWorldPart.GetTranslation() + NewWorldPart.TransformVector(Center));

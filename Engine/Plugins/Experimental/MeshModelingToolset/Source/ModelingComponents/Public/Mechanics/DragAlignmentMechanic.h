@@ -90,7 +90,7 @@ protected:
 	bool bPreviewEndpointsValid = false;
 	bool bWaitingOnProjectedResult = false;
 	FHitResult LastHitResult;
-	UE::Geometry::FVector3d LastProjectedResult;
+	FVector3d LastProjectedResult;
 
 	bool bAlignmentToggle = false;
 	int32 AlignmentModifierID = 1;

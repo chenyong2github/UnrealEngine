@@ -41,7 +41,6 @@ struct FVertexInfo
 namespace DynamicMeshInfo
 {
 using namespace UE::Geometry;
-using FVector3d = UE::Geometry::FVector3d;
 
 /** Information about the mesh elements created by a call to SplitEdge() */
 struct FEdgeSplitInfo

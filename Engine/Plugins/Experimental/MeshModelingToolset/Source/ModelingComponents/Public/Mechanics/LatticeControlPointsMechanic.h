@@ -31,7 +31,6 @@ class MODELINGCOMPONENTS_API ULatticeControlPointsMechanic :
 	public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 	using FVector2i = UE::Geometry::FVector2i;
 	using FTransform3d = UE::Geometry::FTransform3d;
 
@@ -211,7 +210,6 @@ protected:
 // Control points have moved
 class MODELINGCOMPONENTS_API FLatticeControlPointsMechanicMovementChange : public FToolCommandChange
 {
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	FLatticeControlPointsMechanicMovementChange(

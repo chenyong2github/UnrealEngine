@@ -182,7 +182,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UMeshVertexSculptTool : public UMeshSculptToolBase
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -293,7 +292,7 @@ protected:
 	double SculptMaxFixedHeight = -1.0;
 
 	bool bHaveBrushAlpha = false;
-	UE::Geometry::TImageBuilder<UE::Geometry::FVector4f> BrushAlphaValues;
+	UE::Geometry::TImageBuilder<FVector4f> BrushAlphaValues;
 	UE::Geometry::FImageDimensions BrushAlphaDimensions;
 	double SampleBrushAlpha(const FSculptBrushStamp& Stamp, const FVector3d& Position) const;
 

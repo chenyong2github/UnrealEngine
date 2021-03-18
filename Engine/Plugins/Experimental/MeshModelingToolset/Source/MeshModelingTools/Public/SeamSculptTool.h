@@ -50,7 +50,6 @@ UCLASS(Transient)
 class MESHMODELINGTOOLS_API USeamSculptTool : public UDynamicMeshBrushTool
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	USeamSculptTool();
 

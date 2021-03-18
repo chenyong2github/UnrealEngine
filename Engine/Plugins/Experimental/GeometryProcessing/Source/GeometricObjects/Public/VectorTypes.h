@@ -781,8 +781,6 @@ std::ostream& operator<<(std::ostream& os, const FVector3<RealType>& Vec)
 	return os;
 }
 
-typedef FVector3<float> FVector3f;
-typedef FVector3<double> FVector3d;
 typedef FVector3<int> FVector3i;
 
 template <typename T>
@@ -825,8 +823,6 @@ std::ostream& operator<<(std::ostream& os, const FVector2<RealType>& Vec)
 	return os;
 }
 
-typedef FVector2<float> FVector2f;
-typedef FVector2<double> FVector2d;
 typedef FVector2<int> FVector2i;
 
 
@@ -1116,8 +1112,6 @@ std::ostream& operator<<(std::ostream& os, const TVector4<RealType>& Vec)
 	return os;
 }
 
-typedef TVector4<float> FVector4f;
-typedef TVector4<double> FVector4d;
 typedef TVector4<int> FVector4i;
 
 template <typename T>
@@ -1131,3 +1125,13 @@ FORCEINLINE uint32 GetTypeHash(const TVector4<T>& Vector)
 
 } // end namespace UE::Geometry
 } // end namespace UE
+
+
+typedef UE::Geometry::FVector2<float> FVector2f;
+typedef UE::Geometry::FVector2<double> FVector2d;
+
+typedef UE::Geometry::FVector3<float> FVector3f;
+typedef UE::Geometry::FVector3<double> FVector3d;
+
+typedef UE::Geometry::TVector4<float> FVector4f;
+typedef UE::Geometry::TVector4<double> FVector4d;

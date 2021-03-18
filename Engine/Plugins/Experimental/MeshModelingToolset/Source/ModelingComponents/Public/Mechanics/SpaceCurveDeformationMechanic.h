@@ -68,7 +68,6 @@ UCLASS()
 class MODELINGCOMPONENTS_API USpaceCurveDeformationMechanicPropertySet : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 
 public:
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -95,7 +94,6 @@ UCLASS()
 class MODELINGCOMPONENTS_API USpaceCurveDeformationMechanic : public UInteractionMechanic, public IClickBehaviorTarget, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	// Behaviors used for moving points around and hovering them

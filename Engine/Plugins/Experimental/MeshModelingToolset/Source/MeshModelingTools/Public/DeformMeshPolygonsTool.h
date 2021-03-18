@@ -88,7 +88,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDeformMeshPolygonsTransformProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 
 public:
 	UDeformMeshPolygonsTransformProperties();
@@ -149,7 +148,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDeformMeshPolygonsTool : public UMeshSurfacePointTool
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 
 public:
 	UDeformMeshPolygonsTool();

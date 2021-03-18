@@ -81,7 +81,6 @@ UCLASS()
 class MESHMODELINGTOOLSEDITORONLY_API UMeshTangentsTool : public USingleSelectionTool, public UE::Geometry::IGenericDataOperatorFactory<UE::Geometry::FMeshTangentsd>
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	UMeshTangentsTool();
 

@@ -218,9 +218,9 @@ int32 UFractureToolAutoUV::ExecuteFracture(const FFractureToolContext& FractureC
 		FImageDimensions Dimensions(OutputRes, OutputRes);
 		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
 
-		UE::Geometry::TImageBuilder<UE::Geometry::FVector3f> ImageBuilder;
+		UE::Geometry::TImageBuilder<FVector3f> ImageBuilder;
 		ImageBuilder.SetDimensions(Dimensions);
-		ImageBuilder.Clear(UE::Geometry::FVector3f(0, 0, 0));
+		ImageBuilder.Clear(FVector3f(0, 0, 0));
 
 		UE::PlanarCut::TextureInternalSurfaces(Collection, AutoUVSettings->MaxDistance, FMath::CeilToInt(AutoUVSettings->GutterSize), ImageBuilder);
 

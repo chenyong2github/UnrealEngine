@@ -188,7 +188,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UMirrorTool : public UMultiSelectionTool, public IModifierToggleBehaviorTarget
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	friend UMirrorOperatorFactory;

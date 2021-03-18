@@ -28,7 +28,6 @@ struct FMeshLODGraphPreFilterSettings
 
 class FGenerateMeshLODGraph
 {
-	using FVector4f = UE::Geometry::FVector4f;
 public:
 	void BuildGraph();
 

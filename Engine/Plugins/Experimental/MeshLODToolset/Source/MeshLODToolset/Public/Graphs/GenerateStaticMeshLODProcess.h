@@ -161,7 +161,6 @@ UCLASS(Transient)
 class UGenerateStaticMeshLODProcess : public UObject
 {
 	GENERATED_BODY()
-	using FVector4f = UE::Geometry::FVector4f;
 public:
 
 	bool Initialize(UStaticMesh* SourceMesh);

@@ -49,14 +49,14 @@ using UE::Geometry::FIndex2i;
 using UE::Geometry::FIndex3i;
 using UE::Geometry::FIndex4i;
 
-using UE::Geometry::FVector2f;
-using UE::Geometry::FVector2d;
+//using UE::Geometry::FVector2f;
+//using UE::Geometry::FVector2d;
 using UE::Geometry::FVector2i;
-using UE::Geometry::FVector3f;
-using UE::Geometry::FVector3d;
+//using UE::Geometry::FVector3f;
+//using UE::Geometry::FVector3d;
 using UE::Geometry::FVector3i;
-using UE::Geometry::FVector4f;
-using UE::Geometry::FVector4d;
+//using UE::Geometry::FVector4f;
+//using UE::Geometry::FVector4d;
 using UE::Geometry::FVector4i;
 
 using UE::Geometry::FMatrix3f;

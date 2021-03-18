@@ -476,7 +476,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UEditMeshPolygonsTool : public UMeshSurfacePointTool, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 	using FTransform3d = UE::Geometry::FTransform3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
 	using FAxisAlignedBox3d = UE::Geometry::FAxisAlignedBox3d;

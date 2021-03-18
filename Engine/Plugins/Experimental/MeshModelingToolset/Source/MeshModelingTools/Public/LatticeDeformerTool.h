@@ -145,7 +145,7 @@ protected:
 	bool bShouldRebuild = false;
 
 	// Create and store an FFFDLattice. Pass out the lattice's positions and edges.
-	void InitializeLattice(TArray<UE::Geometry::FVector3d>& OutLatticePoints, TArray<UE::Geometry::FVector2i>& OutLatticeEdges);
+	void InitializeLattice(TArray<FVector3d>& OutLatticePoints, TArray<UE::Geometry::FVector2i>& OutLatticeEdges);
 
 	void StartPreview();
 

@@ -11,7 +11,6 @@
 PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
 using UE::Geometry::FFrame3d;
 using UE::Geometry::FMatrix3d;
-using UE::Geometry::FVector3d;
 
 enum class ESculptBrushOpTargetType : uint8
 {

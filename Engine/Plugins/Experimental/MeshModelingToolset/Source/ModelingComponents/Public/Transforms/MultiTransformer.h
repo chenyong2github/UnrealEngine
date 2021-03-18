@@ -31,7 +31,6 @@ class MODELINGCOMPONENTS_API UMultiTransformer : public UObject
 {
 	GENERATED_BODY()
 	using FFrame3d = UE::Geometry::FFrame3d;
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	
 	virtual void Setup(UInteractiveGizmoManager* GizmoManager, IToolContextTransactionProvider* TransactionProviderIn);

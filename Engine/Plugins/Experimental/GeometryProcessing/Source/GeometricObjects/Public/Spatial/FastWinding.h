@@ -15,7 +15,6 @@ namespace FastTriWinding
 {
 	using namespace UE::Geometry;
 	using FTriangle3d = UE::Geometry::FTriangle3d;
-	using FVector3d = UE::Geometry::FVector3d;
 	using FMatrix3d = UE::Geometry::FMatrix3d;
 
 	/**

@@ -191,7 +191,7 @@ protected:
 	TArray<UE::Geometry::FFrame3d> CurPathPoints;
 	TArray<double> OffsetScaleFactors;
 	TArray<double> ArcLengths;
-	TArray<UE::Geometry::FVector3d> CurPolyLine;
+	TArray<FVector3d> CurPolyLine;
 	double CurPathLength;
 	double CurOffsetDistance;
 	double CurHeight;

@@ -59,7 +59,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API URevolveProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	URevolveProperties()

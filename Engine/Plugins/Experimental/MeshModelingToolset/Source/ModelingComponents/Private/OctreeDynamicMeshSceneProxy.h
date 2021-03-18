@@ -29,9 +29,6 @@ DECLARE_CYCLE_STAT(TEXT("SculptToolOctree_BufferUpload"), STAT_SculptToolOctree_
  */
 class FOctreeDynamicMeshSceneProxy final : public FBaseDynamicMeshSceneProxy
 {
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector3f = UE::Geometry::FVector3f;
-	using FVector2f = UE::Geometry::FVector2f;
 	using FIndex2i = UE::Geometry::FIndex2i;
 	using FIndex3i = UE::Geometry::FIndex3i;
 private:

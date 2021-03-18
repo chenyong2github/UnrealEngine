@@ -10,7 +10,6 @@
  */
 struct FArrangement final
 {
-	using FVector2d = UE::Geometry::FVector2d;
 	using FIndex2i = UE::Geometry::FIndex2i;
 	using FSegment2f = UE::Geometry::FSegment2f;
 	using FSegment2d = UE::Geometry::FSegment2d;

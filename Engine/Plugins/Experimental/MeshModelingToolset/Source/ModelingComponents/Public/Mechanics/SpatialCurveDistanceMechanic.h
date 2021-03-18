@@ -15,7 +15,6 @@ UCLASS()
 class MODELINGCOMPONENTS_API USpatialCurveDistanceMechanic : public UInteractionMechanic
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 	using FTransform3d = UE::Geometry::FTransform3d;
 public:
 	/** If this function is set, the hit point will be passed in to this function for snapping. Return false to indicate no snapping occurred. */

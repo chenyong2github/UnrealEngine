@@ -31,7 +31,6 @@ class MODELINGCOMPONENTS_API UCollectSurfacePathMechanic : public UInteractionMe
 public:
 	using FFrame3d = UE::Geometry::FFrame3d;
 	using FRay3d = UE::Geometry::FRay3d;
-	using FVector3d = UE::Geometry::FVector3d;
 
 	TUniqueFunction<bool()> IsDoneFunc = nullptr;
 

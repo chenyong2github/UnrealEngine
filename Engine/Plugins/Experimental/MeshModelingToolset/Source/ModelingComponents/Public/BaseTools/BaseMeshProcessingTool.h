@@ -79,10 +79,6 @@ class MODELINGCOMPONENTS_API UBaseMeshProcessingTool : public USingleSelectionTo
 {
 	GENERATED_BODY()
 protected:
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector3f = UE::Geometry::FVector3f;
-	using FVector2d = UE::Geometry::FVector2d;
-	using FVector2f = UE::Geometry::FVector2f;
 	using FTransform3d = UE::Geometry::FTransform3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
 	using FRay3d = UE::Geometry::FRay3d;

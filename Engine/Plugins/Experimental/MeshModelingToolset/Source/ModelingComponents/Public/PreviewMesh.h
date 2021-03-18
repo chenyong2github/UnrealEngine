@@ -58,7 +58,6 @@ class MODELINGCOMPONENTS_API UPreviewMesh : public UObject, public IMeshVertexCo
 {
 	GENERATED_BODY()
 	using FRay3d = UE::Geometry::FRay3d;
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 	UPreviewMesh();
 	virtual ~UPreviewMesh();

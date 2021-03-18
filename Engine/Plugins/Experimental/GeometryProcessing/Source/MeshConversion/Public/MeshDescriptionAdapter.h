@@ -19,8 +19,6 @@
  */
 struct /*MESHCONVERSION_API*/ FMeshDescriptionTriangleMeshAdapter
 {
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector3f = UE::Geometry::FVector3f;
 	using FIndex3i = UE::Geometry::FIndex3i;
 protected:
 	const FMeshDescription* Mesh;
@@ -115,8 +113,6 @@ public:
  */
 struct /*MESHCONVERSION_API*/ FMeshDescriptionEditableTriangleMeshAdapter
 {
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector3f = UE::Geometry::FVector3f;
 	using FIndex3i = UE::Geometry::FIndex3i;
 protected:
 	FMeshDescription* Mesh;

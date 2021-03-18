@@ -9,7 +9,6 @@ using UE::Geometry::FDynamicMesh3;
 
 class FFindPolygonsAlgorithm
 {
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	FFindPolygonsAlgorithm() {}

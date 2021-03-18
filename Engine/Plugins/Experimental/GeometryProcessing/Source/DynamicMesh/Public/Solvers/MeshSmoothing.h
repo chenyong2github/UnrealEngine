@@ -11,7 +11,6 @@ namespace UE
 	namespace MeshDeformation
 	{
 		using namespace UE::Geometry;
-		using UE::Geometry::FVector3d;
 
 		/**
 		*

@@ -16,7 +16,6 @@
 namespace MeshIntersection
 {
 	using namespace UE::Geometry;
-	using FVector3d = UE::Geometry::FVector3d;
 
 	/**
 	 * Intersection query result types for triangle mesh intersections

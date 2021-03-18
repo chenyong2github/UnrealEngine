@@ -167,8 +167,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UDrawPolygonTool : public UInteractiveTool, public IClickSequenceBehaviorTarget
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector2d = UE::Geometry::FVector2d;
 public:
 	UDrawPolygonTool();
 
@@ -338,15 +336,14 @@ protected:
 class MESHMODELINGTOOLS_API FDrawPolygonStateChange : public FToolCommandChange
 {
 public:
-	using Points = TArray<UE::Geometry::FVector3d>;
 	bool bHaveDoneUndo = false;
 	int32 CurveTimestamp = 0;
-	const Points FixedVertexPoints;
-	const Points PolyPoints;
+	const TArray<FVector3d> FixedVertexPoints;
+	const TArray<FVector3d> PolyPoints;
 
 	FDrawPolygonStateChange(int32 CurveTimestampIn,
-							const Points& FixedVertexPointsIn,
-							const Points& PolyPointsIn)
+							const TArray<FVector3d>& FixedVertexPointsIn,
+							const TArray<FVector3d>& PolyPointsIn)
 		: CurveTimestamp(CurveTimestampIn),
 		FixedVertexPoints(FixedVertexPointsIn),
 		PolyPoints(PolyPointsIn)

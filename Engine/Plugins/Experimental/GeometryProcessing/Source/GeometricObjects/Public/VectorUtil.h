@@ -29,8 +29,6 @@ enum class EIntersectionType
 namespace VectorUtil
 {
 	using namespace UE::Geometry;
-	using FVector2d = UE::Geometry::FVector2d;
-	using FVector3d = UE::Geometry::FVector3d;
 
 	/**
 	 * @return true if all components of V are finite

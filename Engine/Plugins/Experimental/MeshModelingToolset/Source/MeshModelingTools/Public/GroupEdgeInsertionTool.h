@@ -90,7 +90,6 @@ class MESHMODELINGTOOLS_API UGroupEdgeInsertionTool : public USingleSelectionToo
 	};
 
 	using FRay3d = UE::Geometry::FRay3d;
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	friend class UGroupEdgeInsertionOperatorFactory;

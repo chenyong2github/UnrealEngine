@@ -18,7 +18,6 @@ UCLASS()
 class MODELINGCOMPONENTS_API UPlaneDistanceFromHitMechanic : public UInteractionMechanic
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 	using FFrame3d = UE::Geometry::FFrame3d;
 public:
 	/** If this function is set, we will check it for a ray intersection if the target mesh is not hit */

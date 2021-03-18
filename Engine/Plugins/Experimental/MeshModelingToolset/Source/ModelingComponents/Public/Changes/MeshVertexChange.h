@@ -19,8 +19,6 @@ PREDECLARE_USE_GEOMETRY_CLASS(FDynamicMesh3);
  */
 class MODELINGCOMPONENTS_API FMeshVertexChange : public FToolCommandChange
 {
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector3f = UE::Geometry::FVector3f;
 public:
 	bool bHaveVertexPositions = true;
 	bool bHaveVertexColors = false;
@@ -61,8 +59,6 @@ ENUM_CLASS_FLAGS(EMeshVertexChangeComponents);
  */
 class MODELINGCOMPONENTS_API FMeshVertexChangeBuilder
 {
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector3f = UE::Geometry::FVector3f;
 public:
 	TUniquePtr<FMeshVertexChange> Change;
 	TMap<int32, int32> SavedVertices;

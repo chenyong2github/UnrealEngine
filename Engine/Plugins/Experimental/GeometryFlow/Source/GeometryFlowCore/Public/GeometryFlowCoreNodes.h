@@ -12,8 +12,6 @@ namespace GeometryFlow
 {
 
 using namespace UE::Geometry;
-using UE::Geometry::FVector3d;
-using UE::Geometry::FVector3f;
 
 
 template<typename T, int32 StorageTypeIdentifier>

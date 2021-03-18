@@ -18,8 +18,6 @@ UCLASS(Transient)
 class MODELINGCOMPONENTS_API UPolyEditPreviewMesh : public UPreviewMesh
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
-	using FVector3f = UE::Geometry::FVector3f;
 	using FTransform3d = UE::Geometry::FTransform3d;	
 public:
 

@@ -118,7 +118,6 @@ UCLASS()
 class MESHMODELINGTOOLS_API UEdgeLoopInsertionTool : public USingleSelectionTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
-	using FVector3d = UE::Geometry::FVector3d;
 public:
 
 	friend class UEdgeLoopInsertionOperatorFactory;

@@ -116,8 +116,8 @@ protected:
 
 	// This information is replicated in the user-editable transform in the settings and in the PlaneMechanic
 	// plane, but the tool turned out to be much easier to write and edit with this decoupling.
-	UE::Geometry::FVector3d RevolutionAxisOrigin;
-	UE::Geometry::FVector3d RevolutionAxisDirection;
+	FVector3d RevolutionAxisOrigin;
+	FVector3d RevolutionAxisDirection;
 
 	bool bProfileCurveComplete = false;
 

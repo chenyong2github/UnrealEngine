@@ -370,7 +370,7 @@ void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& 
 			FContour& Contour = ContoursLocal->Add();
 			const FPolygon2f& Polygon = *NodeIn->Contour;
 
-			for (const UE::Geometry::FVector2f& Vertex : Polygon.GetVertices())
+			for (const FVector2f& Vertex : Polygon.GetVertices())
 			{
 				// Add point to contour in old format
 				const FPartPtr Point = MakeShared<FPart>();
