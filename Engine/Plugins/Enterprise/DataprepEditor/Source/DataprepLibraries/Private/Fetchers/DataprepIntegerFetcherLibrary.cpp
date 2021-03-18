@@ -47,6 +47,14 @@ int32 UDataprepTriangleCountFetcher::Fetch_Implementation(const UObject* Object,
 				}
 			}
 		}
+		else if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( Object ) )
+		{
+			if ( const UStaticMesh* StaticMesh = StaticMeshComponent->GetStaticMesh() )
+			{
+				TriangleCount = GetStaticMeshTriangleCount( StaticMesh );
+				bOutFetchSucceded = true;
+			}
+		}
 		else if ( const UStaticMesh* StaticMesh = Cast<const UStaticMesh>( Object ) )
 		{
 			TriangleCount = GetStaticMeshTriangleCount( StaticMesh );
