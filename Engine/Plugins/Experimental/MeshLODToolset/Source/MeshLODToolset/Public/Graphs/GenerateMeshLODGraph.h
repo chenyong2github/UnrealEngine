@@ -71,8 +71,6 @@ public:
 		TArray<TUniquePtr<UE::GeometryFlow::FTextureImage>>& TextureImages,
 		FProgressCancel* Progress);
 
-								UE::Geometry::FMeshTangentsd& ResultTangents,
-								UE::Geometry::FSimpleShapeSet3d& ResultCollision,
 protected:
 
 	TUniquePtr<UE::GeometryFlow::FGraph> Graph;
