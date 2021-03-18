@@ -258,29 +258,6 @@ TSharedRef<SWidget> SDMXOutputConsole::GenerateMacroMinButton()
 		];
 }
 
-void SDMXOutputConsole::RestoreConsole()
-{
-	check(OutputFaderList.IsValid());
-
-	OutputFaderList->RestoreFaders();
-}
-
-void SDMXOutputConsole::SaveConsole()
-{
-	check(OutputFaderList.IsValid());
-
-	OutputFaderList->SaveFaders();
-}
-
-void SDMXOutputConsole::HandleCloseParentTab(TSharedRef<class SDockTab> InParentTab)
-{
-	SaveConsole();
-
-	check(OutputFaderList.IsValid());
-
-	OutputFaderList->StopOscillators();
-}
-
 TSharedRef<SWidget> SDMXOutputConsole::GenerateAffectedFadersComboBoxEntry(TSharedPtr<FString> Text)
 {
 	if (Text.IsValid())

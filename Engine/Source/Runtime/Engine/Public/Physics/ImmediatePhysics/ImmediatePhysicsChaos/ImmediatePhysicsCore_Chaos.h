@@ -31,12 +31,13 @@ namespace Chaos
 namespace ImmediatePhysics_Chaos
 {
 	using FReal = Chaos::FReal;
-	const int Dimensions = 3;
+	using FRealSingle = Chaos::FRealSingle;
+	//const int Dimensions = 3;
 
 	using EActorType = ImmediatePhysics_Shared::EActorType;
 	using EForceType = ImmediatePhysics_Shared::EForceType;
 
-	using FKinematicTarget = Chaos::TKinematicTarget<FReal, Dimensions>;
+	using FKinematicTarget = Chaos::TKinematicTarget<FReal, 3>;
 }
 
 struct FBodyInstance;

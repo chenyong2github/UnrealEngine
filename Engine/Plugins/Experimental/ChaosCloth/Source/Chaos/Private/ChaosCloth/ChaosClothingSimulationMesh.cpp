@@ -72,9 +72,9 @@ TConstArrayView<uint32> FClothingSimulationMesh::GetIndices(int32 LODIndex) cons
 		TConstArrayView<uint32>();
 }
 
-TArray<TConstArrayView<float>> FClothingSimulationMesh::GetWeightMaps(int32 LODIndex) const
+TArray<TConstArrayView<FRealSingle>> FClothingSimulationMesh::GetWeightMaps(int32 LODIndex) const
 {
-	TArray<TConstArrayView<float>> WeightMaps;
+	TArray<TConstArrayView<FRealSingle>> WeightMaps;
 	if (Asset && Asset->LodData.IsValidIndex(LODIndex))
 	{
 		const FClothLODDataCommon& ClothLODData = Asset->LodData[LODIndex];
@@ -102,7 +102,7 @@ int32 FClothingSimulationMesh::GetReferenceBoneIndex() const
 	return Asset ? Asset->ReferenceBoneIndex : INDEX_NONE;
 }
 
-TRigidTransform<float, 3> Chaos::FClothingSimulationMesh::GetReferenceBoneTransform() const
+FRigidTransform3 Chaos::FClothingSimulationMesh::GetReferenceBoneTransform() const
 {
 	if (SkeletalMeshComponent)
 	{
@@ -117,7 +117,7 @@ TRigidTransform<float, 3> Chaos::FClothingSimulationMesh::GetReferenceBoneTransf
 				Context->ComponentToWorld;
 		}
 	}
-	return TRigidTransform<float, 3>::Identity;
+	return FRigidTransform3::Identity;
 }
 
 bool FClothingSimulationMesh::WrapDeformLOD(
@@ -205,7 +205,7 @@ bool FClothingSimulationMesh::WrapDeformLOD(
 }
 
 // Inline function used to force the unrolling of the skinning loop
-FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, const FVector& RefParticle, const FVector& RefNormal, const FMatrix& BoneMatrix, const float Weight)
+FORCEINLINE static void AddInfluence(FVector& OutPosition, FVector& OutNormal, const FVector& RefParticle, const FVector& RefNormal, const FMatrix& BoneMatrix, const FRealSingle Weight)
 {
 	OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
 	OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
@@ -239,7 +239,7 @@ void FClothingSimulationMesh::SkinPhysicsMesh(int32 LODIndex, const FVec3& Local
 	ParallelFor(NumPoints, [&PhysicalMeshData, &ComponentToLocalSpace, BoneMap, BoneMatrices, &OutPositions, &OutNormals](uint32 VertIndex)
 	{
 		const uint16* const RESTRICT BoneIndices = PhysicalMeshData.BoneData[VertIndex].BoneIndices;
-		const float* const RESTRICT BoneWeights = PhysicalMeshData.BoneData[VertIndex].BoneWeights;
+		const FRealSingle* const RESTRICT BoneWeights = PhysicalMeshData.BoneData[VertIndex].BoneWeights;
 
 		// WARNING - HORRIBLE UNROLLED LOOP + JUMP TABLE BELOW
 		// done this way because this is a pretty tight and performance critical loop. essentially

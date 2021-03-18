@@ -43,7 +43,7 @@
 	FDelegateHandle OnReadEnumerateSharedFileCompleteDelegateHandle;
 
 	/** Logged in UserId */
-	TSharedPtr<const FUniqueNetId> UserId;
+	FUniqueNetIdPtr UserId;
 
 	/** Array of shared handles generated from the user share write call */
 	TArray< TSharedRef<FSharedContentHandle> > CloudFileHandles;

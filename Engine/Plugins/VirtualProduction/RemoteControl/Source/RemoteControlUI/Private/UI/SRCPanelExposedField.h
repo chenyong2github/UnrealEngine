@@ -53,6 +53,9 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelTreeNode
 	virtual void Refresh() override;
 	//~ End SRCPanelTreeNode Interface
 
+	/** Get a weak pointer to the underlying remote control field. */
+	TWeakPtr<FRemoteControlField> GetRemoteControlField() const { return WeakField; }
+
 	/** Get this field's label. */
 	FName GetFieldLabel() const;
 

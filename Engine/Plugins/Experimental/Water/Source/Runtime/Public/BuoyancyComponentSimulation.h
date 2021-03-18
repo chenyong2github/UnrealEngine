@@ -105,6 +105,11 @@ public:
 		FBuoyancyComponentSim::UpdateBuoyancy(Body, State, BuoyancyData, Aux, WaterBodyData);
 		//FBuoyancyComponentSim::UpdateWaterControl(Body, State, BuoyancyData, Aux);
 
+		if (BuoyancyData.bApplyDragForcesInWater)
+		{
+			FBuoyancyComponentSim::ApplyLinearDrag(Body, BuoyancyData, State);
+			FBuoyancyComponentSim::ApplyAngularDrag(Body, BuoyancyData, State);
+		}
 		FBuoyancyComponentSim::ApplyBuoyancy(Body, Aux, State);
 		FBuoyancyComponentSim::ApplyWaterForce(Body, BuoyancyData, State, Aux, DeltaSeconds);
 		// Copy into the output state
@@ -438,5 +443,37 @@ public:
 			}
 		}
 		AddForce(Body, WaterForce);
+	}
+
+	template <typename TBody, typename TState>
+	static void ApplyLinearDrag(TBody* Body, const FBuoyancyData& BuoyancyData, const TState& State)
+	{
+		if (State.bIsInWaterBody)
+		{
+			FVector DragForce = FVector::ZeroVector;
+
+			FVector PlaneVelocity = State.LinearVelocity;
+			PlaneVelocity.Z = 0;
+			const FVector VelocityDir = PlaneVelocity.GetSafeNormal();
+			const float SpeedKmh = ToKmH(PlaneVelocity.Size());
+			const float ClampedSpeed = FMath::Clamp(SpeedKmh, -BuoyancyData.MaxDragSpeed, BuoyancyData.MaxDragSpeed);
+
+			const float Resistance = ClampedSpeed * BuoyancyData.DragCoefficient;
+			DragForce += -Resistance * VelocityDir;
+
+			const float Resistance2 = ClampedSpeed * ClampedSpeed * BuoyancyData.DragCoefficient2;
+			DragForce += -Resistance2 * VelocityDir * FMath::Sign(SpeedKmh);
+			AddForce(Body, DragForce);
+		}
+	}
+
+	template <typename TBody, typename TState>
+	static void ApplyAngularDrag(TBody* Body, const FBuoyancyData& BuoyancyData, const TState& State)
+	{
+		if (State.bIsInWaterBody)
+		{
+			const FVector DragTorque = -State.AngularVelocityRad * BuoyancyData.AngularDragCoefficient;
+			AddForce(Body, DragTorque);
+		}
 	}
 };

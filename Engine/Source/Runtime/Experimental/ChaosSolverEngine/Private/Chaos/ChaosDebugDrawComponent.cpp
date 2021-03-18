@@ -21,7 +21,7 @@ FAutoConsoleVariableRef CVarChaos_DebugDraw_Enabled(TEXT("p.Chaos.DebugDraw.Enab
 // Deprecated, but widely used...
 FAutoConsoleVariableRef CVarChaos_DebugDraw_Enabled_Deprecated(TEXT("p.Chaos.DebugDrawing"), bChaosDebugDraw_Enabled, TEXT("Deprecated. Please use p.Chaos.DebugDraw.Enabled"), FConsoleVariableDelegate::CreateStatic(ChaosDebugDraw_Enabled_Changed));
 
-int ChaosDebugDraw_MaxElements = 50000;
+int ChaosDebugDraw_MaxElements = 20000;
 FAutoConsoleVariableRef CVarChaos_DebugDraw_MaxElements(TEXT("p.Chaos.DebugDraw.MaxLines"), ChaosDebugDraw_MaxElements, TEXT("Set the maximum number of debug draw lines that can be rendered (to limit perf drops)"));
 
 float ChaosDebugDraw_Radius = 3000.0f;
@@ -282,9 +282,10 @@ void UChaosDebugDrawComponent::CreateDebugDrawActor(UWorld* World)
 	Actor->AddInstanceComponent(Comp);
 	Comp->RegisterComponent();
 
-	// SetMaxCommands here so that the first frame gets whatever cvar value we have set.
+	// SetMaxCommands and SetRegionOfInterest here so that the first frame gets whatever cvar value we have set.
 	// We also call it every tick (which is at the end of each frame)
 	Chaos::FDebugDrawQueue::GetInstance().SetMaxCost(ChaosDebugDraw_MaxElements);
+	Chaos::FDebugDrawQueue::GetInstance().SetRegionOfInterest(FVector::ZeroVector, ChaosDebugDraw_Radius);
 #endif
 }
 

@@ -23,6 +23,7 @@
 #include "MoviePipelineCameraSetting.h"
 #include "Engine/GameViewportClient.h"
 #include "LegacyScreenPercentageDriver.h"
+#include "RenderCaptureInterface.h"
 
 // For flushing async systems
 #include "RendererInterface.h"
@@ -32,9 +33,6 @@
 #include "ShaderCompiler.h"
 #include "EngineUtils.h"
 
-#if WITH_EDITOR && !UE_BUILD_SHIPPING
-#include "Rendering/IRenderCaptureProvider.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
@@ -187,13 +185,6 @@ void UMoviePipeline::RenderFrame()
 	// Update our current view location
 	LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
 
-	if (!CurrentCameraCut.bHasEvaluatedMotionBlurFrame)
-	{
-		// There won't be a valid Previous if we haven't done motion blur.
-		FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
-		FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
-	}
-
 	// Add appropriate metadata here that is shared by all passes.
 	{
 		CachedOutputState.FileMetadata.Add(TEXT("unreal/camera/curPos/x"), FrameInfo.CurrViewLocation.X);
@@ -258,12 +249,10 @@ void UMoviePipeline::RenderFrame()
 	}
 
 #if WITH_EDITOR && !UE_BUILD_SHIPPING
+	TUniquePtr<RenderCaptureInterface::FScopedCapture> ScopedGPUCapture;
 	if (CachedOutputState.bCaptureRendering)
 	{
-		if (IRenderCaptureProvider::IsAvailable())
-		{
-			IRenderCaptureProvider::Get().StartCapturing();
-		}
+		ScopedGPUCapture = MakeUnique<RenderCaptureInterface::FScopedCapture>(true, *FString::Printf(TEXT("MRQ Frame: %d"), CachedOutputState.SourceFrameNumber));
 	}
 #endif
 
@@ -406,16 +395,6 @@ void UMoviePipeline::RenderFrame()
 			}
 		}
 	}
-
-#if WITH_EDITOR && !UE_BUILD_SHIPPING
-	if (CachedOutputState.bCaptureRendering)
-	{
-		if (IRenderCaptureProvider::IsAvailable())
-		{
-			IRenderCaptureProvider::Get().StopCapturing();
-		}
-	}
-#endif
 
 	// Re-enable the progress widget so when the player viewport is drawn to the preview window, it shows.
 	SetProgressWidgetVisible(true);

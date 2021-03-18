@@ -485,7 +485,7 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 		switch (SimulationType[GetBoneIndex()])
 		{
 			case FGeometryCollection::ESimulationTypes::FST_None:
-				TextColor = FColor::Green;
+				TextColor = FLinearColor::Green;
 				break;
 
 			case FGeometryCollection::ESimulationTypes::FST_Rigid:
@@ -493,7 +493,7 @@ TSharedRef<ITableRow> FGeometryCollectionTreeItemBone::MakeTreeRowWidget(const T
 				break;
 
 			case FGeometryCollection::ESimulationTypes::FST_Clustered:
-				TextColor = FColor::Cyan;
+				TextColor = FSlateColor(FColor::Cyan);
 				break;
 
 			default:

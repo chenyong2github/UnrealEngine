@@ -16,38 +16,10 @@ float UDataprepFloatBoundingVolumeFetcher::Fetch_Implementation(const UObject* O
 {
 	if ( Object && !Object->IsPendingKill() )
 	{
-		auto GetStaticMeshBoundingBox = [](const UStaticMesh* StaticMesh) -> FBox
-			{
-				if ( !StaticMesh )
-				{
-					return {};
-				}
-
-				return StaticMesh->GetBoundingBox();
-			};
-
 		TOptional<float> Volume;
 		if ( const AActor* Actor = Cast<const AActor>( Object ) )
 		{
-			FBox ActorBox(ForceInit);
-
-			for ( const UActorComponent* ActorComponent : Actor->GetComponents() )
-			{
-				if ( const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>( ActorComponent ) )
-				{
-					FBox ComponentBox(ForceInit);
-					if ( const UStaticMeshComponent* StaticMeshComponent = Cast<const UStaticMeshComponent>( ActorComponent ) )
-					{
-						ComponentBox = GetStaticMeshBoundingBox( StaticMeshComponent->GetStaticMesh() );
-						ComponentBox.TransformBy( PrimComp->GetComponentToWorld() );
-					}
-					if ( PrimComp->IsRegistered() )
-					{
-						ActorBox += ComponentBox.IsValid? ComponentBox : PrimComp->Bounds.GetBox();
-					}
-				}
-			}
-
+			const FBox ActorBox = Actor->GetComponentsBoundingBox();
 			if ( ActorBox.IsValid )
 			{
 				Volume = ActorBox.GetVolume();
@@ -55,7 +27,21 @@ float UDataprepFloatBoundingVolumeFetcher::Fetch_Implementation(const UObject* O
 		}
 		else if ( const UStaticMesh* StaticMesh = Cast<const UStaticMesh>( Object ) )
 		{
-			Volume = GetStaticMeshBoundingBox( StaticMesh ).GetVolume();
+			const FBox MeshBox = StaticMesh->GetBoundingBox();
+
+			if (MeshBox.IsValid)
+			{
+				Volume = MeshBox.GetVolume();
+			}
+		}
+		else if ( const UPrimitiveComponent* PrimComp = Cast<const UPrimitiveComponent>( Object ) )
+		{
+			const FBox CompBounds = PrimComp->CalcBounds(PrimComp->GetComponentToWorld()).GetBox();
+
+			if (CompBounds.IsValid)
+			{
+				Volume = CompBounds.GetVolume();
+			}
 		}
 
 		if ( Volume.IsSet() )

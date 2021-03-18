@@ -163,6 +163,7 @@ namespace Chaos
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		int32 StepCount;
+		int32 ResetCount;
 #endif
 	};
 } // namespace Chaos

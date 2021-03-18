@@ -47,7 +47,18 @@ namespace DatasmithSketchUp
 		FComponentInstanceCollection(FExportContext& InContext) : Context(InContext) {}
 
 		TSharedPtr<FComponentInstance> AddComponentInstance(SUComponentInstanceRef InComponentInstanceRef);
+		bool RemoveComponentInstance(FComponentInstanceIDType ComponentInstanceId);
 		void AddOccurrence(FComponentInstanceIDType ComponentInstanceID, const TSharedPtr<DatasmithSketchUp::FNodeOccurence>& Occurrence);
+
+		void InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID);
+		void InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID);
+		void Update();
+
+		TSharedPtr<FComponentInstance>* FindComponentInstance(FComponentInstanceIDType ComponentInstanceID)
+		{
+			return ComponentInstanceMap.Find(ComponentInstanceID);
+		}
+
 		TArray<TSharedPtr<DatasmithSketchUp::FNodeOccurence>>* GetOccurrencesForComponentInstance(FComponentInstanceIDType ComponentInstanceID)
 		{
 			return ComponentInstanceOccurencesMap.Find(ComponentInstanceID);
@@ -71,6 +82,8 @@ namespace DatasmithSketchUp
 		void AddComponentDefinition(SUComponentDefinitionRef InComponentDefinitionRef);
 
 		TSharedPtr<FComponentDefinition> GetComponentDefinition(SUComponentInstanceRef InSComponentInstanceRef);
+
+		void Update();
 
 	private:
 		FExportContext& Context;
@@ -174,7 +187,8 @@ namespace DatasmithSketchUp
 
 		const TCHAR* GetAssetsOutputPath() const;
 
-		void Populate();
+		void Populate(); // Create Datasmith scene from the Model
+		void Update(); // Update Datasmith scene to reflect iterative changes done to the Model 
 
 		SUModelRef ModelRef = SU_INVALID;
 

@@ -57,7 +57,9 @@ public:
 	bool bReduceKeys;
 
 protected:
+	// ~Begin UTakeRecorderSource Interface
 	virtual bool SupportsSubscenes() const override { return false; }
+	// ~End UTakeRecorderSource Interface
 
 public:
 	/** Adds all Patches from the active DMX Library as recording sources */
@@ -65,10 +67,7 @@ public:
 	void AddAllPatches();
 
 private:
-	/** Called when entities were updated */
-	void OnEntitiesUpdated(UDMXLibrary* UpdatedLibrary);
-
-	//~ UTakeRecorderSource
+	// ~Begin UTakeRecorderSource Interface
 	virtual TArray<UTakeRecorderSource*> PreRecording(ULevelSequence* InSequence, FMovieSceneSequenceID InSequenceID, ULevelSequence* InMasterSequence, FManifestSerializer* InManifestSerializer) override;
 	virtual void StartRecording(const FTimecode& InSectionStartTimecode, const FFrameNumber& InSectionFirstFrame, class ULevelSequence* InSequence) override;
 	virtual void StopRecording(class ULevelSequence* InSequence) override;
@@ -76,12 +75,12 @@ private:
 	virtual TArray<UTakeRecorderSource*> PostRecording(class ULevelSequence* InSequence, ULevelSequence* InMasterSequence) override;
 	virtual void AddContentsToFolder(UMovieSceneFolder* InFolder) override;
 	virtual FText GetDisplayTextImpl() const override;
-	//~
+	// ~End UTakeRecorderSource
 
-	//~ UObject
+	// ~Begin UObject Interface
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostLoad() override;
-	//~
+	// ~End UObject Interface
 
 	/**
 	 * Make sure all EntityRefs don't display their Library property and
@@ -90,9 +89,6 @@ private:
 	void ResetPatchesLibrary();
 
 private:
-	/** Whether or not we use timecode time or world time*/
-	bool bUseSourceTimecode;
-
 	/** Whether to discard livelink samples with timecode that occurs before the start of recording*/
 	bool bDiscardSamplesBeforeStart;
 

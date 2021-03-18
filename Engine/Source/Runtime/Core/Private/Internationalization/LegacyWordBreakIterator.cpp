@@ -15,11 +15,8 @@ class FLegacyWordBreakIterator : public IBreakIterator
 public:
 	FLegacyWordBreakIterator();
 
-	virtual void SetString(const FText& InText) override;
-	virtual void SetString(const FString& InString) override;
-	virtual void SetString(const TCHAR* const InString, const int32 InStringLength) override;
-	virtual void SetStringRef(const FString* InString) override;
-	virtual void ClearString() override;
+	virtual void SetString(FString&& InString) override;
+	virtual void SetStringRef(FStringView InString) override;
 
 	virtual int32 GetCurrentPosition() const override;
 
@@ -32,43 +29,27 @@ public:
 	virtual int32 MoveToCandidateAfter(const int32 InIndex) override;
 
 private:
-	FString String;
+	FString InternalString;
+	FStringView String;
 	int32 CurrentPosition;
 };
 
 FLegacyWordBreakIterator::FLegacyWordBreakIterator()
-	: String()
-	, CurrentPosition(0)
+	: CurrentPosition(0)
 {
 }
 
-void FLegacyWordBreakIterator::SetString(const FText& InText)
+void FLegacyWordBreakIterator::SetString(FString&& InString)
 {
-	String = InText.ToString();
+	InternalString = MoveTemp(InString);
+	String = InternalString;
 	ResetToBeginning();
 }
 
-void FLegacyWordBreakIterator::SetString(const FString& InString)
+void FLegacyWordBreakIterator::SetStringRef(FStringView InString)
 {
+	InternalString.Reset();
 	String = InString;
-	ResetToBeginning();
-}
-
-void FLegacyWordBreakIterator::SetString(const TCHAR* const InString, const int32 InStringLength) 
-{
-	String = FString(InStringLength, InString);
-	ResetToBeginning();
-}
-
-void FLegacyWordBreakIterator::SetStringRef(const FString* InString)
-{
-	// TODO: Support external string references as an optimization
-	SetString(*InString);
-}
-
-void FLegacyWordBreakIterator::ClearString()
-{
-	String = FString();
 	ResetToBeginning();
 }
 

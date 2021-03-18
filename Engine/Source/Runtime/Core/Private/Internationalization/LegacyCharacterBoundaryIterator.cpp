@@ -15,11 +15,8 @@ class FLegacyCharacterBoundaryIterator : public IBreakIterator
 public:
 	FLegacyCharacterBoundaryIterator();
 
-	virtual void SetString(const FText& InText) override;
-	virtual void SetString(const FString& InString) override;
-	virtual void SetString(const TCHAR* const InString, const int32 InStringLength) override;
-	virtual void SetStringRef(const FString* InString) override;
-	virtual void ClearString() override;
+	virtual void SetString(FString&& InString) override;
+	virtual void SetStringRef(FStringView InString) override;
 
 	virtual int32 GetCurrentPosition() const override;
 
@@ -32,43 +29,27 @@ public:
 	virtual int32 MoveToCandidateAfter(const int32 InIndex) override;
 
 private:
-	FString String;
+	FString InternalString;
+	FStringView String;
 	int32 CurrentPosition;
 };
 
 FLegacyCharacterBoundaryIterator::FLegacyCharacterBoundaryIterator()
-	: String()
-	, CurrentPosition(0)
+	: CurrentPosition(0)
 {
 }
 
-void FLegacyCharacterBoundaryIterator::SetString(const FText& InText)
+void FLegacyCharacterBoundaryIterator::SetString(FString&& InString)
 {
-	String = InText.ToString();
+	InternalString = MoveTemp(InString);
+	String = InternalString;
 	ResetToBeginning();
 }
 
-void FLegacyCharacterBoundaryIterator::SetString(const FString& InString)
+void FLegacyCharacterBoundaryIterator::SetStringRef(FStringView InString)
 {
+	InternalString.Reset();
 	String = InString;
-	ResetToBeginning();
-}
-
-void FLegacyCharacterBoundaryIterator::SetString(const TCHAR* const InString, const int32 InStringLength) 
-{
-	String = FString(InStringLength, InString);
-	ResetToBeginning();
-}
-
-void FLegacyCharacterBoundaryIterator::SetStringRef(const FString* InString)
-{
-	// TODO: Support external string references as an optimization
-	SetString(*InString);
-}
-
-void FLegacyCharacterBoundaryIterator::ClearString()
-{
-	String = FString();
 	ResetToBeginning();
 }
 

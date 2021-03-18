@@ -21,7 +21,6 @@
 #include "Chaos/PerParticleEulerStepVelocity.h"
 #include "Chaos/PerParticleEtherDrag.h"
 #include "Chaos/PerParticlePBDEulerStep.h"
-#include "Chaos/EvolutionTraits.h"
 #include "CoreMinimal.h"
 
 namespace Chaos
@@ -29,13 +28,13 @@ namespace Chaos
 	//
 	//  Connectivity PVar
 	//
-	float ClusterDistanceThreshold = 100.f;
+	FRealSingle ClusterDistanceThreshold = 100.f;
 	FAutoConsoleVariableRef CVarClusterDistance(TEXT("p.ClusterDistanceThreshold"), ClusterDistanceThreshold, TEXT("How close a cluster child must be to a contact to break off"));
 
 	int32 UseConnectivity = 1;
 	FAutoConsoleVariableRef CVarUseConnectivity(TEXT("p.UseConnectivity"), UseConnectivity, TEXT("Whether to use connectivity graph when breaking up clusters"));
 
-	CHAOS_API float ChaosClusteringChildrenInheritVelocity = 1.f;
+	CHAOS_API FRealSingle ChaosClusteringChildrenInheritVelocity = 1.f;
 	FAutoConsoleVariableRef CVarChildrenInheritVelocity(TEXT("p.ChildrenInheritVelocity"), ChaosClusteringChildrenInheritVelocity, TEXT("Whether children inherit parent collision velocity when declustering. 0 has no impact velocity like glass, 1 has full impact velocity like brick"));
 
 	int32 ComputeClusterCollisionStrains = 1;
@@ -50,7 +49,7 @@ namespace Chaos
 	int32 MaxLevelsetDimension = 20;
 	FAutoConsoleVariableRef CVarMaxLevelsetDimension(TEXT("p.MaxLevelsetDimension"), MaxLevelsetDimension, TEXT("The maximum number of cells on a single level set axis"));
 
-	float MinLevelsetSize = 50.f;
+	FRealSingle MinLevelsetSize = 50.f;
 	FAutoConsoleVariableRef CVarLevelSetResolution(TEXT("p.MinLevelsetSize"), MinLevelsetSize, TEXT("The minimum size on the smallest axis to use a level set"));
 
 	int32 UseLevelsetCollision = 0;
@@ -59,7 +58,7 @@ namespace Chaos
 	int32 LevelsetGhostCells = 1;
 	FAutoConsoleVariableRef CVarLevelsetGhostCells(TEXT("p.LevelsetGhostCells"), LevelsetGhostCells, TEXT("Increase the level set grid by this many ghost cells"));
 
-	float ClusterSnapDistance = 1.f;
+	FRealSingle ClusterSnapDistance = 1.f;
 	FAutoConsoleVariableRef CVarClusterSnapDistance(TEXT("p.ClusterSnapDistance"), ClusterSnapDistance, TEXT(""));
 
 	int32 MinCleanedPointsBeforeRemovingInternals = 10;
@@ -114,9 +113,9 @@ namespace Chaos
 	}
 
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::RewindAndEvolve<BGF>()"), STAT_RewindAndEvolve_BGF, STATGROUP_Chaos);
-	template<typename Traits, typename T, int d>
+	template<typename T, int d>
 	void RewindAndEvolve(
-		TPBDRigidsEvolutionGBF<Traits>& Evolution, 
+		FPBDRigidsEvolutionGBF& Evolution, 
 		TPBDRigidClusteredParticles<T, d>& InParticles, 
 		const TSet<int32>& IslandsToRecollide, 
 		const TSet<FPBDRigidParticleHandle*> AllActivatedChildren,
@@ -792,8 +791,8 @@ namespace Chaos
 				{
 					if (DoGenerateBreakingData)
 					{
-						const int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-						TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 						ClusterBreak.Particle = Child;
 						ClusterBreak.ParticleProxy = nullptr;
 						ClusterBreak.Location = Child->X();
@@ -1061,8 +1060,8 @@ namespace Chaos
 				{
 					if (DoGenerateBreakingData)
 					{
-						const int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-						TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+						const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+						FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 						ClusterBreak.Particle = Child;
 						ClusterBreak.ParticleProxy = nullptr;
 						ClusterBreak.Location = Child->X();
@@ -1370,8 +1369,8 @@ namespace Chaos
 						DisableCluster(ClusteredParticle);
 						if (DoGenerateBreakingData)
 						{
-							int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-							TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+							int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+							FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 							ClusterBreak.Particle = ClusteredParticle;
 							ClusterBreak.ParticleProxy = nullptr;
 							ClusterBreak.Location = ClusteredParticle->X();
@@ -1849,13 +1848,13 @@ namespace Chaos
 		}
 	}
 
-	float MinImpulseForStrainEval = 980 * 2 * 1.f / 30.f; //ignore impulses caused by just keeping object on ground. This is a total hack, we should not use accumulated impulse directly. Instead we need to look at delta v along constraint normal
+	FRealSingle MinImpulseForStrainEval = 980 * 2 * 1.f / 30.f; //ignore impulses caused by just keeping object on ground. This is a total hack, we should not use accumulated impulse directly. Instead we need to look at delta v along constraint normal
 	FAutoConsoleVariableRef CVarMinImpulseForStrainEval(TEXT("p.chaos.MinImpulseForStrainEval"), MinImpulseForStrainEval, TEXT("Minimum accumulated impulse before accumulating for strain eval "));
 
 	bool bUseContactSpeedForStrainThreshold = true;
 	FAutoConsoleVariableRef CVarUseContactSpeedForStrainEval(TEXT("p.chaos.UseContactSpeedForStrainEval"), bUseContactSpeedForStrainThreshold, TEXT("Whether to use contact speed to discard contacts when updating cluster strain (true: use speed, false: use impulse)"));
 
-	float MinContactSpeedForStrainEval = 1.0f; // Ignore contacts where the two bodies are resting together
+	FRealSingle MinContactSpeedForStrainEval = 1.0f; // Ignore contacts where the two bodies are resting together
 	FAutoConsoleVariableRef CVarMinContactSpeedForStrainEval(TEXT("p.chaos.MinContactSpeedForStrainEval"), MinContactSpeedForStrainEval, TEXT("Minimum speed at the contact before accumulating for strain eval "));
 
 	DECLARE_CYCLE_STAT(TEXT("ComputeStrainFromCollision"), STAT_ComputeStrainFromCollision, STATGROUP_Chaos);
@@ -1997,8 +1996,8 @@ namespace Chaos
 
 		if (DoGenerateBreakingData)
 		{
-			const int32 NewIdx = MAllClusterBreakings.Add(TBreakingData<FReal, 3>());
-			TBreakingData<FReal, 3>& ClusterBreak = MAllClusterBreakings[NewIdx];
+			const int32 NewIdx = MAllClusterBreakings.Add(FBreakingData());
+			FBreakingData& ClusterBreak = MAllClusterBreakings[NewIdx];
 			ClusterBreak.Particle = Particle;
 			ClusterBreak.ParticleProxy = nullptr;
 			ClusterBreak.Location = Particle->X();
@@ -2364,7 +2363,5 @@ namespace Chaos
 
 using namespace Chaos;
 
-#define EVOLUTION_TRAIT(Trait) template class CHAOS_API Chaos::TPBDRigidClustering<Chaos::TPBDRigidsEvolutionGBF<Trait>, FPBDCollisionConstraints>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
+template class CHAOS_API Chaos::TPBDRigidClustering<Chaos::FPBDRigidsEvolutionGBF, FPBDCollisionConstraints>;
 

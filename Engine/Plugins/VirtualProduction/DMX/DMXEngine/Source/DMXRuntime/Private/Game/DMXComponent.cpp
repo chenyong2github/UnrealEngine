@@ -66,6 +66,7 @@ private:
 };
 
 UDMXComponent::UDMXComponent()
+	: bAutoActivateReceiveDMX(true)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	bTickInEditor = false;
@@ -86,8 +87,8 @@ void UDMXComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
-
 	UDMXEntityFixturePatch* FixturePatch = GetFixturePatch();
+
 	SharedListener = FDMXSharedListener::Create(this, FixturePatch);
 }
 
@@ -95,7 +96,7 @@ void UDMXComponent::DestroyComponent(bool bPromoteChildren)
 {
 	Super::DestroyComponent(bPromoteChildren);
 
-	// Explicitily destroy so we don't get callbacks when this is no longer fully valid
+	// Explicitly destroy the listener, so we don't get callbacks when this is no longer fully valid
 	SharedListener.Reset();
 }
 

@@ -2,15 +2,13 @@
 
 #pragma once
 
+#include "Containers/Queue.h"
 #include "CoreMinimal.h"
 #include "HAL/Runnable.h"
-
 #include "Misc/FrameRate.h"
 #include "Misc/QualifiedFrameTime.h"
-
+#include "Roles/LiveLinkCameraTypes.h"
 #include "UObject/ObjectMacros.h"
-
-#include "Containers/Queue.h"
 
 class FRunnable;
 class FSocket;
@@ -59,12 +57,6 @@ enum class ECameraRunStop : uint8
 {
 	Stop = 0,
 	Run = 1
-};
-
-enum class ELensDataMode : uint8
-{
-	CalibratedLensData = 0,
-	RawEncoderPosition = 1
 };
 
 enum class EMDRCommand : uint8
@@ -137,7 +129,7 @@ struct FMDR3Status
 struct FDataMessageDescription
 {
 	bool bContainsMDRStatus = false;
-	ELensDataMode bLensDataMode = ELensDataMode::CalibratedLensData;
+	ECameraFIZMode LensDataMode = ECameraFIZMode::EncoderData;
 	bool bContainsDistance = false;
 	bool bContainsSpeed = false;
 	bool bContainsAux = false;
@@ -202,8 +194,9 @@ public:
 	virtual void Stop() override;
 	// End FRunnable Interface
 
-	void SoftReset();
-	void SetSocket(FSocket* InSocket);
+	void SoftReset_AnyThread();
+	void SetSocket_AnyThread(FSocket* InSocket);
+	void SetIncomingDataMode_AnyThread(ECameraFIZMode InDataMode);
 
 private:
 
@@ -218,8 +211,8 @@ private:
 	void ParseTimecodeStatusMessage(const uint8* const InData);
 
 	void BuildStaticMessages();
-	void UpdateDataDescriptionMessage();
-	void InitializeCommandQueue();
+	void UpdateDataDescriptionMessage_AnyThread();
+	void InitializeCommandQueue_AnyThread();
 	void HardReset();
 
 	// Conversion functions to translate between data bytes and ASCII-encoded bytes
@@ -272,5 +265,5 @@ private:
 
 	static constexpr float ConnectionWaitInterval = 0.02f; // 20ms
 	static constexpr double ConnectionTimeout = 3.0; // 3sec
-	static constexpr double DataReceivedTimeout = 1.0; // 1sec
+	static constexpr double DataReceivedTimeout = 2.0; // 2sec
 };

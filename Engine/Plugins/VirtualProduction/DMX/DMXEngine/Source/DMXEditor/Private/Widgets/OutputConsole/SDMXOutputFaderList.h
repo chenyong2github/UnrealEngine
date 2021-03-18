@@ -14,6 +14,7 @@
 struct FDMXOutputConsoleFaderDescriptor;
 class FDMXEditor;
 class SDMXFader;
+class SDMXOutputConsolePortSelector;
 class UDMXLibrary;
 
 class SScrollBox;
@@ -31,50 +32,39 @@ public:
 
 	SLATE_END_ARGS()
 
+	/** Constructor */
+	SDMXOutputFaderList();
+
+	/** Destructor */
+	virtual ~SDMXOutputFaderList();
+
 	/** Constructs the widget */
 	void Construct(const FArguments& InArgs);
 
-	/** Destructor */
-	~SDMXOutputFaderList();
+protected:
+	//~ Begin SWidget interface
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
+	//~End of SWidget interface
 
+	/** Called when the editor is shut down while the widget is still being displayed */
+	void OnEditorShutDown();
+
+public:
 	/** Saves faders. The view will automatically be restored when the widget is shown again. */
 	void SaveFaders();
 
 	/** Restores the faders from when it was last saved */
 	void RestoreFaders();
 
+	/** Updates the output ports to send DMX to */
+	void UpdateOutputPorts();
+
 	/** Stops all ocillators */
 	void StopOscillators();
 
-private:
+protected:
 	/** Generates a widget to add faders */
 	TSharedRef<SWidget> GenerateAddFadersWidget();
-
-protected:
-	/** Called when the editor is shut down while the widget is still being displayed */
-	void OnEditorShutDown();
-
-public:
-	/** Selects specified fader */
-	void SelectFader(const TSharedPtr<SDMXFader>& FaderToSelect);
-
-	/** Applies the sine wave macro to either all or selected fader */
-	void ApplySineWaveMacro(bool bAffectAllFaders);
-
-	/** Applies the max value macro to either all or selected fader */
-	void ApplyMinValueMacro(bool bAffectAllFaders);
-
-	/** Applies the max value macro to either all or selected fader */
-	void ApplyMaxValueMacro(bool bAffectAllFaders);
-
-	/** Returns the selected fader */
-	const TWeakPtr<SDMXFader>& GetWeakSelectedFader() const { return WeakSelectedFader; }
-
-	/** Called when the add fader button is clicked */
-	FReply HandleAddFadersClicked();
-
-	/** Called when a fader send DMX check box state changes  */
-	void HandleMasterFaderChanged(uint8 NewValue);
 
 	/** Adds as many faders as specified by NumFadersToAdd */
 	void AddFaders(const FString& InName = TEXT(""));
@@ -88,16 +78,38 @@ public:
 	/** Deletes the selected fader */
 	void DeleteSelectedFader();
 
+	/** Selects specified fader */
+	void SelectFader(const TSharedPtr<SDMXFader>& FaderToSelect);
+
+public:
+	/** Applies the sine wave macro to either all or selected fader */
+	void ApplySineWaveMacro(bool bAffectAllFaders);
+
+	/** Applies the max value macro to either all or selected fader */
+	void ApplyMinValueMacro(bool bAffectAllFaders);
+
+	/** Applies the max value macro to either all or selected fader */
+	void ApplyMaxValueMacro(bool bAffectAllFaders);
+
+public:
+	/** Returns the selected fader */
+	const TWeakPtr<SDMXFader>& GetWeakSelectedFader() const { return WeakSelectedFader; }
+
 	/** Returns all faders */
 	const TArray<TSharedPtr<SDMXFader>>& GetFaders() const { return Faders; }
 
-public:
-	/** Pointer to the fader that is currently being selected */
-	TWeakPtr<SDMXFader> WeakSelectedFader;
+protected:
+	/** Called when ports were selected in the port selector */
+	void OnPortsSelected();
 
-private:
 	/** Called when the Sort Faders button was clicked */
 	FReply OnSortFadersClicked();
+
+	/** Called when a fader send DMX check box state changes  */
+	void HandleMasterFaderChanged(uint8 NewValue);
+
+	/** Called when the add fader button is clicked */
+	FReply HandleAddFadersClicked();
 
 	/** Called when a fader wants to be deleted */
 	void OnFaderRequestsDelete(TSharedRef<SDMXFader> FaderToDelete);
@@ -105,33 +117,42 @@ private:
 	/** Called when a fader wants to be selected */
 	void OnFaderRequestsSelect(TSharedRef<SDMXFader> FaderToSelect);
 
+	/** Port selector */
+	TSharedPtr<SDMXOutputConsolePortSelector> PortSelector;
+
 	/** The master fader that controlls all faders */
 	TSharedPtr<SSpinBox<uint8>> MasterFader;
 
 	/** The displayed fader widgets */
 	TArray<TSharedPtr<SDMXFader>> Faders;
 
+	/** Pointer to the fader that is currently being selected */
+	TWeakPtr<SDMXFader> WeakSelectedFader;
+
 	/** Scrollbox containing the fader widgets */
 	TSharedPtr<SScrollBox> FaderScrollBox;
 
+	/** Output ports to output dmx to */
+	TArray<FDMXOutputPortSharedRef> OutputPorts;
+
 	/** The universe ID used when new faders are created */
-	int32 NewFaderUniverseID = 1;
+	int32 NewFaderUniverseID;
 
 	/** The Starting Adress used when new faders are created */
-	int32 NewFaderStartingAddress = 1;
+	int32 NewFaderStartingAddress;
 
 	/** The Number of faders added when the 'add new faders' button is clicked */
-	int32 NumFadersToAdd = 1;
+	int32 NumFadersToAdd;
 
 	/** True when the sine wave oscillator is running */
-	bool bRunSineWaveOscillator = false;
+	bool bRunSineWaveOscillator;
 
 	/** True when macros should affect all faders */
-	bool bMacrosAffectAllFaders = false;
+	bool bMacrosAffectAllFaders;
 
 	/** Timer to tick the sine wave oscillator */
 	FTimerHandle SineWaveOscTimer;
 
 	/** Current value of the sine wave oscillator */
-	float SinWavRadians = 0.0f;
+	float SinWavRadians;
 };

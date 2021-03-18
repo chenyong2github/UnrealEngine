@@ -1386,12 +1386,18 @@ void FPackageStoreOptimizer::FindScriptObjectsRecursive(FPackageObjectIndex Oute
 		return;
 	}
 
-	const FScriptObjectData* Outer = ScriptObjectsMap.Find(OuterIndex);
-	check(Outer);
+	FString OuterFullName;
+	FPackageObjectIndex OuterCDOClassIndex;
+	{
+		const FScriptObjectData* Outer = ScriptObjectsMap.Find(OuterIndex);
+		check(Outer);
+		OuterFullName = Outer->FullName;
+		OuterCDOClassIndex = Outer->CDOClassIndex;
+	}
 
 	FName ObjectName = Object->GetFName();
 
-	FString TempFullName = ScriptObjectsMap.FindRef(OuterIndex).FullName;
+	FString TempFullName = OuterFullName;
 	TempFullName.AppendChar(TEXT('/'));
 	ObjectName.AppendString(TempFullName);
 
@@ -1404,14 +1410,14 @@ void FPackageStoreOptimizer::FindScriptObjectsRecursive(FPackageObjectIndex Oute
 		UE_LOG(LogPackageStoreOptimizer, Fatal, TEXT("Import name hash collision \"%s\" and \"%s"), *TempFullName, *ScriptImport->FullName);
 	}
 
-	FPackageObjectIndex CDOClassIndex = Outer->CDOClassIndex;
+	FPackageObjectIndex CDOClassIndex = OuterCDOClassIndex;
 	if (CDOClassIndex.IsNull())
 	{
 		TCHAR NameBuffer[FName::StringBufferSize];
 		uint32 Len = ObjectName.ToString(NameBuffer);
 		if (FCString::Strncmp(NameBuffer, TEXT("Default__"), 9) == 0)
 		{
-			FString CDOClassFullName = Outer->FullName;
+			FString CDOClassFullName = OuterFullName;
 			CDOClassFullName.AppendChar(TEXT('/'));
 			CDOClassFullName.AppendChars(NameBuffer + 9, Len - 9);
 			CDOClassFullName.ToLowerInline();
@@ -1423,7 +1429,7 @@ void FPackageStoreOptimizer::FindScriptObjectsRecursive(FPackageObjectIndex Oute
 	ScriptImport = &ScriptObjectsMap.Add(GlobalImportIndex);
 	ScriptImport->GlobalIndex = GlobalImportIndex;
 	ScriptImport->FullName = MoveTemp(TempFullName);
-	ScriptImport->OuterIndex = Outer->GlobalIndex;
+	ScriptImport->OuterIndex = OuterIndex;
 	ScriptImport->ObjectName = ObjectName;
 	ScriptImport->CDOClassIndex = CDOClassIndex;
 

@@ -26,8 +26,8 @@ namespace F4ML
 		virtual ~FSpace() {}
 		E4MLSpaceType Type = E4MLSpaceType::MAX;
 
-		virtual FString ToJson() const PURE_VIRTUAL(FSpace::ToJson(), return TEXT("Invalid FSpace");)
-		virtual int32 Num() const PURE_VIRTUAL(FSpace::Num(), return 0;)
+		virtual FString ToJson() const { return TEXT("{\"InvalidFSpaceType\": 0}"); }
+		virtual int32 Num() const { return 0; }
 	};
 
 	struct UE4ML_API FSpace_Discrete : public FSpace

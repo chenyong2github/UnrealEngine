@@ -299,6 +299,46 @@ public class FDatasmithFacadeScene : global::System.IDisposable {
     return ret;
   }
 
+  public void Reset() {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_Reset(swigCPtr);
+  }
+
+  public string GetHost() {
+    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetHost(swigCPtr));
+    return ret;
+  }
+
+  public void SetHost(string InHost) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_SetHost(swigCPtr, InHost);
+  }
+
+  public string GetVendor() {
+    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetVendor(swigCPtr));
+    return ret;
+  }
+
+  public void SetVendor(string InApplicationVendorName) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_SetVendor(swigCPtr, InApplicationVendorName);
+  }
+
+  public string GetProductName() {
+    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetProductName(swigCPtr));
+    return ret;
+  }
+
+  public void SetProductName(string InApplicationProductName) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_SetProductName(swigCPtr, InApplicationProductName);
+  }
+
+  public string GetProductVersion() {
+    string ret = global::System.Runtime.InteropServices.Marshal.PtrToStringUni(DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_GetProductVersion(swigCPtr));
+    return ret;
+  }
+
+  public void SetProductVersion(string InApplicationProductVersion) {
+    DatasmithFacadeCSharpPINVOKE.FDatasmithFacadeScene_SetProductVersion(swigCPtr, InApplicationProductVersion);
+  }
+
   public enum EActorRemovalRule {
     RemoveChildren,
     KeepChildrenAndKeepRelativeTransform

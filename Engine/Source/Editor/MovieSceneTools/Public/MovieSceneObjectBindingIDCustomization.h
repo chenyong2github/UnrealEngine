@@ -48,6 +48,8 @@ private:
 
 	virtual FMovieSceneObjectBindingID GetCurrentValue() const override;
 
+	virtual bool HasMultipleValues() const override;
+
 	FReply OnDrop(TSharedPtr<FDragDropOperation> InOperation);
 
 	TSharedPtr<IPropertyHandle> StructProperty;

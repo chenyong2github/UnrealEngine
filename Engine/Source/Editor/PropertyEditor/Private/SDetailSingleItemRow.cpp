@@ -775,9 +775,7 @@ void SDetailSingleItemRow::OnPasteProperty()
 			IDetailsViewPrivate* DetailsView = OwnerTreeNode.Pin()->GetDetailsView();
 			TSharedPtr<IPropertyHandle> Handle = PropertyEditorHelpers::GetPropertyHandle(PropertyNode.ToSharedRef(), DetailsView->GetNotifyHook(), DetailsView->GetPropertyUtilities());
 
-			Handle->SetValueFromFormattedString(ClipboardContent);
-
-			FPropertyValueImpl::RebuildInstancedProperties(Handle, PropertyNode.Get());
+			Handle->SetValueFromFormattedString(ClipboardContent, EPropertyValueSetFlags::InstanceObjects);
 
 			// Need to refresh the details panel in case a property was pasted over another.
 			OwnerTreeNode.Pin()->GetDetailsView()->ForceRefresh();

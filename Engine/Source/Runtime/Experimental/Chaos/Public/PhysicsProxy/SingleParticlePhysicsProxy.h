@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Chaos/Real.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Framework/MultiBufferResource.h"
 #include "Chaos/Framework/PhysicsProxy.h"
@@ -9,7 +10,6 @@
 #include "Chaos/ParticleHandle.h"
 #include "PhysicsCoreTypes.h"
 #include "Chaos/Defines.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Chaos/PullPhysicsDataImp.h"
 #include "Chaos/Core.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxyFwd.h"
@@ -17,8 +17,7 @@
 
 namespace Chaos
 {
-	template <typename Traits>
-	class TPBDRigidsEvolutionGBF;
+	class FPBDRigidsEvolutionGBF;
 
 	struct FDirtyRigidParticleData;
 }
@@ -32,19 +31,19 @@ public:
 	    , InertiaTensor(1.f)
 	{}
 
-	FInitialState(float MassIn, float InvMassIn, FVector InertiaTensorIn)
+	FInitialState(Chaos::FReal MassIn, Chaos::FReal InvMassIn, FVector InertiaTensorIn)
 	    : Mass(MassIn)
 	    , InvMass(InvMassIn)
 	    , InertiaTensor(InertiaTensorIn)
 	{}
 
-	float GetMass() const { return Mass; }
-	float GetInverseMass() const { return InvMass; }
+	Chaos::FReal GetMass() const { return Mass; }
+	Chaos::FReal GetInverseMass() const { return InvMass; }
 	FVector GetInertiaTensor() const { return InertiaTensor; }
 
 private:
-	float Mass;
-	float InvMass;
+	Chaos::FReal Mass;
+	Chaos::FReal InvMass;
 	FVector InertiaTensor;
 };
 
@@ -120,8 +119,7 @@ public:
 
 	// Threading API
 
-	template <typename Traits>
-	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::TPBDRigidsEvolutionGBF<Traits>& Evolution);
+	void PushToPhysicsState(const Chaos::FDirtyPropertiesManager& Manager,int32 DataIdx,const Chaos::FDirtyProxy& Dirty,Chaos::FShapeDirtyData* ShapesData, Chaos::FPBDRigidsEvolutionGBF& Evolution);
 
 	/**/
 	void ClearAccumulatedData();
@@ -133,7 +131,7 @@ public:
 	void BufferPhysicsResults_External(Chaos::FDirtyRigidParticleData&);
 
 	/**/
-	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData = nullptr, const float* Alpha = nullptr);
+	bool PullFromPhysicsState(const Chaos::FDirtyRigidParticleData& PullData, int32 SolverSyncTimestamp, const Chaos::FDirtyRigidParticleData* NextPullData = nullptr, const Chaos::FRealSingle* Alpha = nullptr);
 
 	/**/
 	bool IsDirty();

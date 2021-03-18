@@ -36,9 +36,14 @@ public:
 
 	//~ Begin IModuleInterface
 	virtual void StartupModule() override;
-
 	virtual void ShutdownModule() override;
 	//~ End IModuleInterface
+
+	//~ Begin IRemoteControlUIModule interface
+	virtual FOnGenerateExtensions& GetExtensionGenerators() override { return ExtensionsGenerator; }
+	virtual FGuid AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon) override;
+	virtual void RemovePropertyFilter(const FGuid& FilterId) override;
+	//~ End IRemoteControlUIModule interface
 
 	/**
 	 * Create a remote control panel to display a given preset.
@@ -53,11 +58,6 @@ public:
 	 * @return the input 
 	 */
 	TSharedRef<SRCPanelInputBindings> CreateInputBindingsPanel(URemoteControlPreset* Preset);
-	/**
-	 * Get the toolbar extension generators.
-	 * Usage: Bind a handler that adds a widget to the out array parameter.
-	 */
-	virtual FOnGenerateExtensions& GetExtensionGenerators() override { return ExtensionsGenerator; }
 
 private:
 	/**
@@ -106,6 +106,13 @@ private:
 
 	/** Handle adding the menu extender for the actors. */
 	TSharedRef<FExtender> ExtendLevelViewportContextMenuForRemoteControl(const TSharedRef<FUICommandList> CommandList, TArray<AActor*> SelectedActors);
+
+	/** Returns whether a given property should have an exposed icon. */
+	bool ShouldDisplayExposeIcon(const TSharedRef<IPropertyHandle>& PropertyHandle) const;
+
+	//~ Handle struct details customizations for common RC types.
+	void RegisterStructCustomizations();
+	void UnregisterStructCustomizations();
 private:
 	/** The custom actions added to the actor context menu. */
 	TSharedPtr<class FRemoteControlPresetActions> RemoteControlPresetActions;
@@ -121,4 +128,7 @@ private:
 
 	/** Delegate called to gather extensions added externally to the panel. */
 	FOnGenerateExtensions ExtensionsGenerator;
+
+	/** Filters added by other plugins queried to determine if a property should display an expose icon. */
+	TMap<FGuid, FOnDisplayExposeIcon> ExternalFilterDelegates;
 };

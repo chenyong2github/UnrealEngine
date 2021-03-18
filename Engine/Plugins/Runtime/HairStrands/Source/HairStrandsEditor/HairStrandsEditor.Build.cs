@@ -17,6 +17,7 @@ namespace UnrealBuildTool.Rules
 					"EditorFramework",
 					"EditorStyle",
 					"Engine",
+					"GeometryCache",
 					"HairStrandsCore",
 					"InputCore",
 					"MainFrame",

@@ -38,7 +38,7 @@ void FFFT3::MakeDivergenceFree(const FUniformGrid& Grid, FArrayNDOfComplex& u, F
 {
 	FVec3 Coefficients = ((FReal)2 * (FReal)PI) / Grid.DomainSize();
 	for (int i = 1; i <= Grid.Counts()[0] / 2; ++i)
-		u(i, 0, 0) = Complex<FReal>(0, 0);
+		u(i, 0, 0) = FComplex(0, 0);
 	for (int i = 0; i < Grid.Counts()[0]; ++i)
 	{
 		FReal k1 = Coefficients[0] * (i <= Grid.Counts()[0] / 2 ? i : i - Grid.Counts()[0]);
@@ -46,7 +46,7 @@ void FFFT3::MakeDivergenceFree(const FUniformGrid& Grid, FArrayNDOfComplex& u, F
 		{
 			FReal k2 = Coefficients[1] * j;
 			FReal OneOverKSquared = 1 / (k1 * k1 + k2 * k2);
-			Complex<FReal> correction = (k1 * u(i, j, 0) + k2 * v(i, j, 0)) * OneOverKSquared;
+			FComplex correction = (k1 * u(i, j, 0) + k2 * v(i, j, 0)) * OneOverKSquared;
 			u(i, j, 0) -= correction * k1;
 			v(i, j, 0) -= correction * k2;
 		}
@@ -62,7 +62,7 @@ void FFFT3::MakeDivergenceFree(const FUniformGrid& Grid, FArrayNDOfComplex& u, F
 			{
 				FReal k3 = Coefficients[2] * k;
 				FReal OneOverKSquared = 1 / (k1 * k1 + k2 * k2 + k3 * k3);
-				Complex<FReal> correction = (k1 * u(i, j, k) + k2 * v(i, j, k) + k3 * w(i, j, k)) * OneOverKSquared;
+				FComplex correction = (k1 * u(i, j, k) + k2 * v(i, j, k) + k3 * w(i, j, k)) * OneOverKSquared;
 				u(i, j, k) -= correction * k1;
 				v(i, j, k) -= correction * k2;
 				w(i, j, k) -= correction * k3;
@@ -225,7 +225,7 @@ void TransformHelper(const FFFT3::FUniformGrid& Grid, const TArrayND<FVec3, 3>& 
 		{
 			for (int32 ij = 0; ij <= Grid.Counts()[2] / 2; ++ij)
 			{
-				u(i, j, ij) = Complex<FReal>(Data[k], Data[k + 1]);
+				u(i, j, ij) = FComplex(Data[k], Data[k + 1]);
 				k += 2;
 			}
 			k += Grid.Counts()[2] - 2;

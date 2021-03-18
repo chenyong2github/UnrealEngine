@@ -213,7 +213,7 @@ Pair<FVec3, bool> FImplicitObject::FindClosestIntersection(const FVec3& StartPoi
 	return FindClosestIntersectionImp(StartPoint, ModifiedEnd, Thickness);
 }
 
-float ClosestIntersectionStepSizeMultiplier = 0.5f;
+FRealSingle ClosestIntersectionStepSizeMultiplier = 0.5f;
 FAutoConsoleVariableRef CVarClosestIntersectionStepSizeMultiplier(TEXT("p.ClosestIntersectionStepSizeMultiplier"), ClosestIntersectionStepSizeMultiplier, TEXT("When raycasting we use this multiplier to substep the travel distance along the ray. Smaller number gives better accuracy at higher cost"));
 
 Pair<FVec3, bool> FImplicitObject::FindClosestIntersectionImp(const FVec3& StartPoint, const FVec3& EndPoint, const FReal Thickness) const

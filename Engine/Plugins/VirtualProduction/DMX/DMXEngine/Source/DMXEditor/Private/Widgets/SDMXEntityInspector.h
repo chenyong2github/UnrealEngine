@@ -95,24 +95,6 @@ protected:
 	TSharedPtr<SBorder> EditingWidget;
 };
 
-/** DMX controllers inspector */
-class SDMXEntityInspectorControllers
-	: public SDMXEntityInspector
-{
-public:
-	SLATE_BEGIN_ARGS(SDMXEntityInspectorControllers)
-	{}
-
-	SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
-	SLATE_EVENT(FOnFinishedChangingProperties::FDelegate, OnFinishedChangingProperties)
-
-
-	SLATE_END_ARGS()
-
-	/** Constructs the widget */
-	void Construct(const FArguments& InArgs);
-};
-
 /** Enum specifying how Fixture Type Details should be layed out */
 enum class EDMXFixtureTypeLayout : uint8
 {

@@ -16,7 +16,7 @@ namespace ChaosTest {
 
 	using namespace Chaos;
 
-	TYPED_TEST(AllTraits, SimTests_SphereSphereSimTest_StaticBoundsChange)
+	GTEST_TEST(AllTraits, SimTests_SphereSphereSimTest_StaticBoundsChange)
 	{
 		// This test spawns a dynamic and a static, then moves the static around a few times after initialization.
 		// The goal is to make sure that the bounds are updated correctly and the dynamic rests on top of the static
@@ -24,8 +24,8 @@ namespace ChaosTest {
 
 		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<FReal, 3>(FVec3(0), 10));
 
-		// Create solver #TODO make TFramework a little more general instead of mostly geometry collection focused
-		GeometryCollectionTest::TFramework<TypeParam> Framework;
+		// Create solver #TODO make FFramework a little more general instead of mostly geometry collection focused
+		GeometryCollectionTest::FFramework Framework;
 
 		// Make a particle
 		auto Proxy = FSingleParticlePhysicsProxy::Create(Chaos::FPBDRigidParticle::CreateParticle());
@@ -59,12 +59,11 @@ namespace ChaosTest {
 		EXPECT_NEAR(Particle.X().Z, 20, 1);
 	}
 
-	TYPED_TEST(AllEvolutions, SimTests_SphereSphereSimTest)
+	GTEST_TEST(AllEvolutions, SimTests_SphereSphereSimTest)
 	{
-		using TEvolution = TypeParam;
 		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		TEvolution Evolution(Particles, PhysicalMaterials);
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
 
 		auto Static = Evolution.CreateStaticParticles(1)[0];
@@ -100,12 +99,11 @@ namespace ChaosTest {
 		EXPECT_NEAR(Dynamic->X().Z, 110, 1);
 	}
 
-	TYPED_TEST(AllEvolutions, SimTests_BoxBoxSimTest)
+	GTEST_TEST(AllEvolutions, SimTests_BoxBoxSimTest)
 	{
-		using TEvolution = TypeParam;
 		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		TEvolution Evolution(Particles, PhysicalMaterials);
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
 
 		auto Static = Evolution.CreateStaticParticles(1)[0];
@@ -142,12 +140,11 @@ namespace ChaosTest {
 	// This will be fixed if/when we have a multi-contact manifold between particle pairs and we simultaneously
 	// resolve contacts in that manifold.
 	//
-	TYPED_TEST(AllEvolutions, DISABLED_SimTests_VeryLowInertiaSimTest)
+	GTEST_TEST(AllEvolutions, DISABLED_SimTests_VeryLowInertiaSimTest)
 	{
-		using TEvolution = TypeParam;
 		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		TEvolution Evolution(Particles, PhysicalMaterials);
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
 
 		auto Static = Evolution.CreateStaticParticles(1)[0];
@@ -174,12 +171,11 @@ namespace ChaosTest {
 		EXPECT_NEAR(Dynamic->X().Z, 110, 10);
 	}
 
-	TYPED_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest)
+	GTEST_TEST(AllEvolutions, SimTests_SleepAndWakeSimTest)
 	{
-		using TEvolution = TypeParam;
 		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
-		TEvolution Evolution(Particles, PhysicalMaterials);
+		FPBDRigidsEvolutionGBF Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
 
 		auto Static = Evolution.CreateStaticParticles(1)[0];

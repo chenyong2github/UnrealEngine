@@ -8,9 +8,9 @@
 #include "DMXFixtureTypeSharedData.h"
 #include "DMXFixturePatchSharedData.h"
 #include "Library/DMXLibrary.h"
-#include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
+#include "LibraryEditorTab/SDMXLibraryEditorTab.h"
 #include "Modes/DMXEditorApplicationMode.h"
 #include "Toolbars/DMXEditorToolbar.h"
 #include "Commands/DMXEditorCommands.h"
@@ -20,7 +20,6 @@
 
 #include "Widgets/SDMXEntityEditor.h"
 #include "Widgets/SDMXEntityInspector.h"
-#include "Widgets/Controller/SDMXControllerEditor.h"
 #include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
 #include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
 #include "Widgets/OutputConsole/SDMXOutputConsole.h"
@@ -28,22 +27,10 @@
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
 
+
 #define LOCTEXT_NAMESPACE "FDMXEditor"
 
 const FName FDMXEditor::ToolkitFName(TEXT("DMXEditor"));
-
-FDMXEditor::FDMXEditor()
-{}
-
-FDMXEditor::~FDMXEditor()
-{
-	ControllerEditor.Reset();
-	FixtureTypeEditor.Reset();
-	FixturePatchEditor.Reset();
-
-	FixtureTypeSharedData.Reset();
-	FixturePatchSharedData.Reset();
-}
 
 FName FDMXEditor::GetToolkitFName() const
 {
@@ -137,7 +124,7 @@ void FDMXEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& InTabMa
 
 void FDMXEditor::CreateDefaultTabContents(UDMXLibrary* DMXLibrary)
 {
-	ControllerEditor = CreateControllerEditor();
+	DMXLibraryEditorTab = CreateDMXLibraryEditorTab();
 	FixtureTypeEditor = CreateFixtureTypeEditor();
 	FixturePatchEditor = CreateFixturePatchEditor();
 }
@@ -149,12 +136,6 @@ void FDMXEditor::CreateDefaultCommands()
 	FDMXEditorModule& DMXEditorModule = FModuleManager::LoadModuleChecked<FDMXEditorModule>("DMXEditor");
 	ToolkitCommands->Append(DMXEditorModule.GetsSharedDMXEditorCommands());
 
-	// Entity creation
-	ToolkitCommands->MapAction(
-		FDMXEditorCommands::Get().AddNewEntityController,
-		FExecuteAction::CreateLambda([this]() { OnAddNewEntity(UDMXEntityController::StaticClass()); }),
-		FCanExecuteAction::CreateLambda([this]()->bool { return CanAddNewEntity(UDMXEntityController::StaticClass()); })
-	);
 	ToolkitCommands->MapAction(
 		FDMXEditorCommands::Get().AddNewEntityFixtureType,
 		FExecuteAction::CreateLambda([this]() { OnAddNewEntity(UDMXEntityFixtureType::StaticClass()); }),
@@ -195,11 +176,7 @@ bool FDMXEditor::InvokeEditorTabFromEntityType(TSubclassOf<UDMXEntity> InEntityC
 {
 	// Make sure we're in the right tab for the current type
 	FName TargetTabId = NAME_None;
-	if (InEntityClass->IsChildOf(UDMXEntityController::StaticClass()))
-	{
-		TargetTabId = FDMXEditorTabs::DMXControllersId;
-	}
-	else if (InEntityClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
+	if (InEntityClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
 	{
 		TargetTabId = FDMXEditorTabs::DMXFixtureTypesEditorTabId;
 	}
@@ -255,24 +232,20 @@ TSharedPtr<SDMXEntityEditor> FDMXEditor::GetEditorWidgetForEntityType(TSubclassO
 {
 	TSharedPtr<SDMXEntityEditor> EntityEditor = nullptr;
 
-	if (InEntityClass->IsChildOf(UDMXEntityController::StaticClass()))
+	if (InEntityClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
 	{
-		EntityEditor = ControllerEditor;
-	}
-	else if (InEntityClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
-	{
-		EntityEditor = FixtureTypeEditor;
+		return FixtureTypeEditor;
 	}
 	else if (InEntityClass->IsChildOf(UDMXEntityFixturePatch::StaticClass()))
 	{
-		EntityEditor = FixturePatchEditor;
+		return FixturePatchEditor;
 	}
 	else
 	{
 		UE_LOG_DMXEDITOR(Error, TEXT("%S not implemented for %s"), __FUNCTION__, *InEntityClass->GetFName().ToString());
 	}
 
-	return EntityEditor;
+	return FixtureTypeEditor;
 }
 
 void FDMXEditor::SelectEntityInItsTypeTab(UDMXEntity* InEntity, ESelectInfo::Type InSelectionType /*= ESelectInfo::Type::Direct*/)
@@ -318,14 +291,18 @@ TArray<UDMXEntity*> FDMXEditor::GetSelectedEntitiesFromTypeTab(TSubclassOf<UDMXE
 	return TArray<UDMXEntity*>();
 }
 
-UDMXLibrary * FDMXEditor::GetEditableDMXLibrary() const
+UDMXLibrary* FDMXEditor::GetEditableDMXLibrary() const
 {
 	return Cast<UDMXLibrary>(GetEditingObject());
 }
 
-TSharedRef<SDMXControllerEditor> FDMXEditor::CreateControllerEditor()
+TSharedRef<SDMXLibraryEditorTab> FDMXEditor::CreateDMXLibraryEditorTab()
 {
-	return SNew(SDMXControllerEditor)
+	UDMXLibrary* DMXLibrary = GetEditableDMXLibrary();
+	check(DMXLibrary);
+
+	return SNew(SDMXLibraryEditorTab)
+		.DMXLibrary(DMXLibrary)
 		.DMXEditor(SharedThis(this));
 }
 

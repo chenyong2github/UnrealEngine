@@ -678,7 +678,7 @@ bool UAbilitySystemBlueprintLibrary::DoesGameplayCueMeetTagRequirements(FGamepla
 		&& TargetTagReqs.RequirementsMet(Parameters.AggregatedSourceTags);
 }
 
-FGameplayCueParameters UAbilitySystemBlueprintLibrary::MakeGameplayCueParameters(float NormalizedMagnitude, float RawMagnitude, FGameplayEffectContextHandle EffectContext, FGameplayTag MatchedTagName, FGameplayTag OriginalTag, FGameplayTagContainer AggregatedSourceTags, FGameplayTagContainer AggregatedTargetTags, FVector Location, FVector Normal, AActor* Instigator, AActor* EffectCauser, UObject* SourceObject, UPhysicalMaterial* PhysicalMaterial, int32 GameplayEffectLevel, int32 AbilityLevel, USceneComponent* TargetAttachComponent)
+FGameplayCueParameters UAbilitySystemBlueprintLibrary::MakeGameplayCueParameters(float NormalizedMagnitude, float RawMagnitude, FGameplayEffectContextHandle EffectContext, FGameplayTag MatchedTagName, FGameplayTag OriginalTag, FGameplayTagContainer AggregatedSourceTags, FGameplayTagContainer AggregatedTargetTags, FVector Location, FVector Normal, AActor* Instigator, AActor* EffectCauser, UObject* SourceObject, UPhysicalMaterial* PhysicalMaterial, int32 GameplayEffectLevel, int32 AbilityLevel, USceneComponent* TargetAttachComponent, bool bReplicateLocationWhenUsingMinimalRepProxy)
 {
 	FGameplayCueParameters Parameters;
 	Parameters.NormalizedMagnitude = NormalizedMagnitude;
@@ -697,10 +697,11 @@ FGameplayCueParameters UAbilitySystemBlueprintLibrary::MakeGameplayCueParameters
 	Parameters.GameplayEffectLevel = GameplayEffectLevel;
 	Parameters.AbilityLevel = AbilityLevel;
 	Parameters.TargetAttachComponent = TargetAttachComponent;
+	Parameters.bReplicateLocationWhenUsingMinimalRepProxy = bReplicateLocationWhenUsingMinimalRepProxy;
 	return Parameters;
 }
 
-void UAbilitySystemBlueprintLibrary::BreakGameplayCueParameters(const struct FGameplayCueParameters& Parameters, float& NormalizedMagnitude, float& RawMagnitude, FGameplayEffectContextHandle& EffectContext, FGameplayTag& MatchedTagName, FGameplayTag& OriginalTag, FGameplayTagContainer& AggregatedSourceTags, FGameplayTagContainer& AggregatedTargetTags, FVector& Location, FVector& Normal, AActor*& Instigator, AActor*& EffectCauser, UObject*& SourceObject, UPhysicalMaterial*& PhysicalMaterial, int32& GameplayEffectLevel, int32& AbilityLevel, USceneComponent*& TargetAttachComponent)
+void UAbilitySystemBlueprintLibrary::BreakGameplayCueParameters(const struct FGameplayCueParameters& Parameters, float& NormalizedMagnitude, float& RawMagnitude, FGameplayEffectContextHandle& EffectContext, FGameplayTag& MatchedTagName, FGameplayTag& OriginalTag, FGameplayTagContainer& AggregatedSourceTags, FGameplayTagContainer& AggregatedTargetTags, FVector& Location, FVector& Normal, AActor*& Instigator, AActor*& EffectCauser, UObject*& SourceObject, UPhysicalMaterial*& PhysicalMaterial, int32& GameplayEffectLevel, int32& AbilityLevel, USceneComponent*& TargetAttachComponent, bool& bReplicateLocationWhenUsingMinimalRepProxy)
 {
 	NormalizedMagnitude = Parameters.NormalizedMagnitude;
 	RawMagnitude = Parameters.RawMagnitude;
@@ -718,6 +719,7 @@ void UAbilitySystemBlueprintLibrary::BreakGameplayCueParameters(const struct FGa
 	GameplayEffectLevel = Parameters.GameplayEffectLevel;
 	AbilityLevel = Parameters.AbilityLevel;
 	TargetAttachComponent = Parameters.TargetAttachComponent.Get();
+	bReplicateLocationWhenUsingMinimalRepProxy = Parameters.bReplicateLocationWhenUsingMinimalRepProxy;
 }
 
 // ---------------------------------------------------------------------------------------

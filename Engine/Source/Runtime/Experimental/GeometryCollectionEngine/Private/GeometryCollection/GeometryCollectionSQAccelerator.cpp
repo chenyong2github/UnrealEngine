@@ -24,7 +24,7 @@ DECLARE_CYCLE_STAT(TEXT("LowLevelOverlap"), STAT_LowLevelOverlap, STATGROUP_Chao
 
 #if TODO_REIMPLEMENT_SCENEQUERY_CROSSENGINE
 
-bool IsValidIndexAndTransform(const FGeometryCollectionResults& PhysResult, const Chaos::TPBDRigidParticles<float, 3>& Particles, const TManagedArray<FTransform>& TransformArray, const TArray<bool>& DisabledFlags, const int32 RigidBodyIdx, const bool bCanBeDisabled)
+bool IsValidIndexAndTransform(const FGeometryCollectionResults& PhysResult, const Chaos::TPBDRigidParticles<Chaos::FReal, 3>& Particles, const TManagedArray<FTransform>& TransformArray, const TArray<bool>& DisabledFlags, const int32 RigidBodyIdx, const bool bCanBeDisabled)
 {
 	if(RigidBodyIdx == -1)
 	{
@@ -70,7 +70,7 @@ bool IsValidIndexAndTransform(const FGeometryCollectionResults& PhysResult, cons
 	return true;
 }
 
-bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::FClusterBuffer& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const FVector& Start, const FVector& Dir, float DeltaMag, bool bCanBeDisabled, EHitFlags OutputFlags, FHitRaycast& OutHit)
+bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::FClusterBuffer& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const FVector& Start, const FVector& Dir, Chaos::FReal DeltaMag, bool bCanBeDisabled, EHitFlags OutputFlags, FHitRaycast& OutHit)
 {
 	using namespace Chaos;
 
@@ -85,7 +85,7 @@ bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 	const TArray<bool>& DisabledFlags = PhysResult.DisabledStates;
 
 	{
-		const TPBDRigidParticles<float, 3>& Particles = InSolver->GetRigidParticles();
+		const TPBDRigidParticles<Chaos::FReal, 3>& Particles = InSolver->GetRigidParticles();
 
 		if(!IsValidIndexAndTransform(PhysResult, Particles, TransformArray, DisabledFlags, InParticleIndex, bCanBeDisabled))
 		{
@@ -94,7 +94,7 @@ bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 
 		const int32 LocalBodyIndex = InParticleIndex - PhysResult.BaseIndex;
 
-		const TRigidTransform<float, 3>& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
+		const FRigidTransform3& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
 		if (!(ensure(!FMath::IsNaN(TM.GetTranslation().X)) && ensure(!FMath::IsNaN(TM.GetTranslation().Y)) && ensure(!FMath::IsNaN(TM.GetTranslation().Z))))
 		{
 			return false;
@@ -115,7 +115,7 @@ bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 		{
 #if WITH_PHYSX
 			//todo(ocohen): check output flags?
-			const float Distance = (Result.First - StartLocal).Size();
+			const Chaos::FReal Distance = (Result.First - StartLocal).Size();
 			if(OutHit.distance == PX_MAX_REAL || Distance < OutHit.distance)
 			{
 				OutHit.distance = Distance;	//todo(ocohen): assuming physx structs for now
@@ -138,7 +138,7 @@ static TAutoConsoleVariable<int32> CVarMaxSweepSteps(
 	TEXT("Number of steps during a sweep"),
 	ECVF_Default);
 
-bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::FClusterBuffer& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const Chaos::FImplicitObject& QueryGeom, const Chaos::FParticles& CollisionParticles, const FTransform& StartPose, const FVector& Dir, float DeltaMag, const bool bCanBeDisabled, FHitSweep& OutHit)
+bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::FClusterBuffer& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const Chaos::FImplicitObject& QueryGeom, const Chaos::FParticles& CollisionParticles, const FTransform& StartPose, const FVector& Dir, Chaos::FReal DeltaMag, const bool bCanBeDisabled, FHitSweep& OutHit)
 {
 	using namespace Chaos;
 
@@ -151,7 +151,7 @@ bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolv
 	const TManagedArray<FTransform>& TransformArray = PhysResult.Transforms;
 	const TArray<bool>& DisabledFlags = PhysResult.DisabledStates;
 
-	const TPBDRigidParticles<float, 3>& Particles = InSolver->GetRigidParticles();
+	const TPBDRigidParticles<Chaos::FReal, 3>& Particles = InSolver->GetRigidParticles();
 
 	if(!IsValidIndexAndTransform(PhysResult, Particles, TransformArray, DisabledFlags, InParticleIndex, bCanBeDisabled))
 	{
@@ -159,7 +159,7 @@ bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolv
 	}
 
 	const int32 LocalBodyIndex = InParticleIndex - PhysResult.BaseIndex;
-	const TRigidTransform<float, 3>& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
+	const FRigidTransform3& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
 
 	const FImplicitObject* Object = ClusterBuffer.GeometryPtrs[InParticleIndex].Get();
 	if (!Object)
@@ -180,7 +180,7 @@ bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolv
 		if(Result.Second)
 		{
 #if WITH_PHYSX
-			const float Distance = (Result.First - StartLocal).Size();
+			const Chaos::FReal Distance = (Result.First - StartLocal).Size();
 			if(!bFound || Distance < OutHit.distance)
 			{
 				OutHit.distance = Distance;	//todo(ocohen): assuming physx structs for now
@@ -218,7 +218,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 
 	if (Chaos::FPhysicsSolver* Solver = GeomCollectionComponent.ChaosSolverActor != nullptr ? GeomCollectionComponent.ChaosSolverActor->GetSolver() : GeomCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver())
 	{
-		const TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();	//todo(ocohen): should these just get passed in instead of hopping through scene?
+		const TPBDRigidParticles<Chaos::FReal, 3>& Particles = Solver->GetRigidParticles();	//todo(ocohen): should these just get passed in instead of hopping through scene?
 
 		check(QueryGeom.HasBoundingBox()); // We do not support unbounded query objects
 		
@@ -231,7 +231,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 			}
 
 			const int32 LocalBodyIndex = RigidBodyIdx - PhysResult.BaseIndex;
-			const TRigidTransform<float, 3>& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
+			const FRigidTransform3& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
 
 			const FImplicitObject* Object = ClusterBuffer.GeometryPtrs[RigidBodyIdx].Get();
 			if (!Object)
@@ -240,7 +240,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 			}
 
 			// Need to do narrow phase
-			Pair<FVec3, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(RigidBodyIdx).Get(), TRigidTransform<float, 3>(TM) * TRigidTransform<float, 3>(GeomPose).Inverse(), 0);
+			Pair<FVec3, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(RigidBodyIdx).Get(), FRigidTransform3(TM) * FRigidTransform3(GeomPose).Inverse(), 0);
 
 			if (Result.Second)
 			{
@@ -254,7 +254,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 int32 UseSlowSQ = 0;
 FAutoConsoleVariableRef CVarUseSlowSQ(TEXT("p.UseSlowSQ"), UseSlowSQ, TEXT(""));
 
-void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, const Chaos::FReal DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCRaycast);
 	FChaosScopeSolverLock SolverScopeLock;
@@ -265,7 +265,7 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 
 	TMap<const Chaos::FPhysicsSolver*, TArray<int32>> SolverIntersectionSets;
 
-	Chaos::TSpatialRay<float, 3> Ray(Start, Start + Dir * DeltaMagnitude);
+	Chaos::TSpatialRay<Chaos::FReal, 3> Ray(Start, Start + Dir * DeltaMagnitude);
 
 #if WITH_PHYSX
 
@@ -302,11 +302,11 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 				}
 				if (Object && !UseSlowSQ && Object->IsUnderlyingUnion())
 				{
-					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
+					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<Chaos::FReal, 3>*>(Object);
 					//hack: this is terrible because we have no buffered transform so could be off, but most of the time these things are static
 
 					{
-						const TRigidTransform<float, 3>* TMPtr = Buffer.ClusterParentTransforms.Find(IntersectParticleIndex);
+						const FRigidTransform3* TMPtr = Buffer.ClusterParentTransforms.Find(IntersectParticleIndex);
 
 						if (ensure(TMPtr))
 						{
@@ -318,7 +318,7 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 							const FVec3 StartLocal = TMPtr->InverseTransformPositionNoScale(Start);
 							const FVec3 DirLocal = TMPtr->InverseTransformVectorNoScale(Dir);
 							const FVec3 EndLocal = StartLocal + DirLocal * DeltaMagnitude;
-							Chaos::TSpatialRay<float, 3> LocalRay(StartLocal, EndLocal);
+							Chaos::TSpatialRay<Chaos::FReal, 3> LocalRay(StartLocal, EndLocal);
 							const TArray<int32> IntersectingChildren = Union->FindAllIntersectingChildren(LocalRay);
 							IntersectionSet.Append(IntersectingChildren);
 						}
@@ -385,7 +385,7 @@ DECLARE_CYCLE_STAT(TEXT("Sweep Broadphase"), STAT_SQSweepBroadPhase, STATGROUP_C
 DECLARE_CYCLE_STAT(TEXT("Sweep Narrowphase"), STAT_SQSweepNarrowPhase, STATGROUP_Chaos);
 
 //@todo(mlentine): Avoid duplicated code between this and overlap
-void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& QueryGeom, const FTransform& StartTM, const FVector& Dir, const Chaos::FReal DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCSweep);
 	FChaosScopeSolverLock SolverScopeLock;
@@ -396,7 +396,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 	TMap<const Chaos::FPhysicsSolver*, TArray<int32>> SolverIntersectionSets;
 
 	// Getter for intersections from the mapping above
-	auto GetIntersectionsFunc = [&](const Chaos::FPhysicsSolver* InSolver, const Chaos::FParticles& InCollisionParticles, float InDeltaMag, const FTransform& InPose) -> TArray<int32>
+	auto GetIntersectionsFunc = [&](const Chaos::FPhysicsSolver* InSolver, const Chaos::FParticles& InCollisionParticles, Chaos::FReal InDeltaMag, const FTransform& InPose) -> TArray<int32>
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SQSweepBroadPhase)
 
@@ -404,7 +404,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 
 		if(InSolver->Enabled())
 		{
-			const Chaos::ISpatialAcceleration<float, 3>* SpacialAcceleration = InSolver->GetSpatialAcceleration();
+			const Chaos::ISpatialAcceleration<Chaos::FReal, 3>* SpacialAcceleration = InSolver->GetSpatialAcceleration();
 
 			const int32 NumCollisionParticles = InCollisionParticles.Size();
 			for(int32 ParticleIndex = 0; ParticleIndex < NumCollisionParticles; ++ParticleIndex)
@@ -412,7 +412,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 				const Chaos::FVec3 RayStart = InPose.TransformPositionNoScale(InCollisionParticles.X(ParticleIndex));
 				const Chaos::FVec3 RayEnd = RayStart + Dir * InDeltaMag;
 
-				PotentialIntersections.Append(SpacialAcceleration->FindAllIntersections(Chaos::TSpatialRay<float, 3>(RayStart, RayEnd)));
+				PotentialIntersections.Append(SpacialAcceleration->FindAllIntersections(Chaos::TSpatialRay<Chaos::FReal, 3>(RayStart, RayEnd)));
 			}
 
 			InSolver->ReleaseSpatialAcceleration();
@@ -441,7 +441,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 		{}
 
 		Chaos::FCapsule Capsule;
-		Chaos::TSphere<float, 3> Sphere;
+		Chaos::TSphere<Chaos::FReal, 3> Sphere;
 		Chaos::FAABB3 Box;
 	};
 	FLocalImplicitStorage ImplicitStorage;
@@ -456,8 +456,8 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 	{
 		physx::PxCapsuleGeometry& PxCapsule = Holder.capsule();
 		
-		float Radius = PxCapsule.radius;
-		float HalfHeight = PxCapsule.halfHeight;
+		Chaos::FReal Radius = PxCapsule.radius;
+		Chaos::FReal HalfHeight = PxCapsule.halfHeight;
 		Chaos::FVec3 x1(-HalfHeight, 0, 0);
 		Chaos::FVec3 x2(HalfHeight, 0, 0);
 		
@@ -487,9 +487,9 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 	{
 		physx::PxSphereGeometry& PxSphere = Holder.sphere();
 
-		float Radius = PxSphere.radius;
+		Chaos::FReal Radius = PxSphere.radius;
 
-		Chaos::TSphere<float, 3> Sphere(Chaos::FVec3(0), Radius);
+		Chaos::TSphere<Chaos::FReal, 3> Sphere(Chaos::FVec3(0), Radius);
 		ImplicitStorage.Sphere = MoveTemp(Sphere);
 		Implicit = &ImplicitStorage.Sphere;
 
@@ -567,11 +567,11 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 				}
 				if (Object && !UseSlowSQ && Object->IsUnderlyingUnion())
 				{
-					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<float, 3>*>(Object);
+					const FImplicitObjectUnion* Union = static_cast<const TImplicitObjectUnion<Chaos::FReal, 3>*>(Object);
 					//hack: this is terrible because we have no buffered transform so could be off, but most of the time these things are static
 
 					{
-						const TRigidTransform<float, 3>* TMPtr = Buffer.ClusterParentTransforms.Find(ParticleIndex);
+						const FRigidTransform3* TMPtr = Buffer.ClusterParentTransforms.Find(ParticleIndex);
 
 						if (ensure(TMPtr))
 						{
@@ -583,7 +583,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const Chaos::FImplicitObject& Query
 							const FVec3 StartLocal = TMPtr->InverseTransformPositionNoScale(StartTM.GetLocation());
 							const FVec3 DirLocal = TMPtr->InverseTransformVectorNoScale(Dir);
 							const FVec3 EndLocal = StartLocal + DirLocal * DeltaMag;
-							Chaos::TSpatialRay<float, 3> LocalRay(StartLocal, EndLocal);
+							Chaos::TSpatialRay<Chaos::FReal, 3> LocalRay(StartLocal, EndLocal);
 							const TArray<int32> IntersectingChildren = Union->FindAllIntersectingChildren(LocalRay);
 							IntersectionSet.Append(IntersectingChildren);
 						}
@@ -658,7 +658,7 @@ bool LowLevelOverlapSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 	const TManagedArray<FTransform>& TransformArray = PhysResult.Transforms;
 	const TArray<bool>& DisabledFlags = PhysResult.DisabledStates;
 
-	const TPBDRigidParticles<float, 3>& Particles = InSolver->GetRigidParticles();
+	const TPBDRigidParticles<Chaos::FReal, 3>& Particles = InSolver->GetRigidParticles();
 
 	if(!IsValidIndexAndTransform(PhysResult, Particles, TransformArray, DisabledFlags, InParticleIndex, false))
 	{
@@ -666,7 +666,7 @@ bool LowLevelOverlapSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 	}
 
 	const int32 LocalBodyIndex = InParticleIndex - PhysResult.BaseIndex;
-	const TRigidTransform<float, 3>& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
+	const FRigidTransform3& TM = PhysResult.ParticleToWorldTransforms[LocalBodyIndex];
 	const FImplicitObject* Object = ClusterBuffer.GeometryPtrs[InParticleIndex].Get();
 	
 	if(!Object)
@@ -674,7 +674,7 @@ bool LowLevelOverlapSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSo
 		return false;
 	}
 
-	Pair<FVec3, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(InParticleIndex).Get(), TRigidTransform<float, 3>(TM) * TRigidTransform<float, 3>(InPose).Inverse(), 0);
+	Pair<FVec3, bool> Result = QueryGeom.FindDeepestIntersection(Object, Particles.CollisionParticles(InParticleIndex).Get(), FRigidTransform3(TM) * FRigidTransform3(InPose).Inverse(), 0);
 
 	return Result.Second;
 }
@@ -715,7 +715,7 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 		{}
 
 		Chaos::FCapsule Capsule;
-		Chaos::TSphere<float, 3> Sphere;
+		Chaos::TSphere<Chaos::FReal, 3> Sphere;
 		Chaos::FAABB3 Box;
 	};
 	FLocalImplicitStorage ImplicitStorage;
@@ -728,8 +728,8 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 	if(Holder.getType() == PxGeometryType::eCAPSULE)
 	{
 		physx::PxCapsuleGeometry& PxCapsule = Holder.capsule();
-		float Radius = PxCapsule.radius;
-		float HalfHeight = PxCapsule.halfHeight - Radius;
+		Chaos::FReal Radius = PxCapsule.radius;
+		Chaos::FReal HalfHeight = PxCapsule.halfHeight - Radius;
 		Chaos::FVec3 x1(-HalfHeight, 0, 0);
 		Chaos::FVec3 x2(HalfHeight, 0, 0);
 		Chaos::FCapsule Capsule(x1, x2, Radius);
@@ -739,8 +739,8 @@ void FGeometryCollectionSQAccelerator::Overlap(const Chaos::FImplicitObject& Que
 	else if(Holder.getType() == PxGeometryType::eSPHERE)
 	{
 		physx::PxSphereGeometry& PxSphere = Holder.sphere();
-		float Radius = PxSphere.radius;
-		Chaos::TSphere<float, 3> Sphere(Chaos::FVec3(0), Radius);
+		Chaos::FReal Radius = PxSphere.radius;
+		Chaos::TSphere<Chaos::FReal, 3> Sphere(Chaos::FVec3(0), Radius);
 		ImplicitStorage.Sphere = MoveTemp(Sphere);
 		Implicit = &ImplicitStorage.Sphere;
 	}

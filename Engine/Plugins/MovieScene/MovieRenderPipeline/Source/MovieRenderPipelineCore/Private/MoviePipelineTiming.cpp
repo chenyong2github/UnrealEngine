@@ -167,6 +167,15 @@ void UMoviePipeline::TickProducingFrames()
 			LevelSequenceActor->GetSequencePlayer()->Pause();
 		}
 
+		// Update the camera's previous/current location. On the first frame there is no previous so we just make them match.
+		{
+			APlayerController* LocalPlayerController = GetWorld()->GetFirstPlayerController();
+			LocalPlayerController->GetPlayerViewPoint(FrameInfo.CurrViewLocation, FrameInfo.CurrViewRotation);
+			
+			FrameInfo.PrevViewLocation = FrameInfo.CurrViewLocation;
+			FrameInfo.PrevViewRotation = FrameInfo.CurrViewRotation;
+		}
+
 		// We can safely fall through to the below states as they're OK to process the same frame we set up.
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[%d] Finished initializing Camera Cut [%d/%d] in [%s] %s."), GFrameCounter,
 			CurrentShotIndex + 1, ActiveShotList.Num(), *CurrentCameraCut->OuterName, *CurrentCameraCut->InnerName);
@@ -619,7 +628,7 @@ void UMoviePipeline::TickProducingFrames()
 			UMoviePipelineDebugSettings* DebugSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineDebugSettings>();
 			if (IsValid(DebugSettings) && DebugSettings->IsRenderDocEnabled())
 			{
-				if (CachedOutputState.OutputFrameNumber == DebugSettings->CaptureFrame)
+				if (CachedOutputState.SourceFrameNumber == DebugSettings->CaptureFrame)
 				{
 					CachedOutputState.bCaptureRendering = true;
 				}

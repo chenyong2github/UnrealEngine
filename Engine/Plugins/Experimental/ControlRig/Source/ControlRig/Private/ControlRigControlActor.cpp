@@ -109,6 +109,7 @@ void AControlRigControlActor::Refresh()
 						if (Actor == ActorToTrack)
 						{
 							ControlRig = RigInstance;
+							Binding->OnControlRigUnbind().AddLambda([ this ]( ) { this->Clear(); this->Refresh(); });
 							break;
 						}
 					}

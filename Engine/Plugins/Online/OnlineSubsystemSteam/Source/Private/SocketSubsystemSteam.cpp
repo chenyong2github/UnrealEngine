@@ -138,7 +138,7 @@ void FSocketSubsystemSteam::Shutdown()
 	// Cleanup any remaining sessions
 	for (auto SessionIds : AcceptedConnections)
 	{
-		P2PRemove(SessionIds.Key, -1);
+		P2PRemove(FUniqueNetIdSteam::Cast(*SessionIds.Key), -1);
 	}
 
 	CleanupDeadConnections(true);
@@ -173,8 +173,8 @@ FSocket* FSocketSubsystemSteam::CreateSocket(const FName& SocketType, const FStr
 		ISteamUser* SteamUserPtr = SteamUser();
 		if (SteamUserPtr != nullptr)
 		{
-			FUniqueNetIdSteam ClientId(SteamUserPtr->GetSteamID());
-			NewSocket = new FSocketSteam(SteamNetworking(), ClientId, SocketDescription, FNetworkProtocolTypes::Steam);
+			const FUniqueNetIdSteamRef ClientId = FUniqueNetIdSteam::Create(SteamUserPtr->GetSteamID());
+			NewSocket = new FSocketSteam(SteamNetworking(), *ClientId, SocketDescription, FNetworkProtocolTypes::Steam);
 
 			if (NewSocket)
 			{
@@ -195,8 +195,7 @@ FSocket* FSocketSubsystemSteam::CreateSocket(const FName& SocketType, const FStr
 			}
 			else
 			{
-				FUniqueNetIdSteam InvalidId(uint64(0));
-				NewSocket = new FSocketSteam(SteamGameServerNetworking(), InvalidId, SocketDescription, FNetworkProtocolTypes::Steam);
+				NewSocket = new FSocketSteam(SteamGameServerNetworking(), *FUniqueNetIdSteam::EmptyId(), SocketDescription, FNetworkProtocolTypes::Steam);
 			}
 
 			if (NewSocket)
@@ -244,9 +243,9 @@ void FSocketSubsystemSteam::FixupSockets(const FUniqueNetIdSteam& GameServerId)
 	for (int32 SockIdx = 0; SockIdx < SteamSockets.Num(); SockIdx++)
 	{
 		FSocketSteam* Socket = SteamSockets[SockIdx];
-		if (Socket->SteamNetworkingPtr == SteamGameServerNetworking() && !Socket->LocalSteamId.IsValid())
+		if (Socket->SteamNetworkingPtr == SteamGameServerNetworking() && !Socket->LocalSteamId->IsValid())
 		{
-			Socket->LocalSteamId = GameServerId;
+			Socket->LocalSteamId = GameServerId.AsShared();
 		}
 	}
 }
@@ -269,7 +268,7 @@ void FSocketSubsystemSteam::RegisterConnection(USteamNetConnection* Connection)
 		TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(Connection->GetRemoteAddr());
 
 		UE_LOG_ONLINE(Log, TEXT("Adding user %s from RegisterConnection"), *SteamAddr->ToString(true));
-		P2PTouch(SteamSocket->SteamNetworkingPtr, SteamAddr->SteamId, SteamAddr->SteamChannel);
+		P2PTouch(SteamSocket->SteamNetworkingPtr, *SteamAddr->SteamId, SteamAddr->SteamChannel);
 	}
 }
 
@@ -292,7 +291,7 @@ void FSocketSubsystemSteam::UnregisterConnection(USteamNetConnection* Connection
 	if (SteamConnections.RemoveSingleSwap(ObjectPtr) == 1 && Connection->GetRemoteAddr().IsValid())
 	{
 		TSharedPtr<const FInternetAddrSteam> SteamAddr = StaticCastSharedPtr<const FInternetAddrSteam>(Connection->GetRemoteAddr());
-		P2PRemove(SteamAddr->SteamId, SteamAddr->SteamChannel);
+		P2PRemove(*SteamAddr->SteamId, SteamAddr->SteamChannel);
 	}
 }
 
@@ -315,7 +314,7 @@ void FSocketSubsystemSteam::ConnectFailure(const FUniqueNetIdSteam& RemoteId)
 		{
 			TSharedPtr<const FInternetAddrSteam> RemoteAddrSteam = StaticCastSharedPtr<const FInternetAddrSteam>(SteamConn->GetRemoteAddr());
 			// Only checking Id here because its a complete failure (channel doesn't matter)
-			if (RemoteAddrSteam->SteamId == RemoteId)
+			if (*RemoteAddrSteam->SteamId == RemoteId)
 			{
 				SteamConn->Close();
 			}
@@ -360,7 +359,7 @@ FAddressInfoResult FSocketSubsystemSteam::GetAddressInfo(const TCHAR* HostName, 
 			FString PortString(ServiceName);
 			SteamResult.ReturnCode = SE_NO_ERROR;
 			TSharedRef<FInternetAddrSteam> SteamIdAddress = StaticCastSharedRef<FInternetAddrSteam>(CreateInternetAddr());
-			SteamIdAddress->SteamId = FUniqueNetIdSteam(Id);
+			SteamIdAddress->SteamId = FUniqueNetIdSteam::Create(Id);
 			if (PortString.IsNumeric())
 			{
 				SteamIdAddress->SetPort(FCString::Atoi(*PortString));
@@ -407,7 +406,7 @@ TSharedPtr<FInternetAddr> FSocketSubsystemSteam::GetAddressFromString(const FStr
 		if (Id != 0)
 		{
 			TSharedRef<FInternetAddrSteam> ReturnAddress = StaticCastSharedRef<FInternetAddrSteam>(CreateInternetAddr());
-			ReturnAddress->SteamId = FUniqueNetIdSteam(Id);
+			ReturnAddress->SteamId = FUniqueNetIdSteam::Create(Id);
 			return ReturnAddress;
 		}
 		else
@@ -498,13 +497,13 @@ TArray<TSharedRef<FInternetAddr>> FSocketSubsystemSteam::GetLocalBindAddresses()
 	{
 		// Prefer the steam user
 		SteamId = SteamUser()->GetSteamID();
-		SteamAddr = new FInternetAddrSteam(FUniqueNetIdSteam(SteamId));
+		SteamAddr = new FInternetAddrSteam(*FUniqueNetIdSteam::Create(SteamId));
 	}
 	else if (SteamGameServer() && SteamGameServer()->BLoggedOn())
 	{
 		// Dedicated server 
 		SteamId = SteamGameServer()->GetSteamID();
-		SteamAddr = new FInternetAddrSteam(FUniqueNetIdSteam(SteamId));
+		SteamAddr = new FInternetAddrSteam(*FUniqueNetIdSteam::Create(SteamId));
 	}
 	else
 	{
@@ -531,8 +530,8 @@ bool FSocketSubsystemSteam::AcceptP2PConnection(ISteamNetworking* SteamNetworkin
 		UE_LOG_ONLINE(Log, TEXT("Adding P2P connection information with user %s (Name: %s)"), *RemoteId.ToString(), *RemoteId.ToDebugString());
 		// Blindly accept connections (but only if P2P enabled)
 		SteamNetworkingPtr->AcceptP2PSessionWithUser(RemoteId);
-		UE_CLOG_ONLINE(AcceptedConnections.Contains(RemoteId), Warning, TEXT("User %s already exists in the connections list!!"), *RemoteId.ToString());
-		AcceptedConnections.Add(RemoteId, FSteamP2PConnectionInfo(SteamNetworkingPtr));
+		UE_CLOG_ONLINE(AcceptedConnections.Contains(RemoteId.AsShared()), Warning, TEXT("User %s already exists in the connections list!!"), *RemoteId.ToString());
+		AcceptedConnections.Add(RemoteId.AsShared(), FSteamP2PConnectionInfo(SteamNetworkingPtr));
 		return true;
 	}
 
@@ -553,7 +552,7 @@ bool FSocketSubsystemSteam::P2PTouch(ISteamNetworking* SteamNetworkingPtr, const
     // Don't update any sessions coming from pending disconnects
 	if (!IsConnectionPendingRemoval(SessionId, ChannelId))
 	{
-		FSteamP2PConnectionInfo& ChannelUpdate = AcceptedConnections.FindOrAdd(SessionId);
+		FSteamP2PConnectionInfo& ChannelUpdate = AcceptedConnections.FindOrAdd(SessionId.AsShared());
 		ChannelUpdate.SteamNetworkingPtr = SteamNetworkingPtr;
 
 		if (ChannelId != -1)
@@ -574,7 +573,7 @@ bool FSocketSubsystemSteam::P2PTouch(ISteamNetworking* SteamNetworkingPtr, const
  */
 void FSocketSubsystemSteam::P2PRemove(const FUniqueNetIdSteam& SessionId, int32 Channel)
 {
-	FSteamP2PConnectionInfo* ConnectionInfo = AcceptedConnections.Find(SessionId);
+	FSteamP2PConnectionInfo* ConnectionInfo = AcceptedConnections.Find(SessionId.AsShared());
 	if (ConnectionInfo)
 	{
 		const bool bRemoveAllConnections = (Channel == -1);
@@ -588,7 +587,7 @@ void FSocketSubsystemSteam::P2PRemove(const FUniqueNetIdSteam& SessionId, int32 
 				// Go through and remove all the connections for this user
 				for (TMap<FInternetAddrSteam, double>::TIterator It(DeadConnections); It; ++It)
 				{
-					if (It->Key.SteamId == SessionId)
+					if (*It->Key.SteamId == SessionId)
 					{
 						It.RemoveCurrent();
 					}
@@ -690,9 +689,9 @@ bool FSocketSubsystemSteam::Tick(float DeltaTime)
 		bDumpSessionInfo = true;
 	}
 
-	for (TMap<FUniqueNetIdSteam, FSteamP2PConnectionInfo>::TConstIterator It(AcceptedConnections); It; ++It)
+	for (TUniqueNetIdMap<FSteamP2PConnectionInfo>::TConstIterator It(AcceptedConnections); It; ++It)
 	{
-		const FUniqueNetIdSteam& SessionId = It.Key();
+		const FUniqueNetIdSteam& SessionId = FUniqueNetIdSteam::Cast(*It.Key());
 		const FSteamP2PConnectionInfo& ConnectionInfo = It.Value();
 
 		bool bExpiredSession = true;
@@ -756,25 +755,24 @@ void FSocketSubsystemSteam::CleanupDeadConnections(bool bSkipLinger)
 		if (P2PCleanupTimeout == 0.0 || CurSeconds - It.Value() >= P2PCleanupTimeout || bSkipLinger)
 		{
 			// Only modify connections if the user exists. This check is only done for safety
-			if (AcceptedConnections.Contains(SteamConnection.SteamId))
+			if (const FSteamP2PConnectionInfo* ConnectionInfo = AcceptedConnections.Find(SteamConnection.SteamId))
 			{
-				const FSteamP2PConnectionInfo& ConnectionInfo = AcceptedConnections[SteamConnection.SteamId];
 				bool bShouldRemoveUser = true;
 				// All communications are to be removed
 				if (SteamConnection.GetPort() == -1)
 				{
 					UE_LOG_ONLINE(Log, TEXT("Closing all communications with user %s"), *SteamConnection.ToString(false));
-					ConnectionInfo.SteamNetworkingPtr->CloseP2PSessionWithUser(SteamConnection.SteamId);
+					ConnectionInfo->SteamNetworkingPtr->CloseP2PSessionWithUser(*SteamConnection.SteamId);
 				}
 				else
 				{
 					UE_LOG_ONLINE(Log, TEXT("Closing channel %d with user %s"), SteamConnection.SteamChannel, *SteamConnection.ToString(false));
-					ConnectionInfo.SteamNetworkingPtr->CloseP2PChannelWithUser(SteamConnection.SteamId, SteamConnection.SteamChannel);
+					ConnectionInfo->SteamNetworkingPtr->CloseP2PChannelWithUser(*SteamConnection.SteamId, SteamConnection.SteamChannel);
 					// If we no longer have any channels open with the user, we must remove the user, as Steam will do this automatically.
-					if (ConnectionInfo.ConnectedChannels.Num() != 0)
+					if (ConnectionInfo->ConnectedChannels.Num() != 0)
 					{
 						bShouldRemoveUser = false;
-						UE_LOG_ONLINE(Verbose, TEXT("%s still has %d open connections."), *SteamConnection.ToString(false), ConnectionInfo.ConnectedChannels.Num());
+						UE_LOG_ONLINE(Verbose, TEXT("%s still has %d open connections."), *SteamConnection.ToString(false), ConnectionInfo->ConnectedChannels.Num());
 					}
 					else
 					{
@@ -826,9 +824,9 @@ void FSocketSubsystemSteam::DumpSteamP2PSessionInfo(P2PSessionState_t& SessionIn
 void FSocketSubsystemSteam::DumpAllOpenSteamSessions()
 {
 	UE_LOG_ONLINE(Verbose, TEXT("Current Connection Info: "));
-	for (TMap<FUniqueNetIdSteam, FSteamP2PConnectionInfo>::TConstIterator It(AcceptedConnections); It; ++It)
+	for (TUniqueNetIdMap<FSteamP2PConnectionInfo>::TConstIterator It(AcceptedConnections); It; ++It)
 	{
-		UE_LOG_ONLINE(Verbose, TEXT("- Connection %s"), *It->Key.ToDebugString());
+		UE_LOG_ONLINE(Verbose, TEXT("- Connection %s"), *It->Key->ToDebugString());
 		UE_LOG_ONLINE(Verbose, TEXT("--  Last Update Time: %d"), It->Value.LastReceivedTime);
 		FString ConnectedChannels(TEXT(""));
 		for (int32 i = 0; i < It->Value.ConnectedChannels.Num(); ++i)

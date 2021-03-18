@@ -8,6 +8,7 @@
 #include "Stats/Stats.h"
 
 class FDerivedDataCacheUsageStats;
+class FDerivedDataCacheStatsNode;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogDerivedDataCache, Log, All);
 
@@ -20,6 +21,8 @@ DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("ASync Wait Time"),STAT_DDC_ASyncWait
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Sync Put Time"),STAT_DDC_PutTime,STATGROUP_DDC, );
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Sync Build Time"),STAT_DDC_SyncBuildTime,STATGROUP_DDC, );
 DECLARE_FLOAT_ACCUMULATOR_STAT_EXTERN(TEXT("Exists Time"),STAT_DDC_ExistTime,STATGROUP_DDC, );
+
+
 
 /** 
  * Interface for cache server backends. 
@@ -88,14 +91,17 @@ public:
 	/** Return a name for this interface */
 	virtual FString GetName() const = 0;
 
+	/** Return a name for this interface */
+	virtual FString GetDisplayName() const { return GetName(); }
+
 	/** return true if this cache is writable **/
-	virtual bool IsWritable()=0;
+	virtual bool IsWritable() const = 0;
 
 	/** 
 	 * return true if hits on this cache should propagate to lower cache level. Typically false for a PAK file. 
 	 * Caution! This generally isn't propagated, so the thing that returns false must be a direct child of the heirarchical cache.
 	 **/
-	virtual bool BackfillLowerCacheLevels()
+	virtual bool BackfillLowerCacheLevels() const
 	{
 		return true;
 	}
@@ -103,7 +109,7 @@ public:
 	/**
 	 * Returns a class of speed for this interface
 	 **/
-	virtual ESpeedClass GetSpeedClass() = 0;
+	virtual ESpeedClass GetSpeedClass() const = 0;
 
 	/**
 	 * Synchronous test for the existence of a cache item
@@ -157,11 +163,8 @@ public:
 
 	/**
 	 * Retrieve usage stats for this backend. If the backend holds inner backends, this is expected to be passed down recursively.
-	 * @param	UsageStatsMap		The map of usages. Each backend instance should give itself a unique name if possible (ie, use the filename associated).
-	 * @param	GraphPath			Path to the node in the graph. If you have inner nodes, add their index to the current path as ". <n>".
-	 *								This will create a path such as "0. 1. 0. 2", which can uniquely identify this node.
 	 */
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) = 0;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const = 0;
 
 	/**
 	 * Synchronous attempt to make sure the cached data will be available as optimally as possible.
@@ -206,10 +209,12 @@ public:
 
 	virtual void NotifyBootComplete() = 0;
 	virtual void AddToAsyncCompletionCounter(int32 Addend) = 0;
+	virtual bool AnyAsyncRequestsRemaining() = 0;
 	virtual void WaitForQuiescence(bool bShutdown = false) = 0;
 	virtual void GetDirectories(TArray<FString>& OutResults) = 0;
 	virtual bool GetUsingSharedDDC() const = 0;
 	virtual const TCHAR* GetGraphName() const = 0;
+	virtual const TCHAR* GetDefaultGraphName() const = 0;
 
 	/**
 	 * Mounts a read-only pak file.
@@ -225,10 +230,52 @@ public:
 	 */
 	virtual bool UnmountPakFile(const TCHAR* PakFilename) = 0;
 
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) = 0;
-
+	/**
+	 *  Gather the usage of the DDC hierarchically.
+	 */
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const = 0;
 };
 
 /* Lexical conversions from and to enums */
-const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass);
-void LexFromString(FDerivedDataBackendInterface::ESpeedClass& OutValue, const TCHAR* Buffer);
+
+inline const TCHAR* LexToString(FDerivedDataBackendInterface::ESpeedClass SpeedClass)
+{
+	switch (SpeedClass)
+	{
+	case FDerivedDataBackendInterface::ESpeedClass::Unknown:
+		return TEXT("Unknown");
+	case FDerivedDataBackendInterface::ESpeedClass::Slow:
+		return TEXT("Slow");
+	case FDerivedDataBackendInterface::ESpeedClass::Ok:
+		return TEXT("Ok");
+	case FDerivedDataBackendInterface::ESpeedClass::Fast:
+		return TEXT("Fast");
+	case FDerivedDataBackendInterface::ESpeedClass::Local:
+		return TEXT("Local");
+	}
+
+	checkNoEntry();
+	return TEXT("Unknown value! (Update LexToString!)");
+}
+
+inline void LexFromString(FDerivedDataBackendInterface::ESpeedClass& OutValue, const TCHAR* Buffer)
+{
+	OutValue = FDerivedDataBackendInterface::ESpeedClass::Unknown;
+
+	if (FCString::Stricmp(Buffer, TEXT("Slow")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Slow;
+	}
+	else if (FCString::Stricmp(Buffer, TEXT("Ok")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Ok;
+	}
+	else if (FCString::Stricmp(Buffer, TEXT("Fast")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Fast;
+	}
+	else if (FCString::Stricmp(Buffer, TEXT("Local")) == 0)
+	{
+		OutValue = FDerivedDataBackendInterface::ESpeedClass::Local;
+	}
+}

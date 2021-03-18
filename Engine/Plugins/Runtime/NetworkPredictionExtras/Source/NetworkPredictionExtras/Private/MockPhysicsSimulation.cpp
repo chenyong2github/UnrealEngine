@@ -7,7 +7,6 @@
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "PBDRigidsSolver.h"
 #include "Chaos/ChaosScene.h"
-#include "Chaos/EvolutionTraits.h"
 #include "UObject/Object.h"
 #include "GameFramework/Actor.h"
 #include "Components/PrimitiveComponent.h"

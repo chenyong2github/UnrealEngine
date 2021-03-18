@@ -65,7 +65,7 @@ protected:
 	 * List of Steam P2P connections we have
 	 * As connections at start do not have a channel id, the key is just the accounts connected to us.
 	 */
-	TMap<FUniqueNetIdSteam, FSteamP2PConnectionInfo> AcceptedConnections;
+	TUniqueNetIdMap<FSteamP2PConnectionInfo> AcceptedConnections;
 
 	/** 
 	 * List of Steam P2P connections to shutdown.

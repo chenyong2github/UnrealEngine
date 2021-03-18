@@ -160,12 +160,12 @@ public:
 
 	static EGameplayTaskRunResult RunGameplayTask(IGameplayTaskOwnerInterface& TaskOwner, UGameplayTask& Task, uint8 Priority, FGameplayResourceSet AdditionalRequiredResources, FGameplayResourceSet AdditionalClaimedResources);
 	
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 	FString GetTickingTasksDescription() const;
 	FString GetKnownTasksDescription() const;
 	FString GetTasksPriorityQueueDescription() const;
 	static FString GetTaskStateName(EGameplayTaskState Value);
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 	using GameplayTaskContainerType = decltype(TickingTasks);
 	GameplayTaskContainerType::TConstIterator GetTickingTaskIterator() const;
 	GameplayTaskContainerType::TConstIterator GetKnownTaskIterator() const;

@@ -13,7 +13,7 @@ void FChaosTrailingEventFilter::FilterEvents(const FTransform& ChaosComponentTra
 
 		float MaxDistanceSquared = TrailingEventRequestSettings->MaxDistance * TrailingEventRequestSettings->MaxDistance;
 
-		for (const Chaos::TTrailingData<float, 3>& TrailingData : RawTrailingDataArray)
+		for (const Chaos::FTrailingData& TrailingData : RawTrailingDataArray)
 		{
 			if (TrailingEventRequestSettings->MinMass > 0.0f && TrailingData.Mass < TrailingEventRequestSettings->MinMass)
 			{

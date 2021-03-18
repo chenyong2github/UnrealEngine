@@ -21,10 +21,10 @@ class FOnlineLeaderboardsGameCircle : public IOnlineLeaderboards
 public:
 	FOnlineLeaderboardsGameCircle(class FOnlineSubsystemGameCircle* InSubsystem);
 
-	virtual bool ReadLeaderboards(const TArray< TSharedRef<const FUniqueNetId> >& Players, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual bool ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject) override;
 	virtual bool ReadLeaderboardsForFriends(int32 LocalUserNum, FOnlineLeaderboardReadRef& ReadObject) override;
 	virtual bool ReadLeaderboardsAroundRank(int32 Rank, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
-	virtual bool ReadLeaderboardsAroundUser(TSharedRef<const FUniqueNetId> Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
+	virtual bool ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) override;
 	virtual void FreeStats(FOnlineLeaderboardRead& ReadObject) override;
 	virtual bool WriteLeaderboards(const FName& SessionName, const FUniqueNetId& Player, FOnlineLeaderboardWrite& WriteObject) override;
 	virtual bool FlushLeaderboards(const FName& SessionName) override;
@@ -48,7 +48,7 @@ private:
 
 	void SubmitNextUnreportedScore();
 
-	void WriteRowForUIDToReadObject(TSharedRef<const FUniqueNetId> UniqueID, const char *const InLeaderboardId, int InRank, int InValue, FOnlineLeaderboardReadRef ReadObject);
+	void WriteRowForUIDToReadObject(FUniqueNetIdRef UniqueID, const char *const InLeaderboardId, int InRank, int InValue, FOnlineLeaderboardReadRef ReadObject);
 
 	void TriggerReadDelegatesOnGameThread(bool bWasSuccessful);
 
@@ -58,7 +58,7 @@ private:
 	FOnlineSubsystemGameCircle* Subsystem;
 
 	/* Save the player Ids passed in to ReadLeaderboards so we can get their scores one at a time */
-	TArray< TSharedRef<const FUniqueNetId> > PlayersToQuery;
+	TArray< FUniqueNetIdRef > PlayersToQuery;
 	FOnlineLeaderboardReadPtr PlayerReadObject;
 
 	FOnlineLeaderboardReadPtr FriendReadObject;

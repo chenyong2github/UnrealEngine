@@ -10,7 +10,7 @@ FOnlineLeaderboardOculus::FOnlineLeaderboardOculus(class FOnlineSubsystemOculus&
 {
 }
 
-bool FOnlineLeaderboardOculus::ReadLeaderboards(const TArray< TSharedRef<const FUniqueNetId> >& Players, FOnlineLeaderboardReadRef& ReadObject)
+bool FOnlineLeaderboardOculus::ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject)
 {
 	bool bOnlyLoggedInUser = false;
 	if (Players.Num() > 0) 
@@ -39,7 +39,7 @@ bool FOnlineLeaderboardOculus::ReadLeaderboardsAroundRank(int32 Rank, uint32 Ran
 	return false;
 }
 
-bool FOnlineLeaderboardOculus::ReadLeaderboardsAroundUser(TSharedRef<const FUniqueNetId> Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)
+bool FOnlineLeaderboardOculus::ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)
 {
 	// UNDONE
 	return false;
@@ -101,7 +101,7 @@ void FOnlineLeaderboardOculus::OnReadLeaderboardsComplete(ovrMessageHandle Messa
 		auto Rank = ovr_LeaderboardEntry_GetRank(LeaderboardEntry);
 		auto Score = ovr_LeaderboardEntry_GetScore(LeaderboardEntry);
 
-		auto Row = FOnlineStatsRow(NickName, MakeShareable(new FUniqueNetIdOculus(UserID)));
+		auto Row = FOnlineStatsRow(NickName, FUniqueNetIdOculus::Create(UserID));
 		Row.Rank = Rank;
 		FVariantData ScoreData = [ScoreType, Score] {
 			switch (ScoreType)

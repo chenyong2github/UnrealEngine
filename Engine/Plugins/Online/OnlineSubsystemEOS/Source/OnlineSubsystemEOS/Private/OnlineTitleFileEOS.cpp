@@ -17,7 +17,7 @@ typedef TEOSCallback<EOS_TitleStorage_OnQueryFileListCompleteCallback, EOS_Title
 typedef TEOSCallbackWithNested2<EOS_TitleStorage_OnReadFileCompleteCallback, EOS_TitleStorage_ReadFileCallbackInfo,
 	EOS_TitleStorage_OnReadFileDataCallback, EOS_TitleStorage_ReadFileDataCallbackInfo, EOS_TitleStorage_EReadResult,
 	EOS_TitleStorage_OnFileTransferProgressCallback, EOS_TitleStorage_FileTransferProgressCallbackInfo
-> FReadFileCompleteCallback;
+> FReadTitleFileCompleteCallback;
 
 void FEOSTitleFile::Unload()
 {
@@ -234,7 +234,7 @@ bool FOnlineTitleFileEOS::ReadFile(const FString& FileName)
 		return false;
 	}
 
-	FReadFileCompleteCallback* CallbackObj = new FReadFileCompleteCallback();
+	FReadTitleFileCompleteCallback* CallbackObj = new FReadTitleFileCompleteCallback();
 
 	CallbackObj->SetNested1CallbackLambda([this](const EOS_TitleStorage_ReadFileDataCallbackInfo* Data)
 	{

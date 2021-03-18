@@ -107,10 +107,10 @@ FName UOnlineEngineInterfaceImpl::GetDedicatedServerSubsystemNameForSubsystem(co
 	return NAME_None;
 }
 
-TSharedPtr<const FUniqueNetId> UOnlineEngineInterfaceImpl::CreateUniquePlayerId(const FString& Str, FName Type)
+FUniqueNetIdPtr UOnlineEngineInterfaceImpl::CreateUniquePlayerId(const FString& Str, FName Type)
 {
 	// Foreign types may be passed into this function, do not load OSS modules explicitly here
-	TSharedPtr<const FUniqueNetId> UniqueId = nullptr;
+	FUniqueNetIdPtr UniqueId = nullptr;
 	//Configuration driven mapping for UniqueNetIds so we don't treat the mapped ids as foreign
 	const FName* MappedUniqueNetIdType = MappedUniqueNetIdTypes.Find(Type);
 
@@ -141,12 +141,12 @@ TSharedPtr<const FUniqueNetId> UOnlineEngineInterfaceImpl::CreateUniquePlayerId(
 	return UniqueId;
 }
 
-TSharedPtr<const FUniqueNetId> UOnlineEngineInterfaceImpl::GetUniquePlayerId(UWorld* World, int32 LocalUserNum, FName Type)
+FUniqueNetIdPtr UOnlineEngineInterfaceImpl::GetUniquePlayerId(UWorld* World, int32 LocalUserNum, FName Type)
 {
 	IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World, Type);
 	if (IdentityInt.IsValid())
 	{
-		TSharedPtr<const FUniqueNetId> UniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
+		FUniqueNetIdPtr UniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
 		return UniqueId;
 	}
 
@@ -369,7 +369,7 @@ void UOnlineEngineInterfaceImpl::UnregisterPlayer(UWorld* World, FName SessionNa
 	}
 }
 
-void UOnlineEngineInterfaceImpl::UnregisterPlayers(UWorld* World, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players)
+void UOnlineEngineInterfaceImpl::UnregisterPlayers(UWorld* World, FName SessionName, const TArray< FUniqueNetIdRef >& Players)
 {
 	IOnlineSessionPtr SessionInt = Online::GetSessionInterface(World);
 	if (SessionInt.IsValid())

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "IInputDeviceModule.h"
-#include "Rendering/IRenderCaptureProvider.h"
+#include "IRenderCaptureProvider.h"
 
 /**
  * The RenderDoc plugin works as an input plugin. Regular plugins built upon

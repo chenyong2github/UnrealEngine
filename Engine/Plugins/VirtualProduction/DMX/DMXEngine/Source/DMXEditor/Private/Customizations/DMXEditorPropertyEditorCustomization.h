@@ -2,14 +2,15 @@
 
 #pragma once
 
+#include "DMXProtocolTypes.h"
+
 #include "CoreMinimal.h"
+#include "DetailWidgetRow.h"
 #include "IDetailCustomization.h"
 #include "IPropertyTypeCustomization.h"
-#include "DMXProtocolTypes.h"
-#include "Widgets/SNameListPicker.h"
-#include "DetailWidgetRow.h"
 #include "IPropertyUtilities.h"
 #include "Templates/SubclassOf.h"
+#include "Widgets/SNameListPicker.h"
 
 class FDMXEditor;
 class UDMXLibrary;
@@ -49,62 +50,6 @@ protected:
 	TSharedPtr<SEditableTextBox> NameEditableTextBox;
 	/** Handle to the Name property for getting and setting it */
 	TSharedPtr<IPropertyHandle> NamePropertyHandle;
-};
-
-/** Details customization for Controllers */
-class FDMXControllersDetails
-	: public FDMXCustomization
-{
-public:
-	/** Constructor */
-	FDMXControllersDetails(TWeakPtr<FDMXEditor> InDMXEditorPtr)
-		: FDMXCustomization(InDMXEditorPtr)
-	{}
-
-	virtual ~FDMXControllersDetails() override 
-	{
-		DetailBuilder = nullptr;
-	} ;
-	/** IDetailCustomization interface */
-	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailLayout) override;
-	
-private:
-
-	void CreateCommunicationTypeComboBox(IDetailLayoutBuilder& DetailLayout);
-	void OnCommunicationModeChanged(const TSharedPtr<EDMXCommunicationTypes> InSelectedMode, ESelectInfo::Type SelectInfo);
-	void OnProtocolChanged();
-	
-	void UpdateCommunicationModeOptions();
-	TArray<EDMXCommunicationTypes> GetSupportedCommunicationTypes(FName ForProtocol);
-	void EnsureProtocolSupportsSelectedCommuncationType();
-	EDMXCommunicationTypes GetDefaultCommunicationMode(FName ForProtocol);
-	
-	FText GetCommunicationModeLabel() const;
-	EDMXCommunicationTypes GetCommunicationModeSelected() const;
-	void SetCommunicationModeSelected(EDMXCommunicationTypes NewValue);
-	FDMXProtocolName GetProtocolNameSelected() const;
-	
-	/** communication mode widget generate event */
-	TSharedRef<SWidget> OnCommunicationModeGenerateWidget(const TSharedPtr<EDMXCommunicationTypes> InMode) const;
-
-	/** Detail layout build for refresh panel */
-	IDetailLayoutBuilder* DetailBuilder;
-
-	/** Device protocol property handle */
-	TSharedPtr<IPropertyHandle> ProtocolHandle;
-	
-	/** Communication mode enums for custom combobox */
-	TArray<TSharedPtr<EDMXCommunicationTypes>> CommunicationModeOptions;
-
-	/** Communication mode property handle */
-	TSharedPtr<IPropertyHandle> CommunicationModeHandle;
-
-	TSharedPtr<SComboBox<TSharedPtr<EDMXCommunicationTypes>>> CommunicationModeComboBox;
-	
-	/** Communication mode labels for custom combobox */
-	TMap<EDMXCommunicationTypes, FString> CommunicationModeLabels;
-	/** Communication mode widgets for custom combobox */
-	TMap<EDMXCommunicationTypes, TSharedRef<SWidget>> CommunicationModeWidgets;
 };
 
 /** Base class for Fixture Types' Modes and  Functions customizations */

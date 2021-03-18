@@ -1119,8 +1119,17 @@ namespace CSVStats
         {
             bool startIsWild = false;
             bool endIsWild = false;
-            startString = startString.ToLower().Trim();
-            if (endString != null)
+
+			if (startString != null)
+			{
+				startString = startString.ToLower().Trim();
+				if (startString.EndsWith("*"))
+				{
+					startIsWild = true;
+					startString = startString.TrimEnd('*');
+				}
+			}
+			if (endString != null)
             {
                 endString = endString.ToLower().Trim();
                 if (endString.EndsWith("*"))
@@ -1129,140 +1138,176 @@ namespace CSVStats
                     endString = endString.TrimEnd('*');
                 }
             }
-            if (startString.EndsWith("*"))
-            {
-                startIsWild = true;
-                startString = startString.TrimEnd('*');
-            }
 
-            bool insidePair = false;
+			bool insidePair = false;
             startIndices = new List<int>();
             endIndices = new List<int>();
-            for (int i = 0; i < Events.Count; i++)
-            {
-                CsvEvent csvEvent = Events[i];
-                string evName = csvEvent.Name.ToLower();
-                string strToMatch = insidePair ? endString : startString;
-                bool isWild = insidePair ? endIsWild : startIsWild;
 
-                bool found = false;
-                if (strToMatch != null)
-                {
-                    if (isWild)
-                    {
-                        if (evName.StartsWith(strToMatch))
-                        {
-                            found = true;
-                        }
-                    }
-                    else if (evName == strToMatch)
-                    {
-                        found = true;
-                    }
-                }
+			// If we only have an endstring, we need to check if it actually appears
+			if (startString == null && endString != null)
+			{
+				// Find the frame of the last end event
+				int lastEndEventFrame = -1;
+				for (int i = 0; i < Events.Count; i++)
+				{
+					CsvEvent csvEvent = Events[i];
+					string evName = csvEvent.Name.ToLower();
+					if (endIsWild && evName.StartsWith(endString) || evName == endString)
+					{
+						lastEndEventFrame = csvEvent.Frame;
+					}
+				}
+				if (lastEndEventFrame >= 0)
+				{
+					// If we found the end event, strip everything before it
+					startIndices.Add(0);
+					endIndices.Add(lastEndEventFrame);
+				}
+			}
+			else
+			{
+				// Normal case: we have a begin event. End event is optional
+				for (int i = 0; i < Events.Count; i++)
+				{
+					CsvEvent csvEvent = Events[i];
+					string evName = csvEvent.Name.ToLower();
+					string strToMatch = insidePair ? endString : startString;
+					bool isWild = insidePair ? endIsWild : startIsWild;
 
-                if (found)
-                {
-                    if (insidePair)
-                    {
-                        endIndices.Add(csvEvent.Frame);
-                    }
-                    else
-                    {
-                        startIndices.Add(csvEvent.Frame);
-                    }
-                    insidePair = !insidePair;
-                }
-            }
+					bool found = false;
+					if (strToMatch != null)
+					{
+						if (isWild)
+						{
+							if (evName.StartsWith(strToMatch))
+							{
+								found = true;
+							}
+						}
+						else if (evName == strToMatch)
+						{
+							found = true;
+						}
+					}
 
-            // If the end event was missing, add it at the end
-            if ( endIndices.Count == startIndices.Count - 1)
-            {
-                endIndices.Add(SampleCount);
-            }
+					if (found)
+					{
+						if (insidePair)
+						{
+							endIndices.Add(csvEvent.Frame);
+						}
+						else
+						{
+							startIndices.Add(csvEvent.Frame);
+						}
+						insidePair = !insidePair;
+					}
+				}
+
+				// If the end event was missing, add it at the end
+				if (endIndices.Count == startIndices.Count - 1)
+				{
+					endIndices.Add(SampleCount);
+				}
+			}
         }
 
-        public CsvStats StripByEvents(string startString, string endString, bool invert, out int numFramesStripped)
-        {
-			CsvStats newCsvStats = new CsvStats();
-            List<int> startIndices = null;
-            List<int> endIndices = null;
-            GetEventFrameIndexDelimiters(startString, endString, out startIndices, out endIndices);
-			numFramesStripped = 0;
-			if (startIndices.Count == 0 )
-            {
-                return this;
-            }
+		public void ComputeEventStripSampleMask(string startString, string endString, ref BitArray sampleMask)
+		{
+			List<int> startIndices = null;
+			List<int> endIndices = null;
+			GetEventFrameIndexDelimiters(startString, endString, out startIndices, out endIndices);
+			if (startIndices.Count == 0)
+			{
+				return;
+			}
+			if (sampleMask == null)
+			{
+				sampleMask = new BitArray(SampleCount);
+				sampleMask.SetAll(true);
+			}
 
-			numFramesStripped = -1;
-			int frameCount = 0;
-            // Strip out samples and recompute averages
-            foreach (StatSamples stat in Stats.Values)
-            {
-				StatSamples newStat = new StatSamples(stat, false);
-				newStat.samples = new List<float>(SampleCount);
-                int stripEventIndex = 0;
-                for (int i = 0; i < stat.samples.Count; i++)
-                {
-                    int startIndex = (stripEventIndex < startIndices.Count) ? startIndices[stripEventIndex] : stat.samples.Count;
-                    int endIndex = (stripEventIndex < endIndices.Count) ? endIndices[stripEventIndex] : stat.samples.Count;
-                    if (i < startIndex)
-                    {
-						newStat.samples.Add(stat.samples[i]);
-                    }
-                    else
-                    {
-                        if ( i == endIndex )
-                        {
-                            stripEventIndex++;
-                        }
-                    }
-                }
-                if (numFramesStripped == -1)
-                {
-					numFramesStripped = stat.samples.Count - newStat.samples.Count;
-                    frameCount = stat.samples.Count;
-                }
+			for (int i=0; i<startIndices.Count; i++)
+			{
+				int startIndex = startIndices[i];
+				int endIndex = Math.Min(endIndices[i],SampleCount-1);
+				for (int j=startIndex; j<=endIndex; j++)
+				{
+					sampleMask.Set(j, false);
+				}
+			}
+		}
 
-                newStat.ComputeAverageAndTotal();
-				newCsvStats.AddStat(newStat);
-            }
+		StatSamples ApplySampleMaskToSamples(StatSamples sourceStat, BitArray sampleMask)
+		{
+			StatSamples destStat = new StatSamples(sourceStat, false);
+			destStat.samples = new List<float>(SampleCount);
+			for (int i = 0; i < sourceStat.samples.Count; i++)
+			{
+				if (sampleMask.Get(i))
+				{
+					destStat.samples.Add(sourceStat.samples[i]);
+				}
+			}
+			destStat.ComputeAverageAndTotal();
+			return destStat;
+		}
 
-            // Strip out the events
-            int FrameOffset = 0;
-            {
-                int stripEventIndex = 0;
-                for (int i = 0; i < Events.Count; i++)
-                {
-                    CsvEvent csvEvent = Events[i];
-                    int startIndex = (stripEventIndex < startIndices.Count) ? startIndices[stripEventIndex] : frameCount;
-                    int endIndex = (stripEventIndex < endIndices.Count) ? endIndices[stripEventIndex] : frameCount;
-                    CsvEvent newEvent = new CsvEvent(csvEvent.Name, csvEvent.Frame + FrameOffset);
-                    if (csvEvent.Frame < startIndex)
-                    {
-						newCsvStats.Events.Add(newEvent);
-                    }
-                    else
-                    {
-                        if (csvEvent.Frame == startIndex)
-                        {
-							// Check if this is the last event this frame
-							if (i == Events.Count - 1 || Events[i + 1].Frame != csvEvent.Frame)
-							{
-								// Subsequent events will get offset by this amount
-								FrameOffset -= endIndex - startIndex;
-							}
-                        }
-                        if (csvEvent.Frame == endIndex+1)
-                        {
-							newCsvStats.Events.Add(newEvent);
-                            stripEventIndex++;
-                        }
-                    }
-                }
-            }
-			newCsvStats.metaData = metaData;
-			return newCsvStats;
+		public CsvStats ApplySampleMask(BitArray sampleMask, bool parallel=false)
+		{
+			CsvStats newStats = new CsvStats();
+			newStats.metaData = metaData;
+
+			if (parallel)
+			{
+				StatSamples[] destStatsArray = new StatSamples[Stats.Values.Count];
+				Parallel.For(0, Stats.Values.Count, s =>
+				{
+					StatSamples srcStat = Stats.Values.ElementAt(s);
+					destStatsArray[s] = ApplySampleMaskToSamples(srcStat, sampleMask);
+				});
+				foreach (StatSamples stat in destStatsArray)
+				{
+					newStats.AddStat(stat);
+				}
+			}
+			else
+			{
+				// Strip out samples and recompute averages
+				foreach (StatSamples srcStat in Stats.Values)
+				{
+					StatSamples destStat = ApplySampleMaskToSamples(srcStat, sampleMask);
+					newStats.AddStat(destStat);
+				}
+			}
+
+			// Strip and offset events
+			if (Events.Count > 0)
+			{
+				List<CsvEvent> newEvents=new List<CsvEvent>(Events.Count);
+				int eventIndex = 0;
+				int skippedFrameCount = 0;
+				for (int i = 0; i < SampleCount; i++)
+				{
+					bool bFrameExists = sampleMask.Get(i);
+					// Loop through all the events on this frame
+					while (eventIndex<Events.Count && Events[eventIndex].Frame==i)
+					{
+						CsvEvent currentEvent=Events[eventIndex];
+						if (bFrameExists)
+						{
+							newEvents.Add(new CsvEvent(currentEvent.Name, currentEvent.Frame-skippedFrameCount));
+						}
+						eventIndex++;
+					}
+					if (!bFrameExists)
+					{
+						skippedFrameCount++;
+					}
+				}
+				newStats.Events = newEvents;
+			}
+			return newStats;
 		}
 
         public int SampleCount
@@ -1295,7 +1340,8 @@ namespace CSVStats
 				{
 					return false;
 				}
-				if (metadata.Values[key].ToLower() != keyValue[1].ToLower())
+				// Check if the value actually matches (allow wildcards)
+				if ( !DoesSearchStringMatch(metadata.Values[key].ToLower(), keyValue[1].ToLower()))
 				{
 					return false;
 				}

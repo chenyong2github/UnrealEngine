@@ -889,8 +889,8 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 			{
 				UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
 				Action->Modify();
-				Action->Appearance->Modify();
-				Action->Appearance->GroupId = INDEX_NONE;
+				Action->GetAppearance()->Modify();
+				Action->GetAppearance()->GroupId = INDEX_NONE;
 			}
 			NotifyGraphChanged();
 		});
@@ -910,8 +910,8 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 				{
 					UDataprepActionAsset* Action = ActionGroupNode->GetAction(Index);
 					Action->Modify();
-					Action->Appearance->Modify();
-					Action->Appearance->bGroupIsEnabled = !bShouldDisable;
+					Action->GetAppearance()->Modify();
+					Action->GetAppearance()->bGroupIsEnabled = !bShouldDisable;
 				}
 
 				NotifyGraphChanged();
@@ -1060,9 +1060,9 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 						{
 							if(UDataprepActionAsset* ActionAsset = DataprepAssetPtr->GetAction(ActionIndex))
 							{
-								if (ActionAsset->Appearance->GroupId != INDEX_NONE)
+								if (ActionAsset->GetAppearance()->GroupId != INDEX_NONE)
 								{
-									NewGroupId = FMath::Max(NewGroupId, ActionAsset->Appearance->GroupId);
+									NewGroupId = FMath::Max(NewGroupId, ActionAsset->GetAppearance()->GroupId);
 								}
 							}
 						}
@@ -1071,16 +1071,16 @@ FActionMenuContent SDataprepGraphEditor::OnCreateNodeOrPinMenu(UEdGraph* Current
 
 						// Apply groups to action assets
 						{
-							const FScopedTransaction Transaction(NSLOCTEXT("CollapseActions", "CollapseActions", "Collapse Actions"));
+							const FScopedTransaction Transaction(NSLOCTEXT("CollapseActions", "CollapseActions", "Group Actions"));
 
 							DataprepAssetPtr->Modify();
 
 							for (UDataprepActionAsset* Action : ActionsToCollapse)
 							{
 								Action->Modify();
-								Action->Appearance->Modify();
-								Action->Appearance->GroupId = NewGroupId;
-								Action->Appearance->bGroupIsEnabled = true;
+								Action->GetAppearance()->Modify();
+								Action->GetAppearance()->GroupId = NewGroupId;
+								Action->GetAppearance()->bGroupIsEnabled = true;
 							}
 						}
 

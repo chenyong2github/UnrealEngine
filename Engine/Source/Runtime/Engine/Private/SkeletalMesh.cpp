@@ -78,6 +78,7 @@
 
 #endif // #if WITH_EDITOR
 
+#include "Misc/CoreMisc.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 
@@ -90,6 +91,7 @@
 #include "Components/BrushComponent.h"
 #include "Streaming/UVChannelDensity.h"
 #include "Misc/Paths.h"
+#include "Misc/Crc.h"
 
 #include "ClothingAssetBase.h"
 
@@ -1591,6 +1593,24 @@ static FSkeletalMeshRenderData& GetPlatformSkeletalMeshRenderData(USkeletalMesh*
 		check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 		Swap(PlatformRenderData->NextCachedRenderData, Mesh->GetResourceForRendering()->NextCachedRenderData);
 		Mesh->GetResourceForRendering()->NextCachedRenderData = TUniquePtr<FSkeletalMeshRenderData>(PlatformRenderData);
+
+		{
+			//If the running platform DDC key is not equal to the target platform DDC key.
+			//We need to cache the skeletalmesh ddc with the running platform to retrieve the ddc editor data LODModel which can be different because of chunking and reduction
+			//Normally it should just take back the ddc for the running platform, since the ddc was cache when we have load the asset to cook it.
+			ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+			check(RunningPlatform);
+			if (RunningPlatform != TargetPlatform)
+			{
+				FString RunningPlatformDerivedDataKey = BuildSkeletalMeshDerivedDataKey(RunningPlatform, Mesh);
+				if (RunningPlatformDerivedDataKey != PlatformDerivedDataKey)
+				{
+					FSkeletalMeshRenderData RunningPlatformRenderData;
+					RunningPlatformRenderData.Cache(RunningPlatform, Mesh);
+					check(RunningPlatformRenderData.DerivedDataKey == RunningPlatformDerivedDataKey);
+				}
+			}
+		}
 	}
 	check(PlatformRenderData->DerivedDataKey == PlatformDerivedDataKey);
 	check(PlatformRenderData);
@@ -1684,8 +1704,7 @@ void USkeletalMesh::Serialize( FArchive& Ar )
 				else
 				{
 					//Fall back in case we use an archive that the cooking target has not been set (i.e. Duplicate archive)
-					ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-					ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+					ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 					check(RunningPlatform != NULL);
 					LocalSkeletalMeshRenderData = &GetPlatformSkeletalMeshRenderData(this, RunningPlatform);
 				}
@@ -2718,6 +2737,54 @@ bool USkeletalMesh::TryCancelAsyncTasks()
 	return AsyncTask == nullptr;
 }
 
+void USkeletalMesh::PostLoadEnsureImportDataExist()
+{
+	//If we have a LODModel with no import data and the LOD model have at least one section using more bone then any platform max GPU bone count. We will recreate the import data to allow the asset to be build and chunk properly.
+	const int32 MinimumPerPlatformMaxGPUSkinBones = FGPUBaseSkinVertexFactory::GetMinimumPerPlatformMaxGPUSkinBonesValue();
+	bool bNeedToCreateImportData = false;
+	for (int32 LodIndex = 0; LodIndex < GetLODNum(); LodIndex++)
+	{
+		const FSkeletalMeshLODModel* LODModel = &(GetImportedModel()->LODModels[LodIndex]);
+		const FSkeletalMeshLODInfo* ThisLODInfo = GetLODInfo(LodIndex);
+		check(ThisLODInfo);
+		const bool bRawDataEmpty = IsLODImportedDataEmpty(LodIndex);
+		const bool bRawBuildDataAvailable = IsLODImportedDataBuildAvailable(LodIndex);
+		if (!bRawDataEmpty && bRawBuildDataAvailable)
+		{
+			continue;
+		}
+		const bool bReductionActive = IsReductionActive(LodIndex);
+		const bool bInlineReduction = bReductionActive && (ThisLODInfo->ReductionSettings.BaseLOD == LodIndex);
+		if (bReductionActive && !bInlineReduction)
+		{
+			//Generated LOD (not inline) do not need imported data
+			continue;
+		}
+		//See if the LODModel data use more bones then the chunking allow
+		int32 MaxBoneperSection = 0;
+		for(const FSkelMeshSection& Section : LODModel->Sections)
+		{
+			MaxBoneperSection = FMath::Max(MaxBoneperSection, Section.BoneMap.Num());
+		}
+		//If we use more bone then the minimum maxGPUSkinbone, we need to re-create de import data to be able to build the asset
+		if (MaxBoneperSection > MinimumPerPlatformMaxGPUSkinBones)
+		{
+			bNeedToCreateImportData = true;
+			break;
+		}
+	}
+	if (bNeedToCreateImportData)
+	{
+		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+		//We create the import data for all LOD that do not have import data except for the generated LODs.
+		MeshUtilities.CreateImportDataFromLODModel(this);
+#if WITH_EDITORONLY_DATA
+		//If the import data is existing we want to turn use legacy derive data key to false
+		SetUseLegacyMeshDerivedDataKey(false);
+#endif
+	}
+}
+
 void USkeletalMesh::PostLoadVerifyAndFixBadTangent()
 {
 	IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
@@ -3128,6 +3195,8 @@ void USkeletalMesh::ExecutePostLoadInternal(FSkeletalMeshPostLoadContext& Contex
 
 		PostLoadValidateUserSectionData();
 
+		PostLoadEnsureImportDataExist();
+
 		PostLoadVerifyAndFixBadTangent();
 
 		if (GetResourceForRendering() == nullptr)
@@ -3234,6 +3303,7 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 	}
 #endif
 
+#if WITH_EDITOR
 	// If inverse masses have never been cached, invalidate data so it will be recalculated
 	if (GetLinkerCustomVersion(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::CachedClothInverseMasses)
 	{
@@ -3245,6 +3315,7 @@ void USkeletalMesh::FinishPostLoadInternal(FSkeletalMeshPostLoadContext& Context
 			}
 		}
 	}
+#endif
 
 	SetHasActiveClothingAssets(ComputeActiveClothingAssets());
 
@@ -4106,7 +4177,7 @@ namespace InternalSkeletalMeshHelper
 	 * Max GPU bone per section which drive the chunking which can generate different number of section but the number of original section will always be the same.
 	 * So we simply reset the LODMaterialMap and rebuild it with the backup we took before building the skeletalmesh.
 	 */
-	void CreateLodMaterialMapBackup(const USkeletalMesh* SkeletalMesh, TMap<int32, TArray<uint16>>& BackupSectionsPerLOD)
+	void CreateLodMaterialMapBackup(const USkeletalMesh* SkeletalMesh, TMap<int32, TArray<int16>>& BackupSectionsPerLOD)
 	{
 		if (!ensure(SkeletalMesh != nullptr))
 		{
@@ -4132,7 +4203,7 @@ namespace InternalSkeletalMeshHelper
 				continue;
 			}
 			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
-			TArray<uint16>& BackupSections = BackupSectionsPerLOD.FindOrAdd(LODIndex);
+			TArray<int16>& BackupSections = BackupSectionsPerLOD.FindOrAdd(LODIndex);
 			int32 SectionCount = LODModel.Sections.Num();
 			BackupSections.Reserve(SectionCount);
 			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
@@ -4145,7 +4216,7 @@ namespace InternalSkeletalMeshHelper
 		}
 	}
 
-	void RestoreLodMaterialMapBackup(USkeletalMesh* SkeletalMesh, const TMap<int32, TArray<uint16>>& BackupSectionsPerLOD)
+	void RestoreLodMaterialMapBackup(USkeletalMesh* SkeletalMesh, const TMap<int32, TArray<int16>>& BackupSectionsPerLOD)
 	{
 		if (!ensure(SkeletalMesh != nullptr))
 		{
@@ -4164,20 +4235,20 @@ namespace InternalSkeletalMeshHelper
 			{
 				continue;
 			}
-			const TArray<uint16>* BackupSectionsPtr = BackupSectionsPerLOD.Find(LODIndex);
+			const TArray<int16>* BackupSectionsPtr = BackupSectionsPerLOD.Find(LODIndex);
 			if (!BackupSectionsPtr)
 			{
 				continue;
 			}
 
-			const TArray<uint16>& BackupSections = *BackupSectionsPtr;
+			const TArray<int16>& BackupSections = *BackupSectionsPtr;
 			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
 			LODInfoEntry->LODMaterialMap.Reset();
 			const int32 SectionCount = LODModel.Sections.Num();
 			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
 			{
 				const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
-				int32 NewLODMaterialMapValue = INDEX_NONE;
+				int16 NewLODMaterialMapValue = INDEX_NONE;
 				if (BackupSections.IsValidIndex(Section.OriginalDataSectionIndex))
 				{
 					NewLODMaterialMapValue = BackupSections[Section.OriginalDataSectionIndex];
@@ -4193,8 +4264,7 @@ void USkeletalMesh::CacheDerivedData()
 	TRACE_CPUPROFILER_EVENT_SCOPE(USkeletalMesh::CacheDerivedData);
 
 	// Cache derived data for the running platform.
-	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 	check(RunningPlatform);
 
 	AllocateResourceForRendering();
@@ -4205,7 +4275,7 @@ void USkeletalMesh::CacheDerivedData()
 	//LODMaterialMap from LODInfo is store in the uasset and not in the DDC, so we want to fix it here
 	//to cover the post load and the post edit change. The build can change the number of section and LODMaterialMap is index per section
 	//TODO, move LODMaterialmap functionality into the LODModel UserSectionsData which are index per original section (imported section).
-	TMap<int32, TArray<uint16>> BackupSectionsPerLOD;
+	TMap<int32, TArray<int16>> BackupSectionsPerLOD;
 	InternalSkeletalMeshHelper::CreateLodMaterialMapBackup(this, BackupSectionsPerLOD);
 
 	GetSkeletalMeshRenderData()->Cache(RunningPlatform, this);
@@ -4263,8 +4333,7 @@ extern FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 FString USkeletalMesh::GetDerivedDataKey()
 {
 	// Cache derived data for the running platform.
-	ITargetPlatformManagerModule& TargetPlatformManager = GetTargetPlatformManagerRef();
-	ITargetPlatform* RunningPlatform = TargetPlatformManager.GetRunningTargetPlatform();
+	ITargetPlatform* RunningPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
 	check(RunningPlatform);
 
 	return BuildSkeletalMeshDerivedDataKey(RunningPlatform, this);

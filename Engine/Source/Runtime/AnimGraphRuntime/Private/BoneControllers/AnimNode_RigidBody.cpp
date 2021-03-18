@@ -1267,11 +1267,8 @@ void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, 
 				TArray<FVector>& SamplePositions = PerSolverField.GetSamplePositions();
 				TArray<FFieldContextIndex>& SampleIndices = PerSolverField.GetSampleIndices();
 
-				SamplePositions.Reset();
-				SamplePositions.AddZeroed(Bodies.Num());
-
-				SampleIndices.Reset();
-				SampleIndices.AddZeroed(Bodies.Num());
+				SamplePositions.SetNum(Bodies.Num(),false);
+				SampleIndices.SetNum(Bodies.Num(), false);
 
 				int32 Index = 0;
 				for (ImmediatePhysics::FActorHandle* Body : Bodies)

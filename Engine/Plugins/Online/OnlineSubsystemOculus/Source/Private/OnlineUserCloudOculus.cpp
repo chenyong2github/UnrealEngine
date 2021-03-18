@@ -66,7 +66,7 @@ void FOnlineUserCloudOculus::EnumerateUserFiles(const FUniqueNetId& UserId)
 	RequestEnumeratePagedBuckets(LoggedInPlayerId, nullptr);
 }
 
-void FOnlineUserCloudOculus::RequestEnumeratePagedBuckets(TSharedPtr<const FUniqueNetId> UserId, ovrCloudStorageMetadataArrayHandle previousPage)
+void FOnlineUserCloudOculus::RequestEnumeratePagedBuckets(FUniqueNetIdPtr UserId, ovrCloudStorageMetadataArrayHandle previousPage)
 {
 	auto Delegate = FOculusMessageOnCompleteDelegate::CreateLambda([this, UserId](ovrMessageHandle Message, bool bIsError)
 	{

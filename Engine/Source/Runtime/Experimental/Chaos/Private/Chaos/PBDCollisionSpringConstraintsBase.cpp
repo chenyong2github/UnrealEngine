@@ -40,7 +40,7 @@ public:
 		return FMatrix::Identity;
 	}
 
-	FORCEINLINE float GetDeterminant() const
+	FORCEINLINE FReal GetDeterminant() const
 	{
 		return 1.0f;
 	}
@@ -223,7 +223,7 @@ FVec3 FPBDCollisionSpringConstraintsBase::GetDelta(const FPBDParticles& Particle
 	{
 		return FVec3(0);
 	}
-	const float Distance = Difference.Size();
+	const FReal Distance = Difference.Size();
 	const FVec3 Delta = Distance * Normals[i];
 	return Stiffness * Delta / CombinedMass;
 }

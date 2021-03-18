@@ -13,7 +13,7 @@ void UNiagaraOutliner::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	if (PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Data) ||
-		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, Filters))
+		PropertyChangedEvent.MemberProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraOutliner, ViewSettings))
 	{
 		OnDataChangedDelegate.Broadcast();
 	}
@@ -22,7 +22,7 @@ void UNiagaraOutliner::PostEditChangeProperty(struct FPropertyChangedEvent& Prop
 		//Delegate will trigger the capture if bTriggerCapture is set.
 		OnSettingsChangedDelegate.Broadcast();
 
-		Settings.bTriggerCapture = false;
+		CaptureSettings.bTriggerCapture = false;
 
 		SaveConfig();
 	}

@@ -26,7 +26,7 @@ ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineUser, Log, All);
  * @param UserIds list of user ids that were queried
  * @param ErrorStr string representing the error condition
  */
-DECLARE_MULTICAST_DELEGATE_FourParams(FOnQueryUserInfoComplete, int32, bool, const TArray< TSharedRef<const FUniqueNetId> >&, const FString&);
+DECLARE_MULTICAST_DELEGATE_FourParams(FOnQueryUserInfoComplete, int32, bool, const TArray< FUniqueNetIdRef >&, const FString&);
 typedef FOnQueryUserInfoComplete::FDelegate FOnQueryUserInfoCompleteDelegate;
 
 struct FExternalIdQueryOptions
@@ -70,7 +70,7 @@ public:
 	 *
 	 * @return true if the read request was started successfully, false otherwise
 	 */
-	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId> >& UserIds) = 0;
+	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef >& UserIds) = 0;
 
 	/**
 	 * Delegate used when the user query request has completed
@@ -80,7 +80,7 @@ public:
 	 * @param UserIds list of user ids that were queried
 	 * @param ErrorStr string representing the error condition
 	 */
-	DEFINE_ONLINE_PLAYER_DELEGATE_THREE_PARAM(MAX_LOCAL_PLAYERS, OnQueryUserInfoComplete, bool, const TArray< TSharedRef<const FUniqueNetId> >&, const FString&);
+	DEFINE_ONLINE_PLAYER_DELEGATE_THREE_PARAM(MAX_LOCAL_PLAYERS, OnQueryUserInfoComplete, bool, const TArray< FUniqueNetIdRef >&, const FString&);
 
 	/**
 	 * Obtains the cached list of online user info
@@ -152,7 +152,7 @@ public:
 	 * @param ExternalIds array of external ids to map to user ids
 	 * @param OutIds array of user ids that map to the specified external ids (can contain null entries)
 	 */
-	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds) = 0;
+	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds) = 0;
 
 	/**
 	 * Get the cached user id for the specified external id
@@ -162,5 +162,5 @@ public:
 
 	 * @return user info or null ptr if not found
 	 */
-	virtual TSharedPtr<const FUniqueNetId> GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) = 0;
+	virtual FUniqueNetIdPtr GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) = 0;
 };

@@ -44,7 +44,7 @@ FDMXAttributeName::FDMXAttributeName()
 	// This depends on the FDMXProtocolModule and can be called
 	// on CDO creation, when the module might not be available yet.
 	// So we first check if it is available.
-	const IModuleInterface* DMXProtocolModule = FModuleManager::Get().GetModule(FDMXProtocolModule::BaseModuleName);
+	const IModuleInterface* DMXProtocolModule = FModuleManager::Get().GetModule("DMXProtocol");
 	if (DMXProtocolModule != nullptr)
 	{
 		if (const UDMXProtocolSettings* DMXSettings = GetDefault<UDMXProtocolSettings>())

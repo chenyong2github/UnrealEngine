@@ -19,6 +19,13 @@ static FAutoConsoleVariableRef CVarDisableCustomTickRateHandler(
 	TEXT("Disable Tick Rate Handler")
 );
 
+int32 DisableLatencyMarkerOptimize = 0;
+static FAutoConsoleVariableRef CVarDisableLatencyMarkerOptimize(
+	TEXT("t.DisableLatencyMarkerOptimize"),
+	DisableLatencyMarkerOptimize,
+	TEXT("Disable Disable Latency Marker Optimize")
+);
+
 DEFINE_LOG_CATEGORY_STATIC(LogMaxTickRateHandler, Log, All);
 
 void FReflexMaxTickRateHandler::Initialize()
@@ -53,6 +60,7 @@ bool FReflexMaxTickRateHandler::HandleMaxTickRate(float DesiredMaxTickRate)
 				params.bLowLatencyBoost = bGPUBoost;
 				MinimumInterval = DesiredMinimumInterval;
 				params.minimumIntervalUs = MinimumInterval;
+				params.bUseMarkersToOptimize = DisableLatencyMarkerOptimize ? NV_FALSE : NV_TRUE;
 				status = NvAPI_D3D_SetSleepMode(static_cast<IUnknown*>(GDynamicRHI->RHIGetNativeDevice()), &params);
 
 				UE_LOG(LogMaxTickRateHandler, Log, TEXT("SetSleepMode MI:%f L:%s B:%s"), MinimumInterval, bUltraLowLatency ? TEXT("On") : TEXT("Off"), bGPUBoost ? TEXT("On") : TEXT("Off"));

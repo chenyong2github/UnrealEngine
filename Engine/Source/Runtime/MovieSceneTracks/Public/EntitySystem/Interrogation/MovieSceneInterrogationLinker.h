@@ -225,8 +225,8 @@ public:
 	 * @param InPropertyComponent		The type of property being animated on the default channel.
 	 * @param OutValues					The animated values, one for each interrogation time.
 	 */
-	template<typename ValueType, typename OperationalType>
-	void QueryPropertyValues(const TPropertyComponents<ValueType, OperationalType>& InPropertyComponents, TArray<ValueType>& OutValues)
+	template<typename PropertyTraits>
+	void QueryPropertyValues(const TPropertyComponents<PropertyTraits>& InPropertyComponents, TArray<typename PropertyTraits::StorageType>& OutValues)
 	{
 		return QueryPropertyValues(InPropertyComponents, FInterrogationChannel::Default(), OutValues);
 	}
@@ -241,8 +241,8 @@ public:
 	 * @param InChannel					The channel on which the property is being animated.
 	 * @param OutValues					The animated values, one for each interrogation time.
 	 */
-	template<typename ValueType, typename OperationalType>
-	void QueryPropertyValues(const TPropertyComponents<ValueType, OperationalType>& InPropertyComponents, FInterrogationChannel InChannel, TArray<ValueType>& OutValues)
+	template<typename PropertyTraits>
+	void QueryPropertyValues(const TPropertyComponents<PropertyTraits>& InPropertyComponents, FInterrogationChannel InChannel, TArray<typename PropertyTraits::StorageType>& OutValues)
 	{
 		FBuiltInComponentTypes* Components = FBuiltInComponentTypes::Get();
 		const FPropertyDefinition& PropertyDefinition = Components->PropertyRegistry.GetDefinition(InPropertyComponents.CompositeID);
@@ -255,9 +255,9 @@ public:
 		check(ValueEntityIDs.Num() == NumPropertyValues);
 		OutValues.SetNum(NumPropertyValues);
 
-		PropertyDefinition.Handler->RebuildFinal(PropertyDefinition, PropertyComposites, ValueEntityIDs, Linker, OutValues);
+		PropertyDefinition.Handler->RebuildOperational(PropertyDefinition, PropertyComposites, ValueEntityIDs, Linker, OutValues);
 	}
-	
+
 private:
 
 	void FindPropertyOutputEntityIDs(const FPropertyDefinition& PropertyDefinition, FInterrogationChannel Channel, TArray<FMovieSceneEntityID>& OutEntityIDs);

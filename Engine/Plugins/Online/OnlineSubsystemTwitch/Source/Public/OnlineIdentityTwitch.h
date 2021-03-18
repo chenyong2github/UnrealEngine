@@ -115,9 +115,9 @@ public:
 	virtual bool AutoLogin(int32 LocalUserNum) override;
 	virtual TSharedPtr<FUserOnlineAccount> GetUserAccount(const FUniqueNetId& UserId) const override;
 	virtual TArray<TSharedPtr<FUserOnlineAccount> > GetAllUserAccounts() const override;
-	virtual TSharedPtr<const FUniqueNetId> GetUniquePlayerId(int32 LocalUserNum) const override;
-	virtual TSharedPtr<const FUniqueNetId> CreateUniquePlayerId(uint8* Bytes, int32 Size) override;
-	virtual TSharedPtr<const FUniqueNetId> CreateUniquePlayerId(const FString& Str) override;
+	virtual FUniqueNetIdPtr GetUniquePlayerId(int32 LocalUserNum) const override;
+	virtual FUniqueNetIdPtr CreateUniquePlayerId(uint8* Bytes, int32 Size) override;
+	virtual FUniqueNetIdPtr CreateUniquePlayerId(const FString& Str) override;
 	virtual ELoginStatus::Type GetLoginStatus(int32 LocalUserNum) const override;
 	virtual ELoginStatus::Type GetLoginStatus(const FUniqueNetId& UserId) const override;
 	virtual FString GetPlayerNickname(int32 LocalUserNum) const override;
@@ -216,7 +216,7 @@ private:
 	/**
 	 * Delegate fired when the call to ShowLoginUI completes
 	 */
-	void OnExternalUILoginComplete(TSharedPtr<const FUniqueNetId> UniqueId, const int ControllerIndex, const FOnlineError& Error);
+	void OnExternalUILoginComplete(FUniqueNetIdPtr UniqueId, const int ControllerIndex, const FOnlineError& Error);
 
 	/** 
 	 * Function called after logging out has completed, or if the user revoked their auth token
@@ -235,7 +235,7 @@ private:
 	/** 
 	 * Delegate fired when the http request from RevokeAuthToken completes
 	 */
-	void RevokeAuthToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, TSharedRef<const FUniqueNetId> UserId, const FOnRevokeAuthTokenCompleteDelegate InCompletionDelegate);
+	void RevokeAuthToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FUniqueNetIdRef UserId, const FOnRevokeAuthTokenCompleteDelegate InCompletionDelegate);
 
 	/** 
 	 * Get the controller number associated with the specified user id
@@ -247,7 +247,7 @@ private:
 	/** Users that have been registered */
 	FUserOnlineAccountTwitchMap UserAccounts;
 	/** Ids mapped to locally registered users */
-	TMap<int32, TSharedPtr<const FUniqueNetId>> UserIds;
+	TMap<int32, FUniqueNetIdPtr> UserIds;
 
 	/** Reference to the main subsystem */
 	FOnlineSubsystemTwitch* Subsystem;

@@ -19,7 +19,6 @@ public class OnlineSubsystem : ModuleRules
 
         PublicDefinitions.Add("ONLINESUBSYSTEM_PACKAGE=1");
 		PublicDefinitions.Add("DEBUG_LAN_BEACON=0");
-
 		PublicDefinitions.Add("PLATFORM_MAX_LOCAL_PLAYERS=" + GetPlatformMaxLocalPlayers(Target));
 
 		// OnlineSubsystem cannot depend on Engine!

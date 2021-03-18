@@ -16,11 +16,11 @@ class DMXPROTOCOL_API UDMXProtocolBlueprintLibrary : public UBlueprintFunctionLi
 public:
 	/**
 	 * Sets if DMX is sent to the network
-	 * @param bReceiveDMXEnabled	If true, sends DMX packets to the network, else ignores all send calls globally.
+	 * @param bSendDMXEnabled		If true, sends DMX packets to the output ports, else ignores all send calls globally.
 	 * @param bAffectEditor			If true, affects the editor.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DMX")
-	static void SetSendDMXEnabled(bool bReceiveDMXEnabled = true, bool bAffectEditor = false);
+	static void SetSendDMXEnabled(bool bSendDMXEnabled = true, bool bAffectEditor = false);
 
 	/**
 	 * Returns whether send DMX to the network is enabled globally.
@@ -31,7 +31,7 @@ public:
 
 	/**
 	 * Sets if DMX is received from the network
-	 * @param bReceiveDMXEnabled	If true, receives inbound DMX packets, else ignores them, globally.
+	 * @param bReceiveDMXEnabled	If true, receives inbound DMX packets on the input ports, else ignores them, globally.
 	 * @param bAffectEditor			If true, affects the editor. 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "DMX")

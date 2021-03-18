@@ -3,33 +3,35 @@
 
 namespace Chaos
 {
-template<class T>
-class Complex
+class FComplex
 {
   public:
-	Complex() {}
-	Complex(const T Real, const T Imaginary)
+	FComplex() {}
+	FComplex(const FReal Real, const FReal Imaginary)
 	    : MReal(Real), MImaginary(Imaginary) {}
-	Complex Conjugated() { return Complex(MReal, -MImaginary); }
-	Complex operator*(const T Other) const { return Complex(MReal * Other, MImaginary * Other); }
-	Complex operator+(const Complex<T> Other) const { return Complex(MReal + Other.MReal, MImaginary + Other.MImaginary); }
-	Complex& operator-=(const Complex<T> Other)
+	FComplex Conjugated() { return FComplex(MReal, -MImaginary); }
+	FComplex operator*(const FReal Other) const { return FComplex(MReal * Other, MImaginary * Other); }
+	FComplex operator+(const FComplex Other) const { return FComplex(MReal + Other.MReal, MImaginary + Other.MImaginary); }
+	FComplex& operator-=(const FComplex Other)
 	{
 		MReal -= Other.MReal;
 		MImaginary -= Other.MImaginary;
 		return *this;
 	}
 	inline void MakeReal() { MImaginary = 0; }
-	inline const T Real() const { return MReal; }
-	inline const T Imaginary() const { return MImaginary; }
+	inline const FReal Real() const { return MReal; }
+	inline const FReal Imaginary() const { return MImaginary; }
 
   private:
-	T MReal;
-	T MImaginary;
+	FReal MReal;
+	FReal MImaginary;
 };
-template<class T>
-Complex<T> operator*(const float Other, const Complex<T> Complex)
+
+FComplex operator*(const FReal Other, const FComplex Complex)
 {
 	return Complex * Other;
 }
+
+template<class T>
+using Complex UE_DEPRECATED(4.27, "Deprecated. this class is to be deleted, use FComplex instead") = FComplex;
 }

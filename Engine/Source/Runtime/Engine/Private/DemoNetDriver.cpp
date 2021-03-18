@@ -996,9 +996,6 @@ bool UDemoNetDriver::InitListen(FNetworkNotify* InNotify, FURL& ListenURL, bool 
 		return false;
 	}
 
-	//@todo: this shouldn't be necessary at record time, investigate further
-	//GuidCache->SetNetworkChecksumMode(FNetGUIDCache::ENetworkChecksumMode::SaveButIgnore);
-
 	check(World != nullptr);
 
 	AWorldSettings* WorldSettings = World->GetWorldSettings(); 
@@ -4160,7 +4157,10 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 
 			CacheObject.PathName = FName(*PathName);
 
-			*GotoCheckpointArchive << CacheObject.NetworkChecksum;
+			if (PlaybackVersion < HISTORY_GUIDCACHE_CHECKSUMS)
+			{
+				*GotoCheckpointArchive << CacheObject.NetworkChecksum;
+			}
 
 			uint8 Flags = 0;
 			*GotoCheckpointArchive << Flags;
@@ -4919,7 +4919,6 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				DeletedNetStartupActorGUIDs.Add(NetGUID);
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
-				ReplayHelper.DeletedNetStartupActorGUIDs.Add(NetGUID);
 			}
 		}
 	}

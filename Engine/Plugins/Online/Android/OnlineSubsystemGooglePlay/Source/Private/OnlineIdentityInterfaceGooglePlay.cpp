@@ -46,7 +46,7 @@ bool FOnlineIdentityGooglePlay::Login(int32 LocalUserNum, const FOnlineAccountCr
 		int32 Len = FCString::Snprintf(Line, MAX_TEXT_LINE_LEN, TEXT("%d"), LocalUserNum);
 
 		const FString PlayerId(Line);
-		UniqueNetId = MakeShareable(new FUniqueNetIdGooglePlay(PlayerId));
+		UniqueNetId = FUniqueNetIdGooglePlay::Create(PlayerId);
 		TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UniqueNetId, TEXT(""));
 	}
 	else if (!PendingConnectRequest.IsConnectionPending)
@@ -99,19 +99,18 @@ ELoginStatus::Type FOnlineIdentityGooglePlay::GetLoginStatus(const FUniqueNetId&
 }
 
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityGooglePlay::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineIdentityGooglePlay::GetUniquePlayerId(int32 LocalUserNum) const
 {
 	if (UniqueNetId.IsValid())
 	{
 		return UniqueNetId;
 	}
 
-	TSharedPtr<const FUniqueNetId> NewID = MakeShareable(new FUniqueNetIdGooglePlay(""));
-	return NewID;
+	return FUniqueNetIdGooglePlay::EmptyId();
 }
 
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityGooglePlay::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineIdentityGooglePlay::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if( Bytes && Size == sizeof(uint64) )
 	{
@@ -119,16 +118,16 @@ TSharedPtr<const FUniqueNetId> FOnlineIdentityGooglePlay::CreateUniquePlayerId(u
 		if (StrLen > 0)
 		{
 			FString StrId((TCHAR*)Bytes);
-			return MakeShareable(new FUniqueNetIdGooglePlay(StrId));
+			return FUniqueNetIdGooglePlay::Create(StrId);
 		}
 	}
 	return NULL;
 }
 
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityGooglePlay::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineIdentityGooglePlay::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShareable(new FUniqueNetIdGooglePlay(Str));
+	return FUniqueNetIdGooglePlay::Create(Str);
 }
 
 
@@ -153,7 +152,7 @@ FString FOnlineIdentityGooglePlay::GetAuthToken(int32 LocalUserNum) const
 void FOnlineIdentityGooglePlay::RevokeAuthToken(const FUniqueNetId& UserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate)
 {
 	UE_LOG_ONLINE_IDENTITY(Display, TEXT("FOnlineIdentityGooglePlay::RevokeAuthToken not implemented"));
-	TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	MainSubsystem->ExecuteNextTick([UserIdRef, Delegate]()
 	{
 		Delegate.ExecuteIfBound(*UserIdRef, FOnlineError(FString(TEXT("RevokeAuthToken not implemented"))));
@@ -170,7 +169,7 @@ void FOnlineIdentityGooglePlay::OnLoginCompleted(const int playerID, const gpg::
 	TCHAR Line[MAX_TEXT_LINE_LEN + 1] = { 0 };
 	int32 Len = FCString::Snprintf(Line, MAX_TEXT_LINE_LEN, TEXT("%d"), playerID);
 
-	UniqueNetId = MakeShareable(new FUniqueNetIdGooglePlay(Line));
+	UniqueNetId = FUniqueNetIdGooglePlay::Create(Line);
 	bLoggedIn = errorCode == gpg::AuthStatus::VALID;
 	TriggerOnLoginCompleteDelegates(playerID, bLoggedIn, *UniqueNetId, TEXT(""));
 
@@ -203,8 +202,8 @@ FString FOnlineIdentityGooglePlay::GetAuthType() const
 
 void FOnlineIdentityGooglePlay::SetPlayerDataFromFetchSelfResponse(const gpg::Player& PlayerData)
 {
-	FString PlayerId(PlayerData.Id().c_str());
-	UniqueNetId = MakeShareable(new FUniqueNetIdGooglePlay(PlayerId));
+	const FString PlayerId(PlayerData.Id().c_str());
+	UniqueNetId = FUniqueNetIdGooglePlay::Create(PlayerId);
 	PlayerAlias = PlayerData.Name().c_str();
 }
 

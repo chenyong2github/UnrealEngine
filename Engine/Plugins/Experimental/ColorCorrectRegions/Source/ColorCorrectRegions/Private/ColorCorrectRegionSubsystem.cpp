@@ -35,6 +35,8 @@ void UColorCorrectRegionsSubsystem::Initialize(FSubsystemCollectionBase& Collect
 		GEditor->RegisterForUndo(this);
 	}
 #endif
+	// In some cases (like nDisplay nodes) EndPlay is not guaranteed to be called when level is removed.
+	GetWorld()->OnLevelsChanged().AddUObject(this, &UColorCorrectRegionsSubsystem::OnLevelsChanged);
 	// Initializing Scene view extension responsible for rendering regions.
 	PostProcessSceneViewExtension = FSceneViewExtensions::NewExtension<FColorCorrectRegionsSceneViewExtension>(this);
 }
@@ -50,6 +52,11 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 		GEditor->UnregisterForUndo(this);
 	}
 #endif
+	GetWorld()->OnLevelsChanged().RemoveAll(this);
+	for (AColorCorrectRegion* Region : Regions)
+	{
+		Region->Cleanup();
+	}
 	Regions.Reset();
 	PostProcessSceneViewExtension.Reset();
 	PostProcessSceneViewExtension = nullptr;
@@ -58,27 +65,47 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
 {
 	AColorCorrectRegion* AsRegion = Cast<AColorCorrectRegion>(InActor);
-
 	if (IsRegionValid(AsRegion, GetWorld()))
 	{
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
-		Regions.Add(AsRegion);
-		SortRegionsByPriority();
+
+		// We wouldn't have to do a check here except in case of nDisplay we need to populate this list during OnLevelsChanged 
+		// because nDisplay can release Actors while those are marked as BeginningPlay. Therefore we want to avoid 
+		// adding regions twice.
+		if (!Regions.Contains(AsRegion))
+		{
+			Regions.Add(AsRegion);
+			SortRegionsByPriority();
+		}
 	}
 }
 
 void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 {
 	AColorCorrectRegion* AsRegion = Cast<AColorCorrectRegion>(InActor);
-	if (IsRegionValid(AsRegion, GetWorld()))
+	if (AsRegion 
+#if WITH_EDITORONLY_DATA
+		&& !AsRegion->bIsEditorPreviewActor)
+#else
+		)
+#endif
 	{
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 		Regions.Remove(AsRegion);
 	}
 }
 
-#if WITH_EDITOR
-void UColorCorrectRegionsSubsystem::PostUndo(bool bSuccess)
+void UColorCorrectRegionsSubsystem::SortRegionsByPriority()
+{
+	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
+
+	Regions.Sort([](const AColorCorrectRegion& A, const AColorCorrectRegion& B) {
+		// Regions with the same priority could potentially cause flickering on overlap
+		return A.Priority < B.Priority;
+	});
+}
+
+void UColorCorrectRegionsSubsystem::RefreshRegions()
 {
 	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 
@@ -92,17 +119,6 @@ void UColorCorrectRegionsSubsystem::PostUndo(bool bSuccess)
 		}
 	}
 	SortRegionsByPriority();
-}
-#endif
-
-void UColorCorrectRegionsSubsystem::SortRegionsByPriority()
-{
-	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
-
-	Regions.Sort([](const AColorCorrectRegion& A, const AColorCorrectRegion& B) {
-		// Regions with the same priority could potentially cause flickering on overlap
-		return A.Priority < B.Priority;
-	});
 }
 
 

@@ -689,7 +689,7 @@ namespace Chaos
 		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      Apply DR%d %f %f %f"), 0, DR0.X, DR0.Y, DR0.Z);
 		//UE_LOG(LogChaosJoint, VeryVerbose, TEXT("      Apply DR%d %f %f %f"), 1, DR1.X, DR1.Y, DR1.Z);
 
-		if (bChaos_Joint_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::ApplyRotationDelta2((ispc::FJointSolverGaussSeidel*)this, Stiffness, (ispc::FVector&)DR0, (ispc::FVector&)DR1);
@@ -798,7 +798,7 @@ namespace Chaos
 		const FReal TargetVel,
 		FReal& Lambda)
 	{
-		if (bChaos_Joint_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::ApplyPositionConstraintSoft((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&)Axis, Delta, TargetVel, Lambda);
@@ -920,7 +920,7 @@ namespace Chaos
 	{
 		check(InvMs[DIndex] > 0);
 
-		if (bChaos_Joint_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::ApplyRotationConstraintSoftKD((ispc::FJointSolverGaussSeidel*)this, KIndex, DIndex, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&) Axis, Angle, AngVelTarget, Lambda);
@@ -974,7 +974,7 @@ namespace Chaos
 		check(InvMs[0] > 0);
 		check(InvMs[1] > 0);
 
-		if (bChaos_Joint_ISPC_Enabled)
+		if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 		{
 #if INTEL_ISPC
 			ispc::ApplyRotationConstraintSoftDD((ispc::FJointSolverGaussSeidel*)this, Dt, Stiffness, Damping, bAccelerationMode, (ispc::FVector&) Axis, Angle, AngVelTarget, Lambda);
@@ -1504,7 +1504,7 @@ namespace Chaos
 
 		if (CX.SizeSquared() > PositionTolerance * PositionTolerance)
 		{
-			if (bChaos_Joint_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::ApplyPointPositionConstraintKD((ispc::FJointSolverGaussSeidel*)this, KIndex, DIndex, (ispc::FVector&)CX, LinearStiffness);
@@ -1547,7 +1547,7 @@ namespace Chaos
 
 		if (CX.SizeSquared() > PositionTolerance * PositionTolerance)
 		{
-			if (bChaos_Joint_ISPC_Enabled)
+			if (bRealTypeCompatibleWithISPC && bChaos_Joint_ISPC_Enabled)
 			{
 #if INTEL_ISPC
 				ispc::ApplyPointPositionConstraintDD((ispc::FJointSolverGaussSeidel*)this, (ispc::FVector&)CX, LinearStiffness);

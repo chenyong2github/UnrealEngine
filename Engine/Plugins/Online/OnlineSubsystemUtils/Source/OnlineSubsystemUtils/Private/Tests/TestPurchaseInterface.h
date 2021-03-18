@@ -27,7 +27,7 @@ private:
 	/** The online interface to use for testing */
 	IOnlineSubsystem* OnlineSub;
 	/** Logged in user */
-	TSharedPtr<const FUniqueNetId> LocalUserId;
+	FUniqueNetIdPtr LocalUserId;
 	/** Contains the product id to be purchased */
 	FPurchaseCheckoutRequest CheckoutRequest;
 	

@@ -2,18 +2,17 @@
 
 #include "Components/DMXPixelMappingMatrixComponent.h"
 
+#include "DMXPixelMapping.h"
+#include "DMXPixelMappingRuntimeCommon.h"
+#include "DMXPixelMappingTypes.h"
+#include "DMXPixelMappingUtils.h"
+#include "DMXProtocolConstants.h"
+#include "DMXSubsystem.h"
+#include "IDMXPixelMappingRenderer.h"
 #include "Components/DMXPixelMappingMatrixCellComponent.h"
 #include "Components/DMXPixelMappingRendererComponent.h"
-#include "DMXPixelMappingRuntimeCommon.h"
-#include "IDMXPixelMappingRenderer.h"
-#include "DMXPixelMappingUtils.h"
-#include "DMXPixelMappingTypes.h"
-#include "DMXSubsystem.h"
 #include "Interfaces/IDMXProtocol.h"
-#include "Interfaces/IDMXProtocolUniverse.h"
-#include "DMXProtocolConstants.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "DMXPixelMapping.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 
@@ -62,28 +61,24 @@ void UDMXPixelMappingMatrixComponent::PostLoad()
 void UDMXPixelMappingMatrixComponent::LogInvalidProperties()
 {
 	UDMXEntityFixturePatch* FixturePatch = FixturePatchMatrixRef.GetFixturePatch();
-	if (FixturePatch && FixturePatch->IsValidLowLevel())
+	if (IsValid(FixturePatch))
 	{
-		UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate;
-		if (FixtureType)
+		const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+		if (!ModePtr)
 		{
-			if (!FixturePatch->CanReadActiveMode())
-			{
-				UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Active Mode set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
-			}
-			else
-			{
-				const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
-				FIntPoint NumCellsInActiveMode = FIntPoint(Mode.FixtureMatrixConfig.XCells, Mode.FixtureMatrixConfig.YCells);
-				if (NumCellsInActiveMode != NumCells)
-				{
-					UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Number of cells in %s no longer matches %s. %s will not function properly."), *GetName(), *FixtureType->GetDisplayName(), *GetName());
-				}
-			}
+			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Active Mode set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
+		}
+		else if (!FixturePatch->ParentFixtureTypeTemplate)
+		{
+			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Fixture Type set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
 		}
 		else
 		{
-			UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("%s has no valid Fixture Type set. %s will not receive DMX."), *FixturePatch->GetDisplayName(), *GetName());
+			FIntPoint NumCellsInActiveMode = FIntPoint(ModePtr->FixtureMatrixConfig.XCells, ModePtr->FixtureMatrixConfig.YCells);
+			if (NumCellsInActiveMode != NumCells)
+			{
+				UE_LOG(LogDMXPixelMappingRuntime, Warning, TEXT("Number of cells in %s no longer matches %s. %s will not function properly."), *GetName(), *FixturePatch->ParentFixtureTypeTemplate->GetDisplayName(), *GetName());
+			}
 		}
 	}
 	else
@@ -403,7 +398,7 @@ void UDMXPixelMappingMatrixComponent::Tick(float DeltaTime)
 			{
 				if (UDMXEntityFixtureType * ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
 				{
-					if (!FixturePatch->CanReadActiveMode() && GetChildrenCount() > 0)
+					if (!FixturePatch->GetActiveMode() && GetChildrenCount() > 0)
 					{
 						bShouldRebuildChildren = true;
 					}
@@ -663,12 +658,10 @@ void UDMXPixelMappingMatrixComponent::UpdateNumCells()
 	{
 		if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
 		{
-			if (FixturePatch->CanReadActiveMode() && ParentFixtureType->bFixtureMatrixEnabled)
+			const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+			if (ModePtr && ParentFixtureType->bFixtureMatrixEnabled)
 			{
-				int32 ActiveMode = FixturePatch->ActiveMode;
-
-				const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
-				const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
+				const FDMXFixtureMatrix& FixtureMatrixConfig = ModePtr->FixtureMatrixConfig;
 
 				NumCells = FIntPoint(FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells);
 			}
@@ -682,54 +675,51 @@ void UDMXPixelMappingMatrixComponent::AutoMapAttributes()
 {
 	if (UDMXEntityFixturePatch* FixturePatch = FixturePatchMatrixRef.GetFixturePatch())
 	{
-		if (FixturePatch->CanReadActiveMode())
+		const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+
+		if (ModePtr)
 		{
-			if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+			Modify();
+
+			const int32 RedIndex = ModePtr->FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
+				return Attribute.Attribute.Name == "Red";
+				});
+
+			if (RedIndex != INDEX_NONE)
 			{
-				Modify();
-
-				const FDMXFixtureMode& Mode = FixtureType->Modes[FixturePatch->ActiveMode];
-
-				int32 RedIndex = Mode.FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
-					return Attribute.Attribute.Name == "Red";
-					});
-
-				if (RedIndex != INDEX_NONE)
-				{
-					AttributeR.SetFromName("Red");
-				}
-				else
-				{
-					AttributeR.SetToNone();
-				}
+				AttributeR.SetFromName("Red");
+			}
+			else
+			{
+				AttributeR.SetToNone();
+			}
 
 
-				int32 GreenIndex = Mode.FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
-					return Attribute.Attribute.Name == "Green";
-					});
+			const int32 GreenIndex = ModePtr->FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
+				return Attribute.Attribute.Name == "Green";
+				});
 
-				if (GreenIndex != INDEX_NONE)
-				{
-					AttributeG.SetFromName("Green");
-				}
-				else
-				{
-					AttributeG.SetToNone();
-				}
+			if (GreenIndex != INDEX_NONE)
+			{
+				AttributeG.SetFromName("Green");
+			}
+			else
+			{
+				AttributeG.SetToNone();
+			}
 
 
-				int32 BlueIndex = Mode.FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
-					return Attribute.Attribute.Name == "Blue";
-					});
+			const int32 BlueIndex = ModePtr->FixtureMatrixConfig.CellAttributes.IndexOfByPredicate([](const FDMXFixtureCellAttribute& Attribute) {
+				return Attribute.Attribute.Name == "Blue";
+				});
 
-				if (BlueIndex != INDEX_NONE)
-				{
-					AttributeB.SetFromName("Blue");
-				}
-				else
-				{
-					AttributeB.SetToNone();
-				}
+			if (BlueIndex != INDEX_NONE)
+			{
+				AttributeB.SetFromName("Blue");
+			}
+			else
+			{
+				AttributeB.SetToNone();
 			}
 		}
 	}

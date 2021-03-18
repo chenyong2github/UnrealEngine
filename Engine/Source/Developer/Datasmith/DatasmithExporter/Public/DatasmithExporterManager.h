@@ -75,7 +75,15 @@ public:
 	 */
 	static void PushCommandIntoGameThread(FSimpleDelegate&& Command, bool bWakeUpGameThread = false);
 
-	static bool WasInitilizedWithMessaging();
+	/**
+	 * Returns if the Exporter Manager was initialized with enabled network capabilities.
+	 */
+	static bool WasInitializedWithMessaging();
+
+	/**
+	 * Returns if the Exporter Manager is running its own game thread.
+	 */
+	static bool WasInitializedWithGameThread();
 
 private:
 	static bool bEngineInitialized;

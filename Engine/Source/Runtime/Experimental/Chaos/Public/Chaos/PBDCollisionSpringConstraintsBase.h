@@ -30,7 +30,7 @@ public:
 	const TArray<TVec4<int32>>& GetConstraints() const { return Constraints;  }
 	const TArray<FVec3>& GetBarys() const { return Barys; }
 	const TArray<FVec3>& GetNormals() const { return Normals; }
-	float GetThickness() const { return Thickness; }
+	FReal GetThickness() const { return Thickness; }
 
 	void SetThickness(FReal InThickness) { Thickness = FMath::Max(InThickness, (FReal)0.);  }
 

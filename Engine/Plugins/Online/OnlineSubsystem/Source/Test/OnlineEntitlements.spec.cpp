@@ -71,7 +71,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -119,7 +119,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -150,7 +150,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -166,7 +166,7 @@ void FOnlineEntitlementsSpec::Define()
 										FUniqueEntitlementId EntitlementId = PlayerEntitlements[0].Get().Id;
 										TSharedPtr<FOnlineEntitlement> Entitlement;
 
-										TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+										FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 										if (BadAccountId.IsValid())
 										{
@@ -207,7 +207,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -252,7 +252,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							OnQueryEntitlementsCompleteDelegateHandle = OnlineEntitlements->AddOnQueryEntitlementsCompleteDelegate_Handle(FOnQueryEntitlementsCompleteDelegate::CreateLambda([this, TestAccountId, TestDone](bool bQueryEntitlementsWasSuccessful, const FUniqueNetId& QueryEntitlementsUserId, const FString& QueryEntitlementsNamespace, const FString& QueryEntitlementsError)
 							{
@@ -281,7 +281,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -311,7 +311,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -322,7 +322,7 @@ void FOnlineEntitlementsSpec::Define()
 									FString ItemId = TEXT("0");
 									TSharedPtr<FOnlineEntitlement> Entitlement;
 
-									TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+									FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 									if (BadAccountId.IsValid())
 									{
@@ -358,7 +358,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -402,7 +402,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -438,7 +438,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -467,7 +467,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -478,7 +478,7 @@ void FOnlineEntitlementsSpec::Define()
 									FString Namespace = TEXT("TestNamespace");
 									TArray<TSharedRef<FOnlineEntitlement>> Entitlements;
 
-									TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+									FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 									if (BadAccountId.IsValid())
 									{
@@ -513,7 +513,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -557,7 +557,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -596,11 +596,11 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
-								TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+								FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 								if (BadAccountId.IsValid())
 								{
@@ -645,7 +645,7 @@ void FOnlineEntitlementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{

@@ -36,7 +36,7 @@ void FTestUserInterface::Test(UWorld* InWorld, const TArray<FString>& InUserIds)
 		// list of users to query
 		for (int32 Idx=0; Idx < InUserIds.Num(); Idx++)
 		{
-			TSharedPtr<const FUniqueNetId> UserId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InUserIds[Idx]);
+			FUniqueNetIdPtr UserId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InUserIds[Idx]);
 			if (UserId.IsValid())
 			{
 				QueryUserIds.Add(UserId.ToSharedRef());
@@ -45,7 +45,7 @@ void FTestUserInterface::Test(UWorld* InWorld, const TArray<FString>& InUserIds)
 
 		// Include our own user so we have at least one UserId to query for
 		{
-			TSharedPtr<const FUniqueNetId> UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
+			FUniqueNetIdPtr UserId = OnlineSub->GetIdentityInterface()->GetUniquePlayerId(0);
 			if (UserId.IsValid() && QueryUserIds.Contains(UserId.ToSharedRef()) == false)
 			{
 				QueryUserIds.Add(UserId.ToSharedRef());
@@ -87,7 +87,7 @@ void FTestUserInterface::FinishTest()
 	delete this;
 }
 
-void FTestUserInterface::OnQueryUserInfoComplete(int32 LocalPlayer, bool bWasSuccessful, const TArray< TSharedRef<const FUniqueNetId> >& UserIds, const FString& ErrorStr)
+void FTestUserInterface::OnQueryUserInfoComplete(int32 LocalPlayer, bool bWasSuccessful, const TArray< FUniqueNetIdRef >& UserIds, const FString& ErrorStr)
 {
 	UE_LOG_ONLINE_USER(Log,
 		TEXT("GetUserInterface() for player (%d) was success=%d"), LocalPlayer, bWasSuccessful);

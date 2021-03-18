@@ -205,6 +205,8 @@ FDatasmithUEPbrMaterialElementImpl::FDatasmithUEPbrMaterialElementImpl( const TC
 	RegisterReferenceProxy( AmbientOcclusion, "AmbientOcclusion" );
 	RegisterReferenceProxy( MaterialAttributes, "MaterialAttributes" );
 
+	RegisterReferenceProxy( Expressions, "Expressions" );
+
 	Store.RegisterParameter( BlendMode, "BlendMode" );
 	Store.RegisterParameter( bTwoSided, "bTwoSided" );
 	Store.RegisterParameter( bUseMaterialAttributes, "bUseMaterialAttributes" );
@@ -327,11 +329,11 @@ void FDatasmithUEPbrMaterialElementImpl::ResetExpressionGraph( bool bRemoveAllEx
 {
 	if (bRemoveAllExpressions)
 	{
-		Expressions.Reset();
+		Expressions.Edit().Reset();
 	}
 	else
 	{
-		for ( const TSharedPtr<IDatasmithMaterialExpression>& MaterialExpression : Expressions )
+		for ( const TSharedPtr<IDatasmithMaterialExpression>& MaterialExpression : Expressions.View() )
 		{
 			MaterialExpression->ResetExpression();
 		}
@@ -374,7 +376,7 @@ void FDatasmithUEPbrMaterialElementImpl::CustomSerialize(class DirectLink::FSnap
 		// This field was required. In order to be readable by 4.26, that array is recreated here.
 		// Without it, a 4.26 DirectLink receiver could crash on 4.27 data usage.
 		TArray<int32> ExpressionTypes;
-		for (const TSharedPtr<IDatasmithMaterialExpression>& Expression : Expressions)
+		for (const TSharedPtr<IDatasmithMaterialExpression>& Expression : Expressions.View() )
 		{
 			EDatasmithMaterialExpressionType ExpressionType = Expression.IsValid() ? Expression->GetExpressionType() : EDatasmithMaterialExpressionType::None;
 			ExpressionTypes.Add(int32(ExpressionType));

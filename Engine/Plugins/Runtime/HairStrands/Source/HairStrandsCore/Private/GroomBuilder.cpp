@@ -1359,6 +1359,11 @@ bool FGroomBuilder::ProcessHairDescription(const FHairDescription& HairDescripti
 
 		int32 CurveNumVertices = StrandNumVertices[StrandID];
 
+		if (CurveNumVertices <= 0)
+		{
+			continue;
+		}
+
 		int32 GroupID = 0;
 		if (GroupIDs.IsValid())
 		{

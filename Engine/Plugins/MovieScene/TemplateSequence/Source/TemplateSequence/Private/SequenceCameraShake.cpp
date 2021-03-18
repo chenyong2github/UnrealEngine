@@ -43,20 +43,20 @@ void SetCameraStandInTransform(UObject* Object, const FIntermediate3DTransform& 
 	CameraStandIn->SetTransform(Result);
 }
 
-template<typename PropertyType, typename OperationalType = PropertyType>
-void UpdateInitialPropertyValues(UMovieSceneEntitySystemLinker* Linker, const TPropertyComponents<PropertyType, OperationalType>& PropertyComponents)
+template<typename PropertyTraits>
+void UpdateInitialPropertyValues(UMovieSceneEntitySystemLinker* Linker, const TPropertyComponents<PropertyTraits>& PropertyComponents)
 {
 	const FBuiltInComponentTypes* const BuiltInComponents = FBuiltInComponentTypes::Get();
 
 	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(PropertyComponents.CompositeID);
 
-	TGetPropertyValues<PropertyType, OperationalType> GetProperties(PropertyDefinition.CustomPropertyRegistration);
+	TGetPropertyValues<PropertyTraits> GetProperties(PropertyDefinition.CustomPropertyRegistration);
 
 	FEntityTaskBuilder()
 	.Read(BuiltInComponents->BoundObject)
 	.ReadOneOf(BuiltInComponents->CustomPropertyIndex, BuiltInComponents->FastPropertyOffset, BuiltInComponents->SlowProperty)
-	.Write(PropertyDefinition.InitialValueType.ReinterpretCast<PropertyType>())
-	.FilterAll({ PropertyDefinition.PropertyType })
+	.Write(PropertyComponents.InitialValue)
+	.FilterAll({ PropertyComponents.PropertyTag })
 	.SetDesiredThread(Linker->EntityManager.GetGatherThread())
 	.RunInline_PerAllocation(&Linker->EntityManager, GetProperties);
 }
@@ -333,7 +333,7 @@ void USequenceCameraShakePattern::UpdateInitialCameraStandInPropertyValues()
 	UMovieSceneEntitySystemLinker* Linker = Player->GetEvaluationTemplate().GetEntitySystemLinker();
 
 	check(Linker);
-	UE::MovieScene::UpdateInitialPropertyValues<float>(Linker, TrackComponents->Float);
+	UE::MovieScene::UpdateInitialPropertyValues(Linker, TrackComponents->Float);
 	// TODO: also do uint8:1/boolean properties?
 }
 

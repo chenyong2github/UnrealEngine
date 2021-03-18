@@ -407,6 +407,8 @@ public:
 	/** Temp data used in NiagaraEmitterInstanceBatcher::ExecuteAll() to avoid creating a map per FNiagaraComputeExecutionContext */
 	mutable uint32 ScratchNumInstances = 0;
 	mutable uint32 ScratchMaxInstances = 0;
+	/** Number of ticks we've processed for this emitter this frame. */
+	mutable uint32 TicksThisFrame = 0;
 
 	TArray<FSimulationStageMetaData> SimStageInfo;
 

@@ -58,7 +58,7 @@ void FDMXBlueprintGraphModule::RegisterObjectCustomizations()
 {
 	RegisterCustomClassLayout(UK2Node_GetDMXAttributeValues::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FK2Node_GetDMXAttributeValuesCustomization::MakeInstance));
 
-	RegisterCustomClassLayout(UK2Node_CastPatchToType::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_CastPatchToTypeCustomization::MakeInstance));
+	RegisterCustomClassLayout(UDEPRECATED_K2Node_CastPatchToType::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_CastPatchToTypeCustomization::MakeInstance));
 
 }
 

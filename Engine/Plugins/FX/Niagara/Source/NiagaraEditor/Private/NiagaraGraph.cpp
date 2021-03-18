@@ -29,13 +29,14 @@
 #include "Misc/Paths.h"
 #include "String/ParseTokens.h"
 
+DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - PostLoad"), STAT_NiagaraEditor_Graph_PostLoad, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes"), STAT_NiagaraEditor_Graph_FindInputNodes, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_NotFilterUsage"), STAT_NiagaraEditor_Graph_FindInputNodes_NotFilterUsage, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_FilterUsage"), STAT_NiagaraEditor_Graph_FindInputNodes_FilterUsage, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_FilterDupes"), STAT_NiagaraEditor_Graph_FindInputNodes_FilterDupes, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindInputNodes_FindInputNodes_Sort"), STAT_NiagaraEditor_Graph_FindInputNodes_Sort, STATGROUP_NiagaraEditor);
 DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - FindOutputNode"), STAT_NiagaraEditor_Graph_FindOutputNode, STATGROUP_NiagaraEditor);
-DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - BuildTraversalHelper"), STAT_NiagaraEditor_Graph_BuildTraversalHelper, STATGROUP_NiagaraEditor);
+DECLARE_CYCLE_STAT(TEXT("NiagaraEditor - Graph - BuildTraversal"), STAT_NiagaraEditor_Graph_BuildTraversal, STATGROUP_NiagaraEditor);
 
 #define NIAGARA_SCOPE_CYCLE_COUNTER(x) //SCOPE_CYCLE_COUNTER(x)
 
@@ -130,6 +131,8 @@ void UNiagaraGraph::NotifyGraphChanged()
 void UNiagaraGraph::PostLoad()
 {
 	Super::PostLoad();
+
+	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_PostLoad);
 
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
@@ -1028,8 +1031,6 @@ void BuildTraversalHelper(TArray<class UNiagaraNode*>& OutNodesTraversed, UNiaga
 		return;
 	}
 
-	NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_BuildTraversalHelper);
-
 	for (UEdGraphPin* Pin : CurrentNode->GetAllPins())
 	{
 		if (Pin->Direction == EEdGraphPinDirection::EGPD_Input && Pin->LinkedTo.Num() > 0)
@@ -1058,6 +1059,8 @@ void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraverse
 	UNiagaraNodeOutput* Output = FindOutputNode(TargetUsage, TargetUsageId);
 	if (Output)
 	{
+		NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_BuildTraversal);
+
 		BuildTraversalHelper(OutNodesTraversed, Output, bEvaluateStaticSwitches);
 	}
 }
@@ -1066,6 +1069,8 @@ void UNiagaraGraph::BuildTraversal(TArray<class UNiagaraNode*>& OutNodesTraverse
 {
 	if (FinalNode)
 	{
+		NIAGARA_SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Graph_BuildTraversal);
+
 		BuildTraversalHelper(OutNodesTraversed, FinalNode, bEvaluateStaticSwitches);
 	}
 }
@@ -2137,6 +2142,12 @@ void UNiagaraGraph::RebuildCachedCompileIds(bool bForce)
 		return;
 	}
 
+	static const bool bNoShaderCompile = FParse::Param(FCommandLine::Get(), TEXT("NoShaderCompile"));
+	if (bNoShaderCompile)
+	{
+		return;
+	}
+
 	// First find all the output nodes
 	TArray<UNiagaraNodeOutput*> NiagaraOutputNodes;
 	GetNodesOfClass<UNiagaraNodeOutput>(NiagaraOutputNodes);
@@ -2476,38 +2487,16 @@ void UNiagaraGraph::GatherExternalDependencyData(ENiagaraScriptUsage InUsage, co
 void UNiagaraGraph::GetAllReferencedGraphs(TArray<const UNiagaraGraph*>& Graphs) const
 {
 	Graphs.AddUnique(this);
-	for (UEdGraphNode* Node : Nodes)
+	TArray<UNiagaraNodeFunctionCall*> FunctionCallNodes;
+	GetNodesOfClass(FunctionCallNodes);
+	for (UNiagaraNodeFunctionCall* FunctionCallNode : FunctionCallNodes)
 	{
-		if (UNiagaraNode* InNode = Cast<UNiagaraNode>(Node))
+		UNiagaraGraph* FunctionGraph = FunctionCallNode->GetCalledGraph();
+		if (FunctionGraph != nullptr)
 		{
-			UObject* AssetRef = InNode->GetReferencedAsset();
-			if (AssetRef != nullptr && AssetRef->IsA(UNiagaraScript::StaticClass()))
+			if (!Graphs.Contains(FunctionGraph))
 			{
-				if (UNiagaraScript* FunctionScript = Cast<UNiagaraScript>(AssetRef))
-				{
-					if (FunctionScript->GetSource())
-					{
-						UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
-						if (Source != nullptr)
-						{
-							UNiagaraGraph* FunctionGraph = CastChecked<UNiagaraGraph>(Source->NodeGraph);
-							if (FunctionGraph != nullptr)
-							{
-								if (!Graphs.Contains(FunctionGraph))
-								{
-									FunctionGraph->GetAllReferencedGraphs(Graphs);
-								}
-							}
-						}
-					}
-				}
-				else if (UNiagaraGraph* FunctionGraph = Cast<UNiagaraGraph>(AssetRef))
-				{
-					if (!Graphs.Contains(FunctionGraph))
-					{
-						FunctionGraph->GetAllReferencedGraphs(Graphs);
-					}
-				}
+				FunctionGraph->GetAllReferencedGraphs(Graphs);
 			}
 		}
 	}

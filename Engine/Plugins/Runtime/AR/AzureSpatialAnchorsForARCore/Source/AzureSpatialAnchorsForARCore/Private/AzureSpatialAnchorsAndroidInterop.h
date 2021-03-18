@@ -6,7 +6,16 @@
 #include "ARPin.h"
 #include "ARSystem.h"
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundef"
+#endif
+
 #include "AzureSpatialAnchorsNDK.h"
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 
 DECLARE_LOG_CATEGORY_EXTERN(LogAzureSpatialAnchorsAndroidInterop, Log, All);
 

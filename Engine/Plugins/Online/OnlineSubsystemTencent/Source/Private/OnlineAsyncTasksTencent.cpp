@@ -832,7 +832,7 @@ FOnlineAsyncTaskRailGetUserMetadata::~FOnlineAsyncTaskRailGetUserMetadata()
 
 void FOnlineAsyncTaskRailGetUserMetadata::Initialize()
 {
-	TaskResult.UserId = MakeShared<FUniqueNetIdRail>(RailUserId);
+	TaskResult.UserId = FUniqueNetIdRail::Create(RailUserId);
 
 	rail::RailResult Result = QueryMetadata(MetadataKeys);
 	if ((Result != rail::RailResult::kSuccess) || (MetadataKeys.Num() == 0))
@@ -927,7 +927,7 @@ FOnlineAsyncTaskRailGetUserPresence::~FOnlineAsyncTaskRailGetUserPresence()
 
 void FOnlineAsyncTaskRailGetUserPresence::Initialize() 
 {
-	TaskResult.UserId = MakeShared<FUniqueNetIdRail>(RailUserId);
+	TaskResult.UserId = FUniqueNetIdRail::Create(RailUserId);
 
 	TArray<FString> PresenceKey;
 	PresenceKey.Add(RAIL_PRESENCE_PRESENCE_KEYS TEXT("_s"));
@@ -1030,7 +1030,7 @@ FOnlineAsyncTaskRailGetInviteCommandline::~FOnlineAsyncTaskRailGetInviteCommandl
 void FOnlineAsyncTaskRailGetInviteCommandline::Initialize()
 {
 	rail::RailResult Result = rail::RailResult::kErrorUnknown;
-	TaskResult.UserId = MakeShared<FUniqueNetIdRail>(RailUserId);
+	TaskResult.UserId = FUniqueNetIdRail::Create(RailUserId);
 
 	if (rail::IRailFriends* RailFriends = RailSdkWrapper::Get().RailFriends())
 	{
@@ -1105,7 +1105,7 @@ FOnlineAsyncTaskRailGetUserInvite::~FOnlineAsyncTaskRailGetUserInvite()
 void FOnlineAsyncTaskRailGetUserInvite::Initialize()
 {
 	rail::RailResult Result = rail::RailResult::kErrorUnknown;
-	TaskResult.UserId = MakeShared<FUniqueNetIdRail>(RailUserId);
+	TaskResult.UserId = FUniqueNetIdRail::Create(RailUserId);
 
 	if (rail::IRailFriends* RailFriends = RailSdkWrapper::Get().RailFriends())
 	{
@@ -1387,7 +1387,7 @@ void FOnlineAsyncTaskRailAddFriend::TriggerDelegates()
 
 FThreadSafeCounter FOnlineAsyncTaskRailGetUsersInfo::RequestIdCounter;
 
-FOnlineAsyncTaskRailGetUsersInfo::FOnlineAsyncTaskRailGetUsersInfo(FOnlineSubsystemTencent* InSubsystem, const TArray<TSharedRef<const FUniqueNetId>>& InUserIds, const FOnOnlineAsyncTaskRailGetUsersInfoComplete& InCompletionDelegate)
+FOnlineAsyncTaskRailGetUsersInfo::FOnlineAsyncTaskRailGetUsersInfo(FOnlineSubsystemTencent* InSubsystem, const TArray<FUniqueNetIdRef>& InUserIds, const FOnOnlineAsyncTaskRailGetUsersInfoComplete& InCompletionDelegate)
 	: FOnlineAsyncTaskRail(InSubsystem, {rail::kRailEventUsersGetUsersInfo})
 	, UserIds(InUserIds)
 	, CompletionDelegate(InCompletionDelegate)
@@ -1403,7 +1403,7 @@ void FOnlineAsyncTaskRailGetUsersInfo::Initialize()
 	{
 		FOnlineAsyncTaskRail::Initialize();
 		rail::RailArray<rail::RailID> RailIds;
-		for (const TSharedRef<const FUniqueNetId>& UserId : UserIds)
+		for (const FUniqueNetIdRef& UserId : UserIds)
 		{
 			RailIds.push_back(StaticCastSharedRef<const FUniqueNetIdRail>(UserId)->RailID);
 		}
@@ -1460,7 +1460,7 @@ void FOnlineAsyncTaskRailGetUsersInfo::OnRailEventUsersGetUsersInfo(const rail_e
 			const rail::PlayerPersonalInfo& RailInfo = UsersInfoData->user_info_list[Index];
 			if (RailInfo.error_code == rail::kSuccess)
 			{
-				TSharedRef<FUniqueNetIdRail> RailId = MakeShared<FUniqueNetIdRail>(RailInfo.rail_id);
+				FUniqueNetIdRailRef RailId = FUniqueNetIdRail::Create(RailInfo.rail_id);
 				FOnlineUserInfoTencentRef OnlineUser = MakeShared<FOnlineUserInfoTencent>(RailId);
 				OnlineUser->SetUserAttribute(USER_ATTR_DISPLAYNAME, LexToString(RailInfo.rail_name));
 				TaskResult.UserInfos.Emplace(OnlineUser);
@@ -1593,10 +1593,10 @@ void FOnlineAsyncEventRailInviteResponse::Finalize()
 		IOnlineIdentityPtr IdentityInt = Subsystem->GetIdentityInterface();
 		if (IdentityInt.IsValid())
 		{
-			TSharedRef<const FUniqueNetIdRail> UserId = MakeShared<const FUniqueNetIdRail>(InviteeId);
+			FUniqueNetIdRailRef UserId = FUniqueNetIdRail::Create(InviteeId);
 			if (IdentityInt->GetLoginStatus(*UserId) == ELoginStatus::LoggedIn)
 			{
-				TSharedRef<const FUniqueNetIdRail> RemoteUserId = MakeShared<const FUniqueNetIdRail>(InviterId);
+				FUniqueNetIdRailRef RemoteUserId = FUniqueNetIdRail::Create(InviterId);
 
 				FOnlineSessionTencentRailPtr SessionInt = StaticCastSharedPtr<FOnlineSessionTencentRail>(Subsystem->GetSessionInterface());
 				if (SessionInt.IsValid())
@@ -1635,10 +1635,10 @@ void FOnlineAsyncEventRailJoinGameByUser::Finalize()
 	IOnlineIdentityPtr IdentityInt = Subsystem->GetIdentityInterface();
 	if (IdentityInt.IsValid())
 	{
-		TSharedPtr<const FUniqueNetIdRail> UserId = StaticCastSharedPtr<const FUniqueNetIdRail>(GetFirstSignedInUser(IdentityInt));
+		FUniqueNetIdRailPtr UserId = StaticCastSharedPtr<const FUniqueNetIdRail>(GetFirstSignedInUser(IdentityInt));
 		if (UserId.IsValid() && IdentityInt->GetLoginStatus(*UserId) == ELoginStatus::LoggedIn)
 		{
-			TSharedRef<const FUniqueNetIdRail> RemoteUserId = MakeShared<const FUniqueNetIdRail>(UserToJoin);
+			FUniqueNetIdRailRef RemoteUserId = FUniqueNetIdRail::Create(UserToJoin);
 
 			FOnlineSessionTencentRailPtr SessionInt = StaticCastSharedPtr<FOnlineSessionTencentRail>(Subsystem->GetSessionInterface());
 			if (SessionInt.IsValid())
@@ -1683,7 +1683,7 @@ void FOnlineAsyncEventRailFriendsListChanged::TriggerDelegates()
 	FOnlineFriendsTencentPtr FriendsInt = StaticCastSharedPtr<FOnlineFriendsTencent>(Subsystem->GetFriendsInterface());
 	if (IdentityInt.IsValid() && FriendsInt.IsValid())
 	{
-		TSharedPtr<const FUniqueNetIdRail> UniqueNetId = StaticCastSharedPtr<const FUniqueNetIdRail>(IdentityInt->CreateUniquePlayerId(reinterpret_cast<uint8*>(&UserId), sizeof(UserId)));
+		FUniqueNetIdRailPtr UniqueNetId = StaticCastSharedPtr<const FUniqueNetIdRail>(IdentityInt->CreateUniquePlayerId(reinterpret_cast<uint8*>(&UserId), sizeof(UserId)));
 		if (UniqueNetId.IsValid())
 		{
 			ELoginStatus::Type LoginStatus = IdentityInt->GetLoginStatus(*UniqueNetId);
@@ -1715,7 +1715,7 @@ void FOnlineAsyncEventRailFriendsOnlineStateChanged::Finalize()
 		if (PresenceInt.IsValid())
 		{
 			FOnlinePresenceTencentPtr TencentPresenceInt = StaticCastSharedPtr<FOnlinePresenceTencent>(PresenceInt);
-			TSharedRef<const FUniqueNetId> UserId = MakeShared<FUniqueNetIdRail>(OnlineState.friend_rail_id);
+			FUniqueNetIdRef UserId = FUniqueNetIdRail::Create(OnlineState.friend_rail_id);
 			TencentPresenceInt->SetUserOnlineState(*UserId, RailOnlineStateToOnlinePresence(OnlineState.friend_online_state));
 		}
 	}
@@ -1736,7 +1736,7 @@ FOnlineAsyncEventRailFriendsMetadataChanged::FOnlineAsyncEventRailFriendsMetadat
 				FillMetadataFromRailResult(ChangedFriend, Metadata);
 				if (Metadata.Num() > 0)
 				{
-					ChangedMetadata.Emplace(MakeShared<const FUniqueNetIdRail>(ChangedFriend.friend_rail_id), Metadata);
+					ChangedMetadata.Emplace(FUniqueNetIdRail::Create(ChangedFriend.friend_rail_id), Metadata);
 				}
 			}
 		}
@@ -1745,7 +1745,7 @@ FOnlineAsyncEventRailFriendsMetadataChanged::FOnlineAsyncEventRailFriendsMetadat
 
 void FOnlineAsyncEventRailFriendsMetadataChanged::TriggerDelegates()
 {
-	for (const TPair<TSharedRef<const FUniqueNetId>, FMetadataPropertiesRail>& FriendMetadata : ChangedMetadata)
+	for (const TPair<FUniqueNetIdRef, FMetadataPropertiesRail>& FriendMetadata : ChangedMetadata)
 	{
 		UE_LOG_ONLINE(Verbose, TEXT("FriendsMetadataChanged: User: %s Count: %d"), *FriendMetadata.Key->ToDebugString(), FriendMetadata.Value.Num());
 		if (UE_LOG_ACTIVE(LogOnline, VeryVerbose))
@@ -1781,7 +1781,7 @@ void FOnlineAsyncTaskRailQueryFriendsPresence::Initialize()
 			}
 		});
 
-		for (const TSharedRef<const FUniqueNetId>& Friend : FriendsList)
+		for (const FUniqueNetIdRef& Friend : FriendsList)
 		{
 			PresenceInt->QueryPresence(*Friend, UserCompletionDelegate);
 		}
@@ -1808,7 +1808,7 @@ void FOnlineAsyncTaskRailSendInvite::Initialize()
 		Options.invite_type = EnumRailUsersInviteType::kRailUsersInviteTypeGame;
 
 		rail::RailArray<rail::RailID> RailIds;
-		for (const TSharedRef<const FUniqueNetId>& UserId : UserIds)
+		for (const FUniqueNetIdRef& UserId : UserIds)
 		{
 			RailIds.push_back(StaticCastSharedRef<const FUniqueNetIdRail>(UserId)->RailID);
 		}
@@ -1915,7 +1915,8 @@ void FOnlineAsyncTaskRailGetInviteDetails::OnRailEventFriendsGetInviteDetailsRes
 		}
 		else
 		{
-			UE_LOG_ONLINE(Verbose, TEXT("Unsupported or invalid invite details %s %s"), *FUniqueNetIdRail(InviteDetails->inviter_id).ToDebugString(), *LexToString(InviteDetails->invite_type));
+			const FUniqueNetIdRailRef RailInviterId = FUniqueNetIdRail::Create(InviteDetails->inviter_id);
+			UE_LOG_ONLINE(Verbose, TEXT("Unsupported or invalid invite details %s %s"), *RailInviterId->ToDebugString(), *LexToString(InviteDetails->invite_type));
 		}
 	}
 
@@ -2146,7 +2147,7 @@ void FOnlineAsyncTaskRailQueryPlayedWithFriendsList::OnRailEventPlayedWithFriend
 		{
 			if (PlayedFriendsList->played_with_friends_list[RailIdx] != kInvalidRailId)
 			{
-				TaskResult.UsersPlayedWith.Add(MakeShared<FUniqueNetIdRail>(PlayedFriendsList->played_with_friends_list[RailIdx]));
+				TaskResult.UsersPlayedWith.Add(FUniqueNetIdRail::Create(PlayedFriendsList->played_with_friends_list[RailIdx]));
 			}
 		}
 	}
@@ -2155,7 +2156,7 @@ void FOnlineAsyncTaskRailQueryPlayedWithFriendsList::OnRailEventPlayedWithFriend
 	bIsComplete = true;
 }
 
-FOnlineAsyncTaskRailQueryPlayedWithFriendsTime::FOnlineAsyncTaskRailQueryPlayedWithFriendsTime(FOnlineSubsystemTencent* InSubsystem, const TArray<TSharedRef<const FUniqueNetId>>& InUserIds, const FOnOnlineAsyncTaskRailQueryPlayedWithFriendsTimeComplete& InCompletionDelegate)
+FOnlineAsyncTaskRailQueryPlayedWithFriendsTime::FOnlineAsyncTaskRailQueryPlayedWithFriendsTime(FOnlineSubsystemTencent* InSubsystem, const TArray<FUniqueNetIdRef>& InUserIds, const FOnOnlineAsyncTaskRailQueryPlayedWithFriendsTimeComplete& InCompletionDelegate)
 	: FOnlineAsyncTaskRail(InSubsystem, {rail::kRailEventFriendsQueryPlayedWithFriendsTimeResult})
 	, CompletionDelegate(InCompletionDelegate)
 { 
@@ -2171,7 +2172,7 @@ void FOnlineAsyncTaskRailQueryPlayedWithFriendsTime::Initialize()
 		FOnlineAsyncTaskRail::Initialize();
 
 		rail::RailArray<rail::RailID> RailIds;
-		for (const TSharedRef<const FUniqueNetId>& UserId : TaskResult.UserIds)
+		for (const FUniqueNetIdRef& UserId : TaskResult.UserIds)
 		{
 			RailIds.push_back(StaticCastSharedRef<const FUniqueNetIdRail>(UserId)->RailID);
 		}
@@ -2222,7 +2223,7 @@ void FOnlineAsyncTaskRailQueryPlayedWithFriendsTime::OnRailEventPlayedWithFriend
 			const RailPlayedWithFriendsTimeItem& FriendItem = PlayedTimeResult->played_with_friends_time_list[RailIdx];
 			if (FriendItem.rail_id != kInvalidRailId)
 			{
-				TaskResult.LastPlayedWithUsers.Emplace(MakeShared<FUniqueNetIdRail>(FriendItem.rail_id), FDateTime::FromUnixTimestamp(FriendItem.play_time));
+				TaskResult.LastPlayedWithUsers.Emplace(FUniqueNetIdRail::Create(FriendItem.rail_id), FDateTime::FromUnixTimestamp(FriendItem.play_time));
 			}
 		}
 	}
@@ -2302,7 +2303,7 @@ void FOnlineAsyncEventRailAssetsChanged::TriggerDelegates()
 	FOnlinePurchaseTencentPtr PurchaseInt = StaticCastSharedPtr<FOnlinePurchaseTencent>(Subsystem->GetPurchaseInterface());
 	if (LIKELY(IdentityInt.IsValid() && PurchaseInt.IsValid()))
 	{
-		const TSharedPtr<const FUniqueNetId> UniqueNetId = GetFirstSignedInUser(IdentityInt);
+		const FUniqueNetIdPtr UniqueNetId = GetFirstSignedInUser(IdentityInt);
 		if (UniqueNetId.IsValid())
 		{
 			const ELoginStatus::Type LoginStatus = IdentityInt->GetLoginStatus(*UniqueNetId);

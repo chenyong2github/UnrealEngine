@@ -5,16 +5,14 @@
 
 #if ANDROID_HEAP_PROFILING_SUPPORTED
 	#include <dlfcn.h>
+	#include "Misc/CString.h"
 	#include "Containers/StringConv.h"
 
+	struct AHeapInfo;
 	AHeapInfo* (*AHeapInfoCreate)(const char* heap_name) = nullptr;
 	uint32_t(*AHeapProfileRegisterHeap)(AHeapInfo* info) = nullptr;
 	bool (*AHeapProfileReportAllocation)(uint32_t heap_id, uint64_t alloc_id, uint64_t size) = nullptr;
 	void (*AHeapProfileReportFree)(uint32_t heap_id, uint64_t alloc_id) = nullptr;
-
-	const int AppPackageNameBufferSize = 256;
-	static char AppPackageNameBuffer[AppPackageNameBufferSize] = "com.epicgames.unreal";
-	char* AppPackageName = AppPackageNameBuffer;
 
 	static bool LoadSymbol(void* Module, void** FuncPtr, const char* SymbolName)
 	{
@@ -28,21 +26,13 @@
 		return true;
 	}
 
-	static void ReadPackageName()
+	uint32_t CreateHeap(const TCHAR* AllocatorName)
 	{
-		pid_t Pid = getpid();
-		char Buf[AppPackageNameBufferSize];
-		sprintf(Buf, "/proc/%u/cmdline", Pid);
-		FILE* CmdLine = fopen(Buf, "r");
-		if (CmdLine)
-		{
-			const int Result = fscanf(CmdLine, "%255s", Buf);
-			if (Result == 1)
-			{
-				strcpy(AppPackageNameBuffer, Buf);
-			}
-			fclose(CmdLine);
-		}
+		const int AllocatorNameBufferSize = 256;
+		char AllocatorNameBuffer[AllocatorNameBufferSize] = "epicgames.";
+		const int Len = FCStringAnsi::Strlen(AllocatorNameBuffer);
+		FCStringAnsi::Strcpy(AllocatorNameBuffer + Len, AllocatorNameBufferSize - Len, TCHAR_TO_ANSI(AllocatorName));
+		return AHeapProfileRegisterHeap(AHeapInfoCreate(AllocatorNameBuffer));
 	}
 #endif
 
@@ -69,10 +59,6 @@ bool AndroidHeapProfiling::Init()
 				AHeapProfileRegisterHeap = nullptr;
 				AHeapProfileReportAllocation = nullptr;
 				AHeapProfileReportFree = nullptr;
-			}
-			else
-			{
-				ReadPackageName();
 			}
 
 			return InitSuccessful;

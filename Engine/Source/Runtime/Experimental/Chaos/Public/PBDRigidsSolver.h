@@ -26,7 +26,6 @@
 #include "PhysicsProxy/JointConstraintProxy.h"
 #include "PhysicsProxy/SuspensionConstraintProxy.h"
 #include "SolverEventFilters.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "ChaosSolversModule.h"
 
@@ -45,7 +44,7 @@ extern int32 ChaosSolverParticlePoolNumFrameUntilShrink;
 namespace ChaosTest
 {
 	template <typename TSolver>
-	void AdvanceSolverNoPushHelper(TSolver* Solver,float Dt);
+	void AdvanceSolverNoPushHelper(TSolver* Solver, Chaos::FReal Dt);
 }
 
 /**
@@ -55,8 +54,6 @@ namespace Chaos
 {
 	class FPersistentPhysicsTask;
 	class FChaosArchive;
-	class FRewindData;
-	class IRewindCallback;
 	class FSingleParticleProxy;
 	class FGeometryParticleBuffer;
 
@@ -82,11 +79,11 @@ namespace Chaos
 	/**
 	*
 	*/
-	template <typename Traits>
-	class TPBDRigidsSolver : public FPhysicsSolverBase
+	class CHAOS_API FPBDRigidsSolver : public FPhysicsSolverBase
 	{
 
-		TPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner);
+		FPBDRigidsSolver(const EMultiBufferMode BufferingModeIn, UObject* InOwner);
+		virtual ~FPBDRigidsSolver();
 
 	public:
 
@@ -98,8 +95,7 @@ namespace Chaos
 		template<EThreadingMode Mode>
 		friend class FDispatcher;
 		
-		template <typename Traits2>
-		friend class TEventDefaults;
+		friend class FEventDefaults;
 
 		friend class FPhysInterface_Chaos;
 		friend class FPhysScene_ChaosInterface;
@@ -112,7 +108,7 @@ namespace Chaos
 
 		typedef Chaos::FGeometryParticle FParticle;
 		typedef Chaos::FGeometryParticleHandle FHandle;
-		typedef Chaos::TPBDRigidsEvolutionGBF<Traits> FPBDRigidsEvolution;
+		typedef Chaos::FPBDRigidsEvolutionGBF FPBDRigidsEvolution;
 
 		typedef FPBDRigidDynamicSpringConstraints FRigidDynamicSpringConstraints;
 		typedef FPBDPositionConstraints FPositionConstraints;
@@ -146,37 +142,6 @@ namespace Chaos
 		void RegisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 		void UnregisterObject(Chaos::FSuspensionConstraint* GTConstraint);
 
-		void SetSuspensionTargetOnPhysicsThread(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, bool Enabled);
-		void EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback = TUniquePtr<IRewindCallback>());
-		void SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
-		{
-			ensure(!RewindCallback || MRewindData);
-			MRewindCallback = MoveTemp(RewindCallback);
-		}
-
-		FRewindData* GetRewindData()
-		{
-			if(Traits::IsRewindable())
-			{
-				return MRewindData.Get();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
-
-		IRewindCallback* GetRewindCallback()
-		{
-			if (Traits::IsRewindable())
-			{
-				return MRewindCallback.Get();
-			}
-			else
-			{
-				return nullptr;
-			}
-		}
 		//
 		//  Simulation API
 		//
@@ -189,7 +154,7 @@ namespace Chaos
 
 		//Make friend with unit test code so we can verify some behavior
 		template <typename TSolver>
-		friend void ChaosTest::AdvanceSolverNoPushHelper(TSolver* Solver,float Dt);
+		friend void ChaosTest::AdvanceSolverNoPushHelper(TSolver* Solver, FReal Dt);
 
 		/**/
 		void Reset();
@@ -210,14 +175,14 @@ namespace Chaos
 		int32& GetCurrentFrame() { return CurrentFrame; }
 
 		/**/
-		float& GetSolverTime() { return MTime; }
-		const float GetSolverTime() const { return MTime; }
+		FReal& GetSolverTime() { return MTime; }
+		const FReal GetSolverTime() const { return MTime; }
 
 		/**/
-		void SetMaxDeltaTime(const float InMaxDeltaTime) { MMaxDeltaTime = InMaxDeltaTime; }
-		float GetLastDt() const { return MLastDt; }
-		float GetMaxDeltaTime() const { return MMaxDeltaTime; }
-		float GetMinDeltaTime() const { return MMinDeltaTime; }
+		void SetMaxDeltaTime(const FReal InMaxDeltaTime) { MMaxDeltaTime = InMaxDeltaTime; }
+		FReal GetLastDt() const { return MLastDt; }
+		FReal GetMaxDeltaTime() const { return MMaxDeltaTime; }
+		FReal GetMinDeltaTime() const { return MMinDeltaTime; }
 		void SetMaxSubSteps(const int32 InMaxSubSteps) { MMaxSubSteps = InMaxSubSteps; }
 		int32 GetMaxSubSteps() const { return MMaxSubSteps; }
 
@@ -249,6 +214,7 @@ namespace Chaos
 
 		FPBDSuspensionConstraints& GetSuspensionConstraints() { return SuspensionConstraints; }
 		const FPBDSuspensionConstraints& GetSuspensionConstraints() const { return SuspensionConstraints; }
+		void SetSuspensionTargetOnPhysicsThread(Chaos::FSuspensionConstraint* GTConstraint, const FVector& TargetPos, bool Enabled);
 
 		/**/
 		FPBDRigidsEvolution* GetEvolution() { return MEvolution.Get(); }
@@ -278,7 +244,7 @@ namespace Chaos
 		}
 
 		/**/
-		TEventManager<Traits>* GetEventManager() { return MEventManager.Get(); }
+		FEventManager* GetEventManager() { return MEventManager.Get(); }
 
 		/**/
 		FSolverEventFilters* GetEventFilters() { return MSolverEventFilters.Get(); }
@@ -360,23 +326,21 @@ namespace Chaos
 		// Solver Data
 		//
 		int32 CurrentFrame;
-		float MTime;
-		float MLastDt;
-		float MMaxDeltaTime;
-		float MMinDeltaTime;
+		FReal MTime;
+		FReal MLastDt;
+		FReal MMaxDeltaTime;
+		FReal MMinDeltaTime;
 		int32 MMaxSubSteps;
 		bool bHasFloor;
 		bool bIsFloorAnalytic;
-		float FloorHeight;
+		FReal FloorHeight;
 
 		FParticlesType Particles;
 		TUniquePtr<FPBDRigidsEvolution> MEvolution;
-		TUniquePtr<TEventManager<Traits>> MEventManager;
+		TUniquePtr<FEventManager> MEventManager;
 		TUniquePtr<FSolverEventFilters> MSolverEventFilters;
 		TUniquePtr<FDirtyParticlesBuffer> MDirtyParticlesBuffer;
 		TMap<const Chaos::FGeometryParticleHandle*, TSet<IPhysicsProxyBase*> > MParticleToProxy;
-		TUniquePtr<FRewindData> MRewindData;
-		TUniquePtr<IRewindCallback> MRewindCallback;
 
 		//
 		// Proxies
@@ -384,7 +348,6 @@ namespace Chaos
 		TSharedPtr<FCriticalSection> MCurrentLock;
 		TArray< FGeometryCollectionPhysicsProxy* > GeometryCollectionPhysicsProxies_Internal; // PT
 		TArray< FJointConstraintPhysicsProxy* > JointConstraintPhysicsProxies_Internal; // PT
-		bool bUseCollisionResimCache;
 
 		//
 		//  Constraints
@@ -461,9 +424,5 @@ namespace Chaos
 	private:
 		FPhysicsSolverBase* Solver;
 	};
-
-#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsSolver<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 
 }; // namespace Chaos

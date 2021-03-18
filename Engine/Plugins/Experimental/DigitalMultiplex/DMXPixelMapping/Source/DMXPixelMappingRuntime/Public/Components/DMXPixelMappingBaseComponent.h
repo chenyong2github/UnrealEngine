@@ -10,7 +10,7 @@
 /**
  * Base class for all DMX Pixel Mapping components
  */
-UCLASS(BlueprintType, Blueprintable)
+UCLASS(BlueprintType, Blueprintable, Abstract)
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingBaseComponent
 	: public UObject
 	, public FTickableGameObject

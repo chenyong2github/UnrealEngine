@@ -183,5 +183,15 @@ namespace Gauntlet
 			}
 			return LocalDirectoryMappings;
 		}
+
+		public bool IsOSOutOfDate()
+		{
+			return false;
+		}
+
+		public bool UpdateOS()
+		{
+			return true;
+		}
 	}
 }

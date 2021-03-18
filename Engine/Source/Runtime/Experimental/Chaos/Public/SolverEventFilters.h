@@ -100,16 +100,11 @@
 namespace Chaos
 {
 
-	template<class T, int d>
-	struct TCollisionData;
+	struct FCollidingData;
 
-	template<class T, int d>
-	struct TTrailingData;
+	struct FTrailingData;
 
-	template<class T, int d>
-	struct TBreakingData;
-
-
+	struct FBreakingData;
 
 	class CHAOS_API FSolverCollisionEventFilter
 	{
@@ -117,7 +112,7 @@ namespace Chaos
 		FSolverCollisionEventFilter() {}
 		FSolverCollisionEventFilter(const FSolverCollisionFilterSettings& InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::TCollisionData<float, 3>& InData) const;
+		bool Pass(const Chaos::FCollidingData& InData) const;
 		bool Enabled() const { return Settings.FilterEnabled; }
 		void UpdateFilterSettings(const FSolverCollisionFilterSettings& InSettings) { Settings = InSettings; }
 
@@ -130,7 +125,7 @@ namespace Chaos
 		FSolverTrailingEventFilter() {}
 		FSolverTrailingEventFilter(const FSolverTrailingFilterSettings &InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::TTrailingData<float, 3>& InData) const;
+		bool Pass(const Chaos::FTrailingData& InData) const;
 		bool Enabled() const { return Settings.FilterEnabled; }
 		void UpdateFilterSettings(const FSolverTrailingFilterSettings& InSettings) { Settings = InSettings; }
 
@@ -143,7 +138,7 @@ namespace Chaos
 		FSolverBreakingEventFilter() {}
 		FSolverBreakingEventFilter(const FSolverBreakingFilterSettings& InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::TBreakingData<float, 3>& InData) const;
+		bool Pass(const Chaos::FBreakingData& InData) const;
 		bool Enabled() const { return Settings.FilterEnabled; }
 		void UpdateFilterSettings(const FSolverBreakingFilterSettings& InSettings) { Settings = InSettings; }
 

@@ -166,11 +166,11 @@ struct FComponentBlendHelper
 			{
 				float MultiplyWeight = (TotalWeight > 1.f) ? 1.f / TotalWeight : 1.f;
 
-				Output = Scales[0] * (ScaleWeights[0] * MultiplyWeight);
+				Output = FVector::ZeroVector;
 
-				for (int32 Index = 1; Index < Scales.Num(); ++Index)
+				for (int32 Index = 0; Index < Scales.Num(); ++Index)
 				{
-					Output *= Scales[Index] * (ScaleWeights[Index] * MultiplyWeight);
+					Output += Scales[Index] * (ScaleWeights[Index] * MultiplyWeight);
 				}
 
 				return true;
@@ -354,11 +354,11 @@ struct FMultiTransformBlendHelper
 			{
 				float MultiplyWeight = (TotalWeight > 1.f) ? 1.f / TotalWeight : 1.f;
 
-				Output = Scales[0] * (ScaleWeights[0] * MultiplyWeight);
+				Output = FVector::ZeroVector;
 
-				for (int32 Index = 1; Index < Scales.Num(); ++Index)
+				for (int32 Index = 0; Index < Scales.Num(); ++Index)
 				{
-					Output *= Scales[Index] * (ScaleWeights[Index] * MultiplyWeight);
+					Output += Scales[Index] * (ScaleWeights[Index] * MultiplyWeight);
 				}
 
 				return true;

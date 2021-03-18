@@ -27,6 +27,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "Misc/Compression.h"
 #include "Misc/Fork.h"
+#include "Misc/Guid.h"
 
 #include "HAL/PlatformMisc.h"
 
@@ -2632,7 +2633,12 @@ void FCsvProfiler::BeginFrame()
 							GCsvUseProcessingThread = false;
 						}
 					}
-					 
+
+					// Set the CSV ID and mirror it to the log
+					FString CsvId = FGuid::NewGuid().ToString();
+					SetMetadata(TEXT("CsvID"), *CsvId);
+					UE_LOG(LogCsvProfiler, Display, TEXT("Capture started. CSV ID: %s"), *CsvId);
+
 					// Figure out the target framerate
 					int TargetFPS = FPlatformMisc::GetMaxRefreshRate();
 					static IConsoleVariable* MaxFPSCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("t.MaxFPS"));
@@ -2947,7 +2953,6 @@ void FCsvProfiler::FinalizeCsvFile()
 	// Get the queued metadata for the next csv finalize
 	TMap<FString, FString> CurrentMetadata;
 	MetadataQueue.Dequeue(CurrentMetadata);
-
 
 	CsvWriter->Finalize(CurrentMetadata);
 

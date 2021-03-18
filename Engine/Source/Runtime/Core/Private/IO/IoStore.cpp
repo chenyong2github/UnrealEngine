@@ -1328,6 +1328,7 @@ FIoStoreWriter::FIoStoreWriter(const TCHAR* ContainerPath)
 FIoStoreWriter::~FIoStoreWriter()
 {
 	(void)Impl->Flush();
+	delete Impl;
 }
 
 FIoStatus FIoStoreWriter::Initialize(const FIoStoreWriterContext& Context, const FIoContainerSettings& ContainerSettings)

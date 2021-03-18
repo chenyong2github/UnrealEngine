@@ -353,6 +353,7 @@ struct FPerInstanceRenderData
 {
 	// Should be always constructed on main thread
 	FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess);
+	FPerInstanceRenderData(FStaticMeshInstanceData& Other, ERHIFeatureLevel::Type InFeaureLevel, bool InRequireCPUAccess, FBox InBounds, bool bTrack);
 	~FPerInstanceRenderData();
 
 	/**
@@ -366,6 +367,11 @@ struct FPerInstanceRenderData
 	*/
 	ENGINE_API void UpdateFromCommandBuffer(FInstanceUpdateCmdBuffer& CmdBuffer);
 
+	/**
+	 * Called to update the PerInstanceBounds array whenever the instance array is modified
+	*/
+	ENGINE_API void UpdateBounds();
+
 	/** Hit proxies for the instances */
 	TArray<TRefCountPtr<HHitProxy>>		HitProxies;
 
@@ -375,6 +381,11 @@ struct FPerInstanceRenderData
 	/** Instance buffer */
 	FStaticMeshInstanceBuffer			InstanceBuffer;
 	TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> InstanceBuffer_GameThread;
+
+	/** Data for culling ray tracing instances */
+	TArray<FVector4> PerInstanceBounds;
+	FBox InstanceLocalBounds;
+	bool bTrackBounds;
 };
 
 
@@ -478,10 +489,6 @@ public:
 		bVFRequiresPrimitiveUniformBuffer = true;
 	#endif
 		SetupProxy(InComponent);
-
-#if RHI_RAYTRACING
-		SetupRayTracingCullClusters();
-#endif
 	}
 
 	~FInstancedStaticMeshSceneProxy()
@@ -509,6 +516,8 @@ public:
 		return Result;
 	}
 
+	bool bAnySegmentUsesWorldPositionOffset = false;
+
 #if RHI_RAYTRACING
 	virtual bool IsRayTracingStaticRelevant() const override
 	{
@@ -516,7 +525,7 @@ public:
 	}
 
 	virtual void GetDynamicRayTracingInstances(struct FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances) final override;
-	void SetupRayTracingCullClusters();
+	void SetupRayTracingDynamicInstances(int32 NumDynamicInstances);
 
 #endif
 
@@ -591,24 +600,13 @@ protected:
 	FInstancingUserData UserData_DeselectedInstances;
 
 #if RHI_RAYTRACING
-	
-	/* Precomputed bounding spheres for culling */
-	struct FCullNode
+	struct FRayTracingDynamicData
 	{
-		FVector Center;
-		float Radius;
-		uint32 Instance;
+		FRayTracingGeometry DynamicGeometry;
+		FRWBuffer DynamicGeometryVertexBuffer;
 	};
 
-	struct FRayTracingCullCluster
-	{
-		FVector BoundsMin;
-		FVector BoundsMax;
-		TArray<FCullNode> Nodes;
-	};
-
-	TArray<FRayTracingCullCluster> RayTracingCullClusters;
-	bool bSupportRayTracing = true;
+	TArray<FRayTracingDynamicData> RayTracingDynamicData;
 #endif
 
 	/** Common path for the Get*MeshElement functions */

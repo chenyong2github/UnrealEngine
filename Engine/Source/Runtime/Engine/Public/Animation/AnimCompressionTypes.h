@@ -218,6 +218,9 @@ public:
 	float SequenceLength;
 
 	/** Number of keys within the (non-uniform) RawAnimationData tracks */
+	
+	UE_DEPRECATED(5.0, "NumberOfFrames has been replaced with NumberOfKeys")
+	int32 NumberOfFrames;
 	int32 NumberOfKeys;
 
 	bool bIsValidAdditive;
@@ -396,6 +399,9 @@ struct ENGINE_API ICompressedAnimData
 	int32 CompressedNumberOfKeys;
 
 #if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.0, "CompressedNumberOfFrames has been replaced with CompressedNumberOfKeys")
+    int32 CompressedNumberOfFrames;
+	
 	/** The error stats from the current bone compression codec. */
 	FAnimationErrorStats BoneCompressionErrorStats;
 #endif

@@ -176,8 +176,10 @@ void ClothingAssetUtils::ClearSectionClothingData(FSkelMeshSection& InSection)
 UClothingAssetCommon::UClothingAssetCommon(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, PhysicsAsset(nullptr)
+#if WITH_EDITORONLY_DATA
 	, ClothSimConfig_DEPRECATED(nullptr)
 	, ChaosClothSimConfig_DEPRECATED(nullptr)
+#endif
 	, ReferenceBoneIndex(0)
 	, CustomData(nullptr)
 {
@@ -783,6 +785,7 @@ void UClothingAssetCommon::PostLoad()
 {
 	Super::PostLoad();
 
+#if WITH_EDITORONLY_DATA
 	// Migrate the deprecated UObject based lod class to the non-UObject lod structure to prevent PostLoad dependency issues
 	// TODO: Remove all UObject PostLoad dependencies.
 	//       Even with these ConditionalPostLoad calls, the UObject PostLoads' order of execution cannot be guaranteed.
@@ -797,6 +800,7 @@ void UClothingAssetCommon::PostLoad()
 		}
 	}
 	ClothLodData_DEPRECATED.Empty();
+#endif
 
 	const int32 AnimPhysCustomVersion = GetLinkerCustomVersion(FAnimPhysObjectVersion::GUID);
 	if (AnimPhysCustomVersion < FAnimPhysObjectVersion::AddedClothingMaskWorkflow)
@@ -880,6 +884,7 @@ void UClothingAssetCommon::PostLoad()
 			ClothConfig.Value->ConditionalPostLoad();  // PostLoad configs before adding new ones
 		}
 	}
+#if WITH_EDITORONLY_DATA
 	if (ClothSimConfig_DEPRECATED)
 	{
 		ClothSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
@@ -895,11 +900,13 @@ void UClothingAssetCommon::PostLoad()
 		ClothSharedSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
 		ClothSharedSimConfig_DEPRECATED->Rename(nullptr, nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);  // Rename the config so that the name doesn't collide with the new config map name
 	}
+#endif
 	AddClothConfigs();
 
 	// Migrate configs
 	bool bMigrateSharedConfigToConfig = true;  // Shared config to config migration can be disabled to avoid overriding the newly migrated values
 
+#if WITH_EDITORONLY_DATA
 	if (ClothingCustomVersion < FClothingAssetCustomVersion::MovePropertiesToCommonBaseClasses)
 	{
 		// Remap legacy struct FClothConfig to new config objects
@@ -952,6 +959,7 @@ void UClothingAssetCommon::PostLoad()
 			bMigrateSharedConfigToConfig = false;
 		}
 	}
+#endif
 
 	// Propagate shared configs between cloth assets
 	PropagateSharedConfigs(bMigrateSharedConfigToConfig);

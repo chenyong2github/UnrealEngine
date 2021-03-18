@@ -13,7 +13,7 @@ bool FGeometryCollectionBoneDragDrop::ValidateDrop(const FGeometryCollection* Ot
 	{
 		return false;
 	}
-	
+
 	// We don't currently support transfer of geometry from one collection to another.
 	if (OtherGeometryCollection != GeometryCollection.Get())
 	{
@@ -33,7 +33,7 @@ bool FGeometryCollectionBoneDragDrop::ValidateDrop(const FGeometryCollection* Ot
 	{
 		if (ContainsInstance())
 		{
-			MessageText = NSLOCTEXT("GeometryCollectionOutliner", "Instances_GeometryCollectionOutliner", 
+			MessageText = NSLOCTEXT("GeometryCollectionOutliner", "Instances_GeometryCollectionOutliner",
 				"Cannot parent instanced embedded geometry directly to cluster.");
 			return false;
 		}

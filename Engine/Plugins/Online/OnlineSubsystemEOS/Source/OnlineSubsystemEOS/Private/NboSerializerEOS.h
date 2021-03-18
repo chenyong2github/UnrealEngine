@@ -33,7 +33,7 @@ public:
  	{
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
-		Ar << SessionInfo.SessionId;
+		Ar << *SessionInfo.SessionId;
 		Ar << *SessionInfo.HostAddr;
 		return Ar;
  	}
@@ -80,7 +80,8 @@ public:
  	{
 		check(SessionInfo.HostAddr.IsValid());
 		// Skip SessionType (assigned at creation)
-		Ar >> SessionInfo.SessionId; 
+		SessionInfo.SessionId = FUniqueNetIdString::Create();
+		Ar >> *ConstCastSharedRef<FUniqueNetIdString>(SessionInfo.SessionId);
 		Ar >> *SessionInfo.HostAddr;
 		return Ar;
  	}

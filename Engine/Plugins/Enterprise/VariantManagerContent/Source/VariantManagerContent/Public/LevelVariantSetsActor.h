@@ -10,6 +10,9 @@
 
 #include "LevelVariantSetsActor.generated.h"
 
+class UBlueprintGeneratedClass;
+class ULevelVariantSets;
+class ULevelVariantSetsFunctionDirector;
 class UVariantSet;
 
 UCLASS(hideCategories=(Rendering, Physics, LOD, Activation, Input, Actor, Cooking))
@@ -39,4 +42,11 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="LevelVariantSets", meta=(AllowedClasses="LevelVariantSets"))
 	FSoftObjectPath LevelVariantSets;
+
+private:
+
+	friend class ULevelVariantSets;
+
+	UPROPERTY(Transient)
+	TMap<UBlueprintGeneratedClass*, ULevelVariantSetsFunctionDirector*> DirectorInstances;
 };

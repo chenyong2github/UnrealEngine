@@ -2023,6 +2023,13 @@ void FLidarPointCloudOctree::UnloadOldNodes(const float& CurrentTime)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
 
+	// Skip if the data is locked
+	FScopeTryLock ReleaseLock(&DataReleaseLock);
+	if (!ReleaseLock.IsLocked())
+	{
+		return;
+	}
+
 	for(int32 i = 0; i < NodesInUse.Num(); ++i)
 	{
 		FLidarPointCloudOctreeNode* Node = NodesInUse[i];

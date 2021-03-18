@@ -3,12 +3,14 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "DMXProtocolCommon.h"
 #include "MovieSceneSection.h"
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Library/DMXEntityReference.h"
 
 #include "MovieSceneDMXLibrarySection.generated.h"
 
+enum class EDMXFixtureSignalFormat : uint8;
 class UDMXEntityFixturePatch;
 
 
@@ -50,9 +52,13 @@ struct FDMXFixturePatchChannel
 {
 	GENERATED_BODY()
 
+	FDMXFixturePatchChannel()
+		: ActiveMode(INDEX_NONE)
+	{}
+
 	/** Points to the Fixture Patch */
 	UPROPERTY()
-	FDMXEntityFixturePatchRef Reference;
+	FDMXEntityFixturePatchRef FixturePatchReference;
 
 	/** Fixture function float channels */
 	UPROPERTY()
@@ -65,12 +71,72 @@ struct FDMXFixturePatchChannel
 	UPROPERTY()
 	int32 ActiveMode;
 
-	void SetFixturePatch(UDMXEntityFixturePatch* InPatch, int32 InActiveMode = -1);
+	void SetFixturePatch(UDMXEntityFixturePatch* InPatch);
 
 	/** Makes sure the number of Float Channels matches the number of functions in the selected Patch mode */
 	void UpdateNumberOfChannels(bool bResetDefaultValues = false);
 };
 
+/**
+* Cached info of fixture function channels. Exists to streamline performance.
+*
+* Without this class, data for all tracks would have to be prepared each tick, leading to significant overhead.
+*
+* Besides caching values, the instance deduces how the track should be evaluated:
+*
+* 1. bNeedsEvaluation - These channels need update each tick
+* 2. bNeedsInitialization - These channels need update only in the first tick!
+* 3. Other tracks - These do not need update ever.
+*
+* Profiled, issues were apparent in 4.26 with a great number of sequencer channels (attributes).
+*/
+struct FDMXCachedFunctionChannelInfo
+{
+	FDMXCachedFunctionChannelInfo() = delete;
+
+	FDMXCachedFunctionChannelInfo(const TArray<FDMXFixturePatchChannel>& FixturePatchChannels, int32 InPatchChannelIndex, int32 InFunctionChannelIndex);
+
+	/** Returns the function channel, or nullptr if it got moved or deleted */
+	const FDMXFixtureFunctionChannel* TryGetFunctionChannel(const TArray<FDMXFixturePatchChannel>& FixturePatchChannels) const;
+
+	FORCEINLINE bool NeedsInitialization() const { return bNeedsInitialization; }
+
+	FORCEINLINE bool NeedsEvaluation() const { return bNeedsEvaluation; }
+
+	FORCEINLINE int32 GetUniverseID() const { return UniverseID; }
+
+	FORCEINLINE int32 GetStartingChannel() const { return StartingChannel; }
+
+	FORCEINLINE EDMXFixtureSignalFormat GetSignalFormat() const { return SignalFormat; }
+
+	FORCEINLINE bool ShouldUseLSBMode() const { return bLSBMode; }
+
+private:
+	/**
+	 * Gets the cell channels, but unlike subsystem's methods doesn't sort channels by pixel mapping distribution.
+	 * If the cell coordinate would be sorted here, it would be sorted on receive again causing doubly sorting.
+	 */
+	void GetMatrixCellChannelsAbsoluteNoSorting(UDMXEntityFixturePatch* FixturePatch, const FIntPoint& CellCoordinate, TMap<FName, int32>& OutAttributeToAbsoluteChannelMap) const;
+
+	bool bNeedsInitialization;
+	bool bNeedsEvaluation;
+
+	int32 PatchChannelIndex;
+	
+	int32 FunctionChannelIndex;
+
+	int32 NumFunctionChannels;
+
+	FName AttributeName;
+
+	int32 UniverseID;
+
+	int32 StartingChannel;
+
+	EDMXFixtureSignalFormat SignalFormat;
+
+	bool bLSBMode;
+};
 
 /** A DMX Fixture Patch section */
 UCLASS()
@@ -94,9 +160,13 @@ public:
 	/** Refreshes the channels. Useful e.g. when underlying DMX Library changes */
 	void RefreshChannels();
 
-	/** Add a Fixture Patch's Functions as curve channels to be animated */
+	/** Adds a single patch to the section */
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
-	void AddFixturePatch(UDMXEntityFixturePatch* InPatch, int32 ActiveMode = -1);
+	void AddFixturePatch(UDMXEntityFixturePatch* InPatch);
+
+	/** Adds all patches to the secion */
+	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
+	void AddFixturePatches(const TArray<FDMXEntityFixturePatchRef>& InFixturePatchRefs);
 
 	/** Remove all Functions of a Fixture Patch */
 	UFUNCTION(BlueprintCallable, Category = "Movie Scene")
@@ -144,11 +214,7 @@ public:
 
 	const TArray<FDMXFixturePatchChannel>& GetFixturePatchChannels() const { return FixturePatchChannels; }
 
-	/**
-	 * Iterate over each Patch's Function Channels array.
-	 * Use it to edit the animation curves for each Patch.
-	 */
-	void ForEachPatchFunctionChannels(TFunctionRef<void(UDMXEntityFixturePatch*, TArray<FDMXFixtureFunctionChannel>&)> InPredicate);
+	TArray<FDMXFixturePatchChannel>& GetMutableFixturePatchChannels() { return FixturePatchChannels; }
 
 	/**
 	 * Used only by the Take Recorder to prevent Track evaluation from sending
@@ -161,6 +227,18 @@ public:
 	 * the Take Recorder.
 	 */
 	bool GetIsRecording() const { return bIsRecording; }
+
+	/** Precaches data for playback */
+	void RebuildPlaybackCache() const;
+
+	/** Returns the precached channels that need initialization only (one time evaluation) */
+	const TArray<FDMXCachedFunctionChannelInfo>& GetChannelsToInitializeOnly() const { return CachedChannelsToInitialize; }
+
+	/** Returns the precached channels that need continous evaluation */
+	const TArray<FDMXCachedFunctionChannelInfo>& GetChannelsToEvaluate() const { return CachedChannelsToEvaluate; }
+
+	/** Returns the precached output ports */
+	const TSet<FDMXOutputPortSharedRef>& GetCachedOutputPorts() const { return CachedOutputPorts; };
 
 protected:
 	/** Update the displayed Patches and Function channels in the section */
@@ -176,4 +254,15 @@ protected:
 	 * track evaluation from sending data to DMX simultaneously.
 	 */
 	bool bIsRecording;
+
+	// Cache
+private:	
+	/** Cached channel info for functions that need initialization (one time evaluation) only */
+	mutable TArray<FDMXCachedFunctionChannelInfo> CachedChannelsToInitialize;
+
+	/** Cached channel info for functions that need continous evaluation */
+	mutable TArray<FDMXCachedFunctionChannelInfo> CachedChannelsToEvaluate;
+
+	/** The output ports which should be used during playback */
+	mutable TSet<FDMXOutputPortSharedRef> CachedOutputPorts;
 };

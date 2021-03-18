@@ -80,7 +80,7 @@ float FFloatPropertyTrackEditor::RecomposeFloat(float InCurrentValue, UObject* A
 			Query.Entities = MakeArrayView(&EntityID, 1);
 			Query.Object   = AnimatedObject;
 
-			Recomposed = System->RecomposeBlendFinal(FMovieSceneTracksComponentTypes::Get()->Float, Query, InCurrentValue).Values[0];
+			Recomposed = System->RecomposeBlend(FMovieSceneTracksComponentTypes::Get()->Float, Query, InCurrentValue).Values[0];
 		}
 	}
 

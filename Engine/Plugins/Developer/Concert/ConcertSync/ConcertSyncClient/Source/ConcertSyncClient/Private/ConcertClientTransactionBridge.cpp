@@ -6,6 +6,7 @@
 #include "ConcertSyncArchives.h"
 #include "ConcertSyncClientUtil.h"
 
+#include "ConcertTransactionEvents.h"
 #include "Misc/PackageName.h"
 #include "Misc/CoreDelegates.h"
 #include "HAL/IConsoleManager.h"
@@ -23,16 +24,6 @@ namespace ConcertClientTransactionBridgeUtil
 {
 
 static TAutoConsoleVariable<int32> CVarIgnoreTransactionIncludeFilter(TEXT("Concert.IgnoreTransactionFilters"), 0, TEXT("Ignore Transaction Object Whitelist Filtering"));
-
-enum class ETransactionFilterResult : uint8
-{
-	/** Include the object in the Concert Transaction */
-	IncludeObject,
-	/** Filter the object from the Concert Transaction */
-	ExcludeObject,
-	/** Filter the entire transaction and prevent propagation */
-	ExcludeTransaction,
-};
 
 bool RunTransactionFilters(const TArray<FTransactionClassFilter>& InFilters, UObject* InObject)
 {
@@ -57,8 +48,29 @@ bool RunTransactionFilters(const TArray<FTransactionClassFilter>& InFilters, UOb
 	return bMatchFilter;
 }
 
-ETransactionFilterResult ApplyTransactionFilters(UObject* InObject, UPackage* InChangedPackage)
+ETransactionFilterResult ApplyCustomFilter(const TMap<FName, FTransactionFilterDelegate>& CustomFilters, UObject* InObject, UPackage* InChangedPackage)
 {
+	for (const auto& Item : CustomFilters)
+	{
+		if(Item.Value.IsBound())
+		{
+			ETransactionFilterResult Result = Item.Value.Execute(InObject, InChangedPackage);
+			if (Result != ETransactionFilterResult::UseDefault)
+			{
+				return Result;
+			}
+		}
+	}
+	return ETransactionFilterResult::UseDefault;
+}
+
+ETransactionFilterResult ApplyTransactionFilters(const TMap<FName, FTransactionFilterDelegate>& CustomFilters, UObject* InObject, UPackage* InChangedPackage)
+{
+	ETransactionFilterResult FilterResult = ConcertClientTransactionBridgeUtil::ApplyCustomFilter(CustomFilters, InObject, InChangedPackage);
+	if (FilterResult != ETransactionFilterResult::UseDefault)
+	{
+		return FilterResult;
+	}
 	// Ignore transient packages and objects, compiled in package are not considered Multi-user content.
 	if (!InChangedPackage || InChangedPackage == GetTransientPackage() || InChangedPackage->HasAnyFlags(RF_Transient) || InChangedPackage->HasAnyPackageFlags(PKG_CompiledIn) || InObject->HasAnyFlags(RF_Transient))
 	{
@@ -528,7 +540,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	}
 
 	UPackage* ChangedPackage = InObject->GetOutermost();
-	ConcertClientTransactionBridgeUtil::ETransactionFilterResult FilterResult = ConcertClientTransactionBridgeUtil::ApplyTransactionFilters(InObject, ChangedPackage);
+	ETransactionFilterResult FilterResult = ConcertClientTransactionBridgeUtil::ApplyTransactionFilters(TransactionFilters, InObject, ChangedPackage);
 	FOngoingTransaction* TrackedTransaction = OngoingTransactions.Find(InTransactionEvent.GetOperationId());
 
 	// TODO: This needs to send both editor-only and non-editor-only payload data to the server, which will forward only the correct part to cooked and non-cooked clients
@@ -556,7 +568,7 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 			*InTransactionEvent.GetTransactionId().ToString(),
 			*InTransactionEvent.GetOperationId().ToString(),
 			ObjectEventString,
-			(FilterResult == ConcertClientTransactionBridgeUtil::ETransactionFilterResult::ExcludeObject ? TEXT(" FILTERED OBJECT: ") : TEXT("")),
+			(FilterResult == ETransactionFilterResult::ExcludeObject ? TEXT(" FILTERED OBJECT: ") : TEXT("")),
 			*InObject->GetClass()->GetName(),
 			*InObject->GetPathName(), 
 			(InTransactionEvent.HasPropertyChanges() ? TEXT("has") : TEXT("no")), 
@@ -573,9 +585,9 @@ void FConcertClientTransactionBridge::HandleObjectTransacted(UObject* InObject, 
 	FOngoingTransaction& OngoingTransaction = *TrackedTransaction;
 
 	// If the object is excluded or exclude the whole transaction add it to the excluded list
-	if (FilterResult != ConcertClientTransactionBridgeUtil::ETransactionFilterResult::IncludeObject)
+	if (FilterResult != ETransactionFilterResult::IncludeObject)
 	{
-		OngoingTransaction.CommonData.bIsExcluded |= FilterResult == ConcertClientTransactionBridgeUtil::ETransactionFilterResult::ExcludeTransaction;
+		OngoingTransaction.CommonData.bIsExcluded |= FilterResult == ETransactionFilterResult::ExcludeTransaction;
 		OngoingTransaction.CommonData.ExcludedObjectUpdates.Add(ObjectId);
 		return;
 	}
@@ -774,6 +786,18 @@ void FConcertClientTransactionBridge::OnEndFrame()
 			OngoingTransactionPtr->SnapshotData.SnapshotObjectUpdates.Reset();
 		}
 	}
+}
+
+void FConcertClientTransactionBridge::RegisterTransactionFilter(FName FilterName, FTransactionFilterDelegate FilterHandle)
+{
+	check(TransactionFilters.Find(FilterName) == nullptr);
+
+	TransactionFilters.Add(FilterName) = MoveTemp(FilterHandle);
+}
+
+void FConcertClientTransactionBridge::UnregisterTransactionFilter(FName FilterName)
+{
+	TransactionFilters.FindAndRemoveChecked(FilterName);
 }
 
 #undef LOCTEXT_NAMESPACE

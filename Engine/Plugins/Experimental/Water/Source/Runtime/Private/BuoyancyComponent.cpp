@@ -38,7 +38,7 @@ UBuoyancyComponent::UBuoyancyComponent(const FObjectInitializer& ObjectInitializ
 	, bIsOverlappingWaterBody(false)
 	, bCanBeActive(true)
 	, bIsInWaterBody(false)
-	, bUseAsyncPath(false)
+	, bUseAsyncPath(true)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 	PrimaryComponentTick.bStartWithTickEnabled = false;
@@ -137,14 +137,12 @@ void UBuoyancyComponent::Update(float DeltaTime)
 	{
 		if (Output->bValid)
 		{
-			// TODO: It would be way nicer to just have async be the only path, and make
-			// everything that accesses these members go through CurAsyncOutput rather
-			// than copying into the vehicle.
 			const FBuoyancySimOutput& SimOut = Output->SimOutput;
 			bIsInWaterBody = SimOut.bIsInWaterBody;
 
-			check(BuoyancyData.Pontoons.Num() == Output->AuxData.Pontoons.Num());
-			for (int32 i = 0; i < BuoyancyData.Pontoons.Num(); ++i)
+			// We may have deleted/added a pontoon on the game thread
+			int32 PontoonsNum = FMath::Min(BuoyancyData.Pontoons.Num(), Output->AuxData.Pontoons.Num());
+			for (int32 i = 0; i < PontoonsNum; ++i)
 			{
 				BuoyancyData.Pontoons[i].CopyDataFromPT(Output->AuxData.Pontoons[i]);
 			}
@@ -463,11 +461,11 @@ int32 UBuoyancyComponent::UpdatePontoons(float DeltaTime, float ForwardSpeed, fl
 		{
 			TMap<const AWaterBody*, float> DebugSplineKeyMap;
 			TMap<const AWaterBody*, float> DebugSplineSegmentsMap;
-			for (int i = 0; i < 30; ++i)
+			for (int i = 0; i < 10; ++i)
 			{
-				for (int j = 0; j < 30; ++j)
+				for (int j = 0; j < 10; ++j)
 				{
-					FVector Location = PrimitiveComponent->GetComponentLocation() + (FVector::RightVector * (i - 15) * 30) + (FVector::ForwardVector * (j - 15) * 30);
+					FVector Location = PrimitiveComponent->GetComponentLocation() + (FVector::RightVector * (i - 5) * 90) + (FVector::ForwardVector * (j - 5) * 90);
 					GetWaterSplineKey(Location, DebugSplineKeyMap, DebugSplineSegmentsMap);
 					FVector Point(Location.X, Location.Y, GetWaterHeight(Location - FVector::UpVector * 200.f, DebugSplineKeyMap, GetOwner()->GetActorLocation().Z));
 					DrawDebugPoint(GetWorld(), Point, 5.f, IsOverlappingWaterBody() ? FColor::Green : FColor::Red, false, -1.f, 0);

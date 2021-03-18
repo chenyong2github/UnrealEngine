@@ -1,23 +1,36 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlUIModule.h"
+
 #include "AssetToolsModule.h"
 #include "AssetTools/RemoteControlPresetActions.h"
+#include "EditorStyleSet.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/PlatformApplicationMisc.h"
+#include "PropertyHandle.h"
+#include "RemoteControlActor.h"
+#include "RemoteControlField.h"
+#include "RemoteControlPreset.h"
+#include "Textures/SlateIcon.h"
+#include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRCPanelInputBindings.h"
-#include "Widgets/SWidget.h"
-#include "PropertyHandle.h"
-#include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/Input/SButton.h"
-#include "EditorStyleSet.h"
-#include "Widgets/Images/SImage.h"
-#include "Textures/SlateIcon.h"
-#include "HAL/PlatformApplicationMisc.h"
 #include "UI/SRemoteControlPanel.h"
-#include "RemoteControlPreset.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/SWidget.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlUI"
+
+namespace RemoteControlUIModule
+{
+	const TArray<FName> CustomizedStructNames = {
+		FRemoteControlProperty::StaticStruct()->GetFName(),
+        FRemoteControlFunction::StaticStruct()->GetFName(),
+        FRemoteControlActor::StaticStruct()->GetFName()
+    };
+}
 
 void FRemoteControlUIModule::StartupModule()
 {
@@ -25,14 +38,28 @@ void FRemoteControlUIModule::StartupModule()
 	RegisterAssetTools();
 	RegisterDetailRowExtension();
 	RegisterContextMenuExtender();
+	RegisterStructCustomizations();
 }
 
 void FRemoteControlUIModule::ShutdownModule()
 {
+	UnregisterStructCustomizations();
 	UnregisterContextMenuExtender();
 	UnregisterDetailRowExtension();
 	UnregisterAssetTools();
 	FRemoteControlPanelStyle::Shutdown();
+}
+
+FGuid FRemoteControlUIModule::AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon)
+{
+	FGuid FilterId = FGuid::NewGuid();
+	ExternalFilterDelegates.Add(FilterId, MoveTemp(OnDisplayExposeIcon));
+	return FilterId;
+}
+
+void FRemoteControlUIModule::RemovePropertyFilter(const FGuid& FilterId)
+{
+	ExternalFilterDelegates.Remove(FilterId);
 }
 
 TSharedRef<SRemoteControlPanel> FRemoteControlUIModule::CreateRemoteControlPanel(URemoteControlPreset* Preset)
@@ -168,10 +195,9 @@ bool FRemoteControlUIModule::CanToggleExposeProperty(TSharedPtr<IPropertyHandle>
 {
 	if (TSharedPtr<SRemoteControlPanel> Panel = WeakActivePanel.Pin())
 	{
-		if (Panel->GetPreset() && Panel->IsInEditMode())
+		if (Handle)
 		{
-			EPropertyExposeStatus ExposeStatus = GetPropertyExposeStatus(Handle);
-			if (ExposeStatus == EPropertyExposeStatus::Exposed || ExposeStatus == EPropertyExposeStatus::Unexposed)
+			if (!ShouldDisplayExposeIcon(Handle.ToSharedRef()))
 			{
 				return true;
 			}
@@ -252,6 +278,52 @@ TSharedRef<FExtender> FRemoteControlUIModule::ExtendLevelViewportContextMenuForR
 	}
 
 	return Extender.ToSharedRef();
+}
+
+bool FRemoteControlUIModule::ShouldDisplayExposeIcon(const TSharedRef<IPropertyHandle>& PropertyHandle) const
+{
+	// Don't display an expose icon for RCEntities since they're only displayed in the Remote Control Panel.
+	if (FProperty* Prop = PropertyHandle->GetProperty())
+	{
+		if (Prop->GetOwnerStruct() && Prop->GetOwnerStruct()->IsChildOf(FRemoteControlEntity::StaticStruct()))
+		{
+			return false;
+		}
+	}
+
+	for (const TPair<FGuid, FOnDisplayExposeIcon>& DelegatePair : ExternalFilterDelegates)
+	{
+		if (DelegatePair.Value.IsBound())
+		{
+			if (!DelegatePair.Value.Execute(PropertyHandle))
+			{
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+void FRemoteControlUIModule::RegisterStructCustomizations()
+{
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	
+	for (FName Name : RemoteControlUIModule::CustomizedStructNames)
+	{
+		PropertyEditorModule.RegisterCustomClassLayout(Name, FOnGetDetailCustomizationInstance::CreateStatic(&FRemoteControlEntityCustomization::MakeInstance));
+	}
+}
+
+void FRemoteControlUIModule::UnregisterStructCustomizations()
+{
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	
+	// Unregister delegates in reverse order.
+	for (int8 NameIndex = RemoteControlUIModule::CustomizedStructNames.Num() - 1; NameIndex >= 0; NameIndex--)
+	{
+		PropertyEditorModule.UnregisterCustomClassLayout(RemoteControlUIModule::CustomizedStructNames[NameIndex]);
+	}
 }
 
 IMPLEMENT_MODULE(FRemoteControlUIModule, RemoteControlUI);

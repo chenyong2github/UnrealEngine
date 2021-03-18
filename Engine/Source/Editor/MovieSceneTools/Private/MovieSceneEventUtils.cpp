@@ -14,6 +14,7 @@
 
 #include "ScopedTransaction.h"
 
+#include "GameFramework/Actor.h"
 #include "Engine/Blueprint.h"
 
 #include "KismetCompiler.h"
@@ -22,6 +23,10 @@
 #include "K2Node_CallFunction.h"
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_EditablePinBase.h"
+#include "K2Node_DynamicCast.h"
+
+#include "Kismet/KismetSystemLibrary.h"
+
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "Kismet2/Kismet2NameValidators.h"
@@ -382,7 +387,69 @@ UK2Node_FunctionEntry* FMovieSceneEventUtils::GenerateEntryPoint(UMovieSceneEven
 			}
 
 			const FMovieSceneEventPayloadVariable* PayloadVariable = EntrypointDefinition->PayloadVariables.Find(Pin->PinName);
-			if (PayloadVariable)
+			if (!PayloadVariable)
+			{
+				continue;
+			}
+
+			UClass* PinObjectType = Cast<UClass>(Pin->PinType.PinSubCategoryObject.Get());
+			const bool bIsRawActorPin = Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object && PinObjectType && PinObjectType->IsChildOf(AActor::StaticClass());
+
+			if (bIsRawActorPin)
+			{
+				// Raw actor properties are represented as soft object ptrs under the hood so that we can still serialize them
+				// To make this work, we have to make the following graph:
+				// MakeSoftObjectPath('<ActorPath>') -> Conv_SoftObjPathToSoftObjRef() -> Conv_SoftObjectReferenceToObject() -> Cast<ActorType>()
+				UK2Node_CallFunction* MakeSoftObjectPathNode = Compiler->SpawnIntermediateNode<UK2Node_CallFunction>(CallFunctionNode, EntryPointGraph);
+				MakeSoftObjectPathNode->FunctionReference.SetExternalMember(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, MakeSoftObjectPath), UKismetSystemLibrary::StaticClass());
+				MakeSoftObjectPathNode->AllocateDefaultPins();
+
+				UK2Node_CallFunction* ConvertToSoftObjectRef = Compiler->SpawnIntermediateNode<UK2Node_CallFunction>(CallFunctionNode, EntryPointGraph);
+				ConvertToSoftObjectRef->FunctionReference.SetExternalMember(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, Conv_SoftObjPathToSoftObjRef), UKismetSystemLibrary::StaticClass());
+				ConvertToSoftObjectRef->AllocateDefaultPins();
+
+				UK2Node_CallFunction* ConvertToObjectFunc = Compiler->SpawnIntermediateNode<UK2Node_CallFunction>(CallFunctionNode, EntryPointGraph);
+				ConvertToObjectFunc->FunctionReference.SetExternalMember(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, Conv_SoftObjectReferenceToObject), UKismetSystemLibrary::StaticClass());
+				ConvertToObjectFunc->AllocateDefaultPins();
+
+				UK2Node_DynamicCast* CastNode = Compiler->SpawnIntermediateNode<UK2Node_DynamicCast>(CallFunctionNode, EntryPointGraph);
+				CastNode->SetPurity(true);
+				CastNode->TargetType = PinObjectType;
+				CastNode->AllocateDefaultPins();
+
+				UEdGraphPin* PathInput     = MakeSoftObjectPathNode->FindPin(FName("PathString"));
+				UEdGraphPin* PathOutput    = MakeSoftObjectPathNode->GetReturnValuePin();
+				UEdGraphPin* SoftRefInput  = ConvertToSoftObjectRef->FindPin(FName("SoftObjectPath"));
+				UEdGraphPin* SoftRefOutput = ConvertToSoftObjectRef->GetReturnValuePin();
+				UEdGraphPin* ConvertInput  = ConvertToObjectFunc->FindPin(FName("SoftObject"));
+				UEdGraphPin* ConvertOutput = ConvertToObjectFunc->GetReturnValuePin();
+				UEdGraphPin* CastInput     = CastNode->GetCastSourcePin();
+				UEdGraphPin* CastOutput    = CastNode->GetCastResultPin();
+
+				if (!PathInput || !PathOutput || !SoftRefInput || !SoftRefOutput || !ConvertInput || !ConvertOutput || !CastInput || !CastOutput)
+				{
+					Compiler->MessageLog.Error(*LOCTEXT("ActorFacadeError", "GenerateEntryPoint: Failed to generate soft-ptr facade for AActor payload property property @@. @@").ToString(), *Pin->PinName.ToString(), Endpoint);
+					continue;
+				}
+
+				// Set the default value for the path string
+				const bool bMarkAsModified = false;
+				Schema->TrySetDefaultValue(*PathInput, PayloadVariable->Value, bMarkAsModified);
+
+				bool bSuccess = true;
+				bSuccess &= Schema->TryCreateConnection(PathOutput, SoftRefInput);
+				bSuccess &= Schema->TryCreateConnection(SoftRefOutput, ConvertInput);
+				bSuccess &= Schema->TryCreateConnection(ConvertOutput, CastInput);
+				bSuccess &= Schema->TryCreateConnection(CastOutput, Pin);
+
+				if (!bSuccess)
+				{
+					Compiler->MessageLog.Error(*LOCTEXT("ActorFacadeConnectionError", "GenerateEntryPoint: Failed to connect nodes for soft-ptr facade in AActor payload property @@. @@").ToString(), *Pin->PinName.ToString(), Endpoint);
+				}
+
+				ValidPinNames.Add(Pin->PinName);
+			}
+			else
 			{
 				bool bMarkAsModified = false;
 				Schema->TrySetDefaultValue(*Pin, PayloadVariable->Value, bMarkAsModified);

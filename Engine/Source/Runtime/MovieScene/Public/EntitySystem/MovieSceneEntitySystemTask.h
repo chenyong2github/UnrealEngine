@@ -457,6 +457,17 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 	}
 
 	/**
+	 * Read any of the specified components and pass them through to the task as individual optional parameters
+	 *
+	 * @param ComponentTypes  The component types to visit
+	 */
+	template<typename... U>
+	TEntityTaskComponents<T..., TOptionalReadAccess<U>...> ReadAnyOf(TComponentTypeID<U>... ComponentTypes) const
+	{
+		return TEntityTaskComponents<T..., TOptionalReadAccess<U>... >( Accessors.template Get<Indices>()..., TOptionalReadAccess<U>(ComponentTypes)... );
+	}
+
+	/**
 	 * Read the type-erased value of a component. Passed to the task as a const void*
 	 * @note Supplying an invalid ComponentType will be handled gracefully, but will result in no task being dispatched.
 	 *

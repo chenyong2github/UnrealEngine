@@ -23,6 +23,8 @@ namespace EPropertyValueSetFlags
 	const Type NotTransactable = 1 << 0;
 	/** When PostEditChange is called mark the change as interactive (e.g, user is spinning a value in a spin box) */
 	const Type InteractiveChange = 1 << 1;
+	/** If the property being imported to is an instanced object, create a new object rather than simply setting the value literally */
+	const Type InstanceObjects = 1 << 2;
 
 };
 

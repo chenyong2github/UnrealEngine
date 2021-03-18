@@ -11,9 +11,6 @@ namespace UnrealBuildTool.Rules
 		{
 			bUseRTTI = true;
 
-			// todo: not enough, check registry at runtime too
-			PrivateDefinitions.Add("DATASMITH_SKETCHUP_REMOTE_ENGINE_PATH=\"C:/ue/main/Engine/\""); // Mind trailing '/' in path
-
 			// XXX
 			OptimizeCode = CodeOptimization.Never;
 			bUseUnity = false;

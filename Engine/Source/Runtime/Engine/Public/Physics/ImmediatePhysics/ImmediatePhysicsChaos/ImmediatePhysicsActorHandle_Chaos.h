@@ -66,40 +66,40 @@ namespace ImmediatePhysics_Chaos
 
 		void AddTorque(const FVector& Torque);
 
-		void AddRadialForce(const FVector& Origin, float Strength, float Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
+		void AddRadialForce(const FVector& Origin, FReal Strength, FReal Radius, ERadialImpulseFalloff Falloff, EForceType ForceType);
 
 		void AddImpulseAtLocation(FVector Impulse, FVector Location);
 
 		/** Set the linear damping*/
-		void SetLinearDamping(float NewLinearDamping);
+		void SetLinearDamping(FReal NewLinearDamping);
 
 		/** Get the linear damping*/
-		float GetLinearDamping() const;
+		FReal GetLinearDamping() const;
 
 		/** Set the angular damping*/
-		void SetAngularDamping(float NewAngularDamping);
+		void SetAngularDamping(FReal NewAngularDamping);
 
 		/** Get the angular damping*/
-		float GetAngularDamping() const;
+		FReal GetAngularDamping() const;
 
 		/** Set the max linear velocity squared*/
-		void SetMaxLinearVelocitySquared(float NewMaxLinearVelocitySquared);
+		void SetMaxLinearVelocitySquared(FReal NewMaxLinearVelocitySquared);
 
 		/** Get the max linear velocity squared*/
-		float GetMaxLinearVelocitySquared() const;
+		FReal GetMaxLinearVelocitySquared() const;
 
 		/** Set the max angular velocity squared*/
-		void SetMaxAngularVelocitySquared(float NewMaxAngularVelocitySquared);
+		void SetMaxAngularVelocitySquared(FReal NewMaxAngularVelocitySquared);
 
 		/** Get the max angular velocity squared*/
-		float GetMaxAngularVelocitySquared() const;
+		FReal GetMaxAngularVelocitySquared() const;
 
 		/** Set the inverse mass. 0 indicates kinematic object */
-		void SetInverseMass(float NewInverseMass);
+		void SetInverseMass(FReal NewInverseMass);
 
 		/** Get the inverse mass. */
-		float GetInverseMass() const;
-		float GetMass() const;
+		FReal GetInverseMass() const;
+		FReal GetMass() const;
 
 		/** Set the inverse inertia. Mass-space inverse inertia diagonal vector */
 		void SetInverseInertia(const FVector& NewInverseInertia);
@@ -109,16 +109,16 @@ namespace ImmediatePhysics_Chaos
 		FVector GetInertia() const;
 
 		/** Set the max depenetration velocity*/
-		void SetMaxDepenetrationVelocity(float NewMaxDepenetrationVelocity);
+		void SetMaxDepenetrationVelocity(FReal NewMaxDepenetrationVelocity);
 
 		/** Get the max depenetration velocity*/
-		float GetMaxDepenetrationVelocity(float NewMaxDepenetrationVelocity) const;
+		FReal GetMaxDepenetrationVelocity() const;
 
 		/** Set the max contact impulse*/
-		void SetMaxContactImpulse(float NewMaxContactImpulse);
+		void SetMaxContactImpulse(FReal NewMaxContactImpulse);
 
 		/** Get the max contact impulse*/
-		float GetMaxContactImpulse() const;
+		FReal GetMaxContactImpulse() const;
 
 		/** Get the actor-space centre of mass offset */
 		FTransform GetLocalCoMTransform() const;

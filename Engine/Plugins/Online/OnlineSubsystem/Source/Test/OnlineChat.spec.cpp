@@ -80,9 +80,9 @@ void FOnlineChatSpec::Define()
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, SubsystemType, TestDone](int32 LoginLocalPlayerNumTestAccount, bool bLoginWasSuccessfulTestAccount, const FUniqueNetId& LoginUserIdTestAccount, const FString& LoginErrorTestAccount)
 						{
 							FString TestAccountIdString = CommonUtils.GetSubsystemTestAccountUniqueId(SubsystemType);
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->CreateUniquePlayerId(TestAccountIdString);
 
-							TSharedPtr<const FUniqueNetId> ReceivingAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("7c2bdf22c0264d7193a88002c0ea95bf"));
+							FUniqueNetIdPtr ReceivingAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("7c2bdf22c0264d7193a88002c0ea95bf"));
 
 							OnlineChat->SendPrivateChat(*TestAccountId, *ReceivingAccountId, TEXT("Test"));
 

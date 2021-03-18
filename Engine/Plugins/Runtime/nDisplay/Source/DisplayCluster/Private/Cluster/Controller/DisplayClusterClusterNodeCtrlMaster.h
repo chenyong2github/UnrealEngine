@@ -29,7 +29,7 @@ public:
 	virtual void GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime) override;
 	virtual void GetSyncData(TMap<FString, FString>& SyncData, EDisplayClusterSyncGroup SyncGroup) override;
 	virtual void GetInputData(TMap<FString, FString>& InputData) override;
-	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) override;
+	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) override;
 	virtual void GetNativeInputData(TMap<FString, FString>& EventsData) override;
 
 public:
@@ -81,8 +81,8 @@ private:
 
 	// GetEventsData internals
 	FEvent* CachedEventsDataEvent = nullptr;
-	TArray<TSharedPtr<FDisplayClusterClusterEventJson>>   CachedJsonEvents;
-	TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> CachedBinaryEvents;
+	TArray<TSharedPtr<FDisplayClusterClusterEventJson,   ESPMode::ThreadSafe>>   CachedJsonEvents;
+	TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> CachedBinaryEvents;
 
 private:
 	mutable FCriticalSection InternalsSyncScope;

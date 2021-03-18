@@ -4377,7 +4377,6 @@ void FEngineLoop::Exit()
 	AppPreExit();
 
 	TermGamePhys();
-	ParticleVertexFactoryPool_FreePool();
 #else
 	// AppPreExit() stops malloc profiler, do it here instead
 	MALLOC_PROFILER( GMalloc->Exec(nullptr, TEXT("MPROF STOP"), *GLog);	);
@@ -5264,14 +5263,16 @@ void FEngineLoop::Tick()
 		}
 		#endif
 
+		// We need to set this marker before EndFrameRenderThread is enqueued. 
+		// If multithreaded rendering is off, it can cause a bad ordering of game and rendering markers.
+		GEngine->SetGameLatencyMarkerEnd(CurrentFrameCounter);
+
 		// end of RHI frame
 		ENQUEUE_RENDER_COMMAND(EndFrame)(
 			[CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
 			{
 				EndFrameRenderThread(RHICmdList, CurrentFrameCounter);
 			});
-
-		GEngine->SetGameLatencyMarkerEnd(CurrentFrameCounter);
 
 		// Set CPU utilization stats.
 		const FCPUTime CPUTime = FPlatformTime::GetCPUTime();
@@ -5528,6 +5529,8 @@ bool FEngineLoop::AppInit( )
 	if (FParse::Param(FCommandLine::Get(), TEXT("BUILDMACHINE")))
 	{
 		GIsBuildMachine = true;
+		// propagate to subprocesses, especially because some - like ShaderCompileWorker - use DDC, for which this switch matters
+		FCommandLine::AddToSubprocessCommandline(TEXT(" -buildmachine"));
 	}
 
 	// If "-WaitForDebugger" was specified, halt startup and wait for a debugger to attach before continuing
@@ -5920,6 +5923,15 @@ void FEngineLoop::AppPreExit( )
 #endif
 
 	FCoreDelegates::OnExit.Broadcast();
+
+	// FGenericRHIGPUFence uses GFrameNumberRenderThread to tell when a frame is finished. If such an object is added in the last frame before we
+	// exit, it will never be "signaled", since nothing ever increments GFrameNumberRenderThread again. This can lead to deadlocks in code
+	// which uses async tasks to wait until resources are safe to be deleted (for example, FMediaTextureResource).
+	// To avoid this, we set the frame number to the maximum possible value here, before waiting for the thread pool to die. It's safe to do so
+	// because FlushRenderingCommands() is called multiple times on exit before reaching this point, so there's no way the render thread has any
+	// more frames in flight. Note that simply incrementing the value doesn't work, because FGenericRHIGPUFence::WriteInternal adds
+	// GNumAlternateFrameRenderingGroups to the current frame number to account for multi-GPU, and we don't want to depend on that RHI export here.
+	GFrameNumberRenderThread = MAX_uint32;
 
 	// Clean up the thread pool
 	// GThreadPool might be a wrapper around GLargeThreadPool so we have to destroy it first

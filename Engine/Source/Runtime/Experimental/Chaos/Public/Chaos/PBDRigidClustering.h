@@ -14,7 +14,7 @@
 
 namespace Chaos
 {
-	extern CHAOS_API float ChaosClusteringChildrenInheritVelocity;
+	extern CHAOS_API FRealSingle ChaosClusteringChildrenInheritVelocity;
 }
 
 namespace Chaos
@@ -255,7 +255,7 @@ public:
 		ClusterUnionMap[ClusterID].Add(Handle);
 	}
 
-	const TArray<TBreakingData<FReal, 3>>& GetAllClusterBreakings() const { return MAllClusterBreakings; }
+	const TArray<FBreakingData>& GetAllClusterBreakings() const { return MAllClusterBreakings; }
 	void SetGenerateClusterBreaking(bool DoGenerate) { DoGenerateBreakingData = DoGenerate; }
 	void ResetAllClusterBreakings() { MAllClusterBreakings.Reset(); }
 
@@ -355,7 +355,7 @@ private:
 	
 	// Breaking data
 	bool DoGenerateBreakingData;
-	TArray<TBreakingData<FReal, 3>> MAllClusterBreakings;
+	TArray<FBreakingData> MAllClusterBreakings;
 
 	FReal MClusterConnectionFactor;
 	FClusterCreationParameters::EConnectionMethod MClusterUnionConnectionType;

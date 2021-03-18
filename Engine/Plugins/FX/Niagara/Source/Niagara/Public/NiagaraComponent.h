@@ -695,11 +695,7 @@ private:
 
 
 public:
-#if WITH_PARTICLE_PERF_STATS
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(GetWorld(), Asset); }
-#else	
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
-#endif
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext(){ return FParticlePerfStatsContext(GetWorld(), Asset, this); }
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA
@@ -718,7 +714,7 @@ class NIAGARA_API FNiagaraSceneProxy : public FPrimitiveSceneProxy
 public:
 	SIZE_T GetTypeHash() const override;
 
-	FNiagaraSceneProxy(const UNiagaraComponent* InComponent);
+	FNiagaraSceneProxy(UNiagaraComponent* InComponent);
 	~FNiagaraSceneProxy();
 
 	/** Called on render thread to assign new dynamic data */

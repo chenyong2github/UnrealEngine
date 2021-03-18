@@ -125,7 +125,7 @@ protected:
 		FRejoinableParty(const USocialParty& SourceParty);
 
 		TSharedRef<const FOnlinePartyId> PartyId;
-		TArray<TSharedRef<const FUniqueNetId>> MemberIds;
+		TArray<FUniqueNetIdRef> MemberIds;
 	};
 
 	struct PARTY_API FJoinPartyAttempt
@@ -193,7 +193,7 @@ protected:
 	const FJoinPartyAttempt* GetJoinAttemptInProgress(const FOnlinePartyTypeId& PartyTypeId) const;
 
 	//@todo DanH: TEMP - for now relying on FN to bind to its game-level UFortOnlineSessionClient instance #required
-	void HandlePlatformSessionInviteAccepted(const TSharedRef<const FUniqueNetId>& LocalUserId, const FOnlineSessionSearchResult& InviteResult);
+	void HandlePlatformSessionInviteAccepted(const FUniqueNetIdRef& LocalUserId, const FOnlineSessionSearchResult& InviteResult);
 
 	virtual TSubclassOf<USocialDebugTools> GetSocialDebugToolsClass() const;
 

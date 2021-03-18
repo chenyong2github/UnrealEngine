@@ -67,7 +67,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -128,7 +128,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -189,7 +189,7 @@ void FOnlineAchievementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -211,7 +211,7 @@ void FOnlineAchievementsSpec::Define()
 										FOnlineAchievementsWritePtr AchievementWriteObject = MakeShareable(new FOnlineAchievementsWrite());
 										FOnlineAchievementsWriteRef AchievementWriter = AchievementWriteObject.ToSharedRef();
 
-										TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+										FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 										OnlineAchievements->WriteAchievements(*BadAccountId, AchievementWriter, FOnAchievementsWrittenDelegate::CreateLambda([this, &SomeAchievement, AchievementWriteObject, TestAccountId, TestAchievement, TestDone](const FUniqueNetId& WriteAchievements, bool bWriteAchievementsWasSuccessful)
 										{
@@ -258,7 +258,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -297,7 +297,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+							FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 							if (BadAccountId.IsValid())
 							{
@@ -344,7 +344,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -394,7 +394,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -405,7 +405,7 @@ void FOnlineAchievementsSpec::Define()
 
 									if (PlayerAchievements.Num() > 0)
 									{
-										TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+										FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 										OnlineAchievements->QueryAchievementDescriptions(*BadAccountId, FOnQueryAchievementsCompleteDelegate::CreateLambda([this, PlayerAchievements, BadAccountId, TestDone](const FUniqueNetId& QueryAchievementDescriptionsPlayerId, const bool bQueryAchievementDescriptionsWasSuccessful)
 										{
@@ -453,7 +453,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -497,7 +497,7 @@ void FOnlineAchievementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -530,7 +530,7 @@ void FOnlineAchievementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -541,7 +541,7 @@ void FOnlineAchievementsSpec::Define()
 
 									if (PlayerAchievements.Num() > 0)
 									{
-										TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+										FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 										FString TestAchievement = PlayerAchievements[0].Id;
 
@@ -583,7 +583,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -613,13 +613,13 @@ void FOnlineAchievementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
 								OnlineAchievements->QueryAchievements(*TestAccountId, FOnQueryAchievementsCompleteDelegate::CreateLambda([this, TestAccountId, TestDone](const FUniqueNetId& QueryAchievementsPlayerId, const bool bQueryAchievementsWasSuccessful)
 								{
-									TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+									FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 
 									TArray<FOnlineAchievement> PlayerAchievements;
 									OnlineAchievements->GetCachedAchievements(*BadAccountId, PlayerAchievements);
@@ -646,7 +646,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -694,7 +694,7 @@ void FOnlineAchievementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -750,7 +750,7 @@ void FOnlineAchievementsSpec::Define()
 					{
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -808,7 +808,7 @@ void FOnlineAchievementsSpec::Define()
 
 						OnLoginCompleteDelegateHandle = OnlineIdentity->AddOnLoginCompleteDelegate_Handle(0, FOnLoginCompleteDelegate::CreateLambda([this, TestDone](int32 LoginLocalUserNum, bool bLoginWasSuccessful, const FUniqueNetId& LoginUserId, const FString& LoginError)
 						{
-							TSharedPtr<const FUniqueNetId> TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
+							FUniqueNetIdPtr TestAccountId = OnlineIdentity->GetUniquePlayerId(0);
 
 							if (TestAccountId.IsValid())
 							{
@@ -824,7 +824,7 @@ void FOnlineAchievementsSpec::Define()
 									{
 										TestEqual("Verify that PlayerAchievements[0].Progress is: 100", PlayerAchievements[0].Progress == 100, true);
 
-										TSharedPtr<const FUniqueNetId> BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
+										FUniqueNetIdPtr BadAccountId = OnlineIdentity->CreateUniquePlayerId(TEXT("0123456789"));
 #if !UE_BUILD_SHIPPING
 										OnlineAchievements->ResetAchievements(*BadAccountId);
 #endif // !UE_BUILD_SHIPPING

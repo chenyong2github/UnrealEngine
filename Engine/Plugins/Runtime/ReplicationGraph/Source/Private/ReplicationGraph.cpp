@@ -60,6 +60,7 @@
 #include "Misc/ScopeExit.h"
 #include "Net/NetworkGranularMemoryLogging.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "Engine/ServerStatReplicator.h"
 
 #if USE_SERVER_PERF_COUNTERS
 #include "PerfCountersModule.h"
@@ -318,6 +319,8 @@ void UReplicationGraph::InitGlobalActorClassSettings()
 
 	RPC_Multicast_OpenChannelForClass.Reset();
 	RPC_Multicast_OpenChannelForClass.Set(AActor::StaticClass(), true); // Open channels for multicast RPCs by default
+	RPC_Multicast_OpenChannelForClass.Set(AController::StaticClass(), false);
+	RPC_Multicast_OpenChannelForClass.Set(AServerStatReplicator::StaticClass(), false);	
 }
 
 void UReplicationGraph::InitGlobalGraphNodes()
@@ -1127,6 +1130,7 @@ int32 UReplicationGraph::ServerReplicateActors(float DeltaSeconds)
 	}
 #endif
 
+	FrameReplicationStats.NumConnections = Connections.Num() + NumChildrenConnectionsProcessed;
 	PostServerReplicateStats(FrameReplicationStats);
 
 	CSVTracker.EndReplicationFrame();
@@ -2074,10 +2078,10 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 				// Actors being destroyed (Building hit with rocket) will wake up before this gets hit. So dormancy really cant be relied on here.
 				// if (Actor->NetDormancy > DORM_Awake)
 				{
-					bool ShouldOpenChannel = true;
+					bool bShouldOpenChannel = true;
 					if (ConnectionActorInfo.GetCullDistanceSquared() > 0.f)
 					{
-						ShouldOpenChannel = false;
+						bShouldOpenChannel = false;
 						if (ActorLocation.IsSet() == false)
 						{
 							ActorLocation = Actor->GetActorLocation();
@@ -2101,14 +2105,21 @@ bool UReplicationGraph::ProcessRemoteFunction(class AActor* Actor, UFunction* Fu
 							const float DistSq = (ActorLocation.GetValue() - Viewer.ViewLocation).SizeSquared();
 							if (DistSq <= ConnectionActorInfo.GetCullDistanceSquared())
 							{
-								ShouldOpenChannel = true;
+								bShouldOpenChannel = true;
 								break;
 							}
 						}
 					}
 
-					if (ShouldOpenChannel)
+					if (bShouldOpenChannel)
 					{
+#if !UE_BUILD_SHIPPING
+						if (Actor->bOnlyRelevantToOwner && (!Actor->GetNetOwner() || (Actor->GetNetOwner() != NetConnection->PlayerController)))
+						{
+							UE_LOG(LogReplicationGraph, Warning, TEXT("Multicast RPC opening channel for bOnlyRelevantToOwner actor, check RPC_Multicast_OpenChannelForClass: Actor: %s Target: %s Function: %s"), *GetNameSafe(Actor), *GetNameSafe(TargetObj), *GetNameSafe(Function));
+						}
+#endif
+
 						// We are within range, we will open a channel now for this actor and call the RPC on it
 						ConnectionActorInfo.Channel = (UActorChannel*)NetConnection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
 
@@ -3459,9 +3470,8 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActorListsForConnectio
 					FDynamicSpatialFrequency_SortedItem& Item = SortedReplicationList[idx];
 					AActor* Actor = Item.Actor;
 					FGlobalActorReplicationInfo& GlobalInfo = *Item.GlobalInfo;
-					FConnectionReplicationActorInfo& ConnectionInfo = ConnectionActorInfoMap.FindOrAdd(Actor);
 				
-					CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionInfo, MySettings, Params.Viewers, FrameNum, idx);
+					CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionActorInfoMap, MySettings, Params.Viewers, FrameNum, idx);
 				}
 
 				SortedReplicationList.Sort();
@@ -3607,6 +3617,21 @@ static TArray<FColor> DynamicSpatialFrequencyDebugColorArray = { FColor::Red, FC
 
 void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
 {
+	for (UNetReplicationGraphConnection* ConnectionManager : RepGraph->Connections)
+	{
+		if (ConnectionManager->NetConnection == NetConnection)
+		{
+			CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionManager->ActorInfoMap, MySettings, Viewers, FrameNum, ExistingItemIndex);
+			return;
+		}
+	}
+}
+
+
+void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FPerConnectionActorInfoMap& ConnectionMap, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex)
+{
+	FConnectionReplicationActorInfo& ConnectionInfo = ConnectionMap.FindOrAdd(Actor);
+
 	// If we need to filter out the actor and he is already in the SortedReplicationList, we need to remove it (instead of just skipping/returning).
 	auto RemoveExistingItem = [&ExistingItemIndex, this]()
 	{
@@ -3711,6 +3736,13 @@ void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor
 
 				// Update actor timeout frame here in case we get starved and can't actually replicate before then
 				ConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(ConnectionInfo.ActorChannelCloseFrameNum, ConnectionInfo.NextReplicationFrameNum + 1);
+
+				const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalInfo.GetDependentActorList();
+				for (AActor* DependentActor : DependentActorList)
+				{
+					FConnectionReplicationActorInfo& DependentActorConnectionInfo = ConnectionMap.FindOrAdd(DependentActor);
+					DependentActorConnectionInfo.ActorChannelCloseFrameNum = FMath::Max<uint32>(ConnectionInfo.ActorChannelCloseFrameNum, ConnectionInfo.NextReplicationFrameNum + 1);
+				}
 
 				// Calc Replication Period for FastShared replication
 				if (ActorSupportsFastShared && ZoneInfo.FastPath_MinRepPeriod > 0)
@@ -3819,9 +3851,8 @@ void UReplicationGraphNode_DynamicSpatialFrequency::GatherActors(const FActorRep
 		}
 
 		FGlobalActorReplicationInfo& GlobalInfo = GlobalMap.Get(Actor);
-		FConnectionReplicationActorInfo& ConnectionInfo = ConnectionMap.FindOrAdd(Actor);
 
-		CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionInfo, MySettings, Params.Viewers, FrameNum, INDEX_NONE);
+		CalcFrequencyForActor(Actor, RepGraph, NetConnection, GlobalInfo, ConnectionMap, MySettings, Params.Viewers, FrameNum, INDEX_NONE);
 	}
 }
 

@@ -7,8 +7,8 @@
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
 
-#include "Roles/LiveLinkCameraRole.h"
-#include "Roles/LiveLinkCameraTypes.h"
+#include "LiveLinkPrestonMDRRole.h"
+#include "LiveLinkPrestonMDRTypes.h"
 
 #include "Sockets.h"
 #include "SocketSubsystem.h"
@@ -47,6 +47,89 @@ void FLiveLinkPrestonMDRSource::ReceiveClient(ILiveLinkClient* InClient, FGuid I
 	MessageThread->OnConnectionFailed_AnyThread().BindRaw(this, &FLiveLinkPrestonMDRSource::OnConnectionFailed_AnyThread);
 
 	MessageThread->Start();
+}
+
+void FLiveLinkPrestonMDRSource::InitializeSettings(ULiveLinkSourceSettings* Settings)
+{
+	ILiveLinkSource::InitializeSettings(Settings);
+
+	if (ULiveLinkPrestonMDRSourceSettings* MDRSettings = Cast<ULiveLinkPrestonMDRSourceSettings>(Settings))
+	{
+		SavedSourceSettings = MDRSettings;
+
+		if (MessageThread)
+		{
+			MessageThread->SetIncomingDataMode_AnyThread(SavedSourceSettings->IncomingDataMode);
+		}
+
+		UpdateStaticData_AnyThread();
+	}
+	else
+	{
+		UE_LOG(LogPrestonMDRSource, Warning, TEXT("Preston MDR Source coming from Preset is outdated. Consider recreating a Preston MDR Source. Configure it and resave as preset"));
+	}
+}
+
+void FLiveLinkPrestonMDRSource::OnSettingsChanged(ULiveLinkSourceSettings* Settings, const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	ILiveLinkSource::OnSettingsChanged(Settings, PropertyChangedEvent);
+
+	const FProperty* const MemberProperty = PropertyChangedEvent.MemberProperty;
+	const FProperty* const Property = PropertyChangedEvent.Property;
+	if (Property && MemberProperty && (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive))
+	{
+		if (SavedSourceSettings != nullptr)
+		{
+			const FName PropertyName = Property->GetFName();
+			const FName MemberPropertyName = MemberProperty->GetFName();
+
+			if (PropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkPrestonMDRSourceSettings, IncomingDataMode))
+			{
+				if (MessageThread)
+				{
+					MessageThread->SetIncomingDataMode_AnyThread(SavedSourceSettings->IncomingDataMode);
+				}
+				UpdateStaticData_AnyThread();
+			}
+			else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkPrestonMDRSourceSettings, FocusEncoderRange))
+			{
+				if (PropertyName == GET_MEMBER_NAME_CHECKED(FEncoderRange, Min))
+				{
+					SavedSourceSettings->FocusEncoderRange.Min = FMath::Clamp(SavedSourceSettings->FocusEncoderRange.Min, (uint16)0, SavedSourceSettings->FocusEncoderRange.Max);
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FEncoderRange, Max))
+				{
+					SavedSourceSettings->FocusEncoderRange.Max = FMath::Clamp(SavedSourceSettings->FocusEncoderRange.Max, SavedSourceSettings->FocusEncoderRange.Min, (uint16)0xFFFF);
+				}
+			}
+			else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkPrestonMDRSourceSettings, IrisEncoderRange))
+			{
+				if (PropertyName == GET_MEMBER_NAME_CHECKED(FEncoderRange, Min))
+				{
+					SavedSourceSettings->IrisEncoderRange.Min = FMath::Clamp(SavedSourceSettings->IrisEncoderRange.Min, (uint16)0, SavedSourceSettings->IrisEncoderRange.Max);
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FEncoderRange, Max))
+				{
+					SavedSourceSettings->IrisEncoderRange.Max = FMath::Clamp(SavedSourceSettings->IrisEncoderRange.Max, SavedSourceSettings->IrisEncoderRange.Min, (uint16)0xFFFF);
+				}
+			}
+			else if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(ULiveLinkPrestonMDRSourceSettings, ZoomEncoderRange))
+			{
+				if (PropertyName == GET_MEMBER_NAME_CHECKED(FEncoderRange, Min))
+				{
+					SavedSourceSettings->ZoomEncoderRange.Min = FMath::Clamp(SavedSourceSettings->ZoomEncoderRange.Min, (uint16)0, SavedSourceSettings->ZoomEncoderRange.Max);
+				}
+				else if (PropertyName == GET_MEMBER_NAME_CHECKED(FEncoderRange, Max))
+				{
+					SavedSourceSettings->ZoomEncoderRange.Max = FMath::Clamp(SavedSourceSettings->ZoomEncoderRange.Max, SavedSourceSettings->ZoomEncoderRange.Min, (uint16)0xFFFF);
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogPrestonMDRSource, Warning, TEXT("Preston MDR Source coming from Preset is outdated. Consider recreating a Preston MDR Source. Configure it and resave as preset"));
+		}
+	}
 }
 
 bool FLiveLinkPrestonMDRSource::IsSourceStillValid() const
@@ -154,8 +237,8 @@ void FLiveLinkPrestonMDRSource::OnConnectionLost_AnyThread()
 
 	if (MessageThread)
 	{
-		MessageThread->SetSocket(Socket);
-		MessageThread->SoftReset();
+		MessageThread->SetSocket_AnyThread(Socket);
+		MessageThread->SoftReset_AnyThread();
 	}
 }
 
@@ -179,8 +262,10 @@ void FLiveLinkPrestonMDRSource::OnStatusChanged_AnyThread(FMDR3Status InStatus)
 
 void FLiveLinkPrestonMDRSource::UpdateStaticData_AnyThread()
 {
-	FLiveLinkStaticDataStruct PrestonMDRStaticDataStruct(FLiveLinkCameraStaticData::StaticStruct());
-	FLiveLinkCameraStaticData* PrestonMDRStaticData = PrestonMDRStaticDataStruct.Cast<FLiveLinkCameraStaticData>();
+	FLiveLinkStaticDataStruct PrestonMDRStaticDataStruct(FLiveLinkPrestonMDRStaticData::StaticStruct());
+	FLiveLinkPrestonMDRStaticData* PrestonMDRStaticData = PrestonMDRStaticDataStruct.Cast<FLiveLinkPrestonMDRStaticData>();
+
+	PrestonMDRStaticData->FIZDataMode = SavedSourceSettings->IncomingDataMode;
 
 	PrestonMDRStaticData->bIsFocalLengthSupported = LatestMDRStatus.bIsZoomMotorSet;
 	PrestonMDRStaticData->bIsApertureSupported = LatestMDRStatus.bIsIrisMotorSet;
@@ -190,22 +275,45 @@ void FLiveLinkPrestonMDRSource::UpdateStaticData_AnyThread()
 	PrestonMDRStaticData->bIsAspectRatioSupported = false;
 	PrestonMDRStaticData->bIsProjectionModeSupported = false;
 
-	Client->PushSubjectStaticData_AnyThread(SubjectKey, ULiveLinkCameraRole::StaticClass(), MoveTemp(PrestonMDRStaticDataStruct));
+	Client->PushSubjectStaticData_AnyThread(SubjectKey, ULiveLinkPrestonMDRRole::StaticClass(), MoveTemp(PrestonMDRStaticDataStruct));
 }
 
 void FLiveLinkPrestonMDRSource::OnFrameDataReady_AnyThread(FLensDataPacket InData)
 {
 	bIsConnectedToDevice = true;
 
-	FLiveLinkFrameDataStruct LensFrameDataStruct(FLiveLinkCameraFrameData::StaticStruct());
-	FLiveLinkCameraFrameData* LensFrameData = LensFrameDataStruct.Cast<FLiveLinkCameraFrameData>();
+	FLiveLinkFrameDataStruct LensFrameDataStruct(FLiveLinkPrestonMDRFrameData::StaticStruct());
+	FLiveLinkPrestonMDRFrameData* LensFrameData = LensFrameDataStruct.Cast<FLiveLinkPrestonMDRFrameData>();
 
 	LastTimeDataReceived = FPlatformTime::Seconds();
 	LensFrameData->WorldTime = LastTimeDataReceived.load();
 	LensFrameData->MetaData.SceneTime = InData.FrameTime;
-	LensFrameData->FocusDistance = InData.Focus;
-	LensFrameData->FocalLength = InData.Zoom;
-	LensFrameData->Aperture = InData.Iris;
+
+	if (SavedSourceSettings->IncomingDataMode == ECameraFIZMode::PreConvertedData)
+	{
+		LensFrameData->RawFocusEncoderValue = 0;
+		LensFrameData->RawIrisEncoderValue = 0;
+		LensFrameData->RawZoomEncoderValue = 0;
+
+		LensFrameData->FocusDistance = InData.Focus;
+		LensFrameData->Aperture = InData.Iris;
+		LensFrameData->FocalLength = InData.Zoom;
+	}
+	else
+	{
+		LensFrameData->RawFocusEncoderValue = InData.Focus;
+		LensFrameData->RawIrisEncoderValue = InData.Iris;
+		LensFrameData->RawZoomEncoderValue = InData.Zoom;
+
+		const uint16 FocusDelta = SavedSourceSettings->FocusEncoderRange.Max - SavedSourceSettings->FocusEncoderRange.Min;
+		LensFrameData->FocusDistance = (FocusDelta != 0) ? FMath::Clamp((InData.Focus - SavedSourceSettings->FocusEncoderRange.Min) / (float)FocusDelta, 0.0f, 1.0f) : 0.0f;
+
+		const uint16 IrisDelta = SavedSourceSettings->IrisEncoderRange.Max - SavedSourceSettings->IrisEncoderRange.Min;
+		LensFrameData->Aperture = (IrisDelta != 0) ? FMath::Clamp((InData.Iris - SavedSourceSettings->IrisEncoderRange.Min) / (float)IrisDelta, 0.0f, 1.0f) : 0.0f;
+
+		const uint16 ZoomDelta = SavedSourceSettings->ZoomEncoderRange.Max - SavedSourceSettings->ZoomEncoderRange.Min;
+		LensFrameData->FocalLength = (ZoomDelta != 0) ? FMath::Clamp((InData.Zoom - SavedSourceSettings->ZoomEncoderRange.Min) / (float)ZoomDelta, 0.0f, 1.0f) : 0.0f;
+	}
 
 	Client->PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(LensFrameDataStruct));
 }

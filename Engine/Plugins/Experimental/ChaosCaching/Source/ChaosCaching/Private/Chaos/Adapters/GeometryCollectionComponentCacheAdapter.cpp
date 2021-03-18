@@ -42,8 +42,8 @@ namespace Chaos
 
 	void FGeometryCollectionCacheAdapter::Record_PostSolve(UPrimitiveComponent* InComp, const FTransform& InRootTransform, FPendingFrameWrite& OutFrame, Chaos::FReal InTime) const
 	{
-		using FClusterParticle = Chaos::TPBDRigidClusteredParticleHandle<float, 3>;
-		using FRigidParticle = Chaos::TPBDRigidParticleHandle<float, 3>;
+		using FClusterParticle = Chaos::FPBDRigidClusteredParticleHandle;
+		using FRigidParticle = Chaos::FPBDRigidParticleHandle;
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComp);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
@@ -64,7 +64,7 @@ namespace Chaos
 		FGeometryDynamicCollection&            Collection       = Proxy->GetPhysicsCollection();
 		const TManagedArray<int32>&            TransformIndices = RestCollection->TransformIndex;
 		const TManagedArray<FTransform>&       Transforms       = Collection.Transform;
-		const TArray<TBreakingData<float, 3>>& Breaks           = Solver->GetEvolution()->GetRigidClustering().GetAllClusterBreakings();
+		const TArray<FBreakingData>& Breaks                     = Solver->GetEvolution()->GetRigidClustering().GetAllClusterBreakings();
 
 		// A transform index exists for each 'real' (i.e. leaf node in the rest collection)
 		const int32 NumTransforms = Collection.NumElements(FGeometryCollection::TransformGroup);
@@ -74,7 +74,7 @@ namespace Chaos
 
 		TArray<TGeometryParticleHandle<Chaos::FReal, 3>*> RelatedBreaks;
 		RelatedBreaks.Reserve(Breaks.Num());
-		for(const TBreakingData<float, 3>& Break : Breaks)
+		for(const FBreakingData& Break : Breaks)
 		{
 			// Accessing the GT particle here to pull the proxy - while unsafe we're recording a proxy currently so it should remain valid.
 			// No GT data is being read from the particle
@@ -127,7 +127,7 @@ namespace Chaos
 			{
 				if (BreakingDataArray->IsValidIndex(Index))
 				{
-					const TBreakingData<float, 3>& BreakingData = (*BreakingDataArray)[Index];
+					const FBreakingData& BreakingData = (*BreakingDataArray)[Index];
 					if (const TPBDRigidParticleHandle<FReal, 3>*Rigid = BreakingData.Particle->CastToRigidParticle())
 					{
 						int32 TransformIndex = Proxy->GetTransformGroupIndexFromHandle(Rigid);
@@ -151,8 +151,8 @@ namespace Chaos
 															FPlaybackTickRecord&                               TickRecord,
 															TArray<TPBDRigidParticleHandle<Chaos::FReal, 3>*>& OutUpdatedRigids) const
 	{
-		using FClusterParticle = Chaos::TPBDRigidClusteredParticleHandle<float, 3>;
-		using FRigidParticle = Chaos::TPBDRigidParticleHandle<float, 3>;
+		using FClusterParticle = Chaos::FPBDRigidClusteredParticleHandle;
+		using FRigidParticle = Chaos::FPBDRigidParticleHandle;
 
 		UGeometryCollectionComponent*    Comp  = CastChecked<UGeometryCollectionComponent>(InComponent);
 		FGeometryCollectionPhysicsProxy* Proxy = Comp->GetPhysicsProxy();
@@ -195,7 +195,7 @@ namespace Chaos
 				{
 					if(Particles.IsValidIndex(Event->Index))
 					{
-						Chaos::TPBDRigidClusteredParticleHandle<float, 3>* ChildParticle = Particles[Event->Index];
+						Chaos::FPBDRigidClusteredParticleHandle* ChildParticle = Particles[Event->Index];
 						
 						if (ChildParticle)
 						{
@@ -275,7 +275,7 @@ namespace Chaos
 								continue;
 							}
 
-							TBreakingData<float, 3> CachedBreak;
+							FBreakingData CachedBreak;
 							CachedBreak.Particle = Particle;
 							CachedBreak.ParticleProxy = Proxy;
 							CachedBreak.Location = Event->Location;
@@ -311,7 +311,7 @@ namespace Chaos
 
 			if(Particles.IsValidIndex(ParticleIndex))
 			{
-				Chaos::TPBDRigidClusteredParticleHandleFloat3* Handle = Particles[ParticleIndex];
+				Chaos::FPBDRigidClusteredParticleHandle* Handle = Particles[ParticleIndex];
 
 				if(!Handle || Handle->ObjectState() != EObjectStateType::Kinematic)
 				{

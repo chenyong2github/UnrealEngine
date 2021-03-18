@@ -49,7 +49,7 @@ void USocialChatManager::JoinChatRoomPublic(const FChatRoomId& RoomId, const FCh
 		if (ChatInterface.IsValid())
 		{
 			USocialUser& LocalUser = GetOwningToolkit().GetLocalUser();
-			const TSharedPtr<const FUniqueNetId> LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
+			const FUniqueNetIdPtr LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
 			check(LocalUserNetId.IsValid());
 			ChatInterface->JoinPublicRoom(*LocalUserNetId.Get(), RoomId, LocalUser.GetDisplayName(InSocialSubsystem), InChatRoomConfig);
 			UE_LOG(LogOnline, VeryVerbose, TEXT("USocialChatManager::JoinChatRoomPublic - Attempting to join room %s"), *RoomId);
@@ -73,7 +73,7 @@ void USocialChatManager::JoinChatRoomPrivate(const FChatRoomId& RoomId, const FC
 		if (ChatInterface.IsValid())
 		{
 			USocialUser& LocalUser = GetOwningToolkit().GetLocalUser();
-			const TSharedPtr<const FUniqueNetId> LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
+			const FUniqueNetIdPtr LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
 			check(LocalUserNetId.IsValid());
 			ChatInterface->JoinPrivateRoom(*LocalUserNetId.Get(), RoomId, LocalUser.GetDisplayName(InSocialSubsystem), InChatRoomConfig);
 			UE_LOG(LogOnline, VeryVerbose, TEXT("USocialChatManager::JoinChatRoomPrivate - Attempting to join room %s"), *RoomId);
@@ -97,7 +97,7 @@ void USocialChatManager::ExitChatRoom(const FChatRoomId& RoomId, ESocialSubsyste
 		if (ChatInterface.IsValid())
 		{
 			USocialUser& LocalUser = GetOwningToolkit().GetLocalUser();
-			const TSharedPtr<const FUniqueNetId> LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
+			const FUniqueNetIdPtr LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
 			check(LocalUserNetId.IsValid());
 			ChatInterface->ExitRoom(*LocalUserNetId.Get(), RoomId);
 			UE_LOG(LogOnline, VeryVerbose, TEXT("USocialChatManager::ExitChatRoom - Attempting to exit room %s"), *RoomId);
@@ -523,7 +523,7 @@ void USocialChatManager::LocalUserInitialized(USocialUser& LocalUser)
 	{
 		GroupInterface->OnGroupUpdated.AddUObject(this, &ThisClass::OnGroupUpdated);
 
-		const TSharedPtr<const FUniqueNetId> LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
+		const FUniqueNetIdPtr LocalUserNetId = LocalUser.GetUserId(InSocialSubsystem).GetUniqueNetId();
 		check(LocalUserNetId.IsValid());
 
 		GroupInterface->QueryUserMembership(*LocalUserNetId.Get(), *LocalUserNetId.Get(), FOnGroupsRequestCompleted::CreateUObject(this, &ThisClass::RefreshGroupsRequestCompleted));
@@ -538,7 +538,7 @@ void USocialChatManager::RefreshGroupsRequestCompleted(FGroupsResult Result)
 		USocialToolkit& OwningToolkit = GetOwningToolkit();
 
 		USocialUser& LocalUser = OwningToolkit.GetLocalUser();
-		const TSharedPtr<const FUniqueNetId> LocalUserNetId = LocalUser.GetUserId(ESocialSubsystem::Primary).GetUniqueNetId();
+		const FUniqueNetIdPtr LocalUserNetId = LocalUser.GetUserId(ESocialSubsystem::Primary).GetUniqueNetId();
 		check(LocalUserNetId.IsValid());
 
 		TSharedPtr<const IUserMembership> Membership = GroupInterface->GetCachedUserMembership(*LocalUserNetId.Get(), *LocalUserNetId.Get());

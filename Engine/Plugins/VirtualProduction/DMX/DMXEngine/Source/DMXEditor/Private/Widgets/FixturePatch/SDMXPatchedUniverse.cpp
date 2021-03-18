@@ -7,6 +7,8 @@
 #include "DMXFixturePatchEditorDefinitions.h"
 #include "SDMXChannelConnector.h"
 #include "SDMXFixturePatchFragment.h"
+#include "IO/DMXInputPort.h"
+#include "IO/DMXOutputPort.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 
@@ -52,7 +54,7 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 						SNew(STextBlock)
 						.Font(FEditorStyle::GetFontStyle("PropertyWindow.NormalFont"))
 						.TextStyle(FEditorStyle::Get(), "DetailsView.CategoryTextStyle")
-						.Text(this, &SDMXPatchedUniverse::GetUniverseName)
+						.Text(this, &SDMXPatchedUniverse::GetHeaderText)
 					]
 				]
 
@@ -62,7 +64,7 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 					.BorderImage(FEditorStyle::GetBrush("Graph.Node.DevelopmentBanner"))
 					.HAlign(HAlign_Fill)
 					.VAlign(VAlign_Fill)
-					.Visibility(this, &SDMXPatchedUniverse::GetOutOfControllersRangesBannerVisibility)
+					.Visibility(this, &SDMXPatchedUniverse::GetPatchedUniverseReachabilityBannerVisibility)
 				]
 			]
 			
@@ -112,7 +114,7 @@ void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 		// Update what to draw
 		UniverseID = NewUniverseID;
 
-		UpdateOutOfControllersRanges();
+		UpdatePatchedUniverseReachability();
 
 		TArray<UDMXEntityFixturePatch*> PatchesInUniverse;
 		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&](UDMXEntityFixturePatch* Patch) 
@@ -205,7 +207,7 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 		return false;
 	}
 
-	int32 NewChannelSpan = FixturePatch->GetChannelSpan();
+	const int32 NewChannelSpan = FixturePatch->GetChannelSpan();
 
 	// Auto assign patches that have bAutoAssignAddress set
 	if (FixturePatch->bAutoAssignAddress)
@@ -291,12 +293,17 @@ bool SDMXPatchedUniverse::CanAssignFixturePatch(TWeakObjectPtr<UDMXEntityFixture
 	FText InvalidReason;
 	if (!FixturePatch.IsValid() ||
 		!FixturePatch->IsValidEntity(InvalidReason) ||
-		!FixturePatch->CanReadActiveMode())
+		!FixturePatch->GetActiveMode())
 	{
 		return false;
 	}
 
 	int32 ChannelSpan = FixturePatch->GetChannelSpan();
+	if (ChannelSpan == 0)
+	{
+		// Cannot patch a patch with 0 channel span
+		return false;
+	}
 
 	// Only fully valid channels are supported
 	check(StartingChannel > 0);
@@ -379,35 +386,74 @@ FReply SDMXPatchedUniverse::HandleDropOntoChannel(int32 ChannelID, const FDragDr
 	return OnDropOntoChannel.Execute(UniverseID, ChannelID, DragDropEvent);
 }
 
-FText SDMXPatchedUniverse::GetUniverseName() const
+FText SDMXPatchedUniverse::GetHeaderText() const
 {
-	if (bOutOfControllersRanges)
+	switch (PatchedUniverseReachability)
 	{
-		return FText::Format(LOCTEXT("DMXPatchedUniverse.Unreachable", "Universe {0} - Unreachable by Controllers"), UniverseID);
+		case EDMXPatchedUniverseReachability::Reachable:
+			return FText::GetEmpty();
+
+		case EDMXPatchedUniverseReachability::UnreachableForInputPorts:
+			return FText::Format(LOCTEXT("UnreachableForInputPorts", "Universe {0} - Unreachable by Input Ports"), UniverseID);
+
+		case EDMXPatchedUniverseReachability::UnreachableForOutputPorts:
+			return FText::Format(LOCTEXT("UnreachableForOutputPorts", "Universe {0} - Unreachable by Output Ports"), UniverseID);
+
+		case EDMXPatchedUniverseReachability::UnreachableForInputAndOutputPorts:
+			return FText::Format(LOCTEXT("UnreachableForInputAndOutputPorts", "Universe {0} - Unreachable by Input and Output Ports"), UniverseID);
+
+		default:
+			// Unhandled enum value
+			checkNoEntry();
 	}
-	return FText::Format(LOCTEXT("DMXPatchedUniverse.Reachable", "Universe {0}"), UniverseID);
+
+	return FText::GetEmpty();
 }
 
-EVisibility SDMXPatchedUniverse::GetOutOfControllersRangesBannerVisibility() const
+EVisibility SDMXPatchedUniverse::GetPatchedUniverseReachabilityBannerVisibility() const
 {
-	return bOutOfControllersRanges ? EVisibility::Visible : EVisibility::Hidden;
+	if (PatchedUniverseReachability == EDMXPatchedUniverseReachability::Reachable)
+	{
+		return EVisibility::Hidden;
+	}
+
+	return EVisibility::Visible;
 }
 
-void SDMXPatchedUniverse::UpdateOutOfControllersRanges()
+void SDMXPatchedUniverse::UpdatePatchedUniverseReachability()
 {
-	bOutOfControllersRanges = true;
+	PatchedUniverseReachability = EDMXPatchedUniverseReachability::Reachable;
 
 	UDMXLibrary* Library = GetDMXLibrary();
 	if (Library)
 	{
-		const TArray<UDMXEntityController*>&& Controllers = Library->GetEntitiesTypeCast<UDMXEntityController>();
-		for (UDMXEntityController* Controller : Controllers)
+		for (const FDMXInputPortSharedRef& InputPort : Library->GetInputPorts())
 		{
-			if (UniverseID >= Controller->UniverseLocalStart &&
-				UniverseID <= Controller->UniverseLocalEnd)
+			if (UniverseID >= InputPort->GetLocalUniverseStart() &&
+				UniverseID <= InputPort->GetLocalUniverseEnd())
 			{
-				bOutOfControllersRanges = false;
-				break;
+				continue;
+			}
+
+			PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForInputPorts;
+		}
+		
+		bool bUnreachableForInputPorts = PatchedUniverseReachability == EDMXPatchedUniverseReachability::UnreachableForInputPorts;
+		for (const FDMXOutputPortSharedRef& OutputPort : Library->GetOutputPorts())
+		{
+			if (UniverseID >= OutputPort->GetLocalUniverseStart() &&
+				UniverseID <= OutputPort->GetLocalUniverseEnd())
+			{
+				continue;
+			}
+
+			if (bUnreachableForInputPorts)
+			{
+				PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForInputAndOutputPorts;
+			}
+			else
+			{
+				PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForOutputPorts;
 			}
 		}
 	}

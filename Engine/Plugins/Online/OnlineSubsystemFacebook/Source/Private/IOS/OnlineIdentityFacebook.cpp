@@ -29,7 +29,7 @@ void FUserOnlineAccountFacebook::Parse(const FBSDKAccessToken* AccessToken)
 	if (UserIdPtr->ToString().IsEmpty() ||
 		UserIdPtr->ToString() != UserIdStr)
 	{
-		UserIdPtr = MakeShared<const FUniqueNetIdFacebook>(UserIdStr);
+		UserIdPtr = FUniqueNetIdFacebook::Create(UserIdStr);
 	}
 
 	const FString Token(AccessToken.tokenString);
@@ -44,7 +44,7 @@ void FUserOnlineAccountFacebook::Parse(const FBSDKProfile* NewProfile)
 	if (UserIdPtr->ToString().IsEmpty() ||
 		UserIdPtr->ToString() == NewProfileUserId)
 	{
-		UserIdPtr = MakeShared<const FUniqueNetIdFacebook>(NewProfileUserId);
+		UserIdPtr = FUniqueNetIdFacebook::Create(NewProfileUserId);
 
 		RealName = FString(NewProfile.name);
 
@@ -246,7 +246,7 @@ void FOnlineIdentityFacebook::OnLoginAttemptComplete(int32 LocalUserNum, const F
 	if (LoginStatus == ELoginStatus::LoggedIn)
 	{
 		UE_LOG_ONLINE_IDENTITY(Display, TEXT("Facebook login was successful"));
-		TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+		FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 		check(UserId.IsValid());
 		TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UserId, ErrorStr);
 		TriggerOnLoginStatusChangedDelegates(LocalUserNum, ELoginStatus::NotLoggedIn, ELoginStatus::LoggedIn, *UserId);
@@ -265,7 +265,7 @@ void FOnlineIdentityFacebook::OnLoginAttemptComplete(int32 LocalUserNum, const F
 				// Trigger this on the game thread
 				UE_LOG_ONLINE_IDENTITY(Display, TEXT("Facebook login failed: %s"), *NewErrorStr);
 
-				TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 				if (UserId.IsValid())
 				{
 					// remove cached user account
@@ -299,7 +299,7 @@ bool FOnlineIdentityFacebook::Logout(int32 LocalUserNum)
 			[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 			{
 				// Trigger this on the game thread
-				TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 				if (UserId.IsValid())
 				{
 					// remove cached user account

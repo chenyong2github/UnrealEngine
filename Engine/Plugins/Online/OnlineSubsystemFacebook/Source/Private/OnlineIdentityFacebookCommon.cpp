@@ -58,9 +58,9 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityFacebookCommon::GetAllUse
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityFacebookCommon::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineIdentityFacebookCommon::GetUniquePlayerId(int32 LocalUserNum) const
 {
-	const TSharedPtr<const FUniqueNetId>* FoundId = UserIds.Find(LocalUserNum);
+	const FUniqueNetIdPtr* FoundId = UserIds.Find(LocalUserNum);
 	if (FoundId != nullptr)
 	{
 		return *FoundId;
@@ -200,19 +200,19 @@ void FOnlineIdentityFacebookCommon::RequestCurrentPermissions(int32 LocalUserNum
 	}
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityFacebookCommon::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineIdentityFacebookCommon::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Bytes != nullptr && Size > 0)
 	{
 		FString StrId(Size, (TCHAR*)Bytes);
-		return MakeShareable(new FUniqueNetIdFacebook(StrId));
+		return FUniqueNetIdFacebook::Create(StrId);
 	}
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityFacebookCommon::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineIdentityFacebookCommon::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShareable(new FUniqueNetIdFacebook(Str));
+	return FUniqueNetIdFacebook::Create(Str);
 }
 
 bool FOnlineIdentityFacebookCommon::AutoLogin(int32 LocalUserNum)
@@ -222,7 +222,7 @@ bool FOnlineIdentityFacebookCommon::AutoLogin(int32 LocalUserNum)
 
 ELoginStatus::Type FOnlineIdentityFacebookCommon::GetLoginStatus(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetLoginStatus(*UserId);
@@ -244,7 +244,7 @@ ELoginStatus::Type FOnlineIdentityFacebookCommon::GetLoginStatus(const FUniqueNe
 
 FString FOnlineIdentityFacebookCommon::GetPlayerNickname(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetPlayerNickname(*UserId);
@@ -265,7 +265,7 @@ FString FOnlineIdentityFacebookCommon::GetPlayerNickname(const FUniqueNetId& Use
 
 FString FOnlineIdentityFacebookCommon::GetAuthToken(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		TSharedPtr<FUserOnlineAccount> UserAccount = GetUserAccount(*UserId);
@@ -280,7 +280,7 @@ FString FOnlineIdentityFacebookCommon::GetAuthToken(int32 LocalUserNum) const
 void FOnlineIdentityFacebookCommon::RevokeAuthToken(const FUniqueNetId& UserId, const FOnRevokeAuthTokenCompleteDelegate& Delegate)
 {
 	UE_LOG_ONLINE_IDENTITY(Display, TEXT("FOnlineIdentityFacebookCommon::RevokeAuthToken not implemented"));
-	TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	FacebookSubsystem->ExecuteNextTick([UserIdRef, Delegate]()
 	{
 		Delegate.ExecuteIfBound(*UserIdRef, FOnlineError(FString(TEXT("RevokeAuthToken not implemented"))));

@@ -23,8 +23,8 @@ struct FDMXEntityFixtureTypeRef;
 * k2Node that checks if a FixturePatch is of a given FixtureType, and if it succeed, lets you
 * grab the function values from the patch
 */
-UCLASS()
-class DMXBLUEPRINTGRAPH_API UK2Node_CastPatchToType
+UCLASS(Deprecated)
+class DMXBLUEPRINTGRAPH_API UDEPRECATED_K2Node_CastPatchToType
 	: public UK2Node_EditablePinBase
 {
 	GENERATED_BODY()
@@ -43,7 +43,7 @@ public:
 
 public:
 
-	UK2Node_CastPatchToType();
+	UDEPRECATED_K2Node_CastPatchToType();
 
 	//~ Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;

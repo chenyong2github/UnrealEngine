@@ -350,14 +350,16 @@ public:
 	 */
 	FOnStepWasEdited& GetOnStepWasEdited();
 
+	/**
+	 * @return The appearance information associated with this action asset
+	 */
+	UDataprepActionAppearance* GetAppearance();
+
 	UPROPERTY(Transient)
 	bool bExecutionInterrupted;
 
 	UPROPERTY()
 	bool bIsEnabled;
-
-	UPROPERTY()
-	UDataprepActionAppearance* Appearance;
 
 	/** Getter and Setter on the UI text of the action */
 	const TCHAR* GetLabel() const { return *Label; }
@@ -452,6 +454,9 @@ private:
 	/** Array of operations and/or filters constituting this action */
 	UPROPERTY()
 	TArray<UDataprepActionStep*> Steps;
+
+	UPROPERTY()
+	UDataprepActionAppearance* Appearance;
 
 	/** Broadcasts any change to the stack of steps */
 	FOnStepsOrderChanged OnStepsOrderChanged;

@@ -47,7 +47,7 @@ bool USkeletalMeshEditorSubsystem::RegenerateLOD(USkeletalMesh* SkeletalMesh, in
 		return false;
 	}
 
-	return FLODUtilities::RegenerateLOD(SkeletalMesh, NewLODCount, bRegenerateEvenIfImported, bGenerateBaseLOD);
+	return FLODUtilities::RegenerateLOD(SkeletalMesh, GetTargetPlatformManagerRef().GetRunningTargetPlatform(), NewLODCount, bRegenerateEvenIfImported, bGenerateBaseLOD);
 }
 
 

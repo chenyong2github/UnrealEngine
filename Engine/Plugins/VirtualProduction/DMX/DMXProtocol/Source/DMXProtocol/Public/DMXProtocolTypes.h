@@ -4,6 +4,7 @@
 
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolConstants.h"
+#include "DMXProtocolLog.h"
 #include "DMXProtocolMacros.h"
 #include "DMXNameListItem.h"
 
@@ -15,38 +16,50 @@
 
 #include "DMXProtocolTypes.generated.h"
 
-/** A single, generic DMX signal */
+
+/** Type of network communication */
+UENUM()
+enum class EDMXCommunicationType : uint8
+{
+	Broadcast,
+	Unicast,
+	Multicast,
+	InternalOnly	// For protocols that do not expose this as a selection to users
+};
+
+/** A single, generic DMX signal. One universe of raw DMX data received */
 class FDMXSignal
-	: public TSharedFromThis<FDMXSignal>
+	: public TSharedFromThis<FDMXSignal, ESPMode::ThreadSafe>
 {
 public:
 	FDMXSignal()
 		: Timestamp()
-		, UniverseID(0)
+		, ExternUniverseID(0)
 		, ChannelData()
 	{
-		ChannelData.Reserve(DMX_UNIVERSE_SIZE);
+		ChannelData.AddZeroed(DMX_UNIVERSE_SIZE);
 	}
 
 	FDMXSignal(double InTimestamp, int32 InUniverseID, const TArray<uint8>& InChannelData)
 		: Timestamp(InTimestamp)
-		, UniverseID(InUniverseID)
+		, ExternUniverseID(InUniverseID)
 		, ChannelData(InChannelData)
 	{}
 
 	FDMXSignal(double InTimestamp, int32 InUniverseID, TArray<uint8>&& InChannelData)
 		: Timestamp(InTimestamp)
-		, UniverseID(InUniverseID)
+		, ExternUniverseID(InUniverseID)
 		, ChannelData(InChannelData)
 	{}
 
 	double Timestamp;
 
-	int32 UniverseID;
+	int32 ExternUniverseID;
 
 	TArray<uint8> ChannelData;
 };
 
+/** Result when sending a DMX packet */
 UENUM(BlueprintType, Category = "DMX")
 enum class EDMXSendResult : uint8
 {
@@ -58,34 +71,20 @@ enum class EDMXSendResult : uint8
 	ErrorNoSenderInterface UMETA(DisplayName = "Error No Sending Interface")
 };
 
-UENUM()
-enum class EDMXProtocolDirectionality : uint8
-{
-	EInput 	UMETA(DisplayName = "Input"),
-	EOutput UMETA(DisplayName = "Output"),
-};
-
-UENUM()
-enum class EDMXCommunicationTypes : uint8
-{
-	Broadcast	UMETA(DisplayName = "Broadcast"),
-	Unicast		UMETA(DisplayName = "Unicast"),
-	Multicast	UMETA(DisplayName = "Multicast"),
-};
-
 UENUM(BlueprintType, Category = "DMX")
 enum class EDMXFixtureSignalFormat : uint8
 {
 	/** Uses 1 channel (byte). Range: 0 to 255 */
-	E8Bit 	UMETA(DisplayName = "8 Bit"),
+	E8Bit  = 0 	UMETA(DisplayName = "8 Bit"),
 	/** Uses 2 channels (bytes). Range: 0 to 65.535 */
-	E16Bit 	UMETA(DisplayName = "16 Bit"),
+	E16Bit = 1	UMETA(DisplayName = "16 Bit"),
 	/** Uses 3 channels (bytes). Range: 0 to 16.777.215 */
-	E24Bit 	UMETA(DisplayName = "24 Bit"),
+	E24Bit = 2	UMETA(DisplayName = "24 Bit"),
 	/** Uses 4 channels (bytes). Range: 0 to 4.294.967.295 */
-	E32Bit 	UMETA(DisplayName = "32 Bit"),
+	E32Bit = 3	UMETA(DisplayName = "32 Bit"),
 };
 
+/** A DMX protocol as a name that can be displayed in UI. The protocol is directly accessible via GetProtocol */
 USTRUCT(BlueprintType, Category = "DMX")
 struct DMXPROTOCOL_API FDMXProtocolName
 	: public FDMXNameListItem
@@ -96,8 +95,10 @@ public:
 	DECLARE_DMX_NAMELISTITEM_STATICS(false)
 
 	FDMXProtocolName();
+
 	/** Construct from a protocol name */
 	explicit FDMXProtocolName(const FName& InName);
+
 	/** Construct from a protocol */
 	FDMXProtocolName(IDMXProtocolPtr InProtocol);
 
@@ -127,6 +128,7 @@ public:
 	bool operator!=(const FName& Other) const { return !Name.IsEqual(Other); }
 };
 
+/** Category of a fixture */
 USTRUCT(BlueprintType, Category = "DMX")
 struct DMXPROTOCOL_API FDMXFixtureCategory
 	: public FDMXNameListItem
@@ -174,132 +176,6 @@ public:
 	static FName Conv_DMXFixtureCategoryToName(const FDMXFixtureCategory& InFixtureCategory);
 };
 
-/**
- * Stores to where a DMX protocol routes its data.
- *
- * If UnicastIpAddresses is empty, the protocol will send all data in broadcast mode to UniverseNumber.
- * Otherwise, all traffic is routed to IPs specified in UnicastIpAddresses.
- */
-USTRUCT()
-struct DMXPROTOCOL_API FDMXCommunicationEndpoint 
-{
-	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = "DMX")
-	uint32 UniverseNumber;
-
-	UPROPERTY()
-	TArray<FString> UnicastIpAddresses;
-
-	bool ShouldBroadcastOnly() const
-	{
-		return UnicastIpAddresses.Num() == 0;
-	}
-
-	FDMXCommunicationEndpoint()
-		: UniverseNumber(0)
-	{}
-};
-
-struct DMXPROTOCOL_API FDMXBuffer
-{
-public:
-	FDMXBuffer()
-		: SequenceID(0)
-	{
-		DMXData.AddZeroed(DMX_UNIVERSE_SIZE);
-	}
-
-	/** @return Gets actual SequenceID  */
-	uint32 GetSequenceID() const { return SequenceID; }
-
-	/** @return DMX buffer address value */
-	uint8 GetDMXDataAddress(uint32 InAddress) const;
-
-	/**
-	 * Calls InFunction with a reference to the DMX data buffer passed in on a thread-safe manner.
-	 * This method locks execution and calls InFunction as soon as the buffer can be accessed,
-	 * so it's safe to reference locally scoped variables inside InFunction.
-	 */
-	void AccessDMXData(TFunctionRef<void(TArray<uint8>&)> InFunction);
-
-	/**
-	 * Updates the fragment in the DMX buffer
-	 * This is set Map values, by specifying channels into the 512 DMX buffer
-	 * 
-	 * @param IDMXFragmentMap DMX fragment map
-	 * @return True if it was successfully set
-	 */
-	bool SetDMXFragment(const IDMXFragmentMap& InDMXFragment);
-
-	/**
-	 * Sets the DMX buffer from input buffer
-	 * 
-	 * @param InBuffer Pointer to DMX buffer array
-	 * @param InSize Size of the buffer to copy 
-	 * @return True if it was successfully set
-	 */
-	bool SetDMXBuffer(const uint8* InBuffer, uint32 InSize);
-
-	/** Sets all values in the buffer to Zero */
-	void ZeroDMXBuffer();
-
-private:
-	/** DMX bytes buffer array */
-	TArray<uint8> DMXData;
-
-	/** Synchronizations sequence id */
-	TAtomic<uint32> SequenceID;
-
-	/** Mutex to make sure no two threads write to the buffer concurrently */
-	mutable FCriticalSection BufferCritSec;
-};
-
-struct DMXPROTOCOL_API FDMXPacket
-{
-	FDMXPacket(FJsonObject& InSettings, uint32 InUniverseID, const TArray<uint8>& InData)
-	{
-		Settings = InSettings;
-		UniverseID = InUniverseID;
-		Data = InData;
-	}
-
-	FDMXPacket(const TArray<uint8>& InData)
-	{
-		Data = InData;
-		UniverseID = 0;
-	}
-
-	FJsonObject Settings;
-	TArray<uint8> Data;
-	uint32 UniverseID;
-};
-
-struct DMXPROTOCOL_API FRDMUID
-{
-	FRDMUID()
-	{
-	}
-
-	FRDMUID(uint8 InBuffer[RDM_UID_WIDTH])
-	{
-		FMemory::Memcpy(Buffer, InBuffer, RDM_UID_WIDTH);
-	}
-
-	FRDMUID(const TArray<uint8>& InBuffer)
-	{
-		// Only copy if we have the requested amount of data
-		if (InBuffer.Num() == RDM_UID_WIDTH)
-		{
-			FMemory::Memmove(Buffer, InBuffer.GetData(), RDM_UID_WIDTH);
-		}
-		else
-		{
-			UE_LOG_DMXPROTOCOL(Verbose, TEXT("Size of the TArray buffer is wrong"));
-		}
-	}
-
-	uint8 Buffer[RDM_UID_WIDTH] = { 0 };
-};
 
 

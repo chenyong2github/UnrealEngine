@@ -13,7 +13,7 @@ FOnlineSessionInfoTencent::FOnlineSessionInfoTencent()
 {
 }
 
-FOnlineSessionInfoTencent::FOnlineSessionInfoTencent(const TSharedPtr<const FUniqueNetIdString>& InSessionId)
+FOnlineSessionInfoTencent::FOnlineSessionInfoTencent(const FUniqueNetIdStringPtr& InSessionId)
 	: SessionId(InSessionId)
 {
 }
@@ -21,15 +21,15 @@ FOnlineSessionInfoTencent::FOnlineSessionInfoTencent(const TSharedPtr<const FUni
 void FOnlineSessionInfoTencent::Init()
 {
 	FGuid NewGuid = FGuid::NewGuid();
-	SessionId = MakeShareable(new FUniqueNetIdString(NewGuid.ToString(), TENCENT_SUBSYSTEM));
+	SessionId = FUniqueNetIdString::Create(NewGuid.ToString(), TENCENT_SUBSYSTEM);
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineSessionTencent::CreateSessionIdFromString(const FString& SessionIdStr)
+FUniqueNetIdPtr FOnlineSessionTencent::CreateSessionIdFromString(const FString& SessionIdStr)
 {
-	TSharedPtr<const FUniqueNetId> SessionId;
+	FUniqueNetIdPtr SessionId;
 	if (!SessionIdStr.IsEmpty())
 	{
-		SessionId = MakeShared<FUniqueNetIdString>(SessionIdStr, TENCENT_SUBSYSTEM);
+		SessionId = FUniqueNetIdString::Create(SessionIdStr, TENCENT_SUBSYSTEM);
 	}
 	return SessionId;
 }
@@ -145,7 +145,7 @@ FNamedOnlineSession* FOnlineSessionTencent::GetPresenceSession()
 	return nullptr;
 }
 
-bool FOnlineSessionTencent::StartMatchmaking(const TArray< TSharedRef<const FUniqueNetId> >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings) { return false; }
+bool FOnlineSessionTencent::StartMatchmaking(const TArray< FUniqueNetIdRef >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings) { return false; }
 bool FOnlineSessionTencent::CancelMatchmaking(int32 SearchingPlayerNum, FName SessionName) { return false; }
 bool FOnlineSessionTencent::CancelMatchmaking(const FUniqueNetId& SearchingPlayerId, FName SessionName) { return false; }
 bool FOnlineSessionTencent::FindSessions(int32 SearchingPlayerNum, const TSharedRef<FOnlineSessionSearch>& SearchSettings) { return false; }
@@ -161,11 +161,11 @@ bool FOnlineSessionTencent::CancelFindSessions() { return false; }
 bool FOnlineSessionTencent::PingSearchResults(const FOnlineSessionSearchResult& SearchResult) { return false; }
 bool FOnlineSessionTencent::FindFriendSession(int32 LocalUserNum, const FUniqueNetId& Friend) { return false; }
 bool FOnlineSessionTencent::FindFriendSession(const FUniqueNetId& LocalUserId, const FUniqueNetId& Friend) { return false; }
-bool FOnlineSessionTencent::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList) { return false; }
+bool FOnlineSessionTencent::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList) { return false; }
 bool FOnlineSessionTencent::SendSessionInviteToFriend(int32 LocalUserNum, FName SessionName, const FUniqueNetId& Friend) { return false; }
 bool FOnlineSessionTencent::SendSessionInviteToFriend(const FUniqueNetId& LocalUserId, FName SessionName, const FUniqueNetId& Friend) { return false; }
-bool FOnlineSessionTencent::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends) { return false; }
-bool FOnlineSessionTencent::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends) { return false; }
+bool FOnlineSessionTencent::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< FUniqueNetIdRef >& Friends) { return false; }
+bool FOnlineSessionTencent::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< FUniqueNetIdRef >& Friends) { return false; }
 bool FOnlineSessionTencent::GetResolvedConnectString(FName SessionName, FString& ConnectInfo, FName PortType) { return false; }
 bool FOnlineSessionTencent::GetResolvedConnectString(const FOnlineSessionSearchResult& SearchResult, FName PortType, FString& ConnectInfo) { return false; }
 

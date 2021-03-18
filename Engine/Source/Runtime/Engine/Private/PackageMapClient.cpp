@@ -1168,8 +1168,14 @@ bool UPackageMapClient::ExportNetGUIDForReplay(FNetworkGUID& NetGUID, UObject* O
 		TArray<uint8>& GUIDMemory = ExportGUIDArchives.Emplace_GetRef();
 		GUIDMemory.Reserve(MaxReservedSize);
 
+		FNetGUIDCache::ENetworkChecksumMode RestoreMode = GuidCache->NetworkChecksumMode;
+
+		GuidCache->SetNetworkChecksumMode(FNetGUIDCache::ENetworkChecksumMode::None);
+
 		FMemoryWriter Writer(GUIDMemory);
 		InternalWriteObject(Writer, NetGUID, Object, PathName, ObjOuter);
+
+		GuidCache->SetNetworkChecksumMode(RestoreMode);
 
 		check(!Writer.IsError());
 		ensureMsgf(GUIDMemory.Num() <= MaxReservedSize, TEXT("ExportNetGUIDForReplay exceeded CVarReservedNetGuidSize. Max=%l Count=%l"), MaxReservedSize, GUIDMemory.Num());
@@ -1477,13 +1483,25 @@ void UPackageMapClient::SerializeNetFieldExportGroupMap( FArchive& Ar, bool bCle
 		uint32 NumNetFieldExportGroups = 0;
 		Ar << NumNetFieldExportGroups;
 
-		// Read each export group
-		for ( int32 i = 0; i < ( int32 )NumNetFieldExportGroups; i++ )
+		if (Ar.IsError())
 		{
-			TSharedPtr< FNetFieldExportGroup > NetFieldExportGroup = TSharedPtr< FNetFieldExportGroup >( new FNetFieldExportGroup() );
+			UE_LOG(LogNetPackageMap, Warning, TEXT("UPackageMapClient::SerializeNetFieldExportGroupMap - Archive error while reading NumNetFieldExportGroups"));
+			return;
+		}
+
+		// Read each export group
+		for (uint32 i = 0; i < NumNetFieldExportGroups; ++i)
+		{
+			TSharedPtr<FNetFieldExportGroup> NetFieldExportGroup = MakeShared<FNetFieldExportGroup>();
 
 			// Read in the export group
 			Ar << *NetFieldExportGroup.Get();
+
+			if (Ar.IsError())
+			{
+				UE_LOG(LogNetPackageMap, Warning, TEXT("UPackageMapClient::SerializeNetFieldExportGroupMap - Archive error while loading FNetFieldExportGroup, Index: %u"), i);
+				return;
+			}
 
 			GEngine->NetworkRemapPath(Connection, NetFieldExportGroup->PathName, true);
 

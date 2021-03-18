@@ -202,7 +202,7 @@ void FOnlineExternalUITwitch::OnConsoleShowWebUrlComplete(const FString& FinalUr
 
 void FOnlineExternalUITwitch::OnAccessTokenLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& ErrorStr, FOnLoginUIClosedDelegate Delegate)
 {
-	TSharedPtr<const FUniqueNetId> StrongUserId = UserId.AsShared();
+	FUniqueNetIdPtr StrongUserId = UserId.AsShared();
 	FOnlineError Error(bWasSuccessful);
 	if (!bWasSuccessful)
 	{

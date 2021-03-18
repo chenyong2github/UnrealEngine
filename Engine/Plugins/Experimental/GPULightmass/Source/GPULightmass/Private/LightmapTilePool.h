@@ -9,6 +9,7 @@
 
 struct FVirtualTile
 {
+	// Comparison of FLightmapRenderStateRef is solely based on ElementId, which means it won't survive array changes (which means element swaps)
 	GPULightmass::FLightmapRenderStateRef RenderState;
 	int32 MipLevel = 0;
 	int32 VirtualAddress = 0;
@@ -37,6 +38,7 @@ public:
 	void QueryResidency(const TArrayView<FVirtualTile> InTilesToQuery, TArray<uint32>& OutTileIndexIfResident);
 	void Map(const TArrayView<FVirtualTile> InVirtualTiles, const TArrayView<int32> InTiles, TArray<FVirtualTile>& OutVirtualTilesEvicted);
 	void Unmap(const TArrayView<FVirtualTile> InVirtualTiles);
+	void UnmapAll();
 
 private:
 	FBinaryHeap<uint32, uint32> FreeHeap;

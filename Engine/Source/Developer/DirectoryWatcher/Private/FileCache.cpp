@@ -396,7 +396,10 @@ FFileCache::FFileCache(const FFileCacheConfig& InConfig)
 	if (IDirectoryWatcher* DirectoryWatcher = Module.Get())
 	{
 		auto Callback = IDirectoryWatcher::FDirectoryChanged::CreateRaw(this, &FFileCache::OnDirectoryChanged);
-		DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(Config.Directory, Callback, WatcherDelegate);
+		if (!DirectoryWatcher->RegisterDirectoryChangedCallback_Handle(Config.Directory, Callback, WatcherDelegate))
+		{
+			UE_LOG(LogFileCache, Error, TEXT("Failed registering directory watcher for folder '%s'"), *Config.Directory);
+		}
 	}
 }
 

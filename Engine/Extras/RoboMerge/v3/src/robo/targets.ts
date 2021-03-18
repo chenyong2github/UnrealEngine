@@ -12,24 +12,38 @@ export function getIntegrationOwner(pending: PendingChange): string
 export function getIntegrationOwner(arg0: Branch | PendingChange, overriddenOwner?: string) {
 	// order of priority for owner:
 
-	//  1) manual requester - if this change was manually requested, use the requestor (now set as the change owner)
-	//	2) resolver - need resolver to take priority, even over reconsider, since recon might be from branch with
+	//  1)	a) Change flagged 'manual', i.e. will create a shelf
+	//			- the 'manual' flag itself is problematic, really ought to be a per target thing somehow
+	//		b) shelf/stomp request
+	//		c) edge reconsider
+	//	2) resolver - need resolver to take priority, even over node reconsider, since recon might be from branch with
 	//					multiple targets, so instigator might not even know about target with resolver
-	//	3) reconsider
+	//	3) node reconsider
 	//	4) propagated/manually added tag
 	//	5) author - return null here for that case
 
-	const pending = (arg0 as PendingChange)
-
-	const branch = pending.action ? pending.action.branch : (arg0 as Branch)
-	const owner = pending.change ? pending.change.owner : overriddenOwner
-
-	// Manual requester
-	if ( (pending.action && pending.action.flags.has('manual')) ||
-		(pending.change && pending.change.forceCreateAShelf)
-	) {
-		return owner
+	let targetBranch: Branch | null = null
+	let pending: PendingChange | null = null
+	if ((arg0 as PendingChange).action) {
+		pending = arg0 as PendingChange
 	}
+	else {
+		targetBranch = arg0 as Branch
+	}
+
+
+	// Manual requester or edge reconsider
+	if (pending && (
+			pending.action.flags.has('manual') ||
+			pending.change.forceCreateAShelf ||
+			pending.change.userRequest == 'edge-reconsider'
+		)) {
+		return pending.change.owner
+	}
+
+	const branch = pending ? pending.action.branch : targetBranch
+	const owner = pending ? pending.change.owner : overriddenOwner
+
 	return branch!.resolver || owner || null
 }
 

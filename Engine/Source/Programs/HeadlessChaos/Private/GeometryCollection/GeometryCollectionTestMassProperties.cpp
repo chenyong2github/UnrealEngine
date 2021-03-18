@@ -17,9 +17,8 @@ namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
 
-	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_Compute)
+	GTEST_TEST(AllTraits, GeometryCollection_MassProperties_Compute)
 	{
-		using Traits = TypeParam;
 		using namespace Chaos;
 
 		Chaos::FParticles Vertices;
@@ -84,14 +83,13 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(13.7401619), KINDA_SMALL_NUMBER));
 	}
 
-	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_Cube)
+	GTEST_TEST(AllTraits, GeometryCollection_MassProperties_Cube)
 	{
-		using Traits = TypeParam;
 		using namespace Chaos;
 		FVector GlobalTranslation(0); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
 		Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);
@@ -165,14 +163,13 @@ namespace GeometryCollectionTest
 		EXPECT_TRUE(FMath::IsNearlyEqual(MassProperties.InertiaTensor.M[2][2], static_cast<FReal>(4.26666689), KINDA_SMALL_NUMBER));
 	}
 
-	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_Sphere)
+	GTEST_TEST(AllTraits, GeometryCollection_MassProperties_Sphere)
 	{
-		using Traits = TypeParam;
 		using namespace Chaos;
 		FVector GlobalTranslation(10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0)); FVector Scale(1);
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 		Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation, Scale); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);
@@ -246,14 +243,13 @@ namespace GeometryCollectionTest
 	}
 
 
-	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_Tetrahedron)
+	GTEST_TEST(AllTraits, GeometryCollection_MassProperties_Tetrahedron)
 	{
-		using Traits = TypeParam;
 		using namespace Chaos;
 		FVector GlobalTranslation(0); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(0));
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Tetrahedron; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 		Params.GeomTransform = FTransform(GlobalRotation, GlobalTranslation); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);
@@ -324,18 +320,17 @@ namespace GeometryCollectionTest
 
 
 
-	TYPED_TEST(AllTraits, GeometryCollection_MassProperties_ScaledSphere)
+	GTEST_TEST(AllTraits, GeometryCollection_MassProperties_ScaledSphere)
 	{
 		// This test has points that are scaled, rotated and translated within mass space. 
 		// So the resulting surface is not about the center of mass and needs to be
 		// moved for simulation. 
 
-		using Traits = TypeParam;
 		using namespace Chaos;
 		FVector GlobalTranslation(10); FQuat GlobalRotation = FQuat::MakeFromEuler(FVector(45,0,0));
 		CreationParameters Params; Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Sphere; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere;
 		Params.GeomTransform = FTransform(GlobalRotation,GlobalTranslation, FVector(1, 5, 11)); Params.NestedTransforms = { FTransform::Identity, FTransform::Identity,  FTransform::Identity };
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		TArray<FTransform> Transform;
 		GeometryCollectionAlgo::GlobalMatrices(Collection->RestCollection->Transform, Collection->RestCollection->Parent, Transform);

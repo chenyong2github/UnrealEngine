@@ -1144,6 +1144,7 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 	CompileResults.AppendCompileEvents(MakeArrayView(InTranslateResults.CompileEvents));
 	CompileResults.Data->LastCompileEvents.Append(InTranslateResults.CompileEvents);
 	CompileResults.Data->ExternalDependencies = InTranslateResults.CompileDependencies;
+	CompileResults.Data->CompileTags = InTranslateResults.CompileTags;
 
 	//TODO: This should probably be done via the same route that other shaders take through the shader compiler etc.
 	//But that adds the complexity of a new shader type, new shader class and a new shader map to contain them etc.
@@ -1194,12 +1195,14 @@ int32 FHlslNiagaraCompiler::CompileScript(const FNiagaraCompileRequestData* InCo
 			CompileResults.bComputeSucceeded = true;
 		}
 		CompileResults.Data->LastHlslTranslationGPU = TranslatedHLSL;
+		CompileResults.Data->CompileTags = InTranslateResults.CompileTags;
 		DumpDebugInfo(CompileResults, Input, true);
 		CompilationJob->CompileResults = CompileResults;
 		return JobID;
 	}
 	CompilationJob->TranslatorOutput.ScriptData.LastHlslTranslation = TranslatedHLSL;
 	CompilationJob->TranslatorOutput.ScriptData.ExternalDependencies = InTranslateResults.CompileDependencies;
+	CompilationJob->TranslatorOutput.ScriptData.CompileTags = InTranslateResults.CompileTags;
 
 	bool bJobScheduled = false;
 	if (CompileResults.bVMSucceeded)
@@ -1487,6 +1490,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 	//Doing this as a minimal risk free fix for not having errors passed through into the compile results.
 	Results.NumErrors = CompileResults.NumErrors;
 	Results.CompileEvents = CompileResults.CompileEvents;
+	Results.Data->CompileTags = CompileResults.Data->CompileTags;
 
 	CompilationJob.Reset();
 	return Results;

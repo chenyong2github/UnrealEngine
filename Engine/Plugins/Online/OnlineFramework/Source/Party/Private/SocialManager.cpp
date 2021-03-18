@@ -294,7 +294,7 @@ USocialToolkit* USocialManager::GetSocialToolkit(FUniqueNetIdRepl LocalUserId) c
 	return nullptr;
 }
 
-void USocialManager::HandlePlatformSessionInviteAccepted(const TSharedRef<const FUniqueNetId>& LocalUserId, const FOnlineSessionSearchResult& InviteResult)
+void USocialManager::HandlePlatformSessionInviteAccepted(const FUniqueNetIdRef& LocalUserId, const FOnlineSessionSearchResult& InviteResult)
 {
 	ABORT_DURING_SHUTDOWN();
 

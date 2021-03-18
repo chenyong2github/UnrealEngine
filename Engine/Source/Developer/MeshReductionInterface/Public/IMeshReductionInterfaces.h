@@ -39,7 +39,8 @@ public:
 	*/
 	virtual bool ReduceSkeletalMesh(
 		class USkeletalMesh* SkeletalMesh,
-		int32 LODIndex
+		int32 LODIndex,
+		const class ITargetPlatform* TargetPlatform
 	) = 0;
 	/**
 	* Returns a unique string identifying both the reduction plugin itself and the version of the plugin.

@@ -15,7 +15,7 @@ class FInternetAddrSteam : public FInternetAddr
 {
 PACKAGE_SCOPE:
 	/** The Steam id to connect to */
-	FUniqueNetIdSteam SteamId;
+	FUniqueNetIdSteamRef SteamId;
 	/** Steam channel to communicate on */
 	int32 SteamChannel;
 
@@ -33,14 +33,24 @@ public:
 	 * Constructor. Sets address to default state
 	 */
 	FInternetAddrSteam() :
-		SteamId((uint64)0),
+		SteamId(FUniqueNetIdSteam::EmptyId()),
 		SteamChannel(0)
 	{
 	}
+
 	/**
-	 * Constructor. Sets address to default state
+	 * Constructor.
 	 */
 	explicit FInternetAddrSteam(const FUniqueNetIdSteam& InSteamId) :
+		SteamId(InSteamId.AsShared()),
+		SteamChannel(0)
+	{
+	}
+
+	/**
+	 * Constructor.
+	 */
+	explicit FInternetAddrSteam(const FUniqueNetIdSteamRef& InSteamId) :
 		SteamId(InSteamId),
 		SteamChannel(0)
 	{
@@ -140,11 +150,11 @@ public:
 	{
 		if (bAppendPort)
 		{
-			return FString::Printf(TEXT("%lld:%d"), SteamId.UniqueNetId, SteamChannel);
+			return FString::Printf(TEXT("%lld:%d"), SteamId->UniqueNetId, SteamChannel);
 		}
 		else
 		{
-			return FString::Printf(TEXT("%lld"), SteamId.UniqueNetId);
+			return FString::Printf(TEXT("%lld"), SteamId->UniqueNetId);
 		}
 	}
 
@@ -156,7 +166,7 @@ public:
 	virtual bool operator==(const FInternetAddr& Other) const override
 	{
 		FInternetAddrSteam& SteamOther = (FInternetAddrSteam&)Other;
-		return SteamId == SteamOther.SteamId && SteamChannel == SteamOther.SteamChannel;
+		return *SteamId == *SteamOther.SteamId && SteamChannel == SteamOther.SteamChannel;
 	}
 
 	bool operator!=(const FInternetAddrSteam& Other) const
@@ -181,7 +191,7 @@ public:
 	 */
 	virtual bool IsValid() const override
 	{
-		return SteamId.IsValid();
+		return SteamId->IsValid();
 	}
 
 	virtual FName GetProtocolType() const override

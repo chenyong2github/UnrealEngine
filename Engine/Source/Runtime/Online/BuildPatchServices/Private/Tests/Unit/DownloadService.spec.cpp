@@ -136,7 +136,7 @@ void FDownloadServiceSpec::Define()
 					MockFileSystem->ReadFile = {1,2,3,4,5,6,7,8,9,10};
 				});
 
-				It("should provide an IDownload with access to success status.", [this]()
+				xIt("should provide an IDownload with access to success status.", [this]()
 				{
 					DownloadService->RequestFile(NetworkFileUrl, DownloadComplete, DownloadProgress);
 					DoTicksUntilComplete();

@@ -110,7 +110,7 @@ void FPatchCheck::StartPlatformOSSPatchCheck()
 	IOnlineIdentityPtr PlatformOnlineIdentity = PlatformOnlineSub->GetIdentityInterface();
 	if (PlatformOnlineIdentity.IsValid())
 	{
-		TSharedPtr<const FUniqueNetId> UserId = GetFirstSignedInUser(PlatformOnlineIdentity);
+		FUniqueNetIdPtr UserId = GetFirstSignedInUser(PlatformOnlineIdentity);
 #if PLATFORM_SWITCH
 		// checking the CanPlayOnline privilege on switch will log the user in if required in all but the NotLoggedIn state
 		const bool bCanCheckPlayOnlinePrivilege = UserId.IsValid() && (PlatformOnlineIdentity->GetLoginStatus(*UserId) != ELoginStatus::NotLoggedIn);
@@ -148,7 +148,7 @@ void FPatchCheck::StartOSSPatchCheck()
 	if (IdentityInt.IsValid())
 	{
 		// User could be invalid for "before title/login" check, underlying code doesn't need a valid user currently
-		TSharedPtr<const FUniqueNetId> UserId = IdentityInt->CreateUniquePlayerId(TEXT("InvalidUser"));
+		FUniqueNetIdPtr UserId = IdentityInt->CreateUniquePlayerId(TEXT("InvalidUser"));
 		if (UserId.IsValid())
 		{
 			bStarted = true;

@@ -182,8 +182,8 @@ TSharedPtr<FDisplayClusterPacketInternal> FDisplayClusterClusterSyncService::Pro
 	}
 	else if (ReqName == DisplayClusterClusterSyncStrings::GetEventsData::Name)
 	{
-		TArray<TSharedPtr<FDisplayClusterClusterEventJson>>   JsonEvents;
-		TArray<TSharedPtr<FDisplayClusterClusterEventBinary>> BinaryEvents;
+		TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>   JsonEvents;
+		TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>> BinaryEvents;
 		
 		GetEventsData(JsonEvents, BinaryEvents);
 
@@ -259,7 +259,7 @@ void FDisplayClusterClusterSyncService::GetInputData(TMap<FString, FString>& Inp
 	return NodeController->GetInputData(InputData);
 }
 
-void FDisplayClusterClusterSyncService::GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents)
+void FDisplayClusterClusterSyncService::GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents)
 {
 	static IDisplayClusterNodeController* const NodeController = GDisplayCluster->GetPrivateClusterMgr()->GetController();
 	return NodeController->GetEventsData(JsonEvents, BinaryEvents);

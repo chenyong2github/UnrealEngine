@@ -55,13 +55,15 @@ extern "C" void GetPhiWithNormal(const uint8* CollisionParticles, const FReal* I
 }
 
 template<>
-void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::ApplyHelperISPC(FPBDParticles& InParticles, const float Dt, int32 Offset, int32 Range) const
+void TPerParticlePBDCollisionConstraint<EGeometryParticlesSimType::Other>::ApplyHelperISPC(FPBDParticles& InParticles, const FReal Dt, int32 Offset, int32 Range) const
 {
-	const uint32 DynamicGroupId = MDynamicGroupIds[Offset];
-	const float PerGroupFriction = MPerGroupFriction[DynamicGroupId];
-	const float PerGroupThickness = MPerGroupThickness[DynamicGroupId];
+	check(bRealTypeCompatibleWithISPC);
 
-	const int32 NumBatches = FMath::CeilToInt((Range - Offset) / (float)Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
+	const uint32 DynamicGroupId = MDynamicGroupIds[Offset];
+	const FReal PerGroupFriction = MPerGroupFriction[DynamicGroupId];
+	const FReal PerGroupThickness = MPerGroupThickness[DynamicGroupId];
+
+	const int32 NumBatches = FMath::CeilToInt((Range - Offset) / (FReal)Chaos_PerParticleCollision_ISPC_ParallelBatchSize);
 
 	if (Chaos_PerParticleCollision_ISPC_FastFriction)
 	{

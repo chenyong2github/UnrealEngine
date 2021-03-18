@@ -1,28 +1,29 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraComponent.h"
-#include "VectorVM.h"
+#include "Engine/CollisionProfile.h"
+#include "EngineUtils.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "MeshBatch.h"
+#include "NiagaraCommon.h"
+#include "NiagaraComponentSettings.h"
+#include "NiagaraConstants.h"
+#include "NiagaraCrashReporterHandler.h"
+#include "NiagaraCustomVersion.h"
+#include "NiagaraDataInterface.h"
+#include "NiagaraDataSetAccessor.h"
+#include "NiagaraEmitterInstance.h"
+#include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraFunctionLibrary.h"
 #include "NiagaraRenderer.h"
+#include "NiagaraStats.h"
 #include "NiagaraSystem.h"
 #include "NiagaraSystemInstance.h"
-#include "NiagaraEmitterInstance.h"
-#include "MeshBatch.h"
-#include "NiagaraConstants.h"
-#include "NiagaraStats.h"
-#include "NiagaraCommon.h"
-#include "NiagaraDataInterface.h"
-#include "UObject/NameTypes.h"
 #include "NiagaraWorldManager.h"
-#include "EngineUtils.h"
-#include "ProfilingDebugging/CsvProfiler.h"
-#include "Engine/CollisionProfile.h"
 #include "PrimitiveSceneInfo.h"
-#include "NiagaraCrashReporterHandler.h"
-#include "NiagaraEmitterInstanceBatcher.h"
-#include "NiagaraDataSetAccessor.h"
-#include "NiagaraComponentSettings.h"
-#include "NiagaraCustomVersion.h"
-#include "Materials/MaterialInstanceDynamic.h"
+#include "ProfilingDebugging/CsvProfiler.h"
+#include "UObject/NameTypes.h"
+#include "VectorVM.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component Tick (GT)"), STAT_NiagaraComponentTick, STATGROUP_Niagara);
@@ -183,7 +184,7 @@ static FAutoConsoleVariableRef CVarNiagaraSamplerStateWorkaroundCreateNew(
 );
 //////////////////////////////////////////////////////////////////////////
 
-FNiagaraSceneProxy::FNiagaraSceneProxy(const UNiagaraComponent* InComponent)
+FNiagaraSceneProxy::FNiagaraSceneProxy(UNiagaraComponent* InComponent)
 		: FPrimitiveSceneProxy(InComponent, InComponent->GetAsset() ? InComponent->GetAsset()->GetFName() : FName())
 		, bRenderingEnabled(true)
 		, RuntimeCycleCount(nullptr)
@@ -885,29 +886,9 @@ bool UNiagaraComponent::IsPaused()const
 	return false;
 }
 
-UNiagaraDataInterface * UNiagaraComponent::GetDataInterface(const FString &Name)
+UNiagaraDataInterface* UNiagaraComponent::GetDataInterface(const FString& Name)
 {
-
-	// @todo-threadsafety Think of a better way to do this!
-	if (!SystemInstance || SystemInstance->GetEmitters().Num() == 0 || !SystemInstance->GetEmitters()[0]->GetGPUContext())
-	{
-		return nullptr;
-	}
-	
-	FNiagaraComputeExecutionContext* GPUContext = SystemInstance->GetEmitters()[0]->GetGPUContext();
-	const TArray<FNiagaraScriptDataInterfaceCompileInfo> &DataInterfaceInfo = GPUContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
-	const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
-
-	int Index = 0;
-	for (UNiagaraDataInterface* Interface : DataInterfaces)
-	{
-		if (DataInterfaceInfo[Index].Name.GetPlainNameString() == Name)
-		{			
-			return Interface;
-		}	
-		++Index;
-	}
-	return nullptr;
+	return UNiagaraFunctionLibrary::GetDataInterface(UNiagaraDataInterface::StaticClass(), this, *Name);
 }
 
 bool UNiagaraComponent::IsWorldReadyToRun() const
@@ -1771,7 +1752,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 	LLM_SCOPE(ELLMTag::Niagara);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
-	PARTICLE_PERF_STAT_CYCLES_GT(GetPerfStatsContext(), EndOfFrame);
+	PARTICLE_PERF_STAT_CYCLES_GT(FParticlePerfStatsContext(GetWorld(), GetAsset(), this), EndOfFrame);
 
 	Super::SendRenderDynamicData_Concurrent();
 
@@ -1859,8 +1840,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				[NiagaraProxy, DynamicData = MoveTemp(NewDynamicData), PerfStatCtx=GetPerfStatsContext(), LocalPreviewLODDistance](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES_RT(PerfStatCtx, RenderUpdate);
-				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfStatCtx, 1);
+				PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_RT(PerfStatCtx, RenderUpdate, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)
@@ -1882,8 +1862,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 				[NiagaraProxy, PerfStatCtx=GetPerfStatsContext()](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraSetDynamicData);
-				PARTICLE_PERF_STAT_CYCLES_RT(PerfStatCtx, RenderUpdate);
-				PARTICLE_PERF_STAT_INSTANCE_COUNT_RT(PerfStatCtx, 1);
+				PARTICLE_PERF_STAT_CYCLES_WITH_COUNT_RT(PerfStatCtx, RenderUpdate, 1);
 
 				const TArray<FNiagaraRenderer*>& EmitterRenderers_RT = NiagaraProxy->GetEmitterRenderers();
 				for (int32 i = 0; i < EmitterRenderers_RT.Num(); ++i)

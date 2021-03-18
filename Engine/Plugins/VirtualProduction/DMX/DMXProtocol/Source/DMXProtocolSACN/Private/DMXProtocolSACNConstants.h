@@ -26,7 +26,8 @@ enum
 
 enum
 {
-	ACN_MAX_UNIVERSES = 64214
+	ACN_MIN_UNIVERSE = 1,
+	ACN_MAX_UNIVERSE = 63999
 };
 
 enum

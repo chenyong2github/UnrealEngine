@@ -3,8 +3,9 @@
 #include "GeometryCache.h"
 #include "EditorFramework/AssetImportData.h"
 #include "Materials/MaterialInterface.h"
-#include "GeometryCacheTrackTransformAnimation.h"
-#include "GeometryCacheTrackFlipbookAnimation.h"
+#include "GeometryCacheMeshData.h"
+#include "GeometryCacheTrack.h"
+#include "Hash/CityHash.h"
 #include "UObject/FrameworkObjectVersion.h"
 #include "UObject/AnimPhysObjectVersion.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -22,6 +23,7 @@ UGeometryCache::UGeometryCache(const FObjectInitializer& ObjectInitializer) : Su
 {
 	StartFrame = 0;
 	EndFrame = 0;
+	Hash = 0;
 }
 
 void UGeometryCache::PostInitProperties()
@@ -138,6 +140,12 @@ void UGeometryCache::PreEditChange(FProperty* PropertyAboutToChange)
 void UGeometryCache::AddTrack(UGeometryCacheTrack* Track)
 {
 	Tracks.Add(Track);
+
+	uint64 TmpHash = Track->GetHash();
+	if (TmpHash)
+	{
+		Hash = CityHash64WithSeed((char*) &TmpHash, sizeof(uint64), Hash);
+	}
 }
 
 void UGeometryCache::SetFrameStartEnd(int32 InStartFrame, int32 InEndFrame)
@@ -178,4 +186,47 @@ int32 UGeometryCache::GetFrameAtTime(const float Time) const
 	return StartFrame + NormalizedFrame; 
 
 }
+
+void UGeometryCache::GetMeshDataAtTime(float Time, TArray<FGeometryCacheMeshData>& OutMeshData) const
+{
+	for (UGeometryCacheTrack* Track : Tracks)
+	{
+		FGeometryCacheMeshData MeshData;
+		if (Track->GetMeshDataAtTime(Time, MeshData))
+		{
+			OutMeshData.Add(MoveTemp(MeshData));
+		}
+	}
+}
+
+FString UGeometryCache::GetHash() const
+{
+	if (Hash != 0)
+	{
+		return LexToString(Hash);
+	}
+
+	// Hash should be computed during import, but for previously imported GeometryCache without a hash, hash only the first and last frame for performance sake
+	uint64 TmpHash = 0;
+
+	auto HashFrame = [this, &TmpHash](float Time)
+	{
+		TArray<FGeometryCacheMeshData> MeshesData;
+		GetMeshDataAtTime(Time, MeshesData);
+		for (const FGeometryCacheMeshData& MeshData : MeshesData)
+		{
+			uint64 MeshHash = MeshData.GetHash();
+			if (MeshHash)
+			{
+				TmpHash = CityHash64WithSeed((char*) &MeshHash, sizeof(uint64), TmpHash);
+			}
+		}
+	};
+
+	HashFrame(0.0f);
+	HashFrame(CalculateDuration());
+
+	return LexToString(TmpHash);
+}
+
 #undef LOCTEXT_NAMESPACE // "GeometryCache"

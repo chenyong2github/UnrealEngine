@@ -7,8 +7,8 @@
 
 namespace Chaos
 {
-	extern float LinearEtherDragOverride;
-	extern float AngularEtherDragOverride;
+	extern FRealSingle LinearEtherDragOverride;
+	extern FRealSingle AngularEtherDragOverride;
 
 	class FPerParticleEtherDrag : public FPerParticleRule
 	{

@@ -25,7 +25,7 @@ void SDMXChannelConnector::Construct(const FArguments& InArgs)
 	ChildSlot
 		[
 			SAssignNew(ChannelValueWidget, SDMXChannel)
-			.ID(ChannelID)
+			.ChannelID(ChannelID)
 			.Value(InArgs._Value)	
 			.bShowChannelIDBottom(true)
 		];
@@ -75,17 +75,17 @@ FReply SDMXChannelConnector::OnDragDetected(const FGeometry& MyGeometry, const F
 
 void SDMXChannelConnector::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	OnDragEnterChannel.ExecuteIfBound(ChannelValueWidget->GetID(), DragDropEvent);
+	OnDragEnterChannel.ExecuteIfBound(ChannelValueWidget->GetChannelID(), DragDropEvent);
 }
 
 void SDMXChannelConnector::OnDragLeave(const FDragDropEvent& DragDropEvent)
 {
-	OnDragLeaveChannel.ExecuteIfBound(ChannelValueWidget->GetID(), DragDropEvent);
+	OnDragLeaveChannel.ExecuteIfBound(ChannelValueWidget->GetChannelID(), DragDropEvent);
 }
 
 FReply SDMXChannelConnector::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	return OnDropOntoChannel.Execute(ChannelValueWidget->GetID(), DragDropEvent);
+	return OnDropOntoChannel.Execute(ChannelValueWidget->GetChannelID(), DragDropEvent);
 }
 
 void SDMXChannelConnector::SelectFixturePatch(UDMXEntityFixturePatch* FixturePatch)

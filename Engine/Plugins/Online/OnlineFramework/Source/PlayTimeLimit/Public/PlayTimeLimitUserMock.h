@@ -16,7 +16,7 @@ class FPlayTimeLimitUserMock
 	: public FPlayTimeLimitUser
 {
 public:
-	FPlayTimeLimitUserMock(const TSharedRef<const FUniqueNetId>& InUserId, const bool bInHasTimeLimit, const double InPlayTimeMinutes);
+	FPlayTimeLimitUserMock(const FUniqueNetIdRef& InUserId, const bool bInHasTimeLimit, const double InPlayTimeMinutes);
 
 	//~ Begin FPlayTimeLimitUser Interface
 	virtual bool HasTimeLimit() const override;

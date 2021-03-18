@@ -187,6 +187,7 @@ struct FPushPhysicsData
 	FReal StartTime;
 	FReal ExternalDt;
 	int32 ExternalTimestamp;
+	int32 InternalStep;		//The solver step this data will be associated with
 	int32 IntervalStep;		//The step we are currently at for this simulation interval. If not sub-stepping both step and num steps are 1: step is [0, IntervalNumSteps-1]
 	int32 IntervalNumSteps;	//The total number of steps associated with this simulation interval
 
@@ -281,6 +282,7 @@ private:
 	FReal ExternalTime_External;	//the global time external thread is currently at
 	int32 ExternalTimestamp_External; //the global timestamp external thread is currently at (1 per frame)
 	FReal SimTime_External;	//the global time the sim is at (once Step_External is called this time advances, even though the actual sim work has yet to be done)
+	int32 InternalStep_External; //the current internal step we are pushing work into. This is not synced with external timestamp as we may sub-step. This should match the solver step
 	
 	//push
 	FPushPhysicsData* ProducerData;

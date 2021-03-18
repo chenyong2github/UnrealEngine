@@ -16,8 +16,7 @@
 #include "Chaos/PullPhysicsDataImp.h"
 
 
-template< class CONSTRAINT_TYPE >
-TJointConstraintProxy<CONSTRAINT_TYPE>::TJointConstraintProxy(CONSTRAINT_TYPE* InConstraint, TJointConstraintProxy<CONSTRAINT_TYPE>::FConstraintHandle* InHandle, UObject* InOwner)
+FJointConstraintPhysicsProxy::FJointConstraintPhysicsProxy(Chaos::FJointConstraint* InConstraint, FConstraintHandle* InHandle, UObject* InOwner)
 	: Base(InOwner)
 	, Constraint(InConstraint) // This proxy assumes ownership of the Constraint, and will free it during DestroyOnPhysicsThread
 	, Handle(InHandle)
@@ -29,36 +28,8 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::TJointConstraintProxy(CONSTRAINT_TYPE* I
 
 }
 
-
-template< class CONSTRAINT_TYPE >
-TJointConstraintProxy<CONSTRAINT_TYPE>::~TJointConstraintProxy()
-{
-}
-
-
-template< class CONSTRAINT_TYPE>
-EPhysicsProxyType TJointConstraintProxy<CONSTRAINT_TYPE>::ConcreteType()
-{
-	return EPhysicsProxyType::NoneType;
-}
-
-
-
-/**/
-template< class CONSTRAINT_TYPE>
-void TJointConstraintProxy<CONSTRAINT_TYPE>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
-{
-}
-
-/**/
-template< class CONSTRAINT_TYPE>
-bool TJointConstraintProxy<CONSTRAINT_TYPE>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
-{
-}
-
-template< class CONSTRAINT_TYPE>
 Chaos::TGeometryParticleHandle<Chaos::FReal, 3>*
-TJointConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase)
+FJointConstraintPhysicsProxy::GetParticleHandleFromProxy(IPhysicsProxyBase* ProxyBase)
 {
 	if (ProxyBase)
 	{
@@ -70,16 +41,8 @@ TJointConstraintProxy<CONSTRAINT_TYPE>::GetParticleHandleFromProxy(IPhysicsProxy
 	return nullptr;
 }
 
-template<>
-EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType()
-{
-	return EPhysicsProxyType::JointConstraintType;
-}
-
-
 /**/
-template<>
-void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
+void FJointConstraintPhysicsProxy::BufferPhysicsResults(Chaos::FDirtyJointConstraintData& Buffer)
 {
 	Buffer.SetProxy(*this);
 	if (Constraint != nullptr && Constraint->IsValid() )
@@ -94,8 +57,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults(Chaos:
 }
 
 /**/
-template<>
-bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
+bool FJointConstraintPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyJointConstraintData& Buffer, const int32 SolverSyncTimestamp)
 {
 	if (Constraint != nullptr && Constraint->IsValid())
 	{
@@ -110,9 +72,7 @@ bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const 
 	return true;
 }
 
-template < >
-template < class Trait >
-void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+void FJointConstraintPhysicsProxy::InitializeOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver)
 {
 	auto& Handles = InSolver->GetParticles().GetParticleHandles();
 	if (Handles.Size() && IsValid())
@@ -137,9 +97,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(C
 	}
 }
 
-template < >
-template < class Trait >
-void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+void FJointConstraintPhysicsProxy::DestroyOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver)
 {
 	if (Handle && Handle->IsValid())
 	{
@@ -152,10 +110,7 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chao
 }
 
 
-
-template < >
-template < class Trait >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+void FJointConstraintPhysicsProxy::PushStateOnGameThread(Chaos::FPBDRigidsSolver* InSolver)
 {
 	if (Constraint != nullptr && Constraint->IsValid())
 	{
@@ -277,11 +232,9 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos
 }
 
 
-template < >
-template < class Trait >
-void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Trait>* InSolver)
+void FJointConstraintPhysicsProxy::PushStateOnPhysicsThread(Chaos::FPBDRigidsSolver* InSolver)
 {
-	typedef typename Chaos::TPBDRigidsSolver<Trait>::FPBDRigidsEvolution::FCollisionConstraints FCollisionConstraints;
+	typedef typename Chaos::FPBDRigidsSolver::FPBDRigidsEvolution::FCollisionConstraints FCollisionConstraints;
 	if (Handle && Handle->IsValid())
 	{
 		if (DirtyFlagsBuffer.IsDirty())
@@ -419,17 +372,3 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 		}
 	}
 }
-
-
-
-
-template class TJointConstraintProxy< Chaos::FJointConstraint >;
-
-#define EVOLUTION_TRAIT(Traits)\
-template void TJointConstraintProxy<Chaos::FJointConstraint>::InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnGameThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-template void TJointConstraintProxy<Chaos::FJointConstraint>::DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Chaos::Traits>* RBDSolver);\
-
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT

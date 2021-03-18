@@ -5,6 +5,7 @@
 
 #if UE_TRACE_ENABLED
 
+#include "BuildSettings.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/StringView.h"
@@ -399,6 +400,9 @@ UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, NoSync|Important)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, Platform)
 	UE_TRACE_EVENT_FIELD(UE::Trace::AnsiString, AppName)
 	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, CommandLine)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, Branch)
+	UE_TRACE_EVENT_FIELD(UE::Trace::WideString, BuildVersion)
+	UE_TRACE_EVENT_FIELD(uint32, Changelist)
 	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
 	UE_TRACE_EVENT_FIELD(uint8, TargetType)
 UE_TRACE_EVENT_END()
@@ -409,14 +413,21 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 #if UE_TRACE_ENABLED
 	// Trace out information about this session. This is done before initialisation
 	// so that it is always sent (all channels are enabled prior to initialisation)
+	const TCHAR* BranchName = BuildSettings::GetBranchName();
+	const TCHAR* BuildVersion = BuildSettings::GetBuildVersion();
 	uint32 DataSize = 
 		(UE_ARRAY_COUNT(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM)) * sizeof(ANSICHAR)) +
 		(UE_ARRAY_COUNT(UE_APP_NAME) * sizeof(ANSICHAR)) +
-		(FCString::Strlen(CommandLine) * sizeof(TCHAR));
+		(FCString::Strlen(CommandLine) * sizeof(TCHAR)) +
+		(FCString::Strlen(BranchName) * sizeof(TCHAR)) +
+		(FCString::Strlen(BuildVersion) * sizeof(TCHAR));
 	UE_TRACE_LOG(Diagnostics, Session2, UE::Trace::TraceLogChannel, DataSize)
 		<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
 		<< Session2.AppName(UE_APP_NAME)
 		<< Session2.CommandLine(CommandLine)
+		<< Session2.Branch(BranchName)
+		<< Session2.BuildVersion(BuildVersion)
+		<< Session2.Changelist(BuildSettings::GetCurrentChangelist())
 		<< Session2.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
 		<< Session2.TargetType(uint8(FApp::GetBuildTargetType()));
 

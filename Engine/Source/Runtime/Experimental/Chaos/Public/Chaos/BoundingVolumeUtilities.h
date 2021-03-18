@@ -18,8 +18,8 @@ namespace Chaos
 {
 
 // @todo(ccaulfield): COLLISION - get rid of these?
-extern float MinBoundsThickness;
-extern float BoundsThicknessMultiplier;
+extern FRealSingle MinBoundsThickness;
+extern FRealSingle BoundsThicknessMultiplier;
 
 inline FVec3 ComputeBoundsThickness(FVec3 Vel, FReal Dt, FReal BoundsThickness, FReal BoundsVelocityInflation)
 {

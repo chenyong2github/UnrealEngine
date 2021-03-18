@@ -75,10 +75,10 @@ bool FOnlineExternalUISteam::ShowInviteUI(int32 LocalUserNum, FName SessionName)
 	if (Session && Session->SessionInfo.IsValid())
 	{
 		const FOnlineSessionInfoSteam* const SessionInfo = (FOnlineSessionInfoSteam*)(Session->SessionInfo.Get());
-		if (SessionInfo->SessionType == ESteamSession::LobbySession && SessionInfo->SessionId.IsValid())
+		if (SessionInfo->SessionType == ESteamSession::LobbySession && SessionInfo->SessionId->IsValid())
 		{
 			// This can only invite to lobbies, does not work for dedicated servers.
-			SteamFriends()->ActivateGameOverlayInviteDialog(SessionInfo->SessionId);
+			SteamFriends()->ActivateGameOverlayInviteDialog(*SessionInfo->SessionId);
 		}
 		else if(SessionInfo->SessionType == ESteamSession::AdvertisedSessionHost || SessionInfo->SessionType == ESteamSession::AdvertisedSessionClient)
 		{

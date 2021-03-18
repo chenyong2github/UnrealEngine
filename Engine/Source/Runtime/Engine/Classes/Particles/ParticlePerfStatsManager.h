@@ -11,9 +11,7 @@
 
 #define ENABLE_PARTICLE_PERF_STATS_RENDER !UE_BUILD_SHIPPING
 
-class UWorld;
 class FParticlePerfStatsListener_DebugRender;
-class UFXSystemAsset;
 
 #define ACCUMULATED_PARTICLE_PERF_STAT_MAX_SAMPLES 10
 
@@ -145,13 +143,24 @@ public:
 	virtual bool Tick() { return true; }
 	/** Called every frame from the render thread gather any RT stats. */
 	virtual void TickRT() {}
+
+	/** Called when a new world is seen for the first time. */
+	virtual void OnAddWorld(const TWeakObjectPtr<UWorld>& NewWorld) {}
+	/** Called when a world has been freed and is no longer tracked by the stats. */
+	virtual void OnRemoveWorld(const TWeakObjectPtr<UWorld>& World) {}
 	/** Called when a new system is seen for the first time. */
 	virtual void OnAddSystem(const TWeakObjectPtr<UFXSystemAsset>& NewSystem){}
 	/** Called when a system has been freed and is no longer tracked by the stats. */
 	virtual void OnRemoveSystem(const TWeakObjectPtr<UFXSystemAsset>& System) {}
+	/** Called when a new component is seen for the first time. */
+	virtual void OnAddComponent(const TWeakObjectPtr<UFXSystemComponent>& NewComponent) {}
+	/** Called when a component has been freed and is no longer tracked by the stats. */
+	virtual void OnRemoveComponent(const TWeakObjectPtr<UFXSystemComponent>& Component) {}
+
 
 	virtual bool NeedsWorldStats()const = 0;
 	virtual bool NeedsSystemStats()const = 0;
+	virtual bool NeedsComponentStats()const = 0;
 };
 
 typedef TSharedPtr<FParticlePerfStatsListener, ESPMode::ThreadSafe> FParticlePerfStatsListenerPtr;
@@ -163,21 +172,31 @@ public:
 	static FDelegateHandle CSVStartHandle;
 	static FDelegateHandle CSVEndHandle;
 #endif
+
 	static int32 StatsEnabled;
 	static FCriticalSection WorldToPerfStatsGuard;
 	static TMap<TWeakObjectPtr<UWorld>, TUniquePtr<FParticlePerfStats>> WorldToPerfStats;
 	static TArray<TUniquePtr<FParticlePerfStats>> FreeWorldStatsPool;
+	static const TMap<TWeakObjectPtr<UWorld>, TUniquePtr<FParticlePerfStats>>& GetCurrentWorldStats() { return WorldToPerfStats; }
+
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 	static FCriticalSection SystemToPerfStatsGuard;
 	static TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>> SystemToPerfStats;
 	static TArray<TUniquePtr<FParticlePerfStats>> FreeSystemStatsPool;
+	static const TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>>& GetCurrentSystemStats() { return SystemToPerfStats; }
+#endif
 
+#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
+	static FCriticalSection ComponentToPerfStatsGuard;
+	static TMap<TWeakObjectPtr<UFXSystemComponent>, TUniquePtr<FParticlePerfStats>> ComponentToPerfStats;
+	static TArray<TUniquePtr<FParticlePerfStats>> FreeComponentStatsPool;
+	static const TMap<TWeakObjectPtr<UFXSystemComponent>, TUniquePtr<FParticlePerfStats>>& GetCurrentComponentStats() { return ComponentToPerfStats; }
+#endif
 
 	static TArray<FParticlePerfStatsListenerPtr, TInlineAllocator<8>> Listeners;
-
-	static const TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>>& GetCurrentFrameStats() { return SystemToPerfStats; }
-	static FParticlePerfStatsContext GetPerfStats(class UWorld* World, class UFXSystemAsset* FXAsset);
-	static FParticlePerfStats* GetSystemPerfStats(class UFXSystemAsset* FXAsset);
-	static FParticlePerfStats* GetWorldPerfStats(class UWorld* World);
+	static FParticlePerfStats* GetWorldPerfStats(UWorld* World);
+	static FParticlePerfStats* GetSystemPerfStats(UFXSystemAsset* FXAsset);
+	static FParticlePerfStats* GetComponentPerfStats(UFXSystemComponent* FXComponent);
 
 	static void OnStartup();
 	static void OnShutdown();
@@ -197,17 +216,6 @@ public:
 	static TMap<TWeakObjectPtr<UWorld>, TSharedPtr<FParticlePerfStatsListener_DebugRender ,ESPMode::ThreadSafe>> DebugRenderListenerUsers;
 #endif
 
-	/** Calls the supplied function for all tracked UNiagaraSystem stats. */
-	template<typename TAction>
-	static void ForAllSystemStats(TAction Func)
-	{
-		FScopeLock Lock(&SystemToPerfStatsGuard);
-		for (TPair<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>>& Pair : SystemToPerfStats)
-		{
-			Func(Pair.Key, Pair.Value);
-		}
-	}
-
 	/** Calls the supplied function for all tracked UWorld stats. */
 	template<typename TAction>
 	static void ForAllWorldStats(TAction Func)
@@ -217,6 +225,32 @@ public:
 		{
 			Func(Pair.Key, Pair.Value);
 		}
+	}	
+	
+	/** Calls the supplied function for all tracked UFXSysteAsset stats. */
+	template<typename TAction>
+	static void ForAllSystemStats(TAction Func)
+	{
+	#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+		FScopeLock Lock(&SystemToPerfStatsGuard);
+		for (TPair<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FParticlePerfStats>>& Pair : SystemToPerfStats)
+		{
+			Func(Pair.Key, Pair.Value);
+		}
+	#endif
+	}
+
+	/** Calls the supplied function for all tracked UFXSystemComponent stats. */
+	template<typename TAction>
+	static void ForAllComponentStats(TAction Func)
+	{
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+		FScopeLock Lock(&ComponentToPerfStatsGuard);
+		for (TPair<TWeakObjectPtr<UFXSystemComponent>, TUniquePtr<FParticlePerfStats>>& Pair : ComponentToPerfStats)
+		{
+			Func(Pair.Key, Pair.Value);
+		}
+#endif
 	}
 };
 
@@ -224,32 +258,81 @@ public:
 class ENGINE_API FParticlePerfStatsListener_GatherAll: public FParticlePerfStatsListener
 {
 public:
+	FParticlePerfStatsListener_GatherAll(bool bNeedsWorldStats, bool bNeedsSystemStats, bool bNeedsComponentStats)
+	: bGatherWorldStats(bNeedsWorldStats)
+	, bGatherSystemStats(bNeedsSystemStats)
+	, bGatherComponentStats(bNeedsComponentStats)
+	{}
+
 	virtual ~FParticlePerfStatsListener_GatherAll() {}
 
 	virtual void Begin();
 	virtual void End();
 	virtual bool Tick();
 	virtual void TickRT();
+
+	virtual void OnAddWorld(const TWeakObjectPtr<UWorld>& NewWorld);
+	virtual void OnRemoveWorld(const TWeakObjectPtr<UWorld>& World);
+
+	#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
 	virtual void OnAddSystem(const TWeakObjectPtr<UFXSystemAsset>& NewSystem);
 	virtual void OnRemoveSystem(const TWeakObjectPtr<UFXSystemAsset>& System);
-	virtual bool NeedsWorldStats()const { return false; }
-	virtual bool NeedsSystemStats()const { return true; }
+	#endif
+
+	#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
+	virtual void OnAddComponent(const TWeakObjectPtr<UFXSystemComponent>& NewComponent);
+	virtual void OnRemoveComponent(const TWeakObjectPtr<UFXSystemComponent>& Component);
+	#endif
+
+	virtual bool NeedsWorldStats()const { return bGatherWorldStats; }
+	virtual bool NeedsSystemStats()const { return bGatherSystemStats; }
+	virtual bool NeedsComponentStats()const { return bGatherComponentStats; }
 
 	void DumpStatsToDevice(FOutputDevice& Ar);
 	void DumpStatsToFile();
 
+#if WITH_PARTICLE_PERF_STATS
+	FAccumulatedParticlePerfStats* GetStats(UWorld* World);
+#else
+	FAccumulatedParticlePerfStats* GetStats(UWorld* World) { return nullptr; }
+#endif
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+	FAccumulatedParticlePerfStats* GetStats(UFXSystemAsset* System);
+#else
+	FAccumulatedParticlePerfStats* GetStats(UFXSystemAsset* System){ return nullptr; }
+#endif
+#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
+	FAccumulatedParticlePerfStats* GetStats(UFXSystemComponent* Component);
+#else
+	FAccumulatedParticlePerfStats* GetStats(UFXSystemComponent* Component){ return nullptr; }
+#endif
+
 protected:
 	FCriticalSection AccumulatedStatsGuard;
 
-	//Accumulated stats for all systems.
-	TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FAccumulatedParticlePerfStats>> AccumulatedStats;
+	const uint8 bGatherWorldStats : 1;
+	const uint8 bGatherSystemStats : 1;
+	const uint8 bGatherComponentStats : 1;
+
+	TMap<TWeakObjectPtr<UWorld>, TUniquePtr<FAccumulatedParticlePerfStats>> AccumulatedWorldStats;
+
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+	TMap<TWeakObjectPtr<UFXSystemAsset>, TUniquePtr<FAccumulatedParticlePerfStats>> AccumulatedSystemStats;
+#endif
+
+#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
+	TMap<TWeakObjectPtr<UFXSystemComponent>, TUniquePtr<FAccumulatedParticlePerfStats>> AccumulatedComponentStats;
+#endif
+
+	template<typename T, typename TFunc>
+	void TickStats_Internal(TMap<TWeakObjectPtr<T>, TUniquePtr<FAccumulatedParticlePerfStats>>& StatsMap, TFunc Func);
 };
 
 /** Simple stats listener that will gather stats on all systems for N frames and dump the results to a CSV and the Log. */
 class ENGINE_API FParticlePerfStatsListener_TimedTest : public FParticlePerfStatsListener_GatherAll
 {
 public:
-	FParticlePerfStatsListener_TimedTest(int32 NumFrames);
+	FParticlePerfStatsListener_TimedTest(int32 NumFrames, bool bInGatherWorldStats, bool bInGatherSystemStats, bool bInGatherComponentStats);
 
 	virtual void End();
 	virtual bool Tick();
@@ -261,6 +344,7 @@ private:
 class ENGINE_API FParticlePerfStatsListener_CSVProfiler : public FParticlePerfStatsListener_GatherAll
 {
 public:
+	FParticlePerfStatsListener_CSVProfiler() : FParticlePerfStatsListener_GatherAll(false, true, false) {}
 
 	virtual void End();
 
@@ -280,6 +364,7 @@ It does not sync with the Render Thread and so RT stats are one or more frames d
 class ENGINE_API FParticlePerfStatsListener_DebugRender : public FParticlePerfStatsListener_GatherAll
 {
 public:
+	FParticlePerfStatsListener_DebugRender() : FParticlePerfStatsListener_GatherAll(false, true, false){}
 	int32 RenderStats(UWorld* World, class FViewport* Viewport, class FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
 };
 

@@ -22,11 +22,11 @@ struct ClusterId
 		: Id(nullptr)
 		, NumChildren(0) 
 	{}
-	ClusterId(TPBDRigidParticleHandle<float, 3>* NewId, int NumChildrenIn)
+	ClusterId(FPBDRigidParticleHandle* NewId, int NumChildrenIn)
 		: Id(NewId)
 		, NumChildren(NumChildrenIn) 
 	{}
-	TPBDRigidParticleHandle<float, 3>* Id;
+	FPBDRigidParticleHandle* Id;
 	int32 NumChildren;
 };
 
@@ -54,7 +54,7 @@ struct FMultiChildProxyId
 	FMultiChildProxyId()
 		: Id(nullptr) 
 	{}
-	TPBDRigidParticleHandle<float, 3>* Id;
+	FPBDRigidParticleHandle* Id;
 };
 
 /**

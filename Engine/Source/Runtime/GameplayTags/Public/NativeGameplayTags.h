@@ -66,7 +66,7 @@ private:
 	FString DeveloperComment;
 #endif
 
-	static TSet<const class FNativeGameplayTag*> RegisteredNativeTags;
+	static TSet<const class FNativeGameplayTag*>& GetRegisteredNativeTags();
 
 	friend class UGameplayTagsManager;
 };

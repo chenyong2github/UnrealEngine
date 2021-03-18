@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "OnlineKeyValuePair.h"
-#include "UObject/CoreOnline.h"
+#include "UObject/CoreOnlineFwd.h"
 #include "OnlineSubsystemTypes.h"
 #include "OnlineDelegateMacros.h"
 
@@ -14,6 +14,9 @@ class FJsonObject;
  * unique identifier for messages 
  */
 typedef FUniqueNetId FUniqueMessageId;
+typedef FUniqueNetIdRef FUniqueMessageIdRef;
+typedef FUniqueNetIdPtr FUniqueMessageIdPtr;
+typedef FUniqueNetIdSet FUniqueMessageIdSet;
 
 /**
  * Message payload that stores key value pairs for variant type data
@@ -108,18 +111,18 @@ public:
 	/**
 	 * Constructor
 	 */
-	FOnlineMessageHeader(const TSharedRef<const FUniqueNetId>& InFromUserId, const TSharedRef<FUniqueMessageId>& InMessageId)
+	FOnlineMessageHeader(const FUniqueNetIdRef& InFromUserId, const FUniqueMessageIdRef& InMessageId)
 		: FromUserId(InFromUserId)
 		, MessageId(InMessageId)
 	{
 	}
 
 	/** Unique id of user that sent the message */
-	TSharedRef<const FUniqueNetId> FromUserId;
+	FUniqueNetIdRef FromUserId;
 	/** Name of user that sent the message */
 	FString FromName;
 	/** Unique id of the message. Needed to download the message payload */
-	TSharedRef<FUniqueMessageId> MessageId;
+	FUniqueMessageIdRef MessageId;
 	/** Type of message */
 	FString Type;
 	/** UTC timestamp when message was sent */
@@ -135,13 +138,13 @@ public:
 	/**
 	 * Constructor
 	 */
-	FOnlineMessage(FUniqueNetId* InMessageId)
+	FOnlineMessage(FUniqueMessageIdRef InMessageId)
 		: MessageId(InMessageId)
 	{
 	}
 
 	/** Unique id of the message */
-	TSharedRef<FUniqueMessageId> MessageId;
+	FUniqueMessageIdRef MessageId;
 	/** Payload containing the body of the message */
 	FOnlineMessagePayload Payload;
 };
@@ -296,7 +299,7 @@ public:
 	 * 
 	 * @return true if request was started
 	 */
-	virtual bool SendMessage(int32 LocalUserNum, const TArray< TSharedRef<const FUniqueNetId> >& RecipientIds, const FString& MessageType, const FOnlineMessagePayload& Payload) = 0;
+	virtual bool SendMessage(int32 LocalUserNum, const TArray< FUniqueNetIdRef >& RecipientIds, const FString& MessageType, const FOnlineMessagePayload& Payload) = 0;
 	
 	/**
 	 * Delegate used when sending of message has completed

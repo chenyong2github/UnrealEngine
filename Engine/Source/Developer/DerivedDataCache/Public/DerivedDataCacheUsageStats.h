@@ -54,6 +54,7 @@ class FDerivedDataCacheUsageStats
 {
 #if ENABLE_COOK_STATS
 public:
+
 	/** Call this at the top of the CachedDataProbablyExists override. auto Timer = TimeProbablyExists(); */
 	FCookStats::FScopedStatsCounter TimeProbablyExists()
 	{
@@ -86,10 +87,87 @@ public:
 		PrefetchStats.LogStats(AddStat, StatName, NodeName, TEXT("Prefetch"));
 	}
 
+	void Combine(const FDerivedDataCacheUsageStats& Other)
+	{
+		GetStats.Combine(Other.GetStats);
+		PutStats.Combine(Other.PutStats);
+		ExistsStats.Combine(Other.ExistsStats);
+		PrefetchStats.Combine(Other.PrefetchStats);
+	}
+
 	// expose these publicly for low level access. These should really never be accessed directly except when finished accumulating them.
 	FCookStats::CallStats GetStats;
 	FCookStats::CallStats PutStats;
 	FCookStats::CallStats ExistsStats;
 	FCookStats::CallStats PrefetchStats;
 #endif
+};
+
+class FDerivedDataBackendInterface;
+
+/**
+ *  Hierarchical usage stats for the DDC nodes.
+ */
+class FDerivedDataCacheStatsNode : public TSharedFromThis<FDerivedDataCacheStatsNode>
+{
+public:
+	FDerivedDataCacheStatsNode(const FDerivedDataBackendInterface* InBackendInterface, const FString& InCacheName)
+		: BackendInterface(InBackendInterface)
+		, CacheName(InCacheName)
+	{
+	}
+
+	const FDerivedDataBackendInterface* GetBackendInterface() const { return BackendInterface; }
+
+	const FString& GetCacheName() const { return CacheName; }
+
+	TMap<FString, FDerivedDataCacheUsageStats> ToLegacyUsageMap() const
+	{
+		TMap<FString, FDerivedDataCacheUsageStats> UsageStats;
+		GatherLegacyUsageStats(UsageStats, TEXT(" 0"));
+		return UsageStats;
+	}
+
+	void ForEachDescendant(TFunctionRef<void(TSharedRef<const FDerivedDataCacheStatsNode>)> Predicate) const
+	{
+		Predicate(SharedThis(this));
+
+		for (const TSharedRef<FDerivedDataCacheStatsNode>& Child : Children)
+		{
+			Child->ForEachDescendant(Predicate);
+		}
+	}
+
+public:
+	void GatherLegacyUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStatsMap, FString&& GraphPath) const
+	{
+		if (Stats.Num() == 1)
+		{
+			for (const auto& KVP : Stats)
+			{
+				COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s"), *GraphPath, *GetCacheName()), KVP.Value));
+			}
+		}
+		else
+		{
+			for (const auto& KVP : Stats)
+			{
+				COOK_STAT(UsageStatsMap.Add(FString::Printf(TEXT("%s: %s.%s"), *GraphPath, *GetCacheName(), *KVP.Key), KVP.Value));
+			}
+		}
+
+		int Ndx = 0;
+		for (const TSharedRef<FDerivedDataCacheStatsNode>& Child : Children)
+		{
+			Child->GatherLegacyUsageStats(UsageStatsMap, GraphPath + FString::Printf(TEXT(".%2d"), Ndx++));
+		}
+	}
+
+	TMap<FString, FDerivedDataCacheUsageStats> Stats;
+
+	TArray<TSharedRef<FDerivedDataCacheStatsNode>> Children;
+
+protected:
+	const FDerivedDataBackendInterface* BackendInterface;
+	FString CacheName;
 };

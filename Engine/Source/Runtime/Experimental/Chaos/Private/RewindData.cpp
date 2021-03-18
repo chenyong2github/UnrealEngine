@@ -561,7 +561,10 @@ void FRewindData::FinishFrame()
 					ensure(!Info.bDesync);
 					if(const FSimWritableState* SimWritableState = GetSimWritableStateAtFrame(Info,CurFrame))
 					{
-						SimWritableState->SyncToParticle(*Rigid);
+						if(SimWritableState->FrameRecordedHack == CurFrame)
+						{
+							SimWritableState->SyncToParticle(*Rigid);
+						}
 					}
 				}
 			}
@@ -828,7 +831,7 @@ void FRewindData::PushPTDirtyData(TPBDRigidParticleHandle<FReal,3>& Rigid,const 
 		LatestState.SyncSimWritablePropsFromSim(DestManagerWrapper,Rigid);
 
 		//copy results of end of frame in case user changes inputs of next frame (for example they can teleport at start frame)
-		const bool bDesynced = Info.Frames[CurFrame].GetSimWritableStateChecked(CurFrame).SyncSimWritablePropsFromSim<bResim>(Rigid);
+		const bool bDesynced = Info.Frames[CurFrame].GetSimWritableStateChecked(CurFrame).SyncSimWritablePropsFromSim<bResim>(Rigid, CurFrame);
 
 		if(bResim)
 		{
@@ -887,8 +890,9 @@ FRewindData::FDirtyParticleInfo& FRewindData::FindOrAddParticle(TGeometryParticl
 }
 
 template <bool bResim>
-bool FRewindData::FSimWritableState::SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid)
+bool FRewindData::FSimWritableState::SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid, const int32 Frame)
 {
+	FrameRecordedHack = Frame;
 	bool bDesynced = false;
 	if(bResim)
 	{

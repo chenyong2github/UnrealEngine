@@ -215,6 +215,10 @@ FCompressibleAnimData::FCompressibleAnimData(class UAnimSequence* InSeq, const b
 			NumberOfKeys = (ActualKeys / 2);
 		}
 	}
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	NumberOfFrames = NumberOfKeys;
+    PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 }
 
@@ -223,6 +227,9 @@ FCompressibleAnimData::FCompressibleAnimData(UAnimBoneCompressionSettings* InBon
 	, BoneCompressionSettings(InBoneCompressionSettings)
 	, Interpolation(InInterpolation)
 	, SequenceLength(InSequenceLength)
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	, NumberOfFrames(InNumberOfKeys)
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	, NumberOfKeys(InNumberOfKeys)
 	, bIsValidAdditive(false)
 	, ErrorThresholdScale(1.f)
@@ -239,6 +246,9 @@ FCompressibleAnimData::FCompressibleAnimData()
 , BoneCompressionSettings(nullptr)
 , Interpolation((EAnimInterpolationType)0)
 , SequenceLength(0.f)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+, NumberOfFrames(0)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 , NumberOfKeys(0)
 , bIsValidAdditive(false)
 , ErrorThresholdScale(1.f)
@@ -432,6 +442,10 @@ void ICompressedAnimData::SerializeCompressedData(class FArchive& Ar)
 	Ar << CompressedNumberOfKeys;
 
 #if WITH_EDITORONLY_DATA
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+    CompressedNumberOfFrames = CompressedNumberOfKeys;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	if (!Ar.IsFilterEditorOnly())
 	{
 		Ar << BoneCompressionErrorStats;

@@ -8,20 +8,23 @@
 #include "NiagaraSystemInstance.h"
 #include "Internationalization/Internationalization.h"
 #include "ShaderParameterUtils.h"
+#include "ShaderCompilerCore.h"
 #include "RHIGPUReadback.h"
 
 namespace NDIExportLocal
 {
-	const FName		StoreDataName_DEPRECATED(TEXT("StoreParticleData"));
-	const FName		ExportDataName(TEXT("ExportParticleData"));
+	static const TCHAR*		TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceExportTemplate.ush");
 
-	const FString	WriteBufferSizeName(TEXT("WriteBufferSize_"));
-	const FString	RWWriteBufferName(TEXT("RWWriteBuffer_"));
-	const FString	WriteBufferName(TEXT("WriteBuffer_"));
+	static const FName		StoreDataName_DEPRECATED(TEXT("StoreParticleData"));
+	static const FName		ExportDataName(TEXT("ExportParticleData"));
 
-	constexpr uint32 NumFloatsPerInstance = 7;
+	static const FString	WriteBufferSizeName(TEXT("WriteBufferSize_"));
+	static const FString	RWWriteBufferName(TEXT("RWWriteBuffer_"));
+	static const FString	WriteBufferName(TEXT("WriteBuffer_"));
 
-	int GGPUMaxReadbackCount = 1000;
+	static constexpr uint32 NumFloatsPerInstance = 7;
+
+	static int GGPUMaxReadbackCount = 1000;
 	static FAutoConsoleVariableRef CVarGPUMaxReadbackCount(
 		TEXT("fx.Niagara.NDIExport.GPUMaxReadbackCount"),
 		GGPUMaxReadbackCount,
@@ -450,42 +453,37 @@ void UNiagaraDataInterfaceExport::GetFunctions(TArray<FNiagaraFunctionSignature>
 	OutFunctions.Add(Sig);
 }
 
-void UNiagaraDataInterfaceExport::GetCommonHLSL(FString& OutHLSL)
-{
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceExport.ush\"\n");
-}
-
 void UNiagaraDataInterfaceExport::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
 
-	OutHLSL += TEXT("NDIEXPORT_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
-
+	FString TemplateFile;
+	LoadShaderSourceFile(NDIExportLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceExport::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	TMap<FString, FStringFormatArg> ArgsSample =
-	{
-		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
-		{TEXT("NDIGetContextName"), TEXT("NDIEXPORT_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
-	};
+	using namespace NDIExportLocal;
 
-	if (FunctionInfo.DefinitionName == NDIExportLocal::StoreDataName_DEPRECATED)
+	if ( (FunctionInfo.DefinitionName == StoreDataName_DEPRECATED) || (FunctionInfo.DefinitionName == ExportDataName) )
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bSuccess) { {NDIGetContextName} NDIExport_StoreData(DIContext_WriteBufferSize, DIContext_WriteBuffer, bStoreData, Position, Size, Velocity, bSuccess); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
 		return true;
 	}
 
-	if (FunctionInfo.DefinitionName == NDIExportLocal::ExportDataName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool bStoreData, in float3 Position, in float Size, in float3 Velocity, out bool bWasExported) { {NDIGetContextName} NDIExport_StoreData(DIContext_WriteBufferSize, DIContext_WriteBuffer, bStoreData, Position, Size, Velocity, bWasExported); }\n");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-
+	// Invalid function
 	return false;
+}
+
+bool UNiagaraDataInterfaceExport::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	FSHAHash Hash = GetShaderFileHash(NDIExportLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceExportTemplateHLSLSource"), Hash.ToString());
+	return bSuccess;
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceExport, StoreData);

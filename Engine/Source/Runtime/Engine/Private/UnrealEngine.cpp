@@ -13335,7 +13335,7 @@ void UEngine::TrimMemory()
 	ENQUEUE_RENDER_COMMAND(FlushCommand)(
 		[](FRHICommandList& RHICmdList)
 		{
-			GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
+			GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThread);
 			RHIFlushResources();
 			GRHICommandList.GetImmediateCommandList().ImmediateFlush(EImmediateFlushType::FlushRHIThreadFlushResources);
 		});

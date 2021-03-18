@@ -25,9 +25,8 @@ void ResetIndicesArray(TArray<int32>& IndicesArray, int32 Size)
 // FPerSolverFieldSystem
 //==============================================================================
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateInternal(
-	Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	Chaos::FPBDRigidsSolver* RigidSolver,
 	Chaos::FPBDPositionConstraints& PositionTarget,
 	TMap<int32, int32>& TargetedParticles,
 	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
@@ -92,9 +91,8 @@ void FPerSolverFieldSystem::FieldParameterUpdateInternal(
 	}
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldParameterUpdateCallback(
-	Chaos::TPBDRigidsSolver<Traits>* InSolver,
+	Chaos::FPBDRigidsSolver* InSolver,
 	Chaos::FPBDPositionConstraints& PositionTarget,
 	TMap<int32, int32>& TargetedParticles)
 {
@@ -102,9 +100,8 @@ void FPerSolverFieldSystem::FieldParameterUpdateCallback(
 	FieldParameterUpdateInternal(InSolver, PositionTarget, TargetedParticles, PersistentCommands, false);
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldForcesUpdateInternal(
-	Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	Chaos::FPBDRigidsSolver* RigidSolver,
 	TArray<FFieldSystemCommand>& Commands, const bool IsTransient)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_Object);
@@ -153,23 +150,25 @@ void FPerSolverFieldSystem::FieldForcesUpdateInternal(
 	}
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::FieldForcesUpdateCallback(
-	Chaos::TPBDRigidsSolver<Traits>* InSolver)
+	Chaos::FPBDRigidsSolver* InSolver)
 {
 	FieldForcesUpdateInternal(InSolver, TransientCommands, true);
 	FieldForcesUpdateInternal(InSolver, PersistentCommands, false);
 }
 
 template<typename FieldType, int32 ArraySize>
-FORCEINLINE void ResetInternalArrays(const int32 FieldSize, const TArray<int32>& FieldTargets, TArray<FieldType> FieldArray[ArraySize])
+FORCEINLINE void ResetInternalArrays(const int32 FieldSize, const TArray<int32>& FieldTargets, TArray<FieldType> FieldArray[ArraySize], const FieldType DefaultValue)
 {
 	for (const int32& FieldTarget : FieldTargets)
 	{
 		if (FieldTarget < ArraySize)
 		{
-			FieldArray[FieldTarget].Reset();
-			FieldArray[FieldTarget].AddZeroed(FieldSize);
+			FieldArray[FieldTarget].SetNum(FieldSize,false);
+			for (int32 i = 0; i < FieldSize; ++i)
+			{
+				FieldArray[FieldTarget][i] = DefaultValue;
+			}
 		}
 	}
 }
@@ -180,7 +179,7 @@ FORCEINLINE void EmptyInternalArrays(const TArray<int32>& FieldTargets, TArray<F
 	{
 		if (FieldTarget < ArraySize)
 		{
-			FieldArray[FieldTarget].Reset();
+			FieldArray[FieldTarget].SetNum(0, false);
 		}
 	}
 }
@@ -194,8 +193,7 @@ FORCEINLINE void EvaluateImpulseField(
 	static_cast<const FFieldNode<FVector>*>(FieldCommand.RootNode.Get())->Evaluate(FieldContext, ResultsView);
 	if (OutputImpulse.Num() == 0)
 	{
-		OutputImpulse.Reset();
-		OutputImpulse.AddZeroed(ResultsView.Num());
+		OutputImpulse.SetNum(ResultsView.Num(), false);
 		for (const FFieldContextIndex& Index : FieldContext.GetEvaluatedSamples())
 		{
 			if (Index.Sample < OutputImpulse.Num() && Index.Result < ResultsView.Num())
@@ -298,7 +296,7 @@ void FPerSolverFieldSystem::ComputeFieldRigidImpulse(
 	static const TArray<int32> ResetTargets = { EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult };
 
 	EmptyInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (EmptyTargets, VectorResults);
-	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults);
+	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults, FVector::ZeroVector);
 
 	ComputeFieldRigidImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult],
 		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce], 
@@ -373,7 +371,7 @@ void FPerSolverFieldSystem::ComputeFieldLinearImpulse(const float SolverTime)
 	static const TArray<int32> ResetTargets = { EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult };
 
 	EmptyInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (EmptyTargets, VectorResults);
-	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults);
+	ResetInternalArrays < FVector, EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::NumResults > (SamplePositions.Num(), ResetTargets, VectorResults, FVector::ZeroVector);
 
 	ComputeFieldLinearImpulseInternal(SamplePositions, SampleIndices, SolverTime, VectorResults[EFieldVectorType::Vector_TargetMax + (uint8)EFieldCommandResultType::FinalResult], 
 		VectorResults[EFieldVectorType::Vector_LinearVelocity], VectorResults[EFieldVectorType::Vector_LinearForce], TransientCommands, true);
@@ -401,10 +399,9 @@ void FPerSolverFieldSystem::RemovePersistentCommand(const FFieldSystemCommand& F
 	PersistentCommands.Remove(FieldCommand);
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::GetRelevantParticleHandles(
 	TArray<Chaos::FGeometryParticleHandle*>& Handles,
-	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	const Chaos::FPBDRigidsSolver* RigidSolver,
 	const EFieldResolutionType ResolutionType)
 {
 	Handles.SetNum(0, false);
@@ -464,10 +461,9 @@ void FPerSolverFieldSystem::GetRelevantParticleHandles(
 	}
 }
 
-template <typename Traits>
 void FPerSolverFieldSystem::GetFilteredParticleHandles(
 	TArray<Chaos::FGeometryParticleHandle*>& Handles,
-	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	const Chaos::FPBDRigidsSolver* RigidSolver,
 	const EFieldFilterType FilterType)
 {
 	Handles.SetNum(0, false);
@@ -526,25 +522,3 @@ void FPerSolverFieldSystem::GetFilteredParticleHandles(
 		}
 	}
 }
-
-#define EVOLUTION_TRAIT(Traits)\
-template void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
-		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
-		Chaos::FPBDPositionConstraints& PositionTarget, \
-		TMap<int32, int32>& TargetedParticles);\
-\
-template void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
-		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver);\
-\
-template void FPerSolverFieldSystem::GetRelevantParticleHandles(\
-		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
-		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		const EFieldResolutionType ResolutionType);\
-\
-template void FPerSolverFieldSystem::GetFilteredParticleHandles(\
-		TArray<Chaos::FGeometryParticleHandle*>& Handles,\
-		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		const EFieldFilterType FilterType);\
-
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT

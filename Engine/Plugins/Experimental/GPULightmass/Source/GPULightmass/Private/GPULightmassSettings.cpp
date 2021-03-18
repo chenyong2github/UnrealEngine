@@ -8,6 +8,7 @@
 #include "LandscapeComponent.h"
 #include "GPULightmass.h"
 #include "Editor.h"
+#include "LevelEditorViewport.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
@@ -489,6 +490,50 @@ void UGPULightmassSubsystem::EndRecordingVisibleTiles()
 		{
 			GPULightmass->EndRecordingVisibleTiles();
 		}
+	}
+}
+
+int32 UGPULightmassSubsystem::GetPercentage()
+{
+	UWorld* World = Cast<UWorld>(GetOuter());
+
+	if (!World) return 0;
+
+	FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
+
+	if (GPULightmassModule.StaticLightingSystems.Find(World) != nullptr)
+	{
+		FGPULightmass* GPULightmass = GPULightmassModule.StaticLightingSystems[World];
+		return GPULightmass->LightBuildPercentage;
+	}
+
+	return 0;
+}
+
+void UGPULightmassSubsystem::SetRealtime(bool bInRealtime)
+{
+	if (GCurrentLevelEditingViewportClient != nullptr)
+	{
+		GCurrentLevelEditingViewportClient->SetRealtime(bInRealtime);
+	}
+	else
+	{
+		UE_LOG(LogGPULightmass, Warning, TEXT("CurrentLevelEditingViewportClient is NULL!"));
+	}
+}
+
+void UGPULightmassSubsystem::Save()
+{
+	UWorld* World = Cast<UWorld>(GetOuter());
+
+	if (!World) return;
+
+	FGPULightmassModule& GPULightmassModule = FModuleManager::LoadModuleChecked<FGPULightmassModule>(TEXT("GPULightmass"));
+
+	if (GPULightmassModule.StaticLightingSystems.Find(World) != nullptr)
+	{
+		FGPULightmass* GPULightmass = GPULightmassModule.StaticLightingSystems[World];
+		GPULightmass->Scene.ApplyFinishedLightmapsToWorld();;
 	}
 }
 

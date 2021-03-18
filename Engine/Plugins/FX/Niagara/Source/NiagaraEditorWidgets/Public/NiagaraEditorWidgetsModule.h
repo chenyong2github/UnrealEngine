@@ -24,8 +24,8 @@ public:
 	float GetViewMaxOutput() const;
 	void SetOutputViewRange(float InViewMinOutput, float InViewMaxOutput);
 
-	bool GetAreCurvesVisible() const;
-	void SetAreCurvesVisible(bool bInAreCurvesVisible);
+	bool GetIsGradientVisible() const;
+	void SetIsGradientVisible(bool bInIsGradientVisible);
 
 	float GetTimelineLength() const;
 
@@ -37,7 +37,7 @@ private:
 	float ViewMaxInput;
 	float ViewMinOutput;
 	float ViewMaxOutput;
-	bool bAreCurvesVisible;
+	bool bIsGradientVisible;
 	bool bNeedsInitializeView;
 	float Height;
 };
@@ -65,7 +65,9 @@ public:
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
 
-	TSharedRef<FNiagaraStackCurveEditorOptions> GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, bool bDefaultAreCurvesVisible, float DefaultHeight);
+	static FNiagaraEditorWidgetsModule& Get();
+
+	TSharedRef<FNiagaraStackCurveEditorOptions> GetOrCreateStackCurveEditorOptionsForObject(UObject* Object, float DefaultHeight);
 
 private:
 	void ReinitializeStyle();

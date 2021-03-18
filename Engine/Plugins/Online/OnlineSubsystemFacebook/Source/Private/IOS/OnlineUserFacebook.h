@@ -18,7 +18,7 @@ class FOnlineUserFacebook : public FOnlineUserFacebookCommon
 public:
 	
 	// IOnlineUser
-	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId> >& UserIds) override;
+	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef >& UserIds) override;
 
 	// FOnlineUserFacebook
 

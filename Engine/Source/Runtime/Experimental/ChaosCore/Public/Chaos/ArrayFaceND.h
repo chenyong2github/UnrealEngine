@@ -10,7 +10,7 @@ namespace Chaos
 template<class T, int d>
 class TArrayFaceND
 {
-	TArrayFaceND(const TUniformGrid<float, d>& Grid)
+	TArrayFaceND(const TUniformGrid<FReal, d>& Grid)
 	{
 		MArray.SetNum(d); // @todo(mlentine): This should not be needed
 		const auto& Counts = Grid.Counts();
@@ -39,7 +39,7 @@ template<class T>
 class TArrayFaceND<T, 3>
 {
   public:
-	TArrayFaceND(const TUniformGrid<float, 3>& Grid)
+	TArrayFaceND(const TUniformGrid<FReal, 3>& Grid)
 	{
 		MArray.SetNum(3); // @todo(mlentine): This should not be needed
 		const auto& Counts = Grid.Counts();

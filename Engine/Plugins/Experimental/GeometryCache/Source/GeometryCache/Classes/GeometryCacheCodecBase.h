@@ -119,7 +119,8 @@ class GEOMETRYCACHE_API UGeometryCacheCodecBase : public UObject
 	virtual ~UGeometryCacheCodecBase() {}
 
 	virtual bool DecodeSingleFrame(FGeometryCacheCodecDecodeArguments &Args) { return false; }
-	
+	virtual bool DecodeBuffer(const uint8* Buffer, uint32 BufferSize, FGeometryCacheMeshData& OutMeshData) { return false; }
+
 	/** Create a new FGeometryCacheCodecRenderStateBase for this codec. The returned object will be owned by the calling code. */
 	virtual FGeometryCacheCodecRenderStateBase *CreateRenderState() { return nullptr; }
 

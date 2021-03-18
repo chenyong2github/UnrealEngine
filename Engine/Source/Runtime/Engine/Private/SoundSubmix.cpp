@@ -512,7 +512,12 @@ void USoundSubmixBase::PostLoad()
 	FAudioDeviceManager* AudioDeviceManager = (GEngine ? GEngine->GetAudioDeviceManager() : nullptr);
 
 	// Force the properties to be initialized for this SoundClass on all active audio devices
-	if (AudioDeviceManager)
+	const FString PathName = GetPathName();
+
+	// Do not support auto-registration for submixes in the temp directory
+	// (to avoid issues with validation & automatically rooting objects on load).
+	const bool bIsTemp = PathName.StartsWith(TEXT("/Temp/"));
+	if (AudioDeviceManager && !bIsTemp)
 	{
 		AudioDeviceManager->RegisterSoundSubmix(this);
 	}

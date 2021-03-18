@@ -8,7 +8,6 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/Defines.h"
 #include "Chaos/Particles.h"
-#include "Chaos/EvolutionTraits.h"
 
 namespace Chaos
 {
@@ -23,10 +22,10 @@ namespace Chaos
 	 * @param    PrevResolutionType Resolution of the previous command
 	 * @param    PrevFilterType Filter of the previous command
 	 */
-	template <typename Traits, typename PhysicsProxy>
+	template <typename PhysicsProxy>
 	FORCEINLINE bool BuildFieldSamplePoints(
 		PhysicsProxy* LocalProxy,
-		Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+		Chaos::FPBDRigidsSolver* RigidSolver,
 		const FFieldSystemCommand& FieldCommand, 
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles,
 		TArray<FVector>& SamplePositions,
@@ -111,8 +110,7 @@ namespace Chaos
 	 * @param    FieldState Field state that will be set on the handle
 	 * @param    RigidHandle Particle hadle on which the state will be set
 	 */
-	template <typename Traits>
-	FORCEINLINE void SetParticleDynamicState(Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	FORCEINLINE void SetParticleDynamicState(Chaos::FPBDRigidsSolver* RigidSolver,
 		const Chaos::EObjectStateType FieldState, Chaos::FPBDRigidParticleHandle* RigidHandle)
 	{
 		const bool bIsGC = (RigidHandle->GetParticleType() == Chaos::EParticleType::GeometryCollection) ||
@@ -138,8 +136,7 @@ namespace Chaos
 	 * @param    HasInitialAngularVelocity Boolean to check if we have to set the initial angular velocity 
 	 * @param    InitialAngularVelocity Initial angular velocity to potentially set onto he handle
 	 */
-	template <typename Traits>
-	FORCEINLINE bool ReportDynamicStateResult(Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	FORCEINLINE bool ReportDynamicStateResult(Chaos::FPBDRigidsSolver* RigidSolver,
 		const Chaos::EObjectStateType FieldState, Chaos::FPBDRigidParticleHandle* RigidHandle,
 		const bool HasInitialLinearVelocity, const Chaos::FVec3& InitialLinearVelocity,
 		const bool HasInitialAngularVelocity, const Chaos::FVec3& InitialAngularVelocity)
@@ -179,8 +176,7 @@ namespace Chaos
 	 * @param    Rigidsolver Rigid solver owning the particle handle
 	 * @param    bHasStateChanged Boolean to check before updating the handle state
 	 */
-	template <typename Traits>
-	FORCEINLINE void UpdateSolverParticlesState(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const bool bHasStateChanged)
+	FORCEINLINE void UpdateSolverParticlesState(Chaos::FPBDRigidsSolver* RigidSolver, const bool bHasStateChanged)
 	{
 		if (bHasStateChanged)
 		{
@@ -211,8 +207,7 @@ namespace Chaos
 	 * @param    Rigidsolver Rigid solver owning the breaking model
 	 * @param    ExternalStrain Strain to be used to update the breaking model
 	 */
-	template <typename Traits>
-	FORCEINLINE void UpdateSolverBreakingModel(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, TMap<Chaos::FGeometryParticleHandle*, float>& ExternalStrain)
+	FORCEINLINE void UpdateSolverBreakingModel(Chaos::FPBDRigidsSolver* RigidSolver, TMap<Chaos::FGeometryParticleHandle*, float>& ExternalStrain)
 	{
 		// Capture the results from the breaking model to post-process
 		TMap<Chaos::FPBDRigidClusteredParticleHandle*, TSet<Chaos::FPBDRigidParticleHandle*>> BreakResults =
@@ -245,8 +240,7 @@ namespace Chaos
 	 * @param    RigidHandle Particle handle on which the threshold will be updated
 	 * @param    ResultThreshold Threshoild to be set onto the handle
 	 */
-	template <typename Traits>
-	FORCEINLINE void UpdateMaterialSleepingThreshold(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, Chaos::FPBDRigidParticleHandle* RigidHandle, const float ResultThreshold)
+	FORCEINLINE void UpdateMaterialSleepingThreshold(Chaos::FPBDRigidsSolver* RigidSolver, Chaos::FPBDRigidParticleHandle* RigidHandle, const float ResultThreshold)
 	{
 		// if no per particle physics material is set, make one
 		if (!RigidSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle).IsValid())
@@ -276,8 +270,7 @@ namespace Chaos
 	 * @param    RigidHandle Particle handle on which the threshold will be updated
 	 * @param    ResultThreshold Threshoild to be set onto the handle
 	 */
-	template <typename Traits>
-	FORCEINLINE void UpdateMaterialDisableThreshold(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, Chaos::FPBDRigidParticleHandle* RigidHandle, const float ResultThreshold)
+	FORCEINLINE void UpdateMaterialDisableThreshold(Chaos::FPBDRigidsSolver* RigidSolver, Chaos::FPBDRigidParticleHandle* RigidHandle, const float ResultThreshold)
 	{
 		// if no per particle physics material is set, make one
 		if (!RigidSolver->GetEvolution()->GetPerParticlePhysicsMaterial(RigidHandle).IsValid())
@@ -312,8 +305,7 @@ namespace Chaos
 	 * @param    TargetedParticles List of particles (source/target) that will be filled by the PositionTarget/Static parameter 
 	 * @param    CommandIndex Command index that we are evaluating
 	 */
-	template <typename Traits>
-	FORCEINLINE void FieldIntegerParameterUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
+	FORCEINLINE void FieldIntegerParameterUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
@@ -426,8 +418,7 @@ namespace Chaos
 	 * @param    TargetedParticles List of particles (source/target) that will be filled by the PositionTarget/Static parameter
 	 * @param    CommandIndex Command index that we are evaluating
 	 */
-	template <typename Traits>
-	FORCEINLINE void FieldScalarParameterUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
+	FORCEINLINE void FieldScalarParameterUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
@@ -532,8 +523,7 @@ namespace Chaos
 	 * @param    TargetedParticles List of particles (source/target) that will be filled by the PositionTarget/Static parameter
 	 * @param    CommandIndex Command index that we are evaluating
 	 */
-	template <typename Traits>
-	FORCEINLINE void FieldVectorParameterUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
+	FORCEINLINE void FieldVectorParameterUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		Chaos::FPBDPositionConstraints& PositionTarget,
 		TMap<int32, int32>& TargetedParticles, const int32 CommandIndex)
@@ -612,8 +602,7 @@ namespace Chaos
 	}
 
 
-	template <typename Traits>
-	FORCEINLINE void FieldVectorForceUpdate(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const FFieldSystemCommand& FieldCommand,
+	FORCEINLINE void FieldVectorForceUpdate(Chaos::FPBDRigidsSolver* RigidSolver, const FFieldSystemCommand& FieldCommand,
 		TArray<Chaos::FGeometryParticleHandle*>& ParticleHandles, FFieldContext& FieldContext, TArray<int32>& CommandsToRemove,
 		const int32 CommandIndex)
 	{

@@ -52,6 +52,9 @@ public:
 	FOnUsdPrimTwinDestroyed OnDestroyed;
 
 public:
+	const static FName GetChildrenPropertyName() { return GET_MEMBER_NAME_CHECKED( UUsdPrimTwin, Children ); }
+
+public:
 	UPROPERTY()
 	FString PrimPath;
 
@@ -62,6 +65,6 @@ public:
 	TWeakObjectPtr< class USceneComponent > SceneComponent;
 
 private:
-	UPROPERTY()
+	UPROPERTY( Transient )
 	TMap< FString, UUsdPrimTwin* > Children;
 };

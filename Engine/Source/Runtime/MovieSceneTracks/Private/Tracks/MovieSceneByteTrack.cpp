@@ -2,11 +2,11 @@
 
 #include "Tracks/MovieSceneByteTrack.h"
 #include "Sections/MovieSceneByteSection.h"
-#include "Evaluation/MovieScenePropertyTemplates.h"
 
 UMovieSceneByteTrack::UMovieSceneByteTrack( const FObjectInitializer& ObjectInitializer )
 	: Super( ObjectInitializer )
-{ }
+{
+}
 
 void UMovieSceneByteTrack::PostLoad()
 {
@@ -25,11 +25,6 @@ UMovieSceneSection* UMovieSceneByteTrack::CreateNewSection()
 	UMovieSceneByteSection* NewByteSection = NewObject<UMovieSceneByteSection>(this, NAME_None, RF_Transactional);
 	NewByteSection->ByteCurve.SetEnum(Enum);
 	return NewByteSection;
-}
-
-FMovieSceneEvalTemplatePtr UMovieSceneByteTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieSceneBytePropertySectionTemplate(*CastChecked<UMovieSceneByteSection>(&InSection), *this);
 }
 
 void UMovieSceneByteTrack::SetEnum(UEnum* InEnum)

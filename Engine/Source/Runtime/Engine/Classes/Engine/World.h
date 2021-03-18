@@ -64,6 +64,7 @@ class FPhysScene_Chaos;
 class FSceneView;
 struct FUniqueNetIdRepl;
 struct FEncryptionKeyResponse;
+struct FParticlePerfStats;
 
 template<typename,typename> class TOctree2;
 
@@ -1693,7 +1694,7 @@ public:
 	FWorldInGamePerformanceTrackers* PerfTrackers;
 
 	//Tracking for VFX cost for this world.
-	struct FParticlePerfStats* FXPerfStats = nullptr;
+	mutable FParticlePerfStats* ParticlePerfStats = nullptr;
 
 	/**
 	 * UWorld default constructor

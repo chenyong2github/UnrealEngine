@@ -25,7 +25,7 @@ void FDMXLibrarySection::BuildSectionContextMenu(FMenuBuilder& MenuBuilder, cons
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("PatchesMenuSection", "Active Patches"));
 	for (const FDMXFixturePatchChannel& PatchChannel : DMXSection->GetFixturePatchChannels())
 	{
-		UDMXEntityFixturePatch* Patch = PatchChannel.Reference.GetFixturePatch();
+		UDMXEntityFixturePatch* Patch = PatchChannel.FixturePatchReference.GetFixturePatch();
 		if (Patch == nullptr || !Patch->IsValidLowLevelFast())
 		{
 			continue;

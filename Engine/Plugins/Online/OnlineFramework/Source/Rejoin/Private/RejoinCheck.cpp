@@ -85,7 +85,7 @@ void URejoinCheck::CheckRejoinStatus(const FOnRejoinCheckComplete& InCompletionD
 			IOnlineIdentityPtr IdentityInt = Online::GetIdentityInterface(World);
 			if (IdentityInt.IsValid())
 			{
-				TSharedPtr<const FUniqueNetId> PrimaryUniqueId = GameInstance->GetPrimaryPlayerUniqueId();
+				FUniqueNetIdPtr PrimaryUniqueId = GameInstance->GetPrimaryPlayerUniqueId();
 				if (ensure(PrimaryUniqueId.IsValid()))
 				{
 					ULocalPlayer* LP = GameInstance->FindLocalPlayerFromUniqueNetId(*PrimaryUniqueId);

@@ -1,24 +1,23 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using Rhino.DocObjects;
+using Rhino.Runtime;
 
 namespace DatasmithRhino.Utils
 {
 	public class DatasmithRhinoUniqueNameGenerator
 	{
 		/// <summary>
-		/// Gives a human readable name based on the type of the given model component. 
+		/// Gives a human readable name based on the type of the given common object. 
 		/// </summary>
-		/// <param name="InModelComponent"></param>
+		/// <param name="InCommonObject"></param>
 		/// <returns></returns>
-		public static string GetDefaultTypeName(ModelComponent InModelComponent)
+		public static string GetDefaultTypeName(CommonObject InCommonObject)
 		{
 			string DefaultName;
 
-			if (InModelComponent is RhinoObject)
+			if (InCommonObject is RhinoObject InRhinoObject)
 			{
-				RhinoObject InRhinoObject = InModelComponent as RhinoObject;
-
 				switch (InRhinoObject.ObjectType)
 				{
 					case ObjectType.InstanceDefinition:
@@ -77,11 +76,11 @@ namespace DatasmithRhino.Utils
 						break;
 				}
 			}
-			else if (InModelComponent is Layer)
+			else if (InCommonObject is Layer)
 			{
 				DefaultName = "layer";
 			}
-			else if (InModelComponent is Material)
+			else if (InCommonObject is Material)
 			{
 				DefaultName = "material";
 			}

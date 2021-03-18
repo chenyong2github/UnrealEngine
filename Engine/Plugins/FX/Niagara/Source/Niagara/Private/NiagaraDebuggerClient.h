@@ -10,8 +10,25 @@ Controller class running on game clients that handles the passing of messages to
 #include "NiagaraCommon.h"
 #include "NiagaraDebuggerCommon.h"
 #include "IMessageContext.h"
+#include "Particles/ParticlePerfStatsManager.h"
 
 class FMessageEndpoint;
+
+#if WITH_PARTICLE_PERF_STATS
+
+/**
+Listener that accumulates a short run of stats for all systems and components in the scene and reports those stats to the outliner.
+*/
+class NIAGARA_API FNiagaraOutlinerPerfListener : public FParticlePerfStatsListener_GatherAll
+{
+public:
+	FNiagaraOutlinerPerfListener() : FParticlePerfStatsListener_GatherAll(true, true, true)
+	{
+
+	}
+};
+
+#endif
 
 #if WITH_NIAGARA_DEBUGGER
 
@@ -37,7 +54,7 @@ private:
 	void HandleExecConsoleCommandMessage(const FNiagaraDebuggerExecuteConsoleCommand& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 	void HandleDebugHUDSettingsMessage(const FNiagaraDebugHUDSettingsData& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 	void HandleRequestSimpleClientInfoMessage(const FNiagaraRequestSimpleClientInfoMessage& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
-	void HandleOutlinerSettingsMessage(const FNiagaraOutlinerSettings& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
+	void HandleOutlinerSettingsMessage(const FNiagaraOutlinerCaptureSettings& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context);
 
 	/** Closes any currently active connection. */
 	void CloseConnection();
@@ -60,10 +77,14 @@ private:
 	/** The address of the connected debugger, if any. */
 	FMessageAddress Connection;
 
-	FNiagaraOutlinerSettings OutlinerSettings;
+	FNiagaraOutlinerCaptureSettings OutlinerSettings;
 	FDelegateHandle TickerHandle;
 
-	float OutlinerCountdown = 0.0f;
+	uint32 OutlinerCountdown = 0;
+
+#if WITH_PARTICLE_PERF_STATS
+	TSharedPtr<FNiagaraOutlinerPerfListener, ESPMode::ThreadSafe> StatsListener;
+#endif
 };
 
 #endif

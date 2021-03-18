@@ -119,4 +119,5 @@ class UNREALED_API UFbxAnimSequenceImportData : public UFbxAssetImportData
 
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 
+	void CopyAnimationValues(const UFbxAnimSequenceImportData* Other);
 };

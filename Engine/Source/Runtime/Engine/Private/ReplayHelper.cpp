@@ -1004,8 +1004,6 @@ bool FReplayHelper::SerializeGuidCache(UNetConnection* Connection, const FRepAct
 				CheckpointArchive->SerializeIntPacked(TableIndex);
 			}
 
-			*CheckpointArchive << CacheObject.NetworkChecksum;
-
 			uint8 Flags = 0;
 			Flags |= CacheObject.bNoLoad ? (1 << 0) : 0;
 			Flags |= CacheObject.bIgnoreWhenMissing ? (1 << 1) : 0;
@@ -1455,8 +1453,6 @@ void FReplayHelper::Serialize(FArchive& Ar)
 				Ar << ActorString;
 			}
 		);
-
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DeletedNetStartupActorGUIDs", DeletedNetStartupActorGUIDs.CountBytes(Ar));
 	}
 }
 

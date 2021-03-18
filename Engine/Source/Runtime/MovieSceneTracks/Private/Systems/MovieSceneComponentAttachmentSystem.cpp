@@ -232,7 +232,7 @@ void UMovieSceneComponentAttachmentSystem::OnRun(FSystemTaskPrerequisites& InPre
 	Filter.All({ TrackComponents->AttachComponent });
 
 	AttachmentTracker.Update(Linker, FBuiltInComponentTypes::Get()->BoundObject, Filter);
-	AttachmentTracker.ProcessInvalidatedOutputs(FAttachmentHandler(this));
+	AttachmentTracker.ProcessInvalidatedOutputs(Linker, FAttachmentHandler(this));
 }
 
 void UMovieSceneComponentAttachmentSystem::AddPendingDetach(USceneComponent* SceneComponent, const UE::MovieScene::FPreAnimAttachment& Attachment)

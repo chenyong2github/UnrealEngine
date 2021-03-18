@@ -22,10 +22,10 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultUseMaterialSleepThreshold
 int32 ChaosSolverCollisionDefaultSleepCounterThresholdCVar = 20; 
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultSleepCounterThreshold(TEXT("p.ChaosSolverCollisionDefaultSleepCounterThreshold"), ChaosSolverCollisionDefaultSleepCounterThresholdCVar, TEXT("Default counter threshold for sleeping.[def:20]"));
 
-float ChaosSolverCollisionDefaultLinearSleepThresholdCVar = 0.001f; // .001 unit mass cm
+Chaos::FRealSingle ChaosSolverCollisionDefaultLinearSleepThresholdCVar = 0.001f; // .001 unit mass cm
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultLinearSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultLinearSleepThreshold"), ChaosSolverCollisionDefaultLinearSleepThresholdCVar, TEXT("Default linear threshold for sleeping.[def:0.001]"));
 
-float ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
+Chaos::FRealSingle ChaosSolverCollisionDefaultAngularSleepThresholdCVar = 0.0087f;  //~1/2 unit mass degree
 FAutoConsoleVariableRef CVarChaosSolverCollisionDefaultAngularSleepThreshold(TEXT("p.ChaosSolverCollisionDefaultAngularSleepThreshold"), ChaosSolverCollisionDefaultAngularSleepThresholdCVar, TEXT("Default angular threshold for sleeping.[def:0.0087]"));
 
 FPBDConstraintGraph::FPBDConstraintGraph() : VisitToken(0)
@@ -556,35 +556,14 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<FPBDRigidParticles>
 			}
 			else
 			{
-				int32 NumRigidsInNewIsland = 0;
-				if (NewIslandParticles.IsValidIndex(OtherIsland))
-				{
-					for (FGeometryParticleHandle* Particle : NewIslandParticles[OtherIsland])
-					{
-						if (Particle)
-						{
-							if (FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle())
-							{
-								NumRigidsInNewIsland++;
-							}
-						}
-					}
-				}
-
-				for (FGeometryParticleHandle* Particle : IslandToParticles[Island])
+				for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
 				{
 					if (CHAOS_ENSURE(Particle))
 					{
-						FPBDRigidParticleHandle* PBDRigid = Particle->CastToRigidParticle();
+						TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
-							// this hack is necessary for particles in islands that have been put to sleep to continue sleeping. Without it, once the island is put to
-							// sleep, an optimization made in ProduceParticleOverlaps ignores sleeping-sleeping cases for generating constraints, so each
-							// sleeping particle goes into its own island, then immediately wakes up here.
-							if (!(NumRigidsInNewIsland == 1 && PBDRigid->Sleeping()))
-							{
-								Particles.ActivateParticle(Particle);
-							}
+							Particles.ActivateParticle(Particle);
 						}
 					}
 				}

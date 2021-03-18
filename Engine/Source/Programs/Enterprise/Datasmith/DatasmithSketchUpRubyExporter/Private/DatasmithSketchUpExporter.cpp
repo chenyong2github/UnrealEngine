@@ -94,6 +94,7 @@ public:
 	{
 		SceneExporterRef->SetName(InName);
 		DatasmithSceneRef->SetName(InName);
+		DatasmithSceneRef->SetLabel(InName);
 	}
 
 	void SetOutputPath(const TCHAR* InOutputPath)
@@ -117,13 +118,13 @@ class FDatasmithSketchUpDirectLinkManager
 {
 public:
 
-	static bool Init()
+	static bool Init(const FString& InEnginePath)
 	{
 		FDatasmithExporterManager::FInitOptions Options;
 		Options.bEnableMessaging = true; // DirectLink requires the Messaging service.
 		Options.bSuppressLogs = false;   // Log are useful, don't suppress them
-		Options.bUseDatasmithExporterUI = true;
-		Options.RemoteEngineDirPath = TEXT(DATASMITH_SKETCHUP_REMOTE_ENGINE_PATH);
+		Options.bUseDatasmithExporterUI = !InEnginePath.IsEmpty();
+		Options.RemoteEngineDirPath = *InEnginePath;
 
 		if (!FDatasmithExporterManager::Initialize(Options))
 		{
@@ -163,28 +164,36 @@ public:
 
 	DatasmithSketchUp::FExportContext Context;
 
-	FDatasmithSketchUpDirectLinkExporter(bool bInEnableDirectLink) : bEnableDirectLink(bInEnableDirectLink) {}
+	FDatasmithSketchUpDirectLinkExporter(const TCHAR* InName, const TCHAR* InOutputPath, bool bInEnableDirectLink) : bEnableDirectLink(bInEnableDirectLink)
+	{
+		// Set scene name before initializing DirectLink for the scene so that the name is passed along
+		ExportedScene.SetName(InName);
+		ExportedScene.SetOutputPath(InOutputPath);
+
+		// NOTE: InitializeForScene needs to be called in order to have DirectLink UI working(is was crashing otherwise)
+		if (bEnableDirectLink)
+		{
+			DirectLinkManager.InitializeForScene(ExportedScene);
+		}
+	}
 
 	~FDatasmithSketchUpDirectLinkExporter()
 	{
 	}
 
-	bool Start(const TCHAR* InName, const TCHAR* InOutputPath)
+	bool Start()
 	{
-		ExportedScene.SetName(InName);
-		ExportedScene.SetOutputPath(InOutputPath);
-
-		if (bEnableDirectLink)
-		{
-			DirectLinkManager.InitializeForScene(ExportedScene);
-		}
-
 		Context.DatasmithScene = ExportedScene.GetDatasmithSceneRef();
 		Context.SceneExporter = ExportedScene.GetSceneExporterRef();
 		Context.Populate();
 
 		SetSceneModified();
 		return true;
+	}
+
+	void Update()
+	{
+		Context.Update();
 	}
 
 	void SendUpdate()
@@ -229,25 +238,41 @@ public:
 	bool OnComponentInstanceChanged(SUEntityRef Entity)
 	{
 		DatasmithSketchUp::FEntityIDType EntityId = DatasmithSketchUpUtils::GetEntityID(Entity);
-		if (TArray<TSharedPtr<DatasmithSketchUp::FNodeOccurence>>* OccurencesPtr = Context.ComponentInstances.GetOccurrencesForComponentInstance(EntityId))
-		{
-			for(TSharedPtr<DatasmithSketchUp::FNodeOccurence>& Occurence: *OccurencesPtr)
-			{
-				Occurence->Update(Context);
-			}
-		}
-		else
-		{
-			// todo: implement. This could happen if
-			//  - component instance was previously skipped because it doesn't contain meaningful data(probably it's not needed to process it it's still empty)
-			//  - was removed recently. Not sure if 'changed' can code after 'removed'
-			//  - addition wasn't handled
-			// - anything else?
-			ensureMsgf(false, TEXT("ComponentInstance was not found in ComponentInstanceMap"));
-		}
 
+		Context.ComponentInstances.InvalidateComponentInstanceProperties(EntityId);
 		SetSceneModified();
 		return true;
+	}
+
+	bool InvalidateGeometryForFace(DatasmithSketchUp::FEntityIDType FaceId)
+	{
+		// When Face is modified find Entities it belongs too, reexport Entities meshes and update Occurrences using this Entities
+		if (DatasmithSketchUp::FEntities* Entities = Context.EntitiesObjects.FindFace(FaceId.EntityID))
+		{
+			Entities->Definition.InvalidateDefinitionGeometry();
+			return true;
+		}
+		// todo: why there's could have been no Entities registered for a 'modified' Face?
+		return false;
+	}
+
+	bool OnEntityRemoved(DatasmithSketchUp::FEntityIDType EntityId)
+	{
+		// todo: map each existing entity id to its type so don't need to check every collection?
+
+		//Try ComponentInstance/Group
+		if (Context.ComponentInstances.RemoveComponentInstance(EntityId))
+		{
+			return true;
+		}
+
+		// Try Face
+		if (InvalidateGeometryForFace(EntityId))
+		{
+			return true;
+		}
+
+		return false;
 	}
 
 	bool OnEntityModified(SUEntityRef Entity)
@@ -265,23 +290,7 @@ public:
 			int32_t FaceId = 0;
 			if (SUEntityGetID(Entity, &FaceId) == SU_ERROR_NONE)
 			{
-				// When Face is modified find Entities it belongs too, reexport Entities meshes and update Occurrences using this Entities
-				if (DatasmithSketchUp::FEntities* Entities = Context.EntitiesObjects.FindFace(FaceId))
-				{
-					// Re-extract and reexport entities geometry
-					Entities->UpdateGeometry(Context);
-
-					// todo: make sure that - DatasmithMeshActor's updated that use this mesh, materials 
-					// Then update all occurrences of the definition instances within the hierarchy
-					// Reason: Faces change ComponentInstances 
-					Entities->Definition.UpdateInstances(Context);
-					SetSceneModified();
-				}
-				else
-				{
-					// todo: why there's could have been no Entities registered for a 'modified' Face?
-				}
-
+				InvalidateGeometryForFace(DatasmithSketchUp::FEntityIDType(FaceId));
 				// todo: can we change DatasmithMesh in-place?
 				// - In case mesh need to be updated on DatasmithMeshActors:
 				// - and reset on every MeshActor, (or create if was empty? or not - modified, not added, not expected)
@@ -338,23 +347,10 @@ void DatasmithSketchUpDirectLinkExporter_free(void* ptr)
 }
 
 // Created object and wrap it to return to Ruby
-VALUE DatasmithSketchUpDirectLinkExporter_new(VALUE cls, VALUE enable_directlink)
+VALUE DatasmithSketchUpDirectLinkExporter_new(VALUE cls, VALUE name, VALUE path, VALUE enable_directlink)
 {
 	// Converting args
 	bool bEnableDirectLink = RTEST(enable_directlink);
-	// Done converting args
-
-	FDatasmithSketchUpDirectLinkExporter* ptr = new FDatasmithSketchUpDirectLinkExporter(bEnableDirectLink);
-	VALUE wrapped = Data_Wrap_Struct(cls, 0, DatasmithSketchUpDirectLinkExporter_free, ptr);
-	rb_obj_call_init(wrapped, 0, NULL);
-	return wrapped;
-}
-
-VALUE DatasmithSketchUpDirectLinkExporter_start(VALUE self, VALUE name, VALUE path)
-{
-	// Converting args
-	FDatasmithSketchUpDirectLinkExporter* Ptr;
-	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
 
 	Check_Type(name, T_STRING);
 	Check_Type(path, T_STRING);
@@ -363,7 +359,21 @@ VALUE DatasmithSketchUpDirectLinkExporter_start(VALUE self, VALUE name, VALUE pa
 	FString PathUnreal = RubyStringToUnreal(path);
 	// Done converting args
 
-	return Ptr->Start(*NameUnreal, *PathUnreal) ? Qtrue : Qfalse;
+	FDatasmithSketchUpDirectLinkExporter* ptr = new FDatasmithSketchUpDirectLinkExporter(*NameUnreal, *PathUnreal, bEnableDirectLink);
+	VALUE wrapped = Data_Wrap_Struct(cls, 0, DatasmithSketchUpDirectLinkExporter_free, ptr);
+	rb_obj_call_init(wrapped, 0, NULL);
+	return wrapped;
+}
+
+VALUE DatasmithSketchUpDirectLinkExporter_start(VALUE self)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	// Done converting args
+
+	return Ptr->Start() ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_send_update(VALUE self)
@@ -374,6 +384,17 @@ VALUE DatasmithSketchUpDirectLinkExporter_send_update(VALUE self)
 	// Done converting args
 
 	ptr->SendUpdate();
+	return Qtrue;
+}
+
+VALUE DatasmithSketchUpDirectLinkExporter_update(VALUE self)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, ptr);
+	// Done converting args
+
+	ptr->Update();
 	return Qtrue;
 }
 
@@ -427,13 +448,35 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_entity_modified(VALUE self, VALUE r
 	return Qtrue;
 }
 
-VALUE on_load() {
+VALUE DatasmithSketchUpDirectLinkExporter_on_entity_removed(VALUE self, VALUE ruby_entity_id)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+
+	Check_Type(ruby_entity_id, T_FIXNUM);
+
+	int32 EntityId = FIX2LONG(ruby_entity_id);
+	// Done converting args
+	
+	Ptr->OnEntityRemoved(DatasmithSketchUp::FEntityIDType(EntityId));
+
+	return Qtrue;
+}
+
+VALUE on_load(VALUE self, VALUE engine_path) {
+	// Converting args
+	Check_Type(engine_path, T_STRING);
+
+	FString EnginePathUnreal = RubyStringToUnreal(engine_path);
+	// Done converting args
+
 	// This needs to be called before creating instance of DirectLink
-	return FDatasmithSketchUpDirectLinkManager::Init() ? Qtrue : Qfalse;
+	return FDatasmithSketchUpDirectLinkManager::Init(EnginePathUnreal) ? Qtrue : Qfalse;
 }
 
 VALUE on_unload() {
-	FDatasmithDirectLink::Shutdown();
+	FDatasmithExporterManager::Shutdown();
 	return Qtrue;
 }
 
@@ -455,17 +498,20 @@ extern "C" __declspec(dllexport) void Init_DatasmithSketchUpRuby2020()
 	VALUE EpicGames = rb_define_module("EpicGames");
 	VALUE Datasmith = rb_define_module_under(EpicGames, "DatasmithBackend");
 
-	rb_define_module_function(Datasmith, "on_load", ToRuby(on_load), 0);
+	rb_define_module_function(Datasmith, "on_load", ToRuby(on_load), 1);
 	rb_define_module_function(Datasmith, "on_unload", ToRuby(on_unload), 0);
 
 	rb_define_module_function(Datasmith, "open_directlink_ui", ToRuby(open_directlink_ui), 0);
 
 	DatasmithSketchUpDirectLinkExporterCRubyClass = rb_define_class_under(Datasmith, "DatasmithSketchUpDirectLinkExporter", rb_cObject);
 
-	rb_define_singleton_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "new", ToRuby(DatasmithSketchUpDirectLinkExporter_new), 1);
-	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "start", ToRuby(DatasmithSketchUpDirectLinkExporter_start), 2);
+	rb_define_singleton_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "new", ToRuby(DatasmithSketchUpDirectLinkExporter_new), 3);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "start", ToRuby(DatasmithSketchUpDirectLinkExporter_start), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_component_instance_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_component_instance_changed), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_modified", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_modified), 1);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 1);
+	
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene), 0);
 }

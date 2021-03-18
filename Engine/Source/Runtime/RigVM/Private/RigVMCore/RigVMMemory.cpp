@@ -1726,10 +1726,6 @@ void FRigVMMemoryContainer::SetRegisterValueFromString(const FRigVMOperand& InOp
 		{
 			GetFixedArray<FString>(Register)[Index] = *DefaultValue;
 		}
-		else
-		{
-			ensure(false);
-		}
 	}
 }
 

@@ -69,6 +69,9 @@ protected:
 	/** Get the current binding ID */
 	virtual FMovieSceneObjectBindingID GetCurrentValue() const = 0;
 
+	/** Whether there are multiple values */
+	virtual bool HasMultipleValues() const { return false; }
+
 protected:
 
 	/** Initialize this class - rebuilds sequence hierarchy data and available IDs from the source sequence */

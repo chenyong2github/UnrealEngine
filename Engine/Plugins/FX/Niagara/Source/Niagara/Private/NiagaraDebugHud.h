@@ -11,6 +11,7 @@ Class used help debugging Niagara simulations
 #include "RHICommandList.h"
 #include "NiagaraDebuggerCommon.h"
 
+
 class FNiagaraDebugHud
 {
 	typedef TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe> FGpuDataSetPtr;
@@ -49,6 +50,9 @@ public:
 
 	void UpdateSettings(const FNiagaraDebugHUDSettingsData& NewSettings);
 
+	void AddMessage(FName Key, const FNiagaraDebugMessage& Message);
+	void RemoveMessage(FName Key);
+
 private:
 	class FNiagaraDataSet* GetParticleDataSet(class FNiagaraSystemInstance* SystemInstance, class FNiagaraEmitterInstance* EmitterInstance, int32 iEmitter);
 	FValidationErrorInfo& GetValidationErrorInfo(class UNiagaraComponent* NiagaraComponent);
@@ -57,8 +61,9 @@ private:
 
 	void Draw(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas, class APlayerController* PC);
 	void DrawOverview(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas);
-	void DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D TextLocation);
+	void DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
 	void DrawComponents(class FNiagaraWorldManager* WorldManager, class UCanvas* Canvas);
+	void DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation);
 
 private:
 	TWeakObjectPtr<class UWorld>	WeakWorld;
@@ -75,4 +80,10 @@ private:
 	TMap<TWeakObjectPtr<class UNiagaraComponent>, FValidationErrorInfo> ValidationErrors;
 
 	TMap<FNiagaraSystemInstanceID, FGpuEmitterCache> GpuEmitterData;
+
+	float LastDrawTime = 0.0f;
+	float DeltaSeconds = 0.0f;
+
+	/** Generic messages that the debugger or other parts of Niagara can post to the HUD. */
+	TMap<FName, FNiagaraDebugMessage> Messages;
 };

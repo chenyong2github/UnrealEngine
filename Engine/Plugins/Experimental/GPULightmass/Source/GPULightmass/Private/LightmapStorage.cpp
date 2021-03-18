@@ -14,7 +14,7 @@ namespace GPULightmass
 
 TDoubleLinkedList<FTileDataLayer*> FTileDataLayer::AllUncompressedTiles;
 
-int64 FTileDataLayer::Compress()
+int64 FTileDataLayer::Compress(bool bParallelCompression)
 {
 	const int32 CompressMemoryBound = FCompression::CompressMemoryBound(NAME_LZ4, sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize);
 
@@ -28,7 +28,10 @@ int64 FTileDataLayer::Compress()
 		Data.Empty();
 
 		check(bNodeAddedToList);
-		AllUncompressedTiles.RemoveNode(&Node, false);
+		if (!bParallelCompression)
+		{
+			AllUncompressedTiles.RemoveNode(&Node, false);
+		}
 		bNodeAddedToList = false;
 
 		return sizeof(FLinearColor) * GPreviewLightmapVirtualTileSize * GPreviewLightmapVirtualTileSize - CompressedSize;
@@ -68,13 +71,24 @@ void FTileDataLayer::Evict()
 {
 	int32 OldNum = AllUncompressedTiles.Num();
 	double StartTime = FPlatformTime::Seconds();
-	int64 EvictedMemorySize = 0;
+
+	TArray<FTileDataLayer*> TileDataLayersToCompress;
 
 	while (AllUncompressedTiles.Num() > 16384)
 	{
 		FTileDataLayer* TileDataLayerToCompress = AllUncompressedTiles.GetTail()->GetValue();
-		EvictedMemorySize += TileDataLayerToCompress->Compress();
+		AllUncompressedTiles.RemoveNode(AllUncompressedTiles.GetTail(), false);
+		TileDataLayersToCompress.Add(TileDataLayerToCompress);
 	}
+
+	int64 EvictedMemorySize = 0;
+
+	ParallelFor(TileDataLayersToCompress.Num(), 
+		[&TileDataLayersToCompress, &EvictedMemorySize](int32 Index)
+	{
+		FTileDataLayer* TileDataLayerToCompress = TileDataLayersToCompress[Index];
+		FPlatformAtomics::InterlockedAdd(&EvictedMemorySize, TileDataLayerToCompress->Compress(true)); 
+	});
 
 	double EndTime = FPlatformTime::Seconds();
 

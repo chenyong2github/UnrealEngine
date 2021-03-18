@@ -29,12 +29,11 @@ namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleFallingUnderGravity)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_SingleFallingUnderGravity)
 	{
-		using Traits = TypeParam;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>()->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init()->template As<FGeometryCollectionWrapper>();
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
 		UnitTest.Advance();
@@ -48,9 +47,8 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleBodyCollidingWithGroundPlane)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_SingleBodyCollidingWithGroundPlane)
 	{
-		using Traits = TypeParam;
 		FReal  Scale = 100.0f;
 		CreationParameters Params; 
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box; 
@@ -58,10 +56,10 @@ namespace GeometryCollectionTest
 		FVector BoxScale(Scale); 
 		Params.GeomTransform.SetScale3D(BoxScale); // Box dimensions
 		Params.GeomTransform.SetLocation(0.9f * Scale * FVector::UpVector);	// Don't start too deep in penetration or the pushout is too aggressive
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Floor);
 		UnitTest.Initialize();
@@ -78,19 +76,18 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleSphereCollidingWithSolverFloor)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_SingleSphereCollidingWithSolverFloor)
 	{
-		using Traits = TypeParam;
 		FVector Scale(0.5f);
 		CreationParameters Params; 
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Sphere; 
 		Params.GeomTransform.SetScale3D(Scale); // Sphere radius
-		TGeometryCollectionWrapper<Traits>* Collection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection =
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 		RigidBodyWrapper* Floor = 
-			TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
+			TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Floor);
 		UnitTest.Initialize();
@@ -105,18 +102,17 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleCubeIntersectingWithSolverFloor)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_SingleCubeIntersectingWithSolverFloor)
 	{
-		using Traits = TypeParam;
 		FVector Scale(100.0f);
 		CreationParameters Params; Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;  Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		Params.GeomTransform.SetScale3D(Scale); // Box size
 		Params.GeomTransform.SetLocation(0.9f * Scale * FVector::UpVector);	// Don't start too deep in penetration or the pushout is too aggressive
 
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
-		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init<Traits>()->template As<RigidBodyWrapper>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
+		RigidBodyWrapper* Floor = TNewSimulationObject<GeometryType::RigidFloor>::Init()->template As<RigidBodyWrapper>();
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.AddSimulationObject(Floor);
 		UnitTest.Initialize();
@@ -134,13 +130,12 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SingleKinematicBody)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_SingleKinematicBody)
 	{
-		using Traits = TypeParam;
 		CreationParameters Params; Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Kinematic;
-		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
 		for (int i = 0; i < 3; i++)
@@ -157,17 +152,16 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SleepingDontMove)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_SleepingDontMove)
 	{
-		using Traits = TypeParam;
 		CreationParameters Params;
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Sleeping;
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
 		FReal InitialStartHeight = 5.0;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, InitialStartHeight));
-		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		UnitTest.AddSimulationObject(SleepingCollection);
 		UnitTest.Initialize();
 
@@ -188,23 +182,22 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_SleepingActivation)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_SleepingActivation)
 	{
-		using Traits = TypeParam;
 		CreationParameters Params; 
 		Params.SimplicialType = ESimplicialType::Chaos_Simplicial_Box;
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_Box;
 
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, 15.f));
-		TGeometryCollectionWrapper<Traits>* MovingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* MovingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
 		FReal InitialStartHeight = 5.0;
 		Params.DynamicState = EObjectStateTypeEnum::Chaos_Object_Sleeping;
 		Params.RootTransform.SetLocation(FVector(0.f, 0.f, InitialStartHeight));
-		TGeometryCollectionWrapper<Traits>* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* SleepingCollection = TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(Params)->template As<FGeometryCollectionWrapper>();
 
-		TFramework<Traits> UnitTest;
+		FFramework UnitTest;
 		UnitTest.AddSimulationObject(SleepingCollection);
 		UnitTest.AddSimulationObject(MovingCollection);
 		UnitTest.Initialize();
@@ -228,9 +221,8 @@ namespace GeometryCollectionTest
 	}
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_CollisionGroup)
+	GTEST_TEST(AllTraits, GeometryCollection_RigidBodies_CollisionGroup)
 	{
-		using Traits = TypeParam;
 		/*
 		TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = nullptr;
 		TSharedPtr<FGeometryCollection> RestCollection = nullptr;
@@ -324,9 +316,8 @@ namespace GeometryCollectionTest
 
 
 	
-	TYPED_TEST(AllTraits, GeometryCollection_TestImplicitCollisionGeometry)
+	GTEST_TEST(AllTraits, GeometryCollection_TestImplicitCollisionGeometry)
 	{
-		using Traits = TypeParam;
 		typedef Chaos::FVec3 Vec;
 
 		CreationParameters Params; 
@@ -334,9 +325,9 @@ namespace GeometryCollectionTest
 		Params.ImplicitType = EImplicitTypeEnum::Chaos_Implicit_LevelSet;
 		Params.CollisionType = ECollisionTypeEnum::Chaos_Surface_Volumetric;
 
-		TGeometryCollectionWrapper<Traits>* Collection =
-			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init<Traits>(
-				Params)->template As<TGeometryCollectionWrapper<Traits>>();
+		FGeometryCollectionWrapper* Collection =
+			TNewSimulationObject<GeometryType::GeometryCollectionWithSingleRigid>::Init(
+				Params)->template As<FGeometryCollectionWrapper>();
 
 		const TManagedArray<TUniquePtr<Chaos::FBVHParticles>>& Simplicials =
 			Collection->RestCollection->template GetAttribute<TUniquePtr<Chaos::FBVHParticles>>(

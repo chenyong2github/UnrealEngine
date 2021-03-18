@@ -33,7 +33,7 @@ public:
 		TArray<uint32>& Indices,
 		TArray<FVector>& Vertices) override;
 
-	virtual bool BuildSkeletalMesh(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs) override;
+	virtual bool BuildSkeletalMesh(const FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters) override;
 
 private:
 
@@ -66,8 +66,8 @@ bool FMeshBuilderModule::BuildMeshVertexPositions(
 	return false;
 }
 
-bool FMeshBuilderModule::BuildSkeletalMesh(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const bool bRegenDepLODs)
+bool FMeshBuilderModule::BuildSkeletalMesh(const FSkeletalMeshBuildParameters& SkeletalMeshBuildParameters)
 {
 	//Call the skeletal mesh builder
-	return FSkeletalMeshBuilder().Build(SkeletalMesh, LODIndex, bRegenDepLODs);
+	return FSkeletalMeshBuilder().Build(SkeletalMeshBuildParameters);
 }

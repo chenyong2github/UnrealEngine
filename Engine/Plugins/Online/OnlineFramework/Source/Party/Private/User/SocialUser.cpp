@@ -27,7 +27,7 @@
 // FSocialQuery_UserInfo
 //////////////////////////////////////////////////////////////////////////
 
-class FSocialQuery_UserInfo : public TSocialQuery<TSharedRef<const FUniqueNetId>, const TSharedPtr<FOnlineUser>&>
+class FSocialQuery_UserInfo : public TSocialQuery<FUniqueNetIdRef, const TSharedPtr<FOnlineUser>&>
 {
 public:
 	static FName GetQueryId() { return TEXT("UserInfo"); }
@@ -43,7 +43,7 @@ public:
 			const int32 LocalUserNum = Toolkit->GetLocalUserNum();
 			UserInterface->AddOnQueryUserInfoCompleteDelegate_Handle(LocalUserNum, FOnQueryUserInfoCompleteDelegate::CreateSP(this, &FSocialQuery_UserInfo::HandleQueryUserInfoComplete));
 
-			TArray<TSharedRef<const FUniqueNetId>> UserIds;
+			TArray<FUniqueNetIdRef> UserIds;
 			CompletionCallbacksByUserId.GenerateKeyArray(UserIds);
 			UE_LOG(LogParty, Log, TEXT("FSocialQuery_UserInfo executing for [%d] users on subsystem [%s]"), UserIds.Num(), ToString(SubsystemType));
 
@@ -52,7 +52,7 @@ public:
 	}
 
 private:
-	void HandleQueryUserInfoComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FString& ErrorStr)
+	void HandleQueryUserInfoComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<FUniqueNetIdRef>& UserIds, const FString& ErrorStr)
 	{
 		if (!ensure(Toolkit.IsValid()) || Toolkit->GetLocalUserNum() != LocalUserNum)
 		{
@@ -66,10 +66,10 @@ private:
 		{
 			// Can't just check for array equality - order and exact address of the Ids aren't dependably the same as those given to the query
 			bool bIsOurQuery = true;
-			for (const TPair<TSharedRef<const FUniqueNetId>, FOnQueryComplete>& IdCallbackPair : CompletionCallbacksByUserId)
+			for (const TPair<FUniqueNetIdRef, FOnQueryComplete>& IdCallbackPair : CompletionCallbacksByUserId)
 			{
 				const auto ContainsPred = 
-					[&IdCallbackPair] (TSharedRef<const FUniqueNetId>& QueryUserId)
+					[&IdCallbackPair] (FUniqueNetIdRef& QueryUserId)
 					{
 						return *QueryUserId == *IdCallbackPair.Key;
 					};
@@ -84,7 +84,7 @@ private:
 			if (bIsOurQuery)
 			{
 				// Notify users of the query completion
-				for (const TSharedRef<const FUniqueNetId>& UserId : UserIds)
+				for (const FUniqueNetIdRef& UserId : UserIds)
 				{
 					TSharedPtr<FOnlineUser> UserInfo = UserInterface->GetUserInfo(LocalUserNum, *UserId);
 					for (auto& IdCallbackPair : CompletionCallbacksByUserId)
@@ -937,7 +937,7 @@ bool USocialUser::BlockUser(ESocialSubsystem Subsystem) const
 		IOnlineFriendsPtr FriendsInterface = Oss->GetFriendsInterface();
 		if (FriendsInterface.IsValid())
 		{
-			TSharedPtr<const FUniqueNetId> UniqueNetId = GetUserId(Subsystem).GetUniqueNetId();
+			FUniqueNetIdPtr UniqueNetId = GetUserId(Subsystem).GetUniqueNetId();
 			if (UniqueNetId.IsValid())
 			{
 				return FriendsInterface->BlockPlayer(GetOwningToolkit().GetLocalUserNum(), *UniqueNetId.Get());
@@ -955,7 +955,7 @@ bool USocialUser::UnblockUser(ESocialSubsystem Subsystem) const
 		IOnlineFriendsPtr FriendsInterface = Oss->GetFriendsInterface();
 		if (FriendsInterface.IsValid())
 		{
-			TSharedPtr<const FUniqueNetId> UniqueNetId = GetUserId(Subsystem).GetUniqueNetId();
+			FUniqueNetIdPtr UniqueNetId = GetUserId(Subsystem).GetUniqueNetId();
 			if (UniqueNetId.IsValid())
 			{
 				return FriendsInterface->UnblockPlayer(GetOwningToolkit().GetLocalUserNum(), *UniqueNetId.Get());

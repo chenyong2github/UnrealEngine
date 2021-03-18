@@ -26,7 +26,7 @@ uint16 FVoicePacketSteam::GetBufferSize()
 	return Length;
 }
 
-TSharedPtr<const FUniqueNetId> FVoicePacketSteam::GetSender()
+FUniqueNetIdPtr FVoicePacketSteam::GetSender()
 {
 	return Sender;
 }
@@ -38,7 +38,7 @@ void FVoicePacketSteam::Serialize(class FArchive& Ar)
 	{
 		uint64 SenderUID;
 		Ar << SenderUID;
-		Sender = MakeShareable(new FUniqueNetIdSteam(SenderUID));
+		Sender = FUniqueNetIdSteam::Create(SenderUID);
 		Ar << Length;
 		// Verify the packet is a valid size
 		if (Length <= MAX_VOICE_DATA_SIZE)

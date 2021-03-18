@@ -60,8 +60,8 @@ private:
 	inline void ApplyRangeHelper(FPBDParticles& Particles, const FReal Dt, const int32 Offset, const int32 Range) const
 	{
 		const uint32 DynamicGroupId = DynamicGroupIds[Offset];  // Particle group Id, must be the same across the entire range
-		const float Friction = PerGroupFriction[DynamicGroupId];
-		const float Thickness = PerGroupThicknesses[DynamicGroupId];
+		const FReal Friction = PerGroupFriction[DynamicGroupId];
+		const FReal Thickness = PerGroupThicknesses[DynamicGroupId];
 
 		PhysicsParallelFor(Range - Offset, [this, &Particles, Offset, DynamicGroupId, Thickness, Friction, Dt](int32 i)
 		{

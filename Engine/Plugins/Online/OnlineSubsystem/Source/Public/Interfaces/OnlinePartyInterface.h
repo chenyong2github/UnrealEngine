@@ -341,7 +341,7 @@ public:
 	 * Get the id of the user requesting to join
 	 * @return the id of the user requesting to join
 	 */
-	virtual const TSharedRef<const FUniqueNetId>& GetUserId() const = 0;
+	virtual const FUniqueNetIdRef& GetUserId() const = 0;
 
 	/**
 	 * Get the display name of the user requesting to join
@@ -379,7 +379,7 @@ public:
 	 * Get the primary user's id
 	 * @return id of the primary user of this join request
 	 */
-	virtual const TSharedRef<const FUniqueNetId>& GetSenderId() const
+	virtual const FUniqueNetIdRef& GetSenderId() const
 	{
 		TArray<IOnlinePartyUserPendingJoinRequestInfoConstRef> Users;
 		GetUsers(Users);
@@ -458,7 +458,7 @@ public:
 	/**
 	 * @return user id of where this join info came from
 	 */
-	virtual TSharedRef<const FUniqueNetId> GetSourceUserId() const = 0;
+	virtual FUniqueNetIdRef GetSourceUserId() const = 0;
 
 	/**
 	 * @return user id of where this join info came from
@@ -679,7 +679,7 @@ public:
 	/** Type of party (e.g., Primary) */
 	const FOnlinePartyTypeId PartyTypeId;
 	/** Unique id of the leader */
-	TSharedPtr<const FUniqueNetId> LeaderId;
+	FUniqueNetIdPtr LeaderId;
 	/** The current state of the party */
 	EPartyState State;
 	/** The previous state of the party */
@@ -719,7 +719,7 @@ enum class EPartyInvitationRemovedReason : uint8
 struct FPartyInvitationRecipient
 {
 	/** Constructor */
-	FPartyInvitationRecipient(const TSharedRef<const FUniqueNetId>& InId)
+	FPartyInvitationRecipient(const FUniqueNetIdRef& InId)
 		: Id(InId)
 	{}
 
@@ -729,7 +729,7 @@ struct FPartyInvitationRecipient
 	{}
 
 	/** Id of the user to send the invitation to */
-	TSharedRef<const FUniqueNetId> Id;
+	FUniqueNetIdRef Id;
 	/** Additional data to provide context for the invitee */
 	FString PlatformData;
 
@@ -1245,7 +1245,7 @@ public:
 	 *
 	 * @return true if task was started
 	 */
-	virtual bool RejoinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FOnlinePartyTypeId& PartyTypeId, const TArray<TSharedRef<const FUniqueNetId>>& FormerMembers, const FOnJoinPartyComplete& Delegate = FOnJoinPartyComplete()) = 0;
+	virtual bool RejoinParty(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, const FOnlinePartyTypeId& PartyTypeId, const TArray<FUniqueNetIdRef>& FormerMembers, const FOnJoinPartyComplete& Delegate = FOnJoinPartyComplete()) = 0;
 
 	/**
 	 * Leave an existing party
@@ -1594,7 +1594,7 @@ public:
 	 *
 	 * @return true if entries found
 	 */
-	virtual bool GetPendingInvitedUsers(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<TSharedRef<const FUniqueNetId>>& OutPendingInvitedUserArray) const = 0;
+	virtual bool GetPendingInvitedUsers(const FUniqueNetId& LocalUserId, const FOnlinePartyId& PartyId, TArray<FUniqueNetIdRef>& OutPendingInvitedUserArray) const = 0;
 
 	static const FOnlinePartyTypeId::TInternalType PrimaryPartyTypeIdValue = 0x11111111;
 	/**

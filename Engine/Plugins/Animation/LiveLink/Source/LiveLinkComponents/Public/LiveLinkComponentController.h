@@ -72,6 +72,7 @@ public:
 
 	//~ Begin UActorComponent interface
 	virtual void OnRegister() override;
+	virtual void DestroyComponent(bool bPromoteChildren = false) override;
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	//~ End UActorComponent interface
 

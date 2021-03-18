@@ -1050,8 +1050,7 @@ void AWaterBrushManager::BeginPlay()
 void AWaterBrushManager::ComputeWaterLandscapeInfo(FVector& OutRTWorldLocation, FVector& OutRTWorldSizeVector) const
 {
 	FVector LandscapeScale = LandscapeTransform.GetScale3D();
-	OutRTWorldSizeVector = FVector(LandscapeRTRes - FIntPoint(1, 1));
-	OutRTWorldSizeVector *= LandscapeScale;
+	OutRTWorldSizeVector = FVector(LandscapeRTRes) * LandscapeScale;
 	OutRTWorldSizeVector.Z = 1.0f;
 	OutRTWorldLocation = LandscapeTransform.GetLocation();
 	OutRTWorldLocation -= FVector(LandscapeScale.X, LandscapeScale.Y, 0.0f) * 0.5f;

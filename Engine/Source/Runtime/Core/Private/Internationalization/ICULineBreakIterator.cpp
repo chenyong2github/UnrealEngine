@@ -49,11 +49,8 @@ public:
 	FICULineBreakIterator();
 	virtual ~FICULineBreakIterator();
 
-	virtual void SetString(const FText& InText) override;
-	virtual void SetString(const FString& InString) override;
-	virtual void SetString(const TCHAR* const InString, const int32 InStringLength) override;
-	virtual void SetStringRef(const FString* InString) override;
-	virtual void ClearString() override;
+	virtual void SetString(FString&& InString) override;
+	virtual void SetStringRef(FStringView InString) override;
 
 	virtual int32 GetCurrentPosition() const override;
 
@@ -88,33 +85,15 @@ FICULineBreakIterator::~FICULineBreakIterator()
 	FICUBreakIteratorManager::Get().DestroyIterator(ICULineBreakIteratorHandle);
 }
 
-void FICULineBreakIterator::SetString(const FText& InText)
+void FICULineBreakIterator::SetString(FString&& InString)
 {
-	GetInternalLineBreakIterator()->adoptText(new FICUTextCharacterIterator(InText)); // ICUBreakIterator takes ownership of this instance
+	GetInternalLineBreakIterator()->adoptText(new FICUTextCharacterIterator(MoveTemp(InString))); // ICUBreakIterator takes ownership of this instance
 	ResetToBeginning();
 }
 
-void FICULineBreakIterator::SetString(const FString& InString)
+void FICULineBreakIterator::SetStringRef(FStringView InString)
 {
 	GetInternalLineBreakIterator()->adoptText(new FICUTextCharacterIterator(InString)); // ICUBreakIterator takes ownership of this instance
-	ResetToBeginning();
-}
-
-void FICULineBreakIterator::SetString(const TCHAR* const InString, const int32 InStringLength)
-{
-	GetInternalLineBreakIterator()->adoptText(new FICUTextCharacterIterator(InString, InStringLength)); // ICUBreakIterator takes ownership of this instance
-	ResetToBeginning();
-}
-
-void FICULineBreakIterator::SetStringRef(const FString* InString)
-{
-	GetInternalLineBreakIterator()->adoptText(new FICUTextCharacterIterator(InString)); // ICUBreakIterator takes ownership of this instance
-	ResetToBeginning();
-}
-
-void FICULineBreakIterator::ClearString()
-{
-	GetInternalLineBreakIterator()->adoptText(new FICUTextCharacterIterator(FString())); // ICUBreakIterator takes ownership of this instance
 	ResetToBeginning();
 }
 

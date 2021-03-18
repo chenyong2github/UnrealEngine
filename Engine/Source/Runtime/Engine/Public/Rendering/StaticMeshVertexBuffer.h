@@ -459,15 +459,11 @@ public:
 	ENGINE_API void BindPackedTexCoordVertexBuffer(const FVertexFactory* VertexFactory, struct FStaticMeshDataType& Data) const;
 	ENGINE_API void BindLightMapVertexBuffer(const FVertexFactory* VertexFactory, struct FStaticMeshDataType& Data, int LightMapCoordinateIndex) const;
 
-	FORCEINLINE_DEBUGGABLE void* GetTangentData()
-	{
-		return TangentsDataPtr;
-	}
+	FORCEINLINE_DEBUGGABLE void* GetTangentData() { return TangentsDataPtr; }
+	FORCEINLINE_DEBUGGABLE const void* GetTangentData() const { return TangentsDataPtr; }
 
-	FORCEINLINE_DEBUGGABLE void* GetTexCoordData()
-	{
-		return TexcoordDataPtr;
-	}
+	FORCEINLINE_DEBUGGABLE void* GetTexCoordData() { return TexcoordDataPtr; }
+	FORCEINLINE_DEBUGGABLE const void* GetTexCoordData() const { return TexcoordDataPtr; }
 
 	ENGINE_API int GetTangentSize();
 

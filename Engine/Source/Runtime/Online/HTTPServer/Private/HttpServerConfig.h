@@ -17,8 +17,6 @@ struct FHttpServerListenerConfig
 	int32 ConnectionsBacklogSize = 16;
 	/** Max Number of connections to accept per frame */
 	int32 MaxConnectionsAcceptPerFrame = 1;
-	/** The maximum time spent waiting for a connection to accept receiving data. */
-	FTimespan ConnectionSelectWaitTime = FTimespan::FromMilliseconds(8.0f);
 };
 
 struct FHttpServerConfig

@@ -160,11 +160,11 @@ TArray<TSharedPtr<FUserOnlineAccount> > FOnlineIdentityTwitch::GetAllUserAccount
 	return Result;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityTwitch::GetUniquePlayerId(int32 LocalUserNum) const
+FUniqueNetIdPtr FOnlineIdentityTwitch::GetUniquePlayerId(int32 LocalUserNum) const
 {
 	if (LocalUserNum >= 0 && LocalUserNum < MAX_LOCAL_PLAYERS)
 	{
-		const TSharedPtr<const FUniqueNetId>* FoundId = UserIds.Find(LocalUserNum);
+		const FUniqueNetIdPtr* FoundId = UserIds.Find(LocalUserNum);
 		if (FoundId != nullptr)
 		{
 			return *FoundId;
@@ -173,19 +173,19 @@ TSharedPtr<const FUniqueNetId> FOnlineIdentityTwitch::GetUniquePlayerId(int32 Lo
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityTwitch::CreateUniquePlayerId(uint8* Bytes, int32 Size)
+FUniqueNetIdPtr FOnlineIdentityTwitch::CreateUniquePlayerId(uint8* Bytes, int32 Size)
 {
 	if (Bytes != nullptr && Size > 0)
 	{
 		FString StrId(Size, (TCHAR*)Bytes);
-		return MakeShared<FUniqueNetIdTwitch>(MoveTemp(StrId));
+		return FUniqueNetIdTwitch::Create(MoveTemp(StrId));
 	}
 	return nullptr;
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineIdentityTwitch::CreateUniquePlayerId(const FString& Str)
+FUniqueNetIdPtr FOnlineIdentityTwitch::CreateUniquePlayerId(const FString& Str)
 {
-	return MakeShared<FUniqueNetIdTwitch>(Str);
+	return FUniqueNetIdTwitch::Create(Str);
 }
 
 bool FOnlineIdentityTwitch::Login(int32 LocalUserNum, const FOnlineAccountCredentials& AccountCredentials)
@@ -427,7 +427,7 @@ void FOnlineIdentityTwitch::OnLoginAttemptComplete(int32 LocalUserNum, const FSt
 	if (GetLoginStatus(LocalUserNum) == ELoginStatus::LoggedIn)
 	{
 		UE_LOG_ONLINE_IDENTITY(Log, TEXT("Twitch login for user %d was successful."), LocalUserNum);
-		TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+		FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 		check(UserId.IsValid());
 
 		Subsystem->ExecuteNextTick([WeakThisPtr, UserId, LocalUserNum, ErrorStrCopy]()
@@ -454,7 +454,7 @@ void FOnlineIdentityTwitch::OnLoginAttemptComplete(int32 LocalUserNum, const FSt
 	}
 }
 
-void FOnlineIdentityTwitch::OnExternalUILoginComplete(TSharedPtr<const FUniqueNetId> UniqueId, const int ControllerIndex, const FOnlineError& Error)
+void FOnlineIdentityTwitch::OnExternalUILoginComplete(FUniqueNetIdPtr UniqueId, const int ControllerIndex, const FOnlineError& Error)
 {
 	const FString& ErrorStr = Error.GetErrorCode();
 	const bool bWasSuccessful = Error.WasSuccessful() && UniqueId.IsValid() && UniqueId->IsValid();
@@ -465,7 +465,7 @@ bool FOnlineIdentityTwitch::Logout(int32 LocalUserNum)
 {
 	TWeakPtr<FOnlineIdentityTwitch, ESPMode::ThreadSafe> WeakThisPtr(AsShared());
 	bool bResult = false;
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		Subsystem->ExecuteNextTick([WeakThisPtr, UserId]()
@@ -540,7 +540,7 @@ void FOnlineIdentityTwitch::RevokeAuthToken(const FUniqueNetId& UserId, const FO
 	{
 		if (Delegate.IsBound())
 		{
-			TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+			FUniqueNetIdRef UserIdRef(UserId.AsShared());
 			Subsystem->ExecuteNextTick([UserIdRef, Delegate]()
 			{
 				Delegate.Execute(*UserIdRef, FOnlineError(FString(TEXT("User not found"))));
@@ -567,7 +567,7 @@ void FOnlineIdentityTwitch::RevokeAuthTokenInternal(const FUniqueNetId& UserId, 
 	}
 	FString PostData(FString::Printf(TEXT("client_id=%s&token=%s"), *FGenericPlatformHttp::UrlEncode(Subsystem->GetAppId()), *FGenericPlatformHttp::UrlEncode(AuthToken)));
 
-	TSharedRef<const FUniqueNetId> UserIdRef(UserId.AsShared());
+	FUniqueNetIdRef UserIdRef(UserId.AsShared());
 	HttpRequest->OnProcessRequestComplete().BindThreadSafeSP(this, &FOnlineIdentityTwitch::RevokeAuthToken_HttpRequestComplete, UserIdRef, InCompletionDelegate);
 	HttpRequest->SetURL(MoveTemp(TokenRevokeUrl));
 	HttpRequest->SetHeader(TEXT("Accept"), Subsystem->GetTwitchApiVersion());
@@ -577,7 +577,7 @@ void FOnlineIdentityTwitch::RevokeAuthTokenInternal(const FUniqueNetId& UserId, 
 	HttpRequest->ProcessRequest();
 }
 
-void FOnlineIdentityTwitch::RevokeAuthToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, TSharedRef<const FUniqueNetId> UserId, const FOnRevokeAuthTokenCompleteDelegate InCompletionDelegate)
+void FOnlineIdentityTwitch::RevokeAuthToken_HttpRequestComplete(FHttpRequestPtr HttpRequest, FHttpResponsePtr HttpResponse, bool bSucceeded, FUniqueNetIdRef UserId, const FOnRevokeAuthTokenCompleteDelegate InCompletionDelegate)
 {
 	FOnlineError OnlineError;
 
@@ -621,7 +621,7 @@ void FOnlineIdentityTwitch::RevokeAuthToken_HttpRequestComplete(FHttpRequestPtr 
 int32 FOnlineIdentityTwitch::GetLocalUserNumberFromUserId(const FUniqueNetId& UserId) const
 {
 	int32 LocalUserNum = INDEX_NONE;
-	for (const TPair<int32, TSharedPtr<const FUniqueNetId>>& UserInfo : UserIds)
+	for (const TPair<int32, FUniqueNetIdPtr>& UserInfo : UserIds)
 	{
 		if (*UserInfo.Value == UserId)
 		{
@@ -639,7 +639,7 @@ bool FOnlineIdentityTwitch::AutoLogin(int32 LocalUserNum)
 
 ELoginStatus::Type FOnlineIdentityTwitch::GetLoginStatus(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetLoginStatus(*UserId);
@@ -661,7 +661,7 @@ ELoginStatus::Type FOnlineIdentityTwitch::GetLoginStatus(const FUniqueNetId& Use
 
 FString FOnlineIdentityTwitch::GetPlayerNickname(int32 LocalUserNum) const
 {
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		return GetPlayerNickname(*UserId);
@@ -688,7 +688,7 @@ FString FOnlineIdentityTwitch::GetAuthToken(int32 LocalUserNum) const
 {
 	FString AuthToken;
 
-	TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+	FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 	if (UserId.IsValid())
 	{
 		TSharedPtr<FUserOnlineAccountTwitch> FoundUserAccount = GetUserAccountTwitch(*UserId);
@@ -713,7 +713,7 @@ FPlatformUserId FOnlineIdentityTwitch::GetPlatformUserIdFromUniqueNetId(const FU
 {
 	for (int PlayerIdx = 0; PlayerIdx < MAX_LOCAL_PLAYERS; ++PlayerIdx)
 	{
-		TSharedPtr<const FUniqueNetId> CurrentUniqueId = GetUniquePlayerId(PlayerIdx);
+		FUniqueNetIdPtr CurrentUniqueId = GetUniquePlayerId(PlayerIdx);
 		if (CurrentUniqueId.IsValid() && (*CurrentUniqueId == UniqueNetId))
 		{
 			return PlayerIdx;

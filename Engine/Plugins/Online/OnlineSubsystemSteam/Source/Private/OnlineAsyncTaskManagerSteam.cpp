@@ -38,7 +38,7 @@ void FOnlineAsyncTaskManagerSteam::OnlineTick()
 void FOnlineAsyncTaskManagerSteam::OnInviteAccepted(GameRichPresenceJoinRequested_t* CallbackData)
 {
 	FOnlineAsyncEventSteamInviteAccepted* NewEvent = 
-		new FOnlineAsyncEventSteamInviteAccepted(SteamSubsystem, FUniqueNetIdSteam(CallbackData->m_steamIDFriend), UTF8_TO_TCHAR(CallbackData->m_rgchConnect));
+		new FOnlineAsyncEventSteamInviteAccepted(SteamSubsystem, *FUniqueNetIdSteam::Create(CallbackData->m_steamIDFriend), UTF8_TO_TCHAR(CallbackData->m_rgchConnect));
 	UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 	AddToOutQueue(NewEvent);
 }
@@ -52,13 +52,13 @@ void FOnlineAsyncTaskManagerSteam::OnLobbyInviteAccepted(GameLobbyJoinRequested_
 {
 	if (CallbackData->m_steamIDLobby.IsLobby())
 	{
-		FUniqueNetIdSteam LobbyId(CallbackData->m_steamIDLobby);
+		const FUniqueNetIdSteamRef LobbyId = FUniqueNetIdSteam::Create(CallbackData->m_steamIDLobby);
 
 		FOnlineSessionSteamPtr SessionInt = StaticCastSharedPtr<FOnlineSessionSteam>(SteamSubsystem->GetSessionInterface());
-		if (SessionInt.IsValid() && !SessionInt->IsMemberOfLobby(LobbyId))
+		if (SessionInt.IsValid() && !SessionInt->IsMemberOfLobby(*LobbyId))
 		{
 			FOnlineAsyncEventSteamLobbyInviteAccepted* NewEvent = 
-				new FOnlineAsyncEventSteamLobbyInviteAccepted(SteamSubsystem, FUniqueNetIdSteam(CallbackData->m_steamIDFriend), LobbyId);
+				new FOnlineAsyncEventSteamLobbyInviteAccepted(SteamSubsystem, *FUniqueNetIdSteam::Create(CallbackData->m_steamIDFriend), *LobbyId);
 			UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 			AddToOutQueue(NewEvent);
 		}
@@ -108,7 +108,7 @@ public:
 	virtual FString ToString() const override
 	{
 		return FString::Printf(TEXT("FOnlineAsyncEventSteamLobbyEnter LobbyId: %s Result: %s"), 
-			*FUniqueNetIdSteam(CallbackResults.m_ulSteamIDLobby).ToDebugString(),
+			*FUniqueNetIdSteam::ToDebugString(CSteamID(CallbackResults.m_ulSteamIDLobby)),
 			*SteamChatRoomEnterResponseString((EChatRoomEnterResponse)CallbackResults.m_EChatRoomEnterResponse));	
 	}
 
@@ -121,11 +121,11 @@ public:
 		FOnlineSessionSteamPtr SessionInt = StaticCastSharedPtr<FOnlineSessionSteam>(Subsystem->GetSessionInterface());
 		if (SessionInt.IsValid())
 		{
-			FUniqueNetIdSteam LobbyId(CallbackResults.m_ulSteamIDLobby);
-			FNamedOnlineSession* Session = SessionInt->GetNamedSessionFromLobbyId(LobbyId);
+			const FUniqueNetIdSteamRef LobbyId = FUniqueNetIdSteam::Create(CallbackResults.m_ulSteamIDLobby);
+			const FNamedOnlineSession* Session = SessionInt->GetNamedSessionFromLobbyId(*LobbyId);
 			if (!Session)
 			{
-				UE_LOG_ONLINE(Warning, TEXT("Entered lobby %s, but not found in sessions list"), *LobbyId.ToDebugString());
+				UE_LOG_ONLINE(Warning, TEXT("Entered lobby %s, but not found in sessions list"), *LobbyId->ToDebugString());
 			}
 		}
 	}
@@ -182,8 +182,8 @@ public:
 	virtual FString ToString() const override
 	{
 		return FString::Printf(TEXT("FOnlineAsyncEventSteamLobbyChatUpdate User: %s Instigator: %s Result: %s"), 
-			*FUniqueNetIdSteam(CallbackResults.m_ulSteamIDUserChanged).ToDebugString(),
-			*FUniqueNetIdSteam(CallbackResults.m_ulSteamIDMakingChange).ToDebugString(),
+			*FUniqueNetIdSteam::ToDebugString(CSteamID(CallbackResults.m_ulSteamIDUserChanged)),
+			*FUniqueNetIdSteam::ToDebugString(CSteamID(CallbackResults.m_ulSteamIDMakingChange)),
 			*SteamChatMemberStateChangeString((EChatMemberStateChange)CallbackResults.m_rgfChatMemberStateChange));	
 	}
 
@@ -196,20 +196,20 @@ public:
 		FOnlineSessionSteamPtr SessionInt = StaticCastSharedPtr<FOnlineSessionSteam>(Subsystem->GetSessionInterface());
 		if (SessionInt.IsValid())
 		{
-			FUniqueNetIdSteam LobbyId(CallbackResults.m_ulSteamIDLobby);
+			FUniqueNetIdSteamRef LobbyId = FUniqueNetIdSteam::Create(CallbackResults.m_ulSteamIDLobby);
 			// Lobby data update for existing session
-			FNamedOnlineSession* Session = SessionInt->GetNamedSessionFromLobbyId(LobbyId);
+			FNamedOnlineSession* Session = SessionInt->GetNamedSessionFromLobbyId(*LobbyId);
 			if (Session)
 			{
 				// Recreate the lobby member list
-				if (!FillMembersFromLobbyData(LobbyId, *Session))
+				if (!FillMembersFromLobbyData(*LobbyId, *Session))
 				{
-					UE_LOG_ONLINE(Warning, TEXT("Failed to parse session %s member update %s"), *Session->SessionName.ToString(), *LobbyId.ToDebugString());
+					UE_LOG_ONLINE(Warning, TEXT("Failed to parse session %s member update %s"), *Session->SessionName.ToString(), *LobbyId->ToDebugString());
 				}
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("Received lobby chat update %s, but not found in sessions list"), *LobbyId.ToDebugString());
+				UE_LOG_ONLINE(Warning, TEXT("Received lobby chat update %s, but not found in sessions list"), *LobbyId->ToDebugString());
 			}
 		}
 	}
@@ -235,15 +235,14 @@ class FOnlineAsyncEventSteamLobbyUpdate : public FOnlineAsyncEvent<FOnlineSubsys
 private:
 
 	/** Id of lobby to update */
-	FUniqueNetIdSteam LobbyId;
+	FUniqueNetIdSteamRef LobbyId;
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamLobbyUpdate() 
-	{}
+	FOnlineAsyncEventSteamLobbyUpdate() = delete;
 
 public:
 	FOnlineAsyncEventSteamLobbyUpdate(FOnlineSubsystemSteam* InSubsystem, const FUniqueNetIdSteam& InLobbyId) :
 		FOnlineAsyncEvent(InSubsystem),
-		LobbyId(InLobbyId)
+		LobbyId(InLobbyId.AsShared())
 	{
 	}
 
@@ -256,7 +255,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamLobbyUpdate LobbyId: %s"), *LobbyId.ToDebugString());	
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamLobbyUpdate LobbyId: %s"), *LobbyId->ToDebugString());	
 	}
 
 	/**
@@ -277,19 +276,19 @@ public:
 		else
 		{
 			// Lobby data update for existing session
-			FNamedOnlineSession* Session = SessionInt->GetNamedSessionFromLobbyId(LobbyId);
+			FNamedOnlineSession* Session = SessionInt->GetNamedSessionFromLobbyId(*LobbyId);
 			if (Session)
 			{
 				// Make sure the session has all the valid session data
-				if (!FillSessionFromLobbyData(Subsystem, LobbyId, *Session) ||
-					!FillMembersFromLobbyData(LobbyId, *Session))
+				if (!FillSessionFromLobbyData(Subsystem, *LobbyId, *Session) ||
+					!FillMembersFromLobbyData(*LobbyId, *Session))
 				{
-					UE_LOG_ONLINE(Warning, TEXT("Failed to parse session %s lobby update %s"), *Session->SessionName.ToString(), *LobbyId.ToDebugString());
+					UE_LOG_ONLINE(Warning, TEXT("Failed to parse session %s lobby update %s"), *Session->SessionName.ToString(), *LobbyId->ToDebugString());
 				}
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("Received lobby update %s, but not found in sessions list"), *LobbyId.ToDebugString());
+				UE_LOG_ONLINE(Warning, TEXT("Received lobby update %s, but not found in sessions list"), *LobbyId->ToDebugString());
 			}
 		}
 	}
@@ -306,12 +305,11 @@ void FOnlineAsyncTaskManagerSteam::OnLobbyDataUpdate(LobbyDataUpdate_t* Callback
 	// Equivalent lobby ids implies it is lobby data that has updated
 	if (CallbackData->m_ulSteamIDLobby == CallbackData->m_ulSteamIDMember)
 	{
-		FUniqueNetIdSteam LobbyId(CallbackData->m_ulSteamIDLobby);
 		if (!CallbackData->m_bSuccess)
 		{
 			// CallbackData->m_bSuccess indicates LobbyID has shut down since 
 			// the result was returned but we have to keep the array size in sync
-			UE_LOG_ONLINE(Verbose, TEXT("Lobby %s is no longer available."), *LobbyId.ToDebugString());
+			UE_LOG_ONLINE(Verbose, TEXT("Lobby %s is no longer available."), *FUniqueNetIdSteam::ToDebugString(CallbackData->m_ulSteamIDLobby));
 		}
 
 		ISteamMatchmaking* SteamMatchmakingPtr = SteamMatchmaking();
@@ -320,7 +318,7 @@ void FOnlineAsyncTaskManagerSteam::OnLobbyDataUpdate(LobbyDataUpdate_t* Callback
 		// The owner of the created lobby shouldn't need this information
 		if (SteamMatchmakingPtr->GetLobbyOwner(CallbackData->m_ulSteamIDLobby) != SteamUser()->GetSteamID())
 		{
-			FOnlineAsyncEventSteamLobbyUpdate* NewEvent = new FOnlineAsyncEventSteamLobbyUpdate(SteamSubsystem, LobbyId);
+			FOnlineAsyncEventSteamLobbyUpdate* NewEvent = new FOnlineAsyncEventSteamLobbyUpdate(SteamSubsystem, *FUniqueNetIdSteam::Create(CallbackData->m_ulSteamIDLobby));
 			UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 			AddToOutQueue(NewEvent);
 		}
@@ -344,20 +342,17 @@ class FOnlineAsyncEventSteamStatsReceived : public FOnlineAsyncEvent<FOnlineSubs
 private:
 
 	/** User this data is for */
-	const FUniqueNetIdSteam UserId;
+	const FUniqueNetIdSteamRef UserId;
 	/** Result of the download */
 	EResult StatsReceivedResult;
 
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamStatsReceived() :
-		UserId(0),
-		StatsReceivedResult(k_EResultOK)
-	{}
+	FOnlineAsyncEventSteamStatsReceived() = delete;
 
 public:
 	FOnlineAsyncEventSteamStatsReceived(FOnlineSubsystemSteam* InSubsystem, const FUniqueNetIdSteam& InUserId, EResult InResult) :
 		FOnlineAsyncEvent(InSubsystem),
-		UserId(InUserId),
+		UserId(InUserId.AsShared()),
 		StatsReceivedResult(InResult)
 	{
 	}
@@ -371,7 +366,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamStatsReceived bWasSuccessful: %d User: %s Result: %s"), (StatsReceivedResult == k_EResultOK) ? 1 : 0, *UserId.ToDebugString(), *SteamResultString(StatsReceivedResult));	
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamStatsReceived bWasSuccessful: %d User: %s Result: %s"), (StatsReceivedResult == k_EResultOK) ? 1 : 0, *UserId->ToDebugString(), *SteamResultString(StatsReceivedResult));	
 	}
 };
 
@@ -386,21 +381,21 @@ void FOnlineAsyncTaskManagerSteam::OnUserStatsReceived(UserStatsReceived_t* Call
 	const CGameID GameID(SteamSubsystem->GetSteamAppId());
 	if (GameID.ToUint64() == CallbackData->m_nGameID)
 	{
-		FUniqueNetIdSteam UserId(CallbackData->m_steamIDUser);
+		const FUniqueNetIdSteamRef UserId = FUniqueNetIdSteam::Create(CallbackData->m_steamIDUser);
 		if (CallbackData->m_eResult != k_EResultOK)
 		{
 			if (CallbackData->m_eResult == k_EResultFail)
 			{
-				UE_LOG_ONLINE(Warning, TEXT("Failed to obtain steam user stats, user: %s has no stats entries"), *UserId.ToDebugString());
+				UE_LOG_ONLINE(Warning, TEXT("Failed to obtain steam user stats, user: %s has no stats entries"), *UserId->ToDebugString());
 			}
 			else
 			{
-				UE_LOG_ONLINE(Warning, TEXT("Failed to obtain steam user stats, user: %s error: %s"), *UserId.ToDebugString(), 
+				UE_LOG_ONLINE(Warning, TEXT("Failed to obtain steam user stats, user: %s error: %s"), *UserId->ToDebugString(), 
 					*SteamResultString(CallbackData->m_eResult));
 			}
 		}
 
-		FOnlineAsyncEventSteamStatsReceived* NewEvent = new FOnlineAsyncEventSteamStatsReceived(SteamSubsystem, UserId, CallbackData->m_eResult);
+		FOnlineAsyncEventSteamStatsReceived* NewEvent = new FOnlineAsyncEventSteamStatsReceived(SteamSubsystem, *UserId, CallbackData->m_eResult);
 		UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 		AddToOutQueue(NewEvent);
 	}
@@ -419,23 +414,18 @@ class FOnlineAsyncEventSteamStatsStored : public FOnlineAsyncEvent<FOnlineSubsys
 private:
 	
 	/** User this data is for */
-	const FUniqueNetIdSteam UserId;
+	const FUniqueNetIdSteamRef UserId;
 	/** Result of the download */
 	EResult StatsStoredResult;
 
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamStatsStored() :
-		FOnlineAsyncEvent(NULL),
-		UserId(0),
-		StatsStoredResult(k_EResultOK)
-	{
-	}
+	FOnlineAsyncEventSteamStatsStored() = delete;
 
 public:
 
 	FOnlineAsyncEventSteamStatsStored(FOnlineSubsystemSteam* InSubsystem, const FUniqueNetIdSteam& InUserId, EResult InResult) :
 		FOnlineAsyncEvent(InSubsystem),
-		UserId(InUserId),
+		UserId(InUserId.AsShared()),
 		StatsStoredResult(InResult)
 	{
 	}
@@ -449,7 +439,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamStatsStored bWasSuccessful: %d User: %s Result: %s"), (StatsStoredResult == k_EResultOK) ? 1 : 0, *UserId.ToDebugString(), *SteamResultString(StatsStoredResult));	
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamStatsStored bWasSuccessful: %d User: %s Result: %s"), (StatsStoredResult == k_EResultOK) ? 1 : 0, *UserId->ToDebugString(), *SteamResultString(StatsStoredResult));	
 	}
 
 	/**
@@ -477,7 +467,7 @@ void FOnlineAsyncTaskManagerSteam::OnUserStatsStored(UserStatsStored_t* Callback
 	if (GameID.ToUint64() == CallbackData->m_nGameID)
 	{
 		// Only the current user comes through this way (other user's stats are stored via GameServerStats)
-		FUniqueNetIdSteam UserId(SteamUser()->GetSteamID());
+		const FUniqueNetIdSteamRef UserId = FUniqueNetIdSteam::Create(SteamUser()->GetSteamID());
 		if (CallbackData->m_eResult != k_EResultOK)
 		{
 			if (CallbackData->m_eResult == k_EResultInvalidParam)
@@ -490,7 +480,7 @@ void FOnlineAsyncTaskManagerSteam::OnUserStatsStored(UserStatsStored_t* Callback
 			}
 		}
 
-		FOnlineAsyncEventSteamStatsStored* NewEvent = new FOnlineAsyncEventSteamStatsStored(SteamSubsystem, UserId, CallbackData->m_eResult);
+		FOnlineAsyncEventSteamStatsStored* NewEvent = new FOnlineAsyncEventSteamStatsStored(SteamSubsystem, *UserId, CallbackData->m_eResult);
 		UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 		AddToOutQueue(NewEvent);
 	}
@@ -509,19 +499,16 @@ class FOnlineAsyncEventSteamStatsUnloaded : public FOnlineAsyncEvent<FOnlineSubs
 {
 private:
 	/** User whose data has been unloaded */
-	FUniqueNetIdSteam UserId;
+	FUniqueNetIdSteamRef UserId;
 
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamStatsUnloaded() : 
-		UserId(0)
-	{
-	}
+	FOnlineAsyncEventSteamStatsUnloaded() = delete;
 
 public:
 
 	FOnlineAsyncEventSteamStatsUnloaded(FOnlineSubsystemSteam* InSubsystem, const FUniqueNetIdSteam& InUserId) :
 		FOnlineAsyncEvent(InSubsystem),
-		UserId(InUserId)
+		UserId(InUserId.AsShared())
 	{
 	}
 	
@@ -534,7 +521,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamStatsUnloaded UserId: %s"), *UserId.ToDebugString());	
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamStatsUnloaded UserId: %s"), *UserId->ToDebugString());
 	}
 };
 
@@ -546,7 +533,7 @@ public:
  */
 void FOnlineAsyncTaskManagerSteam::OnUserStatsUnloaded(UserStatsUnloaded_t* CallbackData)
 {
-	FOnlineAsyncEventSteamStatsUnloaded* NewEvent = new FOnlineAsyncEventSteamStatsUnloaded(SteamSubsystem, FUniqueNetIdSteam(CallbackData->m_steamIDUser));
+	FOnlineAsyncEventSteamStatsUnloaded* NewEvent = new FOnlineAsyncEventSteamStatsUnloaded(SteamSubsystem, *FUniqueNetIdSteam::Create(CallbackData->m_steamIDUser));
 	UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 	AddToOutQueue(NewEvent);
 }
@@ -633,19 +620,16 @@ void FOnlineAsyncTaskManagerSteam::OnSteamServersDisconnected(SteamServersDiscon
 class FOnlineAsyncEventSteamServerConnectedGS : public FOnlineAsyncEvent<FOnlineSubsystemSteam>
 {
 	/** Newly assigned server id */
-	const FUniqueNetIdSteam ServerId;
+	const FUniqueNetIdSteamRef ServerId;
 
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamServerConnectedGS() :
-		ServerId(uint64(0))
-	{
-	}
+	FOnlineAsyncEventSteamServerConnectedGS() = delete;
 
 public:
 
 	FOnlineAsyncEventSteamServerConnectedGS(FOnlineSubsystemSteam* InSubsystem, const FUniqueNetIdSteam& InServerId) :
 		FOnlineAsyncEvent(InSubsystem),
-		ServerId(InServerId)
+		ServerId(InServerId.AsShared())
 	{
 	}
 	
@@ -658,7 +642,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamServerConnectedGS ServerId: %s"), *ServerId.ToDebugString());	
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamServerConnectedGS ServerId: %s"), *ServerId->ToDebugString());	
 	}
 
 	/**
@@ -673,7 +657,7 @@ public:
 			if (SessionInt.IsValid())
 			{
 				SessionInt->bSteamworksGameServerConnected = true;
-				SessionInt->GameServerSteamId = MakeShareable(new FUniqueNetIdSteam(ServerId));
+				SessionInt->GameServerSteamId = ServerId;
 				if (Subsystem->IsUsingSteamNetworking())
 				{
 					FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
@@ -697,7 +681,7 @@ public:
  */
 void FOnlineAsyncTaskManagerSteam::OnSteamServersConnectedGS(SteamServersConnected_t* CallbackData)
 {
-	FOnlineAsyncEventSteamServerConnectedGS* NewEvent = new FOnlineAsyncEventSteamServerConnectedGS(SteamSubsystem, FUniqueNetIdSteam(SteamGameServer()->GetSteamID()));
+	FOnlineAsyncEventSteamServerConnectedGS* NewEvent = new FOnlineAsyncEventSteamServerConnectedGS(SteamSubsystem, *FUniqueNetIdSteam::Create(SteamGameServer()->GetSteamID()));
 	UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 	AddToOutQueue(NewEvent);
 }
@@ -941,7 +925,7 @@ public:
 		FOnlineAuthSteamPtr AuthInt = StaticCastSharedPtr<FOnlineAuthSteam>(Subsystem->GetAuthInterface());
 		if (AuthInt.IsValid())
 		{
-			AuthInt->OnAuthResult(FUniqueNetIdSteam(CallbackResults.m_SteamID), CallbackResults.m_eAuthSessionResponse);
+			AuthInt->OnAuthResult(*FUniqueNetIdSteam::Create(CallbackResults.m_SteamID), CallbackResults.m_eAuthSessionResponse);
 		}
 		else
 		{
@@ -980,19 +964,17 @@ private:
 	/** Proper networking interface that this session is communicating on */
 	ISteamNetworking* SteamNetworkingPtr;
 	/** Callback data */
-	FUniqueNetIdSteam RemoteId;
+	FUniqueNetIdSteamRef RemoteId;
 
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamConnectionRequest()
-	{
-	}
+	FOnlineAsyncEventSteamConnectionRequest() = delete;
 
 public:
 
 	FOnlineAsyncEventSteamConnectionRequest(FOnlineSubsystemSteam* InSubsystem, ISteamNetworking* InSteamNetworkingPtr, const FUniqueNetIdSteam& InRemoteId) :
 		FOnlineAsyncEvent(InSubsystem),
 		SteamNetworkingPtr(InSteamNetworkingPtr),
-		RemoteId(InRemoteId)
+		RemoteId(InRemoteId.AsShared())
 	{
 	}
 	
@@ -1005,7 +987,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamConnectionRequest RemoteId: %s"), *RemoteId.ToDebugString());	
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamConnectionRequest RemoteId: %s"), *RemoteId->ToDebugString());
 	}
 
 	/**
@@ -1019,9 +1001,9 @@ public:
 			FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
 			if (SocketSubsystem)
 			{
-				if (!SocketSubsystem->AcceptP2PConnection(SteamNetworkingPtr, RemoteId))
+				if (!SocketSubsystem->AcceptP2PConnection(SteamNetworkingPtr, *RemoteId))
 				{
-					UE_LOG_ONLINE(Log, TEXT("Rejected P2P connection request from %s"), *RemoteId.ToDebugString());
+					UE_LOG_ONLINE(Log, TEXT("Rejected P2P connection request from %s"), *RemoteId->ToDebugString());
 				}
 			}
 		}
@@ -1036,20 +1018,18 @@ class FOnlineAsyncEventSteamConnectionFailed : public FOnlineAsyncEvent<FOnlineS
 private:
 
 	/** Callback data */
-	FUniqueNetIdSteam RemoteId;
+	FUniqueNetIdSteamRef RemoteId;
 	/** Error reason */
 	EP2PSessionError ErrorCode;
 
 	/** Hidden on purpose */
-	FOnlineAsyncEventSteamConnectionFailed()
-	{
-	}
+	FOnlineAsyncEventSteamConnectionFailed() = delete;
 
 public:
 
 	FOnlineAsyncEventSteamConnectionFailed(FOnlineSubsystemSteam* InSubsystem, const FUniqueNetIdSteam& InRemoteId, EP2PSessionError InErrorCode) :
 		FOnlineAsyncEvent(InSubsystem),
-		RemoteId(InRemoteId),
+		RemoteId(InRemoteId.AsShared()),
 		ErrorCode(InErrorCode)
 	{
 	}
@@ -1063,7 +1043,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamConnectionFailed RemoteId: %s Reason: %s"), *RemoteId.ToDebugString(), *SteamP2PConnectError(ErrorCode));	
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamConnectionFailed RemoteId: %s Reason: %s"), *RemoteId->ToDebugString(), *SteamP2PConnectError(ErrorCode));	
 	}
 
 	/**
@@ -1078,7 +1058,7 @@ public:
 			FSocketSubsystemSteam* SocketSubsystem = (FSocketSubsystemSteam*)ISocketSubsystem::Get(STEAM_SUBSYSTEM);
 			if (SocketSubsystem)
 			{
-				SocketSubsystem->ConnectFailure(RemoteId);
+				SocketSubsystem->ConnectFailure(*RemoteId);
 			}
 		}
 	}
@@ -1091,14 +1071,13 @@ public:
  */
 void FOnlineAsyncTaskManagerSteam::OnP2PSessionRequest(P2PSessionRequest_t* CallbackData)
 {
-	FUniqueNetIdSteam RemoteId(CallbackData->m_steamIDRemote);
-	UE_LOG_ONLINE(Verbose, TEXT("Client connection request Id: %s"), *RemoteId.ToDebugString());
+	UE_LOG_ONLINE(Verbose, TEXT("Client connection request Id: %s"), *FUniqueNetIdSteam::ToDebugString(CallbackData->m_steamIDRemote));
 
 	IOnlineSessionPtr SessionInt = SteamSubsystem->GetSessionInterface();
 	// Only accept connections if we have any expectation of being online
 	if (SessionInt.IsValid() && SessionInt->GetNumSessions() > 0)
 	{
-		FOnlineAsyncEventSteamConnectionRequest* NewEvent = new FOnlineAsyncEventSteamConnectionRequest(SteamSubsystem, SteamNetworking(), RemoteId);
+		FOnlineAsyncEventSteamConnectionRequest* NewEvent = new FOnlineAsyncEventSteamConnectionRequest(SteamSubsystem, SteamNetworking(), *FUniqueNetIdSteam::Create(CallbackData->m_steamIDRemote));
 		UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 		AddToOutQueue(NewEvent);
 	}
@@ -1111,8 +1090,7 @@ void FOnlineAsyncTaskManagerSteam::OnP2PSessionRequest(P2PSessionRequest_t* Call
  */
 void FOnlineAsyncTaskManagerSteam::OnP2PSessionConnectFail(P2PSessionConnectFail_t* CallbackData)
 {
-	FUniqueNetIdSteam RemoteId(CallbackData->m_steamIDRemote);
-	FOnlineAsyncEventSteamConnectionFailed* NewEvent = new FOnlineAsyncEventSteamConnectionFailed(SteamSubsystem, RemoteId, (EP2PSessionError)CallbackData->m_eP2PSessionError);
+	FOnlineAsyncEventSteamConnectionFailed* NewEvent = new FOnlineAsyncEventSteamConnectionFailed(SteamSubsystem, *FUniqueNetIdSteam::Create(CallbackData->m_steamIDRemote), (EP2PSessionError)CallbackData->m_eP2PSessionError);
 	UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 	AddToOutQueue(NewEvent);
 }
@@ -1125,8 +1103,7 @@ void FOnlineAsyncTaskManagerSteam::OnP2PSessionConnectFail(P2PSessionConnectFail
  */
 void FOnlineAsyncTaskManagerSteam::OnP2PSessionRequestGS(P2PSessionRequest_t* CallbackData)
 {
-	FUniqueNetIdSteam RemoteId(CallbackData->m_steamIDRemote);
-	FOnlineAsyncEventSteamConnectionRequest* NewEvent = new FOnlineAsyncEventSteamConnectionRequest(SteamSubsystem, SteamGameServerNetworking(), RemoteId);
+	FOnlineAsyncEventSteamConnectionRequest* NewEvent = new FOnlineAsyncEventSteamConnectionRequest(SteamSubsystem, SteamGameServerNetworking(), *FUniqueNetIdSteam::Create(CallbackData->m_steamIDRemote));
 	UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 	AddToOutQueue(NewEvent);
 }
@@ -1139,8 +1116,7 @@ void FOnlineAsyncTaskManagerSteam::OnP2PSessionRequestGS(P2PSessionRequest_t* Ca
  */
 void FOnlineAsyncTaskManagerSteam::OnP2PSessionConnectFailGS(P2PSessionConnectFail_t* CallbackData)
 {
-	FUniqueNetIdSteam RemoteId(CallbackData->m_steamIDRemote);
-	FOnlineAsyncEventSteamConnectionFailed* NewEvent = new FOnlineAsyncEventSteamConnectionFailed(SteamSubsystem, RemoteId, (EP2PSessionError)CallbackData->m_eP2PSessionError);
+	FOnlineAsyncEventSteamConnectionFailed* NewEvent = new FOnlineAsyncEventSteamConnectionFailed(SteamSubsystem, *FUniqueNetIdSteam::Create(CallbackData->m_steamIDRemote), (EP2PSessionError)CallbackData->m_eP2PSessionError);
 	UE_LOG_ONLINE(Verbose, TEXT("%s"), *NewEvent->ToString());
 	AddToOutQueue(NewEvent);
 }
@@ -1197,24 +1173,21 @@ void FOnlineAsyncTaskManagerSteam::OnSteamShutdown(SteamShutdown_t* CallbackData
  */
 class FOnlineAsyncEventSteamRichPresenceUpdate : public FOnlineAsyncEvent<FOnlineSubsystemSteam>
 {
-	FOnlineAsyncEventSteamRichPresenceUpdate() :
-		FOnlineAsyncEvent(NULL)
-	{
-	}
+	FOnlineAsyncEventSteamRichPresenceUpdate() = delete;
 
-	FUniqueNetIdSteam TargetSteamId;
+	FUniqueNetIdSteamRef TargetSteamId;
 
 public:
 
 	FOnlineAsyncEventSteamRichPresenceUpdate(FOnlineSubsystemSteam* InSubsystem, CSteamID InSteamId) :
 		FOnlineAsyncEvent(InSubsystem),
-		TargetSteamId(InSteamId)
+		TargetSteamId(FUniqueNetIdSteam::Create(InSteamId))
 	{
 	}
 
 	FOnlineAsyncEventSteamRichPresenceUpdate(FOnlineSubsystemSteam* InSubsystem, uint64 InSteamId) :
 		FOnlineAsyncEvent(InSubsystem),
-		TargetSteamId(InSteamId)
+		TargetSteamId(FUniqueNetIdSteam::Create(InSteamId))
 	{
 	}
 
@@ -1223,7 +1196,7 @@ public:
 	 */
 	virtual FString ToString() const override
 	{
-		return FString::Printf(TEXT("FOnlineAsyncEventSteamRichPresenceUpdate got new information about user %s"), *TargetSteamId.ToString());
+		return FString::Printf(TEXT("FOnlineAsyncEventSteamRichPresenceUpdate got new information about user %s"), *TargetSteamId->ToString());
 	}
 
 	/**
@@ -1235,7 +1208,7 @@ public:
 		FOnlinePresenceSteamPtr PresenceInterface = StaticCastSharedPtr<FOnlinePresenceSteam>(Subsystem->GetPresenceInterface());
 		if (PresenceInterface.IsValid())
 		{
-			PresenceInterface->UpdatePresenceForUser(TargetSteamId);
+			PresenceInterface->UpdatePresenceForUser(*TargetSteamId);
 		}
 	}
 };

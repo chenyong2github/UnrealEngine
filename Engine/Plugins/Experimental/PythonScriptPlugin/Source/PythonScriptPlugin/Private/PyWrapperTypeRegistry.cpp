@@ -910,7 +910,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		// Update the doc string for the method
 		FString PythonStructMethodDocString = PyGenUtil::BuildFunctionDocString(InFunc, PythonStructMethodName, GeneratedWrappedDynamicMethod.MethodFunc.InputParams, GeneratedWrappedDynamicMethod.MethodFunc.OutputParams, &bIsStaticOverride);
 		PythonStructMethodDocString += LINE_TERMINATOR;
-		PythonStructMethodDocString += PyGenUtil::PythonizeFunctionTooltip(PyGenUtil::GetFieldTooltip(InFunc), InFunc, ParamsToIgnore);
+		PythonStructMethodDocString += PyGenUtil::PythonizeFunctionTooltip(PyGenUtil::ParseTooltip(PyGenUtil::GetFieldTooltip(InFunc)), InFunc, ParamsToIgnore);
 		GeneratedWrappedDynamicMethod.MethodDoc = PyGenUtil::TCHARToUTF8Buffer(*PythonStructMethodDocString);
 
 		// Update the flags as removing the 'self' argument may have changed the calling convention
@@ -1197,7 +1197,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 
 		FString FunctionDeclDocString = PyGenUtil::BuildFunctionDocString(InFunc, PythonFunctionName, GeneratedWrappedMethod.MethodFunc.InputParams, GeneratedWrappedMethod.MethodFunc.OutputParams);
 		FunctionDeclDocString += LINE_TERMINATOR;
-		FunctionDeclDocString += PyGenUtil::PythonizeFunctionTooltip(PyGenUtil::GetFieldTooltip(InFunc), InFunc);
+		FunctionDeclDocString += PyGenUtil::PythonizeFunctionTooltip(PyGenUtil::ParseTooltip(PyGenUtil::GetFieldTooltip(InFunc)), InFunc);
 
 		GeneratedWrappedMethod.MethodDoc = PyGenUtil::TCHARToUTF8Buffer(*FunctionDeclDocString);
 		GeneratedWrappedMethod.MethodFlags = GeneratedWrappedMethod.MethodFunc.InputParams.Num() > 0 ? METH_VARARGS | METH_KEYWORDS : METH_NOARGS;
@@ -1263,7 +1263,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedClassType(const UClass* InC
 		}
 	}
 
-	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::GetFieldTooltip(InClass));
+	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::ParseTooltip(PyGenUtil::GetFieldTooltip(InClass)));
 	if (const UClass* SuperClass = InClass->GetSuperClass())
 	{
 		TSharedPtr<PyGenUtil::FGeneratedWrappedClassType> SuperGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedClassType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(SuperClass)));
@@ -1529,7 +1529,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedStructType(const UScriptStr
 		GenerateWrappedProperty(Prop);
 	}
 
-	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::GetFieldTooltip(InStruct));
+	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::ParseTooltip(PyGenUtil::GetFieldTooltip(InStruct)));
 	if (const UScriptStruct* SuperStruct = Cast<UScriptStruct>(InStruct->GetSuperStruct()))
 	{
 		TSharedPtr<PyGenUtil::FGeneratedWrappedStructType> SuperGeneratedWrappedType = StaticCastSharedPtr<PyGenUtil::FGeneratedWrappedStructType>(GeneratedWrappedTypes.FindRef(PyGenUtil::GetTypeRegistryName(SuperStruct)));
@@ -1796,7 +1796,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedEnumType(const UEnum* InEnu
 		GeneratedWrappedType->Reset();
 	}
 
-	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::GetFieldTooltip(InEnum));
+	FString TypeDocString = PyGenUtil::PythonizeTooltip(PyGenUtil::ParseTooltip(PyGenUtil::GetFieldTooltip(InEnum)));
 	PyGenUtil::AppendSourceInformationDocString(InEnum, TypeDocString);
 
 	const FString PythonEnumName = PyGenUtil::GetEnumPythonName(InEnum);
@@ -1956,7 +1956,7 @@ PyTypeObject* FPyWrapperTypeRegistry::GenerateWrappedDelegateType(const UFunctio
 		GatherWrappedTypesForPropertyReferences(Param, OutGeneratedWrappedTypeReferences);
 	}
 
-	FString TypeDocString = PyGenUtil::PythonizeFunctionTooltip(PyGenUtil::GetFieldTooltip(InDelegateSignature), InDelegateSignature);
+	FString TypeDocString = PyGenUtil::PythonizeFunctionTooltip(PyGenUtil::ParseTooltip(PyGenUtil::GetFieldTooltip(InDelegateSignature)), InDelegateSignature);
 	PyGenUtil::AppendSourceInformationDocString(InDelegateSignature, TypeDocString);
 
 	const FString DelegateBaseTypename = PyGenUtil::GetDelegatePythonName(InDelegateSignature);

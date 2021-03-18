@@ -2064,7 +2064,7 @@ void UMovieSceneControlRigParameterSection::RecordControlRigKey(FFrameNumber Fra
 }
 
 bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAnimSequence* AnimSequence, UMovieScene* MovieScene,USkeleton* Skeleton,
-	bool bKeyReduce, float Tolerance)
+	bool bKeyReduce, float Tolerance, FFrameNumber InStartFrame)
 {
 	UFKControlRig* AutoRig = Cast<UFKControlRig>(ControlRig);
 	if (!AutoRig && !ControlRig->SupportsEvent(FRigUnit_InverseExecution::EventName))
@@ -2084,7 +2084,7 @@ bool UMovieSceneControlRigParameterSection::LoadAnimSequenceIntoThisSection(UAni
 	float Length = AnimSequence->GetPlayLength();
 	const FFrameRate& FrameRate = AnimSequence->GetSamplingFrameRate();
 
-	FFrameNumber StartFrame = UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange());
+	FFrameNumber StartFrame = UE::MovieScene::DiscreteInclusiveLower(MovieScene->GetPlaybackRange()) + InStartFrame;
 	FFrameNumber EndFrame = TickResolution.AsFrameNumber(Length) + StartFrame;
 
 	Modify();

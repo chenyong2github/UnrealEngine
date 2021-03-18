@@ -8,7 +8,7 @@
 #include "OnlineSessionSettings.h"
 
 FOnlineSessionInfoOculus::FOnlineSessionInfoOculus(ovrID RoomId) :
-	SessionId(FUniqueNetIdOculus(RoomId))
+	SessionId(FUniqueNetIdOculus::Create(RoomId))
 {
 }
 
@@ -87,7 +87,7 @@ ovrID FOnlineSessionOculus::GetOvrIDFromSession(const FNamedOnlineSession& Sessi
 	{
 		return 0;
 	}
-	auto OculusId = static_cast<FUniqueNetIdOculus>(Session.SessionInfo->GetSessionId());
+	const FUniqueNetIdOculus& OculusId = FUniqueNetIdOculus::Cast(Session.SessionInfo->GetSessionId());
 	return OculusId.GetID();
 }
 
@@ -597,7 +597,7 @@ bool FOnlineSessionOculus::IsPlayerInSession(FName SessionName, const FUniqueNet
 	return false;
 }
 
-bool FOnlineSessionOculus::StartMatchmaking(const TArray< TSharedRef<const FUniqueNetId> >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
+bool FOnlineSessionOculus::StartMatchmaking(const TArray< FUniqueNetIdRef >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
 {
 	if (LocalPlayers.Num() > 1)
 	{
@@ -937,7 +937,7 @@ bool FOnlineSessionOculus::JoinSession(int32 PlayerNum, FName SessionName, const
 	Session->LocalOwnerId = OculusSubsystem.GetIdentityInterface()->GetUniquePlayerId(PlayerNum);
 
 	auto SearchSessionInfo = static_cast<const FOnlineSessionInfoOculus*>(DesiredSession.Session.SessionInfo.Get());
-	auto RoomId = (static_cast<FUniqueNetIdOculus>(SearchSessionInfo->GetSessionId())).GetID();
+	auto RoomId = FUniqueNetIdOculus::Cast(SearchSessionInfo->GetSessionId()).GetID();
 
 	OculusSubsystem.AddRequestDelegate(
 		ovr_Room_Join(RoomId, /* subscribeToUpdates */ true),
@@ -1034,9 +1034,9 @@ bool FOnlineSessionOculus::FindFriendSession(const FUniqueNetId& LocalUserId, co
 	return FindFriendSession(0, Friend);
 }
 
-bool FOnlineSessionOculus::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList)
+bool FOnlineSessionOculus::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList)
 {
-	UE_LOG_ONLINE_SESSION(Display, TEXT("FOnlineSessionOculus::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList) - not implemented"));
+	UE_LOG_ONLINE_SESSION(Display, TEXT("FOnlineSessionOculus::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList) - not implemented"));
 	TArray<FOnlineSessionSearchResult> EmptyResult;
 	TriggerOnFindFriendSessionCompleteDelegates(0, false, EmptyResult);
 	return false;
@@ -1044,8 +1044,8 @@ bool FOnlineSessionOculus::FindFriendSession(const FUniqueNetId& LocalUserId, co
 
 bool FOnlineSessionOculus::SendSessionInviteToFriend(int32 LocalUserNum, FName SessionName, const FUniqueNetId& Friend)
 {
-	TArray< TSharedRef<const FUniqueNetId> > Friends;
-	Friends.Add(MakeShareable(new FUniqueNetIdOculus(Friend)));
+	TArray< FUniqueNetIdRef > Friends;
+	Friends.Add(FUniqueNetIdOculus::Create(Friend));
 	return SendSessionInviteToFriends(LocalUserNum, SessionName, Friends);
 };
 
@@ -1054,7 +1054,7 @@ bool FOnlineSessionOculus::SendSessionInviteToFriend(const FUniqueNetId& LocalUs
 	return SendSessionInviteToFriend(0, SessionName, Friend);
 }
 
-bool FOnlineSessionOculus::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionOculus::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
 	FNamedOnlineSession* Session = GetNamedSession(SessionName);
 
@@ -1105,7 +1105,7 @@ bool FOnlineSessionOculus::SendSessionInviteToFriends(int32 LocalUserNum, FName 
 	return true;
 }
 
-bool FOnlineSessionOculus::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionOculus::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
 	return SendSessionInviteToFriends(0, SessionName, Friends);
 }
@@ -1155,13 +1155,13 @@ bool FOnlineSessionOculus::RegisterPlayer(FName SessionName, const FUniqueNetId&
 {
 	// The actual registration of players is done by OnRoomNotificationUpdate()
 	// That way Oculus keeps the source of truth on who's actually in the room and therefore the session
-	TArray< TSharedRef<const FUniqueNetId> > Players;
-	Players.Add(MakeShareable(new FUniqueNetIdOculus(PlayerId)));
+	TArray< FUniqueNetIdRef > Players;
+	Players.Add(FUniqueNetIdOculus::Create(PlayerId));
 	TriggerOnRegisterPlayersCompleteDelegates(SessionName, Players, true);
 	return true;
 }
 
-bool FOnlineSessionOculus::RegisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players, bool bWasInvited)
+bool FOnlineSessionOculus::RegisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players, bool bWasInvited)
 {
 	// The actual registration of players is done by OnRoomNotificationUpdate()
 	// That way Oculus keeps the source of truth on who's actually in the room and therefore the session
@@ -1175,7 +1175,7 @@ bool FOnlineSessionOculus::UnregisterPlayer(FName SessionName, const FUniqueNetI
 	return false;
 }
 
-bool FOnlineSessionOculus::UnregisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players)
+bool FOnlineSessionOculus::UnregisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players)
 {
 	/* TODO: #10920536 */
 	return false;
@@ -1206,10 +1206,10 @@ void FOnlineSessionOculus::UnregisterLocalPlayer(const FUniqueNetId& PlayerId, F
 	Delegate.ExecuteIfBound(PlayerId, false);
 }
 
-TSharedPtr<const FUniqueNetId> FOnlineSessionOculus::CreateSessionIdFromString(const FString& SessionIdStr)
+FUniqueNetIdPtr FOnlineSessionOculus::CreateSessionIdFromString(const FString& SessionIdStr)
 {
 	/* NYI */
-	TSharedPtr<const FUniqueNetId> SessionId;
+	FUniqueNetIdPtr SessionId;
 	return SessionId;
 }
 
@@ -1398,7 +1398,7 @@ TSharedRef<FOnlineSession> FOnlineSessionOculus::CreateSessionFromRoom(ovrRoomHa
 
 	auto Session = new FOnlineSession(SessionSettings);
 
-	Session->OwningUserId = MakeShareable(new FUniqueNetIdOculus(ovr_User_GetID(RoomOwner)));
+	Session->OwningUserId = FUniqueNetIdOculus::Create(ovr_User_GetID(RoomOwner));
 	Session->OwningUserName = ovr_User_GetOculusID(RoomOwner);
 
 	Session->NumOpenPublicConnections = RoomMaxUsers - RoomCurrentUsersSize;
@@ -1415,12 +1415,12 @@ void FOnlineSessionOculus::UpdateSessionFromRoom(FNamedOnlineSession& Session, o
 	auto UserArray = ovr_Room_GetUsers(Room);
 	auto UserArraySize = ovr_UserArray_GetSize(UserArray);
 
-	TArray< TSharedRef<const FUniqueNetId> > Players;
+	TArray< FUniqueNetIdRef > Players;
 	for (size_t UserIndex = 0; UserIndex < UserArraySize; ++UserIndex)
 	{
 		auto User = ovr_UserArray_GetElement(UserArray, UserIndex);
 		auto UserId = ovr_User_GetID(User);
-		Players.Add(MakeShareable(new FUniqueNetIdOculus(UserId)));
+		Players.Add(FUniqueNetIdOculus::Create(UserId));
 	}
 
 	Session.RegisteredPlayers = Players;
@@ -1436,7 +1436,7 @@ void FOnlineSessionOculus::UpdateSessionFromRoom(FNamedOnlineSession& Session, o
 	// Update the room owner if there is a change of ownership
 	if (!Session.OwningUserId.IsValid() || static_cast<const FUniqueNetIdOculus *>(Session.OwningUserId.Get())->GetID() != RoomOwnerId)
 	{
-		Session.OwningUserId = MakeShareable(new FUniqueNetIdOculus(ovr_User_GetID(RoomOwner)));
+		Session.OwningUserId = FUniqueNetIdOculus::Create(ovr_User_GetID(RoomOwner));
 		Session.OwningUserName = ovr_User_GetOculusID(RoomOwner);
 		/** Whether or not this local player is hosting the session.  Assuming hosting and owning is the same for Oculus */
 		Session.bHosting = (*Session.OwningUserId == *Session.LocalOwnerId);

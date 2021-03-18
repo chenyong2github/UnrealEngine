@@ -105,6 +105,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UNiagaraEmitter> LastMergedSource_DEPRECATED;
 
+	UPROPERTY(Transient)
 	bool bIsolated;
 #endif
 

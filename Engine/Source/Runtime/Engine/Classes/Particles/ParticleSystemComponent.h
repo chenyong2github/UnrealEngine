@@ -13,6 +13,7 @@
 #include "Particles/Emitter.h"
 #include "Runtime/Launch/Resources/Version.h"
 #include "Particles/WorldPSCPool.h"
+#include "Particles/ParticlePerfStats.h"
 #include "ParticleSystemComponent.generated.h"
 
 class FParticleDynamicData;
@@ -419,6 +420,10 @@ public:
 
 	/** Forces component to deactivate immediately. */
 	virtual void DeactivateImmediate() {}
+
+#if WITH_PER_COMPONENT_PARTICLE_PERF_STATS
+	mutable FParticlePerfStats* ParticlePerfStats = nullptr;
+#endif
 };
 
 
@@ -1637,11 +1642,7 @@ private:
 	bool ShouldComputeLODFromGameThread();
 
 public:
-#if WITH_PARTICLE_PERF_STATS
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStats::GetPerfStats(GetWorld(), Template); }
-#else	
-	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext()const { return FParticlePerfStatsContext(); }
-#endif
+	FORCEINLINE FParticlePerfStatsContext GetPerfStatsContext(){ return FParticlePerfStatsContext(GetWorld(), Template, this); }
 };
 
 

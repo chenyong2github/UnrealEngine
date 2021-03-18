@@ -128,8 +128,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Performance)
 	uint32 PoolPrimeSize = 0;
 
-#if WITH_PARTICLE_PERF_STATS
-	FParticlePerfStats* ParticlePerfStats;
+#if WITH_PER_SYSTEM_PARTICLE_PERF_STATS
+	mutable FParticlePerfStats* ParticlePerfStats = nullptr;
 #endif
 };
 

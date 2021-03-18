@@ -57,6 +57,7 @@ namespace ESteamSession
 }
 
 using FUniqueNetIdSteamRef = TSharedRef<const class FUniqueNetIdSteam, UNIQUENETID_ESPMODE>;
+using FUniqueNetIdSteamPtr = TSharedPtr<const class FUniqueNetIdSteam, UNIQUENETID_ESPMODE>;
 
 /**
  * Steam specific implementation of the unique net id
@@ -68,69 +69,25 @@ PACKAGE_SCOPE:
 	/** Holds the net id for a player */
 	uint64 UniqueNetId;
 
-	/** Hidden on purpose */
-	FUniqueNetIdSteam() :
-		UniqueNetId(0)
-	{
-	}
-
-	/**
-	 * Copy Constructor
-	 *
-	 * @param Src the id to copy
-	 */
-	explicit FUniqueNetIdSteam(const FUniqueNetIdSteam& Src) :
-		UniqueNetId(Src.UniqueNetId)
-	{
-	}
-
 public:
 	template<typename... TArgs>
 	static FUniqueNetIdSteamRef Create(TArgs&&... Args)
 	{
-		return MakeShareable(new FUniqueNetIdSteam(Forward<TArgs>(Args)...));
-	}
-	
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param InUniqueNetId the id to set ours to
-	 */
-	explicit FUniqueNetIdSteam(uint64 InUniqueNetId) :
-		UniqueNetId(InUniqueNetId)
-	{
+		return MakeShared<FUniqueNetIdSteam, UNIQUENETID_ESPMODE>(Forward<TArgs>(Args)...);
 	}
 
-	/**
-	 * Constructs this object with the steam id
-	 *
-	 * @param InUniqueNetId the id to set ours to
-	 */
-	explicit FUniqueNetIdSteam(CSteamID InSteamId) :
-		UniqueNetId(InSteamId.ConvertToUint64())
+	static const FUniqueNetIdSteam& Cast(const FUniqueNetId& NetId)
 	{
+		return *static_cast<const FUniqueNetIdSteam*>(&NetId);
 	}
 
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param String textual representation of an id
-	 */
-	explicit FUniqueNetIdSteam(const FString& Str) :
-		UniqueNetId(FCString::Atoi64(*Str))
+	FUniqueNetIdSteamRef AsShared() const
 	{
+		return StaticCastSharedRef<const FUniqueNetIdSteam>(FUniqueNetId::AsShared());
 	}
 
-
-	/**
-	 * Constructs this object with the specified net id
-	 *
-	 * @param InUniqueNetId the id to set ours to (assumed to be FUniqueNetIdSteam in fact)
-	 */
-	explicit FUniqueNetIdSteam(const FUniqueNetId& InUniqueNetId) :
-		UniqueNetId(*(uint64*)InUniqueNetId.GetBytes())
-	{
-	}
+	/** Allow MakeShared to see private constructors */
+	friend class SharedPointerInternals::TIntrusiveReferenceController<FUniqueNetIdSteam>;
 
 	virtual FName GetType() const override
 	{
@@ -186,26 +143,32 @@ public:
 	 */
 	virtual FString ToDebugString() const override
 	{
-		CSteamID SteamID(UniqueNetId);
+		const CSteamID SteamID(UniqueNetId);
 
-		const FString UniqueNetIdStr = FString::Printf(TEXT("[0x%llX]"), UniqueNetId);
+		const FString HexStr = FString::Printf(TEXT("[0x%llX]"), UniqueNetId);
 		if (SteamID.IsLobby())
 		{
-			return TEXT("Lobby") + OSS_UNIQUEID_REDACT(*this, UniqueNetIdStr);
+			return TEXT("Lobby") + OSS_UNIQUEID_REDACT(*this, HexStr);
 		}
 		else if (SteamID.BAnonGameServerAccount())
 		{
-			return TEXT("Server") + OSS_UNIQUEID_REDACT(*this, UniqueNetIdStr);
+			return TEXT("Server") + OSS_UNIQUEID_REDACT(*this, HexStr);
 		}
 		else if (SteamID.IsValid())
 		{
 			const FString NickName(SteamFriends() ? UTF8_TO_TCHAR(SteamFriends()->GetFriendPersonaName(UniqueNetId)) : TEXT("UNKNOWN"));
-			return FString::Printf(TEXT("%s [0x%llX]"), *NickName, *OSS_UNIQUEID_REDACT(*this, UniqueNetIdStr));
+			return FString::Printf(TEXT("%s %s"), *NickName, *OSS_UNIQUEID_REDACT(*this, HexStr));
 		}
 		else
 		{
-			return TEXT("INVALID") + OSS_UNIQUEID_REDACT(*this, UniqueNetIdStr);
+			return TEXT("INVALID") + OSS_UNIQUEID_REDACT(*this, HexStr);
 		}
+	}
+
+	static FString ToDebugString(CSteamID SteamID)
+	{
+		// Safe to use a local variable in this specific case, nothing will call AsShared on it.
+		return FUniqueNetIdSteam(SteamID).ToDebugString();
 	}
 
 	/** Needed for TMap::GetTypeHash() */
@@ -215,9 +178,9 @@ public:
 	}
 
 	/** global static instance of invalid (zero) id */
-	static const FUniqueNetIdRef& EmptyId()
+	static const FUniqueNetIdSteamRef& EmptyId()
 	{
-		static const FUniqueNetIdRef EmptyId(Create());
+		static const FUniqueNetIdSteamRef EmptyId(Create());
 		return EmptyId;
 	}
 
@@ -245,9 +208,68 @@ public:
 		return (const CSteamID*)&UniqueNetId;
 	}
 
-	friend FArchive& operator<<(FArchive& Ar, FUniqueNetIdSteam& UserId)
+	friend FArchive& operator<<(FArchive& Ar, const FUniqueNetIdSteam& UserId)
 	{
-		return Ar << UserId.UniqueNetId;
+		// FArchive operator<< wants non const references
+		uint64 NetId = UserId.UniqueNetId;
+		return Ar << NetId;
+	}
+
+private:
+	/** Hidden on purpose */
+	FUniqueNetIdSteam() :
+		UniqueNetId(0)
+	{
+	}
+
+	/**
+	 * Copy Constructor
+	 *
+	 * @param Src the id to copy
+	 */
+	explicit FUniqueNetIdSteam(const FUniqueNetIdSteam& Src) :
+		UniqueNetId(Src.UniqueNetId)
+	{
+	}
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param InUniqueNetId the id to set ours to
+	 */
+	explicit FUniqueNetIdSteam(uint64 InUniqueNetId) :
+		UniqueNetId(InUniqueNetId)
+	{
+	}
+
+	/**
+	 * Constructs this object with the steam id
+	 *
+	 * @param InUniqueNetId the id to set ours to
+	 */
+	explicit FUniqueNetIdSteam(CSteamID InSteamId) :
+		UniqueNetId(InSteamId.ConvertToUint64())
+	{
+	}
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param String textual representation of an id
+	 */
+	explicit FUniqueNetIdSteam(const FString& Str) :
+		UniqueNetId(FCString::Atoi64(*Str))
+	{
+	}
+
+	/**
+	 * Constructs this object with the specified net id
+	 *
+	 * @param InUniqueNetId the id to set ours to (assumed to be FUniqueNetIdSteam in fact)
+	 */
+	explicit FUniqueNetIdSteam(const FUniqueNetId& InUniqueNetId) :
+		UniqueNetId(*(uint64*)InUniqueNetId.GetBytes())
+	{
 	}
 };
 
@@ -272,15 +294,8 @@ class FOnlineSessionInfoSteam : public FOnlineSessionInfo
 protected:
 	
 	/** Hidden on purpose */
-	FOnlineSessionInfoSteam(const FOnlineSessionInfoSteam& Src)
-	{
-	}
-
-	/** Hidden on purpose */
-	FOnlineSessionInfoSteam& operator=(const FOnlineSessionInfoSteam& Src)
-	{
-		return *this;
-	}
+	FOnlineSessionInfoSteam(const FOnlineSessionInfoSteam& Src) = delete;
+	FOnlineSessionInfoSteam& operator=(const FOnlineSessionInfoSteam& Src) = delete;
 
 PACKAGE_SCOPE:
 
@@ -307,7 +322,7 @@ PACKAGE_SCOPE:
 	/** The Steam P2P address that the host is listening on (valid for GameServer/Lobby) */
 	TSharedPtr<class FInternetAddr> SteamP2PAddr;
 	/** Steam Lobby Id or Gameserver Id if applicable */
-	FUniqueNetIdSteam SessionId;
+	FUniqueNetIdSteamRef SessionId;
 	/** How this session should be connected to */
 	FSteamConnectionMethod ConnectionMethod;
 
@@ -343,10 +358,10 @@ public:
 		switch (SessionType)
 		{
 		case ESteamSession::LobbySession:
-			return SteamP2PAddr.IsValid() && SteamP2PAddr->IsValid() && SessionId.IsValid();
+			return SteamP2PAddr.IsValid() && SteamP2PAddr->IsValid() && SessionId->IsValid();
 		case ESteamSession::AdvertisedSessionHost:
 		case ESteamSession::AdvertisedSessionClient:
-			return ((SteamP2PAddr.IsValid() && SteamP2PAddr->IsValid()) || (HostAddr.IsValid() && HostAddr->IsValid())) && SessionId.IsValid();
+			return ((SteamP2PAddr.IsValid() && SteamP2PAddr->IsValid()) || (HostAddr.IsValid() && HostAddr->IsValid())) && SessionId->IsValid();
 		case ESteamSession::LANSession:
 		default:
 			// LAN case
@@ -356,7 +371,7 @@ public:
 
 	virtual FString ToString() const override
 	{
-		return SessionId.ToString();
+		return SessionId->ToString();
 	}
 
 	virtual FString ToDebugString() const override
@@ -364,12 +379,12 @@ public:
 		return FString::Printf(TEXT("HostIP: %s SteamP2P: %s Type: %s SessionId: %s"), 
 			HostAddr.IsValid() ? *HostAddr->ToString(true) : TEXT("INVALID"), 
 			SteamP2PAddr.IsValid() ? *SteamP2PAddr->ToString(true) : TEXT("INVALID"),
-			ESteamSession::ToString(SessionType), *SessionId.ToDebugString());
+			ESteamSession::ToString(SessionType), *SessionId->ToDebugString());
 	}
 
 	virtual const FUniqueNetId& GetSessionId() const override
 	{
-		return SessionId;
+		return *SessionId;
 	}
 };
 
@@ -384,10 +399,7 @@ class FSharedContentHandleSteam :
 	const UGCHandle_t SharedContentHandle;
 
 	/** Hidden on purpose */
-	FSharedContentHandleSteam() :
-		SharedContentHandle(k_UGCHandleInvalid)
-	{
-	}
+	FSharedContentHandleSteam() = delete;
 
 public:
 
@@ -498,11 +510,11 @@ struct FSteamUserCloudData
 
 public:
 	/** Owning user for these files */
-    const FUniqueNetIdSteam UserId;
+    const FUniqueNetIdSteamRef UserId;
 
     /** Constructors */
     FSteamUserCloudData(const FUniqueNetIdSteam& InUserId) :
-		UserId(InUserId)
+		UserId(InUserId.AsShared())
 	{
 	}
 

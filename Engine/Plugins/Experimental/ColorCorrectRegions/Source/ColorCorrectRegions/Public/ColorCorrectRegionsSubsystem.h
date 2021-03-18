@@ -57,28 +57,33 @@ public:
 	// Undo/redo is only supported by editor.
 #if WITH_EDITOR
 	// FEditorUndoClient pure virtual methods.
-	virtual void PostUndo(bool bSuccess) override;
-	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
+	virtual void PostUndo(bool bSuccess) override { RefreshRegions(); };
+	virtual void PostRedo(bool bSuccess) override { RefreshRegions(); }
 #endif
 
 public:
 
 	/** A callback for CC Region creation. */
-	UFUNCTION()
 	void OnActorSpawned(AActor* InActor);
 
 	/** A callback for CC Region deletion. */
-	UFUNCTION()
 	void OnActorDeleted(AActor* InActor);
 
+	/** Called when level is added or removed. */
+	void OnLevelsChanged() { RefreshRegions(); };
+	
 #if WITH_EDITOR
 	/** A callback for when the level is loaded. */
-	UFUNCTION()
-	void OnLevelActorListChanged() { PostUndo(true); };
+	void OnLevelActorListChanged() { RefreshRegions(); };
 #endif
-
+	
 	/** Sorts regions based on priority. */
 	void SortRegionsByPriority();
+
+private:
+
+	/** Repopulates array of region actors. */
+	void RefreshRegions();
 
 public:
 

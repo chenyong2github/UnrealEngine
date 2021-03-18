@@ -35,6 +35,8 @@
 
 //DEFINE_LOG_CATEGORY_STATIC(USkeletalMeshSimulationComponentLogging, NoLogging, All);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 USkeletalMeshSimulationComponent::USkeletalMeshSimulationComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 
@@ -267,3 +269,4 @@ void USkeletalMeshSimulationComponent::TickComponent(float DeltaTime, enum ELeve
 	};
 }
 
+PRAGMA_ENABLE_DEPRECATION_WARNINGS

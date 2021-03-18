@@ -3,11 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/CoreOnlineFwd.h"
 #include "OnlineDelegateMacros.h"
 #include "OnlineStatsInterface.h"
 
 struct FOnlineError;
-class FUniqueNetId;
 
 #define GAME_MATCH_TYPE_COOPERATIVE TEXT("Cooperative")
 #define GAME_MATCH_TYPE_COMPETITIVE TEXT("Competitive")
@@ -61,7 +61,7 @@ enum class ELeaveReason
 struct FLeaveGameMatchPlayer
 {
 	/** Id of the player leaving the match */
-	TSharedPtr<const FUniqueNetId> PlayerId;
+	FUniqueNetIdPtr PlayerId;
 	/** Reason for leaving the match */
 	ELeaveReason LeaveReason = ELeaveReason::Invalid;
 };
@@ -72,7 +72,7 @@ struct FLeaveGameMatchPlayer
 struct FJoinGameMatchPlayer
 {
 	/** Player account id*/
-	TSharedPtr<const FUniqueNetId> PlayerId;
+	FUniqueNetIdPtr PlayerId;
 	/** Player name */
 	FString PlayerName;
 	/** The id of the team this player will belong to */
@@ -85,7 +85,7 @@ struct FJoinGameMatchPlayer
 struct FGameMatchPlayer
 {
 	/** Player account id*/
-	TSharedPtr<const FUniqueNetId> PlayerId;
+	FUniqueNetIdPtr PlayerId;
 	/** Player name */
 	FString PlayerName;
 	/** Team name this player belongs to */
@@ -106,7 +106,7 @@ struct FGameMatchTeam
 	/** Id of the team */
 	FString TeamId;
 	/** Members belonging to the team */
-	TArray<TSharedRef<const FUniqueNetId>> TeamMemberIds;
+	TArray<FUniqueNetIdRef> TeamMemberIds;
 };
 
 /** 
@@ -115,7 +115,7 @@ struct FGameMatchTeam
 struct FGameMatchPlayerResult
 {
 	/** Id of the player */
-	TSharedPtr<const FUniqueNetId> PlayerId;
+	FUniqueNetIdPtr PlayerId;
 	/** Player's rank */
 	int32 Rank = -1;
 	/** Player's score */
@@ -191,7 +191,7 @@ struct FGameMatchStatsData
 struct FGameMatchPlayerStats
 {
 	/** Player id */
-	TSharedPtr<const FUniqueNetId> PlayerId;
+	FUniqueNetIdPtr PlayerId;
 	/** The player's stats */
 	TArray<FGameMatchStatsData> PlayerStats;
 };

@@ -8,7 +8,6 @@
 #include "Library/DMXEntity.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
-#include "Library/DMXEntityController.h"
 #include "Commands/DMXEditorCommands.h"
 #include "DMXEditorUtils.h"
 #include "DMXEditor.h"
@@ -367,11 +366,8 @@ private:
 				if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Get().Pin())
 				{
 					const TSubclassOf<UDMXEntity>&& FilterClass = GetEntityFilterClass();
-					if (FilterClass->IsChildOf(UDMXEntityController::StaticClass()))
-					{
-						PinnedEditor->GetToolkitCommands()->ExecuteAction(FDMXEditorCommands::Get().AddNewEntityController.ToSharedRef());
-					}
-					else if (FilterClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
+
+					if (FilterClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
 					{
 						PinnedEditor->GetToolkitCommands()->ExecuteAction(FDMXEditorCommands::Get().AddNewEntityFixtureType.ToSharedRef());
 					}

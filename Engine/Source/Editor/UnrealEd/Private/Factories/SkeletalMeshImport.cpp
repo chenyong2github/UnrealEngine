@@ -13,8 +13,11 @@
 #include "Engine/SkeletalMesh.h"
 #include "Engine/SkeletalMeshSocket.h"
 #include "FbxImporter.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "LODUtilities.h"
 #include "Materials/MaterialInterface.h"
+#include "Misc/CoreMisc.h"
 #include "Misc/FbxErrors.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "ReferenceSkeleton.h"
@@ -939,7 +942,7 @@ void SkeletalMeshHelper::RestoreExistingSkelMeshData(TSharedPtr<const FExistingS
 			//Old asset cannot use the new build system, we need to regenerate dependent LODs
 			if (SkeletalMesh->IsLODImportedDataBuildAvailable(SafeReimportLODIndex) == false)
 			{
-				FLODUtilities::RegenerateDependentLODs(SkeletalMesh, SafeReimportLODIndex);
+				FLODUtilities::RegenerateDependentLODs(SkeletalMesh, SafeReimportLODIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform());
 			}
 		}
 

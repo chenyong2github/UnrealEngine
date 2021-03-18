@@ -100,21 +100,6 @@ static FName StaticGetNativeClassName(UClass* InClass)
 /** Returns true if we're inside a FGCScopeLock */
 bool IsGarbageCollectionLocked();
 
-TAtomic<int>	GAsyncLoadingFlushIsActive(0);
-
-class FScopeAsyncLoadingFlushIsActive
-{
-public:
-	FScopeAsyncLoadingFlushIsActive()
-	{
-		GAsyncLoadingFlushIsActive++;
-	}
-
-	~FScopeAsyncLoadingFlushIsActive()
-	{
-		GAsyncLoadingFlushIsActive--;
-	}
-};
 
 
 /**
@@ -1821,7 +1806,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports_Event()
 					FPlatformFileOpenLog* PlatformFileOpenLog = (FPlatformFileOpenLog*)(FPlatformFileManager::Get().FindPlatformFile(FPlatformFileOpenLog::GetTypeName()));
 					if (PlatformFileOpenLog != nullptr)
 					{
-						FString PackageToOpenLogName = FString::Printf(TEXT("%s %i"), *Info.Name.ToString(), GFrameCounter);
+						FString PackageToOpenLogName = FString::Printf(TEXT("%s %i"), *Info.Name.ToString(), int32(GFrameCounter));
 						PlatformFileOpenLog->AddPackageToOpenLog(*PackageToOpenLogName);
 					}
 				}
@@ -6991,7 +6976,6 @@ void FAsyncLoadingThread::FlushLoading(int32 PackageID)
 		{
 			return;
 		}
-		FScopeAsyncLoadingFlushIsActive FlushIsActive;
 
 		FCoreDelegates::OnAsyncLoadingFlush.Broadcast();
 

@@ -1411,7 +1411,10 @@ namespace UnrealBuildTool
 					Log.TraceInformation("Copying {0} vulkan layer from {1}", ANDROID_VULKAN_VALIDATION_LAYER, VulkanLayersDir);
 					string DestDir = Path.Combine(UnrealBuildPath, "libs", NDKArch);
 					Directory.CreateDirectory(DestDir);
-					File.Copy(Path.Combine(VulkanLayersDir, ANDROID_VULKAN_VALIDATION_LAYER), Path.Combine(DestDir, ANDROID_VULKAN_VALIDATION_LAYER));
+					string SourceFilename = Path.Combine(VulkanLayersDir, ANDROID_VULKAN_VALIDATION_LAYER);
+					string DestFilename = Path.Combine(DestDir, ANDROID_VULKAN_VALIDATION_LAYER);
+					File.Copy(SourceFilename, DestFilename);
+					File.SetLastWriteTimeUtc(DestFilename, File.GetLastWriteTimeUtc(SourceFilename));
 				}
 			}
 

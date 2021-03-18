@@ -343,8 +343,7 @@ FGeometryCollectionPhysicsProxy::~FGeometryCollectionPhysicsProxy()
 float ReportHighParticleFraction = -1.f;
 FAutoConsoleVariableRef CVarReportHighParticleFraction(TEXT("p.gc.ReportHighParticleFraction"), ReportHighParticleFraction, TEXT("Report any objects with particle fraction above this threshold"));
 
-template <typename Traits>
-void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Traits> *Evolution)
+void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase *Evolution)
 {
 	check(IsInGameThread());
 
@@ -597,8 +596,7 @@ void FGeometryCollectionPhysicsProxy::InitializeDynamicCollection(FGeometryDynam
 int32 ReportTooManyChildrenNum = -1;
 FAutoConsoleVariableRef CVarReportTooManyChildrenNum(TEXT("p.ReportTooManyChildrenNum"), ReportTooManyChildrenNum, TEXT("Issue warning if more than this many children exist in a single cluster"));
 
-template <typename Traits>
-void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver<Traits>* RigidsSolver, typename Chaos::TPBDRigidsSolver<Traits>::FParticlesType& Particles)
+void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::FPBDRigidsSolver* RigidsSolver, typename Chaos::FPBDRigidsSolver::FParticlesType& Particles)
 {
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
@@ -854,7 +852,7 @@ void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(Chaos::TPBDRigidsSolver
 					Chaos::FClusterCreationParameters CreationParameters;
 					CreationParameters.ClusterParticleHandle = ClusterHandles.Num() ? ClusterHandles[ClusterHandlesIndex++] : nullptr;
 
-					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Handle = BuildClusters(RigidsSolver, TransformGroupIndex, RigidChildren, RigidChildrenTransformGroupIndex, CreationParameters);
+					Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Handle = BuildClusters(TransformGroupIndex, RigidChildren, RigidChildrenTransformGroupIndex, CreationParameters);
 
 					int32 RigidChildrenIdx = 0;
 					for(const int32 ChildTransformIndex : RigidChildrenTransformGroupIndex)
@@ -947,7 +945,6 @@ FAutoConsoleVariableRef CVarReportNoLevelsetCluster(TEXT("p.gc.ReportNoLevelsetC
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters"), STAT_BuildClusters, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("FGeometryCollectionPhysicsProxy::BuildClusters:GlobalMatrices"), STAT_BuildClustersGlobalMatrices, STATGROUP_Chaos);
 
-
 int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, float Volume)
 {
 	check(SizeSpecificData.Num());
@@ -970,10 +967,8 @@ int32 FindSizeSpecificIdx(const TArray<FSharedSimulationSizeSpecificData>& SizeS
 	return FindSizeSpecificIdx(SizeSpecificData, Bounds.GetVolume());
 }
 
-template <typename Traits>
 Chaos::TPBDRigidClusteredParticleHandle<float, 3>* 
 FGeometryCollectionPhysicsProxy::BuildClusters(
-	Chaos::TPBDRigidsSolver<Traits>* Solver,
 	const uint32 CollectionClusterIndex, // TransformGroupIndex
 	TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,
 	const TArray<int32>& ChildTransformGroupIndices,
@@ -1018,7 +1013,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 
 	// Construct an active cluster particle, disable children, derive M and I from children:
 	Chaos::TPBDRigidClusteredParticleHandle<float, 3>* Parent = 
-		Solver->GetEvolution()->GetRigidClustering().CreateClusterParticle(
+		static_cast<Chaos::FPBDRigidsSolver*>(Solver)->GetEvolution()->GetRigidClustering().CreateClusterParticle(
 			Parameters.ClusterGroupIndex, 
 			MoveTemp(ChildHandlesCopy),
 			ClusterCreationParameters,
@@ -1095,7 +1090,7 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 
 
 	// #BGTODO This will not automatically update - material properties should only ever exist in the material, not in other arrays
-	const Chaos::FChaosPhysicsMaterial* CurMaterial = Solver->GetSimMaterials().Get(Parameters.PhysicalMaterialHandle.InnerHandle);
+	const Chaos::FChaosPhysicsMaterial* CurMaterial = static_cast<Chaos::FPBDRigidsSolver*>(Solver)->GetSimMaterials().Get(Parameters.PhysicalMaterialHandle.InnerHandle);
 	if(CurMaterial)
 	{
 		Parent->SetLinearEtherDrag(CurMaterial->LinearEtherDrag);
@@ -1136,16 +1131,15 @@ FGeometryCollectionPhysicsProxy::BuildClusters(
 		const Chaos::FAABB3 TransformedBBox = LocalBounds.TransformedAABB(Xf);
 		Parent->SetWorldSpaceInflatedBounds(TransformedBBox);
 
-		Solver->GetEvolution()->DirtyParticle(*Parent);
+		static_cast<Chaos::FPBDRigidsSolver*>(Solver)->GetEvolution()->DirtyParticle(*Parent);
 	}
 
 	return Parent;
 }
 
-template <typename Traits>
 void FGeometryCollectionPhysicsProxy::GetFilteredParticleHandles(
 	TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
-	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver,
+	const Chaos::FPBDRigidsSolver* RigidSolver,
 	const EFieldFilterType FilterType)
 {
 	Handles.SetNum(0, false);
@@ -1196,10 +1190,9 @@ void FGeometryCollectionPhysicsProxy::GetFilteredParticleHandles(
 	}
 }
 
-template <typename Traits>
 void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(
 	TArray<Chaos::TGeometryParticleHandle<float, 3>*>& Handles,
-	const Chaos::TPBDRigidsSolver<Traits>* RigidSolver, 
+	const Chaos::FPBDRigidsSolver* RigidSolver, 
 	EFieldResolutionType ResolutionType)
 {
 	Handles.SetNum(0, false);
@@ -1336,12 +1329,11 @@ void FGeometryCollectionPhysicsProxy::InitializeRemoveOnFracture(FParticlesType&
 	*/
 }
 
-template <typename Traits>
-void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::TPBDRigidsSolver<Traits> *RBDSolver)
+void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::FPBDRigidsSolver *RBDSolver)
 {
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
-	Chaos::TPBDRigidsEvolutionGBF<Traits>* Evolution = RBDSolver->GetEvolution();
+	Chaos::FPBDRigidsEvolutionGBF* Evolution = RBDSolver->GetEvolution();
 
 	for (const FClusterHandle* Handle : SolverClusterHandles)
 	{
@@ -1413,8 +1405,7 @@ void FGeometryCollectionPhysicsProxy::BufferGameState()
 	//
 }
 
-template <typename Traits>
-void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::TPBDRigidsSolver<Traits>* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData)
+void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::FPBDRigidsSolver* CurrentSolver, Chaos::FDirtyGeometryCollectionData& BufferData)
 {
 	/**
 	 * CONTEXT: PHYSICSTHREAD
@@ -2461,8 +2452,7 @@ void BuildSimulationData(Chaos::FErrorReporter& ErrorReporter, FGeometryCollecti
 // FIELDS
 //==============================================================================
 
-template <typename Traits>
-void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRigidsSolver<Traits>* RigidSolver, const bool bUpdateViews)
+void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver, const bool bUpdateViews)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ParamUpdateField_Object);
 
@@ -2614,8 +2604,7 @@ void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRi
 	}
 }
 
-template <typename Traits>
-void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigidsSolver<Traits>* RigidSolver)
+void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::FPBDRigidsSolver* RigidSolver)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ForceUpdateField_Object);
 
@@ -2661,29 +2650,3 @@ void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigid
 		}
 	}
 }
-
-#define EVOLUTION_TRAIT(Traits) template void FGeometryCollectionPhysicsProxy::InitializeBodiesPT(\
-	Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidsSolver,\
-	typename Chaos::TPBDRigidsSolver<Chaos::Traits>::FParticlesType& Particles);\
-	template void FGeometryCollectionPhysicsProxy::OnRemoveFromSolver(Chaos::TPBDRigidsSolver<Chaos::Traits> *RBDSolver);\
-	template void FGeometryCollectionPhysicsProxy::BufferPhysicsResults(Chaos::TPBDRigidsSolver<Chaos::Traits>* CurrentSolver,Chaos::FDirtyGeometryCollectionData& BufferData);\
-	template void FGeometryCollectionPhysicsProxy::FieldParameterUpdateCallback(Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver, const bool bUpdateViews);\
-	template void FGeometryCollectionPhysicsProxy::FieldForcesUpdateCallback(Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver);\
-	template void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(\
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
-		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		EFieldResolutionType ResolutionType);\
-	template void FGeometryCollectionPhysicsProxy::GetFilteredParticleHandles(\
-		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
-		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
-		EFieldFilterType FilterType);\
-	template Chaos::TPBDRigidClusteredParticleHandle<float,3>* FGeometryCollectionPhysicsProxy::BuildClusters(\
-		Chaos::TPBDRigidsSolver<Chaos::Traits>* Solver,\
-		const uint32 CollectionClusterIndex,\
-		TArray<Chaos::TPBDRigidParticleHandle<float,3>*>& ChildHandles,\
-		const TArray<int32>& ChildTransformGroupIndices,\
-		const Chaos::FClusterCreationParameters & Parameters);\
-	template void FGeometryCollectionPhysicsProxy::Initialize(Chaos::TPBDRigidsEvolutionBase<Chaos::Traits>* Evolution);\
-
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT

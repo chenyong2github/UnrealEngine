@@ -1,15 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "DMXGraphPanelPinFactory.h"
+
+#include "Library/DMXLibrary.h"
+#include "Library/DMXEntityReference.h"
+#include "Library/DMXEntity.h"
+#include "Library/DMXEntityFixtureType.h"
+#include "Library/DMXInputPortReference.h"
+#include "Library/DMXOutputPortReference.h"
+#include "Widgets/SDMXEntityReferenceGraphPin.h"
+#include "Widgets/SDMXInputPortReferenceGraphPin.h"
+#include "Widgets/SDMXOutputPortReferenceGraphPin.h"
+#include "Widgets/SDynamicNameListGraphPin.h"
+#include "Widgets/SNullGraphPin.h"
+
 #include "K2Node.h"
 #include "EdGraphSchema_K2.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "SGraphPin.h"
 #include "SGraphPinNameList.h"
-#include "Library/DMXLibrary.h"
-#include "Library/DMXEntityReference.h"
-#include "Library/DMXEntity.h"
-#include "Library/DMXEntityFixtureType.h"
 #include "DMXProtocolTypes.h"
 #include "DMXAttribute.h"
 #include "Widgets/SDynamicNameListGraphPin.h"
@@ -37,6 +46,14 @@ TSharedPtr<class SGraphPin> FDMXGraphPanelPinFactory::CreatePin(class UEdGraphPi
 			else if (PinStructType->IsChildOf(FDMXEntityReference::StaticStruct()))
 			{
 				return SNew(SDMXEntityReferenceGraphPin, InPin);
+			}
+			else if (PinStructType->IsChildOf(FDMXInputPortReference::StaticStruct()))
+			{
+				return SNew(SDMXInputPortReferenceGraphPin, InPin);
+			}
+			else if (PinStructType->IsChildOf(FDMXOutputPortReference::StaticStruct()))
+			{
+				return SNew(SDMXOutputPortReferenceGraphPin, InPin);
 			}
 		}
 	}

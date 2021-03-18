@@ -265,7 +265,7 @@ struct FTriangleMeshRaycastVisitor
 FReal FTriangleMeshImplicitObject::PhiWithNormal(const FVec3& x, FVec3& Normal) const
 {
 	TSphere<FReal, 3> TestSphere(x, 0.0f);
-	FRigidTransform3 TestXf(FVec3(0.0), TRotation<float, 3>::FromIdentity());
+	FRigidTransform3 TestXf(FVec3(0.0), FRotation3::FromIdentity());
 	FVec3 TestLocation = x;
 	FReal Depth = TNumericLimits<FReal>::Max();
 	GJKContactPointImp(TestSphere, TestXf, 0.0f, TestLocation, Normal, Depth);

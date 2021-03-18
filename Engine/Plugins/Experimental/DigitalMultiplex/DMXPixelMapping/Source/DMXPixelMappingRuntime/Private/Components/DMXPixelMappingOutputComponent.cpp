@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Components/DMXPixelMappingOutputComponent.h"
+
 #include "Components/DMXPixelMappingRendererComponent.h"
+#include "Library/DMXEntityFixturePatch.h"
+
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SBox.h"
+
 
 #define LOCTEXT_NAMESPACE "DMXPixelMappingOutputComponent"
 
@@ -145,6 +149,26 @@ void UDMXPixelMappingOutputComponent::UpdateSurfaceBuffer(UpdateSurfaceSafeCallb
 {
 	FScopeLock ScopeLock(&SurfaceCS);
 	Callback(SurfaceBuffer, SurfaceRect);
+}
+
+uint8 UDMXPixelMappingOutputComponent::GetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName)
+{
+	if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+	{
+		const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+		if (ModePtr)
+		{
+			const FDMXFixtureFunction* FunctionPtr = ModePtr->Functions.FindByPredicate([&AttributeName](const FDMXFixtureFunction& Function) {
+				return Function.Attribute.Name == AttributeName;
+				});
+			if (FunctionPtr)
+			{
+				return FixtureType->NumChannelsToOccupy(FunctionPtr->DataType);
+			}
+		}
+	}
+
+	return 1;
 }
 
 bool UDMXPixelMappingOutputComponent::CanBeMovedTo(const UDMXPixelMappingBaseComponent* Component) const

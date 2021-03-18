@@ -86,7 +86,7 @@ bool FPlayTimeLimitModule::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 					const IOnlineIdentityPtr IdentityInt = OnlineSubsystem->GetIdentityInterface();
 					if (IdentityInt.IsValid())
 					{
-						const TSharedPtr<const FUniqueNetId> UserId = IdentityInt->GetUniquePlayerId(LocalUserNum);
+						const FUniqueNetIdPtr UserId = IdentityInt->GetUniquePlayerId(LocalUserNum);
 						if (UserId.IsValid())
 						{
 							PlayTimeLimit.MockUser(*UserId, bHasLimit, CurrentPlayTimeMinutes);

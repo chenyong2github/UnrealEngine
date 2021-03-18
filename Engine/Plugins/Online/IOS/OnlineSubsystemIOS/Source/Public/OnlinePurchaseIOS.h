@@ -22,7 +22,7 @@ public:
 		const FOnPurchaseCheckoutComplete& InCheckoutCompleteDelegate = FOnPurchaseCheckoutComplete()
 		)
 		: CheckoutRequest(InCheckoutRequest)
-		, UserId(InUserId)
+		, UserId(StaticCastSharedRef<const FUniqueNetIdIOS>(InUserId.AsShared()))
 		, CheckoutCompleteDelegate(InCheckoutCompleteDelegate)
 	{
 		PendingPurchaseInfo.TransactionState = InPendingTransactionState;
@@ -55,7 +55,7 @@ public:
 	/** Mirror array of purchase state for the various offers to purchase */
 	TArray<EPurchaseTransactionState> OfferPurchaseStates;
 	/** User for the pending order */
-	const FUniqueNetIdIOS UserId;
+	const FUniqueNetIdIOSRef UserId;
 	/** Delegate to call on completion */
 	const FOnPurchaseCheckoutComplete CheckoutCompleteDelegate;
 	/** Tracks the current state of the order */

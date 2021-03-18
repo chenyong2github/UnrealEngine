@@ -20,7 +20,7 @@
 #include "Chaos/ImplicitObjectScaled.h"
 
 //convert physx shape to chaos geometry - must be inline because of unique ptr crossing dlls
-inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeom(PxShape* Shape)
+inline TUniquePtr<Chaos::TImplicitObjectTransformed<FReal, 3>> PxShapeToChaosGeom(PxShape* Shape)
 {
 	using namespace Chaos;
 
@@ -31,19 +31,19 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 	{
 	case PxGeometryType::eSPHERE:
 	{
-		InnerObj = MakeUnique<TSphere<float, 3>>(FVec3(0), Geom.sphere().radius);
+		InnerObj = MakeUnique<TSphere<FReal, 3>>(FVec3(0), Geom.sphere().radius);
 		break;
 	}
 	case PxGeometryType::eBOX:
 	{
 		const FVec3 HalfExtents = P2UVector(Geom.box().halfExtents);
-		InnerObj = MakeUnique<TBox<float, 3>>(-HalfExtents, HalfExtents);
+		InnerObj = MakeUnique<TBox<FReal, 3>>(-HalfExtents, HalfExtents);
 		break;
 	}
 	case PxGeometryType::eCAPSULE:
 	{
-		const float HalfHeight = Geom.capsule().halfHeight;
-		const float Radius = Geom.capsule().radius;
+		const FReal HalfHeight = Geom.capsule().halfHeight;
+		const FReal Radius = Geom.capsule().radius;
 		const FVec3 Top(HalfHeight, 0, 0);	//PhysX capsules are aligned along the x-axis
 		const FVec3 Bottom = -Top;
 		InnerObj = MakeUnique<FCapsule>(Top, Bottom, Radius);
@@ -194,7 +194,7 @@ inline TUniquePtr<Chaos::TImplicitObjectTransformed<float, 3>> PxShapeToChaosGeo
 	default: ensure(false); return nullptr;	//missing support for this geometry type
 	}
 
-	return MakeUnique<TImplicitObjectTransformed<float, 3>>(MoveTemp(InnerObj), P2UTransform(ShapeTM));
+	return MakeUnique<TImplicitObjectTransformed<FReal, 3>>(MoveTemp(InnerObj), P2UTransform(ShapeTM));
 }
 
 #endif

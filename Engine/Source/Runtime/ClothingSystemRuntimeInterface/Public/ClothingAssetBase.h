@@ -17,6 +17,7 @@ class CLOTHINGSYSTEMRUNTIMEINTERFACE_API UClothingAssetBase : public UObject
 
 public:
 
+#if WITH_EDITOR
 	/** Binds a clothing asset submesh to a skeletal mesh section
 	* @param InSkelMesh Skel mesh to bind to
 	* @param InSectionIndex Section in the skel mesh to replace
@@ -41,6 +42,26 @@ public:
 	virtual void UnbindFromSkeletalMesh(USkeletalMesh* InSkelMesh, const int32 InMeshLodIndex)
 	PURE_VIRTUAL(UClothingAssetBase::UnbindFromSkeletalMesh,);
 
+	/**
+	 * Called on the clothing asset when the base data (physical mesh etc.) has
+	 * changed, so any intermediate generated data can be regenerated.
+	 */
+	virtual void InvalidateCachedData()
+	PURE_VIRTUAL(UClothingAssetBase::InvalidateCachedData(), );
+
+	/** Add a new LOD class instance. */
+	virtual int32 AddNewLod()
+	PURE_VIRTUAL(UClothingAssetBase::AddNewLod(), return INDEX_NONE;);
+
+	/**
+	*	Builds the LOD transition data
+	*	When we transition between LODs we skin the incoming mesh to the outgoing mesh
+	*	in exactly the same way the render mesh is skinned to create a smooth swap
+	*/
+	virtual void BuildLodTransitionData()
+	PURE_VIRTUAL(UClothingAssetBase::BuildLodTransitionData(), );
+#endif
+
 	/** 
 	 * Messages to the clothing asset that the bones in the parent mesh have
 	 * possibly changed, which could invalidate the bone indices stored in the LOD
@@ -50,13 +71,6 @@ public:
 	virtual void RefreshBoneMapping(USkeletalMesh* InSkelMesh)
 	PURE_VIRTUAL(UClothingAssetBase::RefreshBoneMapping, );
 
-	/**
-	 * Called on the clothing asset when the base data (physical mesh etc.) has
-	 * changed, so any intermediate generated data can be regenerated.
-	 */
-	virtual void InvalidateCachedData()
-	PURE_VIRTUAL(UClothingAssetBase::InvalidateCachedData(), );
-
 	/** Check the validity of a LOD index */
 	virtual bool IsValidLod(int32 InLodIndex) const
 	PURE_VIRTUAL(UClothingAssetBase::IsValidLod(), return false;);
@@ -65,21 +79,9 @@ public:
 	virtual int32 GetNumLods() const
 	PURE_VIRTUAL(UClothingAssetBase::GetNumLods(), return 0;);
 
-	/** Add a new LOD class instance. */
-	virtual int32 AddNewLod()
-	PURE_VIRTUAL(UClothingAssetBase::AddNewLod(), return INDEX_NONE;);
-
 	/** Builds self collision data */
 	virtual void BuildSelfCollisionData()
 	PURE_VIRTUAL(UClothingAssetBase::BuildSelfCollisionData(), );
-
-	/**
-	*	Builds the LOD transition data
-	*	When we transition between LODs we skin the incoming mesh to the outgoing mesh
-	*	in exactly the same way the render mesh is skinned to create a smooth swap
-	*/
-	virtual void BuildLodTransitionData()
-	PURE_VIRTUAL(UClothingAssetBase::BuildLodTransitionData(), );
 
 	/** Called after all cloth assets sharing the same simulation are added or loaded */
 	virtual void PostUpdateAllAssets()

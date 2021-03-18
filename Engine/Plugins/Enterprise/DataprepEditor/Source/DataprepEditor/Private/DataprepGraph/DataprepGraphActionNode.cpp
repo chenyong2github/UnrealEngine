@@ -40,8 +40,8 @@ void UDataprepGraphActionNode::Initialize(TWeakObjectPtr<UDataprepAsset> InDatap
 		DataprepActionAsset = InDataprepActionAsset;
 		ActionTitle = DataprepActionAsset->GetLabel();
 		ExecutionOrder = InExecutionOrder;
-		NodeWidth = InDataprepActionAsset->Appearance->NodeSize.X;
-		NodeHeight = InDataprepActionAsset->Appearance->NodeSize.Y;
+		NodeWidth = InDataprepActionAsset->GetAppearance()->NodeSize.X;
+		NodeHeight = InDataprepActionAsset->GetAppearance()->NodeSize.Y;
 	}
 	else
 	{
@@ -95,8 +95,8 @@ void UDataprepGraphActionNode::ResizeNode(const FVector2D& NewSize)
 	{
 		DataprepAssetPtr->Modify();
 		DataprepActionAsset->Modify();
-		DataprepActionAsset->Appearance->Modify();
-		DataprepActionAsset->Appearance->NodeSize = NewSize;
+		DataprepActionAsset->GetAppearance()->Modify();
+		DataprepActionAsset->GetAppearance()->NodeSize = NewSize;
 	}
 }
 
@@ -159,10 +159,10 @@ void UDataprepGraphActionGroupNode::Initialize(TWeakObjectPtr<UDataprepAsset> In
 	NodeWidth = 0;
 	NodeHeight = 0;
 
-	for ( const UDataprepActionAsset* Action : Actions )
+	for ( UDataprepActionAsset* Action : Actions )
 	{
-		NodeWidth = FMath::Max( static_cast<int32>( Action->Appearance->NodeSize.X ), NodeWidth );
-		NodeHeight = FMath::Max( static_cast<int32>( Action->Appearance->NodeSize.Y ), NodeHeight );
+		NodeWidth = FMath::Max( static_cast<int32>( Action->GetAppearance()->NodeSize.X ), NodeWidth );
+		NodeHeight = FMath::Max( static_cast<int32>( Action->GetAppearance()->NodeSize.Y ), NodeHeight );
 	}
 }
 
@@ -179,8 +179,8 @@ void UDataprepGraphActionGroupNode::ResizeNode(const FVector2D& NewSize)
 	for ( UDataprepActionAsset* Action : Actions )
 	{
 		Action->Modify();
-		Action->Appearance->Modify();
-		Action->Appearance->NodeSize = NewSize;
+		Action->GetAppearance()->Modify();
+		Action->GetAppearance()->NodeSize = NewSize;
 	}
 }
 
@@ -196,7 +196,7 @@ int32 UDataprepGraphActionGroupNode::GetGroupId() const
 	{
 		return INDEX_NONE;
 	}
-	return Actions[0]->Appearance->GroupId;
+	return Actions[0]->GetAppearance()->GroupId;
 }
 
 bool UDataprepGraphActionGroupNode::IsGroupEnabled() const 
@@ -205,7 +205,7 @@ bool UDataprepGraphActionGroupNode::IsGroupEnabled() const
 	{
 		return true;
 	}
-	return Actions[0]->Appearance->bGroupIsEnabled;
+	return Actions[0]->GetAppearance()->bGroupIsEnabled;
 }
 
 #undef LOCTEXT_NAMESPACE

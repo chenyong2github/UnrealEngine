@@ -44,6 +44,19 @@ TArray<UPrimitiveComponent*> AWaterBodyCustom::GetCollisionComponents() const
 	return Super::GetCollisionComponents();
 }
 
+void AWaterBodyCustom::BeginUpdateWaterBody()
+{
+	Super::BeginUpdateWaterBody();
+
+	UMaterialInstanceDynamic* WaterMaterialInstance = GetWaterMaterialInstance();
+	if (CustomGenerator && WaterMaterialInstance)
+	{
+		// We need to get(or create) the water MID at runtime and apply it to the static mesh component of the custom generator
+		// The MID is transient so it will not make it through serialization, apply it here (at runtime)
+		CustomGenerator->SetMaterial(WaterMaterialInstance);
+	}
+}
+
 void AWaterBodyCustom::UpdateWaterBody(bool bWithExclusionVolumes)
 {
 	if (CustomGenerator)
@@ -80,6 +93,13 @@ void UCustomMeshGenerator::Reset()
 	}
 }
 
+void UCustomMeshGenerator::SetMaterial(UMaterialInterface* Material)
+{
+	if (MeshComp)
+	{
+		MeshComp->SetMaterial(0, Material);
+	}
+}
 
 void UCustomMeshGenerator::OnUpdateBody(bool bWithExclusionVolumes)
 {

@@ -2,6 +2,8 @@
 
 #include "GroomBindingAsset.h"
 #include "EngineUtils.h"
+#include "GeometryCache.h"
+#include "GeometryCacheMeshData.h"
 #include "GroomAsset.h"
 #include "GroomBindingBuilder.h"
 
@@ -333,6 +335,15 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 {
 	if (InBinding && InSkeletalMesh && IsHairStrandsBindingEnable())
 	{
+		if (InBinding->GroomBindingType != EGroomBindingMeshType::SkeletalMesh)
+		{
+			if (bIssueWarning)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) cannot be bound to a SkeletalMesh because it is not the correct binding type."), *InBinding->GetName());
+			}
+			return false;
+		}
+
 		if (!InBinding->TargetSkeletalMesh)
 		{
 			if (bIssueWarning)
@@ -389,6 +400,51 @@ bool UGroomBindingAsset::IsCompatible(const USkeletalMesh* InSkeletalMesh, const
 				}
 				return false;
 			}
+		}
+	}
+
+	return true;
+}
+
+bool UGroomBindingAsset::IsCompatible(const UGeometryCache* InGeometryCache, const UGroomBindingAsset* InBinding, bool bIssueWarning)
+{
+	if (InBinding && InGeometryCache && IsHairStrandsBindingEnable())
+	{
+		if (InBinding->GroomBindingType != EGroomBindingMeshType::GeometryCache)
+		{
+			if (bIssueWarning)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) cannot be bound to a GeometryCache because it is not the correct binding type."), *InBinding->GetName());
+			}
+			return false;
+		}
+
+		if (!InBinding->TargetGeometryCache)
+		{
+			if (bIssueWarning)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] The binding asset (%s) does not have a target GeometryCache."), *InBinding->GetName());
+			}
+			return false;
+		}
+
+		TArray<FGeometryCacheMeshData> MeshesData;
+		InGeometryCache->GetMeshDataAtTime(0.0f, MeshesData);
+		if (MeshesData.Num() > 1)
+		{
+			if (bIssueWarning)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] Cannot be bound to a non-flattened GeometryCache. Re-import %s with 'Flatten Tracks' enabled."), *InGeometryCache->GetName());
+			}
+			return false;
+		}
+		else if (MeshesData.Num() == 0)
+		{
+			if (bIssueWarning)
+			{
+				UE_LOG(LogHairStrands, Warning, TEXT("[Groom] %s is not a valid GeometryCache to bind to."), *InGeometryCache->GetName());
+			}
+			return false;
 		}
 	}
 
@@ -537,11 +593,17 @@ bool UGroomBindingAsset::IsBindingAssetValid(const UGroomBindingAsset* InBinding
 	return true;
 }
 
+bool UGroomBindingAsset::HasValidTarget() const
+{
+	return (GroomBindingType == EGroomBindingMeshType::SkeletalMesh && TargetSkeletalMesh) ||
+		   (GroomBindingType == EGroomBindingMeshType::GeometryCache && TargetGeometryCache);
+}
+
 #if WITH_EDITOR
 
 void UGroomBindingAsset::Build()
 {
-	if (Groom && TargetSkeletalMesh)
+	if (Groom && HasValidTarget())
 	{
 		OnGroomBindingAssetChanged.Broadcast();
 		Reset();
@@ -581,18 +643,33 @@ namespace GroomBindingDerivedDataCacheUtils
 	}
 }
 
-FString UGroomBindingAsset::BuildDerivedDataKeySuffix(USkeletalMesh* InSource, USkeletalMesh* InTarget, UGroomAsset* InGroom, uint32 InNumInterpolationPoints, int32 InMatchingSection)
+static FString BuildDerivedDataKeySuffix(const UGroomBindingAsset& BindingAsset)
 {
-	FString SourceKey = InSource ? InSource->GetDerivedDataKey() : FString();
-	FString TargetKey = InTarget ? InTarget->GetDerivedDataKey() : FString();
-	FString GroomKey  = InGroom  ? InGroom->GetDerivedDataKey()  : FString();
-	FString PointKey  = FString::FromInt(InNumInterpolationPoints);
-	FString SectionKey = FString::FromInt(InMatchingSection);
-	uint32 KeyLength  = SourceKey.Len() + TargetKey.Len() + GroomKey.Len() + PointKey.Len() + SectionKey.Len();
+	FString BindingType;
+	FString SourceKey;
+	FString TargetKey;
+
+	if (BindingAsset.GroomBindingType == EGroomBindingMeshType::SkeletalMesh)
+	{
+		// Binding type is implicitly SkeletalMesh so keep BindingType empty to prevent triggering rebuild of old binding for nothing
+		SourceKey = BindingAsset.SourceSkeletalMesh ? BindingAsset.SourceSkeletalMesh->GetDerivedDataKey() : FString();
+		TargetKey = BindingAsset.TargetSkeletalMesh ? BindingAsset.TargetSkeletalMesh->GetDerivedDataKey() : FString();
+	}
+	else
+	{
+		BindingType = "GEOCACHE_";
+		SourceKey = BindingAsset.SourceGeometryCache ? BindingAsset.SourceGeometryCache->GetHash() : FString();
+		TargetKey = BindingAsset.TargetGeometryCache ? BindingAsset.TargetGeometryCache->GetHash() : FString();
+	}
+	FString GroomKey  = BindingAsset.Groom ? BindingAsset.Groom->GetDerivedDataKey()  : FString();
+	FString PointKey  = FString::FromInt(BindingAsset.NumInterpolationPoints);
+	FString SectionKey = FString::FromInt(BindingAsset.MatchingSection);
+
+	uint32 KeyLength  = BindingType.Len() + SourceKey.Len() + TargetKey.Len() + GroomKey.Len() + PointKey.Len() + SectionKey.Len();
 
 	FString KeySuffix;
 	KeySuffix.Reserve(KeyLength);
-	KeySuffix = SourceKey + TargetKey + GroomKey + PointKey + SectionKey;
+	KeySuffix = BindingType + SourceKey + TargetKey + GroomKey + PointKey + SectionKey;
 	return KeySuffix;
 }
 
@@ -605,7 +682,7 @@ void UGroomBindingAsset::CacheDerivedDatas()
 	}
 
 	// List all the components which will need to be recreated to get the new binding information
-	const FString KeySuffix = BuildDerivedDataKeySuffix(SourceSkeletalMesh, TargetSkeletalMesh, Groom, NumInterpolationPoints, MatchingSection);
+	const FString KeySuffix = BuildDerivedDataKeySuffix(*this);
 	const FString DerivedDataKey = GroomBindingDerivedDataCacheUtils::BuildGroomBindingDerivedDataKey(KeySuffix);
 
 	if (DerivedDataKey != CachedDerivedDataKey)

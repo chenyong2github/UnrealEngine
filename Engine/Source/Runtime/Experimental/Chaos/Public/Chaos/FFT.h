@@ -12,7 +12,7 @@ class FFFT3
 {
 public:
 	using FUniformGrid = TUniformGrid<FReal, 3>;
-	using FArrayNDOfComplex = TArrayND<Complex<FReal>, 3>;
+	using FArrayNDOfComplex = TArrayND<FComplex, 3>;
 
 public:
 	static void Transform(const FUniformGrid& Grid, const TArrayND<FVec3, 3>& Velocity, FArrayNDOfComplex& u, FArrayNDOfComplex& v, FArrayNDOfComplex& w);

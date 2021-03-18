@@ -224,11 +224,11 @@ namespace NiagaraOutlinerTab
 	{
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-		FDetailsViewArgs DetailsArgs;
-		DetailsArgs.bHideSelectionTip = true;
-		TSharedPtr<IDetailsView> OutlinerDetails = PropertyModule.CreateDetailView(DetailsArgs);
-
-		OutlinerDetails->SetObject(Debugger->GetOutliner());
+ 		FDetailsViewArgs DetailsArgs;
+ 		DetailsArgs.bHideSelectionTip = true;
+ 		TSharedPtr<IDetailsView> OutlinerDetails = PropertyModule.CreateDetailView(DetailsArgs);
+ 
+ 		OutlinerDetails->SetObject(Debugger->GetOutliner());
 
 		TabManager->RegisterTabSpawner(
 			TabName,
@@ -239,14 +239,17 @@ namespace NiagaraOutlinerTab
 						.TabRole(ETabRole::PanelTab)
 						.Label(LOCTEXT("OutlinerTitle", "FX Outliner"))
 						[
-							SNew(SVerticalBox)
-							+SVerticalBox::Slot()
-							.AutoHeight()
+							SNew(SSplitter)
+							.Orientation(Orient_Vertical)
+							+ SSplitter::Slot()
+							.SizeRule(SSplitter::ESizeRule::FractionOfParent)
+							.Value(.4f)
 							[
 								OutlinerDetails.ToSharedRef()
 							]
-							+SVerticalBox::Slot()
-							.FillHeight(1.0f)
+							+ SSplitter::Slot()
+							.SizeRule(SSplitter::ESizeRule::FractionOfParent)
+							.Value(.6f)
 							[
 								SNew(SNiagaraOutlinerTree, Debugger)
 							]

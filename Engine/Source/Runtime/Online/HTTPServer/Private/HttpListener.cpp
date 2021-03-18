@@ -201,7 +201,7 @@ void FHttpListener::AcceptConnections()
 
 			IncomingConnection->SetNonBlocking(true);
 			TSharedPtr<FHttpConnection> Connection = 
-				MakeShared<FHttpConnection>(IncomingConnection, Router, ListenPort, NumConnectionsAccepted++, Config.ConnectionSelectWaitTime);
+				MakeShared<FHttpConnection>(IncomingConnection, Router, ListenPort, NumConnectionsAccepted++);
 			Connections.Add(Connection);
 		}
 	}

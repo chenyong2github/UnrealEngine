@@ -163,7 +163,7 @@ void UDataprepAssetInterface::ExecuteRecipe_Internal(const TSharedPtr<FDataprepA
 	{
 		if (ActionAsset != nullptr)
 		{
-			const bool bGroupEnabled = ActionAsset->Appearance->GroupId != INDEX_NONE ? ActionAsset->Appearance->bGroupIsEnabled : true;
+			const bool bGroupEnabled = ActionAsset->GetAppearance()->GroupId != INDEX_NONE ? ActionAsset->GetAppearance()->bGroupIsEnabled : true;
 		
 			if (ActionAsset->bIsEnabled && bGroupEnabled)
 			{

@@ -49,6 +49,11 @@ public:
 	 */
 	virtual void SetAttachedComponent(UActorComponent* ActorComponent);
 
+	/**
+	 * Cleanup controller state before getting removed
+	 */
+	virtual void Cleanup() { };
+
 #if WITH_EDITOR
 	virtual void InitializeInEditor() {}
 #endif

@@ -182,10 +182,10 @@ FNamedOnlineSession* FOnlineSessionIOS::AddNamedSession(FName SessionName, const
 }
 
 
-TSharedPtr<const FUniqueNetId> FOnlineSessionIOS::CreateSessionIdFromString(const FString& SessionIdStr)
+FUniqueNetIdPtr FOnlineSessionIOS::CreateSessionIdFromString(const FString& SessionIdStr)
 {
 	ensureMsgf(false, TEXT("NYI"));
-	TSharedPtr<const FUniqueNetId> SessionId;
+	FUniqueNetIdPtr SessionId;
 	return SessionId;
 }
 
@@ -388,7 +388,7 @@ bool FOnlineSessionIOS::IsPlayerInSession(FName SessionName, const FUniqueNetId&
 	return IsPlayerInSessionImpl(this, SessionName, UniqueId);
 }
 
-bool FOnlineSessionIOS::StartMatchmaking(const TArray< TSharedRef<const FUniqueNetId> >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
+bool FOnlineSessionIOS::StartMatchmaking(const TArray< FUniqueNetIdRef >& LocalPlayers, FName SessionName, const FOnlineSessionSettings& NewSessionSettings, TSharedRef<FOnlineSessionSearch>& SearchSettings)
 {
 	UE_LOG_ONLINE_SESSION(Warning, TEXT("StartMatchmaking is not supported on this platform. Use FindSessions or FindSessionById."));
 	TriggerOnMatchmakingCompleteDelegates(SessionName, false);
@@ -508,12 +508,12 @@ bool FOnlineSessionIOS::FindFriendSession(int32 LocalUserNum, const FUniqueNetId
 
 bool FOnlineSessionIOS::FindFriendSession(const FUniqueNetId& LocalUserId, const FUniqueNetId& Friend)
 {
-	TArray<TSharedRef<const FUniqueNetId>> FriendList;
+	TArray<FUniqueNetIdRef> FriendList;
 	FriendList.Add(Friend.AsShared());
 	return FindFriendSession(LocalUserId, FriendList);
 }
 
-bool FOnlineSessionIOS::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& FriendList)
+bool FOnlineSessionIOS::FindFriendSession(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& FriendList)
 {
 	bool bSuccessfullyJoinedFriendSession = false;
 
@@ -545,7 +545,7 @@ bool FOnlineSessionIOS::SendSessionInviteToFriend(const FUniqueNetId& LocalUserI
 }
 
 
-bool FOnlineSessionIOS::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionIOS::SendSessionInviteToFriends(int32 LocalUserNum, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
 	bool bSuccessfullySentSessionInviteToFriends = false;
 
@@ -555,7 +555,7 @@ bool FOnlineSessionIOS::SendSessionInviteToFriends(int32 LocalUserNum, FName Ses
 }
 
 
-bool FOnlineSessionIOS::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Friends)
+bool FOnlineSessionIOS::SendSessionInviteToFriends(const FUniqueNetId& LocalUserId, FName SessionName, const TArray< FUniqueNetIdRef >& Friends)
 {
 	UE_LOG_ONLINE_SESSION(Display, TEXT("FOnlineSessionIOS::SendSessionInviteToFriends - not implemented"));
 	
@@ -596,8 +596,8 @@ bool FOnlineSessionIOS::RegisterPlayer(FName SessionName, const FUniqueNetId& Pl
 	
 	UE_LOG_ONLINE_SESSION(Display, TEXT("FOnlineSessionIOS::RegisterPlayer - not implemented"));	
 	
-	TArray< TSharedRef<const FUniqueNetId> > Players;
-	Players.Add(MakeShareable(new FUniqueNetIdIOS(PlayerId)));
+	TArray< FUniqueNetIdRef > Players;
+	Players.Add(PlayerId.AsShared());
 	
 	bSuccessfullyRegisteredPlayer = RegisterPlayers(SessionName, Players, bWasInvited);
 
@@ -605,7 +605,7 @@ bool FOnlineSessionIOS::RegisterPlayer(FName SessionName, const FUniqueNetId& Pl
 }
 
 
-bool FOnlineSessionIOS::RegisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players, bool bWasInvited)
+bool FOnlineSessionIOS::RegisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players, bool bWasInvited)
 {
 	bool bSuccessfullyRegisteredPlayers = false;
 	
@@ -626,15 +626,15 @@ bool FOnlineSessionIOS::UnregisterPlayer(FName SessionName, const FUniqueNetId& 
 	
 	UE_LOG_ONLINE_SESSION(Display, TEXT("FOnlineSessionIOS::UnregisterPlayer - not implemented"));
 	
-	TArray< TSharedRef<const FUniqueNetId> > Players;
-	Players.Add(MakeShareable(new FUniqueNetIdIOS(PlayerId)));
+	TArray< FUniqueNetIdRef > Players;
+	Players.Add(PlayerId.AsShared());
 	bSuccessfullyUnregisteredPlayer = UnregisterPlayers(SessionName, Players);
 	
 	return bSuccessfullyUnregisteredPlayer;
 }
 
 
-bool FOnlineSessionIOS::UnregisterPlayers(FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players)
+bool FOnlineSessionIOS::UnregisterPlayers(FName SessionName, const TArray< FUniqueNetIdRef >& Players)
 {
 	bool bSuccessfullyUnregisteredPlayers = false;
 

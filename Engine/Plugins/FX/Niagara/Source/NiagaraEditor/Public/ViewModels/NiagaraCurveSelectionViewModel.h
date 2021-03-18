@@ -11,6 +11,7 @@ class UNiagaraDataInterfaceCurveBase;
 class UNiagaraSystem;
 class UNiagaraNodeFunctionCall;
 class UNiagaraScript;
+class UNiagaraStackEditorData;
 struct FNiagaraEmitterHandle;
 struct FRichCurve;
 
@@ -91,6 +92,8 @@ public:
 
 	FLinearColor GetCurveColor() const;
 
+	bool GetCurveIsReadOnly() const;
+
 	void SetCurveDataInterface(UNiagaraDataInterfaceCurveBase* InCurveDataInterface);
 
 	void SetCurveData(UNiagaraDataInterfaceCurveBase* InCurveDataInterface, FRichCurve* InCurve, FName InCurveName, FLinearColor InCurveColor);
@@ -107,9 +110,17 @@ public:
 
 	void SetIsExpanded(bool bInIsExpanded);
 
+	bool GetIsEnabled() const;
+
+	void SetIsEnabled(bool bInIsEnabled);
+
+	bool GetIsEnabledAndParentIsEnabled() const;
+
 	const TArray<int32>& GetSortIndices() const;
 
 	void UpdateSortIndices(int32 Index);
+
+	void ResetCachedEnabledState();
 
 	FSimpleMulticastDelegate& GetOnCurveChanged();
 
@@ -135,6 +146,8 @@ private:
 	TOptional<FObjectKey> DisplayedObjectKey;
 	bool bShowInTree;
 	bool bIsExpanded;
+	bool bIsEnabled;
+	mutable TOptional<bool> bIsEnabledAndParentIsEnabledCache;
 	TArray<int32> SortIndices;
 
 	FSimpleMulticastDelegate OnCurveChangedDelegate;
@@ -165,22 +178,30 @@ public:
 	FOnRequestSelectNode& OnRequestSelectNode();
 
 private:
-	TSharedRef<FNiagaraCurveSelectionTreeNode> CreateNodeForCurveDataInterface(const FNiagaraCurveSelectionTreeNodeDataId& DataId, UNiagaraDataInterfaceCurveBase& CurveDataInterface, FName DataInterfaceName, bool bIsParameter) const;
+	TSharedRef<FNiagaraCurveSelectionTreeNode> CreateNodeForCurveDataInterface(const FNiagaraCurveSelectionTreeNodeDataId& DataId, UNiagaraDataInterfaceCurveBase& CurveDataInterface, bool bIsParameter) const;
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForUserParameters(TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes, UNiagaraSystem& System) const;
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForFunction(
-		const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes, UNiagaraNodeFunctionCall& FunctionCallNode,
+		const TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes,
+		UNiagaraNodeFunctionCall& FunctionCallNode, UNiagaraStackEditorData& StackEditorData,
 		FName ExecutionCategory, FName ExecutionSubCategory,
 		FName InputName, bool bIsParameterDynamicInput) const;
 
-	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForScript(TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes, UNiagaraScript& Script, FString ScriptDisplayName, FName ExecutionCategory, FName ExecutionSubcategory) const;
+	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForScript(
+		TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes,
+		UNiagaraScript& Script, FString ScriptDisplayName, UNiagaraStackEditorData& StackEditorData,
+		FName ExecutionCategory, FName ExecutionSubcategory) const;
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForSystem(TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes, UNiagaraSystem& System) const;
 
 	TSharedPtr<FNiagaraCurveSelectionTreeNode> CreateNodeForEmitter(TArray<TSharedRef<FNiagaraCurveSelectionTreeNode>> OldParentChildNodes, const FNiagaraEmitterHandle& EmitterHandle) const;
 
 	void DataInterfaceCurveChanged(TWeakObjectPtr<UNiagaraDataInterfaceCurveBase> ChangedCurveDataInterfaceWeak) const;
+
+	void StackEditorDataChanged();
+
+	void UserParametersChanged();
 
 private:
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModelWeak;

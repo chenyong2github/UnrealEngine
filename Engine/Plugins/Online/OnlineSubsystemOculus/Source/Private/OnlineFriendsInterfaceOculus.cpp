@@ -120,7 +120,7 @@ bool FOnlineFriendsOculus::RejectInvite(int32 LocalUserNum, const FUniqueNetId& 
 
 void FOnlineFriendsOculus::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
 {
-	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	FUniqueNetIdRef FriendIdRef = FriendId.AsShared();
 	OculusSubsystem.ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
 	{
 		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsOculus::SetFriendAlias is not implemented"));
@@ -130,7 +130,7 @@ void FOnlineFriendsOculus::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId
 
 void FOnlineFriendsOculus::DeleteFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnDeleteFriendAliasComplete& Delegate)
 {
-	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	FUniqueNetIdRef FriendIdRef = FriendId.AsShared();
 	OculusSubsystem.ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
 	{
 		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsOculus::DeleteFriendAlias is not implemented"));

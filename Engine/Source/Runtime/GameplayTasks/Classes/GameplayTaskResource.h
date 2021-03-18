@@ -5,6 +5,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "Templates/SubclassOf.h"
+#include "GameplayTaskTypes.h"
 #include "GameplayTaskResource.generated.h"
 
 struct FPropertyChangedEvent;
@@ -56,7 +57,7 @@ protected:
 
 	void UpdateAutoResourceID();
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#if WITH_GAMEPLAYTASK_DEBUG
 protected:
 	static TArray<FString> ResourceDescriptions;
 	virtual FString GenerateDebugDescription() const;
@@ -66,5 +67,5 @@ public:
 	{
 		return ResourceDescriptions.IsValidIndex(ResourceId) ? ResourceDescriptions[ResourceId] : FString();
 	}
-#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#endif // WITH_GAMEPLAYTASK_DEBUG
 };

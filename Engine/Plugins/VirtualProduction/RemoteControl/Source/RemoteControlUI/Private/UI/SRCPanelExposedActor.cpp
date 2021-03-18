@@ -14,17 +14,27 @@
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelActor"
 
-void SRCPanelExposedActor::Construct(const FArguments& InArgs, const FRemoteControlActor& Actor, URemoteControlPreset* Preset)
+void SRCPanelExposedActor::Construct(const FArguments& InArgs, TWeakPtr<FRemoteControlActor> InWeakActor, URemoteControlPreset* InPreset)
 {
-	ExposedActorId = Actor.GetId();
-	WeakPreset = Preset;
-	bEditMode = InArgs._EditMode;
-	CachedLabel = Actor.GetLabel();
-	AActor* ResolvedActor = Actor.GetActor();
-	FString Path = ResolvedActor ? ResolvedActor->GetPathName() : FString();
+	FString ActorPath;
+
+	TSharedPtr<FRemoteControlActor> Actor = InWeakActor.Pin();
+	if (ensure(Actor))
+	{
+		ExposedActorId = Actor->GetId();
+		WeakPreset = InPreset;
+		bEditMode = InArgs._EditMode;
+		CachedLabel = Actor->GetLabel();
+		WeakActor = MoveTemp(InWeakActor);
+		if (AActor* ResolvedActor = Actor->GetActor())
+		{
+			ActorPath = ResolvedActor->GetPathName();
+		}
+	}
+	
 	ChildSlot
 	[
-		RecreateWidget(MoveTemp(Path))
+		RecreateWidget(MoveTemp(ActorPath))
 	];
 }
 
@@ -52,20 +62,17 @@ SRCPanelTreeNode::ENodeType SRCPanelExposedActor::GetType() const
 
 void SRCPanelExposedActor::Refresh()
 {
-
-	if (URemoteControlPreset* Preset = WeakPreset.Get())
+	if (TSharedPtr<FRemoteControlActor> RCActor = WeakActor.Pin())
 	{
-		if (TSharedPtr<FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(ExposedActorId).Pin())
-		{
-			CachedLabel = RCActor->GetLabel();
+		CachedLabel = RCActor->GetLabel();
 
-			if (AActor* Actor = RCActor->GetActor())
-			{
-				ChildSlot.AttachWidget(RecreateWidget(Actor->GetPathName()));
-				return;
-			}
+		if (AActor* Actor = RCActor->GetActor())
+		{
+			ChildSlot.AttachWidget(RecreateWidget(Actor->GetPathName()));
+			return;
 		}
 	}
+
 	ChildSlot.AttachWidget(RecreateWidget(FString()));
 }
 
@@ -141,18 +148,13 @@ TSharedRef<SWidget> SRCPanelExposedActor::RecreateWidget(const FString& Path)
 
 void SRCPanelExposedActor::OnChangeActor(const FAssetData& AssetData)
 {
-	if (URemoteControlPreset* Preset = WeakPreset.Get())
+	if (AActor* Actor = Cast<AActor>(AssetData.GetAsset()))
 	{
-		FScopedTransaction Transaction(LOCTEXT("ChangeExposedActor", "Change Exposed Actor"));
-		Preset->Modify();
-		if (AActor* Actor = Cast<AActor>(AssetData.GetAsset()))
+		if (TSharedPtr<FRemoteControlActor> RCActor = WeakActor.Pin())
 		{
-			check(Actor);
-			if (TSharedPtr<FRemoteControlActor> RCActor = Preset->GetExposedEntity<FRemoteControlActor>(ExposedActorId).Pin())
-			{
-				RCActor->SetActor(Actor);
-				ChildSlot.AttachWidget(RecreateWidget(Actor->GetPathName()));
-			}
+			FScopedTransaction Transaction(LOCTEXT("ChangeExposedActor", "Change Exposed Actor"));
+			RCActor->SetActor(Actor);
+			ChildSlot.AttachWidget(RecreateWidget(Actor->GetPathName()));
 		}
 	}
 }

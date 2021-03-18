@@ -11,6 +11,7 @@
 
 class UGeometryCacheTrack;
 class UMaterialInterface;
+struct FGeometryCacheMeshData;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogGeometryCache, Log, All);
 
@@ -75,8 +76,14 @@ public:
 	/** Calculate it's duration */
 	float CalculateDuration() const;
 
-	/** Get the Frame at the Specified Time*/
+	/** Get the Frame at the Specified Time */
 	int32  GetFrameAtTime(const float Time) const;
+
+	/** Get the mesh data at the specified time */
+	void GetMeshDataAtTime(float Time, TArray<FGeometryCacheMeshData>& OutMeshData) const;
+
+	/** Get the hash of the meshes data of the GeometryCache */
+	FString GetHash() const;
 
 private:
 	/** A fence which is used to keep track of the rendering thread releasing the geometry cache resources. */
@@ -89,4 +96,6 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = GeometryCache)
 	int32 EndFrame;
 
+	UPROPERTY()
+	uint64 Hash;
 };

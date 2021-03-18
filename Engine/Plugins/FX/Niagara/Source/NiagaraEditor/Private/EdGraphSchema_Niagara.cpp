@@ -31,6 +31,7 @@
 #include "NiagaraNodeCustomHlsl.h"
 #include "NiagaraNodeOp.h"
 #include "NiagaraNodeConvert.h"
+#include "NiagaraNodeOutputTag.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraDataInterface.h"
 #include "NiagaraNodeIf.h"
@@ -741,6 +742,18 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		}		
 	}
 
+	// Handle output tag nodes
+	{
+		FText MenuCat = FText::FromString("Compiler Tagging");
+
+		{
+			FString Name = TEXT("Add Compiler Output Tag");
+			TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, MenuCat, FText::FromString(Name), *Name, FText::GetEmpty());
+			UNiagaraNodeOutputTag* BaseNode = NewObject<UNiagaraNodeOutputTag>(OwnerOfTemporaries);
+			Action->NodeTemplate = BaseNode;
+		}
+	}
+
 
 
 	//Add all input node options for input pins or no pin.
@@ -873,14 +886,6 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		}
 	}
 
-	
-	{
-		const FText LogicMenuCat = LOCTEXT("NiagaraLogicMenuCat", "Logic");
-		const FText MenuDesc = LOCTEXT("If", "If");
-		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, LogicMenuCat, MenuDesc, TEXT("If"), FText::GetEmpty(), FText::FromString("if branch bool"));
-		UNiagaraNodeIf* IfNode = NewObject<UNiagaraNodeIf>(OwnerOfTemporaries);
-		Action->NodeTemplate = IfNode;
-	}
 	//TODO: Add quick commands for certain UNiagaraStructs and UNiagaraScripts to be added as functions
 
 	// Add reroute node
@@ -892,18 +897,10 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		Action->NodeTemplate = RerouteNode;
 	}
 
-	// Add usage selector node
-	{		
-		const FText UsageSelectorMenuDesc = LOCTEXT("NiagaraUsageSelectorMenuDesc", "Select By Use");
-		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, UsageSelectorMenuDesc, TEXT("Select By Use"), FText::GetEmpty());
-		UNiagaraNodeUsageSelector* Node = NewObject<UNiagaraNodeUsageSelector>(OwnerOfTemporaries);
-		Action->NodeTemplate = Node;
-	}
-
 	// Add select  node
 	{
 		const FText SelectMenuDesc = LOCTEXT("NiagaraSelectMenuDesc", "Select");
-		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, SelectMenuDesc, TEXT("Select"), FText::GetEmpty());
+		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, SelectMenuDesc, TEXT("Select"), FText::GetEmpty(), FText::FromString(TEXT("If Branch Bool")));
 		UNiagaraNodeSelect* Node = NewObject<UNiagaraNodeSelect>(OwnerOfTemporaries);
 		Action->NodeTemplate = Node;
 	}
@@ -913,14 +910,6 @@ TArray<TSharedPtr<FNiagaraSchemaAction_NewNode> > UEdGraphSchema_Niagara::GetGra
 		const FText UsageSelectorMenuDesc = LOCTEXT("NiagaraStaticSwitchMenuDesc", "Static Switch");
 		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, UsageSelectorMenuDesc, TEXT("Static Switch"), FText::GetEmpty());
 		UNiagaraNodeStaticSwitch* Node = NewObject<UNiagaraNodeStaticSwitch>(OwnerOfTemporaries);
-		Action->NodeTemplate = Node;
-	}
-
-	// Add simulation target selector node
-	{
-		const FText SimTargetSelectorMenuDesc = LOCTEXT("NiagaraSimTargetSelectorMenuDesc", "Select By Simulation Target");
-		TSharedPtr<FNiagaraSchemaAction_NewNode> Action = AddNewNodeAction(NewActions, UtilMenuCat, SimTargetSelectorMenuDesc, TEXT("Select By Simulation Target"), FText::GetEmpty());
-		UNiagaraNodeSimTargetSelector* Node = NewObject<UNiagaraNodeSimTargetSelector>(OwnerOfTemporaries);
 		Action->NodeTemplate = Node;
 	}
 
@@ -1579,6 +1568,40 @@ bool UEdGraphSchema_Niagara::IsSystemConstant(const FNiagaraVariable& Variable)c
 	return FNiagaraConstants::GetEngineConstants().Find(Variable) != INDEX_NONE;
 }
 
+static UNiagaraParameterCollection* EnsureCollectionLoaded(FAssetData& CollectionAsset)
+{
+	if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
+	{
+		// asset may not have been fully loaded so give it a chance to do it's PostLoad.  When this is triggered from
+		// within a load of an object (like if this is being triggered during a compile of a niagara script when it
+		// gets loaded), then the Collecction and it's DefaultInstance may not have been preloaded yet.  Keeping this
+		// code isolated here as we should get rid of it when we get rid of PostLoad triggering compilation.
+		if (Collection->HasAnyFlags(RF_NeedLoad))
+		{
+			if (FLinkerLoad* CollectionLinker = Collection->GetLinker())
+			{
+				CollectionLinker->Preload(Collection);
+			}
+		}
+		if (UNiagaraParameterCollectionInstance* CollectionInstance = Collection->GetDefaultInstance())
+		{
+			if (CollectionInstance->HasAnyFlags(RF_NeedLoad))
+			{
+				if (FLinkerLoad* CollectionInstanceLinker = CollectionInstance->GetLinker())
+				{
+					CollectionInstanceLinker->Preload(CollectionInstance);
+				}
+			}
+		}
+
+		Collection->ConditionalPostLoad();
+
+		return Collection;
+	}
+
+	return nullptr;
+}
+
 UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterCollection(const FNiagaraVariable& Var)const
 {
 	FString VarName = Var.GetName().ToString();
@@ -1590,10 +1613,9 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 		TArray<FName> ExistingNames;
 		for (FAssetData& CollectionAsset : CollectionAssets)
 		{
-			if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
+			// asset may not have been fully loaded so give it a chance to do it's PostLoad
+			if (UNiagaraParameterCollection* Collection = EnsureCollectionLoaded(CollectionAsset))
 			{
-				// asset may not have been fully loaded so give it a chance to do it's PostLoad
-				Collection->ConditionalPostLoad();
 				if (VarName.StartsWith(Collection->GetFullNamespace()))
 				{
 					return Collection;
@@ -1616,10 +1638,9 @@ UNiagaraParameterCollection* UEdGraphSchema_Niagara::VariableIsFromParameterColl
 		TArray<FName> ExistingNames;
 		for (FAssetData& CollectionAsset : CollectionAssets)
 		{
-			if (UNiagaraParameterCollection* Collection = CastChecked<UNiagaraParameterCollection>(CollectionAsset.GetAsset()))
+			// asset may not have been fully loaded so give it a chance to do it's PostLoad
+			if (UNiagaraParameterCollection* Collection = EnsureCollectionLoaded(CollectionAsset))
 			{
-				// asset may not have been fully loaded so give it a chance to do it's PostLoad
-				Collection->ConditionalPostLoad();
 				if (VarName.StartsWith(Collection->GetFullNamespace()))
 				{
 					const TArray<FNiagaraVariable>& CollectionVariables = Collection->GetParameters();

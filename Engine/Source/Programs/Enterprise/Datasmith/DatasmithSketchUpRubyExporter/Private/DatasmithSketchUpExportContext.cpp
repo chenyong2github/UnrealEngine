@@ -110,93 +110,28 @@ void FExportContext::Populate()
 	Textures.ConvertToDatasmith();
 }
 
-void FNodeOccurence::ToDatasmith(FExportContext& Context)
+void FExportContext::Update()
 {
-	FDefinition* EntityDefinition = Entity.GetDefinition();
+	// Update Datasmith Meshes
+	ModelDefinition->UpdateDefinition(*this);
+	ComponentDefinitions.Update(); 
 
-	if (!EntityDefinition)
-	{
-		return;
-	}
+	// Update Datasmith Mesh Actors
+	Model->UpdateEntity(*this);
+	ComponentInstances.Update(); 
 
-	// Set the effective inherited material ID.
-	if (!Entity.GetAssignedMaterial(InheritedMaterialID))
-	{
-		InheritedMaterialID = ParentNode->InheritedMaterialID;
-	}
-
-	EntityDefinition->CreateActor(Context, *this);
-
-	// Make sure SketchUp loose geometry(faces, contained in Entities) is parsed first, to define number of Datasmith meshes and...
-	EntityDefinition->UpdateGeometry(Context);
-	// ...only then create mesh actors for those meshes
-	CreateMeshActors(Context);
-
-	// Update node local properties(including datasmith mesh actors)
-	// This needs to be called before parsing hierarchy - descendant nodes are using parent transform
-	Update(Context);
-
-	// Process child nodes
-	FEntities& Entities = EntityDefinition->GetEntities();
-	if (Entities.SourceComponentInstanceCount > 0)
-	{
-
-		// Convert the SketchUp normal component instances into sub-hierarchies of Datasmith actors.
-		for (SUComponentInstanceRef SComponentInstanceRef : Entities.GetComponentInstances())
-		{
-
-			// Get the effective layer of the SketckUp normal component instance.
-			SULayerRef SEffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(SComponentInstanceRef, EffectiveLayerRef);
-
-			// Get whether or not the SketckUp normal component instance is visible in the current SketchUp scene.
-			if (DatasmithSketchUpUtils::IsVisible(SComponentInstanceRef, SEffectiveLayerRef))
-			{
-				TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SComponentInstanceRef);
-
-				if (ComponentInstance.IsValid())
-				{
-					TSharedRef<FNodeOccurence> ChildNode = ComponentInstance->CreateNodeOccurrence(Context, /*Parent*/ *this);
-
-					// TSharedRef<FNodeOccurence> ChildNode = AddChildComponentInstanceOccurrence(*this, SComponentInstanceRef, ComponentInstance);
-					ChildNode->EffectiveLayerRef = SEffectiveLayerRef;
-					ChildNode->ToDatasmith(Context);
-
-					// Add the normal component instance metadata into the dictionary of metadata definitions.
-					FDatasmithSketchUpMetadata::AddMetadataDefinition(SComponentInstanceRef);
-				}
-			}
-		}
-	}
-
-	if (Entities.SourceGroupCount > 0)
-	{
-		// Convert the SketchUp group component instances into sub-hierarchies of Datasmith actors.
-		for (SUGroupRef SGroupRef : Entities.GetGroups())
-		{
-			SUComponentInstanceRef SComponentInstanceRef = SUGroupToComponentInstance(SGroupRef);
-
-			// Get the effective layer of the SketckUp group component instance.
-			SULayerRef SEffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(SComponentInstanceRef, EffectiveLayerRef);
-
-			// Get whether or not the SketckUp group component instance is visible in the current SketchUp scene.
-			if (DatasmithSketchUpUtils::IsVisible(SComponentInstanceRef, SEffectiveLayerRef))
-			{
-				TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SComponentInstanceRef);
-
-				if (ComponentInstance.IsValid())
-				{
-					TSharedRef<FNodeOccurence> ChildNode = ComponentInstance->CreateNodeOccurrence(Context, /*Parent*/ *this);
-
-					ChildNode->EffectiveLayerRef = SEffectiveLayerRef;
-
-					ChildNode->ToDatasmith(Context);
-				}
-			}
-		}
-	}
-
+	// Update transforms/names for Datasmith Actors and MeshActors
+	RootNode->Update(*this); 
 }
 
+void FComponentDefinitionCollection::Update()
+{
+	for (const auto& IdValue : ComponentDefinitionMap)
+	{
+		TSharedPtr<FComponentDefinition> Definition = IdValue.Value;
+		Definition->UpdateDefinition(Context);
+	}
+}
 
 void FSceneCollection::PopulateFromModel(SUModelRef InModelRef)
 {
@@ -361,9 +296,68 @@ TSharedPtr<FComponentInstance> FComponentInstanceCollection::AddComponentInstanc
 	return ComponentInstance;
 }
 
+bool FComponentInstanceCollection::RemoveComponentInstance(FComponentInstanceIDType ComponentInstanceId)
+{
+	const TSharedPtr<FComponentInstance>* ComponentInstancePtr = ComponentInstanceMap.Find(ComponentInstanceId);
+	if (!ComponentInstancePtr)
+	{
+		return false;
+	}
+	const TSharedPtr<FComponentInstance>& ComponentInstance = *ComponentInstancePtr;
+
+	ComponentInstance->RemoveOccurrences(Context);
+
+	ComponentInstanceMap.Remove(ComponentInstanceId);
+
+	return true;
+}
+
+
+
 void FComponentInstanceCollection::AddOccurrence(FComponentInstanceIDType ComponentInstanceID, const TSharedPtr<DatasmithSketchUp::FNodeOccurence>& Occurrence)
 {
 	ComponentInstanceOccurencesMap.FindOrAdd(ComponentInstanceID).Add(Occurrence);
+}
+
+void FComponentInstanceCollection::InvalidateComponentInstanceGeometry(FComponentInstanceIDType ComponentInstanceID)
+{
+	if (TSharedPtr<FComponentInstance>* Ptr = FindComponentInstance(ComponentInstanceID))
+	{
+		(*Ptr)->InvalidateEntityGeometry();
+	}
+	else
+	{
+		// todo: implement. This could happen if
+		//  - component instance was previously skipped because it doesn't contain meaningful data(probably it's not needed to process it it's still empty)
+		//  - was removed recently. Not sure if 'changed' can code after 'removed'
+		//  - addition wasn't handled
+		// - anything else?
+	}
+}
+
+void FComponentInstanceCollection::InvalidateComponentInstanceProperties(FComponentInstanceIDType ComponentInstanceID)
+{
+	if (TSharedPtr<FComponentInstance>* Ptr = FindComponentInstance(ComponentInstanceID))
+	{
+		(*Ptr)->InvalidateEntityProperties();
+	}
+	else
+	{
+		// todo: implement. This could happen if
+		//  - component instance was previously skipped because it doesn't contain meaningful data(probably it's not needed to process it it's still empty)
+		//  - was removed recently. Not sure if 'changed' can code after 'removed'
+		//  - addition wasn't handled
+		// - anything else?
+	}
+}
+
+void FComponentInstanceCollection::Update()
+{
+	for (const auto& KeyValue : ComponentInstanceMap)
+	{
+		TSharedPtr<FComponentInstance> ComponentInstance = KeyValue.Value;
+		ComponentInstance->UpdateEntity(Context);
+	}
 }
 
 void FMaterialCollection::PopulateFromModel(SUModelRef InModelRef)

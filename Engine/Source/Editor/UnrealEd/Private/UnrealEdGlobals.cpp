@@ -150,6 +150,8 @@ int32 EditorInit( IEngineLoop& EngineLoop )
 
 	// Do final set up on the editor frame and show it
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(EditorInit::MainFrame);
+
 		// Startup Slate main frame and other editor windows
 		{
 			const bool bStartImmersive = bIsImmersive;

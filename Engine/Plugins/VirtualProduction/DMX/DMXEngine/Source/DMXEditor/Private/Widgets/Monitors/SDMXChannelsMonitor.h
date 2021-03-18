@@ -2,17 +2,20 @@
 
 #pragma once
 
+#include "DMXProtocolCommon.h"
+
 #include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
-
-#include "Interfaces/IDMXProtocol.h"
-#include "DMXProtocolTypes.h"
-
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
-template<typename NumericType>
-class SSpinBox;
+class SDMXMonitorSourceSelector;
+class SDMXPortSelector;
+
+class SCheckBox;
+class SEditableTextBox;
+class SHorizontalBox;
+
 
 /**
  * DMX Widget to monitor all the channels in a DMX Universe
@@ -21,6 +24,8 @@ class SDMXChannelsMonitor
 	: public SCompoundWidget
 {
 public:
+	SDMXChannelsMonitor();
+
 	SLATE_BEGIN_ARGS(SDMXChannelsMonitor)
 	{}
 
@@ -30,62 +35,53 @@ public:
 	void Construct(const FArguments& InArgs);
 
 protected:
-	//~ Begin SWidget interface
+	// ~Begin SWidget Interface
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
-	//~End of SWidget interface
+	// ~End SWidget Interface
 
 private:
 	/** Creates the channel value widgets */
 	void CreateChannelValueWidgets();
 
-	/** Initialize values from DMX Protocol Settings */
+	/** Initialize values from DMX Editor Settings */
 	void LoadMonitorSettings();
 
 	/** Saves settings of the monitor in config */
 	void SaveMonitorSettings() const;
 
 private:
-	/** Copy current values of selected universe to channel widgets */
-	void UpdateBuffer();
+	/** Set the channel widgets to 0 */
+	void ZeroChannelValues();
 
-	/** Set the channel widgets with lates values of this universe */
-	void UpdateChannelValueWidgets();
+	/** Set the channel widgets to the values of the buffer */
+	void SetChannelValues(const TArray<uint8>& Buffer);
 
-	/** Channel monitor reset all displayed values */
-	void ResetUISequenceID() { UISequenceID = 0; }
-
-	/** Called when the protocol changed */
-	void OnProtocolChanged(FName SelectedProtocol);
+	/** Called when a source was selected in the Source Selector */
+	void OnSourceSelected();
 
 	/** Called when the universe ID was committed */
-	void OnUniverseIDValueCommitted(uint32 NewValue, ETextCommit::Type CommitType);
+	void OnUniverseIDValueCommitted(const FText& InNewText, ETextCommit::Type CommitType);
 	
 	/** Called when the clear bButton was clicked */
 	FReply OnClearButtonClicked();
 
-	/** Returns the name of the user-selected DMX protocol */
-	FName GetProtocolName() const { return ProtocolName; }
-
 private:
+	/** Horizontal box that contains the Source Selector and its Label */
+	TSharedPtr<SHorizontalBox> SourceSelectorBox;
+
+	/** Selector for the source to monitor */
+	TSharedPtr<SDMXMonitorSourceSelector> SourceSelector;
+
 	/** Container widget for all the channels' values */
 	TSharedPtr<class SWrapBox> ChannelValuesBox;
 	
 	/** Widgets for individual channels, length should be same as number of channels in a universe */
-	TArray<TSharedPtr<class SDMXChannel>> ChannelValueWidgets;
+	TArray<TSharedPtr<class SDMXChannel>, TFixedAllocator<DMX_UNIVERSE_SIZE>> ChannelValueWidgets;
 
-	/** Universe field widget */
-	TSharedPtr<SSpinBox<uint32>> UniverseIDSpinBox;
-
-	/** Channel values for testing purpose */
-	TArray<uint8> Buffer;
-
-	/** The user-selected protocol */
-	FDMXProtocolName ProtocolName;
+	/** Text block to edit the Universe ID */
+	TSharedPtr<SEditableTextBox> UniverseIDEditableTextBox;
 
 private:
 	/** Universe ID value computed using Net, Subnet and Universe values */
-	uint16 UniverseID = 1;
-	
-	/** ID of the sequence on input info widget */
-	uint32 UISequenceID;
+	int32 UniverseID;
 };

@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieScenePropertyTrack.h"
-#include "Compilation/IMovieSceneTrackTemplateProducer.h"
 
 #include "MovieSceneVectorTrack.generated.h"
 
@@ -13,14 +12,14 @@
  * Handles manipulation of component transforms in a movie scene
  */
 UCLASS(MinimalAPI)
-class UMovieSceneVectorTrack : public UMovieScenePropertyTrack, public IMovieSceneTrackTemplateProducer
+class UMovieSceneVectorTrack : public UMovieScenePropertyTrack
 {
 	GENERATED_UCLASS_BODY()
+
 public:
 	/** UMovieSceneTrack interface */
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
 
 	/** @return Get the number of channels used by the vector */
 	int32 GetNumChannelsUsed() const { return NumChannelsUsed; }

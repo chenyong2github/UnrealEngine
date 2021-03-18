@@ -50,6 +50,8 @@ uint NumVertices;
 uint MinVertexIndex;
 uint PrimitiveId;
 uint OutputVertexBaseIndex;
+float4x4 InstanceTransform;
+float4x4 InverseTransform;
 RWBuffer<float> RWVertexPositions;
 int bApplyWorldPositionOffset;
 
@@ -69,6 +71,13 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 	{
 		FVertexFactoryInput Input = LoadVertexFactoryInputForDynamicUpdate(VertexIndex / 3, VertexIndex % 3, PrimitiveId);
 		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+#if USE_INSTANCING
+		// Instance transform supplied explicitly
+		VFIntermediates.InstanceOrigin = InstanceTransform[3];
+		VFIntermediates.InstanceTransform1 = InstanceTransform[0];
+		VFIntermediates.InstanceTransform2 = InstanceTransform[1];
+		VFIntermediates.InstanceTransform3 = InstanceTransform[2];
+#endif
 		float4 WorldPosition = VertexFactoryGetWorldPosition(Input, VFIntermediates);
 		float3x3 TangentToLocal = VertexFactoryGetTangentToLocal(Input, VFIntermediates);
 		FMaterialVertexParameters VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, WorldPosition.xyz, TangentToLocal);
@@ -81,6 +90,11 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 			// This is impossible to guarantee here, since WPO is evaluated per vertex and not per triangle.
 			WorldPosition.xyz += MakeFinite(GetMaterialWorldPositionOffset(VertexParameters));
 		}
+
+#if USE_INSTANCING
+		//Reverse transform to neutral space
+		WorldPosition = mul(WorldPosition, InverseTransform);
+#endif
 
 		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 0] = WorldPosition.x;
 		RWVertexPositions[OutputVertexBaseIndex + VertexIndex * 3 + 1] = WorldPosition.y;

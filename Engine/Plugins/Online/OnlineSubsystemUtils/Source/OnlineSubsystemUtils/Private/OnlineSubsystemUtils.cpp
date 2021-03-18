@@ -38,7 +38,7 @@
 #include "Tests/TestPresenceInterface.h"
 #include "Tests/TestStoreInterface.h"
 #include "Tests/TestPurchaseInterface.h"
-
+#include "Tests/TestStatsInterface.h"
 
 static FAutoConsoleCommand GSendRemoteTalkersToEndpointCommand(
 	TEXT("voice.sendRemoteTalkersToEndpoint"),
@@ -624,6 +624,11 @@ static bool OnlineExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 						}
 
 						(new FTestLeaderboardInterface(SubName))->Test(InWorld, LeaderboardName, SortedColumn, MoveTemp(Columns), UserId);
+						bWasHandled = true;
+					}
+					else if (FParse::Command(&Cmd, TEXT("STATS")))
+					{
+						(new FTestStatsInterface(SubName))->Test(InWorld);
 						bWasHandled = true;
 					}
 					else if (FParse::Command(&Cmd, TEXT("PRESENCE")))

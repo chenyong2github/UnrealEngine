@@ -229,7 +229,10 @@ public:
 	 * @param ReinitMode Defines whether the system should reinitialize and pull in changes or reset and keep its current state.
 	 */
 	void ResetSystem(ETimeResetMode TimeResetMode, EMultiResetMode MultiResetMode, EReinitMode ReinitMode);
-
+	
+	void IsolateSelectedEmitters();
+	void DisableSelectedEmitters();
+	
 	/** Compiles the spawn and update scripts. */
 	void CompileSystem(bool bForce);
 
@@ -256,6 +259,9 @@ public:
 
 	/** Isolates the supplied emitters.  This will remove all other emitters from isolation. */
 	NIAGARAEDITOR_API void IsolateEmitters(TArray<FGuid> EmitterHandlesIdsToIsolate);
+
+	/** Disable the supplied emitters. */
+	NIAGARAEDITOR_API void DisableEmitters(TArray<FGuid> EmitterHandlesIdsToDisable);
 
 	/** Toggles the isolation state of a single emitter. */
 	void ToggleEmitterIsolation(TSharedRef<FNiagaraEmitterHandleViewModel> InEmitterHandle);
@@ -316,6 +322,8 @@ public:
 
 	NIAGARAEDITOR_API UNiagaraCurveSelectionViewModel* GetCurveSelectionViewModel();
 
+	TArray<float> OnGetPlaybackSpeeds() const;
+	
 	/** Duplicates a set of emitters and refreshes everything.*/
 	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
 
@@ -346,7 +354,6 @@ public:
 	FOnExternalRenameParameter& OnParameterRenamedExternally() { return OnExternalRenameDelegate; }
 	FOnExternalRemoveParameter& OnParameterRemovedExternally() { return OnExternalRemoveDelegate; }
 private:
-
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
 	void SendLastCompileMessageJobs() const;
 
@@ -374,6 +381,9 @@ private:
 
 	/** Sets up the sequencer for this emitter. */
 	void SetupSequencer();
+
+	/** Callback function for when editor settings change. Used to snap to the closest available speed. */
+	void SnapToNextSpeed(const FString& PropertyName, const UNiagaraEditorSettings* Settings);
 
 	/** Gets the content for the add menu in sequencer. */
 	void GetSequencerAddMenuContent(FMenuBuilder& MenuBuilder, TSharedRef<ISequencer> Sequencer);

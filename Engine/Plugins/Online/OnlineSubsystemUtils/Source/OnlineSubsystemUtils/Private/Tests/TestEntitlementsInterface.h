@@ -32,7 +32,7 @@ class Error;
 	bool bQueryEntitlements;
 
 	/** Account registered by the test that should be used for all tests */
-	TSharedPtr<const FUniqueNetId> UserId;
+	FUniqueNetIdPtr UserId;
 	/** Local user to run tests for */
 	int32 LocalUserIdx;
 

@@ -18,7 +18,7 @@ public:
 
 	// FOnlineUser
 	
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override;
+	virtual FUniqueNetIdRef GetUserId() const override;
 	virtual FString GetRealName() const override;
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override;
 	virtual bool GetUserAttribute(const FString& AttrName, FString& OutAttrValue) const override;
@@ -99,7 +99,7 @@ protected:
 	}
 
 	/** User Id represented as a FUniqueNetId */
-	TSharedRef<const FUniqueNetId> UserIdPtr;
+	FUniqueNetIdRef UserIdPtr;
 	/** Id associated with the user account provided by the online service during registration */
 	FString UserId;
 	/** Real name */

@@ -16,11 +16,11 @@ class FOnlineUserInfoTencent : public FOnlineUser
 {
 public:
 	FOnlineUserInfoTencent() = delete;
-	FOnlineUserInfoTencent(const TSharedRef<const FUniqueNetId>& InUserId) : UserId(InUserId) {}
+	FOnlineUserInfoTencent(const FUniqueNetIdRef& InUserId) : UserId(InUserId) {}
 	virtual ~FOnlineUserInfoTencent() = default;
 
 	// FOnlineUser
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override { return UserId; }
+	virtual FUniqueNetIdRef GetUserId() const override { return UserId; }
 	virtual FString GetRealName() const override
 	{
 		FString RealName;
@@ -63,7 +63,7 @@ PACKAGE_SCOPE:
 
 protected:
 	/** The user's id */
-	TSharedRef<const FUniqueNetId> UserId;
+	FUniqueNetIdRef UserId;
 	/** User attributes */
 	TMap<FString, FString> UserAttributes;
 };
@@ -72,7 +72,7 @@ protected:
 typedef TSharedRef<FOnlineUserInfoTencent> FOnlineUserInfoTencentRef;
 
 /** Map of local user to online user infos */
-typedef TMap<FUniqueNetIdRail, TArray<FOnlineUserInfoTencentRef>> FOnlineUserInfoTencentMap;
+typedef TUniqueNetIdMap<TArray<FOnlineUserInfoTencentRef>> FOnlineUserInfoTencentMap;
 
 /**
  *	Tencent service implementation of the online user interface
@@ -87,18 +87,18 @@ public:
 	virtual ~FOnlineUserTencent() = default;
 
 	//~ Begin IOnlineUser interface
-	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<TSharedRef<const FUniqueNetId> >& UserIds) override;
+	virtual bool QueryUserInfo(int32 LocalUserNum, const TArray<FUniqueNetIdRef >& UserIds) override;
 	virtual bool GetAllUserInfo(int32 LocalUserNum, TArray< TSharedRef<FOnlineUser> >& OutUsers) override;
 	virtual TSharedPtr<FOnlineUser> GetUserInfo(int32 LocalUserNum, const FUniqueNetId& UserId) override;
 	virtual bool QueryUserIdMapping(const FUniqueNetId& UserId, const FString& DisplayNameOrEmail, const FOnQueryUserMappingComplete& Delegate = FOnQueryUserMappingComplete()) override;
 	virtual bool QueryExternalIdMappings(const FUniqueNetId& UserId, const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, const FOnQueryExternalIdMappingsComplete& Delegate = FOnQueryExternalIdMappingsComplete()) override;
-	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<TSharedPtr<const FUniqueNetId>>& OutIds) override;
-	virtual TSharedPtr<const FUniqueNetId> GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
+	virtual void GetExternalIdMappings(const FExternalIdQueryOptions& QueryOptions, const TArray<FString>& ExternalIds, TArray<FUniqueNetIdPtr>& OutIds) override;
+	virtual FUniqueNetIdPtr GetExternalIdMapping(const FExternalIdQueryOptions& QueryOptions, const FString& ExternalId) override;
 	//~ End IOnlineUser interface
 
 private:
-	void StartNextQueryUserInfo(int32 LocalUserNum, TSharedRef<const FUniqueNetId> LocalUserId, TArray<TSharedRef<const FUniqueNetId>> UserIds, int32 UserIdsQueriedCount);
-	void QueryUserInfo_Complete(const FGetUsersInfoTaskResult& TaskResult, int32 LocalUserNum, TSharedRef<const FUniqueNetId> LocalUserId, TArray<TSharedRef<const FUniqueNetId>> UserIds, int32 UserIdsQueriedCount);
+	void StartNextQueryUserInfo(int32 LocalUserNum, FUniqueNetIdRef LocalUserId, TArray<FUniqueNetIdRef> UserIds, int32 UserIdsQueriedCount);
+	void QueryUserInfo_Complete(const FGetUsersInfoTaskResult& TaskResult, int32 LocalUserNum, FUniqueNetIdRef LocalUserId, TArray<FUniqueNetIdRef> UserIds, int32 UserIdsQueriedCount);
 
 private:
 	/** Owning subsystem */

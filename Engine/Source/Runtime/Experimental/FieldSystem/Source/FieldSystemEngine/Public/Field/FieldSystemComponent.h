@@ -14,6 +14,22 @@
 struct FFieldSystemSampleData;
 class FChaosSolversModule;
 
+///**
+//*
+//*/
+//UENUM(BlueprintType)
+//enum class EChaosObjectType
+//{
+//	Chaos_Destruction        UMETA(DisplayName = "Set Always", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside a sphere / Exterior-value otherwise."),
+//	Chaos_Rigid, 
+//
+//	Chaos_Rban  UMETA(DisplayName = "Merge Interior", ToolTip = "The particle output value will be equal to Interior-value if the particle position is inside the sphere or if the particle input value is already Interior-Value / Exterior-value otherwise."),
+//	Chaos_Cloth  UMETA(DisplayName = "Merge Exterior", ToolTip = "The particle output value will be equal to Exterior-value if the particle position is outside the sphere or if the particle input value is already Exterior-Value / Interior-value otherwise."),
+//	//~~~
+//	//256th entry
+//	Chaos_Objects_Max                 UMETA(Hidden)
+//};
+
 /**
 *	FieldSystemComponent
 */

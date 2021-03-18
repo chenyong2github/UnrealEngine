@@ -428,15 +428,15 @@ struct FDesyncedParticleInfo
 class FRewindData
 {
 public:
-	FRewindData(int32 NumFrames, bool InResimOptimization)
+	FRewindData(int32 NumFrames, bool InResimOptimization, int32 InCurrentFrame)
 	: Managers(NumFrames+1)	//give 1 extra for saving at head
-	, CurFrame(0)
+	, CurFrame(InCurrentFrame)
 	, LatestFrame(-1)
 	, CurWave(1)
 	, FramesSaved(0)
 	, DataIdxOffset(0)
 	, bNeedsSave(false)
-	, bResimOptimization(InResimOptimization)
+	, bResimOptimization(false)
 	{
 	}
 
@@ -532,7 +532,7 @@ private:
 	struct FSimWritableState
 	{
 		template <bool bResim>
-		bool SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid);
+		bool SyncSimWritablePropsFromSim(const TPBDRigidParticleHandle<FReal,3>& Rigid, const int32 Frame);
 		void SyncToParticle(TPBDRigidParticleHandle<FReal,3>& Rigid) const;
 
 		bool IsSimWritableDesynced(const TPBDRigidParticleHandle<FReal,3>& Rigid) const;
@@ -541,6 +541,8 @@ private:
 		const FQuat& R() const { return MR; }
 		const FVec3& V() const { return MV; }
 		const FVec3& W() const { return MW; }
+
+		int32 FrameRecordedHack = INDEX_NONE;
 
 	private:
 		FVec3 MX;
@@ -753,6 +755,12 @@ public:
 	*   This means brand new physics particles are already created for example, and any pending game thread modifications have happened
 	*   See ISimCallbackObject for recording inputs to callbacks associated with this PhysicsStep */
 	virtual void ProcessInputs_Internal(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs){}
+
+	/** Called before any inputs are marshalled over to the physics thread.
+	*	The physics state has not been applied yet, and cannot be inspected anyway because this is triggered from the external thread (game thread)
+	*	Gives user the ability to modify inputs or record them - this can help with reducing latency if you want to act on inputs immediately
+	*/
+	virtual void ProcessInputs_External(int32 PhysicsStep, const TArray<FSimCallbackInputAndObject>& SimCallbackInputs) {}
 
 	/** Called after sim step to give the option to rewind. Any pending inputs for the next frame will remain in the queue
 	*   Return the PhysicsStep to start resimulating from. Resim will run up until latest step passed into RecordInputs (i.e. latest physics sim simulated so far)

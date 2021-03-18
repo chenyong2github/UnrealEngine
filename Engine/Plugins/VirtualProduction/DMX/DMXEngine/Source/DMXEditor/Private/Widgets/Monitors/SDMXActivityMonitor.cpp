@@ -2,46 +2,48 @@
 
 #include "Widgets/Monitors/SDMXActivityMonitor.h"
 
-#include "DMXEditorLog.h"
 #include "DMXEditorSettings.h"
 #include "DMXEditorStyle.h"
 #include "DMXEditorUtils.h"
-#include "DMXSubsystem.h"
-#include "Interfaces/IDMXProtocol.h"
-#include "Interfaces/IDMXProtocolUniverse.h"
-#include "Library/DMXLibrary.h"
-#include "Library/DMXEntityController.h"
-#include "Widgets/SNameListPicker.h"
+#include "DMXProtocolTypes.h"
+#include "IO/DMXInputPort.h"
+#include "IO/DMXOutputPort.h"
+#include "IO/DMXRawListener.h"
 #include "Widgets/Monitors/SDMXActivityInUniverse.h"
+#include "Widgets/Monitors/SDMXMonitorSourceSelector.h"
 
-#include "Async/Async.h"
-#include "Framework/Application/SlateApplication.h"
-#include "GenericPlatform/GenericPlatformString.h"
-#include "HAL/CriticalSection.h"
-#include "Internationalization/Regex.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Input/SSpinBox.h"
-#include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Layout/SWrapBox.h"
-#include "Widgets/Layout/SSeparator.h"
-#include "Widgets/Layout/SScrollBox.h"
+#include "EditorStyleSet.h"
+#include "SlateOptMacros.h"
+#include "Containers/UnrealString.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Input/SSpinBox.h"
+#include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Views/SListView.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXActivityMonitor"
 
-const FName FDMXActivityMonitorConstants::MonitoredSourceInputName = FName("Input");
-const FText FDMXActivityMonitorConstants::MonitoredSourceInputText = LOCTEXT("MonitorSourceInputText", "Input");
-const FName FDMXActivityMonitorConstants::MonitoredSourceOutputName = FName("Output");
-const FText FDMXActivityMonitorConstants::MonitoredSourceOutputText = LOCTEXT("MonitorSourceOutputText", "Output");
+SDMXActivityMonitor::SDMXActivityMonitor()
+	: MinUniverseID(1)
+	, MaxUniverseID(100)
+{}
 
+SDMXActivityMonitor::~SDMXActivityMonitor()
+{
+	check(SourceSelector.IsValid());
+
+	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
+	{
+		Input->Stop();
+	}
+}
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 {
-	MonitoredSourceNamesSource.Add(MakeShared<FName>(FDMXActivityMonitorConstants::MonitoredSourceInputName));
-	MonitoredSourceNamesSource.Add(MakeShared<FName>(FDMXActivityMonitorConstants::MonitoredSourceOutputName));
-
 	SetCanTick(true);
 
 	ChildSlot
@@ -56,46 +58,22 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 				.InnerSlotPadding(FVector2D(35.0f, 10.0f))
 				.UseAllottedWidth(true)
 
-				// Protocol
+				// Source Selector
 				+ SWrapBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
 				[
-					SNew(SHorizontalBox)
-
-					//Label
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("ProtocolLabel", "Protocol"))
-					] 
-
-					// Protocol combo box
-					+ SHorizontalBox::Slot()
-					.Padding(10.0f, 0.0f, 0.0f, 0.0f)
-					.AutoWidth()
-					[
-						SNew(SBox)
-						.MinDesiredWidth(80.0f)
-						[
-							SNew(SNameListPicker)
-							.Value(this, &SDMXActivityMonitor::GetProtocolName)
-							.OnValueChanged(this, &SDMXActivityMonitor::OnProtocolSelected)
-							.OptionsSource(FDMXProtocolName::GetPossibleValues())
-						]
-					]
+					SAssignNew(SourceSelector, SDMXMonitorSourceSelector)
+					.OnSourceSelected(this, &SDMXActivityMonitor::OnSourceSelected)
 				]
 
-				// Min Universe ID
+				// Min & Max Universe ID
 				+ SWrapBox::Slot()
 				.HAlign(HAlign_Left)
 				.VAlign(VAlign_Center)
 				[
 					SNew(SHorizontalBox)
 
-					//Label
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
 					.AutoWidth()
@@ -104,23 +82,20 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("UniversesLabel", "Universes"))
 					] 
 
-					// Min Universe ID SSpinBox
 					+ SHorizontalBox::Slot()
 					.Padding(10.0f, 0.0f, 0.0f, 0.0f)
 					.AutoWidth()
 					[
-						SAssignNew(MinUniverseIDSpinBox, SSpinBox<uint32>)
-						.SliderExponent(1000)
-						.Value(1)
-						.OnValueCommitted(this, &SDMXActivityMonitor::OnMinUniverseIDCommitted)
-						.MinValue(0u)
-						.MaxValue(UINT16_MAX)
-						.MinSliderValue(0u)
-						.MaxSliderValue(UINT16_MAX)
-						.MinDesiredWidth(50.0f)
+						SNew(SBox)
+						.MinDesiredWidth(40.f)
+						[
+							SAssignNew(MinUniverseIDEditableTextBox, SEditableTextBox)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Text(FText::FromString(FString::FromInt(MinUniverseID)))
+							.OnTextCommitted(this, &SDMXActivityMonitor::OnMinUniverseIDValueCommitted)
+						]
 					]
 
-					//Label
 					+ SHorizontalBox::Slot()
 					.VAlign(VAlign_Center)
 					.Padding(5.0f, 0.0f, 0.0f, 0.0f)
@@ -130,55 +105,17 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 						.Text(LOCTEXT("ToLabel", "to"))
 					]
 
-					// Max Universe ID SSpinBox
 					+ SHorizontalBox::Slot()
 					.Padding(5.0f, 0.0f, 0.0f, 0.0f)
 					.AutoWidth()
-					[
-						SAssignNew(MaxUniverseIDSpinBox, SSpinBox<uint32>)
-						.SliderExponent(100.0f)
-						.Value(100)
-						.OnValueCommitted(this, &SDMXActivityMonitor::OnMaxUniverseIDCommitted)
-						.MinValue(0)
-						.MaxValue(DMX_MAX_UNIVERSE)
-						.MinSliderValue(0)
-						.MaxSliderValue(DMX_MAX_UNIVERSE)
-						.MinDesiredWidth(50.0f)
-					]
-				]
-
-				// Protocol selection
-				+ SWrapBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SHorizontalBox)
-
-					//Label
-					+ SHorizontalBox::Slot()
-					.VAlign(VAlign_Center)
-					.AutoWidth()
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("MonitorSourceLabel", "Source"))
-					] 
-
-					// Monitor origin combo box
-					+ SHorizontalBox::Slot()						
-					.Padding(10.0f, 0.0f, 0.0f, 0.0f)
-					.AutoWidth()					
-					[
+					[	
 						SNew(SBox)
-						.MinDesiredWidth(80.0f)
+						.MinDesiredWidth(40.f)
 						[
-							SAssignNew(MonitoredSourceCombobBox, SComboBox<TSharedPtr<FName>>)						
-							.OptionsSource(&MonitoredSourceNamesSource)
-							.OnGenerateWidget(this, &SDMXActivityMonitor::GenerateMonitorSourceEntry)
-							.OnSelectionChanged(this, &SDMXActivityMonitor::OnMonitoredSourceChanged)
-							[
-								SNew(STextBlock)
-								.Text(this, &SDMXActivityMonitor::GetMonitoredSourceText)
-							]
+							SAssignNew(MaxUniverseIDEditableTextBox, SEditableTextBox)
+							.Font(FEditorStyle::GetFontStyle(TEXT("PropertyWindow.NormalFont")))
+							.Text(FText::FromString(FString::FromInt(MaxUniverseID)))
+							.OnTextCommitted(this, &SDMXActivityMonitor::OnMaxUniverseIDValueCommitted)
 						]
 					]
 				]
@@ -256,22 +193,57 @@ void SDMXActivityMonitor::Construct(const FArguments& InArgs)
 
 	LoadMonitorSettings();
 
+	UpdateListenerRegistration();
+}
+END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+
+void SDMXActivityMonitor::ClearAllDMXBuffers()
+{
+	FDMXEditorUtils::ClearAllDMXPortBuffers();
+	UniverseToDataMap.Reset();
+
+	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
+	{
+		Input->ClearBuffer();
+	}
+}
+
+void SDMXActivityMonitor::ResizeDataMapToUniverseRange()
+{
+	TMap<int32, TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>>> CachedUniverseToDataMap = UniverseToDataMap;
+	
+	for (TTuple<int32, TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>>>& UniverseToDataKvp : UniverseToDataMap)
+	{
+		if (UniverseToDataKvp.Key < MinUniverseID || UniverseToDataKvp.Key > MaxUniverseID)
+		{
+			UniverseToDataMap.Remove(UniverseToDataKvp.Key);
+		}
+	}
 }
 
 void SDMXActivityMonitor::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	if (!IsEngineExitRequested() && FSlateApplication::IsInitialized())
-	{
-		if (IDMXProtocolPtr DMXProtocolPtr = IDMXProtocol::Get(ProtocolName))
-		{
-			const IDMXUniverseSignalMap& InboundSignalMap = DMXProtocolPtr->GameThreadGetInboundSignals();
+	check(SourceSelector.IsValid());
+	// Tick universe listeners with latest signals on tick
 
-			for (const TPair<int32, TSharedPtr<FDMXSignal>>& UniverseSingalKvp : InboundSignalMap)
+	FDMXSignalSharedPtr DMXSignal;
+	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
+	{
+		int32 LocalUniverseID;
+		while (Input->DequeueSignal(this, DMXSignal, LocalUniverseID))
+		{
+			if (LocalUniverseID >= MinUniverseID && LocalUniverseID <= MaxUniverseID)
 			{
-				const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseSingalKvp.Value->UniverseID);
-				ActivityWidget->VisualizeInputBuffer(UniverseSingalKvp.Value->ChannelData);
+				UniverseToDataMap.FindOrAdd(LocalUniverseID) = DMXSignal->ChannelData;
 			}
 		}
+	}
+
+	for (TTuple<int32, TArray<uint8, TFixedAllocator<DMX_UNIVERSE_SIZE>>>& UniverseToDataKvp : UniverseToDataMap)
+	{
+		const TSharedRef<SDMXActivityInUniverse>& ActivityWidget = GetOrCreateActivityWidget(UniverseToDataKvp.Key);
+		ActivityWidget->VisualizeBuffer(UniverseToDataKvp.Value);
 	}
 }
 
@@ -286,101 +258,47 @@ TSharedRef<ITableRow> SDMXActivityMonitor::OnGenerateUniverseRow(TSharedPtr<SDMX
 
 void SDMXActivityMonitor::LoadMonitorSettings()
 {
-	// Restore and set the protocol
+	check(SourceSelector.IsValid());
+	check(MinUniverseIDEditableTextBox.IsValid());
+	check(MaxUniverseIDEditableTextBox.IsValid());
+
+	// Restore from config
 	UDMXEditorSettings* DMXEditorSettings = GetMutableDefault<UDMXEditorSettings>();
-	ProtocolName = FDMXProtocolName(DMXEditorSettings->ActivityMonitorProtocol);
-	if (!ProtocolName.IsValid())
-	{
-		ProtocolName = FDMXProtocolName(IDMXProtocol::GetFirstProtocolName());
-	}
-	check(ProtocolName.IsValid());
 
-	// Restore and set the monitored source
-	TSharedPtr<FName>* MonitorSourceNameFromSettings =
-		MonitoredSourceNamesSource.FindByPredicate([&](TSharedPtr<FName> MonitorSource) {
-			return *MonitorSource.Get() == DMXEditorSettings->ActivityMonitorSource;
-		});
+	FText MinUniverseIDText = FText::FromString(FString::FromInt(DMXEditorSettings->ActivityMonitorMinUniverseID));
+	MinUniverseIDEditableTextBox->SetText(MinUniverseIDText);
+	OnMinUniverseIDValueCommitted(MinUniverseIDText, ETextCommit::Default);
 
-	if (MonitorSourceNameFromSettings)
-	{
-		MonitoredSourceName = *MonitorSourceNameFromSettings;
-	}
-	else
-	{
-		check(MonitoredSourceNamesSource.Num() > 0);
-		MonitoredSourceName = MonitoredSourceNamesSource[0];
-	}
+	FText MaxUniverseIDText = FText::FromString(FString::FromInt(DMXEditorSettings->ActivityMonitorMaxUniverseID));
+	MaxUniverseIDEditableTextBox->SetText(MaxUniverseIDText);
+	OnMaxUniverseIDValueCommitted(MaxUniverseIDText, ETextCommit::Default);
 
-	// Restore Min and Max Universe ID
-	if (IDMXProtocolPtr Protocol = ProtocolName.GetProtocol())
-	{
-		MinUniverseID = DMXEditorSettings->ActivityMonitorMinUniverseID;
-		if (!IsUniverseIDInRange(MinUniverseID))
-		{
-			MinUniverseID = Protocol->GetMinUniverseID();
-		}
+	// Setting the values on the source selector widget will trigger updates of the actual values
+	SourceSelector->SetMonitorAllPorts(DMXEditorSettings->ChannelsMonitorSource.bMonitorAllPorts);
+	SourceSelector->SetMonitorInputPorts(DMXEditorSettings->ChannelsMonitorSource.bMonitorInputPorts);
+	SourceSelector->SetMonitoredPortGuid(DMXEditorSettings->ChannelsMonitorSource.MonitoredPortGuid);
 
-		MaxUniverseID = DMXEditorSettings->ActivityMonitorMaxUniverseID;
-		if (!IsUniverseIDInRange(MaxUniverseID))
-		{
-			MaxUniverseID = Protocol->GetMaxUniverses();
-		}
-	}
-
-	// Save, in case settings were not valid and changed
-	SaveMonitorSettings();
-
-	// Adopt the loaded settings
-	SetProtocol(ProtocolName);
+	ClearDisplay();
 }
 
 void SDMXActivityMonitor::SaveMonitorSettings() const
 {
-	check(MonitoredSourceName.IsValid());
+	check(SourceSelector.IsValid());
 
+	// Create a new Source Descriptor from current values
+	FDMXMonitorSourceDescriptor MonitorSourceDescriptor;
+	MonitorSourceDescriptor.bMonitorAllPorts = SourceSelector->IsMonitorAllPorts();
+	MonitorSourceDescriptor.bMonitorInputPorts = SourceSelector->IsMonitorInputPorts();
+	MonitorSourceDescriptor.MonitoredPortGuid = SourceSelector->GetMonitoredPortGuid();
+
+	// Write to config
 	UDMXEditorSettings* DMXEditorSettings = GetMutableDefault<UDMXEditorSettings>();
 	check(DMXEditorSettings);
 
-	DMXEditorSettings->ActivityMonitorProtocol = ProtocolName.Name;
+	DMXEditorSettings->ChannelsMonitorSource = MonitorSourceDescriptor;
 	DMXEditorSettings->ActivityMonitorMinUniverseID = MinUniverseID;
 	DMXEditorSettings->ActivityMonitorMaxUniverseID = MaxUniverseID;
-	DMXEditorSettings->ActivityMonitorSource = *MonitoredSourceName.Get();
-
 	DMXEditorSettings->SaveConfig();
-}
-
-void SDMXActivityMonitor::SetProtocol(FName NewProtocolName)
-{
-	check(MinUniverseIDSpinBox.IsValid());
-
-	FDMXProtocolName NewDMXProtocolName(NewProtocolName);
-	check(NewProtocolName.IsValid());
-
-	IDMXProtocolPtr OldProtocol = ProtocolName.GetProtocol();
-	IDMXProtocolPtr NewProtocol = NewDMXProtocolName.GetProtocol();
-	check(NewProtocol.IsValid());
-	ProtocolName = NewDMXProtocolName;
-
-	if (IDMXProtocolPtr Protocol = ProtocolName.GetProtocol())
-	{
-		// Update the universe slider to work within protocol range
-		MinUniverseID = Protocol->GetMinUniverseID();
-
-		// By default, show 100 universes, MinUniverseID + 100
-		MaxUniverseID = FMath::Clamp(static_cast<uint16>(MinUniverseID + 100), Protocol->GetMinUniverseID(), Protocol->GetMaxUniverses());
-
-		MinUniverseIDSpinBox->SetMinValue(MinUniverseID);
-		MinUniverseIDSpinBox->SetMaxValue(Protocol->GetMaxUniverses());
-		MaxUniverseIDSpinBox->SetMinValue(MinUniverseID);
-		MaxUniverseIDSpinBox->SetMaxValue(Protocol->GetMaxUniverses());
-
-		if (MinUniverseIDSpinBox->GetValue() < MinUniverseID)
-		{
-			MinUniverseIDSpinBox->SetValue(MinUniverseID);
-		}
-
-		AddMonitoredUniversesToProtocol();
-	}
 }
 
 TSharedRef<SDMXActivityInUniverse> SDMXActivityMonitor::GetOrCreateActivityWidget(uint16 UniverseID)
@@ -410,102 +328,99 @@ TSharedRef<SDMXActivityInUniverse> SDMXActivityMonitor::GetOrCreateActivityWidge
 	return BufferView.ToSharedRef();
 }
 
-void SDMXActivityMonitor::AddMonitoredUniversesToProtocol()
+void SDMXActivityMonitor::OnMinUniverseIDValueCommitted(const FText& InNewText, ETextCommit::Type CommitType)
 {
-	if (IDMXProtocolPtr Protocol = ProtocolName.GetProtocol())
-	{
-		for (uint32 UniverseID = MinUniverseID; UniverseID <= MaxUniverseID; UniverseID++)
-		{
-			IDMXProtocolUniversePtr Universe = Protocol->GetUniverseById(UniverseID);
+	check(MinUniverseIDEditableTextBox.IsValid());
+	check(MaxUniverseIDEditableTextBox.IsValid());
 
-			// If the universe is not existing yet, add it to the protocol
-			if (!Universe.IsValid())
+	if (!InNewText.IsNumeric())
+	{	
+		// If the entered text isn't numeric, restore the previous Value
+		MinUniverseIDEditableTextBox->SetText(FText::FromString(FString::FromInt(MinUniverseID)));
+	}
+	else
+	{
+		int32 NewValue;
+		if (LexTryParseString<int32>(NewValue, *InNewText.ToString()))
+		{
+			if (NewValue != MinUniverseID)
 			{
-				FJsonObject UniverseSettings;
-				Protocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
-				Protocol->AddUniverse(UniverseSettings);
+				if (NewValue >= 0 && NewValue <= MaxUniverseID)
+				{
+					MinUniverseID = NewValue;
+				}
+				else if (NewValue < 0)
+				{
+					// Set to zero if smaller than zero
+					MinUniverseIDEditableTextBox->SetText(FText::FromString(FString::FromInt(0)));
+				}
+				else if (NewValue > MaxUniverseID)
+				{
+					// Set to max universe ID if bigger than MaxUniverseID
+					MinUniverseIDEditableTextBox->SetText(FText::FromString(FString::FromInt(MaxUniverseID)));
+				}
+
+				ClearDisplay();
+				SaveMonitorSettings();
 			}
 		}
 	}
+
+	ResizeDataMapToUniverseRange();
 }
 
-void SDMXActivityMonitor::OnProtocolSelected(FName NewProtocolName)
+void SDMXActivityMonitor::OnMaxUniverseIDValueCommitted(const FText& InNewText, ETextCommit::Type CommitType)
 {
-	FDMXEditorUtils::ZeroAllDMXBuffers();
+	check(MinUniverseIDEditableTextBox.IsValid());
+	check(MaxUniverseIDEditableTextBox.IsValid());
 
-	ClearDisplay();
-
-	SetProtocol(NewProtocolName);
-
-	SaveMonitorSettings();
-}
-
-void SDMXActivityMonitor::OnMinUniverseIDCommitted(uint32 NewValue, ETextCommit::Type CommitType)
-{
-	check(MinUniverseIDSpinBox.IsValid());
-	check(MaxUniverseIDSpinBox.IsValid());
-	check(IsUniverseIDInRange(NewValue));
-
-	MaxUniverseID = MaxUniverseIDSpinBox->GetValue();
-
-	if (MaxUniverseID >= NewValue)
-	{
-		MinUniverseID = NewValue;
+	if (!InNewText.IsNumeric())
+	{	
+		// If the entered text isn't numeric, restore the previous Value
+		MaxUniverseIDEditableTextBox->SetText(FText::FromString(FString::FromInt(MaxUniverseID)));
 	}
 	else
 	{
-		MinUniverseID = MaxUniverseID;
-		MinUniverseIDSpinBox->SetValue(MinUniverseID);
+		int32 NewValue = FCString::Atoi(*InNewText.ToString());
+
+		if (NewValue != MaxUniverseID)
+		{
+			if (NewValue >= 0 && NewValue >= MinUniverseID)
+			{
+				MaxUniverseID = NewValue;
+			}
+			else if (NewValue < MinUniverseID)
+			{
+				// Set to MinUniverseID
+				MinUniverseIDEditableTextBox->SetText(FText::FromString(FString::FromInt(MinUniverseID)));
+			}
+
+			ClearDisplay();
+			SaveMonitorSettings();
+		}
 	}
 
-	ClearDisplay();
-	AddMonitoredUniversesToProtocol();
-
-	SaveMonitorSettings();
+	ResizeDataMapToUniverseRange();
 }
 
-void SDMXActivityMonitor::OnMaxUniverseIDCommitted(uint32 NewValue, ETextCommit::Type CommitType)
+void SDMXActivityMonitor::OnSourceSelected()
 {
-	check(MinUniverseIDSpinBox.IsValid());
-	check(MaxUniverseIDSpinBox.IsValid());
-	check(IsUniverseIDInRange(NewValue));
-
-	MinUniverseID = MinUniverseIDSpinBox->GetValue();
-
-	if (MinUniverseID <= NewValue)
-	{
-		MaxUniverseID = NewValue;
-	}
-	else
-	{
-		MaxUniverseID = MinUniverseID;
-		MaxUniverseIDSpinBox->SetValue(MaxUniverseID);
-	}
-
 	ClearDisplay();
-	AddMonitoredUniversesToProtocol();
 
 	SaveMonitorSettings();
+
+	UpdateListenerRegistration();
 }
+
 
 FReply SDMXActivityMonitor::OnClearButtonClicked()
 {
-	FDMXEditorUtils::ZeroAllDMXBuffers();
+	FDMXEditorUtils::ClearAllDMXPortBuffers();
+	ClearAllDMXBuffers();
 
 	ClearDisplay();
 
 	return FReply::Handled();
-}
-
-bool SDMXActivityMonitor::IsUniverseIDInRange(uint32 InUniverseID) const
-{
-	if (IDMXProtocolPtr Protocol = ProtocolName.GetProtocol())
-	{
-		return 
-			Protocol->GetMinUniverseID() <= InUniverseID && 
-			InUniverseID <= Protocol->GetMaxUniverses();
-	}
-	return false;
 }
 
 void SDMXActivityMonitor::ClearDisplay()
@@ -516,39 +431,34 @@ void SDMXActivityMonitor::ClearDisplay()
 	UniverseList->RequestListRefresh();
 }
 
-FText SDMXActivityMonitor::GetMonitoredSourceText() const
+void SDMXActivityMonitor::UpdateListenerRegistration()
 {
-	check(MonitoredSourceName.IsValid());
-		
-	if (*MonitoredSourceName == FDMXActivityMonitorConstants::MonitoredSourceInputName)
+	check(SourceSelector.IsValid());
+
+	// Stop listening to previous ports
+	for (const TSharedRef<FDMXRawListener>& Input : DMXInputs)
 	{
-		return FDMXActivityMonitorConstants::MonitoredSourceInputText;
+		Input->Stop();
 	}
-	else if (*MonitoredSourceName == FDMXActivityMonitorConstants::MonitoredSourceOutputName)
+	DMXInputs.Reset();
+
+	// Listen to selected ports
+	for (const FDMXInputPortSharedRef& InputPort : SourceSelector->GetSelectedInputPorts())
 	{
-		return FDMXActivityMonitorConstants::MonitoredSourceOutputText;
+		TSharedRef<FDMXRawListener> NewInput = MakeShared<FDMXRawListener>(InputPort);
+		DMXInputs.Add(NewInput);
+
+		NewInput->Start();
 	}
 
-	UE_LOG_DMXEDITOR(Fatal, TEXT("Unhandled Mointored Source Name."));
-	return FText::GetEmpty();
-}
+	for (const FDMXOutputPortSharedRef& OutputPort : SourceSelector->GetSelectedOutputPorts())
+	{
+		// Monitor outputs 
+		TSharedRef<FDMXRawListener> NewInput = MakeShared<FDMXRawListener>(OutputPort);
+		DMXInputs.Add(NewInput);
 
-TSharedRef<SWidget> SDMXActivityMonitor::GenerateMonitorSourceEntry(TSharedPtr<FName> ProtocolNameToAdd)
-{
-	return
-		SNew(STextBlock)
-		.Text(FText::FromName(*ProtocolNameToAdd.Get()));
-}
-
-void SDMXActivityMonitor::OnMonitoredSourceChanged(TSharedPtr<FName> NewMonitoredSourceName, ESelectInfo::Type SelectInfo)
-{
-	check(NewMonitoredSourceName.IsValid());
-
-	MonitoredSourceName = NewMonitoredSourceName;
-
-	ClearDisplay();
-	SaveMonitorSettings();
-	AddMonitoredUniversesToProtocol();
+		NewInput->Start();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -15,7 +15,6 @@
 #include "Chaos/Declares.h"
 #include "Chaos/PhysicalMaterials.h"
 #include "Chaos/Defines.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Async/TaskGraphInterfaces.h"
 
 /** Classes that want to set the solver actor class can implement this. */
@@ -127,8 +126,7 @@ public:
 	 * @param ThreadingMode The desired threading mode the solver will use
 	 * @param bStandalone Whether the solver is standalone (not sent to physics thread - updating left to caller)
 	 */
-	template <typename Traits>
-	Chaos::TPBDRigidsSolver<Traits>* CreateSolver(UObject* InOwner, Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread
+	Chaos::FPBDRigidsSolver* CreateSolver(UObject* InOwner, Chaos::EThreadingMode ThreadingMode = Chaos::EThreadingMode::SingleThread
 #if CHAOS_CHECKED
 		, const FName& DebugName = NAME_None
 #endif
@@ -309,14 +307,3 @@ struct CHAOS_API FChaosScopeSolverLock
 		FChaosSolversModule::GetModule()->UnlockSolvers();
 	}
 };
-
-#if CHAOS_CHECKED
-#define EVOLUTION_TRAIT(Traits)\
-extern template CHAOS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode ThreadingMode, const FName& DebugName);
-#else
-#define EVOLUTION_TRAIT(Traits)\
-extern template CHAOS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner,Chaos::EThreadingMode ThreadingMode);
-#endif
-
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT

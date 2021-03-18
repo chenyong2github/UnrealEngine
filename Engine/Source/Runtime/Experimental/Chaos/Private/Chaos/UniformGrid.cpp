@@ -3,6 +3,7 @@
 
 #include "Chaos/ArrayFaceND.h"
 #include "Chaos/ArrayND.h"
+#include "Chaos/Core.h"
 
 using namespace Chaos;
 
@@ -257,14 +258,14 @@ bool Chaos::TUniformGrid<T, 3>::IsValid(const TVector<int32, 3>& X) const
 }
 
 #ifdef __clang__
-template class CHAOS_API Chaos::TUniformGridBase<float, 3>;
-template class CHAOS_API Chaos::TUniformGrid<float, 3>;
-template class CHAOS_API Chaos::TUniformGrid<float, 2>;
+template class CHAOS_API Chaos::TUniformGridBase<Chaos::FReal, 3>;
+template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 3>;
+template class CHAOS_API Chaos::TUniformGrid<Chaos::FReal, 2>;
 #else
-template class Chaos::TUniformGridBase<float, 3>;
-template class Chaos::TUniformGrid<float, 3>;
-template class Chaos::TUniformGrid<float, 2>;
+template class Chaos::TUniformGridBase<Chaos::FReal, 3>;
+template class Chaos::TUniformGrid<Chaos::FReal, 3>;
+template class Chaos::TUniformGrid<Chaos::FReal, 2>;
 #endif // __clang__
 
-template TVector<float, 3> Chaos::TUniformGridBase<float, 3>::LinearlyInterpolate<TVector<float, 3>>(const TArrayND<TVector<float, 3>, 3>&, const TVector<float, 3>&) const;
-template CHAOS_API float Chaos::TUniformGridBase<float, 3>::LinearlyInterpolate<float>(const TArrayND<float, 3>&, const TVector<float, 3>&) const;
+template FVec3 Chaos::TUniformGridBase<Chaos::FReal, 3>::LinearlyInterpolate<FVec3>(const TArrayND<FVec3, 3>&, const FVec3&) const;
+template CHAOS_API Chaos::FReal Chaos::TUniformGridBase<Chaos::FReal, 3>::LinearlyInterpolate<Chaos::FReal>(const TArrayND<Chaos::FReal, 3>&, const FVec3&) const;

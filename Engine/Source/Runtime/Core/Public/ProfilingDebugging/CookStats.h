@@ -221,6 +221,12 @@ public:
 			return Accumulators[(uint8)HitOrMiss][(uint8)StatType].GetAccumulatedValue(bIsInGameThread);
 		}
 
+		/** Make it easier to access an accumulator using a uniform, stronly typed interface. */
+		int64 GetAccumulatedValueAnyThread(EHitOrMiss HitOrMiss, EStatType StatType) const
+		{
+			return GetAccumulatedValue(HitOrMiss, StatType, true) + GetAccumulatedValue(HitOrMiss, StatType, false);
+		}
+
 		/** Used to log the instance in a common way. */
 		void LogStats(FCookStatsManager::AddStatFuncRef AddStat, const FString& StatName, const FString& NodeName, const TCHAR* CallName) const
 		{
@@ -249,7 +255,22 @@ public:
 			LogStat(EHitOrMiss::Miss, true);
 			LogStat(EHitOrMiss::Hit, false);
 			LogStat(EHitOrMiss::Miss, false);
-		};
+		}
+
+		void Combine(const CallStats& Other)
+		{
+			for (int32 IsGameThread = 0; IsGameThread <= 1; IsGameThread++)
+			{
+				for (int32 HitOrMiss = 0; HitOrMiss < (uint8)EHitOrMiss::MaxValue; HitOrMiss++)
+				{
+					for (int32 StatType = 0; StatType < (uint8)EStatType::MaxValue; StatType++)
+					{
+						int64 Value = Other.GetAccumulatedValue((EHitOrMiss)HitOrMiss, (EStatType)StatType, IsGameThread == 1);
+						Accumulate((EHitOrMiss)HitOrMiss, (EStatType)StatType, Value, IsGameThread == 1);
+					}
+				}
+			}
+		}
 
 	private:
 		/** The actual accumulators. All access should be from the above public functions. */

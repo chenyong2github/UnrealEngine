@@ -17,12 +17,12 @@ public:
 	{
 		MDists.SetNum(MConstraints.Num());
 		PhysicsParallelFor(MConstraints.Num(), [&](int32 Index) {
-			TArray<float> singledists;
+			TArray<FReal> singledists;
 			for (int i = 1; i < Constraints[Index].Num(); ++i)
 			{
 				const FVec3& P1 = InParticles.X(Constraints[Index][i - 1]);
 				const FVec3& P2 = InParticles.X(Constraints[Index][i]);
-				float Distance = (P1 - P2).Size();
+				FReal Distance = (P1 - P2).Size();
 				singledists.Add(Distance);
 			}
 			MDists[Index] = singledists;
@@ -40,7 +40,7 @@ public:
 			const FVec3& P1 = InParticles.P(PM1);
 			const FVec3& P2 = InParticles.P(P);
 			FVec3 Difference = P1 - P2;
-			float Distance = Difference.Size();
+			FReal Distance = Difference.Size();
 			FVec3 Direction = Difference / Distance;
 			FVec3 Delta = (Distance - MDists[Index][i - 1]) * Direction;
 			if (i == 1)

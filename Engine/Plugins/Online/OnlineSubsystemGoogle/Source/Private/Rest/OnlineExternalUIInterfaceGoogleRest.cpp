@@ -185,7 +185,7 @@ void FOnlineExternalUIGoogle::OnExternalLoginFlowComplete(const FLoginFlowResult
 
 void FOnlineExternalUIGoogle::OnAccessTokenLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error, FOnLoginUIClosedDelegate Delegate)
 {
-	TSharedPtr<const FUniqueNetId> StrongUserId = UserId.AsShared();
+	FUniqueNetIdPtr StrongUserId = UserId.AsShared();
 	GoogleSubsystem->ExecuteNextTick([StrongUserId, LocalUserNum, bWasSuccessful, Delegate]()
 	{
 		Delegate.ExecuteIfBound(StrongUserId, LocalUserNum, FOnlineError(bWasSuccessful));

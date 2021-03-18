@@ -124,6 +124,7 @@ void UConversationInstance::ServerStartConversation(FGameplayTag EntryPoint)
 	}
 
 	bConversationStarted = true;
+	OnAllParticipantsNotifiedOfStart.Broadcast(this);
 
 	TryStartingConversation();
 }

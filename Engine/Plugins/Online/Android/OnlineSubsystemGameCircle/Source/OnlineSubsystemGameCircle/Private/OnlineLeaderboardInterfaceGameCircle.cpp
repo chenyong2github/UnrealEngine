@@ -15,7 +15,7 @@ FOnlineLeaderboardsGameCircle::FOnlineLeaderboardsGameCircle(FOnlineSubsystemGam
 	ReadFriendsListDelegate.BindRaw(this, &FOnlineLeaderboardsGameCircle::OnReadFriendsListComplete);
 }
 
-bool FOnlineLeaderboardsGameCircle::ReadLeaderboards(const TArray< TSharedRef<const FUniqueNetId> >& Players, FOnlineLeaderboardReadRef& ReadObject)
+bool FOnlineLeaderboardsGameCircle::ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject)
 {
 	if(PlayersToQuery.Num() > 0 || PlayerReadObject.IsValid() || Subsystem->GetIdentityGameCircle()->GetLoginStatus(0) != ELoginStatus::LoggedIn)
 	{
@@ -62,7 +62,7 @@ bool FOnlineLeaderboardsGameCircle::ReadLeaderboardsAroundRank(int32 Rank, uint3
 	UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("FOnlineLeaderboardsGameCircle::ReadLeaderboardsAroundRank is currently not supported."));
 	return false;
 }
-bool FOnlineLeaderboardsGameCircle::ReadLeaderboardsAroundUser(TSharedRef<const FUniqueNetId> Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)
+bool FOnlineLeaderboardsGameCircle::ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject)
 {
 	UE_LOG_ONLINE_LEADERBOARD(Warning, TEXT("FOnlineLeaderboardsGameCircle::ReadLeaderboardsAroundUser is currently not supported."));
 	return false;
@@ -285,7 +285,7 @@ void FOnlineLeaderboardsGameCircle::SubmitNextUnreportedScore()
 	AmazonGames::LeaderboardsClientInterface::submitScore(ConvertedId.c_str(), UnreportedScores[0].Score, new FOnlineSubmitScoreCallback(Subsystem));
 }
 
-void FOnlineLeaderboardsGameCircle::WriteRowForUIDToReadObject(TSharedRef<const FUniqueNetId> UniqueID, 
+void FOnlineLeaderboardsGameCircle::WriteRowForUIDToReadObject(FUniqueNetIdRef UniqueID, 
 															   const char *const InLeaderboardId, int InRank, int InValue, 
 															   FOnlineLeaderboardReadRef ReadObject)
 {

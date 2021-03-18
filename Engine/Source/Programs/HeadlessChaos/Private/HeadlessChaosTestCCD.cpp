@@ -19,15 +19,15 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	TYPED_TEST(AllEvolutions, CCDTests_CCDDisabled)
+	GTEST_TEST(CCDTests, CCDDisabled)
 	{
 		const FReal Dt = 1 / 30.0f;
 		const FReal Fps = 1 / Dt;
 		const FReal BoxHalfSize = 50; // cm
 		const FReal InitialSpeed = BoxHalfSize * 5 * Fps; // More than enough to tunnel
 		const FReal InitialPosition = BoxHalfSize * 2 + 30;
-		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		using TEvolution = FPBDRigidsEvolutionGBF;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -80,14 +80,14 @@ namespace ChaosTest
 		EXPECT_NEAR(Dynamic->X()[2], InitialPosition - InitialSpeed * Dt, LargeErrorMargin);
 	}
 
-	TYPED_TEST(AllEvolutions,CCDTests_ConvexConvex)
+	GTEST_TEST(CCDTests, ConvexConvex)
 	{
 		const FReal Dt = 1 / 30.0f;
 		const FReal Fps = 1 / Dt;
 		const FReal BoxHalfSize = 50; // cm
 		const FReal InitialSpeed = BoxHalfSize * 5 * Fps; // More than enough to tunnel
-		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		using TEvolution = FPBDRigidsEvolutionGBF;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -140,14 +140,14 @@ namespace ChaosTest
 	}
 
 	// CCD not implemented for sphere sphere
-	TYPED_TEST(AllEvolutions, DISABLED_CCDTests_SphereSphere)
+	GTEST_TEST(CCDTests,DISABLED_SphereSphere)
 	{
 		const FReal Dt = 1 / 30.0f;
 		const FReal Fps = 1 / Dt;
 		const FReal SphereRadius = 100; // cm
 		const FReal InitialSpeed = SphereRadius * 5 * Fps; // More than enough to tunnel
-		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		using TEvolution = FPBDRigidsEvolutionGBF;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);
@@ -204,7 +204,7 @@ namespace ChaosTest
 
 	
 	// Bounce a box within a box container without penetrating the container
-	TYPED_TEST(AllEvolutions, CCDTests_BoxStayInsideBoxBoundaries)
+	GTEST_TEST(CCDTests, BoxStayInsideBoxBoundaries)
 	{
 		const FReal Dt = 1 / 30.0f;
 		const FReal Fps = 1 / Dt;
@@ -215,8 +215,8 @@ namespace ChaosTest
 
 		const FVec3 InitialVelocity = FVec3(-ContainerBoxHalfSize * Fps * 10, 0 ,0);
 
-		using TEvolution = TypeParam;
-		TPBDRigidsSOAs<FReal, 3> Particles;
+		using TEvolution = FPBDRigidsEvolutionGBF;
+		FPBDRigidsSOAs Particles;
 		THandleArray<FChaosPhysicsMaterial> PhysicalMaterials;
 		TEvolution Evolution(Particles, PhysicalMaterials);
 		InitEvolutionSettings(Evolution);

@@ -21,12 +21,12 @@ FDMXPIEManager::~FDMXPIEManager()
 
 void FDMXPIEManager::OnBeginPIE(const bool bIsSimulating)
 {
-	FDMXEditorUtils::ZeroAllDMXBuffers();
+	FDMXEditorUtils::ClearAllDMXPortBuffers();
 	FDMXEditorUtils::ClearFixturePatchCachedData();
 }
 
 void FDMXPIEManager::OnEndPIE(const bool bIsSimulating)
 {
-	FDMXEditorUtils::ZeroAllDMXBuffers();
+	FDMXEditorUtils::ClearAllDMXPortBuffers();
 	FDMXEditorUtils::ClearFixturePatchCachedData();
 }

@@ -104,6 +104,25 @@ public:
 	}
 };
 
+USTRUCT()
+struct NIAGARA_API FNiagaraCompilerTag
+{
+	GENERATED_USTRUCT_BODY()
+public:
+	FNiagaraCompilerTag() {}
+	FNiagaraCompilerTag(const FNiagaraVariable& InVariable, const FString& InStringValue) : Variable(InVariable), StringValue(InStringValue) {}
+	UPROPERTY()
+	FNiagaraVariable Variable;
+
+	UPROPERTY()
+	FString StringValue;
+
+	static FNiagaraCompilerTag* FindTag(TArray< FNiagaraCompilerTag>& InTags,  const FNiagaraVariableBase& InSearchVar);
+	static const FNiagaraCompilerTag* FindTag(const TArray< FNiagaraCompilerTag>& InTags, const FNiagaraVariableBase& InSearchVar);
+
+};
+
+
 struct FNiagaraScriptDebuggerInfo
 {
 	FNiagaraScriptDebuggerInfo();
@@ -272,7 +291,11 @@ public:
 	/** List of all external dependencies of this script. If not met, linking should result in an error.*/
 	UPROPERTY()
 	TArray<FNiagaraCompileDependency> ExternalDependencies;
+
 #endif
+
+	UPROPERTY()
+	TArray<FNiagaraCompilerTag> CompileTags;
 
 	UPROPERTY()
 	TArray<uint8> ScriptLiterals;
@@ -625,6 +648,27 @@ public:
 
 	NIAGARA_API bool IsScriptCompilationPending(bool bGPUScript) const;
 	NIAGARA_API bool DidScriptCompilationSucceed(bool bGPUScript) const;
+
+	template<typename T>
+	TOptional<T> GetCompilerTag(const FNiagaraVariableBase& InVar) const
+	{
+		for (const FNiagaraCompilerTag& Tag : CachedScriptVM.CompileTags)
+		{
+			if (Tag.Variable == InVar)
+			{
+				if (Tag.Variable.IsDataAllocated())
+				{
+					return TOptional<T>(Tag.Variable.GetValue<T>());
+				}
+				else if (const int32* Offset = RapidIterationParameters.FindParameterOffset(FNiagaraVariableBase(Tag.Variable.GetType(), *Tag.StringValue)))
+				{
+					return TOptional<T>(*(T*)RapidIterationParameters.GetParameterData(*Offset));
+				}
+			}
+		}
+
+		return TOptional<T>();
+	}
 
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API void InvalidateCompileResults(const FString& Reason);

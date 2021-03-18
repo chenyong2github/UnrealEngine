@@ -8,8 +8,8 @@
 #include "UObject/StructOnScope.h"
 #include "UObject/UnrealType.h"
 
-FRemoteControlField::FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo InFieldPathInfo)
-	: FRemoteControlEntity(InPreset, InLabel)
+FRemoteControlField::FRemoteControlField(URemoteControlPreset* InPreset, EExposedFieldType InType, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*> InBindings)
+	: FRemoteControlEntity(InPreset, InLabel, InBindings)
 	, FieldType(InType)
 	, FieldName(InFieldPathInfo.GetFieldName())
 	, FieldPathInfo(MoveTemp(InFieldPathInfo))
@@ -96,14 +96,18 @@ TArray<UObject*> FRemoteControlField::ResolveFieldOwnersUsingComponentHierarchy(
 }
 #endif
 
+FName FRemoteControlProperty::MetadataKey_Min = "Min";
+FName FRemoteControlProperty::MetadataKey_Max = "Max";
+
 FRemoteControlProperty::FRemoteControlProperty(FName InLabel, FRCFieldPathInfo FieldPathInfo, TArray<FString> InComponentHierarchy)
-	: FRemoteControlField(nullptr, EExposedFieldType::Property, InLabel, MoveTemp(FieldPathInfo))
+	: FRemoteControlField(nullptr, EExposedFieldType::Property, InLabel, MoveTemp(FieldPathInfo), {})
 {
 }
 
-FRemoteControlProperty::FRemoteControlProperty(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo FieldPathInfo)
-	: FRemoteControlField(InPreset, EExposedFieldType::Property, InLabel, MoveTemp(FieldPathInfo))
+FRemoteControlProperty::FRemoteControlProperty(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, const TArray<URemoteControlBinding*>& InBindings)
+	: FRemoteControlField(InPreset, EExposedFieldType::Property, InLabel, MoveTemp(InFieldPathInfo), InBindings)
 {
+	InitializeMetadata();
 }
 
 FProperty* FRemoteControlProperty::GetProperty() const
@@ -119,8 +123,43 @@ FProperty* FRemoteControlProperty::GetProperty() const
 	return nullptr;
 }
 
+void FRemoteControlProperty::PostSerialize(FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		if (!UserMetadata.Contains(MetadataKey_Min)
+			&& !UserMetadata.Contains(MetadataKey_Max))
+		{
+			InitializeMetadata();
+		}
+	}
+}
+
+void FRemoteControlProperty::InitializeMetadata()
+{
+#if WITH_EDITOR
+	if (FProperty* Property = GetProperty())
+	{
+		if (Property->IsA<FNumericProperty>())
+		{
+			const FString& UIMin = Property->GetMetaData(TEXT("UIMin"));
+			const FString& UIMax = Property->GetMetaData(TEXT("UIMax"));
+			const FString& ClampMin = Property->GetMetaData(TEXT("ClampMin"));
+			const FString& ClampMax = Property->GetMetaData(TEXT("ClampMax"));
+
+			const FString& NewMinEntry = !UIMin.IsEmpty() ? UIMin : ClampMin;
+			const FString& NewMaxEntry = !UIMax.IsEmpty() ? UIMax : ClampMax;
+
+			// Add the metadata even if empty in case the user wants to specify it themself.
+			UserMetadata.FindOrAdd(MetadataKey_Min) = NewMinEntry;
+			UserMetadata.FindOrAdd(MetadataKey_Max) = NewMaxEntry;
+		}
+	}
+#endif
+}
+
 FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction)
-	: FRemoteControlField(nullptr, EExposedFieldType::Function, InLabel, MoveTemp(FieldPathInfo))
+	: FRemoteControlField(nullptr, EExposedFieldType::Function, InLabel, MoveTemp(FieldPathInfo), {})
 	, Function(InFunction)
 {
 	check(Function);
@@ -129,8 +168,8 @@ FRemoteControlFunction::FRemoteControlFunction(FName InLabel, FRCFieldPathInfo F
 	AssignDefaultFunctionArguments();
 }
 
-FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo FieldPathInfo, UFunction* InFunction)
-	: FRemoteControlField(InPreset, EExposedFieldType::Function, InLabel, MoveTemp(FieldPathInfo))
+FRemoteControlFunction::FRemoteControlFunction(URemoteControlPreset* InPreset, FName InLabel, FRCFieldPathInfo InFieldPathInfo, UFunction* InFunction, const TArray<URemoteControlBinding*>& InBindings)
+	: FRemoteControlField(InPreset, EExposedFieldType::Function, InLabel, MoveTemp(InFieldPathInfo), InBindings)
 	, Function(InFunction)
 {
 	check(Function);

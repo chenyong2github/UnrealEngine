@@ -21,7 +21,7 @@
 
 // FOnlineFriendFacebook
 
-TSharedRef<const FUniqueNetId> FOnlineFriendFacebook::GetUserId() const
+FUniqueNetIdRef FOnlineFriendFacebook::GetUserId() const
 {
 	return UserIdPtr;
 }
@@ -65,7 +65,7 @@ bool FOnlineFriendFacebook::Parse(const TSharedPtr<FJsonObject>& JsonObject)
 	{
 		if (!UserIdStr.IsEmpty())
 		{
-			UserIdPtr = MakeShared<FUniqueNetIdFacebook>(UserIdStr);
+			UserIdPtr = FUniqueNetIdFacebook::Create(UserIdStr);
 			bSuccess = true;
 		}
 	}
@@ -191,7 +191,7 @@ bool FOnlineFriendsFacebookCommon::RejectInvite(int32 LocalUserNum, const FUniqu
 
 void FOnlineFriendsFacebookCommon::SetFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FString& Alias, const FOnSetFriendAliasComplete& Delegate /*= FOnSetFriendAliasComplete()*/)
 {
-	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	FUniqueNetIdRef FriendIdRef = FriendId.AsShared();
 	FacebookSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
 	{
 		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsFacebookCommon::SetFriendAlias is not supported"));
@@ -201,7 +201,7 @@ void FOnlineFriendsFacebookCommon::SetFriendAlias(int32 LocalUserNum, const FUni
 
 void FOnlineFriendsFacebookCommon::DeleteFriendAlias(int32 LocalUserNum, const FUniqueNetId& FriendId, const FString& ListName, const FOnDeleteFriendAliasComplete& Delegate)
 {
-	TSharedRef<const FUniqueNetId> FriendIdRef = FriendId.AsShared();
+	FUniqueNetIdRef FriendIdRef = FriendId.AsShared();
 	FacebookSubsystem->ExecuteNextTick([LocalUserNum, FriendIdRef, ListName, Delegate]()
 	{
 		UE_LOG_ONLINE_FRIEND(Warning, TEXT("FOnlineFriendsFacebookCommon::DeleteFriendAlias is not supported"));

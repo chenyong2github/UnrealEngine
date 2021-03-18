@@ -193,20 +193,29 @@ FReply SFixupSelfContextDialog::CloseWindow(bool bConfirmed)
 {
 	if (bConfirmed)
 	{
-		for (FListViewItem Item : FunctionsToFixup)
+		for (FListViewItem ItemPtr : FunctionsToFixup)
 		{
+			if (!ItemPtr.IsValid() || !ItemPtr->ComboBox.IsValid())
+			{
+				continue;
+			}
+
 			int32 Strategy;
-			Options.Find(Item->ComboBox->GetSelectedItem(), Strategy);
+			Options.Find(ItemPtr->ComboBox->GetSelectedItem(), Strategy);
 
 			switch (FFixupSelfContextItem::EFixupStrategy(Strategy))
 			{
 			case FFixupSelfContextItem::EFixupStrategy::CreateNewFunction:
-				CreateMissingFunctions(Item);
+				CreateMissingFunctions(ItemPtr);
 				break;
 			case FFixupSelfContextItem::EFixupStrategy::RemoveNode:
-				for (UK2Node_CallFunction* Node : Item->Nodes)
+				for (UK2Node_CallFunction* Node : ItemPtr->Nodes)
 				{
-					Node->GetGraph()->RemoveNode(Node);
+					UEdGraph* Graph = Node ? Node->GetGraph() : nullptr;
+					if (Graph)
+					{
+						Graph->RemoveNode(Node);
+					}
 				}
 				break;
 			case FFixupSelfContextItem::EFixupStrategy::DoNothing:
@@ -217,7 +226,12 @@ FReply SFixupSelfContextDialog::CloseWindow(bool bConfirmed)
 	}
 
 	bOutConfirmed = bConfirmed;
-	MyWindow->RequestDestroyWindow();
+	
+	if (MyWindow.IsValid())
+	{
+		MyWindow->RequestDestroyWindow();
+	}
+
 	return FReply::Handled();
 }
 

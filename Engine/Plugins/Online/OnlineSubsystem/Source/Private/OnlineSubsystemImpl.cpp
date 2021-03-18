@@ -198,7 +198,7 @@ bool FOnlineSubsystemImpl::IsLocalPlayer(const FUniqueNetId& UniqueId) const
 		{
 			for (int32 LocalUserNum = 0; LocalUserNum < MAX_LOCAL_PLAYERS; LocalUserNum++)
 			{
-				TSharedPtr<const FUniqueNetId> LocalUniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr LocalUniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
 				if (LocalUniqueId.IsValid() && UniqueId == *LocalUniqueId)
 				{
 					return true;
@@ -352,7 +352,7 @@ void FOnlineSubsystemImpl::FinalizeReceipts(const FUniqueNetId& UserId)
 	}
 }
 
-void FOnlineSubsystemImpl::OnQueryReceiptsComplete(const FOnlineError& Result, TSharedPtr<const FUniqueNetId> UserId)
+void FOnlineSubsystemImpl::OnQueryReceiptsComplete(const FOnlineError& Result, FUniqueNetIdPtr UserId)
 {
 	UE_LOG_ONLINE(Display, TEXT("OnQueryReceiptsComplete %s"), *Result.ToLogString());
 	DumpReceipts(*UserId);
@@ -382,7 +382,7 @@ bool FOnlineSubsystemImpl::HandlePurchaseExecCommands(UWorld* InWorld, const TCH
 				}
 				else
 				{
-					TSharedPtr<const FUniqueNetId> UserId = IdentityInt->CreateUniquePlayerId(UserIdStr);
+					FUniqueNetIdPtr UserId = IdentityInt->CreateUniquePlayerId(UserIdStr);
 					if (UserId.IsValid())
 					{
 						if (CommandStr == TEXT("RESTORE"))
@@ -431,7 +431,7 @@ bool FOnlineSubsystemImpl::HandleFriendExecCommands(UWorld* InWorld, const TCHAR
 			IOnlineIdentityPtr IdentityInt = GetIdentityInterface();
 			if (IdentityInt.IsValid())
 			{
-				TSharedPtr<const FUniqueNetId> BlockUserId = IdentityInt->CreateUniquePlayerId(UserId);
+				FUniqueNetIdPtr BlockUserId = IdentityInt->CreateUniquePlayerId(UserId);
 				IOnlineFriendsPtr FriendsInt = GetFriendsInterface();
 				if (FriendsInt.IsValid())
 				{
@@ -453,7 +453,7 @@ bool FOnlineSubsystemImpl::HandleFriendExecCommands(UWorld* InWorld, const TCHAR
 			}
 			FString Namespace = FParse::Token(Cmd, false);
 
-			TSharedPtr<const FUniqueNetId> UserId = IdentityInt->GetUniquePlayerId(LocalUserNum);
+			FUniqueNetIdPtr UserId = IdentityInt->GetUniquePlayerId(LocalUserNum);
 			IOnlineFriendsPtr FriendsInt = GetFriendsInterface();
 			if (FriendsInt.IsValid())
 			{
@@ -533,7 +533,7 @@ bool FOnlineSubsystemImpl::HandlePresenceExecCommands(UWorld* InWorld, const TCH
 			}
 
 			// Query own presence
-			TSharedPtr<const FUniqueNetId> UserId = GetFirstSignedInUser(GetIdentityInterface());
+			FUniqueNetIdPtr UserId = GetFirstSignedInUser(GetIdentityInterface());
 			if (UserId.IsValid())
 			{
 				PresenceInt->QueryPresence(*UserId, CompletionDelegate);

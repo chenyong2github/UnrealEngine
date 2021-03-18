@@ -7,10 +7,10 @@
 namespace Chaos
 {
 
-	bool FSolverCollisionEventFilter::Pass(const TCollisionData<float, 3>& InData) const
+	bool FSolverCollisionEventFilter::Pass(const FCollidingData& InData) const
 	{
-		const float MinVelocitySquared = FMath::Square(Settings.MinSpeed);
-		const float MinImpulseSquared = FMath::Square(Settings.MinImpulse);
+		const FReal MinVelocitySquared = FMath::Square(Settings.MinSpeed);
+		const FReal MinImpulseSquared = FMath::Square(Settings.MinImpulse);
 
 		if (Settings.MinMass > 0.0f && InData.Mass1 < Settings.MinMass && InData.Mass2 < Settings.MinMass)
 			return false;
@@ -24,9 +24,9 @@ namespace Chaos
 		return true;
 	}
 
-	bool FSolverTrailingEventFilter::Pass(const TTrailingData<float, 3>& InData) const
+	bool FSolverTrailingEventFilter::Pass(const FTrailingData& InData) const
 	{
-		const float MinSpeedThresholdSquared = Settings.MinSpeed * Settings.MinSpeed;
+		const FReal MinSpeedThresholdSquared = Settings.MinSpeed * Settings.MinSpeed;
 
 		if (Settings.MinMass > 0.0f && InData.Mass < Settings.MinMass)
 			return false;
@@ -37,7 +37,7 @@ namespace Chaos
 		if (Settings.MinVolume > 0)
 		{
 			FVec3 Extents = InData.BoundingBox.Extents();
-			float Volume = Extents[0] * Extents[1] * Extents[2];
+			FReal Volume = Extents[0] * Extents[1] * Extents[2];
 
 			if (Volume < Settings.MinVolume)
 				return false;
@@ -46,9 +46,9 @@ namespace Chaos
 		return true;
 	}
 
-	bool FSolverBreakingEventFilter::Pass(const TBreakingData<float, 3>& InData) const
+	bool FSolverBreakingEventFilter::Pass(const FBreakingData& InData) const
 	{
-		const float MinSpeedThresholdSquared = Settings.MinSpeed * Settings.MinSpeed;
+		const FReal MinSpeedThresholdSquared = Settings.MinSpeed * Settings.MinSpeed;
 
 		if (Settings.MinMass > 0.0f && InData.Mass < Settings.MinMass)
 			return false;
@@ -59,7 +59,7 @@ namespace Chaos
 		if (Settings.MinVolume > 0)
 		{
 			FVec3 Extents = InData.BoundingBox.Extents();
-			float Volume = Extents[0] * Extents[1] * Extents[2];
+			FReal Volume = Extents[0] * Extents[1] * Extents[2];
 
 			if (Volume < Settings.MinVolume)
 				return false;

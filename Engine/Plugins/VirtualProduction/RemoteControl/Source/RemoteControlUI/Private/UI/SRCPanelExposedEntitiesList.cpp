@@ -28,7 +28,6 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 {
 	bIsInEditMode = InArgs._EditMode;
 	Preset = TStrongObjectPtr<URemoteControlPreset>(InPreset);
-	OnSelectionChangeDelegate = InArgs._OnSelectionChange;
 	bDisplayValues = InArgs._DisplayValues;
 
 	ChildSlot
@@ -132,12 +131,12 @@ void SRCPanelExposedEntitiesList::GenerateListWidgets()
 		}
 	}
 
-	for (const TWeakPtr<FRemoteControlActor>& WeakActor : Preset->GetExposedEntities<FRemoteControlActor>())
+	for (TWeakPtr<FRemoteControlActor> WeakActor : Preset->GetExposedEntities<FRemoteControlActor>())
 	{
 		if (TSharedPtr<FRemoteControlActor> Actor = WeakActor.Pin())
 		{
 			FieldWidgetMap.Add(Actor->GetId(),
-				SNew(SRCPanelExposedActor, *Actor, Preset.Get())
+				SNew(SRCPanelExposedActor, MoveTemp(WeakActor), Preset.Get())
 				.EditMode(bIsInEditMode));
 		}
 	}
@@ -167,6 +166,7 @@ void SRCPanelExposedEntitiesList::RefreshGroups()
 
 TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCPanelTreeNode> Node, const TSharedRef<STableViewBase>& OwnerTable)
 {
+	constexpr float LeftPadding = 3.f;
 	if (Node->GetType() == SRCPanelTreeNode::Group)
 	{
 		return SNew(SFieldGroup, OwnerTable, Node->AsGroup(), Preset.Get())
@@ -203,7 +203,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 			.OnDragEnter_Lambda([Field = Node->AsField()](const FDragDropEvent& Event) { Field->SetIsHovered(true); })
 			.OnDragLeave_Lambda([Field = Node->AsField()](const FDragDropEvent& Event) { Field->SetIsHovered(false); })
 			.OnDrop_Lambda(OnDropLambda)
-			.Padding(FMargin(20.f, 0.f, 0.f, 0.f))
+			.Padding(FMargin(LeftPadding, 0.f, 0.f, 0.f))
 			[
 				Node->AsField().ToSharedRef()
 			];
@@ -211,7 +211,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	else if (Node->GetType() == SRCPanelTreeNode::FieldChild)
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-			.Padding(FMargin(30.f, 0.f, 0.f, 0.f))
+			.Padding(FMargin(LeftPadding + 10.f, 0.f, 0.f, 0.f))
 			[
 				Node->AsFieldChild().ToSharedRef()
 			];
@@ -219,7 +219,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	else
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
-			.Padding(FMargin(30.f, 0.f, 0.f, 0.f))
+			.Padding(FMargin(LeftPadding, 0.f, 0.f, 0.f))
 			[
 				Node->AsActor().ToSharedRef()
 			];
@@ -265,7 +265,7 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 		}
 	}
 
-	OnSelectionChangeDelegate.ExecuteIfBound(Node);
+	OnSelectionChangeDelegate.Broadcast(Node);
 }
 
 FReply SRCPanelExposedEntitiesList::OnDropOnGroup(const TSharedPtr<FDragDropOperation>& DragDropOperation, const TSharedPtr<SRCPanelTreeNode>& TargetEntity, const TSharedPtr<FRCPanelGroup>& DragTargetGroup)
@@ -427,7 +427,7 @@ void SRCPanelExposedEntitiesList::OnEntityAdded(const FGuid& InEntityId)
 
 	if (TSharedPtr<FRemoteControlActor> Actor = Preset->GetExposedEntity<FRemoteControlActor>(InEntityId).Pin())
 	{
-		ExposeEntity(SNew(SRCPanelExposedActor, *Actor, Preset.Get())
+		ExposeEntity(SNew(SRCPanelExposedActor, MoveTemp(Actor), Preset.Get())
 			.EditMode(bIsInEditMode));
 	}
 	else if (TSharedPtr<FRemoteControlField> Field = Preset->GetExposedEntity<FRemoteControlField>(InEntityId).Pin())

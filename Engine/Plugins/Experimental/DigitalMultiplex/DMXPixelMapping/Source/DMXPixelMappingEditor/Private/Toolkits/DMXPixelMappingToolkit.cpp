@@ -412,12 +412,13 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 		{
 			if (UDMXEntityFixtureType* ParentFixtureType = FixturePatch->ParentFixtureTypeTemplate)
 			{
-				if(FixturePatch->CanReadActiveMode())
+				const FDMXFixtureMode* ModePtr = FixturePatch->GetActiveMode();
+
+				if(ModePtr)
 				{
 					int32 ActiveMode = FixturePatch->ActiveMode;
 
-					const FDMXFixtureMode& FixtureMode = ParentFixtureType->Modes[ActiveMode];
-					const FDMXFixtureMatrix& FixtureMatrixConfig = FixtureMode.FixtureMatrixConfig;
+					const FDMXFixtureMatrix& FixtureMatrixConfig = ModePtr->FixtureMatrixConfig;
 
 					// If there are any pixel functions
 					int32 NumChannels = FixtureMatrixConfig.XCells * FixtureMatrixConfig.YCells;
@@ -433,7 +434,7 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 						}
 
 						TArray<int32> OrderedChannels;
-						FDMXUtils::PixelMappingDistributionSort(FixtureMode.FixtureMatrixConfig.PixelMappingDistribution, FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells, AllChannels, OrderedChannels);
+						FDMXUtils::PixelMappingDistributionSort(ModePtr->FixtureMatrixConfig.PixelMappingDistribution, FixtureMatrixConfig.XCells, FixtureMatrixConfig.YCells, AllChannels, OrderedChannels);
 						TArray<UDMXPixelMappingMatrixCellComponent*> Components;
 						check(AllChannels.Num() == OrderedChannels.Num());
 						int32 XYIndex = 0;
@@ -467,7 +468,7 @@ void FDMXPixelMappingToolkit::CreateMatrixPixels(UDMXPixelMappingMatrixComponent
 						DesignerView->UpdateOutput(bForceUpdate);
 
 						// Set distribution
-						InMatrixComponent->Distribution = FixtureMode.FixtureMatrixConfig.PixelMappingDistribution;
+						InMatrixComponent->Distribution = ModePtr->FixtureMatrixConfig.PixelMappingDistribution;
 					}
 				}
 				else

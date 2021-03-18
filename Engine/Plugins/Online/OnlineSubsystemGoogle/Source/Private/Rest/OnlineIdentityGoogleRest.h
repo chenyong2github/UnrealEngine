@@ -201,7 +201,7 @@ private:
 	/**
 	 * Delegate fired when the call to ShowLoginUI completes 
 	 */
-	void OnExternalUILoginComplete(TSharedPtr<const FUniqueNetId> UniqueId, const int ControllerIndex, const FOnlineError& Error);
+	void OnExternalUILoginComplete(FUniqueNetIdPtr UniqueId, const int ControllerIndex, const FOnlineError& Error);
 
 };
 

@@ -43,7 +43,7 @@ ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineVoice, Log, All);
  * @param TalkerId the player whose talking state has changed
  * @param bIsTalking if true, player is now talking, otherwise they have now stopped
  */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerTalkingStateChanged, TSharedRef<const FUniqueNetId>, bool);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPlayerTalkingStateChanged, FUniqueNetIdRef, bool);
 typedef FOnPlayerTalkingStateChanged::FDelegate FOnPlayerTalkingStateChangedDelegate;
 
 /**
@@ -444,7 +444,7 @@ public:
 	 * @param TalkerId the player whose talking state has changed
 	 * @param bIsTalking if true, player is now talking, otherwise they have now stopped
 	 */
-	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnPlayerTalkingStateChanged, TSharedRef<const FUniqueNetId>, bool);
+	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnPlayerTalkingStateChanged, FUniqueNetIdRef, bool);
 
 	/**
 	 * Checks that a unique player id is on the specified user's mute list
@@ -609,7 +609,7 @@ struct FLocalTalker
 struct FRemoteTalker
 {
 	/** The unique id for this talker */
-	TSharedPtr<const FUniqueNetId> TalkerId;
+	FUniqueNetIdPtr TalkerId;
 	/** Used to trigger talking delegates only after a certain period of time has passed */
 	float LastNotificationTime;
 	/** Whether the remote talker was speaking last frame */

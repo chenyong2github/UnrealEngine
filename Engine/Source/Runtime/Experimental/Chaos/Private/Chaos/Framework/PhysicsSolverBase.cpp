@@ -9,6 +9,7 @@
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
 #include "Chaos/Framework/ChaosResultsManager.h"
 #include "Framework/Threading.h"
+#include "RewindData.h"
 
 namespace Chaos
 {	
@@ -114,18 +115,26 @@ namespace Chaos
 	CHAOS_API int32 ForceDisableAsyncPhysics = 0;
 	FAutoConsoleVariableRef CVarForceDisableAsyncPhysics(TEXT("p.ForceDisableAsyncPhysics"), ForceDisableAsyncPhysics, TEXT("Whether to force async physics off regardless of other settings"));
 
-	CHAOS_API float AsyncInterpolationMultiplier = 4.f;
+	CHAOS_API FRealSingle AsyncInterpolationMultiplier = 2.f;
 	FAutoConsoleVariableRef CVarAsyncInterpolationMultiplier(TEXT("p.AsyncInterpolationMultiplier"), AsyncInterpolationMultiplier, TEXT("How many multiples of the fixed dt should we look behind for interpolation"));
 
-	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
+	// 0 blocks on any physics steps generated from past GT Frames, and blocks on none of the tasks from current frame.
+	// 1 blocks on everything except the single most recent task (including tasks from current frame)
+	// 1 should gurantee we will always have a future output for interpolation from 2 frames in the past
+	int32 AsyncPhysicsBlockMode = 1;
+	FAutoConsoleVariableRef CVarAsyncPhysicsBlockMode(TEXT("p.AsyncPhysicsBlockMode"), AsyncPhysicsBlockMode, TEXT("Setting to 0 blocks on any physics steps generated from past GT Frames, and blocks on none of the tasks from current frame."
+		" 1 blocks on everything except the single most recent task (including tasks from current frame). 1 should gurantee we will always have a future output for interpolation from 2 frames in the past."));
+
+
+	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner)
 		: BufferMode(BufferingModeIn)
 		, ThreadingMode(InThreadingMode)
 		, PullResultsManager(MakeUnique<FChaosResultsManager>())
 		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
+		, bUseCollisionResimCache(false)
 		, bPaused_External(false)
 		, Owner(InOwner)
 		, ExternalDataLock_External(new FPhysicsSceneGuard())
-		, TraitIdx(InTraitIdx)
 		, bIsShuttingDown(false)
 		, AsyncDt(-1)
 		, AccumulatedTime(0)
@@ -163,14 +172,13 @@ namespace Chaos
 
 		// GeometryCollection particles do not always remove collision constraints on unregister,
 		// explicitly clear constraints so we will not crash when filling collision events in advance.
-		InSolver.CastHelper([](auto& Concrete)
 		{
-			auto* Evolution = Concrete.GetEvolution();
+			auto* Evolution = static_cast<FPBDRigidsSolver&>(InSolver).GetEvolution();
 			if (Evolution)
 			{
 				Evolution->ResetConstraints();
 			}
-		});
+		}
 
 		// Advance in single threaded because we cannot block on an async task here if in multi threaded mode. see above comments.
 		InSolver.SetThreadingMode_External(EThreadingModeTemp::SingleThread);
@@ -236,5 +244,111 @@ namespace Chaos
 			UniqueIdxToGTParticles[Idx] = nullptr;
 		}
 	}
-	//////////////////////////////////////////////////////////////////////////
+	
+	void FPhysicsSolverBase::EnableRewindCapture(int32 NumFrames, bool InUseCollisionResimCache, TUniquePtr<IRewindCallback>&& RewindCallback)
+	{
+		MRewindData = MakeUnique<FRewindData>(NumFrames, InUseCollisionResimCache, ((FPBDRigidsSolver*)this)->GetCurrentFrame()); // FIXME
+		bUseCollisionResimCache = InUseCollisionResimCache;
+		MRewindCallback = MoveTemp(RewindCallback);
+		MarshallingManager.SetHistoryLength_Internal(NumFrames);
+	}
+
+	void FPhysicsSolverBase::SetRewindCallback(TUniquePtr<IRewindCallback>&& RewindCallback)
+	{
+		ensure(!RewindCallback || MRewindData);
+		MRewindCallback = MoveTemp(RewindCallback);
+	}
+
+	FGraphEventRef FPhysicsSolverBase::AdvanceAndDispatch_External(FReal InDt)
+	{
+		const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
+		FReal InternalDt = DtWithPause;
+		int32 NumSteps = 1;
+
+		if (IsUsingFixedDt())
+		{
+			AccumulatedTime += DtWithPause;
+			if (InDt == 0)	//this is a special flush case
+			{
+				//just use any remaining time and sync up to latest no matter what
+				InternalDt = AccumulatedTime;
+				NumSteps = 1;
+				AccumulatedTime = 0;
+			}
+			else
+			{
+				InternalDt = AsyncDt;
+				NumSteps = FMath::FloorToInt(AccumulatedTime / InternalDt);
+				AccumulatedTime -= InternalDt * NumSteps;
+			}
+		}
+
+		if (InDt > 0)
+		{
+			ExternalSteps++;	//we use this to average forces. It assumes external dt is about the same. 0 dt should be ignored as it typically has nothing to do with force
+		}
+
+		if (NumSteps > 0)
+		{
+			//make sure any GT state is pushed into necessary buffer
+			PushPhysicsState(InternalDt, NumSteps, FMath::Max(ExternalSteps, 1));
+			ExternalSteps = 0;
+		}
+
+		// Ensures we block on any tasks generated from previous frames
+		FGraphEventRef BlockingTasks = PendingTasks;
+
+		while (FPushPhysicsData* PushData = MarshallingManager.StepInternalTime_External())
+		{
+			if(MRewindCallback && !bIsShuttingDown)
+			{
+				MRewindCallback->ProcessInputs_External(PushData->InternalStep, PushData->SimCallbackInputs);
+			}
+
+			if (ThreadingMode == EThreadingModeTemp::SingleThread)
+			{
+				ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
+				FPhysicsSolverAdvanceTask ImmediateTask(*this, *PushData);
+#if !UE_BUILD_SHIPPING
+				if (bStealAdvanceTasksForTesting)
+				{
+					StolenSolverAdvanceTasks.Emplace(MoveTemp(ImmediateTask));
+				}
+				else
+				{
+					ImmediateTask.AdvanceSolver();
+				}
+#else
+				ImmediateTask.AdvanceSolver();
+#endif
+			}
+			else
+			{
+				// If enabled, block on all but most recent physics task, even tasks generated this frame.
+				if (AsyncPhysicsBlockMode == 1)
+				{
+					BlockingTasks = PendingTasks;
+				}
+
+				FGraphEventArray Prereqs;
+				if (PendingTasks && !PendingTasks->IsComplete())
+				{
+					Prereqs.Add(PendingTasks);
+				}
+
+				PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this, *PushData);
+				if (IsUsingAsyncResults() == false)
+				{
+					BlockingTasks = PendingTasks;	//block right away
+				}
+			}
+
+			if (IsUsingAsyncResults() == false)
+			{
+				break;	//non async can only process one step at a time
+			}
+		}
+
+		return BlockingTasks;
+	}
 }

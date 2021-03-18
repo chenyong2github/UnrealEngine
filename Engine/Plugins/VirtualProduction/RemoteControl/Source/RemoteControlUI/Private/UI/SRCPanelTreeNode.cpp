@@ -13,6 +13,7 @@ TSharedRef<SWidget> PanelTreeNode::MakeNodeWidget(const FMakeNodeWidgetArgs& Arg
 	return SNew(SHorizontalBox)
 		// Drag and drop handle
 		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[

@@ -285,12 +285,9 @@ namespace Chaos
 					}
 
 					const bool bSecondParticleWillHaveAnswer = !bIsResimming || Particle2.SyncState() == ESyncState::HardDesync;
-					// Sleeping won't collide against another sleeping and sleeping vs dynamic gets picked up by the other direction.
-					const bool bIsParticle2Kinematic = Particle2.CastToKinematicParticle() &&
-						(Particle2.ObjectState() == EObjectStateType::Kinematic &&
-							(Particle2.CastToKinematicParticle()->V().SizeSquared() > 1e-4 ||
-								Particle2.Geometry()->GetType() == FCapsule::StaticType()));
-					if (Particle1.ObjectState() == EObjectStateType::Sleeping && !bIsParticle2Kinematic && bSecondParticleWillHaveAnswer)
+					// Sleeping vs dynamic gets picked up by the other direction.
+					const bool bIsParticle2Dynamic = Particle2.CastToRigidParticle() && Particle2.ObjectState() == EObjectStateType::Dynamic;
+					if (Particle1.ObjectState() == EObjectStateType::Sleeping && bIsParticle2Dynamic && bSecondParticleWillHaveAnswer)
 					{
 						//question: if !bSecondParticleWillHaveAnswer do we need to reorder constraint?
 						continue;
@@ -298,7 +295,6 @@ namespace Chaos
 
 					// Make sure we don't add a second set of constaint for the same body pair (with the body order flipped)
 					const bool bBody2Bounded = HasBoundingBox(Particle2);
-					const bool bIsParticle2Dynamic = Particle2.CastToRigidParticle() && Particle2.ObjectState() == EObjectStateType::Dynamic;
 					if (bBody1Bounded == bBody2Bounded && bIsParticle2Dynamic)
 					{
 						if (Particle1.ParticleID() < Particle2.ParticleID() && bSecondParticleWillHaveAnswer)

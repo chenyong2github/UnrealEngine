@@ -596,7 +596,8 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::ReportToScreen()
 }
 
 FParticlePerfStatsListener_NiagaraPerformanceReporter::FParticlePerfStatsListener_NiagaraPerformanceReporter(UWorld* InWorld)
-: World(InWorld)
+: FParticlePerfStatsListener_GatherAll(false, true, false)
+, World(InWorld)
 {
 	CurrentWorldTime = World->GetTimeSeconds();
 	CurrentFrameNumber = GFrameNumber;
@@ -785,7 +786,7 @@ bool FParticlePerfStatsListener_NiagaraPerformanceReporter::Tick()
 	{
 		NumFrames = 0;
 		FScopeLock Lock(&AccumulatedStatsGuard);
-		for (auto& SysStatPair : AccumulatedStats)
+		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
 			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{
@@ -824,7 +825,7 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::TickRT()
 		TArray<UNiagaraSystem*, TInlineAllocator<16>> ToRemove;
 		NumFramesRT = 0;
 		FScopeLock Lock(&AccumulatedStatsGuard);
-		for (auto& SysStatPair : AccumulatedStats)
+		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
 			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{
@@ -848,6 +849,11 @@ void FParticlePerfStatsListener_NiagaraPerformanceReporter::TickRT()
 }
 
 //////////////////////////////////////////////////////////////////////////
+FParticlePerfStatsListener_NiagaraBaselineComparisonRender::FParticlePerfStatsListener_NiagaraBaselineComparisonRender()
+: FParticlePerfStatsListener_GatherAll(false, true, false)
+{
+
+}
 
 bool FParticlePerfStatsListener_NiagaraBaselineComparisonRender::Tick()
 {
@@ -860,7 +866,7 @@ bool FParticlePerfStatsListener_NiagaraBaselineComparisonRender::Tick()
 	{
 		NumFrames = 0;
 		FScopeLock Lock(&AccumulatedStatsGuard);
-		for (auto& SysStatPair : AccumulatedStats)
+		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
 			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{
@@ -897,7 +903,7 @@ void FParticlePerfStatsListener_NiagaraBaselineComparisonRender::TickRT()
 		TArray<UNiagaraSystem*, TInlineAllocator<16>> ToRemove;
 		NumFramesRT = 0;
 		FScopeLock Lock(&AccumulatedStatsGuard);
-		for (auto& SysStatPair : AccumulatedStats)
+		for (auto& SysStatPair : AccumulatedSystemStats)
 		{
 			if (UNiagaraSystem* System = Cast<UNiagaraSystem>(SysStatPair.Key.Get()))
 			{

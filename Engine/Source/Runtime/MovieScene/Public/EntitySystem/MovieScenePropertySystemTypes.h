@@ -19,6 +19,8 @@ namespace UE
 namespace MovieScene
 {
 
+template<typename...> struct TPropertyMetaData;
+
 struct FCustomPropertyIndex
 {
 	uint16 Value;
@@ -51,7 +53,7 @@ private:
 };
 
 
-template<typename PropertyType, typename OperationalType>
+template<typename PropertyTraits>
 struct TCompositePropertyTypeID : FCompositePropertyTypeID
 {};
 
@@ -59,13 +61,17 @@ struct TCompositePropertyTypeID : FCompositePropertyTypeID
 /**
  * Structure that defines 2 static function pointers that are to be used for retrieving and applying properties of a given type
  */
-template<typename PropertyType>
-struct TCustomPropertyAccessorFunctions
-{
-	using ParamType = typename TCallTraits<PropertyType>::ParamType;
+template<typename PropertyTraits, typename MetaDataType>
+struct TCustomPropertyAccessorFunctionsImpl;
 
-	using GetterFunc = PropertyType (*)(const UObject* Object);
-	using SetterFunc = void         (*)(UObject* Object, ParamType Value);
+template<typename PropertyTraits, typename ...MetaDataTypes>
+struct TCustomPropertyAccessorFunctionsImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
+{
+	using StorageType = typename PropertyTraits::StorageType;
+	using ParamType   = typename TCallTraits<StorageType>::ParamType;
+
+	using GetterFunc = StorageType (*)(const UObject* Object, MetaDataTypes...);
+	using SetterFunc = void        (*)(UObject* Object, MetaDataTypes..., ParamType Value);
 
 	/** Function pointer to be used for retrieving an object's current property */
 	GetterFunc Getter;
@@ -74,6 +80,8 @@ struct TCustomPropertyAccessorFunctions
 	SetterFunc Setter;
 };
 
+template<typename PropertyTraits>
+using TCustomPropertyAccessorFunctions = TCustomPropertyAccessorFunctionsImpl<PropertyTraits, typename PropertyTraits::MetaDataType>;
 
 struct FCustomPropertyAccessor
 {
@@ -90,16 +98,16 @@ struct FCustomPropertyAccessor
 /**
  * Complete information required for applying a custom getter/setter to an object
  */
-template<typename PropertyType>
+template<typename PropertyTraits>
 struct TCustomPropertyAccessor : FCustomPropertyAccessor
 {
-	TCustomPropertyAccessor(UClass* InClass, FName InPropertyPath, const TCustomPropertyAccessorFunctions<PropertyType>& InFunctions)
+	TCustomPropertyAccessor(UClass* InClass, FName InPropertyPath, const TCustomPropertyAccessorFunctions<PropertyTraits>& InFunctions)
 		: FCustomPropertyAccessor{ InClass, InPropertyPath }
 		, Functions(InFunctions)
 	{}
 
 	/** Function pointers to use for interacting with the property */
-	TCustomPropertyAccessorFunctions<PropertyType> Functions;
+	TCustomPropertyAccessorFunctions<PropertyTraits> Functions;
 };
 
 
@@ -163,11 +171,11 @@ struct ICustomPropertyRegistration
 };
 
 /** Generally static collection of accessors for a given type of property */
-template<typename PropertyType, int InlineSize = 8>
+template<typename PropertyTraits, int InlineSize = 8>
 struct TCustomPropertyRegistration : ICustomPropertyRegistration
 {
-	using GetterFunc = typename TCustomPropertyAccessorFunctions<PropertyType>::GetterFunc;
-	using SetterFunc = typename TCustomPropertyAccessorFunctions<PropertyType>::SetterFunc;
+	using GetterFunc = typename TCustomPropertyAccessorFunctions<PropertyTraits>::GetterFunc;
+	using SetterFunc = typename TCustomPropertyAccessorFunctions<PropertyTraits>::SetterFunc;
 
 	virtual FCustomAccessorView GetAccessors() const override
 	{
@@ -176,25 +184,137 @@ struct TCustomPropertyRegistration : ICustomPropertyRegistration
 
 	void Add(UClass* ClassType, FName PropertyName, GetterFunc Getter, SetterFunc Setter)
 	{
-		CustomAccessors.Add(TCustomPropertyAccessor<PropertyType>{ ClassType, PropertyName, { Getter, Setter } });
+		CustomAccessors.Add(TCustomPropertyAccessor<PropertyTraits>{ ClassType, PropertyName, { Getter, Setter } });
 	}
 
 private:
 
 	/** */
-	TArray<TCustomPropertyAccessor<PropertyType>, TInlineAllocator<InlineSize>> CustomAccessors;
+	TArray<TCustomPropertyAccessor<PropertyTraits>, TInlineAllocator<InlineSize>> CustomAccessors;
 };
 
+// #include MovieSceneEntityFactoryTemplates.h for specialization
+template<typename, typename>
+struct TPropertyMetaDataComponentsImpl;
 
-template<typename PropertyType, typename OperationalType = PropertyType>
+template<typename>
+struct TPropertyMetaDataComponents;
+
+
+/**
+ * User-defined property type that is represented as an UE::MovieScene::FPropertyDefinition within UE::MovieScene::FPropertyRegistry
+ *
+ * This type must be templated on a traits class that defines the storage type for the property, and methods for retrieving and assigning
+ * the property value from a UObject*. See TDirectPropertyTraits and TIndirectPropertyTraits for examples. TRuntimePropertyTraits shows
+ * an example trait for a property that requires additional meta-data components where multiple property types can be represented by
+ * a single property definition at runtime (ie, for multi-channel vectors, or colors)
+ */
+template<typename PropertyTraits>
 struct TPropertyComponents
 {
-	FComponentTypeID                  PropertyTag;
-	TComponentTypeID<PropertyType>    PreAnimatedValue;
-	TComponentTypeID<OperationalType> InitialValue;
+	FComponentTypeID PropertyTag;
+	TComponentTypeID<typename PropertyTraits::StorageType> PreAnimatedValue;
+	TComponentTypeID<typename PropertyTraits::StorageType> InitialValue;
 
-	TCompositePropertyTypeID<PropertyType, OperationalType> CompositeID;
+	TPropertyMetaDataComponents<typename PropertyTraits::MetaDataType> MetaDataComponents;
+
+	TCompositePropertyTypeID<PropertyTraits> CompositeID;
 };
+
+template<typename PropertyTraits, typename MetaDataType>
+struct TSetPropertyValuesImpl{};
+
+
+
+template<typename PropertyTraits, typename ...MetaDataTypes>
+struct TSetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
+{
+	using StorageType = typename PropertyTraits::StorageType;
+	using InParamType     = typename TCallTraits<typename PropertyTraits::StorageType>::ParamType;
+
+	explicit TSetPropertyValuesImpl(ICustomPropertyRegistration* InCustomProperties)
+		: CustomProperties(InCustomProperties)
+	{}
+
+	/**
+	 * Run before this task executes any logic over entities and components
+	 */
+	void PreTask();
+
+
+	/**
+	 * Task callback that applies a value to an object property via a custom native setter function
+	 * Must be invoked with a task builder with the specified parameters:
+	 *
+	 *     FEntityTaskBuilder()
+	 *     .Read( TComponentTypeID<UObject*>(...) )
+	 *     .Read( TComponentTypeID<FCustomPropertyIndex>(...) )
+	 *     .Read( TComponentTypeID<PropertyType>(...) )
+	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
+	 */
+	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, InParamType ValueToSet);
+
+	/**
+	 * Task callback that applies a value to an object property via a fast pointer offset
+	 * Must be invoked with a task builder with the specified parameters:
+	 *
+	 *     FEntityTaskBuilder()
+	 *     .Read( TComponentTypeID<UObject*>(...) )
+	 *     .Read( TComponentTypeID<uint16>(...) )
+	 *     .Read( TComponentTypeID<PropertyType>(...) )
+	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
+	 */
+	static void ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, InParamType ValueToSet);
+
+
+	/**
+	 * Task callback that applies a value to an object property via a slow (legacy) track instance binding
+	 * Must be invoked with a task builder with the specified parameters:
+	 *
+	 *     FEntityTaskBuilder()
+	 *     .Read( TComponentTypeID<UObject*>(...) )
+	 *     .Read( TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
+	 *     .Read( TComponentTypeID<PropertyType>(...) )
+	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
+	 */
+	static void ForEachEntity(UObject* InObject, const TSharedPtr<FTrackInstancePropertyBindings>& PropertyBindings, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, InParamType ValueToSet);
+
+public:
+
+	using FThreeWayAccessor  = TMultiReadOptional<FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
+	using FTwoWayAccessor    = TMultiReadOptional<uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
+
+	/**
+	 * Task callback that applies properties for a whole allocation of entities with either an FCustomPropertyIndex, uint16 or TSharedPtr<FTrackInstancePropertyBindings> property component
+	 * Must be invoked with a task builder with the specified parameters:
+	 *
+	 *     FEntityTaskBuilder()
+	 *     .Read(      TComponentTypeID<UObject*>(...) )
+	 *     .ReadOneOf( TComponentTypeID<FCustomPropertyIndex>(...), TComponentTypeID<uint16>(...), TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
+	 *     .Read(      TComponentTypeID<PropertyType>(...) )
+	 *     .Dispatch_PerAllocation<TSetPropertyValues<PropertyType>>(...);
+	 */
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TRead<StorageType> PropertyValueComponents);
+
+
+	/**
+	 * Task callback that applies properties for a whole allocation of entities with either a uint16 or TSharedPtr<FTrackInstancePropertyBindings> property component
+	 * Must be invoked with a task builder with the specified parameters:
+	 *
+	 *     FEntityTaskBuilder()
+	 *     .Read(      TComponentTypeID<UObject*>(...) )
+	 *     .ReadOneOf( TComponentTypeID<uint16>(...), TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
+	 *     .Read(      TComponentTypeID<PropertyType>(...) )
+	 *     .Dispatch_PerAllocation<TSetPropertyValues<PropertyType>>(...);
+	 */
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TRead<StorageType> PropertyValueComponents);
+
+private:
+
+	ICustomPropertyRegistration* CustomProperties;
+	FCustomAccessorView CustomAccessors;
+};
+
 
 /**
  * Stateless entity task that will apply values to properties. Three types of property are supported: Custom native accessor functions, fast pointer offset, or FTrackInstancePropertyBindings
@@ -222,128 +342,30 @@ struct TPropertyComponents
  *     .Read(TransformComponent)
  *     .Dispatch_PerAllocation<TSetPropertyValues<FTransform>>( ... );
  */
-template<typename PropertyType>
-struct TSetPropertyValues
+template<typename PropertyTraits>
+struct TSetPropertyValues : TSetPropertyValuesImpl<PropertyTraits, typename PropertyTraits::MetaDataType>
 {
-	using ParamType = typename TCallTraits<PropertyType>::ParamType;
+	using ParamType = typename TCallTraits<typename PropertyTraits::StorageType>::ParamType;
 
 	explicit TSetPropertyValues(ICustomPropertyRegistration* InCustomProperties)
-		: CustomProperties(InCustomProperties)
+		: TSetPropertyValuesImpl<PropertyTraits, typename PropertyTraits::MetaDataType>(InCustomProperties)
 	{}
-
-	/**
-	 * Run before this task executes any logic over entities and components
-	 */
-	void PreTask();
-
-
-	/**
-	 * Task callback that applies a value to an object property via a custom native setter function
-	 * Must be invoked with a task builder with the specified parameters:
-	 *
-	 *     FEntityTaskBuilder()
-	 *     .Read( TComponentTypeID<UObject*>(...) )
-	 *     .Read( TComponentTypeID<FCustomPropertyIndex>(...) )
-	 *     .Read( TComponentTypeID<PropertyType>(...) )
-	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
-	 */
-	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomIndex, ParamType ValueToSet);
-	static void ForEachEntity(UObject* InObject, const FCustomPropertyAccessor& CustomAccessor, ParamType ValueToSet);
-
-
-	/**
-	 * Task callback that applies a value to an object property via a fast pointer offset
-	 * Must be invoked with a task builder with the specified parameters:
-	 *
-	 *     FEntityTaskBuilder()
-	 *     .Read( TComponentTypeID<UObject*>(...) )
-	 *     .Read( TComponentTypeID<uint16>(...) )
-	 *     .Read( TComponentTypeID<PropertyType>(...) )
-	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
-	 */
-	static void ForEachEntity(UObject* InObject, uint16 PropertyOffset, ParamType ValueToSet);
-
-
-	/**
-	 * Task callback that applies a value to an object property via a slow (legacy) track instance binding
-	 * Must be invoked with a task builder with the specified parameters:
-	 *
-	 *     FEntityTaskBuilder()
-	 *     .Read( TComponentTypeID<UObject*>(...) )
-	 *     .Read( TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
-	 *     .Read( TComponentTypeID<PropertyType>(...) )
-	 *     .Dispatch_PerEntity<TSetPropertyValues<PropertyType>>(...);
-	 */
-	static void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, ParamType ValueToSet);
-
-public:
-
-	using FThreeWayAccessor  = TMultiReadOptional<FCustomPropertyIndex, uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
-	using FTwoWayAccessor    = TMultiReadOptional<uint16, TSharedPtr<FTrackInstancePropertyBindings>>;
-
-	/**
-	 * Task callback that applies properties for a whole allocation of entities with either an FCustomPropertyIndex, uint16 or TSharedPtr<FTrackInstancePropertyBindings> property component
-	 * Must be invoked with a task builder with the specified parameters:
-	 *
-	 *     FEntityTaskBuilder()
-	 *     .Read(      TComponentTypeID<UObject*>(...) )
-	 *     .ReadOneOf( TComponentTypeID<FCustomPropertyIndex>(...), TComponentTypeID<uint16>(...), TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
-	 *     .Read(      TComponentTypeID<PropertyType>(...) )
-	 *     .Dispatch_PerAllocation<TSetPropertyValues<PropertyType>>(...);
-	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<PropertyType> PropertyValueComponents);
-
-
-	/**
-	 * Task callback that applies properties for a whole allocation of entities with either a uint16 or TSharedPtr<FTrackInstancePropertyBindings> property component
-	 * Must be invoked with a task builder with the specified parameters:
-	 *
-	 *     FEntityTaskBuilder()
-	 *     .Read(      TComponentTypeID<UObject*>(...) )
-	 *     .ReadOneOf( TComponentTypeID<uint16>(...), TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
-	 *     .Read(      TComponentTypeID<PropertyType>(...) )
-	 *     .Dispatch_PerAllocation<TSetPropertyValues<PropertyType>>(...);
-	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<PropertyType> PropertyValueComponents);
-
-private:
-
-	ICustomPropertyRegistration* CustomProperties;
-	FCustomAccessorView CustomAccessors;
 };
 
 
-/**
- * Stateless entity task that writes current property values to the specified intermediate component.
- * Three types of property are supported: Custom native accessor functions, fast pointer offset, or FTrackInstancePropertyBindings.
- * 
- * Can be invoked in one of 2 ways: either with a specific property type through a per-entity iteration:
- *
- *     TComponentTypeID<FCustomPropertyIndex> CustomProperty = ...;
- *     TComponentTypeID<FMyOperationalType> IntermediateTransformComponent = ...;
- *     TComponentTypeID<UObject*> BoundObject = ...;
- *
- *     FEntityTaskBuilder()
- *     .Read(BoundObject)
- *     .Read(CustomProperty)
- *     .Write(IntermediateTransformComponent)
- *     .Dispatch_PerEntity<TGetPropertyValues<FTransform, FMyOperationalType>>( ... );
- *
- * Or via a combinatorial task that iterates all entities with any one of the property components:
- *
- *     TComponentTypeID<uint16> FastPropertyOffset = ...;
- *     TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>> SlowProperty = ...;
- *
- *     FEntityTaskBuilder()
- *     .Read(BoundObject)
- *     .ReadOneOf(CustomProperty, FastProperty, SlowProperty)
- *     .Write(IntermediateTransformComponent)
- *     .Dispatch_PerAllocation<TGetPropertyValues<FTransform, FMyOperationalType>>( ... );
- */
-template<typename PropertyType, typename OperationalType = PropertyType>
-struct TGetPropertyValues
+
+
+template<typename PropertyTraits, typename MetaDataType>
+struct TGetPropertyValuesImpl{};
+
+
+
+template<typename PropertyTraits, typename ...MetaDataTypes>
+struct TGetPropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>>
 {
-	explicit TGetPropertyValues(ICustomPropertyRegistration* InCustomProperties)
+	using StorageType = typename PropertyTraits::StorageType;
+
+	explicit TGetPropertyValuesImpl(ICustomPropertyRegistration* InCustomProperties)
 		: CustomProperties(InCustomProperties)
 	{}
 
@@ -356,10 +378,10 @@ struct TGetPropertyValues
 	 *     FEntityTaskBuilder()
 	 *     .Read( TComponentTypeID<UObject*>(...) )
 	 *     .Read( TComponentTypeID<FCustomPropertyIndex>(...) )
-	 *     .Write( TComponentTypeID<OperationalType>(...) )
-	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, OperationalType>>(...);
+	 *     .Write( TComponentTypeID<StorageType>(...) )
+	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, StorageType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, OperationalType& OutValue);
+	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue);
 
 	/**
 	 * Task callback that retrieves the object's current value via a fast pointer offset, and writes it to the specified output variable
@@ -368,10 +390,11 @@ struct TGetPropertyValues
 	 *     FEntityTaskBuilder()
 	 *     .Read( TComponentTypeID<UObject*>(...) )
 	 *     .Read( TComponentTypeID<uint16>(...) )
-	 *     .Read( TComponentTypeID<OperationalType>(...) )
-	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, OperationalType>>(...);
+	 *     .ReadAllOf( TComponentTypeID<MetaData>(...)... )
+	 *     .Read( TComponentTypeID<StorageType>(...) )
+	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, StorageType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, OperationalType& OutValue);
+	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue);
 
 	/**
 	 * Task callback that retrieves the object's current value via a slow (legacy) track instance binding, and writes it to the specified output variable
@@ -380,10 +403,11 @@ struct TGetPropertyValues
 	 *     FEntityTaskBuilder()
 	 *     .Read( TComponentTypeID<UObject*>(...) )
 	 *     .Read( TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
-	 *     .Read( TComponentTypeID<OperationalType>(...) )
-	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, OperationalType>>(...);
+	 *     .ReadAllOf( TComponentTypeID<MetaData>(...)... )
+	 *     .Read( TComponentTypeID<StorageType>(...) )
+	 *     .Dispatch_PerEntity<TGetPropertyValues<PropertyType, StorageType>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, OperationalType& OutValue);
+	void ForEachEntity(UObject* InObject, const TSharedPtr<FTrackInstancePropertyBindings>& PropertyBindings, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, StorageType& OutValue);
 
 public:
 
@@ -398,10 +422,11 @@ public:
 	 *     FEntityTaskBuilder()
 	 *     .Read(      TComponentTypeID<UObject*>(...) )
 	 *     .ReadOneOf( TComponentTypeID<FCustomPropertyIndex>(...), TComponentTypeID<uint16>(...), TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
-	 *     .Write(     TComponentTypeID<OperationalType>(...) )
-	 *     .Dispatch_PerAllocation<TGetPropertyValues<PropertyType, OperationalType>>(...);
+	 *     .ReadAllOf( TComponentTypeID<MetaData>(...)... )
+	 *     .Write(     TComponentTypeID<StorageType>(...) )
+	 *     .Dispatch_PerAllocation<TGetPropertyValues<PropertyType, StorageType>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TWrite<OperationalType> OutValueComponents);
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TWrite<StorageType> OutValueComponents);
 
 
 	/**
@@ -411,10 +436,11 @@ public:
 	 *     FEntityTaskBuilder()
 	 *     .Read(      TComponentTypeID<UObject*>(...) )
 	 *     .ReadOneOf( TComponentTypeID<uint16>(...), TComponentTypeID<TSharedPtr<FTrackInstancePropertyBindings>>(...) )
-	 *     .Read(      TComponentTypeID<OperationalType>(...) )
-	 *     .Dispatch_PerAllocation<TGetPropertyValues<PropertyType ,OperationalType>>(...);
+	 *     .ReadAllOf( TComponentTypeID<MetaData>(...)... )
+	 *     .Write(     TComponentTypeID<StorageType>(...) )
+	 *     .Dispatch_PerAllocation<TGetPropertyValues<PropertyType ,StorageType>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TWrite<OperationalType> OutValueComponents);
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... MetaDataComponents, TWrite<StorageType> OutValueComponents);
 
 private:
 
@@ -422,7 +448,16 @@ private:
 	FCustomAccessorView CustomAccessors;
 };
 
-template<typename...> struct TSetCompositePropertyValuesImpl;
+
+template<typename PropertyTraits>
+struct TGetPropertyValues : TGetPropertyValuesImpl<PropertyTraits, typename PropertyTraits::MetaDataType>
+{
+	explicit TGetPropertyValues(ICustomPropertyRegistration* InCustomProperties)
+		: TGetPropertyValuesImpl<PropertyTraits, typename PropertyTraits::MetaDataType>(InCustomProperties)
+	{}
+};
+
+
 
 /**
  * Task implementation that combines a specific set of input components (templated as CompositeTypes) through a projection, and applies the result to an object property
@@ -454,12 +489,16 @@ template<typename...> struct TSetCompositePropertyValuesImpl;
  *     .Read(      TComponentTypeID<float>(...) )
  *     .Dispatch_Perllocation<TSetCompositePropertyValues<FVector, float, float, float>>( ..., &UKismetMathLibrary::MakeVector );
  */
-template<typename PropertyType, typename ProjectionType, typename... CompositeTypes, int... Indices>
-struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, PropertyType, ProjectionType, CompositeTypes...>
+template<typename PropertyTraits, typename MetaDataType, typename... CompositeTypes>
+struct TSetCompositePropertyValuesImpl;
+
+template<typename PropertyTraits, typename... MetaDataTypes, typename... CompositeTypes>
+struct TSetCompositePropertyValuesImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, CompositeTypes...>
 {
-	explicit TSetCompositePropertyValuesImpl(ICustomPropertyRegistration* InCustomProperties, ProjectionType&& InProjection)
+	using StorageType = typename PropertyTraits::StorageType;
+
+	explicit TSetCompositePropertyValuesImpl(ICustomPropertyRegistration* InCustomProperties)
 		: CustomProperties(InCustomProperties)
-		, Projection(InProjection)
 	{}
 
 	/**
@@ -477,9 +516,9 @@ struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, Proper
 	 *     .Read( TComponentTypeID<CompositeType[0  ]>(...) )
 	 *     .Read( TComponentTypeID<CompositeType[...]>(...) )
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
-	 *     .Dispatch_PerEntity<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(..., Projection);
+	 *     .Dispatch_PerEntity<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
+	void ForEachEntity(UObject* InObject, FCustomPropertyIndex CustomPropertyIndex, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
 
 
 	/**
@@ -494,7 +533,7 @@ struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, Proper
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerEntity<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
+	void ForEachEntity(UObject* InObject, uint16 PropertyOffset, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
 
 
 	/**
@@ -509,7 +548,7 @@ struct TSetCompositePropertyValuesImpl<TIntegerSequence<int, Indices...>, Proper
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerEntity<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachEntity(UObject* InObject, TSharedPtr<FTrackInstancePropertyBindings> PropertyBindings, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
+	void ForEachEntity(UObject* InObject, const TSharedPtr<FTrackInstancePropertyBindings>& PropertyBindings, typename TCallTraits<MetaDataTypes>::ParamType... MetaData, typename TCallTraits<CompositeTypes>::ParamType... CompositeResults);
 
 public:
 
@@ -529,7 +568,7 @@ public:
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerAllocation<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<CompositeTypes>... VariadicComponents);
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FThreeWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... InMetaData, TRead<CompositeTypes>... VariadicComponents);
 
 
 	/**
@@ -544,20 +583,16 @@ public:
 	 *     .Read( TComponentTypeID<CompositeType[N-1]>(...) )
 	 *     .Dispatch_PerAllocation<TSetCompositePropertyValues<PropertyType, CompositeTypes...>>(...);
 	 */
-	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<CompositeTypes>... VariadicComponents);
+	void ForEachAllocation(const FEntityAllocation* Allocation, TRead<UObject*> BoundObjectComponents, FTwoWayAccessor ResolvedPropertyComponents, TRead<MetaDataTypes>... InMetaData, TRead<CompositeTypes>... VariadicComponents);
 
 private:
 
 	ICustomPropertyRegistration* CustomProperties;
 	FCustomAccessorView CustomAccessors;
-
-	/** A projection of the signature PropertyType(CompositeTypes...) that combines all composite inpts and produces a PropertyType value to apply to the object property */
-	ProjectionType Projection;
 };
 
-/** Entity task that will apply multiple values to properties via an accumulation projection */
-template<typename PropertyType, typename... CompositeTypes>
-using TSetCompositePropertyValues = TSetCompositePropertyValuesImpl<TMakeIntegerSequence<int, sizeof...(CompositeTypes)>, PropertyType, PropertyType (*)(CompositeTypes...), CompositeTypes...>;
+template<typename PropertyTraits, typename ...CompositeTypes>
+using TSetCompositePropertyValues = TSetCompositePropertyValuesImpl<PropertyTraits, typename PropertyTraits::MetaDataType, CompositeTypes...>;
 
 
 } // namespace MovieScene

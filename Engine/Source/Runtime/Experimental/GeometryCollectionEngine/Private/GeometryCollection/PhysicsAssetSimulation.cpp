@@ -132,7 +132,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				// Ensure scaling is uniform
 				check(FMath::Abs(Scale3D[0] - Scale3D[1]) < KINDA_SMALL_NUMBER && FMath::Abs(Scale3D[0] - Scale3D[2]) < KINDA_SMALL_NUMBER);
 
-				const float Radius = Elem.Radius * Scale3D[0];
+				const Chaos::FReal Radius = Elem.Radius * Scale3D[0];
 				if (Radius < SMALL_NUMBER)
 					continue;
 				const FTransform Xf = Elem.GetTransform(); // Xf is Elem.Center
@@ -140,7 +140,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				// Translation is in the transform, scaling is baked into the implicit shape.
 				AnalyticShapeGroup->Add(
 					Xf,
-					new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Radius));
+					new Chaos::TSphere<Chaos::FReal, 3>(Chaos::FVec3(0), Radius));
 
 				UE_LOG(USkeletalMeshSimulationComponentLogging, Log,
 					TEXT("USkeletalMeshSimulationComponent::OnCreatePhysicsState() - Caller: %p Actor: '%s' - "
@@ -162,7 +162,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				const FVector HalfExtents(ScaledElem.X / 2, ScaledElem.Y / 2, ScaledElem.Z / 2);
 				AnalyticShapeGroup->Add(
 					Xf,
-					new Chaos::TBox<float, 3>(-HalfExtents, HalfExtents));
+					new Chaos::TBox<Chaos::FReal, 3>(-HalfExtents, HalfExtents));
 
 				UE_LOG(USkeletalMeshSimulationComponentLogging, Log,
 					TEXT("USkeletalMeshSimulationComponent::OnCreatePhysicsState() - Caller: %p Actor: '%s' - "
@@ -177,14 +177,14 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 			AnalyticShapeGroup->Capsules.Reserve(NumCapsules);
 			for (const FKSphylElem &Elem : FKSphylElems)
 			{
-				const float Radius = Elem.GetScaledRadius(Scale3D);
+				const Chaos::FReal Radius = Elem.GetScaledRadius(Scale3D);
 				if (Radius < SMALL_NUMBER)
 					continue;
 
 				const FTransform Xf = Elem.GetTransform(); // Xf is Elem.Center and Elem.Rotation
 
 				// Translation is in the transform, scaling is baked into the implicit shape.
-				const float HalfHeight = Elem.GetScaledHalfLength(Scale3D) - Radius;
+				const Chaos::FReal HalfHeight = Elem.GetScaledHalfLength(Scale3D) - Radius;
 				AnalyticShapeGroup->Add(
 					Xf,
 					new Chaos::FCapsule(
@@ -203,7 +203,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				// Ensure scaling is uniform
 				check(FMath::Abs(Scale3D[0] - Scale3D[1]) < KINDA_SMALL_NUMBER && FMath::Abs(Scale3D[0] - Scale3D[2]) < KINDA_SMALL_NUMBER);
 
-				const float Radius = Elem.Radius * Scale3D[0];
+				const Chaos::FReal Radius = Elem.Radius * Scale3D[0];
 				if (Radius < SMALL_NUMBER)
 					continue;
 				const FTransform Xf = Elem.GetTransform(); // Xf is Elem.Center
@@ -211,7 +211,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				// Translation is in the transform, scaling is baked into the implicit shape.
 				AnalyticShapeGroup->Add(
 					Xf,
-					new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Radius));
+					new Chaos::TSphere<Chaos::FReal, 3>(Chaos::FVec3(0), Radius));
 
 				UE_LOG(USkeletalMeshSimulationComponentLogging, Log,
 					TEXT("USkeletalMeshSimulationComponent::OnCreatePhysicsState() - Caller: %p Actor: '%s' - "
@@ -224,14 +224,14 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 			AnalyticShapeGroup->TaperedCylinders.Reserve(NumTaperedCapsules);
 			for (const FKTaperedCapsuleElem &Elem : FKTaperedCapsuleElems)
 			{
-				float Radius0, Radius1;
+				Chaos::FReal Radius0, Radius1;
 				Elem.GetScaledRadii(Scale3D, Radius0, Radius1);
 				if (Radius0 < SMALL_NUMBER && Radius1 < SMALL_NUMBER)
 					continue;
 
 				const FTransform Xf = Elem.GetTransform(); // Xf is Elem.Center and Elem.Rotation
 
-				const float HalfHeight = Elem.GetScaledCylinderLength(Scale3D) / 2;
+				const Chaos::FReal HalfHeight = Elem.GetScaledCylinderLength(Scale3D) / 2;
 				const Chaos::FVec3 Pt(0, 0, HalfHeight);
 				AnalyticShapeGroup->Add(
 					Xf,
@@ -240,12 +240,12 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 				if (Radius0 > KINDA_SMALL_NUMBER)
 				{
 					FTransform SphereXf = FTransform(Elem.Center - Pt) * Xf;
-					AnalyticShapeGroup->Add(SphereXf, new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Radius0));
+					AnalyticShapeGroup->Add(SphereXf, new Chaos::TSphere<Chaos::FReal, 3>(Chaos::FVec3(0), Radius0));
 				}
 				if (Radius1 > KINDA_SMALL_NUMBER)
 				{
 					FTransform SphereXf = FTransform(Elem.Center + Pt) * Xf;
-					AnalyticShapeGroup->Add(SphereXf, new Chaos::TSphere<float, 3>(Chaos::FVec3(0), Radius1));
+					AnalyticShapeGroup->Add(SphereXf, new Chaos::TSphere<Chaos::FReal, 3>(Chaos::FVec3(0), Radius1));
 				}
 
 				UE_LOG(USkeletalMeshSimulationComponentLogging, Log,
@@ -312,7 +312,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 					ConvexMesh->release();
 
 					const Chaos::FVec3 Extents(Bounds.Max - Bounds.Min);
-					const float LocalMaxExtent = Bounds.GetExtent().GetMax();
+					const Chaos::FReal LocalMaxExtent = Bounds.GetExtent().GetMax();
 					Bounds.ExpandBy(Extents.Size() / 10);
 
 					//TODO: this gets used later which is incorrect. However, it was already broken because it passed a view and then moved the underlying data.
@@ -322,7 +322,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 						new Chaos::FTriangleMesh(MoveTemp(Triangles)));
 					Chaos::FErrorReporter ErrorReporter;
 
-					const float ActorMaxExtent = ActorBoxExtent.Max();
+					const Chaos::FReal ActorMaxExtent = ActorBoxExtent.Max();
 					const int32 NormalizedMinRes = FMath::CeilToInt(ActorMaxExtent > SMALL_NUMBER ? LocalMaxExtent / ActorMaxExtent * Params.MinRes : Params.MinRes);
 					const int32 NormalizedMaxRes = FMath::CeilToInt(ActorMaxExtent > SMALL_NUMBER ? LocalMaxExtent / ActorMaxExtent * Params.MaxRes : Params.MaxRes);
 
@@ -358,7 +358,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 
 						AnalyticShapeGroup->Add(
 							Xf,
-							new Chaos::TSphere<float, 3>(Bounds.GetCenter(), LocalMaxExtent * 0.5));
+							new Chaos::TSphere<Chaos::FReal, 3>(Bounds.GetCenter(), LocalMaxExtent * 0.5));
 
 						UE_LOG(USkeletalMeshSimulationComponentLogging, Log,
 							TEXT("USkeletalMeshSimulationComponent::OnCreatePhysicsState() - Caller: %p Actor: '%s' - "
@@ -459,7 +459,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 #endif
 }
 
-bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsProxyParams& Params)
+bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const Chaos::FReal Dt, FSkeletalMeshPhysicsProxyParams& Params)
 {
 	int32 UpdatedBones = 0;
 

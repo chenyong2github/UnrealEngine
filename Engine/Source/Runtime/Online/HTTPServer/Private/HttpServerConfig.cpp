@@ -19,10 +19,6 @@ const FHttpServerListenerConfig FHttpServerConfig::GetListenerConfig(uint32 Port
 	GConfig->GetInt(*IniSectionName, TEXT("DefaultConnectionsBacklogSize"), Config.ConnectionsBacklogSize, GEngineIni);
 	GConfig->GetInt(*IniSectionName, TEXT("DefaultMaxConnectionsAcceptPerFrame"), Config.MaxConnectionsAcceptPerFrame, GEngineIni);
 
-	float WaitTimeMilliseconds = 0;
-	GConfig->GetFloat(*IniSectionName, TEXT("DefaultConnectionSelectWaitTimeMS"), WaitTimeMilliseconds, GEngineIni);
-	Config.ConnectionSelectWaitTime = FTimespan::FromMilliseconds(WaitTimeMilliseconds);
-
 	// Apply per-port ini overrides
 	TArray<FString> ListenerConfigs;
 	if (GConfig->GetArray(*IniSectionName, TEXT("ListenerOverrides"), ListenerConfigs, GEngineIni))
@@ -50,9 +46,6 @@ const FHttpServerListenerConfig FHttpServerConfig::GetListenerConfig(uint32 Port
 				FParse::Value(*ListenerConfigStr, TEXT("BufferSize="), Config.BufferSize);
 				FParse::Value(*ListenerConfigStr, TEXT("ConnectionsBacklogSize="), Config.ConnectionsBacklogSize);
 				FParse::Value(*ListenerConfigStr, TEXT("MaxConnectionsAcceptPerFrame="), Config.MaxConnectionsAcceptPerFrame);
-
-				FParse::Value(*ListenerConfigStr, TEXT("ConnectionSelectWaitTimeMS="), WaitTimeMilliseconds);
-				Config.ConnectionSelectWaitTime = FTimespan::FromMilliseconds(WaitTimeMilliseconds);
 				break;
 			}
 		}

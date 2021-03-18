@@ -74,6 +74,10 @@ UCLASS(Blueprintable, Within=CheatManager)
 class ENGINE_API UCheatManagerExtension : public UObject
 {
 	GENERATED_BODY()
+
+public:
+	/** Use the outer cheat manager to get a World. */
+	virtual UWorld* GetWorld() const override;
 };
 
 /** 

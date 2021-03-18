@@ -224,6 +224,7 @@ private:
 	enum { NumInlineTags = 16 };
 
 	TArray< FGameplayTag, TInlineAllocator<NumInlineTags> >	ReplicatedTags;
+	TArray< FVector_NetQuantize, TInlineAllocator<NumInlineTags> > ReplicatedLocations;
 	TArray< FGameplayTag, TInlineAllocator<NumInlineTags> >	LocalTags;
 	TBitArray< TInlineAllocator<NumInlineTags> >			LocalBitMask;
 

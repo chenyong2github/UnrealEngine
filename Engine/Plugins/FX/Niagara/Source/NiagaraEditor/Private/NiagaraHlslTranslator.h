@@ -46,6 +46,8 @@ struct FNiagaraTranslateResults
 
 	TArray<FNiagaraCompileDependency> CompileDependencies;
 
+	TArray<FNiagaraCompilerTag > CompileTags;
+
 	/** A string representation of the compilation output. */
 	FString OutputHLSL;
 
@@ -521,6 +523,9 @@ public:
 	/** Options is a map from selector values to compiled pin code chunk indices */
 	virtual void Select(class UNiagaraNodeSelect* SelectNode, int32 Selector, const TArray<FNiagaraVariable>& OutputVariables, TMap<int32, TArray<int32>>& Options, TArray<int32>& Outputs);
 	
+
+	void WriteCompilerTag(int32 InputCompileResult, const UEdGraphPin* Pin);
+
 	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 	virtual void Error(FText ErrorText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 	virtual void Warning(FText WarningText, const UNiagaraNode* Node, const UEdGraphPin* Pin);

@@ -25,6 +25,82 @@
 
 using namespace DatasmithSketchUp;
 
+void FNodeOccurence::ToDatasmith(FExportContext& Context)
+{
+	FDefinition* EntityDefinition = Entity.GetDefinition();
+
+	if (!EntityDefinition)
+	{
+		return;
+	}
+
+	// Set the effective inherited material ID.
+	if (!Entity.GetAssignedMaterial(InheritedMaterialID))
+	{
+		InheritedMaterialID = ParentNode->InheritedMaterialID;
+	}
+
+	EntityDefinition->CreateActor(Context, *this);
+
+	// Process child nodes
+	FEntities& Entities = EntityDefinition->GetEntities();
+	if (Entities.SourceComponentInstanceCount > 0)
+	{
+
+		// Convert the SketchUp normal component instances into sub-hierarchies of Datasmith actors.
+		for (SUComponentInstanceRef SComponentInstanceRef : Entities.GetComponentInstances())
+		{
+
+			// Get the effective layer of the SketckUp normal component instance.
+			SULayerRef SEffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(SComponentInstanceRef, EffectiveLayerRef);
+
+			// Get whether or not the SketckUp normal component instance is visible in the current SketchUp scene.
+			if (DatasmithSketchUpUtils::IsVisible(SComponentInstanceRef, SEffectiveLayerRef))
+			{
+				TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SComponentInstanceRef);
+
+				if (ComponentInstance.IsValid())
+				{
+					TSharedRef<FNodeOccurence> ChildNode = ComponentInstance->CreateNodeOccurrence(Context, /*Parent*/ *this);
+
+					ChildNode->EffectiveLayerRef = SEffectiveLayerRef;
+					ChildNode->ToDatasmith(Context);
+
+					// Add the normal component instance metadata into the dictionary of metadata definitions.
+					FDatasmithSketchUpMetadata::AddMetadataDefinition(SComponentInstanceRef);
+				}
+			}
+		}
+	}
+
+	if (Entities.SourceGroupCount > 0)
+	{
+		// Convert the SketchUp group component instances into sub-hierarchies of Datasmith actors.
+		for (SUGroupRef SGroupRef : Entities.GetGroups())
+		{
+			SUComponentInstanceRef SComponentInstanceRef = SUGroupToComponentInstance(SGroupRef);
+
+			// Get the effective layer of the SketckUp group component instance.
+			SULayerRef SEffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(SComponentInstanceRef, EffectiveLayerRef);
+
+			// Get whether or not the SketckUp group component instance is visible in the current SketchUp scene.
+			if (DatasmithSketchUpUtils::IsVisible(SComponentInstanceRef, SEffectiveLayerRef))
+			{
+				TSharedPtr<FComponentInstance> ComponentInstance = Context.ComponentInstances.AddComponentInstance(SComponentInstanceRef);
+
+				if (ComponentInstance.IsValid())
+				{
+					TSharedRef<FNodeOccurence> ChildNode = ComponentInstance->CreateNodeOccurrence(Context, /*Parent*/ *this);
+
+					ChildNode->EffectiveLayerRef = SEffectiveLayerRef;
+
+					ChildNode->ToDatasmith(Context);
+				}
+			}
+		}
+	}
+
+}
 
 void FNodeOccurence::CreateMeshActors(FExportContext& Context)
 {
@@ -34,6 +110,25 @@ void FNodeOccurence::CreateMeshActors(FExportContext& Context)
 	FString ComponentActorName = GetActorName();
 	FString MeshActorLabel = GetActorLabel();
 	DatasmithSketchUp::FEntitiesGeometry& EntitiesGeometry = *EntityDefinition->GetEntities().EntitiesGeometry;
+
+	// Remove old mesh actors
+	// todo: reuse old mesh actors
+	if (DatasmithActorElement.IsValid())
+	{
+		for (TSharedPtr<IDatasmithMeshActorElement> MeshActor : MeshActors)
+		{
+			DatasmithActorElement->RemoveChild(MeshActor);
+		}
+	}
+	else
+	{
+		for (TSharedPtr<IDatasmithMeshActorElement> MeshActor : MeshActors)
+		{
+			Context.DatasmithScene->RemoveActor(MeshActor, EDatasmithActorRemovalRule::RemoveChildren);
+		}
+	}
+	MeshActors.Reset(EntitiesGeometry.GetMeshCount());
+
 	for (int32 MeshIndex = 0; MeshIndex < EntitiesGeometry.GetMeshCount(); ++MeshIndex)
 	{
 		FString MeshActorName = FString::Printf(TEXT("%ls_%d"), *ComponentActorName, MeshIndex + 1); // Count meshes/mesh actors from 1
@@ -60,12 +155,8 @@ void FNodeOccurence::CreateMeshActors(FExportContext& Context)
 		DMeshActorPtr->AddTag(*InstancePathTag);
 
 		// Add the mesh actor to our component Datasmith actor hierarchy.
-		if (DatasmithActorElement.IsValid())
+		if (DatasmithActorElement.IsValid()) 
 		{
-			DMeshActorPtr->SetScale(DatasmithActorElement->GetScale());
-			DMeshActorPtr->SetRotation(DatasmithActorElement->GetRotation());
-			DMeshActorPtr->SetTranslation(DatasmithActorElement->GetTranslation());
-
 			DatasmithActorElement->AddChild(DMeshActorPtr);
 		}
 		else
@@ -82,7 +173,40 @@ void FNodeOccurence::CreateMeshActors(FExportContext& Context)
 
 void FNodeOccurence::Update(FExportContext& Context)
 {
-	Entity.UpdateNode(Context, *this);
+	// todo: Is it possible not to traverse whole scene when only part of it changes?
+	// - one way is to collect all nodes that need to be updated
+	// - the other - only topmost invalidated nodes. and them traverse from them only, not from the top. 
+	//   E.g. when a node is invalidated - traverse its subtree to invalidate all the nodes below. Also when a node is invalidated check  
+	//   its parent - if its not invalidated this means any ancestor is not invalidated. This way complexity would be O(n) where n is number of nodes that need update, not number of all nodes
+
+	if (bPropertiesInvalidated)
+	{
+		Entity.UpdateOccurrence(Context, *this);
+		bPropertiesInvalidated = false;
+	}
+
+	for (FNodeOccurence* ChildNode : Children)
+	{
+		ChildNode->Update(Context);
+	}
+}
+
+void FNodeOccurence::InvalidateProperties(FExportContext& Context)
+{
+	if (bPropertiesInvalidated)
+	{
+		// if node is invalidated no need to traverse further - it's already done
+		return;
+	}
+
+	bPropertiesInvalidated = true;
+
+	// todo: register invalidated?
+
+	for (FNodeOccurence* Child : Children)
+	{
+		Child->InvalidateProperties(Context);
+	}
 }
 
 FString FNodeOccurence::GetActorName()
@@ -93,6 +217,35 @@ FString FNodeOccurence::GetActorName()
 FString FNodeOccurence::GetActorLabel()
 {
 	return DatasmithActorLabel;
+}
+
+void FNodeOccurence::Remove(FExportContext& Context)
+{
+	for (const TSharedPtr<IDatasmithMeshActorElement>& MeshActor : MeshActors) 
+	{
+		if (const TSharedPtr<IDatasmithActorElement>& ParentActor = MeshActor->GetParentActor())
+		{
+			ParentActor->RemoveChild(MeshActor);
+		}
+		else
+		{
+			Context.DatasmithScene->RemoveActor(MeshActor, EDatasmithActorRemovalRule::RemoveChildren);
+		}
+	}
+
+	if (const TSharedPtr<IDatasmithActorElement>& ParentActor = DatasmithActorElement->GetParentActor())
+	{
+		ParentActor->RemoveChild(DatasmithActorElement);
+	}
+	else
+	{
+		Context.DatasmithScene->RemoveActor(DatasmithActorElement, EDatasmithActorRemovalRule::RemoveChildren);
+	}
+
+	if (ParentNode)
+	{
+		ParentNode->Children.Remove(this);
+	}
 }
 
 FModelDefinition::FModelDefinition(SUModelRef InModel) : Model(InModel)
@@ -110,6 +263,11 @@ void FModelDefinition::Parse(FExportContext& Context)
 void FModelDefinition::UpdateGeometry(FExportContext& Context)
 {
 	Entities->UpdateGeometry(Context);
+}
+
+void FModelDefinition::InvalidateInstancesGeometry(FExportContext& Context)
+{
+	Context.Model->InvalidateEntityGeometry();
 }
 
 void FModelDefinition::CreateActor(FExportContext& Context, FNodeOccurence& Node)
@@ -208,7 +366,8 @@ void FComponentDefinition::CreateActor(FExportContext& Context, FNodeOccurence& 
 		}
 	}
 
-	if (Node.ParentNode && Node.ParentNode->DatasmithActorElement)
+	// ComponentInstance occurrence always has parent node(Model it at top)
+	if (Node.ParentNode->DatasmithActorElement)
 	{
 		Node.ParentNode->DatasmithActorElement->AddChild(Node.DatasmithActorElement);
 	}
@@ -220,14 +379,7 @@ void FComponentDefinition::CreateActor(FExportContext& Context, FNodeOccurence& 
 
 void FComponentDefinition::UpdateGeometry(FExportContext& Context)
 {
-	// Bake meshes before considering setting up an occurrence 
-	// todo: bake meshes before node instance even created(at the ConvertNodeToDatasmith call site)?
-	if (bBakeEntitiesDone)
-	{
-		return;
-	}
 	Entities->UpdateGeometry(Context);
-	bBakeEntitiesDone = true;
 }
 
 void FComponentDefinition::BuildNodeNames(FNodeOccurence& Node)
@@ -240,8 +392,9 @@ void FComponentDefinition::BuildNodeNames(FNodeOccurence& Node)
 	Node.DatasmithActorLabel = FDatasmithUtils::SanitizeObjectName(EntityName.IsEmpty() ? Node.Entity.GetDefinition()->GetSketchupSourceName() : EntityName);
 }
 
-void FComponentDefinition::UpdateInstances(FExportContext& Context)
+void FComponentDefinition::InvalidateInstancesGeometry(FExportContext& Context)
 {
+	// todo: keep all instances or incapsulate enumeration(duplicated) of FComponentInstance
 	size_t InstanceCount = 0;
 	SUComponentDefinitionGetNumInstances(ComponentDefinitionRef, &InstanceCount);
 
@@ -252,19 +405,25 @@ void FComponentDefinition::UpdateInstances(FExportContext& Context)
 
 	for (const SUComponentInstanceRef& InstanceRef : Instances)
 	{
-		TArray<TSharedPtr<FNodeOccurence>>* NodesPtr = Context.ComponentInstances.GetOccurrencesForComponentInstance(DatasmithSketchUpUtils::GetComponentInstanceID(InstanceRef));
-		if (NodesPtr)
-		{
-			for (const TSharedPtr<FNodeOccurence>& Node : *NodesPtr)
-			{
-				Node->Update(Context);
-			}
-		}
+		Context.ComponentInstances.InvalidateComponentInstanceGeometry(DatasmithSketchUpUtils::GetComponentInstanceID(InstanceRef));
 	}
-
 }
 
-void FEntity::UpdateNode(FExportContext& Context, FNodeOccurence& Node)
+FString FComponentDefinition::GetSketchupSourceName()
+{
+	// Retrieve the SketchUp component definition name.
+	return SuGetString(SUComponentDefinitionGetName, ComponentDefinitionRef);
+}
+
+FString FComponentDefinition::GetSketchupSourceGUID()
+{
+	// Retrieve the SketchUp component definition IFC GUID.
+	return SuGetString(SUComponentDefinitionGetGuid, ComponentDefinitionRef);
+}
+
+
+
+void FEntity::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 {
 	FString EffectiveLayerName = SuGetString(SULayerGetName, Node.EffectiveLayerRef);
 
@@ -289,19 +448,6 @@ void FEntity::UpdateNode(FExportContext& Context, FNodeOccurence& Node)
 	}
 }
 
-
-FString FComponentDefinition::GetSketchupSourceName()
-{
-	// Retrieve the SketchUp component definition name.
-	return SuGetString(SUComponentDefinitionGetName, ComponentDefinitionRef);
-}
-
-FString FComponentDefinition::GetSketchupSourceGUID()
-{
-	// Retrieve the SketchUp component definition IFC GUID.
-	return SuGetString(SUComponentDefinitionGetGuid, ComponentDefinitionRef);
-}
-
 FDefinition* FComponentInstance::GetDefinition()
 {
 	return &Definition;
@@ -322,7 +468,7 @@ bool FComponentInstance::GetAssignedMaterial(FMaterialIDType& MaterialId)
 	return false;
 }
 
-void FComponentInstance::UpdateNode(FExportContext& Context, FNodeOccurence& Node)
+void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 {
 	SUComponentInstanceRef InSComponentInstanceRef = SUComponentInstanceFromEntity(EntityRef);
 
@@ -341,7 +487,6 @@ void FComponentInstance::UpdateNode(FExportContext& Context, FNodeOccurence& Nod
 
 	// Set the Datasmith actor world transform.
 	DatasmithSketchUpUtils::SetActorTransform(Node.DatasmithActorElement, SComponentInstanceWorldTransform);
-	// ADD_TRACE_LINE(TEXT("Actor %ls: %ls %ls %ls"), *ActorLabel, *ComponentDepthTag, *DefinitionGUIDTag, *InstancePathTag);
 
 	if (Node.DatasmithMetadataElement.IsValid())
 	{
@@ -349,8 +494,18 @@ void FComponentInstance::UpdateNode(FExportContext& Context, FNodeOccurence& Nod
 		Node.DatasmithMetadataElement->SetLabel(*Node.DatasmithActorLabel);
 	}
 
+	// Update Datasmith Mesh Actors
+	for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
+	{
+		const TSharedPtr<IDatasmithMeshActorElement>& MeshActor = Node.MeshActors[MeshIndex];
 
-	Super::UpdateNode(Context, Node);
+		// Set mesh actor transform after node transform
+		MeshActor->SetScale(Node.DatasmithActorElement->GetScale());
+		MeshActor->SetRotation(Node.DatasmithActorElement->GetRotation());
+		MeshActor->SetTranslation(Node.DatasmithActorElement->GetTranslation());
+	}
+
+	Super::UpdateOccurrence(Context, Node);
 }
 
 int64 FComponentInstance::GetPersistentId()
@@ -369,10 +524,57 @@ FString FComponentInstance::GetName()
 TSharedRef<FNodeOccurence> FComponentInstance::CreateNodeOccurrence(FExportContext& Context, FNodeOccurence& ParentNode)
 {
 	TSharedRef<FNodeOccurence> ChildNode = MakeShared<FNodeOccurence>(&ParentNode, *this);
-	Context.ComponentInstances.AddOccurrence(DatasmithSketchUpUtils::GetComponentInstanceID(SUComponentInstanceFromEntity(EntityRef)), ChildNode);
+	ParentNode.Children.Add(&ChildNode.Get());
+	Context.ComponentInstances.AddOccurrence(GetComponentInstanceId(), ChildNode);
 	return ChildNode;
 }
 
+void FComponentInstance::UpdateOccurrencesGeometry(FExportContext& Context)
+{
+	TArray<TSharedPtr<FNodeOccurence>>* NodesPtr = Context.ComponentInstances.GetOccurrencesForComponentInstance(GetComponentInstanceId());
+	if (NodesPtr)
+	{
+		for (const TSharedPtr<FNodeOccurence>& Node : *NodesPtr)
+		{
+			Node->CreateMeshActors(Context); // todo: reuse mesh actors?
+
+			// Should invalidate transform to trigger transform update for mesh actors 
+			// todo: can simplify this
+			// - separate Transform invalidation from other properties? If it should give any improvement?
+			// - or just update mesh actors transforms? we can't do it here though as transform can be invalidated by ancestors change later when occurrences are updated
+			// - add another flag to invalidate just mesh actors properties and update them separately
+			Node->InvalidateProperties(Context);
+		}
+	}
+}
+
+void FComponentInstance::InvalidateOccurrencesProperties(FExportContext& Context)
+{
+	TArray<TSharedPtr<FNodeOccurence>>* NodesPtr = Context.ComponentInstances.GetOccurrencesForComponentInstance(GetComponentInstanceId());
+	if (NodesPtr)
+	{
+		for (const TSharedPtr<FNodeOccurence>& Node : *NodesPtr)
+		{
+			Node->InvalidateProperties(Context);
+		}
+	}
+}
+
+FComponentInstanceIDType FComponentInstance::GetComponentInstanceId()
+{
+	return DatasmithSketchUpUtils::GetComponentInstanceID(SUComponentInstanceFromEntity(EntityRef));
+}
+
+void FComponentInstance::RemoveOccurrences(FExportContext& Context)
+{
+	if (TArray<TSharedPtr<FNodeOccurence>>* OccurrencesPtr = Context.ComponentInstances.GetOccurrencesForComponentInstance(GetComponentInstanceId()))
+	{
+		for (const TSharedPtr<FNodeOccurence>& Occurrence : *OccurrencesPtr)
+		{
+			Occurrence->Remove(Context);
+		}
+	}
+}
 
 FModel::FModel(FModelDefinition& InDefinition) : Definition(InDefinition)
 {
@@ -399,4 +601,14 @@ FString FModel::GetName()
 {
 	return "";
 }
+   
+void FModel::UpdateOccurrencesGeometry(FExportContext& Context)
+{
+	Context.RootNode->CreateMeshActors(Context);
+	Context.RootNode->InvalidateProperties(Context);
+}
 
+void FModel::InvalidateOccurrencesProperties(FExportContext& Context)
+{
+	Context.RootNode->InvalidateProperties(Context);
+}

@@ -2,6 +2,7 @@
 
 #include "NiagaraDataInterfaceLandscape.h"
 
+#include "EngineUtils.h"
 #include "Landscape.h"
 #include "LandscapeHeightfieldCollisionComponent.h"
 #include "LandscapeInfo.h"
@@ -889,29 +890,17 @@ ALandscape* UNiagaraDataInterfaceLandscape::GetLandscape(const FNiagaraSystemIns
 		return Hint;
 	}
 
-	TArray<const ALandscape*, TInlineAllocator<2>> RejectedLandscapes;
-	for (TObjectIterator<ALandscapeProxy> It; It; ++It)
+	for (TActorIterator<ALandscape> LandscapeIt(SystemInstance.GetWorld()); LandscapeIt; ++LandscapeIt)
 	{
-		// for now we'll skip streaming proxies
-		ALandscape* Landscape = It->GetLandscapeActor();
-		if (!Landscape)
+		if (ALandscape* Landscape = *LandscapeIt)
 		{
-			continue;
+			if (TestLandscape(Landscape))
+			{
+				return Landscape;
+			}
 		}
-
-		if (RejectedLandscapes.Contains(Landscape))
-		{
-			continue;
-		}
-
-		if (TestLandscape(Landscape))
-		{
-			return Landscape;
-		}
-
-		RejectedLandscapes.AddUnique(Landscape);
 	}
-	
+
 	return nullptr;
 }
 

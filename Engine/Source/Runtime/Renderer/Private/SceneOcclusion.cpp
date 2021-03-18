@@ -62,6 +62,13 @@ static TAutoConsoleVariable<int32> CVarMobileAllowSoftwareOcclusion(
 	ECVF_RenderThreadSafe
 	);
 
+static TAutoConsoleVariable<bool> CVarMobileEnableOcclusionExtraFrame(
+	TEXT("r.Mobile.EnableOcclusionExtraFrame"),
+	true,
+	TEXT("Whether to allow extra frame for occlusion culling (enabled by default)"),
+	ECVF_RenderThreadSafe
+	);
+
 int32 GEnableComputeBuildHZB = 1;
 static FAutoConsoleVariableRef CVarEnableComputeBuildHZB(
 	TEXT("r.EnableComputeBuildHZB"),
@@ -100,7 +107,7 @@ int32 FOcclusionQueryHelpers::GetNumBufferedFrames(ERHIFeatureLevel::Type Featur
 	EShaderPlatform ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 
 	int32 NumExtraMobileFrames = 0;
-	if (FeatureLevel <= ERHIFeatureLevel::ES3_1 || IsVulkanMobileSM5Platform(ShaderPlatform))
+	if ((FeatureLevel <= ERHIFeatureLevel::ES3_1 || IsVulkanMobileSM5Platform(ShaderPlatform)) && CVarMobileEnableOcclusionExtraFrame.GetValueOnAnyThread())
 	{
 		NumExtraMobileFrames++; // the mobile renderer just doesn't do much after the basepass, and hence it will be asking for the query results almost immediately; the results can't possibly be ready in 1 frame.
 		

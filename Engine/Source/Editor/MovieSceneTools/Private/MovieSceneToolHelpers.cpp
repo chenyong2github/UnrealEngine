@@ -3498,19 +3498,56 @@ bool MovieSceneToolHelpers::ExportFBX(UWorld* World, UMovieScene* MovieScene, IM
 
 	return true;
 }
+static void TickLiveLink(ILiveLinkClient* LiveLinkClient, TMap<FGuid, ELiveLinkSourceMode>&  SourceAndMode)
+{
 
-
+	//This first bit lookes for a Sequencer Live Link Source which can show up any frame and we need to set it to Latest mode
+	if (LiveLinkClient)
+	{
+		TArray<FGuid> Sources = LiveLinkClient->GetSources();
+		for (const FGuid& Guid : Sources)
+		{
+			FText SourceTypeText = LiveLinkClient->GetSourceType(Guid);
+			FString SourceTypeStr = SourceTypeText.ToString();
+			if (SourceTypeStr.Contains(TEXT("Sequencer Live Link")))
+			{
+				ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Guid);
+				if (Settings)
+				{
+					if (Settings->Mode != ELiveLinkSourceMode::Latest)
+					{
+						SourceAndMode.Add(Guid, Settings->Mode);
+						Settings->Mode = ELiveLinkSourceMode::Latest;
+					}
+				}
+			}
+		}
+	
+		LiveLinkClient->ForceTick();
+	}
+}
 bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, IMovieScenePlayer* Player,
-	USkeletalMeshComponent* SkelMeshComp, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform,
+	USkeletalMeshComponent* InSkelMeshComp, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform, UAnimSeqExportOption* ExportOptions,
 	FInitAnimationCB InitCallback, FStartAnimationCB StartCallback, FTickAnimationCB TickCallback, FEndAnimationCB EndCallback)
 {
-	const TArray<IMovieSceneToolsAnimationBakeHelper*>&  BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
-
-	//if we have no allocated bone space transforms something wrong so try to recalc them
-	if (SkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
+	TArray< USkeletalMeshComponent*> SkelMeshComps;
+	if (ExportOptions->bEvaluateAllSkeletalMeshComponents)
 	{
-		SkelMeshComp->RecalcRequiredBones(0);
-		if (SkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
+		AActor* Actor = InSkelMeshComp->GetTypedOuter<AActor>();
+		if (Actor)
+		{
+			Actor->GetComponents(SkelMeshComps, false);
+		}
+	}
+	else
+	{
+		SkelMeshComps.Add(InSkelMeshComp);
+	}
+	//if we have no allocated bone space transforms something wrong so try to recalc them,only need to do this on the recorded skelmesh
+	if (InSkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
+	{
+		InSkelMeshComp->RecalcRequiredBones(0);
+		if (InSkelMeshComp->GetBoneSpaceTransforms().Num() <= 0)
 		{
 			UE_LOG(LogMovieScene, Error, TEXT("Error Ba"));
 			return false;
@@ -3530,11 +3567,14 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 	// 1. First test to see if we have one, only way to really do that is to see if we have a source that has the `Sequencer Live Link Track`.  We also evalute the first frame in case we are out of range and the sources aren't created yet.
 	// 2. Make sure Sequencer.AlwaysSendInterpolated.LiveLink is non-zero, and then set it back to zero if it's not.
 	// 3. For each live link sequencer source we need to set the ELiveLinkSourceMode to Latest so that we just get the latest and don't use engine/timecode for any interpolation.
-
 	ILiveLinkClient* LiveLinkClient = nullptr;
 	IModularFeatures& ModularFeatures = IModularFeatures::Get();
+	TMap<FGuid, ELiveLinkSourceMode> SourceAndMode;
+	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	{
+		LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
+	}
 	TOptional<int32> SequencerAlwaysSenedLiveLinkInterpolated;
-	TMap<FGuid, ELiveLinkSourceMode>  SourceAndMode;
 	IConsoleVariable* CVarAlwaysSendInterpolatedLiveLink = IConsoleManager::Get().FindConsoleVariable(TEXT("Sequencer.AlwaysSendInterpolatedLiveLink"));
 	if (CVarAlwaysSendInterpolatedLiveLink)
 	{
@@ -3542,6 +3582,7 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 		CVarAlwaysSendInterpolatedLiveLink->Set(1, ECVF_SetByConsole);
 	}
 
+	const TArray<IMovieSceneToolsAnimationBakeHelper*>&  BakeHelpers = FMovieSceneToolsModule::Get().GetAnimationBakeHelpers();
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
 	{
 		if (BakeHelper)
@@ -3549,8 +3590,50 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 			BakeHelper->StartBaking(MovieScene);
 		}
 	}
+
 	InitCallback.ExecuteIfBound();
 
+	//if we have warmup frames
+	if (ExportOptions->WarmUpFrames > 0)
+	{
+		for (int32 Index = -ExportOptions->WarmUpFrames.Value; Index < 0; ++Index)
+		{
+			//Begin records a frame so need to set things up first
+			for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+			{
+				if (BakeHelper)
+				{
+					BakeHelper->PreEvaluation(MovieScene,Index);
+				}
+			}
+			// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
+			AnimTrackAdapter.UpdateAnimation(Index);
+			for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
+			{
+				if (BakeHelper)
+				{
+					BakeHelper->PostEvaluation(MovieScene,Index);
+				}
+			}
+			//Live Link sourcer can show up at any time so we unfortunately need to check for it
+			TickLiveLink(LiveLinkClient, SourceAndMode);
+
+			// Update space bases so new animation position has an effect.
+			for (USkeletalMeshComponent* SkelMeshComp : SkelMeshComps)
+			{
+				SkelMeshComp->TickAnimation(DeltaTime, false);
+
+				SkelMeshComp->RefreshBoneTransforms();
+				SkelMeshComp->RefreshSlaveComponents();
+				SkelMeshComp->UpdateComponentToWorld();
+				SkelMeshComp->FinalizeBoneTransform();
+				SkelMeshComp->MarkRenderTransformDirty();
+				SkelMeshComp->MarkRenderDynamicDataDirty();
+			}
+
+		}
+	}
+	
 	//Begin records a frame so need to set things up first
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
 	{
@@ -3559,51 +3642,27 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 			BakeHelper->PreEvaluation(MovieScene,LocalStartFrame);
 		}
 	}
-	// This evaluaties the MoviePlayer
+	// This evaluates the MoviePlayer
 	AnimTrackAdapter.UpdateAnimation(LocalStartFrame);
 	for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
-	{
+	{		
 		if (BakeHelper)
 		{
-			BakeHelper->PostEvaluation(MovieScene, LocalStartFrame);
+			BakeHelper->PostEvaluation(MovieScene,LocalStartFrame);
 		}
 	}
-	SkelMeshComp->TickAnimation(0.03f, false);
-	SkelMeshComp->RefreshBoneTransforms();
-	SkelMeshComp->RefreshSlaveComponents();
-	SkelMeshComp->UpdateComponentToWorld();
-	SkelMeshComp->FinalizeBoneTransform();
-	SkelMeshComp->MarkRenderTransformDirty();
-	SkelMeshComp->MarkRenderDynamicDataDirty();
-	if (ModularFeatures.IsModularFeatureAvailable(ILiveLinkClient::ModularFeatureName))
+	for (USkeletalMeshComponent* SkelMeshComp : SkelMeshComps)
 	{
-		LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
-		if (LiveLinkClient)
-		{
-			TArray<FGuid> Sources = LiveLinkClient->GetSources();
-			for (const FGuid& Guid : Sources)
-			{
-				FText SourceTypeText = LiveLinkClient->GetSourceType(Guid);
-				FString SourceTypeStr = SourceTypeText.ToString();
-				if (SourceTypeStr.Contains(TEXT("Sequencer Live Link")))
-				{
-					ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Guid);
-					if (Settings)
-					{
-						if (Settings->Mode != ELiveLinkSourceMode::Latest)
-						{
-							SourceAndMode.Add(Guid, Settings->Mode);
-							Settings->Mode = ELiveLinkSourceMode::Latest;
-						}
-					}
-				}
-			}
-		}
+		SkelMeshComp->TickAnimation(DeltaTime, false);
+		SkelMeshComp->RefreshBoneTransforms();
+		SkelMeshComp->RefreshSlaveComponents();
+		SkelMeshComp->UpdateComponentToWorld();
+		SkelMeshComp->FinalizeBoneTransform();
+		SkelMeshComp->MarkRenderTransformDirty();
+		SkelMeshComp->MarkRenderDynamicDataDirty();
 	}
-	if (LiveLinkClient)
-	{
-		LiveLinkClient->ForceTick();
-	}
+	
+	TickLiveLink(LiveLinkClient, SourceAndMode);
 
 	StartCallback.ExecuteIfBound();
 	for (int32 FrameCount = 1; FrameCount <= AnimationLength; ++FrameCount)
@@ -3618,7 +3677,6 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 			}
 		}
 		// This will call UpdateSkelPose on the skeletal mesh component to move bones based on animations in the matinee group
-		// This also evaluaties the MoviePlayer
 		AnimTrackAdapter.UpdateAnimation(LocalFrame);
 		for (IMovieSceneToolsAnimationBakeHelper* BakeHelper : BakeHelpers)
 		{
@@ -3629,48 +3687,20 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 		}
 
 		//Live Link sourcer can show up at any time so we unfortunately need to check for it
-		if (LiveLinkClient)
-		{
-			TArray<FGuid> Sources = LiveLinkClient->GetSources();
-			for (const FGuid& Guid : Sources)
-			{
-				//if we already did it don't do it again,
-				if (!SourceAndMode.Contains(Guid))
-				{
-					FText SourceTypeText = LiveLinkClient->GetSourceType(Guid);
-					FString SourceTypeStr = SourceTypeText.ToString();
-					if (SourceTypeStr.Contains(TEXT("Sequencer Live Link")))
-					{
-						ULiveLinkSourceSettings* Settings = LiveLinkClient->GetSourceSettings(Guid);
-						if (Settings)
-						{
-							if (Settings->Mode != ELiveLinkSourceMode::Latest)
-							{
-								SourceAndMode.Add(Guid, Settings->Mode);
-								Settings->Mode = ELiveLinkSourceMode::Latest;
-							}
-						}
-					}
-				}
-			}
-		}
-
-
-		if (LiveLinkClient)
-		{
-			LiveLinkClient->ForceTick();
-		}
+		TickLiveLink(LiveLinkClient, SourceAndMode);
 
 		// Update space bases so new animation position has an effect.
-		// @todo - hack - this will be removed at some point (this comment is all over the place by the way in fbx export code).
-		SkelMeshComp->TickAnimation(0.03f, false);
+		for (USkeletalMeshComponent* SkelMeshComp : SkelMeshComps)
+		{
+			SkelMeshComp->TickAnimation(DeltaTime, false);
 
-		SkelMeshComp->RefreshBoneTransforms();
-		SkelMeshComp->RefreshSlaveComponents();
-		SkelMeshComp->UpdateComponentToWorld();
-		SkelMeshComp->FinalizeBoneTransform();
-		SkelMeshComp->MarkRenderTransformDirty();
-		SkelMeshComp->MarkRenderDynamicDataDirty();
+			SkelMeshComp->RefreshBoneTransforms();
+			SkelMeshComp->RefreshSlaveComponents();
+			SkelMeshComp->UpdateComponentToWorld();
+			SkelMeshComp->FinalizeBoneTransform();
+			SkelMeshComp->MarkRenderTransformDirty();
+			SkelMeshComp->MarkRenderDynamicDataDirty();
+		}
 
 		TickCallback.ExecuteIfBound(DeltaTime);
 	}
@@ -3703,7 +3733,6 @@ bool MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(UMovieScene* MovieScene, I
 	}
 	return true;
 }
-
 
 bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOptions, UMovieScene* MovieScene, IMovieScenePlayer* Player,
 	USkeletalMeshComponent* SkelMeshComp, FMovieSceneSequenceIDRef& Template, FMovieSceneSequenceTransform& RootToLocalTransform)
@@ -3745,7 +3774,7 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UA
 	
 
 	MovieSceneToolHelpers::BakeToSkelMeshToCallbacks(MovieScene,Player,
-		SkelMeshComp, Template, RootToLocalTransform,
+		SkelMeshComp, Template, RootToLocalTransform, ExportOptions,
 		InitCallback, StartCallback, TickCallback, EndCallback);
 	return true;
 }
@@ -3922,7 +3951,6 @@ void MovieSceneToolHelpers::GetLocationAtTime(const FMovieSceneEvaluationTrack* 
 	// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	UE_MOVIESCENE_TODO(Reimplement trajectory rendering)
 }
-
 
 USkeletalMeshComponent* MovieSceneToolHelpers::AcquireSkeletalMeshFromObject(UObject* BoundObject)
 {

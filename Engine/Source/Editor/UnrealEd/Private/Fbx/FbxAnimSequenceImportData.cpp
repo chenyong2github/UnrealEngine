@@ -75,3 +75,27 @@ void UFbxAnimSequenceImportData::PostEditChangeProperty(FPropertyChangedEvent& P
 		FrameImportRange.Max = FMath::Max(0, FMath::Max(FrameImportRange.Min, FrameImportRange.Max));
 	}
 }
+
+void UFbxAnimSequenceImportData::CopyAnimationValues(const UFbxAnimSequenceImportData* Other)
+{
+	if (!ensure(Other))
+	{
+		return;
+	}
+	AnimationLength = Other->AnimationLength;
+	bDeleteExistingCustomAttributeCurves = Other->bDeleteExistingCustomAttributeCurves;
+	bDeleteExistingMorphTargetCurves = Other->bDeleteExistingMorphTargetCurves;
+	bDeleteExistingNonCurveCustomAttributes = Other->bDeleteExistingNonCurveCustomAttributes;
+	bDoNotImportCurveWithZero = Other->bDoNotImportCurveWithZero;
+	bImportBoneTracks = Other->bImportBoneTracks;
+	bImportCustomAttribute = Other->bImportCustomAttribute;
+	bImportMeshesInBoneHierarchy = Other->bImportMeshesInBoneHierarchy;
+	bPreserveLocalTransform = Other->bPreserveLocalTransform;
+	bRemoveRedundantKeys = Other->bRemoveRedundantKeys;
+	bSetMaterialDriveParameterOnCustomAttribute = Other->bSetMaterialDriveParameterOnCustomAttribute;
+	bUseDefaultSampleRate = Other->bUseDefaultSampleRate;
+	CustomSampleRate = Other->CustomSampleRate;
+	FrameImportRange = Other->FrameImportRange;
+	MaterialCurveSuffixes = Other->MaterialCurveSuffixes;
+	SourceAnimationName = Other->SourceAnimationName;
+}

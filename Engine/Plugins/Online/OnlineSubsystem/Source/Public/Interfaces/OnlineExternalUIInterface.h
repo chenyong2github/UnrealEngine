@@ -128,7 +128,7 @@ typedef FOnCreateAccountFlowUIRequired::FDelegate FOnCreateAccountFlowUIRequired
  * @param ControllerIndex The controller index of the controller that activated the login UI.
  * @param Error any errors related to closing the UI
  */
-DECLARE_DELEGATE_ThreeParams(FOnLoginUIClosedDelegate, TSharedPtr<const FUniqueNetId> /*UniqueId*/, const int /*ControllerIndex*/, const FOnlineError& /*Error*/);
+DECLARE_DELEGATE_ThreeParams(FOnLoginUIClosedDelegate, FUniqueNetIdPtr /*UniqueId*/, const int /*ControllerIndex*/, const FOnlineError& /*Error*/);
 
 /**
  * Delegate executed when the external account creation UI has been closed.

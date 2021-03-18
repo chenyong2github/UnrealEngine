@@ -44,6 +44,14 @@ namespace Chaos
 		SetLinearVelocityDriveZEnabled(Enabled.Z);
 	}
 
+	void FJointConstraint::ReleaseKinematicEndPoint(FPBDRigidsSolver* Solver)
+	{
+		if (KinematicEndPoint)
+		{
+			Solver->UnregisterObject(KinematicEndPoint);
+			KinematicEndPoint = nullptr;
+		}
+	}
 
 
 } // Chaos

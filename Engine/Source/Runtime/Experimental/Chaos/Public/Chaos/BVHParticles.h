@@ -77,5 +77,5 @@ namespace Chaos
 	template<class T, int d>
 	using TBVHParticles = FBVHParticles;
 
-	typedef TBVHParticles<float, 3> FBVHParticlesFloat3;
+	typedef TBVHParticles<FReal, 3> FBVHParticlesFloat3;
 }

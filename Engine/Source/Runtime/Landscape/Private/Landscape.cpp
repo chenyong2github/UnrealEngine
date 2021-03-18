@@ -1372,9 +1372,9 @@ FPrimitiveSceneProxy* ULandscapeComponent::CreateSceneProxy()
 	{
 		if (PlatformData.HasValidRuntimeData())
 		{
+			Proxy = new FLandscapeComponentSceneProxyMobile(this);
 			LODStreamingProxy->InitResourceStateForMobileStreaming();
 			LODStreamingProxy->LinkStreaming();
-			Proxy = new FLandscapeComponentSceneProxyMobile(this);
 		}
 	}
 

@@ -86,6 +86,9 @@
 #include "PropertyCustomizationHelpers.h"
 #include "ComponentReregisterContext.h"
 #include "LODInfoUILayout.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Misc/CoreMisc.h"
 
 #define LOCTEXT_NAMESPACE "PersonaMeshDetails"
 
@@ -3463,7 +3466,7 @@ void FPersonaMeshDetails::RegenerateOneLOD(int32 LODIndex)
 		UpdateContext.SkeletalMesh = SkelMesh;
 		UpdateContext.AssociatedComponents.Push(GetPersonaToolkit()->GetPreviewMeshComponent());
 
-		FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex);
+		FLODUtilities::SimplifySkeletalMeshLOD(UpdateContext, LODIndex, GetTargetPlatformManagerRef().GetRunningTargetPlatform());
 	}
 	return;
 }
@@ -3660,7 +3663,7 @@ void FPersonaMeshDetails::ApplyChanges()
 			}
 		}
 
-		FLODUtilities::RegenerateLOD(SkelMesh, LODCount, bRegenerateEvenIfImported, bGenerateBaseLOD);
+		FLODUtilities::RegenerateLOD(SkelMesh, GetTargetPlatformManagerRef().GetRunningTargetPlatform(), LODCount, bRegenerateEvenIfImported, bGenerateBaseLOD);
 
 		//PostEditChange will be call when going out of scope
 	}

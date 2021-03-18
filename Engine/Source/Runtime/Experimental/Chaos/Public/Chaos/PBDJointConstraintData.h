@@ -40,8 +40,7 @@ namespace Chaos
 		typedef TVector<FTransform, 2> FTransformPair;
 		friend FData;
 
-		template <typename Traits>
-		friend class TPBDRigidsSolver; // friend so we can call ReleaseKinematicEndPoint when unregistering joint.
+		friend class FPBDRigidsSolver; // friend so we can call ReleaseKinematicEndPoint when unregistering joint.
 
 		FJointConstraint();
 		virtual ~FJointConstraint() override {}
@@ -67,13 +66,13 @@ namespace Chaos
 		//void SetProjectionEnabled(bool bInProjectionEnabled);
 		//bool GetProjectionEnabled() const;
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(float, ProjectionLinearAlpha, EJointConstraintFlags::Projection, JointSettings.LinearProjection);
-		//void SetProjectionLinearAlpha(float InProjectionLinearAlpha);
-		//float GetProjectionLinearAlpha() const;
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ProjectionLinearAlpha, EJointConstraintFlags::Projection, JointSettings.LinearProjection);
+		//void SetProjectionLinearAlpha(FReal InProjectionLinearAlpha);
+		//FReal GetProjectionLinearAlpha() const;
 
-		CONSTRAINT_JOINT_PROPERPETY_IMPL(float, ProjectionAngularAlpha, EJointConstraintFlags::Projection, JointSettings.AngularProjection);
-		//void SetProjectionAngularAlpha(float InProjectionAngularAlpha);
-		//float GetProjectionAngularAlpha() const;
+		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ProjectionAngularAlpha, EJointConstraintFlags::Projection, JointSettings.AngularProjection);
+		//void SetProjectionAngularAlpha(FReal InProjectionAngularAlpha);
+		//FReal GetProjectionAngularAlpha() const;
 
 		CONSTRAINT_JOINT_PROPERPETY_IMPL(FReal, ParentInvMassScale, EJointConstraintFlags::ParentInvMassScale, JointSettings.ParentInvMassScale);
 		//void SetParentInvMassScale(FReal InParentInvMassScale);
@@ -308,16 +307,8 @@ namespace Chaos
 
 	protected:
 
-		template <typename Traits>
-		void ReleaseKinematicEndPoint(TPBDRigidsSolver<Traits>* Solver)
-		{
-			if (KinematicEndPoint)
-			{
-				Solver->UnregisterObject(KinematicEndPoint);
-				KinematicEndPoint = nullptr;
-			}
-		}
-
+		void ReleaseKinematicEndPoint(FPBDRigidsSolver* Solver);
+		
 		FJointConstraintDirtyFlags MDirtyFlags;
 		FData JointSettings;
 

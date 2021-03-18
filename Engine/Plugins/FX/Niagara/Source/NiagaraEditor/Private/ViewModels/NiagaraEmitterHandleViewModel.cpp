@@ -258,15 +258,19 @@ bool FNiagaraEmitterHandleViewModel::GetIsEnabled() const
 	return false;
 }
 
-void FNiagaraEmitterHandleViewModel::SetIsEnabled(bool bInIsEnabled)
+bool FNiagaraEmitterHandleViewModel::SetIsEnabled(bool bInIsEnabled, bool bRequestRecompile)
 {
 	if (EmitterHandle && EmitterHandle->GetIsEnabled() != bInIsEnabled)
 	{
 		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitterEditor", "EditEmitterEnabled", "Change emitter enabled state"));
 		GetOwningSystemViewModel()->GetSystem().Modify();
-		EmitterHandle->SetIsEnabled(bInIsEnabled, GetOwningSystemViewModel()->GetSystem(), true);
+		EmitterHandle->SetIsEnabled(bInIsEnabled, GetOwningSystemViewModel()->GetSystem(), bRequestRecompile);
 		OnPropertyChangedDelegate.Broadcast();
+
+		return true;
 	}
+
+	return false;
 }
 
 bool FNiagaraEmitterHandleViewModel::GetIsIsolated() const
@@ -277,14 +281,18 @@ bool FNiagaraEmitterHandleViewModel::GetIsIsolated() const
 void FNiagaraEmitterHandleViewModel::SetIsIsolated(bool bInIsIsolated)
 {
 	bool bWasIsolated = GetIsIsolated();
+	bool bStateChanged = bWasIsolated != bInIsIsolated;
 
-	if (bWasIsolated == false && bInIsIsolated == true)
-	{
-		GetOwningSystemViewModel()->IsolateEmitters(TArray<FGuid> { EmitterHandle->GetId() });
-	}
-	else if (bWasIsolated == true && bInIsIsolated == false)
-	{
-		GetOwningSystemViewModel()->IsolateEmitters(TArray<FGuid> {});
+	TArray<FGuid> EmitterIds;
+
+	if(bStateChanged)
+	{		
+		if(bInIsIsolated)
+		{
+			EmitterIds.Add(EmitterHandle->GetId());
+		}
+
+		GetOwningSystemViewModel()->IsolateEmitters(EmitterIds);
 	}
 }
 

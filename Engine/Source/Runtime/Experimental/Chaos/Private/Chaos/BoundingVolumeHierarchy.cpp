@@ -9,10 +9,10 @@ using namespace Chaos;
 
 namespace Chaos
 {
-	float BoundsThicknessMultiplier = 1.f;	//should not be based on bounds, should be based on distance
+	FRealSingle BoundsThicknessMultiplier = 1.f;	//should not be based on bounds, should be based on distance
 	FAutoConsoleVariableRef CVarBoundsThicknessMultiplier(TEXT("p.BoundsThicknessMultiplier"), BoundsThicknessMultiplier, TEXT(""));
 
-	float MinBoundsThickness = 0.1f;
+	FRealSingle MinBoundsThickness = 0.1f;
 	FAutoConsoleVariableRef CVarMinBoundsThickness(TEXT("p.MinBoundsThickness"), MinBoundsThickness, TEXT(""));
 }
 
@@ -242,7 +242,7 @@ bool IntersectsHelper(const TAABB<T, d>& WorldSpaceBox, const TSpatialRay<T, d>&
 	const FBox VolumeBox(WorldSpaceBox.Min(), WorldSpaceBox.Max());
 	FVector Hit;
 	FVector Normal;
-	float Time;
+	FRealSingle Time;
 	return FMath::LineExtentBoxIntersection(VolumeBox, Ray.Start, Ray.End, FVector::ZeroVector, Hit, Normal, Time);
 
 	//return WorldSpaceBox.FindClosestIntersection(Ray.Start, Ray.End, 0).Second;

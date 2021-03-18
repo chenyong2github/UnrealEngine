@@ -9,6 +9,7 @@
 #include "Modules/ModuleInterface.h"
 
 class FDerivedDataCacheUsageStats;
+class FDerivedDataCacheStatsNode;
 class IDDCCleanup;
 
 namespace UE { namespace DerivedData { class ICache; } }
@@ -241,6 +242,11 @@ public:
 	virtual void AddToAsyncCompletionCounter(int32 Addend) = 0;
 
 	/**
+	 * Are there any async DDC requests in progress?
+	 */
+	virtual bool AnyAsyncRequestsRemaining() const = 0;
+
+	/**
 	 * Wait for all outstanding async DDC operations to complete.
 	 */
 	virtual void WaitForQuiescence(bool bShutdown = false) = 0;
@@ -261,6 +267,16 @@ public:
 	virtual const TCHAR* GetGraphName() const = 0;
 
 	/**
+	 * Retrieve the name of the 'default' graph, which may or may not be the active graph currently.
+	 */
+	virtual const TCHAR* GetDefaultGraphName() const = 0;
+
+	/**
+	 * Are we currently using the default graph configuration?
+	 */
+	bool IsDefaultGraph() const { return TStringView<TCHAR>(GetGraphName()).Equals(GetDefaultGraphName()); }
+
+	/**
 	 * Retrieve the interface to the background cache cleanup.
 	 */
 	virtual IDDCCleanup* GetCleanup() const = 0;
@@ -272,7 +288,7 @@ public:
 	/**
 	 * Retrieve usage stats by the DDC
 	 */
-	virtual void GatherUsageStats(TMap<FString, FDerivedDataCacheUsageStats>& UsageStats) = 0;
+	virtual TSharedRef<FDerivedDataCacheStatsNode> GatherUsageStats() const = 0;
 
 	//-----------------------
 	// Notification Interface

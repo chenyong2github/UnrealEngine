@@ -208,6 +208,15 @@ public:
 	/** Update the clothing simulation's (if any) collision */
 	void UpdateClothPhysics();
 
+	/** broadcast a selection change ( if bSuspendSelectionBroadcast is false ) */
+	void BroadcastSelectionChanged();
+
+	/** broadcast a change in the hierarchy */
+	void BroadcastHierarchyChanged();
+
+	/** broadcast a change in the preview*/
+	void BroadcastPreviewChanged();
+
 private:
 	/** Initializes a constraint setup */
 	void InitConstraintSetup(UPhysicsConstraintTemplate* ConstraintSetup, int32 ChildBodyIndex, int32 ParentBodyIndex);

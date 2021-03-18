@@ -26,8 +26,8 @@ namespace Chaos
 	// a prism with a small thickness to emulate the desired result as a hull. Otherwise hull generation will fail on
 	// these cases. Verbose logging on LogChaos will point out when this path is taken for further scrutiny about
 	// the geometry
-	static constexpr float TriQuadPrismInflation() { return 0.1f; }
-	static constexpr float DefaultHorizonEpsilon() { return 0.1f; }
+	static constexpr FReal TriQuadPrismInflation() { return 0.1f; }
+	static constexpr FReal DefaultHorizonEpsilon() { return 0.1f; }
 
 	class FConvexBuilder
 	{
@@ -93,7 +93,7 @@ namespace Chaos
 		static bool IsValidQuad(const FVec3& A, const FVec3& B, const FVec3& C, const FVec3& D, FVec3& OutNormal)
 		{
 			FPlane TriPlane(A, B, C);
-			const float DPointDistance = FMath::Abs(TriPlane.PlaneDot(D));
+			const FReal DPointDistance = FMath::Abs(TriPlane.PlaneDot(D));
 			OutNormal = FVec3(TriPlane.X, TriPlane.Y, TriPlane.Z);
 			return FMath::IsNearlyEqual(DPointDistance, 0, KINDA_SMALL_NUMBER);
 		}
@@ -115,7 +115,7 @@ namespace Chaos
 
 				for (int32 Index = 3; Index < NumVertices; ++Index)
 				{
-					const float PointPlaneDot = FMath::Abs(TriPlane.PlaneDot(InVertices[Index]));
+					const FReal PointPlaneDot = FMath::Abs(TriPlane.PlaneDot(InVertices[Index]));
 					if(!FMath::IsNearlyEqual(PointPlaneDot, 0, KINDA_SMALL_NUMBER))
 					{
 						return false;
@@ -270,7 +270,7 @@ namespace Chaos
 			TArray<FVec3> ModifiedVertices;
 
 			// For triangles and planar shapes, create a very thin prism as a convex
-			auto Inflate = [](const TArray<FVec3>& Source, TArray<FVec3>& Destination, const FVec3& Normal, float Inflation)
+			auto Inflate = [](const TArray<FVec3>& Source, TArray<FVec3>& Destination, const FVec3& Normal, FReal Inflation)
 			{
 				const int32 NumSource = Source.Num();
 				Destination.Reset();
@@ -475,7 +475,7 @@ namespace Chaos
 				for (uint32 Iteration = 0; Iteration < (uint32)NumToDelete; Iteration++)
 				{
 					TPair ClosestPair;
-					float ClosestDistSqr = FLT_MAX;
+					FReal ClosestDistSqr = FLT_MAX;
 
 					for (int32 A = 0; A < (Size - 1); A++)
 					{
@@ -486,7 +486,7 @@ namespace Chaos
 								if (!IsDeleted[B])
 								{
 									FVec3 Vec = Vertices[A] - Vertices[B];
-									float LengthSqr = Vec.SizeSquared();
+									FReal LengthSqr = Vec.SizeSquared();
 									if (LengthSqr < ClosestDistSqr)
 									{
 										ClosestDistSqr = LengthSqr;
@@ -522,7 +522,7 @@ namespace Chaos
 		}
 
 		// Convert multi-triangle faces to single n-gons
-		static void MergeFaces(TArray<TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaceVertexIndices, const TArray<FVec3>& Vertices, float DistanceThreshold)
+		static void MergeFaces(TArray<TPlaneConcrete<FReal, 3>>& InOutPlanes, TArray<TArray<int32>>& InOutFaceVertexIndices, const TArray<FVec3>& Vertices, FReal DistanceThreshold)
 		{
 			const FReal NormalThreshold = 1.e-4f;
 

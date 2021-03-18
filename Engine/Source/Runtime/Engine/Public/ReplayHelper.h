@@ -447,9 +447,6 @@ private:
 	/** Net startup actors that need to be destroyed after checkpoints are loaded */
 	TSet<FString> DeletedNetStartupActors;
 
-	/** Keeps track of NetGUIDs that were deleted, so we can skip them when saving checkpoints. Only used while recording. */
-	TSet<FNetworkGUID> DeletedNetStartupActorGUIDs;
-
 	TSharedPtr<IAnalyticsProvider> AnalyticsProvider;
 
 	void ReadDeletedStartupActors(UNetConnection* Connection, FArchive& Ar, TSet<FString>& DeletedStartupActors);

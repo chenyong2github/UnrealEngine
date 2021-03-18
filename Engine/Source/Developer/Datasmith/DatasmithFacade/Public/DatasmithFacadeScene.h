@@ -206,6 +206,83 @@ public:
 	/** Return the Datasmith scene's label. */
 	const TCHAR* GetLabel() const;
 
+	void Reset()
+	{
+		SceneRef->Reset();
+	}
+
+
+	/** Gets the name of the host application which created the scene */
+	const TCHAR* GetHost() const
+	{
+		return SceneRef->GetHost();
+	}
+
+	/**
+	 * Sets the name of the host application from which we're exporting from.
+	 *
+	 * @param InHost	The host application name
+	 */
+	void SetHost(
+		const TCHAR* InHost
+	)
+	{
+		SceneRef->SetHost(InHost);
+	}
+
+	/** Returns the vendor name of the application used to export the scene */
+	const TCHAR* GetVendor() const
+	{
+		return SceneRef->GetVendor();
+	}
+
+	/**
+	 * Sets the vendor name of the application used to export the scene.
+	 *
+	 * @param InVendor	The application vendor name
+	 */
+	void SetVendor(
+		const TCHAR* InApplicationVendorName
+	)
+	{
+		SceneRef->SetVendor(InApplicationVendorName);
+	}
+
+	/** Returns the product name of the application used to export the scene */
+	const TCHAR* GetProductName() const
+	{
+		return SceneRef->GetProductName();
+	}
+
+	/**
+	 * Sets the product name of the application used to export the scene.
+	 *
+	 * @param InProductName	The application name
+	 */
+	void SetProductName(
+		const TCHAR* InApplicationProductName
+	)
+	{
+		SceneRef->SetProductName(InApplicationProductName);
+	}
+
+	/** Returns the product version of the application used to export the scene */
+	const TCHAR* GetProductVersion() const
+	{
+		return SceneRef->GetProductVersion();
+	}
+
+	/**
+	 * Sets the product version of the application used to export the scene.
+	 *
+	 * @param InProductVersion	The application version
+	 */
+	void SetProductVersion(
+		const TCHAR* InApplicationProductVersion
+	)
+	{
+		SceneRef->SetProductVersion(InApplicationProductVersion);
+	}
 
 #ifdef SWIG_FACADE
 protected:

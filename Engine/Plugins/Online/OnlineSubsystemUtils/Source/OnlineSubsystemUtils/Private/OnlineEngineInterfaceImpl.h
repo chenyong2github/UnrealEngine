@@ -60,8 +60,8 @@ private:
 	 */
 public:
 
-	virtual TSharedPtr<const FUniqueNetId> CreateUniquePlayerId(const FString& Str, FName Type) override;
-	virtual TSharedPtr<const FUniqueNetId> GetUniquePlayerId(UWorld* World, int32 LocalUserNum, FName Type) override;
+	virtual FUniqueNetIdPtr CreateUniquePlayerId(const FString& Str, FName Type) override;
+	virtual FUniqueNetIdPtr GetUniquePlayerId(UWorld* World, int32 LocalUserNum, FName Type) override;
 
 	virtual FString GetPlayerNickname(UWorld* World, const FUniqueNetId& UniqueId) override;
 	virtual bool GetPlayerPlatformNickname(UWorld* World, int32 LocalUserNum, FString& OutNickname) override;
@@ -88,7 +88,7 @@ public:
 
 	virtual void RegisterPlayer(UWorld* World, FName SessionName, const FUniqueNetId& UniqueId, bool bWasInvited) override;
 	virtual void UnregisterPlayer(UWorld* World, FName SessionName, const FUniqueNetId& UniqueId) override;
-	virtual void UnregisterPlayers(UWorld* World, FName SessionName, const TArray< TSharedRef<const FUniqueNetId> >& Players) override;
+	virtual void UnregisterPlayers(UWorld* World, FName SessionName, const TArray< FUniqueNetIdRef >& Players) override;
 
 	virtual bool GetResolvedConnectString(UWorld* World, FName SessionName, FString& URL) override;
 

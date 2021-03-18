@@ -89,7 +89,6 @@ public:
 	void ParameterUpdateCallback(FParticlesType& InParticles, const float InTime);
 	void DisableCollisionsCallback(TSet<TTuple<int32, int32>>& InPairs);
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex);
-	void FieldForcesUpdateCallback(Chaos::FPhysicsSolver* InSolver, FParticlesType& Particles, Chaos::TArrayCollectionArray<FVector> & Force, Chaos::TArrayCollectionArray<FVector> & Torque, const float Time) {};
 	void BufferCommand(Chaos::FPhysicsSolver* InSolver, const FFieldSystemCommand& InCommand) {};
 
 	void SyncBeforeDestroy() {};

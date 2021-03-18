@@ -12,7 +12,6 @@
 #include "OnlineSubsystemTencentPackage.h"
 
 class FOnlineSubsystemTencent;
-class FUniqueNetIdRail;
 class FOnlineUserPresence;
 
 struct FOnlineError;
@@ -26,7 +25,7 @@ public:
 
 	// FOnlineUser
 
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override;
+	virtual FUniqueNetIdRef GetUserId() const override;
 	virtual FString GetRealName() const override;
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override;
 	virtual bool GetUserAttribute(const FString& AttrName, FString& OutAttrValue) const override;
@@ -39,7 +38,7 @@ public:
 	/**
 	 * Init constructor
 	 */
-	FOnlineFriendTencent(FOnlineSubsystemTencent* InTencentSubsystem, const TSharedRef<const FUniqueNetIdRail> InUserId);
+	FOnlineFriendTencent(FOnlineSubsystemTencent* InTencentSubsystem, const FUniqueNetIdRailRef InUserId);
 
 	/**
 	 * Destructor
@@ -70,7 +69,7 @@ public:
 	/** Used to access presence data for the friend entry */
 	FOnlineSubsystemTencent* TencentSubsystem;
 	/** User Id represented as a FUniqueNetId */
-	TSharedRef<const FUniqueNetIdRail> UserId;
+	FUniqueNetIdRailRef UserId;
 	/** Any addition account data associated with the friend */
 	TMap<FString, FString> AccountData;
 };
@@ -108,7 +107,7 @@ public:
 
 	// FOnlineUser
 
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override;
+	virtual FUniqueNetIdRef GetUserId() const override;
 	virtual FString GetRealName() const override;
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override;
 	virtual bool GetUserAttribute(const FString& AttrName, FString& OutAttrValue) const override;
@@ -125,13 +124,13 @@ public:
 	{
 	}
 
-	FOnlineRecentPlayerTencent(const TSharedRef<const FUniqueNetId>& InUserId)
+	FOnlineRecentPlayerTencent(const FUniqueNetIdRef& InUserId)
 		: UserId(InUserId)
 	{
 	}
 
 	FOnlineRecentPlayerTencent(const FString& InUserId = TEXT(""))
-		: UserId(new FUniqueNetIdRail(InUserId))
+		: UserId(FUniqueNetIdRail::Create(InUserId))
 	{
 	}
 
@@ -162,7 +161,7 @@ public:
 	}
 
 	/** User Id represented as a FUniqueNetId */
-	TSharedRef<const FUniqueNetId> UserId;
+	FUniqueNetIdRef UserId;
 	/** last seen in online game */
 	FDateTime LastSeen;
 	/** Any addition account data associated with the recent player */
@@ -251,7 +250,7 @@ private:
 	 * @param ErrorStr string representing the error condition
 	 * @param ListName name of the friends list to use
 	 */
-	void OnQueryUsersForFriendsListComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FString& ErrorStr, FString ListName, TArray<TSharedRef<const FUniqueNetId>> ExpectedFriendIds);
+	void OnQueryUsersForFriendsListComplete(int32 LocalUserNum, bool bWasSuccessful, const TArray<FUniqueNetIdRef>& UserIds, const FString& ErrorStr, FString ListName, TArray<FUniqueNetIdRef> ExpectedFriendIds);
 
 	/**
 	 * Delegate fired when query presence is complete for a list of Tencent friends
@@ -281,7 +280,7 @@ private:
 	TSharedPtr<FOnlineFriendTencent> FindFriendEntry(int32 LocalUserNum, const FUniqueNetIdRail& FriendId, bool bAddIfMissing);
 
 	/** Called when the SendInvite async task has completed */
-	void SendInvite_Complete(const FOnlineError& Result, const int32 LocalUserNum, const TSharedRef<const FUniqueNetId> FriendId, const FString ListName, const FOnSendInviteComplete CompletionDelegate);
+	void SendInvite_Complete(const FOnlineError& Result, const int32 LocalUserNum, const FUniqueNetIdRef FriendId, const FString ListName, const FOnSendInviteComplete CompletionDelegate);
 	
 	/**
 	 * Should use the initialization constructor instead

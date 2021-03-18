@@ -202,7 +202,7 @@ void FOnlineExternalUIFacebook::OnExternalLoginFlowComplete(const FLoginFlowResu
 
 void FOnlineExternalUIFacebook::OnAccessTokenLoginComplete(int32 LocalUserNum, bool bWasSuccessful, const FUniqueNetId& UserId, const FString& Error, FOnLoginUIClosedDelegate Delegate)
 {
-	TSharedPtr<const FUniqueNetId> StrongUserId = UserId.AsShared();
+	FUniqueNetIdPtr StrongUserId = UserId.AsShared();
 	FacebookSubsystem->ExecuteNextTick([StrongUserId, LocalUserNum, bWasSuccessful, Delegate]()
 	{
 		Delegate.ExecuteIfBound(StrongUserId, LocalUserNum, FOnlineError(bWasSuccessful));

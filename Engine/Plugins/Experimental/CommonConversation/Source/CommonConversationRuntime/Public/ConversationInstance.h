@@ -11,8 +11,11 @@
 
 #include "ConversationInstance.generated.h"
 
+class UConversationInstance;
 class UConversationNodeWithLinks;
 class UConversationParticipantComponent;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnAllParticipantsNotifiedOfStartEvent, UConversationInstance*, ConversationInstance);
 
 //////////////////////////////////////////////////////////////////////
 
@@ -23,6 +26,12 @@ UCLASS()
 class COMMONCONVERSATIONRUNTIME_API UConversationInstance : public UObject
 {
 	GENERATED_BODY()
+
+public: 
+
+	// Server notification sent after all participants have been individually notified of conversation start
+	DECLARE_EVENT_OneParam(UConversationInstance, FOnAllParticipantsNotifiedOfStartEvent, UConversationInstance* /*ConversationInstance*/);
+	FOnAllParticipantsNotifiedOfStartEvent OnAllParticipantsNotifiedOfStart;
 
 public:
 	UConversationInstance();

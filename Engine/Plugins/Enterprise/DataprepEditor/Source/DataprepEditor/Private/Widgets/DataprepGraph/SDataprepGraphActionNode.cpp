@@ -538,7 +538,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						.AutoWidth()
 						.Padding(5.f, 5.f, 5.f, 2.f)
 						[
-							SNew(SButton)
+							SAssignNew(ExpandActionButton, SButton)
 							.ButtonStyle(FEditorStyle::Get(), "FlatButton.Primary")
 							.ButtonColorAndOpacity(FLinearColor::Transparent)
 							.ForegroundColor(FLinearColor::White)
@@ -549,11 +549,11 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 								SNew(STextBlock)
 								.TextStyle(FEditorStyle::Get(), "ContentBrowser.TopBar.Font")
 								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-								.Text_Lambda([this](){ return DataprepActionPtr->Appearance->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
+								.Text_Lambda([this](){ return DataprepActionPtr->GetAppearance()->bIsExpanded ? FEditorFontGlyphs::Caret_Down : FEditorFontGlyphs::Caret_Up; })
 							]
 							.OnClicked_Lambda([this]()
 							{
-								DataprepActionPtr->Appearance->bIsExpanded = !DataprepActionPtr->Appearance->bIsExpanded;
+								DataprepActionPtr->GetAppearance()->bIsExpanded = !DataprepActionPtr->GetAppearance()->bIsExpanded;
 								return FReply::Handled();
 							})
 						]
@@ -568,7 +568,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						.Thickness(1.f)
 						.Orientation(EOrientation::Orient_Horizontal)
 						.ColorAndOpacity(FDataprepEditorStyle::GetColor("Dataprep.TextSeparator.Color"))
-						.Visibility_Lambda([this]() { return DataprepActionPtr->Appearance->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
+						.Visibility_Lambda([this]() { return DataprepActionPtr->GetAppearance()->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed; })
 					]
 
 					//The content of the action
@@ -578,7 +578,7 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						SNew( SHorizontalBox )
 						.Visibility_Lambda([this]()
 						{
-							return DataprepActionPtr->Appearance->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
+							return DataprepActionPtr->GetAppearance()->bIsExpanded ? EVisibility::Visible : EVisibility::Collapsed;
 						})
 						+ SHorizontalBox::Slot()
 						[
@@ -665,6 +665,15 @@ FReply SDataprepGraphActionNode::OnMouseButtonDown(const FGeometry& MyGeometry, 
 		if( MouseEvent.GetEffectingButton() ==  EKeys::LeftMouseButton )
 		{
 			GetOwnerPanel()->SelectionManager.ClickedOnNode( GraphNode, MouseEvent );
+
+			UDataprepActionAppearance* Appearance = GetDataprepAction()->GetAppearance();
+
+			if (Appearance->GroupId != INDEX_NONE)
+			{
+				// Disallow dragging of grouped actions/steps
+				return FReply::Handled();
+			}
+
 			return FReply::Handled().DetectDrag( AsShared(), EKeys::LeftMouseButton );
 		}
 
@@ -709,10 +718,17 @@ FCursorReply SDataprepGraphActionNode::OnCursorQuery( const FGeometry& MyGeometr
 
 	if ( !CursorReply.IsEventHandled() )
 	{
-		TOptional<EMouseCursor::Type> TheCursor = GetCursor();
-		CursorReply = ( TheCursor.IsSet() )
-			? FCursorReply::Cursor( TheCursor.GetValue() )
-			: FCursorReply::Unhandled();
+		if (ExpandActionButton.IsValid() && ExpandActionButton->IsHovered())
+		{
+			CursorReply = FCursorReply::Cursor( EMouseCursor::Default );
+		}
+		else
+		{
+			TOptional<EMouseCursor::Type> TheCursor = GetCursor();
+			CursorReply = ( TheCursor.IsSet() )
+				? FCursorReply::Cursor( TheCursor.GetValue() )
+				: FCursorReply::Unhandled();
+		}
 	}
 
 	return CursorReply;

@@ -18,6 +18,8 @@ public:
 	virtual void ApplyRemoteTransaction(const FConcertTransactionEventBase& InEvent, const FConcertSessionVersionInfo* InVersionInfo, const TArray<FName>& InPackagesToProcess, const FConcertLocalIdentifierTable* InLocalIdentifierTablePtr, const bool bIsSnapshot) override;
 	virtual bool& GetIgnoreLocalTransactionsRef() override;
 
+	virtual void RegisterTransactionFilter(FName FilterName, FTransactionFilterDelegate FilterHandle) override;
+	virtual void UnregisterTransactionFilter(FName FilterName) override;
 private:
 	/** Called to handle a transaction state change */
 	void HandleTransactionStateChanged(const FTransactionContext& InTransactionContext, const ETransactionStateEventType InTransactionState);
@@ -53,6 +55,9 @@ private:
 
 	/** Map of transaction IDs to the transaction that may be notified in the future */
 	TMap<FGuid, FOngoingTransaction> OngoingTransactions;
+
+	/** Map of named transaction filters that can override what is included / excluded by transaction bridge*/
+	TMap<FName, FTransactionFilterDelegate> TransactionFilters;
 
 	/** Called when an ongoing transaction is updated via a snapshot */
 	FOnConcertClientLocalTransactionSnapshot OnLocalTransactionSnapshotDelegate;

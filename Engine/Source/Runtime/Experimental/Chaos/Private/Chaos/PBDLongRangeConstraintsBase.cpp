@@ -35,7 +35,7 @@ FPBDLongRangeConstraintsBase::FPBDLongRangeConstraintsBase(
 	}
 
 	// Scale distance limits
-	for (float& Dist : MDists)
+	for (FReal& Dist : MDists)
 	{
 		Dist *= LimitScale;
 	}

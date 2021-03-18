@@ -350,9 +350,11 @@ void SDataprepGraphTrackNode::UpdateGraphNode()
 			{
 				UEdGraphNode* NewNode = nullptr;
 				
-				if (ActionAsset->Appearance->GroupId != INDEX_NONE)
+				UDataprepActionAppearance* Appearance = ActionAsset->GetAppearance();
+
+				if (Appearance->GroupId != INDEX_NONE)
 				{
-					const int32 CurrentGroupId = ActionAsset->Appearance->GroupId;
+					const int32 CurrentGroupId = Appearance->GroupId;
 
 					TArray<UDataprepActionAsset*> CurrentGroup;
 
@@ -360,7 +362,7 @@ void SDataprepGraphTrackNode::UpdateGraphNode()
 					{
 						if(UDataprepActionAsset* Action = DataprepAsset->GetAction(ActionIndex))
 						{
-							if(CurrentGroupId == Action->Appearance->GroupId)
+							if(CurrentGroupId == Action->GetAppearance()->GroupId)
 							{
 								CurrentGroup.Add(Action);
 							}
@@ -493,16 +495,18 @@ void SDataprepGraphTrackNode::OnActionsOrderChanged()
 		{
 			TSharedPtr< SDataprepGraphBaseActionNode >* ActionWidgetPtr = WidgetByAsset.Find(ActionAsset);
 
-			if (ActionAsset->Appearance->GroupId != INDEX_NONE)
+			UDataprepActionAppearance* Appearance = ActionAsset->GetAppearance();
+
+			if (Appearance->GroupId != INDEX_NONE)
 			{
-				const int32 CurrentGroupId = ActionAsset->Appearance->GroupId;
+				const int32 CurrentGroupId = Appearance->GroupId;
 				TArray<UDataprepActionAsset*> CurrentGroup;
 
 				for(; ActionIndex < DataprepAssetPtr->GetActionCount(); ++ActionIndex)
 				{
 					if(UDataprepActionAsset* Action = DataprepAssetPtr->GetAction(ActionIndex))
 					{
-						if(CurrentGroupId == Action->Appearance->GroupId)
+						if(CurrentGroupId == Action->GetAppearance()->GroupId)
 						{
 							CurrentGroup.Add(Action);
 						}

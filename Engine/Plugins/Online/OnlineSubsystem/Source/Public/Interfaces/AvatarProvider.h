@@ -4,18 +4,17 @@
 
 #include "CoreMinimal.h"
 #include "Features/IModularFeature.h"
-
-class FUniqueNetId;
+#include "UObject/CoreOnlineFwd.h"
 
 
 struct FAvatarInfo : public TSharedFromThis<FAvatarInfo>
 {
 public:
-	FAvatarInfo(const TSharedPtr<const FUniqueNetId>& InUserId)
+	FAvatarInfo(const FUniqueNetIdPtr& InUserId)
 		: UserId(InUserId.ToSharedRef())
 	{ }
 
-	FAvatarInfo(const TSharedPtr<const FUniqueNetId> InUserId, TMap<FString, FString>&& InAvatarInfoPairs)
+	FAvatarInfo(const FUniqueNetIdPtr InUserId, TMap<FString, FString>&& InAvatarInfoPairs)
 		: UserId(InUserId.ToSharedRef()), AvatarInfoPairs(MoveTemp(InAvatarInfoPairs))
 	{ }
 
@@ -53,7 +52,7 @@ public:
 		return true;
 	}
 
-	TSharedRef<const FUniqueNetId> UserId;
+	FUniqueNetIdRef UserId;
 	TMap<FString, FString> AvatarInfoPairs;
 };
 
@@ -77,7 +76,7 @@ public:
 		return FeatureName;
 	}
 
-	virtual void QueryAvatarInfo(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& InUserIds, const FOnQueryAvatarInfoComplete& CompletionDelegate) = 0;
+	virtual void QueryAvatarInfo(const FUniqueNetId& LocalUserId, const TArray<FUniqueNetIdRef>& InUserIds, const FOnQueryAvatarInfoComplete& CompletionDelegate) = 0;
 
 	virtual TSharedPtr<const FAvatarInfo> GetAvatarInfo(const FUniqueNetId& InUserId) const = 0;
 };

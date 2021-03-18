@@ -16,6 +16,8 @@
 
 namespace NiagaraDebugLocal
 {
+	const FLinearColor InfoTextColor = FLinearColor::White;
+	const FLinearColor WarningTextColor = FLinearColor(0.9f, 0.7f, 0.0, 1.0f);
 	const FLinearColor ErrorTextColor = FLinearColor(1.0f, 0.4, 0.3, 1.0f);
 	const FLinearColor WorldTextColor = FLinearColor::White;
 	const FLinearColor BackgroundColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.5f);
@@ -412,6 +414,16 @@ void FNiagaraDebugHud::UpdateSettings(const FNiagaraDebugHUDSettingsData& NewSet
 	GCachedSystemVariables.Empty();
 }
 
+void FNiagaraDebugHud::AddMessage(FName Key, const FNiagaraDebugMessage& Message)
+{
+	Messages.FindOrAdd(Key) = Message;
+}
+
+void FNiagaraDebugHud::RemoveMessage(FName Key)
+{
+	Messages.Remove(Key);
+}
+
 void FNiagaraDebugHud::GatherSystemInfo()
 {
 	using namespace NiagaraDebugLocal;
@@ -661,9 +673,12 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 {
 	using namespace NiagaraDebugLocal;
 
+	float CurrTime = WorldManager->GetWorld()->GetRealTimeSeconds();
+	DeltaSeconds = CurrTime - LastDrawTime;
+
 	if (Settings.HudVerbosity > ENiagaraDebugHudSystemVerbosity::None)
 	{
-	// Draw in world components
+		// Draw in world components
 		DrawComponents(WorldManager, Canvas);
 	}
 
@@ -685,6 +700,8 @@ void FNiagaraDebugHud::Draw(FNiagaraWorldManager* WorldManager, UCanvas* Canvas,
 			}
 		}
 	}
+
+	LastDrawTime = CurrTime;
 }
 
 void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FCanvas* DrawCanvas)
@@ -938,9 +955,11 @@ void FNiagaraDebugHud::DrawOverview(class FNiagaraWorldManager* WorldManager, FC
 	}
 
 	DrawValidation(WorldManager, DrawCanvas, TextLocation);
+
+	DrawMessages(WorldManager, DrawCanvas, TextLocation);
 }
 
-void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D TextLocation)
+void FNiagaraDebugHud::DrawValidation(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
 {
 	using namespace NiagaraDebugLocal;
 
@@ -1463,6 +1482,62 @@ void FNiagaraDebugHud::DrawComponents(FNiagaraWorldManager* WorldManager, UCanva
 				DrawCanvas->DrawTile(ScreenLocation.X - 1.0f, ScreenLocation.Y - 1.0f, StringSize.X + 2.0f, StringSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
 				DrawCanvas->DrawShadowedString(ScreenLocation.X, ScreenLocation.Y, FinalString, SystemFont, TextColor);
 			}
+		}
+	}
+}
+
+void FNiagaraDebugHud::DrawMessages(class FNiagaraWorldManager* WorldManager, class FCanvas* DrawCanvas, FVector2D& TextLocation)
+{
+	using namespace NiagaraDebugLocal;
+
+	static const float MinWidth = 500.0f;
+	
+	UFont* Font = GetFont(Settings.HUDFont);
+	const float fAdvanceHeight = Font->GetMaxCharHeight() + 1.0f;
+
+	FVector2D BackgroundSize(MinWidth, 0.0f);
+	TArray<FName, TInlineAllocator<8>> ToRemove;
+	for (TPair<FName, FNiagaraDebugMessage>& Pair : Messages)
+	{
+		FName& Key = Pair.Key;
+		FNiagaraDebugMessage& Message = Pair.Value;
+
+		Message.Lifetime -= DeltaSeconds;
+		if (Message.Lifetime > 0.0f)
+		{
+			BackgroundSize = FMath::Max(BackgroundSize, GetStringSize(Font, *Message.Message));
+		}
+		else
+		{
+			ToRemove.Add(Key);
+		}
+	}
+
+	//Not sure why but the get size always underestimates slightly.
+	BackgroundSize.X += 20.0f;
+
+	for (FName DeadMessage : ToRemove)
+	{
+		Messages.Remove(DeadMessage);
+	}
+
+	if (Messages.Num())
+	{
+		TextLocation.Y += fAdvanceHeight;
+		DrawCanvas->DrawTile(TextLocation.X - 1.0f, TextLocation.Y - 1.0f, BackgroundSize.X + 2.0f, BackgroundSize.Y + 2.0f, 0.0f, 0.0f, 0.0f, 0.0f, BackgroundColor);
+
+		for (TPair<FName, FNiagaraDebugMessage>& Pair : Messages)
+		{
+			FName& Key = Pair.Key;
+			FNiagaraDebugMessage& Message = Pair.Value;
+
+			FLinearColor MessageColor;
+			if (Message.Type == ENiagaraDebugMessageType::Info) MessageColor = InfoTextColor;
+			else if (Message.Type == ENiagaraDebugMessageType::Warning) MessageColor = WarningTextColor;
+			else if (Message.Type == ENiagaraDebugMessageType::Error) MessageColor = ErrorTextColor;
+
+			DrawCanvas->DrawShadowedString(TextLocation.X, TextLocation.Y, *Message.Message, Font, MessageColor);//TODO: Sort by type / lifetime?
+			TextLocation.Y += fAdvanceHeight;
 		}
 	}
 }

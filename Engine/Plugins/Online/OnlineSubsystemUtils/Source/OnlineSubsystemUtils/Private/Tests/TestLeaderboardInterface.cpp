@@ -184,7 +184,7 @@ void FTestLeaderboardInterface::ReadLeaderboards()
 	ReadObject = MakeShareable(new TestLeaderboardRead(LeaderboardName, SortedColumn, Columns));
 	FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
 
-	TArray<TSharedRef<const FUniqueNetId>> QueryPlayers;
+	TArray<FUniqueNetIdRef> QueryPlayers;
 	QueryPlayers.Add(UserId.ToSharedRef());
 
 	LeaderboardReadCompleteDelegateHandle = Leaderboards->AddOnLeaderboardReadCompleteDelegate_Handle(LeaderboardReadCompleteDelegate);
@@ -222,7 +222,7 @@ void FTestLeaderboardInterface::ReadLeaderboardsUser(const FUniqueNetId& InUserI
 	FOnlineLeaderboardReadRef ReadObjectRef = ReadObject.ToSharedRef();
 
 	// Need to get a shared reference for ReadLeaderboardsAroundUser
-	TSharedPtr<const FUniqueNetId> ArbitraryId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InUserId.ToString());
+	FUniqueNetIdPtr ArbitraryId = OnlineSub->GetIdentityInterface()->CreateUniquePlayerId(InUserId.ToString());
 
 	if (ArbitraryId.IsValid())
 	{
@@ -240,8 +240,8 @@ void FTestLeaderboardInterface::ReadLeaderboardsUser(const FUniqueNetId& InUserI
 
 void FTestLeaderboardInterface::ReadLeaderboardsUser(int32 Range)
 {
-	FUniqueNetIdString FindUser(FindRankUserId);
-	ReadLeaderboardsUser(FindUser, Range);
+	FUniqueNetIdStringRef FindUser(FUniqueNetIdString::Create(FindRankUserId));
+	ReadLeaderboardsUser(*FindUser, Range);
 }
 
 bool FTestLeaderboardInterface::Tick( float DeltaTime )

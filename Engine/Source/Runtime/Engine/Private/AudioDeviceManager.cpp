@@ -1005,7 +1005,7 @@ void FAudioDeviceManager::InitSoundClasses()
 	);
 }
 
-void FAudioDeviceManager::RegisterSoundSubmix(const USoundSubmixBase* SoundSubmix)
+void FAudioDeviceManager::RegisterSoundSubmix(USoundSubmixBase* SoundSubmix)
 {
 	IterateOverAllDevices(
 		[&SoundSubmix](Audio::FDeviceId, FAudioDevice* InDevice)

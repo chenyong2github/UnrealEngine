@@ -33,6 +33,9 @@ public:
 	virtual FText GetSourceStatus() const override;
 
 	virtual TSubclassOf<ULiveLinkSourceSettings> GetSettingsClass() const { return ULiveLinkPrestonMDRSourceSettings::StaticClass(); }
+
+	virtual void InitializeSettings(ULiveLinkSourceSettings* Settings) override;
+	virtual void OnSettingsChanged(ULiveLinkSourceSettings* Settings, const FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End ILiveLinkSourceImplementation
 
 private:
@@ -50,6 +53,8 @@ private:
 	FLiveLinkPrestonMDRConnectionSettings ConnectionSettings;
 	FLiveLinkSubjectKey SubjectKey;
 	FText SourceMachineName;
+
+	ULiveLinkPrestonMDRSourceSettings* SavedSourceSettings = nullptr;
 
 	TUniquePtr<FPrestonMDRMessageThread> MessageThread;
 

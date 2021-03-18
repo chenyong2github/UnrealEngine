@@ -32,7 +32,7 @@ class FFFTProjection3
 		int32 size = Grid.Counts().Product();
 		TVec3<int32> Counts = Grid.Counts();
 		Counts[2] = Counts[2] / 2 + 1;
-		TArrayND<Complex<FReal>, 3> u(Counts), v(Counts), w(Counts);
+		TArrayND<FComplex, 3> u(Counts), v(Counts), w(Counts);
 		TArrayND<FVec3, 3> VelocitySaved = Velocity.Copy();
 		for (int32 iteration = 0; iteration < MNumIterations; ++iteration)
 		{

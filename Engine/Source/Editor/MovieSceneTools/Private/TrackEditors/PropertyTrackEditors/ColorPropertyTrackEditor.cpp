@@ -8,6 +8,7 @@
 #include "Matinee/InterpTrackLinearColorProp.h"
 #include "Matinee/InterpTrackColorProp.h"
 #include "Evaluation/MovieScenePropertyTemplate.h"
+#include "EntitySystem/Interrogation/MovieSceneInterrogationLinker.h"
 
 FName FColorPropertyTrackEditor::RedName( "R" );
 FName FColorPropertyTrackEditor::GreenName( "G" );
@@ -125,32 +126,34 @@ void FColorPropertyTrackEditor::BuildTrackContextMenu( FMenuBuilder& MenuBuilder
 
 bool FColorPropertyTrackEditor::ModifyGeneratedKeysByCurrentAndWeight(UObject *Object, UMovieSceneTrack *Track, UMovieSceneSection* SectionToKey, FFrameNumber KeyTime, FGeneratedTrackKeys& GeneratedTotalKeys, float Weight) const
 {
-	FFrameRate TickResolution = GetSequencer()->GetFocusedTickResolution();
+	using namespace UE::MovieScene;
 
 	UMovieSceneColorTrack* ColorTrack = Cast<UMovieSceneColorTrack>(Track);
 
 	if (ColorTrack)
 	{
-		FMovieSceneEvaluationTrack EvalTrack = ColorTrack->GenerateTrackTemplate(ColorTrack);
+		FSystemInterrogator Interrogator;
 
-		FMovieSceneInterrogationData InterrogationData;
-		GetSequencer()->GetEvaluationTemplate().CopyActuators(InterrogationData.GetAccumulator());
+		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &Interrogator.GetLinker()->EntityManager);
 
-		FMovieSceneContext Context(FMovieSceneEvaluationRange(KeyTime, GetSequencer()->GetFocusedTickResolution()));
-		EvalTrack.Interrogate(Context, InterrogationData, Object);
+		Interrogator.ImportTrack(ColorTrack, FInterrogationChannel::Default());
+		Interrogator.AddInterrogation(KeyTime);
 
-		FLinearColor Val(0.0f, 0.0f, 0.0f, 0.0f);
-		for (const FLinearColor& InColor : InterrogationData.Iterate<FLinearColor>(FMovieScenePropertySectionTemplate::GetColorInterrogationKey()))
-		{
-			Val = InColor;
-			break;
-		}
+		Interrogator.Update();
+
+		const FMovieSceneTracksComponentTypes* ComponentTypes = FMovieSceneTracksComponentTypes::Get();
+		TArray<FIntermediateColor> InterrogatedValues;
+		Interrogator.QueryPropertyValues(ComponentTypes->Color, InterrogatedValues);
+
+		FLinearColor Val = InterrogatedValues[0].GetLinearColor();
 		FMovieSceneChannelProxy& Proxy = SectionToKey->GetChannelProxy();
 		GeneratedTotalKeys[0]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.R, Weight);
 		GeneratedTotalKeys[1]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.G, Weight);
 		GeneratedTotalKeys[2]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.B, Weight);
 		GeneratedTotalKeys[3]->ModifyByCurrentAndWeight(Proxy, KeyTime, (void *)&Val.A, Weight);
+
 		return true;
 	}
+
 	return false;
 }

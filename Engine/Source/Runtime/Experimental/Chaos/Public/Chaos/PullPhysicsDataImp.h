@@ -10,8 +10,7 @@
 #include "GeometryCollectionProxyData.h"
 #include "PBDRigidsEvolutionFwd.h"
 
-template <typename T>
-class TJointConstraintProxy;
+class FJointConstraintPhysicsProxy;
 
 namespace Chaos
 {
@@ -66,7 +65,7 @@ struct FJointConstraintOutputData {
 
 class FJointConstraint;
 
-struct FDirtyJointConstraintData : public TBasePullData<TJointConstraintProxy<FJointConstraint>>
+struct FDirtyJointConstraintData : public TBasePullData<FJointConstraintPhysicsProxy>
 {
 	FJointConstraintOutputData OutputData;
 };
@@ -80,8 +79,8 @@ public:
 	TArray<FDirtyJointConstraintData> DirtyJointConstraints;
 
 	int32 SolverTimestamp;
-	float ExternalStartTime;	//The start time associated with this result. The time is synced using the external time
-	float ExternalEndTime;		//The end time associated with this result. The time is synced using the external time
+	FReal ExternalStartTime;	//The start time associated with this result. The time is synced using the external time
+	FReal ExternalEndTime;		//The end time associated with this result. The time is synced using the external time
 
 	void Reset();
 };

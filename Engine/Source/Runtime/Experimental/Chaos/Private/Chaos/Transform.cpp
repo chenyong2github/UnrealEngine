@@ -4,12 +4,12 @@
 
 using namespace Chaos;
 
-PMatrix<float, 4, 4> operator*(const TRigidTransform<float, 3>& Transform, const PMatrix<float, 4, 4>& Matrix)
+PMatrix<Chaos::FReal, 4, 4> operator*(const TRigidTransform<Chaos::FReal, 3>& Transform, const PMatrix<Chaos::FReal, 4, 4>& Matrix)
 {
 	return Transform.ToMatrixNoScale() * static_cast<const FMatrix&>(Matrix);
 }
 
-PMatrix<float, 4, 4> operator*(const PMatrix<float, 4, 4>& Matrix, const TRigidTransform<float, 3>& Transform)
+PMatrix<Chaos::FReal, 4, 4> operator*(const PMatrix<Chaos::FReal, 4, 4>& Matrix, const TRigidTransform<Chaos::FReal, 3>& Transform)
 {
 	return static_cast<const FMatrix&>(Matrix) * Transform.ToMatrixNoScale();
 }

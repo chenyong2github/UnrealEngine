@@ -14,7 +14,6 @@
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDRigidsSOAs.h"
 #include "Chaos/SpatialAccelerationCollection.h"
-#include "Chaos/EvolutionTraits.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 #include "Chaos/Defines.h"
 #include "Chaos/PendingSpatialData.h"
@@ -222,8 +221,7 @@ struct CHAOS_API ISpatialAccelerationCollectionFactory
 	virtual ~ISpatialAccelerationCollectionFactory() = default;
 };
 
-template <typename Traits>
-class TPBDRigidsEvolutionBase
+class FPBDRigidsEvolutionBase
 {
 public:
 	using FAccelerationStructure = ISpatialAccelerationCollection<FAccelerationStructureHandle,FReal,3>;
@@ -234,8 +232,8 @@ public:
 	typedef TFunction<void(FPBDRigidParticles&, const FReal, const FReal, const int32)> FKinematicUpdateRule;
 	typedef TFunction<void(TParticleView<FPBDRigidParticles>&)> FCaptureRewindRule;
 
-	CHAOS_API TPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
-	CHAOS_API virtual ~TPBDRigidsEvolutionBase();
+	CHAOS_API FPBDRigidsEvolutionBase(FPBDRigidsSOAs& InParticles, THandleArray<FChaosPhysicsMaterial>& InSolverPhysicsMaterials, int32 InNumIterations = 1, int32 InNumPushOutIterations = 1, bool InIsSingleThreaded = false);
+	CHAOS_API virtual ~FPBDRigidsEvolutionBase();
 
 	CHAOS_API TArray<FGeometryParticleHandle*> CreateStaticParticles(int32 NumParticles, const FUniqueIdx* ExistingIndices = nullptr, const FGeometryParticleParameters& Params = FGeometryParticleParameters())
 	{
@@ -651,6 +649,7 @@ public:
 				Particle.V() = FVec3(0, 0, 0);
 				Particle.W() = FVec3(0, 0, 0);
 				KinematicTarget.SetMode(EKinematicTargetMode::None);
+				Particles.MarkTransientDirtyParticle(Particle.Handle());
 				break;
 			}
 
@@ -681,6 +680,7 @@ public:
 				}
 				Particle.X() = TargetPos;
 				Particle.R() = TargetRot;
+				Particles.MarkTransientDirtyParticle(Particle.Handle());
 				break;
 			}
 
@@ -689,6 +689,7 @@ public:
 				// Move based on velocity
 				Particle.X() = Particle.X() + Particle.V() * Dt;
 				Particle.R() = FRotation3::IntegrateRotationWithAngularVelocity(Particle.R(), Particle.W(), Dt);
+				Particles.MarkTransientDirtyParticle(Particle.Handle());
 				break;
 			}
 			}
@@ -942,8 +943,5 @@ protected:
 	TArray<FUniqueIdx> PendingReleaseIndices;	//for now just assume a one frame delay, but may need something more general
 };
 
-#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsEvolutionBase<Trait>;
-#include "Chaos/EvolutionTraits.inl"
-#undef EVOLUTION_TRAIT
 
 }

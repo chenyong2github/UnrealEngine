@@ -10,8 +10,11 @@
 
 #include "DMXPixelMappingOutputComponent.generated.h"
 
+class UDMXEntityFixturePatch;
+
 class UTextureRenderTarget2D;
 class SBox;
+
 
 UENUM()
 enum class EDMXPixelBlendingQuality : uint8
@@ -26,10 +29,11 @@ enum class EDMXPixelBlendingQuality : uint8
 	High
 };
 
+
 /**
  * Base class for all Designer and configurable components
  */
-UCLASS()
+UCLASS(Abstract)
 class DMXPIXELMAPPINGRUNTIME_API UDMXPixelMappingOutputComponent
 	: public UDMXPixelMappingBaseComponent
 {
@@ -45,16 +49,23 @@ public:
 	/** Default Constructor */
 	UDMXPixelMappingOutputComponent();
 
-	//~ Begin UObject implementation
+	// ~Begin UObject Interface
 #if WITH_EDITOR
 	virtual bool CanEditChange(const FProperty* InProperty) const override;
 
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedChainEvent) override;
 #endif // WITH_EDITOR
-	//~ End UObject implementation
+	// ~End UObject Interface
+
+	// ~Begin UDMXPixelMappingBaseComponent Interface
+	virtual void ResetDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::ResetDMX);
+	virtual void SendDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::SendDMX);
+	virtual void Render() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::Render);
+	virtual void RenderAndSendDMX() PURE_VIRTUAL(UDMXPixelMappingBaseComponent::RenderAndSendDMX);
+	// ~End UDMXPixelMappingBaseComponent Interface
 
 	/*----------------------------------
-		UDMXPixelMappingOutputComponent interface
+		UDMXPixelMappingOutputComponent Interface
 	----------------------------------*/
 #if WITH_EDITOR
 	/** Whether component should be part of Palette view */
@@ -148,7 +159,9 @@ protected:
 	 */
 	void UpdateSurfaceBuffer(UpdateSurfaceSafeCallback Callback);
 
-
+	/** Helper function to get the correct word size of an attribute */
+	uint8 GetNumChannelsOfAttribute(UDMXEntityFixturePatch* FixturePatch, const FName& AttributeName);
+	
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Common Settings", meta = (ClampMin = "1", UIMin = "1"))
 	float SizeX;

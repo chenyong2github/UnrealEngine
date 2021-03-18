@@ -38,7 +38,7 @@ public:
 	virtual void GetInputData(TMap<FString, FString>& InputData) = 0;
 
 	// Sync events
-	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary>>& BinaryEvents) = 0;
+	virtual void GetEventsData(TArray<TSharedPtr<FDisplayClusterClusterEventJson, ESPMode::ThreadSafe>>& JsonEvents, TArray<TSharedPtr<FDisplayClusterClusterEventBinary, ESPMode::ThreadSafe>>& BinaryEvents) = 0;
 
 	// Sync native UE4 input
 	virtual void GetNativeInputData(TMap<FString, FString>& NativeInputData) = 0;

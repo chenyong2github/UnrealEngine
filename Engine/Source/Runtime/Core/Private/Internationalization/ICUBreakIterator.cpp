@@ -89,33 +89,15 @@ FICUBreakIterator::~FICUBreakIterator()
 	}
 }
 
-void FICUBreakIterator::SetString(const FText& InText)
+void FICUBreakIterator::SetString(FString&& InString)
 {
-	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(InText)); // ICUBreakIterator takes ownership of this instance
+	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(MoveTemp(InString))); // ICUBreakIterator takes ownership of this instance
 	ResetToBeginning();
 }
 
-void FICUBreakIterator::SetString(const FString& InString)
+void FICUBreakIterator::SetStringRef(FStringView InString)
 {
 	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(InString)); // ICUBreakIterator takes ownership of this instance
-	ResetToBeginning();
-}
-
-void FICUBreakIterator::SetString(const TCHAR* const InString, const int32 InStringLength) 
-{
-	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(InString, InStringLength)); // ICUBreakIterator takes ownership of this instance
-	ResetToBeginning();
-}
-
-void FICUBreakIterator::SetStringRef(const FString* InString)
-{
-	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(InString)); // ICUBreakIterator takes ownership of this instance
-	ResetToBeginning();
-}
-
-void FICUBreakIterator::ClearString()
-{
-	GetInternalBreakIterator()->adoptText(new FICUTextCharacterIterator(FString())); // ICUBreakIterator takes ownership of this instance
 	ResetToBeginning();
 }
 

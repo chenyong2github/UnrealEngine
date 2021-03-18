@@ -212,7 +212,7 @@ protected:
 
 private:
 	void* InitializedResources;
-	class USkeletalMeshComponent* RegisteredSkeletalMeshComponent;
+	class UMeshComponent* RegisteredMeshComponent;
 	FVector SkeletalPreviousPositionOffset;
 	bool bIsGroomAssetCallbackRegistered;
 	bool bIsGroomBindingAssetCallbackRegistered;

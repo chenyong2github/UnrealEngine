@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RemoteControlEntity.h"
-#include "RemoteControlPreset.h"
 
+#include "RemoteControlBinding.h"
+#include "RemoteControlPreset.h"
 
 bool FRemoteControlEntity::operator==(const FRemoteControlEntity& InEntity) const
 {
@@ -14,11 +15,12 @@ bool FRemoteControlEntity::operator==(FGuid InEntityId) const
 	return Id == InEntityId;
 }
 
-FRemoteControlEntity::FRemoteControlEntity(URemoteControlPreset* InPreset, FName InLabel)
+FRemoteControlEntity::FRemoteControlEntity(URemoteControlPreset* InPreset, FName InLabel, const TArray<URemoteControlBinding*>& InBindings)
 	: Owner(InPreset)
 	, Label(InLabel)
 	, Id(FGuid::NewGuid())
 {
+	Bindings.Append(InBindings);
 }
 
 FName FRemoteControlEntity::Rename(FName NewLabel)

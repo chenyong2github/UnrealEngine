@@ -3,6 +3,7 @@
 #include "Engine/RendererSettings.h"
 #include "PixelFormat.h"
 #include "RHI.h"
+#include "GPUSkinVertexFactory.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -75,6 +76,7 @@ URendererSettings::URendererSettings(const FObjectInitializer& ObjectInitializer
 	bUseHardwareRayTracingForLumen = 0;
 	bEnableRayTracingShadows = 0;
 	bEnableRayTracingTextureLOD = 0;
+	MaxSkinBones = FGPUBaseSkinVertexFactory::GHardwareMaxGPUSkinBones;
 }
 
 void URendererSettings::PostInitProperties()

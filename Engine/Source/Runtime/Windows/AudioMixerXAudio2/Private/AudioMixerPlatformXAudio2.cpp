@@ -301,7 +301,7 @@ namespace Audio
 	{
 		if (bIsInitialized)
 		{
-			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 already initialized."));
+			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 already initialized."), Warning);
 			return false;
 
 		}
@@ -386,7 +386,7 @@ namespace Audio
 	{
 		if (!bIsInitialized)
 		{
-			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 was already tore down."));
+			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 was already tore down."), Warning);
 			return false;
 		}
 
@@ -441,7 +441,7 @@ namespace Audio
 
 		if (!bIsInitialized)
 		{
-			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 was not initialized."));
+			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 was not initialized."), Error);
 			return false;
 		}
 
@@ -640,7 +640,7 @@ namespace Audio
 	{
 		if (!bIsInitialized)
 		{
-			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 was not initialized."));
+			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 was not initialized."), Error);
 			return false;
 		}
 
@@ -896,13 +896,13 @@ namespace Audio
 	{
 		if (!bIsInitialized)
 		{
-			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 was not initialized."));
+			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 was not initialized."), Error);
 			return false;
 		}
 
 		if (bIsDeviceOpen)
 		{
-			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 audio stream already opened."));
+			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 audio stream already opened."), Warning);
 			return false;
 		}
 
@@ -1129,7 +1129,7 @@ namespace Audio
 	{
 		if (!bIsInitialized)
 		{
-			AUDIO_PLATFORM_ERROR(TEXT("XAudio2 was not initialized."));
+			AUDIO_PLATFORM_LOG_ONCE(TEXT("XAudio2 was not initialized."), Warning);
 			return false;
 		}
 

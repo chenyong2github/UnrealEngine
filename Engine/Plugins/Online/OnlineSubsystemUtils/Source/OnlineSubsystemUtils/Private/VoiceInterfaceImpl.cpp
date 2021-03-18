@@ -253,7 +253,7 @@ bool FOnlineVoiceImpl::UnregisterLocalTalker(uint32 LocalUserNum)
 		{
 			if (OnPlayerTalkingStateChangedDelegates.IsBound() && (Talker.bIsTalking || Talker.bWasTalking))
 			{
-				TSharedPtr<const FUniqueNetId> UniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr UniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
 				if (UniqueId.IsValid())
 				{
 					OnPlayerTalkingStateChangedDelegates.Broadcast(UniqueId.ToSharedRef(), false);
@@ -659,7 +659,7 @@ void FOnlineVoiceImpl::ProcessTalkingDelegates(float DeltaTime)
 				// Skip all delegate handling if none are registered
 				if (OnPlayerTalkingStateChangedDelegates.IsBound())
 				{
-					TSharedPtr<const FUniqueNetId> UniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
+					FUniqueNetIdPtr UniqueId = IdentityInt->GetUniquePlayerId(LocalUserNum);
 					OnPlayerTalkingStateChangedDelegates.Broadcast(UniqueId.ToSharedRef(), Talker.bIsTalking);
 				}
 
@@ -845,7 +845,7 @@ void FOnlineVoiceImpl::ProcessRemoteVoicePackets()
 
 FString FOnlineVoiceImpl::GetVoiceDebugState() const
 {
-	TSharedPtr<const FUniqueNetId> UniqueId;
+	FUniqueNetIdPtr UniqueId;
 
 	FString Output = TEXT("Voice state\n");
 	Output += VoiceEngine.IsValid() ? VoiceEngine->GetVoiceDebugState() : TEXT("No Voice Engine!");

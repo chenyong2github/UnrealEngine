@@ -423,7 +423,7 @@ struct TComponentLock<TReadOptional<T>> : TComponentLockMixin<FScopedHeaderReadL
 
 	const T* ComponentAtIndex(int32 Index) const
 	{
-		return this->ComponentPtr != nullptr ? (*this)[Index] : nullptr;
+		return this->ComponentPtr != nullptr ? this->AsPtr() + Index : nullptr;
 	}
 };
 template<typename T>
@@ -460,7 +460,7 @@ struct TComponentLock<TWriteOptional<T>> : TComponentLockMixin<FScopedHeaderWrit
 
 	T* ComponentAtIndex(int32 Index) const
 	{
-		return this->ComponentPtr != nullptr ? (*this)[Index] : nullptr;
+		return this->ComponentPtr != nullptr ? this->AsPtr() + Index : nullptr;
 	}
 };
 

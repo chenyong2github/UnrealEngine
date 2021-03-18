@@ -108,7 +108,7 @@ void URemoteControlBPFunctionLibrary::ExposeActor(URemoteControlPreset* RemoteCo
 			FRemoteControlPresetExposeArgs Args;
 			Args.Label = DisplayName;
 			Args.GroupId = RCPGroup->Id;
-			RemoteControlPreset->Expose(Actor, Args);
+			RemoteControlPreset->ExposeActor(Actor, Args);
 			UE_LOG(LogTemp, Display, TEXT("Added Actor: %s"), *DisplayName);
 		}
 		else

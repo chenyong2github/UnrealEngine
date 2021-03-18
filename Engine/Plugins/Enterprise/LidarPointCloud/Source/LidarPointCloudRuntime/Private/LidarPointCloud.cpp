@@ -354,8 +354,8 @@ void ULidarPointCloud::BeginDestroy()
 	// Wait for ongoing data access to finish
 	FScopeLock LockOctree(&Octree.DataLock);
 
-	// Release any collision rendering data, if present
-	ReleaseCollisionRendering();
+	// Release and destroy any collision rendering data, if present
+	ReleaseCollisionRendering(true);
 }
 
 void ULidarPointCloud::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -580,7 +580,7 @@ void ULidarPointCloud::RemoveCollision()
 	Octree.RemoveCollision();
 
 	BodySetup = NewObject<UBodySetup>(this);
-	ReleaseCollisionRendering();
+	ReleaseCollisionRendering(false);
 	InitializeCollisionRendering();
 	OnPointCloudUpdateCollisionEvent.Broadcast();
 
@@ -1313,7 +1313,7 @@ void ULidarPointCloud::FinishPhysicsAsyncCook(bool bSuccess, UBodySetup* NewBody
 	if (bSuccess)
 	{
 		BodySetup = NewBodySetup;
-		ReleaseCollisionRendering(); 
+		ReleaseCollisionRendering(false); 
 		InitializeCollisionRendering();
 		OnPointCloudUpdateCollisionEvent.Broadcast();
 	}

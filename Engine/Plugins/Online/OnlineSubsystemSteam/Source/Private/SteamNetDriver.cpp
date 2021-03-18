@@ -132,7 +132,7 @@ void USteamNetDriver::Shutdown()
 
 bool USteamNetDriver::IsNetResourceValid()
 {
-	bool bIsValidSteamSocket = !bIsPassthrough && (GetSocket() != nullptr) && ((FSocketSteam*)GetSocket())->LocalSteamId.IsValid();
+	bool bIsValidSteamSocket = !bIsPassthrough && (GetSocket() != nullptr) && ((FSocketSteam*)GetSocket())->LocalSteamId->IsValid();
 	bool bIsValidPassthroughSocket = bIsPassthrough && UIpNetDriver::IsNetResourceValid();
 	return bIsValidSteamSocket || bIsValidPassthroughSocket;
 }

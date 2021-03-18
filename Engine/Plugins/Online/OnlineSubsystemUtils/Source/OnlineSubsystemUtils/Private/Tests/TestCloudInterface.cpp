@@ -84,12 +84,13 @@ bool FTestCloudInterface::Tick( float DeltaTime )
 			OnReadEnumeratedUserFilesCompleteDelegateHandle = ReadEnumeratedUserFiles(OnReadEnumeratedUserFilesCompleteDelegate);
 			break;
 		case 3: 
-			// Forget the N files for the user and enumerate (should still remain locally)
-			OnDeleteEnumeratedUserFilesCompleteDelegateHandle = DeleteEnumeratedUserFiles(true, false, OnDeleteEnumeratedUserFilesCompleteDelegate);
+			// Delete the N files for the user and enumerate (should be removed locally but remain in the cloud)
+			// We run local deletion first because the opposite would mean that by the time we attempt a local deletion, EnumerateUserFiles may return an empty list
+			OnDeleteEnumeratedUserFilesCompleteDelegateHandle = DeleteEnumeratedUserFiles(false, true, OnDeleteEnumeratedUserFilesCompleteDelegate);
 			break;
 		case 4:
-			// Delete the N files for the user and enumerate (should be removed permanently)
-			OnDeleteEnumeratedUserFilesCompleteDelegateHandle = DeleteEnumeratedUserFiles(false, true, OnDeleteEnumeratedUserFilesCompleteDelegate);
+			// Forget the N files for the user and enumerate (should be removed in the cloud but remain locally)
+			OnDeleteEnumeratedUserFilesCompleteDelegateHandle = DeleteEnumeratedUserFiles(true, false, OnDeleteEnumeratedUserFilesCompleteDelegate);
 			break;
 		case 5:
 			// Write out N files for the user and share with the cloud and enumerate

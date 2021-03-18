@@ -22,7 +22,7 @@ namespace Chaos
 	namespace Collisions
 	{
 		extern int32 Chaos_Collision_UseShockPropagation;
-		extern float Chaos_Collision_CollisionClipTolerance;
+		extern FRealSingle Chaos_Collision_CollisionClipTolerance;
 
 		bool Chaos_Manifold_PushOut_NegativePushOut = false;
 		bool Chaos_Manifold_PushOut_StaticFriction = true;
@@ -35,15 +35,15 @@ namespace Chaos
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_PositionCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.PositionCorrection"), Chaos_Manifold_PushOut_PositionCorrection, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_VelocityCorrection(TEXT("p.Chaos.Collision.Manifold.PushOut.VelocityCorrectionMode"), Chaos_Manifold_PushOut_VelocityCorrection, TEXT("0 = No Velocity Correction; 1 = Normal Velocity Correction; 2 = Normal + Tangential Velocity Correction"));
 
-		float Chaos_Manifold_MinPushOutStiffness = 0.25f;
-		float Chaos_Manifold_MaxPushOutStiffness = 0.5f;
+		FRealSingle Chaos_Manifold_MinPushOutStiffness = 0.25f;
+		FRealSingle Chaos_Manifold_MaxPushOutStiffness = 0.5f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MinStiffness(TEXT("p.Chaos.Collision.Manifold.MinPushOutStiffness"), Chaos_Manifold_MinPushOutStiffness, TEXT(""));
 		FAutoConsoleVariableRef CVarChaos_Manifold_PushOut_MaxStiffness(TEXT("p.Chaos.Collision.Manifold.MaxPushOutStiffness"), Chaos_Manifold_MaxPushOutStiffness, TEXT(""));
 
-		float Chaos_Manifold_ImpulseTolerance = 1.e-4f;
+		FRealSingle Chaos_Manifold_ImpulseTolerance = 1.e-4f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_ImpulseTolerance(TEXT("p.Chaos.Collision.Manifold.ImpulseTolerance"), Chaos_Manifold_ImpulseTolerance, TEXT(""));
 
-		float Chaos_Manifold_PositionTolerance = 1.e-4f;
+		FRealSingle Chaos_Manifold_PositionTolerance = 1.e-4f;
 		FAutoConsoleVariableRef CVarChaos_Manifold_PositionTolerance(TEXT("p.Chaos.Collision.Manifold.PositionTolerance"), Chaos_Manifold_PositionTolerance, TEXT(""));
 
 

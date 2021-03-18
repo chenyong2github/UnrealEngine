@@ -2,15 +2,45 @@
 
 #include "SRCPanelInputBindings.h"
 
+#include "Customizations/RemoteControlEntityCustomization.h"
+#include "EditorStyleSet.h"
+#include "IStructureDetailsView.h"
+#include "Modules/ModuleManager.h"
+#include "PropertyEditorModule.h"
+#include "RemoteControlActor.h"
+#include "RemoteControlEntity.h"
+#include "RemoteControlPreset.h"
+#include "SRCPanelExposedActor.h"
 #include "SRCPanelExposedEntitiesList.h"
 #include "SRCPanelExposedField.h"
 #include "SRCPanelTreeNode.h"
+#include "Templates/UnrealTypeTraits.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Layout/SBorder.h"
 
-void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPreset* Preset)
+namespace RCPanelInputBindings
 {
+	template <typename EntityType> 
+	TSharedPtr<FStructOnScope> GetEntityOnScope(const TSharedPtr<EntityType>& Entity)
+	{
+		static_assert(TIsDerivedFrom<EntityType, FRemoteControlEntity>::Value, "EntityType must derive from FRemoteControlEntity.");
+		if (Entity)
+		{
+			return MakeShared<FStructOnScope>(EntityType::StaticStruct(), reinterpret_cast<uint8*>(Entity.Get()));
+		}
+
+		return nullptr;
+	}
+}
+
+void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset)
+{
+	EntityList = SNew(SRCPanelExposedEntitiesList, InPreset)
+		.DisplayValues(false);
+
+	EntityList->OnSelectionChange().AddSP(this, &SRCPanelInputBindings::UpdateEntityDetailsView);
+
 	ChildSlot
 	[
 		SNew(SVerticalBox)
@@ -18,7 +48,8 @@ void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPr
 		.AutoHeight()
 		[
 			// Status, Protocol picker
-			SNew(SBorder)
+			SNew(SBox)
+			.Padding(10.f)
 			[
 				SNew(STextBlock)
 				.Text(INVTEXT("Top bar"))
@@ -27,50 +58,104 @@ void SRCPanelInputBindings::Construct(const FArguments& InArgs, URemoteControlPr
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.3f)
+			SNew(SBorder)
+			.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
 			[
-				// Exposed Fields List
-				SNew(SBorder)
+				SNew(SSplitter)
+				+ SSplitter::Slot()
+				.Value(0.3f)
 				[
-					SAssignNew(EntityList, SRCPanelExposedEntitiesList, Preset)
-					.DisplayValues(false)
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.FillWidth(0.7f)
-			[
-				SNew(SBorder)
-				[
-					SNew(SVerticalBox)
-					+ SVerticalBox::Slot()
-					.FillHeight(0.6f)
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.Padding(5.f)
 					[
-						// Exposed Field details view
-						SNew(STextBlock)
-						.Text_Lambda([this]()
-						{
-							if (TSharedPtr<SRCPanelTreeNode> SelectedNode = EntityList->GetSelection())
-							{
-								if (TSharedPtr<SRCPanelExposedField> Field = SelectedNode->AsField())
-								{
-									return FText::FromName(Field->GetFieldLabel());
-								}
-							}
-						
-							return FText::GetEmpty();
-						})
+						// Exposed entities List
+						EntityList.ToSharedRef()
 					]
-					+ SVerticalBox::Slot()
-					.FillHeight(0.4f)
+				]
+				+ SSplitter::Slot()
+				.Value(0.7f)
+				[
+					SNew(SBorder)
+					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					.Padding(5.f)
 					[
-						// Input Mapping details view.
-						SNew(STextBlock)
-						.Text(INVTEXT("Bottom Right bar"))
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.FillHeight(0.6f)
+						[
+							CreateEntityDetailsView()
+						]
+						+ SVerticalBox::Slot()
+						.FillHeight(0.4f)
+						[
+							// Input Mapping details view.
+							SNew(STextBlock)
+							.Text(INVTEXT("Bottom Right bar"))
+						]
 					]
 				]
 			]
 		]
 	];
+}
+
+TSharedRef<SWidget> SRCPanelInputBindings::CreateEntityDetailsView()
+{
+	FDetailsViewArgs Args;
+	Args.bShowOptions = false;
+	Args.bAllowFavoriteSystem = false;
+	Args.bAllowSearch = false;
+	Args.bShowScrollBar = false;
+
+	EntityDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateStructureDetailView(MoveTemp(Args), FStructureDetailsViewArgs(), nullptr);
+
+	UpdateEntityDetailsView(EntityList->GetSelection());
+	
+	if (ensure(EntityDetailsView && EntityDetailsView->GetWidget()))
+	{
+		return EntityDetailsView->GetWidget().ToSharedRef();
+	}
+	return SNullWidget::NullWidget;
+}
+
+void SRCPanelInputBindings::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode)
+{
+	TSharedPtr<FStructOnScope> SelectedEntityPtr;
+	if (SelectedNode)
+	{
+		if (TSharedPtr<SRCPanelExposedField> FieldWidget = SelectedNode->AsField())
+		{
+			if (TSharedPtr<FRemoteControlField> Field = FieldWidget->GetRemoteControlField().Pin())
+			{
+				if (Field->FieldType == EExposedFieldType::Property)
+				{
+					SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlProperty>(Field));
+				}
+				else if(Field->FieldType == EExposedFieldType::Function)
+				{
+					SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(StaticCastSharedPtr<FRemoteControlFunction>(Field));
+				}
+				else
+				{
+					checkNoEntry();
+				}
+				
+				SelectedEntity = Field;
+			}
+		}
+		else if (TSharedPtr<SRCPanelExposedActor> ActorWidget = SelectedNode->AsActor())
+		{
+			if (TSharedPtr<FRemoteControlActor> Actor = ActorWidget->GetRemoteControlActor().Pin())
+			{
+				SelectedEntity = Actor;
+				SelectedEntityPtr = RCPanelInputBindings::GetEntityOnScope(Actor);
+			}
+		}
+	}
+	if (ensure(EntityDetailsView))
+	{
+		EntityDetailsView->SetStructureData(SelectedEntityPtr);
+	}
 }

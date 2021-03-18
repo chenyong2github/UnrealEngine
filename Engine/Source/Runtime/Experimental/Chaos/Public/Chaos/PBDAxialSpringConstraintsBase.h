@@ -71,7 +71,7 @@ public:
 		const FVec3& P3 = InParticles.P(i3);
 		const FVec3 P = (P2 - P3) * MBarys[i] + P3;
 		FVec3 Difference = P1 - P;
-		float Distance = Difference.Size();
+		FReal Distance = Difference.Size();
 		if (UNLIKELY(Distance <= SMALL_NUMBER))
 			return FVec3((FReal) 0);
 		FVec3 Direction = Difference / Distance;

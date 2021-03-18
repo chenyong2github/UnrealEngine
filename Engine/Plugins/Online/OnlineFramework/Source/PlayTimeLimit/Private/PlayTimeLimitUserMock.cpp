@@ -5,7 +5,7 @@
 
 #if ALLOW_PLAY_LIMIT_MOCK
 
-FPlayTimeLimitUserMock::FPlayTimeLimitUserMock(const TSharedRef<const FUniqueNetId>& InUserId, const bool bInHasTimeLimit, const double InPlayTimeMinutes)
+FPlayTimeLimitUserMock::FPlayTimeLimitUserMock(const FUniqueNetIdRef& InUserId, const bool bInHasTimeLimit, const double InPlayTimeMinutes)
 	: FPlayTimeLimitUser(InUserId)
 	, bHasTimeLimit(bInHasTimeLimit)
 	, PlayTimeMinutesStart(InPlayTimeMinutes)

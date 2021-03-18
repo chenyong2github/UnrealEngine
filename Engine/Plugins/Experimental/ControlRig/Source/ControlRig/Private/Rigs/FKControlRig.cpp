@@ -162,15 +162,16 @@ void UFKControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	// execute init
 	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 }
+
 TArray<FName> UFKControlRig::GetControlNames()
 {
+	TArray<FRigControlElement*> Controls;
+	GetControlsInOrder(Controls);
+
 	TArray<FName> Names;
-	for (FRigBaseElement* Element : *GetHierarchy())
+	for (FRigControlElement* ControlElement : Controls) 
 	{
-		if(Element->IsTypeOf(ERigElementType::Control))
-		{
-			Names.Add(Element->GetName());
-		}
+		Names.Add(ControlElement->GetName());
 	}
 	return Names;
 }

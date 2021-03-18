@@ -276,7 +276,7 @@ public:
 		if (IsDebugDrawingEnabled())
 		{
 			FScopeLock Lock(&CommandQueueCS);
-			if (AcceptCommand(1) && IsInRegionOfInterest(Position))
+			if (AcceptCommand(1, Position))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawPoint(Position, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
 			}
@@ -288,7 +288,7 @@ public:
 		if (IsDebugDrawingEnabled())
 		{
 			FScopeLock Lock(&CommandQueueCS);
-			if (AcceptCommand(1) && IsInRegionOfInterest(LineStart))
+			if (AcceptCommand(1, LineStart))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawLine(LineStart, LineEnd, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
 			}
@@ -300,7 +300,7 @@ public:
 		if (IsDebugDrawingEnabled())
 		{
 			FScopeLock Lock(&CommandQueueCS);
-			if (AcceptCommand(3) && IsInRegionOfInterest(LineStart))
+			if (AcceptCommand(3, LineStart))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawDirectionalArrow(LineStart, LineEnd, ArrowSize, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
 			}
@@ -313,7 +313,7 @@ public:
 		{
 			FScopeLock Lock(&CommandQueueCS);
 			const int Cost = Segments * Segments;
-			if (AcceptCommand(Cost) && IsInRegionOfInterest(Center))
+			if (AcceptCommand(Cost, Center))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugSphere(Center, Radius, Segments, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
 			}
@@ -325,7 +325,7 @@ public:
 		if (IsDebugDrawingEnabled())
 		{
 			FScopeLock Lock(&CommandQueueCS);
-			if (AcceptCommand(12) && IsInRegionOfInterest(Center))
+			if (AcceptCommand(12, Center))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugBox(Center, Extent, Rotation, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
 			}
@@ -338,7 +338,7 @@ public:
 		{
 			FScopeLock Lock(&CommandQueueCS);
 			int Cost = Text.Len();
-			if (AcceptCommand(Cost) && IsInRegionOfInterest(TextLocation))
+			if (AcceptCommand(Cost, TextLocation))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugString(TextLocation, Text, TestBaseActor, Color, Duration, bDrawShadow, FontScale));
 			}
@@ -350,7 +350,7 @@ public:
 		if (IsDebugDrawingEnabled())
 		{
 			FScopeLock Lock(&CommandQueueCS);
-			if (AcceptCommand(Segments) && IsInRegionOfInterest(Center))
+			if (AcceptCommand(Segments, Center))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugCircle(Center, Radius, Segments, Color, bPersistentLines, LifeTime, DepthPriority, Thickness, YAxis, ZAxis, bDrawAxis));
 			}
@@ -362,7 +362,7 @@ public:
 		if (IsDebugDrawingEnabled())
 		{
 			FScopeLock Lock(&CommandQueueCS);
-			if (AcceptCommand(16) && IsInRegionOfInterest(Center))
+			if (AcceptCommand(16, Center))
 			{
 				CommandQueue.Emplace(FLatentDrawCommand::DrawDebugCapsule(Center, HalfHeight, Radius, Rotation, Color, bPersistentLines, LifeTime, DepthPriority, Thickness));
 			}
@@ -410,22 +410,31 @@ public:
 private:
 	FDebugDrawQueue()
 		: RequestedCommandCost(0)
-		, MaxCommandCost(0)
+		, MaxCommandCost(10000)
 		, CenterOfInterest(FVector::ZeroVector)
 		, RadiusOfInterest(0)
 		, bEnableDebugDrawing(false)
 	{}
 	~FDebugDrawQueue() {}
 
-	bool AcceptCommand(int Cost)
+	bool AcceptCommand(int Cost, const FVec3& Position)
 	{
-		RequestedCommandCost += Cost;
-		return (MaxCommandCost <= 0) || (RequestedCommandCost <= MaxCommandCost);
+		if (IsInRegionOfInterest(Position))
+		{
+			RequestedCommandCost += Cost;
+			return IsInBudget();
+		}
+		return false;
 	}
 
 	bool IsInRegionOfInterest(FVector Pos) const
 	{
 		return (RadiusOfInterest <= 0.0f) || ((Pos - CenterOfInterest).SizeSquared() < RadiusOfInterest * RadiusOfInterest);
+	}
+
+	bool IsInBudget() const
+	{
+		return (MaxCommandCost <= 0) || (RequestedCommandCost <= MaxCommandCost);
 	}
 
 	TArray<FLatentDrawCommand> CommandQueue;

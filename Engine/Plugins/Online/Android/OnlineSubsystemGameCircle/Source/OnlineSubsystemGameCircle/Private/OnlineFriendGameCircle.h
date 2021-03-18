@@ -12,10 +12,10 @@ class FOnlineFriendGameCircle : public FOnlineFriend
 public:
 
 	// Use this constructor
-	FOnlineFriendGameCircle(TSharedPtr<const FUniqueNetId> InUniqueId, const FString& InPlayerAlias, const FString& InAvatarURL);
+	FOnlineFriendGameCircle(FUniqueNetIdPtr InUniqueId, const FString& InPlayerAlias, const FString& InAvatarURL);
 
 	//~ Begin FOnlineUser
-	virtual TSharedRef<const FUniqueNetId> GetUserId() const override;
+	virtual FUniqueNetIdRef GetUserId() const override;
 	virtual FString GetRealName() const override;
 	virtual FString GetDisplayName(const FString& Platform = FString()) const override;
 	virtual bool GetUserAttribute(const FString& AttrName, FString& OutAttrValue) const override;
@@ -31,7 +31,7 @@ private:
 	// Hide the default constructor
 	FOnlineFriendGameCircle() {};
 
-	TSharedPtr<const FUniqueNetId> PlayerId;
+	FUniqueNetIdPtr PlayerId;
 	FString PlayerAlias;
 	FString AvatarURL;
 

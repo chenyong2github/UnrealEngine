@@ -41,4 +41,4 @@ void TSmokeEvolution<T, d>::AdvanceOneTimeStep(const T Dt)
 	MProjectionRule(MGrid, MVelocity, MDirichlet, MNeumann, Dt);
 }
 
-template class Chaos::TSmokeEvolution<float, 3>;
+template class Chaos::TSmokeEvolution<Chaos::FReal, 3>;

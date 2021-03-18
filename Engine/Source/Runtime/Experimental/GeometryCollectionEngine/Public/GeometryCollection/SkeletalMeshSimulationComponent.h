@@ -22,6 +22,7 @@ class FSkeletalMeshPhysicsProxy;
 /**
 *	USkeletalMeshSimulationComponent
 */
+class UE_DEPRECATED(4.27, "USkeletalMeshSimulationComponent is deprecated. use regular USkeletalMeshComponent") USkeletalMeshSimulationComponent;
 UCLASS(ClassGroup = Physics, Experimental, meta = (BlueprintSpawnableComponent))
 class GEOMETRYCOLLECTIONENGINE_API USkeletalMeshSimulationComponent : public UActorComponent, public IChaosNotifyHandlerInterface
 {

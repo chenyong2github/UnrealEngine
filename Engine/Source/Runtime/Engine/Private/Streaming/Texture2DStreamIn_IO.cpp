@@ -32,16 +32,15 @@ FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 #endif
 }
 
-static void ValidateMipBulkDataSize(const UTexture2D& Texture, int32 MipIndex, int64& BulkDataSize)
+static void ValidateMipBulkDataSize(const UTexture2D& Texture, int32 MipSizeX, int32 MipSizeY, int32 MipIndex, int64& BulkDataSize)
 {
 #if PLATFORM_ANDROID
-	const int64 ExpectedMipSize = CalcTextureMipMapSize(Texture.GetSizeX(), Texture.GetSizeY(), Texture.GetPixelFormat(), MipIndex);
+	const int64 ExpectedMipSize = CalcTextureMipMapSize((uint32)MipSizeX, (uint32)MipSizeY, Texture.GetPixelFormat(), 0);
 	if (BulkDataSize != ExpectedMipSize)
 	{
 #if !UE_BUILD_SHIPPING
-		// Fatal error in non-shipping configurations
-		UE_LOG(LogTexture, Warning, TEXT("Mip (%d) has an unexpected size %lld, expected size %lld. %s, Pixel format %s"), 
-			MipIndex, BulkDataSize, ExpectedMipSize, *Texture.GetFullName(), GPixelFormats[Texture.GetPixelFormat()].Name);
+		UE_LOG(LogTexture, Warning, TEXT("Mip (%d) %dx%d has an unexpected size %lld, expected size %lld. %s, Pixel format %s"), 
+			MipIndex, MipSizeX, MipSizeY, BulkDataSize, ExpectedMipSize, *Texture.GetFullName(), GPixelFormats[Texture.GetPixelFormat()].Name);
 #endif
 		// Make sure we don't overrun buffer allocated for this mip
 		BulkDataSize = FMath::Min(BulkDataSize, ExpectedMipSize);
@@ -66,7 +65,7 @@ void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 			TaskSynchronization.Increment();
 
 			// Validate buffer size for the mip, so we don't overrun it on streaming
-			ValidateMipBulkDataSize(*Context.Texture, MipIndex, BulkDataSize);
+			ValidateMipBulkDataSize(*Context.Texture, MipMap.SizeX, MipMap.SizeY, MipIndex, BulkDataSize);
 
 			IORequests[MipIndex] = MipMap.BulkData.CreateStreamingRequest(
 				0,

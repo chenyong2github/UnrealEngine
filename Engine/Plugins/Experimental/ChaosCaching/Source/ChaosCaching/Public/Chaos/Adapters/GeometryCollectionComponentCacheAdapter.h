@@ -51,7 +51,7 @@ struct FBreakingEvent : public FCacheEventBase
 	{
 	}
 
-	FBreakingEvent(int32 InIndex, const Chaos::TBreakingData<float, 3>& InData)
+	FBreakingEvent(int32 InIndex, const Chaos::FBreakingData& InData)
 		: Index(InIndex)
 		, Location(InData.Location)
 		, Velocity(InData.Velocity)

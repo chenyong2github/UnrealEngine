@@ -48,6 +48,16 @@ bool UCheatManager::bDebugCapsuleSweepPawn = false;
 
 FOnCheatManagerCreated UCheatManager::OnCheatManagerCreatedDelegate;
 
+UWorld* UCheatManagerExtension::GetWorld() const
+{
+	if (IsTemplate())
+	{
+		return nullptr;
+	}
+
+	return GetOuterUCheatManager()->GetWorld();
+}
+
 UCheatManager::UCheatManager(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bToggleAILogging(false)

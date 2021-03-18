@@ -24,7 +24,7 @@ void K2Node_CastPatchToTypeCustomization::CustomizeDetails(IDetailLayoutBuilder&
 {
 
 	DetailLayout = &InDetailLayout;
-	UK2Node_CastPatchToType* Node = GetK2Node_CastPatchToType();
+	UDEPRECATED_K2Node_CastPatchToType* Node = GetK2Node_CastPatchToType();
 
 	static const FName FixtureSettingsCategoryName = TEXT("Fixture Settings");
 	InDetailLayout.EditCategory(FixtureSettingsCategoryName, FText::GetEmpty(), ECategoryPriority::Important);
@@ -77,7 +77,7 @@ FReply K2Node_CastPatchToTypeCustomization::ExposeAttributesClicked()
 	{
 		if (SelectedObjects[SelectedIndex].IsValid())
 		{
-			if (UK2Node_CastPatchToType* Node = Cast<UK2Node_CastPatchToType>(SelectedObjects[SelectedIndex].Get()))
+			if (UDEPRECATED_K2Node_CastPatchToType* Node = Cast<UDEPRECATED_K2Node_CastPatchToType>(SelectedObjects[SelectedIndex].Get()))
 			{
 				Node->ExposeAttributes();
 			}
@@ -89,7 +89,7 @@ FReply K2Node_CastPatchToTypeCustomization::ExposeAttributesClicked()
 
 FReply K2Node_CastPatchToTypeCustomization::ResetAttributesClicked()
 {
-	if (UK2Node_CastPatchToType* Node = GetK2Node_CastPatchToType())
+	if (UDEPRECATED_K2Node_CastPatchToType* Node = GetK2Node_CastPatchToType())
 	{
 		Node->ResetAttributes();
 	}
@@ -97,7 +97,7 @@ FReply K2Node_CastPatchToTypeCustomization::ResetAttributesClicked()
 	return FReply::Handled();
 }
 
-UK2Node_CastPatchToType* K2Node_CastPatchToTypeCustomization::GetK2Node_CastPatchToType() const
+UDEPRECATED_K2Node_CastPatchToType* K2Node_CastPatchToTypeCustomization::GetK2Node_CastPatchToType() const
 {
 	const TArray< TWeakObjectPtr<UObject> >& SelectedObjects = DetailLayout->GetSelectedObjects();
 
@@ -105,7 +105,7 @@ UK2Node_CastPatchToType* K2Node_CastPatchToTypeCustomization::GetK2Node_CastPatc
 	{
 		if (SelectedObjects[SelectedIndex].IsValid())
 		{
-			return Cast<UK2Node_CastPatchToType>(SelectedObjects[SelectedIndex].Get());
+			return Cast<UDEPRECATED_K2Node_CastPatchToType>(SelectedObjects[SelectedIndex].Get());
 		}
 	}
 

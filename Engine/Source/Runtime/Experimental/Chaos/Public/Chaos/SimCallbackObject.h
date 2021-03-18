@@ -39,6 +39,8 @@ public:
 	/** The delta time associated with this simulation step */
 	FReal GetDeltaTime_Internal() const { return DeltaTime_Internal; }
 
+	virtual bool IsFAsyncObjectManagerCallback() const { return false;}
+
 	void PreSimulate_Internal()
 	{
 		OnPreSimulate_Internal();
@@ -136,8 +138,7 @@ private:
 	}
 	
 
-	template <typename T>
-	friend class TPBDRigidsSolver;
+	friend class FPBDRigidsSolver;
 
 	friend class FPhysicsSolverBase;
 	friend class FChaosMarshallingManager;

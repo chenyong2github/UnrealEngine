@@ -56,7 +56,7 @@ public:
 	 *
 	 * @return true if the call is successful, false otherwise
 	 */
-	virtual bool ReadLeaderboards(const TArray< TSharedRef<const FUniqueNetId> >& Players, FOnlineLeaderboardReadRef& ReadObject) = 0;
+	virtual bool ReadLeaderboards(const TArray< FUniqueNetIdRef >& Players, FOnlineLeaderboardReadRef& ReadObject) = 0;
 
 	/**
 	 * Reads a player's stats and all of that player's friends stats for the
@@ -95,7 +95,7 @@ public:
 	*
 	* @return true if the call is successful, false otherwise
 	*/
-	virtual bool ReadLeaderboardsAroundUser(TSharedRef<const FUniqueNetId> Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) = 0;
+	virtual bool ReadLeaderboardsAroundUser(FUniqueNetIdRef Player, uint32 Range, FOnlineLeaderboardReadRef& ReadObject) = 0;
 
 	/**
 	 * Notifies the interested party that the last stats read has completed

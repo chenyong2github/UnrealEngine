@@ -115,9 +115,9 @@ bool FSocketSteam::SendTo(const uint8* Data, int32 Count, int32& BytesSent, cons
 	if (SteamNetworkingPtr)
 	{
 		const FInternetAddrSteam& SteamDest = (const FInternetAddrSteam&)Destination;
-		if (SteamDest.SteamId != LocalSteamId)
+		if (*SteamDest.SteamId != *LocalSteamId)
 		{
-			if (SteamNetworkingPtr->SendP2PPacket(SteamDest.SteamId, Data, Count, SteamSendMode, SteamDest.SteamChannel))
+			if (SteamNetworkingPtr->SendP2PPacket(*SteamDest.SteamId, Data, Count, SteamSendMode, SteamDest.SteamChannel))
 			{
 				BytesSent = Count;
 				bSuccess = true;
@@ -165,7 +165,8 @@ bool FSocketSteam::RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FIn
 	FInternetAddrSteam& SteamAddr = (FInternetAddrSteam&)Source;
 	
 	uint32 MessageSize = 0;
-	if (!SteamNetworkingPtr->ReadP2PPacket(Data, BufferSize, &MessageSize, (CSteamID*)SteamAddr.SteamId, SteamChannel))
+	CSteamID SteamId;
+	if (!SteamNetworkingPtr->ReadP2PPacket(Data, BufferSize, &MessageSize, &SteamId, SteamChannel))
 	{
 		MessageSize = 0;
         SocketSubsystem->LastSocketError = SE_EWOULDBLOCK;
@@ -173,7 +174,8 @@ bool FSocketSteam::RecvFrom(uint8* Data, int32 BufferSize, int32& BytesRead, FIn
 	}
 	else
 	{
-		if (SocketSubsystem->P2PTouch(SteamNetworkingPtr, SteamAddr.SteamId, SteamChannel))
+		SteamAddr.SteamId = FUniqueNetIdSteam::Create(SteamId);
+		if (SocketSubsystem->P2PTouch(SteamNetworkingPtr, *SteamAddr.SteamId, SteamChannel))
 		{
 			SocketSubsystem->LastSocketError = SE_NO_ERROR;
 		}

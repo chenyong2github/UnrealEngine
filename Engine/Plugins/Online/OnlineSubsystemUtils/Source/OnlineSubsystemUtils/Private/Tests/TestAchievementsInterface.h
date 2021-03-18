@@ -29,7 +29,7 @@
 	FOnAchievementUnlockedDelegate OnAchievementUnlockedDelegate;
 
 	/** The id of the player we are testing achievements for */
-	TSharedPtr<const FUniqueNetId> UserId;
+	FUniqueNetIdPtr UserId;
 
 	/** Leaderboard read object */
 	FOnlineAchievementsWritePtr WriteObject;

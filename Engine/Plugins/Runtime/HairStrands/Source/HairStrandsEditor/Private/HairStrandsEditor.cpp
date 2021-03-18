@@ -15,7 +15,10 @@
 
 #include "GroomEditorCommands.h"
 #include "GroomAsset.h"
+#include "GroomBindingAsset.h"
 #include "GroomComponentDetailsCustomization.h"
+#include "GroomCreateBindingOptions.h"
+#include "GroomBindingDetailsCustomization.h"
 
 #include "AssetRegistryModule.h"
 #include "FileHelpers.h"
@@ -103,11 +106,13 @@ void FGroomEditor::StartupModule()
 		// Custom widget for groom component (Group desc override, ...)
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.RegisterCustomClassLayout(UGroomComponent::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGroomComponentDetailsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(UGroomBindingAsset::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGroomBindingDetailsCustomization::MakeInstance));
+		PropertyModule.RegisterCustomClassLayout(UGroomCreateBindingOptions::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FGroomCreateBindingDetailsCustomization::MakeInstance));
 	}
 
 	FGroomEditorCommands::Register();
 
-	// Asset create/edition helper/wrapper for creating/edition asset withn the HairStrandsCore 
+	// Asset create/edition helper/wrapper for creating/edition asset within the HairStrandsCore 
 	// project without any editor dependencies
 	FHairAssetHelper Helper;
 	Helper.CreateFilename = CreateFilename;
@@ -118,6 +123,11 @@ void FGroomEditor::StartupModule()
 
 void FGroomEditor::ShutdownModule()
 {
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.UnregisterCustomClassLayout(UGroomComponent::StaticClass()->GetFName());
+	PropertyModule.UnregisterCustomClassLayout(UGroomBindingAsset::StaticClass()->GetFName());
+	PropertyModule.UnregisterCustomClassLayout(UGroomCreateBindingOptions::StaticClass()->GetFName());
+
 	// #ueent_todo: Unregister the translators
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
 

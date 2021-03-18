@@ -122,7 +122,7 @@ void FOnlineIdentityFacebook::OnLoginAttemptComplete(int32 LocalUserNum, const F
 	{
 		extern FString AndroidThunkCpp_Facebook_GetAccessToken();
 		UE_LOG_ONLINE_IDENTITY(Display, TEXT("Facebook login was successful %s"), *AndroidThunkCpp_Facebook_GetAccessToken());
-		TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+		FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 		check(UserId.IsValid());
 		
 		FacebookSubsystem->ExecuteNextTick([this, UserId, LocalUserNum, ErrorStrCopy]()
@@ -138,7 +138,7 @@ void FOnlineIdentityFacebook::OnLoginAttemptComplete(int32 LocalUserNum, const F
 		{
 			UE_LOG_ONLINE_IDENTITY(Warning, TEXT("Facebook login failed: %s"), *ErrorStrCopy);
 
-			TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+			FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 			if (UserId.IsValid())
 			{
 				// remove cached user account
@@ -177,7 +177,7 @@ bool FOnlineIdentityFacebook::Logout(int32 LocalUserNum)
 				[this, LocalUserNum](EFacebookLoginResponse InResponseCode)
 			{
 				UE_LOG_ONLINE_IDENTITY(Verbose, TEXT("FOnInternalLogoutComplete %s"), ToString(InResponseCode));
-				TSharedPtr<const FUniqueNetId> UserId = GetUniquePlayerId(LocalUserNum);
+				FUniqueNetIdPtr UserId = GetUniquePlayerId(LocalUserNum);
 				if (UserId.IsValid())
 				{
 					// remove cached user account

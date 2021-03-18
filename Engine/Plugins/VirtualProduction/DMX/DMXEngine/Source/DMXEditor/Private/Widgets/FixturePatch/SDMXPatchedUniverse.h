@@ -21,6 +21,16 @@ class UDMXEntityFixturePatch;
 class SBorder;
 class SGridPanel;
 
+
+enum class EDMXPatchedUniverseReachability
+{
+	Reachable,
+	UnreachableForInputPorts,
+	UnreachableForOutputPorts,
+	UnreachableForInputAndOutputPorts
+};
+
+
 /** A universe with assigned patches */
 class SDMXPatchedUniverse
 	: public SCompoundWidget
@@ -30,6 +40,10 @@ class SDMXPatchedUniverse
 	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnDropOntoChannel, int32 /** UniverseID */, int32 /** ChannelID */, const FDragDropEvent&);
 
 public:
+	SDMXPatchedUniverse()
+		: PatchedUniverseReachability(EDMXPatchedUniverseReachability::UnreachableForInputAndOutputPorts)
+	{}
+
 	SLATE_BEGIN_ARGS(SDMXPatchedUniverse)
 		: _UniverseID(0)
 		, _DMXEditor(nullptr)
@@ -112,7 +126,7 @@ protected:
 	void CreateChannelConnectors();
 
 	/** Returns the name of the universe displayed */
-	FText GetUniverseName() const;
+	FText GetHeaderText() const;
 	
 protected:
 	/** Called when drag enters a channel */
@@ -131,10 +145,10 @@ protected:
 
 protected:
 	/** Returns wether the out of controllers' ranges banner should be visible */
-	EVisibility GetOutOfControllersRangesBannerVisibility() const;
+	EVisibility GetPatchedUniverseReachabilityBannerVisibility() const;
 
 	/** Updates bOutOfControllersRanges member */
-	void UpdateOutOfControllersRanges();
+	void UpdatePatchedUniverseReachability();
 
 	/** Returns the DMXLibrary or nullptr if not available */
 	UDMXLibrary* GetDMXLibrary() const;
@@ -143,7 +157,7 @@ protected:
 	int32 UniverseID;
 
 	/** If true the universe ID is out of controllers' ranges */
-	bool bOutOfControllersRanges = true;
+	EDMXPatchedUniverseReachability PatchedUniverseReachability;
 	
 	/** Widget showing the Name of the Universe */
 	TSharedPtr<SBorder> UniverseName; 

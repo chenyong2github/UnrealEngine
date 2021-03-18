@@ -9,6 +9,7 @@
 #include "SDMXPatchedUniverse.h"
 #include "DragDrop/DMXEntityDragDropOp.h"
 #include "DragDrop/DMXEntityFixturePatchDragDropOp.h"
+#include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 #include "Widgets/Layout/SSeparator.h"
@@ -265,7 +266,6 @@ void SDMXFixturePatcher::OnEntitiesUpdated(UDMXLibrary* DMXLibrary)
 	check(DMXLibrary == GetDMXLibrary());
 	RefreshFromLibrary();
 }
-
 
 void SDMXFixturePatcher::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
@@ -749,53 +749,23 @@ bool SDMXFixturePatcher::IsUniverseSelectionEnabled() const
 	return false;
 }
 
-bool SDMXFixturePatcher::HasAnyControllers() const
+bool SDMXFixturePatcher::HasAnyPorts() const
 {
 	UDMXLibrary* Library = GetDMXLibrary();
 	if (Library)
 	{
-		TArray<UDMXEntityController*> Controllers = Library->GetEntitiesTypeCast<UDMXEntityController>();
-		if (Controllers.Num() > 0)
-		{
-			return true;
-		}
+		const bool bHasAnyPorts =  Library->GetInputPorts().Num() > 0 || Library->GetOutputPorts().Num() > 0;
+
+		return bHasAnyPorts;
 	}
 	return false;
 }
 
-bool SDMXFixturePatcher::AreUniversesInControllersRange() const
-{
-	UDMXLibrary* Library = GetDMXLibrary();
-	if (Library)
-	{
-		TArray<UDMXEntityController*> Controllers = Library->GetEntitiesTypeCast<UDMXEntityController>();
-		
-		TArray<int32> UniverseIDs;
-		PatchedUniversesByID.GetKeys(UniverseIDs);
-
-		for (int32 UniverseID : UniverseIDs)
-		{
-			int32 IdxControllerInRange =
-				Controllers.IndexOfByPredicate([UniverseID](UDMXEntityController* Controller) {
-					return
-						UniverseID >= Controller->UniverseLocalStart &&
-						UniverseID <= Controller->UniverseLocalEnd;
-					});
-
-			if (IdxControllerInRange == INDEX_NONE)
-			{
-				return false;
-			}
-		}
-	}
-	return true;
-}
-
 FText SDMXFixturePatcher::GetTooltipText() const
 {
-	if (!HasAnyControllers())
+	if (!HasAnyPorts())
 	{
-		return LOCTEXT("NoControllers", "No controllers available. Please create one in the 'Controllers' tab.");
+		return LOCTEXT("NoPorts", "No ports available. Please create add Ports to the DMX Library.");
 	}
 
 	return FText::GetEmpty();
