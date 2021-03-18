@@ -21,7 +21,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.25";
+        private static string VersionString = "4.26";
 
         public static string Get() { return VersionString; }
     };
@@ -350,9 +350,10 @@ namespace PerfReportTool
 		public void ComputeSummaryTableCacheId(string reportTypeId)
 		{
 			// If the CSV has an embedded ID, use that. Otherwise generate one. 
-			if (metadata != null && metadata.Values.ContainsKey("csvID"))
+			string csvId;
+			if (metadata != null && metadata.Values.ContainsKey("csvid"))
 			{
-				summaryTableCacheId = metadata.Values["csvID"] + "_" + reportTypeId;
+				csvId = metadata.Values["csvid"];
 			}
 			else
 			{
@@ -367,8 +368,9 @@ namespace PerfReportTool
 						sb.Append("{" + key + "}={" + metadata.Values[key] + "}\n");
 					}
 				}
-				summaryTableCacheId = HashHelper.StringToHashStr(sb.ToString()) + "_" + reportTypeId;
+				csvId = HashHelper.StringToHashStr(sb.ToString()) + "_"; ;
 			}
+			summaryTableCacheId = csvId + "_" + reportTypeId;
 		}
 
 
@@ -1664,7 +1666,7 @@ namespace PerfReportTool
 				}
 				remStr = remStr.Substring(idx+patternSections[i].Length);
 			}
-			return true;
+			return remStr.Length == 0;
 		}
 
 		System.IO.FileInfo[] GetFilesWithSearchPattern(string directory, string searchPatternStr, bool recurse)
@@ -2188,6 +2190,11 @@ namespace PerfReportTool
 			ReportTypeInfo reportTypeInfo = null;
 			if (reportType == "")
 			{
+				if (csvFile.metadata == null)
+				{
+					Console.WriteLine("Warning: CSV " + csvFile.filename + " has no metadata and no reporttype was specified!");
+					return null;
+				}
 				// Attempt to determine the report type automatically based on the stats
 				foreach (XElement element in reportTypesElement.Elements("reporttype"))
 				{
@@ -2315,7 +2322,7 @@ namespace PerfReportTool
                 }
             }
 
-            Console.Out.WriteLine("Autodetected report type: " + reportTypeName);
+            //Console.Out.WriteLine("Autodetected report type: " + reportTypeName);
 
 			return true;
         } 
@@ -2419,7 +2426,7 @@ namespace PerfReportTool
 			if (precacheThreads == null)
             {
                 file = new CachedCsvFile(fileInfo.filename, useCacheFiles, derivedMetadataMappings);
-				if (!file.DoesMetadataMatchFilter(metadataFilterString))
+				if (!file.DoesMetadataMatchFilter(metadataFilterString)) // TODO do we need to check this here and in the thread?
 				{
 					return null;
 				}
@@ -2442,7 +2449,7 @@ namespace PerfReportTool
                                 GC.WaitForPendingFinalizers();
                                 countFreedSinceLastGC = 0;
                             }
-							if (!file.DoesMetadataMatchFilter(metadataFilterString))
+							if (!fileInfo.isValid)
 							{
 							    Console.WriteLine("Skipping!");
 							    file = null;
@@ -2488,24 +2495,27 @@ namespace PerfReportTool
 					if ( file.DoesMetadataMatchFilter(metadataFilterString))
 					{
 						file.reportTypeInfo = GetCsvReportTypeInfo(file, bulkMode);
-						file.ComputeSummaryTableCacheId(file.reportTypeInfo.GetSummaryTableCacheID());
-						if (summaryMetadataCacheDir != null)
+						if (file.reportTypeInfo != null)
 						{
-							// If a summary metadata cache is specified, try reading from it instead of reading the whole CSV
-							// Note that this will be disabled if we're not in bulk mode
-							file.cachedSummaryMetadata = SummaryMetadata.TryReadFromCache(summaryMetadataCacheDir, file.summaryTableCacheId);
+							file.ComputeSummaryTableCacheId(file.reportTypeInfo.GetSummaryTableCacheID());
+							if (summaryMetadataCacheDir != null)
+							{
+								// If a summary metadata cache is specified, try reading from it instead of reading the whole CSV
+								// Note that this will be disabled if we're not in bulk mode
+								file.cachedSummaryMetadata = SummaryMetadata.TryReadFromCache(summaryMetadataCacheDir, file.summaryTableCacheId);
+								if (file.cachedSummaryMetadata == null)
+								{
+									Console.WriteLine("Failed to read summary metadata from cache for CSV: " + fileInfo.filename);
+								}
+							}
 							if (file.cachedSummaryMetadata == null)
 							{
-								Console.WriteLine("Failed to read summary metadata from cache for CSV: " + fileInfo.filename);
+								file.PrepareCsvData();
 							}
-						}
-						if (file.cachedSummaryMetadata == null)
-						{
-							file.PrepareCsvData();
-						}
 
-						// Only read the full file data if the metadata matches
-						fileInfo.isValid = true;
+							// Only read the full file data if the metadata matches
+							fileInfo.isValid = true;
+						}
 					}
 					fileInfo.cachedFile = file;
 					fileInfo.isReady = true;
