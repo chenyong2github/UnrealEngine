@@ -708,6 +708,7 @@ class FHairClusterAABBCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterIdBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterIndexOffsetBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, ClusterIndexCountBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, HairStrandsVF_CullingIndirectBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutClusterAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutGroupAABBBuffer)
 	END_SHADER_PARAMETER_STRUCT()
@@ -731,8 +732,8 @@ static void AddHairClusterAABBPass(
 	FHairStrandClusterData::FHairGroup& ClusterData,
 
 	FRDGHairStrandsCullingData& ClusterAABBData,
-
-	FRDGImportedBuffer& RenderPositionBuffer)
+	FRDGImportedBuffer& RenderPositionBuffer,
+	FRDGImportedBuffer& DrawIndirectRasterComputeBuffer)
 {
 	const uint32 GroupSize = ComputeGroupSize();
 	const FIntVector DispatchCount = ComputeDispatchGroupCount2D(ClusterData.ClusterCount);
@@ -750,8 +751,15 @@ static void AddHairClusterAABBPass(
 	Parameters->ClusterIdBuffer = GraphBuilder.CreateSRV(ClusterIdBuffer, PF_R32_UINT);
 	Parameters->ClusterIndexOffsetBuffer = GraphBuilder.CreateSRV(ClusterIndexOffsetBuffer, PF_R32_UINT);
 	Parameters->ClusterIndexCountBuffer = GraphBuilder.CreateSRV(ClusterIndexCountBuffer, PF_R32_UINT);
+	Parameters->HairStrandsVF_CullingIndirectBuffer = DrawIndirectRasterComputeBuffer.SRV; // Used for checking max vertex count
 	Parameters->OutClusterAABBBuffer = ClusterAABBData.ClusterAABBBuffer.UAV;
 	Parameters->OutGroupAABBBuffer = ClusterAABBData.GroupAABBBuffer.UAV;
+
+	// Sanity check
+	check(ClusterData.ClusterCount == ClusterIdBuffer->Desc.NumElements);
+	check(ClusterData.ClusterCount == ClusterIndexOffsetBuffer->Desc.NumElements);
+	check(ClusterData.ClusterCount == ClusterIndexCountBuffer->Desc.NumElements);
+	check(ClusterData.ClusterCount * 6 == ClusterAABBData.ClusterAABBBuffer.Buffer->Desc.NumElements);
 
 	FHairClusterAABBCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairClusterAABBCS::FGroupSize>(GroupSize);
@@ -1464,6 +1472,7 @@ void ComputeHairStrandsInterpolation(
 
 				if (bNeedAABB)
 				{
+					FRDGImportedBuffer Strands_CulledVertexCount = Register(GraphBuilder, Instance->HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV);
 					AddHairClusterAABBPass(
 						GraphBuilder,
 						ShaderMap,
@@ -1471,7 +1480,8 @@ void ComputeHairStrandsInterpolation(
 						Instance->Strands.DeformedResource->GetPositionOffset(FHairStrandsDeformedResource::Current),
 						HairGroupCluster,
 						CullingData,
-						Strands_DeformedPosition);
+						Strands_DeformedPosition,
+						Strands_CulledVertexCount);
 				}
 			}
 		}
