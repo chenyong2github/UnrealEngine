@@ -35,10 +35,13 @@ int32 FSlateInvalidationWidgetList::FArguments::MaxSortOrderPaddingBetweenArray 
 /** */
 FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::IProcessChildOrderInvalidationCallback::FReIndexOperation::ReIndex(FSlateInvalidationWidgetIndex Index) const
 {
-	check(Range.GetInclusiveMinWidgetIndex().ArrayIndex == Range.GetInclusiveMaxWidgetIndex().ArrayIndex);
-	check(Index.ArrayIndex == Range.GetInclusiveMaxWidgetIndex().ArrayIndex);
-	const IndexType NewElementIndex = Index.ElementIndex - Range.GetInclusiveMinWidgetIndex().ElementIndex + ReIndexTarget.ElementIndex;
-	return { ReIndexTarget.ArrayIndex, NewElementIndex };
+	if (Index.ArrayIndex == Range.GetInclusiveMaxWidgetIndex().ArrayIndex)
+	{
+		check(Range.GetInclusiveMinWidgetIndex().ArrayIndex == Range.GetInclusiveMaxWidgetIndex().ArrayIndex);
+		const IndexType NewElementIndex = Index.ElementIndex - Range.GetInclusiveMinWidgetIndex().ElementIndex + ReIndexTarget.ElementIndex;
+		return { ReIndexTarget.ArrayIndex, NewElementIndex };
+	}
+	return Index;
 }
 
 
