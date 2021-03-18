@@ -11,9 +11,38 @@ using System.IO;
 using System.Globalization;
 using System.Diagnostics;
 using System.Collections;
+using System.IO.Compression;
+using System.Security.Cryptography;
 
 namespace CSVStats
 {
+	enum CsvBinVersion
+	{
+		PreRelease = 1,
+		InitialRelease,
+		CompressionSupportAndFlags,
+
+		COUNT,
+		CURRENT = COUNT - 1
+	};
+
+	enum CsvBinFlags
+	{
+		HasMetadata = 0x00000001,
+	};
+	public enum CsvBinCompressionType
+	{
+		MsDeflate
+	};
+
+	public enum CsvBinCompressionLevel
+	{
+		None,
+		Min,
+		Max
+	};
+
+
 	public class CsvEvent
     {
 		public CsvEvent(CsvEvent source)
@@ -390,7 +419,6 @@ namespace CSVStats
 
 	public class CsvStats
 	{
-		private static int CsvBinVersion = 2;
 		public CsvStats()
 		{
 			Stats = new Dictionary<string, StatSamples>();
@@ -608,17 +636,61 @@ namespace CSVStats
 			return statList;
 		}
 
-		public void WriteBinFile(string filename)
+		private static bool GetFlag(uint flags, CsvBinFlags flag)
+		{
+			return (flags & (uint)flag) != 0;
+		}
+
+		private static void SetFlag(ref uint flags, CsvBinFlags flag, bool value)
+		{
+			if (value)
+			{
+				flags |= (uint)flag;
+			}
+			else
+			{
+				flags &= ~(uint)flag;
+			}
+		}
+
+		private System.IO.Compression.CompressionLevel GetIOCompressionLevel(CsvBinCompressionLevel compressionLevel)
+		{
+			switch ( compressionLevel )
+			{
+				case CsvBinCompressionLevel.None:
+					return System.IO.Compression.CompressionLevel.NoCompression;
+				case CsvBinCompressionLevel.Min:
+					return System.IO.Compression.CompressionLevel.Fastest;
+				case CsvBinCompressionLevel.Max:
+					return System.IO.Compression.CompressionLevel.Optimal;
+			}
+			throw new Exception("CompressionLevel not found!");
+		}
+
+
+
+		public void WriteBinFile(string filename, CsvBinCompressionLevel compressionLevel = CsvBinCompressionLevel.None)
 		{
 			System.IO.FileStream fileStream = new FileStream(filename, FileMode.Create);
 			System.IO.BinaryWriter fileWriter = new System.IO.BinaryWriter(fileStream);
 
+			bool bCompress = (compressionLevel != CsvBinCompressionLevel.None);
+
 			// Write the header
 			fileWriter.Write("CSVBIN");
-			fileWriter.Write(CsvBinVersion);
-			bool hasMetadata = (metaData != null);
-			fileWriter.Write(hasMetadata);
-			if (hasMetadata)
+			fileWriter.Write((int)CsvBinVersion.CURRENT);
+
+			bool bHasMetadata = (metaData != null);
+			uint flags = 0;
+			SetFlag(ref flags, CsvBinFlags.HasMetadata, bHasMetadata);
+			fileWriter.Write(flags);
+
+			fileWriter.Write((byte)compressionLevel);
+			if (bCompress)
+			{
+				fileWriter.Write((byte)CsvBinCompressionType.MsDeflate);
+			}
+			if (bHasMetadata)
 			{
 				metaData.WriteToBinaryFile(fileWriter);
 			}
@@ -640,28 +712,50 @@ namespace CSVStats
 				}
 				fileWriter.Write(stat.average);
 				fileWriter.Write(stat.total);
-				List<float> uniqueValues = new List<float>();
-				FileEfficientBitArray statUniqueMask = new FileEfficientBitArray(SampleCount); 
-				float oldVal = float.NegativeInfinity;
-				for (int i = 0; i < stat.samples.Count; i++)
+
+				int statDataSizeBytes;
+				long statStartOffset = fileWriter.BaseStream.Position+4;
+				if (bCompress)
 				{
-					float val = stat.samples[i];
-					if (val != oldVal || i==0)
+					byte[] valuesBuffer = new byte[SampleCount * 4];
+					Buffer.BlockCopy(stat.samples.ToArray(), 0, valuesBuffer, 0, valuesBuffer.Length);
+					byte[] compressedValuesBuffer = null;
+					using (MemoryStream memoryStream = new MemoryStream())
 					{
-						uniqueValues.Add(val);
-						statUniqueMask.Set(i);
+						using (DeflateStream compressionStream = new DeflateStream(memoryStream, GetIOCompressionLevel(compressionLevel)))
+						{
+							compressionStream.Write(valuesBuffer, 0, valuesBuffer.Length);
+						}
+						compressedValuesBuffer = memoryStream.ToArray();
 					}
-					oldVal = val;
+					statDataSizeBytes = compressedValuesBuffer.Length + sizeof(int);
+					fileWriter.Write(statDataSizeBytes);
+					fileWriter.Write(compressedValuesBuffer.Length);
+					fileWriter.Write(compressedValuesBuffer);
 				}
-				int statDataSizeBytes = statUniqueMask.GetSizeBytes() + uniqueValues.Count * sizeof(float) + sizeof(int);
-				fileWriter.Write(statDataSizeBytes);
-				
-				long statStartOffset = fileWriter.BaseStream.Position;
-				statUniqueMask.WriteToFile(fileWriter);
-				fileWriter.Write(uniqueValues.Count);
-				foreach (float val in uniqueValues)
-				{
-					fileWriter.Write(val);
+				else
+				{ 
+					List<float> uniqueValues = new List<float>();
+					FileEfficientBitArray statUniqueMask = new FileEfficientBitArray(SampleCount);
+					float oldVal = float.NegativeInfinity;
+					for (int i = 0; i < stat.samples.Count; i++)
+					{
+						float val = stat.samples[i];
+						if (val != oldVal || i == 0)
+						{
+							uniqueValues.Add(val);
+							statUniqueMask.Set(i);
+						}
+						oldVal = val;
+					}
+					// convert the unique values to a bytearray and compress if necessary
+					byte[] uniqueValuesBuffer = new byte[uniqueValues.Count * 4];
+					Buffer.BlockCopy(uniqueValues.ToArray(), 0, uniqueValuesBuffer, 0, uniqueValuesBuffer.Length);
+					statDataSizeBytes = statUniqueMask.GetSizeBytes() + sizeof(int) + uniqueValuesBuffer.Length;
+					fileWriter.Write(statDataSizeBytes);
+					statUniqueMask.WriteToFile(fileWriter);
+					fileWriter.Write(uniqueValues.Count);
+					fileWriter.Write(uniqueValuesBuffer);
 				}
 
 				// Check the stat data size matches what we wrote
@@ -672,7 +766,7 @@ namespace CSVStats
 				}
 
 			}
-			// Write the events
+			// Write the events (no point in compressing these - they're tiny and we might want to access them quickly)
 			foreach (CsvEvent ev in Events)
 			{
 				fileWriter.Write(ev.Frame);
@@ -680,6 +774,7 @@ namespace CSVStats
 			}
 			fileWriter.Close();
 		}
+
 
 		public static CsvStats ReadBinFile(string filename, string[] statNamesToRead=null, int numRowsToSkip=0, bool justHeader=false)
 		{
@@ -692,13 +787,37 @@ namespace CSVStats
 				throw new Exception("Failed to read "+filename+". Bad format");
 			}
 			int version=fileReader.ReadInt32();
-			if (version != CsvBinVersion)
+			if (version < (int)CsvBinVersion.InitialRelease )
 			{
-				throw new Exception("Failed to read "+filename+". Version mismatch. Version is "+version.ToString()+". Expected: "+CsvBinVersion.ToString());
+				throw new Exception("Failed to read "+filename+". Version mismatch. Version is "+version.ToString()+". Expected: "+((int)CsvBinVersion.InitialRelease).ToString()+" or later");
 			}
+
+			// Read flags
+			uint flags = 0;
+			CsvBinCompressionLevel compressionLevel = 0;
+			bool bCompressed = false;
+			if (version>=(int)CsvBinVersion.CompressionSupportAndFlags)
+			{
+				flags = fileReader.ReadUInt32();
+				compressionLevel = (CsvBinCompressionLevel)fileReader.ReadByte();
+				bCompressed = compressionLevel != CsvBinCompressionLevel.None;
+
+				if (bCompressed)
+				{
+					if (fileReader.ReadByte() != (byte)CsvBinCompressionType.MsDeflate)
+					{
+						throw new Exception("Bad compression type found!");
+					}
+				}
+			}
+			else
+			{
+				bool bHasMetadata = fileReader.ReadBoolean();
+				SetFlag(ref flags, CsvBinFlags.HasMetadata, bHasMetadata);
+			}
+
 			CsvStats csvStatsOut = new CsvStats();
-			bool hasMetadata = fileReader.ReadBoolean();
-			if (hasMetadata)
+			if (GetFlag(flags,CsvBinFlags.HasMetadata))
 			{
 				csvStatsOut.metaData = new CsvMetadata();
 				csvStatsOut.metaData.ReadFromBinaryFile(fileReader);
@@ -739,13 +858,14 @@ namespace CSVStats
 				}
 				float statAverage = fileReader.ReadSingle();
 				double statTotal = fileReader.ReadDouble();
+
 				int statSizeBytes = fileReader.ReadInt32();
-				bool readThisStat = statNamesToReadDict==null || statNamesToReadDict.ContainsKey(statName);
-				if (readThisStat==false)
+				bool readThisStat = statNamesToReadDict == null || statNamesToReadDict.ContainsKey(statName);
+				if (readThisStat == false)
 				{
 					// If we're skipping this stat then just read the bytes and remove it from the stat list
 					byte[] bytes = fileReader.ReadBytes(statSizeBytes);
-					if (!csvStatsOut.Stats.Remove(statName.ToLowerInvariant()) )
+					if (!csvStatsOut.Stats.Remove(statName.ToLowerInvariant()))
 					{
 						throw new Exception("Unexpected error. Stat " + statName + " wasn't found!");
 					}
@@ -756,34 +876,59 @@ namespace CSVStats
 				statOut.total = statTotal;
 				statOut.average = statAverage;
 
-				// Read the mask
-				FileEfficientBitArray statUniqueMask = new FileEfficientBitArray();
-				statUniqueMask.ReadFromFile(fileReader);
-
-				int uniqueValueCount = fileReader.ReadInt32();
-				float[] uniqueValues = new float[uniqueValueCount];
-				byte[] uniqueValuesBuffer=fileReader.ReadBytes(uniqueValueCount * 4);
-				Buffer.BlockCopy(uniqueValuesBuffer, 0, uniqueValues, 0, uniqueValuesBuffer.Length);
-
-				// Decode the samples from the mask and unique list
-				if (statUniqueMask.Count != sampleCount)
+				if ( bCompressed )
 				{
-					throw new Exception("Failed to read " + filename + ". Stat sample count doesn't match header!");
-				}
-				float currentVal = 0;
-				int uniqueListIndex = 0;
-				statOut.samples.Capacity = statUniqueMask.Count;
-				//statOut.samples.AddRange(Enumerable.Repeat(0.0f, statUniqueMask.Count));
-				for (int i=0; i<statUniqueMask.Count; i++)
-				{
-					if (statUniqueMask.Get(i))
+					int compressedBufferLength = fileReader.ReadInt32();
+					byte[] compressedBuffer = fileReader.ReadBytes(compressedBufferLength);
+					int uncompressedBufferLength = sizeof(float) * sampleCount;
+
+					byte[] uncompressedValuesBuffer = new byte[uncompressedBufferLength];
+					using (MemoryStream memoryStream = new MemoryStream(compressedBuffer))
 					{
-						currentVal = uniqueValues[uniqueListIndex];
-						uniqueListIndex++;
+						using (DeflateStream decompressionStream = new DeflateStream(memoryStream, CompressionMode.Decompress))
+						{
+							int bytesRead=decompressionStream.Read(uncompressedValuesBuffer, 0, uncompressedValuesBuffer.Length);
+							if (bytesRead != uncompressedBufferLength)
+							{
+								throw new Exception("Decompression error!");
+							}
+						}
 					}
-					statOut.samples.Add(currentVal);
-					//statOut.samples[i]=currentVal;
+
+					float[] samples = new float[sampleCount];
+					Buffer.BlockCopy(uncompressedValuesBuffer, 0, samples, 0, uncompressedValuesBuffer.Length);
+					statOut.samples = samples.ToList();
 				}
+				else
+				{
+					// Read the mask
+					FileEfficientBitArray statUniqueMask = new FileEfficientBitArray();
+					statUniqueMask.ReadFromFile(fileReader);
+
+					int uniqueValueCount = fileReader.ReadInt32();
+					float[] uniqueValues = new float[uniqueValueCount];
+					byte[] uniqueValuesBuffer = fileReader.ReadBytes(uniqueValueCount * 4);
+					Buffer.BlockCopy(uniqueValuesBuffer, 0, uniqueValues, 0, uniqueValuesBuffer.Length);
+
+					// Decode the samples from the mask and unique list
+					if (statUniqueMask.Count != sampleCount)
+					{
+						throw new Exception("Failed to read " + filename + ". Stat sample count doesn't match header!");
+					}
+					float currentVal = 0;
+					int uniqueListIndex = 0;
+					statOut.samples.Capacity = statUniqueMask.Count;
+					for (int i = 0; i < statUniqueMask.Count; i++)
+					{
+						if (statUniqueMask.Get(i))
+						{
+							currentVal = uniqueValues[uniqueListIndex];
+							uniqueListIndex++;
+						}
+						statOut.samples.Add(currentVal);
+					}
+				}
+
 				if (numRowsToSkip > 0)
 				{
 					statOut.samples.RemoveRange(0, numRowsToSkip);
@@ -823,13 +968,15 @@ namespace CSVStats
                 }
             }
 
-            // ensure there's an events stat
+			// ensure there's an events stat
+			bool bAddedEventsStat = false;
             if (Events.Count > 0)
             {
                 if (!Stats.ContainsKey("events"))
                 {
                     Stats.Add("events", new StatSamples("events"));
-                }
+					bAddedEventsStat = true;
+				}
             }
 
             // Write the headings
@@ -922,8 +1069,14 @@ namespace CSVStats
             }
             csvOutFile.WriteLine(sb);
             csvOutFile.Close();
-            // Write the metadata
-        }
+
+			// Remove the temporary events stat if we added it
+			if (bAddedEventsStat)
+			{
+				Stats.Remove("events");
+			}
+			// Write the metadata
+		}
 
 		// Pad the stats
 		public void ComputeAveragesAndTotal()
@@ -1350,18 +1503,89 @@ namespace CSVStats
 		}
 
 
-		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0)
+		public static CsvStats ReadCSVFile(string csvFilename, string[] statNames, int numRowsToSkip = 0, bool bGenerateCsvIdIfMissing=false)
         {
+			CsvStats statsOut;
 			if (csvFilename.EndsWith(".csv.bin"))
 			{
-				return ReadBinFile(csvFilename, statNames, numRowsToSkip);
+				statsOut = ReadBinFile(csvFilename, statNames, numRowsToSkip);
 			}
 			else
 			{
 				string[] lines = ReadLinesFromFile(csvFilename);
-				return ReadCSVFromLines(lines, statNames, numRowsToSkip);
+				statsOut = ReadCSVFromLines(lines, statNames, numRowsToSkip);
 			}
-        }
+			if (bGenerateCsvIdIfMissing)
+			{
+				if (statsOut.metaData != null)
+				{
+					statsOut.GenerateCsvIDIfMissing();
+				}
+				else
+				{
+					Console.WriteLine("Warning: Csv file has no metadata. Skipping adding a CsvID");
+				}
+			}
+			return statsOut;
+		}
+
+		public bool GenerateCsvIDIfMissing()
+		{
+			if (metaData == null)
+			{
+				throw new Exception("GenerateCsvIDIfMissing called for a CSV with no metadata!");
+			}
+			if (metaData.Values.ContainsKey("csvid"))
+			{
+				// Nothing to do 
+				return false;
+			}
+			metaData.Values["csvid"] = MakeCsvIdHash();
+			metaData.Values["hastoolgeneratedid"] = "1";
+			return true;
+		}
+
+		public string MakeCsvIdHash()
+		{
+			string newId;
+			using (MemoryStream memStream = new MemoryStream())
+			{
+				using (BinaryWriter writer = new BinaryWriter(memStream))
+				{
+					writer.Write(SampleCount);
+					writer.Write(Stats.Values.Count);
+					writer.Write(Events.Count);
+					foreach (StatSamples stat in Stats.Values)
+					{
+						writer.Write(stat.Name);
+						writer.Write(stat.total);
+					}
+					foreach ( CsvEvent ev in Events)
+					{
+						writer.Write(ev.Name);
+						writer.Write(ev.Frame);
+					}
+					if (metaData != null)
+					{
+						foreach (string key in metaData.Values.Keys)
+						{
+							if (key != "csvid" && key != "hastoolgeneratedid" && key != "hasheaderrowatend")
+							{
+								writer.Write(key);
+								writer.Write(metaData.Values[key]);
+							}
+						}
+					}
+					byte[] hashInputBuffer = memStream.ToArray();
+					using (SHA256 sha256 = SHA256.Create())
+					{
+						byte[] hash = sha256.ComputeHash(hashInputBuffer);
+						newId = BitConverter.ToString(hash).Replace("-", string.Empty).Substring(0,32);
+					}
+				}
+			}
+			return newId;
+		}
 
 
 		static bool LineIsMetadata(string line)
