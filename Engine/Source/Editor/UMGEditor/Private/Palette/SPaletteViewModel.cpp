@@ -51,7 +51,6 @@ TSharedRef<ITableRow> FWidgetTemplateViewModel::BuildRow(const TSharedRef<STable
 {
 	return SNew(STableRow<TSharedPtr<FWidgetViewModel>>, OwnerTable)
 		.Padding(2.0f)
-		.Style(FEditorStyle::Get(), "UMGEditor.PaletteItem")
 		.OnDragDetected(this, &FWidgetTemplateViewModel::OnDraggingWidgetTemplateItem)
 		[
 			SNew(SPaletteViewItem, SharedThis(this))
@@ -80,13 +79,13 @@ TSharedRef<ITableRow> FWidgetHeaderViewModel::BuildRow(const TSharedRef<STableVi
 {
 	return SNew(STableRow<TSharedPtr<FWidgetViewModel>>, OwnerTable)
 		.Style(FEditorStyle::Get(), "UMGEditor.PaletteHeader")
-		.Padding(2.0f)
+		.Padding(5.0f)
 		.ShowSelection(false)
 		[
 			SNew(STextBlock)
+			.TransformPolicy(ETextTransformPolicy::ToUpper)
 			.Text(GroupName)
-			.Font(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-			.ShadowOffset(FVector2D(1.0f, 1.0f))
+			.Font(FAppStyle::Get().GetFontStyle("SmallFontBold"))
 		];
 }
 

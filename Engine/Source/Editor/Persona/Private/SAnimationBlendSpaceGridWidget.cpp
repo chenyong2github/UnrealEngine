@@ -205,7 +205,7 @@ void SBlendSpaceGridWidget::Construct(const FArguments& InArgs)
 									.ButtonColorAndOpacity_Lambda([this]() -> FLinearColor { return bStretchToFit ? FEditorStyle::GetSlateColor("SelectionColor").GetSpecifiedColor() : FLinearColor::White; })
 									[
 										SNew(SImage)
-										.Image(FEditorStyle::GetBrush("WidgetDesigner.ZoomToFit"))
+										.Image(FEditorStyle::GetBrush("BlendSpaceEditor.ZoomToFit"))
 										.ColorAndOpacity(FSlateColor::UseForeground())
 									]
 								]
@@ -1326,7 +1326,7 @@ void SBlendSpaceGridWidget::MakeViewContextMenuEntries(FMenuBuilder& InMenuBuild
 		InMenuBuilder.AddMenuEntry(
 			LOCTEXT("StretchFittingText", "Stretch Grid to Fit"),
 			LOCTEXT("StretchFittingTextToolTip", "Whether to stretch the grid to fit or to fit the grid to the largest axis"),
-			FSlateIcon("EditorStyle", "WidgetDesigner.ZoomToFit"),
+			FSlateIcon("EditorStyle", "BlendSpaceEditor.ZoomToFit"),
 			FUIAction(
 				FExecuteAction::CreateLambda([this](){ bStretchToFit = !bStretchToFit; }),
 				FCanExecuteAction(),

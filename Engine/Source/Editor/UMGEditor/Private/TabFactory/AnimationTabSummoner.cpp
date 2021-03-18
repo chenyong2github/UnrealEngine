@@ -27,6 +27,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/TextFilter.h"
 #include "Kismet2/Kismet2NameValidators.h"
+#include "SEditorHeaderButton.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -285,33 +286,9 @@ public:
 					.VAlign( VAlign_Center )
 					.AutoWidth()
 					[
-						SNew(SButton)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
-						.ForegroundColor(FEditorStyle::Get().GetSlateColor("Foreground"))
-						.ContentPadding(FMargin(2.0f, 1.0f))
+						SNew(SEditorHeaderButton)
 						.OnClicked( this, &SUMGAnimationList::OnNewAnimationClicked )
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew( SHorizontalBox )
-							+ SHorizontalBox::Slot()
-							.VAlign(VAlign_Center)
-							.AutoWidth()
-							[
-								SNew(STextBlock)
-								.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-								.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-								.Text(FText::FromString(FString(TEXT("\xf067"))) /*fa-plus*/)
-							]
-
-							+ SHorizontalBox::Slot()
-							.Padding( 2.0f, 0.0f )
-							[
-								SNew( STextBlock )
-								.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-								.Text( LOCTEXT("NewAnimationButtonText", "Animation") )
-							]
-						]
+						.Text( LOCTEXT("NewAnimationButtonText", "Animation") )
 					]
 					+ SHorizontalBox::Slot()
 					.Padding(2.0f, 0.0f)

@@ -516,7 +516,7 @@ EActiveTimerReturnType SDesignerView::EnsureTick(double InCurrentTime, float InD
 
 TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 {
-	const FToolBarStyle& ToolBarStyle = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("LegacyViewportMenu");
+	const FToolBarStyle& ToolBarStyle = FEditorStyle::Get().GetWidgetStyle<FToolBarStyle>("EditorViewportToolBar");
 
 	return SNew(SOverlay)
 
@@ -593,30 +593,31 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		]
 
 		+ SHorizontalBox::Slot()
+		.Padding(0.0f, 1.0f)
 		.AutoWidth()
-		.VAlign(VAlign_Center)
 		[
 			SNew(SDesignerToolBar)
 			.CommandList(CommandList)
 		]
 		+ SHorizontalBox::Slot()
-			.AutoWidth()
+		.Padding(0.0f, 1.0f)
+		.AutoWidth()
+		[
+			SNew(SButton)
+			.ButtonStyle(&ToolBarStyle.ButtonStyle)
+			.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
+			.OnClicked(this, &SDesignerView::HandleZoomToFitClicked)
+			.ContentPadding(ToolBarStyle.ButtonPadding)
 			.VAlign(VAlign_Center)
 			[
-				SNew(SButton)
-				.ButtonStyle(&ToolBarStyle.ButtonStyle)
-				.ToolTipText(LOCTEXT("ZoomToFit_ToolTip", "Zoom To Fit"))
-				.OnClicked(this, &SDesignerView::HandleZoomToFitClicked)
-				.ContentPadding(ToolBarStyle.ButtonPadding)
-				[
-					SNew(SImage)
-					.Image(FEditorStyle::GetBrush("UMGEditor.ZoomToFit"))
-				]
+				SNew(SImage)
+				.Image(FEditorStyle::GetBrush("UMGEditor.ZoomToFit"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
+		]
 
 		+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
 				.ButtonStyle(&ToolBarStyle.ButtonStyle)
@@ -624,14 +625,15 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.OnClicked(this, &SDesignerView::HandleSwapAspectRatioClicked)
 				.ContentPadding(ToolBarStyle.ButtonPadding)
 				.IsEnabled(this, &SDesignerView::GetAspectRatioSwitchEnabled)
+				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
 					.Image(this, &SDesignerView::GetAspectRatioSwitchImage)
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
 		+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.VAlign(VAlign_Center)
 			[
 				SNew(SButton)
 				.ButtonStyle(&ToolBarStyle.ButtonStyle)
@@ -639,20 +641,21 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				.OnClicked(this, &SDesignerView::HandleFlipSafeZonesClicked)
 				.ContentPadding(ToolBarStyle.ButtonPadding)
 				.IsEnabled(this, &SDesignerView::GetFlipDeviceEnabled)
+				.VAlign(VAlign_Center)
 				[
 					SNew(SImage)
 					.Image(FEditorStyle::Get().GetBrush("UMGEditor.Mirror"))
+					.ColorAndOpacity(FSlateColor::UseForeground())
 				]
 			]
 
 		// Preview Screen Size
 		+ SHorizontalBox::Slot()
+		.Padding(2.0f,0.0f)
 		.AutoWidth()
-		.VAlign(VAlign_Center)
 		[
 			SNew(SComboButton)
 			.ButtonStyle(&ToolBarStyle.ButtonStyle)
-			.ForegroundColor(FLinearColor::Black)
 			.OnGetMenuContent(this, &SDesignerView::GetResolutionsMenu)
 			.ContentPadding(ToolBarStyle.ButtonPadding)
 			.ButtonContent()
@@ -660,17 +663,17 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				SNew(STextBlock)
 				.Text(LOCTEXT("ScreenSize", "Screen Size"))
 				.TextStyle(&ToolBarStyle.LabelStyle)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 
 		// Screen Fill Size Rule
 		+ SHorizontalBox::Slot()
+		.Padding(2.0f, 0.0f)
 		.AutoWidth()
-		.VAlign(VAlign_Center)
 		[
 			SNew(SComboButton)
 			.ButtonStyle(&ToolBarStyle.ButtonStyle)
-			.ForegroundColor(FLinearColor::Black)
 			.OnGetMenuContent(this, &SDesignerView::GetScreenSizingFillMenu)
 			.ContentPadding(ToolBarStyle.ButtonPadding)
 			.ButtonContent()
@@ -678,21 +681,23 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 				SNew(STextBlock)
 				.Text(this, &SDesignerView::GetScreenSizingFillText)
 				.TextStyle(&ToolBarStyle.LabelStyle)
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Center)
 		.Padding(FMargin(2, 0))
+		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
 			.Visibility(this, &SDesignerView::GetCustomResolutionEntryVisibility)
 			.Text(LOCTEXT("Width", "Width"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Center)
 		.Padding(FMargin(2, 0))
+		.VAlign(VAlign_Center)
 		[
 			SNew(SNumericEntryBox<int32>)
 			.AllowSpin(true)
@@ -708,17 +713,18 @@ TSharedRef<SWidget> SDesignerView::CreateOverlayUI()
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Center)
 		.Padding(FMargin(2, 0))
+		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
 			.Visibility(this, &SDesignerView::GetCustomResolutionEntryVisibility)
 			.Text(LOCTEXT("Height", "Height"))
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		]
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
-		.VAlign(VAlign_Center)
 		.Padding(FMargin(2, 0))
+		.VAlign(VAlign_Center)
 		[
 			SNew(SNumericEntryBox<int32>)
 			.AllowSpin(true)

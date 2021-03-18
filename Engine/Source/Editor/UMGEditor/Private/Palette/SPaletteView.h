@@ -60,6 +60,8 @@ private:
 	 */
 	void OnFavoriteToggled(ECheckBoxState InNewState);
 
+	EVisibility GetFavoritedStateVisibility() const;
+
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
 
 private:

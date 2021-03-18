@@ -34,14 +34,9 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 		.ToolTipText(InArgs._ToggleButtonToolTip)
 		.IsChecked(InArgs._IsChecked)
 		[
-			SNew( SBox )
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(Icon.GetIcon())
-				.ColorAndOpacity(FSlateColor::UseForeground())
-			]
+			SNew(SImage)
+			.Image(Icon.GetIcon())
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 	}
 
@@ -88,12 +83,14 @@ void SViewportToolBarComboMenu::Construct( const FArguments& InArgs )
 
 			+SHorizontalBox::Slot()
 			.VAlign(VAlign_Center)
+			.Padding(2.0f,0.0f)
 			.AutoWidth()
 			[
 				ToggleControl.ToSharedRef()
 			]
 
 			+SHorizontalBox::Slot()
+			.Padding(2.0f, 0.0f)
 			.VAlign(VAlign_Center)
 			.AutoWidth()
 			[

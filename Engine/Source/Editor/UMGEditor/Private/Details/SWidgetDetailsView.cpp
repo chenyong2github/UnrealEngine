@@ -122,6 +122,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 					[
 						SNew(SImage)
 						.Image(this, &SWidgetDetailsView::GetNameIcon)
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 
 					+ SHorizontalBox::Slot()
@@ -157,6 +158,7 @@ void SWidgetDetailsView::Construct(const FArguments& InArgs, TSharedPtr<FWidgetB
 
 					+ SHorizontalBox::Slot()
 					.AutoWidth()
+					.VAlign(VAlign_Center)
 					.Padding(15,0,0,0)
 					[
 						SAssignNew(ClassLinkArea, SBox)

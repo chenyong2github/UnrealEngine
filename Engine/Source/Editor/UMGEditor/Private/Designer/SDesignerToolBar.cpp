@@ -38,8 +38,8 @@ TSharedRef< SWidget > SDesignerToolBar::MakeToolBar(const TSharedPtr< FExtender 
 {
 	FToolBarBuilder ToolbarBuilder( CommandList, FMultiBoxCustomization::None, InExtenders );
 
-	// Use a custom style
-	FName ToolBarStyle = "LegacyViewportMenu";
+	// Use a custom style	
+	FName ToolBarStyle = "EditorViewportToolBar";
 	ToolbarBuilder.SetStyle(&FEditorStyle::Get(), ToolBarStyle);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
@@ -48,7 +48,6 @@ TSharedRef< SWidget > SDesignerToolBar::MakeToolBar(const TSharedPtr< FExtender 
 		FUICommandInfo* ToggleLocalizationPreviewCommand = FDesignerCommands::Get().ToggleLocalizationPreview.Get();
 
 		ToolbarBuilder.AddWidget(SNew(SViewportToolBarComboMenu)
-			.Style(ToolBarStyle)
 			.BlockLocation(EMultiBlockLocation::Start)
 			.Cursor(EMouseCursor::Default)
 			.IsChecked(this, &SDesignerToolBar::IsLocalizationPreviewChecked)
@@ -67,8 +66,10 @@ TSharedRef< SWidget > SDesignerToolBar::MakeToolBar(const TSharedPtr< FExtender 
 	ToolbarBuilder.SetIsFocusable( false );
 
 	ToolbarBuilder.BeginSection("View");
+	ToolbarBuilder.BeginBlockGroup();
 	ToolbarBuilder.AddToolBarButton(FDesignerCommands::Get().ToggleOutlines, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), "ToggleOutlines");
 	ToolbarBuilder.AddToolBarButton(FDesignerCommands::Get().ToggleRespectLocks, NAME_None, TAttribute<FText>(), TAttribute<FText>(), TAttribute<FSlateIcon>(), "ToggleRespectLocks");
+	ToolbarBuilder.EndBlockGroup();
 	ToolbarBuilder.EndSection();
 
 	ToolbarBuilder.BeginSection("Transform");

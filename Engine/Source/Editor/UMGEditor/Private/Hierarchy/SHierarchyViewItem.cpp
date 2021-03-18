@@ -1324,7 +1324,7 @@ void SHierarchyViewItem::Construct(const FArguments& InArgs, const TSharedRef< S
 			.VAlign(VAlign_Center)
 			[
 				SNew(SImage)
-				.ColorAndOpacity(FLinearColor(1,1,1,0.5))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 				.Image(Model->GetImage())
 				.ToolTipText(Model->GetImageToolTipText())
 			]
