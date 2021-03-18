@@ -439,6 +439,10 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 				// Cache the bound uniform buffers because a lot are the same between dispatches
 				FShaderBindingState ShaderBindingState;
 
+				FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(RHICmdList, ERHIFeatureLevel::SM5, ESceneTextureSetupMode::None);
+				FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+				RHICmdList.SetGlobalUniformBuffers(GlobalUniformBuffers);
+
 				for (FMeshComputeDispatchCommand& Cmd : DispatchCommands)
 				{
 					const TShaderRef<FRayTracingDynamicGeometryConverterCS>& Shader = Cmd.MaterialShader;
