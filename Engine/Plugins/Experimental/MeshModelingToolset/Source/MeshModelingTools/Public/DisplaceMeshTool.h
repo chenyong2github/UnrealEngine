@@ -12,6 +12,7 @@
 #include "MeshOpPreviewHelpers.h"
 #include "Spatial/SampledScalarField2.h"
 #include "WeightMapUtil.h"
+#include "SingleSelectionMeshEditingTool.h"
 #include "DisplaceMeshTool.generated.h"
 
 struct FMeshDescription;
@@ -225,19 +226,18 @@ public:
  * Builder for Simple Mesh Displacement Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UDisplaceMeshToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UDisplaceMeshToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 public:
-	bool CanBuildTool(const FToolBuilderState& SceneState) const final;
-	UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const final;
+	USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const final;
 };
 
 /**
  * Simple Mesh Displacement Tool
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UDisplaceMeshTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UDisplaceMeshTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 public:

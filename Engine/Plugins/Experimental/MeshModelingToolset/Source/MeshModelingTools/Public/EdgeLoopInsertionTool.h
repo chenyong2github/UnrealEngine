@@ -13,21 +13,19 @@
 #include "Selection/GroupTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
+#include "SingleSelectionMeshEditingTool.h"
 
 #include "EdgeLoopInsertionTool.generated.h"
 
 class UDynamicMeshReplacementChangeTarget;
 
 UCLASS()
-class MESHMODELINGTOOLS_API UEdgeLoopInsertionToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UEdgeLoopInsertionToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 UENUM()
@@ -115,7 +113,7 @@ public:
 
 /** Tool for inserting (group) edge loops into a mesh. */
 UCLASS()
-class MESHMODELINGTOOLS_API UEdgeLoopInsertionTool : public USingleSelectionTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
+class MESHMODELINGTOOLS_API UEdgeLoopInsertionTool : public USingleSelectionMeshEditingTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 public:
@@ -127,9 +125,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn) { AssetAPI = AssetAPIIn; }
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -166,9 +161,6 @@ protected:
 
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
-
-	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
 
 	FToolDataVisualizer ExistingEdgesRenderer;
 	FToolDataVisualizer PreviewEdgeRenderer;

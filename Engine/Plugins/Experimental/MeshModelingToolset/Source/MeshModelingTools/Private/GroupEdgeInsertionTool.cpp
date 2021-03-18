@@ -12,6 +12,11 @@
 #include "ToolSceneQueriesUtil.h"
 #include "ToolSetupUtil.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -24,25 +29,9 @@ bool GetSharedBoundary(const FGroupTopology& Topology,
 bool DoesBoundaryContainPoint(const FGroupTopology& Topology,
 	const FGroupTopology::FGroupBoundary& Boundary, int32 PointTopologyID, bool bPointIsCorner);
 
-
-bool UGroupEdgeInsertionToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UGroupEdgeInsertionToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return AssetAPI != nullptr && ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* UGroupEdgeInsertionToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UGroupEdgeInsertionTool* NewTool = NewObject<UGroupEdgeInsertionTool>(SceneState.ToolManager);
-
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	UPrimitiveComponent* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-
-	NewTool->SetWorld(SceneState.World);
-	NewTool->SetAssetAPI(AssetAPI);
-
-	return NewTool;
+	return NewObject<UGroupEdgeInsertionTool>(SceneState.ToolManager);
 }
 
 TUniquePtr<FDynamicMeshOperator> UGroupEdgeInsertionOperatorFactory::MakeNewOperator()
@@ -51,7 +40,7 @@ TUniquePtr<FDynamicMeshOperator> UGroupEdgeInsertionOperatorFactory::MakeNewOper
 
 	Op->OriginalMesh = Tool->CurrentMesh;
 	Op->OriginalTopology = Tool->CurrentTopology;
-	Op->SetTransform(Tool->ComponentTarget->GetWorldTransform());
+	Op->SetTransform(Cast<IPrimitiveComponentBackedTarget>(Tool->Target)->GetWorldTransform());
 
 	if (Tool->bShowingBaseMesh)
 	{
@@ -82,7 +71,7 @@ void UGroupEdgeInsertionTool::Setup()
 {
 	USingleSelectionTool::Setup();
 
-	if (!ComponentTarget)
+	if (!Target)
 	{
 		return;
 	}
@@ -95,7 +84,7 @@ void UGroupEdgeInsertionTool::Setup()
 	// Initialize the mesh that we'll be operating on
 	CurrentMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTarget->GetMesh(), *CurrentMesh);
+	Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *CurrentMesh);
 	CurrentTopology = MakeShared<FGroupTopology, ESPMode::ThreadSafe>(CurrentMesh.Get(), true);
 	MeshSpatial.SetMesh(CurrentMesh.Get(), true);
 
@@ -127,7 +116,7 @@ void UGroupEdgeInsertionTool::Setup()
 	TopologySelector.Initialize(CurrentMesh.Get(), CurrentTopology.Get());
 	TopologySelector.SetSpatialSource([this]() {return &MeshSpatial; });
 	TopologySelector.PointsWithinToleranceTest = [this](const FVector3d& Position1, const FVector3d& Position2, double TolScale) {
-		UE::Geometry::FTransform3d Transform(ComponentTarget->GetWorldTransform());
+		UE::Geometry::FTransform3d Transform(Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform());
 		return ToolSceneQueriesUtil::PointSnapQuery(CameraState, Transform.TransformPosition(Position1), Transform.TransformPosition(Position2),
 			ToolSceneQueriesUtil::GetDefaultVisualAngleSnapThreshD() * TolScale);
 	};
@@ -146,7 +135,7 @@ void UGroupEdgeInsertionTool::SetupPreview()
 	Preview->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 	Preview->ConfigureMaterials(MaterialSet.Materials, ToolSetupUtil::GetDefaultWorkingMaterial(GetToolManager()));
 
 	// Whenever we get a new result from the op, we need to extract the preview edges so that
@@ -179,20 +168,21 @@ void UGroupEdgeInsertionTool::SetupPreview()
 		});
 
 	// Set initial preview to unprocessed mesh, so that things don't disappear initially
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
 	Preview->PreviewMesh->UpdatePreview(CurrentMesh.Get());
-	Preview->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+	Preview->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 	Preview->PreviewMesh->EnableWireframe(Settings->bWireframe);
 	Preview->SetVisibility(true);
 	ClearPreview();
 
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 }
 
 void UGroupEdgeInsertionTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
 	Preview->Shutdown();
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 	CurrentMesh.Reset();
 	CurrentTopology.Reset();
 	ExpireChanges();
@@ -212,10 +202,10 @@ void UGroupEdgeInsertionTool::OnTick(float DeltaTime)
 				GetToolManager()->BeginUndoTransaction(LOCTEXT("GroupEdgeInsertionTransactionName", "Group Edge Insertion"));
 
 				GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionChangeBookend>(CurrentChangeStamp, true), LOCTEXT("GroupEdgeInsertion", "Group Edge Insertion"));
-				ComponentTarget->CommitMesh([this](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+				Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([this](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 					{
 						FDynamicMeshToMeshDescription Converter;
-						Converter.Convert(Preview->PreviewMesh->GetMesh(), *CommitParams.MeshDescription);
+						Converter.Convert(Preview->PreviewMesh->GetMesh(), *CommitParams.MeshDescriptionOut);
 					});
 				GetToolManager()->EmitObjectChange(this, MakeUnique<FGroupEdgeInsertionChangeBookend>(CurrentChangeStamp, false), LOCTEXT("GroupEdgeInsertion", "Group Edge Insertion"));
 
@@ -540,7 +530,7 @@ void UGroupEdgeInsertionTool::OnClicked(const FInputDeviceRay& ClickPos)
 bool UGroupEdgeInsertionTool::TopologyHitTest(const FRay& WorldRay, 
 	FVector3d& RayPositionOut, FRay3d* LocalRayOut)
 {
-	FTransform LocalToWorld = ComponentTarget->GetWorldTransform();
+	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 	FRay3d LocalRay(LocalToWorld.InverseTransformPosition(WorldRay.Origin),
 		LocalToWorld.InverseTransformVector(WorldRay.Direction), false);
 
@@ -569,7 +559,7 @@ bool UGroupEdgeInsertionTool::GetHoveredItem(const FRay& WorldRay,
 	PointOut.ElementID = FDynamicMesh3::InvalidID;
 
 	// Cast the ray to see what we hit.
-	FTransform LocalToWorld = ComponentTarget->GetWorldTransform();
+	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 	FRay3d LocalRay(LocalToWorld.InverseTransformPosition(WorldRay.Origin),
 		LocalToWorld.InverseTransformVector(WorldRay.Direction), false);
 	if (LocalRayOut)
@@ -834,7 +824,7 @@ void FGroupEdgeInsertionChangeBookend::Revert(UObject* Object)
 		UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
 		Tool->CurrentMesh->Clear();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Tool->ComponentTarget->GetMesh(), *Tool->CurrentMesh);
+		Converter.Convert(Cast<IMeshDescriptionProvider>(Tool->Target)->GetMeshDescription(), *Tool->CurrentMesh);
 		Tool->CurrentTopology->RebuildTopology();
 		Tool->MeshSpatial.Build();
 		Tool->TopologySelector.Invalidate(true, true);
@@ -856,7 +846,7 @@ void FGroupEdgeInsertionChangeBookend::Apply(UObject* Object)
 		UGroupEdgeInsertionTool* Tool = Cast<UGroupEdgeInsertionTool>(Object);
 		Tool->CurrentMesh->Clear();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(Tool->ComponentTarget->GetMesh(), *Tool->CurrentMesh);
+		Converter.Convert(Cast<IMeshDescriptionProvider>(Tool->Target)->GetMeshDescription(), *Tool->CurrentMesh);
 		Tool->CurrentTopology->RebuildTopology();
 		Tool->MeshSpatial.Build();
 		Tool->TopologySelector.Invalidate(true, true);

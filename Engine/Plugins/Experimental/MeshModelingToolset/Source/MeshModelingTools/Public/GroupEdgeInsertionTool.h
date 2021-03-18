@@ -14,6 +14,7 @@
 #include "Selection/GroupTopologySelector.h"
 #include "SingleSelectionTool.h"
 #include "ToolDataVisualizer.h"
+#include "SingleSelectionMeshEditingTool.h"
 
 #include "GroupEdgeInsertionTool.generated.h"
 
@@ -23,15 +24,12 @@ using UE::Geometry::FGroupEdgeInserter;
 using UE::Geometry::FDynamicMesh3;
 
 UCLASS()
-class MESHMODELINGTOOLS_API UGroupEdgeInsertionToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UGroupEdgeInsertionToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
-
-	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
 
 UENUM()
@@ -78,7 +76,7 @@ public:
 
 /** Tool for inserting group edges into polygons of the mesh. */
 UCLASS()
-class MESHMODELINGTOOLS_API UGroupEdgeInsertionTool : public USingleSelectionTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
+class MESHMODELINGTOOLS_API UGroupEdgeInsertionTool : public USingleSelectionMeshEditingTool, public IHoverBehaviorTarget, public IClickBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -100,9 +98,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn) { AssetAPI = AssetAPIIn; }
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -129,9 +124,6 @@ protected:
 
 	UPROPERTY()
 	UMeshOpPreviewWithBackgroundCompute* Preview;
-
-	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
 
 	TSharedPtr<FDynamicMesh3, ESPMode::ThreadSafe> CurrentMesh;
 	TSharedPtr<FGroupTopology, ESPMode::ThreadSafe> CurrentTopology;

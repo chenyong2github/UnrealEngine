@@ -11,6 +11,7 @@
 #include "PreviewMesh.h"
 #include "ModelingOperators.h"
 #include "MeshOpPreviewHelpers.h"
+#include "SingleSelectionMeshEditingTool.h"
 #include "ConvertToPolygonsTool.generated.h"
 
 // predeclaration
@@ -21,13 +22,12 @@ class FConvertToPolygonsOp;
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UConvertToPolygonsToolBuilder : public UInteractiveToolBuilder
+class MESHMODELINGTOOLS_API UConvertToPolygonsToolBuilder : public USingleSelectionMeshEditingToolBuilder
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool CanBuildTool(const FToolBuilderState & SceneState) const override;
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState & SceneState) const override;
+	virtual USingleSelectionMeshEditingTool* CreateNewTool(const FToolBuilderState & SceneState) const override;
 };
 
 
@@ -86,7 +86,7 @@ public:
  *
  */
 UCLASS()
-class MESHMODELINGTOOLS_API UConvertToPolygonsTool : public USingleSelectionTool
+class MESHMODELINGTOOLS_API UConvertToPolygonsTool : public USingleSelectionMeshEditingTool
 {
 	GENERATED_BODY()
 
@@ -95,8 +95,6 @@ public:
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
-
-	virtual void SetWorld(UWorld* World);
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 	virtual void OnTick(float DeltaTime) override;
@@ -120,9 +118,6 @@ protected:
 	UMeshOpPreviewWithBackgroundCompute* PreviewWithBackgroundCompute = nullptr;
 
 protected:
-
-	UWorld* TargetWorld;
-
 	TSharedPtr<UE::Geometry::FDynamicMesh3, ESPMode::ThreadSafe> OriginalDynamicMesh;
 
 	// for visualization

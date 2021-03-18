@@ -20,6 +20,11 @@
 #include "MeshOpPreviewHelpers.h"
 #include "ModelingOperators.h"
 
+#include "TargetInterfaces/MaterialProvider.h"
+#include "TargetInterfaces/MeshDescriptionCommitter.h"
+#include "TargetInterfaces/MeshDescriptionProvider.h"
+#include "TargetInterfaces/PrimitiveComponentBackedTarget.h"
+
 #include "ExplicitUseGeometryMathTypes.h"		// using UE::Geometry::(math types)
 using namespace UE::Geometry;
 
@@ -29,23 +34,9 @@ using namespace UE::Geometry;
  * ToolBuilder
  */
 
-
-bool UConvertToPolygonsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
+USingleSelectionMeshEditingTool* UConvertToPolygonsToolBuilder::CreateNewTool(const FToolBuilderState& SceneState) const
 {
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 1;
-}
-
-UInteractiveTool* UConvertToPolygonsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
-{
-	UConvertToPolygonsTool* NewTool = NewObject<UConvertToPolygonsTool>(SceneState.ToolManager);
-
-	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, CanMakeComponentTarget);
-	UPrimitiveComponent* MeshComponent = Cast<UPrimitiveComponent>(ActorComponent);
-	check(MeshComponent != nullptr);
-	NewTool->SetSelection(MakeComponentTarget(MeshComponent));
-	NewTool->SetWorld(SceneState.World);
-
-	return NewTool;
+	return NewObject<UConvertToPolygonsTool>(SceneState.ToolManager);
 }
 
 class FConvertToPolygonsOp : public  FDynamicMeshOperator
@@ -156,11 +147,6 @@ UConvertToPolygonsTool::UConvertToPolygonsTool()
 	SetToolDisplayName(LOCTEXT("ConvertToPolygonsToolName", "Generate PolyGroups"));
 }
 
-void UConvertToPolygonsTool::SetWorld(UWorld* World)
-{
-	this->TargetWorld = World;
-}
-
 bool UConvertToPolygonsTool::CanAccept() const
 {
 	return Super::CanAccept() && (PreviewWithBackgroundCompute == nullptr || PreviewWithBackgroundCompute->HaveValidResult());
@@ -170,22 +156,24 @@ void UConvertToPolygonsTool::Setup()
 {
 	UInteractiveTool::Setup();
 
+	IPrimitiveComponentBackedTarget* TargetComponent = Cast<IPrimitiveComponentBackedTarget>(Target);
+
 	FComponentMaterialSet MaterialSet;
-	ComponentTarget->GetMaterialSet(MaterialSet);
+	Cast<IMaterialProvider>(Target)->GetMaterialSet(MaterialSet);
 
 	// populate the OriginalDynamicMesh with a conversion of the input mesh.
 	{
 		OriginalDynamicMesh = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
 		FMeshDescriptionToDynamicMesh Converter;
-		Converter.Convert(ComponentTarget->GetMesh(), *OriginalDynamicMesh);
+		Converter.Convert(Cast<IMeshDescriptionProvider>(Target)->GetMeshDescription(), *OriginalDynamicMesh);
 	}
 
 	Settings = NewObject<UConvertToPolygonsToolProperties>(this);
 	Settings->RestoreProperties(this);
 	AddToolPropertySource(Settings);
-	FTransform MeshTransform = ComponentTarget->GetWorldTransform();
+	FTransform MeshTransform = TargetComponent->GetWorldTransform();
 	// hide existing mesh
-	ComponentTarget->SetOwnerVisibility(false);
+	TargetComponent->SetOwnerVisibility(false);
 	// Set up the preview object
 	{
 		// create the operator factory
@@ -198,7 +186,7 @@ void UConvertToPolygonsTool::Setup()
 		PreviewWithBackgroundCompute->SetIsMeshTopologyConstant(true, EMeshRenderAttributeFlags::Positions | EMeshRenderAttributeFlags::VertexNormals);
 
 		// Give the preview something to display
-		PreviewWithBackgroundCompute->PreviewMesh->SetTransform(ComponentTarget->GetWorldTransform());
+		PreviewWithBackgroundCompute->PreviewMesh->SetTransform(TargetComponent->GetWorldTransform());
 		PreviewWithBackgroundCompute->PreviewMesh->SetTangentsMode(EDynamicMeshTangentCalcType::AutoCalculated);
 		PreviewWithBackgroundCompute->PreviewMesh->UpdatePreview(OriginalDynamicMesh.Get());
 		
@@ -252,7 +240,7 @@ void UConvertToPolygonsTool::UpdateOpParameters(FConvertToPolygonsOp& ConvertToP
 	ConvertToPolygonsOp.AngleTolerance    = Settings->AngleTolerance;
 	ConvertToPolygonsOp.OriginalMesh = OriginalDynamicMesh;
 	
-	FTransform LocalToWorld = ComponentTarget->GetWorldTransform();
+	FTransform LocalToWorld = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform();
 	ConvertToPolygonsOp.SetTransform(LocalToWorld);
 }
 
@@ -263,10 +251,10 @@ void UConvertToPolygonsTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 	FDynamicMesh3* DynamicMeshResult = Result.Mesh.Get();
 	check(DynamicMeshResult != nullptr);
 
-	ComponentTarget->CommitMesh([DynamicMeshResult](const FPrimitiveComponentTarget::FCommitParams& CommitParams)
+	Cast<IMeshDescriptionCommitter>(Target)->CommitMeshDescription([DynamicMeshResult](const IMeshDescriptionCommitter::FCommitterParams& CommitParams)
 	{
 		FDynamicMeshToMeshDescription Converter;
-		Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescription);
+		Converter.Convert(DynamicMeshResult, *CommitParams.MeshDescriptionOut);
 	});
 
 	GetToolManager()->EndUndoTransaction();
@@ -275,7 +263,7 @@ void UConvertToPolygonsTool::GenerateAsset(const FDynamicMeshOpResult& Result)
 void UConvertToPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
 	Settings->SaveProperties(this);
-	ComponentTarget->SetOwnerVisibility(true);
+	Cast<IPrimitiveComponentBackedTarget>(Target)->SetOwnerVisibility(true);
 
 	if (PreviewWithBackgroundCompute)
 	{
@@ -304,7 +292,7 @@ void UConvertToPolygonsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	FPrimitiveDrawInterface* PDI = RenderAPI->GetPrimitiveDrawInterface();
 	float PDIScale = RenderAPI->GetCameraState().GetPDIScalingFactor();
-	FTransform Transform = ComponentTarget->GetWorldTransform(); //Actor->GetTransform();
+	FTransform Transform = Cast<IPrimitiveComponentBackedTarget>(Target)->GetWorldTransform(); //Actor->GetTransform();
 
 	for (int eid : PolygonEdges)
 	{
@@ -324,10 +312,11 @@ void UConvertToPolygonsTool::UpdateVisualization()
 		return;
 	}
 
+	IMaterialProvider* MaterialTarget = Cast<IMaterialProvider>(Target);
 	FComponentMaterialSet MaterialSet;
 	if (Settings->bShowGroupColors)
 	{
-		int32 NumMaterials = ComponentTarget->GetNumMaterials();
+		int32 NumMaterials = MaterialTarget->GetNumMaterials();
 		for (int32 i = 0; i < NumMaterials; ++i)
 		{ 
 			MaterialSet.Materials.Add(ToolSetupUtil::GetSelectionMaterial(GetToolManager()));
@@ -340,7 +329,7 @@ void UConvertToPolygonsTool::UpdateVisualization()
 	}
 	else
 	{
-		ComponentTarget->GetMaterialSet(MaterialSet);
+		MaterialTarget->GetMaterialSet(MaterialSet);
 		PreviewWithBackgroundCompute->PreviewMesh->ClearTriangleColorFunction(UPreviewMesh::ERenderUpdateMode::FastUpdate);
 	}
 	PreviewWithBackgroundCompute->ConfigureMaterials(MaterialSet.Materials,
