@@ -858,9 +858,10 @@ void UGeometryCollectionComponent::InitializeComponent()
 	}
 }
 
-void UGeometryCollectionComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+#if WITH_EDITOR
+void UGeometryCollectionComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, bShowBoneColors))
 	{
@@ -870,6 +871,7 @@ void UGeometryCollectionComponent::PostEditChangeProperty(FPropertyChangedEvent&
 		MarkRenderDynamicDataDirty();
 	}
 }
+#endif
 
 static void DispatchGeometryCollectionBreakEvent(const FChaosBreakEvent& Event)
 {
