@@ -368,7 +368,7 @@ struct FPerInstanceRenderData
 	ENGINE_API void UpdateFromCommandBuffer(FInstanceUpdateCmdBuffer& CmdBuffer);
 
 	/**
-	 * Called to update the PerInstanceBounds array whenever the instance array is modified
+	 * Called to update the PerInstanceBounds/PerInstanceTransforms arrays whenever the instance array is modified
 	*/
 	ENGINE_API void UpdateBounds();
 
@@ -382,11 +382,17 @@ struct FPerInstanceRenderData
 	FStaticMeshInstanceBuffer			InstanceBuffer;
 	TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> InstanceBuffer_GameThread;
 
-	/** Data for culling ray tracing instances */
+	/** Get data for culling ray tracing instances */
+	const TArray<FVector4>& GetPerInstanceBounds();
+	/** Get cached CPU-friendly instance transforms */
+	const TArray<FMatrix>& GetPerInstanceTransforms();
+
+private:
 	TArray<FVector4> PerInstanceBounds;
 	TArray<FMatrix> PerInstanceTransforms;
 	FBox InstanceLocalBounds;
-	bool bTrackBounds;
+	FGraphEventRef UpdateBoundsTask;
+	const bool bTrackBounds;
 };
 
 

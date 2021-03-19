@@ -880,9 +880,8 @@ FPerInstanceRenderData::FPerInstanceRenderData(FStaticMeshInstanceData& Other, E
 	InstanceBuffer_GameThread = InstanceBuffer.InstanceData;
 
 	BeginInitResource(&InstanceBuffer);
-
-	ENQUEUE_RENDER_COMMAND(FInstanceBuffer_UpdateBounds)(
-		[this](FRHICommandListImmediate& RHICmdList)
+	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[this]()
 	{
 		UpdateBounds();
 	}
@@ -945,11 +944,35 @@ void FPerInstanceRenderData::UpdateBounds()
 	}
 }
 
+const TArray<FVector4>& FPerInstanceRenderData::GetPerInstanceBounds()
+{
+	// wait for bounds update to complete
+	if (UpdateBoundsTask.IsValid())
+	{
+		UpdateBoundsTask->Wait(ENamedThreads::GetRenderThread_Local());
+		UpdateBoundsTask.SafeRelease();
+	}
+
+	return PerInstanceBounds;
+}
+
+const TArray<FMatrix>& FPerInstanceRenderData::GetPerInstanceTransforms()
+{
+	// wait for bounds update to complete
+	if (UpdateBoundsTask.IsValid())
+	{
+		UpdateBoundsTask->Wait(ENamedThreads::GetRenderThread_Local());
+		UpdateBoundsTask.SafeRelease();
+	}
+
+	return PerInstanceTransforms;
+}
+
 void FPerInstanceRenderData::UpdateFromCommandBuffer(FInstanceUpdateCmdBuffer& CmdBuffer)
 {
 	InstanceBuffer.UpdateFromCommandBuffer_Concurrent(CmdBuffer);
-	ENQUEUE_RENDER_COMMAND(FInstanceBuffer_UpdateBounds)(
-		[this](FRHICommandListImmediate& RHICmdList)
+	UpdateBoundsTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
+		[this]()
 	{
 		UpdateBounds();
 	}
@@ -1325,7 +1348,8 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	// whether to use angular culling instead of distance, angle is halved as it is compared against the projection of the radius rather than the diameter
 	const float CullAngle = FMath::Min(CVarRayTracingInstancesCullAngle.GetValueOnRenderThread(), 179.9f) * 0.5f;
 
-	if (CVarRayTracingRenderInstancesCulling.GetValueOnRenderThread() > 0 && InstancedRenderData.PerInstanceRenderData->PerInstanceBounds.Num())
+	const TArray<FVector4>& PerInstanceBounds = InstancedRenderData.PerInstanceRenderData->GetPerInstanceBounds();
+	if (CVarRayTracingRenderInstancesCulling.GetValueOnRenderThread() > 0 && PerInstanceBounds.Num())
 	{
 		if (CullAngle < 0.0f)
 		{
@@ -1344,9 +1368,10 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			float Scale = FMath::Max3(ScaleVector.X, ScaleVector.Y, ScaleVector.Z);
 			FVector LocalViewPosition = WorldToLocal.TransformPosition(Context.ReferenceView->ViewLocation);
 
+			const TArray<FMatrix>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
 			for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 			{
-				FVector4 InstanceSphere = InstancedRenderData.PerInstanceRenderData->PerInstanceBounds[InstanceIndex];
+				FVector4 InstanceSphere = PerInstanceBounds[InstanceIndex];
 				FVector InstanceLocation = InstanceSphere;
 				FVector VToInstanceCenter = LocalViewPosition - InstanceLocation;
 				float DistanceToInstanceCenter = VToInstanceCenter.Size();
@@ -1364,7 +1389,7 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 						continue;
 				}
 
-				FMatrix InstanceTransform = InstancedRenderData.PerInstanceRenderData->PerInstanceTransforms[InstanceIndex] * GetLocalToWorld();
+				FMatrix InstanceTransform = PerInstanceTransforms[InstanceIndex] * GetLocalToWorld();
 				RayTracingInstanceTemplate.InstanceTransforms.Add(InstanceTransform);
 
 			}
@@ -1384,19 +1409,20 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 			float Scale = FMath::Max3(ScaleVector.X, ScaleVector.Y, ScaleVector.Z);
 			FVector LocalViewPosition = WorldToLocal.TransformPosition(Context.ReferenceView->ViewLocation);
 
+			const TArray<FMatrix>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
 			for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 					{
 				FVector4 LocalTransform[3];
 				FVector4 LightMapUV, Origin;
 
-				FVector4 InstanceSphere = InstancedRenderData.PerInstanceRenderData->PerInstanceBounds[InstanceIndex];
+				FVector4 InstanceSphere = PerInstanceBounds[InstanceIndex];
 				FVector InstanceLocation = InstanceSphere;
 				FVector VToInstanceCenter = LocalViewPosition - InstanceLocation;
 						float DistanceToInstanceCenter = VToInstanceCenter.Size();
 
 				if (DistanceToInstanceCenter * Ratio <= InstanceSphere.W * Scale)
 				{
-					FMatrix InstanceTransform = InstancedRenderData.PerInstanceRenderData->PerInstanceTransforms[InstanceIndex] * GetLocalToWorld();
+					FMatrix InstanceTransform = PerInstanceTransforms[InstanceIndex] * GetLocalToWorld();
 					const int32 DynamicInstanceIdx = InstanceIndex % SimulatedInstances;
 
 					if (bHasWorldPositionOffset)
@@ -1460,9 +1486,10 @@ void FInstancedStaticMeshSceneProxy::GetDynamicRayTracingInstances(struct FRayTr
 	else
 	{
 		// No culling
+		const TArray<FMatrix>& PerInstanceTransforms = InstancedRenderData.PerInstanceRenderData->GetPerInstanceTransforms();
 		for (int32 InstanceIdx = 0; InstanceIdx < InstanceCount; ++InstanceIdx)
 		{
-			FMatrix InstanceTransform = InstancedRenderData.PerInstanceRenderData->PerInstanceTransforms[InstanceIdx] * GetLocalToWorld();
+			FMatrix InstanceTransform = PerInstanceTransforms[InstanceIdx] * GetLocalToWorld();
 
 			if (bHasWorldPositionOffset)
 			{
