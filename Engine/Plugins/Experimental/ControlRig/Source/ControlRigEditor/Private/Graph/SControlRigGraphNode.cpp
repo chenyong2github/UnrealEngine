@@ -6,7 +6,6 @@
 #include "Graph/ControlRigGraph.h"
 #include "SGraphPin.h"
 #include "Graph/ControlRigGraphSchema.h"
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SButton.h"
@@ -27,6 +26,8 @@
 #include "RigVMModel/RigVMPin.h"
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "IDocumentation.h"
+#include "DetailLayoutBuilder.h"
+#include "EditorStyleSet.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -56,6 +57,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 	{
 		return;
 	}
+
+	Blueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(this->GraphNode));
 
 	// Re-cache variable info here (unit structure could have changed since last reconstruction, e.g. array add/remove)
 	// and also create missing pins if it hasn't created yet
@@ -172,6 +175,17 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		SNew(SImage)
 		.Image(ImageBrush)
 		.Visibility(EVisibility::Visible);
+
+	static const FSlateColorBrush WhiteBrush(FLinearColor::White);
+	
+	SAssignNew(InstructionCountTextBlockWidget, STextBlock)
+	.Margin(FMargin(2.0f, 2.0f, 2.0f, 1.0f))
+	.Text(this, &SControlRigGraphNode::GetInstructionCountText)
+	.Font(IDetailLayoutBuilder::GetDetailFont())
+	.ColorAndOpacity(FLinearColor::White)
+	.ShadowColorAndOpacity(FLinearColor(0.1f, 0.1f, 0.1f, 1.f))
+	.Visibility(EVisibility::Visible)
+	.ToolTipText(LOCTEXT("NodeHitCountToolTip", "This number represents the hit count for a node.\nFor functions / collapse nodes it represents the sum of all hit counts of contained nodes.\n\nYou can enable / disable the display of the number in the Class Settings\n(Rig Graph Display Settings -> Show Node Run Counts)"));
 
 	ControlRigGraphNode->GetNodeTitleDirtied().BindSP(this, &SControlRigGraphNode::HandleNodeTitleDirtied);
 }
@@ -327,9 +341,11 @@ FReply SControlRigGraphNode::OnMouseButtonDoubleClick(const FGeometry& InMyGeome
 		{
 			if (URigVMNode* ModelNode = RigNode->GetModelNode())
 			{
-				UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(RigNode));
-				RigBlueprint->BroadcastNodeDoubleClicked(ModelNode);
-				return FReply::Handled();
+				if(Blueprint.IsValid())
+				{
+					Blueprint->BroadcastNodeDoubleClicked(ModelNode);
+					return FReply::Handled();
+				}
 			}
 		}
 	}
@@ -999,7 +1015,7 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 
 								if (Widgets.Num() == PreviousNumWidgets)
 								{
-									FVector2D ImageSize = VisualDebugIndicatorWidget->GetDesiredSize();
+									const FVector2D ImageSize = VisualDebugIndicatorWidget->GetDesiredSize();
 
 									FOverlayWidgetInfo Info;
 									Info.OverlayOffset = FVector2D(WidgetSize.X - ImageSize.X - 6.f, 6.f);
@@ -1008,6 +1024,26 @@ TArray<FOverlayWidgetInfo> SControlRigGraphNode::GetOverlayWidgets(bool bSelecte
 									Widgets.Add(Info);
 								}
 							}
+						}
+					}
+				}
+			}
+
+			if(Blueprint.IsValid())
+			{
+				if(Blueprint->RigGraphDisplaySettings.bShowNodeRunCounts)
+				{
+					if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+					{
+						const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy(), false);
+						if(Count > Blueprint->RigGraphDisplaySettings.NodeRunLowerBound)
+						{
+							const int32 VOffset = bSelected ? -2 : 2;
+							const FVector2D TextSize = InstructionCountTextBlockWidget->GetDesiredSize();
+							FOverlayWidgetInfo Info;
+							Info.OverlayOffset = FVector2D(WidgetSize.X - TextSize.X - 8.f, VOffset - TextSize.Y);
+							Info.Widget = InstructionCountTextBlockWidget;
+							Widgets.Add(Info);
 						}
 					}
 				}
@@ -1048,6 +1084,32 @@ void SControlRigGraphNode::HandleNodeTitleDirtied()
 	{
 		NodeTitle->MarkDirty();
 	}
+}
+
+FText SControlRigGraphNode::GetInstructionCountText() const
+{
+	if(Blueprint.IsValid())
+	{
+		if(Blueprint->RigGraphDisplaySettings.bShowNodeRunCounts)
+		{
+			if (UControlRigGraphNode* RigNode = CastChecked<UControlRigGraphNode>(GraphNode, ECastCheckedType::NullAllowed))
+			{
+				if (URigVMNode* ModelNode = RigNode->GetModelNode())
+				{
+					if(UControlRig* DebuggedControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+					{
+						const int32 Count = ModelNode->GetInstructionVisitedCount(DebuggedControlRig->GetVM(), FRigVMASTProxy(), true);
+						if(Count > Blueprint->RigGraphDisplaySettings.NodeRunLowerBound)
+						{
+							return FText::FromString(FString::FromInt(Count));
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return FText();
 }
 
 #undef LOCTEXT_NAMESPACE

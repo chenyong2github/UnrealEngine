@@ -29,13 +29,15 @@ namespace ERigStackEntry
 class FRigStackEntry : public TSharedFromThis<FRigStackEntry>
 {
 public:
-	FRigStackEntry(int32 InEntryIndex, ERigStackEntry::Type InEntryType, int32 InInstructionIndex, ERigVMOpCode InOpCode, const FString& InLabel);
+	FRigStackEntry(int32 InEntryIndex, ERigStackEntry::Type InEntryType, int32 InInstructionIndex, ERigVMOpCode InOpCode, const FString& InLabel, const FRigVMASTProxy& InProxy);
 
-	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SControlRigStackView> InStackView);
+	TSharedRef<ITableRow> MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SControlRigStackView> InStackView, TWeakObjectPtr<UControlRigBlueprint> InBlueprint);
 
 	int32 EntryIndex;
 	ERigStackEntry::Type EntryType;
 	int32 InstructionIndex;
+	FString CallPath;
+	FRigVMCallstack Callstack;
 	ERigVMOpCode OpCode;
 	FString Label;
 	TArray<TSharedPtr<FRigStackEntry>> Children;
@@ -46,14 +48,17 @@ class SRigStackItem : public STableRow<TSharedPtr<FRigStackEntry>>
 	SLATE_BEGIN_ARGS(SRigStackItem) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList, TWeakObjectPtr<UControlRigBlueprint> InBlueprint);
 
 private:
 	TWeakPtr<FRigStackEntry> WeakStackEntry;
+	TWeakObjectPtr<UControlRigBlueprint> WeakBlueprint;
 	TWeakPtr<FUICommandList> WeakCommandList;
 
 	FText GetIndexText() const;
 	FText GetLabelText() const;
+	FSlateFontInfo GetLabelFont() const;
+	FText GetVisitedCountText() const;
 };
 
 class SControlRigStackView : public SCompoundWidget
@@ -82,7 +87,7 @@ private:
 	void BindCommands();
 
 	/** Make a row widget for the table */
-	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable);
+	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable, TWeakObjectPtr<UControlRigBlueprint> InBlueprint);
 
 	/** Get children for the tree */
 	void HandleGetChildrenForTree(TSharedPtr<FRigStackEntry> InItem, TArray<TSharedPtr<FRigStackEntry>>& OutChildren);
@@ -103,6 +108,7 @@ private:
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
 	void HandleControlRigInitializedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName);
 	void HandlePreviewControlRigUpdated(FControlRigEditor* InEditor);
+	void OnMouseButtonDoubleClick(TSharedPtr<FRigStackEntry> InItem);
 
 	/** Populate the execution stack with descriptive names for each instruction */
 	void PopulateStackView(URigVM* InVM);

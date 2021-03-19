@@ -402,6 +402,7 @@ protected:
 	EControlRigEditorEventQueue LastEventQueue;
 	FString LastDebuggedRig;
 	int32 RigHierarchyTabCount;
+	TMap<FString, FString> KnownInstructionLimitWarnings;
 
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;

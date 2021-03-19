@@ -7,7 +7,9 @@
 #include "SGraphNode.h"
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/Text/STextBlock.h"
 #include "RigVMModel/RigVMPin.h"
+#include "ControlRigBlueprint.h"
 
 class UControlRigGraphNode;
 class STableViewBase;
@@ -84,6 +86,8 @@ private:
 
 	void HandleNodeTitleDirtied();
 
+	FText GetInstructionCountText() const;
+
 private:
 	/** Cached widget title area */
 	TSharedPtr<SOverlay> TitleAreaWidget;
@@ -112,10 +116,13 @@ private:
 	int32 NodeErrorType;
 
 	TSharedPtr<SImage> VisualDebugIndicatorWidget;
+	TSharedPtr<STextBlock> InstructionCountTextBlockWidget;
 
 	static const FSlateBrush* CachedImg_CR_Pin_Connected;
 	static const FSlateBrush* CachedImg_CR_Pin_Disconnected;
 
 	/** Cache the node title so we can invalidate it */
 	TSharedPtr<SNodeTitle> NodeTitle;
+
+	TWeakObjectPtr<UControlRigBlueprint> Blueprint;
 };

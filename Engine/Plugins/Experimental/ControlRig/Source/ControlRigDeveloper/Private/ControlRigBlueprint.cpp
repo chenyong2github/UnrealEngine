@@ -660,8 +660,8 @@ void UControlRigBlueprint::HandleReportFromCompiler(EMessageSeverity::Type InSev
 		FNotificationInfo Info(FText::FromString(InMessage));
 		Info.Image = FCoreStyle::Get().GetBrush(TEXT("MessageLog.Error"));
 		Info.bFireAndForget = true;
-		Info.FadeOutDuration = 10.0f;
-		Info.ExpireDuration = 0.0f;
+		Info.FadeOutDuration = 5.0f;
+		Info.ExpireDuration = 8.0f;
 		TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 		NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 #endif

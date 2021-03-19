@@ -98,6 +98,41 @@ struct CONTROLRIGDEVELOPER_API FControlRigPublicFunctionData
 	TArray<FControlRigPublicFunctionArg> Arguments;
 };
 
+USTRUCT()
+struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
+{
+	GENERATED_BODY();
+
+	FRigGraphDisplaySettings()
+		: bShowNodeRunCounts(false)
+		, NodeRunLowerBound(1)
+		, NodeRunLimit(64)
+	{
+	}
+
+	// When enabled shows the node counts both in the graph view as
+	// we as in the execution stack window.
+	// The number on each node represents how often the node has been run.
+	// Keep in mind when looking at nodes in a function the count
+	// represents the sum of all counts for each node based on all
+	// references of the function currently running.
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
+	bool bShowNodeRunCounts;
+
+	// A lower limit for counts for nodes used for debugging.
+	// Any node lower than this count won't show the run count.
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
+	int32 NodeRunLowerBound;
+
+	// A upper limit for counts for nodes used for debugging.
+	// If a node reaches this count a warning will be issued for the
+	// node and displayed both in the execution stack as well as in the
+	// graph. Setting this to <= 1 disables the warning.
+	// Note: The count limit doesn't apply to functions / collapse nodes.
+	UPROPERTY(EditAnywhere, Category = "Graph Display Settings")
+	int32 NodeRunLimit;
+};
+
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider
 {
@@ -206,6 +241,9 @@ public:
 
 	bool IsFunctionPublic(const FName& InFunctionName) const;
 	void MarkFunctionPublic(const FName& InFunctionName, bool bIsPublic = true);
+
+	UPROPERTY(EditAnywhere, Category = "User Interface")
+	FRigGraphDisplaySettings RigGraphDisplaySettings;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VM")
 	FRigVMCompileSettings VMCompileSettings;

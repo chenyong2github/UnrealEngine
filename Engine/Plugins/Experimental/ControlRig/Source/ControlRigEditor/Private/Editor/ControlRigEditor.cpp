@@ -1330,8 +1330,8 @@ void FControlRigEditor::Compile()
 				{
 					FNotificationInfo Info(LOCTEXT("ControlRigBlueprintCompilerEmptyRigMessage", "The Control Rig you compiled doesn't do anything. Did you forget to add a Begin_Execution node?"));
 					Info.bFireAndForget = true;
-					Info.FadeOutDuration = 10.0f;
-					Info.ExpireDuration = 0.0f;
+					Info.FadeOutDuration = 5.0f;
+					Info.ExpireDuration = 5.0f;
 					TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 					NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 				}
@@ -1970,8 +1970,6 @@ void FControlRigEditor::HandleVMCompiledEvent(UBlueprint* InBlueprint, URigVM* I
 
 void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig, const EControlRigState InState, const FName& InEventName)
 {
-	UpdateGraphCompilerErrors();
-
 	if (UControlRigBlueprint* ControlRigBP = GetControlRigBlueprint())
 	{
 		if(RigElementInDetailPanel.IsValid())
@@ -2016,7 +2014,78 @@ void FControlRigEditor::HandleControlRigExecutedEvent(UControlRig* InControlRig,
 				Hierarchy->GetControlGizmoTransform(ControlElement, ERigTransformType::InitialLocal);
 			}
 		}
+		
+		if(ControlRigBP->RigGraphDisplaySettings.NodeRunLimit > 1)
+		{
+			if(UControlRig* DebuggedControlRig = Cast<UControlRig>(ControlRigBP->GetObjectBeingDebugged()))
+			{
+				if(URigVM* VM = DebuggedControlRig->GetVM())
+				{
+					bool bFoundLimitWarnings = false;
+					
+					const FRigVMByteCode& ByteCode = VM->GetByteCode();
+					for(int32 InstructionIndex = 0; InstructionIndex < ByteCode.GetNumInstructions(); InstructionIndex++)
+					{
+						const int32 Count = VM->GetInstructionVisitedCount(InstructionIndex);
+						if(Count > ControlRigBP->RigGraphDisplaySettings.NodeRunLimit)
+						{
+							bFoundLimitWarnings = true;
+
+							const FString CallPath = VM->GetByteCode().GetCallPathForInstruction(InstructionIndex); 
+							if(!KnownInstructionLimitWarnings.Contains(CallPath))
+							{
+								const FString Message = FString::Printf(
+                                    TEXT("Instruction has hit the NodeRunLimit\n(ran %d times, limit is %d)\n\nYou can increase the limit in the class settings."),
+                                    Count,
+                                    ControlRigBP->RigGraphDisplaySettings.NodeRunLimit
+                                );
+
+								if(DebuggedControlRig->ControlRigLog)
+								{
+									DebuggedControlRig->ControlRigLog->Entries.Add(
+										FControlRigLog::FLogEntry(EMessageSeverity::Warning, InEventName, InstructionIndex, Message
+									));
+								}
+
+								if(URigVMNode* Subject = Cast<URigVMNode>(VM->GetByteCode().GetSubjectForInstruction(InstructionIndex)))
+								{
+									FNotificationInfo Info(FText::FromString(Message));
+									Info.bFireAndForget = true;
+									Info.FadeOutDuration = 1.0f;
+									Info.ExpireDuration = 5.0f;
+
+									if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(GetControlRigBlueprint()->GetEdGraph(Subject->GetGraph())))
+									{
+										if(UEdGraphNode* Node = EdGraph->FindNodeForModelNodeName(Subject->GetFName()))
+										{
+											Info.Hyperlink = FSimpleDelegate::CreateLambda([this, Node] ()
+	                                        {
+	                                            JumpToHyperlink(Node, false);
+	                                        });
+									
+											Info.HyperlinkText = FText::FromString(Subject->GetName());
+										}
+									}
+
+									TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
+									NotificationPtr->SetCompletionState(SNotificationItem::CS_Fail);
+								}
+
+								KnownInstructionLimitWarnings.Add(CallPath, Message);
+							}
+						}
+					}
+
+					if(!bFoundLimitWarnings)
+					{
+						KnownInstructionLimitWarnings.Reset();
+					}
+				}
+			}
+		}
 	}
+
+	UpdateGraphCompilerErrors();
 }
 
 void FControlRigEditor::CreateEditorModeManager()
@@ -3667,8 +3736,8 @@ void FControlRigEditor::OnCurveContainerChanged()
 	// notification
 	FNotificationInfo Info(LOCTEXT("CurveContainerChangeHelpMessage", "CurveContainer has been successfully modified."));
 	Info.bFireAndForget = true;
-	Info.FadeOutDuration = 10.0f;
-	Info.ExpireDuration = 0.0f;
+	Info.FadeOutDuration = 5.0f;
+	Info.ExpireDuration = 5.0f;
 
 	TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 	NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
@@ -4540,7 +4609,7 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 					Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Error"));
 					Info.bFireAndForget = true;
 					Info.FadeOutDuration = 5.0f;
-					Info.ExpireDuration = 0.0f;
+					Info.ExpireDuration = 5.0f;
 					TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 					NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 				}
@@ -4556,7 +4625,7 @@ void FControlRigEditor::UpdateGraphCompilerErrors()
 					Info.Image = FEditorStyle::GetBrush(TEXT("MessageLog.Warning"));
 					Info.bFireAndForget = true;
 					Info.FadeOutDuration = 5.0f;
-					Info.ExpireDuration = 0.0f;
+					Info.ExpireDuration = 5.0f;
 					TSharedPtr<SNotificationItem> NotificationPtr = FSlateNotificationManager::Get().AddNotification(Info);
 					NotificationPtr->SetCompletionState(SNotificationItem::CS_Success);
 				}

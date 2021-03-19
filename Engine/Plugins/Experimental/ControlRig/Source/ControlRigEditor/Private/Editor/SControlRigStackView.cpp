@@ -4,6 +4,7 @@
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SScrollBar.h"
+#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "ControlRigEditor.h"
 #include "ControlRigEditorStyle.h"
@@ -12,6 +13,7 @@
 #include "ControlRigBlueprintGeneratedClass.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
+#include "DetailLayoutBuilder.h"
 #include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "SControlRigStackView"
@@ -19,27 +21,30 @@
 //////////////////////////////////////////////////////////////
 /// FRigStackEntry
 ///////////////////////////////////////////////////////////
-FRigStackEntry::FRigStackEntry(int32 InEntryIndex, ERigStackEntry::Type InEntryType, int32 InInstructionIndex, ERigVMOpCode InOpCode, const FString& InLabel)
+FRigStackEntry::FRigStackEntry(int32 InEntryIndex, ERigStackEntry::Type InEntryType, int32 InInstructionIndex, ERigVMOpCode InOpCode, const FString& InLabel, const FRigVMASTProxy& InProxy)
 	: EntryIndex(InEntryIndex)
 	, EntryType(InEntryType)
 	, InstructionIndex(InInstructionIndex)
+	, CallPath(InProxy.GetCallstack().GetCallPath())
+	, Callstack(InProxy.GetCallstack())
 	, OpCode(InOpCode)
 	, Label(InLabel)
 {
 
 }
 
-TSharedRef<ITableRow> FRigStackEntry::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SControlRigStackView> InStackView)
+TSharedRef<ITableRow> FRigStackEntry::MakeTreeRowWidget(const TSharedRef<STableViewBase>& InOwnerTable, TSharedRef<FRigStackEntry> InEntry, TSharedRef<FUICommandList> InCommandList, TSharedPtr<SControlRigStackView> InStackView, TWeakObjectPtr<UControlRigBlueprint> InBlueprint)
 {
-	return SNew(SRigStackItem, InOwnerTable, InEntry, InCommandList);
+	return SNew(SRigStackItem, InOwnerTable, InEntry, InCommandList, InBlueprint);
 }
 
 //////////////////////////////////////////////////////////////
 /// SRigStackItem
 ///////////////////////////////////////////////////////////
-void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList)
+void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable, TSharedRef<FRigStackEntry> InStackEntry, TSharedRef<FUICommandList> InCommandList, TWeakObjectPtr<UControlRigBlueprint> InBlueprint)
 {
 	WeakStackEntry = InStackEntry;
+	WeakBlueprint = InBlueprint;
 	WeakCommandList = InCommandList;
 
 	TSharedPtr< STextBlock > NumberWidget;
@@ -86,6 +91,7 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 			[
 				SAssignNew(NumberWidget, STextBlock)
 				.Text(this, &SRigStackItem::GetIndexText)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
 			+ SHorizontalBox::Slot()
 			.MaxWidth(22.f)
@@ -95,26 +101,80 @@ void SRigStackItem::Construct(const FArguments& InArgs, const TSharedRef<STableV
 				SNew(SImage)
 				.Image(Icon)
 			]
+			
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1.f)
+			.MaxWidth(200.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Left)
 			[
 				SAssignNew(TextWidget, STextBlock)
 				.Text(this, &SRigStackItem::GetLabelText)
+				.Font(this, &SRigStackItem::GetLabelFont)
 			]
-		], OwnerTable);
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.f)
+			.MaxWidth(40.f)
+			[
+				SNew(SSpacer)
+			]
+
+			+ SHorizontalBox::Slot()
+			.MaxWidth(36.f)
+            .VAlign(VAlign_Center)
+            .HAlign(HAlign_Right)
+            [
+                SNew(STextBlock)
+                .Text(this, &SRigStackItem::GetVisitedCountText)
+                .Font(IDetailLayoutBuilder::GetDetailFont())
+            ]
+        ], OwnerTable);
 }
 
 FText SRigStackItem::GetIndexText() const
 {
-	FString IndexStr = FString::FromInt(WeakStackEntry.Pin()->EntryIndex) + TEXT(".");
+	const FString IndexStr = FString::FromInt(WeakStackEntry.Pin()->EntryIndex) + TEXT(".");
 	return FText::FromString(IndexStr);
 }
 
 FText SRigStackItem::GetLabelText() const
 {
 	return (FText::FromString(WeakStackEntry.Pin()->Label));
+}
+
+FSlateFontInfo SRigStackItem::GetLabelFont() const
+{
+	if(GetVisitedCountText().IsEmpty())
+	{
+		return IDetailLayoutBuilder::GetDetailFont();
+	}
+	return IDetailLayoutBuilder::GetDetailFontBold();
+}
+
+FText SRigStackItem::GetVisitedCountText() const
+{
+	if(WeakStackEntry.IsValid() && WeakBlueprint.IsValid())
+	{
+		if(WeakBlueprint->RigGraphDisplaySettings.bShowNodeRunCounts)
+		{
+			if(WeakStackEntry.Pin()->EntryType == ERigStackEntry::Operator)
+			{
+				if(UControlRig* ControlRig = Cast<UControlRig>(WeakBlueprint->GetObjectBeingDebugged()))
+				{
+					if(URigVM* VM = ControlRig->GetVM())
+					{
+						const int32 Count = VM->GetInstructionVisitedCount(WeakStackEntry.Pin()->InstructionIndex);
+						if(Count > 0)
+						{
+							return FText::FromString(FString::FromInt(Count));
+						}
+					}
+				}
+			}
+		}
+	}
+	return FText();
 }
 
 //////////////////////////////////////////////////////////////
@@ -200,10 +260,11 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 				SAssignNew(TreeView, STreeView<TSharedPtr<FRigStackEntry>>)
 				.TreeItemsSource(&Operators)
 				.SelectionMode(ESelectionMode::Multi)
-				.OnGenerateRow(this, &SControlRigStackView::MakeTableRowWidget)
+				.OnGenerateRow(this, &SControlRigStackView::MakeTableRowWidget, ControlRigBlueprint)
 				.OnGetChildren(this, &SControlRigStackView::HandleGetChildrenForTree)
 				.OnSelectionChanged(this, &SControlRigStackView::OnSelectionChanged)
 				.OnContextMenuOpening(this, &SControlRigStackView::CreateContextMenu)
+				.OnMouseButtonDoubleClick(this, &SControlRigStackView::OnMouseButtonDoubleClick)
 				.ItemHeight(28)
 			]
 		]
@@ -272,27 +333,30 @@ void SControlRigStackView::OnSelectionChanged(TSharedPtr<FRigStackEntry> Selecti
 		TMap<URigVMGraph*, TArray<FName>> SelectedNodesPerGraph;
 		for (TSharedPtr<FRigStackEntry>& Entry : SelectedItems)
 		{
-			UObject* Subject = ByteCode.GetSubjectForInstruction(Entry->InstructionIndex);
-			URigVMGraph* SubjectGraph = nullptr;
-
-			FName NodeName = NAME_None;
-			if (URigVMNode* Node = Cast<URigVMNode>(Subject))
+			for(int32 StackIndex = 0; StackIndex < Entry->Callstack.Num(); StackIndex++)
 			{
-				NodeName = Node->GetFName();
-				SubjectGraph = Node->GetGraph();
-			}
-			else if (URigVMPin* Pin = Cast<URigVMPin>(Subject))
-			{
-				NodeName = Pin->GetNode()->GetFName();
-				SubjectGraph = Pin->GetGraph();
-			}
+				const UObject* Subject = Entry->Callstack[StackIndex];
+				URigVMGraph* SubjectGraph = nullptr;
 
-			if (NodeName.IsNone() || SubjectGraph == nullptr)
-			{
-				continue;
-			}
+				FName NodeName = NAME_None;
+				if (const URigVMNode* Node = Cast<URigVMNode>(Subject))
+				{
+					NodeName = Node->GetFName();
+					SubjectGraph = Node->GetGraph();
+				}
+				else if (const URigVMPin* Pin = Cast<URigVMPin>(Subject))
+				{
+					NodeName = Pin->GetNode()->GetFName();
+					SubjectGraph = Pin->GetGraph();
+				}
 
-			SelectedNodesPerGraph.FindOrAdd(SubjectGraph).AddUnique(NodeName);
+				if (NodeName.IsNone() || SubjectGraph == nullptr)
+				{
+					continue;
+				}
+
+				SelectedNodesPerGraph.FindOrAdd(SubjectGraph).AddUnique(NodeName);
+			}
 		}
 
 		for (const TPair< URigVMGraph*, TArray<FName> >& Pair : SelectedNodesPerGraph)
@@ -309,9 +373,9 @@ void SControlRigStackView::BindCommands()
 	CommandList->MapAction(Commands.FocusOnSelection, FExecuteAction::CreateSP(this, &SControlRigStackView::HandleFocusOnSelectedGraphNode));
 }
 
-TSharedRef<ITableRow> SControlRigStackView::MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SControlRigStackView::MakeTableRowWidget(TSharedPtr<FRigStackEntry> InItem, const TSharedRef<STableViewBase>& OwnerTable, TWeakObjectPtr<UControlRigBlueprint> InBlueprint)
 {
-	return InItem->MakeTreeRowWidget(OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this));
+	return InItem->MakeTreeRowWidget(OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this), InBlueprint);
 }
 
 void SControlRigStackView::HandleGetChildrenForTree(TSharedPtr<FRigStackEntry> InItem, TArray<TSharedPtr<FRigStackEntry>>& OutChildren)
@@ -323,21 +387,23 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 {
 	if (InVM)
 	{
-		FRigVMInstructionArray Instructions = InVM->GetInstructions();
+		UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint();
+		URigVMGraph* RootGraph = Blueprint->GetModel();
 
+		const FRigVMInstructionArray Instructions = InVM->GetInstructions();
 		const FRigVMByteCode& ByteCode = InVM->GetByteCode();
 
 		// 1. cache information about instructions/nodes, which will be used later 
-		TMap<FString, FString> NodeNameToDisplayName;
-		for (int32 InstructionIndex = 0; InstructionIndex < ByteCode.Num(); InstructionIndex++)
+		TMap<FString, FString> OperandFormatMap;
+		for (int32 InstructionIndex = 0; InstructionIndex < Instructions.Num(); InstructionIndex++)
 		{
-			UObject* Subject = ByteCode.GetSubjectForInstruction(InstructionIndex);
-			if (URigVMNode* Node = Cast<URigVMNode>(Subject))
+			const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(ByteCode.GetCallPathForInstruction(InstructionIndex), RootGraph);
+			if(URigVMNode* Node = Proxy.GetSubject<URigVMNode>())
 			{
 				FString DisplayName = Node->GetName();
 
 				// only unit nodes among all nodes has StaticExecute() that generates actual instructions
-				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Subject))
+				if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node))
 				{
 					DisplayName = UnitNode->GetNodeTitle();
 #if WITH_EDITOR
@@ -355,19 +421,19 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 				}
 
 				// this is needed for name replacement later
-				NodeNameToDisplayName.Add(Node->GetName(), DisplayName);
+				OperandFormatMap.Add(Node->GetName(), DisplayName);
 			}
 		}
 
 		// 2. replace raw operand names with NodeTitle.PinName/PropertyName.OffsetName
-		TArray<FString> Labels = InVM->DumpByteCodeAsTextArray(TArray<int32>(), false, [NodeNameToDisplayName](const FString& RegisterName, const FString& RegisterOffsetName)
+		TArray<FString> Labels = InVM->DumpByteCodeAsTextArray(TArray<int32>(), false, [OperandFormatMap](const FString& RegisterName, const FString& RegisterOffsetName)
 		{
 			FString NewRegisterName = RegisterName;
 			FString NodeName;
 			FString PinName;
 			if (RegisterName.Split(TEXT("."), &NodeName, &PinName))
 			{
-				const FString* NodeTitle = NodeNameToDisplayName.Find(NodeName);
+				const FString* NodeTitle = OperandFormatMap.Find(NodeName);
 				NewRegisterName = FString::Printf(TEXT("%s.%s"), NodeTitle ? **NodeTitle : *NodeName, *PinName);
 			}
 			FString OperandLabel;
@@ -385,18 +451,49 @@ void SControlRigStackView::PopulateStackView(URigVM* InVM)
 		for (int32 InstructionIndex = 0; InstructionIndex < Labels.Num(); InstructionIndex++)
 		{
 			FString Label = Labels[InstructionIndex];
+			const FRigVMASTProxy Proxy = FRigVMASTProxy::MakeFromCallPath(ByteCode.GetCallPathForInstruction(InstructionIndex), RootGraph);
 
-			UObject* Subject = ByteCode.GetSubjectForInstruction(InstructionIndex);
-			if(URigVMNode* Node = Cast<URigVMNode>(Subject))
+			if(URigVMNode* Node = Proxy.GetSubject<URigVMNode>())
 			{
-				Label = NodeNameToDisplayName[Node->GetName()];
+				FString Suffix;
+				switch(Instructions[InstructionIndex].OpCode)
+				{
+					case ERigVMOpCode::Copy:
+					case ERigVMOpCode::Zero:
+	                case ERigVMOpCode::BoolFalse:
+	                case ERigVMOpCode::BoolTrue:
+	                case ERigVMOpCode::Increment:
+	                case ERigVMOpCode::Decrement:
+					case ERigVMOpCode::Equals:
+                	case ERigVMOpCode::NotEquals:
+					case ERigVMOpCode::JumpAbsolute:
+                	case ERigVMOpCode::JumpForward:
+                	case ERigVMOpCode::JumpBackward:
+					case ERigVMOpCode::JumpAbsoluteIf:
+                	case ERigVMOpCode::JumpForwardIf:
+                	case ERigVMOpCode::JumpBackwardIf:
+					case ERigVMOpCode::BeginBlock:
+					case ERigVMOpCode::EndBlock:
+					{
+						const FText OpCodeText = StaticEnum<ERigVMOpCode>()->GetDisplayNameTextByValue((int32)Instructions[InstructionIndex].OpCode);
+						Suffix = FString::Printf(TEXT(" - %s"), *OpCodeText.ToString());
+						break;
+					}
+					default:
+					{
+						break;
+					}
+				}
+				
+				Label =  OperandFormatMap[Node->GetName()] + Suffix;
+				// Label = Proxy.GetCallstack().GetCallPath() + Suffix;
 			}
 
 			// add the entry with the new label to the stack view
 			const FRigVMInstruction& Instruction = Instructions[InstructionIndex];
 			if (FilterText.IsEmpty() || Label.Contains(FilterText.ToString()))
 			{
-				TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(InstructionIndex, ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, Label);
+				TSharedPtr<FRigStackEntry> NewEntry = MakeShared<FRigStackEntry>(InstructionIndex, ERigStackEntry::Operator, InstructionIndex, Instruction.OpCode, Label, Proxy);
 				Operators.Add(NewEntry);
 			}
 		}
@@ -430,19 +527,19 @@ void SControlRigStackView::RefreshTreeView(URigVM* InVM)
 					{
 						case EMessageSeverity::Info:
 						{
-							Operators[LogEntry.InstructionIndex]->Children.Add(MakeShared<FRigStackEntry>(ChildIndex, ERigStackEntry::Info, LogEntry.InstructionIndex, ERigVMOpCode::Invalid, LogEntry.Message));
+							Operators[LogEntry.InstructionIndex]->Children.Add(MakeShared<FRigStackEntry>(ChildIndex, ERigStackEntry::Info, LogEntry.InstructionIndex, ERigVMOpCode::Invalid, LogEntry.Message, FRigVMASTProxy()));
 							break;
 						}
 						case EMessageSeverity::Warning:
 						case EMessageSeverity::PerformanceWarning:
 						{
-							Operators[LogEntry.InstructionIndex]->Children.Add(MakeShared<FRigStackEntry>(ChildIndex, ERigStackEntry::Warning, LogEntry.InstructionIndex, ERigVMOpCode::Invalid, LogEntry.Message));
+							Operators[LogEntry.InstructionIndex]->Children.Add(MakeShared<FRigStackEntry>(ChildIndex, ERigStackEntry::Warning, LogEntry.InstructionIndex, ERigVMOpCode::Invalid, LogEntry.Message, FRigVMASTProxy()));
 							break;
 						}
 						case EMessageSeverity::Error:
 						case EMessageSeverity::CriticalError:
 						{
-							Operators[LogEntry.InstructionIndex]->Children.Add(MakeShared<FRigStackEntry>(ChildIndex, ERigStackEntry::Error, LogEntry.InstructionIndex, ERigVMOpCode::Invalid, LogEntry.Message));
+							Operators[LogEntry.InstructionIndex]->Children.Add(MakeShared<FRigStackEntry>(ChildIndex, ERigStackEntry::Error, LogEntry.InstructionIndex, ERigVMOpCode::Invalid, LogEntry.Message, FRigVMASTProxy()));
 							break;
 						}
 						default:
@@ -545,16 +642,13 @@ void SControlRigStackView::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 		case ERigVMGraphNotifType::NodeSelected:
 		case ERigVMGraphNotifType::NodeDeselected:
 		{
-			TArray<int32> InstructionIndices = ByteCode.GetAllInstructionIndicesForSubject(InSubject);
-			for (int32 InstructionIndex : InstructionIndices)
+			for (TSharedPtr<FRigStackEntry>& Operator : Operators)
 			{
-				if (InstructionIndex >= Operators.Num())
+				if(Operator->Callstack.Contains(InSubject))
 				{
-					break;
+					const TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
+					TreeView->SetItemSelection(Operator, InNotifType == ERigVMGraphNotifType::NodeSelected, ESelectInfo::Direct);
 				}
-
-				TGuardValue<bool> SuspendNotifs(bSuspendModelNotifications, true);
-				TreeView->SetItemSelection(Operators[InstructionIndex], InNotifType == ERigVMGraphNotifType::NodeSelected, ESelectInfo::Direct);
 			}
 			break;
 		}
@@ -608,6 +702,29 @@ void SControlRigStackView::HandleControlRigInitializedEvent(UControlRig* InContr
 
 void SControlRigStackView::HandlePreviewControlRigUpdated(FControlRigEditor* InEditor)
 {
+}
+
+void SControlRigStackView::OnMouseButtonDoubleClick(TSharedPtr<FRigStackEntry> InItem)
+{
+	if(ControlRigEditor.IsValid() && ControlRigBlueprint.IsValid())
+	{
+		if(UControlRig* ControlRig = Cast<UControlRig>(ControlRigBlueprint->GetObjectBeingDebugged()))
+		{
+			if(URigVM* VM = ControlRig->GetVM())
+			{
+				if(URigVMNode* Subject = Cast<URigVMNode>(VM->GetByteCode().GetSubjectForInstruction(InItem->InstructionIndex)))
+				{
+					if(UControlRigGraph* EdGraph = Cast<UControlRigGraph>(ControlRigBlueprint->GetEdGraph(Subject->GetGraph())))
+					{
+						if(UEdGraphNode* Node = EdGraph->FindNodeForModelNodeName(Subject->GetFName()))
+						{
+							ControlRigEditor.Pin()->JumpToHyperlink(Node, false);
+						}
+					}
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
