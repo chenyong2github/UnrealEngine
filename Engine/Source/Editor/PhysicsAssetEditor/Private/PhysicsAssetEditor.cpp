@@ -2376,6 +2376,7 @@ void FPhysicsAssetEditor::OnConvertToSkeletal()
 void FPhysicsAssetEditor::OnDeleteConstraint()
 {
 	SharedData->DeleteCurrentConstraint();
+	RecreatePhysicsState();
 }
 
 void FPhysicsAssetEditor::OnSetBodyPhysicsType( EPhysicsType InPhysicsType )
@@ -2487,6 +2488,7 @@ void FPhysicsAssetEditor::OnDeleteSelection()
 {
 	SharedData->DeleteCurrentPrim();
 	SharedData->DeleteCurrentConstraint();
+	RecreatePhysicsState();
 }
 
 void FPhysicsAssetEditor::OnCycleConstraintOrientation()
@@ -3083,6 +3085,7 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 
 	// Create the preview component
 	SharedData->EditorSkelComp = NewObject<UPhysicsAssetEditorSkeletalMeshComponent>(Actor);
+
 	SharedData->EditorSkelComp->SetCollisionEnabled(ECollisionEnabled::QueryAndPhysics);
 	SharedData->EditorSkelComp->SharedData = SharedData.Get();
 	SharedData->EditorSkelComp->SetSkeletalMesh(SharedData->PhysicsAsset->GetPreviewMesh());
@@ -3108,6 +3111,14 @@ void FPhysicsAssetEditor::HandlePreviewSceneCreated(const TSharedRef<IPersonaPre
 	SharedData->MouseHandle->RegisterComponentWithWorld(InPersonaPreviewScene->GetWorld());
 
 	SharedData->EnableSimulation(false);
+
+	// we need to make sure we monitor any change to the PhysicsState being recreated, as this can happen from path that is external to this class
+	// (example: setting a property on a body that is type "simulated" will recreate the state from USkeletalBodySetup::PostEditChangeProperty and let the body simulating (UE-107308)
+	SharedData->EditorSkelComp->RegisterOnPhysicsCreatedDelegate(FOnSkelMeshPhysicsCreated::CreateLambda([this]()
+		{
+			// let's make sure nothing is simulating and that all necessary state are in proper order
+			SharedData->EnableSimulation(false);
+		}));
 
 	// Make sure the floor mesh has collision (BlockAllDynamic may have been overriden)
 	static FName CollisionProfileName(TEXT("PhysicsActor"));
