@@ -1813,7 +1813,7 @@ bool FMacPlatformMisc::IsRunningOnRecommendedMinSpecHardware()
 			const FMacModel& Model = MinSupportedMacModels[Index];
 
 			if ( (SystemModelMajor <  Model.Major) ||
-				((SystemModelMajor >= Model.Major) && (SystemModelMinor < Model.Minor)))
+				((SystemModelMajor == Model.Major) && (SystemModelMinor < Model.Minor)))
 			{
 				bSupported = false;
 			}
