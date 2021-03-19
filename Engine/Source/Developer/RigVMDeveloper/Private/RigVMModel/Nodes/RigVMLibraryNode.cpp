@@ -53,6 +53,29 @@ TArray<int32> URigVMLibraryNode::GetInstructionsForVM(URigVM* InVM, const FRigVM
 	return Instructions;
 }
 
+int32 URigVMLibraryNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy, bool bConsolidatePerNode) const
+{
+	int32 Count = 0;
+
+#if WITH_EDITOR
+
+	if(InVM == nullptr)
+	{
+		return Count;
+	}
+
+	const FRigVMASTProxy Proxy = InProxy.GetChild((UObject*)this);
+	for(URigVMNode* ContainedNode : GetContainedNodes())
+	{
+		const int32 CountPerNode = ContainedNode->GetInstructionVisitedCount(InVM, Proxy, bConsolidatePerNode);
+		Count += CountPerNode;
+	}
+
+#endif
+
+	return Count;
+}
+
 const TArray<URigVMNode*>& URigVMLibraryNode::GetContainedNodes() const
 {
 	if(URigVMGraph* Graph = GetContainedGraph())

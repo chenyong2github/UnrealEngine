@@ -491,7 +491,7 @@ TArray<int32> URigVMNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProx
 	return Instructions;
 }
 
-int32 URigVMNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+int32 URigVMNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy, bool bConsolidatePerNode) const
 {
 #if WITH_EDITOR
 	if(InVM)
@@ -502,7 +502,15 @@ int32 URigVMNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy&
 			int32 Count = 0;
 			for(int32 Instruction : Instructions)
 			{
-				Count += InVM->GetInstructionVisitedCount(Instruction);
+				const int32 CountPerInstruction = InVM->GetInstructionVisitedCount(Instruction);
+				if(bConsolidatePerNode)
+				{
+					Count = FMath::Max<int32>(Count, CountPerInstruction);
+				}
+				else
+				{
+					Count += CountPerInstruction;
+				}
 			}
 			return Count;
 		}
