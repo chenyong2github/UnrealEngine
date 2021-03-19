@@ -375,15 +375,16 @@ int64 GAverageRequiredPool = 0;
 
 void FRenderAssetStreamingStats::Apply()
 {
-	/** Streaming stats */
+	const bool bHasBudgetLimit = FMath::IsWithin<int64>(RenderAssetPool, 0ll, 1ll << 40);
 
-	SET_MEMORY_STAT(MCR_TexturePool, RenderAssetPool); 
-	SET_MEMORY_STAT(MCR_StreamingPool, StreamingPool);
+	/** Streaming stats */
+	SET_MEMORY_STAT(MCR_TexturePool, bHasBudgetLimit ? RenderAssetPool : 0ll);
+	SET_MEMORY_STAT(MCR_StreamingPool, bHasBudgetLimit ? StreamingPool : 0ll);
 	SET_MEMORY_STAT(MCR_UsedStreamingPool, UsedStreamingPool);
 
 	SET_MEMORY_STAT(STAT_Streaming01_SafetyPool, SafetyPool);
-	SET_MEMORY_STAT(STAT_Streaming02_TemporaryPool, TemporaryPool);
-	SET_MEMORY_STAT(STAT_Streaming03_StreamingPool, StreamingPool);
+	SET_MEMORY_STAT(STAT_Streaming02_TemporaryPool, bHasBudgetLimit ? TemporaryPool : 0ll);
+	SET_MEMORY_STAT(STAT_Streaming03_StreamingPool, bHasBudgetLimit ? StreamingPool : 0ll);
 	SET_MEMORY_STAT(STAT_Streaming04_NonStreamingMips, NonStreamingMips);
 		
 	SET_MEMORY_STAT(STAT_Streaming05_RequiredPool, RequiredPool);
