@@ -73,6 +73,11 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		return nullptr;
 	}
 
+	if (!ensure(!ObjectTemplate->GetClass()->HasAnyClassFlags(CLASS_NewerVersionExists)))
+	{
+		return nullptr;
+	}
+
 	const EObjectFlags ObjectFlags = RF_Transient | RF_Transactional;
 
 	// @todo sequencer livecapture: Consider using SetPlayInEditorWorld() and RestoreEditorWorld() here instead

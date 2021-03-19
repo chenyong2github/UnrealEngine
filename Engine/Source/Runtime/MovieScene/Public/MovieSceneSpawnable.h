@@ -104,6 +104,7 @@ public:
 	 */
 	void SetObjectTemplate(UObject* InObjectTemplate)
 	{
+		checkf(!InObjectTemplate->HasAnyFlags(RF_ClassDefaultObject), TEXT("Setting CDOs as object templates is not supported. Please use the class directly."));
 		ObjectTemplate = InObjectTemplate;
 	}
 

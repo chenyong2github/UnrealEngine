@@ -520,9 +520,15 @@ void FSequencerObjectBindingNode::HandleTemplateActorClassPicked(UClass* ChosenC
 	FScopedTransaction Transaction(LOCTEXT("ChangeClass", "Change Class"));
 
 	MovieScene->Modify();
-	Spawnable->SetObjectTemplate(ChosenClass->ClassDefaultObject);
-	GetSequencer().GetSpawnRegister().DestroySpawnedObject(Spawnable->GetGuid(), GetSequencer().GetFocusedTemplateID(), GetSequencer());
-	GetSequencer().ForceEvaluate();
+
+	TValueOrError<FNewSpawnable, FText> Result = GetSequencer().GetSpawnRegister().CreateNewSpawnableType(*ChosenClass, *MovieScene, nullptr);
+	if (Result.IsValid())
+	{
+		Spawnable->SetObjectTemplate(Result.GetValue().ObjectTemplate);
+
+		GetSequencer().GetSpawnRegister().DestroySpawnedObject(Spawnable->GetGuid(), GetSequencer().GetFocusedTemplateID(), GetSequencer());
+		GetSequencer().ForceEvaluate();
+	}
 }
 
 
