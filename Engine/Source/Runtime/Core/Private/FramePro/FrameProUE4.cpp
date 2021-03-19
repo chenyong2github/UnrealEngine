@@ -144,8 +144,8 @@
 		//------------------------------------------------------------------------
 		Platform::Enum Platform::GetPlatformEnum()
 		{
-			#if defined(FRAMEPRO_UE4_PLATFORM) //@EPIC: allow external definition
-				return FRAMEPRO_UE4_PLATFORM;  //@EPIC end
+			#if defined(FRAMEPRO_UNREAL_PLATFORM) //@EPIC: allow external definition
+				return FRAMEPRO_UNREAL_PLATFORM;  //@EPIC end
 			#elif PLATFORM_WINDOWS
 				return Platform::Windows;
 			#elif PLATFORM_LINUX
@@ -164,7 +164,7 @@
 				return Platform::Switch;
 			#else
 				//@EPIC: begin - useful error
-				#error unknown platform or FRAMEPRO_UE4_PLATFORM not defined
+				#error unknown platform or FRAMEPRO_UNREAL_PLATFORM not defined
 				//@EPIC: end
 			#endif
 		}
