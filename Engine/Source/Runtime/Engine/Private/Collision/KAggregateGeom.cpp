@@ -435,8 +435,18 @@ void FKConvexElem::GetPlanes(TArray<FPlane>& Planes) const
 			Planes.Add(Plane);
 		}
 	}
-#else
-	CHAOS_ENSURE(false); // TODO Implement in Chaos
+#elif WITH_CHAOS
+	using FChaosPlane = Chaos::TPlaneConcrete<float, 3>;
+	if(Chaos::FConvex* RawConvex = ChaosConvex.Get())
+	{
+		const int32 NumPlanes = RawConvex->NumPlanes();
+		for(int32 i = 0; i < NumPlanes; ++i)
+		{
+			const FChaosPlane& Plane = RawConvex->GetPlane(i);
+
+			Planes.Add({Plane.X(), Plane.Normal()});
+		}
+	}
 #endif
 }
 
