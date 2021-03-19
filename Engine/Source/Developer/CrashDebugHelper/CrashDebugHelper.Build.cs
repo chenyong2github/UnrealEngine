@@ -40,5 +40,14 @@ public class CrashDebugHelper : ModuleRules
 		{
 			throw new System.Exception("CrashDebugHelper uses DBGENG.DLL at runtime, which depends on a matching version of DBGHELP.DLL but cannot be redistributed. Please set WindowsPlatform.bUseBundledDbgHelp = false for this target.");
 		}
+
+		// Note: PLCrashReporter is not supported on tvOS.
+		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.IOS)
+		{
+			AddEngineThirdPartyPrivateStaticDependencies(Target, new string[]
+			{
+				"PLCrashReporter"
+			});
+		}
     }
 }
