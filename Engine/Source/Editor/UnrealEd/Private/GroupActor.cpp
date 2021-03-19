@@ -110,16 +110,18 @@ bool ActorHasParentInGroup(const TArray<AActor*>& GroupActors, const AActor* Act
 {
 	check(Actor);
 	// Check that we've not got a parent attachment within the group.
-	USceneComponent* RootComponent = Actor->GetRootComponent();
-	for (const AActor* OtherActor : GroupActors)
+	if (USceneComponent* RootComponent = Actor->GetRootComponent())
 	{
-		if (OtherActor && OtherActor != Actor)
+		for (const AActor* OtherActor : GroupActors)
 		{
-			USceneComponent* OtherRootComponent = OtherActor->GetRootComponent();
-			if (RootComponent->IsAttachedTo(OtherRootComponent))
+			if (OtherActor && OtherActor != Actor)
 			{
-				// We do have parent so don't apply the delta - our parent object will apply it instead.
-				return true;
+				USceneComponent* OtherRootComponent = OtherActor->GetRootComponent();
+				if (OtherRootComponent && RootComponent->IsAttachedTo(OtherRootComponent))
+				{
+					// We do have parent so don't apply the delta - our parent object will apply it instead.
+					return true;
+				}
 			}
 		}
 	}

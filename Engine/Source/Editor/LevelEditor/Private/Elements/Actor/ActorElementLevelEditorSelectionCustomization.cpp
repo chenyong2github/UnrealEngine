@@ -185,6 +185,11 @@ bool FActorElementLevelEditorSelectionCustomization::SelectActorElement(const TT
 	// Bind the override delegates for the components on the selected actor
 	for (UActorComponent* Component : Actor->GetComponents())
 	{
+		if (!Component)
+		{
+			continue;
+		}
+
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Component))
 		{
 			FComponentEditorUtils::BindComponentSelectionOverride(SceneComponent, /*bBind*/true);
@@ -250,6 +255,11 @@ bool FActorElementLevelEditorSelectionCustomization::DeselectActorElement(const 
 
 		for (UActorComponent* Component : Actor->GetComponents())
 		{
+			if (!Component)
+			{
+				continue;
+			}
+
 			TTypedElement<UTypedElementSelectionInterface> ComponentSelectionHandle = InSelectionSet->GetElement<UTypedElementSelectionInterface>(UEngineElementsLibrary::AcquireEditorComponentElementHandle(Component));
 			ComponentSelectionHandle.DeselectElement(InSelectionSet, InSelectionOptions);
 
