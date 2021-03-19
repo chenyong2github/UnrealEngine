@@ -63,6 +63,11 @@ private:
 	UPROPERTY()
 	bool bShouldBeAlwaysLoaded;
 
+#if WITH_EDITORONLY_DATA
+	UPROPERTY()
+	bool bIsModifiedForPIE;
+#endif
+
 	UPROPERTY()
 	TWeakObjectPtr<UWorldPartition> OuterWorldPartition;
 };

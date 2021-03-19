@@ -23,6 +23,7 @@
 #include "GameFramework/WorldSettings.h"
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "Engine/World.h"
+#include "Engine/Level.h"
 #include "Engine/Canvas.h"
 #include "DrawDebugHelpers.h"
 #include "DisplayDebugHelpers.h"
@@ -685,7 +686,8 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid);
 
 	UWorldPartition* WorldPartition = GetOuterUWorldPartition();
-	const bool bIsMainWorldPartition = (WorldPartition->GetWorld() == WorldPartition->GetTypedOuter<UWorld>());
+	UWorld* World = WorldPartition->GetWorld();
+	const bool bIsMainWorldPartition = (World == WorldPartition->GetTypedOuter<UWorld>());
 
 	FSpatialHashStreamingGrid& CurrentStreamingGrid = StreamingGrids.AddDefaulted_GetRef();
 	CurrentStreamingGrid.GridName = RuntimeGrid.GridName;
@@ -711,6 +713,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 			const uint32 CellIndex = TempCellMapping.Key;
 			const int32 CellCoordX = CellIndex % TempLevel.GridSize;
 			const int32 CellCoordY = CellIndex / TempLevel.GridSize;
+			bool bCellModifiedForPIE = false;
 
 			const FSquare2DGridHelper::FGridLevel::FGridCell& TempCell = TempLevel.Cells[TempCellMapping.Value];
 
@@ -733,24 +736,39 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 							continue;
 						}
 
-						// In PIE, Always loaded cell is not generated. Instead, always loaded actors will be added to AlwaysLoadedActorsForPIE.
-						// This will trigger loading/registration of these actors in the PersistentLevel (if not already loaded).
-						// Then, duplication of world for PIE will duplicate only these actors. 
-						// When stopping PIE, WorldPartition will release these FWorldPartitionReferences which 
-						// will unload actors that were not already loaded in the non PIE world.
-						if (bIsCellAlwaysLoaded && bIsMainWorldPartition && (Mode == EWorldPartitionStreamingMode::PIE || Mode == EWorldPartitionStreamingMode::EditorStandalone))
+						if (bIsMainWorldPartition && (Mode == EWorldPartitionStreamingMode::PIE || Mode == EWorldPartitionStreamingMode::EditorStandalone))
 						{
-							if (ActorInstance.ContainerInstance->Container == WorldPartition)
+							const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
+
+							// In PIE, Always loaded cell is not generated. Instead, always loaded actors will be added to AlwaysLoadedActorsForPIE.
+							// This will trigger loading/registration of these actors in the PersistentLevel (if not already loaded).
+							// Then, duplication of world for PIE will duplicate only these actors. 
+							// When stopping PIE, WorldPartition will release these FWorldPartitionReferences which 
+							// will unload actors that were not already loaded in the non PIE world.
+							if (bIsCellAlwaysLoaded)
 							{
-								// This will load the actor if it isn't already loaded
-								FWorldPartitionReference Reference(WorldPartition, ActorInstance.Actor);
-								const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
-								AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString());
-								AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
-								continue;
+								if (ActorInstance.ContainerInstance->Container == WorldPartition)
+								{
+									// This will load the actor if it isn't already loaded
+									FWorldPartitionReference Reference(WorldPartition, ActorInstance.Actor);
+									AActor* AlwaysLoadedActor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString());
+									AlwaysLoadedActorsForPIE.Emplace(Reference, AlwaysLoadedActor);
+									continue;
+								}
+							} // InPIE, If a Cell as at least one modified actor we need to flag all actors of this cell so they get added to the ActorsModifiedForPIE so they are all duplicated
+							else if(!bCellModifiedForPIE && Mode == EWorldPartitionStreamingMode::PIE && World->PersistentLevel->ActorsModifiedForPIE.Num() > 0)
+							{
+								FString SubObjectName;
+								FString SubObjectContext;
+								
+								ActorDescView.GetActorPath().ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd);
+								if (World->PersistentLevel->ActorsModifiedForPIE.FindRef(*SubObjectName))
+								{
+									bCellModifiedForPIE = true;
+								}
 							}
 						}
-																
+
 						FilteredActors.Add(ActorInstance);
 					}
 				}
@@ -778,6 +796,7 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 				GridLevel.LayerCells[LayerCellIndex].GridCells.Add(StreamingCell);
 				StreamingCell->SetIsAlwaysLoaded(bIsCellAlwaysLoaded);
+				StreamingCell->SetIsModifiedForPIE(bCellModifiedForPIE);
 				StreamingCell->SetDataLayers(GridCellDataChunk.GetDataLayers());
 				StreamingCell->Level = Level;
 				FBox2D Bounds;
@@ -797,6 +816,20 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 						ReferencedHLODActors.Add(ActorDescView.GetHLODParent());
 					}
 					StreamingCell->AddActorToCell(ActorDescView, ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Transform, ActorInstance.ContainerInstance->Container);
+
+					// Add all actors of this cell to the ActorsModifiedForPIE (for Duplication)
+					if (StreamingCell->IsModifiedForPIE())
+					{
+						if (AActor* Actor = FindObject<AActor>(nullptr, *ActorDescView.GetActorPath().ToString()))
+						{
+							World->PersistentLevel->ActorsModifiedForPIE.Add(Actor->GetFName(), Actor);
+						}
+						else
+						{
+							UE_LOG(LogWorldPartitionRuntimeSpatialHash, Error, TEXT(" Failed to add Actor : %s to ActorsModifiedForPIE"), *(ActorDescView.GetActorPath().ToString()));
+						}
+					}
+
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
 				}
 

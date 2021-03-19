@@ -51,6 +51,7 @@ void UWorldPartitionLevelStreamingDynamic::Initialize(const UWorldPartitionRunti
 	check(ChildPackages.Num() == 0);
 	check(!WorldAsset.IsNull());
 
+	bIsModifiedForPIE = InCell.IsModifiedForPIE();
 	bShouldBeAlwaysLoaded = InCell.IsAlwaysLoaded();
 	StreamingPriority = InCell.GetStreamingPriority();
 	ChildPackages = InCell.GetPackages();
@@ -235,20 +236,19 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	{
 		if (ChildPackage.ContainerID == 0)
 		{
-			bool bNeedDup = false;
-
-			FString SubObjectName;
-			FString SubObjectContext;	
-			if (ChildPackage.LoadedPath.ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
+			if (bIsModifiedForPIE)
 			{
-				if (AActor* ActorModifiedForPIE = World->PersistentLevel->ActorsModifiedForPIE.FindRef(*SubObjectName))
+				FString SubObjectName;
+				FString SubObjectContext;
+				if (ChildPackage.LoadedPath.ToString().Split(TEXT("."), &SubObjectContext, &SubObjectName, ESearchCase::IgnoreCase, ESearchDir::FromEnd))
 				{
-					ActorsToDuplicate.Add(ActorModifiedForPIE);
-					bNeedDup = true;
+					if (AActor* ActorModifiedForPIE = World->PersistentLevel->ActorsModifiedForPIE.FindRef(*SubObjectName))
+					{
+						ActorsToDuplicate.Add(ActorModifiedForPIE);
+					}
 				}
 			}
-
-			if (!bNeedDup)
+			else
 			{
 				ChildPackagesToLoad.Add(ChildPackage);
 			}
@@ -258,6 +258,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	// Duplicate unsaved actors
 	if (ActorsToDuplicate.Num())
 	{
+		check(ChildPackagesToLoad.Num() == 0);
 		// Create an actor container to make sure duplicated actors will share an outer to properly remap inter-actors references
 		UActorContainer* ActorContainer = NewObject<UActorContainer>(World->PersistentLevel);
 
@@ -303,6 +304,7 @@ bool UWorldPartitionLevelStreamingDynamic::IssueLoadRequests()
 	// Load saved actors
 	if (ChildPackagesToLoad.Num())
 	{
+		check(ActorsToDuplicate.Num() == 0);
 		FWorldPartitionLevelHelper::LoadActors(RuntimeLevel, ChildPackagesToLoad, PackageCache, [this, FinalizeLoading](bool bSucceeded)
 		{
 			if (!bSucceeded)
