@@ -271,6 +271,7 @@ private:
 	bool					bNeedReBuildOcclusionMesh;
 	bool					bIsMobileMultiViewEnabled;
 	bool					bSupportsHandTracking;
+	bool					bProjectionLayerAlphaEnabled;
 	bool					bNeedsAcquireOnRHI;
 	float					WorldToMetersScale = 100.0f;
 
