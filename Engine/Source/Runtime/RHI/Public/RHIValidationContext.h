@@ -744,13 +744,6 @@ public:
 		RHIContext->RHISetShadingRate(ShadingRate, Combiner);
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual void RHISetShadingRateImage(FRHITexture* RateImageTexture, EVRSRateCombiner Combiner) override final
-	{
-		checkf(false, TEXT("RHISetShadingRateImage API is deprecated. Use the ShadingRateImage attachment in the RHISetRenderTargetsInfo struct instead."));
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 	virtual void RHIPushEvent(const TCHAR* Name, FColor Color) override final
 	{
 		RHIContext->RHIPushEvent(Name, Color);
