@@ -625,6 +625,25 @@ void FWorldTileModel::LoadLevel()
 		{
 			// LevelStreaming is transient object so world composition stores color in ULevel object
 			LevelStreaming->LevelColor = LevelWorld->PersistentLevel->LevelColor;
+
+#if WITH_EDITOR
+			// If the level was already loaded, we need to make sure we patch the position properly
+			//  because it will be first removed, then re-added to the world down below in the FlushLevelStreaming call.
+			if (LevelWorld->PersistentLevel->bIsVisible && LevelWorld->PersistentLevel->OwningWorld != LevelCollectionModel.GetWorld())
+			{
+				if (UWorldComposition* OldWorldComposition = LevelWorld->WorldComposition)
+				{
+					OldWorldComposition->OnLevelRemovedFromWorld(LevelWorld->PersistentLevel);
+				}
+				
+				OnLevelInfoUpdated(); // Force update
+				
+				if (UWorldComposition* NewWorldComposition = LevelCollectionModel.GetWorld()->WorldComposition)
+				{
+					NewWorldComposition->OnLevelAddedToWorld(LevelWorld->PersistentLevel);
+				}
+			}
+#endif // WITH_EDITOR
 		}
 	}
 
