@@ -17,6 +17,6 @@ if [ ! -f Engine/Build/InstalledBuild.txt ]; then
   fi
 fi
 
-echo Running command : Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
-Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
+echo Running command : dotnet Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll "$@"
+dotnet Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll "$@"
 exit $?

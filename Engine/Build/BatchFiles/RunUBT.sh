@@ -36,4 +36,4 @@ if [ -f "$BASE_PATH/../../Source/Programs/UnrealBuildTool/UnrealBuildTool.csproj
 fi
 
 # pass all parameters to UBT
-"$BASE_PATH/../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool" "$@"
+dotnet "$BASE_PATH/../../Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll" "$@"

@@ -19,14 +19,14 @@ if [ ! -f Engine/Build/InstalledBuild.txt ]; then
     for i in "$@" ; do
 	if [[ $i == "-buildscw" ]] ; then
 		echo Building ShaderCompileWorker...
-		Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool ShaderCompileWorker Mac Development
+		dotnet Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll ShaderCompileWorker Mac Development
 		break
 	fi
     done
 fi
 
-echo Running Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
-Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool "$@"
+echo Running dotnet Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll "$@"
+dotnet Engine/Binaries/DotNET/UnrealBuildTool/UnrealBuildTool.dll "$@"
 
 ExitCode=$?
 if [ $ExitCode -eq 254 ] || [ $ExitCode -eq 255 ] || [ $ExitCode -eq 2 ]; then
