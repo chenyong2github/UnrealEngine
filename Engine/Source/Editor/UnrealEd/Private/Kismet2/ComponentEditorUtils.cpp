@@ -43,7 +43,7 @@ struct FComponentObjectTextFactory : public FCustomizableTextObjectFactory
 	TMap<FName, UActorComponent*> NewObjectMap;
 
 	// Determine whether or not scene components in the new object set can be attached to the given scene root component
-	bool CanAttachComponentsTo(USceneComponent* InRootComponent)
+	bool CanAttachComponentsTo(const USceneComponent* InRootComponent)
 	{
 		check(InRootComponent);
 
@@ -52,8 +52,8 @@ struct FComponentObjectTextFactory : public FCustomizableTextObjectFactory
 		for (auto NewComponentIt = NewObjectMap.CreateConstIterator(); NewComponentIt && bCanAttachToRoot; ++NewComponentIt)
 		{
 			// If this is a scene component, and it does not already have a parent within the set
-			USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponentIt->Value);
-			if (SceneComponent != NULL && !ParentMap.Contains(SceneComponent->GetFName()))
+			const USceneComponent* SceneComponent = Cast<USceneComponent>(NewComponentIt->Value);
+			if (SceneComponent && !ParentMap.Contains(SceneComponent->GetFName()))
 			{
 				// Determine if we are allowed to attach the scene component to the given root component
 				bCanAttachToRoot = InRootComponent->CanAttachAsChild(SceneComponent, NAME_None)
@@ -533,7 +533,7 @@ void FComponentEditorUtils::CopyComponents(const TArray<UActorComponent*>& Compo
 	}
 }
 
-bool FComponentEditorUtils::CanPasteComponents(USceneComponent* RootComponent, bool bOverrideCanAttach, bool bPasteAsArchetypes, const FString* SourceData)
+bool FComponentEditorUtils::CanPasteComponents(const USceneComponent* RootComponent, bool bOverrideCanAttach, bool bPasteAsArchetypes, const FString* SourceData)
 {
 	FString ClipboardContent;
 	if (SourceData)
@@ -845,10 +845,9 @@ UActorComponent* FComponentEditorUtils::DuplicateComponent(UActorComponent* Temp
 	return NewCloneComponent;
 }
 
-void FComponentEditorUtils::AdjustComponentDelta(USceneComponent* Component, FVector& Drag, FRotator& Rotation)
+void FComponentEditorUtils::AdjustComponentDelta(const USceneComponent* Component, FVector& Drag, FRotator& Rotation)
 {
-	USceneComponent* ParentSceneComp = Component->GetAttachParent();
-	if (ParentSceneComp)
+	if (const USceneComponent* ParentSceneComp = Component->GetAttachParent())
 	{
 		const FTransform ParentToWorldSpace = ParentSceneComp->GetSocketTransform(Component->GetAttachSocketName());
 

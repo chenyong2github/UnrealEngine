@@ -69,7 +69,7 @@ public:
 	 * @param SourceData Component data to paste, or null to use the clipboard
 	 * @return Whether components can be pasted
 	 */
-	static bool CanPasteComponents(USceneComponent* RootComponent, bool bOverrideCanAttach = false, bool bPasteAsArchetypes = false, const FString* SourceData = nullptr);
+	static bool CanPasteComponents(const USceneComponent* RootComponent, bool bOverrideCanAttach = false, bool bPasteAsArchetypes = false, const FString* SourceData = nullptr);
 
 	/**
 	 * Attempts to paste components from the clipboard as siblings of the target component
@@ -139,7 +139,7 @@ public:
 	static bool AttemptApplyMaterialToComponent( USceneComponent* SceneComponent, UMaterialInterface* MaterialToApply, int32 OptionalMaterialSlot = -1 );
 
 	/** Potentially transforms the delta to be applied to a component into the appropriate space */
-	static void AdjustComponentDelta(USceneComponent* Component, FVector& Drag, FRotator& Rotation);
+	static void AdjustComponentDelta(const USceneComponent* Component, FVector& Drag, FRotator& Rotation);
 
 	// Given a template and a property, propagates a default value change to all instances (only if applicable)
 	template<typename T>
