@@ -549,9 +549,10 @@ void FAnimInstanceProxy::InitializeObjects(UAnimInstance* InAnimInstance)
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 	SkeletalMeshComponent = InAnimInstance->GetSkelMeshComponent();
-	if(SkeletalMeshComponent->GetAnimInstance())
+	if(UAnimInstance* MainAnimInstance = SkeletalMeshComponent->GetAnimInstance())
 	{
-		MainInstanceProxy = &SkeletalMeshComponent->GetAnimInstance()->GetProxyOnAnyThread<FAnimInstanceProxy>();
+		MainInstanceProxy = &MainAnimInstance->GetProxyOnAnyThread<FAnimInstanceProxy>();
+		MainMontageEvaluationData = InAnimInstance->IsUsingMainInstanceMontageEvaluationData() ? &MainInstanceProxy->MontageEvaluationData : &MontageEvaluationData;
 	}
 
 	if (SkeletalMeshComponent->SkeletalMesh != nullptr)
@@ -1284,14 +1285,14 @@ void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNode
 		PerBoneWeightTotals[BoneIndex] = 0.0f;
 	}
 	PerBoneWeightTotalsAdditive = PerBoneWeightTotals;
-	PerBoneWeights.Reset(MontageEvaluationData.Num());
+	PerBoneWeights.Reset(GetMontageEvaluationData().Num());
 
 	//------------------------------------------
 	// Figure out what poses we need to blend.
 	//------------------------------------------
 	// Make a list of all the montages that use the slot we're interested in.
 	// Split this in an additive and non additive list.
-	check(MontageEvaluationData.Num() < 255); // Make sure we're in limits and not blending more than 255 poses (that would indicate another issue anyway)
+	check(GetMontageEvaluationData().Num() < 255); // Make sure we're in limits and not blending more than 255 poses (that would indicate another issue anyway)
 	TArray<FSlotEvaluationPose>& Poses = BlendProfileScratchData.Poses;
 	TArray<FSlotEvaluationPose>& AdditivePoses = BlendProfileScratchData.AdditivePoses;
 	TArray<uint8, TInlineAllocator<8>>& PoseIndices = BlendProfileScratchData.PoseIndices;
@@ -1313,9 +1314,9 @@ void FAnimInstanceProxy::SlotEvaluatePoseWithBlendProfiles(const FName& SlotNode
 	int32 CurrentPoseIndex = 0;
 	float NonAdditiveTotalWeight = 0.0f;
 	float AdditiveTotalWeight = 0.0f;
-	for (int32 Index = 0; Index < MontageEvaluationData.Num(); ++Index)
+	for (int32 Index = 0; Index < GetMontageEvaluationData().Num(); ++Index)
 	{
-		const FMontageEvaluationState& EvalState = MontageEvaluationData[Index];
+		const FMontageEvaluationState& EvalState = GetMontageEvaluationData()[Index];
 		const UAnimMontage* Montage = EvalState.Montage.Get();
 		if (Montage && Montage->IsValidSlot(SlotNodeName))
 		{
@@ -1611,7 +1612,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 	}
 
 	// Check if we are blending a montage using a blend profile, if so take a special code path for this.
-	for (const FMontageEvaluationState& EvalState : MontageEvaluationData)
+	for (const FMontageEvaluationState& EvalState : GetMontageEvaluationData())
 	{
 		if (EvalState.Montage.IsValid() && EvalState.ActiveBlendProfile && EvalState.Montage->IsValidSlot(SlotNodeName))
 		{
@@ -1639,7 +1640,7 @@ void FAnimInstanceProxy::SlotEvaluatePose(const FName& SlotNodeName, const FAnim
 #if DEBUG_MONTAGEINSTANCE_WEIGHT
 	float TotalWeight = 0.f;
 #endif // DEBUG_MONTAGEINSTANCE_WEIGHT
-	for (const FMontageEvaluationState& EvalState : MontageEvaluationData)
+	for (const FMontageEvaluationState& EvalState : GetMontageEvaluationData())
 	{
 		// If MontageEvaluationData is not valid anymore, pass-through AnimSlot.
 		// This can happen if InitAnim pushes a RefreshBoneTransforms when not rendered,
@@ -1788,7 +1789,7 @@ void FAnimInstanceProxy::GetSlotWeight(const FName& SlotNodeName, float& out_Slo
 #endif
 
 	// first get all the montage instance weight this slot node has
-	for (const FMontageEvaluationState& EvalState : MontageEvaluationData)
+	for (const FMontageEvaluationState& EvalState : GetMontageEvaluationData())
 	{
 		if (EvalState.Montage.IsValid())
 		{
@@ -1848,10 +1849,10 @@ void FAnimInstanceProxy::GetSlotWeight(const FName& SlotNodeName, float& out_Slo
 const FMontageEvaluationState* FAnimInstanceProxy::GetActiveMontageEvaluationState() const
 {
 	// Start from end, as most recent instances are added at the end of the queue.
-	int32 const NumInstances = MontageEvaluationData.Num();
+	int32 const NumInstances = GetMontageEvaluationData().Num();
 	for (int32 InstanceIndex = NumInstances - 1; InstanceIndex >= 0; InstanceIndex--)
 	{
-		const FMontageEvaluationState& EvaluationData = MontageEvaluationData[InstanceIndex];
+		const FMontageEvaluationState& EvaluationData = GetMontageEvaluationData()[InstanceIndex];
 		if (EvaluationData.bIsActive)
 		{
 			return &EvaluationData;
@@ -2219,6 +2220,18 @@ float FAnimInstanceProxy::GetRelevantAnimTimeFraction(int32 MachineIndex, int32 
 	}
 
 	return 0.0f;
+}
+
+TArray<FMontageEvaluationState>& FAnimInstanceProxy::GetMontageEvaluationData()
+{
+	check(MainMontageEvaluationData);
+	return *MainMontageEvaluationData;
+}
+
+const TArray<FMontageEvaluationState>& FAnimInstanceProxy::GetMontageEvaluationData() const
+{
+	check(MainMontageEvaluationData);
+	return *MainMontageEvaluationData;
 }
 
 FAnimNode_AssetPlayerBase* FAnimInstanceProxy::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex)
@@ -2646,7 +2659,7 @@ void FAnimInstanceProxy::ResetDynamics()
 #if ANIM_TRACE_ENABLED
 void FAnimInstanceProxy::TraceMontageEvaluationData(const FAnimationUpdateContext& InContext, const FName& InSlotName)
 {
-	for (const FMontageEvaluationState& MontageEvaluationState : MontageEvaluationData)
+	for (const FMontageEvaluationState& MontageEvaluationState : GetMontageEvaluationData())
 	{
 		if (MontageEvaluationState.Montage != nullptr && MontageEvaluationState.Montage->IsValidSlot(InSlotName))
 		{

@@ -131,6 +131,7 @@ public:
 		, FrameCounterForUpdate(0)
 		, FrameCounterForNodeUpdate(0)
 		, CacheBonesRecursionCounter(0)
+		, MainMontageEvaluationData(&MontageEvaluationData)
 		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
 		, bShouldExtractRootMotion(false)
@@ -156,6 +157,7 @@ public:
 		, FrameCounterForUpdate(0)
 		, FrameCounterForNodeUpdate(0)
 		, CacheBonesRecursionCounter(0)
+		, MainMontageEvaluationData(&MontageEvaluationData)
 		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
 		, bShouldExtractRootMotion(false)
@@ -763,13 +765,13 @@ protected:
 		Note that there might be multiple Active at the same time. This will only return the first active one it finds. **/
 	const FMontageEvaluationState* GetActiveMontageEvaluationState() const;
 
-	/** Access montage array data */
-	TArray<FMontageEvaluationState>& GetMontageEvaluationData() { return MontageEvaluationData; }
-
 	TMap<FName, float>& GetSlotGroupInertializationRequestMap() { return SlotGroupInertializationRequestMap; }
 
 	/** Access montage array data */
-	const TArray<FMontageEvaluationState>& GetMontageEvaluationData() const { return MontageEvaluationData; }
+	TArray<FMontageEvaluationState>& GetMontageEvaluationData();
+
+	/** Access montage array data */
+	const TArray<FMontageEvaluationState>& GetMontageEvaluationData() const;
 
 	/** Check whether we have active morph target curves */
 	/** Gets the most relevant asset player in a specified state */
@@ -1037,6 +1039,7 @@ private:
 private:
 	/** Copy of UAnimInstance::MontageInstances data used for update & evaluation */
 	TArray<FMontageEvaluationState> MontageEvaluationData;
+	TArray<FMontageEvaluationState>* MainMontageEvaluationData;
 
 	// Inertialization request for each slot. Mapped with SlotNameToTrackerIndex. Initialized to a value of 1.0f, which indicates no request for this slot.
 	TMap<FName, float> SlotGroupInertializationRequestMap;

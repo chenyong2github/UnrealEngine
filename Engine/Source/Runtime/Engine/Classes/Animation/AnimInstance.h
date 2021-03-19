@@ -447,6 +447,10 @@ class ENGINE_API UAnimInstance : public UObject
 	UPROPERTY(EditDefaultsOnly, Category = Notifies)
 	uint8 bPropagateNotifiesToLinkedInstances : 1;
 
+	/** If true, linked instances will use the main instance's montage data. (i.e. playing a montage on a main instance will play it on the linked layer too.) */
+	UPROPERTY(EditDefaultsOnly, Category = "Montage")
+	uint8 bUseMainInstanceMontageEvaluationData: 1;
+
 private:
 	/** True when Montages are being ticked, and Montage Events should be queued. 
 	 * When Montage are being ticked, we queue AnimNotifies and Events. We trigger notifies first, then Montage events. */
@@ -542,6 +546,12 @@ public:
 	/** Set whether to propagate notifies to any linked anim instances */
 	UFUNCTION(BlueprintCallable, Category = "Notifies")
 	void SetPropagateNotifiesToLinkedInstances(bool bSet) { bPropagateNotifiesToLinkedInstances = bSet; }
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Blueprint Linking|Montage")
+	bool IsUsingMainInstanceMontageEvaluationData() const { return bUseMainInstanceMontageEvaluationData; }
+
+	UFUNCTION(BlueprintCallable, Category = "Animation Blueprint Linking|Montage")
+	void SetUseMainInstanceMontageEvaluationData(bool bSet) { bUseMainInstanceMontageEvaluationData = bSet; }
 
 private:
 	// Does this anim instance need immediate update (rather than parallel)?

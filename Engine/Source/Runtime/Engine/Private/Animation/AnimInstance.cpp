@@ -29,6 +29,7 @@
 #include "Animation/AnimNode_LinkedAnimGraph.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
 #include "Animation/AnimNode_LinkedAnimLayer.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 
 /** Anim stats */
 
@@ -111,6 +112,7 @@ UAnimInstance::UAnimInstance(const FObjectInitializer& ObjectInitializer)
 
 	bReceiveNotifiesFromLinkedInstances = false;
 	bPropagateNotifiesToLinkedInstances = false;
+	bUseMainInstanceMontageEvaluationData = false;
 }
 
 // this is only used by montage marker based sync
@@ -330,6 +332,15 @@ bool UAnimInstance::UpdateSnapshotAndSkipRemainingUpdate()
 
 void UAnimInstance::UpdateMontage(float DeltaSeconds)
 {
+	// Don't update montages if we are using the main instance's montage eval data and we are not the main instance.
+	if (IsUsingMainInstanceMontageEvaluationData())
+	{
+		if (GetOwningComponent()->GetAnimInstance() != this)
+		{
+			return;
+		}
+	}
+
 	// update montage weight
 	Montage_UpdateWeight(DeltaSeconds);
 
