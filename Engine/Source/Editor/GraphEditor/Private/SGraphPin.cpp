@@ -1047,9 +1047,17 @@ FSlateColor SGraphPin::GetPinColor() const
 
 FSlateColor SGraphPin::GetSecondaryPinColor() const
 {
-	UEdGraphPin* GraphPin = GetPinObj();
-	const UEdGraphSchema_K2* Schema = Cast<UEdGraphSchema_K2>((GraphPin && !GraphPin->IsPendingKill()) ? GraphPin->GetSchema() : nullptr);
-	return Schema ? Schema->GetSecondaryPinTypeColor(GraphPin->PinType) : FLinearColor::White;
+	if (UEdGraphPin* GraphPin = GetPinObj())
+	{
+		if (!GraphPin->IsPendingKill())
+		{
+			if (const UEdGraphSchema_K2* Schema = Cast<UEdGraphSchema_K2>(GraphPin->GetSchema()))
+			{
+				return Schema->GetSecondaryPinTypeColor(GraphPin->PinType);
+			}
+		}
+	}
+	return FLinearColor::White;
 }
 
 FSlateColor SGraphPin::GetPinTextColor() const
