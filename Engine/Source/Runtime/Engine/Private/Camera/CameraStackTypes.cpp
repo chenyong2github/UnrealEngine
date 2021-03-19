@@ -4,6 +4,13 @@
 #include "Camera/CameraTypes.h"
 #include "SceneView.h"
 
+static TAutoConsoleVariable<bool> CVarUseLegacyMaintainYFOV(
+	TEXT("r.UseLegacyMaintainYFOVViewMatrix"),
+	false,
+	TEXT("Whether to use the old way to compute perspective view matrices when the aspect ratio constraint is vertical"),
+	ECVF_Cheat
+);
+
 //////////////////////////////////////////////////////////////////////////
 // FMinimalViewInfo
 
@@ -158,7 +165,7 @@ void FMinimalViewInfo::CalculateProjectionMatrixGivenView(const FMinimalViewInfo
 		}
 		
 		float MatrixHalfFOV;
-		if (!bMaintainXFOV && ViewInfo.AspectRatio != 0.f)
+		if (!bMaintainXFOV && ViewInfo.AspectRatio != 0.f && !CVarUseLegacyMaintainYFOV.GetValueOnGameThread())
 		{
 			// The view-info FOV is horizontal. But if we have a different aspect ratio constraint, we need to
 			// adjust this FOV value using the aspect ratio it was computed with, so we that we can compute the
