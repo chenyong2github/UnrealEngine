@@ -9,6 +9,40 @@
 #include "../../RectLight.ush"
 #include "PathTracingLightCommon.ush"
 
+#if USE_RECT_LIGHT_TEXTURES
+
+// The number of entries must match PATHTRACER_MAX_RECT_TEXTURES
+Texture2D RectLightTexture_0;
+Texture2D RectLightTexture_1;
+Texture2D RectLightTexture_2;
+Texture2D RectLightTexture_3;
+Texture2D RectLightTexture_4;
+Texture2D RectLightTexture_5;
+Texture2D RectLightTexture_6;
+Texture2D RectLightTexture_7;
+SamplerState RectLightSampler;
+
+float3 EvaluateTexture(int LightId, float2 UV)
+{
+	// TODO: could use path roughness / ray cone to lower the mip level here
+	UV.y = 1 - UV.y; // match orientation with raster path
+	switch (SceneLights[LightId].RectLightTextureIndex)
+	{
+		case 0:  return RectLightTexture_0.SampleLevel(RectLightSampler, UV, 0);
+		case 1:  return RectLightTexture_1.SampleLevel(RectLightSampler, UV, 0);
+		case 2:  return RectLightTexture_2.SampleLevel(RectLightSampler, UV, 0);
+		case 3:  return RectLightTexture_3.SampleLevel(RectLightSampler, UV, 0);
+		case 4:  return RectLightTexture_4.SampleLevel(RectLightSampler, UV, 0);
+		case 5:  return RectLightTexture_5.SampleLevel(RectLightSampler, UV, 0);
+		case 6:  return RectLightTexture_6.SampleLevel(RectLightSampler, UV, 0);
+		case 7:  return RectLightTexture_7.SampleLevel(RectLightSampler, UV, 0);
+		default: return 1;
+	}
+}
+
+#endif
+
+
 float3 BilinearQuadWarp(float2 uv, float W00, float W01, float W10, float W11) {
 	// "Practical Product Sampling by Fitting and Composing Warps" - EGSR 2020
 	// https://casual-effects.com/research/Hart2020Sampling/index.html
@@ -55,7 +89,6 @@ float4 SampleApproxProjectionSphericalRect(float2 Rand, FSphericalRect Spherical
 	return float4(Direction, OutPdf * WarpedRand.z);
 }
 
-
 FLightHit RectLight_TraceLight(RayDesc Ray, int LightId)
 {
 	float3 LightPosition = GetPosition(LightId);
@@ -86,13 +119,16 @@ FLightHit RectLight_TraceLight(RayDesc Ray, int LightId)
 				true);
 			P = t * Ray.Direction - Rect.Origin;
 			// test again with the clipped extents
-			UV = float2(dot(P, LightdPdu), dot(P, LightdPdv));
-			if (all(abs(UV) <= Rect.Extent))
+			float2 ClippedUV = float2(dot(P, LightdPdu), dot(P, LightdPdv));
+			if (all(abs(ClippedUV) <= Rect.Extent))
 			{
 				// stored color is radiance
 				float3 Radiance = GetColor(LightId) * ComputeIESAttenuation(LightId, Ray.Origin);
 				Radiance *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
 				float SolidAngle = BuildSphericalRect(Rect).SolidAngle;
+#if USE_RECT_LIGHT_TEXTURES
+				Radiance *= EvaluateTexture(LightId, (UV + LightExtent) / (LightExtent * 2));
+#endif
 				return CreateLightHit(Radiance, 1.0 / SolidAngle, t);
 			}
 		}
@@ -126,10 +162,20 @@ FLightSample RectLight_SampleLight(
 		true /* bComputeVisibleRect */);
 	FSphericalRect SphericalRect = BuildSphericalRect(Rect);
 
+#if USE_RECT_LIGHT_TEXTURES
+	FSphericalRectSample Sample = UniformSampleSphericalRectWithUV(RandSample.yz, SphericalRect);
+	float2 ClippedUV = Sample.UV;
+	float3 Direction = Sample.Direction;
+#else
 	float3 Direction = UniformSampleSphericalRect(RandSample.yz, SphericalRect);
+#endif
 
 	float3 RadianceOverPdf = GetColor(LightId) * SphericalRect.SolidAngle * ComputeIESAttenuation(LightId, WorldPos);
 	RadianceOverPdf *= ComputeAttenuationFalloff(dot(LightDirection, LightDirection), LightId);
+#if USE_RECT_LIGHT_TEXTURES
+	float2 UV = 0.5 * ((2 * ClippedUV - 1) * Rect.Extent + Rect.Offset) / Rect.FullExtent + 0.5;
+	RadianceOverPdf *= EvaluateTexture(LightId, UV);
+#endif
 
 	return CreateLightSample(RadianceOverPdf, 1.0 / SphericalRect.SolidAngle, normalize(Direction), length(Direction));
 }
