@@ -19,7 +19,6 @@
 #include "Animation/AnimInstance.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCharacter, Log, All);
-DEFINE_LOG_CATEGORY_STATIC(LogAvatar, Log, All);
 
 DECLARE_CYCLE_STAT(TEXT("Char OnNetUpdateSimulatedPosition"), STAT_CharacterOnNetUpdateSimulatedPosition, STATGROUP_Character);
 
