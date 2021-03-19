@@ -30,7 +30,7 @@ private:
 	// starting at t=2s, clip B's contents will, themselves, all start at t=2s. This
 	// is not how the sequencer works (which would play clip B starts at t=0),
 	// so here we remove this "nested clip delay". It is also a lot handier because
-	// clips can't be reused in VRED, but subsequences can be reused in UE4
+	// clips can't be reused in VRED, but subsequences can be reused in UnrealEditor
 	void RecursivelyRemoveNestedClipDelay (FDatasmithFBXSceneAnimClip* Clip, float Delay);
 	void RecursivelyPropagateFlippedToBlockUsages(FDatasmithFBXSceneAnimClip* Clip, bool bFlipped);
 

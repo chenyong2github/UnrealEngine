@@ -47,7 +47,7 @@ public:
 
 	/**
 	* Scale all position and vertices by this value.
-	* It is needed when scene has too precise meshes because the conversion from double (C4D) to float (UE4)
+	* It is needed when scene has too precise meshes because the conversion from double (C4D) to float (UnrealEditor)
 	* can "degenerate" the faces
 	*/
 	UPROPERTY(config, EditAnywhere, Category = DebugProperty, meta = (DisplayName = "Scale the Entire Scene"))

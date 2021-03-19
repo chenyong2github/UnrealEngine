@@ -72,14 +72,14 @@ melange::BaseList2D* MelangeGetLink(melange::BaseList2D* Object, melange::Int32 
 float MelangeGetFloat(melange::BaseList2D* Object, melange::Int32 Parameter);
 
 /**
- * Converts a vector representing a position from the melange coordinate system to the UE4 coordinate system
+ * Converts a vector representing a position from the melange coordinate system to the UnrealEditor coordinate system
  */
 FVector ConvertMelangePosition(const melange::Vector32& MelangePosition, float WorldUnitScale = 1.0f);
 FVector ConvertMelangePosition(const melange::Vector64& MelangePosition, float WorldUnitScale = 1.0f);
 FVector ConvertMelangePosition(const FVector& MelangePosition, float WorldUnitScale = 1.0f);
 
 /**
- * Converts a vector representing a direction from the melange coordinate system to the UE4 coordinate system
+ * Converts a vector representing a direction from the melange coordinate system to the UnrealEditor coordinate system
  */
 FVector ConvertMelangeDirection(const melange::Vector32& MelangePosition);
 FVector ConvertMelangeDirection(const melange::Vector64& MelangePosition);

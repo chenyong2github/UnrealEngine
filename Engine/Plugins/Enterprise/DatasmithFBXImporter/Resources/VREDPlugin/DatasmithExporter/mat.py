@@ -249,7 +249,7 @@ def unProcessTexture(tex):
         # In the end, we have no idea what has been done to this image when we have access to it.
         # 'nothing' seems to be the majority of cases here, so we'll ignore them for now.
         # Besides, we have to consider that this is a regular normal map on import, so the user
-        # can quickly switch to another source image on UE4 side and things will just work
+        # can quickly switch to another source image on UnrealEditor side and things will just work
         return
 
     elif tex.texType == 'displacementComponent':

@@ -1031,7 +1031,7 @@ void AddTextureMappingProperties(IDatasmithMasterMaterialElement* Element, const
 	AddBoolProperty(Element, TexHandle + TEXT("ProjectionIsPlanar"), MappingType == ETextureMapType::Planar);
 
 	// Send all parameters every time, as a material might have properties for multiple projection types
-	// and the user can decide to switch them while in UE4 already
+	// and the user can decide to switch them while in UnrealEditor already
 	AddBoolProperty(Element, TexHandle + TEXT("LimitedProjectionSize"), Tex.Scale.Z != FLT_MAX);
 	AddColorProperty(Element, TexHandle + TEXT("ProjectionCenter"), Tex.Translation);
 	AddColorProperty(Element, TexHandle + TEXT("ProjectionOrientation"), Tex.Rotation);
@@ -1158,7 +1158,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithVREDImporter::ConvertMateria
 	// Base colors used for Chrome and BrushedMetal materials
 	using MetalColorEntry = TPairInitializer<const int32&, const FVector4&>;
 	const static TMap<int32, FVector4> MetalColors
-	({															       // From UE4 docs    // Experimental
+	({															// From UnrealEditor docs  // Experimental
 		MetalColorEntry( 0, FVector4(0.950f, 0.950f, 0.950f, 1.000f)),                     // Highly reflective
 		MetalColorEntry( 1, FVector4(0.913f, 0.921f, 0.925f, 1.000f)), // Aluminium
 		MetalColorEntry( 2, FVector4(0.300f, 0.300f, 0.280f, 1.000f)),                     // Amorphous Carbon
@@ -1197,7 +1197,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithVREDImporter::ConvertMateria
 		}
 
 		// We do this so that all glass materials are transparent by default, while also allowing the
-		// UE4 user to move the opacity back to 1.0f and have it not be transparent. This also helps to match
+		// UnrealEditor user to move the opacity back to 1.0f and have it not be transparent. This also helps to match
 		// VRED's multiply blend mode behaviour for translucent materials
 		if (float* OldOpacity = Material->ScalarParams.Find(TEXT("Opacity")))
 		{
@@ -1247,7 +1247,7 @@ TSharedPtr<IDatasmithBaseMaterialElement> FDatasmithVREDImporter::ConvertMateria
 		}
 
 		// For raytracing, VRED allows different roughness directions. We don't support
-		// that in UE4, so let's just combine the roughness values like VRED does in its
+		// that in UnrealEditor, so let's just combine the roughness values like VRED does in its
 		// viewport so that it's easier to manipulate in the material instance
 		const float* RoughnessU = Material->ScalarParams.Find(TEXT("RoughnessU"));
 		const float* RoughnessV = Material->ScalarParams.Find(TEXT("RoughnessV"));
@@ -1456,7 +1456,7 @@ void PopulateTransformAnimation(IDatasmithTransformAnimationElement& TransformAn
 
 	// We go to EndFrame.Value+1 here so that if its a 2 second animation at 30fps, frame 60 belongs
 	// to the actual animation, as opposed to being range [0, 59]. I don't think this is the standard
-	// for UE4, but it is exactly how it works in VRED and it also guarantees that the animation will
+	// for UnrealEditor, but it is exactly how it works in VRED and it also guarantees that the animation will
 	// actually complete within its range, which is necessary in order to play it as a subsequence
 	// to its completion
 	for (int32 Frame = StartFrame.Value; Frame <= EndFrame.Value + 1; ++Frame)
@@ -1522,7 +1522,7 @@ void PopulateVisibilityAnimation(IDatasmithVisibilityAnimationElement& Visibilit
 
 	// We go to EndFrame.Value+1 here so that if its a 2 second animation at 30fps, frame 60 belongs
 	// to the actual animation, as opposed to being frame [0, 59]. I don't think this is the standard
-	// for UE4, but it is exactly how it works in VRED and it also guarantees that the animation will
+	// for UnrealEditor, but it is exactly how it works in VRED and it also guarantees that the animation will
 	// actually complete within its range, which is necessary in order to play it as a subsequence
 	// to its completion
 	for (int32 Frame = StartFrame.Value; Frame <= EndFrame.Value + 1; ++Frame)

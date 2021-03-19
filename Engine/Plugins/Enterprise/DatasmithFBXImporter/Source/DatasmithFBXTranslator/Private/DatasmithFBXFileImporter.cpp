@@ -247,7 +247,7 @@ void FDatasmithFBXFileImporter::TraverseHierarchyNodeRecursively(FbxNode* Parent
 
 		FVector RotEuler = Rotation.Euler();
 
-		// Avoid singularity around 90 degree pitch, as UE4 doesn't seem to support it very well
+		// Avoid singularity around 90 degree pitch, as UnrealEditor doesn't seem to support it very well
 		// See UE-75467 and UE-83049
 		if (FMath::IsNearlyEqual(abs(RotEuler.Y), 90.0f))
 		{

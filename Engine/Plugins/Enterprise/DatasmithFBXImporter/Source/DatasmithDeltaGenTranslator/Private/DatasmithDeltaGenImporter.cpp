@@ -844,7 +844,7 @@ namespace DeltaGenImporterImpl
 			}
 			else if (DSType == EDatasmithTransformType::Translation)
 			{
-				// Deltagen is right-handed Z up, UE4 is left-handed Z up. We try keeping the same X, so here we
+				// Deltagen is right-handed Z up, UnrealEditor is left-handed Z up. We try keeping the same X, so here we
 				// just flip the Y coordinate to convert between them.
 				// Note: Geometry, transforms and VRED animations get converted when parsing the FBX file in DatasmithFBXFileImporter, so
 				// you won't find analogue for this in VRED importer, even though the conversion is the same

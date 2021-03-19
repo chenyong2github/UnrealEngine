@@ -40,7 +40,7 @@ namespace UsdToUnreal
 	 * @param UsdSchema - UsdGeomMesh that contains the data to convert
 	 * @param MeshDescription - Output parameter that will be filled with the converted data
 	 * @param MaterialAssignments - Output parameter that will be filled with the material data extracted from UsdSchema
-	 * @param AdditionalTransform - Transform (in UE4 space) to bake into the vertex positions and normals of the converted mesh
+	 * @param AdditionalTransform - Transform (in UnrealEditor space) to bake into the vertex positions and normals of the converted mesh
 	 * @param MaterialToPrimvarsUVSetNames - Maps from a material prim path, to pairs indicating which primvar names are used as 'st' coordinates for this mesh, and which UVIndex materials will sample from (e.g. ["st0", 0], ["myUvSet2", 2], etc). This is used to pick which primvars will become UV sets.
 	 * @param TimeCode - USD timecode when the UsdGeomMesh should be sampled for mesh data and converted
 	 * @return Whether the conversion was successful or not.

@@ -150,7 +150,7 @@ class DSAnimationLibrary:
 
         # AnimClips can never have repeated names, and even in nested clips you can't have
         # clip references. So every single clip should have a unique name, as it will become
-        # an asset in UE4
+        # an asset in UnrealEditor
         clipsToSanitize = []
         for clip in self.DSClips:
             sanitizeRecursive(clip, clipsToSanitize)

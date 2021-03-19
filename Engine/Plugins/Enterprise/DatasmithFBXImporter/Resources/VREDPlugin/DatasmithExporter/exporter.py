@@ -275,9 +275,9 @@ class DatasmithFBXExporter():
 
     def processTransform(self, trans, scale):
         """
-        Flip and transpose the transform so it can be used directly in UE4. Also, scales
+        Flip and transpose the transform so it can be used directly in UnrealEditor. Also, scales
         the translation by the unit scale, which is something that's easier to do here than
-        in the UE4 importer.
+        in the UnrealEditor importer.
 
         Args:
             trans (list of 16 floats): Describes the transform to process
@@ -406,12 +406,12 @@ class DatasmithFBXExporter():
                     xmlNode.set('state', newStateName)
 
     def fixupXmlContents(self, root):
-        """ Works around a bug in UE4 by ensuring that element contents that spans multiple lines end in a newline
+        """ Works around a bug in UnrealEditor by ensuring that element contents that spans multiple lines end in a newline
 
         Without this pass, an xml file like this:
         <A>
         e"</A>
-        Will not be able to be parsed by UE4's XmlParser
+        Will not be able to be parsed by UnrealEditor's XmlParser
 
         Args:
             root (xml.etree.Element): Root of the xml subtree that will be fixed        

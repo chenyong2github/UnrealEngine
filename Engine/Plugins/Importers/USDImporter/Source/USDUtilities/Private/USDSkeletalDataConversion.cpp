@@ -243,7 +243,7 @@ namespace SkelDataConversionImpl
 		return true;
 	}
 
-	/** Converts the given offsets into UE4 space and fills in an FUsdBlendShape object with all the data that will become a morph target */
+	/** Converts the given offsets into UnrealEditor space and fills in an FUsdBlendShape object with all the data that will become a morph target */
 	bool CreateUsdBlendShape( const FString& Name, const pxr::VtArray< pxr::GfVec3f >& PointOffsets, const pxr::VtArray< pxr::GfVec3f >& NormalOffsets, const pxr::VtArray< int >& PointIndices, const FUsdStageInfo& StageInfo, const FTransform& AdditionalTransform, uint32 PointIndexOffset, int32 LODIndex, UsdUtils::FUsdBlendShape& OutBlendShape )
 	{
 		uint32 NumOffsets = PointOffsets.size();
@@ -304,8 +304,8 @@ namespace SkelDataConversionImpl
 		OutBlendShape.Vertices.SetNumUninitialized( NumOffsets );
 		for ( uint32 OffsetIndex = 0; OffsetIndex < NumOffsets; ++OffsetIndex )
 		{
-			const FVector UE4Offset = UsdToUnreal::ConvertVector( StageInfo, PointOffsets[ OffsetIndex ] );
-			const FVector UE4Normal = OutBlendShape.bHasAuthoredTangents
+			const FVector UEOffset = UsdToUnreal::ConvertVector( StageInfo, PointOffsets[ OffsetIndex ] );
+			const FVector UENormal = OutBlendShape.bHasAuthoredTangents
 				? UsdToUnreal::ConvertVector( StageInfo, NormalOffsets[ OffsetIndex ] )
 				: FVector( 0, 0, 0 );
 
@@ -313,8 +313,8 @@ namespace SkelDataConversionImpl
 
 			// Intentionally ignore translation on PositionDelta as this is really a direction vector,
 			// and geomBindTransform's translation is already applied to the mesh vertices
-			ModifiedVertex.PositionDelta = AdditionalTransform.TransformVector(UE4Offset);
-			ModifiedVertex.TangentZDelta = NormalTransform.TransformVector(UE4Normal);
+			ModifiedVertex.PositionDelta = AdditionalTransform.TransformVector(UEOffset);
+			ModifiedVertex.TangentZDelta = NormalTransform.TransformVector(UENormal);
 			ModifiedVertex.SourceIdx = BaseIndices[ OffsetIndex ];
 		}
 
@@ -1731,7 +1731,7 @@ bool UsdToUnreal::ConvertSkelAnim( const pxr::UsdSkelSkeletonQuery& InUsdSkeleto
 
 		for ( int32 BoneIndex = 0; BoneIndex < NumBones; ++BoneIndex )
 		{
-			Controller->AddBoneTrack(BoneInfo[BoneIndex].Name); 
+			Controller->AddBoneTrack(BoneInfo[BoneIndex].Name);
 			Controller->SetBoneTrackKeys(BoneInfo[BoneIndex].Name, JointTracks[BoneIndex].PosKeys, JointTracks[BoneIndex].RotKeys, JointTracks[BoneIndex].ScaleKeys);
 		}
 	}
@@ -2681,7 +2681,7 @@ bool UnrealToUsd::ConvertAnimSequence( UAnimSequence* AnimSequence, pxr::UsdPrim
 			ScalesAttr.Set( Scales, pxr::UsdTimeCode( TimeCode ) );
 		}
 	}
-	
+
 	const int32 StageEndTimeCode = SkelAnimPrim.GetStage()->GetEndTimeCode();
 
 	if ( NumTimeCodes > StageEndTimeCode )
