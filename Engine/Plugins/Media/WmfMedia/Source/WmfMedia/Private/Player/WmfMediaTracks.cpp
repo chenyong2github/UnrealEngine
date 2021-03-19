@@ -548,8 +548,20 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 				else
 				{
 					// Sample is not before the end of the requested time range.
-					// We are done for now.
-					break;
+					// Or is it? We might have looped back.
+					// If the difference in time is large, then we looped back and
+					// so this sample really is before the requested one and we can drop it.
+					FTimespan Diff = SampleStartTime - TimeRangeHigh;
+					if (Diff > LoopDiff)
+					{
+						// Try next sample.
+						VideoSampleQueue.Pop();
+					}
+					else
+					{
+						// We are done for now.
+						break;
+					}
 				}
 			}
 		}
