@@ -818,9 +818,9 @@ static void UpdateSeparateTranslucencyViewState(FScene* Scene, const FViewInfo& 
 	if ((View.IsInstancedStereoPass() || View.bIsMobileMultiViewEnabled) && View.Family->Views.Num() > 0)
 	{
 		// When drawing the left eye in a stereo scene, copy the right eye view values into the instanced view uniform buffer.
-		const EStereoscopicPass StereoPassIndex = IStereoRendering::IsStereoEyeView(View) ? eSSP_RIGHT_EYE : eSSP_FULL;
+		const int32 StereoPassIndex = IStereoRendering::IsStereoEyeView(View) ? View.StereoPass + 1 : eSSP_FULL;
 
-		const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView(StereoPassIndex));
+		const FViewInfo& InstancedView = static_cast<const FViewInfo&>(View.Family->GetStereoEyeView((EStereoscopicPass)StereoPassIndex));
 		SetupDownsampledTranslucencyViewParameters(InstancedView, TextureExtent, GetScaledRect(InstancedView.ViewRect, ViewportScale), DownsampledTranslucencyViewParameters);
 		Scene->UniformBuffers.InstancedViewUniformBuffer.UpdateUniformBufferImmediate(reinterpret_cast<FInstancedViewUniformShaderParameters&>(DownsampledTranslucencyViewParameters));
 		DrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);

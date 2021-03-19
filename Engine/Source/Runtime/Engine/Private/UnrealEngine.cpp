@@ -3028,10 +3028,12 @@ public:
 		: FOVInDegrees(100)
 		, Width(640)
 		, Height(480)
+		, NumViews(2)
 	{
 		static TAutoConsoleVariable<float> CVarEmulateStereoFOV(TEXT("r.StereoEmulationFOV"), 0, TEXT("FOV in degrees, of the imaginable HMD for stereo emulation"));
 		static TAutoConsoleVariable<int32> CVarEmulateStereoWidth(TEXT("r.StereoEmulationWidth"), 0, TEXT("Width of the imaginable HMD for stereo emulation"));
 		static TAutoConsoleVariable<int32> CVarEmulateStereoHeight(TEXT("r.StereoEmulationHeight"), 0, TEXT("Height of the imaginable HMD for stereo emulation"));
+		static TAutoConsoleVariable<int32> CVarEmulateStereoNumViews(TEXT("r.StereoEmulationNumViews"), 0, TEXT("Number of views, of the imaginable HMD for stereo emulation"));
 		float FOV = CVarEmulateStereoFOV.GetValueOnAnyThread();
 		if (FOV != 0)
 		{
@@ -3039,6 +3041,7 @@ public:
 		}
 		int32 W = CVarEmulateStereoWidth.GetValueOnAnyThread();
 		int32 H = CVarEmulateStereoHeight.GetValueOnAnyThread();
+		int32 V = CVarEmulateStereoNumViews.GetValueOnAnyThread();
 		if (W != 0)
 		{
 			Width = FMath::Clamp(W, 100, 10000);
@@ -3046,6 +3049,10 @@ public:
 		if (H != 0)
 		{
 			Height = FMath::Clamp(H, 100, 10000);
+		}
+		if (V != 0)
+		{
+			NumViews = FMath::Clamp(V, 0, 32);
 		}
 	}
 
@@ -3055,27 +3062,55 @@ public:
 
 	virtual bool EnableStereo(bool stereo = true) override { return true; }
 
+	virtual int32 GetDesiredNumberOfViews(bool bStereoRequested) const { return (bStereoRequested) ? NumViews : 1; }
+
+	virtual EStereoscopicPass GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const
+	{
+		if (!bStereoRequested)
+			return EStereoscopicPass::eSSP_FULL;
+
+		return static_cast<EStereoscopicPass>(eSSP_LEFT_EYE + ViewIndex);
+	}
+
+	virtual uint32 GetViewIndexForPass(EStereoscopicPass StereoPassType) const
+	{
+		switch (StereoPassType)
+		{
+		case eSSP_LEFT_EYE:
+		case eSSP_FULL:
+			return 0;
+
+		case eSSP_RIGHT_EYE:
+			return 1;
+
+		default:
+			return StereoPassType - eSSP_LEFT_EYE;
+		}
+	}
+
+	virtual bool DeviceIsAPrimaryPass(EStereoscopicPass Pass)
+	{
+		return Pass == EStereoscopicPass::eSSP_FULL || (GetViewIndexForPass(Pass) % 2 == 0);
+	}
+
 	virtual bool DeviceIsAPrimaryView(const FSceneView& View) override
 	{
 #if WITH_MGPU
 		// We have to do all the work for secondary views that are on a different GPU than
 		// the primary view. NB: This assumes that the primary view is assigned to the
 		// first GPU of the AFR group. See FSceneRenderer::ComputeViewGPUMasks.
-		if (IStereoRendering::IsStereoEyeView(View) && AFRUtils::GetIndexWithinGroup(View.GPUMask.ToIndex()) != 0)
+		if (DeviceIsStereoEyeView(View) && AFRUtils::GetIndexWithinGroup(View.GPUMask.ToIndex()) != 0)
 		{
 			return true;
 		}
 #endif
-		return IStereoRendering::DeviceIsAPrimaryView(View);
+		return DeviceIsAPrimaryPass(View.StereoPass);
 	}
 
 	virtual void AdjustViewRect(EStereoscopicPass StereoPass, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const override
 	{
-		SizeX = SizeX / 2;
-		if (StereoPass == eSSP_RIGHT_EYE)
-		{
-			X += SizeX;
-		}
+		SizeX = SizeX / NumViews;
+		X += SizeX * GetViewIndexForPass(StereoPass);
 	}
 
 	virtual void CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation) override
@@ -3122,8 +3157,8 @@ public:
 		RHICmdList.SetViewport( 0,0,0,ViewportWidth, ViewportHeight, 1.0f );
 	}
 
-	float FOVInDegrees;		// max(HFOV, VFOV) in degrees of imaginable HMD
-	int32 Width, Height;	// resolution of imaginable HMD
+	float FOVInDegrees;				// max(HFOV, VFOV) in degrees of imaginable HMD
+	int32 Width, Height, NumViews;	// resolution of imaginable HMD
 };
 
 bool UEngine::InitializeHMDDevice()
