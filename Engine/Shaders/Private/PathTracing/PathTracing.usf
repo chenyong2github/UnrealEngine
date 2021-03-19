@@ -208,6 +208,7 @@ struct FProbeResult
 {
 	float HitT;
 	float3 WorldNormal;
+	int FrontFace;
 
 	bool IsMiss() { return HitT <= 0; }
 };
@@ -241,6 +242,7 @@ FProbeResult TraceProbeRay(RayDesc Ray, uint2 PixelCoord)
 	FProbeResult Result;
 	Result.HitT = PackedPayload.HitT;
 	Result.WorldNormal = PackedPayload.GetWorldNormal();
+	Result.FrontFace = (PackedPayload.GetFlags() & RAY_TRACING_PAYLOAD_OUTPUT_FLAG_FRONT_FACE) != 0;
 	return Result;
 }
 
@@ -379,13 +381,18 @@ bool ProcessSubsurfaceRandomWalk(inout FMaterialClosestHitPayload Payload, inout
 				// NOTE: weight and probability cancel out, so no throughput adjustment is needed
 				Ray.Origin += ProbeResult.HitT * Ray.Direction;
 				Ray.Direction = reflect(Ray.Direction, WorldNormal);
-				ApplyPositionBias(Ray, -WorldNormal, PathTracingData.MaxNormalBias);
+				ApplyPositionBias(Ray, WorldNormal, PathTracingData.MaxNormalBias);
 				continue;
 			}
 #endif
 			// we hit the boundary! overwrite the current payload and exit the walk with a diffuse scattering event
 			Payload.WorldPos = Ray.Origin + ProbeResult.HitT * Ray.Direction;
 			Payload.WorldNormal = ProbeResult.WorldNormal;
+			// make sure normal is pointed outward from the object so we capture illumination from the exterior
+			if (ProbeResult.FrontFace != Payload.IsFrontFace())
+			{
+				Payload.WorldNormal *= -1.0;
+			}
 			Payload.ShadingModelID = SHADINGMODELID_NUM; // invalid value so that we get diffuse shading
 			Payload.BlendingMode = RAY_TRACING_BLEND_MODE_OPAQUE;
 			Payload.BaseColor = 1;
@@ -468,13 +475,6 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			//   https://cgg.mff.cuni.cz/~jaroslav/gicourse2010/giai2010-02-marcos_fajardo-slides.pdf (slide 39)
 			//   https://www.arnoldrenderer.com/research/Arnold_TOG2018.pdf (section 4.2)
 			AdjustPathAndMaterialRoughness(Payload, PathRoughness);
-		}
-		
-
-		// Make sure the surface normal points toward the viewer
-		if (dot(Ray.Direction, Payload.WorldNormal) > 0.0)
-		{
-			Payload.WorldNormal = -Payload.WorldNormal;
 		}
 
 		// Processing the random walk will (stochastically) move the shading point elsewhere on the surface of the object
