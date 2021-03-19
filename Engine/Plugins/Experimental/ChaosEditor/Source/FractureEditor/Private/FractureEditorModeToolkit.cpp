@@ -98,24 +98,7 @@ FFractureViewSettingsCustomization::CustomizeDetails(IDetailLayoutBuilder& Detai
 	IDetailCategoryBuilder& ViewCategory = DetailBuilder.EditCategory("ViewSettings", FText::GetEmpty(), ECategoryPriority::TypeSpecific);
 
 	TSharedRef<IPropertyHandle> LevelProperty = DetailBuilder.GetProperty("FractureLevel");
-
-	ViewCategory.AddCustomRow(FText::GetEmpty())
-	.NameContent()
-	.HAlign(HAlign_Right)
-	[
-		SNew(STextBlock)
-		.TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "SmallText" ) )
-		.Text(LOCTEXT("ShowBoneColors", "Show Bone Colors"))
-
-	]
-	.ValueContent()
-	[
-		SNew(SCheckBox)
-		.IsChecked_Lambda([this]() -> ECheckBoxState { return this->Toolkit->GetShowBoneColors() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
-		.OnCheckStateChanged_Lambda([this] (ECheckBoxState CheckState) { this->Toolkit->OnSetShowBoneColors( CheckState == ECheckBoxState::Checked ); } )
-	];
-
-
+	
 	ViewCategory.AddProperty(LevelProperty)
 	.CustomWidget()
 	.NameContent()
@@ -549,13 +532,6 @@ void FFractureEditorModeToolkit::BindCommands()
 	const FFractureEditorCommands& Commands = FFractureEditorCommands::Get();
 	
 	ToolkitCommands->MapAction(
-		Commands.ToggleShowBoneColors,
-		FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::OnToggleShowBoneColors),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FFractureEditorModeToolkit::GetShowBoneColors)
-	);
-
-	ToolkitCommands->MapAction(
 		Commands.ViewUpOneLevel,
 		FExecuteAction::CreateSP(this, &FFractureEditorModeToolkit::ViewUpOneLevel)//,
 	);
@@ -669,25 +645,6 @@ bool FFractureEditorModeToolkit::GetShowBoneColors() const
 	}
 
 	return false;
-}
-
-void FFractureEditorModeToolkit::OnToggleShowBoneColors()
-{
-	OnSetShowBoneColors(!GetShowBoneColors());
-}
-
-void FFractureEditorModeToolkit::OnSetShowBoneColors(bool NewValue)
-{
-	TSet<UGeometryCollectionComponent*> GeomCompSelection;
-	GetSelectedGeometryCollectionComponents(GeomCompSelection);
-	for (UGeometryCollectionComponent* Comp : GeomCompSelection)
-	{
-		FScopedColorEdit EditBoneColor = Comp->EditBoneSelection();
-		EditBoneColor.SetShowBoneColors(NewValue);
-		Comp->MarkRenderStateDirty();
-		Comp->MarkRenderDynamicDataDirty();
-	}
-	GCurrentLevelEditingViewportClient->Invalidate();
 }
 
 void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)

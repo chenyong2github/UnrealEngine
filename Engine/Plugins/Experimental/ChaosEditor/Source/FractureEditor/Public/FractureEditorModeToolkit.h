@@ -107,8 +107,6 @@ public:
 	bool GetShowBoneColors() const;
 	void OnSetExplodedViewValue(float NewValue);
 	void OnSetLevelViewValue(int32 NewValue);
-	void OnToggleShowBoneColors();
-	void OnSetShowBoneColors(bool NewValue);
 
 	void OnExplodedViewValueChanged();
 	void OnLevelViewValueChanged();

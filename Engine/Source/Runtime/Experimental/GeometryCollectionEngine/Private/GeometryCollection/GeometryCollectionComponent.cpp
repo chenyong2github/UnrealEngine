@@ -230,11 +230,11 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, CachePlayback(false)
 	, bNotifyBreaks(false)
 	, bNotifyCollisions(false)
+	, bShowBoneColors(false)
 	, bEnableReplication(false)
 	, bEnableAbandonAfterLevel(false)
 	, ReplicationAbandonClusterLevel(0)
 	, bRenderStateDirty(true)
-	, bShowBoneColors(false)
 	, bEnableBoneSelection(false)
 	, ViewLevel(-1)
 	, NavmeshInvalidationTimeSliceIndex(0)
@@ -855,6 +855,19 @@ void UGeometryCollectionComponent::InitializeComponent()
 				});
 			}
 		}
+	}
+}
+
+void UGeometryCollectionComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, bShowBoneColors))
+	{
+		FScopedColorEdit EditBoneColor = EditBoneSelection();
+		EditBoneColor.SetShowBoneColors(bShowBoneColors);
+		MarkRenderStateDirty();
+		MarkRenderDynamicDataDirty();
 	}
 }
 
