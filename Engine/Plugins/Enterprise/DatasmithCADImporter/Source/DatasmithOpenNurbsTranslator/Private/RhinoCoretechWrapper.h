@@ -43,7 +43,7 @@ public:
 	 * Handle input file unit and an output unit
 	 * @param InOwner
 	 * @param FileMetricUnit number of meters per file unit.
-	 * @param ScaleFactor scale factor to apply to the mesh to be in UE4 unit (cm).
+	 * @param ScaleFactor scale factor to apply to the mesh to be in UnrealEditor unit (cm).
 	 * eg. For a file in inches, arg should be 0.0254
 	 */
 	FRhinoCoretechWrapper(const TCHAR* InOwner, double FileMetricUnit, double ScaleFactor)
