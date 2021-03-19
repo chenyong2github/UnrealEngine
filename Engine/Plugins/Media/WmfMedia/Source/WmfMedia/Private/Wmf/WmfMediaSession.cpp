@@ -80,6 +80,7 @@ FWmfMediaSession::~FWmfMediaSession()
 
 void FWmfMediaSession::GetEvents(TArray<EMediaEvent>& OutEvents)
 {
+#if WMFMEDIA_PLAYER_VERSION == 1
 #if WMFMEDIASESSION_USE_WINDOWS7FASTFORWARDENDHACK
 	if (CurrentDuration > FTimespan::Zero())
 	{
@@ -98,6 +99,7 @@ void FWmfMediaSession::GetEvents(TArray<EMediaEvent>& OutEvents)
 		}
 	}
 #endif
+#endif // WMFMEDIA_PLAYER_VERSION == 1
 
 	EMediaEvent Event;
 
