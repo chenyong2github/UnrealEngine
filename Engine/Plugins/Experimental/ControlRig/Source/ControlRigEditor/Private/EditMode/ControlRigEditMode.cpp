@@ -46,6 +46,10 @@
 //#include "IPersonaPreviewScene.h"
 //#include "Animation/DebugSkelMeshComponent.h"
 //#include "Persona/Private/AnimationEditorViewportClient.h"
+#include "Framework/Application/SlateApplication.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
+
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
 	if (EditMode)
@@ -269,15 +273,13 @@ void FControlRigEditMode::SetObjects_Internal()
 	if (!RuntimeControlRig)
 	{
 		DestroyGizmosActors();
+		SetUpDetailPanel();
 	}
 	else
 	{
 		// create default manipulation layer
-		RecreateGizmoActors();
-		HandleSelectionChanged();
+		RequestToRecreateGizmoActors();
 	}
-
-	SetUpDetailPanel();
 }
 
 bool FControlRigEditMode::UsesToolkits() const
@@ -400,7 +402,8 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 	}
 	RecalcPivotTransform();
 
-	if (bRecreateGizmosRequired)
+	// Defer creation of gizmos if manipulating the viewport
+	if (bRecreateGizmosRequired && !(FSlateApplication::Get().HasAnyMouseCaptor() || GUnrealEd->IsUserInteracting()))
 	{
 		RecreateGizmoActors();
 

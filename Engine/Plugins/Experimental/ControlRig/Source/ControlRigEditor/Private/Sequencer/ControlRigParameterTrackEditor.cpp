@@ -73,7 +73,8 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "TimerManager.h"
 #include "BakeToControlRigSettings.h"
-
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 
 #define LOCTEXT_NAMESPACE "FControlRigParameterTrackEditor"
 
@@ -169,8 +170,11 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 }
 
 FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISequencer> InSequencer)
-	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer), bCurveDisplayTickIsPending(false), bIsDoingSelection(false), bFilterAssetBySkeleton(true), bFilterAssetByAnimatableControls(true)
-
+	: FKeyframeTrackEditor<UMovieSceneControlRigParameterTrack>(InSequencer)
+	, bCurveDisplayTickIsPending(false)
+	, bIsDoingSelection(false)
+	, bFilterAssetBySkeleton(true)
+	, bFilterAssetByAnimatableControls(true)
 {
 	FMovieSceneToolsModule::Get().RegisterAnimationBakeHelper(this);
 
@@ -258,17 +262,28 @@ FControlRigParameterTrackEditor::FControlRigParameterTrackEditor(TSharedRef<ISeq
 								{
 									(*NewControlRig)->ClearControlSelection();
 								}
-								//Force refresh now, not later
-								GetSequencer()->EmptySelection();
-								//Also need to clear these guys out may cause unsure if component is selected
-								if (USelection* SelectedComponents = GEditor->GetSelectedComponents())
+													
+								auto UpdateSelectionDelegate = [this]()
 								{
-									SelectedComponents->DeselectAll();
-								}
-								if (USelection* SelectedActors = GEditor->GetSelectedActors())
-								{
-									SelectedActors->DeselectAll();
-								}
+
+									UE_LOG(LogControlRigEditor, Log, TEXT("UpdateSelectionTimer"));
+									if (!(FSlateApplication::Get().HasAnyMouseCaptor() || GUnrealEd->IsUserInteracting()))
+									{
+										UE_LOG(LogControlRigEditor, Log, TEXT("UpdateSelectionTimer - Sync"));
+										TGuardValue<bool> Guard(bIsDoingSelection, true);
+										GetSequencer()->ExternalSelectionHasChanged();
+
+										if (UpdateSelectionTimerHandle.IsValid())
+										{
+											UE_LOG(LogControlRigEditor, Log, TEXT("UpdateSelectionTimer - Clear"));
+											GEditor->GetTimerManager()->ClearTimer(UpdateSelectionTimerHandle);
+										}
+									}
+
+
+								};
+
+								GEditor->GetTimerManager()->SetTimer(UpdateSelectionTimerHandle, UpdateSelectionDelegate, 0.01f, true);
 							}
 						}
 					}

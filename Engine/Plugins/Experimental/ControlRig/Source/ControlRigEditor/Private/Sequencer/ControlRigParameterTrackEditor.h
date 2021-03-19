@@ -16,6 +16,7 @@
 #include "AcquiredResources.h"
 #include "MovieSceneToolHelpers.h"
 #include "MovieSceneToolsModule.h"
+#include "Engine/EngineTypes.h"
 
 struct FAssetData;
 class FMenuBuilder;
@@ -196,6 +197,8 @@ private:
 
 	/** Whether or not we should check for Animatable Controls when filtering*/
 	bool bFilterAssetByAnimatableControls;
+
+	FTimerHandle UpdateSelectionTimerHandle;
 };
 
 
