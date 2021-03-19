@@ -367,7 +367,7 @@ public:
 	friend class FWindowsMixedRealityViewport;
 
 	/** Initialization constructor. */
-	FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel,int32 InChosenAdapter, const DXGI_ADAPTER_DESC& ChosenDescription);
+	FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel,int32 InChosenAdapter, const DXGI_ADAPTER_DESC& ChosenDescription, bool bInSoftwareAdapter);
 
 	/** Destructor */
 	virtual ~FD3D11DynamicRHI();
@@ -923,6 +923,8 @@ protected:
 	FD3DGPUProfiler GPUProfilingData;
 	// >= 0, was computed before, unless hardware was changed during engine init it should be the same
 	int32 ChosenAdapter;
+	// if this is a software adapter
+	bool bSoftwareAdapter;
 	// we don't use AdapterDesc.Description as there is a bug with Optimus where it can report the wrong name
 	DXGI_ADAPTER_DESC ChosenDescription;
 
@@ -1054,11 +1056,14 @@ struct FD3D11Adapter
 	int32 AdapterIndex;
 	/** The maximum D3D11 feature level supported. 0 if not supported or FindAdpater() wasn't called */
 	D3D_FEATURE_LEVEL MaxSupportedFeatureLevel;
+	/** Whether this is a software adapter */
+	bool bSoftwareAdapter;
 
 	// constructor
-	FD3D11Adapter(int32 InAdapterIndex = -1, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel = (D3D_FEATURE_LEVEL)0)
+	FD3D11Adapter(int32 InAdapterIndex = -1, D3D_FEATURE_LEVEL InMaxSupportedFeatureLevel = (D3D_FEATURE_LEVEL)0, bool bInSoftwareAdatper = false)
 		: AdapterIndex(InAdapterIndex)
 		, MaxSupportedFeatureLevel(InMaxSupportedFeatureLevel)
+		, bSoftwareAdapter(bInSoftwareAdatper)
 	{
 	}
 

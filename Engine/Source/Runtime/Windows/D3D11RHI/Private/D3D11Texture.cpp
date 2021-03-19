@@ -506,6 +506,26 @@ DXGI_FORMAT FD3D11DynamicRHI::GetPlatformTextureResourceFormat(DXGI_FORMAT InFor
 	return InFormat;
 }
 
+// Work around an issue with the WARP device & BC7
+// Creating two views with different formats (DXGI_FORMAT_BC7_UNORM vs DXGI_FORMAT_BC7_UNORM_SRGB)
+// will result in a crash inside d3d10warp.dll when creating the second view
+void ApplyBC7SoftwareAdapterWorkaround(bool bSoftwareAdapter, D3D11_TEXTURE2D_DESC& Desc)
+{
+	if (bSoftwareAdapter)
+	{
+		bool bApplyWorkaround =	Desc.Format == DXGI_FORMAT_BC7_TYPELESS
+							 && Desc.Usage == D3D11_USAGE_DEFAULT
+							 && Desc.MipLevels == 1
+							 && Desc.ArraySize == 1
+							 && Desc.CPUAccessFlags == 0;
+
+		if (bApplyWorkaround)
+		{
+			Desc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
+		}
+	}
+}
+
 /** If true, guard texture creates with SEH to log more information about a driver crash we are seeing during texture streaming. */
 #define GUARDED_TEXTURE_CREATES (PLATFORM_WINDOWS && !(UE_BUILD_SHIPPING || UE_BUILD_TEST || PLATFORM_COMPILER_CLANG))
 
@@ -652,6 +672,8 @@ TD3D11Texture2D<BaseResourceType>* FD3D11DynamicRHI::CreateD3D11Texture2D(uint32
 	TextureDesc.BindFlags = bCreateShaderResource? D3D11_BIND_SHADER_RESOURCE : 0;
 	TextureDesc.CPUAccessFlags = CPUAccessFlags;
 	TextureDesc.MiscFlags = bCubeTexture ? D3D11_RESOURCE_MISC_TEXTURECUBE : 0;
+
+	ApplyBC7SoftwareAdapterWorkaround(bSoftwareAdapter, TextureDesc);
 
 	// NV12 doesn't support SRV in NV12 format so don't create SRV for it.
 	// Todo: add support for SRVs of underneath luminance & chrominance textures.
@@ -1268,6 +1290,8 @@ FTexture2DRHIRef FD3D11DynamicRHI::RHIAsyncCreateTexture2D(uint32 SizeX,uint32 S
 	TextureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 	TextureDesc.CPUAccessFlags = 0;
 	TextureDesc.MiscFlags = 0;
+
+	ApplyBC7SoftwareAdapterWorkaround(bSoftwareAdapter, TextureDesc);
 
 	for (uint32 MipIndex = 0; MipIndex < NumInitialMips; ++MipIndex)
 	{

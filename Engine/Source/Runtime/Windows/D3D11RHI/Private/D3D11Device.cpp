@@ -52,7 +52,7 @@ TAutoConsoleVariable<int32> CVarD3D11ZeroBufferSizeInMB(
 	);
 
 
-FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel, int32 InChosenAdapter, const DXGI_ADAPTER_DESC& InChosenDescription) :
+FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEVEL InFeatureLevel, int32 InChosenAdapter, const DXGI_ADAPTER_DESC& InChosenDescription, bool bInSoftwareAdapter) :
 	DXGIFactory1(InDXGIFactory1),
 #if NV_AFTERMATH
 	NVAftermathIMContextHandle(nullptr),
@@ -78,6 +78,7 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	bUsingTessellation(false),
 	GPUProfilingData(this),
 	ChosenAdapter(InChosenAdapter),
+	bSoftwareAdapter(bInSoftwareAdapter),
 	ChosenDescription(InChosenDescription),
 	bAllowVendorDevice(!FParse::Param(FCommandLine::Get(), TEXT("novendordevice")))
 {

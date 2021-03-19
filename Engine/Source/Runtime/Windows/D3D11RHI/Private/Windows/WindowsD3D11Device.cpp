@@ -963,17 +963,19 @@ void FD3D11DynamicRHIModule::FindAdapter()
 						bIsNonLocalMemoryPresent = NonLocalVideoMemoryInfo.Budget != 0;
 					}
 				}
+
+				const bool bIsSoftware = bIsMicrosoft;
 				const bool bIsIntegrated = bIsIntel && !bIsNonLocalMemoryPresent;
 				// PerfHUD is for performance profiling
 				const bool bIsPerfHUD = !FCString::Stricmp(AdapterDesc.Description,TEXT("NVIDIA PerfHUD"));
 
-				FD3D11Adapter CurrentAdapter(AdapterIndex, ActualFeatureLevel);
+				FD3D11Adapter CurrentAdapter(AdapterIndex, ActualFeatureLevel, bIsSoftware);
 
 				// Add special check to support HMDs, which do not have associated outputs.
 				// To reject the software emulation, unless the cvar wants it.
 				// https://msdn.microsoft.com/en-us/library/windows/desktop/bb205075(v=vs.85).aspx#WARP_new_for_Win8
 				// Before we tested for no output devices but that failed where a laptop had a Intel (with output) and NVidia (with no output)
-				const bool bSkipSoftwareAdapter = bIsMicrosoft && !bAllowSoftwareFallback && CVarExplicitAdapterValue < 0 && HmdGraphicsAdapterLuid == 0;
+				const bool bSkipSoftwareAdapter = bIsSoftware && !bAllowSoftwareFallback && CVarExplicitAdapterValue < 0 && HmdGraphicsAdapterLuid == 0;
 				
 				// we don't allow the PerfHUD adapter
 				const bool bSkipPerfHUDAdapter = bIsPerfHUD && !bAllowPerfHUD;
@@ -1080,7 +1082,7 @@ FDynamicRHI* FD3D11DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 	GMaxRHIShaderPlatform = GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel];
 	check(GMaxRHIShaderPlatform != SP_NumPlatforms);
 
-	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription);
+	GD3D11RHI = new FD3D11DynamicRHI(DXGIFactory1,ChosenAdapter.MaxSupportedFeatureLevel,ChosenAdapter.AdapterIndex,ChosenDescription,ChosenAdapter.bSoftwareAdapter);
 	FDynamicRHI* FinalRHI = GD3D11RHI;
 
 #if ENABLE_RHI_VALIDATION
