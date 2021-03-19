@@ -57,6 +57,7 @@ extern bool ShouldRenderRayTracingTranslucency(const FViewInfo& View);
 extern bool ShouldRenderRayTracingShadows();
 extern bool ShouldRenderRayTracingShadowsForLight(const FLightSceneProxy& LightProxy);
 extern bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightInfo);
+extern bool ShouldRenderPluginRayTracingGlobalIllumination();
 extern bool CanOverlayRayTracingOutput(const FViewInfo& View);
 
 extern bool EnableRayTracingShadowTwoSidedGeometry();
@@ -113,6 +114,11 @@ FORCEINLINE bool ShouldRenderRayTracingShadowsForLight(const FLightSceneProxy& L
 }
 
 FORCEINLINE bool ShouldRenderRayTracingShadowsForLight(const FLightSceneInfoCompact& LightInfo)
+{
+	return false;
+}
+
+FORCEINLINE bool ShouldRenderPluginRayTracingGlobalIllumination()
 {
 	return false;
 }

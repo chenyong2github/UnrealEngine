@@ -32,6 +32,35 @@ struct FHairStrandsTransmittanceMaskData;
 struct FHairStrandsRenderingData;
 
 /**
+ * Encapsulates the resources and render targets used by global illumination plugins.
+ */
+class RENDERER_API FGlobalIlluminationPluginResources : public FRenderResource
+{
+public:
+	TRefCountPtr<IPooledRenderTarget> GBufferA;
+	TRefCountPtr<IPooledRenderTarget> GBufferB;
+	TRefCountPtr<IPooledRenderTarget> GBufferC;
+	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
+	TRefCountPtr<IPooledRenderTarget> SceneColor;
+	FRDGTextureRef LightingChannelsTexture;
+};
+
+/**
+ * Delegate callback used by global illumination plugins.
+ */
+class RENDERER_API FGlobalIlluminationPluginDelegates
+{
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FAnyRayTracingPassEnabled, bool& /*bAnyRayTracingPassEnabled*/);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FPrepareRayTracing, const FViewInfo& /*View*/, TArray<FRHIRayTracingShader*>& /*OutRayGenShaders*/);
+	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectLight, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationPluginResources& /*Resources*/);
+
+	static FAnyRayTracingPassEnabled& AnyRayTracingPassEnabled();
+	static FPrepareRayTracing& PrepareRayTracing();
+	static FRenderDiffuseIndirectLight& RenderDiffuseIndirectLight();
+};
+
+/**
  * Scene renderer that implements a deferred shading pipeline and associated features.
  */
 class FDeferredShadingSceneRenderer : public FSceneRenderer
@@ -222,6 +251,7 @@ private:
 		FRDGBuilder& GraphBuilder,
 		TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 		FRDGTextureRef SceneColorTexture,
+		FRDGTextureRef LightingChannelsTexture,
 		FHairStrandsRenderingData* HairDatas);
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
@@ -753,6 +783,7 @@ private:
 	static void PrepareRayTracingAmbientOcclusion(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingSkyLight(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingGlobalIllumination(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
+	static void PrepareRayTracingGlobalIlluminationPlugin(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingDebug(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);

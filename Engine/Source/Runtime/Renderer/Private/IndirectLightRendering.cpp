@@ -17,6 +17,11 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "VolumetricCloudRendering.h"
 
+static TAutoConsoleVariable<bool> CVarGlobalIlluminationPluginEnable(
+	TEXT("r.GlobalIllumination.Plugin"),
+	false,
+	TEXT("Whether to use a plugin for global illumination (default = false)"),
+	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarDiffuseIndirectDenoiser(
 	TEXT("r.DiffuseIndirect.Denoiser"), 1,
@@ -339,10 +344,32 @@ bool FDeferredShadingSceneRenderer::ShouldDoReflectionEnvironment() const
 		&& ViewFamily.EngineShowFlags.ReflectionEnvironment;
 }
 
+bool ShouldRenderPluginRayTracingGlobalIllumination()
+{
+	if(!CVarGlobalIlluminationPluginEnable.GetValueOnRenderThread())
+	{
+		return false;
+	}
+
+	bool bAnyRayTracingPassEnabled = false;
+	FGlobalIlluminationPluginDelegates::FAnyRayTracingPassEnabled& Delegate = FGlobalIlluminationPluginDelegates::AnyRayTracingPassEnabled();
+	Delegate.Broadcast(bAnyRayTracingPassEnabled);
+
+	return ShouldRenderRayTracingEffect(bAnyRayTracingPassEnabled);
+}
+
+void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIlluminationPlugin(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+{
+	// Call the GI plugin delegate function to prepare ray tracing
+	FGlobalIlluminationPluginDelegates::FPrepareRayTracing& Delegate = FGlobalIlluminationPluginDelegates::PrepareRayTracing();
+	Delegate.Broadcast(View, OutRayGenShaders);
+}
+
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
 	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef LightingChannelsTexture,
 	FHairStrandsRenderingData* InHairDatas)
 {
 	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
@@ -363,6 +390,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 
 		// TODO: enum cvar. 
 		const bool bApplyRTGI = ShouldRenderRayTracingGlobalIllumination(View);
+		const bool bApplyPluginGI = CVarGlobalIlluminationPluginEnable.GetValueOnRenderThread();
 		const bool bApplySSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
 		const bool bApplySSAO = SceneContext.bScreenSpaceAOIsValid;
 		const bool bApplyRTAO = ShouldRenderRayTracingAmbientOcclusion(View) && Views.Num() == 1; //#dxr_todo: enable RTAO in multiview mode
@@ -435,6 +463,22 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		{
 			DenoiserOutputs.Color = DenoiserInputs.Color;
 			DenoiserOutputs.AmbientOcclusionMask = DenoiserInputs.AmbientOcclusionMask;
+		}
+
+		// Render GI from a plugin
+		if (bApplyPluginGI && !bApplyRTGI)
+		{
+			// Get the resources and call the GI plugin's rendering function delegate
+			FGlobalIlluminationPluginResources GIPluginResources;
+			GIPluginResources.GBufferA = SceneContext.GBufferA;
+			GIPluginResources.GBufferB = SceneContext.GBufferB;
+			GIPluginResources.GBufferC = SceneContext.GBufferC;
+			GIPluginResources.LightingChannelsTexture = LightingChannelsTexture;
+			GIPluginResources.SceneDepthZ = SceneContext.SceneDepthZ;
+			GIPluginResources.SceneColor = SceneContext.GetSceneColor();
+
+			FGlobalIlluminationPluginDelegates::FRenderDiffuseIndirectLight& Delegate = FGlobalIlluminationPluginDelegates::RenderDiffuseIndirectLight();
+			Delegate.Broadcast(*Scene, View, GraphBuilder, GIPluginResources);
 		}
 
 		// Render RTAO that override any technic.

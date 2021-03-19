@@ -260,6 +260,28 @@ DECLARE_GPU_STAT(PostOpaqueExtensions);
 
 CSV_DEFINE_CATEGORY(LightCount, true);
 
+/*-----------------------------------------------------------------------------
+	Global Illumination Plugin Function Delegates
+-----------------------------------------------------------------------------*/
+
+static FGlobalIlluminationPluginDelegates::FAnyRayTracingPassEnabled GIPluginAnyRaytracingPassEnabledDelegate;
+FGlobalIlluminationPluginDelegates::FAnyRayTracingPassEnabled& FGlobalIlluminationPluginDelegates::AnyRayTracingPassEnabled()
+{
+	return GIPluginAnyRaytracingPassEnabledDelegate;
+}
+
+static FGlobalIlluminationPluginDelegates::FPrepareRayTracing GIPluginPrepareRayTracingDelegate;
+FGlobalIlluminationPluginDelegates::FPrepareRayTracing& FGlobalIlluminationPluginDelegates::PrepareRayTracing()
+{
+	return GIPluginPrepareRayTracingDelegate;
+}
+
+static FGlobalIlluminationPluginDelegates::FRenderDiffuseIndirectLight GIPluginRenderDiffuseIndirectLightDelegate;
+FGlobalIlluminationPluginDelegates::FRenderDiffuseIndirectLight& FGlobalIlluminationPluginDelegates::RenderDiffuseIndirectLight()
+{
+	return GIPluginRenderDiffuseIndirectLightDelegate;
+}
+
 const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderPlatform ShaderPlatform)
 {
 	if (IsForwardShadingEnabled(ShaderPlatform))
@@ -1097,6 +1119,7 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		PrepareRayTracingAmbientOcclusion(View, RayGenShaders);
 		PrepareRayTracingSkyLight(View, RayGenShaders);
 		PrepareRayTracingGlobalIllumination(View, RayGenShaders);
+		PrepareRayTracingGlobalIlluminationPlugin(View, RayGenShaders);
 		PrepareRayTracingTranslucency(View, RayGenShaders);
 		PrepareRayTracingDebug(View, RayGenShaders);
 		PreparePathTracing(View, RayGenShaders);
@@ -2145,7 +2168,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_Lighting);
 
 		FRDGTextureRef DynamicBentNormalAOTexture = nullptr;
-		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, SceneColorTexture.Target, HairDatas);
+		RenderDiffuseIndirectAndAmbientOcclusion(GraphBuilder, SceneTextures, SceneColorTexture.Target, LightingChannelsTexture, HairDatas);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		if (SceneContext.IsStaticLightingAllowed())
@@ -2779,6 +2802,7 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 		|| ShouldRenderRayTracingTranslucency(View)
 		|| ShouldRenderRayTracingSkyLight(Scene ? Scene->SkyLight : nullptr)
 		|| ShouldRenderRayTracingShadows()
+		|| ShouldRenderPluginRayTracingGlobalIllumination()
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug
 		)
