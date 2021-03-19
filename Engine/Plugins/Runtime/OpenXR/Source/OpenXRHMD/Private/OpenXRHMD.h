@@ -272,6 +272,7 @@ private:
 	bool					bNeedReBuildOcclusionMesh;
 	bool					bIsMobileMultiViewEnabled;
 	bool					bSupportsHandTracking;
+	bool					bProjectionLayerAlphaEnabled;
 	float					WorldToMetersScale = 100.0f;
 
 	XrSessionState			CurrentSessionState;

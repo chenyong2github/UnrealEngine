@@ -49,7 +49,7 @@ static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
 
 
 namespace {
-	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
+	static TSet<XrEnvironmentBlendMode> SupportedBlendModes{ XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND, XR_ENVIRONMENT_BLEND_MODE_ADDITIVE, XR_ENVIRONMENT_BLEND_MODE_OPAQUE };
 	static TSet<XrViewConfigurationType> SupportedViewConfigurations{ XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO, XR_VIEW_CONFIGURATION_TYPE_PRIMARY_QUAD_VARJO };
 
 	/** Helper function for acquiring the appropriate FSceneViewport */
@@ -1354,6 +1354,10 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 #else
 	bIsMobileMultiViewEnabled = bMobileMultiView && RHISupportsMobileMultiView(GMaxRHIShaderPlatform);
 #endif
+
+	static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
+	bProjectionLayerAlphaEnabled = !IsMobilePlatform(GMaxRHIShaderPlatform) && CVarPropagateAlpha->GetValueOnAnyThread() != 0;
+
 	// Enumerate the viewport configurations
 	uint32 ConfigurationCount;
 	TArray<XrViewConfigurationType> ViewConfigTypes;
@@ -1399,7 +1403,9 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 		// This is the environment blend mode preferred by the runtime.
 		for (XrEnvironmentBlendMode BlendMode : BlendModes)
 		{
-			if (SupportedBlendModes.Contains(BlendMode))
+			if (SupportedBlendModes.Contains(BlendMode) &&
+				// On mobile platforms the alpha channel can contain depth information, so we can't use alpha blend.
+				(BlendMode != XR_ENVIRONMENT_BLEND_MODE_ALPHA_BLEND || !IsMobilePlatform(GMaxRHIShaderPlatform)))
 			{
 				SelectedEnvironmentBlendMode = BlendMode;
 				break;
@@ -2343,7 +2349,7 @@ void FOpenXRHMD::OnFinishRendering_RHIThread()
 	XrCompositionLayerProjection Layer = {};
 	Layer.type = XR_TYPE_COMPOSITION_LAYER_PROJECTION;
 	Layer.next = nullptr;
-	Layer.layerFlags = 0;
+	Layer.layerFlags = bProjectionLayerAlphaEnabled ? XR_COMPOSITION_LAYER_BLEND_TEXTURE_SOURCE_ALPHA_BIT : 0;
 	Layer.space = PipelineState.TrackingSpace;
 	Layer.viewCount = LayerState.ProjectionLayers.Num();
 	Layer.views = LayerState.ProjectionLayers.GetData();
