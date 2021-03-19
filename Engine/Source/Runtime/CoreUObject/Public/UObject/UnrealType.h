@@ -1598,6 +1598,9 @@ class COREUOBJECT_API FByteProperty : public TProperty_Numeric<uint8>
 	// FNumericProperty interface.
 	virtual UEnum* GetIntPropertyEnum() const override;
 	// End of FNumericProperty interface
+
+	// Returns the number of bits required by NetSerializeItem to encode this property (may be fewer than 8 if this byte represents an enum)
+	uint64 GetMaxNetSerializeBits() const;
 };
 
 /*-----------------------------------------------------------------------------

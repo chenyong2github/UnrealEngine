@@ -24,6 +24,8 @@
 #include "Math/NumericLimits.h"
 #include "PushModelPerNetDriverState.h"
 #include "Net/Core/Trace/NetTrace.h"
+#include "UObject/EnumProperty.h"
+#include "UObject/UnrealType.h"
 
 DECLARE_CYCLE_STAT(TEXT("RepLayout AddPropertyCmd"), STAT_RepLayout_AddPropertyCmd, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("RepLayout InitFromObjectClass"), STAT_RepLayout_InitFromObjectClass, STATGROUP_Game);
@@ -897,6 +899,24 @@ static uint32 GetRepLayoutCmdCompatibleChecksum(
 	else
 	{
 		CompatibleChecksum = FCrc::StrCrc32(*FString::Printf(TEXT("%i"), StaticArrayIndex), CompatibleChecksum);
+	}
+
+	// Evolve by enum max value bits required
+	if ((ServerConnection == nullptr) ||
+		(ServerConnection->EngineNetworkProtocolVersion >= EEngineNetworkVersionHistory::HISTORY_ENUM_SERIALIZATION_COMPAT))
+	{
+		if (const FEnumProperty* EnumProp = CastField<FEnumProperty>(Property))
+		{
+			const uint64 MaxBits = EnumProp->GetMaxNetSerializeBits();
+
+			CompatibleChecksum = FCrc::MemCrc32(&MaxBits, sizeof(MaxBits), CompatibleChecksum);
+		}
+		else if (const FByteProperty* ByteProp = CastField<FByteProperty>(Property))
+		{
+			const uint64 MaxBits = ByteProp->GetMaxNetSerializeBits();
+
+			CompatibleChecksum = FCrc::MemCrc32(&MaxBits, sizeof(MaxBits), CompatibleChecksum);
+		}
 	}
 
 	return CompatibleChecksum;
