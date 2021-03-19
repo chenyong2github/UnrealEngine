@@ -125,6 +125,7 @@
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ObjectTrace.h"
+#include "ReplaySubsystem.h"
 
 #if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
@@ -5747,8 +5748,18 @@ bool UWorld::IsPlayingReplay() const
 
 bool UWorld::IsRecordingReplay() const
 {
-	// Using IsServer() because it also calls IsRecording() internally
-	return (DemoNetDriver && DemoNetDriver->IsServer());
+	const UGameInstance* GameInst = GetGameInstance();
+	const UReplaySubsystem* ReplaySubsystem = GameInst ? GameInst->GetSubsystem<UReplaySubsystem>() : nullptr;
+
+	if (ReplaySubsystem)
+	{
+		return ReplaySubsystem->IsRecording();
+	}
+	else
+	{
+		// Using IsServer() because it also calls IsRecording() internally
+		return (DemoNetDriver && DemoNetDriver->IsServer());
+	}
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
