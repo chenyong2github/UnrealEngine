@@ -632,21 +632,6 @@ int32 FFractureEditorModeToolkit::GetLevelViewValue() const
 	return FractureSettings->FractureLevel;
 }
 
-bool FFractureEditorModeToolkit::GetShowBoneColors() const
-{
-	
-	TSet<UGeometryCollectionComponent*> GeomCompSelection;
-	GetSelectedGeometryCollectionComponents(GeomCompSelection);
-	if (GeomCompSelection.Num() > 0)
-	{
-		UGeometryCollectionComponent* Comp = GeomCompSelection.Array()[0];
-		FScopedColorEdit EditBoneColor = Comp->EditBoneSelection();
-		return EditBoneColor.GetShowBoneColors();
-	}
-
-	return false;
-}
-
 void FFractureEditorModeToolkit::OnSetExplodedViewValue(float NewValue)
 {
 	FScopedTransaction Transaction(LOCTEXT("SetExplodedViewValue", "Adjust Exploded View"));

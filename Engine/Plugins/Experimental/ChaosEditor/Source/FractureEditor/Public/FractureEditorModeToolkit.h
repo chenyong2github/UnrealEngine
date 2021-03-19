@@ -104,7 +104,6 @@ public:
 	// View Settings
 	float GetExplodedViewValue() const;
 	int32 GetLevelViewValue() const;
-	bool GetShowBoneColors() const;
 	void OnSetExplodedViewValue(float NewValue);
 	void OnSetLevelViewValue(int32 NewValue);
 
