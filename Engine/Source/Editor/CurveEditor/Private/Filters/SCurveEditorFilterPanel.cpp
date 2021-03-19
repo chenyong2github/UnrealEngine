@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SCurveEditorFilterPanel.h"
+#include "Filters/SCurveEditorFilterPanel.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Docking/SDockTab.h"
@@ -10,7 +10,7 @@
 #include "Widgets/Layout/SBox.h"
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
-#include "CurveEditorFilterBase.h"
+#include "Filters/CurveEditorFilterBase.h"
 #include "PropertyEditorModule.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
