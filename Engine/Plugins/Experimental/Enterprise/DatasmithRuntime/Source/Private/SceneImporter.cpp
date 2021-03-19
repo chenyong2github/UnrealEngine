@@ -921,7 +921,6 @@ namespace DatasmithRuntime
 		TasksToComplete = EWorkerTask::NoTask;
 
 		// Update elements map with new pointers
-		TSet<FString> TexturesNames;
 		for (int32 Index = 0; Index < SceneElement->GetTexturesCount(); ++Index)
 		{
 			FSceneGraphId ElementId = SceneElement->GetTexture(Index)->GetNodeId();
@@ -929,8 +928,6 @@ namespace DatasmithRuntime
 			{
 				Elements[ElementId] = SceneElement->GetTexture(Index);
 			}
-			ensure(!TexturesNames.Contains(Elements[ElementId]->GetName()));
-			TexturesNames.Add(Elements[ElementId]->GetName());
 		}
 
 		for (int32 Index = 0; Index < SceneElement->GetMaterialsCount(); ++Index)
