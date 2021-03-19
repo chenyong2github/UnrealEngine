@@ -30,7 +30,7 @@ namespace ChaosTest
 {
 	using namespace Chaos;
 
-	TYPED_TEST(AllTraits, VehicleTest_VehicleUtilityGraph)
+	GTEST_TEST(AllTraits, VehicleTest_VehicleUtilityGraph)
 	{
 		Chaos::FGraph Graph;
 
@@ -51,7 +51,7 @@ namespace ChaosTest
 		EXPECT_NEAR(Graph.EvaluateY(60.f), 90.f, Tolerance);
 	}
 
-	TYPED_TEST(AllTraits, VehicleTest_CalculateSlipAngle)
+	GTEST_TEST(AllTraits, VehicleTest_CalculateSlipAngle)
 	{
 		float SlipAngleFwds = FVehicleUtility::CalculateSlipAngle(0, 5);
 		float SlipAngleReverse = FVehicleUtility::CalculateSlipAngle(0, -5);
@@ -973,7 +973,7 @@ namespace ChaosTest
 		EXPECT_LT(SimulationTimeAccelTC, SimulationTimeAccelSpin);
 	}
 
-	TYPED_TEST(AllTraits, VehicleTest_WheelBrakingLongitudinalSlipNew)
+	GTEST_TEST(AllTraits, VehicleTest_WheelBrakingLongitudinalSlipNew)
 	{
 		FSimpleWheelConfig Setup;
 		Setup.ABSEnabled = false;
@@ -1068,7 +1068,7 @@ namespace ChaosTest
 		EXPECT_GT(StoppingDistanceLowFriction, StoppingDistanceA);
 	}
 
-	TYPED_TEST(AllTraits, VehicleTest_WheelAcceleratingLongitudinalSlipNew)
+	GTEST_TEST(AllTraits, VehicleTest_WheelAcceleratingLongitudinalSlipNew)
 	{
 		FSimpleWheelConfig Setup;
 		Setup.ABSEnabled = false;
@@ -1671,7 +1671,7 @@ namespace ChaosTest
 
 	}
 
-	TYPED_TEST(AllTraits, VehicleTest_Suspension_VaryingDelta)
+	GTEST_TEST(AllTraits, VehicleTest_Suspension_VaryingDelta)
 	{
 		FSimpleSuspensionConfig Setup;
 		Setup.MaxLength = 20.0f;
