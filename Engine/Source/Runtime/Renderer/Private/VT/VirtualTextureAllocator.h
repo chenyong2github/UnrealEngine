@@ -63,6 +63,19 @@ private:
 	void FreeAddressBlock(uint32 Index);
 	uint32 FindAddressBlock(uint32 vAddress) const;
 
+	void SubdivideBlock(uint32 ParentIndex);
+
+	void MarkBlockAllocated(uint32 Index, uint32 vAllocatedTileX, uint32 vAllocatedTileY, FAllocatedVirtualTexture* VT);
+
+	enum class EBlockState : uint8
+	{
+		None,
+		GlobalFreeList,
+		FreeList,
+		AllocatedChildren,
+		AllocatedTexture,
+	};
+
 	struct FAddressBlock
 	{
 		FAllocatedVirtualTexture*	VT;
@@ -75,6 +88,7 @@ private:
 		uint16						NextSibling;
 		uint16						NextFree;
 		uint16						PrevFree;
+		EBlockState                 State;
 
 		FAddressBlock()
 		{}
@@ -90,6 +104,7 @@ private:
 			, NextSibling(0xffff)
 			, NextFree(0xffff)
 			, PrevFree(0xffff)
+			, State(EBlockState::None)
 		{}
 
 		FAddressBlock(const FAddressBlock& Block, uint32 Offset, uint32 Dimensions)
@@ -103,6 +118,7 @@ private:
 			, NextSibling(0xffff)
 			, NextFree(0xffff)
 			, PrevFree(0xffff)
+			, State(EBlockState::None)
 		{}
 	};
 
