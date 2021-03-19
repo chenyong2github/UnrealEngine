@@ -219,7 +219,7 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	, MaxClusterLevel(100)
 	, DamageThreshold({250.0})
 	, bUseSizeSpecificDamageThreshold(false)
-	, ClusterConnectionType(EClusterConnectionTypeEnum::Chaos_PointImplicit)
+	, ClusterConnectionType_DEPRECATED(EClusterConnectionTypeEnum::Chaos_MinimalSpanningSubsetDelaunayTriangulation)
 	, CollisionGroup(0)
 	, CollisionSampleFraction(1.0)
 	, InitialVelocityType(EInitialVelocityTypeEnum::Chaos_Initial_Velocity_User_Defined)
@@ -1825,10 +1825,12 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 				SimulationParameters.Name = GetPathName();
 #endif
+				EClusterConnectionTypeEnum ClusterCollectionType = ClusterConnectionType_DEPRECATED;
 				if (RestCollection)
 				{
 					RestCollection->GetSharedSimulationParams(SimulationParameters.Shared);
 					SimulationParameters.RestCollection = RestCollection->GetGeometryCollection().Get();
+					ClusterCollectionType = RestCollection->ClusterConnectionType;
 				}
 				SimulationParameters.Simulating = Simulating;
 				SimulationParameters.EnableClustering = EnableClustering;
@@ -1836,7 +1838,7 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				SimulationParameters.MaxClusterLevel = MaxClusterLevel;
 				SimulationParameters.bUseSizeSpecificDamageThresholds = bUseSizeSpecificDamageThreshold;
 				SimulationParameters.DamageThreshold = DamageThreshold;
-				SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters::EConnectionMethod)ClusterConnectionType;
+				SimulationParameters.ClusterConnectionMethod = (Chaos::FClusterCreationParameters::EConnectionMethod)ClusterCollectionType;
 				SimulationParameters.CollisionGroup = CollisionGroup;
 				SimulationParameters.CollisionSampleFraction = CollisionSampleFraction;
 				SimulationParameters.InitialVelocityType = InitialVelocityType;

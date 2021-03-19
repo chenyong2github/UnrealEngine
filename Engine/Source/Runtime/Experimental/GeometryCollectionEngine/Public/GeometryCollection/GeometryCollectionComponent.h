@@ -466,8 +466,8 @@ public:
 	bool bUseSizeSpecificDamageThreshold;
 
 	/** */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
-	EClusterConnectionTypeEnum ClusterConnectionType;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Connection types are defined on the asset now."))
+	EClusterConnectionTypeEnum ClusterConnectionType_DEPRECATED;
 
 	/** */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Collisions")
