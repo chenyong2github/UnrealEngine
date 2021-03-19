@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "SRCPanelTreeNode.h"
+#include "RemoteControlEntity.h"
+#include "SRCPanelExposedEntity.h"
 #include "Misc/Guid.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 
@@ -14,7 +15,7 @@ struct FAssetData;
 DECLARE_DELEGATE_OneParam(FOnUnexposeActor, const FGuid& /**ActorId*/);
 
 /** Represents an actor exposed to remote control. */
-struct SRCPanelExposedActor : public SCompoundWidget, public SRCPanelTreeNode
+struct SRCPanelExposedActor : public SCompoundWidget, public SRCPanelExposedEntity	
 {
 	SLATE_BEGIN_ARGS(SRCPanelExposedActor)
 		: _EditMode(true)
@@ -33,9 +34,13 @@ struct SRCPanelExposedActor : public SCompoundWidget, public SRCPanelTreeNode
 	virtual void Refresh() override;
 	TSharedPtr<SRCPanelExposedActor> AsActor() override;
 	//~ End SRCPanelTreeNode interface
+	
+	//~ SRCPanelExposedEntity Interface
+	virtual TSharedPtr<FRemoteControlEntity> GetEntity() const override;
+	//~ End SRCPanelExposedEntity Interface
 
 	/** Get a weak pointer to the underlying remote control actor. */
-	TWeakPtr<FRemoteControlActor> GetRemoteControlActor() const { return WeakActor; }
+	TWeakPtr<FRemoteControlActor> GetRemoteControlActor() const;
 
 private:
 	/** Regenerate this row's content. */

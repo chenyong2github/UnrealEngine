@@ -251,7 +251,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 				}
 			}
 	
-			return MakeFieldWidget(PanelTreeNode::CreateInvalidWidget());
+			return MakeFieldWidget(CreateInvalidWidget());
 		}
 	}
 

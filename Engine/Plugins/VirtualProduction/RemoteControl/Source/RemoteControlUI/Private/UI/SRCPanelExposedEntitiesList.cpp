@@ -373,12 +373,10 @@ void SRCPanelExposedEntitiesList::SelectActorsInlevel(const TArray<UObject*>& Ob
 void SRCPanelExposedEntitiesList::RegisterEvents()
 {
 	OnPropertyChangedHandle = FCoreUObjectDelegates::OnObjectPropertyChanged.AddSP(this, &SRCPanelExposedEntitiesList::OnObjectPropertyChange);
-	MapChangedHandle = FEditorDelegates::MapChange.AddLambda([this](uint32) { Refresh(); });
 }
 
 void SRCPanelExposedEntitiesList::UnregisterEvents()
 {
-	FEditorDelegates::MapChange.Remove(MapChangedHandle);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.Remove(OnPropertyChangedHandle);
 }
 
@@ -554,7 +552,7 @@ void SRCPanelExposedEntitiesList::OnFieldOrderChanged(const FGuid& GroupId, cons
 	TreeView->RequestListRefresh();
 }
 
-void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const TArray<FGuid>& UpdatedEntities)
+void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const TSet<FGuid>& UpdatedEntities)
 {
 	for (const FGuid& EntityId : UpdatedEntities)
 	{

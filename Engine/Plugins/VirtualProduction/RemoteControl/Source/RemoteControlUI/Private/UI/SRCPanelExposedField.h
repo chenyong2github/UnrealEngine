@@ -6,7 +6,7 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "EditorStyleSet.h"
 #include "RemoteControlField.h"
-#include "SRCPanelTreeNode.h"
+#include "SRCPanelExposedEntity.h"
 #include "SlateFwd.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Layout/SBorder.h"
@@ -26,7 +26,7 @@ class URemoteControlPreset;
 /**
  * Widget that displays an exposed field.
  */
-struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelTreeNode
+struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelExposedEntity
 {
 	SLATE_BEGIN_ARGS(SRCPanelExposedField)
 		: _EditMode(true)
@@ -52,6 +52,10 @@ struct SRCPanelExposedField : public SCompoundWidget, public SRCPanelTreeNode
 	virtual SRCPanelTreeNode::ENodeType GetType() const override;
 	virtual void Refresh() override;
 	//~ End SRCPanelTreeNode Interface
+
+	//~ SRCPanelExposedEntity Interface
+	virtual TSharedPtr<FRemoteControlEntity> GetEntity() const override { return WeakField.Pin(); }
+	//~ End SRCPanelExposedEntity Interface
 
 	/** Get a weak pointer to the underlying remote control field. */
 	TWeakPtr<FRemoteControlField> GetRemoteControlField() const { return WeakField; }

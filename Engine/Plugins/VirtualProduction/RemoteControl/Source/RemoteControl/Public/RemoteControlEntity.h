@@ -44,6 +44,38 @@ struct REMOTECONTROL_API FRemoteControlEntity
 	 */
 	URemoteControlPreset* GetOwner() { return Owner.Get(); }
 
+	/**
+	 * Get all resolved bindings under this entity.
+	 */
+	TArray<UObject*> GetBoundObjects() const;
+
+	/**
+	 * Change the object this exposed entity is currently pointing to.
+	 * @Note You should call CanBindObject before calling this method.
+	 */
+	virtual void BindObject(UObject* InObjectToBind);
+
+	/**
+	 * Return whether this entity supports binding to a given object.
+	 */
+	virtual bool CanBindObject(const UObject* InObjectToBind) const { return true; }
+
+	/**
+	 * Returns whether this entity can be resolved using its bound objects.
+	 */
+	virtual bool IsBound() const;
+
+	/**
+	 * Get an identifier for the underlying entity.
+	 * This is used to figure out if two remote control entities have the same underlying field/actor. 
+	 */
+	virtual uint32 GetUnderlyingEntityIdentifier() const PURE_VIRTUAL(FRemoteControlEntity::GetUnderlyingEntityIdentifier, return 0;);
+
+	/**
+	 *  Get the class of the object that can hold this field.
+	 */
+	virtual UClass* GetSupportedBindingClass() const PURE_VIRTUAL(FRemoteControlEntity::GetSupportedBindingClass, return nullptr;);
+
 	bool operator==(const FRemoteControlEntity& InEntity) const;
 	bool operator==(FGuid InEntityId) const;
 	friend uint32 REMOTECONTROL_API GetTypeHash(const FRemoteControlEntity& InEntity);
@@ -82,6 +114,12 @@ protected:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "RemoteControlEntity")
 	FGuid Id;
 
+	/**
+	 * Delegate called when the label of this entity changes or if one of its binding is updated.
+	 */
+	DECLARE_DELEGATE_OneParam(FOnEntityModified, const FGuid&);
+	FOnEntityModified OnEntityModifiedDelegate;
+	
 	friend class URemoteControlExposeRegistry;
 	friend class URemoteControlPreset;
 };

@@ -7,6 +7,7 @@
 #include "RemoteControlField.h"
 #include "RemoteControlEntity.h"
 #include "UObject/SoftObjectPtr.h"
+#include "Templates/PimplPtr.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "RemoteControlPreset.generated.h"
 
@@ -16,6 +17,7 @@ class IStructDeserializerBackend;
 struct FRCFieldPathInfo;
 struct FRemoteControlActor;
 struct FRemoteControlPresetLayout;
+class FRemoteControlPresetRebindingManager;
 class URemoteControlExposeRegistry;
 class URemoteControlBinding;
 class URemoteControlPreset;
@@ -704,7 +706,7 @@ public:
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetExposedPropertyChanged, URemoteControlPreset* /*Preset*/, const FRemoteControlProperty& /*Property*/);
 	FOnPresetExposedPropertyChanged& OnExposedPropertyChanged() { return OnPropertyChangedDelegate; }
 
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntitiesUpdatedEvent, URemoteControlPreset* /*Preset*/, const TArray<FGuid>& /* Modified Entities */);
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetEntitiesUpdatedEvent, URemoteControlPreset* /*Preset*/, const TSet<FGuid>& /* Modified Entities */);
 	FOnPresetEntitiesUpdatedEvent& OnEntitiesUpdated() { return OnEntitiesUpdatedDelegate; }
 	
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPresetPropertyExposed, URemoteControlPreset* /*Preset*/, FName /*ExposedLabel*/);
@@ -777,6 +779,8 @@ private:
 	void OnPieEvent(bool);
 	void OnReplaceObjects(const TMap<UObject*, UObject*>& ReplacementObjectMap);
 	void OnEndFrame();
+	void OnMapChange(uint32 /*MapChangeFlags*/);
+	
 #endif
 	
 	/** Get a field ptr using it's id. */
@@ -798,6 +802,9 @@ private:
 	
 	/** Try to get a binding and creates a new one if it doesn't exist. */
 	URemoteControlBinding* FindOrAddBinding(const TSoftObjectPtr<UObject>& Object);
+
+	/** Handler called upon an entity being modified. */
+	void OnEntityModified(const FGuid& EntityId);
 	
 private:
 	/** Preset unique ID */
@@ -850,10 +857,13 @@ private:
 	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedCache;
 	TMap<FGuid, FPreObjectModifiedCache> PreObjectModifiedActorCache;
 	/** Cache entities updated during a frame. */
-	TArray<FGuid> PerFrameUpdatedEntities; 
+	TSet<FGuid> PerFrameUpdatedEntities; 
 
 	/** Whether there is an ongoing remote modification happening. */
 	bool bOngoingRemoteModification = false;
+
+	/** Holds manager that handles rebinding unbound entities upon load or map change. */
+	TPimplPtr<FRemoteControlPresetRebindingManager> RebindingManager;
 
 	friend FRemoteControlTarget;
 	friend FRemoteControlPresetLayout;

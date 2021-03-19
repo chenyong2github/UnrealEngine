@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "SRCPanelTreeNode.h"
+
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -50,18 +51,5 @@ TSharedRef<SWidget> PanelTreeNode::MakeNodeWidget(const FMakeNodeWidgetArgs& Arg
 		];
 }
 
-TSharedRef<SWidget> PanelTreeNode::CreateInvalidWidget()
-{
-	return SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Right)
-		[
-			SNew(STextBlock)
-			.ColorAndOpacity(FLinearColor(1.0f, 1.0f, 1.0f, 0.5f))
-			.Text(LOCTEXT("WidgetCannotBeDisplayed", "Widget cannot be displayed."))
-		];
-}
 
 #undef LOCTEXT_NAMESPACE /*RemoteControlPanelNode*/

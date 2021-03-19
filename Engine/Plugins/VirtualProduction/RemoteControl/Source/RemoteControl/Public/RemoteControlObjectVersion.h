@@ -20,6 +20,9 @@ struct FRemoteControlObjectVersion
 
 		// Converted FRemoteControlTarget to URemoteControlBinding, put RCFields in the expose registry.
 		ConvertTargetsToBindings,
+
+		// ExposedEntities can now be rebound.
+		AddedRebindingFunctionality,
 		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

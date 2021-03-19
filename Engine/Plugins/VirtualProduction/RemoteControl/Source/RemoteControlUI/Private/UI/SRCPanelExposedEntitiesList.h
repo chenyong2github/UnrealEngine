@@ -103,7 +103,7 @@ private:
 	void OnFieldAdded(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition);
 	void OnFieldDeleted(const FGuid& GroupId, const FGuid& FieldId, int32 FieldPosition);
 	void OnFieldOrderChanged(const FGuid& GroupId, const TArray<FGuid>& Fields);
-	void OnEntitiesUpdated(URemoteControlPreset*, const TArray<FGuid>& UpdatedEntities);
+	void OnEntitiesUpdated(URemoteControlPreset*, const TSet<FGuid>& UpdatedEntities);
 
 private:
 	/** Holds the fields list view. */
@@ -118,8 +118,6 @@ private:
 	TStrongObjectPtr<URemoteControlPreset> Preset;
 	/** Handle to the delegate called when an object property change is detected. */
 	FDelegateHandle OnPropertyChangedHandle;
-	/** Handle to the delegate called when the map changes. */
-	FDelegateHandle MapChangedHandle;
 	/** Delegate called on selected group change. */
 	FOnSelectionChange OnSelectionChangeDelegate;
 	/** Whether to display the values in the list. */

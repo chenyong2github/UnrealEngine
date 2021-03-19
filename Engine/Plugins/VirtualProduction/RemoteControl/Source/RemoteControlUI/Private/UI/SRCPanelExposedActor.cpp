@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "SRCPanelExposedActor.h"
+
 #include "AssetRegistry/AssetData.h"
 #include "PropertyCustomizationHelpers.h"
 #include "RemoteControlActor.h"
@@ -79,6 +81,16 @@ void SRCPanelExposedActor::Refresh()
 TSharedPtr<SRCPanelExposedActor> SRCPanelExposedActor::AsActor()
 {
 	return SharedThis(this);
+}
+
+TSharedPtr<FRemoteControlEntity> SRCPanelExposedActor::GetEntity() const
+{
+	return WeakActor.Pin();
+}
+
+TWeakPtr<FRemoteControlActor> SRCPanelExposedActor::GetRemoteControlActor() const
+{
+	return WeakActor;
 }
 
 TSharedRef<SWidget> SRCPanelExposedActor::RecreateWidget(const FString& Path)

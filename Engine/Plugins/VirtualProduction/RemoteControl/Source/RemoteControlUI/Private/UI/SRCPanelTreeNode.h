@@ -55,9 +55,6 @@ namespace PanelTreeNode
 
 	/** Create a widget that represents a node in the panel tree hierarchy. */
 	TSharedRef<SWidget> MakeNodeWidget(const FMakeNodeWidgetArgs& Args);
-
-	/** Create an invalid node widget. */
-	TSharedRef<SWidget> CreateInvalidWidget();
 }
 
 class FExposedEntityDragDrop : public FDecoratedDragDropOp
