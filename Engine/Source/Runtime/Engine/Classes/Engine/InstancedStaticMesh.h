@@ -384,6 +384,7 @@ struct FPerInstanceRenderData
 
 	/** Data for culling ray tracing instances */
 	TArray<FVector4> PerInstanceBounds;
+	TArray<FMatrix> PerInstanceTransforms;
 	FBox InstanceLocalBounds;
 	bool bTrackBounds;
 };
