@@ -784,7 +784,7 @@ void FDistanceFieldVolumeTextureAtlas::UpdateAllocations(FRHICommandListImmediat
 
 				}, !GDistanceFieldParallelAtlasUpdate, false);
 
-			if (!bRuntimeDownsampling)
+			if (!bRuntimeDownsampling && UpdateDataArray.Num())
 			{
 				// For some RHIs, this has the advantage of reducing transition barriers
 				RHIEndMultiUpdateTexture3D(UpdateDataArray);
