@@ -11,9 +11,36 @@ class FMetaData
   public:
 	FMetaData(const GS::Guid& InElementId);
 
+	FMetaData(const GS::Guid& InElementId, const TSharedPtr< IDatasmithActorElement >& InActorElement);
+
+	void SetAssociatedElement(const GS::Guid& InElementId, const TSharedPtr< IDatasmithActorElement >& InActorElement)
+	{
+		MetaData->SetAssociatedElement(InActorElement);
+	}
+
+	void SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene);
+
 	void ExportMetaData();
 
 	const TSharedRef< IDatasmithMetaDataElement >& GetMetaData() const { return MetaData; }
+
+	void AddProperty(const TCHAR* InPropKey, EDatasmithKeyValuePropertyType InPropertyValueType, const TCHAR* InValue);
+
+	void AddProperty(const TCHAR* InPropKey, EDatasmithKeyValuePropertyType InPropertyValueType,
+					 const GS::UniString& InValue)
+	{
+		AddProperty(InPropKey, InPropertyValueType, GSStringToUE(InValue));
+	}
+
+	void AddStringProperty(const TCHAR* InPropKey, const TCHAR* InValue)
+	{
+		AddProperty(InPropKey, EDatasmithKeyValuePropertyType::String, InValue);
+	}
+
+	void AddStringProperty(const TCHAR* InPropKey, const GS::UniString& InValue)
+	{
+		AddProperty(InPropKey, EDatasmithKeyValuePropertyType::String, InValue);
+	}
 
   private:
 	void AddMetaDataProperty(API_VariantType variantType, const GS::UniString& PropertyKey,

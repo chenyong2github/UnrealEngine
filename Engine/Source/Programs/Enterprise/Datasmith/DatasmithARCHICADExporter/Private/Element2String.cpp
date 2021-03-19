@@ -998,10 +998,15 @@ void FElement2String::RemoveLeadingAndTrailing(utf8_string* IOString)
 {
 	// Remove trailing spaces
 	size_t IndexChar = IOString->size();
-	while (IndexChar != 0 && IsSpace(IOString->at(--IndexChar)))
+	while (IndexChar != 0)
 	{
+		if (!IsSpace(IOString->at(--IndexChar)))
+		{
+			++IndexChar;
+			break;
+		}
 	}
-	IOString->erase(IndexChar + 1);
+	IOString->erase(IndexChar);
 
 	// Remove leading spaces
 	IndexChar = utf8_string::npos;

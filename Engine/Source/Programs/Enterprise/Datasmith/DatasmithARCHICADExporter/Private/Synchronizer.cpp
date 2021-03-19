@@ -11,6 +11,7 @@
 #endif
 #include "FileManager.h"
 #include "Paths.h"
+#include "Version.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -92,23 +93,32 @@ void FSynchronizer::DoSnapshot(const ModelerAPI::Model& InModel)
 	if (SyncDatabase == nullptr)
 	{
 		SyncDatabase = new FSyncDatabase(GSStringToUE(GetProjectName()), GSStringToUE(GetAddonDataDirectory()));
-	}
-	TSharedRef< IDatasmithScene > Scene = SyncDatabase->GetScene();
 
+#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
+		TSharedRef< IDatasmithScene >	ToBuildWith_4_26(SyncDatabase->GetScene());
+		DatasmithDirectLink.InitializeForScene(ToBuildWith_4_26);
+#else
+		DatasmithDirectLink.InitializeForScene(SyncDatabase->GetScene());
+#endif
+	}
 	// Synchronisation context
 	FSyncContext SyncContext(InModel, *SyncDatabase, &Progression);
 
 	SyncDatabase->SetSceneInfo();
 
-	DatasmithDirectLink.InitializeForScene(Scene);
-
 	SyncDatabase->Synchronize(SyncContext);
 
 	SyncContext.NewPhase(kDebugSaveScene);
-	DumpScene(Scene);
+	DumpScene(SyncDatabase->GetScene());
 
 	SyncContext.NewPhase(kSyncSnapshot);
-	DatasmithDirectLink.UpdateScene(Scene);
+
+#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
+	TSharedRef< IDatasmithScene >	ToBuildWith_4_26(SyncDatabase->GetScene());
+	DatasmithDirectLink.UpdateScene(ToBuildWith_4_26);
+#else
+	DatasmithDirectLink.UpdateScene(SyncDatabase->GetScene());
+#endif
 
 	SyncContext.Stats.Print();
 }

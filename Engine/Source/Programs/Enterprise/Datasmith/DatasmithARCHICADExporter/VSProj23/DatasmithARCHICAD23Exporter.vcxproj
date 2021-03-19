@@ -90,8 +90,7 @@
     </Link>
     <PostBuildEvent>
       <Command>copy ..\..\..\..\..\..\..\Engine\Binaries\Win64\DatasmithSDK\DatasmithSDK.dll $(OutDir)
-copy ..\..\..\..\..\..\..\Engine\Binaries\Win64\DatasmithSDK\turbojpeg.dll $(OutDir)
-</Command>
+copy ..\..\..\..\..\..\..\Engine\Source\ThirdParty\libjpeg-turbo\bin\Win64\turbojpeg.dll $(OutDir)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -132,8 +131,7 @@ copy ..\..\..\..\..\..\..\Engine\Binaries\Win64\DatasmithSDK\turbojpeg.dll $(Out
     </Link>
     <PostBuildEvent>
       <Command>copy ..\..\..\..\..\..\..\Engine\Binaries\Win64\DatasmithSDK\DatasmithSDK.dll $(OutDir)
-copy ..\..\..\..\..\..\..\Engine\Binaries\Win64\DatasmithSDK\turbojpeg.dll $(OutDir)
-</Command>
+copy ..\..\..\..\..\..\..\Engine\Source\ThirdParty\libjpeg-turbo\bin\Win64\turbojpeg.dll $(OutDir)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

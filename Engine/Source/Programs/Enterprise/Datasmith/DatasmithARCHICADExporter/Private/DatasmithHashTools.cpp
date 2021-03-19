@@ -3,6 +3,7 @@
 #include "DatasmithHashTools.h"
 
 #include "DatasmithMesh.h"
+#include "Version.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -207,7 +208,11 @@ void FDatasmithHashTools::ComputeDatasmithMeshHash(const FDatasmithMesh& Mesh)
 	TUpdate(LODsCount);
 	for (int32 IdxLOD = 0; IdxLOD < LODsCount; ++IdxLOD)
 	{
+#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
 		ComputeDatasmithMeshHash(Mesh.GetLOD(IdxLOD));
+#else
+		ComputeDatasmithMeshHash(*Mesh.GetLOD(IdxLOD));
+#endif
 	}
 }
 

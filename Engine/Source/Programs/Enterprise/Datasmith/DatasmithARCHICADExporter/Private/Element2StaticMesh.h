@@ -17,7 +17,11 @@
 
 BEGIN_NAMESPACE_UE_AC
 
-#define DUMP_GEOMETRY 0 // For debug purpose
+#if defined(DEBUG)
+	#define DUMP_GEOMETRY 1 // For debug purpose
+#else
+	#define DUMP_GEOMETRY 0
+#endif
 
 class FSyncContext;
 
@@ -40,10 +44,21 @@ class FElement2StaticMesh
 	// Return the numbers of bugs detected during conversion
 	unsigned int GetBugsCount() const { return BugsCount; }
 
+	// Return true of we have at least on face.
+	bool HasGeometry() const { return GlobalMaterialsUsed.size() != 0; }
+
 #if DUMP_GEOMETRY
+	// Return a mesh dump
+	static utf8_string MeshAsString(const FDatasmithMesh& Mesh);
+
+	// Dump a mesh
 	static void DumpMesh(const FDatasmithMesh& Mesh);
 
-	static void DumpMeshElement(const TSharedPtr< IDatasmithMeshElement >& Mesh);
+	// Return a mesh element dump
+	static utf8_string MeshElementAsString(const IDatasmithMeshElement& Mesh);
+
+	// Dump a mesh element
+	static void DumpMeshElement(const IDatasmithMeshElement& Mesh);
 #endif
 
   private:
@@ -114,7 +129,26 @@ class FElement2StaticMesh
 	{
 		bool operator()(const ModelerAPI::TextureCoordinate& UVA, const ModelerAPI::TextureCoordinate& UVB) const
 		{
+#if 1
 			return UVA.u < UVB.u || (UVA.u == UVB.u && UVA.v < UVB.v);
+#else
+			// Using version with tolerance make Twinmotion hang in FStaticMeshOperations::ComputeTangentsAndNormals
+			const double tolerance = KINDA_SMALL_NUMBER;
+			if (UVA.u + tolerance < UVB.u)
+			{
+				return true;
+			}
+			if (UVA.u - tolerance > UVB.u)
+			{
+				return false;
+			}
+
+			if (UVA.v + tolerance < UVB.v)
+			{
+				return true;
+			}
+			return false;
+#endif
 		}
 	};
 

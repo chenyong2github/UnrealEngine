@@ -23,6 +23,7 @@ void FSyncContext::FStats::ResetAll()
 	TotalElementsModified = 0;
 	TotalOwnerCreated = 0;
 	TotalActorsCreated = 0;
+	TotalEmptyActorsCreated = 0;
 	TotalMeshesCreated = 0;
 	TotalMeshesReused = 0;
 	TotalBugsCount = 0;
@@ -33,8 +34,9 @@ void FSyncContext::FStats::Print()
 #if UE_AC_DO_STATS
 	UE_AC_TraceF("AC Elements %d, AC Elements with geometry %d, AC Elements modified %d\n", int(TotalElements),
 				 int(TotalElementsWithGeometry), int(TotalElementsModified));
-	UE_AC_TraceF("Owner created %d, Actors created %d, Meshes created %d, Meshes reused %d\n", int(TotalOwnerCreated),
-				 int(TotalActorsCreated), int(TotalMeshesCreated), int(TotalMeshesReused));
+	UE_AC_TraceF("Owner %d, Mesh Actors %d, Meshes %d, Empty Actors %d, Meshes reused %d\n", int(TotalOwnerCreated),
+				 int(TotalActorsCreated), int(TotalMeshesCreated), int(TotalEmptyActorsCreated),
+				 int(TotalMeshesReused));
 	if (TotalBugsCount != 0)
 	{
 		UE_AC_TraceF("Conversion bug count=%d\n", int(TotalBugsCount));

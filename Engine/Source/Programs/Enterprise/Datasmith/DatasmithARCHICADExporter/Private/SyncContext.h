@@ -51,6 +51,7 @@ class FSyncContext
 		TAtomicInt			  TotalElementsModified;
 		TAtomicInt			  TotalOwnerCreated;
 		TAtomicInt			  TotalActorsCreated;
+		TAtomicInt			  TotalEmptyActorsCreated;
 		TAtomicInt			  TotalMeshesCreated;
 		TAtomicInt			  TotalMeshesReused;
 		TAtomicInt			  TotalBugsCount;

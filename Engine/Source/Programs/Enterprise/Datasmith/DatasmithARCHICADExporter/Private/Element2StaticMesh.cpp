@@ -78,83 +78,105 @@ FString FElement2StaticMesh::ComputeMeshElementName(const TCHAR* InMeshFileHash)
 
 #if DUMP_GEOMETRY
 
-void FElement2StaticMesh::DumpMesh(const FDatasmithMesh& Mesh)
+// Return a mesh dump
+utf8_string FElement2StaticMesh::MeshAsString(const FDatasmithMesh& Mesh)
 {
-	static bool DoDump = true;
-	if (DoDump)
-	{
-		UE_AC_TraceF("Mesh Name = %s\n", TCHAR_TO_UTF8(Mesh.GetName()));
+	utf8_string Dump(Utf8StringFormat("Mesh Name = %s\n", TCHAR_TO_UTF8(Mesh.GetName())));
 
-		int32 VerticesCount = Mesh.GetVerticesCount();
-		UE_AC_TraceF("\tVertices Count = %d\n", VerticesCount);
-		for (int32 IdxVertice = 0; IdxVertice < VerticesCount; ++IdxVertice)
+	int32 VerticesCount = Mesh.GetVerticesCount();
+	Dump += Utf8StringFormat("\tVertices Count = %d\n", VerticesCount);
+	for (int32 IdxVertice = 0; IdxVertice < VerticesCount; ++IdxVertice)
+	{
+		FVector Vertex = Mesh.GetVertex(IdxVertice);
+		Dump += Utf8StringFormat("\t\tVertice[%d] = {%f, %f, %f}\n", IdxVertice, Vertex.X, Vertex.Y, Vertex.Z);
+	}
+
+	int32 UVChannelCount = Mesh.GetUVChannelsCount();
+	Dump += Utf8StringFormat("\tUV Channels Count = %d\n", UVChannelCount);
+	for (int32 IdxChannel = 0; IdxChannel < UVChannelCount; ++IdxChannel)
+	{
+		int32 UVCount = Mesh.GetUVCount(IdxChannel);
+		Dump += Utf8StringFormat("\t\tChannels[%d] Count = %d\n", IdxChannel, UVCount);
+		for (int32 IdxUV = 0; IdxUV < UVCount; ++IdxUV)
 		{
-			FVector Vertex = Mesh.GetVertex(IdxVertice);
-			UE_AC_TraceF("\t\tVertice[%d] = {%f, %f, %f}\n", IdxVertice, Vertex.X, Vertex.Y, Vertex.Z);
+			FVector2D UV = Mesh.GetUV(IdxChannel, IdxUV);
+			Dump += Utf8StringFormat("\t\t\tChannels[%d][%d] UV = {%f, %f}\n", IdxChannel, IdxUV, UV.X, UV.Y);
+		}
+	}
+
+	int32 FacesCount = Mesh.GetFacesCount();
+	Dump += Utf8StringFormat("\tFaces Count = %d\n", FacesCount);
+	for (int32 IdxFace = 0; IdxFace < FacesCount; ++IdxFace)
+	{
+		int32 Vertex1;
+		int32 Vertex2;
+		int32 Vertex3;
+		int32 MaterialId;
+		Mesh.GetFace(IdxFace, Vertex1, Vertex2, Vertex3, MaterialId);
+		Dump += Utf8StringFormat("\t\tVertex[%d] = {%d, %d, %d} Mat = %d\n", IdxFace, Vertex1, Vertex2, Vertex3,
+								 MaterialId);
+		FVector Point1 = Mesh.GetVertex(Vertex1);
+		FVector Point2 = Mesh.GetVertex(Vertex2);
+		FVector Point3 = Mesh.GetVertex(Vertex3);
+		Dump += Utf8StringFormat("\t\t\t\t{{%f, %f, %f}, {%f, %f, %f}, {%f, %f, %f}}\n", Point1.X, Point1.Y, Point1.Z,
+								 Point2.X, Point2.Y, Point2.Z, Point3.X, Point3.Y, Point3.Z);
+
+		for (int32 IdxComponent = 0; IdxComponent < 3; IdxComponent++)
+		{
+			FVector Normal = Mesh.GetNormal(IdxFace * 3 + IdxComponent);
+			Dump += Utf8StringFormat("\t\t\tNormal[%d][%d] = {%f, %f, %f}\n", IdxFace, IdxComponent, Normal.X, Normal.Y,
+									 Normal.Z);
 		}
 
-		int32 UVChannelCount = Mesh.GetUVChannelsCount();
-		UE_AC_TraceF("\tUV Channels Count = %d\n", UVChannelCount);
 		for (int32 IdxChannel = 0; IdxChannel < UVChannelCount; ++IdxChannel)
 		{
-			int32 UVCount = Mesh.GetUVCount(IdxChannel);
-			UE_AC_TraceF("\t\tChannels[%d] Count = %d\n", IdxChannel, UVCount);
-			for (int32 IdxUV = 0; IdxUV < UVCount; ++IdxUV)
-			{
-				FVector2D UV = Mesh.GetUV(IdxChannel, IdxUV);
-				UE_AC_TraceF("\t\t\tChannels[%d][%d] UV = {%f, %f}\n", IdxChannel, IdxUV, UV.X, UV.Y);
-			}
+			Mesh.GetFaceUV(IdxFace, IdxChannel, Vertex1, Vertex2, Vertex3);
+			FVector2D UV1 = Mesh.GetUV(IdxChannel, Vertex1);
+			FVector2D UV2 = Mesh.GetUV(IdxChannel, Vertex2);
+			FVector2D UV3 = Mesh.GetUV(IdxChannel, Vertex3);
+			Dump += Utf8StringFormat("\t\t\tUV[%d][%d] = {%d, %d, %d} === {{%f, %f}, {%f, %f}, {%f, %f}}\n", IdxFace,
+									 IdxChannel, Vertex1, Vertex2, Vertex3, UV1.X, UV1.Y, UV2.X, UV2.Y, UV3.X, UV3.Y);
 		}
+	}
 
-		int32 FacesCount = Mesh.GetFacesCount();
-		UE_AC_TraceF("\tFaces Count = %d\n", FacesCount);
-		for (int32 IdxFace = 0; IdxFace < FacesCount; ++IdxFace)
-		{
-			int32 Vertex1;
-			int32 Vertex2;
-			int32 Vertex3;
-			int32 MaterialId;
-			Mesh.GetFace(IdxFace, Vertex1, Vertex2, Vertex3, MaterialId);
-			UE_AC_TraceF("\t\tVertex[%d] = {%d, %d, %d} Mat = %d\n", IdxFace, Vertex1, Vertex2, Vertex3, MaterialId);
-			FVector Point1 = Mesh.GetVertex(Vertex1);
-			FVector Point2 = Mesh.GetVertex(Vertex2);
-			FVector Point3 = Mesh.GetVertex(Vertex3);
-			UE_AC_TraceF("\t\t\t\t{{%f, %f, %f}, {%f, %f, %f}, {%f, %f, %f}}\n", Point1.X, Point1.Y, Point1.Z, Point2.X,
-						 Point2.Y, Point2.Z, Point3.X, Point3.Y, Point3.Z);
+	return Dump;
+}
 
-			for (int32 IdxComponent = 0; IdxComponent < 3; IdxComponent++)
-			{
-				FVector Normal = Mesh.GetNormal(IdxFace * 3 + IdxComponent);
-				UE_AC_TraceF("\t\t\tNormal[%d][%d] = {%f, %f, %f}\n", IdxFace, IdxComponent, Normal.X, Normal.Y,
-							 Normal.Z);
-			}
-
-			for (int32 IdxChannel = 0; IdxChannel < UVChannelCount; ++IdxChannel)
-			{
-				Mesh.GetFaceUV(IdxFace, IdxChannel, Vertex1, Vertex2, Vertex3);
-				FVector2D UV1 = Mesh.GetUV(IdxChannel, Vertex1);
-				FVector2D UV2 = Mesh.GetUV(IdxChannel, Vertex2);
-				FVector2D UV3 = Mesh.GetUV(IdxChannel, Vertex3);
-				UE_AC_TraceF("\t\t\tUV[%d][%d] = {%d, %d, %d} === {{%f, %f}, {%f, %f}, {%f, %f}}\n", IdxFace,
-							 IdxChannel, Vertex1, Vertex2, Vertex3, UV1.X, UV1.Y, UV2.X, UV2.Y, UV3.X, UV3.Y);
-			}
-		}
+// Dump a mesh
+void FElement2StaticMesh::DumpMesh(const FDatasmithMesh& Mesh)
+{
+	static bool DoDump = false;
+	if (DoDump)
+	{
+		UE_AC_TraceF("%s", MeshAsString(Mesh).c_str());
 	}
 }
 
-void FElement2StaticMesh::DumpMeshElement(const TSharedPtr< IDatasmithMeshElement >& Mesh)
+// Return a mesh element dump
+utf8_string FElement2StaticMesh::MeshElementAsString(const IDatasmithMeshElement& Mesh)
 {
-	static bool DoDump = true;
+	utf8_string Dump;
+
+	Dump += Utf8StringFormat("Mesh \"%s\"\n", TCHAR_TO_UTF8(Mesh.GetName()));
+	Dump += Utf8StringFormat("\tLabel = \"%s\"\n", TCHAR_TO_UTF8(Mesh.GetLabel()));
+	Dump += Utf8StringFormat("\tFile = \"%s\"\n", TCHAR_TO_UTF8(Mesh.GetFile()));
+	const FVector Dim = Mesh.GetDimensions();
+	Dump += Utf8StringFormat("\tDimensions = {%f, %f, %f}\n", Dim.X, Dim.Y, Dim.Z);
+	Dump += Utf8StringFormat("\tArea = %f\n", Mesh.GetArea());
+	Dump +=
+		Utf8StringFormat("\tWidth = %f, Height = %f, Depth = %f\n", Mesh.GetWidth(), Mesh.GetHeight(), Mesh.GetDepth());
+	Dump += Utf8StringFormat("\tMaterial Slot Count = %d\n", Mesh.GetMaterialSlotCount());
+
+	return Dump;
+}
+
+// Dump a mesh element
+void FElement2StaticMesh::DumpMeshElement(const IDatasmithMeshElement& Mesh)
+{
+	static bool DoDump = false;
 	if (DoDump)
 	{
-		UE_AC_TraceF("Mesh \"%s\"\n", TCHAR_TO_UTF8(Mesh->GetName()));
-		UE_AC_TraceF("\tLabel = \"%s\"\n", TCHAR_TO_UTF8(Mesh->GetLabel()));
-		UE_AC_TraceF("\tFile = \"%s\"\n", TCHAR_TO_UTF8(Mesh->GetFile()));
-		const FVector Dim = Mesh->GetDimensions();
-		UE_AC_TraceF("\tDimensions = {%f, %f, %f}\n", Dim.X, Dim.Y, Dim.Z);
-		UE_AC_TraceF("\tArea = %f\n", Mesh->GetArea());
-		UE_AC_TraceF("\tWidth = %f, Height = %f, Depth = %f\n", Mesh->GetWidth(), Mesh->GetHeight(), Mesh->GetDepth());
-		UE_AC_TraceF("\tMaterial Slot Count = %d\n", Mesh->GetMaterialSlotCount());
+		UE_AC_TraceF("%s", MeshElementAsString(Mesh).c_str());
 	}
 }
 
@@ -237,6 +259,28 @@ void FElement2StaticMesh::AddVertex(GS::Int32 InBodyVertex, const Geometry::Vect
 			CurrentTriangle.V2 = ObjectVertex;
 			CurrentTriangle.UV2 = ObjectUV;
 			CurrentTriangle.Normals[2] = CurrentNormal;
+#if defined(DEBUG)
+			if (CurrentTriangle.V0 == CurrentTriangle.V1 || CurrentTriangle.V0 == CurrentTriangle.V2 ||
+				CurrentTriangle.V1 == CurrentTriangle.V2)
+			{
+				static bool bVertexConfusedSignaled = false;
+				if (!bVertexConfusedSignaled)
+				{
+					bVertexConfusedSignaled = true;
+					UE_AC_DebugF("FElement2StaticMesh::AddVertex - Triangle have 2 vertex confused\n");
+				}
+			}
+			if (CurrentTriangle.UV0 == CurrentTriangle.UV1 || CurrentTriangle.UV0 == CurrentTriangle.UV2 ||
+				CurrentTriangle.UV1 == CurrentTriangle.UV2)
+			{
+				static bool bUVConfusedSignaled = false;
+				if (!bUVConfusedSignaled)
+				{
+					bUVConfusedSignaled = true;
+					UE_AC_DebugF("FElement2StaticMesh::AddVertex - Triangle have 2 UV confused\n");
+				}
+			}
+#endif
 			Triangles.push_back(CurrentTriangle);
 		}
 		CurrentTriangle.V1 = ObjectVertex;
@@ -284,6 +328,14 @@ void FElement2StaticMesh::InitPolygonMaterial()
 
 void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element& InModelElement)
 {
+#if 0
+	static GS::Guid BreakGuid("0A0BFAC4-B753-1144-A733-1E73939B3ECB");
+	if (InModelElement.GetElemGuid() == BreakGuid)
+	{
+		UE_AC_DebugF("FElement2StaticMesh::AddElementGeometry - Break element found\n");
+	}
+#endif
+
 	// Collect geometry from element's bodies
 	GS::Int32 NbBodies = InModelElement.GetMeshBodyCount();
 	UE_AC_STAT(SyncContext.Stats.BodiesStats.Inc(NbBodies));
@@ -339,6 +391,11 @@ void FElement2StaticMesh::AddElementGeometry(const ModelerAPI::Element& InModelE
 				}
 			}
 		}
+	}
+	if (!HasGeometry())
+	{
+		UE_AC_VerboseF("FElement2StaticMesh::AddElementGeometry - No material used for element %s\n",
+					   InModelElement.GetElemGuid().ToUniString().ToUtf8());
 	}
 }
 
@@ -487,7 +544,7 @@ TSharedPtr< IDatasmithMeshElement > FElement2StaticMesh::CreateMesh()
 	}
 
 #if DUMP_GEOMETRY
-	DumpMeshElement(MeshElement);
+	DumpMeshElement(*MeshElement);
 #endif
 
 	return MeshElement;

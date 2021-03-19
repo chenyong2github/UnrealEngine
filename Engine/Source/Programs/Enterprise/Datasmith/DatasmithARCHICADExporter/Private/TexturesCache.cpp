@@ -105,7 +105,8 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 	{
 		GS::UniString fp(AcTexture.GetFingerprint());
 		Texture.Fingerprint = GSGuid2APIGuid(GS::Guid(fp));
-		UE_AC_VerboseF("Texture name \"%s\" missing: ACFingerprint=%s\n", AcTexture.GetName().ToUtf8(), fp.ToUtf8());
+		UE_AC_DebugF("FTexturesCache::GetTexture - Texture name \"%s\" missing: ACFingerprint=%s\n",
+					 AcTexture.GetName().ToUtf8(), fp.ToUtf8());
 	}
 
 	GS::UniString						   Fingerprint = APIGuidToString(Texture.Fingerprint);
@@ -114,7 +115,15 @@ const FTexturesCache::FTexturesCacheElem& FTexturesCache::GetTexture(const FSync
 	Texture.Element = BaseTexture;
 	BaseTexture->SetLabel(GSStringToUE(AcTexture.GetName()));
 	BaseTexture->SetFile(GSStringToUE(Texture.TexturePath));
-	BaseTexture->SetFileHash(BaseTexture->CalculateElementHash(false));
+	if (*BaseTexture->GetFile() != 0)
+	{
+		FMD5Hash FileHash = FMD5Hash::HashFile(BaseTexture->GetFile());
+		BaseTexture->SetFileHash(FileHash);
+	}
+	else
+	{
+		BaseTexture->SetFile(TEXT("Missing_Texture_File"));
+	}
 	InSyncContext.GetScene().AddTexture(BaseTexture);
 
 	return Texture;

@@ -8,6 +8,11 @@
 
 #include <vector>
 
+namespace ModelerAPI
+{
+class Transformation;
+}
+
 BEGIN_NAMESPACE_UE_AC
 
 class FElementID;
@@ -26,6 +31,10 @@ class FSyncData
 	class FCameraSet;
 	class FCamera;
 	class FLight;
+
+	class FHotLinksRoot;
+	class FHotLinkNode;
+	class FHotLinkInstance;
 
 	// Constructor
 	FSyncData(const GS::Guid& InGuid);
@@ -71,6 +80,8 @@ class FSyncData
 	void SetParent(FSyncData* InParent);
 
 	bool HasParent() const { return Parent != nullptr; }
+
+	void SetDefaultParent(const FElementID& InElementID);
 
 	// Working class that contain data to process elements and it's childs
 	class FProcessInfo;
@@ -142,6 +153,11 @@ class FSyncData::FScene : public FSyncData
   protected:
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
+	// Delete this sync data
+	virtual void DeleteMe(FSyncDatabase* IOSyncDatabase) override;
+
+	void UpdateInfo(FProcessInfo* IOProcessInfo);
+
 	// Add an child actor to my scene
 	virtual void AddChildActor(const TSharedPtr< IDatasmithActorElement >& InActor) override;
 
@@ -156,6 +172,12 @@ class FSyncData::FScene : public FSyncData
 
 	// The mesh element if this element is a mesh actor
 	TSharedPtr< IDatasmithScene > SceneElement;
+
+	// Empty actor that will contain matedata info on the scene
+	TSharedPtr< IDatasmithActorElement > SceneInfoActorElement;
+
+	// The mesh element if this element is a mesh actor
+	TSharedPtr< IDatasmithMetaDataElement > SceneInfoMetaData;
 };
 
 class FSyncData::FActor : public FSyncData
@@ -183,6 +205,8 @@ class FSyncData::FActor : public FSyncData
 
 	// Add meta data
 	void AddTags(const FElementID& InElementID);
+
+	void ReplaceMetaData(IDatasmithScene& IOScene, const TSharedPtr< IDatasmithMetaDataElement >& InNewMetaData);
 
 	TSharedPtr< IDatasmithActorElement > ActorElement;
 
@@ -220,7 +244,7 @@ class FSyncData::FElement : public FSyncData::FActor
 	virtual void Process(FProcessInfo* IOProcessInfo) override;
 
 	// Create/Update mesh of this element
-	void CreateMesh(FElementID* IOElementID);
+	bool CreateMesh(FElementID* IOElementID, const ModelerAPI::Transformation& InLocalToWorld);
 
 	// Rebuild the meta data of this element
 	void UpdateMetaData(IDatasmithScene& IOScene);
@@ -311,6 +335,46 @@ class FSyncData::FLight : public FSyncData::FActor
 	FLinearColor			Color;
 	FVector					Position;
 	FQuat					Rotation;
+};
+
+class FSyncData::FHotLinksRoot : public FSyncData::FActor
+{
+  public:
+	// Guid given to the current view.
+	static const GS::Guid HotLinksRootGUID;
+
+	FHotLinksRoot()
+		: FSyncData::FActor(HotLinksRootGUID)
+	{
+	}
+
+  protected:
+	virtual void Process(FProcessInfo* IOProcessInfo) override;
+};
+
+class FSyncData::FHotLinkNode : public FSyncData::FActor
+{
+  public:
+	FHotLinkNode(const GS::Guid& InGuid)
+		: FSyncData::FActor(InGuid)
+	{
+	}
+
+  protected:
+	virtual void Process(FProcessInfo* IOProcessInfo) override;
+};
+
+class FSyncData::FHotLinkInstance : public FSyncData::FActor
+{
+  public:
+	FHotLinkInstance(const GS::Guid& InGuid, FSyncDatabase* IOSyncDatabase);
+
+	const API_Tranmat& GetTransformation() { return Transformation; }
+
+  protected:
+	virtual void Process(FProcessInfo* IOProcessInfo) override;
+
+	API_Tranmat Transformation;
 };
 
 END_NAMESPACE_UE_AC

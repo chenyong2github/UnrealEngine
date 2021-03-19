@@ -2,6 +2,7 @@
 
 #include "MetaData.h"
 #include "ElementTools.h"
+#include "Version.h"
 
 BEGIN_NAMESPACE_UE_AC
 
@@ -9,11 +10,108 @@ static const GS::UniString StringTrue("True");
 static const GS::UniString StringFalse("False");
 static const GS::UniString StringUndefined("Undefined");
 
+inline bool IsEqual(const TSharedPtr< IDatasmithKeyValueProperty >& InProperty1,
+					const TSharedPtr< IDatasmithKeyValueProperty >& InProperty2)
+{
+	if (!InProperty1.IsValid())
+	{
+		return !InProperty2.IsValid();
+	}
+	return InProperty1->GetPropertyType() == InProperty2->GetPropertyType() &&
+	FCString::Strcmp(InProperty1->GetName(), InProperty2->GetName()) == 0 &&
+	FCString::Strcmp(InProperty1->GetValue(), InProperty2->GetValue()) == 0;
+}
+
+inline bool IsEqual(const TSharedPtr< IDatasmithMetaDataElement >& InMetaData1,
+					const TSharedPtr< IDatasmithMetaDataElement >& InMetaData2)
+{
+	if (!InMetaData1.IsValid())
+	{
+		return !InMetaData2.IsValid();
+	}
+	if (InMetaData1->GetAssociatedElement() != InMetaData2->GetAssociatedElement() ||
+		FCString::Strcmp(InMetaData1->GetName(), InMetaData2->GetName()) != 0)
+	{
+		return false;
+	}
+	int32 PropertiesCount1 = InMetaData1->GetPropertiesCount();
+	int32 PropertiesCount2 = InMetaData2->GetPropertiesCount();
+	if (PropertiesCount1 != PropertiesCount2)
+	{
+		return false;
+	}
+	for (int32 IndexProperty = 0; IndexProperty < PropertiesCount1; ++IndexProperty)
+	{
+		if (!IsEqual(InMetaData1->GetProperty(IndexProperty), InMetaData2->GetProperty(IndexProperty)))
+		{
+			return false;
+		}
+	}
+
+	return true;
+}
+
 FMetaData::FMetaData(const GS::Guid& InElementId)
 	: ElementId(InElementId)
 	, MetaData(FDatasmithSceneFactory::CreateMetaData(TEXT("")))
 {
 	MetaData->SetName(*FString::Printf(TEXT("MetaData_%s"), GSStringToUE(ElementId.ToUniString())));
+}
+
+FMetaData::FMetaData(const GS::Guid& InElementId, const TSharedPtr< IDatasmithActorElement >& InActorElement)
+: ElementId(InElementId)
+, MetaData(FDatasmithSceneFactory::CreateMetaData(TEXT("")))
+{
+	UE_AC_Assert(InActorElement.IsValid());
+	UE_AC_Assert(FCString::Strcmp(GSStringToUE(ElementId.ToUniString()), InActorElement->GetName()) == 0);
+	MetaData->SetName(*FString::Printf(TEXT("MetaData_%s"), InActorElement->GetName()));
+	MetaData->SetAssociatedElement(InActorElement);
+}
+
+void FMetaData::SetOrUpdate(TSharedPtr< IDatasmithMetaDataElement >* IOPtr, IDatasmithScene* IOScene)
+{
+	UE_AC_TestPtr(IOPtr);
+	if (IOPtr->IsValid())
+	{
+		TSharedRef< IDatasmithMetaDataElement > CurrentMetaData = IOPtr->ToSharedRef();
+		CurrentMetaData->SetAssociatedElement(MetaData->GetAssociatedElement());
+		if (!IsEqual(CurrentMetaData, MetaData))
+		{
+#if ENGINE_MAJOR_VERSION == 4 && ENGINE_MINOR_VERSION == 26
+			// We replace because on 4.26 there no way to remove/replace properties
+			IOScene->RemoveMetaData(CurrentMetaData);
+			*IOPtr = MetaData;
+			IOScene->AddMetaData(MetaData);
+#else
+			CurrentMetaData->ResetProperties();
+			int32 PropertiesCount = MetaData->GetPropertiesCount();
+			for (int32 IndexProperty = 0; IndexProperty < PropertiesCount; ++IndexProperty)
+			{
+				const TSharedPtr< IDatasmithKeyValueProperty >& Property = MetaData->GetProperty(IndexProperty);
+				TSharedRef< IDatasmithKeyValueProperty >		NewProperty =
+				FDatasmithSceneFactory::CreateKeyValueProperty(Property->GetName());
+				NewProperty->SetPropertyType(Property->GetPropertyType());
+				NewProperty->SetValue(Property->GetValue());
+				CurrentMetaData->AddProperty(NewProperty);
+			}
+#endif
+		}
+	}
+	else
+	{
+		*IOPtr = MetaData;
+		IOScene->AddMetaData(MetaData);
+	}
+}
+
+void FMetaData::AddProperty(const TCHAR* InPropKey, EDatasmithKeyValuePropertyType InPropertyValueType,
+							const TCHAR* InValue)
+{
+	TSharedRef< IDatasmithKeyValueProperty > MetaDataProperty =
+		FDatasmithSceneFactory::CreateKeyValueProperty(InPropKey);
+	MetaDataProperty->SetValue(InValue);
+	MetaDataProperty->SetPropertyType(InPropertyValueType);
+	MetaData->AddProperty(MetaDataProperty);
 }
 
 void FMetaData::ExportMetaData()
