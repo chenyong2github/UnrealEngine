@@ -149,6 +149,7 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 	.ReadEntityIDs()
 	.Read(BuiltInComponents->BoundObject)
 	.Read(BuiltInComponents->PropertyBinding)
+	.FilterNone({ BuiltInComponents->BlendChannelOutput })
 	.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 	.Iterate_PerAllocation(&Linker->EntityManager, VisitNewProperties);
 
@@ -257,11 +258,11 @@ void UMovieScenePropertyInstantiatorSystem::ProcessInvalidatedProperties(const T
 					Blender->ReleaseBlendChannel(PropertyInfo->BlendChannel);
 				}
 				Linker->EntityManager.AddComponents(PropertyInfo->PropertyEntityID, BuiltInComponents->FinishedMask);
+			}
 
-				if (PropertyInfo->EmptyChannels.Find(true) != INDEX_NONE)
-				{
-					--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumPartialProperties;
-				}
+			if (PropertyInfo->EmptyChannels.Find(true) != INDEX_NONE)
+			{
+				--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumPartialProperties;
 			}
 
 			--PropertyStats[PropertyInfo->PropertyDefinitionIndex].NumProperties;
