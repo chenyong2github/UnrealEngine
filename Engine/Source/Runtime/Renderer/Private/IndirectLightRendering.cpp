@@ -344,6 +344,8 @@ bool FDeferredShadingSceneRenderer::ShouldDoReflectionEnvironment() const
 		&& ViewFamily.EngineShowFlags.ReflectionEnvironment;
 }
 
+#if RHI_RAYTRACING
+
 bool ShouldRenderPluginRayTracingGlobalIllumination()
 {
 	if(!CVarGlobalIlluminationPluginEnable.GetValueOnRenderThread())
@@ -364,6 +366,8 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingGlobalIlluminationPlugin(co
 	FGlobalIlluminationPluginDelegates::FPrepareRayTracing& Delegate = FGlobalIlluminationPluginDelegates::PrepareRayTracing();
 	Delegate.Broadcast(View, OutRayGenShaders);
 }
+
+#endif
 
 void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
