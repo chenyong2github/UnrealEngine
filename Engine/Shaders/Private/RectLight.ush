@@ -584,23 +584,37 @@ FSphericalRect BuildSphericalRect( FRect Rect )
 	return SphericalRect;
 }
 
-float3 UniformSampleSphericalRect( float2 E, FSphericalRect Rect )
+struct FSphericalRectSample {
+	float3 Direction;
+	float2 UV;
+};
+
+FSphericalRectSample UniformSampleSphericalRectWithUV(float2 E, FSphericalRect Rect)
 {
 	float au = E.x * Rect.SolidAngle + Rect.k;
-	float fu = ( cos(au) * Rect.b0 - Rect.b1 ) / sin(au);
-	float cu = rsqrt( fu*fu + Rect.b0 * Rect.b0 ) * ( fu > 0 ? 1 : -1 );
+	float fu = (cos(au) * Rect.b0 - Rect.b1) / sin(au);
+	float cu = rsqrt(fu * fu + Rect.b0 * Rect.b0) * (fu > 0 ? 1 : -1);
 	cu = clamp(cu, -1, 1);				// avoid NaNs
 
-	float xu = -(cu * Rect.z0) * rsqrt(1 - cu*cu);
-	xu = clamp( xu, Rect.x0, Rect.x1 );	// avoid Infs
+	float xu = -(cu * Rect.z0) * rsqrt(1 - cu * cu);
+	xu = clamp(xu, Rect.x0, Rect.x1);	// avoid Infs
 
-	float d = sqrt( xu*xu + Rect.z0 * Rect.z0 );
-	float h0 = Rect.y0 * rsqrt( d*d + Rect.y0 * Rect.y0 );
-	float h1 = Rect.y1 * rsqrt( d*d + Rect.y1 * Rect.y1 );
+	float d = sqrt(xu * xu + Rect.z0 * Rect.z0);
+	float h0 = Rect.y0 * rsqrt(d * d + Rect.y0 * Rect.y0);
+	float h1 = Rect.y1 * rsqrt(d * d + Rect.y1 * Rect.y1);
 	float hv = h0 + E.y * (h1 - h0);
-	float yv = (hv*hv < 1 - 1e-6) ? (hv * d) * rsqrt( 1 - hv*hv ) : Rect.y1;
+	float yv = (hv * hv < 1 - 1e-6) ? (hv * d) * rsqrt(1 - hv * hv) : Rect.y1;
 
-	return mul( float3( xu, yv, Rect.z0 ), Rect.Axis );
+	FSphericalRectSample Result;
+	Result.Direction = mul(float3(xu, yv, Rect.z0), Rect.Axis);
+	Result.UV = float2(xu - Rect.x0, yv - Rect.y0) / float2(Rect.x1 - Rect.x0, Rect.y1 - Rect.y0);
+
+	return Result;
+}
+
+float3 UniformSampleSphericalRect( float2 E, FSphericalRect Rect )
+{
+	return UniformSampleSphericalRectWithUV(E, Rect).Direction;
 }
 
 float3 RectIrradianceRef( float3 N, FRect Rect, out float BaseIrradiance, out float NoL )

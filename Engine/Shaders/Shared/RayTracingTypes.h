@@ -23,8 +23,9 @@ struct FPathTracingLight {
 	float   FalloffExponent; // for non-inverse square decay lights only
 	int32   IESTextureSlice;
 	uint32  Flags; // see defines above
+	int32   RectLightTextureIndex;
 
-	float Padding[8]; // keep structure aligned - take new fields from here as needed
+	float Padding[7]; // keep structure aligned - take new fields from here as needed
 };
 
 static_assert(sizeof(FPathTracingLight) == 128, "Path tracing light structure should be aligned to 128 bytes for optimal access on the GPU");
@@ -45,8 +46,9 @@ struct FPathTracingLight {
 	float   FalloffExponent;
 	int     IESTextureSlice;
 	uint    Flags;
+	int	    RectLightTextureIndex;
 
-	float Padding[8];
+	float Padding[7];
 };
 
 #endif
