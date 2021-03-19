@@ -39,6 +39,14 @@ void UCSGMeshesTool::SetupProperties()
 		{
 			UpdatePreviewsVisibility();
 		});
+		TrimProperties->WatchProperty(TrimProperties->ColorOfTrimmingMesh, [this](FLinearColor)
+		{
+			UpdatePreviewsMaterial();
+		});
+		TrimProperties->WatchProperty(TrimProperties->OpacityOfTrimmingMesh, [this](float)
+		{
+			UpdatePreviewsMaterial();
+		});
 
 		SetToolDisplayName(LOCTEXT("TrimMeshesToolName", "Trim"));
 		GetToolManager()->DisplayMessage(
@@ -60,12 +68,42 @@ void UCSGMeshesTool::SetupProperties()
 		{
 			UpdatePreviewsVisibility();
 		});
+		CSGProperties->WatchProperty(CSGProperties->ColorOfSubtractedMesh, [this](FLinearColor)
+		{
+			UpdatePreviewsMaterial();
+		});
+		CSGProperties->WatchProperty(CSGProperties->OpacityOfSubtractedMesh, [this](float)
+		{
+			UpdatePreviewsMaterial();
+		});
 
 		SetToolDisplayName(LOCTEXT("CSGMeshesToolName", "Boolean"));
 		GetToolManager()->DisplayMessage(
 			LOCTEXT("OnStartTool", "Compute CSG Booleans on the input meshes. Use the transform gizmos to tweak the positions of the input objects (can help to resolve errors/failures)"),
 			EToolMessageLevel::UserNotification);
 	}
+}
+
+void UCSGMeshesTool::UpdatePreviewsMaterial()
+{
+	if (!PreviewsGhostMaterial)
+	{
+		PreviewsGhostMaterial = ToolSetupUtil::GetSimpleCustomMaterial(GetToolManager(), FLinearColor::Black, .2);
+	}
+	FLinearColor Color;
+	float Opacity;
+	if (bTrimMode)
+	{
+		Color = TrimProperties->ColorOfTrimmingMesh;
+		Opacity = TrimProperties->OpacityOfTrimmingMesh;
+	}
+	else
+	{
+		Color = CSGProperties->ColorOfSubtractedMesh;
+		Opacity = CSGProperties->OpacityOfSubtractedMesh;
+	}
+	PreviewsGhostMaterial->SetVectorParameterValue(TEXT("Color"), Color);
+	PreviewsGhostMaterial->SetScalarParameterValue(TEXT("Opacity"), Opacity);
 }
 
 void UCSGMeshesTool::UpdatePreviewsVisibility()
@@ -174,6 +212,7 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 		}
 	}
 
+	UpdatePreviewsMaterial();
 	for (int ComponentIdx = 0; ComponentIdx < Targets.Num(); ComponentIdx++)
 	{
 		OriginalDynamicMeshes[ComponentIdx] = MakeShared<FDynamicMesh3, ESPMode::ThreadSafe>();
@@ -192,7 +231,8 @@ void UCSGMeshesTool::ConvertInputsAndSetPreviewMaterials(bool bSetPreviewMesh)
 		UPreviewMesh* OriginalMeshPreview = OriginalMeshPreviews.Add_GetRef(NewObject<UPreviewMesh>());
 		OriginalMeshPreview->CreateInWorld(TargetWorld, TargetComponentInterface(ComponentIdx)->GetWorldTransform());
 		OriginalMeshPreview->UpdatePreview(OriginalDynamicMeshes[ComponentIdx].Get());
-		OriginalMeshPreview->SetMaterial(0, ToolSetupUtil::GetSimpleCustomMaterial(GetToolManager(), FLinearColor::White, 0.05));
+
+		OriginalMeshPreview->SetMaterial(0, PreviewsGhostMaterial);
 		OriginalMeshPreview->SetVisible(false);
 		TransformProxies[ComponentIdx]->AddComponent(OriginalMeshPreview->GetRootComponent());
 	}
