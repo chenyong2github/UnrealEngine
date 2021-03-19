@@ -345,13 +345,14 @@ namespace Metasound
 			// Info about this node.
 			FGuid GetID() const override;
 			FGuid GetClassID() const override;
-			const FText& GetClassDisplayName() const override;
 
 			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override;
-			const FText& GetClassDescription() const override;
 			const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override;
 			const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override;
 			const FMetasoundFrontendClassStyle& GetClassStyle() const override;
+
+			/** Description of the given node. */
+			const FText& GetDescription() const override;
 
 			const FMetasoundFrontendNodeStyle& GetNodeStyle() const override;
 			void SetNodeStyle(const FMetasoundFrontendNodeStyle& InStyle) override;
@@ -372,8 +373,29 @@ namespace Metasound
 			/** Returns all node inputs. */
 			TArray<FInputHandle> GetInputs() override;
 
+			/** Returns the human-readable display name of the given node. */
+			const FText& GetDisplayName() const override;
+
+			/** Sets the description of the node. */
+			void SetDescription(const FText& InDescription) override { }
+
+			/** Sets the display name of the node. */
+			void SetDisplayName(const FText& InDisplayName) override { };
+
+			/** Returns the title of the given node (what to label in visual node). */
+			const FText& GetDisplayTitle() const override;
+
 			/** Returns all node inputs. */
 			TArray<FConstInputHandle> GetConstInputs() const override;
+
+			void IterateConstInputs(TUniqueFunction<void(FConstInputHandle)> InFunction) const override;
+			void IterateConstOutputs(TUniqueFunction<void(FConstOutputHandle)> InFunction) const override;
+
+			void IterateInputs(TUniqueFunction<void(FInputHandle)> InFunction) override;
+			void IterateOutputs(TUniqueFunction<void(FOutputHandle)> InFunction) override;
+
+			int32 GetNumInputs() const override;
+			int32 GetNumOutputs() const override;
 
 			TArray<FInputHandle> GetInputsWithVertexName(const FString& InName) override;
 			TArray<FConstInputHandle> GetInputsWithVertexName(const FString& InName) const override;
@@ -386,6 +408,8 @@ namespace Metasound
 
 			TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) override;
 			TArray<FConstOutputHandle> GetOutputsWithVertexName(const FString& InName) const override;
+
+			bool IsRequired() const override;
 
 			/** Returns an input with the given id. 
 			 *
@@ -550,9 +574,16 @@ namespace Metasound
 			 */
 			static FConstNodeHandle CreateConstOutputNodeHandle(const FInitParams& InParams);
 
+
 			virtual ~FOutputNodeController() = default;
 
 			bool IsValid() const override;
+			const FText& GetDescription() const override;
+			const FText& GetDisplayName() const override;
+			void SetDescription(const FText& InDescription) override;
+			void SetDisplayName(const FText& InText) override;
+			const FText& GetDisplayTitle() const override;
+			bool IsRequired() const override;
 
 		protected:
 
@@ -606,7 +637,13 @@ namespace Metasound
 
 			virtual ~FInputNodeController() = default;
 
+			const FText& GetDescription() const override;
+			const FText& GetDisplayName() const override;
+			const FText& GetDisplayTitle() const override;
+			bool IsRequired() const override;
 			bool IsValid() const override;
+			void SetDescription(const FText& InDescription) override;
+			void SetDisplayName(const FText& InText) override;
 
 		protected:
 
@@ -681,6 +718,9 @@ namespace Metasound
 
 			TArray<FNodeHandle> GetInputNodes() override;
 			TArray<FConstNodeHandle> GetConstInputNodes() const override;
+
+			void IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType) override;
+			void IterateConstNodes(TUniqueFunction<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType) const override;
 
 			TArray<FNodeHandle> GetOutputNodes() override;
 			TArray<FConstNodeHandle> GetConstOutputNodes() const override;
@@ -861,9 +901,6 @@ namespace Metasound
 			virtual ~FDocumentController() = default;
 
 			bool IsValid() const override;
-
-			bool IsRequiredInput(const FString& InInputName) const override;
-			bool IsRequiredOutput(const FString& InOutputName) const override;
 
 			const TArray<FMetasoundFrontendClassVertex>& GetRequiredInputs() const override;
 			const TArray<FMetasoundFrontendClassVertex>& GetRequiredOutputs() const override;

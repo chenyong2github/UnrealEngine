@@ -303,6 +303,32 @@ namespace Metasound
 			/** Returns all node inputs. */
 			virtual TArray<FConstInputHandle> GetConstInputs() const = 0;
 
+			/** Returns the display name of the given node (what to distinguish and label in visual arrays, such as context menus). */
+			virtual const FText& GetDisplayName() const = 0;
+
+			/** Sets the description of the node. */
+			virtual void SetDescription(const FText& InDescription) = 0;
+
+			/** Sets the display name of the node. */
+			virtual void SetDisplayName(const FText& InDisplayName) = 0;
+
+			/** Returns the title of the given node (what to label when displayed as visual node). */
+			virtual const FText& GetDisplayTitle() const = 0;
+
+			/** Iterate over inputs */
+			virtual void IterateInputs(TUniqueFunction<void(FInputHandle)> InFunction) = 0;
+			virtual void IterateConstInputs(TUniqueFunction<void(FConstInputHandle)> InFunction) const = 0;
+
+			/** Returns number of node inputs. */
+			virtual int32 GetNumInputs() const = 0;
+
+			/** Iterate over outputs */
+			virtual void IterateOutputs(TUniqueFunction<void(FOutputHandle)> InFunction) = 0;
+			virtual void IterateConstOutputs(TUniqueFunction<void(FConstOutputHandle)> InFunction) const = 0;
+
+			/** Returns number of node outputs. */
+			virtual int32 GetNumOutputs() const = 0;
+
 			virtual TArray<FInputHandle> GetInputsWithVertexName(const FString& InName) = 0;
 			virtual TArray<FConstInputHandle> GetInputsWithVertexName(const FString& InName) const = 0;
 
@@ -315,15 +341,18 @@ namespace Metasound
 			virtual TArray<FOutputHandle> GetOutputsWithVertexName(const FString& InName) = 0;
 			virtual TArray<FConstOutputHandle> GetOutputsWithVertexName(const FString& InName) const = 0;
 
-			/** Returns an input with the given id. 
+			/** Returns true if node is required to satisfy the document archetype. */
+			virtual bool IsRequired() const = 0;
+
+			/** Returns an input with the given id.
 			 *
-			 * If the input does not exist, an invalid handle is returned. 
+			 * If the input does not exist, an invalid handle is returned.
 			 */
 			virtual FInputHandle GetInputWithID(FGuid InVertexID) = 0;
 
 			/** Returns an input with the given name. 
 			 *
-			 * If the input does not exist, an invalid handle is returned. 
+			 * If the input does not exist, an invalid handle is returned.
 			 */
 			virtual FConstInputHandle GetInputWithID(FGuid InVertexID) const = 0;
 
@@ -354,11 +383,12 @@ namespace Metasound
 			/** Returns the name of the node class. */
 			virtual const FMetasoundFrontendClassName& GetClassName() const = 0;
 			virtual FMetasoundFrontendVersionNumber GetClassVersionNumber() const = 0;
-			virtual const FText& GetClassDisplayName() const = 0;
-			virtual const FText& GetClassDescription() const = 0;
 			virtual const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const = 0;
 			virtual const FMetasoundFrontendInterfaceStyle& GetInputStyle() const = 0;
 			virtual const FMetasoundFrontendClassStyle& GetClassStyle() const = 0;
+
+			/** Description of the given node. */
+			virtual const FText& GetDescription() const = 0;
 
 			/** If the node is also a graph, this returns a graph handle.
 			 * If the node is not also a graph, it will return an invalid handle.
@@ -432,6 +462,12 @@ namespace Metasound
 
 			/** Returns all input nodes in the graph. */
 			virtual TArray<FConstNodeHandle> GetConstInputNodes() const = 0;
+
+			/** Iterate over all input nodes with the given function. If ClassType is specified, only iterate over given type. */
+			virtual void IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) = 0;
+
+			/** Iterate over all nodes with the given function. If ClassType is specified, only iterate over given type. */
+			virtual void IterateConstNodes(TUniqueFunction<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType = EMetasoundFrontendClassType::Invalid) const = 0;
 
 			/** Returns true if an output vertex with the given Name exists.
 			 *
@@ -653,12 +689,6 @@ namespace Metasound
 
 			/** Returns true if the controller is in a valid state. */
 			virtual bool IsValid() const = 0;
-
-			/** Returns true if an input with the provided name is required to satisfy the document archetype. */
-			virtual bool IsRequiredInput(const FString& InInputName) const = 0;
-
-			/** Returns true if an input with the provided name is required to satisfy the document archetype. */
-			virtual bool IsRequiredOutput(const FString& InOutputName) const = 0;
 
 			/** Returns an array of inputs which describe the required inputs needed to satisfy the document archetype. */
 			virtual const TArray<FMetasoundFrontendClassVertex>& GetRequiredInputs() const = 0;

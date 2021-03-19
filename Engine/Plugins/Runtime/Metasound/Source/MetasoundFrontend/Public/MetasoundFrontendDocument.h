@@ -151,9 +151,10 @@ struct METASOUNDFRONTEND_API FMetasoundFrontendNodeStyleDisplay
 	UPROPERTY()
 	EMetasoundFrontendNodeStyleDisplayVisibility Visibility = EMetasoundFrontendNodeStyleDisplayVisibility::Visible;
 
-	// Position of node
+	// Map of visual node guid to 2D location. May have more than one if the node allows displaying in
+	// more than one place on the graph (Only functionally relevant for nodes that cannot contain inputs.)
 	UPROPERTY()
-	FVector2D Location = FVector2D::ZeroVector;
+	TMap<FGuid, FVector2D> Locations;
 };
 
 USTRUCT()

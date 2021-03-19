@@ -89,8 +89,8 @@ namespace Metasound
 			bool IsConnected() const override { return false; }
 			const FName& GetDataType() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FName>(); }
 			const FString& GetName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
-			const FText& GetDisplayName() const override { return FText::GetEmpty(); }
-			const FText& GetTooltip() const override { return FText::GetEmpty(); }
+			const FText& GetDisplayName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
+			const FText& GetTooltip() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 			const FMetasoundFrontendLiteral* GetDefaultLiteral() const override { return nullptr; }
 			FGuid GetOwningNodeID() const override { return Metasound::FrontendInvalidID; }
 			TSharedRef<INodeController> GetOwningNode() override;
@@ -156,11 +156,13 @@ namespace Metasound
 			EMetasoundFrontendClassType GetClassType() const override { return EMetasoundFrontendClassType::Invalid; }
 			const FMetasoundFrontendClassName& GetClassName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendClassName>(); }
 			FMetasoundFrontendVersionNumber GetClassVersionNumber() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FMetasoundFrontendVersionNumber>(); }
-			const FText& GetClassDisplayName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
-			const FText& GetClassDescription() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
 			const FMetasoundFrontendInterfaceStyle& GetInputStyle() const override { static const FMetasoundFrontendInterfaceStyle Invalid; return Invalid; }
 			const FMetasoundFrontendInterfaceStyle& GetOutputStyle() const override { static const FMetasoundFrontendInterfaceStyle Invalid; return Invalid; }
 			const FMetasoundFrontendClassStyle& GetClassStyle() const override { static const FMetasoundFrontendClassStyle Invalid; return Invalid; }
+
+			const FText& GetDescription() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
+
+			bool IsRequired() const override { return false; }
 
 			TSharedRef<IGraphController> AsGraph() override;
 			TSharedRef<const IGraphController> AsGraph() const override;
@@ -172,7 +174,21 @@ namespace Metasound
 			TSharedRef<IGraphController> GetOwningGraph() override;
 			TSharedRef<const IGraphController> GetOwningGraph() const override;
 
+			void IterateInputs(TUniqueFunction<void(FInputHandle)> InFunction) override { }
+			void IterateConstInputs(TUniqueFunction<void(FConstInputHandle)> InFunction) const override { }
+
+			void IterateOutputs(TUniqueFunction<void(FOutputHandle)> InFunction) override { }
+			void IterateConstOutputs(TUniqueFunction<void(FConstOutputHandle)> InFunction) const override { }
+
+			int32 GetNumInputs() const override { return 0; }
+			int32 GetNumOutputs() const override { return 0; }
+
 			const FString& GetNodeName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FString>(); }
+			const FText&  GetDisplayName() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
+			const FText& GetDisplayTitle() const override { return MetasoundFrontendInvalidControllerPrivate::GetInvalid<FText>(); }
+			void SetDescription(const FText& InDescription) override { }
+			void SetDisplayName(const FText& InText) override { }
+
 		protected:
 			FDocumentAccess ShareAccess() override { return FDocumentAccess(); }
 			FConstDocumentAccess ShareAccess() const override { return FConstDocumentAccess(); }
@@ -211,6 +227,9 @@ namespace Metasound
 			TArray<TSharedRef<INodeController>> GetInputNodes() override { return TArray<TSharedRef<INodeController>>(); }
 			TArray<TSharedRef<const INodeController>> GetConstOutputNodes() const override { return TArray<TSharedRef<const INodeController>>(); }
 			TArray<TSharedRef<const INodeController>> GetConstInputNodes() const override { return TArray<TSharedRef<const INodeController>>(); }
+
+			void IterateConstNodes(TUniqueFunction<void(FConstNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType /* = EMetasoundFrontendClassType::Invalid */) const override { }
+			void IterateNodes(TUniqueFunction<void(FNodeHandle)> InFunction, EMetasoundFrontendClassType InClassType /* = EMetasoundFrontendClassType::Invalid */) override { }
 
 			bool ContainsOutputVertexWithName(const FString& InName) const override { return false; }
 			bool ContainsInputVertexWithName(const FString& InName) const override { return false; }
@@ -307,8 +326,6 @@ namespace Metasound
 				}
 
 				bool IsValid() const override { return false; }
-				bool IsRequiredInput(const FString& InInputName) const override { return false; }
-				bool IsRequiredOutput(const FString& InOutputName) const override { return false; }
 
 				const TArray<FMetasoundFrontendClassVertex>& GetRequiredInputs() const override { const static TArray<FMetasoundFrontendClassVertex> Empty; return Empty; }
 				const TArray<FMetasoundFrontendClassVertex>& GetRequiredOutputs() const override { const static TArray<FMetasoundFrontendClassVertex> Empty; return Empty; }

@@ -9,6 +9,7 @@
 #include "EdGraphUtilities.h"
 #include "MetasoundEditorModule.h"
 #include "MetasoundFrontend.h"
+#include "MetasoundFrontendController.h"
 #include "Templates/Function.h"
 #include "UObject/ObjectMacros.h"
 
@@ -28,7 +29,7 @@ namespace Metasound
 	{
 		using FInputFilterFunction = TFunction<bool(const FMetasoundFrontendClassInput&)>;
 		using FOutputFilterFunction = TFunction<bool(const FMetasoundFrontendClassOutput&)>;
-		using FDataTypeFilterFunction = TFunction<bool(const FEditorDataType&)>;
+		using FInterfaceNodeFilterFunction = TFunction<bool(Frontend::FConstNodeHandle)>;
 
 		struct FActionClassFilters
 		{
@@ -98,13 +99,13 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewInput : public FEdGrap
 	GENERATED_USTRUCT_BODY();
 
 	UPROPERTY()
-	FName NodeTypeName;
+	FGuid NodeID;
 
 	FMetasoundGraphSchemaAction_NewInput()
 		: FEdGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping);
+	FMetasoundGraphSchemaAction_NewInput(FText InNodeCategory, FText InDisplayName, FGuid InInputNodeID, FText InToolTip, const int32 InGrouping);
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -118,13 +119,13 @@ struct METASOUNDEDITOR_API FMetasoundGraphSchemaAction_NewOutput : public FEdGra
 	GENERATED_USTRUCT_BODY();
 
 	UPROPERTY()
-	FName NodeTypeName;
+	FGuid NodeID;
 
 	FMetasoundGraphSchemaAction_NewOutput()
 		: FEdGraphSchemaAction()
 	{}
 
-	FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FName InTypeName, FText InToolTip, const int32 InGrouping);
+	FMetasoundGraphSchemaAction_NewOutput(FText InNodeCategory, FText InDisplayName, FGuid InOutputNodeID, FText InToolTip, const int32 InGrouping);
 
 	//~ Begin FEdGraphSchemaAction Interface
 	virtual UEdGraphNode* PerformAction(UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
@@ -244,8 +245,8 @@ private:
 	void GetConversionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters = Metasound::Editor::FActionClassFilters(), bool bShowSelectedActions = true) const;
 	void GetFunctionActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FActionClassFilters InFilters = Metasound::Editor::FActionClassFilters(), bool bShowSelectedActions = true) const;
 
-	void GetDataTypeInputNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FDataTypeFilterFunction InFilter = Metasound::Editor::FDataTypeFilterFunction(), bool bShowSelectedActions = true) const;
-	void GetDataTypeOutputNodeActions(FGraphActionMenuBuilder& ActionMenuBuilder, Metasound::Editor::FDataTypeFilterFunction InFilter = Metasound::Editor::FDataTypeFilterFunction(), bool bShowSelectedActions = true) const;
+	void GetDataTypeInputNodeActions(FGraphContextMenuBuilder& InMenuBuilder, Metasound::Frontend::FConstGraphHandle InGraphHandle, Metasound::Editor::FInterfaceNodeFilterFunction InFilter = Metasound::Editor::FInterfaceNodeFilterFunction(), bool bShowSelectedActions = true) const;
+	void GetDataTypeOutputNodeActions(FGraphContextMenuBuilder& InMenuBuilder, Metasound::Frontend::FConstGraphHandle InGraphHandle, Metasound::Editor::FInterfaceNodeFilterFunction InFilter = Metasound::Editor::FInterfaceNodeFilterFunction(), bool bShowSelectedActions = true) const;
 
 	/** Adds action for creating a comment */
 	void GetCommentAction(FGraphActionMenuBuilder& ActionMenuBuilder, const UEdGraph* CurrentGraph = nullptr) const;

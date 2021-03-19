@@ -18,6 +18,7 @@
 // Forward Declarations
 class UEdGraphPin;
 class UMetasound;
+class UMetasoundEditorGraphOutput;
 
 namespace Metasound
 {
@@ -80,18 +81,14 @@ public:
 
 	Metasound::Frontend::FGraphHandle GetRootGraphHandle() const;
 	Metasound::Frontend::FConstGraphHandle GetConstRootGraphHandle() const;
-
 	Metasound::Frontend::FNodeHandle GetNodeHandle() const;
 	Metasound::Frontend::FConstNodeHandle GetConstNodeHandle() const;
 
-	FGuid GetNodeID() const;
+	virtual FMetasoundFrontendClassName GetClassName() const { return FMetasoundFrontendClassName(); }
+	virtual FGuid GetNodeID() const { return FGuid(); }
 
 protected:
-	UPROPERTY()
-	FMetasoundFrontendClassName ClassName;
-
-	UPROPERTY()
-	FGuid NodeID;
+	virtual void SetNodeID(FGuid InNodeID) { }
 
 	friend class Metasound::Editor::FGraphBuilder;
 };
@@ -101,9 +98,15 @@ class UMetasoundEditorGraphOutputNode : public UMetasoundEditorGraphNode
 {
 	GENERATED_BODY()
 
-protected:
+public:
 	UPROPERTY()
-	FName OutputTypeName;
+	UMetasoundEditorGraphOutput* Output;
+
+	virtual FMetasoundFrontendClassName GetClassName() const override;
+	virtual FGuid GetNodeID() const override;
+
+protected:
+	virtual void SetNodeID(FGuid InNodeID) override;
 
 	friend class Metasound::Editor::FGraphBuilder;
 };
@@ -112,4 +115,23 @@ UCLASS(MinimalAPI)
 class UMetasoundEditorGraphExternalNode : public UMetasoundEditorGraphNode
 {
 	GENERATED_BODY()
+
+protected:
+	UPROPERTY()
+	FMetasoundFrontendClassName ClassName;
+
+	UPROPERTY()
+	FGuid NodeID;
+
+public:
+	virtual FMetasoundFrontendClassName GetClassName() const override { return ClassName; }
+	virtual FGuid GetNodeID() const override { return NodeID; }
+
+protected:
+	virtual void SetNodeID(FGuid InNodeID) override
+	{
+		NodeID = InNodeID;
+	}
+
+	friend class Metasound::Editor::FGraphBuilder;
 };

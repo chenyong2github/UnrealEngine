@@ -9,8 +9,9 @@
 #include "Modules/ModuleInterface.h"
 #include "Templates/Function.h"
 
+
 class UMetasoundEditorGraph;
-class UMetasoundEditorGraphInputNode;
+class UMetasoundEditorGraphInputLiteral;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMetasoundEditor, Log, All);
 
@@ -38,7 +39,7 @@ namespace Metasound
 			virtual const FEditorDataType& FindDataType(FName InDataTypeName) const = 0;
 			virtual void IterateDataTypes(TUniqueFunction<void(const FEditorDataType&)> InDataTypeFunction) const = 0;
 
-			virtual const TSubclassOf<UMetasoundEditorGraphInputNode> FindNodeInputClass(EMetasoundFrontendLiteralType InLiteralType) const = 0;
+			virtual const TSubclassOf<UMetasoundEditorGraphInputLiteral> FindInputLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const = 0;
 		};
 	} // namespace Editor
 } // namespace Metasound

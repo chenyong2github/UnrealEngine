@@ -113,11 +113,13 @@ Metasound::Frontend::FGraphHandle UMetasoundEditorGraphNode::GetRootGraphHandle(
 
 Metasound::Frontend::FConstNodeHandle UMetasoundEditorGraphNode::GetConstNodeHandle() const
 {
+	const FGuid NodeID = GetNodeID();
 	return GetConstRootGraphHandle()->GetNodeWithID(NodeID);
 }
 
 Metasound::Frontend::FNodeHandle UMetasoundEditorGraphNode::GetNodeHandle() const
 {
+	const FGuid NodeID = GetNodeID();
 	return GetRootGraphHandle()->GetNodeWithID(NodeID);
 }
 
@@ -199,26 +201,6 @@ bool UMetasoundEditorGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSche
 
 bool UMetasoundEditorGraphNode::CanUserDeleteNode() const
 {
-	const FMetasoundAssetBase* ConstMetasoundAsset = Metasound::IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(&GetMetasoundChecked());
-
-	// TODO: create FConstGraphHandle so that this const cast is unnecessary.
-	FMetasoundAssetBase* MetasoundAsset = const_cast<FMetasoundAssetBase*>(ConstMetasoundAsset);
-	check(MetasoundAsset);
-
-	Metasound::Frontend::FDocumentHandle DocumentHandle = MetasoundAsset->GetDocumentHandle();
-	Metasound::Frontend::FNodeHandle NodeHandle = DocumentHandle->GetRootGraph()->GetNodeWithID(NodeID);
-
-	const FString& NodeName = GetNodeHandle()->GetNodeName();
-	if (DocumentHandle->IsRequiredInput(NodeName))
-	{
-		return false;
-	}
-
-	if (DocumentHandle->IsRequiredOutput(NodeName))
-	{
-		return false;
-	}
-
 	return true;
 }
 
@@ -227,49 +209,12 @@ FString UMetasoundEditorGraphNode::GetDocumentationLink() const
 	return TEXT("Shared/GraphNodes/Metasound");
 }
 
-FGuid UMetasoundEditorGraphNode::GetNodeID() const
-{
-	return NodeID;
-}
-
 FText UMetasoundEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	using namespace Metasound::Frontend;
 
 	FConstNodeHandle NodeHandle = GetNodeHandle();
-	switch (NodeHandle->GetClassType())
-	{
-		case EMetasoundFrontendClassType::Input:
-		{
-			// TODO: have INodeController determine display name
-			TArray<FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
-			if (InputHandles.Num() > 0)
-			{
-				return FText::Format(LOCTEXT("MetasoundGraphNode_InputTitleFormat", "Input {0}"), InputHandles[0]->GetDisplayName());
-			}
-			return LOCTEXT("MetasoundGraphNode_DefaultInputTitle", "Input");
-		}
-		break;
-
-		case EMetasoundFrontendClassType::Output:
-		{
-			TArray<FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputs();
-			if (OutputHandles.Num() > 0)
-			{
-				return FText::Format(LOCTEXT("MetasoundGraphNode_OutputTitleFormat", "Output {0}"), OutputHandles[0]->GetDisplayName());
-			}
-			return LOCTEXT("MetasoundGraphNode_DefaultOutputTitle", "Output");
-		}
-		break;
-
-		default:
-		case EMetasoundFrontendClassType::External:
-		case EMetasoundFrontendClassType::Graph:
-		{
-			return NodeHandle->GetClassDisplayName();
-		}
-		break;
-	}
+	return NodeHandle->GetDisplayTitle();
 }
 
 void UMetasoundEditorGraphNode::PinDefaultValueChanged(UEdGraphPin* Pin)
@@ -301,7 +246,7 @@ void UMetasoundEditorGraphNode::PostEditChangeProperty(FPropertyChangedEvent& In
 	{
 		Metasound::Frontend::FNodeHandle NodeHandle = GetNodeHandle();
 		FMetasoundFrontendNodeStyle Style = NodeHandle->GetNodeStyle();
-		Style.Display.Location = FVector2D(NodePosX, NodePosY);
+		Style.Display.Locations.FindOrAdd(NodeGuid) = FVector2D(NodePosX, NodePosY);
 		GetNodeHandle()->SetNodeStyle(Style);
 	}
 
@@ -396,7 +341,7 @@ void UMetasoundEditorGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGrap
 
 FText UMetasoundEditorGraphNode::GetTooltipText() const
 {
-	return GetRootGraphHandle()->GetNodeWithID(NodeID)->GetClassDescription();
+	return GetConstNodeHandle()->GetDescription();
 }
 
 FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const
@@ -404,5 +349,31 @@ FString UMetasoundEditorGraphNode::GetDocumentationExcerptName() const
 	// Default the node to searching for an excerpt named for the C++ node class name, including the U prefix.
 	// This is done so that the excerpt name in the doc file can be found by find-in-files when searching for the full class name.
 	return FString::Printf(TEXT("%s%s"), UMetasound::StaticClass()->GetPrefixCPP(), *UMetasound::StaticClass()->GetName());
+}
+
+FMetasoundFrontendClassName UMetasoundEditorGraphOutputNode::GetClassName() const
+{
+	if (ensure(Output))
+	{
+		return Output->ClassName;
+	}
+	return FMetasoundFrontendClassName();
+}
+
+FGuid UMetasoundEditorGraphOutputNode::GetNodeID() const
+{
+	if (ensure(Output))
+	{
+		return Output->NodeID;
+	}
+	return FGuid();
+}
+
+void UMetasoundEditorGraphOutputNode::SetNodeID(FGuid InNodeID)
+{
+	if (ensure(Output))
+	{
+		Output->NodeID = InNodeID;
+	}
 }
 #undef LOCTEXT_NAMESPACE

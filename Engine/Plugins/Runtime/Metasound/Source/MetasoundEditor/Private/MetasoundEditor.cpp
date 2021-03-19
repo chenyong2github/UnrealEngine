@@ -3,6 +3,7 @@
 #include "MetasoundEditor.h"
 
 #include "AudioDevice.h"
+#include "AudioMeterStyle.h"
 #include "Components/AudioComponent.h"
 #include "EdGraph/EdGraphNode.h"
 #include "EdGraphUtilities.h"
@@ -34,7 +35,10 @@
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Widgets/SBoxPanel.h"
-#include "AudioMeterStyle.h"
+#include "Templates/SharedPointer.h"
+
+// This needs to be moved to public directory
+#include "../../GraphEditor/Private/GraphActionNode.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundEditor"
 
@@ -42,6 +46,87 @@ namespace Metasound
 {
 	namespace Editor
 	{
+		static const TArray<FText> NodeSectionNames
+		{
+			LOCTEXT("NodeSectionName_Invalid", "INVALID"),
+			LOCTEXT("NodeSectionName_Inputs", "Inputs"),
+			LOCTEXT("NodeSectionName_Outputs", "Outputs")
+		};
+
+		class FMetasoundGraphNodeSchemaAction : public FEdGraphSchemaAction
+		{
+		public:
+			UEdGraph* Graph = nullptr;
+			FGuid NodeID;
+
+			FMetasoundGraphNodeSchemaAction()
+				: FEdGraphSchemaAction()
+			{
+			}
+
+			FMetasoundGraphNodeSchemaAction(FText InNodeCategory, FText InMenuDesc, FText InToolTip, const int32 InGrouping, const ENodeSection InSectionID)
+				: FEdGraphSchemaAction(MoveTemp(InNodeCategory), MoveTemp(InMenuDesc), MoveTemp(InToolTip), InGrouping, FText(), static_cast<int32>(InSectionID))
+			{
+			}
+
+			FMetasoundAssetBase& GetMetasoundAssetChecked() const
+			{
+				UObject* Object = CastChecked<UMetasoundEditorGraph>(Graph)->GetMetasound();
+				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Object);
+				check(MetasoundAsset);
+				return *MetasoundAsset;
+			}
+
+			UMetasoundEditorGraphVariable* GetVariable() const
+			{
+				UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(Graph);
+				return MetasoundGraph->FindVariable(NodeID);
+			}
+
+			Frontend::FGraphHandle GetGraphHandle() const
+			{
+				return GetMetasoundAssetChecked().GetRootGraphHandle();
+			}
+
+			Frontend::FNodeHandle GetNodeHandle() const
+			{
+				return GetGraphHandle()->GetNodeWithID(NodeID);
+			}
+
+			bool IsRequired() const
+			{
+				return GetNodeHandle()->IsRequired();
+			}
+
+			// FEdGraphSchemaAction interface
+			virtual bool IsParentable() const override
+			{
+				return true;
+			}
+
+			virtual void MovePersistentItemToCategory(const FText& NewCategoryName) override
+			{
+				checkNoEntry();
+			}
+
+			virtual int32 GetReorderIndexInContainer() const override
+			{
+				TArray<Frontend::FConstNodeHandle> InputHandles = GetGraphHandle()->GetConstInputNodes();
+				return InputHandles.IndexOfByPredicate([=](const Frontend::FConstNodeHandle& NodeHandle)
+				{
+					return NodeHandle->GetID() == NodeID;
+				});
+			}
+
+			virtual bool ReorderToBeforeAction(TSharedRef<FEdGraphSchemaAction> OtherAction) override
+			{
+				// TODO: Implement reordering
+				checkNoEntry();
+
+				return false;
+			}
+		};
+
 		void FEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 		{
 			WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_MetasoundEditor", "Metasound Editor"));
@@ -65,9 +150,9 @@ namespace Metasound
 			.SetGroup(WorkspaceMenuCategoryRef)
 			.SetIcon(FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.Tabs.Details"));
 
-			InTabManager->RegisterTabSpawner(TabFactory::Names::Metasound, FOnSpawnTab::CreateLambda([InMetasoundGeneral = MetasoundGeneral](const FSpawnTabArgs& Args)
+			InTabManager->RegisterTabSpawner(TabFactory::Names::Metasound, FOnSpawnTab::CreateLambda([InMetasoundMenu = MetasoundGeneralMenu](const FSpawnTabArgs& Args)
 			{
-				return TabFactory::CreateMetasoundTab(InMetasoundGeneral, Args);
+				return TabFactory::CreateMetasoundTab(InMetasoundMenu, Args);
 			}))
 			.SetDisplayName(LOCTEXT("MetasoundTab", "Metasound"))
 			.SetGroup(WorkspaceMenuCategoryRef)
@@ -102,6 +187,28 @@ namespace Metasound
 			if (Component && Component->IsPlaying())
 			{
 				Stop();
+			}
+
+			if (Metasound)
+			{
+				FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+				check(MetasoundAsset);
+
+				if(UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetasoundAsset->GetGraph()))
+				{
+					for (TPair<FGuid, FDelegateHandle>& Pair : NameChangeDelegateHandles)
+					{
+						if (UMetasoundEditorGraphInput* Input = Graph->FindInput(Pair.Key))
+						{
+							Input->NameChanged.Remove(Pair.Value);
+						}
+						if (UMetasoundEditorGraphOutput* Output = Graph->FindOutput(Pair.Key))
+						{
+							Output->NameChanged.Remove(Pair.Value);
+						}
+					}
+				}
+				NameChangeDelegateHandles.Reset();
 			}
 
 			if (MetasoundMeterAnalyzer.IsValid() && ResultsDelegateHandle.IsValid())
@@ -219,7 +326,7 @@ namespace Metasound
 			if (MetasoundDetails.IsValid())
 			{
 				MetasoundDetails->SetObjects(SelectedObjects);
-				MetasoundDetails->HideFilterArea(SelectedObjects.IsEmpty() || SelectedObjects.Num() > 1);
+				MetasoundDetails->HideFilterArea(true);
 			}
 		}
 
@@ -261,6 +368,11 @@ namespace Metasound
 				MetasoundGraphEditor->NotifyGraphChanged();
 			}
 
+			if (MetasoundGeneralMenu.IsValid())
+			{
+				MetasoundGeneralMenu->RefreshAllActions(true /* bPreserveExpansion */);
+			}
+
 			FSlateApplication::Get().DismissAllMenus();
 
 			if (Metasound)
@@ -284,6 +396,7 @@ namespace Metasound
 					{
 						FGraphBuilder::SynchronizeGraph(*MetasoundObj);
 						MetasoundGraphEditor->NotifyGraphChanged();
+						MetasoundGeneralMenu->RefreshAllActions(true /* bPreserveExpansion */);
 					}
 				}
 			}
@@ -299,12 +412,32 @@ namespace Metasound
 
 			FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 
-			MetasoundGeneral = PropertyModule.CreateDetailView(Args);
-			MetasoundGeneral->SetObject(Metasound);
+			SAssignNew(MetasoundGeneralMenu, SGraphActionMenu, false)
+				.AlphaSortItems(false)
+// 				.OnActionDoubleClicked(this, &FEditor::OnActionDoubleClicked)
+				.OnActionDragged(this, &FEditor::OnActionDragged)
+				.OnActionMatchesName(this, &FEditor::HandleActionMatchesName)
+				.OnActionSelected(this, &FEditor::OnActionSelected)
+// 				.OnCategoryTextCommitted(this, &FEditor::OnCategoryNameCommitted)
+				.OnCollectAllActions(this, &FEditor::CollectAllActions)
+				.OnCollectStaticSections(this, &FEditor::CollectStaticSections)
+// 				.OnContextMenuOpening(this, &FEditor::OnContextMenuOpening)
+				.OnCreateWidgetForAction(this, &FEditor::OnCreateWidgetForAction)
+  				.OnCanRenameSelectedAction(this, &FEditor::CanRenameOnActionNode)
+				.OnGetFilterText(this, &FEditor::GetFilterText)
+				.OnGetSectionTitle(this, &FEditor::OnGetSectionTitle)
+				.OnGetSectionWidget(this, &FEditor::OnGetMenuSectionWidget)
+				.UseSectionStyling(true);
 
 			MetasoundDetails = PropertyModule.CreateDetailView(Args);
 
 			Palette = SNew(SMetasoundPalette);
+		}
+
+		// TODO: Tie in rename on GraphActionMenu.  For now, just renameable via field in inspector
+		bool FEditor::CanRenameOnActionNode(TWeakPtr<FGraphActionNode> InSelectedNode) const
+		{
+			return false;
 		}
 
 		void FEditor::OnMeterOutput(UMeterAnalyzer* InMeterAnalyzer, int32 ChannelIndex, const FMeterResults& InMeterResults)
@@ -405,6 +538,19 @@ namespace Metasound
 						ToolbarBuilder.AddToolBarButton(FEditorCommands::Get().Stop);
 					}
 					ToolbarBuilder.EndSection();
+
+					ToolbarBuilder.BeginSection("Utilities");
+					{
+						ToolbarBuilder.AddToolBarButton(
+							FEditorCommands::Get().EditMetasoundSettings,
+								NAME_None,
+								TAttribute<FText>(),
+								TAttribute<FText>(),
+								TAttribute<FSlateIcon>::Create([this]() { return GetSettingsImage(); }),
+								"EditMetasoundSettings"
+						);
+					}
+					ToolbarBuilder.EndSection();
 				})
 			);
 
@@ -414,6 +560,12 @@ namespace Metasound
 		FSlateIcon FEditor::GetImportStatusImage() const
 		{
 			const FName IconName = "MetasoundEditor.Import";
+			return FSlateIcon("MetasoundStyle", IconName);
+		}
+
+		FSlateIcon FEditor::GetSettingsImage() const
+		{
+			const FName IconName = "MetasoundEditor.Settings";
 			return FSlateIcon("MetasoundStyle", IconName);
 		}
 
@@ -459,6 +611,14 @@ namespace Metasound
 			ToolkitCommands->MapAction(
 				FGenericCommands::Get().Redo,
 				FExecuteAction::CreateSP(this, &FEditor::RedoGraphAction));
+
+			ToolkitCommands->MapAction(
+				Commands.EditMetasoundSettings,
+				FExecuteAction::CreateSP(this, &FEditor::EditMetasoundSettings));
+
+			ToolkitCommands->MapAction(
+				FGenericCommands::Get().Delete,
+				FExecuteAction::CreateSP(this, &FEditor::DeleteSelected));
 		}
 
 		void FEditor::Import()
@@ -616,6 +776,23 @@ namespace Metasound
 			// TODO: Implement? Will we support single node playback?
 		}
 
+		void FEditor::EditMetasoundSettings()
+		{
+			if (MetasoundGeneralMenu.IsValid())
+			{
+				MetasoundGeneralMenu->SelectItemByName(FName());
+			}
+
+			if (MetasoundGraphEditor.IsValid())
+			{
+				bManuallyClearingGraphSelection = true;
+				MetasoundGraphEditor->ClearSelectionSet();
+				bManuallyClearingGraphSelection = false;
+			}
+
+			SetSelection({ Metasound });
+		}
+
 		void FEditor::SyncInBrowser()
 		{
 			TArray<UObject*> ObjectsToSync;
@@ -666,6 +843,9 @@ namespace Metasound
 				GraphEditorCommands->MapAction(FEditorCommands::Get().BrowserSync,
 					FExecuteAction::CreateSP(this, &FEditor::SyncInBrowser));
 
+				GraphEditorCommands->MapAction(FEditorCommands::Get().EditMetasoundSettings,
+					FExecuteAction::CreateSP(this, &FEditor::EditMetasoundSettings));
+
 				GraphEditorCommands->MapAction(FEditorCommands::Get().AddInput,
 					FExecuteAction::CreateSP(this, &FEditor::AddInput),
 					FCanExecuteAction::CreateSP(this, &FEditor::CanAddInput));
@@ -681,10 +861,6 @@ namespace Metasound
 				// Editing commands
 				GraphEditorCommands->MapAction(FGenericCommands::Get().SelectAll,
 					FExecuteAction::CreateLambda([this]() { MetasoundGraphEditor->SelectAllNodes(); }));
-
-				GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
-					FExecuteAction::CreateSP(this, &FEditor::DeleteSelectedNodes),
-					FCanExecuteAction::CreateLambda([this]() { return CanDeleteNodes(); }));
 
 				GraphEditorCommands->MapAction(FGenericCommands::Get().Copy,
 					FExecuteAction::CreateSP(this, &FEditor::CopySelectedNodes),
@@ -753,18 +929,29 @@ namespace Metasound
 				.ShowGraphStateOverlay(false);
 		}
 
-		void FEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
+		void FEditor::OnSelectedNodesChanged(const TSet<UObject*>& InSelectedNodes)
 		{
 			TArray<UObject*> Selection;
-
-			if (!NewSelection.IsEmpty())
+			for (UObject* NodeObject : InSelectedNodes)
 			{
-				for (TSet<UObject*>::TConstIterator SetIt(NewSelection); SetIt; ++SetIt)
+				if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(NodeObject))
 				{
-					Selection.Add(*SetIt);
+					Selection.Add(InputNode->Input);
+				}
+				else if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(NodeObject))
+				{
+					Selection.Add(OutputNode->Output);
+				}
+				else
+				{
+					Selection.Add(NodeObject);
 				}
 			}
 
+			if (MetasoundGeneralMenu.IsValid() && !bManuallyClearingGraphSelection)
+			{
+				MetasoundGeneralMenu->SelectItemByName(FName());
+			}
 			SetSelection(Selection);
 		}
 
@@ -772,10 +959,124 @@ namespace Metasound
 		{
 			if (NodeBeingChanged)
 			{
-				const FScopedTransaction Transaction(LOCTEXT("RenameNode", "Rename Node"));
+				const FScopedTransaction Transaction(TEXT(""), LOCTEXT("RenameNode", "Rename Node"), NodeBeingChanged);
 				NodeBeingChanged->Modify();
 				NodeBeingChanged->OnRenameNode(NewText.ToString());
 			}
+		}
+
+		void FEditor::DeleteSelected()
+		{
+			using namespace Frontend;
+
+			if (MetasoundGeneralMenu.IsValid())
+			{
+				TArray<TSharedPtr<FEdGraphSchemaAction>> Actions;
+				MetasoundGeneralMenu->GetSelectedActions(Actions);
+
+				if (!Actions.IsEmpty())
+				{
+					const FScopedTransaction Transaction(TEXT(""), LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Metasound Variable"), Metasound);
+
+					UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph());
+					Graph->Modify();
+
+					TSharedPtr<FMetasoundGraphNodeSchemaAction> ActionToDelete;
+					for (const TSharedPtr<FEdGraphSchemaAction>& Action : Actions)
+					{
+						TSharedPtr<FMetasoundGraphNodeSchemaAction> MetasoundAction = StaticCastSharedPtr<FMetasoundGraphNodeSchemaAction>(Action);
+						if (MetasoundAction.IsValid())
+						{
+							Frontend::FNodeHandle NodeHandle = MetasoundAction->GetNodeHandle();
+							if (ensure(NodeHandle->IsValid()))
+							{
+								if (NodeHandle->IsRequired())
+								{
+									if (MetasoundGraphEditor.IsValid())
+									{
+										FNotificationInfo Info(LOCTEXT("CannotDelete_RequiredVariable", "Delete failed: Input/Output is required."));
+										Info.bFireAndForget = true;
+										Info.bUseSuccessFailIcons = false;
+										Info.ExpireDuration = 5.0f;
+
+										MetasoundGraphEditor->AddNotification(Info, false /* bSuccess */);
+									}
+								}
+								else
+								{
+									ActionToDelete = MetasoundAction;
+									break;
+								}
+							}
+						}
+					}
+
+					if (ActionToDelete.IsValid())
+					{
+						UMetasoundEditorGraphVariable* Variable = ActionToDelete->GetVariable();
+
+						FNodeHandle VariableHandle = Variable->GetNodeHandle();
+						const FGuid IDToDelete = VariableHandle->GetID();
+
+						auto GetNameToSelect = [IDToDelete](const TArray<FConstNodeHandle>& Handles)
+						{
+							int32 IndexToDelete = -1;
+							bool bGetNextValidName = false;
+							for (int32 i = 0; i < Handles.Num(); ++i)
+							{
+								if (Handles[i]->GetID() == IDToDelete)
+								{
+									IndexToDelete = i;
+									break;
+								}
+							}
+
+							if (IndexToDelete >= 0)
+							{
+								for (int32 i = IndexToDelete + 1; i < Handles.Num(); ++i)
+								{
+									if (Handles[i]->GetNodeStyle().Display.Visibility != EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+									{
+										return FName(*(Handles[i]->GetDisplayName().ToString()));
+									}
+								}
+
+								for (int32 i = IndexToDelete - 1; i >= 0; --i)
+								{
+									if (Handles[i]->GetNodeStyle().Display.Visibility != EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+									{
+										return FName(*(Handles[i]->GetDisplayName().ToString()));
+									}
+								}
+							}
+
+							return FName();
+						};
+
+						const TArray<FConstNodeHandle> InputHandles = VariableHandle->GetOwningGraph()->GetConstInputNodes();
+						FName NameToSelect = GetNameToSelect(InputHandles);
+						int32 SectionId = static_cast<int32>(ENodeSection::Inputs);
+						if (NameToSelect.IsNone())
+						{
+							SectionId = static_cast<int32>(ENodeSection::Outputs);
+							const TArray<FConstNodeHandle> OutputHandles = VariableHandle->GetOwningGraph()->GetConstOutputNodes();
+							NameToSelect = GetNameToSelect(OutputHandles);
+						}
+
+						FGraphBuilder::DeleteVariableNodeHandle(*Variable);
+						Graph->RemoveVariable(*Variable);
+						MetasoundGeneralMenu->RefreshAllActions(true /* bPreserveExpansion */);
+
+						if (!NameToSelect.IsNone())
+						{
+							MetasoundGeneralMenu->SelectItemByName(NameToSelect, ESelectInfo::Direct, SectionId);
+						}
+					}
+					return;
+				}
+			}
+
+			DeleteSelectedNodes();
 		}
 
 		void FEditor::DeleteSelectedNodes()
@@ -785,21 +1086,30 @@ namespace Metasound
 			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorDeleteSelectedNode", "Delete Selected Metasound Node(s)"));
 
 			UMetasoundEditorGraph* Graph = CastChecked<UMetasoundEditorGraph>(MetasoundGraphEditor->GetCurrentGraph());
-			Graph->Modify();
 
 			const FGraphPanelSelectionSet SelectedNodes = MetasoundGraphEditor->GetSelectedNodes();
 			MetasoundGraphEditor->ClearSelectionSet();
 
-			for (FGraphPanelSelectionSet::TConstIterator NodeIt(SelectedNodes); NodeIt; ++NodeIt)
+			bool bModified = false;
+			for (UObject* NodeObj : SelectedNodes)
 			{
 				// Some nodes may not be metasound nodes (ex. comments and perhaps aliases eventually), but can be safely deleted.
-				if (UEdGraphNode* Node = Cast<UEdGraphNode>(*NodeIt))
+				if (UEdGraphNode* Node = Cast<UEdGraphNode>(NodeObj))
 				{
-					if (!FGraphBuilder::DeleteNode(*Node))
+					if (FGraphBuilder::DeleteNode(*Node))
+					{
+						bModified = true;
+					}
+					else
 					{
 						MetasoundGraphEditor->SetNodeSelection(Node, true /* bSelect */);
 					}
 				}
+			}
+
+			if (bModified)
+			{
+				Graph->Modify();
 			}
 		}
 
@@ -920,9 +1230,8 @@ namespace Metasound
 				return;
 			}
 
-			const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "MetasoundEditorPaste", "Paste Metasound Node(s)"));
+			const FScopedTransaction Transaction(LOCTEXT("MetasoundEditorPaste", "Paste Metasound Node(s)"));
 			Graph->Modify();
-			Metasound->Modify();
 
 			// Clear the selection set (newly pasted stuff will be selected)
 			MetasoundGraphEditor->ClearSelectionSet();
@@ -932,23 +1241,52 @@ namespace Metasound
 
 			ClipboardContent.Empty();
 
+			UMetasoundEditorGraph* MetasoundGraph = CastChecked<UMetasoundEditorGraph>(MetasoundAsset->GetGraph());
+
 			TArray<UEdGraphNode*> NodesToRemove;
 			for (UEdGraphNode* GraphNode : PastedGraphNodes)
 			{
 				GraphNode->CreateNewGuid();
-				if (UMetasoundEditorGraphNode* MetasoundGraphNode = Cast<UMetasoundEditorGraphNode>(GraphNode))
+				if (UMetasoundEditorGraphExternalNode* ExternalNode = Cast<UMetasoundEditorGraphExternalNode>(GraphNode))
 				{
-					// TODO: Support copying inputs after adding replacing InputGraphNodes with InputReferenceGraphNodes
-					FNodeHandle NewHandle = INodeController::GetInvalidHandle();
-					if (MetasoundGraphNode->IsA(UMetasoundEditorGraphExternalNode::StaticClass()))
-					{
-						NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *MetasoundGraphNode);
-					}
-
+					FNodeHandle NewHandle = FGraphBuilder::AddNodeHandle(*Metasound, *ExternalNode);
 					if (!NewHandle->IsValid())
 					{
 						NodesToRemove.Add(GraphNode);
 					}
+				}
+				else if (UMetasoundEditorGraphInputNode* InputNode = Cast<UMetasoundEditorGraphInputNode>(GraphNode))
+				{
+					if (!MetasoundGraph->Inputs.Contains(InputNode->Input))
+					{
+						NodesToRemove.Add(GraphNode);
+					}
+				}
+				else if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(GraphNode))
+				{
+					if (!MetasoundGraph->Outputs.Contains(OutputNode->Output))
+					{
+						NodesToRemove.Add(GraphNode);
+					}
+
+					auto NodeMatches = [OutputNodeID = OutputNode->GetNodeID()](const TObjectPtr<UEdGraphNode>& EdNode)
+					{
+						if (UMetasoundEditorGraphOutputNode* OutputNode = Cast<UMetasoundEditorGraphOutputNode>(EdNode))
+						{
+							return OutputNodeID == OutputNode->GetNodeID();
+						}
+						return false;
+					};
+
+					// Can only have one output reference node
+					if (MetasoundGraph->Nodes.ContainsByPredicate(NodeMatches))
+					{
+						NodesToRemove.Add(GraphNode);
+					}
+				}
+				else
+				{
+					checkNoEntry();
 				}
 			}
 
@@ -988,7 +1326,7 @@ namespace Metasound
 					{
 						const FVector2D NewNodeLocation = FVector2D(GraphNode->NodePosX, GraphNode->NodePosY);
 						FMetasoundFrontendNodeStyle NodeStyle = NodeHandle->GetNodeStyle();
-						NodeStyle.Display.Location = NewNodeLocation;
+						NodeStyle.Display.Locations.FindOrAdd(NodeHandle->GetID()) = NewNodeLocation;
 						NodeHandle->SetNodeStyle(NodeStyle);
 					}
 				}
@@ -1070,6 +1408,343 @@ namespace Metasound
 
 			check(GEditor);
 			GEditor->RedoTransaction();
+		}
+
+		void FEditor::OnInputNameChanged(FGuid InNodeID)
+		{
+			if (!MetasoundGeneralMenu.IsValid())
+			{
+				return;
+			}
+
+			TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+			MetasoundGeneralMenu->GetSelectedActions(SelectedActions);
+			MetasoundGeneralMenu->RefreshAllActions(/* bPreserveExpansion */ true);
+
+			for(const TSharedPtr<FEdGraphSchemaAction>& Action : SelectedActions)
+			{
+				TSharedPtr<FMetasoundGraphNodeSchemaAction> MetasoundAction = StaticCastSharedPtr<FMetasoundGraphNodeSchemaAction>(Action);
+				if (MetasoundAction.IsValid())
+				{
+					Frontend::FNodeHandle NodeHandle = MetasoundAction->GetNodeHandle();
+					if (InNodeID == NodeHandle->GetID())
+					{
+						TArray<Frontend::FConstOutputHandle> OutputHandles = NodeHandle->GetConstOutputs();
+						if (ensure(OutputHandles.Num() == 1))
+						{
+							const FName ActionName = *OutputHandles[0]->GetDisplayName().ToString();
+							MetasoundGeneralMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		void FEditor::OnOutputNameChanged(FGuid InNodeID)
+		{
+			if (!MetasoundGeneralMenu.IsValid())
+			{
+				return;
+			}
+
+			TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+			MetasoundGeneralMenu->GetSelectedActions(SelectedActions);
+			MetasoundGeneralMenu->RefreshAllActions(/* bPreserveExpansion */ true);
+
+			for (const TSharedPtr<FEdGraphSchemaAction>& Action : SelectedActions)
+			{
+				TSharedPtr<FMetasoundGraphNodeSchemaAction> MetasoundAction = StaticCastSharedPtr<FMetasoundGraphNodeSchemaAction>(Action);
+				if (MetasoundAction.IsValid())
+				{
+					Frontend::FNodeHandle NodeHandle = MetasoundAction->GetNodeHandle();
+					if (InNodeID == NodeHandle->GetID())
+					{
+						TArray<Frontend::FConstInputHandle> InputHandles = NodeHandle->GetConstInputs();
+						if (ensure(InputHandles.Num() == 1))
+						{
+							const FName ActionName = *InputHandles[0]->GetDisplayName().ToString();
+							MetasoundGeneralMenu->SelectItemByName(ActionName, ESelectInfo::Direct, Action->GetSectionID());
+						}
+						break;
+					}
+				}
+			}
+		}
+
+		void FEditor::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
+		{
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
+
+			UMetasoundEditorGraph* EditorGraph = Cast<UMetasoundEditorGraph>(MetasoundAsset->GetGraph());
+
+			MetasoundAsset->GetRootGraphHandle()->IterateConstNodes([this, EditorGraph, MetasoundAsset, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Input)
+			{
+				if (Input->GetNodeStyle().Display.Visibility == EMetasoundFrontendNodeStyleDisplayVisibility::Hidden)
+				{
+					return;
+				}
+
+				const FText Tooltip = Input->GetDescription();
+				const FText InputName = Input->GetDisplayName();
+				TSharedPtr<FMetasoundGraphNodeSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphNodeSchemaAction>(FText::GetEmpty(), InputName, Tooltip, 1, ENodeSection::Inputs);
+				NewFuncAction->Graph = MetasoundAsset->GetGraph();
+				ActionList->AddAction(NewFuncAction);
+
+				const FGuid NodeID = Input->GetID();
+				NewFuncAction->NodeID = NodeID;
+				UMetasoundEditorGraphInput * EdGraphInput = EditorGraph->FindInput(NodeID);
+				if (ensure(EdGraphInput))
+				{
+					if (FDelegateHandle* NameChangeDelegate = NameChangeDelegateHandles.Find(NodeID))
+					{
+						EdGraphInput->NameChanged.Remove(*NameChangeDelegate);
+					}
+					NameChangeDelegateHandles.FindOrAdd(NodeID) = EdGraphInput->NameChanged.AddSP(this, &FEditor::OnInputNameChanged);
+				}
+			}, EMetasoundFrontendClassType::Input);
+
+			MetasoundAsset->GetRootGraphHandle()->IterateConstNodes([this, EditorGraph, MetasoundAsset, ActionList = &OutAllActions](const Frontend::FConstNodeHandle& Output)
+			{
+				const FText Tooltip = Output->GetDescription();
+				const FText OutputName = Output->GetDisplayName();
+
+				TSharedPtr<FMetasoundGraphNodeSchemaAction> NewFuncAction = MakeShared<FMetasoundGraphNodeSchemaAction>(FText::GetEmpty(), OutputName, Tooltip, 1, ENodeSection::Outputs);
+				NewFuncAction->Graph = MetasoundAsset->GetGraph();
+				NewFuncAction->NodeID = Output->GetID();
+				ActionList->AddAction(NewFuncAction);
+
+				const FGuid NodeID = Output->GetID();
+				NewFuncAction->NodeID = NodeID;
+				UMetasoundEditorGraphOutput* EdGraphOutput = EditorGraph->FindOutput(NodeID);
+				if (ensure(EdGraphOutput))
+				{
+					if (FDelegateHandle* NameChangeDelegate = NameChangeDelegateHandles.Find(NodeID))
+					{
+						EdGraphOutput->NameChanged.Remove(*NameChangeDelegate);
+					}
+					NameChangeDelegateHandles.FindOrAdd(NodeID) = EdGraphOutput->NameChanged.AddSP(this, &FEditor::OnOutputNameChanged);
+				}
+			}, EMetasoundFrontendClassType::Output);
+		}
+
+		void FEditor::CollectStaticSections(TArray<int32>& StaticSectionIDs)
+		{
+			for (int32 i = 0; i < static_cast<int32>(ENodeSection::COUNT); ++i)
+			{
+				if (static_cast<ENodeSection>(i) != ENodeSection::None)
+				{
+					StaticSectionIDs.Add(i);
+				}
+			}
+		}
+
+		bool FEditor::HandleActionMatchesName(FEdGraphSchemaAction* InAction, const FName& InName) const
+		{
+			return false;
+		}
+
+		// TODO: Implement
+		FReply FEditor::OnActionDragged(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, const FPointerEvent& MouseEvent)
+		{
+			return FReply::Unhandled();
+		}
+
+		void FEditor::OnActionSelected(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions, ESelectInfo::Type InSelectionType)
+		{
+			if (InSelectionType == ESelectInfo::OnMouseClick || InSelectionType == ESelectInfo::OnKeyPress || InSelectionType == ESelectInfo::OnNavigation || InActions.IsEmpty())
+			{
+				TArray<UObject*> SelectedObjects;
+				for (const TSharedPtr<FEdGraphSchemaAction>& Action : InActions)
+				{
+					TSharedPtr<FMetasoundGraphNodeSchemaAction> MetasoundNodeAction = StaticCastSharedPtr<FMetasoundGraphNodeSchemaAction>(Action);
+					if (MetasoundNodeAction.IsValid())
+					{
+						SelectedObjects.Add(MetasoundNodeAction->GetVariable());
+					}
+				}
+
+				if (InSelectionType != ESelectInfo::Direct && !InActions.IsEmpty())
+				{
+					if (MetasoundGraphEditor.IsValid())
+					{
+						bManuallyClearingGraphSelection = true;
+						MetasoundGraphEditor->ClearSelectionSet();
+						bManuallyClearingGraphSelection = false;
+					}
+					SetSelection(SelectedObjects);
+				}
+			}
+		}
+
+		// TODO: Add ability to filter inputs/outputs in "Metasound" Tab
+		FText FEditor::GetFilterText() const
+		{
+			return FText::GetEmpty();
+		}
+
+		TSharedRef<SWidget> FEditor::OnCreateWidgetForAction(FCreateWidgetForActionData* const InCreateData)
+		{
+			return SNew(SGraphPaletteItem, InCreateData);
+		}
+
+		FText FEditor::GetSectionTitle(ENodeSection InSection) const
+		{
+			const int32 SectionIndex = static_cast<int32>(InSection);
+			if (ensure(NodeSectionNames.IsValidIndex(SectionIndex)))
+			{
+				return NodeSectionNames[SectionIndex];
+			}
+
+			return FText::GetEmpty();
+		}
+
+		FText FEditor::OnGetSectionTitle(int32 InSectionID)
+		{
+			if (ensure(NodeSectionNames.IsValidIndex(InSectionID)))
+			{
+				return NodeSectionNames[InSectionID];
+			}
+
+			return FText::GetEmpty();
+		}
+
+		TSharedRef<SWidget> FEditor::OnGetMenuSectionWidget(TSharedRef<SWidget> RowWidget, int32 InSectionID)
+		{
+			TWeakPtr<SWidget> WeakRowWidget = RowWidget;
+
+			FText AddNewText;
+			FName MetaDataTag;
+
+			switch (static_cast<ENodeSection>(InSectionID))
+			{
+				case ENodeSection::Inputs:
+				{
+					AddNewText = LOCTEXT("AddNewInput", "Input");
+					MetaDataTag = "AddNewInput";
+				}
+				break;
+
+				case ENodeSection::Outputs:
+				{
+					AddNewText = LOCTEXT("AddNewOutput", "Output");
+					MetaDataTag = "AddNewOutput";
+				}
+				break;
+
+				default:
+					return SNullWidget::NullWidget;
+			}
+
+			return CreateAddInputButton(InSectionID, AddNewText, MetaDataTag);
+		}
+
+		bool FEditor::CanAddNewElementToSection(int32 InSectionID) const
+		{
+			return true;
+		}
+
+		FReply FEditor::OnAddButtonClickedOnSection(int32 InSectionID)
+		{
+			if (!Metasound)
+			{
+				return FReply::Unhandled();
+			}
+
+			FMetasoundAssetBase* MetasoundAsset = IMetasoundUObjectRegistry::Get().GetObjectAsAssetBase(Metasound);
+			check(MetasoundAsset);
+			UMetasoundEditorGraph* Graph = Cast<UMetasoundEditorGraph>(MetasoundAsset->GetGraph());
+			if (!ensure(Graph))
+			{
+				return FReply::Unhandled();
+			}
+
+			FName NameToSelect;
+			switch (static_cast<ENodeSection>(InSectionID))
+			{
+				case ENodeSection::Inputs:
+				{
+					const FScopedTransaction Transaction(LOCTEXT("AddInputNode", "Add Metasound Input"));
+					Metasound->Modify();
+
+					const FName DataTypeName = "Bool";
+					FString NewNodeName = FGraphBuilder::GenerateUniqueInputName(*Metasound);
+					NameToSelect = FName(*NewNodeName);
+
+					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddInputNodeHandle(*Metasound, NewNodeName, DataTypeName, FText::GetEmpty());
+					if (ensure(NodeHandle->IsValid()))
+					{
+						TObjectPtr<UMetasoundEditorGraphInput> Input = Graph->FindOrAddInput(NodeHandle);
+						if (ensure(Input))
+						{
+							FGuid NodeID = NodeHandle->GetID();
+							if (FDelegateHandle* NameChangeDelegate = NameChangeDelegateHandles.Find(NodeID))
+							{
+								Input->NameChanged.Remove(*NameChangeDelegate);
+							}
+							NameChangeDelegateHandles.FindOrAdd(NodeID) = Input->NameChanged.AddSP(this, &FEditor::OnInputNameChanged);
+						}
+					}
+				}
+				break;
+
+				case ENodeSection::Outputs:
+				{
+					const FScopedTransaction Transaction(TEXT(""), LOCTEXT("AddOutputNode", "Add Metasound Output"), Metasound);
+					Metasound->Modify();
+
+					const FName DataTypeName = "Bool";
+					FString NewNodeName = FGraphBuilder::GenerateUniqueOutputName(*Metasound);
+					NameToSelect = FName(*NewNodeName);
+
+					Frontend::FNodeHandle NodeHandle = FGraphBuilder::AddOutputNodeHandle(*Metasound, NewNodeName, DataTypeName, FText::GetEmpty());
+					if (ensure(NodeHandle->IsValid()))
+					{
+						TObjectPtr<UMetasoundEditorGraphOutput> Output = Graph->FindOrAddOutput(NodeHandle);
+						if (ensure(Output))
+						{
+							FGuid NodeID = NodeHandle->GetID();
+							if (FDelegateHandle* NameChangeDelegate = NameChangeDelegateHandles.Find(NodeID))
+							{
+								Output->NameChanged.Remove(*NameChangeDelegate);
+							}
+							NameChangeDelegateHandles.FindOrAdd(NodeID) = Output->NameChanged.AddSP(this, &FEditor::OnInputNameChanged);
+						}
+					}
+				}
+				break;
+
+				default:
+				return FReply::Unhandled();
+			}
+
+			if (MetasoundGeneralMenu.IsValid())
+			{
+				MetasoundGeneralMenu->RefreshAllActions(/* bPreserveExpansion */ true);
+				if (NameToSelect.IsNone())
+				{
+					MetasoundGeneralMenu->SelectItemByName(NameToSelect);
+				}
+			}
+			return FReply::Handled();
+		}
+
+		TSharedRef<SWidget> FEditor::CreateAddInputButton(int32 InSectionID, FText AddNewText, FName MetaDataTag)
+		{
+			return
+				SNew(SButton)
+				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
+				.OnClicked(this, &FEditor::OnAddButtonClickedOnSection, InSectionID)
+				.IsEnabled(this, &FEditor::CanAddNewElementToSection, InSectionID)
+				.ContentPadding(FMargin(1, 0))
+				.AddMetaData<FTagMetaData>(FTagMetaData(MetaDataTag))
+				.ToolTipText(AddNewText)
+				[
+					SNew(SImage)
+					.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				];
 		}
 	}
 }

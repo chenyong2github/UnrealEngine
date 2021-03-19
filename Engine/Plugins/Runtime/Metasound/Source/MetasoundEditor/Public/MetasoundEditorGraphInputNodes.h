@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Algo/Count.h"
 #include "Algo/Transform.h"
 #include "CoreMinimal.h"
 #include "EdGraph/EdGraphNode.h"
@@ -39,46 +40,36 @@ class METASOUNDEDITOR_API UMetasoundEditorGraphInputNode : public UMetasoundEdit
 public:
 	virtual ~UMetasoundEditorGraphInputNode() = default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const
+	UPROPERTY()
+	TObjectPtr<UMetasoundEditorGraphInput> Input;
+
+public:
+	virtual FMetasoundFrontendClassName GetClassName() const override
 	{
-		return FMetasoundFrontendLiteral();
-	}
-
-
-	void UpdateDocumentInput() const
-	{
-		using namespace Metasound::Frontend;
-
-		FConstNodeHandle NodeHandle = GetNodeHandle();
-		const FString& NodeName = NodeHandle->GetNodeName();
-
-		FGraphHandle GraphHandle = GetRootGraphHandle();
-		const FGuid VertexID = GraphHandle->GetVertexIDForInputVertex(NodeName);
-		GraphHandle->SetDefaultInput(VertexID, GetLiteralDefault());
-	}
-
-	virtual void UpdatePreviewInstance(const Metasound::FVertexKey& InParamterName, IAudioInstanceTransmitter& InInstanceTransmitter) const {}
-
-	void OnLiteralChanged() 
-	{
-		UpdateDocumentInput();
-
-		if (UMetasoundEditorGraph* MetasoundGraph = Cast<UMetasoundEditorGraph>(GetGraph()))
+		if (ensure(Input))
 		{
-			if (IAudioInstanceTransmitter* Transmitter = MetasoundGraph->GetMetasoundInstanceTransmitter())
-			{
-				// TODO: fix how this parameter name is determined. It should not be done with a "DisplayName" but rather 
-				// the vertex "Name". Currently user entered vertex names only have their "Names" stored as "DisplayNames" 
-				TArray<Metasound::Frontend::FConstInputHandle> Inputs = GetNodeHandle()->GetConstInputs();
-
-				// An input node should only have one input. 
-				if (ensure(Inputs.Num() == 1))
-				{
-					Metasound::FVertexKey VertexKey = Metasound::FVertexKey(Inputs[0]->GetDisplayName().ToString());
-					UpdatePreviewInstance(VertexKey, *Transmitter);
-				}
-			}
+			return Input->ClassName;
 		}
+
+		return Super::GetClassName();
+	}
+
+	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const
+	{
+		if (ensure(Input))
+		{
+			Input->UpdatePreviewInstance(InParameterName, InInstanceTransmitter);
+		}
+	}
+	
+	virtual FGuid GetNodeID() const override
+	{
+		if (ensure(Input))
+		{
+			return Input->NodeID;
+		}
+
+		return Super::GetNodeID();
 	}
 
 #if WITH_EDITORONLY_DATA
@@ -86,39 +77,34 @@ public:
 	{
 		Super::PostEditUndo();
 
-		OnLiteralChanged();
+		if (ensure(Input))
+		{
+			Input->OnLiteralChanged();
+		}
 	}
 #endif // WITH_EDITORONLY_DATA
 
-	FName GetLiteralDefaultPropertyFName() const
-	{
-		return "Default";
-	}
-
-	virtual EMetasoundFrontendLiteralType GetLiteralType() const
-	{
-		return EMetasoundFrontendLiteralType::None;
-	}
-
 protected:
-	UPROPERTY()
-	FName InputTypeName;
+	virtual void SetNodeID(FGuid InNodeID) override
+	{
+		Input->NodeID = InNodeID;
+	}
 
 	friend class Metasound::Editor::FGraphBuilder;
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputBoolNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputBool : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputBoolNode() = default;
+	virtual ~UMetasoundEditorGraphInputBool() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
 	bool Default = false;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default);
@@ -137,17 +123,17 @@ public:
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputBoolArrayNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputBoolArray : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputBoolArrayNode() = default;
+	virtual ~UMetasoundEditorGraphInputBoolArray() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
 	TArray<bool> Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default);
@@ -167,7 +153,7 @@ public:
 
 // Broken out to be able to customize and swap enum behavior for basic integer literal behavior
 USTRUCT()
-struct FMetasoundEditorGraphInputInt
+struct FMetasoundEditorGraphInputIntRef
 {
 	GENERATED_BODY()
 
@@ -176,17 +162,17 @@ struct FMetasoundEditorGraphInputInt
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputIntNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputInt : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputIntNode() = default;
+	virtual ~UMetasoundEditorGraphInputInt() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	FMetasoundEditorGraphInputInt Default;
+	FMetasoundEditorGraphInputIntRef Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default.Value);
@@ -205,26 +191,24 @@ public:
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputIntArrayNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputIntArray : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputIntArrayNode() = default;
+	virtual ~UMetasoundEditorGraphInputIntArray() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	TArray<FMetasoundEditorGraphInputInt> Default;
+	TArray<FMetasoundEditorGraphInputIntRef> Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
-		TArray<int32> Values;
-		for (const FMetasoundEditorGraphInputInt& Value : Default)
-		{
-			Values.Add(Value.Value);
-		}
+		TArray<int32> IntArray;
+		Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphInputIntRef& InValue) { return InValue.Value; });
 
 		FMetasoundFrontendLiteral Literal;
-		Literal.Set(Values);
+		Literal.Set(IntArray);
+
 		return Literal;
 	}
 
@@ -236,24 +220,24 @@ public:
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		TArray<int32> IntArray;
-		Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphInputInt& InValue) { return InValue.Value; });
+		Algo::Transform(Default, IntArray, [](const FMetasoundEditorGraphInputIntRef& InValue) { return InValue.Value; });
 
 		InInstanceTransmitter.SetParameter(*InParameterName, TArray<int32>{ IntArray });
 	}
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputFloatNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputFloat : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputFloatNode() = default;
+	virtual ~UMetasoundEditorGraphInputFloat() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
 	float Default = 0.f;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default);
@@ -272,17 +256,17 @@ public:
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputFloatArrayNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputFloatArray : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputFloatArrayNode() = default;
+	virtual ~UMetasoundEditorGraphInputFloatArray() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
 	TArray<float> Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default);
@@ -301,17 +285,17 @@ public:
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputStringNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputString : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputStringNode() = default;
+	virtual ~UMetasoundEditorGraphInputString() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
 	FString Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default);
@@ -330,17 +314,17 @@ public:
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputStringArrayNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputStringArray : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputStringArrayNode() = default;
+	virtual ~UMetasoundEditorGraphInputStringArray() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
 	TArray<FString> Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default);
@@ -360,7 +344,7 @@ public:
 
 // Broken out to be able to customize and swap AllowedClass based on provided object proxy
 USTRUCT()
-struct FMetasoundEditorGraphInputObject
+struct FMetasoundEditorGraphInputObjectRef
 {
 	GENERATED_BODY()
 
@@ -369,17 +353,17 @@ struct FMetasoundEditorGraphInputObject
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputObjectNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputObject : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputObjectNode() = default;
+	virtual ~UMetasoundEditorGraphInputObject() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	FMetasoundEditorGraphInputObject Default;
+	FMetasoundEditorGraphInputObjectRef Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
 		FMetasoundFrontendLiteral Literal;
 		Literal.Set(Default.Object);
@@ -399,26 +383,23 @@ public:
 };
 
 UCLASS(MinimalAPI)
-class UMetasoundEditorGraphInputObjectArrayNode : public UMetasoundEditorGraphInputNode
+class UMetasoundEditorGraphInputObjectArray : public UMetasoundEditorGraphInputLiteral
 {
 	GENERATED_BODY()
 
 public:
-	virtual ~UMetasoundEditorGraphInputObjectArrayNode() = default;
+	virtual ~UMetasoundEditorGraphInputObjectArray() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue)
-	TArray<FMetasoundEditorGraphInputObject> Default;
+	TArray<FMetasoundEditorGraphInputObjectRef> Default;
 
-	virtual FMetasoundFrontendLiteral GetLiteralDefault() const override
+	virtual FMetasoundFrontendLiteral GetDefault() const override
 	{
-		TArray<UObject*> Objects;
-		for (const FMetasoundEditorGraphInputObject& InputObject : Default)
-		{
-			Objects.Add(InputObject.Object);
-		}
+		TArray<UObject*> ObjectArray;
+		Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphInputObjectRef& InValue) { return InValue.Object; });
 
 		FMetasoundFrontendLiteral Literal;
-		Literal.Set(Objects);
+		Literal.Set(ObjectArray);
 		return Literal;
 	}
 
@@ -430,7 +411,7 @@ public:
 	void UpdatePreviewInstance(const Metasound::FVertexKey& InParameterName, IAudioInstanceTransmitter& InInstanceTransmitter) const override
 	{
 		TArray<UObject*> ObjectArray;
-		Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphInputObject& InValue) { return InValue.Object; });
+		Algo::Transform(Default, ObjectArray, [](const FMetasoundEditorGraphInputObjectRef& InValue) { return InValue.Object; });
 		
 		// TODO. We need proxy object here safely.
 		//InInstanceTransmitter.SetParameter(*InParameterName, Default.Object);

@@ -14,12 +14,13 @@
 #include "MetasoundSource.h"
 #include "MetasoundAssetTypeActions.h"
 #include "MetasoundDetailCustomization.h"
-#include "MetasoundInputNodeDetailCustomization.h"
+#include "MetasoundEditorGraph.h"
 #include "MetasoundEditorGraphBuilder.h"
 #include "MetasoundEditorGraphNodeFactory.h"
 #include "MetasoundEditorGraphSchema.h"
 #include "MetasoundEditorSettings.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundNodeDetailCustomization.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorDelegates.h"
@@ -76,6 +77,7 @@ namespace Metasound
 					Set("MetasoundEditor.Export.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_40x.png")), Icon20x20));
 					Set("MetasoundEditor.ExportError", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_error_40x.png")), Icon40x40));
 					Set("MetasoundEditor.ExportError.Small", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/build_error_40x.png")), Icon20x20));
+					Set("MetasoundEditor.Settings", new FSlateImageBrush(RootToContentDir(TEXT("/Icons/settings_40x.png")), Icon20x20));
 
 					// Graph Editor
 					Set("MetasoundEditor.Graph.Node.Body.Input", new FSlateImageBrush(RootToContentDir(TEXT("/Graph/node_input_body_64x.png")), FVector2D(114.0f, 64.0f)));
@@ -102,7 +104,7 @@ namespace Metasound
 		{
 			void RegisterNodeInputClasses()
 			{
-				TSubclassOf<UMetasoundEditorGraphInputNode> NodeClass;
+				TSubclassOf<UMetasoundEditorGraphInputLiteral> NodeClass;
 				for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
 				{
 					UClass* Class = *ClassIt;
@@ -116,19 +118,19 @@ namespace Metasound
 						continue;
 					}
 
-					if (!ClassIt->IsChildOf(UMetasoundEditorGraphInputNode::StaticClass()))
+					if (!ClassIt->IsChildOf(UMetasoundEditorGraphInputLiteral::StaticClass()))
 					{
 						continue;
 					}
 
-					if (const UMetasoundEditorGraphInputNode* InputNode = Class->GetDefaultObject<UMetasoundEditorGraphInputNode>())
+					if (const UMetasoundEditorGraphInputLiteral* InputCDO = Class->GetDefaultObject<UMetasoundEditorGraphInputLiteral>())
 					{
-						NodeInputClassRegistry.Add(InputNode->GetLiteralType(), InputNode->GetClass());
+						NodeInputClassRegistry.Add(InputCDO->GetLiteralType(), InputCDO->GetClass());
 					}
 				}
 			}
 
-			const TSubclassOf<UMetasoundEditorGraphInputNode> FindNodeInputClass(EMetasoundFrontendLiteralType InLiteralType) const override
+			const TSubclassOf<UMetasoundEditorGraphInputLiteral> FindInputLiteralClass(EMetasoundFrontendLiteralType InLiteralType) const override
 			{
 				return NodeInputClassRegistry.FindRef(InLiteralType);
 			}
@@ -183,12 +185,14 @@ namespace Metasound
 						switch (RegistryInfo.PreferredLiteralType)
 						{
 							case ELiteralType::Boolean:
+							case ELiteralType::BooleanArray:
 							{
 								PinCategory = FGraphBuilder::PinCategoryBoolean;
 							}
 							break;
 
 							case ELiteralType::Float:
+							case ELiteralType::FloatArray:
 							{
 								PinCategory = FGraphBuilder::PinCategoryFloat;
 
@@ -212,38 +216,28 @@ namespace Metasound
 							break;
 
 							case ELiteralType::Integer:
+							case ELiteralType::IntegerArray:
 							{
 								PinCategory = FGraphBuilder::PinCategoryInt32;
 							}
 							break;
 
 							case ELiteralType::String:
+							case ELiteralType::StringArray:
 							{
 								PinCategory = FGraphBuilder::PinCategoryString;
 							}
 							break;
 
 							case ELiteralType::UObjectProxy:
+							case ELiteralType::UObjectProxyArray:
 							{
 								PinCategory = FGraphBuilder::PinCategoryObject;
 							}
 							break;
 
-							case ELiteralType::UObjectProxyArray:
-							{
-								// TODO: Implement, or will be nuked in favor of general array support for all types
-							}
-							break;
-
-							
 							case ELiteralType::None:
 							case ELiteralType::Invalid:
-							// TODO: handle array types.
-							case ELiteralType::NoneArray:
-							case ELiteralType::BooleanArray:
-							case ELiteralType::IntegerArray:
-							case ELiteralType::StringArray:
-							case ELiteralType::FloatArray:
 							default:
 							{
 								// Audio types are ubiquitous, so added as subcategory
@@ -284,16 +278,20 @@ namespace Metasound
 					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundDetailCustomization>(UMetasoundSource::GetDocumentPropertyName()); }));
 
 				PropertyModule.RegisterCustomClassLayout(
-					UMetasoundEditorGraphInputNode::StaticClass()->GetFName(),
-					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeDetailCustomization>(); }));
+					UMetasoundEditorGraphInput::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputDetailCustomization>(); }));
+
+				PropertyModule.RegisterCustomClassLayout(
+					UMetasoundEditorGraphOutput::StaticClass()->GetFName(),
+					FOnGetDetailCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundOutputDetailCustomization>(); }));
 
 				PropertyModule.RegisterCustomPropertyTypeLayout(
-					"MetasoundEditorGraphInputInt",
-					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeIntDetailCustomization>(); }));
+					"MetasoundEditorGraphInputIntRef",
+					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputIntDetailCustomization>(); }));
 
 				PropertyModule.RegisterCustomPropertyTypeLayout(
-					"MetasoundEditorGraphInputObject",
-					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputNodeObjectDetailCustomization>(); }));
+					"MetasoundEditorGraphInputObjectRef",
+					FOnGetPropertyTypeCustomizationInstance::CreateLambda([]() { return MakeShared<FMetasoundInputObjectDetailCustomization>(); }));
 
 				StyleSet = MakeShared<FSlateStyle>();
 
@@ -357,7 +355,7 @@ namespace Metasound
 
 			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 			TMap<FName, FEditorDataType> DataTypeInfo;
-			TMap<EMetasoundFrontendLiteralType, const TSubclassOf<UMetasoundEditorGraphInputNode>> NodeInputClassRegistry;
+			TMap<EMetasoundFrontendLiteralType, const TSubclassOf<UMetasoundEditorGraphInputLiteral>> NodeInputClassRegistry;
 
 			TSharedPtr<FMetasoundGraphNodeFactory> GraphNodeFactory;
 			TSharedPtr<FGraphPanelPinConnectionFactory> GraphConnectionFactory;

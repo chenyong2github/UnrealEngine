@@ -9,6 +9,7 @@
 #include "DetailWidgetRow.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "IDetailGroup.h"
+#include "Input/Events.h"
 #include "MetasoundAssetBase.h"
 #include "MetasoundFrontend.h"
 #include "MetasoundFrontendController.h"
@@ -16,6 +17,7 @@
 #include "PropertyEditorDelegates.h"
 #include "PropertyHandle.h"
 #include "PropertyRestriction.h"
+#include "SGraphPalette.h"
 #include "SlateCore/Public/Styling/SlateColor.h"
 #include "Templates/Casts.h"
 #include "Templates/SharedPointer.h"
@@ -39,14 +41,6 @@ namespace Metasound
 {
 	namespace Editor
 	{
-		/* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
-		enum class ENodeSection : uint8
-		{
-			NONE = 0,
-			INPUTS,
-			OUTPUTS
-		};
-
 		FName BuildChildPath(const FString& InBasePath, FName InPropertyName)
 		{
 			return FName(InBasePath + TEXT(".") + InPropertyName.ToString());
@@ -200,31 +194,6 @@ namespace Metasound
 			TArray<TWeakObjectPtr<UObject>> Objects;
 			DetailLayout.GetObjectsBeingCustomized(Objects);
 
-			const FName InterfacePropertyPath = BuildChildPath(GetMetadataRootClassPath(), GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClass, Interface));
-			const FName InputsPropertyPath = BuildChildPath(InterfacePropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInterface, Inputs));
-			const FName OutputsPropertyPath = BuildChildPath(InterfacePropertyPath, GET_MEMBER_NAME_CHECKED(FMetasoundFrontendClassInterface, Outputs));
-
-			// TODO: Move Fixed Arrays to GraphActionMenu for selection, ordering, and
-			// eventually ability to create input nodes independent of registered inputs.
-// 			SAssignNew(GraphActionMenu, SGraphActionMenu, false)
-// 				.OnGetFilterText(this, &FMetasoundDetailCustomization::GetFilterText)
-// 				.OnCreateWidgetForAction(this, &FMetasoundDetailCustomization::OnCreateWidgetForAction)
-// 				.OnCollectAllActions(this, &FMetasoundDetailCustomization::CollectAllActions)
-// 				.OnCollectStaticSections(this, &FMetasoundDetailCustomization::CollectStaticSections)
-// 				.OnActionDragged(this, &FMetasoundDetailCustomization::OnActionDragged)
-// 				.OnActionSelected(this, &FMetasoundDetailCustomization::OnGlobalActionSelected)
-// 				.OnActionDoubleClicked(this, &FMetasoundDetailCustomization::OnActionDoubleClicked)
-// 				.OnContextMenuOpening(this, &FMetasoundDetailCustomization::OnContextMenuOpening)
-// 				.OnCategoryTextCommitted(this, &FMetasoundDetailCustomization::OnCategoryNameCommitted)
-// 				.OnCanRenameSelectedAction(this, &FMetasoundDetailCustomization::CanRequestRenameOnActionNode)
-// 				.OnGetSectionTitle(this, &FMetasoundDetailCustomization::OnGetSectionTitle)
-// 				.OnGetSectionWidget(this, &FMetasoundDetailCustomization::OnGetSectionWidget)
-// 				.OnActionMatchesName(this, &FMetasoundDetailCustomization::HandleActionMatchesName)
-// 				.AlphaSortItems(false)
-// 				.UseSectionStyling(true);
-			
-			BuildIOFixedArray<FMetasoundFrontendClassInput>(DetailLayout, "Inputs", InputsPropertyPath);
-			BuildIOFixedArray<FMetasoundFrontendClassOutput>(DetailLayout, "Outputs", OutputsPropertyPath);
 
 			// Hack to hide parent structs for nested metadata properties
 			DetailLayout.HideCategory("CustomView");
@@ -246,34 +215,6 @@ namespace Metasound
 			DetailLayout.HideCategory("SoundWave");
 			DetailLayout.HideCategory("Subtitles");
 			DetailLayout.HideCategory("Voice Management");
-		}
-
-		FText FMetasoundDetailCustomization::OnGetSectionTitle(int32 InSectionID)
-		{
-			FText SeperatorTitle;
-			/* Setup an appropriate name for the section for this node */
-			switch (static_cast<ENodeSection>(InSectionID))
-			{
-				case ENodeSection::INPUTS:
-				{
-					SeperatorTitle = LOCTEXT("Inputs_Title", "Inputs");
-				}
-				break;
-
-				case ENodeSection::OUTPUTS:
-				{
-					SeperatorTitle = LOCTEXT("Outputs_Title", "Outputs");
-				}
-				break;
-
-				default:
-				{
-					SeperatorTitle = LOCTEXT("Missing_Title", "UNSET");
-				}
-				break;
-			}
-
-			return SeperatorTitle;
 		}
 	} // namespace Editor
 } // namespace Metasound

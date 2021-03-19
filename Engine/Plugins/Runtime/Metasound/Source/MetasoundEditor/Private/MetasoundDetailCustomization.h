@@ -3,11 +3,13 @@
 
 #include "IDetailCustomization.h"
 #include "SGraphActionMenu.h"
+#include "Types/SlateEnums.h"
 #include "UObject/NameTypes.h"
 
 // Forward Declarations
 class FPropertyRestriction;
 class IDetailLayoutBuilder;
+struct FPointerEvent;
 
 namespace Metasound
 {
@@ -26,11 +28,9 @@ namespace Metasound
 			FName GetMetadataRootClassPath() const;
 			FName GetMetadataPropertyPath() const;
 
-			FText OnGetSectionTitle(int32 InSectionID);
-
 			FName DocumentPropertyName;
 
-// 			TSharedPtr<SGraphActionMenu> GraphActionMenu;
+			TSharedPtr<SGraphActionMenu> GraphActionMenu;
 		};
 	} // namespace Editor
 } // namespace Metasound

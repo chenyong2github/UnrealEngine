@@ -65,7 +65,7 @@ namespace Metasound
 					];
 			}
 
-			TSharedRef<SDockTab> CreateMetasoundTab(TSharedPtr<IDetailsView> DetailsView, const FSpawnTabArgs& Args)
+			TSharedRef<SDockTab> CreateMetasoundTab(TSharedPtr<SGraphActionMenu> GraphActionMenu, const FSpawnTabArgs& Args)
 			{
 				check(Args.GetTabId() == Names::Metasound);
 
@@ -73,7 +73,7 @@ namespace Metasound
 					.Icon(FAppStyle::Get().GetBrush("Icons.Settings"))
 					.Label(LOCTEXT("MetasoundGeneralTitle", "Metasound"))
 					[
-						DetailsView.ToSharedRef()
+						GraphActionMenu.ToSharedRef()
 					];
 			}
 
