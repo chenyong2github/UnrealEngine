@@ -135,6 +135,11 @@ void AWorldPartitionHLOD::PostRegisterAllComponents()
 	{
 		SetupLoadedSubActors();
 	}
+
+#if WITH_EDITOR
+	bListedInSceneOutliner = true;
+	SetFolderPath(*FString::Printf(TEXT("HLOD/HLOD%d"), GetLODLevel()));
+#endif
 }
 
 void AWorldPartitionHLOD::PostUnregisterAllComponents()
