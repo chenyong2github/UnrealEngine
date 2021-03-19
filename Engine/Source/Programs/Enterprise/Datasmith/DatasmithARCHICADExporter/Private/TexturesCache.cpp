@@ -1,10 +1,4 @@
-//
-//  FTexturesCache.cpp
-//  AC2TM
-//
-//  Created by Richard Young on 17-01-23.
-//  Copyright © 2017 Epic Games International. All rights reserved.
-//
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TexturesCache.h"
 

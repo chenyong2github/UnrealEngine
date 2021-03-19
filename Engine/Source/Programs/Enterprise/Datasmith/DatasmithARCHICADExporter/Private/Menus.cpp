@@ -1,10 +1,4 @@
-//
-//  CMenu.cpp
-//  AC2TM
-//
-//  Created by Richard Young on 17-04-05.
-//  Copyright © 2017 Epic Games International. All rights reserved.
-//
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Menus.h"
 #include "ResourcesIDs.h"

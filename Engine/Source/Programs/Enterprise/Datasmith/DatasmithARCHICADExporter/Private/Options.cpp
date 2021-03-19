@@ -1,10 +1,4 @@
-//
-//  FOptions.cpp
-//  AC2TM
-//
-//  Created by Richard Young on 17-02-20.
-//  Copyright © 2017 Epic Games International. All rights reserved.
-//
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Options.h"
 #include "Preferences.h"
