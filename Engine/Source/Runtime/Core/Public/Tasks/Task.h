@@ -4,6 +4,7 @@
 
 #include "Tasks/TaskPrivate.h"
 #include "Async/Fundamental/Task.h"
+#include "Templates/RefCounting.h"
 #include "CoreTypes.h"
 
 namespace UE { namespace Tasks
