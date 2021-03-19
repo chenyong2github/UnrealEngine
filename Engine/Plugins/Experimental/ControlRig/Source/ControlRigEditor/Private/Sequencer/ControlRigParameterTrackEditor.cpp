@@ -73,15 +73,14 @@
 
 static USkeletalMeshComponent* AcquireSkeletalMeshFromObject(UObject* BoundObject, TSharedPtr<ISequencer> SequencerPtr)
 {
-
 	if (AActor* Actor = Cast<AActor>(BoundObject))
 	{
-		for (UActorComponent* Component : Actor->GetComponents())
+		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+		Actor->GetComponents(SkeletalMeshComponents);
+		
+		if (SkeletalMeshComponents.Num() == 1)
 		{
-			if (USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Component))
-			{
-				return SkeletalMeshComp;
-			}
+			return SkeletalMeshComponents[0];
 		}
 	}
 	else if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(BoundObject))
@@ -114,24 +113,23 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 	*Object = BoundObject;
 	if (AActor* Actor = Cast<AActor>(BoundObject))
 	{
-		for (UActorComponent* Component : Actor->GetComponents())
+		TArray<USkeletalMeshComponent*> SkeletalMeshComponents;
+		Actor->GetComponents(SkeletalMeshComponents);
+		if (SkeletalMeshComponents.Num() == 1)
 		{
-			if (USkeleton* Skeleton = GetSkeletonFromComponent(Component))
-			{
-				return Skeleton;
-			}
+			return GetSkeletonFromComponent(SkeletalMeshComponents[0]);
 		}
+		SkeletalMeshComponents.Empty();
 
 		AActor* ActorCDO = Cast<AActor>(Actor->GetClass()->GetDefaultObject());
 		if (ActorCDO)
 		{
-			for (UActorComponent* Component : ActorCDO->GetComponents())
+			ActorCDO->GetComponents(SkeletalMeshComponents);
+			if (SkeletalMeshComponents.Num() == 1)
 			{
-				if (USkeleton* Skeleton = GetSkeletonFromComponent(Component))
-				{
-					return Skeleton;
-				}
+				return GetSkeletonFromComponent(SkeletalMeshComponents[0]);
 			}
+			SkeletalMeshComponents.Empty();
 		}
 
 		UBlueprintGeneratedClass* ActorBlueprintGeneratedClass = Cast<UBlueprintGeneratedClass>(Actor->GetClass());
@@ -143,11 +141,16 @@ static USkeleton* AcquireSkeletonFromObjectGuid(const FGuid& Guid, UObject** Obj
 			{
 				if (Node->ComponentClass->IsChildOf(USkeletalMeshComponent::StaticClass()))
 				{
-					if (USkeleton* Skeleton = GetSkeletonFromComponent(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass)))
+					if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(Node->GetActualComponentTemplate(ActorBlueprintGeneratedClass)))
 					{
-						return Skeleton;
+						SkeletalMeshComponents.Add(SkeletalMeshComponent);
 					}
 				}
+			}
+
+			if (SkeletalMeshComponents.Num() == 1)
+			{
+				return GetSkeletonFromComponent(SkeletalMeshComponents[0]);
 			}
 		}
 	}
