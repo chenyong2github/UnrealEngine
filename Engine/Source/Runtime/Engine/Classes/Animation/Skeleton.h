@@ -888,10 +888,11 @@ public:
 	 *		- and if more than 50 % of bones matches
 	 *  
 	 * @param	InSkelMesh	SkeletalMesh to compare the Skeleton against.
+	 * @param   bDoParentChainCheck When true (the default) this method also compares if chains match with the parent. 
 	 * 
 	 * @return				true if animation set can play on supplied SkeletalMesh, false if not.
 	 */
-	ENGINE_API bool IsCompatibleMesh(const USkeletalMesh* InSkelMesh) const;
+	ENGINE_API bool IsCompatibleMesh(const USkeletalMesh* InSkelMesh, bool bDoParentChainCheck=true) const;
 
 	/** Clears all cache data **/
 	ENGINE_API void ClearCacheData();

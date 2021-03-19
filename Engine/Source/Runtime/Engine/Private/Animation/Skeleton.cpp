@@ -926,7 +926,7 @@ bool USkeleton::DoesParentChainMatch(int32 StartBoneIndex, const USkeletalMesh* 
 	return true;
 }
 
-bool USkeleton::IsCompatibleMesh(const USkeletalMesh* InSkelMesh) const
+bool USkeleton::IsCompatibleMesh(const USkeletalMesh* InSkelMesh, bool bDoParentChainCheck) const
 {
 	// at least % of bone should match 
 	int32 NumOfBoneMatches = 0;
@@ -948,7 +948,7 @@ bool USkeleton::IsCompatibleMesh(const USkeletalMesh* InSkelMesh) const
 			++NumOfBoneMatches;
 
 			// follow the parent chain to verify the chain is same
-			if(!DoesParentChainMatch(SkeletonBoneIndex, InSkelMesh))
+			if(bDoParentChainCheck && !DoesParentChainMatch(SkeletonBoneIndex, InSkelMesh))
 			{
 				UE_LOG(LogAnimation, Verbose, TEXT("%s : Hierarchy does not match."), *MeshBoneName.ToString());
 				return false;
@@ -988,7 +988,7 @@ bool USkeleton::IsCompatibleMesh(const USkeletalMesh* InSkelMesh) const
 			}
 
 			// second follow the parent chain to verify the chain is same
-			if( !DoesParentChainMatch(SkeletonBoneIndex, InSkelMesh) )
+			if (bDoParentChainCheck && !DoesParentChainMatch(SkeletonBoneIndex, InSkelMesh))
 			{
 				UE_LOG(LogAnimation, Verbose, TEXT("%s : Hierarchy does not match."), *MeshBoneName.ToString());
 				return false;
