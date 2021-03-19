@@ -3099,7 +3099,7 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 			if (!bForceTreeBuild)
 			{
 				// Create PerInstanceRenderData either from current data or pre-built instance buffer
-				InitPerInstanceRenderData(true, InstanceDataBuffers.Release());
+				InitPerInstanceRenderData(true, InstanceDataBuffers.Get());
 				NumBuiltRenderInstances = PerInstanceRenderData->InstanceBuffer_GameThread->GetNumInstances();
 				InstanceCountToRender = NumBuiltInstances;
 			}

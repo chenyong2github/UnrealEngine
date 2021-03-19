@@ -3192,8 +3192,7 @@ void UInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 {
 	if (!HasAnyFlags(RF_ClassDefaultObject|RF_ArchetypeObject))
 	{
-		// create PerInstanceRenderData and pass InstanceDataBuffers ownership to it
-		InitPerInstanceRenderData(true, InstanceDataBuffers.Release());
+		InitPerInstanceRenderData(true, InstanceDataBuffers.Get());
 	}
 
 	// release InstanceDataBuffers
