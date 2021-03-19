@@ -117,8 +117,10 @@ void UnloadDatasmithDlls(bool bForce)
 				UE_AC_DebugF("Mismatch Datasmith Load Unload count %d\n", LoadRequestCount);
 			}
 
-			UE_AC_TraceF("UnloadDatasmithDlls - Shutdown\n");
+			UE_AC_TraceF("UnloadDatasmithDlls - FDatasmithDirectLink::Shutdown\n");
 			FDatasmithDirectLink::Shutdown();
+			UE_AC_TraceF("UnloadDatasmithDlls - FDatasmithExporterManager::Shutdown\n");
+			FDatasmithExporterManager::Shutdown();
 			bLoadSucceed = false;
 		}
 	}
