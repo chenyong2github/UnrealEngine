@@ -81,6 +81,7 @@ protected:
 	
 
 	void UpdateOnMaterialChange(bool bInvalidateHitProxies);
+	void OnObjectsReplaced(const TMap<UObject*, UObject*>& InOldToNewInstanceMap);
 	void OnResetViewMode();
 	void FillWithVertexColor();
 	void PropagateVertexColorsToAsset();
