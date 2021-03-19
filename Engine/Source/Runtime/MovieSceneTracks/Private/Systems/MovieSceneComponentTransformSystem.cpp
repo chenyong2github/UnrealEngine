@@ -26,7 +26,7 @@ struct FPreAnimatedComponentTransformHandler
 	{
 		if (USceneComponent* SceneComponent = Cast<USceneComponent>(Object))
 		{
-			ConvertOperationalProperty(SceneComponent->GetRelativeTransform(), *Output);
+			*Output = FIntermediate3DTransform(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 		}
 	}
 
