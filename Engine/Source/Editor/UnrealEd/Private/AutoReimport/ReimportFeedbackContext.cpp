@@ -208,7 +208,12 @@ class SWidgetStack : public SVerticalBox
 
 		FLinearColor GetColorAndOpacity() const
 		{
-			return FLinearColor(1.f, 1.f, 1.f, OpacityCurve.GetLerp());
+			if (OpacityCurve.IsPlaying() || OpacityCurve.IsAtEnd())
+			{
+				return FLinearColor(1.f, 1.f, 1.f, OpacityCurve.GetLerp());
+			}
+
+			return FLinearColor(1.f, 1.f, 1.f, 1.f);
 		}
 
 		bool bIsFinished;
