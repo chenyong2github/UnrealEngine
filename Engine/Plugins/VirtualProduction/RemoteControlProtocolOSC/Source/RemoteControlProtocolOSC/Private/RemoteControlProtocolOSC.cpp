@@ -17,7 +17,7 @@ void FRemoteControlProtocolOSC::Bind(FRemoteControlProtocolEntityPtr InRemoteCon
 	FRemoteControlOSCProtocolEntity* OSCProtocolEntity = InRemoteControlProtocolEntityPtr->CastChecked<FRemoteControlOSCProtocolEntity>();
 
 	TArray<FRemoteControlProtocolEntityWeakPtr>& BindingsEntitiesPtr = Bindings.FindOrAdd(OSCProtocolEntity->PathName);
-	BindingsEntitiesPtr.Emplace(MoveTemp(InRemoteControlProtocolEntityPtr));
+	BindingsEntitiesPtr.Add(MoveTemp(InRemoteControlProtocolEntityPtr));
 }
 
 void FRemoteControlProtocolOSC::Unbind(FRemoteControlProtocolEntityPtr InRemoteControlProtocolEntityPtr)
