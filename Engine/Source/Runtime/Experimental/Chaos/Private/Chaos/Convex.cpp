@@ -132,7 +132,7 @@ namespace Chaos
 		for (int32 Idx = 0; Idx < Planes.Num(); ++Idx)
 		{
 			const TPlaneConcrete<FReal, 3>& Plane = Planes[Idx];
-			const FVec3 ScaledNormal = (Plane.Normal() * Scale).GetSafeNormal();
+			const FVec3 ScaledNormal = (Plane.Normal() / Scale).GetSafeNormal();
 			const FReal Dot = FVec3::DotProduct(ScaledNormal, Normal);
 			if (Dot < MostOpposingDot)
 			{
