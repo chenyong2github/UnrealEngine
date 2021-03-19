@@ -1126,7 +1126,7 @@ TArray<FUVGenerationFlattenMappingInternal::FaceStruct> FUVGenerationFlattenMapp
 	const TVertexInstanceAttributesConstRef<FVector> Normals = InMesh.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);
 
 	const FVertexInstanceArray& Instances = InMesh.VertexInstances();
-	check(InstanceIDMapping.Num() == 0 || InstanceIDMapping.Num() == Instances.Num());
+	check(InstanceIDMapping.Num() == 0 || InstanceIDMapping.Num() == Instances.GetArraySize());
 
 	for (const FPolygonID PolygonID : InMesh.Polygons().GetElementIDs())
 	{
@@ -1307,7 +1307,7 @@ TArray<int32> UUVGenerationFlattenMapping::GetOverlappingCornersRemapping(const 
 	// Create a instanceID mapping that merge overlapping vertices.
 	// In order to produce a better UV mapping
 	const FVertexInstanceArray& Instances = InMeshDescription.VertexInstances();
-	int32 InstanceCount = Instances.Num();
+	int32 InstanceCount = Instances.GetArraySize();
 
 	// maps original FVertexInstanceID value to replacement FVertexInstanceID value
 	TArray<int32> OverlappingVerticesRemapping;
