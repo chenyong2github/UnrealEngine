@@ -17,7 +17,7 @@
 #include "TransformNoScale.h"
 #include "ControlRigComponent.h"
 #include "SkeletalMeshRestoreState.h"
-
+#include "Rigs/FKControlRig.h"
 #include "UObject/UObjectAnnotation.h"
 
 //#include "Particles/ParticleSystemComponent.h"
@@ -880,6 +880,14 @@ struct FControlRigParameterExecutionToken : IMovieSceneExecutionToken
 				{
 					ControlRig->GetObjectBinding()->BindToObject(BoundObjects[0].Get());
 					ControlRig->Initialize();
+					if (ControlRig->IsA<UFKControlRig>())
+					{
+						UMovieSceneControlRigParameterTrack* Track = Section->GetTypedOuter<UMovieSceneControlRigParameterTrack>();
+						if (Track)
+						{
+							Track->ReplaceControlRig(ControlRig, true);
+						}
+					}
 				}
 				// ensure that pre animated state is saved, must be done before bind
 				Player.SavePreAnimatedState(*ControlRig, FMovieSceneControlRigParameterTemplate::GetAnimTypeID(), FControlRigParameterPreAnimatedTokenProducer(Operand.SequenceID));

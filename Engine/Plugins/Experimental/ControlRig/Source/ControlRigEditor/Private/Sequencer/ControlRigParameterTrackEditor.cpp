@@ -1656,45 +1656,11 @@ void FControlRigParameterTrackEditor::HandleOnInitialized(UControlRig* ControlRi
 {
 	if (GetSequencer().IsValid())
 	{
-		return;
-	}
-	//also reconstruct channels if we have changed...
-	FName ControlRigName(*ControlRig->GetName());
-	if (TSharedPtr<IControlRigObjectBinding> ObjectBinding = ControlRig->GetObjectBinding())
-	{
-		USceneComponent* Component = Cast<USceneComponent>(ObjectBinding->GetBoundObject());
-		if (!Component)
+		//If FK control rig on next tick we refresh the tree
+		if (ControlRig->IsA<UFKControlRig>())
 		{
-			return;
+			GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 		}
-		bool bCreateTrack = false;
-		FFindOrCreateHandleResult HandleResult = FindOrCreateHandleToSceneCompOrOwner(Component);
-		FGuid ObjectHandle = HandleResult.Handle;
-		if (!ObjectHandle.IsValid())
-		{
-			return;
-		}
-
-		FFindOrCreateTrackResult TrackResult = FindOrCreateTrackForObject(ObjectHandle, UMovieSceneControlRigParameterTrack::StaticClass(), ControlRigName, bCreateTrack);
-		UMovieSceneControlRigParameterTrack* Track = CastChecked<UMovieSceneControlRigParameterTrack>(TrackResult.Track, ECastCheckedType::NullAllowed);
-		if (Track)
-		{
-			TArray<UMovieSceneSection*> Sections = Track->GetAllSections();
-			for (UMovieSceneSection* IterSection : Sections)
-			{
-				UMovieSceneControlRigParameterSection* Section = Cast< UMovieSceneControlRigParameterSection>(IterSection);
-				if (Section)
-				{
-					Section->ReconstructChannelProxy(true);
-				}
-			}
-		}
-	}
-	
-	//if we are in an init force the sequence to run so we also reset and redraw.
-	if (InState == EControlRigState::Init)
-	{
-		GetSequencer()->RequestEvaluate();
 	}
 }
 
