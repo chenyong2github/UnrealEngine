@@ -41,7 +41,7 @@ class UAnimStateNodeBase : public UEdGraphNode
 	ANIMGRAPH_API virtual FString GetStateName() const { return TEXT("BaseState"); }
 
 	// Populates the OutTransitions array with a list of transition nodes connected to this state
-	ANIMGRAPH_API virtual void GetTransitionList(TArray<class UAnimStateTransitionNode*>& OutTransitions, bool bWantSortedList = false) { }
+	ANIMGRAPH_API virtual void GetTransitionList(TArray<class UAnimStateTransitionNode*>& OutTransitions, bool bWantSortedList = false) const;
 
 	virtual UEdGraph* GetBoundGraph() const { return NULL; }
 	virtual void ClearBoundGraph() {}
@@ -55,5 +55,4 @@ protected:
 public:
 	// Gets the animation state node documentation link
 	virtual FString GetDocumentationLink() const override;
-
 };

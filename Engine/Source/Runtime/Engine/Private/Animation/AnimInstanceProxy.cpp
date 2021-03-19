@@ -142,7 +142,8 @@ void FAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)
 #if WITH_EDITORONLY_DATA
 		if (UAnimBlueprint* Blueprint = Cast<UAnimBlueprint>(InAnimInstance->GetClass()->ClassGeneratedBy))
 		{
-			if (Blueprint->Status == BS_Error)
+			// If our blueprint is in an error or dirty state upon initialization, anim graph shouldn't run
+			if ((Blueprint->Status == BS_Error) || (Blueprint->Status == BS_Dirty))
 			{
 				RootNode = nullptr;
 			}

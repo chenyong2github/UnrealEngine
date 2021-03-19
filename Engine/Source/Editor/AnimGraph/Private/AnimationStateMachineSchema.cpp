@@ -21,6 +21,7 @@
 #include "AnimStateNode.h"
 #include "AnimStateTransitionNode.h"
 #include "AnimStateConduitNode.h"
+#include "AnimStateAliasNode.h"
 #include "AnimGraphNode_AssetPlayerBase.h"
 #include "ScopedTransaction.h"
 #include "GraphEditorActions.h"
@@ -275,6 +276,12 @@ void UAnimationStateMachineSchema::GetGraphContextActions(FGraphContextMenuBuild
 	{
 		TSharedPtr<FEdGraphSchemaAction_NewStateNode> Action = AddNewStateNodeAction(ContextMenuBuilder, FText::GetEmpty(), LOCTEXT("AddState", "Add State..."), LOCTEXT("AddStateTooltip", "A new state"));
 		Action->NodeTemplate = NewObject<UAnimStateNode>(ContextMenuBuilder.OwnerOfTemporaries);
+	}
+
+	// Add state alias node
+	{
+		TSharedPtr<FEdGraphSchemaAction_NewStateNode> Action = AddNewStateNodeAction(ContextMenuBuilder, FText::GetEmpty(), LOCTEXT("AddStateAlias", "Add State Alias..."), LOCTEXT("AddStateAliasTooltip", "A new state alias"));
+		Action->NodeTemplate = NewObject<UAnimStateAliasNode>(ContextMenuBuilder.OwnerOfTemporaries);
 	}
 
 	// Add conduit node

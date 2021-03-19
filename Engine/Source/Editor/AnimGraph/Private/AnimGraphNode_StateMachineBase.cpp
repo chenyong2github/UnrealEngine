@@ -29,6 +29,7 @@
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
 #include "IAnimBlueprintCompilationContext.h"
 #include "Animation/AnimNode_Inertialization.h"
+#include "AnimStateAliasNode.h"
 
 /////////////////////////////////////////////////////
 // FAnimStateMachineNodeNameValidator
@@ -226,9 +227,15 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 	struct FMachineCreator
 	{
 	public:
+
+		// A transition node with a state alias as source may have multiple transitions belonging to the same node. The referenced aliased state to differentiates them during compilation. 
+		using FUniqueTransition = TPair<UAnimStateTransitionNode*, UAnimStateNodeBase*>;
+
 		int32 MachineIndex;
 		TMap<UAnimStateNodeBase*, int32> StateIndexTable;
-		TMap<UAnimStateTransitionNode*, int32> TransitionIndexTable;
+		TMultiMap<int32, int32> StateIndexToStateAliasNodeIndices;
+		TArray<const UAnimStateAliasNode*> StateAliasNodes;
+		TMap<FUniqueTransition, int32> TransitionIndexTable;
 		UAnimGraphNode_StateMachineBase* StateMachineInstance;
 		TArray<FBakedAnimationStateMachine>& BakedMachines;
 		IAnimBlueprintGeneratedClassCompiledData& CompiledData;
@@ -264,6 +271,16 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			return CompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.FindOrAdd(SourceGraph);
 		}
 
+		int32 FindState(UAnimStateNodeBase* StateNode)
+		{
+			if (int32* pResult = StateIndexTable.Find(StateNode))
+			{
+				return *pResult;
+			}
+			
+			return INDEX_NONE;
+		}
+
 		int32 FindOrAddState(UAnimStateNodeBase* StateNode)
 		{
 			if (int32* pResult = StateIndexTable.Find(StateNode))
@@ -280,6 +297,7 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 
 				UAnimStateNodeBase* SourceNode = CompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimStateNodeBase>(StateNode);
 				GetMachineSpecificDebugData().NodeToStateIndex.Add(SourceNode, StateIndex);
+				GetMachineSpecificDebugData().StateIndexToNode.Add(StateIndex, SourceNode);
 				if (UAnimStateNode* SourceStateNode = Cast<UAnimStateNode>(SourceNode))
 				{
 					CompiledData.GetAnimBlueprintDebugData().StateGraphToNodeMap.Add(SourceStateNode->BoundGraph, SourceStateNode);
@@ -289,9 +307,15 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			}
 		}
 
-		int32 FindOrAddTransition(UAnimStateTransitionNode* TransitionNode)
+		void AddStateAliasTransitionMapping(UAnimStateAliasNode* AliasNode, const FStateMachineDebugData::FStateAliasTransitionStateIndexPair& TransitionStateIndexPair)
 		{
-			if (int32* pResult = TransitionIndexTable.Find(TransitionNode))
+			UAnimStateAliasNode* SourceNode = CompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimStateAliasNode>(AliasNode);
+			GetMachineSpecificDebugData().StateAliasNodeToTransitionStatePairs.Add(SourceNode, TransitionStateIndexPair);
+		}
+
+		int32 FindOrAddTransition(FUniqueTransition UniqueTransition)
+		{
+			if (int32* pResult = TransitionIndexTable.Find(UniqueTransition))
 			{
 				return *pResult;
 			}
@@ -300,9 +324,10 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 				FBakedAnimationStateMachine& BakedMachine = GetMachine();
 
 				const int32 TransitionIndex = BakedMachine.Transitions.Num();
-				TransitionIndexTable.Add(TransitionNode, TransitionIndex);
+				TransitionIndexTable.Add(UniqueTransition, TransitionIndex);
 				new (BakedMachine.Transitions) FAnimationTransitionBetweenStates();
 
+				UAnimStateTransitionNode* TransitionNode = UniqueTransition.Get<0>();
 				UAnimStateTransitionNode* SourceTransitionNode = CompilationContext.GetMessageLog().FindSourceObjectTypeChecked<UAnimStateTransitionNode>(TransitionNode);
 				GetMachineSpecificDebugData().NodeToTransitionIndex.Add(SourceTransitionNode, TransitionIndex);
 				CompiledData.GetAnimBlueprintDebugData().TransitionGraphToNodeMap.Add(SourceTransitionNode->BoundGraph, SourceTransitionNode);
@@ -361,6 +386,11 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 	{
 		UEdGraphNode* Node = *StateNodeIt;
 
+		if (UAnimStateNodeBase* StateNodeBase = Cast<UAnimStateNodeBase>(Node))
+		{
+			StateNodeBase->ValidateNodeDuringCompilation(InCompilationContext.GetMessageLog());
+		}
+
 		if (UAnimStateEntryNode* EntryNode = Cast<UAnimStateEntryNode>(Node))
 		{
 			// Handle the state graph entry
@@ -368,6 +398,10 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			if (BakedMachine.InitialState != INDEX_NONE)
 			{
 				InCompilationContext.GetMessageLog().Error(*LOCTEXT("TooManyStateMachineEntryNodes", "Found an extra entry node @@").ToString(), EntryNode);
+			}
+			else if (UAnimStateAliasNode* AliasState = Cast<UAnimStateAliasNode>(EntryNode->GetOutputNode()))
+			{
+				InCompilationContext.GetMessageLog().Error(*LOCTEXT("AliasAsEntryState", "An alias (@@) cannot be used as the entry node for a state machine").ToString(), AliasState);
 			}
 			else if (UAnimStateNodeBase* StartState = Cast<UAnimStateNodeBase>(EntryNode->GetOutputNode()))
 			{
@@ -378,49 +412,8 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 				InCompilationContext.GetMessageLog().Warning(*LOCTEXT("NoConnection", "Entry node @@ is not connected to state").ToString(), EntryNode);
 			}
 		}
-		else if (UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(Node))
-		{
-			TransitionNode->ValidateNodeDuringCompilation(InCompilationContext.GetMessageLog());
-
-			const int32 TransitionIndex = Oven.FindOrAddTransition(TransitionNode);
-			FAnimationTransitionBetweenStates& BakedTransition = Oven.GetMachine().Transitions[TransitionIndex];
-
-			BakedTransition.CrossfadeDuration = TransitionNode->CrossfadeDuration;
-			BakedTransition.StartNotify = OutCompiledData.FindOrAddNotify(TransitionNode->TransitionStart);
-			BakedTransition.EndNotify = OutCompiledData.FindOrAddNotify(TransitionNode->TransitionEnd);
-			BakedTransition.InterruptNotify = OutCompiledData.FindOrAddNotify(TransitionNode->TransitionInterrupt);
-			BakedTransition.BlendMode = TransitionNode->BlendMode;
-			BakedTransition.CustomCurve = TransitionNode->CustomBlendCurve;
-			BakedTransition.BlendProfile = TransitionNode->BlendProfile;
-			BakedTransition.LogicType = TransitionNode->LogicType;
-
-			UAnimStateNodeBase* PreviousState = TransitionNode->GetPreviousState();
-			UAnimStateNodeBase* NextState = TransitionNode->GetNextState();
-
-			if ((PreviousState != NULL) && (NextState != NULL))
-			{
-				const int32 PreviousStateIndex = Oven.FindOrAddState(PreviousState);
-				const int32 NextStateIndex = Oven.FindOrAddState(NextState);
-
-				if (TransitionNode->Bidirectional)
-				{
-					InCompilationContext.GetMessageLog().Warning(*LOCTEXT("BidirectionalTransWarning", "Bidirectional transitions aren't supported yet @@").ToString(), TransitionNode);
-				}
-
-				BakedTransition.PreviousState = PreviousStateIndex;
-				BakedTransition.NextState = NextStateIndex;
-			}
-			else
-			{
-				InCompilationContext.GetMessageLog().Warning(*LOCTEXT("BogusTransition", "@@ is incomplete, without a previous and next state").ToString(), TransitionNode);
-				BakedTransition.PreviousState = INDEX_NONE;
-				BakedTransition.NextState = INDEX_NONE;
-			}
-		}
 		else if (UAnimStateNode* StateNode = Cast<UAnimStateNode>(Node))
 		{
-			StateNode->ValidateNodeDuringCompilation(InCompilationContext.GetMessageLog());
-
 			const int32 StateIndex = Oven.FindOrAddState(StateNode);
 			FBakedAnimationState& BakedState = Oven.GetMachine().States[StateIndex];
 
@@ -470,8 +463,6 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 		}
 		else if (UAnimStateConduitNode* ConduitNode = Cast<UAnimStateConduitNode>(Node))
 		{
-			ConduitNode->ValidateNodeDuringCompilation(InCompilationContext.GetMessageLog());
-
 			const int32 StateIndex = Oven.FindOrAddState(ConduitNode);
 			FBakedAnimationState& BakedState = Oven.GetMachine().States[StateIndex];
 
@@ -489,6 +480,42 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 			// If this check fires, then something in the machine has changed causing the states array to not
 			// be a separate allocation, and a state machine inside of this one caused stuff to shift around
 			checkSlow(&BakedState == &(Oven.GetMachine().States[StateIndex]));
+		}
+		else if (UAnimStateAliasNode* StateAliasNode = Cast<UAnimStateAliasNode>(Node))
+		{
+			Oven.StateAliasNodes.Add(StateAliasNode);
+		}
+	}
+
+	int32 NumStateAlias = Oven.StateAliasNodes.Num();
+	for (auto AliasIndex = 0; AliasIndex < NumStateAlias; ++AliasIndex)
+	{
+		const UAnimStateAliasNode* StateAliasNode = Oven.StateAliasNodes[AliasIndex];
+
+		auto MapAlias = [&](const UAnimStateNodeBase* StateNode)
+		{
+			if (StateNode)
+			{
+				if (int32* StateIndexPtr = Oven.StateIndexTable.Find(StateNode))
+				{
+					Oven.StateIndexToStateAliasNodeIndices.Add(*StateIndexPtr, AliasIndex);
+				}
+			}
+		};
+
+		if (StateAliasNode->bGlobalAlias)
+		{
+			for (auto StateNodeIt = Oven.StateIndexTable.CreateConstIterator(); StateNodeIt; ++StateNodeIt)
+			{
+				MapAlias(StateNodeIt->Key);
+			}
+		}
+		else
+		{
+			for (auto StateNodeWeakIt = StateAliasNode->GetAliasedStates().CreateConstIterator(); StateNodeWeakIt; ++StateNodeWeakIt)
+			{
+				MapAlias(StateNodeWeakIt->Get());
+			}
 		}
 	}
 
@@ -535,19 +562,84 @@ void UAnimGraphNode_StateMachineBase::OnProcessDuringCompilation(IAnimBlueprintC
 		}
 		// Handle all the transitions out of this node
 		TArray<class UAnimStateTransitionNode*> TransitionList;
+
+		// Add aliased state transitions to transition list
+		TArray<int32> StateAliasIndices;
+		Oven.StateIndexToStateAliasNodeIndices.MultiFind(StateIndex, StateAliasIndices);
+		for (const int32 AliasIndex : StateAliasIndices)
+		{
+			// Let the final transition list do the sort.
+			Oven.StateAliasNodes[AliasIndex]->GetTransitionList(TransitionList, /*bWantSortedList=*/ false);
+		}
+		
 		StateNode->GetTransitionList(/*out*/ TransitionList, /*bWantSortedList=*/ true);
 
 		for (auto TransitionIt = TransitionList.CreateIterator(); TransitionIt; ++TransitionIt)
 		{
 			UAnimStateTransitionNode* TransitionNode = *TransitionIt;
-			const int32 TransitionIndex = Oven.FindOrAddTransition(TransitionNode);
+
+			const int32 TransitionIndex = Oven.FindOrAddTransition(FMachineCreator::FUniqueTransition(TransitionNode, StateNode));
+			FAnimationTransitionBetweenStates& BakedTransition = Oven.GetMachine().Transitions[TransitionIndex];
+
+			BakedTransition.CrossfadeDuration = TransitionNode->CrossfadeDuration;
+			BakedTransition.StartNotify = OutCompiledData.FindOrAddNotify(TransitionNode->TransitionStart);
+			BakedTransition.EndNotify = OutCompiledData.FindOrAddNotify(TransitionNode->TransitionEnd);
+			BakedTransition.InterruptNotify = OutCompiledData.FindOrAddNotify(TransitionNode->TransitionInterrupt);
+			BakedTransition.BlendMode = TransitionNode->BlendMode;
+			BakedTransition.CustomCurve = TransitionNode->CustomBlendCurve;
+			BakedTransition.BlendProfile = TransitionNode->BlendProfile;
+			BakedTransition.LogicType = TransitionNode->LogicType;
+
+			UAnimStateNodeBase* PreviousState = StateNode;
+			UAnimStateNodeBase* NextState = TransitionNode->GetNextState();
+
+			UAnimStateAliasNode* NextAliasNode = Cast<UAnimStateAliasNode>(NextState);
+			if (NextAliasNode)
+			{
+				NextState = NextAliasNode->GetAliasedState();
+			}
+
+			if ((PreviousState != nullptr) && (NextState != nullptr))
+			{
+				const int32 PreviousStateIndex = Oven.FindState(PreviousState);
+				const int32 NextStateIndex = Oven.FindState(NextState);
+
+				if (NextAliasNode)
+				{
+					Oven.AddStateAliasTransitionMapping(NextAliasNode, { TransitionIndex, NextStateIndex });
+				}
+
+				if (TransitionNode->Bidirectional)
+				{
+					InCompilationContext.GetMessageLog().Warning(*LOCTEXT("BidirectionalTransWarning", "Bidirectional transitions aren't supported yet @@").ToString(), TransitionNode);
+				}
+
+				BakedTransition.PreviousState = PreviousStateIndex;
+				BakedTransition.NextState = NextStateIndex;
+			}
+
+			if((BakedTransition.PreviousState == INDEX_NONE) || (BakedTransition.NextState == INDEX_NONE))
+			{
+				InCompilationContext.GetMessageLog().Error(*LOCTEXT("BogusTransition", "@@ is incomplete, without a previous or next state").ToString(), TransitionNode);
+			}
 
 			// Validate the blend profile for this transition - incase the skeleton of the node has
 			// changed or the blend profile no longer exists.
 			TransitionNode->ValidateBlendProfile();
 
 			FBakedStateExitTransition& Rule = *new (BakedState.Transitions) FBakedStateExitTransition();
-			Rule.bDesiredTransitionReturnValue = (TransitionNode->GetPreviousState() == StateNode);
+
+			UAnimStateNodeBase* TransitionPrevNode = TransitionNode->GetPreviousState();
+			if (UAnimStateAliasNode* PrevAliasNode = Cast<UAnimStateAliasNode>(TransitionPrevNode))
+			{
+				Rule.bDesiredTransitionReturnValue = PrevAliasNode->bGlobalAlias ? true : PrevAliasNode->GetAliasedStates().Contains(StateNode);
+				Oven.AddStateAliasTransitionMapping(PrevAliasNode, { TransitionIndex, StateIndex });
+			}
+			else
+			{
+				Rule.bDesiredTransitionReturnValue = (TransitionPrevNode == StateNode);
+			}
+
 			Rule.TransitionIndex = TransitionIndex;
 			
 			if (UAnimGraphNode_TransitionResult* TransitionResultNode = CastChecked<UAnimationTransitionGraph>(TransitionNode->BoundGraph)->GetResultNode())

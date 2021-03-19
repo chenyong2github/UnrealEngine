@@ -66,7 +66,6 @@ public:
 	virtual UEdGraphPin* GetInputPin() const override;
 	virtual UEdGraphPin* GetOutputPin() const override;
 	virtual FString GetStateName() const override;
-	virtual void GetTransitionList(TArray<class UAnimStateTransitionNode*>& OutTransitions, bool bWantSortedList = false) override;
 	//~ End UAnimStateNodeBase Interface
 
 	// @return the pose pin of the state sink node within the anim graph of this state

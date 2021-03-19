@@ -70,46 +70,6 @@ FString UAnimStateNode::GetStateName() const
 	return (BoundGraph != NULL) ? *(BoundGraph->GetName()) : TEXT("(null)");
 }
 
-void UAnimStateNode::GetTransitionList(TArray<UAnimStateTransitionNode*>& OutTransitions, bool bWantSortedList)
-{
-	// Normal transitions
-	for (int32 LinkIndex = 0; LinkIndex < Pins[1]->LinkedTo.Num(); ++LinkIndex)
-	{
-		UEdGraphNode* TargetNode = Pins[1]->LinkedTo[LinkIndex]->GetOwningNode();
-		if (UAnimStateTransitionNode* Transition = Cast<UAnimStateTransitionNode>(TargetNode))
-		{
-			OutTransitions.Add(Transition);
-		}
-	}
-
-	// Bidirectional transitions where we are the 'backwards' link
-	for (int32 LinkIndex = 0; LinkIndex < Pins[0]->LinkedTo.Num(); ++LinkIndex)
-	{
-		UEdGraphNode* TargetNode = Pins[0]->LinkedTo[LinkIndex]->GetOwningNode();
-		if (UAnimStateTransitionNode* Transition = Cast<UAnimStateTransitionNode>(TargetNode))
-		{
-			if (Transition->Bidirectional)
-			{
-				OutTransitions.Add(Transition);
-			}
-		}
-	}
-
-	// Sort the transitions by priority order, lower numbers are higher priority
-	if (bWantSortedList)
-	{
-		struct FCompareTransitionsByPriority
-		{
-			FORCEINLINE bool operator()(const UAnimStateTransitionNode& A, const UAnimStateTransitionNode& B) const
-			{
-				return A.PriorityOrder < B.PriorityOrder;
-			}
-		};
-
-		OutTransitions.Sort(FCompareTransitionsByPriority());
-	}
-}
-
 
 UEdGraphPin* UAnimStateNode::GetInputPin() const
 {

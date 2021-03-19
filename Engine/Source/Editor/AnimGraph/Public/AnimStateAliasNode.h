@@ -4,21 +4,28 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "Animation/AnimTypes.h"
 #include "AnimStateNodeBase.h"
-#include "AnimStateConduitNode.generated.h"
+#include "AnimStateAliasNode.generated.h"
 
 class UEdGraph;
 class UEdGraphPin;
+class UAnimStateNode;
 
 UCLASS(MinimalAPI)
-class UAnimStateConduitNode : public UAnimStateNodeBase
+class UAnimStateAliasNode : public UAnimStateNodeBase
 {
 	GENERATED_UCLASS_BODY()
 public:
 
-	// The transition graph for this conduit; it's a logic graph, not an animation graph
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "State Alias")
+	bool bGlobalAlias;
+
 	UPROPERTY()
-	TObjectPtr<class UEdGraph> BoundGraph;
+	FString StateAliasName;
+
+	// UObject
+	virtual void Serialize(FArchive& Ar) override;
 
 	//~ Begin UEdGraphNode Interface
 	virtual void AllocateDefaultPins() override;
@@ -26,11 +33,10 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
 	virtual bool CanDuplicateNode() const override { return true; }
+	virtual void OnRenameNode(const FString& NewName) override;
 	virtual void PostPasteNode() override;
 	virtual void PostPlacedNewNode() override;
-	virtual void DestroyNode() override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
-	virtual TArray<UEdGraph*> GetSubGraphs() const override { return TArray<UEdGraph*>( { BoundGraph } ); }
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UAnimStateNodeBase Interface
@@ -38,7 +44,21 @@ public:
 	virtual UEdGraphPin* GetOutputPin() const override;
 	virtual FString GetStateName() const override;
 	virtual FString GetDesiredNewNodeName() const override;
-	virtual UEdGraph* GetBoundGraph() const override { return BoundGraph; }
-	virtual void ClearBoundGraph() override { BoundGraph = nullptr; }
+	UObject* GetJumpTargetForDoubleClick() const;
 	//~ End UAnimStateNodeBase Interface
+	
+	ANIMGRAPH_API const TSet<TWeakObjectPtr<UAnimStateNodeBase>>& GetAliasedStates() const;
+	ANIMGRAPH_API TSet<TWeakObjectPtr<UAnimStateNodeBase>>& GetAliasedStates();
+
+	// Returns null if aliasing more than one state.
+	ANIMGRAPH_API UAnimStateNodeBase* GetAliasedState() const;
+
+	static FName GetAliasedStateNodesPropertyName() { return GET_MEMBER_NAME_CHECKED(UAnimStateAliasNode, AliasedStateNodes); }
+
+private:
+
+	void RebuildAliasedStateNodeReferences();
+
+	UPROPERTY()
+	TSet<TWeakObjectPtr<UAnimStateNodeBase>> AliasedStateNodes;
 };

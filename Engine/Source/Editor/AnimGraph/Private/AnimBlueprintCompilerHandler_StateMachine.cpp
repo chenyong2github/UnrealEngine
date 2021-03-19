@@ -258,9 +258,9 @@ void FAnimBlueprintCompilerHandler_StateMachine::ProcessTransitionGetter(UK2Node
 							const int32 MachinePropertyIndex = InCompilationContext.GetAllocatedAnimNodeIndices().FindChecked(CompiledMachineInstanceNode);
 							int32 TransitionPropertyIndex = INDEX_NONE;
 
-							for(TMap<TWeakObjectPtr<UEdGraphNode>, int32>::TIterator TransIt(DebugData->NodeToTransitionIndex); TransIt; ++TransIt)
+							for(auto TransIt = DebugData->NodeToTransitionIndex.CreateConstIterator(); TransIt; ++TransIt)
 							{
-								UEdGraphNode* CurrTransNode = TransIt.Key().Get();
+								const UEdGraphNode* CurrTransNode = TransIt.Key().Get();
 								
 								if(CurrTransNode == SourceTransitionNode)
 								{
@@ -442,9 +442,13 @@ void FAnimBlueprintCompilerHandler_StateMachine::AutoWireAnimGetter(class UK2Nod
 		{
 			if(FStateMachineDebugData* DebugData = OutCompiledData.GetAnimBlueprintDebugData().StateMachineDebugData.Find(TransitionNode->GetGraph()))
 			{
-				if(int32* TransitionIndexPtr = DebugData->NodeToTransitionIndex.Find(TransitionNode))
+				TArray<int32> TransitionIndices;
+				DebugData->NodeToTransitionIndex.MultiFind(TransitionNode, TransitionIndices);
+				const int32 TransNum = TransitionIndices.Num();
+				
+				if (TransNum > 0)
 				{
-					SubNodeIndex = *TransitionIndexPtr;
+					SubNodeIndex = TransitionIndices[0];
 				}
 			}
 		}

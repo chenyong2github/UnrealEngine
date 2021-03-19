@@ -20,6 +20,8 @@ class UAnimGraphNode_Base;
 class UAnimGraphNode_StateMachineBase;
 class UAnimInstance;
 class UAnimStateNode;
+class UAnimStateNodeBase;
+class UAnimStateAliasNode;
 class UAnimStateTransitionNode;
 class UEdGraph;
 class USkeleton;
@@ -70,9 +72,21 @@ public:
 		: MachineIndex(INDEX_NONE)
 	{}
 
+	struct FStateAliasTransitionStateIndexPair
+	{
+		int32 TransitionIndex;
+		int32 AssociatedStateIndex;
+	};
+
 	// Map from state nodes to their state entry in a state machine
 	TMap<TWeakObjectPtr<UEdGraphNode>, int32> NodeToStateIndex;
-	TMap<TWeakObjectPtr<UEdGraphNode>, int32> NodeToTransitionIndex;
+	TMap<int32, TWeakObjectPtr<UAnimStateNodeBase>> StateIndexToNode;
+
+	// Transition nodes may be associated w/ multiple transition indicies when the source state is an alias
+	TMultiMap<TWeakObjectPtr<UEdGraphNode>, int32> NodeToTransitionIndex;
+
+	// Mapping between an alias and any transition indices it might be associated to (Both as source and target).
+	TMultiMap<TWeakObjectPtr<UAnimStateAliasNode>, FStateAliasTransitionStateIndexPair> StateAliasNodeToTransitionStatePairs;
 
 	// The animation node that leads into this state machine (A3 only)
 	TWeakObjectPtr<UAnimGraphNode_StateMachineBase> MachineInstanceNode;

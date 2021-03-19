@@ -64,33 +64,6 @@ UEdGraphPin* UAnimStateConduitNode::GetOutputPin() const
 	return Pins[1];
 }
 
-void UAnimStateConduitNode::GetTransitionList(TArray<class UAnimStateTransitionNode*>& OutTransitions, bool bWantSortedList)
-{
-	// Normal transitions
-	for (int32 LinkIndex = 0; LinkIndex < Pins[1]->LinkedTo.Num(); ++LinkIndex)
-	{
-		UEdGraphNode* TargetNode = Pins[1]->LinkedTo[LinkIndex]->GetOwningNode();
-		if (UAnimStateTransitionNode* Transition = Cast<UAnimStateTransitionNode>(TargetNode))
-		{
-			OutTransitions.Add(Transition);
-		}
-	}
-
-	// Sort the transitions by priority order, lower numbers are higher priority
-	if (bWantSortedList)
-	{
-		struct FCompareTransitionsByPriority
-		{
-			FORCEINLINE bool operator()(const UAnimStateTransitionNode& A, const UAnimStateTransitionNode& B) const
-			{
-				return A.PriorityOrder < B.PriorityOrder;
-			}
-		};
-
-		OutTransitions.Sort(FCompareTransitionsByPriority());
-	}
-}
-
 void UAnimStateConduitNode::PostPlacedNewNode()
 {
 	// Create a new animation graph

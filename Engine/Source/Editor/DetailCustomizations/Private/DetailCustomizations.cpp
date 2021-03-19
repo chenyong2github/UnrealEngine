@@ -28,6 +28,7 @@
 #include "AnimSequenceDetails.h"
 #include "AnimTransitionNodeDetails.h"
 #include "AnimStateNodeDetails.h"
+#include "AnimStateAliasNodeDetails.h"
 #include "PoseAssetDetails.h"
 #include "AnimationAssetDetails.h"
 #include "AmbientSoundDetails.h"
@@ -330,6 +331,7 @@ void FDetailCustomizationsModule::RegisterObjectCustomizations()
 	RegisterCustomClassLayout("EditorAnimSegment", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimMontageSegmentDetails::MakeInstance));
 	RegisterCustomClassLayout("EditorAnimCompositeSegment", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimMontageSegmentDetails::MakeInstance));
 	RegisterCustomClassLayout("AnimStateNode", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimStateNodeDetails::MakeInstance));
+	RegisterCustomClassLayout("AnimStateAliasNode", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimStateAliasNodeDetails::MakeInstance));
 	RegisterCustomClassLayout("AnimStateTransitionNode", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimTransitionNodeDetails::MakeInstance));
 	RegisterCustomClassLayout("AnimGraphNode_Trail", FOnGetDetailCustomizationInstance::CreateStatic(&FAnimTrailNodeDetails::MakeInstance));
 	RegisterCustomClassLayout("PoseAsset", FOnGetDetailCustomizationInstance::CreateStatic(&FPoseAssetDetails::MakeInstance));

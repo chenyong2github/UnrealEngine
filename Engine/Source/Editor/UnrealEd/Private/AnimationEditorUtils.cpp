@@ -816,7 +816,13 @@ namespace AnimationEditorUtils
 			}
 			else if(UAnimStateNodeBase* StateNode = Cast<UAnimStateNodeBase>(CurrentNode))
 			{
-				ChildGraphs.AddUnique(StateNode->GetBoundGraph());
+				UEdGraph* BoundGraph = StateNode->GetBoundGraph();
+				if (BoundGraph == nullptr)
+				{
+					continue;
+				}
+
+				ChildGraphs.AddUnique(BoundGraph);
 
 				if(UAnimStateTransitionNode* TransitionNode = Cast<UAnimStateTransitionNode>(StateNode))
 				{

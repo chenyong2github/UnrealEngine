@@ -10,6 +10,7 @@
 #include "AnimGraphNode_LayeredBoneBlend.h"
 #include "AnimGraphNode_BlendSpaceBase.h"
 #include "AnimStateNode.h"
+#include "AnimStateAliasNode.h"
 #include "AnimStateEntryNode.h"
 #include "AnimStateConduitNode.h"
 #include "AnimStateTransitionNode.h"
@@ -18,6 +19,7 @@
 #include "AnimationGraphSchema.h"
 
 #include "AnimationStateNodes/SGraphNodeAnimState.h"
+#include "AnimationStateNodes/SGraphNodeAnimStateAlias.h"
 #include "AnimationStateNodes/SGraphNodeAnimTransition.h"
 #include "AnimationStateNodes/SGraphNodeAnimStateEntry.h"
 
@@ -76,6 +78,10 @@ TSharedPtr<class SGraphNode> FAnimationGraphNodeFactory::CreateNode(class UEdGra
 	else if (UAnimStateNode* StateNode = Cast<UAnimStateNode>(InNode))
 	{
 		return SNew(SGraphNodeAnimState, StateNode);
+	}
+	else if (UAnimStateAliasNode* StateAliasNode = Cast<UAnimStateAliasNode>(InNode))
+	{
+		return SNew(SGraphNodeAnimStateAlias, StateAliasNode);
 	}
 	else if (UAnimStateConduitNode* ConduitNode = Cast<UAnimStateConduitNode>(InNode))
 	{
