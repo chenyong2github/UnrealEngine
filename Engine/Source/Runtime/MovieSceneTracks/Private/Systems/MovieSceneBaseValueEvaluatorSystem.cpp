@@ -62,6 +62,6 @@ void UMovieSceneBaseValueEvaluatorSystem::OnRun(FSystemTaskPrerequisites& InPrer
 		.Write(BaseFloat)
 		.FilterAll({ BuiltInComponents->Tags.NeedsLink })
 		.FilterNone({ BuiltInComponents->Tags.Ignored })
-		.Dispatch_PerEntity<FEvaluateBaseValues>(&Linker->EntityManager, InPrerequisites, &Subsequents);
+		.RunInline_PerEntity(&Linker->EntityManager, FEvaluateBaseValues());
 	}
 }
