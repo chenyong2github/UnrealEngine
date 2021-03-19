@@ -266,6 +266,7 @@ void FWmfMediaTracks::Initialize(IMFMediaSource* InMediaSource, const FString& U
 	SourceUrl = Url;
 
 	PresentationDescriptor = NewPresentationDescriptor;
+	CachedDuration = GetDuration();
 
 	// add streams (Media Foundation reports them in reverse order)
 	bool IsVideoDevice = Url.StartsWith(TEXT("vidcap://"));
@@ -486,6 +487,7 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 	FTimespan TimeRangeLow = TimeRange.GetLowerBoundValue().Time;
 	FTimespan TimeRangeHigh = TimeRange.GetUpperBoundValue().Time;
 	TRange<FTimespan> TimeRangeTime(TimeRangeLow, TimeRangeHigh);
+	FTimespan LoopDiff = CachedDuration * 0.5f;
 	float CurrentOverlap = 0.0f;
 	IMediaSamples::EFetchBestSampleResult Result = IMediaSamples::EFetchBestSampleResult::NoSample;
 	UE_LOG(LogWmfMedia, VeryVerbose, TEXT("FetchBestVideoSampleForTimeRange %f %f"),
@@ -504,7 +506,15 @@ IMediaSamples::EFetchBestSampleResult FWmfMediaTracks::FetchBestVideoSampleForTi
 			// Are we already past this sample?
 			if (SampleEndTime < TimeRangeLow)
 			{
-				// Yes. Try next sample.
+				// If there is a large gap to this sample, then its probably because it looped,
+				// so we aren't really past it.
+				FTimespan Diff = TimeRangeLow - SampleEndTime;
+				if (Diff > LoopDiff)
+				{
+					break;
+				}
+
+				// Try next sample.
 				VideoSampleQueue.Pop();
 			}
 			else

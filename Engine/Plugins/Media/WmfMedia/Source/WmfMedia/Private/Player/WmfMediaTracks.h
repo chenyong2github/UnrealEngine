@@ -349,6 +349,9 @@ private:
 
 	/** The available video tracks. */
 	TArray<FTrack> VideoTracks;
+
+	/** Caches the value from GetDuration. */
+	FTimespan CachedDuration;
 };
 
 
