@@ -89,7 +89,7 @@ void UMovieSceneLiveLinkTrackRecorder::CreateTracks()
 
 	//Find the subject key associated with the desired subject name. Only one subject with the same name can be enabled.
 	const bool bIncludeDisabledSubjects = false;
-	const bool bIncludeVirtualSubjects = false;
+	const bool bIncludeVirtualSubjects = true;
 	TArray<FLiveLinkSubjectKey> EnabledSubjects = LiveLinkClient->GetSubjects(bIncludeDisabledSubjects, bIncludeVirtualSubjects);
 	const FLiveLinkSubjectKey* DesiredSubjectKey = EnabledSubjects.FindByPredicate([=](const FLiveLinkSubjectKey& InOther) { return SubjectName == InOther.SubjectName; });
 	if (DesiredSubjectKey == nullptr)
@@ -97,6 +97,9 @@ void UMovieSceneLiveLinkTrackRecorder::CreateTracks()
 		UE_LOG(LogLiveLinkSequencer, Warning, TEXT("Error: Could not create live link track. Could not find an enabled subject with subject name '%s'."), *SubjectName.ToString());
 		return;
 	}
+
+	// Keep track if we're recording a virtual subject to handle recorded frames differently
+	bIsVirtualSubject = LiveLinkClient->IsVirtualSubject(*DesiredSubjectKey);
 
 	TSharedPtr<FLiveLinkStaticDataStruct> StaticData = MakeShared<FLiveLinkStaticDataStruct>();
 	const bool bRegistered = LiveLinkClient->RegisterForSubjectFrames(SubjectName
@@ -132,6 +135,10 @@ void UMovieSceneLiveLinkTrackRecorder::CreateTracks()
 			if (bSaveSubjectSettings)
 			{
 				SubjectPreset = LiveLinkClient->GetSubjectPreset(*DesiredSubjectKey, MovieSceneSection.Get());
+
+				//Nulling out VirtualSubject will make it look like a 'live' subject when playing back.
+				//Subject settings will be lost though. That's a drawback of recording virtual subject for now.
+				SubjectPreset.VirtualSubject = nullptr;
 			}
 			else
 			{
@@ -226,6 +233,14 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 		const FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
 
 		bool bSyncedOrForced = bUseSourceTimecode || LiveLinkClient->IsSubjectTimeSynchronized(SubjectName);
+
+		// If this is a virtual subject then we'll just evaluate it directly and add it to the FramesToProcess array
+		if (bIsVirtualSubject)
+		{
+			FLiveLinkSubjectFrameData EvaluatedFrame;
+			LiveLinkClient->EvaluateFrame_AnyThread(SubjectName, SubjectRole, EvaluatedFrame);
+			FramesToProcess.Emplace(MoveTemp(EvaluatedFrame.FrameData));
+		}
 
 		if (FramesToProcess.Num() > 0)
 		{

@@ -12,13 +12,18 @@ class LIVELINKGRAPHNODE_API UK2Node_UpdateVirtualSubjectStaticData : public UK2N
 
 public:
 
+	//~ Begin UEdGraphNode Interface.
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	//~ End UEdGraphNode Interface.
 
 protected:
 
+	//~ Begin UK2Node_UpdateVirtualSubjectDataBase interface
 	virtual UScriptStruct* GetStructTypeFromRole(ULiveLinkRole* Role) const override;
 	virtual FName GetUpdateFunctionName() const override;
 	virtual FText GetStructPinName() const override;
+	virtual void AddPins(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* UpdateVirtualSubjectDataFunction) const override {}
+	//~ End UK2Node_UpdateVirtualSubjectDataBase interface
 };
 
 UCLASS()
@@ -28,11 +33,25 @@ class LIVELINKGRAPHNODE_API UK2Node_UpdateVirtualSubjectFrameData : public UK2No
 
 public:
 
+	//~ Begin UEdGraphNode Interface.
+	virtual void AllocateDefaultPins() override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
+	//~ End UEdGraphNode Interface.
 
 protected:
 
+	//~ Begin UK2Node_UpdateVirtualSubjectDataBase interface
 	virtual UScriptStruct* GetStructTypeFromRole(ULiveLinkRole* Role) const override;
 	virtual FName GetUpdateFunctionName() const override;
 	virtual FText GetStructPinName() const override;
+	virtual void AddPins(FKismetCompilerContext& CompilerContext, UK2Node_CallFunction* UpdateVirtualSubjectDataFunction) const override;
+	//~ End UK2Node_UpdateVirtualSubjectDataBase interface
+
+	/** Returns the Timestamp pin  */
+	UEdGraphPin* GetTimestampFramePin() const;
+
+private:
+
+	/** Name of the pin to enable/disable timestamping */
+	static const FName LiveLinkTimestampFramePinName;
 };

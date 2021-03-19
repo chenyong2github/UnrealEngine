@@ -158,7 +158,7 @@ private:
 			ILiveLinkClient* LiveLinkClient = &IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 			
 			const bool bIncludeDisabledSubjects = false;
-			const bool bIncludeVirtualSubjects = false;
+			const bool bIncludeVirtualSubjects = true;
 			TArray<FLiveLinkSubjectKey> Subjects = LiveLinkClient->GetSubjects(bIncludeDisabledSubjects, bIncludeVirtualSubjects);
 			for (const FLiveLinkSubjectKey& SubjectKey : Subjects)
 			{

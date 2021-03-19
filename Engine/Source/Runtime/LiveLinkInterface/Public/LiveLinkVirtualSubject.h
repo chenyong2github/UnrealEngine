@@ -26,23 +26,35 @@ public:
 	virtual void Initialize(FLiveLinkSubjectKey SubjectKey, TSubclassOf<ULiveLinkRole> Role, ILiveLinkClient* LiveLinkClient) override;
 	virtual void Update() override;
 	virtual void ClearFrames() override;
-	virtual FLiveLinkSubjectKey GetSubjectKey() const { return SubjectKey; }
+	virtual FLiveLinkSubjectKey GetSubjectKey() const override { return SubjectKey; }
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const override { return Role; }
 	virtual bool HasValidFrameSnapshot() const override;
 	virtual FLiveLinkStaticDataStruct& GetStaticData() override { return FrameSnapshot.StaticData; }
 	virtual const FLiveLinkStaticDataStruct& GetStaticData() const override { return FrameSnapshot.StaticData; }
 	virtual const TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> GetFrameTranslators() const override { return CurrentFrameTranslators; }
 	virtual TArray<FLiveLinkTime> GetFrameTimes() const override;
+	virtual bool IsRebroadcasted() const override { return bRebroadcastSubject; }
+	virtual bool HasStaticDataBeenRebroadcasted() const override { return bHasStaticDataBeenRebroadcast; }
+	virtual void SetStaticDataAsRebroadcasted(const bool bInSent) override { bHasStaticDataBeenRebroadcast = bInSent; }
 protected:
-	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const { return FrameSnapshot; }
+	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const override { return FrameSnapshot; }
 	//~ End ILiveLinkSubject Interface
 
 public:
 	ILiveLinkClient* GetClient() const { return LiveLinkClient; }
-	const TArray<FLiveLinkSubjectName>& GetSubjects() const { return Subjects; }
-	const TArray<ULiveLinkFrameTranslator*>& GetTranslators() const { return FrameTranslators; }
-	virtual bool DependsOnSubject(FName SubjectName) const;
 
+	/** Returns the live subjects associated with this virtual one */
+	const TArray<FLiveLinkSubjectName>& GetSubjects() const { return Subjects; }
+
+	/** Returns the translators assigned to this virtual subject */
+	const TArray<ULiveLinkFrameTranslator*>& GetTranslators() const { return FrameTranslators; }
+
+	/** Returns the current frame data of this virtual subject */
+	const FLiveLinkFrameDataStruct& GetFrameData() const { return FrameSnapshot.FrameData; }
+
+	/** Returns true whether this virtual subject depends on the Subject named SubjectName */
+	virtual bool DependsOnSubject(FName SubjectName) const;
+	
 protected:
 	void UpdateTranslatorsForThisFrame();
 
@@ -59,6 +71,10 @@ protected:
 	UPROPERTY(EditAnywhere, Instanced, Category = "LiveLink", meta=(DisplayName="Translators"))
 	TArray<ULiveLinkFrameTranslator*> FrameTranslators;
 
+	/** If enabled, rebroadcast this subject */
+	UPROPERTY(EditAnywhere, Category = "LiveLink")
+	bool bRebroadcastSubject = false;
+
 	/** LiveLinkClient to get access to subjects */
 	ILiveLinkClient* LiveLinkClient;
 
@@ -67,6 +83,9 @@ protected:
 
 	/** Name of the subject */
 	FLiveLinkSubjectKey SubjectKey;
+	
+	/** If true, static data has been sent for this rebroadcast */
+	bool bHasStaticDataBeenRebroadcast = false;
 
 private:
 	TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> CurrentFrameTranslators;

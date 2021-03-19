@@ -18,7 +18,7 @@ const FName UK2Node_UpdateVirtualSubjectDataBase::LiveLinkStructPinName = "Struc
 const FText UK2Node_UpdateVirtualSubjectDataBase::LiveLinkStructPinDescription = LOCTEXT("LiveLinkStructPinDescription", "The Struct of data to use in the update.");
 
 
-UScriptStruct* UK2Node_UpdateVirtualSubjectDataBase::GetStructTypeFromBlueprint()
+UScriptStruct* UK2Node_UpdateVirtualSubjectDataBase::GetStructTypeFromBlueprint() const
 {
 	if (HasValidBlueprint())
 	{
@@ -89,6 +89,8 @@ void UK2Node_UpdateVirtualSubjectDataBase::ExpandNode(FKismetCompilerContext& Co
 		InStructPin->PinType = LiveLinkStructPin->PinType;
 		CompilerContext.MovePinLinksToIntermediate(*LiveLinkStructPin, *InStructPin);
 	}
+
+	AddPins(CompilerContext, InternalFunction);
 
 	BreakAllNodeLinks();
 }

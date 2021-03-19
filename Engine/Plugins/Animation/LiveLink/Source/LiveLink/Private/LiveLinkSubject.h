@@ -61,15 +61,18 @@ public:
 	virtual void Initialize(FLiveLinkSubjectKey SubjectKey, TSubclassOf<ULiveLinkRole> InRole, ILiveLinkClient* LiveLinkClient) override;
 	virtual void Update() override;
 	virtual void ClearFrames() override;
-	virtual FLiveLinkSubjectKey GetSubjectKey() const { return SubjectKey; }
+	virtual FLiveLinkSubjectKey GetSubjectKey() const override { return SubjectKey; }
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const override { return Role; }
 	virtual bool HasValidFrameSnapshot() const override;
 	virtual FLiveLinkStaticDataStruct& GetStaticData() override { return StaticData; }
 	virtual const FLiveLinkStaticDataStruct& GetStaticData() const override { return StaticData; }
 	virtual TArray<FLiveLinkTime> GetFrameTimes() const override;
 	virtual const TArray<ULiveLinkFrameTranslator::FWorkerSharedPtr> GetFrameTranslators() const override { return FrameTranslators; }
+	virtual bool IsRebroadcasted() const override { return bRebroadcastSubject; }
+	virtual bool HasStaticDataBeenRebroadcasted() const override { return bRebroadcastStaticDataSent; }
+	virtual void SetStaticDataAsRebroadcasted(const bool bInSent) override { bRebroadcastStaticDataSent = bInSent; }
 protected:
-	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const { return FrameSnapshot; }
+	virtual const FLiveLinkSubjectFrameData& GetFrameSnapshot() const override { return FrameSnapshot; }
 	//~ End ILiveLinkSubject Interface
 
 	//~Begin ITimedDataSource Interface
@@ -87,7 +90,7 @@ public:
 	virtual int32 GetFrameDroppedStat() const override;
 	virtual void GetLastEvaluationData(FTimedDataInputEvaluationData& OutEvaluationData) const override;
 	virtual void ResetBufferStats() override;
-	//~End ITimedDataSrouce Interface
+	//~End ITimedDataSource Interface
 
 public:
 	bool EvaluateFrameAtWorldTime(double InWorldTime, TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame);
@@ -108,10 +111,6 @@ public:
 	bool IsTimeSynchronized() const;
 
 	double GetLastPushTime() const { return LastPushTime; }
-
-	bool IsRebroadcasting() const { return bRebroadcastSubject; }
-	bool CheckRebroadcastStaticDataSentFlag() const { return bRebroadcastStaticDataSent; }
-	void SetRebroadcastStaticDataSentFlag(const bool bInSent) { bRebroadcastStaticDataSent = bInSent; }
 
 private:
 	int32 FindNewFrame_WorldTime(const FLiveLinkWorldTime& FrameTime) const;

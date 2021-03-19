@@ -173,11 +173,13 @@ void FLiveLinkClient::BuildThisTicksSubjectSnapshot()
 
 	for (const FLiveLinkCollectionSubjectItem& SubjectItem : Collection->GetSubjects())
 	{
+		
 		if (ULiveLinkVirtualSubject* VSubject = SubjectItem.GetVirtualSubject())
 		{
 			if (SubjectItem.bEnabled)
 			{
 				VSubject->Update();
+				HandleSubjectRebroadcast(VSubject, VSubject->GetFrameData());
 				EnabledSubjects.Add(SubjectItem.Key.SubjectName, SubjectItem.Key);
 			}
 			else
@@ -228,6 +230,53 @@ void FLiveLinkClient::Shutdown()
 				bContinue = false;
 				UE_LOG(LogLiveLink, Warning, TEXT("Force shutdown LiveLink after %f seconds. One or more sources refused to shutdown."), Timeout);
 			}
+		}
+	}
+}
+
+void FLiveLinkClient::HandleSubjectRebroadcast(ILiveLinkSubject* InSubject, const FLiveLinkFrameDataStruct& InFrameData)
+{
+	check(InSubject);
+
+	// Check the rebroadcast flag and act accordingly, creating the LiveLinkProvider and/or sending the static data if needed
+	if (InSubject->IsRebroadcasted())
+	{
+		if(InSubject->GetStaticData().IsValid() && InFrameData.IsValid())
+		{
+			// Setup rebroadcast provider
+			if (!RebroadcastLiveLinkProvider.IsValid())
+			{
+				RebroadcastLiveLinkProvider = ILiveLinkProvider::CreateLiveLinkProvider(RebroadcastLiveLinkProviderName);
+			}
+				
+			if (RebroadcastLiveLinkProvider.IsValid())
+			{
+				if (!InSubject->HasStaticDataBeenRebroadcasted())
+				{
+					FLiveLinkStaticDataStruct StaticDataCopy;
+					StaticDataCopy.InitializeWith(InSubject->GetStaticData());
+					RebroadcastLiveLinkProvider->UpdateSubjectStaticData(InSubject->GetSubjectKey().SubjectName, InSubject->GetRole(), MoveTemp(StaticDataCopy));
+					InSubject->SetStaticDataAsRebroadcasted(true);
+				}
+				
+				// Make a copy of the data for use by the rebroadcaster
+				FLiveLinkFrameDataStruct FrameDataCopy;
+				FrameDataCopy.InitializeWith(InFrameData);
+
+				RebroadcastLiveLinkProvider->UpdateSubjectFrameData(InSubject->GetSubjectKey().SubjectName, MoveTemp(FrameDataCopy));
+			}
+			else
+			{
+				UE_LOG(LogLiveLink, Warning, TEXT("Rebroadcaster doesn't exist, but was requested and failed"));
+			}
+		}
+	}
+	else if (InSubject->HasStaticDataBeenRebroadcasted())
+	{
+		if (RebroadcastLiveLinkProvider.IsValid())
+		{
+			RebroadcastLiveLinkProvider->RemoveSubject(InSubject->GetSubjectKey().SubjectName);
+			InSubject->SetStaticDataAsRebroadcasted(false);
 		}
 	}
 }
@@ -738,44 +787,8 @@ void FLiveLinkClient::PushSubjectFrameData_Internal(FPendingSubjectFrame&& Subje
 		Handles->OnFrameDataAdded.Broadcast(SubjectItem->Key, Role, SubjectFrameData.FrameData);
 	}
 
-	// Check the rebroadcast flag and act accordingly, creating the LiveLinkProvider and/or sending the static data if needed
-	if (LinkSubject->IsRebroadcasting())
-	{
-		if (!RebroadcastLiveLinkProvider.IsValid())
-		{
-			RebroadcastLiveLinkProvider = ILiveLinkProvider::CreateLiveLinkProvider(RebroadcastLiveLinkProviderName);
-		}
-			
-		if (RebroadcastLiveLinkProvider.IsValid())
-		{
-			if (!LinkSubject->CheckRebroadcastStaticDataSentFlag())
-			{
-				FLiveLinkStaticDataStruct StaticDataCopy;
-				StaticDataCopy.InitializeWith(LinkSubject->GetStaticData());
-				RebroadcastLiveLinkProvider->UpdateSubjectStaticData(LinkSubject->GetSubjectKey().SubjectName, LinkSubject->GetRole(), MoveTemp(StaticDataCopy));
-				LinkSubject->SetRebroadcastStaticDataSentFlag(true);
-			}
-			
-			// Make a copy of the data for use by the rebroadcaster
-			FLiveLinkFrameDataStruct FrameDataCopy;
-			FrameDataCopy.InitializeWith(SubjectFrameData.FrameData);
+	HandleSubjectRebroadcast(LinkSubject, SubjectFrameData.FrameData);
 
-			RebroadcastLiveLinkProvider->UpdateSubjectFrameData(LinkSubject->GetSubjectKey().SubjectName, MoveTemp(FrameDataCopy));
-		}
-		else
-		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Rebroadcaster doesn't exist, but was requested and failed"));
-		}
-	}
-	else if (LinkSubject->CheckRebroadcastStaticDataSentFlag())
-	{
-		if (RebroadcastLiveLinkProvider.IsValid())
-		{
-			RebroadcastLiveLinkProvider->RemoveSubject(LinkSubject->GetSubjectKey().SubjectName);
-			LinkSubject->SetRebroadcastStaticDataSentFlag(false);
-		}
-	}
-	
 	//Finally, add the new frame to the subject. After this point, the frame data is unusable, it has been moved!
 	LinkSubject->AddFrameData(MoveTemp(SubjectFrameData.FrameData));
 }
