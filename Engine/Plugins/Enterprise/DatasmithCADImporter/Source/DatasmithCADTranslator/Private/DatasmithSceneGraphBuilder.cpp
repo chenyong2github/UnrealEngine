@@ -73,13 +73,13 @@ namespace
 
 
 FDatasmithSceneGraphBuilder::FDatasmithSceneGraphBuilder(
-	TMap<uint32, FString>& InCADFileToUE4FileMap, 
+	TMap<uint32, FString>& InCADFileToUnrealFileMap, 
 	const FString& InCachePath, 
 	TSharedRef<IDatasmithScene> InScene, 
 	const FDatasmithSceneSource& InSource, 
 	const CADLibrary::FImportParameters& InImportParameters)
 		: FDatasmithSceneBaseGraphBuilder(nullptr, InScene, InSource, InImportParameters)
-		, CADFileToSceneGraphDescriptionFile(InCADFileToUE4FileMap)
+		, CADFileToSceneGraphDescriptionFile(InCADFileToUnrealFileMap)
 		, CachePath(InCachePath)
 {
 }

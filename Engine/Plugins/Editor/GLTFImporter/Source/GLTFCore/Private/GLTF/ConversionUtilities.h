@@ -17,7 +17,7 @@ namespace GLTF
 	inline FVector ConvertVec3(const FVector& Vec)
 	{
 		// glTF uses a right-handed coordinate system, with Y up.
-		// UE4 uses a left-handed coordinate system, with Z up.
+		// Unreal uses a left-handed coordinate system, with Z up.
 		return {Vec.X, Vec.Z, Vec.Y};
 	}
 
@@ -33,7 +33,7 @@ namespace GLTF
 	inline FQuat ConvertQuat(const FQuat& Quat)
 	{
 		// glTF uses a right-handed coordinate system, with Y up.
-		// UE4 uses a left-handed coordinate system, with Z up.
+		// Unreal uses a left-handed coordinate system, with Z up.
 		// Quat = (qX, qY, qZ, qW) = (sin(angle/2) * aX, sin(angle/2) * aY, sin(angle/2) * aZ, cons(angle/2))
 		// where (aX, aY, aZ) - rotation axis, angle - rotation angle
 		// Y swapped with Z between these coordinate systems

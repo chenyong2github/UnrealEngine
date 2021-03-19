@@ -464,7 +464,7 @@ void FDataprepEditor::CleanUpTemporaryDirectories()
 					// Delete directories if process is not valid
 					bool bDeleteDirectories = !ProcHandle.IsValid();
 
-					// Process is valid, check if application associated with process id is UE4 editor
+					// Process is valid, check if application associated with process id is UnrealEditor
 					if(!bDeleteDirectories)
 					{
 						const FString ApplicationName = FPlatformProcess::GetApplicationName( ProcessID );
