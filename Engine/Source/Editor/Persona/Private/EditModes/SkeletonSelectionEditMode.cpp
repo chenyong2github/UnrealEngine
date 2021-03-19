@@ -451,7 +451,7 @@ bool FSkeletonSelectionEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMat
 	if(PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh)
 	{
 		int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
-		if (BoneIndex != INDEX_NONE && PreviewMeshComponent->SkeletalMesh->RefSkeleton.IsValidIndex(BoneIndex))
+		if (BoneIndex != INDEX_NONE && PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().IsValidIndex(BoneIndex))
 		{
 			FTransform BoneMatrix = PreviewMeshComponent->GetBoneTransform(BoneIndex);
 
@@ -489,7 +489,7 @@ FVector FSkeletonSelectionEditMode::GetWidgetLocation() const
 	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 	if (BoneIndex != INDEX_NONE)
 	{
-		if (PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh && PreviewMeshComponent->SkeletalMesh->RefSkeleton.IsValidIndex(BoneIndex))
+		if (PreviewMeshComponent && PreviewMeshComponent->SkeletalMesh && PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().IsValidIndex(BoneIndex))
 		{
 			const FName BoneName = PreviewMeshComponent->SkeletalMesh->GetRefSkeleton().GetBoneName(BoneIndex);
 
