@@ -7,6 +7,7 @@
 #include "EditorStyleSet.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
