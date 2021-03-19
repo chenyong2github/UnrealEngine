@@ -6,8 +6,9 @@
 /* FLocalTimestampVisitor structors
  *****************************************************************************/
 
-FLocalTimestampDirectoryVisitor::FLocalTimestampDirectoryVisitor( IPlatformFile& InFileInterface, const TArray<FString>& InDirectoriesToIgnore, const TArray<FString>& InDirectoriesToNotRecurse, bool bInCacheDirectories )
+FLocalTimestampDirectoryVisitor::FLocalTimestampDirectoryVisitor( IPlatformFile& InFileInterface, const TArray<FString>& InDirectoriesToIgnore, const TArray<FString>& InDirectoriesToNotRecurse, bool bInCacheDirectories, bool bInMakeLowerCase )
 	: bCacheDirectories(bInCacheDirectories)
+	, bMakeLowerCase(bInMakeLowerCase)
 	, FileInterface(InFileInterface)
 {
 	// make sure the paths are standardized, since the Visitor will assume they are standard
@@ -36,20 +37,19 @@ bool FLocalTimestampDirectoryVisitor::Visit(const TCHAR* FilenameOrDirectory, bo
 	FString RelativeFilename = FilenameOrDirectory;
 	FPaths::MakeStandardFilename(RelativeFilename);
 
+	if (bMakeLowerCase)
+	{
+		RelativeFilename.ToLowerInline();
+	}
+
 	// cache files and optionally directories
 	if (!bIsDirectory)
 	{
-		FileTimes.Add(RelativeFilename, FileInterface.GetTimeStamp(FilenameOrDirectory));
+		FileTimes.Emplace(MoveTemp(RelativeFilename), FileInterface.GetTimeStamp(FilenameOrDirectory));
 	}
-	else if (bCacheDirectories)
+	else 
 	{
-		// we use a timestamp of 0 to indicate a directory
-		FileTimes.Add(RelativeFilename, 0);
-	}
-
-	// iterate over directories we care about
-	if (bIsDirectory)
-	{
+		// iterate over directories we care about
 		bool bShouldRecurse = true;
 		// look in all the ignore directories looking for a match
 		for (int32 DirIndex = 0; DirIndex < DirectoriesToIgnore.Num() && bShouldRecurse; DirIndex++)
@@ -76,6 +76,12 @@ bool FLocalTimestampDirectoryVisitor::Visit(const TCHAR* FilenameOrDirectory, bo
 					}
 				}
 			}
+		}
+
+		if (bCacheDirectories)
+		{
+			// we use a timestamp of 0 to indicate a directory
+			FileTimes.Emplace(MoveTemp(RelativeFilename), 0);
 		}
 
 		// recurse if we should

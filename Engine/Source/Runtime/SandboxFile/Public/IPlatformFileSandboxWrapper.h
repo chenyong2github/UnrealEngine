@@ -168,6 +168,7 @@ public:
 	 * @Caution, these have a performance cost
 	*/
 	void AddExclusion(const TCHAR* Wildcard, bool bIsDirectory = false);
+	void RemoveExclusion(const TCHAR* Wildcard, bool bIsDirectory = false);
 
 	/** Whether access is restricted the the sandbox or not. */
 	void SetSandboxOnly(bool bInSandboxOnly);

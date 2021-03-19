@@ -488,6 +488,18 @@ void FSandboxPlatformFile::AddExclusion(const TCHAR* Wildcard, bool bIsDirectory
 	}
 }
 
+void FSandboxPlatformFile::RemoveExclusion(const TCHAR* Wildcard, bool bIsDirectory)
+{
+	if (bIsDirectory)
+	{
+		DirectoryExclusionWildcards.Remove(FString(Wildcard));
+	}
+	else
+	{
+		FileExclusionWildcards.Remove(FString(Wildcard));
+	}
+}
+
 void FSandboxPlatformFile::SetSandboxOnly(bool bInSandboxOnly)
 {
 	bSandboxOnly = bInSandboxOnly;

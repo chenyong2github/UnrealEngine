@@ -27,8 +27,9 @@ public:
 	 * @param InDirectoriesToIgnore - The list of directories to ignore.
 	 * @param InDirectoriesToNotRecurse - The list of directories to not visit recursively.
 	 * @param bInCacheDirectories - Whether to cache the directories.
+	 * @param bInMakeLowerCase - Whether to lower case filenames and directories.
 	 */
-	FLocalTimestampDirectoryVisitor( IPlatformFile& InFileInterface, const TArray<FString>& InDirectoriesToIgnore, const TArray<FString>& InDirectoriesToNotRecurse, bool bInCacheDirectories = false );
+	FLocalTimestampDirectoryVisitor( IPlatformFile& InFileInterface, const TArray<FString>& InDirectoriesToIgnore, const TArray<FString>& InDirectoriesToNotRecurse, bool bInCacheDirectories = false, bool bInMakeLowerCase = false );
 
 public:
 
@@ -40,6 +41,9 @@ private:
 
 	// true if we want directories in this list. */
 	bool bCacheDirectories;
+
+	// true if all filenames and directories should be lower cased. */
+	bool bMakeLowerCase;
 
 	// Holds a list of directories that we should not traverse into. */
 	TArray<FString> DirectoriesToIgnore;
