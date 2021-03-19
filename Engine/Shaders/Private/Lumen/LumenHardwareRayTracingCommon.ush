@@ -19,17 +19,12 @@
 #include "../RayTracing/RayTracingLightingCommon.ush"
 #include "LumenHardwareRayTracingPayloadCommon.ush"
 
-#define DEBUG_EVALUATE_LIGHTING 1
 #define HIDE_INVALID_SDF 0
 
 // Lighting modes
 #define LIGHTING_FROM_SURFACE_CACHE 0
 #define EVALUATE_MATERIAL 1
 #define EVALUATE_MATERIAL_AND_DIRECT_LIGHTING 2
-
-// Normal modes
-#define SDF_NORMAL_TYPE 0
-#define GEOMETRIC_NORMAL_TYPE 1
 
 uint GetAtlasId(int Mode)
 {
@@ -114,36 +109,6 @@ bool TraceLumenMinimalRay(
 	return Payload.IsHit();
 }
 
-float3 CalculateRayHitWorldNormal(
-	in RayDesc Ray,
-	in float HitDistance,
-	in int DFObjectIndex,
-	in int NormalMode,
-	in float3 PayloadWorldNormal,
-	inout bool bAccurateHit
-)
-{
-	float3 RayHitWorldNormal = 0;
-
-	if (NormalMode == SDF_NORMAL_TYPE)
-	{
-		FTraceMeshSDFResult TraceMeshSDFResult;
-		TraceMeshSDFResult.HitDistance = HitDistance;
-		TraceMeshSDFResult.HitObject = DFObjectIndex;
-
-		FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(Ray.Origin, Ray.Direction, HitDistance, TraceMeshSDFResult);
-		RayHitWorldNormal = TraceSDFData.HitNormal;
-		bAccurateHit = TraceSDFData.bAccurateHit;
-	}
-	else
-	{
-		RayHitWorldNormal = PayloadWorldNormal;
-		RayHitWorldNormal = dot(Ray.Direction, RayHitWorldNormal) < 0 ? RayHitWorldNormal : -RayHitWorldNormal;
-		bAccurateHit = true;
-	}
-	return RayHitWorldNormal;
-}
-
 float3 CalculateSurfaceCacheLighting(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
@@ -225,14 +190,13 @@ float3 CalculateRayTracedLightingFromSurfaceCache(
 	in FRayTracedLightingContext Context,
 	FLumenMinimalPayload Payload,
 	float HitDistance,
-	int DFObjectIndex,
-	int NormalMode
+	int DFObjectIndex
 )
 {
 	float3 Radiance = 0;
 
 	bool bAccurateHit = false;
-	float3 RayHitWorldNormal = CalculateRayHitWorldNormal(Ray, HitDistance, DFObjectIndex, NormalMode, Payload.GetWorldNormal(), bAccurateHit);
+	float3 RayHitWorldNormal = Payload.GetWorldNormal();
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	float3 DiffuseColor = 0;
 	Radiance += CalculateSurfaceCacheLighting(Ray, Context, RayHitWorldPosition, RayHitWorldNormal, bAccurateHit, HitDistance, DFObjectIndex, DiffuseColor, LIGHTING_FROM_SURFACE_CACHE);
@@ -245,14 +209,13 @@ float3 CalculateRayTracedLighting(
 	inout FPackedMaterialClosestHitPayload Payload,
 	float HitDistance,
 	int DFObjectIndex,
-	int NormalMode,
 	int LightingMode
 )
 {
 	float3 Radiance = 0;
 
 	bool bAccurateHit = false;
-	float3 RayHitWorldNormal = CalculateRayHitWorldNormal(Ray, HitDistance, DFObjectIndex, NormalMode, Payload.GetWorldNormal(), bAccurateHit);
+	float3 RayHitWorldNormal = Payload.GetWorldNormal();
 
 	float3 RayHitWorldPosition = Ray.Origin + Ray.Direction * HitDistance;
 	if (LightingMode == EVALUATE_MATERIAL_AND_DIRECT_LIGHTING)
@@ -272,7 +235,6 @@ bool TraceAndCalculateRayTracedLighting(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
 	int LightingMode,
-	int NormalMode,
 	inout float HitDistance,
 	inout float3 Radiance
 )
@@ -340,7 +302,7 @@ bool TraceAndCalculateRayTracedLighting(
 		bHit = true;
 #endif
 
-		Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, DFObjectIndex, NormalMode, LightingMode);
+		Radiance = CalculateRayTracedLighting(Ray, Context, Payload, HitDistance, DFObjectIndex, LightingMode);
 	}
 
 	return bHit;
@@ -349,7 +311,6 @@ bool TraceAndCalculateRayTracedLighting(
 bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 	in RayDesc Ray,
 	in FRayTracedLightingContext Context,
-	int NormalMode,
 	inout float TraceHitDistance,
 	inout float3 Radiance
 )
@@ -374,7 +335,7 @@ bool TraceAndCalculateRayTracedLightingFromSurfaceCache(
 		int DFObjectIndex = Payload.GetDistanceFieldObjectIndex();
 		if (DFObjectIndex != INVALID_DISTANCE_FIELD_OBJECT_INDEX)
 		{
-			Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, DFObjectIndex, NormalMode);
+			Radiance = CalculateRayTracedLightingFromSurfaceCache(Ray, Context, Payload, TraceHitDistance, DFObjectIndex);
 		}
 	}
 	else

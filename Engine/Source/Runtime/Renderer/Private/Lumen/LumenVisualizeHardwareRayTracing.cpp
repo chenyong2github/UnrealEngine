@@ -39,15 +39,6 @@ static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingLightingM
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingNormalMode(
-	TEXT("r.Lumen.Visualize.HardwareRayTracing.NormalMode"),
-	1,
-	TEXT("Determines the tracing normal (Default = 1)\n")
-	TEXT("0: SDF normal\n")
-	TEXT("1: Geometry normal"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenVisualizeHardwareRayTracingDeferredMaterial(
 	TEXT("r.Lumen.Visualize.HardwareRayTracing.DeferredMaterial"),
 	1,
@@ -98,7 +89,6 @@ namespace Lumen
 	{
 		FHardwareRayTracingPermutationSettings ModesAndPermutationSettings;
 		ModesAndPermutationSettings.LightingMode = GetVisualizeHardwareRayTracingLightingMode();
-		ModesAndPermutationSettings.NormalMode = CVarLumenVisualizeHardwareRayTracingNormalMode.GetValueOnRenderThread();
 		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 		ModesAndPermutationSettings.bUseDeferredMaterial = (CVarLumenVisualizeHardwareRayTracingDeferredMaterial.GetValueOnRenderThread()) != 0 && !ModesAndPermutationSettings.bUseMinimalPayload;
 		return ModesAndPermutationSettings;
@@ -121,7 +111,6 @@ class FLumenVisualizeHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
 		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeferredMaterialPayload>, DeferredMaterialBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWRadiance)
-		SHADER_PARAMETER(int, NormalMode)
 		SHADER_PARAMETER(int, MaxTranslucentSkipCount)
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -193,7 +182,6 @@ void VisualizeHardwareRayTracing(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	FRDGTextureRef SceneColor
@@ -220,7 +208,6 @@ void VisualizeHardwareRayTracing(
 			SceneTextures,
 			View,
 			TracingInputs,
-			MeshSDFGridParameters,
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 
 		// Output..
@@ -263,12 +250,10 @@ void VisualizeHardwareRayTracing(
 			SceneTextures,
 			View,
 			TracingInputs,
-			MeshSDFGridParameters,
 			&PassParameters->SharedParameters);
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
 
 		// Constants!
-		PassParameters->NormalMode = PermutationSettings.NormalMode;
 		PassParameters->MaxTranslucentSkipCount = CVarLumenVisualizeHardwareRayTracingMaxTranslucentSkipCount.GetValueOnRenderThread();
 
 		// Output..
@@ -287,7 +272,7 @@ void VisualizeHardwareRayTracing(
 			DispatchResolution = FIntPoint(DeferredMaterialBufferNumElements, 1);
 		}
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("VisualizeHardwareRayTracing %ux%u LightingMode=%s NormalMode=%s", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode) PermutationSettings.LightingMode), Lumen::GetRayTracedNormalModeName(PermutationSettings.NormalMode)),
+			RDG_EVENT_NAME("VisualizeHardwareRayTracing %ux%u LightingMode=%s", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName((Lumen::EHardwareRayTracingLightingMode) PermutationSettings.LightingMode)),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHICommandList& RHICmdList)

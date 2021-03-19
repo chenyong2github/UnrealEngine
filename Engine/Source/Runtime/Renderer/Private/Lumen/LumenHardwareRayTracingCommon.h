@@ -29,7 +29,6 @@ namespace Lumen
 	struct FHardwareRayTracingPermutationSettings
 	{
 		EHardwareRayTracingLightingMode LightingMode;
-		int NormalMode;
 		bool bUseMinimalPayload;
 		bool bUseDeferredMaterial;
 	};
@@ -50,7 +49,6 @@ public:
 
 		// Surface cache
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 
@@ -102,7 +100,6 @@ void SetLumenHardwareRayTracingSharedParameters(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters);
 
 #endif // RHI_RAYTRACING

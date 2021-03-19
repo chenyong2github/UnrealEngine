@@ -41,15 +41,6 @@ static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingL
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingNormalMode(
-	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.NormalMode"),
-	1,
-	TEXT("Determines the tracing normal (Default = 1)\n")
-	TEXT("0: SDF normal\n")
-	TEXT("1: Geometry normal"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterial(
 	TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing.DeferredMaterial"),
 	1,
@@ -107,7 +98,6 @@ namespace Lumen
 	{
 		FHardwareRayTracingPermutationSettings ModesAndPermutationSettings;
 		ModesAndPermutationSettings.LightingMode = GetScreenProbeGatherHardwareRayTracingLightingMode();
-		ModesAndPermutationSettings.NormalMode = CVarLumenScreenProbeGatherHardwareRayTracingNormalMode.GetValueOnRenderThread();
 		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 		ModesAndPermutationSettings.bUseDeferredMaterial = (CVarLumenScreenProbeGatherHardwareRayTracingDeferredMaterial.GetValueOnRenderThread()) != 0 && !ModesAndPermutationSettings.bUseMinimalPayload;
 		return ModesAndPermutationSettings;
@@ -150,11 +140,10 @@ class FLumenScreenProbeGatherHardwareRayTracingRGS : public FLumenHardwareRayTra
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenScreenProbeGatherHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
 
 	class FDeferredMaterialModeDim : SHADER_PERMUTATION_BOOL("DIM_DEFERRED_MATERIAL_MODE");
-	class FNormalModeDim : SHADER_PERMUTATION_BOOL("DIM_NORMAL_MODE");
 	class FLightingModeDim : SHADER_PERMUTATION_INT("DIM_LIGHTING_MODE", static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::MAX));
 	class FRadianceCacheDim : SHADER_PERMUTATION_BOOL("DIM_RADIANCE_CACHE");
 	class FStructuredImportanceSamplingDim : SHADER_PERMUTATION_BOOL("STRUCTURED_IMPORTANCE_SAMPLING");
-	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialModeDim, FNormalModeDim, FLightingModeDim, FRadianceCacheDim, FStructuredImportanceSamplingDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialModeDim, FLightingModeDim, FRadianceCacheDim, FStructuredImportanceSamplingDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
@@ -223,7 +212,6 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 
 		FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
@@ -255,7 +243,6 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingScreenProbeGat
 	{
 		FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
@@ -273,7 +260,6 @@ void RenderHardwareRayTracingScreenProbe(
 	FScreenProbeParameters& ScreenProbeParameters,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& IndirectTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters)
@@ -299,7 +285,6 @@ void RenderHardwareRayTracingScreenProbe(
 			SceneTextures,
 			View,
 			TracingInputs,
-			MeshSDFGridParameters,
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 
 		PassParameters->IndirectTracingParameters = IndirectTracingParameters;
@@ -356,7 +341,6 @@ void RenderHardwareRayTracingScreenProbe(
 			SceneTextures,
 			View,
 			TracingInputs,
-			MeshSDFGridParameters,
 			&PassParameters->SharedParameters
 		);
 		PassParameters->DeferredMaterialBuffer = GraphBuilder.CreateSRV(DeferredMaterialBuffer);
@@ -377,7 +361,6 @@ void RenderHardwareRayTracingScreenProbe(
 
 		FLumenScreenProbeGatherHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
-		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FRadianceCacheDim>(LumenScreenProbeGather::UseRadianceCache(View));
 		PermutationVector.Set<FLumenScreenProbeGatherHardwareRayTracingRGS::FStructuredImportanceSamplingDim>(LumenScreenProbeGather::UseImportanceSampling(View));
@@ -388,10 +371,9 @@ void RenderHardwareRayTracingScreenProbe(
 
 		const TCHAR* PassName = PermutationSettings.bUseDeferredMaterial ? TEXT("DeferredMaterialAndLighting") : TEXT("HardwareRayTracing");
 		const TCHAR* LightingModeName = Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode);
-		const TCHAR* NormalModeName = Lumen::GetRayTracedNormalModeName(PermutationSettings.NormalMode);
 		const TCHAR* PayloadName = PermutationSettings.bUseMinimalPayload ? TEXT("Minimal") : TEXT("Default");
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("%s(LightingMode=%s NormalMode=%s Payload=%s) %ux%u", PassName, LightingModeName, NormalModeName, PayloadName, RayTracingResolution.X, RayTracingResolution.Y),
+			RDG_EVENT_NAME("%s(LightingMode=%s Payload=%s) %ux%u", PassName, LightingModeName, PayloadName, RayTracingResolution.X, RayTracingResolution.Y),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, RayTracingResolution, PermutationSettings](FRHICommandList& RHICmdList)

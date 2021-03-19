@@ -606,36 +606,35 @@ void TraceScreenProbes(
 	
 	if (bTraceCards)
 	{
-		CullForCardTracing(
-			GraphBuilder,
-			Scene, View,
-			TracingInputs,
-			IndirectTracingParameters,
-			/* out */ MeshSDFGridParameters);
-
-		if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
+		if (Lumen::UseHardwareRayTracedScreenProbeGather())
 		{
-			if (Lumen::UseHardwareRayTracedScreenProbeGather())
-			{
-				FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
-					GraphBuilder,
-					View,
-					ScreenProbeParameters,
-					WORLD_MAX,
-					IndirectTracingParameters.MaxTraceDistance);
+			FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
+				GraphBuilder,
+				View,
+				ScreenProbeParameters,
+				WORLD_MAX,
+				IndirectTracingParameters.MaxTraceDistance);
 
-				RenderHardwareRayTracingScreenProbe(GraphBuilder,
-					Scene,
-					SceneTextures,
-					ScreenProbeParameters,
-					View,
-					TracingInputs,
-					MeshSDFGridParameters,
-					IndirectTracingParameters,
-					RadianceCacheParameters,
-					CompactedTraceParameters);
-			}
-			else
+			RenderHardwareRayTracingScreenProbe(GraphBuilder,
+				Scene,
+				SceneTextures,
+				ScreenProbeParameters,
+				View,
+				TracingInputs,
+				IndirectTracingParameters,
+				RadianceCacheParameters,
+				CompactedTraceParameters);
+		}
+		else
+		{
+			CullForCardTracing(
+				GraphBuilder,
+				Scene, View,
+				TracingInputs,
+				IndirectTracingParameters,
+				/* out */ MeshSDFGridParameters);
+
+			if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 			{
 				FCompactedTraceParameters CompactedTraceParameters = CompactTraces(
 					GraphBuilder,

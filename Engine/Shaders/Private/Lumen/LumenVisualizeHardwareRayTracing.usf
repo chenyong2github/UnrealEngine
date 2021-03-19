@@ -27,7 +27,6 @@ RaytracingAccelerationStructure TLAS;
 StructuredBuffer<FDeferredMaterialPayload> DeferredMaterialBuffer;
 
 int LightingMode;
-int NormalMode;
 int MaxTranslucentSkipCount;
 int bIsDeferredMaterial;
 
@@ -91,11 +90,11 @@ RAY_TRACING_ENTRY_RAYGEN(LumenVisualizeHardwareRayTracingRGS)
 			bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 			if (bUseMinimalPayload)
 			{
-				bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, NormalMode, HitDistance, Radiance);
+				bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, HitDistance, Radiance);
 			}
 			else
 			{
-				bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, NormalMode, HitDistance, Radiance);
+				bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, HitDistance, Radiance);
 			}
 		}
 

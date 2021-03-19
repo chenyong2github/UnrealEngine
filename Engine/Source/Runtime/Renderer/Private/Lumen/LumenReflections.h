@@ -66,6 +66,5 @@ extern void RenderLumenHardwareRayTracingReflections(
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
 	float MaxTraceDistance);

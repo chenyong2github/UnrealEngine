@@ -129,7 +129,6 @@ void RenderHardwareRayTracingScreenProbe(
 	FScreenProbeParameters& CommonDiffuseParameters,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenIndirectTracingParameters& DiffuseTracingParameters,
 	const LumenRadianceCache::FRadianceCacheInterpolationParameters& RadianceCacheParameters,
 	const FCompactedTraceParameters& CompactedTraceParameters);

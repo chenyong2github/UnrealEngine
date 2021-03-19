@@ -362,33 +362,10 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 
 		if (bVisualizeScene)
 		{
-			const uint32 CullGridPixelSize = FMath::Clamp(GVisualizeLumenSceneGridPixelSize, 8, 1024);
-			const FIntPoint CullGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), CullGridPixelSize);
-			const FIntVector CullGridSize = FIntVector(CullGridSizeXY.X, CullGridSizeXY.Y, 1);
-
-			FLumenMeshSDFGridParameters MeshSDFGridParameters;			
-			MeshSDFGridParameters.CardGridPixelSizeShift = FMath::FloorLog2(CullGridPixelSize);
-			MeshSDFGridParameters.CullGridSize = CullGridSize;
-
-			{
-				const float CardTraceEndDistanceFromCamera = VisualizeParameters.MaxCardTraceDistance;
-
-				CullMeshSDFObjectsToViewGrid(
-					View,
-					Scene,
-					0,
-					CardTraceEndDistanceFromCamera,
-					CullGridPixelSize,
-					1,
-					FVector::ZeroVector,
-					GraphBuilder,
-					MeshSDFGridParameters);
-			}
-			
 			const FRadianceCacheState& RadianceCacheState = Views[0].ViewState->RadianceCacheState;
 			const LumenRadianceCache::FRadianceCacheInputs RadianceCacheInputs = GetFinalGatherRadianceCacheInputsForVisualize();
 
-			if (Lumen::ShouldVisualizeHardwareRayTracing() && MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
+			if (Lumen::ShouldVisualizeHardwareRayTracing())
 			{
 				FLumenIndirectTracingParameters IndirectTracingParameters;
 				IndirectTracingParameters.CardInterpolateInfluenceRadius = VisualizeParameters.CardInterpolateInfluenceRadius;
@@ -404,13 +381,35 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRDGBuilder& G
 					GetSceneTextureParameters(GraphBuilder),
 					View,
 					TracingInputs,
-					MeshSDFGridParameters,
 					IndirectTracingParameters,
 					RadianceCacheParameters,
 					SceneColor);
 			}
 			else
 			{
+				const uint32 CullGridPixelSize = FMath::Clamp(GVisualizeLumenSceneGridPixelSize, 8, 1024);
+				const FIntPoint CullGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), CullGridPixelSize);
+				const FIntVector CullGridSize = FIntVector(CullGridSizeXY.X, CullGridSizeXY.Y, 1);
+
+				FLumenMeshSDFGridParameters MeshSDFGridParameters;
+				MeshSDFGridParameters.CardGridPixelSizeShift = FMath::FloorLog2(CullGridPixelSize);
+				MeshSDFGridParameters.CullGridSize = CullGridSize;
+
+				{
+					const float CardTraceEndDistanceFromCamera = VisualizeParameters.MaxCardTraceDistance;
+
+					CullMeshSDFObjectsToViewGrid(
+						View,
+						Scene,
+						0,
+						CardTraceEndDistanceFromCamera,
+						CullGridPixelSize,
+						1,
+						FVector::ZeroVector,
+						GraphBuilder,
+						MeshSDFGridParameters);
+				}
+
 				FVisualizeLumenSceneCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneCS::FParameters>();
 				PassParameters->ViewDimensions = View.ViewRect;
 				PassParameters->RWSceneColor = SceneColorUAV;

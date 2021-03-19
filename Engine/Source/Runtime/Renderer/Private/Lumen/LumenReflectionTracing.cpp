@@ -409,42 +409,40 @@ void TraceReflections(
 	
 	if (bTraceCards)
 	{
-		FLumenMeshSDFGridParameters MeshSDFGridParameters = InMeshSDFGridParameters;
-
-		if (!MeshSDFGridParameters.NumGridCulledMeshSDFObjects)
+		if (Lumen::UseHardwareRayTracedReflections())
 		{
-			CullForCardTracing(
+			FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 				GraphBuilder,
-				Scene, View,
+				View,
+				ReflectionTracingParameters,
+				ReflectionTileParameters,
+				WORLD_MAX,
+				IndirectTracingParameters.MaxTraceDistance);
+
+			RenderLumenHardwareRayTracingReflections(
+				GraphBuilder,
+				SceneTextureParameters,
+				View,
+				ReflectionTracingParameters,
+				ReflectionTileParameters,
 				TracingInputs,
-				IndirectTracingParameters,
-				/* out */ MeshSDFGridParameters);
+				CompactedTraceParameters,
+				IndirectTracingParameters.MaxTraceDistance);
 		}
-
-		if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
+		else
 		{
-			if (Lumen::UseHardwareRayTracedReflections())
+			FLumenMeshSDFGridParameters MeshSDFGridParameters = InMeshSDFGridParameters;
+			if (!MeshSDFGridParameters.NumGridCulledMeshSDFObjects)
 			{
-				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
+				CullForCardTracing(
 					GraphBuilder,
-					View,
-					ReflectionTracingParameters,
-					ReflectionTileParameters,
-					WORLD_MAX,
-					IndirectTracingParameters.MaxTraceDistance);
-
-				RenderLumenHardwareRayTracingReflections(
-					GraphBuilder,
-					SceneTextureParameters,
-					View,
-					ReflectionTracingParameters,
-					ReflectionTileParameters,
+					Scene, View,
 					TracingInputs,
-					MeshSDFGridParameters,
-					CompactedTraceParameters,
-					IndirectTracingParameters.MaxTraceDistance);
+					IndirectTracingParameters,
+					/* out */ MeshSDFGridParameters);
 			}
-			else
+
+			if (MeshSDFGridParameters.TracingParameters.NumSceneObjects > 0)
 			{
 				FCompactedReflectionTraceParameters CompactedTraceParameters = CompactTraces(
 					GraphBuilder,

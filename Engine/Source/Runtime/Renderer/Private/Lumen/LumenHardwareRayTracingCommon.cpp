@@ -50,7 +50,6 @@ void SetLumenHardwareRayTracingSharedParameters(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	FLumenHardwareRayTracingRGS::FSharedParameters* SharedParameters
 )
 {
@@ -66,7 +65,6 @@ void SetLumenHardwareRayTracingSharedParameters(
 
 	// Use surface cache, instead
 	GetLumenCardTracingParameters(View, TracingInputs, SharedParameters->TracingParameters);
-	SharedParameters->MeshSDFGridParameters = MeshSDFGridParameters;
 }
 
 #endif // RHI_RAYTRACING

@@ -43,15 +43,6 @@ static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingLightin
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingNormalMode(
-	TEXT("r.Lumen.Reflections.HardwareRayTracing.NormalMode"),
-	1,
-	TEXT("Determines the tracing normal (Default = 1)\n")
-	TEXT("0: SDF normal\n")
-	TEXT("1: Geometry normal"),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarLumenReflectionsHardwareRayTracingDeferredMaterial(
 	TEXT("r.Lumen.Reflections.HardwareRayTracing.DeferredMaterial"),
 	1,
@@ -139,7 +130,6 @@ namespace Lumen
 	{
 		FHardwareRayTracingPermutationSettings ModesAndPermutationSettings;
 		ModesAndPermutationSettings.LightingMode = GetReflectionsHardwareRayTracingLightingMode(View);
-		ModesAndPermutationSettings.NormalMode = CVarLumenReflectionsHardwareRayTracingNormalMode.GetValueOnRenderThread();
 		ModesAndPermutationSettings.bUseMinimalPayload = (ModesAndPermutationSettings.LightingMode == Lumen::EHardwareRayTracingLightingMode::LightingFromSurfaceCache);
 		ModesAndPermutationSettings.bUseDeferredMaterial = (CVarLumenReflectionsHardwareRayTracingDeferredMaterial.GetValueOnRenderThread()) != 0 && !ModesAndPermutationSettings.bUseMinimalPayload;
 		return ModesAndPermutationSettings;
@@ -154,9 +144,8 @@ class FLumenReflectionHardwareRayTracingRGS : public FLumenHardwareRayTracingRGS
 	SHADER_USE_ROOT_PARAMETER_STRUCT(FLumenReflectionHardwareRayTracingRGS, FLumenHardwareRayTracingRGS)
 
 	class FDeferredMaterialModeDim : SHADER_PERMUTATION_BOOL("DIM_DEFERRED_MATERIAL_MODE");
-	class FNormalModeDim : SHADER_PERMUTATION_BOOL("DIM_NORMAL_MODE");
 	class FLightingModeDim : SHADER_PERMUTATION_INT("DIM_LIGHTING_MODE", static_cast<int32>(Lumen::EHardwareRayTracingLightingMode::MAX));
-	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialModeDim, FNormalModeDim, FLightingModeDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDeferredMaterialModeDim, FLightingModeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenHardwareRayTracingRGS::FSharedParameters, SharedParameters)
@@ -221,7 +210,6 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflections(co
 
 		FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
 		TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 
@@ -249,7 +237,6 @@ void FDeferredShadingSceneRenderer::PrepareLumenHardwareRayTracingReflectionsLum
 	{
 		FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
 		TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader = View.ShaderMap->GetShader<FLumenReflectionHardwareRayTracingRGS>(PermutationVector);
 		OutRayGenShaders.Add(RayGenerationShader.GetRayTracingShader());
@@ -265,7 +252,6 @@ void RenderLumenHardwareRayTracingReflections(
 	const FLumenReflectionTracingParameters& ReflectionTracingParameters,
 	const FLumenReflectionTileParameters& ReflectionTileParameters,
 	const FLumenCardTracingInputs& TracingInputs,
-	const FLumenMeshSDFGridParameters& MeshSDFGridParameters,
 	const FCompactedReflectionTraceParameters& CompactedTraceParameters,
 	float MaxVoxelTraceDistance
 )
@@ -290,7 +276,6 @@ void RenderLumenHardwareRayTracingReflections(
 			SceneTextures,
 			View,
 			TracingInputs,
-			MeshSDFGridParameters,
 			&PassParameters->DeferredMaterialParameters.SharedParameters);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
 		PassParameters->MaxTraceDistance = MaxVoxelTraceDistance;
@@ -351,7 +336,6 @@ void RenderLumenHardwareRayTracingReflections(
 			SceneTextures,
 			View,
 			TracingInputs,
-			MeshSDFGridParameters,
 			&PassParameters->SharedParameters
 		);
 		PassParameters->CompactedTraceParameters = CompactedTraceParameters;
@@ -365,7 +349,6 @@ void RenderLumenHardwareRayTracingReflections(
 
 		FLumenReflectionHardwareRayTracingRGS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FDeferredMaterialModeDim>(PermutationSettings.bUseDeferredMaterial);
-		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FNormalModeDim>(PermutationSettings.NormalMode != 0);
 		PermutationVector.Set<FLumenReflectionHardwareRayTracingRGS::FLightingModeDim>(static_cast<int>(PermutationSettings.LightingMode));
 
 		TShaderRef<FLumenReflectionHardwareRayTracingRGS> RayGenerationShader =
@@ -378,7 +361,7 @@ void RenderLumenHardwareRayTracingReflections(
 			DispatchResolution = FIntPoint(DeferredMaterialBufferNumElements, 1);
 		}
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingRGS %ux%u LightingMode=%s, NormalMode=%s, DeferredMaterial=%u", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode), Lumen::GetRayTracedNormalModeName(PermutationSettings.NormalMode), PermutationSettings.bUseDeferredMaterial),
+			RDG_EVENT_NAME("LumenReflectionHardwareRayTracingRGS %ux%u LightingMode=%s, DeferredMaterial=%u", DispatchResolution.X, DispatchResolution.Y, Lumen::GetRayTracedLightingModeName(PermutationSettings.LightingMode), PermutationSettings.bUseDeferredMaterial),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, &View, RayGenerationShader, DispatchResolution, PermutationSettings](FRHICommandList& RHICmdList)

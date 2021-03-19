@@ -13,10 +13,6 @@
 #include "LumenScreenProbeCommon.ush"
 #include "LumenHardwareRayTracingCommon.ush"
 
-#ifndef DIM_NORMAL_MODE
-#define DIM_NORMAL_MODE SDF_NORMAL_TYPE
-#endif
-
 #ifndef DIM_LIGHTING_MODE
 #define DIM_LIGHTING_MODE LIGHTING_FROM_SURFACE_CACHE
 #endif
@@ -125,11 +121,11 @@ RAY_TRACING_ENTRY_RAYGEN(LumenScreenProbeGatherHardwareRayTracingRGS)
 				bool bUseMinimalPayload = (DIM_LIGHTING_MODE == LIGHTING_FROM_SURFACE_CACHE) && (DIM_DEFERRED_MATERIAL_MODE == 0);
 				if (bUseMinimalPayload)
 				{
-					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, DIM_NORMAL_MODE, TraceHitDistance, Radiance);
+					bHit = TraceAndCalculateRayTracedLightingFromSurfaceCache(Ray, Context, TraceHitDistance, Radiance);
 				}
 				else
 				{
-					bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, DIM_NORMAL_MODE, TraceHitDistance, Radiance);
+					bHit = TraceAndCalculateRayTracedLighting(Ray, Context, DIM_LIGHTING_MODE, TraceHitDistance, Radiance);
 				}
 			}
 			Radiance *= View.PreExposure;
