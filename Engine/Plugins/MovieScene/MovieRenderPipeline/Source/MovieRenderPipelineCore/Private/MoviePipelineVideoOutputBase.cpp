@@ -5,6 +5,11 @@
 #include "MoviePipelineOutputSetting.h"
 #include "MoviePipelineMasterConfig.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "MoviePipelineUtils.h"
+#include "ImageWriteTask.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformFile.h"
 
 void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
 {
@@ -43,10 +48,24 @@ void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerO
 			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalVideoFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
 
 			FinalFilePath = OutputDirectory / FinalVideoFileName;
+			FPaths::NormalizeFilename(FinalFilePath);
+			if (FPaths::IsRelative(FinalFilePath))
+			{
+				FinalFilePath = FPaths::ConvertRelativePathToFull(FinalFilePath);
+			}
+			
+			// Ensure the directory is created
+			{
+				FString FolderPath = FPaths::GetPath(FinalFilePath);
+				IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
+
+				PlatformFile.CreateDirectoryTree(*FolderPath);
+			}
 
 			// Create a deterministic clipname by file extension, and any trailing .'s
 			FMoviePipelineFormatArgs TempFormatArgs;
 			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, ClipName, TempFormatArgs, &InMergedOutputFrame->FrameOutputState);
+			FPaths::NormalizeFilename(ClipName);
 			ClipName.RemoveFromEnd(GetFilenameExtension());
 			ClipName.RemoveFromEnd(".");
 		}
