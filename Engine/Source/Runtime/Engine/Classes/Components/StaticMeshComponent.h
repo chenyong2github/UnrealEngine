@@ -749,7 +749,7 @@ struct FStaticMeshVertexColorLODData
 
 	/** Index of the LOD that this data came from */
 	UPROPERTY()
-	uint32 LODIndex;
+	uint32 LODIndex = 0;
 
 	/** Check whether this contains valid data */
 	bool IsValid() const

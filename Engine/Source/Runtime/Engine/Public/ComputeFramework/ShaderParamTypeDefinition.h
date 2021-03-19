@@ -152,7 +152,7 @@ struct ENGINE_API FShaderValueType
 	EShaderFundamentalType Type;
 
 	UPROPERTY()
-	EShaderFundamentalDimensionType DimensionType;
+	EShaderFundamentalDimensionType DimensionType = EShaderFundamentalDimensionType::Scalar;
 
 	union
 	{

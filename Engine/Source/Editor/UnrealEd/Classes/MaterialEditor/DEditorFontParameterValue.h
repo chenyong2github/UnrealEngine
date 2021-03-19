@@ -17,7 +17,7 @@ struct UNREALED_API FDFontParameters
 	TObjectPtr<class UFont> FontValue = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = DFontParameter)
-	int32 FontPage;
+	int32 FontPage = 0;
 };
 
 UCLASS(hidecategories = Object, collapsecategories)

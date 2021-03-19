@@ -43,7 +43,7 @@ struct FCustomOutput
 	FName OutputName;
 
 	UPROPERTY(EditAnywhere, Category = CustomOutput)
-	TEnumAsByte<enum ECustomMaterialOutputType> OutputType;
+	TEnumAsByte<enum ECustomMaterialOutputType> OutputType = ECustomMaterialOutputType::CMOT_Float1;
 };
 
 USTRUCT()
