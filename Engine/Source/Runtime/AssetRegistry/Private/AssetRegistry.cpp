@@ -1219,7 +1219,7 @@ FAssetData UAssetRegistryImpl::GetAssetByObjectPath(const FName ObjectPath, bool
 
 		if (Asset)
 		{
-			return !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Asset) ? FAssetData(Asset) : FAssetData();
+			return FAssetData(Asset);
 		}
 	}
 
