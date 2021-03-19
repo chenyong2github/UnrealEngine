@@ -28,6 +28,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include <string.h>
 #include <inttypes.h>
 #ifdef _MSC_VER
@@ -41,6 +42,7 @@
 #include "common/utils.h"
 
 #define COPY_BUFFER_SIZE 8192
+#define MAX_REMOTE_PATH 256
 #define AFC_SERVICE_NAME "com.apple.afc"
 #define AFC2_SERVICE_NAME "com.apple.afc2"
 #define HOUSE_ARREST_SERVICE_NAME "com.apple.mobile.house_arrest"
@@ -53,8 +55,6 @@
 
 #ifdef WIN32
 #include <windows.h>
-#define S_IFLNK S_IFREG
-#define S_IFSOCK S_IFREG
 #endif
 
 static void print_commands()
@@ -64,10 +64,10 @@ static void print_commands()
 	printf("  mkdir [-p] <pathname>\t\tCreate the directory in the path specified.\n"
 		"  \t\t\t\t-p : create parent directories if they do not exist\n");
 	printf("  rm <pathname>\t\t\tRemove the path specified.\n");
-	printf("  push [-p] <local> <remote>\tPush the local file to the remote pathname. \n"
+	printf("  push [-p] <local> <remote>\tPush the local file or directory to the remote pathname. \n"
 		"  \t\t\t\t-p : create parent directories if they do not exist\n");
-	printf("  pull <remote> [local]\tPull the remote file and save it in the specified local pathname,\n"
-		"  \t\t\t\tor in current directory if not specified.\n");
+	printf("  pull <remote> [local]\t\tPull the remote file or directory and save it in the specified local\n"
+		"  \t\t\t\tpathname, or in current directory if not specified.\n");
 }
 
 
@@ -148,17 +148,10 @@ static int command_mkdir(afc_client_t afc, char* remote, int makeparents)
 	return 0;
 }
 
-static int command_pull(afc_client_t afc, char* remote, char* local)
+static int command_pull_file(afc_client_t afc, char* remote, char* local)
 {
 	uint64_t handle = 0;
 	char buffer[COPY_BUFFER_SIZE];
-
-	if (local == NULL) {
-		// strip off path
-		local = remote;
-		for (char *p = local; p; p = strchr(p, '/'))
-			local = ++p;
-	}
 
 	afc_error_t  result = afc_file_open(afc, remote, AFC_FOPEN_RDONLY, &handle);
 	if (result != AFC_E_SUCCESS) {
@@ -217,7 +210,138 @@ static int command_pull(afc_client_t afc, char* remote, char* local)
 	return 0;
 }
 
-static int command_push(afc_client_t afc, char* local, char* remote, int makedirs)
+static int afc_stat(afc_client_t afc, char* pathname)
+{
+	int result = 0;
+	char** file_information;
+	result = afc_get_file_info(afc, pathname, &file_information);
+	if (result != AFC_E_SUCCESS) {
+		return -result;
+	}
+
+	for (int i = 0; file_information[i]; i+=2) {
+		if (!strcmp(file_information[i], "st_ifmt")) {
+			if (!strcmp(file_information[i+1], "S_IFDIR")) {
+				result = S_IFDIR;
+			}
+			else
+			if (!strcmp(file_information[i + 1], "S_IFREG")) {
+				result = S_IFREG;
+			}
+
+			break;
+		}
+	}
+
+	afc_dictionary_free(file_information);
+
+	return result;
+}
+
+static int command_pull(afc_client_t afc, char* remote, char* local);
+
+static int command_pull_dir(afc_client_t afc, char* remote, char* local)
+{
+#ifdef WIN32
+	mkdir(local);
+#else
+	mkdir(local, 0755);
+#endif
+
+	afc_error_t result = 0;
+
+	char** dirs = NULL;
+	result = afc_read_directory(afc, remote, &dirs);
+	if (result != AFC_E_SUCCESS || !dirs) {
+		fprintf(stderr, "pull: Could not list the remote path %s (%d).\n", remote, result);
+		return -result;
+	}
+
+	for (int i = 0; dirs[i]; i++) {
+		if (strcmp(dirs[i], ".") && strcmp(dirs[i], "..")) {
+			char newremote[MAX_REMOTE_PATH], newlocal[MAX_REMOTE_PATH];
+			strcpy(newremote, remote);
+			strcat(newremote, "/");
+			strcat(newremote, dirs[i]);
+			strcpy(newlocal, local);
+			strcat(newlocal, "/");
+			strcat(newlocal, dirs[i]);
+
+			result = command_pull(afc, newremote, newlocal);
+
+			if(result < 0)
+			{
+				break;
+			}
+		}
+	}
+
+	afc_dictionary_free(dirs);
+	return result;
+}
+
+static int command_pull(afc_client_t afc, char* remote, char* local)
+{
+	if (local == NULL) {
+		// strip off path
+		local = remote;
+		for (char* p = local; p; p = strchr(p, '/'))
+			local = ++p;
+	}
+
+	int statret = afc_stat(afc, remote);
+	switch (statret) {
+	case S_IFDIR:
+		return command_pull_dir(afc, remote, local);
+		break;
+	case S_IFREG:
+		return command_pull_file(afc, remote, local);
+		break;
+	default:
+		fprintf(stderr, "pull: Failed to get file info for %s (%d).\n", remote, statret);
+		return statret;
+	}
+}
+
+static int command_push(afc_client_t afc, char* local, char* remote, int makedirs);
+
+static int command_push_dir(afc_client_t afc, char* local, char* remote)
+{
+	int result = 0;
+	DIR* dir = opendir(local);
+	if (dir == NULL) {
+		fprintf(stderr, "pull: Failed to read directory %s.\n", local);
+		return -1;
+	}
+
+	for(;;)
+	{
+		struct dirent* dirent = readdir(dir);
+		if (dirent == NULL)	{
+			break;
+		}
+
+		if (strcmp(dirent->d_name, ".") && strcmp(dirent->d_name, "..")) {
+			char newremote[MAX_REMOTE_PATH], newlocal[MAX_REMOTE_PATH];
+			strcpy(newremote, remote);
+			strcat(newremote, "/");
+			strcat(newremote, dirent->d_name);
+			strcpy(newlocal, local);
+			strcat(newlocal, "/");
+			strcat(newlocal, dirent->d_name);
+
+			result = command_push(afc, newlocal, newremote, 1);
+
+			if (result < 0)	{
+				break;
+			}
+		}
+	}
+	closedir(dir);
+	return 0;
+}
+
+static int command_push_file(afc_client_t afc, char* local, char* remote, int makedirs)
 {
 	uint64_t handle = 0;
 	char buffer[COPY_BUFFER_SIZE];
@@ -235,8 +359,7 @@ static int command_push(afc_client_t afc, char* local, char* remote, int makedir
 			strncpy(path, remote, p-remote);
 			path[p - remote]=0;
 			p++;
-			if (*path)
-			{
+			if (*path) {
 				afc_make_directory(afc, path);
 			}
 		}
@@ -244,7 +367,7 @@ static int command_push(afc_client_t afc, char* local, char* remote, int makedir
 	}
 
 	if (result != AFC_E_SUCCESS) {
-		fprintf(stderr, "pull: Failed to open remote file %s for writing (%d).\n", remote, result);
+		fprintf(stderr, "push: Failed to open remote file %s for writing (%d).\n", remote, result);
 		fclose(fp);
 		return -result;
 	}
@@ -268,7 +391,7 @@ static int command_push(afc_client_t afc, char* local, char* remote, int makedir
 			result = afc_file_write(afc, handle, buffer, (uint32_t)bytes_read, &bytes_written);
 			if (result != AFC_E_SUCCESS || bytes_written != bytes_read)
 			{
-				fprintf(stderr, "pull: Error writing to remote file %s (%d).\n", remote, result);
+				fprintf(stderr, "push: Error writing to remote file %s (%d).\n", remote, result);
 				fclose(fp);
 				afc_file_close(afc, handle);
 				return -1;
@@ -283,8 +406,31 @@ static int command_push(afc_client_t afc, char* local, char* remote, int makedir
 
 	if (total_bytes_written != file_size)
 	{
-		fprintf(stderr, "pull: File size mismatch downloading %s (only %u of %u downloaded).\n", remote, total_bytes_written, file_size);
+		fprintf(stderr, "push: File size mismatch downloading %s (only %u of %u downloaded).\n", remote, total_bytes_written, file_size);
 		return -1;
+	}
+
+	return 0;
+}
+
+static int command_push(afc_client_t afc, char* local, char* remote, int makedirs)
+{
+	struct stat buf;
+	int result = stat(local, &buf);
+	if (result < 0)
+	{
+		fprintf(stderr, "push: Failed to get file info for %s (%d).\n", local, result);
+		return result;
+	}
+
+	if (buf.st_mode & S_IFDIR)
+	{
+		return command_push_dir(afc, local, remote);
+	}
+	else
+	if (buf.st_mode & S_IFREG)
+	{
+		return command_push_file(afc, local, remote, makedirs);
 	}
 
 	return 0;
