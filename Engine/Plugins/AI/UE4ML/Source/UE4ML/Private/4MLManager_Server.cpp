@@ -22,7 +22,7 @@
 
 void U4MLManager::ConfigureAsServer(FRPCServer& Server)
 {
-	UE_LOG(LogUE4ML, Log, TEXT("\tconfiguring as server"));
+	UE_LOG(LogUnrealEditor4ML, Log, TEXT("\tconfiguring as server"));
 
 	AddCommonFunctions(Server);
 

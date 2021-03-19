@@ -4,7 +4,7 @@
 #include "GameFramework/Controller.h"
 #include "GameFramework/Pawn.h"
 
-DEFINE_LOG_CATEGORY(LogUE4ML);
+DEFINE_LOG_CATEGORY(LogUnrealEditor4ML);
 
 namespace F4ML
 {

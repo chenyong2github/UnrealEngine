@@ -342,7 +342,7 @@ void U4MLAgent::SetAvatar(AActor* InAvatar)
 
 	if (InAvatar != nullptr && IsSuitableAvatar(*InAvatar) == false)
 	{
-		UE_LOG(LogUE4ML, Log, TEXT("SetAvatar was called for agent %u but %s is not a valid avatar (required avatar class %s)")
+		UE_LOG(LogUnrealEditor4ML, Log, TEXT("SetAvatar was called for agent %u but %s is not a valid avatar (required avatar class %s)")
 			, AgentID, *InAvatar->GetName(), *GetNameSafe(AgentConfig.AvatarClass));
 		return;
 	}

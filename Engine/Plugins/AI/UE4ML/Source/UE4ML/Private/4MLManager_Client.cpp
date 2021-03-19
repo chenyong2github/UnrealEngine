@@ -94,7 +94,7 @@ void U4MLManager::AddCommonFunctions(FRPCServer& Server)
 
 void U4MLManager::ConfigureAsClient(FRPCServer& Server)
 {
-	UE_LOG(LogUE4ML, Log, TEXT("\tconfiguring as client"));
+	UE_LOG(LogUnrealEditor4ML, Log, TEXT("\tconfiguring as client"));
 
 	AddCommonFunctions(Server);
 

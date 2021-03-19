@@ -374,7 +374,7 @@ U4MLAgent* U4MLSession::GetAgent(F4ML::FAgentID AgentID)
 {
 	if (Agents.IsValidIndex(AgentID) == false)
 	{
-		UE_LOG(LogUE4ML, Warning, TEXT("U4MLSession::GetAgent: Invalid AgentID. Failing"));
+		UE_LOG(LogUnrealEditor4ML, Warning, TEXT("U4MLSession::GetAgent: Invalid AgentID. Failing"));
 		return nullptr;
 	}
 
@@ -467,7 +467,7 @@ bool U4MLSession::RequestAvatarForAgent(U4MLAgent& Agent, UWorld* InWorld, const
 	if (Agent.GetAvatar() != nullptr)
 	{
 		// skipping.
-		UE_LOG(LogUE4ML, Verbose, TEXT("U4MLSession::RequestAvatarForAgent called for agent [%s] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar.")
+		UE_LOG(LogUnrealEditor4ML, Verbose, TEXT("U4MLSession::RequestAvatarForAgent called for agent [%s] while it still has an avatar [%s]. Call ClearAvatar first to null-out agent\'s avatar.")
 			, Agent.GetAgentID(), *GetNameSafe(Agent.GetAvatar()));
 		return false;
 	}
@@ -485,7 +485,7 @@ bool U4MLSession::RequestAvatarForAgent(U4MLAgent& Agent, UWorld* InWorld, const
 	
 	if (InWorld == nullptr)
 	{
-		UE_LOG(LogUE4ML, Warning, TEXT("U4MLSession::RequestAvatarForAgent called with InWorld and CachedWorld both being null. Auto-failure."));
+		UE_LOG(LogUnrealEditor4ML, Warning, TEXT("U4MLSession::RequestAvatarForAgent called with InWorld and CachedWorld both being null. Auto-failure."));
 		return false;
 	}
 

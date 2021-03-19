@@ -70,7 +70,7 @@ namespace
 				? SettingsManagerClass.Get()
 				: U4MLManager::StaticClass();
 
-			UE_LOG(LogUE4ML, Log, TEXT("Creating UE4ML manager of class %s"), *GetNameSafe(Class));
+			UE_LOG(LogUnrealEditor4ML, Log, TEXT("Creating UE4ML manager of class %s"), *GetNameSafe(Class));
 
 			U4MLManager* ManagerInstance = NewObject<U4MLManager>(GEngine, Class);
 			check(ManagerInstance);
@@ -143,7 +143,7 @@ void U4MLManager::StopServer()
 {
 	if (RPCServerInstance)
 	{
-		UE_LOG(LogUE4ML, Log, TEXT("Stopping RPC server."));
+		UE_LOG(LogUnrealEditor4ML, Log, TEXT("Stopping RPC server."));
 		RPCServerInstance->stop();
 		delete RPCServerInstance;
 		RPCServerInstance = nullptr;
@@ -179,7 +179,7 @@ void U4MLManager::StartServer(uint16 Port, EUE4MLServerMode InMode, uint16 Serve
 		}
 	}
 
-	UE_LOG(LogUE4ML, Log, TEXT("Starting RPC server on port %d."), Port);
+	UE_LOG(LogUnrealEditor4ML, Log, TEXT("Starting RPC server on port %d."), Port);
 	RPCServerInstance = new FRPCServer(Port);
 	CurrentPort = Port;
 	check(RPCServerInstance);
@@ -364,7 +364,7 @@ void U4MLManager::OnPostWorldInit(UWorld* World, const UWorld::InitializationVal
 
 					if (PlayNetMode != PIE_Standalone)
 					{
-						UE_LOG(LogUE4ML, Log, TEXT("Ignoring %s due to net mode != PIE_Standalone")
+						UE_LOG(LogUnrealEditor4ML, Log, TEXT("Ignoring %s due to net mode != PIE_Standalone")
 							, *World->GetName());
 						//UUE4MLSettings::
 						return;
