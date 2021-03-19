@@ -1527,6 +1527,7 @@ void FGPUSkinCache::ProcessRayTracingGeometryToUpdate(
 				Segment.VertexBufferElementType = VET_Float3;
 				Segment.VertexBufferStride = VertexBufferStride;
 				Segment.VertexBufferOffset = 0;
+				Segment.MaxVertices = Section.GetNumVertices();
 				Segment.FirstPrimitive = Section.BaseIndex / 3;
 				Segment.NumPrimitives = Section.NumTriangles;
 				Segment.bEnabled = !Section.bDisabled;

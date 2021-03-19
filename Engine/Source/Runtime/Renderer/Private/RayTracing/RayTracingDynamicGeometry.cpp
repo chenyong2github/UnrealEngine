@@ -278,6 +278,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		Geometry.Initializer.Segments.Empty();
 		FRayTracingGeometrySegment Segment;
 		Segment.NumPrimitives = UpdateParams.NumTriangles;
+		Segment.MaxVertices = UpdateParams.NumVertices;
 		Geometry.Initializer.Segments.Add(Segment);
 		bRefit = false;
 	}

@@ -1503,6 +1503,7 @@ void FLandscapeComponentSceneProxy::CreateRenderThreadResources()
 				Segment.VertexBuffer = nullptr;
 				Segment.VertexBufferStride = sizeof(FVector);
 				Segment.VertexBufferElementType = VET_Float3;
+				Segment.MaxVertices = FMath::Square(SubsectionSizeVerts);
 				Initializer.Segments.Add(Segment);
 				SectionRayTracingStates[SubSectionIdx].Geometry.SetInitializer(Initializer);
 				SectionRayTracingStates[SubSectionIdx].Geometry.InitResource();

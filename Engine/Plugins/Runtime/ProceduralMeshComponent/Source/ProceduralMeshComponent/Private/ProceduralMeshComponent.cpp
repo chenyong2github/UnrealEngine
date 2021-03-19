@@ -197,6 +197,7 @@ public:
 						FRayTracingGeometrySegment Segment;
 						Segment.VertexBuffer = NewSection->VertexBuffers.PositionVertexBuffer.VertexBufferRHI;
 						Segment.NumPrimitives = NewSection->RayTracingGeometry.Initializer.TotalPrimitiveCount;
+						Segment.MaxVertices = NewSection->VertexBuffers.PositionVertexBuffer.GetNumVertices();
 						NewSection->RayTracingGeometry.Initializer.Segments.Add(Segment);
 
 						//#dxr_todo: add support for segments?

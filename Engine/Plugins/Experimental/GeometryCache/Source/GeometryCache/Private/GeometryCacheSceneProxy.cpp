@@ -167,6 +167,7 @@ FGeometryCacheSceneProxy::FGeometryCacheSceneProxy(UGeometryCacheComponent* Comp
 							Segment.FirstPrimitive = BatchInfo.StartIndex / 3;
 							Segment.NumPrimitives = BatchInfo.NumTriangles;
 							Segment.VertexBuffer = Section->PositionBuffers[PositionBufferIndex].VertexBufferRHI;
+							Segment.MaxVertices = Section->PositionBuffers[PositionBufferIndex].GetSizeInBytes() / Segment.VertexBufferStride; // conservative estimate
 							Segments.Add(Segment);
 							Initializer.TotalPrimitiveCount += BatchInfo.NumTriangles;
 						}
@@ -604,6 +605,7 @@ void FGeometryCacheSceneProxy::UpdateAnimation(float NewTime, bool bNewLooping, 
 					Segment.FirstPrimitive = BatchInfo.StartIndex / 3;
 					Segment.NumPrimitives = BatchInfo.NumTriangles;
 					Segment.VertexBuffer = Section->PositionBuffers[PositionBufferIndex].VertexBufferRHI;
+					Segment.MaxVertices = Section->PositionBuffers[PositionBufferIndex].GetSizeInBytes() / Segment.VertexBufferStride; // conservative estimate
 
 					Segments.Add(Segment);
 					Section->RayTracingGeometry.Initializer.TotalPrimitiveCount += BatchInfo.NumTriangles;

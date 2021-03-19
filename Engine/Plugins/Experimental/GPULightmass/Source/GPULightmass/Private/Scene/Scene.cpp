@@ -1542,6 +1542,7 @@ void FScene::AddGeometryInstanceFromComponent(ULandscapeComponent* InComponent)
 					Segment.VertexBuffer = nullptr;
 					Segment.VertexBufferStride = sizeof(FVector);
 					Segment.VertexBufferElementType = VET_Float3;
+					Segment.MaxVertices = NumPrimitives*3;
 					Segment.NumPrimitives = NumPrimitives;
 					GeometryInitializer.Segments.Add(Segment);
 

@@ -1290,6 +1290,7 @@ void FStaticMeshLODResources::InitResources(UStaticMesh* Parent)
 					Segment.VertexBufferElementType = VET_Float3;
 					Segment.VertexBufferStride = VertexBuffers.PositionVertexBuffer.GetStride();
 					Segment.VertexBufferOffset = 0;
+					Segment.MaxVertices = VertexBuffers.PositionVertexBuffer.GetNumVertices();
 					Segment.FirstPrimitive = Section.FirstIndex / 3;
 					Segment.NumPrimitives = Section.NumTriangles;
 					Segment.bEnabled = Section.bVisibleInRayTracing;

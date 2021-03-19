@@ -2516,6 +2516,10 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 		checkf(Segment.VertexBufferStride, TEXT("Position vertex buffer is required for ray tracing geometry"));
 		checkf(Segment.VertexBufferStride % 4 == 0, TEXT("Position vertex buffer stride must be aligned to 4 bytes for ByteAddressBuffer loads to work"));
 
+		checkf(Segment.MaxVertices != 0 || Segment.NumPrimitives == 0,
+			TEXT("FRayTracingGeometrySegment.MaxVertices for '%s' must contain number of positions in the vertex buffer or maximum index buffer value+1 if index buffer is provided."),
+			*DebugName.ToString());
+
 		if (Initializer.GeometryType == RTGT_Triangles)
 		{
 			checkf(Segment.VertexBufferElementType == VET_Float3
@@ -2554,11 +2558,6 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 			Desc.Flags |= D3D12_RAYTRACING_GEOMETRY_FLAG_NO_DUPLICATE_ANYHIT_INVOCATION;
 		}
 
-		// Conservative estimate of the maximum number of elements in this VB.
-		// Real used number will depend on the index buffer and is not available here right now.
-		// #dxr_todo: Add explicit vertex count to FRayTracingGeometrySegment.
-		const uint32 MaxSegmentVertices = (Segment.VertexBuffer->GetSize() - Segment.VertexBufferOffset) / Segment.VertexBufferStride;
-
 		switch (GeometryType)
 		{
 		case D3D12_RAYTRACING_GEOMETRY_TYPE_TRIANGLES:
@@ -2588,14 +2587,14 @@ FD3D12RayTracingGeometry::FD3D12RayTracingGeometry(FD3D12Adapter* Adapter, const
 				// We conservatively set this to 32 bit to allocate acceleration structure memory.
 				Desc.Triangles.IndexFormat = DXGI_FORMAT_R32_UINT;
 				Desc.Triangles.IndexCount = Segment.NumPrimitives * IndicesPerPrimitive;
-				Desc.Triangles.VertexCount = MaxSegmentVertices;
+				Desc.Triangles.VertexCount = Segment.MaxVertices;
 			}
 			else
 			{
 				// Non-indexed geometry
 				checkf(Segments.Num() == 1, TEXT("Non-indexed geometry with multiple segments is not implemented."));
 				Desc.Triangles.IndexFormat = DXGI_FORMAT_UNKNOWN;
-				Desc.Triangles.VertexCount = FMath::Min<uint32>(MaxSegmentVertices, TotalPrimitiveCount * 3);
+				Desc.Triangles.VertexCount = FMath::Min<uint32>(Segment.MaxVertices, TotalPrimitiveCount * 3);
 			}
 			break;
 
@@ -2832,11 +2831,6 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 		const FHitGroupSystemParameters& SystemParameters = HitGroupSystemParametersForThisGPU[SegmentIndex];
 
 		FD3D12Buffer* VertexBuffer = CommandContext.RetrieveObject<FD3D12Buffer>(Segment.VertexBuffer.GetReference());
-		
-		// Conservative estimate of the maximum number of elements in this VB.
-		// Real used number will depend on the index buffer and is not available here right now.
-		// #dxr_todo: Add explicit vertex count to FRayTracingGeometrySegment.
-		const uint32 MaxSegmentVertices = (VertexBuffer->ResourceLocation.GetSize() - Segment.VertexBufferOffset) / Segment.VertexBufferStride;
 
 		switch (GeometryType)
 		{
@@ -2873,7 +2867,6 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 			if (IndexBuffer)
 			{
 				check(Desc.Triangles.IndexCount <= Segment.NumPrimitives * IndicesPerPrimitive);
-				check(Desc.Triangles.VertexCount <= MaxSegmentVertices);
 
 				Desc.Triangles.IndexFormat = (IndexStride == 4 ? DXGI_FORMAT_R32_UINT : DXGI_FORMAT_R16_UINT);
 				Desc.Triangles.IndexBuffer = SystemParameters.IndexBuffer + SystemParameters.RootConstants.IndexBufferOffsetInBytes;
@@ -2886,7 +2879,6 @@ void FD3D12RayTracingGeometry::BuildAccelerationStructure(FD3D12CommandContext& 
 				check(Desc.Triangles.IndexFormat == DXGI_FORMAT_UNKNOWN);
 				check(Desc.Triangles.IndexCount == 0);
 				check(Desc.Triangles.IndexBuffer == D3D12_GPU_VIRTUAL_ADDRESS(0));
-				check(Desc.Triangles.VertexCount == FMath::Min<uint32>(MaxSegmentVertices, TotalPrimitiveCount * 3));
 			}
 
 			Desc.Triangles.VertexBuffer.StartAddress = SystemParameters.VertexBuffer;
@@ -3507,6 +3499,11 @@ void FD3D12CommandContext::RHIBuildAccelerationStructures(const TArrayView<const
 
 			for (int32 i = 0; i < P.Segments.Num(); ++i)
 			{
+				checkf(P.Segments[i].MaxVertices <= Geometry->Segments[i].MaxVertices,
+					TEXT("Maximum number of vertices in a segment (%u) must not be smaller than what was declared during FRHIRayTracingGeometry creation (%u), as this controls BLAS memory allocation."),
+					P.Segments[i].MaxVertices, Geometry->Segments[i].MaxVertices
+				);
+
 				Geometry->Segments[i].VertexBuffer            = P.Segments[i].VertexBuffer;
 				Geometry->Segments[i].VertexBufferElementType = P.Segments[i].VertexBufferElementType;
 				Geometry->Segments[i].VertexBufferStride      = P.Segments[i].VertexBufferStride;

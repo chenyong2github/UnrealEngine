@@ -1154,6 +1154,7 @@ static void BuildHairAccelerationStructure_Strands(FRHICommandList& RHICmdList, 
 	Segment.VertexBuffer = PositionBuffer;
 	Segment.VertexBufferStride = FHairStrandsRaytracingFormat::SizeInByte;
 	Segment.VertexBufferElementType = FHairStrandsRaytracingFormat::VertexElementType;
+	Segment.MaxVertices = RaytracingVertexCount;
 	Segment.NumPrimitives = RaytracingVertexCount / 3;
 	Initializer.Segments.Add(Segment);
 
@@ -1188,6 +1189,7 @@ static void BuildHairAccelerationStructure_Cards(FRHICommandList& RHICmdList,
 	Segment.VertexBufferStride = FHairCardsPositionFormat::SizeInByte;
 	Segment.VertexBufferElementType = FHairCardsPositionFormat::VertexElementType;
 	Segment.NumPrimitives = RestResource->PrimitiveCount;
+	Segment.MaxVertices = RestResource->VertexCount;
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);
@@ -1221,6 +1223,7 @@ static void BuildHairAccelerationStructure_Meshes(FRHICommandList& RHICmdList,
 	Segment.VertexBufferStride = FHairCardsPositionFormat::SizeInByte;
 	Segment.VertexBufferElementType = FHairCardsPositionFormat::VertexElementType;
 	Segment.NumPrimitives = RestResource->PrimitiveCount;
+	Segment.MaxVertices = RestResource->VertexCount;
 	Initializer.Segments.Add(Segment);
 
 	OutRayTracingGeometry->SetInitializer(Initializer);

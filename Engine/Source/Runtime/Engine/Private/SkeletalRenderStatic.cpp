@@ -90,6 +90,7 @@ void FSkeletalMeshObjectStatic::InitResources(USkinnedMeshComponent* InMeshCompo
 								Segment.VertexBufferElementType = VET_Float3;
 								Segment.VertexBufferOffset = 0;
 								Segment.VertexBufferStride = VertexBufferStride;
+								Segment.MaxVertices = Section.GetNumVertices();
 								Segment.FirstPrimitive = Section.BaseIndex / 3;
 								Segment.NumPrimitives = Section.NumTriangles;
 								Segment.bEnabled = !Section.bDisabled;

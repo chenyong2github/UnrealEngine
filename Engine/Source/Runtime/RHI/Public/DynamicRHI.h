@@ -157,6 +157,10 @@ public:
 	// Must be equal or greater than the size of the position vector.
 	LAYOUT_FIELD_INITIALIZED(uint32, VertexBufferStride, 12);
 
+	// Number of vertices (positions) in VertexBuffer.
+	// If an index buffer is present, this must be at least the maximum index value in the index buffer + 1.
+	LAYOUT_FIELD_INITIALIZED(uint32, MaxVertices, 0);
+
 	// Primitive range for this segment.
 	LAYOUT_FIELD_INITIALIZED(uint32, FirstPrimitive, 0);
 	LAYOUT_FIELD_INITIALIZED(uint32, NumPrimitives, 0);
