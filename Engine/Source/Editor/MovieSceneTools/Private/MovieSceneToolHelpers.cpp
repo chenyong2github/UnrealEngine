@@ -4,6 +4,7 @@
 #include "MovieSceneToolsModule.h"
 #include "MovieScene.h"
 #include "Layout/Margin.h"
+#include "Misc/App.h"
 #include "Misc/Paths.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/STextBlock.h"
@@ -2583,6 +2584,11 @@ FString MovieSceneToolHelpers::GetCameraName(FbxCamera* InCamera)
 
 void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxImporter, UMovieSceneSequence* InSequence, IMovieScenePlayer* Player, FMovieSceneSequenceIDRef TemplateID, TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bNotifySlate)
 {
+	if (FApp::IsUnattended() || GIsRunningUnattendedScript)
+	{
+		bNotifySlate = false;
+	}
+
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 
 	for (auto InObjectBinding : InObjectBindingMap)
@@ -2599,22 +2605,27 @@ void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxIm
 
 		if (!CameraNode)
 		{
-			if (bMatchByNameOnly && bNotifySlate)
+			if (bMatchByNameOnly)
 			{
-				FNotificationInfo Info(FText::Format(NSLOCTEXT("MovieSceneTools", "NoMatchingCameraError", "Failed to find any matching camera for {0}"), FText::FromString(ObjectName)));
-				Info.ExpireDuration = 5.0f;
-				FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
-
+				if (bNotifySlate)
+				{
+					FNotificationInfo Info(FText::Format(NSLOCTEXT("MovieSceneTools", "NoMatchingCameraError", "Failed to find any matching camera for {0}"), FText::FromString(ObjectName)));
+					Info.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+				}
 				continue;
 			}
 
 			CameraNode = FindCamera(FbxImporter->Scene->GetRootNode());
-			if (CameraNode && bNotifySlate)
+			if (CameraNode)
 			{
-				FString CameraName = GetCameraName(CameraNode);
-				FNotificationInfo Info(FText::Format(NSLOCTEXT("MovieSceneTools", "NoMatchingCameraWarning", "Failed to find any matching camera for {0}. Importing onto first camera from fbx {1}"), FText::FromString(ObjectName), FText::FromString(CameraName)));
-				Info.ExpireDuration = 5.0f;
-				FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+				if (bNotifySlate)
+				{
+					FString CameraName = GetCameraName(CameraNode);
+					FNotificationInfo Info(FText::Format(NSLOCTEXT("MovieSceneTools", "NoMatchingCameraWarning", "Failed to find any matching camera for {0}. Importing onto first camera from fbx {1}"), FText::FromString(ObjectName), FText::FromString(CameraName)));
+					Info.ExpireDuration = 5.0f;
+					FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+				}
 			}
 		}
 
@@ -2703,6 +2714,8 @@ void MovieSceneToolHelpers::ImportFBXCameraToExisting(UnFbx::FFbxImporter* FbxIm
 
 void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieSceneSequence* InSequence, ISequencer& InSequencer,  TMap<FGuid, FString>& InObjectBindingMap, bool bMatchByNameOnly, bool bCreateCameras)
 {
+	bool bNotifySlate = !FApp::IsUnattended() && !GIsRunningUnattendedScript;
+
 	UMovieScene* MovieScene = InSequence->GetMovieScene();
 
 	if (bCreateCameras)
@@ -2738,9 +2751,12 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UMovieSceneSequence* InSe
 
 					if (!bFoundBoundObject)
 					{
-						FNotificationInfo Info(FText::Format(NSLOCTEXT("MovieSceneTools", "NoBoundObjectsError", "Existing binding has no objects. Creating a new camera and binding for {0}"), FText::FromString(ObjectName)));
-						Info.ExpireDuration = 5.0f;
-						FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+						if (bNotifySlate)
+						{
+							FNotificationInfo Info(FText::Format(NSLOCTEXT("MovieSceneTools", "NoBoundObjectsError", "Existing binding has no objects. Creating a new camera and binding for {0}"), FText::FromString(ObjectName)));
+							Info.ExpireDuration = 5.0f;
+							FSlateNotificationManager::Get().AddNotification(Info)->SetCompletionState(SNotificationItem::CS_Fail);
+						}
 					}
 				}
 			}
