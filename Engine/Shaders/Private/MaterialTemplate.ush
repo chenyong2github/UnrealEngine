@@ -2860,9 +2860,12 @@ void CalcMaterialParametersEx(
 	    Parameters.TwoSidedSign *= ResolvedView.CullingSign * GetPrimitiveData(Parameters.PrimitiveId).InvNonUniformScaleAndDeterminantSign.w;
     #endif
 
-	#if !MATERIAL_TWOSIDED_SEPARATE_PASS
-		Parameters.TwoSidedSign *= GetFloatFacingSign(bIsFrontFace);
-	#endif
+#endif
+
+#if (MATERIAL_TWOSIDED && !MATERIAL_TWOSIDED_SEPARATE_PASS) || RAYHITGROUPSHADER
+	// Either we have a two-sided material that needs a sign flip, or we have a ray tracing material
+	// that needs to consider rays arriving from either side
+	Parameters.TwoSidedSign *= GetFloatFacingSign(bIsFrontFace);
 #endif
 
 #if NUM_VIRTUALTEXTURE_SAMPLES || LIGHTMAP_VT_ENABLED
