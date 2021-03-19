@@ -115,15 +115,15 @@ FNormalCoderSmith::FSphericalCoordinates FNormalCoderSmith::VectorToSpherical(co
 {
 	FVector NormalizedVector = Vector;
 	NormalizedVector.Normalize();
-	FVector2D UE4Spherical = NormalizedVector.UnitCartesianToSpherical();
-	return FNormalCoderSmith::FSphericalCoordinates(UE4Spherical.X, UE4Spherical.Y);
+	FVector2D UESpherical = NormalizedVector.UnitCartesianToSpherical();
+	return FNormalCoderSmith::FSphericalCoordinates(UESpherical.X, UESpherical.Y);
 }
 
 /** Convert from spherical coordinates to Cartesian vectors */
 FVector FNormalCoderSmith::SphericalToVector(const FNormalCoderSmith::FSphericalCoordinates& Spherical)
 {
-	FVector2D UE4Spherical(Spherical.Phi, Spherical.Theta);
-	return UE4Spherical.SphericalToUnitCartesian();
+	FVector2D UESpherical(Spherical.Phi, Spherical.Theta);
+	return UESpherical.SphericalToUnitCartesian();
 }
 
 FVector FNormalCoderSmith::MoveFrameEncode(const FVector& Value)

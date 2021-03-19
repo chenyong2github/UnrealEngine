@@ -60,7 +60,7 @@ namespace AbcImporterUtilities
 	}
 
 	/**
-	* ConvertAlembicMatrix, converts Abc(Alembic) matrix to UE4 matrix format
+	* ConvertAlembicMatrix, converts Abc(Alembic) matrix to UnrealEngine matrix format
 	*
 	* @param AbcMatrix - Alembic style matrix
 	* @return FMatrix

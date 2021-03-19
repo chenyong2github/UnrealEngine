@@ -10,7 +10,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogGeoCaStreamingNormalCompression, Verbose, All);
 	spherical coordinates. Computers & Graphics 36, 5, 360-365.].
 	States they have better complexity/rate/quality properties than Octa (e.g., Griffith et al.) and Sextant (Deering et al.).
 	
-	Initial experiment and port to UE4, lots that can be optimized.
+	Initial experiment and port to UnrealEngine, lots that can be optimized.
 */
 class FNormalCoderSmith
 {
@@ -94,7 +94,7 @@ private:
 		return (i % n + n) % n;
 	}
 
-	/** Helpers to get our column vectors in our matrix. These can probably be replaced by UE4-specific operations. */
+	/** Helpers to get our column vectors in our matrix. These can probably be replaced by UnrealEngine-specific operations. */
 	FORCEINLINE FVector GetMatrixColumn(FMatrix& Matrix, int32 Column);
 	FORCEINLINE void SetMatrixColumn(FMatrix& Matrix, int32 Column, const FVector& Value);	
 };
