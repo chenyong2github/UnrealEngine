@@ -2062,9 +2062,9 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 			{
 				if (URigVMPin* ModelPin = Cast<URigVMPin>(InSubject))
 				{
-					for (int32 i = 0; i < UbergraphPages.Num(); ++i)
-					{
-						if (UControlRigGraph* Graph = Cast<UControlRigGraph>(UbergraphPages[i]))
+					if (UEdGraph* EdGraph = GetEdGraph(InGraph))
+					{							
+						if (UControlRigGraph* Graph = Cast<UControlRigGraph>(EdGraph))
 						{
 							if (UEdGraphNode* EdNode = Graph->FindNodeForModelNodeName(ModelPin->GetNode()->GetFName()))
 							{
@@ -2079,9 +2079,9 @@ void UControlRigBlueprint::HandleModifiedEvent(ERigVMGraphNotifType InNotifType,
 										WatchedPins.Remove(EdPin);
 									}
 									RequestAutoVMRecompilation();
-										MarkPackageDirty();
-									}
+									MarkPackageDirty();
 								}
+							}
 						}
 					}
 				}

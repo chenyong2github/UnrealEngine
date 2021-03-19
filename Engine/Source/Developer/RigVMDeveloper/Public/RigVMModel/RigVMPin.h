@@ -130,6 +130,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	FString GetSegmentPath() const;
 
+	// Populates an array of pins which will be reduced to the same operand in the
+	// VM. This includes Source-Target pins in different nodes, pins in collapse and
+	// referenced function nodes, and their corresponding entry and return nodes.
+	void GetExposedPinChain(TArray<const URigVMPin*>& OutExposedPins) const;
+
 	// Returns the display label of the pin
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
 	FName GetDisplayName() const;
@@ -148,7 +153,7 @@ public:
 
 	// Returns true if the pin should be watched
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
-	bool RequiresWatch() const;
+	bool RequiresWatch(const bool bCheckExposedPinChain = false) const;
 
 	// Returns true if the data type of the Pin is a struct
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)

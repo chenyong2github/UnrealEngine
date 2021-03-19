@@ -1653,7 +1653,7 @@ void FRigVMParserAST::FoldAssignments()
 		// if this node is a variable node and the pin requires a watch... skip this
 		if (Cast<URigVMVariableNode>(AssignExpr->GetSourcePin()->GetNode()))
 		{
-			if(AssignExpr->GetSourcePin()->RequiresWatch())
+			if(AssignExpr->GetSourcePin()->RequiresWatch(true))
 			{
 				continue;
 			}

@@ -1235,20 +1235,26 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema
 		if (UEdGraphPin* InGraphPin = (UEdGraphPin* )Context->Pin)
 		{
 			UEdGraph* Graph = InGraphPin->GetOwningNode()->GetGraph();
-
-			// Add the watch pin / unwatch pin menu items
+			
+			if(UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(InGraphPin->GetOwningNode()))
 			{
-				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
-				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
+				// Check if we can watch this value (not inside any function)
+				bool bIsInsideFunction = RigNode->GetModel()->GetRootGraph()->IsA<URigVMFunctionLibrary>();
+				if(!bIsInsideFunction)
 				{
-					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, InGraphPin))
+					// Add the watch pin / unwatch pin menu items
+					FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
+					UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
 					{
-						Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
-					}
-					else
-					{
-						Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
-					}
+						if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, InGraphPin))
+						{
+							Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+						}
+						else
+						{
+							Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
+						}
+					}				
 				}
 			}
 

@@ -410,7 +410,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		{
 			for (URigVMPin* Pin : UnitNode->Pins)
 			{
-				if (Pin->RequiresWatch())
+				if (Pin->RequiresWatch(true))
 				{
 					FRigVMASTProxy PinProxy = FRigVMASTProxy::MakeFromUObject(Pin);
 					FRigVMVarExprAST TempVarExpr(FRigVMExprAST::EType::Var, PinProxy);
@@ -479,7 +479,7 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 			URigVMPin* Pin = UnitNode->Pins[PinIndex];
 
 			// ensure to copy the debug values
-			if (Pin->RequiresWatch() && Settings.EnablePinWatches)
+			if (Pin->RequiresWatch(true) && Settings.EnablePinWatches)
 			{
 				const FRigVMExprAST* PinExpr = InExpr->ChildAt(PinIndex);
 				if (PinExpr->IsA(FRigVMExprAST::EType::CachedValue))
@@ -782,7 +782,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 
 		if (Cast<URigVMVariableNode>(SourceExpr->GetPin()->GetNode()))
 		{
-			if (SourceExpr->GetPin()->RequiresWatch() && Settings.EnablePinWatches)
+			if (SourceExpr->GetPin()->RequiresWatch(true) && Settings.EnablePinWatches)
 			{
 				FRigVMOperand WatchOperand = FindOrAddRegister(SourceExpr, WorkData, true /*debug watch*/);
 				if (WatchOperand.IsValid())
@@ -803,7 +803,7 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 
 		if (Cast<URigVMVariableNode>(TargetExpr->GetPin()->GetNode()))
 		{
-			if (TargetExpr->GetPin()->RequiresWatch() && Settings.EnablePinWatches)
+			if (TargetExpr->GetPin()->RequiresWatch(true) && Settings.EnablePinWatches)
 			{
 				FRigVMOperand WatchOperand = FindOrAddRegister(TargetExpr, WorkData, true /*debug watch*/);
 				if (WatchOperand.IsValid())
@@ -1123,7 +1123,7 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 	}
 }
 
-FString URigVMCompiler::GetPinHash(URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue)
+FString URigVMCompiler::GetPinHash(const URigVMPin* InPin, const FRigVMVarExprAST* InVarExpr, bool bIsDebugValue)
 {
 	FString Prefix = bIsDebugValue ? TEXT("DebugWatch:") : TEXT("");
 	FString Suffix;
@@ -1711,7 +1711,15 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 	}
 	ensure(Operand.IsValid());
 
-	WorkData.PinPathToOperand->Add(Hash, Operand);
+	// Get all possible pins that lead to the same operand
+	TArray<const URigVMPin*> VirtualPins;
+	Pin->GetExposedPinChain(VirtualPins);
+	for (const URigVMPin* VirtualPin : VirtualPins)
+	{
+		FString VirtualPinHash = GetPinHash(VirtualPin, InVarExpr, bIsDebugValue);
+		WorkData.PinPathToOperand->Add(VirtualPinHash, Operand);	
+	}
+	
 	WorkData.ExprToOperand.Add(InVarExpr, Operand);
 
 	return Operand;

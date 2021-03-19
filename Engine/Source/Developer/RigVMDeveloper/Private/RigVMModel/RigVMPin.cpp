@@ -12,7 +12,10 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Logging/LogScopedVerbosityOverride.h"
-
+#include "RigVMModel/Nodes/RigVMCollapseNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReferenceNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionEntryNode.h"
+#include "RigVMModel/Nodes/RigVMFunctionReturnNode.h"
 
 class FRigVMPinDefaultValueImportErrorContext : public FOutputDevice
 {
@@ -217,6 +220,69 @@ FString URigVMPin::GetSegmentPath() const
 	return FString();
 }
 
+void URigVMPin::GetExposedPinChain(TArray<const URigVMPin*>& OutExposedPins) const
+{
+	// Find the first pin in the chain (source)
+	for (URigVMLink* Link : GetSourceLinks())
+	{
+		URigVMPin* SourcePin = Link->GetSourcePin();
+		
+		// If the source is on an entry node, add the pin and make a recursive call on the collapse node pin
+		if (URigVMFunctionEntryNode* EntryNode = Cast<URigVMFunctionEntryNode>(SourcePin->GetNode()))
+		{
+			URigVMGraph* Graph = EntryNode->GetGraph();
+			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Graph->GetOuter()))
+			{
+				URigVMPin* CollapseNodePin = CollapseNode->FindPin(SourcePin->GetName());
+				CollapseNodePin->GetExposedPinChain(OutExposedPins);				
+			}
+		}
+		else if (URigVMFunctionReturnNode* ReturnNode = Cast<URigVMFunctionReturnNode>(SourcePin->GetNode()))
+		{
+			URigVMGraph* Graph = ReturnNode->GetGraph();
+			if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Graph->GetOuter()))
+			{
+				URigVMPin* CollapseNodePin = CollapseNode->FindPin(SourcePin->GetName());
+				CollapseNodePin->GetExposedPinChain(OutExposedPins);				
+			}
+		}
+		else
+		{
+			SourcePin->GetExposedPinChain(OutExposedPins);
+		}
+
+		return;
+	}
+
+
+	// Add the pins in the OutExposedPins array in depth-first order
+	TArray<const URigVMPin*> ToProcess;
+	ToProcess.Push(this);
+	while (!ToProcess.IsEmpty())
+	{
+		const URigVMPin* Current = ToProcess.Pop();
+		OutExposedPins.Add(Current);
+
+		// Add target pins connected to the current pin
+		for (URigVMLink* Link : Current->GetTargetLinks())
+		{
+			URigVMPin* TargetPin = Link->GetTargetPin();
+			ToProcess.Push(TargetPin);
+		}
+
+		// If pin is on a collapse node, add entry pin
+		if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Current->GetNode()))
+		{
+			URigVMFunctionEntryNode* EntryNode = CollapseNode->GetEntryNode();
+			URigVMPin* EntryPin = EntryNode->FindPin(Current->GetName());
+			if (EntryPin)
+			{
+				ToProcess.Push(EntryPin);
+			}
+		}		
+	}		
+}
+
 FName URigVMPin::GetDisplayName() const
 {
 	if (DisplayName == NAME_None)
@@ -262,8 +328,22 @@ bool URigVMPin::IsDefinedAsConstant() const
 	return bIsConstant;
 }
 
-bool URigVMPin::RequiresWatch() const
+bool URigVMPin::RequiresWatch(const bool bCheckExposedPinChain) const
 {
+	if (!bRequiresWatch && bCheckExposedPinChain)
+	{
+		TArray<const URigVMPin*> VirtualPins;
+		GetExposedPinChain(VirtualPins);
+		
+		for (const URigVMPin* VirtualPin : VirtualPins)
+		{
+			if (VirtualPin->bRequiresWatch)
+			{
+				return true;
+			}
+		}		
+	}
+	
 	return bRequiresWatch;
 }
 
