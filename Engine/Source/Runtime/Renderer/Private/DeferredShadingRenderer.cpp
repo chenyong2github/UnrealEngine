@@ -427,13 +427,25 @@ static void RenderOpaqueFX(
 		RDG_GPU_STAT_SCOPE(GraphBuilder, PostRenderOpsFX);
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderOpaqueFX);
 
+		// Add a pass which extracts the RHI handle from the scene textures UB and sends it to the FX system.
+		FRenderOpaqueFXPassParameters* ExtractUBPassParameters = GraphBuilder.AllocParameters<FRenderOpaqueFXPassParameters>();
+		ExtractUBPassParameters->SceneTextures = SceneTexturesUniformBuffer;
+		GraphBuilder.AddPass({}, ExtractUBPassParameters, ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass | ERDGPassFlags::NeverCull, [ExtractUBPassParameters, FXSystem](FRHICommandList&)
+		{
+			FXSystem->SetSceneTexturesUniformBuffer(ExtractUBPassParameters->SceneTextures->GetRHIRef());
+		});
+
 		FXSystem->PostRenderOpaque(
 			GraphBuilder,
 			Views[0].ViewUniformBuffer,
-			&FSceneTextureUniformParameters::StaticStructMetadata,
-			nullptr,
 			Views[0].AllowGPUParticleUpdate()
 		);
+
+		// Clear the scene textures UB pointer on the FX system.
+		AddPass(GraphBuilder, [FXSystem](FRHICommandList&)
+		{
+			FXSystem->SetSceneTexturesUniformBuffer(nullptr);
+		});
 
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())
 		{

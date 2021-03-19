@@ -48,8 +48,6 @@ public:
 	virtual void PostRenderOpaque(
 		class FRDGBuilder& GraphBuilder,
 		FRHIUniformBuffer* ViewUniformBuffer,
-		const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-		FRHIUniformBuffer* SceneTexturesUniformBuffer,
 		bool bAllowGPUParticleUpdate) override;
 
 	virtual void OnDestroy() override;
@@ -57,6 +55,8 @@ public:
 
 	/** Get the shared SortManager, used in the rendering loop to call FGPUSortManager::OnPreRender() and FGPUSortManager::OnPostRenderOpaque() */
 	virtual FGPUSortManager* GetGPUSortManager() const override;
+
+	virtual void SetSceneTexturesUniformBuffer(FRHIUniformBuffer* InSceneTexturesUniformParams) override;
 
 protected:
 

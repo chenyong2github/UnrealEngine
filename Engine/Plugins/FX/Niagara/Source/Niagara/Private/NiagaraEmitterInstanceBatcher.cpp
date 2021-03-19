@@ -483,7 +483,7 @@ void NiagaraEmitterInstanceBatcher::ProcessPendingTicksFlush(FRHICommandListImme
 			FRDGBuilder GraphBuilder(RHICmdList);
 			PreInitViews(GraphBuilder, true);
 			PostInitViews(GraphBuilder, View.ViewUniformBuffer, true);
-			PostRenderOpaque(GraphBuilder, View.ViewUniformBuffer, nullptr, nullptr, true);
+			PostRenderOpaque(GraphBuilder, View.ViewUniformBuffer, true);
 			GraphBuilder.Execute();
 			break;
 		}
@@ -1514,14 +1514,14 @@ void NiagaraEmitterInstanceBatcher::PostInitViews(FRDGBuilder& GraphBuilder, FRH
 	}
 }
 
-void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct, FRHIUniformBuffer* SceneTexturesUniformBuffer, bool bAllowGPUParticleUpdate)
+void NiagaraEmitterInstanceBatcher::PostRenderOpaque(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUniformBuffer, bool bAllowGPUParticleUpdate)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 
 	AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("Niagara::PostRenderOpaque"),
-		[this, ViewUniformBuffer, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
+		[this, ViewUniformBuffer, bAllowGPUParticleUpdate](FRHICommandListImmediate& RHICmdList)
 		{
 			if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 			{

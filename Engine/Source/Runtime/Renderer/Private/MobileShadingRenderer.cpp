@@ -731,8 +731,6 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		FXSystem->PostRenderOpaque(
 			GraphBuilder,
 			Views[0].ViewUniformBuffer,
-			nullptr,
-			nullptr,
 			Views[0].AllowGPUParticleUpdate()
 		);
 		if (FGPUSortManager* GPUSortManager = FXSystem->GetGPUSortManager())

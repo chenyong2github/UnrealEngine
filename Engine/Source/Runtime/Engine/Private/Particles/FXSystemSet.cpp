@@ -190,11 +190,18 @@ void FFXSystemSet::PreRender(class FRDGBuilder& GraphBuilder, FRHIUniformBuffer*
 	}
 }
 
+void FFXSystemSet::SetSceneTexturesUniformBuffer(FRHIUniformBuffer* InSceneTexturesUniformParams)
+{
+	for (FFXSystemInterface* FXSystem : FXSystems)
+	{
+		check(FXSystem);
+		FXSystem->SetSceneTexturesUniformBuffer(InSceneTexturesUniformParams);
+	}
+}
+
 void FFXSystemSet::PostRenderOpaque(
 	class FRDGBuilder& GraphBuilder,
 	FRHIUniformBuffer* ViewUniformBuffer,
-	const class FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-	FRHIUniformBuffer* SceneTexturesUniformBuffer,
 	bool bAllowGPUParticleUpdate)
 {
 	for (FFXSystemInterface* FXSystem : FXSystems)
@@ -203,8 +210,6 @@ void FFXSystemSet::PostRenderOpaque(
 		FXSystem->PostRenderOpaque(
 			GraphBuilder,
 			ViewUniformBuffer,
-			SceneTexturesUniformBufferStruct,
-			SceneTexturesUniformBuffer,
 			bAllowGPUParticleUpdate
 		);
 	}

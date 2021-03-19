@@ -455,7 +455,7 @@ void FFXSystem::PreRender(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUnif
 				PrepareGPUSimulation(RHICmdList);
 
 				RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender_Simulate));
-				SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::Main, nullptr, nullptr, nullptr, nullptr);
+				SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::Main, nullptr, nullptr);
 
 				RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender_Finalize));
 				FinalizeGPUSimulation(RHICmdList);
@@ -466,7 +466,7 @@ void FFXSystem::PreRender(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUnif
 					PrepareGPUSimulation(RHICmdList);
 
 					RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender_SimulateCDF));
-					SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDistanceField, ViewUniformBuffer, GlobalDistanceFieldParameterData, nullptr, nullptr);
+					SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDistanceField, ViewUniformBuffer, GlobalDistanceFieldParameterData);
 					//particles rendered during basepass may need to read pos/velocity buffers; must finalize unless we know for sure that nothing in base pass will read it.
 					RHICmdList.SetCurrentStat(GET_STATID(STAT_CLM_FXPreRender_FinalizeCDF));
 					FinalizeGPUSimulation(RHICmdList);
@@ -479,20 +479,16 @@ void FFXSystem::PreRender(FRDGBuilder& GraphBuilder, FRHIUniformBuffer* ViewUnif
 void FFXSystem::PostRenderOpaque(
 	FRDGBuilder& GraphBuilder,
 	FRHIUniformBuffer* ViewUniformBuffer,
-	const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-	FRHIUniformBuffer* SceneTexturesUniformBuffer,
 	bool bAllowGPUParticleUpdate)
 {
 	if (RHISupportsGPUParticles() && IsParticleCollisionModeSupported(GetShaderPlatform(), PCM_DepthBuffer) && bAllowGPUParticleUpdate)
 	{
-		AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("FFXSystem::PostRenderOpaque"),
-			[this, ViewUniformBuffer, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer](FRHICommandListImmediate& RHICmdList)
+		AddPass(GraphBuilder, RDG_EVENT_NAME("FFXSystem::PostRenderOpaque"), 
+			[this, ViewUniformBuffer](FRHICommandListImmediate& RHICmdList)
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, GPUParticles_PostRenderOpaque);
 				PrepareGPUSimulation(RHICmdList);
-				SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDepthBuffer, ViewUniformBuffer, NULL, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer);
+				SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDepthBuffer, ViewUniformBuffer, nullptr);
 				FinalizeGPUSimulation(RHICmdList);
 			}
 		);

@@ -1062,9 +1062,7 @@ public:
 		const FParticleAttributesTexture& InRenderAttributesTexture,
 		FRHIUniformBuffer* ViewUniformBuffer,
 		ERHIFeatureLevel::Type FeatureLevel,
-		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData,
-		const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-		FRHIUniformBuffer* SceneTexturesUniformBuffer
+		const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData
 		)
 	{
 		FRHIPixelShader* PixelShaderRHI = RHICmdList.GetBoundPixelShader();
@@ -1080,7 +1078,6 @@ public:
 			check(ViewUniformBuffer != NULL);
 			FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, PixelShaderRHI, ViewUniformBuffer);
 
-			SetUniformBufferParameter(RHICmdList, PixelShaderRHI, GetUniformBufferParameter(SceneTexturesUniformBufferStruct), SceneTexturesUniformBuffer);
 			SetTextureParameter(
 				RHICmdList, 
 				PixelShaderRHI,
@@ -1427,7 +1424,6 @@ void ExecuteSimulationCommands(
 	FParticleSimulationResources* ParticleSimulationResources,
 	FRHIUniformBuffer* ViewUniformBuffer,
 	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData,
-	const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
 	FRHIUniformBuffer* SceneTexturesUniformBuffer,
 	bool bUseFixDT)
 {
@@ -1439,6 +1435,13 @@ void ExecuteSimulationCommands(
 	SCOPE_CYCLE_COUNTER(STAT_GPUParticlesSimulationCommands);
 	SCOPED_DRAW_EVENT(RHICmdList, ParticleSimulation);
 	SCOPED_GPU_STAT(RHICmdList, ParticleSimulation);
+
+	FUniformBufferStaticBindings StaticUniformBuffers;
+	if (SceneTexturesUniformBuffer)
+	{
+		StaticUniformBuffers.AddUniformBuffer(SceneTexturesUniformBuffer);
+	}
+	SCOPED_UNIFORM_BUFFER_STATIC_BINDINGS(RHICmdList, StaticUniformBuffers);
 
 	const float FixDeltaSeconds = CVarGPUParticleFixDeltaSeconds.GetValueOnRenderThread();
 	const FParticleStateTextures& TextureResources = (FixDeltaSeconds <= 0 || bUseFixDT) ? ParticleSimulationResources->GetPreviousStateTextures() : ParticleSimulationResources->GetCurrentStateTextures();
@@ -1456,7 +1459,7 @@ void ExecuteSimulationCommands(
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-	PixelShader->SetParameters(RHICmdList, TextureResources, AttributeTexture, RenderAttributeTexture, ViewUniformBuffer, FeatureLevel, GlobalDistanceFieldParameterData, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer);
+	PixelShader->SetParameters(RHICmdList, TextureResources, AttributeTexture, RenderAttributeTexture, ViewUniformBuffer, FeatureLevel, GlobalDistanceFieldParameterData);
 
 	// Draw tiles to perform the simulation step.
 	const int32 CommandCount = SimulationCommands.Num();
@@ -1495,7 +1498,6 @@ void ExecuteSimulationCommands(
 	FParticleSimulationResources* ParticleSimulationResources,
 	FRHIUniformBuffer* ViewUniformBuffer,
 	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData,
-	const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
 	FRHIUniformBuffer* SceneTexturesUniformBuffer,
 	EParticleSimulatePhase::Type Phase,
 	bool bUseFixDT)
@@ -1510,7 +1512,6 @@ void ExecuteSimulationCommands(
 			ParticleSimulationResources,
 			ViewUniformBuffer,
 			GlobalDistanceFieldParameterData,
-			SceneTexturesUniformBufferStruct,
 			SceneTexturesUniformBuffer,
 			bUseFixDT);
 	}
@@ -1524,7 +1525,6 @@ void ExecuteSimulationCommands(
 			ParticleSimulationResources,
 			ViewUniformBuffer,
 			GlobalDistanceFieldParameterData,
-			SceneTexturesUniformBufferStruct,
 			SceneTexturesUniformBuffer,
 			bUseFixDT);
 	}
@@ -1538,7 +1538,6 @@ void ExecuteSimulationCommands(
 			ParticleSimulationResources,
 			NULL,
 			GlobalDistanceFieldParameterData,
-			SceneTexturesUniformBufferStruct,
 			SceneTexturesUniformBuffer,
 			bUseFixDT);
 	}
@@ -4648,9 +4647,7 @@ void FFXSystem::SimulateGPUParticles(
 	FRHICommandListImmediate& RHICmdList,
 	EParticleSimulatePhase::Type Phase,
 	FRHIUniformBuffer* ViewUniformBuffer,
-	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData,
-	const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-	FRHIUniformBuffer* SceneTexturesUniformBuffer
+	const FGlobalDistanceFieldParameterData* GlobalDistanceFieldParameterData
 	)
 {
 	LLM_SCOPE(ELLMTag::Particles);
@@ -4921,8 +4918,7 @@ void FFXSystem::SimulateGPUParticles(
 					ParticleSimulationResources,
 					ViewUniformBuffer,
 					GlobalDistanceFieldParameterData,
-					SceneTexturesUniformBufferStruct,
-					SceneTexturesUniformBuffer,
+					SceneTexturesUniformParams,
 					Phase,
 					FixDeltaSeconds > 0
 				);
@@ -5044,8 +5040,7 @@ void FFXSystem::SimulateGPUParticles(
 				ParticleSimulationResources,
 				ViewUniformBuffer,
 				GlobalDistanceFieldParameterData,
-				SceneTexturesUniformBufferStruct,
-				SceneTexturesUniformBuffer,
+				SceneTexturesUniformParams,
 				Phase,
 				false
 			);
