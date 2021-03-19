@@ -1545,7 +1545,6 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 					TGuardValue<bool> Guard(bIsDoingSelection, true);
 
 					bool bSync = GetSequencer()->GetSequencerSettings()->ShouldSyncCurveEditorSelection();
-					GetSequencer()->SuspendSelectionBroadcast();
 					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(false);
 					if (UnDisplayedChannels.Num() > 0)
 					{
@@ -1557,7 +1556,6 @@ void FControlRigParameterTrackEditor::OnCurveDisplayChanged(FCurveModel* CurveMo
 					}
 					GetSequencer()->RefreshTree();
 					GetSequencer()->GetSequencerSettings()->SyncCurveEditorSelection(bSync);
-					GetSequencer()->ResumeSelectionBroadcast();
 				}
 				UnDisplayedChannels.SetNum(0);
 				DisplayedChannels.SetNum(0);
