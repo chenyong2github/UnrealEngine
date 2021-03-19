@@ -437,10 +437,6 @@ void FUECompressedAnimDataMutable::BuildFinalBuffer(TArray<uint8>& OutCompressed
 	WriteArray(MemoryWriter, CompressedByteStream);
 }
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-ICompressedAnimData::ICompressedAnimData(const ICompressedAnimData&) = default;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-
 void ICompressedAnimData::SerializeCompressedData(class FArchive& Ar)
 {
 	Ar << CompressedNumberOfKeys;

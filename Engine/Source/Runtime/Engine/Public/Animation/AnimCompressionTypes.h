@@ -195,6 +195,8 @@ public:
 
 	FCompressibleAnimData(class UAnimSequence* InSeq, const bool bPerformStripping);
 
+	FCompressibleAnimData& operator=(const FCompressibleAnimData&);
+
 	UAnimCurveCompressionSettings* CurveCompressionSettings;
 
 	UAnimBoneCompressionSettings* BoneCompressionSettings;
@@ -295,6 +297,10 @@ public:
 private:
 
 };
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FCompressibleAnimData& FCompressibleAnimData::operator=(const FCompressibleAnimData&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 typedef TSharedPtr<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimPtr;
 typedef TSharedRef<FCompressibleAnimData, ESPMode::ThreadSafe> FCompressibleAnimRef;
@@ -419,6 +425,10 @@ struct ENGINE_API ICompressedAnimData
 	virtual FString GetDebugString() const { return FString(); }
 	virtual bool IsValid() const = 0;
 };
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+ICompressedAnimData::ICompressedAnimData(const ICompressedAnimData&) = default;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 struct ENGINE_API FCompressibleAnimDataResult
 {
