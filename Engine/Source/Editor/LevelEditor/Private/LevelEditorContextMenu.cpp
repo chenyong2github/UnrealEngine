@@ -321,7 +321,7 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 
 		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport || LevelEditorContext->ContextType == ELevelEditorMenuContext::SceneOutliner)
 		{
-			FToolMenuSection& Section = InMenu->AddSection("OpenMergeActor");
+			FToolMenuSection& Section = InMenu->AddSection("OpenMergeActor", LOCTEXT("MergeActors","Merge Actors"));
 
 			Section.AddSubMenu(
 				"MergeActorsSubMenu",

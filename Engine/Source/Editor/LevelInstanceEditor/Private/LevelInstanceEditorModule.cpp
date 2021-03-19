@@ -43,8 +43,14 @@ namespace LevelInstanceMenuUtils
 {
 	FToolMenuSection& CreateLevelInstanceSection(UToolMenu* Menu)
 	{
-		FToolMenuSection& Section = Menu->FindOrAddSection(TEXT("LevelInstance"));
-		Section.Label = LOCTEXT("LevelInstance", "Level Instance");
+		const FName LevelInstanceSectionName = TEXT("LevelInstance");
+		FToolMenuSection* SectionPtr = Menu->FindSection(LevelInstanceSectionName);
+		if (!SectionPtr)
+		{
+			FToolMenuInsert InsertPosition("ActorControl", EToolMenuInsertType::After);
+			SectionPtr = &(Menu->AddSection(LevelInstanceSectionName, LOCTEXT("LevelInstance", "Level Instance"), InsertPosition));
+		}
+		FToolMenuSection& Section = *SectionPtr;
 		return Section;
 	}
 
