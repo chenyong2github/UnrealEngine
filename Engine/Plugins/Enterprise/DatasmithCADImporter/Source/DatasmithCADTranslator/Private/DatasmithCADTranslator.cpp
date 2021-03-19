@@ -134,10 +134,10 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	// Only use multi-processed translation if it is required and cache's usage is enabled
 	if (bWithProcessor && ImportParameters.bEnableCacheUsage)
 	{
-		TMap<uint32, FString> CADFileToUE4FileMap;
+		TMap<uint32, FString> CADFileToUEFileMap;
 		int32 NumCores = FPlatformMisc::NumberOfCores();
 		{
-			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUE4FileMap, CADFileToUE4GeomMap);
+			DatasmithDispatcher::FDatasmithDispatcher Dispatcher(ImportParameters, CachePath, NumCores, CADFileToUEFileMap, CADFileToUEGeomMap);
 			Dispatcher.AddTask(FileDescription);
 
 		Dispatcher.Process(bWithProcessor);
