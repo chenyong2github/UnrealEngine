@@ -264,7 +264,7 @@ void SControlRigStackView::Construct( const FArguments& InArgs, TSharedRef<FCont
 				.OnGetChildren(this, &SControlRigStackView::HandleGetChildrenForTree)
 				.OnSelectionChanged(this, &SControlRigStackView::OnSelectionChanged)
 				.OnContextMenuOpening(this, &SControlRigStackView::CreateContextMenu)
-				.OnMouseButtonDoubleClick(this, &SControlRigStackView::OnMouseButtonDoubleClick)
+				.OnMouseButtonDoubleClick(this, &SControlRigStackView::HandleItemMouseDoubleClick)
 				.ItemHeight(28)
 			]
 		]
@@ -704,7 +704,7 @@ void SControlRigStackView::HandlePreviewControlRigUpdated(FControlRigEditor* InE
 {
 }
 
-void SControlRigStackView::OnMouseButtonDoubleClick(TSharedPtr<FRigStackEntry> InItem)
+void SControlRigStackView::HandleItemMouseDoubleClick(TSharedPtr<FRigStackEntry> InItem)
 {
 	if(ControlRigEditor.IsValid() && ControlRigBlueprint.IsValid())
 	{
