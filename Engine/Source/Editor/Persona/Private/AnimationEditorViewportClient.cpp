@@ -361,6 +361,18 @@ bool FAnimationViewportClient::HasDefaultCameraSet() const
 	return (SkelMesh && SkelMesh->GetHasCustomDefaultEditorCamera());
 }
 
+static void DisableAllBodiesSimulatePhysics(UDebugSkelMeshComponent* PreviewMeshComponent)
+{
+	// Reset simulation state of body instances so we dont actually simulate after recreating the physics state
+	for (int32 BodyIdx = 0; BodyIdx < PreviewMeshComponent->Bodies.Num(); ++BodyIdx)
+	{
+		if (FBodyInstance* BodyInst = PreviewMeshComponent->Bodies[BodyIdx])
+		{
+			BodyInst->SetInstanceSimulatePhysics(false);
+		}
+	}
+}
+
 void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkeletalMesh, USkeletalMesh* NewSkeletalMesh)
 {
 	if (OldSkeletalMesh != NewSkeletalMesh || NewSkeletalMesh == nullptr)
@@ -389,7 +401,7 @@ void FAnimationViewportClient::HandleSkeletalMeshChanged(USkeletalMesh* OldSkele
 				// let's make sure nothing is simulating and that all necessary state are in proper order
 				PreviewMeshComponent->SetPhysicsBlendWeight(0.f);
 				PreviewMeshComponent->SetSimulatePhysics(false);
-				PreviewMeshComponent->DisableAllBodiesSimulatePhysics();
+				DisableAllBodiesSimulatePhysics(PreviewMeshComponent);
 			}));
 
 		PreviewMeshComponent->TermArticulated();
