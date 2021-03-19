@@ -6,6 +6,11 @@
 #include "PersonaAssetEditorToolkit.h"
 #include "IHasPersonaToolkit.h"
 
+class IAnimationSequenceBrowser;
+
 class ISkeletonEditor : public FPersonaAssetEditorToolkit, public IHasPersonaToolkit
 {
+	public:
+	/** Get the asset browser we host */
+	virtual IAnimationSequenceBrowser* GetAssetBrowser() const = 0;
 };

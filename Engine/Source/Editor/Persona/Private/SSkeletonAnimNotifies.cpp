@@ -19,6 +19,7 @@
 #include "IAnimationEditor.h"
 #include "IAnimationBlueprintEditor.h"
 #include "IAnimationSequenceBrowser.h"
+#include "ISkeletonEditor.h"
 
 #define LOCTEXT_NAMESPACE "SkeletonAnimNotifies"
 
@@ -495,6 +496,11 @@ void SSkeletonAnimNotifies::OnFindReferences()
 		{
 			TSharedPtr<IAnimationBlueprintEditor> AnimationBlueprintEditor = StaticCastSharedPtr<IAnimationBlueprintEditor>(HostingApp);
 			AnimationBlueprintEditor->GetAssetBrowser()->FilterBySkeletonNotify(Name);
+		}
+		else if (HostingApp->GetEditorName() == TEXT("SkeletonEditor"))
+		{
+			TSharedPtr<ISkeletonEditor> SkeletonEditor = StaticCastSharedPtr<ISkeletonEditor>(HostingApp);
+			SkeletonEditor->GetAssetBrowser()->FilterBySkeletonNotify(Name);
 		}
 	}
 }

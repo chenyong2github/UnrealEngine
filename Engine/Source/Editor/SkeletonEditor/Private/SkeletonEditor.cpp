@@ -14,6 +14,7 @@
 #include "IPersonaToolkit.h"
 #include "PersonaModule.h"
 #include "SkeletonEditorMode.h"
+#include "IAnimationSequenceBrowser.h"
 #include "IPersonaPreviewScene.h"
 #include "SkeletonEditorCommands.h"
 #include "IAssetFamily.h"
@@ -30,6 +31,7 @@ const FName SkeletonEditorModes::SkeletonEditorMode(TEXT("SkeletonEditorMode"));
 const FName SkeletonEditorTabs::DetailsTab(TEXT("DetailsTab"));
 const FName SkeletonEditorTabs::SkeletonTreeTab(TEXT("SkeletonTreeView"));
 const FName SkeletonEditorTabs::ViewportTab(TEXT("Viewport"));
+const FName SkeletonEditorTabs::AssetBrowserTab(TEXT("SequenceBrowser"));
 const FName SkeletonEditorTabs::AnimNotifiesTab(TEXT("SkeletonAnimNotifies"));
 const FName SkeletonEditorTabs::CurveNamesTab(TEXT("AnimCurveViewerTab"));
 const FName SkeletonEditorTabs::AdvancedPreviewTab(TEXT("AdvancedPreviewTab"));
@@ -56,6 +58,11 @@ FSkeletonEditor::~FSkeletonEditor()
 	{
 		Editor->UnregisterForUndo(this);
 	}
+}
+
+void FSkeletonEditor::HandleOpenNewAsset(UObject* InNewAsset)
+{
+	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(InNewAsset);
 }
 
 void FSkeletonEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -340,6 +347,16 @@ void FSkeletonEditor::OnImportAsset()
 void FSkeletonEditor::HandleDetailsCreated(const TSharedRef<IDetailsView>& InDetailsView)
 {
 	DetailsView = InDetailsView;
+}
+
+void FSkeletonEditor::HandleAnimationSequenceBrowserCreated(const TSharedRef<IAnimationSequenceBrowser>& InSequenceBrowser)
+{
+	SequenceBrowser = InSequenceBrowser;
+}
+
+IAnimationSequenceBrowser* FSkeletonEditor::GetAssetBrowser() const
+{
+	return SequenceBrowser.Pin().Get();
 }
 
 #undef LOCTEXT_NAMESPACE
