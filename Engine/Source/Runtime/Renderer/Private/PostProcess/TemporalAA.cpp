@@ -104,10 +104,7 @@ inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
 
 inline bool DoesPlatformSupportGen5TAA(EShaderPlatform Platform)
 {
-	// TODO(UE-111389): Fixes artifact on SP_PCD3D_SM6
-	return (
-		(IsPCPlatform(Platform) && IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && Platform != SP_PCD3D_SM6) ||
-		FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform));
+	return FDataDrivenShaderPlatformInfo::GetSupportsGen5TemporalAA(Platform);
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FTAACommonParameters, )
