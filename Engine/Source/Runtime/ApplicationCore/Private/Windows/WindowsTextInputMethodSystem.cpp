@@ -465,43 +465,17 @@ bool FWindowsTextInputMethodSystem::InitializeTSF()
 #pragma warning(pop)
 #endif
 
-		const DWORD WindowsMajorVersion = LOBYTE(LOWORD(WindowsVersion));
-		const DWORD WindowsMinorVersion = HIBYTE(LOWORD(WindowsVersion));
-
-		static const DWORD WindowsVistaMajorVersion = 6;
-		static const DWORD WindowsVistaMinorVersion = 0;
-
-		// Install profile notification sink for versions of Windows Vista and after.
-		if(WindowsMajorVersion > WindowsVistaMajorVersion || (WindowsMajorVersion == WindowsVistaMajorVersion && WindowsMinorVersion >= WindowsVistaMinorVersion))
+		Result = TSFSource->AdviseSink(IID_ITfInputProcessorProfileActivationSink, static_cast<ITfInputProcessorProfileActivationSink*>(TSFActivationProxy), &(TSFActivationProxy->TSFProfileCookie));
+		if(FAILED(Result))
 		{
-			Result = TSFSource->AdviseSink(IID_ITfInputProcessorProfileActivationSink, static_cast<ITfInputProcessorProfileActivationSink*>(TSFActivationProxy), &(TSFActivationProxy->TSFProfileCookie));
-			if(FAILED(Result))
-			{
-				TCHAR ErrorMsg[1024];
-				FPlatformMisc::GetSystemErrorMessage(ErrorMsg, 1024, Result);
-				UE_LOG(LogWindowsTextInputMethodSystem, Error, TEXT("Initialization failed while advising the profile notification sink to the TSF source. %s (0x%08x)"), ErrorMsg, Result);
-				TSFInputProcessorProfiles.Reset();
-				TSFInputProcessorProfileManager.Reset();
-				TSFThreadManager.Reset();
-				TSFActivationProxy.Reset();
-				return false;
-			}
-		}
-		// Install language notification sink for versions before Windows Vista.
-		else
-		{
-			Result = TSFSource->AdviseSink(IID_ITfActiveLanguageProfileNotifySink, static_cast<ITfActiveLanguageProfileNotifySink*>(TSFActivationProxy), &(TSFActivationProxy->TSFLanguageCookie));
-			if(FAILED(Result))
-			{
-				TCHAR ErrorMsg[1024];
-				FPlatformMisc::GetSystemErrorMessage(ErrorMsg, 1024, Result);
-				UE_LOG(LogWindowsTextInputMethodSystem, Error, TEXT("Initialization failed while advising the language notification sink to the TSF source. %s (0x%08x)"), ErrorMsg, Result);
-				TSFInputProcessorProfiles.Reset();
-				TSFInputProcessorProfileManager.Reset();
-				TSFThreadManager.Reset();
-				TSFActivationProxy.Reset();
-				return false;
-			}
+			TCHAR ErrorMsg[1024];
+			FPlatformMisc::GetSystemErrorMessage(ErrorMsg, 1024, Result);
+			UE_LOG(LogWindowsTextInputMethodSystem, Error, TEXT("Initialization failed while advising the profile notification sink to the TSF source. %s (0x%08x)"), ErrorMsg, Result);
+			TSFInputProcessorProfiles.Reset();
+			TSFInputProcessorProfileManager.Reset();
+			TSFThreadManager.Reset();
+			TSFActivationProxy.Reset();
+			return false;
 		}
 	}
 

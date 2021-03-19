@@ -443,13 +443,11 @@ private:
 	/** Queries and caches the number of connected mouse devices. */
 	void QueryConnectedMice();
 
-#if WINVER >= 0x0601
 	/** Gets the touch index for a given windows touch ID. */
 	uint32 GetTouchIndexForID(int32 TouchID);
 
 	/** Searches for a free touch index. */
 	uint32 GetFirstFreeTouchIndex();
-#endif
 
 	/** Helper function to update the cached states of all modifier keys */
 	void UpdateAllModifierKeyStates();
@@ -529,10 +527,8 @@ private:
 	TOGGLEKEYS							StartupToggleKeys;
 	FILTERKEYS							StartupFilterKeys;
 
-#if WINVER >= 0x0601
 	/** Maps touch indexes to windows touch IDs. */
 	TArray<TOptional<int32>> TouchIDs;
-#endif
 
 	bool bSimulatingHighPrecisionMouseInputForRDP;
 

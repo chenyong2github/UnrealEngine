@@ -3,8 +3,7 @@
 #pragma once
 #include "Modules/ModuleManager.h"
 
-// Oculus support is not available on Windows XP
-#define OCULUS_MR_SUPPORTED_PLATFORMS ((PLATFORM_WINDOWS && WINVER > 0x0502) || PLATFORM_ANDROID)
+#define OCULUS_MR_SUPPORTED_PLATFORMS (PLATFORM_WINDOWS || PLATFORM_ANDROID)
 
 /**
  * The public interface to this module.  In most cases, this interface is only public to sibling modules 

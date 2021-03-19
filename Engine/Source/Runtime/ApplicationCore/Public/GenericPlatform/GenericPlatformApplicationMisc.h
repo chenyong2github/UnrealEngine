@@ -83,8 +83,8 @@ struct APPLICATIONCORE_API FGenericPlatformApplicationMisc
 	}
 
 	/**
-	 * Prevents screen-saver from kicking in by moving the mouse by 0 pixels. This works even on
-	 * Vista in the presence of a group policy for password protected screen saver.
+	 * Prevents screen-saver from kicking in by moving the mouse by 0 pixels. This works even
+	 * in the presence of a group policy for password protected screen saver.
 	 */
 	static void PreventScreenSaver()
 	{

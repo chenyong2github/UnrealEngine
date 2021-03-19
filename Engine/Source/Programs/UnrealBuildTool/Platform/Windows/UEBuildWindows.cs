@@ -1949,7 +1949,7 @@ namespace UnrealBuildTool
 			LinkEnvironment.SystemLibraries.Add("iphlpapi.lib");
 			LinkEnvironment.SystemLibraries.Add("setupapi.lib"); //  Required for access monitor device enumeration
 
-			// Windows Vista/7 Desktop Windows Manager API for Slate Windows Compliance
+			// Windows 7 Desktop Windows Manager API for Slate Windows Compliance
 			LinkEnvironment.SystemLibraries.Add("dwmapi.lib");
 
 			// IME

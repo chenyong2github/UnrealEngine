@@ -10,11 +10,7 @@
 #include "HAL/ThreadHeartBeat.h"
 
 #ifndef D3D11_WITH_DWMAPI
-#if WINVER > 0x502		// Windows XP doesn't support DWM
-	#define D3D11_WITH_DWMAPI	1
-#else
-	#define D3D11_WITH_DWMAPI	0
-#endif
+#define D3D11_WITH_DWMAPI	1
 #endif
 
 #if D3D11_WITH_DWMAPI

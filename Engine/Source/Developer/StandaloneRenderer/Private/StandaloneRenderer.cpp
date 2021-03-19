@@ -23,13 +23,13 @@ TSharedRef<FSlateRenderer> GetStandardStandaloneRenderer()
 {
 	// create a standalone renderer object
 	TSharedPtr<FSlateRenderer> Renderer = NULL;
-#if PLATFORM_WINDOWS && ( WINVER > 0x502 )	// D3D11 not supported on Windows XP
+#if PLATFORM_WINDOWS
 	bool bUseOpenGL = FParse::Param( FCommandLine::Get(), TEXT("opengl") );
 	if( bUseOpenGL )
 	{
 #endif
 		Renderer = TSharedPtr<FSlateRenderer>( new FSlateOpenGLRenderer( FCoreStyle::Get() ) );
-#if PLATFORM_WINDOWS && ( WINVER > 0x502 )	// D3D11 not supported on Windows XP
+#if PLATFORM_WINDOWS
 	}
 	else
 	{

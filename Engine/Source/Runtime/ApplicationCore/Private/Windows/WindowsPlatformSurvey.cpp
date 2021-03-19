@@ -51,9 +51,6 @@ void WriteFStringToResults(TCHAR* OutBuffer, const FString& InString);
 
 bool FWindowsPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResults, bool bWait )
 {
-	// Check that we're running on Vista or newer (version 6.0+).
-	bool bIsVistaOrNewer = FPlatformMisc::VerifyWindowsVersion(6, 0);
-
 	FMemory::Memset(&OutResults, 0, sizeof(FHardwareSurveyResults));
 	WriteFStringToResults(OutResults.Platform, TEXT("Windows"));
 	
@@ -201,126 +198,116 @@ bool FWindowsPlatformSurvey::GetSurveyResults( FHardwareSurveyResults& OutResult
 	}
 
 #if USING_WINSAT_API
-	// Use Windows System Assessment Tool?
-	if (bIsVistaOrNewer)
-	{
-		// Get an instance to the most recent formal WinSAT assessmenet.
-		IQueryRecentWinSATAssessment* Assessment;
-		HRESULT COMResult = CoCreateInstance(
-			__uuidof(CQueryWinSAT),
-			NULL,
-			CLSCTX_INPROC_SERVER,
-			__uuidof(IQueryRecentWinSATAssessment),
-			(void**)&Assessment);
+	// Get an instance to the most recent formal WinSAT assessmenet.
+	IQueryRecentWinSATAssessment* Assessment;
+	HRESULT COMResult = CoCreateInstance(
+		__uuidof(CQueryWinSAT),
+		NULL,
+		CLSCTX_INPROC_SERVER,
+		__uuidof(IQueryRecentWinSATAssessment),
+		(void**)&Assessment);
 
+	if (FAILED(COMResult))
+	{
+		UE_LOG(LogWindows, Warning, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get query interface from WinSAT API") );
+		OutResults.ErrorCount++;
+		WriteFStringToResults(OutResults.LastSurveyError, TEXT("CoCreateInstance() failed to get WinSAT"));
+		WriteFStringToResults(OutResults.LastSurveyErrorDetail, FString::Printf(TEXT("HRESULT: 0x%0x"), COMResult));
+
+	}
+	else
+	{
+		// Get the summary information for the WinSAT assessment.
+		IProvideWinSATResultsInfo* WinSATResults = NULL;
+		COMResult = Assessment->get_Info(&WinSATResults);
 		if (FAILED(COMResult))
 		{
-			UE_LOG(LogWindows, Warning, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get query interface from WinSAT API") );
+			UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get assessment results from WinSAT API") );
 			OutResults.ErrorCount++;
-			WriteFStringToResults(OutResults.LastSurveyError, TEXT("CoCreateInstance() failed to get WinSAT"));
+			WriteFStringToResults(OutResults.LastSurveyError, TEXT("get_Info() failed to get WinSAT assessment results"));
 			WriteFStringToResults(OutResults.LastSurveyErrorDetail, FString::Printf(TEXT("HRESULT: 0x%0x"), COMResult));
 
 		}
 		else
 		{
-			// Get the summary information for the WinSAT assessment.
-			IProvideWinSATResultsInfo* WinSATResults = NULL;
-			COMResult = Assessment->get_Info(&WinSATResults);
+			// Get the state of the assessment.
+			WINSAT_ASSESSMENT_STATE WinSATState;
+			COMResult = WinSATResults->get_AssessmentState(&WinSATState);
 			if (FAILED(COMResult))
 			{
-				UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get assessment results from WinSAT API") );
+				UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get assessment state from WinSAT API") );
 				OutResults.ErrorCount++;
-				WriteFStringToResults(OutResults.LastSurveyError, TEXT("get_Info() failed to get WinSAT assessment results"));
+				WriteFStringToResults(OutResults.LastSurveyError, TEXT("get_AssessmentState() failed to get WinSAT assessment state"));
 				WriteFStringToResults(OutResults.LastSurveyErrorDetail, FString::Printf(TEXT("HRESULT: 0x%0x"), COMResult));
-
 			}
 			else
 			{
-				// Get the state of the assessment.
-				WINSAT_ASSESSMENT_STATE WinSATState;
-				COMResult = WinSATResults->get_AssessmentState(&WinSATState);
-				if (FAILED(COMResult))
+				// Examine the assessment state
+				bool bAssessmentAvailable = false;
+				switch(WinSATState)
 				{
-					UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get assessment state from WinSAT API") );
+				case WINSAT_ASSESSMENT_STATE_VALID:
+					bAssessmentAvailable = true;
+					break;
+
+				case WINSAT_ASSESSMENT_STATE_INCOHERENT_WITH_HARDWARE:
+					UE_LOG(LogWindows, Log, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() WinSAT assessment state is out-of-date. Unable to examine some hardware metrics. Run the Windows Experience Index Assessment.") );
 					OutResults.ErrorCount++;
-					WriteFStringToResults(OutResults.LastSurveyError, TEXT("get_AssessmentState() failed to get WinSAT assessment state"));
-					WriteFStringToResults(OutResults.LastSurveyErrorDetail, FString::Printf(TEXT("HRESULT: 0x%0x"), COMResult));
+					WriteFStringToResults(OutResults.LastSurveyError, TEXT("WinSAT assessment out-of-date. Using old results."));
+					WriteFStringToResults(OutResults.LastSurveyErrorDetail, TEXT(""));
+					bAssessmentAvailable = true;
+					break;
+
+				case WINSAT_ASSESSMENT_STATE_NOT_AVAILABLE:
+					UE_LOG(LogWindows, Log, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() WinSAT assessment unavailable. Unable to examine some hardware metrics. Run the Windows Experience Index Assessment.") );
+					OutResults.ErrorCount++;
+					WriteFStringToResults(OutResults.LastSurveyError, TEXT("WinSAT assessment unavailable. User hasn't run Windows Experience Index Assessment."));
+					WriteFStringToResults(OutResults.LastSurveyErrorDetail, TEXT(""));
+					break;
+
+				default:
+					UE_LOG(LogWindows, Warning, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() WinSAT assessment data was invalid.") );
+					OutResults.ErrorCount++;
+					WriteFStringToResults(OutResults.LastSurveyError, TEXT("WinSAT assessment state unknown"));
+					WriteFStringToResults(OutResults.LastSurveyErrorDetail, FString::Printf(TEXT("WinSATState: %d"), (int32)WinSATState));
 				}
-				else
+
+				// Get the index scores from the results
+				if (bAssessmentAvailable)
 				{
-					// Examine the assessment state
-					bool bAssessmentAvailable = false;
-					switch(WinSATState)
+					if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_MEMORY, OutResults.RAMPerformanceIndex))
 					{
-					case WINSAT_ASSESSMENT_STATE_VALID:
-						bAssessmentAvailable = true;
-						break;
-
-					case WINSAT_ASSESSMENT_STATE_INCOHERENT_WITH_HARDWARE:
-						UE_LOG(LogWindows, Log, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() WinSAT assessment state is out-of-date. Unable to examine some hardware metrics. Run the Windows Experience Index Assessment.") );
-						OutResults.ErrorCount++;
-						WriteFStringToResults(OutResults.LastSurveyError, TEXT("WinSAT assessment out-of-date. Using old results."));
-						WriteFStringToResults(OutResults.LastSurveyErrorDetail, TEXT(""));
-						bAssessmentAvailable = true;
-						break;
-
-					case WINSAT_ASSESSMENT_STATE_NOT_AVAILABLE:
-						UE_LOG(LogWindows, Log, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() WinSAT assessment unavailable. Unable to examine some hardware metrics. Run the Windows Experience Index Assessment.") );
-						OutResults.ErrorCount++;
-						WriteFStringToResults(OutResults.LastSurveyError, TEXT("WinSAT assessment unavailable. User hasn't run Windows Experience Index Assessment."));
-						WriteFStringToResults(OutResults.LastSurveyErrorDetail, TEXT(""));
-						break;
-
-					default:
-						UE_LOG(LogWindows, Warning, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() WinSAT assessment data was invalid.") );
-						OutResults.ErrorCount++;
-						WriteFStringToResults(OutResults.LastSurveyError, TEXT("WinSAT assessment state unknown"));
-						WriteFStringToResults(OutResults.LastSurveyErrorDetail, FString::Printf(TEXT("WinSATState: %d"), (int32)WinSATState));
+						UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get MEMORY score from WinSAT API.") );
 					}
 
-					// Get the index scores from the results
-					if (bAssessmentAvailable)
+					if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_CPU, OutResults.CPUPerformanceIndex))
 					{
-						if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_MEMORY, OutResults.RAMPerformanceIndex))
-						{
-							UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get MEMORY score from WinSAT API.") );
-						}
-
-						if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_CPU, OutResults.CPUPerformanceIndex))
-						{
-							UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get CPU score from WinSAT API.") );
-						}
-
-						float GPU3DScoreIndex = 0.0f;
-						if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_D3D, GPU3DScoreIndex))
-						{
-							UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get D3D score from WinSAT API.") );
-						}
-
-						float GPUDesktopScoreIndex = 0.0f;
-						if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_D3D, GPUDesktopScoreIndex))
-						{
-							UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get GRAPHICS score from WinSAT API.") );
-						}
-
-						OutResults.GPUPerformanceIndex = 0.5f * (GPU3DScoreIndex + GPUDesktopScoreIndex);
+						UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get CPU score from WinSAT API.") );
 					}
+
+					float GPU3DScoreIndex = 0.0f;
+					if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_D3D, GPU3DScoreIndex))
+					{
+						UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get D3D score from WinSAT API.") );
+					}
+
+					float GPUDesktopScoreIndex = 0.0f;
+					if (!GetSubComponentIndex(WinSATResults, OutResults, WINSAT_ASSESSMENT_D3D, GPUDesktopScoreIndex))
+					{
+						UE_LOG(LogWindows, Error, TEXT("FWindowsPlatformSurvey::TickSurveyHardware() failed to get GRAPHICS score from WinSAT API.") );
+					}
+
+					OutResults.GPUPerformanceIndex = 0.5f * (GPU3DScoreIndex + GPUDesktopScoreIndex);
 				}
-				
-				WinSATResults->Release();
 			}
-		}
-
-		if (Assessment)
-		{
-			Assessment->Release();
+				
+			WinSATResults->Release();
 		}
 	}
-	else
+
+	if (Assessment)
 	{
-		OutResults.ErrorCount++;
-		WriteFStringToResults(OutResults.LastSurveyError, TEXT("WIE failed. Not supported on this version of Windows."));
-		WriteFStringToResults(OutResults.LastSurveyErrorDetail, TEXT(""));
+		Assessment->Release();
 	}
 #endif	// #if USING_WINSAT_API
 

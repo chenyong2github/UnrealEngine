@@ -4,7 +4,7 @@
 
 #include "Logging/LogMacros.h"
 
-#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && (WINVER >= 0x0600 /*Vista*/) && !UE_SERVER)
+#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && !UE_SERVER)
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 	#include "WmfMediaSettings.h"

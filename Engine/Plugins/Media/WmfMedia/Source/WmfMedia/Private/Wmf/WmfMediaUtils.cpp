@@ -1814,10 +1814,7 @@ namespace WmfMedia
 		case MF_TOPOSTATUS_READY: return TEXT("Ready");
 		case MF_TOPOSTATUS_SINK_SWITCHED: return TEXT("Sink Switched");
 		case MF_TOPOSTATUS_STARTED_SOURCE: return TEXT("Started Source");
-
-#if (WINVER >= _WIN32_WINNT_WIN7)
 		case MF_TOPOSTATUS_DYNAMIC_CHANGED: return TEXT("Dynamic Changed");
-#endif
 
 		default:
 			return FString::Printf(TEXT("Unknown status %i"), (int32)Status);

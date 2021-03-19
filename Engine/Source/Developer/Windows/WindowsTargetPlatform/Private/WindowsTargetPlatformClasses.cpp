@@ -8,8 +8,6 @@
 UWindowsTargetSettings::UWindowsTargetSettings( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
-	MinimumOSVersion = EMinimumSupportedOS::MSOS_Vista;
-
 	// Default windows settings
 	AudioSampleRate = 48000;
 	AudioCallbackBufferFrameSize = 1024;

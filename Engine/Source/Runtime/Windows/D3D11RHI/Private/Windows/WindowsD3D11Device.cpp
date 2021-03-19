@@ -172,7 +172,6 @@ FAutoConsoleCommand FD3DDumpLiveObjectsCommand
 /** This function is used as a SEH filter to catch only delay load exceptions. */
 static bool IsDelayLoadException(PEXCEPTION_POINTERS ExceptionPointers)
 {
-#if WINVER > 0x502	// Windows SDK 7.1 doesn't define VcppException
 	switch(ExceptionPointers->ExceptionRecord->ExceptionCode)
 	{
 	case VcppException(ERROR_SEVERITY_ERROR, ERROR_MOD_NOT_FOUND):
@@ -181,9 +180,6 @@ static bool IsDelayLoadException(PEXCEPTION_POINTERS ExceptionPointers)
 	default:
 		return EXCEPTION_CONTINUE_SEARCH;
 	}
-#else
-	return EXCEPTION_EXECUTE_HANDLER;
-#endif
 }
 
 static bool bIsQuadBufferStereoEnabled = false;

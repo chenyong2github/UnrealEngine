@@ -15,9 +15,7 @@
 #include "HAL/PlatformProcess.h"
 
 #include "Windows/AllowWindowsPlatformTypes.h"
-#if WINVER > 0x502	// Windows Vista or better required for DWM
-	#include <dwmapi.h>
-#endif
+#include <dwmapi.h>
 #include <ShlObj.h>
 #include "Windows/HideWindowsPlatformTypes.h"
 
@@ -197,14 +195,11 @@ void FWindowsWindow::Initialize( FWindowsApplication* const Application, const T
 		return;
 	}
 
-
-#if WINVER >= 0x0601
 	if ( RegisterTouchWindow( HWnd, 0 ) == false )
 	{
 		uint32 Error = GetLastError();
 		UE_LOG(LogWindows, Warning, TEXT("Register touch input failed!"));
 	}
-#endif
 
 	bool bDisableTouchFeedback;
 	GConfig->GetBool(TEXT("WindowsApplication.Accessibility"), TEXT("DisableTouchFeedback"), bDisableTouchFeedback, GEngineIni);
@@ -228,7 +223,6 @@ void FWindowsWindow::Initialize( FWindowsApplication* const Application, const T
 		SetOpacity( Definition->Opacity );
 	}
 
-#if WINVER > 0x502	// Windows Vista or better required for DWM
 	// Disable DWM Rendering and Nonclient Area painting if not showing the os window border
 	// This prevents the standard windows frame from ever being drawn
 	if( !Definition->HasOSWindowBorder )
@@ -247,8 +241,6 @@ void FWindowsWindow::Initialize( FWindowsApplication* const Application, const T
 		}
 	#endif
 	}
-
-#endif	// WINVER
 
 	// No region for non regular windows or windows displaying the os window border
 	if ( IsRegularWindow() && !Definition->HasOSWindowBorder )

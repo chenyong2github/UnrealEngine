@@ -10,6 +10,9 @@
 	#include "MSVC/MSVCPlatform.h"
 #endif
 
+#if WINVER <= 0x600
+	#error "Windows Vista and earlier are no longer supported"
+#endif
 
 /**
 * Windows specific types

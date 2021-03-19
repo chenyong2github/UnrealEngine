@@ -5,7 +5,7 @@
 #include "Logging/LogMacros.h"
 #include "CoreMinimal.h"
 
-#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && (WINVER >= 0x0600 /*Vista*/) && !UE_SERVER)
+#define WMFMEDIA_SUPPORTED_PLATFORM (PLATFORM_WINDOWS && !UE_SERVER)
 
 DECLARE_LOG_CATEGORY_EXTERN(WMF, Log, VeryVerbose);
 

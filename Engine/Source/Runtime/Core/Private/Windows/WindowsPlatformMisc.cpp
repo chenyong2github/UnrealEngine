@@ -129,82 +129,9 @@ int32 GetOSVersionsHelper( TCHAR* OutOSVersionLabel, int32 OSVersionLabelLength,
 
 		switch (OsVersionInfo.dwMajorVersion)
 		{
-		case 5:
-			switch (OsVersionInfo.dwMinorVersion)
-			{
-			case 0:
-				OSVersionLabel = TEXT("Windows 2000");
-				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
-				{
-					OSSubVersionLabel = TEXT("Professional");
-				}
-				else
-				{
-					if (OsVersionInfo.wSuiteMask & VER_SUITE_DATACENTER)
-					{
-						OSSubVersionLabel = TEXT("Datacenter Server");
-					}
-					else if (OsVersionInfo.wSuiteMask & VER_SUITE_ENTERPRISE)
-					{
-						OSSubVersionLabel = TEXT("Advanced Server");
-					}
-					else
-					{
-						OSSubVersionLabel = TEXT("Server");
-					}
-				}
-				break;
-			case 1:
-				OSVersionLabel = TEXT("Windows XP");
-				if (OsVersionInfo.wSuiteMask & VER_SUITE_PERSONAL)
-				{
-					OSSubVersionLabel = TEXT("Home Edition");
-				}
-				else
-				{
-					OSSubVersionLabel = TEXT("Professional");
-				}
-				break;
-			case 2:
-				if (GetSystemMetrics(SM_SERVERR2))
-				{
-					OSVersionLabel = TEXT("Windows Server 2003 R2");
-				}
-				else if (OsVersionInfo.wSuiteMask & VER_SUITE_STORAGE_SERVER)
-				{
-					OSVersionLabel = TEXT("Windows Storage Server 2003");
-				}
-				else if (OsVersionInfo.wSuiteMask & VER_SUITE_WH_SERVER)
-				{
-					OSVersionLabel = TEXT("Windows Home Server");
-				}
-				else if (OsVersionInfo.wProductType == VER_NT_WORKSTATION && SystemInfo.wProcessorArchitecture == PROCESSOR_ARCHITECTURE_AMD64)
-				{
-					OSVersionLabel = TEXT("Windows XP");
-					OSSubVersionLabel = TEXT("Professional x64 Edition");
-				}
-				else
-				{
-					OSVersionLabel = TEXT("Windows Server 2003");
-				}
-				break;
-			default:
-				ErrorCode |= (int32)FWindowsOSVersionHelper::ERROR_UNKNOWNVERSION;
-			}
-			break;
 		case 6:
 			switch (OsVersionInfo.dwMinorVersion)
 			{
-			case 0:
-				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
-				{
-					OSVersionLabel = TEXT("Windows Vista");
-				}
-				else
-				{
-					OSVersionLabel = TEXT("Windows Server 2008");
-				}
-				break;
 			case 1:
 				if (OsVersionInfo.wProductType == VER_NT_WORKSTATION)
 				{

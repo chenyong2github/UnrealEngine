@@ -5,8 +5,7 @@
 #include "IHeadMountedDisplayModule.h"
 #include "HeadMountedDisplayTypes.h"
 
-// Oculus support is not available on Windows XP
-#define OCULUS_HMD_SUPPORTED_PLATFORMS (PLATFORM_WINDOWS && WINVER > 0x0502)  || (PLATFORM_ANDROID_ARM || PLATFORM_ANDROID_ARM64)
+#define OCULUS_HMD_SUPPORTED_PLATFORMS (PLATFORM_WINDOWS || PLATFORM_ANDROID_ARM || PLATFORM_ANDROID_ARM64)
 
 //-------------------------------------------------------------------------------------------------
 // IOculusHMDModule

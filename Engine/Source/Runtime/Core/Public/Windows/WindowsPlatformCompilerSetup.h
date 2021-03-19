@@ -187,10 +187,6 @@ static_assert(_MSC_VER >= 1924, "Visual Studio 2019 v16.4 or greater is required
 
 // NOTE: ocid.h breaks this
 #pragma warning(disable: 4917) // 'declarator' : a GUID can only be associated with a class, interface or namespace 				https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-1-c4917
-#if WINVER == 0x0502
-// NOTE: WinXP hits deprecated versions of stdio across the board
-#pragma warning(disable: 4995) // 'function': name was marked as #pragma deprecated													https://docs.microsoft.com/en-us/cpp/error-messages/compiler-warnings/compiler-warning-level-3-c4995
-#endif
 
 //
 // All of the /Wall warnings that we are able to enable

@@ -1422,13 +1422,11 @@ private:
 			CrashContext.CapturePortableCallStack(ErrorProgramCounter, ContextWrapper);
 
 			// First launch the crash reporter client.
-#if WINVER > 0x502	// Windows Error Reporting is not supported on Windows XP
 			if (GUseCrashReportClient)
 			{
 				ReportCrashUsingCrashReportClient(CrashContext, ExceptionInfo, EErrorReportUI::ShowDialog);
 			}
 			else
-#endif		// WINVER
 			{
 				CrashContext.SerializeContentToBuffer();
 				WriteMinidump(GetCurrentProcess(), GetCurrentThreadId(), CrashContext, MiniDumpFilenameW, ExceptionInfo);
@@ -1594,7 +1592,6 @@ int32 ReportCrash( LPEXCEPTION_POINTERS ExceptionInfo )
 static FCriticalSection EnsureLock;
 static bool bReentranceGuard = false;
 
-#if WINVER > 0x502	// Windows Error Reporting is not supported on Windows XP
 /**
  * A wrapper for ReportCrashUsingCrashReportClient that creates a new ensure crash context
  */
@@ -1606,11 +1603,9 @@ int32 ReportContinuableEventUsingCrashReportClient(ECrashContextType InType, EXC
 	return EXCEPTION_EXECUTE_HANDLER;
 #endif
 }
-#endif
 
 static void ReportEventOnCallingThread(ECrashContextType InType, const TCHAR* ErrorMessage, void* ProgramCounter)
 {
-#if WINVER > 0x502	// Windows Error Reporting is not supported on Windows XP
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	__try
 #endif
@@ -1625,7 +1620,6 @@ static void ReportEventOnCallingThread(ECrashContextType InType, const TCHAR* Er
 	{
 	}
 #endif
-#endif	// WINVER
 }
 
 static void ReportEvent(ECrashContextType InType, const TCHAR* ErrorMessage, uint32 InThreadId, void* ProgramCounter)

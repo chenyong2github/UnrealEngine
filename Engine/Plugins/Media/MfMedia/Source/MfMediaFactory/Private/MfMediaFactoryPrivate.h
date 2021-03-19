@@ -4,7 +4,7 @@
 
 #include "Logging/LogMacros.h"
 
-#define MFMEDIAFACTORY_WINDOWS (PLATFORM_WINDOWS && (WINVER >= 0x601 /*Win7*/))
+#define MFMEDIAFACTORY_WINDOWS (PLATFORM_WINDOWS)
 
 
 /** Log category for the MfMediaFactory module. */

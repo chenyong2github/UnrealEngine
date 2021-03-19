@@ -276,7 +276,7 @@ const TCHAR* FCommandLine::RemoveExeName(const TCHAR* InCmdLine)
 	{
 		InCmdLine++;
 	}
-	// skip over any spaces at the start, which Vista likes to toss in multiple
+	// skip over any spaces at the start
 	while (*InCmdLine == ' ')
 	{
 		InCmdLine++;

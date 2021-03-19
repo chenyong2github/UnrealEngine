@@ -12,12 +12,6 @@
 #include "WindowsTargetSettings.generated.h"
 
 UENUM()
-enum class EMinimumSupportedOS : uint8
-{
-	MSOS_Vista = 0 UMETA(DisplayName = "Windows Vista"),
-};
-
-UENUM()
 enum class ECompilerVersion : uint8
 {
 	Default = 0,
@@ -66,12 +60,6 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category="Targeted RHIs", Meta = (DisplayName = "Default RHI"))
 	EDefaultGraphicsRHI DefaultGraphicsRHI;
-
-	/**
-	 * Determine the minimum supported 
-	 */
-	UPROPERTY(EditAnywhere, config, Category="OS Info", Meta=(DisplayName = "Minimum OS Version"))
-	EMinimumSupportedOS MinimumOSVersion;
 
 	/** Sample rate to run the audio mixer with. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", Meta = (DisplayName = "Audio Mixer Sample Rate"))

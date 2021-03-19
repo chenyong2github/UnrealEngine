@@ -1059,12 +1059,7 @@ protected:
 	/** Cumulative time spent in allocator.							*/
 	double			TimeSpentInAllocator;
 	/** Allocated memory in uint8s.									*/
-#if PLATFORM_WINDOWS && (WINVER < 0x0600)
-	// Interlock...64 functions are only available from Vista onwards
-	typedef int32 memsize_t;
-#else
 	typedef int64 memsize_t;
-#endif
 
 	volatile memsize_t	PaddingWasteSize;
 

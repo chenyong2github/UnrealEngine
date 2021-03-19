@@ -48,15 +48,6 @@ THIRD_PARTY_INCLUDES_END
 #pragma push_macro("IsMaximized")
 #undef IsMaximized
 
-// This might not be defined by Windows when maintaining backwards-compatibility to pre-Vista builds
-#ifndef WM_MOUSEHWHEEL
-#define WM_MOUSEHWHEEL                  0x020E
-#endif
-
-#ifndef WM_DPICHANGED
-#define WM_DPICHANGED                   0x02E0
-#endif
-
 DEFINE_LOG_CATEGORY(LogWindowsDesktop);
 
 /**
@@ -222,8 +213,6 @@ FWindowsApplication::FWindowsApplication( const HINSTANCE HInstance, const HICON
 		bForceNoGamepads = true;
 	}
 
-#if WINVER >= 0x0601
-
 	if (FParse::Param(FCommandLine::Get(), TEXT("FilterLowLevelMouse")))
 	{
 		//Only check fake mouse inputs in game or digitizer devices will not work in the editor.
@@ -232,8 +221,6 @@ FWindowsApplication::FWindowsApplication( const HINSTANCE HInstance, const HICON
 			LowLevelMouseFilterHook = ::SetWindowsHookEx(WH_MOUSE_LL, HandleLowLevelMouseFilterHook, NULL, 0);
 		}
 	}
-
-#endif
 }
 
 void FWindowsApplication::AllowAccessibilityShortcutKeys(const bool bAllowKeys)
@@ -978,15 +965,11 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 			}
 		}
 
-#if WINVER >= 0x0601
-
 		//Only check fake mouse inputs in game or digitizer devices will not work in the editor.
 		if (FApp::IsGame() && IsFakeMouseInputMessage(msg))
 		{
 			return 0;
 		}
-	
-#endif
 
 		switch(msg)
 		{
@@ -1061,9 +1044,7 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 		case WM_NCMOUSEMOVE:
 		case WM_MOUSEMOVE:
 		case WM_MOUSEWHEEL:
-#if WINVER >= 0x0601
 		case WM_TOUCH:
-#endif
 			{
 				DeferMessage( CurrentNativeEventWindowPtr, hwnd, msg, wParam, lParam );
 				// Handled
@@ -1594,13 +1575,11 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 			}
 			break;
 			
-#if WINVER > 0x502
 		case WM_DWMCOMPOSITIONCHANGED:
 			{
 				DeferMessage( CurrentNativeEventWindowPtr, hwnd, msg, wParam, lParam );
 			}
 			break;
-#endif
 
 			// Window focus and activation
 		case WM_MOUSEACTIVATE:
@@ -2278,7 +2257,6 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 			}
 			break;
 
-#if WINVER >= 0x0601
 		case WM_TOUCH:
 			{
 				UINT InputCount = LOWORD( wParam );
@@ -2338,7 +2316,6 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 				}
 				break;
 			}
-#endif
 
 			// Window focus and activation
 		case WM_MOUSEACTIVATE:
@@ -2500,13 +2477,11 @@ int32 FWindowsApplication::ProcessDeferredMessage( const FDeferredWindowsMessage
 			}
 			break;
 
-#if WINVER > 0x502
 		case WM_DWMCOMPOSITIONCHANGED:
 			{
 				CurrentNativeEventWindowPtr->OnTransparencySupportChanged(GetWindowTransparencySupport());
 			}
 			break;
-#endif
 
 		case WM_DPICHANGED:
 			{
@@ -2634,7 +2609,7 @@ bool FWindowsApplication::IsInputMessage( uint32 msg )
 
 bool FWindowsApplication::IsFakeMouseInputMessage(uint32 msg)
 {
-	const bool bShouldPrevent = IsWindowsVistaOrGreater() || bPreventDuplicateMouseEventsForTouch;
+	const bool bShouldPrevent = !!bPreventDuplicateMouseEventsForTouch;
 
 	if (bShouldPrevent && IsMouseInputMessage(msg))
 	{
@@ -3024,7 +2999,6 @@ void FWindowsApplication::QueryConnectedMice()
 	bIsMouseAttached = MouseCount > 0;
 }
 
-#if WINVER >= 0x0601
 uint32 FWindowsApplication::GetTouchIndexForID( int32 TouchID )
 {
 	for (int i = 0; i < TouchIDs.Num(); i++)
@@ -3049,7 +3023,6 @@ uint32 FWindowsApplication::GetFirstFreeTouchIndex()
 
 	return TouchIDs.Add(TOptional<int32>());
 }
-#endif
 
 void FTaskbarList::Initialize()
 {
