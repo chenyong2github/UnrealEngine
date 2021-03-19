@@ -8,7 +8,7 @@
 #include "MoviePipelineUtils.h"
 #include "ImageWriteTask.h"
 #include "Misc/Paths.h"
-#include "HAL/PlatformFileManager.h"
+#include "HAL/PlatformFilemanager.h"
 #include "HAL/PlatformFile.h"
 
 void UMoviePipelineVideoOutputBase::OnReceiveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame)
