@@ -55,7 +55,7 @@ public:
 
 		if (Prev == nullptr)
 		{
-			DestructItem((T*)&Prev->Value);
+			DestructItem((T*)&New->Value);
 			delete New;
 			return false;
 		}
