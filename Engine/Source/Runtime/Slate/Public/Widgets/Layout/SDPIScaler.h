@@ -17,6 +17,8 @@ class FArrangedChildren;
  */
 class SLATE_API SDPIScaler : public SPanel
 {
+	SLATE_DECLARE_WIDGET(SDPIScaler, SPanel)
+
 public:
 	SLATE_BEGIN_ARGS( SDPIScaler )
 		: _DPIScale( 1.0f )
@@ -56,13 +58,21 @@ protected:
 
 	virtual float GetRelativeLayoutScale(int32 ChildIndex, float LayoutScaleMultiplier) const override;
 
+	TSlateAttributeRef<float> GetDPIScaleAttribute() const { return TSlateAttributeRef<float>(*this, DPIScaleAttribute); }
+
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(5.0, "Direct access to DPIScale is now deprecated. Use the setter or getter.")
+	FSlateDeprecatedTAttribute<float> DPIScale;
+#endif
+
+	/** The content being scaled. */
+	FOneSimpleMemberChild ChildSlot;
+
+private:
 	/**
 	 * The scaling factor from 1:1 pixel to slate unit (SU) ratio.
 	 * e.g. Value of 2 would mean that there are two pixels for every slate unit in every dimension.
 	 *      This means that every 1x1 SU square is represented by 2x2=4 pixels.
 	 */
-	TAttribute<float> DPIScale;
-
-	/** The content being scaled. */
-	FSimpleSlot ChildSlot;
+	TSlateAttribute<float> DPIScaleAttribute;
 };
