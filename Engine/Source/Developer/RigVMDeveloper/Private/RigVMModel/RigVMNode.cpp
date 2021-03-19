@@ -161,6 +161,15 @@ URigVMGraph* URigVMNode::GetGraph() const
 	return nullptr;
 }
 
+URigVMGraph* URigVMNode::GetRootGraph() const
+{
+	if (URigVMGraph* Graph = GetGraph())
+	{
+		return Graph->GetRootGraph();
+	}
+	return nullptr;
+}
+
 URigVMInjectionInfo* URigVMNode::GetInjectionInfo() const
 {
 	return Cast<URigVMInjectionInfo>(GetOuter());
@@ -453,4 +462,51 @@ int32 URigVMNode::GetNumSlicesForContext(const FName& InContextName, const FRigV
 	}
 
 	return MaxSlices;
+}
+
+TArray<int32> URigVMNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+{
+	TArray<int32> Instructions;
+
+#if WITH_EDITOR
+
+	if(InVM == nullptr)
+	{
+		return Instructions;
+	}
+	
+	if(InProxy.IsValid())
+	{
+		const FRigVMASTProxy Proxy = InProxy.GetChild((UObject*)this);
+		const FString CallPath = Proxy.GetCallstack().GetCallPath();
+		return InVM->GetByteCode().GetAllInstructionIndicesForCallPath(CallPath, false, true);
+	}
+	else
+	{
+		return InVM->GetByteCode().GetAllInstructionIndicesForSubject((URigVMNode*)this);
+	}
+	
+#endif
+
+	return Instructions;
+}
+
+int32 URigVMNode::GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+{
+#if WITH_EDITOR
+	if(InVM)
+	{
+		TArray<int32> Instructions = GetInstructionsForVM(InVM, InProxy);
+		if(Instructions.Num() > 0)
+		{
+			int32 Count = 0;
+			for(int32 Instruction : Instructions)
+			{
+				Count += InVM->GetInstructionVisitedCount(Instruction);
+			}
+			return Count;
+		}
+	}
+#endif
+	return 0;
 }

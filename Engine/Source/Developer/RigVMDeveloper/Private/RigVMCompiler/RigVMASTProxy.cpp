@@ -93,3 +93,62 @@ FRigVMASTProxy FRigVMASTProxy::MakeFromUObject(UObject* InSubject)
 #endif
 	return Proxy;
 }
+
+FRigVMASTProxy FRigVMASTProxy::MakeFromCallPath(const FString& InCallPath, UObject* InRootObject)
+{
+	if(InCallPath.IsEmpty() || InRootObject == nullptr)
+	{
+		return FRigVMASTProxy();
+	}
+
+	UObject* ParentObject = InRootObject;
+
+	FRigVMASTProxy Proxy;
+	Proxy.Callstack.Stack.Reset();
+
+	FString Left;
+	FString Right = InCallPath;
+
+	while(!Right.IsEmpty() && ParentObject != nullptr)
+	{
+		if(!Right.Split(TEXT("|"), &Left, &Right))
+		{
+			Left = Right;
+			Right.Empty();
+		}
+
+		if(URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(ParentObject))
+		{
+			ParentObject = LibraryNode->GetContainedGraph();
+		}
+
+		if(URigVMGraph* Graph = Cast<URigVMGraph>(ParentObject))
+		{
+			if(URigVMNode* FoundNode = Graph->FindNodeByName(*Left))
+			{
+				Proxy.Callstack.Stack.Push(FoundNode);
+				ParentObject = FoundNode;
+			}
+			else if(URigVMPin* FoundPin = Graph->FindPin(Left))
+			{
+				Proxy.Callstack.Stack.Push(FoundPin);
+				break;
+			}
+			else
+			{
+				return FRigVMASTProxy();
+			}
+		}
+		else
+		{
+			return FRigVMASTProxy();
+		}
+	}
+
+#if UE_BUILD_DEBUG
+	Proxy.DebugName = Proxy.Callstack.GetCallPath();
+#endif
+
+	return Proxy;
+}
+

@@ -41,6 +41,24 @@ TArray<URigVMGraph*> URigVMGraph::GetContainedGraphs(bool bRecursive) const
 	return Graphs;
 }
 
+URigVMGraph* URigVMGraph::GetParentGraph() const
+{
+	if(URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(GetOuter()))
+	{
+		return CollapseNode->GetGraph();
+	}
+	return nullptr;
+}
+
+URigVMGraph* URigVMGraph::GetRootGraph() const
+{
+	if(URigVMGraph* ParentGraph = GetParentGraph())
+	{
+		return ParentGraph->GetRootGraph();
+	}
+	return (URigVMGraph*)this;
+}
+
 URigVMFunctionEntryNode* URigVMGraph::GetEntryNode() const
 {
 	for (URigVMNode* Node : Nodes)

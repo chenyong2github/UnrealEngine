@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "RigVMRegistry.h"
 #include "RigVMStatistics.h"
+
 #include "RigVMByteCode.generated.h"
 
 struct FRigVMByteCode;
@@ -673,6 +674,15 @@ public:
 	// returns all found instruction indices for a given subject
 	const TArray<int32>& GetAllInstructionIndicesForSubject(UObject* InSubject) const;
 
+	// returns the callpath which was used to inject a given instruction
+	FString GetCallPathForInstruction(int32 InInstructionIndex) const;
+
+	// returns the first hit instruction index for a given callpath (or INDEX_NONE)
+	int32 GetFirstInstructionIndexForCallPath(const FString& InCallPath, bool bStartsWith = false, bool bEndsWith = false) const;
+
+	// returns all found instruction indices for a given callpath
+	TArray<int32> GetAllInstructionIndicesForCallPath(const FString& InCallPath, bool bStartsWith = false, bool bEndsWith = false) const;
+
 #endif
 
 private:
@@ -701,12 +711,14 @@ private:
 
 	TArray<UObject*> SubjectPerInstruction;
 	TMap<UObject*, TArray<int32>> SubjectToInstructions;
+	TArray<FString> CallPathPerInstruction;
+	TMap<FString, TArray<int32>> CallPathToInstructions;
 
 #endif
 
 #if WITH_EDITOR
 
-	void SetSubject(int32 InInstructionIndex, UObject* InSubject);
+	void SetSubject(int32 InInstructionIndex, UObject* InSubject, const FString& InCallPath);
 
 #endif
 

@@ -26,6 +26,7 @@ public:
 	// Override node functions
 	virtual bool IsDefinedAsConstant() const override;
 	virtual bool IsDefinedAsVarying() const override;
+	virtual TArray<int32> GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const override; 
 
 	// Library node interface
 	virtual FString GetNodeCategory() const { return FString(); }

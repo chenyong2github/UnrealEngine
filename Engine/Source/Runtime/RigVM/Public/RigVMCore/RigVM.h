@@ -189,14 +189,21 @@ public:
 	TArray<FName> GetEntryNames() const;
 
 #if WITH_EDITOR
+	
 	// Returns true if the given instruction has been visited during the last run
 	FORCEINLINE bool WasInstructionVisitedDuringLastRun(int32 InIndex) const
 	{
+		return GetInstructionVisitedCount(InIndex) > 0;
+	}
+
+	// Returns the number of times an instruction has been hit
+	FORCEINLINE int32 GetInstructionVisitedCount(int32 InIndex) const
+	{
 		if (InstructionVisitedDuringLastRun.IsValidIndex(InIndex))
 		{
-			return InstructionVisitedDuringLastRun[InIndex] > 0;
+			return InstructionVisitedDuringLastRun[InIndex];
 		}
-		return false;
+		return 0;
 	}
 
 	// Returns the order of all instructions during the last run

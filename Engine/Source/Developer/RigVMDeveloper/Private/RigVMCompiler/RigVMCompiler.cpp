@@ -385,7 +385,8 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			WorkData.VM->GetByteCode().SetSubject(EntryInstructionIndex, UnitNode);
+			const FString CallPath = InExpr->GetProxy().GetCallstack().GetCallPath();
+			WorkData.VM->GetByteCode().SetSubject(EntryInstructionIndex, UnitNode, CallPath);
 		}
 
 		TraverseChildren(InExpr, WorkData);
@@ -468,7 +469,8 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 		if (Settings.SetupNodeInstructionIndex)
 		{
-			WorkData.VM->GetByteCode().SetSubject(InstructionIndex, UnitNode);
+			const FString CallPath = InExpr->GetProxy().GetCallstack().GetCallPath();
+			WorkData.VM->GetByteCode().SetSubject(InstructionIndex, UnitNode, CallPath);
 		}
 
 		ensure(InExpr->NumChildren() == UnitNode->Pins.Num());
@@ -491,6 +493,15 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 				{
 					FRigVMOperand SourceRootOperand(Source.GetMemoryType(), Source.GetRegisterIndex(), INDEX_NONE);
 					WorkData.VM->GetByteCode().AddCopyOp(SourceRootOperand, *Target);
+					const int32 CopyOpInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+					if (Settings.SetupNodeInstructionIndex)
+					{
+						const FRigVMVarExprAST* VarExpr = PinExpr->To<FRigVMVarExprAST>();
+						const FRigVMASTProxy Proxy = VarExpr->GetProxy().GetSibling(VarExpr->GetPin()->GetNode());
+						const FString CallPath = Proxy.GetCallstack().GetCallPath();
+						WorkData.VM->GetByteCode().SetSubject(CopyOpInstructionIndex, Proxy.GetSubject(), CallPath);
+					}
 				}
 			}
 		}
@@ -508,6 +519,7 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 	}
 
 	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
+	const FString CallPath = InExpr->GetProxy().GetCallstack().GetCallPath();
 
 	const FRigVMVarExprAST* CompletedExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopCompletedPinName);
 	check(CompletedExpr);
@@ -521,9 +533,17 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 	check(IndexExpr);
 	FRigVMOperand IndexOperand = WorkData.ExprToOperand.FindChecked(IndexExpr);
 	WorkData.VM->GetByteCode().AddZeroOp(IndexOperand);
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, UnitNode, CallPath);
+	}
 
 	// call the for loop compute
 	int32 ForLoopInstructionIndex = TraverseCallExtern(InExpr, WorkData);
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(ForLoopInstructionIndex, UnitNode, CallPath);
+	}
 
 	// set up the jump forward (jump out of the loop)
 	const FRigVMVarExprAST* ContinueLoopExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopContinuePinName);
@@ -532,12 +552,20 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 
 	uint64 JumpToEndByte = WorkData.VM->GetByteCode().AddJumpIfOp(ERigVMOpCode::JumpForwardIf, 0, ContinueLoopOperand, false);
 	int32 JumpToEndInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, UnitNode, CallPath);
+	}
 
 	// begin the loop's block
 	const FRigVMVarExprAST* CountExpr = InExpr->FindVarWithPinName(FRigVMStruct::ForLoopCountPinName);
 	check(CountExpr);
 	FRigVMOperand CountOperand = WorkData.ExprToOperand.FindChecked(CountExpr);
 	WorkData.VM->GetByteCode().AddBeginBlockOp(CountOperand, IndexOperand);
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, UnitNode, CallPath);
+	}
 
 	// traverse the body of the loop
 	WorkData.ExprToSkip.Remove(ExecuteExpr);
@@ -545,13 +573,25 @@ void URigVMCompiler::TraverseForLoop(const FRigVMCallExternExprAST* InExpr, FRig
 
 	// end the loop's block
 	WorkData.VM->GetByteCode().AddEndBlockOp();
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, UnitNode, CallPath);
+	}
 
 	// increment the index
 	WorkData.VM->GetByteCode().AddIncrementOp(IndexOperand);
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, UnitNode, CallPath);
+	}
 
 	// jump to the beginning of the loop
 	int32 JumpToStartInstruction = WorkData.VM->GetByteCode().GetNumInstructions();
 	WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpBackward, JumpToStartInstruction - ForLoopInstructionIndex);
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, UnitNode, CallPath);
+	}
 
 	// update the jump operator with the right address
 	int32 InstructionsToEnd = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToEndInstruction;
@@ -722,7 +762,8 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				{
 					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(SourcePin->GetNode()))
 					{
-						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, VariableNode);
+						const FString CallPath = SourceExpr->GetProxy().GetSibling(VariableNode).GetCallstack().GetCallPath();
+						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, VariableNode, CallPath);
 					}
 				}
 			}
@@ -732,7 +773,8 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				{
 					if (URigVMVariableNode* VariableNode = Cast<URigVMVariableNode>(TargetPin->GetNode()))
 					{
-						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, VariableNode);
+						const FString CallPath = TargetExpr->GetProxy().GetSibling(VariableNode).GetCallstack().GetCallPath();
+						WorkData.VM->GetByteCode().SetSubject(InstructionIndex, VariableNode, CallPath);
 					}
 				}
 			}
@@ -747,6 +789,14 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				{
 					FRigVMOperand SourceRootOperand(Source.GetMemoryType(), Source.GetRegisterIndex(), INDEX_NONE);
 					WorkData.VM->GetByteCode().AddCopyOp(SourceRootOperand, WatchOperand);
+					int32 CopyInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+					if (Settings.SetupNodeInstructionIndex)
+					{
+						URigVMNode* Node = SourceExpr->GetPin()->GetNode();
+						const FString CallPath = SourceExpr->GetProxy().GetSibling(Node).GetCallstack().GetCallPath();
+						WorkData.VM->GetByteCode().SetSubject(CopyInstructionIndex, Node, CallPath);
+					}
 				}
 			}
 		}
@@ -760,6 +810,14 @@ void URigVMCompiler::TraverseAssign(const FRigVMAssignExprAST* InExpr, FRigVMCom
 				{
 					FRigVMOperand TargetRootOperand(Target.GetMemoryType(), Target.GetRegisterIndex(), INDEX_NONE);
 					WorkData.VM->GetByteCode().AddCopyOp(TargetRootOperand, WatchOperand);
+					int32 CopyInstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+
+					if (Settings.SetupNodeInstructionIndex)
+					{
+						URigVMNode* Node = TargetExpr->GetPin()->GetNode();
+						const FString CallPath = TargetExpr->GetProxy().GetSibling(Node).GetCallstack().GetCallPath();
+						WorkData.VM->GetByteCode().SetSubject(CopyInstructionIndex, Node, CallPath);
+					}
 				}
 			}
 		}
@@ -796,6 +854,7 @@ void URigVMCompiler::TraverseBranch(const FRigVMBranchExprAST* InExpr, FRigVMCom
 	}
 
 	URigVMBranchNode* BranchNode = Cast<URigVMBranchNode>(InExpr->GetNode());
+	const FString CallPath = InExpr->GetProxy().GetCallstack().GetCallPath();
 
 	const FRigVMVarExprAST* ExecuteContextExpr = InExpr->ChildAt<FRigVMVarExprAST>(0);
 	const FRigVMVarExprAST* ConditionExpr = InExpr->ChildAt<FRigVMVarExprAST>(1);
@@ -817,7 +876,7 @@ void URigVMCompiler::TraverseBranch(const FRigVMBranchExprAST* InExpr, FRigVMCom
 	int32 JumpToFalseInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 	if (Settings.SetupNodeInstructionIndex)
 	{
-		WorkData.VM->GetByteCode().SetSubject(JumpToFalseInstruction, BranchNode);
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, BranchNode, CallPath);
 	}
 
 	// traverse the true case
@@ -825,6 +884,10 @@ void URigVMCompiler::TraverseBranch(const FRigVMBranchExprAST* InExpr, FRigVMCom
 
 	uint64 JumpToEndByte = WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpForward, 1);
 	int32 JumpToEndInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, BranchNode, CallPath);
+	}
 
 	// correct the jump to false instruction index
 	int32 NumInstructionsInTrueCase = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToFalseInstruction;
@@ -849,6 +912,7 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 	}
 
 	URigVMIfNode* IfNode = Cast<URigVMIfNode>(InExpr->GetNode());
+	const FString CallPath = InExpr->GetProxy().GetCallstack().GetCallPath();
 
 	const FRigVMVarExprAST* ConditionExpr = InExpr->ChildAt<FRigVMVarExprAST>(0);
 	const FRigVMVarExprAST* TrueExpr = InExpr->ChildAt<FRigVMVarExprAST>(1);
@@ -871,7 +935,7 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 	int32 JumpToFalseInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 	if (Settings.SetupNodeInstructionIndex)
 	{
-		WorkData.VM->GetByteCode().SetSubject(JumpToFalseInstruction, IfNode);
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, IfNode, CallPath);
 	}
 
 	// traverse the true case
@@ -885,9 +949,17 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 	FRigVMOperand& TrueOperand = WorkData.ExprToOperand.FindChecked(TrueExpr);
 
 	WorkData.VM->GetByteCode().AddCopyOp(TrueOperand, ResultOperand);
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, IfNode, CallPath);
+	}
 
 	uint64 JumpToEndByte = WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpForward, 1);
 	int32 JumpToEndInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, IfNode, CallPath);
+	}
 
 	// correct the jump to false instruction index
 	int32 NumInstructionsInTrueCase = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToFalseInstruction;
@@ -904,6 +976,10 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 	FRigVMOperand& FalseOperand = WorkData.ExprToOperand.FindChecked(FalseExpr);
 
 	WorkData.VM->GetByteCode().AddCopyOp(FalseOperand, ResultOperand);
+	if (Settings.SetupNodeInstructionIndex)
+	{
+		WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, IfNode, CallPath);
+	}
 
 	// correct the jump to end instruction index
 	int32 NumInstructionsInFalseCase = WorkData.VM->GetByteCode().GetNumInstructions() - JumpToEndInstruction;
@@ -913,6 +989,8 @@ void URigVMCompiler::TraverseIf(const FRigVMIfExprAST* InExpr, FRigVMCompilerWor
 void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
 	URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InExpr->GetNode());
+	const FString CallPath = InExpr->GetProxy().GetCallstack().GetCallPath();
+
 	int32 NumCases = SelectNode->FindPin(URigVMSelectNode::ValueName)->GetArraySize();
 
 	if (WorkData.bSetupMemory)
@@ -987,13 +1065,18 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 	{
 		// compare and jump eventually
 		WorkData.VM->GetByteCode().AddEqualsOp(IndexOperand, WorkData.IntegerLiterals.FindChecked(CaseIndex), WorkData.ComparisonOperand);
-		if (CaseIndex == 1 && Settings.SetupNodeInstructionIndex)
+		if (Settings.SetupNodeInstructionIndex)
 		{
-			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, SelectNode);
+			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, SelectNode, CallPath);
 		}
 
 		uint64 JumpByte = WorkData.VM->GetByteCode().AddJumpIfOp(ERigVMOpCode::JumpForwardIf, 1, WorkData.ComparisonOperand, true);
 		int32 JumpInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+		if (Settings.SetupNodeInstructionIndex)
+		{
+			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, SelectNode, CallPath);
+		}
+
 		JumpToCaseBytes.Add(JumpByte);
 		JumpToCaseInstructions.Add(JumpInstruction);
 	}
@@ -1014,11 +1097,20 @@ void URigVMCompiler::TraverseSelect(const FRigVMSelectExprAST* InExpr, FRigVMCom
 		// add copy op to copy the result
 		FRigVMOperand& CaseOperand = WorkData.ExprToOperand.FindChecked(CaseExpressions[CaseIndex]);
 		WorkData.VM->GetByteCode().AddCopyOp(CaseOperand, ResultOperand);
+		if (Settings.SetupNodeInstructionIndex)
+		{
+			WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, SelectNode, CallPath);
+		}
 		
 		if (CaseIndex < NumCases - 1)
 		{
 			uint64 JumpByte = WorkData.VM->GetByteCode().AddJumpOp(ERigVMOpCode::JumpForward, 1);
 			int32 JumpInstruction = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
+			if (Settings.SetupNodeInstructionIndex)
+			{
+				WorkData.VM->GetByteCode().SetSubject(WorkData.VM->GetByteCode().GetNumInstructions() - 1, SelectNode, CallPath);
+			}
+
 			JumpToEndBytes.Add(JumpByte);
 			JumpToEndInstructions.Add(JumpInstruction);
 		}

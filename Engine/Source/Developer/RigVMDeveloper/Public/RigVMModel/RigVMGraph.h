@@ -42,6 +42,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	TArray<URigVMGraph*> GetContainedGraphs(bool bRecursive = false) const;
 
+	// Returns the parent graph of this graph
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+    URigVMGraph* GetParentGraph() const;
+
+	// Returns the root / top level parent graph of this graph (or this if it is the root graph)
+	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
+    URigVMGraph* GetRootGraph() const;
+
 	// Returns the entry node of this graph
 	UFUNCTION(BlueprintCallable, Category = RigVMGraph)
 	URigVMFunctionEntryNode* GetEntryNode() const;

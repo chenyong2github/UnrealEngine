@@ -534,6 +534,8 @@ void FRigVMByteCode::Reset()
 #if WITH_EDITORONLY_DATA
 	SubjectPerInstruction.Reset();
 	SubjectToInstructions.Reset();
+	CallPathPerInstruction.Reset();
+	CallPathToInstructions.Reset();
 #endif
 }
 
@@ -547,6 +549,8 @@ void FRigVMByteCode::Empty()
 #if WITH_EDITORONLY_DATA
 	SubjectPerInstruction.Empty();
 	SubjectToInstructions.Empty();
+	CallPathPerInstruction.Empty();
+	CallPathToInstructions.Empty();
 #endif
 }
 
@@ -1265,7 +1269,65 @@ const TArray<int32>& FRigVMByteCode::GetAllInstructionIndicesForSubject(UObject*
 	return EmptyInstructionIndices;
 }
 
-void FRigVMByteCode::SetSubject(int32 InInstructionIndex, UObject* InSubject)
+FString FRigVMByteCode::GetCallPathForInstruction(int32 InInstructionIndex) const
+{
+	if (CallPathPerInstruction.IsValidIndex(InInstructionIndex))
+	{
+		return CallPathPerInstruction[InInstructionIndex];
+	}
+	return FString();
+}
+
+int32 FRigVMByteCode::GetFirstInstructionIndexForCallPath(const FString& InCallPath, bool bStartsWith, bool bEndsWith) const
+{
+	const TArray<int32> InstructionIndices = GetAllInstructionIndicesForCallPath(InCallPath, bStartsWith, bEndsWith);
+	if (InstructionIndices.Num() > 0)
+	{
+		return InstructionIndices[0];
+	}
+	return INDEX_NONE;
+}
+
+TArray<int32> FRigVMByteCode::GetAllInstructionIndicesForCallPath(const FString& InCallPath, bool bStartsWith, bool bEndsWith) const
+{
+	if(InCallPath.IsEmpty())
+	{
+		return EmptyInstructionIndices;
+	}
+
+	TArray<int32> MatchedInstructions;
+	if (const TArray<int32>* InstructionIndices = CallPathToInstructions.Find(InCallPath))
+	{
+		MatchedInstructions.Append(*InstructionIndices);
+	}
+	
+	if(bStartsWith || bEndsWith)
+	{
+		const FString CallPathStart = FString::Printf(TEXT("%s|"), *InCallPath);
+		const FString CallPathEnd = FString::Printf(TEXT("|%s"), *InCallPath);
+		for(int32 InstructionIndex = 0; InstructionIndex < CallPathPerInstruction.Num(); InstructionIndex++)
+		{
+			if(bStartsWith)
+			{
+				if(CallPathPerInstruction[InstructionIndex].StartsWith(CallPathStart))
+				{
+					MatchedInstructions.Add(InstructionIndex);
+				}
+			}
+			else if(bEndsWith)
+			{
+				if(CallPathPerInstruction[InstructionIndex].EndsWith(CallPathEnd))
+				{
+					MatchedInstructions.Add(InstructionIndex);
+				}
+			}
+		}
+	}
+
+	return MatchedInstructions;
+}
+
+void FRigVMByteCode::SetSubject(int32 InInstructionIndex, UObject* InSubject, const FString& InCallPath)
 {
 	if (SubjectPerInstruction.Num() <= InInstructionIndex)
 	{
@@ -1273,6 +1335,13 @@ void FRigVMByteCode::SetSubject(int32 InInstructionIndex, UObject* InSubject)
 	}
 	SubjectPerInstruction[InInstructionIndex] = InSubject;
 	SubjectToInstructions.FindOrAdd(InSubject).Add(InInstructionIndex);
+
+	if (CallPathPerInstruction.Num() <= InInstructionIndex)
+	{
+		CallPathPerInstruction.AddZeroed(1 + InInstructionIndex - CallPathPerInstruction.Num());
+	}
+	CallPathPerInstruction[InInstructionIndex] = InCallPath;
+	CallPathToInstructions.FindOrAdd(InCallPath).Add(InInstructionIndex);
 }
 
 #endif

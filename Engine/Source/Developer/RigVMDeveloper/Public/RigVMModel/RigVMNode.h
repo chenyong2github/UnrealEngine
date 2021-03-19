@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RigVMPin.h"
+#include "RigVMCore/RigVM.h"
 #include "RigVMNode.generated.h"
 
 class URigVMGraph;
@@ -70,6 +71,10 @@ public:
 	// Returns the Graph of this Node
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	URigVMGraph* GetGraph() const;
+
+	// Returns the top level / root Graph of this Node
+	UFUNCTION(BlueprintCallable, Category = RigVMNode)
+    URigVMGraph* GetRootGraph() const;
 
 	// Returns the injection info of this Node (or nullptr)
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
@@ -183,6 +188,12 @@ public:
 	// Returns the name of the node prior to the renaming
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
 	FName GetPreviousFName() const { return PreviousName; }
+
+	// Returns the indices of associated instructions for this node
+	virtual TArray<int32> GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const; 
+
+	// Returns the number of visited / run instructions for this node
+	virtual int32 GetInstructionVisitedCount(URigVM* InVM, const FRigVMASTProxy& InProxy = FRigVMASTProxy()) const; 
 
 private:
 

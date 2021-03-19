@@ -31,6 +31,28 @@ bool URigVMLibraryNode::IsDefinedAsVarying() const
 	return false;
 }
 
+TArray<int32> URigVMLibraryNode::GetInstructionsForVM(URigVM* InVM, const FRigVMASTProxy& InProxy) const
+{
+	TArray<int32> Instructions;
+
+#if WITH_EDITOR
+
+	if(InVM == nullptr)
+	{
+		return Instructions;
+	}
+
+	const FRigVMASTProxy Proxy = InProxy.GetChild((UObject*)this);
+	for(URigVMNode* ContainedNode : GetContainedNodes())
+	{
+		Instructions.Append(ContainedNode->GetInstructionsForVM(InVM, Proxy));
+	}
+
+#endif
+	
+	return Instructions;
+}
+
 const TArray<URigVMNode*>& URigVMLibraryNode::GetContainedNodes() const
 {
 	if(URigVMGraph* Graph = GetContainedGraph())

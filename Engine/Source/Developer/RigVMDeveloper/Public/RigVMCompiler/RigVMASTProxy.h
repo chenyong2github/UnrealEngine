@@ -140,6 +140,7 @@ public:
 	}
 
 	static FRigVMASTProxy MakeFromUObject(UObject* InSubject);
+	static FRigVMASTProxy MakeFromCallPath(const FString& InCallPath, UObject* InRootObject);
 
 	FRigVMASTProxy GetSibling(UObject* InSubject) const
 	{
@@ -166,6 +167,12 @@ public:
 	FRigVMASTProxy GetChild(UObject* InSubject) const
 	{
 		FRigVMASTProxy Child = *this;
+
+		if(!Child.IsValid())
+		{
+			Child.Callstack.Stack.Reset();
+		}
+		
 		Child.Callstack.Stack.Push(InSubject);
 #if UE_BUILD_DEBUG
 		Child.DebugName = Child.Callstack.GetCallPath();
