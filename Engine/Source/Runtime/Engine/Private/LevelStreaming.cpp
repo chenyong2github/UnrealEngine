@@ -1132,6 +1132,17 @@ bool ULevelStreaming::RequestLevel(UWorld* PersistentWorld, bool bAllowLevelLoad
 			// Kick off async load request.
 			STAT_ADD_CUSTOMMESSAGE_NAME( STAT_NamedMarker, *(FString( TEXT( "RequestLevel - " ) + DesiredPackageName.ToString() )) );
 			TRACE_BOOKMARK(TEXT("RequestLevel - %s"), *DesiredPackageName.ToString());
+
+			// When loading an instanced package we want to avoid it being processed as an asset so we make sure to set it RF_Transient.
+			// If the package is not created here, it will get created by the LoadPackageAsync call. 
+			// Gameworld packages (PIE) are already ignored so we can let LoadPackageAsync do its job.
+			if (!bIsGameWorld && DesiredPackageName != NAME_None && PackagePath.GetPackageFName() != DesiredPackageName)
+			{
+				UPackage* NewPackage = CreatePackage(*DesiredPackageName.ToString());
+				NewPackage->SetFlags(RF_Transient);
+			}
+
+
 			LoadPackageAsync(PackagePath, DesiredPackageName, FLoadPackageAsyncDelegate::CreateUObject(this, &ULevelStreaming::AsyncLevelLoadComplete), nullptr, PackageFlags, PIEInstanceID, GetPriority());
 
 			// streamingServer: server loads everything?

@@ -791,7 +791,12 @@ void ULevel::PostLoad()
 		{
 			const FString& ActorPackageName = ActorPackageNames[i];
 
+			// Propagate RF_Transient from the Level Package in case we are loading an instanced level
 			UPackage* ActorPackage = bInstanced ? CreatePackage( *InstancePackageNames[i]) : nullptr;
+			if (ActorPackage && LevelPackage->HasAnyFlags(RF_Transient))
+			{
+				ActorPackage->SetFlags(RF_Transient);
+			}
 
 			ActorPackage = LoadPackage(ActorPackage, *ActorPackageName, bPackageForPIE ? LOAD_PackageForPIE : LOAD_None, nullptr, &InstancingContext);
 

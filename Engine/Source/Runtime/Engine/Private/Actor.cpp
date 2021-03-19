@@ -374,7 +374,7 @@ bool AActor::IsAsset() const
 {
 	// External actors are considered assets, to allow using the asset logic for save dialogs, etc.
 	// Also, they return true even if pending kill, in order to show up as deleted in these dialogs.
-	return IsPackageExternal() && !IsChildActor() && !HasAnyFlags(RF_Transient | RF_ClassDefaultObject);
+	return IsPackageExternal() && !GetPackage()->HasAnyFlags(RF_Transient) && !IsChildActor() && !HasAnyFlags(RF_Transient | RF_ClassDefaultObject);
 }
 
 bool AActor::PreSaveRoot(const TCHAR* InFilename)
