@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "LidarPointCloudShared.h"
 
 class ILidarPointCloudSceneProxy;
 
@@ -48,7 +49,9 @@ struct FLidarPointCloudProxyUpdateData
 	TArray<FBox> Bounds;
 #endif
 
-	TArray<const class ALidarClippingVolume*> ClippingVolumes;
+	TArray<FLidarPointCloudClippingVolumeParams> ClippingVolumes;
+
+	FLidarPointCloudComponentRenderParams RenderParams;
 
 	FLidarPointCloudProxyUpdateData();
 };
@@ -58,5 +61,5 @@ class ILidarPointCloudSceneProxy
 {
 public:
 	/** Updates necessary render data for the proxy. Initiated via LOD Manager's Tick */
-	virtual void UpdateRenderData(FLidarPointCloudProxyUpdateData InRenderData) = 0;
+	virtual void UpdateRenderData(const FLidarPointCloudProxyUpdateData& InRenderData) = 0;
 };

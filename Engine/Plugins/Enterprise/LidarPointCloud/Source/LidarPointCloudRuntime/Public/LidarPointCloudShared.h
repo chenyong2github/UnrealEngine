@@ -624,6 +624,93 @@ public:
 	}
 };
 
+UENUM(BlueprintType)
+enum class ELidarClippingVolumeMode : uint8
+{
+	/** This will clip all points inside the volume */
+	ClipInside,
+	/** This will clip all points outside of the volume */
+	ClipOutside,
+};
+
+/** Used to pass clipping information for async processing, to avoid accessing UObjects in non-GT */
+struct FLidarPointCloudClippingVolumeParams
+{
+	ELidarClippingVolumeMode Mode;
+	int32 Priority;
+	FBox Bounds;
+	FMatrix PackedShaderData;
+
+	FORCEINLINE bool operator<(const FLidarPointCloudClippingVolumeParams& O) const
+	{
+		return (Priority < O.Priority) || (Priority == O.Priority && Mode > O.Mode);
+	}
+
+	FLidarPointCloudClippingVolumeParams(const class ALidarClippingVolume* ClippingVolume);
+};
+
+UENUM(BlueprintType)
+enum class ELidarPointCloudColorationMode : uint8
+{
+	/** Uses color tint only */
+	None,
+	/** Uses imported RGB / Intensity data */
+	Data,
+	/** The cloud's color will be overridden with elevation-based color */
+	Elevation,
+	/** The cloud's color will be overridden with relative position-based color */
+	Position,
+	/** Uses Classification ID of the point along with the component's Classification Colors property to sample the color */
+	Classification
+};
+
+UENUM(BlueprintType)
+enum class ELidarPointCloudSpriteShape : uint8
+{
+	Square,
+	Circle,
+};
+
+/** Convenience struct to group all component's rendering params into one */
+struct FLidarPointCloudComponentRenderParams
+{
+	int32 MinDepth;
+	int32 MaxDepth;
+
+	float BoundsScale;
+	FVector BoundsSize;
+	FVector LocationOffset;
+	float ComponentScale;
+
+	float PointSize;
+	float PointSizeBias;
+	float GapFillingStrength;
+	
+	bool bOwnedByEditor;
+	bool bDrawNodeBounds;
+	bool bUseScreenSizeScaling;
+	bool bShouldRenderFacingNormals;
+	bool bUseFrustumCulling;
+
+	ELidarPointCloudColorationMode ColorSource;
+	ELidarPointCloudSpriteShape PointShape;
+
+	FVector4 Saturation;
+	FVector4 Contrast;
+	FVector4 Gamma;
+	FVector4 Offset;
+	FVector ColorTint;
+	float IntensityInfluence;
+
+	TMap<int32, FLinearColor> ClassificationColors;
+	FLinearColor ElevationColorBottom;
+	FLinearColor ElevationColorTop;
+
+	class UMaterialInterface* Material = nullptr;
+
+	void UpdateFromComponent(class ULidarPointCloudComponent* Component);
+};
+
 struct FBenchmarkTimer
 {
 	static void Reset()

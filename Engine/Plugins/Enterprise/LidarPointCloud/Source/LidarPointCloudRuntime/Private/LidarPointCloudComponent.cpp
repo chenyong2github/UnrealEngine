@@ -19,8 +19,6 @@
 
 ULidarPointCloudComponent::ULidarPointCloudComponent()
 	: CustomMaterial(nullptr)
-	, MinScreenSize(0.05f)
-	, bUseFrustumCulling(true)
 	, PointSize(1.0f)
 	, bUseScreenSizeScaling(false)
 	, GapFillingStrength(0)
@@ -37,6 +35,7 @@ ULidarPointCloudComponent::ULidarPointCloudComponent()
 	, Offset(FVector::ZeroVector)
 	, ColorTint(FLinearColor::White)
 	, IntensityInfluence(0.0f)
+	, bUseFrustumCulling(true)
 	, MinDepth(0)
 	, MaxDepth(-1)
 	, bDrawNodeBounds(false)
@@ -242,3 +241,46 @@ void ULidarPointCloudComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+void FLidarPointCloudComponentRenderParams::UpdateFromComponent(ULidarPointCloudComponent* Component)
+{
+	MinDepth = Component->MinDepth;
+	MaxDepth = Component->MaxDepth;
+
+	BoundsScale = Component->BoundsScale;
+	BoundsSize = Component->GetPointCloud()->GetBounds().GetSize();
+
+	// Make sure to apply minimum bounds size
+	BoundsSize.X = FMath::Max(BoundsSize.X, 0.001f);
+	BoundsSize.Y = FMath::Max(BoundsSize.Y, 0.001f);
+	BoundsSize.Z = FMath::Max(BoundsSize.Z, 0.001f);
+
+	LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();
+	ComponentScale = Component->GetComponentScale().GetAbsMax();
+
+	PointSize = Component->PointSize;
+	PointSizeBias = Component->PointSizeBias;
+	GapFillingStrength = Component->GapFillingStrength;
+
+	bOwnedByEditor = Component->IsOwnedByEditor();
+	bDrawNodeBounds = Component->bDrawNodeBounds;
+	bUseScreenSizeScaling = Component->bUseScreenSizeScaling;
+	bShouldRenderFacingNormals = Component->ShouldRenderFacingNormals();
+	bUseFrustumCulling = Component->bUseFrustumCulling;
+
+	ColorSource = Component->ColorSource;
+	PointShape = Component->GetPointShape();
+
+	Offset = Component->Offset;
+	Contrast = Component->Contrast;
+	Saturation = Component->Saturation;
+	Gamma = Component->Gamma;
+	ColorTint = FVector(Component->ColorTint);
+	IntensityInfluence = Component->IntensityInfluence;
+
+	ClassificationColors = Component->ClassificationColors;
+	ElevationColorBottom = Component->ElevationColorBottom;
+	ElevationColorTop = Component->ElevationColorTop;
+
+	Material = Component->GetMaterial(0);
+}

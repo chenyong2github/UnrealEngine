@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "LidarPointCloudShared.h"
 #include "LidarPointCloudSettings.h"
-#include "LidarPointCloudLODManager.h"
 #include "Meshing/LidarPointCloudMeshing.h"
 #include "HAL/ThreadSafeCounter64.h"
 #include "Misc/ScopeLock.h"
@@ -513,13 +512,11 @@ public:
 	/** Removes the given traversal octree from the list */
 	void UnregisterTraversalOctree(FLidarPointCloudTraversalOctree* TraversalOctree);
 
-	/** If bImmediate is true, the node will be loaded immediately, otherwise, it will be queued for async loading. */
-	void QueueNode(FLidarPointCloudOctreeNode* Node, float Lifetime);
-
-	/** Streams all requested nodes */
-	void StreamQueuedNodes();
-
-	void UnloadOldNodes(const float& CurrentTime);
+	/**
+	 * Streams requested nodes or extends their lifetime, if already loaded
+	 * Unloads all unused nodes with expired lifetime
+	 */
+	void StreamNodes(TArray<FLidarPointCloudOctreeNode*>& Nodes, const float& CurrentTime);
 
 	/** Returns true, if the cloud is fully and persistently loaded. */
 	bool IsFullyLoaded() const { return bIsFullyLoaded; }
@@ -594,7 +591,12 @@ struct FLidarPointCloudTraversalOctreeNode
 	/** Depth of this node */
 	uint8 Depth;
 
+	/** Calculated for use with adaptive sprite scaling */
+	uint8 VirtualDepth;
+
 	FLidarPointCloudTraversalOctreeNode* Parent;
+
+	FLidarPointCloudTraversalOctree* Octree;
 
 	/** Stores the children array */
 	TArray<FLidarPointCloudTraversalOctreeNode> Children;
@@ -607,12 +609,34 @@ struct FLidarPointCloudTraversalOctreeNode
 	FLidarPointCloudTraversalOctreeNode();
 
 	/** Builds the traversal version of the given node. */
-	void Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset);
+	void Build(FLidarPointCloudTraversalOctree* TraversalOctree, FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset);
 
 	/** Calculates virtual depth of this node, to be used to estimate the best sprite size */
-	uint8 CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& VDMultiplier, const float& PointSizeBias) const;
+	void CalculateVirtualDepth(const float& PointSizeBias);
 
 	FORCEINLINE bool IsAvailable() const { return bSelected && DataNode->HasData(); }
+};
+
+/** Used for node size sorting and node selection. */
+struct FLidarPointCloudTraversalOctreeNodeSizeData
+{
+	FLidarPointCloudTraversalOctreeNode* Node;
+	float Size;
+	int32 ProxyIndex;
+
+	FLidarPointCloudTraversalOctreeNodeSizeData(FLidarPointCloudTraversalOctreeNode* Node, const float& Size, const int32& ProxyIndex);
+};
+
+/** Convenience struct to group all selection params into one */
+struct FLidarPointCloudNodeSelectionParams
+{
+	float MinScreenSize;
+	float ScreenCenterImportance;
+	int32 MinDepth;
+	int32 MaxDepth;
+	float BoundsScale;
+	bool bUseFrustumCulling;
+	const TArray<struct FLidarPointCloudClippingVolumeParams>* ClippingVolumes;
 };
 
 /**
@@ -649,8 +673,11 @@ struct FLidarPointCloudTraversalOctree
 	FLidarPointCloudTraversalOctree& operator=(const FLidarPointCloudTraversalOctree&) = delete;
 	FLidarPointCloudTraversalOctree& operator=(FLidarPointCloudTraversalOctree&&) = delete;
 
-	/** Selects and appends the subset of visible nodes for rendering. */
-	void GetVisibleNodes(TArray<FLidarPointCloudLODManager::FNodeSizeData>& NodeSizeData, const FLidarPointCloudViewData& ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams, const float& CurrentTime);
+	/**
+	 * Selects and appends the subset of visible nodes for rendering.
+	 * Returns number of selected nodes
+	 */
+	int32 GetVisibleNodes(TArray<FLidarPointCloudTraversalOctreeNodeSizeData>& NodeSizeData, const struct FLidarPointCloudViewData* ViewData, const int32& ProxyIndex, const FLidarPointCloudNodeSelectionParams& SelectionParams);
 
 	FVector GetCenter() const { return Root.Center; }
 	FVector GetExtent() const { return Extents[0]; }

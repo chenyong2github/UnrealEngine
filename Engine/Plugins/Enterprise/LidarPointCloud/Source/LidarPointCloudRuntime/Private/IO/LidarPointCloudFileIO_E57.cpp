@@ -212,7 +212,7 @@ bool ULidarPointCloudFileIO_E57::HandleImport(const FString& Filename, TSharedPt
 			FLidarPointCloudDataBuffer* ThreadBuffer = BufferManager.GetFreeBuffer();
 			FMemory::Memcpy(ThreadBuffer->GetData(), Buffer->GetData(), NumPointsRead * sizeof(FE57Point));
 
-			ThreadResults.Add(Async(EAsyncExecution::ThreadPool, [NumPointsRead, bHasRGB, bHasIntensity, Transform, &OutImportResults, ImportScale, &SyncLock, ThreadBuffer]{
+			ThreadResults.Add(Async(EAsyncExecution::Thread, [NumPointsRead, bHasRGB, bHasIntensity, Transform, &OutImportResults, ImportScale, &SyncLock, ThreadBuffer]{
 				TArray64<FLidarPointCloudPoint> Points;
 				Points.Reserve(NumPointsRead);
 				FBox Bounds(EForceInit::ForceInit);

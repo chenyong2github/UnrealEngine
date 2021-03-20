@@ -11,8 +11,6 @@
 #include "Misc/FileHelper.h"
 #include "Rendering/LidarPointCloudRenderBuffers.h"
 
-DECLARE_CYCLE_STAT(TEXT("Node Streaming"), STAT_NodeStreaming, STATGROUP_LidarPointCloud);
-
 int32 FLidarPointCloudOctree::MaxNodeDepth = (1 << (sizeof(FLidarPointCloudOctreeNode::Depth) * 8)) - 1;
 int32 FLidarPointCloudOctree::MaxBucketSize = 200;
 int32 FLidarPointCloudOctree::NodeGridResolution = 96;
@@ -2002,86 +2000,72 @@ void FLidarPointCloudOctree::UnregisterTraversalOctree(FLidarPointCloudTraversal
 	}
 }
 
-void FLidarPointCloudOctree::QueueNode(FLidarPointCloudOctreeNode* Node, float Lifetime)
+void FLidarPointCloudOctree::StreamNodes(TArray<FLidarPointCloudOctreeNode*>& Nodes, const float& CurrentTime)
 {
-	if (!Node)
+	const float BulkDataLifetime = CurrentTime + GetDefault<ULidarPointCloudSettings>()->CachedNodeLifetime;
+
+	for (FLidarPointCloudOctreeNode* Node : Nodes)
 	{
-		return;
+		// Refresh lifetime of the BulkData
+		Node->BulkDataLifetime = BulkDataLifetime;
+
+		// Enqueue for processing
+		QueuedNodes.Enqueue(Node);
 	}
 
-	// Refresh lifetime of the BulkData, if requested
-	if (Lifetime > -1)
+	// Only one process at a time
+	if (!bStreamingBusy)
 	{
-		Node->BulkDataLifetime = Lifetime;
-	}
+		bStreamingBusy = true;
 
-	// Mark the node as being in use
-	if (!Node->bInUse)
-	{
-		Node->bInUse = true;
-		NodesInUse.Add(Node);
-	}
-
-	// No need to do anything, if the node already has data loaded or loading
-	if (Node->HasData() || Node->bHasDataPending)
-	{
-		return;
-	}
-
-	QueuedNodes.Enqueue(Node);
-	Node->bHasDataPending = true;
-}
-
-void FLidarPointCloudOctree::StreamQueuedNodes()
-{
-	SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
-
-	// Only one streaming operation at a time
-	if (bStreamingBusy)
-	{
-		return;
-	}
-
-	bStreamingBusy = true;
-	
-	// Perform data streaming in a separate thread
-	Async(EAsyncExecution::ThreadPool, [this]
-	{
-		SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
-
-		FLidarPointCloudOctreeNode* CurrentNode = nullptr;
-		while (QueuedNodes.Dequeue(CurrentNode))
+		// Add previously queued nodes
+		FLidarPointCloudOctreeNode* QueuedNode;
+		while (QueuedNodes.Dequeue(QueuedNode))
 		{
-			StreamNodeData(CurrentNode);
-			CurrentNode->bHasDataPending = false;
+			if (!QueuedNode->bInUse)
+			{
+				NodesInUse.Add(QueuedNode);
+			}
+		}
+
+		// Process nodes' streaming requests
+		// If the release lock has been acquired, release unused nodes in one go
+		// Otherwise, just load the ones requested
+		FScopeTryLock ReleaseLock(&DataReleaseLock);
+		if(ReleaseLock.IsLocked())
+		{
+			for (int32 i = 0; i < NodesInUse.Num(); ++i)
+			{
+				FLidarPointCloudOctreeNode* Node = NodesInUse[i];
+
+				// Check if the node should still be in use
+				Node->bInUse = Node->BulkDataLifetime >= CurrentTime;
+
+				// If node is alive, make sure it has data loaded
+				if (Node->bInUse)
+				{
+					Node->GetData();
+				}
+				// ... otherwise, release it
+				else
+				{
+					Node->ReleaseData();				
+					NodesInUse.RemoveAtSwap(i--, 1, false);
+				}
+			}
+		}
+		else
+		{
+			for (FLidarPointCloudOctreeNode* Node : NodesInUse)
+			{
+				if (Node->BulkDataLifetime >= CurrentTime)
+				{
+					Node->GetData();
+				}
+			}
 		}
 
 		bStreamingBusy = false;
-	});
-}
-
-void FLidarPointCloudOctree::UnloadOldNodes(const float& CurrentTime)
-{
-	SCOPE_CYCLE_COUNTER(STAT_NodeStreaming);
-
-	// Skip if the data is locked
-	FScopeTryLock ReleaseLock(&DataReleaseLock);
-	if (!ReleaseLock.IsLocked())
-	{
-		return;
-	}
-
-	for(int32 i = 0; i < NodesInUse.Num(); ++i)
-	{
-		FLidarPointCloudOctreeNode* Node = NodesInUse[i];
-
-		// Unload data, if it expired
-		if (Node->BulkDataLifetime < CurrentTime)
-		{
-			Node->ReleaseData();
-			Node->bInUse = false;
-			NodesInUse.RemoveAtSwap(i--, 1, false);
-		}
 	}
 }
 
@@ -2467,8 +2451,9 @@ FLidarPointCloudTraversalOctreeNode::FLidarPointCloudTraversalOctreeNode()
 
 }
 
-void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset)
+void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudTraversalOctree* TraversalOctree, FLidarPointCloudOctreeNode* Node, const FTransform& LocalToWorld, const FVector& LocationOffset)
 {
+	Octree = TraversalOctree;
 	DataNode = Node;
 	Center = LocalToWorld.TransformPosition(Node->Center + LocationOffset);
 	Depth = Node->Depth;
@@ -2478,18 +2463,21 @@ void FLidarPointCloudTraversalOctreeNode::Build(FLidarPointCloudOctreeNode* Node
 	{
 		if (Node->Children[i])
 		{
-			Children[i].Build(Node->Children[i], LocalToWorld, LocationOffset);
+			Children[i].Build(Octree, Node->Children[i], LocalToWorld, LocationOffset);
 			Children[i].Parent = this;
 		}
 	}
 }
 
-uint8 FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<float>& LevelWeights, const float& VDMultiplier, const float& PointSizeBias) const
+void FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const float& PointSizeBias)
 {
 	if (!IsAvailable())
 	{
-		return 0;
+		return;
 	}
+
+	const TArray<float>& LevelWeights = Octree->LevelWeights;
+	const float& VDMultiplier = Octree->VirtualDepthMultiplier;
 
 	TQueue<const FLidarPointCloudTraversalOctreeNode*> Nodes;
 	const FLidarPointCloudTraversalOctreeNode* CurrentNode = nullptr;
@@ -2534,7 +2522,16 @@ uint8 FLidarPointCloudTraversalOctreeNode::CalculateVirtualDepth(const TArray<fl
 	}
 
 	// Calculate the Virtual Depth
-	return VDFactor / NumPoints * VDMultiplier;
+	VirtualDepth = VDFactor / NumPoints * VDMultiplier;
+}
+
+//////////////////////////////////////////////////////////// FLidarPointCloudTraversalOctreeNodeSizeData
+
+FLidarPointCloudTraversalOctreeNodeSizeData::FLidarPointCloudTraversalOctreeNodeSizeData(FLidarPointCloudTraversalOctreeNode* Node, const float& Size, const int32& ProxyIndex)
+	: Node(Node)
+	, Size(Size)
+	, ProxyIndex(ProxyIndex)
+{
 }
 
 //////////////////////////////////////////////////////////// FLidarPointCloudTraversalOctree
@@ -2579,7 +2576,7 @@ FLidarPointCloudTraversalOctree::FLidarPointCloudTraversalOctree(FLidarPointClou
 	}
 
 	// Star cloning the node data
-	Root.Build(&Octree->Root, LocalToWorld, Octree->Owner->GetLocationOffset().ToVector());
+	Root.Build(this, &Octree->Root, LocalToWorld, Octree->Owner->GetLocationOffset().ToVector());
 
 	bValid = true;
 }

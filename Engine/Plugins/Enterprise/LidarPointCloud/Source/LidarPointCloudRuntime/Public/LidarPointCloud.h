@@ -799,15 +799,6 @@ public:
 	static FLidarPointCloudNormal Conv_VectorToLidarPointCloudNormal(const FVector& Vector) { return FLidarPointCloudNormal(Vector); }
 };
 
-UENUM(BlueprintType)
-enum class ELidarClippingVolumeMode : uint8
-{
-	/** This will clip all points inside the volume */
-	ClipInside,
-	/** This will clip all points outside of the volume */
-	ClipOutside,
-};
-
 UCLASS(hidecategories = (Collision, Brush, Attachment, Physics, Volume, BrushBuilder), MinimalAPI)
 class ALidarClippingVolume : public AVolume
 {

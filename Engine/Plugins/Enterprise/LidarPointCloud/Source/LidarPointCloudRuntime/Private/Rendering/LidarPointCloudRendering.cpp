@@ -161,7 +161,6 @@ public:
 	FLidarPointCloudSceneProxy(ULidarPointCloudComponent* Component)
 		: FPrimitiveSceneProxy(Component)
 		, ProxyWrapper(MakeShared<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe>(this))
-		, Component(Component)
 		, Owner(Component->GetOwner())
 		, CollisionRendering(Component->GetPointCloud()->CollisionRendering)
 	{
@@ -180,12 +179,12 @@ public:
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_PointCloudSceneProxy_GetDynamicMeshElements);
 
-		if (!Component->GetMaterial(0))
+		if (!RenderData.RenderParams.Material)
 		{
 			return;
 		}
 
-		const bool bUsesSprites = Component->PointSize > 0;
+		const bool bUsesSprites = RenderData.RenderParams.PointSize > 0;
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -209,7 +208,7 @@ public:
 							MeshBatch.LODIndex = 0;
 							MeshBatch.VertexFactory = RenderData.bUseStaticBuffers ? Node.DataNode->GetVertexFactory() : (FVertexFactory*)&GLidarPointCloudSharedVertexFactory;
 							MeshBatch.bWireframe = false;
-							MeshBatch.MaterialRenderProxy = Component->GetMaterial(0)->GetRenderProxy();
+							MeshBatch.MaterialRenderProxy = RenderData.RenderParams.Material->GetRenderProxy();
 							MeshBatch.ReverseCulling = IsLocalToWorldDeterminantNegative();
 							MeshBatch.DepthPriorityGroup = SDPG_World;
 
@@ -232,7 +231,7 @@ public:
 				FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
 
 				// Draw selected nodes' bounds
-				if (Component->bDrawNodeBounds)
+				if (RenderData.RenderParams.bDrawNodeBounds)
 				{
 					for (const FBox& Node : RenderData.Bounds)
 					{
@@ -298,56 +297,45 @@ public:
 	{	
 		FLidarPointCloudBatchElementUserData UserDataElement;
 
-		const bool bUsesSprites = Component->PointSize > 0;
-
-		FVector BoundsSize = Component->GetPointCloud()->GetBounds().GetSize();
-
-		// Make sure to apply minimum bounds size
-		BoundsSize.X = FMath::Max(BoundsSize.X, 0.001f);
-		BoundsSize.Y = FMath::Max(BoundsSize.Y, 0.001f);
-		BoundsSize.Z = FMath::Max(BoundsSize.Z, 0.001f);
+		const bool bUsesSprites = RenderData.RenderParams.PointSize > 0;
 
 		// Update shader parameters
-		UserDataElement.bEditorView = Component->IsOwnedByEditor();
+		UserDataElement.bEditorView = RenderData.RenderParams.bOwnedByEditor;
 		UserDataElement.VirtualDepth = RenderData.VDMultiplier * Node.VirtualDepth;
 		UserDataElement.SpriteSize = RenderData.RootCellSize / FMath::Pow(2.0f, UserDataElement.VirtualDepth);
-		UserDataElement.SpriteSizeMultiplier = (Component->PointSize + Component->GapFillingStrength * 0.005f) * Component->GetComponentScale().GetAbsMax();
-		UserDataElement.bUseScreenSizeScaling = Component->bUseScreenSizeScaling;
+		UserDataElement.SpriteSizeMultiplier = (RenderData.RenderParams.PointSize + RenderData.RenderParams.GapFillingStrength * 0.005f) * RenderData.RenderParams.ComponentScale;
+		UserDataElement.bUseScreenSizeScaling = RenderData.RenderParams.bUseScreenSizeScaling;
 		UserDataElement.bUseStaticBuffers = RenderData.bUseStaticBuffers;
 
 		UserDataElement.IndexDivisor = bUsesSprites ? 4 : 1;
-		UserDataElement.LocationOffset = Component->GetPointCloud()->GetLocationOffset().ToVector();		
+		UserDataElement.LocationOffset = RenderData.RenderParams.LocationOffset;
 		UserDataElement.ViewRightVector = InView->GetViewRight();
 		UserDataElement.ViewUpVector = InView->GetViewUp();
-		UserDataElement.bUseCameraFacing = !Component->ShouldRenderFacingNormals();
-		UserDataElement.BoundsSize = BoundsSize;
-		UserDataElement.ElevationColorBottom = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorBottom);
-		UserDataElement.ElevationColorTop = FVector(Component->ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : Component->ElevationColorTop);
-		UserDataElement.bUseCircle = bUsesSprites && Component->GetPointShape() == ELidarPointCloudSpriteShape::Circle;
-		UserDataElement.bUseColorOverride = Component->ColorSource != ELidarPointCloudColorationMode::Data;
-		UserDataElement.bUseElevationColor = Component->ColorSource == ELidarPointCloudColorationMode::Elevation || Component->ColorSource == ELidarPointCloudColorationMode::None;
-		UserDataElement.Offset = Component->Offset;
-		UserDataElement.Contrast = Component->Contrast;
-		UserDataElement.Saturation = Component->Saturation;
-		UserDataElement.Gamma = Component->Gamma;
-		UserDataElement.Tint = FVector(Component->ColorTint);
-		UserDataElement.IntensityInfluence = Component->IntensityInfluence;
+		UserDataElement.bUseCameraFacing = !RenderData.RenderParams.bShouldRenderFacingNormals;
+		UserDataElement.BoundsSize = RenderData.RenderParams.BoundsSize;
+		UserDataElement.ElevationColorBottom = FVector(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorBottom);
+		UserDataElement.ElevationColorTop = FVector(RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None ? FColor::White : RenderData.RenderParams.ElevationColorTop);
+		UserDataElement.bUseCircle = bUsesSprites && RenderData.RenderParams.PointShape == ELidarPointCloudSpriteShape::Circle;
+		UserDataElement.bUseColorOverride = RenderData.RenderParams.ColorSource != ELidarPointCloudColorationMode::Data;
+		UserDataElement.bUseElevationColor = RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::Elevation || RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::None;
+		UserDataElement.Offset = RenderData.RenderParams.Offset;
+		UserDataElement.Contrast = RenderData.RenderParams.Contrast;
+		UserDataElement.Saturation = RenderData.RenderParams.Saturation;
+		UserDataElement.Gamma = RenderData.RenderParams.Gamma;
+		UserDataElement.Tint = RenderData.RenderParams.ColorTint;
+		UserDataElement.IntensityInfluence = RenderData.RenderParams.IntensityInfluence;
 
-		UserDataElement.bUseClassification = Component->ColorSource == ELidarPointCloudColorationMode::Classification;
-		UserDataElement.SetClassificationColors(Component->ClassificationColors);
+		UserDataElement.bUseClassification = RenderData.RenderParams.ColorSource == ELidarPointCloudColorationMode::Classification;
+		UserDataElement.SetClassificationColors(RenderData.RenderParams.ClassificationColors);
 				
 		UserDataElement.NumClippingVolumes = FMath::Min(RenderData.ClippingVolumes.Num(), 16);
 
 		for (uint32 i = 0; i < UserDataElement.NumClippingVolumes; ++i)
 		{
-			const ALidarClippingVolume* ClippingVolume = RenderData.ClippingVolumes[i];
-			const FVector Extent = ClippingVolume->GetActorScale3D() * 100;
-			UserDataElement.ClippingVolume[i] = FMatrix(FPlane(ClippingVolume->GetActorLocation(), ClippingVolume->Mode == ELidarClippingVolumeMode::ClipInside),
-													 FPlane(ClippingVolume->GetActorForwardVector(), Extent.X),
-												     FPlane(ClippingVolume->GetActorRightVector(), Extent.Y),
-													 FPlane(ClippingVolume->GetActorUpVector(), Extent.Z));
+			const FLidarPointCloudClippingVolumeParams& ClippingVolume = RenderData.ClippingVolumes[i];
 
-			UserDataElement.bStartClipped = UserDataElement.bStartClipped || ClippingVolume->Mode == ELidarClippingVolumeMode::ClipOutside;
+			UserDataElement.ClippingVolume[i] = ClippingVolume.PackedShaderData;
+			UserDataElement.bStartClipped |= ClippingVolume.Mode == ELidarClippingVolumeMode::ClipOutside;
 		}
 
 		UserDataElement.DataBuffer = Node.DataNode->GetDataCache() ? Node.DataNode->GetDataCache()->SRV : nullptr;
@@ -365,7 +353,7 @@ public:
 		return reinterpret_cast<size_t>(&UniquePointer);
 	}
 
-	virtual void UpdateRenderData(FLidarPointCloudProxyUpdateData InRenderData) override { RenderData = InRenderData; }
+	virtual void UpdateRenderData(const FLidarPointCloudProxyUpdateData& InRenderData) override { RenderData = InRenderData; }
 
 public:
 	TSharedPtr<FLidarPointCloudSceneProxyWrapper, ESPMode::ThreadSafe> ProxyWrapper;
@@ -373,7 +361,6 @@ public:
 private:
 	FLidarPointCloudProxyUpdateData RenderData;
 
-	ULidarPointCloudComponent* Component;
 	FMaterialRelevance MaterialRelevance;
 	AActor* Owner;
 
