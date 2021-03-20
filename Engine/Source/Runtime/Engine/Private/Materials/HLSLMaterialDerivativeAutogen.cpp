@@ -538,22 +538,22 @@ int32 FMaterialDerivativeAutogen::GenerateExpressionFunc1(FHLSLMaterialTranslato
 			DstToken = TEXT("TanDeriv(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Asin:
-			DstToken = TEXT("ASinDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AsinDeriv(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::AsinFast:
-			DstToken = TEXT("ASinFastDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AsinFastDeriv(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Acos:
-			DstToken = TEXT("ACosDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AcosDeriv(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::AcosFast:
-			DstToken = TEXT("ACosFastDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AcosFastDeriv(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Atan:
-			DstToken = TEXT("ATanDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AtanDeriv(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::AtanFast:
-			DstToken = TEXT("ATanFastDeriv(") + SrcToken + TEXT(")");
+			DstToken = TEXT("AtanFastDeriv(") + SrcToken + TEXT(")");
 			break;
 		case EFunc1::Sqrt:
 			DstToken = TEXT("SqrtDeriv(") + SrcToken + TEXT(")");
@@ -880,14 +880,15 @@ int32 FMaterialDerivativeAutogen::GenerateRotateScaleOffsetTexCoordsFunc(FHLSLMa
 
 	if (!bAllZeroDeriv && IsDerivativeValid(TexCoordDerivInfo.DerivativeStatus) && IsDerivativeValid(RotationScaleDerivInfo.DerivativeStatus) && IsDerivativeValid(OffsetDerivInfo.DerivativeStatus))
 	{
-		const uint32 ResultTypeIndex = GetDerivTypeIndex(ResultType);
 		FString TexCoordDeriv		= Translator.GetParameterCodeDeriv(TexCoord, CompiledPDV_Analytic);
 		FString RotationScaleDeriv	= Translator.GetParameterCodeDeriv(RotationScale, CompiledPDV_Analytic);
 		FString OffsetDeriv			= Translator.GetParameterCodeDeriv(Offset, CompiledPDV_Analytic);
 
-		TexCoordDeriv		= CoerceValueDeriv(TexCoordDeriv,		TexCoordDerivInfo.TypeIndex,		TexCoordDerivInfo.DerivativeStatus,			ResultTypeIndex);
+		TexCoordDeriv		= CoerceValueDeriv(TexCoordDeriv,		TexCoordDerivInfo.TypeIndex,		TexCoordDerivInfo.DerivativeStatus,			1);
+		RotationScaleDeriv	= CoerceValueDeriv(RotationScaleDeriv,	RotationScaleDerivInfo.TypeIndex,	RotationScaleDerivInfo.DerivativeStatus,	3);
+		OffsetDeriv			= CoerceValueDeriv(OffsetDeriv,			OffsetDerivInfo.TypeIndex,			OffsetDerivInfo.DerivativeStatus,			1);
 
-		FString AnalyticString = FString::Printf(TEXT("RotateScaleOffsetTexCoordsDeriv(%s, %s, SwizzleDeriv2(%s, xy))"), *TexCoordDeriv, *RotationScaleDeriv, *OffsetDeriv);
+		FString AnalyticString = FString::Printf(TEXT("RotateScaleOffsetTexCoordsDeriv(%s, %s, %s)"), *TexCoordDeriv, *RotationScaleDeriv, *OffsetDeriv);
 
 		check(NumResultComponents <= 4);
 		bRotateScaleOffsetTexCoords = true;
