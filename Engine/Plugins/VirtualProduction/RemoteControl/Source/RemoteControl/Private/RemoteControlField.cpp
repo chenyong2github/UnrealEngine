@@ -101,12 +101,15 @@ bool FRemoteControlField::CanBindObject(const UObject* InObjectToBind) const
 
 void FRemoteControlField::PostSerialize(const FArchive& Ar)
 {
-	int32 CustomVersion = Ar.CustomVer(FRemoteControlObjectVersion::GUID);
-	if (CustomVersion < FRemoteControlObjectVersion::AddedRebindingFunctionality)
+	if (Ar.IsLoading())
 	{
-		if (OwnerClass.IsNull())
+		int32 CustomVersion = Ar.CustomVer(FRemoteControlObjectVersion::GUID);
+		if (CustomVersion < FRemoteControlObjectVersion::AddedRebindingFunctionality)
 		{
-			OwnerClass = GetSupportedBindingClass();
+			if (OwnerClass.IsNull())
+			{
+				OwnerClass = GetSupportedBindingClass();
+			}
 		}
 	}
 }
@@ -192,6 +195,7 @@ FProperty* FRemoteControlProperty::GetProperty() const
 void FRemoteControlProperty::PostSerialize(const FArchive& Ar)
 {
 	FRemoteControlField::PostSerialize(Ar);
+
 	if (Ar.IsLoading())
 	{
 		if (!UserMetadata.Contains(MetadataKey_Min)
