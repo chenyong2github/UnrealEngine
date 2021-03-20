@@ -8,21 +8,24 @@
  * Specific implementation of FGCObject that prevents a single UObject-based pointer from being GC'd while this guard is in scope.
  * @note This is the lean version of TStrongObjectPtr which uses an inline FGCObject so *can't* safely be used with containers that treat types as trivially relocatable.
  */
-class FGCObjectScopeGuard : public FGCObject
+template <typename ObjectType>
+class TGCObjectScopeGuard : public FGCObject
 {
+	static_assert(TPointerIsConvertibleFromTo<ObjectType, const UObjectBase>::Value, "TGCObjectScopeGuard: ObjectType must be pointers to a type derived from UObject");
+
 public:
-	explicit FGCObjectScopeGuard(const UObject* InObject)
+	explicit TGCObjectScopeGuard(ObjectType* InObject)
 		: Object(InObject)
 	{
 	}
 
-	virtual ~FGCObjectScopeGuard()
+	virtual ~TGCObjectScopeGuard()
 	{
 	}
 
 	/** Non-copyable */
-	FGCObjectScopeGuard(const FGCObjectScopeGuard&) = delete;
-	FGCObjectScopeGuard& operator=(const FGCObjectScopeGuard&) = delete;
+	TGCObjectScopeGuard(const TGCObjectScopeGuard&) = delete;
+	TGCObjectScopeGuard& operator=(const TGCObjectScopeGuard&) = delete;
 
 	//~ FGCObject interface
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
@@ -32,12 +35,19 @@ public:
 
 	virtual FString GetReferencerName() const override
 	{
-		return TEXT("FGCObjectScopeGuard");
+		return TEXT("TGCObjectScopeGuard");
+	}
+
+	FORCEINLINE_DEBUGGABLE ObjectType* Get() const
+	{
+		return Object;
 	}
 
 private:
-	const UObject* Object;
+	ObjectType* Object;
 };
+
+using FGCObjectScopeGuard = TGCObjectScopeGuard<const UObject>;
 
 /**
  * Specific implementation of FGCObject that prevents an array of UObject-based pointers from being GC'd while this guard is in scope.
@@ -70,6 +80,11 @@ public:
 	virtual FString GetReferencerName() const override
 	{
 		return TEXT("TGCObjectsScopeGuard");
+	}
+
+	FORCEINLINE_DEBUGGABLE const TArray<ObjectType*>& Get() const
+	{
+		return Objects;
 	}
 
 private:
