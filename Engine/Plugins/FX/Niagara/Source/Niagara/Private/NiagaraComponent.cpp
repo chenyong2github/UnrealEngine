@@ -725,7 +725,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 
 		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
-			SystemInstance->ManualTick(DeltaSeconds, ThisTickFunction->IsCompletionHandleValid() ? ThisTickFunction->GetCompletionHandle() : nullptr);
+			SystemInstance->ManualTick(DeltaSeconds, (ThisTickFunction && ThisTickFunction->IsCompletionHandleValid()) ? ThisTickFunction->GetCompletionHandle() : nullptr);
 		}
 		else if(AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge)
 		{
