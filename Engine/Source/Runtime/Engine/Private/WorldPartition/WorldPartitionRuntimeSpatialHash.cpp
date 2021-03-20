@@ -805,16 +805,9 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 
 				UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("Cell%s %s Actors = %d Bounds (%s)"), bIsCellAlwaysLoaded ? TEXT(" (AlwaysLoaded)") : TEXT(""), *StreamingCell->GetName(), FilteredActors.Num(), *Bounds.ToString());
 
-				// Keep track of all AWorldPartitionHLOD actors referenced by this cell
-				TSet<FGuid> ReferencedHLODActors;
-
 				for (const FActorInstance& ActorInstance : FilteredActors)
 				{
 					const FWorldPartitionActorDescView& ActorDescView = ActorInstance.GetActorDescView();
-					if (ActorDescView.GetHLODParent().IsValid())
-					{
-						ReferencedHLODActors.Add(ActorDescView.GetHLODParent());
-					}
 					StreamingCell->AddActorToCell(ActorDescView, ActorInstance.ContainerInstance->ID, ActorInstance.ContainerInstance->Transform, ActorInstance.ContainerInstance->Container);
 
 					// Add all actors of this cell to the ActorsModifiedForPIE (for Duplication)
@@ -831,14 +824,6 @@ bool UWorldPartitionRuntimeSpatialHash::CreateStreamingGrid(const FSpatialHashRu
 					}
 
 					UE_LOG(LogWorldPartitionRuntimeSpatialHash, Verbose, TEXT("  Actor : %s (%s) (Container %08x) Origin(%s)"), *(ActorDescView.GetActorPath().ToString()), *ActorDescView.GetGuid().ToString(EGuidFormats::UniqueObjectGuid), ActorInstance.ContainerInstance->ID, *FVector2D(ActorInstance.GetOrigin()).ToString());
-				}
-
-				if (ReferencedHLODActors.Num() > 0)
-				{
-					// Store the referenced HLOD actors as custom cell data
-					UWorldPartitionRuntimeHLODCellData* HLODCellData = NewObject<UWorldPartitionRuntimeHLODCellData>(StreamingCell);
-					HLODCellData->SetReferencedHLODActors(ReferencedHLODActors.Array());
-					StreamingCell->AddCellData(HLODCellData);
 				}
 
 				if (Mode == EWorldPartitionStreamingMode::Cook)

@@ -42,9 +42,6 @@ public:
 
 	bool GetContainerInstance(const UActorDescContainer*& OutLevelContainer, FTransform& OutLevelTransform, EContainerClusterMode& OutClusterMode) const;
 
-	FGuid GetHLODParent() const;
-	void SetHLODParent(const FGuid& InHLODParent);
-
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
 		return GetGuid() == Other.GetGuid();
@@ -58,6 +55,5 @@ public:
 protected:
 	const FWorldPartitionActorDesc* ActorDesc;
 	EActorGridPlacement EffectiveGridPlacement;
-	FGuid HLODParent;
 };
 #endif

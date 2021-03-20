@@ -29,19 +29,11 @@ UPrimitiveComponent* AWorldPartitionHLOD::GetHLODComponent()
 	return Cast<UPrimitiveComponent>(RootComponent);
 }
 
-void AWorldPartitionHLOD::OnCellShown(FName InCellName)
+void AWorldPartitionHLOD::SetVisibility(bool bInVisible)
 {
 	if (GetRootComponent())
 	{
-		GetRootComponent()->SetVisibility(false, true);
-	}
-}
-
-void AWorldPartitionHLOD::OnCellHidden(FName InCellName)
-{
-	if (GetRootComponent())
-	{
-		GetRootComponent()->SetVisibility(true, true);
+		GetRootComponent()->SetVisibility(bInVisible, /*bPropagateToChildren*/ true);
 	}
 }
 
@@ -55,6 +47,19 @@ void AWorldPartitionHLOD::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	GetWorld()->GetSubsystem<UHLODSubsystem>()->UnregisterHLODActor(this);
 	Super::EndPlay(EndPlayReason);
+}
+
+void AWorldPartitionHLOD::PostLoad()
+{
+	Super::PostLoad();
+
+#if WITH_EDITOR
+	if (CellName == NAME_None)
+	{
+		// Prior to the addition of the cell name member, the cell name was actually stored in the label
+		CellName = *GetActorLabel();
+	}
+#endif
 }
 
 #if WITH_EDITOR
@@ -220,19 +225,9 @@ const TArray<FGuid>& AWorldPartitionHLOD::GetSubActors() const
 	return SubActors;
 }
 
-void AWorldPartitionHLOD::PostActorCreated()
+void AWorldPartitionHLOD::SetCellName(FName InCellName)
 {
-	Super::PostActorCreated();
-	HLODGuid = GetActorGuid();
-}
-
-void AWorldPartitionHLOD::PostDuplicate(bool bDuplicateForPIE)
-{
-	Super::PostDuplicate(bDuplicateForPIE);
-	if (!bDuplicateForPIE)
-	{
-		HLODGuid = GetActorGuid();
-	}
+	CellName = InCellName;
 }
 
 const FBox& AWorldPartitionHLOD::GetHLODBounds() const
@@ -272,21 +267,6 @@ void AWorldPartitionHLOD::BuildHLOD(bool bForceBuild)
 	}
 
 	HLODHash = FHLODBuilderUtilities::BuildHLOD(this);
-}
-
-#endif // WITH_EDITOR
-
-
-UWorldPartitionRuntimeHLODCellData::UWorldPartitionRuntimeHLODCellData(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-#if WITH_EDITOR
-
-void UWorldPartitionRuntimeHLODCellData::SetReferencedHLODActors(TArray<FGuid>&& InReferencedHLODActors)
-{
-	ReferencedHLODActors = MoveTemp(InReferencedHLODActors);
 }
 
 #endif // WITH_EDITOR

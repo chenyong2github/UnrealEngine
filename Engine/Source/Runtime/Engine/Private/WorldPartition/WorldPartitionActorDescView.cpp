@@ -105,15 +105,4 @@ bool FWorldPartitionActorDescView::GetContainerInstance(const UActorDescContaine
 	return ActorDesc->GetContainerInstance(OutLevelContainer, OutLevelTransform, OutClusterMode);
 }
 
-FGuid FWorldPartitionActorDescView::GetHLODParent() const
-{
-	return HLODParent;
-}
-
-void FWorldPartitionActorDescView::SetHLODParent(const FGuid& InHLODParent)
-{
-	check(!HLODParent.IsValid());
-	check(InHLODParent.IsValid());
-	HLODParent = InHLODParent;
-}
 #endif

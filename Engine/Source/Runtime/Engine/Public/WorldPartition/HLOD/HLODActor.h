@@ -17,10 +17,9 @@ class ENGINE_API AWorldPartitionHLOD : public AActor
 	GENERATED_UCLASS_BODY()
 
 public:
-	void OnCellShown(FName InCellName);
-	void OnCellHidden(FName InCellName);
+	void SetVisibility(bool bInVisible);
 
-	const FGuid& GetHLODGuid() const { return HLODGuid; }
+	inline FName GetCellName() const { return CellName; }
 	inline uint32 GetLODLevel() const { return LODLevel; }
 
 #if WITH_EDITOR
@@ -49,6 +48,7 @@ public:
 		OutGridIndexZ = GridIndexZ;
 	}
 
+	void SetCellName(FName InCellName);
 	inline void SetLODLevel(uint32 InLODLevel) { LODLevel = InLODLevel; }
 
 	const FBox& GetHLODBounds() const;
@@ -59,6 +59,10 @@ public:
 #endif // WITH_EDITOR
 
 protected:
+	//~ Begin UObject Interface.
+	virtual void PostLoad() override;
+	//~ End UObject Interface.
+
 	//~ Begin AActor Interface.
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -67,9 +71,6 @@ protected:
 	virtual void PostUnregisterAllComponents() override;
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
-
-	virtual void PostActorCreated() override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 
 	virtual void GetActorBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
 	virtual void GetActorLocationBounds(bool bOnlyCollidingComponents, FVector& Origin, FVector& BoxExtent, bool bIncludeFromChildActors) const override;
@@ -112,25 +113,11 @@ private:
 	uint32 HLODHash;
 #endif
 
-	UPROPERTY(NonPIEDuplicateTransient, TextExportTransient, NonTransactional)
-	FGuid HLODGuid;
-
 	UPROPERTY()
 	uint32 LODLevel;
+
+	UPROPERTY()
+	FName CellName;
 };
 
 DEFINE_ACTORDESC_TYPE(AWorldPartitionHLOD, FHLODActorDesc);
-
-UCLASS()
-class UWorldPartitionRuntimeHLODCellData : public UWorldPartitionRuntimeCellData
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-#if WITH_EDITOR
-	void SetReferencedHLODActors(TArray<FGuid>&& InReferencedHLODActors);
-#endif
-
-	UPROPERTY()
-	TArray<FGuid> ReferencedHLODActors;
-};

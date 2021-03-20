@@ -7,6 +7,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
+#include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectGlobals.h"
 #include "Engine/World.h"
@@ -49,6 +50,18 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		GetWorld()->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorUnloaded);
 	}
 #endif
+
+	if (GetWorld()->IsGameWorld())
+	{
+		TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
+		GetWorld()->GetWorldPartition()->RuntimeHash->GetAllStreamingCells(StreamingCells, /*bIncludeDataLayers*/ true);
+
+		// Build cell to HLOD mapping
+		for (const UWorldPartitionRuntimeCell* Cell : StreamingCells)
+		{
+			CellsHLODMapping.Emplace(Cell->GetFName());
+		}
+	}
 }
 
 #if WITH_EDITOR
@@ -103,18 +116,12 @@ void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::RegisterHLODActor);
 
-	const FGuid& HLODActorGUID = InWorldPartitionHLOD->GetHLODGuid();
-	RegisteredHLODActors.Emplace(HLODActorGUID, InWorldPartitionHLOD);
-
-	TArray<FName> Cells;
-	PendingCellsShown.MultiFind(HLODActorGUID, Cells);
-	if (Cells.Num())
+	FName CellName = InWorldPartitionHLOD->GetCellName();
+	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(CellName);
+	if (CellHLODs)
 	{
-		for (FName Cell : Cells)
-		{ 
-			InWorldPartitionHLOD->OnCellShown(Cell);
-		}
-		PendingCellsShown.Remove(HLODActorGUID);
+		CellHLODs->LoadedHLODs.Add(InWorldPartitionHLOD);
+		InWorldPartitionHLOD->SetVisibility(!CellHLODs->bIsCellVisible);
 	}
 }
 
@@ -122,53 +129,39 @@ void UHLODSubsystem::UnregisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHL
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UHLODSubsystem::UnregisterHLODActor);
 
-	const FGuid& HLODActorGUID = InWorldPartitionHLOD->GetHLODGuid();
-	int32 NumRemoved = RegisteredHLODActors.Remove(HLODActorGUID);
-	check(NumRemoved == 1);
+	FName CellName = InWorldPartitionHLOD->GetCellName();
+	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(CellName);
+	if (CellHLODs)
+	{
+		int32 NumRemoved = CellHLODs->LoadedHLODs.Remove(InWorldPartitionHLOD);
+		check(NumRemoved == 1);
+	}
 }
 
 void UHLODSubsystem::OnCellShown(const UWorldPartitionRuntimeCell* InCell)
 {
-	const UWorldPartitionRuntimeHLODCellData* HLODCellData = InCell->GetCellData<UWorldPartitionRuntimeHLODCellData>();
-	if (!ensure(HLODCellData))
+	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(InCell->GetFName());
+	if (CellHLODs)
 	{
-		return;
-	}
+		CellHLODs->bIsCellVisible = true;
 
-	for (const FGuid& HLODActorGUID : HLODCellData->ReferencedHLODActors)
-	{
-		AWorldPartitionHLOD* HLODActor = RegisteredHLODActors.FindRef(HLODActorGUID);
-		if (HLODActor)
+		for (AWorldPartitionHLOD* HLODActor : CellHLODs->LoadedHLODs)
 		{
-			HLODActor->OnCellShown(InCell->GetFName());
-		}
-		else
-		{
-			// Cell was shown before the HLOD
-			PendingCellsShown.Add(HLODActorGUID, InCell->GetFName());
+			HLODActor->SetVisibility(false);
 		}
 	}
 }
 
 void UHLODSubsystem::OnCellHidden(const UWorldPartitionRuntimeCell* InCell)
 {
-	const UWorldPartitionRuntimeHLODCellData* HLODCellData = InCell->GetCellData<UWorldPartitionRuntimeHLODCellData>();
-	if (!ensure(HLODCellData))
+	FCellHLODMapping* CellHLODs = CellsHLODMapping.Find(InCell->GetFName());
+	if (CellHLODs)
 	{
-		return;
-	}
+		CellHLODs->bIsCellVisible = false;
 
-	for (const FGuid& HLODActorGUID : HLODCellData->ReferencedHLODActors)
-	{
-		AWorldPartitionHLOD* HLODActor = RegisteredHLODActors.FindRef(HLODActorGUID);
-		if (HLODActor)
+		for (AWorldPartitionHLOD* HLODActor : CellHLODs->LoadedHLODs)
 		{
-			HLODActor->OnCellHidden(InCell->GetFName());
-			check(!PendingCellsShown.Find(HLODActorGUID));
-		}
-		else
-		{
-			PendingCellsShown.Remove(HLODActorGUID, InCell->GetFName());
+			HLODActor->SetVisibility(true);
 		}
 	}
 }

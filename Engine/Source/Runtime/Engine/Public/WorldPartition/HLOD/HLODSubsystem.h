@@ -42,11 +42,17 @@ private:
 #endif
 
 private:
-	// Mapping between an HLOD GUID & the loaded actor.
-	TMap<FGuid, AWorldPartitionHLOD*> RegisteredHLODActors;
+	struct FCellHLODMapping
+	{
+		bool						bIsCellVisible;
+		TSet<AWorldPartitionHLOD*>	LoadedHLODs;
 
-	// Cells that where shown before their HLOD was loaded.
-	TMultiMap<FGuid, FName> PendingCellsShown;
+		FCellHLODMapping() : bIsCellVisible(false)
+		{
+		}
+	};
+
+	TMap<FName, FCellHLODMapping> CellsHLODMapping;
 
 #if WITH_EDITORONLY_DATA
 	TMap<FGuid, AWorldPartitionHLOD*> ActorsToHLOD;

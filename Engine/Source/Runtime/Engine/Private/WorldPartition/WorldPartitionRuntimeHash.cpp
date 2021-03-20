@@ -109,18 +109,6 @@ void UWorldPartitionRuntimeHash::CreateActorDescViewMap(const UActorDescContaine
 		}
 	}
 
-	// Set HLOD parents into actor desc views
-	for (UActorDescContainer::TConstIterator<AWorldPartitionHLOD> HLODIterator(Container); HLODIterator; ++HLODIterator)
-	{
-		for (const FGuid& SubActor : HLODIterator->GetSubActors())
-		{
-			if (FWorldPartitionActorDescView* SubActorDescView = OutActorDescViewMap.Find(SubActor))
-			{
-				SubActorDescView->SetHLODParent(HLODIterator->GetGuid());
-			}
-		}
-	}
-
 	// Gather all references to external actors from the level script and make them always loaded
 	if (ULevelScriptBlueprint* LevelScriptBlueprint = Container->GetWorld()->PersistentLevel->GetLevelScriptBlueprint(true))
 	{
