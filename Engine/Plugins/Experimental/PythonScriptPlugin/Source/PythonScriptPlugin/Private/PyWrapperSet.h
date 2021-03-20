@@ -14,7 +14,7 @@ extern PyTypeObject PyWrapperSetType;
 /** Initialize the PyWrapperSet types and add them to the given Python module */
 void InitializePyWrapperSet(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed set instances */
+/** Type for all Unreal exposed set instances */
 struct FPyWrapperSet : public FPyWrapperBase
 {
 	/** The owner of the wrapped set instance (if any) */
@@ -105,7 +105,7 @@ struct FPyWrapperSet : public FPyWrapperBase
 	static int IsSuperset(FPyWrapperSet* InSelf, PyObject* InOther);
 };
 
-/** Meta-data for all UE4 exposed set types */
+/** Meta-data for all Unreal exposed set types */
 struct FPyWrapperSetMetaData : public FPyWrapperBaseMetaData
 {
 	PY_METADATA_METHODS(FPyWrapperSetMetaData, FGuid(0xB31DDC32, 0xAEA548BE, 0xB6FB5AB2, 0x02E5CA83))

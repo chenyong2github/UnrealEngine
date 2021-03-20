@@ -12,7 +12,7 @@ extern PyTypeObject PyWrapperNameType;
 /** Initialize the FPyWrapperName types and add them to the given Python module */
 void InitializePyWrapperName(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed FName instances */
+/** Type for all Unreal exposed FName instances */
 struct FPyWrapperName : public TPyWrapperBasic<FName, FPyWrapperName>
 {
 	typedef TPyWrapperBasic<FName, FPyWrapperName> Super;

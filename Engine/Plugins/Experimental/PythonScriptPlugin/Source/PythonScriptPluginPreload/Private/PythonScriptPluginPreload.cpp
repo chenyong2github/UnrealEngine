@@ -75,7 +75,7 @@ private:
 #if PLATFORM_WINDOWS || PLATFORM_LINUX
 		// Load the DSOs
 		{
-			// Build the full Python directory (UE_PYTHON_DIR may be relative to UE4 engine directory for portability)
+			// Build the full Python directory (UE_PYTHON_DIR may be relative to the engine directory for portability)
 			FString PythonDir = UTF8_TO_TCHAR(UE_PYTHON_DIR);
 			PythonDir.ReplaceInline(TEXT("{ENGINE_DIR}"), *FPaths::EngineDir(), ESearchCase::CaseSensitive);
 			FPaths::NormalizeDirectoryName(PythonDir);

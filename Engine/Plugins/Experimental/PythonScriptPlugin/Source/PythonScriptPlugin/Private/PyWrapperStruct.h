@@ -19,7 +19,7 @@ extern PyTypeObject PyWrapperStructType;
 /** Initialize the PyWrapperStruct types and add them to the given Python module */
 void InitializePyWrapperStruct(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed struct instances */
+/** Type for all Unreal exposed struct instances */
 struct FPyWrapperStruct : public FPyWrapperBase
 {
 	/** The owner of the wrapped struct instance (if any) */
@@ -298,7 +298,7 @@ public:
 	}
 };
 
-/** Meta-data for all UE4 exposed struct types */
+/** Meta-data for all Unreal exposed struct types */
 struct FPyWrapperStructMetaData : public FPyWrapperBaseMetaData
 {
 	PY_METADATA_METHODS(FPyWrapperStructMetaData, FGuid(0x03C9EA75, 0x2C86448B, 0xB53D1453, 0x94AA6BAE))

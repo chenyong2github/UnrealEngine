@@ -779,7 +779,7 @@ PyTypeObject InitializePyWrapperDelegateType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed delegate instances";
+	PyType.tp_doc = "Type for all Unreal exposed delegate instances";
 
 	static PyNumberMethods PyNumber;
 #if PY_MAJOR_VERSION >= 3
@@ -1207,7 +1207,7 @@ PyTypeObject InitializePyWrapperMulticastDelegateType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed multicast delegate instances";
+	PyType.tp_doc = "Type for all Unreal exposed multicast delegate instances";
 
 	static PyNumberMethods PyNumber;
 #if PY_MAJOR_VERSION >= 3

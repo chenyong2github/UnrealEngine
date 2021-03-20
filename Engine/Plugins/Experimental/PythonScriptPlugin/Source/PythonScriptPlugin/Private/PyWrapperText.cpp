@@ -465,7 +465,7 @@ PyTypeObject InitializePyWrapperTextType()
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
-	PyTypeObject PyType = InitializePyWrapperBasicType<FPyWrapperText>("Text", "Type for all UE4 exposed text instances");
+	PyTypeObject PyType = InitializePyWrapperBasicType<FPyWrapperText>("Text", "Type for all Unreal exposed text instances");
 
 	PyType.tp_init = (initproc)&FFuncs::Init;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;

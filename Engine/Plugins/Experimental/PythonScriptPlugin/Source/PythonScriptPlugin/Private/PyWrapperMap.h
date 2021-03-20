@@ -14,7 +14,7 @@ extern PyTypeObject PyWrapperMapType;
 /** Initialize the PyWrapperMap types and add them to the given Python module */
 void InitializePyWrapperMap(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed map instances */
+/** Type for all Unreal exposed map instances */
 struct FPyWrapperMap : public FPyWrapperBase
 {
 	/** The owner of the wrapped map instance (if any) */
@@ -93,7 +93,7 @@ struct FPyWrapperMap : public FPyWrapperBase
 	static FPyWrapperMap* FromKeys(PyObject* InSequence, PyObject* InValue, PyTypeObject* InType);
 };
 
-/** Meta-data for all UE4 exposed map types */
+/** Meta-data for all Unreal exposed map types */
 struct FPyWrapperMapMetaData : public FPyWrapperBaseMetaData
 {
 	PY_METADATA_METHODS(FPyWrapperMapMetaData, FGuid(0xA6AAB38C, 0x5C174F81, 0xB80FA903, 0xBF50C8A2))

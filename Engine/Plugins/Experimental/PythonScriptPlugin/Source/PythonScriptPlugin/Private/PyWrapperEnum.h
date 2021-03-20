@@ -17,7 +17,7 @@ extern PyTypeObject PyWrapperEnumValueDescrType;
 /** Initialize the PyWrapperEnum types and add them to the given Python module */
 void InitializePyWrapperEnum(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed enum instances (an instance is created for each entry in the enum, before the enum type is locked for creating new instances) */
+/** Type for all Unreal exposed enum instances (an instance is created for each entry in the enum, before the enum type is locked for creating new instances) */
 struct FPyWrapperEnum : public FPyWrapperBase
 {
 	/** Name of this enum entry */
@@ -60,7 +60,7 @@ struct FPyWrapperEnum : public FPyWrapperBase
 	static FPyWrapperEnum* AddEnumEntry(PyTypeObject* InType, const int64 InEnumEntryValue, const char* InEnumEntryName, const char* InEnumEntryDoc);
 };
 
-/** Meta-data for all UE4 exposed enum types */
+/** Meta-data for all Unreal exposed enum types */
 struct FPyWrapperEnumMetaData : public FPyWrapperBaseMetaData
 {
 	PY_METADATA_METHODS(FPyWrapperEnumMetaData, FGuid(0x1D69987C, 0x2F624403, 0x8379FCB5, 0xF896B595))

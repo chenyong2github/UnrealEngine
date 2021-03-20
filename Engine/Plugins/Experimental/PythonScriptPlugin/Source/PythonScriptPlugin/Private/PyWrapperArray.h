@@ -14,7 +14,7 @@ extern PyTypeObject PyWrapperArrayType;
 /** Initialize the PyWrapperArray types and add them to the given Python module */
 void InitializePyWrapperArray(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed array instances */
+/** Type for all Unreal exposed array instances */
 struct FPyWrapperArray : public FPyWrapperBase
 {
 	/** The owner of the wrapped array instance (if any) */
@@ -106,7 +106,7 @@ struct FPyWrapperArray : public FPyWrapperBase
 	static int Resize(FPyWrapperArray* InSelf, Py_ssize_t InLen);
 };
 
-/** Meta-data for all UE4 exposed array types */
+/** Meta-data for all Unreal exposed array types */
 struct FPyWrapperArrayMetaData : public FPyWrapperBaseMetaData
 {
 	PY_METADATA_METHODS(FPyWrapperArrayMetaData, FGuid(0xFCD8DF06, 0x7AD6426F, 0x97482D82, 0x6E100C39))

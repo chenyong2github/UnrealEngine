@@ -1227,7 +1227,7 @@ PyTypeObject InitializePyWrapperStructType()
 #if PY_MAJOR_VERSION < 3
 	PyType.tp_flags |= Py_TPFLAGS_CHECKTYPES;
 #endif	// PY_MAJOR_VERSION < 3
-	PyType.tp_doc = "Type for all UE4 exposed struct instances";
+	PyType.tp_doc = "Type for all Unreal exposed struct instances";
 
 	static PyNumberMethods PyNumber;
 #if PY_MAJOR_VERSION >= 3

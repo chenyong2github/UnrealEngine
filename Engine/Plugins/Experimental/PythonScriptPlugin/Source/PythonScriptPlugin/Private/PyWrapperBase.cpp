@@ -87,7 +87,7 @@ PyTypeObject InitializePyWrapperBaseType()
 	PyType.tp_init = (initproc)&FFuncs::Init;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Base type for all UE4 exposed types";
+	PyType.tp_doc = "Base type for all Unreal exposed types";
 
 	return PyType;
 }

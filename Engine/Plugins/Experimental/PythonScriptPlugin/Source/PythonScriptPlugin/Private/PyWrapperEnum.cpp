@@ -435,7 +435,7 @@ PyTypeObject InitializePyWrapperEnumType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-	PyType.tp_doc = "Type for all UE4 exposed enum instances";
+	PyType.tp_doc = "Type for all Unreal exposed enum instances";
 
 	return PyType;
 }
@@ -580,7 +580,7 @@ PyTypeObject InitializePyWrapperEnumMetaclassType()
 	PyType.tp_iter = (getiterfunc)&FFuncs::GetIter;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-	PyType.tp_doc = "Metaclass type for all UE4 exposed enum instances";
+	PyType.tp_doc = "Metaclass type for all Unreal exposed enum instances";
 
 	static PySequenceMethods PySequence;
 	PySequence.sq_length = (lenfunc)&FSequenceFuncs::Len;
@@ -651,7 +651,7 @@ PyTypeObject InitializePyWrapperEnumIteratorType()
 	PyType.tp_iternext = (iternextfunc)&FFuncs::IterNext;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed enum iterators";
+	PyType.tp_doc = "Type for all Unreal exposed enum iterators";
 
 	return PyType;
 }

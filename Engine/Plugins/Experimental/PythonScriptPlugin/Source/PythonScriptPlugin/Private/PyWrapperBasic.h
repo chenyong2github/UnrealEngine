@@ -44,7 +44,7 @@ PyTypeObject InitializePyWrapperBasicType(const char* InTypeName, const char* In
 	return PyType;
 }
 
-/** Base type for any UE4 exposed simple value instances (that just copy data into Python) */
+/** Base type for any Unreal exposed simple value instances (that just copy data into Python) */
 template <typename ValueType, typename SelfType>
 struct TPyWrapperBasic : public FPyWrapperBase
 {

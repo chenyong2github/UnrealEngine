@@ -20,7 +20,7 @@ extern PyTypeObject PyWrapperBaseType;
 /** Initialize the PyWrapperBase types and add them to the given Python module */
 void InitializePyWrapperBase(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Base type for all UE4 exposed instances */
+/** Base type for all Unreal exposed instances */
 struct FPyWrapperBase
 {
 	/** Common Python Object */
@@ -49,7 +49,7 @@ struct FPyWrapperBase
 	static FGuid StaticTypeId() { return (GUID); }																				\
 	virtual FGuid GetTypeId() const override { return StaticTypeId(); }
 
-/** Base meta-data for all UE4 exposed types */
+/** Base meta-data for all Unreal exposed types */
 struct FPyWrapperBaseMetaData
 {
 	/** Set the meta-data object on the given type */

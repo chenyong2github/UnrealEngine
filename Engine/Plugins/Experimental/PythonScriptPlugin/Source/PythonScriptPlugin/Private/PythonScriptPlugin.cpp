@@ -618,7 +618,7 @@ void FPythonScriptPlugin::InitializePython()
 
 	// Set-up the correct home path
 	{
-		// Build the full Python directory (UE_PYTHON_DIR may be relative to UE4 engine directory for portability)
+		// Build the full Python directory (UE_PYTHON_DIR may be relative to the engine directory for portability)
 		FString PythonDir = UTF8_TO_TCHAR(UE_PYTHON_DIR);
 		PythonDir.ReplaceInline(TEXT("{ENGINE_DIR}"), *FPaths::EngineDir(), ESearchCase::CaseSensitive);
 		FPaths::NormalizeDirectoryName(PythonDir);
@@ -630,7 +630,7 @@ void FPythonScriptPlugin::InitializePython()
 	{
 		UE_LOG(LogPython, Log, TEXT("Using Python %d.%d.%d"), PY_MAJOR_VERSION, PY_MINOR_VERSION, PY_MICRO_VERSION);
 
-		// Python 3 changes the console mode from O_TEXT to O_BINARY which affects other UE4 uses of the console
+		// Python 3 changes the console mode from O_TEXT to O_BINARY which affects other uses of the console
 		// So change the console mode back to its current setting after Py_Initialize has been called
 #if PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
 		// We call _setmode here to cache the current state
@@ -646,7 +646,7 @@ void FPythonScriptPlugin::InitializePython()
 #endif	// PLATFORM_WINDOWS && PY_MAJOR_VERSION >= 3
 
 #if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 7
-		// Python 3.7+ changes the C locale which affects UE4 functions using C string APIs
+		// Python 3.7+ changes the C locale which affects functions using C string APIs
 		// So change the C locale back to its current setting after Py_Initialize has been called
 		FString CurrentLocale;
 		if (const char* CurrentLocalePtr = setlocale(LC_ALL, nullptr))
@@ -660,9 +660,9 @@ void FPythonScriptPlugin::InitializePython()
 #endif	// PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 4
 		Py_SetProgramName(PyProgramName.GetData());
 		Py_SetPythonHome(PyHomePath.GetData());
-		Py_InitializeEx(0); // 0 so Python doesn't override any UE4 signal handling
+		Py_InitializeEx(0); // 0 so Python doesn't override any signal handling
 
-		// Ensure Python supports multiple threads via the GIL, as UE4 GC runs over multiple threads, 
+		// Ensure Python supports multiple threads via the GIL, as UE GC runs over multiple threads, 
 		// which may invoke FPyReferenceCollector::AddReferencedObjects on a background thread...
 		if (!PyEval_ThreadsInitialized())
 		{
@@ -1287,7 +1287,7 @@ bool FPythonScriptPlugin::RunFile(const TCHAR* InFile, const TCHAR* InArgs, FPyt
 			FPythonScopedArgv ScopedArgv(InArgs);
 
 			FDelegateHandle LogCaptureHandle = PyCore::GetPythonLogCapture().AddLambda([&InOutPythonCommand](EPythonLogOutputType InLogType, const TCHAR* InLogString) { InOutPythonCommand.LogOutput.Add(FPythonLogOutputEntry{ InLogType, InLogString }); });
-			PyResult = FPyObjectPtr::StealReference(EvalString(*FileStr, *ResolvedFilePath, Py_file_input, PyFileGlobalDict, PyFileLocalDict)); // We can't just use PyRun_File here as Python isn't always built against the same version of the CRT as UE4, so we get a crash at the CRT layer
+			PyResult = FPyObjectPtr::StealReference(EvalString(*FileStr, *ResolvedFilePath, Py_file_input, PyFileGlobalDict, PyFileLocalDict)); // We can't just use PyRun_File here as Python isn't always built against the same version of the CRT as UE, so we get a crash at the CRT layer
 			PyCore::GetPythonLogCapture().Remove(LogCaptureHandle);
 		}
 

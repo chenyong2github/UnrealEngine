@@ -995,7 +995,7 @@ PyTypeObject InitializePyUFunctionDefType()
 }
 
 
-PyTypeObject PyDelegateHandleType = InitializePyWrapperBasicType<FPyDelegateHandle>("_DelegateHandle", "Type for all UE4 exposed FDelegateHandle instances");
+PyTypeObject PyDelegateHandleType = InitializePyWrapperBasicType<FPyDelegateHandle>("_DelegateHandle", "Type for all Unreal exposed FDelegateHandle instances");
 PyTypeObject PyScopedSlowTaskType = InitializePyScopedSlowTaskType();
 PyTypeObject PyObjectIteratorType = InitializePyObjectIteratorType();
 PyTypeObject PyClassIteratorType = InitializePyTypeIteratorType<UClass, FPyClassIterator>("ClassIterator", "Type for iterating Unreal class types");

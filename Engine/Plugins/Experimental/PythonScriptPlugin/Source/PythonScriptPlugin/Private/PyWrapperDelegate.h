@@ -63,7 +63,7 @@ extern PyTypeObject PyWrapperMulticastDelegateType;
 /** Initialize the PyWrapperDelegate types and add them to the given Python module */
 void InitializePyWrapperDelegate(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Base type for all UE4 exposed delegate instances */
+/** Base type for all Unreal exposed delegate instances */
 template <typename DelegateType>
 struct TPyWrapperDelegate : public FPyWrapperBase
 {
@@ -77,7 +77,7 @@ struct TPyWrapperDelegate : public FPyWrapperBase
 	DelegateType InternalDelegateInstance;
 };
 
-/** Base meta-data for all UE4 exposed delegate types */
+/** Base meta-data for all Unreal exposed delegate types */
 template <typename WrapperType>
 struct TPyWrapperDelegateMetaData : public FPyWrapperBaseMetaData
 {
@@ -135,7 +135,7 @@ struct TPyWrapperDelegateMetaData : public FPyWrapperBaseMetaData
 	const UClass* PythonCallableForDelegateClass;
 };
 
-/** Type for all UE4 exposed delegate instances */
+/** Type for all Unreal exposed delegate instances */
 struct FPyWrapperDelegate : public TPyWrapperDelegate<FScriptDelegate>
 {
 	/** New this wrapper instance (called via tp_new for Python, or directly in C++) */
@@ -166,7 +166,7 @@ struct FPyWrapperDelegate : public TPyWrapperDelegate<FScriptDelegate>
 	static PyObject* CallDelegate(FPyWrapperDelegate* InSelf, PyObject* InArgs);
 };
 
-/** Meta-data for all UE4 exposed delegate types */
+/** Meta-data for all Unreal exposed delegate types */
 struct FPyWrapperDelegateMetaData : public TPyWrapperDelegateMetaData<FPyWrapperDelegate>
 {
 	PY_METADATA_METHODS(FPyWrapperDelegateMetaData, FGuid(0xCB3D0485, 0x8A3A443E, 0xBEE336F4, 0x82888A81))
@@ -175,7 +175,7 @@ struct FPyWrapperDelegateMetaData : public TPyWrapperDelegateMetaData<FPyWrapper
 	virtual void AddReferencedObjects(FPyWrapperBase* Instance, FReferenceCollector& Collector) override;
 };
 
-/** Type for all UE4 exposed multicast delegate instances */
+/** Type for all Unreal exposed multicast delegate instances */
 struct FPyWrapperMulticastDelegate : public TPyWrapperDelegate<FMulticastScriptDelegate>
 {
 	/** New this wrapper instance (called via tp_new for Python, or directly in C++) */
@@ -206,7 +206,7 @@ struct FPyWrapperMulticastDelegate : public TPyWrapperDelegate<FMulticastScriptD
 	static PyObject* CallDelegate(FPyWrapperMulticastDelegate* InSelf, PyObject* InArgs);
 };
 
-/** Meta-data for all UE4 exposed multicast delegate types */
+/** Meta-data for all Unreal exposed multicast delegate types */
 struct FPyWrapperMulticastDelegateMetaData : public TPyWrapperDelegateMetaData<FPyWrapperMulticastDelegate>
 {
 	PY_METADATA_METHODS(FPyWrapperMulticastDelegateMetaData, FGuid(0x448FB4DA, 0x38DC4386, 0xBCAFF448, 0x29C0F3A4))

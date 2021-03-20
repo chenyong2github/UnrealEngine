@@ -12,7 +12,7 @@ extern PyTypeObject PyWrapperTextType;
 /** Initialize the FPyWrapperText types and add them to the given Python module */
 void InitializePyWrapperText(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed FText instances */
+/** Type for all Unreal exposed FText instances */
 struct FPyWrapperText : public TPyWrapperBasic<FText, FPyWrapperText>
 {
 	typedef TPyWrapperBasic<FText, FPyWrapperText> Super;

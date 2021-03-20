@@ -819,7 +819,7 @@ PyTypeObject InitializePyWrapperFixedArrayType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed fixed-array instances";
+	PyType.tp_doc = "Type for all Unreal exposed fixed-array instances";
 
 	static PySequenceMethods PySequence;
 	PySequence.sq_length = (lenfunc)&FSequenceFuncs::Len;
@@ -893,7 +893,7 @@ PyTypeObject InitializePyWrapperFixedArrayIteratorType()
 	PyType.tp_iternext = (iternextfunc)&FFuncs::IterNext;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed fixed-array iterators";
+	PyType.tp_doc = "Type for all Unreal exposed fixed-array iterators";
 
 	return PyType;
 }

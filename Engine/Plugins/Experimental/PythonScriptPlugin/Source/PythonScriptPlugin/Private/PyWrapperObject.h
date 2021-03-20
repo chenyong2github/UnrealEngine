@@ -16,7 +16,7 @@ extern PyTypeObject PyWrapperObjectType;
 /** Initialize the PyWrapperObject types and add them to the given Python module */
 void InitializePyWrapperObject(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed object instances */
+/** Type for all Unreal exposed object instances */
 struct FPyWrapperObject : public FPyWrapperBase
 {
 	/** Wrapped object instance */
@@ -101,7 +101,7 @@ struct FPyWrapperObject : public FPyWrapperBase
 	static int Setter_Impl(FPyWrapperObject* InSelf, PyObject* InValue, void* InClosure);
 };
 
-/** Meta-data for all UE4 exposed object types */
+/** Meta-data for all Unreal exposed object types */
 struct FPyWrapperObjectMetaData : public FPyWrapperBaseMetaData
 {
 	PY_METADATA_METHODS(FPyWrapperObjectMetaData, FGuid(0x89FC2465, 0xA83F4F31, 0xBBCC1E86, 0xE9D76551))

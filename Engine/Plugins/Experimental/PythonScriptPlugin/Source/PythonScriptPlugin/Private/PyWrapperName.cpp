@@ -167,7 +167,7 @@ PyTypeObject InitializePyWrapperNameType()
 		{ nullptr, nullptr, 0, nullptr }
 	};
 
-	PyTypeObject PyType = InitializePyWrapperBasicType<FPyWrapperName>("Name", "Type for all UE4 exposed name instances");
+	PyTypeObject PyType = InitializePyWrapperBasicType<FPyWrapperName>("Name", "Type for all Unreal exposed name instances");
 
 	PyType.tp_init = (initproc)&FFuncs::Init;
 	PyType.tp_str = (reprfunc)&FFuncs::Str;

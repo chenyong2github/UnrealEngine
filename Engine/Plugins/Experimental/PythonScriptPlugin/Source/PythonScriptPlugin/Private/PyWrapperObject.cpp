@@ -1010,7 +1010,7 @@ PyTypeObject InitializePyWrapperObjectType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE;
-	PyType.tp_doc = "Type for all UE4 exposed object instances";
+	PyType.tp_doc = "Type for all Unreal exposed object instances";
 
 	return PyType;
 }

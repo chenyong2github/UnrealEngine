@@ -14,7 +14,7 @@ extern PyTypeObject PyWrapperFixedArrayType;
 /** Initialize the PyWrapperFixedArray types and add them to the given Python module */
 void InitializePyWrapperFixedArray(PyGenUtil::FNativePythonModule& ModuleInfo);
 
-/** Type for all UE4 exposed fixed-array instances */
+/** Type for all Unreal exposed fixed-array instances */
 struct FPyWrapperFixedArray : public FPyWrapperBase
 {
 	/** The owner of the wrapped fixed-array instance (if any) */
@@ -72,7 +72,7 @@ struct FPyWrapperFixedArray : public FPyWrapperBase
 	static FPyWrapperFixedArray* Repeat(FPyWrapperFixedArray* InSelf, Py_ssize_t InMultiplier);
 };
 
-/** Meta-data for all UE4 exposed fixed-array types */
+/** Meta-data for all Unreal exposed fixed-array types */
 struct FPyWrapperFixedArrayMetaData : public FPyWrapperBaseMetaData
 {
 	PY_METADATA_METHODS(FPyWrapperFixedArrayMetaData, FGuid(0x8A8CA89E, 0xC8F04627, 0xA7D2B568, 0xB086C02E))

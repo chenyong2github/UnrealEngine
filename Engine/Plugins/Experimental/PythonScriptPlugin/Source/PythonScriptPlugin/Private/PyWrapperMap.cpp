@@ -1611,7 +1611,7 @@ PyTypeObject InitializePyWrapperMapType()
 	PyType.tp_methods = PyMethods;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed map instances";
+	PyType.tp_doc = "Type for all Unreal exposed map instances";
 
 	static PySequenceMethods PySequence;
 	PySequence.sq_contains = (objobjproc)&FSequenceFuncs::Contains;
@@ -1683,7 +1683,7 @@ PyTypeObject InitializePyWrapperMapIteratorType(const char* InName)
 	PyType.tp_iternext = (iternextfunc)&FFuncs::IterNext;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed map iterators";
+	PyType.tp_doc = "Type for all Unreal exposed map iterators";
 
 	return PyType;
 }
@@ -1757,7 +1757,7 @@ PyTypeObject InitializePyWrapperMapViewType(const char* InName)
 	PyType.tp_iter = (getiterfunc)&FFuncs::GetIter;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed map views";
+	PyType.tp_doc = "Type for all Unreal exposed map views";
 
 	static PySequenceMethods PySequence;
 	PySequence.sq_length = (lenfunc)&FSequenceFuncs::Len;

@@ -48,7 +48,7 @@ extern PyTypeObject PyFPropertyDefType;
 /** Python type for FPyUFunctionDef */
 extern PyTypeObject PyUFunctionDefType;
 
-/** Type for all UE4 exposed FDelegateHandle instances */
+/** Type for all Unreal exposed FDelegateHandle instances */
 struct FPyDelegateHandle : public TPyWrapperBasic<FDelegateHandle, FPyDelegateHandle>
 {
 	typedef TPyWrapperBasic<FDelegateHandle, FPyDelegateHandle> Super;

@@ -1518,7 +1518,7 @@ PyTypeObject InitializePyWrapperSetType()
 #if PY_MAJOR_VERSION < 3
 	PyType.tp_flags |= Py_TPFLAGS_CHECKTYPES;
 #endif	// PY_MAJOR_VERSION < 3
-	PyType.tp_doc = "Type for all UE4 exposed set instances";
+	PyType.tp_doc = "Type for all Unreal exposed set instances";
 
 	static PyNumberMethods PyNumber;
 	PyNumber.nb_subtract = (binaryfunc)&FNumberFuncs::Sub;
@@ -1595,7 +1595,7 @@ PyTypeObject InitializePyWrapperSetIteratorType()
 	PyType.tp_iternext = (iternextfunc)&FFuncs::IterNext;
 
 	PyType.tp_flags = Py_TPFLAGS_DEFAULT;
-	PyType.tp_doc = "Type for all UE4 exposed set iterators";
+	PyType.tp_doc = "Type for all Unreal exposed set iterators";
 
 	return PyType;
 }
