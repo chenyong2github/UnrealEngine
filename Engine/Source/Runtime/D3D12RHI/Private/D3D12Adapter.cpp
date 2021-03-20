@@ -11,6 +11,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 #include "Windows/AllowWindowsPlatformTypes.h"
 #if PLATFORM_WINDOWS
 #include "Windows/WindowsPlatformMisc.h"
+#include "Windows/WindowsPlatformStackWalk.h"
 #endif
 
 #if !PLATFORM_CPU_ARM_FAMILY && (PLATFORM_WINDOWS)
@@ -1244,3 +1245,145 @@ void FD3D12Adapter::BlockUntilIdle()
 		GetDevice(GPUIndex)->BlockUntilIdle();
 	}
 }
+
+
+void FD3D12Adapter::TrackAllocationData(FD3D12ResourceLocation* InAllocation, const D3D12_RESOURCE_ALLOCATION_INFO& InInfo)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	FTrackedAllocationData AllocationData;
+	AllocationData.ResourceAllocation = InAllocation;
+	AllocationData.AllocationInfo = InInfo;
+	AllocationData.StackDepth = FPlatformStackWalk::CaptureStackBackTrace(&AllocationData.Stack[0], FTrackedAllocationData::MaxStackDepth);
+
+	FScopeLock Lock(&TrackedAllocationDataCS);
+	check(!TrackedAllocationData.Contains(InAllocation));
+	TrackedAllocationData.Add(InAllocation, AllocationData);
+#endif
+}
+
+void FD3D12Adapter::ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation)
+{
+#if TRACK_RESOURCE_ALLOCATIONS
+	FScopeLock Lock(&TrackedAllocationDataCS);
+	verify(TrackedAllocationData.Remove(InAllocation) == 1);
+#endif
+}
+
+#if TRACK_RESOURCE_ALLOCATIONS
+
+static FAutoConsoleCommandWithOutputDevice GDumpTrackedD3D12AllocationsCmd(
+	TEXT("D3D12.DumpTrackedAllocations"),
+	TEXT("Dump all tracked d3d12 resource allocations."),
+	FConsoleCommandWithOutputDeviceDelegate::CreateStatic([](FOutputDevice& OutputDevice)
+	{
+		FD3D12DynamicRHI::GetD3DRHI()->GetAdapter().DumpTrackedAllocationData(OutputDevice, false);
+	})
+);
+
+static FAutoConsoleCommandWithOutputDevice GDumpTrackedD3D12AllocationCallstacksCmd(
+	TEXT("D3D12.DumpTrackedAllocationCallstacks"),
+	TEXT("Dump all tracked d3d12 resource allocation callstacks."),
+	FConsoleCommandWithOutputDeviceDelegate::CreateStatic([](FOutputDevice& OutputDevice)
+	{
+		FD3D12DynamicRHI::GetD3DRHI()->GetAdapter().DumpTrackedAllocationData(OutputDevice, true);
+	})
+);
+
+void FD3D12Adapter::DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool bWithCallstack)
+{
+	FScopeLock Lock(&TrackedAllocationDataCS);
+
+	TArray<FTrackedAllocationData> Allocations;
+	TrackedAllocationData.GenerateValueArray(Allocations);
+	Allocations.Sort([](const FTrackedAllocationData& InLHS, const FTrackedAllocationData& InRHS)
+		{
+			return InLHS.AllocationInfo.SizeInBytes > InRHS.AllocationInfo.SizeInBytes;
+		});
+
+	TArray<FTrackedAllocationData> BufferAllocations;	
+	TArray<FTrackedAllocationData> TextureAllocations;
+	uint64 TotalBufferAllocationSize = 0;
+	uint64 TotalTextureAllocationSize = 0;
+	for (FTrackedAllocationData& AllocationData : Allocations)
+	{
+		D3D12_RESOURCE_DESC ResourceDesc = AllocationData.ResourceAllocation->GetResource()->GetDesc();
+		if (ResourceDesc.Dimension == D3D12_RESOURCE_DIMENSION_BUFFER)
+		{
+			BufferAllocations.Add(AllocationData);
+			TotalBufferAllocationSize += AllocationData.AllocationInfo.SizeInBytes;
+		}
+		else
+		{
+			TextureAllocations.Add(AllocationData);
+			TotalTextureAllocationSize += AllocationData.AllocationInfo.SizeInBytes;
+		}
+	}
+
+	const size_t STRING_SIZE = 16 * 1024;
+	ANSICHAR StackTrace[STRING_SIZE];
+
+	FString OutputData;
+	OutputData += FString::Printf(TEXT("\n%d Tracked Texture Allocations (Total size: %4.3fMB):\n"), TextureAllocations.Num(), TotalTextureAllocationSize / (1024.0f * 1024));
+	for (const FTrackedAllocationData& AllocationData : TextureAllocations)
+	{
+		D3D12_RESOURCE_DESC ResourceDesc = AllocationData.ResourceAllocation->GetResource()->GetDesc();
+
+		FString Flags;
+		if (EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET))
+		{
+			Flags += "RT";
+		}
+		else if (EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL))
+		{
+			Flags += "DS";
+		}
+		if (EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS))
+		{
+			Flags += EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET | D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL) ? "|UAV" : "UAV";
+		}
+
+		OutputData += FString::Printf(TEXT("\tName: %s - Size: %3.3fMB - Width: %d - Height: %d - DepthOrArraySize: %d - MipLevels: %d - Flags: %s\n"), 
+			*AllocationData.ResourceAllocation->GetResource()->GetName().ToString(), 
+			AllocationData.AllocationInfo.SizeInBytes / (1024.0f * 1024),
+			ResourceDesc.Width, ResourceDesc.Height, ResourceDesc.DepthOrArraySize, ResourceDesc.MipLevels,
+			Flags.IsEmpty() ? TEXT("None") : *Flags);
+
+		if (bWithCallstack)
+		{
+			static uint32 EntriesToSkip = 3;
+			for (uint32 Index = EntriesToSkip; Index < AllocationData.StackDepth; ++Index)
+			{
+				StackTrace[0] = 0;
+				FPlatformStackWalk::ProgramCounterToHumanReadableString(Index, AllocationData.Stack[Index], StackTrace, STRING_SIZE, nullptr);
+				OutputData += FString::Printf(TEXT("\t\t%d %s\n"), Index - EntriesToSkip, ANSI_TO_TCHAR(StackTrace));
+			}
+		}
+	}
+
+	OutputData += FString::Printf(TEXT("\n\n%d Tracked Buffer Allocations (Total size: %4.3fMB):\n"), BufferAllocations.Num(), TotalBufferAllocationSize / (1024.0f * 1024));
+	for (const FTrackedAllocationData& AllocationData : BufferAllocations)
+	{
+		D3D12_RESOURCE_DESC ResourceDesc = AllocationData.ResourceAllocation->GetResource()->GetDesc();
+
+		OutputData += FString::Printf(TEXT("\tName: %s - Size: %3.3fMB - Width: %d - UAV: %s\n"), 
+			*AllocationData.ResourceAllocation->GetResource()->GetName().ToString(), 
+			AllocationData.AllocationInfo.SizeInBytes / (1024.0f * 1024),
+			ResourceDesc.Width,
+			EnumHasAnyFlags(ResourceDesc.Flags, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS) ? TEXT("Yes") : TEXT("No"));
+
+		if (bWithCallstack)
+		{
+			static uint32 EntriesToSkip = 3;
+			for (uint32 Index = EntriesToSkip; Index < AllocationData.StackDepth; ++Index)
+			{
+				StackTrace[0] = 0;
+				FPlatformStackWalk::ProgramCounterToHumanReadableString(Index, AllocationData.Stack[Index], StackTrace, STRING_SIZE, nullptr);
+				OutputData += FString::Printf(TEXT("\t\t%d %s\n"), Index - EntriesToSkip, ANSI_TO_TCHAR(StackTrace));
+			}
+		}
+	}
+
+	OutputDevice.Log(OutputData);
+}
+
+#endif // TRACK_RESOURCE_ALLOCATIONS

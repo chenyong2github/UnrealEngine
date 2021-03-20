@@ -829,6 +829,16 @@ void FD3D12ResourceLocation::UpdateStandAloneStats(bool bIncrement)
 				INC_MEMORY_STAT_BY(STAT_D3D12TextureStandAloneAllocated, SizeInBytes);
 			}
 		}
+
+		// Track all committed resource allocations
+		if (bIncrement)
+		{
+			UnderlyingResource->GetParentDevice()->GetParentAdapter()->TrackAllocationData(this, Info);
+		}
+		else
+		{
+			UnderlyingResource->GetParentDevice()->GetParentAdapter()->ReleaseTrackedAllocationData(this);
+		}
 	}
 }
 

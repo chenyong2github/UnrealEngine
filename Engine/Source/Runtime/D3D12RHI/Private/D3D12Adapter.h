@@ -328,6 +328,10 @@ public:
 
 	FORCEINLINE uint32 GetFrameCount() const { return FrameCounter; }
 
+	void TrackAllocationData(FD3D12ResourceLocation* InAllocation, const D3D12_RESOURCE_ALLOCATION_INFO& InInfo);
+	void ReleaseTrackedAllocationData(FD3D12ResourceLocation* InAllocation);
+	void DumpTrackedAllocationData(FOutputDevice& OutputDevice, bool bWithCallstack);
+
 #if D3D12_SUBMISSION_GAP_RECORDER
 	FD3D12SubmissionGapRecorder SubmissionGapRecorder;
 
@@ -425,6 +429,20 @@ protected:
 	FD3D12CommandContextRedirector DefaultAsyncComputeContextRedirector;
 
 	uint32 FrameCounter;
+
+	/** Information about an allocated resource. */
+	struct FTrackedAllocationData
+	{
+		static const int32 MaxStackDepth = 30;
+
+		FD3D12ResourceLocation* ResourceAllocation;
+		D3D12_RESOURCE_ALLOCATION_INFO AllocationInfo;
+		uint32 StackDepth;
+		uint64 Stack[MaxStackDepth];
+	};
+	/** Tracked resource information. */
+	TMap<FD3D12ResourceLocation*, FTrackedAllocationData> TrackedAllocationData;
+	FCriticalSection TrackedAllocationDataCS;
 
 #if D3D12_SUBMISSION_GAP_RECORDER
 	TArray<uint64> StartOfSubmissionTimestamps;
