@@ -74,7 +74,13 @@ bool UActorElementEditorWorldInterface::DeleteElements(TArrayView<const FTypedEl
 		&& GUnrealEd->DeleteActors(ActorsToDelete, InWorld, InSelectionSet, InDeletionOptions.VerifyDeletionCanHappen(), InDeletionOptions.WarnAboutReferences(), InDeletionOptions.WarnAboutSoftReferences());
 }
 
-void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
+bool UActorElementEditorWorldInterface::CanDuplicateElement(const FTypedElementHandle& InElementHandle)
+{
+	AActor* Actor = ActorElementDataUtil::GetActorFromHandle(InElementHandle);
+	return Actor != nullptr; // All actors can be duplicated
+}
+
+void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 {
 	const TArray<AActor*> ActorsToDuplicate = ActorElementDataUtil::GetActorsFromHandles(InElementHandles);
 
@@ -84,7 +90,7 @@ void UActorElementEditorWorldInterface::DuplicateElements(TArrayView<const FType
 
 		TArray<AActor*> NewActors;
 		ABrush::SetSuppressBSPRegeneration(true);
-		GUnrealEd->DuplicateActors(ActorsToDuplicate, NewActors, InWorld->GetCurrentLevel(), bOffsetLocations);
+		GUnrealEd->DuplicateActors(ActorsToDuplicate, NewActors, InWorld->GetCurrentLevel(), InLocationOffset);
 		ABrush::SetSuppressBSPRegeneration(false);
 
 		FEditorDelegates::OnDuplicateActorsEnd.Broadcast();

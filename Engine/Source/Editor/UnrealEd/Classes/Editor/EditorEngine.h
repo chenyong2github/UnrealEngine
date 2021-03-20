@@ -2223,7 +2223,7 @@ public:
 	/** 
 	 * @return - returns the currently selected positional snap grid setting
 	 */
-	float GetGridSize();
+	float GetGridSize() const;
 
 	/** 
 	 * @return - if the grid size is part of the 1,2,4,8,16,.. list or not
@@ -2284,6 +2284,11 @@ public:
 	void SetScaleGridSize(int32 InIndex);
 
 	float GetGridInterval();
+
+	/**
+	 * Get the location offset applied by the grid based on the grid size and active viewport.
+	 */
+	FVector GetGridLocationOffset(bool bUniformOffset) const;
 
 	/**
 	 * Access the array of grid interval options

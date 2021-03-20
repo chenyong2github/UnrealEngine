@@ -1502,41 +1502,30 @@ bool FLevelEditorActionCallbacks::Duplicate_CanExecute()
 		return false;
 	}
 	
-	// If we can copy, we can duplicate
-	bool bCanCopy = false;
-	if (GEditor->GetSelectedComponentCount() > 0)
+	static const FName NAME_LevelEditor = "LevelEditor";
+	if (TSharedPtr<ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(NAME_LevelEditor).GetLevelEditorInstance().Pin())
 	{
-		TArray<UActorComponent*> SelectedComponents;
-		for (FSelectionIterator It(GEditor->GetSelectedComponentIterator()); It; ++It)
-		{
-			SelectedComponents.Add(CastChecked<UActorComponent>(*It));
-		}
+		bool bCanDuplicate = false;
 
-		bCanCopy = FComponentEditorUtils::CanCopyComponents(SelectedComponents);
-	}
-	else
-	{
-		UWorld* World = GetWorld();
-		if (World)
+		const UTypedElementSelectionSet* SelectionSet = LevelEditor->GetElementSelectionSet();
+		SelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([&bCanDuplicate](const TTypedElement<UTypedElementWorldInterface>& InWorldElement)
 		{
-			bCanCopy = GUnrealEd->CanCopySelectedActorsToClipboard(World);
-		}
-	}
+			bCanDuplicate |= InWorldElement.CanDuplicateElement();
+			return !bCanDuplicate;
+		});
 
-	if (!bCanCopy)
-	{
-		TWeakPtr<class ILevelEditor> LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor")).GetLevelEditorInstance();
-		if (LevelEditor.IsValid())
+		if (!bCanDuplicate)
 		{
-			TSharedPtr<class ISceneOutliner> SceneOutlinerPtr = LevelEditor.Pin()->GetSceneOutliner();
-			if (SceneOutlinerPtr.IsValid())
+			if (TSharedPtr<ISceneOutliner> SceneOutlinerPtr = LevelEditor->GetSceneOutliner())
 			{
-				bCanCopy = SceneOutlinerPtr->Copy_CanExecute();
+				bCanDuplicate = SceneOutlinerPtr->Copy_CanExecute(); // If we can copy, we can duplicate
 			}
 		}
+
+		return bCanDuplicate;
 	}
 
-	return bCanCopy;
+	return false;
 }
 
 bool FLevelEditorActionCallbacks::Delete_CanExecute()

@@ -10,17 +10,17 @@
 #include "EditorModeManager.h"
 #include "Toolkits/IToolkitHost.h"
 
-void FActorElementLevelEditorCommonActionsCustomization::GetElementsToDelete(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete)
+void FActorElementLevelEditorCommonActionsCustomization::GetElementsForAction(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete)
 {
 	AActor* Actor = ActorElementDataUtil::GetActorFromHandleChecked(InElementWorldHandle);
 
 	if (UComponentElementSelectionInterface::HasSelectedComponents(InSelectionSet->GetElementList()))
 	{
-		// If we have components selected then we will delete those rather than the actors
+		// If we have components selected then we will perform the action on those rather than the actors
 		return;
 	}
 
-	FTypedElementCommonActionsCustomization::GetElementsToDelete(InElementWorldHandle, InSelectionSet, OutElementsToDelete);
+	FTypedElementCommonActionsCustomization::GetElementsForAction(InElementWorldHandle, InSelectionSet, OutElementsToDelete);
 }
 
 bool FActorElementLevelEditorCommonActionsCustomization::DeleteElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
@@ -37,7 +37,7 @@ bool FActorElementLevelEditorCommonActionsCustomization::DeleteElements(UTypedEl
 	return FTypedElementCommonActionsCustomization::DeleteElements(InWorldInterface, InElementHandles, InWorld, InSelectionSet, InDeletionOptions);
 }
 
-void FActorElementLevelEditorCommonActionsCustomization::DuplicateElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
+void FActorElementLevelEditorCommonActionsCustomization::DuplicateElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 {
 	if (const IToolkitHost* ToolkitHostPtr = GetToolkitHost())
 	{
@@ -48,5 +48,5 @@ void FActorElementLevelEditorCommonActionsCustomization::DuplicateElements(UType
 		}
 	}
 
-	FTypedElementCommonActionsCustomization::DuplicateElements(InWorldInterface, InElementHandles, InWorld, bOffsetLocations, OutNewElements);
+	FTypedElementCommonActionsCustomization::DuplicateElements(InWorldInterface, InElementHandles, InWorld, InLocationOffset, OutNewElements);
 }

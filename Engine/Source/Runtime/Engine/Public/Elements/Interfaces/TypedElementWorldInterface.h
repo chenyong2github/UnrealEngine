@@ -166,14 +166,20 @@ public:
 	virtual bool DeleteElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions) { return false; }
 
 	/**
+	 * Can the given element be duplicated?
+	 */
+	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
+	virtual bool CanDuplicateElement(const FTypedElementHandle& InElementHandle) { return false; }
+
+	/**
 	 * Duplicate the given element.
 	 * @note Default version calls DuplicateElements with a single element.
 	 */
 	UFUNCTION(BlueprintCallable, Category="TypedElementInterfaces|World")
-	virtual FTypedElementHandle DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, bool bOffsetLocations)
+	virtual FTypedElementHandle DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset)
 	{
 		TArray<FTypedElementHandle> NewElements;
-		DuplicateElements(MakeArrayView(&InElementHandle, 1), InWorld, bOffsetLocations, NewElements);
+		DuplicateElements(MakeArrayView(&InElementHandle, 1), InWorld, InLocationOffset, NewElements);
 		return NewElements.Num() > 0 ? MoveTemp(NewElements[0]) : FTypedElementHandle();
 	}
 
@@ -181,7 +187,7 @@ public:
 	 * Duplicate the given set of elements.
 	 * @note If you want to duplicate an array of elements that are potentially different types, you probably want to use the higher-level UTypedElementCommonActions::DuplicateElements function instead.
 	 */
-	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
+	virtual void DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 	{
 	}
 };
@@ -207,5 +213,6 @@ struct TTypedElement<UTypedElementWorldInterface> : public TTypedElementBase<UTy
 	bool FindSuitableTransformAlongPath(const FVector& InPathStart, const FVector& InPathEnd, const FCollisionShape& InTestShape, TArrayView<const FTypedElementHandle> InElementsToIgnore, FTransform& OutSuitableTransform) const { return InterfacePtr->FindSuitableTransformAlongPath(*this, InPathStart, InPathEnd, InTestShape, InElementsToIgnore, OutSuitableTransform); }
 	bool CanDeleteElement() const { return InterfacePtr->CanDeleteElement(*this); }
 	bool DeleteElement(UWorld* InWorld, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions) const { return InterfacePtr->DeleteElement(*this, InWorld, InSelectionSet, InDeletionOptions); }
-	FTypedElementHandle DuplicateElement(UWorld* InWorld, bool bOffsetLocations) const { return InterfacePtr->DuplicateElement(*this, InWorld, bOffsetLocations); }
+	bool CanDuplicateElement() const { return InterfacePtr->CanDuplicateElement(*this); }
+	FTypedElementHandle DuplicateElement(UWorld* InWorld, const FVector& InLocationOffset) const { return InterfacePtr->DuplicateElement(*this, InWorld, InLocationOffset); }
 };

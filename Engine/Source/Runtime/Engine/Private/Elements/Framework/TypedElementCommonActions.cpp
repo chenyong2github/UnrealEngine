@@ -5,7 +5,9 @@
 #include "Elements/Framework/TypedElementRegistry.h"
 #include "Elements/Framework/TypedElementUtil.h"
 
-void FTypedElementCommonActionsCustomization::GetElementsToDelete(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete)
+#include "UObject/GCObjectScopeGuard.h"
+
+void FTypedElementCommonActionsCustomization::GetElementsForAction(const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle, const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete)
 {
 	OutElementsToDelete->Add(InElementWorldHandle);
 }
@@ -15,30 +17,30 @@ bool FTypedElementCommonActionsCustomization::DeleteElements(UTypedElementWorldI
 	return InWorldInterface->DeleteElements(InElementHandles, InWorld, InSelectionSet, InDeletionOptions);
 }
 
-void FTypedElementCommonActionsCustomization::DuplicateElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
+void FTypedElementCommonActionsCustomization::DuplicateElements(UTypedElementWorldInterface* InWorldInterface, TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 {
-	InWorldInterface->DuplicateElements(InElementHandles, InWorld, bOffsetLocations, OutNewElements);
+	InWorldInterface->DuplicateElements(InElementHandles, InWorld, InLocationOffset, OutNewElements);
 }
 
 
-void UTypedElementCommonActions::GetSelectedElementsToDelete(const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete) const
+void UTypedElementCommonActions::GetSelectedElementsForAction(const UTypedElementSelectionSet* InSelectionSet, UTypedElementList* OutElementsToDelete) const
 {
 	OutElementsToDelete->Reset();
 	InSelectionSet->ForEachSelectedElement<UTypedElementWorldInterface>([this, InSelectionSet, OutElementsToDelete](const TTypedElement<UTypedElementWorldInterface>& InElementWorldHandle)
 	{
 		FTypedElementCommonActionsElement CommonActionsElement(InElementWorldHandle, GetInterfaceCustomizationByTypeId(InElementWorldHandle.GetId().GetTypeId()));
 		check(CommonActionsElement.IsSet());
-		CommonActionsElement.GetElementsToDelete(InSelectionSet, OutElementsToDelete);
+		CommonActionsElement.GetElementsForAction(InSelectionSet, OutElementsToDelete);
 		return true;
 	});
 }
 
-bool UTypedElementCommonActions::DeleteElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
+bool UTypedElementCommonActions::DeleteElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
 {
-	return DeleteElements(MakeArrayView(ElementHandles), World, InSelectionSet, InDeletionOptions);
+	return DeleteElements(MakeArrayView(ElementHandles), World, SelectionSet, DeletionOptions);
 }
 
-bool UTypedElementCommonActions::DeleteElements(TArrayView<const FTypedElementHandle> ElementHandles, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
+bool UTypedElementCommonActions::DeleteElements(TArrayView<const FTypedElementHandle> ElementHandles, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
 {
 	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
 	TypedElementUtil::BatchElementsByType(ElementHandles, ElementsToDuplicateByType);
@@ -54,14 +56,14 @@ bool UTypedElementCommonActions::DeleteElements(TArrayView<const FTypedElementHa
 		UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
 		if (CommonActionsCustomization && WorldInterface)
 		{
-			bSuccess |= CommonActionsCustomization->DeleteElements(WorldInterface, ElementsByTypePair.Value, World, InSelectionSet, InDeletionOptions);
+			bSuccess |= CommonActionsCustomization->DeleteElements(WorldInterface, ElementsByTypePair.Value, World, SelectionSet, DeletionOptions);
 		}
 	}
 
 	return bSuccess;
 }
 
-bool UTypedElementCommonActions::DeleteElements(const UTypedElementList* ElementList, UWorld* World, UTypedElementSelectionSet* InSelectionSet, const FTypedElementDeletionOptions& InDeletionOptions)
+bool UTypedElementCommonActions::DeleteElements(const UTypedElementList* ElementList, UWorld* World, UTypedElementSelectionSet* SelectionSet, const FTypedElementDeletionOptions& DeletionOptions)
 {
 	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
 	TypedElementUtil::BatchElementsByType(ElementList, ElementsToDuplicateByType);
@@ -77,19 +79,29 @@ bool UTypedElementCommonActions::DeleteElements(const UTypedElementList* Element
 		UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
 		if (CommonActionsCustomization && WorldInterface)
 		{
-			bSuccess |= CommonActionsCustomization->DeleteElements(WorldInterface, ElementsByTypePair.Value, World, InSelectionSet, InDeletionOptions);
+			bSuccess |= CommonActionsCustomization->DeleteElements(WorldInterface, ElementsByTypePair.Value, World, SelectionSet, DeletionOptions);
 		}
 	}
 
 	return bSuccess;
 }
 
-TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, bool bOffsetLocations)
+bool UTypedElementCommonActions::DeleteSelectedElements(UTypedElementSelectionSet* SelectionSet, UWorld* World, const FTypedElementDeletionOptions& DeletionOptions)
 {
-	return DuplicateElements(MakeArrayView(ElementHandles), World, bOffsetLocations);
+	TGCObjectScopeGuard<UTypedElementList> ElementsForAction(UTypedElementRegistry::GetInstance()->CreateElementList());
+	GetSelectedElementsForAction(SelectionSet, ElementsForAction.Get());
+
+	const bool bSuccess = DeleteElements(ElementsForAction.Get(), World, SelectionSet, DeletionOptions);
+	ElementsForAction.Get()->Reset();
+	return bSuccess;
 }
 
-TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(TArrayView<const FTypedElementHandle> ElementHandles, UWorld* World, bool bOffsetLocations)
+TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(const TArray<FTypedElementHandle>& ElementHandles, UWorld* World, const FVector& LocationOffset)
+{
+	return DuplicateElements(MakeArrayView(ElementHandles), World, LocationOffset);
+}
+
+TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(TArrayView<const FTypedElementHandle> ElementHandles, UWorld* World, const FVector& LocationOffset)
 {
 	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
 	TypedElementUtil::BatchElementsByType(ElementHandles, ElementsToDuplicateByType);
@@ -104,14 +116,14 @@ TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(TArray
 		UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
 		if (CommonActionsCustomization && WorldInterface)
 		{
-			CommonActionsCustomization->DuplicateElements(WorldInterface, ElementsByTypePair.Value, World, bOffsetLocations, NewElements);
+			CommonActionsCustomization->DuplicateElements(WorldInterface, ElementsByTypePair.Value, World, LocationOffset, NewElements);
 		}
 	}
 
 	return NewElements;
 }
 
-TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(const UTypedElementList* ElementList, UWorld* World, bool bOffsetLocations)
+TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(const UTypedElementList* ElementList, UWorld* World, const FVector& LocationOffset)
 {
 	TMap<FTypedHandleTypeId, TArray<FTypedElementHandle>> ElementsToDuplicateByType;
 	TypedElementUtil::BatchElementsByType(ElementList, ElementsToDuplicateByType);
@@ -126,10 +138,20 @@ TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateElements(const 
 		UTypedElementWorldInterface* WorldInterface = Registry->GetElementInterface<UTypedElementWorldInterface>(ElementsByTypePair.Key);
 		if (CommonActionsCustomization && WorldInterface)
 		{
-			CommonActionsCustomization->DuplicateElements(WorldInterface, ElementsByTypePair.Value, World, bOffsetLocations, NewElements);
+			CommonActionsCustomization->DuplicateElements(WorldInterface, ElementsByTypePair.Value, World, LocationOffset, NewElements);
 		}
 	}
 
+	return NewElements;
+}
+
+TArray<FTypedElementHandle> UTypedElementCommonActions::DuplicateSelectedElements(const UTypedElementSelectionSet* SelectionSet, UWorld* World, const FVector& LocationOffset)
+{
+	TGCObjectScopeGuard<UTypedElementList> ElementsForAction(UTypedElementRegistry::GetInstance()->CreateElementList());
+	GetSelectedElementsForAction(SelectionSet, ElementsForAction.Get());
+
+	TArray<FTypedElementHandle> NewElements = DuplicateElements(ElementsForAction.Get(), World, LocationOffset);
+	ElementsForAction.Get()->Reset();
 	return NewElements;
 }
 

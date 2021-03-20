@@ -5,12 +5,13 @@
 =============================================================================*/
 
 #include "CoreMinimal.h"
+#include "LevelEditorViewport.h"
 #include "Settings/LevelEditorViewportSettings.h"
 #include "Editor/EditorEngine.h"
 #include "Editor.h"
 #include "EditorSupportDelegates.h"
 
-float UEditorEngine::GetGridSize()
+float UEditorEngine::GetGridSize() const
 {
 	const TArray<float>& PosGridSizes = GetCurrentPositionGridArray();
 	const int32 CurrentPosGridSize = GetDefault<ULevelEditorViewportSettings>()->CurrentPosGridSize;
@@ -163,4 +164,27 @@ float UEditorEngine::GetGridInterval()
 	return IntervalValue;
 }
 
+FVector UEditorEngine::GetGridLocationOffset(bool bUniformOffset) const
+{
+	const float Offset = GetDefault<ULevelEditorViewportSettings>()->GridEnabled ? GetGridSize() : 0.0f;
 
+	FVector LocationOffset(Offset, Offset, Offset);
+	if (!bUniformOffset && GCurrentLevelEditingViewportClient)
+	{
+		switch (GCurrentLevelEditingViewportClient->ViewportType)
+		{
+		case LVT_OrthoXZ:
+			LocationOffset = FVector(Offset, 0.f, Offset);
+			break;
+
+		case LVT_OrthoYZ:
+			LocationOffset = FVector(0.f, Offset, Offset);
+			break;
+
+		default:
+			LocationOffset = FVector(Offset, Offset, 0.f);
+			break;
+		}
+	}
+	return LocationOffset;
+}

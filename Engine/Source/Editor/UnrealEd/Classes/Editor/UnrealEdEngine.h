@@ -573,12 +573,12 @@ public:
 	 *
 	 * @param	OutPastedActors		List of all the actors that were pasted
 	 * @param	InWorld				World context
+	 * @param	LocationOffset		Offset to apply to actor locations after they're created
 	 * @param	bDuplicate			Is this a duplicate operation (as opposed to a real paste)?
-	 * @param	bOffsetLocations	Should the actor locations be offset after they are created?
 	 * @param	bWarnIfHidden		If true displays a warning if the destination level is hidden
 	 * @param	SourceData			If != NULL, use instead of clipboard data
 	 */
-	virtual void PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData = nullptr);
+	virtual void PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, const FVector& LocationOffset, bool bDuplicate, bool bWarnIfHidden, const FString* SourceData = nullptr);
 
 	/**
 	 * Duplicates selected actors.  Handles the case where you are trying to duplicate PrefabInstance actors.
@@ -603,9 +603,9 @@ public:
 	 * @param	InActorsToDuplicate	Array of actors to duplicate
 	 * @param	OutNewActors		List of all the actors that were duplicated
 	 * @param	InLevel				Level to place duplicate
-	 * @param	bUseOffset			Should the actor locations be offset after they are created?
+	 * @param	LocationOffset		Offset to apply to actor locations after they're created
 	 */
-	virtual void DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, bool bOffsetLocations);
+	virtual void DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, const FVector& LocationOffset);
 
 	/**
 	 * Replace all selected brushes with the default brush.

@@ -67,7 +67,13 @@ bool USMInstanceElementEditorWorldInterface::DeleteElements(TArrayView<const FTy
 	return false;
 }
 
-FTypedElementHandle USMInstanceElementEditorWorldInterface::DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, bool bOffsetLocations)
+bool USMInstanceElementEditorWorldInterface::CanDuplicateElement(const FTypedElementHandle& InElementHandle)
+{
+	const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle);
+	return SMInstance && CanEditSMInstance(SMInstance);
+}
+
+FTypedElementHandle USMInstanceElementEditorWorldInterface::DuplicateElement(const FTypedElementHandle& InElementHandle, UWorld* InWorld, const FVector& InLocationOffset)
 {
 	if (const FSMInstanceId SMInstance = SMInstanceElementDataUtil::GetSMInstanceFromHandle(InElementHandle))
 	{
@@ -75,6 +81,7 @@ FTypedElementHandle USMInstanceElementEditorWorldInterface::DuplicateElement(con
 		{
 			FTransform NewInstanceTransform = FTransform::Identity;
 			SMInstance.ISMComponent->GetInstanceTransform(SMInstance.InstanceIndex, NewInstanceTransform);
+			NewInstanceTransform.SetTranslation(NewInstanceTransform.GetTranslation() + InLocationOffset);
 
 			const int32 NewInstanceIndex = SMInstance.ISMComponent->AddInstance(NewInstanceTransform);
 			return UEngineElementsLibrary::AcquireEditorSMInstanceElementHandle(FSMInstanceId{ SMInstance.ISMComponent, NewInstanceIndex });
@@ -84,7 +91,7 @@ FTypedElementHandle USMInstanceElementEditorWorldInterface::DuplicateElement(con
 	return FTypedElementHandle();
 }
 
-void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, bool bOffsetLocations, TArray<FTypedElementHandle>& OutNewElements)
+void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const FTypedElementHandle> InElementHandles, UWorld* InWorld, const FVector& InLocationOffset, TArray<FTypedElementHandle>& OutNewElements)
 {
 	const TArray<FSMInstanceId> SMInstancesToDuplicate = SMInstanceElementDataUtil::GetSMInstancesFromHandles(InElementHandles);
 
@@ -109,6 +116,7 @@ void USMInstanceElementEditorWorldInterface::DuplicateElements(TArrayView<const 
 			{
 				FTransform& NewInstanceTransform = NewInstanceTransforms.Add_GetRef(FTransform::Identity);
 				BatchedInstancesToDuplicatePair.Key->GetInstanceTransform(InstanceIndex, NewInstanceTransform);
+				NewInstanceTransform.SetTranslation(NewInstanceTransform.GetTranslation() + InLocationOffset);
 			}
 
 			const TArray<int32> NewInstanceIndices = BatchedInstancesToDuplicatePair.Key->AddInstances(NewInstanceTransforms, /*bShouldReturnIndices*/true);

@@ -171,33 +171,6 @@ void UUnrealEdEngine::CopyActors(const TArray<AActor*>& InActorsToCopy, UWorld* 
 	}
 }
 
-
-/**
- * Creates offsets for locations based on the editor grid size and active viewport.
- */
-static FVector CreateLocationOffset(bool bDuplicate, bool bOffsetLocations)
-{
-	const float Offset = static_cast<float>( bOffsetLocations ? GEditor->GetGridSize() : 0 );
-	FVector LocationOffset(Offset,Offset,Offset);
-	if ( bDuplicate && GCurrentLevelEditingViewportClient )
-	{
-		switch( GCurrentLevelEditingViewportClient->ViewportType )
-		{
-		case LVT_OrthoXZ:
-			LocationOffset = FVector(Offset,0.f,Offset);
-			break;
-		case LVT_OrthoYZ:
-			LocationOffset = FVector(0.f,Offset,Offset);
-			break;
-		default:
-			LocationOffset = FVector(Offset,Offset,0.f);
-			break;
-		}
-	}
-	return LocationOffset;
-}
-
-
 bool UUnrealEdEngine::WarnIfDestinationLevelIsHidden( UWorld* InWorld ) const
 {
 	bool bShouldLoadHiddenLevels = true;
@@ -290,7 +263,7 @@ void UUnrealEdEngine::edactPasteSelected(UWorld* InWorld, bool bDuplicate, bool 
 	else
 	{
 		TArray<AActor*> PastedActors;
-		PasteActors(PastedActors, InWorld, bDuplicate, bOffsetLocations, bWarnIfHidden, SourceData);
+		PasteActors(PastedActors, InWorld, bOffsetLocations ? GEditor->GetGridLocationOffset(/*bUniformOffset*/true) : FVector::ZeroVector, bDuplicate, bWarnIfHidden, SourceData);
 
 		if (PastedActors.Num() > 0)
 		{
@@ -333,7 +306,7 @@ void UUnrealEdEngine::PasteComponents(TArray<UActorComponent*>& OutPastedCompone
 	}
 }
 
-void UUnrealEdEngine::PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, bool bDuplicate, bool bOffsetLocations, bool bWarnIfHidden, const FString* SourceData)
+void UUnrealEdEngine::PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWorld, const FVector& LocationOffset, bool bDuplicate, bool bWarnIfHidden, const FString* SourceData)
 {
 	OutPastedActors.Reset();
 
@@ -344,9 +317,6 @@ void UUnrealEdEngine::PasteActors(TArray<AActor*>& OutPastedActors, UWorld* InWo
 	}
 
 	const FScopedBusyCursor BusyCursor;
-
-	// Create a location offset.
-	const FVector LocationOffset = CreateLocationOffset(bDuplicate, bOffsetLocations);
 
 	FCachedActorLabels ActorLabels(InWorld);
 
@@ -444,9 +414,9 @@ public:
 	 *
 	 * @param	OutNewActors			[out] Newly created actors are appended to this list.
 	 * @param	DestLevel				The level to duplicate the actors in this job to.
-	 * @param	bOffsetLocations		Passed to edactPasteSelected; true if new actor locations should be offset.
+	 * @param	bOffsetLocations		@see PasteActors.
 	 */
-	void DuplicateActorsToLevel(TArray<AActor*>& OutNewActors, ULevel* DestLevel, bool bOffsetLocations)
+	void DuplicateActorsToLevel(TArray<AActor*>& OutNewActors, ULevel* DestLevel, const FVector& LocationOffset)
 	{
 		// Check neither level is locked
 		if (FLevelUtils::IsLevelLocked(SrcLevel))
@@ -484,7 +454,7 @@ public:
 			DestLevel->OwningWorld->SetCurrentLevel(LevelPartitionScope.GetLevel());
 
 			TArray<AActor*> PastedActors;
-			GUnrealEd->PasteActors(PastedActors, DestLevel->OwningWorld, /*bDuplicate*/true, bOffsetLocations, /*bWarnIfHidden*/true, &ScratchData);
+			GUnrealEd->PasteActors(PastedActors, DestLevel->OwningWorld, LocationOffset, /*bDuplicate*/true, /*bWarnIfHidden*/true, &ScratchData);
 			
 			DestLevel->OwningWorld->SetCurrentLevel(CurrentDestLevel);
 
@@ -536,7 +506,7 @@ void UUnrealEdEngine::edactDuplicateSelected( ULevel* InLevel, bool bOffsetLocat
 		ActorSelection->GetSelectedObjects<AActor>(SelectedActors);
 
 		TArray<AActor*> NewActors;
-		DuplicateActors(SelectedActors, NewActors, InLevel, bOffsetLocations);
+		DuplicateActors(SelectedActors, NewActors, InLevel, bOffsetLocations ? GEditor->GetGridLocationOffset(/*bUniformOffset*/false) : FVector::ZeroVector);
 
 		if (NewActors.Num() > 0)
 		{
@@ -583,7 +553,7 @@ void UUnrealEdEngine::DuplicateComponents(const TArray<UActorComponent*>& InComp
 	}
 }
 
-void UUnrealEdEngine::DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, bool bOffsetLocations)
+void UUnrealEdEngine::DuplicateActors(const TArray<AActor*>& InActorsToDuplicate, TArray<AActor*>& OutNewActors, ULevel* InLevel, const FVector& LocationOffset)
 {
 	OutNewActors.Reset(InActorsToDuplicate.Num());
 
@@ -608,7 +578,7 @@ void UUnrealEdEngine::DuplicateActors(const TArray<AActor*>& InActorsToDuplicate
 	for (const auto& DuplicateJobPair : DuplicateJobs)
 	{
 		FDuplicateJob& Job = *DuplicateJobPair.Value;
-		Job.DuplicateActorsToLevel(OutNewActors, InLevel, bOffsetLocations);
+		Job.DuplicateActorsToLevel(OutNewActors, InLevel, LocationOffset);
 	}
 
 	// Finally, cleanup.

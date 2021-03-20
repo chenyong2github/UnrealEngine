@@ -2495,15 +2495,9 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 			if (UTypedElementCommonActions* CommonActions = LevelEditor->GetCommonActions())
 			{
 				UTypedElementSelectionSet* SelectionSet = LevelEditor->GetMutableElementSelectionSet();
-
-				TStrongObjectPtr<UTypedElementList> ElementsToDelete(UTypedElementRegistry::GetInstance()->CreateElementList());
-				CommonActions->GetSelectedElementsToDelete(SelectionSet, ElementsToDelete.Get());
-				if (ElementsToDelete->Num() > 0)
-				{
-					const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DeleteElements", "Delete Elements"));
-					CommonActions->DeleteElements(ElementsToDelete.Get(), InWorld, SelectionSet, FTypedElementDeletionOptions());
-					ElementsToDelete->Reset();
-				}
+				
+				const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DeleteElements", "Delete Elements"));
+				CommonActions->DeleteSelectedElements(SelectionSet, InWorld, FTypedElementDeletionOptions());
 			}
 		}
 		return true;
@@ -2674,7 +2668,21 @@ bool UUnrealEdEngine::Exec_Actor( UWorld* InWorld, const TCHAR* Str, FOutputDevi
 	}
 	else if( FParse::Command(&Str,TEXT("DUPLICATE")) )
 	{
-		DuplicateSelectedActors(InWorld);
+		if (TSharedPtr<ILevelEditor> LevelEditor = GCurrentLevelEditingViewportClient->ParentLevelEditor.Pin())
+		{
+			if (UTypedElementCommonActions* CommonActions = LevelEditor->GetCommonActions())
+			{
+				UTypedElementSelectionSet* SelectionSet = LevelEditor->GetMutableElementSelectionSet();
+
+				const FScopedTransaction Transaction(NSLOCTEXT("UnrealEd", "DuplicateElements", "Duplicate Elements"));
+				const TArray<FTypedElementHandle> DuplicatedElements = CommonActions->DuplicateSelectedElements(SelectionSet, InWorld, GEditor->GetGridLocationOffset(/*bUniformOffset*/false));
+				if (DuplicatedElements.Num() > 0)
+				{
+					SelectionSet->SetSelection(DuplicatedElements, FTypedElementSelectionOptions());
+					SelectionSet->NotifyPendingChanges();
+				}
+			}
+		}
 		return true;
 	}
 	else if( FParse::Command(&Str, TEXT("ALIGN")) )
