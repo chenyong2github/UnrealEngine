@@ -18,13 +18,14 @@ if [[ ! -d "${LINUX_MULTIARCH_ROOT}" ]]; then
     exit 1
 fi
 
-echo Using compiler at: ${LINUX_MULTIARCH_ROOT}
+echo "Using compiler at: ${LINUX_MULTIARCH_ROOT}"
 
 SCRIPT_DIR=$(cd "$(dirname "$BASH_SOURCE")" ; pwd)
 THIRD_PARTY=$(cd "${SCRIPT_DIR}/../../.." ; pwd)
 
 BuildEmbree()
 {
+	export PATH="${LINUX_MULTIARCH_ROOT}/x86_64-unknown-linux-gnu/bin:$PATH"
     export ARCH=$1
     export FLAVOR=$2
     local BUILD_DIR=${SCRIPT_DIR}/Build-${FLAVOR}.${ARCH}

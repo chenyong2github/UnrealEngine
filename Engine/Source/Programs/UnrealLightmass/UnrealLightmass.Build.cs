@@ -82,6 +82,18 @@ public class UnrealLightmass : ModuleRules
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/Mac/libtbbmalloc.dylib", IntelTBBLibs + "Mac/libtbbmalloc.dylib");
 			PublicDefinitions.Add("USE_EMBREE=1");
 		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")) // no support for arm64 yet
+		{
+            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree270/Linux/x86_64-unknown-linux-gnu/";
+
+            PublicIncludePaths.Add(SDKDir + "include");
+            PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.so");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/Linux/libembree.so");
+			RuntimeDependencies.Add("$(EngineDir)/Binaries/Linux/libtbb.so", IntelTBBLibs + "Linux/libtbb.so"); // Take latest version to avoid overwriting the editor's copy
+			// disabled for Linux atm due to a bug in libtbbmalloc on exit
+			// RuntimeDependencies.Add("$(EngineDir)/Binaries/Linux/libtbbmalloc.so", IntelTBBLibs + "Linux/libtbbmalloc.so");
+			PublicDefinitions.Add("USE_EMBREE=1");
+		}
         else
         {
             PublicDefinitions.Add("USE_EMBREE=0");

@@ -108,6 +108,21 @@ public class MeshUtilities : ModuleRules
             RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.dylib", IntelTBBLibs + "Mac/libtbbmalloc.dylib");
             PublicDefinitions.Add("USE_EMBREE=1");
         }
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")) // no support for arm64 yet
+		{
+			string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu/";
+
+            PublicIncludePaths.Add(SDKDir + "include");
+            PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.so");
+            PublicAdditionalLibraries.Add(IntelTBBLibs + "Linux/libtbb.so");
+			// disabled for Linux atm due to a bug in libtbbmalloc on exit
+            // PublicAdditionalLibraries.Add(IntelTBBLibs + "Linux/libtbbmalloc.so");
+            RuntimeDependencies.Add("$(TargetOutputDir)/libembree.so", SDKDir + "lib/libembree.so");
+            RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.so", IntelTBBLibs + "Linux/libtbb.so");
+			// disabled for Linux atm due to a bug in libtbbmalloc on exit
+            // RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.so", IntelTBBLibs + "Linux/libtbbmalloc.so");
+            PublicDefinitions.Add("USE_EMBREE=1");
+		}
         else
         {
             PublicDefinitions.Add("USE_EMBREE=0");

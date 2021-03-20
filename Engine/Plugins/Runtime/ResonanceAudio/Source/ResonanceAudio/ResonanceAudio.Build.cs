@@ -114,6 +114,19 @@ public class ResonanceAudio : ModuleRules
 			PrivateDefinitions.Add("USE_EMBRE_FOR_RESONANCE=0");
 			PrivateDefinitions.Add("EMBREE_STATIC_LIB=1");
 		}
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) && Target.Architecture.StartsWith("x86_64")) // no support for arm64 yet
+		{
+		   string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu/";
+
+            PublicIncludePaths.Add(SDKDir + "include");
+            PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.so");
+            RuntimeDependencies.Add("$(TargetOutputDir)/libembree.so", SDKDir + "lib/libembree.so");
+            RuntimeDependencies.Add("$(TargetOutputDir)/libtbb.so", IntelTBBLibs + "Linux/libtbb.so");
+			// disabled for Linux atm due to a bug in libtbbmalloc on exit
+            // RuntimeDependencies.Add("$(TargetOutputDir)/libtbbmalloc.so", IntelTBBLibs + "Linux/libtbbmalloc.so");
+			PublicDefinitions.Add("USE_EMBREE=1");
+			PrivateDefinitions.Add("USE_EMBRE_FOR_RESONANCE=1");
+		}
 		else
         {
             // In platforms that don't support Embree, we implement no-op versions of the functions.
