@@ -36,10 +36,6 @@ public:
 	void OnCellHidden(const UWorldPartitionRuntimeCell* InCell);
 	
 private:
-#if WITH_EDITOR
-	void OnActorLoaded(AActor& Actor);
-	void OnActorUnloaded(AActor& Actor);
-#endif
 
 private:
 	struct FCellHLODMapping
@@ -53,8 +49,4 @@ private:
 	};
 
 	TMap<FName, FCellHLODMapping> CellsHLODMapping;
-
-#if WITH_EDITORONLY_DATA
-	TMap<FGuid, AWorldPartitionHLOD*> ActorsToHLOD;
-#endif
 };

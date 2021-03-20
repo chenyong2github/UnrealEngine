@@ -23,9 +23,6 @@ public:
 	inline uint32 GetLODLevel() const { return LODLevel; }
 
 #if WITH_EDITOR
-	void OnSubActorLoaded(const AActor& Actor);
-	void OnSubActorUnloaded(const AActor& Actor);
-
 	void SetHLODPrimitives(const TArray<UPrimitiveComponent*>& InHLODPrimitives);
 
 	void SetSubActors(const TArray<FGuid>& InSubActors);
@@ -68,7 +65,6 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 #if WITH_EDITOR
 	virtual void PostRegisterAllComponents() override;
-	virtual void PostUnregisterAllComponents() override;
 	virtual EActorGridPlacement GetDefaultGridPlacement() const override;
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
@@ -78,14 +74,6 @@ protected:
 	//~ End AActor Interface.
 
 	UPrimitiveComponent* GetHLODComponent();
-
-#if WITH_EDITOR
-	void UpdateVisibility();
-	bool HasLoadedSubActors() const;
-
-	void ResetLoadedSubActors();
-	void SetupLoadedSubActors();
-#endif // WITH_EDITOR
 
 private:
 #if WITH_EDITORONLY_DATA
@@ -103,8 +91,6 @@ private:
 
 	UPROPERTY()
 	int64 GridIndexZ;
-
-	TSet<TWeakObjectPtr<const AActor>> LoadedSubActors;
 
 	UPROPERTY()
 	FBox HLODBounds;

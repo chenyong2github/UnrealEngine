@@ -20,7 +20,6 @@ AWorldPartitionHLOD::AWorldPartitionHLOD(const FObjectInitializer& ObjectInitial
 #if WITH_EDITORONLY_DATA
 	HLODHash = 0;
 	HLODBounds = FBox(EForceInit::ForceInit);
-	bListedInSceneOutliner = false;
 #endif
 }
 
@@ -64,107 +63,13 @@ void AWorldPartitionHLOD::PostLoad()
 
 #if WITH_EDITOR
 
-void AWorldPartitionHLOD::OnSubActorLoaded(const AActor& Actor)
-{
-	bool bIsAlreadyInSet = false;
-	LoadedSubActors.Add(&Actor, &bIsAlreadyInSet);
-
-	if (!bIsAlreadyInSet)
-	{
-		if (LoadedSubActors.Num() == 1)
-		{
-			UpdateVisibility();
-		}
-	}
-}
-
-void AWorldPartitionHLOD::OnSubActorUnloaded(const AActor& Actor)
-{
-	LoadedSubActors.Remove(&Actor);
-
-	// If HLOD has no more sub actors, ensure it is drawn at all time
-	if (LoadedSubActors.IsEmpty())
-	{
-		UpdateVisibility();
-	}
-}
-
-void AWorldPartitionHLOD::SetupLoadedSubActors()
-{
-	UWorld* World = GetWorld();
-	if (World && World->IsEditorWorld() && !World->IsPlayInEditor())
-	{
-		LoadedSubActors.Empty();
-
-		UWorldPartition* WorldPartition = World->GetWorldPartition();
-		check(WorldPartition);
-
-		for (const FGuid& SubActorGuid : SubActors)
-		{
-			const FWorldPartitionActorDesc* SubActorDesc = WorldPartition->GetActorDesc(SubActorGuid);
-			AActor* SubActor = SubActorDesc && SubActorDesc->IsLoaded() ? SubActorDesc->GetActor() : nullptr;
-			if (SubActor)
-			{
-				OnSubActorLoaded(*SubActor);
-			}
-		}
-
-		UpdateVisibility();
-	}
-}
-
-void AWorldPartitionHLOD::ResetLoadedSubActors()
-{
-	UWorld* World = GetWorld();
-	if (World && !World->IsGameWorld())
-	{
-		for (const TWeakObjectPtr<const AActor>& SubActor : LoadedSubActors)
-		{
-			if (!SubActor.IsValid())
-			{
-				continue;
-			}
-		}
-
-		LoadedSubActors.Empty();
-
-		UpdateVisibility();
-	}
-}
-
 void AWorldPartitionHLOD::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
 
-	if (!IsTemplate())
-	{
-		SetupLoadedSubActors();
-	}
-
-#if WITH_EDITOR
+	SetIsTemporarilyHiddenInEditor(true);
 	bListedInSceneOutliner = true;
 	SetFolderPath(*FString::Printf(TEXT("HLOD/HLOD%d"), GetLODLevel()));
-#endif
-}
-
-void AWorldPartitionHLOD::PostUnregisterAllComponents()
-{
-	if (!IsTemplate())
-	{
-		ResetLoadedSubActors();
-	}
-
-	Super::PostUnregisterAllComponents();
-}
-
-void AWorldPartitionHLOD::UpdateVisibility()
-{
-	SetIsTemporarilyHiddenInEditor(HasLoadedSubActors());
-}
-
-bool AWorldPartitionHLOD::HasLoadedSubActors() const
-{
-	return !LoadedSubActors.IsEmpty();
 }
 
 EActorGridPlacement AWorldPartitionHLOD::GetDefaultGridPlacement() const
@@ -213,11 +118,7 @@ void AWorldPartitionHLOD::SetHLODPrimitives(const TArray<UPrimitiveComponent*>& 
 
 void AWorldPartitionHLOD::SetSubActors(const TArray<FGuid>& InSubActors)
 {
-	ResetLoadedSubActors();
-
 	SubActors = InSubActors;
-
-	SetupLoadedSubActors();
 }
 
 const TArray<FGuid>& AWorldPartitionHLOD::GetSubActors() const

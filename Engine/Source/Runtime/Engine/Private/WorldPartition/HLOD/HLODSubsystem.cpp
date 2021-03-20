@@ -43,14 +43,6 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
 	Super::Initialize(Collection);
 
-#if WITH_EDITOR
-	if (!IsRunningCommandlet() && !GetWorld()->IsGameWorld())
-	{
-		GetWorld()->PersistentLevel->OnLoadedActorAddedToLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorLoaded);
-		GetWorld()->PersistentLevel->OnLoadedActorRemovedFromLevelEvent.AddUObject(this, &UHLODSubsystem::OnActorUnloaded);
-	}
-#endif
-
 	if (GetWorld()->IsGameWorld())
 	{
 		TSet<const UWorldPartitionRuntimeCell*> StreamingCells;
@@ -63,54 +55,6 @@ void UHLODSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		}
 	}
 }
-
-#if WITH_EDITOR
-void UHLODSubsystem::OnActorLoaded(AActor& Actor)
-{
-	// If loading an HLOD actor, keep a map of Actor -> HLODActors
-	if (AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(&Actor))
-	{
-		for (const FGuid& SubActorGuid : HLODActor->GetSubActors())
-		{
-			// Keep track of unloaded subactors
-			check(!ActorsToHLOD.Contains(SubActorGuid));
-			ActorsToHLOD.Emplace(SubActorGuid, HLODActor);
-		}
-	}
-
-	// If HLOD for this actor is already loaded, notify the HLOD that it should be hidden
-	AWorldPartitionHLOD** HLODActorPtr = ActorsToHLOD.Find(Actor.GetActorGuid());
-	if (HLODActorPtr)
-	{
-		(*HLODActorPtr)->OnSubActorLoaded(Actor);
-	}
-}
-
-void UHLODSubsystem::OnActorUnloaded(AActor& Actor)
-{
-	UWorld* World = GetWorld();
-	UWorldPartition* WorldPartition = World->GetWorldPartition();
-
-	// If bound to an HLOD, clear reference
-	{
-		AWorldPartitionHLOD** HLODActorPtr = ActorsToHLOD.Find(Actor.GetActorGuid());
-		if (HLODActorPtr)
-		{
-			(*HLODActorPtr)->OnSubActorUnloaded(Actor);
-		}
-	}
-
-	// If unloading an HLOD actor, clear map of Actor -> HLODActors
-	if (AWorldPartitionHLOD* HLODActor = Cast<AWorldPartitionHLOD>(&Actor))
-	{
-		for (const FGuid& SubActorGuid : HLODActor->GetSubActors())
-		{
-			int32 NumRemoved = ActorsToHLOD.Remove(SubActorGuid);
-			check(NumRemoved == 1);
-		}
-	}
-}
-#endif
 
 void UHLODSubsystem::RegisterHLODActor(AWorldPartitionHLOD* InWorldPartitionHLOD)
 {
