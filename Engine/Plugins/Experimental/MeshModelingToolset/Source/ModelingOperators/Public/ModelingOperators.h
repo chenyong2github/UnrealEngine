@@ -53,7 +53,7 @@ public:
 	/**
 	 * @return the transform applied to the mesh produced by CalculateResult()
 	 */
-	const FTransform3d& GetResultTransform()
+	const FTransform3d& GetResultTransform() const
 	{
 		return ResultTransform;
 	}

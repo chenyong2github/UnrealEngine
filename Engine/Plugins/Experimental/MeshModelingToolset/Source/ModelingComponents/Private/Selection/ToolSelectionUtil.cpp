@@ -13,3 +13,15 @@ void ToolSelectionUtil::SetNewActorSelection(UInteractiveToolManager* ToolManage
 	NewSelection.Actors.Add(Actor);
 	ToolManager->RequestSelectionChange(NewSelection);
 }
+
+
+void ToolSelectionUtil::SetNewActorSelection(UInteractiveToolManager* ToolManager, const TArray<AActor*>& Actors)
+{
+	FSelectedOjectsChangeList NewSelection;
+	NewSelection.ModificationType = ESelectedObjectsModificationType::Replace;
+	for (AActor* Actor : Actors)
+	{
+		NewSelection.Actors.Add(Actor);
+	}
+	ToolManager->RequestSelectionChange(NewSelection);
+}

@@ -79,7 +79,7 @@ public:
 	virtual void CalculateResult(FProgressCancel* Progress) override;
 
 	// IDs of any newly-created boundary edges in the result mesh
-	TArray<int> GetCreatedBoundaryEdges() const
+	const TArray<int>& GetCreatedBoundaryEdges() const
 	{
 		return CreatedBoundaryEdges;
 	}
