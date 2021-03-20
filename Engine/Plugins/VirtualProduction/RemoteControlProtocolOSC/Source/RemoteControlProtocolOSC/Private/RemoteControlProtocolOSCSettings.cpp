@@ -18,7 +18,9 @@ void FRemoteControlOSCServerSettings::InitOSCServer()
 		OSCServer = TStrongObjectPtr<UOSCServer>(UOSCManager::CreateOSCServer(OSCServerEndpoint.Address.ToString(), OSCServerEndpoint.Port, true, true, ServerName, nullptr));
 		if (OSCServer.IsValid())
 		{
+#if WITH_EDITOR
 			OSCServer->SetTickInEditor(true);
+#endif
 
 			TSharedPtr<FRemoteControlProtocolOSC> ControlProtocolOSC = StaticCastSharedPtr<FRemoteControlProtocolOSC>(IRemoteControlProtocolModule::Get().GetProtocolByName(FRemoteControlProtocolOSC::ProtocolName));
 			check(ControlProtocolOSC.IsValid());
