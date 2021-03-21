@@ -1329,6 +1329,9 @@ private:
 	/** GUID associated with the data stored herein. */
 	FGuid Guid;
 
+	/** Gets this bulk data hash */
+	FGuid GetHash() const;
+
 	/** Take a copy of the bulk data versioning so it can be propagated to the bulk data reader when deserializing MeshDescription */
 	FCustomVersionContainer CustomVersions;
 

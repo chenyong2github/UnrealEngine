@@ -1984,9 +1984,23 @@ void FMeshDescriptionBulkData::Serialize( FArchive& Ar, UObject* Owner )
 			// Explicitly load and resave the FMeshDescription so that its version is in sync with the FMeshDescriptionBulkData.
 			if( !bBulkDataUpdated )
 			{
+				const FGuid OriginalGuid = Guid;
+				FGuid OriginalHash;
+				if (!bGuidIsHash)
+				{
+					OriginalHash = GetHash();
+				}
+
 				FMeshDescription MeshDescription;
 				LoadMeshDescription( MeshDescription );
 				SaveMeshDescription( MeshDescription );
+
+				// Maintain original guid in case the hash is the same to avoid invalidating
+				// all the data already built using this guid.
+				if (!bGuidIsHash && OriginalHash == GetHash())
+				{
+					Guid = OriginalGuid;
+				}
 			}
 		}
 	}
@@ -2156,15 +2170,12 @@ FString FMeshDescriptionBulkData::GetIdString() const
 	return GuidString;
 }
 
-
-void FMeshDescriptionBulkData::UseHashAsGuid()
+FGuid FMeshDescriptionBulkData::GetHash() const
 {
 	if (BulkData.GetBulkDataSize() > 0)
 	{
-		bGuidIsHash = true;
-
 #if UE_USE_VIRTUALBULKDATA
-		Guid = BulkData.GetKey();
+		return BulkData.GetKey();
 #else
 		uint32 Hash[5] = {};
 
@@ -2172,8 +2183,20 @@ void FMeshDescriptionBulkData::UseHashAsGuid()
 		FSHA1::HashBuffer(Buffer, BulkData.GetBulkDataSize(), (uint8*)Hash);
 		BulkData.Unlock();
 
-		Guid = FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
+		return FGuid(Hash[0] ^ Hash[4], Hash[1], Hash[2], Hash[3]);
 #endif //UE_USE_VIRTUALBULKDATA
+	}
+
+	return FGuid();
+}
+
+void FMeshDescriptionBulkData::UseHashAsGuid()
+{
+	if (BulkData.GetBulkDataSize() > 0)
+	{
+		bGuidIsHash = true;
+
+		Guid = GetHash();
 	}
 	else
 	{

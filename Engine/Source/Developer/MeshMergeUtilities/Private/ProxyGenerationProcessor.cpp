@@ -249,7 +249,9 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 				StaticMesh->GetStaticMaterials().Add(NewMaterial);
 			}
 
-			StaticMesh->CommitMeshDescription(SourceModelIndex);
+			UStaticMesh::FCommitMeshDescriptionParams CommitParams;
+			CommitParams.bUseHashAsGuid = true;
+			StaticMesh->CommitMeshDescription(SourceModelIndex, CommitParams);
 		}
 	};
 
