@@ -10,6 +10,7 @@
 #include "RenderGraphUtils.h"
 #include "SceneRendering.h"
 #include "ScenePrivate.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #include "InstanceCulling/InstanceCullingContext.h"
 
@@ -101,6 +102,7 @@ IMPLEMENT_GLOBAL_SHADER(FCullInstancesCs, "/Engine/Private/InstanceCulling/CullI
 void FInstanceCullingManager::CullInstances(FRDGBuilder& GraphBuilder, FGPUScene& GPUScene)
 {
 #if GPUCULL_TODO
+	TRACE_CPUPROFILER_EVENT_SCOPE(FInstanceCullingManager::CullInstances);
 	RDG_EVENT_SCOPE(GraphBuilder, "CullInstances");
 
 	check(!CullingIntermediate.InstanceIdOutOffsetBuffer);

@@ -43,6 +43,7 @@
 #include "PixelShaderUtils.h"
 #include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 DECLARE_GPU_DRAWCALL_STAT_NAMED(ShadowDepths, TEXT("Shadow Depths"));
 
@@ -1572,6 +1573,8 @@ extern TAutoConsoleVariable<int32> CVarAllocatePagesUsingRects;
 void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceCullingManager &InstanceCullingManager)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderShadows);
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::RenderShadowDepthMaps);
 	SCOPED_NAMED_EVENT(FSceneRenderer_RenderShadowDepthMaps, FColor::Emerald);
 
 	RDG_EVENT_SCOPE(GraphBuilder, "ShadowDepths");

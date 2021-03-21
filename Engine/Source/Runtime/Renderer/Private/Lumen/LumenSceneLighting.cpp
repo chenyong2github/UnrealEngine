@@ -13,6 +13,7 @@
 #include "SceneTextureParameters.h"
 #include "LumenMeshCards.h"
 #include "LumenRadianceCache.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 int32 GLumenSceneCardLightingForceFullUpdate = 0;
 FAutoConsoleVariableRef CVarLumenSceneCardLightingForceFullUpdate(
@@ -552,6 +553,7 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneLighting(
 	FViewInfo& View)
 {
 	LLM_SCOPE_BYTAG(Lumen);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderLumenSceneLighting);
 
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const bool bAnyLumenEnabled = GetViewPipelineState(Views[0]).DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen 

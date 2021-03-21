@@ -23,6 +23,7 @@
 #include "DistanceFieldAmbientOcclusion.h"
 #include "Strata/Strata.h"
 #include "RendererUtils.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 // Must match EDynamicGlobalIlluminationMethod
 // Note: Default for new projects set by GameProjectUtils
@@ -717,6 +718,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		return;
 	}
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion);
 	RDG_EVENT_SCOPE(GraphBuilder, "DiffuseIndirectAndAO");
 
 	FSceneTextureParameters SceneTextureParameters = GetSceneTextureParameters(GraphBuilder, SceneTextures.UniformBuffer);

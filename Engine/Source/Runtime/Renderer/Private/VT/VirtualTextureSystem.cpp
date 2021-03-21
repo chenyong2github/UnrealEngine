@@ -6,6 +6,7 @@
 #include "HAL/IConsoleManager.h"
 #include "PostProcess/SceneRenderTargets.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ScenePrivate.h"
 #include "SceneUtils.h"
 #include "Stats/Stats.h"
@@ -958,6 +959,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	check(IsInRenderingThread());
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(VirtualTextureSystem_Update);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::Update);
 	SCOPE_CYCLE_COUNTER(STAT_VirtualTextureSystem_Update);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, VirtualTexture);
 

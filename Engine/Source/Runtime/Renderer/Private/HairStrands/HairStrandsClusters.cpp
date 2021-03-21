@@ -9,6 +9,7 @@
 #include "GlobalShader.h"
 #include "ShaderParameters.h"
 #include "ShaderParameterStruct.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -566,6 +567,7 @@ void ComputeHairStrandsClustersCulling(
 {
 	DECLARE_GPU_STAT(HairStrandsClusterCulling);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsClusterCulling");
+	TRACE_CPUPROFILER_EVENT_SCOPE(ComputeHairStrandsClustersCulling);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsClusterCulling);
 
 	uint32 ViewCount = Views.Num();

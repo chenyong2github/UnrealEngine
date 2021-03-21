@@ -17,6 +17,7 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "VisualizeTexture.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 
 /*-----------------------------------------------------------------------------
@@ -1435,6 +1436,8 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 	const FSceneTextures& SceneTextures,
 	bool bIsOcclusionTesting)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderOcclusion);
+
 	if (bIsOcclusionTesting)
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, HZB);

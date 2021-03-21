@@ -16,6 +16,7 @@
 #include "SceneViewExtension.h"
 #include "OneColorShader.h"
 #include "ClearQuad.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarSelectiveBasePassOutputs(
@@ -698,6 +699,8 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	FRDGTextureRef ForwardShadowMaskTexture,
 	FInstanceCullingManager& InstanceCullingManager)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::RenderBasePass);
+
 	const bool bEnableParallelBasePasses = GRHICommandList.UseParallelAlgorithms() && CVarParallelBasePass.GetValueOnRenderThread();
 
 	static const auto ClearMethodCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ClearSceneMethod"));

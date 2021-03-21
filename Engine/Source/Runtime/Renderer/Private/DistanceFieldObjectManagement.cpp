@@ -20,6 +20,7 @@
 #include "DistanceFieldLightingShared.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "GlobalDistanceField.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 extern void LumenUpdateDFObjectIndex(FScene* Scene, int32 MappingIndex);
 
@@ -932,6 +933,7 @@ void FSceneRenderer::UpdateGlobalHeightFieldObjectBuffers(FRDGBuilder& GraphBuil
 void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool bSplitDispatch)
 {
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderDFAO);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::PrepareDistanceFieldScene);
 	SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_DistanceFieldAO_Init);
 
 	const bool bShouldPrepareHeightFieldScene = ShouldPrepareHeightFieldScene();

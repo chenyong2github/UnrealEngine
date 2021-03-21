@@ -6,6 +6,7 @@
 
 #include "SceneRendering.h"
 #include "ProfilingDebugging/ProfilingHelpers.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
 #include "EngineGlobals.h"
@@ -3396,6 +3397,8 @@ bool FSceneRenderer::ShouldCompositeEditorPrimitives(const FViewInfo& View)
 
 void FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer, bool bWaitForTasks)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FSceneRenderer::WaitForTasksClearSnapshotsAndDeleteSceneRenderer);
+
 	// we are about to destroy things that are being used for async tasks, so we wait here for them.
 	if (bWaitForTasks)
 	{
@@ -3698,7 +3701,10 @@ static void RenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, 
 	}
 #endif
 
-	delete MemStackMark;
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeleteMemStackMark);
+		delete MemStackMark;
+	}
 }
 
 void OnChangeSimpleForwardShading(IConsoleVariable* Var)

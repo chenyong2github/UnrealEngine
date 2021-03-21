@@ -21,6 +21,7 @@
 #include "LumenSceneUtils.h"
 #include "DistanceFieldAmbientOcclusion.h"
 #include "HAL/LowLevelMemStats.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 int32 GLumenSceneCardCapturesPerFrame = 300;
 FAutoConsoleVariableRef CVarLumenSceneCardCapturesPerFrame(
@@ -1856,6 +1857,7 @@ void Lumen::SetupViewUniformBufferParameters(FScene* Scene, FViewUniformShaderPa
 void FDeferredShadingSceneRenderer::UpdateLumenScene(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE_BYTAG(Lumen);
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::UpdateLumenScene);
 
 	FViewInfo& View = Views[0];
 	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);

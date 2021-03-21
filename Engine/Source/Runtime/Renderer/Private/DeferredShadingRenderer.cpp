@@ -60,6 +60,7 @@
 #include "Experimental/Containers/SherwoodHashTable.h"
 #include "RayTracingGeometryManager.h"
 #include "InstanceCulling/InstanceCullingManager.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 extern int32 GNaniteDebugFlags;
 extern int32 GNaniteShowStats;
@@ -1943,6 +1944,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	if (bNaniteEnabled && Views.Num() > 0)
 	{
 		LLM_SCOPE_BYTAG(Nanite);
+		TRACE_CPUPROFILER_EVENT_SCOPE(InitNaniteRaster);
 
 		NaniteRasterResults.AddDefaulted(Views.Num());
 

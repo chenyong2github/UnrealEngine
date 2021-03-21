@@ -22,6 +22,7 @@ VolumetricFog.cpp
 #include "Lumen/LumenTranslucencyVolumeLighting.h"
 #include "GenerateConservativeDepthBuffer.h"
 #include "VirtualShadowMaps/VirtualShadowMapClipmap.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 IMPLEMENT_TYPE_LAYOUT(FVolumetricFogIntegrationParameters);
 IMPLEMENT_TYPE_LAYOUT(FVolumeShadowingParameters);
@@ -1111,6 +1112,7 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRDGBuilder& GraphBuild
 
 	const FExponentialHeightFogSceneInfo& FogInfo = Scene->ExponentialFogs[0];
 
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDeferredShadingSceneRenderer::ComputeVolumetricFog);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_VolumetricFog);
 	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, VolumetricFog);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, VolumetricFog);
