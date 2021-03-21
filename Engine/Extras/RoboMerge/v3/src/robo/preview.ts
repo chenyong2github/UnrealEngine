@@ -7,35 +7,50 @@ import { Status } from './status';
 const logger = new ContextualLogger('preview')
 let p4: PerforceContext | null = null
 
-let branchSpecsRootPath = ''
-export function init(root: string) {
-	branchSpecsRootPath = root
+// let branchSpecsRootPath = ''
+export function init(_root: string) {
+	// branchSpecsRootPath = root
 }
 
-export async function getPreview(cl: number, bot: string) {
+/**
+Going to make bot name optional, filter on that if present
+*/
+export async function getPreview(cl: number, singleBot: string) {
 	// @todo print content from shelf
 	if (!p4) {
 		p4 = new PerforceContext(logger)
 	}
 
-	const path = `${branchSpecsRootPath}/${bot}.branchmap.json` 
+	const status = new Status(new Date(), 'preview', logger)
 
-	const fileText = await p4.print(`${path}@=${cl}`)
-
-	const validationErrors: string[] = []
-	const result = BranchDefs.parseAndValidate(validationErrors, fileText)
-
-	if (!result.branchGraphDef) {
-		throw new Error(validationErrors.length === 0 ? 'Failed to parse' : validationErrors.join('\n'))
+	const bots: [string, string][] = []
+	for (const entry of (await p4.describe(cl, undefined, true)).entries) {
+		const match = entry.depotFile.match(/.*\/(.*)\.branchmap\.json$/)
+		if (match) {
+			bots.push([match[1], match[0]])
+		}
 	}
 
-	const graph = new BranchGraph(bot)
-	graph.config = result.config
-	graph._initFromBranchDefInternal(result.branchGraphDef)
+	for (const [bot, path] of bots) {
+		if (singleBot && bot.toLowerCase() !== singleBot.toLowerCase()) {
+			continue
+		}
+		const fileText = await p4.print(`${path}@=${cl}`)
 
-	const status = new Status(new Date(), 'preview', logger)
-	for (const branch of graph.branches) {
-		status.addBranch(branch)
+		const validationErrors: string[] = []
+		const result = BranchDefs.parseAndValidate(validationErrors, fileText)
+
+		if (!result.branchGraphDef) {
+			throw new Error(validationErrors.length === 0 ? 'Failed to parse' : validationErrors.join('\n'))
+		}
+
+		const graph = new BranchGraph(bot)
+		graph.config = result.config
+		graph._initFromBranchDefInternal(result.branchGraphDef)
+
+		for (const branch of graph.branches) {
+			status.addBranch(branch)
+		}
 	}
 
 	return status

@@ -168,13 +168,19 @@ class RoboWebApp implements AppInterface {
 	}
 
 	@Handler('GET', '/preview/*/*', {filetype: 'text/html'}) 
-	async preview(clStr: string, bot: string) {
+	previewWithBot(clStr: string) {
+		return this.preview(clStr)
+	}
+
+	@Handler('GET', '/preview/*', {filetype: 'text/html'}) 
+	async preview(clStr: string) {
+
 		const cl = parseInt(clStr)
 		if (isNaN(cl)) {
 			throw new Error(`Failed to parse alleged CL '${clStr}'`)
 		}
 		const template = await readUtf8File('public/preview.html')
-		return Mustache.render(template, {cl, bot})
+		return Mustache.render(template, {cl})
 	}
 
 	@Handler('GET', '/preview') 

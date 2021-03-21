@@ -278,7 +278,8 @@ export class IPC {
 		if (!isNpmLogLevel(level)) {
 			return { 
 				statusCode: 400, 
-				message: `${level} is not an appropriate value. Try one of these values: ${Object.keys(NpmLogLevelValues).join(', ')}`
+				message: `${level} is not an appropriate value. Try one of these values: ` +
+												Object.keys(NpmLogLevelValues).join(', ')
 			}
 		}
 
@@ -299,7 +300,8 @@ export class IPC {
 		return { statusCode: 200, message: `${level.toLowerCase()} logging enabled (was: ${previousLevel}).`}
 	}
 
-	private async doOperation(botname: string, nodeName: string, operation: string, query: Query, edgeName?: string) : Promise<OperationReturnType> {
+	private async doOperation(botname: string, nodeName: string, operation: string, query: Query, edgeName?: string)
+		: Promise<OperationReturnType> {
 		if (!query.who) {
 			// probably ought to be a 500 now
 			return {statusCode: 400, message: `Attempt to run operation ${operation}: user name must be supplied.`}
@@ -361,7 +363,8 @@ export class IPC {
 
 			let prevCl = generalOpTarget.forceSetLastClWithContext(cl, query.who, query.reason)
 
-			this.ipcLogger.info(`Forcing last CL=${cl} on ${botname} : ${branch.name} (was CL ${prevCl}), requested by ${query.who} (Reason: ${query.reason})`)
+			this.ipcLogger.info(`Forcing last CL=${cl} on ${botname} : ${branch.name} (was CL ${prevCl}), ` +
+														`requested by ${query.who} (Reason: ${query.reason})`)
 			return OPERATION_SUCCESS
 
 		case 'reconsider':

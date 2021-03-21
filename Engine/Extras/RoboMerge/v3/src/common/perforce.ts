@@ -1093,8 +1093,11 @@ export class PerforceContext {
 		return this._execP4(workspace, ['edit', '-c', cl.toString(), filePath]);
 	}
 
-	async describe(cl: number, maxFiles?: number) {
-		const args = ['describe', ...(maxFiles ? ['-m', maxFiles.toString()] : []), cl.toString()]
+	async describe(cl: number, maxFiles?: number, includeShelved?: boolean) {
+		const args = ['describe',
+			...(maxFiles ? ['-m', maxFiles.toString()] : []),
+			...(includeShelved ? ['-S'] : []),
+			cl.toString()]
 		const ztagResult = await this._execP4Ztag(null, args, { multiline:true });
 
 		if (ztagResult.length > 2) {
