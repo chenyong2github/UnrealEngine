@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 "use strict"
 
-function doit(cl, bot) {
-	$.get(`/preview?cl=${cl}&bot=${bot}`)
+function doit(query) {
+	$.get(query)
 	.then(data => {
 		const botNames = new Set
 		const allBranches = JSON.parse(data).allBranches

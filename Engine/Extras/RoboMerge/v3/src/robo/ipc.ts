@@ -62,7 +62,7 @@ export class IPC {
 			case 'crashGraphBot': return this.crashGraphBot(msg.args![0] as string, msg.args![1] as string)
 			case 'crashAPI': throw new Error(`API Crash requested by ${msg.args![0]}`)
 			case 'forceBranchmapUpdate': return this.forceBranchmapUpdate(msg.args![0] as string)
-			case 'preview': return this.preview(msg.args![0] as string, msg.args![1] as string)
+			case 'preview': return this.preview(msg.args![0] as string, msg.args![1] as (string|undefined))
 
 			case 'doNodeOp': return this.doOperation(
 				msg.args![0] as string,
@@ -246,7 +246,7 @@ export class IPC {
 		return OPERATION_SUCCESS
 	}
 
-	private async preview(clStr: string, botname: string): Promise<OperationReturnType> {
+	private async preview(clStr: string, botname?: string): Promise<OperationReturnType> {
 		const cl = parseInt(clStr)
 		if (isNaN(cl)) {
 			throw new Error(`Failed to parse alleged CL '${clStr}'`)

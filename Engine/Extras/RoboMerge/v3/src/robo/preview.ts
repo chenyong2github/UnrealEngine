@@ -15,7 +15,7 @@ export function init(_root: string) {
 /**
 Going to make bot name optional, filter on that if present
 */
-export async function getPreview(cl: number, singleBot: string) {
+export async function getPreview(cl: number, singleBot?: string) {
 	// @todo print content from shelf
 	if (!p4) {
 		p4 = new PerforceContext(logger)
