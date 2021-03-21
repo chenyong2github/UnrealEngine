@@ -124,7 +124,13 @@ TUniquePtr<FWorldPartitionActorDesc> UActorDescContainer::GetActorDescriptor(con
 
 			NewActorDesc->Init(this, ActorDescInitData);
 			
-			check(bIsValidClass || (NewActorDesc->GetActorIsEditorOnly() && IsRunningGame()));
+			//check(bIsValidClass || (NewActorDesc->GetActorIsEditorOnly() && IsRunningGame()));
+
+			if (!bIsValidClass)
+			{
+				return nullptr;
+			}
+
 			return NewActorDesc;
 		}
 	}
