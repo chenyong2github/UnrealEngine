@@ -511,7 +511,7 @@ TArray<AWorldPartitionHLOD*> FHLODBuilderUtilities::CreateHLODActors(FHLODCreati
 		}
 
 		// Cell bounds
-		if (HLODActor->GetHLODBounds().Equals(InCreationParams.CellBounds))
+		if (!HLODActor->GetHLODBounds().Equals(InCreationParams.CellBounds))
 		{
 			HLODActor->SetHLODBounds(InCreationParams.CellBounds);
 			bIsDirty = true;
