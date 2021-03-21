@@ -2664,6 +2664,7 @@ void ULevel::FixupForPIE(int32 InPIEInstanceID, TFunctionRef<void(int32, FSoftOb
 			, CustomFixupFunction(InCustomFixupFunction)
 		{
 			this->SetIsSaving(true);
+			this->ArShouldSkipBulkData = true;
 		}
 
 		FArchive& operator<<(FSoftObjectPath& Value)
