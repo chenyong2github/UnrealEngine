@@ -56,6 +56,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEngine.h"
 #include "BufferVisualizationData.h"
+#include "NaniteVisualizationData.h"
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
 
@@ -390,6 +391,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, LastEngineShowFlags(ESFIM_Game)
 	, ExposureSettings()
 	, CurrentBufferVisualizationMode(NAME_None)
+	, CurrentNaniteVisualizationMode(NAME_None)
 	, CurrentRayTracingDebugVisualizationMode(NAME_None)
 	, FramesSinceLastDraw(0)
 	, ViewIndex(INDEX_NONE)
@@ -2681,6 +2683,23 @@ FText FEditorViewportClient::GetCurrentBufferVisualizationModeDisplayName() cons
 		? FBufferVisualizationData::GetMaterialDefaultDisplayName() : GetBufferVisualizationData().GetMaterialDisplayName(CurrentBufferVisualizationMode));
 }
 
+void FEditorViewportClient::ChangeNaniteVisualizationMode(FName InName)
+{
+	SetViewMode(VMI_VisualizeNanite);
+	CurrentNaniteVisualizationMode = InName;
+}
+
+bool FEditorViewportClient::IsNaniteVisualizationModeSelected(FName InName) const
+{
+	return IsViewModeEnabled(VMI_VisualizeNanite) && CurrentNaniteVisualizationMode == InName;
+}
+
+FText FEditorViewportClient::GetCurrentNaniteVisualizationModeDisplayName() const
+{
+	checkf(IsViewModeEnabled(VMI_VisualizeNanite), TEXT("In order to call GetCurrentNaniteVisualizationMode(), first you must set ViewMode to VMI_VisualizeNanite."));
+	return GetNaniteVisualizationData().GetModeDisplayName(CurrentNaniteVisualizationMode);
+}
+
 bool FEditorViewportClient::IsVisualizeCalibrationMaterialEnabled() const
 {
 	// Get the list of requested buffers from the console
@@ -2725,8 +2744,8 @@ bool FEditorViewportClient::SupportsPreviewResolutionFraction() const
 		return false;
 	}
 
-	// Don't do preview screen percentage for buffer visualization.
-	if (EngineShowFlags.VisualizeBuffer || IsVisualizeCalibrationMaterialEnabled())
+	// Don't do preview screen percentage in certain cases.
+	if (EngineShowFlags.VisualizeBuffer || EngineShowFlags.VisualizeNanite || IsVisualizeCalibrationMaterialEnabled())
 	{
 		return false;
 	}
@@ -3743,6 +3762,7 @@ void FEditorViewportClient::SetupViewForRendering(FSceneViewFamily& ViewFamily, 
 	}
 
 	View.CurrentBufferVisualizationMode = CurrentBufferVisualizationMode;
+	View.CurrentNaniteVisualizationMode = CurrentNaniteVisualizationMode;
 #if RHI_RAYTRACING
 	View.CurrentRayTracingDebugVisualizationMode = CurrentRayTracingDebugVisualizationMode;
 #endif
@@ -3875,8 +3895,9 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 	ViewFamily.ViewMode = CurrentViewMode;
 
 	const bool bVisualizeBufferEnabled = CurrentViewMode == VMI_VisualizeBuffer && CurrentBufferVisualizationMode != NAME_None;
+	const bool bVisualizeNaniteEnabled = CurrentViewMode == VMI_VisualizeNanite && CurrentNaniteVisualizationMode != NAME_None;
 	const bool bRayTracingDebugEnabled = CurrentViewMode == VMI_RayTracingDebug && CurrentRayTracingDebugVisualizationMode != NAME_None;
-	const bool bCanDisableTonemapper = bVisualizeBufferEnabled || (bRayTracingDebugEnabled && !FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(CurrentRayTracingDebugVisualizationMode));
+	const bool bCanDisableTonemapper = bVisualizeBufferEnabled || bVisualizeNaniteEnabled || (bRayTracingDebugEnabled && !FRayTracingDebugVisualizationMenuCommands::DebugModeShouldBeTonemapped(CurrentRayTracingDebugVisualizationMode));
 	
 	EngineShowFlagOverride(ESFIM_Editor, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, bCanDisableTonemapper);
 	EngineShowFlagOrthographicOverride(IsPerspective(), ViewFamily.EngineShowFlags);

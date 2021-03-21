@@ -620,6 +620,10 @@ public:
 protected:
 	void SetCurrentBufferVisualizationMode(FName NewBufferVisualizationMode) { CurrentBufferVisualizationMode = NewBufferVisualizationMode; }
 	FName GetCurrentBufferVisualizationMode() const { return CurrentBufferVisualizationMode; }
+
+	void SetCurrentNaniteVisualizationMode(FName NewNaniteVisualizationMode) { CurrentNaniteVisualizationMode = NewNaniteVisualizationMode; }
+	FName GetCurrentNaniteVisualizationMode() const { return CurrentNaniteVisualizationMode; }
+
 	bool HasAudioFocus() const { return bHasAudioFocus; }
 
 	/** Updates CSVProfiler camera stats */
@@ -922,6 +926,9 @@ private:
 
 	/** Current buffer visualization mode for this game viewport */
 	FName CurrentBufferVisualizationMode;
+
+	/** Current Nanite visualization mode for this game viewport */
+	FName CurrentNaniteVisualizationMode;
 
 	/** Weak pointer to the highres screenshot dialog if it's open */
 	TWeakPtr<SWindow> HighResScreenshotDialog;

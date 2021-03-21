@@ -43,6 +43,7 @@
 #include "Sound/SoundWave.h"
 #include "HighResScreenshot.h"
 #include "BufferVisualizationData.h"
+#include "NaniteVisualizationData.h"
 #include "GameFramework/InputSettings.h"
 #include "Components/LineBatchComponent.h"
 #include "Debug/DebugDrawService.h"
@@ -234,7 +235,8 @@ UGameViewportClient::UGameViewportClient(const FObjectInitializer& ObjectInitial
 	: Super(ObjectInitializer)
 	, EngineShowFlags(ESFIM_Game)
 	, CurrentBufferVisualizationMode(NAME_None)
-	, HighResScreenshotDialog(NULL)
+	, CurrentNaniteVisualizationMode(NAME_None)
+	, HighResScreenshotDialog(nullptr)
 	, bUseSoftwareCursorWidgets(true)
 	, bIgnoreInput(false)
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
@@ -325,7 +327,8 @@ UGameViewportClient::UGameViewportClient(FVTableHelper& Helper)
 	: Super(Helper)
 	, EngineShowFlags(ESFIM_Game)
 	, CurrentBufferVisualizationMode(NAME_None)
-	, HighResScreenshotDialog(NULL)
+	, CurrentNaniteVisualizationMode(NAME_None)
+	, HighResScreenshotDialog(nullptr)
 	, bIgnoreInput(false)
 	, MouseCaptureMode(EMouseCaptureMode::CapturePermanently)
 	, bHideCursorDuringCapture(false)
@@ -1311,7 +1314,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 			}
 			else
 			{
-				if (GetBufferVisualizationData().GetMaterial(ModeName) == NULL)
+				if (GetBufferVisualizationData().GetMaterial(ModeName) == nullptr)
 				{
 					// Mode is out of range, so display a message to the user, and reset the mode back to the previous valid one
 					UE_LOG(LogConsoleResponse, Warning, TEXT("Buffer visualization mode '%s' does not exist"), *ModeNameString);
@@ -1471,6 +1474,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 					}
 
 					View->CurrentBufferVisualizationMode = CurrentBufferVisualizationMode;
+					View->CurrentNaniteVisualizationMode = CurrentNaniteVisualizationMode;
 
 					View->CameraConstrainedViewRect = View->UnscaledViewRect;
 

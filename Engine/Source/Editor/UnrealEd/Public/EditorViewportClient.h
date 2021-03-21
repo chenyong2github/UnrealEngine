@@ -1220,14 +1220,14 @@ public:
 	virtual bool HandleIsShowFlagEnabled(FEngineShowFlags::EShowFlag EngineShowFlagIndex) const;
 
 	/**
-	 * Changes the buffer visualization mode for this viewport
+	 * Changes the buffer visualization mode for this viewport.
 	 *
 	 * @param InName	The ID of the required visualization mode
 	 */
 	void ChangeBufferVisualizationMode( FName InName );
 
 	/**
-	 * Checks if a buffer visualization mode is selected
+	 * Checks if a buffer visualization mode is selected.
 	 * 
 	 * @param InName	The ID of the required visualization mode
 	 * @return	true if the supplied buffer visualization mode is checked
@@ -1235,9 +1235,29 @@ public:
 	bool IsBufferVisualizationModeSelected( FName InName ) const;
 
 	/**
-	 * It returns the FText display name associate with CurrentBufferVisualizationMode
+	 * Returns the FText display name associated with CurrentBufferVisualizationMode.
 	 */
 	FText GetCurrentBufferVisualizationModeDisplayName() const;
+
+	/**
+	 * Changes the Nanite visualization mode for this viewport.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 */
+	void ChangeNaniteVisualizationMode(FName InName);
+
+	/**
+	 * Checks if a Nanite visualization mode is selected.
+	 *
+	 * @param InName	The ID of the required visualization mode
+	 * @return	true if the supplied Nanite visualization mode is checked
+	 */
+	bool IsNaniteVisualizationModeSelected(FName InName) const;
+
+	/**
+	 * Returns the FText display name associated with CurrentNaniteVisualizationMode.
+	 */
+	FText GetCurrentNaniteVisualizationModeDisplayName() const;
 
 	/**
 	* Returns whether visualize debug material is enabled.
@@ -1559,6 +1579,7 @@ public:
 	FExposureSettings		ExposureSettings;
 
 	FName CurrentBufferVisualizationMode;
+	FName CurrentNaniteVisualizationMode;
 
 	FName CurrentRayTracingDebugVisualizationMode;
 

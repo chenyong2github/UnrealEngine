@@ -127,7 +127,7 @@ UMaterialInterface* FBufferVisualizationData::GetMaterial(FName InMaterialName)
 	}
 	// Get UMaterial from the UMaterial FName
 	// Almost all BufferVisualizationData variables contain a FMaterial with its same FName.
-	// But not all, e.g., ShadingModel uses the FMaterial LightingModel. This could confuse the developer depending on which one he is using
+	// But not all, e.g., ShadingModel uses the FMaterial LightingModel. This could confuse the developer depending on which one they are using
 	// This "else if" case handles the case in which we look for "LightingModel" rather than "ShadingModel", returning the same value
 	else if (const Record* ResultFromMaterialName = MaterialMapFromMaterialName.Find(InMaterialName))
 	{
@@ -149,7 +149,7 @@ FText FBufferVisualizationData::GetMaterialDisplayName(FName InMaterialName) con
 	}
 	// Get UMaterial from the UMaterial FName
 	// Almost all BufferVisualizationData variables contain a FMaterial with its same FName.
-	// But not all, e.g., ShadingModel uses the FMaterial LightingModel. This could confuse the developer depending on which one he is using
+	// But not all, e.g., ShadingModel uses the FMaterial LightingModel. This could confuse the developer depending on which one they are using
 	// This "else if" case handles the case in which we look for "LightingModel" rather than "ShadingModel", returning the same value
 	else if (const Record* ResultFromMaterialName = MaterialMapFromMaterialName.Find(InMaterialName))
 	{

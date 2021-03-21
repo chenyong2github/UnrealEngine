@@ -10,6 +10,7 @@
 #include "ClearQuad.h"
 #include "RendererModule.h"
 #include "PipelineStateCache.h"
+#include "NaniteVisualizationData.h"
 #include "Rendering/NaniteResources.h"
 #include "Rendering/NaniteStreamingManager.h"
 #include "PostProcess/SceneFilterRendering.h"

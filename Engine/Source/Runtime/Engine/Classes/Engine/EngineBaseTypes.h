@@ -967,6 +967,9 @@ enum EViewModeIndex
 	/** Run ray tracing debug pipeline */
 	VMI_RayTracingDebug = 28 UMETA(DisplayName = "Ray Tracing Debug"),
 
+	/** Visualize various aspects of Nanite */
+	VMI_VisualizeNanite = 29 UMETA(DisplayName = "Nanite Visualization"),
+
 	VMI_Max UMETA(Hidden),
 
 	// VMI_Unknown - The value assigned to VMI_Unknown must be the highest possible of any member of EViewModeIndex, or GetViewModeName might seg-fault

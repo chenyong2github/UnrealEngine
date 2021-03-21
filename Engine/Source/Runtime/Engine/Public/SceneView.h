@@ -1000,6 +1000,9 @@ public:
 	/** Current buffer visualization mode */
 	FName CurrentBufferVisualizationMode;
 
+	/** Current Nanite visualization mode */
+	FName CurrentNaniteVisualizationMode;
+
 	/** Current visualize calibration color material name */
 	FName CurrentVisualizeCalibrationColorMaterialName;
 

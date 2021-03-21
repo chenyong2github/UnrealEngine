@@ -222,6 +222,7 @@ bool IsAutoExposureDebugMode(const FViewInfo& View)
 	return View.Family->UseDebugViewPS() ||
 		!EngineShowFlags.Lighting ||
 		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) ||
+		(EngineShowFlags.VisualizeNanite && View.CurrentNaniteVisualizationMode != NAME_None) ||
 		EngineShowFlags.RayTracingDebug ||
 		EngineShowFlags.VisualizeDistanceFieldAO ||
 		EngineShowFlags.VisualizeMeshDistanceFields ||
@@ -923,7 +924,8 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 		!ViewFamily.EngineShowFlags.LODColoration &&
 		!ViewFamily.EngineShowFlags.HLODColoration &&
 		!ViewFamily.EngineShowFlags.LevelColoration &&
-		((!ViewFamily.EngineShowFlags.VisualizeBuffer) || View.CurrentBufferVisualizationMode != NAME_None); // disable pre-exposure for the debug visualization modes
+		((!ViewFamily.EngineShowFlags.VisualizeBuffer) || View.CurrentBufferVisualizationMode != NAME_None) && // disable pre-exposure for the buffer visualization modes
+		((!ViewFamily.EngineShowFlags.VisualizeNanite) || View.CurrentNaniteVisualizationMode != NAME_None);   // disable pre-exposure for the Nanite visualization modes
 
 	PreExposure = 1.f;
 	bUpdateLastExposure = false;

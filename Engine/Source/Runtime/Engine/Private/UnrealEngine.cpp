@@ -167,7 +167,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "EngineModule.h"
 #include "UnrealExporter.h"
 #include "BufferVisualizationData.h"
-
+#include "NaniteVisualizationData.h"
 #include "Misc/HotReloadInterface.h"
 #include "Widgets/Testing/STestSuite.h"
 #include "Engine/DemoNetDriver.h"
@@ -1731,6 +1731,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Initialise buffer visualization system data
 	GetBufferVisualizationData().Initialize();
+	GetNaniteVisualizationData().Initialize();
 
 	// Initialize Portal services
 	if (!IsRunningCommandlet() && !IsRunningDedicatedServer())

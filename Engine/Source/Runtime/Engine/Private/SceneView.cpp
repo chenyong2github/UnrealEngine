@@ -15,6 +15,7 @@
 #include "SceneManagement.h"
 #include "EngineModule.h"
 #include "BufferVisualizationData.h"
+#include "NaniteVisualizationData.h"
 #include "Interfaces/Interface_PostProcessVolume.h"
 #include "Engine/TextureCube.h"
 #include "StereoRendering.h"

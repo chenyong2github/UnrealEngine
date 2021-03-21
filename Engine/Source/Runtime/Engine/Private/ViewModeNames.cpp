@@ -71,7 +71,7 @@ TArray<FText> FillViewModeDisplayNames()
 		}
 		else if (ViewModeIndex == VMI_VisualizeBuffer)
 		{
-			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeBuffer", "Buffer Visualization5"));
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeBuffer", "Buffer Visualization"));
 		}
 		//	VMI_VoxelLighting = 13,
 	
@@ -146,6 +146,11 @@ TArray<FText> FillViewModeDisplayNames()
 		else if (ViewModeIndex == VMI_RayTracingDebug)
 		{
 			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_RayTracingDebug", "Ray Tracing Debug"));
+		}
+
+		else if (ViewModeIndex == VMI_VisualizeNanite)
+		{
+			ViewModeDisplayNames.Emplace(LOCTEXT("UViewModeUtils_VMI_VisualizeNanite", "Nanite Visualization"));
 		}
 
 		// VMI_Max
@@ -247,6 +252,11 @@ TArray<const FSlateBrush*> FillViewModeDisplayIcons()
 		{
 			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeBufferMode"));
 		}
+		else if (ViewModeIndex == VMI_VisualizeNanite)
+		{
+			ViewModeDisplayIcons.Emplace(FAppStyle::Get().GetBrush("EditorViewport.VisualizeNaniteMode"));
+		}
+
 		//	VMI_VoxelLighting = 13,
 	
 		// Colored according to stationary light overlap

@@ -362,6 +362,7 @@ private:
 		SetLightingOnlyOverride(false);
 		SetReflectionOverride(false);
 		SetVisualizeBuffer(false);
+		SetVisualizeNanite(false);
 		SetVectorFields(false);
 		SetGBufferHints(false);
 		SetCompositeEditorPrimitives(InitMode == ESFIM_Editor || InitMode == ESFIM_VREditing);

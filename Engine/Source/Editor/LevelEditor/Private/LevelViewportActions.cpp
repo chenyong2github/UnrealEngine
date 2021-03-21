@@ -9,6 +9,7 @@
 #include "EditorShowFlags.h"
 #include "Stats/StatsData.h"
 #include "BufferVisualizationData.h"
+#include "NaniteVisualizationData.h"
 #include "Bookmarks/BookmarkUI.h"
 #include "UnrealEdGlobals.h"
 

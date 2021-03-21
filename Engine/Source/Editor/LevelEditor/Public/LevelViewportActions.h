@@ -8,6 +8,7 @@
 #include "Framework/Commands/Commands.h"
 #include "EditorStyleSet.h"
 #include "BufferVisualizationMenuCommands.h"
+#include "NaniteVisualizationMenuCommands.h"
 
 /**
  * Public identifiers for the viewport layouts available in LevelViewportLayoutX.h files

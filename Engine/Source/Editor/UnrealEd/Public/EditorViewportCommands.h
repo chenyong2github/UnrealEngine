@@ -128,6 +128,9 @@ public:
 	/** Changes the viewport to visualize the buffer content */
 	TSharedPtr< FUICommandInfo > VisualizeBufferMode;
 
+	/** Changes the viewport to visualize Nanite content */
+	TSharedPtr< FUICommandInfo > VisualizeNaniteMode;
+
 	/** Collision Draw Mode */
 	TSharedPtr< FUICommandInfo > CollisionPawn;
 	TSharedPtr< FUICommandInfo > CollisionVisibility;

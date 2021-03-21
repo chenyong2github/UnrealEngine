@@ -58,6 +58,7 @@
 #include "HighresScreenshotUI.h"
 #include "ISettingsModule.h"
 #include "BufferVisualizationData.h"
+#include "NaniteVisualizationData.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "SLevelViewportControlsPopup.h"
@@ -70,6 +71,7 @@
 #include "AssetRegistryModule.h"
 #include "IAssetRegistry.h"
 #include "BufferVisualizationMenuCommands.h"
+#include "NaniteVisualizationMenuCommands.h"
 #include "EditorLevelUtils.h"
 #include "Engine/LevelStreaming.h"
 #include "Editor/WorldBrowser/Public/WorldBrowserModule.h"
@@ -484,6 +486,7 @@ void SLevelViewport::ConstructLevelEditorViewportClient(FLevelEditorViewportInst
 	LevelViewportClient->EngineShowFlags = EditorShowFlags;
 	LevelViewportClient->LastEngineShowFlags = GameShowFlags;
 	LevelViewportClient->CurrentBufferVisualizationMode = ViewportInstanceSettings.BufferVisualizationMode;
+	LevelViewportClient->CurrentNaniteVisualizationMode = ViewportInstanceSettings.NaniteVisualizationMode;
 	LevelViewportClient->CurrentRayTracingDebugVisualizationMode = ViewportInstanceSettings.RayTracingDebugVisualizationMode;
 	LevelViewportClient->ExposureSettings = ViewportInstanceSettings.ExposureSettings;
 	if(ViewportInstanceSettings.ViewportType == LVT_Perspective)
@@ -1571,6 +1574,9 @@ void SLevelViewport::BindViewCommands( FUICommandList& OutCommandList )
 	LevelEditorModule.IterateViewportTypes(ProcessViewportTypeActions);
 
 	FBufferVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
+#if 0 // TODO: NANITE_VIEW_MODES
+	FNaniteVisualizationMenuCommands::Get().BindCommands(OutCommandList, Client);
+#endif
 }
 
 
@@ -2332,6 +2338,7 @@ void SLevelViewport::SaveConfig(const FString& ConfigName) const
 		ViewportInstanceSettings.EditorShowFlagsString = EditorShowFlagsToSave.ToString();
 		ViewportInstanceSettings.GameShowFlagsString = GameShowFlagsToSave.ToString();
 		ViewportInstanceSettings.BufferVisualizationMode = LevelViewportClient->CurrentBufferVisualizationMode;
+		ViewportInstanceSettings.NaniteVisualizationMode = LevelViewportClient->CurrentNaniteVisualizationMode;
 		ViewportInstanceSettings.RayTracingDebugVisualizationMode = LevelViewportClient->CurrentRayTracingDebugVisualizationMode;
 		ViewportInstanceSettings.ExposureSettings = LevelViewportClient->ExposureSettings;
 		ViewportInstanceSettings.FOVAngle = LevelViewportClient->FOVAngle;

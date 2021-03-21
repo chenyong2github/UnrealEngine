@@ -30,6 +30,7 @@
 #include "SEditorViewportViewMenu.h"
 #include "Stats/StatsData.h"
 #include "BufferVisualizationData.h"
+#include "NaniteVisualizationData.h"
 #include "FoliageType.h"
 #include "ShowFlagMenuCommands.h"
 #include "Bookmarks/BookmarkUI.h"
@@ -1583,6 +1584,32 @@ void SLevelViewportToolBar::FillViewMenu(UToolMenu* Menu)
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeBufferMode")
 		);
 	}
+
+#if 0 // TODO: NANITE_VIEW_MODES
+	{
+		FToolMenuSection& Section = Menu->FindOrAddSection("ViewMode");
+		Section.AddSubMenu(
+			"VisualizeNaniteViewMode",
+			LOCTEXT("VisualizeNaniteViewModeDisplayName", "Nanite Visualization"),
+			LOCTEXT("NaniteVisualizationMenu_ToolTip", "Select a mode for Nanite visualization"),
+			FNewMenuDelegate::CreateStatic(&FNaniteVisualizationMenuCommands::BuildVisualisationSubMenu),
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateLambda([this]()
+				{
+					const TSharedRef<SEditorViewport> ViewportRef = Viewport.Pin().ToSharedRef();
+					const TSharedPtr<FEditorViewportClient> ViewportClient = ViewportRef->GetViewportClient();
+					check(ViewportClient.IsValid());
+					return ViewportClient->IsViewModeEnabled(VMI_VisualizeNanite);
+				})
+			),
+			EUserInterfaceActionType::RadioButton,
+			/* bInOpenSubMenuOnClick = */ false,
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorViewport.VisualizeNaniteMode")
+		);
+	}
+#endif
 
 	{
 		FToolMenuSection& Section = Menu->AddSection("LevelViewportLandscape", LOCTEXT("LandscapeHeader", "Landscape"), InsertPosition);
