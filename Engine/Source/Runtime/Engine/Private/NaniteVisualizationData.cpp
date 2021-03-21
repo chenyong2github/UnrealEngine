@@ -8,7 +8,7 @@
 #define LOCTEXT_NAMESPACE "FNaniteVisualizationData"
 
 static FNaniteVisualizationData GNaniteVisualizationData;
-PRAGMA_DISABLE_OPTIMIZATION
+
 // Nanite Visualization Modes (must match NaniteDataDecode.ush)
 #define VISUALIZE_OVERVIEW							0
 #define VISUALIZE_TRIANGLES							1
