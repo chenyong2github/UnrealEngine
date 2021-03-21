@@ -2682,7 +2682,7 @@ void FSceneView::SetupRayTracedRendering()
 
 	const FEngineShowFlags& ShowFlags = Family->EngineShowFlags;
 
-	if (ShowFlags.PathTracing)
+	if (ShowFlags.PathTracing && FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(GetShaderPlatform()))
 	{
 		RayTracingRenderMode = ERayTracingRenderMode::PathTracing;
 	}	

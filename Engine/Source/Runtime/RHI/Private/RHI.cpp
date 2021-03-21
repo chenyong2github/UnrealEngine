@@ -1734,6 +1734,7 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	Info.bSupportsRenderTargetWriteMask = GetSectionBool(Section, "bSupportsRenderTargetWriteMask");
 	Info.bSupportsRayTracing = GetSectionBool(Section, "bSupportsRayTracing");
 	Info.bSupportsRayTracingIndirectInstanceData = GetSectionBool(Section, "bSupportsRayTracingIndirectInstanceData");
+	Info.bSupportsPathTracing = GetSectionBool(Section, "bSupportsPathTracing");
 	Info.bSupportsGPUSkinCache = GetSectionBool(Section, "bSupportsGPUSkinCache");
 	Info.bSupportsByteBufferComputeShaders = GetSectionBool(Section, "bSupportsByteBufferComputeShaders");
 	Info.bSupportsGPUScene = GetSectionBool(Section, "bSupportsGPUScene");

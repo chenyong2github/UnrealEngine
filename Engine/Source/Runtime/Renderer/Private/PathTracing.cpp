@@ -340,7 +340,8 @@ class FPathTracingRG : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform)
+			&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(Parameters.Platform);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -761,7 +762,8 @@ IMPLEMENT_SHADER_TYPE(, FPathTracingCompositorPS, TEXT("/Engine/Private/PathTrac
 
 void FDeferredShadingSceneRenderer::PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
 {
-	if (View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing)
+	if (View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing
+		&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(View.GetShaderPlatform()))
 	{
 		// Declare all RayGen shaders that require material closest hit shaders to be bound
 		auto RayGenShader = View.ShaderMap->GetShader<FPathTracingRG>();
@@ -785,6 +787,11 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	RDG_GPU_STAT_SCOPE(GraphBuilder, Stat_GPU_PathTracing);
 	RDG_EVENT_SCOPE(GraphBuilder, "Path Tracing");
 
+	if (!ensureMsgf(FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(View.GetShaderPlatform()),
+		TEXT("Attempting to use path tracing on unsupported platform.")))
+	{
+		return;
+	}
 
 	bool bArgsChanged = false;
 
