@@ -1817,7 +1817,16 @@ struct FMarkRelevantStaticMeshesForViewData
 		MinScreenRadiusForDepthPrepassSquared = GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass;
 
 		extern bool ShouldForceFullDepthPass(EShaderPlatform ShaderPlatform);
-		bFullEarlyZPass = ShouldForceFullDepthPass(View.GetShaderPlatform());
+		EShaderPlatform ShaderPlatform = View.GetShaderPlatform();
+		if (IsMobilePlatform(ShaderPlatform))
+		{
+			FScene* Scene = View.Family->Scene->GetRenderScene();
+			bFullEarlyZPass = (Scene && Scene->EarlyZPassMode == DDM_AllOpaque);
+		}
+		else
+		{
+			bFullEarlyZPass = ShouldForceFullDepthPass(ShaderPlatform);
+		}
 	}
 };
 
@@ -2202,10 +2211,11 @@ struct FRelevancePacket
 		FViewInfo& WriteView = const_cast<FViewInfo&>(View);
 		const FSceneViewState* ViewState = (FSceneViewState*)View.State;
 		const EShadingPath ShadingPath = Scene->GetShadingPath();
-
+		const bool bMobileMaskedInEarlyPass = (ShadingPath == EShadingPath::Mobile) &&  Scene->EarlyZPassMode == DDM_MaskedOnly;
 		const bool bHLODActive = Scene->SceneLODHierarchy.IsActive();
 		const FHLODVisibilityState* const HLODState = bHLODActive && ViewState ? &ViewState->HLODVisibilityState : nullptr;
 
+		
 		for (int32 StaticPrimIndex = 0, Num = RelevantStaticPrimitives.NumPrims; StaticPrimIndex < Num; ++StaticPrimIndex)
 		{
 			int32 PrimitiveIndex = RelevantStaticPrimitives.Prims[StaticPrimIndex];
@@ -2228,10 +2238,9 @@ struct FRelevancePacket
 			float DistanceSquared = (Bounds.BoxSphereBounds.Origin - ViewData.ViewOrigin).SizeSquared();
 			const float LODFactorDistanceSquared = DistanceSquared * FMath::Square(ViewData.LODScale);
 			const bool bDrawShadowDepth = FMath::Square(Bounds.BoxSphereBounds.SphereRadius) > ViewData.MinScreenRadiusForCSMDepthSquared * LODFactorDistanceSquared;
-			const bool bDrawDepthOnly = ViewData.bFullEarlyZPass || FMath::Square(Bounds.BoxSphereBounds.SphereRadius) > GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass * LODFactorDistanceSquared;
+			const bool bDrawDepthOnly = ViewData.bFullEarlyZPass || ((ShadingPath != EShadingPath::Mobile) && (FMath::Square(Bounds.BoxSphereBounds.SphereRadius) > GMinScreenRadiusForDepthPrepass * GMinScreenRadiusForDepthPrepass * LODFactorDistanceSquared));
 
 			const bool bAddLightmapDensityCommands = View.Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes();
-			const bool bMobileMaskedInEarlyPass = MaskedInEarlyPass(Scene->GetShaderPlatform()) && Scene->EarlyZPassMode == DDM_MaskedOnly;
 
 			const int32 NumStaticMeshes = PrimitiveSceneInfo->StaticMeshRelevances.Num();
 			for(int32 MeshIndex = 0;MeshIndex < NumStaticMeshes;MeshIndex++)
@@ -2291,8 +2300,7 @@ struct FRelevancePacket
 							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass)
 							&& !bHiddenByHLODFade)
 						{
-							bool bMobileIsInDepthPassMaskedMesh = (bMobileMaskedInEarlyPass && ViewRelevance.bMasked) && ShadingPath == EShadingPath::Mobile;
-							if ((StaticMeshRelevance.bUseForDepthPass && bDrawDepthOnly && ShadingPath != EShadingPath::Mobile) || bMobileIsInDepthPassMaskedMesh)
+							if (StaticMeshRelevance.bUseForDepthPass && (bDrawDepthOnly || (bMobileMaskedInEarlyPass && ViewRelevance.bMasked)))
 							{
 								DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::DepthPass);
 

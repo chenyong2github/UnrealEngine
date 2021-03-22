@@ -610,10 +610,7 @@ void FDeferredShadingSceneRenderer::RenderPrePass(FRDGBuilder& GraphBuilder, FRD
 bool FMobileSceneRenderer::ShouldRenderPrePass() const
 {
 	// Draw a depth pass to avoid overdraw in the other passes.
-	// Mobile only does MaskedOnly DepthPass for the moment
-	bool bShouldRenderPrePass = Scene->EarlyZPassMode == DDM_MaskedOnly;
-
-	return bShouldRenderPrePass;
+	return Scene->EarlyZPassMode == DDM_MaskedOnly || Scene->EarlyZPassMode == DDM_AllOpaque;
 }
 
 void FMobileSceneRenderer::RenderPrePass(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FInstanceCullingDrawParams* InstanceCullingDrawParams/* = nullptr*/)
