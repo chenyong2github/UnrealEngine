@@ -26,8 +26,15 @@ float4 BilinearUpsampling(float2 UV, Texture2D LowResTex)
 	return Texture2DSample(LowResTex, GlobalBilinearClampedSampler, UV);
 }
 
-float4 NearestDepthNeighborUpsampling(float2 Position, float2 UV, Texture2D LowResTex, float2 LowResTexelSize)
+struct NearestDepthNeighborUpsamplingResult
 {
+	bool bUsePointSampler;
+	float2 UV;
+};
+NearestDepthNeighborUpsamplingResult NearestDepthNeighborUpsampling(float2 Position, float2 UV, float2 LowResTexelSize)
+{
+	NearestDepthNeighborUpsamplingResult UpsampleResult;
+
 //@todo - support for all platforms, just skip the GatherRed optimization where not supported
 #if (SM5_PROFILE && !(PS4_PROFILE))
 
@@ -57,7 +64,6 @@ float4 NearestDepthNeighborUpsampling(float2 Position, float2 UV, Texture2D LowR
     float2 UV11 = float2(UV00.x + LowResTexelSize.x, UV00.y + LowResTexelSize.y);
     UpdateNearestSample(LowResDepth.y, UV11, FullResDepth, MinDist, NearestUV);
 	 
-    float4 Output = 0.0f;
 	float InvFullResDepth = 1.0f / FullResDepth;
 
     BRANCH
@@ -66,28 +72,21 @@ float4 NearestDepthNeighborUpsampling(float2 Position, float2 UV, Texture2D LowR
 		&& abs(LowResDepth.x - FullResDepth) * InvFullResDepth < RelativeDepthThreshold
 		&& abs(LowResDepth.y - FullResDepth) * InvFullResDepth < RelativeDepthThreshold)
     {
-        Output = Texture2DSampleLevel(LowResTex, GlobalBilinearClampedSampler, UV, 0);
+		UpsampleResult.bUsePointSampler = false;
+		UpsampleResult.UV = UV;
     }
     else
     {
-        Output = Texture2DSampleLevel(LowResTex, GlobalPointClampedSampler, NearestUV, 0);
+		UpsampleResult.bUsePointSampler = true;
+		UpsampleResult.UV = NearestUV;
     }
+
+#else
+
+	UpsampleResult.bUsePointSampler = false;
+	UpsampleResult.UV = UV;
+
+#endif
 	
-	return Output;
-
-#else
-
-	return Texture2DSample(LowResTex, GlobalBilinearClampedSampler, UV);
-
-#endif
-}
-
-
-float4 UpsampleSeparateTranslucency(float2 Position, float2 UV, Texture2D LowResTex, float2 LowResTexelSize)
-{
-#if NEAREST_DEPTH_NEIGHBOR_UPSAMPLE
-	return NearestDepthNeighborUpsampling(Position, UV, LowResTex, LowResTexelSize);
-#else
-	return BilinearUpsampling(UV, LowResTex);
-#endif
+	return UpsampleResult;
 }

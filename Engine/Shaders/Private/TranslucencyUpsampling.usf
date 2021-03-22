@@ -17,5 +17,14 @@ void SimpleUpsamplingPS(FScreenVertexOutput Input, out float4 OutColor : SV_Targ
 
 void NearestDepthNeighborUpsamplingPS(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
-	OutColor = NearestDepthNeighborUpsampling(Input.Position.xy, Input.UV, LowResColorTexture, LowResExtentInverse);
+	NearestDepthNeighborUpsamplingResult UpsampleResult = NearestDepthNeighborUpsampling(Input.Position.xy, Input.UV, LowResExtentInverse);
+
+	if (UpsampleResult.bUsePointSampler)
+	{
+		OutColor = Texture2DSampleLevel(LowResColorTexture, GlobalPointClampedSampler, UpsampleResult.UV, 0);
+	}
+	else
+	{
+		OutColor = Texture2DSampleLevel(LowResColorTexture, GlobalBilinearClampedSampler, UpsampleResult.UV, 0);
+	}
 }
