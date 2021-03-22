@@ -630,7 +630,7 @@ public:
 	// Get the index of the plane that most opposes the normal, assuming it passes through the specified vertex
 	int32 GetMostOpposingPlaneWithVertex(int32 VertexIndex, const FVec3& Normal) const
 	{
-		return MObject->GetMostOpposingPlane(VertexIndex, GetUnscaledNormal(Normal));
+		return MObject->GetMostOpposingPlane(VertexIndex, GetInnerUnscaledNormal(Normal));
 	}
 
 	// Get the nearest point on an edge of the specified face
@@ -874,30 +874,6 @@ private:
 	static TImplicitObjectScaled<TConcrete, false>* CopyHelper(const TImplicitObjectScaled<TConcrete, false>* Obj)
 	{
 		return new TImplicitObjectScaled<TConcrete, false>(Obj->MObject->Copy(), Obj->MScale, Obj->OuterMargin);
-	}
-
-	// Convert a normal in the inner unscaled object space into a normal in the outer scaled object space.
-	FVec3 GetScaledNormal(const TVector<T, d>& OuterNormal) const
-	{
-		const TVector<T, d> UnscaledDirDenorm = MInvScale * OuterNormal;
-		const T LengthScale = UnscaledDirDenorm.Size();
-		const TVector<T, d> UnscaledDir
-			= ensure(LengthScale > TNumericLimits<T>::Min())
-			? UnscaledDirDenorm / LengthScale
-			: TVector<T, d>(0.f, 0.f, 1.f);
-		return UnscaledDir;
-	}
-
-	// Convert a normal in the outer scaled object space into a normal in the inner unscaled object space
-	FVec3 GetUnscaledNormal(const TVector<T, d>& InnerNormal) const
-	{
-		const TVector<T, d> ScaledDirDenorm = MScale * InnerNormal;
-		const T LengthScale = ScaledDirDenorm.Size();
-		const TVector<T, d> ScaledDir
-			= ensure(LengthScale > TNumericLimits<T>::Min())
-			? ScaledDirDenorm / LengthScale
-			: TVector<T, d>(0.f, 0.f, 1.f);
-		return ScaledDir;
 	}
 
 	void UpdateBounds()
