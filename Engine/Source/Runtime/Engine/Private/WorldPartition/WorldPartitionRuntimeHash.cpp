@@ -129,7 +129,7 @@ void UWorldPartitionRuntimeHash::ChangeActorDescViewGridPlacement(FWorldPartitio
 	if (ActorDescView.EffectiveGridPlacement != GridPlacement)
 	{
 		ActorDescView.EffectiveGridPlacement = GridPlacement;
-		UE_LOG(LogWorldPartition, Warning, TEXT("Actor '%s' grid placement changed to %d"), *ActorDescView.GetActorLabel().ToString(), (int32)GridPlacement);
+		UE_LOG(LogWorldPartition, Verbose, TEXT("Actor '%s' grid placement changed to %d"), *ActorDescView.GetActorLabel().ToString(), (int32)GridPlacement);
 	}
 }
 #endif
