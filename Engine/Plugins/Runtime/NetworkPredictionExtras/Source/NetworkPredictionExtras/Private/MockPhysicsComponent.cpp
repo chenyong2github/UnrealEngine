@@ -57,6 +57,7 @@ UMockPhysicsComponent::UMockPhysicsComponent()
 
 void UMockPhysicsComponent::InitializeNetworkPredictionProxy()
 {
+#if WITH_CHAOS
 	// We need valid UpdatedPrimitive and PhysicsHandle to register
 	// This code does not handle any "not ready yet" cases
 	if (npEnsure(UpdatedPrimitive))
@@ -67,7 +68,8 @@ void UMockPhysicsComponent::InitializeNetworkPredictionProxy()
 
 		ActiveSimulation->PrimitiveComponent = UpdatedPrimitive;
 		NetworkPredictionProxy.Init<FMockPhysicsModelDef>(GetWorld(), GetReplicationProxies(), ActiveSimulation, this);
-	}	
+	}
+#endif
 }
 
 void UMockPhysicsComponent::ProduceInput(const int32 DeltaTimeMS, FMockPhysicsInputCmd* Cmd)

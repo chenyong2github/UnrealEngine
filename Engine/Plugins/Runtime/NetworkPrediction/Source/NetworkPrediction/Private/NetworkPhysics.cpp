@@ -265,6 +265,7 @@ void UNetworkPhysicsManager::Deinitialize()
 
 void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::InitializationValues)
 {
+#if WITH_CHAOS
 	if (World != GetWorld())
 	{
 		return;
@@ -283,10 +284,12 @@ void UNetworkPhysicsManager::OnWorldPostInit(UWorld* World, const UWorld::Initia
 			RewindCallback->Solver = Solver;
 		}
 	}
+#endif
 }
 
 void UNetworkPhysicsManager::PostNetRecv()
 {
+#if WITH_CHAOS
 	if (RewindCallback == nullptr)
 	{
 		return;
@@ -376,6 +379,7 @@ void UNetworkPhysicsManager::PostNetRecv()
 		// The highest frame we encountered in the last network update is now sealed. We won't reconcile it again or any previous frames
 		LastProcessedFrame = MaxFrameSeen;
 	}
+#endif
 }
 
 void UNetworkPhysicsManager::PreNetSend(float DeltaSeconds)
@@ -502,11 +506,13 @@ void UNetworkPhysicsComponent::InitializeComponent()
 		}
 	}
 
+#if WITH_CHAOS
 	if (ensureMsgf(PrimitiveComponent, TEXT("No PrimitiveComponent found on %s"), *GetPathName()))
 	{
 		NetworkPhysicsState.Proxy = PrimitiveComponent->BodyInstance.ActorHandle;
 		Manager->RegisterPhysicsProxy(&NetworkPhysicsState);
-	}	
+	}
+#endif
 }
 
 void UNetworkPhysicsComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
