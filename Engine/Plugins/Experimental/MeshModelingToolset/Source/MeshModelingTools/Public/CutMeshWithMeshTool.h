@@ -70,7 +70,7 @@ protected:
 	virtual FText GetActionName() const;
 
 	// IDynamicMeshOperatorFactory API
-	virtual TUniquePtr<FDynamicMeshOperator> MakeNewOperator() override;
+	virtual TUniquePtr<UE::Geometry::FDynamicMeshOperator> MakeNewOperator() override;
 
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
