@@ -19,7 +19,7 @@ struct FFloatAnimationAttribute
 	GENERATED_BODY()
 
 	UPROPERTY()
-	float Value;
+	float Value = 0.f;
 
 	void Accumulate(const FFloatAnimationAttribute& Attribute, float Weight, EAdditiveAnimationType AdditiveType)
 	{
@@ -52,7 +52,7 @@ struct FIntegerAnimationAttribute
 	GENERATED_BODY()
 
 	UPROPERTY()
-	int32 Value;
+	int32 Value = 0;
 
 	void Accumulate(const FIntegerAnimationAttribute& Attribute, float Weight, EAdditiveAnimationType AdditiveType)
 	{

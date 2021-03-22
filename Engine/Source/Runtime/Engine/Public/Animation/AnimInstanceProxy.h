@@ -104,7 +104,7 @@ struct FQueuedDrawDebugItem
 	FVector2D TextScale = FVector2D(0.f);
 
 	UPROPERTY(Transient)
-	TEnumAsByte<ESceneDepthPriorityGroup> DepthPriority;
+	TEnumAsByte<ESceneDepthPriorityGroup> DepthPriority = SDPG_World;
 };
 
 /** Proxy object passed around during animation tree update in lieu of a UAnimInstance */

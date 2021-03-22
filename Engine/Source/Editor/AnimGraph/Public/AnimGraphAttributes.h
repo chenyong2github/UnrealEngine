@@ -67,15 +67,15 @@ struct FAnimGraphAttributeDesc
 
 	// How the attribute is displayed in the graph. This overrides any settings per node type.
 	UPROPERTY(config)
-	EAnimGraphAttributesDisplayMode DisplayMode;
+	EAnimGraphAttributesDisplayMode DisplayMode = EAnimGraphAttributesDisplayMode::Automatic;
 
 	// Blendability of the attribute
 	UPROPERTY(config)
-	EAnimGraphAttributeBlend Blend;
+	EAnimGraphAttributeBlend Blend = EAnimGraphAttributeBlend::Blendable;
 
 	// How to sort the attribute
 	UPROPERTY(config)
-	int32 SortOrder;
+	int32 SortOrder = INDEX_NONE;
 };
 
 UCLASS(Config = EditorPerProjectUserSettings)

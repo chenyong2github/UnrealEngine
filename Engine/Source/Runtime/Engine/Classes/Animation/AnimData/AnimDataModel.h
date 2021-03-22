@@ -23,7 +23,7 @@ struct ENGINE_API FBoneAnimationTrack
 
 	/** Index corresponding to the bone this track corresponds to within the target USkeleton */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")
-	int32 BoneTreeIndex;
+	int32 BoneTreeIndex = INDEX_NONE;
 
 	/** Name of the bone this track corresponds to */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Model")

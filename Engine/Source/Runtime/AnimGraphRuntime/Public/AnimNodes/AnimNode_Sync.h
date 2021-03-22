@@ -28,7 +28,7 @@ private:
 
 	// The role this player can assume within the group
 	UPROPERTY(EditAnywhere, Category = Settings)
-	TEnumAsByte<EAnimGroupRole::Type> GroupRole;
+	TEnumAsByte<EAnimGroupRole::Type> GroupRole = EAnimGroupRole::CanBeLeader;
 
 private:
 	// FAnimNode_Base

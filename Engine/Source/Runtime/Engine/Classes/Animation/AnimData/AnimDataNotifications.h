@@ -114,7 +114,7 @@ struct FAnimationTrackAddedPayload : public FAnimationTrackPayload
 
 	/** Index of the track (bone) which was added */
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
-	int32 TrackIndex;
+	int32 TrackIndex = INDEX_NONE;
 };
 
 USTRUCT(BlueprintType)
@@ -124,15 +124,15 @@ struct FSequenceLengthChangedPayload : public FEmptyPayload
 
 	/** Previous playable length for the Model */
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
-	float PreviousLength;
+	float PreviousLength = 0.f;
 
 	/** Time at which the change in length has been made */
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
-	float T0;
+	float T0 = 0.f;
 
 	/** Length of time which is inserted or removed starting at T0 */
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
-	float T1;
+	float T1 = 0.f;
 };
 
 USTRUCT(BlueprintType)
@@ -166,11 +166,11 @@ struct FCurveScaledPayload : public FCurvePayload
 
 	/** Factor with which the curve was scaled */
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
-	float Factor;
+	float Factor = 0.f;
 	
 	/** Time used as the origin when scaling the curve */
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
-	float Origin;
+	float Origin = 0.f;
 };
 
 USTRUCT(BlueprintType)
@@ -190,7 +190,7 @@ struct FCurveFlagsChangedPayload : public FCurvePayload
 
 	/** Old flags mask for the curve */
 	UPROPERTY(BlueprintReadOnly, Category = Payload)
-	int32 OldFlags;
+	int32 OldFlags = 0;
 };
 
 USTRUCT(BlueprintType)

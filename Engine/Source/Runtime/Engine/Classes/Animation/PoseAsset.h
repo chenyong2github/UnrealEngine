@@ -60,10 +60,10 @@ struct FPoseAssetInfluence
 	GENERATED_USTRUCT_BODY()
 
 	UPROPERTY()
-	int32 PoseIndex;
+	int32 PoseIndex = INDEX_NONE;
 
 	UPROPERTY()
-	int32 BoneTransformIndex;
+	int32 BoneTransformIndex = INDEX_NONE;
 };
 
 USTRUCT()

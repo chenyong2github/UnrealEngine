@@ -166,11 +166,11 @@ public:
 
 	/** Indices into the samples */
 	UPROPERTY()
-	int32 SampleIndices[NUM_VERTICES];
+	int32 SampleIndices[NUM_VERTICES] = { INDEX_NONE, INDEX_NONE };
 
 	/** The vertices are in the normalized space - i.e. in the range 0-1. */
 	UPROPERTY()
-	float Vertices[NUM_VERTICES];
+	float Vertices[NUM_VERTICES]  = { 0.f, 0.f };
 };
 
 USTRUCT()
@@ -181,24 +181,24 @@ struct FBlendSpaceTriangleEdgeInfo
 public:
 	/** Edge normal faces out */
 	UPROPERTY()
-	FVector2D Normal;
+	FVector2D Normal = FVector2D(0.f);
 
 	UPROPERTY()
-	int32 NeighbourTriangleIndex;
+	int32 NeighbourTriangleIndex = INDEX_NONE;
 
 	/**
 	* IF there is no neighbor, then (a) we're on the perimeter and (b) these will be the indices of
 	* triangles along the perimeter (next to the start and end of this edge, respectively) 
 	*/
 	UPROPERTY()
-	int32 AdjacentPerimeterTriangleIndices[2];
+	int32 AdjacentPerimeterTriangleIndices[2] = { INDEX_NONE, INDEX_NONE };
 
 	/**
 	 * The vertex index of the associated AdjacentPerimeterTriangle such that the perimeter edge is
 	 * from this vertex to the next.
 	 */
 	UPROPERTY()
-	int32 AdjacentPerimeterVertexIndices[2];
+	int32 AdjacentPerimeterVertexIndices[2]  = { INDEX_NONE, INDEX_NONE };
 };
 
 /**
@@ -218,12 +218,12 @@ public:
 
 	/** Indices into the samples */
 	UPROPERTY(EditAnywhere, Category = EditorElement)
-	int32 SampleIndices[NUM_VERTICES];
+	int32 SampleIndices[NUM_VERTICES] = { INDEX_NONE, INDEX_NONE, INDEX_NONE };
 
 	/** The vertices are in the normalized space - i.e. in the range 0-1. */
 	UPROPERTY(EditAnywhere, Category = EditorElement)
-	FVector2D Vertices[NUM_VERTICES];
-
+	FVector2D Vertices[NUM_VERTICES] = { FVector2D(0.f), FVector2D(0.f), FVector2D(0.f) };
+	
 	/** Info for the edge starting at the vertex index and going (anti-clockwise) to the next vertex */
 	UPROPERTY(EditAnywhere, Category = EditorElement)
 	FBlendSpaceTriangleEdgeInfo EdgeInfo[NUM_VERTICES];
