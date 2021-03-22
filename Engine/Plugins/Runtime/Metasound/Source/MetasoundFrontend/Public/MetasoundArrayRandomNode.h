@@ -55,7 +55,7 @@ namespace Metasound
 		// The current index into the array of indicies (wraps between 0 and ShuffleIndices.Num())
 		TArray<int32> PreviousIndices;
 		TUniquePtr<TCircularQueue<int32>> PreviousIndicesQueue;
-		int32 NoRepeatOrder = 0;
+		int32 NoRepeatOrder = INDEX_NONE;
 
 		// Array of indices (in order 0 to Num)
 		int32 MaxIndex = 0;

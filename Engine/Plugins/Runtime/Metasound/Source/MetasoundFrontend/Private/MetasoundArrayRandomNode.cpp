@@ -79,9 +79,7 @@ namespace Metasound
 		SetSeed(InSeed);
 		MaxIndex = InMaxIndex;
 		SetNoRepeatOrder(InNoRepeatOrder);
-		PreviousIndicesQueue = MakeUnique<TCircularQueue<int32>>(InNoRepeatOrder);
-		PreviousIndices.Reset();
-
+		check(!InNoRepeatOrder || !PreviousIndicesQueue->IsFull());
 	}
 
 	void FArrayRandomGet::SetSeed(int32 InSeed)
@@ -105,7 +103,7 @@ namespace Metasound
 
 		if (InNoRepeatOrder != NoRepeatOrder)
 		{
-			PreviousIndicesQueue = MakeUnique<TCircularQueue<int32>>(InNoRepeatOrder);
+			PreviousIndicesQueue = MakeUnique<TCircularQueue<int32>>(InNoRepeatOrder + 1);
 			PreviousIndices.Reset();
 			NoRepeatOrder = InNoRepeatOrder;
 		}
@@ -175,19 +173,26 @@ namespace Metasound
 		check(ChosenIndex != INDEX_NONE);
 
 		// Dequeue and remove the oldest previous index
-		if (PreviousIndices.Num() == NoRepeatOrder)
+		if (NoRepeatOrder > 0)
 		{
-			int32 OldPrevIndex;
-			PreviousIndicesQueue->Dequeue(OldPrevIndex);
-			PreviousIndices.Remove(OldPrevIndex);
-			check(PreviousIndices.Num() == NoRepeatOrder - 1);
-		}
+			if (PreviousIndices.Num() == NoRepeatOrder)
+			{
+				check(PreviousIndicesQueue->Count() == PreviousIndices.Num());
+				int32 OldPrevIndex;
+				PreviousIndicesQueue->Dequeue(OldPrevIndex);
+				PreviousIndices.Remove(OldPrevIndex);
+				check(PreviousIndices.Num() == NoRepeatOrder - 1);
+			}
 
-		// We should only have less than *or* equal to the NoRepeatOrder
-		check(PreviousIndices.Num() < NoRepeatOrder);
-		PreviousIndicesQueue->Enqueue(ChosenIndex);
-		check(!PreviousIndices.Contains(ChosenIndex));
-		PreviousIndices.Add(ChosenIndex);
+			check(PreviousIndices.Num() < NoRepeatOrder);
+			check(!PreviousIndicesQueue->IsFull());
+
+			bool bSuccess = PreviousIndicesQueue->Enqueue(ChosenIndex);
+			check(bSuccess);
+			check(!PreviousIndices.Contains(ChosenIndex));
+			PreviousIndices.Add(ChosenIndex);
+			check(PreviousIndicesQueue->Count() == PreviousIndices.Num());
+		}
 
 		return ChosenIndex;
 	}
