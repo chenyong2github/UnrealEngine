@@ -393,6 +393,53 @@ bool UAnimDataController::RemoveBoneTracksMissingFromSkeleton(const USkeleton* S
 	return false;
 }
 
+void UAnimDataController::UpdateAttributesFromSkeleton(const USkeleton* Skeleton, bool bShouldTransact)
+{
+	ValidateModel();
+	
+	if (Skeleton)
+	{
+		// Verifying that bone (names) for attribute data exist on new skeleton
+		TArray<FAnimationAttributeIdentifier> ToRemoveIdentifiers;
+		TArray<TPair<FAnimationAttributeIdentifier, int32>> ToDuplicateIdentifiers;
+			    
+		for (const FAnimatedBoneAttribute& Attribute : Model->AnimatedBoneAttributes)
+		{
+			const int32 NewBoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(Attribute.Identifier.GetBoneName());
+
+			if (NewBoneIndex == INDEX_NONE)
+			{
+				ToRemoveIdentifiers.Add(Attribute.Identifier);
+			}
+			else if(NewBoneIndex != Attribute.Identifier.GetBoneIndex())
+			{						
+				ToDuplicateIdentifiers.Add(TPair<FAnimationAttributeIdentifier, int32>(Attribute.Identifier, NewBoneIndex));
+			}
+		}
+
+		if (ToRemoveIdentifiers.Num() || ToDuplicateIdentifiers.Num())
+		{
+			CONDITIONAL_BRACKET(LOCTEXT("VerifyAttributeBoneNames", "Remapping Animation Attribute Data"));
+			for (const FAnimationAttributeIdentifier& Identifier : ToRemoveIdentifiers)
+			{
+				RemoveAttribute(Identifier);
+			}
+			
+			for (const TPair<FAnimationAttributeIdentifier, int32>& Pair : ToDuplicateIdentifiers)
+			{
+				FAnimationAttributeIdentifier NewIdentifier = Pair.Key;
+				NewIdentifier.BoneIndex = Pair.Value;
+
+				DuplicateAttribute(Pair.Key, NewIdentifier);
+				RemoveAttribute(Pair.Key);
+			}	
+		}
+	}
+	else
+	{
+		ReportError(LOCTEXT("InvalidSkeletonError", "Invalid USkeleton supplied"));
+	}
+}
 
 void UAnimDataController::ResetModel(bool bShouldTransact /*= true*/)
 {
@@ -1804,6 +1851,56 @@ bool UAnimDataController::RemoveAttributeKey(const FAnimationAttributeIdentifier
 	else
 	{
 		ReportError(LOCTEXT("InvalidAttributeIdentifier", "Invalid attribute identifier provided"));
+	}
+
+	return false;
+}
+
+bool UAnimDataController::DuplicateAttribute(const FAnimationAttributeIdentifier& AttributeIdentifier, const FAnimationAttributeIdentifier& NewAttributeIdentifier, bool bShouldTransact)
+{
+	ValidateModel();
+
+	if (AttributeIdentifier.IsValid() && NewAttributeIdentifier.IsValid())
+	{
+		if (AttributeIdentifier.GetType() == NewAttributeIdentifier.GetType())
+		{
+			const FAnimatedBoneAttribute* ExistingAttributePtr = Model->FindAttribute(NewAttributeIdentifier);
+			if (ExistingAttributePtr == nullptr)
+			{
+				if(const FAnimatedBoneAttribute* AttributePtr = Model->FindAttribute(AttributeIdentifier))
+				{
+					CONDITIONAL_TRANSACTION(LOCTEXT("DuplicateAttribute", "Duplicating Animation Attribute"));
+
+					FAnimatedBoneAttribute& DuplicateAttribute = Model->AnimatedBoneAttributes.AddDefaulted_GetRef();
+					DuplicateAttribute.Identifier = NewAttributeIdentifier;
+					DuplicateAttribute.Curve = AttributePtr->Curve;
+
+					FAttributeAddedPayload Payload;
+					Payload.Identifier = NewAttributeIdentifier;
+					Model->Notify(EAnimDataModelNotifyType::AttributeAdded, Payload);
+
+					CONDITIONAL_ACTION(UE::Anim::FRemoveAtributeAction, NewAttributeIdentifier);
+					
+					return true;
+				}
+				else
+				{
+					ReportWarningf(LOCTEXT("AttributeNameToDuplicateNotFoundWarning", "Could not find attribute with name {0} and type {1} for duplication"), FText::FromName(AttributeIdentifier.GetName()), FText::FromString(AttributeIdentifier.GetType()->GetName()));
+				}
+			}
+			else
+			{
+				ReportWarningf(LOCTEXT("ExistingAttributeWarning", "Attribute with name {0} already exists"), FText::FromName(AttributeIdentifier.GetName()));
+			}
+		}
+		else
+		{
+			ReportWarningf(LOCTEXT("InvalidAttributeTypeWarning", "Attribute types do not match: {0} ({1})"), FText::FromString(AttributeIdentifier.GetType()->GetName()), FText::FromString(AttributeIdentifier.GetType()->GetName()));
+		}
+	}
+	else
+	{
+		ReportWarningf(LOCTEXT("InvalidAttributeIdentifierWarning", "Invalid attribute identifier(s) provided: {0} and/or {1}"), FText::FromName(AttributeIdentifier.GetName()), FText::FromName(AttributeIdentifier.GetName()));
 	}
 
 	return false;
