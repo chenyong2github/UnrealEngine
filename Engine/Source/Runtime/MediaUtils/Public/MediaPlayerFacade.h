@@ -723,8 +723,8 @@ protected:
 	 */
 	void SetBlockOnTimeRangeInternal(const TRange<FTimespan>& TimeRange);
 
-	/** Flush all media sample sinks. */
-	void FlushSinks();
+	/** Flush all media sample sinks & player plugin. */
+	void Flush(bool bExcludePlayer = false);
 
 	/**
 	 * Get details about the specified audio track format.

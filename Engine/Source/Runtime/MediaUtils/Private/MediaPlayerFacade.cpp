@@ -264,7 +264,7 @@ void FMediaPlayerFacade::Close()
 	bIsSinkFlushPending = false;
 	bDidRecentPlayerHaveError = false;
 
-	FlushSinks();
+	Flush();
 }
 
 
@@ -1122,7 +1122,7 @@ bool FMediaPlayerFacade::Seek(const FTimespan& Time)
 
 	if (Player.IsValid() && Player->FlushOnSeekStarted())
 	{
-		FlushSinks();
+		Flush(Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::PlayerUsesInternalFlushOnSeek));
 	}
 
 	return true;
@@ -1136,7 +1136,7 @@ bool FMediaPlayerFacade::SelectTrack(EMediaTrackType TrackType, int32 TrackIndex
 		return false;
 	}
 
-	FlushSinks();
+	Flush();
 
 	return true;
 }
@@ -1316,7 +1316,7 @@ bool FMediaPlayerFacade::SetRate(float Rate)
 
 	if ((LastRate * Rate) < 0.0f)
 	{
-		FlushSinks(); // direction change
+		Flush(); // direction change
 	}
 	else
 	{
@@ -1514,7 +1514,7 @@ bool FMediaPlayerFacade::BlockOnFetch() const
 }
 
 
-void FMediaPlayerFacade::FlushSinks()
+void FMediaPlayerFacade::Flush(bool bExcludePlayer)
 {
 	UE_LOG(LogMediaUtils, Verbose, TEXT("PlayerFacade %p: Flushing sinks"), this);
 
@@ -1526,7 +1526,7 @@ void FMediaPlayerFacade::FlushSinks()
 	SubtitleSampleSinks.Flush();
 	VideoSampleSinks.Flush();
 
-	if (Player.IsValid())
+	if (Player.IsValid() && !bExcludePlayer)
 	{
 		Player->GetSamples().FlushSamples();
 	}
@@ -1715,13 +1715,13 @@ void FMediaPlayerFacade::ProcessEvent(EMediaEvent Event)
 	if ((Event == EMediaEvent::PlaybackEndReached) ||
 		(Event == EMediaEvent::TracksChanged))
 	{
-		FlushSinks();
+		Flush();
 	}
 	else if (Event == EMediaEvent::SeekCompleted)
 	{
 		if (!Player.IsValid() || Player->FlushOnSeekCompleted())
 		{
-			FlushSinks();
+			Flush(Player->GetPlayerFeatureFlag(IMediaPlayer::EFeatureFlag::PlayerUsesInternalFlushOnSeek));
 		}
 	}
 	else if (Event == EMediaEvent::MediaClosed)
@@ -1815,7 +1815,7 @@ void FMediaPlayerFacade::TickInput(FTimespan DeltaTime, FTimespan Timecode)
 			if (bIsSinkFlushPending)
 			{
 				bIsSinkFlushPending = false;
-				FlushSinks();
+				Flush();
 			}
 
 			//
