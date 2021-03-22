@@ -135,6 +135,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering")
 	void AddOrUpdateBlendable(TScriptInterface<IBlendableInterface> InBlendableObject, float InWeight = 1.0f) { PostProcessSettings.AddBlendable(InBlendableObject, InWeight); }
 
+	/** Removes a blendable. */
+	UFUNCTION(BlueprintCallable, Category = "Rendering")
+	void RemoveBlendable(TScriptInterface<IBlendableInterface> InBlendableObject) { PostProcessSettings.RemoveBlendable(InBlendableObject); }
+
 	/** Render the scene to the texture the next time the main view is rendered. */
 	void CaptureSceneDeferred();
 

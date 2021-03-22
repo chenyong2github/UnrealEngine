@@ -2,23 +2,19 @@
 
 #include "ComposureBlueprintLibrary.h"
 
-#include "UObject/Package.h"
-#include "Public/Slate/SceneViewport.h"
-#include "Classes/Components/SceneCaptureComponent2D.h"
-#include "Classes/Camera/PlayerCameraManager.h"
-#include "Classes/GameFramework/PlayerController.h"
-#include "Classes/Engine/LocalPlayer.h"
-
+#include "Camera/CameraComponent.h"
+#include "Camera/PlayerCameraManager.h"
+#include "CineCameraComponent.h"
+#include "Components/SceneCaptureComponent2D.h"
 #include "ComposureLayersEditor/Private/ICompElementManager.h"
-#include "ComposureLayersEditor/Private/CompElementManager.h"
-
+#include "ComposureLayersEditor/Public/CompElementEditorModule.h"
 #include "ComposurePlayerCompositingTarget.h"
 #include "ComposureUtils.h"
-
-#include "Camera/CameraComponent.h"
-#include "Components/SceneCaptureComponent2D.h"
+#include "Engine/LocalPlayer.h"
+#include "GameFramework/PlayerController.h"
+#include "LensDistortionDataHandler.h"
 #include "Modules/ModuleManager.h"
-#include "ComposureLayersEditor/Public/CompElementEditorModule.h"
+#include "Slate/SceneViewport.h"
 
 UComposureBlueprintLibrary::UComposureBlueprintLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -75,7 +71,7 @@ void UComposureBlueprintLibrary::GetPlayerDisplayGamma(const APlayerCameraManage
 	DisplayGamma = SceneViewport ? SceneViewport->GetDisplayGamma() : 0.0;
 }
 
-void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraComponent* Src, USceneCaptureComponent2D* Dst)
+void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraComponent* Src, USceneCaptureComponent2D* Dst, bool bApplyDistortion)
 {
 	if (Src && Dst)
 	{
@@ -84,6 +80,27 @@ void UComposureBlueprintLibrary::CopyCameraSettingsToSceneCapture(UCameraCompone
 
 		FMinimalViewInfo CameraViewInfo;
 		Src->GetCameraView(/*DeltaTime =*/0.0f, CameraViewInfo);
+
+		/** If distortion should be applied, get the overscan factor from the Src's lens distortion data handler, and use it to augment the Dst's FOV */
+		if (bApplyDistortion)
+		{
+			if (UCineCameraComponent* SrcCineCameraComponent = Cast<UCineCameraComponent>(Src))
+			{ 			
+				if (ULensDistortionDataHandler* LensDistortionHandler = ULensDistortionDataHandler::GetLensDistortionDataHandler(SrcCineCameraComponent))
+				{
+					const float OverscanFactor = LensDistortionHandler->GetOverscanFactor();
+					if (SrcCineCameraComponent->CurrentFocalLength <= 0.0f)
+					{
+						Dst->FOVAngle = 0.0f;
+					}
+					else
+					{
+						const float OverscanSensorWidth = (SrcCineCameraComponent->Filmback.SensorWidth * 0.5f) * OverscanFactor;
+						Dst->FOVAngle = FMath::RadiansToDegrees(2.0f * FMath::Atan(OverscanSensorWidth / SrcCineCameraComponent->CurrentFocalLength));
+					}
+				}
+			}
+		}
 
 		const FPostProcessSettings& SrcPPSettings = CameraViewInfo.PostProcessSettings;
 		FPostProcessSettings& DstPPSettings = Dst->PostProcessSettings;

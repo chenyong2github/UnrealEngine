@@ -16,42 +16,42 @@ namespace UnrealBuildTool.Rules
             PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"CinematicCamera",
 					"Core",
                     "CoreUObject",
                     "Engine",
+					"LensDistortion",
+					"MediaIOCore",
 					"MovieScene",
 					"MovieSceneTracks",
-					"TimeManagement",
-					"CinematicCamera",
-                    "MediaIOCore",
 					"OpenColorIO",
+					"TimeManagement",
                 }
 				);
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "RHI",
-
 					// Removed dependency, until the MediaFrameworkUtilities plugin is available for all platforms
                     //"MediaFrameworkUtilities",
 
-                    "MediaAssets",
-					"MovieSceneCapture",
 					"ImageWriteQueue",
-                }
-                );
+					"MediaAssets",
+					"MovieSceneCapture",
+					"RHI",
+				}
+				);
 
             if (Target.bBuildEditor == true)
             {
                 PrivateDependencyModuleNames.AddRange(
 					new string[]
                     {
-                        "UnrealEd",
-                        "Slate",
-                        "SlateCore",
+						"ActorLayerUtilities",
 						"EditorStyle",
-						"ActorLayerUtilities"
+						"Slate",
+						"SlateCore",
+						"UnrealEd",
 					}
 					);
             }

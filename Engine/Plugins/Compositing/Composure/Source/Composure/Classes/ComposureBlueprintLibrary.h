@@ -69,7 +69,7 @@ class UComposureBlueprintLibrary : public UBlueprintFunctionLibrary
 	static void GetPlayerDisplayGamma(const APlayerCameraManager* PlayerCameraManager, float& DisplayGamma);
 
 	UFUNCTION(BlueprintCallable, Category = "Composure")
-	static void CopyCameraSettingsToSceneCapture(UCameraComponent* SrcCamera, USceneCaptureComponent2D* DstCaptureComponent);
+	static void CopyCameraSettingsToSceneCapture(UCameraComponent* SrcCamera, USceneCaptureComponent2D* DstCaptureComponent, bool bApplyDistortion = false);
 
 	/**
 	 * Create a new Composure in the level without any parenting relationship.
