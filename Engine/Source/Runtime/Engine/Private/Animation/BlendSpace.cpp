@@ -80,11 +80,37 @@ void UBlendSpace::Serialize(FArchive& Ar)
 		}
 	}
 
-	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::BlendSpaceRuntimeTriangulation))
+	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) <
+		FUE5MainStreamObjectVersion::BlendSpaceRuntimeTriangulation))
 	{
+		// Make old blend spaces use the grid
+		bInterpolateUsingGrid = true;
+		// Force the data to be updated
 		ResampleData();
-		// Preserve the constant blend for old blend spaces, but allow the ease in/out default for new ones.
+		// Preserve the constant sample weight speed for old blend spaces, but allow the ease
+		// in/out default for new ones.
 		bTargetWeightInterpolationEaseInOut = false;
+	}
+
+	if (Ar.IsLoading() && (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) <
+		FUE5MainStreamObjectVersion::BlendSpaceSmoothingImprovements))
+	{
+		// If it's an old asset but has the current default smoothing and that smoothing is in use, then it must
+		// have been using the old default so switch to that.
+		for (int Index = 0 ; Index != 3 ; ++Index)
+		{
+			if (InterpolationParam[Index].InterpolationType == EFilterInterpolationType::BSIT_SpringDamper &&
+                InterpolationParam[Index].InterpolationTime > 0.0f)
+			{
+				InterpolationParam[Index].InterpolationType = EFilterInterpolationType::BSIT_Average;
+			}
+			else if (InterpolationParam[Index].InterpolationType == EFilterInterpolationType::BSIT_Cubic)
+			{
+				// Cubic was broken since it was not cubing the interpolation time
+				InterpolationParam[Index].InterpolationTime = FMath::Pow(
+					InterpolationParam[Index].InterpolationTime, 1.0f / 3.0f);
+			}
+		}
 	}
 #endif // WITH_EDITOR
 }
@@ -155,7 +181,6 @@ void UBlendSpace::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyC
 			}
 		}
 	}
-
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif // WITH_EDITOR
@@ -943,9 +968,31 @@ void UBlendSpace::InitializeFilter(FBlendFilter* Filter) const
 {
 	if (Filter)
 	{
-		Filter->FilterPerAxis[0].Initialize(InterpolationParam[0].InterpolationTime, InterpolationParam[0].InterpolationType);
-		Filter->FilterPerAxis[1].Initialize(InterpolationParam[1].InterpolationTime, InterpolationParam[1].InterpolationType);
-		Filter->FilterPerAxis[2].Initialize(InterpolationParam[2].InterpolationTime, InterpolationParam[2].InterpolationType);
+		for (int FilterIndex = 0 ; FilterIndex != 3 ; ++FilterIndex)
+		{
+			Filter->FilterPerAxis[FilterIndex].Initialize(InterpolationParam[FilterIndex].InterpolationTime,
+			                                              InterpolationParam[FilterIndex].InterpolationType,
+			                                              InterpolationParam[FilterIndex].DampingRatio,
+			                                              BlendParameters[FilterIndex].Min,
+			                                              BlendParameters[FilterIndex].Max,
+			                                              InterpolationParam[FilterIndex].MaxSpeed,
+			                                              !BlendParameters[FilterIndex].bWrapInput);
+		}
+	}
+}
+
+void UBlendSpace::UpdateFilterParams(FBlendFilter* Filter) const
+{
+	if (Filter)
+	{
+		for (int FilterIndex = 0 ; FilterIndex != 3 ; ++FilterIndex)
+		{
+			Filter->FilterPerAxis[FilterIndex].SetParams(InterpolationParam[FilterIndex].DampingRatio,
+			                                             BlendParameters[FilterIndex].Min,
+			                                             BlendParameters[FilterIndex].Max,
+			                                             InterpolationParam[FilterIndex].MaxSpeed,
+			                                             !BlendParameters[FilterIndex].bWrapInput);
+		}
 	}
 }
 
@@ -1618,17 +1665,20 @@ FVector UBlendSpace::FilterInput(FBlendFilter* Filter, const FVector& BlendInput
 	// Check 
 	for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
 	{
-		if (Filter->FilterPerAxis[AxisIndex].NeedsUpdate(InterpolationParam[AxisIndex].InterpolationType, InterpolationParam[AxisIndex].InterpolationTime))
+		if (Filter->FilterPerAxis[AxisIndex].NeedsUpdate(InterpolationParam[AxisIndex].InterpolationType,
+		                                                 InterpolationParam[AxisIndex].InterpolationTime))
 		{
 			InitializeFilter(Filter);
 			break;
 		}
 	}
+	// Note that if we expose the damping ratio etc as pins, this should be called outside of the editor too.
+	UpdateFilterParams(Filter);
 #endif
 	FVector FilteredBlendInput;
-	FilteredBlendInput.X = Filter->FilterPerAxis[0].GetFilteredData(BlendInput.X, DeltaTime);
-	FilteredBlendInput.Y = Filter->FilterPerAxis[1].GetFilteredData(BlendInput.Y, DeltaTime);
-	FilteredBlendInput.Z = Filter->FilterPerAxis[2].GetFilteredData(BlendInput.Z, DeltaTime);
+	FilteredBlendInput.X = Filter->FilterPerAxis[0].UpdateAndGetFilteredData(BlendInput.X, DeltaTime);
+	FilteredBlendInput.Y = Filter->FilterPerAxis[1].UpdateAndGetFilteredData(BlendInput.Y, DeltaTime);
+	FilteredBlendInput.Z = Filter->FilterPerAxis[2].UpdateAndGetFilteredData(BlendInput.Z, DeltaTime);
 	return FilteredBlendInput;
 }
 

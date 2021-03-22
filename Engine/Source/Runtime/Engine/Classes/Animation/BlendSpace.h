@@ -38,13 +38,33 @@ struct FInterpolationParameter
 {
 	GENERATED_BODY()
 
-	/** Interpolation Time for input, when it gets input, it will use this time to interpolate to target, used for smoother interpolation. */
-	UPROPERTY(EditAnywhere, Category=Parameter)
+	/**
+	 * Smoothing Time used to move smoothly across the blendpsace from the current parameters to the target
+	 * parameters. The different Smoothing Types will treat this in different ways, but in general a value of
+	 * zero will disable all smoothing, and larger values will smooth more.
+	 */
+	UPROPERTY(EditAnywhere, DisplayName = "Smoothing Time", Category=Parameter, meta = (ClampMin = "0"))
 	float InterpolationTime = 0.f;
 
-	/** Type of interpolation used for filtering the input value to decide how to get to target. */
-	UPROPERTY(EditAnywhere, Category=Parameter)
-	TEnumAsByte<EFilterInterpolationType> InterpolationType = EFilterInterpolationType::BSIT_Average;
+	/**
+	 * Damping ratio - only used when the type is set to SpringDamper. A value of 1 will move quickly and
+	 * smoothly to the target, without overshooting. Values below 1 can be used to encourage some overshoot,
+	 * which can make pose transitions look more natural.
+	 */
+	UPROPERTY(EditAnywhere, Category=Parameter, meta = (ClampMin = "0", EditCondition = "InterpolationType == EFilterInterpolationType::BSIT_SpringDamper && InterpolationTime > 0"))
+	float DampingRatio = 1.f;
+
+	/**
+	 * Maximum speed, in real units. For example, if this axis is degrees then you could use a value of 90 to
+	 * limit the turn rate to 90 degrees per second. Only used when greater than zero and the type is
+	 * set to SpringDamper or Exponential.
+	 */
+	UPROPERTY(EditAnywhere, Category=Parameter, meta = (ClampMin = "0"))
+	float MaxSpeed = 0.f;
+
+	/** Type of smoothing used for filtering the input value to decide how to get to target. */
+	UPROPERTY(EditAnywhere, DisplayName = "Smoothing Type", Category=Parameter, meta = (EditCondition = "InterpolationTime > 0"))
+	TEnumAsByte<EFilterInterpolationType> InterpolationType = EFilterInterpolationType::BSIT_SpringDamper;
 };
 
 USTRUCT()
@@ -357,7 +377,7 @@ struct FPerBoneInterpolation
 	* 
 	* If set, the value overrides the overall Sample Weight Speed which will no longer affect this bone.
 	*/
-	UPROPERTY(EditAnywhere, Category=FPerBoneInterpolation, meta=(DisplayName="Sample Weight Speed"))
+	UPROPERTY(EditAnywhere, Category=FPerBoneInterpolation, meta=(DisplayName="Weight Speed"))
 	float InterpolationSpeedPerSec;
 
 	FPerBoneInterpolation()
@@ -461,8 +481,11 @@ public:
 	*/
 	ENGINE_API bool GetSamplesFromBlendInput(const FVector &BlendInput, TArray<FBlendSampleData> & OutSampleDataList, int32& InOutCachedTriangulationIndex, bool bCombineAnimations) const;
 
-	/** Initialize BlendSpace for runtime. It needs certain data to be reinitialized per instsance **/
+	/** Initialize BlendSpace filtering for runtime. **/
 	ENGINE_API void InitializeFilter(FBlendFilter* Filter) const;
+
+	/** Update BlendSpace filtering parameters - values that don't require a full initialization **/
+	ENGINE_API void UpdateFilterParams(FBlendFilter* Filter) const;
 
 	/** Returns the blend input after clamping and/or wrapping */
 	ENGINE_API FVector GetClampedAndWrappedBlendInput(const FVector& BlendInput) const;
@@ -620,19 +643,9 @@ public:
 	UPROPERTY()
 	bool bRotationBlendInMeshSpace;
 
-	/** Input interpolation parameter for all 3 axis, for each axis input, decide how you'd like to interpolate input to*/
+	/** Input Smoothing parameters for each input axis */
 	UPROPERTY(EditAnywhere, Category = InputInterpolation)
 	FInterpolationParameter	InterpolationParam[3];
-
-#if WITH_EDITORONLY_DATA
-	/** Preview Base pose for additive BlendSpace **/
-	UPROPERTY(EditAnywhere, Category = AdditiveSettings)
-	TObjectPtr<UAnimSequence> PreviewBasePose;
-#endif // WITH_EDITORONLY_DATA
-
-	/** This animation length changes based on current input (resulting in different blend time)**/
-	UPROPERTY(transient)
-	float AnimLength;
 
 	/**
 	* If greater than zero, this is the speed at which the sample weights are allowed to change.
@@ -650,14 +663,24 @@ public:
 	* Smaller values mean slower adjustments of the sample weights, and thus more smoothing. However, a 
 	* value of zero disables this smoothing entirely.
 	*/
-	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName = "Sample Weight Speed"))
+	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName = "Weight Speed", ClampMin = "0"))
 	float TargetWeightInterpolationSpeedPerSec;
 
 	/**
 	 * If set then this eases in/out the sample weight adjustments, using the speed to determine how much smoothing to apply.
 	 */
-	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName = "Sample Weight Speed Smoothing "))
+	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName = "Smoothing"))
 	bool bTargetWeightInterpolationEaseInOut = true;
+	
+#if WITH_EDITORONLY_DATA
+	/** Preview Base pose for additive BlendSpace **/
+	UPROPERTY(EditAnywhere, Category = AdditiveSettings)
+	TObjectPtr<UAnimSequence> PreviewBasePose;
+#endif // WITH_EDITORONLY_DATA
+
+	/** This animation length changes based on current input (resulting in different blend time)**/
+	UPROPERTY(transient)
+	float AnimLength;
 
 	/** The current mode used by the BlendSpace to decide which animation notifies to fire. Valid options are:
 	- AllAnimations - All notify events will fire
@@ -668,7 +691,7 @@ public:
 	TEnumAsByte<ENotifyTriggerMode::Type> NotifyTriggerMode;
 
 	/** If true then interpolation is done via a grid at runtime. If false the interpolation uses the triangulation. */
-	UPROPERTY(EditAnywhere, Category = InputInterpolation)
+	UPROPERTY(EditAnywhere, Category = InputInterpolation, meta = (DisplayName="Use Grid"))
 	bool bInterpolateUsingGrid = false;
 
 	/** Preferred edge direction when the triangulation has to make an arbitrary choice */
@@ -679,11 +702,12 @@ protected:
 
 #if WITH_EDITORONLY_DATA
 	/**
-	* Per bone interpolation speed settings, which affect the specified bone and all its descendants in the skeleton.
-	* These act as overrides to the global interpolation speed, which means the global interpolation speed does not affect these bones.
-	* Note that they also override each other - so a per-bone setting on the chest will not affect the hand if there is a per-bone setting on the arm.
+	* Per bone sample smoothing settings, which affect the specified bone and all its descendants in the skeleton.
+	* These act as overrides to the global sample smoothing speed, which means the global sample smoothing speed does
+	* not affect these bones. Note that they also override each other - so a per-bone setting on the chest will not
+	* affect the hand if there is a per-bone setting on the arm.
 	*/
-	UPROPERTY(EditAnywhere, Category = SampleInterpolation, meta = (DisplayName="Per Bone Overrides"))
+	UPROPERTY(EditAnywhere, Category = SampleSmoothing, meta = (DisplayName="Per Bone Overrides"))
 	TArray<FPerBoneInterpolation> PerBoneBlend;
 #endif
 
@@ -714,7 +738,11 @@ protected:
 	UPROPERTY(EditAnywhere, Category = BlendParametersTest)
 	struct FBlendParameter BlendParameters[3];
 
-	/** If you have input interpolation, which axis to drive animation speed (scale) - i.e. for locomotion animation, speed axis will drive animation speed (thus scale) */
+	/**
+	 * If you have input smoothing, which axis to scale the animation speed. E.g. for locomotion animation, 
+	 * the speed axis will scale the animation speed in order to make up the difference between the target 
+	 * and the result of blending the samples.
+	 */
 	UPROPERTY(EditAnywhere, Category = InputInterpolation)
 	TEnumAsByte<EBlendSpaceAxis> AxisToScaleAnimation;
 

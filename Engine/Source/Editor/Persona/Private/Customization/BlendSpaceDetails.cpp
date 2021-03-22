@@ -89,7 +89,41 @@ void FBlendSpaceDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailBuil
 			if (AxisIndex < HideIndex)
 			{
 				Groups[AxisIndex]->AddPropertyRow(BlendParameter.ToSharedRef());
-				Groups[AxisIndex]->AddPropertyRow(InterpolationParameter.ToSharedRef());
+				// Don't add InterpolationParameter in the same way as BlendParameter, because it would add the
+				// elements as customizations that we can't subsequently customize. We will add them individually
+				// below.
+
+				TSharedPtr<IPropertyHandle> InterpolationTime = InterpolationParameter->GetChildHandle(
+                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, InterpolationTime));
+				TSharedPtr<IPropertyHandle> DampingRatio = InterpolationParameter->GetChildHandle(
+                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, DampingRatio));
+				TSharedPtr<IPropertyHandle> MaxSpeed = InterpolationParameter->GetChildHandle(
+                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, MaxSpeed));
+				TSharedPtr<IPropertyHandle> InterpolationType = InterpolationParameter->GetChildHandle(
+                    GET_MEMBER_NAME_CHECKED(FInterpolationParameter, InterpolationType));
+
+				// Custom edit condition for MaxSpeed
+				TAttribute<bool> MaxSpeedEditCondition = TAttribute<bool>::Create(
+                    [this, InterpolationTime, InterpolationType]()
+                    {
+                    uint8 IntType;
+                    InterpolationType->GetValue(IntType);
+                    EFilterInterpolationType Type = (EFilterInterpolationType) IntType;
+                    float Time;
+                    InterpolationTime->GetValue(Time);
+                    if (Time > 0.0f && (Type == EFilterInterpolationType::BSIT_SpringDamper ||
+                        Type == EFilterInterpolationType::BSIT_ExponentialDecay))
+                    {
+                        return true;
+                    }
+                    return false;
+                });
+
+				Groups[AxisIndex]->AddPropertyRow(InterpolationTime.ToSharedRef());
+				Groups[AxisIndex]->AddPropertyRow(InterpolationType.ToSharedRef());
+				Groups[AxisIndex]->AddPropertyRow(DampingRatio.ToSharedRef());
+				IDetailPropertyRow& MaxSpeedProperty = Groups[AxisIndex]->AddPropertyRow(MaxSpeed.ToSharedRef());
+				MaxSpeedProperty.EditCondition(MaxSpeedEditCondition, nullptr);
 			}
 			else
 			{

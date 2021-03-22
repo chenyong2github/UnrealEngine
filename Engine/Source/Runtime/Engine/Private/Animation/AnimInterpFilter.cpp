@@ -1,29 +1,26 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	InterpFilter.h
-=============================================================================*/ 
-
 #include "AnimInterpFilter.h"
 
-////////////////////////////
+//======================================================================================================================
 // FFIRFilter
-
+//======================================================================================================================
 float FFIRFilter::GetInterpolationCoefficient (EFilterInterpolationType InterpolationType, int32 CoefficientIndex) const
 {
-	float Step = GetStep();
+	const float Step = GetStep();
 
 	switch (InterpolationType)
 	{
-	case BSIT_Average:
-		return Step;	
-	case BSIT_Linear:
-		return Step*CoefficientIndex;
-	case BSIT_Cubic:
-		return Step*Step*Step*CoefficientIndex;
+		case BSIT_Average:
+			return Step;	
+		case BSIT_Linear:
+			return Step*CoefficientIndex;
+		case BSIT_Cubic:
+			return Step*Step*Step*CoefficientIndex;
+		default:
+			// Note that BSIT_EaseInOut is not supported
+			return 0.f;
 	}
-
-	return 0.f;
 }
 
 void FFIRFilter::CalculateCoefficient(EFilterInterpolationType InterpolationType)
@@ -87,6 +84,9 @@ float FFIRFilter::CalculateFilteredOutput() const
 	return Output;
 }
 
+//======================================================================================================================
+// FFIRFilterTimeBased
+//======================================================================================================================
 int32 FFIRFilterTimeBased::GetSafeCurrentStackIndex()
 {
 	// if valid range
@@ -119,7 +119,7 @@ int32 FFIRFilterTimeBased::GetSafeCurrentStackIndex()
 
 	// if current one isn't available anymore 
 	// that means we need more stack
-	int32 NewIndex = FilterWindow.Num();
+	const int32 NewIndex = FilterWindow.Num();
 	FilterWindow.AddZeroed(5);
 	return NewIndex;
 }
@@ -128,12 +128,12 @@ void FFIRFilterTimeBased::RefreshValidFilters()
 {
 	NumValidFilter = 0;
 
-	if ( TimeDuration > 0.f )
+	if ( WindowDuration > 0.f )
 	{
 		// run validation test
 		for (int32 I=0; I<FilterWindow.Num(); ++I)
 		{
-			FilterWindow[I].CheckValidation(CurrentTime, TimeDuration);
+			FilterWindow[I].CheckValidation(CurrentTime, WindowDuration);
 			if ( FilterWindow[I].IsValid() )
 			{
 				++NumValidFilter;
@@ -142,31 +142,97 @@ void FFIRFilterTimeBased::RefreshValidFilters()
 	}
 }
 
-float FFIRFilterTimeBased::GetFilteredData(float Input, float DeltaTime)
+float FFIRFilterTimeBased::UpdateAndGetFilteredData(float Input, float DeltaTime)
 {
 	if (DeltaTime > KINDA_SMALL_NUMBER)
 	{
 		float Result;
 		CurrentTime += DeltaTime;
 
-		if (IsValid())
+		switch (InterpolationType)
 		{
-			RefreshValidFilters();
-
-			CurrentStackIndex = GetSafeCurrentStackIndex();
-			FilterWindow[CurrentStackIndex].SetInput(Input, CurrentTime);
-			Result = CalculateFilteredOutput();
-			CurrentStackIndex = CurrentStackIndex + 1;
-			if (CurrentStackIndex > FilterWindow.Num() - 1)
+			case BSIT_ExponentialDecay:
 			{
-				CurrentStackIndex = 0;
+				if (FilterWindow.Num() != 1)
+				{
+					FilterWindow.Empty(1);
+					FilterWindow.Push(FFilterData(Input, 0.0f));
+				}
+				const float OrigValue = FilterWindow[0].Input;
+				FMath::ExponentialSmoothing(FilterWindow[0].Input, Input, DeltaTime, WindowDuration / EULERS_NUMBER);
+				if (MaxSpeed > 0.0f)
+				{
+					// Clamp the speed
+					FilterWindow[0].Input = FMath::Clamp(FilterWindow[0].Input, OrigValue - MaxSpeed * DeltaTime,
+                                                         OrigValue + MaxSpeed * DeltaTime); 
+				}
+				Result = FilterWindow[0].Input;
 			}
-		}
-		else
-		{
-			Result = Input;
-		}
+			break;
+			case BSIT_SpringDamper:
+			{
+				if (FilterWindow.Num() != 2)
+				{
+					FilterWindow.Empty(2);
+					// [0] element is the value, [1] element is the rate
+					FilterWindow.Push(FFilterData(Input, 0.0f));
+					FilterWindow.Push(FFilterData(0.0f, 0.0f));
+				}
+				const float OrigValue = FilterWindow[0].Input;
+				FMath::SpringDamperSmoothing(FilterWindow[0].Input, FilterWindow[1].Input, Input, DeltaTime,
+				                      WindowDuration / EULERS_NUMBER, DampingRatio);
+				if (MaxSpeed > 0.0f)
+				{
+					// Clamp the speed
+					FilterWindow[0].Input = FMath::Clamp(FilterWindow[0].Input, OrigValue - MaxSpeed * DeltaTime,
+                                                         OrigValue + MaxSpeed * DeltaTime); 
+					FilterWindow[1].Input = FMath::Clamp(FilterWindow[1].Input, -MaxSpeed, MaxSpeed);
+				}
+				if (bClamp)
+				{
+					// Clamp the value
+					if (FilterWindow[0].Input > MaxValue)
+					{
+						FilterWindow[0].Input = MaxValue;
+						if (FilterWindow[1].Input > 0.0f)
+						{
+							FilterWindow[1].Input = 0.0f;
+						}
+					}
+					if (FilterWindow[0].Input < MinValue)
+					{
+						FilterWindow[0].Input = MinValue;
+						if (FilterWindow[1].Input < 0.0f)
+						{
+							FilterWindow[1].Input = 0.0f;
+						}
+					}
+				}
+				Result = FilterWindow[0].Input;
+			}
+			break;
+			default:
+			{
+				if (IsValid())
+				{
+					RefreshValidFilters();
 
+					CurrentStackIndex = GetSafeCurrentStackIndex();
+					FilterWindow[CurrentStackIndex].SetInput(Input, CurrentTime);
+					Result = CalculateFilteredOutput();
+					CurrentStackIndex = CurrentStackIndex + 1;
+					if (CurrentStackIndex > FilterWindow.Num() - 1)
+					{
+						CurrentStackIndex = 0;
+					}
+				}
+				else
+				{
+					Result = Input;
+				}
+			}
+			break;
+		}
 		LastOutput = Result;
 		return Result;
 	}
@@ -174,21 +240,26 @@ float FFIRFilterTimeBased::GetFilteredData(float Input, float DeltaTime)
 	return LastOutput;
 }
 
-float FFIRFilterTimeBased::GetInterpolationCoefficient (FFilterData & Data)
+float FFIRFilterTimeBased::GetInterpolationCoefficient(const FFilterData& Data) const
 {
 	if (Data.IsValid())
 	{
-		float Diff = Data.Diff(CurrentTime);
-		if (Diff<=TimeDuration)
+		const float Diff = Data.Diff(CurrentTime);
+		if (Diff<=WindowDuration)
 		{
 			switch(InterpolationType)
 			{
 			case BSIT_Average:
 				return 1.f;
 			case BSIT_Linear:
-				return 1.f - Diff/TimeDuration;
+				return 1.f - Diff/WindowDuration;
 			case BSIT_Cubic:
-				return 1.f - Diff*Diff*Diff/TimeDuration;
+				return 1.f - FMath::Cube(Diff/WindowDuration);
+			case BSIT_EaseInOut:
+				// Quadratic that starts and ends at 0, and reaches 1 half way through the window
+				return 1.0f - 4.0f * FMath::Square(Diff/WindowDuration - 0.5f);
+			default:
+				break;
 			}
 		}
 	}
@@ -201,24 +272,15 @@ float FFIRFilterTimeBased::CalculateFilteredOutput()
 	check ( IsValid() );
 	float SumCoefficient = 0.f;
 	float SumInputs = 0.f;
-	int32 NumValidSamples = 0;
 	for (int32 I=0; I<FilterWindow.Num(); ++I)
 	{
-		float Coefficient = GetInterpolationCoefficient(FilterWindow[I]);
+		const float Coefficient = GetInterpolationCoefficient(FilterWindow[I]);
 		if (Coefficient > 0.f)
 		{
 			SumCoefficient += Coefficient;
 			SumInputs += Coefficient * FilterWindow[I].Input;
-			++NumValidSamples;
 		}
 	}
-
-	// if number of samples are 1, do not normalize
-// 	if (NumValidSamples == 1)
-// 	{
-// 		return SumInputs;
-// 	}
-
-	return (SumCoefficient>0.f)?SumInputs/SumCoefficient : 0.f;
+	return SumCoefficient > 0.f ? SumInputs/SumCoefficient : 0.f;
 }
 

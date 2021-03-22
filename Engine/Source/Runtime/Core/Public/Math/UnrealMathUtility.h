@@ -400,6 +400,13 @@ public:
 		return A*A;
 	}
 
+	/** Cubes the value */
+	template< class T > 
+    static FORCEINLINE T Cube( const T A )
+	{
+		return A*A*A;
+	}
+
 	/** Clamps X to be between Min and Max, inclusive */
 	template< class T > 
 	UE_NODISCARD static FORCEINLINE T Clamp( const T X, const T Min, const T Max )
@@ -1140,22 +1147,24 @@ public:
 	 * 
 	 * Note that InSmoothingTime is the time lag when tracking constant motion (so if you tracked a predicted position 
 	 * TargetVel * InSmoothingTime ahead, you'd match the target position)
+	 *
+	 * An approximation is used that is accurate so long as InDeltaTime < 0.5 * InSmoothingTime
 	 * 
 	 * When starting from zero velocity, the maximum velocity is reached after time InSmoothingTime * 0.5
 	 *
 	 * @param  InOutValue      The value to be smoothed
 	 * @param  InOutValueRate  The rate of change of the value
-	 * @para   InTargetValue   The target to smooth towards
+	 * @param  InTargetValue   The target to smooth towards
 	 * @param  InDeltaTime     Time interval
 	 * @param  InSmoothingTime Timescale over which to smooth. Larger values result in more smoothed behaviour. Can be zero.
 	 */
 	template< class T >
 	static void CriticallyDampedSmoothing(
-		T& InOutValue,
-		T& InOutValueRate,
-		const T& InTargetValue,
-		float InDeltaTime,
-		float InSmoothingTime)
+		T&          InOutValue,
+		T&          InOutValueRate,
+		const T&    InTargetValue,
+		const float InDeltaTime,
+		const float InSmoothingTime)
 	{
 		if (InSmoothingTime > 0.0f)
 		{
@@ -1174,7 +1183,7 @@ public:
 			// SmoothingTime is 
 			float W = 2.0f / InSmoothingTime;
 			float A = W * InDeltaTime;
-			// Taylor expansion for Exp(-W * InDeltaTime)
+			// Taylor expansion for Exp(-W * InDeltaTime), adjusted to be more accurate for the expected delta time
 			float Exp = 1.0f / (1.0f + A + 0.48f * A * A + 0.235f * A * A * A);
 			T X0 = InOutValue - InTargetValue;
 			T B = (InOutValueRate + X0 * W) * InDeltaTime;
@@ -1193,6 +1202,106 @@ public:
 		}
 	}
 
+	/**
+	* Smooths a value using exponential damping towards a target. Works for any type that supports basic arithmetic operations.
+	* 
+	 * An approximation is used that is accurate so long as InDeltaTime < 0.5 * InSmoothingTime
+	* 
+	* @param  InOutValue      The value to be smoothed
+	* @param  InTargetValue   The target to smooth towards
+	* @param  InDeltaTime     Time interval
+	* @param  InSmoothingTime Timescale over which to smooth. Larger values result in more smoothed behaviour. Can be zero.
+	*/
+	template< class T >
+	static void ExponentialSmoothing(
+	    T&          InOutValue,
+	    const T&    InTargetValue,
+	    const float InDeltaTime,
+	    const float InSmoothingTime)
+	{
+		if (InSmoothingTime > 0.0f)
+		{
+			const float A = InDeltaTime / InSmoothingTime;
+			// Taylor expansion for Exp(-W * InDeltaTime), adjusted to be more accurate for the expected delta time
+			float Exp = 1.0f / (1.0f + A + 0.48f * A * A + 0.235f * A * A * A);
+			InOutValue = InTargetValue + (InOutValue - InTargetValue) * Exp;
+		}
+		else
+		{
+			InOutValue = InTargetValue;
+		}
+	}
+
+	/**
+	* Smooths a value using a spring damper towards a target. Works for any type that supports basic arithmetic operations.
+	* 
+	* The implementation is exact, so with approximations for Exp/Sin/Cos
+	* 
+	* @param  InOutValue      The value to be smoothed
+	* @param  InTargetValue   The target to smooth towards
+	* @param  InDeltaTime     Time interval
+	* @param  InSmoothingTime Timescale over which to smooth. Larger values result in more smoothed behaviour. Can be zero.
+	* @param  InDampingRatio  1 is critical damping. <1 results in under-damped motion (i.e. with overshoot), and >1 results in over-damped motion. 
+	*/
+	template< class T >
+	static void SpringDamperSmoothing(
+	    T&          InOutValue,
+	    T&          InOutValueRate,
+	    const T&    InTargetValue,
+	    const float InDeltaTime,
+	    const float InSmoothingTime,
+	    const float InDampingRatio)
+	{
+		if (InDeltaTime <= 0.0f)
+		{
+			return;
+		}
+		if (InSmoothingTime <= 0.0f)
+		{
+			InOutValueRate = (InTargetValue - InOutValue) / InDeltaTime;
+			InOutValue = InTargetValue;
+			return;
+		}
+		float W = 2.0f / InSmoothingTime;
+		T Err = InOutValue - InTargetValue;
+		// Handle the three cases separately
+		if (InDampingRatio > 1.0f) // Overdamped
+		{
+			const float WD = W * FMath::Sqrt(FMath::Square(InDampingRatio) - 1.0f);
+			const T C2 = -(InOutValueRate + (W * InDampingRatio - WD) * Err) / (2.0f * WD);
+			const T C1 = Err - C2;
+			const float A1 = (WD - InDampingRatio * W);
+			const float A2 = -(WD + InDampingRatio * W);
+			const float E1 = FMath::Exp(A1 * InDeltaTime);
+			const float E2 = FMath::Exp(A2 * InDeltaTime);
+			InOutValue = E1 * C1 + E2 * C2;
+			InOutValueRate = E1 * C1 * A1 + E2 * C2 * A2;
+			InOutValue += InTargetValue;
+		}
+		else if (InDampingRatio < 1.0f) // Underdamped
+		{
+			const float WD = W * FMath::Sqrt(1.0f - FMath::Square(InDampingRatio));
+			const T A = Err;
+			const T B = (InOutValueRate + Err * (InDampingRatio * W)) / WD;
+			const float C = FMath::Cos(WD * InDeltaTime);
+			const float S = FMath::Sin(WD * InDeltaTime);
+			const float E = FMath::Exp(-InDampingRatio * W * InDeltaTime);
+			InOutValue = E * (A * C + B * S);
+			InOutValueRate = -InOutValue * InDampingRatio * W;
+			InOutValueRate += E * (B * (WD * C) - A * (WD * S));
+			InOutValue += InTargetValue;
+		}
+		else // Critical damping
+		{
+			const T& C1 = Err;
+			T C2 = InOutValueRate + Err * W;
+			float E = FMath::Exp(-W * InDeltaTime);
+			InOutValue = (C1 + C2 * InDeltaTime) * E;
+			InOutValueRate = (C2 - C1 * W - C2 * (W * InDeltaTime)) * E;
+			InOutValue += InTargetValue;
+		}
+	}
+	
 	/**
 	 * Simple function to create a pulsating scalar value
 	 *

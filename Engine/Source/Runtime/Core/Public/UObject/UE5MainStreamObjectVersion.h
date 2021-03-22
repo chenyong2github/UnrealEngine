@@ -103,7 +103,10 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Use of triangulation at runtime in BlendSpace
 		BlendSpaceRuntimeTriangulation,
 
-		// -----<new versions can be added above this line>-------------------------------------------------
+		// Fix to the Cubic smoothing, plus introduction of new smoothing types
+        BlendSpaceSmoothingImprovements,
+
+        // -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
 	};
