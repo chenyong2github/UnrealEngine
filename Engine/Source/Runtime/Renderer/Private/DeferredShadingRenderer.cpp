@@ -2505,7 +2505,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			if (Views[ViewIndex].RayTracingRenderMode == ERayTracingRenderMode::PathTracing)
+			if (Views[ViewIndex].RayTracingRenderMode == ERayTracingRenderMode::PathTracing
+				&& FDataDrivenShaderPlatformInfo::GetSupportsPathTracing(Views[ViewIndex].GetShaderPlatform()))
 			{
 				RenderPathTracing(GraphBuilder, Views[ViewIndex], SceneTextures, SceneColorTexture.Target);
 			}

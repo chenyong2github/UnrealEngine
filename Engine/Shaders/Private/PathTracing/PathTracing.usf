@@ -6,6 +6,8 @@ PathTracingRayGenShader.usf: Reference path tracing
 
 #define PATH_TRACING  
 
+#define PATH_TRACING_SHADER_VERSION 0x51478b68 // Bump to force-compile this shader
+
 #define RANDSEQ_UNROLL_SOBOL 0 // unrolling sobol sampler doesn't seem to pay off in the path tracer
 
 #include "../Common.ush"
