@@ -697,7 +697,7 @@ namespace DatasmithRhino
 				UpdateHiddenFlagsRecursively(SceneRoot, OutNewObjects);
 				
 				// Parse the meshes of unhidden actors being exported for the first time.
-				ParseRhinoMeshesFromRhinoObjects(OutNewObjects);
+				AddOrModifyMeshesFromRhinoObjects(OutNewObjects);
 
 				if (bDocumentPropertiesChanged)
 				{
@@ -717,6 +717,7 @@ namespace DatasmithRhino
 			InstanceDefinitionHierarchyNodeDictionary = new Dictionary<InstanceDefinition, DatasmithActorInfo>();
 			ObjectIdToHierarchyActorNodeDictionary = new Dictionary<Guid, DatasmithActorInfo>();
 			ObjectIdToMeshInfoDictionary = new Dictionary<Guid, DatasmithMeshInfo>();
+			NamedViewNameToCameraInfo = new Dictionary<string, DatasmithActorCameraInfo>();
 			MaterialHashToMaterialInfo = new Dictionary<string, DatasmithMaterialInfo>();
 			TextureHashToTextureInfo = new Dictionary<string, DatasmithTextureInfo>();
 			GroupIndexToName = new Dictionary<int, string>();
@@ -893,7 +894,7 @@ namespace DatasmithRhino
 				{
 					CollectedMeshObjects.Add(InRhinoObject);
 				}
-				ParseRhinoMeshesFromRhinoObjects(CollectedMeshObjects);
+				AddOrModifyMeshesFromRhinoObjects(CollectedMeshObjects);
 			}
 		}
 
@@ -1018,7 +1019,11 @@ namespace DatasmithRhino
 				return;
 			}
 
-			ModifyMesh(InRhinoObject);
+			if (InRhinoObject != null)
+			{
+				RhinoObject[] RhinoObjects = { InRhinoObject };
+				AddOrModifyMeshesFromRhinoObjects(RhinoObjects);
+			}
 		}
 
 		private void UpdateHiddenFlagsRecursively(DatasmithActorInfo ActorInfo, HashSet<RhinoObject> OutNewObjects)
@@ -1056,21 +1061,6 @@ namespace DatasmithRhino
 			foreach (DatasmithActorInfo ChildActorInfo in ActorInfo.Children)
 			{
 				UpdateHiddenFlagsRecursively(ChildActorInfo, OutNewObjects);
-			}
-		}
-
-		private void ModifyMesh(RhinoObject InRhinoObject)
-		{
-			if (InRhinoObject != null && ObjectIdToMeshInfoDictionary.TryGetValue(InRhinoObject.Id, out DatasmithMeshInfo MeshInfo))
-			{
-				// Make sure all render meshes are generated before attempting to export them.
-				RhinoObject[] ObjectArray = { InRhinoObject };
-				GenerateMissingRenderMeshes(ObjectArray);
-
-				if (TryGenerateMeshInfoFromRhinoObjects(InRhinoObject) is DatasmithMeshInfo DiffMeshInfo)
-				{
-					MeshInfo.ApplyDiffs(DiffMeshInfo);
-				}
 			}
 		}
 
@@ -1439,19 +1429,16 @@ namespace DatasmithRhino
 
 					// Apply changes on InstanceDefinition Meshes
 					{
-						List<RhinoObject> ObjectNeedingMeshParsing = new List<RhinoObject>();
+						List<RhinoObject> ObjectsNeedingMeshParsing = new List<RhinoObject>();
 
 						foreach (DatasmithActorInfo ActorInfo in DefinitionRootNode.GetEnumerator())
 						{
-							if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Modified)
+							if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Created
+								|| ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Modified)
 							{
-								ModifyMesh(ActorInfo.RhinoCommonObject as RhinoObject);
-							}
-							else if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.Created)
-							{
-								if (ActorInfo.RhinoCommonObject is RhinoObject CreatedRhinoObject)
+								if (ActorInfo.RhinoCommonObject is RhinoObject ModifiedObject)
 								{
-									ObjectNeedingMeshParsing.Add(CreatedRhinoObject);
+									ObjectsNeedingMeshParsing.Add(ModifiedObject);
 								}
 							}
 							else if (ActorInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
@@ -1464,7 +1451,7 @@ namespace DatasmithRhino
 						}
 
 						// Add newly created meshes.
-						ParseRhinoMeshesFromRhinoObjects(ObjectNeedingMeshParsing);
+						AddOrModifyMeshesFromRhinoObjects(ObjectsNeedingMeshParsing);
 					}
 				}
 			}
@@ -1891,7 +1878,7 @@ namespace DatasmithRhino
 		private void ParseAllRhinoMeshes()
 		{
 			HashSet<RhinoObject> DocObjects = CollectExportedRhinoObjects();
-			ParseRhinoMeshesFromRhinoObjects(DocObjects);
+			AddOrModifyMeshesFromRhinoObjects(DocObjects);
 		}
 
 		private HashSet<RhinoObject> CollectExportedRhinoObjects()
@@ -1926,7 +1913,7 @@ namespace DatasmithRhino
 			}
 		}
 
-		private void ParseRhinoMeshesFromRhinoObjects(IEnumerable<RhinoObject> RhinoObjects)
+		private void AddOrModifyMeshesFromRhinoObjects(IEnumerable<RhinoObject> RhinoObjects)
 		{
 			// Make sure all render meshes are generated before attempting to export them.
 			GenerateMissingRenderMeshes(RhinoObjects);
@@ -1935,7 +1922,19 @@ namespace DatasmithRhino
 			{
 				if (TryGenerateMeshInfoFromRhinoObjects(CurrentObject) is DatasmithMeshInfo MeshInfo)
 				{
-					ObjectIdToMeshInfoDictionary[CurrentObject.Id] = MeshInfo;
+					if (ObjectIdToMeshInfoDictionary.TryGetValue(CurrentObject.Id, out DatasmithMeshInfo ExistingMeshInfo))
+					{
+						if (ExistingMeshInfo.DirectLinkStatus == DirectLinkSynchronizationStatus.PendingDeletion)
+						{
+							ExistingMeshInfo.RestorePreviousDirectLinkStatus();
+						}
+
+						ExistingMeshInfo.ApplyDiffs(MeshInfo);
+					}
+					else
+					{
+						ObjectIdToMeshInfoDictionary.Add(CurrentObject.Id, MeshInfo);
+					}
 				}
 			}
 		}
