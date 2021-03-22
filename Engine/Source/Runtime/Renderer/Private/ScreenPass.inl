@@ -155,7 +155,7 @@ inline bool FScreenPassTextureViewport::IsFullscreen() const
 
 inline FVector2D FScreenPassTextureViewport::GetRectToExtentRatio() const
 {
-	return FVector2D((float)Rect.Width() / Extent.X, (float)Rect.Height() / Extent.X);
+	return FVector2D((float)Rect.Width() / Extent.X, (float)Rect.Height() / Extent.Y);
 }
 
 inline FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(
