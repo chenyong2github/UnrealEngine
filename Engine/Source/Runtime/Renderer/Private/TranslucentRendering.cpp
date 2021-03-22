@@ -1027,6 +1027,9 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 
 	if (bRenderInSeparateTranslucency)
 	{
+		// Create resources shared by each view (each view data is tiled into each of the render target resources)
+		FSeparateTranslucencyTextures LocalSeparateTranslucencyTextures(SeparateTranslucencyDimensions);
+
 		for (int32 ViewIndex = 0, NumProcessedViews = 0; ViewIndex < Views.Num(); ++ViewIndex, ++NumProcessedViews)
 		{
 			const FViewInfo& View = Views[ViewIndex];
@@ -1048,7 +1051,6 @@ void FDeferredShadingSceneRenderer::RenderTranslucencyInner(
 			 *  compositing (e.g. we're rendering an underwater view) or because we're downsampling the main translucency pass. In this case, we use a local set of
 			 *  textures instead of the external ones passed in.
 			 */
-			FSeparateTranslucencyTextures LocalSeparateTranslucencyTextures(SeparateTranslucencyDimensions);
 			FRDGTextureMSAA SeparateTranslucencyColorTexture;
 			if (bCompositeBackToSceneColor)
 			{
