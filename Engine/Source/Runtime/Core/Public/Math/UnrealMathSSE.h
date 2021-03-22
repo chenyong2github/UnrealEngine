@@ -7,12 +7,8 @@
 #include "Math/UnrealMathFPU.h"
 #else
 
-#if PLATFORM_ALWAYS_HAS_FMA3
-#	include <immintrin.h>
-#else
-// For SSE2 only
-#	include <emmintrin.h>
-#endif
+// We require SSE2
+#include <emmintrin.h>
 
 #include "Math/sse_mathfun.h"
 
