@@ -508,6 +508,8 @@ void FD3D11DynamicRHI::CleanupD3DDevice()
 
 		check(!GIsCriticalError);
 
+		CurrentComputeShader = nullptr;
+
 		// Ask all initialized FRenderResources to release their RHI resources.
 		FRenderResource::ReleaseRHIForAllResources();
 
