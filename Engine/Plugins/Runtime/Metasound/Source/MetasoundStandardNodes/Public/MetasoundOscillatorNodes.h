@@ -75,7 +75,7 @@ namespace Metasound
 		FSineOscilatorNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, bool bInDefaultEnablement);
 		FSineOscilatorNode(const FNodeInitData& InInitData);
 	};
-
+		
 	class METASOUNDSTANDARDNODES_API FSawOscilatorNode : public FOscilatorNodeBase
 	{
 	public:
@@ -98,5 +98,12 @@ namespace Metasound
 		class FFactory;
 		FSquareOscilatorNode(const FString& InInstanceName, const FGuid& InInstanceID, float InDefaultFrequency, bool bInDefaultEnablement);
 		FSquareOscilatorNode(const FNodeInitData& InInitData);
+	};
+
+	class METASOUNDSTANDARDNODES_API FLfoNode : public FNodeFacade
+	{
+	public:		
+		FLfoNode(const FNodeInitData& InInitData);
+		virtual ~FLfoNode() = default;
 	};
 }
