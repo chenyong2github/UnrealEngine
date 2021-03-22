@@ -1133,11 +1133,12 @@ struct FStatPacket
 	void SetThreadProperties()
 	{
 		ThreadId = FPlatformTLS::GetCurrentThreadId();
-		if (IsInGameThread())
+		PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		if (ThreadId == GGameThreadId)
 		{
 			ThreadType = EThreadType::Game;
 		}
-		else if (IsInActualRenderingThread())
+		else if (ThreadId == GRenderThreadId)
 		{
 			ThreadType = EThreadType::Renderer;
 		}
@@ -1145,6 +1146,7 @@ struct FStatPacket
 		{
 			ThreadType = EThreadType::Other;
 		}
+		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 
