@@ -53,7 +53,7 @@ FNiagaraMeshRendererMeshProperties::FNiagaraMeshRendererMeshProperties()
 	, Scale(1.0f, 1.0f, 1.0f)
 	, PivotOffset(ForceInitToZero)
 	, PivotOffsetSpace(ENiagaraMeshPivotOffsetSpace::Mesh)
-{
+{	
 }
 
 
@@ -69,6 +69,9 @@ UNiagaraMeshRendererProperties::UNiagaraMeshRendererProperties()
 	, LockedAxis(0.0f, 0.0f, 1.0f)
 	, LockedAxisSpace(ENiagaraMeshLockedAxisSpace::Simulation)
 {
+	// Initialize the array with a single, defaulted entry
+	Meshes.AddDefaulted();
+
 #if WITH_EDITORONLY_DATA
 	FlipbookSuffixFormat = TEXT("_{frame_number}");
 	FlipbookSuffixNumDigits = 1;
@@ -432,10 +435,10 @@ void UNiagaraMeshRendererProperties::PostLoad()
 {
 	Super::PostLoad();
 
-	if (Meshes.Num() == 0 && ParticleMesh_DEPRECATED != nullptr)
+	if (Meshes.Num() == 1 && Meshes[0].Mesh == nullptr && ParticleMesh_DEPRECATED != nullptr)
 	{
 		// Likely predates the mesh array ... just add ParticleMesh to the list of Meshes
-		FNiagaraMeshRendererMeshProperties& Mesh = Meshes.AddDefaulted_GetRef();
+		FNiagaraMeshRendererMeshProperties& Mesh = Meshes[0];
 		Mesh.Mesh = ParticleMesh_DEPRECATED;
 		Mesh.PivotOffset = PivotOffset_DEPRECATED;
 		Mesh.PivotOffsetSpace = PivotOffsetSpace_DEPRECATED;
