@@ -72,6 +72,7 @@ public:
 	TSharedPtr<FUICommandInfo> BeginSelfUnionTool;
 	TSharedPtr<FUICommandInfo> BeginMeshBooleanTool;
 	TSharedPtr<FUICommandInfo> BeginMeshTrimTool;
+	TSharedPtr<FUICommandInfo> BeginCutMeshWithMeshTool;
 	TSharedPtr<FUICommandInfo> BeginMeshSelectionTool;
 	TSharedPtr<FUICommandInfo> BeginBspConversionTool;
 	TSharedPtr<FUICommandInfo> BeginMeshToVolumeTool;

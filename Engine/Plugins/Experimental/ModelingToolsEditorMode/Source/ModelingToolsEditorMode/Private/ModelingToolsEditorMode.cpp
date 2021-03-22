@@ -47,6 +47,7 @@
 #include "MirrorTool.h"
 #include "SelfUnionMeshesTool.h"
 #include "CSGMeshesTool.h"
+#include "CutMeshWithMeshTool.h"
 #include "BspConversionTool.h"
 #include "MeshToVolumeTool.h"
 #include "VolumeToMeshTool.h"
@@ -487,6 +488,10 @@ void UModelingToolsEditorMode::Enter()
 	auto CSGMeshesToolBuilder = NewObject<UCSGMeshesToolBuilder>();
 	CSGMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterTool(ToolManagerCommands.BeginMeshBooleanTool, TEXT("BeginMeshBooleanTool"), CSGMeshesToolBuilder);
+
+	auto CutMeshWithMeshToolBuilder = NewObject<UCutMeshWithMeshToolBuilder>();
+	CutMeshWithMeshToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
+	RegisterTool(ToolManagerCommands.BeginCutMeshWithMeshTool, TEXT("BeginCutMeshWithMeshTool"), CutMeshWithMeshToolBuilder);
 
 	auto TrimMeshesToolBuilder = NewObject<UCSGMeshesToolBuilder>();
 	TrimMeshesToolBuilder->bTrimMode = true;
