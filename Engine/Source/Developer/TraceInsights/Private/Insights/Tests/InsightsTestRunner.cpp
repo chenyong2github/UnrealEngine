@@ -19,8 +19,6 @@
 #include "Insights/Tests/UITests.h"
 #include "Insights/InsightsStyle.h"
 
-#include "Widgets/Docking/SDockTab.h"
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 DEFINE_LOG_CATEGORY(InsightsTestRunner);
