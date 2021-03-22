@@ -256,11 +256,17 @@ void URigVMPin::GetExposedPinChain(TArray<const URigVMPin*>& OutExposedPins) con
 
 
 	// Add the pins in the OutExposedPins array in depth-first order
+	TSet<const URigVMPin*> FoundPins;
 	TArray<const URigVMPin*> ToProcess;
 	ToProcess.Push(this);
 	while (!ToProcess.IsEmpty())
 	{
 		const URigVMPin* Current = ToProcess.Pop();
+		if (FoundPins.Contains(Current))
+		{
+			continue;
+		}
+		FoundPins.Add(Current);
 		OutExposedPins.Add(Current);
 
 		// Add target pins connected to the current pin
