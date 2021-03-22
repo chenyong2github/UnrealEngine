@@ -1142,13 +1142,14 @@ void FGlobalResources::Update(FRDGBuilder& GraphBuilder)
 		check(PrimaryVisibleClustersBuffer.IsValid());
 		check(ScratchVisibleClustersBuffer.IsValid());
 	}
-	if(!StructureBufferStride8.IsValid())
+#endif
+
+	if (!StructureBufferStride8.IsValid())
 	{
 		FRDGBufferDesc StructureBufferStride8Desc = FRDGBufferDesc::CreateStructuredDesc(8, 1);
 		GetPooledFreeBuffer(GraphBuilder.RHICmdList, StructureBufferStride8Desc, StructureBufferStride8, TEXT("Nanite.StructureBufferStride8"));
 		check(StructureBufferStride8.IsValid());
 	}
-#endif
 }
 
 uint32 FGlobalResources::GetMaxCandidateClusters()
