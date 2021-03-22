@@ -14,7 +14,7 @@ namespace PlatformInfo
 {
 	TArray<FName> AllPlatformGroupNames;
 	TArray<FName> AllVanillaPlatformNames;
-	TMap<FName, FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
+	TArray<FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
 
 namespace
 {
@@ -204,7 +204,7 @@ static void ParseDataDrivenPreviewPlatform(const TCHAR* Name, const FConfigSecti
 	FName PlatformName = *GetSectionString(Section, FName("PlatformName"));
 	checkf(PlatformName != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a PlatformName"), Name);
 
-	FPreviewPlatformMenuItem& Item = PreviewPlatformMenuItems.FindOrAdd(PlatformName);
+	FPreviewPlatformMenuItem Item;
 	Item.PlatformName = PlatformName;
 	Item.ShaderFormat = *GetSectionString(Section, FName("ShaderFormat"));
 	checkf(Item.ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), Name);
@@ -216,6 +216,7 @@ static void ParseDataDrivenPreviewPlatform(const TCHAR* Name, const FConfigSecti
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuText")), Item.MenuText);
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuTooltip")), Item.MenuTooltip);
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("IconText")), Item.IconText);
+	PreviewPlatformMenuItems.Add(Item);
 }
 
 void LoadDataDrivenPlatforms()
@@ -385,7 +386,7 @@ const TArray<FName>& GetAllVanillaPlatformNames()
 	return PlatformInfo::AllVanillaPlatformNames;
 }
 
-const TMap<FName, FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems()
+const TArray<PlatformInfo::FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems()
 {
 	return PlatformInfo::PreviewPlatformMenuItems;
 }

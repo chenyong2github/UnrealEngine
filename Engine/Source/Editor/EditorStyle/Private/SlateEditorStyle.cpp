@@ -8346,15 +8346,15 @@ void FSlateEditorStyle::FStyle::SetupAutomationStyles()
 			}
 		}
 
-		for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)
+		for (auto& Item : PlatformInfo::GetPreviewPlatformMenuItems())
 		{
-			if(!It.Value().ActiveIconPath.IsEmpty())
+			if(!Item.ActiveIconPath.IsEmpty())
 			{
-				Set(It.Value().ActiveIconName, new PLATFORM_IMAGE_BRUSH(It.Value().ActiveIconPath, Icon40x40));
+				Set(Item.ActiveIconName, new PLATFORM_IMAGE_BRUSH(Item.ActiveIconPath, Icon40x40));
 			}
-			if (!It.Value().InactiveIconPath.IsEmpty())
+			if (!Item.InactiveIconPath.IsEmpty())
 			{
-				Set(It.Value().InactiveIconName, new PLATFORM_IMAGE_BRUSH(It.Value().InactiveIconPath, Icon40x40));
+				Set(Item.InactiveIconName, new PLATFORM_IMAGE_BRUSH(Item.InactiveIconPath, Icon40x40));
 			}
 		}
 

@@ -320,5 +320,5 @@ namespace PlatformInfo
 	* Used to generate the editor preview platform menu 
 	* @return the map of shader format names to the menu items
 	*/
-	DESKTOPPLATFORM_API const TMap<FName, PlatformInfo::FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems();
+	DESKTOPPLATFORM_API const TArray<PlatformInfo::FPreviewPlatformMenuItem>& GetPreviewPlatformMenuItems();
 }

@@ -1365,7 +1365,10 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			static FText GetPreviewModeText()
 			{
-				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewPlatformName);
+				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().FindByPredicate([](const PlatformInfo::FPreviewPlatformMenuItem& TestItem)
+					{
+						return GEditor->PreviewPlatform.PreviewPlatformName == TestItem.PlatformName && GEditor->PreviewPlatform.PreviewShaderFormatName == TestItem.ShaderFormat;
+					});
 				return Item ? Item->IconText : FText();
 			}
 
@@ -1393,7 +1396,10 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			static FSlateIcon GetPreviewModeIcon()
 			{
-				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewPlatformName);
+				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().FindByPredicate([](const PlatformInfo::FPreviewPlatformMenuItem& TestItem)
+					{
+						return GEditor->PreviewPlatform.PreviewPlatformName == TestItem.PlatformName && GEditor->PreviewPlatform.PreviewShaderFormatName == TestItem.ShaderFormat;
+					});
 				if(Item)
 				{
 					return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? Item->ActiveIconName : Item->InactiveIconName);
@@ -1888,9 +1894,9 @@ static void MakeShaderModelPreviewMenu( UToolMenu* InMenu )
 	Section.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_SM5);
 
 	// Preview platforms discovered from ITargetPlatforms.
-	for (auto It = FLevelEditorCommands::Get().PreviewPlatformOverrides.CreateConstIterator(); It; ++It)
+	for (auto& Item : FLevelEditorCommands::Get().PreviewPlatformOverrides)
 	{
-		Section.AddMenuEntry(It.Value());
+		Section.AddMenuEntry(Item);
 	}
 
 #undef LOCTEXT_NAMESPACE

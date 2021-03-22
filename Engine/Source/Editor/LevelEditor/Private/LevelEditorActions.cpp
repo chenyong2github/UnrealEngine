@@ -3414,15 +3414,14 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND(PreviewPlatformOverride_SM5, "Shader Model 5", "DirectX 11, OpenGL 4.3+, PS4, XB1", EUserInterfaceActionType::Check, FInputChord());
 
 	// Add preview platforms
-	for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)
+	for (auto& Item : PlatformInfo::GetPreviewPlatformMenuItems())
 	{
 		PreviewPlatformOverrides.Add(
-			It.Key(),
 			FUICommandInfoDecl(
 				this->AsShared(),
-				FName(*(FString(TEXT("PreviewPlatformOverrides"))+It.Key().ToString())),
-				It.Value().MenuText,
-				It.Value().MenuTooltip)
+				FName(*FString::Printf(TEXT("PreviewPlatformOverrides_%s_%s"), *Item.PlatformName.ToString(), *Item.ShaderFormat.ToString())),
+				Item.MenuText,
+				Item.MenuTooltip)
 			.UserInterfaceType(EUserInterfaceActionType::Check)
 			.DefaultChord(FInputChord())
 		);

@@ -586,7 +586,7 @@ public:
 
 	TSharedPtr< FUICommandInfo > PreviewPlatformOverride_SM5;
 
-	TMap <FName, TSharedPtr<FUICommandInfo>> PreviewPlatformOverrides;
+	TArray<TSharedPtr<FUICommandInfo>> PreviewPlatformOverrides;
 	
 	///**
 	// * Mode Commands                   

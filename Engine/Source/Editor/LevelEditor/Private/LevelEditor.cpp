@@ -1834,16 +1834,20 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
 
-	for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)
+	const TArray<PlatformInfo::FPreviewPlatformMenuItem> MenuItems = PlatformInfo::GetPreviewPlatformMenuItems();
+	check(MenuItems.Num() == Commands.PreviewPlatformOverrides.Num());
+
+	for (int32 Index=0; Index < MenuItems.Num(); Index++)
 	{
-		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(It.Value().ShaderFormat);
+		const PlatformInfo::FPreviewPlatformMenuItem& Item = MenuItems[Index];
+		EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(Item.ShaderFormat);
 		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
 
 		ActionList.MapAction(
-			*Commands.PreviewPlatformOverrides.Find(It.Key()),
-			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(FeatureLevel, It.Value().PlatformName, It.Value().ShaderFormat, It.Value().DeviceProfileName, true)),
+			Commands.PreviewPlatformOverrides[Index],
+			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(FeatureLevel, Item.PlatformName, Item.ShaderFormat, Item.DeviceProfileName, true)),
 			FCanExecuteAction(),
-			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(FeatureLevel, It.Value().PlatformName, It.Value().ShaderFormat, It.Value().DeviceProfileName)));
+			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(FeatureLevel, Item.PlatformName, Item.ShaderFormat, Item.DeviceProfileName)));
 	}
 
 	ActionList.MapAction(
