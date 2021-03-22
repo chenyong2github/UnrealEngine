@@ -6,9 +6,14 @@
 
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 
+#include "DynamicMesh3.h"
+#include "Parameterization/DynamicMeshUVEditor.h"
+
 #include "Parameterization/UVPacking.h"
 
 #include "Image/ImageOccupancyMap.h"
+#include "VectorUtil.h"
+#include "FrameTypes.h"
 
 #if WITH_EDITOR
 #include "Misc/ScopedSlowTask.h"
@@ -247,7 +252,109 @@ bool UVLayout(
 	TArray<TArray<int32>> UVIslands;
 	UE::UVPacking::CreateUVIslandsFromMeshTopology<FGeomMesh>(UVMesh, UVIslands);
 
+	// detect and fix islands that don't have proper UVs (UVs all zero or otherwise collapsed to a point)
+	bool bRecreateUVsForDegenerateIslands = true;
+	if (bRecreateUVsForDegenerateIslands)
+	{
+		TArray<int> IslandVert; IslandVert.SetNumUninitialized(UVMesh.MaxVertexID());
+
+		const int32 NumIslands = UVIslands.Num();
+		for (int IslandIdx = 0; IslandIdx < NumIslands; IslandIdx++)
+		{
+			double UVArea = 0;
+			FVector3d AvgNormal(0, 0, 0);
+			FVector3d AnyPt(0, 0, 0);
+			for (int TID : UVIslands[IslandIdx])
+			{
+				FIndex3i UVInds = UVMesh.GetUVTriangle(TID);
+				FVector2f UVA = UVMesh.GetUV(UVInds.A), UVB = UVMesh.GetUV(UVInds.B), UVC = UVMesh.GetUV(UVInds.C);
+				UVArea += (double)VectorUtil::Area(UVA, UVB, UVC);
+				FVector3d VA, VB, VC;
+				UVMesh.GetTriVertices(TID, VA, VB, VC);
+				double Area;
+				AnyPt = VA;
+				FVector3d Normal = VectorUtil::NormalArea(VA, VB, VC, Area);
+				AvgNormal += Area * Normal;
+			}
+			Normalize(AvgNormal);
+			bool bDoProjection = FMathd::Abs(UVArea) < FMathd::ZeroTolerance;
+			if (bDoProjection)
+			{
+				// convert the island to a dynamic mesh so we can use the expmap UVs
+				for (int VID = 0; VID < IslandVert.Num(); ++VID)
+				{
+					IslandVert[VID] = -1;
+				}
+				TArray<int> InvIslandVert; InvIslandVert.Reserve(3 * UVIslands[IslandIdx].Num());
+				FDynamicMesh3 IslandMesh;
+				for (int TID : UVIslands[IslandIdx])
+				{
+					FIndex3i Tri = UVMesh.GetUVTriangle(TID);
+					FIndex3i NewTri = FIndex3i::Invalid();
+					for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+					{
+						int SrcVID = Tri[SubIdx];
+						int& VID = IslandVert[SrcVID];
+						if (VID == -1)
+						{
+							VID = IslandMesh.AppendVertex(UVMesh.GetVertex(SrcVID));
+							check(InvIslandVert.Num() == VID);
+							InvIslandVert.Add(SrcVID);
+						}
+						NewTri[SubIdx] = VID;
+					}
+					IslandMesh.AppendTriangle(NewTri);
+				}
+				FDynamicMeshUVEditor UVEditor(&IslandMesh, 0, true);
+				TArray<int> Tris; Tris.Reserve(IslandMesh.TriangleCount());
+				for (int TID : IslandMesh.TriangleIndicesItr())
+				{
+					Tris.Add(TID);
+				}
+				bool bExpMapFailed = !UVEditor.SetTriangleUVsFromExpMap(Tris);
+				if (!bExpMapFailed)
+				{
+					// transfer UVs from the overlay
+					FDynamicMeshUVOverlay* UVOverlay = IslandMesh.Attributes()->PrimaryUV();
+					for (int IslandTID : IslandMesh.TriangleIndicesItr())
+					{
+						FIndex3i Tri = IslandMesh.GetTriangle(IslandTID);
+						FIndex3i UVTri = UVOverlay->GetTriangle(IslandTID);
+						if (!ensure(UVTri != FIndex3i::Invalid()))
+						{
+							// we shouldn't have unset tris like this if the ExpMap returned success
+							bExpMapFailed = true;
+							break;
+						}
+						for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+						{
+							int VID = InvIslandVert[Tri[SubIdx]];
+							FVector2f UV = UVOverlay->GetElement(UVTri[SubIdx]);
+							UVMesh.SetUV(VID, UV);
+						}
+					}
+				}
+				if (bExpMapFailed)
+				{
+					// expmap failed; fall back to projecting UVs
+					FFrame3d Frame(AnyPt, AvgNormal);
+					for (int TID : UVIslands[IslandIdx])
+					{
+						FIndex3i Tri = UVMesh.GetUVTriangle(TID);
+						for (int SubIdx = 0; SubIdx < 3; SubIdx++)
+						{
+							int VID = Tri[SubIdx];
+							FVector2f UV = (FVector2f)Frame.ToPlaneUV(UVMesh.GetVertex(VID));
+							UVMesh.SetUV(VID, UV);
+						}
+					}
+				}
+			}
+		}
+	}
+
 	UE::Geometry::FUVPacker Packer;
+	Packer.bScaleIslandsByWorldSpaceTexelRatio = true; // let packer scale islands separately to have consistent texel-to-world ratio
 	Packer.bAllowFlips = false;
 	// StandardPack doesn't support the Packer.GutterSize feature, and always tries to leave a 1 texel gutter.
 	// To approximate a larger gutter, we tell it to consider a smaller output resolution --

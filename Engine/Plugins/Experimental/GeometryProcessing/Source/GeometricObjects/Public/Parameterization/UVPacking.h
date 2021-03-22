@@ -41,6 +41,8 @@ public:
 	/** If true, islands can be flipped in addition to rotate/translate/scale */
 	bool bAllowFlips = false;
 
+	/** Rescale islands to match texel-to-world-space ratio across islands */
+	bool bScaleIslandsByWorldSpaceTexelRatio = false;
 
 	/**
 	 * Standard UE4 UV layout, similar to that used for Lightmap UVs. 

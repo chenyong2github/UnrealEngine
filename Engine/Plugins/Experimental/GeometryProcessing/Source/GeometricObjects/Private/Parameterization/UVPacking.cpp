@@ -41,7 +41,7 @@ struct FUVIsland
 	FVector2d	MaxUV;
 
 	double		UVArea;
-	FVector2d	WorldScale;
+	double		ScaleToWorld; // Scale factor that would make 1 texel ~= 1 unit in world space
 
 	FVector2d	UVScale;
 	FVector2d	PackingScaleU;
@@ -100,7 +100,7 @@ bool FStandardChartPacker::FindBestPacking(TArray<FUVIsland>& Charts)
 	TotalUVArea = 0.0;
 	for (const FUVIsland& Chart : Charts)
 	{
-		TotalUVArea += Chart.UVArea * Chart.WorldScale.X * Chart.WorldScale.Y;
+		TotalUVArea += Chart.UVArea * Chart.ScaleToWorld * Chart.ScaleToWorld;
 	}
 
 	if (TotalUVArea <= 0.0)
@@ -255,7 +255,7 @@ void FStandardChartPacker::ScaleCharts( TArray<FUVIsland>& Charts, double UVScal
 	for( int32 i = 0; i <Charts.Num(); i++ )
 	{
 		FUVIsland& Chart = Charts[i];
-		Chart.UVScale = Chart.WorldScale * UVScale;
+		Chart.UVScale = FVector2d::One() * UVScale * Chart.ScaleToWorld;
 	}
 	
 	// Unsort the charts to make sure ScaleCharts always return the same ordering
@@ -322,7 +322,7 @@ void FStandardChartPacker::ScaleCharts( TArray<FUVIsland>& Charts, double UVScal
 	}
 #endif
 
-#if 1
+#if 0 // TODO: re-enable under a boolean flag if we find a case where we want to allow non-uniform scaling
 	double NonuniformScale = 1.0f;
 	for (int i = 0; i < 1000; i++)
 	{
@@ -825,7 +825,7 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<voi
 		Chart.MinUV = FVector2d(FLT_MAX, FLT_MAX);
 		Chart.MaxUV = FVector2d(-FLT_MAX, -FLT_MAX);
 		Chart.UVArea = 0.0f;
-		Chart.WorldScale = FVector2d::Zero();
+		double UVLengthSum = 0, WorldLengthSum = 0;
 
 		for (int32 tid : Chart.Triangles)
 		{
@@ -848,21 +848,28 @@ bool FUVPacker::StandardPack(IUVMeshView* Mesh, int NumIslands, TFunctionRef<voi
 
 			FVector3d Edge1 = Positions[1] - Positions[0];
 			FVector3d Edge2 = Positions[2] - Positions[0];
-			double Area = 0.5f * (Edge1.Cross(Edge2)).Length();
+			FVector3d Edge3 = Positions[2] - Positions[1];
+			double WorldLength = Edge1.Length() + Edge2.Length() + Edge3.Length();
 
 			FVector2d EdgeUV1 = UVs[1] - UVs[0];
 			FVector2d EdgeUV2 = UVs[2] - UVs[0];
+			FVector2d EdgeUV3 = UVs[2] - UVs[1];
+			double UVLength = EdgeUV1.Length() + EdgeUV2.Length() + EdgeUV3.Length();
 			double UVArea = 0.5f * FMathd::Abs(EdgeUV1.X * EdgeUV2.Y - EdgeUV1.Y * EdgeUV2.X);
 
-			FVector2d UVLength;
-			UVLength.X = (EdgeUV2.Y * Edge1 - EdgeUV1.Y * Edge2).Length();
-			UVLength.Y = (-EdgeUV2.X * Edge1 + EdgeUV1.X * Edge2).Length();
-
-			Chart.WorldScale += UVLength;
+			UVLengthSum += UVLength;
+			WorldLengthSum += WorldLength;
 			Chart.UVArea += UVArea;
 		}
 
-		Chart.WorldScale /= FMathd::Max(Chart.UVArea, 1e-8f);
+		if (!bScaleIslandsByWorldSpaceTexelRatio || UVLengthSum < FMathd::ZeroTolerance)
+		{
+			Chart.ScaleToWorld = 1;
+		}
+		else
+		{
+			Chart.ScaleToWorld = WorldLengthSum / UVLengthSum;
+		}
 	}
 
 
