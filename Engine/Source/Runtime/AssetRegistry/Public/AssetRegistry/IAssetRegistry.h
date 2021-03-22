@@ -579,15 +579,5 @@ namespace AssetRegistry
 	// WritePackageData is declared in AssetRegistryInterface.h, in the CoreUObject module, because it is needed by SavePackage in CoreUObject
 	ASSETREGISTRY_API bool ReadPackageDataMain(FArchive& BinaryArchive, const FString& PackageName, const FPackageFileSummary& PackageFileSummary, int64& OutDependencyDataOffset, TArray<FAssetData*>& OutAssetDataList, EReadPackageDataMainErrorCode& OutError);
 	ASSETREGISTRY_API bool ReadPackageDataDependencies(FArchive& BinaryArchive, TBitArray<>& OutImportUsedInGame, TBitArray<>& OutSoftPackageUsedInGame);
-
-	class ASSETREGISTRY_API FFiltering
-	{
-	public:
-		/** Called to check whether we should filter out assets of the given class and package flags from the editor's asset registry */
-		static bool ShouldSkipAsset(FName AssetClass, uint32 PackageFlags);
-
-		/** Called to check whether we should filter out the given object (assumed to be an asset) from the editor's asset registry */
-		static bool ShouldSkipAsset(const UObject* InAsset);
-	};
 }
 }

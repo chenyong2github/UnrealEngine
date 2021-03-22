@@ -1,12 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UObject/Package.h"
+
 #include "HAL/FileManager.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "Misc/ITransaction.h"
-#include "UObject/MetaData.h"
 #include "Misc/PackageName.h"
 #include "UObject/LinkerLoad.h"
 #include "UObject/LinkerManager.h"
+#include "UObject/MetaData.h"
 #include "UObject/PackageResourceManager.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectThreadContext.h"
@@ -119,7 +121,7 @@ UObject* UPackage::FindAssetInPackage() const
 	UObject* Asset = nullptr;
 	ForEachObjectWithPackage(this, [&Asset](UObject* Object)
 		{
-			if (Object->IsAsset())
+			if (Object->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(Object))
 			{
 				ensure(Asset == nullptr);
 				Asset = Object;

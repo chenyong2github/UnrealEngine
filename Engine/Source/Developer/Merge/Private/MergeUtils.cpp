@@ -4,6 +4,7 @@
 #include "IAssetTypeActions.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/Package.h"
+#include "Misc/AssetRegistryInterface.h"
 #include "Misc/PackageName.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
@@ -70,7 +71,7 @@ UObject const* FMergeToolUtils::LoadRevision(const FString& PackageName, const F
 
 		for (UObject* PackageObj : PackageObjs)
 		{
-			if (PackageObj->IsAsset())
+			if (PackageObj->IsAsset() && !UE::AssetRegistry::FFiltering::ShouldSkipAsset(PackageObj))
 			{
 				AssetRevision = LoadRevision(PackageObj, DesiredRevision);
 				break;
