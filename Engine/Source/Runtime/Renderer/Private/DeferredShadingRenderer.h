@@ -32,9 +32,9 @@ struct FHairStrandsTransmittanceMaskData;
 struct FHairStrandsRenderingData;
 
 /**
- * Encapsulates the resources and render targets used by global illumination plugins.
+ * Encapsulates the resources and render targets used by global illumination plugins (experimental).
  */
-class RENDERER_API FGlobalIlluminationPluginResources : public FRenderResource
+class RENDERER_API FGlobalIlluminationExperimentalPluginResources : public FRenderResource
 {
 public:
 	TRefCountPtr<IPooledRenderTarget> GBufferA;
@@ -46,14 +46,14 @@ public:
 };
 
 /**
- * Delegate callback used by global illumination plugins.
+ * Delegate callback used by global illumination plugins (experimental).
  */
-class RENDERER_API FGlobalIlluminationPluginDelegates
+class RENDERER_API FGlobalIlluminationExperimentalPluginDelegates
 {
 public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FAnyRayTracingPassEnabled, bool& /*bAnyRayTracingPassEnabled*/);
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FPrepareRayTracing, const FViewInfo& /*View*/, TArray<FRHIRayTracingShader*>& /*OutRayGenShaders*/);
-	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectLight, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationPluginResources& /*Resources*/);
+	DECLARE_MULTICAST_DELEGATE_FourParams(FRenderDiffuseIndirectLight, const FScene& /*Scene*/, const FViewInfo& /*View*/, FRDGBuilder& /*GraphBuilder*/, FGlobalIlluminationExperimentalPluginResources& /*Resources*/);
 
 	static FAnyRayTracingPassEnabled& AnyRayTracingPassEnabled();
 	static FPrepareRayTracing& PrepareRayTracing();

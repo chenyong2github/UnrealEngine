@@ -261,25 +261,25 @@ DECLARE_GPU_STAT(PostOpaqueExtensions);
 CSV_DEFINE_CATEGORY(LightCount, true);
 
 /*-----------------------------------------------------------------------------
-	Global Illumination Plugin Function Delegates
+	Global Illumination Plugin Function Delegates (experimental)
 -----------------------------------------------------------------------------*/
 
-static FGlobalIlluminationPluginDelegates::FAnyRayTracingPassEnabled GIPluginAnyRaytracingPassEnabledDelegate;
-FGlobalIlluminationPluginDelegates::FAnyRayTracingPassEnabled& FGlobalIlluminationPluginDelegates::AnyRayTracingPassEnabled()
+static FGlobalIlluminationExperimentalPluginDelegates::FAnyRayTracingPassEnabled GIExperimentalPluginAnyRaytracingPassEnabledDelegate;
+FGlobalIlluminationExperimentalPluginDelegates::FAnyRayTracingPassEnabled& FGlobalIlluminationExperimentalPluginDelegates::AnyRayTracingPassEnabled()
 {
-	return GIPluginAnyRaytracingPassEnabledDelegate;
+	return GIExperimentalPluginAnyRaytracingPassEnabledDelegate;
 }
 
-static FGlobalIlluminationPluginDelegates::FPrepareRayTracing GIPluginPrepareRayTracingDelegate;
-FGlobalIlluminationPluginDelegates::FPrepareRayTracing& FGlobalIlluminationPluginDelegates::PrepareRayTracing()
+static FGlobalIlluminationExperimentalPluginDelegates::FPrepareRayTracing GIExperimentalPluginPrepareRayTracingDelegate;
+FGlobalIlluminationExperimentalPluginDelegates::FPrepareRayTracing& FGlobalIlluminationExperimentalPluginDelegates::PrepareRayTracing()
 {
-	return GIPluginPrepareRayTracingDelegate;
+	return GIExperimentalPluginPrepareRayTracingDelegate;
 }
 
-static FGlobalIlluminationPluginDelegates::FRenderDiffuseIndirectLight GIPluginRenderDiffuseIndirectLightDelegate;
-FGlobalIlluminationPluginDelegates::FRenderDiffuseIndirectLight& FGlobalIlluminationPluginDelegates::RenderDiffuseIndirectLight()
+static FGlobalIlluminationExperimentalPluginDelegates::FRenderDiffuseIndirectLight GIExperimentalPluginRenderDiffuseIndirectLightDelegate;
+FGlobalIlluminationExperimentalPluginDelegates::FRenderDiffuseIndirectLight& FGlobalIlluminationExperimentalPluginDelegates::RenderDiffuseIndirectLight()
 {
-	return GIPluginRenderDiffuseIndirectLightDelegate;
+	return GIExperimentalPluginRenderDiffuseIndirectLightDelegate;
 }
 
 const TCHAR* GetDepthPassReason(bool bDitheredLODTransitionsUseStencil, EShaderPlatform ShaderPlatform)
@@ -2802,7 +2802,7 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 		|| ShouldRenderRayTracingTranslucency(View)
 		|| ShouldRenderRayTracingSkyLight(Scene ? Scene->SkyLight : nullptr)
 		|| ShouldRenderRayTracingShadows()
-		|| ShouldRenderPluginRayTracingGlobalIllumination()
+		|| ShouldRenderExperimentalPluginRayTracingGlobalIllumination()
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug
 		)
