@@ -431,4 +431,9 @@ namespace TraceServices
 		const FWaitingForTasks& Waiting = (*Thread)[NextWaitingIndex - 1];
 		return Waiting.FinishedTimestamp > Timestamp || Waiting.FinishedTimestamp == FTaskInfo::InvalidTimestamp ? &Waiting : nullptr;
 	}
+
+	int64 FTasksProvider::GetNumTasks() const
+	{
+		return Tasks.Num();
+	}
 }

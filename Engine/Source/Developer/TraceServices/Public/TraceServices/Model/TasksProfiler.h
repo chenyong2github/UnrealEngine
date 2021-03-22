@@ -85,6 +85,9 @@ namespace TraceServices
 
 		// returns an info about waiting for tasks completion for given thread and timestamp, if any, otherwise `nullptr`
 		virtual const FWaitingForTasks* TryGetWaiting(const TCHAR* TimerName, uint32 ThreadId, double Timestamp) const = 0;
+
+		// returns the number of tasks stored in the provider
+		virtual int64 GetNumTasks() const = 0;
 	};
 
 	TRACESERVICES_API const ITasksProvider* ReadTasksProvider(const IAnalysisSession& Session);

@@ -39,6 +39,7 @@
 #include "Insights/LoadingProfiler/LoadingProfilerManager.h"
 #include "Insights/LoadingProfiler/Widgets/SLoadingProfilerWindow.h"
 #include "Insights/Table/Widgets/STableTreeView.h"
+#include "Insights/TaskGraphProfiler/TaskGraphProfilerManager.h"
 #include "Insights/Tests/TimingProfilerTests.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
@@ -4126,14 +4127,14 @@ void STimingView::ContextMenu_ShowTaskDependecies_Execute()
 
 bool STimingView::ContextMenu_ShowTaskDependecies_CanExecute()
 {
-	return true;
+	return FTaskGraphProfilerManager::Get()->GetIsAvailable();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool STimingView::ContextMenu_ShowTaskDependecies_IsChecked()
 {
-	return bShowEventRelations;
+	return FTaskGraphProfilerManager::Get()->GetIsAvailable() && bShowEventRelations;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
