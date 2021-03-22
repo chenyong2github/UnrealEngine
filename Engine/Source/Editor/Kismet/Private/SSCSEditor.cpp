@@ -4770,17 +4770,17 @@ FSCSEditorTreeNodePtrType SSCSEditor::GetNodeFromActorComponent(const UActorComp
 				// If the given component is one that's created during Blueprint construction
 				if (ActorComponent->IsCreatedByConstructionScript())
 				{
-					TArray<UBlueprint*> ParentBPStack;
-
 					// Check the entire Class hierarchy for the node
+					TArray<UBlueprintGeneratedClass*> ParentBPStack;
 					UBlueprint::GetBlueprintHierarchyFromClass(OwnerClass, ParentBPStack);
 
 					for(int32 StackIndex = ParentBPStack.Num() - 1; StackIndex >= 0; --StackIndex)
 					{
-						if(ParentBPStack[StackIndex]->SimpleConstructionScript)
+						USimpleConstructionScript* ParentSCS = ParentBPStack[StackIndex] ? ParentBPStack[StackIndex]->SimpleConstructionScript : nullptr;
+						if (ParentSCS)
 						{
 							// Attempt to locate an SCS node with a variable name that matches the name of the given component
-							for (USCS_Node* SCS_Node : ParentBPStack[StackIndex]->SimpleConstructionScript->GetAllNodes())
+							for (USCS_Node* SCS_Node : ParentSCS->GetAllNodes())
 							{
 								check(SCS_Node != NULL);
 								if (SCS_Node->GetVariableName() == ActorComponent->GetFName())
@@ -4967,25 +4967,27 @@ void SSCSEditor::BuildSubTreeForActorNode(FSCSEditorActorNodePtrType InActorNode
 		}
 
 		// If it's a Blueprint-generated class, also get the inheritance stack
-		TArray<UBlueprint*> ParentBPStack;
+		TArray<UBlueprintGeneratedClass*> ParentBPStack;
 		UBlueprint::GetBlueprintHierarchyFromClass(Actor->GetClass(), ParentBPStack);
+
+		UBlueprint* ActorBP = (ParentBPStack.Num() > 0 && ParentBPStack[0]) ? Cast<UBlueprint>(ParentBPStack[0]->ClassGeneratedBy) : nullptr;
+		ensure(ActorBP);
 
 		// Add the full SCS tree node hierarchy (including SCS nodes inherited from parent blueprints)
 		for (int32 StackIndex = ParentBPStack.Num() - 1; StackIndex >= 0; --StackIndex)
 		{
-			if (ParentBPStack[StackIndex]->SimpleConstructionScript != nullptr)
+			USimpleConstructionScript* ParentSCS = ParentBPStack[StackIndex] ? ParentBPStack[StackIndex]->SimpleConstructionScript : nullptr;
+			if (ParentSCS)
 			{
-				const TArray<USCS_Node*>& SCS_RootNodes = ParentBPStack[StackIndex]->SimpleConstructionScript->GetRootNodes();
-				for (int32 NodeIndex = 0; NodeIndex < SCS_RootNodes.Num(); ++NodeIndex)
+				for (USCS_Node* SCS_Node : ParentSCS->GetRootNodes())
 				{
-					USCS_Node* SCS_Node = SCS_RootNodes[NodeIndex];
-					check(SCS_Node != nullptr);
+					check(SCS_Node);
 
 					FSCSEditorTreeNodePtrType NewNodePtr;
 					if (SCS_Node->ParentComponentOrVariableName != NAME_None)
 					{
-						USceneComponent* ParentComponent = SCS_Node->GetParentComponentTemplate(ParentBPStack[0]);
-						if (ParentComponent != nullptr)
+						USceneComponent* ParentComponent = SCS_Node->GetParentComponentTemplate(ActorBP);
+						if (ParentComponent)
 						{
 							FSCSEditorTreeNodePtrType ParentNodePtr = FindTreeNode(ParentComponent, InActorNode);
 							if (ParentNodePtr.IsValid())
@@ -5004,12 +5006,12 @@ void SSCSEditor::BuildSubTreeForActorNode(FSCSEditorActorNodePtrType InActorNode
 					{
 						// This call creates ICH override templates for the current Blueprint. Without this, the parent node
 						// search above can fail when attempting to match an inherited node in the tree via component template.
-						NewNodePtr->GetOrCreateEditableComponentTemplate(ParentBPStack[0]);
+						NewNodePtr->GetOrCreateEditableComponentTemplate(ActorBP);
 						for (FSCSEditorTreeNodePtrType ChildNodePtr : NewNodePtr->GetChildren())
 						{
 							if (ensure(ChildNodePtr.IsValid()))
 							{
-								ChildNodePtr->GetOrCreateEditableComponentTemplate(ParentBPStack[0]);
+								ChildNodePtr->GetOrCreateEditableComponentTemplate(ActorBP);
 							}
 						}
 					}

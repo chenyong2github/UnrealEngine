@@ -455,7 +455,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject
 		FBlueprintEditorUtils::AddFunctionGraph(NewBP, UCSGraph, /*bIsUserCreated=*/ false, AActor::StaticClass());
 
 		// If the blueprint is derived from another blueprint, add in a super-call automatically
-		if( NewBP->ParentClass && NewBP->ParentClass->ClassGeneratedBy )
+		if (NewBP->ParentClass && NewBP->ParentClass->HasAnyClassFlags(CLASS_CompiledFromBlueprint))
 		{
 			check( UCSGraph->Nodes.Num() > 0 );
 			UK2Node_FunctionEntry* UCSEntry = CastChecked<UK2Node_FunctionEntry>(UCSGraph->Nodes[0]);
