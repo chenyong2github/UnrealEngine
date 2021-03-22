@@ -93,6 +93,7 @@ FRHIRenderPassInfo FRDGParameterStruct::GetRenderPassInfo() const
 	RenderPassInfo.ResolveParameters.DestAccessFinal = ERHIAccess::ResolveDst;
 	RenderPassInfo.NumOcclusionQueries = RenderTargets.NumOcclusionQueries;
 	RenderPassInfo.bOcclusionQueries = RenderTargets.NumOcclusionQueries > 0;
+	RenderPassInfo.ShadingRateTexture = RenderTargets.ShadingRateTexture ? RenderTargets.ShadingRateTexture->GetRHI() : nullptr;
 
 	return RenderPassInfo;
 }

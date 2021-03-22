@@ -127,6 +127,11 @@ void EnumerateTextureAccess(FRDGParameterStruct PassParameters, ERDGPassFlags Pa
 					AccessFunction(nullptr, Texture, NewAccess, Range);
 				});
 			}
+
+			if (FRDGTextureRef Texture = RenderTargets.ShadingRateTexture)
+			{
+				AccessFunction(nullptr, Texture, ERHIAccess::SRVGraphics, Texture->GetSubresourceRangeSRV());
+			}
 		}
 		break;
 		}
@@ -177,6 +182,11 @@ void EnumerateTextureParameters(FRDGParameterStruct PassParameters, TParameterFu
 			});
 
 			if (FRDGTextureRef Texture = RenderTargets.DepthStencil.GetTexture())
+			{
+				ParameterFunction(Texture);
+			}
+
+			if (FRDGTextureRef Texture = RenderTargets.ShadingRateTexture)
 			{
 				ParameterFunction(Texture);
 			}

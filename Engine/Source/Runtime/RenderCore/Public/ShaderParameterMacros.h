@@ -440,6 +440,7 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBindingSlots
 	FDepthStencilBinding DepthStencil;
 	FResolveRect ResolveRect;
 	uint32 NumOcclusionQueries = 0;
+	FRDGTexture* ShadingRateTexture = nullptr;
 
 	/** Accessors for regular output to simplify the syntax to:
 	 *
@@ -511,7 +512,9 @@ struct alignas(SHADER_PARAMETER_STRUCT_ALIGNMENT) FRenderTargetBindingSlots
 			return false;
 		}
 
-		if (ResolveRect != Other.ResolveRect)
+		if (ResolveRect != Other.ResolveRect ||
+			(NumOcclusionQueries != Other.NumOcclusionQueries && Other.NumOcclusionQueries != 0) ||
+			ShadingRateTexture != Other.ShadingRateTexture)
 		{
 			return false;
 		}
