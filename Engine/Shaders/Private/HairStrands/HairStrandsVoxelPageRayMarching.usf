@@ -410,7 +410,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		//  Virtual Resolution   : X Y Z
 		//  Page Index Offset    : O
 		{
-			float2 StartPos = float2(50.0f, 350.0f + float(MacroGroupId) * 100.0f) / OutputResolution;
+			float2 StartPos = float2(50.0f, 420.0f + float(MacroGroupId) * 100.0f) / OutputResolution;
 			float2 Pos = StartPos;
 
 			Pos = ShaderPrintSymbol(Pos, _M_);

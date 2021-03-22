@@ -146,7 +146,7 @@ IMPLEMENT_GLOBAL_SHADER(FHairScatterPS, "/Engine/Private/HairStrands/HairScatter
 static FRDGTextureRef AddScatterPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FVirtualVoxelResources& VoxelResources,
+	const FHairStrandsVoxelResources& VoxelResources,
 	const FRDGTextureRef& InVisibilityNodeIndex,
 	const FRDGBufferRef&  InVisibilityNodeData,
 	const FRDGTextureRef& InCategorizationTexture,
@@ -254,7 +254,7 @@ void AddHairDiffusionPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FHairStrandsVisibilityData& VisibilityData,
-	const FVirtualVoxelResources& VoxelResources,
+	const FHairStrandsVoxelResources& VoxelResources,
 	const FRDGTextureRef SceneColorDepth,
 	FRDGTextureRef OutLightSampleTexture)
 {

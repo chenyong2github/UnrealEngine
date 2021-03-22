@@ -12,24 +12,19 @@
 
 class FScene;
 class FViewInfo;
-struct FHairStrandsRenderingData;
 
 void RenderHairStrandsAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
-	TArrayView<const FViewInfo> Views,
-	const FHairStrandsRenderingData* HairDatas,
+	const FViewInfo& View,
 	const FRDGTextureRef& InAOTexture);
 
 void RenderHairStrandsEnvironmentLighting(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	const uint32 ViewIndex,
-	TArrayView<const FViewInfo> Views,
-	FHairStrandsRenderingData* HairDatas);
+	FViewInfo& View);
 
 void RenderHairStrandsSceneColorScattering(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneColorTexture,
 	const FScene* Scene,
-	TArrayView<const FViewInfo> Views,
-	FHairStrandsRenderingData* HairDatas);
+	TArrayView<const FViewInfo> Views);

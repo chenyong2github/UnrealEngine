@@ -57,7 +57,7 @@ void AddHairDeepShadowRasterPass(
 // ////////////////////////////////////////////////////////////////
 // Voxelization raster pass
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairVoxelizationRasterUniformParameters, )
-	SHADER_PARAMETER_STRUCT(FVirtualVoxelCommonParameters, VirtualVoxel)
+	SHADER_PARAMETER_STRUCT(FHairStrandsVoxelCommonParameters, VirtualVoxel)
 	SHADER_PARAMETER(FMatrix, WorldToClipMatrix)
 	SHADER_PARAMETER(FVector, VoxelMinAABB)
 	SHADER_PARAMETER(FVector, VoxelMaxAABB)

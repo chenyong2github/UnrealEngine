@@ -21,29 +21,20 @@
 #include "HairStrandsComposition.h"
 #include "HairStrandsDebug.h"
 #include "HairStrandsInterface.h"
-
-/// Hold all the hair strands data
-struct FHairStrandsRenderingData
-{
-	FHairStrandsVisibilityViews HairVisibilityViews;
-	FHairStrandsMacroGroupViews MacroGroupsPerViews;
-	FHairStrandsDebugData DebugData;
-};
+#include "HairStrandsData.h"
 
 void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
-	FInstanceCullingManager& InstanceCullingManager,
-	FHairStrandsRenderingData& OutHairDatas);
+	FInstanceCullingManager& InstanceCullingManager);
 
 void RenderHairBasePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	const FSceneTextures& SceneTextures,
 	TArray<FViewInfo>& Views,
-	FInstanceCullingManager& InstanceCullingManager,
-	FHairStrandsRenderingData& OutHairDatas);
+	FInstanceCullingManager& InstanceCullingManager);
 
 void RunHairStrandsBookmark(
 	FRDGBuilder& GraphBuilder, 

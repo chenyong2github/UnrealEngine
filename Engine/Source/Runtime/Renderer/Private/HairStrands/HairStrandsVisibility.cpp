@@ -723,7 +723,7 @@ static void AddHairMaterialGBufferPass(
 				FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, PipelineStateSet, NeedsShaderInitialization);
 				FHairMaterialGBufferProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, &ShadowContext);
 
-				for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+				for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 				{
 					for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 					{
@@ -1164,7 +1164,7 @@ static FMaterialPassOutput AddHairMaterialPass(
 			FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, PipelineStateSet, NeedsShaderInitialization);
 			FHairMaterialProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, &ShadowContext);
 
-			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 			{
 				for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 				{
@@ -2064,7 +2064,6 @@ IMPLEMENT_GLOBAL_SHADER(FHairVisibilityCompactionComputeRasterCS, "/Engine/Priva
 static void AddHairVisibilityCompactionComputeRasterPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
-	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const uint32 NodeGroupSize,
 	const uint32 SamplerPerPixel,
 	const FRasterComputeOutput& RasterComputeData,
@@ -2275,7 +2274,7 @@ static FRDGTextureRef AddHairVisibilityFillOpaqueDepth(
 	TArray<FIntRect> MacroGroupRects;
 	if (IsHairStrandsViewRectOptimEnable())
 	{
-		for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+		for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 		{
 			MacroGroupRects.Add(MacroGroupData.ScreenRect);
 		}
@@ -2336,7 +2335,7 @@ static void AddHairCulledVertexResourcesTransitionPass(
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas)
 {
 	FBufferTransitionQueue TransitionQueue;
-	for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+	for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 	{
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 		{
@@ -2447,7 +2446,7 @@ static void AddHairVisibilityCommonPass(
 			FDynamicPassMeshDrawListContext ShadowContext(DynamicMeshDrawCommandStorage, VisibleMeshDrawCommands, PipelineStateSet, NeedsShaderInitialization);
 			FHairVisibilityProcessor MeshProcessor(Scene, ViewInfo, DrawRenderState, RenderMode, &ShadowContext);
 			
-			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas.Datas)
+			for (const FHairStrandsMacroGroupData& MacroGroupData : MacroGroupDatas)
 			{
 				for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : MacroGroupData.PrimitivesInfos)
 				{
@@ -3158,7 +3157,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	TShaderMapRef<FVisiblityRasterComputeCS> ComputeShader_CullingOff(ViewInfo.ShaderMap, PermutationVector0);
 	TShaderMapRef<FVisiblityRasterComputeCS> ComputeShader_CullingOn (ViewInfo.ShaderMap, PermutationVector1);
 
-	for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas.Datas)
+	for (const FHairStrandsMacroGroupData& MacroGroup : MacroGroupDatas)
 	{
 		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
 
@@ -3221,10 +3220,10 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 bool GetHairStrandsSkyLightingEnable();
 
-FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
+void RenderHairStrandsVisibilityBuffer(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	const TArray<FViewInfo>& Views,
+	FViewInfo& View,
 	FRDGTextureRef SceneGBufferATexture,
 	FRDGTextureRef SceneGBufferBTexture,
 	FRDGTextureRef SceneGBufferCTexture,
@@ -3233,28 +3232,24 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture,
 	FRDGTextureRef SceneVelocityTexture,
-	FInstanceCullingManager& InstanceCullingManager,
-	const FHairStrandsMacroGroupViews& MacroGroupViews)
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CLM_RenderHairStrandsVisibility);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsVisibility");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsVisibility);
 
-	FHairStrandsVisibilityViews Output;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	FHairStrandsMacroGroupDatas& MacroGroupDatas = View.HairStrandsViewData.MacroGroupDatas;
+	check(View.Family);
+	check(MacroGroupDatas.Num() > 0);
+
 	{
-		const FViewInfo& View = Views[ViewIndex];
-		if (View.Family)
+		
 		{
 			FHairLUT HairLUT = GetHairLUT(GraphBuilder, View);
 
-			FHairStrandsVisibilityData& VisibilityData = Output.HairDatas.AddDefaulted_GetRef();
+			FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 			VisibilityData.NodeGroupSize = GetVendorOptimalGroupSize1D();
 			VisibilityData.MaxSampleCount = GetMaxSamplePerPixel();
-			const FHairStrandsMacroGroupDatas& MacroGroupDatas = MacroGroupViews.Views[ViewIndex];
-
-			if (MacroGroupDatas.Datas.Num() == 0)
-				continue;
 
 			// Use the scene color for computing target resolution as the View.ViewRect, 
 			// doesn't include the actual resolution padding which make buffer size 
@@ -3304,7 +3299,6 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 						AddHairVisibilityCompactionComputeRasterPass(
 							GraphBuilder,
 							View,
-							MacroGroupDatas,
 							VisibilityData.NodeGroupSize,
 							VisibilityData.MaxSampleCount,
 							RasterOutput,
@@ -3754,6 +3748,4 @@ FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
 			}
 		}
 	}
-
-	return Output;
 }

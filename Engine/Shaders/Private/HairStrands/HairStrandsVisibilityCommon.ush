@@ -115,16 +115,6 @@ float2 UnpackVelocity(uint PackedVelocity)
 // Option to reduce the footprint: 
 // * we don't use PrimitiveID at the moment which is encoded on 3bytes
 // * Deferred the evaluation of Coverage & material properties into some other pass?
-
-struct FPackedHairSample
-{
-	float Depth;
-	uint  PrimitiveID_MacroGroupID;
-	uint  Tangent_Coverage8bit;
-	uint  BaseColor_Roughness;
-	uint  Specular_LightChannels_Backlit;
-};
-
 struct FHairSample
 {
 	float	Depth;

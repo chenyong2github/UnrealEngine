@@ -4,6 +4,7 @@
 	PageManagement.usf: 
 =============================================================================*/
 
+#include "../HairStrands/HairStrandsVisibilityCommonStruct.ush"
 #include "../Common.ush"
 #include "../LightGridCommon.ush"
 #include "../SceneTexturesCommon.ush"

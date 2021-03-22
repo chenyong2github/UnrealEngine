@@ -154,90 +154,82 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 	}
 }
 
-FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
+void CreateHairStrandsMacroGroups(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
-	const TArray<FViewInfo>& Views)
+	FViewInfo& View)
 {
-	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
-
-	FHairStrandsMacroGroupViews MacroGroupsViews;
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	if (!View.Family || View.HairStrandsMeshElements.Num() == 0 || View.bIsPlanarReflection || View.bIsReflectionCapture)
 	{
-		const FViewInfo& View = Views[ViewIndex];
-		if (View.Family)
-		{
-			int32 MaterialId = 0;
-			FHairStrandsMacroGroupDatas& MacroGroups = MacroGroupsViews.Views.AddDefaulted_GetRef();
-
-			if (View.HairStrandsMeshElements.Num() == 0 || View.bIsPlanarReflection || View.bIsReflectionCapture)
-			{
-				continue;
-			}
-
-			// Aggregate all hair primitives within the same area into macro groups, for allocating/rendering DOM/voxel
-			uint32 MacroGroupId = 0;
-			auto UpdateMacroGroup = [&MacroGroups, &View, &MacroGroupId, &MaterialId](const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
-			{
-				const bool bIsHairStrandsFactory = MeshBatchAndRelevance->Mesh->VertexFactory->GetType()->GetHashedName() == CompatibleVF->GetHashedName();
-				if (!bIsHairStrandsFactory)
-					return;
-
-				const FBoxSphereBounds& PrimitiveBounds = Proxy->GetBounds();
-
-				bool bFound = false;
-				for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups.Datas)
-				{
-					const bool bIntersect = FBoxSphereBounds::SpheresIntersect(MacroGroup.Bounds, PrimitiveBounds);
-					if (bIntersect)
-					{
-						MacroGroup.Bounds = Union(MacroGroup.Bounds, PrimitiveBounds);
-						InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance, Proxy);
-						bFound = true;
-						break;
-					}
-				}
-
-				if (!bFound)
-				{
-					FHairStrandsMacroGroupData MacroGroup;
-					MacroGroup.MacroGroupId = MacroGroupId++;
-					InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance, Proxy);
-					MacroGroup.Bounds = PrimitiveBounds;
-					MacroGroups.Datas.Add(MacroGroup);
-				}
-			};
-
-			for (const FMeshBatchAndRelevance& MeshBatchAndRelevance : View.HairStrandsMeshElements)
-			{
-				UpdateMacroGroup(&MeshBatchAndRelevance, MeshBatchAndRelevance.PrimitiveSceneProxy);
-			}
-
-			for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups.Datas)
-			{
-				MacroGroup.ScreenRect = ComputeProjectedScreenRect(MacroGroup.Bounds.GetBox(), View);
-			}
-
-			// Build hair macro group AABBB
-			const uint32 MacroGroupCount = MacroGroups.Datas.Num();
-			if (MacroGroupCount > 0)
-			{
-				DECLARE_GPU_STAT(HairStrandsAABB);
-				RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsAABB");
-				RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsAABB);
-
-				MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 6 * MacroGroupCount), TEXT("Hair.MacroGroupAABBBuffer"));
-				FRDGBufferUAVRef MacroGroupAABBBufferUAV = GraphBuilder.CreateUAV(MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
-				for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups.Datas)
-				{				
-					AddHairMacroGroupAABBPass(GraphBuilder, View.ShaderMap, MacroGroup, MacroGroupAABBBufferUAV);
-				}
-				MacroGroups.MacroGroupResources.MacroGroupCount = MacroGroups.Datas.Num();
-			}
-		}
+		return;
 	}
 
-	return MacroGroupsViews;
+	static const FVertexFactoryType* CompatibleVF = FVertexFactoryType::GetVFByName(TEXT("FHairStrandsVertexFactory"));
+
+	TArray<FHairStrandsMacroGroupData, SceneRenderingAllocator>& MacroGroups = View.HairStrandsViewData.MacroGroupDatas;
+	FHairStrandsMacroGroupResources& MacroGroupResources = View.HairStrandsViewData.MacroGroupResources;
+
+	int32 MaterialId = 0;
+
+	// Aggregate all hair primitives within the same area into macro groups, for allocating/rendering DOM/voxel
+	uint32 MacroGroupId = 0;
+	auto UpdateMacroGroup = [&MacroGroups, &MacroGroupId, &MaterialId](const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
+	{
+		const bool bIsHairStrandsFactory = MeshBatchAndRelevance->Mesh->VertexFactory->GetType()->GetHashedName() == CompatibleVF->GetHashedName();
+		if (!bIsHairStrandsFactory)
+			return;
+
+		const FBoxSphereBounds& PrimitiveBounds = Proxy->GetBounds();
+
+		bool bFound = false;
+		for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups)
+		{
+			const bool bIntersect = FBoxSphereBounds::SpheresIntersect(MacroGroup.Bounds, PrimitiveBounds);
+			if (bIntersect)
+			{
+				MacroGroup.Bounds = Union(MacroGroup.Bounds, PrimitiveBounds);
+				InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance, Proxy);
+				bFound = true;
+				break;
+			}
+		}
+
+		if (!bFound)
+		{
+			FHairStrandsMacroGroupData MacroGroup;
+			MacroGroup.MacroGroupId = MacroGroupId++;
+			InternalUpdateMacroGroup(MacroGroup, MaterialId, MeshBatchAndRelevance, Proxy);
+			MacroGroup.Bounds = PrimitiveBounds;
+			MacroGroups.Add(MacroGroup);
+		}
+	};
+
+	for (const FMeshBatchAndRelevance& MeshBatchAndRelevance : View.HairStrandsMeshElements)
+	{
+		UpdateMacroGroup(&MeshBatchAndRelevance, MeshBatchAndRelevance.PrimitiveSceneProxy);
+	}
+
+	for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups)
+	{
+		MacroGroup.ScreenRect = ComputeProjectedScreenRect(MacroGroup.Bounds.GetBox(), View);
+	}
+
+	// Build hair macro group AABBB
+	const uint32 MacroGroupCount = MacroGroups.Num();
+	if (MacroGroupCount > 0)
+	{
+		DECLARE_GPU_STAT(HairStrandsAABB);
+		RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsAABB");
+		RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsAABB);
+
+		MacroGroupResources.MacroGroupAABBsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 6 * MacroGroupCount), TEXT("Hair.MacroGroupAABBBuffer"));
+		FRDGBufferUAVRef MacroGroupAABBBufferUAV = GraphBuilder.CreateUAV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
+		for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups)
+		{				
+			AddHairMacroGroupAABBPass(GraphBuilder, View.ShaderMap, MacroGroup, MacroGroupAABBBufferUAV);
+		}
+		MacroGroupResources.MacroGroupCount = MacroGroups.Num();
+	}
 }
 
 bool FHairStrandsMacroGroupData::PrimitiveInfo::IsCullingEnable() const

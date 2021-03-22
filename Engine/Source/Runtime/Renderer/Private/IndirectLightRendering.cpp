@@ -708,7 +708,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextures& SceneTextures,
 	FRDGTextureRef LightingChannelsTexture,
-	FHairStrandsRenderingData* InHairDatas,
 	bool bIsVisualizePass)
 {
 	using namespace HybridIndirectLighting;
@@ -902,14 +901,11 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			SceneTextures.ScreenSpaceAO = AmbientOcclusionMask;
 		}
 
-		if (InHairDatas 
-			&& (   (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSGI) 
-				|| (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO)))
+		if (HairStrands::HasViewHairStrandsData(View) && (ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSGI || ViewPipelineState.AmbientOcclusionMethod == EAmbientOcclusionMethod::SSAO))
 		{
 			RenderHairStrandsAmbientOcclusion(
 				GraphBuilder,
-				Views,
-				InHairDatas,
+				View,
 				AmbientOcclusionMask);
 		}
 
@@ -1317,8 +1313,7 @@ static void AddSkyReflectionPass(
 void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextures& SceneTextures,
-	FRDGTextureRef DynamicBentNormalAOTexture,
-	FHairStrandsRenderingData* HairDatas)
+	FRDGTextureRef DynamicBentNormalAOTexture)
 {
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling 
 		|| ViewFamily.EngineShowFlags.RayTracingDebug
@@ -1571,58 +1566,44 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 			}
 		}
 
-		const bool bIsHairSkyLightingEnabled = HairDatas && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
+		const bool bIsHairSkyLightingEnabled = HairStrands::HasViewHairStrandsData(View) && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
 		if (bIsHairSkyLightingEnabled)
 		{
 			RDG_GPU_STAT_SCOPE(GraphBuilder, HairSkyLighting);
-			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, CurrentViewIndex, Views, HairDatas);
+			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, View);
 		}
 	}
 
 	AddResolveSceneColorPass(GraphBuilder, Views, SceneColorTexture);
 }
 
-void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(
-	FRDGBuilder& GraphBuilder,
-	FHairStrandsRenderingData* HairDatas)
+void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLightingHair(FRDGBuilder& GraphBuilder)
 {
 	if (ViewFamily.EngineShowFlags.VisualizeLightCulling || !ViewFamily.EngineShowFlags.Lighting)
 	{
 		return;
 	}
 
-	// If we're currently capturing a reflection capture, output SpecularColor * IndirectIrradiance for metals so they are not black in reflections,
-	// Since we don't have multiple bounce specular reflections
-	bool bReflectionCapture = false;
-	for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ViewIndex++)
-	{
-		const FViewInfo& View = Views[ViewIndex];
-		bReflectionCapture = bReflectionCapture || View.bIsReflectionCapture;
-	}
-
-	if (bReflectionCapture)
-	{
-		// if we are rendering a reflection capture then we can skip this pass entirely (no reflection and no sky contribution evaluated in this pass)
-		return;
-	}
-
-	// The specular sky light contribution is also needed by RT Reflections as a fallback.
-	const bool bSkyLight = Scene->SkyLight
-		&& Scene->SkyLight->ProcessedTexture
-		&& !Scene->SkyLight->bHasStaticLighting;
-
-	bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily);
-	bool bApplySkyShadowing = false;
-	const bool bReflectionEnv = ShouldDoReflectionEnvironment();
-
-	uint32 ViewIndex = 0;
 	for (FViewInfo& View : Views)
 	{
-		const uint32 CurrentViewIndex = ViewIndex++;
-		const bool bIsHairSkyLightingEnabled = HairDatas && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
+		// if we are rendering a reflection capture then we can skip this pass entirely (no reflection and no sky contribution evaluated in this pass)
+		if (View.bIsReflectionCapture)
+		{
+			continue;
+		}
+
+		// The specular sky light contribution is also needed by RT Reflections as a fallback.
+		const bool bSkyLight = Scene->SkyLight
+			&& Scene->SkyLight->ProcessedTexture
+			&& !Scene->SkyLight->bHasStaticLighting;
+
+		const bool bDynamicSkyLight = ShouldRenderDeferredDynamicSkyLight(Scene, ViewFamily);
+		const bool bReflectionEnv = ShouldDoReflectionEnvironment();
+		const bool bIsHairSkyLightingEnabled = HairStrands::HasViewHairStrandsData(View) && (bSkyLight || bDynamicSkyLight || bReflectionEnv);
 		if (bIsHairSkyLightingEnabled)
 		{
-			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, CurrentViewIndex, Views, HairDatas);
+			RenderHairStrandsEnvironmentLighting(GraphBuilder, Scene, View);
 		}
 	}
+
 }

@@ -410,8 +410,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 	FRDGBuilder& GraphBuilder,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef& OutSkyLightTexture,
-	FRDGTextureRef& OutHitDistanceTexture,
-	const FHairStrandsRenderingData* HairDatas)
+	FRDGTextureRef& OutHitDistanceTexture)
 {
 	FSkyLightSceneProxy* SkyLight = Scene->SkyLight;
 	if (!ShouldRenderRayTracingSkyLight(SkyLight))
@@ -502,12 +501,12 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 		PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 		const bool bUseHairLighting = 
-			HairDatas && ViewIndex < HairDatas->MacroGroupsPerViews.Views.Num() && 
-			HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid() && 
+			HairStrands::HasViewHairStrandsData(View) && 
+			View.HairStrandsViewData.VirtualVoxelResources.IsValid() &&
 			CVarRayTracingSkyLightEnableHairVoxel.GetValueOnRenderThread() > 0;
 		if (bUseHairLighting)
 		{
-			PassParameters->VirtualVoxel = HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.UniformBuffer;
+			PassParameters->VirtualVoxel = View.HairStrandsViewData.VirtualVoxelResources.UniformBuffer;
 		}
 
 		FRayTracingSkyLightRGS::FPermutationDomain PermutationVector;

@@ -56,7 +56,6 @@ struct FCloudRenderContext;
 struct FSceneWithoutWaterTextures;
 struct FHairStrandsVisibilityViews;
 struct FSortedLightSetSceneInfo;
-struct FHairStrandsRenderingData;
 enum class EVelocityPass : uint32;
 struct FStrataSceneData;
 
@@ -1984,10 +1983,11 @@ protected:
 
 	void RenderShadowProjections(
 		FRDGBuilder& GraphBuilder,
-		const FShadowProjectionPassParameters& CommonPassParameters,
+		FRDGTextureRef OutputTexture,
+		const FMinimalSceneTextures& SceneTextures,
 		const FLightSceneProxy* LightSceneProxy,
-		const FHairStrandsRenderingData* HairDatas,
 		TArrayView<const FProjectedShadowInfo* const> Shadows,
+		bool bSubPixelShadow,
 		bool bProjectingForForwardShading,
 		bool bMobileModulatedProjections);
 

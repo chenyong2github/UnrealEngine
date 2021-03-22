@@ -587,46 +587,25 @@ static void AddHairVisibilityGBufferWritePass(
 		});
 }
 
-void RenderHairComposition(
+static void InternalRenderHairComposition(
 	FRDGBuilder& GraphBuilder,
-	const TArray<FViewInfo>& Views,
-	const FHairStrandsRenderingData* HairDatas,
+	const FViewInfo& View,
 	FRDGTextureRef SceneColorTexture,
 	FRDGTextureRef SceneDepthTexture)
 {
-	if (!HairDatas || HairDatas->HairVisibilityViews.HairDatas.Num() == 0 || Views.Num() == 0)
-		return;
-
-	const FHairStrandsVisibilityViews& HairVisibilityViews = HairDatas->HairVisibilityViews;
-
 	DECLARE_GPU_STAT(HairStrandsComposition);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsComposition");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsComposition);
 
-	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		const FViewInfo& View = Views[ViewIndex];
-		if (View.Family)
 		{
-			if (ViewIndex < HairVisibilityViews.HairDatas.Num())
 			{
-				const FHairStrandsMacroGroupDatas& MacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
-				const FHairStrandsVisibilityData& VisibilityData = HairVisibilityViews.HairDatas[ViewIndex];
+				const FHairStrandsVisibilityData& VisibilityData = View.HairStrandsViewData.VisibilityData;
 
 				if (!VisibilityData.CategorizationTexture)
 				{
-					continue; // Automatically skip for any view not rendering hair
+					return; // Automatically skip for any view not rendering hair
 				}
-
-				// todo: rehook the diffusion pass
-				//AddHairDiffusionPass(
-				//	GraphBuilder,
-				//	View,
-				//	VisibilityData,
-				//	MacroGroupDatas.VirtualVoxelResources,
-				//	SceneDepthTexture,
-				//	SceneColorSubPixelTexture,
-				//	SceneColorTexture);
 
 				FRDGTextureRef DOFDepth = nullptr;
 				const bool bHairDOF = GHairStrandsComposeDOFDepth > 0 ? 1 : 0;
@@ -650,20 +629,21 @@ void RenderHairComposition(
 					SceneColorTexture,
 					SceneDepthTexture);
 
-				if (HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture)
+				
+				if (VisibilityData.VelocityTexture)
 				{
 					AddHairVisibilityFastResolveMSAAPass(
 						GraphBuilder,
 						View,
-						HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture,
+						VisibilityData.VelocityTexture,
 						SceneDepthTexture);
 				}
-				else if (HairVisibilityViews.HairDatas[ViewIndex].ResolveMaskTexture)
+				else if (VisibilityData.ResolveMaskTexture)
 				{
 					AddHairVisibilityFastResolveMaskPass(
 						GraphBuilder,
 						View,
-						HairVisibilityViews.HairDatas[ViewIndex].ResolveMaskTexture,
+						VisibilityData.ResolveMaskTexture,
 						SceneDepthTexture);
 				}
 
@@ -712,6 +692,25 @@ void RenderHairComposition(
 					}
 				}
 			}
+		}
+	}
+}
+
+void RenderHairComposition(
+	FRDGBuilder& GraphBuilder,
+	const TArray<FViewInfo>& Views,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef SceneDepthTexture)
+{
+	for (const FViewInfo& View : Views)
+	{		
+		if (View.Family && HairStrands::HasViewHairStrandsData(View))
+		{			
+			InternalRenderHairComposition(
+				GraphBuilder,
+				View,
+				SceneColorTexture,
+				SceneDepthTexture);
 		}
 	}
 }

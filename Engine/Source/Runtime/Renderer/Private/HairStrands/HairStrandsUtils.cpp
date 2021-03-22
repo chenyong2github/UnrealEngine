@@ -4,6 +4,7 @@
 #include "ScenePrivate.h"
 #include "HairStrandsCluster.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "HairStrandsData.h"
 
 static float GHairR = 1;
 static float GHairTT = 1;
@@ -244,7 +245,7 @@ FIntRect ComputeVisibleHairStrandsMacroGroupsRect(const FIntRect& ViewRect, cons
 	FIntRect TotalRect(INT_MAX, INT_MAX, -INT_MAX, -INT_MAX);
 	if (IsHairStrandsViewRectOptimEnable())
 	{
-		for (const FHairStrandsMacroGroupData& Data : Datas.Datas)
+		for (const FHairStrandsMacroGroupData& Data : Datas)
 		{
 			TotalRect.Union(Data.ScreenRect);
 		}

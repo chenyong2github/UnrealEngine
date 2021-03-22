@@ -7,12 +7,37 @@
 
 static TRDGUniformBufferRef<FHairStrandsViewUniformParameters> InternalCreateHairStrandsViewUniformBuffer(
 	FRDGBuilder& GraphBuilder, 
-	FRDGTextureRef HairCategorizationTexture, 
-	FRDGTextureRef HairDepthOnlyTexture)
+	FHairStrandsVisibilityData* In)
 {
 	FHairStrandsViewUniformParameters* Parameters = GraphBuilder.AllocParameters<FHairStrandsViewUniformParameters>();
-	Parameters->HairCategorizationTexture = HairCategorizationTexture ? HairCategorizationTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
-	Parameters->HairOnlyDepthTexture = HairDepthOnlyTexture ? HairDepthOnlyTexture : GSystemTextures.GetDepthDummy(GraphBuilder);
+	Parameters->HairDualScatteringRoughnessOverride = GetHairDualScatteringRoughnessOverride();
+	if (In && In->CategorizationTexture)
+	{
+		Parameters->HairCategorizationTexture = In->CategorizationTexture;
+		Parameters->HairOnlyDepthTexture = In->HairOnlyDepthTexture;
+		Parameters->HairSampleOffset = In->NodeIndex;
+		Parameters->HairSampleData = GraphBuilder.CreateSRV(In->NodeData);
+		Parameters->HairSampleCoords = GraphBuilder.CreateSRV(In->NodeCoord);
+		Parameters->HairSampleCount = In->NodeCount;
+		Parameters->HairSampleViewportResolution = In->SampleLightingViewportResolution;
+	}
+	else
+	{
+		FRDGBufferRef DummyBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4,1), TEXT("Hair.DummyBuffer"));
+		FRDGBufferRef DummyNodeBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(20, 1), TEXT("Hair.DummyNodeBuffer"));
+		FRDGTextureRef BlackTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyNodeBuffer), 0);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(DummyBuffer), 0);
+
+		Parameters->HairOnlyDepthTexture = GSystemTextures.GetDepthDummy(GraphBuilder);
+		Parameters->HairCategorizationTexture = BlackTexture;
+		Parameters->HairSampleCount = BlackTexture;
+		Parameters->HairSampleOffset = BlackTexture;
+		Parameters->HairSampleCoords = GraphBuilder.CreateSRV(DummyBuffer);
+		Parameters->HairSampleData	 = GraphBuilder.CreateSRV(DummyNodeBuffer);
+		Parameters->HairSampleViewportResolution = FIntPoint(0, 0);
+	}
+
 	return GraphBuilder.CreateUniformBuffer(Parameters);
 }
 
@@ -24,22 +49,24 @@ void RenderHairPrePass(
 	FRDGBuilder& GraphBuilder,
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
-	FInstanceCullingManager& InstanceCullingManager,
-	FHairStrandsRenderingData& OutHairDatas)
+	FInstanceCullingManager& InstanceCullingManager)
 {
 	// #hair_todo: Add multi-view
-	const bool bIsViewCompatible = Views.Num() > 0 && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
-	if (bIsViewCompatible)
+	for (FViewInfo& View : Views)
 	{
+		const bool bIsViewCompatible = IsHairStrandsEnabled(EHairStrandsShaderType::Strands, View.GetShaderPlatform());
+		if (!View.Family || !bIsViewCompatible)
+			continue;
+
 		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
 
 		//SCOPED_GPU_STAT(RHICmdList, HairRendering);
-		OutHairDatas.MacroGroupsPerViews = CreateHairStrandsMacroGroups(GraphBuilder, Scene, Views);
+		CreateHairStrandsMacroGroups(GraphBuilder, Scene, View);
 		AddServiceLocalQueuePass(GraphBuilder);
 
 		// Voxelization and Deep Opacity Maps
-		VoxelizeHairStrands(GraphBuilder, Scene, Views, InstanceCullingManager, OutHairDatas.MacroGroupsPerViews);
-		RenderHairStrandsDeepShadows(GraphBuilder, Scene, Views, InstanceCullingManager, OutHairDatas.MacroGroupsPerViews);
+		VoxelizeHairStrands(GraphBuilder, Scene, View, InstanceCullingManager);
+		RenderHairStrandsDeepShadows(GraphBuilder, Scene, View, InstanceCullingManager);
 
 		AddServiceLocalQueuePass(GraphBuilder);
 	}
@@ -50,41 +77,38 @@ void RenderHairBasePass(
 	FScene* Scene,
 	const FSceneTextures& SceneTextures,
 	TArray<FViewInfo>& Views,
-	FInstanceCullingManager& InstanceCullingManager,
-	FHairStrandsRenderingData& OutHairDatas)
+	FInstanceCullingManager& InstanceCullingManager)
 {
-	// #hair_todo: Add multi-view
-	const bool bIsViewCompatible = Views.Num() > 0 && IsHairStrandsEnabled(EHairStrandsShaderType::Strands, Views[0].GetShaderPlatform());
-	if (bIsViewCompatible)
+	for (FViewInfo& View : Views)
 	{
-		const ERHIFeatureLevel::Type FeatureLevel = Scene->GetFeatureLevel();
-
-		// Hair visibility pass
-		OutHairDatas.HairVisibilityViews = RenderHairStrandsVisibilityBuffer(
-			GraphBuilder, 
-			Scene, 
-			Views, 
-			SceneTextures.GBufferA,
-			SceneTextures.GBufferB,
-			SceneTextures.GBufferC,
-			SceneTextures.GBufferD,
-			SceneTextures.GBufferE,
-			SceneTextures.Color.Resolve,
-			SceneTextures.Depth.Resolve,
-			SceneTextures.Velocity,
-			InstanceCullingManager,
-			OutHairDatas.MacroGroupsPerViews);
-
-		// Create RDG uniform buffer for each view
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+		const bool bIsViewCompatible = IsHairStrandsEnabled(EHairStrandsShaderType::Strands, View.GetShaderPlatform());
+		if (View.Family && bIsViewCompatible && View.HairStrandsViewData.MacroGroupDatas.Num() > 0)
 		{
-			const FViewInfo& View = Views[ViewIndex];
-			if (View.Family)
-			{
-				FHairStrandsVisibilityData VisibilityData = OutHairDatas.HairVisibilityViews.HairDatas[ViewIndex];
-				Views[ViewIndex].HairStrandsViewData.UniformBuffer = InternalCreateHairStrandsViewUniformBuffer(GraphBuilder, VisibilityData.CategorizationTexture, VisibilityData.HairOnlyDepthTexture);
-				Views[ViewIndex].HairStrandsViewData.bIsValid = true;
-			}
+			RenderHairStrandsVisibilityBuffer(
+				GraphBuilder, 
+				Scene, 
+				View, 
+				SceneTextures.GBufferA,
+				SceneTextures.GBufferB,
+				SceneTextures.GBufferC,
+				SceneTextures.GBufferD,
+				SceneTextures.GBufferE,
+				SceneTextures.Color.Resolve,
+				SceneTextures.Depth.Resolve,
+				SceneTextures.Velocity,
+				InstanceCullingManager);
+			
+		}
+		
+		if (View.HairStrandsViewData.VisibilityData.CategorizationTexture)
+		{			
+			View.HairStrandsViewData.UniformBuffer = InternalCreateHairStrandsViewUniformBuffer(GraphBuilder, &View.HairStrandsViewData.VisibilityData);
+			View.HairStrandsViewData.bIsValid = true;
+		}
+		else
+		{
+			View.HairStrandsViewData.UniformBuffer = InternalCreateHairStrandsViewUniformBuffer(GraphBuilder, nullptr);
+			View.HairStrandsViewData.bIsValid = false;
 		}
 	}
 }
@@ -94,7 +118,7 @@ namespace HairStrands
 
 TRDGUniformBufferRef<FHairStrandsViewUniformParameters> CreateDefaultHairStrandsViewUniformBuffer(FRDGBuilder& GraphBuilder, FViewInfo& View)
 {
-	return InternalCreateHairStrandsViewUniformBuffer(GraphBuilder, nullptr, nullptr);
+	return InternalCreateHairStrandsViewUniformBuffer(GraphBuilder, nullptr);
 }
 
 TRDGUniformBufferRef<FHairStrandsViewUniformParameters> BindHairStrandsViewUniformParameters(const FViewInfo& View)
@@ -105,6 +129,18 @@ TRDGUniformBufferRef<FHairStrandsViewUniformParameters> BindHairStrandsViewUnifo
 bool HasViewHairStrandsData(const FViewInfo& View)
 {
 	return View.HairStrandsViewData.bIsValid;
+}
+
+bool HasViewHairStrandsData(const TArrayView<FViewInfo>& Views)
+{
+	for (const FViewInfo& View : Views)
+	{
+		if (View.HairStrandsViewData.bIsValid)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 }

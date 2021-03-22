@@ -13,3 +13,12 @@ struct FPPLLNodeData
 	uint NextNodeIndex;
 	uint PackedVelocity;
 };
+
+struct FPackedHairSample
+{
+	float Depth;
+	uint  PrimitiveID_MacroGroupID;
+	uint  Tangent_Coverage8bit;
+	uint  BaseColor_Roughness;
+	uint  Specular_LightChannels_Backlit;
+};

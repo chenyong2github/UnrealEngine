@@ -98,20 +98,6 @@ enum class EHairDebugMode : uint8
 RENDERER_API EHairStrandsDebugMode GetHairStrandsDebugStrandsMode();
 RENDERER_API EHairDebugMode GetHairStrandsDebugMode();
 
-struct FMinHairRadiusAtDepth1
-{
-	float Primary = 1;
-	float Velocity = 1;
-	float Stable = 1;
-};
-
-/// Compute the strand radius at a distance of 1 meter
-RENDERER_API FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
-	const FIntPoint& Resolution,
-	const float FOV,
-	const uint32 SampleCount,
-	const float OverrideStrandHairRasterizationScale);
-
 struct FHairStrandClusterCullingData;
 struct IPooledRenderTarget;
 struct FRWBuffer;

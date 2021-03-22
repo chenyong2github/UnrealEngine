@@ -10,8 +10,15 @@
 #include "RendererInterface.h"
 #include "HairStrandsInterface.h"
 #include "SceneTypes.h"
+#include "HairStrandsData.h"
 
 class FViewInfo;
+
+FMinHairRadiusAtDepth1 ComputeMinStrandRadiusAtDepth1(
+	const FIntPoint& Resolution,
+	const float FOV,
+	const uint32 SampleCount,
+	const float OverrideStrandHairRasterizationScale);
 
 FIntRect ComputeProjectedScreenRect(const FBox& B, const FViewInfo& View);
 
@@ -39,7 +46,7 @@ float GetHairDualScatteringRoughnessOverride();
 
 float SampleCountToSubPixelSize(uint32 SamplePerPixelCount);
 
-FIntRect ComputeVisibleHairStrandsMacroGroupsRect(const FIntRect& ViewRect, const struct FHairStrandsMacroGroupDatas& Datas);
+FIntRect ComputeVisibleHairStrandsMacroGroupsRect(const FIntRect& ViewRect, const FHairStrandsMacroGroupDatas& Datas);
 
 bool IsHairStrandsViewRectOptimEnable();
 

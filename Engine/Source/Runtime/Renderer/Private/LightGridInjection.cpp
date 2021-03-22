@@ -786,10 +786,9 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 	FRDGBuilder& GraphBuilder,
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef& OutForwardScreenSpaceShadowMask,
-	FRDGTextureRef& OutForwardScreenSpaceShadowMaskSubPixel,
-	const FHairStrandsRenderingData* InHairDatas)
+	FRDGTextureRef& OutForwardScreenSpaceShadowMaskSubPixel)
 {
-	const bool bIsHairEnable = InHairDatas != nullptr;
+	const bool bIsHairEnable = HairStrands::HasViewHairStrandsData(Views);
 	bool bScreenShadowMaskNeeded = false;
 
 	FRDGTextureRef SceneDepthTexture = SceneTextures.Depth.Target;
@@ -852,12 +851,11 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 					ForwardScreenSpaceShadowMask.Target,
 					ForwardScreenSpaceShadowMaskSubPixel.Target,
 					LightSceneInfo,
-					InHairDatas,
 					bProjectingForForwardShading);
 
-				if (InHairDatas)
+				if (bIsHairEnable)
 				{
-					RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, InHairDatas, ForwardScreenSpaceShadowMask.Target);
+					RenderHairStrandsShadowMask(GraphBuilder, Views, LightSceneInfo, ForwardScreenSpaceShadowMask.Target);
 				}
 			}
 
