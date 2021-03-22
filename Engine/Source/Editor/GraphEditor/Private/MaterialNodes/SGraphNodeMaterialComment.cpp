@@ -16,10 +16,12 @@ void SGraphNodeMaterialComment::MoveTo(const FVector2D& NewPosition, FNodeSet& N
 	if( !NodeFilter.Find( SharedThis( this ) ))
 	{
 		SGraphNodeComment::MoveTo(NewPosition, NodeFilter);
-
-		CommentNode->MaterialExpressionComment->MaterialExpressionEditorX = CommentNode->NodePosX;
-		CommentNode->MaterialExpressionComment->MaterialExpressionEditorY = CommentNode->NodePosY;
-		CommentNode->MaterialExpressionComment->MarkPackageDirty();
-		CommentNode->MaterialDirtyDelegate.ExecuteIfBound();
+		if (CommentNode && CommentNode->MaterialExpressionComment)
+		{
+			CommentNode->MaterialExpressionComment->MaterialExpressionEditorX = CommentNode->NodePosX;
+			CommentNode->MaterialExpressionComment->MaterialExpressionEditorY = CommentNode->NodePosY;
+			CommentNode->MaterialExpressionComment->MarkPackageDirty();
+			CommentNode->MaterialDirtyDelegate.ExecuteIfBound();
+		}
 	}
 }
