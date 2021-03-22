@@ -59,7 +59,6 @@ private:
 	TSharedPtr< FString > SelectedConsumerDescription;
 	TSharedPtr< SWidget > ConsumerSelector;
 	bool bIsChecked;
-	TSharedPtr< SDataprepConsumerWidget > ConsumerWidget;
 
 	FDataprepImportProducers DataprepImportProducersDelegate;
 	FDataprepImportProducersEnabled DataprepImportProducersEnabledDelegate;

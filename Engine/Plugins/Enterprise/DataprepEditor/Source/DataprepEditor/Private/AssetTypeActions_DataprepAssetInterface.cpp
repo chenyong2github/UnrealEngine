@@ -129,6 +129,20 @@ void FAssetTypeActions_DataprepAssetInterface::GetActions(const TArray<UObject*>
 		}
 	}
 
+	// Disable execute if any of the input assets has no consumer
+	bool bCanExecute = true;
+	for (UObject* Object : InObjects)
+	{
+		if (UDataprepAssetInterface* DataprepAsset = Cast<UDataprepAssetInterface>(Object))
+		{
+			if (nullptr == DataprepAsset->GetConsumer())
+			{
+				bCanExecute = false;
+				break;
+			}
+		}
+	}
+
 	if (!bContainsAnInstance)
 	{
 		MenuBuilder.AddMenuEntry(
@@ -148,7 +162,7 @@ void FAssetTypeActions_DataprepAssetInterface::GetActions(const TArray<UObject*>
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &FAssetTypeActions_DataprepAssetInterface::ExecuteDataprepAssets, DataprepAssetInterfaces),
-			FCanExecuteAction()
+			FCanExecuteAction::CreateLambda([bCanExecute](){ return bCanExecute; })
 		)
 	);
 }

@@ -296,6 +296,21 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 {
 	TSharedPtr<ITableRow> Row;
 
+	TSharedPtr<SWidget> ConsumerWidget;
+	
+	if (DataprepAssetInterfacePtr->GetConsumer())
+	{
+		ConsumerWidget = SNew( SDataprepDetailsView ).Object( DataprepAssetInterfacePtr->GetConsumer() );
+	}
+	else
+	{
+		ConsumerWidget = SNew( STextBlock )
+			.Font( FEditorStyle::GetFontStyle("BoldFont") )
+			.Text( LOCTEXT( "NoConsumer", "No consumer found" ) )
+			.Margin( 5.0f )
+			.ColorAndOpacity( FLinearColor(1, 0, 0, 1) );
+	}
+
 	switch( InTreeNode.Get() )
 	{
 		case EDataprepCategory::Producers:
@@ -336,8 +351,7 @@ TSharedRef<ITableRow> SDataprepAssetView::OnGenerateRowForCategoryTree( TSharedR
 				.Padding(10.0f, 5.0f, 0.0f, 5.0f)
 				.AutoHeight()
 				[
-					SNew( SDataprepDetailsView )
-					.Object( DataprepAssetInterfacePtr->GetConsumer() )
+					ConsumerWidget.ToSharedRef()
 				];
 
 			TSharedPtr< SHorizontalBox > ConsumerSelectorWrapper = SNew( SHorizontalBox )

@@ -1600,7 +1600,7 @@ bool FDataprepEditor::CanBuildWorld()
 
 bool FDataprepEditor::CanExecutePipeline()
 {
-	return bWorldBuilt;
+	return bWorldBuilt && DataprepAssetInterfacePtr->GetConsumer() != nullptr;
 }
 
 bool FDataprepEditor::CanCommitWorld()
